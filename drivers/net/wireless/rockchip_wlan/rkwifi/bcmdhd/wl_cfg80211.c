@@ -5302,6 +5302,7 @@ wl_cfg80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	s32 err = 0;
 	struct bcm_cfg80211 *cfg = wiphy_priv(wiphy);
 	struct net_info *_net_info = wl_get_netinfo_by_netdev(cfg, dev);
+	dhd_pub_t *dhd = (dhd_pub_t *)(cfg->pub);
 
 	RETURN_EIO_IF_NOT_UP(cfg);
 	WL_DBG(("Enter\n"));
@@ -5319,6 +5320,8 @@ wl_cfg80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 			dev->name, _net_info->pm_block));
 		pm = PM_OFF;
 	}
+	if (enabled && dhd_conf_get_pm(dhd) >= 0)
+		pm = dhd_conf_get_pm(dhd);
 	pm = htod32(pm);
 	WL_DBG(("%s:power save %s\n", dev->name, (pm ? "enabled" : "disabled")));
 	err = wldev_ioctl(dev, WLC_SET_PM, &pm, sizeof(pm), true);
@@ -11626,6 +11629,7 @@ static s32 wl_notifier_change_state(struct bcm_cfg80211 *cfg, struct net_info *_
 	u32 chan = 0;
 	struct net_info *iter, *next;
 	struct net_device *primary_dev = bcmcfg_to_prmry_ndev(cfg);
+	dhd_pub_t *dhd = (dhd_pub_t *)(cfg->pub);
 	WL_DBG(("Enter state %d set %d _net_info->pm_restore %d iface %s\n",
 		state, set, _net_info->pm_restore, _net_info->ndev->name));
 
@@ -11649,6 +11653,8 @@ static s32 wl_notifier_change_state(struct bcm_cfg80211 *cfg, struct net_info *_
 			 */
 			if (!_net_info->pm_block && (mode == WL_MODE_BSS)) {
 				_net_info->pm = PM_FAST;
+				if (dhd_conf_get_pm(dhd) >= 0)
+					_net_info->pm = dhd_conf_get_pm(dhd);
 				_net_info->pm_restore = true;
 			}
 			pm = PM_OFF;
@@ -11668,6 +11674,8 @@ static s32 wl_notifier_change_state(struct bcm_cfg80211 *cfg, struct net_info *_
 			for_each_ndev(cfg, iter, next) {
 				if (!wl_get_drv_status(cfg, CONNECTED, iter->ndev))
 					continue;
+				if (pm != PM_OFF && dhd_conf_get_pm(dhd) >= 0)
+					pm = dhd_conf_get_pm(dhd);
 				if ((err = wldev_ioctl(iter->ndev, WLC_SET_PM, &pm,
 					sizeof(pm), true)) != 0) {
 					if (err == -ENODEV)
@@ -11705,6 +11713,8 @@ static s32 wl_notifier_change_state(struct bcm_cfg80211 *cfg, struct net_info *_
 			for_each_ndev(cfg, iter, next) {
 				if (!wl_get_drv_status(cfg, CONNECTED, iter->ndev))
 					continue;
+				if (pm != PM_OFF && dhd_conf_get_pm(dhd) >= 0)
+					pm = dhd_conf_get_pm(dhd);
 				if ((err = wldev_ioctl(iter->ndev, WLC_SET_PM, &pm,
 					sizeof(pm), true)) != 0) {
 					if (err == -ENODEV)
@@ -11742,6 +11752,8 @@ static s32 wl_notifier_change_state(struct bcm_cfg80211 *cfg, struct net_info *_
 			if (iter->pm_restore && iter->pm) {
 				WL_DBG(("%s:restoring power save %s\n",
 					iter->ndev->name, (iter->pm ? "enabled" : "disabled")));
+				if (iter->pm != PM_OFF && dhd_conf_get_pm(dhd) >= 0)
+					iter->pm = dhd_conf_get_pm(dhd);
 				err = wldev_ioctl(iter->ndev,
 					WLC_SET_PM, &iter->pm, sizeof(iter->pm), true);
 				if (unlikely(err)) {
@@ -12118,7 +12130,7 @@ static void wl_wakeup_event(struct bcm_cfg80211 *cfg)
 	}
 }
 
-#if defined(P2PONEINT)
+#if defined(P2PONEINT) || defined(WL_ENABLE_P2P_IF)
 static int wl_is_p2p_event(struct wl_event_q *e)
 {
 	struct bcm_cfg80211 *cfg = g_bcm_cfg;
@@ -12165,7 +12177,7 @@ static int wl_is_p2p_event(struct wl_event_q *e)
 			return FALSE;
 	}
 }
-#endif 
+#endif
 
 static s32 wl_event_handler(void *data)
 {
@@ -12220,7 +12232,9 @@ static s32 wl_event_handler(void *data)
 #endif
 			}
 #elif defined(WL_ENABLE_P2P_IF)
-			if (WL_IS_P2P_DEV_EVENT(e) && (cfg->p2p_net)) {
+			// terence 20150116: fix for p2p connection in kernel 3.4
+//			if (WL_IS_P2P_DEV_EVENT(e) && (cfg->p2p_net)) {
+			if ((wl_is_p2p_event(e) == TRUE) && (cfg->p2p_net)) {
 				cfgdev = cfg->p2p_net;
 			} else {
 				cfgdev = dhd_idx2net((struct dhd_pub *)(cfg->pub),
@@ -12231,7 +12245,7 @@ static s32 wl_event_handler(void *data)
 			if (!cfgdev) {
 #if defined(WL_CFG80211_P2P_DEV_IF)
 				cfgdev = bcmcfg_to_prmry_wdev(cfg);
-#elif defined(WL_ENABLE_P2P_IF)
+#else
 				cfgdev = bcmcfg_to_prmry_ndev(cfg);
 #endif /* WL_CFG80211_P2P_DEV_IF */
 			}
@@ -15302,6 +15316,7 @@ static void wl_cfg80211_work_handler(struct work_struct * work)
 	struct net_info *iter, *next;
 	s32 err = BCME_OK;
 	s32 pm = PM_FAST;
+	dhd_pub_t *dhd;
 
 	cfg = container_of(work, struct bcm_cfg80211, pm_enable_work.work);
 	WL_DBG(("Enter \n"));
@@ -15312,6 +15327,9 @@ static void wl_cfg80211_work_handler(struct work_struct * work)
 				(wl_get_mode_by_netdev(cfg, iter->ndev) != WL_MODE_BSS))
 				continue;
 			if (iter->ndev) {
+				dhd = (dhd_pub_t *)(cfg->pub);
+				if (pm != PM_OFF && dhd_conf_get_pm(dhd) >= 0)
+					pm = dhd_conf_get_pm(dhd);
 				if ((err = wldev_ioctl(iter->ndev, WLC_SET_PM,
 					&pm, sizeof(pm), true)) != 0) {
 					if (err == -ENODEV)

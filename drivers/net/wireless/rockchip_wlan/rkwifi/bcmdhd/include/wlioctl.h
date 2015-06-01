@@ -2989,12 +2989,13 @@ typedef struct wl_pkt_decrypter {
  * that indicates which bits within the pattern should be matched.
  */
 typedef struct wl_pkt_filter_pattern {
-	union {
+// terence 20150525: fix pkt filter error -14 in 64bit OS
+//	union {
 		uint32	offset;		/* Offset within received packet to start pattern matching.
 				 * Offset '0' is the first byte of the ethernet header.
 				 */
-		wl_pkt_decrypter_t*	decrypt_ctx;	/* Decrypt context */
-	};
+//		wl_pkt_decrypter_t*	decrypt_ctx;	/* Decrypt context */
+//	};
 	uint32	size_bytes;	/* Size of the pattern.  Bitmask must be the same size. */
 	uint8   mask_and_pattern[1]; /* Variable length mask and pattern data.  mask starts
 				      * at offset 0.  Pattern immediately follows mask.

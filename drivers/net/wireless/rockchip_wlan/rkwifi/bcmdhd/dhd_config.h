@@ -35,6 +35,19 @@ typedef struct wl_mac_list_ctrl {
 	struct wl_mac_list *m_mac_list_head;
 } wl_mac_list_ctrl_t;
 
+/* chip_nv_path */
+typedef struct wl_chip_nv_path {
+	uint chip;
+	uint chiprev;
+	char name[MOD_PARAM_PATHLEN];		/* path */
+} wl_chip_nv_path_t;
+
+/* chip_nv_path list head */
+typedef struct wl_chip_nv_path_list_ctrl {
+	int count;
+	struct wl_chip_nv_path *m_chip_nv_path_head;
+} wl_chip_nv_path_list_ctrl_t;
+
 /* channel list */
 typedef struct wl_channel_list {
 	/* in - # of channels, out - # of entries */
@@ -74,6 +87,7 @@ typedef struct dhd_conf {
 	uint	chiprev;		/* chip revision */
 	wl_mac_list_ctrl_t fw_by_mac;	/* Firmware auto selection by MAC */
 	wl_mac_list_ctrl_t nv_by_mac;	/* NVRAM auto selection by MAC */
+	wl_chip_nv_path_list_ctrl_t nv_by_chip;	/* NVRAM auto selection by chip */
 	uint band;			/* Band, b:2.4G only, otherwise for auto */
 	int mimo_bw_cap;			/* Bandwidth, 0:HT20ALL, 1: HT40ALL, 2:HT20IN2G_HT40PIN5G */
 	wl_country_t cspec;		/* Country */
@@ -109,6 +123,7 @@ typedef struct dhd_conf {
 	int dpc_cpucore;
 	int frameburst;
 	bool deepsleep;
+	int pm;
 } dhd_conf_t;
 
 #ifdef BCMSDIO
@@ -120,6 +135,7 @@ void dhd_conf_set_hw_oob_intr(bcmsdh_info_t *sdh, uint chip);
 #endif
 #endif
 void dhd_conf_set_fw_name_by_chip(dhd_pub_t *dhd, char *fw_path);
+void dhd_conf_set_nv_name_by_chip(dhd_pub_t *dhd, char *nv_path);
 void dhd_conf_set_conf_path_by_nv_path(dhd_pub_t *dhd, char *conf_path, char *nv_path);
 int dhd_conf_set_band(dhd_pub_t *dhd);
 uint dhd_conf_get_band(dhd_pub_t *dhd);
@@ -150,6 +166,7 @@ int dhd_conf_read_config(dhd_pub_t *dhd, char *conf_path);
 int dhd_conf_set_chiprev(dhd_pub_t *dhd, uint chip, uint chiprev);
 uint dhd_conf_get_chip(void *context);
 uint dhd_conf_get_chiprev(void *context);
+int dhd_conf_get_pm(void *context);
 int dhd_conf_preinit(dhd_pub_t *dhd);
 int dhd_conf_reset(dhd_pub_t *dhd);
 int dhd_conf_attach(dhd_pub_t *dhd);

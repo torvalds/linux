@@ -1635,6 +1635,10 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 	/* set specific cpucore */
 	dhd_set_cpucore(dhd, TRUE);
 #endif /* CUSTOM_SET_CPUCORE */
+#ifndef SUPPORT_PM2_ONLY
+	if (dhd->conf->pm >= 0)
+		power_mode = dhd->conf->pm;
+#endif /* SUPPORT_PM2_ONLY */
 	if (dhd->up) {
 		if (value && dhd->in_suspend) {
 #ifdef PKT_FILTER_SUPPORT
@@ -2397,7 +2401,7 @@ dhd_os_wlfc_unblock(dhd_pub_t *pub)
 
 #endif /* PROP_TXSTATUS */
 
-#ifdef DHD_RX_DUMP
+#if defined(DHD_RX_DUMP) || defined(DHD_TX_DUMP)
 typedef struct {
 	uint16 type;
 	const char *str;
@@ -2425,17 +2429,19 @@ static const char *_get_packet_type_str(uint16 type)
 
 	return packet_type_info[n].str;
 }
-#endif /* DHD_RX_DUMP */
+#endif /* DHD_RX_DUMP || DHD_TX_DUMP */
 
-#if defined(DHD_8021X_DUMP)
+#if defined(DHD_TX_DUMP)
 void
 dhd_tx_dump(osl_t *osh, void *pkt)
 {
 	uint8 *dump_data;
 	uint16 protocol;
+	struct ether_header *eh;
 
 	dump_data = PKTDATA(osh, pkt);
-	protocol = (dump_data[12] << 8) | dump_data[13];
+	eh = (struct ether_header *) dump_data;
+	protocol = ntoh16(eh->ether_type);
 	
 	DHD_ERROR(("TX DUMP - %s\n", _get_packet_type_str(protocol)));
 
@@ -2444,22 +2450,22 @@ dhd_tx_dump(osl_t *osh, void *pkt)
 			dump_data[14], dump_data[15], dump_data[30]));
 	}
 
-#if defined(DHD_TX_DUMP) && defined(DHD_TX_FULL_DUMP)
+#if defined(DHD_TX_FULL_DUMP)
 	{
 		int i;
 		uint datalen;
 		datalen = PKTLEN(osh, pkt);
 
-		for (i = 0; i < (datalen - 4); i++) {
+		for (i = 0; i < datalen; i++) {
 			DHD_ERROR(("%02X ", dump_data[i]));
 			if ((i & 15) == 15)
 				printk("\n");
 		}
 		DHD_ERROR(("\n"));
 	}
-#endif /* DHD_TX_DUMP && DHD_TX_FULL_DUMP */
+#endif /* DHD_TX_FULL_DUMP */
 }
-#endif /* DHD_8021X_DUMP */
+#endif /* DHD_TX_DUMP */
 
 int BCMFASTPATH
 dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, void *pktbuf)
@@ -2523,6 +2529,9 @@ dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, void *pktbuf)
 		return ret;
 	}
 #endif
+#if defined(DHD_TX_DUMP)
+	dhd_tx_dump(dhdp->osh, pktbuf);
+#endif
 
 #ifdef PROP_TXSTATUS
 	if (dhd_wlfc_is_supported(dhdp)) {
@@ -2547,9 +2556,7 @@ dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, void *pktbuf)
 #ifdef WLMEDIA_HTSF
 	dhd_htsf_addtxts(dhdp, pktbuf);
 #endif
-#if defined(DHD_8021X_DUMP)
-	dhd_tx_dump(dhdp->osh, pktbuf);
-#endif
+
 #ifdef PROP_TXSTATUS
 	{
 		if (dhd_wlfc_commit_packets(dhdp, (f_commitpkt_t)dhd_bus_txdata,
@@ -5187,7 +5194,6 @@ bool dhd_update_fw_nv_path(dhd_info_t *dhdinfo)
 	const char *conf = NULL;
 	char firmware[100] = {0};
 	char nvram[100] = {0};
-	//char config[100] = "";
 	wifi_adapter_info_t *adapter = dhdinfo->adapter;
 
 
@@ -6321,6 +6327,8 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	dhd_conf_set_lpc(dhd);
 
 	/* Set PowerSave mode */
+	if (dhd->conf->pm >= 0)
+		power_mode = dhd->conf->pm;
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&power_mode, sizeof(power_mode), TRUE, 0);
 
 	/* Match Host and Dongle rx alignment */
@@ -10404,5 +10412,8 @@ EXPORT_SYMBOL(SDA_function4RecvDone);
 void *dhd_get_pub(struct net_device *dev)
 {
 	dhd_info_t *dhdinfo = *(dhd_info_t **)netdev_priv(dev);
-	return (void *)&dhdinfo->pub;
+	if (dhdinfo)
+		return (void *)&dhdinfo->pub;
+	else
+		return NULL;
 }
