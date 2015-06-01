@@ -316,8 +316,8 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 	phy_sku = (const __le16 *)sections[NVM_SECTION_TYPE_PHY_SKU].data;
 
 	lar_enabled = !iwlwifi_mod_params.lar_disable &&
-		      (mvm->fw->ucode_capa.capa[0] &
-		       IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
+		      fw_has_capa(&mvm->fw->ucode_capa,
+				  IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
 
 	return iwl_parse_nvm_data(mvm->trans->dev, mvm->cfg, hw, sw, calib,
 				  regulatory, mac_override, phy_sku,
@@ -792,8 +792,8 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 	char mcc[3];
 
 	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_8000) {
-		tlv_lar = mvm->fw->ucode_capa.capa[0] &
-			IWL_UCODE_TLV_CAPA_LAR_SUPPORT;
+		tlv_lar = fw_has_capa(&mvm->fw->ucode_capa,
+				      IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
 		nvm_lar = mvm->nvm_data->lar_enabled;
 		if (tlv_lar != nvm_lar)
 			IWL_INFO(mvm,

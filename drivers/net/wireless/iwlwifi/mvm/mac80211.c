@@ -515,7 +515,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	BUILD_BUG_ON(IWL_MVM_MAX_UMAC_SCANS > HWEIGHT32(IWL_MVM_SCAN_MASK) ||
 		     IWL_MVM_MAX_LMAC_SCANS > HWEIGHT32(IWL_MVM_SCAN_MASK));
 
-	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
+	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN))
 		mvm->max_scans = IWL_MVM_MAX_UMAC_SCANS;
 	else
 		mvm->max_scans = IWL_MVM_MAX_LMAC_SCANS;
@@ -527,10 +527,10 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&mvm->nvm_data->bands[IEEE80211_BAND_5GHZ];
 
-		if ((mvm->fw->ucode_capa.capa[0] &
-		     IWL_UCODE_TLV_CAPA_BEAMFORMER) &&
-		    (mvm->fw->ucode_capa.api[0] &
-		     IWL_UCODE_TLV_API_LQ_SS_PARAMS))
+		if (fw_has_capa(&mvm->fw->ucode_capa,
+				IWL_UCODE_TLV_CAPA_BEAMFORMER) &&
+		    fw_has_api(&mvm->fw->ucode_capa,
+			       IWL_UCODE_TLV_API_LQ_SS_PARAMS))
 			hw->wiphy->bands[IEEE80211_BAND_5GHZ]->vht_cap.cap |=
 				IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE;
 	}
@@ -556,20 +556,20 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 			       NL80211_FEATURE_STATIC_SMPS |
 			       NL80211_FEATURE_SUPPORTS_WMM_ADMISSION;
 
-	if (mvm->fw->ucode_capa.capa[0] &
-	    IWL_UCODE_TLV_CAPA_TXPOWER_INSERTION_SUPPORT)
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_TXPOWER_INSERTION_SUPPORT))
 		hw->wiphy->features |= NL80211_FEATURE_TX_POWER_INSERTION;
-	if (mvm->fw->ucode_capa.capa[0] &
-	    IWL_UCODE_TLV_CAPA_QUIET_PERIOD_SUPPORT)
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_QUIET_PERIOD_SUPPORT))
 		hw->wiphy->features |= NL80211_FEATURE_QUIET;
 
-	if (mvm->fw->ucode_capa.capa[0] &
-	    IWL_UCODE_TLV_CAPA_DS_PARAM_SET_IE_SUPPORT)
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_DS_PARAM_SET_IE_SUPPORT))
 		hw->wiphy->features |=
 			NL80211_FEATURE_DS_PARAM_SET_IE_IN_PROBES;
 
-	if (mvm->fw->ucode_capa.capa[0] &
-	    IWL_UCODE_TLV_CAPA_WFA_TPC_REP_IE_SUPPORT)
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_WFA_TPC_REP_IE_SUPPORT))
 		hw->wiphy->features |= NL80211_FEATURE_WFA_TPC_IE_IN_PROBES;
 
 	mvm->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
@@ -619,13 +619,14 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	if (ret)
 		return ret;
 
-	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_TDLS_SUPPORT) {
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_TDLS_SUPPORT)) {
 		IWL_DEBUG_TDLS(mvm, "TDLS supported\n");
 		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS;
 	}
 
-	if (mvm->fw->ucode_capa.capa[0] &
-	    IWL_UCODE_TLV_CAPA_TDLS_CHANNEL_SWITCH) {
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_TDLS_CHANNEL_SWITCH)) {
 		IWL_DEBUG_TDLS(mvm, "TDLS channel switch supported\n");
 		hw->wiphy->features |= NL80211_FEATURE_TDLS_CHANNEL_SWITCH;
 	}
@@ -1500,7 +1501,7 @@ void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
 	/* We shouldn't have any UIDs still set.  Loop over all the UIDs to
 	 * make sure there's nothing left there and warn if any is found.
 	 */
-	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN) {
+	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN)) {
 		int i;
 
 		for (i = 0; i < mvm->max_scans; i++) {
@@ -1572,7 +1573,7 @@ static int iwl_mvm_set_tx_power(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		.pwr_restriction = cpu_to_le16(8 * tx_power),
 	};
 
-	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_TX_POWER_DEV))
+	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_TX_POWER_DEV))
 		return iwl_mvm_set_tx_power_old(mvm, vif, tx_power);
 
 	if (tx_power == IWL_DEFAULT_MAX_TX_POWER)
@@ -3102,8 +3103,8 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
-		if (mvm->fw->ucode_capa.capa[0] &
-		    IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT) {
+		if (fw_has_capa(&mvm->fw->ucode_capa,
+				IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT)) {
 			/* Use aux roc framework (HS20) */
 			ret = iwl_mvm_send_aux_roc_cmd(mvm, channel,
 						       vif, duration);
@@ -3895,7 +3896,7 @@ static int iwl_mvm_mac_get_survey(struct ieee80211_hw *hw, int idx,
 	if (idx != 0)
 		return -ENOENT;
 
-	if (!(mvm->fw->ucode_capa.capa[0] &
+	if (fw_has_capa(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS))
 		return -ENOENT;
 
@@ -3942,8 +3943,8 @@ static void iwl_mvm_mac_sta_statistics(struct ieee80211_hw *hw,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
-	if (!(mvm->fw->ucode_capa.capa[0] &
-				IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS))
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS))
 		return;
 
 	/* if beacon filtering isn't on mac80211 does it anyway */

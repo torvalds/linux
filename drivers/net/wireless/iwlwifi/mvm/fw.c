@@ -623,7 +623,7 @@ static int iwl_mvm_config_ltr(struct iwl_mvm *mvm)
 	if (!mvm->trans->ltr_enabled)
 		return 0;
 
-	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_HDC_PHASE_0))
+	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_HDC_PHASE_0))
 		return iwl_mvm_config_ltr_v1(mvm);
 
 	return iwl_mvm_send_cmd_pdu(mvm, LTR_CONFIG, 0,
@@ -754,7 +754,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 			goto error;
 	}
 
-	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN) {
+	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN)) {
 		ret = iwl_mvm_config_scan(mvm);
 		if (ret)
 			goto error;

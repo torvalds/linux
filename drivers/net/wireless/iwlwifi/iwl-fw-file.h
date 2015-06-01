@@ -237,6 +237,8 @@ enum iwl_ucode_tlv_flag {
 	IWL_UCODE_TLV_FLAGS_GO_UAPSD		= BIT(30),
 };
 
+typedef unsigned int __bitwise__ iwl_ucode_tlv_api_t;
+
 /**
  * enum iwl_ucode_tlv_api - ucode api
  * @IWL_UCODE_TLV_API_BT_COEX_SPLIT: new API for BT Coex
@@ -259,20 +261,22 @@ enum iwl_ucode_tlv_flag {
  *	instead of 3.
  */
 enum iwl_ucode_tlv_api {
-	IWL_UCODE_TLV_API_BT_COEX_SPLIT         = BIT(3),
-	IWL_UCODE_TLV_API_FRAGMENTED_SCAN	= BIT(8),
-	IWL_UCODE_TLV_API_WIFI_MCC_UPDATE	= BIT(9),
-	IWL_UCODE_TLV_API_HDC_PHASE_0		= BIT(10),
-	IWL_UCODE_TLV_API_TX_POWER_DEV		= BIT(11),
-	IWL_UCODE_TLV_API_BASIC_DWELL		= BIT(13),
-	IWL_UCODE_TLV_API_SCD_CFG		= BIT(15),
-	IWL_UCODE_TLV_API_SINGLE_SCAN_EBS	= BIT(16),
-	IWL_UCODE_TLV_API_ASYNC_DTM		= BIT(17),
-	IWL_UCODE_TLV_API_LQ_SS_PARAMS		= BIT(18),
-	IWL_UCODE_TLV_API_STATS_V10		= BIT(19),
-	IWL_UCODE_TLV_API_NEW_VERSION		= BIT(20),
-	IWL_UCODE_TLV_API_EXT_SCAN_PRIORITY	= BIT(24),
+	IWL_UCODE_TLV_API_BT_COEX_SPLIT         = (__force iwl_ucode_tlv_api_t)3,
+	IWL_UCODE_TLV_API_FRAGMENTED_SCAN	= (__force iwl_ucode_tlv_api_t)8,
+	IWL_UCODE_TLV_API_WIFI_MCC_UPDATE	= (__force iwl_ucode_tlv_api_t)9,
+	IWL_UCODE_TLV_API_HDC_PHASE_0		= (__force iwl_ucode_tlv_api_t)10,
+	IWL_UCODE_TLV_API_TX_POWER_DEV		= (__force iwl_ucode_tlv_api_t)11,
+	IWL_UCODE_TLV_API_BASIC_DWELL		= (__force iwl_ucode_tlv_api_t)13,
+	IWL_UCODE_TLV_API_SCD_CFG		= (__force iwl_ucode_tlv_api_t)15,
+	IWL_UCODE_TLV_API_SINGLE_SCAN_EBS	= (__force iwl_ucode_tlv_api_t)16,
+	IWL_UCODE_TLV_API_ASYNC_DTM		= (__force iwl_ucode_tlv_api_t)17,
+	IWL_UCODE_TLV_API_LQ_SS_PARAMS		= (__force iwl_ucode_tlv_api_t)18,
+	IWL_UCODE_TLV_API_STATS_V10		= (__force iwl_ucode_tlv_api_t)19,
+	IWL_UCODE_TLV_API_NEW_VERSION		= (__force iwl_ucode_tlv_api_t)20,
+	IWL_UCODE_TLV_API_EXT_SCAN_PRIORITY	= (__force iwl_ucode_tlv_api_t)24,
 };
+
+typedef unsigned int __bitwise__ iwl_ucode_tlv_capa_t;
 
 /**
  * enum iwl_ucode_tlv_capa - ucode capabilities
@@ -302,22 +306,22 @@ enum iwl_ucode_tlv_api {
  * @IWL_UCODE_TLV_CAPA_BT_COEX_RRC: supports BT Coex RRC
  */
 enum iwl_ucode_tlv_capa {
-	IWL_UCODE_TLV_CAPA_D0I3_SUPPORT			= BIT(0),
-	IWL_UCODE_TLV_CAPA_LAR_SUPPORT			= BIT(1),
-	IWL_UCODE_TLV_CAPA_UMAC_SCAN			= BIT(2),
-	IWL_UCODE_TLV_CAPA_BEAMFORMER			= BIT(3),
-	IWL_UCODE_TLV_CAPA_TDLS_SUPPORT			= BIT(6),
-	IWL_UCODE_TLV_CAPA_TXPOWER_INSERTION_SUPPORT	= BIT(8),
-	IWL_UCODE_TLV_CAPA_DS_PARAM_SET_IE_SUPPORT	= BIT(9),
-	IWL_UCODE_TLV_CAPA_WFA_TPC_REP_IE_SUPPORT	= BIT(10),
-	IWL_UCODE_TLV_CAPA_QUIET_PERIOD_SUPPORT		= BIT(11),
-	IWL_UCODE_TLV_CAPA_DQA_SUPPORT			= BIT(12),
-	IWL_UCODE_TLV_CAPA_TDLS_CHANNEL_SWITCH		= BIT(13),
-	IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT		= BIT(18),
-	IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS		= BIT(22),
-	IWL_UCODE_TLV_CAPA_BT_COEX_PLCR			= BIT(28),
-	IWL_UCODE_TLV_CAPA_LAR_MULTI_MCC		= BIT(29),
-	IWL_UCODE_TLV_CAPA_BT_COEX_RRC			= BIT(30),
+	IWL_UCODE_TLV_CAPA_D0I3_SUPPORT			= (__force iwl_ucode_tlv_capa_t)0,
+	IWL_UCODE_TLV_CAPA_LAR_SUPPORT			= (__force iwl_ucode_tlv_capa_t)1,
+	IWL_UCODE_TLV_CAPA_UMAC_SCAN			= (__force iwl_ucode_tlv_capa_t)2,
+	IWL_UCODE_TLV_CAPA_BEAMFORMER			= (__force iwl_ucode_tlv_capa_t)3,
+	IWL_UCODE_TLV_CAPA_TDLS_SUPPORT			= (__force iwl_ucode_tlv_capa_t)6,
+	IWL_UCODE_TLV_CAPA_TXPOWER_INSERTION_SUPPORT	= (__force iwl_ucode_tlv_capa_t)8,
+	IWL_UCODE_TLV_CAPA_DS_PARAM_SET_IE_SUPPORT	= (__force iwl_ucode_tlv_capa_t)9,
+	IWL_UCODE_TLV_CAPA_WFA_TPC_REP_IE_SUPPORT	= (__force iwl_ucode_tlv_capa_t)10,
+	IWL_UCODE_TLV_CAPA_QUIET_PERIOD_SUPPORT		= (__force iwl_ucode_tlv_capa_t)11,
+	IWL_UCODE_TLV_CAPA_DQA_SUPPORT			= (__force iwl_ucode_tlv_capa_t)12,
+	IWL_UCODE_TLV_CAPA_TDLS_CHANNEL_SWITCH		= (__force iwl_ucode_tlv_capa_t)13,
+	IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT		= (__force iwl_ucode_tlv_capa_t)18,
+	IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS		= (__force iwl_ucode_tlv_capa_t)22,
+	IWL_UCODE_TLV_CAPA_BT_COEX_PLCR			= (__force iwl_ucode_tlv_capa_t)28,
+	IWL_UCODE_TLV_CAPA_LAR_MULTI_MCC		= (__force iwl_ucode_tlv_capa_t)29,
+	IWL_UCODE_TLV_CAPA_BT_COEX_RRC			= (__force iwl_ucode_tlv_capa_t)30,
 };
 
 /* The default calibrate table size if not specified by firmware file */
@@ -328,13 +332,14 @@ enum iwl_ucode_tlv_capa {
 /* The default max probe length if not specified by the firmware file */
 #define IWL_DEFAULT_MAX_PROBE_LENGTH	200
 
+#define IWL_API_MAX_BITS		64
+#define IWL_CAPABILITIES_MAX_BITS	64
+
 /*
  * For 16.0 uCode and above, there is no differentiation between sections,
  * just an offset to the HW address.
  */
 #define IWL_UCODE_SECTION_MAX 12
-#define IWL_API_ARRAY_SIZE	1
-#define IWL_CAPABILITIES_ARRAY_SIZE	1
 #define CPU1_CPU2_SEPARATOR_SECTION	0xFFFFCCCC
 
 /* uCode version contains 4 values: Major/Minor/API/Serial */

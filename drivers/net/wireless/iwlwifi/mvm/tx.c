@@ -171,8 +171,8 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 	    !is_multicast_ether_addr(ieee80211_get_DA(hdr)))
 		tx_flags |= TX_CMD_FLG_PROT_REQUIRE;
 
-	if ((mvm->fw->ucode_capa.capa[0] &
-	     IWL_UCODE_TLV_CAPA_TXPOWER_INSERTION_SUPPORT) &&
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_TXPOWER_INSERTION_SUPPORT) &&
 	    ieee80211_action_contains_tpc(skb))
 		tx_flags |= TX_CMD_FLG_WRITE_TX_POWER;
 

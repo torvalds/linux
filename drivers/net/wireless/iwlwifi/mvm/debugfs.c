@@ -493,7 +493,8 @@ static ssize_t iwl_dbgfs_bt_notif_read(struct file *file, char __user *user_buf,
 
 	mutex_lock(&mvm->mutex);
 
-	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_BT_COEX_SPLIT)) {
+	if (!fw_has_api(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_API_BT_COEX_SPLIT)) {
 		struct iwl_bt_coex_profile_notif_old *notif =
 			&mvm->last_bt_notif_old;
 
@@ -550,7 +551,8 @@ static ssize_t iwl_dbgfs_bt_cmd_read(struct file *file, char __user *user_buf,
 
 	mutex_lock(&mvm->mutex);
 
-	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_BT_COEX_SPLIT)) {
+	if (!fw_has_api(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_API_BT_COEX_SPLIT)) {
 		struct iwl_bt_coex_ci_cmd_old *cmd = &mvm->last_bt_ci_cmd_old;
 
 		pos += scnprintf(buf+pos, bufsz-pos,
@@ -916,7 +918,8 @@ iwl_dbgfs_scan_ant_rxchain_write(struct iwl_mvm *mvm, char *buf,
 
 	if (mvm->scan_rx_ant != scan_rx_ant) {
 		mvm->scan_rx_ant = scan_rx_ant;
-		if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
+		if (fw_has_capa(&mvm->fw->ucode_capa,
+				IWL_UCODE_TLV_CAPA_UMAC_SCAN))
 			iwl_mvm_config_scan(mvm);
 	}
 

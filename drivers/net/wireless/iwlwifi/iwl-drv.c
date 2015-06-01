@@ -423,13 +423,19 @@ static int iwl_set_ucode_api_flags(struct iwl_drv *drv, const u8 *data,
 {
 	const struct iwl_ucode_api *ucode_api = (void *)data;
 	u32 api_index = le32_to_cpu(ucode_api->api_index);
+	u32 api_flags = le32_to_cpu(ucode_api->api_flags);
+	int i;
 
-	if (api_index >= IWL_API_ARRAY_SIZE) {
+	if (api_index >= IWL_API_MAX_BITS / 32) {
 		IWL_ERR(drv, "api_index larger than supported by driver\n");
-		return -EINVAL;
+		/* don't return an error so we can load FW that has more bits */
+		return 0;
 	}
 
-	capa->api[api_index] = le32_to_cpu(ucode_api->api_flags);
+	for (i = 0; i < 32; i++) {
+		if (api_flags & BIT(i))
+			__set_bit(i + 32 * api_index, capa->_api);
+	}
 
 	return 0;
 }
@@ -439,13 +445,19 @@ static int iwl_set_ucode_capabilities(struct iwl_drv *drv, const u8 *data,
 {
 	const struct iwl_ucode_capa *ucode_capa = (void *)data;
 	u32 api_index = le32_to_cpu(ucode_capa->api_index);
+	u32 api_flags = le32_to_cpu(ucode_capa->api_capa);
+	int i;
 
-	if (api_index >= IWL_CAPABILITIES_ARRAY_SIZE) {
+	if (api_index >= IWL_CAPABILITIES_MAX_BITS / 32) {
 		IWL_ERR(drv, "api_index larger than supported by driver\n");
-		return -EINVAL;
+		/* don't return an error so we can load FW that has more bits */
+		return 0;
 	}
 
-	capa->capa[api_index] = le32_to_cpu(ucode_capa->api_capa);
+	for (i = 0; i < 32; i++) {
+		if (api_flags & BIT(i))
+			__set_bit(i + 32 * api_index, capa->_capa);
+	}
 
 	return 0;
 }
@@ -1148,7 +1160,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	if (err)
 		goto try_again;
 
-	if (drv->fw.ucode_capa.api[0] & IWL_UCODE_TLV_API_NEW_VERSION)
+	if (fw_has_api(&drv->fw.ucode_capa, IWL_UCODE_TLV_API_NEW_VERSION))
 		api_ver = drv->fw.ucode_ver;
 	else
 		api_ver = IWL_UCODE_API(drv->fw.ucode_ver);

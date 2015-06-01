@@ -889,14 +889,15 @@ static inline bool iwl_mvm_is_d0i3_supported(struct iwl_mvm *mvm)
 	return mvm->trans->cfg->d0i3 &&
 	       mvm->trans->d0i3_mode != IWL_D0I3_MODE_OFF &&
 	       !iwlwifi_mod_params.d0i3_disable &&
-	       (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_D0I3_SUPPORT);
+	       fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_D0I3_SUPPORT);
 }
 
 static inline bool iwl_mvm_is_lar_supported(struct iwl_mvm *mvm)
 {
 	bool nvm_lar = mvm->nvm_data->lar_enabled;
-	bool tlv_lar = mvm->fw->ucode_capa.capa[0] &
-		IWL_UCODE_TLV_CAPA_LAR_SUPPORT;
+	bool tlv_lar = fw_has_capa(&mvm->fw->ucode_capa,
+				   IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
 
 	if (iwlwifi_mod_params.lar_disable)
 		return false;
@@ -913,24 +914,28 @@ static inline bool iwl_mvm_is_lar_supported(struct iwl_mvm *mvm)
 
 static inline bool iwl_mvm_is_wifi_mcc_supported(struct iwl_mvm *mvm)
 {
-	return mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_WIFI_MCC_UPDATE ||
-	       mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_LAR_MULTI_MCC;
+	return fw_has_api(&mvm->fw->ucode_capa,
+			  IWL_UCODE_TLV_API_WIFI_MCC_UPDATE) ||
+	       fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_LAR_MULTI_MCC);
 }
 
 static inline bool iwl_mvm_is_scd_cfg_supported(struct iwl_mvm *mvm)
 {
-	return mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_SCD_CFG;
+	return fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_SCD_CFG);
 }
 
 static inline bool iwl_mvm_bt_is_plcr_supported(struct iwl_mvm *mvm)
 {
-	return (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_BT_COEX_PLCR) &&
+	return fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_BT_COEX_PLCR) &&
 		IWL_MVM_BT_COEX_CORUNNING;
 }
 
 static inline bool iwl_mvm_bt_is_rrc_supported(struct iwl_mvm *mvm)
 {
-	return (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_BT_COEX_RRC) &&
+	return fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_BT_COEX_RRC) &&
 		IWL_MVM_BT_COEX_RRC;
 }
 
