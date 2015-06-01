@@ -132,9 +132,9 @@ void r8712_recv_indicatepkt(struct _adapter *padapter,
 	return;
 _recv_indicatepkt_drop:
 	 /*enqueue back to free_recv_queue*/
-	 if (precv_frame)
+	if (precv_frame)
 		r8712_free_recvframe(precv_frame, pfree_recv_queue);
-	 precvpriv->rx_drop++;
+	precvpriv->rx_drop++;
 }
 
 static void _r8712_reordering_ctrl_timeout_handler (unsigned long data)
