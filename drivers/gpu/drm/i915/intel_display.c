@@ -11737,43 +11737,6 @@ static void intel_modeset_update_connector_atomic_state(struct drm_device *dev)
 	}
 }
 
-/* Fixup legacy state after an atomic state swap.
- */
-static void intel_modeset_fixup_state(struct drm_atomic_state *state)
-{
-	struct intel_crtc *crtc;
-	struct intel_encoder *encoder;
-	struct intel_connector *connector;
-
-	for_each_intel_connector(state->dev, connector) {
-		connector->base.encoder = connector->base.state->best_encoder;
-		if (connector->base.encoder)
-			connector->base.encoder->crtc =
-				connector->base.state->crtc;
-	}
-
-	/* Update crtc of disabled encoders */
-	for_each_intel_encoder(state->dev, encoder) {
-		int num_connectors = 0;
-
-		for_each_intel_connector(state->dev, connector)
-			if (connector->base.encoder == &encoder->base)
-				num_connectors++;
-
-		if (num_connectors == 0)
-			encoder->base.crtc = NULL;
-	}
-
-	for_each_intel_crtc(state->dev, crtc) {
-		crtc->base.enabled = crtc->base.state->enable;
-		crtc->config = to_intel_crtc_state(crtc->base.state);
-	}
-
-	/* Copy the new configuration to the staged state, to keep the few
-	 * pieces of code that haven't been converted yet happy */
-	intel_modeset_update_staged_output_state(state->dev);
-}
-
 static void
 connected_sink_compute_bpp(struct intel_connector *connector,
 			   struct intel_crtc_state *pipe_config)
@@ -12261,11 +12224,14 @@ intel_modeset_update_state(struct drm_atomic_state *state)
 		intel_encoder->connectors_active = false;
 	}
 
-	intel_modeset_fixup_state(state);
+	drm_atomic_helper_update_legacy_modeset_state(state->dev, state);
+	intel_modeset_update_staged_output_state(state->dev);
 
 	/* Double check state. */
 	for_each_crtc(dev, crtc) {
 		WARN_ON(crtc->state->enable != intel_crtc_in_use(crtc));
+
+		to_intel_crtc(crtc)->config = to_intel_crtc_state(crtc->state);
 	}
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -12970,25 +12936,6 @@ static int __intel_set_mode(struct drm_crtc *modeset_crtc,
 		dev_priv->display.crtc_disable(crtc);
 		if (!crtc_state->enable)
 			drm_plane_helper_disable(crtc->primary);
-	}
-
-	/* crtc->mode is already used by the ->mode_set callbacks, hence we need
-	 * to set it here already despite that we pass it down the callchain.
-	 *
-	 * Note we'll need to fix this up when we start tracking multiple
-	 * pipes; here we assume a single modeset_pipe and only track the
-	 * single crtc and mode.
-	 */
-	if (pipe_config->base.enable && needs_modeset(&pipe_config->base)) {
-		modeset_crtc->mode = pipe_config->base.mode;
-
-		/*
-		 * Calculate and store various constants which
-		 * are later needed by vblank and swap-completion
-		 * timestamping. They are derived from true hwmode.
-		 */
-		drm_calc_timestamping_constants(modeset_crtc,
-						&pipe_config->base.adjusted_mode);
 	}
 
 	/* Only after disabling all output pipelines that will be changed can we
