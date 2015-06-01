@@ -3402,6 +3402,21 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "rfc7539esp(chacha20,poly1305)",
+		.test = alg_test_aead,
+		.suite = {
+			.aead = {
+				.enc = {
+					.vecs = rfc7539esp_enc_tv_template,
+					.count = RFC7539ESP_ENC_TEST_VECTORS
+				},
+				.dec = {
+					.vecs = rfc7539esp_dec_tv_template,
+					.count = RFC7539ESP_DEC_TEST_VECTORS
+				},
+			}
+		}
+	}, {
 		.alg = "rmd128",
 		.test = alg_test_hash,
 		.suite = {
