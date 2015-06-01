@@ -618,10 +618,10 @@ int rockchip_wifi_mac_addr(unsigned char *buf)
 
     if (is_valid_ether_addr(wifi_custom_mac_addr) && !strncmp(wifi_chip_type_string, "rtl", 3)) {
         wifi_custom_mac_addr[0] &= ~0x2; // for p2p
-    } else {
+    }/* else {
         LOG("This mac address is not valid, ignored...\n");
         return -1;
-    }
+    }*/
 
     memcpy(buf, wifi_custom_mac_addr, 6);
 
