@@ -120,17 +120,6 @@
 			reg = <0x4800e0 0x10>;
 			#reset-cells = <2>;
 		};
-
-		nand: nand@2000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			compatible = "brcm,nand-bcm63138", "brcm,brcmnand-v7.0", "brcm,brcmnand";
-			reg = <0x2000 0x600>, <0xf0 0x10>;
-			reg-names = "nand", "nand-int-base";
-			status = "disabled";
-			interrupts = <GIC_SPI 38 0>;
-			interrupt-names = "nand";
-		};
 	};
 
 	/* Legacy UBUS base */
@@ -161,6 +150,17 @@
 			clocks = <&periph_clk>;
 			clock-names = "periph";
 			status = "disabled";
+		};
+
+		nand: nand@2000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "brcm,nand-bcm63138", "brcm,brcmnand-v7.0", "brcm,brcmnand";
+			reg = <0x2000 0x600>, <0xf0 0x10>;
+			reg-names = "nand", "nand-int-base";
+			status = "disabled";
+			interrupts = <GIC_SPI 38 0>;
+			interrupt-names = "nand";
 		};
 
 		bootlut: bootlut@8000 {
