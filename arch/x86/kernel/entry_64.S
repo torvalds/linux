@@ -615,7 +615,7 @@ ret_from_intr:
 	testb	$3, CS(%rsp)
 	jz	retint_kernel
 	/* Interrupt came from user space */
-
+retint_user:
 	GET_THREAD_INFO(%rcx)
 	/*
 	 * %rcx: thread info. Interrupts off.
@@ -1194,15 +1194,9 @@ ENTRY(error_exit)
 	RESTORE_EXTRA_REGS
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
-	GET_THREAD_INFO(%rcx)
 	testl %eax,%eax
 	jnz retint_kernel
-	LOCKDEP_SYS_EXIT_IRQ
-	movl TI_flags(%rcx),%edx
-	movl $_TIF_WORK_MASK,%edi
-	andl %edi,%edx
-	jnz retint_careful
-	jmp retint_swapgs
+	jmp retint_user
 END(error_exit)
 
 /* Runs on exception stack */
