@@ -108,7 +108,7 @@ Added ISDB-T test originally written by Patrick Boettcher
   <chapter id="dvb_ca">
     &sub-ca;
   </chapter>
-  <chapter id="dvb_net">
+  <chapter id="net">
     &sub-net;
   </chapter>
   <chapter id="legacy_dvb_apis">
