@@ -157,7 +157,8 @@ struct exynos_drm_display {
 /*
  * Exynos drm crtc ops
  *
- * @dpms: control device power.
+ * @enable: enable the device
+ * @disable: disable the device
  * @mode_fixup: fix mode data before applying it
  * @commit: set current hw specific display mode to hw.
  * @enable_vblank: specific driver callback for enabling vblank interrupt.
@@ -175,7 +176,8 @@ struct exynos_drm_display {
  */
 struct exynos_drm_crtc;
 struct exynos_drm_crtc_ops {
-	void (*dpms)(struct exynos_drm_crtc *crtc, int mode);
+	void (*enable)(struct exynos_drm_crtc *crtc);
+	void (*disable)(struct exynos_drm_crtc *crtc);
 	bool (*mode_fixup)(struct exynos_drm_crtc *crtc,
 				const struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode);

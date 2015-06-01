@@ -29,8 +29,8 @@ static void exynos_drm_crtc_enable(struct drm_crtc *crtc)
 	if (exynos_crtc->enabled)
 		return;
 
-	if (exynos_crtc->ops->dpms)
-		exynos_crtc->ops->dpms(exynos_crtc, DRM_MODE_DPMS_ON);
+	if (exynos_crtc->ops->enable)
+		exynos_crtc->ops->enable(exynos_crtc);
 
 	exynos_crtc->enabled = true;
 
@@ -51,8 +51,8 @@ static void exynos_drm_crtc_disable(struct drm_crtc *crtc)
 
 	drm_crtc_vblank_off(crtc);
 
-	if (exynos_crtc->ops->dpms)
-		exynos_crtc->ops->dpms(exynos_crtc, DRM_MODE_DPMS_OFF);
+	if (exynos_crtc->ops->disable)
+		exynos_crtc->ops->disable(exynos_crtc);
 
 	exynos_crtc->enabled = false;
 }

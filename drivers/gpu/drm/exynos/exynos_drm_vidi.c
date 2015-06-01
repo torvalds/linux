@@ -153,56 +153,38 @@ static void vidi_win_disable(struct exynos_drm_crtc *crtc, unsigned int win)
 	/* TODO. */
 }
 
-static int vidi_power_on(struct vidi_context *ctx, bool enable)
+static void vidi_enable(struct exynos_drm_crtc *crtc)
 {
+	struct vidi_context *ctx = crtc->ctx;
 	struct exynos_drm_plane *plane;
 	int i;
 
-	DRM_DEBUG_KMS("%s\n", __FILE__);
+	mutex_lock(&ctx->lock);
 
-	if (enable != false && enable != true)
-		return -EINVAL;
+	ctx->suspended = false;
 
-	if (enable) {
-		ctx->suspended = false;
+	/* if vblank was enabled status, enable it again. */
+	if (test_and_clear_bit(0, &ctx->irq_flags))
+		vidi_enable_vblank(ctx->crtc);
 
-		/* if vblank was enabled status, enable it again. */
-		if (test_and_clear_bit(0, &ctx->irq_flags))
-			vidi_enable_vblank(ctx->crtc);
-
-		for (i = 0; i < WINDOWS_NR; i++) {
-			plane = &ctx->planes[i];
-			if (plane->enabled)
-				vidi_win_commit(ctx->crtc, i);
-		}
-	} else {
-		ctx->suspended = true;
+	for (i = 0; i < WINDOWS_NR; i++) {
+		plane = &ctx->planes[i];
+		if (plane->enabled)
+			vidi_win_commit(ctx->crtc, i);
 	}
 
-	return 0;
+	mutex_unlock(&ctx->lock);
 }
 
-static void vidi_dpms(struct exynos_drm_crtc *crtc, int mode)
+static void vidi_disable(struct exynos_drm_crtc *crtc)
 {
 	struct vidi_context *ctx = crtc->ctx;
-
-	DRM_DEBUG_KMS("%d\n", mode);
+	struct exynos_drm_plane *plane;
+	int i;
 
 	mutex_lock(&ctx->lock);
 
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-		vidi_power_on(ctx, true);
-		break;
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-	case DRM_MODE_DPMS_OFF:
-		vidi_power_on(ctx, false);
-		break;
-	default:
-		DRM_DEBUG_KMS("unspecified mode %d\n", mode);
-		break;
-	}
+	ctx->suspended = true;
 
 	mutex_unlock(&ctx->lock);
 }
@@ -219,7 +201,8 @@ static int vidi_ctx_initialize(struct vidi_context *ctx,
 }
 
 static const struct exynos_drm_crtc_ops vidi_crtc_ops = {
-	.dpms = vidi_dpms,
+	.enable = vidi_enable,
+	.disable = vidi_disable,
 	.enable_vblank = vidi_enable_vblank,
 	.disable_vblank = vidi_disable_vblank,
 	.win_commit = vidi_win_commit,

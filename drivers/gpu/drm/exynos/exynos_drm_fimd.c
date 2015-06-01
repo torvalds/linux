@@ -805,57 +805,35 @@ static void fimd_apply(struct fimd_context *ctx)
 	fimd_commit(ctx->crtc);
 }
 
-static int fimd_poweron(struct fimd_context *ctx)
+static void fimd_enable(struct exynos_drm_crtc *crtc)
 {
-	int ret;
+	struct fimd_context *ctx = crtc->ctx;
 
 	if (!ctx->suspended)
-		return 0;
+		return;
 
 	ctx->suspended = false;
 
 	pm_runtime_get_sync(ctx->dev);
 
-	ret = clk_prepare_enable(ctx->bus_clk);
-	if (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the bus clk [%d]\n", ret);
-		goto bus_clk_err;
-	}
-
-	ret = clk_prepare_enable(ctx->lcd_clk);
-	if  (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the lcd clk [%d]\n", ret);
-		goto lcd_clk_err;
-	}
+	clk_prepare_enable(ctx->bus_clk);
+	clk_prepare_enable(ctx->lcd_clk);
 
 	/* if vblank was enabled status, enable it again. */
-	if (test_and_clear_bit(0, &ctx->irq_flags)) {
-		ret = fimd_enable_vblank(ctx->crtc);
-		if (ret) {
-			DRM_ERROR("Failed to re-enable vblank [%d]\n", ret);
-			goto enable_vblank_err;
-		}
-	}
+	if (test_and_clear_bit(0, &ctx->irq_flags))
+		fimd_enable_vblank(ctx->crtc);
 
 	fimd_window_resume(ctx);
 
 	fimd_apply(ctx);
-
-	return 0;
-
-enable_vblank_err:
-	clk_disable_unprepare(ctx->lcd_clk);
-lcd_clk_err:
-	clk_disable_unprepare(ctx->bus_clk);
-bus_clk_err:
-	ctx->suspended = true;
-	return ret;
 }
 
-static int fimd_poweroff(struct fimd_context *ctx)
+static void fimd_disable(struct exynos_drm_crtc *crtc)
 {
+	struct fimd_context *ctx = crtc->ctx;
+
 	if (ctx->suspended)
-		return 0;
+		return;
 
 	/*
 	 * We need to make sure that all windows are disabled before we
@@ -870,26 +848,6 @@ static int fimd_poweroff(struct fimd_context *ctx)
 	pm_runtime_put_sync(ctx->dev);
 
 	ctx->suspended = true;
-	return 0;
-}
-
-static void fimd_dpms(struct exynos_drm_crtc *crtc, int mode)
-{
-	DRM_DEBUG_KMS("%s, %d\n", __FILE__, mode);
-
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-		fimd_poweron(crtc->ctx);
-		break;
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-	case DRM_MODE_DPMS_OFF:
-		fimd_poweroff(crtc->ctx);
-		break;
-	default:
-		DRM_DEBUG_KMS("unspecified mode %d\n", mode);
-		break;
-	}
 }
 
 static void fimd_trigger(struct device *dev)
@@ -964,7 +922,8 @@ static void fimd_dp_clock_enable(struct exynos_drm_crtc *crtc, bool enable)
 }
 
 static const struct exynos_drm_crtc_ops fimd_crtc_ops = {
-	.dpms = fimd_dpms,
+	.enable = fimd_enable,
+	.disable = fimd_disable,
 	.mode_fixup = fimd_mode_fixup,
 	.commit = fimd_commit,
 	.enable_vblank = fimd_enable_vblank,
@@ -1051,7 +1010,7 @@ static void fimd_unbind(struct device *dev, struct device *master,
 {
 	struct fimd_context *ctx = dev_get_drvdata(dev);
 
-	fimd_dpms(ctx->crtc, DRM_MODE_DPMS_OFF);
+	fimd_disable(ctx->crtc);
 
 	fimd_iommu_detach_devices(ctx);
 
