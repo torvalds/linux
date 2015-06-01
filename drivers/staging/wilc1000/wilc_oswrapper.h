@@ -89,11 +89,6 @@ typedef WILC_Uint16 WILC_WideChar;
 #include "wilc_fileops.h"
 #endif
 
-/* Time operations */
-#ifdef CONFIG_WILC_TIME_FEATURE
-#include "wilc_time.h"
-#endif
-
 /* Event support */
 #ifdef CONFIG_WILC_EVENT_FEATURE
 #include "wilc_event.h"

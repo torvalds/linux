@@ -73,18 +73,6 @@
 #error This feature is not supported by this OS
 #endif
 
-/* CONFIG_WILC_TIME_FEATURE is implemented */
-
-/* remove the following block when implementing its feature */
-#ifdef CONFIG_WILC_TIME_UTC_SINCE_1970
-#error This feature is not supported by this OS
-#endif
-
-/* remove the following block when implementing its feature */
-#ifdef CONFIG_WILC_TIME_CALENDER
-#error This feature is not supported by this OS
-#endif
-
 /* remove the following block when implementing its feature */
 #ifdef CONFIG_WILC_EVENT_FEATURE
 #error This feature is not supported by this OS
