@@ -532,7 +532,7 @@ static struct dma_chan *private_candidate(const dma_cap_mask_t *mask,
 }
 
 /**
- * dma_request_slave_channel - try to get specific channel exclusively
+ * dma_get_slave_channel - try to get specific channel exclusively
  * @chan: target channel
  */
 struct dma_chan *dma_get_slave_channel(struct dma_chan *chan)
@@ -644,7 +644,7 @@ struct dma_chan *__dma_request_channel(const dma_cap_mask_t *mask,
 EXPORT_SYMBOL_GPL(__dma_request_channel);
 
 /**
- * dma_request_slave_channel - try to allocate an exclusive slave channel
+ * dma_request_slave_channel_reason - try to allocate an exclusive slave channel
  * @dev:	pointer to client device structure
  * @name:	slave channel name
  *
