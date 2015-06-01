@@ -150,7 +150,7 @@ int bcm63xx_pmb_power_on_cpu(struct device_node *dn)
 	 */
 	ret = bpcm_rd(base, addr, ARM_CONTROL, &ctrl);
 	if (ret)
-		return ret;
+		goto out;
 
 	if (ctrl & CPU_RESET_N(cpu)) {
 		pr_info("PMB: CPU%d is already powered on\n", cpu);
