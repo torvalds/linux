@@ -303,6 +303,17 @@ static void bio_chain_endio(struct bio *bio, int error)
 	bio_put(bio);
 }
 
+/*
+ * Increment chain count for the bio. Make sure the CHAIN flag update
+ * is visible before the raised count.
+ */
+static inline void bio_inc_remaining(struct bio *bio)
+{
+	bio->bi_flags |= (1 << BIO_CHAIN);
+	smp_mb__before_atomic();
+	atomic_inc(&bio->__bi_remaining);
+}
+
 /**
  * bio_chain - chain bio completions
  * @bio: the target bio
@@ -1756,8 +1767,10 @@ static inline bool bio_remaining_done(struct bio *bio)
 
 	BUG_ON(atomic_read(&bio->__bi_remaining) <= 0);
 
-	if (atomic_dec_and_test(&bio->__bi_remaining))
+	if (atomic_dec_and_test(&bio->__bi_remaining)) {
+		clear_bit(BIO_CHAIN, &bio->bi_flags);
 		return true;
+	}
 
 	return false;
 }
@@ -1807,26 +1820,6 @@ void bio_endio(struct bio *bio, int error)
 	}
 }
 EXPORT_SYMBOL(bio_endio);
-
-/**
- * bio_endio_nodec - end I/O on a bio, without decrementing bi_remaining
- * @bio:	bio
- * @error:	error, if any
- *
- * For code that has saved and restored bi_end_io; thing hard before using this
- * function, probably you should've cloned the entire bio.
- **/
-void bio_endio_nodec(struct bio *bio, int error)
-{
-	/*
-	 * If it's not flagged as a chain, we are not going to dec the count
-	 */
-	if (bio_flagged(bio, BIO_CHAIN))
-		bio_inc_remaining(bio);
-
-	bio_endio(bio, error);
-}
-EXPORT_SYMBOL(bio_endio_nodec);
 
 /**
  * bio_split - split a bio

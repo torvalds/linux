@@ -793,10 +793,9 @@ static void inc_remap_and_issue_cell(struct thin_c *tc,
 
 static void process_prepared_mapping_fail(struct dm_thin_new_mapping *m)
 {
-	if (m->bio) {
+	if (m->bio)
 		m->bio->bi_end_io = m->saved_bi_end_io;
-		bio_inc_remaining(m->bio);
-	}
+
 	cell_error(m->tc->pool, m->cell);
 	list_del(&m->list);
 	mempool_free(m, m->tc->pool->mapping_pool);
@@ -810,10 +809,8 @@ static void process_prepared_mapping(struct dm_thin_new_mapping *m)
 	int r;
 
 	bio = m->bio;
-	if (bio) {
+	if (bio)
 		bio->bi_end_io = m->saved_bi_end_io;
-		bio_inc_remaining(bio);
-	}
 
 	if (m->err) {
 		cell_error(pool, m->cell);

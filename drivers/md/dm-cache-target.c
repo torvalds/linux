@@ -86,12 +86,6 @@ static void dm_unhook_bio(struct dm_hook_info *h, struct bio *bio)
 {
 	bio->bi_end_io = h->bi_end_io;
 	bio->bi_private = h->bi_private;
-
-	/*
-	 * Must bump bi_remaining to allow bio to complete with
-	 * restored bi_end_io.
-	 */
-	bio_inc_remaining(bio);
 }
 
 /*----------------------------------------------------------------*/
