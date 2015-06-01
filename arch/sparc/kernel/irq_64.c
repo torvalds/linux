@@ -210,21 +210,21 @@ struct irq_handler_data {
 
 static inline unsigned int irq_data_to_handle(struct irq_data *data)
 {
-	struct irq_handler_data *ihd = data->handler_data;
+	struct irq_handler_data *ihd = irq_data_get_irq_handler_data(data);
 
 	return ihd->dev_handle;
 }
 
 static inline unsigned int irq_data_to_ino(struct irq_data *data)
 {
-	struct irq_handler_data *ihd = data->handler_data;
+	struct irq_handler_data *ihd = irq_data_get_irq_handler_data(data);
 
 	return ihd->dev_ino;
 }
 
 static inline unsigned long irq_data_to_sysino(struct irq_data *data)
 {
-	struct irq_handler_data *ihd = data->handler_data;
+	struct irq_handler_data *ihd = irq_data_get_irq_handler_data(data);
 
 	return ihd->sysino;
 }
@@ -370,8 +370,9 @@ static int irq_choose_cpu(unsigned int irq, const struct cpumask *affinity)
 
 static void sun4u_irq_enable(struct irq_data *data)
 {
-	struct irq_handler_data *handler_data = data->handler_data;
+	struct irq_handler_data *handler_data;
 
+	handler_data = irq_data_get_irq_handler_data(data);
 	if (likely(handler_data)) {
 		unsigned long cpuid, imap, val;
 		unsigned int tid;
@@ -393,8 +394,9 @@ static void sun4u_irq_enable(struct irq_data *data)
 static int sun4u_set_affinity(struct irq_data *data,
 			       const struct cpumask *mask, bool force)
 {
-	struct irq_handler_data *handler_data = data->handler_data;
+	struct irq_handler_data *handler_data;
 
+	handler_data = irq_data_get_irq_handler_data(data);
 	if (likely(handler_data)) {
 		unsigned long cpuid, imap, val;
 		unsigned int tid;
@@ -438,8 +440,9 @@ static void sun4u_irq_disable(struct irq_data *data)
 
 static void sun4u_irq_eoi(struct irq_data *data)
 {
-	struct irq_handler_data *handler_data = data->handler_data;
+	struct irq_handler_data *handler_data;
 
+	handler_data = irq_data_get_irq_handler_data(data);
 	if (likely(handler_data))
 		upa_writeq(ICLR_IDLE, handler_data->iclr);
 }
