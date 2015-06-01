@@ -48,8 +48,8 @@
 #include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
-	model = "Mele M9 top set box";
-	compatible = "mele,m9", "allwinner,sun6i-a31";
+	model = "Mele A1000G Quad top set box";
+	compatible = "mele,a1000g-quad", "allwinner,sun6i-a31";
 
 	aliases {
 		serial0 = &uart0;
