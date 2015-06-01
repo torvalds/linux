@@ -383,7 +383,6 @@ struct amdgpu_fence_driver {
 	uint64_t			sync_seq[AMDGPU_MAX_RINGS];
 	atomic64_t			last_seq;
 	bool				initialized;
-	bool				delayed_irq;
 	struct amdgpu_irq_src		*irq_src;
 	unsigned			irq_type;
 	struct delayed_work             lockup_work;

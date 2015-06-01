@@ -164,8 +164,6 @@ static int amdgpu_fence_check_signaled(wait_queue_t *wait, unsigned mode, int fl
 		else
 			FENCE_TRACE(&fence->base, "was already signaled\n");
 
-		amdgpu_irq_put(adev, fence->ring->fence_drv.irq_src,
-				fence->ring->fence_drv.irq_type);
 		__remove_wait_queue(&adev->fence_queue, &fence->fence_wake);
 		fence_put(&fence->base);
 	} else
@@ -265,12 +263,6 @@ static void amdgpu_fence_check_lockup(struct work_struct *work)
 		/* just reschedule the check if a reset is going on */
 		amdgpu_fence_schedule_check(ring);
 		return;
-	}
-
-	if (fence_drv->delayed_irq && ring->adev->ddev->irq_enabled) {
-		fence_drv->delayed_irq = false;
-		amdgpu_irq_update(ring->adev, fence_drv->irq_src,
-				fence_drv->irq_type);
 	}
 
 	if (amdgpu_fence_activity(ring))
@@ -420,29 +412,6 @@ static bool amdgpu_fence_enable_signaling(struct fence *f)
 	if (atomic64_read(&ring->fence_drv.last_seq) >= fence->seq)
 		return false;
 
-	if (down_read_trylock(&adev->exclusive_lock)) {
-		amdgpu_irq_get(adev, ring->fence_drv.irq_src,
-			ring->fence_drv.irq_type);
-		if (amdgpu_fence_activity(ring))
-			wake_up_all_locked(&adev->fence_queue);
-
-		/* did fence get signaled after we enabled the sw irq? */
-		if (atomic64_read(&ring->fence_drv.last_seq) >= fence->seq) {
-			amdgpu_irq_put(adev, ring->fence_drv.irq_src,
-				ring->fence_drv.irq_type);
-			up_read(&adev->exclusive_lock);
-			return false;
-		}
-
-		up_read(&adev->exclusive_lock);
-	} else {
-		/* we're probably in a lockup, lets not fiddle too much */
-		if (amdgpu_irq_get_delayed(adev, ring->fence_drv.irq_src,
-			ring->fence_drv.irq_type))
-			ring->fence_drv.delayed_irq = true;
-		amdgpu_fence_schedule_check(ring);
-	}
-
 	fence->fence_wake.flags = 0;
 	fence->fence_wake.private = NULL;
 	fence->fence_wake.func = amdgpu_fence_check_signaled;
@@ -541,8 +510,6 @@ static long amdgpu_fence_wait_seq_timeout(struct amdgpu_device *adev,
 
 			last_seq[i] = atomic64_read(&ring->fence_drv.last_seq);
 			trace_amdgpu_fence_wait_begin(adev->ddev, i, target_seq[i]);
-			amdgpu_irq_get(adev, ring->fence_drv.irq_src,
-				       ring->fence_drv.irq_type);
 		}
 
 		if (intr) {
@@ -561,8 +528,6 @@ static long amdgpu_fence_wait_seq_timeout(struct amdgpu_device *adev,
 			if (!ring || !target_seq[i])
 				continue;
 
-			amdgpu_irq_put(adev, ring->fence_drv.irq_src,
-				       ring->fence_drv.irq_type);
 			trace_amdgpu_fence_wait_end(adev->ddev, i, target_seq[i]);
 		}
 
@@ -901,9 +866,12 @@ int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
 		ring->fence_drv.gpu_addr = adev->uvd.gpu_addr + index;
 	}
 	amdgpu_fence_write(ring, atomic64_read(&ring->fence_drv.last_seq));
-	ring->fence_drv.initialized = true;
+	amdgpu_irq_get(adev, irq_src, irq_type);
+
 	ring->fence_drv.irq_src = irq_src;
 	ring->fence_drv.irq_type = irq_type;
+	ring->fence_drv.initialized = true;
+
 	dev_info(adev->dev, "fence driver on ring %d use gpu addr 0x%016llx, "
 		 "cpu addr 0x%p\n", ring->idx,
 		 ring->fence_drv.gpu_addr, ring->fence_drv.cpu_addr);
@@ -980,6 +948,8 @@ void amdgpu_fence_driver_fini(struct amdgpu_device *adev)
 			amdgpu_fence_driver_force_completion(adev);
 		}
 		wake_up_all(&adev->fence_queue);
+		amdgpu_irq_put(adev, ring->fence_drv.irq_src,
+			       ring->fence_drv.irq_type);
 		ring->fence_drv.initialized = false;
 	}
 	mutex_unlock(&adev->ring_lock);
