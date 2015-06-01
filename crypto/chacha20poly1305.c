@@ -627,6 +627,11 @@ static struct crypto_instance *rfc7539_alloc(struct rtattr **tb)
 	return chachapoly_alloc(tb, "rfc7539", 12);
 }
 
+static struct crypto_instance *rfc7539esp_alloc(struct rtattr **tb)
+{
+	return chachapoly_alloc(tb, "rfc7539esp", 8);
+}
+
 static void chachapoly_free(struct crypto_instance *inst)
 {
 	struct chachapoly_instance_ctx *ctx = crypto_instance_ctx(inst);
@@ -643,13 +648,31 @@ static struct crypto_template rfc7539_tmpl = {
 	.module = THIS_MODULE,
 };
 
+static struct crypto_template rfc7539esp_tmpl = {
+	.name = "rfc7539esp",
+	.alloc = rfc7539esp_alloc,
+	.free = chachapoly_free,
+	.module = THIS_MODULE,
+};
+
 static int __init chacha20poly1305_module_init(void)
 {
-	return crypto_register_template(&rfc7539_tmpl);
+	int err;
+
+	err = crypto_register_template(&rfc7539_tmpl);
+	if (err)
+		return err;
+
+	err = crypto_register_template(&rfc7539esp_tmpl);
+	if (err)
+		crypto_unregister_template(&rfc7539_tmpl);
+
+	return err;
 }
 
 static void __exit chacha20poly1305_module_exit(void)
 {
+	crypto_unregister_template(&rfc7539esp_tmpl);
 	crypto_unregister_template(&rfc7539_tmpl);
 }
 
@@ -661,3 +684,4 @@ MODULE_AUTHOR("Martin Willi <martin@strongswan.org>");
 MODULE_DESCRIPTION("ChaCha20-Poly1305 AEAD");
 MODULE_ALIAS_CRYPTO("chacha20poly1305");
 MODULE_ALIAS_CRYPTO("rfc7539");
+MODULE_ALIAS_CRYPTO("rfc7539esp");
