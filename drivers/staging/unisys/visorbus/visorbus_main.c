@@ -45,7 +45,7 @@ struct visorbus_devdata {
 	struct kobject kobj;
 	struct visorchannel *chan;	/* channel area for bus itself */
 	bool vbus_valid;
-	struct spar_vbus_headerinfo vbus_hdr_info;
+	void *vbus_hdr_info;
 };
 
 #define CURRENT_FILE_PC VISOR_BUS_PC_visorbus_main_c
@@ -1276,9 +1276,12 @@ fix_vbus_dev_info(struct visor_device *visordev)
 	int dev_no = visordev->chipset_dev_no;
 	struct ultra_vbus_deviceinfo dev_info;
 	const char *chan_type_name = NULL;
+	struct spar_vbus_headerinfo *hdr_info;
 
 	if (!visordev->device.driver)
 			return;
+
+	hdr_info = (struct spar_vbus_headerinfo *)visordev->vbus_hdr_info;
 
 	visordrv = to_visor_driver(visordev->device.driver);
 	if (!visorchipset_get_bus_info(bus_no, &bus_info))
@@ -1288,7 +1291,7 @@ fix_vbus_dev_info(struct visor_device *visordev)
 	if (!devdata)
 			return;
 
-	if (!devdata->vbus_valid)
+	if (!hdr_info)
 			return;
 
 	/* Within the list of device types (by GUID) that the driver
@@ -1308,16 +1311,13 @@ fix_vbus_dev_info(struct visor_device *visordev)
 	bus_device_info_init(&dev_info, chan_type_name,
 			     visordrv->name, visordrv->version,
 			     visordrv->vertag);
-	write_vbus_dev_info(devdata->chan,
-			    &devdata->vbus_hdr_info, &dev_info, dev_no);
+	write_vbus_dev_info(devdata->chan, hdr_info, &dev_info, dev_no);
 
 	/* Re-write bus+chipset info, because it is possible that this
 	* was previously written by our evil counterpart, virtpci.
 	*/
-	write_vbus_chp_info(devdata->chan, &devdata->vbus_hdr_info,
-			    &chipset_driverinfo);
-	write_vbus_bus_info(devdata->chan, &devdata->vbus_hdr_info,
-			    &clientbus_driverinfo);
+	write_vbus_chp_info(devdata->chan, hdr_info, &chipset_driverinfo);
+	write_vbus_bus_info(devdata->chan, hdr_info, &clientbus_driverinfo);
 }
 
 /** Create a device instance for the visor bus itself.
@@ -1328,6 +1328,7 @@ create_bus_instance(struct visorchipset_bus_info *bus_info)
 	struct visorbus_devdata *rc = NULL;
 	struct visorbus_devdata *devdata = NULL;
 	int id = bus_info->bus_no;
+	struct spar_vbus_headerinfo *hdr_info;
 
 	POSTCODE_LINUX_2(BUS_CREATE_ENTRY_PC, POSTCODE_SEVERITY_INFO);
 	devdata = kzalloc(sizeof(*devdata), GFP_KERNEL);
@@ -1336,6 +1337,13 @@ create_bus_instance(struct visorchipset_bus_info *bus_info)
 		rc = NULL;
 		goto away;
 	}
+
+	hdr_info = kzalloc(sizeof(*hdr_info), GFP_KERNEL);
+	if (!hdr_info) {
+		rc = NULL;
+		goto away_mem;
+	}
+
 	dev_set_name(&devdata->dev, "visorbus%d", id);
 	devdata->dev.bus = &visorbus_type;
 	devdata->dev.groups = visorbus_groups;
@@ -1344,26 +1352,19 @@ create_bus_instance(struct visorchipset_bus_info *bus_info)
 		POSTCODE_LINUX_3(DEVICE_CREATE_FAILURE_PC, id,
 				 POSTCODE_SEVERITY_ERR);
 		rc = NULL;
-		goto away;
+		goto away_mem2;
 	}
 	devdata->devno = id;
 	devdata->chan = bus_info->visorchannel;
 	if (bus_info->flags.server) {
 		init_vbus_channel(devdata->chan);
 	} else {
-		if (get_vbus_header_info(devdata->chan,
-					 &devdata->
-					 vbus_hdr_info) >= 0) {
-			devdata->vbus_valid = true;
-			write_vbus_chp_info(devdata->chan,
-					    &devdata->
-					    vbus_hdr_info,
-					    &chipset_driverinfo
-					    );
-			write_vbus_bus_info(devdata->chan,
-					    &devdata->
-						vbus_hdr_info,
-					&clientbus_driverinfo);
+		if (get_vbus_header_info(devdata->chan, hdr_info) >= 0) {
+			devdata->vbus_hdr_info = (void *)hdr_info;
+			write_vbus_chp_info(devdata->chan, hdr_info,
+					    &chipset_driverinfo);
+			write_vbus_bus_info(devdata->chan, hdr_info,
+					    &clientbus_driverinfo);
 		}
 	}
 	bus_count++;
@@ -1372,6 +1373,12 @@ create_bus_instance(struct visorchipset_bus_info *bus_info)
 			devdata = devdata;	/* for testing ONLY */
 	dev_set_drvdata(&devdata->dev, devdata);
 	rc = devdata;
+	return rc;
+
+away_mem2:
+	kfree(hdr_info);
+away_mem:
+	kfree(devdata);
 away:
 	return rc;
 }
@@ -1393,6 +1400,7 @@ remove_bus_instance(struct visorbus_devdata *devdata)
 		visorchannel_destroy(devdata->chan);
 		devdata->chan = NULL;
 	}
+	kfree(devdata->vbus_hdr_info);
 	list_del(&devdata->list_all);
 	device_unregister(&devdata->dev);
 }
