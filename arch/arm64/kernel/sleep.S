@@ -164,15 +164,12 @@ ENTRY(cpu_resume)
 #else
 	mov	x7, xzr
 #endif
-	adrp	x0, sleep_save_sp
-	add	x0, x0, #:lo12:sleep_save_sp
-	ldr	x0, [x0, #SLEEP_SAVE_SP_PHYS]
+	ldr_l	x0, sleep_save_sp + SLEEP_SAVE_SP_PHYS
 	ldr	x0, [x0, x7, lsl #3]
 	/* load sp from context */
 	ldr	x2, [x0, #CPU_CTX_SP]
-	adrp	x1, sleep_idmap_phys
 	/* load physical address of identity map page table in x1 */
-	ldr	x1, [x1, #:lo12:sleep_idmap_phys]
+	adrp	x1, idmap_pg_dir
 	mov	sp, x2
 	/*
 	 * cpu_do_resume expects x0 to contain context physical address
