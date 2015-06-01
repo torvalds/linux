@@ -1563,6 +1563,8 @@ static int update_output_state(struct drm_atomic_state *state,
 
 		crtc_state->enable =
 			drm_atomic_connectors_for_crtc(state, crtc);
+		if (!crtc_state->enable)
+			crtc_state->active = false;
 	}
 
 	return 0;
