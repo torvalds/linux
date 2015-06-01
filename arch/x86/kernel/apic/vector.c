@@ -296,7 +296,7 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 	struct irq_alloc_info *info = arg;
 	struct apic_chip_data *data;
 	struct irq_data *irq_data;
-	int i, err;
+	int i, err, node;
 
 	if (disable_apic)
 		return -ENXIO;
@@ -308,12 +308,13 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 	for (i = 0; i < nr_irqs; i++) {
 		irq_data = irq_domain_get_irq_data(domain, virq + i);
 		BUG_ON(!irq_data);
+		node = irq_data_get_node(irq_data);
 #ifdef	CONFIG_X86_IO_APIC
 		if (virq + i < nr_legacy_irqs() && legacy_irq_data[virq + i])
 			data = legacy_irq_data[virq + i];
 		else
 #endif
-			data = alloc_apic_chip_data(irq_data->node);
+			data = alloc_apic_chip_data(node);
 		if (!data) {
 			err = -ENOMEM;
 			goto error;
@@ -322,8 +323,7 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 		irq_data->chip = &lapic_controller;
 		irq_data->chip_data = data;
 		irq_data->hwirq = virq + i;
-		err = assign_irq_vector_policy(virq, irq_data->node, data,
-					       info);
+		err = assign_irq_vector_policy(virq, node, data, info);
 		if (err)
 			goto error;
 	}
