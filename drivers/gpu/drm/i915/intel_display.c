@@ -5959,7 +5959,7 @@ static int valleyview_modeset_global_pipes(struct drm_atomic_state *state)
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 	int max_pixclk = intel_mode_max_pixclk(state->dev, state);
-	int cdclk, i;
+	int cdclk, ret = 0;
 
 	if (max_pixclk < 0)
 		return max_pixclk;
@@ -5974,20 +5974,25 @@ static int valleyview_modeset_global_pipes(struct drm_atomic_state *state)
 
 	/* add all active pipes to the state */
 	for_each_crtc(state->dev, crtc) {
-		if (!crtc->state->active)
-			continue;
-
 		crtc_state = drm_atomic_get_crtc_state(state, crtc);
 		if (IS_ERR(crtc_state))
 			return PTR_ERR(crtc_state);
+
+		if (!crtc_state->active || needs_modeset(crtc_state))
+			continue;
+
+		crtc_state->mode_changed = true;
+
+		ret = drm_atomic_add_affected_connectors(state, crtc);
+		if (ret)
+			break;
+
+		ret = drm_atomic_add_affected_planes(state, crtc);
+		if (ret)
+			break;
 	}
 
-	/* disable/enable all currently active pipes while we change cdclk */
-	for_each_crtc_in_state(state, crtc, crtc_state, i)
-		if (crtc_state->active)
-			crtc_state->mode_changed = true;
-
-	return 0;
+	return ret;
 }
 
 static void vlv_program_pfi_credits(struct drm_i915_private *dev_priv)
@@ -12185,8 +12190,10 @@ encoder_retry:
 
 	/* Check if we need to force a modeset */
 	if (pipe_config->has_audio !=
-	    to_intel_crtc_state(crtc->state)->has_audio)
+	    to_intel_crtc_state(crtc->state)->has_audio) {
 		pipe_config->base.mode_changed = true;
+		ret = drm_atomic_add_affected_planes(state, crtc);
+	}
 
 	/*
 	 * Note we have an issue here with infoframes: current code
@@ -12194,8 +12201,6 @@ encoder_retry:
 	 * requirements.  So here we should be checking for any
 	 * required changes and forcing a mode set.
 	 */
-
-	return 0;
 fail:
 	return ret;
 }
