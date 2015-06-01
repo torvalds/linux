@@ -90,12 +90,6 @@ static int sram_probe(struct platform_device *pdev)
 	if (!sram)
 		return -ENOMEM;
 
-	sram->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(sram->clk))
-		sram->clk = NULL;
-	else
-		clk_prepare_enable(sram->clk);
-
 	sram->pool = devm_gen_pool_create(&pdev->dev, ilog2(SRAM_GRANULARITY), -1);
 	if (!sram->pool)
 		return -ENOMEM;
@@ -106,10 +100,8 @@ static int sram_probe(struct platform_device *pdev)
 	 */
 	nblocks = (np) ? of_get_available_child_count(np) + 1 : 1;
 	rblocks = kmalloc((nblocks) * sizeof(*rblocks), GFP_KERNEL);
-	if (!rblocks) {
-		ret = -ENOMEM;
-		goto err_alloc;
-	}
+	if (!rblocks)
+		return -ENOMEM;
 
 	block = &rblocks[0];
 	for_each_available_child_of_node(np, child) {
@@ -188,6 +180,12 @@ static int sram_probe(struct platform_device *pdev)
 
 	kfree(rblocks);
 
+	sram->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(sram->clk))
+		sram->clk = NULL;
+	else
+		clk_prepare_enable(sram->clk);
+
 	platform_set_drvdata(pdev, sram);
 
 	dev_dbg(&pdev->dev, "SRAM pool: %ld KiB @ 0x%p\n", size / 1024, virt_base);
@@ -196,9 +194,7 @@ static int sram_probe(struct platform_device *pdev)
 
 err_chunks:
 	kfree(rblocks);
-err_alloc:
-	if (sram->clk)
-		clk_disable_unprepare(sram->clk);
+
 	return ret;
 }
 
