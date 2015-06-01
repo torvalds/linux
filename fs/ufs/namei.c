@@ -174,7 +174,12 @@ static int ufs_link (struct dentry * old_dentry, struct inode * dir,
 	inode_inc_link_count(inode);
 	ihold(inode);
 
-	error = ufs_add_nondir(dentry, inode);
+	error = ufs_add_link(dentry, inode);
+	if (error) {
+		inode_dec_link_count(inode);
+		iput(inode);
+	} else
+		d_instantiate(dentry, inode);
 	unlock_ufs(dir->i_sb);
 	return error;
 }
