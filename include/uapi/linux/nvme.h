@@ -179,6 +179,10 @@ enum {
 	NVME_SMART_CRIT_VOLATILE_MEMORY	= 1 << 4,
 };
 
+enum {
+	NVME_AER_NOTICE_NS_CHANGED	= 0x0002,
+};
+
 struct nvme_lba_range_type {
 	__u8			type;
 	__u8			attributes;
