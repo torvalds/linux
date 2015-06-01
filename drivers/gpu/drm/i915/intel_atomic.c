@@ -395,7 +395,7 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 	return 0;
 }
 
-static void
+void
 intel_atomic_duplicate_dpll_state(struct drm_i915_private *dev_priv,
 				  struct intel_shared_dpll_config *shared_dpll)
 {

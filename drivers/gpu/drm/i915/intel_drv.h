@@ -130,11 +130,6 @@ struct intel_fbdev {
 
 struct intel_encoder {
 	struct drm_encoder base;
-	/*
-	 * The new crtc this encoder will be driven from. Only differs from
-	 * base->crtc while a modeset is in progress.
-	 */
-	struct intel_crtc *new_crtc;
 
 	enum intel_output_type type;
 	unsigned int cloneable;
@@ -194,12 +189,6 @@ struct intel_connector {
 	 * The fixed encoder this connector is connected to.
 	 */
 	struct intel_encoder *encoder;
-
-	/*
-	 * The new encoder this connector will be driven. Only differs from
-	 * encoder while a modeset is in progress.
-	 */
-	struct intel_encoder *new_encoder;
 
 	/* Reads out the current hw, returning true if the connector is enabled
 	 * and active (i.e. dpms ON state). */
@@ -535,7 +524,6 @@ struct intel_crtc {
 
 	struct intel_initial_plane_config plane_config;
 	struct intel_crtc_state *config;
-	bool new_enabled;
 
 	/* reset counter value when the last flip was submitted */
 	unsigned int reset_counter;
@@ -1416,6 +1404,8 @@ struct drm_atomic_state *intel_atomic_state_alloc(struct drm_device *dev);
 void intel_atomic_state_clear(struct drm_atomic_state *);
 struct intel_shared_dpll_config *
 intel_atomic_get_shared_dpll_state(struct drm_atomic_state *s);
+void intel_atomic_duplicate_dpll_state(struct drm_i915_private *,
+				       struct intel_shared_dpll_config *);
 
 static inline struct intel_crtc_state *
 intel_atomic_get_crtc_state(struct drm_atomic_state *state,
