@@ -83,7 +83,7 @@ int irq_set_handler_data(unsigned int irq, void *data)
 
 	if (!desc)
 		return -EINVAL;
-	desc->irq_data.handler_data = data;
+	desc->irq_common_data.handler_data = data;
 	irq_put_desc_unlock(desc, flags);
 	return 0;
 }
@@ -796,7 +796,7 @@ irq_set_chained_handler_and_data(unsigned int irq, irq_flow_handler_t handle,
 		return;
 
 	__irq_do_set_handler(desc, handle, 1, NULL);
-	desc->irq_data.handler_data = data;
+	desc->irq_common_data.handler_data = data;
 
 	irq_put_desc_busunlock(desc, flags);
 }

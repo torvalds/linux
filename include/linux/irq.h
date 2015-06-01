@@ -130,12 +130,14 @@ struct irq_domain;
  * @state_use_accessors: status information for irq chip functions.
  *			Use accessor functions to deal with it
  * @node:		node index useful for balancing
+ * @handler_data:	per-IRQ data for the irq_chip methods
  */
 struct irq_common_data {
 	unsigned int		state_use_accessors;
 #ifdef CONFIG_NUMA
 	unsigned int		node;
 #endif
+	void			*handler_data;
 };
 
 /**
@@ -149,7 +151,6 @@ struct irq_common_data {
  *			between hwirq number and linux irq number.
  * @parent_data:	pointer to parent struct irq_data to support hierarchy
  *			irq_domain
- * @handler_data:	per-IRQ data for the irq_chip methods
  * @chip_data:		platform-specific per-chip private data for the chip
  *			methods, to allow shared chip implementations
  * @msi_desc:		MSI descriptor
@@ -165,7 +166,6 @@ struct irq_data {
 #ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
 	struct irq_data		*parent_data;
 #endif
-	void			*handler_data;
 	void			*chip_data;
 	struct msi_desc		*msi_desc;
 	cpumask_var_t		affinity;
@@ -641,12 +641,12 @@ static inline void *irq_data_get_irq_chip_data(struct irq_data *d)
 static inline void *irq_get_handler_data(unsigned int irq)
 {
 	struct irq_data *d = irq_get_irq_data(irq);
-	return d ? d->handler_data : NULL;
+	return d ? d->common->handler_data : NULL;
 }
 
 static inline void *irq_data_get_irq_handler_data(struct irq_data *d)
 {
-	return d->handler_data;
+	return d->common->handler_data;
 }
 
 static inline struct msi_desc *irq_get_msi_desc(unsigned int irq)

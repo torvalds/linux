@@ -123,7 +123,7 @@ static inline void *irq_desc_get_chip_data(struct irq_desc *desc)
 
 static inline void *irq_desc_get_handler_data(struct irq_desc *desc)
 {
-	return desc->irq_data.handler_data;
+	return desc->irq_common_data.handler_data;
 }
 
 static inline struct msi_desc *irq_desc_get_msi_desc(struct irq_desc *desc)
