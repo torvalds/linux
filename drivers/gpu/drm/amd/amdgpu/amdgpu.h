@@ -317,7 +317,7 @@ struct amdgpu_ring_funcs {
 	void (*emit_ib)(struct amdgpu_ring *ring,
 			struct amdgpu_ib *ib);
 	void (*emit_fence)(struct amdgpu_ring *ring, uint64_t addr,
-			   uint64_t seq, bool write64bit);
+			   uint64_t seq, unsigned flags);
 	bool (*emit_semaphore)(struct amdgpu_ring *ring,
 			       struct amdgpu_semaphore *semaphore,
 			       bool emit_wait);
@@ -391,6 +391,9 @@ struct amdgpu_fence_driver {
 #define AMDGPU_FENCE_OWNER_UNDEFINED	((void*)0ul)
 #define AMDGPU_FENCE_OWNER_VM		((void*)1ul)
 #define AMDGPU_FENCE_OWNER_MOVE		((void*)2ul)
+
+#define AMDGPU_FENCE_FLAG_64BIT         (1 << 0)
+#define AMDGPU_FENCE_FLAG_INT           (1 << 1)
 
 struct amdgpu_fence {
 	struct fence base;
@@ -2142,7 +2145,7 @@ static inline void amdgpu_ring_write(struct amdgpu_ring *ring, uint32_t v)
 #define amdgpu_ring_set_wptr(r) (r)->funcs->set_wptr((r))
 #define amdgpu_ring_emit_ib(r, ib) (r)->funcs->emit_ib((r), (ib))
 #define amdgpu_ring_emit_vm_flush(r, vmid, addr) (r)->funcs->emit_vm_flush((r), (vmid), (addr))
-#define amdgpu_ring_emit_fence(r, addr, seq, write64bit) (r)->funcs->emit_fence((r), (addr), (seq), (write64bit))
+#define amdgpu_ring_emit_fence(r, addr, seq, flags) (r)->funcs->emit_fence((r), (addr), (seq), (flags))
 #define amdgpu_ring_emit_semaphore(r, semaphore, emit_wait) (r)->funcs->emit_semaphore((r), (semaphore), (emit_wait))
 #define amdgpu_ring_emit_gds_switch(r, v, db, ds, wb, ws, ab, as) (r)->funcs->emit_gds_switch((r), (v), (db), (ds), (wb), (ws), (ab), (as))
 #define amdgpu_ring_emit_hdp_flush(r) (r)->funcs->emit_hdp_flush((r))

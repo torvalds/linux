@@ -40,7 +40,7 @@ bool amdgpu_vce_ring_emit_semaphore(struct amdgpu_ring *ring,
 				    bool emit_wait);
 void amdgpu_vce_ring_emit_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib);
 void amdgpu_vce_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq,
-				bool write64bit);
+				unsigned flags);
 int amdgpu_vce_ring_test_ring(struct amdgpu_ring *ring);
 int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring);
 

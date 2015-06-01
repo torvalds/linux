@@ -637,9 +637,9 @@ void amdgpu_vce_ring_emit_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib)
  *
  */
 void amdgpu_vce_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq,
-				bool write64bits)
+				unsigned flags)
 {
-	WARN_ON(write64bits);
+	WARN_ON(flags & AMDGPU_FENCE_FLAG_64BIT);
 
 	amdgpu_ring_write(ring, VCE_CMD_FENCE);
 	amdgpu_ring_write(ring, addr);

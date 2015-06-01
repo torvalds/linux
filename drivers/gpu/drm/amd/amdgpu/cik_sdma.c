@@ -259,8 +259,9 @@ static void cik_sdma_ring_emit_hdp_flush(struct amdgpu_ring *ring)
  * an interrupt if needed (CIK).
  */
 static void cik_sdma_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq,
-				     bool write64bit)
+				     unsigned flags)
 {
+	bool write64bit = flags & AMDGPU_FENCE_FLAG_64BIT;
 	/* write the fence */
 	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_FENCE, 0, 0));
 	amdgpu_ring_write(ring, lower_32_bits(addr));
