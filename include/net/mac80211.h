@@ -1479,6 +1479,9 @@ enum ieee80211_key_flags {
  *	wants to be given when a frame is transmitted and needs to be
  *	encrypted in hardware.
  * @cipher: The key's cipher suite selector.
+ * @tx_pn: PN used for TX on non-TKIP keys, may be used by the driver
+ *	as well if it needs to do software PN assignment by itself
+ *	(e.g. due to TSO)
  * @flags: key flags, see &enum ieee80211_key_flags.
  * @keyidx: the key index (0-3)
  * @keylen: key material length
@@ -1491,6 +1494,7 @@ enum ieee80211_key_flags {
  * @iv_len: The IV length for this key type
  */
 struct ieee80211_key_conf {
+	atomic64_t tx_pn;
 	u32 cipher;
 	u8 icv_len;
 	u8 iv_len;

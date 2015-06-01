@@ -2813,17 +2813,9 @@ static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 		switch (fast_tx->key->conf.cipher) {
 		case WLAN_CIPHER_SUITE_CCMP:
 		case WLAN_CIPHER_SUITE_CCMP_256:
-			pn = atomic64_inc_return(&fast_tx->key->u.ccmp.tx_pn);
-			crypto_hdr[0] = pn;
-			crypto_hdr[1] = pn >> 8;
-			crypto_hdr[4] = pn >> 16;
-			crypto_hdr[5] = pn >> 24;
-			crypto_hdr[6] = pn >> 32;
-			crypto_hdr[7] = pn >> 40;
-			break;
 		case WLAN_CIPHER_SUITE_GCMP:
 		case WLAN_CIPHER_SUITE_GCMP_256:
-			pn = atomic64_inc_return(&fast_tx->key->u.gcmp.tx_pn);
+			pn = atomic64_inc_return(&fast_tx->key->conf.tx_pn);
 			crypto_hdr[0] = pn;
 			crypto_hdr[1] = pn >> 8;
 			crypto_hdr[4] = pn >> 16;

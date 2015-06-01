@@ -77,7 +77,6 @@ struct ieee80211_key {
 			u32 mic_failures;
 		} tkip;
 		struct {
-			atomic64_t tx_pn;
 			/*
 			 * Last received packet number. The first
 			 * IEEE80211_NUM_TIDS counters are used with Data
@@ -89,21 +88,18 @@ struct ieee80211_key {
 			u32 replays; /* dot11RSNAStatsCCMPReplays */
 		} ccmp;
 		struct {
-			atomic64_t tx_pn;
 			u8 rx_pn[IEEE80211_CMAC_PN_LEN];
 			struct crypto_cipher *tfm;
 			u32 replays; /* dot11RSNAStatsCMACReplays */
 			u32 icverrors; /* dot11RSNAStatsCMACICVErrors */
 		} aes_cmac;
 		struct {
-			atomic64_t tx_pn;
 			u8 rx_pn[IEEE80211_GMAC_PN_LEN];
 			struct crypto_aead *tfm;
 			u32 replays; /* dot11RSNAStatsCMACReplays */
 			u32 icverrors; /* dot11RSNAStatsCMACICVErrors */
 		} aes_gmac;
 		struct {
-			atomic64_t tx_pn;
 			/* Last received packet number. The first
 			 * IEEE80211_NUM_TIDS counters are used with Data
 			 * frames and the last counter is used with Robust
