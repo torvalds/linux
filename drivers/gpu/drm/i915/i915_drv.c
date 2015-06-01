@@ -634,6 +634,9 @@ static int i915_drm_suspend(struct drm_device *dev)
 	intel_display_suspend(dev);
 	drm_modeset_unlock_all(dev);
 
+	/* suspending displays will unsets init power */
+	intel_display_set_init_power(dev_priv, true);
+
 	intel_dp_mst_suspend(dev);
 
 	intel_runtime_pm_disable_interrupts(dev_priv);
