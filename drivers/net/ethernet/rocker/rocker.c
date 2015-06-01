@@ -4320,7 +4320,12 @@ static int rocker_port_vlan_add(struct rocker_port *rocker_port,
 	if (err)
 		return err;
 
-	return rocker_port_router_mac(rocker_port, trans, 0, htons(vid));
+	err = rocker_port_router_mac(rocker_port, trans, 0, htons(vid));
+	if (err)
+		rocker_port_vlan(rocker_port, trans,
+				 ROCKER_OP_FLAG_REMOVE, vid);
+
+	return err;
 }
 
 static int rocker_port_vlans_add(struct rocker_port *rocker_port,
