@@ -1730,14 +1730,14 @@ static int __init samsung_init(void)
 		samsung->handle_backlight = false;
 	} else if (samsung->quirks->broken_acpi_video) {
 		pr_info("Disabling ACPI video driver\n");
-		acpi_video_unregister();
+		acpi_video_unregister_backlight();
 	}
 
 	if (samsung->quirks->use_native_backlight) {
 		pr_info("Using native backlight driver\n");
 		/* Tell acpi-video to not handle the backlight */
 		acpi_video_dmi_promote_vendor();
-		acpi_video_unregister();
+		acpi_video_unregister_backlight();
 		/* And also do not handle it ourselves */
 		samsung->handle_backlight = false;
 	}
