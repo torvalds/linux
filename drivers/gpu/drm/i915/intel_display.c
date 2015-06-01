@@ -12938,8 +12938,6 @@ static int __intel_set_mode(struct drm_atomic_state *state)
 
 		intel_crtc_disable_planes(crtc);
 		dev_priv->display.crtc_disable(crtc);
-		if (!crtc_state->enable)
-			drm_plane_helper_disable(crtc->primary);
 	}
 
 	/* Only after disabling all output pipelines that will be changed can we
