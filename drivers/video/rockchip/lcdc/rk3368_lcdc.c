@@ -2418,7 +2418,14 @@ static int rk3368_lcdc_cal_scl_fac(struct rk_lcdc_win *win, struct rk_screen *sc
 	u8 yuv_fmt = 0;
 
 	srcW = win->area[0].xact;
-	srcH = win->area[0].yact;
+	if ((screen->mode.vmode == FB_VMODE_INTERLACED) &&
+	    (win->area[0].yact == 2 * win->area[0].ysize)) {
+		srcH = win->area[0].yact / 2;
+		yrgb_vsd_bil_gt2 = 1;
+		cbcr_vsd_bil_gt2 = 1;
+	} else {
+		srcH = win->area[0].yact;
+	}
 	dstW = win->area[0].xsize;
 	dstH = win->area[0].ysize;
 
