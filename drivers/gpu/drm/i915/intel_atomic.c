@@ -129,6 +129,8 @@ int intel_atomic_commit(struct drm_device *dev,
 			struct drm_atomic_state *state,
 			bool async)
 {
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc *crtc;
 	int ret;
 	int i;
 
@@ -142,48 +144,26 @@ int intel_atomic_commit(struct drm_device *dev,
 		return ret;
 
 	/* Point of no return */
+	drm_atomic_helper_swap_state(dev, state);
 
-	/*
-	 * FIXME:  The proper sequence here will eventually be:
-	 *
-	 * drm_atomic_helper_swap_state(dev, state)
-	 * drm_atomic_helper_commit_modeset_disables(dev, state);
-	 * drm_atomic_helper_commit_planes(dev, state);
-	 * drm_atomic_helper_commit_modeset_enables(dev, state);
-	 * drm_atomic_helper_wait_for_vblanks(dev, state);
-	 * drm_atomic_helper_cleanup_planes(dev, state);
-	 * drm_atomic_state_free(state);
-	 *
-	 * once we have full atomic modeset.  For now, just manually update
-	 * plane states to avoid clobbering good states with dummy states
-	 * while nuclear pageflipping.
-	 */
-	for (i = 0; i < dev->mode_config.num_total_plane; i++) {
-		struct drm_plane *plane = state->planes[i];
-
-		if (!plane)
-			continue;
-
-		plane->state->state = state;
-		swap(state->plane_states[i], plane->state);
-		plane->state->state = NULL;
-	}
-
-	/* swap crtc_scaler_state */
-	for (i = 0; i < dev->mode_config.num_crtc; i++) {
-		struct drm_crtc *crtc = state->crtcs[i];
-		if (!crtc) {
-			continue;
-		}
-
-		to_intel_crtc(crtc)->config->scaler_state =
-			to_intel_crtc_state(state->crtc_states[i])->scaler_state;
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		to_intel_crtc(crtc)->config = to_intel_crtc_state(crtc->state);
 
 		if (INTEL_INFO(dev)->gen >= 9)
 			skl_detach_scalers(to_intel_crtc(crtc));
 	}
 
+	/*
+	 * FIXME:  The proper sequence here will eventually be:
+	 *
+	 * drm_atomic_helper_commit_modeset_disables(dev, state);
+	 * drm_atomic_helper_commit_planes(dev, state);
+	 * drm_atomic_helper_commit_modeset_enables(dev, state);
+	 *
+	 * once we have full atomic modeset.
+	 */
 	drm_atomic_helper_commit_planes(dev, state);
+
 	drm_atomic_helper_wait_for_vblanks(dev, state);
 	drm_atomic_helper_cleanup_planes(dev, state);
 	drm_atomic_state_free(state);
