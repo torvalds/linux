@@ -39,6 +39,7 @@
 #include <linux/export.h>
 
 #include <asm/hardware/cache-l2x0.h>
+#include <asm/outercache.h>
 #include <asm/exception.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
