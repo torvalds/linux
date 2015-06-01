@@ -4164,35 +4164,6 @@ static int rocker_port_set_mac_address(struct net_device *dev, void *p)
 	return 0;
 }
 
-static int rocker_port_vlan_rx_add_vid(struct net_device *dev,
-				       __be16 proto, u16 vid)
-{
-	struct rocker_port *rocker_port = netdev_priv(dev);
-	int err;
-
-	err = rocker_port_vlan(rocker_port, SWITCHDEV_TRANS_NONE, 0, vid);
-	if (err)
-		return err;
-
-	return rocker_port_router_mac(rocker_port, SWITCHDEV_TRANS_NONE,
-				      0, htons(vid));
-}
-
-static int rocker_port_vlan_rx_kill_vid(struct net_device *dev,
-					__be16 proto, u16 vid)
-{
-	struct rocker_port *rocker_port = netdev_priv(dev);
-	int err;
-
-	err = rocker_port_router_mac(rocker_port, SWITCHDEV_TRANS_NONE,
-				     ROCKER_OP_FLAG_REMOVE, htons(vid));
-	if (err)
-		return err;
-
-	return rocker_port_vlan(rocker_port, SWITCHDEV_TRANS_NONE,
-				ROCKER_OP_FLAG_REMOVE, vid);
-}
-
 static int rocker_port_get_phys_port_name(struct net_device *dev,
 					  char *buf, size_t len)
 {
@@ -4213,8 +4184,6 @@ static const struct net_device_ops rocker_port_netdev_ops = {
 	.ndo_stop			= rocker_port_stop,
 	.ndo_start_xmit			= rocker_port_xmit,
 	.ndo_set_mac_address		= rocker_port_set_mac_address,
-	.ndo_vlan_rx_add_vid		= rocker_port_vlan_rx_add_vid,
-	.ndo_vlan_rx_kill_vid		= rocker_port_vlan_rx_kill_vid,
 	.ndo_bridge_getlink		= switchdev_port_bridge_getlink,
 	.ndo_bridge_setlink		= switchdev_port_bridge_setlink,
 	.ndo_bridge_dellink		= switchdev_port_bridge_dellink,
@@ -4883,8 +4852,7 @@ static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 		       NAPI_POLL_WEIGHT);
 	rocker_carrier_init(rocker_port);
 
-	dev->features |= NETIF_F_NETNS_LOCAL |
-			 NETIF_F_HW_VLAN_CTAG_FILTER;
+	dev->features |= NETIF_F_NETNS_LOCAL;
 
 	err = register_netdev(dev);
 	if (err) {
