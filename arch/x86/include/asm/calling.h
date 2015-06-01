@@ -89,7 +89,7 @@ For 32-bit we have the following conventions - kernel is built with
 #define SIZEOF_PTREGS	21*8
 
 	.macro ALLOC_PT_GPREGS_ON_STACK addskip=0
-	subq	$15*8+\addskip, %rsp
+	addq	$-(15*8+\addskip), %rsp
 	.endm
 
 	.macro SAVE_C_REGS_HELPER offset=0 rax=1 rcx=1 r8910=1 r11=1
@@ -201,7 +201,7 @@ For 32-bit we have the following conventions - kernel is built with
 	.endm
 
 	.macro REMOVE_PT_GPREGS_FROM_STACK addskip=0
-	addq $15*8+\addskip, %rsp
+	subq $-(15*8+\addskip), %rsp
 	.endm
 
 	.macro icebp
