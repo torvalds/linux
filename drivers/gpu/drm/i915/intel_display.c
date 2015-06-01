@@ -13658,6 +13658,7 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_crtc_state *crtc_state = intel_crtc->base.state;
 	struct intel_plane *intel_plane;
 	struct drm_plane *p;
 	unsigned fb_bits = 0;
@@ -13701,7 +13702,7 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc)
 	intel_runtime_pm_get(dev_priv);
 
 	/* Perform vblank evasion around commit operation */
-	if (intel_crtc->active)
+	if (crtc_state->active && !needs_modeset(crtc_state))
 		intel_crtc->atomic.evade =
 			intel_pipe_update_start(intel_crtc,
 						&intel_crtc->atomic.start_vbl_count);
