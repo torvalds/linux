@@ -1083,7 +1083,6 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
 #define assert_shared_dpll_disabled(d, p) assert_shared_dpll(d, p, false)
 struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc,
 						struct intel_crtc_state *state);
-void intel_put_shared_dpll(struct intel_crtc *crtc);
 
 void vlv_force_pll_on(struct drm_device *dev, enum pipe pipe,
 		      const struct dpll *dpll);
