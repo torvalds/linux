@@ -429,6 +429,66 @@ static void ieee80211_tdls_td_tx_handle(struct ieee80211_local *local,
 	}
 }
 
+static struct ieee80211_sub_if_data *
+ieee80211_sdata_from_skb(struct ieee80211_local *local, struct sk_buff *skb)
+{
+	struct ieee80211_sub_if_data *sdata;
+
+	if (skb->dev) {
+		list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+			if (!sdata->dev)
+				continue;
+
+			if (skb->dev == sdata->dev)
+				return sdata;
+		}
+
+		return NULL;
+	}
+
+	return rcu_dereference(local->p2p_sdata);
+}
+
+static void ieee80211_report_ack_skb(struct ieee80211_local *local,
+				     struct ieee80211_tx_info *info,
+				     bool acked, bool dropped)
+{
+	struct sk_buff *skb;
+	unsigned long flags;
+
+	spin_lock_irqsave(&local->ack_status_lock, flags);
+	skb = idr_find(&local->ack_status_frames, info->ack_frame_id);
+	if (skb)
+		idr_remove(&local->ack_status_frames, info->ack_frame_id);
+	spin_unlock_irqrestore(&local->ack_status_lock, flags);
+
+	if (!skb)
+		return;
+
+	if (dropped) {
+		dev_kfree_skb_any(skb);
+		return;
+	}
+
+	if (info->flags & IEEE80211_TX_INTFL_NL80211_FRAME_TX) {
+		struct ieee80211_sub_if_data *sdata;
+
+		rcu_read_lock();
+		sdata = ieee80211_sdata_from_skb(local, skb);
+		if (sdata)
+			cfg80211_mgmt_tx_status(&sdata->wdev,
+						(unsigned long)skb,
+						skb->data, skb->len,
+						acked, GFP_ATOMIC);
+		rcu_read_unlock();
+
+		dev_kfree_skb_any(skb);
+	} else {
+		/* consumes skb */
+		skb_complete_wifi_ack(skb, acked);
+	}
+}
+
 static void ieee80211_report_used_skb(struct ieee80211_local *local,
 				      struct sk_buff *skb, bool dropped)
 {
@@ -440,27 +500,14 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 		acked = false;
 
 	if (info->flags & (IEEE80211_TX_INTFL_NL80211_FRAME_TX |
-			   IEEE80211_TX_INTFL_MLME_CONN_TX)) {
-		struct ieee80211_sub_if_data *sdata = NULL;
-		struct ieee80211_sub_if_data *iter_sdata;
+			   IEEE80211_TX_INTFL_MLME_CONN_TX) &&
+	    !info->ack_frame_id) {
+		struct ieee80211_sub_if_data *sdata;
 		u64 cookie = (unsigned long)skb;
 
 		rcu_read_lock();
 
-		if (skb->dev) {
-			list_for_each_entry_rcu(iter_sdata, &local->interfaces,
-						list) {
-				if (!iter_sdata->dev)
-					continue;
-
-				if (skb->dev == iter_sdata->dev) {
-					sdata = iter_sdata;
-					break;
-				}
-			}
-		} else {
-			sdata = rcu_dereference(local->p2p_sdata);
-		}
+		sdata = ieee80211_sdata_from_skb(local, skb);
 
 		if (!sdata) {
 			skb->dev = NULL;
@@ -483,33 +530,13 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 			cfg80211_probe_status(sdata->dev, hdr->addr1,
 					      cookie, acked, GFP_ATOMIC);
 		} else {
-			cfg80211_mgmt_tx_status(&sdata->wdev, cookie, skb->data,
-						skb->len, acked, GFP_ATOMIC);
+			/* we assign ack frame ID for the others */
+			WARN_ON(1);
 		}
 
 		rcu_read_unlock();
-	}
-
-	if (unlikely(info->ack_frame_id)) {
-		struct sk_buff *ack_skb;
-		unsigned long flags;
-
-		spin_lock_irqsave(&local->ack_status_lock, flags);
-		ack_skb = idr_find(&local->ack_status_frames,
-				   info->ack_frame_id);
-		if (ack_skb)
-			idr_remove(&local->ack_status_frames,
-				   info->ack_frame_id);
-		spin_unlock_irqrestore(&local->ack_status_lock, flags);
-
-		if (ack_skb) {
-			if (!dropped) {
-				/* consumes ack_skb */
-				skb_complete_wifi_ack(ack_skb, acked);
-			} else {
-				dev_kfree_skb_any(ack_skb);
-			}
-		}
+	} else if (info->ack_frame_id) {
+		ieee80211_report_ack_skb(local, info, acked, dropped);
 	}
 }
 

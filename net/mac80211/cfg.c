@@ -2,7 +2,7 @@
  * mac80211 configuration hooks for cfg80211
  *
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
- * Copyright 2013-2014  Intel Mobile Communications GmbH
+ * Copyright 2013-2015  Intel Mobile Communications GmbH
  *
  * This file is GPLv2 as found in COPYING.
  */
@@ -3290,7 +3290,7 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 	struct ieee80211_local *local = sdata->local;
-	struct sk_buff *skb;
+	struct sk_buff *skb, *ack_skb;
 	struct sta_info *sta;
 	const struct ieee80211_mgmt *mgmt = (void *)params->buf;
 	bool need_offchan = false;
@@ -3428,8 +3428,41 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 	skb->dev = sdata->dev;
 
+	if (!params->dont_wait_for_ack) {
+		unsigned long spin_flags;
+		int id;
+
+		/* make a copy to preserve the original cookie (in case the
+		 * driver decides to reallocate the skb) and the frame contents
+		 * in case of encryption.
+		 */
+		ack_skb = skb_copy(skb, GFP_KERNEL);
+		if (!ack_skb) {
+			ret = -ENOMEM;
+			kfree_skb(skb);
+			goto out_unlock;
+		}
+
+		spin_lock_irqsave(&local->ack_status_lock, spin_flags);
+		id = idr_alloc(&local->ack_status_frames, ack_skb,
+			       1, 0x10000, GFP_ATOMIC);
+		spin_unlock_irqrestore(&local->ack_status_lock, spin_flags);
+
+		if (id < 0) {
+			ret = -ENOMEM;
+			kfree_skb(ack_skb);
+			kfree_skb(skb);
+			goto out_unlock;
+		}
+
+		IEEE80211_SKB_CB(skb)->ack_frame_id = id;
+	} else {
+		/* for cookie below */
+		ack_skb = skb;
+	}
+
 	if (!need_offchan) {
-		*cookie = (unsigned long) skb;
+		*cookie = (unsigned long)ack_skb;
 		ieee80211_tx_skb(sdata, skb);
 		ret = 0;
 		goto out_unlock;
