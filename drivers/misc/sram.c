@@ -112,6 +112,7 @@ static int sram_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev,
 				"could not get address for node %s\n",
 				child->full_name);
+			of_node_put(child);
 			goto err_chunks;
 		}
 
@@ -120,6 +121,7 @@ static int sram_probe(struct platform_device *pdev)
 				"reserved block %s outside the sram area\n",
 				child->full_name);
 			ret = -EINVAL;
+			of_node_put(child);
 			goto err_chunks;
 		}
 
