@@ -378,7 +378,7 @@ static ssize_t w1_seq_show(struct device *device,
 		w1_write_8(sl->master, W1_42_COND_READ);
 		rv = w1_read_block(sl->master, (u8 *)&rn, 8);
 		reg_num = (struct w1_reg_num *) &rn;
-		if ((char)reg_num->family == W1_42_FINISHED_BYTE)
+		if (reg_num->family == W1_42_FINISHED_BYTE)
 			break;
 		if (sl->reg_num.id == reg_num->id)
 			seq = i;
