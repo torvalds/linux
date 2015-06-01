@@ -834,6 +834,7 @@ static struct irq_data *irq_domain_insert_irq_data(struct irq_domain *domain,
 	if (irq_data) {
 		child->parent_data = irq_data;
 		irq_data->irq = child->irq;
+		irq_data->common = child->common;
 		irq_data->node = child->node;
 		irq_data->domain = domain;
 	}
