@@ -132,6 +132,7 @@ struct irq_domain;
  * @node:		node index useful for balancing
  * @handler_data:	per-IRQ data for the irq_chip methods
  * @affinity:		IRQ affinity on SMP
+ * @msi_desc:		MSI descriptor
  */
 struct irq_common_data {
 	unsigned int		state_use_accessors;
@@ -139,6 +140,7 @@ struct irq_common_data {
 	unsigned int		node;
 #endif
 	void			*handler_data;
+	struct msi_desc		*msi_desc;
 	cpumask_var_t		affinity;
 };
 
@@ -155,7 +157,6 @@ struct irq_common_data {
  *			irq_domain
  * @chip_data:		platform-specific per-chip private data for the chip
  *			methods, to allow shared chip implementations
- * @msi_desc:		MSI descriptor
  */
 struct irq_data {
 	u32			mask;
@@ -168,7 +169,6 @@ struct irq_data {
 	struct irq_data		*parent_data;
 #endif
 	void			*chip_data;
-	struct msi_desc		*msi_desc;
 };
 
 /*
@@ -652,12 +652,12 @@ static inline void *irq_data_get_irq_handler_data(struct irq_data *d)
 static inline struct msi_desc *irq_get_msi_desc(unsigned int irq)
 {
 	struct irq_data *d = irq_get_irq_data(irq);
-	return d ? d->msi_desc : NULL;
+	return d ? d->common->msi_desc : NULL;
 }
 
 static inline struct msi_desc *irq_data_get_msi_desc(struct irq_data *d)
 {
-	return d->msi_desc;
+	return d->common->msi_desc;
 }
 
 static inline u32 irq_get_trigger_type(unsigned int irq)

@@ -105,7 +105,7 @@ int irq_set_msi_desc_off(unsigned int irq_base, unsigned int irq_offset,
 
 	if (!desc)
 		return -EINVAL;
-	desc->irq_data.msi_desc = entry;
+	desc->irq_common_data.msi_desc = entry;
 	if (entry && !irq_offset)
 		entry->irq = irq_base;
 	irq_put_desc_unlock(desc, flags);

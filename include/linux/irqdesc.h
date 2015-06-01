@@ -128,7 +128,7 @@ static inline void *irq_desc_get_handler_data(struct irq_desc *desc)
 
 static inline struct msi_desc *irq_desc_get_msi_desc(struct irq_desc *desc)
 {
-	return desc->irq_data.msi_desc;
+	return desc->irq_common_data.msi_desc;
 }
 
 /*
