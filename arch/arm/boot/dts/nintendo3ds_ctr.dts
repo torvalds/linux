@@ -73,10 +73,18 @@
 		reg = <0x10148000 0x04>;
 	};
 
+	nintendo3ds_refclk144mhz: refclk144mkhz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <144000000>;
+		clock-output-names = "nintendo3ds:refclk144khz";
+	};
+
 	twd-timer@17E00600 {
 		compatible = "arm,arm11mp-twd-timer";
 		reg = <0x17E00600 0x20>;
 		interrupts = <1 13 0xf01>;
+		clocks = <&nintendo3ds_refclk144mhz>;
 	};
 
 	twd-watchdog@17E00620 {
