@@ -217,6 +217,18 @@ config CRYPTO_GCM
 	  Support for Galois/Counter Mode (GCM) and Galois Message
 	  Authentication Code (GMAC). Required for IPSec.
 
+config CRYPTO_CHACHA20POLY1305
+	tristate "ChaCha20-Poly1305 AEAD support"
+	select CRYPTO_CHACHA20
+	select CRYPTO_POLY1305
+	select CRYPTO_AEAD
+	help
+	  ChaCha20-Poly1305 AEAD support, RFC7539.
+
+	  Support for the AEAD wrapper using the ChaCha20 stream cipher combined
+	  with the Poly1305 authenticator. It is defined in RFC7539 for use in
+	  IETF protocols.
+
 config CRYPTO_SEQIV
 	tristate "Sequence Number IV Generator"
 	select CRYPTO_AEAD
