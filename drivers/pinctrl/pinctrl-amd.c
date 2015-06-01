@@ -855,7 +855,6 @@ MODULE_DEVICE_TABLE(acpi, amd_gpio_acpi_match);
 static struct platform_driver amd_gpio_driver = {
 	.driver		= {
 		.name	= "amd_gpio",
-		.owner	= THIS_MODULE,
 		.acpi_match_table = ACPI_PTR(amd_gpio_acpi_match),
 	},
 	.probe		= amd_gpio_probe,

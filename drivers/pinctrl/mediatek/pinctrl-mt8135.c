@@ -357,7 +357,6 @@ static struct platform_driver mtk_pinctrl_driver = {
 	.probe = mt8135_pinctrl_probe,
 	.driver = {
 		.name = "mediatek-mt8135-pinctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = mt8135_pctrl_match,
 	},
 };

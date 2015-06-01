@@ -4066,7 +4066,6 @@ static int atlas7_pinmux_probe(struct platform_device *pdev)
 	pmx->pctl_desc.pctlops = &atlas7_pinctrl_ops;
 	pmx->pctl_desc.pmxops = &atlas7_pinmux_ops;
 	pmx->pctl_desc.confops = &atlas7_pinconf_ops;
-	pmx->pctl_desc.owner = THIS_MODULE;
 
 	for (idx = 0; idx < banks; idx++) {
 		pmx->regs[idx] = of_iomap(np, idx);
@@ -4109,7 +4108,6 @@ static const struct of_device_id atlas7_pinmux_ids[] = {
 static struct platform_driver atlas7_pinmux_driver = {
 	.driver = {
 		.name = "atlas7-ioc",
-		.owner = THIS_MODULE,
 		.of_match_table = atlas7_pinmux_ids,
 	},
 	.probe = atlas7_pinmux_probe,
