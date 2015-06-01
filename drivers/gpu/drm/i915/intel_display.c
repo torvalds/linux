@@ -12902,10 +12902,10 @@ static int __intel_set_mode(struct drm_atomic_state *state)
 
 	modeset_update_crtc_power_domains(state);
 
-	drm_atomic_helper_commit_planes(dev, state);
-
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		drm_atomic_helper_commit_planes_on_crtc(crtc_state);
+
 		if (!needs_modeset(crtc->state) || !crtc->state->active)
 			continue;
 
@@ -15267,6 +15267,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		struct intel_plane_state *plane_state;
 
 		memset(crtc->config, 0, sizeof(*crtc->config));
+		crtc->config->base.crtc = &crtc->base;
 
 		crtc->config->quirks |= PIPE_CONFIG_QUIRK_INHERITED_MODE;
 

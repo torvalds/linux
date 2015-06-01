@@ -151,18 +151,11 @@ int intel_atomic_commit(struct drm_device *dev,
 
 		if (INTEL_INFO(dev)->gen >= 9)
 			skl_detach_scalers(to_intel_crtc(crtc));
+
+		drm_atomic_helper_commit_planes_on_crtc(crtc_state);
 	}
 
-	/*
-	 * FIXME:  The proper sequence here will eventually be:
-	 *
-	 * drm_atomic_helper_commit_modeset_disables(dev, state);
-	 * drm_atomic_helper_commit_planes(dev, state);
-	 * drm_atomic_helper_commit_modeset_enables(dev, state);
-	 *
-	 * once we have full atomic modeset.
-	 */
-	drm_atomic_helper_commit_planes(dev, state);
+	/* FIXME: This function should eventually call __intel_set_mode when needed */
 
 	drm_atomic_helper_wait_for_vblanks(dev, state);
 	drm_atomic_helper_cleanup_planes(dev, state);
