@@ -431,6 +431,12 @@ static void vlv_clock(int refclk, intel_clock_t *clock)
 	clock->dot = DIV_ROUND_CLOSEST(clock->vco, clock->p);
 }
 
+static bool
+needs_modeset(struct drm_crtc_state *state)
+{
+	return state->mode_changed || state->active_changed;
+}
+
 /**
  * Returns whether any output on the specified pipe is of the specified type
  */
@@ -12085,6 +12091,15 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
+	/*
+	 * XXX: Add all connectors to make the crtc state match the encoders.
+	 */
+	if (!needs_modeset(&pipe_config->base)) {
+		ret = drm_atomic_add_affected_connectors(state, crtc);
+		if (ret)
+			return ret;
+	}
+
 	clear_intel_crtc_state(pipe_config);
 
 	pipe_config->cpu_transcoder =
@@ -12176,6 +12191,18 @@ encoder_retry:
 	DRM_DEBUG_KMS("plane bpp: %i, pipe bpp: %i, dithering: %i\n",
 		      base_bpp, pipe_config->pipe_bpp, pipe_config->dither);
 
+	/* Check if we need to force a modeset */
+	if (pipe_config->has_audio !=
+	    to_intel_crtc_state(crtc->state)->has_audio)
+		pipe_config->base.mode_changed = true;
+
+	/*
+	 * Note we have an issue here with infoframes: current code
+	 * only updates them on the full mode set path per hw
+	 * requirements.  So here we should be checking for any
+	 * required changes and forcing a mode set.
+	 */
+
 	return 0;
 fail:
 	return ret;
@@ -12191,12 +12218,6 @@ static bool intel_crtc_in_use(struct drm_crtc *crtc)
 			return true;
 
 	return false;
-}
-
-static bool
-needs_modeset(struct drm_crtc_state *state)
-{
-	return state->mode_changed || state->active_changed;
 }
 
 static void
@@ -12785,10 +12806,6 @@ intel_modeset_compute_config(struct drm_crtc *crtc,
 	struct intel_crtc_state *pipe_config;
 	int ret = 0;
 
-	ret = drm_atomic_add_affected_connectors(state, crtc);
-	if (ret)
-		return ERR_PTR(ret);
-
 	ret = drm_atomic_helper_check_modeset(state->dev, state);
 	if (ret)
 		return ERR_PTR(ret);
@@ -12810,19 +12827,7 @@ intel_modeset_compute_config(struct drm_crtc *crtc,
 	if (ret)
 		return ERR_PTR(ret);
 
-	/* Check things that can only be changed through modeset */
-	if (pipe_config->has_audio !=
-	    to_intel_crtc(crtc)->config->has_audio)
-		pipe_config->base.mode_changed = true;
-
-	/*
-	 * Note we have an issue here with infoframes: current code
-	 * only updates them on the full mode set path per hw
-	 * requirements.  So here we should be checking for any
-	 * required changes and forcing a mode set.
-	 */
-
-	intel_dump_pipe_config(to_intel_crtc(crtc), pipe_config,"[modeset]");
+	intel_dump_pipe_config(to_intel_crtc(crtc), pipe_config, "[modeset]");
 
 	ret = drm_atomic_helper_check_planes(state->dev, state);
 	if (ret)
