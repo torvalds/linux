@@ -10,10 +10,6 @@
  *  @version	1.0
  */
 
-#ifndef CONFIG_WILC_MSG_QUEUE_FEATURE
-#error the feature CONFIG_WILC_MSG_QUEUE_FEATURE must be supported to include this file
-#endif
-
 /*!
  *  @struct             tstrWILC_MsgQueueAttrs
  *  @brief		Message Queue API options
@@ -22,37 +18,11 @@
  *  @version		1.0
  */
 typedef struct {
-	#ifdef CONFIG_WILC_MSG_QUEUE_IPC_NAME
-	WILC_Char *pcName;
-	#endif
-
-	#ifdef CONFIG_WILC_MSG_QUEUE_TIMEOUT
-	WILC_Uint32 u32Timeout;
-	#endif
-
 	/* a dummy member to avoid compiler errors*/
 	WILC_Uint8 dummy;
 
 } tstrWILC_MsgQueueAttrs;
 
-/*!
- *  @brief		Fills the MsgQueueAttrs with default parameters
- *  @param[out]	pstrAttrs structure to be filled
- *  @sa			WILC_TimerAttrs
- *  @author		syounan
- *  @date		30 Aug 2010
- *  @version		1.0
- */
-static void WILC_MsgQueueFillDefault(tstrWILC_MsgQueueAttrs *pstrAttrs)
-{
-	#ifdef CONFIG_WILC_MSG_QUEUE_IPC_NAME
-	pstrAttrs->pcName = WILC_NULL;
-	#endif
-
-	#ifdef CONFIG_WILC_MSG_QUEUE_TIMEOUT
-	pstrAttrs->u32Timeout = WILC_OS_INFINITY;
-	#endif
-}
 /*!
  *  @brief		Creates a new Message queue
  *  @details		Creates a new Message queue, if the feature

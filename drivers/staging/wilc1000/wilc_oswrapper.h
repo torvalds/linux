@@ -78,9 +78,7 @@ typedef WILC_Uint16 WILC_WideChar;
 #include "wilc_strutils.h"
 
 /* Message Queue */
-#ifdef CONFIG_WILC_MSG_QUEUE_FEATURE
 #include "wilc_msgqueue.h"
-#endif
 
 /* File operations */
 #ifdef CONFIG_WILC_FILE_OPERATIONS_FEATURE

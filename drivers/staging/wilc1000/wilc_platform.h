@@ -50,18 +50,6 @@
 #error This feature is not supported by this OS
 #endif
 
-/* CONFIG_WILC_MSG_QUEUE_FEATURE is implemented */
-
-/* remove the following block when implementing its feature */
-#ifdef CONFIG_WILC_MSG_QUEUE_IPC_NAME
-#error This feature is not supported by this OS
-#endif
-
-/* remove the following block when implementing its feature */
-/*#ifdef CONFIG_WILC_MSG_QUEUE_TIMEOUT
- * #error This feature is not supported by this OS
- #endif*/
-
 /* CONFIG_WILC_FILE_OPERATIONS_FEATURE is implemented */
 
 /* CONFIG_WILC_FILE_OPERATIONS_STRING_API is implemented */

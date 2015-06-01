@@ -1,8 +1,6 @@
 
 #include "wilc_oswrapper.h"
 #include <linux/spinlock.h>
-#ifdef CONFIG_WILC_MSG_QUEUE_FEATURE
-
 
 /*!
  *  @author		syounan
@@ -154,11 +152,6 @@ WILC_ErrNo WILC_MsgQueueRecv(WILC_MsgQueueHandle *pHandle,
 	spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
 
 	WILC_SemaphoreFillDefault(&strSemAttrs);
-	#ifdef CONFIG_WILC_MSG_QUEUE_TIMEOUT
-	if (pstrAttrs != WILC_NULL) {
-		strSemAttrs.u32TimeOut = pstrAttrs->u32Timeout;
-	}
-	#endif
 	s32RetStatus = WILC_SemaphoreAcquire(&(pHandle->hSem), &strSemAttrs);
 	if (s32RetStatus == WILC_TIMEOUT) {
 		/* timed out, just exit without consumeing the message */
@@ -207,5 +200,3 @@ WILC_ErrNo WILC_MsgQueueRecv(WILC_MsgQueueHandle *pHandle,
 
 	return s32RetStatus;
 }
-
-#endif
