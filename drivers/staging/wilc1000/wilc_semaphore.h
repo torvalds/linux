@@ -10,11 +10,6 @@
  *  @version		1.0
  */
 
-
-#ifndef CONFIG_WILC_SEMAPHORE_FEATURE
-#error the feature WILC_OS_FEATURE_SEMAPHORE must be supported to include this file
-#endif
-
 /*!
  *  @struct             WILC_SemaphoreAttrs
  *  @brief		Semaphore API options
@@ -28,14 +23,6 @@ typedef struct {
 	 */
 	WILC_Uint32 u32InitCount;
 
-	#ifdef CONFIG_WILC_SEMAPHORE_TIMEOUT
-	/*!<
-	 * Timeout for use with WILC_SemaphoreAcquire, 0 to return immediately and
-	 * WILC_OS_INFINITY to wait forever. default is WILC_OS_INFINITY
-	 */
-	WILC_Uint32 u32TimeOut;
-	#endif
-
 } tstrWILC_SemaphoreAttrs;
 
 
@@ -47,12 +34,9 @@ typedef struct {
  *  @date	10 Aug 2010
  *  @version	1.0
  */
-static void WILC_SemaphoreFillDefault(tstrWILC_SemaphoreAttrs *pstrAttrs)
+static inline void WILC_SemaphoreFillDefault(tstrWILC_SemaphoreAttrs *pstrAttrs)
 {
 	pstrAttrs->u32InitCount = 1;
-	#ifdef CONFIG_WILC_SEMAPHORE_TIMEOUT
-	pstrAttrs->u32TimeOut = WILC_OS_INFINITY;
-	#endif
 }
 /*!
  *  @brief	Creates a new Semaphore object

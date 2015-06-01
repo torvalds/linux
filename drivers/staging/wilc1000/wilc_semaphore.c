@@ -1,7 +1,5 @@
 
 #include "wilc_oswrapper.h"
-#ifdef CONFIG_WILC_SEMAPHORE_FEATURE
-
 
 WILC_ErrNo WILC_SemaphoreCreate(WILC_SemaphoreHandle *pHandle,
 				tstrWILC_SemaphoreAttrs *pstrAttrs)
@@ -33,18 +31,8 @@ WILC_ErrNo WILC_SemaphoreAcquire(WILC_SemaphoreHandle *pHandle,
 {
 	WILC_ErrNo s32RetStatus = WILC_SUCCESS;
 
-	#ifndef CONFIG_WILC_SEMAPHORE_TIMEOUT
 	while (down_interruptible(pHandle))
 		;
-
-	#else
-	if (pstrAttrs == WILC_NULL) {
-		down(pHandle);
-	} else {
-
-		s32RetStatus = down_timeout(pHandle, msecs_to_jiffies(pstrAttrs->u32TimeOut));
-	}
-	#endif
 
 	if (s32RetStatus == 0) {
 		return WILC_SUCCESS;
@@ -66,5 +54,3 @@ WILC_ErrNo WILC_SemaphoreRelease(WILC_SemaphoreHandle *pHandle,
 	return WILC_SUCCESS;
 
 }
-
-#endif

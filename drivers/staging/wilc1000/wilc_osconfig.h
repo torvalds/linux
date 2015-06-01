@@ -10,7 +10,6 @@
 
 /* OS features supported */
 
-#define CONFIG_WILC_SEMAPHORE_FEATURE 1
 /* #define CONFIG_WILC_SEMAPHORE_TIMEOUT 1 */
 #define CONFIG_WILC_SLEEP_FEATURE 1
 #define CONFIG_WILC_SLEEP_HI_RES 1
