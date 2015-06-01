@@ -2662,26 +2662,22 @@ static int gfx_v7_0_ring_test_ib(struct amdgpu_ring *ring)
 	r = amdgpu_ib_get(ring, NULL, 256, &ib);
 	if (r) {
 		DRM_ERROR("amdgpu: failed to get ib (%d).\n", r);
-		amdgpu_gfx_scratch_free(adev, scratch);
-		return r;
+		goto err1;
 	}
 	ib.ptr[0] = PACKET3(PACKET3_SET_UCONFIG_REG, 1);
 	ib.ptr[1] = ((scratch - PACKET3_SET_UCONFIG_REG_START));
 	ib.ptr[2] = 0xDEADBEEF;
 	ib.length_dw = 3;
-	r = amdgpu_ib_schedule(adev, 1, &ib, AMDGPU_FENCE_OWNER_UNDEFINED);
-	if (r) {
-		amdgpu_gfx_scratch_free(adev, scratch);
-		amdgpu_ib_free(adev, &ib);
-		DRM_ERROR("amdgpu: failed to schedule ib (%d).\n", r);
-		return r;
-	}
+
+	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, &ib, 1, NULL,
+						 AMDGPU_FENCE_OWNER_UNDEFINED);
+	if (r)
+		goto err2;
+
 	r = amdgpu_fence_wait(ib.fence, false);
 	if (r) {
 		DRM_ERROR("amdgpu: fence wait failed (%d).\n", r);
-		amdgpu_gfx_scratch_free(adev, scratch);
-		amdgpu_ib_free(adev, &ib);
-		return r;
+		goto err2;
 	}
 	for (i = 0; i < adev->usec_timeout; i++) {
 		tmp = RREG32(scratch);
@@ -2691,14 +2687,18 @@ static int gfx_v7_0_ring_test_ib(struct amdgpu_ring *ring)
 	}
 	if (i < adev->usec_timeout) {
 		DRM_INFO("ib test on ring %d succeeded in %u usecs\n",
-			 ib.fence->ring->idx, i);
+			 ring->idx, i);
+		goto err2;
 	} else {
 		DRM_ERROR("amdgpu: ib test failed (scratch(0x%04X)=0x%08X)\n",
 			  scratch, tmp);
 		r = -EINVAL;
 	}
-	amdgpu_gfx_scratch_free(adev, scratch);
+
+err2:
 	amdgpu_ib_free(adev, &ib);
+err1:
+	amdgpu_gfx_scratch_free(adev, scratch);
 	return r;
 }
 
