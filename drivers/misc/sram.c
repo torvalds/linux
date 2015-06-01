@@ -35,6 +35,9 @@
 #define SRAM_GRANULARITY	32
 
 struct sram_dev {
+	struct device *dev;
+	void __iomem *virt_base;
+
 	struct gen_pool *pool;
 	struct clk *clk;
 };
@@ -56,7 +59,6 @@ static int sram_reserve_cmp(void *priv, struct list_head *a,
 
 static int sram_probe(struct platform_device *pdev)
 {
-	void __iomem *virt_base;
 	struct sram_dev *sram;
 	struct resource *res;
 	struct device_node *np = pdev->dev.of_node, *child;
@@ -68,29 +70,31 @@ static int sram_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&reserve_list);
 
+	sram = devm_kzalloc(&pdev->dev, sizeof(*sram), GFP_KERNEL);
+	if (!sram)
+		return -ENOMEM;
+
+	sram->dev = &pdev->dev;
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "found no memory resource\n");
+		dev_err(sram->dev, "found no memory resource\n");
 		return -EINVAL;
 	}
 
 	size = resource_size(res);
 
-	if (!devm_request_mem_region(&pdev->dev,
-			res->start, size, pdev->name)) {
-		dev_err(&pdev->dev, "could not request region for resource\n");
+	if (!devm_request_mem_region(sram->dev, res->start, size, pdev->name)) {
+		dev_err(sram->dev, "could not request region for resource\n");
 		return -EBUSY;
 	}
 
-	virt_base = devm_ioremap_wc(&pdev->dev, res->start, size);
-	if (IS_ERR(virt_base))
-		return PTR_ERR(virt_base);
+	sram->virt_base = devm_ioremap_wc(sram->dev, res->start, size);
+	if (IS_ERR(sram->virt_base))
+		return PTR_ERR(sram->virt_base);
 
-	sram = devm_kzalloc(&pdev->dev, sizeof(*sram), GFP_KERNEL);
-	if (!sram)
-		return -ENOMEM;
-
-	sram->pool = devm_gen_pool_create(&pdev->dev, ilog2(SRAM_GRANULARITY), -1);
+	sram->pool = devm_gen_pool_create(sram->dev,
+					  ilog2(SRAM_GRANULARITY), -1);
 	if (!sram->pool)
 		return -ENOMEM;
 
@@ -109,7 +113,7 @@ static int sram_probe(struct platform_device *pdev)
 
 		ret = of_address_to_resource(child, 0, &child_res);
 		if (ret < 0) {
-			dev_err(&pdev->dev,
+			dev_err(sram->dev,
 				"could not get address for node %s\n",
 				child->full_name);
 			of_node_put(child);
@@ -117,7 +121,7 @@ static int sram_probe(struct platform_device *pdev)
 		}
 
 		if (child_res.start < res->start || child_res.end > res->end) {
-			dev_err(&pdev->dev,
+			dev_err(sram->dev,
 				"reserved block %s outside the sram area\n",
 				child->full_name);
 			ret = -EINVAL;
@@ -129,9 +133,8 @@ static int sram_probe(struct platform_device *pdev)
 		block->size = resource_size(&child_res);
 		list_add_tail(&block->list, &reserve_list);
 
-		dev_dbg(&pdev->dev, "found reserved block 0x%x-0x%x\n",
-			block->start,
-			block->start + block->size);
+		dev_dbg(sram->dev, "found reserved block 0x%x-0x%x\n",
+			block->start, block->start + block->size);
 
 		block++;
 	}
@@ -148,7 +151,7 @@ static int sram_probe(struct platform_device *pdev)
 	list_for_each_entry(block, &reserve_list, list) {
 		/* can only happen if sections overlap */
 		if (block->start < cur_start) {
-			dev_err(&pdev->dev,
+			dev_err(sram->dev,
 				"block at 0x%x starts after current offset 0x%lx\n",
 				block->start, cur_start);
 			ret = -EINVAL;
@@ -168,10 +171,11 @@ static int sram_probe(struct platform_device *pdev)
 		 */
 		cur_size = block->start - cur_start;
 
-		dev_dbg(&pdev->dev, "adding chunk 0x%lx-0x%lx\n",
+		dev_dbg(sram->dev, "adding chunk 0x%lx-0x%lx\n",
 			cur_start, cur_start + cur_size);
+
 		ret = gen_pool_add_virt(sram->pool,
-				(unsigned long)virt_base + cur_start,
+				(unsigned long)sram->virt_base + cur_start,
 				res->start + cur_start, cur_size, -1);
 		if (ret < 0)
 			goto err_chunks;
@@ -182,7 +186,7 @@ static int sram_probe(struct platform_device *pdev)
 
 	kfree(rblocks);
 
-	sram->clk = devm_clk_get(&pdev->dev, NULL);
+	sram->clk = devm_clk_get(sram->dev, NULL);
 	if (IS_ERR(sram->clk))
 		sram->clk = NULL;
 	else
@@ -190,8 +194,8 @@ static int sram_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, sram);
 
-	dev_dbg(&pdev->dev, "SRAM pool: %zu KiB @ 0x%p\n",
-		gen_pool_size(sram->pool) / 1024, virt_base);
+	dev_dbg(sram->dev, "SRAM pool: %zu KiB @ 0x%p\n",
+		gen_pool_size(sram->pool) / 1024, sram->virt_base);
 
 	return 0;
 
@@ -206,7 +210,7 @@ static int sram_remove(struct platform_device *pdev)
 	struct sram_dev *sram = platform_get_drvdata(pdev);
 
 	if (gen_pool_avail(sram->pool) < gen_pool_size(sram->pool))
-		dev_err(&pdev->dev, "removed while SRAM allocated\n");
+		dev_err(sram->dev, "removed while SRAM allocated\n");
 
 	if (sram->clk)
 		clk_disable_unprepare(sram->clk);
