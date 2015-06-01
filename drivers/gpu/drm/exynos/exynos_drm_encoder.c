@@ -81,17 +81,9 @@ static void exynos_drm_encoder_disable(struct drm_encoder *encoder)
 {
 	struct exynos_drm_encoder *exynos_encoder = to_exynos_encoder(encoder);
 	struct exynos_drm_display *display = exynos_encoder->display;
-	struct drm_plane *plane;
-	struct drm_device *dev = encoder->dev;
 
 	if (display->ops->dpms)
 		display->ops->dpms(display, DRM_MODE_DPMS_OFF);
-
-	/* all planes connected to this encoder should be also disabled. */
-	drm_for_each_legacy_plane(plane, &dev->mode_config.plane_list) {
-		if (plane->crtc && (plane->crtc == encoder->crtc))
-			plane->funcs->disable_plane(plane);
-	}
 }
 
 static struct drm_encoder_helper_funcs exynos_encoder_helper_funcs = {

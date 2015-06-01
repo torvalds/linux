@@ -40,8 +40,6 @@ static void exynos_drm_crtc_enable(struct drm_crtc *crtc)
 static void exynos_drm_crtc_disable(struct drm_crtc *crtc)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-	struct drm_plane *plane;
-	int ret;
 
 	if (!exynos_crtc->enabled)
 		return;
@@ -57,15 +55,6 @@ static void exynos_drm_crtc_disable(struct drm_crtc *crtc)
 		exynos_crtc->ops->dpms(exynos_crtc, DRM_MODE_DPMS_OFF);
 
 	exynos_crtc->enabled = false;
-
-	drm_for_each_legacy_plane(plane, &crtc->dev->mode_config.plane_list) {
-		if (plane->crtc != crtc)
-			continue;
-
-		ret = plane->funcs->disable_plane(plane);
-		if (ret)
-			DRM_ERROR("Failed to disable plane %d\n", ret);
-	}
 }
 
 static bool
