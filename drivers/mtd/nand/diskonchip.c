@@ -1301,10 +1301,7 @@ static int __init nftl_scan_bbt(struct mtd_info *mtd)
 	if (ret)
 		return ret;
 
-	mtd_device_register(mtd, NULL, 0);
-	if (!no_autopart)
-		mtd_device_register(mtd, parts, numparts);
-	return 0;
+	return mtd_device_register(mtd, parts, no_autopart ? 0 : numparts);
 }
 
 static int __init inftl_scan_bbt(struct mtd_info *mtd)
@@ -1358,10 +1355,7 @@ static int __init inftl_scan_bbt(struct mtd_info *mtd)
 	   autopartitioning, but I want to give it more thought. */
 	if (!numparts)
 		return -EIO;
-	mtd_device_register(mtd, NULL, 0);
-	if (!no_autopart)
-		mtd_device_register(mtd, parts, numparts);
-	return 0;
+	return mtd_device_register(mtd, parts, no_autopart ? 0 : numparts);
 }
 
 static inline int __init doc2000_init(struct mtd_info *mtd)
