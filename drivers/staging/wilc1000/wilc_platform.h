@@ -1,68 +1,6 @@
 #ifndef __WILC_platfrom_H__
 #define __WILC_platfrom_H__
 
-/*!
- *  @file	wilc_platform.h
- *  @brief	platform specific file for Linux port
- *  @author	syounan
- *  @sa		wilc_oswrapper.h top level OS wrapper file
- *  @date	15 Dec 2010
- *  @version	1.0
- */
-
-
-/******************************************************************
- *      Feature support checks
- *******************************************************************/
-
-/* CONFIG_WILC_SEMAPHORE_FEATURE is implemented */
-
-/* remove the following block when implementing its feature
- * #ifdef CONFIG_WILC_SEMAPHORE_TIMEOUT
- * #error This feature is not supported by this OS
- #endif*/
-
-
-/* remove the following block when implementing its feature */
-#ifdef CONFIG_WILC_ASSERTION_SUPPORT
-#error This feature is not supported by this OS
-#endif
-
-/* CONFIG_WILC_FILE_OPERATIONS_FEATURE is implemented */
-
-/* CONFIG_WILC_FILE_OPERATIONS_STRING_API is implemented */
-
-/* remove the following block when implementing its feature */
-#ifdef CONFIG_WILC_FILE_OPERATIONS_PATH_API
-#error This feature is not supported by this OS
-#endif
-
-/* remove the following block when implementing its feature */
-#ifdef CONFIG_WILC_EVENT_FEATURE
-#error This feature is not supported by this OS
-#endif
-
-/* remove the following block when implementing its feature */
-#ifdef CONFIG_WILC_EVENT_TIMEOUT
-#error This feature is not supported by this OS
-#endif
-
-/* CONFIG_WILC_MATH_OPERATIONS_FEATURE is implemented */
-
-/* CONFIG_WILC_EXTENDED_FILE_OPERATIONS is implemented */
-
-/* CONFIG_WILC_EXTENDED_TIME_OPERATIONS is implemented */
-
-/* remove the following block when implementing its feature */
-#ifdef CONFIG_WILC_SOCKET_FEATURE
-#error This feature is not supported by this OS
-#endif
-
-/******************************************************************
- *      OS specific includes
- *******************************************************************/
-#define _XOPEN_SOURCE 600
-
 #include <linux/kthread.h>
 #include <linux/semaphore.h>
 #include <linux/module.h>

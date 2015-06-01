@@ -64,21 +64,4 @@ typedef WILC_Sint32 WILC_ErrNo;
 ERRORHANDLER: \
 	if (WILC_IS_ERR(__status__)) \
 
-#ifdef CONFIG_WILC_ASSERTION_SUPPORT
-
-/**
- * @brief	prints a diagnostic message and aborts the program
- * @param[in]   pcExpression The expression that triggered the assertion
- * @param[in]   pcFileName The name of the current source file.
- * @param[in]   u32LineNumber The line number in the current source file.
- * @warning DO NOT CALL DIRECTLY. USE EQUIVALENT MACRO FUNCTION INSTEAD.
- */
-void WILC_assert_INTERNAL(WILC_Char *pcExpression, WILC_Char *pcFileName, WILC_Uint32 u32LineNumber);
-
-#define WILC_assert(__expression__) (void)(!!(__expression__) || (WILC_assert_INTERNAL((# __expression__), __WILC_FILE__, __WILC_LINE__), 0))
-
-#else
-#define WILC_assert(__expression__) ((void)0)
-#endif
-
 #endif

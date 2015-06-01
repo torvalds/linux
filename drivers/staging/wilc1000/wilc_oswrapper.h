@@ -72,26 +72,4 @@ typedef WILC_Uint16 WILC_WideChar;
 /* Message Queue */
 #include "wilc_msgqueue.h"
 
-/* File operations */
-#ifdef CONFIG_WILC_FILE_OPERATIONS_FEATURE
-#include "wilc_fileops.h"
-#endif
-
-/* Event support */
-#ifdef CONFIG_WILC_EVENT_FEATURE
-#include "wilc_event.h"
-#endif
-
-/* Socket operations */
-#ifdef CONFIG_WILC_SOCKET_FEATURE
-#include "wilc_socket.h"
-#endif
-
-/* Math operations */
-#ifdef CONFIG_WILC_MATH_OPERATIONS_FEATURE
-#include "wilc_math.h"
-#endif
-
-
-
 #endif
