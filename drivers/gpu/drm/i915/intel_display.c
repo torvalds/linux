@@ -13768,7 +13768,7 @@ static void intel_finish_crtc_commit(struct drm_crtc *crtc)
 
 	intel_runtime_pm_put(dev_priv);
 
-	if (intel_crtc->atomic.wait_vblank)
+	if (intel_crtc->atomic.wait_vblank && intel_crtc->active)
 		intel_wait_for_vblank(dev, intel_crtc->pipe);
 
 	intel_frontbuffer_flip(dev, intel_crtc->atomic.fb_bits);
