@@ -61,9 +61,7 @@ typedef WILC_Uint16 WILC_WideChar;
 #include "wilc_sleep.h"
 
 /* Timer support */
-#ifdef CONFIG_WILC_TIMER_FEATURE
 #include "wilc_timer.h"
-#endif
 
 /* Memory support */
 #include "wilc_memory.h"

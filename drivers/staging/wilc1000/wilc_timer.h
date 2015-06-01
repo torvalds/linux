@@ -10,10 +10,6 @@
  *  @version	1.0
  */
 
-#ifndef CONFIG_WILC_TIMER_FEATURE
-#error the feature CONFIG_WILC_TIMER_FEATURE must be supported to include this file
-#endif
-
 typedef void (*tpfWILC_TimerFunction)(void *);
 
 /*!
@@ -24,32 +20,9 @@ typedef void (*tpfWILC_TimerFunction)(void *);
  *  @version		1.0
  */
 typedef struct {
-	/*!< if set to WILC_TRUE the callback function will be called
-	 * periodically. */
-	#ifdef CONFIG_WILC_TIMER_PERIODIC
-	WILC_Bool bPeriodicTimer;
-	#endif
-
 	/* a dummy member to avoid compiler errors*/
 	WILC_Uint8 dummy;
 } tstrWILC_TimerAttrs;
-
-/*!
- *  @brief	Fills the WILC_TimerAttrs with default parameters
- *  @param[out]	pstrAttrs structure to be filled
- *  @sa		WILC_TimerAttrs
- *  @author	syounan
- *  @date	16 Aug 2010
- *  @version	1.0
- */
-
-static void WILC_TimerFillDefault(tstrWILC_TimerAttrs *pstrAttrs)
-{
-	#ifdef CONFIG_WILC_TIMER_PERIODIC
-	pstrAttrs->bPeriodicTimer = WILC_FALSE;
-	#endif
-}
-
 
 /*!
  *  @brief	Creates a new timer

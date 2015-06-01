@@ -23,10 +23,6 @@
  #endif*/
 
 
-/* CONFIG_WILC_TIMER_FEATURE is implemented */
-
-/* CONFIG_WILC_TIMER_PERIODIC is implemented */
-
 /* remove the following block when implementing its feature */
 #ifdef CONFIG_WILC_ASSERTION_SUPPORT
 #error This feature is not supported by this OS

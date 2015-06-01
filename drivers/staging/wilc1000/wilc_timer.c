@@ -1,10 +1,6 @@
 
 #include "wilc_oswrapper.h"
 
-#ifdef CONFIG_WILC_TIMER_FEATURE
-
-
-
 WILC_ErrNo WILC_TimerCreate(WILC_TimerHandle *pHandle,
 	tpfWILC_TimerFunction pfCallback, tstrWILC_TimerAttrs *pstrAttrs)
 {
@@ -47,5 +43,3 @@ WILC_ErrNo WILC_TimerStop(WILC_TimerHandle *pHandle,
 
 	return s32RetStatus;
 }
-
-#endif
