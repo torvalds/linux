@@ -62,9 +62,6 @@ static void exynos_drm_crtc_commit(struct drm_crtc *crtc)
 
 	if (exynos_crtc->ops->win_commit)
 		exynos_crtc->ops->win_commit(exynos_crtc, exynos_plane->zpos);
-
-	if (exynos_crtc->ops->commit)
-		exynos_crtc->ops->commit(exynos_crtc);
 }
 
 static bool
@@ -81,60 +78,13 @@ exynos_drm_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
-static int
-exynos_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
-			  struct drm_display_mode *adjusted_mode, int x, int y,
-			  struct drm_framebuffer *old_fb)
-{
-	struct drm_framebuffer *fb = crtc->primary->fb;
-	unsigned int crtc_w;
-	unsigned int crtc_h;
-	int ret;
-
-	/*
-	 * copy the mode data adjusted by mode_fixup() into crtc->mode
-	 * so that hardware can be seet to proper mode.
-	 */
-	memcpy(&crtc->mode, adjusted_mode, sizeof(*adjusted_mode));
-
-	ret = exynos_check_plane(crtc->primary, fb);
-	if (ret < 0)
-		return ret;
-
-	crtc_w = fb->width - x;
-	crtc_h = fb->height - y;
-	exynos_plane_mode_set(crtc->primary, crtc, fb, 0, 0,
-			      crtc_w, crtc_h, x, y, crtc_w, crtc_h);
-
-	return 0;
-}
-
-static int exynos_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
-					  struct drm_framebuffer *old_fb)
+static void
+exynos_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-	struct drm_framebuffer *fb = crtc->primary->fb;
-	unsigned int crtc_w;
-	unsigned int crtc_h;
-	int ret;
 
-	/* when framebuffer changing is requested, crtc's dpms should be on */
-	if (exynos_crtc->dpms > DRM_MODE_DPMS_ON) {
-		DRM_ERROR("failed framebuffer changing request.\n");
-		return -EPERM;
-	}
-
-	ret = exynos_check_plane(crtc->primary, fb);
-	if (ret)
-		return ret;
-
-	crtc_w = fb->width - x;
-	crtc_h = fb->height - y;
-	exynos_update_plane(crtc->primary, crtc, fb, 0, 0,
-			    crtc_w, crtc_h, x << 16, y << 16,
-			    crtc_w << 16, crtc_h << 16);
-
-	return 0;
+	if (exynos_crtc->ops->commit)
+		exynos_crtc->ops->commit(exynos_crtc);
 }
 
 static void exynos_drm_crtc_disable(struct drm_crtc *crtc)
@@ -159,8 +109,9 @@ static struct drm_crtc_helper_funcs exynos_crtc_helper_funcs = {
 	.prepare	= exynos_drm_crtc_prepare,
 	.commit		= exynos_drm_crtc_commit,
 	.mode_fixup	= exynos_drm_crtc_mode_fixup,
-	.mode_set	= exynos_drm_crtc_mode_set,
-	.mode_set_base	= exynos_drm_crtc_mode_set_base,
+	.mode_set	= drm_helper_crtc_mode_set,
+	.mode_set_nofb	= exynos_drm_crtc_mode_set_nofb,
+	.mode_set_base	= drm_helper_crtc_mode_set_base,
 	.disable	= exynos_drm_crtc_disable,
 };
 
