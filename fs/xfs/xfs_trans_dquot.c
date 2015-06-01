@@ -90,8 +90,9 @@ xfs_trans_dup_dqinfo(
 	xfs_trans_t	*ntp)
 {
 	xfs_dqtrx_t	*oq, *nq;
-	int		i,j;
+	int		i, j;
 	xfs_dqtrx_t	*oqa, *nqa;
+	ulong		blk_res_used;
 
 	if (!otp->t_dqinfo)
 		return;
@@ -102,17 +103,22 @@ xfs_trans_dup_dqinfo(
 	 * Because the quota blk reservation is carried forward,
 	 * it is also necessary to carry forward the DQ_DIRTY flag.
 	 */
-	if(otp->t_flags & XFS_TRANS_DQ_DIRTY)
+	if (otp->t_flags & XFS_TRANS_DQ_DIRTY)
 		ntp->t_flags |= XFS_TRANS_DQ_DIRTY;
 
 	for (j = 0; j < XFS_QM_TRANS_DQTYPES; j++) {
 		oqa = otp->t_dqinfo->dqs[j];
 		nqa = ntp->t_dqinfo->dqs[j];
 		for (i = 0; i < XFS_QM_TRANS_MAXDQS; i++) {
+			blk_res_used = 0;
+
 			if (oqa[i].qt_dquot == NULL)
 				break;
 			oq = &oqa[i];
 			nq = &nqa[i];
+
+			if (oq->qt_blk_res && oq->qt_bcount_delta > 0)
+				blk_res_used = oq->qt_bcount_delta;
 
 			nq->qt_dquot = oq->qt_dquot;
 			nq->qt_bcount_delta = nq->qt_icount_delta = 0;
@@ -121,8 +127,8 @@ xfs_trans_dup_dqinfo(
 			/*
 			 * Transfer whatever is left of the reservations.
 			 */
-			nq->qt_blk_res = oq->qt_blk_res - oq->qt_blk_res_used;
-			oq->qt_blk_res = oq->qt_blk_res_used;
+			nq->qt_blk_res = oq->qt_blk_res - blk_res_used;
+			oq->qt_blk_res = blk_res_used;
 
 			nq->qt_rtblk_res = oq->qt_rtblk_res -
 				oq->qt_rtblk_res_used;
@@ -239,10 +245,6 @@ xfs_trans_mod_dquot(
 		 * disk blocks used.
 		 */
 	      case XFS_TRANS_DQ_BCOUNT:
-		if (qtrx->qt_blk_res && delta > 0) {
-			qtrx->qt_blk_res_used += (ulong)delta;
-			ASSERT(qtrx->qt_blk_res >= qtrx->qt_blk_res_used);
-		}
 		qtrx->qt_bcount_delta += delta;
 		break;
 
@@ -423,15 +425,19 @@ xfs_trans_apply_dquot_deltas(
 			 * reservation that a transaction structure knows of.
 			 */
 			if (qtrx->qt_blk_res != 0) {
-				if (qtrx->qt_blk_res != qtrx->qt_blk_res_used) {
-					if (qtrx->qt_blk_res >
-					    qtrx->qt_blk_res_used)
+				ulong blk_res_used = 0;
+
+				if (qtrx->qt_bcount_delta > 0)
+					blk_res_used = qtrx->qt_bcount_delta;
+
+				if (qtrx->qt_blk_res != blk_res_used) {
+					if (qtrx->qt_blk_res > blk_res_used)
 						dqp->q_res_bcount -= (xfs_qcnt_t)
 							(qtrx->qt_blk_res -
-							 qtrx->qt_blk_res_used);
+							 blk_res_used);
 					else
 						dqp->q_res_bcount -= (xfs_qcnt_t)
-							(qtrx->qt_blk_res_used -
+							(blk_res_used -
 							 qtrx->qt_blk_res);
 				}
 			} else {

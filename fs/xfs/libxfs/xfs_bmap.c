@@ -4424,7 +4424,15 @@ xfs_bmapi_convert_unwritten(
 	error = xfs_bmap_add_extent_unwritten_real(bma->tp, bma->ip, &bma->idx,
 			&bma->cur, mval, bma->firstblock, bma->flist,
 			&tmp_logflags);
-	bma->logflags |= tmp_logflags;
+	/*
+	 * Log the inode core unconditionally in the unwritten extent conversion
+	 * path because the conversion might not have done so (e.g., if the
+	 * extent count hasn't changed). We need to make sure the inode is dirty
+	 * in the transaction for the sake of fsync(), even if nothing has
+	 * changed, because fsync() will not force the log for this transaction
+	 * unless it sees the inode pinned.
+	 */
+	bma->logflags |= tmp_logflags | XFS_ILOG_CORE;
 	if (error)
 		return error;
 

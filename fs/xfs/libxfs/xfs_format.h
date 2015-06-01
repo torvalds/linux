@@ -1453,8 +1453,8 @@ struct xfs_acl {
 		sizeof(struct xfs_acl_entry) * XFS_ACL_MAX_ENTRIES((mp)))
 
 /* On-disk XFS extended attribute names */
-#define SGI_ACL_FILE		(unsigned char *)"SGI_ACL_FILE"
-#define SGI_ACL_DEFAULT		(unsigned char *)"SGI_ACL_DEFAULT"
+#define SGI_ACL_FILE		"SGI_ACL_FILE"
+#define SGI_ACL_DEFAULT		"SGI_ACL_DEFAULT"
 #define SGI_ACL_FILE_SIZE	(sizeof(SGI_ACL_FILE)-1)
 #define SGI_ACL_DEFAULT_SIZE	(sizeof(SGI_ACL_DEFAULT)-1)
 
