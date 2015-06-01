@@ -67,6 +67,9 @@ int exynos_check_plane(struct drm_plane *plane, struct drm_framebuffer *fb)
 	int nr;
 	int i;
 
+	if (!fb)
+		return 0;
+
 	nr = exynos_drm_fb_get_buf_cnt(fb);
 	for (i = 0; i < nr; i++) {
 		struct exynos_drm_gem_buf *buffer = exynos_drm_fb_buffer(fb, i);
@@ -162,21 +165,9 @@ exynos_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		exynos_crtc->ops->win_commit(exynos_crtc, exynos_plane->zpos);
 }
 
-static int exynos_disable_plane(struct drm_plane *plane)
-{
-	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
-	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(plane->crtc);
-
-	if (exynos_crtc && exynos_crtc->ops->win_disable)
-		exynos_crtc->ops->win_disable(exynos_crtc,
-					      exynos_plane->zpos);
-
-	return 0;
-}
-
 static struct drm_plane_funcs exynos_plane_funcs = {
 	.update_plane	= drm_plane_helper_update,
-	.disable_plane	= exynos_disable_plane,
+	.disable_plane	= drm_plane_helper_disable,
 	.destroy	= drm_plane_cleanup,
 };
 
@@ -201,9 +192,24 @@ static void exynos_plane_atomic_update(struct drm_plane *plane,
 			    state->src_w, state->src_h);
 }
 
+static void exynos_plane_atomic_disable(struct drm_plane *plane,
+					struct drm_plane_state *old_state)
+{
+	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(old_state->crtc);
+
+	if (!old_state->crtc)
+		return;
+
+	if (exynos_crtc->ops->win_disable)
+		exynos_crtc->ops->win_disable(exynos_crtc,
+					      exynos_plane->zpos);
+}
+
 static const struct drm_plane_helper_funcs plane_helper_funcs = {
 	.atomic_check = exynos_plane_atomic_check,
 	.atomic_update = exynos_plane_atomic_update,
+	.atomic_disable = exynos_plane_atomic_disable,
 };
 
 static void exynos_plane_attach_zpos_property(struct drm_plane *plane,
