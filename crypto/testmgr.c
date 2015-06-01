@@ -3315,6 +3315,15 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "poly1305",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = {
+				.vecs = poly1305_tv_template,
+				.count = POLY1305_TEST_VECTORS
+			}
+		}
+	}, {
 		.alg = "rfc3686(ctr(aes))",
 		.test = alg_test_skcipher,
 		.fips_allowed = 1,
