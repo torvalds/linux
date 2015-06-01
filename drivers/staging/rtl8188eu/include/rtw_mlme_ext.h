@@ -191,6 +191,14 @@ struct rt_channel_plan_map {
 	unsigned char	Index2G;
 };
 
+static const struct {
+	int channel_plan;
+	char *name;
+} channel_table[] = { { RT_CHANNEL_DOMAIN_FCC, "US" },
+	{ RT_CHANNEL_DOMAIN_ETSI, "EU" },
+	{ RT_CHANNEL_DOMAIN_MKK, "JP" },
+	{ RT_CHANNEL_DOMAIN_CHINA, "CN"} };
+
 enum Associated_AP {
 	atherosAP	= 0,
 	broadcomAP	= 1,
