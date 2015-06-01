@@ -297,21 +297,15 @@ i40e_status i40e_remove_sd_bp_new(struct i40e_hw *hw,
 					    u32 idx, bool is_pf)
 {
 	struct i40e_hmc_sd_entry *sd_entry;
-	i40e_status ret_code = 0;
+
+	if (!is_pf)
+		return I40E_NOT_SUPPORTED;
 
 	/* get the entry and decrease its ref counter */
 	sd_entry = &hmc_info->sd_table.sd_entry[idx];
-	if (is_pf) {
-		I40E_CLEAR_PF_SD_ENTRY(hw, idx, I40E_SD_TYPE_DIRECT);
-	} else {
-		ret_code = I40E_NOT_SUPPORTED;
-		goto exit;
-	}
-	ret_code = i40e_free_dma_mem(hw, &(sd_entry->u.bp.addr));
-	if (ret_code)
-		goto exit;
-exit:
-	return ret_code;
+	I40E_CLEAR_PF_SD_ENTRY(hw, idx, I40E_SD_TYPE_DIRECT);
+
+	return i40e_free_dma_mem(hw, &sd_entry->u.bp.addr);
 }
 
 /**
@@ -351,20 +345,13 @@ i40e_status i40e_remove_pd_page_new(struct i40e_hw *hw,
 					      struct i40e_hmc_info *hmc_info,
 					      u32 idx, bool is_pf)
 {
-	i40e_status ret_code = 0;
 	struct i40e_hmc_sd_entry *sd_entry;
 
+	if (!is_pf)
+		return I40E_NOT_SUPPORTED;
+
 	sd_entry = &hmc_info->sd_table.sd_entry[idx];
-	if (is_pf) {
-		I40E_CLEAR_PF_SD_ENTRY(hw, idx, I40E_SD_TYPE_PAGED);
-	} else {
-		ret_code = I40E_NOT_SUPPORTED;
-		goto exit;
-	}
-	/* free memory here */
-	ret_code = i40e_free_dma_mem(hw, &(sd_entry->u.pd_table.pd_page_addr));
-	if (ret_code)
-		goto exit;
-exit:
-	return ret_code;
+	I40E_CLEAR_PF_SD_ENTRY(hw, idx, I40E_SD_TYPE_PAGED);
+
+	return  i40e_free_dma_mem(hw, &sd_entry->u.pd_table.pd_page_addr);
 }
