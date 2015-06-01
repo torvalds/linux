@@ -52,10 +52,12 @@ static int alloc_masks(struct irq_desc *desc, gfp_t gfp, int node)
 
 static void desc_smp_init(struct irq_desc *desc, int node)
 {
-	desc->irq_data.node = node;
 	cpumask_copy(desc->irq_data.affinity, irq_default_affinity);
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 	cpumask_clear(desc->pending_mask);
+#endif
+#ifdef CONFIG_NUMA
+	desc->irq_common_data.node = node;
 #endif
 }
 

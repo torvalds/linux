@@ -129,9 +129,13 @@ struct irq_domain;
  * struct irq_common_data - per irq data shared by all irqchips
  * @state_use_accessors: status information for irq chip functions.
  *			Use accessor functions to deal with it
+ * @node:		node index useful for balancing
  */
 struct irq_common_data {
 	unsigned int		state_use_accessors;
+#ifdef CONFIG_NUMA
+	unsigned int		node;
+#endif
 };
 
 /**
@@ -139,7 +143,6 @@ struct irq_common_data {
  * @mask:		precomputed bitmask for accessing the chip registers
  * @irq:		interrupt number
  * @hwirq:		hardware interrupt number, local to the interrupt domain
- * @node:		node index useful for balancing
  * @common:		point to data shared by all irqchips
  * @chip:		low level interrupt hardware access
  * @domain:		Interrupt translation domain; responsible for mapping
@@ -156,7 +159,6 @@ struct irq_data {
 	u32			mask;
 	unsigned int		irq;
 	unsigned long		hwirq;
-	unsigned int		node;
 	struct irq_common_data	*common;
 	struct irq_chip		*chip;
 	struct irq_domain	*domain;
@@ -664,9 +666,18 @@ static inline u32 irq_get_trigger_type(unsigned int irq)
 	return d ? irqd_get_trigger_type(d) : 0;
 }
 
+static inline int irq_common_data_get_node(struct irq_common_data *d)
+{
+#ifdef CONFIG_NUMA
+	return d->node;
+#else
+	return 0;
+#endif
+}
+
 static inline int irq_data_get_node(struct irq_data *d)
 {
-	return d->node;
+	return irq_common_data_get_node(d->common);
 }
 
 static inline struct cpumask *irq_get_affinity_mask(int irq)
