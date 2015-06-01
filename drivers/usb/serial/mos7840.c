@@ -2301,17 +2301,14 @@ static int mos7840_port_probe(struct usb_serial_port *port)
 			goto error;
 		}
 
-		init_timer(&mos7840_port->led_timer1);
-		mos7840_port->led_timer1.function = mos7840_led_off;
+		setup_timer(&mos7840_port->led_timer1, mos7840_led_off,
+			    (unsigned long)mos7840_port);
 		mos7840_port->led_timer1.expires =
 			jiffies + msecs_to_jiffies(LED_ON_MS);
-		mos7840_port->led_timer1.data = (unsigned long)mos7840_port;
-
-		init_timer(&mos7840_port->led_timer2);
-		mos7840_port->led_timer2.function = mos7840_led_flag_off;
+		setup_timer(&mos7840_port->led_timer2, mos7840_led_flag_off,
+			    (unsigned long)mos7840_port);
 		mos7840_port->led_timer2.expires =
 			jiffies + msecs_to_jiffies(LED_OFF_MS);
-		mos7840_port->led_timer2.data = (unsigned long)mos7840_port;
 
 		/* Turn off LED */
 		mos7840_set_led_sync(port, MODEM_CONTROL_REGISTER, 0x0300);
