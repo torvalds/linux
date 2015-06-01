@@ -639,22 +639,19 @@ int nci_hci_dev_session_init(struct nci_dev *ndev)
 				 ndev->hci_dev->init_data.gates[0].gate,
 				 ndev->hci_dev->init_data.gates[0].pipe);
 	if (r < 0)
-		goto exit;
+		return r;
 
 	r = nci_hci_get_param(ndev, NCI_HCI_ADMIN_GATE,
 			      NCI_HCI_ADMIN_PARAM_SESSION_IDENTITY, &skb);
 	if (r < 0)
-		goto exit;
+		return r;
 
 	if (skb->len &&
 	    skb->len == strlen(ndev->hci_dev->init_data.session_id) &&
-	    memcmp(ndev->hci_dev->init_data.session_id,
-		   skb->data, skb->len) == 0 &&
+	    !memcmp(ndev->hci_dev->init_data.session_id, skb->data, skb->len) &&
 	    ndev->ops->hci_load_session) {
 		/* Restore gate<->pipe table from some proprietary location. */
 		r = ndev->ops->hci_load_session(ndev);
-		if (r < 0)
-			goto exit;
 	} else {
 		r = nci_hci_dev_connect_gates(ndev,
 					      ndev->hci_dev->init_data.gate_count,
@@ -667,8 +664,6 @@ int nci_hci_dev_session_init(struct nci_dev *ndev)
 				      ndev->hci_dev->init_data.session_id,
 				      strlen(ndev->hci_dev->init_data.session_id));
 	}
-	if (r == 0)
-		goto exit;
 
 exit:
 	kfree_skb(skb);
