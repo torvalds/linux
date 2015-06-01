@@ -1156,6 +1156,19 @@ config CRYPTO_SALSA20_X86_64
 	  The Salsa20 stream cipher algorithm is designed by Daniel J.
 	  Bernstein <djb@cr.yp.to>. See <http://cr.yp.to/snuffle.html>
 
+config CRYPTO_CHACHA20
+	tristate "ChaCha20 cipher algorithm"
+	select CRYPTO_BLKCIPHER
+	help
+	  ChaCha20 cipher algorithm, RFC7539.
+
+	  ChaCha20 is a 256-bit high-speed stream cipher designed by Daniel J.
+	  Bernstein and further specified in RFC7539 for use in IETF protocols.
+	  This is the portable C implementation of ChaCha20.
+
+	  See also:
+	  <http://cr.yp.to/chacha/chacha-20080128.pdf>
+
 config CRYPTO_SEED
 	tristate "SEED cipher algorithm"
 	select CRYPTO_ALGAPI
