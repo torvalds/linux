@@ -1183,6 +1183,12 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 
 	switch (oper) {
 	case NL80211_TDLS_ENABLE_LINK:
+		if (sdata->vif.csa_active) {
+			tdls_dbg(sdata, "TDLS: disallow link during CSA\n");
+			ret = -EBUSY;
+			break;
+		}
+
 		rcu_read_lock();
 		sta = sta_info_get(sdata, peer);
 		if (!sta) {
