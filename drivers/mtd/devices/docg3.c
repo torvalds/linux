@@ -1900,7 +1900,7 @@ doc_probe_device(struct docg3_cascade *cascade, int floor, struct device *dev)
 
 	ret = 0;
 	if (chip_id != (u16)(~chip_id_inv)) {
-		goto nomem3;
+		goto nomem4;
 	}
 
 	switch (chip_id) {
@@ -1910,7 +1910,7 @@ doc_probe_device(struct docg3_cascade *cascade, int floor, struct device *dev)
 		break;
 	default:
 		doc_err("Chip id %04x is not a DiskOnChip G3 chip\n", chip_id);
-		goto nomem3;
+		goto nomem4;
 	}
 
 	doc_set_driver_info(chip_id, mtd);
@@ -1919,6 +1919,8 @@ doc_probe_device(struct docg3_cascade *cascade, int floor, struct device *dev)
 	doc_reload_bbt(docg3);
 	return mtd;
 
+nomem4:
+	kfree(docg3->bbt);
 nomem3:
 	kfree(mtd);
 nomem2:
