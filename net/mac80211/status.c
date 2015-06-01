@@ -471,15 +471,23 @@ static void ieee80211_report_ack_skb(struct ieee80211_local *local,
 	}
 
 	if (info->flags & IEEE80211_TX_INTFL_NL80211_FRAME_TX) {
+		u64 cookie = IEEE80211_SKB_CB(skb)->ack.cookie;
 		struct ieee80211_sub_if_data *sdata;
+		struct ieee80211_hdr *hdr = (void *)skb->data;
 
 		rcu_read_lock();
 		sdata = ieee80211_sdata_from_skb(local, skb);
-		if (sdata)
-			cfg80211_mgmt_tx_status(&sdata->wdev,
-						(unsigned long)skb,
-						skb->data, skb->len,
-						acked, GFP_ATOMIC);
+		if (sdata) {
+			if (ieee80211_is_nullfunc(hdr->frame_control) ||
+			    ieee80211_is_qos_nullfunc(hdr->frame_control))
+				cfg80211_probe_status(sdata->dev, hdr->addr1,
+						      cookie, acked,
+						      GFP_ATOMIC);
+			else
+				cfg80211_mgmt_tx_status(&sdata->wdev, cookie,
+							skb->data, skb->len,
+							acked, GFP_ATOMIC);
+		}
 		rcu_read_unlock();
 
 		dev_kfree_skb_any(skb);
@@ -499,11 +507,8 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 	if (dropped)
 		acked = false;
 
-	if (info->flags & (IEEE80211_TX_INTFL_NL80211_FRAME_TX |
-			   IEEE80211_TX_INTFL_MLME_CONN_TX) &&
-	    !info->ack_frame_id) {
+	if (info->flags & IEEE80211_TX_INTFL_MLME_CONN_TX) {
 		struct ieee80211_sub_if_data *sdata;
-		u64 cookie = (unsigned long)skb;
 
 		rcu_read_lock();
 
@@ -525,10 +530,6 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 				ieee80211_mgd_conn_tx_status(sdata,
 							     hdr->frame_control,
 							     acked);
-		} else if (ieee80211_is_nullfunc(hdr->frame_control) ||
-			   ieee80211_is_qos_nullfunc(hdr->frame_control)) {
-			cfg80211_probe_status(sdata->dev, hdr->addr1,
-					      cookie, acked, GFP_ATOMIC);
 		} else {
 			/* we assign ack frame ID for the others */
 			WARN_ON(1);

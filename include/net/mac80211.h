@@ -875,6 +875,9 @@ struct ieee80211_tx_info {
 			/* 4 bytes free */
 		} control;
 		struct {
+			u64 cookie;
+		} ack;
+		struct {
 			struct ieee80211_tx_rate rates[IEEE80211_TX_MAX_RATES];
 			s32 ack_signal;
 			u8 ampdu_ack_len;
