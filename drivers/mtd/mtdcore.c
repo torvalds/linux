@@ -588,9 +588,15 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 		else
 			ret = nr_parts;
 	}
+	/* Didn't come up with either parsed OR fallback partitions */
+	if (ret < 0) {
+		pr_info("mtd: failed to find partitions\n");
+		goto out;
+	}
 
-	if (ret >= 0)
-		ret = mtd_add_device_partitions(mtd, real_parts, ret);
+	ret = mtd_add_device_partitions(mtd, real_parts, ret);
+	if (ret)
+		goto out;
 
 	/*
 	 * FIXME: some drivers unfortunately call this function more than once.
@@ -605,6 +611,7 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 		register_reboot_notifier(&mtd->reboot_notifier);
 	}
 
+out:
 	kfree(real_parts);
 	return ret;
 }
