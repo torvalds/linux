@@ -50,6 +50,23 @@ static void exynos_drm_crtc_dpms(struct drm_crtc *crtc, int mode)
 		drm_crtc_vblank_on(crtc);
 }
 
+static void exynos_drm_crtc_disable(struct drm_crtc *crtc)
+{
+	struct drm_plane *plane;
+	int ret;
+
+	exynos_drm_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
+
+	drm_for_each_legacy_plane(plane, &crtc->dev->mode_config.plane_list) {
+		if (plane->crtc != crtc)
+			continue;
+
+		ret = plane->funcs->disable_plane(plane);
+		if (ret)
+			DRM_ERROR("Failed to disable plane %d\n", ret);
+	}
+}
+
 static void exynos_drm_crtc_commit(struct drm_crtc *crtc)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
@@ -84,23 +101,6 @@ exynos_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 		exynos_crtc->ops->commit(exynos_crtc);
 }
 
-static void exynos_drm_crtc_disable(struct drm_crtc *crtc)
-{
-	struct drm_plane *plane;
-	int ret;
-
-	exynos_drm_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
-
-	drm_for_each_legacy_plane(plane, &crtc->dev->mode_config.plane_list) {
-		if (plane->crtc != crtc)
-			continue;
-
-		ret = plane->funcs->disable_plane(plane);
-		if (ret)
-			DRM_ERROR("Failed to disable plane %d\n", ret);
-	}
-}
-
 static void exynos_crtc_atomic_begin(struct drm_crtc *crtc)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
@@ -117,10 +117,10 @@ static void exynos_crtc_atomic_flush(struct drm_crtc *crtc)
 
 static struct drm_crtc_helper_funcs exynos_crtc_helper_funcs = {
 	.dpms		= exynos_drm_crtc_dpms,
+	.disable	= exynos_drm_crtc_disable,
 	.commit		= exynos_drm_crtc_commit,
 	.mode_fixup	= exynos_drm_crtc_mode_fixup,
 	.mode_set_nofb	= exynos_drm_crtc_mode_set_nofb,
-	.disable	= exynos_drm_crtc_disable,
 	.atomic_begin	= exynos_crtc_atomic_begin,
 	.atomic_flush	= exynos_crtc_atomic_flush,
 };
