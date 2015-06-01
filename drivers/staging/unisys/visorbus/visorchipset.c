@@ -1197,6 +1197,7 @@ bus_create(struct controlvm_message *inmsg)
 	u32 bus_no = cmd->create_bus.bus_no;
 	int rc = CONTROLVM_RESP_SUCCESS;
 	struct visorchipset_bus_info *bus_info;
+	struct visorchannel *visorchannel;
 
 	bus_info = bus_find(&bus_info_list, bus_no);
 	if (bus_info && (bus_info->state.created == 1)) {
@@ -1218,18 +1219,22 @@ bus_create(struct controlvm_message *inmsg)
 
 	POSTCODE_LINUX_3(BUS_CREATE_ENTRY_PC, bus_no, POSTCODE_SEVERITY_INFO);
 
-	if (inmsg->hdr.flags.test_message == 1)
-		bus_info->chan_info.addr_type = ADDRTYPE_LOCALTEST;
-	else
-		bus_info->chan_info.addr_type = ADDRTYPE_LOCALPHYSICAL;
-
 	bus_info->flags.server = inmsg->hdr.flags.server;
-	bus_info->chan_info.channel_addr = cmd->create_bus.channel_addr;
-	bus_info->chan_info.n_channel_bytes = cmd->create_bus.channel_bytes;
-	bus_info->chan_info.channel_type_uuid =
-			cmd->create_bus.bus_data_type_uuid;
-	bus_info->chan_info.channel_inst_uuid = cmd->create_bus.bus_inst_uuid;
 
+	visorchannel = visorchannel_create(cmd->create_bus.channel_addr,
+					   cmd->create_bus.channel_bytes,
+					   GFP_KERNEL,
+					   cmd->create_bus.bus_data_type_uuid);
+
+	if (!visorchannel) {
+		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus_no,
+				 POSTCODE_SEVERITY_ERR);
+		rc = -CONTROLVM_RESP_ERROR_KMALLOC_FAILED;
+		kfree(bus_info);
+		bus_info = NULL;
+		goto cleanup;
+	}
+	bus_info->visorchannel = visorchannel;
 	list_add(&bus_info->entry, &bus_info_list);
 
 	POSTCODE_LINUX_3(BUS_CREATE_EXIT_PC, bus_no, POSTCODE_SEVERITY_INFO);
@@ -1285,7 +1290,8 @@ bus_configure(struct controlvm_message *inmsg,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_MESSAGE_ID_INVALID_FOR_CLIENT;
 	} else {
-		bus_info->partition_handle = cmd->configure_bus.guest_handle;
+		visorchannel_set_clientpartition(bus_info->visorchannel,
+				cmd->configure_bus.guest_handle);
 		bus_info->partition_uuid = parser_id_get(parser_ctx);
 		parser_param_start(parser_ctx, PARSERSTRING_NAME);
 		bus_info->name = parser_string_get(parser_ctx);
@@ -1306,6 +1312,7 @@ my_device_create(struct controlvm_message *inmsg)
 	u32 dev_no = cmd->create_device.dev_no;
 	struct visorchipset_device_info *dev_info;
 	struct visorchipset_bus_info *bus_info;
+	struct visorchannel *visorchannel;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
 	dev_info = device_find(&dev_info_list, bus_no, dev_no);
@@ -1343,21 +1350,28 @@ my_device_create(struct controlvm_message *inmsg)
 	POSTCODE_LINUX_4(DEVICE_CREATE_ENTRY_PC, dev_no, bus_no,
 			 POSTCODE_SEVERITY_INFO);
 
-	if (inmsg->hdr.flags.test_message == 1)
-		dev_info->chan_info.addr_type = ADDRTYPE_LOCALTEST;
-	else
-		dev_info->chan_info.addr_type = ADDRTYPE_LOCALPHYSICAL;
-	dev_info->chan_info.channel_addr = cmd->create_device.channel_addr;
-	dev_info->chan_info.n_channel_bytes = cmd->create_device.channel_bytes;
-	dev_info->chan_info.channel_type_uuid =
-			cmd->create_device.data_type_uuid;
+	visorchannel = visorchannel_create(cmd->create_device.channel_addr,
+					   cmd->create_device.channel_bytes,
+					   GFP_KERNEL,
+					   cmd->create_device.data_type_uuid);
+
+	if (!visorchannel) {
+		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, dev_no, bus_no,
+				 POSTCODE_SEVERITY_ERR);
+		rc = -CONTROLVM_RESP_ERROR_KMALLOC_FAILED;
+		kfree(dev_info);
+		dev_info = NULL;
+		goto cleanup;
+	}
+	dev_info->visorchannel = visorchannel;
+	dev_info->channel_type_guid = cmd->create_device.data_type_uuid;
 	list_add(&dev_info->entry, &dev_info_list);
 	POSTCODE_LINUX_4(DEVICE_CREATE_EXIT_PC, dev_no, bus_no,
 			 POSTCODE_SEVERITY_INFO);
 cleanup:
 	/* get the bus and devNo for DiagPool channel */
 	if (dev_info &&
-	    is_diagpool_channel(dev_info->chan_info.channel_type_uuid)) {
+	    is_diagpool_channel(cmd->create_device.data_type_uuid)) {
 		g_diagpool_bus_no = bus_no;
 		g_diagpool_dev_no = dev_no;
 	}

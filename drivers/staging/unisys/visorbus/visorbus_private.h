@@ -40,17 +40,6 @@ enum visorchipset_addresstype {
 	ADDRTYPE_LOCALTEST,
 };
 
-/** Attributes for a particular Supervisor channel.
- */
-struct visorchipset_channel_info {
-	enum visorchipset_addresstype addr_type;
-	u64 channel_addr;
-	struct irq_info intr;
-	u64 n_channel_bytes;
-	uuid_le channel_type_uuid;
-	uuid_le channel_inst_uuid;
-};
-
 /** Attributes for a particular Supervisor device.
  *  Any visorchipset client can query these attributes using
  *  visorchipset_get_client_device_info() or
@@ -62,7 +51,8 @@ struct visorchipset_device_info {
 	u32 dev_no;
 	uuid_le dev_inst_uuid;
 	struct visorchipset_state state;
-	struct visorchipset_channel_info chan_info;
+	struct visorchannel *visorchannel;
+	uuid_le channel_type_guid;
 	u32 reserved1;		/* control_vm_id */
 	u64 reserved2;
 	u32 switch_no;		/* when devState.attached==1 */
@@ -82,7 +72,7 @@ struct visorchipset_bus_info {
 	struct list_head entry;
 	u32 bus_no;
 	struct visorchipset_state state;
-	struct visorchipset_channel_info chan_info;
+	struct visorchannel *visorchannel;
 	uuid_le partition_uuid;
 	u64 partition_handle;
 	u8 *name;		/* UTF8 */

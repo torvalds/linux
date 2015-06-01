@@ -1010,11 +1010,9 @@ EXPORT_SYMBOL_GPL(visorbus_disable_channel_interrupts);
 static int
 create_visor_device(struct visorbus_devdata *devdata,
 		    struct visorchipset_device_info *dev_info,
-		    struct visorchipset_channel_info chan_info,
 		    u64 partition_handle)
 {
 	int rc = -1;
-	struct visorchannel *visorchannel = NULL;
 	struct visor_device *dev = NULL;
 	bool gotten = false, registered1 = false, registered2 = false;
 	u32 chipset_bus_no = dev_info->bus_no;
@@ -1022,16 +1020,6 @@ create_visor_device(struct visorbus_devdata *devdata,
 
 	POSTCODE_LINUX_4(DEVICE_CREATE_ENTRY_PC, chipset_dev_no, chipset_bus_no,
 			 POSTCODE_SEVERITY_INFO);
-	/* prepare chan_hdr (abstraction to read/write channel memory) */
-	visorchannel = visorchannel_create(chan_info.channel_addr,
-					   chan_info.n_channel_bytes,
-					   GFP_KERNEL,
-					   chan_info.channel_type_uuid);
-	if (!visorchannel) {
-		POSTCODE_LINUX_3(DEVICE_CREATE_FAILURE_PC, chipset_dev_no,
-				 DIAG_SEVERITY_ERR);
-		goto away;
-	}
 	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
 		POSTCODE_LINUX_3(DEVICE_CREATE_FAILURE_PC, chipset_dev_no,
@@ -1040,9 +1028,8 @@ create_visor_device(struct visorbus_devdata *devdata,
 	}
 
 	memset(dev, 0, sizeof(struct visor_device));
-	dev->visorchannel = visorchannel;
-	dev->channel_type_guid = chan_info.channel_type_uuid;
-	dev->channel_bytes = chan_info.n_channel_bytes;
+	dev->visorchannel = dev_info->visorchannel;
+	dev->channel_type_guid = dev_info->channel_type_guid;
 	dev->chipset_bus_no = chipset_bus_no;
 	dev->chipset_dev_no = chipset_dev_no;
 	dev->device.parent = &devdata->dev;
@@ -1114,8 +1101,6 @@ away:
 			unregister_devmajorminor_attributes(dev);
 		if (gotten)
 			put_device(&dev->device);
-		if (visorchannel)
-			visorchannel_destroy(visorchannel);
 		kfree(dev);
 	} else {
 		total_devices_created++;
@@ -1134,7 +1119,7 @@ remove_visor_device(struct visor_device *dev)
 }
 
 static struct visor_device *
-find_visor_device_by_channel(u64 channel_physaddr)
+find_visor_device_by_channel(struct visorchannel *channel)
 {
 	struct list_head *listentry, *listtmp;
 
@@ -1142,8 +1127,7 @@ find_visor_device_by_channel(u64 channel_physaddr)
 		struct visor_device *dev = list_entry(listentry,
 						      struct visor_device,
 						      list_all);
-		if (visorchannel_get_physaddr(dev->visorchannel) ==
-		    channel_physaddr)
+		if (dev->visorchannel == channel)
 			return dev;
 	}
 	return NULL;
@@ -1363,41 +1347,23 @@ create_bus_instance(struct visorchipset_bus_info *bus_info)
 		goto away;
 	}
 	devdata->devno = id;
-	if ((bus_info->chan_info.channel_addr > 0) &&
-	    (bus_info->chan_info.n_channel_bytes > 0)) {
-		u64 channel_addr = bus_info->chan_info.channel_addr;
-		unsigned long n_channel_bytes =
-				(unsigned long)
-				bus_info->chan_info.n_channel_bytes;
-		uuid_le channel_type_guid =
-				bus_info->chan_info.channel_type_uuid;
-
-		devdata->chan = visorchannel_create(channel_addr,
-						    n_channel_bytes,
-						    GFP_KERNEL,
-						    channel_type_guid);
-		if (!devdata->chan) {
-			POSTCODE_LINUX_3(DEVICE_CREATE_FAILURE_PC, channel_addr,
-					 POSTCODE_SEVERITY_ERR);
-		} else {
-			if (bus_info->flags.server) {
-				init_vbus_channel(devdata->chan);
-			} else {
-				if (get_vbus_header_info(devdata->chan,
-							 &devdata->
-							 vbus_hdr_info) >= 0) {
-					devdata->vbus_valid = true;
-					write_vbus_chp_info(devdata->chan,
-							    &devdata->
-							    vbus_hdr_info,
-							    &chipset_driverinfo
-							    );
-					write_vbus_bus_info(devdata->chan,
-							    &devdata->
-								vbus_hdr_info,
-							&clientbus_driverinfo);
-				}
-			}
+	devdata->chan = bus_info->visorchannel;
+	if (bus_info->flags.server) {
+		init_vbus_channel(devdata->chan);
+	} else {
+		if (get_vbus_header_info(devdata->chan,
+					 &devdata->
+					 vbus_hdr_info) >= 0) {
+			devdata->vbus_valid = true;
+			write_vbus_chp_info(devdata->chan,
+					    &devdata->
+					    vbus_hdr_info,
+					    &chipset_driverinfo
+					    );
+			write_vbus_bus_info(devdata->chan,
+					    &devdata->
+						vbus_hdr_info,
+					&clientbus_driverinfo);
 		}
 	}
 	bus_count++;
@@ -1468,7 +1434,7 @@ remove_all_visor_devices(void)
 }
 
 static bool entered_testing_mode;
-static struct visorchipset_channel_info test_channel_infos[MAXDEVICETEST];
+static struct visorchannel *test_channel_infos[MAXDEVICETEST];
 static unsigned long test_bus_nos[MAXDEVICETEST];
 static unsigned long test_dev_nos[MAXDEVICETEST];
 
@@ -1538,7 +1504,7 @@ chipset_device_create(struct visorchipset_device_info *dev_info)
 	if (visorbus_devicetest)
 		if (total_devices_created < MAXDEVICETEST) {
 			test_channel_infos[total_devices_created] =
-			    dev_info->chan_info;
+			    dev_info->visorchannel;
 			test_bus_nos[total_devices_created] = bus_no;
 			test_dev_nos[total_devices_created] = dev_no;
 		}
@@ -1552,9 +1518,7 @@ away:
 		return;
 	}
 	devdata = (struct visorbus_devdata *)(bus_info.bus_driver_context);
-	rc = create_visor_device(devdata, dev_info,
-				 dev_info->chan_info,
-				 bus_info.partition_handle);
+	rc = create_visor_device(devdata, dev_info, bus_info.partition_handle);
 	POSTCODE_LINUX_4(DEVICE_CREATE_SUCCESS_PC, dev_no, bus_no,
 			 POSTCODE_SEVERITY_INFO);
 	if (rc < 0)
@@ -1570,7 +1534,7 @@ chipset_device_destroy(struct visorchipset_device_info *dev_info)
 
 	if (entered_testing_mode)
 		return;
-	dev = find_visor_device_by_channel(dev_info->chan_info.channel_addr);
+	dev = find_visor_device_by_channel(dev_info->visorchannel);
 	if (!dev)
 		goto away;
 	rc = 0;
@@ -1650,7 +1614,7 @@ initiate_chipset_device_pause_resume(struct visorchipset_device_info *dev_info,
 	if (!notify_func)
 			goto away;
 
-	dev = find_visor_device_by_channel(dev_info->chan_info.channel_addr);
+	dev = find_visor_device_by_channel(dev_info->visorchannel);
 	if (!dev)
 			goto away;
 
