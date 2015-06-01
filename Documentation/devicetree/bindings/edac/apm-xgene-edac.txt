@@ -25,7 +25,8 @@ Required properties for memory controller subnode:
 - memory-controller	: Instance number of the memory controller.
 
 Required properties for PMD subnode:
-- compatible		: Shall be "apm,xgene-edac-pmd".
+- compatible		: Shall be "apm,xgene-edac-pmd" or
+                          "apm,xgene-edac-pmd-v2".
 - reg			: First resource shall be the PMD resource.
 - pmd-controller	: Instance number of the PMD controller.
 
