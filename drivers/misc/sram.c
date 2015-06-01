@@ -57,46 +57,18 @@ static int sram_reserve_cmp(void *priv, struct list_head *a,
 	return ra->start - rb->start;
 }
 
-static int sram_probe(struct platform_device *pdev)
+static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 {
-	struct sram_dev *sram;
-	struct resource *res;
-	struct device_node *np = pdev->dev.of_node, *child;
+	struct device_node *np = sram->dev->of_node, *child;
 	unsigned long size, cur_start, cur_size;
 	struct sram_reserve *rblocks, *block;
 	struct list_head reserve_list;
 	unsigned int nblocks;
-	int ret;
+	int ret = 0;
 
 	INIT_LIST_HEAD(&reserve_list);
 
-	sram = devm_kzalloc(&pdev->dev, sizeof(*sram), GFP_KERNEL);
-	if (!sram)
-		return -ENOMEM;
-
-	sram->dev = &pdev->dev;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(sram->dev, "found no memory resource\n");
-		return -EINVAL;
-	}
-
 	size = resource_size(res);
-
-	if (!devm_request_mem_region(sram->dev, res->start, size, pdev->name)) {
-		dev_err(sram->dev, "could not request region for resource\n");
-		return -EBUSY;
-	}
-
-	sram->virt_base = devm_ioremap_wc(sram->dev, res->start, size);
-	if (IS_ERR(sram->virt_base))
-		return PTR_ERR(sram->virt_base);
-
-	sram->pool = devm_gen_pool_create(sram->dev,
-					  ilog2(SRAM_GRANULARITY), -1);
-	if (!sram->pool)
-		return -ENOMEM;
 
 	/*
 	 * We need an additional block to mark the end of the memory region
@@ -184,7 +156,50 @@ static int sram_probe(struct platform_device *pdev)
 		cur_start = block->start + block->size;
 	}
 
+ err_chunks:
 	kfree(rblocks);
+
+	return ret;
+}
+
+static int sram_probe(struct platform_device *pdev)
+{
+	struct sram_dev *sram;
+	struct resource *res;
+	size_t size;
+	int ret;
+
+	sram = devm_kzalloc(&pdev->dev, sizeof(*sram), GFP_KERNEL);
+	if (!sram)
+		return -ENOMEM;
+
+	sram->dev = &pdev->dev;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(sram->dev, "found no memory resource\n");
+		return -EINVAL;
+	}
+
+	size = resource_size(res);
+
+	if (!devm_request_mem_region(sram->dev, res->start, size, pdev->name)) {
+		dev_err(sram->dev, "could not request region for resource\n");
+		return -EBUSY;
+	}
+
+	sram->virt_base = devm_ioremap_wc(sram->dev, res->start, size);
+	if (IS_ERR(sram->virt_base))
+		return PTR_ERR(sram->virt_base);
+
+	sram->pool = devm_gen_pool_create(sram->dev,
+					  ilog2(SRAM_GRANULARITY), -1);
+	if (!sram->pool)
+		return -ENOMEM;
+
+	ret = sram_reserve_regions(sram, res);
+	if (ret)
+		return ret;
 
 	sram->clk = devm_clk_get(sram->dev, NULL);
 	if (IS_ERR(sram->clk))
@@ -198,11 +213,6 @@ static int sram_probe(struct platform_device *pdev)
 		gen_pool_size(sram->pool) / 1024, sram->virt_base);
 
 	return 0;
-
-err_chunks:
-	kfree(rblocks);
-
-	return ret;
 }
 
 static int sram_remove(struct platform_device *pdev)
