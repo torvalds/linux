@@ -15,5 +15,3 @@ obj-y				:= sead3-lcd.o sead3-display.o sead3-init.o \
 obj-y				+= leds-sead3.o
 
 obj-$(CONFIG_EARLY_PRINTK)	+= sead3-console.o
-
-CFLAGS_sead3-setup.o = -I$(src)/../../../scripts/dtc/libfdt
