@@ -197,6 +197,11 @@ static inline void kstat_incr_irqs_this_cpu(unsigned int irq, struct irq_desc *d
 	__this_cpu_inc(kstat.irqs_sum);
 }
 
+static inline int irq_desc_get_node(struct irq_desc *desc)
+{
+	return irq_data_get_node(&desc->irq_data);
+}
+
 #ifdef CONFIG_PM_SLEEP
 bool irq_pm_check_wakeup(struct irq_desc *desc);
 void irq_pm_install_action(struct irq_desc *desc, struct irqaction *action);
