@@ -387,6 +387,14 @@ int add_mtd_device(struct mtd_info *mtd)
 	struct mtd_notifier *not;
 	int i, error;
 
+	/*
+	 * May occur, for instance, on buggy drivers which call
+	 * mtd_device_parse_register() multiple times on the same master MTD,
+	 * especially with CONFIG_MTD_PARTITIONED_MASTER=y.
+	 */
+	if (WARN_ONCE(mtd->backing_dev_info, "MTD already registered\n"))
+		return -EEXIST;
+
 	mtd->backing_dev_info = &mtd_bdi;
 
 	BUG_ON(mtd->writesize == 0);
@@ -606,6 +614,7 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 	 * does cause problems with parse_mtd_partitions() above (e.g.,
 	 * cmdlineparts will register partitions more than once).
 	 */
+	WARN_ONCE(mtd->reboot_notifier.notifier_call, "MTD already registered\n");
 	if (mtd->_reboot && !mtd->reboot_notifier.notifier_call) {
 		mtd->reboot_notifier.notifier_call = mtd_reboot_notifier;
 		register_reboot_notifier(&mtd->reboot_notifier);
