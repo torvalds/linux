@@ -326,7 +326,7 @@ static int dw_msi_setup_irq(struct msi_controller *chip, struct pci_dev *pdev,
 static void dw_msi_teardown_irq(struct msi_controller *chip, unsigned int irq)
 {
 	struct irq_data *data = irq_get_irq_data(irq);
-	struct msi_desc *msi = irq_data_get_msi(data);
+	struct msi_desc *msi = irq_data_get_msi_desc(data);
 	struct pcie_port *pp = sys_to_pcie(msi->dev->bus->sysdata);
 
 	clear_irq_range(pp, irq, 1, data->hwirq);
