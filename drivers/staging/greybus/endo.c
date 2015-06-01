@@ -49,7 +49,7 @@ static ssize_t serial_number_show(struct device *dev,
 {
 	struct gb_endo *endo = to_gb_endo(dev);
 
-	return sprintf(buf, "%s", &endo->svc_info.serial_number[0]);
+	return sprintf(buf, "%s\n", &endo->svc_info.serial_number[0]);
 }
 static DEVICE_ATTR_RO(serial_number);
 
@@ -58,7 +58,7 @@ static ssize_t version_show(struct device *dev,
 {
 	struct gb_endo *endo = to_gb_endo(dev);
 
-	return sprintf(buf, "%s", &endo->svc_info.version[0]);
+	return sprintf(buf, "%s\n", &endo->svc_info.version[0]);
 }
 static DEVICE_ATTR_RO(version);
 
@@ -78,7 +78,7 @@ static ssize_t id_show(struct device *dev,
 {
 	struct gb_endo *endo = to_gb_endo(dev);
 
-	return sprintf(buf, "0x%04x", endo->id);
+	return sprintf(buf, "0x%04x\n", endo->id);
 }
 static DEVICE_ATTR_RO(id);
 
@@ -87,7 +87,7 @@ static ssize_t ap_intf_id_show(struct device *dev,
 {
 	struct gb_endo *endo = to_gb_endo(dev);
 
-	return sprintf(buf, "0x%02x", endo->ap_intf_id);
+	return sprintf(buf, "0x%02x\n", endo->ap_intf_id);
 }
 static DEVICE_ATTR_RO(ap_intf_id);
 
