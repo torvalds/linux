@@ -179,7 +179,9 @@ static int klp_find_object_symbol(const char *objname, const char *name,
 		.count = 0
 	};
 
+	mutex_lock(&module_mutex);
 	kallsyms_on_each_symbol(klp_find_callback, &args);
+	mutex_unlock(&module_mutex);
 
 	if (args.count == 0)
 		pr_err("symbol '%s' not found in symbol table\n", name);
@@ -219,13 +221,19 @@ static int klp_verify_vmlinux_symbol(const char *name, unsigned long addr)
 		.name = name,
 		.addr = addr,
 	};
+	int ret;
 
-	if (kallsyms_on_each_symbol(klp_verify_callback, &args))
-		return 0;
+	mutex_lock(&module_mutex);
+	ret = kallsyms_on_each_symbol(klp_verify_callback, &args);
+	mutex_unlock(&module_mutex);
 
-	pr_err("symbol '%s' not found at specified address 0x%016lx, kernel mismatch?\n",
-		name, addr);
-	return -EINVAL;
+	if (!ret) {
+		pr_err("symbol '%s' not found at specified address 0x%016lx, kernel mismatch?\n",
+			name, addr);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int klp_find_verify_func_addr(struct klp_object *obj,
