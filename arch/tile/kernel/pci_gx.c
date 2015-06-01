@@ -1442,7 +1442,7 @@ static struct pci_ops tile_cfg_ops = {
 /* MSI support starts here. */
 static unsigned int tilegx_msi_startup(struct irq_data *d)
 {
-	if (d->msi_desc)
+	if (irq_data_get_msi_desc(d))
 		pci_msi_unmask_irq(d);
 
 	return 0;

@@ -1145,7 +1145,7 @@ EXPORT_SYMBOL(pci_enable_msix_range);
  */
 void pci_msi_domain_write_msg(struct irq_data *irq_data, struct msi_msg *msg)
 {
-	struct msi_desc *desc = irq_data->msi_desc;
+	struct msi_desc *desc = irq_data_get_msi_desc(irq_data);
 
 	/*
 	 * For MSI-X desc->irq is always equal to irq_data->irq. For
