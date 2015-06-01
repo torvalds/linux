@@ -618,9 +618,11 @@ static int gb_uart_connection_init(struct gb_connection *connection)
 		if (minor == -ENOSPC) {
 			dev_err(&connection->dev,
 				"no more free minor numbers\n");
-			return -ENODEV;
+			retval = -ENODEV;
+			goto error_version;
 		}
-		return minor;
+		retval = minor;
+		goto error_version;
 	}
 
 	gb_tty->minor = minor;
