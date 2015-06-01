@@ -101,74 +101,29 @@ static void exynos_drm_crtc_disable(struct drm_crtc *crtc)
 	}
 }
 
+static void exynos_crtc_atomic_begin(struct drm_crtc *crtc)
+{
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
+
+	if (crtc->state->event) {
+		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
+		exynos_crtc->event = crtc->state->event;
+	}
+}
+
+static void exynos_crtc_atomic_flush(struct drm_crtc *crtc)
+{
+}
+
 static struct drm_crtc_helper_funcs exynos_crtc_helper_funcs = {
 	.dpms		= exynos_drm_crtc_dpms,
 	.commit		= exynos_drm_crtc_commit,
 	.mode_fixup	= exynos_drm_crtc_mode_fixup,
 	.mode_set_nofb	= exynos_drm_crtc_mode_set_nofb,
 	.disable	= exynos_drm_crtc_disable,
+	.atomic_begin	= exynos_crtc_atomic_begin,
+	.atomic_flush	= exynos_crtc_atomic_flush,
 };
-
-static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
-				     struct drm_framebuffer *fb,
-				     struct drm_pending_vblank_event *event,
-				     uint32_t page_flip_flags)
-{
-	struct drm_device *dev = crtc->dev;
-	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-	unsigned int crtc_w, crtc_h;
-	int ret;
-
-	/* when the page flip is requested, crtc's dpms should be on */
-	if (exynos_crtc->dpms > DRM_MODE_DPMS_ON) {
-		DRM_ERROR("failed page flip request.\n");
-		return -EINVAL;
-	}
-
-	if (!event)
-		return -EINVAL;
-
-	spin_lock_irq(&dev->event_lock);
-	if (exynos_crtc->event) {
-		ret = -EBUSY;
-		goto out;
-	}
-
-	ret = exynos_check_plane(crtc->primary, fb);
-	if (ret)
-		goto out;
-
-	ret = drm_vblank_get(dev, exynos_crtc->pipe);
-	if (ret) {
-		DRM_DEBUG("failed to acquire vblank counter\n");
-		goto out;
-	}
-
-	exynos_crtc->event = event;
-	spin_unlock_irq(&dev->event_lock);
-
-	/*
-	 * the pipe from user always is 0 so we can set pipe number
-	 * of current owner to event.
-	 */
-	event->pipe = exynos_crtc->pipe;
-
-	crtc->primary->fb = fb;
-	crtc_w = fb->width - crtc->x;
-	crtc_h = fb->height - crtc->y;
-	exynos_update_plane(crtc->primary, crtc, fb, 0, 0,
-			    crtc_w, crtc_h, crtc->x << 16, crtc->y << 16,
-			    crtc_w << 16, crtc_h << 16);
-
-	if (crtc->primary->state)
-		drm_atomic_set_fb_for_plane(crtc->primary->state, fb);
-
-	return 0;
-
-out:
-	spin_unlock_irq(&dev->event_lock);
-	return ret;
-}
 
 static void exynos_drm_crtc_destroy(struct drm_crtc *crtc)
 {
@@ -183,7 +138,7 @@ static void exynos_drm_crtc_destroy(struct drm_crtc *crtc)
 
 static struct drm_crtc_funcs exynos_crtc_funcs = {
 	.set_config	= drm_atomic_helper_set_config,
-	.page_flip	= exynos_drm_crtc_page_flip,
+	.page_flip	= drm_atomic_helper_page_flip,
 	.destroy	= exynos_drm_crtc_destroy,
 	.reset = drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
