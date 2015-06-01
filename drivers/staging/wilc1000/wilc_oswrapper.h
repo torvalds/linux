@@ -54,9 +54,6 @@ typedef WILC_Uint16 WILC_WideChar;
 /* Error reporting and handling support */
 #include "wilc_errorsupport.h"
 
-/* Semaphore support */
-#include "wilc_semaphore.h"
-
 /* Sleep support */
 #include "wilc_sleep.h"
 

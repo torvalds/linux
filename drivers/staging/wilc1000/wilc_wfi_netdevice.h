@@ -165,8 +165,8 @@ struct WILC_WFI_priv {
 	struct wilc_wfi_key *wilc_ptk[MAX_NUM_STA];
 	WILC_Uint8 wilc_groupkey;
 	/* semaphores */
-	WILC_SemaphoreHandle SemHandleUpdateStats;
-	WILC_SemaphoreHandle hSemScanReq;
+	struct semaphore SemHandleUpdateStats;
+	struct semaphore hSemScanReq;
 	/*  */
 	WILC_Bool gbAutoRateAdjusted;
 

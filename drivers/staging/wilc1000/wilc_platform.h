@@ -16,8 +16,6 @@
  *      OS specific types
  *******************************************************************/
 
-typedef struct semaphore WILC_SemaphoreHandle;
-
 typedef struct timer_list WILC_TimerHandle;
 
 
@@ -30,7 +28,7 @@ typedef struct __Message_struct {
 } Message;
 
 typedef struct __MessageQueue_struct {
-	WILC_SemaphoreHandle hSem;
+	struct semaphore hSem;
 	spinlock_t strCriticalSection;
 	WILC_Bool bExiting;
 	WILC_Uint32 u32ReceiversCount;

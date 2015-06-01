@@ -164,8 +164,8 @@ extern void host_int_ScanCompleteReceived(WILC_Uint8 *pu8Buffer, WILC_Uint32 u32
 /*****************************************************************************/
 /* Global Variables                                                          */
 /*****************************************************************************/
-static WILC_SemaphoreHandle SemHandleSendPkt;
-static WILC_SemaphoreHandle SemHandlePktResp;
+static struct semaphore SemHandleSendPkt;
+static struct semaphore SemHandlePktResp;
 
 static WILC_Sint8 *gps8ConfigPacket;
 
@@ -672,18 +672,10 @@ INLINE WILC_Uint16 get_asoc_id(WILC_Uint8 *data)
 WILC_Sint32 CoreConfiguratorInit(void)
 {
 	WILC_Sint32 s32Error = WILC_SUCCESS;
-	tstrWILC_SemaphoreAttrs strSemSendPktAttrs;
-	tstrWILC_SemaphoreAttrs strSemPktRespAttrs;
-
 	PRINT_D(CORECONFIG_DBG, "CoreConfiguratorInit() \n");
 
-	WILC_SemaphoreFillDefault(&strSemSendPktAttrs);
-	strSemSendPktAttrs.u32InitCount = 1;
-	WILC_SemaphoreCreate(&SemHandleSendPkt, &strSemSendPktAttrs);
-
-	WILC_SemaphoreFillDefault(&strSemPktRespAttrs);
-	strSemPktRespAttrs.u32InitCount = 0;
-	WILC_SemaphoreCreate(&SemHandlePktResp, &strSemPktRespAttrs);
+	sema_init(&SemHandleSendPkt, 1);
+	sema_init(&SemHandlePktResp, 0);
 
 	gps8ConfigPacket = (WILC_Sint8 *)WILC_MALLOC(MAX_PACKET_BUFF_SIZE);
 	if (gps8ConfigPacket == NULL) {
@@ -1931,7 +1923,7 @@ WILC_Sint32 ConfigWaitResponse(WILC_Char *pcRespBuffer, WILC_Sint32 s32MaxRespBu
 
 
 	if (gstrConfigPktInfo.bRespRequired == WILC_TRUE) {
-		WILC_SemaphoreAcquire(&SemHandlePktResp, WILC_NULL);
+		down(&SemHandlePktResp);
 
 		*ps32BytesRead = gstrConfigPktInfo.s32BytesRead;
 	}
@@ -1964,7 +1956,7 @@ WILC_Sint32 SendConfigPkt(WILC_Uint8 u8Mode, tstrWID *pstrWIDs,
 	WILC_Sint32 s32ConfigPacketLen = 0;
 	WILC_Sint32 s32RcvdRespLen = 0;
 
-	WILC_SemaphoreAcquire(&SemHandleSendPkt, WILC_NULL);
+	down(&SemHandleSendPkt);
 
 	/*set the packet mode*/
 	g_oper_mode = u8Mode;
@@ -2019,7 +2011,7 @@ WILC_Sint32 SendConfigPkt(WILC_Uint8 u8Mode, tstrWID *pstrWIDs,
 
 
 End_ConfigPkt:
-	WILC_SemaphoreRelease(&SemHandleSendPkt, WILC_NULL);
+	up(&SemHandleSendPkt);
 
 	return s32Error;
 }
@@ -2038,7 +2030,7 @@ WILC_Sint32 ConfigProvideResponse(WILC_Char *pcRespBuffer, WILC_Sint32 s32RespLe
 			PRINT_ER("BusProvideResponse() Response greater than the prepared Buffer Size \n");
 		}
 
-		WILC_SemaphoreRelease(&SemHandlePktResp, WILC_NULL);
+		up(&SemHandlePktResp);
 	}
 
 	return s32Error;
@@ -2106,11 +2098,6 @@ WILC_Sint32 CoreConfiguratorDeInit(void)
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 
 	PRINT_D(CORECONFIG_DBG, "CoreConfiguratorDeInit() \n");
-
-
-	WILC_SemaphoreDestroy(&SemHandleSendPkt, WILC_NULL);
-	WILC_SemaphoreDestroy(&SemHandlePktResp, WILC_NULL);
-
 
 	if (gps8ConfigPacket != NULL) {
 

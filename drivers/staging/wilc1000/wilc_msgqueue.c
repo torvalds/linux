@@ -11,21 +11,12 @@
 WILC_ErrNo WILC_MsgQueueCreate(WILC_MsgQueueHandle *pHandle,
 			       tstrWILC_MsgQueueAttrs *pstrAttrs)
 {
-	tstrWILC_SemaphoreAttrs strSemAttrs;
-	WILC_SemaphoreFillDefault(&strSemAttrs);
-	strSemAttrs.u32InitCount = 0;
-
 	spin_lock_init(&pHandle->strCriticalSection);
-	if ((WILC_SemaphoreCreate(&pHandle->hSem, &strSemAttrs) == WILC_SUCCESS)) {
-
-		pHandle->pstrMessageList = NULL;
-		pHandle->u32ReceiversCount = 0;
-		pHandle->bExiting = WILC_FALSE;
-
-		return WILC_SUCCESS;
-	} else {
-		return WILC_FAIL;
-	}
+	sema_init(&pHandle->hSem, 0);
+	pHandle->pstrMessageList = NULL;
+	pHandle->u32ReceiversCount = 0;
+	pHandle->bExiting = WILC_FALSE;
+	return WILC_SUCCESS;
 }
 
 /*!
@@ -42,11 +33,9 @@ WILC_ErrNo WILC_MsgQueueDestroy(WILC_MsgQueueHandle *pHandle,
 
 	/* Release any waiting receiver thread. */
 	while (pHandle->u32ReceiversCount > 0) {
-		WILC_SemaphoreRelease(&(pHandle->hSem), WILC_NULL);
+		up(&(pHandle->hSem));
 		pHandle->u32ReceiversCount--;
 	}
-
-	WILC_SemaphoreDestroy(&pHandle->hSem, WILC_NULL);
 
 	while (pHandle->pstrMessageList != NULL) {
 		Message *pstrMessge = pHandle->pstrMessageList->pstrNext;
@@ -104,7 +93,7 @@ WILC_ErrNo WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
 
 	spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
 
-	WILC_SemaphoreRelease(&pHandle->hSem, WILC_NULL);
+	up(&pHandle->hSem);
 
 	WILC_CATCH(s32RetStatus)
 	{
@@ -136,7 +125,6 @@ WILC_ErrNo WILC_MsgQueueRecv(WILC_MsgQueueHandle *pHandle,
 
 	Message *pstrMessage;
 	WILC_ErrNo s32RetStatus = WILC_SUCCESS;
-	tstrWILC_SemaphoreAttrs strSemAttrs;
 	unsigned long flags;
 	if ((pHandle == NULL) || (u32RecvBufferSize == 0)
 	    || (pvRecvBuffer == NULL) || (pu32ReceivedLength == NULL)) {
@@ -151,8 +139,8 @@ WILC_ErrNo WILC_MsgQueueRecv(WILC_MsgQueueHandle *pHandle,
 	pHandle->u32ReceiversCount++;
 	spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
 
-	WILC_SemaphoreFillDefault(&strSemAttrs);
-	s32RetStatus = WILC_SemaphoreAcquire(&(pHandle->hSem), &strSemAttrs);
+	down(&(pHandle->hSem));
+
 	if (s32RetStatus == WILC_TIMEOUT) {
 		/* timed out, just exit without consumeing the message */
 		spin_lock_irqsave(&pHandle->strCriticalSection, flags);
@@ -176,7 +164,7 @@ WILC_ErrNo WILC_MsgQueueRecv(WILC_MsgQueueHandle *pHandle,
 		/* check buffer size */
 		if (u32RecvBufferSize < pstrMessage->u32Length)	{
 			spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
-			WILC_SemaphoreRelease(&pHandle->hSem, WILC_NULL);
+			up(&pHandle->hSem);
 			WILC_ERRORREPORT(s32RetStatus, WILC_BUFFER_OVERFLOW);
 		}
 

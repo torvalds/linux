@@ -422,14 +422,14 @@ typedef struct {
 	WILC_Uint8 au8AssociatedBSSID[ETH_ALEN];
 	tstrCfgParamVal strCfgValues;
 /* semaphores */
-	WILC_SemaphoreHandle gtOsCfgValuesSem;
-	WILC_SemaphoreHandle hSemTestKeyBlock;
+	struct semaphore gtOsCfgValuesSem;
+	struct semaphore hSemTestKeyBlock;
 
-	WILC_SemaphoreHandle hSemTestDisconnectBlock;
-	WILC_SemaphoreHandle hSemGetRSSI;
-	WILC_SemaphoreHandle hSemGetLINKSPEED;
-	WILC_SemaphoreHandle hSemGetCHNL;
-	WILC_SemaphoreHandle hSemInactiveTime;
+	struct semaphore hSemTestDisconnectBlock;
+	struct semaphore hSemGetRSSI;
+	struct semaphore hSemGetLINKSPEED;
+	struct semaphore hSemGetCHNL;
+	struct semaphore hSemInactiveTime;
 /* timer handlers */
 	WILC_TimerHandle hScanTimer;
 	WILC_TimerHandle hConnectTimer;

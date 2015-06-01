@@ -10,7 +10,7 @@ typedef struct {
 	WILC_Uint32 u32WriteOffset;
 	WILC_Uint32 u32ReadOffset;
 	WILC_Uint32 u32TotalBytes;
-	WILC_SemaphoreHandle SemBuffer;
+	struct semaphore SemBuffer;
 } tstrFifoHandler;
 
 

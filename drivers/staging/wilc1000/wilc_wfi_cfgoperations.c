@@ -462,7 +462,7 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 				PRINT_D(CFG80211_DBG, "No networks found \n");
 			}
 
-			WILC_SemaphoreAcquire(&(priv->hSemScanReq), NULL);
+			down(&(priv->hSemScanReq));
 
 			if (priv->pstrScanReq != WILC_NULL) {
 				cfg80211_scan_done(priv->pstrScanReq, WILC_FALSE);
@@ -470,12 +470,12 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 				priv->bCfgScanning = WILC_FALSE;
 				priv->pstrScanReq = WILC_NULL;
 			}
-			WILC_SemaphoreRelease(&(priv->hSemScanReq), NULL);
+			up(&(priv->hSemScanReq));
 
 		}
 		/*Aborting any scan operation during mac close*/
 		else if (enuScanEvent == SCAN_EVENT_ABORTED) {
-			WILC_SemaphoreAcquire(&(priv->hSemScanReq), NULL);
+			down(&(priv->hSemScanReq));
 
 			PRINT_D(CFG80211_DBG, "Scan Aborted \n");
 			if (priv->pstrScanReq != WILC_NULL) {
@@ -487,7 +487,7 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 				priv->bCfgScanning = WILC_FALSE;
 				priv->pstrScanReq = WILC_NULL;
 			}
-			WILC_SemaphoreRelease(&(priv->hSemScanReq), NULL);
+			up(&(priv->hSemScanReq));
 		}
 	}
 
@@ -2839,13 +2839,13 @@ static int WILC_WFI_dump_station(struct wiphy *wiphy, struct net_device *dev,
 		STATION_INFO_RX_BYTES |
 		STATION_INFO_RX_PACKETS | STATION_INFO_SIGNAL | STATION_INFO_INACTIVE_TIME;
 
-	WILC_SemaphoreAcquire(&SemHandleUpdateStats, NULL);
+	down(&SemHandleUpdateStats);
 	sinfo->inactive_time = priv->netstats.rx_time > priv->netstats.tx_time ? jiffies_to_msecs(jiffies - priv->netstats.tx_time) : jiffies_to_msecs(jiffies - priv->netstats.rx_time);
 	sinfo->rx_bytes = priv->netstats.rx_bytes;
 	sinfo->tx_bytes = priv->netstats.tx_bytes;
 	sinfo->rx_packets = priv->netstats.rx_packets;
 	sinfo->tx_packets = priv->netstats.tx_packets;
-	WILC_SemaphoreRelease(&SemHandleUpdateStats, NULL);
+	up(&SemHandleUpdateStats);
 #endif
 	return 0;
 
@@ -3767,7 +3767,7 @@ int WILC_WFI_update_stats(struct wiphy *wiphy, u32 pktlen, u8 changed)
 	struct WILC_WFI_priv *priv;
 
 	priv = wiphy_priv(wiphy);
-	/* WILC_SemaphoreAcquire(&SemHandleUpdateStats,NULL); */
+	/* down(&SemHandleUpdateStats); */
 #if 1
 	switch (changed) {
 
@@ -3792,7 +3792,7 @@ int WILC_WFI_update_stats(struct wiphy *wiphy, u32 pktlen, u8 changed)
 	default:
 		break;
 	}
-	/* WILC_SemaphoreRelease(&SemHandleUpdateStats,NULL); */
+	/* down(&SemHandleUpdateStats); */
 #endif
 	return 0;
 }
@@ -3898,7 +3898,7 @@ struct wireless_dev *WILC_WFI_WiphyRegister(struct net_device *net)
 
 	/*Return hardware description structure (wiphy)'s priv*/
 	priv = wdev_priv(wdev);
-	WILC_SemaphoreCreate(&(priv->SemHandleUpdateStats), NULL);
+	sema_init(&(priv->SemHandleUpdateStats), 1);
 
 	/*Link the wiphy with wireless structure*/
 	priv->wdev = wdev;
@@ -3991,8 +3991,6 @@ int WILC_WFI_InitHostInt(struct net_device *net)
 
 	struct WILC_WFI_priv *priv;
 
-	tstrWILC_SemaphoreAttrs strSemaphoreAttrs;
-
 	PRINT_D(INIT_DBG, "Host[%p][%p]\n", net, net->ieee80211_ptr);
 	priv = wdev_priv(net->ieee80211_ptr);
 	if (op_ifcs == 0) {
@@ -4007,17 +4005,11 @@ int WILC_WFI_InitHostInt(struct net_device *net)
 		return s32Error;
 	}
 
-	WILC_SemaphoreFillDefault(&strSemaphoreAttrs);
-
-	/* /////////////////////////////////////// */
-	/* strSemaphoreAttrs.u32InitCount = 0; */
-
-
 	priv->gbAutoRateAdjusted = WILC_FALSE;
 
 	priv->bInP2PlistenState = WILC_FALSE;
 
-	WILC_SemaphoreCreate(&(priv->hSemScanReq), &strSemaphoreAttrs);
+	sema_init(&(priv->hSemScanReq), 1);
 	s32Error = host_int_init(&priv->hWILCWFIDrv);
 	/* s32Error = host_int_init(&priv->hWILCWFIDrv_2); */
 	if (s32Error) {
@@ -4041,13 +4033,6 @@ int WILC_WFI_DeInitHostInt(struct net_device *net)
 
 	struct WILC_WFI_priv *priv;
 	priv = wdev_priv(net->ieee80211_ptr);
-
-
-
-
-
-
-	WILC_SemaphoreDestroy(&(priv->hSemScanReq), NULL);
 
 	priv->gbAutoRateAdjusted = WILC_FALSE;
 

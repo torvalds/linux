@@ -545,11 +545,11 @@ WILC_Bool g_obtainingIP = WILC_FALSE;
 WILC_Uint8 P2P_LISTEN_STATE;
 static struct task_struct *HostIFthreadHandler;
 static WILC_MsgQueueHandle gMsgQHostIF;
-static WILC_SemaphoreHandle hSemHostIFthrdEnd;
+static struct semaphore hSemHostIFthrdEnd;
 
-WILC_SemaphoreHandle hSemDeinitDrvHandle;
-static WILC_SemaphoreHandle hWaitResponse;
-WILC_SemaphoreHandle hSemHostIntDeinit;
+struct semaphore hSemDeinitDrvHandle;
+static struct semaphore hWaitResponse;
+struct semaphore hSemHostIntDeinit;
 WILC_TimerHandle g_hPeriodicRSSI;
 
 
@@ -663,7 +663,7 @@ static WILC_Sint32 Handle_SetWfiDrvHandler(tstrHostIfSetDrvHandler *pstrHostIfSe
 
 
 	if ((pstrHostIfSetDrvHandler->u32Address) == (WILC_Uint32)NULL) {
-		WILC_SemaphoreRelease(&hSemDeinitDrvHandle, WILC_NULL);
+		up(&hSemDeinitDrvHandle);
 	}
 
 
@@ -709,7 +709,7 @@ static WILC_Sint32 Handle_SetOperationMode(void *drvHandler, tstrHostIfSetOperat
 
 
 	if ((pstrHostIfSetOperationMode->u32Mode) == (WILC_Uint32)NULL) {
-		WILC_SemaphoreRelease(&hSemDeinitDrvHandle, WILC_NULL);
+		up(&hSemDeinitDrvHandle);
 	}
 
 
@@ -906,7 +906,7 @@ static WILC_Sint32 Handle_GetMacAddress(void *drvHandler, tstrHostIfGetMacAddres
 	{
 
 	}
-	WILC_SemaphoreRelease(&hWaitResponse, NULL);
+	up(&hWaitResponse);
 
 	return s32Error;
 }
@@ -929,7 +929,7 @@ static WILC_Sint32 Handle_CfgParam(void *drvHandler, tstrHostIFCfgParamAttr *str
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)drvHandler;
 
 
-	WILC_SemaphoreAcquire(&(pstrWFIDrv->gtOsCfgValuesSem), NULL);
+	down(&(pstrWFIDrv->gtOsCfgValuesSem));
 
 
 	PRINT_D(HOSTINF_DBG, "Setting CFG params\n");
@@ -1214,7 +1214,7 @@ static WILC_Sint32 Handle_CfgParam(void *drvHandler, tstrHostIFCfgParamAttr *str
 	WILC_CATCH(s32Error)
 	{
 	}
-	WILC_SemaphoreRelease(&(pstrWFIDrv->gtOsCfgValuesSem), NULL);
+	up(&(pstrWFIDrv->gtOsCfgValuesSem));
 	return s32Error;
 }
 
@@ -1232,7 +1232,7 @@ static WILC_Sint32 Handle_wait_msg_q_empty(void)
 {
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 	g_wilc_initialized = 0;
-	WILC_SemaphoreRelease(&hWaitResponse, NULL);
+	up(&hWaitResponse);
 	return s32Error;
 }
 
@@ -2818,7 +2818,7 @@ static int Handle_Key(void *drvHandler, tstrHostIFkeyAttr *pstrHostIFkeyAttr)
 
 			s32Error = SendConfigPkt(SET_CFG, &strWID, 1, WILC_TRUE, (WILC_Uint32)pstrWFIDrv);
 		}
-		WILC_SemaphoreRelease(&(pstrWFIDrv->hSemTestKeyBlock), WILC_NULL);
+		up(&(pstrWFIDrv->hSemTestKeyBlock));
 		break;
 
 	case WPARxGtk:
@@ -2867,7 +2867,7 @@ static int Handle_Key(void *drvHandler, tstrHostIFkeyAttr *pstrHostIFkeyAttr)
 			WILC_FREE(pu8keybuf);
 
 			/* ////////////////////////// */
-			WILC_SemaphoreRelease(&(pstrWFIDrv->hSemTestKeyBlock), WILC_NULL);
+			up(&(pstrWFIDrv->hSemTestKeyBlock));
 			/* ///////////////////////// */
 		}
 
@@ -2914,7 +2914,7 @@ static int Handle_Key(void *drvHandler, tstrHostIFkeyAttr *pstrHostIFkeyAttr)
 			WILC_FREE(pu8keybuf);
 
 			/* ////////////////////////// */
-			WILC_SemaphoreRelease(&(pstrWFIDrv->hSemTestKeyBlock), WILC_NULL);
+			up(&(pstrWFIDrv->hSemTestKeyBlock));
 			/* ///////////////////////// */
 		}
 _WPARxGtk_end_case_:
@@ -2970,7 +2970,7 @@ _WPARxGtk_end_case_:
 			WILC_FREE(pu8keybuf);
 
 			/* ////////////////////////// */
-			WILC_SemaphoreRelease(&(pstrWFIDrv->hSemTestKeyBlock), WILC_NULL);
+			up(&(pstrWFIDrv->hSemTestKeyBlock));
 			/* ///////////////////////// */
 		}
 		#endif
@@ -3011,7 +3011,7 @@ _WPARxGtk_end_case_:
 			WILC_FREE(pu8keybuf);
 
 			/* ////////////////////////// */
-			WILC_SemaphoreRelease(&(pstrWFIDrv->hSemTestKeyBlock), WILC_NULL);
+			up(&(pstrWFIDrv->hSemTestKeyBlock));
 			/* ///////////////////////// */
 		}
 
@@ -3176,7 +3176,7 @@ static void Handle_Disconnect(void *drvHandler)
 	}
 
 	/* ////////////////////////// */
-	WILC_SemaphoreRelease(&(pstrWFIDrv->hSemTestDisconnectBlock), WILC_NULL);
+	up(&(pstrWFIDrv->hSemTestDisconnectBlock));
 	/* ///////////////////////// */
 
 }
@@ -3264,7 +3264,7 @@ static WILC_Sint32 Handle_GetChnl(void *drvHandler)
 	{
 
 	}
-	WILC_SemaphoreRelease(&(pstrWFIDrv->hSemGetCHNL), WILC_NULL);
+	up(&(pstrWFIDrv->hSemGetCHNL));
 
 	return s32Error;
 
@@ -3306,7 +3306,7 @@ static void Handle_GetRssi(void *drvHandler)
 	{
 
 	}
-	WILC_SemaphoreRelease(&(pstrWFIDrv->hSemGetRSSI), WILC_NULL);
+	up(&(pstrWFIDrv->hSemGetRSSI));
 
 
 }
@@ -3337,7 +3337,7 @@ static void Handle_GetLinkspeed(void *drvHandler)
 	{
 
 	}
-	WILC_SemaphoreRelease(&(pstrWFIDrv->hSemGetLINKSPEED), WILC_NULL);
+	up(&(pstrWFIDrv->hSemGetLINKSPEED));
 
 
 }
@@ -3383,7 +3383,7 @@ WILC_Sint32 Handle_GetStatistics(void *drvHandler, tstrStatistics *pstrStatistic
 		PRINT_ER("Failed to send scan paramters config packet\n");
 		/* WILC_ERRORREPORT(s32Error, s32Error); */
 	}
-	WILC_SemaphoreRelease(&hWaitResponse, NULL);
+	up(&hWaitResponse);
 	return 0;
 
 }
@@ -3449,7 +3449,7 @@ static WILC_Sint32 Handle_Get_InActiveTime(void *drvHandler, tstrHostIfStaInacti
 
 	PRINT_D(CFG80211_DBG, "Getting inactive time : %d\n", gu32InactiveTime);
 
-	WILC_SemaphoreRelease(&(pstrWFIDrv->hSemInactiveTime), WILC_NULL);
+	up(&(pstrWFIDrv->hSemInactiveTime));
 	WILC_CATCH(s32Error)
 	{
 
@@ -3730,7 +3730,7 @@ static void Handle_DelAllSta(void *drvHandler, tstrHostIFDelAllSta *pstrDelAllSt
 	}
 	WILC_FREE_IF_TRUE(strWID.ps8WidVal);
 
-	WILC_SemaphoreRelease(&hWaitResponse, NULL);
+	up(&hWaitResponse);
 }
 
 
@@ -4301,7 +4301,7 @@ static WILC_Sint32 Handle_DelBASession(void *drvHandler, tstrHostIfBASessionInfo
 		WILC_FREE(strWID.ps8WidVal);
 
 	/*BugID_5222*/
-	WILC_SemaphoreRelease(&hWaitResponse, NULL);
+	up(&hWaitResponse);
 
 	return s32Error;
 
@@ -4355,7 +4355,7 @@ static WILC_Sint32 Handle_DelAllRxBASessions(void *drvHandler, tstrHostIfBASessi
 		WILC_FREE(strWID.ps8WidVal);
 
 	/*BugID_5222*/
-	WILC_SemaphoreRelease(&hWaitResponse, NULL);
+	up(&hWaitResponse);
 
 	return s32Error;
 
@@ -4590,7 +4590,7 @@ static int hostIFthread(void *pvArg)
 	}
 
 	PRINT_D(HOSTINF_DBG, "Releasing thread exit semaphore\n");
-	WILC_SemaphoreRelease(&hSemHostIFthrdEnd, WILC_NULL);
+	up(&hSemHostIFthrdEnd);
 	return 0;
 }
 
@@ -4692,7 +4692,7 @@ WILC_Sint32 host_int_remove_wep_key(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 u8keyI
 	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
 	if (s32Error)
 		PRINT_ER("Error in sending message queue : Request to remove WEP key \n");
-	WILC_SemaphoreAcquire(&(pstrWFIDrv->hSemTestKeyBlock), NULL);
+	down(&(pstrWFIDrv->hSemTestKeyBlock));
 
 	WILC_CATCH(s32Error)
 	{
@@ -4741,7 +4741,7 @@ WILC_Sint32 host_int_set_WEPDefaultKeyID(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 u
 	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
 	if (s32Error)
 		PRINT_ER("Error in sending message queue : Default key index\n");
-	WILC_SemaphoreAcquire(&(pstrWFIDrv->hSemTestKeyBlock), NULL);
+	down(&(pstrWFIDrv->hSemTestKeyBlock));
 
 	WILC_CATCH(s32Error)
 	{
@@ -4809,7 +4809,7 @@ WILC_Sint32 host_int_add_wep_key_bss_sta(WILC_WFIDrvHandle hWFIDrv, const WILC_U
 	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
 	if (s32Error)
 		PRINT_ER("Error in sending message queue :WEP Key\n");
-	WILC_SemaphoreAcquire(&(pstrWFIDrv->hSemTestKeyBlock), NULL);
+	down(&(pstrWFIDrv->hSemTestKeyBlock));
 
 	WILC_CATCH(s32Error)
 	{
@@ -4886,7 +4886,7 @@ WILC_Sint32 host_int_add_wep_key_bss_ap(WILC_WFIDrvHandle hWFIDrv, const WILC_Ui
 
 	if (s32Error)
 		PRINT_ER("Error in sending message queue :WEP Key\n");
-	WILC_SemaphoreAcquire(&(pstrWFIDrv->hSemTestKeyBlock), NULL);
+	down(&(pstrWFIDrv->hSemTestKeyBlock));
 
 	WILC_CATCH(s32Error)
 	{
@@ -4989,7 +4989,7 @@ WILC_Sint32 host_int_add_ptk(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 *pu8Ptk, WILC
 		PRINT_ER("Error in sending message queue:  PTK Key\n");
 
 	/* ////////////// */
-	WILC_SemaphoreAcquire(&(pstrWFIDrv->hSemTestKeyBlock), NULL);
+	down(&(pstrWFIDrv->hSemTestKeyBlock));
 	/* WILC_Sleep(100); */
 	/* /////// */
 
@@ -5093,7 +5093,7 @@ WILC_Sint32 host_int_add_rx_gtk(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 *pu8RxGtk,
 	if (s32Error)
 		PRINT_ER("Error in sending message queue:  RX GTK\n");
 	/* ////////////// */
-	WILC_SemaphoreAcquire(&(pstrWFIDrv->hSemTestKeyBlock), NULL);
+	down(&(pstrWFIDrv->hSemTestKeyBlock));
 	/* WILC_Sleep(100); */
 	/* /////// */
 
@@ -5151,7 +5151,7 @@ WILC_Sint32 host_int_add_tx_gtk(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 u8KeyLen, 
 		PRINT_ER("Error in sending message queue: TX GTK\n");
 
 	/* ////////////// */
-	WILC_SemaphoreAcquire(&hSemTestKeyBlock, NULL);
+	down(&hSemTestKeyBlock);
 	WILC_Sleep(100);
 	/* /////// */
 
@@ -5322,7 +5322,7 @@ WILC_Sint32 host_int_get_MacAddress(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 *pu8Ma
 		return WILC_FAIL;
 	}
 
-	WILC_SemaphoreAcquire(&hWaitResponse, NULL);
+	down(&hWaitResponse);
 	return s32Error;
 }
 
@@ -5703,7 +5703,7 @@ WILC_Sint32 host_int_disconnect(WILC_WFIDrvHandle hWFIDrv, WILC_Uint16 u16Reason
 	if (s32Error)
 		PRINT_ER("Failed to send message queue: disconnect\n");
 	/* ////////////// */
-	WILC_SemaphoreAcquire(&(pstrWFIDrv->hSemTestDisconnectBlock), NULL);
+	down(&(pstrWFIDrv->hSemTestDisconnectBlock));
 	/* /////// */
 
 	WILC_CATCH(s32Error)
@@ -5922,7 +5922,7 @@ WILC_Sint32 host_int_wait_msg_queue_idle(void)
 	}
 
 	/* wait untill MSG Q is empty */
-	WILC_SemaphoreAcquire(&hWaitResponse, NULL);
+	down(&hWaitResponse);
 
 	return s32Error;
 
@@ -6018,7 +6018,7 @@ WILC_Sint32 host_int_get_host_chnl_num(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 *pu
 	s32Error =	WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
 	if (s32Error)
 		PRINT_ER("Failed to send get host channel param's message queue ");
-	WILC_SemaphoreAcquire(&(pstrWFIDrv->hSemGetCHNL), NULL);
+	down(&(pstrWFIDrv->hSemGetCHNL));
 	/* gu8Chnl = 11; */
 
 	*pu8ChNo = gu8Chnl;
@@ -6115,7 +6115,7 @@ WILC_Sint32 host_int_get_inactive_time(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 *ma
 	if (s32Error)
 		PRINT_ER("Failed to send get host channel param's message queue ");
 
-	WILC_SemaphoreAcquire(&(pstrWFIDrv->hSemInactiveTime), NULL);
+	down(&(pstrWFIDrv->hSemInactiveTime));
 
 	*pu32InactiveTime = gu32InactiveTime;
 
@@ -6205,7 +6205,7 @@ WILC_Sint32 host_int_get_rssi(WILC_WFIDrvHandle hWFIDrv, WILC_Sint8 *ps8Rssi)
 		return WILC_FAIL;
 	}
 
-	WILC_SemaphoreAcquire(&(pstrWFIDrv->hSemGetRSSI), NULL);
+	down(&(pstrWFIDrv->hSemGetRSSI));
 
 
 	if (ps8Rssi == NULL) {
@@ -6242,7 +6242,7 @@ WILC_Sint32 host_int_get_link_speed(WILC_WFIDrvHandle hWFIDrv, WILC_Sint8 *ps8ln
 		return WILC_FAIL;
 	}
 
-	WILC_SemaphoreAcquire(&(pstrWFIDrv->hSemGetLINKSPEED), NULL);
+	down(&(pstrWFIDrv->hSemGetLINKSPEED));
 
 
 	if (ps8lnkspd == NULL) {
@@ -6276,7 +6276,7 @@ WILC_Sint32 host_int_get_statistics(WILC_WFIDrvHandle hWFIDrv, tstrStatistics *p
 		return WILC_FAIL;
 	}
 
-	WILC_SemaphoreAcquire(&hWaitResponse, NULL);
+	down(&hWaitResponse);
 	return s32Error;
 }
 
@@ -6418,7 +6418,7 @@ WILC_Sint32 hif_get_cfg(WILC_WFIDrvHandle hWFIDrv, WILC_Uint16 u16WID, WILC_Uint
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 
-	WILC_SemaphoreAcquire(&(pstrWFIDrv->gtOsCfgValuesSem), NULL);
+	down(&(pstrWFIDrv->gtOsCfgValuesSem));
 
 	if (pstrWFIDrv == WILC_NULL) {
 		PRINT_ER("Driver not initialized: pstrWFIDrv = NULL \n");
@@ -6503,7 +6503,7 @@ WILC_Sint32 hif_get_cfg(WILC_WFIDrvHandle hWFIDrv, WILC_Uint16 u16WID, WILC_Uint
 		break;
 	}
 
-	WILC_SemaphoreRelease(&(pstrWFIDrv->gtOsCfgValuesSem), NULL);
+	up(&(pstrWFIDrv->gtOsCfgValuesSem));
 
 	WILC_CATCH(s32Error)
 	{
@@ -6598,8 +6598,6 @@ WILC_Sint32 host_int_init(WILC_WFIDrvHandle *phWFIDrv)
 {
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 	tstrWILC_WFIDrv *pstrWFIDrv;
-	tstrWILC_SemaphoreAttrs strSemaphoreAttrs;
-
 
 	/*if(u32Intialized == 1)
 	 * {
@@ -6611,11 +6609,7 @@ WILC_Sint32 host_int_init(WILC_WFIDrvHandle *phWFIDrv)
 
 	gbScanWhileConnected = WILC_FALSE;
 
-	WILC_SemaphoreFillDefault(&strSemaphoreAttrs);
-
-
-	strSemaphoreAttrs.u32InitCount = 0;
-	WILC_SemaphoreCreate(&hWaitResponse, &strSemaphoreAttrs);
+	sema_init(&hWaitResponse, 0);
 
 
 
@@ -6640,29 +6634,18 @@ WILC_Sint32 host_int_init(WILC_WFIDrvHandle *phWFIDrv)
 	PRINT_D(HOSTINF_DBG, "Global handle pointer value=%x\n", (WILC_Uint32)pstrWFIDrv);
 	/* /////////////////////////////////////// */
 	if (clients_count == 0)	{
-		strSemaphoreAttrs.u32InitCount = 0;
-		WILC_SemaphoreCreate(&hSemHostIFthrdEnd, &strSemaphoreAttrs);
-
-		strSemaphoreAttrs.u32InitCount = 0;
-		WILC_SemaphoreCreate(&hSemDeinitDrvHandle, &strSemaphoreAttrs);
-
+		sema_init(&hSemHostIFthrdEnd, 0);
+		sema_init(&hSemDeinitDrvHandle, 0);
 		/*BugID_5348*/
-		strSemaphoreAttrs.u32InitCount = 1;
-		WILC_SemaphoreCreate(&hSemHostIntDeinit, &strSemaphoreAttrs);
+		sema_init(&hSemHostIntDeinit, 1);
 	}
 
-	strSemaphoreAttrs.u32InitCount = 0;
-	WILC_SemaphoreCreate(&(pstrWFIDrv->hSemTestKeyBlock), &strSemaphoreAttrs);
-	strSemaphoreAttrs.u32InitCount = 0;
-	WILC_SemaphoreCreate(&(pstrWFIDrv->hSemTestDisconnectBlock), &strSemaphoreAttrs);
-	strSemaphoreAttrs.u32InitCount = 0;
-	WILC_SemaphoreCreate(&(pstrWFIDrv->hSemGetRSSI), &strSemaphoreAttrs);
-	strSemaphoreAttrs.u32InitCount = 0;
-	WILC_SemaphoreCreate(&(pstrWFIDrv->hSemGetLINKSPEED), &strSemaphoreAttrs);
-	strSemaphoreAttrs.u32InitCount = 0;
-	WILC_SemaphoreCreate(&(pstrWFIDrv->hSemGetCHNL), &strSemaphoreAttrs);
-	strSemaphoreAttrs.u32InitCount = 0;
-	WILC_SemaphoreCreate(&(pstrWFIDrv->hSemInactiveTime), &strSemaphoreAttrs);
+	sema_init(&(pstrWFIDrv->hSemTestKeyBlock), 0);
+	sema_init(&(pstrWFIDrv->hSemTestDisconnectBlock), 0);
+	sema_init(&(pstrWFIDrv->hSemGetRSSI), 0);
+	sema_init(&(pstrWFIDrv->hSemGetLINKSPEED), 0);
+	sema_init(&(pstrWFIDrv->hSemGetCHNL), 0);
+	sema_init(&(pstrWFIDrv->hSemInactiveTime), 0);
 
 	/* /////////////////////////////////////// */
 
@@ -6718,8 +6701,8 @@ WILC_Sint32 host_int_init(WILC_WFIDrvHandle *phWFIDrv)
 	}
 	#endif
 
-	WILC_SemaphoreCreate(&(pstrWFIDrv->gtOsCfgValuesSem), NULL);
-	WILC_SemaphoreAcquire(&(pstrWFIDrv->gtOsCfgValuesSem), NULL);
+	sema_init(&(pstrWFIDrv->gtOsCfgValuesSem), 1);
+	down(&(pstrWFIDrv->gtOsCfgValuesSem));
 
 
 
@@ -6752,7 +6735,7 @@ WILC_Sint32 host_int_init(WILC_WFIDrvHandle *phWFIDrv)
 		   pstrWFIDrv->strCfgValues.curr_tx_rate);
 
 
-	WILC_SemaphoreRelease(&(pstrWFIDrv->gtOsCfgValuesSem), NULL);
+	up(&(pstrWFIDrv->gtOsCfgValuesSem));
 
 	/*TODO Code to setup simulation to be removed later*/
 	/*Intialize configurator module*/
@@ -6781,7 +6764,7 @@ _fail_timer_3:
 	WILC_TimerDestroy(&(pstrWFIDrv->hRemainOnChannel), WILC_NULL);
 #endif
 _fail_timer_2:
-	WILC_SemaphoreRelease(&(pstrWFIDrv->gtOsCfgValuesSem), NULL);
+	up(&(pstrWFIDrv->gtOsCfgValuesSem));
 	WILC_TimerDestroy(&(pstrWFIDrv->hConnectTimer), WILC_NULL);
 _fail_timer_1:
 	WILC_TimerDestroy(&(pstrWFIDrv->hScanTimer), WILC_NULL);
@@ -6825,7 +6808,7 @@ WILC_Sint32 host_int_deinit(WILC_WFIDrvHandle hWFIDrv)
 		return 0;
 	}
 
-	WILC_SemaphoreAcquire(&hSemHostIntDeinit, NULL);
+	down(&hSemHostIntDeinit);
 
 	terminated_handle = pstrWFIDrv;
 	PRINT_D(HOSTINF_DBG, "De-initializing host interface for client %d\n", clients_count);
@@ -6855,7 +6838,7 @@ WILC_Sint32 host_int_deinit(WILC_WFIDrvHandle hWFIDrv)
 	#endif
 
 	host_int_set_wfi_drv_handler((WILC_Uint32)WILC_NULL);
-	WILC_SemaphoreAcquire(&hSemDeinitDrvHandle, NULL);
+	down(&hSemDeinitDrvHandle);
 
 
 	/*Calling the CFG80211 scan done function with the abort flag set to true*/
@@ -6894,29 +6877,15 @@ WILC_Sint32 host_int_deinit(WILC_WFIDrvHandle hWFIDrv)
 			PRINT_ER("Error in sending deinit's message queue message function: Error(%d)\n", s32Error);
 		}
 
-		WILC_SemaphoreAcquire(&hSemHostIFthrdEnd, NULL);
+		down(&hSemHostIFthrdEnd);
 
 
 
 		WILC_MsgQueueDestroy(&gMsgQHostIF, WILC_NULL);
 		msgQ_created = 0;
-
-
-		WILC_SemaphoreDestroy(&hSemHostIFthrdEnd, NULL);
-		WILC_SemaphoreDestroy(&hSemDeinitDrvHandle, NULL);
-
 	}
 
-	WILC_SemaphoreDestroy(&(pstrWFIDrv->hSemTestKeyBlock), NULL);
-	WILC_SemaphoreDestroy(&(pstrWFIDrv->hSemTestDisconnectBlock), NULL);
-	WILC_SemaphoreDestroy(&(pstrWFIDrv->hSemGetRSSI), NULL);
-	WILC_SemaphoreDestroy(&(pstrWFIDrv->hSemGetLINKSPEED), NULL);
-	WILC_SemaphoreDestroy(&(pstrWFIDrv->hSemGetCHNL), NULL);
-	WILC_SemaphoreDestroy(&(pstrWFIDrv->hSemInactiveTime), NULL);
-	WILC_SemaphoreDestroy(&hWaitResponse, NULL);
-
-	WILC_SemaphoreAcquire(&(pstrWFIDrv->gtOsCfgValuesSem), NULL);
-	WILC_SemaphoreDestroy(&(pstrWFIDrv->gtOsCfgValuesSem), NULL);
+	down(&(pstrWFIDrv->gtOsCfgValuesSem));
 
 	/*Setting the gloabl driver handler with NULL*/
 	u32Intialized = 0;
@@ -6929,7 +6898,7 @@ WILC_Sint32 host_int_deinit(WILC_WFIDrvHandle hWFIDrv)
 
 	clients_count--; /* Decrease number of created entities */
 	terminated_handle = WILC_NULL;
-	WILC_SemaphoreRelease(&hSemHostIntDeinit, NULL);
+	up(&hSemHostIntDeinit);
 	return s32Error;
 }
 
@@ -7003,7 +6972,7 @@ void GnrlAsyncInfoReceived(WILC_Uint8 *pu8Buffer, WILC_Uint32 u32Length)
 	tstrWILC_WFIDrv *pstrWFIDrv = WILC_NULL;
 
 	/*BugID_5348*/
-	WILC_SemaphoreAcquire(&hSemHostIntDeinit, NULL);
+	down(&hSemHostIntDeinit);
 
 	drvHandler = ((pu8Buffer[u32Length - 4]) | (pu8Buffer[u32Length - 3] << 8) | (pu8Buffer[u32Length - 2] << 16) | (pu8Buffer[u32Length - 1] << 24));
 	pstrWFIDrv = (tstrWILC_WFIDrv *)drvHandler;
@@ -7013,7 +6982,7 @@ void GnrlAsyncInfoReceived(WILC_Uint8 *pu8Buffer, WILC_Uint32 u32Length)
 	if (pstrWFIDrv == NULL || pstrWFIDrv == terminated_handle) {
 		PRINT_D(HOSTINF_DBG, "Wifi driver handler is equal to NULL\n");
 		/*BugID_5348*/
-		WILC_SemaphoreRelease(&hSemHostIntDeinit, NULL);
+		up(&hSemHostIntDeinit);
 		return;
 	}
 
@@ -7021,7 +6990,7 @@ void GnrlAsyncInfoReceived(WILC_Uint8 *pu8Buffer, WILC_Uint32 u32Length)
 		/* received mac status is not needed when there is no current Connect Request */
 		PRINT_ER("Received mac status is not needed when there is no current Connect Reques\n");
 		/*BugID_5348*/
-		WILC_SemaphoreRelease(&hSemHostIntDeinit, NULL);
+		up(&hSemHostIntDeinit);
 		return;
 	}
 
@@ -7045,7 +7014,7 @@ void GnrlAsyncInfoReceived(WILC_Uint8 *pu8Buffer, WILC_Uint32 u32Length)
 	}
 
 	/*BugID_5348*/
-	WILC_SemaphoreRelease(&hSemHostIntDeinit, NULL);
+	up(&hSemHostIntDeinit);
 	return;
 }
 
@@ -7517,7 +7486,7 @@ WILC_Sint32 host_int_del_allstation(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 pu8Mac
 	{
 
 	}
-	WILC_SemaphoreAcquire(&hWaitResponse, NULL);
+	down(&hWaitResponse);
 
 	return s32Error;
 
@@ -7945,7 +7914,7 @@ WILC_Sint32 host_int_delBASession(WILC_WFIDrvHandle hWFIDrv, char *pBSSID, char 
 	}
 
 	/*BugID_5222*/
-	WILC_SemaphoreAcquire(&hWaitResponse, NULL);
+	down(&hWaitResponse);
 
 	return s32Error;
 }
@@ -7980,7 +7949,7 @@ WILC_Sint32 host_int_del_All_Rx_BASession(WILC_WFIDrvHandle hWFIDrv, char *pBSSI
 	}
 
 	/*BugID_5222*/
-	WILC_SemaphoreAcquire(&hWaitResponse, NULL);
+	down(&hWaitResponse);
 
 	return s32Error;
 }
