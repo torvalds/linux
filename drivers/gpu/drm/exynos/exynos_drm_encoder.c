@@ -76,11 +76,6 @@ static void exynos_drm_encoder_mode_set(struct drm_encoder *encoder,
 		display->ops->mode_set(display, adjusted_mode);
 }
 
-static void exynos_drm_encoder_prepare(struct drm_encoder *encoder)
-{
-	/* drm framework doesn't check NULL. */
-}
-
 static void exynos_drm_encoder_commit(struct drm_encoder *encoder)
 {
 	struct exynos_drm_encoder *exynos_encoder = to_exynos_encoder(encoder);
@@ -111,7 +106,6 @@ static struct drm_encoder_helper_funcs exynos_encoder_helper_funcs = {
 	.dpms		= exynos_drm_encoder_dpms,
 	.mode_fixup	= exynos_drm_encoder_mode_fixup,
 	.mode_set	= exynos_drm_encoder_mode_set,
-	.prepare	= exynos_drm_encoder_prepare,
 	.commit		= exynos_drm_encoder_commit,
 	.disable	= exynos_drm_encoder_disable,
 };

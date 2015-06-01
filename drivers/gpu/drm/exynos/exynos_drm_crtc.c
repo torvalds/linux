@@ -50,11 +50,6 @@ static void exynos_drm_crtc_dpms(struct drm_crtc *crtc, int mode)
 		drm_crtc_vblank_on(crtc);
 }
 
-static void exynos_drm_crtc_prepare(struct drm_crtc *crtc)
-{
-	/* drm framework doesn't check NULL. */
-}
-
 static void exynos_drm_crtc_commit(struct drm_crtc *crtc)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
@@ -108,12 +103,9 @@ static void exynos_drm_crtc_disable(struct drm_crtc *crtc)
 
 static struct drm_crtc_helper_funcs exynos_crtc_helper_funcs = {
 	.dpms		= exynos_drm_crtc_dpms,
-	.prepare	= exynos_drm_crtc_prepare,
 	.commit		= exynos_drm_crtc_commit,
 	.mode_fixup	= exynos_drm_crtc_mode_fixup,
-	.mode_set	= drm_helper_crtc_mode_set,
 	.mode_set_nofb	= exynos_drm_crtc_mode_set_nofb,
-	.mode_set_base	= drm_helper_crtc_mode_set_base,
 	.disable	= exynos_drm_crtc_disable,
 };
 
@@ -190,7 +182,7 @@ static void exynos_drm_crtc_destroy(struct drm_crtc *crtc)
 }
 
 static struct drm_crtc_funcs exynos_crtc_funcs = {
-	.set_config	= drm_crtc_helper_set_config,
+	.set_config	= drm_atomic_helper_set_config,
 	.page_flip	= exynos_drm_crtc_page_flip,
 	.destroy	= exynos_drm_crtc_destroy,
 	.reset = drm_atomic_helper_crtc_reset,
