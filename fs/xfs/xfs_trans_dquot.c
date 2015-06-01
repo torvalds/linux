@@ -90,7 +90,7 @@ xfs_trans_dup_dqinfo(
 	xfs_trans_t	*ntp)
 {
 	xfs_dqtrx_t	*oq, *nq;
-	int		i,j;
+	int		i, j;
 	xfs_dqtrx_t	*oqa, *nqa;
 	ulong		blk_res_used;
 
@@ -103,7 +103,7 @@ xfs_trans_dup_dqinfo(
 	 * Because the quota blk reservation is carried forward,
 	 * it is also necessary to carry forward the DQ_DIRTY flag.
 	 */
-	if(otp->t_flags & XFS_TRANS_DQ_DIRTY)
+	if (otp->t_flags & XFS_TRANS_DQ_DIRTY)
 		ntp->t_flags |= XFS_TRANS_DQ_DIRTY;
 
 	for (j = 0; j < XFS_QM_TRANS_DQTYPES; j++) {
