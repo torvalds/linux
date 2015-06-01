@@ -127,7 +127,8 @@ static int exynos_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	crtc_h = fb->height - y;
 
 	return exynos_update_plane(crtc->primary, crtc, fb, 0, 0,
-				   crtc_w, crtc_h, x, y, crtc_w, crtc_h);
+				   crtc_w, crtc_h, x << 16, y << 16,
+				   crtc_w << 16, crtc_h << 16);
 }
 
 static void exynos_drm_crtc_disable(struct drm_crtc *crtc)
@@ -202,8 +203,8 @@ static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
 	crtc_w = fb->width - crtc->x;
 	crtc_h = fb->height - crtc->y;
 	ret = exynos_update_plane(crtc->primary, crtc, fb, 0, 0,
-				  crtc_w, crtc_h, crtc->x, crtc->y,
-				  crtc_w, crtc_h);
+				  crtc_w, crtc_h, crtc->x << 16, crtc->y << 16,
+				  crtc_w << 16, crtc_h << 16);
 	if (ret) {
 		crtc->primary->fb = old_fb;
 		spin_lock_irq(&dev->event_lock);
