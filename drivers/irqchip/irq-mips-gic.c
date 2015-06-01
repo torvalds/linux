@@ -405,7 +405,7 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *cpumask,
 		clear_bit(irq, pcpu_masks[i].pcpu_mask);
 	set_bit(irq, pcpu_masks[cpumask_first(&tmp)].pcpu_mask);
 
-	cpumask_copy(d->affinity, cpumask);
+	cpumask_copy(irq_data_get_affinity_mask(d), cpumask);
 	spin_unlock_irqrestore(&gic_lock, flags);
 
 	return IRQ_SET_MASK_OK_NOCOPY;
