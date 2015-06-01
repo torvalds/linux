@@ -2632,9 +2632,9 @@ valid_fb:
 		dev_priv->preserve_bios_swizzle = true;
 
 	primary->fb = fb;
-	primary->state->crtc = &intel_crtc->base;
-	primary->crtc = &intel_crtc->base;
+	primary->crtc = primary->state->crtc = &intel_crtc->base;
 	update_state_fb(primary);
+	intel_crtc->base.state->plane_mask |= (1 << drm_plane_index(primary));
 	obj->frontbuffer_bits |= INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe);
 }
 
@@ -15563,7 +15563,9 @@ void intel_modeset_gem_init(struct drm_device *dev)
 				  to_intel_crtc(c)->pipe);
 			drm_framebuffer_unreference(c->primary->fb);
 			c->primary->fb = NULL;
+			c->primary->crtc = c->primary->state->crtc = NULL;
 			update_state_fb(c->primary);
+			c->state->plane_mask &= ~(1 << drm_plane_index(c->primary));
 		}
 	}
 
