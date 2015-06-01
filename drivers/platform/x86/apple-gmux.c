@@ -551,7 +551,7 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 	 * Disable the other backlight choices.
 	 */
 	acpi_video_dmi_promote_vendor();
-	acpi_video_unregister();
+	acpi_video_unregister_backlight();
 	apple_bl_unregister();
 
 	gmux_data->power_state = VGA_SWITCHEROO_ON;
