@@ -512,6 +512,19 @@
 			#size-cells = <0>;
 		};
 
+		usb_otg: usb@01c19000 {
+			compatible = "allwinner,sun6i-a31-musb";
+			reg = <0x01c19000 0x0400>;
+			clocks = <&ahb1_gates 24>;
+			resets = <&ahb1_rst 24>;
+			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "mc";
+			phys = <&usbphy 0>;
+			phy-names = "usb";
+			extcon = <&usbphy 0>;
+			status = "disabled";
+		};
+
 		usbphy: phy@01c19400 {
 			compatible = "allwinner,sun6i-a31-usb-phy";
 			reg = <0x01c19400 0x10>,
