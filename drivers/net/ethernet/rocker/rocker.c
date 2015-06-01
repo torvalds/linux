@@ -5153,41 +5153,49 @@ static bool rocker_port_dev_check(const struct net_device *dev)
 static int rocker_port_bridge_join(struct rocker_port *rocker_port,
 				   struct net_device *bridge)
 {
+	u16 untagged_vid = 0;
 	int err;
+
+	/* Port is joining bridge, so the internal VLAN for the
+	 * port is going to change to the bridge internal VLAN.
+	 * Let's remove untagged VLAN (vid=0) from port and
+	 * re-add once internal VLAN has changed.
+	 */
+
+	err = rocker_port_vlan_del(rocker_port, untagged_vid, 0);
+	if (err)
+		return err;
 
 	rocker_port_internal_vlan_id_put(rocker_port,
 					 rocker_port->dev->ifindex);
+	rocker_port->internal_vlan_id =
+		rocker_port_internal_vlan_id_get(rocker_port, bridge->ifindex);
 
 	rocker_port->bridge_dev = bridge;
 
-	/* Use bridge internal VLAN ID for untagged pkts */
-	err = rocker_port_vlan(rocker_port, SWITCHDEV_TRANS_NONE,
-			       ROCKER_OP_FLAG_REMOVE, 0);
-	if (err)
-		return err;
-	rocker_port->internal_vlan_id =
-		rocker_port_internal_vlan_id_get(rocker_port, bridge->ifindex);
-	return rocker_port_vlan(rocker_port, SWITCHDEV_TRANS_NONE, 0, 0);
+	return rocker_port_vlan_add(rocker_port, SWITCHDEV_TRANS_NONE,
+				    untagged_vid, 0);
 }
 
 static int rocker_port_bridge_leave(struct rocker_port *rocker_port)
 {
+	u16 untagged_vid = 0;
 	int err;
+
+	err = rocker_port_vlan_del(rocker_port, untagged_vid, 0);
+	if (err)
+		return err;
 
 	rocker_port_internal_vlan_id_put(rocker_port,
 					 rocker_port->bridge_dev->ifindex);
-
-	rocker_port->bridge_dev = NULL;
-
-	/* Use port internal VLAN ID for untagged pkts */
-	err = rocker_port_vlan(rocker_port, SWITCHDEV_TRANS_NONE,
-			       ROCKER_OP_FLAG_REMOVE, 0);
-	if (err)
-		return err;
 	rocker_port->internal_vlan_id =
 		rocker_port_internal_vlan_id_get(rocker_port,
 						 rocker_port->dev->ifindex);
-	err = rocker_port_vlan(rocker_port, SWITCHDEV_TRANS_NONE, 0, 0);
+
+	rocker_port->bridge_dev = NULL;
+
+	err = rocker_port_vlan_add(rocker_port, SWITCHDEV_TRANS_NONE,
+				   untagged_vid, 0);
 	if (err)
 		return err;
 
