@@ -1698,7 +1698,7 @@ static int intel_num_dvo_pipes(struct drm_device *dev)
 	int count = 0;
 
 	for_each_intel_crtc(dev, crtc)
-		count += crtc->active &&
+		count += crtc->base.state->active &&
 			intel_pipe_has_type(crtc, INTEL_OUTPUT_DVO);
 
 	return count;
@@ -1779,7 +1779,7 @@ static void i9xx_disable_pll(struct intel_crtc *crtc)
 	/* Disable DVO 2x clock on both PLLs if necessary */
 	if (IS_I830(dev) &&
 	    intel_pipe_has_type(crtc, INTEL_OUTPUT_DVO) &&
-	    intel_num_dvo_pipes(dev) == 1) {
+	    !intel_num_dvo_pipes(dev)) {
 		I915_WRITE(DPLL(PIPE_B),
 			   I915_READ(DPLL(PIPE_B)) & ~DPLL_DVO_2X_MODE);
 		I915_WRITE(DPLL(PIPE_A),
