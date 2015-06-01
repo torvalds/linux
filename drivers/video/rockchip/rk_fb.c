@@ -1843,8 +1843,10 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 			win->state = 0;
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 			if (dev_drv->iommu_enabled) {
-				for (j = 0; j < 4; j++)
+				for (j = 0; j < 4; j++) {
 					g_now_config_addr[i][j] = 0;
+					g_now_config_state[i][j] = 0;
+				}
 			}
 #endif
 		}
@@ -1931,6 +1933,9 @@ static void rk_fb_update_regs_handler(struct kthread_work *work)
 static int rk_fb_check_config_var(struct rk_fb_area_par *area_par,
 				  struct rk_screen *screen)
 {
+	if (area_par->phy_addr > 0)
+		pr_err("%s[%d], phy_addr = 0x%x\n",
+		       __func__, __LINE__, area_par->phy_addr);
 	if ((area_par->x_offset + area_par->xact > area_par->xvir) ||
 	    (area_par->xact <= 0) || (area_par->yact <= 0) ||
 	    (area_par->xvir <= 0) || (area_par->yvir <= 0)) {
@@ -2173,6 +2178,18 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 			     (fb_data_fmt == FBDC_ARGB_888) ||
 			     (fb_data_fmt == FBDC_ABGR_888) ||
 			     (fb_data_fmt == ABGR888)) ? 1 : 0;
+		/*act_height should be 2 pix align for interlace output*/
+		if (win_par->area_par[i].yact % 2 == 1) {
+			win_par->area_par[i].yact  -= 1;
+			win_par->area_par[i].ysize -= 1;
+		}
+
+		/* buf offset should be 2 pix align*/
+		if (win_par->area_par[i].x_offset % 2 == 1) {
+			win_par->area_par[i].x_offset += 1;
+			win_par->area_par[i].xact -= 1;
+		}
+
 		/* visiable pos in panel */
 		reg_win_data->reg_area_data[i].xpos = win_par->area_par[i].xpos;
 		reg_win_data->reg_area_data[i].ypos = win_par->area_par[i].ypos;
@@ -2184,11 +2201,6 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 		/* realy size in panel */
 		reg_win_data->reg_area_data[i].xact = win_par->area_par[i].xact;
 		reg_win_data->reg_area_data[i].yact = win_par->area_par[i].yact;
-
-		/*act_height should be 2 pix align for interlace output*/
-		if ((screen->mode.vmode == FB_VMODE_INTERLACED) &&
-		    (reg_win_data->reg_area_data[i].yact % 2 == 1))
-			reg_win_data->reg_area_data[i].yact -= 1;
 
 		xoffset = win_par->area_par[i].x_offset;	/* buf offset */
 		yoffset = win_par->area_par[i].y_offset;
@@ -2376,7 +2388,8 @@ static int rk_fb_set_win_config(struct fb_info *info,
 
         for (i = 0; i < 4; i++) {
                 for (j = 0; j < 4; j++) {
-                        if (win_data->win_par[i].area_par[j].ion_fd > 0)
+                        if ((win_data->win_par[i].area_par[j].ion_fd > 0) ||
+                            (win_data->win_par[i].area_par[j].phy_addr > 0))
                                 ret += rk_fb_check_config_var(
                                         &win_data->win_par[i].area_par[j],
                                         screen);

@@ -562,8 +562,8 @@ struct rk_fb_reg_area_data {
 };
 
 struct rk_fb_reg_win_data {
-	u8 win_id;
-	u8 z_order;		/*win sel layer*/
+	int win_id;
+	int z_order;		/*win sel layer*/
 	u32 area_num;		/*maybe two region have the same dma buff,*/
 	u32 area_buf_num;     /*so area_num  maybe not equal to area_buf_num*/
 	u8 alpha_en;
