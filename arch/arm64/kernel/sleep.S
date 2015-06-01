@@ -130,12 +130,14 @@ ENDPROC(__cpu_suspend_enter)
 /*
  * x0 must contain the sctlr value retrieved from restored context
  */
+	.pushsection	".idmap.text", "ax"
 ENTRY(cpu_resume_mmu)
 	ldr	x3, =cpu_resume_after_mmu
 	msr	sctlr_el1, x0		// restore sctlr_el1
 	isb
 	br	x3			// global jump to virtual address
 ENDPROC(cpu_resume_mmu)
+	.popsection
 cpu_resume_after_mmu:
 	mov	x0, #0			// return zero on success
 	ldp	x19, x20, [sp, #16]
