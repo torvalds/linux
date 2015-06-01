@@ -116,6 +116,7 @@ static int exynos_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	struct drm_framebuffer *fb = crtc->primary->fb;
 	unsigned int crtc_w;
 	unsigned int crtc_h;
+	int ret;
 
 	/* when framebuffer changing is requested, crtc's dpms should be on */
 	if (exynos_crtc->dpms > DRM_MODE_DPMS_ON) {
@@ -123,12 +124,17 @@ static int exynos_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 		return -EPERM;
 	}
 
+	ret = exynos_check_plane(crtc->primary, fb);
+	if (ret)
+		return ret;
+
 	crtc_w = fb->width - x;
 	crtc_h = fb->height - y;
+	exynos_update_plane(crtc->primary, crtc, fb, 0, 0,
+			    crtc_w, crtc_h, x << 16, y << 16,
+			    crtc_w << 16, crtc_h << 16);
 
-	return exynos_update_plane(crtc->primary, crtc, fb, 0, 0,
-				   crtc_w, crtc_h, x << 16, y << 16,
-				   crtc_w << 16, crtc_h << 16);
+	return 0;
 }
 
 static void exynos_drm_crtc_disable(struct drm_crtc *crtc)
@@ -165,7 +171,6 @@ static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-	struct drm_framebuffer *old_fb = crtc->primary->fb;
 	unsigned int crtc_w, crtc_h;
 	int ret;
 
@@ -183,6 +188,10 @@ static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
 		ret = -EBUSY;
 		goto out;
 	}
+
+	ret = exynos_check_plane(crtc->primary, fb);
+	if (ret)
+		goto out;
 
 	ret = drm_vblank_get(dev, exynos_crtc->pipe);
 	if (ret) {
@@ -202,17 +211,9 @@ static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
 	crtc->primary->fb = fb;
 	crtc_w = fb->width - crtc->x;
 	crtc_h = fb->height - crtc->y;
-	ret = exynos_update_plane(crtc->primary, crtc, fb, 0, 0,
-				  crtc_w, crtc_h, crtc->x << 16, crtc->y << 16,
-				  crtc_w << 16, crtc_h << 16);
-	if (ret) {
-		crtc->primary->fb = old_fb;
-		spin_lock_irq(&dev->event_lock);
-		exynos_crtc->event = NULL;
-		drm_vblank_put(dev, exynos_crtc->pipe);
-		spin_unlock_irq(&dev->event_lock);
-		return ret;
-	}
+	exynos_update_plane(crtc->primary, crtc, fb, 0, 0,
+			    crtc_w, crtc_h, crtc->x << 16, crtc->y << 16,
+			    crtc_w << 16, crtc_h << 16);
 
 	return 0;
 

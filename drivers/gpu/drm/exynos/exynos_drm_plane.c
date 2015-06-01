@@ -144,21 +144,15 @@ void exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 	plane->crtc = crtc;
 }
 
-int
+void
 exynos_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		     struct drm_framebuffer *fb, int crtc_x, int crtc_y,
 		     unsigned int crtc_w, unsigned int crtc_h,
 		     uint32_t src_x, uint32_t src_y,
 		     uint32_t src_w, uint32_t src_h)
 {
-
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
-	int ret;
-
-	ret = exynos_check_plane(plane, fb);
-	if (ret < 0)
-		return ret;
 
 	exynos_plane_mode_set(plane, crtc, fb, crtc_x, crtc_y,
 			      crtc_w, crtc_h, src_x >> 16, src_y >> 16,
@@ -166,8 +160,6 @@ exynos_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	if (exynos_crtc->ops->win_commit)
 		exynos_crtc->ops->win_commit(exynos_crtc, exynos_plane->zpos);
-
-	return 0;
 }
 
 static int exynos_disable_plane(struct drm_plane *plane)
@@ -183,9 +175,35 @@ static int exynos_disable_plane(struct drm_plane *plane)
 }
 
 static struct drm_plane_funcs exynos_plane_funcs = {
-	.update_plane	= exynos_update_plane,
+	.update_plane	= drm_plane_helper_update,
 	.disable_plane	= exynos_disable_plane,
 	.destroy	= drm_plane_cleanup,
+};
+
+static int exynos_plane_atomic_check(struct drm_plane *plane,
+				     struct drm_plane_state *state)
+{
+	return exynos_check_plane(plane, state->fb);
+}
+
+static void exynos_plane_atomic_update(struct drm_plane *plane,
+				       struct drm_plane_state *old_state)
+{
+	struct drm_plane_state *state = plane->state;
+
+	if (!state->crtc)
+		return;
+
+	exynos_update_plane(plane, state->crtc, state->fb,
+			    state->crtc_x, state->crtc_y,
+			    state->crtc_w, state->crtc_h,
+			    state->src_x, state->src_y,
+			    state->src_w, state->src_h);
+}
+
+static const struct drm_plane_helper_funcs plane_helper_funcs = {
+	.atomic_check = exynos_plane_atomic_check,
+	.atomic_update = exynos_plane_atomic_update,
 };
 
 static void exynos_plane_attach_zpos_property(struct drm_plane *plane,
@@ -222,6 +240,8 @@ int exynos_plane_init(struct drm_device *dev,
 		DRM_ERROR("failed to initialize plane\n");
 		return err;
 	}
+
+	drm_plane_helper_add(&exynos_plane->base, &plane_helper_funcs);
 
 	exynos_plane->zpos = zpos;
 
