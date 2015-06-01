@@ -18,19 +18,13 @@
  * MA 02110-1301, USA.
  */
 
-#include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/clk.h>
-#include <linux/err.h>
+#include <linux/genalloc.h>
 #include <linux/io.h>
-#include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/list.h>
 #include <linux/list_sort.h>
+#include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/spinlock.h>
-#include <linux/genalloc.h>
 
 #define SRAM_GRANULARITY	32
 
