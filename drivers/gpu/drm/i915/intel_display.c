@@ -6278,10 +6278,6 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	mutex_unlock(&dev->struct_mutex);
 }
 
-static void i9xx_crtc_off(struct drm_crtc *crtc)
-{
-}
-
 /* Master function to enable/disable CRTC and corresponding power wells */
 void intel_crtc_control(struct drm_crtc *crtc, bool enable)
 {
@@ -6329,34 +6325,6 @@ void intel_crtc_update_dpms(struct drm_crtc *crtc)
 	intel_crtc_control(crtc, enable);
 
 	crtc->state->active = enable;
-}
-
-static void intel_crtc_disable(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_connector *connector;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	/* crtc should still be enabled when we disable it. */
-	WARN_ON(!crtc->state->enable);
-
-	intel_crtc_disable_planes(crtc);
-	dev_priv->display.crtc_disable(crtc);
-	dev_priv->display.off(crtc);
-
-	drm_plane_helper_disable(crtc->primary);
-
-	/* Update computed state. */
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (!connector->encoder || !connector->encoder->crtc)
-			continue;
-
-		if (connector->encoder->crtc != crtc)
-			continue;
-
-		connector->dpms = DRM_MODE_DPMS_OFF;
-		to_intel_encoder(connector->encoder)->connectors_active = false;
-	}
 }
 
 void intel_encoder_destroy(struct drm_encoder *encoder)
@@ -12272,26 +12240,22 @@ intel_modeset_update_state(struct drm_atomic_state *state)
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 	struct drm_connector *connector;
-	int i;
 
 	intel_shared_dpll_commit(dev_priv);
+	drm_atomic_helper_swap_state(state->dev, state);
 
 	for_each_intel_encoder(dev, intel_encoder) {
 		if (!intel_encoder->base.crtc)
 			continue;
 
-		for_each_crtc_in_state(state, crtc, crtc_state, i) {
-			if (crtc != intel_encoder->base.crtc)
-				continue;
+		crtc = intel_encoder->base.crtc;
+		crtc_state = drm_atomic_get_existing_crtc_state(state, crtc);
+		if (!crtc_state || !needs_modeset(crtc->state))
+			continue;
 
-			if (crtc_state->enable && needs_modeset(crtc_state))
-				intel_encoder->connectors_active = false;
-
-			break;
-		}
+		intel_encoder->connectors_active = false;
 	}
 
-	drm_atomic_helper_swap_state(state->dev, state);
 	intel_modeset_fixup_state(state);
 
 	/* Double check state. */
@@ -12303,27 +12267,23 @@ intel_modeset_update_state(struct drm_atomic_state *state)
 		if (!connector->encoder || !connector->encoder->crtc)
 			continue;
 
-		for_each_crtc_in_state(state, crtc, crtc_state, i) {
-			if (crtc != connector->encoder->crtc)
-				continue;
+		crtc = connector->encoder->crtc;
+		crtc_state = drm_atomic_get_existing_crtc_state(state, crtc);
+		if (!crtc_state || !needs_modeset(crtc->state))
+			continue;
 
-			if (crtc->state->enable && needs_modeset(crtc->state)) {
-				struct drm_property *dpms_property =
-					dev->mode_config.dpms_property;
+		if (crtc->state->enable) {
+			struct drm_property *dpms_property =
+				dev->mode_config.dpms_property;
 
-				connector->dpms = DRM_MODE_DPMS_ON;
-				drm_object_property_set_value(&connector->base,
-								 dpms_property,
-								 DRM_MODE_DPMS_ON);
+			connector->dpms = DRM_MODE_DPMS_ON;
+			drm_object_property_set_value(&connector->base, dpms_property, DRM_MODE_DPMS_ON);
 
-				intel_encoder = to_intel_encoder(connector->encoder);
-				intel_encoder->connectors_active = true;
-			}
-
-			break;
-		}
+			intel_encoder = to_intel_encoder(connector->encoder);
+			intel_encoder->connectors_active = true;
+		} else
+			connector->dpms = DRM_MODE_DPMS_OFF;
 	}
-
 }
 
 static bool intel_fuzzy_clock_check(int clock1, int clock2)
@@ -13001,12 +12961,10 @@ static int __intel_set_mode(struct drm_crtc *modeset_crtc,
 		if (!needs_modeset(crtc_state))
 			continue;
 
-		if (!crtc_state->enable) {
-			intel_crtc_disable(crtc);
-		} else if (crtc->state->enable) {
-			intel_crtc_disable_planes(crtc);
-			dev_priv->display.crtc_disable(crtc);
-		}
+		intel_crtc_disable_planes(crtc);
+		dev_priv->display.crtc_disable(crtc);
+		if (!crtc_state->enable)
+			drm_plane_helper_disable(crtc->primary);
 	}
 
 	/* crtc->mode is already used by the ->mode_set callbacks, hence we need
@@ -14742,7 +14700,6 @@ static void intel_init_display(struct drm_device *dev)
 			haswell_crtc_compute_clock;
 		dev_priv->display.crtc_enable = haswell_crtc_enable;
 		dev_priv->display.crtc_disable = haswell_crtc_disable;
-		dev_priv->display.off = i9xx_crtc_off;
 		dev_priv->display.update_primary_plane =
 			skylake_update_primary_plane;
 	} else if (HAS_DDI(dev)) {
@@ -14753,7 +14710,6 @@ static void intel_init_display(struct drm_device *dev)
 			haswell_crtc_compute_clock;
 		dev_priv->display.crtc_enable = haswell_crtc_enable;
 		dev_priv->display.crtc_disable = haswell_crtc_disable;
-		dev_priv->display.off = i9xx_crtc_off;
 		dev_priv->display.update_primary_plane =
 			ironlake_update_primary_plane;
 	} else if (HAS_PCH_SPLIT(dev)) {
@@ -14764,7 +14720,6 @@ static void intel_init_display(struct drm_device *dev)
 			ironlake_crtc_compute_clock;
 		dev_priv->display.crtc_enable = ironlake_crtc_enable;
 		dev_priv->display.crtc_disable = ironlake_crtc_disable;
-		dev_priv->display.off = i9xx_crtc_off;
 		dev_priv->display.update_primary_plane =
 			ironlake_update_primary_plane;
 	} else if (IS_VALLEYVIEW(dev)) {
@@ -14774,7 +14729,6 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.crtc_compute_clock = i9xx_crtc_compute_clock;
 		dev_priv->display.crtc_enable = valleyview_crtc_enable;
 		dev_priv->display.crtc_disable = i9xx_crtc_disable;
-		dev_priv->display.off = i9xx_crtc_off;
 		dev_priv->display.update_primary_plane =
 			i9xx_update_primary_plane;
 	} else {
@@ -14784,7 +14738,6 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.crtc_compute_clock = i9xx_crtc_compute_clock;
 		dev_priv->display.crtc_enable = i9xx_crtc_enable;
 		dev_priv->display.crtc_disable = i9xx_crtc_disable;
-		dev_priv->display.off = i9xx_crtc_off;
 		dev_priv->display.update_primary_plane =
 			i9xx_update_primary_plane;
 	}

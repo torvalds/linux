@@ -631,7 +631,6 @@ struct drm_i915_display_funcs {
 				  struct intel_crtc_state *crtc_state);
 	void (*crtc_enable)(struct drm_crtc *crtc);
 	void (*crtc_disable)(struct drm_crtc *crtc);
-	void (*off)(struct drm_crtc *crtc);
 	void (*audio_codec_enable)(struct drm_connector *connector,
 				   struct intel_encoder *encoder,
 				   struct drm_display_mode *mode);
