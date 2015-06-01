@@ -70,9 +70,7 @@ typedef WILC_Uint16 WILC_WideChar;
 #endif
 
 /* Memory support */
-#ifdef CONFIG_WILC_MEMORY_FEATURE
 #include "wilc_memory.h"
-#endif
 
 /* String Utilities */
 #include "wilc_strutils.h"

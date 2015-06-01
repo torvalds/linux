@@ -33,18 +33,6 @@
 
 /* CONFIG_WILC_TIMER_PERIODIC is implemented */
 
-/* CONFIG_WILC_MEMORY_FEATURE is implemented */
-
-/* remove the following block when implementing its feature */
-#ifdef CONFIG_WILC_MEMORY_POOLS
-#error This feature is not supported by this OS
-#endif
-
-/* remove the following block when implementing its feature */
-#ifdef CONFIG_WILC_MEMORY_DEBUG
-#error This feature is not supported by this OS
-#endif
-
 /* remove the following block when implementing its feature */
 #ifdef CONFIG_WILC_ASSERTION_SUPPORT
 #error This feature is not supported by this OS
@@ -100,7 +88,6 @@
  *      OS specific types
  *******************************************************************/
 
-typedef void *WILC_MemoryPoolHandle;
 typedef struct semaphore WILC_SemaphoreHandle;
 
 typedef struct timer_list WILC_TimerHandle;

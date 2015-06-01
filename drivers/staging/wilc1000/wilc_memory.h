@@ -10,10 +10,6 @@
  *  @version	1.0
  */
 
-#ifndef CONFIG_WILC_MEMORY_FEATURE
-#error the feature CONFIG_WILC_MEMORY_FEATURE must be supported to include this file
-#endif
-
 /*!
  *  @struct             tstrWILC_MemoryAttrs
  *  @brief		Memory API options
@@ -22,31 +18,7 @@
  *  @version		1.0
  */
 typedef struct {
-	#ifdef CONFIG_WILC_MEMORY_POOLS
-	/*!< the allocation pool to use for this memory, NULL for system
-	 * allocation. Default is NULL
-	 */
-	WILC_MemoryPoolHandle *pAllocationPool;
-	#endif
-
-	/* a dummy member to avoid compiler errors*/
-	WILC_Uint8 dummy;
 } tstrWILC_MemoryAttrs;
-
-/*!
- *  @brief	Fills the tstrWILC_MemoryAttrs with default parameters
- *  @param[out]	pstrAttrs structure to be filled
- *  @sa		tstrWILC_MemoryAttrs
- *  @author	syounan
- *  @date	16 Aug 2010
- *  @version	1.0
- */
-static void WILC_MemoryFillDefault(tstrWILC_MemoryAttrs *pstrAttrs)
-{
-	#ifdef CONFIG_WILC_MEMORY_POOLS
-	pstrAttrs->pAllocationPool = WILC_NULL;
-	#endif
-}
 
 /*!
  *  @brief	Allocates a given size of bytes
@@ -145,69 +117,6 @@ void WILC_MemoryFree(void *pvBlock, tstrWILC_MemoryAttrs *strAttrs,
 			WILC_Char *pcFileName, WILC_Uint32 u32LineNo);
 
 /*!
- *  @brief	Creates a new memory pool
- *  @param[out]	pHandle the handle to the new Pool
- *  @param[in]	u32PoolSize The pool size in bytes
- *  @param[in]	strAttrs Optional attributes, NULL for default
- *  @return	Error code indicating sucess/failure
- *  @sa		sttrWILC_MemoryAttrs
- *  @author	syounan
- *  @date	16 Aug 2010
- *  @version	1.0
- */
-WILC_ErrNo WILC_MemoryNewPool(WILC_MemoryPoolHandle *pHandle, WILC_Uint32 u32PoolSize,
-			      tstrWILC_MemoryAttrs *strAttrs);
-
-/*!
- *  @brief	Deletes a memory pool, freeing all memory allocated from it as well
- *  @param[in]	pHandle the handle to the deleted Pool
- *  @param[in]	strAttrs Optional attributes, NULL for default
- *  @return	Error code indicating sucess/failure
- *  @sa		sttrWILC_MemoryAttrs
- *  @author	syounan
- *  @date	16 Aug 2010
- *  @version	1.0
- */
-WILC_ErrNo WILC_MemoryDelPool(WILC_MemoryPoolHandle *pHandle, tstrWILC_MemoryAttrs *strAttrs);
-
-
-#ifdef CONFIG_WILC_MEMORY_DEBUG
-
-/*!
- * @brief	standrad malloc wrapper with custom attributes
- */
-	#define WILC_MALLOC_EX(__size__, __attrs__) \
-	(WILC_MemoryAlloc( \
-		 (__size__), __attrs__,	\
-		 (WILC_Char *)__WILC_FILE__, (WILC_Uint32)__WILC_LINE__))
-
-/*!
- * @brief	standrad calloc wrapper with custom attributes
- */
-	#define WILC_CALLOC_EX(__size__, __attrs__) \
-	(WILC_MemoryCalloc( \
-		 (__size__), __attrs__,	\
-		 (WILC_Char *)__WILC_FILE__, (WILC_Uint32)__WILC_LINE__))
-
-/*!
- * @brief	standrad realloc wrapper with custom attributes
- */
-	#define WILC_REALLOC_EX(__ptr__, __new_size__, __attrs__) \
-	(WILC_MemoryRealloc( \
-		 (__ptr__), (__new_size__), __attrs__, \
-		 (WILC_Char *)__WILC_FILE__, (WILC_Uint32)__WILC_LINE__))
-
-/*!
- * @brief	standrad free wrapper with custom attributes
- */
-	#define WILC_FREE_EX(__ptr__, __attrs__) \
-	(WILC_MemoryFree( \
-		 (__ptr__), __attrs__, \
-		 (WILC_Char *)__WILC_FILE__, (WILC_Uint32)__WILC_LINE__))
-
-#else
-
-/*!
  * @brief	standrad malloc wrapper with custom attributes
  */
 	#define WILC_MALLOC_EX(__size__, __attrs__) \
@@ -233,8 +142,6 @@ WILC_ErrNo WILC_MemoryDelPool(WILC_MemoryPoolHandle *pHandle, tstrWILC_MemoryAtt
 	#define WILC_FREE_EX(__ptr__, __attrs__) \
 	(WILC_MemoryFree( \
 		 (__ptr__), __attrs__, WILC_NULL, 0))
-
-#endif
 
 /*!
  * @brief	Allocates a block (with custom attributes) of given type and number of

@@ -1,9 +1,6 @@
 
 #include "wilc_oswrapper.h"
 
-#ifdef CONFIG_WILC_MEMORY_FEATURE
-
-
 /*!
  *  @author	syounan
  *  @date	18 Aug 2010
@@ -59,5 +56,3 @@ void WILC_MemoryFree(void *pvBlock, tstrWILC_MemoryAttrs *strAttrs,
 {
 	kfree(pvBlock);
 }
-
-#endif
