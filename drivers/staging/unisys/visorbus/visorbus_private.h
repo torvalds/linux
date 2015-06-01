@@ -57,7 +57,7 @@ struct visorchipset_device_info {
 	u64 reserved2;
 	u32 switch_no;		/* when devState.attached==1 */
 	u32 internal_port_no;	/* when devState.attached==1 */
-	struct controlvm_message_header pending_msg_hdr;/* CONTROLVM_MESSAGE */
+	struct controlvm_message_header *pending_msg_hdr;/* CONTROLVM_MESSAGE */
 	/** For private use by the bus driver */
 	void *bus_driver_context;
 };
@@ -84,7 +84,7 @@ struct visorchipset_bus_info {
 		/* Add new fields above. */
 		/* Remaining bits in this 32-bit word are unused. */
 	} flags;
-	struct controlvm_message_header pending_msg_hdr;/* CONTROLVM MsgHdr */
+	struct controlvm_message_header *pending_msg_hdr;/* CONTROLVM MsgHdr */
 	/** For private use by the bus driver */
 	void *bus_driver_context;
 };

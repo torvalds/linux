@@ -962,37 +962,17 @@ enum crash_obj_type {
 };
 
 static void
-bus_responder(enum controlvm_id cmd_id, struct visorchipset_bus_info *p,
+bus_responder(enum controlvm_id cmd_id,
+	      struct controlvm_message_header *pending_msg_hdr,
 	      int response)
 {
-	bool need_clear = false;
-	u32 bus_no = p->bus_no;
-
-	if (!p)
-		return;
-
-	if (response < 0) {
-		if ((cmd_id == CONTROLVM_BUS_CREATE) &&
-		    (response != (-CONTROLVM_RESP_ERROR_ALREADY_DONE)))
-			/* undo the row we just created... */
-			busdevices_del(&dev_info_list, bus_no);
-	} else {
-		if (cmd_id == CONTROLVM_BUS_CREATE)
-			p->state.created = 1;
-		if (cmd_id == CONTROLVM_BUS_DESTROY)
-			need_clear = true;
-	}
-
-	if (p->pending_msg_hdr.id == CONTROLVM_INVALID)
+	if (pending_msg_hdr == NULL)
 		return;		/* no controlvm response needed */
-	if (p->pending_msg_hdr.id != (u32)cmd_id)
+
+	if (pending_msg_hdr->id != (u32)cmd_id)
 		return;
-	controlvm_respond(&p->pending_msg_hdr, response);
-	p->pending_msg_hdr.id = CONTROLVM_INVALID;
-	if (need_clear) {
-		bus_info_clear(p);
-		busdevices_del(&dev_info_list, bus_no);
-	}
+
+	controlvm_respond(pending_msg_hdr, response);
 }
 
 static void
@@ -1004,14 +984,12 @@ device_changestate_responder(enum controlvm_id cmd_id,
 	u32 bus_no = p->bus_no;
 	u32 dev_no = p->dev_no;
 
-	if (!p)
-		return;
-	if (p->pending_msg_hdr.id == CONTROLVM_INVALID)
+	if (p->pending_msg_hdr == NULL)
 		return;		/* no controlvm response needed */
-	if (p->pending_msg_hdr.id != cmd_id)
+	if (p->pending_msg_hdr->id != cmd_id)
 		return;
 
-	controlvm_init_response(&outmsg, &p->pending_msg_hdr, response);
+	controlvm_init_response(&outmsg, p->pending_msg_hdr, response);
 
 	outmsg.cmd.device_change_state.bus_no = bus_no;
 	outmsg.cmd.device_change_state.dev_no = dev_no;
@@ -1020,35 +998,20 @@ device_changestate_responder(enum controlvm_id cmd_id,
 	if (!visorchannel_signalinsert(controlvm_channel,
 				       CONTROLVM_QUEUE_REQUEST, &outmsg))
 		return;
-
-	p->pending_msg_hdr.id = CONTROLVM_INVALID;
 }
 
 static void
-device_responder(enum controlvm_id cmd_id, struct visorchipset_device_info *p,
+device_responder(enum controlvm_id cmd_id,
+		 struct controlvm_message_header *pending_msg_hdr,
 		 int response)
 {
-	bool need_clear = false;
-
-	if (!p)
-		return;
-	if (response >= 0) {
-		if (cmd_id == CONTROLVM_DEVICE_CREATE)
-			p->state.created = 1;
-		if (cmd_id == CONTROLVM_DEVICE_DESTROY)
-			need_clear = true;
-	}
-
-	if (p->pending_msg_hdr.id == CONTROLVM_INVALID)
+	if (pending_msg_hdr == NULL)
 		return;		/* no controlvm response needed */
 
-	if (p->pending_msg_hdr.id != (u32)cmd_id)
+	if (pending_msg_hdr->id != (u32)cmd_id)
 		return;
 
-	controlvm_respond(&p->pending_msg_hdr, response);
-	p->pending_msg_hdr.id = CONTROLVM_INVALID;
-	if (need_clear)
-		dev_info_clear(p);
+	controlvm_respond(pending_msg_hdr, response);
 }
 
 static void
@@ -1057,15 +1020,32 @@ bus_epilog(struct visorchipset_bus_info *bus_info,
 	   int response, bool need_response)
 {
 	bool notified = false;
+	struct controlvm_message_header *pmsg_hdr = NULL;
 
-	if (!bus_info)
-		return;
+	if (!bus_info) {
+		/* relying on a valid passed in response code */
+		/* be lazy and re-use msg_hdr for this failure, is this ok?? */
+		pmsg_hdr = msg_hdr;
+		goto away;
+	}
+
+	if (bus_info->pending_msg_hdr) {
+		/* only non-NULL if dev is still waiting on a response */
+		response = -CONTROLVM_RESP_ERROR_MESSAGE_ID_INVALID_FOR_CLIENT;
+		pmsg_hdr = bus_info->pending_msg_hdr;
+		goto away;
+	}
 
 	if (need_response) {
-		memcpy(&bus_info->pending_msg_hdr, msg_hdr,
+		pmsg_hdr = kzalloc(sizeof(*pmsg_hdr), GFP_KERNEL);
+		if (!pmsg_hdr) {
+			response = -CONTROLVM_RESP_ERROR_KMALLOC_FAILED;
+			goto away;
+		}
+
+		memcpy(pmsg_hdr, msg_hdr,
 		       sizeof(struct controlvm_message_header));
-	} else {
-		bus_info->pending_msg_hdr.id = CONTROLVM_INVALID;
+		bus_info->pending_msg_hdr = pmsg_hdr;
 	}
 
 	down(&notifier_lock);
@@ -1085,6 +1065,7 @@ bus_epilog(struct visorchipset_bus_info *bus_info,
 			break;
 		}
 	}
+away:
 	if (notified)
 		/* The callback function just called above is responsible
 		 * for calling the appropriate visorchipset_busdev_responders
@@ -1092,7 +1073,12 @@ bus_epilog(struct visorchipset_bus_info *bus_info,
 		 */
 		;
 	else
-		bus_responder(cmd, bus_info, response);
+		/*
+		 * Do not kfree(pmsg_hdr) as this is the failure path.
+		 * The success path ('notified') will call the responder
+		 * directly and kfree() there.
+		 */
+		bus_responder(cmd, pmsg_hdr, response);
 	up(&notifier_lock);
 }
 
@@ -1106,22 +1092,39 @@ device_epilog(struct visorchipset_device_info *dev_info,
 	bool notified = false;
 	u32 bus_no = dev_info->bus_no;
 	u32 dev_no = dev_info->dev_no;
+	struct controlvm_message_header *pmsg_hdr = NULL;
 
 	char *envp[] = {
 		"SPARSP_DIAGPOOL_PAUSED_STATE = 1",
 		NULL
 	};
 
-	if (!dev_info)
-		return;
-
 	notifiers = &busdev_notifiers;
 
+	if (!dev_info) {
+		/* relying on a valid passed in response code */
+		/* be lazy and re-use msg_hdr for this failure, is this ok?? */
+		pmsg_hdr = msg_hdr;
+		goto away;
+	}
+
+	if (dev_info->pending_msg_hdr) {
+		/* only non-NULL if dev is still waiting on a response */
+		response = -CONTROLVM_RESP_ERROR_MESSAGE_ID_INVALID_FOR_CLIENT;
+		pmsg_hdr = dev_info->pending_msg_hdr;
+		goto away;
+	}
+
 	if (need_response) {
-		memcpy(&dev_info->pending_msg_hdr, msg_hdr,
+		pmsg_hdr = kzalloc(sizeof(*pmsg_hdr), GFP_KERNEL);
+		if (!pmsg_hdr) {
+			response = -CONTROLVM_RESP_ERROR_KMALLOC_FAILED;
+			goto away;
+		}
+
+		memcpy(pmsg_hdr, msg_hdr,
 		       sizeof(struct controlvm_message_header));
-	} else {
-		dev_info->pending_msg_hdr.id = CONTROLVM_INVALID;
+		dev_info->pending_msg_hdr = pmsg_hdr;
 	}
 
 	down(&notifier_lock);
@@ -1179,6 +1182,7 @@ device_epilog(struct visorchipset_device_info *dev_info,
 			break;
 		}
 	}
+away:
 	if (notified)
 		/* The callback function just called above is responsible
 		 * for calling the appropriate visorchipset_busdev_responders
@@ -1186,7 +1190,12 @@ device_epilog(struct visorchipset_device_info *dev_info,
 		 */
 		;
 	else
-		device_responder(cmd, dev_info, response);
+		/*
+		 * Do not kfree(pmsg_hdr) as this is the failure path.
+		 * The success path ('notified') will call the responder
+		 * directly and kfree() there.
+		 */
+		device_responder(cmd, pmsg_hdr, response);
 	up(&notifier_lock);
 }
 
@@ -1285,7 +1294,7 @@ bus_configure(struct controlvm_message *inmsg,
 		POSTCODE_LINUX_3(BUS_CONFIGURE_FAILURE_PC, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_BUS_INVALID;
-	} else if (bus_info->pending_msg_hdr.id != CONTROLVM_INVALID) {
+	} else if (bus_info->pending_msg_hdr != NULL) {
 		POSTCODE_LINUX_3(BUS_CONFIGURE_FAILURE_PC, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_MESSAGE_ID_INVALID_FOR_CLIENT;
@@ -2127,25 +2136,57 @@ cleanup:
 static void
 bus_create_response(struct visorchipset_bus_info *bus_info, int response)
 {
-	bus_responder(CONTROLVM_BUS_CREATE, bus_info, response);
+	if (response >= 0) {
+		bus_info->state.created = 1;
+	} else {
+		if (response != -CONTROLVM_RESP_ERROR_ALREADY_DONE)
+			/* undo the row we just created... */
+			busdevices_del(&dev_info_list, bus_info->bus_no);
+	}
+
+	bus_responder(CONTROLVM_BUS_CREATE, bus_info->pending_msg_hdr,
+		      response);
+
+	kfree(bus_info->pending_msg_hdr);
+	bus_info->pending_msg_hdr = NULL;
 }
 
 static void
 bus_destroy_response(struct visorchipset_bus_info *bus_info, int response)
 {
-	bus_responder(CONTROLVM_BUS_DESTROY, bus_info, response);
+	bus_responder(CONTROLVM_BUS_DESTROY, bus_info->pending_msg_hdr,
+		      response);
+
+	kfree(bus_info->pending_msg_hdr);
+	bus_info->pending_msg_hdr = NULL;
+
+	bus_info_clear(bus_info);
+	busdevices_del(&dev_info_list, bus_info->bus_no);
 }
 
 static void
 device_create_response(struct visorchipset_device_info *dev_info, int response)
 {
-	device_responder(CONTROLVM_DEVICE_CREATE, dev_info, response);
+	if (response >= 0)
+		dev_info->state.created = 1;
+
+	device_responder(CONTROLVM_DEVICE_CREATE, dev_info->pending_msg_hdr,
+			 response);
+
+	kfree(dev_info->pending_msg_hdr);
+	dev_info->pending_msg_hdr = NULL;
 }
 
 static void
 device_destroy_response(struct visorchipset_device_info *dev_info, int response)
 {
-	device_responder(CONTROLVM_DEVICE_DESTROY, dev_info, response);
+	device_responder(CONTROLVM_DEVICE_DESTROY, dev_info->pending_msg_hdr,
+			 response);
+
+	kfree(dev_info->pending_msg_hdr);
+	dev_info->pending_msg_hdr = NULL;
+
+	dev_info_clear(dev_info);
 }
 
 static void
@@ -2155,6 +2196,9 @@ visorchipset_device_pause_response(struct visorchipset_device_info *dev_info,
 	device_changestate_responder(CONTROLVM_DEVICE_CHANGESTATE,
 				     dev_info, response,
 				     segment_state_standby);
+
+	kfree(dev_info->pending_msg_hdr);
+	dev_info->pending_msg_hdr = NULL;
 }
 
 static void
@@ -2163,6 +2207,9 @@ device_resume_response(struct visorchipset_device_info *dev_info, int response)
 	device_changestate_responder(CONTROLVM_DEVICE_CHANGESTATE,
 				     dev_info, response,
 				     segment_state_running);
+
+	kfree(dev_info->pending_msg_hdr);
+	dev_info->pending_msg_hdr = NULL;
 }
 
 bool
