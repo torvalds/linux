@@ -1400,7 +1400,7 @@ static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		__u32 flags;
 
 		memcpy(&index, data->ioc_inlbuf2, sizeof(__u32));
-		if ((index >= count))
+		if (index >= count)
 			return -ENODEV;
 
 		if (!lov->lov_tgts[index])
