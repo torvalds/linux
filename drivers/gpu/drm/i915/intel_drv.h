@@ -995,7 +995,6 @@ void intel_mark_idle(struct drm_device *dev);
 void intel_crtc_restore_mode(struct drm_crtc *crtc);
 void intel_display_suspend(struct drm_device *dev);
 void intel_crtc_control(struct drm_crtc *crtc, bool enable);
-void intel_crtc_reset(struct intel_crtc *crtc);
 void intel_crtc_update_dpms(struct drm_crtc *crtc);
 void intel_encoder_destroy(struct drm_encoder *encoder);
 int intel_connector_init(struct intel_connector *);

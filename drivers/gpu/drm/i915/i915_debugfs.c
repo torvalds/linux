@@ -3630,12 +3630,18 @@ static void hsw_trans_edp_pipe_A_crc_wa(struct drm_device *dev)
 	 */
 	if (crtc->config->cpu_transcoder == TRANSCODER_EDP &&
 	    !crtc->config->pch_pfit.enabled) {
+		bool active = crtc->active;
+
+		if (active)
+			intel_crtc_control(&crtc->base, false);
+
 		crtc->config->pch_pfit.force_thru = true;
 
 		intel_display_power_get(dev_priv,
 					POWER_DOMAIN_PIPE_PANEL_FITTER(PIPE_A));
 
-		intel_crtc_reset(crtc);
+		if (active)
+			intel_crtc_control(&crtc->base, true);
 	}
 	drm_modeset_unlock_all(dev);
 }
@@ -3654,12 +3660,18 @@ static void hsw_undo_trans_edp_pipe_A_crc_wa(struct drm_device *dev)
 	 * routing.
 	 */
 	if (crtc->config->pch_pfit.force_thru) {
-		crtc->config->pch_pfit.force_thru = false;
+		bool active = crtc->active;
 
-		intel_crtc_reset(crtc);
+		if (active)
+			intel_crtc_control(&crtc->base, false);
+
+		crtc->config->pch_pfit.force_thru = false;
 
 		intel_display_power_put(dev_priv,
 					POWER_DOMAIN_PIPE_PANEL_FITTER(PIPE_A));
+
+		if (active)
+			intel_crtc_control(&crtc->base, true);
 	}
 	drm_modeset_unlock_all(dev);
 }

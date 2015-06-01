@@ -3175,19 +3175,6 @@ static void intel_update_primary_planes(struct drm_device *dev)
 	}
 }
 
-void intel_crtc_reset(struct intel_crtc *crtc)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-
-	if (!crtc->active)
-		return;
-
-	intel_crtc_disable_planes(&crtc->base);
-	dev_priv->display.crtc_disable(&crtc->base);
-	dev_priv->display.crtc_enable(&crtc->base);
-	intel_crtc_enable_planes(&crtc->base);
-}
-
 void intel_prepare_reset(struct drm_device *dev)
 {
 	/* no reset support for gen2 */
@@ -3199,7 +3186,6 @@ void intel_prepare_reset(struct drm_device *dev)
 		return;
 
 	drm_modeset_lock_all(dev);
-
 	/*
 	 * Disabling the crtcs gracefully seems nicer. Also the
 	 * g33 docs say we should at least disable all the planes.
@@ -6305,26 +6291,29 @@ void intel_crtc_control(struct drm_crtc *crtc, bool enable)
 	enum intel_display_power_domain domain;
 	unsigned long domains;
 
+	if (enable == intel_crtc->active)
+		return;
+
+	if (enable && !crtc->state->enable)
+		return;
+
+	crtc->state->active = enable;
 	if (enable) {
-		if (!intel_crtc->active) {
-			domains = get_crtc_power_domains(crtc);
-			for_each_power_domain(domain, domains)
-				intel_display_power_get(dev_priv, domain);
-			intel_crtc->enabled_power_domains = domains;
+		domains = get_crtc_power_domains(crtc);
+		for_each_power_domain(domain, domains)
+			intel_display_power_get(dev_priv, domain);
+		intel_crtc->enabled_power_domains = domains;
 
-			dev_priv->display.crtc_enable(crtc);
-			intel_crtc_enable_planes(crtc);
-		}
+		dev_priv->display.crtc_enable(crtc);
+		intel_crtc_enable_planes(crtc);
 	} else {
-		if (intel_crtc->active) {
-			intel_crtc_disable_planes(crtc);
-			dev_priv->display.crtc_disable(crtc);
+		intel_crtc_disable_planes(crtc);
+		dev_priv->display.crtc_disable(crtc);
 
-			domains = intel_crtc->enabled_power_domains;
-			for_each_power_domain(domain, domains)
-				intel_display_power_put(dev_priv, domain);
-			intel_crtc->enabled_power_domains = 0;
-		}
+		domains = intel_crtc->enabled_power_domains;
+		for_each_power_domain(domain, domains)
+			intel_display_power_put(dev_priv, domain);
+		intel_crtc->enabled_power_domains = 0;
 	}
 }
 
@@ -6341,8 +6330,6 @@ void intel_crtc_update_dpms(struct drm_crtc *crtc)
 		enable |= intel_encoder->connectors_active;
 
 	intel_crtc_control(crtc, enable);
-
-	crtc->state->active = enable;
 }
 
 void intel_encoder_destroy(struct drm_encoder *encoder)
@@ -15240,8 +15227,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 		plane = crtc->plane;
 		to_intel_plane_state(crtc->base.primary->state)->visible = true;
 		crtc->plane = !plane;
-		intel_crtc_disable_planes(&crtc->base);
-		dev_priv->display.crtc_disable(&crtc->base);
+		intel_crtc_control(&crtc->base, false);
 		crtc->plane = plane;
 
 		/* ... and break all links. */
