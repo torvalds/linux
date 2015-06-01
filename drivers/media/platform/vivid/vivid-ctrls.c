@@ -793,6 +793,37 @@ static const struct v4l2_ctrl_config vivid_ctrl_limited_rgb_range = {
 };
 
 
+/* Video Loop Control */
+
+static int vivid_loop_cap_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct vivid_dev *dev = container_of(ctrl->handler, struct vivid_dev, ctrl_hdl_loop_cap);
+
+	switch (ctrl->id) {
+	case VIVID_CID_LOOP_VIDEO:
+		dev->loop_video = ctrl->val;
+		vivid_update_quality(dev);
+		vivid_send_source_change(dev, SVID);
+		vivid_send_source_change(dev, HDMI);
+		break;
+	}
+	return 0;
+}
+
+static const struct v4l2_ctrl_ops vivid_loop_cap_ctrl_ops = {
+	.s_ctrl = vivid_loop_cap_s_ctrl,
+};
+
+static const struct v4l2_ctrl_config vivid_ctrl_loop_video = {
+	.ops = &vivid_loop_cap_ctrl_ops,
+	.id = VIVID_CID_LOOP_VIDEO,
+	.name = "Loop Video",
+	.type = V4L2_CTRL_TYPE_BOOLEAN,
+	.max = 1,
+	.step = 1,
+};
+
+
 /* VBI Capture Control */
 
 static int vivid_vbi_cap_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -1226,38 +1257,6 @@ static const struct v4l2_ctrl_config vivid_ctrl_radio_tx_rds_blockio = {
 };
 
 
-
-/* Video Loop Control */
-
-static int vivid_loop_out_s_ctrl(struct v4l2_ctrl *ctrl)
-{
-	struct vivid_dev *dev = container_of(ctrl->handler, struct vivid_dev, ctrl_hdl_loop_out);
-
-	switch (ctrl->id) {
-	case VIVID_CID_LOOP_VIDEO:
-		dev->loop_video = ctrl->val;
-		vivid_update_quality(dev);
-		vivid_send_source_change(dev, SVID);
-		vivid_send_source_change(dev, HDMI);
-		break;
-	}
-	return 0;
-}
-
-static const struct v4l2_ctrl_ops vivid_loop_out_ctrl_ops = {
-	.s_ctrl = vivid_loop_out_s_ctrl,
-};
-
-static const struct v4l2_ctrl_config vivid_ctrl_loop_video = {
-	.ops = &vivid_loop_out_ctrl_ops,
-	.id = VIVID_CID_LOOP_VIDEO,
-	.name = "Loop Video",
-	.type = V4L2_CTRL_TYPE_BOOLEAN,
-	.max = 1,
-	.step = 1,
-};
-
-
 static const struct v4l2_ctrl_config vivid_ctrl_class = {
 	.ops = &vivid_user_gen_ctrl_ops,
 	.flags = V4L2_CTRL_FLAG_READ_ONLY | V4L2_CTRL_FLAG_WRITE_ONLY,
@@ -1275,7 +1274,7 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 	struct v4l2_ctrl_handler *hdl_user_aud = &dev->ctrl_hdl_user_aud;
 	struct v4l2_ctrl_handler *hdl_streaming = &dev->ctrl_hdl_streaming;
 	struct v4l2_ctrl_handler *hdl_sdtv_cap = &dev->ctrl_hdl_sdtv_cap;
-	struct v4l2_ctrl_handler *hdl_loop_out = &dev->ctrl_hdl_loop_out;
+	struct v4l2_ctrl_handler *hdl_loop_cap = &dev->ctrl_hdl_loop_cap;
 	struct v4l2_ctrl_handler *hdl_vid_cap = &dev->ctrl_hdl_vid_cap;
 	struct v4l2_ctrl_handler *hdl_vid_out = &dev->ctrl_hdl_vid_out;
 	struct v4l2_ctrl_handler *hdl_vbi_cap = &dev->ctrl_hdl_vbi_cap;
@@ -1301,8 +1300,8 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 	v4l2_ctrl_new_custom(hdl_streaming, &vivid_ctrl_class, NULL);
 	v4l2_ctrl_handler_init(hdl_sdtv_cap, 2);
 	v4l2_ctrl_new_custom(hdl_sdtv_cap, &vivid_ctrl_class, NULL);
-	v4l2_ctrl_handler_init(hdl_loop_out, 1);
-	v4l2_ctrl_new_custom(hdl_loop_out, &vivid_ctrl_class, NULL);
+	v4l2_ctrl_handler_init(hdl_loop_cap, 1);
+	v4l2_ctrl_new_custom(hdl_loop_cap, &vivid_ctrl_class, NULL);
 	v4l2_ctrl_handler_init(hdl_vid_cap, 55);
 	v4l2_ctrl_new_custom(hdl_vid_cap, &vivid_ctrl_class, NULL);
 	v4l2_ctrl_handler_init(hdl_vid_out, 26);
@@ -1473,7 +1472,7 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 	}
 	if ((dev->has_vid_cap && dev->has_vid_out) ||
 	    (dev->has_vbi_cap && dev->has_vbi_out))
-		v4l2_ctrl_new_custom(hdl_loop_out, &vivid_ctrl_loop_video, NULL);
+		v4l2_ctrl_new_custom(hdl_loop_cap, &vivid_ctrl_loop_video, NULL);
 
 	if (dev->has_fb)
 		v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_clear_fb, NULL);
@@ -1556,8 +1555,8 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 		return hdl_streaming->error;
 	if (hdl_sdr_cap->error)
 		return hdl_sdr_cap->error;
-	if (hdl_loop_out->error)
-		return hdl_loop_out->error;
+	if (hdl_loop_cap->error)
+		return hdl_loop_cap->error;
 
 	if (dev->autogain)
 		v4l2_ctrl_auto_cluster(2, &dev->autogain, 0, true);
@@ -1568,6 +1567,7 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 		v4l2_ctrl_add_handler(hdl_vid_cap, hdl_user_aud, NULL);
 		v4l2_ctrl_add_handler(hdl_vid_cap, hdl_streaming, NULL);
 		v4l2_ctrl_add_handler(hdl_vid_cap, hdl_sdtv_cap, NULL);
+		v4l2_ctrl_add_handler(hdl_vid_cap, hdl_loop_cap, NULL);
 		if (hdl_vid_cap->error)
 			return hdl_vid_cap->error;
 		dev->vid_cap_dev.ctrl_handler = hdl_vid_cap;
@@ -1576,7 +1576,6 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 		v4l2_ctrl_add_handler(hdl_vid_out, hdl_user_gen, NULL);
 		v4l2_ctrl_add_handler(hdl_vid_out, hdl_user_aud, NULL);
 		v4l2_ctrl_add_handler(hdl_vid_out, hdl_streaming, NULL);
-		v4l2_ctrl_add_handler(hdl_vid_out, hdl_loop_out, NULL);
 		if (hdl_vid_out->error)
 			return hdl_vid_out->error;
 		dev->vid_out_dev.ctrl_handler = hdl_vid_out;
@@ -1585,6 +1584,7 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 		v4l2_ctrl_add_handler(hdl_vbi_cap, hdl_user_gen, NULL);
 		v4l2_ctrl_add_handler(hdl_vbi_cap, hdl_streaming, NULL);
 		v4l2_ctrl_add_handler(hdl_vbi_cap, hdl_sdtv_cap, NULL);
+		v4l2_ctrl_add_handler(hdl_vbi_cap, hdl_loop_cap, NULL);
 		if (hdl_vbi_cap->error)
 			return hdl_vbi_cap->error;
 		dev->vbi_cap_dev.ctrl_handler = hdl_vbi_cap;
@@ -1592,7 +1592,6 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 	if (dev->has_vbi_out) {
 		v4l2_ctrl_add_handler(hdl_vbi_out, hdl_user_gen, NULL);
 		v4l2_ctrl_add_handler(hdl_vbi_out, hdl_streaming, NULL);
-		v4l2_ctrl_add_handler(hdl_vbi_out, hdl_loop_out, NULL);
 		if (hdl_vbi_out->error)
 			return hdl_vbi_out->error;
 		dev->vbi_out_dev.ctrl_handler = hdl_vbi_out;
@@ -1635,5 +1634,5 @@ void vivid_free_controls(struct vivid_dev *dev)
 	v4l2_ctrl_handler_free(&dev->ctrl_hdl_user_aud);
 	v4l2_ctrl_handler_free(&dev->ctrl_hdl_streaming);
 	v4l2_ctrl_handler_free(&dev->ctrl_hdl_sdtv_cap);
-	v4l2_ctrl_handler_free(&dev->ctrl_hdl_loop_out);
+	v4l2_ctrl_handler_free(&dev->ctrl_hdl_loop_cap);
 }
