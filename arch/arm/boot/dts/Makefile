@@ -652,6 +652,7 @@ dtb-$(CONFIG_ARCH_ZYNQ) += \
 	zynq-zybo.dtb
 dtb-$(CONFIG_MACH_ARMADA_370) += \
 	armada-370-db.dtb \
+	armada-370-dlink-dns327l.dtb \
 	armada-370-mirabox.dtb \
 	armada-370-netgear-rn102.dtb \
 	armada-370-netgear-rn104.dtb \
@@ -661,6 +662,8 @@ dtb-$(CONFIG_MACH_ARMADA_375) += \
 	armada-375-db.dtb
 dtb-$(CONFIG_MACH_ARMADA_38X) += \
 	armada-385-db-ap.dtb \
+	armada-385-linksys-caiman.dtb \
+	armada-385-linksys-cobra.dtb \
 	armada-388-db.dtb \
 	armada-388-gp.dtb \
 	armada-388-rd.dtb

@@ -74,7 +74,7 @@
 			m25p16@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "st,m25p16";
+				compatible = "st,m25p16", "jedec,spi-nor";
 				reg = <0>;
 				spi-max-frequency = <40000000>;
 				mode = <0>;
