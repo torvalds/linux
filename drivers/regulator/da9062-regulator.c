@@ -724,7 +724,6 @@ ldo_lim_error:
 static int da9062_regulator_probe(struct platform_device *pdev)
 {
 	struct da9062 *chip = dev_get_drvdata(pdev->dev.parent);
-	struct of_regulator_match *reg_matches = NULL;
 	struct da9062_regulators *regulators;
 	struct da9062_regulator *regl;
 	struct regulator_config config = { };
