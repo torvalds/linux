@@ -486,7 +486,7 @@ static void fbtft_deferred_io(struct fb_info *info, struct list_head *pagelist)
 		index = page->index << PAGE_SHIFT;
 		y_low = index / info->fix.line_length;
 		y_high = (index + PAGE_SIZE - 1) / info->fix.line_length;
-		fbtft_dev_dbg(DEBUG_DEFERRED_IO, par, info->device,
+		dev_dbg(info->device,
 			"page->index=%lu y_low=%d y_high=%d\n",
 			page->index, y_low, y_high);
 		if (y_high > info->var.yres - 1)
@@ -507,7 +507,7 @@ static void fbtft_fb_fillrect(struct fb_info *info,
 {
 	struct fbtft_par *par = info->par;
 
-	fbtft_dev_dbg(DEBUG_FB_FILLRECT, par, info->dev,
+	dev_dbg(info->dev,
 		"%s: dx=%d, dy=%d, width=%d, height=%d\n",
 		__func__, rect->dx, rect->dy, rect->width, rect->height);
 	sys_fillrect(info, rect);
@@ -520,7 +520,7 @@ static void fbtft_fb_copyarea(struct fb_info *info,
 {
 	struct fbtft_par *par = info->par;
 
-	fbtft_dev_dbg(DEBUG_FB_COPYAREA, par, info->dev,
+	dev_dbg(info->dev,
 		"%s: dx=%d, dy=%d, width=%d, height=%d\n",
 		__func__,  area->dx, area->dy, area->width, area->height);
 	sys_copyarea(info, area);
@@ -533,7 +533,7 @@ static void fbtft_fb_imageblit(struct fb_info *info,
 {
 	struct fbtft_par *par = info->par;
 
-	fbtft_dev_dbg(DEBUG_FB_IMAGEBLIT, par, info->dev,
+	dev_dbg(info->dev,
 		"%s: dx=%d, dy=%d, width=%d, height=%d\n",
 		__func__,  image->dx, image->dy, image->width, image->height);
 	sys_imageblit(info, image);
@@ -547,7 +547,7 @@ static ssize_t fbtft_fb_write(struct fb_info *info, const char __user *buf,
 	struct fbtft_par *par = info->par;
 	ssize_t res;
 
-	fbtft_dev_dbg(DEBUG_FB_WRITE, par, info->dev,
+	dev_dbg(info->dev,
 		"%s: count=%zd, ppos=%llu\n", __func__,  count, *ppos);
 	res = fb_sys_write(info, buf, count, ppos);
 
@@ -570,11 +570,10 @@ static int fbtft_fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			      unsigned blue, unsigned transp,
 			      struct fb_info *info)
 {
-	struct fbtft_par *par = info->par;
 	unsigned val;
 	int ret = 1;
 
-	fbtft_dev_dbg(DEBUG_FB_SETCOLREG, par, info->dev,
+	dev_dbg(info->dev,
 		"%s(regno=%u, red=0x%X, green=0x%X, blue=0x%X, trans=0x%X)\n",
 		__func__, regno, red, green, blue, transp);
 
@@ -601,7 +600,7 @@ static int fbtft_fb_blank(int blank, struct fb_info *info)
 	struct fbtft_par *par = info->par;
 	int ret = -EINVAL;
 
-	fbtft_dev_dbg(DEBUG_FB_BLANK, par, info->dev, "%s(blank=%d)\n",
+	dev_dbg(info->dev, "%s(blank=%d)\n",
 		__func__, blank);
 
 	if (!par->fbtftops.blank)
