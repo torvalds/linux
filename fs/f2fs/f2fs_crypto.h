@@ -84,8 +84,7 @@ struct f2fs_crypt_info {
 };
 
 #define F2FS_CTX_REQUIRES_FREE_ENCRYPT_FL             0x00000001
-#define F2FS_BOUNCE_PAGE_REQUIRES_FREE_ENCRYPT_FL     0x00000002
-#define F2FS_WRITE_PATH_FL			      0x00000004
+#define F2FS_WRITE_PATH_FL			      0x00000002
 
 struct f2fs_crypto_ctx {
 	union {
