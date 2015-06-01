@@ -564,8 +564,7 @@ static u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 	u32 high1, high2, low, pixel, vbl_start, hsync_start, htotal;
 	struct intel_crtc *intel_crtc =
 		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
-	const struct drm_display_mode *mode =
-		&intel_crtc->config->base.adjusted_mode;
+	const struct drm_display_mode *mode = &intel_crtc->base.hwmode;
 
 	htotal = mode->crtc_htotal;
 	hsync_start = mode->crtc_hsync_start;
@@ -620,7 +619,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	const struct drm_display_mode *mode = &crtc->config->base.adjusted_mode;
+	const struct drm_display_mode *mode = &crtc->base.hwmode;
 	enum pipe pipe = crtc->pipe;
 	int position, vtotal;
 
@@ -647,14 +646,14 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	const struct drm_display_mode *mode = &intel_crtc->config->base.adjusted_mode;
+	const struct drm_display_mode *mode = &intel_crtc->base.hwmode;
 	int position;
 	int vbl_start, vbl_end, hsync_start, htotal, vtotal;
 	bool in_vbl = true;
 	int ret = 0;
 	unsigned long irqflags;
 
-	if (!intel_crtc->active) {
+	if (WARN_ON(!mode->crtc_clock)) {
 		DRM_DEBUG_DRIVER("trying to get scanoutpos for disabled "
 				 "pipe %c\n", pipe_name(pipe));
 		return 0;
@@ -796,7 +795,7 @@ static int i915_get_vblank_timestamp(struct drm_device *dev, int pipe,
 		return -EINVAL;
 	}
 
-	if (!crtc->state->active) {
+	if (!crtc->hwmode.crtc_clock) {
 		DRM_DEBUG_KMS("crtc %d is disabled\n", pipe);
 		return -EBUSY;
 	}
@@ -805,7 +804,7 @@ static int i915_get_vblank_timestamp(struct drm_device *dev, int pipe,
 	return drm_calc_vbltimestamp_from_scanoutpos(dev, pipe, max_error,
 						     vblank_time, flags,
 						     crtc,
-						     &to_intel_crtc(crtc)->config->base.adjusted_mode);
+						     &crtc->hwmode);
 }
 
 static bool intel_hpd_irq_event(struct drm_device *dev,

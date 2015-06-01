@@ -12209,6 +12209,12 @@ intel_modeset_update_state(struct drm_atomic_state *state)
 		WARN_ON(crtc->state->enable != intel_crtc_in_use(crtc));
 
 		to_intel_crtc(crtc)->config = to_intel_crtc_state(crtc->state);
+
+		/* Update hwmode for vblank functions */
+		if (crtc->state->active)
+			crtc->hwmode = crtc->state->adjusted_mode;
+		else
+			crtc->hwmode.crtc_clock = 0;
 	}
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
