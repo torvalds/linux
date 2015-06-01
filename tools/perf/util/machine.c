@@ -490,9 +490,9 @@ int machine__process_lost_samples_event(struct machine *machine __maybe_unused,
 	return 0;
 }
 
-static struct dso*
-machine__module_dso(struct machine *machine, struct kmod_path *m,
-		    const char *filename)
+static struct dso *machine__findnew_module_dso(struct machine *machine,
+					       struct kmod_path *m,
+					       const char *filename)
 {
 	struct dso *dso;
 
@@ -534,8 +534,8 @@ int machine__process_itrace_start_event(struct machine *machine __maybe_unused,
 	return 0;
 }
 
-struct map *machine__new_module(struct machine *machine, u64 start,
-				const char *filename)
+struct map *machine__findnew_module_map(struct machine *machine, u64 start,
+					const char *filename)
 {
 	struct map *map = NULL;
 	struct dso *dso;
@@ -549,7 +549,7 @@ struct map *machine__new_module(struct machine *machine, u64 start,
 	if (map)
 		goto out;
 
-	dso = machine__module_dso(machine, &m, filename);
+	dso = machine__findnew_module_dso(machine, &m, filename);
 	if (dso == NULL)
 		goto out;
 
@@ -1017,7 +1017,7 @@ static int machine__create_module(void *arg, const char *name, u64 start)
 	struct machine *machine = arg;
 	struct map *map;
 
-	map = machine__new_module(machine, start, name);
+	map = machine__findnew_module_map(machine, start, name);
 	if (map == NULL)
 		return -1;
 
@@ -1140,8 +1140,8 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 				strlen(kmmap_prefix) - 1) == 0;
 	if (event->mmap.filename[0] == '/' ||
 	    (!is_kernel_mmap && event->mmap.filename[0] == '[')) {
-		map = machine__new_module(machine, event->mmap.start,
-					  event->mmap.filename);
+		map = machine__findnew_module_map(machine, event->mmap.start,
+						  event->mmap.filename);
 		if (map == NULL)
 			goto out_problem;
 

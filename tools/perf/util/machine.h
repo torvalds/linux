@@ -189,8 +189,8 @@ struct symbol *machine__find_kernel_function_by_name(struct machine *machine,
 						 filter);
 }
 
-struct map *machine__new_module(struct machine *machine, u64 start,
-				const char *filename);
+struct map *machine__findnew_module_map(struct machine *machine, u64 start,
+					const char *filename);
 
 int machine__load_kallsyms(struct machine *machine, const char *filename,
 			   enum map_type type, symbol_filter_t filter);
