@@ -75,9 +75,7 @@ typedef WILC_Uint16 WILC_WideChar;
 #endif
 
 /* String Utilities */
-#ifdef CONFIG_WILC_STRING_UTILS
 #include "wilc_strutils.h"
-#endif
 
 /* Message Queue */
 #ifdef CONFIG_WILC_MSG_QUEUE_FEATURE

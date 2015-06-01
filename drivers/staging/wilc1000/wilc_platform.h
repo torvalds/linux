@@ -50,8 +50,6 @@
 #error This feature is not supported by this OS
 #endif
 
-/* CONFIG_WILC_STRING_UTILS is implemented */
-
 /* CONFIG_WILC_MSG_QUEUE_FEATURE is implemented */
 
 /* remove the following block when implementing its feature */
@@ -86,8 +84,6 @@
 /* CONFIG_WILC_MATH_OPERATIONS_FEATURE is implemented */
 
 /* CONFIG_WILC_EXTENDED_FILE_OPERATIONS is implemented */
-
-/* CONFIG_WILC_EXTENDED_STRING_OPERATIONS is implemented */
 
 /* CONFIG_WILC_EXTENDED_TIME_OPERATIONS is implemented */
 
