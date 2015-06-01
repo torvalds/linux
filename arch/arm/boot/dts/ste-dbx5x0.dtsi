@@ -190,6 +190,15 @@
 			reg = <0xa0410000 0x100>;
 		};
 
+		/*
+		 * The backup RAM is used for retention during sleep
+		 * and various things like spin tables
+		 */
+		backupram@80150000 {
+			compatible = "ste,dbx500-backupram";
+			reg = <0x80150000 0x2000>;
+		};
+
 		L2: l2-cache {
 			compatible = "arm,pl310-cache";
 			reg = <0xa0412000 0x1000>;
