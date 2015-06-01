@@ -159,6 +159,18 @@ static struct xfrm_algo_desc aead_list[] = {
 		.sadb_alg_maxbits = 256
 	}
 },
+{
+	.name = "rfc7539esp(chacha20,poly1305)",
+
+	.uinfo = {
+		.aead = {
+			.geniv = "seqniv",
+			.icv_truncbits = 128,
+		}
+	},
+
+	.pfkey_supported = 0,
+},
 };
 
 static struct xfrm_algo_desc aalg_list[] = {
