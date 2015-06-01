@@ -894,8 +894,6 @@ INLINE void chip_wakeup(void)
 #endif
 void chip_sleep_manually(WILC_Uint32 u32SleepTime)
 {
-	uint32_t val32;
-
 	if (genuChipPSstate != CHIP_WAKEDUP) {
 		/* chip is already sleeping. Do nothing */
 		return;
@@ -2302,7 +2300,7 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 #else
 		g_wlan.tx_buffer = (uint8_t *)g_wlan.os_func.os_malloc(g_wlan.tx_buffer_size);
 #endif
-	PRINT_D(TX_DBG, "g_wlan.tx_buffer = 0x%x\n", g_wlan.tx_buffer);
+	PRINT_D(TX_DBG, "g_wlan.tx_buffer = %p\n", g_wlan.tx_buffer);
 
 	if (g_wlan.tx_buffer == WILC_NULL) {
 		/* ENOBUFS	105 */
@@ -2319,7 +2317,7 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
   #else
 		g_wlan.rx_buffer = (uint8_t *)g_wlan.os_func.os_malloc(g_wlan.rx_buffer_size);
   #endif
-	PRINT_D(TX_DBG, "g_wlan.rx_buffer =0x%x\n", g_wlan.rx_buffer);
+	PRINT_D(TX_DBG, "g_wlan.rx_buffer =%p\n", g_wlan.rx_buffer);
 	if (g_wlan.rx_buffer == WILC_NULL) {
 		/* ENOBUFS	105 */
 		ret = -105;

@@ -1025,7 +1025,6 @@ int repeat_power_cycle(perInterface_wlan_t *nic);
 static int linux_wlan_start_firmware(perInterface_wlan_t *nic)
 {
 
-	static int timeout = 5;
 	int ret = 0;
 	/* start firmware */
 	PRINT_D(INIT_DBG, "Starting Firmware ...\n");
@@ -1040,6 +1039,7 @@ static int linux_wlan_start_firmware(perInterface_wlan_t *nic)
 	ret = linux_wlan_lock_timeout(&g_linux_wlan->sync_event, 5000);
 	if (ret) {
 #ifdef COMPLEMENT_BOOT
+		static int timeout = 5;
 
 		if (timeout--) {
 			PRINT_D(INIT_DBG, "repeat power cycle[%d]", timeout);
@@ -1675,7 +1675,9 @@ _fail_2:
 	linux_wlan_unlock(&g_linux_wlan->rxq_event);
 	kthread_stop(g_linux_wlan->rxq_thread);
 
+#ifndef TCP_ENHANCEMENTS
 _fail_1:
+#endif
 	#if (RX_BH_TYPE == RX_BH_KTHREAD)
 	/*De-Initialize 1st thread*/
 	g_linux_wlan->close = 1;
@@ -1999,8 +2001,8 @@ _fail_fw_start_:
 _fail_irq_enable_:
 #if (defined WILC_SDIO) && (!defined WILC_SDIO_IRQ_GPIO)
 		disable_sdio_interrupt();
-#endif
 _fail_irq_init_:
+#endif
 #if (!defined WILC_SDIO) || (defined WILC_SDIO_IRQ_GPIO)
 		deinit_irq(g_linux_wlan);
 
@@ -2522,8 +2524,10 @@ void frmw_to_linux(uint8_t *buff, uint32_t size, uint32_t pkt_offset)
 	int stats;
 	unsigned char *buff_to_send = NULL;
 	struct sk_buff *skb;
+#ifndef TCP_ENHANCEMENTS
 	char *pu8UdpBuffer;
 	struct iphdr *ih;
+#endif
 	struct net_device *wilc_netdev;
 	perInterface_wlan_t *nic;
 

@@ -102,9 +102,6 @@ int linux_spi_init(void *vp)
 
 	if (called == 0) {
 		called++;
-		if (&wilc_bus == NULL) {
-			PRINT_ER("wilc_bus address is NULL\n");
-		}
 		ret = spi_register_driver(&wilc_bus);
 	}
 
