@@ -379,8 +379,7 @@ static int mtd_reboot_notifier(struct notifier_block *n, unsigned long state,
  *
  *	Add a device to the list of MTD devices present in the system, and
  *	notify each currently active MTD 'user' of its arrival. Returns
- *	zero on success or 1 on failure, which currently will only happen
- *	if there is insufficient memory or a sysfs error.
+ *	zero on success or non-zero on failure.
  */
 
 int add_mtd_device(struct mtd_info *mtd)
@@ -394,8 +393,10 @@ int add_mtd_device(struct mtd_info *mtd)
 	mutex_lock(&mtd_table_mutex);
 
 	i = idr_alloc(&mtd_idr, mtd, 0, 0, GFP_KERNEL);
-	if (i < 0)
+	if (i < 0) {
+		error = i;
 		goto fail_locked;
+	}
 
 	mtd->index = i;
 	mtd->usecount = 0;
@@ -424,6 +425,8 @@ int add_mtd_device(struct mtd_info *mtd)
 			printk(KERN_WARNING
 			       "%s: unlock failed, writes may not work\n",
 			       mtd->name);
+		/* Ignore unlock failures? */
+		error = 0;
 	}
 
 	/* Caller should have set dev.parent to match the
@@ -434,7 +437,8 @@ int add_mtd_device(struct mtd_info *mtd)
 	mtd->dev.devt = MTD_DEVT(i);
 	dev_set_name(&mtd->dev, "mtd%d", i);
 	dev_set_drvdata(&mtd->dev, mtd);
-	if (device_register(&mtd->dev) != 0)
+	error = device_register(&mtd->dev);
+	if (error)
 		goto fail_added;
 
 	device_create(&mtd_class, mtd->dev.parent, MTD_DEVT(i) + 1, NULL,
@@ -458,7 +462,7 @@ fail_added:
 	idr_remove(&mtd_idr, i);
 fail_locked:
 	mutex_unlock(&mtd_table_mutex);
-	return 1;
+	return error;
 }
 
 /**
@@ -514,8 +518,8 @@ static int mtd_add_device_partitions(struct mtd_info *mtd,
 
 	if (nbparts == 0 || IS_ENABLED(CONFIG_MTD_PARTITIONED_MASTER)) {
 		ret = add_mtd_device(mtd);
-		if (ret == 1)
-			return -ENODEV;
+		if (ret)
+			return ret;
 	}
 
 	if (nbparts > 0) {
