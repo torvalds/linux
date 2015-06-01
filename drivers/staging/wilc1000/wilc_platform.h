@@ -22,12 +22,6 @@
  * #error This feature is not supported by this OS
  #endif*/
 
-/* CONFIG_WILC_SLEEP_FEATURE is implemented */
-
-/* remove the following block when implementing its feature */
-/* #ifdef CONFIG_WILC_SLEEP_HI_RES */
-/* #error This feature is not supported by this OS */
-/* #endif */
 
 /* CONFIG_WILC_TIMER_FEATURE is implemented */
 

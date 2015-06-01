@@ -58,9 +58,7 @@ typedef WILC_Uint16 WILC_WideChar;
 #include "wilc_semaphore.h"
 
 /* Sleep support */
-#ifdef CONFIG_WILC_SLEEP_FEATURE
 #include "wilc_sleep.h"
-#endif
 
 /* Timer support */
 #ifdef CONFIG_WILC_TIMER_FEATURE

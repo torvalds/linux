@@ -1,8 +1,6 @@
 
 #include "wilc_oswrapper.h"
 
-#ifdef CONFIG_WILC_SLEEP_FEATURE
-
 /*
  *  @author	mdaftedar
  *  @date	10 Aug 2010
@@ -18,11 +16,3 @@ void WILC_Sleep(WILC_Uint32 u32TimeMilliSec)
 	}
 
 }
-#endif
-
-/* #ifdef CONFIG_WILC_SLEEP_HI_RES */
-void WILC_SleepMicrosec(WILC_Uint32 u32TimeMicoSec)
-{
-	usleep_range(u32TimeMicoSec, u32TimeMicoSec);
-}
-/* #endif */
