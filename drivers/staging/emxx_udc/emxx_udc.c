@@ -2249,8 +2249,6 @@ static int _nbu2ss_pullup(struct nbu2ss_udc *udc, int is_on)
 
 	if (is_on) {
 		/* D+ Pullup */
-/*		INFO(" --- D+ Pullup\n"); */
-
 		if (udc->driver) {
 			reg_dt = (_nbu2ss_readl(&udc->p_regs->USB_CONTROL)
 				| PUE2) & ~(u32)CONNECTB;
@@ -2260,8 +2258,6 @@ static int _nbu2ss_pullup(struct nbu2ss_udc *udc, int is_on)
 
 	} else {
 		/* D+ Pulldown */
-/*		INFO(" --- D+ Pulldown\n"); */
-
 		reg_dt = (_nbu2ss_readl(&udc->p_regs->USB_CONTROL) | CONNECTB)
 			& ~(u32)PUE2;
 
@@ -2731,8 +2727,6 @@ static int nbu2ss_ep_queue(
 	ep = container_of(_ep, struct nbu2ss_ep, ep);
 	udc = ep->udc;
 
-/*	INFO("=== %s(ep%d), zero=%d\n", __func__, ep->epnum, _req->zero); */
-
 	if (udc->vbus_active == 0) {
 		dev_info(udc->dev, "Can't ep_queue (VBUS OFF)\n");
 		return -ESHUTDOWN;
@@ -2808,8 +2802,6 @@ static int nbu2ss_ep_dequeue(
 	struct nbu2ss_udc	*udc;
 	unsigned long flags;
 
-	/*INFO("=== %s()\n", __func__);*/
-
 	/* catch various bogus parameters */
 	if ((_ep == NULL) || (_req == NULL)) {
 		/* pr_err("%s, bad param(1)\n", __func__); */
@@ -2854,8 +2846,6 @@ static int nbu2ss_ep_set_halt(struct usb_ep *_ep, int value)
 
 	struct nbu2ss_ep	*ep;
 	struct nbu2ss_udc	*udc;
-
-/*	INFO("=== %s()\n", __func__); */
 
 	if (!_ep) {
 		pr_err("%s, bad param\n", __func__);
@@ -2909,8 +2899,6 @@ static int nbu2ss_ep_fifo_status(struct usb_ep *_ep)
 	unsigned long		flags;
 	struct fc_regs		*preg;
 
-/*	INFO("=== %s()\n", __func__); */
-
 	if (!_ep) {
 		pr_err("%s, bad param\n", __func__);
 		return -EINVAL;
@@ -2956,8 +2944,6 @@ static void  nbu2ss_ep_fifo_flush(struct usb_ep *_ep)
 	struct nbu2ss_ep	*ep;
 	struct nbu2ss_udc	*udc;
 	unsigned long		flags;
-
-/*	INFO("=== %s()\n", __func__); */
 
 	if (!_ep) {
 		pr_err("udc: %s, bad param\n", __func__);
@@ -3013,8 +2999,6 @@ static int nbu2ss_gad_get_frame(struct usb_gadget *pgadget)
 	u32			data;
 	struct nbu2ss_udc	*udc;
 
-/*	INFO("=== %s()\n", __func__); */
-
 	if (pgadget == NULL) {
 		pr_err("udc: %s, bad param\n", __func__);
 		return -EINVAL;
@@ -3042,8 +3026,6 @@ static int nbu2ss_gad_wakeup(struct usb_gadget *pgadget)
 	u32	data;
 
 	struct nbu2ss_udc	*udc;
-
-/*	INFO("=== %s()\n", __func__); */
 
 	if (pgadget == NULL) {
 		pr_err("%s, bad param\n", __func__);
@@ -3083,8 +3065,6 @@ static int nbu2ss_gad_set_selfpowered(struct usb_gadget *pgadget,
 	struct nbu2ss_udc       *udc;
 	unsigned long		flags;
 
-/*	INFO("=== %s()\n", __func__); */
-
 	if (pgadget == NULL) {
 		pr_err("%s, bad param\n", __func__);
 		return -EINVAL;
@@ -3102,7 +3082,6 @@ static int nbu2ss_gad_set_selfpowered(struct usb_gadget *pgadget,
 /*-------------------------------------------------------------------------*/
 static int nbu2ss_gad_vbus_session(struct usb_gadget *pgadget, int is_active)
 {
-/*	INFO("=== %s()\n", __func__); */
 	return 0;
 }
 
@@ -3111,8 +3090,6 @@ static int nbu2ss_gad_vbus_draw(struct usb_gadget *pgadget, unsigned mA)
 {
 	struct nbu2ss_udc	*udc;
 	unsigned long		flags;
-
-/*	INFO("=== %s()\n", __func__); */
 
 	if (pgadget == NULL) {
 		pr_err("%s, bad param\n", __func__);
@@ -3133,8 +3110,6 @@ static int nbu2ss_gad_pullup(struct usb_gadget *pgadget, int is_on)
 {
 	struct nbu2ss_udc	*udc;
 	unsigned long		flags;
-
-/*	INFO("=== %s()\n", __func__); */
 
 	if (pgadget == NULL) {
 		pr_err("%s, bad param\n", __func__);
@@ -3164,7 +3139,6 @@ static int nbu2ss_gad_ioctl(
 	unsigned code,
 	unsigned long param)
 {
-/*	INFO("=== %s()\n", __func__); */
 	return 0;
 }
 
