@@ -629,12 +629,10 @@ static int cik_sdma_ring_test_ib(struct amdgpu_ring *ring)
 	gpu_addr = adev->wb.gpu_addr + (index * 4);
 	tmp = 0xCAFEDEAD;
 	adev->wb.wb[index] = cpu_to_le32(tmp);
-
 	r = amdgpu_ib_get(ring, NULL, 256, &ib);
 	if (r) {
-		amdgpu_wb_free(adev, index);
 		DRM_ERROR("amdgpu: failed to get ib (%d).\n", r);
-		return r;
+		goto err0;
 	}
 
 	ib.ptr[0] = SDMA_PACKET(SDMA_OPCODE_WRITE, SDMA_WRITE_SUB_OPCODE_LINEAR, 0);
@@ -643,20 +641,15 @@ static int cik_sdma_ring_test_ib(struct amdgpu_ring *ring)
 	ib.ptr[3] = 1;
 	ib.ptr[4] = 0xDEADBEEF;
 	ib.length_dw = 5;
+	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, &ib, 1, NULL,
+						 AMDGPU_FENCE_OWNER_UNDEFINED);
+	if (r)
+		goto err1;
 
-	r = amdgpu_ib_schedule(adev, 1, &ib, AMDGPU_FENCE_OWNER_UNDEFINED);
-	if (r) {
-		amdgpu_ib_free(adev, &ib);
-		amdgpu_wb_free(adev, index);
-		DRM_ERROR("amdgpu: failed to schedule ib (%d).\n", r);
-		return r;
-	}
 	r = amdgpu_fence_wait(ib.fence, false);
 	if (r) {
-		amdgpu_ib_free(adev, &ib);
-		amdgpu_wb_free(adev, index);
 		DRM_ERROR("amdgpu: fence wait failed (%d).\n", r);
-		return r;
+		goto err1;
 	}
 	for (i = 0; i < adev->usec_timeout; i++) {
 		tmp = le32_to_cpu(adev->wb.wb[index]);
@@ -666,12 +659,16 @@ static int cik_sdma_ring_test_ib(struct amdgpu_ring *ring)
 	}
 	if (i < adev->usec_timeout) {
 		DRM_INFO("ib test on ring %d succeeded in %u usecs\n",
-			 ib.fence->ring->idx, i);
+			 ring->idx, i);
+		goto err1;
 	} else {
 		DRM_ERROR("amdgpu: ib test failed (0x%08X)\n", tmp);
 		r = -EINVAL;
 	}
+
+err1:
 	amdgpu_ib_free(adev, &ib);
+err0:
 	amdgpu_wb_free(adev, index);
 	return r;
 }
