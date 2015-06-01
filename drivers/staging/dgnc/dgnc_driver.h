@@ -66,7 +66,6 @@
 
 /* 4 extra for alignment play space */
 #define WRITEBUFLEN		((4096) + 4)
-#define MYFLIPLEN		N_TTY_BUF_SIZE
 
 #define dgnc_jiffies_from_ms(a) (((a) * HZ) / 1000)
 
