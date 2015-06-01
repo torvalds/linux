@@ -228,20 +228,21 @@ struct ntc_data {
 static int ntc_adc_iio_read(struct ntc_thermistor_platform_data *pdata)
 {
 	struct iio_channel *channel = pdata->chan;
-	s64 result;
-	int val, ret;
+	int raw, uv, ret;
 
-	ret = iio_read_channel_raw(channel, &val);
+	ret = iio_read_channel_raw(channel, &raw);
 	if (ret < 0) {
 		pr_err("read channel() error: %d\n", ret);
 		return ret;
 	}
 
-	/* unit: mV */
-	result = pdata->pullup_uv * (s64) val;
-	result >>= 12;
+	ret = iio_convert_raw_to_processed(channel, raw, &uv, 1000);
+	if (ret < 0) {
+		/* Assume 12 bit ADC with vref at pullup_uv */
+		uv = (pdata->pullup_uv * (s64)raw) >> 12;
+	}
 
-	return (int)result;
+	return uv;
 }
 
 static const struct of_device_id ntc_match[] = {
