@@ -628,4 +628,24 @@ static inline netdev_features_t vlan_features_check(const struct sk_buff *skb,
 	return features;
 }
 
+/**
+ * compare_vlan_header - Compare two vlan headers
+ * @h1: Pointer to vlan header
+ * @h2: Pointer to vlan header
+ *
+ * Compare two vlan headers, returns 0 if equal.
+ *
+ * Please note that alignment of h1 & h2 are only guaranteed to be 16 bits.
+ */
+static inline unsigned long compare_vlan_header(const struct vlan_hdr *h1,
+						const struct vlan_hdr *h2)
+{
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
+	return *(u32 *)h1 ^ *(u32 *)h2;
+#else
+	return ((__force u32)h1->h_vlan_TCI ^ (__force u32)h2->h_vlan_TCI) |
+	       ((__force u32)h1->h_vlan_encapsulated_proto ^
+		(__force u32)h2->h_vlan_encapsulated_proto);
+#endif
+}
 #endif /* !(_LINUX_IF_VLAN_H_) */
