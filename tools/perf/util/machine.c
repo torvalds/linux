@@ -20,6 +20,7 @@ static void dsos__init(struct dsos *dsos)
 {
 	INIT_LIST_HEAD(&dsos->head);
 	dsos->root = RB_ROOT;
+	pthread_rwlock_init(&dsos->lock, NULL);
 }
 
 int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
@@ -81,15 +82,21 @@ out_delete:
 	return NULL;
 }
 
-static void dsos__delete(struct dsos *dsos)
+static void dsos__exit(struct dsos *dsos)
 {
 	struct dso *pos, *n;
+
+	pthread_rwlock_wrlock(&dsos->lock);
 
 	list_for_each_entry_safe(pos, n, &dsos->head, node) {
 		RB_CLEAR_NODE(&pos->rb_node);
 		list_del(&pos->node);
 		dso__delete(pos);
 	}
+
+	pthread_rwlock_unlock(&dsos->lock);
+
+	pthread_rwlock_destroy(&dsos->lock);
 }
 
 void machine__delete_threads(struct machine *machine)
@@ -110,7 +117,7 @@ void machine__delete_threads(struct machine *machine)
 void machine__exit(struct machine *machine)
 {
 	map_groups__exit(&machine->kmaps);
-	dsos__delete(&machine->dsos);
+	dsos__exit(&machine->dsos);
 	machine__exit_vdso(machine);
 	zfree(&machine->root_dir);
 	zfree(&machine->current_tid);
@@ -496,11 +503,13 @@ static struct dso *machine__findnew_module_dso(struct machine *machine,
 {
 	struct dso *dso;
 
-	dso = dsos__find(&machine->dsos, m->name, true);
+	pthread_rwlock_wrlock(&machine->dsos.lock);
+
+	dso = __dsos__find(&machine->dsos, m->name, true);
 	if (!dso) {
-		dso = dsos__addnew(&machine->dsos, m->name);
+		dso = __dsos__addnew(&machine->dsos, m->name);
 		if (dso == NULL)
-			return NULL;
+			goto out_unlock;
 
 		if (machine__is_host(machine))
 			dso->symtab_type = DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE;
@@ -515,6 +524,8 @@ static struct dso *machine__findnew_module_dso(struct machine *machine,
 		dso__set_long_name(dso, strdup(filename), true);
 	}
 
+out_unlock:
+	pthread_rwlock_unlock(&machine->dsos.lock);
 	return dso;
 }
 
@@ -1156,6 +1167,8 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		struct dso *kernel = NULL;
 		struct dso *dso;
 
+		pthread_rwlock_rdlock(&machine->dsos.lock);
+
 		list_for_each_entry(dso, &machine->dsos.head, node) {
 
 			/*
@@ -1183,6 +1196,8 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 			kernel = dso;
 			break;
 		}
+
+		pthread_rwlock_unlock(&machine->dsos.lock);
 
 		if (kernel == NULL)
 			kernel = machine__findnew_dso(machine, kmmap_prefix);
@@ -1948,5 +1963,5 @@ int machine__get_kernel_start(struct machine *machine)
 
 struct dso *machine__findnew_dso(struct machine *machine, const char *filename)
 {
-	return __dsos__findnew(&machine->dsos, filename);
+	return dsos__findnew(&machine->dsos, filename);
 }
