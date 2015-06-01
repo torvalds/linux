@@ -41,7 +41,9 @@ tools/include/linux/compiler.h
 tools/include/linux/export.h
 tools/include/linux/hash.h
 tools/include/linux/kernel.h
+tools/include/linux/list.h
 tools/include/linux/log2.h
+tools/include/linux/poison.h
 tools/include/linux/types.h
 include/asm-generic/bitops/arch_hweight.h
 include/asm-generic/bitops/const_hweight.h

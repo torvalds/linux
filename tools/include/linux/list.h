@@ -1,10 +1,10 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 
-#include "../../../../include/linux/list.h"
+#include "../../../include/linux/list.h"
 
-#ifndef PERF_LIST_H
-#define PERF_LIST_H
+#ifndef TOOLS_LIST_H
+#define TOOLS_LIST_H
 /**
  * list_del_range - deletes range of entries from list.
  * @begin: first element in the range to delete from the list.
