@@ -257,7 +257,7 @@ static void null_cmd_end_timer(struct nullb_cmd *cmd)
 	if (llist_add(&cmd->ll_list, &cq->list)) {
 		ktime_t kt = ktime_set(0, completion_nsec);
 
-		hrtimer_start(&cq->timer, kt, HRTIMER_MODE_REL);
+		hrtimer_start(&cq->timer, kt, HRTIMER_MODE_REL_PINNED);
 	}
 
 	put_cpu();
