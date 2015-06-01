@@ -500,7 +500,7 @@ static void ps8622_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs ps8622_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = ps8622_detect,
 	.destroy = ps8622_connector_destroy,

@@ -1051,7 +1051,7 @@ static void hdmi_connector_destroy(struct drm_connector *connector)
 }
 
 static struct drm_connector_funcs hdmi_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = hdmi_detect,
 	.destroy = hdmi_connector_destroy,
@@ -2127,8 +2127,8 @@ static void hdmi_dpms(struct exynos_drm_display *display, int mode)
 		 */
 		if (crtc)
 			funcs = crtc->helper_private;
-		if (funcs && funcs->dpms)
-			(*funcs->dpms)(crtc, mode);
+		if (funcs && funcs->disable)
+			(*funcs->disable)(crtc);
 
 		hdmi_poweroff(hdata);
 		break;

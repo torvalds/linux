@@ -32,17 +32,6 @@ struct exynos_drm_encoder {
 	struct exynos_drm_display	*display;
 };
 
-static void exynos_drm_encoder_dpms(struct drm_encoder *encoder, int mode)
-{
-	struct exynos_drm_encoder *exynos_encoder = to_exynos_encoder(encoder);
-	struct exynos_drm_display *display = exynos_encoder->display;
-
-	DRM_DEBUG_KMS("encoder dpms: %d\n", mode);
-
-	if (display->ops->dpms)
-		display->ops->dpms(display, mode);
-}
-
 static bool
 exynos_drm_encoder_mode_fixup(struct drm_encoder *encoder,
 			       const struct drm_display_mode *mode,
@@ -76,7 +65,7 @@ static void exynos_drm_encoder_mode_set(struct drm_encoder *encoder,
 		display->ops->mode_set(display, adjusted_mode);
 }
 
-static void exynos_drm_encoder_commit(struct drm_encoder *encoder)
+static void exynos_drm_encoder_enable(struct drm_encoder *encoder)
 {
 	struct exynos_drm_encoder *exynos_encoder = to_exynos_encoder(encoder);
 	struct exynos_drm_display *display = exynos_encoder->display;
@@ -90,10 +79,13 @@ static void exynos_drm_encoder_commit(struct drm_encoder *encoder)
 
 static void exynos_drm_encoder_disable(struct drm_encoder *encoder)
 {
+	struct exynos_drm_encoder *exynos_encoder = to_exynos_encoder(encoder);
+	struct exynos_drm_display *display = exynos_encoder->display;
 	struct drm_plane *plane;
 	struct drm_device *dev = encoder->dev;
 
-	exynos_drm_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
+	if (display->ops->dpms)
+		display->ops->dpms(display, DRM_MODE_DPMS_OFF);
 
 	/* all planes connected to this encoder should be also disabled. */
 	drm_for_each_legacy_plane(plane, &dev->mode_config.plane_list) {
@@ -103,10 +95,9 @@ static void exynos_drm_encoder_disable(struct drm_encoder *encoder)
 }
 
 static struct drm_encoder_helper_funcs exynos_encoder_helper_funcs = {
-	.dpms		= exynos_drm_encoder_dpms,
 	.mode_fixup	= exynos_drm_encoder_mode_fixup,
 	.mode_set	= exynos_drm_encoder_mode_set,
-	.commit		= exynos_drm_encoder_commit,
+	.enable		= exynos_drm_encoder_enable,
 	.disable	= exynos_drm_encoder_disable,
 };
 

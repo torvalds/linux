@@ -60,7 +60,7 @@ static void exynos_dpi_connector_destroy(struct drm_connector *connector)
 }
 
 static struct drm_connector_funcs exynos_dpi_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = exynos_dpi_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = exynos_dpi_connector_destroy,

@@ -22,40 +22,41 @@
 #include "exynos_drm_encoder.h"
 #include "exynos_drm_plane.h"
 
-static void exynos_drm_crtc_dpms(struct drm_crtc *crtc, int mode)
+static void exynos_drm_crtc_enable(struct drm_crtc *crtc)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 
-	DRM_DEBUG_KMS("crtc[%d] mode[%d]\n", crtc->base.id, mode);
-
-	if (exynos_crtc->dpms == mode) {
-		DRM_DEBUG_KMS("desired dpms mode is same as previous one.\n");
+	if (exynos_crtc->enabled)
 		return;
-	}
-
-	if (mode > DRM_MODE_DPMS_ON) {
-		/* wait for the completion of page flip. */
-		if (!wait_event_timeout(exynos_crtc->pending_flip_queue,
-				(exynos_crtc->event == NULL), HZ/20))
-			exynos_crtc->event = NULL;
-		drm_crtc_vblank_off(crtc);
-	}
 
 	if (exynos_crtc->ops->dpms)
-		exynos_crtc->ops->dpms(exynos_crtc, mode);
+		exynos_crtc->ops->dpms(exynos_crtc, DRM_MODE_DPMS_ON);
 
-	exynos_crtc->dpms = mode;
+	exynos_crtc->enabled = true;
 
-	if (mode == DRM_MODE_DPMS_ON)
-		drm_crtc_vblank_on(crtc);
+	drm_crtc_vblank_on(crtc);
 }
 
 static void exynos_drm_crtc_disable(struct drm_crtc *crtc)
 {
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 	struct drm_plane *plane;
 	int ret;
 
-	exynos_drm_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
+	if (!exynos_crtc->enabled)
+		return;
+
+	/* wait for the completion of page flip. */
+	if (!wait_event_timeout(exynos_crtc->pending_flip_queue,
+				(exynos_crtc->event == NULL), HZ/20))
+		exynos_crtc->event = NULL;
+
+	drm_crtc_vblank_off(crtc);
+
+	if (exynos_crtc->ops->dpms)
+		exynos_crtc->ops->dpms(exynos_crtc, DRM_MODE_DPMS_OFF);
+
+	exynos_crtc->enabled = false;
 
 	drm_for_each_legacy_plane(plane, &crtc->dev->mode_config.plane_list) {
 		if (plane->crtc != crtc)
@@ -65,17 +66,6 @@ static void exynos_drm_crtc_disable(struct drm_crtc *crtc)
 		if (ret)
 			DRM_ERROR("Failed to disable plane %d\n", ret);
 	}
-}
-
-static void exynos_drm_crtc_commit(struct drm_crtc *crtc)
-{
-	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-	struct exynos_drm_plane *exynos_plane = to_exynos_plane(crtc->primary);
-
-	exynos_drm_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
-
-	if (exynos_crtc->ops->win_commit)
-		exynos_crtc->ops->win_commit(exynos_crtc, exynos_plane->zpos);
 }
 
 static bool
@@ -116,9 +106,8 @@ static void exynos_crtc_atomic_flush(struct drm_crtc *crtc)
 }
 
 static struct drm_crtc_helper_funcs exynos_crtc_helper_funcs = {
-	.dpms		= exynos_drm_crtc_dpms,
+	.enable		= exynos_drm_crtc_enable,
 	.disable	= exynos_drm_crtc_disable,
-	.commit		= exynos_drm_crtc_commit,
 	.mode_fixup	= exynos_drm_crtc_mode_fixup,
 	.mode_set_nofb	= exynos_drm_crtc_mode_set_nofb,
 	.atomic_begin	= exynos_crtc_atomic_begin,
@@ -163,7 +152,6 @@ struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 
 	init_waitqueue_head(&exynos_crtc->pending_flip_queue);
 
-	exynos_crtc->dpms = DRM_MODE_DPMS_OFF;
 	exynos_crtc->pipe = pipe;
 	exynos_crtc->type = type;
 	exynos_crtc->ops = ops;
@@ -194,7 +182,7 @@ int exynos_drm_crtc_enable_vblank(struct drm_device *dev, int pipe)
 	struct exynos_drm_crtc *exynos_crtc =
 		to_exynos_crtc(private->crtc[pipe]);
 
-	if (exynos_crtc->dpms != DRM_MODE_DPMS_ON)
+	if (!exynos_crtc->enabled)
 		return -EPERM;
 
 	if (exynos_crtc->ops->enable_vblank)
@@ -209,7 +197,7 @@ void exynos_drm_crtc_disable_vblank(struct drm_device *dev, int pipe)
 	struct exynos_drm_crtc *exynos_crtc =
 		to_exynos_crtc(private->crtc[pipe]);
 
-	if (exynos_crtc->dpms != DRM_MODE_DPMS_ON)
+	if (!exynos_crtc->enabled)
 		return;
 
 	if (exynos_crtc->ops->disable_vblank)
