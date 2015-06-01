@@ -2069,25 +2069,6 @@ out:
 }
 EXPORT_SYMBOL(cxgb4_sync_txq_pidx);
 
-void cxgb4_disable_db_coalescing(struct net_device *dev)
-{
-	struct adapter *adap;
-
-	adap = netdev2adap(dev);
-	t4_set_reg_field(adap, SGE_DOORBELL_CONTROL_A, NOCOALESCE_F,
-			 NOCOALESCE_F);
-}
-EXPORT_SYMBOL(cxgb4_disable_db_coalescing);
-
-void cxgb4_enable_db_coalescing(struct net_device *dev)
-{
-	struct adapter *adap;
-
-	adap = netdev2adap(dev);
-	t4_set_reg_field(adap, SGE_DOORBELL_CONTROL_A, NOCOALESCE_F, 0);
-}
-EXPORT_SYMBOL(cxgb4_enable_db_coalescing);
-
 int cxgb4_read_tpte(struct net_device *dev, u32 stag, __be32 *tpte)
 {
 	struct adapter *adap;
