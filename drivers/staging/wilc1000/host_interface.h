@@ -464,7 +464,7 @@ typedef struct {
 	WILC_Uint8 au8BSSID[ETH_ALEN];
 	WILC_Uint16 u16AssocID;
 	WILC_Uint8 u8NumRates;
-	WILC_Uint8 *pu8Rates;
+	const u8 *pu8Rates;
 	WILC_Bool bIsHTSupported;
 	WILC_Uint16 u16HTCapInfo;
 	WILC_Uint8 u8AmpduParams;
@@ -578,8 +578,8 @@ WILC_Sint32 host_int_add_wep_key_bss_ap(WILC_WFIDrvHandle hWFIDrv, const WILC_Ui
  *  @date		8 March 2012
  *  @version		1.0
  */
-WILC_Sint32 host_int_add_ptk(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 *pu8Ptk, WILC_Uint8 u8PtkKeylen,
-			     const WILC_Uint8 *mac_addr, WILC_Uint8 *pu8RxMic, WILC_Uint8 *pu8TxMic, WILC_Uint8 mode, WILC_Uint8 u8Ciphermode, WILC_Uint8 u8Idx);
+WILC_Sint32 host_int_add_ptk(WILC_WFIDrvHandle hWFIDrv, const u8 *pu8Ptk, WILC_Uint8 u8PtkKeylen,
+			     const u8 *mac_addr, const u8 *pu8RxMic, const u8 *pu8TxMic, WILC_Uint8 mode, WILC_Uint8 u8Ciphermode, WILC_Uint8 u8Idx);
 
 /**
  *  @brief              host_int_get_inactive_time
@@ -593,7 +593,7 @@ WILC_Sint32 host_int_add_ptk(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 *pu8Ptk, WILC
  *  @date		15 April 2013
  *  @version		1.0
  */
-WILC_Sint32 host_int_get_inactive_time(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 *mac, WILC_Uint32 *pu32InactiveTime);
+WILC_Sint32 host_int_get_inactive_time(WILC_WFIDrvHandle hWFIDrv, const u8 *mac, WILC_Uint32 *pu32InactiveTime);
 
 /**
  *  @brief              adds Rx GTk Key
@@ -611,9 +611,9 @@ WILC_Sint32 host_int_get_inactive_time(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 *ma
  *  @date		8 March 2012
  *  @version		1.0
  */
-WILC_Sint32 host_int_add_rx_gtk(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 *pu8RxGtk, WILC_Uint8 u8GtkKeylen,
-				WILC_Uint8 u8KeyIdx, WILC_Uint32 u32KeyRSClen, WILC_Uint8 *KeyRSC,
-				WILC_Uint8 *pu8RxMic, WILC_Uint8 *pu8TxMic, WILC_Uint8 mode, WILC_Uint8 u8Ciphermode);
+WILC_Sint32 host_int_add_rx_gtk(WILC_WFIDrvHandle hWFIDrv, const u8 *pu8RxGtk, WILC_Uint8 u8GtkKeylen,
+				WILC_Uint8 u8KeyIdx, WILC_Uint32 u32KeyRSClen, const u8 *KeyRSC,
+				const u8 *pu8RxMic, const u8 *pu8TxMic, WILC_Uint8 mode, WILC_Uint8 u8Ciphermode);
 
 
 /**
@@ -836,7 +836,7 @@ WILC_Sint32 host_int_get_start_scan_req(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 *p
  */
 
 WILC_Sint32 host_int_set_join_req(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 *pu8bssid,
-				  WILC_Uint8 *pu8ssid, size_t ssidLen,
+				  const u8 *pu8ssid, size_t ssidLen,
 				  const WILC_Uint8 *pu8IEs, size_t IEsLen,
 				  tWILCpfConnectResult pfConnectResult, void *pvUserArg,
 				  WILC_Uint8 u8security, AUTHTYPE_T tenuAuth_type,
@@ -1157,7 +1157,7 @@ WILC_Sint32 host_int_del_beacon(WILC_WFIDrvHandle hWFIDrv);
 WILC_Sint32 host_int_add_station(WILC_WFIDrvHandle hWFIDrv, tstrWILC_AddStaParam *pstrStaParams);
 
 /*!
- *  @fn		WILC_Sint32 host_int_del_allstation(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8* pu8MacAddr)
+ *  @fn		WILC_Sint32 host_int_del_allstation(WILC_WFIDrvHandle hWFIDrv, const u8* pu8MacAddr)
  *  @brief		Deauthenticates clients when group is terminating
  *  @details
  *  @param[in,out]	hWFIDrv		handle to the wifi driver
@@ -1169,10 +1169,10 @@ WILC_Sint32 host_int_add_station(WILC_WFIDrvHandle hWFIDrv, tstrWILC_AddStaParam
  *  @date		09 April 2014
  *  @version		1.0 Description
  */
-WILC_Sint32 host_int_del_allstation(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 pu8MacAddr[][ETH_ALEN]);
+WILC_Sint32 host_int_del_allstation(WILC_WFIDrvHandle hWFIDrv, u8 pu8MacAddr[][ETH_ALEN]);
 
 /*!
- *  @fn		WILC_Sint32 host_int_del_station(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8* pu8MacAddr)
+ *  @fn		WILC_Sint32 host_int_del_station(WILC_WFIDrvHandle hWFIDrv, u8* pu8MacAddr)
  *  @brief		Notifies the firmware with a new deleted station
  *  @details
  *  @param[in,out]	hWFIDrv		handle to the wifi driver
@@ -1184,7 +1184,7 @@ WILC_Sint32 host_int_del_allstation(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 pu8Mac
  *  @date		15 July 2012
  *  @version		1.0 Description
  */
-WILC_Sint32 host_int_del_station(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 *pu8MacAddr);
+WILC_Sint32 host_int_del_station(WILC_WFIDrvHandle hWFIDrv, const u8 *pu8MacAddr);
 
 /*!
  *  @fn		WILC_Sint32 host_int_edit_station(WILC_WFIDrvHandle hWFIDrv, tstrWILC_AddStaParam strStaParams)

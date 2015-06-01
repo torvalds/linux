@@ -1159,8 +1159,8 @@ static int WILC_WFI_add_key(struct wiphy *wiphy, struct net_device *netdev, u8 k
 	WILC_Sint32 s32Error = WILC_SUCCESS, KeyLen = params->key_len;
 	WILC_Uint32 i;
 	struct WILC_WFI_priv *priv;
-	WILC_Uint8 *pu8RxMic = NULL;
-	WILC_Uint8 *pu8TxMic = NULL;
+	const u8 *pu8RxMic = NULL;
+	const u8 *pu8TxMic = NULL;
 	WILC_Uint8 u8mode = NO_ENCRYPT;
 	#ifdef WILC_AP_EXTERNAL_MLME
 	WILC_Uint8 u8gmode = NO_ENCRYPT;
@@ -1662,7 +1662,7 @@ static int WILC_WFI_dump_survey(struct wiphy *wiphy, struct net_device *netdev,
 
 extern uint32_t Statisitcs_totalAcks, Statisitcs_DroppedAcks;
 static int WILC_WFI_get_station(struct wiphy *wiphy, struct net_device *dev,
-				u8 *mac, struct station_info *sinfo)
+				const u8 *mac, struct station_info *sinfo)
 {
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;
@@ -3431,7 +3431,7 @@ static int  WILC_WFI_stop_ap(struct wiphy *wiphy, struct net_device *dev)
  *  @version	1.0
  */
 static int  WILC_WFI_add_station(struct wiphy *wiphy, struct net_device *dev,
-				 u8 *mac, struct station_parameters *params)
+				 const u8 *mac, struct station_parameters *params)
 {
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;
@@ -3518,7 +3518,7 @@ static int  WILC_WFI_add_station(struct wiphy *wiphy, struct net_device *dev,
 static int WILC_WFI_del_station(struct wiphy *wiphy, struct net_device *dev,
 				struct station_del_parameters *params)
 {
-	u8 *mac = params->mac;
+	const u8 *mac = params->mac;
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;
 	perInterface_wlan_t *nic;
@@ -3564,7 +3564,7 @@ static int WILC_WFI_del_station(struct wiphy *wiphy, struct net_device *dev,
  *  @version	1.0
  */
 static int WILC_WFI_change_station(struct wiphy *wiphy, struct net_device *dev,
-				   u8 *mac, struct station_parameters *params)
+				   const u8 *mac, struct station_parameters *params)
 {
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;

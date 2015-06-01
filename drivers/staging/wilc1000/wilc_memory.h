@@ -113,7 +113,7 @@ void *WILC_MemoryRealloc(void *pvOldBlock, WILC_Uint32 u32NewSize,
  *  @date	16 Aug 2010
  *  @version	1.0
  */
-void WILC_MemoryFree(void *pvBlock, tstrWILC_MemoryAttrs *strAttrs,
+void WILC_MemoryFree(const void *pvBlock, tstrWILC_MemoryAttrs *strAttrs,
 			WILC_Char *pcFileName, WILC_Uint32 u32LineNo);
 
 /*!

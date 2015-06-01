@@ -522,7 +522,7 @@ static void WILC_WFI_mon_setup(struct net_device *dev)
  *  @date	12 JUL 2012
  *  @version	1.0
  */
-struct net_device *WILC_WFI_init_mon_interface(char *name, struct net_device *real_dev)
+struct net_device *WILC_WFI_init_mon_interface(const char *name, struct net_device *real_dev)
 {
 
 
