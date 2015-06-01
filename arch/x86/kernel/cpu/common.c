@@ -5,6 +5,7 @@
 #include <linux/module.h>
 #include <linux/percpu.h>
 #include <linux/string.h>
+#include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/init.h>
@@ -419,6 +420,7 @@ static const struct cpu_dev *cpu_devs[X86_VENDOR_NUM] = {};
 static void get_model_name(struct cpuinfo_x86 *c)
 {
 	unsigned int *v;
+	char *p, *q, *s;
 
 	if (c->extended_cpuid_level < 0x80000004)
 		return;
@@ -429,11 +431,21 @@ static void get_model_name(struct cpuinfo_x86 *c)
 	cpuid(0x80000004, &v[8], &v[9], &v[10], &v[11]);
 	c->x86_model_id[48] = 0;
 
-	/*
-	 * Remove leading whitespace on Intel processors and trailing
-	 * whitespace on AMD processors.
-	 */
-	memmove(c->x86_model_id, strim(c->x86_model_id), 48);
+	/* Trim whitespace */
+	p = q = s = &c->x86_model_id[0];
+
+	while (*p == ' ')
+		p++;
+
+	while (*p) {
+		/* Note the last non-whitespace index */
+		if (!isspace(*p))
+			s = q;
+
+		*q++ = *p++;
+	}
+
+	*(s + 1) = '\0';
 }
 
 void cpu_detect_cache_sizes(struct cpuinfo_x86 *c)
