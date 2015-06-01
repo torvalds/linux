@@ -738,6 +738,53 @@ TRACE_EVENT(xfs_iomap_prealloc_size,
 		  __entry->blocks, __entry->shift, __entry->writeio_blocks)
 )
 
+TRACE_EVENT(xfs_irec_merge_pre,
+	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, xfs_agino_t agino,
+		 uint16_t holemask, xfs_agino_t nagino, uint16_t nholemask),
+	TP_ARGS(mp, agno, agino, holemask, nagino, nholemask),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agino_t, agino)
+		__field(uint16_t, holemask)
+		__field(xfs_agino_t, nagino)
+		__field(uint16_t, nholemask)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->agno = agno;
+		__entry->agino = agino;
+		__entry->holemask = holemask;
+		__entry->nagino = nagino;
+		__entry->nholemask = holemask;
+	),
+	TP_printk("dev %d:%d agno %d inobt (%u:0x%x) new (%u:0x%x)",
+		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->agno,
+		  __entry->agino, __entry->holemask, __entry->nagino,
+		  __entry->nholemask)
+)
+
+TRACE_EVENT(xfs_irec_merge_post,
+	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, xfs_agino_t agino,
+		 uint16_t holemask),
+	TP_ARGS(mp, agno, agino, holemask),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agino_t, agino)
+		__field(uint16_t, holemask)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->agno = agno;
+		__entry->agino = agino;
+		__entry->holemask = holemask;
+	),
+	TP_printk("dev %d:%d agno %d inobt (%u:0x%x)", MAJOR(__entry->dev),
+		  MINOR(__entry->dev), __entry->agno, __entry->agino,
+		  __entry->holemask)
+)
+
 #define DEFINE_IREF_EVENT(name) \
 DEFINE_EVENT(xfs_iref_class, name, \
 	TP_PROTO(struct xfs_inode *ip, unsigned long caller_ip), \

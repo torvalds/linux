@@ -149,13 +149,27 @@ xfs_alloc_compute_aligned(
 {
 	xfs_agblock_t	bno;
 	xfs_extlen_t	len;
+	xfs_extlen_t	diff;
 
 	/* Trim busy sections out of found extent */
 	xfs_extent_busy_trim(args, foundbno, foundlen, &bno, &len);
 
+	/*
+	 * If we have a largish extent that happens to start before min_agbno,
+	 * see if we can shift it into range...
+	 */
+	if (bno < args->min_agbno && bno + len > args->min_agbno) {
+		diff = args->min_agbno - bno;
+		if (len > diff) {
+			bno += diff;
+			len -= diff;
+		}
+	}
+
 	if (args->alignment > 1 && len >= args->minlen) {
 		xfs_agblock_t	aligned_bno = roundup(bno, args->alignment);
-		xfs_extlen_t	diff = aligned_bno - bno;
+
+		diff = aligned_bno - bno;
 
 		*resbno = aligned_bno;
 		*reslen = diff >= len ? 0 : len - diff;
@@ -795,9 +809,13 @@ xfs_alloc_find_best_extent(
 		 * The good extent is closer than this one.
 		 */
 		if (!dir) {
+			if (*sbnoa > args->max_agbno)
+				goto out_use_good;
 			if (*sbnoa >= args->agbno + gdiff)
 				goto out_use_good;
 		} else {
+			if (*sbnoa < args->min_agbno)
+				goto out_use_good;
 			if (*sbnoa <= args->agbno - gdiff)
 				goto out_use_good;
 		}
@@ -883,6 +901,17 @@ xfs_alloc_ag_vextent_near(
 
 	dofirst = prandom_u32() & 1;
 #endif
+
+	/* handle unitialized agbno range so caller doesn't have to */
+	if (!args->min_agbno && !args->max_agbno)
+		args->max_agbno = args->mp->m_sb.sb_agblocks - 1;
+	ASSERT(args->min_agbno <= args->max_agbno);
+
+	/* clamp agbno to the range if it's outside */
+	if (args->agbno < args->min_agbno)
+		args->agbno = args->min_agbno;
+	if (args->agbno > args->max_agbno)
+		args->agbno = args->max_agbno;
 
 restart:
 	bno_cur_lt = NULL;
@@ -975,6 +1004,8 @@ restart:
 			xfs_alloc_compute_aligned(args, ltbno, ltlen,
 						  &ltbnoa, &ltlena);
 			if (ltlena < args->minlen)
+				continue;
+			if (ltbnoa < args->min_agbno || ltbnoa > args->max_agbno)
 				continue;
 			args->len = XFS_EXTLEN_MIN(ltlena, args->maxlen);
 			xfs_alloc_fix_len(args);
@@ -1096,11 +1127,11 @@ restart:
 			XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, error0);
 			xfs_alloc_compute_aligned(args, ltbno, ltlen,
 						  &ltbnoa, &ltlena);
-			if (ltlena >= args->minlen)
+			if (ltlena >= args->minlen && ltbnoa >= args->min_agbno)
 				break;
 			if ((error = xfs_btree_decrement(bno_cur_lt, 0, &i)))
 				goto error0;
-			if (!i) {
+			if (!i || ltbnoa < args->min_agbno) {
 				xfs_btree_del_cursor(bno_cur_lt,
 						     XFS_BTREE_NOERROR);
 				bno_cur_lt = NULL;
@@ -1112,11 +1143,11 @@ restart:
 			XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, error0);
 			xfs_alloc_compute_aligned(args, gtbno, gtlen,
 						  &gtbnoa, &gtlena);
-			if (gtlena >= args->minlen)
+			if (gtlena >= args->minlen && gtbnoa <= args->max_agbno)
 				break;
 			if ((error = xfs_btree_increment(bno_cur_gt, 0, &i)))
 				goto error0;
-			if (!i) {
+			if (!i || gtbnoa > args->max_agbno) {
 				xfs_btree_del_cursor(bno_cur_gt,
 						     XFS_BTREE_NOERROR);
 				bno_cur_gt = NULL;
@@ -1216,6 +1247,7 @@ restart:
 	ASSERT(ltnew >= ltbno);
 	ASSERT(ltnew + rlen <= ltbnoa + ltlena);
 	ASSERT(ltnew + rlen <= be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_length));
+	ASSERT(ltnew >= args->min_agbno && ltnew <= args->max_agbno);
 	args->agbno = ltnew;
 
 	if ((error = xfs_alloc_fixup_trees(cnt_cur, bno_cur_lt, ltbno, ltlen,
