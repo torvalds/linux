@@ -4864,42 +4864,15 @@ static bool hsw_crtc_supports_ips(struct intel_crtc *crtc)
 	return HAS_IPS(crtc->base.dev) && crtc->pipe == PIPE_A;
 }
 
-/*
- * This implements the workaround described in the "notes" section of the mode
- * set sequence documentation. When going from no pipes or single pipe to
- * multiple pipes, and planes are enabled after the pipe, we need to wait at
- * least 2 vblanks on the first pipe before enabling planes on the second pipe.
- */
-static void haswell_mode_set_planes_workaround(struct intel_crtc *crtc)
-{
-	struct drm_device *dev = crtc->base.dev;
-	struct intel_crtc *crtc_it, *other_active_crtc = NULL;
-
-	/* We want to get the other_active_crtc only if there's only 1 other
-	 * active crtc. */
-	for_each_intel_crtc(dev, crtc_it) {
-		if (!crtc_it->active || crtc_it == crtc)
-			continue;
-
-		if (other_active_crtc)
-			return;
-
-		other_active_crtc = crtc_it;
-	}
-	if (!other_active_crtc)
-		return;
-
-	intel_wait_for_vblank(dev, other_active_crtc->pipe);
-	intel_wait_for_vblank(dev, other_active_crtc->pipe);
-}
-
 static void haswell_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *encoder;
-	int pipe = intel_crtc->pipe;
+	int pipe = intel_crtc->pipe, hsw_workaround_pipe;
+	struct intel_crtc_state *pipe_config =
+		to_intel_crtc_state(crtc->state);
 
 	if (WARN_ON(intel_crtc->active))
 		return;
@@ -4976,7 +4949,11 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 
 	/* If we change the relative order between pipe/planes enabling, we need
 	 * to change the workaround. */
-	haswell_mode_set_planes_workaround(intel_crtc);
+	hsw_workaround_pipe = pipe_config->hsw_workaround_pipe;
+	if (IS_HASWELL(dev) && hsw_workaround_pipe != INVALID_PIPE) {
+		intel_wait_for_vblank(dev, hsw_workaround_pipe);
+		intel_wait_for_vblank(dev, hsw_workaround_pipe);
+	}
 }
 
 static void ironlake_pfit_disable(struct intel_crtc *crtc)
@@ -12818,6 +12795,71 @@ static int intel_modeset_setup_plls(struct drm_atomic_state *state)
 	return ret;
 }
 
+/*
+ * This implements the workaround described in the "notes" section of the mode
+ * set sequence documentation. When going from no pipes or single pipe to
+ * multiple pipes, and planes are enabled after the pipe, we need to wait at
+ * least 2 vblanks on the first pipe before enabling planes on the second pipe.
+ */
+static int haswell_mode_set_planes_workaround(struct drm_atomic_state *state)
+{
+	struct drm_crtc_state *crtc_state;
+	struct intel_crtc *intel_crtc;
+	struct drm_crtc *crtc;
+	struct intel_crtc_state *first_crtc_state = NULL;
+	struct intel_crtc_state *other_crtc_state = NULL;
+	enum pipe first_pipe = INVALID_PIPE, enabled_pipe = INVALID_PIPE;
+	int i;
+
+	/* look at all crtc's that are going to be enabled in during modeset */
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		intel_crtc = to_intel_crtc(crtc);
+
+		if (!crtc_state->active || !needs_modeset(crtc_state))
+			continue;
+
+		if (first_crtc_state) {
+			other_crtc_state = to_intel_crtc_state(crtc_state);
+			break;
+		} else {
+			first_crtc_state = to_intel_crtc_state(crtc_state);
+			first_pipe = intel_crtc->pipe;
+		}
+	}
+
+	/* No workaround needed? */
+	if (!first_crtc_state)
+		return 0;
+
+	/* w/a possibly needed, check how many crtc's are already enabled. */
+	for_each_intel_crtc(state->dev, intel_crtc) {
+		struct intel_crtc_state *pipe_config;
+
+		pipe_config = intel_atomic_get_crtc_state(state, intel_crtc);
+		if (IS_ERR(pipe_config))
+			return PTR_ERR(pipe_config);
+
+		pipe_config->hsw_workaround_pipe = INVALID_PIPE;
+
+		if (!pipe_config->base.active ||
+		    needs_modeset(&pipe_config->base))
+			continue;
+
+		/* 2 or more enabled crtcs means no need for w/a */
+		if (enabled_pipe != INVALID_PIPE)
+			return 0;
+
+		enabled_pipe = intel_crtc->pipe;
+	}
+
+	if (enabled_pipe != INVALID_PIPE)
+		first_crtc_state->hsw_workaround_pipe = enabled_pipe;
+	else if (other_crtc_state)
+		other_crtc_state->hsw_workaround_pipe = first_pipe;
+
+	return 0;
+}
+
 /* Code that should eventually be part of atomic_check() */
 static int intel_modeset_checks(struct drm_atomic_state *state)
 {
@@ -12841,7 +12883,14 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 			return ret;
 	}
 
-	return intel_modeset_setup_plls(state);
+	ret = intel_modeset_setup_plls(state);
+	if (ret)
+		return ret;
+
+	if (IS_HASWELL(dev))
+		ret = haswell_mode_set_planes_workaround(state);
+
+	return ret;
 }
 
 static int
