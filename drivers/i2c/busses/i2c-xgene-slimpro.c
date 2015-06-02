@@ -377,7 +377,7 @@ static struct i2c_algorithm xgene_slimpro_i2c_algorithm = {
 	.functionality = xgene_slimpro_i2c_func,
 };
 
-static int __init xgene_slimpro_i2c_probe(struct platform_device *pdev)
+static int xgene_slimpro_i2c_probe(struct platform_device *pdev)
 {
 	struct slimpro_i2c_dev *ctx;
 	struct i2c_adapter *adapter;
