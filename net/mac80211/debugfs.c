@@ -1,4 +1,3 @@
-
 /*
  * mac80211 debugfs for wireless PHYs
  *
@@ -112,12 +111,6 @@ static ssize_t hwflags_read(struct file *file, char __user *user_buf,
 	if (local->hw.flags & IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING)
 		sf += scnprintf(buf + sf, mxln - sf,
 				"HOST_BCAST_PS_BUFFERING\n");
-	if (local->hw.flags & IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE)
-		sf += scnprintf(buf + sf, mxln - sf,
-				"2GHZ_SHORT_SLOT_INCAPABLE\n");
-	if (local->hw.flags & IEEE80211_HW_2GHZ_SHORT_PREAMBLE_INCAPABLE)
-		sf += scnprintf(buf + sf, mxln - sf,
-				"2GHZ_SHORT_PREAMBLE_INCAPABLE\n");
 	if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)
 		sf += scnprintf(buf + sf, mxln - sf, "SIGNAL_UNSPEC\n");
 	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)

@@ -669,10 +669,8 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	capab = WLAN_CAPABILITY_ESS;
 
 	if (sband->band == IEEE80211_BAND_2GHZ) {
-		if (!(local->hw.flags & IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE))
-			capab |= WLAN_CAPABILITY_SHORT_SLOT_TIME;
-		if (!(local->hw.flags & IEEE80211_HW_2GHZ_SHORT_PREAMBLE_INCAPABLE))
-			capab |= WLAN_CAPABILITY_SHORT_PREAMBLE;
+		capab |= WLAN_CAPABILITY_SHORT_SLOT_TIME;
+		capab |= WLAN_CAPABILITY_SHORT_PREAMBLE;
 	}
 
 	if (assoc_data->capability & WLAN_CAPABILITY_PRIVACY)

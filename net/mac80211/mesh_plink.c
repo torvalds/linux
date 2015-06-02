@@ -106,9 +106,7 @@ static u32 mesh_set_short_slot_time(struct ieee80211_sub_if_data *sdata)
 		/* (IEEE 802.11-2012 19.4.5) */
 		short_slot = true;
 		goto out;
-	} else if (band != IEEE80211_BAND_2GHZ ||
-		   (band == IEEE80211_BAND_2GHZ &&
-		    local->hw.flags & IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE))
+	} else if (band != IEEE80211_BAND_2GHZ)
 		goto out;
 
 	for (i = 0; i < sband->n_bitrates; i++)

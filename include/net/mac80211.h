@@ -446,12 +446,8 @@ struct ieee80211_event {
  * @ibss_creator: indicates if a new IBSS network is being created
  * @aid: association ID number, valid only when @assoc is true
  * @use_cts_prot: use CTS protection
- * @use_short_preamble: use 802.11b short preamble;
- *	if the hardware cannot handle this it must set the
- *	IEEE80211_HW_2GHZ_SHORT_PREAMBLE_INCAPABLE hardware flag
- * @use_short_slot: use short slot time (only relevant for ERP);
- *	if the hardware cannot handle this it must set the
- *	IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE hardware flag
+ * @use_short_preamble: use 802.11b short preamble
+ * @use_short_slot: use short slot time (only relevant for ERP)
  * @dtim_period: num of beacons before the next DTIM, for beaconing,
  *	valid in station mode only if after the driver was notified
  *	with the %BSS_CHANGED_BEACON_INFO flag, will be non-zero then.
@@ -1784,13 +1780,6 @@ struct ieee80211_txq {
  *	multicast frames when there are power saving stations so that
  *	the driver can fetch them with ieee80211_get_buffered_bc().
  *
- * @IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE:
- *	Hardware is not capable of short slot operation on the 2.4 GHz band.
- *
- * @IEEE80211_HW_2GHZ_SHORT_PREAMBLE_INCAPABLE:
- *	Hardware is not capable of receiving frames with short preamble on
- *	the 2.4 GHz band.
- *
  * @IEEE80211_HW_SIGNAL_UNSPEC:
  *	Hardware can provide signal values but we don't know its units. We
  *	expect values between 0 and @max_signal.
@@ -1903,8 +1892,6 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
 	IEEE80211_HW_RX_INCLUDES_FCS			= 1<<1,
 	IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING	= 1<<2,
-	IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE		= 1<<3,
-	IEEE80211_HW_2GHZ_SHORT_PREAMBLE_INCAPABLE	= 1<<4,
 	IEEE80211_HW_SIGNAL_UNSPEC			= 1<<5,
 	IEEE80211_HW_SIGNAL_DBM				= 1<<6,
 	IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC		= 1<<7,
