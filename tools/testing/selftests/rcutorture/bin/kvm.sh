@@ -55,7 +55,7 @@ usage () {
 	echo "       --bootargs kernel-boot-arguments"
 	echo "       --bootimage relative-path-to-kernel-boot-image"
 	echo "       --buildonly"
-	echo "       --configs \"config-file list\""
+	echo "       --configs \"config-file list w/ repeat factor (3*TINY01)\""
 	echo "       --cpus N"
 	echo "       --datestamp string"
 	echo "       --defconfig string"
@@ -178,13 +178,26 @@ fi
 touch $T/cfgcpu
 for CF in $configs
 do
-	if test -f "$CONFIGFRAG/$CF"
+	case $CF in
+	[0-9]\**|[0-9][0-9]\**|[0-9][0-9][0-9]\**)
+		config_reps=`echo $CF | sed -e 's/\*.*$//'`
+		CF1=`echo $CF | sed -e 's/^[^*]*\*//'`
+		;;
+	*)
+		config_reps=1
+		CF1=$CF
+		;;
+	esac
+	if test -f "$CONFIGFRAG/$CF1"
 	then
-		cpu_count=`configNR_CPUS.sh $CONFIGFRAG/$CF`
-		cpu_count=`configfrag_boot_cpus "$TORTURE_BOOTARGS" "$CONFIGFRAG/$CF" "$cpu_count"`
-		echo $CF $cpu_count >> $T/cfgcpu
+		cpu_count=`configNR_CPUS.sh $CONFIGFRAG/$CF1`
+		cpu_count=`configfrag_boot_cpus "$TORTURE_BOOTARGS" "$CONFIGFRAG/$CF1" "$cpu_count"`
+		for ((cur_rep=0;cur_rep<$config_reps;cur_rep++))
+		do
+			echo $CF1 $cpu_count >> $T/cfgcpu
+		done
 	else
-		echo "The --configs file $CF does not exist, terminating."
+		echo "The --configs file $CF1 does not exist, terminating."
 		exit 1
 	fi
 done

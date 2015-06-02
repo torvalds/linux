@@ -150,14 +150,14 @@ void __rcu_read_unlock(void)
 		barrier();  /* critical section before exit code. */
 		t->rcu_read_lock_nesting = INT_MIN;
 		barrier();  /* assign before ->rcu_read_unlock_special load */
-		if (unlikely(ACCESS_ONCE(t->rcu_read_unlock_special.s)))
+		if (unlikely(READ_ONCE(t->rcu_read_unlock_special.s)))
 			rcu_read_unlock_special(t);
 		barrier();  /* ->rcu_read_unlock_special load before assign */
 		t->rcu_read_lock_nesting = 0;
 	}
 #ifdef CONFIG_PROVE_LOCKING
 	{
-		int rrln = ACCESS_ONCE(t->rcu_read_lock_nesting);
+		int rrln = READ_ONCE(t->rcu_read_lock_nesting);
 
 		WARN_ON_ONCE(rrln < 0 && rrln > INT_MIN / 2);
 	}
@@ -389,17 +389,17 @@ module_param(rcu_cpu_stall_timeout, int, 0644);
 
 int rcu_jiffies_till_stall_check(void)
 {
-	int till_stall_check = ACCESS_ONCE(rcu_cpu_stall_timeout);
+	int till_stall_check = READ_ONCE(rcu_cpu_stall_timeout);
 
 	/*
 	 * Limit check must be consistent with the Kconfig limits
 	 * for CONFIG_RCU_CPU_STALL_TIMEOUT.
 	 */
 	if (till_stall_check < 3) {
-		ACCESS_ONCE(rcu_cpu_stall_timeout) = 3;
+		WRITE_ONCE(rcu_cpu_stall_timeout, 3);
 		till_stall_check = 3;
 	} else if (till_stall_check > 300) {
-		ACCESS_ONCE(rcu_cpu_stall_timeout) = 300;
+		WRITE_ONCE(rcu_cpu_stall_timeout, 300);
 		till_stall_check = 300;
 	}
 	return till_stall_check * HZ + RCU_STALL_DELAY_DELTA;
@@ -550,12 +550,12 @@ static void check_holdout_task(struct task_struct *t,
 {
 	int cpu;
 
-	if (!ACCESS_ONCE(t->rcu_tasks_holdout) ||
-	    t->rcu_tasks_nvcsw != ACCESS_ONCE(t->nvcsw) ||
-	    !ACCESS_ONCE(t->on_rq) ||
+	if (!READ_ONCE(t->rcu_tasks_holdout) ||
+	    t->rcu_tasks_nvcsw != READ_ONCE(t->nvcsw) ||
+	    !READ_ONCE(t->on_rq) ||
 	    (IS_ENABLED(CONFIG_NO_HZ_FULL) &&
 	     !is_idle_task(t) && t->rcu_tasks_idle_cpu >= 0)) {
-		ACCESS_ONCE(t->rcu_tasks_holdout) = false;
+		WRITE_ONCE(t->rcu_tasks_holdout, false);
 		list_del_init(&t->rcu_tasks_holdout_list);
 		put_task_struct(t);
 		return;
@@ -639,11 +639,11 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 		 */
 		rcu_read_lock();
 		for_each_process_thread(g, t) {
-			if (t != current && ACCESS_ONCE(t->on_rq) &&
+			if (t != current && READ_ONCE(t->on_rq) &&
 			    !is_idle_task(t)) {
 				get_task_struct(t);
-				t->rcu_tasks_nvcsw = ACCESS_ONCE(t->nvcsw);
-				ACCESS_ONCE(t->rcu_tasks_holdout) = true;
+				t->rcu_tasks_nvcsw = READ_ONCE(t->nvcsw);
+				WRITE_ONCE(t->rcu_tasks_holdout, true);
 				list_add(&t->rcu_tasks_holdout_list,
 					 &rcu_tasks_holdouts);
 			}
@@ -672,7 +672,7 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 			struct task_struct *t1;
 
 			schedule_timeout_interruptible(HZ);
-			rtst = ACCESS_ONCE(rcu_task_stall_timeout);
+			rtst = READ_ONCE(rcu_task_stall_timeout);
 			needreport = rtst > 0 &&
 				     time_after(jiffies, lastreport + rtst);
 			if (needreport)
@@ -728,7 +728,7 @@ static void rcu_spawn_tasks_kthread(void)
 	static struct task_struct *rcu_tasks_kthread_ptr;
 	struct task_struct *t;
 
-	if (ACCESS_ONCE(rcu_tasks_kthread_ptr)) {
+	if (READ_ONCE(rcu_tasks_kthread_ptr)) {
 		smp_mb(); /* Ensure caller sees full kthread. */
 		return;
 	}
@@ -740,7 +740,7 @@ static void rcu_spawn_tasks_kthread(void)
 	t = kthread_run(rcu_tasks_kthread, NULL, "rcu_tasks_kthread");
 	BUG_ON(IS_ERR(t));
 	smp_mb(); /* Ensure others see full kthread. */
-	ACCESS_ONCE(rcu_tasks_kthread_ptr) = t;
+	WRITE_ONCE(rcu_tasks_kthread_ptr, t);
 	mutex_unlock(&rcu_tasks_kthread_mutex);
 }
 

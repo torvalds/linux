@@ -256,7 +256,9 @@ rcu_dereference()
 	If you are going to be fetching multiple fields from the
 	RCU-protected structure, using the local variable is of
 	course preferred.  Repeated rcu_dereference() calls look
-	ugly and incur unnecessary overhead on Alpha CPUs.
+	ugly, do not guarantee that the same pointer will be returned
+	if an update happened while in the critical section, and incur
+	unnecessary overhead on Alpha CPUs.
 
 	Note that the value returned by rcu_dereference() is valid
 	only within the enclosing RCU read-side critical section.
@@ -879,9 +881,7 @@ SRCU:	Initialization/cleanup
 
 All:  lockdep-checked RCU-protected pointer access
 
-	rcu_access_index
 	rcu_access_pointer
-	rcu_dereference_index_check
 	rcu_dereference_raw
 	rcu_lockdep_assert
 	rcu_sleep_check

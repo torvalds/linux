@@ -617,16 +617,16 @@ case what's actually required is:
 However, stores are not speculated.  This means that ordering -is- provided
 for load-store control dependencies, as in the following example:
 
-	q = ACCESS_ONCE(a);
+	q = READ_ONCE_CTRL(a);
 	if (q) {
 		ACCESS_ONCE(b) = p;
 	}
 
-Control dependencies pair normally with other types of barriers.
-That said, please note that ACCESS_ONCE() is not optional!  Without the
-ACCESS_ONCE(), might combine the load from 'a' with other loads from
-'a', and the store to 'b' with other stores to 'b', with possible highly
-counterintuitive effects on ordering.
+Control dependencies pair normally with other types of barriers.  That
+said, please note that READ_ONCE_CTRL() is not optional!  Without the
+READ_ONCE_CTRL(), the compiler might combine the load from 'a' with
+other loads from 'a', and the store to 'b' with other stores to 'b',
+with possible highly counterintuitive effects on ordering.
 
 Worse yet, if the compiler is able to prove (say) that the value of
 variable 'a' is always non-zero, it would be well within its rights
@@ -636,12 +636,15 @@ as follows:
 	q = a;
 	b = p;  /* BUG: Compiler and CPU can both reorder!!! */
 
-So don't leave out the ACCESS_ONCE().
+Finally, the READ_ONCE_CTRL() includes an smp_read_barrier_depends()
+that DEC Alpha needs in order to respect control depedencies.
+
+So don't leave out the READ_ONCE_CTRL().
 
 It is tempting to try to enforce ordering on identical stores on both
 branches of the "if" statement as follows:
 
-	q = ACCESS_ONCE(a);
+	q = READ_ONCE_CTRL(a);
 	if (q) {
 		barrier();
 		ACCESS_ONCE(b) = p;
@@ -655,7 +658,7 @@ branches of the "if" statement as follows:
 Unfortunately, current compilers will transform this as follows at high
 optimization levels:
 
-	q = ACCESS_ONCE(a);
+	q = READ_ONCE_CTRL(a);
 	barrier();
 	ACCESS_ONCE(b) = p;  /* BUG: No ordering vs. load from a!!! */
 	if (q) {
@@ -685,7 +688,7 @@ memory barriers, for example, smp_store_release():
 In contrast, without explicit memory barriers, two-legged-if control
 ordering is guaranteed only when the stores differ, for example:
 
-	q = ACCESS_ONCE(a);
+	q = READ_ONCE_CTRL(a);
 	if (q) {
 		ACCESS_ONCE(b) = p;
 		do_something();
@@ -694,14 +697,14 @@ ordering is guaranteed only when the stores differ, for example:
 		do_something_else();
 	}
 
-The initial ACCESS_ONCE() is still required to prevent the compiler from
-proving the value of 'a'.
+The initial READ_ONCE_CTRL() is still required to prevent the compiler
+from proving the value of 'a'.
 
 In addition, you need to be careful what you do with the local variable 'q',
 otherwise the compiler might be able to guess the value and again remove
 the needed conditional.  For example:
 
-	q = ACCESS_ONCE(a);
+	q = READ_ONCE_CTRL(a);
 	if (q % MAX) {
 		ACCESS_ONCE(b) = p;
 		do_something();
@@ -714,7 +717,7 @@ If MAX is defined to be 1, then the compiler knows that (q % MAX) is
 equal to zero, in which case the compiler is within its rights to
 transform the above code into the following:
 
-	q = ACCESS_ONCE(a);
+	q = READ_ONCE_CTRL(a);
 	ACCESS_ONCE(b) = p;
 	do_something_else();
 
@@ -725,7 +728,7 @@ is gone, and the barrier won't bring it back.  Therefore, if you are
 relying on this ordering, you should make sure that MAX is greater than
 one, perhaps as follows:
 
-	q = ACCESS_ONCE(a);
+	q = READ_ONCE_CTRL(a);
 	BUILD_BUG_ON(MAX <= 1); /* Order load from a with store to b. */
 	if (q % MAX) {
 		ACCESS_ONCE(b) = p;
@@ -742,14 +745,15 @@ of the 'if' statement.
 You must also be careful not to rely too much on boolean short-circuit
 evaluation.  Consider this example:
 
-	q = ACCESS_ONCE(a);
+	q = READ_ONCE_CTRL(a);
 	if (a || 1 > 0)
 		ACCESS_ONCE(b) = 1;
 
-Because the second condition is always true, the compiler can transform
-this example as following, defeating control dependency:
+Because the first condition cannot fault and the second condition is
+always true, the compiler can transform this example as following,
+defeating control dependency:
 
-	q = ACCESS_ONCE(a);
+	q = READ_ONCE_CTRL(a);
 	ACCESS_ONCE(b) = 1;
 
 This example underscores the need to ensure that the compiler cannot
@@ -762,8 +766,8 @@ demonstrated by two related examples, with the initial values of
 x and y both being zero:
 
 	CPU 0                     CPU 1
-	=====================     =====================
-	r1 = ACCESS_ONCE(x);      r2 = ACCESS_ONCE(y);
+	=======================   =======================
+	r1 = READ_ONCE_CTRL(x);   r2 = READ_ONCE_CTRL(y);
 	if (r1 > 0)               if (r2 > 0)
 	  ACCESS_ONCE(y) = 1;       ACCESS_ONCE(x) = 1;
 
@@ -783,13 +787,20 @@ But because control dependencies do -not- provide transitivity, the above
 assertion can fail after the combined three-CPU example completes.  If you
 need the three-CPU example to provide ordering, you will need smp_mb()
 between the loads and stores in the CPU 0 and CPU 1 code fragments,
-that is, just before or just after the "if" statements.
+that is, just before or just after the "if" statements.  Furthermore,
+the original two-CPU example is very fragile and should be avoided.
 
 These two examples are the LB and WWC litmus tests from this paper:
 http://www.cl.cam.ac.uk/users/pes20/ppc-supplemental/test6.pdf and this
 site: https://www.cl.cam.ac.uk/~pes20/ppcmem/index.html.
 
 In summary:
+
+  (*) Control dependencies must be headed by READ_ONCE_CTRL().
+      Or, as a much less preferable alternative, interpose
+      be headed by READ_ONCE() or an ACCESS_ONCE() read and must
+      have smp_read_barrier_depends() between this read and the
+      control-dependent write.
 
   (*) Control dependencies can order prior loads against later stores.
       However, they do -not- guarantee any other sort of ordering:
@@ -1784,10 +1795,9 @@ for each construct.  These operations all imply certain barriers:
 
      Memory operations issued before the ACQUIRE may be completed after
      the ACQUIRE operation has completed.  An smp_mb__before_spinlock(),
-     combined with a following ACQUIRE, orders prior loads against
-     subsequent loads and stores and also orders prior stores against
-     subsequent stores.  Note that this is weaker than smp_mb()!  The
-     smp_mb__before_spinlock() primitive is free on many architectures.
+     combined with a following ACQUIRE, orders prior stores against
+     subsequent loads and stores. Note that this is weaker than smp_mb()!
+     The smp_mb__before_spinlock() primitive is free on many architectures.
 
  (2) RELEASE operation implication:
 
