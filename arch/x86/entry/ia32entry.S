@@ -421,6 +421,10 @@ ia32_badarg:
 	movq $-EFAULT,%rax
 	jmp ia32_sysret
 
+ia32_ret_from_sys_call:
+	CLEAR_RREGS
+	jmp int_ret_from_sys_call
+
 /*
  * Emulated IA32 system calls via int 0x80.
  *
@@ -462,8 +466,12 @@ ENTRY(ia32_syscall)
 	pushq	%rdx			/* pt_regs->dx */
 	pushq	%rcx			/* pt_regs->cx */
 	pushq	$-ENOSYS		/* pt_regs->ax */
+	pushq	$0			/* pt_regs->r8 */
+	pushq	$0			/* pt_regs->r9 */
+	pushq	$0			/* pt_regs->r10 */
+	pushq	$0			/* pt_regs->r11 */
 	cld
-	sub	$(10*8),%rsp /* pt_regs->r8-11,bp,bx,r12-15 not saved */
+	sub	$(6*8),%rsp /* pt_regs->bp,bx,r12-15 not saved */
 
 	orl $TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
 	testl $_TIF_WORK_SYSCALL_ENTRY, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
@@ -481,13 +489,10 @@ ia32_do_call:
 ia32_sysret:
 	movq %rax,RAX(%rsp)
 1:
-ia32_ret_from_sys_call:
-	CLEAR_RREGS
 	jmp int_ret_from_sys_call
 
 ia32_tracesys:
 	SAVE_EXTRA_REGS
-	CLEAR_RREGS
 	movq %rsp,%rdi        /* &pt_regs -> arg1 */
 	call syscall_trace_enter
 	LOAD_ARGS32	/* reload args from stack in case ptrace changed it */
