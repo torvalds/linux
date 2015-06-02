@@ -68,74 +68,19 @@
 #define DRV_AUTHOR  "<wlanfae@realtek.com>"
 #define DRV_VERSION  "0014.0401.2010"
 
-#define IS_HARDWARE_TYPE_819xP(_priv)		\
-	((((struct r8192_priv *)rtllib_priv(dev))->card_8192 == NIC_8190P) || \
-	(((struct r8192_priv *)rtllib_priv(dev))->card_8192 == NIC_8192E))
 #define IS_HARDWARE_TYPE_8192SE(_priv)		\
 	(((struct r8192_priv *)rtllib_priv(dev))->card_8192 == NIC_8192SE)
-#define IS_HARDWARE_TYPE_8192CE(_priv)		\
-	(((struct r8192_priv *)rtllib_priv(dev))->card_8192 == NIC_8192CE)
-#define IS_HARDWARE_TYPE_8192CU(_priv)		\
-	(((struct r8192_priv *)rtllib_priv(dev))->card_8192 == NIC_8192CU)
-#define IS_HARDWARE_TYPE_8192DE(_priv)		\
-	(((struct r8192_priv *)rtllib_priv(dev))->card_8192 == NIC_8192DE)
-#define IS_HARDWARE_TYPE_8192DU(_priv)		\
-	(((struct r8192_priv *)rtllib_priv(dev))->card_8192 == NIC_8192DU)
 
 #define RTL_PCI_DEVICE(vend, dev, cfg) \
 	.vendor = (vend), .device = (dev), \
 	.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID, \
 	.driver_data = (kernel_ulong_t)&(cfg)
 
-#define RTL_MAX_SCAN_SIZE 128
-
-#define RTL_RATE_MAX		30
-
 #define TOTAL_CAM_ENTRY		32
 #define CAM_CONTENT_COUNT	8
 
-#ifndef BIT
-#define BIT(_i)				(1<<(_i))
-#endif
-
-#define IS_ADAPTER_SENDS_BEACON(dev) 0
-
-#define HAL_MEMORY_MAPPED_IO_RANGE_8190PCI	0x1000
-#define HAL_HW_PCI_REVISION_ID_8190PCI			0x00
-#define HAL_MEMORY_MAPPED_IO_RANGE_8192PCIE	0x4000
 #define HAL_HW_PCI_REVISION_ID_8192PCIE		0x01
-#define HAL_MEMORY_MAPPED_IO_RANGE_8192SE	0x4000
 #define HAL_HW_PCI_REVISION_ID_8192SE	0x10
-#define HAL_HW_PCI_REVISION_ID_8192CE			0x1
-#define HAL_MEMORY_MAPPED_IO_RANGE_8192CE	0x4000
-#define HAL_HW_PCI_REVISION_ID_8192DE			0x0
-#define HAL_MEMORY_MAPPED_IO_RANGE_8192DE	0x4000
-
-#define HAL_HW_PCI_8180_DEVICE_ID			0x8180
-#define HAL_HW_PCI_8185_DEVICE_ID			0x8185
-#define HAL_HW_PCI_8188_DEVICE_ID			0x8188
-#define HAL_HW_PCI_8198_DEVICE_ID			0x8198
-#define HAL_HW_PCI_8190_DEVICE_ID			0x8190
-#define HAL_HW_PCI_8192_DEVICE_ID			0x8192
-#define HAL_HW_PCI_8192SE_DEVICE_ID			0x8192
-#define HAL_HW_PCI_8174_DEVICE_ID			0x8174
-#define HAL_HW_PCI_8173_DEVICE_ID			0x8173
-#define HAL_HW_PCI_8172_DEVICE_ID			0x8172
-#define HAL_HW_PCI_8171_DEVICE_ID			0x8171
-#define HAL_HW_PCI_0045_DEVICE_ID			0x0045
-#define HAL_HW_PCI_0046_DEVICE_ID			0x0046
-#define HAL_HW_PCI_0044_DEVICE_ID			0x0044
-#define HAL_HW_PCI_0047_DEVICE_ID			0x0047
-#define HAL_HW_PCI_700F_DEVICE_ID			0x700F
-#define HAL_HW_PCI_701F_DEVICE_ID			0x701F
-#define HAL_HW_PCI_DLINK_DEVICE_ID			0x3304
-#define HAL_HW_PCI_8192CET_DEVICE_ID			0x8191
-#define HAL_HW_PCI_8192CE_DEVICE_ID			0x8178
-#define HAL_HW_PCI_8191CE_DEVICE_ID			0x8177
-#define HAL_HW_PCI_8188CE_DEVICE_ID			0x8176
-#define HAL_HW_PCI_8192CU_DEVICE_ID			0x8191
-#define HAL_HW_PCI_8192DE_DEVICE_ID			0x092D
-#define HAL_HW_PCI_8192DU_DEVICE_ID			0x092D
 
 #define RTL819X_DEFAULT_RF_TYPE		RF_1T2R
 
@@ -150,16 +95,12 @@
 	(1600 + (MAX_802_11_HEADER_LENGTH + ENCRYPTION_MAX_OVERHEAD) *	\
 	 MAX_FRAGMENT_COUNT)
 
-#define scrclng				4
-
 #define DEFAULT_FRAG_THRESHOLD	2342U
 #define MIN_FRAG_THRESHOLD	256U
 #define DEFAULT_BEACONINTERVAL	0x64U
 
-#define DEFAULT_SSID		""
 #define DEFAULT_RETRY_RTS	7
 #define DEFAULT_RETRY_DATA	7
-#define PRISM_HDR_SIZE		64
 
 #define	PHY_RSSI_SLID_WIN_MAX			100
 
@@ -183,29 +124,6 @@
 
 extern int hwwep;
 
-enum RTL819x_PHY_PARAM {
-	RTL819X_PHY_MACPHY_REG			= 0,
-	RTL819X_PHY_MACPHY_REG_PG		= 1,
-	RTL8188C_PHY_MACREG			= 2,
-	RTL8192C_PHY_MACREG			= 3,
-	RTL819X_PHY_REG				= 4,
-	RTL819X_PHY_REG_1T2R			= 5,
-	RTL819X_PHY_REG_to1T1R			= 6,
-	RTL819X_PHY_REG_to1T2R			= 7,
-	RTL819X_PHY_REG_to2T2R			= 8,
-	RTL819X_PHY_REG_PG			= 9,
-	RTL819X_AGC_TAB				= 10,
-	RTL819X_PHY_RADIO_A			= 11,
-	RTL819X_PHY_RADIO_A_1T			= 12,
-	RTL819X_PHY_RADIO_A_2T			= 13,
-	RTL819X_PHY_RADIO_B			= 14,
-	RTL819X_PHY_RADIO_B_GM			= 15,
-	RTL819X_PHY_RADIO_C			= 16,
-	RTL819X_PHY_RADIO_D			= 17,
-	RTL819X_EEPROM_MAP			= 18,
-	RTL819X_EFUSE_MAP			= 19,
-};
-
 enum nic_t {
 	NIC_UNKNOWN     = 0,
 	NIC_8192E       = 1,
@@ -220,7 +138,6 @@ enum nic_t {
 enum rt_eeprom_type {
 	EEPROM_93C46,
 	EEPROM_93C56,
-	EEPROM_BOOT_EFUSE,
 };
 
 enum dcmg_txcmd_op {
@@ -240,19 +157,6 @@ enum rt_rf_type_819xu {
 	RF_8258,
 	RF_6052 = 4,
 	RF_PSEUDO_11N = 5,
-};
-
-enum rf_step {
-	RF_STEP_INIT = 0,
-	RF_STEP_NORMAL,
-	RF_STEP_MAX
-};
-
-enum rt_status {
-	RT_STATUS_SUCCESS,
-	RT_STATUS_FAILURE,
-	RT_STATUS_PENDING,
-	RT_STATUS_RESOURCE
 };
 
 enum rt_customer_id {
@@ -292,51 +196,6 @@ enum reset_type {
 	RESET_TYPE_NORESET = 0x00,
 	RESET_TYPE_NORMAL = 0x01,
 	RESET_TYPE_SILENT = 0x02
-};
-
-enum ic_inferiority_8192s {
-	IC_INFERIORITY_A	    = 0,
-	IC_INFERIORITY_B	    = 1,
-};
-
-enum pci_bridge_vendor {
-	PCI_BRIDGE_VENDOR_INTEL = 0x0,
-	PCI_BRIDGE_VENDOR_ATI,
-	PCI_BRIDGE_VENDOR_AMD,
-	PCI_BRIDGE_VENDOR_SIS,
-	PCI_BRIDGE_VENDOR_UNKNOWN,
-	PCI_BRIDGE_VENDOR_MAX,
-};
-
-struct buffer {
-	struct buffer *next;
-	u32 *buf;
-	dma_addr_t dma;
-
-};
-
-struct rtl_reg_debug {
-	unsigned int  cmd;
-	struct {
-		unsigned char type;
-		unsigned char addr;
-		unsigned char page;
-		unsigned char length;
-	} head;
-	unsigned char buf[0xff];
-};
-
-struct rt_tx_rahis {
-	u32	     cck[4];
-	u32	     ofdm[8];
-	u32	     ht_mcs[4][16];
-};
-
-struct rt_smooth_data_4rf {
-	char	elements[4][100];
-	u32	index;
-	u32	TotalNum;
-	u32	TotalVal[4];
 };
 
 struct rt_stats {
@@ -426,10 +285,8 @@ struct rt_stats {
 	u8 rx_rssi_percentage[4];
 	u8 rx_evm_percentage[2];
 	long rxSNRdB[4];
-	struct rt_tx_rahis txrate;
 	u32 Slide_Beacon_pwdb[100];
 	u32 Slide_Beacon_Total;
-	struct rt_smooth_data_4rf cck_adc_pwdb;
 	u32	CurrentShowTxate;
 };
 
@@ -440,15 +297,6 @@ struct channel_access_setting {
 	u16 EIFS_Timer;
 	u16 CWminIndex;
 	u16 CWmaxIndex;
-};
-
-enum two_port_status {
-	TWO_PORT_STATUS__DEFAULT_ONLY,
-	TWO_PORT_STATUS__EXTENSION_ONLY,
-	TWO_PORT_STATUS__EXTENSION_FOLLOW_DEFAULT,
-	TWO_PORT_STATUS__DEFAULT_G_EXTENSION_N20,
-	TWO_PORT_STATUS__ADHOC,
-	TWO_PORT_STATUS__WITHOUT_ANY_ASSOCIATE
 };
 
 struct init_gain {
@@ -553,7 +401,6 @@ struct r8192_priv {
 
 
 	enum rt_rf_type_819xu rf_chip;
-	enum ic_inferiority_8192s IC_Class;
 	enum ht_channel_width CurrentChannelBW;
 	struct bb_reg_definition PHYRegDef[4];
 	struct rate_adaptive rate_adaptive;
@@ -792,7 +639,6 @@ struct r8192_priv {
 	u8 bHwRfOffAction;
 
 	bool aspm_clkreq_enable;
-	u32 pci_bridge_vendor;
 	u8 RegHostPciASPMSetting;
 	u8 RegDevicePciASPMSetting;
 
