@@ -2199,14 +2199,6 @@ rtl8192_InitializeVariables(struct net_device  *dev)
 	priv->ShortRetryLimit = 0x30;
 	priv->LongRetryLimit = 0x30;
 
-	priv->EarlyRxThreshold = 7;
-	priv->pwrGroupCnt = 0;
-
-	priv->bIgnoreSilentReset = false;
-	priv->enable_gpio0 = 0;
-
-	priv->TransmitConfig = 0;
-
 	priv->ReceiveConfig = RCR_ADD3	|
 		RCR_AMF | RCR_ADF |
 		RCR_AICV |
@@ -2221,9 +2213,6 @@ rtl8192_InitializeVariables(struct net_device  *dev)
 			    IMR_RDU | IMR_RXFOVW | IMR_TXFOVW |
 			    IMR_BcnInt | IMR_TBDOK | IMR_TBDER);
 
-
-	priv->MidHighPwrTHR_L1 = 0x3B;
-	priv->MidHighPwrTHR_L2 = 0x40;
 	priv->PwrDomainProtect = false;
 
 	priv->bfirst_after_down = false;

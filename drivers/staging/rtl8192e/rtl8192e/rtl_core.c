@@ -1087,16 +1087,6 @@ static void rtl8192_init_priv_constant(struct net_device *dev)
 					&(priv->rtllib->PowerSaveControl);
 
 	pPSC->RegMaxLPSAwakeIntvl = 5;
-
-	priv->RegPciASPM = 2;
-
-	priv->RegDevicePciASPMSetting = 0x03;
-
-	priv->RegHostPciASPMSetting = 0x02;
-
-	priv->RegHwSwRfOffD3 = 2;
-
-	priv->RegSupportPciASPM = 2;
 }
 
 
@@ -1109,9 +1099,6 @@ static void rtl8192_init_priv_variable(struct net_device *dev)
 	priv->dot11CurrentPreambleMode = PREAMBLE_AUTO;
 	priv->rtllib->hwscan_sem_up = 1;
 	priv->rtllib->status = 0;
-	priv->H2CTxCmdSeq = 0;
-	priv->bDisableFrameBursting = false;
-	priv->bDMInitialGainEnable = true;
 	priv->polling_timer_on = 0;
 	priv->up_first_time = 1;
 	priv->blinked_ingpio = false;
@@ -1125,12 +1112,7 @@ static void rtl8192_init_priv_variable(struct net_device *dev)
 	priv->rxringcount = MAX_RX_COUNT;
 	priv->irq_enabled = 0;
 	priv->chan = 1;
-	priv->RegWirelessMode = WIRELESS_MODE_AUTO;
 	priv->RegChannelPlan = 0xf;
-	priv->nrxAMPDU_size = 0;
-	priv->nrxAMPDU_aggr_num = 0;
-	priv->last_rxdesc_tsf_high = 0;
-	priv->last_rxdesc_tsf_low = 0;
 	priv->rtllib->mode = WIRELESS_MODE_AUTO;
 	priv->rtllib->iw_mode = IW_MODE_INFRA;
 	priv->rtllib->bNetPromiscuousMode = false;
@@ -1176,12 +1158,6 @@ static void rtl8192_init_priv_variable(struct net_device *dev)
 	priv->rtllib->sta_sleep = LPS_IS_WAKE;
 	priv->rtllib->eRFPowerState = eRfOn;
 
-	priv->txpower_checkcnt = 0;
-	priv->thermal_readback_index = 0;
-	priv->txpower_tracking_callback_cnt = 0;
-	priv->ccktxpower_adjustcnt_ch14 = 0;
-	priv->ccktxpower_adjustcnt_not_ch14 = 0;
-
 	priv->rtllib->current_network.beacon_interval = DEFAULT_BEACONINTERVAL;
 	priv->rtllib->iw_mode = IW_MODE_INFRA;
 	priv->rtllib->active_scan = 1;
@@ -1198,13 +1174,11 @@ static void rtl8192_init_priv_variable(struct net_device *dev)
 
 	priv->card_type = PCI;
 
-	priv->AcmControl = 0;
 	priv->pFirmware = vzalloc(sizeof(struct rt_firmware));
 	if (!priv->pFirmware)
 		netdev_err(dev,
 			   "rtl8192e: Unable to allocate space for firmware\n");
 
-	skb_queue_head_init(&priv->rx_queue);
 	skb_queue_head_init(&priv->skb_queue);
 
 	for (i = 0; i < MAX_QUEUE_SIZE; i++)
@@ -1215,14 +1189,10 @@ static void rtl8192_init_priv_variable(struct net_device *dev)
 
 static void rtl8192_init_priv_lock(struct r8192_priv *priv)
 {
-	spin_lock_init(&priv->fw_scan_lock);
 	spin_lock_init(&priv->tx_lock);
-	spin_lock_init(&priv->irq_lock);
 	spin_lock_init(&priv->irq_th_lock);
 	spin_lock_init(&priv->rf_ps_lock);
 	spin_lock_init(&priv->ps_lock);
-	spin_lock_init(&priv->rf_lock);
-	spin_lock_init(&priv->rt_h2c_lock);
 	sema_init(&priv->wx_sem, 1);
 	sema_init(&priv->rf_sem, 1);
 	mutex_init(&priv->mutex);
@@ -2993,8 +2963,6 @@ static void rtl8192_pci_disconnect(struct pci_dev *pdev)
 			priv->irq = 0;
 		}
 		free_rtllib(dev);
-
-		kfree(priv->scan_cmd);
 
 		if (dev->mem_start != 0) {
 			iounmap((void __iomem *)dev->mem_start);
