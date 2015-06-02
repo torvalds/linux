@@ -545,4 +545,73 @@ struct gb_svc_conn_destroy_request {
 };
 /* connection destroy response has no payload */
 
+/* UART */
+
+/* Version of the Greybus UART protocol we support */
+#define GB_UART_VERSION_MAJOR		0x00
+#define GB_UART_VERSION_MINOR		0x01
+
+/* Greybus UART operation types */
+#define GB_UART_TYPE_INVALID			0x00
+#define GB_UART_TYPE_PROTOCOL_VERSION		0x01
+#define GB_UART_TYPE_SEND_DATA			0x02
+#define GB_UART_TYPE_RECEIVE_DATA		0x03	/* Unsolicited data */
+#define GB_UART_TYPE_SET_LINE_CODING		0x04
+#define GB_UART_TYPE_SET_CONTROL_LINE_STATE	0x05
+#define GB_UART_TYPE_SET_BREAK			0x06
+#define GB_UART_TYPE_SERIAL_STATE		0x07	/* Unsolicited data */
+
+struct gb_uart_send_data_request {
+	__le16	size;
+	__u8	data[0];
+};
+
+struct gb_serial_line_coding {
+	__le32	rate;
+	__u8	format;
+#define GB_SERIAL_1_STOP_BITS		0
+#define GB_SERIAL_1_5_STOP_BITS		1
+#define GB_SERIAL_2_STOP_BITS		2
+
+	__u8	parity;
+#define GB_SERIAL_NO_PARITY		0
+#define GB_SERIAL_ODD_PARITY		1
+#define GB_SERIAL_EVEN_PARITY		2
+#define GB_SERIAL_MARK_PARITY		3
+#define GB_SERIAL_SPACE_PARITY		4
+
+	__u8	data;
+};
+
+struct gb_uart_set_line_coding_request {
+	struct gb_serial_line_coding	line_coding;
+};
+
+/* output control lines */
+#define GB_UART_CTRL_DTR		0x01
+#define GB_UART_CTRL_RTS		0x02
+
+struct gb_uart_set_control_line_state_request {
+	__le16	control;
+};
+
+struct gb_uart_set_break_request {
+	__u8	state;
+};
+
+/* input control lines and line errors */
+#define GB_UART_CTRL_DCD		0x01
+#define GB_UART_CTRL_DSR		0x02
+#define GB_UART_CTRL_BRK		0x04
+#define GB_UART_CTRL_RI			0x08
+
+#define GB_UART_CTRL_FRAMING		0x10
+#define GB_UART_CTRL_PARITY		0x20
+#define GB_UART_CTRL_OVERRUN		0x40
+
+struct gb_uart_serial_state_request {
+	__u16	control;
+};
+
 #endif /* __GREYBUS_PROTOCOLS_H */
+
