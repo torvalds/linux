@@ -110,17 +110,23 @@ u64 nicvf_queue_reg_read(struct nicvf *nic, u64 offset, u64 qidx)
 
 /* VF -> PF mailbox communication */
 
+static void nicvf_write_to_mbx(struct nicvf *nic, union nic_mbx *mbx)
+{
+	u64 *msg = (u64 *)mbx;
+
+	nicvf_reg_write(nic, NIC_VF_PF_MAILBOX_0_1 + 0, msg[0]);
+	nicvf_reg_write(nic, NIC_VF_PF_MAILBOX_0_1 + 8, msg[1]);
+}
+
 int nicvf_send_msg_to_pf(struct nicvf *nic, union nic_mbx *mbx)
 {
 	int timeout = NIC_MBOX_MSG_TIMEOUT;
 	int sleep = 10;
-	u64 *msg = (u64 *)mbx;
 
 	nic->pf_acked = false;
 	nic->pf_nacked = false;
 
-	nicvf_reg_write(nic, NIC_VF_PF_MAILBOX_0_1 + 0, msg[0]);
-	nicvf_reg_write(nic, NIC_VF_PF_MAILBOX_0_1 + 8, msg[1]);
+	nicvf_write_to_mbx(nic, mbx);
 
 	/* Wait for previous message to be acked, timeout 2sec */
 	while (!nic->pf_acked) {
@@ -146,12 +152,13 @@ int nicvf_send_msg_to_pf(struct nicvf *nic, union nic_mbx *mbx)
 static int nicvf_check_pf_ready(struct nicvf *nic)
 {
 	int timeout = 5000, sleep = 20;
+	union nic_mbx mbx = {};
+
+	mbx.msg.msg = NIC_MBOX_MSG_READY;
 
 	nic->pf_ready_to_rcv_msg = false;
 
-	nicvf_reg_write(nic, NIC_VF_PF_MAILBOX_0_1 + 0,
-			le64_to_cpu(NIC_MBOX_MSG_READY));
-	nicvf_reg_write(nic, NIC_VF_PF_MAILBOX_0_1 + 8, 1ULL);
+	nicvf_write_to_mbx(nic, &mbx);
 
 	while (!nic->pf_ready_to_rcv_msg) {
 		msleep(sleep);
@@ -368,7 +375,9 @@ int nicvf_set_real_num_queues(struct net_device *netdev,
 static int nicvf_init_resources(struct nicvf *nic)
 {
 	int err;
-	u64 mbx_addr = NIC_VF_PF_MAILBOX_0_1;
+	union nic_mbx mbx = {};
+
+	mbx.msg.msg = NIC_MBOX_MSG_CFG_DONE;
 
 	/* Enable Qset */
 	nicvf_qset_config(nic, true);
@@ -382,9 +391,7 @@ static int nicvf_init_resources(struct nicvf *nic)
 	}
 
 	/* Send VF config done msg to PF */
-	nicvf_reg_write(nic, mbx_addr, le64_to_cpu(NIC_MBOX_MSG_CFG_DONE));
-	mbx_addr += (NIC_PF_VF_MAILBOX_SIZE - 1) * 8;
-	nicvf_reg_write(nic, mbx_addr, 1ULL);
+	nicvf_write_to_mbx(nic, &mbx);
 
 	return 0;
 }
