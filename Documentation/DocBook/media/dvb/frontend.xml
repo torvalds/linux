@@ -14,9 +14,9 @@
     <listitem><para>Satellite Equipment Control (SEC) hardware (only for Satellite).</para></listitem>
 </itemizedlist>
 <para>The frontend can be accessed through
-    <emphasis role="bold">/dev/dvb/adapter?/frontend?</emphasis>. Data types and
+    <constant>/dev/dvb/adapter?/frontend?</constant>. Data types and
     ioctl definitions can be accessed by including
-    <emphasis role="bold">linux/dvb/frontend.h</emphasis> in your application.
+    <constant>linux/dvb/frontend.h</constant> in your application.
 </para>
 
 <para>NOTE: Transmission via the internet (DVB-IP)

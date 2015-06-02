@@ -24,7 +24,7 @@ have been created to replace that functionality.</para>
 
 <section id="video-format-t">
 <title>video_format_t</title>
-<para>The <emphasis role="bold">video_format_t</emphasis> data type defined by
+<para>The <constant>video_format_t</constant> data type defined by
 </para>
 <programlisting>
 typedef enum {

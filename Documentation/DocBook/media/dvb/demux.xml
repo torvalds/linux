@@ -1,8 +1,8 @@
 <title>DVB Demux Device</title>
 
 <para>The DVB demux device controls the filters of the DVB hardware/software. It can be
-accessed through <emphasis role="bold">/dev/adapter0/demux0</emphasis>. Data types and and ioctl definitions can be
-accessed by including <emphasis role="bold">linux/dvb/dmx.h</emphasis> in your application.
+accessed through <constant>/dev/adapter?/demux?</constant>. Data types and and ioctl definitions can be
+accessed by including <constant>linux/dvb/dmx.h</constant> in your application.
 </para>
 <section id="dmx_types">
 <title>Demux Data Types</title>
@@ -21,11 +21,11 @@ typedef enum
 	DMX_OUT_TSDEMUX_TAP /&#x22C6; Like TS_TAP but retrieved from the DMX device &#x22C6;/
 } dmx_output_t;
 </programlisting>
-<para><emphasis role="bold">DMX_OUT_TAP</emphasis> delivers the stream output to the demux device on which the ioctl is
+<para><constant>DMX_OUT_TAP</constant> delivers the stream output to the demux device on which the ioctl is
 called.
 </para>
-<para><emphasis role="bold">DMX_OUT_TS_TAP</emphasis> routes output to the logical DVR device <emphasis role="bold">/dev/dvb/adapter0/dvr0</emphasis>,
-which delivers a TS multiplexed from all filters for which <emphasis role="bold">DMX_OUT_TS_TAP</emphasis> was
+<para><constant>DMX_OUT_TS_TAP</constant> routes output to the logical DVR device <constant>/dev/dvb/adapter?/dvr?</constant>,
+which delivers a TS multiplexed from all filters for which <constant>DMX_OUT_TS_TAP</constant> was
 specified.
 </para>
 </section>
