@@ -224,7 +224,6 @@ struct sge_params {
 };
 
 struct tp_params {
-	unsigned int ntxchan;        /* # of Tx channels */
 	unsigned int tre;            /* log2 of core clocks per TP tick */
 	unsigned int la_mask;        /* what events are recorded by TP LA */
 	unsigned short tx_modq_map;  /* TX modulation scheduler queue to */
@@ -273,6 +272,7 @@ struct pci_params {
 
 #define CHELSIO_T4		0x4
 #define CHELSIO_T5		0x5
+#define CHELSIO_T6		0x6
 
 enum chip_type {
 	T4_A1 = CHELSIO_CHIP_CODE(CHELSIO_T4, 1),
@@ -284,12 +284,25 @@ enum chip_type {
 	T5_A1 = CHELSIO_CHIP_CODE(CHELSIO_T5, 1),
 	T5_FIRST_REV	= T5_A0,
 	T5_LAST_REV	= T5_A1,
+
+	T6_A0 = CHELSIO_CHIP_CODE(CHELSIO_T6, 0),
+	T6_FIRST_REV    = T6_A0,
+	T6_LAST_REV     = T6_A0,
 };
 
 struct devlog_params {
 	u32 memtype;                    /* which memory (EDC0, EDC1, MC) */
 	u32 start;                      /* start of log in firmware memory */
 	u32 size;                       /* size of log */
+};
+
+/* Stores chip specific parameters */
+struct arch_specific_params {
+	u8 nchan;
+	u16 mps_rplc_size;
+	u16 vfcount;
+	u32 sge_fl_db;
+	u16 mps_tcam_size;
 };
 
 struct adapter_params {
@@ -317,6 +330,7 @@ struct adapter_params {
 	unsigned char nports;             /* # of ethernet ports */
 	unsigned char portvec;
 	enum chip_type chip;               /* chip code */
+	struct arch_specific_params arch;  /* chip specific params */
 	unsigned char offload;
 
 	unsigned char bypass;
@@ -849,6 +863,11 @@ enum {
 	VLAN_INSERT,
 	VLAN_REWRITE
 };
+
+static inline int is_t6(enum chip_type chip)
+{
+	return CHELSIO_CHIP_VERSION(chip) == CHELSIO_T6;
+}
 
 static inline int is_t5(enum chip_type chip)
 {

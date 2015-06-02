@@ -150,7 +150,12 @@ void t4_write_indirect(struct adapter *adap, unsigned int addr_reg,
  */
 void t4_hw_pci_read_cfg4(struct adapter *adap, int reg, u32 *val)
 {
-	u32 req = ENABLE_F | FUNCTION_V(adap->pf) | REGISTER_V(reg);
+	u32 req = FUNCTION_V(adap->pf) | REGISTER_V(reg);
+
+	if (CHELSIO_CHIP_VERSION(adap->params.chip) <= CHELSIO_T5)
+		req |= ENABLE_F;
+	else
+		req |= T6_ENABLE_F;
 
 	if (is_t4(adap->params.chip))
 		req |= LOCALCFG_F;
@@ -381,9 +386,8 @@ int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
 	/* Offset into the region of memory which is being accessed
 	 * MEM_EDC0 = 0
 	 * MEM_EDC1 = 1
-	 * MEM_MC   = 2 -- T4
-	 * MEM_MC0  = 2 -- For T5
-	 * MEM_MC1  = 3 -- For T5
+	 * MEM_MC   = 2 -- MEM_MC for chips with only 1 memory controller
+	 * MEM_MC1  = 3 -- for chips with 2 memory controllers (e.g. T5)
 	 */
 	edc_size  = EDRAM0_SIZE_G(t4_read_reg(adap, MA_EDRAM0_BAR_A));
 	if (mtype != MEM_MC1)
@@ -634,6 +638,7 @@ unsigned int t4_get_regs_len(struct adapter *adapter)
 		return T4_REGMAP_SIZE;
 
 	case CHELSIO_T5:
+	case CHELSIO_T6:
 		return T5_REGMAP_SIZE;
 	}
 
@@ -1316,6 +1321,344 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x51300, 0x51308,
 	};
 
+	static const unsigned int t6_reg_ranges[] = {
+		0x1008, 0x114c,
+		0x1180, 0x11b4,
+		0x11fc, 0x1250,
+		0x1280, 0x133c,
+		0x1800, 0x18fc,
+		0x3000, 0x302c,
+		0x3060, 0x30d8,
+		0x30e0, 0x30fc,
+		0x3140, 0x357c,
+		0x35a8, 0x35cc,
+		0x35ec, 0x35ec,
+		0x3600, 0x5624,
+		0x56cc, 0x575c,
+		0x580c, 0x5814,
+		0x5890, 0x58bc,
+		0x5940, 0x595c,
+		0x5980, 0x598c,
+		0x59b0, 0x59dc,
+		0x59fc, 0x5a18,
+		0x5a60, 0x5a6c,
+		0x5a80, 0x5a9c,
+		0x5b94, 0x5bfc,
+		0x5c10, 0x5ec0,
+		0x5ec8, 0x5ec8,
+		0x6000, 0x6040,
+		0x6058, 0x6154,
+		0x7700, 0x7798,
+		0x77c0, 0x7880,
+		0x78cc, 0x78fc,
+		0x7b00, 0x7c54,
+		0x7d00, 0x7efc,
+		0x8dc0, 0x8de0,
+		0x8df8, 0x8e84,
+		0x8ea0, 0x8f88,
+		0x8fb8, 0x911c,
+		0x9400, 0x9470,
+		0x9600, 0x971c,
+		0x9800, 0x9808,
+		0x9820, 0x983c,
+		0x9850, 0x9864,
+		0x9c00, 0x9c6c,
+		0x9c80, 0x9cec,
+		0x9d00, 0x9d6c,
+		0x9d80, 0x9dec,
+		0x9e00, 0x9e6c,
+		0x9e80, 0x9eec,
+		0x9f00, 0x9f6c,
+		0x9f80, 0xa020,
+		0xd004, 0xd03c,
+		0xdfc0, 0xdfe0,
+		0xe000, 0xf008,
+		0x11000, 0x11014,
+		0x11048, 0x11110,
+		0x11118, 0x1117c,
+		0x11190, 0x11260,
+		0x11300, 0x1130c,
+		0x12000, 0x1205c,
+		0x19040, 0x1906c,
+		0x19078, 0x19080,
+		0x1908c, 0x19124,
+		0x19150, 0x191b0,
+		0x191d0, 0x191e8,
+		0x19238, 0x192b8,
+		0x193f8, 0x19474,
+		0x19490, 0x194cc,
+		0x194f0, 0x194f8,
+		0x19c00, 0x19c80,
+		0x19c94, 0x19cbc,
+		0x19ce4, 0x19d28,
+		0x19d50, 0x19d78,
+		0x19d94, 0x19dc8,
+		0x19df0, 0x19e10,
+		0x19e50, 0x19e6c,
+		0x19ea0, 0x19f34,
+		0x19f40, 0x19f50,
+		0x19f90, 0x19fac,
+		0x19fc4, 0x19fe4,
+		0x1a000, 0x1a06c,
+		0x1a0b0, 0x1a120,
+		0x1a128, 0x1a138,
+		0x1a190, 0x1a1c4,
+		0x1a1fc, 0x1a1fc,
+		0x1e008, 0x1e00c,
+		0x1e040, 0x1e04c,
+		0x1e284, 0x1e290,
+		0x1e2c0, 0x1e2c0,
+		0x1e2e0, 0x1e2e0,
+		0x1e300, 0x1e384,
+		0x1e3c0, 0x1e3c8,
+		0x1e408, 0x1e40c,
+		0x1e440, 0x1e44c,
+		0x1e684, 0x1e690,
+		0x1e6c0, 0x1e6c0,
+		0x1e6e0, 0x1e6e0,
+		0x1e700, 0x1e784,
+		0x1e7c0, 0x1e7c8,
+		0x1e808, 0x1e80c,
+		0x1e840, 0x1e84c,
+		0x1ea84, 0x1ea90,
+		0x1eac0, 0x1eac0,
+		0x1eae0, 0x1eae0,
+		0x1eb00, 0x1eb84,
+		0x1ebc0, 0x1ebc8,
+		0x1ec08, 0x1ec0c,
+		0x1ec40, 0x1ec4c,
+		0x1ee84, 0x1ee90,
+		0x1eec0, 0x1eec0,
+		0x1eee0, 0x1eee0,
+		0x1ef00, 0x1ef84,
+		0x1efc0, 0x1efc8,
+		0x1f008, 0x1f00c,
+		0x1f040, 0x1f04c,
+		0x1f284, 0x1f290,
+		0x1f2c0, 0x1f2c0,
+		0x1f2e0, 0x1f2e0,
+		0x1f300, 0x1f384,
+		0x1f3c0, 0x1f3c8,
+		0x1f408, 0x1f40c,
+		0x1f440, 0x1f44c,
+		0x1f684, 0x1f690,
+		0x1f6c0, 0x1f6c0,
+		0x1f6e0, 0x1f6e0,
+		0x1f700, 0x1f784,
+		0x1f7c0, 0x1f7c8,
+		0x1f808, 0x1f80c,
+		0x1f840, 0x1f84c,
+		0x1fa84, 0x1fa90,
+		0x1fac0, 0x1fac0,
+		0x1fae0, 0x1fae0,
+		0x1fb00, 0x1fb84,
+		0x1fbc0, 0x1fbc8,
+		0x1fc08, 0x1fc0c,
+		0x1fc40, 0x1fc4c,
+		0x1fe84, 0x1fe90,
+		0x1fec0, 0x1fec0,
+		0x1fee0, 0x1fee0,
+		0x1ff00, 0x1ff84,
+		0x1ffc0, 0x1ffc8,
+		0x30000, 0x30070,
+		0x30100, 0x3015c,
+		0x30190, 0x301d0,
+		0x30200, 0x30318,
+		0x30400, 0x3052c,
+		0x30540, 0x3061c,
+		0x30800, 0x3088c,
+		0x308c0, 0x30908,
+		0x30910, 0x309b8,
+		0x30a00, 0x30a04,
+		0x30a0c, 0x30a2c,
+		0x30a44, 0x30a50,
+		0x30a74, 0x30c24,
+		0x30d00, 0x30d3c,
+		0x30d44, 0x30d7c,
+		0x30de0, 0x30de0,
+		0x30e00, 0x30ed4,
+		0x30f00, 0x30fa4,
+		0x30fc0, 0x30fc4,
+		0x31000, 0x31004,
+		0x31080, 0x310fc,
+		0x31208, 0x31220,
+		0x3123c, 0x31254,
+		0x31300, 0x31300,
+		0x31308, 0x3131c,
+		0x31338, 0x3133c,
+		0x31380, 0x31380,
+		0x31388, 0x313a8,
+		0x313b4, 0x313b4,
+		0x31400, 0x31420,
+		0x31438, 0x3143c,
+		0x31480, 0x31480,
+		0x314a8, 0x314a8,
+		0x314b0, 0x314b4,
+		0x314c8, 0x314d4,
+		0x31a40, 0x31a4c,
+		0x31af0, 0x31b20,
+		0x31b38, 0x31b3c,
+		0x31b80, 0x31b80,
+		0x31ba8, 0x31ba8,
+		0x31bb0, 0x31bb4,
+		0x31bc8, 0x31bd4,
+		0x32140, 0x3218c,
+		0x321f0, 0x32200,
+		0x32218, 0x32218,
+		0x32400, 0x32400,
+		0x32408, 0x3241c,
+		0x32618, 0x32620,
+		0x32664, 0x32664,
+		0x326a8, 0x326a8,
+		0x326ec, 0x326ec,
+		0x32a00, 0x32abc,
+		0x32b00, 0x32b78,
+		0x32c00, 0x32c00,
+		0x32c08, 0x32c3c,
+		0x32e00, 0x32e2c,
+		0x32f00, 0x32f2c,
+		0x33000, 0x330ac,
+		0x330c0, 0x331ac,
+		0x331c0, 0x332c4,
+		0x332e4, 0x333c4,
+		0x333e4, 0x334ac,
+		0x334c0, 0x335ac,
+		0x335c0, 0x336c4,
+		0x336e4, 0x337c4,
+		0x337e4, 0x337fc,
+		0x33814, 0x33814,
+		0x33854, 0x33868,
+		0x33880, 0x3388c,
+		0x338c0, 0x338d0,
+		0x338e8, 0x338ec,
+		0x33900, 0x339ac,
+		0x339c0, 0x33ac4,
+		0x33ae4, 0x33b10,
+		0x33b24, 0x33b50,
+		0x33bf0, 0x33c10,
+		0x33c24, 0x33c50,
+		0x33cf0, 0x33cfc,
+		0x34000, 0x34070,
+		0x34100, 0x3415c,
+		0x34190, 0x341d0,
+		0x34200, 0x34318,
+		0x34400, 0x3452c,
+		0x34540, 0x3461c,
+		0x34800, 0x3488c,
+		0x348c0, 0x34908,
+		0x34910, 0x349b8,
+		0x34a00, 0x34a04,
+		0x34a0c, 0x34a2c,
+		0x34a44, 0x34a50,
+		0x34a74, 0x34c24,
+		0x34d00, 0x34d3c,
+		0x34d44, 0x34d7c,
+		0x34de0, 0x34de0,
+		0x34e00, 0x34ed4,
+		0x34f00, 0x34fa4,
+		0x34fc0, 0x34fc4,
+		0x35000, 0x35004,
+		0x35080, 0x350fc,
+		0x35208, 0x35220,
+		0x3523c, 0x35254,
+		0x35300, 0x35300,
+		0x35308, 0x3531c,
+		0x35338, 0x3533c,
+		0x35380, 0x35380,
+		0x35388, 0x353a8,
+		0x353b4, 0x353b4,
+		0x35400, 0x35420,
+		0x35438, 0x3543c,
+		0x35480, 0x35480,
+		0x354a8, 0x354a8,
+		0x354b0, 0x354b4,
+		0x354c8, 0x354d4,
+		0x35a40, 0x35a4c,
+		0x35af0, 0x35b20,
+		0x35b38, 0x35b3c,
+		0x35b80, 0x35b80,
+		0x35ba8, 0x35ba8,
+		0x35bb0, 0x35bb4,
+		0x35bc8, 0x35bd4,
+		0x36140, 0x3618c,
+		0x361f0, 0x36200,
+		0x36218, 0x36218,
+		0x36400, 0x36400,
+		0x36408, 0x3641c,
+		0x36618, 0x36620,
+		0x36664, 0x36664,
+		0x366a8, 0x366a8,
+		0x366ec, 0x366ec,
+		0x36a00, 0x36abc,
+		0x36b00, 0x36b78,
+		0x36c00, 0x36c00,
+		0x36c08, 0x36c3c,
+		0x36e00, 0x36e2c,
+		0x36f00, 0x36f2c,
+		0x37000, 0x370ac,
+		0x370c0, 0x371ac,
+		0x371c0, 0x372c4,
+		0x372e4, 0x373c4,
+		0x373e4, 0x374ac,
+		0x374c0, 0x375ac,
+		0x375c0, 0x376c4,
+		0x376e4, 0x377c4,
+		0x377e4, 0x377fc,
+		0x37814, 0x37814,
+		0x37854, 0x37868,
+		0x37880, 0x3788c,
+		0x378c0, 0x378d0,
+		0x378e8, 0x378ec,
+		0x37900, 0x379ac,
+		0x379c0, 0x37ac4,
+		0x37ae4, 0x37b10,
+		0x37b24, 0x37b50,
+		0x37bf0, 0x37c10,
+		0x37c24, 0x37c50,
+		0x37cf0, 0x37cfc,
+		0x40040, 0x40040,
+		0x40080, 0x40084,
+		0x40100, 0x40100,
+		0x40140, 0x401bc,
+		0x40200, 0x40214,
+		0x40228, 0x40228,
+		0x40240, 0x40258,
+		0x40280, 0x40280,
+		0x40304, 0x40304,
+		0x40330, 0x4033c,
+		0x41304, 0x413dc,
+		0x41400, 0x4141c,
+		0x41480, 0x414d0,
+		0x44000, 0x4407c,
+		0x440c0, 0x4427c,
+		0x442c0, 0x4447c,
+		0x444c0, 0x4467c,
+		0x446c0, 0x4487c,
+		0x448c0, 0x44a7c,
+		0x44ac0, 0x44c7c,
+		0x44cc0, 0x44e7c,
+		0x44ec0, 0x4507c,
+		0x450c0, 0x451fc,
+		0x45800, 0x45868,
+		0x45880, 0x45884,
+		0x458a0, 0x458b0,
+		0x45a00, 0x45a68,
+		0x45a80, 0x45a84,
+		0x45aa0, 0x45ab0,
+		0x460c0, 0x460e4,
+		0x47000, 0x4708c,
+		0x47200, 0x47250,
+		0x47400, 0x47420,
+		0x47600, 0x47618,
+		0x47800, 0x4782c,
+		0x50000, 0x500cc,
+		0x50400, 0x50400,
+		0x50800, 0x508cc,
+		0x50c00, 0x50c00,
+		0x51000, 0x510b0,
+		0x51300, 0x51324,
+	};
+
 	u32 *buf_end = (u32 *)((char *)buf + buf_size);
 	const unsigned int *reg_ranges;
 	int reg_ranges_size, range;
@@ -1333,6 +1676,11 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 	case CHELSIO_T5:
 		reg_ranges = t5_reg_ranges;
 		reg_ranges_size = ARRAY_SIZE(t5_reg_ranges);
+		break;
+
+	case CHELSIO_T6:
+		reg_ranges = t6_reg_ranges;
+		reg_ranges_size = ARRAY_SIZE(t6_reg_ranges);
 		break;
 
 	default:
@@ -1948,7 +2296,8 @@ static bool t4_fw_matches_chip(const struct adapter *adap,
 	 * which will keep us "honest" in the future ...
 	 */
 	if ((is_t4(adap->params.chip) && hdr->chip == FW_HDR_CHIP_T4) ||
-	    (is_t5(adap->params.chip) && hdr->chip == FW_HDR_CHIP_T5))
+	    (is_t5(adap->params.chip) && hdr->chip == FW_HDR_CHIP_T5) ||
+	    (is_t6(adap->params.chip) && hdr->chip == FW_HDR_CHIP_T6))
 		return true;
 
 	dev_err(adap->pdev_dev,
@@ -2488,6 +2837,7 @@ static void tp_intr_handler(struct adapter *adapter)
 static void sge_intr_handler(struct adapter *adapter)
 {
 	u64 v;
+	u32 err;
 
 	static const struct intr_info sge_intr_info[] = {
 		{ ERR_CPL_EXCEED_IQE_SIZE_F,
@@ -2496,8 +2846,6 @@ static void sge_intr_handler(struct adapter *adapter)
 		  "SGE GTS CIDX increment too large", -1, 0 },
 		{ ERR_CPL_OPCODE_0_F, "SGE received 0-length CPL", -1, 0 },
 		{ DBFIFO_LP_INT_F, NULL, -1, 0, t4_db_full },
-		{ DBFIFO_HP_INT_F, NULL, -1, 0, t4_db_full },
-		{ ERR_DROPPED_DB_F, NULL, -1, 0, t4_db_dropped },
 		{ ERR_DATA_CPL_ON_HIGH_QID1_F | ERR_DATA_CPL_ON_HIGH_QID0_F,
 		  "SGE IQID > 1023 received CPL for FL", -1, 0 },
 		{ ERR_BAD_DB_PIDX3_F, "SGE DBP 3 pidx increment too large", -1,
@@ -2510,10 +2858,16 @@ static void sge_intr_handler(struct adapter *adapter)
 		  0 },
 		{ ERR_ING_CTXT_PRIO_F,
 		  "SGE too many priority ingress contexts", -1, 0 },
-		{ ERR_EGR_CTXT_PRIO_F,
-		  "SGE too many priority egress contexts", -1, 0 },
 		{ INGRESS_SIZE_ERR_F, "SGE illegal ingress QID", -1, 0 },
 		{ EGRESS_SIZE_ERR_F, "SGE illegal egress QID", -1, 0 },
+		{ 0 }
+	};
+
+	static struct intr_info t4t5_sge_intr_info[] = {
+		{ ERR_DROPPED_DB_F, NULL, -1, 0, t4_db_dropped },
+		{ DBFIFO_HP_INT_F, NULL, -1, 0, t4_db_full },
+		{ ERR_EGR_CTXT_PRIO_F,
+		  "SGE too many priority egress contexts", -1, 0 },
 		{ 0 }
 	};
 
@@ -2526,8 +2880,23 @@ static void sge_intr_handler(struct adapter *adapter)
 		t4_write_reg(adapter, SGE_INT_CAUSE2_A, v >> 32);
 	}
 
-	if (t4_handle_intr_status(adapter, SGE_INT_CAUSE3_A, sge_intr_info) ||
-	    v != 0)
+	v |= t4_handle_intr_status(adapter, SGE_INT_CAUSE3_A, sge_intr_info);
+	if (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5)
+		v |= t4_handle_intr_status(adapter, SGE_INT_CAUSE3_A,
+					   t4t5_sge_intr_info);
+
+	err = t4_read_reg(adapter, SGE_ERROR_STATS_A);
+	if (err & ERROR_QID_VALID_F) {
+		dev_err(adapter->pdev_dev, "SGE error for queue %u\n",
+			ERROR_QID_G(err));
+		if (err & UNCAPTURED_ERROR_F)
+			dev_err(adapter->pdev_dev,
+				"SGE UNCAPTURED_ERROR set (clearing)\n");
+		t4_write_reg(adapter, SGE_ERROR_STATS_A, ERROR_QID_VALID_F |
+			     UNCAPTURED_ERROR_F);
+	}
+
+	if (v != 0)
 		t4_fatal_err(adapter);
 }
 
@@ -2700,6 +3069,7 @@ static void cplsw_intr_handler(struct adapter *adapter)
  */
 static void le_intr_handler(struct adapter *adap)
 {
+	enum chip_type chip = CHELSIO_CHIP_VERSION(adap->params.chip);
 	static const struct intr_info le_intr_info[] = {
 		{ LIPMISS_F, "LE LIP miss", -1, 0 },
 		{ LIP0_F, "LE 0 LIP error", -1, 0 },
@@ -2709,7 +3079,18 @@ static void le_intr_handler(struct adapter *adap)
 		{ 0 }
 	};
 
-	if (t4_handle_intr_status(adap, LE_DB_INT_CAUSE_A, le_intr_info))
+	static struct intr_info t6_le_intr_info[] = {
+		{ T6_LIPMISS_F, "LE LIP miss", -1, 0 },
+		{ T6_LIP0_F, "LE 0 LIP error", -1, 0 },
+		{ TCAMINTPERR_F, "LE parity error", -1, 1 },
+		{ T6_UNKNOWNCMD_F, "LE unknown command", -1, 1 },
+		{ SSRAMINTPERR_F, "LE request queue parity error", -1, 1 },
+		{ 0 }
+	};
+
+	if (t4_handle_intr_status(adap, LE_DB_INT_CAUSE_A,
+				  (chip <= CHELSIO_T5) ?
+				  le_intr_info : t6_le_intr_info))
 		t4_fatal_err(adap);
 }
 
@@ -2978,7 +3359,7 @@ int t4_slow_intr_handler(struct adapter *adapter)
 		pcie_intr_handler(adapter);
 	if (cause & MC_F)
 		mem_intr_handler(adapter, MEM_MC);
-	if (!is_t4(adapter->params.chip) && (cause & MC1_S))
+	if (is_t5(adapter->params.chip) && (cause & MC1_F))
 		mem_intr_handler(adapter, MEM_MC1);
 	if (cause & EDC0_F)
 		mem_intr_handler(adapter, MEM_EDC0);
@@ -3024,17 +3405,18 @@ int t4_slow_intr_handler(struct adapter *adapter)
  */
 void t4_intr_enable(struct adapter *adapter)
 {
+	u32 val = 0;
 	u32 pf = SOURCEPF_G(t4_read_reg(adapter, PL_WHOAMI_A));
 
+	if (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5)
+		val = ERR_DROPPED_DB_F | ERR_EGR_CTXT_PRIO_F | DBFIFO_HP_INT_F;
 	t4_write_reg(adapter, SGE_INT_ENABLE3_A, ERR_CPL_EXCEED_IQE_SIZE_F |
 		     ERR_INVALID_CIDX_INC_F | ERR_CPL_OPCODE_0_F |
-		     ERR_DROPPED_DB_F | ERR_DATA_CPL_ON_HIGH_QID1_F |
+		     ERR_DATA_CPL_ON_HIGH_QID1_F | INGRESS_SIZE_ERR_F |
 		     ERR_DATA_CPL_ON_HIGH_QID0_F | ERR_BAD_DB_PIDX3_F |
 		     ERR_BAD_DB_PIDX2_F | ERR_BAD_DB_PIDX1_F |
 		     ERR_BAD_DB_PIDX0_F | ERR_ING_CTXT_PRIO_F |
-		     ERR_EGR_CTXT_PRIO_F | INGRESS_SIZE_ERR_F |
-		     DBFIFO_HP_INT_F | DBFIFO_LP_INT_F |
-		     EGRESS_SIZE_ERR_F);
+		     DBFIFO_LP_INT_F | EGRESS_SIZE_ERR_F | val);
 	t4_write_reg(adapter, MYPF_REG(PL_PF_INT_ENABLE_A), PF_INTR_MASK);
 	t4_set_reg_field(adapter, PL_INT_MAP0_A, 0, 1 << pf);
 }
@@ -3248,11 +3630,29 @@ void t4_read_rss_key(struct adapter *adap, u32 *key)
  */
 void t4_write_rss_key(struct adapter *adap, const u32 *key, int idx)
 {
+	u8 rss_key_addr_cnt = 16;
+	u32 vrt = t4_read_reg(adap, TP_RSS_CONFIG_VRT_A);
+
+	/* T6 and later: for KeyMode 3 (per-vf and per-vf scramble),
+	 * allows access to key addresses 16-63 by using KeyWrAddrX
+	 * as index[5:4](upper 2) into key table
+	 */
+	if ((CHELSIO_CHIP_VERSION(adap->params.chip) > CHELSIO_T5) &&
+	    (vrt & KEYEXTEND_F) && (KEYMODE_G(vrt) == 3))
+		rss_key_addr_cnt = 32;
+
 	t4_write_indirect(adap, TP_PIO_ADDR_A, TP_PIO_DATA_A, key, 10,
 			  TP_RSS_SECRET_KEY0_A);
-	if (idx >= 0 && idx < 16)
-		t4_write_reg(adap, TP_RSS_CONFIG_VRT_A,
-			     KEYWRADDR_V(idx) | KEYWREN_F);
+
+	if (idx >= 0 && idx < rss_key_addr_cnt) {
+		if (rss_key_addr_cnt > 16)
+			t4_write_reg(adap, TP_RSS_CONFIG_VRT_A,
+				     KEYWRADDRX_V(idx >> 4) |
+				     T6_VFWRADDR_V(idx) | KEYWREN_F);
+		else
+			t4_write_reg(adap, TP_RSS_CONFIG_VRT_A,
+				     KEYWRADDR_V(idx) | KEYWREN_F);
+	}
 }
 
 /**
@@ -3286,8 +3686,13 @@ void t4_read_rss_vf_config(struct adapter *adapter, unsigned int index,
 {
 	u32 vrt, mask, data;
 
-	mask = VFWRADDR_V(VFWRADDR_M);
-	data = VFWRADDR_V(index);
+	if (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5) {
+		mask = VFWRADDR_V(VFWRADDR_M);
+		data = VFWRADDR_V(index);
+	} else {
+		 mask =  T6_VFWRADDR_V(T6_VFWRADDR_M);
+		 data = T6_VFWRADDR_V(index);
+	}
 
 	/* Request that the index'th VF Table values be read into VFL/VFH.
 	 */
@@ -4798,45 +5203,71 @@ int t4_alloc_mac_filt(struct adapter *adap, unsigned int mbox,
 		      unsigned int viid, bool free, unsigned int naddr,
 		      const u8 **addr, u16 *idx, u64 *hash, bool sleep_ok)
 {
-	int i, ret;
+	int offset, ret = 0;
 	struct fw_vi_mac_cmd c;
-	struct fw_vi_mac_exact *p;
-	unsigned int max_naddr = is_t4(adap->params.chip) ?
-				       NUM_MPS_CLS_SRAM_L_INSTANCES :
-				       NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
+	unsigned int nfilters = 0;
+	unsigned int max_naddr = adap->params.arch.mps_tcam_size;
+	unsigned int rem = naddr;
 
-	if (naddr > 7)
+	if (naddr > max_naddr)
 		return -EINVAL;
 
-	memset(&c, 0, sizeof(c));
-	c.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_MAC_CMD) |
-				   FW_CMD_REQUEST_F | FW_CMD_WRITE_F |
-				   (free ? FW_CMD_EXEC_F : 0) |
-				   FW_VI_MAC_CMD_VIID_V(viid));
-	c.freemacs_to_len16 = cpu_to_be32(FW_VI_MAC_CMD_FREEMACS_V(free) |
-					  FW_CMD_LEN16_V((naddr + 2) / 2));
+	for (offset = 0; offset < naddr ; /**/) {
+		unsigned int fw_naddr = (rem < ARRAY_SIZE(c.u.exact) ?
+					 rem : ARRAY_SIZE(c.u.exact));
+		size_t len16 = DIV_ROUND_UP(offsetof(struct fw_vi_mac_cmd,
+						     u.exact[fw_naddr]), 16);
+		struct fw_vi_mac_exact *p;
+		int i;
 
-	for (i = 0, p = c.u.exact; i < naddr; i++, p++) {
-		p->valid_to_idx =
-			cpu_to_be16(FW_VI_MAC_CMD_VALID_F |
-				    FW_VI_MAC_CMD_IDX_V(FW_VI_MAC_ADD_MAC));
-		memcpy(p->macaddr, addr[i], sizeof(p->macaddr));
+		memset(&c, 0, sizeof(c));
+		c.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_MAC_CMD) |
+					   FW_CMD_REQUEST_F |
+					   FW_CMD_WRITE_F |
+					   FW_CMD_EXEC_V(free) |
+					   FW_VI_MAC_CMD_VIID_V(viid));
+		c.freemacs_to_len16 =
+			cpu_to_be32(FW_VI_MAC_CMD_FREEMACS_V(free) |
+				    FW_CMD_LEN16_V(len16));
+
+		for (i = 0, p = c.u.exact; i < fw_naddr; i++, p++) {
+			p->valid_to_idx =
+				cpu_to_be16(FW_VI_MAC_CMD_VALID_F |
+					    FW_VI_MAC_CMD_IDX_V(
+						    FW_VI_MAC_ADD_MAC));
+			memcpy(p->macaddr, addr[offset + i],
+			       sizeof(p->macaddr));
+		}
+
+		/* It's okay if we run out of space in our MAC address arena.
+		 * Some of the addresses we submit may get stored so we need
+		 * to run through the reply to see what the results were ...
+		 */
+		ret = t4_wr_mbox_meat(adap, mbox, &c, sizeof(c), &c, sleep_ok);
+		if (ret && ret != -FW_ENOMEM)
+			break;
+
+		for (i = 0, p = c.u.exact; i < fw_naddr; i++, p++) {
+			u16 index = FW_VI_MAC_CMD_IDX_G(
+					be16_to_cpu(p->valid_to_idx));
+
+			if (idx)
+				idx[offset + i] = (index >= max_naddr ?
+						   0xffff : index);
+			if (index < max_naddr)
+				nfilters++;
+			else if (hash)
+				*hash |= (1ULL <<
+					  hash_mac_addr(addr[offset + i]));
+		}
+
+		free = false;
+		offset += fw_naddr;
+		rem -= fw_naddr;
 	}
 
-	ret = t4_wr_mbox_meat(adap, mbox, &c, sizeof(c), &c, sleep_ok);
-	if (ret)
-		return ret;
-
-	for (i = 0, p = c.u.exact; i < naddr; i++, p++) {
-		u16 index = FW_VI_MAC_CMD_IDX_G(be16_to_cpu(p->valid_to_idx));
-
-		if (idx)
-			idx[i] = index >= max_naddr ? 0xffff : index;
-		if (index < max_naddr)
-			ret++;
-		else if (hash)
-			*hash |= (1ULL << hash_mac_addr(addr[i]));
-	}
+	if (ret == 0 || ret == -FW_ENOMEM)
+		ret = nfilters;
 	return ret;
 }
 
@@ -4865,9 +5296,7 @@ int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
 	int ret, mode;
 	struct fw_vi_mac_cmd c;
 	struct fw_vi_mac_exact *p = c.u.exact;
-	unsigned int max_mac_addr = is_t4(adap->params.chip) ?
-				    NUM_MPS_CLS_SRAM_L_INSTANCES :
-				    NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
+	unsigned int max_mac_addr = adap->params.arch.mps_tcam_size;
 
 	if (idx < 0)                             /* new allocation */
 		idx = persist ? FW_VI_MAC_ADD_PERSIST_MAC : FW_VI_MAC_ADD_MAC;
@@ -5276,9 +5705,30 @@ int t4_prep_adapter(struct adapter *adapter)
 	switch (ver) {
 	case CHELSIO_T4:
 		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T4, pl_rev);
+		adapter->params.arch.sge_fl_db = DBPRIO_F;
+		adapter->params.arch.mps_tcam_size =
+				 NUM_MPS_CLS_SRAM_L_INSTANCES;
+		adapter->params.arch.mps_rplc_size = 128;
+		adapter->params.arch.nchan = NCHAN;
+		adapter->params.arch.vfcount = 128;
 		break;
 	case CHELSIO_T5:
 		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T5, pl_rev);
+		adapter->params.arch.sge_fl_db = DBPRIO_F | DBTYPE_F;
+		adapter->params.arch.mps_tcam_size =
+				 NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
+		adapter->params.arch.mps_rplc_size = 128;
+		adapter->params.arch.nchan = NCHAN;
+		adapter->params.arch.vfcount = 128;
+		break;
+	case CHELSIO_T6:
+		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T6, pl_rev);
+		adapter->params.arch.sge_fl_db = 0;
+		adapter->params.arch.mps_tcam_size =
+				 NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
+		adapter->params.arch.mps_rplc_size = 256;
+		adapter->params.arch.nchan = 2;
+		adapter->params.arch.vfcount = 256;
 		break;
 	default:
 		dev_err(adapter->pdev_dev, "Device %d is not supported\n",
