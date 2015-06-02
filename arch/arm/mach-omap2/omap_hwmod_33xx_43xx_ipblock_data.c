@@ -203,6 +203,19 @@ struct omap_hwmod am33xx_prcm_hwmod = {
 };
 
 /*
+ * 'emif' class
+ * instance(s): emif
+ */
+static struct omap_hwmod_class_sysconfig am33xx_emif_sysc = {
+	.rev_offs	= 0x0000,
+};
+
+struct omap_hwmod_class am33xx_emif_hwmod_class = {
+	.name		= "emif",
+	.sysc		= &am33xx_emif_sysc,
+};
+
+/*
  * 'aes0' class
  */
 static struct omap_hwmod_class_sysconfig am33xx_aes0_sysc = {
