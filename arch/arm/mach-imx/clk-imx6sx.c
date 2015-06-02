@@ -23,6 +23,7 @@
 
 #include "clk.h"
 #include "common.h"
+#include "hardware.h"
 
 #define CCM_CCGR_OFFSET(index)		(index * 2)
 #define CCDR    0x4
@@ -689,7 +690,7 @@ static int __init imx_amp_power_init(void)
 	int i;
 	void __iomem *shared_mem_base;
 
-	if (!imx_src_is_m4_enabled())
+	if (!(imx_src_is_m4_enabled() && cpu_is_imx6sx()))
 		return 0;
 
 	amp_power_mutex = imx_sema4_mutex_create(0, MCC_POWER_SHMEM_NUMBER);

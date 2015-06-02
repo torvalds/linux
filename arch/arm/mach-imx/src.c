@@ -34,6 +34,7 @@
 #define SRC_GPR1_V2			0x074
 #define SRC_A7RCR0			0x004
 #define SRC_A7RCR1			0x008
+#define SRC_M4RCR			0x00C
 
 #define BP_SRC_A7RCR0_A7_CORE_RESET0   0
 #define BP_SRC_A7RCR1_A7_CORE1_ENABLE  1
@@ -167,8 +168,14 @@ void __init imx_src_init(void)
 	src_base = of_iomap(np, 0);
 	WARN_ON(!src_base);
 
-	if (cpu_is_imx7d())
+	if (cpu_is_imx7d()) {
+		val = readl_relaxed(src_base + SRC_M4RCR);
+		if ((val & BIT(3)) == BIT(3))
+			m4_is_enabled = true;
+		else
+			m4_is_enabled = false;
 		return;
+	}
 
 	imx_reset_controller.of_node = np;
 	if (IS_ENABLED(CONFIG_RESET_CONTROLLER))
