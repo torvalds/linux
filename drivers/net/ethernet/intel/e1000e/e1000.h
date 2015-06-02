@@ -98,6 +98,8 @@ struct e1000_info;
 #define DEFAULT_RADV			8
 #define BURST_RDTR			0x20
 #define BURST_RADV			0x20
+#define PCICFG_DESC_RING_STATUS		0xe4
+#define FLUSH_DESC_REQUIRED		0x100
 
 /* in the case of WTHRESH, it appears at least the 82571/2 hardware
  * writes back 4 descriptors when WTHRESH=5, and 3 descriptors when

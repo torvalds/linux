@@ -3867,7 +3867,7 @@ static void e1000_flush_rx_ring(struct e1000_adapter *adapter)
 
 static void e1000_flush_desc_rings(struct e1000_adapter *adapter)
 {
-	u32 hang_state;
+	u16 hang_state;
 	u32 fext_nvm11, tdlen;
 	struct e1000_hw *hw = &adapter->hw;
 
@@ -3877,13 +3877,15 @@ static void e1000_flush_desc_rings(struct e1000_adapter *adapter)
 	ew32(FEXTNVM11, fext_nvm11);
 	/* do nothing if we're not in faulty state, or if the queue is empty */
 	tdlen = er32(TDLEN(0));
-	hang_state = er32(FEXTNVM7);
-	if (!(hang_state & E1000_FEXTNVM7_NEED_DESCRING_FLUSH) || !tdlen)
+	pci_read_config_word(adapter->pdev, PCICFG_DESC_RING_STATUS,
+			     &hang_state);
+	if (!(hang_state & FLUSH_DESC_REQUIRED) || !tdlen)
 		return;
 	e1000_flush_tx_ring(adapter);
 	/* recheck, maybe the fault is caused by the rx ring */
-	hang_state = er32(FEXTNVM7);
-	if (hang_state & E1000_FEXTNVM7_NEED_DESCRING_FLUSH)
+	pci_read_config_word(adapter->pdev, PCICFG_DESC_RING_STATUS,
+			     &hang_state);
+	if (hang_state & FLUSH_DESC_REQUIRED)
 		e1000_flush_rx_ring(adapter);
 }
 
