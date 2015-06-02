@@ -42,6 +42,8 @@ struct gb_tty_line_coding {
 
 struct gb_tty {
 	struct tty_port port;
+	void *buffer;
+	u32 buffer_payload_max;
 	struct gb_connection *connection;
 	u16 cport_id;
 	unsigned int minor;
@@ -76,15 +78,13 @@ static int send_data(struct gb_tty *tty, u16 size, const u8 *data)
 	if (!data || !size)
 		return 0;
 
-	request = kmalloc(sizeof(*request) + size, GFP_KERNEL);
-	if (!request)
-		return -ENOMEM;
-
+	if (size > tty->buffer_payload_max)
+		size = tty->buffer_payload_max;
+	request = tty->buffer;
 	request->size = cpu_to_le16(size);
 	memcpy(&request->data[0], data, size);
 	ret = gb_operation_sync(tty->connection, GB_UART_TYPE_SEND_DATA,
 				request, sizeof(*request) + size, NULL, 0);
-	kfree(request);
 	if (ret)
 		return ret;
 	else
@@ -227,17 +227,13 @@ static int gb_tty_write(struct tty_struct *tty, const unsigned char *buf,
 
 static int gb_tty_write_room(struct tty_struct *tty)
 {
-//	struct gb_tty *gb_tty = tty->driver_data;
+	struct gb_tty *gb_tty = tty->driver_data;
 
-	// FIXME - how much do we want to say we have room for?
-	return 0;
+	return gb_tty->buffer_payload_max;
 }
 
 static int gb_tty_chars_in_buffer(struct tty_struct *tty)
 {
-//	struct gb_tty *gb_tty = tty->driver_data;
-
-	// FIXME - how many left to send?
 	return 0;
 }
 
@@ -549,6 +545,19 @@ static int gb_uart_connection_init(struct gb_connection *connection)
 	if (!gb_tty)
 		return -ENOMEM;
 
+	gb_tty->buffer_payload_max =
+		gb_operation_get_payload_size_max(connection);
+	if (!gb_tty->buffer_payload_max) {
+		kfree(gb_tty);
+		return -EINVAL;
+	}
+
+	gb_tty->buffer = kzalloc(gb_tty->buffer_payload_max, GFP_KERNEL);
+	if (!gb_tty->buffer) {
+		kfree(gb_tty);
+		return -ENOMEM;
+	}
+
 	gb_tty->connection = connection;
 	connection->private = gb_tty;
 
@@ -600,6 +609,7 @@ error:
 	release_minor(gb_tty);
 error_version:
 	connection->private = NULL;
+	kfree(gb_tty->buffer);
 	kfree(gb_tty);
 	return retval;
 }
@@ -632,6 +642,7 @@ static void gb_uart_connection_exit(struct gb_connection *connection)
 
 	tty_port_put(&gb_tty->port);
 	tty_port_destroy(&gb_tty->port);
+	kfree(gb_tty->buffer);
 	kfree(gb_tty);
 
 	/* If last device is gone, tear down the tty structures */
