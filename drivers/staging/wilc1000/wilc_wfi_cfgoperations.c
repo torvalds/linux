@@ -638,7 +638,7 @@ static void CfgConnectResult(tenuConnDisconnEvent enuConnDisconnEvent,
 		}
 
 
-		PRINT_D(CFG80211_DBG, "Association request info elements length = %d\n", pstrConnectInfo->ReqIEsLen);
+		PRINT_D(CFG80211_DBG, "Association request info elements length = %zu\n", pstrConnectInfo->ReqIEsLen);
 
 		PRINT_D(CFG80211_DBG, "Association response info elements length = %d\n", pstrConnectInfo->u16RespIEsLen);
 
@@ -778,7 +778,7 @@ static int WILC_WFI_CfgScan(struct wiphy *wiphy, struct cfg80211_scan_request *r
 		}
 
 		PRINT_D(CFG80211_DBG, "Requested num of scan channel %d\n", request->n_channels);
-		PRINT_D(CFG80211_DBG, "Scan Request IE len =  %d\n", request->ie_len);
+		PRINT_D(CFG80211_DBG, "Scan Request IE len =  %zu\n", request->ie_len);
 
 		PRINT_D(CFG80211_DBG, "Number of SSIDs %d\n", request->n_ssids);
 
@@ -3316,7 +3316,7 @@ static int WILC_WFI_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	priv = wiphy_priv(wiphy);
 	PRINT_D(HOSTAPD_DBG, "Starting ap\n");
 
-	PRINT_D(HOSTAPD_DBG, "Interval = %d \n DTIM period = %d\n Head length = %d Tail length = %d\n",
+	PRINT_D(HOSTAPD_DBG, "Interval = %d \n DTIM period = %d\n Head length = %zu Tail length = %zu\n",
 		settings->beacon_interval, settings->dtim_period, beacon->head_len, beacon->tail_len);
 
 	s32Error = WILC_WFI_CfgSetChannel(wiphy, &settings->chandef);
