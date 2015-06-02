@@ -2755,7 +2755,7 @@
 #define MC_CMD_0x2e_PRIVILEGE_CTG SRIOV_CTG_GENERAL
 
 /* MC_CMD_MAC_STATS_IN msgrequest */
-#define    MC_CMD_MAC_STATS_IN_LEN 16
+#define    MC_CMD_MAC_STATS_IN_LEN 20
 /* ??? */
 #define       MC_CMD_MAC_STATS_IN_DMA_ADDR_OFST 0
 #define       MC_CMD_MAC_STATS_IN_DMA_ADDR_LEN 8
@@ -2777,6 +2777,8 @@
 #define        MC_CMD_MAC_STATS_IN_PERIOD_MS_LBN 16
 #define        MC_CMD_MAC_STATS_IN_PERIOD_MS_WIDTH 16
 #define       MC_CMD_MAC_STATS_IN_DMA_LEN_OFST 12
+/* port id so vadapter stats can be provided */
+#define       MC_CMD_MAC_STATS_IN_PORT_ID_OFST 16
 
 /* MC_CMD_MAC_STATS_OUT_DMA msgresponse */
 #define    MC_CMD_MAC_STATS_OUT_DMA_LEN 0
