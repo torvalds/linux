@@ -350,30 +350,27 @@ static inline u64 div64_u64_safe(u64 dividend, u64 divisor)
 static int get_ohm_of_thermistor(struct ntc_data *data, unsigned int uv)
 {
 	struct ntc_thermistor_platform_data *pdata = data->pdata;
-	u64 mv = uv / 1000;
-	u64 pmv = pdata->pullup_uv / 1000;
+	u32 puv = pdata->pullup_uv;
 	u64 n, puo, pdo;
 	puo = pdata->pullup_ohm;
 	pdo = pdata->pulldown_ohm;
 
-	if (mv == 0) {
-		if (pdata->connect == NTC_CONNECTED_POSITIVE)
-			return INT_MAX;
-		return 0;
-	}
-	if (mv >= pmv)
+	if (uv == 0)
+		return (pdata->connect == NTC_CONNECTED_POSITIVE) ?
+			INT_MAX : 0;
+	if (uv >= puv)
 		return (pdata->connect == NTC_CONNECTED_POSITIVE) ?
 			0 : INT_MAX;
 
 	if (pdata->connect == NTC_CONNECTED_POSITIVE && puo == 0)
-		n = div64_u64_safe(pdo * (pmv - mv), mv);
+		n = div_u64(pdo * (puv - uv), uv);
 	else if (pdata->connect == NTC_CONNECTED_GROUND && pdo == 0)
-		n = div64_u64_safe(puo * mv, pmv - mv);
+		n = div_u64(puo * uv, puv - uv);
 	else if (pdata->connect == NTC_CONNECTED_POSITIVE)
-		n = div64_u64_safe(pdo * puo * (pmv - mv),
-				puo * mv - pdo * (pmv - mv));
+		n = div64_u64_safe(pdo * puo * (puv - uv),
+				puo * uv - pdo * (puv - uv));
 	else
-		n = div64_u64_safe(pdo * puo * mv, pdo * (pmv - mv) - puo * mv);
+		n = div64_u64_safe(pdo * puo * uv, pdo * (puv - uv) - puo * uv);
 
 	if (n > INT_MAX)
 		n = INT_MAX;
