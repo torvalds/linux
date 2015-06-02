@@ -30,7 +30,6 @@ struct wm_adsp_alg_region {
 	unsigned int alg;
 	int type;
 	unsigned int base;
-	size_t len;
 };
 
 struct wm_adsp {
@@ -54,6 +53,7 @@ struct wm_adsp {
 	int num_mems;
 
 	int fw;
+	int fw_ver;
 	bool running;
 
 	struct regulator *dvfs;
@@ -78,8 +78,8 @@ struct wm_adsp {
 extern const struct snd_kcontrol_new wm_adsp1_fw_controls[];
 extern const struct snd_kcontrol_new wm_adsp2_fw_controls[];
 
-int wm_adsp1_init(struct wm_adsp *adsp);
-int wm_adsp2_init(struct wm_adsp *adsp, bool dvfs);
+int wm_adsp1_init(struct wm_adsp *dsp);
+int wm_adsp2_init(struct wm_adsp *dsp, bool dvfs);
 int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
 int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
