@@ -187,13 +187,7 @@ static int inj_bank_set(void *data, u64 val)
 	return 0;
 }
 
-static int inj_bank_get(void *data, u64 *val)
-{
-	struct mce *m = (struct mce *)data;
-
-	*val = m->bank;
-	return 0;
-}
+MCE_INJECT_GET(bank);
 
 DEFINE_SIMPLE_ATTRIBUTE(bank_fops, inj_bank_get, inj_bank_set, "%llu\n");
 
