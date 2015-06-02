@@ -4,9 +4,9 @@
 #include "ddk750_power.h"
 #include "ddk750_dvi.h"
 
-#define primaryWaitVerticalSync(delay) waitNextVerticalSync(0,delay)
+#define primaryWaitVerticalSync(delay) waitNextVerticalSync(0, delay)
 
-static void setDisplayControl(int ctrl,int dispState)
+static void setDisplayControl(int ctrl, int dispState)
 {
 	/* state != 0 means turn on both timing & plane en_bit */
 	unsigned long ulDisplayCtrlReg, ulReservedBits;
@@ -51,7 +51,7 @@ static void setDisplayControl(int ctrl,int dispState)
 				POKE32(PANEL_DISPLAY_CTRL, ulDisplayCtrlReg);
 			} while((PEEK32(PANEL_DISPLAY_CTRL) & ~ulReservedBits) !=
 					(ulDisplayCtrlReg & ~ulReservedBits));
-			printk("Set Panel Plane enbit:after tried %d times\n",cnt);
+			printk("Set Panel Plane enbit:after tried %d times\n", cnt);
 		}
 		else
 		{
@@ -106,7 +106,7 @@ static void setDisplayControl(int ctrl,int dispState)
 				POKE32(CRT_DISPLAY_CTRL, ulDisplayCtrlReg);
 			} while((PEEK32(CRT_DISPLAY_CTRL) & ~ulReservedBits) !=
 					(ulDisplayCtrlReg & ~ulReservedBits));
-				printk("Set Crt Plane enbit:after tried %d times\n",cnt);
+				printk("Set Crt Plane enbit:after tried %d times\n", cnt);
 		}
 		else
 		{
@@ -129,7 +129,7 @@ static void setDisplayControl(int ctrl,int dispState)
 }
 
 
-static void waitNextVerticalSync(int ctrl,int delay)
+static void waitNextVerticalSync(int ctrl, int delay)
 {
 	unsigned int status;
 	if(!ctrl){
@@ -201,31 +201,31 @@ static void waitNextVerticalSync(int ctrl,int delay)
 	}
 }
 
-static void swPanelPowerSequence(int disp,int delay)
+static void swPanelPowerSequence(int disp, int delay)
 {
 	unsigned int reg;
 
 	/* disp should be 1 to open sequence */
 	reg = PEEK32(PANEL_DISPLAY_CTRL);
-	reg = FIELD_VALUE(reg,PANEL_DISPLAY_CTRL,FPEN,disp);
-	POKE32(PANEL_DISPLAY_CTRL,reg);
+	reg = FIELD_VALUE(reg, PANEL_DISPLAY_CTRL, FPEN, disp);
+	POKE32(PANEL_DISPLAY_CTRL, reg);
 	primaryWaitVerticalSync(delay);
 
 
 	reg = PEEK32(PANEL_DISPLAY_CTRL);
-	reg = FIELD_VALUE(reg,PANEL_DISPLAY_CTRL,DATA,disp);
-	POKE32(PANEL_DISPLAY_CTRL,reg);
+	reg = FIELD_VALUE(reg, PANEL_DISPLAY_CTRL, DATA, disp);
+	POKE32(PANEL_DISPLAY_CTRL, reg);
 	primaryWaitVerticalSync(delay);
 
 	reg = PEEK32(PANEL_DISPLAY_CTRL);
-	reg = FIELD_VALUE(reg,PANEL_DISPLAY_CTRL,VBIASEN,disp);
-	POKE32(PANEL_DISPLAY_CTRL,reg);
+	reg = FIELD_VALUE(reg, PANEL_DISPLAY_CTRL, VBIASEN, disp);
+	POKE32(PANEL_DISPLAY_CTRL, reg);
 	primaryWaitVerticalSync(delay);
 
 
 	reg = PEEK32(PANEL_DISPLAY_CTRL);
-	reg = FIELD_VALUE(reg,PANEL_DISPLAY_CTRL,FPEN,disp);
-	POKE32(PANEL_DISPLAY_CTRL,reg);
+	reg = FIELD_VALUE(reg, PANEL_DISPLAY_CTRL, FPEN, disp);
+	POKE32(PANEL_DISPLAY_CTRL, reg);
 	primaryWaitVerticalSync(delay);
 
 }
@@ -236,33 +236,33 @@ void ddk750_setLogicalDispOut(disp_output_t output)
 	if(output & PNL_2_USAGE){
 		/* set panel path controller select */
 		reg = PEEK32(PANEL_DISPLAY_CTRL);
-		reg = FIELD_VALUE(reg,PANEL_DISPLAY_CTRL,SELECT,(output & PNL_2_MASK)>>PNL_2_OFFSET);
-		POKE32(PANEL_DISPLAY_CTRL,reg);
+		reg = FIELD_VALUE(reg, PANEL_DISPLAY_CTRL, SELECT, (output & PNL_2_MASK)>>PNL_2_OFFSET);
+		POKE32(PANEL_DISPLAY_CTRL, reg);
 	}
 
 	if(output & CRT_2_USAGE){
 		/* set crt path controller select */
 		reg = PEEK32(CRT_DISPLAY_CTRL);
-		reg = FIELD_VALUE(reg,CRT_DISPLAY_CTRL,SELECT,(output & CRT_2_MASK)>>CRT_2_OFFSET);
+		reg = FIELD_VALUE(reg, CRT_DISPLAY_CTRL, SELECT, (output & CRT_2_MASK)>>CRT_2_OFFSET);
 		/*se blank off */
-		reg = FIELD_SET(reg,CRT_DISPLAY_CTRL,BLANK,OFF);
-		POKE32(CRT_DISPLAY_CTRL,reg);
+		reg = FIELD_SET(reg, CRT_DISPLAY_CTRL, BLANK, OFF);
+		POKE32(CRT_DISPLAY_CTRL, reg);
 
 	}
 
 	if(output & PRI_TP_USAGE){
 		/* set primary timing and plane en_bit */
-		setDisplayControl(0,(output&PRI_TP_MASK)>>PRI_TP_OFFSET);
+		setDisplayControl(0, (output&PRI_TP_MASK)>>PRI_TP_OFFSET);
 	}
 
 	if(output & SEC_TP_USAGE){
 		/* set secondary timing and plane en_bit*/
-		setDisplayControl(1,(output&SEC_TP_MASK)>>SEC_TP_OFFSET);
+		setDisplayControl(1, (output&SEC_TP_MASK)>>SEC_TP_OFFSET);
 	}
 
 	if(output & PNL_SEQ_USAGE){
 		/* set  panel sequence */
-		swPanelPowerSequence((output&PNL_SEQ_MASK)>>PNL_SEQ_OFFSET,4);
+		swPanelPowerSequence((output&PNL_SEQ_MASK)>>PNL_SEQ_OFFSET, 4);
 	}
 
 	if(output & DAC_USAGE)
