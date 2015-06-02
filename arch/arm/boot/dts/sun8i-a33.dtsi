@@ -86,4 +86,12 @@
 	compatible = "allwinner,sun8i-a33-pinctrl";
 	interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>,
 		     <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+
+	uart0_pins_b: uart0@1 {
+		allwinner,pins = "PB0", "PB1";
+		allwinner,function = "uart0";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
+
 };
