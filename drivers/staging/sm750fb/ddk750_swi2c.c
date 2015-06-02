@@ -96,7 +96,7 @@ static void swI2CWait(void)
        it's more reliable than counter loop ..
        write 0x61 to 0x3ce and read from 0x3cf
        */
-	while(peekIO(0x3ce,0x61) & 0x10);
+	while(peekIO(0x3ce, 0x61) & 0x10);
 #else
     int i, Temp;
 
