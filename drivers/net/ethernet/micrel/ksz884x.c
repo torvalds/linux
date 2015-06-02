@@ -6664,7 +6664,7 @@ static void mib_read_work(struct work_struct *work)
 				wake_up_interruptible(
 					&hw_priv->counter[i].counter);
 			}
-		} else if (jiffies >= hw_priv->counter[i].time) {
+		} else if (time_after_eq(jiffies, hw_priv->counter[i].time)) {
 			/* Only read MIB counters when the port is connected. */
 			if (media_connected == mib->state)
 				hw_priv->counter[i].read = 1;
