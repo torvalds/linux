@@ -2891,11 +2891,11 @@
 /* enum: RXDP counter: Number of times an emergency descriptor fetch was
  * performed. Valid for EF10 with PM_AND_RXDP_COUNTERS capability only.
  */
-#define          MC_CMD_MAC_RXDP_EMERGENCY_FETCH_CONDITIONS  0x47
+#define          MC_CMD_MAC_RXDP_HLB_FETCH_CONDITIONS  0x47
 /* enum: RXDP counter: Number of times the DPCPU waited for an existing
  * descriptor fetch. Valid for EF10 with PM_AND_RXDP_COUNTERS capability only.
  */
-#define          MC_CMD_MAC_RXDP_EMERGENCY_WAIT_CONDITIONS  0x48
+#define          MC_CMD_MAC_RXDP_HLB_WAIT_CONDITIONS  0x48
 /* enum: Start of GMAC stats buffer space, for Siena only. */
 #define          MC_CMD_GMAC_DMABUF_START  0x40
 /* enum: End of GMAC stats buffer space, for Siena only. */
