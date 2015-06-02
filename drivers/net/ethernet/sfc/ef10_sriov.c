@@ -165,6 +165,11 @@ static void efx_ef10_sriov_free_vf_vports(struct efx_nic *efx)
 	for (i = 0; i < efx->vf_count; i++) {
 		struct ef10_vf *vf = nic_data->vf + i;
 
+		/* If VF is assigned, do not free the vport  */
+		if (vf->pci_dev &&
+		    vf->pci_dev->dev_flags & PCI_DEV_FLAGS_ASSIGNED)
+			continue;
+
 		if (vf->vport_assigned) {
 			efx_ef10_evb_port_assign(efx, EVB_PORT_ID_NULL, i);
 			vf->vport_assigned = 0;
@@ -380,7 +385,9 @@ void efx_ef10_vswitching_remove_pf(struct efx_nic *efx)
 	efx_ef10_vport_free(efx, nic_data->vport_id);
 	nic_data->vport_id = EVB_PORT_ID_ASSIGNED;
 
-	efx_ef10_vswitch_free(efx, nic_data->vport_id);
+	/* Only free the vswitch if no VFs are assigned */
+	if (!pci_vfs_assigned(efx->pci_dev))
+		efx_ef10_vswitch_free(efx, nic_data->vport_id);
 }
 
 void efx_ef10_vswitching_remove_vf(struct efx_nic *efx)
@@ -413,11 +420,22 @@ fail1:
 	return rc;
 }
 
-static int efx_ef10_pci_sriov_disable(struct efx_nic *efx)
+static int efx_ef10_pci_sriov_disable(struct efx_nic *efx, bool force)
 {
 	struct pci_dev *dev = efx->pci_dev;
+	unsigned int vfs_assigned = 0;
 
-	pci_disable_sriov(dev);
+	vfs_assigned = pci_vfs_assigned(dev);
+
+	if (vfs_assigned && !force) {
+		netif_info(efx, drv, efx->net_dev, "VFs are assigned to guests; "
+			   "please detach them before disabling SR-IOV\n");
+		return -EBUSY;
+	}
+
+	if (!vfs_assigned)
+		pci_disable_sriov(dev);
+
 	efx_ef10_sriov_free_vf_vswitching(efx);
 	efx->vf_count = 0;
 	return 0;
@@ -426,7 +444,7 @@ static int efx_ef10_pci_sriov_disable(struct efx_nic *efx)
 int efx_ef10_sriov_configure(struct efx_nic *efx, int num_vfs)
 {
 	if (num_vfs == 0)
-		return efx_ef10_pci_sriov_disable(efx);
+		return efx_ef10_pci_sriov_disable(efx, false);
 	else
 		return efx_ef10_pci_sriov_enable(efx, num_vfs);
 }
@@ -439,12 +457,25 @@ int efx_ef10_sriov_init(struct efx_nic *efx)
 void efx_ef10_sriov_fini(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	unsigned int i;
 	int rc;
 
-	if (!nic_data->vf)
+	if (!nic_data->vf) {
+		/* Remove any un-assigned orphaned VFs */
+		if (pci_num_vf(efx->pci_dev) && !pci_vfs_assigned(efx->pci_dev))
+			pci_disable_sriov(efx->pci_dev);
 		return;
+	}
 
-	rc = efx_ef10_pci_sriov_disable(efx);
+	/* Remove any VFs in the host */
+	for (i = 0; i < efx->vf_count; ++i) {
+		struct efx_nic *vf_efx = nic_data->vf[i].efx;
+
+		if (vf_efx)
+			vf_efx->pci_dev->driver->remove(vf_efx->pci_dev);
+	}
+
+	rc = efx_ef10_pci_sriov_disable(efx, true);
 	if (rc)
 		netif_dbg(efx, drv, efx->net_dev,
 			  "Disabling SRIOV was not successful rc=%d\n", rc);
@@ -733,6 +764,20 @@ int efx_ef10_sriov_get_vf_config(struct efx_nic *efx, int vf_i,
 	if (outlen < MC_CMD_LINK_STATE_MODE_OUT_LEN)
 		return -EIO;
 	ivf->linkstate = MCDI_DWORD(outbuf, LINK_STATE_MODE_OUT_OLD_MODE);
+
+	return 0;
+}
+
+int efx_ef10_sriov_get_phys_port_id(struct efx_nic *efx,
+				    struct netdev_phys_item_id *ppid)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+
+	if (!is_valid_ether_addr(nic_data->port_id))
+		return -EOPNOTSUPP;
+
+	ppid->id_len = ETH_ALEN;
+	memcpy(ppid->id, nic_data->port_id, ppid->id_len);
 
 	return 0;
 }

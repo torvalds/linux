@@ -2755,7 +2755,7 @@
 #define MC_CMD_0x2e_PRIVILEGE_CTG SRIOV_CTG_GENERAL
 
 /* MC_CMD_MAC_STATS_IN msgrequest */
-#define    MC_CMD_MAC_STATS_IN_LEN 16
+#define    MC_CMD_MAC_STATS_IN_LEN 20
 /* ??? */
 #define       MC_CMD_MAC_STATS_IN_DMA_ADDR_OFST 0
 #define       MC_CMD_MAC_STATS_IN_DMA_ADDR_LEN 8
@@ -2777,6 +2777,8 @@
 #define        MC_CMD_MAC_STATS_IN_PERIOD_MS_LBN 16
 #define        MC_CMD_MAC_STATS_IN_PERIOD_MS_WIDTH 16
 #define       MC_CMD_MAC_STATS_IN_DMA_LEN_OFST 12
+/* port id so vadapter stats can be provided */
+#define       MC_CMD_MAC_STATS_IN_PORT_ID_OFST 16
 
 /* MC_CMD_MAC_STATS_OUT_DMA msgresponse */
 #define    MC_CMD_MAC_STATS_OUT_DMA_LEN 0
@@ -2891,11 +2893,31 @@
 /* enum: RXDP counter: Number of times an emergency descriptor fetch was
  * performed. Valid for EF10 with PM_AND_RXDP_COUNTERS capability only.
  */
-#define          MC_CMD_MAC_RXDP_EMERGENCY_FETCH_CONDITIONS  0x47
+#define          MC_CMD_MAC_RXDP_HLB_FETCH_CONDITIONS  0x47
 /* enum: RXDP counter: Number of times the DPCPU waited for an existing
  * descriptor fetch. Valid for EF10 with PM_AND_RXDP_COUNTERS capability only.
  */
-#define          MC_CMD_MAC_RXDP_EMERGENCY_WAIT_CONDITIONS  0x48
+#define          MC_CMD_MAC_RXDP_HLB_WAIT_CONDITIONS  0x48
+#define          MC_CMD_MAC_VADAPTER_RX_DMABUF_START  0x4c /* enum */
+#define          MC_CMD_MAC_VADAPTER_RX_UNICAST_PACKETS  0x4c /* enum */
+#define          MC_CMD_MAC_VADAPTER_RX_UNICAST_BYTES  0x4d /* enum */
+#define          MC_CMD_MAC_VADAPTER_RX_MULTICAST_PACKETS  0x4e /* enum */
+#define          MC_CMD_MAC_VADAPTER_RX_MULTICAST_BYTES  0x4f /* enum */
+#define          MC_CMD_MAC_VADAPTER_RX_BROADCAST_PACKETS  0x50 /* enum */
+#define          MC_CMD_MAC_VADAPTER_RX_BROADCAST_BYTES  0x51 /* enum */
+#define          MC_CMD_MAC_VADAPTER_RX_BAD_PACKETS  0x52 /* enum */
+#define          MC_CMD_MAC_VADAPTER_RX_BAD_BYTES  0x53 /* enum */
+#define          MC_CMD_MAC_VADAPTER_RX_OVERFLOW  0x54 /* enum */
+#define          MC_CMD_MAC_VADAPTER_TX_DMABUF_START  0x57 /* enum */
+#define          MC_CMD_MAC_VADAPTER_TX_UNICAST_PACKETS  0x57 /* enum */
+#define          MC_CMD_MAC_VADAPTER_TX_UNICAST_BYTES  0x58 /* enum */
+#define          MC_CMD_MAC_VADAPTER_TX_MULTICAST_PACKETS  0x59 /* enum */
+#define          MC_CMD_MAC_VADAPTER_TX_MULTICAST_BYTES  0x5a /* enum */
+#define          MC_CMD_MAC_VADAPTER_TX_BROADCAST_PACKETS  0x5b /* enum */
+#define          MC_CMD_MAC_VADAPTER_TX_BROADCAST_BYTES  0x5c /* enum */
+#define          MC_CMD_MAC_VADAPTER_TX_BAD_PACKETS  0x5d /* enum */
+#define          MC_CMD_MAC_VADAPTER_TX_BAD_BYTES  0x5e /* enum */
+#define          MC_CMD_MAC_VADAPTER_TX_OVERFLOW  0x5f /* enum */
 /* enum: Start of GMAC stats buffer space, for Siena only. */
 #define          MC_CMD_GMAC_DMABUF_START  0x40
 /* enum: End of GMAC stats buffer space, for Siena only. */
@@ -5578,6 +5600,8 @@
 #define        MC_CMD_GET_CAPABILITIES_OUT_MCAST_FILTER_CHAINING_WIDTH 1
 #define        MC_CMD_GET_CAPABILITIES_OUT_PM_AND_RXDP_COUNTERS_LBN 27
 #define        MC_CMD_GET_CAPABILITIES_OUT_PM_AND_RXDP_COUNTERS_WIDTH 1
+#define        MC_CMD_GET_CAPABILITIES_OUT_EVB_LBN 30
+#define        MC_CMD_GET_CAPABILITIES_OUT_EVB_WIDTH 1
 /* RxDPCPU firmware id. */
 #define       MC_CMD_GET_CAPABILITIES_OUT_RX_DPCPU_FW_ID_OFST 4
 #define       MC_CMD_GET_CAPABILITIES_OUT_RX_DPCPU_FW_ID_LEN 2

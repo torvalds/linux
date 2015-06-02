@@ -15,6 +15,7 @@
 /**
  * struct ef10_vf - PF's store of VF data
  * @efx: efx_nic struct for the current VF
+ * @pci_dev: the pci_dev struct for the VF, retained while the VF is assigned
  * @vport_id: vport ID for the VF
  * @vport_assigned: record whether the vport is currently assigned to the VF
  * @mac: MAC address for the VF, zero when address is removed from the vport
@@ -22,6 +23,7 @@
  */
 struct ef10_vf {
 	struct efx_nic *efx;
+	struct pci_dev *pci_dev;
 	unsigned int vport_id;
 	unsigned int vport_assigned;
 	u8 mac[ETH_ALEN];
@@ -53,6 +55,9 @@ int efx_ef10_sriov_get_vf_config(struct efx_nic *efx, int vf_i,
 
 int efx_ef10_sriov_set_vf_link_state(struct efx_nic *efx, int vf_i,
 				     int link_state);
+
+int efx_ef10_sriov_get_phys_port_id(struct efx_nic *efx,
+				    struct netdev_phys_item_id *ppid);
 
 int efx_ef10_vswitching_probe_pf(struct efx_nic *efx);
 int efx_ef10_vswitching_probe_vf(struct efx_nic *efx);
