@@ -70,6 +70,47 @@ static atomic_t reference_count = ATOMIC_INIT(0);
 /* Define get_version() routine */
 define_get_version(gb_tty, UART);
 
+static int gb_uart_request_recv(u8 type, struct gb_operation *op)
+{
+	struct gb_connection *connection = op->connection;
+	struct gb_tty *gb_tty = connection->private;
+	struct gb_message *request = op->request;
+	struct gb_uart_recv_data_request *receive_data;
+	struct gb_uart_serial_state_request *serial_state;
+	struct tty_port *port = &gb_tty->port;
+	int count;
+	int ret = 0;
+
+	switch (type) {
+	case GB_UART_TYPE_RECEIVE_DATA:
+		receive_data = request->payload;
+		count = gb_tty->buffer_payload_max - sizeof(*receive_data);
+		if (!receive_data->size || receive_data->size > count)
+			return -EINVAL;
+
+		count = tty_insert_flip_string(port, receive_data->data,
+					       receive_data->size);
+		if (count != receive_data->size) {
+			dev_err(&connection->dev,
+				"UART: RX 0x%08x bytes only wrote 0x%08x\n",
+				receive_data->size, count);
+		}
+		if (count)
+			tty_flip_buffer_push(port);
+		break;
+	case GB_UART_TYPE_SERIAL_STATE:
+		serial_state = request->payload;
+		/* TODO: Parse state change and translate to tty API. */
+		break;
+	default:
+		dev_err(&connection->dev,
+			"unsupported unsolicited request: %02x\n", type);
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
 static int send_data(struct gb_tty *tty, u16 size, const u8 *data)
 {
 	struct gb_uart_send_data_request *request;
@@ -703,7 +744,7 @@ static struct gb_protocol uart_protocol = {
 	.minor			= 1,
 	.connection_init	= gb_uart_connection_init,
 	.connection_exit	= gb_uart_connection_exit,
-	.request_recv		= NULL,	/* FIXME we have 2 types of requests!!! */
+	.request_recv		= gb_uart_request_recv,
 };
 
 gb_gpbridge_protocol_driver(uart_protocol);
