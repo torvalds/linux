@@ -1,5 +1,5 @@
 /* Intel PRO/1000 Linux driver
- * Copyright(c) 1999 - 2014 Intel Corporation.
+ * Copyright(c) 1999 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -48,7 +48,7 @@
 
 #define DRV_EXTRAVERSION "-k"
 
-#define DRV_VERSION "2.3.2" DRV_EXTRAVERSION
+#define DRV_VERSION "3.2.5" DRV_EXTRAVERSION
 char e1000e_driver_name[] = "e1000e";
 const char e1000e_driver_version[] = DRV_VERSION;
 
@@ -7438,7 +7438,7 @@ static int __init e1000_init_module(void)
 
 	pr_info("Intel(R) PRO/1000 Network Driver - %s\n",
 		e1000e_driver_version);
-	pr_info("Copyright(c) 1999 - 2014 Intel Corporation.\n");
+	pr_info("Copyright(c) 1999 - 2015 Intel Corporation.\n");
 	ret = pci_register_driver(&e1000_driver);
 
 	return ret;
