@@ -649,6 +649,8 @@ static void do_qc(struct gfs2_quota_data *qd, s64 change)
 		slot_hold(qd);
 	}
 
+	if (change < 0) /* Reset quiet flag if we freed some blocks */
+		clear_bit(QDF_QMSG_QUIET, &qd->qd_flags);
 	mutex_unlock(&sdp->sd_quota_mutex);
 }
 
@@ -1187,10 +1189,13 @@ int gfs2_quota_check(struct gfs2_inode *ip, kuid_t uid, kgid_t gid,
 			/* If no min_target specified or we don't meet
 			 * min_target, return -EDQUOT */
 			if (!ap->min_target || ap->min_target > ap->allowed) {
-				print_message(qd, "exceeded");
-				quota_send_warning(qd->qd_id,
-						   sdp->sd_vfs->s_dev,
-						   QUOTA_NL_BHARDWARN);
+				if (!test_and_set_bit(QDF_QMSG_QUIET,
+						      &qd->qd_flags)) {
+					print_message(qd, "exceeded");
+					quota_send_warning(qd->qd_id,
+							   sdp->sd_vfs->s_dev,
+							   QUOTA_NL_BHARDWARN);
+				}
 				error = -EDQUOT;
 				break;
 			}
@@ -1685,6 +1690,8 @@ static int gfs2_set_dqblk(struct super_block *sb, struct kqid qid,
 
 	/* Apply changes */
 	error = gfs2_adjust_quota(ip, offset, 0, qd, fdq);
+	if (!error)
+		clear_bit(QDF_QMSG_QUIET, &qd->qd_flags);
 
 	gfs2_trans_end(sdp);
 out_release:
