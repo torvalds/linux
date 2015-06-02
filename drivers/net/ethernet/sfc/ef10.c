@@ -406,6 +406,16 @@ static int efx_ef10_probe(struct efx_nic *efx)
 
 	efx_ptp_probe(efx, NULL);
 
+#ifdef CONFIG_SFC_SRIOV
+	if ((efx->pci_dev->physfn) && (!efx->pci_dev->is_physfn)) {
+		struct pci_dev *pci_dev_pf = efx->pci_dev->physfn;
+		struct efx_nic *efx_pf = pci_get_drvdata(pci_dev_pf);
+
+		efx_pf->type->get_mac_address(efx_pf, nic_data->port_id);
+	} else
+#endif
+		ether_addr_copy(nic_data->port_id, efx->net_dev->perm_addr);
+
 	return 0;
 
 fail5:
@@ -4140,6 +4150,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.vswitching_probe = efx_ef10_vswitching_probe_vf,
 	.vswitching_restore = efx_ef10_vswitching_restore_vf,
 	.vswitching_remove = efx_ef10_vswitching_remove_vf,
+	.sriov_get_phys_port_id = efx_ef10_sriov_get_phys_port_id,
 #endif
 	.get_mac_address = efx_ef10_get_mac_address_vf,
 	.set_mac_address = efx_ef10_set_mac_address,

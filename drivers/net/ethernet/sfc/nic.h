@@ -524,6 +524,7 @@ struct efx_ef10_nic_data {
 	unsigned int vport_id;
 	bool must_probe_vswitching;
 	unsigned int pf_index;
+	u8 port_id[ETH_ALEN];
 #ifdef CONFIG_SFC_SRIOV
 	unsigned int vf_index;
 	struct ef10_vf *vf;
