@@ -142,28 +142,28 @@ static int send_line_coding(struct gb_tty *tty)
 				 &request, sizeof(request), NULL, 0);
 }
 
-static int send_control(struct gb_tty *tty, u16 control)
+static int send_control(struct gb_tty *gb_tty, u16 control)
 {
 	struct gb_uart_set_control_line_state_request request;
 
 	request.control = cpu_to_le16(control);
-	return gb_operation_sync(tty->connection,
+	return gb_operation_sync(gb_tty->connection,
 				 GB_UART_TYPE_SET_CONTROL_LINE_STATE,
 				 &request, sizeof(request), NULL, 0);
 }
 
-static int send_break(struct gb_tty *tty, u8 state)
+static int send_break(struct gb_tty *gb_tty, u8 state)
 {
 	struct gb_uart_set_break_request request;
 
 	if ((state != 0) && (state != 1)) {
-		dev_err(&tty->connection->dev,
+		dev_err(&gb_tty->connection->dev,
 			"invalid break state of %d\n", state);
 		return -EINVAL;
 	}
 
 	request.state = state;
-	return gb_operation_sync(tty->connection, GB_UART_TYPE_SET_BREAK,
+	return gb_operation_sync(gb_tty->connection, GB_UART_TYPE_SET_BREAK,
 				 &request, sizeof(request), NULL, 0);
 }
 
@@ -294,7 +294,8 @@ static void gb_tty_set_termios(struct tty_struct *tty,
 	int newctrl = gb_tty->ctrlout;
 
 	newline.rate = cpu_to_le32(tty_get_baud_rate(tty));
-	newline.format = termios->c_cflag & CSTOPB ? 2 : 0;
+	newline.format = termios->c_cflag & CSTOPB ?
+				GB_SERIAL_2_STOP_BITS : GB_SERIAL_1_STOP_BITS;
 	newline.parity = termios->c_cflag & PARENB ?
 				(termios->c_cflag & PARODD ? 1 : 2) +
 				(termios->c_cflag & CMSPAR ? 2 : 0) : 0;
