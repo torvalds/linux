@@ -30,7 +30,7 @@
 
 #include "greybus.h"
 
-#define GB_NUM_MINORS	255	/* 255 is enough for anyone... */
+#define GB_NUM_MINORS	16	/* 16 is is more than enough */
 #define GB_NAME		"ttyGB"
 
 struct gb_tty_line_coding {
