@@ -147,7 +147,7 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 	 * is supported; if not, return.
 	 */
 	if (sta && !(key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE) &&
-	    !(key->local->hw.flags & IEEE80211_HW_SUPPORTS_PER_STA_GTK))
+	    !ieee80211_hw_check(&key->local->hw, SUPPORTS_PER_STA_GTK))
 		goto out_unsupported;
 
 	if (sta && !sta->uploaded)
@@ -201,7 +201,7 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 		/* all of these we can do in software - if driver can */
 		if (ret == 1)
 			return 0;
-		if (key->local->hw.flags & IEEE80211_HW_SW_CRYPTO_CONTROL)
+		if (ieee80211_hw_check(&key->local->hw, SW_CRYPTO_CONTROL))
 			return -EINVAL;
 		return 0;
 	default:

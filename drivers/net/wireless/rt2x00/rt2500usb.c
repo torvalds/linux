@@ -1696,11 +1696,10 @@ static int rt2500usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	 * multicast and broadcast traffic immediately instead of buffering it
 	 * infinitly and thus dropping it after some time.
 	 */
-	rt2x00dev->hw->flags =
-	    IEEE80211_HW_RX_INCLUDES_FCS |
-	    IEEE80211_HW_SIGNAL_DBM |
-	    IEEE80211_HW_SUPPORTS_PS |
-	    IEEE80211_HW_PS_NULLFUNC_STACK;
+	ieee80211_hw_set(rt2x00dev->hw, PS_NULLFUNC_STACK);
+	ieee80211_hw_set(rt2x00dev->hw, SUPPORTS_PS);
+	ieee80211_hw_set(rt2x00dev->hw, RX_INCLUDES_FCS);
+	ieee80211_hw_set(rt2x00dev->hw, SIGNAL_DBM);
 
 	/*
 	 * Disable powersaving as default.

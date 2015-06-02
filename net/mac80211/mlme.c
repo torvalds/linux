@@ -118,7 +118,7 @@ void ieee80211_sta_reset_beacon_monitor(struct ieee80211_sub_if_data *sdata)
 	if (sdata->vif.driver_flags & IEEE80211_VIF_BEACON_FILTER)
 		return;
 
-	if (sdata->local->hw.flags & IEEE80211_HW_CONNECTION_MONITOR)
+	if (ieee80211_hw_check(&sdata->local->hw, CONNECTION_MONITOR))
 		return;
 
 	mod_timer(&sdata->u.mgd.bcn_mon_timer,
@@ -134,7 +134,7 @@ void ieee80211_sta_reset_conn_monitor(struct ieee80211_sub_if_data *sdata)
 
 	ifmgd->probe_send_count = 0;
 
-	if (sdata->local->hw.flags & IEEE80211_HW_CONNECTION_MONITOR)
+	if (ieee80211_hw_check(&sdata->local->hw, CONNECTION_MONITOR))
 		return;
 
 	mod_timer(&sdata->u.mgd.conn_mon_timer,
@@ -677,7 +677,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		capab |= WLAN_CAPABILITY_PRIVACY;
 
 	if ((assoc_data->capability & WLAN_CAPABILITY_SPECTRUM_MGMT) &&
-	    (local->hw.flags & IEEE80211_HW_SPECTRUM_MGMT))
+	    ieee80211_hw_check(&local->hw, SPECTRUM_MGMT))
 		capab |= WLAN_CAPABILITY_SPECTRUM_MGMT;
 
 	if (ifmgd->flags & IEEE80211_STA_ENABLE_RRM)
@@ -885,7 +885,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	drv_mgd_prepare_tx(local, sdata);
 
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
-	if (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)
+	if (ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS))
 		IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_CTL_REQ_TX_STATUS |
 						IEEE80211_TX_INTFL_MLME_CONN_TX;
 	ieee80211_tx_skb(sdata, skb);
@@ -927,7 +927,7 @@ void ieee80211_send_nullfunc(struct ieee80211_local *local,
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT |
 					IEEE80211_TX_INTFL_OFFCHAN_TX_OK;
 
-	if (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)
+	if (ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS))
 		IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
 
 	if (ifmgd->flags & IEEE80211_STA_CONNECTION_POLL)
@@ -1198,7 +1198,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	chanctx = container_of(conf, struct ieee80211_chanctx, conf);
 
 	if (local->use_chanctx &&
-	    !(local->hw.flags & IEEE80211_HW_CHANCTX_STA_CSA)) {
+	    !ieee80211_hw_check(&local->hw, CHANCTX_STA_CSA)) {
 		sdata_info(sdata,
 			   "driver doesn't support chan-switch with channel contexts\n");
 		goto drop_connection;
@@ -1407,15 +1407,15 @@ static void ieee80211_enable_ps(struct ieee80211_local *local,
 		return;
 
 	if (conf->dynamic_ps_timeout > 0 &&
-	    !(local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS)) {
+	    !ieee80211_hw_check(&local->hw, SUPPORTS_DYNAMIC_PS)) {
 		mod_timer(&local->dynamic_ps_timer, jiffies +
 			  msecs_to_jiffies(conf->dynamic_ps_timeout));
 	} else {
-		if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
+		if (ieee80211_hw_check(&local->hw, PS_NULLFUNC_STACK))
 			ieee80211_send_nullfunc(local, sdata, 1);
 
-		if ((local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) &&
-		    (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS))
+		if (ieee80211_hw_check(&local->hw, PS_NULLFUNC_STACK) &&
+		    ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS))
 			return;
 
 		conf->flags |= IEEE80211_CONF_PS;
@@ -1474,7 +1474,7 @@ void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 	int count = 0;
 	int timeout;
 
-	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_PS)) {
+	if (!ieee80211_hw_check(&local->hw, SUPPORTS_PS)) {
 		local->ps_sdata = NULL;
 		return;
 	}
@@ -1620,7 +1620,7 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 		spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 	}
 
-	if ((local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) &&
+	if (ieee80211_hw_check(&local->hw, PS_NULLFUNC_STACK) &&
 	    !(ifmgd->flags & IEEE80211_STA_NULLFUNC_ACKED)) {
 		if (drv_tx_frames_pending(local)) {
 			mod_timer(&local->dynamic_ps_timer, jiffies +
@@ -1633,8 +1633,8 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 		}
 	}
 
-	if (!((local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS) &&
-	      (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)) ||
+	if (!(ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS) &&
+	      ieee80211_hw_check(&local->hw, PS_NULLFUNC_STACK)) ||
 	    (ifmgd->flags & IEEE80211_STA_NULLFUNC_ACKED)) {
 		ifmgd->flags &= ~IEEE80211_STA_NULLFUNC_ACKED;
 		local->hw.conf.flags |= IEEE80211_CONF_PS;
@@ -2159,7 +2159,7 @@ static void ieee80211_reset_ap_probe(struct ieee80211_sub_if_data *sdata)
 	ieee80211_recalc_ps(local, -1);
 	mutex_unlock(&local->iflist_mtx);
 
-	if (sdata->local->hw.flags & IEEE80211_HW_CONNECTION_MONITOR)
+	if (ieee80211_hw_check(&sdata->local->hw, CONNECTION_MONITOR))
 		goto out;
 
 	/*
@@ -2257,7 +2257,7 @@ static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 	 */
 	ifmgd->probe_send_count++;
 
-	if (sdata->local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS) {
+	if (ieee80211_hw_check(&sdata->local->hw, REPORTS_TX_ACK_STATUS)) {
 		ifmgd->nullfunc_failed = false;
 		ieee80211_send_nullfunc(sdata->local, sdata, 0);
 	} else {
@@ -2562,7 +2562,7 @@ static void ieee80211_auth_challenge(struct ieee80211_sub_if_data *sdata,
 		return;
 	auth_data->expected_transaction = 4;
 	drv_mgd_prepare_tx(sdata->local, sdata);
-	if (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)
+	if (ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS))
 		tx_flags = IEEE80211_TX_CTL_REQ_TX_STATUS |
 			   IEEE80211_TX_INTFL_MLME_CONN_TX;
 	ieee80211_send_auth(sdata, 3, auth_data->algorithm, 0,
@@ -3337,7 +3337,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		}
 		ifmgd->have_beacon = true;
 		ifmgd->assoc_data->need_beacon = false;
-		if (local->hw.flags & IEEE80211_HW_TIMING_BEACON_ONLY) {
+		if (ieee80211_hw_check(&local->hw, TIMING_BEACON_ONLY)) {
 			sdata->vif.bss_conf.sync_tsf =
 				le64_to_cpu(mgmt->u.beacon.timestamp);
 			sdata->vif.bss_conf.sync_device_ts =
@@ -3443,7 +3443,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 					  len - baselen, false, &elems,
 					  care_about_ies, ncrc);
 
-	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) {
+	if (ieee80211_hw_check(&local->hw, PS_NULLFUNC_STACK)) {
 		bool directed_tim = ieee80211_check_tim(elems.tim,
 							elems.tim_len,
 							ifmgd->aid);
@@ -3511,7 +3511,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	 * the driver will use them. The synchronized view is currently
 	 * guaranteed only in certain callbacks.
 	 */
-	if (local->hw.flags & IEEE80211_HW_TIMING_BEACON_ONLY) {
+	if (ieee80211_hw_check(&local->hw, TIMING_BEACON_ONLY)) {
 		sdata->vif.bss_conf.sync_tsf =
 			le64_to_cpu(mgmt->u.beacon.timestamp);
 		sdata->vif.bss_conf.sync_device_ts =
@@ -3749,7 +3749,7 @@ static int ieee80211_probe_auth(struct ieee80211_sub_if_data *sdata)
 			auth_data->expected_transaction = trans;
 		}
 
-		if (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)
+		if (ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS))
 			tx_flags = IEEE80211_TX_CTL_REQ_TX_STATUS |
 				   IEEE80211_TX_INTFL_MLME_CONN_TX;
 
@@ -3822,7 +3822,7 @@ static int ieee80211_do_assoc(struct ieee80211_sub_if_data *sdata)
 		   IEEE80211_ASSOC_MAX_TRIES);
 	ieee80211_send_assoc(sdata);
 
-	if (!(local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)) {
+	if (!ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS)) {
 		assoc_data->timeout = jiffies + IEEE80211_ASSOC_TIMEOUT;
 		assoc_data->timeout_started = true;
 		run_again(sdata, assoc_data->timeout);
@@ -3936,7 +3936,7 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 
 		memcpy(bssid, ifmgd->associated->bssid, ETH_ALEN);
 
-		if (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)
+		if (ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS))
 			max_tries = max_nullfunc_tries;
 		else
 			max_tries = max_probe_tries;
@@ -3961,7 +3961,7 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 			}
 		} else if (time_is_after_jiffies(ifmgd->probe_timeout))
 			run_again(sdata, ifmgd->probe_timeout);
-		else if (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS) {
+		else if (ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS)) {
 			mlme_dbg(sdata,
 				 "Failed to send nullfunc to AP %pM after %dms, disconnecting\n",
 				 bssid, probe_wait_ms);
@@ -4030,14 +4030,11 @@ static void ieee80211_sta_monitor_work(struct work_struct *work)
 
 static void ieee80211_restart_sta_timer(struct ieee80211_sub_if_data *sdata)
 {
-	u32 flags;
-
 	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 		__ieee80211_stop_poll(sdata);
 
 		/* let's probe the connection once */
-		flags = sdata->local->hw.flags;
-		if (!(flags & IEEE80211_HW_CONNECTION_MONITOR))
+		if (!ieee80211_hw_check(&sdata->local->hw, CONNECTION_MONITOR))
 			ieee80211_queue_work(&sdata->local->hw,
 					     &sdata->u.mgd.monitor_work);
 		/* and do all the other regular work too */
@@ -4450,8 +4447,8 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 				sdata->vif.bss_conf.sync_dtim_count = tim_ie[2];
 			else
 				sdata->vif.bss_conf.sync_dtim_count = 0;
-		} else if (!(local->hw.flags &
-					IEEE80211_HW_TIMING_BEACON_ONLY)) {
+		} else if (!ieee80211_hw_check(&sdata->local->hw,
+					       TIMING_BEACON_ONLY)) {
 			ies = rcu_dereference(cbss->proberesp_ies);
 			/* must be non-NULL since beacon IEs were NULL */
 			sdata->vif.bss_conf.sync_tsf = ies->tsf;
@@ -4829,7 +4826,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	rcu_read_unlock();
 
 	if (WARN((sdata->vif.driver_flags & IEEE80211_VIF_SUPPORTS_UAPSD) &&
-		 (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK),
+		 ieee80211_hw_check(&local->hw, PS_NULLFUNC_STACK),
 	     "U-APSD not supported with HW_PS_NULLFUNC_STACK\n"))
 		sdata->vif.driver_flags &= ~IEEE80211_VIF_SUPPORTS_UAPSD;
 
@@ -4910,7 +4907,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	rcu_read_lock();
 	beacon_ies = rcu_dereference(req->bss->beacon_ies);
 
-	if (sdata->local->hw.flags & IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC &&
+	if (ieee80211_hw_check(&sdata->local->hw, NEED_DTIM_BEFORE_ASSOC) &&
 	    !beacon_ies) {
 		/*
 		 * Wait up to one beacon interval ...
@@ -4937,7 +4934,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		assoc_data->timeout = jiffies;
 		assoc_data->timeout_started = true;
 
-		if (local->hw.flags & IEEE80211_HW_TIMING_BEACON_ONLY) {
+		if (ieee80211_hw_check(&local->hw, TIMING_BEACON_ONLY)) {
 			sdata->vif.bss_conf.sync_tsf = beacon_ies->tsf;
 			sdata->vif.bss_conf.sync_device_ts =
 				bss->device_ts_beacon;

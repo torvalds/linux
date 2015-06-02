@@ -1373,9 +1373,9 @@ static void adm8211_configure_filter(struct ieee80211_hw *dev,
 	ADM8211_CSR_READ(NAR);
 
 	if (priv->nar & ADM8211_NAR_PR)
-		dev->flags |= IEEE80211_HW_RX_INCLUDES_FCS;
+		ieee80211_hw_set(dev, RX_INCLUDES_FCS);
 	else
-		dev->flags &= ~IEEE80211_HW_RX_INCLUDES_FCS;
+		__clear_bit(IEEE80211_HW_RX_INCLUDES_FCS, dev->flags);
 
 	if (*total_flags & FIF_BCN_PRBRESP_PROMISC)
 		adm8211_set_bssid(dev, bcast);
@@ -1861,8 +1861,8 @@ static int adm8211_probe(struct pci_dev *pdev,
 	SET_IEEE80211_PERM_ADDR(dev, perm_addr);
 
 	dev->extra_tx_headroom = sizeof(struct adm8211_tx_hdr);
-	/* dev->flags = IEEE80211_HW_RX_INCLUDES_FCS in promisc mode */
-	dev->flags = IEEE80211_HW_SIGNAL_UNSPEC;
+	/* dev->flags = RX_INCLUDES_FCS in promisc mode */
+	ieee80211_hw_set(dev, SIGNAL_UNSPEC);
 	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
 	dev->max_signal = 100;    /* FIXME: find better value */

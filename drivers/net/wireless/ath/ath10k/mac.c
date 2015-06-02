@@ -6882,21 +6882,21 @@ int ath10k_mac_register(struct ath10k *ar)
 			BIT(NL80211_IFTYPE_P2P_CLIENT) |
 			BIT(NL80211_IFTYPE_P2P_GO);
 
-	ar->hw->flags = IEEE80211_HW_SIGNAL_DBM |
-			IEEE80211_HW_SUPPORTS_PS |
-			IEEE80211_HW_SUPPORTS_DYNAMIC_PS |
-			IEEE80211_HW_MFP_CAPABLE |
-			IEEE80211_HW_REPORTS_TX_ACK_STATUS |
-			IEEE80211_HW_HAS_RATE_CONTROL |
-			IEEE80211_HW_AP_LINK_PS |
-			IEEE80211_HW_SPECTRUM_MGMT |
-			IEEE80211_HW_SW_CRYPTO_CONTROL |
-			IEEE80211_HW_SUPPORT_FAST_XMIT |
-			IEEE80211_HW_CONNECTION_MONITOR |
-			IEEE80211_HW_SUPPORTS_PER_STA_GTK |
-			IEEE80211_HW_WANT_MONITOR_VIF |
-			IEEE80211_HW_CHANCTX_STA_CSA |
-			IEEE80211_HW_QUEUE_CONTROL;
+	ieee80211_hw_set(ar->hw, SIGNAL_DBM);
+	ieee80211_hw_set(ar->hw, SUPPORTS_PS);
+	ieee80211_hw_set(ar->hw, SUPPORTS_DYNAMIC_PS);
+	ieee80211_hw_set(ar->hw, MFP_CAPABLE);
+	ieee80211_hw_set(ar->hw, REPORTS_TX_ACK_STATUS);
+	ieee80211_hw_set(ar->hw, HAS_RATE_CONTROL);
+	ieee80211_hw_set(ar->hw, AP_LINK_PS);
+	ieee80211_hw_set(ar->hw, SPECTRUM_MGMT);
+	ieee80211_hw_set(ar->hw, SW_CRYPTO_CONTROL);
+	ieee80211_hw_set(ar->hw, SUPPORT_FAST_XMIT);
+	ieee80211_hw_set(ar->hw, CONNECTION_MONITOR);
+	ieee80211_hw_set(ar->hw, SUPPORTS_PER_STA_GTK);
+	ieee80211_hw_set(ar->hw, WANT_MONITOR_VIF);
+	ieee80211_hw_set(ar->hw, CHANCTX_STA_CSA);
+	ieee80211_hw_set(ar->hw, QUEUE_CONTROL);
 
 	ar->hw->wiphy->features |= NL80211_FEATURE_STATIC_SMPS;
 	ar->hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
@@ -6905,8 +6905,8 @@ int ath10k_mac_register(struct ath10k *ar)
 		ar->hw->wiphy->features |= NL80211_FEATURE_DYNAMIC_SMPS;
 
 	if (ar->ht_cap_info & WMI_HT_CAP_ENABLED) {
-		ar->hw->flags |= IEEE80211_HW_AMPDU_AGGREGATION;
-		ar->hw->flags |= IEEE80211_HW_TX_AMPDU_SETUP_IN_HW;
+		ieee80211_hw_set(ar->hw, AMPDU_AGGREGATION);
+		ieee80211_hw_set(ar->hw, TX_AMPDU_SETUP_IN_HW);
 	}
 
 	ar->hw->wiphy->max_scan_ssids = WLAN_SCAN_PARAMS_MAX_SSID;

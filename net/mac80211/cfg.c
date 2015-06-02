@@ -1763,7 +1763,7 @@ static int ieee80211_update_mesh_config(struct wiphy *wiphy,
 		/* our RSSI threshold implementation is supported only for
 		 * devices that report signal in dBm.
 		 */
-		if (!(sdata->local->hw.flags & IEEE80211_HW_SIGNAL_DBM))
+		if (!ieee80211_hw_check(&sdata->local->hw, SIGNAL_DBM))
 			return -ENOTSUPP;
 		conf->rssi_threshold = nconf->rssi_threshold;
 	}
@@ -2407,7 +2407,7 @@ static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	if (sdata->vif.type != NL80211_IFTYPE_STATION)
 		return -EOPNOTSUPP;
 
-	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_PS))
+	if (!ieee80211_hw_check(&local->hw, SUPPORTS_PS))
 		return -EOPNOTSUPP;
 
 	if (enabled == sdata->u.mgd.powersave &&
@@ -2422,7 +2422,7 @@ static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	__ieee80211_request_smps_mgd(sdata, sdata->u.mgd.req_smps);
 	sdata_unlock(sdata);
 
-	if (local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS)
+	if (ieee80211_hw_check(&local->hw, SUPPORTS_DYNAMIC_PS))
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 
 	ieee80211_recalc_ps(local, -1);
@@ -2466,7 +2466,7 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 	if (!ieee80211_sdata_running(sdata))
 		return -ENETDOWN;
 
-	if (local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL) {
+	if (ieee80211_hw_check(&local->hw, HAS_RATE_CONTROL)) {
 		ret = drv_set_bitrate_mask(local, sdata, mask);
 		if (ret)
 			return ret;
@@ -3451,7 +3451,7 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_CTL_TX_OFFCHAN |
 					IEEE80211_TX_INTFL_OFFCHAN_TX_OK;
-	if (local->hw.flags & IEEE80211_HW_QUEUE_CONTROL)
+	if (ieee80211_hw_check(&local->hw, QUEUE_CONTROL))
 		IEEE80211_SKB_CB(skb)->hw_queue =
 			local->hw.offchannel_tx_hw_queue;
 

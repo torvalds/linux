@@ -634,7 +634,7 @@ struct lbtf_private *lbtf_add_card(void *card, struct device *dmdev)
 	priv->tx_skb = NULL;
 
 	hw->queues = 1;
-	hw->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING;
+	ieee80211_hw_set(hw, HOST_BROADCAST_PS_BUFFERING);
 	hw->extra_tx_headroom = sizeof(struct txpd);
 	memcpy(priv->channels, lbtf_channels, sizeof(lbtf_channels));
 	memcpy(priv->rates, lbtf_rates, sizeof(lbtf_rates));

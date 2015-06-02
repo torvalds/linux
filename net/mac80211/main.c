@@ -661,7 +661,7 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 {
 	bool have_wep = !(IS_ERR(local->wep_tx_tfm) ||
 			  IS_ERR(local->wep_rx_tfm));
-	bool have_mfp = local->hw.flags & IEEE80211_HW_MFP_CAPABLE;
+	bool have_mfp = ieee80211_hw_check(&local->hw, MFP_CAPABLE);
 	int n_suites = 0, r = 0, w = 0;
 	u32 *suites;
 	static const u32 cipher_suites[] = {
@@ -681,7 +681,7 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 		WLAN_CIPHER_SUITE_BIP_GMAC_256,
 	};
 
-	if (local->hw.flags & IEEE80211_HW_SW_CRYPTO_CONTROL ||
+	if (ieee80211_hw_check(&local->hw, SW_CRYPTO_CONTROL) ||
 	    local->hw.wiphy->cipher_suites) {
 		/* If the driver advertises, or doesn't support SW crypto,
 		 * we only need to remove WEP if necessary.
@@ -797,7 +797,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	netdev_features_t feature_whitelist;
 	struct cfg80211_chan_def dflt_chandef = {};
 
-	if (hw->flags & IEEE80211_HW_QUEUE_CONTROL &&
+	if (ieee80211_hw_check(hw, QUEUE_CONTROL) &&
 	    (local->hw.offchannel_tx_hw_queue == IEEE80211_INVAL_HW_QUEUE ||
 	     local->hw.offchannel_tx_hw_queue >= local->hw.queues))
 		return -EINVAL;
@@ -945,9 +945,9 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	/* mac80211 supports control port protocol changing */
 	local->hw.wiphy->flags |= WIPHY_FLAG_CONTROL_PORT_PROTOCOL;
 
-	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM) {
+	if (ieee80211_hw_check(&local->hw, SIGNAL_DBM)) {
 		local->hw.wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
-	} else if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC) {
+	} else if (ieee80211_hw_check(&local->hw, SIGNAL_UNSPEC)) {
 		local->hw.wiphy->signal_type = CFG80211_SIGNAL_TYPE_UNSPEC;
 		if (hw->max_signal <= 0) {
 			result = -EINVAL;
@@ -1001,7 +1001,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		local->hw.wiphy->flags |= WIPHY_FLAG_TDLS_EXTERNAL_SETUP;
 
 	/* mac80211 supports eCSA, if the driver supports STA CSA at all */
-	if (local->hw.flags & IEEE80211_HW_CHANCTX_STA_CSA)
+	if (ieee80211_hw_check(&local->hw, CHANCTX_STA_CSA))
 		local->ext_capa[0] |= WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING;
 
 	local->hw.wiphy->max_num_csa_counters = IEEE80211_MAX_CSA_COUNTERS_NUM;
@@ -1069,7 +1069,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	/* add one default STA interface if supported */
 	if (local->hw.wiphy->interface_modes & BIT(NL80211_IFTYPE_STATION) &&
-	    !(hw->flags & IEEE80211_HW_NO_AUTO_VIF)) {
+	    !ieee80211_hw_check(hw, NO_AUTO_VIF)) {
 		result = ieee80211_if_add(local, "wlan%d", NET_NAME_ENUM, NULL,
 					  NL80211_IFTYPE_STATION, NULL);
 		if (result)

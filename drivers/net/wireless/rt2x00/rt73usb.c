@@ -2105,16 +2105,15 @@ static int rt73usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize all hw fields.
 	 *
-	 * Don't set IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING unless we are
+	 * Don't set IEEE80211_HOST_BROADCAST_PS_BUFFERING unless we are
 	 * capable of sending the buffered frames out after the DTIM
 	 * transmission using rt2x00lib_beacondone. This will send out
 	 * multicast and broadcast traffic immediately instead of buffering it
 	 * infinitly and thus dropping it after some time.
 	 */
-	rt2x00dev->hw->flags =
-	    IEEE80211_HW_SIGNAL_DBM |
-	    IEEE80211_HW_SUPPORTS_PS |
-	    IEEE80211_HW_PS_NULLFUNC_STACK;
+	ieee80211_hw_set(rt2x00dev->hw, PS_NULLFUNC_STACK);
+	ieee80211_hw_set(rt2x00dev->hw, SIGNAL_DBM);
+	ieee80211_hw_set(rt2x00dev->hw, SUPPORTS_PS);
 
 	SET_IEEE80211_DEV(rt2x00dev->hw, rt2x00dev->dev);
 	SET_IEEE80211_PERM_ADDR(rt2x00dev->hw,

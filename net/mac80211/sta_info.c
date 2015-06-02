@@ -282,7 +282,7 @@ static void sta_deliver_ps_frames(struct work_struct *wk)
 static int sta_prepare_rate_control(struct ieee80211_local *local,
 				    struct sta_info *sta, gfp_t gfp)
 {
-	if (local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL)
+	if (ieee80211_hw_check(&local->hw, HAS_RATE_CONTROL))
 		return 0;
 
 	sta->rate_ctrl = local->rate_ctrl;
@@ -643,7 +643,7 @@ static void __sta_info_recalc_tim(struct sta_info *sta, bool ignore_pending)
 	}
 
 	/* No need to do anything if the driver does all */
-	if (local->hw.flags & IEEE80211_HW_AP_LINK_PS)
+	if (ieee80211_hw_check(&local->hw, AP_LINK_PS))
 		return;
 
 	if (sta->dead)
@@ -1148,7 +1148,7 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 	sta->driver_buffered_tids = 0;
 	sta->txq_buffered_tids = 0;
 
-	if (!(local->hw.flags & IEEE80211_HW_AP_LINK_PS))
+	if (!ieee80211_hw_check(&local->hw, AP_LINK_PS))
 		drv_sta_notify(local, sdata, STA_NOTIFY_AWAKE, &sta->sta);
 
 	if (sta->sta.txq[0]) {
@@ -1879,8 +1879,8 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		sinfo->rx_beacon_signal_avg = ieee80211_ave_rssi(&sdata->vif);
 	}
 
-	if ((sta->local->hw.flags & IEEE80211_HW_SIGNAL_DBM) ||
-	    (sta->local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)) {
+	if (ieee80211_hw_check(&sta->local->hw, SIGNAL_DBM) ||
+	    ieee80211_hw_check(&sta->local->hw, SIGNAL_UNSPEC)) {
 		if (!(sinfo->filled & BIT(NL80211_STA_INFO_SIGNAL))) {
 			sinfo->signal = (s8)sta->last_signal;
 			sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
@@ -1932,7 +1932,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 
 		if (!(tidstats->filled &
 				BIT(NL80211_TID_STATS_TX_MSDU_RETRIES)) &&
-		    local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS) {
+		    ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS)) {
 			tidstats->filled |=
 				BIT(NL80211_TID_STATS_TX_MSDU_RETRIES);
 			tidstats->tx_msdu_retries = sta->tx_msdu_retries[i];
@@ -1940,7 +1940,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 
 		if (!(tidstats->filled &
 				BIT(NL80211_TID_STATS_TX_MSDU_FAILED)) &&
-		    local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS) {
+		    ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS)) {
 			tidstats->filled |=
 				BIT(NL80211_TID_STATS_TX_MSDU_FAILED);
 			tidstats->tx_msdu_failed = sta->tx_msdu_failed[i];

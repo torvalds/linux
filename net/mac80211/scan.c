@@ -71,9 +71,9 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	s32 signal = 0;
 	bool signal_valid;
 
-	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
+	if (ieee80211_hw_check(&local->hw, SIGNAL_DBM))
 		signal = rx_status->signal * 100;
-	else if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)
+	else if (ieee80211_hw_check(&local->hw, SIGNAL_UNSPEC))
 		signal = (rx_status->signal * 100) / local->hw.max_signal;
 
 	scan_width = NL80211_BSS_CHAN_WIDTH_20;
@@ -263,7 +263,7 @@ static bool ieee80211_prep_hw_scan(struct ieee80211_local *local)
 	if (test_bit(SCAN_HW_CANCELLED, &local->scanning))
 		return false;
 
-	if (local->hw.flags & IEEE80211_HW_SINGLE_SCAN_ON_ALL_BANDS) {
+	if (ieee80211_hw_check(&local->hw, SINGLE_SCAN_ON_ALL_BANDS)) {
 		for (i = 0; i < req->n_channels; i++) {
 			local->hw_scan_req->req.channels[i] = req->channels[i];
 			bands_used |= BIT(req->channels[i]->band);
@@ -332,7 +332,7 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 		return;
 
 	if (hw_scan && !aborted &&
-	    !(local->hw.flags & IEEE80211_HW_SINGLE_SCAN_ON_ALL_BANDS) &&
+	    !ieee80211_hw_check(&local->hw, SINGLE_SCAN_ON_ALL_BANDS) &&
 	    ieee80211_prep_hw_scan(local)) {
 		int rc;
 
@@ -526,7 +526,7 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 
 		local->hw_scan_ies_bufsize = local->scan_ies_len + req->ie_len;
 
-		if (local->hw.flags & IEEE80211_HW_SINGLE_SCAN_ON_ALL_BANDS) {
+		if (ieee80211_hw_check(&local->hw, SINGLE_SCAN_ON_ALL_BANDS)) {
 			int i, n_bands = 0;
 			u8 bands_counted = 0;
 

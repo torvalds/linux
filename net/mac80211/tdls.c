@@ -935,7 +935,7 @@ ieee80211_tdls_prep_mgmt_packet(struct wiphy *wiphy, struct net_device *dev,
 	 * packet through the AP.
 	 */
 	if ((action_code == WLAN_TDLS_TEARDOWN) &&
-	    (sdata->local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)) {
+	    ieee80211_hw_check(&sdata->local->hw, REPORTS_TX_ACK_STATUS)) {
 		bool try_resend; /* Should we keep skb for possible resend */
 
 		/* If not sending directly to peer - no point in keeping skb */
