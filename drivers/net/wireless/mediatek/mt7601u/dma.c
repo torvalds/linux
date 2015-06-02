@@ -37,16 +37,20 @@ mt7601u_rx_skb_from_seg(struct mt7601u_dev *dev, struct mt7601u_rxwi *rxwi,
 			void *data, u32 seg_len, u32 truesize, struct page *p)
 {
 	struct sk_buff *skb;
-	u32 true_len;
-	int hdr_len, copy, frag;
+	u32 true_len, hdr_len = 0, copy, frag;
 
 	skb = alloc_skb(p ? 128 : seg_len, GFP_ATOMIC);
 	if (!skb)
 		return NULL;
 
 	true_len = mt76_mac_process_rx(dev, skb, data, rxwi);
+	if (!true_len || true_len > seg_len)
+		goto bad_frame;
 
 	hdr_len = ieee80211_get_hdrlen_from_buf(data, true_len);
+	if (!hdr_len)
+		goto bad_frame;
+
 	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_L2PAD)) {
 		memcpy(skb_put(skb, hdr_len), data, hdr_len);
 
@@ -69,6 +73,12 @@ mt7601u_rx_skb_from_seg(struct mt7601u_dev *dev, struct mt7601u_rxwi *rxwi,
 	}
 
 	return skb;
+
+bad_frame:
+	dev_err_ratelimited(dev->dev, "Error: incorrect frame len:%u hdr:%u\n",
+			    true_len, hdr_len);
+	dev_kfree_skb(skb);
+	return NULL;
 }
 
 static void mt7601u_rx_process_seg(struct mt7601u_dev *dev, u8 *data,
