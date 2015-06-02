@@ -61,6 +61,10 @@
 	};
 };
 
+&ehci0 {
+	status = "okay";
+};
+
 &i2c0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c0_pins_a>;
@@ -106,6 +110,10 @@
 	bus-width = <4>;
 	cd-gpios = <&pio 1 4 GPIO_ACTIVE_HIGH>; /* PB4 */
 	cd-inverted;
+	status = "okay";
+};
+
+&ohci0 {
 	status = "okay";
 };
 
