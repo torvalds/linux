@@ -64,18 +64,16 @@ static int ls_pcie_link_up(struct pcie_port *pp)
 
 static int ls_pcie_establish_link(struct pcie_port *pp)
 {
-	int count = 0;
+	unsigned int retries;
 
-	while (!dw_pcie_link_up(pp)) {
+	for (retries = 0; retries < 200; retries++) {
+		if (dw_pcie_link_up(pp))
+			return 0;
 		usleep_range(100, 1000);
-		count++;
-		if (count >= 200) {
-			dev_err(pp->dev, "phy link never came up\n");
-			return -EINVAL;
-		}
 	}
 
-	return 0;
+	dev_err(pp->dev, "phy link never came up\n");
+	return -EINVAL;
 }
 
 static void ls_pcie_host_init(struct pcie_port *pp)
