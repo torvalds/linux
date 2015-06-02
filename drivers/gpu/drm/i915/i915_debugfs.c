@@ -2300,15 +2300,6 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_file *file;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	ret = mutex_lock_interruptible(&dev_priv->rps.hw_lock);
-	if (ret)
-		goto unlock;
 
 	seq_printf(m, "RPS enabled? %d\n", dev_priv->rps.enabled);
 	seq_printf(m, "GPU busy? %d\n", dev_priv->mm.busy);
@@ -2319,6 +2310,7 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 		   intel_gpu_freq(dev_priv, dev_priv->rps.min_freq_softlimit),
 		   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq_softlimit),
 		   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq));
+	spin_lock(&dev_priv->rps.client_lock);
 	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
 		struct drm_i915_file_private *file_priv = file->driver_priv;
 		struct task_struct *task;
@@ -2339,12 +2331,9 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 		   dev_priv->rps.mmioflips.boosts,
 		   list_empty(&dev_priv->rps.mmioflips.link) ? "" : ", active");
 	seq_printf(m, "Kernel boosts: %d\n", dev_priv->rps.boosts);
+	spin_unlock(&dev_priv->rps.client_lock);
 
-	mutex_unlock(&dev_priv->rps.hw_lock);
-unlock:
-	mutex_unlock(&dev->struct_mutex);
-
-	return ret;
+	return 0;
 }
 
 static int i915_llc(struct seq_file *m, void *data)

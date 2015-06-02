@@ -282,7 +282,6 @@ skl_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc, bool force)
 
 	I915_WRITE(PLANE_CTL(pipe, plane), 0);
 
-	/* Activate double buffered register update */
 	I915_WRITE(PLANE_SURF(pipe, plane), 0);
 	POSTING_READ(PLANE_SURF(pipe, plane));
 
@@ -339,7 +338,6 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
 	struct drm_device *dev = dplane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_plane *intel_plane = to_intel_plane(dplane);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	int pipe = intel_plane->pipe;
 	int plane = intel_plane->plane;
@@ -453,8 +451,7 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
 	I915_WRITE(SPCNTR(pipe, plane), sprctl);
 	I915_WRITE(SPSURF(pipe, plane), i915_gem_obj_ggtt_offset(obj) +
 		   sprsurf_offset);
-
-	intel_flush_primary_plane(dev_priv, intel_crtc->plane);
+	POSTING_READ(SPSURF(pipe, plane));
 }
 
 static void
@@ -463,20 +460,16 @@ vlv_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc, bool force)
 	struct drm_device *dev = dplane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_plane *intel_plane = to_intel_plane(dplane);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_plane->pipe;
 	int plane = intel_plane->plane;
 
 	I915_WRITE(SPCNTR(pipe, plane), 0);
 
-	/* Activate double buffered register update */
 	I915_WRITE(SPSURF(pipe, plane), 0);
-
-	intel_flush_primary_plane(dev_priv, intel_crtc->plane);
+	POSTING_READ(SPSURF(pipe, plane));
 
 	intel_update_sprite_watermarks(dplane, crtc, 0, 0, 0, false, false);
 }
-
 
 static void
 ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
@@ -489,7 +482,6 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	struct drm_device *dev = plane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	enum pipe pipe = intel_plane->pipe;
 	u32 sprctl, sprscale = 0;
@@ -599,8 +591,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	I915_WRITE(SPRCTL(pipe), sprctl);
 	I915_WRITE(SPRSURF(pipe),
 		   i915_gem_obj_ggtt_offset(obj) + sprsurf_offset);
-
-	intel_flush_primary_plane(dev_priv, intel_crtc->plane);
+	POSTING_READ(SPRSURF(pipe));
 }
 
 static void
@@ -609,17 +600,15 @@ ivb_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc, bool force)
 	struct drm_device *dev = plane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_plane->pipe;
 
 	I915_WRITE(SPRCTL(pipe), I915_READ(SPRCTL(pipe)) & ~SPRITE_ENABLE);
 	/* Can't leave the scaler enabled... */
 	if (intel_plane->can_scale)
 		I915_WRITE(SPRSCALE(pipe), 0);
-	/* Activate double buffered register update */
-	I915_WRITE(SPRSURF(pipe), 0);
 
-	intel_flush_primary_plane(dev_priv, intel_crtc->plane);
+	I915_WRITE(SPRSURF(pipe), 0);
+	POSTING_READ(SPRSURF(pipe));
 }
 
 static void
@@ -633,7 +622,6 @@ ilk_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	struct drm_device *dev = plane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	int pipe = intel_plane->pipe;
 	unsigned long dvssurf_offset, linear_offset;
@@ -730,8 +718,7 @@ ilk_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	I915_WRITE(DVSCNTR(pipe), dvscntr);
 	I915_WRITE(DVSSURF(pipe),
 		   i915_gem_obj_ggtt_offset(obj) + dvssurf_offset);
-
-	intel_flush_primary_plane(dev_priv, intel_crtc->plane);
+	POSTING_READ(DVSSURF(pipe));
 }
 
 static void
@@ -740,17 +727,14 @@ ilk_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc, bool force)
 	struct drm_device *dev = plane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_plane->pipe;
 
 	I915_WRITE(DVSCNTR(pipe), 0);
 	/* Disable the scaler */
 	I915_WRITE(DVSSCALE(pipe), 0);
 
-	/* Flush double buffered register updates */
 	I915_WRITE(DVSSURF(pipe), 0);
-
-	intel_flush_primary_plane(dev_priv, intel_crtc->plane);
+	POSTING_READ(DVSSURF(pipe));
 }
 
 static int

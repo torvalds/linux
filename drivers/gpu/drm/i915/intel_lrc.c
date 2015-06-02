@@ -427,7 +427,7 @@ static void execlists_context_unqueue(struct intel_engine_cs *ring)
 		 * WaIdleLiteRestore: make sure we never cause a lite
 		 * restore with HEAD==TAIL
 		 */
-		if (req0 && req0->elsp_submitted) {
+		if (req0->elsp_submitted) {
 			/*
 			 * Apply the wa NOOPS to prevent ring:HEAD == req:TAIL
 			 * as we resubmit the request. See gen8_emit_request()

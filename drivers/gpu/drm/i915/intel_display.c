@@ -1140,9 +1140,9 @@ static void assert_dsi_pll(struct drm_i915_private *dev_priv, bool state)
 	u32 val;
 	bool cur_state;
 
-	mutex_lock(&dev_priv->dpio_lock);
+	mutex_lock(&dev_priv->sb_lock);
 	val = vlv_cck_read(dev_priv, CCK_REG_DSI_PLL_CONTROL);
-	mutex_unlock(&dev_priv->dpio_lock);
+	mutex_unlock(&dev_priv->sb_lock);
 
 	cur_state = val & DSI_PLL_VCO_EN;
 	I915_STATE_WARN(cur_state != state,
@@ -1661,12 +1661,14 @@ static void chv_enable_pll(struct intel_crtc *crtc,
 
 	BUG_ON(!IS_CHERRYVIEW(dev_priv->dev));
 
-	mutex_lock(&dev_priv->dpio_lock);
+	mutex_lock(&dev_priv->sb_lock);
 
 	/* Enable back the 10bit clock to display controller */
 	tmp = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW14(port));
 	tmp |= DPIO_DCLKP_EN;
 	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW14(port), tmp);
+
+	mutex_unlock(&dev_priv->sb_lock);
 
 	/*
 	 * Need to wait > 100ns between dclkp clock enable bit and PLL enable.
@@ -1683,8 +1685,6 @@ static void chv_enable_pll(struct intel_crtc *crtc,
 	/* not sure when this should be written */
 	I915_WRITE(DPLL_MD(pipe), pipe_config->dpll_hw_state.dpll_md);
 	POSTING_READ(DPLL_MD(pipe));
-
-	mutex_unlock(&dev_priv->dpio_lock);
 }
 
 static int intel_num_dvo_pipes(struct drm_device *dev)
@@ -1826,7 +1826,7 @@ static void chv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	I915_WRITE(DPLL(pipe), val);
 	POSTING_READ(DPLL(pipe));
 
-	mutex_lock(&dev_priv->dpio_lock);
+	mutex_lock(&dev_priv->sb_lock);
 
 	/* Disable 10bit clock to display controller */
 	val = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW14(port));
@@ -1844,7 +1844,7 @@ static void chv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 		vlv_dpio_write(dev_priv, pipe, _CHV_CMN_DW1_CH1, val);
 	}
 
-	mutex_unlock(&dev_priv->dpio_lock);
+	mutex_unlock(&dev_priv->sb_lock);
 }
 
 void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
@@ -2208,20 +2208,6 @@ static void intel_disable_pipe(struct intel_crtc *crtc)
 	I915_WRITE(reg, val);
 	if ((val & PIPECONF_ENABLE) == 0)
 		intel_wait_for_pipe_off(crtc);
-}
-
-/*
- * Plane regs are double buffered, going from enabled->disabled needs a
- * trigger in order to latch.  The display address reg provides this.
- */
-void intel_flush_primary_plane(struct drm_i915_private *dev_priv,
-			       enum plane plane)
-{
-	struct drm_device *dev = dev_priv->dev;
-	u32 reg = INTEL_INFO(dev)->gen >= 4 ? DSPSURF(plane) : DSPADDR(plane);
-
-	I915_WRITE(reg, I915_READ(reg));
-	POSTING_READ(reg);
 }
 
 /**
@@ -3953,7 +3939,7 @@ static void lpt_program_iclkip(struct drm_crtc *crtc)
 	u32 divsel, phaseinc, auxdiv, phasedir = 0;
 	u32 temp;
 
-	mutex_lock(&dev_priv->dpio_lock);
+	mutex_lock(&dev_priv->sb_lock);
 
 	/* It is necessary to ungate the pixclk gate prior to programming
 	 * the divisors, and gate it back when it is done.
@@ -4030,7 +4016,7 @@ static void lpt_program_iclkip(struct drm_crtc *crtc)
 
 	I915_WRITE(PIXCLK_GATE, PIXCLK_GATE_UNGATE);
 
-	mutex_unlock(&dev_priv->dpio_lock);
+	mutex_unlock(&dev_priv->sb_lock);
 }
 
 static void ironlake_pch_transcoder_set_timings(struct intel_crtc *crtc,
@@ -4842,11 +4828,22 @@ intel_pre_disable_primary(struct drm_crtc *crtc)
 
 static void intel_crtc_enable_planes(struct drm_crtc *crtc)
 {
+	struct drm_device *dev = crtc->dev;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+
 	intel_enable_primary_hw_plane(crtc->primary, crtc);
 	intel_enable_sprite_planes(crtc);
 	intel_crtc_update_cursor(crtc, true);
 
 	intel_post_enable_primary(crtc);
+
+	/*
+	 * FIXME: Once we grow proper nuclear flip support out of this we need
+	 * to compute the mask of flip planes precisely. For the time being
+	 * consider this a flip to a NULL plane.
+	 */
+	intel_frontbuffer_flip(dev, INTEL_FRONTBUFFER_ALL_MASK(pipe));
 }
 
 static void intel_crtc_disable_planes(struct drm_crtc *crtc)
@@ -5742,10 +5739,10 @@ static int valleyview_get_vco(struct drm_i915_private *dev_priv)
 	int hpll_freq, vco_freq[] = { 800, 1600, 2000, 2400 };
 
 	/* Obtain SKU information */
-	mutex_lock(&dev_priv->dpio_lock);
+	mutex_lock(&dev_priv->sb_lock);
 	hpll_freq = vlv_cck_read(dev_priv, CCK_FUSE_REG) &
 		CCK_FUSE_HPLL_FREQ_MASK;
-	mutex_unlock(&dev_priv->dpio_lock);
+	mutex_unlock(&dev_priv->sb_lock);
 
 	return vco_freq[hpll_freq] * 1000;
 }
@@ -5794,12 +5791,13 @@ static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 	}
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
+	mutex_lock(&dev_priv->sb_lock);
+
 	if (cdclk == 400000) {
 		u32 divider;
 
 		divider = DIV_ROUND_CLOSEST(dev_priv->hpll_freq << 1, cdclk) - 1;
 
-		mutex_lock(&dev_priv->dpio_lock);
 		/* adjust cdclk divider */
 		val = vlv_cck_read(dev_priv, CCK_DISPLAY_CLOCK_CONTROL);
 		val &= ~DISPLAY_FREQUENCY_VALUES;
@@ -5810,10 +5808,8 @@ static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 			      DISPLAY_FREQUENCY_STATUS) == (divider << DISPLAY_FREQUENCY_STATUS_SHIFT),
 			     50))
 			DRM_ERROR("timed out waiting for CDclk change\n");
-		mutex_unlock(&dev_priv->dpio_lock);
 	}
 
-	mutex_lock(&dev_priv->dpio_lock);
 	/* adjust self-refresh exit latency value */
 	val = vlv_bunit_read(dev_priv, BUNIT_REG_BISOC);
 	val &= ~0x7f;
@@ -5827,7 +5823,8 @@ static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 	else
 		val |= 3000 / 250; /* 3.0 usec */
 	vlv_bunit_write(dev_priv, BUNIT_REG_BISOC, val);
-	mutex_unlock(&dev_priv->dpio_lock);
+
+	mutex_unlock(&dev_priv->sb_lock);
 
 	vlv_update_cdclk(dev);
 }
@@ -6755,9 +6752,9 @@ static int valleyview_get_display_clock_speed(struct drm_device *dev)
 	if (dev_priv->hpll_freq == 0)
 		dev_priv->hpll_freq = valleyview_get_vco(dev_priv);
 
-	mutex_lock(&dev_priv->dpio_lock);
+	mutex_lock(&dev_priv->sb_lock);
 	val = vlv_cck_read(dev_priv, CCK_DISPLAY_CLOCK_CONTROL);
-	mutex_unlock(&dev_priv->dpio_lock);
+	mutex_unlock(&dev_priv->sb_lock);
 
 	divider = val & DISPLAY_FREQUENCY_VALUES;
 
@@ -7099,7 +7096,7 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 	u32 bestn, bestm1, bestm2, bestp1, bestp2;
 	u32 coreclk, reg_val;
 
-	mutex_lock(&dev_priv->dpio_lock);
+	mutex_lock(&dev_priv->sb_lock);
 
 	bestn = pipe_config->dpll.n;
 	bestm1 = pipe_config->dpll.m1;
@@ -7177,7 +7174,7 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 	vlv_dpio_write(dev_priv, pipe, VLV_PLL_DW7(pipe), coreclk);
 
 	vlv_dpio_write(dev_priv, pipe, VLV_PLL_DW11(pipe), 0x87871000);
-	mutex_unlock(&dev_priv->dpio_lock);
+	mutex_unlock(&dev_priv->sb_lock);
 }
 
 static void chv_update_pll(struct intel_crtc *crtc,
@@ -7222,7 +7219,7 @@ static void chv_prepare_pll(struct intel_crtc *crtc,
 	I915_WRITE(dpll_reg,
 		   pipe_config->dpll_hw_state.dpll & ~DPLL_VCO_ENABLE);
 
-	mutex_lock(&dev_priv->dpio_lock);
+	mutex_lock(&dev_priv->sb_lock);
 
 	/* p1 and p2 divider */
 	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW13(port),
@@ -7295,7 +7292,7 @@ static void chv_prepare_pll(struct intel_crtc *crtc,
 			vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW14(port)) |
 			DPIO_AFC_RECAL);
 
-	mutex_unlock(&dev_priv->dpio_lock);
+	mutex_unlock(&dev_priv->sb_lock);
 }
 
 /**
@@ -7796,9 +7793,9 @@ static void vlv_crtc_clock_get(struct intel_crtc *crtc,
 	if (!(pipe_config->dpll_hw_state.dpll & DPLL_VCO_ENABLE))
 		return;
 
-	mutex_lock(&dev_priv->dpio_lock);
+	mutex_lock(&dev_priv->sb_lock);
 	mdiv = vlv_dpio_read(dev_priv, pipe, VLV_PLL_DW3(pipe));
-	mutex_unlock(&dev_priv->dpio_lock);
+	mutex_unlock(&dev_priv->sb_lock);
 
 	clock.m1 = (mdiv >> DPIO_M1DIV_SHIFT) & 7;
 	clock.m2 = mdiv & DPIO_M2DIV_MASK;
@@ -7892,12 +7889,12 @@ static void chv_crtc_clock_get(struct intel_crtc *crtc,
 	u32 cmn_dw13, pll_dw0, pll_dw1, pll_dw2;
 	int refclk = 100000;
 
-	mutex_lock(&dev_priv->dpio_lock);
+	mutex_lock(&dev_priv->sb_lock);
 	cmn_dw13 = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW13(port));
 	pll_dw0 = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW0(port));
 	pll_dw1 = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW1(port));
 	pll_dw2 = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW2(port));
-	mutex_unlock(&dev_priv->dpio_lock);
+	mutex_unlock(&dev_priv->sb_lock);
 
 	clock.m1 = (pll_dw1 & 0x7) == DPIO_CHV_M1_DIV_BY_2 ? 2 : 0;
 	clock.m2 = ((pll_dw0 & 0xff) << 22) | (pll_dw2 & 0x3fffff);
@@ -8263,7 +8260,7 @@ static void lpt_enable_clkout_dp(struct drm_device *dev, bool with_spread,
 		 with_fdi, "LP PCH doesn't have FDI\n"))
 		with_fdi = false;
 
-	mutex_lock(&dev_priv->dpio_lock);
+	mutex_lock(&dev_priv->sb_lock);
 
 	tmp = intel_sbi_read(dev_priv, SBI_SSCCTL, SBI_ICLK);
 	tmp &= ~SBI_SSCCTL_DISABLE;
@@ -8289,7 +8286,7 @@ static void lpt_enable_clkout_dp(struct drm_device *dev, bool with_spread,
 	tmp |= SBI_GEN0_CFG_BUFFENABLE_DISABLE;
 	intel_sbi_write(dev_priv, reg, tmp, SBI_ICLK);
 
-	mutex_unlock(&dev_priv->dpio_lock);
+	mutex_unlock(&dev_priv->sb_lock);
 }
 
 /* Sequence to disable CLKOUT_DP */
@@ -8298,7 +8295,7 @@ static void lpt_disable_clkout_dp(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t reg, tmp;
 
-	mutex_lock(&dev_priv->dpio_lock);
+	mutex_lock(&dev_priv->sb_lock);
 
 	reg = (dev_priv->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE) ?
 	       SBI_GEN0 : SBI_DBUFF0;
@@ -8317,7 +8314,7 @@ static void lpt_disable_clkout_dp(struct drm_device *dev)
 		intel_sbi_write(dev_priv, SBI_SSCCTL, tmp, SBI_ICLK);
 	}
 
-	mutex_unlock(&dev_priv->dpio_lock);
+	mutex_unlock(&dev_priv->sb_lock);
 }
 
 static void lpt_init_pch_refclk(struct drm_device *dev)
