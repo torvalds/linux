@@ -1185,7 +1185,6 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 					    &mflow->reg_id[i].id);
 		if (err)
 			goto err_create_flow;
-		i++;
 		if (is_bonded) {
 			/* Application always sees one port so the mirror rule
 			 * must be on port #2
@@ -1200,6 +1199,7 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 			j++;
 		}
 
+		i++;
 	}
 
 	if (i < ARRAY_SIZE(type) && flow_attr->type == IB_FLOW_ATTR_NORMAL) {
@@ -1207,7 +1207,7 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 					       &mflow->reg_id[i].id);
 		if (err)
 			goto err_create_flow;
-		i++;
+
 		if (is_bonded) {
 			flow_attr->port = 2;
 			err = mlx4_ib_tunnel_steer_add(qp, flow_attr,
@@ -1218,6 +1218,7 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 			j++;
 		}
 		/* function to create mirror rule */
+		i++;
 	}
 
 	return &mflow->ibflow;

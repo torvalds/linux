@@ -571,6 +571,8 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		}
 
 		rds_message_addref(rm);
+		rm->data.op_dmasg = 0;
+		rm->data.op_dmaoff = 0;
 		ic->i_data_op = &rm->data;
 
 		/* Finalize the header */
@@ -624,7 +626,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 	send = &ic->i_sends[pos];
 	first = send;
 	prev = NULL;
-	scat = &ic->i_data_op->op_sg[sg];
+	scat = &ic->i_data_op->op_sg[rm->data.op_dmasg];
 	i = 0;
 	do {
 		unsigned int len = 0;
@@ -646,17 +648,20 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		/* Set up the data, if present */
 		if (i < work_alloc
 		    && scat != &rm->data.op_sg[rm->data.op_count]) {
-			len = min(RDS_FRAG_SIZE, ib_sg_dma_len(dev, scat) - off);
+			len = min(RDS_FRAG_SIZE,
+				ib_sg_dma_len(dev, scat) - rm->data.op_dmaoff);
 			send->s_wr.num_sge = 2;
 
-			send->s_sge[1].addr = ib_sg_dma_address(dev, scat) + off;
+			send->s_sge[1].addr = ib_sg_dma_address(dev, scat);
+			send->s_sge[1].addr += rm->data.op_dmaoff;
 			send->s_sge[1].length = len;
 
 			bytes_sent += len;
-			off += len;
-			if (off == ib_sg_dma_len(dev, scat)) {
+			rm->data.op_dmaoff += len;
+			if (rm->data.op_dmaoff == ib_sg_dma_len(dev, scat)) {
 				scat++;
-				off = 0;
+				rm->data.op_dmasg++;
+				rm->data.op_dmaoff = 0;
 			}
 		}
 
