@@ -19,7 +19,6 @@ config RK_USB_UART
 
 config RK_CONSOLE_THREAD
 	bool "Console write by thread"
-	depends on FIQ_DEBUGGER_CONSOLE
 	default y
 	help
 	  Normal kernel printk will write out to UART by "kconsole" kthread
