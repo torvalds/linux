@@ -417,6 +417,15 @@ static int efx_ef10_pci_sriov_disable(struct efx_nic *efx)
 {
 	struct pci_dev *dev = efx->pci_dev;
 
+	if (!efx->vf_count)
+		return 0;
+
+	if (pci_vfs_assigned(dev)) {
+		netif_err(efx, drv, efx->net_dev, "VFs are assigned to guests; "
+			  "please detach them before disabling SR-IOV\n");
+		return -EBUSY;
+	}
+
 	pci_disable_sriov(dev);
 	efx_ef10_sriov_free_vf_vswitching(efx);
 	efx->vf_count = 0;
