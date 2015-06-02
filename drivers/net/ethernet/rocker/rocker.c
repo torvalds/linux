@@ -2921,10 +2921,11 @@ static int rocker_port_ipv4_resolve(struct rocker_port *rocker_port,
 	struct neighbour *n = __ipv4_neigh_lookup(dev, (__force u32)ip_addr);
 	int err = 0;
 
-	if (!n)
+	if (!n) {
 		n = neigh_create(&arp_tbl, &ip_addr, dev);
-	if (!n)
-		return -ENOMEM;
+		if (IS_ERR(n))
+			return IS_ERR(n);
+	}
 
 	/* If the neigh is already resolved, then go ahead and
 	 * install the entry, otherwise start the ARP process to
@@ -2936,6 +2937,7 @@ static int rocker_port_ipv4_resolve(struct rocker_port *rocker_port,
 	else
 		neigh_event_send(n, NULL);
 
+	neigh_release(n);
 	return err;
 }
 
