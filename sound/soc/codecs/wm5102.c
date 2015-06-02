@@ -614,6 +614,49 @@ static int wm5102_sysclk_ev(struct snd_soc_dapm_widget *w,
 	return arizona_dvfs_sysclk_ev(w, kcontrol, event);
 }
 
+static int wm5102_adsp_power_ev(struct snd_soc_dapm_widget *w,
+		   struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
+	unsigned int v;
+	int ret;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		ret = regmap_read(arizona->regmap, ARIZONA_SYSTEM_CLOCK_1, &v);
+		if (ret != 0) {
+			dev_err(codec->dev,
+				"Failed to read SYSCLK state: %d\n", ret);
+			return -EIO;
+		}
+
+		v = (v & ARIZONA_SYSCLK_FREQ_MASK) >> ARIZONA_SYSCLK_FREQ_SHIFT;
+
+		if (v >= 3) {
+			ret = arizona_dvfs_up(codec, ARIZONA_DVFS_ADSP1_RQ);
+			if (ret) {
+				dev_err(codec->dev,
+					"Failed to raise DVFS: %d\n", ret);
+				return ret;
+			}
+		}
+		break;
+
+	case SND_SOC_DAPM_POST_PMD:
+		ret = arizona_dvfs_down(codec, ARIZONA_DVFS_ADSP1_RQ);
+		if (ret)
+			dev_warn(codec->dev,
+				 "Failed to lower DVFS: %d\n", ret);
+		break;
+
+	default:
+		break;
+	}
+
+	return wm_adsp2_early_event(w, kcontrol, event);
+}
+
 static int wm5102_out_comp_coeff_get(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
@@ -1369,7 +1412,7 @@ ARIZONA_MUX_WIDGETS(ISRC2DEC2, "ISRC2DEC2"),
 ARIZONA_MUX_WIDGETS(ISRC2INT1, "ISRC2INT1"),
 ARIZONA_MUX_WIDGETS(ISRC2INT2, "ISRC2INT2"),
 
-WM_ADSP2("DSP1", 0),
+WM_ADSP2_E("DSP1", 0, wm5102_adsp_power_ev),
 
 SND_SOC_DAPM_OUTPUT("HPOUT1L"),
 SND_SOC_DAPM_OUTPUT("HPOUT1R"),
@@ -1922,7 +1965,7 @@ static int wm5102_probe(struct platform_device *pdev)
 	wm5102->core.adsp[0].mem = wm5102_dsp1_regions;
 	wm5102->core.adsp[0].num_mems = ARRAY_SIZE(wm5102_dsp1_regions);
 
-	ret = wm_adsp2_init(&wm5102->core.adsp[0], true);
+	ret = wm_adsp2_init(&wm5102->core.adsp[0]);
 	if (ret != 0)
 		return ret;
 
