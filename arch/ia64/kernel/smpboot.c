@@ -127,7 +127,7 @@ int smp_num_siblings = 1;
 volatile int ia64_cpu_to_sapicid[NR_CPUS];
 EXPORT_SYMBOL(ia64_cpu_to_sapicid);
 
-static volatile cpumask_t cpu_callin_map;
+static cpumask_t cpu_callin_map;
 
 struct smp_boot_data smp_boot_data __initdata;
 
@@ -477,6 +477,7 @@ do_boot_cpu (int sapicid, int cpu, struct task_struct *idle)
 	for (timeout = 0; timeout < 100000; timeout++) {
 		if (cpumask_test_cpu(cpu, &cpu_callin_map))
 			break;  /* It has booted */
+		barrier(); /* Make sure we re-read cpu_callin_map */
 		udelay(100);
 	}
 	Dprintk("\n");
