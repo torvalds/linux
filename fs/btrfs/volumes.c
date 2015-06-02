@@ -3965,6 +3965,7 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 	int slot;
 	int failed = 0;
 	bool retried = false;
+	bool checked_pending_chunks = false;
 	struct extent_buffer *l;
 	struct btrfs_key key;
 	struct btrfs_super_block *super_copy = root->fs_info->super_copy;
@@ -4045,15 +4046,6 @@ again:
 		goto again;
 	} else if (failed && retried) {
 		ret = -ENOSPC;
-		lock_chunks(root);
-
-		btrfs_device_set_total_bytes(device, old_size);
-		if (device->writeable)
-			device->fs_devices->total_rw_bytes += diff;
-		spin_lock(&root->fs_info->free_chunk_lock);
-		root->fs_info->free_chunk_space += diff;
-		spin_unlock(&root->fs_info->free_chunk_lock);
-		unlock_chunks(root);
 		goto done;
 	}
 
@@ -4065,6 +4057,35 @@ again:
 	}
 
 	lock_chunks(root);
+
+	/*
+	 * We checked in the above loop all device extents that were already in
+	 * the device tree. However before we have updated the device's
+	 * total_bytes to the new size, we might have had chunk allocations that
+	 * have not complete yet (new block groups attached to transaction
+	 * handles), and therefore their device extents were not yet in the
+	 * device tree and we missed them in the loop above. So if we have any
+	 * pending chunk using a device extent that overlaps the device range
+	 * that we can not use anymore, commit the current transaction and
+	 * repeat the search on the device tree - this way we guarantee we will
+	 * not have chunks using device extents that end beyond 'new_size'.
+	 */
+	if (!checked_pending_chunks) {
+		u64 start = new_size;
+		u64 len = old_size - new_size;
+
+		if (contains_pending_extent(trans, device, &start, len)) {
+			unlock_chunks(root);
+			checked_pending_chunks = true;
+			failed = 0;
+			retried = false;
+			ret = btrfs_commit_transaction(trans, root);
+			if (ret)
+				goto done;
+			goto again;
+		}
+	}
+
 	btrfs_device_set_disk_total_bytes(device, new_size);
 	if (list_empty(&device->resized_list))
 		list_add_tail(&device->resized_list,
@@ -4079,6 +4100,16 @@ again:
 	btrfs_end_transaction(trans, root);
 done:
 	btrfs_free_path(path);
+	if (ret) {
+		lock_chunks(root);
+		btrfs_device_set_total_bytes(device, old_size);
+		if (device->writeable)
+			device->fs_devices->total_rw_bytes += diff;
+		spin_lock(&root->fs_info->free_chunk_lock);
+		root->fs_info->free_chunk_space += diff;
+		spin_unlock(&root->fs_info->free_chunk_lock);
+		unlock_chunks(root);
+	}
 	return ret;
 }
 
