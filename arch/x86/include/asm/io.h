@@ -40,6 +40,7 @@
 #include <linux/compiler.h>
 #include <asm/page.h>
 #include <asm/early_ioremap.h>
+#include <asm/pgtable_types.h>
 
 #define build_mmio_read(name, size, type, reg, barrier) \
 static inline type name(const volatile void __iomem *addr) \
@@ -197,8 +198,6 @@ extern void set_iounmap_nonlazy(void);
 #ifdef __KERNEL__
 
 #include <asm-generic/iomap.h>
-
-#include <linux/vmalloc.h>
 
 /*
  * Convert a virtual cached pointer to an uncached pointer

@@ -17,6 +17,7 @@
 #include <linux/ftrace.h>
 #include <linux/io.h>
 #include <linux/suspend.h>
+#include <linux/vmalloc.h>
 
 #include <asm/init.h>
 #include <asm/pgtable.h>

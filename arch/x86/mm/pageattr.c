@@ -14,6 +14,7 @@
 #include <linux/percpu.h>
 #include <linux/gfp.h>
 #include <linux/pci.h>
+#include <linux/vmalloc.h>
 
 #include <asm/e820.h>
 #include <asm/processor.h>

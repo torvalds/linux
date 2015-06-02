@@ -27,6 +27,7 @@
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/nls.h>
+#include <linux/vmalloc.h>
 
 #include "hyperv_net.h"
 
