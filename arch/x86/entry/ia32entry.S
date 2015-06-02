@@ -29,15 +29,6 @@
 
 	.section .entry.text, "ax"
 
-	/* clobbers %rax */
-	.macro  CLEAR_RREGS _r9=rax
-	xorl 	%eax,%eax
-	movq	%rax,R11(%rsp)
-	movq	%rax,R10(%rsp)
-	movq	%\_r9,R9(%rsp)
-	movq	%rax,R8(%rsp)
-	.endm
-
 	/*
 	 * Reload arg registers from stack in case ptrace changed them.
 	 * We don't reload %eax because syscall_trace_enter() returned
@@ -243,7 +234,11 @@ sysexit_from_sys_call:
 	TRACE_IRQS_OFF
 	testl %edi, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
 	jz \exit
-	CLEAR_RREGS
+	xorl	%eax, %eax	/* do not leak kernel information */
+	movq	%rax, R11(%rsp)
+	movq	%rax, R10(%rsp)
+	movq	%rax, R9(%rsp)
+	movq	%rax, R8(%rsp)
 	jmp int_with_check
 	.endm
 
@@ -267,7 +262,11 @@ sysenter_tracesys:
 	jz	sysenter_auditsys
 #endif
 	SAVE_EXTRA_REGS
-	CLEAR_RREGS
+	xorl	%eax, %eax	/* do not leak kernel information */
+	movq	%rax, R11(%rsp)
+	movq	%rax, R10(%rsp)
+	movq	%rax, R9(%rsp)
+	movq	%rax, R8(%rsp)
 	movq	%rsp,%rdi        /* &pt_regs -> arg1 */
 	call	syscall_trace_enter
 	LOAD_ARGS32  /* reload args from stack in case ptrace changed it */
@@ -407,7 +406,11 @@ cstar_tracesys:
 #endif
 	xchgl %r9d,%ebp
 	SAVE_EXTRA_REGS
-	CLEAR_RREGS r9
+	xorl	%eax, %eax	/* do not leak kernel information */
+	movq	%rax, R11(%rsp)
+	movq	%rax, R10(%rsp)
+	movq	%r9,  R9(%rsp)
+	movq	%rax, R8(%rsp)
 	movq %rsp,%rdi        /* &pt_regs -> arg1 */
 	call syscall_trace_enter
 	LOAD_ARGS32 1	/* reload args from stack in case ptrace changed it */
@@ -422,7 +425,11 @@ ia32_badarg:
 	jmp ia32_sysret
 
 ia32_ret_from_sys_call:
-	CLEAR_RREGS
+	xorl	%eax, %eax	/* do not leak kernel information */
+	movq	%rax, R11(%rsp)
+	movq	%rax, R10(%rsp)
+	movq	%rax, R9(%rsp)
+	movq	%rax, R8(%rsp)
 	jmp int_ret_from_sys_call
 
 /*
