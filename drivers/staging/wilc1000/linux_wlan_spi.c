@@ -162,7 +162,7 @@ int linux_spi_write(uint8_t *b, uint32_t len)
 		int blk = len / TXRX_PHASE_SIZE;
 		int remainder = len % TXRX_PHASE_SIZE;
 
-		char *r_buffer = (char *) kzalloc(TXRX_PHASE_SIZE, GFP_KERNEL);
+		char *r_buffer = kzalloc(TXRX_PHASE_SIZE, GFP_KERNEL);
 		if (!r_buffer) {
 			PRINT_ER("Failed to allocate memory for r_buffer\n");
 		}
@@ -260,7 +260,7 @@ int linux_spi_write(uint8_t *b, uint32_t len)
 			.speed_hz = SPEED,
 			.delay_usecs = 0,
 		};
-		char *r_buffer = (char *) kzalloc(len, GFP_KERNEL);
+		char *r_buffer = kzalloc(len, GFP_KERNEL);
 		if (!r_buffer) {
 			PRINT_ER("Failed to allocate memory for r_buffer\n");
 		}
@@ -341,7 +341,7 @@ int linux_spi_read(unsigned char *rb, unsigned long rlen)
 		int blk = rlen / TXRX_PHASE_SIZE;
 		int remainder = rlen % TXRX_PHASE_SIZE;
 
-		char *t_buffer = (char *) kzalloc(TXRX_PHASE_SIZE, GFP_KERNEL);
+		char *t_buffer = kzalloc(TXRX_PHASE_SIZE, GFP_KERNEL);
 		if (!t_buffer) {
 			PRINT_ER("Failed to allocate memory for t_buffer\n");
 		}
@@ -430,7 +430,7 @@ int linux_spi_read(unsigned char *rb, unsigned long rlen)
 			.delay_usecs = 0,
 
 		};
-		char *t_buffer = (char *) kzalloc(rlen, GFP_KERNEL);
+		char *t_buffer = kzalloc(rlen, GFP_KERNEL);
 		if (!t_buffer) {
 			PRINT_ER("Failed to allocate memory for t_buffer\n");
 		}
