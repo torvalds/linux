@@ -94,8 +94,8 @@ u64 clockevent_delta2ns(unsigned long latch, struct clock_event_device *evt)
 }
 EXPORT_SYMBOL_GPL(clockevent_delta2ns);
 
-static int __clockevents_set_state(struct clock_event_device *dev,
-				   enum clock_event_state state)
+static int __clockevents_switch_state(struct clock_event_device *dev,
+				      enum clock_event_state state)
 {
 	/* Transition with legacy set_mode() callback */
 	if (dev->set_mode) {
@@ -151,17 +151,17 @@ static int __clockevents_set_state(struct clock_event_device *dev,
 }
 
 /**
- * clockevents_set_state - set the operating state of a clock event device
+ * clockevents_switch_state - set the operating state of a clock event device
  * @dev:	device to modify
  * @state:	new state
  *
  * Must be called with interrupts disabled !
  */
-void clockevents_set_state(struct clock_event_device *dev,
-			   enum clock_event_state state)
+void clockevents_switch_state(struct clock_event_device *dev,
+			      enum clock_event_state state)
 {
 	if (dev->state != state) {
-		if (__clockevents_set_state(dev, state))
+		if (__clockevents_switch_state(dev, state))
 			return;
 
 		dev->state = state;
@@ -185,7 +185,7 @@ void clockevents_set_state(struct clock_event_device *dev,
  */
 void clockevents_shutdown(struct clock_event_device *dev)
 {
-	clockevents_set_state(dev, CLOCK_EVT_STATE_SHUTDOWN);
+	clockevents_switch_state(dev, CLOCK_EVT_STATE_SHUTDOWN);
 	dev->next_event.tv64 = KTIME_MAX;
 }
 
@@ -565,7 +565,7 @@ int __clockevents_update_freq(struct clock_event_device *dev, u32 freq)
 		return clockevents_program_event(dev, dev->next_event, false);
 
 	if (clockevent_state_periodic(dev))
-		return __clockevents_set_state(dev, CLOCK_EVT_STATE_PERIODIC);
+		return __clockevents_switch_state(dev, CLOCK_EVT_STATE_PERIODIC);
 
 	return 0;
 }
@@ -619,7 +619,7 @@ void clockevents_exchange_device(struct clock_event_device *old,
 	 */
 	if (old) {
 		module_put(old->owner);
-		clockevents_set_state(old, CLOCK_EVT_STATE_DETACHED);
+		clockevents_switch_state(old, CLOCK_EVT_STATE_DETACHED);
 		list_del(&old->list);
 		list_add(&old->list, &clockevents_released);
 	}
