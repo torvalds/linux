@@ -450,7 +450,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	    !iwlwifi_mod_params.sw_crypto)
 		hw->flags |= IEEE80211_HW_MFP_CAPABLE;
 
-	hw->flags |= IEEE80211_SINGLE_HW_SCAN_ON_ALL_BANDS;
+	hw->flags |= IEEE80211_HW_SINGLE_SCAN_ON_ALL_BANDS;
 	hw->wiphy->features |=
 		NL80211_FEATURE_SCHED_SCAN_RANDOM_MAC_ADDR |
 		NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;

@@ -1885,7 +1885,7 @@ struct ieee80211_txq {
  * @IEEE80211_HW_SUPPORTS_CLONED_SKBS: The driver will never modify the payload
  *	or tailroom of TX skbs without copying them first.
  *
- * @IEEE80211_SINGLE_HW_SCAN_ON_ALL_BANDS: The HW supports scanning on all bands
+ * @IEEE80211_HW_SINGLE_SCAN_ON_ALL_BANDS: The HW supports scanning on all bands
  *	in one command, mac80211 doesn't have to run separate scans per band.
  */
 enum ieee80211_hw_flags {
@@ -1917,7 +1917,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SUPPORTS_HT_CCK_RATES		= 1<<27,
 	IEEE80211_HW_CHANCTX_STA_CSA			= 1<<28,
 	IEEE80211_HW_SUPPORTS_CLONED_SKBS		= 1<<29,
-	IEEE80211_SINGLE_HW_SCAN_ON_ALL_BANDS		= 1<<30,
+	IEEE80211_HW_SINGLE_SCAN_ON_ALL_BANDS		= 1<<30,
 };
 
 /**
