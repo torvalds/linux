@@ -107,8 +107,7 @@ static int dra7xx_pcie_establish_link(struct pcie_port *pp)
 	dra7xx_pcie_writel(dra7xx, PCIECTRL_DRA7XX_CONF_DEVICE_CMD, reg);
 
 	while (retries--) {
-		reg = dra7xx_pcie_readl(dra7xx,	PCIECTRL_DRA7XX_CONF_PHY_CS);
-		if (reg & LINK_UP)
+		if (dw_pcie_link_up(pp))
 			break;
 		usleep_range(10, 20);
 	}
