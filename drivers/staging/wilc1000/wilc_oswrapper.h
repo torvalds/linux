@@ -23,10 +23,6 @@ typedef signed short WILC_Sint16;
 typedef signed int WILC_Sint32;
 typedef signed long long WILC_Sint64;
 
-/* Floating types */
-typedef float WILC_Float;
-typedef double WILC_Double;
-
 /* Boolean type */
 typedef enum {
 	WILC_FALSE = 0,
@@ -35,14 +31,8 @@ typedef enum {
 
 /* Character types */
 typedef char WILC_Char;
-typedef WILC_Uint16 WILC_WideChar;
 
-#define WILC_OS_INFINITY (~((WILC_Uint32)0))
 #define WILC_NULL ((void *)0)
-
-/* standard min and max macros */
-#define WILC_MIN(a, b)  (((a) < (b)) ? (a) : (b))
-#define WILC_MAX(a, b)  (((a) > (b)) ? (a) : (b))
 
 /* Os Configuration File */
 #include "wilc_osconfig.h"
