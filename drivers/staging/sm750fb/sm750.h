@@ -12,7 +12,7 @@
 #define MB(x) ((x)<<20)
 #define MHZ(x) ((x) * 1000000)
 /* align should be 2,4,8,16 */
-#define PADDING(align,data) (((data)+(align)-1)&(~((align) -1)))
+#define PADDING(align, data) (((data)+(align)-1)&(~((align) -1)))
 extern int smi_indent;
 
 
@@ -27,15 +27,16 @@ struct lynx_accel{
 
 	int (*de_wait)(void);/* see if hardware ready to work */
 
-	int (*de_fillrect)(struct lynx_accel *,u32,u32,u32,
-							u32,u32,u32,u32,u32,u32);
+	int (*de_fillrect)(struct lynx_accel *, u32, u32, u32, u32,
+						u32, u32, u32, u32, u32);
 
-	int (*de_copyarea)(struct lynx_accel *,u32,u32,u32,u32,
-						u32,u32,u32,u32,
-						u32,u32,u32,u32);
+	int (*de_copyarea)(struct lynx_accel *, u32, u32, u32, u32,
+						u32, u32, u32, u32,
+						u32, u32, u32, u32);
 
-	int (*de_imageblit)(struct lynx_accel *,const char *,u32,u32,u32,
-						u32,u32,u32,u32,u32,u32,u32,u32,u32);
+	int (*de_imageblit)(struct lynx_accel *, const char *, u32, u32, u32, u32,
+							       u32, u32, u32, u32,
+							       u32, u32, u32, u32);
 
 };
 
@@ -87,10 +88,10 @@ struct lynx_cursor{
 	/* proc_routines */
 	void (*enable)(struct lynx_cursor *);
 	void (*disable)(struct lynx_cursor *);
-	void (*setSize)(struct lynx_cursor *,int,int);
-	void (*setPos)(struct lynx_cursor *,int,int);
-	void (*setColor)(struct lynx_cursor *,u32,u32);
-	void (*setData)(struct lynx_cursor *,u16,const u8*,const u8*);
+	void (*setSize)(struct lynx_cursor *, int, int);
+	void (*setPos)(struct lynx_cursor *, int, int);
+	void (*setColor)(struct lynx_cursor *, u32, u32);
+	void (*setData)(struct lynx_cursor *, u16, const u8*, const u8*);
 };
 
 struct lynxfb_crtc{
@@ -113,8 +114,8 @@ struct lynxfb_crtc{
 						struct fb_var_screeninfo*,
 						struct fb_fix_screeninfo*);
 
-	int(*proc_checkMode)(struct lynxfb_crtc*,struct fb_var_screeninfo*);
-	int(*proc_setColReg)(struct lynxfb_crtc*,ushort,ushort,ushort,ushort);
+	int(*proc_checkMode)(struct lynxfb_crtc*, struct fb_var_screeninfo*);
+	int(*proc_setColReg)(struct lynxfb_crtc*, ushort, ushort, ushort, ushort);
 	void (*clear)(struct lynxfb_crtc*);
         /* pan display */
 	int (*proc_panDisplay)(struct lynxfb_crtc *,
@@ -145,8 +146,8 @@ struct lynxfb_output{
 						struct fb_var_screeninfo*,
 						struct fb_fix_screeninfo*);
 
-	int(*proc_checkMode)(struct lynxfb_output*,struct fb_var_screeninfo*);
-	int(*proc_setBLANK)(struct lynxfb_output*,int);
+	int(*proc_checkMode)(struct lynxfb_output*, struct fb_var_screeninfo*);
+	int(*proc_setBLANK)(struct lynxfb_output*, int);
 	void  (*clear)(struct lynxfb_output*);
 };
 
@@ -168,7 +169,7 @@ struct lynxfb_par{
 #define PS_TO_HZ(ps)	\
 			({ 	\
 			unsigned long long hz = 1000*1000*1000*1000ULL;	\
-			do_div(hz,ps);	\
+			do_div(hz, ps);	\
 			(unsigned long)hz;})
 
 static inline unsigned long ps_to_hz(unsigned int psvalue)
