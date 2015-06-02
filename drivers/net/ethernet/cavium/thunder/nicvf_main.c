@@ -50,10 +50,6 @@ module_param(cpi_alg, int, S_IRUGO);
 MODULE_PARM_DESC(cpi_alg,
 		 "PFC algorithm (0=none, 1=VLAN, 2=VLAN16, 3=IP Diffserv)");
 
-static int nicvf_enable_msix(struct nicvf *nic);
-static netdev_tx_t nicvf_xmit(struct sk_buff *skb, struct net_device *netdev);
-static void nicvf_read_bgx_stats(struct nicvf *nic, struct bgx_stats_msg *bgx);
-
 static inline void nicvf_set_rx_frame_cnt(struct nicvf *nic,
 					  struct sk_buff *skb)
 {
@@ -110,17 +106,23 @@ u64 nicvf_queue_reg_read(struct nicvf *nic, u64 offset, u64 qidx)
 
 /* VF -> PF mailbox communication */
 
+static void nicvf_write_to_mbx(struct nicvf *nic, union nic_mbx *mbx)
+{
+	u64 *msg = (u64 *)mbx;
+
+	nicvf_reg_write(nic, NIC_VF_PF_MAILBOX_0_1 + 0, msg[0]);
+	nicvf_reg_write(nic, NIC_VF_PF_MAILBOX_0_1 + 8, msg[1]);
+}
+
 int nicvf_send_msg_to_pf(struct nicvf *nic, union nic_mbx *mbx)
 {
 	int timeout = NIC_MBOX_MSG_TIMEOUT;
 	int sleep = 10;
-	u64 *msg = (u64 *)mbx;
 
 	nic->pf_acked = false;
 	nic->pf_nacked = false;
 
-	nicvf_reg_write(nic, NIC_VF_PF_MAILBOX_0_1 + 0, msg[0]);
-	nicvf_reg_write(nic, NIC_VF_PF_MAILBOX_0_1 + 8, msg[1]);
+	nicvf_write_to_mbx(nic, mbx);
 
 	/* Wait for previous message to be acked, timeout 2sec */
 	while (!nic->pf_acked) {
@@ -146,12 +148,13 @@ int nicvf_send_msg_to_pf(struct nicvf *nic, union nic_mbx *mbx)
 static int nicvf_check_pf_ready(struct nicvf *nic)
 {
 	int timeout = 5000, sleep = 20;
+	union nic_mbx mbx = {};
+
+	mbx.msg.msg = NIC_MBOX_MSG_READY;
 
 	nic->pf_ready_to_rcv_msg = false;
 
-	nicvf_reg_write(nic, NIC_VF_PF_MAILBOX_0_1 + 0,
-			le64_to_cpu(NIC_MBOX_MSG_READY));
-	nicvf_reg_write(nic, NIC_VF_PF_MAILBOX_0_1 + 8, 1ULL);
+	nicvf_write_to_mbx(nic, &mbx);
 
 	while (!nic->pf_ready_to_rcv_msg) {
 		msleep(sleep);
@@ -165,6 +168,14 @@ static int nicvf_check_pf_ready(struct nicvf *nic)
 		}
 	}
 	return 1;
+}
+
+static void nicvf_read_bgx_stats(struct nicvf *nic, struct bgx_stats_msg *bgx)
+{
+	if (bgx->rx)
+		nic->bgx_stats.rx_stats[bgx->idx] = bgx->stats;
+	else
+		nic->bgx_stats.tx_stats[bgx->idx] = bgx->stats;
 }
 
 static void  nicvf_handle_mbx_intr(struct nicvf *nic)
@@ -190,8 +201,7 @@ static void  nicvf_handle_mbx_intr(struct nicvf *nic)
 		nic->vf_id = mbx.nic_cfg.vf_id & 0x7F;
 		nic->tns_mode = mbx.nic_cfg.tns_mode & 0x7F;
 		nic->node = mbx.nic_cfg.node_id;
-		ether_addr_copy(nic->netdev->dev_addr,
-				(u8 *)&mbx.nic_cfg.mac_addr);
+		ether_addr_copy(nic->netdev->dev_addr, mbx.nic_cfg.mac_addr);
 		nic->link_up = false;
 		nic->duplex = 0;
 		nic->speed = 0;
@@ -241,18 +251,15 @@ static void  nicvf_handle_mbx_intr(struct nicvf *nic)
 static int nicvf_hw_set_mac_addr(struct nicvf *nic, struct net_device *netdev)
 {
 	union nic_mbx mbx = {};
-	int i;
 
 	mbx.mac.msg = NIC_MBOX_MSG_SET_MAC;
 	mbx.mac.vf_id = nic->vf_id;
-	for (i = 0; i < ETH_ALEN; i++)
-		mbx.mac.addr = (mbx.mac.addr << 8) |
-				     netdev->dev_addr[i];
+	ether_addr_copy(mbx.mac.mac_addr, netdev->dev_addr);
 
 	return nicvf_send_msg_to_pf(nic, &mbx);
 }
 
-void nicvf_config_cpi(struct nicvf *nic)
+static void nicvf_config_cpi(struct nicvf *nic)
 {
 	union nic_mbx mbx = {};
 
@@ -264,7 +271,7 @@ void nicvf_config_cpi(struct nicvf *nic)
 	nicvf_send_msg_to_pf(nic, &mbx);
 }
 
-void nicvf_get_rss_size(struct nicvf *nic)
+static void nicvf_get_rss_size(struct nicvf *nic)
 {
 	union nic_mbx mbx = {};
 
@@ -326,11 +333,11 @@ static int nicvf_rss_init(struct nicvf *nic)
 	rss->enable = true;
 
 	/* Using the HW reset value for now */
-	rss->key[0] = 0xFEED0BADFEED0BAD;
-	rss->key[1] = 0xFEED0BADFEED0BAD;
-	rss->key[2] = 0xFEED0BADFEED0BAD;
-	rss->key[3] = 0xFEED0BADFEED0BAD;
-	rss->key[4] = 0xFEED0BADFEED0BAD;
+	rss->key[0] = 0xFEED0BADFEED0BADULL;
+	rss->key[1] = 0xFEED0BADFEED0BADULL;
+	rss->key[2] = 0xFEED0BADFEED0BADULL;
+	rss->key[3] = 0xFEED0BADFEED0BADULL;
+	rss->key[4] = 0xFEED0BADFEED0BADULL;
 
 	nicvf_set_rss_key(nic);
 
@@ -368,7 +375,9 @@ int nicvf_set_real_num_queues(struct net_device *netdev,
 static int nicvf_init_resources(struct nicvf *nic)
 {
 	int err;
-	u64 mbx_addr = NIC_VF_PF_MAILBOX_0_1;
+	union nic_mbx mbx = {};
+
+	mbx.msg.msg = NIC_MBOX_MSG_CFG_DONE;
 
 	/* Enable Qset */
 	nicvf_qset_config(nic, true);
@@ -382,9 +391,7 @@ static int nicvf_init_resources(struct nicvf *nic)
 	}
 
 	/* Send VF config done msg to PF */
-	nicvf_reg_write(nic, mbx_addr, le64_to_cpu(NIC_MBOX_MSG_CFG_DONE));
-	mbx_addr += (NIC_PF_VF_MAILBOX_SIZE - 1) * 8;
-	nicvf_reg_write(nic, mbx_addr, 1ULL);
+	nicvf_write_to_mbx(nic, &mbx);
 
 	return 0;
 }
@@ -572,7 +579,7 @@ static int nicvf_poll(struct napi_struct *napi, int budget)
  *
  * As of now only CQ errors are handled
  */
-void nicvf_handle_qs_err(unsigned long data)
+static void nicvf_handle_qs_err(unsigned long data)
 {
 	struct nicvf *nic = (struct nicvf *)data;
 	struct queue_set *qs = nic->qs;
@@ -1040,14 +1047,6 @@ static int nicvf_set_mac_address(struct net_device *netdev, void *p)
 	return 0;
 }
 
-static void nicvf_read_bgx_stats(struct nicvf *nic, struct bgx_stats_msg *bgx)
-{
-	if (bgx->rx)
-		nic->bgx_stats.rx_stats[bgx->idx] = bgx->stats;
-	else
-		nic->bgx_stats.tx_stats[bgx->idx] = bgx->stats;
-}
-
 void nicvf_update_lmac_stats(struct nicvf *nic)
 {
 	int stat = 0;
@@ -1138,7 +1137,7 @@ void nicvf_update_stats(struct nicvf *nic)
 		nicvf_update_sq_stats(nic, qidx);
 }
 
-struct rtnl_link_stats64 *nicvf_get_stats64(struct net_device *netdev,
+static struct rtnl_link_stats64 *nicvf_get_stats64(struct net_device *netdev,
 					    struct rtnl_link_stats64 *stats)
 {
 	struct nicvf *nic = netdev_priv(netdev);

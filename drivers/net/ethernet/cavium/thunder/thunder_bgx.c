@@ -38,7 +38,7 @@ struct lmac {
 	bool			is_sgmii;
 	struct delayed_work	dwork;
 	struct workqueue_struct *check_link;
-} lmac;
+};
 
 struct bgx {
 	u8			bgx_id;
@@ -50,9 +50,9 @@ struct bgx {
 	int			use_training;
 	void __iomem		*reg_base;
 	struct pci_dev		*pdev;
-} bgx;
+};
 
-struct bgx *bgx_vnic[MAX_BGX_THUNDER];
+static struct bgx *bgx_vnic[MAX_BGX_THUNDER];
 static int lmac_count; /* Total no of LMACs in system */
 
 static int bgx_xaui_check_link(struct lmac *lmac);
@@ -163,7 +163,7 @@ void bgx_get_lmac_link_state(int node, int bgx_idx, int lmacid, void *status)
 }
 EXPORT_SYMBOL(bgx_get_lmac_link_state);
 
-const char *bgx_get_lmac_mac(int node, int bgx_idx, int lmacid)
+const u8 *bgx_get_lmac_mac(int node, int bgx_idx, int lmacid)
 {
 	struct bgx *bgx = bgx_vnic[(node * MAX_BGX_PER_CN88XX) + bgx_idx];
 
@@ -174,7 +174,7 @@ const char *bgx_get_lmac_mac(int node, int bgx_idx, int lmacid)
 }
 EXPORT_SYMBOL(bgx_get_lmac_mac);
 
-void bgx_set_lmac_mac(int node, int bgx_idx, int lmacid, const char *mac)
+void bgx_set_lmac_mac(int node, int bgx_idx, int lmacid, const u8 *mac)
 {
 	struct bgx *bgx = bgx_vnic[(node * MAX_BGX_PER_CN88XX) + bgx_idx];
 
@@ -253,7 +253,7 @@ static void bgx_sgmii_change_link_state(struct lmac *lmac)
 	bgx_reg_write(bgx, lmac->lmacid, BGX_CMRX_CFG, cmr_cfg);
 }
 
-void bgx_lmac_handler(struct net_device *netdev)
+static void bgx_lmac_handler(struct net_device *netdev)
 {
 	struct lmac *lmac = container_of(netdev, struct lmac, netdev);
 	struct phy_device *phydev = lmac->phydev;
@@ -655,7 +655,7 @@ static int bgx_lmac_enable(struct bgx *bgx, u8 lmacid)
 	return 0;
 }
 
-void bgx_lmac_disable(struct bgx *bgx, u8 lmacid)
+static void bgx_lmac_disable(struct bgx *bgx, u8 lmacid)
 {
 	struct lmac *lmac;
 	u64 cmrx_cfg;
@@ -894,8 +894,8 @@ static int bgx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_release_regions;
 	}
 	bgx->bgx_id = (pci_resource_start(pdev, PCI_CFG_REG_BAR_NUM) >> 24) & 1;
-	bgx->bgx_id += NODE_ID(pci_resource_start(pdev, PCI_CFG_REG_BAR_NUM))
-							* MAX_BGX_PER_CN88XX;
+	bgx->bgx_id += nic_get_node_id(pdev) * MAX_BGX_PER_CN88XX;
+
 	bgx_vnic[bgx->bgx_id] = bgx;
 	bgx_get_qlm_mode(bgx);
 

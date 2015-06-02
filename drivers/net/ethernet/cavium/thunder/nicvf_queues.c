@@ -62,8 +62,7 @@ static int nicvf_alloc_q_desc_mem(struct nicvf *nic, struct q_desc_mem *dmem,
 
 	/* Align memory address for 'align_bytes' */
 	dmem->phys_base = NICVF_ALIGNED_ADDR((u64)dmem->dma, align_bytes);
-	dmem->base = (void *)((u8 *)dmem->unalign_base +
-			      (dmem->phys_base - dmem->dma));
+	dmem->base = dmem->unalign_base + (dmem->phys_base - dmem->dma);
 	return 0;
 }
 
@@ -228,7 +227,7 @@ static void nicvf_free_rbdr(struct nicvf *nic, struct rbdr *rbdr)
 
 /* Refill receive buffer descriptors with new buffers.
  */
-void nicvf_refill_rbdr(struct nicvf *nic, gfp_t gfp)
+static void nicvf_refill_rbdr(struct nicvf *nic, gfp_t gfp)
 {
 	struct queue_set *qs = nic->qs;
 	int rbdr_idx = qs->rbdr_cnt;
@@ -357,7 +356,9 @@ static int nicvf_init_snd_queue(struct nicvf *nic,
 		return err;
 
 	sq->desc = sq->dmem.base;
-	sq->skbuff = kcalloc(q_len, sizeof(u64), GFP_ATOMIC);
+	sq->skbuff = kcalloc(q_len, sizeof(u64), GFP_KERNEL);
+	if (!sq->skbuff)
+		return -ENOMEM;
 	sq->head = 0;
 	sq->tail = 0;
 	atomic_set(&sq->free_cnt, q_len - 1);

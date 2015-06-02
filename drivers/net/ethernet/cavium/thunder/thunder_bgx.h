@@ -20,9 +20,6 @@
 
 #define    MAX_LMAC	(MAX_BGX_PER_CN88XX * MAX_LMAC_PER_BGX)
 
-#define    NODE_ID_MASK				0x300000000000
-#define    NODE_ID(x)				((x & NODE_ID_MASK) >> 44)
-
 /* Registers */
 #define BGX_CMRX_CFG			0x00
 #define  CMR_PKT_TX_EN				BIT_ULL(13)
@@ -186,8 +183,8 @@ enum MCAST_MODE {
 void bgx_add_dmac_addr(u64 dmac, int node, int bgx_idx, int lmac);
 unsigned bgx_get_map(int node);
 int bgx_get_lmac_count(int node, int bgx);
-const char *bgx_get_lmac_mac(int node, int bgx_idx, int lmacid);
-void bgx_set_lmac_mac(int node, int bgx_idx, int lmacid, const char *mac);
+const u8 *bgx_get_lmac_mac(int node, int bgx_idx, int lmacid);
+void bgx_set_lmac_mac(int node, int bgx_idx, int lmacid, const u8 *mac);
 void bgx_get_lmac_link_state(int node, int bgx_idx, int lmacid, void *status);
 u64 bgx_get_rx_stats(int node, int bgx_idx, int lmac, int idx);
 u64 bgx_get_tx_stats(int node, int bgx_idx, int lmac, int idx);

@@ -504,8 +504,7 @@ static int nicvf_set_rxfh(struct net_device *dev, const u32 *indir,
 	}
 
 	/* We do not allow change in unsupported parameters */
-	if (hkey ||
-	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
+	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
 
 	rss->enable = true;

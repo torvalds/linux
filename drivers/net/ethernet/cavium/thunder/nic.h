@@ -11,6 +11,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/interrupt.h>
+#include <linux/pci.h>
 #include "thunder_bgx.h"
 
 /* PCI device IDs */
@@ -300,7 +301,7 @@ struct nic_cfg_msg {
 	u8    vf_id;
 	u8    tns_mode;
 	u8    node_id;
-	u64   mac_addr;
+	u8    mac_addr[ETH_ALEN];
 };
 
 /* Qset configuration */
@@ -330,7 +331,7 @@ struct sq_cfg_msg {
 struct set_mac_msg {
 	u8    msg;
 	u8    vf_id;
-	u64   addr;
+	u8    mac_addr[ETH_ALEN];
 };
 
 /* Set Maximum frame size */
@@ -398,15 +399,22 @@ union nic_mbx {
 	struct bgx_link_status  link_status;
 };
 
+#define NIC_NODE_ID_MASK	0x03
+#define NIC_NODE_ID_SHIFT	44
+
+static inline int nic_get_node_id(struct pci_dev *pdev)
+{
+	u64 addr = pci_resource_start(pdev, PCI_CFG_REG_BAR_NUM);
+	return ((addr >> NIC_NODE_ID_SHIFT) & NIC_NODE_ID_MASK);
+}
+
 int nicvf_set_real_num_queues(struct net_device *netdev,
 			      int tx_queues, int rx_queues);
 int nicvf_open(struct net_device *netdev);
 int nicvf_stop(struct net_device *netdev);
 int nicvf_send_msg_to_pf(struct nicvf *vf, union nic_mbx *mbx);
-void nicvf_config_cpi(struct nicvf *nic);
 void nicvf_config_rss(struct nicvf *nic);
 void nicvf_set_rss_key(struct nicvf *nic);
-void nicvf_free_skb(struct nicvf *nic, struct sk_buff *skb);
 void nicvf_set_ethtool_ops(struct net_device *netdev);
 void nicvf_update_stats(struct nicvf *nic);
 void nicvf_update_lmac_stats(struct nicvf *nic);
