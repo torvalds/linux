@@ -1,0 +1,19 @@
+* Texas Instruments - dp83867 Giga bit ethernet phy
+
+Required properties:
+	- reg - The ID number for the phy, usually a small integer
+	- ti,rx_int_delay - RGMII Recieve Clock Delay - see dt-bindings/net/ti-dp83867.h
+		for applicable values
+	- ti,tx_int_delay - RGMII Transmit Clock Delay - see dt-bindings/net/ti-dp83867.h
+		for applicable values
+	- ti,fifo_depth - Transmitt FIFO depth- see dt-bindings/net/ti-dp83867.h
+		for applicable values
+
+Example:
+
+	ethernet-phy@0 {
+		reg = <0>;
+		ti,rx_int_delay = <DP83867_RGMIIDCTL_2_25_NS>;
+		ti,tx_int_delay = <DP83867_RGMIIDCTL_2_75_NS>;
+		ti,fifo_depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
+	};
