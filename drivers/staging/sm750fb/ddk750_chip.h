@@ -76,10 +76,10 @@ initchip_param_t;
 
 
 logical_chip_type_t getChipType(void);
-unsigned int calcPllValue(unsigned int request,pll_value_t *pll);
-unsigned int calcPllValue2(unsigned int,pll_value_t *);
+unsigned int calcPllValue(unsigned int request, pll_value_t *pll);
+unsigned int calcPllValue2(unsigned int, pll_value_t *);
 unsigned int formatPllReg(pll_value_t *pPLL);
-void ddk750_set_mmio(void __iomem *,unsigned short,char);
+void ddk750_set_mmio(void __iomem *, unsigned short, char);
 unsigned int ddk750_getVMSize(void);
 int ddk750_initHw(initchip_param_t *);
 unsigned int getPllValue(clock_type_t clockType, pll_value_t *pPLL);
