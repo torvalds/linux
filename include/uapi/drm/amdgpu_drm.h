@@ -378,11 +378,7 @@ union drm_amdgpu_cs {
 #define AMDGPU_IB_FLAG_PREAMBLE (1<<2)
 
 struct drm_amdgpu_cs_chunk_ib {
-	/**
-	 * Handle of GEM object to be used as IB or 0 if it is already in
-	 * residency list.
-	 */
-	uint32_t handle;
+	uint32_t _pad;
 	uint32_t flags;		/* IB Flags */
 	uint64_t va_start;	/* Virtual address to begin IB execution */
 	uint32_t ib_bytes;	/* Size of submission */

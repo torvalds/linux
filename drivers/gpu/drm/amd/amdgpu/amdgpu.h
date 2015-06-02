@@ -1191,7 +1191,6 @@ struct amdgpu_cs_parser {
 	struct amdgpu_cs_chunk	*chunks;
 	/* relocations */
 	struct amdgpu_bo_list_entry	*vm_bos;
-	struct amdgpu_bo_list_entry	*ib_bos;
 	struct list_head	validated;
 
 	struct amdgpu_ib	*ibs;
