@@ -346,9 +346,9 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	 * ask if it's already enabled
 	 */
 	rc = efx_mcdi_set_workaround(efx, MC_CMD_WORKAROUND_BUG35388, true);
-	if (rc == 0)
+	if (rc == 0) {
 		nic_data->workaround_35388 = true;
-	else if (rc == -EPERM) {
+	} else if (rc == -EPERM) {
 		unsigned int enabled;
 
 		rc = efx_mcdi_get_workarounds(efx, NULL, &enabled);
@@ -356,9 +356,9 @@ static int efx_ef10_probe(struct efx_nic *efx)
 			goto fail3;
 		nic_data->workaround_35388 = enabled &
 			MC_CMD_GET_WORKAROUNDS_OUT_BUG35388;
-	}
-	else if (rc != -ENOSYS && rc != -ENOENT)
+	} else if (rc != -ENOSYS && rc != -ENOENT) {
 		goto fail3;
+	}
 	netif_dbg(efx, probe, efx->net_dev,
 		  "workaround for bug 35388 is %sabled\n",
 		  nic_data->workaround_35388 ? "en" : "dis");
