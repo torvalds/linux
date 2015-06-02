@@ -34,10 +34,8 @@ static void rtl8192_parse_pci_configuration(struct pci_dev *pdev,
 	u16 LinkCtrlReg;
 
 	pcie_capability_read_word(priv->pdev, PCI_EXP_LNKCTL, &LinkCtrlReg);
-	priv->NdisAdapter.LinkCtrlReg = (u8)LinkCtrlReg;
 
-	RT_TRACE(COMP_INIT, "Link Control Register =%x\n",
-		 priv->NdisAdapter.LinkCtrlReg);
+	RT_TRACE(COMP_INIT, "Link Control Register =%x\n", LinkCtrlReg);
 
 	pci_read_config_byte(pdev, 0x98, &tmp);
 	tmp |= BIT4;
