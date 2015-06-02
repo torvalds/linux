@@ -698,6 +698,7 @@ config RCU_BOOST_DELAY
 config RCU_NOCB_CPU
 	bool "Offload RCU callback processing from boot-selected CPUs"
 	depends on TREE_RCU || PREEMPT_RCU
+	depends on RCU_EXPERT || NO_HZ_FULL
 	default n
 	help
 	  Use this option to reduce OS jitter for aggressive HPC or
