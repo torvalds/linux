@@ -10587,8 +10587,7 @@ F:	drivers/virtio/virtio_input.c
 F:	include/uapi/linux/virtio_input.h
 
 VIA RHINE NETWORK DRIVER
-M:	Roger Luethi <rl@hellgate.ch>
-S:	Maintained
+S:	Orphan
 F:	drivers/net/ethernet/via/via-rhine.c
 
 VIA SD/MMC CARD CONTROLLER DRIVER

@@ -1372,19 +1372,23 @@ void bnx2x_stats_handle(struct bnx2x *bp, enum bnx2x_stats_event event)
 	 * that context in case someone is in the middle of a transition.
 	 * For other events, wait a bit until lock is taken.
 	 */
-	if (!mutex_trylock(&bp->stats_lock)) {
+	if (down_trylock(&bp->stats_lock)) {
 		if (event == STATS_EVENT_UPDATE)
 			return;
 
 		DP(BNX2X_MSG_STATS,
 		   "Unlikely stats' lock contention [event %d]\n", event);
-		mutex_lock(&bp->stats_lock);
+		if (unlikely(down_timeout(&bp->stats_lock, HZ / 10))) {
+			BNX2X_ERR("Failed to take stats lock [event %d]\n",
+				  event);
+			return;
+		}
 	}
 
 	bnx2x_stats_stm[state][event].action(bp);
 	bp->stats_state = bnx2x_stats_stm[state][event].next_state;
 
-	mutex_unlock(&bp->stats_lock);
+	up(&bp->stats_lock);
 
 	if ((event != STATS_EVENT_UPDATE) || netif_msg_timer(bp))
 		DP(BNX2X_MSG_STATS, "state %d -> event %d -> state %d\n",
@@ -1970,7 +1974,11 @@ int bnx2x_stats_safe_exec(struct bnx2x *bp,
 	/* Wait for statistics to end [while blocking further requests],
 	 * then run supplied function 'safely'.
 	 */
-	mutex_lock(&bp->stats_lock);
+	rc = down_timeout(&bp->stats_lock, HZ / 10);
+	if (unlikely(rc)) {
+		BNX2X_ERR("Failed to take statistics lock for safe execution\n");
+		goto out_no_lock;
+	}
 
 	bnx2x_stats_comp(bp);
 	while (bp->stats_pending && cnt--)
@@ -1988,7 +1996,7 @@ out:
 	/* No need to restart statistics - if they're enabled, the timer
 	 * will restart the statistics.
 	 */
-	mutex_unlock(&bp->stats_lock);
-
+	up(&bp->stats_lock);
+out_no_lock:
 	return rc;
 }
