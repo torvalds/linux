@@ -30,13 +30,10 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Robert Jennings <rcj@linux.vnet.ibm.com>");
 MODULE_DESCRIPTION("842 H/W Compression driver for IBM Power processors");
 
-/* IO buffer must be 128 byte aligned */
-#define IO_BUFFER_ALIGN 128
-
 static struct nx842_constraints nx842_pseries_constraints = {
-	.alignment =	IO_BUFFER_ALIGN,
+	.alignment =	DDE_BUFFER_ALIGN,
 	.multiple =	DDE_BUFFER_LAST_MULT,
-	.minimum =	IO_BUFFER_ALIGN,
+	.minimum =	DDE_BUFFER_LAST_MULT,
 	.maximum =	PAGE_SIZE, /* dynamic, max_sync_size */
 };
 
