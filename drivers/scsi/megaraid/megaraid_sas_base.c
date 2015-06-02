@@ -4619,18 +4619,18 @@ static int megasas_init_fw(struct megasas_instance *instance)
 			instance->msix_vectors = i;
 		else
 			instance->msix_vectors = 0;
-
-		dev_info(&instance->pdev->dev,
-			"firmware supports msix\t: (%d)", fw_msix_count);
-		dev_info(&instance->pdev->dev,
-			"current msix/online cpus\t: (%d/%d)\n",
-			instance->msix_vectors, (unsigned int)num_online_cpus());
-
-		if (instance->msix_vectors ?
-				megasas_setup_irqs_msix(instance, 1) :
-				megasas_setup_irqs_ioapic(instance))
-			goto fail_setup_irqs;
 	}
+
+	dev_info(&instance->pdev->dev,
+		"firmware supports msix\t: (%d)", fw_msix_count);
+	dev_info(&instance->pdev->dev,
+		"current msix/online cpus\t: (%d/%d)\n",
+		instance->msix_vectors, (unsigned int)num_online_cpus());
+
+	if (instance->msix_vectors ?
+		megasas_setup_irqs_msix(instance, 1) :
+		megasas_setup_irqs_ioapic(instance))
+		goto fail_setup_irqs;
 
 	instance->ctrl_info = kzalloc(sizeof(struct megasas_ctrl_info),
 				GFP_KERNEL);
@@ -4646,6 +4646,10 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	/* Get operational params, sge flags, send init cmd to controller */
 	if (instance->instancet->init_adapter(instance))
 		goto fail_init_adapter;
+
+	tasklet_init(&instance->isr_tasklet, instance->instancet->tasklet,
+		(unsigned long)instance);
+
 	instance->instancet->enable_intr(instance);
 
 	printk(KERN_ERR "megasas: INIT adapter done\n");
@@ -4762,12 +4766,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		instance->throttlequeuedepth =
 				MEGASAS_THROTTLE_QUEUE_DEPTH;
 
-        /*
-	* Setup tasklet for cmd completion
-	*/
-
-	tasklet_init(&instance->isr_tasklet, instance->instancet->tasklet,
-		(unsigned long)instance);
 
 	/* Launch SR-IOV heartbeat timer */
 	if (instance->requestorId) {
