@@ -38,7 +38,7 @@ struct lmac {
 	bool			is_sgmii;
 	struct delayed_work	dwork;
 	struct workqueue_struct *check_link;
-} lmac;
+};
 
 struct bgx {
 	u8			bgx_id;
@@ -50,7 +50,7 @@ struct bgx {
 	int			use_training;
 	void __iomem		*reg_base;
 	struct pci_dev		*pdev;
-} bgx;
+};
 
 struct bgx *bgx_vnic[MAX_BGX_THUNDER];
 static int lmac_count; /* Total no of LMACs in system */
