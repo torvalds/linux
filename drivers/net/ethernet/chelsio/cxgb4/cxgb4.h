@@ -273,6 +273,7 @@ struct pci_params {
 
 #define CHELSIO_T4		0x4
 #define CHELSIO_T5		0x5
+#define CHELSIO_T6		0x6
 
 enum chip_type {
 	T4_A1 = CHELSIO_CHIP_CODE(CHELSIO_T4, 1),
@@ -284,6 +285,10 @@ enum chip_type {
 	T5_A1 = CHELSIO_CHIP_CODE(CHELSIO_T5, 1),
 	T5_FIRST_REV	= T5_A0,
 	T5_LAST_REV	= T5_A1,
+
+	T6_A0 = CHELSIO_CHIP_CODE(CHELSIO_T6, 0),
+	T6_FIRST_REV    = T6_A0,
+	T6_LAST_REV     = T6_A0,
 };
 
 struct devlog_params {
@@ -849,6 +854,11 @@ enum {
 	VLAN_INSERT,
 	VLAN_REWRITE
 };
+
+static inline int is_t6(enum chip_type chip)
+{
+	return CHELSIO_CHIP_VERSION(chip) == CHELSIO_T6;
+}
 
 static inline int is_t5(enum chip_type chip)
 {
