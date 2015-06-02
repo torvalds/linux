@@ -3020,7 +3020,6 @@ static int submit_bh_wbc(int rw, struct buffer_head *bh,
 			 unsigned long bio_flags, struct writeback_control *wbc)
 {
 	struct bio *bio;
-	int ret = 0;
 
 	BUG_ON(!buffer_locked(bh));
 	BUG_ON(!buffer_mapped(bh));
