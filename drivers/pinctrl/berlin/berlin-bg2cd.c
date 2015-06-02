@@ -68,7 +68,7 @@ static const struct berlin_desc_group berlin2cd_soc_pinctrl_groups[] = {
 		BERLIN_PINCTRL_FUNCTION(0x1, "twsi1"),
 		BERLIN_PINCTRL_FUNCTION(0x2, "gpio")),
 	BERLIN_PINCTRL_GROUP("G8", 0x00, 0x3, 0x10,
-		BERLIN_PINCTRL_FUNCTION(0x0, "ss0"),
+		BERLIN_PINCTRL_FUNCTION(0x0, "spi1"),
 		BERLIN_PINCTRL_FUNCTION(0x1, "gpio")),
 	BERLIN_PINCTRL_GROUP("G9", 0x00, 0x3, 0x13,
 		BERLIN_PINCTRL_FUNCTION(0x0, "gpio"),
