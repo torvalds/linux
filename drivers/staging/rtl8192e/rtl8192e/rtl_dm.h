@@ -87,16 +87,11 @@
 struct dig_t {
 	u8		dig_enable_flag;
 	u8		dig_algorithm;
-	u8		Dig_TwoPort_Algorithm;
-	u8		Dig_Ext_Port_Stage;
 	u8		dbg_mode;
 	u8		dig_algorithm_switch;
 
 	long		rssi_low_thresh;
 	long		rssi_high_thresh;
-
-	u32		FALowThresh;
-	u32		FAHighThresh;
 
 	long		rssi_high_power_lowthresh;
 	long		rssi_high_power_highthresh;
@@ -105,8 +100,6 @@ struct dig_t {
 	u8		dig_highpwr_state;
 	u8		CurSTAConnectState;
 	u8		PreSTAConnectState;
-	u8		CurAPConnectState;
-	u8		PreAPConnectState;
 
 	u8		curpd_thstate;
 	u8		prepd_thstate;
@@ -116,13 +109,9 @@ struct dig_t {
 	u32		pre_ig_value;
 	u32		cur_ig_value;
 
-	u8		Backoff_Enable_Flag;
 	u8		backoff_val;
-	char		BackoffVal_range_max;
-	char		BackoffVal_range_min;
 	u8		rx_gain_range_max;
 	u8		rx_gain_range_min;
-	bool		initialgain_lowerbound_state;
 
 	long		rssi_val;
 };
@@ -164,26 +153,6 @@ enum dm_dig_alg {
 	DIG_ALGO_BEFORE_CONNECT_BY_RSSI_AND_ALARM = 2,
 	DIG_ALGO_BY_TOW_PORT = 3,
 	DIG_ALGO_MAX
-};
-
-enum dm_dig_two_port_alg {
-	DIG_TWO_PORT_ALGO_RSSI = 0,
-	DIG_TWO_PORT_ALGO_FALSE_ALARM = 1,
-};
-
-
-enum dm_dig_ext_port_alg {
-	DIG_EXT_PORT_STAGE_0 = 0,
-	DIG_EXT_PORT_STAGE_1 = 1,
-	DIG_EXT_PORT_STAGE_2 = 2,
-	DIG_EXT_PORT_STAGE_3 = 3,
-	DIG_EXT_PORT_STAGE_MAX = 4,
-};
-
-enum dm_dig_dbg {
-	DIG_DBG_OFF = 0,
-	DIG_DBG_ON = 1,
-	DIG_DBG_MAX
 };
 
 enum dm_dig_connect {
@@ -251,8 +220,6 @@ extern	struct dig_t dm_digtable;
 extern	u8		dm_shadow[16][256];
 extern struct drx_path_sel DM_RxPathSelTable;
 
-extern	u8			test_flag;
-
 /* Pre-calculated gain tables */
 extern const u32 dm_tx_bb_gain[TxBBGainTableLength];
 extern const u8 dm_cck_tx_bb_gain[CCKTxBBGainTableLength][8];
@@ -279,47 +246,10 @@ extern  void dm_cck_txpower_adjust(struct net_device *dev, bool binch14);
 
 extern  void    dm_restore_dynamic_mechanism_state(struct net_device *dev);
 extern  void    dm_backup_dynamic_mechanism_state(struct net_device *dev);
-extern  void    dm_change_dynamic_initgain_thresh(struct net_device *dev,
-					u32	     dm_type,
-					u32	     dm_value);
-extern  void    DM_ChangeFsyncSetting(struct net_device *dev,
-					s32	     DM_Type,
-					s32	     DM_Value);
-extern  void dm_force_tx_fw_info(struct net_device *dev,
-					u32	     force_type,
-					u32	     force_value);
 extern  void    dm_init_edca_turbo(struct net_device *dev);
-extern  void    dm_rf_operation_test_callback(unsigned long data);
 extern  void    dm_rf_pathcheck_workitemcallback(void *data);
 extern  void dm_fsync_timer_callback(unsigned long data);
 extern  void dm_check_fsync(struct net_device *dev);
-extern  void    dm_shadow_init(struct net_device *dev);
 extern  void dm_initialize_txpower_tracking(struct net_device *dev);
 extern  void    dm_CheckRfCtrlGPIO(void *data);
-extern void dm_InitRateAdaptiveMask(struct net_device *dev);
-extern	void	init_hal_dm(struct net_device *dev);
-extern	void deinit_hal_dm(struct net_device *dev);
-extern void hal_dm_watchdog(struct net_device *dev);
-extern	void	init_rate_adaptive(struct net_device *dev);
-extern	void	dm_txpower_trackingcallback(void *data);
-extern	void	dm_restore_dynamic_mechanism_state(struct net_device *dev);
-extern	void	dm_backup_dynamic_mechanism_state(struct net_device *dev);
-extern	void	dm_change_dynamic_initgain_thresh(struct net_device *dev,
-					u32	dm_type,
-					u32	dm_value);
-extern	void	DM_ChangeFsyncSetting(struct net_device *dev,
-					s32		DM_Type,
-					s32		DM_Value);
-extern	void dm_force_tx_fw_info(struct net_device *dev,
-					u32		force_type,
-					u32		force_value);
-extern	void	dm_init_edca_turbo(struct net_device *dev);
-extern	void	dm_rf_operation_test_callback(unsigned long data);
-extern	void	dm_rf_pathcheck_workitemcallback(void *data);
-extern	void dm_fsync_timer_callback(unsigned long data);
-extern	void dm_check_fsync(struct net_device *dev);
-extern	void	dm_shadow_init(struct net_device *dev);
-extern	void dm_initialize_txpower_tracking(struct net_device *dev);
-extern  void    dm_CheckRfCtrlGPIO(void *data);
-
 #endif	/*__R8192UDM_H__ */

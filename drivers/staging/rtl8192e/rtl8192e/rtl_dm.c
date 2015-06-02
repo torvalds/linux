@@ -1303,63 +1303,14 @@ static void dm_bb_initialgain_backup(struct net_device *dev)
 
 }
 
-void dm_change_dynamic_initgain_thresh(struct net_device *dev,
-				       u32 dm_type, u32 dm_value)
-{
-	if (dm_type == DIG_TYPE_THRESH_HIGH) {
-		dm_digtable.rssi_high_thresh = dm_value;
-	} else if (dm_type == DIG_TYPE_THRESH_LOW) {
-		dm_digtable.rssi_low_thresh = dm_value;
-	} else if (dm_type == DIG_TYPE_THRESH_HIGHPWR_HIGH) {
-		dm_digtable.rssi_high_power_highthresh = dm_value;
-	} else if (dm_type == DIG_TYPE_THRESH_HIGHPWR_LOW) {
-		dm_digtable.rssi_high_power_lowthresh = dm_value;
-	} else if (dm_type == DIG_TYPE_ENABLE) {
-		dm_digtable.dig_state		= DM_STA_DIG_MAX;
-		dm_digtable.dig_enable_flag	= true;
-	} else if (dm_type == DIG_TYPE_DISABLE) {
-		dm_digtable.dig_state		= DM_STA_DIG_MAX;
-		dm_digtable.dig_enable_flag	= false;
-	} else if (dm_type == DIG_TYPE_DBG_MODE) {
-		if (dm_value >= DM_DBG_MAX)
-			dm_value = DM_DBG_OFF;
-		dm_digtable.dbg_mode		= (u8)dm_value;
-	} else if (dm_type == DIG_TYPE_RSSI) {
-		if (dm_value > 100)
-			dm_value = 30;
-		dm_digtable.rssi_val			= (long)dm_value;
-	} else if (dm_type == DIG_TYPE_ALGORITHM) {
-		if (dm_value >= DIG_ALGO_MAX)
-			dm_value = DIG_ALGO_BY_FALSE_ALARM;
-		if (dm_digtable.dig_algorithm != (u8)dm_value)
-			dm_digtable.dig_algorithm_switch = 1;
-		dm_digtable.dig_algorithm	= (u8)dm_value;
-	} else if (dm_type == DIG_TYPE_BACKOFF) {
-		if (dm_value > 30)
-			dm_value = 30;
-		dm_digtable.backoff_val		= (u8)dm_value;
-	} else if (dm_type == DIG_TYPE_RX_GAIN_MIN) {
-		if (dm_value == 0)
-			dm_value = 0x1;
-		dm_digtable.rx_gain_range_min = (u8)dm_value;
-	} else if (dm_type == DIG_TYPE_RX_GAIN_MAX) {
-		if (dm_value > 0x50)
-			dm_value = 0x50;
-		dm_digtable.rx_gain_range_max = (u8)dm_value;
-	}
-}
-
 static void dm_dig_init(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	dm_digtable.dig_enable_flag	= true;
-	dm_digtable.Backoff_Enable_Flag = true;
 
 	dm_digtable.dig_algorithm = DIG_ALGO_BY_RSSI;
 
-	dm_digtable.Dig_TwoPort_Algorithm = DIG_TWO_PORT_ALGO_RSSI;
-	dm_digtable.Dig_Ext_Port_Stage = DIG_EXT_PORT_STAGE_MAX;
 	dm_digtable.dbg_mode = DM_DBG_OFF;
 	dm_digtable.dig_algorithm_switch = 0;
 
@@ -1367,15 +1318,9 @@ static void dm_dig_init(struct net_device *dev)
 	dm_digtable.dig_highpwr_state	= DM_STA_DIG_MAX;
 	dm_digtable.CurSTAConnectState = DIG_STA_DISCONNECT;
 	dm_digtable.PreSTAConnectState = DIG_STA_DISCONNECT;
-	dm_digtable.CurAPConnectState = DIG_AP_DISCONNECT;
-	dm_digtable.PreAPConnectState = DIG_AP_DISCONNECT;
-	dm_digtable.initialgain_lowerbound_state = false;
 
 	dm_digtable.rssi_low_thresh	= DM_DIG_THRESH_LOW;
 	dm_digtable.rssi_high_thresh	= DM_DIG_THRESH_HIGH;
-
-	dm_digtable.FALowThresh	= DM_FALSEALARM_THRESH_LOW;
-	dm_digtable.FAHighThresh	= DM_FALSEALARM_THRESH_HIGH;
 
 	dm_digtable.rssi_high_power_lowthresh = DM_DIG_HIGH_PWR_THRESH_LOW;
 	dm_digtable.rssi_high_power_highthresh = DM_DIG_HIGH_PWR_THRESH_HIGH;
@@ -1387,9 +1332,6 @@ static void dm_dig_init(struct net_device *dev)
 		dm_digtable.rx_gain_range_min = DM_DIG_MIN_Netcore;
 	else
 		dm_digtable.rx_gain_range_min = DM_DIG_MIN;
-
-	dm_digtable.BackoffVal_range_max = DM_DIG_BACKOFF_MAX;
-	dm_digtable.BackoffVal_range_min = DM_DIG_BACKOFF_MIN;
 }
 
 static void dm_ctrl_initgain_byrssi(struct net_device *dev)
@@ -2563,28 +2505,6 @@ void dm_check_fsync(struct net_device *dev)
 			reg_c38_State = RegC38_Default;
 		}
 	}
-}
-
-void dm_shadow_init(struct net_device *dev)
-{
-	u8	page;
-	u16	offset;
-
-	for (page = 0; page < 5; page++)
-		for (offset = 0; offset < 256; offset++)
-			dm_shadow[page][offset] = read_nic_byte(dev,
-						  offset+page * 256);
-
-	for (page = 8; page < 11; page++)
-		for (offset = 0; offset < 256; offset++)
-			dm_shadow[page][offset] = read_nic_byte(dev,
-						  offset+page * 256);
-
-	for (page = 12; page < 15; page++)
-		for (offset = 0; offset < 256; offset++)
-			dm_shadow[page][offset] = read_nic_byte(dev,
-						  offset+page*256);
-
 }
 
 /*---------------------------Define function prototype------------------------*/
