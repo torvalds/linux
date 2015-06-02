@@ -1306,11 +1306,24 @@ static int efx_ef10_try_update_nic_stats_vf(struct efx_nic *efx)
 	__le64 *dma_stats;
 	int rc;
 
+	spin_unlock_bh(&efx->stats_lock);
+
+	if (in_interrupt()) {
+		/* If in atomic context, cannot update stats.  Just update the
+		 * software stats and return so the caller can continue.
+		 */
+		spin_lock_bh(&efx->stats_lock);
+		efx_update_sw_stats(efx, stats);
+		return 0;
+	}
+
 	efx_ef10_get_stat_mask(efx, mask);
 
 	rc = efx_nic_alloc_buffer(efx, &stats_buf, dma_len, GFP_ATOMIC);
-	if (rc)
+	if (rc) {
+		spin_lock_bh(&efx->stats_lock);
 		return rc;
+	}
 
 	dma_stats = stats_buf.addr;
 	dma_stats[MC_CMD_MAC_GENERATION_END] = EFX_MC_STATS_GENERATION_INVALID;
@@ -1321,7 +1334,6 @@ static int efx_ef10_try_update_nic_stats_vf(struct efx_nic *efx)
 	MCDI_SET_DWORD(inbuf, MAC_STATS_IN_DMA_LEN, dma_len);
 	MCDI_SET_DWORD(inbuf, MAC_STATS_IN_PORT_ID, EVB_PORT_ID_ASSIGNED);
 
-	spin_unlock_bh(&efx->stats_lock);
 	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_MAC_STATS, inbuf, sizeof(inbuf),
 				NULL, 0, NULL);
 	spin_lock_bh(&efx->stats_lock);
