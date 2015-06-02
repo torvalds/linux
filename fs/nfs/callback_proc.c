@@ -445,6 +445,13 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 		goto out;
 	}
 
+	memcpy(&res->csr_sessionid, &args->csa_sessionid,
+	       sizeof(res->csr_sessionid));
+	res->csr_sequenceid = args->csa_sequenceid;
+	res->csr_slotid = args->csa_slotid;
+	res->csr_highestslotid = NFS41_BC_MAX_CALLBACKS - 1;
+	res->csr_target_highestslotid = NFS41_BC_MAX_CALLBACKS - 1;
+
 	status = validate_seqid(tbl, args);
 	spin_unlock(&tbl->slot_tbl_lock);
 	if (status)
@@ -461,13 +468,6 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 		status = htonl(NFS4ERR_DELAY);
 		goto out;
 	}
-
-	memcpy(&res->csr_sessionid, &args->csa_sessionid,
-	       sizeof(res->csr_sessionid));
-	res->csr_sequenceid = args->csa_sequenceid;
-	res->csr_slotid = args->csa_slotid;
-	res->csr_highestslotid = NFS41_BC_MAX_CALLBACKS - 1;
-	res->csr_target_highestslotid = NFS41_BC_MAX_CALLBACKS - 1;
 
 	/*
 	 * RFC5661 20.9.3
