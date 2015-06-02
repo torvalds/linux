@@ -147,7 +147,7 @@ int do_lcfg(char *cfgname, lnet_nid_t nid, int cmd,
 	    char *s1, char *s2, char *s3, char *s4)
 {
 	struct lustre_cfg_bufs bufs;
-	struct lustre_cfg    * lcfg = NULL;
+	struct lustre_cfg     *lcfg = NULL;
 	int rc;
 
 	CDEBUG(D_TRACE, "lcfg %s %#x %s %s %s %s\n", cfgname,
