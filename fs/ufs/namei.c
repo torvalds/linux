@@ -212,6 +212,7 @@ static int ufs_mkdir(struct inode * dir, struct dentry * dentry, umode_t mode)
 		goto out_fail;
 	unlock_ufs(dir->i_sb);
 
+	unlock_new_inode(inode);
 	d_instantiate(dentry, inode);
 out:
 	return err;
