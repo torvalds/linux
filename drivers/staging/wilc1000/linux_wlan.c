@@ -1737,7 +1737,7 @@ static int linux_wlan_read_mac_addr(void *vp)
 	mm_segment_t old_fs;
 	loff_t pos = 0;
 	int index;
-	int array_size = sizeof(path_string) / sizeof(path_string[0]);
+	int array_size = ARRAY_SIZE(path_string);
 
 	/* change to KERNEL_DS address limit */
 	old_fs = get_fs();
