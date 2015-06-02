@@ -33,6 +33,13 @@
 #define GB_NUM_MINORS	255	/* 255 is enough for anyone... */
 #define GB_NAME		"ttyGB"
 
+struct gb_tty_line_coding {
+	__le32	rate;
+	__u8	format;
+	__u8	parity;
+	__u8	data_bits;
+};
+
 struct gb_tty {
 	struct tty_port port;
 	struct gb_connection *connection;
@@ -50,9 +57,8 @@ struct gb_tty {
 	u8 version_minor;
 	unsigned int ctrlin;	/* input control lines */
 	unsigned int ctrlout;	/* output control lines */
-	struct gb_serial_line_coding line_coding;
+	struct gb_tty_line_coding line_coding;
 };
-
 
 static struct tty_driver *gb_tty_driver;
 static DEFINE_IDR(tty_minors);
@@ -87,7 +93,7 @@ static int send_line_coding(struct gb_tty *tty)
 {
 	struct gb_uart_set_line_coding_request request;
 
-	memcpy(&request.line_coding, &tty->line_coding,
+	memcpy(&request, &tty->line_coding,
 	       sizeof(tty->line_coding));
 	return gb_operation_sync(tty->connection, GB_UART_TYPE_SET_LINE_CODING,
 				 &request, sizeof(request), NULL, 0);
@@ -245,7 +251,7 @@ static void gb_tty_set_termios(struct tty_struct *tty,
 {
 	struct gb_tty *gb_tty = tty->driver_data;
 	struct ktermios *termios = &tty->termios;
-	struct gb_serial_line_coding newline;
+	struct gb_tty_line_coding newline;
 	int newctrl = gb_tty->ctrlout;
 
 	newline.rate = cpu_to_le32(tty_get_baud_rate(tty));
@@ -256,17 +262,17 @@ static void gb_tty_set_termios(struct tty_struct *tty,
 
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
-		newline.data = 5;
+		newline.data_bits = 5;
 		break;
 	case CS6:
-		newline.data = 6;
+		newline.data_bits = 6;
 		break;
 	case CS7:
-		newline.data = 7;
+		newline.data_bits = 7;
 		break;
 	case CS8:
 	default:
-		newline.data = 8;
+		newline.data_bits = 8;
 		break;
 	}
 
@@ -571,7 +577,7 @@ static int gb_uart_connection_init(struct gb_connection *connection)
 	gb_tty->line_coding.rate = cpu_to_le32(9600);
 	gb_tty->line_coding.format = GB_SERIAL_1_STOP_BITS;
 	gb_tty->line_coding.parity = GB_SERIAL_NO_PARITY;
-	gb_tty->line_coding.data = 8;
+	gb_tty->line_coding.data_bits = 8;
 	send_line_coding(gb_tty);
 
 	tty_dev = tty_port_register_device(&gb_tty->port, gb_tty_driver, minor,
