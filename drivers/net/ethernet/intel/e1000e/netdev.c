@@ -4120,6 +4120,20 @@ void e1000e_reset(struct e1000_adapter *adapter)
 		phy_data &= ~IGP02E1000_PM_SPD;
 		e1e_wphy(hw, IGP02E1000_PHY_POWER_MGMT, phy_data);
 	}
+	if (hw->mac.type == e1000_pch_spt && adapter->int_mode == 0) {
+		u32 reg;
+
+		/* Fextnvm7 @ 0xe4[2] = 1 */
+		reg = er32(FEXTNVM7);
+		reg |= E1000_FEXTNVM7_SIDE_CLK_UNGATE;
+		ew32(FEXTNVM7, reg);
+		/* Fextnvm9 @ 0x5bb4[13:12] = 11 */
+		reg = er32(FEXTNVM9);
+		reg |= E1000_FEXTNVM9_IOSFSB_CLKGATE_DIS |
+		       E1000_FEXTNVM9_IOSFSB_CLKREQ_DIS;
+		ew32(FEXTNVM9, reg);
+	}
+
 }
 
 int e1000e_up(struct e1000_adapter *adapter)
