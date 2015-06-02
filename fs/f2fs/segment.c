@@ -544,7 +544,6 @@ static void __add_discard_entry(struct f2fs_sb_info *sbi,
 	list_add_tail(&new->list, head);
 done:
 	SM_I(sbi)->nr_discards += end - start;
-	cpc->trimmed += end - start;
 }
 
 static void add_discard_addrs(struct f2fs_sb_info *sbi, struct cp_control *cpc)
@@ -646,6 +645,7 @@ void clear_prefree_segments(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 		if (cpc->reason == CP_DISCARD && entry->len < cpc->trim_minlen)
 			goto skip;
 		f2fs_issue_discard(sbi, entry->blkaddr, entry->len);
+		cpc->trimmed += entry->len;
 skip:
 		list_del(&entry->list);
 		SM_I(sbi)->nr_discards -= entry->len;
