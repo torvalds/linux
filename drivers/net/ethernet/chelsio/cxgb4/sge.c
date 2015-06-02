@@ -522,14 +522,13 @@ static void unmap_rx_buf(struct adapter *adap, struct sge_fl *q)
 
 static inline void ring_fl_db(struct adapter *adap, struct sge_fl *q)
 {
-	u32 val;
 	if (q->pend_cred >= 8) {
+		u32 val = adap->params.arch.sge_fl_db;
+
 		if (is_t4(adap->params.chip))
-			val = PIDX_V(q->pend_cred / 8);
+			val |= PIDX_V(q->pend_cred / 8);
 		else
-			val = PIDX_T5_V(q->pend_cred / 8) |
-				DBTYPE_F;
-		val |= DBPRIO_F;
+			val |= PIDX_T5_V(q->pend_cred / 8);
 
 		/* Make sure all memory writes to the Free List queue are
 		 * committed before we tell the hardware about them.
@@ -1034,7 +1033,7 @@ static void inline_tx_skb(const struct sk_buff *skb, const struct sge_txq *q,
  * Figure out what HW csum a packet wants and return the appropriate control
  * bits.
  */
-static u64 hwcsum(const struct sk_buff *skb)
+static u64 hwcsum(enum chip_type chip, const struct sk_buff *skb)
 {
 	int csum_type;
 	const struct iphdr *iph = ip_hdr(skb);
@@ -1065,11 +1064,16 @@ nocsum:			/*
 			goto nocsum;
 	}
 
-	if (likely(csum_type >= TX_CSUM_TCPIP))
-		return TXPKT_CSUM_TYPE_V(csum_type) |
-			TXPKT_IPHDR_LEN_V(skb_network_header_len(skb)) |
-			TXPKT_ETHHDR_LEN_V(skb_network_offset(skb) - ETH_HLEN);
-	else {
+	if (likely(csum_type >= TX_CSUM_TCPIP)) {
+		u64 hdr_len = TXPKT_IPHDR_LEN_V(skb_network_header_len(skb));
+		int eth_hdr_len = skb_network_offset(skb) - ETH_HLEN;
+
+		if (CHELSIO_CHIP_VERSION(chip) <= CHELSIO_T5)
+			hdr_len |= TXPKT_ETHHDR_LEN_V(eth_hdr_len);
+		else
+			hdr_len |= T6_TXPKT_ETHHDR_LEN_V(eth_hdr_len);
+		return TXPKT_CSUM_TYPE_V(csum_type) | hdr_len;
+	} else {
 		int start = skb_transport_offset(skb);
 
 		return TXPKT_CSUM_TYPE_V(csum_type) |
@@ -1237,9 +1241,15 @@ out_free:	dev_kfree_skb_any(skb);
 		else
 			lso->c.len = htonl(LSO_T5_XFER_SIZE_V(skb->len));
 		cpl = (void *)(lso + 1);
-		cntrl = TXPKT_CSUM_TYPE_V(v6 ? TX_CSUM_TCPIP6 : TX_CSUM_TCPIP) |
-			TXPKT_IPHDR_LEN_V(l3hdr_len) |
-			TXPKT_ETHHDR_LEN_V(eth_xtra_len);
+
+		if (CHELSIO_CHIP_VERSION(adap->params.chip) <= CHELSIO_T5)
+			cntrl =	TXPKT_ETHHDR_LEN_V(eth_xtra_len);
+		else
+			cntrl = T6_TXPKT_ETHHDR_LEN_V(eth_xtra_len);
+
+		cntrl |= TXPKT_CSUM_TYPE_V(v6 ?
+					   TX_CSUM_TCPIP6 : TX_CSUM_TCPIP) |
+			 TXPKT_IPHDR_LEN_V(l3hdr_len);
 		q->tso++;
 		q->tx_cso += ssi->gso_segs;
 	} else {
@@ -1248,7 +1258,8 @@ out_free:	dev_kfree_skb_any(skb);
 				       FW_WR_IMMDLEN_V(len));
 		cpl = (void *)(wr + 1);
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
-			cntrl = hwcsum(skb) | TXPKT_IPCSUM_DIS_F;
+			cntrl = hwcsum(adap->params.chip, skb) |
+				TXPKT_IPCSUM_DIS_F;
 			q->tx_cso++;
 		}
 	}
@@ -2440,6 +2451,8 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 		c.iqns_to_fl0congen = htonl(FW_IQ_CMD_IQFLINTCONGEN_F);
 
 	if (fl) {
+		enum chip_type chip = CHELSIO_CHIP_VERSION(adap->params.chip);
+
 		/* Allocate the ring for the hardware free list (with space
 		 * for its status page) along with the associated software
 		 * descriptor ring.  The free list size needs to be a multiple
@@ -2468,7 +2481,9 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 				      FW_IQ_CMD_FL0CONGEN_F);
 		c.fl0dcaen_to_fl0cidxfthresh =
 			htons(FW_IQ_CMD_FL0FBMIN_V(FETCHBURSTMIN_64B_X) |
-			      FW_IQ_CMD_FL0FBMAX_V(FETCHBURSTMAX_512B_X));
+			      FW_IQ_CMD_FL0FBMAX_V((chip <= CHELSIO_T5) ?
+						   FETCHBURSTMAX_512B_X :
+						   FETCHBURSTMAX_256B_X));
 		c.fl0size = htons(flsz);
 		c.fl0addr = cpu_to_be64(fl->addr);
 	}

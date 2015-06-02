@@ -686,6 +686,9 @@ struct cpl_tx_pkt {
 #define TXPKT_ETHHDR_LEN_S    34
 #define TXPKT_ETHHDR_LEN_V(x) ((__u64)(x) << TXPKT_ETHHDR_LEN_S)
 
+#define T6_TXPKT_ETHHDR_LEN_S    32
+#define T6_TXPKT_ETHHDR_LEN_V(x) ((__u64)(x) << T6_TXPKT_ETHHDR_LEN_S)
+
 #define TXPKT_CSUM_TYPE_S    40
 #define TXPKT_CSUM_TYPE_V(x) ((__u64)(x) << TXPKT_CSUM_TYPE_S)
 

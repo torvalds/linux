@@ -150,7 +150,12 @@ void t4_write_indirect(struct adapter *adap, unsigned int addr_reg,
  */
 void t4_hw_pci_read_cfg4(struct adapter *adap, int reg, u32 *val)
 {
-	u32 req = ENABLE_F | FUNCTION_V(adap->pf) | REGISTER_V(reg);
+	u32 req = FUNCTION_V(adap->pf) | REGISTER_V(reg);
+
+	if (CHELSIO_CHIP_VERSION(adap->params.chip) <= CHELSIO_T5)
+		req |= ENABLE_F;
+	else
+		req |= T6_ENABLE_F;
 
 	if (is_t4(adap->params.chip))
 		req |= LOCALCFG_F;
@@ -381,9 +386,8 @@ int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
 	/* Offset into the region of memory which is being accessed
 	 * MEM_EDC0 = 0
 	 * MEM_EDC1 = 1
-	 * MEM_MC   = 2 -- T4
-	 * MEM_MC0  = 2 -- For T5
-	 * MEM_MC1  = 3 -- For T5
+	 * MEM_MC   = 2 -- MEM_MC for chips with only 1 memory controller
+	 * MEM_MC1  = 3 -- for chips with 2 memory controllers (e.g. T5)
 	 */
 	edc_size  = EDRAM0_SIZE_G(t4_read_reg(adap, MA_EDRAM0_BAR_A));
 	if (mtype != MEM_MC1)
@@ -2292,7 +2296,8 @@ static bool t4_fw_matches_chip(const struct adapter *adap,
 	 * which will keep us "honest" in the future ...
 	 */
 	if ((is_t4(adap->params.chip) && hdr->chip == FW_HDR_CHIP_T4) ||
-	    (is_t5(adap->params.chip) && hdr->chip == FW_HDR_CHIP_T5))
+	    (is_t5(adap->params.chip) && hdr->chip == FW_HDR_CHIP_T5) ||
+	    (is_t6(adap->params.chip) && hdr->chip == FW_HDR_CHIP_T6))
 		return true;
 
 	dev_err(adap->pdev_dev,
@@ -2832,6 +2837,7 @@ static void tp_intr_handler(struct adapter *adapter)
 static void sge_intr_handler(struct adapter *adapter)
 {
 	u64 v;
+	u32 err;
 
 	static const struct intr_info sge_intr_info[] = {
 		{ ERR_CPL_EXCEED_IQE_SIZE_F,
@@ -2840,8 +2846,6 @@ static void sge_intr_handler(struct adapter *adapter)
 		  "SGE GTS CIDX increment too large", -1, 0 },
 		{ ERR_CPL_OPCODE_0_F, "SGE received 0-length CPL", -1, 0 },
 		{ DBFIFO_LP_INT_F, NULL, -1, 0, t4_db_full },
-		{ DBFIFO_HP_INT_F, NULL, -1, 0, t4_db_full },
-		{ ERR_DROPPED_DB_F, NULL, -1, 0, t4_db_dropped },
 		{ ERR_DATA_CPL_ON_HIGH_QID1_F | ERR_DATA_CPL_ON_HIGH_QID0_F,
 		  "SGE IQID > 1023 received CPL for FL", -1, 0 },
 		{ ERR_BAD_DB_PIDX3_F, "SGE DBP 3 pidx increment too large", -1,
@@ -2854,10 +2858,16 @@ static void sge_intr_handler(struct adapter *adapter)
 		  0 },
 		{ ERR_ING_CTXT_PRIO_F,
 		  "SGE too many priority ingress contexts", -1, 0 },
-		{ ERR_EGR_CTXT_PRIO_F,
-		  "SGE too many priority egress contexts", -1, 0 },
 		{ INGRESS_SIZE_ERR_F, "SGE illegal ingress QID", -1, 0 },
 		{ EGRESS_SIZE_ERR_F, "SGE illegal egress QID", -1, 0 },
+		{ 0 }
+	};
+
+	static struct intr_info t4t5_sge_intr_info[] = {
+		{ ERR_DROPPED_DB_F, NULL, -1, 0, t4_db_dropped },
+		{ DBFIFO_HP_INT_F, NULL, -1, 0, t4_db_full },
+		{ ERR_EGR_CTXT_PRIO_F,
+		  "SGE too many priority egress contexts", -1, 0 },
 		{ 0 }
 	};
 
@@ -2870,8 +2880,23 @@ static void sge_intr_handler(struct adapter *adapter)
 		t4_write_reg(adapter, SGE_INT_CAUSE2_A, v >> 32);
 	}
 
-	if (t4_handle_intr_status(adapter, SGE_INT_CAUSE3_A, sge_intr_info) ||
-	    v != 0)
+	v |= t4_handle_intr_status(adapter, SGE_INT_CAUSE3_A, sge_intr_info);
+	if (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5)
+		v |= t4_handle_intr_status(adapter, SGE_INT_CAUSE3_A,
+					   t4t5_sge_intr_info);
+
+	err = t4_read_reg(adapter, SGE_ERROR_STATS_A);
+	if (err & ERROR_QID_VALID_F) {
+		dev_err(adapter->pdev_dev, "SGE error for queue %u\n",
+			ERROR_QID_G(err));
+		if (err & UNCAPTURED_ERROR_F)
+			dev_err(adapter->pdev_dev,
+				"SGE UNCAPTURED_ERROR set (clearing)\n");
+		t4_write_reg(adapter, SGE_ERROR_STATS_A, ERROR_QID_VALID_F |
+			     UNCAPTURED_ERROR_F);
+	}
+
+	if (v != 0)
 		t4_fatal_err(adapter);
 }
 
@@ -3044,6 +3069,7 @@ static void cplsw_intr_handler(struct adapter *adapter)
  */
 static void le_intr_handler(struct adapter *adap)
 {
+	enum chip_type chip = CHELSIO_CHIP_VERSION(adap->params.chip);
 	static const struct intr_info le_intr_info[] = {
 		{ LIPMISS_F, "LE LIP miss", -1, 0 },
 		{ LIP0_F, "LE 0 LIP error", -1, 0 },
@@ -3053,7 +3079,18 @@ static void le_intr_handler(struct adapter *adap)
 		{ 0 }
 	};
 
-	if (t4_handle_intr_status(adap, LE_DB_INT_CAUSE_A, le_intr_info))
+	static struct intr_info t6_le_intr_info[] = {
+		{ T6_LIPMISS_F, "LE LIP miss", -1, 0 },
+		{ T6_LIP0_F, "LE 0 LIP error", -1, 0 },
+		{ TCAMINTPERR_F, "LE parity error", -1, 1 },
+		{ T6_UNKNOWNCMD_F, "LE unknown command", -1, 1 },
+		{ SSRAMINTPERR_F, "LE request queue parity error", -1, 1 },
+		{ 0 }
+	};
+
+	if (t4_handle_intr_status(adap, LE_DB_INT_CAUSE_A,
+				  (chip <= CHELSIO_T5) ?
+				  le_intr_info : t6_le_intr_info))
 		t4_fatal_err(adap);
 }
 
@@ -3322,7 +3359,7 @@ int t4_slow_intr_handler(struct adapter *adapter)
 		pcie_intr_handler(adapter);
 	if (cause & MC_F)
 		mem_intr_handler(adapter, MEM_MC);
-	if (!is_t4(adapter->params.chip) && (cause & MC1_S))
+	if (is_t5(adapter->params.chip) && (cause & MC1_F))
 		mem_intr_handler(adapter, MEM_MC1);
 	if (cause & EDC0_F)
 		mem_intr_handler(adapter, MEM_EDC0);
@@ -3368,17 +3405,18 @@ int t4_slow_intr_handler(struct adapter *adapter)
  */
 void t4_intr_enable(struct adapter *adapter)
 {
+	u32 val = 0;
 	u32 pf = SOURCEPF_G(t4_read_reg(adapter, PL_WHOAMI_A));
 
+	if (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5)
+		val = ERR_DROPPED_DB_F | ERR_EGR_CTXT_PRIO_F | DBFIFO_HP_INT_F;
 	t4_write_reg(adapter, SGE_INT_ENABLE3_A, ERR_CPL_EXCEED_IQE_SIZE_F |
 		     ERR_INVALID_CIDX_INC_F | ERR_CPL_OPCODE_0_F |
-		     ERR_DROPPED_DB_F | ERR_DATA_CPL_ON_HIGH_QID1_F |
+		     ERR_DATA_CPL_ON_HIGH_QID1_F | INGRESS_SIZE_ERR_F |
 		     ERR_DATA_CPL_ON_HIGH_QID0_F | ERR_BAD_DB_PIDX3_F |
 		     ERR_BAD_DB_PIDX2_F | ERR_BAD_DB_PIDX1_F |
 		     ERR_BAD_DB_PIDX0_F | ERR_ING_CTXT_PRIO_F |
-		     ERR_EGR_CTXT_PRIO_F | INGRESS_SIZE_ERR_F |
-		     DBFIFO_HP_INT_F | DBFIFO_LP_INT_F |
-		     EGRESS_SIZE_ERR_F);
+		     DBFIFO_LP_INT_F | EGRESS_SIZE_ERR_F | val);
 	t4_write_reg(adapter, MYPF_REG(PL_PF_INT_ENABLE_A), PF_INTR_MASK);
 	t4_set_reg_field(adapter, PL_INT_MAP0_A, 0, 1 << pf);
 }
@@ -3592,11 +3630,29 @@ void t4_read_rss_key(struct adapter *adap, u32 *key)
  */
 void t4_write_rss_key(struct adapter *adap, const u32 *key, int idx)
 {
+	u8 rss_key_addr_cnt = 16;
+	u32 vrt = t4_read_reg(adap, TP_RSS_CONFIG_VRT_A);
+
+	/* T6 and later: for KeyMode 3 (per-vf and per-vf scramble),
+	 * allows access to key addresses 16-63 by using KeyWrAddrX
+	 * as index[5:4](upper 2) into key table
+	 */
+	if ((CHELSIO_CHIP_VERSION(adap->params.chip) > CHELSIO_T5) &&
+	    (vrt & KEYEXTEND_F) && (KEYMODE_G(vrt) == 3))
+		rss_key_addr_cnt = 32;
+
 	t4_write_indirect(adap, TP_PIO_ADDR_A, TP_PIO_DATA_A, key, 10,
 			  TP_RSS_SECRET_KEY0_A);
-	if (idx >= 0 && idx < 16)
-		t4_write_reg(adap, TP_RSS_CONFIG_VRT_A,
-			     KEYWRADDR_V(idx) | KEYWREN_F);
+
+	if (idx >= 0 && idx < rss_key_addr_cnt) {
+		if (rss_key_addr_cnt > 16)
+			t4_write_reg(adap, TP_RSS_CONFIG_VRT_A,
+				     KEYWRADDRX_V(idx >> 4) |
+				     T6_VFWRADDR_V(idx) | KEYWREN_F);
+		else
+			t4_write_reg(adap, TP_RSS_CONFIG_VRT_A,
+				     KEYWRADDR_V(idx) | KEYWREN_F);
+	}
 }
 
 /**
@@ -3630,8 +3686,13 @@ void t4_read_rss_vf_config(struct adapter *adapter, unsigned int index,
 {
 	u32 vrt, mask, data;
 
-	mask = VFWRADDR_V(VFWRADDR_M);
-	data = VFWRADDR_V(index);
+	if (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5) {
+		mask = VFWRADDR_V(VFWRADDR_M);
+		data = VFWRADDR_V(index);
+	} else {
+		 mask =  T6_VFWRADDR_V(T6_VFWRADDR_M);
+		 data = T6_VFWRADDR_V(index);
+	}
 
 	/* Request that the index'th VF Table values be read into VFL/VFH.
 	 */
@@ -5142,45 +5203,71 @@ int t4_alloc_mac_filt(struct adapter *adap, unsigned int mbox,
 		      unsigned int viid, bool free, unsigned int naddr,
 		      const u8 **addr, u16 *idx, u64 *hash, bool sleep_ok)
 {
-	int i, ret;
+	int offset, ret = 0;
 	struct fw_vi_mac_cmd c;
-	struct fw_vi_mac_exact *p;
-	unsigned int max_naddr = is_t4(adap->params.chip) ?
-				       NUM_MPS_CLS_SRAM_L_INSTANCES :
-				       NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
+	unsigned int nfilters = 0;
+	unsigned int max_naddr = adap->params.arch.mps_tcam_size;
+	unsigned int rem = naddr;
 
-	if (naddr > 7)
+	if (naddr > max_naddr)
 		return -EINVAL;
 
-	memset(&c, 0, sizeof(c));
-	c.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_MAC_CMD) |
-				   FW_CMD_REQUEST_F | FW_CMD_WRITE_F |
-				   (free ? FW_CMD_EXEC_F : 0) |
-				   FW_VI_MAC_CMD_VIID_V(viid));
-	c.freemacs_to_len16 = cpu_to_be32(FW_VI_MAC_CMD_FREEMACS_V(free) |
-					  FW_CMD_LEN16_V((naddr + 2) / 2));
+	for (offset = 0; offset < naddr ; /**/) {
+		unsigned int fw_naddr = (rem < ARRAY_SIZE(c.u.exact) ?
+					 rem : ARRAY_SIZE(c.u.exact));
+		size_t len16 = DIV_ROUND_UP(offsetof(struct fw_vi_mac_cmd,
+						     u.exact[fw_naddr]), 16);
+		struct fw_vi_mac_exact *p;
+		int i;
 
-	for (i = 0, p = c.u.exact; i < naddr; i++, p++) {
-		p->valid_to_idx =
-			cpu_to_be16(FW_VI_MAC_CMD_VALID_F |
-				    FW_VI_MAC_CMD_IDX_V(FW_VI_MAC_ADD_MAC));
-		memcpy(p->macaddr, addr[i], sizeof(p->macaddr));
+		memset(&c, 0, sizeof(c));
+		c.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_MAC_CMD) |
+					   FW_CMD_REQUEST_F |
+					   FW_CMD_WRITE_F |
+					   FW_CMD_EXEC_V(free) |
+					   FW_VI_MAC_CMD_VIID_V(viid));
+		c.freemacs_to_len16 =
+			cpu_to_be32(FW_VI_MAC_CMD_FREEMACS_V(free) |
+				    FW_CMD_LEN16_V(len16));
+
+		for (i = 0, p = c.u.exact; i < fw_naddr; i++, p++) {
+			p->valid_to_idx =
+				cpu_to_be16(FW_VI_MAC_CMD_VALID_F |
+					    FW_VI_MAC_CMD_IDX_V(
+						    FW_VI_MAC_ADD_MAC));
+			memcpy(p->macaddr, addr[offset + i],
+			       sizeof(p->macaddr));
+		}
+
+		/* It's okay if we run out of space in our MAC address arena.
+		 * Some of the addresses we submit may get stored so we need
+		 * to run through the reply to see what the results were ...
+		 */
+		ret = t4_wr_mbox_meat(adap, mbox, &c, sizeof(c), &c, sleep_ok);
+		if (ret && ret != -FW_ENOMEM)
+			break;
+
+		for (i = 0, p = c.u.exact; i < fw_naddr; i++, p++) {
+			u16 index = FW_VI_MAC_CMD_IDX_G(
+					be16_to_cpu(p->valid_to_idx));
+
+			if (idx)
+				idx[offset + i] = (index >= max_naddr ?
+						   0xffff : index);
+			if (index < max_naddr)
+				nfilters++;
+			else if (hash)
+				*hash |= (1ULL <<
+					  hash_mac_addr(addr[offset + i]));
+		}
+
+		free = false;
+		offset += fw_naddr;
+		rem -= fw_naddr;
 	}
 
-	ret = t4_wr_mbox_meat(adap, mbox, &c, sizeof(c), &c, sleep_ok);
-	if (ret)
-		return ret;
-
-	for (i = 0, p = c.u.exact; i < naddr; i++, p++) {
-		u16 index = FW_VI_MAC_CMD_IDX_G(be16_to_cpu(p->valid_to_idx));
-
-		if (idx)
-			idx[i] = index >= max_naddr ? 0xffff : index;
-		if (index < max_naddr)
-			ret++;
-		else if (hash)
-			*hash |= (1ULL << hash_mac_addr(addr[i]));
-	}
+	if (ret == 0 || ret == -FW_ENOMEM)
+		ret = nfilters;
 	return ret;
 }
 
@@ -5209,9 +5296,7 @@ int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
 	int ret, mode;
 	struct fw_vi_mac_cmd c;
 	struct fw_vi_mac_exact *p = c.u.exact;
-	unsigned int max_mac_addr = is_t4(adap->params.chip) ?
-				    NUM_MPS_CLS_SRAM_L_INSTANCES :
-				    NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
+	unsigned int max_mac_addr = adap->params.arch.mps_tcam_size;
 
 	if (idx < 0)                             /* new allocation */
 		idx = persist ? FW_VI_MAC_ADD_PERSIST_MAC : FW_VI_MAC_ADD_MAC;
@@ -5620,9 +5705,30 @@ int t4_prep_adapter(struct adapter *adapter)
 	switch (ver) {
 	case CHELSIO_T4:
 		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T4, pl_rev);
+		adapter->params.arch.sge_fl_db = DBPRIO_F;
+		adapter->params.arch.mps_tcam_size =
+				 NUM_MPS_CLS_SRAM_L_INSTANCES;
+		adapter->params.arch.mps_rplc_size = 128;
+		adapter->params.arch.nchan = NCHAN;
+		adapter->params.arch.vfcount = 128;
 		break;
 	case CHELSIO_T5:
 		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T5, pl_rev);
+		adapter->params.arch.sge_fl_db = DBPRIO_F | DBTYPE_F;
+		adapter->params.arch.mps_tcam_size =
+				 NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
+		adapter->params.arch.mps_rplc_size = 128;
+		adapter->params.arch.nchan = NCHAN;
+		adapter->params.arch.vfcount = 128;
+		break;
+	case CHELSIO_T6:
+		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T6, pl_rev);
+		adapter->params.arch.sge_fl_db = 0;
+		adapter->params.arch.mps_tcam_size =
+				 NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
+		adapter->params.arch.mps_rplc_size = 256;
+		adapter->params.arch.nchan = 2;
+		adapter->params.arch.vfcount = 256;
 		break;
 	default:
 		dev_err(adapter->pdev_dev, "Device %d is not supported\n",

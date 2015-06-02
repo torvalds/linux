@@ -224,7 +224,6 @@ struct sge_params {
 };
 
 struct tp_params {
-	unsigned int ntxchan;        /* # of Tx channels */
 	unsigned int tre;            /* log2 of core clocks per TP tick */
 	unsigned int la_mask;        /* what events are recorded by TP LA */
 	unsigned short tx_modq_map;  /* TX modulation scheduler queue to */
@@ -297,6 +296,15 @@ struct devlog_params {
 	u32 size;                       /* size of log */
 };
 
+/* Stores chip specific parameters */
+struct arch_specific_params {
+	u8 nchan;
+	u16 mps_rplc_size;
+	u16 vfcount;
+	u32 sge_fl_db;
+	u16 mps_tcam_size;
+};
+
 struct adapter_params {
 	struct sge_params sge;
 	struct tp_params  tp;
@@ -322,6 +330,7 @@ struct adapter_params {
 	unsigned char nports;             /* # of ethernet ports */
 	unsigned char portvec;
 	enum chip_type chip;               /* chip code */
+	struct arch_specific_params arch;  /* chip specific params */
 	unsigned char offload;
 
 	unsigned char bypass;

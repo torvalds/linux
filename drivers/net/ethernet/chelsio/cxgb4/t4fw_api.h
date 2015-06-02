@@ -788,15 +788,27 @@ struct fw_ldst_cmd {
 			__be16 vctl;
 			__be16 rval;
 		} mdio;
-		struct fw_ldst_mps {
-			__be16 fid_ctl;
-			__be16 rplcpf_pkd;
-			__be32 rplc127_96;
-			__be32 rplc95_64;
-			__be32 rplc63_32;
-			__be32 rplc31_0;
-			__be32 atrb;
-			__be16 vlan[16];
+		union fw_ldst_mps {
+			struct fw_ldst_mps_rplc {
+				__be16 fid_idx;
+				__be16 rplcpf_pkd;
+				__be32 rplc255_224;
+				__be32 rplc223_192;
+				__be32 rplc191_160;
+				__be32 rplc159_128;
+				__be32 rplc127_96;
+				__be32 rplc95_64;
+				__be32 rplc63_32;
+				__be32 rplc31_0;
+			} rplc;
+			struct fw_ldst_mps_atrb {
+				__be16 fid_mpsid;
+				__be16 r2[3];
+				__be32 r3[2];
+				__be32 r4;
+				__be32 atrb;
+				__be16 vlan[16];
+			} atrb;
 		} mps;
 		struct fw_ldst_func {
 			u8 access_ctl;
@@ -831,8 +843,8 @@ struct fw_ldst_cmd {
 #define FW_LDST_CMD_FID_S       15
 #define FW_LDST_CMD_FID_V(x)	((x) << FW_LDST_CMD_FID_S)
 
-#define FW_LDST_CMD_CTL_S       0
-#define FW_LDST_CMD_CTL_V(x)	((x) << FW_LDST_CMD_CTL_S)
+#define FW_LDST_CMD_IDX_S	0
+#define FW_LDST_CMD_IDX_V(x)	((x) << FW_LDST_CMD_IDX_S)
 
 #define FW_LDST_CMD_RPLCPF_S    0
 #define FW_LDST_CMD_RPLCPF_V(x)	((x) << FW_LDST_CMD_RPLCPF_S)
@@ -2536,13 +2548,8 @@ enum fw_port_mod_sub_type {
 	FW_PORT_MOD_SUB_TYPE_TWINAX_7 = 0xC,
 };
 
-/* port stats */
-#define FW_NUM_PORT_STATS 50
-#define FW_NUM_PORT_TX_STATS 23
-#define FW_NUM_PORT_RX_STATS 27
-
 enum fw_port_stats_tx_index {
-	FW_STAT_TX_PORT_BYTES_IX,
+	FW_STAT_TX_PORT_BYTES_IX = 0,
 	FW_STAT_TX_PORT_FRAMES_IX,
 	FW_STAT_TX_PORT_BCAST_IX,
 	FW_STAT_TX_PORT_MCAST_IX,
@@ -2564,11 +2571,12 @@ enum fw_port_stats_tx_index {
 	FW_STAT_TX_PORT_PPP4_IX,
 	FW_STAT_TX_PORT_PPP5_IX,
 	FW_STAT_TX_PORT_PPP6_IX,
-	FW_STAT_TX_PORT_PPP7_IX
+	FW_STAT_TX_PORT_PPP7_IX,
+	FW_NUM_PORT_TX_STATS
 };
 
 enum fw_port_stat_rx_index {
-	FW_STAT_RX_PORT_BYTES_IX,
+	FW_STAT_RX_PORT_BYTES_IX = 0,
 	FW_STAT_RX_PORT_FRAMES_IX,
 	FW_STAT_RX_PORT_BCAST_IX,
 	FW_STAT_RX_PORT_MCAST_IX,
@@ -2594,8 +2602,13 @@ enum fw_port_stat_rx_index {
 	FW_STAT_RX_PORT_PPP5_IX,
 	FW_STAT_RX_PORT_PPP6_IX,
 	FW_STAT_RX_PORT_PPP7_IX,
-	FW_STAT_RX_PORT_LESS_64B_IX
+	FW_STAT_RX_PORT_LESS_64B_IX,
+	FW_STAT_RX_PORT_MAC_ERROR_IX,
+	FW_NUM_PORT_RX_STATS
 };
+
+/* port stats */
+#define FW_NUM_PORT_STATS (FW_NUM_PORT_TX_STATS + FW_NUM_PORT_RX_STATS)
 
 struct fw_port_stats_cmd {
 	__be32 op_to_portid;
@@ -3025,7 +3038,8 @@ struct fw_hdr {
 
 enum fw_hdr_chip {
 	FW_HDR_CHIP_T4,
-	FW_HDR_CHIP_T5
+	FW_HDR_CHIP_T5,
+	FW_HDR_CHIP_T6
 };
 
 #define FW_HDR_FW_VER_MAJOR_S	24
