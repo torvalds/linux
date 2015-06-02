@@ -749,6 +749,8 @@ static void sdma_update_channel_loop(struct sdma_channel *sdmac)
 			sdmac->chn_real_count = bd->mode.count;
 			bd->mode.count = sdmac->chn_count;
 		}
+
+		sdma_handle_channel_loop(sdmac);
 	}
 }
 
@@ -792,9 +794,12 @@ static void sdma_tasklet(unsigned long data)
 	}
 	spin_unlock_irqrestore(&sdmac->lock, flags);
 
-	if (sdmac->flags & IMX_DMA_SG_LOOP)
-		sdma_handle_channel_loop(sdmac);
-	else
+	if (sdmac->flags & IMX_DMA_SG_LOOP) {
+		if (sdmac->peripheral_type != IMX_DMATYPE_HDMI)
+			sdma_update_channel_loop(sdmac);
+		else
+			sdma_handle_channel_loop(sdmac);
+	} else
 		mxc_sdma_handle_channel_normal(sdmac);
 }
 
@@ -811,10 +816,6 @@ static irqreturn_t sdma_int_handler(int irq, void *dev_id)
 	while (stat) {
 		int channel = fls(stat) - 1;
 		struct sdma_channel *sdmac = &sdma->channel[channel];
-
-		if ((sdmac->flags & IMX_DMA_SG_LOOP) &&
-			(sdmac->peripheral_type != IMX_DMATYPE_HDMI))
-			sdma_update_channel_loop(sdmac);
 
 		spin_lock_irqsave(&sdmac->lock, flags);
 		if (sdmac->status == DMA_IN_PROGRESS || (sdmac->flags & IMX_DMA_SG_LOOP))
