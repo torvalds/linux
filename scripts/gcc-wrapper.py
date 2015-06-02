@@ -49,8 +49,8 @@ allowed_warnings = set([
     "bus.c:318", # FIXME
     "atags_to_fdt.c:96",
     "compat_binfmt_elf.c:58",
-    "psci.c:299",
-    "psci.c:304",
+    "psci.c:268",
+    "psci.c:273",
     "sysctl_net_core.c:24",
  ])
 
