@@ -46,6 +46,7 @@
 #include <linux/seccomp.h>
 #include <linux/if_vlan.h>
 #include <linux/bpf.h>
+#include <net/sch_generic.h>
 
 /**
  *	sk_filter - run a packet through a socket filter
@@ -1407,6 +1408,43 @@ const struct bpf_func_proto bpf_l4_csum_replace_proto = {
 	.arg5_type	= ARG_ANYTHING,
 };
 
+#define BPF_IS_REDIRECT_INGRESS(flags)	((flags) & 1)
+
+static u64 bpf_clone_redirect(u64 r1, u64 ifindex, u64 flags, u64 r4, u64 r5)
+{
+	struct sk_buff *skb = (struct sk_buff *) (long) r1, *skb2;
+	struct net_device *dev;
+
+	dev = dev_get_by_index_rcu(dev_net(skb->dev), ifindex);
+	if (unlikely(!dev))
+		return -EINVAL;
+
+	if (unlikely(!(dev->flags & IFF_UP)))
+		return -EINVAL;
+
+	skb2 = skb_clone(skb, GFP_ATOMIC);
+	if (unlikely(!skb2))
+		return -ENOMEM;
+
+	if (G_TC_AT(skb2->tc_verd) & AT_INGRESS)
+		skb_push(skb2, skb2->mac_len);
+
+	if (BPF_IS_REDIRECT_INGRESS(flags))
+		return dev_forward_skb(dev, skb2);
+
+	skb2->dev = dev;
+	return dev_queue_xmit(skb2);
+}
+
+const struct bpf_func_proto bpf_clone_redirect_proto = {
+	.func           = bpf_clone_redirect,
+	.gpl_only       = false,
+	.ret_type       = RET_INTEGER,
+	.arg1_type      = ARG_PTR_TO_CTX,
+	.arg2_type      = ARG_ANYTHING,
+	.arg3_type      = ARG_ANYTHING,
+};
+
 static const struct bpf_func_proto *
 sk_filter_func_proto(enum bpf_func_id func_id)
 {
@@ -1440,6 +1478,8 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 		return &bpf_l3_csum_replace_proto;
 	case BPF_FUNC_l4_csum_replace:
 		return &bpf_l4_csum_replace_proto;
+	case BPF_FUNC_clone_redirect:
+		return &bpf_clone_redirect_proto;
 	default:
 		return sk_filter_func_proto(func_id);
 	}

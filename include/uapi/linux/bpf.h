@@ -220,6 +220,16 @@ enum bpf_func_id {
 	 * Return: 0 on success
 	 */
 	BPF_FUNC_tail_call,
+
+	/**
+	 * bpf_clone_redirect(skb, ifindex, flags) - redirect to another netdev
+	 * @skb: pointer to skb
+	 * @ifindex: ifindex of the net device
+	 * @flags: bit 0 - if set, redirect to ingress instead of egress
+	 *         other bits - reserved
+	 * Return: 0 on success
+	 */
+	BPF_FUNC_clone_redirect,
 	__BPF_FUNC_MAX_ID,
 };
 
