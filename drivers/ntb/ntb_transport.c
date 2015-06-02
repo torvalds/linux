@@ -761,17 +761,17 @@ static void ntb_transport_link_work(struct work_struct *work)
 	ntb_peer_spad_write(ndev, VERSION, NTB_TRANSPORT_VERSION);
 
 	/* Query the remote side for its info */
-	val = ntb_peer_spad_read(ndev, VERSION);
+	val = ntb_spad_read(ndev, VERSION);
 	dev_dbg(&pdev->dev, "Remote version = %d\n", val);
 	if (val != NTB_TRANSPORT_VERSION)
 		goto out;
 
-	val = ntb_peer_spad_read(ndev, NUM_QPS);
+	val = ntb_spad_read(ndev, NUM_QPS);
 	dev_dbg(&pdev->dev, "Remote max number of qps = %d\n", val);
 	if (val != nt->qp_count)
 		goto out;
 
-	val = ntb_peer_spad_read(ndev, NUM_MWS);
+	val = ntb_spad_read(ndev, NUM_MWS);
 	dev_dbg(&pdev->dev, "Remote number of mws = %d\n", val);
 	if (val != nt->mw_count)
 		goto out;
@@ -779,10 +779,10 @@ static void ntb_transport_link_work(struct work_struct *work)
 	for (i = 0; i < nt->mw_count; i++) {
 		u64 val64;
 
-		val = ntb_peer_spad_read(ndev, MW0_SZ_HIGH + (i * 2));
+		val = ntb_spad_read(ndev, MW0_SZ_HIGH + (i * 2));
 		val64 = (u64)val << 32;
 
-		val = ntb_peer_spad_read(ndev, MW0_SZ_LOW + (i * 2));
+		val = ntb_spad_read(ndev, MW0_SZ_LOW + (i * 2));
 		val64 |= val;
 
 		dev_dbg(&pdev->dev, "Remote MW%d size = %#llx\n", i, val64);
