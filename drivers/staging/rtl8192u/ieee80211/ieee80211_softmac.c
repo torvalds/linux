@@ -660,8 +660,11 @@ inline struct sk_buff *ieee80211_authentication_req(struct ieee80211_network *be
 	auth = (struct ieee80211_authentication *)
 		skb_put(skb, sizeof(struct ieee80211_authentication));
 
-	auth->header.frame_ctl = IEEE80211_STYPE_AUTH;
-	if (challengelen) auth->header.frame_ctl |= IEEE80211_FCTL_WEP;
+	if (challengelen)
+		auth->header.frame_ctl = cpu_to_le16(IEEE80211_STYPE_AUTH
+				| IEEE80211_FCTL_WEP);
+	else
+		auth->header.frame_ctl = cpu_to_le16(IEEE80211_STYPE_AUTH);
 
 	auth->header.duration_id = 0x013a; //FIXME
 
