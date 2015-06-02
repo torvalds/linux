@@ -875,6 +875,7 @@ static void nfsd4_cb_prepare(struct rpc_task *task, void *calldata)
 	u32 minorversion = clp->cl_minorversion;
 
 	cb->cb_minorversion = minorversion;
+	cb->cb_status = 0;
 	if (minorversion) {
 		if (!nfsd41_cb_get_slot(clp, task))
 			return;
