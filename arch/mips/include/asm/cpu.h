@@ -381,6 +381,7 @@ enum cpu_type_enum {
 #define MIPS_CPU_RW_LLB		0x1000000000ull /* LLADDR/LLB writes are allowed */
 #define MIPS_CPU_XPA		0x2000000000ull /* CPU supports Extended Physical Addressing */
 #define MIPS_CPU_CDMM		0x4000000000ull	/* CPU has Common Device Memory Map */
+#define MIPS_CPU_BP_GHIST	0x8000000000ull /* R12K+ Branch Prediction Global History */
 
 /*
  * CPU ASE encodings

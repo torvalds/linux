@@ -707,6 +707,15 @@
 #define TX39_CONF_DRSIZE_SHIFT	0
 #define TX39_CONF_DRSIZE_MASK	0x00000003
 
+/*
+ * Interesting Bits in the R10K CP0 Branch Diagnostic Register
+ */
+/* Disable Branch Target Address Cache */
+#define R10K_DIAG_D_BTAC	(_ULCAST_(1) << 27)
+/* Enable Branch Prediction Global History */
+#define R10K_DIAG_E_GHIST	(_ULCAST_(1) << 26)
+/* Disable Branch Return Cache */
+#define R10K_DIAG_D_BRC		(_ULCAST_(1) << 22)
 
 /*
  * Coprocessor 1 (FPU) register names
@@ -1268,6 +1277,10 @@ do {									\
 
 #define read_c0_diag()		__read_32bit_c0_register($22, 0)
 #define write_c0_diag(val)	__write_32bit_c0_register($22, 0, val)
+
+/* R10K CP0 Branch Diagnostic register is 64bits wide */
+#define read_c0_r10k_diag()	__read_64bit_c0_register($22, 0)
+#define write_c0_r10k_diag(val)	__write_64bit_c0_register($22, 0, val)
 
 #define read_c0_diag1()		__read_32bit_c0_register($22, 1)
 #define write_c0_diag1(val)	__write_32bit_c0_register($22, 1, val)
