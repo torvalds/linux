@@ -52,7 +52,7 @@ struct bgx {
 	struct pci_dev		*pdev;
 };
 
-struct bgx *bgx_vnic[MAX_BGX_THUNDER];
+static struct bgx *bgx_vnic[MAX_BGX_THUNDER];
 static int lmac_count; /* Total no of LMACs in system */
 
 static int bgx_xaui_check_link(struct lmac *lmac);
@@ -253,7 +253,7 @@ static void bgx_sgmii_change_link_state(struct lmac *lmac)
 	bgx_reg_write(bgx, lmac->lmacid, BGX_CMRX_CFG, cmr_cfg);
 }
 
-void bgx_lmac_handler(struct net_device *netdev)
+static void bgx_lmac_handler(struct net_device *netdev)
 {
 	struct lmac *lmac = container_of(netdev, struct lmac, netdev);
 	struct phy_device *phydev = lmac->phydev;
@@ -655,7 +655,7 @@ static int bgx_lmac_enable(struct bgx *bgx, u8 lmacid)
 	return 0;
 }
 
-void bgx_lmac_disable(struct bgx *bgx, u8 lmacid)
+static void bgx_lmac_disable(struct bgx *bgx, u8 lmacid)
 {
 	struct lmac *lmac;
 	u64 cmrx_cfg;

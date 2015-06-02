@@ -228,7 +228,7 @@ static void nicvf_free_rbdr(struct nicvf *nic, struct rbdr *rbdr)
 
 /* Refill receive buffer descriptors with new buffers.
  */
-void nicvf_refill_rbdr(struct nicvf *nic, gfp_t gfp)
+static void nicvf_refill_rbdr(struct nicvf *nic, gfp_t gfp)
 {
 	struct queue_set *qs = nic->qs;
 	int rbdr_idx = qs->rbdr_cnt;

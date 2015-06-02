@@ -413,10 +413,8 @@ int nicvf_set_real_num_queues(struct net_device *netdev,
 int nicvf_open(struct net_device *netdev);
 int nicvf_stop(struct net_device *netdev);
 int nicvf_send_msg_to_pf(struct nicvf *vf, union nic_mbx *mbx);
-void nicvf_config_cpi(struct nicvf *nic);
 void nicvf_config_rss(struct nicvf *nic);
 void nicvf_set_rss_key(struct nicvf *nic);
-void nicvf_free_skb(struct nicvf *nic, struct sk_buff *skb);
 void nicvf_set_ethtool_ops(struct net_device *netdev);
 void nicvf_update_stats(struct nicvf *nic);
 void nicvf_update_lmac_stats(struct nicvf *nic);
