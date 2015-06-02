@@ -1,12 +1,12 @@
 <section id="frontend-properties">
 <title>DVB Frontend properties</title>
 <para>Tuning into a Digital TV physical channel and starting decoding it
-    requires to change a set of parameters, in order to control the
+    requires changing a set of parameters, in order to control the
     tuner, the demodulator, the Linear Low-noise Amplifier (LNA) and to set the
     antenna subsystem via Satellite Equipment Control (SEC), on satellite
     systems. The actual parameters are specific to each particular digital
-    TV standards, and may change as the digital TV specs evolutes.</para>
-<para>In the past, the strategy used were to have an union with the parameters
+    TV standards, and may change as the digital TV specs evolves.</para>
+<para>In the past, the strategy used was to have a union with the parameters
     needed to tune for DVB-S, DVB-C, DVB-T and ATSC delivery systems grouped
     there. The problem is that, as the second generation standards appeared,
     those structs were not big enough to contain the additional parameters.
