@@ -34,7 +34,6 @@ void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 	    const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent);
 void set_swcam(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 	       const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent, u8 is_mesh);
-void CamPrintDbgReg(struct net_device *dev);
 
 u32 read_cam(struct net_device *dev, u8 addr);
 void write_cam(struct net_device *dev, u8 addr, u32 data);
