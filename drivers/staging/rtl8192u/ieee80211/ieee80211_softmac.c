@@ -1366,7 +1366,7 @@ static void ieee80211_associate_complete_wq(struct work_struct *work)
 	ieee->link_change(ieee->dev);
 	if (!ieee->is_silent_reset) {
 		printk("============>normal associate\n");
-	notify_wx_assoc_event(ieee);
+		notify_wx_assoc_event(ieee);
 	} else {
 		printk("==================>silent reset associate\n");
 		ieee->is_silent_reset = false;
