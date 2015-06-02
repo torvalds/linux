@@ -87,16 +87,6 @@ int smack_cipso_direct = SMACK_CIPSO_DIRECT_DEFAULT;
  */
 int smack_cipso_mapped = SMACK_CIPSO_MAPPED_DEFAULT;
 
-/*
- * Unless a process is running with this label even
- * having CAP_MAC_OVERRIDE isn't enough to grant
- * privilege to violate MAC policy. If no label is
- * designated (the NULL case) capabilities apply to
- * everyone. It is expected that the hat (^) label
- * will be used if any label is used.
- */
-struct smack_known *smack_onlycap;
-
 #ifdef CONFIG_SECURITY_SMACK_BRINGUP
 /*
  * Allow one label to be unconfined. This is for
@@ -1636,34 +1626,79 @@ static const struct file_operations smk_ambient_ops = {
 	.llseek		= default_llseek,
 };
 
-/**
- * smk_read_onlycap - read() for smackfs/onlycap
- * @filp: file pointer, not actually used
- * @buf: where to put the result
- * @cn: maximum to send along
- * @ppos: where to start
- *
- * Returns number of bytes read or error code, as appropriate
+/*
+ * Seq_file operations for /smack/onlycap
  */
-static ssize_t smk_read_onlycap(struct file *filp, char __user *buf,
-				size_t cn, loff_t *ppos)
+static void *onlycap_seq_start(struct seq_file *s, loff_t *pos)
 {
-	char *smack = "";
-	ssize_t rc = -EINVAL;
-	int asize;
+	return smk_seq_start(s, pos, &smack_onlycap_list);
+}
 
-	if (*ppos != 0)
-		return 0;
+static void *onlycap_seq_next(struct seq_file *s, void *v, loff_t *pos)
+{
+	return smk_seq_next(s, v, pos, &smack_onlycap_list);
+}
 
-	if (smack_onlycap != NULL)
-		smack = smack_onlycap->smk_known;
+static int onlycap_seq_show(struct seq_file *s, void *v)
+{
+	struct list_head *list = v;
+	struct smack_onlycap *sop =
+		list_entry_rcu(list, struct smack_onlycap, list);
 
-	asize = strlen(smack) + 1;
+	seq_puts(s, sop->smk_label->smk_known);
+	seq_putc(s, ' ');
 
-	if (cn >= asize)
-		rc = simple_read_from_buffer(buf, cn, ppos, smack, asize);
+	return 0;
+}
 
-	return rc;
+static const struct seq_operations onlycap_seq_ops = {
+	.start = onlycap_seq_start,
+	.next  = onlycap_seq_next,
+	.show  = onlycap_seq_show,
+	.stop  = smk_seq_stop,
+};
+
+static int smk_open_onlycap(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &onlycap_seq_ops);
+}
+
+/**
+ * smk_list_swap_rcu - swap public list with a private one in RCU-safe way
+ * The caller must hold appropriate mutex to prevent concurrent modifications
+ * to the public list.
+ * Private list is assumed to be not accessible to other threads yet.
+ *
+ * @public: public list
+ * @private: private list
+ */
+static void smk_list_swap_rcu(struct list_head *public,
+			      struct list_head *private)
+{
+	struct list_head *first, *last;
+
+	if (list_empty(public)) {
+		list_splice_init_rcu(private, public, synchronize_rcu);
+	} else {
+		/* Remember public list before replacing it */
+		first = public->next;
+		last = public->prev;
+
+		/* Publish private list in place of public in RCU-safe way */
+		private->prev->next = public;
+		private->next->prev = public;
+		rcu_assign_pointer(public->next, private->next);
+		public->prev = private->prev;
+
+		synchronize_rcu();
+
+		/* When all readers are done with the old public list,
+		 * attach it in place of private */
+		private->next = first;
+		private->prev = last;
+		first->prev = private;
+		last->next = private;
+	}
 }
 
 /**
@@ -1679,18 +1714,15 @@ static ssize_t smk_write_onlycap(struct file *file, const char __user *buf,
 				 size_t count, loff_t *ppos)
 {
 	char *data;
-	struct smack_known *skp = smk_of_task(current->cred->security);
+	char *data_parse;
+	char *tok;
+	struct smack_known *skp;
+	struct smack_onlycap *sop;
+	struct smack_onlycap *sop2;
+	LIST_HEAD(list_tmp);
 	int rc = count;
 
 	if (!smack_privileged(CAP_MAC_ADMIN))
-		return -EPERM;
-
-	/*
-	 * This can be done using smk_access() but is done
-	 * explicitly for clarity. The smk_access() implementation
-	 * would use smk_access(smack_onlycap, MAY_WRITE)
-	 */
-	if (smack_onlycap != NULL && smack_onlycap != skp)
 		return -EPERM;
 
 	data = kzalloc(count + 1, GFP_KERNEL);
@@ -1698,9 +1730,31 @@ static ssize_t smk_write_onlycap(struct file *file, const char __user *buf,
 		return -ENOMEM;
 
 	if (copy_from_user(data, buf, count) != 0) {
-		rc = -EFAULT;
-		goto freeout;
+		kfree(data);
+		return -EFAULT;
 	}
+
+	data_parse = data;
+	while ((tok = strsep(&data_parse, " ")) != NULL) {
+		if (!*tok)
+			continue;
+
+		skp = smk_import_entry(tok, 0);
+		if (IS_ERR(skp)) {
+			rc = PTR_ERR(skp);
+			break;
+		}
+
+		sop = kzalloc(sizeof(*sop), GFP_KERNEL);
+		if (sop == NULL) {
+			rc = -ENOMEM;
+			break;
+		}
+
+		sop->smk_label = skp;
+		list_add_rcu(&sop->list, &list_tmp);
+	}
+	kfree(data);
 
 	/*
 	 * Clear the smack_onlycap on invalid label errors. This means
@@ -1710,26 +1764,29 @@ static ssize_t smk_write_onlycap(struct file *file, const char __user *buf,
 	 * so "-usecapabilities" will also work.
 	 *
 	 * But do so only on invalid label, not on system errors.
+	 * The invalid label must be first to count as clearing attempt.
 	 */
-	skp = smk_import_entry(data, count);
-	if (PTR_ERR(skp) == -EINVAL)
-		skp = NULL;
-	else if (IS_ERR(skp)) {
-		rc = PTR_ERR(skp);
-		goto freeout;
+	if (rc == -EINVAL && list_empty(&list_tmp))
+		rc = count;
+
+	if (rc >= 0) {
+		mutex_lock(&smack_onlycap_lock);
+		smk_list_swap_rcu(&smack_onlycap_list, &list_tmp);
+		mutex_unlock(&smack_onlycap_lock);
 	}
 
-	smack_onlycap = skp;
+	list_for_each_entry_safe(sop, sop2, &list_tmp, list)
+		kfree(sop);
 
-freeout:
-	kfree(data);
 	return rc;
 }
 
 static const struct file_operations smk_onlycap_ops = {
-	.read		= smk_read_onlycap,
+	.open		= smk_open_onlycap,
+	.read		= seq_read,
 	.write		= smk_write_onlycap,
-	.llseek		= default_llseek,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
 };
 
 #ifdef CONFIG_SECURITY_SMACK_BRINGUP

@@ -617,3 +617,44 @@ struct smack_known *smack_from_secid(const u32 secid)
 	rcu_read_unlock();
 	return &smack_known_invalid;
 }
+
+/*
+ * Unless a process is running with one of these labels
+ * even having CAP_MAC_OVERRIDE isn't enough to grant
+ * privilege to violate MAC policy. If no labels are
+ * designated (the empty list case) capabilities apply to
+ * everyone.
+ */
+LIST_HEAD(smack_onlycap_list);
+DEFINE_MUTEX(smack_onlycap_lock);
+
+/*
+ * Is the task privileged and allowed to be privileged
+ * by the onlycap rule.
+ *
+ * Returns 1 if the task is allowed to be privileged, 0 if it's not.
+ */
+int smack_privileged(int cap)
+{
+	struct smack_known *skp = smk_of_current();
+	struct smack_onlycap *sop;
+
+	if (!capable(cap))
+		return 0;
+
+	rcu_read_lock();
+	if (list_empty(&smack_onlycap_list)) {
+		rcu_read_unlock();
+		return 1;
+	}
+
+	list_for_each_entry_rcu(sop, &smack_onlycap_list, list) {
+		if (sop->smk_label == skp) {
+			rcu_read_unlock();
+			return 1;
+		}
+	}
+	rcu_read_unlock();
+
+	return 0;
+}
