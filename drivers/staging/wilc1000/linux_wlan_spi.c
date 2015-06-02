@@ -57,8 +57,6 @@ static int __init wilc_bus_probe(struct spi_device *spi)
 static int __exit wilc_bus_remove(struct spi_device *spi)
 {
 
-	/* linux_spi_deinit(NULL); */
-
 	return 0;
 }
 
@@ -172,18 +170,12 @@ int linux_spi_write(uint8_t *b, uint32_t len)
 				struct spi_message msg;
 				struct spi_transfer tr = {
 					.tx_buf = b + (i * TXRX_PHASE_SIZE),
-					/* .rx_buf = NULL, */
 					.len = TXRX_PHASE_SIZE,
 					.speed_hz = SPEED,
 					.bits_per_word = 8,
 					.delay_usecs = 0,
 				};
-				/*
-				 * char *r_buffer = (char*) kzalloc(TXRX_PHASE_SIZE, GFP_KERNEL);
-				 * if(! r_buffer){
-				 *      PRINT_ER("Failed to allocate memory for r_buffer\n");
-				 * }
-				 */
+
 				tr.rx_buf = r_buffer;
 
 				memset(&msg, 0, sizeof(msg));
@@ -196,7 +188,6 @@ int linux_spi_write(uint8_t *b, uint32_t len)
 				if (ret < 0) {
 					PRINT_ER("SPI transaction failed\n");
 				}
-				/* i += MJ_WRITE_SIZE; */
 				i++;
 
 			}
@@ -205,18 +196,11 @@ int linux_spi_write(uint8_t *b, uint32_t len)
 			struct spi_message msg;
 			struct spi_transfer tr = {
 				.tx_buf = b + (blk * TXRX_PHASE_SIZE),
-				/* .rx_buf = NULL, */
 				.len = remainder,
 				.speed_hz = SPEED,
 				.bits_per_word = 8,
 				.delay_usecs = 0,
 			};
-			/*
-			 * char *r_buffer = (char*) kzalloc(remainder, GFP_KERNEL);
-			 * if(! r_buffer){
-			 *      PRINT_ER("Failed to allocate memory for r_buffer\n");
-			 * }
-			 */
 			tr.rx_buf = r_buffer;
 
 			memset(&msg, 0, sizeof(msg));
@@ -255,7 +239,6 @@ int linux_spi_write(uint8_t *b, uint32_t len)
 	if (len > 0 && b != NULL) {
 		struct spi_transfer tr = {
 			.tx_buf = b,
-			/* .rx_buf = r_buffer, */
 			.len = len,
 			.speed_hz = SPEED,
 			.delay_usecs = 0,
@@ -350,7 +333,6 @@ int linux_spi_read(unsigned char *rb, unsigned long rlen)
 			while (i < blk)	{
 				struct spi_message msg;
 				struct spi_transfer tr = {
-					/* .tx_buf = NULL, */
 					.rx_buf = rb + (i * TXRX_PHASE_SIZE),
 					.len = TXRX_PHASE_SIZE,
 					.speed_hz = SPEED,
@@ -375,19 +357,12 @@ int linux_spi_read(unsigned char *rb, unsigned long rlen)
 		if (remainder) {
 			struct spi_message msg;
 			struct spi_transfer tr = {
-				/* .tx_buf = NULL, */
 				.rx_buf = rb + (blk * TXRX_PHASE_SIZE),
 				.len = remainder,
 				.speed_hz = SPEED,
 				.bits_per_word = 8,
 				.delay_usecs = 0,
 			};
-			/*
-			 * char *t_buffer = (char*) kzalloc(remainder, GFP_KERNEL);
-			 * if(! t_buffer){
-			 *      PRINT_ER("Failed to allocate memory for t_buffer\n");
-			 * }
-			 */
 			tr.tx_buf = t_buffer;
 
 			memset(&msg, 0, sizeof(msg));
@@ -423,7 +398,6 @@ int linux_spi_read(unsigned char *rb, unsigned long rlen)
 	if (rlen > 0) {
 		struct spi_message msg;
 		struct spi_transfer tr = {
-			/*		.tx_buf = t_buffer, */
 			.rx_buf = rb,
 			.len = rlen,
 			.speed_hz = SPEED,
