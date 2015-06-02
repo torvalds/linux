@@ -1046,6 +1046,24 @@ static const struct efx_hw_stat_desc efx_ef10_stat_desc[EF10_STAT_COUNT] = {
 	EF10_DMA_STAT(port_rx_dp_streaming_packets, RXDP_STREAMING_PKTS),
 	EF10_DMA_STAT(port_rx_dp_hlb_fetch, RXDP_HLB_FETCH_CONDITIONS),
 	EF10_DMA_STAT(port_rx_dp_hlb_wait, RXDP_HLB_WAIT_CONDITIONS),
+	EF10_DMA_STAT(rx_unicast, VADAPTER_RX_UNICAST_PACKETS),
+	EF10_DMA_STAT(rx_unicast_bytes, VADAPTER_RX_UNICAST_BYTES),
+	EF10_DMA_STAT(rx_multicast, VADAPTER_RX_MULTICAST_PACKETS),
+	EF10_DMA_STAT(rx_multicast_bytes, VADAPTER_RX_MULTICAST_BYTES),
+	EF10_DMA_STAT(rx_broadcast, VADAPTER_RX_BROADCAST_PACKETS),
+	EF10_DMA_STAT(rx_broadcast_bytes, VADAPTER_RX_BROADCAST_BYTES),
+	EF10_DMA_STAT(rx_bad, VADAPTER_RX_BAD_PACKETS),
+	EF10_DMA_STAT(rx_bad_bytes, VADAPTER_RX_BAD_BYTES),
+	EF10_DMA_STAT(rx_overflow, VADAPTER_RX_OVERFLOW),
+	EF10_DMA_STAT(tx_unicast, VADAPTER_TX_UNICAST_PACKETS),
+	EF10_DMA_STAT(tx_unicast_bytes, VADAPTER_TX_UNICAST_BYTES),
+	EF10_DMA_STAT(tx_multicast, VADAPTER_TX_MULTICAST_PACKETS),
+	EF10_DMA_STAT(tx_multicast_bytes, VADAPTER_TX_MULTICAST_BYTES),
+	EF10_DMA_STAT(tx_broadcast, VADAPTER_TX_BROADCAST_PACKETS),
+	EF10_DMA_STAT(tx_broadcast_bytes, VADAPTER_TX_BROADCAST_BYTES),
+	EF10_DMA_STAT(tx_bad, VADAPTER_TX_BAD_PACKETS),
+	EF10_DMA_STAT(tx_bad_bytes, VADAPTER_TX_BAD_BYTES),
+	EF10_DMA_STAT(tx_overflow, VADAPTER_TX_OVERFLOW),
 };
 
 #define HUNT_COMMON_STAT_MASK ((1ULL << EF10_STAT_port_tx_bytes) |	\
@@ -1126,6 +1144,10 @@ static u64 efx_ef10_raw_stat_mask(struct efx_nic *efx)
 	u32 port_caps = efx_mcdi_phy_get_caps(efx);
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 
+	if (!(efx->mcdi->fn_flags &
+	      1 << MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_LINKCTRL))
+		return 0;
+
 	if (port_caps & (1 << MC_CMD_PHY_CAP_40000FDX_LBN))
 		raw_mask |= HUNT_40G_EXTRA_STAT_MASK;
 	else
@@ -1140,13 +1162,22 @@ static u64 efx_ef10_raw_stat_mask(struct efx_nic *efx)
 
 static void efx_ef10_get_stat_mask(struct efx_nic *efx, unsigned long *mask)
 {
-	u64 raw_mask = efx_ef10_raw_stat_mask(efx);
+	u64 raw_mask[2];
+
+	raw_mask[0] = efx_ef10_raw_stat_mask(efx);
+
+	/* All functions see the vadaptor stats */
+	raw_mask[0] |= ~((1ULL << EF10_STAT_rx_unicast) - 1);
+	raw_mask[1] = (1ULL << (EF10_STAT_COUNT - 63)) - 1;
 
 #if BITS_PER_LONG == 64
-	mask[0] = raw_mask;
+	mask[0] = raw_mask[0];
+	mask[1] = raw_mask[1];
 #else
-	mask[0] = raw_mask & 0xffffffff;
-	mask[1] = raw_mask >> 32;
+	mask[0] = raw_mask[0] & 0xffffffff;
+	mask[1] = raw_mask[0] >> 32;
+	mask[2] = raw_mask[1] & 0xffffffff;
+	mask[3] = raw_mask[1] >> 32;
 #endif
 }
 

@@ -2896,6 +2896,26 @@
  * descriptor fetch. Valid for EF10 with PM_AND_RXDP_COUNTERS capability only.
  */
 #define          MC_CMD_MAC_RXDP_HLB_WAIT_CONDITIONS  0x48
+#define          MC_CMD_MAC_VADAPTER_RX_DMABUF_START  0x4c /* enum */
+#define          MC_CMD_MAC_VADAPTER_RX_UNICAST_PACKETS  0x4c /* enum */
+#define          MC_CMD_MAC_VADAPTER_RX_UNICAST_BYTES  0x4d /* enum */
+#define          MC_CMD_MAC_VADAPTER_RX_MULTICAST_PACKETS  0x4e /* enum */
+#define          MC_CMD_MAC_VADAPTER_RX_MULTICAST_BYTES  0x4f /* enum */
+#define          MC_CMD_MAC_VADAPTER_RX_BROADCAST_PACKETS  0x50 /* enum */
+#define          MC_CMD_MAC_VADAPTER_RX_BROADCAST_BYTES  0x51 /* enum */
+#define          MC_CMD_MAC_VADAPTER_RX_BAD_PACKETS  0x52 /* enum */
+#define          MC_CMD_MAC_VADAPTER_RX_BAD_BYTES  0x53 /* enum */
+#define          MC_CMD_MAC_VADAPTER_RX_OVERFLOW  0x54 /* enum */
+#define          MC_CMD_MAC_VADAPTER_TX_DMABUF_START  0x57 /* enum */
+#define          MC_CMD_MAC_VADAPTER_TX_UNICAST_PACKETS  0x57 /* enum */
+#define          MC_CMD_MAC_VADAPTER_TX_UNICAST_BYTES  0x58 /* enum */
+#define          MC_CMD_MAC_VADAPTER_TX_MULTICAST_PACKETS  0x59 /* enum */
+#define          MC_CMD_MAC_VADAPTER_TX_MULTICAST_BYTES  0x5a /* enum */
+#define          MC_CMD_MAC_VADAPTER_TX_BROADCAST_PACKETS  0x5b /* enum */
+#define          MC_CMD_MAC_VADAPTER_TX_BROADCAST_BYTES  0x5c /* enum */
+#define          MC_CMD_MAC_VADAPTER_TX_BAD_PACKETS  0x5d /* enum */
+#define          MC_CMD_MAC_VADAPTER_TX_BAD_BYTES  0x5e /* enum */
+#define          MC_CMD_MAC_VADAPTER_TX_OVERFLOW  0x5f /* enum */
 /* enum: Start of GMAC stats buffer space, for Siena only. */
 #define          MC_CMD_GMAC_DMABUF_START  0x40
 /* enum: End of GMAC stats buffer space, for Siena only. */
