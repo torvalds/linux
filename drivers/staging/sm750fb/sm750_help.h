@@ -10,11 +10,11 @@
 
 #define RAW_MASK(f)         (0xFFFFFFFF >> (32 - _COUNT(f)))
 #define GET_MASK(f)         (RAW_MASK(f) << _LSB(f))
-#define GET_FIELD(d,f)      (((d) >> _LSB(f)) & RAW_MASK(f))
-#define TEST_FIELD(d,f,v)   (GET_FIELD(d,f) == f ## _ ## v)
-#define SET_FIELD(d,f,v)    (((d) & ~GET_MASK(f)) | \
+#define GET_FIELD(d, f)     (((d) >> _LSB(f)) & RAW_MASK(f))
+#define TEST_FIELD(d, f, v) (GET_FIELD(d, f) == f ## _ ## v)
+#define SET_FIELD(d, f, v)  (((d) & ~GET_MASK(f)) | \
                             (((f ## _ ## v) & RAW_MASK(f)) << _LSB(f)))
-#define SET_FIELDV(d,f,v)   (((d) & ~GET_MASK(f)) | \
+#define SET_FIELDV(d, f, v) (((d) & ~GET_MASK(f)) | \
                             (((v) & RAW_MASK(f)) << _LSB(f)))
 
 
@@ -91,7 +91,7 @@
     (unsigned short) ((((r) & 0xF8) << 8) | (((g) & 0xFC) << 3) | (((b) & 0xF8) >> 3)) \
 )
 
-static inline unsigned int absDiff(unsigned int a,unsigned int b)
+static inline unsigned int absDiff(unsigned int a, unsigned int b)
 {
 	if(a<b)
 		return b-a;
@@ -100,7 +100,7 @@ static inline unsigned int absDiff(unsigned int a,unsigned int b)
 }
 
 /* n / d + 1 / 2 = (2n + d) / 2d */
-#define roundedDiv(num,denom)	((2 * (num) + (denom)) / (2 * (denom)))
+#define roundedDiv(num, denom)	((2 * (num) + (denom)) / (2 * (denom)))
 #define MB(x) ((x)<<20)
 #define KB(x) ((x)<<10)
 #define MHz(x) ((x) * 1000000)
