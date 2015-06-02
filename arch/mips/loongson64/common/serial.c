@@ -11,7 +11,7 @@
  */
 
 #include <linux/io.h>
-#include <linux/init.h>
+#include <linux/module.h>
 #include <linux/serial_8250.h>
 
 #include <asm/bootinfo.h>
@@ -108,5 +108,10 @@ static int __init serial_init(void)
 
 	return platform_device_register(&uart8250_device);
 }
+module_init(serial_init);
 
-device_initcall(serial_init);
+static void __init serial_exit(void)
+{
+	platform_device_unregister(&uart8250_device);
+}
+module_exit(serial_exit);
