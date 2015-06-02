@@ -80,6 +80,7 @@
 #include "sta.h"
 #include "fw-api.h"
 #include "constants.h"
+#include "tof.h"
 
 #define IWL_INVALID_MAC80211_QUEUE	0xff
 #define IWL_MVM_MAX_ADDRESSES		5
@@ -823,6 +824,7 @@ struct iwl_mvm {
 	struct iwl_mvm_shared_mem_cfg shared_mem_cfg;
 
 	u32 ciphers[6];
+	struct iwl_mvm_tof_data tof_data;
 };
 
 /* Extract MVM priv from op_mode and _hw */
