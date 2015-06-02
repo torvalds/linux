@@ -256,13 +256,14 @@ static struct dfs_node {
 	char *name;
 	struct dentry *d;
 	const struct file_operations *fops;
+	umode_t perm;
 } dfs_fls[] = {
-	{ .name = "status",	.fops = &status_fops },
-	{ .name = "misc",	.fops = &misc_fops },
-	{ .name = "addr",	.fops = &addr_fops },
-	{ .name = "bank",	.fops = &bank_fops },
-	{ .name = "flags",	.fops = &flags_fops },
-	{ .name = "cpu",	.fops = &extcpu_fops },
+	{ .name = "status",	.fops = &status_fops, .perm = S_IRUSR | S_IWUSR },
+	{ .name = "misc",	.fops = &misc_fops,   .perm = S_IRUSR | S_IWUSR },
+	{ .name = "addr",	.fops = &addr_fops,   .perm = S_IRUSR | S_IWUSR },
+	{ .name = "bank",	.fops = &bank_fops,   .perm = S_IRUSR | S_IWUSR },
+	{ .name = "flags",	.fops = &flags_fops,  .perm = S_IRUSR | S_IWUSR },
+	{ .name = "cpu",	.fops = &extcpu_fops, .perm = S_IRUSR | S_IWUSR },
 };
 
 static int __init init_mce_inject(void)
@@ -279,7 +280,7 @@ static int __init init_mce_inject(void)
 
 	for (i = 0; i < ARRAY_SIZE(dfs_fls); i++) {
 		dfs_fls[i].d = debugfs_create_file(dfs_fls[i].name,
-						    S_IRUSR | S_IWUSR,
+						    dfs_fls[i].perm,
 						    dfs_inj,
 						    &i_mce,
 						    dfs_fls[i].fops);
