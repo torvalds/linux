@@ -606,7 +606,7 @@ alloc_new:
 		if (bio == NULL)
 			goto confused;
 
-		bio_associate_blkcg(bio, inode_to_wb_blkcg_css(inode));
+		wbc_init_bio(wbc, bio);
 	}
 
 	/*

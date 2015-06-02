@@ -245,6 +245,37 @@ void __inode_attach_wb(struct inode *inode, struct page *page)
 }
 
 /**
+ * wbc_attach_and_unlock_inode - associate wbc with target inode and unlock it
+ * @wbc: writeback_control of interest
+ * @inode: target inode
+ *
+ * @inode is locked and about to be written back under the control of @wbc.
+ * Record @inode's writeback context into @wbc and unlock the i_lock.  On
+ * writeback completion, wbc_detach_inode() should be called.  This is used
+ * to track the cgroup writeback context.
+ */
+void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
+				 struct inode *inode)
+{
+	wbc->wb = inode_to_wb(inode);
+	wb_get(wbc->wb);
+	spin_unlock(&inode->i_lock);
+}
+
+/**
+ * wbc_detach_inode - disassociate wbc from its target inode
+ * @wbc: writeback_control of interest
+ *
+ * To be called after a writeback attempt of an inode finishes and undoes
+ * wbc_attach_and_unlock_inode().  Can be called under any context.
+ */
+void wbc_detach_inode(struct writeback_control *wbc)
+{
+	wb_put(wbc->wb);
+	wbc->wb = NULL;
+}
+
+/**
  * inode_congested - test whether an inode is congested
  * @inode: inode to test for congestion
  * @cong_bits: mask of WB_[a]sync_congested bits to test
@@ -877,10 +908,11 @@ writeback_single_inode(struct inode *inode, struct bdi_writeback *wb,
 	     !mapping_tagged(inode->i_mapping, PAGECACHE_TAG_WRITEBACK)))
 		goto out;
 	inode->i_state |= I_SYNC;
-	spin_unlock(&inode->i_lock);
+	wbc_attach_and_unlock_inode(wbc, inode);
 
 	ret = __writeback_single_inode(inode, wbc);
 
+	wbc_detach_inode(wbc);
 	spin_lock(&wb->list_lock);
 	spin_lock(&inode->i_lock);
 	/*
@@ -1013,7 +1045,7 @@ static long writeback_sb_inodes(struct super_block *sb,
 			continue;
 		}
 		inode->i_state |= I_SYNC;
-		spin_unlock(&inode->i_lock);
+		wbc_attach_and_unlock_inode(&wbc, inode);
 
 		write_chunk = writeback_chunk_size(wb, work);
 		wbc.nr_to_write = write_chunk;
@@ -1025,6 +1057,7 @@ static long writeback_sb_inodes(struct super_block *sb,
 		 */
 		__writeback_single_inode(inode, &wbc);
 
+		wbc_detach_inode(&wbc);
 		work->nr_pages -= write_chunk - wbc.nr_to_write;
 		wrote += write_chunk - wbc.nr_to_write;
 		spin_lock(&wb->list_lock);

@@ -86,6 +86,9 @@ struct writeback_control {
 	unsigned for_reclaim:1;		/* Invoked from the page allocator */
 	unsigned range_cyclic:1;	/* range_start is cyclic */
 	unsigned for_sync:1;		/* sync(2) WB_SYNC_ALL writeback */
+#ifdef CONFIG_CGROUP_WRITEBACK
+	struct bdi_writeback *wb;	/* wb this writeback is issued under */
+#endif
 };
 
 /*
@@ -176,7 +179,14 @@ static inline void wait_on_inode(struct inode *inode)
 
 #ifdef CONFIG_CGROUP_WRITEBACK
 
+#include <linux/cgroup.h>
+#include <linux/bio.h>
+
 void __inode_attach_wb(struct inode *inode, struct page *page);
+void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
+				 struct inode *inode)
+	__releases(&inode->i_lock);
+void wbc_detach_inode(struct writeback_control *wbc);
 
 /**
  * inode_attach_wb - associate an inode with its wb
@@ -207,6 +217,44 @@ static inline void inode_detach_wb(struct inode *inode)
 	}
 }
 
+/**
+ * wbc_attach_fdatawrite_inode - associate wbc and inode for fdatawrite
+ * @wbc: writeback_control of interest
+ * @inode: target inode
+ *
+ * This function is to be used by __filemap_fdatawrite_range(), which is an
+ * alternative entry point into writeback code, and first ensures @inode is
+ * associated with a bdi_writeback and attaches it to @wbc.
+ */
+static inline void wbc_attach_fdatawrite_inode(struct writeback_control *wbc,
+					       struct inode *inode)
+{
+	spin_lock(&inode->i_lock);
+	inode_attach_wb(inode, NULL);
+	wbc_attach_and_unlock_inode(wbc, inode);
+}
+
+/**
+ * wbc_init_bio - writeback specific initializtion of bio
+ * @wbc: writeback_control for the writeback in progress
+ * @bio: bio to be initialized
+ *
+ * @bio is a part of the writeback in progress controlled by @wbc.  Perform
+ * writeback specific initialization.  This is used to apply the cgroup
+ * writeback context.
+ */
+static inline void wbc_init_bio(struct writeback_control *wbc, struct bio *bio)
+{
+	/*
+	 * pageout() path doesn't attach @wbc to the inode being written
+	 * out.  This is intentional as we don't want the function to block
+	 * behind a slow cgroup.  Ultimately, we want pageout() to kick off
+	 * regular writeback instead of writing things out itself.
+	 */
+	if (wbc->wb)
+		bio_associate_blkcg(bio, wbc->wb->blkcg_css);
+}
+
 #else	/* CONFIG_CGROUP_WRITEBACK */
 
 static inline void inode_attach_wb(struct inode *inode, struct page *page)
@@ -214,6 +262,26 @@ static inline void inode_attach_wb(struct inode *inode, struct page *page)
 }
 
 static inline void inode_detach_wb(struct inode *inode)
+{
+}
+
+static inline void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
+					       struct inode *inode)
+	__releases(&inode->i_lock)
+{
+	spin_unlock(&inode->i_lock);
+}
+
+static inline void wbc_attach_fdatawrite_inode(struct writeback_control *wbc,
+					       struct inode *inode)
+{
+}
+
+static inline void wbc_detach_inode(struct writeback_control *wbc)
+{
+}
+
+static inline void wbc_init_bio(struct writeback_control *wbc, struct bio *bio)
 {
 }
 
