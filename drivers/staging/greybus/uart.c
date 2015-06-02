@@ -522,6 +522,7 @@ static const struct tty_operations gb_ops = {
 	.tiocmset =		gb_tty_tiocmset,
 };
 
+static struct tty_port_operations null_ops = { };
 
 static int gb_tty_init(void);
 static void gb_tty_exit(void);
@@ -545,6 +546,7 @@ static int gb_uart_connection_init(struct gb_connection *connection)
 	gb_tty = kzalloc(sizeof(*gb_tty), GFP_KERNEL);
 	if (!gb_tty)
 		return -ENOMEM;
+
 	gb_tty->connection = connection;
 	connection->private = gb_tty;
 
@@ -571,6 +573,9 @@ static int gb_uart_connection_init(struct gb_connection *connection)
 	init_waitqueue_head(&gb_tty->wioctl);
 	mutex_init(&gb_tty->mutex);
 
+	tty_port_init(&gb_tty->port);
+	gb_tty->port.ops = &null_ops;
+
 	send_control(gb_tty, gb_tty->ctrlout);
 
 	/* initialize the uart to be 9600n81 */
@@ -589,6 +594,7 @@ static int gb_uart_connection_init(struct gb_connection *connection)
 
 	return 0;
 error:
+	tty_port_destroy(&gb_tty->port);
 	release_minor(gb_tty);
 error_version:
 	connection->private = NULL;
@@ -623,7 +629,7 @@ static void gb_uart_connection_exit(struct gb_connection *connection)
 	/* FIXME - free transmit / receive buffers */
 
 	tty_port_put(&gb_tty->port);
-
+	tty_port_destroy(&gb_tty->port);
 	kfree(gb_tty);
 
 	/* If last device is gone, tear down the tty structures */
