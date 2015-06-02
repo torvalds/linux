@@ -1889,7 +1889,7 @@ static int setattr_chown(struct inode *inode, struct iattr *attr)
 
 	if (!uid_eq(ouid, NO_UID_QUOTA_CHANGE) ||
 	    !gid_eq(ogid, NO_GID_QUOTA_CHANGE)) {
-		gfs2_quota_change(ip, -ap.target, ouid, ogid);
+		gfs2_quota_change(ip, -(s64)ap.target, ouid, ogid);
 		gfs2_quota_change(ip, ap.target, nuid, ngid);
 	}
 
