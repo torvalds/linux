@@ -1424,7 +1424,6 @@ static void ath10k_pci_tx_pipe_cleanup(struct ath10k_pci_pipe *pci_pipe)
 	struct ath10k_ce_ring *ce_ring;
 	struct ce_desc *ce_desc;
 	struct sk_buff *skb;
-	unsigned int id;
 	int i;
 
 	ar = pci_pipe->hif_ce_state;
@@ -1448,8 +1447,6 @@ static void ath10k_pci_tx_pipe_cleanup(struct ath10k_pci_pipe *pci_pipe)
 			continue;
 
 		ce_ring->per_transfer_context[i] = NULL;
-		id = MS(__le16_to_cpu(ce_desc[i].flags),
-			CE_DESC_FLAGS_META_DATA);
 
 		ar_pci->msg_callbacks_current.tx_completion(ar, skb);
 	}
