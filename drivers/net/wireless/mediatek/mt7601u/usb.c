@@ -338,8 +338,15 @@ static int mt7601u_suspend(struct usb_interface *usb_intf, pm_message_t state)
 static int mt7601u_resume(struct usb_interface *usb_intf)
 {
 	struct mt7601u_dev *dev = usb_get_intfdata(usb_intf);
+	int ret;
 
-	return mt7601u_init_hardware(dev);
+	ret = mt7601u_init_hardware(dev);
+	if (ret)
+		return ret;
+
+	set_bit(MT7601U_STATE_INITIALIZED, &dev->state);
+
+	return 0;
 }
 
 MODULE_DEVICE_TABLE(usb, mt7601u_device_table);
