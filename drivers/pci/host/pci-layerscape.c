@@ -62,22 +62,29 @@ static int ls_pcie_link_up(struct pcie_port *pp)
 	return 1;
 }
 
-static void ls_pcie_host_init(struct pcie_port *pp)
+static int ls_pcie_establish_link(struct pcie_port *pp)
 {
-	struct ls_pcie *pcie = to_ls_pcie(pp);
 	int count = 0;
-	u32 val;
-
-	dw_pcie_setup_rc(pp);
 
 	while (!dw_pcie_link_up(pp)) {
 		usleep_range(100, 1000);
 		count++;
 		if (count >= 200) {
 			dev_err(pp->dev, "phy link never came up\n");
-			return;
+			return -EINVAL;
 		}
 	}
+
+	return 0;
+}
+
+static void ls_pcie_host_init(struct pcie_port *pp)
+{
+	struct ls_pcie *pcie = to_ls_pcie(pp);
+	u32 val;
+
+	dw_pcie_setup_rc(pp);
+	ls_pcie_establish_link(pp);
 
 	/*
 	 * LS1021A Workaround for internal TKT228622
