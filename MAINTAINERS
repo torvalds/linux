@@ -10569,6 +10569,15 @@ F:	drivers/block/virtio_blk.c
 F:	include/linux/virtio_*.h
 F:	include/uapi/linux/virtio_*.h
 
+VIRTIO GPU DRIVER
+M:	David Airlie <airlied@linux.ie>
+M:	Gerd Hoffmann <kraxel@redhat.com>
+L:	dri-devel@lists.freedesktop.org
+L:	virtualization@lists.linux-foundation.org
+S:	Maintained
+F:	drivers/gpu/drm/virtio/
+F:	include/uapi/linux/virtio_gpu.h
+
 VIRTIO HOST (VHOST)
 M:	"Michael S. Tsirkin" <mst@redhat.com>
 L:	kvm@vger.kernel.org
