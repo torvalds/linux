@@ -1188,15 +1188,8 @@ static struct omap_hwmod omap44xx_gpmc_hwmod = {
 	.name		= "gpmc",
 	.class		= &omap44xx_gpmc_hwmod_class,
 	.clkdm_name	= "l3_2_clkdm",
-	/*
-	 * XXX HWMOD_INIT_NO_RESET should not be needed for this IP
-	 * block.  It is not being added due to any known bugs with
-	 * resetting the GPMC IP block, but rather because any timings
-	 * set by the bootloader are not being correctly programmed by
-	 * the kernel from the board file or DT data.
-	 * HWMOD_INIT_NO_RESET should be removed ASAP.
-	 */
-	.flags		= HWMOD_INIT_NO_IDLE | HWMOD_INIT_NO_RESET,
+	/* Skip reset for CONFIG_OMAP_GPMC_DEBUG for bootloader timings */
+	.flags		= DEBUG_OMAP_GPMC_HWMOD_FLAGS,
 	.prcm = {
 		.omap4 = {
 			.clkctrl_offs = OMAP4_CM_L3_2_GPMC_CLKCTRL_OFFSET,
