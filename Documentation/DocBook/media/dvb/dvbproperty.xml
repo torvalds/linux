@@ -193,7 +193,7 @@ get/set up to 64 properties. The actual meaning of each property is described on
 
 <para>Most of the digital TV standards currently offers more than one possible
     modulation (sometimes called as "constellation" on some standards). This
-    enum contains the values used by the Kernel. Please notice that not all
+    enum contains the values used by the Kernel. Please note that not all
     modulations are supported by a given standard.</para>
 
 <table pgwide="1" frame="none" id="fe-modulation">
@@ -1098,7 +1098,7 @@ enum fe_interleaving {
 	<para>For most delivery systems, <constant>dtv_property.stat.len</constant>
 	      will be 1 if the stats is supported, and the properties will
 	      return a single value for each parameter.</para>
-	<para>It should be noticed, however, that new OFDM delivery systems
+	<para>It should be noted, however, that new OFDM delivery systems
 	      like ISDB can use different modulation types for each group of
 	      carriers. On such standards, up to 3 groups of statistics can be
 	      provided, and <constant>dtv_property.stat.len</constant> is updated
@@ -1162,7 +1162,7 @@ enum fe_interleaving {
 		<title><constant>DTV_STAT_PRE_TOTAL_BIT_COUNT</constant></title>
 		<para>Measures the amount of bits received before the inner code block, during the same period as
 		<link linkend="DTV-STAT-PRE-ERROR-BIT-COUNT"><constant>DTV_STAT_PRE_ERROR_BIT_COUNT</constant></link> measurement was taken.</para>
-		<para>It should be noticed that this measurement can be smaller than the total amount of bits on the transport stream,
+		<para>It should be noted that this measurement can be smaller than the total amount of bits on the transport stream,
 		      as the frontend may need to manually restart the measurement, losing some data between each measurement interval.</para>
 		<para>This measurement is monotonically increased, as the frontend gets more bit count measurements.
 		      The frontend may reset it when a channel/transponder is tuned.</para>
@@ -1191,7 +1191,7 @@ enum fe_interleaving {
 		<title><constant>DTV_STAT_POST_TOTAL_BIT_COUNT</constant></title>
 		<para>Measures the amount of bits received after the inner coding, during the same period as
 		<link linkend="DTV-STAT-POST-ERROR-BIT-COUNT"><constant>DTV_STAT_POST_ERROR_BIT_COUNT</constant></link> measurement was taken.</para>
-		<para>It should be noticed that this measurement can be smaller than the total amount of bits on the transport stream,
+		<para>It should be noted that this measurement can be smaller than the total amount of bits on the transport stream,
 		      as the frontend may need to manually restart the measurement, losing some data between each measurement interval.</para>
 		<para>This measurement is monotonically increased, as the frontend gets more bit count measurements.
 		      The frontend may reset it when a channel/transponder is tuned.</para>

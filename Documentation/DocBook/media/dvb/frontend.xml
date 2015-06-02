@@ -48,7 +48,7 @@ specification is available at
 <para>The information about the frontend tuner locking status can be queried
     using <link linkend="FE_READ_STATUS">FE_READ_STATUS</link>.</para>
 <para>Signal statistics are provided via <link linkend="FE_GET_PROPERTY"><constant>FE_GET_PROPERTY</constant></link>.
-    Please notice that several statistics require the demodulator to be fully
+    Please note that several statistics require the demodulator to be fully
     locked (e. g. with FE_HAS_LOCK bit set). See
     <link linkend="frontend-stat-properties">Frontend statistics indicators</link>
     for more details.</para>
