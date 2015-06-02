@@ -99,7 +99,7 @@ struct bq25890_device {
 	struct regmap *rmap;
 	struct regmap_field *rmap_fields[F_MAX_FIELDS];
 
-	u8 chip_id;
+	int chip_id;
 	struct bq25890_init_data init_data;
 	struct bq25890_state state;
 
@@ -842,7 +842,7 @@ static int bq25890_probe(struct i2c_client *client,
 	bq->chip_id = bq25890_field_read(bq, F_PN);
 	if (bq->chip_id < 0) {
 		dev_err(dev, "Cannot read chip ID.\n");
-		return ret;
+		return bq->chip_id;
 	}
 
 	if (bq->chip_id != BQ25890_ID) {
