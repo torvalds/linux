@@ -317,7 +317,7 @@ static inline void arch_write_lock(arch_rwlock_t *rw)
 
 static inline void arch_write_unlock(arch_rwlock_t *rw)
 {
-	smp_mb();
+	smp_mb__before_llsc();
 
 	__asm__ __volatile__(
 	"				# arch_write_unlock	\n"
