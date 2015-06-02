@@ -137,7 +137,8 @@ static int __clockevents_switch_state(struct clock_event_device *dev,
 	case CLOCK_EVT_STATE_ONESHOT_STOPPED:
 		/* Core internal bug */
 		if (WARN_ONCE(!clockevent_state_oneshot(dev),
-			      "Current state: %d\n", dev->state))
+			      "Current state: %d\n",
+			      clockevent_get_state(dev)))
 			return -EINVAL;
 
 		if (dev->set_state_oneshot_stopped)
@@ -160,11 +161,11 @@ static int __clockevents_switch_state(struct clock_event_device *dev,
 void clockevents_switch_state(struct clock_event_device *dev,
 			      enum clock_event_state state)
 {
-	if (dev->state != state) {
+	if (clockevent_get_state(dev) != state) {
 		if (__clockevents_switch_state(dev, state))
 			return;
 
-		dev->state = state;
+		clockevent_set_state(dev, state);
 
 		/*
 		 * A nsec2cyc multiplicator of 0 is invalid and we'd crash
@@ -333,7 +334,7 @@ int clockevents_program_event(struct clock_event_device *dev, ktime_t expires,
 
 	/* We must be in ONESHOT state here */
 	WARN_ONCE(!clockevent_state_oneshot(dev), "Current state: %d\n",
-		  dev->state);
+		  clockevent_get_state(dev));
 
 	/* Shortcut for clockevent devices that can deal with ktime. */
 	if (dev->features & CLOCK_EVT_FEAT_KTIME)
@@ -496,7 +497,7 @@ void clockevents_register_device(struct clock_event_device *dev)
 	BUG_ON(clockevents_sanity_check(dev));
 
 	/* Initialize state to DETACHED */
-	dev->state = CLOCK_EVT_STATE_DETACHED;
+	clockevent_set_state(dev, CLOCK_EVT_STATE_DETACHED);
 
 	if (!dev->cpumask) {
 		WARN_ON(num_possible_cpus() > 1);
