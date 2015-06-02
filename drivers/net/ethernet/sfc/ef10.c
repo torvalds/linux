@@ -681,6 +681,24 @@ static int efx_ef10_probe_pf(struct efx_nic *efx)
 static int efx_ef10_probe_vf(struct efx_nic *efx)
 {
 	int rc;
+	struct pci_dev *pci_dev_pf;
+
+	/* If the parent PF has no VF data structure, it doesn't know about this
+	 * VF so fail probe.  The VF needs to be re-created.  This can happen
+	 * if the PF driver is unloaded while the VF is assigned to a guest.
+	 */
+	pci_dev_pf = efx->pci_dev->physfn;
+	if (pci_dev_pf) {
+		struct efx_nic *efx_pf = pci_get_drvdata(pci_dev_pf);
+		struct efx_ef10_nic_data *nic_data_pf = efx_pf->nic_data;
+
+		if (!nic_data_pf->vf) {
+			netif_info(efx, drv, efx->net_dev,
+				   "The VF cannot link to its parent PF; "
+				   "please destroy and re-create the VF\n");
+			return -EBUSY;
+		}
+	}
 
 	rc = efx_ef10_probe(efx);
 	if (rc)
@@ -698,6 +716,8 @@ static int efx_ef10_probe_vf(struct efx_nic *efx)
 			struct efx_ef10_nic_data *nic_data = efx->nic_data;
 
 			nic_data_p->vf[nic_data->vf_index].efx = efx;
+			nic_data_p->vf[nic_data->vf_index].pci_dev =
+				efx->pci_dev;
 		} else
 			netif_info(efx, drv, efx->net_dev,
 				   "Could not get the PF id from VF\n");

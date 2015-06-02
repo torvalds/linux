@@ -1298,7 +1298,9 @@ static void efx_fini_io(struct efx_nic *efx)
 		efx->membase_phys = 0;
 	}
 
-	pci_disable_device(efx->pci_dev);
+	/* Don't disable bus-mastering if VFs are assigned */
+	if (!pci_vfs_assigned(efx->pci_dev))
+		pci_disable_device(efx->pci_dev);
 }
 
 void efx_set_default_rx_indir_table(struct efx_nic *efx)
