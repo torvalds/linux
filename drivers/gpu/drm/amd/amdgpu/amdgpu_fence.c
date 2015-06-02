@@ -1023,7 +1023,7 @@ static int amdgpu_debugfs_fence_info(struct seq_file *m, void *data)
 
 		amdgpu_fence_process(ring);
 
-		seq_printf(m, "--- ring %d ---\n", i);
+		seq_printf(m, "--- ring %d (%s) ---\n", i, ring->name);
 		seq_printf(m, "Last signaled fence 0x%016llx\n",
 			   (unsigned long long)atomic64_read(&ring->fence_drv.last_seq));
 		seq_printf(m, "Last emitted        0x%016llx\n",
@@ -1031,7 +1031,8 @@ static int amdgpu_debugfs_fence_info(struct seq_file *m, void *data)
 
 		for (j = 0; j < AMDGPU_MAX_RINGS; ++j) {
 			struct amdgpu_ring *other = adev->rings[j];
-			if (i != j && other && other->fence_drv.initialized)
+			if (i != j && other && other->fence_drv.initialized &&
+			    ring->fence_drv.sync_seq[j])
 				seq_printf(m, "Last sync to ring %d 0x%016llx\n",
 					   j, ring->fence_drv.sync_seq[j]);
 		}
