@@ -95,11 +95,12 @@ void exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 			  uint32_t src_w, uint32_t src_h)
 {
 	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
+	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	unsigned int actual_w;
 	unsigned int actual_h;
 
-	actual_w = exynos_plane_get_size(crtc_x, crtc_w, crtc->mode.hdisplay);
-	actual_h = exynos_plane_get_size(crtc_y, crtc_h, crtc->mode.vdisplay);
+	actual_w = exynos_plane_get_size(crtc_x, crtc_w, mode->hdisplay);
+	actual_h = exynos_plane_get_size(crtc_y, crtc_h, mode->vdisplay);
 
 	if (crtc_x < 0) {
 		if (actual_w)
@@ -135,10 +136,10 @@ void exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 	exynos_plane->crtc_height = actual_h;
 
 	/* set drm mode data. */
-	exynos_plane->mode_width = crtc->mode.hdisplay;
-	exynos_plane->mode_height = crtc->mode.vdisplay;
-	exynos_plane->refresh = crtc->mode.vrefresh;
-	exynos_plane->scan_flag = crtc->mode.flags;
+	exynos_plane->mode_width = mode->hdisplay;
+	exynos_plane->mode_height = mode->vdisplay;
+	exynos_plane->refresh = mode->vrefresh;
+	exynos_plane->scan_flag = mode->flags;
 
 	DRM_DEBUG_KMS("plane : offset_x/y(%d,%d), width/height(%d,%d)",
 			exynos_plane->crtc_x, exynos_plane->crtc_y,

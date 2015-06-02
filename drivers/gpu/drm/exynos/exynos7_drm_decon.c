@@ -175,7 +175,7 @@ static bool decon_mode_fixup(struct exynos_drm_crtc *crtc,
 static void decon_commit(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
-	struct drm_display_mode *mode = &crtc->base.mode;
+	struct drm_display_mode *mode = &crtc->base.state->adjusted_mode;
 	u32 val, clkdiv;
 
 	if (ctx->suspended)
@@ -395,7 +395,7 @@ static void decon_shadow_protect_win(struct decon_context *ctx,
 static void decon_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
 {
 	struct decon_context *ctx = crtc->ctx;
-	struct drm_display_mode *mode = &crtc->base.mode;
+	struct drm_display_mode *mode = &crtc->base.state->adjusted_mode;
 	struct exynos_drm_plane *plane;
 	int padding;
 	unsigned long val, alpha;
