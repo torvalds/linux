@@ -97,13 +97,13 @@ WILC_Char *WILC_strncpy(WILC_Char *pcTarget, const WILC_Char *pcSource,
 
 /*!
  *  @brief	Compares two strings up to u32Count characters
- *  @details	Compares 2 strings reporting which is bigger, WILC_NULL is considered
+ *  @details	Compares 2 strings reporting which is bigger, NULL is considered
  *              the smallest string, then a zero length string then all other
  *              strings depending on thier ascii characters order with small case
  *              converted to uppder case
- *  @param[in]	pcStr1 the first string, WILC_NULL is valid and considered smaller
+ *  @param[in]	pcStr1 the first string, NULL is valid and considered smaller
  *              than any other non-NULL string (incliding zero lenght strings)
- *  @param[in]	pcStr2 the second string, WILC_NULL is valid and considered smaller
+ *  @param[in]	pcStr2 the second string, NULL is valid and considered smaller
  *              than any other non-NULL string (incliding zero lenght strings)
  *  @param[in]	u32Count copying will proceed until a null character in pcStr1 or
  *              pcStr2 is encountered or u32Count of bytes copied

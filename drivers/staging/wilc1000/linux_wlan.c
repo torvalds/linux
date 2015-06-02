@@ -304,7 +304,7 @@ static int dev_state_ev_handler(struct notifier_block *this, unsigned long event
 		if (nic->iftype == STATION_MODE || nic->iftype == CLIENT_MODE) {
 			pstrWFIDrv->IFC_UP = 1;
 			g_obtainingIP = WILC_FALSE;
-			WILC_TimerStop(&hDuringIpTimer, WILC_NULL);
+			WILC_TimerStop(&hDuringIpTimer, NULL);
 			PRINT_D(GENERIC_DBG, "IP obtained , enable scan\n");
 		}
 

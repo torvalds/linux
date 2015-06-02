@@ -51,11 +51,11 @@ WILC_Sint32 WILC_strncmp(const WILC_Char *pcStr1, const WILC_Char *pcStr2,
 {
 	WILC_Sint32 s32Result;
 
-	if (pcStr1 == WILC_NULL && pcStr2 == WILC_NULL)	{
+	if (pcStr1 == NULL && pcStr2 == NULL)	{
 		s32Result = 0;
-	} else if (pcStr1 == WILC_NULL)	   {
+	} else if (pcStr1 == NULL)	   {
 		s32Result = -1;
-	} else if (pcStr2 == WILC_NULL)	   {
+	} else if (pcStr2 == NULL)	   {
 		s32Result = 1;
 	} else {
 		s32Result = strncmp(pcStr1, pcStr2, u32Count);

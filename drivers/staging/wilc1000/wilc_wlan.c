@@ -1899,12 +1899,12 @@ static void wilc_wlan_cleanup(void)
 	#ifdef MEMORY_STATIC
 	if (p->rx_buffer) {
 		p->os_func.os_free(p->rx_buffer);
-		p->rx_buffer = WILC_NULL;
+		p->rx_buffer = NULL;
 	}
 	#endif
 	if (p->tx_buffer) {
 		p->os_func.os_free(p->tx_buffer);
-		p->tx_buffer = WILC_NULL;
+		p->tx_buffer = NULL;
 	}
 #endif
 
@@ -2294,7 +2294,7 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 
 
 
-	if (g_wlan.tx_buffer == WILC_NULL)
+	if (g_wlan.tx_buffer == NULL)
 #if (defined WILC_PREALLOC_AT_BOOT)
 		g_wlan.tx_buffer = (uint8_t *)get_tx_buffer();
 #else
@@ -2302,7 +2302,7 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 #endif
 	PRINT_D(TX_DBG, "g_wlan.tx_buffer = %p\n", g_wlan.tx_buffer);
 
-	if (g_wlan.tx_buffer == WILC_NULL) {
+	if (g_wlan.tx_buffer == NULL) {
 		/* ENOBUFS	105 */
 		ret = -105;
 		PRINT_ER("Can't allocate Tx Buffer");
@@ -2311,14 +2311,14 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 
 /* rx_buffer is not used unless we activate USE_MEM STATIC which is not applicable, allocating such memory is useless*/
 #if defined (MEMORY_STATIC)
-	if (g_wlan.rx_buffer == WILC_NULL)
+	if (g_wlan.rx_buffer == NULL)
   #if (defined WILC_PREALLOC_AT_BOOT)
 		g_wlan.rx_buffer = (uint8_t *)get_rx_buffer();
   #else
 		g_wlan.rx_buffer = (uint8_t *)g_wlan.os_func.os_malloc(g_wlan.rx_buffer_size);
   #endif
 	PRINT_D(TX_DBG, "g_wlan.rx_buffer =%p\n", g_wlan.rx_buffer);
-	if (g_wlan.rx_buffer == WILC_NULL) {
+	if (g_wlan.rx_buffer == NULL) {
 		/* ENOBUFS	105 */
 		ret = -105;
 		PRINT_ER("Can't allocate Rx Buffer");
@@ -2375,12 +2375,12 @@ _fail_:
   #ifdef MEMORY_STATIC
 	if (g_wlan.rx_buffer) {
 		g_wlan.os_func.os_free(g_wlan.rx_buffer);
-		g_wlan.rx_buffer = WILC_NULL;
+		g_wlan.rx_buffer = NULL;
 	}
   #endif
 	if (g_wlan.tx_buffer) {
 		g_wlan.os_func.os_free(g_wlan.tx_buffer);
-		g_wlan.tx_buffer = WILC_NULL;
+		g_wlan.tx_buffer = NULL;
 	}
 #endif
 

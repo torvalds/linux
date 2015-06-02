@@ -32,8 +32,6 @@ typedef enum {
 /* Character types */
 typedef char WILC_Char;
 
-#define WILC_NULL ((void *)0)
-
 /* Os Configuration File */
 #include "wilc_osconfig.h"
 #include "wilc_platform.h"

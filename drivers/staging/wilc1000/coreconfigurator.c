@@ -771,7 +771,7 @@ WILC_Uint8 get_current_channel(WILC_Uint8 *pu8msa, WILC_Uint16 u16RxLen)
 WILC_Sint32 ParseNetworkInfo(WILC_Uint8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
 {
 	WILC_Sint32 s32Error = WILC_SUCCESS;
-	tstrNetworkInfo *pstrNetworkInfo = WILC_NULL;
+	tstrNetworkInfo *pstrNetworkInfo = NULL;
 	WILC_Uint8 u8MsgType = 0;
 	WILC_Uint8 u8MsgID = 0;
 	WILC_Uint16 u16MsgLen = 0;
@@ -894,16 +894,16 @@ WILC_Sint32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo)
 {
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 
-	if (pstrNetworkInfo != WILC_NULL) {
-		if (pstrNetworkInfo->pu8IEs != WILC_NULL) {
+	if (pstrNetworkInfo != NULL) {
+		if (pstrNetworkInfo->pu8IEs != NULL) {
 			WILC_FREE(pstrNetworkInfo->pu8IEs);
-			pstrNetworkInfo->pu8IEs = WILC_NULL;
+			pstrNetworkInfo->pu8IEs = NULL;
 		} else {
 			s32Error = WILC_FAIL;
 		}
 
 		WILC_FREE(pstrNetworkInfo);
-		pstrNetworkInfo = WILC_NULL;
+		pstrNetworkInfo = NULL;
 
 	} else {
 		s32Error = WILC_FAIL;
@@ -927,7 +927,7 @@ WILC_Sint32 ParseAssocRespInfo(WILC_Uint8 *pu8Buffer, WILC_Uint32 u32BufferLen,
 			       tstrConnectRespInfo **ppstrConnectRespInfo)
 {
 	WILC_Sint32 s32Error = WILC_SUCCESS;
-	tstrConnectRespInfo *pstrConnectRespInfo = WILC_NULL;
+	tstrConnectRespInfo *pstrConnectRespInfo = NULL;
 	WILC_Uint16 u16AssocRespLen = 0;
 	WILC_Uint8 *pu8IEs = 0;
 	WILC_Uint16 u16IEsLen = 0;
@@ -979,16 +979,16 @@ WILC_Sint32 DeallocateAssocRespInfo(tstrConnectRespInfo *pstrConnectRespInfo)
 {
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 
-	if (pstrConnectRespInfo != WILC_NULL) {
-		if (pstrConnectRespInfo->pu8RespIEs != WILC_NULL) {
+	if (pstrConnectRespInfo != NULL) {
+		if (pstrConnectRespInfo->pu8RespIEs != NULL) {
 			WILC_FREE(pstrConnectRespInfo->pu8RespIEs);
-			pstrConnectRespInfo->pu8RespIEs = WILC_NULL;
+			pstrConnectRespInfo->pu8RespIEs = NULL;
 		} else {
 			s32Error = WILC_FAIL;
 		}
 
 		WILC_FREE(pstrConnectRespInfo);
-		pstrConnectRespInfo = WILC_NULL;
+		pstrConnectRespInfo = NULL;
 
 	} else {
 		s32Error = WILC_FAIL;
@@ -1060,7 +1060,7 @@ WILC_Sint32 DeallocateSurveyResults(wid_site_survey_reslts_s *pstrSurveyResults)
 {
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 
-	if (pstrSurveyResults != WILC_NULL) {
+	if (pstrSurveyResults != NULL) {
 		WILC_FREE(pstrSurveyResults);
 	}
 

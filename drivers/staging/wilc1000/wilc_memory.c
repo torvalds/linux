@@ -12,7 +12,7 @@ void *WILC_MemoryAlloc(WILC_Uint32 u32Size, tstrWILC_MemoryAttrs *strAttrs,
 	if (u32Size > 0) {
 		return kmalloc(u32Size, GFP_ATOMIC);
 	} else {
-		return WILC_NULL;
+		return NULL;
 	}
 }
 
@@ -37,8 +37,8 @@ void *WILC_MemoryRealloc(void *pvOldBlock, WILC_Uint32 u32NewSize,
 {
 	if (u32NewSize == 0) {
 		kfree(pvOldBlock);
-		return WILC_NULL;
-	} else if (pvOldBlock == WILC_NULL)	 {
+		return NULL;
+	} else if (pvOldBlock == NULL)	 {
 		return kmalloc(u32NewSize, GFP_KERNEL);
 	} else {
 		return krealloc(pvOldBlock, u32NewSize, GFP_KERNEL);

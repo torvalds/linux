@@ -537,8 +537,8 @@ typedef enum {
 /*****************************************************************************/
 
 
-tstrWILC_WFIDrv *terminated_handle = WILC_NULL;
-tstrWILC_WFIDrv *gWFiDrvHandle = WILC_NULL;
+tstrWILC_WFIDrv *terminated_handle = NULL;
+tstrWILC_WFIDrv *gWFiDrvHandle = NULL;
 #ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 WILC_Bool g_obtainingIP = WILC_FALSE;
 #endif
@@ -1299,7 +1299,7 @@ static WILC_Sint32 Handle_Scan(void *drvHandler, tstrHostIFscanAttr *pstrHostIFs
 	}
 	pu8HdnNtwrksWidVal = WILC_MALLOC(valuesize + 1);
 	strWIDList[u32WidsCount].ps8WidVal = pu8HdnNtwrksWidVal;
-	if (strWIDList[u32WidsCount].ps8WidVal != WILC_NULL) {
+	if (strWIDList[u32WidsCount].ps8WidVal != NULL) {
 		pu8Buffer = strWIDList[u32WidsCount].ps8WidVal;
 
 		*pu8Buffer++ = pstrHostIFscanAttr->strHiddenNetwork.u8ssidnum;
@@ -1383,7 +1383,7 @@ static WILC_Sint32 Handle_Scan(void *drvHandler, tstrHostIFscanAttr *pstrHostIFs
 
 	WILC_CATCH(s32Error)
 	{
-		WILC_TimerStop(&(pstrWFIDrv->hScanTimer), WILC_NULL);
+		WILC_TimerStop(&(pstrWFIDrv->hScanTimer), NULL);
 		/*if there is an ongoing scan request*/
 		Handle_ScanDone(drvHandler, SCAN_EVENT_ABORTED);
 	}
@@ -1467,7 +1467,7 @@ static WILC_Sint32 Handle_ScanDone(void *drvHandler, tenuScanEvent enuEvent)
 
 	/*if there is an ongoing scan request*/
 	if (pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult) {
-		pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult(enuEvent, WILC_NULL,
+		pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult(enuEvent, NULL,
 								pstrWFIDrv->strWILC_UsrScanReq.u32UserScanPvoid, NULL);
 		/*delete current scan request*/
 		pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult = NULL;
@@ -1497,9 +1497,9 @@ static WILC_Sint32 Handle_Connect(void *drvHandler, tstrHostIFconnectAttr *pstrH
 	WILC_Sint32 s32Err = WILC_SUCCESS;
 	WILC_Uint32 i;
 	WILC_Uint8 u8bssDscListIndex;
-	wid_site_survey_reslts_s *pstrSurveyResults = WILC_NULL;
+	wid_site_survey_reslts_s *pstrSurveyResults = NULL;
 	#else
-	WILC_Uint8 *pu8CurrByte = WILC_NULL;
+	WILC_Uint8 *pu8CurrByte = NULL;
 	/*Bug4218: Parsing Join Param*/
 	#ifdef WILC_PARSE_SCAN_IN_HOST
 	tstrJoinBssParam *ptstrJoinBssParam;
@@ -1799,7 +1799,7 @@ static WILC_Sint32 Handle_Connect(void *drvHandler, tstrHostIFconnectAttr *pstrH
 	strWIDList[u32WidsCount].s32ValueSize = MAX_SSID_LEN + 7;
 	strWIDList[u32WidsCount].ps8WidVal = WILC_MALLOC(strWIDList[u32WidsCount].s32ValueSize);
 
-	if (strWIDList[u32WidsCount].ps8WidVal == WILC_NULL) {
+	if (strWIDList[u32WidsCount].ps8WidVal == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_NO_MEM);
 	}
 
@@ -1838,7 +1838,7 @@ static WILC_Sint32 Handle_Connect(void *drvHandler, tstrHostIFconnectAttr *pstrH
 		gu32FlushedJoinReqSize = strWIDList[u32WidsCount].s32ValueSize;
 		gu8FlushedJoinReq = WILC_MALLOC(gu32FlushedJoinReqSize);
 	}
-	if (strWIDList[u32WidsCount].ps8WidVal == WILC_NULL) {
+	if (strWIDList[u32WidsCount].ps8WidVal == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_NO_MEM);
 	}
 
@@ -2004,7 +2004,7 @@ static WILC_Sint32 Handle_Connect(void *drvHandler, tstrHostIFconnectAttr *pstrH
 	{
 		tstrConnectInfo strConnectInfo;
 
-		WILC_TimerStop(&(pstrWFIDrv->hConnectTimer), WILC_NULL);
+		WILC_TimerStop(&(pstrWFIDrv->hConnectTimer), NULL);
 
 		PRINT_D(HOSTINF_DBG, "could not start connecting to the required network\n");
 
@@ -2060,7 +2060,7 @@ static WILC_Sint32 Handle_Connect(void *drvHandler, tstrHostIFconnectAttr *pstrH
 		pstrHostIFconnectAttr->pu8IEs = NULL;
 	}
 
-	if (pu8CurrByte != WILC_NULL) {
+	if (pu8CurrByte != NULL) {
 		WILC_FREE(pu8CurrByte);
 	}
 	return s32Error;
@@ -2082,7 +2082,7 @@ static WILC_Sint32 Handle_FlushConnect(void *drvHandler)
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 	tstrWID strWIDList[5];
 	WILC_Uint32 u32WidsCount = 0;
-	WILC_Uint8 *pu8CurrByte = WILC_NULL;
+	WILC_Uint8 *pu8CurrByte = NULL;
 
 
 	/* IEs to be inserted in Association Request */
@@ -2276,7 +2276,7 @@ static WILC_Sint32 Handle_RcvdNtwrkInfo(void *drvHandler, tstrRcvdNetworkInfo *p
 		PRINT_D(HOSTINF_DBG, "State: Scanning, parsing network information received\n");
 		ParseNetworkInfo(pstrRcvdNetworkInfo->pu8Buffer, &pstrNetworkInfo);
 		if ((pstrNetworkInfo == NULL)
-		    || (pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult == WILC_NULL)) {
+		    || (pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult == NULL)) {
 			WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 		}
 
@@ -2358,9 +2358,9 @@ done:
 	}
 
 	/*free structure allocated*/
-	if (pstrNetworkInfo != WILC_NULL) {
+	if (pstrNetworkInfo != NULL) {
 		DeallocateNetworkInfo(pstrNetworkInfo);
-		pstrNetworkInfo = WILC_NULL;
+		pstrNetworkInfo = NULL;
 	}
 
 	return s32Error;
@@ -2402,7 +2402,7 @@ static WILC_Sint32 Handle_RcvdGnrlAsyncInfo(void *drvHandler, tstrRcvdGnrlAsyncI
 	    (pstrWFIDrv->enuHostIFstate == HOST_IF_CONNECTED) ||
 	    pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult) {
 		if ((pstrRcvdGnrlAsyncInfo->pu8Buffer == NULL) ||
-		    (pstrWFIDrv->strWILC_UsrConnReq.pfUserConnectResult == WILC_NULL)) {
+		    (pstrWFIDrv->strWILC_UsrConnReq.pfUserConnectResult == NULL)) {
 			WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 		}
 
@@ -2518,7 +2518,7 @@ static WILC_Sint32 Handle_RcvdGnrlAsyncInfo(void *drvHandler, tstrRcvdGnrlAsyncI
 			}
 
 
-			WILC_TimerStop(&(pstrWFIDrv->hConnectTimer), WILC_NULL);
+			WILC_TimerStop(&(pstrWFIDrv->hConnectTimer), NULL);
 			pstrWFIDrv->strWILC_UsrConnReq.pfUserConnectResult(CONN_DISCONN_EVENT_CONN_RESP,
 									   &strConnectInfo,
 									   u8MacStatus,
@@ -2542,7 +2542,7 @@ static WILC_Sint32 Handle_RcvdGnrlAsyncInfo(void *drvHandler, tstrRcvdGnrlAsyncI
 				#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 				PRINT_D(GENERIC_DBG, "Obtaining an IP, Disable Scan\n");
 				g_obtainingIP = WILC_TRUE;
-				WILC_TimerStart(&hDuringIpTimer, 10000, WILC_NULL, WILC_NULL);
+				WILC_TimerStart(&hDuringIpTimer, 10000, NULL, NULL);
 				#endif
 
 				#ifdef WILC_PARSE_SCAN_IN_HOST
@@ -2597,7 +2597,7 @@ static WILC_Sint32 Handle_RcvdGnrlAsyncInfo(void *drvHandler, tstrRcvdGnrlAsyncI
 
 			if (pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult) {
 				PRINT_D(HOSTINF_DBG, "\n\n<< Abort the running OBSS Scan >> \n\n");
-				WILC_TimerStop(&(pstrWFIDrv->hScanTimer), WILC_NULL);
+				WILC_TimerStop(&(pstrWFIDrv->hScanTimer), NULL);
 				Handle_ScanDone((void *)pstrWFIDrv, SCAN_EVENT_ABORTED);
 			}
 
@@ -2674,7 +2674,7 @@ static WILC_Sint32 Handle_RcvdGnrlAsyncInfo(void *drvHandler, tstrRcvdGnrlAsyncI
 			PRINT_D(HOSTINF_DBG, "Received MAC_DISCONNECTED from the FW while scanning\n");
 			PRINT_D(HOSTINF_DBG, "\n\n<< Abort the running Scan >> \n\n");
 			/*Abort the running scan*/
-			WILC_TimerStop(&(pstrWFIDrv->hScanTimer), WILC_NULL);
+			WILC_TimerStop(&(pstrWFIDrv->hScanTimer), NULL);
 			if (pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult) {
 				Handle_ScanDone((void *)pstrWFIDrv, SCAN_EVENT_ABORTED);
 
@@ -3110,11 +3110,11 @@ static void Handle_Disconnect(void *drvHandler)
 		strDisconnectNotifInfo.ie_len = 0;
 
 		if (pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult) {
-			WILC_TimerStop(&(pstrWFIDrv->hScanTimer), WILC_NULL);
-			pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult(SCAN_EVENT_ABORTED, WILC_NULL,
+			WILC_TimerStop(&(pstrWFIDrv->hScanTimer), NULL);
+			pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult(SCAN_EVENT_ABORTED, NULL,
 									pstrWFIDrv->strWILC_UsrScanReq.u32UserScanPvoid, NULL);
 
-			pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult = WILC_NULL;
+			pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult = NULL;
 		}
 
 		if (pstrWFIDrv->strWILC_UsrConnReq.pfUserConnectResult != NULL)	{
@@ -3123,7 +3123,7 @@ static void Handle_Disconnect(void *drvHandler)
 			/*Stop connect timer, if connection in progress*/
 			if (pstrWFIDrv->enuHostIFstate == HOST_IF_WAITING_CONN_RESP) {
 				PRINT_D(HOSTINF_DBG, "Upper layer requested termination of connection\n");
-				WILC_TimerStop(&(pstrWFIDrv->hConnectTimer), WILC_NULL);
+				WILC_TimerStop(&(pstrWFIDrv->hConnectTimer), NULL);
 			}
 
 			pstrWFIDrv->strWILC_UsrConnReq.pfUserConnectResult(CONN_DISCONN_EVENT_DISCONN_NOTIF, NULL,
@@ -3187,7 +3187,7 @@ void resolve_disconnect_aberration(void *drvHandler)
 	tstrWILC_WFIDrv *pstrWFIDrv;
 
 	pstrWFIDrv = (tstrWILC_WFIDrv *)drvHandler;
-	if (pstrWFIDrv  == WILC_NULL)
+	if (pstrWFIDrv  == NULL)
 		return;
 	if ((pstrWFIDrv->enuHostIFstate == HOST_IF_WAITING_CONN_RESP) || (pstrWFIDrv->enuHostIFstate == HOST_IF_CONNECTING)) {
 		PRINT_D(HOSTINF_DBG, "\n\n<< correcting Supplicant state machine >>\n\n");
@@ -3879,7 +3879,7 @@ static int Handle_RemainOnChan(void *drvHandler, tstrHostIfRemainOnChan *pstrHos
 	strWID.s32ValueSize = 2;
 	strWID.ps8WidVal = (WILC_Sint8 *)WILC_MALLOC(strWID.s32ValueSize);
 
-	if (strWID.ps8WidVal == WILC_NULL) {
+	if (strWID.ps8WidVal == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_NO_MEM);
 	}
 
@@ -3895,7 +3895,7 @@ static int Handle_RemainOnChan(void *drvHandler, tstrHostIfRemainOnChan *pstrHos
 	WILC_CATCH(-1)
 	{
 		P2P_LISTEN_STATE = 1;
-		WILC_TimerStart(&(pstrWFIDrv->hRemainOnChannel), pstrHostIfRemainOnChan->u32duration, (void *)pstrWFIDrv, WILC_NULL);
+		WILC_TimerStart(&(pstrWFIDrv->hRemainOnChannel), pstrHostIfRemainOnChan->u32duration, (void *)pstrWFIDrv, NULL);
 
 		/*Calling CFG ready_on_channel*/
 		if (pstrWFIDrv->strHostIfRemainOnChan.pRemainOnChanReady) {
@@ -3989,7 +3989,7 @@ static WILC_Uint32 Handle_ListenStateExpired(void *drvHandler, tstrHostIfRemainO
 		strWID.s32ValueSize = 2;
 		strWID.ps8WidVal = WILC_MALLOC(strWID.s32ValueSize);
 
-		if (strWID.ps8WidVal == WILC_NULL) {
+		if (strWID.ps8WidVal == NULL) {
 			PRINT_ER("Failed to allocate memory\n");
 		}
 
@@ -4033,7 +4033,7 @@ static void ListenTimerCB(void *pvArg)
 	tstrHostIFmsg strHostIFmsg;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)pvArg;
 	/*Stopping remain-on-channel timer*/
-	WILC_TimerStop(&(pstrWFIDrv->hRemainOnChannel), WILC_NULL);
+	WILC_TimerStop(&(pstrWFIDrv->hRemainOnChannel), NULL);
 
 	/* prepare the Timer Callback message */
 	WILC_memset(&strHostIFmsg, 0, sizeof(tstrHostIFmsg));
@@ -4042,7 +4042,7 @@ static void ListenTimerCB(void *pvArg)
 	strHostIFmsg.uniHostIFmsgBody.strHostIfRemainOnChan.u32ListenSessionID = pstrWFIDrv->strHostIfRemainOnChan.u32ListenSessionID;
 
 	/* send the message */
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		WILC_ERRORREPORT(s32Error, s32Error);
 	}
@@ -4379,7 +4379,7 @@ static int hostIFthread(void *pvArg)
 	WILC_memset(&strHostIFmsg, 0, sizeof(tstrHostIFmsg));
 
 	while (1) {
-		WILC_MsgQueueRecv(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), &u32Ret, WILC_NULL);
+		WILC_MsgQueueRecv(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), &u32Ret, NULL);
 		pstrWFIDrv = (tstrWILC_WFIDrv *)strHostIFmsg.drvHandler;
 		if (strHostIFmsg.u16MsgId == HOST_IF_MSG_EXIT) {
 			PRINT_D(GENERIC_DBG, "THREAD: Exiting HostIfThread\n");
@@ -4391,13 +4391,13 @@ static int hostIFthread(void *pvArg)
 		if ((!g_wilc_initialized)) {
 			PRINT_D(GENERIC_DBG, "--WAIT--");
 			WILC_Sleep(200);
-			WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+			WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 			continue;
 		}
 
 		if (strHostIFmsg.u16MsgId == HOST_IF_MSG_CONNECT && pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult != NULL) {
 			PRINT_D(HOSTINF_DBG, "Requeue connect request till scan done received\n");
-			WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+			WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 			WILC_Sleep(2);
 			continue;
 		}
@@ -4446,7 +4446,7 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_RCVD_SCAN_COMPLETE:
-			WILC_TimerStop(&(pstrWFIDrv->hScanTimer), WILC_NULL);
+			WILC_TimerStop(&(pstrWFIDrv->hScanTimer), NULL);
 			PRINT_D(HOSTINF_DBG, "scan completed successfully\n");
 
 			/*BugID_5213*/
@@ -4604,7 +4604,7 @@ static void TimerCB_Scan(void *pvArg)
 	strHostIFmsg.u16MsgId = HOST_IF_MSG_SCAN_TIMER_FIRED;
 
 	/* send the message */
-	WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 }
 
 static void TimerCB_Connect(void *pvArg)
@@ -4617,7 +4617,7 @@ static void TimerCB_Connect(void *pvArg)
 	strHostIFmsg.u16MsgId = HOST_IF_MSG_CONNECT_TIMER_FIRED;
 
 	/* send the message */
-	WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 }
 
 
@@ -4670,7 +4670,7 @@ WILC_Sint32 host_int_remove_wep_key(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 u8keyI
 	tstrHostIFmsg strHostIFmsg;
 
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 
@@ -4689,7 +4689,7 @@ WILC_Sint32 host_int_remove_wep_key(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 u8keyI
 	uniHostIFkeyAttr.strHostIFwepAttr.u8Wepidx = u8keyIdx;
 
 	/* send the message */
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error)
 		PRINT_ER("Error in sending message queue : Request to remove WEP key \n");
 	down(&(pstrWFIDrv->hSemTestKeyBlock));
@@ -4720,7 +4720,7 @@ WILC_Sint32 host_int_set_WEPDefaultKeyID(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 u
 	tstrHostIFmsg strHostIFmsg;
 
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 
@@ -4738,7 +4738,7 @@ WILC_Sint32 host_int_set_WEPDefaultKeyID(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 u
 	uniHostIFkeyAttr.strHostIFwepAttr.u8Wepidx = u8Index;
 
 	/* send the message */
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error)
 		PRINT_ER("Error in sending message queue : Default key index\n");
 	down(&(pstrWFIDrv->hSemTestKeyBlock));
@@ -4777,7 +4777,7 @@ WILC_Sint32 host_int_add_wep_key_bss_sta(WILC_WFIDrvHandle hWFIDrv, const WILC_U
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	tstrHostIFmsg strHostIFmsg;
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 
 	}
@@ -4806,7 +4806,7 @@ WILC_Sint32 host_int_add_wep_key_bss_sta(WILC_WFIDrvHandle hWFIDrv, const WILC_U
 	uniHostIFkeyAttr.strHostIFwepAttr.u8Wepidx = u8Keyidx;
 
 	/* send the message */
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error)
 		PRINT_ER("Error in sending message queue :WEP Key\n");
 	down(&(pstrWFIDrv->hSemTestKeyBlock));
@@ -4844,7 +4844,7 @@ WILC_Sint32 host_int_add_wep_key_bss_ap(WILC_WFIDrvHandle hWFIDrv, const WILC_Ui
 	tstrHostIFmsg strHostIFmsg;
 	WILC_Uint8 i;
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 
 	}
@@ -4882,7 +4882,7 @@ WILC_Sint32 host_int_add_wep_key_bss_ap(WILC_WFIDrvHandle hWFIDrv, const WILC_Ui
 	strHostIFmsg.uniHostIFmsgBody.strHostIFkeyAttr.
 	uniHostIFkeyAttr.strHostIFwepAttr.tenuAuth_type = tenuAuth_type;
 	/* send the message */
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 
 	if (s32Error)
 		PRINT_ER("Error in sending message queue :WEP Key\n");
@@ -4920,7 +4920,7 @@ WILC_Sint32 host_int_add_ptk(WILC_WFIDrvHandle hWFIDrv, const u8 *pu8Ptk, WILC_U
 	tstrHostIFmsg strHostIFmsg;
 	WILC_Uint8 u8KeyLen = u8PtkKeylen;
 	WILC_Uint32 i;
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 	if (pu8RxMic != NULL) {
@@ -4983,7 +4983,7 @@ WILC_Sint32 host_int_add_ptk(WILC_WFIDrvHandle hWFIDrv, const u8 *pu8Ptk, WILC_U
 	strHostIFmsg.drvHandler = hWFIDrv;
 
 	/* send the message */
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 
 	if (s32Error)
 		PRINT_ER("Error in sending message queue:  PTK Key\n");
@@ -5023,7 +5023,7 @@ WILC_Sint32 host_int_add_rx_gtk(WILC_WFIDrvHandle hWFIDrv, const u8 *pu8RxGtk, W
 	tstrHostIFmsg strHostIFmsg;
 	WILC_Uint8 u8KeyLen = u8GtkKeylen;
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 	/* prepare the Key Message */
@@ -5089,7 +5089,7 @@ WILC_Sint32 host_int_add_rx_gtk(WILC_WFIDrvHandle hWFIDrv, const u8 *pu8RxGtk, W
 
 
 	/* send the message */
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error)
 		PRINT_ER("Error in sending message queue:  RX GTK\n");
 	/* ////////////// */
@@ -5126,7 +5126,7 @@ WILC_Sint32 host_int_add_tx_gtk(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 u8KeyLen, 
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	tstrHostIFmsg strHostIFmsg;
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 
@@ -5146,7 +5146,7 @@ WILC_Sint32 host_int_add_tx_gtk(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 u8KeyLen, 
 	strHostIFmsg.uniHostIFmsgBody.strHostIFkeyAttr.uniHostIFkeyAttr.strHostIFwpaAttr.u8Keylen = u8KeyLen;
 
 	/* send the message */
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error)
 		PRINT_ER("Error in sending message queue: TX GTK\n");
 
@@ -5190,7 +5190,7 @@ WILC_Sint32 host_int_set_pmkid_info(WILC_WFIDrvHandle hWFIDrv, tstrHostIFpmkidAt
 	WILC_Uint32 i;
 
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 
@@ -5212,7 +5212,7 @@ WILC_Sint32 host_int_set_pmkid_info(WILC_WFIDrvHandle hWFIDrv, tstrHostIFpmkidAt
 	}
 
 	/* send the message */
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error)
 		PRINT_ER(" Error in sending messagequeue: PMKID Info\n");
 
@@ -5316,7 +5316,7 @@ WILC_Sint32 host_int_get_MacAddress(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 *pu8Ma
 	strHostIFmsg.uniHostIFmsgBody.strHostIfGetMacAddress.u8MacAddress = pu8MacAddress;
 	strHostIFmsg.drvHandler = hWFIDrv;
 	/* send the message */
-	s32Error =	WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error =	WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		PRINT_ER("Failed to send get mac address\n");
 		return WILC_FAIL;
@@ -5350,7 +5350,7 @@ WILC_Sint32 host_int_set_MacAddress(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 *pu8Ma
 	WILC_memcpy(strHostIFmsg.uniHostIFmsgBody.strHostIfSetMacAddress.u8MacAddress, pu8MacAddress, ETH_ALEN);
 	strHostIFmsg.drvHandler = hWFIDrv;
 
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		PRINT_ER("Failed to send message queue: Set mac address\n");
 		WILC_ERRORREPORT(s32Error, s32Error);
@@ -5543,7 +5543,7 @@ WILC_Sint32 host_int_set_join_req(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 *pu8bssi
 	tstrHostIFmsg strHostIFmsg;
 	tenuScanConnTimer enuScanConnTimer;
 
-	if (pstrWFIDrv == WILC_NULL || pfConnectResult == WILC_NULL) {
+	if (pstrWFIDrv == NULL || pfConnectResult == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 
@@ -5603,14 +5603,14 @@ WILC_Sint32 host_int_set_join_req(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 *pu8bssi
 		PRINT_D(GENERIC_DBG, "Don't set state to 'connecting' as state is %d\n", pstrWFIDrv->enuHostIFstate);
 
 	/* send the message */
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		PRINT_ER("Failed to send message queue: Set join request\n");
 		WILC_ERRORREPORT(s32Error, WILC_FAIL);
 	}
 
 	enuScanConnTimer = CONNECT_TIMER;
-	WILC_TimerStart(&(pstrWFIDrv->hConnectTimer), HOST_IF_CONNECT_TIMEOUT, (void *) hWFIDrv, WILC_NULL);
+	WILC_TimerStart(&(pstrWFIDrv->hConnectTimer), HOST_IF_CONNECT_TIMEOUT, (void *) hWFIDrv, NULL);
 
 	WILC_CATCH(s32Error)
 	{
@@ -5643,7 +5643,7 @@ WILC_Sint32 host_int_flush_join_req(WILC_WFIDrvHandle hWFIDrv)
 	}
 
 
-	if (hWFIDrv  == WILC_NULL) {
+	if (hWFIDrv  == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 
@@ -5652,7 +5652,7 @@ WILC_Sint32 host_int_flush_join_req(WILC_WFIDrvHandle hWFIDrv)
 	strHostIFmsg.drvHandler = hWFIDrv;
 
 	/* send the message */
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		PRINT_ER("Failed to send message queue: Flush join request\n");
 		WILC_ERRORREPORT(s32Error, WILC_FAIL);
@@ -5682,7 +5682,7 @@ WILC_Sint32 host_int_disconnect(WILC_WFIDrvHandle hWFIDrv, WILC_Uint16 u16Reason
 	tstrHostIFmsg strHostIFmsg;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		PRINT_ER("Driver not initialized: pstrWFIDrv = NULL \n");
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
@@ -5699,7 +5699,7 @@ WILC_Sint32 host_int_disconnect(WILC_WFIDrvHandle hWFIDrv, WILC_Uint16 u16Reason
 	strHostIFmsg.drvHandler = hWFIDrv;
 
 	/* send the message */
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error)
 		PRINT_ER("Failed to send message queue: disconnect\n");
 	/* ////////////// */
@@ -5799,7 +5799,7 @@ WILC_Sint32 host_int_get_assoc_res_info(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 *p
 	tstrWID strWID;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		PRINT_ER("Driver not initialized: pstrWFIDrv = NULL \n");
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
@@ -5879,7 +5879,7 @@ WILC_Sint32 host_int_set_mac_chnl_num(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 u8Ch
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	tstrHostIFmsg strHostIFmsg;
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 
@@ -5889,7 +5889,7 @@ WILC_Sint32 host_int_set_mac_chnl_num(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 u8Ch
 	strHostIFmsg.uniHostIFmsgBody.strHostIFSetChan.u8SetChan = u8ChNum;
 	strHostIFmsg.drvHandler = hWFIDrv;
 
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		WILC_ERRORREPORT(s32Error, s32Error);
 	}
@@ -5912,7 +5912,7 @@ WILC_Sint32 host_int_wait_msg_queue_idle(void)
 
 	WILC_memset(&strHostIFmsg, 0, sizeof(tstrHostIFmsg));
 	strHostIFmsg.u16MsgId = HOST_IF_MSG_Q_IDLE;
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		WILC_ERRORREPORT(s32Error, s32Error);
 	}
@@ -5942,7 +5942,7 @@ WILC_Sint32 host_int_set_wfi_drv_handler(WILC_Uint32 u32address)
 	strHostIFmsg.uniHostIFmsgBody.strHostIfSetDrvHandler.u32Address = u32address;
 	/* strHostIFmsg.drvHandler=hWFIDrv; */
 
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		WILC_ERRORREPORT(s32Error, s32Error);
 	}
@@ -5970,7 +5970,7 @@ WILC_Sint32 host_int_set_operation_mode(WILC_WFIDrvHandle hWFIDrv, WILC_Uint32 u
 	strHostIFmsg.uniHostIFmsgBody.strHostIfSetOperationMode.u32Mode = u32mode;
 	strHostIFmsg.drvHandler = hWFIDrv;
 
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		WILC_ERRORREPORT(s32Error, s32Error);
 	}
@@ -6003,7 +6003,7 @@ WILC_Sint32 host_int_get_host_chnl_num(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 *pu
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	tstrHostIFmsg strHostIFmsg;
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		PRINT_ER("Driver not initialized: pstrWFIDrv = NULL \n");
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
@@ -6015,7 +6015,7 @@ WILC_Sint32 host_int_get_host_chnl_num(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 *pu
 	strHostIFmsg.drvHandler = hWFIDrv;
 
 	/* send the message */
-	s32Error =	WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error =	WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error)
 		PRINT_ER("Failed to send get host channel param's message queue ");
 	down(&(pstrWFIDrv->hSemGetCHNL));
@@ -6050,7 +6050,7 @@ WILC_Sint32 host_int_test_set_int_wid(WILC_WFIDrvHandle hWFIDrv, WILC_Uint32 u32
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		PRINT_ER("Driver not initialized: pstrWFIDrv = NULL \n");
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
@@ -6096,7 +6096,7 @@ WILC_Sint32 host_int_get_inactive_time(WILC_WFIDrvHandle hWFIDrv, const u8 *mac,
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	tstrHostIFmsg strHostIFmsg;
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		PRINT_ER("Driver not initialized: pstrWFIDrv = NULL \n");
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
@@ -6111,7 +6111,7 @@ WILC_Sint32 host_int_get_inactive_time(WILC_WFIDrvHandle hWFIDrv, const u8 *mac,
 	strHostIFmsg.drvHandler = hWFIDrv;
 
 	/* send the message */
-	s32Error =	WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error =	WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error)
 		PRINT_ER("Failed to send get host channel param's message queue ");
 
@@ -6144,7 +6144,7 @@ WILC_Sint32 host_int_test_get_int_wid(WILC_WFIDrvHandle hWFIDrv, WILC_Uint32 *pu
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		PRINT_ER("Driver not initialized: pstrWFIDrv = NULL \n");
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
@@ -6199,7 +6199,7 @@ WILC_Sint32 host_int_get_rssi(WILC_WFIDrvHandle hWFIDrv, WILC_Sint8 *ps8Rssi)
 	strHostIFmsg.drvHandler = hWFIDrv;
 
 	/* send the message */
-	s32Error =	WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error =	WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		PRINT_ER("Failed to send get host channel param's message queue ");
 		return WILC_FAIL;
@@ -6236,7 +6236,7 @@ WILC_Sint32 host_int_get_link_speed(WILC_WFIDrvHandle hWFIDrv, WILC_Sint8 *ps8ln
 	strHostIFmsg.drvHandler = hWFIDrv;
 
 	/* send the message */
-	s32Error =	WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error =	WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		PRINT_ER("Failed to send GET_LINKSPEED to message queue ");
 		return WILC_FAIL;
@@ -6270,7 +6270,7 @@ WILC_Sint32 host_int_get_statistics(WILC_WFIDrvHandle hWFIDrv, tstrStatistics *p
 	strHostIFmsg.uniHostIFmsgBody.pUserData = (WILC_Char *)pstrStatistics;
 	strHostIFmsg.drvHandler = hWFIDrv;
 	/* send the message */
-	s32Error =	WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error =	WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		PRINT_ER("Failed to send get host channel param's message queue ");
 		return WILC_FAIL;
@@ -6308,7 +6308,7 @@ WILC_Sint32 host_int_scan(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 u8ScanSource,
 	tstrHostIFmsg strHostIFmsg;
 	tenuScanConnTimer enuScanConnTimer;
 
-	if (pstrWFIDrv == WILC_NULL || ScanResult == WILC_NULL)	{
+	if (pstrWFIDrv == NULL || ScanResult == NULL)	{
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 
@@ -6342,7 +6342,7 @@ WILC_Sint32 host_int_scan(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 u8ScanSource,
 		    pu8IEs, IEsLen);
 
 	/* send the message */
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		PRINT_ER("Error in sending message queue scanning parameters: Error(%d)\n", s32Error);
 		WILC_ERRORREPORT(s32Error, WILC_FAIL);
@@ -6350,7 +6350,7 @@ WILC_Sint32 host_int_scan(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 u8ScanSource,
 
 	enuScanConnTimer = SCAN_TIMER;
 	PRINT_D(HOSTINF_DBG, ">> Starting the SCAN timer\n");
-	WILC_TimerStart(&(pstrWFIDrv->hScanTimer), HOST_IF_SCAN_TIMEOUT, (void *) hWFIDrv, WILC_NULL);
+	WILC_TimerStart(&(pstrWFIDrv->hScanTimer), HOST_IF_SCAN_TIMEOUT, (void *) hWFIDrv, NULL);
 
 
 	WILC_CATCH(s32Error)
@@ -6380,7 +6380,7 @@ WILC_Sint32 hif_set_cfg(WILC_WFIDrvHandle hWFIDrv, tstrCfgParamVal *pstrCfgParam
 	tstrHostIFmsg strHostIFmsg;
 
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 	/* prepare the WiphyParams Message */
@@ -6389,7 +6389,7 @@ WILC_Sint32 hif_set_cfg(WILC_WFIDrvHandle hWFIDrv, tstrCfgParamVal *pstrCfgParam
 	strHostIFmsg.uniHostIFmsgBody.strHostIFCfgParamAttr.pstrCfgParamVal = *pstrCfgParamVal;
 	strHostIFmsg.drvHandler = hWFIDrv;
 
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 
 	WILC_CATCH(s32Error)
 	{
@@ -6420,7 +6420,7 @@ WILC_Sint32 hif_get_cfg(WILC_WFIDrvHandle hWFIDrv, WILC_Uint16 u16WID, WILC_Uint
 
 	down(&(pstrWFIDrv->gtOsCfgValuesSem));
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		PRINT_ER("Driver not initialized: pstrWFIDrv = NULL \n");
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
@@ -6567,7 +6567,7 @@ void GetPeriodicRSSI(void *pvArg)
 		strHostIFmsg.drvHandler = pstrWFIDrv;
 
 		/* send the message */
-		s32Error =	WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+		s32Error =	WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 		if (s32Error) {
 			PRINT_ER("Failed to send get host channel param's message queue ");
 			return;
@@ -6615,7 +6615,7 @@ WILC_Sint32 host_int_init(WILC_WFIDrvHandle *phWFIDrv)
 
 	/*Allocate host interface private structure*/
 	pstrWFIDrv  = (tstrWILC_WFIDrv *)WILC_MALLOC(sizeof(tstrWILC_WFIDrv));
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		/* WILC_ERRORREPORT(s32Error,WILC_NO_MEM); */
 		s32Error = WILC_NO_MEM;
 		PRINT_ER("Failed to allocate memory\n");
@@ -6655,7 +6655,7 @@ WILC_Sint32 host_int_init(WILC_WFIDrvHandle *phWFIDrv)
 
 	if (clients_count == 0)	{
 
-		s32Error = WILC_MsgQueueCreate(&gMsgQHostIF, WILC_NULL);
+		s32Error = WILC_MsgQueueCreate(&gMsgQHostIF, NULL);
 
 
 		if (s32Error < 0) {
@@ -6669,7 +6669,7 @@ WILC_Sint32 host_int_init(WILC_WFIDrvHandle *phWFIDrv)
 			s32Error = WILC_FAIL;
 			goto _fail_mq_;
 		}
-		s32Error = WILC_TimerCreate(&(g_hPeriodicRSSI), GetPeriodicRSSI, WILC_NULL);
+		s32Error = WILC_TimerCreate(&(g_hPeriodicRSSI), GetPeriodicRSSI, NULL);
 		if (s32Error < 0) {
 			PRINT_ER("Failed to creat Timer\n");
 			goto _fail_timer_1;
@@ -6679,13 +6679,13 @@ WILC_Sint32 host_int_init(WILC_WFIDrvHandle *phWFIDrv)
 	}
 
 
-	s32Error = WILC_TimerCreate(&(pstrWFIDrv->hScanTimer), TimerCB_Scan, WILC_NULL);
+	s32Error = WILC_TimerCreate(&(pstrWFIDrv->hScanTimer), TimerCB_Scan, NULL);
 	if (s32Error < 0) {
 		PRINT_ER("Failed to creat Timer\n");
 		goto _fail_thread_;
 	}
 
-	s32Error = WILC_TimerCreate(&(pstrWFIDrv->hConnectTimer), TimerCB_Connect, WILC_NULL);
+	s32Error = WILC_TimerCreate(&(pstrWFIDrv->hConnectTimer), TimerCB_Connect, NULL);
 	if (s32Error < 0) {
 		PRINT_ER("Failed to creat Timer\n");
 		goto _fail_timer_1;
@@ -6694,7 +6694,7 @@ WILC_Sint32 host_int_init(WILC_WFIDrvHandle *phWFIDrv)
 
 	#ifdef WILC_P2P
 	/*Remain on channel timer*/
-	s32Error = WILC_TimerCreate(&(pstrWFIDrv->hRemainOnChannel), ListenTimerCB, WILC_NULL);
+	s32Error = WILC_TimerCreate(&(pstrWFIDrv->hRemainOnChannel), ListenTimerCB, NULL);
 	if (s32Error < 0) {
 		PRINT_ER("Failed to creat Remain-on-channel Timer\n");
 		goto _fail_timer_3;
@@ -6757,21 +6757,21 @@ WILC_Sint32 host_int_init(WILC_WFIDrvHandle *phWFIDrv)
 
 
 _fail_mem_:
-	if (pstrWFIDrv != WILC_NULL)
+	if (pstrWFIDrv != NULL)
 		WILC_FREE(pstrWFIDrv);
 #ifdef WILC_P2P
 _fail_timer_3:
-	WILC_TimerDestroy(&(pstrWFIDrv->hRemainOnChannel), WILC_NULL);
+	WILC_TimerDestroy(&(pstrWFIDrv->hRemainOnChannel), NULL);
 #endif
 _fail_timer_2:
 	up(&(pstrWFIDrv->gtOsCfgValuesSem));
-	WILC_TimerDestroy(&(pstrWFIDrv->hConnectTimer), WILC_NULL);
+	WILC_TimerDestroy(&(pstrWFIDrv->hConnectTimer), NULL);
 _fail_timer_1:
-	WILC_TimerDestroy(&(pstrWFIDrv->hScanTimer), WILC_NULL);
+	WILC_TimerDestroy(&(pstrWFIDrv->hScanTimer), NULL);
 _fail_thread_:
 	kthread_stop(HostIFthreadHandler);
 _fail_mq_:
-	WILC_MsgQueueDestroy(&gMsgQHostIF, WILC_NULL);
+	WILC_MsgQueueDestroy(&gMsgQHostIF, NULL);
 _fail_:
 	return s32Error;
 
@@ -6816,37 +6816,37 @@ WILC_Sint32 host_int_deinit(WILC_WFIDrvHandle hWFIDrv)
 	/*BugID_5348*/
 	/*Destroy all timers before acquiring hSemDeinitDrvHandle*/
 	/*to guarantee handling all messages befor proceeding*/
-	if (WILC_TimerDestroy(&(pstrWFIDrv->hScanTimer), WILC_NULL)) {
+	if (WILC_TimerDestroy(&(pstrWFIDrv->hScanTimer), NULL)) {
 		PRINT_D(HOSTINF_DBG, ">> Scan timer is active \n");
 		/* msleep(HOST_IF_SCAN_TIMEOUT+1000); */
 	}
 
-	if (WILC_TimerDestroy(&(pstrWFIDrv->hConnectTimer), WILC_NULL)) {
+	if (WILC_TimerDestroy(&(pstrWFIDrv->hConnectTimer), NULL)) {
 		PRINT_D(HOSTINF_DBG, ">> Connect timer is active \n");
 		/* msleep(HOST_IF_CONNECT_TIMEOUT+1000); */
 	}
 
 
-	if (WILC_TimerDestroy(&(g_hPeriodicRSSI), WILC_NULL)) {
+	if (WILC_TimerDestroy(&(g_hPeriodicRSSI), NULL)) {
 		PRINT_D(HOSTINF_DBG, ">> Connect timer is active \n");
 		/* msleep(HOST_IF_CONNECT_TIMEOUT+1000); */
 	}
 
 	#ifdef WILC_P2P
 	/*Destroy Remain-onchannel Timer*/
-	WILC_TimerDestroy(&(pstrWFIDrv->hRemainOnChannel), WILC_NULL);
+	WILC_TimerDestroy(&(pstrWFIDrv->hRemainOnChannel), NULL);
 	#endif
 
-	host_int_set_wfi_drv_handler((WILC_Uint32)WILC_NULL);
+	host_int_set_wfi_drv_handler((WILC_Uint32)NULL);
 	down(&hSemDeinitDrvHandle);
 
 
 	/*Calling the CFG80211 scan done function with the abort flag set to true*/
 	if (pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult) {
-		pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult(SCAN_EVENT_ABORTED, WILC_NULL,
+		pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult(SCAN_EVENT_ABORTED, NULL,
 								pstrWFIDrv->strWILC_UsrScanReq.u32UserScanPvoid, NULL);
 
-		pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult = WILC_NULL;
+		pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult = NULL;
 	}
 	/*deinit configurator and simulator*/
 #ifdef SIMULATION
@@ -6864,7 +6864,7 @@ WILC_Sint32 host_int_deinit(WILC_WFIDrvHandle hWFIDrv)
 	WILC_memset(&strHostIFmsg, 0, sizeof(tstrHostIFmsg));
 
 	if (clients_count == 1)	{
-		if (WILC_TimerDestroy(&g_hPeriodicRSSI, WILC_NULL)) {
+		if (WILC_TimerDestroy(&g_hPeriodicRSSI, NULL)) {
 			PRINT_D(HOSTINF_DBG, ">> Connect timer is active \n");
 			/* msleep(HOST_IF_CONNECT_TIMEOUT+1000); */
 		}
@@ -6872,7 +6872,7 @@ WILC_Sint32 host_int_deinit(WILC_WFIDrvHandle hWFIDrv)
 		strHostIFmsg.drvHandler = hWFIDrv;
 
 
-		s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+		s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 		if (s32Error != WILC_SUCCESS) {
 			PRINT_ER("Error in sending deinit's message queue message function: Error(%d)\n", s32Error);
 		}
@@ -6881,7 +6881,7 @@ WILC_Sint32 host_int_deinit(WILC_WFIDrvHandle hWFIDrv)
 
 
 
-		WILC_MsgQueueDestroy(&gMsgQHostIF, WILC_NULL);
+		WILC_MsgQueueDestroy(&gMsgQHostIF, NULL);
 		msgQ_created = 0;
 	}
 
@@ -6890,14 +6890,14 @@ WILC_Sint32 host_int_deinit(WILC_WFIDrvHandle hWFIDrv)
 	/*Setting the gloabl driver handler with NULL*/
 	u32Intialized = 0;
 	/* gWFiDrvHandle = NULL; */
-	if (pstrWFIDrv != WILC_NULL) {
+	if (pstrWFIDrv != NULL) {
 		WILC_FREE(pstrWFIDrv);
-		/* pstrWFIDrv=WILC_NULL; */
+		/* pstrWFIDrv=NULL; */
 
 	}
 
 	clients_count--; /* Decrease number of created entities */
-	terminated_handle = WILC_NULL;
+	terminated_handle = NULL;
 	up(&hSemHostIntDeinit);
 	return s32Error;
 }
@@ -6919,7 +6919,7 @@ void NetworkInfoReceived(WILC_Uint8 *pu8Buffer, WILC_Uint32 u32Length)
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 	tstrHostIFmsg strHostIFmsg;
 	WILC_Uint32 drvHandler;
-	tstrWILC_WFIDrv *pstrWFIDrv = WILC_NULL;
+	tstrWILC_WFIDrv *pstrWFIDrv = NULL;
 
 	drvHandler = ((pu8Buffer[u32Length - 4]) | (pu8Buffer[u32Length - 3] << 8) | (pu8Buffer[u32Length - 2] << 16) | (pu8Buffer[u32Length - 1] << 24));
 	pstrWFIDrv = (tstrWILC_WFIDrv *)drvHandler;
@@ -6927,7 +6927,7 @@ void NetworkInfoReceived(WILC_Uint8 *pu8Buffer, WILC_Uint32 u32Length)
 
 
 
-	if (pstrWFIDrv == WILC_NULL || pstrWFIDrv == terminated_handle)	{
+	if (pstrWFIDrv == NULL || pstrWFIDrv == terminated_handle)	{
 		PRINT_ER("NetworkInfo received but driver not init[%x]\n", (WILC_Uint32)pstrWFIDrv);
 		return;
 	}
@@ -6944,7 +6944,7 @@ void NetworkInfoReceived(WILC_Uint8 *pu8Buffer, WILC_Uint32 u32Length)
 		    pu8Buffer, u32Length);
 
 	/* send the message */
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		PRINT_ER("Error in sending network info message queue message parameters: Error(%d)\n", s32Error);
 	}
@@ -6969,7 +6969,7 @@ void GnrlAsyncInfoReceived(WILC_Uint8 *pu8Buffer, WILC_Uint32 u32Length)
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 	tstrHostIFmsg strHostIFmsg;
 	WILC_Uint32 drvHandler;
-	tstrWILC_WFIDrv *pstrWFIDrv = WILC_NULL;
+	tstrWILC_WFIDrv *pstrWFIDrv = NULL;
 
 	/*BugID_5348*/
 	down(&hSemHostIntDeinit);
@@ -6986,7 +6986,7 @@ void GnrlAsyncInfoReceived(WILC_Uint8 *pu8Buffer, WILC_Uint32 u32Length)
 		return;
 	}
 
-	if (pstrWFIDrv->strWILC_UsrConnReq.pfUserConnectResult == WILC_NULL) {
+	if (pstrWFIDrv->strWILC_UsrConnReq.pfUserConnectResult == NULL) {
 		/* received mac status is not needed when there is no current Connect Request */
 		PRINT_ER("Received mac status is not needed when there is no current Connect Reques\n");
 		/*BugID_5348*/
@@ -7008,7 +7008,7 @@ void GnrlAsyncInfoReceived(WILC_Uint8 *pu8Buffer, WILC_Uint32 u32Length)
 		    pu8Buffer, u32Length);
 
 	/* send the message */
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		PRINT_ER("Error in sending message queue asynchronous message info: Error(%d)\n", s32Error);
 	}
@@ -7032,7 +7032,7 @@ void host_int_ScanCompleteReceived(WILC_Uint8 *pu8Buffer, WILC_Uint32 u32Length)
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 	tstrHostIFmsg strHostIFmsg;
 	WILC_Uint32 drvHandler;
-	tstrWILC_WFIDrv *pstrWFIDrv = WILC_NULL;
+	tstrWILC_WFIDrv *pstrWFIDrv = NULL;
 	drvHandler = ((pu8Buffer[u32Length - 4]) | (pu8Buffer[u32Length - 3] << 8) | (pu8Buffer[u32Length - 2] << 16) | (pu8Buffer[u32Length - 1] << 24));
 	pstrWFIDrv = (tstrWILC_WFIDrv *)drvHandler;
 
@@ -7061,7 +7061,7 @@ void host_int_ScanCompleteReceived(WILC_Uint8 *pu8Buffer, WILC_Uint32 u32Length)
 		 *                        pu8Buffer, u32Length); */
 
 		/* send the message */
-		s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+		s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 		if (s32Error) {
 			PRINT_ER("Error in sending message queue scan complete parameters: Error(%d)\n", s32Error);
 		}
@@ -7093,7 +7093,7 @@ WILC_Sint32 host_int_remain_on_channel(WILC_WFIDrvHandle hWFIDrv, WILC_Uint32 u3
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	tstrHostIFmsg strHostIFmsg;
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 
@@ -7110,7 +7110,7 @@ WILC_Sint32 host_int_remain_on_channel(WILC_WFIDrvHandle hWFIDrv, WILC_Uint32 u3
 	strHostIFmsg.uniHostIFmsgBody.strHostIfRemainOnChan.u32ListenSessionID = u32SessionID;
 	strHostIFmsg.drvHandler = hWFIDrv;
 
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		WILC_ERRORREPORT(s32Error, s32Error);
 	}
@@ -7142,12 +7142,12 @@ WILC_Sint32 host_int_ListenStateExpired(WILC_WFIDrvHandle hWFIDrv, WILC_Uint32 u
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	tstrHostIFmsg strHostIFmsg;
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 
 	/*Stopping remain-on-channel timer*/
-	WILC_TimerStop(&(pstrWFIDrv->hRemainOnChannel), WILC_NULL);
+	WILC_TimerStop(&(pstrWFIDrv->hRemainOnChannel), NULL);
 
 	/* prepare the timer fire Message */
 	WILC_memset(&strHostIFmsg, 0, sizeof(tstrHostIFmsg));
@@ -7155,7 +7155,7 @@ WILC_Sint32 host_int_ListenStateExpired(WILC_WFIDrvHandle hWFIDrv, WILC_Uint32 u
 	strHostIFmsg.drvHandler = hWFIDrv;
 	strHostIFmsg.uniHostIFmsgBody.strHostIfRemainOnChan.u32ListenSessionID = u32SessionID;
 
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		WILC_ERRORREPORT(s32Error, s32Error);
 	}
@@ -7180,7 +7180,7 @@ WILC_Sint32 host_int_frame_register(WILC_WFIDrvHandle hWFIDrv, WILC_Uint16 u16Fr
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	tstrHostIFmsg strHostIFmsg;
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 
@@ -7207,7 +7207,7 @@ WILC_Sint32 host_int_frame_register(WILC_WFIDrvHandle hWFIDrv, WILC_Uint16 u16Fr
 	strHostIFmsg.uniHostIFmsgBody.strHostIfRegisterFrame.bReg = bReg;
 	strHostIFmsg.drvHandler = hWFIDrv;
 
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		WILC_ERRORREPORT(s32Error, s32Error);
 	}
@@ -7244,7 +7244,7 @@ WILC_Sint32 host_int_add_beacon(WILC_WFIDrvHandle hWFIDrv, WILC_Uint32 u32Interv
 	tstrHostIFmsg strHostIFmsg;
 	tstrHostIFSetBeacon *pstrSetBeaconParam = &strHostIFmsg.uniHostIFmsgBody.strHostIFSetBeacon;
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 
@@ -7277,7 +7277,7 @@ WILC_Sint32 host_int_add_beacon(WILC_WFIDrvHandle hWFIDrv, WILC_Uint32 u32Interv
 		pstrSetBeaconParam->pu8Tail = NULL;
 	}
 
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		WILC_ERRORREPORT(s32Error, s32Error);
 	}
@@ -7313,7 +7313,7 @@ WILC_Sint32 host_int_del_beacon(WILC_WFIDrvHandle hWFIDrv)
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	tstrHostIFmsg strHostIFmsg;
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 
@@ -7322,7 +7322,7 @@ WILC_Sint32 host_int_del_beacon(WILC_WFIDrvHandle hWFIDrv)
 	strHostIFmsg.drvHandler = hWFIDrv;
 	PRINT_D(HOSTINF_DBG, "Setting deleting beacon message queue params\n");
 
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	WILC_ERRORCHECK(s32Error);
 
 	WILC_CATCH(s32Error)
@@ -7349,7 +7349,7 @@ WILC_Sint32 host_int_add_station(WILC_WFIDrvHandle hWFIDrv, tstrWILC_AddStaParam
 	tstrWILC_AddStaParam *pstrAddStationMsg = &strHostIFmsg.uniHostIFmsgBody.strAddStaParam;
 
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 
@@ -7372,7 +7372,7 @@ WILC_Sint32 host_int_add_station(WILC_WFIDrvHandle hWFIDrv, tstrWILC_AddStaParam
 	}
 
 
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		WILC_ERRORREPORT(s32Error, s32Error);
 	}
@@ -7399,7 +7399,7 @@ WILC_Sint32 host_int_del_station(WILC_WFIDrvHandle hWFIDrv, const u8 *pu8MacAddr
 	tstrHostIFmsg strHostIFmsg;
 	tstrHostIFDelSta *pstrDelStationMsg = &strHostIFmsg.uniHostIFmsgBody.strDelStaParam;
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 
@@ -7414,12 +7414,12 @@ WILC_Sint32 host_int_del_station(WILC_WFIDrvHandle hWFIDrv, const u8 *pu8MacAddr
 	strHostIFmsg.drvHandler = hWFIDrv;
 
 	/*BugID_4795: Handling situation of deleting all stations*/
-	if (pu8MacAddr == WILC_NULL)
+	if (pu8MacAddr == NULL)
 		WILC_memset(pstrDelStationMsg->au8MacAddr, 255, ETH_ALEN);
 	else
 		WILC_memcpy(pstrDelStationMsg->au8MacAddr, pu8MacAddr, ETH_ALEN);
 
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		WILC_ERRORREPORT(s32Error, s32Error);
 	}
@@ -7449,7 +7449,7 @@ WILC_Sint32 host_int_del_allstation(WILC_WFIDrvHandle hWFIDrv, u8 pu8MacAddr[][E
 	WILC_Uint8 u8AssocNumb = 0;
 
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 
@@ -7476,7 +7476,7 @@ WILC_Sint32 host_int_del_allstation(WILC_WFIDrvHandle hWFIDrv, u8 pu8MacAddr[][E
 	}
 
 	pstrDelAllStationMsg->u8Num_AssocSta = u8AssocNumb;
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 
 
 	if (s32Error) {
@@ -7509,7 +7509,7 @@ WILC_Sint32 host_int_edit_station(WILC_WFIDrvHandle hWFIDrv, tstrWILC_AddStaPara
 	tstrHostIFmsg strHostIFmsg;
 	tstrWILC_AddStaParam *pstrAddStationMsg = &strHostIFmsg.uniHostIFmsgBody.strAddStaParam;
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 
@@ -7530,7 +7530,7 @@ WILC_Sint32 host_int_edit_station(WILC_WFIDrvHandle hWFIDrv, tstrWILC_AddStaPara
 		pstrAddStationMsg->pu8Rates = rates;
 	}
 
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		WILC_ERRORREPORT(s32Error, s32Error);
 	}
@@ -7551,7 +7551,7 @@ WILC_Sint32 host_int_set_power_mgmt(WILC_WFIDrvHandle hWFIDrv, WILC_Bool bIsEnab
 
 	PRINT_INFO(HOSTINF_DBG, "\n\n>> Setting PS to %d << \n\n", bIsEnabled);
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 
@@ -7568,7 +7568,7 @@ WILC_Sint32 host_int_set_power_mgmt(WILC_WFIDrvHandle hWFIDrv, WILC_Bool bIsEnab
 	pstrPowerMgmtParam->u32Timeout = u32Timeout;
 
 
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		WILC_ERRORREPORT(s32Error, s32Error);
 	}
@@ -7587,7 +7587,7 @@ WILC_Sint32 host_int_setup_multicast_filter(WILC_WFIDrvHandle hWFIDrv, WILC_Bool
 	tstrHostIFSetMulti *pstrMulticastFilterParam = &strHostIFmsg.uniHostIFmsgBody.strHostIfSetMulti;
 
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 
@@ -7603,7 +7603,7 @@ WILC_Sint32 host_int_setup_multicast_filter(WILC_WFIDrvHandle hWFIDrv, WILC_Bool
 	pstrMulticastFilterParam->bIsEnabled = bIsEnabled;
 	pstrMulticastFilterParam->u32count = u32count;
 
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		WILC_ERRORREPORT(s32Error, s32Error);
 	}
@@ -7858,7 +7858,7 @@ static int host_int_addBASession(WILC_WFIDrvHandle hWFIDrv, char *pBSSID, char T
 	tstrHostIFmsg strHostIFmsg;
 	tstrHostIfBASessionInfo *pBASessionInfo = &strHostIFmsg.uniHostIFmsgBody.strHostIfBASessionInfo;
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 
@@ -7873,7 +7873,7 @@ static int host_int_addBASession(WILC_WFIDrvHandle hWFIDrv, char *pBSSID, char T
 	pBASessionInfo->u16SessionTimeout = SessionTimeout;
 	strHostIFmsg.drvHandler = hWFIDrv;
 
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		WILC_ERRORREPORT(s32Error, s32Error);
 	}
@@ -7893,7 +7893,7 @@ WILC_Sint32 host_int_delBASession(WILC_WFIDrvHandle hWFIDrv, char *pBSSID, char 
 	tstrHostIFmsg strHostIFmsg;
 	tstrHostIfBASessionInfo *pBASessionInfo = &strHostIFmsg.uniHostIFmsgBody.strHostIfBASessionInfo;
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 
@@ -7906,7 +7906,7 @@ WILC_Sint32 host_int_delBASession(WILC_WFIDrvHandle hWFIDrv, char *pBSSID, char 
 	pBASessionInfo->u8Ted = TID;
 	strHostIFmsg.drvHandler = hWFIDrv;
 
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		WILC_ERRORREPORT(s32Error, s32Error);
 	}
@@ -7928,7 +7928,7 @@ WILC_Sint32 host_int_del_All_Rx_BASession(WILC_WFIDrvHandle hWFIDrv, char *pBSSI
 	tstrHostIFmsg strHostIFmsg;
 	tstrHostIfBASessionInfo *pBASessionInfo = &strHostIFmsg.uniHostIFmsgBody.strHostIfBASessionInfo;
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 
@@ -7941,7 +7941,7 @@ WILC_Sint32 host_int_del_All_Rx_BASession(WILC_WFIDrvHandle hWFIDrv, char *pBSSI
 	pBASessionInfo->u8Ted = TID;
 	strHostIFmsg.drvHandler = hWFIDrv;
 
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		WILC_ERRORREPORT(s32Error, s32Error);
 	}
@@ -7973,7 +7973,7 @@ WILC_Sint32 host_int_setup_ipaddress(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 *u16i
 	/* TODO: Enable This feature on softap firmware */
 	return 0;
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 
@@ -7986,7 +7986,7 @@ WILC_Sint32 host_int_setup_ipaddress(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 *u16i
 	strHostIFmsg.drvHandler = hWFIDrv;
 	strHostIFmsg.uniHostIFmsgBody.strHostIfSetIP.idx = idx;
 
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		WILC_ERRORREPORT(s32Error, s32Error);
 	}
@@ -8014,7 +8014,7 @@ WILC_Sint32 host_int_get_ipaddress(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 *u16ipa
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	tstrHostIFmsg strHostIFmsg;
 
-	if (pstrWFIDrv == WILC_NULL) {
+	if (pstrWFIDrv == NULL) {
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 	}
 
@@ -8027,7 +8027,7 @@ WILC_Sint32 host_int_get_ipaddress(WILC_WFIDrvHandle hWFIDrv, WILC_Uint8 *u16ipa
 	strHostIFmsg.drvHandler=hWFIDrv;
 	strHostIFmsg.uniHostIFmsgBody.strHostIfSetIP.idx= idx;
 
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), WILC_NULL);
+	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 	if (s32Error) {
 		WILC_ERRORREPORT(s32Error, s32Error);
 	}

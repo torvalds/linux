@@ -148,7 +148,7 @@ void clear_shadow_scan(void *pUserVoid)
 	int i;
 	priv = (struct WILC_WFI_priv *)pUserVoid;
 	if (op_ifcs == 0) {
-		WILC_TimerDestroy(&hAgingTimer, WILC_NULL);
+		WILC_TimerDestroy(&hAgingTimer, NULL);
 		PRINT_INFO(CORECONFIG_DBG, "destroy aging timer\n");
 
 		for (i = 0; i < u32LastScannedNtwrksCountShadow; i++) {
@@ -198,7 +198,7 @@ void refresh_scan(void *pUserVoid, uint8_t all, WILC_Bool bDirectScan)
 			WILC_Sint32 s32Freq;
 			struct ieee80211_channel *channel;
 
-			if (pstrNetworkInfo != WILC_NULL) {
+			if (pstrNetworkInfo != NULL) {
 
 				s32Freq = ieee80211_channel_to_frequency((WILC_Sint32)pstrNetworkInfo->u8channel, IEEE80211_BAND_2GHZ);
 				channel = ieee80211_get_channel(wiphy, s32Freq);
@@ -266,7 +266,7 @@ void remove_network_from_shadow(void *pUserVoid)
 
 	PRINT_D(CFG80211_DBG, "Number of cached networks: %d\n", u32LastScannedNtwrksCountShadow);
 	if (u32LastScannedNtwrksCountShadow != 0)
-		WILC_TimerStart(&(hAgingTimer), AGING_TIME, pUserVoid, WILC_NULL);
+		WILC_TimerStart(&(hAgingTimer), AGING_TIME, pUserVoid, NULL);
 	else
 		PRINT_D(CFG80211_DBG, "No need to restart Aging timer\n");
 }
@@ -288,7 +288,7 @@ int8_t is_network_in_shadow(tstrNetworkInfo *pstrNetworkInfo, void *pUserVoid)
 	priv = (struct WILC_WFI_priv *)pUserVoid;
 	if (u32LastScannedNtwrksCountShadow == 0) {
 		PRINT_D(CFG80211_DBG, "Starting Aging timer\n");
-		WILC_TimerStart(&(hAgingTimer), AGING_TIME, pUserVoid, WILC_NULL);
+		WILC_TimerStart(&(hAgingTimer), AGING_TIME, pUserVoid, NULL);
 		state = -1;
 	} else {
 		/* Linear search for now */
@@ -399,7 +399,7 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 				WILC_ERRORREPORT(s32Error, WILC_FAIL);
 			}
 
-			if (pstrNetworkInfo != WILC_NULL) {
+			if (pstrNetworkInfo != NULL) {
 				s32Freq = ieee80211_channel_to_frequency((WILC_Sint32)pstrNetworkInfo->u8channel, IEEE80211_BAND_2GHZ);
 				channel = ieee80211_get_channel(wiphy, s32Freq);
 
@@ -464,11 +464,11 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 
 			down(&(priv->hSemScanReq));
 
-			if (priv->pstrScanReq != WILC_NULL) {
+			if (priv->pstrScanReq != NULL) {
 				cfg80211_scan_done(priv->pstrScanReq, WILC_FALSE);
 				priv->u32RcvdChCount = 0;
 				priv->bCfgScanning = WILC_FALSE;
-				priv->pstrScanReq = WILC_NULL;
+				priv->pstrScanReq = NULL;
 			}
 			up(&(priv->hSemScanReq));
 
@@ -478,14 +478,14 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 			down(&(priv->hSemScanReq));
 
 			PRINT_D(CFG80211_DBG, "Scan Aborted \n");
-			if (priv->pstrScanReq != WILC_NULL) {
+			if (priv->pstrScanReq != NULL) {
 
 				update_scan_time(priv);
 				refresh_scan(priv, 1, WILC_FALSE);
 
 				cfg80211_scan_done(priv->pstrScanReq, WILC_FALSE);
 				priv->bCfgScanning = WILC_FALSE;
-				priv->pstrScanReq = WILC_NULL;
+				priv->pstrScanReq = NULL;
 			}
 			up(&(priv->hSemScanReq));
 		}
@@ -1230,14 +1230,14 @@ static int WILC_WFI_add_key(struct wiphy *wiphy, struct net_device *netdev, u8 k
 
 			if (priv->wilc_gtk[key_index] == NULL) {
 				priv->wilc_gtk[key_index] = (struct wilc_wfi_key *)WILC_MALLOC(sizeof(struct wilc_wfi_key));
-				priv->wilc_gtk[key_index]->key = WILC_NULL;
-				priv->wilc_gtk[key_index]->seq = WILC_NULL;
+				priv->wilc_gtk[key_index]->key = NULL;
+				priv->wilc_gtk[key_index]->seq = NULL;
 
 			}
 			if (priv->wilc_ptk[key_index] == NULL) {
 				priv->wilc_ptk[key_index] = (struct wilc_wfi_key *)WILC_MALLOC(sizeof(struct wilc_wfi_key));
-				priv->wilc_ptk[key_index]->key = WILC_NULL;
-				priv->wilc_ptk[key_index]->seq = WILC_NULL;
+				priv->wilc_ptk[key_index]->key = NULL;
+				priv->wilc_ptk[key_index]->seq = NULL;
 			}
 
 
@@ -2867,11 +2867,11 @@ int WILC_WFI_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	struct WILC_WFI_priv *priv;
 	PRINT_D(CFG80211_DBG, " Power save Enabled= %d , TimeOut = %d\n", enabled, timeout);
 
-	if (wiphy == WILC_NULL)
+	if (wiphy == NULL)
 		return -ENOENT;
 
 	priv = wiphy_priv(wiphy);
-	if (priv->hWILCWFIDrv == WILC_NULL) {
+	if (priv->hWILCWFIDrv == NULL) {
 		PRINT_ER("Driver is NULL\n");
 		return -EIO;
 	}
@@ -2922,7 +2922,7 @@ static int WILC_WFI_change_virt_intf(struct wiphy *wiphy, struct net_device *dev
 
 	#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 	g_obtainingIP = WILC_FALSE;
-	WILC_TimerStop(&hDuringIpTimer, WILC_NULL);
+	WILC_TimerStop(&hDuringIpTimer, NULL);
 	PRINT_D(GENERIC_DBG, "Changing virtual interface, enable scan\n");
 	#endif
 	/*BugID_5137*/
@@ -3165,7 +3165,7 @@ static int WILC_WFI_change_virt_intf(struct wiphy *wiphy, struct net_device *dev
 
 		#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 		g_obtainingIP = WILC_TRUE;
-		WILC_TimerStart(&hDuringIpTimer, duringIP_TIME, WILC_NULL, WILC_NULL);
+		WILC_TimerStart(&hDuringIpTimer, duringIP_TIME, NULL, NULL);
 		#endif
 		host_int_set_power_mgmt(priv->hWILCWFIDrv, 0, 0);
 		/*BugID_5222*/
@@ -3460,7 +3460,7 @@ static int  WILC_WFI_add_station(struct wiphy *wiphy, struct net_device *dev,
 		PRINT_D(HOSTAPD_DBG, "ASSOC ID = %d\n", strStaParams.u16AssocID);
 		PRINT_D(HOSTAPD_DBG, "Number of supported rates = %d\n", strStaParams.u8NumRates);
 
-		if (params->ht_capa == WILC_NULL) {
+		if (params->ht_capa == NULL) {
 			strStaParams.bIsHTSupported = WILC_FALSE;
 		} else {
 			strStaParams.bIsHTSupported = WILC_TRUE;
@@ -3533,7 +3533,7 @@ static int WILC_WFI_del_station(struct wiphy *wiphy, struct net_device *dev,
 		PRINT_D(HOSTAPD_DBG, "Deleting station\n");
 
 
-		if (mac == WILC_NULL) {
+		if (mac == NULL) {
 			PRINT_D(HOSTAPD_DBG, "All associated stations \n");
 			s32Error = host_int_del_allstation(priv->hWILCWFIDrv, priv->assoc_stainfo.au8Sta_AssociatedBss);
 		} else {
@@ -3592,7 +3592,7 @@ static int WILC_WFI_change_station(struct wiphy *wiphy, struct net_device *dev,
 		PRINT_D(HOSTAPD_DBG, "ASSOC ID = %d\n", strStaParams.u16AssocID);
 		PRINT_D(HOSTAPD_DBG, "Number of supported rates = %d\n", strStaParams.u8NumRates);
 
-		if (params->ht_capa == WILC_NULL) {
+		if (params->ht_capa == NULL) {
 			strStaParams.bIsHTSupported = WILC_FALSE;
 		} else {
 			strStaParams.bIsHTSupported = WILC_TRUE;
@@ -3994,9 +3994,9 @@ int WILC_WFI_InitHostInt(struct net_device *net)
 	PRINT_D(INIT_DBG, "Host[%p][%p]\n", net, net->ieee80211_ptr);
 	priv = wdev_priv(net->ieee80211_ptr);
 	if (op_ifcs == 0) {
-		s32Error = WILC_TimerCreate(&(hAgingTimer), remove_network_from_shadow, WILC_NULL);
+		s32Error = WILC_TimerCreate(&(hAgingTimer), remove_network_from_shadow, NULL);
 		#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
-		s32Error = WILC_TimerCreate(&(hDuringIpTimer), clear_duringIP, WILC_NULL);
+		s32Error = WILC_TimerCreate(&(hDuringIpTimer), clear_duringIP, NULL);
 		#endif
 	}
 	op_ifcs++;
@@ -4048,7 +4048,7 @@ int WILC_WFI_DeInitHostInt(struct net_device *net)
 	#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 	if (op_ifcs == 0) {
 		PRINT_D(CORECONFIG_DBG, "destroy during ip\n");
-		WILC_TimerDestroy(&hDuringIpTimer, WILC_NULL);
+		WILC_TimerDestroy(&hDuringIpTimer, NULL);
 	}
 	#endif
 
