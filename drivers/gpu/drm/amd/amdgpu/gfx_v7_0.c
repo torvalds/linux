@@ -2376,6 +2376,7 @@ static int gfx_v7_0_ring_test_ring(struct amdgpu_ring *ring)
 static void gfx_v7_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 {
 	u32 ref_and_mask;
+	int usepfp = ring->type == AMDGPU_RING_TYPE_COMPUTE ? 0 : 1;
 
 	if (ring->type == AMDGPU_RING_TYPE_COMPUTE) {
 		switch (ring->me) {
@@ -2395,7 +2396,7 @@ static void gfx_v7_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WAIT_REG_MEM, 5));
 	amdgpu_ring_write(ring, (WAIT_REG_MEM_OPERATION(1) | /* write, wait, write */
 				 WAIT_REG_MEM_FUNCTION(3) |  /* == */
-				 WAIT_REG_MEM_ENGINE(1)));   /* pfp */
+				 WAIT_REG_MEM_ENGINE(usepfp)));   /* pfp or me */
 	amdgpu_ring_write(ring, mmGPU_HDP_FLUSH_REQ);
 	amdgpu_ring_write(ring, mmGPU_HDP_FLUSH_DONE);
 	amdgpu_ring_write(ring, ref_and_mask);
@@ -5522,6 +5523,7 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_compute = {
 	.emit_semaphore = gfx_v7_0_ring_emit_semaphore,
 	.emit_vm_flush = gfx_v7_0_ring_emit_vm_flush,
 	.emit_gds_switch = gfx_v7_0_ring_emit_gds_switch,
+	.emit_hdp_flush = gfx_v7_0_ring_emit_hdp_flush,
 	.test_ring = gfx_v7_0_ring_test_ring,
 	.test_ib = gfx_v7_0_ring_test_ib,
 	.is_lockup = gfx_v7_0_ring_is_lockup,
