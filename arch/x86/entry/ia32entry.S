@@ -29,28 +29,6 @@
 
 	.section .entry.text, "ax"
 
-	/*
-	 * Reload arg registers from stack in case ptrace changed them.
-	 * We don't reload %eax because syscall_trace_enter() returned
-	 * the %rax value we should see.  Instead, we just truncate that
-	 * value to 32 bits again as we did on entry from user mode.
-	 * If it's a new value set by user_regset during entry tracing,
-	 * this matches the normal truncation of the user-mode value.
-	 * If it's -1 to make us punt the syscall, then (u32)-1 is still
-	 * an appropriately invalid value.
-	 */
-	.macro LOAD_ARGS32 _r9=0
-	.if \_r9
-	movl R9(%rsp),%r9d
-	.endif
-	movl RCX(%rsp),%ecx
-	movl RDX(%rsp),%edx
-	movl RSI(%rsp),%esi
-	movl RDI(%rsp),%edi
-	movl %eax,%eax			/* zero extension */
-	.endm
-	
-
 #ifdef CONFIG_PARAVIRT
 ENTRY(native_usergs_sysret32)
 	swapgs
@@ -269,7 +247,14 @@ sysenter_tracesys:
 	movq	%rax, R8(%rsp)
 	movq	%rsp,%rdi        /* &pt_regs -> arg1 */
 	call	syscall_trace_enter
-	LOAD_ARGS32  /* reload args from stack in case ptrace changed it */
+
+	/* Reload arg registers from stack. (see sysenter_tracesys) */
+	movl	RCX(%rsp), %ecx
+	movl	RDX(%rsp), %edx
+	movl	RSI(%rsp), %esi
+	movl	RDI(%rsp), %edi
+	movl	%eax, %eax	/* zero extension */
+
 	RESTORE_EXTRA_REGS
 	jmp	sysenter_do_call
 ENDPROC(ia32_sysenter_target)
@@ -413,7 +398,15 @@ cstar_tracesys:
 	movq	%rax, R8(%rsp)
 	movq %rsp,%rdi        /* &pt_regs -> arg1 */
 	call syscall_trace_enter
-	LOAD_ARGS32 1	/* reload args from stack in case ptrace changed it */
+	movl	R9(%rsp),%r9d
+
+	/* Reload arg registers from stack. (see sysenter_tracesys) */
+	movl	RCX(%rsp), %ecx
+	movl	RDX(%rsp), %edx
+	movl	RSI(%rsp), %esi
+	movl	RDI(%rsp), %edi
+	movl	%eax, %eax	/* zero extension */
+
 	RESTORE_EXTRA_REGS
 	xchgl %ebp,%r9d
 	jmp cstar_do_call
@@ -502,7 +495,18 @@ ia32_tracesys:
 	SAVE_EXTRA_REGS
 	movq %rsp,%rdi        /* &pt_regs -> arg1 */
 	call syscall_trace_enter
-	LOAD_ARGS32	/* reload args from stack in case ptrace changed it */
+	/*
+	 * Reload arg registers from stack in case ptrace changed them.
+	 * Don't reload %eax because syscall_trace_enter() returned
+	 * the %rax value we should see.  But do truncate it to 32 bits.
+	 * If it's -1 to make us punt the syscall, then (u32)-1 is still
+	 * an appropriately invalid value.
+	 */
+	movl	RCX(%rsp), %ecx
+	movl	RDX(%rsp), %edx
+	movl	RSI(%rsp), %esi
+	movl	RDI(%rsp), %edi
+	movl	%eax, %eax	/* zero extension */
 	RESTORE_EXTRA_REGS
 	jmp ia32_do_call
 END(ia32_syscall)
