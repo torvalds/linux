@@ -51,6 +51,7 @@
  */
 #define CHELSIO_T4		0x4
 #define CHELSIO_T5		0x5
+#define CHELSIO_T6		0x6
 
 enum chip_type {
 	T4_A1 = CHELSIO_CHIP_CODE(CHELSIO_T4, 1),
@@ -156,6 +157,12 @@ struct vpd_params {
 	u32 cclk;			/* Core Clock (KHz) */
 };
 
+/* Stores chip specific parameters */
+struct arch_specific_params {
+	u32 sge_fl_db;
+	u16 mps_tcam_size;
+};
+
 /*
  * Global Receive Side Scaling (RSS) parameters in host-native format.
  */
@@ -215,6 +222,7 @@ struct adapter_params {
 	struct vpd_params vpd;		/* Vital Product Data */
 	struct rss_params rss;		/* Receive Side Scaling */
 	struct vf_resources vfres;	/* Virtual Function Resource limits */
+	struct arch_specific_params arch; /* chip specific params */
 	enum chip_type chip;		/* chip code */
 	u8 nports;			/* # of Ethernet "ports" */
 };
