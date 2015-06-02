@@ -62,8 +62,7 @@ static int nicvf_alloc_q_desc_mem(struct nicvf *nic, struct q_desc_mem *dmem,
 
 	/* Align memory address for 'align_bytes' */
 	dmem->phys_base = NICVF_ALIGNED_ADDR((u64)dmem->dma, align_bytes);
-	dmem->base = (void *)((u8 *)dmem->unalign_base +
-			      (dmem->phys_base - dmem->dma));
+	dmem->base = dmem->unalign_base + (dmem->phys_base - dmem->dma);
 	return 0;
 }
 
