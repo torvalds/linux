@@ -20,9 +20,6 @@
 
 #define    MAX_LMAC	(MAX_BGX_PER_CN88XX * MAX_LMAC_PER_BGX)
 
-#define    NODE_ID_MASK				0x300000000000
-#define    NODE_ID(x)				((x & NODE_ID_MASK) >> 44)
-
 /* Registers */
 #define BGX_CMRX_CFG			0x00
 #define  CMR_PKT_TX_EN				BIT_ULL(13)

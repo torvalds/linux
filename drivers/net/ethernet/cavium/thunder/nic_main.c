@@ -23,8 +23,6 @@
 struct nicpf {
 	struct pci_dev		*pdev;
 	u8			rev_id;
-#define NIC_NODE_ID_MASK	0x300000000000
-#define NIC_NODE_ID(x)		((x & NODE_ID_MASK) >> 44)
 	u8			node;
 	unsigned int		flags;
 	u8			num_vf_en;      /* No of VF enabled */
@@ -851,7 +849,7 @@ static int nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &nic->rev_id);
 
-	nic->node = NIC_NODE_ID(pci_resource_start(pdev, PCI_CFG_REG_BAR_NUM));
+	nic->node = nic_get_node_id(pdev);
 
 	nic_set_lmac_vf_mapping(nic);
 

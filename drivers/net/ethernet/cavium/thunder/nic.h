@@ -11,6 +11,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/interrupt.h>
+#include <linux/pci.h>
 #include "thunder_bgx.h"
 
 /* PCI device IDs */
@@ -397,6 +398,15 @@ union nic_mbx {
 	struct bgx_stats_msg    bgx_stats;
 	struct bgx_link_status  link_status;
 };
+
+#define NIC_NODE_ID_MASK	0x03
+#define NIC_NODE_ID_SHIFT	44
+
+static inline int nic_get_node_id(struct pci_dev *pdev)
+{
+	u64 addr = pci_resource_start(pdev, PCI_CFG_REG_BAR_NUM);
+	return ((addr >> NIC_NODE_ID_SHIFT) & NIC_NODE_ID_MASK);
+}
 
 int nicvf_set_real_num_queues(struct net_device *netdev,
 			      int tx_queues, int rx_queues);
