@@ -211,7 +211,6 @@ static int rk3288_get_leakage(int ch)
 	return efuse_buf[23+ch];
 }
 
-#ifdef CONFIG_ARM
 static void __init rk3288_set_system_serial(void)
 {
 	int i;
@@ -225,9 +224,6 @@ static void __init rk3288_set_system_serial(void)
 	system_serial_low = crc32(0, buf, 8);
 	system_serial_high = crc32(system_serial_low, buf + 8, 8);
 }
-#else
-static inline void __init rk3288_set_system_serial(void) {}
-#endif
 
 int rk312x_efuse_readregs(u32 addr, u32 length, u8 *buf)
 {
