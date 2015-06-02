@@ -38,13 +38,13 @@ static inline int tick_device_is_functional(struct clock_event_device *dev)
 
 static inline enum clock_event_state clockevent_get_state(struct clock_event_device *dev)
 {
-	return dev->state;
+	return dev->state_use_accessors;
 }
 
 static inline void clockevent_set_state(struct clock_event_device *dev,
 					enum clock_event_state state)
 {
-	dev->state = state;
+	dev->state_use_accessors = state;
 }
 
 extern void clockevents_shutdown(struct clock_event_device *dev);
