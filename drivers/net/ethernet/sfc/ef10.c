@@ -1210,24 +1210,25 @@ static size_t efx_ef10_update_stats_common(struct efx_nic *efx, u64 *full_stats,
 	}
 
 	if (core_stats) {
-		core_stats->rx_packets = stats[EF10_STAT_port_rx_packets];
-		core_stats->tx_packets = stats[EF10_STAT_port_tx_packets];
-		core_stats->rx_bytes = stats[EF10_STAT_port_rx_bytes];
-		core_stats->tx_bytes = stats[EF10_STAT_port_tx_bytes];
-		core_stats->rx_dropped = stats[EF10_STAT_port_rx_nodesc_drops] +
-					 stats[GENERIC_STAT_rx_nodesc_trunc] +
+		core_stats->rx_packets = stats[EF10_STAT_rx_unicast] +
+					 stats[EF10_STAT_rx_multicast] +
+					 stats[EF10_STAT_rx_broadcast];
+		core_stats->tx_packets = stats[EF10_STAT_tx_unicast] +
+					 stats[EF10_STAT_tx_multicast] +
+					 stats[EF10_STAT_tx_broadcast];
+		core_stats->rx_bytes = stats[EF10_STAT_rx_unicast_bytes] +
+				       stats[EF10_STAT_rx_multicast_bytes] +
+				       stats[EF10_STAT_rx_broadcast_bytes];
+		core_stats->tx_bytes = stats[EF10_STAT_tx_unicast_bytes] +
+				       stats[EF10_STAT_tx_multicast_bytes] +
+				       stats[EF10_STAT_tx_broadcast_bytes];
+		core_stats->rx_dropped = stats[GENERIC_STAT_rx_nodesc_trunc] +
 					 stats[GENERIC_STAT_rx_noskb_drops];
-		core_stats->multicast = stats[EF10_STAT_port_rx_multicast];
-		core_stats->rx_length_errors =
-			stats[EF10_STAT_port_rx_gtjumbo] +
-			stats[EF10_STAT_port_rx_length_error];
-		core_stats->rx_crc_errors = stats[EF10_STAT_port_rx_bad];
-		core_stats->rx_frame_errors =
-			stats[EF10_STAT_port_rx_align_error];
-		core_stats->rx_fifo_errors = stats[EF10_STAT_port_rx_overflow];
-		core_stats->rx_errors = (core_stats->rx_length_errors +
-					 core_stats->rx_crc_errors +
-					 core_stats->rx_frame_errors);
+		core_stats->multicast = stats[EF10_STAT_rx_multicast];
+		core_stats->rx_crc_errors = stats[EF10_STAT_rx_bad];
+		core_stats->rx_fifo_errors = stats[EF10_STAT_rx_overflow];
+		core_stats->rx_errors = core_stats->rx_crc_errors;
+		core_stats->tx_errors = stats[EF10_STAT_tx_bad];
 	}
 
 	return stats_count;
@@ -1310,7 +1311,7 @@ static int efx_ef10_try_update_nic_stats_vf(struct efx_nic *efx)
 
 	MCDI_SET_QWORD(inbuf, MAC_STATS_IN_DMA_ADDR, stats_buf.dma_addr);
 	MCDI_POPULATE_DWORD_1(inbuf, MAC_STATS_IN_CMD,
-			      MAC_STATS_IN_DMA, true);
+			      MAC_STATS_IN_DMA, 1);
 	MCDI_SET_DWORD(inbuf, MAC_STATS_IN_DMA_LEN, dma_len);
 	MCDI_SET_DWORD(inbuf, MAC_STATS_IN_PORT_ID, EVB_PORT_ID_ASSIGNED);
 
@@ -1322,8 +1323,10 @@ static int efx_ef10_try_update_nic_stats_vf(struct efx_nic *efx)
 		goto out;
 
 	generation_end = dma_stats[MC_CMD_MAC_GENERATION_END];
-	if (generation_end == EFX_MC_STATS_GENERATION_INVALID)
+	if (generation_end == EFX_MC_STATS_GENERATION_INVALID) {
+		WARN_ON_ONCE(1);
 		goto out;
+	}
 	rmb();
 	efx_nic_update_stats(efx_ef10_stat_desc, EF10_STAT_COUNT, mask,
 			     stats, stats_buf.addr, false);
