@@ -70,7 +70,7 @@ static void ls_pcie_host_init(struct pcie_port *pp)
 
 	dw_pcie_setup_rc(pp);
 
-	while (!ls_pcie_link_up(pp)) {
+	while (!dw_pcie_link_up(pp)) {
 		usleep_range(100, 1000);
 		count++;
 		if (count >= 200) {
