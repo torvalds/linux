@@ -91,7 +91,7 @@ config TWL6030_USB
 
 config USB_GPIO_VBUS
 	tristate "GPIO based peripheral-only VBUS sensing 'transceiver'"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	select USB_PHY
 	help
 	  Provides simple GPIO VBUS sensing for controllers with an
@@ -141,6 +141,7 @@ config USB_MSM_OTG
 	tristate "Qualcomm on-chip USB OTG controller support"
 	depends on (USB || USB_GADGET) && (ARCH_QCOM || COMPILE_TEST)
 	depends on RESET_CONTROLLER
+	depends on EXTCON
 	select USB_PHY
 	help
 	  Enable this to support the USB OTG transceiver on Qualcomm chips. It

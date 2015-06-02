@@ -629,4 +629,10 @@ struct mcb_device_id {
 	kernel_ulong_t driver_data;
 };
 
+struct ulpi_device_id {
+	__u16 vendor;
+	__u16 product;
+	kernel_ulong_t driver_data;
+};
+
 #endif /* LINUX_MOD_DEVICETABLE_H */

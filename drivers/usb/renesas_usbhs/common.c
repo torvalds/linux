@@ -466,11 +466,15 @@ static int usbhsc_drvcllbck_notify_hotplug(struct platform_device *pdev)
 static const struct of_device_id usbhs_of_match[] = {
 	{
 		.compatible = "renesas,usbhs-r8a7790",
-		.data = (void *)USBHS_TYPE_R8A7790,
+		.data = (void *)USBHS_TYPE_RCAR_GEN2,
 	},
 	{
 		.compatible = "renesas,usbhs-r8a7791",
-		.data = (void *)USBHS_TYPE_R8A7791,
+		.data = (void *)USBHS_TYPE_RCAR_GEN2,
+	},
+	{
+		.compatible = "renesas,usbhs-r8a7794",
+		.data = (void *)USBHS_TYPE_RCAR_GEN2,
 	},
 	{ },
 };
@@ -497,14 +501,8 @@ static struct renesas_usbhs_platform_info *usbhs_parse_dt(struct device *dev)
 	if (gpio > 0)
 		dparam->enable_gpio = gpio;
 
-	switch (dparam->type) {
-	case USBHS_TYPE_R8A7790:
-	case USBHS_TYPE_R8A7791:
+	if (dparam->type == USBHS_TYPE_RCAR_GEN2)
 		dparam->has_usb_dmac = 1;
-		break;
-	default:
-		break;
-	}
 
 	return info;
 }
@@ -559,8 +557,7 @@ static int usbhs_probe(struct platform_device *pdev)
 	       sizeof(struct renesas_usbhs_driver_param));
 
 	switch (priv->dparam.type) {
-	case USBHS_TYPE_R8A7790:
-	case USBHS_TYPE_R8A7791:
+	case USBHS_TYPE_RCAR_GEN2:
 		priv->pfunc = usbhs_rcar2_ops;
 		if (!priv->dparam.pipe_type) {
 			priv->dparam.pipe_type = usbhsc_new_pipe_type;
