@@ -393,6 +393,12 @@ static inline struct bdi_writeback *inode_to_wb(struct inode *inode)
 	return inode->i_wb;
 }
 
+static inline struct cgroup_subsys_state *
+inode_to_wb_blkcg_css(struct inode *inode)
+{
+	return inode_to_wb(inode)->blkcg_css;
+}
+
 struct wb_iter {
 	int			start_blkcg_id;
 	struct radix_tree_iter	tree_iter;
@@ -508,6 +514,12 @@ static inline void wb_memcg_offline(struct mem_cgroup *memcg)
 
 static inline void wb_blkcg_offline(struct blkcg *blkcg)
 {
+}
+
+static inline struct cgroup_subsys_state *
+inode_to_wb_blkcg_css(struct inode *inode)
+{
+	return blkcg_root_css;
 }
 
 struct wb_iter {
