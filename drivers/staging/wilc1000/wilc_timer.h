@@ -21,7 +21,7 @@ typedef void (*tpfWILC_TimerFunction)(void *);
  */
 typedef struct {
 	/* a dummy member to avoid compiler errors*/
-	WILC_Uint8 dummy;
+	u8 dummy;
 } tstrWILC_TimerAttrs;
 
 /*!

@@ -109,7 +109,7 @@ struct wilc_wfi_wep_key {
 };
 
 struct sta_info {
-	WILC_Uint8 au8Sta_AssociatedBss[MAX_NUM_STA][ETH_ALEN];
+	u8 au8Sta_AssociatedBss[MAX_NUM_STA][ETH_ALEN];
 };
 
 #ifdef WILC_P2P
@@ -139,10 +139,10 @@ struct WILC_WFI_priv {
 
 
 
-	WILC_Uint8 au8AssociatedBss[ETH_ALEN];
+	u8 au8AssociatedBss[ETH_ALEN];
 	struct sta_info assoc_stainfo;
 	struct net_device_stats stats;
-	WILC_Uint8 monitor_flag;
+	u8 monitor_flag;
 	int status;
 	struct WILC_WFI_packet *ppool;
 	struct WILC_WFI_packet *rx_queue; /* List of incoming packets */
@@ -157,13 +157,13 @@ struct WILC_WFI_priv {
 	WILC_WFIDrvHandle hWILCWFIDrv_2;
 	tstrHostIFpmkidAttr pmkid_list;
 	struct WILC_WFI_stats netstats;
-	WILC_Uint8 WILC_WFI_wep_default;
-	WILC_Uint8 WILC_WFI_wep_key[4][WLAN_KEY_LEN_WEP104];
-	WILC_Uint8 WILC_WFI_wep_key_len[4];
+	u8 WILC_WFI_wep_default;
+	u8 WILC_WFI_wep_key[4][WLAN_KEY_LEN_WEP104];
+	u8 WILC_WFI_wep_key_len[4];
 	struct net_device *real_ndev;   /* The real interface that the monitor is on */
 	struct wilc_wfi_key *wilc_gtk[MAX_NUM_STA];
 	struct wilc_wfi_key *wilc_ptk[MAX_NUM_STA];
-	WILC_Uint8 wilc_groupkey;
+	u8 wilc_groupkey;
 	/* semaphores */
 	struct semaphore SemHandleUpdateStats;
 	struct semaphore hSemScanReq;
@@ -250,7 +250,7 @@ typedef struct {
 
 typedef struct {
 	uint8_t u8IfIdx;
-	WILC_Uint8 iftype;
+	u8 iftype;
 	int monitor_flag;
 	int mac_opened;
 	#ifdef WILC_P2P

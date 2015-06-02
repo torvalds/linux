@@ -402,30 +402,30 @@ typedef struct {
 } tstrWID;
 
 typedef struct {
-	WILC_Uint8 u8Full;
-	WILC_Uint8 u8Index;
+	u8 u8Full;
+	u8 u8Index;
 	WILC_Sint8 as8RSSI[NUM_RSSI];
 } tstrRSSI;
 /* This structure is used to support parsing of the received 'N' message */
 typedef struct {
 	WILC_Sint8 s8rssi;
 	WILC_Uint16 u16CapInfo;
-	WILC_Uint8 au8ssid[MAX_SSID_LEN];
-	WILC_Uint8 u8SsidLen;
-	WILC_Uint8 au8bssid[6];
+	u8 au8ssid[MAX_SSID_LEN];
+	u8 u8SsidLen;
+	u8 au8bssid[6];
 	WILC_Uint16 u16BeaconPeriod;
-	WILC_Uint8 u8DtimPeriod;
-	WILC_Uint8 u8channel;
+	u8 u8DtimPeriod;
+	u8 u8channel;
 	unsigned long u32TimeRcvdInScanCached; /* of type unsigned long to be accepted by the linux kernel macro time_after() */
 	unsigned long u32TimeRcvdInScan;
 	WILC_Bool bNewNetwork;
 #ifdef AGING_ALG
-	WILC_Uint8 u8Found;
+	u8 u8Found;
 #endif
 #ifdef WILC_P2P
 	WILC_Uint32 u32Tsf; /* time-stamp [Low only 32 bit] */
 #endif
-	WILC_Uint8 *pu8IEs;
+	u8 *pu8IEs;
 	WILC_Uint16 u16IEsLen;
 	void *pJoinParams;
 	tstrRSSI strRssi;
@@ -437,16 +437,16 @@ typedef struct {
 	WILC_Uint16 u16capability;
 	WILC_Uint16 u16ConnectStatus;
 	WILC_Uint16 u16AssocID;
-	WILC_Uint8 *pu8RespIEs;
+	u8 *pu8RespIEs;
 	WILC_Uint16 u16RespIEsLen;
 } tstrConnectRespInfo;
 
 
 typedef struct {
-	WILC_Uint8 au8bssid[6];
-	WILC_Uint8 *pu8ReqIEs;
+	u8 au8bssid[6];
+	u8 *pu8ReqIEs;
 	size_t ReqIEsLen;
-	WILC_Uint8 *pu8RespIEs;
+	u8 *pu8RespIEs;
 	WILC_Uint16 u16RespIEsLen;
 	WILC_Uint16 u16ConnectStatus;
 } tstrConnectInfo;
@@ -455,19 +455,19 @@ typedef struct {
 
 typedef struct {
 	WILC_Uint16 u16reason;
-	WILC_Uint8 *ie;
+	u8 *ie;
 	size_t ie_len;
 } tstrDisconnectNotifInfo;
 
 #ifndef CONNECT_DIRECT
 typedef struct wid_site_survey_reslts {
 	WILC_Char SSID[MAX_SSID_LEN];
-	WILC_Uint8 BssType;
-	WILC_Uint8 Channel;
-	WILC_Uint8 SecurityStatus;
-	WILC_Uint8 BSSID[6];
+	u8 BssType;
+	u8 Channel;
+	u8 SecurityStatus;
+	u8 BSSID[6];
 	WILC_Char RxPower;
-	WILC_Uint8 Reserved;
+	u8 Reserved;
 
 } wid_site_survey_reslts_s;
 #endif
@@ -475,24 +475,24 @@ typedef struct wid_site_survey_reslts {
 extern WILC_Sint32 CoreConfiguratorInit(void);
 extern WILC_Sint32 CoreConfiguratorDeInit(void);
 
-extern WILC_Sint32 SendConfigPkt(WILC_Uint8 u8Mode, tstrWID *pstrWIDs,
+extern WILC_Sint32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
 				 WILC_Uint32 u32WIDsCount, WILC_Bool bRespRequired, WILC_Uint32 drvHandler);
-extern WILC_Sint32 ParseNetworkInfo(WILC_Uint8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo);
+extern WILC_Sint32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo);
 extern WILC_Sint32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo);
 
-extern WILC_Sint32 ParseAssocRespInfo(WILC_Uint8 *pu8Buffer, WILC_Uint32 u32BufferLen,
+extern WILC_Sint32 ParseAssocRespInfo(u8 *pu8Buffer, WILC_Uint32 u32BufferLen,
 				      tstrConnectRespInfo **ppstrConnectRespInfo);
 extern WILC_Sint32 DeallocateAssocRespInfo(tstrConnectRespInfo *pstrConnectRespInfo);
 
 #ifndef CONNECT_DIRECT
-extern WILC_Sint32 ParseSurveyResults(WILC_Uint8 ppu8RcvdSiteSurveyResults[][MAX_SURVEY_RESULT_FRAG_SIZE],
+extern WILC_Sint32 ParseSurveyResults(u8 ppu8RcvdSiteSurveyResults[][MAX_SURVEY_RESULT_FRAG_SIZE],
 				      wid_site_survey_reslts_s **ppstrSurveyResults, WILC_Uint32 *pu32SurveyResultsCount);
 extern WILC_Sint32 DeallocateSurveyResults(wid_site_survey_reslts_s *pstrSurveyResults);
 #endif
 
 extern WILC_Sint32 SendRawPacket(WILC_Sint8 *pspacket, WILC_Sint32 s32PacketLen);
-extern void NetworkInfoReceived(WILC_Uint8 *pu8Buffer, WILC_Uint32 u32Length);
-void GnrlAsyncInfoReceived(WILC_Uint8 *pu8Buffer, WILC_Uint32 u32Length);
-void host_int_ScanCompleteReceived(WILC_Uint8 *pu8Buffer, WILC_Uint32 u32Length);
+extern void NetworkInfoReceived(u8 *pu8Buffer, WILC_Uint32 u32Length);
+void GnrlAsyncInfoReceived(u8 *pu8Buffer, WILC_Uint32 u32Length);
+void host_int_ScanCompleteReceived(u8 *pu8Buffer, WILC_Uint32 u32Length);
 
 #endif

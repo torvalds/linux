@@ -21,7 +21,7 @@ extern wilc_hif_func_t hif_sdio;
 extern wilc_hif_func_t hif_spi;
 extern wilc_cfg_func_t mac_cfg;
 #if defined(PLAT_RK3026_TCHIP)
-extern WILC_Uint8 g_wilc_initialized; /* AMR : 0422 RK3026 Crash issue */
+extern u8 g_wilc_initialized; /* AMR : 0422 RK3026 Crash issue */
 #endif
 extern void WILC_WFI_mgmt_rx(uint8_t *buff, uint32_t size);
 extern void frmw_to_linux(uint8_t *buff, uint32_t size);

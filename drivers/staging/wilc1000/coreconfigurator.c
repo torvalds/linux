@@ -158,9 +158,9 @@ typedef struct {
 /* Extern Function Declarations                                              */
 /*****************************************************************************/
 extern WILC_Sint32 SendRawPacket(WILC_Sint8 *ps8Packet, WILC_Sint32 s32PacketLen);
-extern void NetworkInfoReceived(WILC_Uint8 *pu8Buffer, WILC_Uint32 u32Length);
-extern void GnrlAsyncInfoReceived(WILC_Uint8 *pu8Buffer, WILC_Uint32 u32Length);
-extern void host_int_ScanCompleteReceived(WILC_Uint8 *pu8Buffer, WILC_Uint32 u32Length);
+extern void NetworkInfoReceived(u8 *pu8Buffer, WILC_Uint32 u32Length);
+extern void GnrlAsyncInfoReceived(u8 *pu8Buffer, WILC_Uint32 u32Length);
+extern void host_int_ScanCompleteReceived(u8 *pu8Buffer, WILC_Uint32 u32Length);
 /*****************************************************************************/
 /* Global Variables                                                          */
 /*****************************************************************************/
@@ -171,13 +171,13 @@ static WILC_Sint8 *gps8ConfigPacket;
 
 static tstrConfigPktInfo gstrConfigPktInfo;
 
-static WILC_Uint8 g_seqno;
+static u8 g_seqno;
 
 static WILC_Sint16 g_wid_num          = -1;
 
 static WILC_Uint16 Res_Len;
 
-static WILC_Uint8 g_oper_mode    = SET_CFG;
+static u8 g_oper_mode    = SET_CFG;
 
 /* WID Switches */
 static tstrWID gastrWIDs[] = {
@@ -318,7 +318,7 @@ WILC_Uint16 g_num_total_switches = (sizeof(gastrWIDs) / sizeof(tstrWID));
 /*****************************************************************************/
 /* Functions                                                                 */
 /*****************************************************************************/
-INLINE WILC_Uint8 ascii_hex_to_dec(WILC_Uint8 num)
+INLINE u8 ascii_hex_to_dec(u8 num)
 {
 	if ((num >= '0') && (num <= '9'))
 		return (num - '0');
@@ -330,16 +330,16 @@ INLINE WILC_Uint8 ascii_hex_to_dec(WILC_Uint8 num)
 	return INVALID;
 }
 
-INLINE WILC_Uint8 get_hex_char(WILC_Uint8 inp)
+INLINE u8 get_hex_char(u8 inp)
 {
-	WILC_Uint8 *d2htab = "0123456789ABCDEF";
+	u8 *d2htab = "0123456789ABCDEF";
 
 	return d2htab[inp & 0xF];
 }
 
 /* This function extracts the MAC address held in a string in standard format */
 /* into another buffer as integers.                                           */
-INLINE WILC_Uint16 extract_mac_addr(WILC_Char *str, WILC_Uint8 *buff)
+INLINE WILC_Uint16 extract_mac_addr(WILC_Char *str, u8 *buff)
 {
 	*buff = 0;
 	while (*str != '\0') {
@@ -356,14 +356,14 @@ INLINE WILC_Uint16 extract_mac_addr(WILC_Char *str, WILC_Uint8 *buff)
 
 /* This function creates MAC address in standard format from a buffer of      */
 /* integers.                                                                  */
-INLINE void create_mac_addr(WILC_Uint8 *str, WILC_Uint8 *buff)
+INLINE void create_mac_addr(u8 *str, u8 *buff)
 {
 	WILC_Uint32 i = 0;
 	WILC_Uint32 j = 0;
 
 	for (i = 0; i < MAC_ADDR_LEN; i++) {
-		str[j++] = get_hex_char((WILC_Uint8)((buff[i] >> 4) & 0x0F));
-		str[j++] = get_hex_char((WILC_Uint8)(buff[i] & 0x0F));
+		str[j++] = get_hex_char((u8)((buff[i] >> 4) & 0x0F));
+		str[j++] = get_hex_char((u8)(buff[i] & 0x0F));
 		str[j++] = ':';
 	}
 	str[--j] = '\0';
@@ -375,10 +375,10 @@ INLINE void create_mac_addr(WILC_Uint8 *str, WILC_Uint8 *buff)
 /* inet_addr is platform independent.                                       */
 /* ips=>IP Address String in dotted decimal format                          */
 /* ipn=>Pointer to IP Address in integer format                             */
-INLINE WILC_Uint8 conv_ip_to_int(WILC_Uint8 *ips, WILC_Uint32 *ipn)
+INLINE u8 conv_ip_to_int(u8 *ips, WILC_Uint32 *ipn)
 {
-	WILC_Uint8 i   = 0;
-	WILC_Uint8 ipb = 0;
+	u8 i   = 0;
+	u8 ipb = 0;
 	*ipn = 0;
 	/* Integer to string for each component */
 	while (ips[i] != '\0') {
@@ -402,12 +402,12 @@ INLINE WILC_Uint8 conv_ip_to_int(WILC_Uint8 *ips, WILC_Uint32 *ipn)
 /* decimal string format. Alternative to std library fn inet_ntoa().      */
 /* ips=>Buffer to hold IP Address String dotted decimal format (Min 17B)  */
 /* ipn=>IP Address in integer format                                      */
-INLINE WILC_Uint8 conv_int_to_ip(WILC_Uint8 *ips, WILC_Uint32 ipn)
+INLINE u8 conv_int_to_ip(u8 *ips, WILC_Uint32 ipn)
 {
-	WILC_Uint8 i   = 0;
-	WILC_Uint8 ipb = 0;
-	WILC_Uint8 cnt = 0;
-	WILC_Uint8 ipbsize = 0;
+	u8 i   = 0;
+	u8 ipb = 0;
+	u8 cnt = 0;
+	u8 ipbsize = 0;
 
 	for (cnt = 4; cnt > 0; cnt--) {
 		ipb = (ipn >> (8 * (cnt - 1))) & 0xFF;
@@ -475,7 +475,7 @@ INLINE tenuWIDtype get_wid_type(WILC_Uint32 wid_num)
 
 /* This function extracts the beacon period field from the beacon or probe   */
 /* response frame.                                                           */
-INLINE WILC_Uint16 get_beacon_period(WILC_Uint8 *data)
+INLINE WILC_Uint16 get_beacon_period(u8 *data)
 {
 	WILC_Uint16 bcn_per = 0;
 
@@ -485,7 +485,7 @@ INLINE WILC_Uint16 get_beacon_period(WILC_Uint8 *data)
 	return bcn_per;
 }
 
-INLINE WILC_Uint32 get_beacon_timestamp_lo(WILC_Uint8 *data)
+INLINE WILC_Uint32 get_beacon_timestamp_lo(u8 *data)
 {
 	WILC_Uint32 time_stamp = 0;
 	WILC_Uint32 index    = MAC_HDR_LEN;
@@ -514,7 +514,7 @@ INLINE UWORD32 get_beacon_timestamp_hi(UWORD8 *data)
 /* This function extracts the 'frame type' bits from the MAC header of the   */
 /* input frame.                                                              */
 /* Returns the value in the LSB of the returned value.                       */
-INLINE tenuBasicFrmType get_type(WILC_Uint8 *header)
+INLINE tenuBasicFrmType get_type(u8 *header)
 {
 	return ((tenuBasicFrmType)(header[0] & 0x0C));
 }
@@ -522,7 +522,7 @@ INLINE tenuBasicFrmType get_type(WILC_Uint8 *header)
 /* This function extracts the 'frame type and sub type' bits from the MAC    */
 /* header of the input frame.                                                */
 /* Returns the value in the LSB of the returned value.                       */
-INLINE tenuFrmSubtype get_sub_type(WILC_Uint8 *header)
+INLINE tenuFrmSubtype get_sub_type(u8 *header)
 {
 	return ((tenuFrmSubtype)(header[0] & 0xFC));
 }
@@ -530,7 +530,7 @@ INLINE tenuFrmSubtype get_sub_type(WILC_Uint8 *header)
 /* This function extracts the 'to ds' bit from the MAC header of the input   */
 /* frame.                                                                    */
 /* Returns the value in the LSB of the returned value.                       */
-INLINE WILC_Uint8 get_to_ds(WILC_Uint8 *header)
+INLINE u8 get_to_ds(u8 *header)
 {
 	return (header[1] & 0x01);
 }
@@ -538,28 +538,28 @@ INLINE WILC_Uint8 get_to_ds(WILC_Uint8 *header)
 /* This function extracts the 'from ds' bit from the MAC header of the input */
 /* frame.                                                                    */
 /* Returns the value in the LSB of the returned value.                       */
-INLINE WILC_Uint8 get_from_ds(WILC_Uint8 *header)
+INLINE u8 get_from_ds(u8 *header)
 {
 	return ((header[1] & 0x02) >> 1);
 }
 
 /* This function extracts the MAC Address in 'address1' field of the MAC     */
 /* header and updates the MAC Address in the allocated 'addr' variable.      */
-INLINE void get_address1(WILC_Uint8 *pu8msa, WILC_Uint8 *addr)
+INLINE void get_address1(u8 *pu8msa, u8 *addr)
 {
 	WILC_memcpy(addr, pu8msa + 4, 6);
 }
 
 /* This function extracts the MAC Address in 'address2' field of the MAC     */
 /* header and updates the MAC Address in the allocated 'addr' variable.      */
-INLINE void get_address2(WILC_Uint8 *pu8msa, WILC_Uint8 *addr)
+INLINE void get_address2(u8 *pu8msa, u8 *addr)
 {
 	WILC_memcpy(addr, pu8msa + 10, 6);
 }
 
 /* This function extracts the MAC Address in 'address3' field of the MAC     */
 /* header and updates the MAC Address in the allocated 'addr' variable.      */
-INLINE void get_address3(WILC_Uint8 *pu8msa, WILC_Uint8 *addr)
+INLINE void get_address3(u8 *pu8msa, u8 *addr)
 {
 	WILC_memcpy(addr, pu8msa + 16, 6);
 }
@@ -567,7 +567,7 @@ INLINE void get_address3(WILC_Uint8 *pu8msa, WILC_Uint8 *addr)
 /* This function extracts the BSSID from the incoming WLAN packet based on   */
 /* the 'from ds' bit, and updates the MAC Address in the allocated 'addr'    */
 /* variable.                                                                 */
-INLINE void get_BSSID(WILC_Uint8 *data, WILC_Uint8 *bssid)
+INLINE void get_BSSID(u8 *data, u8 *bssid)
 {
 	if (get_from_ds(data) == 1)
 		get_address2(data, bssid);
@@ -578,11 +578,11 @@ INLINE void get_BSSID(WILC_Uint8 *data, WILC_Uint8 *bssid)
 }
 
 /* This function extracts the SSID from a beacon/probe response frame        */
-INLINE void get_ssid(WILC_Uint8 *data, WILC_Uint8 *ssid, WILC_Uint8 *p_ssid_len)
+INLINE void get_ssid(u8 *data, u8 *ssid, u8 *p_ssid_len)
 {
-	WILC_Uint8 len = 0;
-	WILC_Uint8 i   = 0;
-	WILC_Uint8 j   = 0;
+	u8 len = 0;
+	u8 i   = 0;
+	u8 j   = 0;
 
 	len = data[MAC_HDR_LEN + TIME_STAMP_LEN + BEACON_INTERVAL_LEN +
 		   CAP_INFO_LEN + 1];
@@ -604,7 +604,7 @@ INLINE void get_ssid(WILC_Uint8 *data, WILC_Uint8 *ssid, WILC_Uint8 *p_ssid_len)
 
 /* This function extracts the capability info field from the beacon or probe */
 /* response frame.                                                           */
-INLINE WILC_Uint16 get_cap_info(WILC_Uint8 *data)
+INLINE WILC_Uint16 get_cap_info(u8 *data)
 {
 	WILC_Uint16 cap_info = 0;
 	WILC_Uint16 index    = MAC_HDR_LEN;
@@ -625,7 +625,7 @@ INLINE WILC_Uint16 get_cap_info(WILC_Uint8 *data)
 
 /* This function extracts the capability info field from the Association */
 /* response frame.                                                                       */
-INLINE WILC_Uint16 get_assoc_resp_cap_info(WILC_Uint8 *data)
+INLINE WILC_Uint16 get_assoc_resp_cap_info(u8 *data)
 {
 	WILC_Uint16 cap_info = 0;
 
@@ -637,7 +637,7 @@ INLINE WILC_Uint16 get_assoc_resp_cap_info(WILC_Uint8 *data)
 
 /* This funcion extracts the association status code from the incoming       */
 /* association response frame and returns association status code            */
-INLINE WILC_Uint16 get_asoc_status(WILC_Uint8 *data)
+INLINE WILC_Uint16 get_asoc_status(u8 *data)
 {
 	WILC_Uint16 asoc_status = 0;
 
@@ -649,7 +649,7 @@ INLINE WILC_Uint16 get_asoc_status(WILC_Uint8 *data)
 
 /* This function extracts association ID from the incoming association       */
 /* response frame							                                     */
-INLINE WILC_Uint16 get_asoc_id(WILC_Uint8 *data)
+INLINE WILC_Uint16 get_asoc_id(u8 *data)
 {
 	WILC_Uint16 asoc_id = 0;
 
@@ -691,7 +691,7 @@ _fail_:
 	return s32Error;
 }
 
-WILC_Uint8 *get_tim_elm(WILC_Uint8 *pu8msa, WILC_Uint16 u16RxLen, WILC_Uint16 u16TagParamOffset)
+u8 *get_tim_elm(u8 *pu8msa, WILC_Uint16 u16RxLen, WILC_Uint16 u16TagParamOffset)
 {
 	WILC_Uint16 u16index = 0;
 
@@ -721,7 +721,7 @@ WILC_Uint8 *get_tim_elm(WILC_Uint8 *pu8msa, WILC_Uint16 u16RxLen, WILC_Uint16 u1
 
 /* This function gets the current channel information from
  * the 802.11n beacon/probe response frame */
-WILC_Uint8 get_current_channel_802_11n(WILC_Uint8 *pu8msa, WILC_Uint16 u16RxLen)
+u8 get_current_channel_802_11n(u8 *pu8msa, WILC_Uint16 u16RxLen)
 {
 	WILC_Uint16 index;
 
@@ -740,7 +740,7 @@ WILC_Uint8 get_current_channel_802_11n(WILC_Uint8 *pu8msa, WILC_Uint16 u16RxLen)
 	return 0;  /* no MIB here */
 }
 
-WILC_Uint8 get_current_channel(WILC_Uint8 *pu8msa, WILC_Uint16 u16RxLen)
+u8 get_current_channel(u8 *pu8msa, WILC_Uint16 u16RxLen)
 {
 #ifdef PHY_802_11n
 #ifdef FIVE_GHZ_BAND
@@ -768,17 +768,17 @@ WILC_Uint8 get_current_channel(WILC_Uint8 *pu8msa, WILC_Uint16 u16RxLen)
  *  @date			1 Mar 2012
  *  @version		1.0
  */
-WILC_Sint32 ParseNetworkInfo(WILC_Uint8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
+WILC_Sint32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
 {
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 	tstrNetworkInfo *pstrNetworkInfo = NULL;
-	WILC_Uint8 u8MsgType = 0;
-	WILC_Uint8 u8MsgID = 0;
+	u8 u8MsgType = 0;
+	u8 u8MsgID = 0;
 	WILC_Uint16 u16MsgLen = 0;
 
 	WILC_Uint16 u16WidID = (WILC_Uint16)WID_NIL;
 	WILC_Uint16 u16WidLen  = 0;
-	WILC_Uint8  *pu8WidVal = 0;
+	u8  *pu8WidVal = 0;
 
 	u8MsgType = pu8MsgBuffer[0];
 
@@ -805,12 +805,12 @@ WILC_Sint32 ParseNetworkInfo(WILC_Uint8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNe
 
 	/* parse the WID value of the WID "WID_NEWORK_INFO" */
 	{
-		WILC_Uint8  *pu8msa = 0;
+		u8  *pu8msa = 0;
 		WILC_Uint16 u16RxLen = 0;
-		WILC_Uint8 *pu8TimElm = 0;
-		WILC_Uint8 *pu8IEs = 0;
+		u8 *pu8TimElm = 0;
+		u8 *pu8IEs = 0;
 		WILC_Uint16 u16IEsLen = 0;
-		WILC_Uint8 u8index = 0;
+		u8 u8index = 0;
 		WILC_Uint32 u32Tsf_Lo;
 		WILC_Uint32 u32Tsf_Hi;
 
@@ -865,7 +865,7 @@ WILC_Sint32 ParseNetworkInfo(WILC_Uint8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNe
 		u16IEsLen = u16RxLen - (MAC_HDR_LEN + TIME_STAMP_LEN + BEACON_INTERVAL_LEN + CAP_INFO_LEN);
 
 		if (u16IEsLen > 0) {
-			pstrNetworkInfo->pu8IEs = (WILC_Uint8 *)WILC_MALLOC(u16IEsLen);
+			pstrNetworkInfo->pu8IEs = (u8 *)WILC_MALLOC(u16IEsLen);
 			WILC_memset((void *)(pstrNetworkInfo->pu8IEs), 0, u16IEsLen);
 
 			WILC_memcpy(pstrNetworkInfo->pu8IEs, pu8IEs, u16IEsLen);
@@ -923,13 +923,13 @@ WILC_Sint32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo)
  *  @date			2 Apr 2012
  *  @version		1.0
  */
-WILC_Sint32 ParseAssocRespInfo(WILC_Uint8 *pu8Buffer, WILC_Uint32 u32BufferLen,
+WILC_Sint32 ParseAssocRespInfo(u8 *pu8Buffer, WILC_Uint32 u32BufferLen,
 			       tstrConnectRespInfo **ppstrConnectRespInfo)
 {
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 	tstrConnectRespInfo *pstrConnectRespInfo = NULL;
 	WILC_Uint16 u16AssocRespLen = 0;
-	WILC_Uint8 *pu8IEs = 0;
+	u8 *pu8IEs = 0;
 	WILC_Uint16 u16IEsLen = 0;
 
 	pstrConnectRespInfo = (tstrConnectRespInfo *)WILC_MALLOC(sizeof(tstrConnectRespInfo));
@@ -952,7 +952,7 @@ WILC_Sint32 ParseAssocRespInfo(WILC_Uint8 *pu8Buffer, WILC_Uint32 u32BufferLen,
 		pu8IEs = &pu8Buffer[CAP_INFO_LEN + STATUS_CODE_LEN + AID_LEN];
 		u16IEsLen = u16AssocRespLen - (CAP_INFO_LEN + STATUS_CODE_LEN + AID_LEN);
 
-		pstrConnectRespInfo->pu8RespIEs = (WILC_Uint8 *)WILC_MALLOC(u16IEsLen);
+		pstrConnectRespInfo->pu8RespIEs = (u8 *)WILC_MALLOC(u16IEsLen);
 		WILC_memset((void *)(pstrConnectRespInfo->pu8RespIEs), 0, u16IEsLen);
 
 		WILC_memcpy(pstrConnectRespInfo->pu8RespIEs, pu8IEs, u16IEsLen);
@@ -998,7 +998,7 @@ WILC_Sint32 DeallocateAssocRespInfo(tstrConnectRespInfo *pstrConnectRespInfo)
 }
 
 #ifndef CONNECT_DIRECT
-WILC_Sint32 ParseSurveyResults(WILC_Uint8 ppu8RcvdSiteSurveyResults[][MAX_SURVEY_RESULT_FRAG_SIZE],
+WILC_Sint32 ParseSurveyResults(u8 ppu8RcvdSiteSurveyResults[][MAX_SURVEY_RESULT_FRAG_SIZE],
 			       wid_site_survey_reslts_s **ppstrSurveyResults,
 			       WILC_Uint32 *pu32SurveyResultsCount)
 {
@@ -1006,9 +1006,9 @@ WILC_Sint32 ParseSurveyResults(WILC_Uint8 ppu8RcvdSiteSurveyResults[][MAX_SURVEY
 	wid_site_survey_reslts_s *pstrSurveyResults = NULL;
 	WILC_Uint32 u32SurveyResultsCount = 0;
 	WILC_Uint32 u32SurveyBytesLength = 0;
-	WILC_Uint8 *pu8BufferPtr;
+	u8 *pu8BufferPtr;
 	WILC_Uint32 u32RcvdSurveyResultsNum = 2;
-	WILC_Uint8 u8ReadSurveyResFragNum;
+	u8 u8ReadSurveyResFragNum;
 	WILC_Uint32 i;
 	WILC_Uint32 j;
 
@@ -1098,8 +1098,8 @@ WILC_Sint32 DeallocateSurveyResults(wid_site_survey_reslts_s *pstrSurveyResults)
 void ProcessCharWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 		    tstrWID *pstrWID, WILC_Sint8 *ps8WidVal)
 {
-	WILC_Uint8 *pu8val = (WILC_Uint8 *)ps8WidVal;
-	WILC_Uint8 u8val = 0;
+	u8 *pu8val = (u8 *)ps8WidVal;
+	u8 u8val = 0;
 	WILC_Sint32 s32PktLen = *ps32PktLen;
 	if (pstrWID == NULL) {
 		PRINT_WRN(CORECONFIG_DBG, "Can't set CHAR val 0x%x ,NULL structure\n", u8val);
@@ -1107,13 +1107,13 @@ void ProcessCharWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 	}
 
 	/* WID */
-	pcPacket[s32PktLen++] = (WILC_Uint8)(pstrWID->u16WIDid & 0xFF);
-	pcPacket[s32PktLen++] = (WILC_Uint8)(pstrWID->u16WIDid >> 8) & 0xFF;
+	pcPacket[s32PktLen++] = (u8)(pstrWID->u16WIDid & 0xFF);
+	pcPacket[s32PktLen++] = (u8)(pstrWID->u16WIDid >> 8) & 0xFF;
 	if (g_oper_mode == SET_CFG) {
 		u8val = *pu8val;
 
 		/* Length */
-		pcPacket[s32PktLen++] = sizeof(WILC_Uint8);
+		pcPacket[s32PktLen++] = sizeof(u8);
 
 
 		/* Value */
@@ -1161,8 +1161,8 @@ void ProcessShortWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 	}
 
 	/* WID */
-	pcPacket[s32PktLen++] = (WILC_Uint8)(pstrWID->u16WIDid & 0xFF);
-	pcPacket[s32PktLen++] = (WILC_Uint8)((pstrWID->u16WIDid >> 8) & 0xFF);
+	pcPacket[s32PktLen++] = (u8)(pstrWID->u16WIDid & 0xFF);
+	pcPacket[s32PktLen++] = (u8)((pstrWID->u16WIDid >> 8) & 0xFF);
 
 	if (g_oper_mode == SET_CFG) {
 		u16val = *pu16val;
@@ -1171,8 +1171,8 @@ void ProcessShortWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 		pcPacket[s32PktLen++] = sizeof(WILC_Uint16);
 
 		/* Value */
-		pcPacket[s32PktLen++] = (WILC_Uint8)(u16val & 0xFF);
-		pcPacket[s32PktLen++] = (WILC_Uint8)((u16val >> 8) & 0xFF);
+		pcPacket[s32PktLen++] = (u8)(u16val & 0xFF);
+		pcPacket[s32PktLen++] = (u8)((u16val >> 8) & 0xFF);
 	}
 	*ps32PktLen = s32PktLen;
 }
@@ -1216,8 +1216,8 @@ void ProcessIntWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 	}
 
 	/* WID */
-	pcPacket[s32PktLen++] = (WILC_Uint8)(pstrWID->u16WIDid & 0xFF);
-	pcPacket[s32PktLen++] = (WILC_Uint8)((pstrWID->u16WIDid >> 8) & 0xFF);
+	pcPacket[s32PktLen++] = (u8)(pstrWID->u16WIDid & 0xFF);
+	pcPacket[s32PktLen++] = (u8)((pstrWID->u16WIDid >> 8) & 0xFF);
 
 	if (g_oper_mode == SET_CFG) {
 		u32val = *pu32val;
@@ -1226,10 +1226,10 @@ void ProcessIntWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 		pcPacket[s32PktLen++] = sizeof(WILC_Uint32);
 
 		/* Value */
-		pcPacket[s32PktLen++] = (WILC_Uint8)(u32val & 0xFF);
-		pcPacket[s32PktLen++] = (WILC_Uint8)((u32val >> 8) & 0xFF);
-		pcPacket[s32PktLen++] = (WILC_Uint8)((u32val >> 16) & 0xFF);
-		pcPacket[s32PktLen++] = (WILC_Uint8)((u32val >> 24) & 0xFF);
+		pcPacket[s32PktLen++] = (u8)(u32val & 0xFF);
+		pcPacket[s32PktLen++] = (u8)((u32val >> 8) & 0xFF);
+		pcPacket[s32PktLen++] = (u8)((u32val >> 16) & 0xFF);
+		pcPacket[s32PktLen++] = (u8)((u32val >> 24) & 0xFF);
 	}
 	*ps32PktLen = s32PktLen;
 }
@@ -1263,7 +1263,7 @@ void ProcessIntWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 /*****************************************************************************/
 
 void ProcessIPwid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
-		  tstrWID *pstrWID, WILC_Uint8 *pu8ip)
+		  tstrWID *pstrWID, u8 *pu8ip)
 {
 	WILC_Uint32 u32val = 0;
 	WILC_Sint32 s32PktLen = *ps32PktLen;
@@ -1274,8 +1274,8 @@ void ProcessIPwid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 	}
 
 	/* WID */
-	pcPacket[s32PktLen++] = (WILC_Uint8)(pstrWID->u16WIDid & 0xFF);
-	pcPacket[s32PktLen++] = (WILC_Uint8)((pstrWID->u16WIDid >> 8) & 0xFF);
+	pcPacket[s32PktLen++] = (u8)(pstrWID->u16WIDid & 0xFF);
+	pcPacket[s32PktLen++] = (u8)((pstrWID->u16WIDid >> 8) & 0xFF);
 
 	if (g_oper_mode == SET_CFG) {
 		/* Length */
@@ -1285,10 +1285,10 @@ void ProcessIPwid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 		conv_ip_to_int(pu8ip, &u32val);
 
 		/* Value */
-		pcPacket[s32PktLen++] = (WILC_Uint8)(u32val & 0xFF);
-		pcPacket[s32PktLen++] = (WILC_Uint8)((u32val >> 8) & 0xFF);
-		pcPacket[s32PktLen++] = (WILC_Uint8)((u32val >> 16) & 0xFF);
-		pcPacket[s32PktLen++] = (WILC_Uint8)((u32val >> 24) & 0xFF);
+		pcPacket[s32PktLen++] = (u8)(u32val & 0xFF);
+		pcPacket[s32PktLen++] = (u8)((u32val >> 8) & 0xFF);
+		pcPacket[s32PktLen++] = (u8)((u32val >> 16) & 0xFF);
+		pcPacket[s32PktLen++] = (u8)((u32val >> 24) & 0xFF);
 	}
 	*ps32PktLen = s32PktLen;
 }
@@ -1321,7 +1321,7 @@ void ProcessIPwid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 /*****************************************************************************/
 
 void ProcessStrWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
-		   tstrWID *pstrWID, WILC_Uint8 *pu8val, WILC_Sint32 s32ValueSize)
+		   tstrWID *pstrWID, u8 *pu8val, WILC_Sint32 s32ValueSize)
 {
 	WILC_Uint16 u16MsgLen = 0;
 	WILC_Uint16 idx    = 0;
@@ -1332,8 +1332,8 @@ void ProcessStrWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 	}
 
 	/* WID */
-	pcPacket[s32PktLen++] = (WILC_Uint8)(pstrWID->u16WIDid & 0xFF);
-	pcPacket[s32PktLen++] = (WILC_Uint8)((pstrWID->u16WIDid >> 8) & 0xFF);
+	pcPacket[s32PktLen++] = (u8)(pstrWID->u16WIDid & 0xFF);
+	pcPacket[s32PktLen++] = (u8)((pstrWID->u16WIDid >> 8) & 0xFF);
 
 	if (g_oper_mode == SET_CFG) {
 		/* Message Length */
@@ -1341,7 +1341,7 @@ void ProcessStrWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 		u16MsgLen = (WILC_Uint16)s32ValueSize;
 
 		/* Length */
-		pcPacket[s32PktLen++] = (WILC_Uint8)u16MsgLen;
+		pcPacket[s32PktLen++] = (u8)u16MsgLen;
 
 		/* Value */
 		for (idx = 0; idx < u16MsgLen; idx++)
@@ -1378,7 +1378,7 @@ void ProcessStrWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 /*****************************************************************************/
 
 void ProcessAdrWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
-		   tstrWID *pstrWID, WILC_Uint8 *pu8val)
+		   tstrWID *pstrWID, u8 *pu8val)
 {
 	WILC_Uint16 u16MsgLen = 0;
 	WILC_Sint32 s32PktLen = *ps32PktLen;
@@ -1389,15 +1389,15 @@ void ProcessAdrWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 	}
 
 	/* WID */
-	pcPacket[s32PktLen++] = (WILC_Uint8)(pstrWID->u16WIDid & 0xFF);
-	pcPacket[s32PktLen++] = (WILC_Uint8)((pstrWID->u16WIDid >> 8) & 0xFF);
+	pcPacket[s32PktLen++] = (u8)(pstrWID->u16WIDid & 0xFF);
+	pcPacket[s32PktLen++] = (u8)((pstrWID->u16WIDid >> 8) & 0xFF);
 
 	if (g_oper_mode == SET_CFG) {
 		/* Message Length */
 		u16MsgLen = MAC_ADDR_LEN;
 
 		/* Length */
-		pcPacket[s32PktLen++] = (WILC_Uint8)u16MsgLen;
+		pcPacket[s32PktLen++] = (u8)u16MsgLen;
 
 		/* Value */
 		extract_mac_addr(pu8val, pcPacket + s32PktLen);
@@ -1442,14 +1442,14 @@ void ProcessAdrWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 /*****************************************************************************/
 
 void ProcessBinWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
-		   tstrWID *pstrWID, WILC_Uint8 *pu8val, WILC_Sint32 s32ValueSize)
+		   tstrWID *pstrWID, u8 *pu8val, WILC_Sint32 s32ValueSize)
 {
 	/* WILC_ERROR("processing Binary WIDs is not supported \n"); */
 
 	WILC_Uint16 u16MsgLen = 0;
 	WILC_Uint16 idx    = 0;
 	WILC_Sint32 s32PktLen = *ps32PktLen;
-	WILC_Uint8 u8checksum = 0;
+	u8 u8checksum = 0;
 
 	if (pstrWID == NULL) {
 		PRINT_WRN(CORECONFIG_DBG, "Can't set BIN val, NULL structure\n");
@@ -1457,17 +1457,17 @@ void ProcessBinWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 	}
 
 	/* WID */
-	pcPacket[s32PktLen++] = (WILC_Uint8)(pstrWID->u16WIDid & 0xFF);
-	pcPacket[s32PktLen++] = (WILC_Uint8)((pstrWID->u16WIDid >> 8) & 0xFF);
+	pcPacket[s32PktLen++] = (u8)(pstrWID->u16WIDid & 0xFF);
+	pcPacket[s32PktLen++] = (u8)((pstrWID->u16WIDid >> 8) & 0xFF);
 
 	if (g_oper_mode == SET_CFG) {
 		/* Message Length */
 		u16MsgLen = (WILC_Uint16)s32ValueSize;
 
 		/* Length */
-		/* pcPacket[s32PktLen++] = (WILC_Uint8)u16MsgLen; */
-		pcPacket[s32PktLen++] = (WILC_Uint8)(u16MsgLen  & 0xFF);
-		pcPacket[s32PktLen++] = (WILC_Uint8)((u16MsgLen >> 8) & 0xFF);
+		/* pcPacket[s32PktLen++] = (u8)u16MsgLen; */
+		pcPacket[s32PktLen++] = (u8)(u16MsgLen  & 0xFF);
+		pcPacket[s32PktLen++] = (u8)((u16MsgLen >> 8) & 0xFF);
 
 		/* Value */
 		for (idx = 0; idx < u16MsgLen; idx++)
@@ -1516,7 +1516,7 @@ void ProcessBinWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 /*                                                                           */
 /*****************************************************************************/
 
-WILC_Sint32 further_process_response(WILC_Uint8 *resp,
+WILC_Sint32 further_process_response(u8 *resp,
 				     WILC_Uint16 u16WIDid,
 				     WILC_Uint16 cfg_len,
 				     WILC_Bool process_wid_num,
@@ -1525,10 +1525,10 @@ WILC_Sint32 further_process_response(WILC_Uint8 *resp,
 {
 	WILC_Uint32 retval = 0;
 	WILC_Uint32 idx = 0;
-	WILC_Uint8 cfg_chr  = 0;
+	u8 cfg_chr  = 0;
 	WILC_Uint16 cfg_sht  = 0;
 	WILC_Uint32 cfg_int  = 0;
-	WILC_Uint8 cfg_str[256] = {0};
+	u8 cfg_str[256] = {0};
 	tenuWIDtype enuWIDtype = WID_UNDEF;
 
 	if (process_wid_num) {
@@ -1621,7 +1621,7 @@ WILC_Sint32 further_process_response(WILC_Uint8 *resp,
 	case WID_BIN_DATA:
 		#if 0
 		/* FILE    *fp_bin = NULL; */
-		WILC_Uint8 first_bin_wid = 1;
+		u8 first_bin_wid = 1;
 		if (first_bin_wid) {
 			/* fp_bin = fopen("wid_response.bin","wb"); */
 			first_bin_wid = 0;
@@ -1686,7 +1686,7 @@ WILC_Sint32 further_process_response(WILC_Uint8 *resp,
 /*                                                                           */
 /*****************************************************************************/
 
-WILC_Sint32 ParseResponse(WILC_Uint8 *resp, tstrWID *pstrWIDcfgResult)
+WILC_Sint32 ParseResponse(u8 *resp, tstrWID *pstrWIDcfgResult)
 {
 	WILC_Uint16 u16RespLen = 0;
 	WILC_Uint16 u16WIDid  = 0;
@@ -1759,7 +1759,7 @@ WILC_Sint32 ParseResponse(WILC_Uint8 *resp, tstrWID *pstrWIDcfgResult)
  *  @version	1.0
  */
 
-WILC_Sint32 ParseWriteResponse(WILC_Uint8 *pu8RespBuffer)
+WILC_Sint32 ParseWriteResponse(u8 *pu8RespBuffer)
 {
 	WILC_Sint32 s32Error = WILC_FAIL;
 	WILC_Uint16 u16RespLen   = 0;
@@ -1834,8 +1834,8 @@ WILC_Sint32 CreatePacketHeader(WILC_Char *pcpacket, WILC_Sint32 *ps32PacketLengt
 	pcpacket[u16MsgInd++] = g_seqno++;
 
 	/* Message Length */
-	pcpacket[u16MsgInd++] = (WILC_Uint8)(u16MsgLen & 0xFF);
-	pcpacket[u16MsgInd++] = (WILC_Uint8)((u16MsgLen >> 8) & 0xFF);
+	pcpacket[u16MsgInd++] = (u8)(u16MsgLen & 0xFF);
+	pcpacket[u16MsgInd++] = (u8)((u16MsgLen >> 8) & 0xFF);
 
 	*ps32PacketLength = u16MsgLen;
 
@@ -1948,7 +1948,7 @@ WILC_Sint32 ConfigWaitResponse(WILC_Char *pcRespBuffer, WILC_Sint32 s32MaxRespBu
  *  @version	1.0
  */
 #ifdef SIMULATION
-WILC_Sint32 SendConfigPkt(WILC_Uint8 u8Mode, tstrWID *pstrWIDs,
+WILC_Sint32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
 			  WILC_Uint32 u32WIDsCount, WILC_Bool bRespRequired, WILC_Uint32 drvHandler)
 {
 	WILC_Sint32 s32Error = WILC_SUCCESS;
@@ -2049,10 +2049,10 @@ WILC_Sint32 ConfigProvideResponse(WILC_Char *pcRespBuffer, WILC_Sint32 s32RespLe
  *  @version	1.0
  */
 
-WILC_Sint32 ConfigPktReceived(WILC_Uint8 *pu8RxPacket, WILC_Sint32 s32RxPacketLen)
+WILC_Sint32 ConfigPktReceived(u8 *pu8RxPacket, WILC_Sint32 s32RxPacketLen)
 {
 	WILC_Sint32 s32Error = WILC_SUCCESS;
-	WILC_Uint8 u8MsgType = 0;
+	u8 u8MsgType = 0;
 
 	u8MsgType = pu8RxPacket[0];
 
@@ -2127,7 +2127,7 @@ extern wilc_wlan_oup_t *gpstrWlanOps;
  *  @date		1 Mar 2012
  *  @version	1.0
  */
-WILC_Sint32 SendConfigPkt(WILC_Uint8 u8Mode, tstrWID *pstrWIDs,
+WILC_Sint32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
 			  WILC_Uint32 u32WIDsCount, WILC_Bool bRespRequired, WILC_Uint32 drvHandler)
 {
 	WILC_Sint32 counter = 0, ret = 0;

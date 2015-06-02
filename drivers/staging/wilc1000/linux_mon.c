@@ -46,9 +46,9 @@ extern int  mac_xmit(struct sk_buff *skb, struct net_device *dev);
 #endif
 
 
-WILC_Uint8 srcAdd[6];
-WILC_Uint8 bssid[6];
-WILC_Uint8 broadcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+u8 srcAdd[6];
+u8 bssid[6];
+u8 broadcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 /**
  *  @brief      WILC_WFI_monitor_rx
  *  @details
@@ -186,7 +186,7 @@ static void mgmt_tx_complete(void *priv, int status)
 	/* struct wilc_wfi_radiotap_cb_hdr *cb_hdr; */
 
 	struct tx_complete_mon_data *pv_data = (struct tx_complete_mon_data *)priv;
-	WILC_Uint8 *buf =  pv_data->buff;
+	u8 *buf =  pv_data->buff;
 
 
 
@@ -418,7 +418,7 @@ void WILC_mgm_HOSTAPD_ACK(void *priv, WILC_Bool bStatus)
 	struct wilc_wfi_radiotap_cb_hdr *cb_hdr;
 
 	struct tx_complete_mon_data *pv_data = (struct tx_complete_mon_data *)priv;
-	WILC_Uint8 *buf =  pv_data->buff;
+	u8 *buf =  pv_data->buff;
 
 	/* len of the original frame without the added pointer at the tail */
 	WILC_Uint16 u16len = (pv_data->size) - sizeof(struct tx_complete_mon_data *);
@@ -502,7 +502,7 @@ static void WILC_WFI_mon_setup(struct net_device *dev)
 		/* u8 * mac_add; */
 		unsigned char mac_add[] = {0x00, 0x50, 0xc2, 0x5e, 0x10, 0x8f};
 		/* priv = wiphy_priv(priv->dev->ieee80211_ptr->wiphy); */
-		/* mac_add = (WILC_Uint8*)WILC_MALLOC(ETH_ALEN); */
+		/* mac_add = (u8*)WILC_MALLOC(ETH_ALEN); */
 		/* status = host_int_get_MacAddress(priv->hWILCWFIDrv,mac_add); */
 		/* mac_add[ETH_ALEN-1]+=1; */
 		memcpy(dev->dev_addr, mac_add, ETH_ALEN);

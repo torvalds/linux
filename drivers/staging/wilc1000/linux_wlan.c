@@ -69,7 +69,7 @@ extern WILC_Bool g_obtainingIP;
 #endif
 extern WILC_Uint16 Set_machw_change_vir_if(WILC_Bool bValue);
 extern void resolve_disconnect_aberration(void *drvHandler);
-extern WILC_Uint8 gau8MulticastMacAddrList[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
+extern u8 gau8MulticastMacAddrList[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
 void wilc1000_wlan_deinit(linux_wlan_t *nic);
 #ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 extern WILC_TimerHandle hDuringIpTimer;
@@ -258,10 +258,10 @@ static int dev_state_ev_handler(struct notifier_block *this, unsigned long event
 	struct WILC_WFI_priv *priv;
 	tstrWILC_WFIDrv *pstrWFIDrv;
 	struct net_device *dev;
-	WILC_Uint8 *pIP_Add_buff;
+	u8 *pIP_Add_buff;
 	WILC_Sint32 s32status = WILC_FAIL;
 	perInterface_wlan_t *nic;
-	WILC_Uint8 null_ip[4] = {0};
+	u8 null_ip[4] = {0};
 	char wlan_dev_name[5] = "wlan0";
 
 	if (dev_iface == NULL || dev_iface->ifa_dev == NULL || dev_iface->ifa_dev->dev == NULL)	{
@@ -2377,7 +2377,7 @@ int mac_close(struct net_device *ndev)
 int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 {
 
-	WILC_Uint8 *buff = NULL;
+	u8 *buff = NULL;
 	WILC_Sint8 rssi;
 	WILC_Uint32 size = 0, length = 0;
 	perInterface_wlan_t *nic;

@@ -53,11 +53,11 @@ void WILC_memcpy_INTERNAL(void *pvTarget, const void *pvSource, WILC_Uint32 u32C
 static WILC_ErrNo WILC_memcpy(void *pvTarget, const void *pvSource, WILC_Uint32 u32Count)
 {
 	if (
-		(((WILC_Uint8 *)pvTarget <= (WILC_Uint8 *)pvSource)
-		 && (((WILC_Uint8 *)pvTarget + u32Count) > (WILC_Uint8 *)pvSource))
+		(((u8 *)pvTarget <= (u8 *)pvSource)
+		 && (((u8 *)pvTarget + u32Count) > (u8 *)pvSource))
 
-		|| (((WILC_Uint8 *)pvSource <= (WILC_Uint8 *)pvTarget)
-		    && (((WILC_Uint8 *)pvSource + u32Count) > (WILC_Uint8 *)pvTarget))
+		|| (((u8 *)pvSource <= (u8 *)pvTarget)
+		    && (((u8 *)pvSource + u32Count) > (u8 *)pvTarget))
 		) {
 		/* ovelapped memory, return Error */
 		return WILC_FAIL;
@@ -78,7 +78,7 @@ static WILC_ErrNo WILC_memcpy(void *pvTarget, const void *pvSource, WILC_Uint32 
  *  @date	18 Aug 2010
  *  @version	1.0
  */
-void *WILC_memset(void *pvTarget, WILC_Uint8 u8SetValue, WILC_Uint32 u32Count);
+void *WILC_memset(void *pvTarget, u8 u8SetValue, WILC_Uint32 u32Count);
 
 /*!
  *  @brief	copies the contents of source string into the target string

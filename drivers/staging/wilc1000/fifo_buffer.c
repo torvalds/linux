@@ -45,7 +45,7 @@ WILC_Uint32 FIFO_DeInit(tHANDLE hFifo)
 	return u32Error;
 }
 
-WILC_Uint32 FIFO_ReadBytes(tHANDLE hFifo, WILC_Uint8 *pu8Buffer, WILC_Uint32 u32BytesToRead, WILC_Uint32 *pu32BytesRead)
+WILC_Uint32 FIFO_ReadBytes(tHANDLE hFifo, u8 *pu8Buffer, WILC_Uint32 u32BytesToRead, WILC_Uint32 *pu32BytesRead)
 {
 	WILC_Uint32 u32Error = 0;
 	tstrFifoHandler *pstrFifoHandler = (tstrFifoHandler *) hFifo;
@@ -86,7 +86,7 @@ WILC_Uint32 FIFO_ReadBytes(tHANDLE hFifo, WILC_Uint8 *pu8Buffer, WILC_Uint32 u32
 	return u32Error;
 }
 
-WILC_Uint32 FIFO_WriteBytes(tHANDLE hFifo, WILC_Uint8 *pu8Buffer, WILC_Uint32 u32BytesToWrite, WILC_Bool bForceOverWrite)
+WILC_Uint32 FIFO_WriteBytes(tHANDLE hFifo, u8 *pu8Buffer, WILC_Uint32 u32BytesToWrite, WILC_Bool bForceOverWrite)
 {
 	WILC_Uint32 u32Error = 0;
 	tstrFifoHandler *pstrFifoHandler = (tstrFifoHandler *) hFifo;
