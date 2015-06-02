@@ -163,7 +163,7 @@ void bgx_get_lmac_link_state(int node, int bgx_idx, int lmacid, void *status)
 }
 EXPORT_SYMBOL(bgx_get_lmac_link_state);
 
-const char *bgx_get_lmac_mac(int node, int bgx_idx, int lmacid)
+const u8 *bgx_get_lmac_mac(int node, int bgx_idx, int lmacid)
 {
 	struct bgx *bgx = bgx_vnic[(node * MAX_BGX_PER_CN88XX) + bgx_idx];
 
@@ -174,7 +174,7 @@ const char *bgx_get_lmac_mac(int node, int bgx_idx, int lmacid)
 }
 EXPORT_SYMBOL(bgx_get_lmac_mac);
 
-void bgx_set_lmac_mac(int node, int bgx_idx, int lmacid, const char *mac)
+void bgx_set_lmac_mac(int node, int bgx_idx, int lmacid, const u8 *mac)
 {
 	struct bgx *bgx = bgx_vnic[(node * MAX_BGX_PER_CN88XX) + bgx_idx];
 

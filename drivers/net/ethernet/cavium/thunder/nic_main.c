@@ -492,7 +492,6 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 	u64 *mbx_data;
 	u64 mbx_addr;
 	u64 reg_addr;
-	u64 mac_addr;
 	int bgx, lmac;
 	int i;
 	int ret = 0;
@@ -555,12 +554,7 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 		lmac = mbx.mac.vf_id;
 		bgx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[lmac]);
 		lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[lmac]);
-#ifdef __BIG_ENDIAN
-		mac_addr = cpu_to_be64(mbx.nic_cfg.mac_addr) << 16;
-#else
-		mac_addr = cpu_to_be64(mbx.nic_cfg.mac_addr) >> 16;
-#endif
-		bgx_set_lmac_mac(nic->node, bgx, lmac, (u8 *)&mac_addr);
+		bgx_set_lmac_mac(nic->node, bgx, lmac, mbx.mac.mac_addr);
 		break;
 	case NIC_MBOX_MSG_SET_MAX_FRS:
 		ret = nic_update_hw_frs(nic, mbx.frs.max_frs,

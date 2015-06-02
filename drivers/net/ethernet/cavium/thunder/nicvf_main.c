@@ -197,8 +197,7 @@ static void  nicvf_handle_mbx_intr(struct nicvf *nic)
 		nic->vf_id = mbx.nic_cfg.vf_id & 0x7F;
 		nic->tns_mode = mbx.nic_cfg.tns_mode & 0x7F;
 		nic->node = mbx.nic_cfg.node_id;
-		ether_addr_copy(nic->netdev->dev_addr,
-				(u8 *)&mbx.nic_cfg.mac_addr);
+		ether_addr_copy(nic->netdev->dev_addr, mbx.nic_cfg.mac_addr);
 		nic->link_up = false;
 		nic->duplex = 0;
 		nic->speed = 0;
@@ -248,13 +247,10 @@ static void  nicvf_handle_mbx_intr(struct nicvf *nic)
 static int nicvf_hw_set_mac_addr(struct nicvf *nic, struct net_device *netdev)
 {
 	union nic_mbx mbx = {};
-	int i;
 
 	mbx.mac.msg = NIC_MBOX_MSG_SET_MAC;
 	mbx.mac.vf_id = nic->vf_id;
-	for (i = 0; i < ETH_ALEN; i++)
-		mbx.mac.addr = (mbx.mac.addr << 8) |
-				     netdev->dev_addr[i];
+	ether_addr_copy(mbx.mac.mac_addr, netdev->dev_addr);
 
 	return nicvf_send_msg_to_pf(nic, &mbx);
 }

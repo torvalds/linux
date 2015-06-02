@@ -183,8 +183,8 @@ enum MCAST_MODE {
 void bgx_add_dmac_addr(u64 dmac, int node, int bgx_idx, int lmac);
 unsigned bgx_get_map(int node);
 int bgx_get_lmac_count(int node, int bgx);
-const char *bgx_get_lmac_mac(int node, int bgx_idx, int lmacid);
-void bgx_set_lmac_mac(int node, int bgx_idx, int lmacid, const char *mac);
+const u8 *bgx_get_lmac_mac(int node, int bgx_idx, int lmacid);
+void bgx_set_lmac_mac(int node, int bgx_idx, int lmacid, const u8 *mac);
 void bgx_get_lmac_link_state(int node, int bgx_idx, int lmacid, void *status);
 u64 bgx_get_rx_stats(int node, int bgx_idx, int lmac, int idx);
 u64 bgx_get_tx_stats(int node, int bgx_idx, int lmac, int idx);
