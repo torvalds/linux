@@ -1563,6 +1563,7 @@ static int m88ds3103_probe(struct i2c_client *client,
 		u8tmp = 0x10;
 		break;
 	default:
+		ret = -EINVAL;
 		goto err_kfree;
 	}
 
@@ -1590,8 +1591,10 @@ static int m88ds3103_probe(struct i2c_client *client,
 	dev->i2c_adapter = i2c_add_mux_adapter(client->adapter, &client->dev,
 					       dev, 0, 0, 0, m88ds3103_select,
 					       m88ds3103_deselect);
-	if (dev->i2c_adapter == NULL)
+	if (dev->i2c_adapter == NULL) {
+		ret = -ENOMEM;
 		goto err_kfree;
+	}
 
 	/* create dvb_frontend */
 	memcpy(&dev->fe.ops, &m88ds3103_ops, sizeof(struct dvb_frontend_ops));
