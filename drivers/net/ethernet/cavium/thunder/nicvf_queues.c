@@ -357,6 +357,8 @@ static int nicvf_init_snd_queue(struct nicvf *nic,
 
 	sq->desc = sq->dmem.base;
 	sq->skbuff = kcalloc(q_len, sizeof(u64), GFP_ATOMIC);
+	if (!sq->skbuff)
+		return -ENOMEM;
 	sq->head = 0;
 	sq->tail = 0;
 	atomic_set(&sq->free_cnt, q_len - 1);
