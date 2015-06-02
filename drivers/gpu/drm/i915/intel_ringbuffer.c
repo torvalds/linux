@@ -800,6 +800,8 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	WA_SET_BIT_MASKED(INSTPM, INSTPM_FORCE_ORDERING);
+
 	/* WaDisablePartialInstShootdown:bdw */
 	/* WaDisableThreadStallDopClockGating:bdw (pre-production) */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
@@ -860,6 +862,8 @@ static int chv_init_workarounds(struct intel_engine_cs *ring)
 {
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	WA_SET_BIT_MASKED(INSTPM, INSTPM_FORCE_ORDERING);
 
 	/* WaDisablePartialInstShootdown:chv */
 	/* WaDisableThreadStallDopClockGating:chv */
@@ -1132,7 +1136,7 @@ static int init_render_ring(struct intel_engine_cs *ring)
 			   _MASKED_BIT_DISABLE(CM0_STC_EVICT_DISABLE_LRA_SNB));
 	}
 
-	if (INTEL_INFO(dev)->gen >= 6)
+	if (INTEL_INFO(dev)->gen >= 6 && INTEL_INFO(dev)->gen < 8)
 		I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
 
 	if (HAS_L3_DPF(dev))
