@@ -198,23 +198,6 @@ static void cmpk_handle_interrupt_status(struct net_device *dev, u8 *pmsg)
 
 }
 
-static	void cmpk_handle_query_config_rx(struct net_device *dev, u8 *pmsg)
-{
-	cmpk_query_cfg_t	rx_query_cfg;
-
-
-	rx_query_cfg.cfg_action = (pmsg[4] & 0x80000000)>>31;
-	rx_query_cfg.cfg_type = (pmsg[4] & 0x60) >> 5;
-	rx_query_cfg.cfg_size = (pmsg[4] & 0x18) >> 3;
-	rx_query_cfg.cfg_page = (pmsg[6] & 0x0F) >> 0;
-	rx_query_cfg.cfg_offset	 = pmsg[7];
-	rx_query_cfg.value = (pmsg[8] << 24) | (pmsg[9] << 16) |
-			     (pmsg[10] << 8) | (pmsg[11] << 0);
-	rx_query_cfg.mask = (pmsg[12] << 24) | (pmsg[13] << 16) |
-			    (pmsg[14] << 8) | (pmsg[15] << 0);
-
-}
-
 static void cmpk_count_tx_status(struct net_device *dev,
 				 struct cmpk_tx_status *pstx_status)
 {
@@ -346,7 +329,6 @@ u32 cmpk_message_handle_rx(struct net_device *dev,
 		case BOTH_QUERY_CONFIG:
 			RT_TRACE(COMP_CMDPKT,
 				 "---->cmpk_message_handle_rx():BOTH_QUERY_CONFIG\n");
-			cmpk_handle_query_config_rx(dev, pcmd_buff);
 			cmd_length = CMPK_BOTH_QUERY_CONFIG_SIZE;
 			break;
 		case RX_TX_STATUS:
