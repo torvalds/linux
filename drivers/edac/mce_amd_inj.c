@@ -15,6 +15,8 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/cpu.h>
+#include <linux/string.h>
+#include <linux/uaccess.h>
 #include <asm/mce.h>
 
 #include "mce_amd.h"
@@ -26,6 +28,23 @@ static struct mce i_mce;
 static struct dentry *dfs_inj;
 
 static u8 n_banks;
+
+#define MAX_FLAG_OPT_SIZE	3
+
+enum injection_type {
+	SW_INJ = 0,	/* SW injection, simply decode the error */
+	HW_INJ,		/* Trigger a #MC */
+	N_INJ_TYPES,
+};
+
+static const char * const flags_options[] = {
+	[SW_INJ] = "sw",
+	[HW_INJ] = "hw",
+	NULL
+};
+
+/* Set default injection to SW_INJ */
+enum injection_type inj_type = SW_INJ;
 
 #define MCE_INJECT_SET(reg)						\
 static int inj_##reg##_set(void *data, u64 val)				\
@@ -81,24 +100,66 @@ static int toggle_hw_mce_inject(unsigned int cpu, bool enable)
 	return err;
 }
 
-static int flags_get(void *data, u64 *val)
+static int __set_inj(const char *buf)
 {
-	struct mce *m = (struct mce *)data;
+	int i;
 
-	*val = m->inject_flags;
-
-	return 0;
+	for (i = 0; i < N_INJ_TYPES; i++) {
+		if (!strncmp(flags_options[i], buf, strlen(flags_options[i]))) {
+			inj_type = i;
+			return 0;
+		}
+	}
+	return -EINVAL;
 }
 
-static int flags_set(void *data, u64 val)
+static ssize_t flags_read(struct file *filp, char __user *ubuf,
+			  size_t cnt, loff_t *ppos)
 {
-	struct mce *m = (struct mce *)data;
+	char buf[MAX_FLAG_OPT_SIZE];
+	int n;
 
-	m->inject_flags = (u8)val;
-	return 0;
+	n = sprintf(buf, "%s\n", flags_options[inj_type]);
+
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, n);
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(flags_fops, flags_get, flags_set, "%llu\n");
+static ssize_t flags_write(struct file *filp, const char __user *ubuf,
+			   size_t cnt, loff_t *ppos)
+{
+	char buf[MAX_FLAG_OPT_SIZE], *__buf;
+	int err;
+	size_t ret;
+
+	if (cnt > MAX_FLAG_OPT_SIZE)
+		cnt = MAX_FLAG_OPT_SIZE;
+
+	ret = cnt;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	buf[cnt - 1] = 0;
+
+	/* strip whitespace */
+	__buf = strstrip(buf);
+
+	err = __set_inj(__buf);
+	if (err) {
+		pr_err("%s: Invalid flags value: %s\n", __func__, __buf);
+		return err;
+	}
+
+	*ppos += ret;
+
+	return ret;
+}
+
+static const struct file_operations flags_fops = {
+	.read           = flags_read,
+	.write          = flags_write,
+	.llseek         = generic_file_llseek,
+};
 
 /*
  * On which CPU to inject?
@@ -130,7 +191,7 @@ static void do_inject(void)
 	unsigned int cpu = i_mce.extcpu;
 	u8 b = i_mce.bank;
 
-	if (!(i_mce.inject_flags & MCJ_EXCEPTION)) {
+	if (inj_type == SW_INJ) {
 		amd_decode_mce(NULL, 0, &i_mce);
 		return;
 	}
