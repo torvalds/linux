@@ -1556,7 +1556,7 @@ static inline u16 auth_parse(struct sk_buff *skb, u8 **challenge, int *chlen)
 		}
 	}
 
-	return cpu_to_le16(a->status);
+	return le16_to_cpu(a->status);
 
 }
 
