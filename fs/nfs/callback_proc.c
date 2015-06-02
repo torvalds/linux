@@ -327,10 +327,8 @@ validate_seqid(struct nfs4_slot_table *tbl, struct cb_sequenceargs * args)
 	dprintk("%s slot table seqid: %u\n", __func__, slot->seq_nr);
 
 	/* Normal */
-	if (likely(args->csa_sequenceid == slot->seq_nr + 1)) {
-		slot->seq_nr++;
+	if (likely(args->csa_sequenceid == slot->seq_nr + 1))
 		goto out_ok;
-	}
 
 	/* Replay */
 	if (args->csa_sequenceid == slot->seq_nr) {
@@ -418,6 +416,7 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 			      struct cb_process_state *cps)
 {
 	struct nfs4_slot_table *tbl;
+	struct nfs4_slot *slot;
 	struct nfs_client *clp;
 	int i;
 	__be32 status = htonl(NFS4ERR_BADSESSION);
@@ -429,7 +428,9 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 
 	if (!(clp->cl_session->flags & SESSION4_BACK_CHAN))
 		goto out;
+
 	tbl = &clp->cl_session->bc_slot_table;
+	slot = tbl->slots + args->csa_slotid;
 
 	spin_lock(&tbl->slot_tbl_lock);
 	/* state manager is resetting the session */
@@ -444,7 +445,7 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 		goto out;
 	}
 
-	status = validate_seqid(&clp->cl_session->bc_slot_table, args);
+	status = validate_seqid(tbl, args);
 	spin_unlock(&tbl->slot_tbl_lock);
 	if (status)
 		goto out;
@@ -467,6 +468,13 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 	res->csr_slotid = args->csa_slotid;
 	res->csr_highestslotid = NFS41_BC_MAX_CALLBACKS - 1;
 	res->csr_target_highestslotid = NFS41_BC_MAX_CALLBACKS - 1;
+
+	/*
+	 * RFC5661 20.9.3
+	 * If CB_SEQUENCE returns an error, then the state of the slot
+	 * (sequence ID, cached reply) MUST NOT change.
+	 */
+	slot->seq_nr++;
 
 out:
 	cps->clp = clp; /* put in nfs4_callback_compound */
