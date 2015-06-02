@@ -3900,7 +3900,8 @@ static void zap_class(struct lock_class *class)
 	list_del_rcu(&class->hash_entry);
 	list_del_rcu(&class->lock_entry);
 
-	class->key = NULL;
+	RCU_INIT_POINTER(class->key, NULL);
+	RCU_INIT_POINTER(class->name, NULL);
 }
 
 static inline int within(const void *addr, void *start, unsigned long size)
