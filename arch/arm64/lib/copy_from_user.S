@@ -28,14 +28,19 @@
  *	x0 - bytes not copied
  */
 ENTRY(__copy_from_user)
-	add	x4, x1, x2			// upper user buffer boundary
-	subs	x2, x2, #8
+	add	x5, x1, x2			// upper user buffer boundary
+	subs	x2, x2, #16
+	b.mi	1f
+0:
+USER(9f, ldp	x3, x4, [x1], #16)
+	subs	x2, x2, #16
+	stp	x3, x4, [x0], #16
+	b.pl	0b
+1:	adds	x2, x2, #8
 	b.mi	2f
-1:
 USER(9f, ldr	x3, [x1], #8	)
-	subs	x2, x2, #8
+	sub	x2, x2, #8
 	str	x3, [x0], #8
-	b.pl	1b
 2:	adds	x2, x2, #4
 	b.mi	3f
 USER(9f, ldr	w3, [x1], #4	)
@@ -56,7 +61,7 @@ ENDPROC(__copy_from_user)
 
 	.section .fixup,"ax"
 	.align	2
-9:	sub	x2, x4, x1
+9:	sub	x2, x5, x1
 	mov	x3, x2
 10:	strb	wzr, [x0], #1			// zero remaining buffer space
 	subs	x3, x3, #1
