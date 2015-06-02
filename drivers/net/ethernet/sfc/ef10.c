@@ -1162,13 +1162,19 @@ static u64 efx_ef10_raw_stat_mask(struct efx_nic *efx)
 
 static void efx_ef10_get_stat_mask(struct efx_nic *efx, unsigned long *mask)
 {
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	u64 raw_mask[2];
 
 	raw_mask[0] = efx_ef10_raw_stat_mask(efx);
 
-	/* All functions see the vadaptor stats */
-	raw_mask[0] |= ~((1ULL << EF10_STAT_rx_unicast) - 1);
-	raw_mask[1] = (1ULL << (EF10_STAT_COUNT - 63)) - 1;
+	/* Only show vadaptor stats when EVB capability is present */
+	if (nic_data->datapath_caps &
+	    (1 << MC_CMD_GET_CAPABILITIES_OUT_EVB_LBN)) {
+		raw_mask[0] |= ~((1ULL << EF10_STAT_rx_unicast) - 1);
+		raw_mask[1] = (1ULL << (EF10_STAT_COUNT - 63)) - 1;
+	} else {
+		raw_mask[1] = 0;
+	}
 
 #if BITS_PER_LONG == 64
 	mask[0] = raw_mask[0];
