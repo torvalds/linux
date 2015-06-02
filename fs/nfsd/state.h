@@ -68,6 +68,7 @@ struct nfsd4_callback {
 	struct nfsd4_callback_ops *cb_ops;
 	struct work_struct cb_work;
 	int cb_status;
+	bool cb_update_seq_nr;
 	bool cb_need_restart;
 };
 
