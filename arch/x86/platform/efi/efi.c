@@ -501,6 +501,8 @@ void __init efi_init(void)
 
 	if (efi_enabled(EFI_DBG))
 		print_efi_memmap();
+
+	efi_esrt_init();
 }
 
 void __init efi_late_init(void)
