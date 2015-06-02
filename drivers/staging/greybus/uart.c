@@ -71,7 +71,7 @@ define_get_version(gb_tty, UART);
 static int send_data(struct gb_tty *tty, u16 size, const u8 *data)
 {
 	struct gb_uart_send_data_request *request;
-	int retval;
+	int ret;
 
 	if (!data || !size)
 		return 0;
@@ -82,11 +82,13 @@ static int send_data(struct gb_tty *tty, u16 size, const u8 *data)
 
 	request->size = cpu_to_le16(size);
 	memcpy(&request->data[0], data, size);
-	retval = gb_operation_sync(tty->connection, GB_UART_TYPE_SEND_DATA,
-				   request, sizeof(*request) + size, NULL, 0);
-
+	ret = gb_operation_sync(tty->connection, GB_UART_TYPE_SEND_DATA,
+				request, sizeof(*request) + size, NULL, 0);
 	kfree(request);
-	return retval;
+	if (ret)
+		return ret;
+	else
+		return size;
 }
 
 static int send_line_coding(struct gb_tty *tty)
