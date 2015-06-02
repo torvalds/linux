@@ -132,7 +132,7 @@ void map__init(struct map *map, enum map_type type,
 	map->end      = end;
 	map->pgoff    = pgoff;
 	map->reloc    = 0;
-	map->dso      = dso;
+	map->dso      = dso__get(dso);
 	map->map_ip   = map__map_ip;
 	map->unmap_ip = map__unmap_ip;
 	RB_CLEAR_NODE(&map->rb_node);
@@ -198,6 +198,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 			if (type != MAP__FUNCTION)
 				dso__set_loaded(dso, map->type);
 		}
+		dso__put(dso);
 	}
 	return map;
 out_delete:
@@ -224,9 +225,15 @@ struct map *map__new2(u64 start, struct dso *dso, enum map_type type)
 	return map;
 }
 
-void map__delete(struct map *map)
+static void map__exit(struct map *map)
 {
 	BUG_ON(!RB_EMPTY_NODE(&map->rb_node));
+	dso__zput(map->dso);
+}
+
+void map__delete(struct map *map)
+{
+	map__exit(map);
 	free(map);
 }
 

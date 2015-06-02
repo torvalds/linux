@@ -786,7 +786,7 @@ static int dso__split_kallsyms(struct dso *dso, struct map *map, u64 delta,
 
 			curr_map = map__new2(pos->start, ndso, map->type);
 			if (curr_map == NULL) {
-				dso__delete(ndso);
+				dso__put(ndso);
 				return -1;
 			}
 

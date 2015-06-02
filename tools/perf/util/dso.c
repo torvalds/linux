@@ -1049,6 +1049,7 @@ struct dso *dso__new(const char *name)
 		INIT_LIST_HEAD(&dso->node);
 		INIT_LIST_HEAD(&dso->data.open_entry);
 		pthread_mutex_init(&dso->lock, NULL);
+		atomic_set(&dso->refcnt, 1);
 	}
 
 	return dso;
@@ -1081,6 +1082,19 @@ void dso__delete(struct dso *dso)
 	zfree(&dso->symsrc_filename);
 	pthread_mutex_destroy(&dso->lock);
 	free(dso);
+}
+
+struct dso *dso__get(struct dso *dso)
+{
+	if (dso)
+		atomic_inc(&dso->refcnt);
+	return dso;
+}
+
+void dso__put(struct dso *dso)
+{
+	if (dso && atomic_dec_and_test(&dso->refcnt))
+		dso__delete(dso);
 }
 
 void dso__set_build_id(struct dso *dso, void *build_id)
@@ -1153,6 +1167,27 @@ void __dsos__add(struct dsos *dsos, struct dso *dso)
 {
 	list_add_tail(&dso->node, &dsos->head);
 	__dso__findlink_by_longname(&dsos->root, dso, NULL);
+	/*
+	 * It is now in the linked list, grab a reference, then garbage collect
+	 * this when needing memory, by looking at LRU dso instances in the
+	 * list with atomic_read(&dso->refcnt) == 1, i.e. no references
+	 * anywhere besides the one for the list, do, under a lock for the
+	 * list: remove it from the list, then a dso__put(), that probably will
+	 * be the last and will then call dso__delete(), end of life.
+	 *
+	 * That, or at the end of the 'struct machine' lifetime, when all
+	 * 'struct dso' instances will be removed from the list, in
+	 * dsos__exit(), if they have no other reference from some other data
+	 * structure.
+	 *
+	 * E.g.: after processing a 'perf.data' file and storing references
+	 * to objects instantiated while processing events, we will have
+	 * references to the 'thread', 'map', 'dso' structs all from 'struct
+	 * hist_entry' instances, but we may not need anything not referenced,
+	 * so we might as well call machines__exit()/machines__delete() and
+	 * garbage collect it.
+	 */
+	dso__get(dso);
 }
 
 void dsos__add(struct dsos *dsos, struct dso *dso)
@@ -1206,7 +1241,7 @@ struct dso *dsos__findnew(struct dsos *dsos, const char *name)
 {
 	struct dso *dso;
 	pthread_rwlock_wrlock(&dsos->lock);
-	dso = __dsos__findnew(dsos, name);
+	dso = dso__get(__dsos__findnew(dsos, name));
 	pthread_rwlock_unlock(&dsos->lock);
 	return dso;
 }

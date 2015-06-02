@@ -166,7 +166,7 @@ int test__dso_data(void)
 		free(buf);
 	}
 
-	dso__delete(dso);
+	dso__put(dso);
 	unlink(file);
 	return 0;
 }
@@ -226,7 +226,7 @@ static void dsos__delete(int cnt)
 		struct dso *dso = dsos[i];
 
 		unlink(dso->name);
-		dso__delete(dso);
+		dso__put(dso);
 	}
 
 	free(dsos);

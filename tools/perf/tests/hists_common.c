@@ -134,11 +134,15 @@ struct machine *setup_fake_machine(struct machines *machines)
 
 			sym = symbol__new(fsym->start, fsym->length,
 					  STB_GLOBAL, fsym->name);
-			if (sym == NULL)
+			if (sym == NULL) {
+				dso__put(dso);
 				goto out;
+			}
 
 			symbols__insert(&dso->symbols[MAP__FUNCTION], sym);
 		}
+
+		dso__put(dso);
 	}
 
 	return machine;

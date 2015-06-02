@@ -82,7 +82,7 @@ out_delete:
 	return NULL;
 }
 
-static void dsos__exit(struct dsos *dsos)
+static void dsos__purge(struct dsos *dsos)
 {
 	struct dso *pos, *n;
 
@@ -90,12 +90,16 @@ static void dsos__exit(struct dsos *dsos)
 
 	list_for_each_entry_safe(pos, n, &dsos->head, node) {
 		RB_CLEAR_NODE(&pos->rb_node);
-		list_del(&pos->node);
-		dso__delete(pos);
+		list_del_init(&pos->node);
+		dso__put(pos);
 	}
 
 	pthread_rwlock_unlock(&dsos->lock);
+}
 
+static void dsos__exit(struct dsos *dsos)
+{
+	dsos__purge(dsos);
 	pthread_rwlock_destroy(&dsos->lock);
 }
 
@@ -524,6 +528,7 @@ static struct dso *machine__findnew_module_dso(struct machine *machine,
 		dso__set_long_name(dso, strdup(filename), true);
 	}
 
+	dso__get(dso);
 out_unlock:
 	pthread_rwlock_unlock(&machine->dsos.lock);
 	return dso;
@@ -1205,8 +1210,10 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 			goto out_problem;
 
 		kernel->kernel = kernel_type;
-		if (__machine__create_kernel_maps(machine, kernel) < 0)
+		if (__machine__create_kernel_maps(machine, kernel) < 0) {
+			dso__put(kernel);
 			goto out_problem;
+		}
 
 		if (strstr(kernel->long_name, "vmlinux"))
 			dso__set_short_name(kernel, "[kernel.vmlinux]", false);

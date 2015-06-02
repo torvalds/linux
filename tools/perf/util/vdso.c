@@ -314,6 +314,7 @@ struct dso *machine__findnew_vdso(struct machine *machine,
 	}
 
 out_unlock:
+	dso__get(dso);
 	pthread_rwlock_unlock(&machine->dsos.lock);
 	return dso;
 }

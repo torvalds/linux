@@ -1,6 +1,7 @@
 #ifndef __PERF_DSO
 #define __PERF_DSO
 
+#include <linux/atomic.h>
 #include <linux/types.h>
 #include <linux/rbtree.h>
 #include <stdbool.h>
@@ -179,7 +180,7 @@ struct dso {
 		void	 *priv;
 		u64	 db_id;
 	};
-
+	atomic_t	 refcnt;
 	char		 name[0];
 };
 
@@ -205,6 +206,17 @@ void dso__set_short_name(struct dso *dso, const char *name, bool name_allocated)
 void dso__set_long_name(struct dso *dso, const char *name, bool name_allocated);
 
 int dso__name_len(const struct dso *dso);
+
+struct dso *dso__get(struct dso *dso);
+void dso__put(struct dso *dso);
+
+static inline void __dso__zput(struct dso **dso)
+{
+	dso__put(*dso);
+	*dso = NULL;
+}
+
+#define dso__zput(dso) __dso__zput(&dso)
 
 bool dso__loaded(const struct dso *dso, enum map_type type);
 

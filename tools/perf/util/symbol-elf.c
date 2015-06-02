@@ -1016,7 +1016,7 @@ int dso__load_sym(struct dso *dso, struct map *map,
 				curr_map = map__new2(start, curr_dso,
 						     map->type);
 				if (curr_map == NULL) {
-					dso__delete(curr_dso);
+					dso__put(curr_dso);
 					goto out_elf_end;
 				}
 				if (adjust_kernel_syms) {

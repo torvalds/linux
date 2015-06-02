@@ -1277,6 +1277,7 @@ static int __event_process_build_id(struct build_id_event *bev,
 				  sbuild_id);
 		pr_debug("build id event received for %s: %s\n",
 			 dso->long_name, sbuild_id);
+		dso__put(dso);
 	}
 
 	err = 0;
