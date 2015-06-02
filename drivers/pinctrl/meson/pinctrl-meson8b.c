@@ -876,13 +876,13 @@ static struct meson_domain_data meson8b_domain_data[] = {
 		.banks		= meson8b_banks,
 		.num_banks	= ARRAY_SIZE(meson8b_banks),
 		.pin_base	= 0,
-		.num_pins	= 83,
+		.num_pins	= 130,
 	},
 	{
 		.name		= "ao-bank",
 		.banks		= meson8b_ao_banks,
 		.num_banks	= ARRAY_SIZE(meson8b_ao_banks),
-		.pin_base	= 83,
+		.pin_base	= 130,
 		.num_pins	= 16,
 	},
 };

@@ -1197,7 +1197,7 @@ transport_check_alloc_task_attr(struct se_cmd *cmd)
 	 * Check if SAM Task Attribute emulation is enabled for this
 	 * struct se_device storage object
 	 */
-	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV)
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
 		return 0;
 
 	if (cmd->sam_task_attr == TCM_ACA_TAG) {
@@ -1771,7 +1771,7 @@ static int target_write_prot_action(struct se_cmd *cmd)
 						   sectors, 0, NULL, 0);
 		if (unlikely(cmd->pi_err)) {
 			spin_lock_irq(&cmd->t_state_lock);
-			cmd->transport_state &= ~CMD_T_BUSY|CMD_T_SENT;
+			cmd->transport_state &= ~(CMD_T_BUSY|CMD_T_SENT);
 			spin_unlock_irq(&cmd->t_state_lock);
 			transport_generic_request_failure(cmd, cmd->pi_err);
 			return -1;
@@ -1788,7 +1788,7 @@ static bool target_handle_task_attr(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 
-	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV)
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
 		return false;
 
 	/*
@@ -1869,7 +1869,7 @@ void target_execute_cmd(struct se_cmd *cmd)
 
 	if (target_handle_task_attr(cmd)) {
 		spin_lock_irq(&cmd->t_state_lock);
-		cmd->transport_state &= ~CMD_T_BUSY|CMD_T_SENT;
+		cmd->transport_state &= ~(CMD_T_BUSY | CMD_T_SENT);
 		spin_unlock_irq(&cmd->t_state_lock);
 		return;
 	}
@@ -1913,7 +1913,7 @@ static void transport_complete_task_attr(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 
-	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV)
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
 		return;
 
 	if (cmd->sam_task_attr == TCM_SIMPLE_TAG) {
@@ -1958,8 +1958,7 @@ static void transport_complete_qf(struct se_cmd *cmd)
 	case DMA_TO_DEVICE:
 		if (cmd->se_cmd_flags & SCF_BIDI) {
 			ret = cmd->se_tfo->queue_data_in(cmd);
-			if (ret < 0)
-				break;
+			break;
 		}
 		/* Fall through for DMA_TO_DEVICE */
 	case DMA_NONE:

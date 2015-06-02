@@ -471,11 +471,8 @@ static int mlx5_irq_set_affinity_hint(struct mlx5_core_dev *mdev, int i)
 		return -ENOMEM;
 	}
 
-	err = cpumask_set_cpu_local_first(i, numa_node, priv->irq_info[i].mask);
-	if (err) {
-		mlx5_core_warn(mdev, "cpumask_set_cpu_local_first failed");
-		goto err_clear_mask;
-	}
+	cpumask_set_cpu(cpumask_local_spread(i, numa_node),
+			priv->irq_info[i].mask);
 
 	err = irq_set_affinity_hint(irq, priv->irq_info[i].mask);
 	if (err) {

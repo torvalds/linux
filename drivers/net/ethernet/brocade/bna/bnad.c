@@ -3701,10 +3701,6 @@ bnad_pci_probe(struct pci_dev *pdev,
 	setup_timer(&bnad->bna.ioceth.ioc.sem_timer, bnad_iocpf_sem_timeout,
 				((unsigned long)bnad));
 
-	/* Now start the timer before calling IOC */
-	mod_timer(&bnad->bna.ioceth.ioc.iocpf_timer,
-		  jiffies + msecs_to_jiffies(BNA_IOC_TIMER_FREQ));
-
 	/*
 	 * Start the chip
 	 * If the call back comes with error, we bail out.

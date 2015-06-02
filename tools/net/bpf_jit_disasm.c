@@ -123,6 +123,8 @@ static int get_last_jit_image(char *haystack, size_t hlen,
 	assert(ret == 0);
 
 	ptr = haystack;
+	memset(pmatch, 0, sizeof(pmatch));
+
 	while (1) {
 		ret = regexec(&regex, ptr, 1, pmatch, 0);
 		if (ret == 0) {

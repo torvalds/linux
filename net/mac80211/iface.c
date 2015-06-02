@@ -522,6 +522,12 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		memcpy(sdata->vif.hw_queue, master->vif.hw_queue,
 		       sizeof(sdata->vif.hw_queue));
 		sdata->vif.bss_conf.chandef = master->vif.bss_conf.chandef;
+
+		mutex_lock(&local->key_mtx);
+		sdata->crypto_tx_tailroom_needed_cnt +=
+			master->crypto_tx_tailroom_needed_cnt;
+		mutex_unlock(&local->key_mtx);
+
 		break;
 		}
 	case NL80211_IFTYPE_AP:
