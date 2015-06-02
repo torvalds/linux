@@ -326,11 +326,11 @@ static int nicvf_rss_init(struct nicvf *nic)
 	rss->enable = true;
 
 	/* Using the HW reset value for now */
-	rss->key[0] = 0xFEED0BADFEED0BAD;
-	rss->key[1] = 0xFEED0BADFEED0BAD;
-	rss->key[2] = 0xFEED0BADFEED0BAD;
-	rss->key[3] = 0xFEED0BADFEED0BAD;
-	rss->key[4] = 0xFEED0BADFEED0BAD;
+	rss->key[0] = 0xFEED0BADFEED0BADULL;
+	rss->key[1] = 0xFEED0BADFEED0BADULL;
+	rss->key[2] = 0xFEED0BADFEED0BADULL;
+	rss->key[3] = 0xFEED0BADFEED0BADULL;
+	rss->key[4] = 0xFEED0BADFEED0BADULL;
 
 	nicvf_set_rss_key(nic);
 
