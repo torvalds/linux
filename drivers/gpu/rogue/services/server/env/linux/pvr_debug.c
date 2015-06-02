@@ -1310,17 +1310,18 @@ static IMG_INT DebugLevelSet(const char __user *pcBuffer,
 }
 #endif /* defined(DEBUG) */
 
-static struct dentry *gpsVersionDebugFSEntry;
-static struct dentry *gpsNodesDebugFSEntry;
-static struct dentry *gpsStatusDebugFSEntry;
-static struct dentry *gpsDumpDebugDebugFSEntry;
+
+static PVR_DEBUGFS_ENTRY_DATA *gpsVersionDebugFSEntry;
+static PVR_DEBUGFS_ENTRY_DATA *gpsNodesDebugFSEntry;
+static PVR_DEBUGFS_ENTRY_DATA *gpsStatusDebugFSEntry;
+static PVR_DEBUGFS_ENTRY_DATA *gpsDumpDebugDebugFSEntry;
 
 #if defined(PVRSRV_ENABLE_FW_TRACE_DEBUGFS)
-static struct dentry *gpsFWTraceDebugFSEntry;
+static PVR_DEBUGFS_ENTRY_DATA *gpsFWTraceDebugFSEntry;
 #endif
 
 #if defined(DEBUG)
-static struct dentry *gpsDebugLevelDebugFSEntry;
+static PVR_DEBUGFS_ENTRY_DATA *gpsDebugLevelDebugFSEntry;
 #endif
 
 int PVRDebugCreateDebugFSEntries(void)
@@ -1337,6 +1338,7 @@ int PVRDebugCreateDebugFSEntries(void)
 					NULL,
 					psPVRSRVData,
 					&gpsVersionDebugFSEntry);
+
 	if (iResult != 0)
 	{
 		return iResult;
@@ -1475,5 +1477,6 @@ void PVRDebugRemoveDebugFSEntries(void)
 		PVRDebugFSRemoveEntry(gpsVersionDebugFSEntry);
 		gpsVersionDebugFSEntry = NULL;
 	}
+
 }
 

@@ -103,7 +103,7 @@ IMG_VOID RGXHWPerfFTraceGPUEnqueueEvent(PVRSRV_RGXDEV_INFO *psDevInfo,
 		IMG_UINT32 ui32ExternalJobRef, IMG_UINT32 ui32InternalJobRef,
 		const IMG_CHAR* pszJobType);
 
-IMG_VOID RGXHWPerfFTraceGPUEventsEnabledSet(IMG_BOOL bNewValue);
+PVRSRV_ERROR RGXHWPerfFTraceGPUEventsEnabledSet(IMG_BOOL bNewValue);
 IMG_BOOL RGXHWPerfFTraceGPUEventsEnabled(IMG_VOID);
 
 IMG_VOID RGXHWPerfFTraceGPUThread(IMG_PVOID pvData);

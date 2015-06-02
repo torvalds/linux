@@ -50,7 +50,7 @@ typedef struct _FLASH_DATA_
 	IMG_UINT32			ui32ReadEntry;
 	IMG_BOOL			bEnteredResetMode;
 
-	struct dentry			*debugFSEntry;
+	PVR_DEBUGFS_ENTRY_DATA		*psDebugFSEntry;
 	PFN_APOLLO_FLASH_INIT		pfnFlashInit;
 	PFN_APOLLO_FLASH_WRITE		pfnFlashWrite;
 	PFN_APOLLO_FLASH_GET_STATUS	pfnFlashGetStatus;
@@ -221,7 +221,7 @@ PVRSRV_ERROR ApolloFlasherSetup(IMG_HANDLE *phFlasher,
 				  &gsFlasherReadOps,
 				  (PVRSRV_ENTRY_WRITE_FUNC *)ApolloFlashWrite,
 				  (IMG_VOID *)psApolloFlashData,
-				  &psApolloFlashData->debugFSEntry) < 0)
+				  &psApolloFlashData->psDebugFSEntry) < 0)
 	{
 		OSFreeMem(psApolloFlashData);
 
@@ -239,9 +239,9 @@ PVRSRV_ERROR ApolloFlasherCleanup(IMG_HANDLE hFlasher)
 
 	if (psFlashData != IMG_NULL)
 	{
-		if (psFlashData->debugFSEntry != NULL)
+		if (psFlashData->psDebugFSEntry != NULL)
 		{
-			PVRDebugFSRemoveEntry(psFlashData->debugFSEntry);
+			PVRDebugFSRemoveEntry(psFlashData->psDebugFSEntry);
 		}
 
 		OSFreeMem(hFlasher);

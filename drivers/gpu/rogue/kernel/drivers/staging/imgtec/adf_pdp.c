@@ -462,6 +462,36 @@ static bool pdp_vsync_triggered(struct adf_pdp_device *pdp)
 	return atomic_read(&pdp->vsync_triggered) == 1;
 }
 
+static void pdp_enable_vsync(struct adf_pdp_device *pdp)
+{
+	int err = 0;
+	u32 reg_value = pdp_read_reg(pdp, TCF_RGBPDP_PVR_TCF_RGBPDP_INTENAB);
+	reg_value |= (0x1 << INTEN_VBLNK1_SHIFT);
+	pdp_write_reg(pdp, TCF_RGBPDP_PVR_TCF_RGBPDP_INTENAB, reg_value);
+
+	err = apollo_enable_interrupt(&pdp->pdata->pdev->dev,
+		APOLLO_INTERRUPT_PDP);
+	if (err) {
+		dev_err(&pdp->pdev->dev,
+			"apollo_enable_interrupt failed (%d)\n", err);
+	}
+}
+
+static void pdp_disable_vsync(struct adf_pdp_device *pdp)
+{
+	int err = 0;
+	u32 reg_value = pdp_read_reg(pdp, TCF_RGBPDP_PVR_TCF_RGBPDP_INTENAB);
+	reg_value &= ~(0x1 << INTEN_VBLNK1_SHIFT);
+	pdp_write_reg(pdp, TCF_RGBPDP_PVR_TCF_RGBPDP_INTENAB, reg_value);
+
+	err = apollo_disable_interrupt(&pdp->pdata->pdev->dev,
+		APOLLO_INTERRUPT_PDP);
+	if (err) {
+		dev_err(&pdp->pdev->dev,
+			"apollo_disable_interrupt failed (%d)\n", err);
+	}
+}
+
 static void pdp_post(struct adf_device *adf_dev, struct adf_post *cfg,
 	void *driver_state)
 {
@@ -515,17 +545,17 @@ static void pdp_post(struct adf_device *adf_dev, struct adf_post *cfg,
 	/* Wait until the buffer is on-screen, so we know the previous buffer
 	 * has been retired and off-screen.
 	 *
-	 * If vsync was already off when this post was serviced, we don't need
-	 * to wait for it (note: this will cause tearing if done when the
-	 * display is not blanked).
+	 * If vsync was already off when this post was serviced, we need to
+	 * enable the vsync again briefly so the register updates we shadowed
+	 * above get applied and we don't signal the fence prematurely. One
+	 * vsync afterwards, we'll disable the vsync again.
 	 */
-	if (atomic_read(&pdp->vsync_state)) {
-		if (wait_event_timeout(pdp->vsync_wait_queue,
-			pdp_vsync_triggered(pdp), timeout) == 0) {
-			/* Timeout - continue as if vsync was triggered, as
-			 * possible tearing is better than wedging */
-			dev_err(&pdp->pdev->dev, "Post VSync wait timeout");
-		}
+	if (!atomic_xchg(&pdp->vsync_state, 1))
+		pdp_enable_vsync(pdp);
+
+	if (wait_event_timeout(pdp->vsync_wait_queue,
+		pdp_vsync_triggered(pdp), timeout) == 0) {
+		dev_err(&pdp->pdev->dev, "Post VSync wait timeout");
 	}
 }
 
@@ -543,21 +573,6 @@ static bool pdp_supports_event(struct adf_obj *obj, enum adf_event_type type)
 	}
 	default:
 		return false;
-	}
-}
-
-static void pdp_disable_vsync(struct adf_pdp_device *pdp)
-{
-	int err = 0;
-	u32 reg_value = pdp_read_reg(pdp, TCF_RGBPDP_PVR_TCF_RGBPDP_INTENAB);
-	reg_value &= ~(0x1 << INTEN_VBLNK1_SHIFT);
-	pdp_write_reg(pdp, TCF_RGBPDP_PVR_TCF_RGBPDP_INTENAB, reg_value);
-
-	err = apollo_disable_interrupt(&pdp->pdata->pdev->dev,
-		APOLLO_INTERRUPT_PDP);
-	if (err) {
-		dev_err(&pdp->pdev->dev,
-			"apollo_disable_interrupt failed (%d)\n", err);
 	}
 }
 
@@ -585,21 +600,6 @@ static void pdp_irq_handler(void *data)
 		adf_vsync_notify(&pdp->adf_interface, ktime_get());
 		atomic_set(&pdp->vsync_triggered, 1);
 		wake_up(&pdp->vsync_wait_queue);
-	}
-}
-
-static void pdp_enable_vsync(struct adf_pdp_device *pdp)
-{
-	int err = 0;
-	u32 reg_value = pdp_read_reg(pdp, TCF_RGBPDP_PVR_TCF_RGBPDP_INTENAB);
-	reg_value |= (0x1 << INTEN_VBLNK1_SHIFT);
-	pdp_write_reg(pdp, TCF_RGBPDP_PVR_TCF_RGBPDP_INTENAB, reg_value);
-
-	err = apollo_enable_interrupt(&pdp->pdata->pdev->dev,
-		APOLLO_INTERRUPT_PDP);
-	if (err) {
-		dev_err(&pdp->pdev->dev,
-			"apollo_enable_interrupt failed (%d)\n", err);
 	}
 }
 

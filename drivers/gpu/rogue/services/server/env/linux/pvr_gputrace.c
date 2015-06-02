@@ -197,7 +197,7 @@ static PVRSRV_ERROR GetCtxAndJobID(IMG_UINT32 ui32PID,
 
 
 /* DebugFS entry for the feature's on/off file */
-static struct dentry* gpsPVRDebugFSGpuTracingOnEntry = NULL;
+static PVR_DEBUGFS_ENTRY_DATA *gpsPVRDebugFSGpuTracingOnEntry = NULL;
 
 
 /*
@@ -291,8 +291,14 @@ static IMG_INT GpuTracingSet(const IMG_CHAR *buffer, size_t count, loff_t uiPosi
 		case 'y':
 		case 'Y':
 		{
-			PVRGpuTraceEnabledSet(IMG_TRUE);
-			PVR_TRACE(("ENABLED GPU FTrace"));
+			if (PVRGpuTraceEnabledSet(IMG_TRUE) == PVRSRV_OK)
+			{
+				PVR_TRACE(("ENABLED GPU FTrace"));
+			}
+			else
+			{
+				PVR_TRACE(("FAILED to enable GPU FTrace"));
+			}
 			break;
 		}
 	}
@@ -388,17 +394,17 @@ PVRSRV_ERROR PVRGpuTraceInit(void)
 				      &gsGpuTracingReadOps,
 				      (PVRSRV_ENTRY_WRITE_FUNC *)GpuTracingSet,
 				      NULL,
-				      &gpsPVRDebugFSGpuTracingOnEntry);
+                      &gpsPVRDebugFSGpuTracingOnEntry);
 }
 
 
 void PVRGpuTraceDeInit(void)
 {
 	/* Can be NULL if driver startup failed */
-	if (gpsPVRDebugFSGpuTracingOnEntry)
+    if (gpsPVRDebugFSGpuTracingOnEntry)
 	{
-		PVRDebugFSRemoveEntry(gpsPVRDebugFSGpuTracingOnEntry);
-		gpsPVRDebugFSGpuTracingOnEntry = NULL;
+        PVRDebugFSRemoveEntry(gpsPVRDebugFSGpuTracingOnEntry);
+        gpsPVRDebugFSGpuTracingOnEntry = NULL;
 	}
 }
 

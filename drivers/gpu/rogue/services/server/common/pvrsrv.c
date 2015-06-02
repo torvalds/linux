@@ -371,6 +371,9 @@ static IMG_VOID CleanupThread(IMG_PVOID pvData)
 	PVRSRV_ERROR eRc;
 	IMG_UINT64   ui64TimesliceLimit;
 
+	/* Store the process id (pid) of the clean-up thread */
+	psPVRSRVData->cleanupThreadPid = OSGetCurrentProcessIDKM();
+
 	PVR_DPF((CLEANUP_DPFL, "CleanupThread: thread starting... "));
 
 	/* Open an event on the clean up event object so we can listen on it,

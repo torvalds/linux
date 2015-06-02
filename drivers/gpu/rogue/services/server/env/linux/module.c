@@ -810,7 +810,7 @@ CONNECTION_DATA *LinuxConnectionFromFile(struct file *pFile)
 {
 	PVRSRV_FILE_PRIVATE_DATA *psPrivateData = PRIVATE_DATA(pFile);
 
-	return psPrivateData->pvConnectionData;
+	return (psPrivateData == IMG_NULL) ? IMG_NULL : psPrivateData->pvConnectionData;
 }
 
 struct file *LinuxFileFromEnvConnection(ENV_CONNECTION_DATA *psEnvConnection)

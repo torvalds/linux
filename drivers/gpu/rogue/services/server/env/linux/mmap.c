@@ -191,6 +191,13 @@ int MMapPMR(struct file *pFile, struct vm_area_struct *ps_vma)
 #if defined(PVR_MMAP_USE_VM_INSERT)
 	IMG_BOOL bMixedMap = IMG_FALSE;
 #endif
+
+	if(psConnection == IMG_NULL)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "Invalid connection data"));
+		goto em0;
+	}
+
 	/*
 	 * The pmr lock used here to protect both handle related operations and PMR
 	 * operations.
@@ -461,7 +468,7 @@ int MMapPMR(struct file *pFile, struct vm_area_struct *ps_vma)
     PVR_ASSERT(eError != PVRSRV_OK);
     PVR_DPF((PVR_DBG_ERROR, "unable to translate error %d", eError));
 	mutex_unlock(&g_sMMapMutex);
-
+ em0:
     return -ENOENT; // -EAGAIN // or what?
 }
 

@@ -215,6 +215,7 @@ typedef struct _PVRSRV_PROCESS_STATS_ {
 	/* OS level process ID */
 	IMG_PID                           pid;
 	IMG_UINT32                        ui32RefCount;
+	IMG_UINT32                        ui32MemRefCount;
 
 	/* Folder name used to store the statistic */
 	IMG_CHAR				          szFolderName[MAX_PROC_NAME_LENGTH];
@@ -232,6 +233,7 @@ typedef struct _PVRSRV_PROCESS_STATS_ {
 
 	struct _PVRSRV_MEMORY_STATS_*     psMemoryStats;
 	struct _PVRSRV_RI_MEMORY_STATS_*  psRIMemoryStats;
+
 } PVRSRV_PROCESS_STATS;
 
 typedef struct _PVRSRV_RENDER_STATS_ {
@@ -364,12 +366,14 @@ static PVRSRV_GLOBAL_MEMORY_STATS gsGlobalStats;
 #define HASH_INITIAL_SIZE 5
 static HASH_TABLE* gpsTrackingTable;
 
+static IMG_UINT32 _PVRSRVIncrMemStatRefCount(IMG_PVOID pvStatPtr);
+static IMG_UINT32 _PVRSRVDecrMemStatRefCount(IMG_PVOID pvStatPtr);
+
 static IMG_BOOL
 _PVRSRVGetGlobalMemStat(IMG_PVOID pvStatPtr, 
 						IMG_UINT32 ui32StatNumber, 
 						IMG_INT32* pi32StatData, 
 						IMG_CHAR** ppszStatFmtText);
-
 
 IMG_VOID InsertPowerTimeStatistic(PVRSRV_POWER_ENTRY_TYPE bType,
 		IMG_INT32 i32CurrentState, IMG_INT32 i32NextState,
@@ -479,9 +483,6 @@ static IMG_VOID
 _DestoryRenderStat(PVRSRV_RENDER_STATS* psRenderStats)
 {
 	PVR_ASSERT(psRenderStats != IMG_NULL);
-
-	/* Remove the statistic from the OS... */
-	OSRemoveStatisticEntry(psRenderStats->pvOSData);
 
 	/* Free the memory... */
 	OSFreeMem(psRenderStats);
@@ -667,28 +668,35 @@ _CreateOSStatisticEntries(PVRSRV_PROCESS_STATS* psProcessStats,
 	psProcessStats->pvOSPidEntryData  = OSCreateStatisticEntry("process_stats",
 	                                                           psProcessStats->pvOSPidFolderData,
 	                                                           PVRSRVStatsObtainElement,
+															   _PVRSRVIncrMemStatRefCount,
+															   _PVRSRVDecrMemStatRefCount,
 	                                                           (IMG_PVOID) psProcessStats);
-
 	if (pvOSPowerStatsEntryData==NULL)
 	{
-        pvOSPowerStatsEntryData  = OSCreateStatisticEntry("power_timings_stats",
+		pvOSPowerStatsEntryData  = OSCreateStatisticEntry("power_timings_stats",
 													NULL,
 													PVRSRVPowerStatsObtainElement,
-		                                            (IMG_PVOID) psProcessStats);
+													IMG_NULL,
+													IMG_NULL,
+													(IMG_PVOID) psProcessStats);
 	}
 
 #if defined(PVRSRV_ENABLE_MEMORY_STATS)
 	psProcessStats->psMemoryStats->pvOSMemEntryData = OSCreateStatisticEntry("mem_area",
 	                                                           psProcessStats->pvOSPidFolderData,
 	                                                           PVRSRVStatsObtainElement,
-	                                                           (IMG_PVOID) psProcessStats->psMemoryStats);
+															   IMG_NULL,
+															   IMG_NULL,
+															   (IMG_PVOID) psProcessStats->psMemoryStats);
 #endif
 
 #if defined(PVR_RI_DEBUG)
 	psProcessStats->psRIMemoryStats->pvOSRIMemEntryData = OSCreateStatisticEntry("ri_mem_area",
 	                                                           psProcessStats->pvOSPidFolderData,
 	                                                           PVRSRVStatsObtainElement,
-	                                                           (IMG_PVOID) psProcessStats->psRIMemoryStats);
+															   IMG_NULL,
+															   IMG_NULL,
+															   (IMG_PVOID) psProcessStats->psRIMemoryStats);
 #endif
 } /* _CreateOSStatisticEntries */
 
@@ -704,14 +712,18 @@ _RemoveOSStatisticEntries(PVRSRV_PROCESS_STATS* psProcessStats)
 	PVR_ASSERT(psProcessStats != IMG_NULL);
 
 #if defined(PVR_RI_DEBUG)
+	PVR_ASSERT(psProcessStats->psRIMemoryStats->pvOSRIMemEntryData != IMG_NULL);
 	OSRemoveStatisticEntry(psProcessStats->psRIMemoryStats->pvOSRIMemEntryData);
 #endif
 
 #if defined(PVRSRV_ENABLE_MEMORY_STATS)
+	PVR_ASSERT(psProcessStats->psMemoryStats->pvOSMemEntryData != IMG_NULL);
 	OSRemoveStatisticEntry(psProcessStats->psMemoryStats->pvOSMemEntryData);
 #endif
 
+	PVR_ASSERT(psProcessStats->pvOSPidEntryData != IMG_NULL);
 	OSRemoveStatisticEntry(psProcessStats->pvOSPidEntryData);
+	PVR_ASSERT(psProcessStats->pvOSPidFolderData != IMG_NULL);
 	OSRemoveStatisticFolder(psProcessStats->pvOSPidFolderData);
 } /* _RemoveOSStatisticEntries */
 
@@ -725,9 +737,6 @@ static IMG_VOID
 _DestoryProcessStat(PVRSRV_PROCESS_STATS* psProcessStats)
 {
 	PVR_ASSERT(psProcessStats != IMG_NULL);
-
-	/* Remove this statistic from the OS... */
-	_RemoveOSStatisticEntries(psProcessStats);
 
 	/* Free the live and dead render statistic lists... */
 	while (psProcessStats->psRenderLiveList != IMG_NULL)
@@ -748,17 +757,77 @@ _DestoryProcessStat(PVRSRV_PROCESS_STATS* psProcessStats)
 
 	/* Free the memory statistics... */
 #if defined(PVRSRV_ENABLE_MEMORY_STATS)
-	while (psProcessStats->psMemoryStats->psMemoryRecords)
+	if (psProcessStats->psMemoryStats != IMG_NULL)
 	{
-		List_PVRSRV_MEM_ALLOC_REC_Remove(psProcessStats->psMemoryStats->psMemoryRecords);
+		while (psProcessStats->psMemoryStats->psMemoryRecords)
+		{
+			List_PVRSRV_MEM_ALLOC_REC_Remove(psProcessStats->psMemoryStats->psMemoryRecords);
+		}
+		OSMemSet(psProcessStats->psMemoryStats, 0x6b, sizeof(PVRSRV_MEMORY_STATS));
+		OSFreeMem(psProcessStats->psMemoryStats);
+		psProcessStats->psMemoryStats = IMG_NULL;
 	}
-	OSFreeMem(psProcessStats->psMemoryStats);
+#endif
+
+#if defined(PVR_RI_DEBUG)
+	if (psProcessStats->psRIMemoryStats != IMG_NULL)
+	{
+		OSFreeMem(psProcessStats->psRIMemoryStats);
+		psProcessStats->psRIMemoryStats = IMG_NULL;
+	}
 #endif
 
 	/* Free the memory... */
 	OSFreeMem(psProcessStats);
 } /* _DestoryProcessStat */
 
+static IMG_UINT32 _PVRSRVIncrMemStatRefCount(IMG_PVOID pvStatPtr)
+{
+	PVRSRV_STAT_STRUCTURE_TYPE*  peStructureType = (PVRSRV_STAT_STRUCTURE_TYPE*) pvStatPtr;
+	PVRSRV_PROCESS_STATS*  psProcessStats = (PVRSRV_PROCESS_STATS*) pvStatPtr;
+	IMG_UINT32 ui32Res = 7777;
+
+	switch (*peStructureType)
+	{
+		case PVRSRV_STAT_STRUCTURE_PROCESS:
+		{
+			/* Increment stat memory refCount */
+			ui32Res = ++psProcessStats->ui32MemRefCount;
+			break;
+		}
+		default:
+		{
+			break;
+		}
+	}
+	return ui32Res;
+}
+
+static IMG_UINT32 _PVRSRVDecrMemStatRefCount(IMG_PVOID pvStatPtr)
+{
+	PVRSRV_STAT_STRUCTURE_TYPE*  peStructureType = (PVRSRV_STAT_STRUCTURE_TYPE*) pvStatPtr;
+	PVRSRV_PROCESS_STATS*  psProcessStats = (PVRSRV_PROCESS_STATS*) pvStatPtr;
+	IMG_UINT32 ui32Res = 7777;
+
+	switch (*peStructureType)
+	{
+		case PVRSRV_STAT_STRUCTURE_PROCESS:
+		{
+			/* Decrement stat memory refCount and free if now zero */
+			ui32Res = --psProcessStats->ui32MemRefCount;
+			if (ui32Res == 0)
+			{
+				_DestoryProcessStat(psProcessStats);
+			}
+			break;
+		}
+		default:
+		{
+			break;
+		}
+	}
+	return ui32Res;
+}
 
 /*************************************************************************/ /*!
 @Function       _CompressMemoryUsage
@@ -806,7 +875,8 @@ _CompressMemoryUsage(IMG_VOID)
 		PVRSRV_PROCESS_STATS*  psNextProcessStats = psProcessStatsToBeFreed->psNext;
 
 		psProcessStatsToBeFreed->psNext = IMG_NULL;
-		_DestoryProcessStat(psProcessStatsToBeFreed);
+		_RemoveOSStatisticEntries(psProcessStatsToBeFreed);
+		_PVRSRVDecrMemStatRefCount((void*)psProcessStatsToBeFreed);
 
 		psProcessStatsToBeFreed = psNextProcessStats;
 	}
@@ -863,6 +933,8 @@ PVRSRVStatsInitialise(IMG_VOID)
 	pvOSGlobalMemEntryRef = OSCreateStatisticEntry(pszDriverStatFilename,
 												   IMG_NULL,
 												   _PVRSRVGetGlobalMemStat,
+												   IMG_NULL,
+												   IMG_NULL,
 												   IMG_NULL);
 
 	OSMemSet(&gsGlobalStats, 0, sizeof(gsGlobalStats));
@@ -908,20 +980,20 @@ PVRSRVStatsDestroy(IMG_VOID)
 	}
 
 	/* Free the live and dead lists... */
-    while (psLiveList != IMG_NULL)
+	while (psLiveList != IMG_NULL)
     {
 		PVRSRV_PROCESS_STATS*  psProcessStats = psLiveList;
 
 		_RemoveProcessStatsFromList(psProcessStats);
-		_DestoryProcessStat(psProcessStats);
+		_RemoveOSStatisticEntries(psProcessStats);
 	}
-
-    while (psDeadList != IMG_NULL)
+	while (psDeadList != IMG_NULL)
     {
 		PVRSRV_PROCESS_STATS*  psProcessStats = psDeadList;
 
 		_RemoveProcessStatsFromList(psProcessStats);
-		_DestoryProcessStat(psProcessStats);
+
+		_RemoveOSStatisticEntries(psProcessStats);
 	}
 
 	/* Remove the OS folders used by the PID folders... */
@@ -936,7 +1008,6 @@ PVRSRVStatsDestroy(IMG_VOID)
 	}
 
 } /* PVRSRVStatsDestroy */
-
 
 
 static void _decrease_global_stat(PVRSRV_MEM_ALLOC_TYPE eAllocType,
@@ -1219,6 +1290,7 @@ PVRSRVStatsRegisterProcess(IMG_HANDLE* phProcessStats)
 	psProcessStats->eStructureType  = PVRSRV_STAT_STRUCTURE_PROCESS;
 	psProcessStats->pid             = currentPid;
 	psProcessStats->ui32RefCount    = 1;
+	psProcessStats->ui32MemRefCount = 1;
 
 	psProcessStats->i32StatValue[PVRSRV_PROCESS_STAT_TYPE_CONNECTIONS]     = 1;
 	psProcessStats->i32StatValue[PVRSRV_PROCESS_STAT_TYPE_MAX_CONNECTIONS] = 1;
@@ -2458,10 +2530,12 @@ IMG_BOOL
 PVRSRVStatsObtainElement(IMG_PVOID pvStatPtr, IMG_UINT32 ui32StatNumber,
                          IMG_INT32* pi32StatData, IMG_CHAR** ppszStatFmtText)
 {
+	IMG_BOOL bRes = IMG_FALSE;
 	PVRSRV_STAT_STRUCTURE_TYPE*  peStructureType = (PVRSRV_STAT_STRUCTURE_TYPE*) pvStatPtr;
 
 	if (peStructureType == IMG_NULL  ||  pi32StatData == IMG_NULL)
 	{
+		PVR_DPF((PVR_DBG_ERROR, "%s: Invalid param, peStructureType=<%p>, pvStatPtr=<%p>", __FUNCTION__, (void*)peStructureType, (void*)pvStatPtr));
 		return IMG_FALSE;
 	}
 
@@ -2469,16 +2543,18 @@ PVRSRVStatsObtainElement(IMG_PVOID pvStatPtr, IMG_UINT32 ui32StatNumber,
 	{
 		PVRSRV_PROCESS_STATS*  psProcessStats = (PVRSRV_PROCESS_STATS*) pvStatPtr;
 
-		return _ObtainProcessStatistic(psProcessStats, ui32StatNumber,
+		bRes = _ObtainProcessStatistic(psProcessStats, ui32StatNumber,
 									   pi32StatData, ppszStatFmtText);
+		return bRes;
 	}
 #if defined(PVRSRV_ENABLE_MEMORY_STATS)
 	else if (*peStructureType == PVRSRV_STAT_STRUCTURE_MEMORY)
 	{
 		PVRSRV_MEMORY_STATS*  psMemoryStats = (PVRSRV_MEMORY_STATS*) pvStatPtr;
 
-		return _ObtainMemoryStatistic(psMemoryStats, ui32StatNumber,
+		bRes = _ObtainMemoryStatistic(psMemoryStats, ui32StatNumber,
 									  pi32StatData, ppszStatFmtText);
+		return bRes;
 	}
 #endif
 #if defined(PVR_RI_DEBUG)
@@ -2486,13 +2562,15 @@ PVRSRVStatsObtainElement(IMG_PVOID pvStatPtr, IMG_UINT32 ui32StatNumber,
 	{
 		PVRSRV_RI_MEMORY_STATS*  psRIMemoryStats = (PVRSRV_RI_MEMORY_STATS*) pvStatPtr;
 
-		return _ObtainRIMemoryStatistic(psRIMemoryStats, ui32StatNumber,
+		bRes = _ObtainRIMemoryStatistic(psRIMemoryStats, ui32StatNumber,
 									    pi32StatData, ppszStatFmtText);
+		return bRes;
 	}
 #endif
-
-	/* Stat type not handled probably indicates bad pointers... */
-	PVR_ASSERT(IMG_FALSE);
+	else
+	{
+		PVR_DPF((PVR_DBG_ERROR, "%s: Unrecognised peStructureType<%p>=%d", __FUNCTION__, (void*)peStructureType, *peStructureType));
+	}
 
 	return IMG_FALSE;
 } /* PVRSRVStatsObtainElement */
@@ -2538,6 +2616,7 @@ IMG_BOOL PVRSRVPowerStatsObtainElement(IMG_PVOID pvStatPtr, IMG_UINT32 ui32StatN
     if (peStructureType == IMG_NULL  ||  pi32StatData == IMG_NULL)
 	{
 		/* Stat type not handled probably indicates bad pointers... */
+		PVR_DPF((PVR_DBG_ERROR, "%s: Invalid param, peStructureType=<%p>, pvStatPtr=<%p>, ppszStatFmtText=<%p>, *ppszStatFmtText=<%p>", __FUNCTION__, (void*)peStructureType, (void*)pvStatPtr, (void*)ppszStatFmtText, (void*)*ppszStatFmtText));
 		PVR_ASSERT(IMG_FALSE);
 		return IMG_FALSE;
 	}
@@ -2552,25 +2631,53 @@ IMG_BOOL PVRSRVPowerStatsObtainElement(IMG_PVOID pvStatPtr, IMG_UINT32 ui32StatN
         case PVRSRV_POWER_TIMING_STAT_PRE_DEVICE:
         {
             (*ppszStatFmtText)="Pre-Device: %u\n";
-            (*pi32StatData)= ((IMG_UINT32)(ui64ForcedPreDevice)/(IMG_UINT32) ui64TotalForcedEntries);
+			if (ui64TotalForcedEntries > 0)
+			{
+				(*pi32StatData)= ((IMG_UINT32)(ui64ForcedPreDevice)/(IMG_UINT32) ui64TotalForcedEntries);
+			}
+			else
+			{
+				(*pi32StatData)= 0;
+			}
             break;
         }
         case PVRSRV_POWER_TIMING_STAT_PRE_SYSTEM:
         {
             (*ppszStatFmtText)="Pre-System: %u\n";
-            (*pi32StatData)=((IMG_UINT32)(ui64ForcedPreSystem)/(IMG_UINT32) ui64TotalForcedEntries);
+			if (ui64TotalForcedEntries > 0)
+			{
+				(*pi32StatData)=((IMG_UINT32)(ui64ForcedPreSystem)/(IMG_UINT32) ui64TotalForcedEntries);
+			}
+			else
+			{
+				(*pi32StatData)= 0;
+			}
             break;
         }
         case PVRSRV_POWER_TIMING_STAT_POST_DEVICE:
         {
             (*ppszStatFmtText)="Post-Device: %u\n";
-            (*pi32StatData)=((IMG_UINT32)(ui64ForcedPostDevice)/(IMG_UINT32) ui64TotalForcedEntries);
+			if (ui64TotalForcedEntries > 0)
+			{
+				(*pi32StatData)=((IMG_UINT32)(ui64ForcedPostDevice)/(IMG_UINT32) ui64TotalForcedEntries);
+			}
+			else
+			{
+				(*pi32StatData)= 0;
+			}
             break;
         }
         case PVRSRV_POWER_TIMING_STAT_POST_SYSTEM:
         {
             (*ppszStatFmtText)="Post-System: %u\n";
-            (*pi32StatData)=((IMG_UINT32)(ui64ForcedPostSystem)/(IMG_UINT32) ui64TotalForcedEntries);
+			if (ui64TotalForcedEntries > 0)
+			{
+				(*pi32StatData)=((IMG_UINT32)(ui64ForcedPostSystem)/(IMG_UINT32) ui64TotalForcedEntries);
+			}
+			else
+			{
+				(*pi32StatData)= 0;
+			}
             break;
         }
         case PVRSRV_POWER_TIMING_STAT_NEWLINE1:
@@ -2587,25 +2694,53 @@ IMG_BOOL PVRSRVPowerStatsObtainElement(IMG_PVOID pvStatPtr, IMG_UINT32 ui32StatN
         case PVRSRV_POWER_TIMING_STAT_NON_PRE_DEVICE:
         {
             (*ppszStatFmtText)="Pre-Device: %u\n";
-            (*pi32StatData)=((IMG_UINT32)(ui64NotForcedPreDevice)/(IMG_UINT32) ui64TotalNotForcedEntries);
+			if (ui64TotalNotForcedEntries > 0)
+			{
+				(*pi32StatData)=((IMG_UINT32)(ui64NotForcedPreDevice)/(IMG_UINT32) ui64TotalNotForcedEntries);
+			}
+			else
+			{
+				(*pi32StatData)= 0;
+			}
             break;
         }
         case PVRSRV_POWER_TIMING_STAT_NON_PRE_SYSTEM:
         {
             (*ppszStatFmtText)="Pre-System: %u\n";
-            (*pi32StatData)=((IMG_UINT32)(ui64NotForcedPreSystem)/(IMG_UINT32) ui64TotalNotForcedEntries);
+			if (ui64TotalNotForcedEntries > 0)
+			{
+				(*pi32StatData)=((IMG_UINT32)(ui64NotForcedPreSystem)/(IMG_UINT32) ui64TotalNotForcedEntries);
+			}
+			else
+			{
+				(*pi32StatData)= 0;
+			}
             break;
         }
         case PVRSRV_POWER_TIMING_STAT_NON_POST_DEVICE:
         {
             (*ppszStatFmtText)="Post-Device: %u\n";
-            (*pi32StatData)= ((IMG_UINT32)(ui64NotForcedPostDevice)/(IMG_UINT32) ui64TotalNotForcedEntries);
+			if (ui64TotalNotForcedEntries > 0)
+			{
+				(*pi32StatData)= ((IMG_UINT32)(ui64NotForcedPostDevice)/(IMG_UINT32) ui64TotalNotForcedEntries);
+			}
+			else
+			{
+				(*pi32StatData)= 0;
+			}
             break;
         }
         case PVRSRV_POWER_TIMING_STAT_NON_POST_SYSTEM:
         {
             (*ppszStatFmtText)="Post-System: %u\n";
-            (*pi32StatData)=((IMG_UINT32)(ui64NotForcedPostSystem)/(IMG_UINT32) ui64TotalNotForcedEntries);
+			if (ui64TotalNotForcedEntries > 0)
+			{
+				(*pi32StatData)=((IMG_UINT32)(ui64NotForcedPostSystem)/(IMG_UINT32) ui64TotalNotForcedEntries);
+			}
+			else
+			{
+				(*pi32StatData)= 0;
+			}
             break;
         }
         case PVRSRV_POWER_TIMING_STAT_FW_BOOTUP_TIME:

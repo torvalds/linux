@@ -877,7 +877,7 @@ PVRSRV_ERROR PVRSRVRGXCtrlHWPerfCountersKM(
 static POS_LOCK hFTraceLock;
 static IMG_VOID RGXHWPerfFTraceCmdCompleteNotify(PVRSRV_CMDCOMP_HANDLE);
 
-static IMG_VOID RGXHWPerfFTraceGPUEnable(void)
+static PVRSRV_ERROR RGXHWPerfFTraceGPUEnable(void)
 {
 	PVRSRV_ERROR eError = PVRSRV_OK;
 
@@ -923,7 +923,7 @@ static IMG_VOID RGXHWPerfFTraceGPUEnable(void)
 	gpsRgxDevInfo->bFTraceGPUEventsEnabled = IMG_TRUE;
 
 err_out:
-	PVR_DPF_RETURN;
+	PVR_DPF_RETURN_RC(eError);
 
 err_close_stream:
 	TLClientCloseStream(gpsRgxDevInfo->hGPUTraceTLConnection,
@@ -933,9 +933,9 @@ err_disconnect:
 	goto err_out;
 }
 
-static IMG_VOID RGXHWPerfFTraceGPUDisable(IMG_BOOL bDeInit)
+static PVRSRV_ERROR RGXHWPerfFTraceGPUDisable(IMG_BOOL bDeInit)
 {
-	PVRSRV_ERROR eError;
+	PVRSRV_ERROR eError = PVRSRV_OK;
 
 	PVR_DPF_ENTERED;
 
@@ -978,12 +978,13 @@ static IMG_VOID RGXHWPerfFTraceGPUDisable(IMG_BOOL bDeInit)
 
 	OSLockRelease(hFTraceLock);
 
-	PVR_DPF_RETURN;
+	PVR_DPF_RETURN_RC(eError);
 }
 
-IMG_VOID RGXHWPerfFTraceGPUEventsEnabledSet(IMG_BOOL bNewValue)
+PVRSRV_ERROR RGXHWPerfFTraceGPUEventsEnabledSet(IMG_BOOL bNewValue)
 {
 	IMG_BOOL bOldValue;
+	PVRSRV_ERROR eError = PVRSRV_OK;
 
 	PVR_DPF_ENTERED;
 
@@ -992,7 +993,8 @@ IMG_VOID RGXHWPerfFTraceGPUEventsEnabledSet(IMG_BOOL bNewValue)
 		/* RGXHWPerfFTraceGPUInit hasn't been called yet -- it's too early
 		 * to enable tracing.
 		 */
-		PVR_DPF_RETURN;
+		eError = PVRSRV_ERROR_NO_DEVICEDATA_FOUND;
+		PVR_DPF_RETURN_RC(eError);
 	}
 
 	bOldValue = gpsRgxDevInfo->bFTraceGPUEventsEnabled;
@@ -1001,25 +1003,29 @@ IMG_VOID RGXHWPerfFTraceGPUEventsEnabledSet(IMG_BOOL bNewValue)
 	{
 		if (bNewValue)
 		{
-			RGXHWPerfFTraceGPUEnable();
+			eError = RGXHWPerfFTraceGPUEnable();
 		}
 		else
 		{
-			RGXHWPerfFTraceGPUDisable(IMG_FALSE);
+			eError = RGXHWPerfFTraceGPUDisable(IMG_FALSE);
 		}
 	}
 
-	PVR_DPF_RETURN;
+	PVR_DPF_RETURN_RC(eError);
 }
 
-IMG_VOID PVRGpuTraceEnabledSet(IMG_BOOL bNewValue)
+PVRSRV_ERROR PVRGpuTraceEnabledSet(IMG_BOOL bNewValue)
 {
+	PVRSRV_ERROR eError = PVRSRV_OK;
+
 	/* Lock down because we need to protect
 	 * RGXHWPerfFTraceGPUDisable()/RGXHWPerfFTraceGPUEnable()
 	 */
 	OSAcquireBridgeLock();
-	RGXHWPerfFTraceGPUEventsEnabledSet(bNewValue);
+	eError = RGXHWPerfFTraceGPUEventsEnabledSet(bNewValue);
 	OSReleaseBridgeLock();
+
+	return eError;
 }
 
 IMG_BOOL RGXHWPerfFTraceGPUEventsEnabled(IMG_VOID)

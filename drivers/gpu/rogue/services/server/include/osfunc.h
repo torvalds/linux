@@ -414,8 +414,13 @@ typedef IMG_BOOL (OS_GET_STATS_ELEMENT_FUNC)(IMG_PVOID pvStatPtr,
                                              IMG_INT32* pi32StatData,
                                              IMG_CHAR** ppszStatFmtText);
 
+typedef IMG_UINT32 (OS_INC_STATS_MEM_REFCOUNT_FUNC)(IMG_PVOID pvStatPtr);
+typedef IMG_UINT32 (OS_DEC_STATS_MEM_REFCOUNT_FUNC)(IMG_PVOID pvStatPtr);
+
 IMG_PVOID OSCreateStatisticEntry(IMG_CHAR* pszName, IMG_PVOID pvFolder,
                                  OS_GET_STATS_ELEMENT_FUNC* pfnGetElement,
+								 OS_INC_STATS_MEM_REFCOUNT_FUNC* pfnIncMemRefCt,
+								 OS_DEC_STATS_MEM_REFCOUNT_FUNC* pfnDecMemRefCt,
                                  IMG_PVOID pvData);
 IMG_VOID OSRemoveStatisticEntry(IMG_PVOID pvEntry);
 IMG_PVOID OSCreateStatisticFolder(IMG_CHAR *pszName, IMG_PVOID pvFolder);

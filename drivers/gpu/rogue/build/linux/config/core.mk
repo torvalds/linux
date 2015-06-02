@@ -695,8 +695,15 @@ Enable automatic decoding of Firmware Trace via DebugFS._\
 ))
 
 $(eval $(call TunableKernelConfigC,PVR_LINUX_PYSMEM_MAX_POOL_PAGES,"$(MAX_POOL_PAGES)"))
-$(eval $(call TunableKernelConfigC,PVR_LINUX_VMALLOC_ALLOCATION_THRESHOLD, 16384 ))
 
+# ARM-Linux specific: 
+# When allocating uncached or write-combine memory we need to invalidate the
+# CPU cache before we can use the acquired pages. 
+# The threshhold defines at which number of pages we want to do a full 
+# cache flush instead of invalidating pages one by one.
+$(eval $(call TunableKernelConfigC,PVR_LINUX_ARM_PAGEALLOC_FLUSH_THRESHOLD, 256))
+
+$(eval $(call TunableKernelConfigC,PVR_LINUX_VMALLOC_ALLOCATION_THRESHOLD, 16384 ))
 
 # Tunable RGX_MAX_TA_SYNCS / RGX_MAX_3D_SYNCS to increase the size of sync array in the DDK
 # If defined, these macros take up the values as defined in the environment,

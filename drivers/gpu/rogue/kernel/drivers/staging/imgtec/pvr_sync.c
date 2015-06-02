@@ -1038,6 +1038,10 @@ enum PVRSRV_ERROR pvr_sync_append_fences(
 	struct pvr_sync_alloc_data *alloc_sync_data = NULL;
 	unsigned i;
 
+	if ((nr_updates && (!update_ufo_addresses || !update_values)) ||
+		(nr_checks && (!check_ufo_addresses || !check_values)))
+		return PVRSRV_ERROR_INVALID_PARAMS;
+
 	sync_data =
 		kzalloc(sizeof(struct pvr_sync_append_data)
 			+ nr_check_fences * sizeof(struct sync_fence*),
@@ -1303,15 +1307,19 @@ enum PVRSRV_ERROR pvr_sync_append_fences(
 	sync_data->nr_checks = nr_checks + num_used_sync_checks;
 	sync_data->nr_updates = nr_updates + num_used_sync_updates;
 	/* Append original check and update sync values/addresses */
-	memcpy(update_address_pos, update_ufo_addresses,
-		sizeof(PRGXFWIF_UFO_ADDR) * nr_updates);
-	memcpy(update_value_pos, update_values,
-		sizeof(u32) * nr_updates);
+	if (update_ufo_addresses)
+		memcpy(update_address_pos, update_ufo_addresses,
+			   sizeof(PRGXFWIF_UFO_ADDR) * nr_updates);
+	if (update_values)
+		memcpy(update_value_pos, update_values,
+			   sizeof(u32) * nr_updates);
 
-	memcpy(check_address_pos, check_ufo_addresses,
-		sizeof(PRGXFWIF_UFO_ADDR) * nr_checks);
-	memcpy(check_value_pos, check_values,
-		sizeof(u32) * nr_checks);
+	if (check_ufo_addresses)
+		memcpy(check_address_pos, check_ufo_addresses,
+			   sizeof(PRGXFWIF_UFO_ADDR) * nr_checks);
+	if (check_values)
+		memcpy(check_value_pos, check_values,
+			   sizeof(u32) * nr_checks);
 
 	*append_sync_data = sync_data;
 

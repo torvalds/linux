@@ -2255,6 +2255,34 @@ Data master value to be used for fence requests
 #define RGX_CR_GARTEN_SLC_FORCE_COHERENCY_CLRMSK          (0XFFFFFFFEU)
 #define RGX_CR_GARTEN_SLC_FORCE_COHERENCY_EN              (0X00000001U)
 
+/*
+    Register RGX_CR_BIF_MMU_ENTRY_STATUS
+*/
+#define RGX_CR_BIF_MMU_ENTRY_STATUS                       (0x1288U)
+#define RGX_CR_BIF_MMU_ENTRY_STATUS_MASKFULL              (IMG_UINT64_C(0x000000FFFFFFF0F3))
+
+#define RGX_CR_BIF_MMU_ENTRY_STATUS_ADDRESS_SHIFT         (12U)
+#define RGX_CR_BIF_MMU_ENTRY_STATUS_ADDRESS_CLRMSK        (IMG_UINT64_C(0XFFFFFF0000000FFF))
+
+#define RGX_CR_BIF_MMU_ENTRY_STATUS_CAT_BASE_SHIFT        (4U)
+#define RGX_CR_BIF_MMU_ENTRY_STATUS_CAT_BASE_CLRMSK       (IMG_UINT64_C(0XFFFFFFFFFFFFFF0F))
+
+#define RGX_CR_BIF_MMU_ENTRY_STATUS_DATA_TYPE_SHIFT       (0U)
+#define RGX_CR_BIF_MMU_ENTRY_STATUS_DATA_TYPE_CLRMSK      (IMG_UINT64_C(0XFFFFFFFFFFFFFFFC))
+
+/*
+    Register RGX_CR_BIF_MMU_ENTRY
+*/
+#define RGX_CR_BIF_MMU_ENTRY                              (0x1290U)
+#define RGX_CR_BIF_MMU_ENTRY_MASKFULL                     (IMG_UINT64_C(0x0000000000000003))
+
+#define RGX_CR_BIF_MMU_ENTRY_ENABLE_SHIFT                 (1U)
+#define RGX_CR_BIF_MMU_ENTRY_ENABLE_CLRMSK                (0XFFFFFFFDU)
+#define RGX_CR_BIF_MMU_ENTRY_ENABLE_EN                    (0X00000002U)
+
+#define RGX_CR_BIF_MMU_ENTRY_PENDING_SHIFT                (0U)
+#define RGX_CR_BIF_MMU_ENTRY_PENDING_CLRMSK               (0XFFFFFFFEU)
+#define RGX_CR_BIF_MMU_ENTRY_PENDING_EN                   (0X00000001U)
 
 /*
  Index registers per data master. Byte aligned fields to allow byte-masked access 

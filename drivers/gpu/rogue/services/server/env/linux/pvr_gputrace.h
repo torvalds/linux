@@ -54,7 +54,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   The device layer of the KM driver defines these two APIs to allow a
   platform module to set and retrieve the feature's on/off state.
 */
-extern void PVRGpuTraceEnabledSet(IMG_BOOL bNewValue);
+extern PVRSRV_ERROR PVRGpuTraceEnabledSet(IMG_BOOL bNewValue);
 extern IMG_BOOL PVRGpuTraceEnabled(void);
 
 

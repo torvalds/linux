@@ -45,6 +45,16 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef _PVRVERSION_H_
 #define _PVRVERSION_H_
 
+/*
+ *  Rogue KM Version Note
+ *
+ *  L 0.16:
+ *          Support gpu disable dvfs case.
+ *          Add rk_tf_check_version to compatible for rk3328.
+ *  L 0.17:
+ *          merge 1.4_ED3573678 DDK code
+ */
+
 #define PVR_STR(X) #X
 #define PVR_STR2(X) PVR_STR(X)
 
@@ -53,7 +63,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define PVRVERSION_FAMILY           "rogueddk"
 #define PVRVERSION_BRANCHNAME       "1.4"
-#define PVRVERSION_BUILD             3443629
+#define PVRVERSION_BUILD             3573678
 #define PVRVERSION_BSCONTROL        "Rogue_DDK_Android_RSCompute"
 
 #define PVRVERSION_STRING           "Rogue_DDK_Android_RSCompute rogueddk 1.4@" PVR_STR2(PVRVERSION_BUILD)
@@ -61,8 +71,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define COPYRIGHT_TXT               "Copyright (c) Imagination Technologies Ltd. All Rights Reserved."
 
-#define PVRVERSION_BUILD_HI          344
-#define PVRVERSION_BUILD_LO          3629
+#define PVRVERSION_BUILD_HI          357
+#define PVRVERSION_BUILD_LO          3678
 #define PVRVERSION_STRING_NUMERIC    PVR_STR2(PVRVERSION_MAJ) "." PVR_STR2(PVRVERSION_MIN) "." PVR_STR2(PVRVERSION_BUILD_HI) "." PVR_STR2(PVRVERSION_BUILD_LO)
 
 #define PVRVERSION_PACK(MAJ,MIN) ((((MAJ)&0xFFFF) << 16) | (((MIN)&0xFFFF) << 0))
@@ -70,5 +80,5 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PVRVERSION_UNPACK_MIN(VERSION) (((VERSION) >> 0) & 0xFFFF)
 
 //chenli:define rockchip version
-#define RKVERSION                   "Rogue L 0.15"
+#define RKVERSION                   "Rogue L 0.17"
 #endif /* _PVRVERSION_H_ */

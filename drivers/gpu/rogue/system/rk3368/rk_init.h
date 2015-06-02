@@ -23,6 +23,8 @@
 #define USE_KTHREAD                         0
 #define USE_HRTIMER                         1
 
+#define RK_TF_VERSION                       1
+
 #define RK33_MAX_UTILIS                 4
 #define RK33_DVFS_FREQ                  50
 #define RK33_DEFAULT_CLOCK              400
@@ -92,6 +94,8 @@ struct rk_context
     IMG_INT                 cmu_pmu_status;
     /** cmd & pmu lock */
     spinlock_t              cmu_pmu_lock;
+    /*Timer*/
+    spinlock_t              timer_lock;
 
 #if OPEN_GPU_PD
     IMG_BOOL                bEnablePd;
@@ -101,13 +105,15 @@ struct rk_context
     //struct clk              *aclk_gpu;
     struct clk              *aclk_gpu_mem;
     struct clk              *aclk_gpu_cfg;
+    struct clk              *clk_gpu;
     struct dvfs_node        *gpu_clk_node;
 
     PVRSRV_DEVICE_NODE     *psDeviceNode;
-    RGXFWIF_GPU_UTIL_STATS sUtilStats;
+    RGXFWIF_GPU_UTIL_STATS  sUtilStats;
+    IMG_BOOL                gpu_active;
+    IMG_BOOL                dvfs_enabled;
 
 #if RK33_DVFS_SUPPORT
-    IMG_BOOL                gpu_active;
 #if RK33_USE_CUSTOMER_GET_GPU_UTIL
     ktime_t                 time_period_start;
 #endif
@@ -116,8 +122,6 @@ struct rk_context
     IMG_UINT32              temperature;
     IMG_UINT32              temperature_time;
 
-    /*Timer*/
-    spinlock_t              timer_lock;
 #if USE_HRTIMER
     struct hrtimer          timer;
 #endif
@@ -137,7 +141,7 @@ struct rk_context
     IMG_INT         utilisation;
     IMG_UINT32      time_busy;
     IMG_UINT32      time_idle;
-    IMG_BOOL        dvfs_enabled;
+
 #if RK33_USE_CL_COUNT_UTILS
     IMG_UINT32      abs_load[4];
 #endif

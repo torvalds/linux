@@ -1081,19 +1081,7 @@ DevmemAllocate(DEVMEM_HEAP *psHeap,
 		PVR_ASSERT(uiSize<IMG_UINT32_MAX);
 #endif
 
-#if defined(CONFIG_ARM64) || defined(__arm64__) || defined(__aarch64__)
-		{
-			IMG_UINT32 i;
-			IMG_BYTE * pbyPtr;
-
-			pbyPtr = (IMG_BYTE*) pvAddr;
-			for (i = 0; i < uiSize; i++)
-				*pbyPtr++ = 0;
-		}
-
-#else
 		OSMemSet(pvAddr, 0x0, (IMG_SIZE_T) uiSize);
-#endif
 	    
 		DevmemReleaseCpuVirtAddr(psMemDesc);
 

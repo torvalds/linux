@@ -24,6 +24,66 @@
 #include "power.h"
 #include "rk_init.h"
 
+#include <asm/compiler.h>
+
+
+#if RK_TF_VERSION
+#define PSCI_RKSIP_TF_VERSION (0x82000001)
+
+
+static noinline int __invoke_psci_fn_smc(u64 function_id, u64 arg0, u64 arg1,
+      u64 arg2)
+{
+ asm volatile(
+   __asmeq("%0", "x0")
+   __asmeq("%1", "x1")
+   __asmeq("%2", "x2")
+   __asmeq("%3", "x3")
+   "smc #0\n"
+  : "+r" (function_id)
+  : "r" (arg0), "r" (arg1), "r" (arg2));
+
+
+ return function_id;
+}
+
+static int (*invoke_psci_fn)(u64, u64 , u64, u64) = __invoke_psci_fn_smc;
+
+
+static int rk_tf_get_version(void)
+{
+    int ver_num;
+    ver_num = invoke_psci_fn(PSCI_RKSIP_TF_VERSION, 0, 0, 0);
+
+    return ver_num;
+}
+
+static int rk_tf_check_version(void)
+{
+    int version=0;
+    int high_16=0;
+    int low_16=0;
+    IMG_PINT pNULL=NULL;
+
+    version = rk_tf_get_version();
+    high_16 = (version >> 16) & ~(0xFFFF << 16);
+    low_16 = (version & ~(0xFFFF << 16));
+
+    printk("raw version=0x%x,rk_tf_version=%x.%x\n",version,high_16,low_16);
+
+    if((version != 0xFFFFFFFF) && (high_16 >= 1) && (low_16 >= 3))
+    {
+        return 0;
+    }
+    else
+    {
+        printk("Error:%s-line:%d This version cann't support rk3328\n",__func__,__LINE__);
+        *pNULL=0; //crash system
+        return -1;
+    }
+}
+
+#endif
 
 extern struct platform_device *gpsPVRLDMDev;
 
@@ -62,6 +122,7 @@ unsigned int RGX_DVFS_STEP = ARRAY_SIZE(rgx_dvfs_infotbl);
 static int rk33_clk_set_normal_node(struct clk* node, unsigned long rate)
 {
     int ret = 0;
+
     if (!node)
     {
         printk("rk33_clk_set_normal_node error \r\n");
@@ -158,15 +219,20 @@ static void rk33_dvfs_set_clock(int freq)
     if (NULL == platform)
         panic("oops");
 
-    if (!platform->gpu_clk_node || !platform->aclk_gpu_mem || !platform->gpu_clk_node)
+    if ( !platform->aclk_gpu_mem || !platform->aclk_gpu_cfg || !platform->dvfs_enabled)
     {
-        printk("gpu_clk_node not init\n");
+        printk("aclk_gpu_mem or aclk_gpu_cfg not init\n");
         return;
     }
     //mutex_lock(&rgx_set_clock_lock);
     rk33_clk_set_normal_node(platform->aclk_gpu_mem, freq);
     rk33_clk_set_normal_node(platform->aclk_gpu_cfg, freq);
-    rk33_clk_set_dvfs_node(platform->gpu_clk_node, freq);
+
+    if(platform->gpu_clk_node)
+        rk33_clk_set_dvfs_node(platform->gpu_clk_node, freq);
+    else if(platform->clk_gpu)
+        rk33_clk_set_normal_node(platform->clk_gpu, freq);
+
     //mutex_unlock(&rgx_set_clock_lock);
     return;
 }
@@ -784,7 +850,6 @@ static IMG_VOID rk33_dvfs_utils_init(struct rk_context *platform)
     platform->temperature = 0;
     platform->temperature_time = 0;
     platform->timer_active = IMG_FALSE;
-    platform->dvfs_enabled = IMG_TRUE;
 
 #if RK33_USE_CL_COUNT_UTILS
     platform->abs_load[0] = platform->abs_load[1] = platform->abs_load[2] = platform->abs_load[3] = 0;
@@ -799,8 +864,6 @@ static IMG_VOID rk33_dvfs_utils_init(struct rk_context *platform)
 #endif //RK33_DVFS_FREQ_LIMIT
 #endif //RK33_SYSFS_FILE_SUPPORT
 
-    //dvfs timer
-    spin_lock_init(&platform->timer_lock);
 
 #if USE_HRTIMER
     {
@@ -1622,9 +1685,9 @@ IMG_BOOL rk33_set_device_node(IMG_HANDLE hDevCookie)
 
         //start timer
 #if USE_HRTIMER
-        if(platform->psDeviceNode && platform->timer.function && !platform->timer_active)
+        if(platform->psDeviceNode && platform->dvfs_enabled && platform->timer.function && !platform->timer_active)
 #elif USE_KTHREAD
-        if(platform->psDeviceNode && !platform->timer_active)
+        if(platform->psDeviceNode && platform->dvfs_enabled && !platform->timer_active)
 #endif
         {
             spin_lock_irqsave(&platform->timer_lock, flags);
@@ -1657,7 +1720,7 @@ IMG_BOOL rk33_clear_device_node(IMG_VOID)
     if(platform)
     {
         //cacel timer
-        if(platform->timer_active)
+        if(platform->timer_active && platform->dvfs_enabled)
         {
             spin_lock_irqsave(&platform->timer_lock, flags);
             platform->timer_active = IMG_FALSE;
@@ -1683,23 +1746,27 @@ IMG_BOOL rk33_clear_device_node(IMG_VOID)
 static IMG_VOID RgxEnableClock(IMG_VOID)
 {
     struct rk_context *platform;
+#if RK33_DVFS_SUPPORT
     unsigned long flags;
+#endif
 
     platform = dev_get_drvdata(&gpsPVRLDMDev->dev);
 
-    if (
-        platform->gpu_clk_node &&
-        platform->aclk_gpu_mem && platform->aclk_gpu_cfg && !platform->gpu_active)
+    if (platform->aclk_gpu_mem && platform->aclk_gpu_cfg && !platform->gpu_active)
     {
-        dvfs_clk_prepare_enable(platform->gpu_clk_node);
+        if(platform->gpu_clk_node)
+            dvfs_clk_prepare_enable(platform->gpu_clk_node);
+        else if(platform->clk_gpu)
+            clk_prepare_enable(platform->clk_gpu);
         clk_prepare_enable(platform->aclk_gpu_mem);
         clk_prepare_enable(platform->aclk_gpu_cfg);
 
 #if RK33_DVFS_SUPPORT
         rk33_dvfs_record_gpu_active(platform);
 
-        if(platform->psDeviceNode && !platform->timer_active)
+        if(platform->psDeviceNode && platform->dvfs_enabled && !platform->timer_active)
         {
+
             spin_lock_irqsave(&platform->timer_lock, flags);
             platform->timer_active = IMG_TRUE;
             spin_unlock_irqrestore(&platform->timer_lock, flags);
@@ -1713,24 +1780,25 @@ static IMG_VOID RgxEnableClock(IMG_VOID)
     {
         PVR_DPF((PVR_DBG_WARNING, "Failed to enable clock!"));
     }
+
 }
 
 static IMG_VOID RgxDisableClock(IMG_VOID)
 {
     struct rk_context *platform;
+#if RK33_DVFS_SUPPORT
     unsigned long flags;
+#endif
 
     platform = dev_get_drvdata(&gpsPVRLDMDev->dev);
 
-    if (
-        platform->gpu_clk_node &&
-        platform->aclk_gpu_mem && platform->aclk_gpu_cfg && platform->gpu_active)
+    if (platform->aclk_gpu_mem && platform->aclk_gpu_cfg && platform->gpu_active)
     {
 #if RK33_DVFS_SUPPORT
         //Force to drop freq to the lowest.
         rk33_dvfs_set_level(0);
 
-        if(platform->timer_active)
+        if(platform->dvfs_enabled && platform->timer_active)
         {
             spin_lock_irqsave(&platform->timer_lock, flags);
             platform->timer_active = IMG_FALSE;
@@ -1739,11 +1807,16 @@ static IMG_VOID RgxDisableClock(IMG_VOID)
             hrtimer_cancel(&platform->timer);
 #endif
         }
+
         rk33_dvfs_record_gpu_idle(platform);
+
 #endif
         clk_disable_unprepare(platform->aclk_gpu_cfg);
         clk_disable_unprepare(platform->aclk_gpu_mem);
-        dvfs_clk_disable_unprepare(platform->gpu_clk_node);
+        if(platform->gpu_clk_node)
+            dvfs_clk_disable_unprepare(platform->gpu_clk_node);
+        else if(platform->clk_gpu)
+            clk_disable_unprepare(platform->clk_gpu);
     }
     else
     {
@@ -1816,12 +1889,14 @@ IMG_VOID RgxResume(IMG_VOID)
 #if OPEN_GPU_PD
     RgxEnablePower();
 #endif
+
     //mdelay(2);
 
     /* set external isolation invalid */
     //writel(0, SUNXI_R_PRCM_VBASE + GPU_PWROFF_GATING);
 
     //DeAssertGpuResetSignal();
+
     RgxEnableClock();
 
     /* delay for internal power stability */
@@ -1873,6 +1948,10 @@ IMG_VOID RgxRkInit(IMG_VOID)
         return;
     }
 
+#if RK_TF_VERSION
+    rk_tf_check_version();
+#endif
+
     dev_set_drvdata(&gpsPVRLDMDev->dev, platform);
 
 #if OPEN_GPU_PD
@@ -1882,17 +1961,18 @@ IMG_VOID RgxRkInit(IMG_VOID)
     platform->psDeviceNode = NULL;
 
     spin_lock_init(&platform->cmu_pmu_lock);
+    spin_lock_init(&platform->timer_lock);
 
 #if OPEN_GPU_PD
     platform->pd_gpu_0 = devm_clk_get(&gpsPVRLDMDev->dev, "pd_gpu_0");
-    if (IS_ERR(platform->pd_gpu_0))
+    if (IS_ERR_OR_NULL(platform->pd_gpu_0))
     {
         PVR_DPF((PVR_DBG_ERROR, "RgxRkInit: Failed to find pd_gpu_0 clock source"));
         goto fail0;
     }
 
     platform->pd_gpu_1 = devm_clk_get(&gpsPVRLDMDev->dev, "pd_gpu_1");
-    if (IS_ERR(platform->pd_gpu_1))
+    if (IS_ERR_OR_NULL(platform->pd_gpu_1))
     {
         PVR_DPF((PVR_DBG_ERROR, "RgxRkInit: Failed to find pd_gpu_1 clock source"));
         goto fail1;
@@ -1900,37 +1980,46 @@ IMG_VOID RgxRkInit(IMG_VOID)
 #endif
 
     platform->aclk_gpu_mem = devm_clk_get(&gpsPVRLDMDev->dev, "aclk_gpu_mem");
-    if (IS_ERR(platform->aclk_gpu_mem))
+    if (IS_ERR_OR_NULL(platform->aclk_gpu_mem))
     {
         PVR_DPF((PVR_DBG_ERROR, "RgxRkInit: Failed to find aclk_gpu_mem clock source"));
         goto fail2;
     }
 
     platform->aclk_gpu_cfg = devm_clk_get(&gpsPVRLDMDev->dev, "aclk_gpu_cfg");
-    if (IS_ERR(platform->aclk_gpu_cfg))
+    if (IS_ERR_OR_NULL(platform->aclk_gpu_cfg))
     {
         PVR_DPF((PVR_DBG_ERROR, "RgxRkInit: Failed to find aclk_gpu_cfg clock source"));
         goto fail3;
     }
 
     platform->gpu_clk_node  = clk_get_dvfs_node("clk_gpu");
-    if (IS_ERR(platform->gpu_clk_node))
+    if (IS_ERR_OR_NULL(platform->gpu_clk_node))
     {
-        PVR_DPF((PVR_DBG_ERROR, "RgxRkInit: Failed to find gpu_clk_node clock source"));
-        goto fail4;
+        platform->dvfs_enabled = IMG_FALSE;
+        PVR_DPF((PVR_DBG_ERROR, "RgxRkInit: GPU Dvfs is disabled"));
+        platform->clk_gpu = devm_clk_get(&gpsPVRLDMDev->dev, "clk_gpu");
+        if (IS_ERR_OR_NULL(platform->clk_gpu))
+        {
+            PVR_DPF((PVR_DBG_ERROR, "RgxRkInit: Failed to find clk_gpu clock source"));
+            goto fail4;
+        }
     }
-
-    rk33_clk_set_normal_node(platform->aclk_gpu_mem, RK33_DEFAULT_CLOCK);
-    rk33_clk_set_normal_node(platform->aclk_gpu_cfg, RK33_DEFAULT_CLOCK);
-    rk33_clk_set_dvfs_node(platform->gpu_clk_node, RK33_DEFAULT_CLOCK);
+    else
+    {
+        platform->dvfs_enabled = IMG_TRUE;
+        rk33_clk_set_dvfs_node(platform->gpu_clk_node, RK33_DEFAULT_CLOCK);
+        rk33_clk_set_normal_node(platform->aclk_gpu_mem, RK33_DEFAULT_CLOCK);
+        rk33_clk_set_normal_node(platform->aclk_gpu_cfg, RK33_DEFAULT_CLOCK);
 #if RK33_DVFS_SUPPORT
-    rk33_dvfs_init();
+        rk33_dvfs_init();
 #if RK33_SYSFS_FILE_SUPPORT
-    //create sysfs file node
-    rk_create_sysfs_file(&gpsPVRLDMDev->dev);
+        //create sysfs file node
+        rk_create_sysfs_file(&gpsPVRLDMDev->dev);
 #endif
 
 #endif //end of RK33_DVFS_SUPPORT
+    }
 
     RgxResume();
 
@@ -1943,6 +2032,7 @@ fail3:
     devm_clk_put(&gpsPVRLDMDev->dev, platform->aclk_gpu_mem);
     platform->aclk_gpu_mem = NULL;
 fail2:
+
 #if OPEN_GPU_PD
     devm_clk_put(&gpsPVRLDMDev->dev, platform->pd_gpu_1);
     platform->pd_gpu_1 = NULL;
@@ -1950,7 +2040,8 @@ fail1:
     devm_clk_put(&gpsPVRLDMDev->dev, platform->pd_gpu_0);
     platform->pd_gpu_0 = NULL;
 fail0:
-#endif
+#endif //end of OPEN_GPU_PD
+
     kfree(platform);
 }
 
@@ -1960,15 +2051,52 @@ IMG_VOID RgxRkUnInit(IMG_VOID)
 
     platform = dev_get_drvdata(&gpsPVRLDMDev->dev);
 
-#if RK33_DVFS_SUPPORT
-#if RK33_SYSFS_FILE_SUPPORT
-    rk_remove_sysfs_file(&gpsPVRLDMDev->dev);
-#endif
-    rk33_dvfs_term();
+    RgxSuspend();
+
+    if(platform->gpu_clk_node)
+    {
+        clk_put_dvfs_node(platform->gpu_clk_node);
+        platform->gpu_clk_node = NULL;
+    }
+    else if(platform->clk_gpu)
+    {
+        devm_clk_put(&gpsPVRLDMDev->dev, platform->clk_gpu);
+        platform->clk_gpu = NULL;
+    }
+
+    if(platform->aclk_gpu_cfg)
+    {
+        devm_clk_put(&gpsPVRLDMDev->dev, platform->aclk_gpu_cfg);
+        platform->aclk_gpu_cfg = NULL;
+    }
+    if(platform->aclk_gpu_mem)
+    {
+        devm_clk_put(&gpsPVRLDMDev->dev, platform->aclk_gpu_mem);
+        platform->aclk_gpu_mem = NULL;
+    }
+#if OPEN_GPU_PD
+    if(platform->pd_gpu_1)
+    {
+        devm_clk_put(&gpsPVRLDMDev->dev, platform->pd_gpu_1);
+        platform->pd_gpu_1 = NULL;
+    }
+    if(platform->pd_gpu_0)
+    {
+        devm_clk_put(&gpsPVRLDMDev->dev, platform->pd_gpu_0);
+        platform->pd_gpu_0 = NULL;
+    }
 #endif
 
+    if(platform->dvfs_enabled)
+    {
+#if RK33_DVFS_SUPPORT
+#if RK33_SYSFS_FILE_SUPPORT
+        rk_remove_sysfs_file(&gpsPVRLDMDev->dev);
+#endif
+        rk33_dvfs_term();
+#endif
+    }
     kfree(platform);
-    RgxSuspend();
 }
 
 

@@ -132,15 +132,22 @@ PVRSRV_ERROR OSSecureExport(CONNECTION_DATA *psConnection,
 		goto e0;
 	}
 
-	/* Bind our struct file with it's fd number */
-	fd_install(secure_fd, secure_file);
-
 	/* Return the new services connection our secure data created */
 #if defined(SUPPORT_DRM)
 	psSecureConnection = LinuxConnectionFromFile(PVR_DRM_FILE_FROM_FILE(secure_file));
 #else
 	psSecureConnection = LinuxConnectionFromFile(secure_file);
 #endif
+
+	if(psSecureConnection == IMG_NULL)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "Invalid connection data"));
+		eError = PVRSRV_ERROR_INVALID_PARAMS;
+		goto e0;
+	}
+
+	/* Bind our struct file with it's fd number */
+	fd_install(secure_fd, secure_file);
 
 	/* Save the private data */
 	PVR_ASSERT(psSecureConnection->hSecureData == IMG_NULL);

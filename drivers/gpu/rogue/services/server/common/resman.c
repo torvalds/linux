@@ -126,6 +126,14 @@ static PVRSRV_ERROR FreeResourceByCriteria(PRESMAN_CONTEXT	psContext,
 static IMG_VOID ResManFreeResources(PRESMAN_CONTEXT psResManContext);
 static IMG_VOID ResManDeferResources(PRESMAN_CONTEXT psResManContext);
 
+/* list of deferred work passed back from cleanup callbacks, to be called
+ * with the bridge lock released.
+ * This is a list because a single cleanup callback may
+ * generate multiple additional callbacks to be run without
+ * the bridge lock held.
+ */
+static DECLARE_DLLIST(gsFreeOSPagesWorkList);
+
 /*!
 ******************************************************************************
 
@@ -820,6 +828,58 @@ static IMG_VOID* FreeResourceByCriteria_AnyVaCb(RESMAN_ITEM *psCurItem, va_list 
 
 /*!
 ******************************************************************************
+ @Function      PVRSRVResManAddNoBridgeLockCallback
+
+ @Description
+                Called from resman callback cleanup functions. Adds a function
+		callback to be called without the bridge lock held.
+
+ @inputs        psCallbackInfo - the callback function and callback data parameter
+
+ @Return        None
+**************************************************************************/
+IMG_VOID PVRSRVResManAddNoBridgeLockCallback(RESMAN_FREE_FN_AND_DATA *psCallbackInfo)
+{
+	dllist_add_to_tail(&gsFreeOSPagesWorkList, &psCallbackInfo->sNode);
+}
+
+/*!
+******************************************************************************
+ @Function      PVRSRVResManInDeferredCleanup
+
+ @Description
+                Indicates whether resman is currently in a deferred cleanup call.
+
+ @Return        IMG_BOOL - IMG_TRUE if resman is currently in a deferred cleanup call.
+**************************************************************************/
+IMG_BOOL PVRSRVResManInDeferredCleanup(IMG_VOID)
+{
+	PVRSRV_DATA *psPVRSRVData = PVRSRVGetPVRSRVData();
+	return OSGetCurrentProcessIDKM() == psPVRSRVData->cleanupThreadPid;
+}
+
+static IMG_BOOL _ResManDeferredCallbackCB(DLLIST_NODE *psNode, IMG_VOID *pvData)
+{
+	RESMAN_FREE_FN_AND_DATA *psCallbackInfo;
+	PVRSRV_ERROR eError;
+	PVR_UNREFERENCED_PARAMETER(pvData);
+
+	psCallbackInfo = IMG_CONTAINER_OF(psNode, RESMAN_FREE_FN_AND_DATA, sNode);
+
+	eError = psCallbackInfo->pfnFree(psCallbackInfo->pvParam);
+
+	if(eError != PVRSRV_OK)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "_ResManDeferredCallbackCB: pfnFree returned error: %u (%s)",
+									eError,
+									PVRSRVGETERRORSTRING(eError)));
+	}
+
+	return IMG_TRUE;
+}
+
+/*!
+******************************************************************************
  @Function	 	FreeResourceByCriteria
 
  @Description
@@ -867,6 +927,24 @@ static PVRSRV_ERROR FreeResourceByCriteria(PRESMAN_CONTEXT	psResManContext,
 		if (eError == PVRSRV_OK)
 		{
 			iu32ItemsCounter++;
+
+			/* process any cleanup work which needed to be deferred until
+			 * the bridge lock is released
+			 */
+
+			if(!dllist_is_empty(&gsFreeOSPagesWorkList))
+			{
+				OSReleaseBridgeLock();
+
+				dllist_foreach_node(&gsFreeOSPagesWorkList,
+									_ResManDeferredCallbackCB,
+									IMG_NULL);
+
+				/* work done. empty the list */
+				dllist_init(&gsFreeOSPagesWorkList);
+
+				OSAcquireBridgeLock();
+			}
 		}
 		else
 		{

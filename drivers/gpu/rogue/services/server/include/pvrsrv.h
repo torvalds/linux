@@ -94,6 +94,7 @@ typedef struct PVRSRV_DATA_TAG
 
 	IMG_HANDLE					hCleanupThread;				/*!< Cleanup thread */
 	IMG_HANDLE					hCleanupEventObject;		/*!< Event object to drive cleanup thread */
+	IMG_PID						cleanupThreadPid;			/*!< Cleanup thread process id */
 
 	IMG_HANDLE					hDevicesWatchdogThread;		/*!< Devices Watchdog thread */
 	IMG_HANDLE					hDevicesWatchdogEvObj;		/*! Event object to drive devices watchdog thread */

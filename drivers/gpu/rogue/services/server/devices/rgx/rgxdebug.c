@@ -492,25 +492,57 @@ static IMG_VOID _RGXDecodeBIFReqTags(RGXDBG_BIF_ID	eBankID,
 		case 0xF:
 		{
 			pszTagID = "FB_CDC";
+#if defined(RGX_FEATURE_XT_TOP_INFRASTRUCTURE)
 			{
-				IMG_UINT32 ui32Req = (ui32TagSB >> 2) & 0x3;
-				IMG_UINT32 ui32MCUSB = ui32TagSB & 0x3;
-
-				IMG_CHAR* pszReqId = (ui32TagSB & 0x10)?"FBDC":"FBC";
-				IMG_CHAR* pszOrig = "";
+				IMG_UINT32 ui32Req   = (ui32TagSB >> 0) & 0xf;
+				IMG_UINT32 ui32MCUSB = (ui32TagSB >> 4) & 0x3;
+				IMG_CHAR* pszReqOrig = "";
 
 				switch (ui32Req)
 				{
-					case 0x0: pszOrig = "ZLS"; break;
-					case 0x1: pszOrig = (ui32TagSB & 0x10)?"MCU":"PBE"; break;
-					case 0x2: pszOrig = "Host"; break;
-					case 0x3: pszOrig = "TLA"; break;
+					case 0x0: pszReqOrig = "FBC Request, originator ZLS"; break;
+					case 0x1: pszReqOrig = "FBC Request, originator PBE"; break;
+					case 0x2: pszReqOrig = "FBC Request, originator Host"; break;
+					case 0x3: pszReqOrig = "FBC Request, originator TLA"; break;
+					case 0x4: pszReqOrig = "FBDC Request, originator ZLS"; break;
+					case 0x5: pszReqOrig = "FBDC Request, originator MCU"; break;
+					case 0x6: pszReqOrig = "FBDC Request, originator Host"; break;
+					case 0x7: pszReqOrig = "FBDC Request, originator TLA"; break;
+					case 0x8: pszReqOrig = "FBC Request, originator ZLS Requester Fence"; break;
+					case 0x9: pszReqOrig = "FBC Request, originator PBE Requester Fence"; break;
+					case 0xa: pszReqOrig = "FBC Request, originator Host Requester Fence"; break;
+					case 0xb: pszReqOrig = "FBC Request, originator TLA Requester Fence"; break;
+					case 0xc: pszReqOrig = "Reserved"; break;
+					case 0xd: pszReqOrig = "Reserved"; break;
+					case 0xe: pszReqOrig = "FBDC Request, originator FBCDC(Host) Memory Fence"; break;
+					case 0xf: pszReqOrig = "FBDC Request, originator FBCDC(TLA) Memory Fence"; break;
 				}
 				OSSNPrintf(pszScratchBuf, ui32ScratchBufSize,
-							"%s Request, originator %s, MCU sideband 0x%X",
-							pszReqId, pszOrig, ui32MCUSB);
+				           "%s, MCU sideband 0x%X", pszReqOrig, ui32MCUSB);
 				pszTagSB = pszScratchBuf;
 			}
+#else
+			{
+				IMG_UINT32 ui32Req   = (ui32TagSB >> 2) & 0x7;
+				IMG_UINT32 ui32MCUSB = (ui32TagSB >> 0) & 0x3;
+				IMG_CHAR* pszReqOrig = "";
+
+				switch (ui32Req)
+				{
+					case 0x0: pszReqOrig = "FBC Request, originator ZLS";   break;
+					case 0x1: pszReqOrig = "FBC Request, originator PBE";   break;
+					case 0x2: pszReqOrig = "FBC Request, originator Host";  break;
+					case 0x3: pszReqOrig = "FBC Request, originator TLA";   break;
+					case 0x4: pszReqOrig = "FBDC Request, originator ZLS";  break;
+					case 0x5: pszReqOrig = "FBDC Request, originator MCU";  break;
+					case 0x6: pszReqOrig = "FBDC Request, originator Host"; break;
+					case 0x7: pszReqOrig = "FBDC Request, originator TLA";  break;
+				}
+				OSSNPrintf(pszScratchBuf, ui32ScratchBufSize,
+				           "%s, MCU sideband 0x%X", pszReqOrig, ui32MCUSB);
+				pszTagSB = pszScratchBuf;
+			}
+#endif
 			break;
 		}
 	} /* switch(TagID) */
@@ -816,22 +848,31 @@ static IMG_VOID _RGXDecodeMMUReqTags(IMG_UINT32  ui32TagID,
 
 		case RGXDBG_FBCDC:
 		{
-			IMG_UINT32 ui32Req = (ui32TagSB >> 2) & 0x3;
-			IMG_UINT32 ui32MCUSB = ui32TagSB & 0x3;
-
-			IMG_CHAR* pszReqId = (ui32TagSB & 0x10)?"FBDC":"FBC";
-			IMG_CHAR* pszOrig = "";
+			IMG_UINT32 ui32Req   = (ui32TagSB >> 0) & 0xf;
+			IMG_UINT32 ui32MCUSB = (ui32TagSB >> 4) & 0x3;
+			IMG_CHAR* pszReqOrig = "";
 
 			switch (ui32Req)
 			{
-				case 0x0: pszOrig = "ZLS"; break;
-				case 0x1: pszOrig = (ui32TagSB & 0x10)?"MCU":"PBE"; break;
-				case 0x2: pszOrig = "Host"; break;
-				case 0x3: pszOrig = "TLA"; break;
+				case 0x0: pszReqOrig = "FBC Request, originator ZLS";  break;
+				case 0x1: pszReqOrig = "FBC Request, originator PBE"; break;
+				case 0x2: pszReqOrig = "FBC Request, originator Host"; break;
+				case 0x3: pszReqOrig = "FBC Request, originator TLA"; break;
+				case 0x4: pszReqOrig = "FBDC Request, originator ZLS"; break;
+				case 0x5: pszReqOrig = "FBDC Request, originator MCU"; break;
+				case 0x6: pszReqOrig = "FBDC Request, originator Host"; break;
+				case 0x7: pszReqOrig = "FBDC Request, originator TLA"; break;
+				case 0x8: pszReqOrig = "FBC Request, originator ZLS Requester Fence"; break;
+				case 0x9: pszReqOrig = "FBC Request, originator PBE Requester Fence"; break;
+				case 0xa: pszReqOrig = "FBC Request, originator Host Requester Fence"; break;
+				case 0xb: pszReqOrig = "FBC Request, originator TLA Requester Fence"; break;
+				case 0xc: pszReqOrig = "Reserved"; break;
+				case 0xd: pszReqOrig = "Reserved"; break;
+				case 0xe: pszReqOrig = "FBDC Request, originator FBCDC(Host) Memory Fence"; break;
+				case 0xf: pszReqOrig = "FBDC Request, originator FBCDC(TLA) Memory Fence"; break;
 			}
 			OSSNPrintf(pszScratchBuf, ui32ScratchBufSize,
-						"%s Request, originator %s, MCU sideband 0x%X",
-						pszReqId, pszOrig, ui32MCUSB);
+			           "%s, MCU sideband 0x%X", pszReqOrig, ui32MCUSB);
 			pszTagSB = pszScratchBuf;
 			break;
 		}
@@ -1366,6 +1407,74 @@ static IMG_VOID _RGXDumpFWHWRInfo(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
 	}	
 }
 
+#if !defined(NO_HARDWARE)
+
+/*!
+*******************************************************************************
+
+ @Function	_CheckForPendingPage
+
+ @Description
+
+ Check if the MMU indicates it is blocked on a pending page
+
+ @Input psDevInfo	 - RGX device info
+
+ @Return   IMG_BOOL      - IMG_TRUE if there is a pending page
+
+******************************************************************************/
+static INLINE IMG_BOOL _CheckForPendingPage(PVRSRV_RGXDEV_INFO *psDevInfo)
+{
+	IMG_UINT32 ui32BIFMMUEntry;
+
+	ui32BIFMMUEntry = OSReadHWReg32(psDevInfo->pvRegsBaseKM, RGX_CR_BIF_MMU_ENTRY);
+
+	if(ui32BIFMMUEntry & RGX_CR_BIF_MMU_ENTRY_PENDING_EN)
+	{
+		return IMG_TRUE;
+	}
+	else
+	{
+		return IMG_FALSE;
+	}
+}
+
+/*!
+*******************************************************************************
+
+ @Function	_GetPendingPageInfo
+
+ @Description
+
+ Get information about the pending page from the MMU status registers
+
+ @Input psDevInfo	 - RGX device info
+ @Output psDevVAddr      - The device virtual address of the pending MMU address translation
+ @Output pui32CatBase    - The page catalog base
+ @Output pui32DataType   - The MMU entry data type
+
+ @Return   void
+
+******************************************************************************/
+static void _GetPendingPageInfo(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_DEV_VIRTADDR *psDevVAddr,
+									IMG_UINT32 *pui32CatBase,
+									IMG_UINT32 *pui32DataType)
+{
+	IMG_UINT64 ui64BIFMMUEntryStatus;
+
+	ui64BIFMMUEntryStatus = OSReadHWReg64(psDevInfo->pvRegsBaseKM, RGX_CR_BIF_MMU_ENTRY_STATUS);
+
+	psDevVAddr->uiAddr = (ui64BIFMMUEntryStatus & ~RGX_CR_BIF_MMU_ENTRY_STATUS_ADDRESS_CLRMSK);
+
+	*pui32CatBase = (ui64BIFMMUEntryStatus & ~RGX_CR_BIF_MMU_ENTRY_STATUS_CAT_BASE_CLRMSK) >>
+								RGX_CR_BIF_MMU_ENTRY_STATUS_CAT_BASE_SHIFT;
+
+	*pui32DataType = (ui64BIFMMUEntryStatus & ~RGX_CR_BIF_MMU_ENTRY_STATUS_DATA_TYPE_CLRMSK) >>
+								RGX_CR_BIF_MMU_ENTRY_STATUS_DATA_TYPE_SHIFT;
+}
+
+#endif
+
 /*!
 *******************************************************************************
 
@@ -1433,6 +1542,37 @@ static IMG_VOID _RGXDumpRGXDebugSummary(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrint
 #endif
 #endif
 #endif
+
+#if !defined(NO_HARDWARE)
+		if(_CheckForPendingPage(psDevInfo))
+		{
+			IMG_UINT32 ui32CatBase;
+			IMG_UINT32 ui32DataType;
+			IMG_DEV_VIRTADDR sDevVAddr;
+
+			PVR_DUMPDEBUG_LOG(("MMU Pending page: Yes"));
+
+			_GetPendingPageInfo(psDevInfo, &sDevVAddr, &ui32CatBase, &ui32DataType);
+
+			if(ui32CatBase >= 8)
+			{
+				PVR_DUMPDEBUG_LOG(("Cannot check address on PM cat base %u", ui32CatBase));
+			}
+			else
+			{
+				IMG_DEV_PHYADDR sPCDevPAddr;
+
+				sPCDevPAddr.uiAddr = OSReadHWReg64(psDevInfo->pvRegsBaseKM, RGX_CR_BIF_CAT_BASEN(ui32CatBase));
+
+				PVR_DUMPDEBUG_LOG(("Checking device virtual address " IMG_DEV_VIRTADDR_FMTSPEC
+							" on cat base %u. PC Addr = 0x%llX",
+								(unsigned long long) sDevVAddr.uiAddr,
+								ui32CatBase,
+								(unsigned long long) sPCDevPAddr.uiAddr));
+				RGXCheckFaultAddress(psDevInfo, &sDevVAddr, &sPCDevPAddr);
+			}
+		}
+#endif /* NO_HARDWARE */
 	}
 
 	/* Firmware state */
