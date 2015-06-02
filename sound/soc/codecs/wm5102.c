@@ -605,12 +605,13 @@ static int wm5102_sysclk_ev(struct snd_soc_dapm_widget *w,
 				regmap_write_async(regmap, patch[i].reg,
 						   patch[i].def);
 		break;
-
-	default:
+	case SND_SOC_DAPM_PRE_PMD:
 		break;
+	default:
+		return 0;
 	}
 
-	return 0;
+	return arizona_dvfs_sysclk_ev(w, kcontrol, event);
 }
 
 static int wm5102_out_comp_coeff_get(struct snd_kcontrol *kcontrol,
@@ -1036,7 +1037,8 @@ static const struct snd_kcontrol_new wm5102_aec_loopback_mux =
 
 static const struct snd_soc_dapm_widget wm5102_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", ARIZONA_SYSTEM_CLOCK_1, ARIZONA_SYSCLK_ENA_SHIFT,
-		    0, wm5102_sysclk_ev, SND_SOC_DAPM_POST_PMU),
+		    0, wm5102_sysclk_ev,
+		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 SND_SOC_DAPM_SUPPLY("ASYNCCLK", ARIZONA_ASYNC_CLOCK_1,
 		    ARIZONA_ASYNC_CLK_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("OPCLK", ARIZONA_OUTPUT_SYSTEM_CLOCK,
@@ -1908,6 +1910,8 @@ static int wm5102_probe(struct platform_device *pdev)
 
 	wm5102->core.arizona = arizona;
 	wm5102->core.num_inputs = 6;
+
+	arizona_init_dvfs(&wm5102->core);
 
 	wm5102->core.adsp[0].part = "wm5102";
 	wm5102->core.adsp[0].num = 1;
