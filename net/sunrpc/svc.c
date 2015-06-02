@@ -1350,7 +1350,6 @@ bc_svc_process(struct svc_serv *serv, struct rpc_rqst *req,
 {
 	struct kvec	*argv = &rqstp->rq_arg.head[0];
 	struct kvec	*resv = &rqstp->rq_res.head[0];
-	static const struct rpc_call_ops reply_ops = { };
 	struct rpc_task *task;
 	int error;
 
@@ -1391,7 +1390,7 @@ bc_svc_process(struct svc_serv *serv, struct rpc_rqst *req,
 
 	/* Finally, send the reply synchronously */
 	memcpy(&req->rq_snd_buf, &rqstp->rq_res, sizeof(req->rq_snd_buf));
-	task = rpc_run_bc_task(req, &reply_ops);
+	task = rpc_run_bc_task(req);
 	if (IS_ERR(task)) {
 		error = PTR_ERR(task);
 		goto out;
