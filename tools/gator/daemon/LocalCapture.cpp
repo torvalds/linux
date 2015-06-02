@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -27,7 +27,7 @@ LocalCapture::~LocalCapture() {}
 void LocalCapture::createAPCDirectory(char* target_path) {
 	gSessionData->mAPCDir = createUniqueDirectory(target_path, ".apc");
 	if ((removeDirAndAllContents(gSessionData->mAPCDir) != 0 || mkdir(gSessionData->mAPCDir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0)) {
-		logg->logError(__FILE__, __LINE__, "Unable to create directory %s", gSessionData->mAPCDir);
+		logg->logError("Unable to create directory %s", gSessionData->mAPCDir);
 		handleException();
 	}
 }
@@ -40,7 +40,7 @@ void LocalCapture::write(char* string) {
 
 	// Write the file
 	if (util->writeToDisk(file, string) < 0) {
-		logg->logError(__FILE__, __LINE__, "Error writing %s\nPlease verify the path.", file);
+		logg->logError("Error writing %s\nPlease verify the path.", file);
 		handleException();
 	}
 
@@ -55,7 +55,7 @@ char* LocalCapture::createUniqueDirectory(const char* initialPath, const char* e
 
 	// Ensure the path is an absolute path, i.e. starts with a slash
 	if (initialPath == 0 || strlen(initialPath) == 0) {
-		logg->logError(__FILE__, __LINE__, "Missing -o command line option required for a local capture.");
+		logg->logError("Missing -o command line option required for a local capture.");
 		handleException();
 	} else if (initialPath[0] != '/') {
 		if (getcwd(path, PATH_MAX) == 0) {

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -57,6 +57,8 @@ static bool proc_global_enabled;
 static ulong proc_enabled[PROC_COUNT];
 static ulong proc_keys[PROC_COUNT];
 static DEFINE_PER_CPU(long long, proc_buffer[2 * (PROC_COUNT + 3)]);
+
+static void do_read(void);
 
 #if USE_THREAD
 
@@ -177,6 +179,7 @@ static int gator_events_meminfo_start(void)
 	if (GATOR_REGISTER_TRACE(mm_page_alloc))
 		goto mm_page_alloc_exit;
 
+	do_read();
 #if USE_THREAD
 	/* Start worker thread */
 	gator_meminfo_run = true;

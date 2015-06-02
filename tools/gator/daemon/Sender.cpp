@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -30,7 +30,7 @@ Sender::Sender(OlySocket* socket) {
 		// Streamline will send data prior to the magic sequence for legacy support, which should be ignored for v4+
 		while (strcmp("STREAMLINE", streamline) != 0) {
 			if (mDataSocket->receiveString(streamline, sizeof(streamline)) == -1) {
-				logg->logError(__FILE__, __LINE__, "Socket disconnected");
+				logg->logError("Socket disconnected");
 				handleException();
 			}
 		}
@@ -67,7 +67,7 @@ void Sender::createDataFile(char* apcDir) {
 	sprintf(mDataFileName, "%s/0000000000", apcDir);
 	mDataFile = fopen_cloexec(mDataFileName, "wb");
 	if (!mDataFile) {
-		logg->logError(__FILE__, __LINE__, "Failed to open binary file: %s", mDataFileName);
+		logg->logError("Failed to open binary file: %s", mDataFileName);
 		handleException();
 	}
 }
@@ -120,7 +120,7 @@ void Sender::writeData(const char* data, int length, int type) {
 		logg->logMessage("Writing data with length %d", length);
 		// Send data to the data file
 		if (fwrite(data, 1, length, mDataFile) != (unsigned int)length) {
-			logg->logError(__FILE__, __LINE__, "Failed writing binary file %s", mDataFileName);
+			logg->logError("Failed writing binary file %s", mDataFileName);
 			handleException();
 		}
 	}

@@ -1,7 +1,7 @@
 /**
  * l2c310 (L2 Cache Controller) event counters for gator
  *
- * Copyright (C) ARM Limited 2010-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

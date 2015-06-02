@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2011-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2011-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -68,7 +68,7 @@ StreamlineSetup::StreamlineSetup(OlySocket* s) {
 				sendData(NULL, 0, RESPONSE_ACK);
 				break;
 			default:
-				logg->logError(__FILE__, __LINE__, "Target error: Unknown command type, %d", type);
+				logg->logError("Target error: Unknown command type, %d", type);
 				handleException();
 		}
 
@@ -76,7 +76,7 @@ StreamlineSetup::StreamlineSetup(OlySocket* s) {
 	}
 
 	if (gSessionData->mCounterOverflow > 0) {
-		logg->logError(__FILE__, __LINE__, "Only %i performance counters are permitted, %i are selected", MAX_PERFORMANCE_COUNTERS, gSessionData->mCounterOverflow);
+		logg->logError("Only %i performance counters are permitted, %i are selected", MAX_PERFORMANCE_COUNTERS, gSessionData->mCounterOverflow);
 		handleException();
 	}
 }
@@ -96,7 +96,7 @@ char* StreamlineSetup::readCommand(int* command) {
 	gSessionData->mWaitingOnCommand = false;
 
 	if (response < 0) {
-		logg->logError(__FILE__, __LINE__, "Target error: Unexpected socket disconnect");
+		logg->logError("Target error: Unexpected socket disconnect");
 		handleException();
 	}
 
@@ -105,21 +105,21 @@ char* StreamlineSetup::readCommand(int* command) {
 
 	// add artificial limit
 	if ((length < 0) || length > 1024 * 1024) {
-		logg->logError(__FILE__, __LINE__, "Target error: Invalid length received, %d", length);
+		logg->logError("Target error: Invalid length received, %d", length);
 		handleException();
 	}
 
 	// allocate memory to contain the xml file, size of zero returns a zero size object
 	data = (char*)calloc(length + 1, 1);
 	if (data == NULL) {
-		logg->logError(__FILE__, __LINE__, "Unable to allocate memory for xml");
+		logg->logError("Unable to allocate memory for xml");
 		handleException();
 	}
 
 	// receive data
 	response = mSocket->receiveNBytes(data, length);
 	if (response < 0) {
-		logg->logError(__FILE__, __LINE__, "Target error: Unexpected socket disconnect");
+		logg->logError("Target error: Unexpected socket disconnect");
 		handleException();
 	}
 
@@ -222,7 +222,7 @@ void StreamlineSetup::sendDefaults() {
 
 	// Artificial size restriction
 	if (size > 1024*1024) {
-		logg->logError(__FILE__, __LINE__, "Corrupt default configuration file");
+		logg->logError("Corrupt default configuration file");
 		handleException();
 	}
 
@@ -241,7 +241,7 @@ void StreamlineSetup::sendCounters() {
 	}
 
 	if (count == 0) {
-		logg->logError(__FILE__, __LINE__, "No counters found, this could be because /dev/gator/events can not be read or because perf is not working correctly");
+		logg->logError("No counters found, this could be because /dev/gator/events can not be read or because perf is not working correctly");
 		handleException();
 	}
 
@@ -258,7 +258,7 @@ void StreamlineSetup::writeConfiguration(char* xml) {
 	ConfigurationXML::getPath(path);
 
 	if (util->writeToDisk(path, xml) < 0) {
-		logg->logError(__FILE__, __LINE__, "Error writing %s\nPlease verify write permissions to this path.", path);
+		logg->logError("Error writing %s\nPlease verify write permissions to this path.", path);
 		handleException();
 	}
 
@@ -266,7 +266,7 @@ void StreamlineSetup::writeConfiguration(char* xml) {
 	{ ConfigurationXML configuration; }
 
 	if (gSessionData->mCounterOverflow > 0) {
-		logg->logError(__FILE__, __LINE__, "Only %i performance counters are permitted, %i are selected", MAX_PERFORMANCE_COUNTERS, gSessionData->mCounterOverflow);
+		logg->logError("Only %i performance counters are permitted, %i are selected", MAX_PERFORMANCE_COUNTERS, gSessionData->mCounterOverflow);
 		handleException();
 	}
 }

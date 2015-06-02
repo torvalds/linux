@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2014. All rights reserved.
+ * Copyright (C) ARM Limited 2014-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -109,7 +109,7 @@ static bool writeAll(const int mveUds, const char *const buf, const int pos) {
 	while (written < pos) {
 		size_t bytes = ::write(mveUds, buf + written, pos - written);
 		if (bytes <= 0) {
-			logg->logMessage("%s(%s:%i): write failed", __FUNCTION__, __FILE__, __LINE__);
+			logg->logMessage("write failed");
 			return false;
 		}
 		written += bytes;

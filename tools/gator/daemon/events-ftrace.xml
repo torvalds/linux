@@ -1,7 +1,22 @@
   <category name="Ftrace">
-    <!-- counter attribute must start with ftrace_ and be unique -->
-    <!-- regex item in () is the value shown -->
     <!--
-    <event counter="ftrace_trace_marker_numbers" title="ftrace" name="trace_marker" class="absolute" regex="([0-9]+)" description="Numbers written to /sys/kernel/debug/tracing/trace_marker, ex: echo 42 > /sys/kernel/debug/tracing/trace_marker"/>
+	Ftrace counters require Linux 3.10 or later. If you do you see ftrace counters in counter configuration, please check your Linux version.
+	'counter' attribute must start with ftrace_ and be unique
+	the regex item in () is the value shown or, if the parentheses are missing, the number of regex matches is counted
+	'enable' (optional) is the ftrace event to enable associated with the gator event
     -->
+    <!--
+    <event counter="ftrace_trace_marker_numbers" title="ftrace" name="trace_marker" regex="^tracing_mark_write: ([0-9]+)\s$" class="absolute" description="Numbers written to /sys/kernel/debug/tracing/trace_marker, ex: echo 42 > /sys/kernel/debug/tracing/trace_marker"/>
+    -->
+
+    <!-- ftrace counters -->
+    <event counter="ftrace_kmem_kmalloc" title="Kmem" name="kmalloc" regex="^kmalloc:.* bytes_alloc=([0-9]+) " enable="kmem/kmalloc" class="incident" description="Number of bytes allocated in the kernel using kmalloc"/>
+    <event counter="ftrace_ext4_ext4_da_write" title="Ext4" name="ext4_da_write" regex="^ext4_da_write_end:.* len ([0-9]+) " enable="ext4/ext4_da_write_end" class="incident" description="Number of bytes written to an ext4 filesystem"/>
+    <event counter="ftrace_f2fs_f2fs_write" title="F2FS" name="f2fs_write" regex="^f2fs_write_end:.* len ([0-9]+), " enable="f2fs/f2fs_write_end" class="incident" description="Number of bytes written to an f2fs filesystem"/>
+    <event counter="ftrace_power_clock_set_rate" title="Power" name="clock_set_rate" regex="^clock_set_rate:.* state=([0-9]+) " enable="power/clock_set_rate" class="absolute" description="Clock rate state"/>
+
+    <!-- counting ftrace counters -->
+    <event counter="ftrace_block_block_rq_complete" title="Block" name="block_rq_complete" regex="^block_rq_complete: " enable="block/block_rq_complete" class="delta" description="Number of block IO operations completed by device driver"/>
+    <event counter="ftrace_block_block_rq_issue" title="Block" name="block_rq_issue" regex="^block_rq_issue: " enable="block/block_rq_issue" class="delta" description="Number of block IO operations issued to device driver"/>
+    <event counter="ftrace_power_cpu_idle" title="Power" name="cpu_idle" regex="^cpu_idle: " enable="power/cpu_idle" class="delta" description="Number of times cpu_idle is entered or exited"/>
   </category>

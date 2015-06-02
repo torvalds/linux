@@ -7,12 +7,13 @@
     <event counter="ARM_Mali-T60x_JS1_ACTIVE" title="Mali Job Manager Cycles" name="JS1 cycles" description="Number of cycles JS1 (vertex/tiler/compute) active"/>
     <event counter="ARM_Mali-T60x_JS2_ACTIVE" title="Mali Job Manager Cycles" name="JS2 cycles" description="Number of cycles JS2 (vertex/compute) active"/>
 
-    <event counter="ARM_Mali-T60x_JS0_JOBS" title="Mali Job Manager Work" name="JS0 jobs" description="Number of Jobs (fragment) completed in JS0"/>
-    <event counter="ARM_Mali-T60x_JS0_TASKS" title="Mali Job Manager Work" name="JS0 tasks" description="Number of Tasks completed in JS0"/>
-    <event counter="ARM_Mali-T60x_JS1_JOBS" title="Mali Job Manager Work" name="JS1 jobs" description="Number of Jobs (vertex/tiler/compute) completed in JS1"/>
-    <event counter="ARM_Mali-T60x_JS1_TASKS" title="Mali Job Manager Work" name="JS1 tasks" description="Number of Tasks completed in JS1"/>
-    <event counter="ARM_Mali-T60x_JS2_TASKS" title="Mali Job Manager Work" name="JS2 tasks" description="Number of Tasks completed in JS2"/>
-    <event counter="ARM_Mali-T60x_JS2_JOBS" title="Mali Job Manager Work" name="JS2 jobs" description="Number of Jobs (vertex/compute) completed in JS2"/>
+    <event counter="ARM_Mali-T60x_JS0_JOBS" title="Mali Job Manager Jobs" name="JS0 jobs" description="Number of Jobs (fragment) completed in JS0"/>
+    <event counter="ARM_Mali-T60x_JS1_JOBS" title="Mali Job Manager Jobs" name="JS1 jobs" description="Number of Jobs (vertex/tiler/compute) completed in JS1"/>
+    <event counter="ARM_Mali-T60x_JS2_JOBS" title="Mali Job Manager Jobs" name="JS2 jobs" description="Number of Jobs (vertex/compute) completed in JS2"/>
+
+    <event counter="ARM_Mali-T60x_JS0_TASKS" title="Mali Job Manager Tasks" name="JS0 tasks" description="Number of Tasks completed in JS0"/>
+    <event counter="ARM_Mali-T60x_JS1_TASKS" title="Mali Job Manager Tasks" name="JS1 tasks" description="Number of Tasks completed in JS1"/>
+    <event counter="ARM_Mali-T60x_JS2_TASKS" title="Mali Job Manager Tasks" name="JS2 tasks" description="Number of Tasks completed in JS2"/>
 
   </category>
 
@@ -77,32 +78,39 @@
     <event counter="ARM_Mali-T60x_TEX_ISSUES" title="Mali Texture Pipe" name="T instruction issues" description="Number of threads through loop 2 address calculation"/>
     <event counter="ARM_Mali-T60x_TEX_RECIRC_FMISS" title="Mali Texture Pipe" name="Cache misses" description="Number of instructions in the T-pipe, recirculated due to cache miss"/>
 
-    <event counter="ARM_Mali-T60x_LSC_READ_HITS" title="Mali Load/Store Cache" name="Read hits" description="Number of read hits in the Load/Store cache"/>
-    <event counter="ARM_Mali-T60x_LSC_READ_MISSES" title="Mali Load/Store Cache" name="Read misses" description="Number of read misses in the Load/Store cache"/>
-    <event counter="ARM_Mali-T60x_LSC_WRITE_HITS" title="Mali Load/Store Cache" name="Write hits" description="Number of write hits in the Load/Store cache"/>
-    <event counter="ARM_Mali-T60x_LSC_WRITE_MISSES" title="Mali Load/Store Cache" name="Write misses" description="Number of write misses in the Load/Store cache"/>
-    <event counter="ARM_Mali-T60x_LSC_ATOMIC_HITS" title="Mali Load/Store Cache" name="Atomic hits" description="Number of atomic hits in the Load/Store cache"/>
-    <event counter="ARM_Mali-T60x_LSC_ATOMIC_MISSES" title="Mali Load/Store Cache" name="Atomic misses" description="Number of atomic misses in the Load/Store cache"/>
-    <event counter="ARM_Mali-T60x_LSC_LINE_FETCHES" title="Mali Load/Store Cache" name="Line fetches" description="Number of line fetches in the Load/Store cache"/>
-    <event counter="ARM_Mali-T60x_LSC_DIRTY_LINE" title="Mali Load/Store Cache" name="Dirty line evictions" description="Number of dirty line evictions in the Load/Store cache"/>
-    <event counter="ARM_Mali-T60x_LSC_SNOOPS" title="Mali Load/Store Cache" name="Snoops in to LSC" description="Number of coherent memory snoops in to the Load/Store cache"/>
+    <event counter="ARM_Mali-T60x_LSC_READ_HITS" title="Mali Load/Store Cache Reads" name="Read hits" description="Number of read hits in the Load/Store cache"/>
+    <event counter="ARM_Mali-T60x_LSC_READ_MISSES" title="Mali Load/Store Cache Reads" name="Read misses" description="Number of read misses in the Load/Store cache"/>
+
+    <event counter="ARM_Mali-T60x_LSC_WRITE_HITS" title="Mali Load/Store Cache Writes" name="Write hits" description="Number of write hits in the Load/Store cache"/>
+    <event counter="ARM_Mali-T60x_LSC_WRITE_MISSES" title="Mali Load/Store Cache Writes" name="Write misses" description="Number of write misses in the Load/Store cache"/>
+
+    <event counter="ARM_Mali-T60x_LSC_ATOMIC_HITS" title="Mali Load/Store Cache Atomics" name="Atomic hits" description="Number of atomic hits in the Load/Store cache"/>
+    <event counter="ARM_Mali-T60x_LSC_ATOMIC_MISSES" title="Mali Load/Store Cache Atomics" name="Atomic misses" description="Number of atomic misses in the Load/Store cache"/>
+
+    <event counter="ARM_Mali-T60x_LSC_LINE_FETCHES" title="Mali Load/Store Cache Bus" name="Line fetches" description="Number of line fetches in the Load/Store cache"/>
+    <event counter="ARM_Mali-T60x_LSC_DIRTY_LINE" title="Mali Load/Store Cache Bus" name="Dirty line evictions" description="Number of dirty line evictions in the Load/Store cache"/>
+
+    <event counter="ARM_Mali-T60x_LSC_SNOOPS" title="Mali Load/Store Cache Bus" name="Snoops in to LSC" description="Number of coherent memory snoops in to the Load/Store cache"/>
 
   </category>
 
   <category name="Mali L2 Cache" per_cpu="no">
 
-    <event counter="ARM_Mali-T60x_L2_EXT_WRITE_BEATS" title="Mali L2 Cache" name="External write beats" description="Number of external bus write beats"/>
-    <event counter="ARM_Mali-T60x_L2_EXT_READ_BEATS" title="Mali L2 Cache" name="External read beats" description="Number of external bus read beats"/>
-    <event counter="ARM_Mali-T60x_L2_READ_SNOOP" title="Mali L2 Cache" name="Read snoops" description="Number of read transaction snoops"/>
-    <event counter="ARM_Mali-T60x_L2_READ_HIT" title="Mali L2 Cache" name="L2 read hits" description="Number of reads hitting in the L2 cache"/>
-    <event counter="ARM_Mali-T60x_L2_WRITE_SNOOP" title="Mali L2 Cache" name="Write snoops" description="Number of write transaction snoops"/>
-    <event counter="ARM_Mali-T60x_L2_WRITE_HIT" title="Mali L2 Cache" name="L2 write hits" description="Number of writes hitting in the L2 cache"/>
-    <event counter="ARM_Mali-T60x_L2_EXT_AR_STALL" title="Mali L2 Cache" name="External bus stalls (AR)" description="Number of cycles a valid read address (AR) is stalled by the external interconnect"/>
-    <event counter="ARM_Mali-T60x_L2_EXT_W_STALL" title="Mali L2 Cache" name="External bus stalls (W)" description="Number of cycles a valid write data (W channel) is stalled by the external interconnect"/>
-    <event counter="ARM_Mali-T60x_L2_EXT_R_BUF_FULL" title="Mali L2 Cache" name="External bus response buffer full" description="Number of cycles a valid request is blocked by a full response buffer"/>
-    <event counter="ARM_Mali-T60x_L2_EXT_RD_BUF_FULL" title="Mali L2 Cache" name="External bus read data buffer full" description="Number of cycles a valid request is blocked by a full read data buffer"/>
-    <event counter="ARM_Mali-T60x_L2_EXT_W_BUF_FULL" title="Mali L2 Cache" name="External bus write buffer full" description="Number of cycles a valid request is blocked by a full write buffer"/>
-    <event counter="ARM_Mali-T60x_L2_READ_LOOKUP" title="Mali L2 Cache" name="L2 read lookups" description="Number of reads into the L2 cache"/>
-    <event counter="ARM_Mali-T60x_L2_WRITE_LOOKUP" title="Mali L2 Cache" name="L2 write lookups" description="Number of writes into the L2 cache"/>
+    <event counter="ARM_Mali-T60x_L2_READ_LOOKUP" title="Mali L2 Cache Reads" name="L2 read lookups" description="Number of reads into the L2 cache"/>
+    <event counter="ARM_Mali-T60x_L2_READ_SNOOP" title="Mali L2 Cache Reads" name="Read snoops" description="Number of read transaction snoops"/>
+    <event counter="ARM_Mali-T60x_L2_READ_HIT" title="Mali L2 Cache Reads" name="L2 read hits" description="Number of reads hitting in the L2 cache"/>
+
+    <event counter="ARM_Mali-T60x_L2_WRITE_SNOOP" title="Mali L2 Cache Writes" name="Write snoops" description="Number of write transaction snoops"/>
+    <event counter="ARM_Mali-T60x_L2_WRITE_HIT" title="Mali L2 Cache Writes" name="L2 write hits" description="Number of writes hitting in the L2 cache"/>
+    <event counter="ARM_Mali-T60x_L2_WRITE_LOOKUP" title="Mali L2 Cache Writes" name="L2 write lookups" description="Number of writes into the L2 cache"/>
+
+    <event counter="ARM_Mali-T60x_L2_EXT_READ_BEATS" title="Mali L2 Cache Ext Reads" name="External read beats" description="Number of external bus read beats"/>
+    <event counter="ARM_Mali-T60x_L2_EXT_AR_STALL" title="Mali L2 Cache Ext Reads" name="External bus stalls (AR)" description="Number of cycles a valid read address (AR) is stalled by the external interconnect"/>
+    <event counter="ARM_Mali-T60x_L2_EXT_R_BUF_FULL" title="Mali L2 Cache Ext Reads" name="External bus response buffer full" description="Number of cycles a valid request is blocked by a full response buffer"/>
+    <event counter="ARM_Mali-T60x_L2_EXT_RD_BUF_FULL" title="Mali L2 Cache Ext Reads" name="External bus read data buffer full" description="Number of cycles a valid request is blocked by a full read data buffer"/>
+
+    <event counter="ARM_Mali-T60x_L2_EXT_WRITE_BEATS" title="Mali L2 Cache Ext Writes" name="External write beats" description="Number of external bus write beats"/>
+    <event counter="ARM_Mali-T60x_L2_EXT_W_STALL" title="Mali L2 Cache Ext Writes" name="External bus stalls (W)" description="Number of cycles a valid write data (W channel) is stalled by the external interconnect"/>
+    <event counter="ARM_Mali-T60x_L2_EXT_W_BUF_FULL" title="Mali L2 Cache Ext Writes" name="External bus write buffer full" description="Number of cycles a valid request is blocked by a full write buffer"/>
 
   </category>

@@ -1,5 +1,5 @@
   <counter_set name="CCI_400_cnt" count="4"/>
-  <category name="CCI-400" counter_set="CCI_400_cnt" per_cpu="no" supports_event_based_sampling="yes">
+  <category name="CCI-400" counter_set="CCI_400_cnt" per_cpu="no">
     <event counter="CCI_400_ccnt" event="0xff" title="CCI-400 Clock" name="Cycles" display="hertz" units="Hz" average_selection="yes" description="The number of core clock cycles"/>
     <option_set name="Slave">
       <option event_delta="0x00" name="S0" description="Slave interface 0"/>
@@ -42,7 +42,7 @@
     <event event="0x1a" option_set="Master" title="CCI-400" name="Write stall: tracker full" description="Write request stall cycle because the transaction tracker is full. Increase MIx_W_MAX to avoid this stall. See the CoreLink CCI-400 Cache Coherent Interconnect Integration Manual"/>
   </category>
   <counter_set name="CCI_400-r1_cnt" count="4"/>
-  <category name="CCI-400" counter_set="CCI_400-r1_cnt" per_cpu="no" supports_event_based_sampling="yes">
+  <category name="CCI-400" counter_set="CCI_400-r1_cnt" per_cpu="no">
     <event counter="CCI_400-r1_ccnt" event="0xff" title="CCI-400 Clock" name="Cycles" display="hertz" units="Hz" average_selection="yes" description="The number of core clock cycles"/>
     <option_set name="Slave">
       <option event_delta="0x00" name="S0" description="Slave interface 0"/>

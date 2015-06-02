@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2013-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2013-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -24,6 +24,7 @@ public:
 	bool useFd(const int cpu, const int fd);
 	void discard(const int cpu);
 	bool isEmpty();
+	bool isFull();
 	bool send(Sender *const sender);
 
 private:

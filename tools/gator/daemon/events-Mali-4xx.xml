@@ -200,9 +200,9 @@
     <event counter="ARM_Mali-4xx_Voltage" title="Mali GPU Voltage" name="Voltage" class="absolute" display="average" average_selection="yes" units="mV" description="GPU core voltage."/>
   </category>
   <category name="ARM_Mali-4xx_Frequency" per_cpu="no">
-    <event counter="ARM_Mali-4xx_Frequency" title="Mali GPU Frequency" name="Frequency" display="average" average_selection="yes" units="MHz" description="GPU core frequency."/>
+    <event counter="ARM_Mali-4xx_Frequency" title="Mali GPU Frequency" name="Frequency" class="absolute" display="average" average_selection="yes" units="MHz" description="GPU core frequency."/>
   </category>
-  <category name="Mali-4xx Activity" counter_set="ARM_Mali-4xx_Activity_cnt">
+  <category name="Mali-4xx Activity" counter_set="ARM_Mali-4xx_Activity_cnt" per_cpu="yes">
     <event counter="ARM_Mali-4xx_fragment" title="GPU Fragment" name="Activity" class="activity" activity1="Activity" activity_color1="0x00006fcc" rendering_type="bar" average_selection="yes" average_cores="yes" percentage="yes" description="GPU Fragment Activity"/>
     <event counter="ARM_Mali-4xx_vertex" title="GPU Vertex" name="Activity" class="activity" activity1="Activity" activity_color1="0x00eda000" rendering_type="bar" average_selection="yes" percentage="yes" description="GPU Vertex Activity"/>
   </category>

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -24,12 +24,12 @@ Fifo::Fifo(int singleBufferSize, int bufferSize, sem_t* readerSem) {
   mEnd = false;
 
   if (mBuffer == NULL) {
-    logg->logError(__FILE__, __LINE__, "failed to allocate %d bytes", bufferSize + singleBufferSize);
+    logg->logError("failed to allocate %d bytes", bufferSize + singleBufferSize);
     handleException();
   }
 
   if (sem_init(&mWaitForSpaceSem, 0, 0)) {
-    logg->logError(__FILE__, __LINE__, "sem_init() failed");
+    logg->logError("sem_init() failed");
     handleException();
   }
 }

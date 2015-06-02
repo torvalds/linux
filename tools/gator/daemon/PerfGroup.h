@@ -1,5 +1,5 @@
  /**
- * Copyright (C) ARM Limited 2013-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2013-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -27,6 +27,8 @@ enum PerfGroupFlags {
 	PERF_GROUP_TASK          = 1 << 3,
 	PERF_GROUP_SAMPLE_ID_ALL = 1 << 4,
 	PERF_GROUP_PER_CPU       = 1 << 5,
+	PERF_GROUP_LEADER        = 1 << 6,
+	PERF_GROUP_CPU           = 1 << 7,
 };
 
 enum {
@@ -40,22 +42,29 @@ public:
 	PerfGroup(PerfBuffer *const pb);
 	~PerfGroup();
 
+	bool createCpuGroup(const uint64_t currTime, Buffer *const buffer);
 	bool add(const uint64_t currTime, Buffer *const buffer, const int key, const __u32 type, const __u64 config, const __u64 sample, const __u64 sampleType, const int flags);
 	// Safe to call concurrently
 	int prepareCPU(const int cpu, Monitor *const monitor);
 	// Not safe to call concurrently. Returns the number of events enabled
-	int onlineCPU(const uint64_t currTime, const int cpu, const bool start, Buffer *const buffer);
+	int onlineCPU(const uint64_t currTime, const int cpu, const bool enable, Buffer *const buffer);
 	bool offlineCPU(int cpu);
 	bool start();
 	void stop();
 
 private:
-	// +1 for the group leader
-	struct perf_event_attr mAttrs[MAX_PERFORMANCE_COUNTERS + 1];
-	bool mPerCpu[MAX_PERFORMANCE_COUNTERS + 1];
-	int mKeys[MAX_PERFORMANCE_COUNTERS + 1];
-	int mFds[NR_CPUS * (MAX_PERFORMANCE_COUNTERS + 1)];
+	int getEffectiveType(const int type, const int flags);
+	int doAdd(const uint64_t currTime, Buffer *const buffer, const int key, const __u32 type, const __u64 config, const __u64 sample, const __u64 sampleType, const int flags);
+
+	// 2* to be conservative for sched_switch, cpu_idle, hrtimer and non-CPU groups
+	struct perf_event_attr mAttrs[2*MAX_PERFORMANCE_COUNTERS];
 	PerfBuffer *const mPb;
+	int mFlags[2*MAX_PERFORMANCE_COUNTERS];
+	int mKeys[2*MAX_PERFORMANCE_COUNTERS];
+	int mFds[NR_CPUS * (2*MAX_PERFORMANCE_COUNTERS)];
+	// Offset in mAttrs, mFlags and mKeys of the group leaders for each perf type
+	int mLeaders[16];
+	int mSchedSwitchId;
 
 	// Intentionally undefined
 	PerfGroup(const PerfGroup &);

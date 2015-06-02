@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -36,10 +36,9 @@ private:
 	bool handleUEvent(const uint64_t currTime);
 
 	Buffer mSummary;
-	Buffer mBuffer;
+	Buffer *mBuffer;
 	PerfBuffer mCountersBuf;
 	PerfGroup mCountersGroup;
-	PerfGroup mIdleGroup;
 	Monitor mMonitor;
 	UEvent mUEvent;
 	sem_t *const mSenderSem;

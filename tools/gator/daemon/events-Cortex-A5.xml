@@ -1,36 +1,36 @@
   <counter_set name="ARMv7_Cortex_A5_cnt" count="2"/>
   <category name="Cortex-A5" counter_set="ARMv7_Cortex_A5_cnt" per_cpu="yes" supports_event_based_sampling="yes">
     <event counter="ARMv7_Cortex_A5_ccnt" event="0xff" title="Clock" name="Cycles" display="hertz" units="Hz" average_selection="yes" average_cores="yes" description="The number of core clock cycles"/>
-    <event event="0x00" title="Software" name="Increment" description="Incremented only on writes to the Software Increment Register"/>
-    <event event="0x01" title="Cache" name="Instruction refill" description="Instruction fetch that causes a refill of at least the level of instruction or unified cache closest to the processor"/>
-    <event event="0x02" title="Cache" name="Inst TLB refill" description="Instruction fetch that causes a TLB refill of at least the level of TLB closest to the processor"/>
-    <event event="0x03" title="Cache" name="Data refill" description="Memory Read or Write operation that causes a refill of at least the level of data or unified cache closest to the processor"/>
-    <event event="0x04" title="Cache" name="Data access" description="Memory Read or Write operation that causes a cache access to at least the level of data or unified cache closest to the processor"/>
-    <event event="0x05" title="Cache" name="Data TLB refill" description="Memory Read or Write operation that causes a TLB refill of at least the level of TLB closest to the processor"/>
-    <event event="0x06" title="Instruction" name="Memory read" description="Memory-reading instruction architecturally executed"/>
-    <event event="0x07" title="Instruction" name="Memory write" description="Memory-writing instruction architecturally executed"/>
+    <event event="0x00" title="Software" name="Increment" description="Software increment. The register is incremented only on writes to the Software Increment Register."/>
+    <event event="0x01" title="Cache" name="Instruction refill" description="Instruction fetch that causes a refill at (at least) the lowest level of instruction or unified cache. Includes the speculative linefills in the count."/>
+    <event event="0x02" title="Cache" name="Inst TLB refill" description="Instruction fetch that causes a TLB refill at (at least) the lowest level of TLB. Includes the speculative requests in the count."/>
+    <event event="0x03" title="Cache" name="Data refill" description="Data read or write operation that causes a refill at (at least) the lowest level of data or unified cache. Counts the number of allocations performed in the Data Cache because of a read or a write."/>
+    <event event="0x04" title="Cache" name="Data access" description="Data read or write operation that causes a cache access at (at least) the lowest level of data or unified cache. This includes speculative reads."/>
+    <event event="0x05" title="Cache" name="Data TLB refill" description="Data read or write operation that causes a TLB refill at (at least) the lowest level of TLB. This does not include micro TLB misses because of PLD, PLI, CP15 Cache operation by MVA and CP15 VA to PA operations."/>
+    <event event="0x06" title="Instruction" name="Memory read" description="Data read architecturally executed. Counts the number of data read instructions accepted by the Load Store Unit. This includes counting the speculative and aborted LDR/LDM, and the reads because of the SWP instructions."/>
+    <event event="0x07" title="Instruction" name="Memory write" description="Data write architecturally executed. Counts the number of data write instructions accepted by the Load Store Unit. This includes counting the speculative and aborted STR/STM, and the writes because of the SWP instructions."/>
     <event event="0x08" title="Instruction" name="Executed" description="Instruction architecturally executed"/>
-    <event event="0x09" title="Exception" name="Taken" description="Exceptions taken"/>
+    <event event="0x09" title="Exception" name="Taken" description="Exception taken. Counts the number of exceptions architecturally taken."/>
     <event event="0x0a" title="Exception" name="Return" description="Exception return architecturally executed"/>
-    <event event="0x0b" title="Instruction" name="CONTEXTIDR" description="Instruction that writes to the CONTEXTIDR architecturally executed"/>
-    <event event="0x0c" title="Branch" name="PC change" description="Software change of the Program Counter, except by an exception, architecturally executed"/>
-    <event event="0x0d" title="Branch" name="Immediate" description="Immediate branch architecturally executed"/>
-    <event event="0x0e" title="Procedure" name="Return" description="Procedure return, other than exception return, architecturally executed"/>
-    <event event="0x0f" title="Memory" name="Unaligned access" description="Unaligned access architecturally executed"/>
-    <event event="0x10" title="Branch" name="Mispredicted" description="Branch mispredicted or not predicted"/>
-    <event event="0x12" title="Branch" name="Potential prediction" description="Branch or other change in program flow that could have been predicted by the branch prediction resources of the processor"/>
+    <event event="0x0b" title="Instruction" name="CONTEXTIDR" description="Change to ContextID retired. Counts the number of instructions architecturally executed writing into the ContextID Register."/>
+    <event event="0x0c" title="Branch" name="PC change" description="Software change of PC"/>
+    <event event="0x0d" title="Branch" name="Immediate" description="Immediate branch architecturally executed (taken or not taken). This includes the branches which are flushed due to a previous load/store which aborts late."/>
+    <event event="0x0e" title="Procedure" name="Return" description="Procedure return (other than exception returns) architecturally executed"/>
+    <event event="0x0f" title="Memory" name="Unaligned access" description="Unaligned load-store"/>
+    <event event="0x10" title="Branch" name="Mispredicted" description="Branch mispredicted/not predicted. Counts the number of mispredicted or not-predicted branches executed. This includes the branches which are flushed because of a previous load/store which aborts late."/>
+    <event event="0x12" title="Branch" name="Potential prediction" description="Branches or other change in program flow that could have been predicted by the branch prediction resources of the processor. This includes the branches which are flushed because of a previous load/store which aborts late."/>
     <event event="0x13" title="Memory" name="Memory access" description="Data memory access"/>
-    <event event="0x14" title="Cache" name="Instruction access" description="Instruction cache access"/>
+    <event event="0x14" title="Cache" name="Instruction access" description="Instruction Cache access"/>
     <event event="0x15" title="Cache" name="Data eviction" description="Data cache eviction"/>
     <event event="0x86" title="Interrupts" name="IRQ" description="IRQ exception taken"/>
     <event event="0x87" title="Interrupts" name="FIQ" description="FIQ exception taken"/>
-    <event event="0xC0" title="Memory" name="External request" description="External memory request"/>
-    <event event="0xC1" title="Memory" name="Non-cacheable ext req" description="Non-cacheable external memory request"/>
-    <event event="0xC2" title="Cache" name="Linefill" description="Linefill because of prefetch"/>
-    <event event="0xC3" title="Cache" name="Linefill dropped" description="Prefetch linefill dropped"/>
-    <event event="0xC4" title="Cache" name="Allocate mode enter" description="Entering read allocate mode"/>
-    <event event="0xC5" title="Cache" name="Allocate mode" description="Read allocate mode"/>
-    <event event="0xC7" title="ETM" name="ETM Ext Out[0]" description="ETM - ETM Ext Out[0]"/>
-    <event event="0xC8" title="ETM" name="ETM Ext Out[1]" description="ETM - ETM Ext Out[1]"/>
-    <event event="0xC9" title="Instruction" name="Pipeline stall" description="Data Write operation that stalls the pipeline because the store buffer is full"/>
+    <event event="0xc0" title="Memory" name="External request" description="External memory request"/>
+    <event event="0xc1" title="Memory" name="Non-cacheable ext req" description="Non-cacheable external memory request"/>
+    <event event="0xc2" title="Cache" name="Linefill" description="Linefill because of prefetch"/>
+    <event event="0xc3" title="Cache" name="Linefill dropped" description="Prefetch linefill dropped"/>
+    <event event="0xc4" title="Cache" name="Allocate mode enter" description="Entering read allocate mode"/>
+    <event event="0xc5" title="Cache" name="Allocate mode" description="Read allocate mode"/>
+    <event event="0xc7" title="ETM" name="ETM Ext Out[0]" description="ETM Ext Out[0]"/>
+    <event event="0xc8" title="ETM" name="ETM Ext Out[1]" description="ETM Ext Out[1]"/>
+    <event event="0xc9" title="Instruction" name="Pipeline stall" description="Data Write operation that stalls the pipeline because the store buffer is full"/>
   </category>

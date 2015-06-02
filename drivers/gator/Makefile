@@ -63,6 +63,22 @@ gator-$(CONFIG_ARM) +=	gator_events_armv6.o \
 
 gator-$(CONFIG_ARM64) +=
 
+$(obj)/gator_main.o: $(obj)/gator_src_md5.h
+
+clean-files := gator_src_md5.h
+
+# Note, in the recipe below we use "cd $(srctree) && cd $(src)" rather than
+# "cd $(srctree)/$(src)" because under DKMS $(src) is an absolute path, and we
+# can't just use $(src) because for normal kernel builds this is relative to
+# $(srctree)
+
+       chk_events.h = :
+ quiet_chk_events.h = echo '  CHK     $@'
+silent_chk_events.h = :
+$(obj)/gator_src_md5.h: FORCE
+	@$($(quiet)chk_events.h)
+	$(Q)cd $(srctree) && cd $(src) ; $(CONFIG_SHELL) -c "echo 'static char *gator_src_md5 = \"'\`ls *.c *.h mali/*.h | grep -Ev '^(gator_src_md5\.c|gator\.mod\.c)$$' | LC_ALL=C sort | xargs cat | md5sum | cut -b 1-32\`'\";'" > $(abspath $@)
+
 else
 
 all:
@@ -73,7 +89,7 @@ all:
 	$(error)
 
 clean:
-	rm -f *.o .*.cmd modules.order Module.symvers gator.ko gator.mod.c
+	rm -f *.o .*.cmd gator_src_md5.h modules.order Module.symvers gator.ko gator.mod.c
 	rm -rf .tmp_versions
 
 endif

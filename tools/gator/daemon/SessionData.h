@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -11,7 +11,6 @@
 
 #include <stdint.h>
 
-#include "AnnotateListener.h"
 #include "Config.h"
 #include "Counter.h"
 #include "FtraceDriver.h"
@@ -19,7 +18,7 @@
 #include "MaliVideoDriver.h"
 #include "PerfDriver.h"
 
-#define PROTOCOL_VERSION 20
+#define PROTOCOL_VERSION 21
 // Differentiates development versions (timestamp) from release versions
 #define PROTOCOL_DEV 1000
 
@@ -43,18 +42,18 @@ public:
 	void readModel();
 	void readCpuInfo();
 
-	PolledDriver *usDrivers[6];
+	PolledDriver *usDrivers[5];
 	KMod kmod;
 	PerfDriver perf;
 	MaliVideoDriver maliVideo;
 	FtraceDriver ftraceDriver;
-	AnnotateListener annotateListener;
 
 	char mCoreName[MAX_STRING_LEN];
 	struct ImageLinkList *mImages;
 	char *mConfigurationXMLPath;
 	char *mSessionXMLPath;
 	char *mEventsXMLPath;
+	char *mEventsXMLAppend;
 	char *mTargetPath;
 	char *mAPCDir;
 	char *mCaptureWorkingDir;
@@ -81,6 +80,7 @@ public:
 	int mPageSize;
 	int *mCpuIds;
 	int mMaxCpuId;
+	int mAnnotateStart;
 
 	// PMU Counters
 	int mCounterOverflow;
@@ -93,6 +93,7 @@ private:
 };
 
 extern SessionData* gSessionData;
+extern const char *const gSrcMd5;
 
 uint64_t getTime();
 int getEventKey();

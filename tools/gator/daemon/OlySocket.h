@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,7 +12,7 @@
 #include <stddef.h>
 
 #ifdef WIN32
-typedef socklen_t int;
+typedef int socklen_t;
 #else
 #include <sys/socket.h>
 #endif
@@ -20,7 +20,7 @@ typedef socklen_t int;
 class OlySocket {
 public:
 #ifndef WIN32
-  static int connect(const char* path, const size_t pathSize);
+  static int connect(const char* path, const size_t pathSize, const bool calculateAddrlen = false);
 #endif
 
   OlySocket(int socketID);
@@ -43,7 +43,7 @@ class OlyServerSocket {
 public:
   OlyServerSocket(int port);
 #ifndef WIN32
-  OlyServerSocket(const char* path, const size_t pathSize);
+  OlyServerSocket(const char* path, const size_t pathSize, const bool calculateAddrlen = false);
 #endif
   ~OlyServerSocket();
 

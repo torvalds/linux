@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -41,6 +41,7 @@ private:
 	OlyServerSocket mMveStartupUds;
 	OlyServerSocket mMaliStartupUds;
 	OlyServerSocket mAnnotate;
+	OlyServerSocket mAnnotateUds;
 	int mInterruptFd;
 	int mMaliUds;
 	int mMveUds;

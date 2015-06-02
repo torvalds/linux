@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -14,9 +14,12 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
+#include "Child.h"
 #include "DriverSource.h"
 #include "Logging.h"
 #include "SessionData.h"
+
+extern Child *child;
 
 static void handler(int signum)
 {
@@ -35,18 +38,20 @@ bool FtraceSource::prepare() {
 		act.sa_handler = handler;
 		act.sa_flags = (int)SA_RESETHAND;
 		if (sigaction(SIGUSR1, &act, NULL) != 0) {
-			logg->logError(__FILE__, __LINE__, "sigaction failed: %s\n", strerror(errno));
+			logg->logError("sigaction failed: %s\n", strerror(errno));
 			handleException();
 		}
 	}
 
+	gSessionData->ftraceDriver.prepare();
+
 	if (DriverSource::readIntDriver("/sys/kernel/debug/tracing/tracing_on", &mTracingOn)) {
-		logg->logError(__FILE__, __LINE__, "Unable to read if ftrace is enabled");
+		logg->logError("Unable to read if ftrace is enabled");
 		handleException();
 	}
 
 	if (DriverSource::writeDriver("/sys/kernel/debug/tracing/tracing_on", "0") != 0) {
-		logg->logError(__FILE__, __LINE__, "Unable to turn ftrace off before truncating the buffer");
+		logg->logError("Unable to turn ftrace off before truncating the buffer");
 		handleException();
 	}
 
@@ -54,20 +59,20 @@ bool FtraceSource::prepare() {
 		int fd;
 		fd = open("/sys/kernel/debug/tracing/trace", O_WRONLY | O_TRUNC | O_CLOEXEC, 0666);
 		if (fd < 0) {
-			logg->logError(__FILE__, __LINE__, "Unable truncate ftrace buffer: %s", strerror(errno));
+			logg->logError("Unable truncate ftrace buffer: %s", strerror(errno));
 			handleException();
 		}
 		close(fd);
 	}
 
 	if (DriverSource::writeDriver("/sys/kernel/debug/tracing/trace_clock", "perf") != 0) {
-		logg->logError(__FILE__, __LINE__, "Unable to switch ftrace to the perf clock, please ensure you are running Linux 3.10 or later");
+		logg->logError("Unable to switch ftrace to the perf clock, please ensure you are running Linux 3.10 or later");
 		handleException();
 	}
 
 	mFtraceFh = fopen_cloexec("/sys/kernel/debug/tracing/trace_pipe", "rb");
 	if (mFtraceFh == NULL) {
-		logg->logError(__FILE__, __LINE__, "Unable to open trace_pipe");
+		logg->logError("Unable to open trace_pipe");
 		handleException();
 	}
 
@@ -79,8 +84,23 @@ void FtraceSource::run() {
 	mTid = syscall(__NR_gettid);
 
 	if (DriverSource::writeDriver("/sys/kernel/debug/tracing/tracing_on", "1") != 0) {
-		logg->logError(__FILE__, __LINE__, "Unable to turn ftrace on");
+		logg->logError("Unable to turn ftrace on");
 		handleException();
+	}
+
+	// Wait until monotonicStarted is set before sending data
+	int64_t monotonicStarted = 0;
+	while (monotonicStarted <= 0 && gSessionData->mSessionIsActive) {
+		usleep(10);
+
+		if (gSessionData->perf.isSetup()) {
+			monotonicStarted = gSessionData->mMonotonicStarted;
+		} else {
+			if (DriverSource::readInt64Driver("/dev/gator/started", &monotonicStarted) == -1) {
+				logg->logError("Error reading gator driver start time");
+				handleException();
+			}
+		}
 	}
 
 	while (gSessionData->mSessionIsActive) {
@@ -91,22 +111,26 @@ void FtraceSource::run() {
 				// Interrupted by interrupt - likely user request to terminate
 				break;
 			}
-			logg->logError(__FILE__, __LINE__, "Unable read trace data: %s", strerror(errno));
+			logg->logError("Unable read trace data: %s", strerror(errno));
 			handleException();
 		}
 
-		const uint64_t currTime = getTime();
+		const uint64_t currTime = getTime() - gSessionData->mMonotonicStarted;
 
 		char *const colon = strstr(buf, ": ");
 		if (colon == NULL) {
-			logg->logError(__FILE__, __LINE__, "Unable find colon: %s", buf);
+			if (strstr(buf, " [LOST ") != NULL) {
+				logg->logError("Ftrace events lost, aborting the capture. It is recommended to discard this report and collect a new capture. If this error occurs often, please reduce the number of ftrace counters selected or the amount of ftrace events generated.");
+			} else {
+				logg->logError("Unable to find colon: %s", buf);
+			}
 			handleException();
 		}
 		*colon = '\0';
 
 		char *const space = strrchr(buf, ' ');
 		if (space == NULL) {
-			logg->logError(__FILE__, __LINE__, "Unable find space: %s", buf);
+			logg->logError("Unable to find space: %s", buf);
 			handleException();
 		}
 		*colon = ':';
@@ -117,7 +141,7 @@ void FtraceSource::run() {
 			errno = 0;
 			const long long time = strtod(space, NULL) * 1000000000;
 			if (errno != 0) {
-				logg->logError(__FILE__, __LINE__, "Unable to parse time: %s", strerror(errno));
+				logg->logError("Unable to parse time: %s", strerror(errno));
 				handleException();
 			}
 			mBuffer.event64(-1, time);
@@ -127,6 +151,11 @@ void FtraceSource::run() {
 			}
 
 			mBuffer.check(currTime);
+
+			if (gSessionData->mOneShot && gSessionData->mSessionIsActive && (mBuffer.bytesAvailable() <= 0)) {
+				logg->logMessage("One shot (ftrace)");
+				child->endSession();
+			}
 		}
 
 	}
@@ -136,6 +165,7 @@ void FtraceSource::run() {
 	DriverSource::writeDriver("/sys/kernel/debug/tracing/tracing_on", mTracingOn);
 	fclose(mFtraceFh);
 	DriverSource::writeDriver("/sys/kernel/debug/tracing/trace_clock", "local");
+	gSessionData->ftraceDriver.stop();
 }
 
 void FtraceSource::interrupt() {

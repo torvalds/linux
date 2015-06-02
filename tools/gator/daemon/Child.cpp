@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -150,13 +150,12 @@ static void *senderThread(void *) {
 	prctl(PR_SET_NAME, (unsigned long)&"gatord-sender", 0, 0, 0);
 	sem_wait(&haltPipeline);
 
-	while (!primarySource->isDone() ||
-	       !externalSource->isDone() ||
+	while (!externalSource->isDone() ||
 	       (userSpaceSource != NULL && !userSpaceSource->isDone()) ||
-	       (ftraceSource != NULL && !ftraceSource->isDone())) {
+		   (ftraceSource != NULL && !ftraceSource->isDone()) ||
+	       !primarySource->isDone()) {
 		sem_wait(&senderSem);
 
-		primarySource->write(sender);
 		externalSource->write(sender);
 		if (userSpaceSource != NULL) {
 			userSpaceSource->write(sender);
@@ -164,6 +163,7 @@ static void *senderThread(void *) {
 		if (ftraceSource != NULL) {
 			ftraceSource->write(sender);
 		}
+		primarySource->write(sender);
 	}
 
 	// write end-of-capture sequence
@@ -232,7 +232,7 @@ void Child::run() {
 	sender = new Sender(socket);
 
 	if (mNumConnections > 1) {
-		logg->logError(__FILE__, __LINE__, "Session already in progress");
+		logg->logError("Session already in progress");
 		handleException();
 	}
 
@@ -267,7 +267,7 @@ void Child::run() {
 		char* xmlString;
 		xmlString = util->readFromDisk(gSessionData->mSessionXMLPath);
 		if (xmlString == 0) {
-			logg->logError(__FILE__, __LINE__, "Unable to read session xml file: %s", gSessionData->mSessionXMLPath);
+			logg->logError("Unable to read session xml file: %s", gSessionData->mSessionXMLPath);
 			handleException();
 		}
 		gSessionData->parseSessionXML(xmlString);
@@ -280,16 +280,27 @@ void Child::run() {
 	}
 
 	if (gSessionData->kmod.isMaliCapture() && (gSessionData->mSampleRate == 0)) {
-		logg->logError(__FILE__, __LINE__, "Mali counters are not supported with Sample Rate: None.");
+		logg->logError("Mali counters are not supported with Sample Rate: None.");
 		handleException();
+	}
+
+	// Initialize ftrace source before child as it's slow and dependens on nothing else
+	// If initialized later, us gator with ftrace has time sync issues
+	if (gSessionData->ftraceDriver.countersEnabled()) {
+		ftraceSource = new FtraceSource(&senderSem);
+		if (!ftraceSource->prepare()) {
+			logg->logError("Unable to prepare userspace source for capture");
+			handleException();
+		}
+		ftraceSource->start();
 	}
 
 	// Must be after session XML is parsed
 	if (!primarySource->prepare()) {
 		if (gSessionData->perf.isSetup()) {
-			logg->logError(__FILE__, __LINE__, "Unable to prepare gator driver for capture");
+			logg->logError("Unable to communicate with the perf API, please ensure that CONFIG_TRACING and CONFIG_CONTEXT_SWITCH_TRACER are enabled. Please refer to README_Streamline.txt for more information.");
 		} else {
-			logg->logError(__FILE__, __LINE__, "Unable to communicate with the perf API, please ensure that CONFIG_TRACING and CONFIG_CONTEXT_SWITCH_TRACER are enabled. Please refer to README_Streamline.txt for more information.");
+			logg->logError("Unable to prepare gator driver for capture");
 		}
 		handleException();
 	}
@@ -300,7 +311,7 @@ void Child::run() {
 	// Must be initialized before senderThread is started as senderThread checks externalSource
 	externalSource = new ExternalSource(&senderSem);
 	if (!externalSource->prepare()) {
-		logg->logError(__FILE__, __LINE__, "Unable to prepare external source for capture");
+		logg->logError("Unable to prepare external source for capture");
 		handleException();
 	}
 	externalSource->start();
@@ -324,19 +335,10 @@ void Child::run() {
 	if (startUSSource) {
 		userSpaceSource = new UserSpaceSource(&senderSem);
 		if (!userSpaceSource->prepare()) {
-			logg->logError(__FILE__, __LINE__, "Unable to prepare userspace source for capture");
+			logg->logError("Unable to prepare userspace source for capture");
 			handleException();
 		}
 		userSpaceSource->start();
-	}
-
-	if (gSessionData->ftraceDriver.countersEnabled()) {
-		ftraceSource = new FtraceSource(&senderSem);
-		if (!ftraceSource->prepare()) {
-			logg->logError(__FILE__, __LINE__, "Unable to prepare userspace source for capture");
-			handleException();
-		}
-		ftraceSource->start();
 	}
 
 	if (gSessionData->mAllowCommands && (gSessionData->mCaptureCommand != NULL)) {
@@ -347,7 +349,7 @@ void Child::run() {
 	}
 
 	if (!thread_creation_success) {
-		logg->logError(__FILE__, __LINE__, "Failed to create gator threads");
+		logg->logError("Failed to create gator threads");
 		handleException();
 	}
 
@@ -357,6 +359,7 @@ void Child::run() {
 	// Start profiling
 	primarySource->run();
 
+	// Wait for the other threads to exit
 	if (ftraceSource != NULL) {
 		ftraceSource->join();
 	}
@@ -364,8 +367,6 @@ void Child::run() {
 		userSpaceSource->join();
 	}
 	externalSource->join();
-
-	// Wait for the other threads to exit
 	pthread_join(senderThreadID, NULL);
 
 	// Shutting down the connection should break the stop thread which is stalling on the socket recv() function

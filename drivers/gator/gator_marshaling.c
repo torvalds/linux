@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2012-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2012-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -107,16 +107,16 @@ static void marshal_link(int cookie, int tgid, int pid)
 
 	local_irq_save(flags);
 	time = gator_get_time();
-	if (buffer_check_space(cpu, NAME_BUF, MAXSIZE_PACK64 + 5 * MAXSIZE_PACK32)) {
-		gator_buffer_write_packed_int(cpu, NAME_BUF, MESSAGE_LINK);
-		gator_buffer_write_packed_int64(cpu, NAME_BUF, time);
-		gator_buffer_write_packed_int(cpu, NAME_BUF, cookie);
-		gator_buffer_write_packed_int(cpu, NAME_BUF, tgid);
-		gator_buffer_write_packed_int(cpu, NAME_BUF, pid);
+	if (buffer_check_space(cpu, ACTIVITY_BUF, MAXSIZE_PACK64 + 5 * MAXSIZE_PACK32)) {
+		gator_buffer_write_packed_int(cpu, ACTIVITY_BUF, MESSAGE_LINK);
+		gator_buffer_write_packed_int64(cpu, ACTIVITY_BUF, time);
+		gator_buffer_write_packed_int(cpu, ACTIVITY_BUF, cookie);
+		gator_buffer_write_packed_int(cpu, ACTIVITY_BUF, tgid);
+		gator_buffer_write_packed_int(cpu, ACTIVITY_BUF, pid);
 	}
 	local_irq_restore(flags);
 	/* Check and commit; commit is set to occur once buffer is 3/4 full */
-	buffer_check(cpu, NAME_BUF, time);
+	buffer_check(cpu, ACTIVITY_BUF, time);
 }
 
 static bool marshal_backtrace_header(int exec_cookie, int tgid, int pid, u64 time)

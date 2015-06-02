@@ -36,7 +36,9 @@ if PARPORT
 config PARPORT_PC
 	tristate "PC-style hardware"
 	depends on (!SPARC64 || PCI) && !SPARC32 && !M32R && !FRV && !S390 && \
-		(!M68K || ISA) && !MN10300 && !AVR32 && !BLACKFIN && !XTENSA
+		(!M68K || ISA) && !MN10300 && !AVR32 && !BLACKFIN && \
+		!XTENSA && !CRIS && !H8300 && !ARM64
+
 	---help---
 	  You should say Y here if you have a PC-style parallel port. All
 	  IBM PC compatible computers and some Alphas have PC-style

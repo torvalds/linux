@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -36,7 +36,7 @@ SessionXML::SessionXML(const char *str) {
 	parameters.call_stack_unwinding = false;
 	parameters.live_rate = 0;
 	mSessionXML = str;
-	logg->logMessage(mSessionXML);
+	logg->logMessage("%s", mSessionXML);
 }
 
 SessionXML::~SessionXML() {
@@ -55,7 +55,7 @@ void SessionXML::parse() {
 		return;
 	}
 
-	logg->logError(__FILE__, __LINE__, "No session tag found in the session.xml file");
+	logg->logError("No session tag found in the session.xml file");
 	handleException();
 }
 
@@ -63,7 +63,7 @@ void SessionXML::sessionTag(mxml_node_t *tree, mxml_node_t *node) {
 	int version = 0;
 	if (mxmlElementGetAttr(node, ATTR_VERSION)) version = strtol(mxmlElementGetAttr(node, ATTR_VERSION), NULL, 10);
 	if (version != 1) {
-		logg->logError(__FILE__, __LINE__, "Invalid session.xml version: %d", version);
+		logg->logError("Invalid session.xml version: %d", version);
 		handleException();
 	}
 

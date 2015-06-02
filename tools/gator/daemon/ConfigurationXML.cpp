@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -106,7 +106,7 @@ void ConfigurationXML::validate(void) {
 		const Counter & counter = gSessionData->mCounters[i];
 		if (counter.isEnabled()) {
 			if (strcmp(counter.getType(), "") == 0) {
-				logg->logError(__FILE__, __LINE__, "Invalid required attribute in configuration.xml:\n  counter=\"%s\"\n  event=%d\n", counter.getType(), counter.getEvent());
+				logg->logError("Invalid required attribute in configuration.xml:\n  counter=\"%s\"\n  event=%d\n", counter.getType(), counter.getEvent());
 				handleException();
 			}
 
@@ -116,7 +116,7 @@ void ConfigurationXML::validate(void) {
 				if (counter2.isEnabled()) {
 					// check if the types are the same
 					if (strcmp(counter.getType(), counter2.getType()) == 0) {
-						logg->logError(__FILE__, __LINE__, "Duplicate performance counter type in configuration.xml: %s", counter.getType());
+						logg->logError("Duplicate performance counter type in configuration.xml: %s", counter.getType());
 						handleException();
 					}
 				}
@@ -169,7 +169,7 @@ void ConfigurationXML::configurationTag(mxml_node_t *node) {
 	for (Driver *driver = Driver::getHead(); driver != NULL; driver = driver->getNext()) {
 		if (driver->claimCounter(counter)) {
 			if (counter.getDriver() != NULL) {
-				logg->logError(__FILE__, __LINE__, "More than one driver has claimed %s:%i", counter.getType(), counter.getEvent());
+				logg->logError("More than one driver has claimed %s:%i", counter.getType(), counter.getEvent());
 				handleException();
 			}
 			counter.setDriver(driver);
@@ -210,7 +210,7 @@ void ConfigurationXML::remove() {
 	getPath(path);
 
 	if (::remove(path) != 0) {
-		logg->logError(__FILE__, __LINE__, "Invalid configuration.xml file detected and unable to delete it. To resolve, delete configuration.xml on disk");
+		logg->logError("Invalid configuration.xml file detected and unable to delete it. To resolve, delete configuration.xml on disk");
 		handleException();
 	}
 	logg->logMessage("Invalid configuration.xml file detected and removed");

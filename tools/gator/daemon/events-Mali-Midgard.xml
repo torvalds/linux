@@ -1,6 +1,8 @@
   <category name="Mali-Midgard Software Counters" per_cpu="no">
     <event counter="ARM_Mali-Midgard_TOTAL_ALLOC_PAGES" title="Mali Total Alloc Pages" name="Total number of allocated pages" description="Mali total number of allocated pages."/>
   </category>
+<!--
+power management is disabled during profiling so these counters are not useful as they always return zero
   <category name="Mali-Midgard PM Shader" per_cpu="no">
     <event counter="ARM_Mali-Midgard_PM_SHADER_0" class="absolute" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 0" description="Mali PM Shader: PM Shader Core 0."/>
     <event counter="ARM_Mali-Midgard_PM_SHADER_1" class="absolute" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 1" description="Mali PM Shader: PM Shader Core 1."/>
@@ -12,17 +14,18 @@
     <event counter="ARM_Mali-Midgard_PM_SHADER_7" class="absolute" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 7" description="Mali PM Shader: PM Shader Core 7."/>
   </category>
   <category name="Mali-Midgard PM Tiler" per_cpu="no">
-    <event counter="ARM_Mali-Midgard_PM_TILER_0" display="average" average_selection="yes" percentage="yes" title="Mali PM Tiler" name="PM Tiler Core 0" description="Mali PM Tiler: PM Tiler Core 0."/>
+    <event counter="ARM_Mali-Midgard_PM_TILER_0" class="absolute" display="average" average_selection="yes" percentage="yes" title="Mali PM Tiler" name="PM Tiler Core 0" description="Mali PM Tiler: PM Tiler Core 0."/>
   </category>
   <category name="Mali-Midgard PM L2" per_cpu="no">
-    <event counter="ARM_Mali-Midgard_PM_L2_0" display="average" average_selection="yes" percentage="yes" title="Mali PM L2" name="PM L2 Core 0" description="Mali PM L2: PM L2 Core 0."/>
-    <event counter="ARM_Mali-Midgard_PM_L2_1" display="average" average_selection="yes" percentage="yes" title="Mali PM L2" name="PM L2 Core 1" description="Mali PM L2: PM L2 Core 1."/>
+    <event counter="ARM_Mali-Midgard_PM_L2_0" class="absolute" display="average" average_selection="yes" percentage="yes" title="Mali PM L2" name="PM L2 Core 0" description="Mali PM L2: PM L2 Core 0."/>
+    <event counter="ARM_Mali-Midgard_PM_L2_1" class="absolute" display="average" average_selection="yes" percentage="yes" title="Mali PM L2" name="PM L2 Core 1" description="Mali PM L2: PM L2 Core 1."/>
   </category>
+-->
   <category name="Mali-Midgard MMU Address Space" per_cpu="no">
-    <event counter="ARM_Mali-Midgard_MMU_AS_0" display="average" average_selection="yes" percentage="yes" title="Mali MMU Address Space" name="MMU Address Space 0" description="Mali MMU Address Space 0 usage."/>
-    <event counter="ARM_Mali-Midgard_MMU_AS_1" display="average" average_selection="yes" percentage="yes" title="Mali MMU Address Space" name="MMU Address Space 1" description="Mali MMU Address Space 1 usage."/>
-    <event counter="ARM_Mali-Midgard_MMU_AS_2" display="average" average_selection="yes" percentage="yes" title="Mali MMU Address Space" name="MMU Address Space 2" description="Mali MMU Address Space 2 usage."/>
-    <event counter="ARM_Mali-Midgard_MMU_AS_3" display="average" average_selection="yes" percentage="yes" title="Mali MMU Address Space" name="MMU Address Space 3" description="Mali MMU Address Space 3 usage."/>
+    <event counter="ARM_Mali-Midgard_MMU_AS_0" average_selection="yes" percentage="yes" title="Mali MMU Address Space" name="MMU Address Space 0" description="Mali MMU Address Space 0 usage."/>
+    <event counter="ARM_Mali-Midgard_MMU_AS_1" average_selection="yes" percentage="yes" title="Mali MMU Address Space" name="MMU Address Space 1" description="Mali MMU Address Space 1 usage."/>
+    <event counter="ARM_Mali-Midgard_MMU_AS_2" average_selection="yes" percentage="yes" title="Mali MMU Address Space" name="MMU Address Space 2" description="Mali MMU Address Space 2 usage."/>
+    <event counter="ARM_Mali-Midgard_MMU_AS_3" average_selection="yes" percentage="yes" title="Mali MMU Address Space" name="MMU Address Space 3" description="Mali MMU Address Space 3 usage."/>
   </category>
   <category name="Mali-Midgard MMU Page Fault" per_cpu="no">
     <event counter="ARM_Mali-Midgard_MMU_PAGE_FAULT_0" title="Mali MMU Page Fault Add. Space" name="Mali MMU Page Fault Add. Space 0" description="Reports the number of newly allocated pages after a MMU page fault in address space 0."/>

@@ -2115,6 +2115,11 @@ static bool rbd_img_obj_end_request(struct rbd_obj_request *obj_request)
 			result, xferred);
 		if (!img_request->result)
 			img_request->result = result;
+		/*
+		 * Need to end I/O on the entire obj_request worth of
+		 * bytes in case of error.
+		 */
+		xferred = obj_request->length;
 	}
 
 	/* Image object requests don't own their page array */

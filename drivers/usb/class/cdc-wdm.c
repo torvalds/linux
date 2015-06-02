@@ -244,7 +244,7 @@ static void wdm_int_callback(struct urb *urb)
 	case USB_CDC_NOTIFY_RESPONSE_AVAILABLE:
 		dev_dbg(&desc->intf->dev,
 			"NOTIFY_RESPONSE_AVAILABLE received: index %d len %d",
-			dr->wIndex, dr->wLength);
+			le16_to_cpu(dr->wIndex), le16_to_cpu(dr->wLength));
 		break;
 
 	case USB_CDC_NOTIFY_NETWORK_CONNECTION:
@@ -257,7 +257,9 @@ static void wdm_int_callback(struct urb *urb)
 		clear_bit(WDM_POLL_RUNNING, &desc->flags);
 		dev_err(&desc->intf->dev,
 			"unknown notification %d received: index %d len %d\n",
-			dr->bNotificationType, dr->wIndex, dr->wLength);
+			dr->bNotificationType,
+			le16_to_cpu(dr->wIndex),
+			le16_to_cpu(dr->wLength));
 		goto exit;
 	}
 
@@ -403,7 +405,7 @@ static ssize_t wdm_write
 			     USB_RECIP_INTERFACE);
 	req->bRequest = USB_CDC_SEND_ENCAPSULATED_COMMAND;
 	req->wValue = 0;
-	req->wIndex = desc->inum;
+	req->wIndex = desc->inum; /* already converted */
 	req->wLength = cpu_to_le16(count);
 	set_bit(WDM_IN_USE, &desc->flags);
 	desc->outbuf = buf;
@@ -417,7 +419,7 @@ static ssize_t wdm_write
 		rv = usb_translate_errors(rv);
 	} else {
 		dev_dbg(&desc->intf->dev, "Tx URB has been submitted index=%d",
-			req->wIndex);
+			le16_to_cpu(req->wIndex));
 	}
 out:
 	usb_autopm_put_interface(desc->intf);
@@ -780,7 +782,7 @@ static int wdm_create(struct usb_interface *intf, struct usb_endpoint_descriptor
 	desc->irq->bRequestType = (USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE);
 	desc->irq->bRequest = USB_CDC_GET_ENCAPSULATED_RESPONSE;
 	desc->irq->wValue = 0;
-	desc->irq->wIndex = desc->inum;
+	desc->irq->wIndex = desc->inum; /* already converted */
 	desc->irq->wLength = cpu_to_le16(desc->wMaxCommand);
 
 	usb_fill_control_urb(

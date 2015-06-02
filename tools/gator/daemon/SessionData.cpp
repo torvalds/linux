@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -13,7 +13,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#include "CPUFreqDriver.h"
 #include "DiskIODriver.h"
 #include "FSDriver.h"
 #include "HwmonDriver.h"
@@ -31,8 +30,7 @@ SessionData::SessionData() {
 	usDrivers[1] = new FSDriver();
 	usDrivers[2] = new MemInfoDriver();
 	usDrivers[3] = new NetDriver();
-	usDrivers[4] = new CPUFreqDriver();
-	usDrivers[5] = new DiskIODriver();
+	usDrivers[4] = new DiskIODriver();
 	initialize();
 }
 
@@ -50,7 +48,7 @@ void SessionData::initialize() {
 	// Share mCpuIds across all instances of gatord
 	mCpuIds = (int *)mmap(NULL, cpuIdSize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 	if (mCpuIds == MAP_FAILED) {
-		logg->logError(__FILE__, __LINE__, "Unable to mmap shared memory for cpuids");
+		logg->logError("Unable to mmap shared memory for cpuids");
 		handleException();
 	}
 	memset(mCpuIds, -1, cpuIdSize);
@@ -61,6 +59,7 @@ void SessionData::initialize() {
 	mConfigurationXMLPath = NULL;
 	mSessionXMLPath = NULL;
 	mEventsXMLPath = NULL;
+	mEventsXMLAppend = NULL;
 	mTargetPath = NULL;
 	mAPCDir = NULL;
 	mCaptureWorkingDir = NULL;
@@ -75,6 +74,7 @@ void SessionData::initialize() {
 	// sysconf(_SC_NPROCESSORS_CONF) is unreliable on 2.6 Android, get the value from the kernel module
 	mCores = 1;
 	mPageSize = 0;
+	mAnnotateStart = -1;
 }
 
 void SessionData::parseSessionXML(char* xmlString) {
@@ -91,7 +91,7 @@ void SessionData::parseSessionXML(char* xmlString) {
 	} else if (strcmp(session.parameters.sample_rate, "none") == 0) {
 		mSampleRate = 0;
 	} else {
-		logg->logError(__FILE__, __LINE__, "Invalid sample rate (%s) in session xml.", session.parameters.sample_rate);
+		logg->logError("Invalid sample rate (%s) in session xml.", session.parameters.sample_rate);
 		handleException();
 	}
 	mBacktraceDepth = session.parameters.call_stack_unwinding == true ? 128 : 0;
@@ -108,7 +108,7 @@ void SessionData::parseSessionXML(char* xmlString) {
 	} else if (strcmp(session.parameters.buffer_mode, "large") == 0) {
 		mTotalBufferSize = 16;
 	} else {
-		logg->logError(__FILE__, __LINE__, "Invalid value for buffer mode in session xml.");
+		logg->logError("Invalid value for buffer mode in session xml.");
 		handleException();
 	}
 
@@ -120,7 +120,7 @@ void SessionData::parseSessionXML(char* xmlString) {
 	}
 
 	if (!mAllowCommands && (mCaptureCommand != NULL)) {
-		logg->logError(__FILE__, __LINE__, "Running a command during a capture is not currently allowed. Please restart gatord with the -a flag.");
+		logg->logError("Running a command during a capture is not currently allowed. Please restart gatord with the -a flag.");
 		handleException();
 	}
 }
@@ -139,6 +139,20 @@ void SessionData::readModel() {
 	fclose(fh);
 }
 
+static void setImplementer(int &cpuId, const int implementer) {
+	if (cpuId == -1) {
+		cpuId = 0;
+	}
+	cpuId |= implementer << 12;
+}
+
+static void setPart(int &cpuId, const int part) {
+	if (cpuId == -1) {
+		cpuId = 0;
+	}
+	cpuId |= part;
+}
+
 void SessionData::readCpuInfo() {
 	char temp[256]; // arbitrarily large amount
 	mMaxCpuId = -1;
@@ -150,7 +164,7 @@ void SessionData::readCpuInfo() {
 		return;
 	}
 
-	bool foundCoreName = false;
+	bool foundCoreName = (strcmp(mCoreName, CORE_NAME_UNKNOWN) != 0);
 	int processor = -1;
 	while (fgets(temp, sizeof(temp), f)) {
 		const size_t len = strlen(temp);
@@ -166,10 +180,11 @@ void SessionData::readCpuInfo() {
 			temp[len - 1] = '\0';
 		}
 
-		const bool foundHardware = strstr(temp, "Hardware") != 0;
+		const bool foundHardware = !foundCoreName && strstr(temp, "Hardware") != 0;
+		const bool foundCPUImplementer = strstr(temp, "CPU implementer") != 0;
 		const bool foundCPUPart = strstr(temp, "CPU part") != 0;
 		const bool foundProcessor = strstr(temp, "processor") != 0;
-		if (foundHardware || foundCPUPart || foundProcessor) {
+		if (foundHardware || foundCPUImplementer || foundCPUPart || foundProcessor) {
 			char* position = strchr(temp, ':');
 			if (position == NULL || (unsigned int)(position - temp) + 2 >= strlen(temp)) {
 				logg->logMessage("Unknown format of /proc/cpuinfo\n"
@@ -178,28 +193,44 @@ void SessionData::readCpuInfo() {
 			}
 			position += 2;
 
-			if (foundHardware && (strcmp(mCoreName, CORE_NAME_UNKNOWN) == 0)) {
+			if (foundHardware) {
 				strncpy(mCoreName, position, sizeof(mCoreName));
 				mCoreName[sizeof(mCoreName) - 1] = 0; // strncpy does not guarantee a null-terminated string
 				foundCoreName = true;
 			}
 
-			if (foundCPUPart) {
-				const int cpuId = strtol(position, NULL, 0);
-				// If this does not have the full topology in /proc/cpuinfo, mCpuIds[0] may not have the 1 CPU part emitted - this guarantees it's in mMaxCpuId
-				if (cpuId > mMaxCpuId) {
-					mMaxCpuId = cpuId;
-				}
+			if (foundCPUImplementer) {
+				const int implementer = strtol(position, NULL, 0);
 				if (processor >= NR_CPUS) {
 					logg->logMessage("Too many processors, please increase NR_CPUS");
 				} else if (processor >= 0) {
-					mCpuIds[processor] = cpuId;
+					setImplementer(mCpuIds[processor], implementer);
+				} else {
+					setImplementer(mMaxCpuId, implementer);
+				}
+			}
+
+			if (foundCPUPart) {
+				const int cpuId = strtol(position, NULL, 0);
+				if (processor >= NR_CPUS) {
+					logg->logMessage("Too many processors, please increase NR_CPUS");
+				} else if (processor >= 0) {
+					setPart(mCpuIds[processor], cpuId);
+				} else {
+					setPart(mMaxCpuId, cpuId);
 				}
 			}
 
 			if (foundProcessor) {
 				processor = strtol(position, NULL, 0);
 			}
+		}
+	}
+
+	// If this does not have the full topology in /proc/cpuinfo, mCpuIds[0] may not have the 1 CPU part emitted - this guarantees it's in mMaxCpuId
+	for (int i = 0; i < NR_CPUS; ++i) {
+		if (mCpuIds[i] > mMaxCpuId) {
+			mMaxCpuId = mCpuIds[i];
 		}
 	}
 
@@ -213,7 +244,7 @@ void SessionData::readCpuInfo() {
 uint64_t getTime() {
 	struct timespec ts;
 	if (clock_gettime(CLOCK_MONOTONIC_RAW, &ts) != 0) {
-		logg->logError(__FILE__, __LINE__, "Failed to get uptime");
+		logg->logError("Failed to get uptime");
 		handleException();
 	}
 	return (NS_PER_S*ts.tv_sec + ts.tv_nsec);

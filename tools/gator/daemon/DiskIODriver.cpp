@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2013-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2013-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -67,7 +67,7 @@ void DiskIODriver::doRead() {
 	}
 
 	if (!mBuf.read("/proc/diskstats")) {
-		logg->logError(__FILE__, __LINE__, "Unable to read /proc/diskstats");
+		logg->logError("Unable to read /proc/diskstats");
 		handleException();
 	}
 
@@ -76,9 +76,9 @@ void DiskIODriver::doRead() {
 
 	char *lastName = NULL;
 	int lastNameLen = -1;
-	char *start = mBuf.getBuf();
-	while (*start != '\0') {
-		char *end = strchr(start, '\n');
+	char *line = mBuf.getBuf();
+	while (*line != '\0') {
+		char *end = strchr(line, '\n');
 		if (end != NULL) {
 			*end = '\0';
 		}
@@ -87,15 +87,15 @@ void DiskIODriver::doRead() {
 		int nameEnd = -1;
 		int64_t readBytes = -1;
 		int64_t writeBytes = -1;
-		const int count = sscanf(start, "%*d %*d %n%*s%n %*u %*u %" SCNu64 " %*u %*u %*u %" SCNu64, &nameStart, &nameEnd, &readBytes, &writeBytes);
+		const int count = sscanf(line, "%*d %*d %n%*s%n %*u %*u %" SCNu64 " %*u %*u %*u %" SCNu64, &nameStart, &nameEnd, &readBytes, &writeBytes);
 		if (count != 2) {
-			logg->logError(__FILE__, __LINE__, "Unable to parse /proc/diskstats");
+			logg->logError("Unable to parse /proc/diskstats");
 			handleException();
 		}
 
 		// Skip partitions which are identified if the name is a substring of the last non-partition
-		if ((lastName == NULL) || (strncmp(lastName, start + nameStart, lastNameLen) != 0)) {
-			lastName = start + nameStart;
+		if ((lastName == NULL) || (strncmp(lastName, line + nameStart, lastNameLen) != 0)) {
+			lastName = line + nameStart;
 			lastNameLen = nameEnd - nameStart;
 			mReadBytes += readBytes;
 			mWriteBytes += writeBytes;
@@ -104,7 +104,7 @@ void DiskIODriver::doRead() {
 		if (end == NULL) {
 			break;
 		}
-		start = end + 1;
+		line = end + 1;
 	}
 }
 

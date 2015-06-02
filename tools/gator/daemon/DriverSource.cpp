@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -32,7 +32,7 @@ DriverSource::DriverSource(sem_t *senderSem, sem_t *startProfile) : mBuffer(NULL
 
 	mBuffer = new Buffer(0, FRAME_PERF_ATTRS, 4*1024*1024, senderSem);
 	if (readIntDriver("/dev/gator/version", &driver_version) == -1) {
-		logg->logError(__FILE__, __LINE__, "Error reading gator driver version");
+		logg->logError("Error reading gator driver version");
 		handleException();
 	}
 
@@ -40,7 +40,7 @@ DriverSource::DriverSource(sem_t *senderSem, sem_t *startProfile) : mBuffer(NULL
 	if (driver_version != PROTOCOL_VERSION) {
 		if ((driver_version > PROTOCOL_DEV) || (PROTOCOL_VERSION > PROTOCOL_DEV)) {
 			// One of the mismatched versions is development version
-			logg->logError(__FILE__, __LINE__,
+			logg->logError(
 				"DEVELOPMENT BUILD MISMATCH: gator driver version \"%d\" is not in sync with gator daemon version \"%d\".\n"
 				">> The following must be synchronized from engineering repository:\n"
 				">> * gator driver\n"
@@ -49,7 +49,7 @@ DriverSource::DriverSource(sem_t *senderSem, sem_t *startProfile) : mBuffer(NULL
 			handleException();
 		} else {
 			// Release version mismatch
-			logg->logError(__FILE__, __LINE__,
+			logg->logError(
 				"gator driver version \"%d\" is different than gator daemon version \"%d\".\n"
 				">> Please upgrade the driver and daemon to the latest versions.", driver_version, PROTOCOL_VERSION);
 			handleException();
@@ -58,7 +58,7 @@ DriverSource::DriverSource(sem_t *senderSem, sem_t *startProfile) : mBuffer(NULL
 
 	int enable = -1;
 	if (readIntDriver("/dev/gator/enable", &enable) != 0 || enable != 0) {
-		logg->logError(__FILE__, __LINE__, "Driver already enabled, possibly a session is already in progress.");
+		logg->logError("Driver already enabled, possibly a session is already in progress.");
 		handleException();
 	}
 
@@ -68,7 +68,7 @@ DriverSource::DriverSource(sem_t *senderSem, sem_t *startProfile) : mBuffer(NULL
 	}
 
 	if (readIntDriver("/dev/gator/buffer_size", &mBufferSize) || mBufferSize <= 0) {
-		logg->logError(__FILE__, __LINE__, "Unable to read the driver buffer size");
+		logg->logError("Unable to read the driver buffer size");
 		handleException();
 	}
 }
@@ -99,10 +99,11 @@ void DriverSource::bootstrapThread() {
 	DynBuf printb;
 	DynBuf b1;
 	DynBuf b2;
-	const uint64_t currTime = getTime();
+	// MonotonicStarted may not be not assigned yet
+	const uint64_t currTime = 0;//getTime() - gSessionData->mMonotonicStarted;
 
 	if (!readProcComms(currTime, mBuffer, &printb, &b1, &b2)) {
-		logg->logError(__FILE__, __LINE__, "readProcComms failed");
+		logg->logError("readProcComms failed");
 		handleException();
 	}
 
@@ -124,33 +125,33 @@ void DriverSource::run() {
 
 	// Set the maximum backtrace depth
 	if (writeReadDriver("/dev/gator/backtrace_depth", &gSessionData->mBacktraceDepth)) {
-		logg->logError(__FILE__, __LINE__, "Unable to set the driver backtrace depth");
+		logg->logError("Unable to set the driver backtrace depth");
 		handleException();
 	}
 
 	// open the buffer which calls userspace_buffer_open() in the driver
 	mBufferFD = open("/dev/gator/buffer", O_RDONLY | O_CLOEXEC);
 	if (mBufferFD < 0) {
-		logg->logError(__FILE__, __LINE__, "The gator driver did not set up properly. Please view the linux console or dmesg log for more information on the failure.");
+		logg->logError("The gator driver did not set up properly. Please view the linux console or dmesg log for more information on the failure.");
 		handleException();
 	}
 
 	// set the tick rate of the profiling timer
 	if (writeReadDriver("/dev/gator/tick", &gSessionData->mSampleRate) != 0) {
-		logg->logError(__FILE__, __LINE__, "Unable to set the driver tick");
+		logg->logError("Unable to set the driver tick");
 		handleException();
 	}
 
 	// notify the kernel of the response type
 	int response_type = gSessionData->mLocalCapture ? 0 : RESPONSE_APC_DATA;
 	if (writeDriver("/dev/gator/response_type", response_type)) {
-		logg->logError(__FILE__, __LINE__, "Unable to write the response type");
+		logg->logError("Unable to write the response type");
 		handleException();
 	}
 
 	// Set the live rate
 	if (writeReadDriver("/dev/gator/live_rate", &gSessionData->mLiveRate)) {
-		logg->logError(__FILE__, __LINE__, "Unable to set the driver live rate");
+		logg->logError("Unable to set the driver live rate");
 		handleException();
 	}
 
@@ -158,7 +159,7 @@ void DriverSource::run() {
 
 	// This command makes the driver start profiling by calling gator_op_start() in the driver
 	if (writeDriver("/dev/gator/enable", "1") != 0) {
-		logg->logError(__FILE__, __LINE__, "The gator driver did not start properly. Please view the linux console or dmesg log for more information on the failure.");
+		logg->logError("The gator driver did not start properly. Please view the linux console or dmesg log for more information on the failure.");
 		handleException();
 	}
 
@@ -168,7 +169,7 @@ void DriverSource::run() {
 
 	pthread_t bootstrapThreadID;
 	if (pthread_create(&bootstrapThreadID, NULL, bootstrapThreadStatic, this) != 0) {
-		logg->logError(__FILE__, __LINE__, "Unable to start the gator_bootstrap thread");
+		logg->logError("Unable to start the gator_bootstrap thread");
 		handleException();
 	}
 
@@ -190,7 +191,7 @@ void DriverSource::run() {
 		// In one shot mode, stop collection once all the buffers are filled
 		if (gSessionData->mOneShot && gSessionData->mSessionIsActive) {
 			if (bytesCollected == -1 || mFifo->willFill(bytesCollected)) {
-				logg->logMessage("One shot");
+				logg->logMessage("One shot (gator.ko)");
 				child->endSession();
 			}
 		}

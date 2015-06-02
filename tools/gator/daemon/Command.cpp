@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2014. All rights reserved.
+ * Copyright (C) ARM Limited 2014-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -39,7 +39,7 @@ static int getUid(const char *const name, char *const shPath, const char *const 
 
 	const int pid = fork();
 	if (pid < 0) {
-		logg->logError(__FILE__, __LINE__, "fork failed");
+		logg->logError("fork failed");
 		handleException();
 	}
 	if (pid == 0) {
@@ -94,7 +94,7 @@ void *commandThread(void *) {
 	const char *const name = gSessionData->mCaptureUser == NULL ? "nobody" : gSessionData->mCaptureUser;
 	const int uid = getUid(name);
 	if (uid < 0) {
-		logg->logError(__FILE__, __LINE__, "Unable to lookup the user %s, please double check that the user exists", name);
+		logg->logError("Unable to look up the user %s, please double check that the user exists", name);
 		handleException();
 	}
 
@@ -103,13 +103,13 @@ void *commandThread(void *) {
 	char buf[128];
 	int pipefd[2];
 	if (pipe_cloexec(pipefd) != 0) {
-		logg->logError(__FILE__, __LINE__, "pipe failed");
+		logg->logError("pipe failed");
 		handleException();
 	}
 
 	const int pid = fork();
 	if (pid < 0) {
-		logg->logError(__FILE__, __LINE__, "fork failed");
+		logg->logError("fork failed");
 		handleException();
 	}
 	if (pid == 0) {
@@ -163,7 +163,7 @@ void *commandThread(void *) {
 	close(pipefd[1]);
 	const ssize_t bytes = read(pipefd[0], buf, sizeof(buf));
 	if (bytes > 0) {
-		logg->logError(__FILE__, __LINE__, buf);
+		logg->logError("%s", buf);
 		handleException();
 	}
 	close(pipefd[0]);

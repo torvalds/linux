@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -31,16 +31,18 @@
 
 extern Child *child;
 
+static const int cpuIdleKey = getEventKey();
+
 static bool sendTracepointFormat(const uint64_t currTime, Buffer *const buffer, const char *const name, DynBuf *const printb, DynBuf *const b) {
 	if (!printb->printf(EVENTS_PATH "/%s/format", name)) {
-		logg->logMessage("%s(%s:%i): DynBuf::printf failed", __FUNCTION__, __FILE__, __LINE__);
+		logg->logMessage("DynBuf::printf failed");
 		return false;
 	}
 	if (!b->read(printb->getBuf())) {
-		logg->logMessage("%s(%s:%i): DynBuf::read failed", __FUNCTION__, __FILE__, __LINE__);
+		logg->logMessage("DynBuf::read failed");
 		return false;
 	}
-	buffer->format(currTime, b->getLength(), b->getBuf());
+	buffer->marshalFormat(currTime, b->getLength(), b->getBuf());
 
 	return true;
 }
@@ -58,18 +60,18 @@ static void *syncFunc(void *arg)
 	{
 		sigset_t set;
 		if (sigfillset(&set) != 0) {
-			logg->logError(__FILE__, __LINE__, "sigfillset failed");
+			logg->logError("sigfillset failed");
 			handleException();
 		}
 		if ((err = pthread_sigmask(SIG_SETMASK, &set, NULL)) != 0) {
-			logg->logError(__FILE__, __LINE__, "pthread_sigmask failed");
+			logg->logError("pthread_sigmask failed");
 			handleException();
 		}
 	}
 
 	for (;;) {
 		if (clock_gettime(CLOCK_MONOTONIC_RAW, &ts) != 0) {
-			logg->logError(__FILE__, __LINE__, "clock_gettime failed");
+			logg->logError("clock_gettime failed");
 			handleException();
 		}
 		const int64_t currTime = ts.tv_sec * NS_PER_S + ts.tv_nsec;
@@ -95,7 +97,7 @@ static void *syncFunc(void *arg)
 static long getMaxCoreNum() {
 	DIR *dir = opendir("/sys/devices/system/cpu");
 	if (dir == NULL) {
-		logg->logError(__FILE__, __LINE__, "Unable to determine the number of cores on the target, opendir failed");
+		logg->logError("Unable to determine the number of cores on the target, opendir failed");
 		handleException();
 	}
 
@@ -114,22 +116,22 @@ static long getMaxCoreNum() {
 	closedir(dir);
 
 	if (maxCoreNum < 1) {
-		logg->logError(__FILE__, __LINE__, "Unable to determine the number of cores on the target, no cpu# directories found");
+		logg->logError("Unable to determine the number of cores on the target, no cpu# directories found");
 		handleException();
 	}
 
 	if (maxCoreNum >= NR_CPUS) {
-		logg->logError(__FILE__, __LINE__, "Too many cores on the target, please increase NR_CPUS in Config.h");
+		logg->logError("Too many cores on the target, please increase NR_CPUS in Config.h");
 		handleException();
 	}
 
 	return maxCoreNum;
 }
 
-PerfSource::PerfSource(sem_t *senderSem, sem_t *startProfile) : mSummary(0, FRAME_SUMMARY, 1024, senderSem), mBuffer(0, FRAME_PERF_ATTRS, 1024*1024, senderSem), mCountersBuf(), mCountersGroup(&mCountersBuf), mIdleGroup(&mCountersBuf), mMonitor(), mUEvent(), mSenderSem(senderSem), mStartProfile(startProfile), mInterruptFd(-1), mIsDone(false) {
+PerfSource::PerfSource(sem_t *senderSem, sem_t *startProfile) : mSummary(0, FRAME_SUMMARY, 1024, senderSem), mBuffer(NULL), mCountersBuf(), mCountersGroup(&mCountersBuf), mMonitor(), mUEvent(), mSenderSem(senderSem), mStartProfile(startProfile), mInterruptFd(-1), mIsDone(false) {
 	long l = sysconf(_SC_PAGE_SIZE);
 	if (l < 0) {
-		logg->logError(__FILE__, __LINE__, "Unable to obtain the page size");
+		logg->logError("Unable to obtain the page size");
 		handleException();
 	}
 	gSessionData->mPageSize = static_cast<int>(l);
@@ -137,15 +139,18 @@ PerfSource::PerfSource(sem_t *senderSem, sem_t *startProfile) : mSummary(0, FRAM
 }
 
 PerfSource::~PerfSource() {
+	delete mBuffer;
 }
 
 bool PerfSource::prepare() {
 	DynBuf printb;
 	DynBuf b1;
-	long long schedSwitchId;
 	long long cpuIdleId;
 
-	const uint64_t currTime = getTime();
+	// MonotonicStarted has not yet been assigned!
+	const uint64_t currTime = 0;//getTime() - gSessionData->mMonotonicStarted;
+
+	mBuffer = new Buffer(0, FRAME_PERF_ATTRS, gSessionData->mTotalBufferSize*1024*1024, mSenderSem);
 
 	// Reread cpuinfo since cores may have changed since startup
 	gSessionData->readCpuInfo();
@@ -155,72 +160,59 @@ bool PerfSource::prepare() {
 			|| !mUEvent.init()
 			|| !mMonitor.add(mUEvent.getFd())
 
-			|| (schedSwitchId = PerfDriver::getTracepointId(SCHED_SWITCH, &printb)) < 0
-			|| !sendTracepointFormat(currTime, &mBuffer, SCHED_SWITCH, &printb, &b1)
+			|| !sendTracepointFormat(currTime, mBuffer, SCHED_SWITCH, &printb, &b1)
 
 			|| (cpuIdleId = PerfDriver::getTracepointId(CPU_IDLE, &printb)) < 0
-			|| !sendTracepointFormat(currTime, &mBuffer, CPU_IDLE, &printb, &b1)
+			|| !sendTracepointFormat(currTime, mBuffer, CPU_IDLE, &printb, &b1)
 
-			// Only want RAW but not IP on sched_switch and don't want TID on SAMPLE_ID
-			|| !mCountersGroup.add(currTime, &mBuffer, 100/**/, PERF_TYPE_TRACEPOINT, schedSwitchId, 1, PERF_SAMPLE_RAW, PERF_GROUP_MMAP | PERF_GROUP_COMM | PERF_GROUP_TASK | PERF_GROUP_SAMPLE_ID_ALL | PERF_GROUP_PER_CPU)
-			|| !mIdleGroup.add(currTime, &mBuffer, 101/**/, PERF_TYPE_TRACEPOINT, cpuIdleId, 1, PERF_SAMPLE_RAW, PERF_GROUP_PER_CPU)
+			|| !sendTracepointFormat(currTime, mBuffer, CPU_FREQUENCY, &printb, &b1)
 
-			// Only want TID and IP but not RAW on timer
-			|| (gSessionData->mSampleRate > 0 && !gSessionData->mIsEBS && !mCountersGroup.add(currTime, &mBuffer, 102/**/, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CPU_CLOCK, 1000000000UL / gSessionData->mSampleRate, PERF_SAMPLE_TID | PERF_SAMPLE_IP, PERF_GROUP_PER_CPU))
+			|| !mCountersGroup.createCpuGroup(currTime, mBuffer)
+			|| !mCountersGroup.add(currTime, mBuffer, cpuIdleKey, PERF_TYPE_TRACEPOINT, cpuIdleId, 1, PERF_SAMPLE_RAW, PERF_GROUP_LEADER | PERF_GROUP_PER_CPU)
 
-			|| !gSessionData->perf.enable(currTime, &mCountersGroup, &mBuffer)
+			|| !gSessionData->perf.enable(currTime, &mCountersGroup, mBuffer)
 			|| 0) {
-		logg->logMessage("%s(%s:%i): perf setup failed, are you running Linux 3.4 or later?", __FUNCTION__, __FILE__, __LINE__);
+		logg->logMessage("perf setup failed, are you running Linux 3.4 or later?");
 		return false;
 	}
 
 	for (int cpu = 0; cpu < gSessionData->mCores; ++cpu) {
 		const int result = mCountersGroup.prepareCPU(cpu, &mMonitor);
 		if ((result != PG_SUCCESS) && (result != PG_CPU_OFFLINE)) {
-			logg->logError(__FILE__, __LINE__, "PerfGroup::prepareCPU on mCountersGroup failed");
-			handleException();
-		}
-	}
-	for (int cpu = 0; cpu < gSessionData->mCores; ++cpu) {
-		const int result = mIdleGroup.prepareCPU(cpu, &mMonitor);
-		if ((result != PG_SUCCESS) && (result != PG_CPU_OFFLINE)) {
-			logg->logError(__FILE__, __LINE__, "PerfGroup::prepareCPU on mIdleGroup failed");
+			logg->logError("PerfGroup::prepareCPU on mCountersGroup failed");
 			handleException();
 		}
 	}
 
 	int numEvents = 0;
 	for (int cpu = 0; cpu < gSessionData->mCores; ++cpu) {
-		numEvents += mCountersGroup.onlineCPU(currTime, cpu, false, &mBuffer);
-	}
-	for (int cpu = 0; cpu < gSessionData->mCores; ++cpu) {
-		numEvents += mIdleGroup.onlineCPU(currTime, cpu, false, &mBuffer);
+		numEvents += mCountersGroup.onlineCPU(currTime, cpu, false, mBuffer);
 	}
 	if (numEvents <= 0) {
-		logg->logMessage("%s(%s:%i): PerfGroup::onlineCPU failed on all cores", __FUNCTION__, __FILE__, __LINE__);
+		logg->logMessage("PerfGroup::onlineCPU failed on all cores");
 		return false;
 	}
 
 	// Send the summary right before the start so that the monotonic delta is close to the start time
 	if (!gSessionData->perf.summary(&mSummary)) {
-	  logg->logError(__FILE__, __LINE__, "PerfDriver::summary failed", __FUNCTION__, __FILE__, __LINE__);
-	  handleException();
+		logg->logError("PerfDriver::summary failed");
+		handleException();
 	}
 
 	// Start the timer thread to used to sync perf and monotonic raw times
 	pthread_t syncThread;
 	if (pthread_create(&syncThread, NULL, syncFunc, NULL)) {
-	  logg->logError(__FILE__, __LINE__, "pthread_create failed", __FUNCTION__, __FILE__, __LINE__);
-	  handleException();
+		logg->logError("pthread_create failed");
+		handleException();
 	}
 	struct sched_param param;
 	param.sched_priority = sched_get_priority_max(SCHED_FIFO);
 	if (pthread_setschedparam(syncThread, SCHED_FIFO | SCHED_RESET_ON_FORK, &param) != 0) {
-	  logg->logError(__FILE__, __LINE__, "pthread_setschedparam failed");
-	  handleException();
+		logg->logError("pthread_setschedparam failed");
+		handleException();
 	}
 
-	mBuffer.commit(currTime);
+	mBuffer->commit(currTime);
 
 	return true;
 }
@@ -240,18 +232,17 @@ void *procFunc(void *arg) {
 
 	// Gator runs at a high priority, reset the priority to the default
 	if (setpriority(PRIO_PROCESS, syscall(__NR_gettid), 0) == -1) {
-		logg->logError(__FILE__, __LINE__, "setpriority failed");
+		logg->logError("setpriority failed");
 		handleException();
 	}
 
 	if (!readProcMaps(args->mCurrTime, args->mBuffer, &printb, &b)) {
-		logg->logError(__FILE__, __LINE__, "readProcMaps failed");
+		logg->logError("readProcMaps failed");
 		handleException();
 	}
-	args->mBuffer->commit(args->mCurrTime);
 
 	if (!readKallsyms(args->mCurrTime, args->mBuffer, &args->mIsDone)) {
-		logg->logError(__FILE__, __LINE__, "readKallsyms failed");
+		logg->logError("readKallsyms failed");
 		handleException();
 	}
 	args->mBuffer->commit(args->mCurrTime);
@@ -266,67 +257,72 @@ void PerfSource::run() {
 	pthread_t procThread;
 	ProcThreadArgs procThreadArgs;
 
-	{
-		DynBuf printb;
-		DynBuf b1;
-		DynBuf b2;
-
-		const uint64_t currTime = getTime();
-
-		// Start events before reading proc to avoid race conditions
-		if (!mCountersGroup.start() || !mIdleGroup.start()) {
-			logg->logError(__FILE__, __LINE__, "PerfGroup::start failed", __FUNCTION__, __FILE__, __LINE__);
-			handleException();
-		}
-
-		if (!readProcComms(currTime, &mBuffer, &printb, &b1, &b2)) {
-			logg->logError(__FILE__, __LINE__, "readProcComms failed");
-			handleException();
-		}
-		mBuffer.commit(currTime);
-
-		// Postpone reading kallsyms as on android adb gets too backed up and data is lost
-		procThreadArgs.mBuffer = &mBuffer;
-		procThreadArgs.mCurrTime = currTime;
-		procThreadArgs.mIsDone = false;
-		if (pthread_create(&procThread, NULL, procFunc, &procThreadArgs)) {
-			logg->logError(__FILE__, __LINE__, "pthread_create failed", __FUNCTION__, __FILE__, __LINE__);
-			handleException();
-		}
-	}
-
 	if (pipe_cloexec(pipefd) != 0) {
-		logg->logError(__FILE__, __LINE__, "pipe failed");
+		logg->logError("pipe failed");
 		handleException();
 	}
 	mInterruptFd = pipefd[1];
 
 	if (!mMonitor.add(pipefd[0])) {
-		logg->logError(__FILE__, __LINE__, "Monitor::add failed");
+		logg->logError("Monitor::add failed");
 		handleException();
 	}
 
-	int timeout = -1;
-	if (gSessionData->mLiveRate > 0) {
-		timeout = gSessionData->mLiveRate/NS_PER_MS;
+	{
+		DynBuf printb;
+		DynBuf b1;
+		DynBuf b2;
+
+		const uint64_t currTime = getTime() - gSessionData->mMonotonicStarted;
+
+		// Start events before reading proc to avoid race conditions
+		if (!mCountersGroup.start()) {
+			logg->logError("PerfGroup::start failed");
+			handleException();
+		}
+
+		mBuffer->perfCounterHeader(currTime);
+		for (int cpu = 0; cpu < gSessionData->mCores; ++cpu) {
+			gSessionData->perf.read(mBuffer, cpu);
+		}
+		mBuffer->perfCounterFooter(currTime);
+
+		if (!readProcComms(currTime, mBuffer, &printb, &b1, &b2)) {
+			logg->logError("readProcComms failed");
+			handleException();
+		}
+		mBuffer->commit(currTime);
+
+		// Postpone reading kallsyms as on android adb gets too backed up and data is lost
+		procThreadArgs.mBuffer = mBuffer;
+		procThreadArgs.mCurrTime = currTime;
+		procThreadArgs.mIsDone = false;
+		if (pthread_create(&procThread, NULL, procFunc, &procThreadArgs)) {
+			logg->logError("pthread_create failed");
+			handleException();
+		}
 	}
 
 	sem_post(mStartProfile);
 
+	const uint64_t NO_RATE = ~0ULL;
+	const uint64_t rate = gSessionData->mLiveRate > 0 && gSessionData->mSampleRate > 0 ? gSessionData->mLiveRate : NO_RATE;
+	uint64_t nextTime = 0;
+	int timeout = rate != NO_RATE ? 0 : -1;
 	while (gSessionData->mSessionIsActive) {
 		// +1 for uevents, +1 for pipe
 		struct epoll_event events[NR_CPUS + 2];
 		int ready = mMonitor.wait(events, ARRAY_LENGTH(events), timeout);
 		if (ready < 0) {
-			logg->logError(__FILE__, __LINE__, "Monitor::wait failed");
+			logg->logError("Monitor::wait failed");
 			handleException();
 		}
-		const uint64_t currTime = getTime();
+		const uint64_t currTime = getTime() - gSessionData->mMonotonicStarted;
 
 		for (int i = 0; i < ready; ++i) {
 			if (events[i].data.fd == mUEvent.getFd()) {
 				if (!handleUEvent(currTime)) {
-					logg->logError(__FILE__, __LINE__, "PerfSource::handleUEvent failed");
+					logg->logError("PerfSource::handleUEvent failed");
 					handleException();
 				}
 				break;
@@ -337,18 +333,24 @@ void PerfSource::run() {
 		sem_post(mSenderSem);
 
 		// In one shot mode, stop collection once all the buffers are filled
-		// Assume timeout == 0 in this case
-		if (gSessionData->mOneShot && gSessionData->mSessionIsActive) {
-			logg->logMessage("%s(%s:%i): One shot", __FUNCTION__, __FILE__, __LINE__);
+		if (gSessionData->mOneShot && gSessionData->mSessionIsActive && ((mSummary.bytesAvailable() <= 0) || (mBuffer->bytesAvailable() <= 0) || mCountersBuf.isFull())) {
+			logg->logMessage("One shot (perf)");
 			child->endSession();
+		}
+
+		if (rate != NO_RATE) {
+			while (currTime > nextTime) {
+				nextTime += rate;
+			}
+			// + NS_PER_MS - 1 to ensure always rounding up
+			timeout = max(0, (int)((nextTime + NS_PER_MS - 1 - getTime() + gSessionData->mMonotonicStarted)/NS_PER_MS));
 		}
 	}
 
 	procThreadArgs.mIsDone = true;
 	pthread_join(procThread, NULL);
-	mIdleGroup.stop();
 	mCountersGroup.stop();
-	mBuffer.setDone();
+	mBuffer->setDone();
 	mIsDone = true;
 
 	// send a notification that data is ready
@@ -362,57 +364,53 @@ void PerfSource::run() {
 bool PerfSource::handleUEvent(const uint64_t currTime) {
 	UEventResult result;
 	if (!mUEvent.read(&result)) {
-		logg->logMessage("%s(%s:%i): UEvent::Read failed", __FUNCTION__, __FILE__, __LINE__);
+		logg->logMessage("UEvent::Read failed");
 		return false;
 	}
 
 	if (strcmp(result.mSubsystem, "cpu") == 0) {
 		if (strncmp(result.mDevPath, CPU_DEVPATH, sizeof(CPU_DEVPATH) - 1) != 0) {
-			logg->logMessage("%s(%s:%i): Unexpected cpu DEVPATH format", __FUNCTION__, __FILE__, __LINE__);
+			logg->logMessage("Unexpected cpu DEVPATH format");
 			return false;
 		}
 		char *endptr;
 		errno = 0;
 		int cpu = strtol(result.mDevPath + sizeof(CPU_DEVPATH) - 1, &endptr, 10);
 		if (errno != 0 || *endptr != '\0') {
-			logg->logMessage("%s(%s:%i): strtol failed", __FUNCTION__, __FILE__, __LINE__);
+			logg->logMessage("strtol failed");
 			return false;
 		}
 
 		if (cpu >= gSessionData->mCores) {
-			logg->logError(__FILE__, __LINE__, "Only %i cores are expected but core %i reports %s", gSessionData->mCores, cpu, result.mAction);
+			logg->logError("Only %i cores are expected but core %i reports %s", gSessionData->mCores, cpu, result.mAction);
 			handleException();
 		}
 
 		if (strcmp(result.mAction, "online") == 0) {
-			mBuffer.onlineCPU(currTime, currTime - gSessionData->mMonotonicStarted, cpu);
+			mBuffer->onlineCPU(currTime, cpu);
 			// Only call onlineCPU if prepareCPU succeeded
-			bool result = false;
+			bool ret = false;
 			int err = mCountersGroup.prepareCPU(cpu, &mMonitor);
 			if (err == PG_CPU_OFFLINE) {
-				result = true;
+				ret = true;
 			} else if (err == PG_SUCCESS) {
-				if (mCountersGroup.onlineCPU(currTime, cpu, true, &mBuffer)) {
-					err = mIdleGroup.prepareCPU(cpu, &mMonitor);
-					if (err == PG_CPU_OFFLINE) {
-						result = true;
-					} else if (err == PG_SUCCESS) {
-						if (mIdleGroup.onlineCPU(currTime, cpu, true, &mBuffer)) {
-							result = true;
-						}
-					}
+				if (mCountersGroup.onlineCPU(currTime, cpu, true, mBuffer) > 0) {
+					mBuffer->perfCounterHeader(currTime);
+					gSessionData->perf.read(mBuffer, cpu);
+					mBuffer->perfCounterFooter(currTime);
+					ret = true;
 				}
 			}
-			mBuffer.commit(currTime);
+			mBuffer->commit(currTime);
 
 			gSessionData->readCpuInfo();
 			gSessionData->perf.coreName(currTime, &mSummary, cpu);
 			mSummary.commit(currTime);
-			return result;
+			return ret;
 		} else if (strcmp(result.mAction, "offline") == 0) {
-			const bool result = mCountersGroup.offlineCPU(cpu) && mIdleGroup.offlineCPU(cpu);
-			mBuffer.offlineCPU(currTime, currTime - gSessionData->mMonotonicStarted, cpu);
-			return result;
+			const bool ret = mCountersGroup.offlineCPU(cpu);
+			mBuffer->offlineCPU(currTime, cpu);
+			return ret;
 		}
 	}
 
@@ -424,14 +422,14 @@ void PerfSource::interrupt() {
 		int8_t c = 0;
 		// Write to the pipe to wake the monitor which will cause mSessionIsActive to be reread
 		if (::write(mInterruptFd, &c, sizeof(c)) != sizeof(c)) {
-			logg->logError(__FILE__, __LINE__, "write failed");
+			logg->logError("write failed");
 			handleException();
 		}
 	}
 }
 
 bool PerfSource::isDone () {
-	return mBuffer.isDone() && mIsDone && mCountersBuf.isEmpty();
+	return mBuffer->isDone() && mIsDone && mCountersBuf.isEmpty();
 }
 
 void PerfSource::write (Sender *sender) {
@@ -439,11 +437,11 @@ void PerfSource::write (Sender *sender) {
 		mSummary.write(sender);
 		gSessionData->mSentSummary = true;
 	}
-	if (!mBuffer.isDone()) {
-		mBuffer.write(sender);
+	if (!mBuffer->isDone()) {
+		mBuffer->write(sender);
 	}
 	if (!mCountersBuf.send(sender)) {
-		logg->logError(__FILE__, __LINE__, "PerfBuffer::send failed");
+		logg->logError("PerfBuffer::send failed");
 		handleException();
 	}
 }

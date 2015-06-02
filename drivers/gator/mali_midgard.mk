@@ -23,6 +23,7 @@ endif
 
 ifneq ($(wildcard $(DDK_DIR)/drivers/gpu/arm/midgard/mali_kbase_gator_api.h),)
 EXTRA_CFLAGS += -DMALI_SIMPLE_API=1
+EXTRA_CFLAGS += -I$(DDK_DIR)/drivers/gpu/arm/midgard
 endif
 
 UMP_DIR = $(DDK_DIR)/include/linux

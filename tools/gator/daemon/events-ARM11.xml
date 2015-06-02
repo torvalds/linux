@@ -16,7 +16,7 @@
     <event event="0x0d" title="Program Counter" name="SW change" description="Software changed the PC"/>
     <event event="0x0f" title="Cache " name="TLB miss" description="Main TLB miss (unused on ARM1156)"/>
     <event event="0x10" title="External" name="Access" description="Explicit external data or peripheral access"/>
-    <event event="0x11" title="Cache" name="Data miss" description="Stall because of Load Store Unit request queue being full"/>
+    <event event="0x11" title="Cache" name="Stall" description="Stall because of Load Store Unit request queue being full"/>
     <event event="0x12" title="Write Buffer" name="Drains" description="The number of times the Write Buffer was drained because of a Data Synchronization Barrier command or Strongly Ordered operation"/>
     <event event="0x13" title="Disable Interrupts" name="FIQ" description="The number of cycles which FIQ interrupts are disabled (ARM1156 only)"/>
     <event event="0x14" title="Disable Interrupts" name="IRQ" description="The number of cycles which IRQ interrupts are disabled (ARM1156 only)"/>
