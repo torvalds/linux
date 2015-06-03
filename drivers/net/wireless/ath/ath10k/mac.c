@@ -6144,7 +6144,10 @@ static int ath10k_ampdu_action(struct ieee80211_hw *hw,
 }
 
 static void
-ath10k_mac_update_rx_channel(struct ath10k *ar)
+ath10k_mac_update_rx_channel(struct ath10k *ar,
+			     struct ieee80211_chanctx_conf *ctx,
+			     struct ieee80211_vif_chanctx_switch *vifs,
+			     int n_vifs)
 {
 	struct cfg80211_chan_def *def = NULL;
 
@@ -6153,6 +6156,9 @@ ath10k_mac_update_rx_channel(struct ath10k *ar)
 	 */
 	lockdep_assert_held(&ar->conf_mutex);
 	lockdep_assert_held(&ar->data_lock);
+
+	WARN_ON(ctx && vifs);
+	WARN_ON(vifs && n_vifs != 1);
 
 	/* FIXME: Sort of an optimization and a workaround. Peers and vifs are
 	 * on a linked list now. Doing a lookup peer -> vif -> chanctx for each
@@ -6165,11 +6171,17 @@ ath10k_mac_update_rx_channel(struct ath10k *ar)
 	 * affected much.
 	 */
 	rcu_read_lock();
-	if (ath10k_mac_num_chanctxs(ar) == 1) {
+	if (!ctx && ath10k_mac_num_chanctxs(ar) == 1) {
 		ieee80211_iter_chan_contexts_atomic(ar->hw,
 					ath10k_mac_get_any_chandef_iter,
 					&def);
+
+		if (vifs)
+			def = &vifs[0].new_ctx->def;
+
 		ar->rx_channel = def->chan;
+	} else if (ctx && ath10k_mac_num_chanctxs(ar) == 0) {
+		ar->rx_channel = ctx->def.chan;
 	} else {
 		ar->rx_channel = NULL;
 	}
@@ -6204,7 +6216,7 @@ ath10k_mac_op_add_chanctx(struct ieee80211_hw *hw,
 
 	spin_lock_bh(&ar->data_lock);
 	ath10k_mac_chan_ctx_init(ar, arctx, ctx);
-	ath10k_mac_update_rx_channel(ar);
+	ath10k_mac_update_rx_channel(ar, ctx, NULL, 0);
 	spin_unlock_bh(&ar->data_lock);
 
 	ath10k_recalc_radar_detection(ar);
@@ -6228,7 +6240,7 @@ ath10k_mac_op_remove_chanctx(struct ieee80211_hw *hw,
 	mutex_lock(&ar->conf_mutex);
 
 	spin_lock_bh(&ar->data_lock);
-	ath10k_mac_update_rx_channel(ar);
+	ath10k_mac_update_rx_channel(ar, NULL, NULL, 0);
 	spin_unlock_bh(&ar->data_lock);
 
 	ath10k_recalc_radar_detection(ar);
@@ -6413,7 +6425,7 @@ ath10k_mac_op_switch_vif_chanctx(struct ieee80211_hw *hw,
 		 */
 		arctx_old->conf = *vifs[i].new_ctx;
 	}
-	ath10k_mac_update_rx_channel(ar);
+	ath10k_mac_update_rx_channel(ar, NULL, vifs, n_vifs);
 	spin_unlock_bh(&ar->data_lock);
 
 	/* FIXME: Reconfigure only affected vifs */
