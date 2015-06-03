@@ -349,8 +349,6 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy,
 		io_busy = od_tuners->io_is_busy;
 	}
 
-	mutex_lock(&dbs_data->mutex);
-
 	for_each_cpu(j, policy->cpus) {
 		struct cpu_dbs_common_info *j_cdbs = cdata->get_cpu_cdbs(j);
 		unsigned int prev_load;
@@ -388,8 +386,6 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy,
 		od_ops->powersave_bias_init_cpu(cpu);
 	}
 
-	mutex_unlock(&dbs_data->mutex);
-
 	/* Initiate timer time stamp */
 	cpu_cdbs->time_stamp = ktime_get();
 
@@ -414,10 +410,8 @@ static void cpufreq_governor_stop(struct cpufreq_policy *policy,
 
 	gov_cancel_work(dbs_data, policy);
 
-	mutex_lock(&dbs_data->mutex);
 	mutex_destroy(&cpu_cdbs->timer_mutex);
 	cpu_cdbs->cur_policy = NULL;
-	mutex_unlock(&dbs_data->mutex);
 }
 
 static void cpufreq_governor_limits(struct cpufreq_policy *policy,
@@ -427,11 +421,8 @@ static void cpufreq_governor_limits(struct cpufreq_policy *policy,
 	unsigned int cpu = policy->cpu;
 	struct cpu_dbs_common_info *cpu_cdbs = cdata->get_cpu_cdbs(cpu);
 
-	mutex_lock(&dbs_data->mutex);
-	if (!cpu_cdbs->cur_policy) {
-		mutex_unlock(&dbs_data->mutex);
+	if (!cpu_cdbs->cur_policy)
 		return;
-	}
 
 	mutex_lock(&cpu_cdbs->timer_mutex);
 	if (policy->max < cpu_cdbs->cur_policy->cur)
@@ -442,8 +433,6 @@ static void cpufreq_governor_limits(struct cpufreq_policy *policy,
 					CPUFREQ_RELATION_L);
 	dbs_check_cpu(dbs_data, cpu);
 	mutex_unlock(&cpu_cdbs->timer_mutex);
-
-	mutex_unlock(&dbs_data->mutex);
 }
 
 int cpufreq_governor_dbs(struct cpufreq_policy *policy,
@@ -452,12 +441,18 @@ int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 	struct dbs_data *dbs_data;
 	int ret = 0;
 
+	/* Lock governor to block concurrent initialization of governor */
+	mutex_lock(&cdata->mutex);
+
 	if (have_governor_per_policy())
 		dbs_data = policy->governor_data;
 	else
 		dbs_data = cdata->gdbs_data;
 
-	WARN_ON(!dbs_data && (event != CPUFREQ_GOV_POLICY_INIT));
+	if (WARN_ON(!dbs_data && (event != CPUFREQ_GOV_POLICY_INIT))) {
+		ret = -EINVAL;
+		goto unlock;
+	}
 
 	switch (event) {
 	case CPUFREQ_GOV_POLICY_INIT:
@@ -476,6 +471,9 @@ int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		cpufreq_governor_limits(policy, dbs_data);
 		break;
 	}
+
+unlock:
+	mutex_unlock(&cdata->mutex);
 
 	return ret;
 }

@@ -513,7 +513,6 @@ static int od_init(struct dbs_data *dbs_data, bool notify)
 	tuners->io_is_busy = should_io_be_busy();
 
 	dbs_data->tuners = tuners;
-	mutex_init(&dbs_data->mutex);
 	return 0;
 }
 
@@ -541,6 +540,7 @@ static struct common_dbs_data od_dbs_cdata = {
 	.gov_ops = &od_ops,
 	.init = od_init,
 	.exit = od_exit,
+	.mutex = __MUTEX_INITIALIZER(od_dbs_cdata.mutex),
 };
 
 static void od_set_powersave_bias(unsigned int powersave_bias)

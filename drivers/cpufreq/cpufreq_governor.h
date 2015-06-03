@@ -213,6 +213,11 @@ struct common_dbs_data {
 
 	/* Governor specific ops, see below */
 	void *gov_ops;
+
+	/*
+	 * Protects governor's data (struct dbs_data and struct common_dbs_data)
+	 */
+	struct mutex mutex;
 };
 
 /* Governor Per policy data */
@@ -221,9 +226,6 @@ struct dbs_data {
 	unsigned int min_sampling_rate;
 	int usage_count;
 	void *tuners;
-
-	/* dbs_mutex protects dbs_enable in governor start/stop */
-	struct mutex mutex;
 };
 
 /* Governor specific ops, will be passed to dbs_data->gov_ops */

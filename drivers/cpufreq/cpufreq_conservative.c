@@ -345,7 +345,6 @@ static int cs_init(struct dbs_data *dbs_data, bool notify)
 		cpufreq_register_notifier(&cs_cpufreq_notifier_block,
 					  CPUFREQ_TRANSITION_NOTIFIER);
 
-	mutex_init(&dbs_data->mutex);
 	return 0;
 }
 
@@ -370,6 +369,7 @@ static struct common_dbs_data cs_dbs_cdata = {
 	.gov_check_cpu = cs_check_cpu,
 	.init = cs_init,
 	.exit = cs_exit,
+	.mutex = __MUTEX_INITIALIZER(cs_dbs_cdata.mutex),
 };
 
 static int cs_cpufreq_governor_dbs(struct cpufreq_policy *policy,
