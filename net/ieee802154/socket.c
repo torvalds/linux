@@ -739,6 +739,12 @@ static int dgram_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	sock_recv_ts_and_drops(msg, sk, skb);
 
 	if (saddr) {
+		/* Clear the implicit padding in struct sockaddr_ieee802154
+		 * (16 bits between 'family' and 'addr') and in struct
+		 * ieee802154_addr_sa (16 bits at the end of the structure).
+		 */
+		memset(saddr, 0, sizeof(*saddr));
+
 		saddr->family = AF_IEEE802154;
 		ieee802154_addr_to_sa(&saddr->addr, &mac_cb(skb)->source);
 		*addr_len = sizeof(*saddr);
