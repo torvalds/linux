@@ -179,8 +179,6 @@ static void vidi_enable(struct exynos_drm_crtc *crtc)
 static void vidi_disable(struct exynos_drm_crtc *crtc)
 {
 	struct vidi_context *ctx = crtc->ctx;
-	struct exynos_drm_plane *plane;
-	int i;
 
 	mutex_lock(&ctx->lock);
 
