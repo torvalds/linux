@@ -261,8 +261,8 @@ ptlrpc_lprocfs_req_history_len_seq_show(struct seq_file *m, void *v)
 {
 	struct ptlrpc_service *svc = m->private;
 	struct ptlrpc_service_part *svcpt;
-	int	total = 0;
-	int	i;
+	int total = 0;
+	int i;
 
 	ptlrpc_service_for_each_part(svcpt, i, svc)
 		total += svcpt->scp_hist_nrqbds;
@@ -277,8 +277,8 @@ ptlrpc_lprocfs_req_history_max_seq_show(struct seq_file *m, void *n)
 {
 	struct ptlrpc_service *svc = m->private;
 	struct ptlrpc_service_part *svcpt;
-	int	total = 0;
-	int	i;
+	int total = 0;
+	int i;
 
 	ptlrpc_service_for_each_part(svcpt, i, svc)
 		total += svc->srv_hist_nrqbds_cpt_max;
@@ -289,13 +289,13 @@ ptlrpc_lprocfs_req_history_max_seq_show(struct seq_file *m, void *n)
 
 static ssize_t
 ptlrpc_lprocfs_req_history_max_seq_write(struct file *file,
-					const char __user *buffer,
-					size_t count, loff_t *off)
+					 const char __user *buffer,
+					 size_t count, loff_t *off)
 {
 	struct ptlrpc_service *svc = ((struct seq_file *)file->private_data)->private;
-	int			    bufpages;
-	int			    val;
-	int			    rc;
+	int bufpages;
+	int val;
+	int rc;
 
 	rc = lprocfs_write_helper(buffer, count, &val);
 	if (rc < 0)
@@ -478,17 +478,17 @@ void nrs_policy_get_info_locked(struct ptlrpc_nrs_policy *policy,
  */
 static int ptlrpc_lprocfs_nrs_seq_show(struct seq_file *m, void *n)
 {
-	struct ptlrpc_service	       *svc = m->private;
-	struct ptlrpc_service_part     *svcpt;
-	struct ptlrpc_nrs	       *nrs;
-	struct ptlrpc_nrs_policy       *policy;
-	struct ptlrpc_nrs_pol_info     *infos;
-	struct ptlrpc_nrs_pol_info	tmp;
-	unsigned			num_pols;
-	unsigned			pol_idx = 0;
-	bool				hp = false;
-	int				i;
-	int				rc = 0;
+	struct ptlrpc_service *svc = m->private;
+	struct ptlrpc_service_part *svcpt;
+	struct ptlrpc_nrs *nrs;
+	struct ptlrpc_nrs_policy *policy;
+	struct ptlrpc_nrs_pol_info *infos;
+	struct ptlrpc_nrs_pol_info tmp;
+	unsigned num_pols;
+	unsigned pol_idx = 0;
+	bool hp = false;
+	int i;
+	int rc = 0;
 
 	/**
 	 * Serialize NRS core lprocfs operations with policy registration/
@@ -638,15 +638,15 @@ unlock:
  * regular and high-priority (if the service has one) NRS head.
  */
 static ssize_t ptlrpc_lprocfs_nrs_seq_write(struct file *file,
-					const char __user *buffer,
-					size_t count, loff_t *off)
+					    const char __user *buffer,
+					    size_t count, loff_t *off)
 {
 	struct ptlrpc_service *svc = ((struct seq_file *)file->private_data)->private;
-	enum ptlrpc_nrs_queue_type	queue = PTLRPC_NRS_QUEUE_BOTH;
-	char			       *cmd;
-	char			       *cmd_copy = NULL;
-	char			       *token;
-	int				rc = 0;
+	enum ptlrpc_nrs_queue_type queue = PTLRPC_NRS_QUEUE_BOTH;
+	char *cmd;
+	char *cmd_copy = NULL;
+	char *token;
+	int rc = 0;
 
 	if (count >= LPROCFS_NRS_WR_MAX_CMD)
 		return -EINVAL;
@@ -729,8 +729,8 @@ ptlrpc_lprocfs_svc_req_history_seek(struct ptlrpc_service_part *svcpt,
 				    struct ptlrpc_srh_iterator *srhi,
 				    __u64 seq)
 {
-	struct list_head		*e;
-	struct ptlrpc_request	*req;
+	struct list_head *e;
+	struct ptlrpc_request *req;
 
 	if (srhi->srhi_req != NULL &&
 	    srhi->srhi_seq > svcpt->scp_hist_seq_culled &&
@@ -860,12 +860,12 @@ static void *
 ptlrpc_lprocfs_svc_req_history_next(struct seq_file *s,
 				    void *iter, loff_t *pos)
 {
-	struct ptlrpc_service		*svc = s->private;
-	struct ptlrpc_srh_iterator	*srhi = iter;
-	struct ptlrpc_service_part	*svcpt;
-	__u64				seq;
-	int				rc;
-	int				i;
+	struct ptlrpc_service *svc = s->private;
+	struct ptlrpc_srh_iterator *srhi = iter;
+	struct ptlrpc_service_part *svcpt;
+	__u64 seq;
+	int rc;
+	int i;
 
 	for (i = srhi->srhi_idx; i < svc->srv_ncpts; i++) {
 		svcpt = svc->srv_parts[i];
@@ -923,11 +923,11 @@ EXPORT_SYMBOL(target_print_req);
 
 static int ptlrpc_lprocfs_svc_req_history_show(struct seq_file *s, void *iter)
 {
-	struct ptlrpc_service		*svc = s->private;
-	struct ptlrpc_srh_iterator	*srhi = iter;
-	struct ptlrpc_service_part	*svcpt;
-	struct ptlrpc_request		*req;
-	int				rc;
+	struct ptlrpc_service *svc = s->private;
+	struct ptlrpc_srh_iterator *srhi = iter;
+	struct ptlrpc_service_part *svcpt;
+	struct ptlrpc_request *req;
+	int rc;
 
 	LASSERT(srhi->srhi_idx < svc->srv_ncpts);
 
@@ -972,8 +972,8 @@ ptlrpc_lprocfs_svc_req_history_open(struct inode *inode, struct file *file)
 		.next  = ptlrpc_lprocfs_svc_req_history_next,
 		.show  = ptlrpc_lprocfs_svc_req_history_show,
 	};
-	struct seq_file       *seqf;
-	int		    rc;
+	struct seq_file *seqf;
+	int rc;
 
 	rc = seq_open(file, &sops);
 	if (rc)
@@ -987,13 +987,13 @@ ptlrpc_lprocfs_svc_req_history_open(struct inode *inode, struct file *file)
 /* See also lprocfs_rd_timeouts */
 static int ptlrpc_lprocfs_timeouts_seq_show(struct seq_file *m, void *n)
 {
-	struct ptlrpc_service		*svc = m->private;
-	struct ptlrpc_service_part	*svcpt;
-	struct dhms			ts;
-	time_t				worstt;
-	unsigned int			cur;
-	unsigned int			worst;
-	int				i;
+	struct ptlrpc_service *svc = m->private;
+	struct ptlrpc_service_part *svcpt;
+	struct dhms ts;
+	time_t worstt;
+	unsigned int cur;
+	unsigned int worst;
+	int i;
 
 	if (AT_OFF) {
 		seq_printf(m, "adaptive timeouts off, using obd_timeout %u\n",
@@ -1215,8 +1215,8 @@ int lprocfs_wr_evict_client(struct file *file, const char __user *buffer,
 			    size_t count, loff_t *off)
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
-	char	      *kbuf;
-	char	      *tmpbuf;
+	char *kbuf;
+	char *tmpbuf;
 
 	kbuf = kzalloc(BUFLEN, GFP_NOFS);
 	if (kbuf == NULL)
@@ -1264,7 +1264,7 @@ int lprocfs_wr_ping(struct file *file, const char __user *buffer,
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
 	struct ptlrpc_request *req;
-	int		    rc;
+	int rc;
 
 	LPROCFS_CLIMP_CHECK(obd);
 	req = ptlrpc_prep_ping(obd->u.cli.cl_import);

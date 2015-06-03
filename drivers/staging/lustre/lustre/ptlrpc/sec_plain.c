@@ -136,7 +136,7 @@ static int plain_verify_bulk_csum(struct ptlrpc_bulk_desc *desc,
 				  struct plain_bulk_token *tokenr)
 {
 	struct plain_bulk_token tokenv;
-	int		     rc;
+	int rc;
 
 	if (hash_alg == BULK_HASH_ALG_NULL)
 		return 0;
@@ -154,8 +154,8 @@ static int plain_verify_bulk_csum(struct ptlrpc_bulk_desc *desc,
 
 static void corrupt_bulk_data(struct ptlrpc_bulk_desc *desc)
 {
-	char	   *ptr;
-	unsigned int    off, i;
+	char *ptr;
+	unsigned int off, i;
 
 	for (i = 0; i < desc->bd_iov_count; i++) {
 		if (desc->bd_iov[i].kiov_len == 0)
@@ -190,7 +190,7 @@ int plain_ctx_validate(struct ptlrpc_cli_ctx *ctx)
 static
 int plain_ctx_sign(struct ptlrpc_cli_ctx *ctx, struct ptlrpc_request *req)
 {
-	struct lustre_msg   *msg = req->rq_reqbuf;
+	struct lustre_msg *msg = req->rq_reqbuf;
 	struct plain_header *phdr;
 
 	msg->lm_secflvr = req->rq_flvr.sf_rpc;
@@ -214,10 +214,10 @@ int plain_ctx_sign(struct ptlrpc_cli_ctx *ctx, struct ptlrpc_request *req)
 static
 int plain_ctx_verify(struct ptlrpc_cli_ctx *ctx, struct ptlrpc_request *req)
 {
-	struct lustre_msg   *msg = req->rq_repdata;
+	struct lustre_msg *msg = req->rq_repdata;
 	struct plain_header *phdr;
-	__u32		cksum;
-	int		  swabbed;
+	__u32 cksum;
+	int swabbed;
 
 	if (msg->lm_bufcount != PLAIN_PACK_SEGMENTS) {
 		CERROR("unexpected reply buf count %u\n", msg->lm_bufcount);
@@ -290,8 +290,8 @@ int plain_cli_wrap_bulk(struct ptlrpc_cli_ctx *ctx,
 			struct ptlrpc_bulk_desc *desc)
 {
 	struct ptlrpc_bulk_sec_desc *bsd;
-	struct plain_bulk_token     *token;
-	int			  rc;
+	struct plain_bulk_token *token;
+	int rc;
 
 	LASSERT(req->rq_pack_bulk);
 	LASSERT(req->rq_reqbuf->lm_bufcount == PLAIN_PACK_SEGMENTS);
@@ -333,9 +333,9 @@ int plain_cli_unwrap_bulk(struct ptlrpc_cli_ctx *ctx,
 			  struct ptlrpc_bulk_desc *desc)
 {
 	struct ptlrpc_bulk_sec_desc *bsdv;
-	struct plain_bulk_token     *tokenv;
-	int			  rc;
-	int			  i, nob;
+	struct plain_bulk_token *tokenv;
+	int rc;
+	int i, nob;
 
 	LASSERT(req->rq_pack_bulk);
 	LASSERT(req->rq_reqbuf->lm_bufcount == PLAIN_PACK_SEGMENTS);
@@ -374,7 +374,7 @@ int plain_cli_unwrap_bulk(struct ptlrpc_cli_ctx *ctx,
 static
 struct ptlrpc_cli_ctx *plain_sec_install_ctx(struct plain_sec *plsec)
 {
-	struct ptlrpc_cli_ctx  *ctx, *ctx_new;
+	struct ptlrpc_cli_ctx *ctx, *ctx_new;
 
 	ctx_new = kzalloc(sizeof(*ctx_new), GFP_NOFS);
 
@@ -413,7 +413,7 @@ struct ptlrpc_cli_ctx *plain_sec_install_ctx(struct plain_sec *plsec)
 static
 void plain_destroy_sec(struct ptlrpc_sec *sec)
 {
-	struct plain_sec       *plsec = sec2plsec(sec);
+	struct plain_sec *plsec = sec2plsec(sec);
 
 	LASSERT(sec->ps_policy == &plain_policy);
 	LASSERT(sec->ps_import);
@@ -437,9 +437,9 @@ struct ptlrpc_sec *plain_create_sec(struct obd_import *imp,
 				    struct ptlrpc_svc_ctx *svc_ctx,
 				    struct sptlrpc_flavor *sf)
 {
-	struct plain_sec       *plsec;
-	struct ptlrpc_sec      *sec;
-	struct ptlrpc_cli_ctx  *ctx;
+	struct plain_sec *plsec;
+	struct ptlrpc_sec *sec;
+	struct ptlrpc_cli_ctx *ctx;
 
 	LASSERT(SPTLRPC_FLVR_POLICY(sf->sf_rpc) == SPTLRPC_POLICY_PLAIN);
 
@@ -483,8 +483,8 @@ struct ptlrpc_cli_ctx *plain_lookup_ctx(struct ptlrpc_sec *sec,
 					struct vfs_cred *vcred,
 					int create, int remove_dead)
 {
-	struct plain_sec       *plsec = sec2plsec(sec);
-	struct ptlrpc_cli_ctx  *ctx;
+	struct plain_sec *plsec = sec2plsec(sec);
+	struct ptlrpc_cli_ctx *ctx;
 
 	read_lock(&plsec->pls_lock);
 	ctx = plsec->pls_ctx;
@@ -517,8 +517,8 @@ static
 int plain_flush_ctx_cache(struct ptlrpc_sec *sec,
 			  uid_t uid, int grace, int force)
 {
-	struct plain_sec       *plsec = sec2plsec(sec);
-	struct ptlrpc_cli_ctx  *ctx;
+	struct plain_sec *plsec = sec2plsec(sec);
+	struct ptlrpc_cli_ctx *ctx;
 
 	/* do nothing unless caller want to flush for 'all' */
 	if (uid != -1)
@@ -540,7 +540,7 @@ int plain_alloc_reqbuf(struct ptlrpc_sec *sec,
 		       int msgsize)
 {
 	__u32 buflens[PLAIN_PACK_SEGMENTS] = { 0, };
-	int   alloc_len;
+	int alloc_len;
 
 	buflens[PLAIN_PACK_HDR_OFF] = sizeof(struct plain_header);
 	buflens[PLAIN_PACK_MSG_OFF] = msgsize;
@@ -635,9 +635,9 @@ int plain_enlarge_reqbuf(struct ptlrpc_sec *sec,
 			 struct ptlrpc_request *req,
 			 int segment, int newsize)
 {
-	struct lustre_msg      *newbuf;
-	int		     oldsize;
-	int		     newmsg_size, newbuf_size;
+	struct lustre_msg *newbuf;
+	int oldsize;
+	int newmsg_size, newbuf_size;
 
 	LASSERT(req->rq_reqbuf);
 	LASSERT(req->rq_reqbuf_len >= req->rq_reqlen);
@@ -709,9 +709,9 @@ static struct ptlrpc_svc_ctx plain_svc_ctx = {
 static
 int plain_accept(struct ptlrpc_request *req)
 {
-	struct lustre_msg   *msg = req->rq_reqbuf;
+	struct lustre_msg *msg = req->rq_reqbuf;
 	struct plain_header *phdr;
-	int		  swabbed;
+	int swabbed;
 
 	LASSERT(SPTLRPC_FLVR_POLICY(req->rq_flvr.sf_rpc) ==
 		SPTLRPC_POLICY_PLAIN);
@@ -780,9 +780,9 @@ int plain_accept(struct ptlrpc_request *req)
 static
 int plain_alloc_rs(struct ptlrpc_request *req, int msgsize)
 {
-	struct ptlrpc_reply_state   *rs;
-	__u32			buflens[PLAIN_PACK_SEGMENTS] = { 0, };
-	int			  rs_size = sizeof(*rs);
+	struct ptlrpc_reply_state *rs;
+	__u32 buflens[PLAIN_PACK_SEGMENTS] = { 0, };
+	int rs_size = sizeof(*rs);
 
 	LASSERT(msgsize % 8 == 0);
 
@@ -833,9 +833,9 @@ static
 int plain_authorize(struct ptlrpc_request *req)
 {
 	struct ptlrpc_reply_state *rs = req->rq_reply_state;
-	struct lustre_msg_v2      *msg = rs->rs_repbuf;
-	struct plain_header       *phdr;
-	int			len;
+	struct lustre_msg_v2 *msg = rs->rs_repbuf;
+	struct plain_header *phdr;
+	int len;
 
 	LASSERT(rs);
 	LASSERT(msg);
@@ -880,10 +880,10 @@ static
 int plain_svc_unwrap_bulk(struct ptlrpc_request *req,
 			  struct ptlrpc_bulk_desc *desc)
 {
-	struct ptlrpc_reply_state   *rs = req->rq_reply_state;
+	struct ptlrpc_reply_state *rs = req->rq_reply_state;
 	struct ptlrpc_bulk_sec_desc *bsdr, *bsdv;
-	struct plain_bulk_token     *tokenr;
-	int			  rc;
+	struct plain_bulk_token *tokenr;
+	int rc;
 
 	LASSERT(req->rq_bulk_write);
 	LASSERT(req->rq_pack_bulk);
@@ -914,10 +914,10 @@ static
 int plain_svc_wrap_bulk(struct ptlrpc_request *req,
 			struct ptlrpc_bulk_desc *desc)
 {
-	struct ptlrpc_reply_state   *rs = req->rq_reply_state;
+	struct ptlrpc_reply_state *rs = req->rq_reply_state;
 	struct ptlrpc_bulk_sec_desc *bsdr, *bsdv;
-	struct plain_bulk_token     *tokenv;
-	int			  rc;
+	struct plain_bulk_token *tokenv;
+	int rc;
 
 	LASSERT(req->rq_bulk_read);
 	LASSERT(req->rq_pack_bulk);

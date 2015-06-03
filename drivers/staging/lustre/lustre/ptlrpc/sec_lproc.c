@@ -74,7 +74,7 @@ static int sptlrpc_info_lprocfs_seq_show(struct seq_file *seq, void *v)
 	struct obd_device *dev = seq->private;
 	struct client_obd *cli = &dev->u.cli;
 	struct ptlrpc_sec *sec = NULL;
-	char	       str[32];
+	char str[32];
 
 	LASSERT(strcmp(dev->obd_type->typ_name, LUSTRE_OSC_NAME) == 0 ||
 		strcmp(dev->obd_type->typ_name, LUSTRE_MDC_NAME) == 0 ||
@@ -134,7 +134,7 @@ LPROC_SEQ_FOPS_RO(sptlrpc_ctxs_lprocfs);
 
 int sptlrpc_lprocfs_cliobd_attach(struct obd_device *dev)
 {
-	int     rc;
+	int rc;
 
 	if (strcmp(dev->obd_type->typ_name, LUSTRE_OSC_NAME) != 0 &&
 	    strcmp(dev->obd_type->typ_name, LUSTRE_MDC_NAME) != 0 &&

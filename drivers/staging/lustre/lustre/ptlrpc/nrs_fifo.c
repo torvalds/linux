@@ -160,9 +160,9 @@ static int nrs_fifo_res_get(struct ptlrpc_nrs_policy *policy,
  */
 static
 struct ptlrpc_nrs_request *nrs_fifo_req_get(struct ptlrpc_nrs_policy *policy,
-					     bool peek, bool force)
+					    bool peek, bool force)
 {
-	struct nrs_fifo_head	  *head = policy->pol_private;
+	struct nrs_fifo_head *head = policy->pol_private;
 	struct ptlrpc_nrs_request *nrq;
 
 	nrq = unlikely(list_empty(&head->fh_list)) ? NULL :

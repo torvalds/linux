@@ -92,7 +92,7 @@ int null_ctx_sign(struct ptlrpc_cli_ctx *ctx, struct ptlrpc_request *req)
 static
 int null_ctx_verify(struct ptlrpc_cli_ctx *ctx, struct ptlrpc_request *req)
 {
-	__u32   cksums, cksumc;
+	__u32 cksums, cksumc;
 
 	LASSERT(req->rq_repdata);
 
@@ -226,9 +226,9 @@ int null_enlarge_reqbuf(struct ptlrpc_sec *sec,
 			struct ptlrpc_request *req,
 			int segment, int newsize)
 {
-	struct lustre_msg      *newbuf;
-	struct lustre_msg      *oldbuf = req->rq_reqmsg;
-	int		     oldsize, newmsg_size, alloc_size;
+	struct lustre_msg *newbuf;
+	struct lustre_msg *oldbuf = req->rq_reqmsg;
+	int oldsize, newmsg_size, alloc_size;
 
 	LASSERT(req->rq_reqbuf);
 	LASSERT(req->rq_reqbuf == req->rq_reqmsg);

@@ -68,9 +68,9 @@
 #include "ptlrpc_internal.h"
 
 struct ptlrpcd {
-	int		pd_size;
-	int		pd_index;
-	int		pd_nthreads;
+	int pd_size;
+	int pd_index;
+	int pd_nthreads;
 	struct ptlrpcd_ctl pd_thread_rcv;
 	struct ptlrpcd_ctl pd_threads[0];
 };
