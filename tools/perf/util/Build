@@ -68,6 +68,7 @@ libperf-y += rblist.o
 libperf-y += intlist.o
 libperf-y += vdso.o
 libperf-y += stat.o
+libperf-y += stat-shadow.o
 libperf-y += record.o
 libperf-y += srcline.o
 libperf-y += data.o

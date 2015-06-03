@@ -2,6 +2,7 @@
 #define __PERF_STATS_H
 
 #include <linux/types.h>
+#include <stdio.h>
 
 struct stats
 {
@@ -21,6 +22,13 @@ enum perf_stat_evsel_id {
 struct perf_stat {
 	struct stats		res_stats[3];
 	enum perf_stat_evsel_id	id;
+};
+
+enum aggr_mode {
+	AGGR_NONE,
+	AGGR_GLOBAL,
+	AGGR_SOCKET,
+	AGGR_CORE,
 };
 
 void update_stats(struct stats *stats, u64 val);
@@ -45,5 +53,13 @@ bool __perf_evsel_stat__is(struct perf_evsel *evsel,
 	__perf_evsel_stat__is(evsel, PERF_STAT_EVSEL_ID__ ## id)
 
 void perf_stat_evsel_id_init(struct perf_evsel *evsel);
+
+extern struct stats walltime_nsecs_stats;
+
+void perf_stat__reset_shadow_stats(void);
+void perf_stat__update_shadow_stats(struct perf_evsel *counter, u64 *count,
+				    int cpu);
+void perf_stat__print_shadow_stats(FILE *out, struct perf_evsel *evsel,
+				   double avg, int cpu, enum aggr_mode aggr);
 
 #endif
