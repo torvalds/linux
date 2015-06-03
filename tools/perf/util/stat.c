@@ -72,7 +72,11 @@ bool __perf_evsel_stat__is(struct perf_evsel *evsel,
 
 #define ID(id, name) [PERF_STAT_EVSEL_ID__##id] = #name
 static const char *id_str[PERF_STAT_EVSEL_ID__MAX] = {
-	ID(NONE, x),
+	ID(NONE,		x),
+	ID(CYCLES_IN_TX,	cpu/cycles-t/),
+	ID(TRANSACTION_START,	cpu/tx-start/),
+	ID(ELISION_START,	cpu/el-start/),
+	ID(CYCLES_IN_TX_CP,	cpu/cycles-ct/),
 };
 #undef ID
 
