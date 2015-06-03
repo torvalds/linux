@@ -6,7 +6,7 @@
  * Subject to the GNU public license, v.2. No warranty of any kind.
  */
 #include <linux/linkage.h>
-#include <asm/calling.h>
+#include "calling.h"
 #include <asm/asm.h>
 
 	/* rdi:	arg1 ... normal C conventions. rax is saved/restored. */

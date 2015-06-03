@@ -4,7 +4,7 @@
  * Copyright 2000-2002 Andi Kleen, SuSE Labs.
  */		 
 
-#include <asm/calling.h>
+#include "calling.h"
 #include <asm/asm-offsets.h>
 #include <asm/current.h>
 #include <asm/errno.h>
