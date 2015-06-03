@@ -3796,30 +3796,7 @@ int WILC_WFI_update_stats(struct wiphy *wiphy, u32 pktlen, u8 changed)
 #endif
 	return 0;
 }
-/**
- *  @brief      WILC_WFI_InitPriv
- *  @details    Initialization of the net device, private data
- *  @param[in]   NONE
- *  @return     NONE
- *  @author	mdaftedar
- *  @date	01 MAR 2012
- *  @version	1.0
- */
-void WILC_WFI_InitPriv(struct net_device *dev)
-{
 
-	struct WILC_WFI_priv *priv;
-	priv = netdev_priv(dev);
-
-	priv->netstats.rx_packets = 0;
-	priv->netstats.tx_packets = 0;
-	priv->netstats.rx_bytes = 0;
-	priv->netstats.rx_bytes = 0;
-	priv->netstats.rx_time = 0;
-	priv->netstats.tx_time = 0;
-
-
-}
 /**
  *  @brief      WILC_WFI_CfgAlloc
  *  @details    Allocation of the wireless device structure and assigning it
