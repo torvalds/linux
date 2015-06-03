@@ -279,15 +279,8 @@ static int evsel_context(struct perf_evsel *evsel)
 	return ctx;
 }
 
-static void perf_stat__reset_stats(struct perf_evlist *evlist)
+static void reset_shadow_stats(void)
 {
-	struct perf_evsel *evsel;
-
-	evlist__for_each(evlist, evsel) {
-		perf_evsel__reset_stat_priv(evsel);
-		perf_evsel__reset_counts(evsel, perf_evsel__nr_cpus(evsel));
-	}
-
 	memset(runtime_nsecs_stats, 0, sizeof(runtime_nsecs_stats));
 	memset(runtime_cycles_stats, 0, sizeof(runtime_cycles_stats));
 	memset(runtime_stalled_cycles_front_stats, 0, sizeof(runtime_stalled_cycles_front_stats));
@@ -305,6 +298,18 @@ static void perf_stat__reset_stats(struct perf_evlist *evlist)
 		sizeof(runtime_transaction_stats));
 	memset(runtime_elision_stats, 0, sizeof(runtime_elision_stats));
 	memset(&walltime_nsecs_stats, 0, sizeof(walltime_nsecs_stats));
+}
+
+static void perf_stat__reset_stats(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel;
+
+	evlist__for_each(evlist, evsel) {
+		perf_evsel__reset_stat_priv(evsel);
+		perf_evsel__reset_counts(evsel, perf_evsel__nr_cpus(evsel));
+	}
+
+	reset_shadow_stats();
 }
 
 static int create_perf_stat_counter(struct perf_evsel *evsel)
