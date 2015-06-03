@@ -776,10 +776,13 @@ int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, u16 cmd_no,
 	return 0;
 }
 
-void mwifiex_uap_set_channel(struct mwifiex_uap_bss_param *bss_cfg,
+void mwifiex_uap_set_channel(struct mwifiex_private *priv,
+			     struct mwifiex_uap_bss_param *bss_cfg,
 			     struct cfg80211_chan_def chandef)
 {
 	u8 config_bands = 0;
+
+	priv->bss_chandef = chandef;
 
 	bss_cfg->channel = ieee80211_frequency_to_channel(
 						     chandef.chan->center_freq);

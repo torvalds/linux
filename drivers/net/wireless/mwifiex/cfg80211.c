@@ -67,6 +67,22 @@ u8 mwifiex_chan_type_to_sec_chan_offset(enum nl80211_channel_type chan_type)
 	}
 }
 
+/* This function maps IEEE HT secondary channel type to NL80211 channel type
+ */
+u8 mwifiex_sec_chan_offset_to_chan_type(u8 second_chan_offset)
+{
+	switch (second_chan_offset) {
+	case IEEE80211_HT_PARAM_CHA_SEC_NONE:
+		return NL80211_CHAN_HT20;
+	case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
+		return NL80211_CHAN_HT40PLUS;
+	case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
+		return NL80211_CHAN_HT40MINUS;
+	default:
+		return NL80211_CHAN_HT20;
+	}
+}
+
 /*
  * This function checks whether WEP is set.
  */
@@ -1785,7 +1801,7 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	mwifiex_uap_set_channel(bss_cfg, params->chandef);
+	mwifiex_uap_set_channel(priv, bss_cfg, params->chandef);
 	mwifiex_set_uap_rates(bss_cfg, params);
 
 	if (mwifiex_set_secure_params(priv, bss_cfg, params)) {
@@ -3373,6 +3389,45 @@ mwifiex_cfg80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 
+static int mwifiex_cfg80211_get_channel(struct wiphy *wiphy,
+					struct wireless_dev *wdev,
+					struct cfg80211_chan_def *chandef)
+{
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(wdev->netdev);
+	struct mwifiex_bssdescriptor *curr_bss;
+	struct ieee80211_channel *chan;
+	u8 second_chan_offset;
+	enum nl80211_channel_type chan_type;
+	enum ieee80211_band band;
+	int freq;
+	int ret = -ENODATA;
+
+	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP &&
+	    cfg80211_chandef_valid(&priv->bss_chandef)) {
+		*chandef = priv->bss_chandef;
+		ret = 0;
+	} else if (priv->media_connected) {
+		curr_bss = &priv->curr_bss_params.bss_descriptor;
+		band = mwifiex_band_to_radio_type(priv->curr_bss_params.band);
+		freq = ieee80211_channel_to_frequency(curr_bss->channel, band);
+		chan = ieee80211_get_channel(wiphy, freq);
+
+		if (curr_bss->bcn_ht_oper) {
+			second_chan_offset = curr_bss->bcn_ht_oper->ht_param &
+					IEEE80211_HT_PARAM_CHA_SEC_OFFSET;
+			chan_type = mwifiex_sec_chan_offset_to_chan_type
+							(second_chan_offset);
+			cfg80211_chandef_create(chandef, chan, chan_type);
+		} else {
+			cfg80211_chandef_create(chandef, chan,
+						NL80211_CHAN_NO_HT);
+		}
+		ret = 0;
+	}
+
+	return ret;
+}
+
 static int
 mwifiex_cfg80211_start_radar_detection(struct wiphy *wiphy,
 				       struct net_device *dev,
@@ -3478,6 +3533,7 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.tdls_oper = mwifiex_cfg80211_tdls_oper,
 	.add_station = mwifiex_cfg80211_add_station,
 	.change_station = mwifiex_cfg80211_change_station,
+	.get_channel = mwifiex_cfg80211_get_channel,
 	.start_radar_detection = mwifiex_cfg80211_start_radar_detection,
 	.channel_switch = mwifiex_cfg80211_channel_switch,
 };
