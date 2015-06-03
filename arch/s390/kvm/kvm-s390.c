@@ -36,6 +36,10 @@
 #include "kvm-s390.h"
 #include "gaccess.h"
 
+#define KMSG_COMPONENT "kvm-s390"
+#undef pr_fmt
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 #include "trace-s390.h"
@@ -1419,6 +1423,7 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 void kvm_s390_vcpu_block(struct kvm_vcpu *vcpu)
 {
 	atomic_set_mask(PROG_BLOCK_SIE, &vcpu->arch.sie_block->prog20);
+	exit_sie(vcpu);
 }
 
 void kvm_s390_vcpu_unblock(struct kvm_vcpu *vcpu)
@@ -1429,6 +1434,7 @@ void kvm_s390_vcpu_unblock(struct kvm_vcpu *vcpu)
 static void kvm_s390_vcpu_request(struct kvm_vcpu *vcpu)
 {
 	atomic_set_mask(PROG_REQUEST, &vcpu->arch.sie_block->prog20);
+	exit_sie(vcpu);
 }
 
 static void kvm_s390_vcpu_request_handled(struct kvm_vcpu *vcpu)
@@ -1452,7 +1458,6 @@ void kvm_s390_sync_request(int req, struct kvm_vcpu *vcpu)
 {
 	kvm_make_request(req, vcpu);
 	kvm_s390_vcpu_request(vcpu);
-	exit_sie(vcpu);
 }
 
 static void kvm_gmap_notifier(struct gmap *gmap, unsigned long address)
@@ -2089,7 +2094,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	if (!kvm_s390_user_cpu_state_ctrl(vcpu->kvm)) {
 		kvm_s390_vcpu_start(vcpu);
 	} else if (is_vcpu_stopped(vcpu)) {
-		pr_err_ratelimited("kvm-s390: can't run stopped vcpu %d\n",
+		pr_err_ratelimited("can't run stopped vcpu %d\n",
 				   vcpu->vcpu_id);
 		return -EINVAL;
 	}
@@ -2621,7 +2626,7 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 	rc = gmap_map_segment(kvm->arch.gmap, mem->userspace_addr,
 		mem->guest_phys_addr, mem->memory_size);
 	if (rc)
-		printk(KERN_WARNING "kvm-s390: failed to commit memory region\n");
+		pr_warn("failed to commit memory region\n");
 	return;
 }
 
