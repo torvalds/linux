@@ -36,8 +36,6 @@
  * Of course, your mileage may vary.
  */
 
-#define MAX_RCU_LVLS 4
-
 #ifdef CONFIG_RCU_FANOUT
 #define RCU_FANOUT CONFIG_RCU_FANOUT
 #else /* #ifdef CONFIG_RCU_FANOUT */
