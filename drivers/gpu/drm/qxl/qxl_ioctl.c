@@ -240,8 +240,6 @@ static int qxl_process_single_command(struct qxl_device *qdev,
 				qxlhw_handle_to_bo(qdev, file_priv,
 						   reloc.src_handle, release);
 			if (!reloc_info[i].src_bo) {
-				if (reloc_info[i].dst_bo != cmd_bo)
-					drm_gem_object_unreference_unlocked(&reloc_info[i].dst_bo->gem_base);
 				ret = -EINVAL;
 				goto out_free_bos;
 			}
