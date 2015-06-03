@@ -127,8 +127,8 @@ struct mmc_data;
  * using barriers.
  */
 struct dw_mci {
-	spinlock_t		lock;
-	spinlock_t		slock;
+	spinlock_t		lock; /* Spinlock for control flow */
+	spinlock_t		slock; /* Spinlock for sdio int sync */
 	void __iomem		*regs;
 
 	struct scatterlist	*sg;
@@ -152,7 +152,7 @@ struct dw_mci {
 	const struct dw_mci_dma_ops	*dma_ops;
 #ifdef CONFIG_MMC_DW_IDMAC
 	unsigned int		ring_size;
-        struct dw_mci_dma_slave *dms;
+	struct dw_mci_dma_slave *dms;
 	void                    *phy_regs;
 #else
 	struct dw_mci_dma_data	*dma_data;
@@ -186,8 +186,8 @@ struct dw_mci {
 	struct dw_mci_slot	*slot[MAX_MCI_SLOTS];
 	struct mmc_host		*mmc;
 	struct mmc_command	*pre_cmd;
-        /* Fix the hold_reg value */
-        unsigned int    hold_reg_flag;
+	/* Fix the hold_reg value */
+	unsigned int    hold_reg_flag;
 	/* FIFO push and pull */
 	int			fifo_depth;
 	int			data_shift;
@@ -273,7 +273,7 @@ struct dw_mci_board {
 	u32 caps;	/* Capabilities */
 	u32 caps2;	/* More capabilities */
 	u32 pm_caps;	/* PM capabilities */
-	u32 cardtype_restrict;	/*restrict the SDMMC controller to support card type;1--SD card; 2--sdio; 4--eMMC */
+	u32 cardtype_restrict;
 	/*
 	 * Override fifo depth. If 0, autodetect it from the FIFOTH register,
 	 * but note that this may not be reliable after a bootloader has used
@@ -303,7 +303,7 @@ struct dw_mci_board {
 	struct block_settings *blk_settings;
 };
 #define grf_writel(v, offset)   do \
-        { writel_relaxed(v, RK_GRF_VIRT + offset); dsb(sy); } \
-                while (0)
+{ writel_relaxed(v, RK_GRF_VIRT + offset); dsb(sy); } \
+while (0)
 
 #endif /* LINUX_MMC_DW_MMC_H */

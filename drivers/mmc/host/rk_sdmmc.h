@@ -61,6 +61,37 @@
 #define SDMMC_CDTHRCTL          0x100
 #define SDMMC_DATA(x)           (x)
 
+
+static const u8 tuning_blk_pattern_4bit[] = {
+	0xff, 0x0f, 0xff, 0x00, 0xff, 0xcc, 0xc3, 0xcc,
+	0xc3, 0x3c, 0xcc, 0xff, 0xfe, 0xff, 0xfe, 0xef,
+	0xff, 0xdf, 0xff, 0xdd, 0xff, 0xfb, 0xff, 0xfb,
+	0xbf, 0xff, 0x7f, 0xff, 0x77, 0xf7, 0xbd, 0xef,
+	0xff, 0xf0, 0xff, 0xf0, 0x0f, 0xfc, 0xcc, 0x3c,
+	0xcc, 0x33, 0xcc, 0xcf, 0xff, 0xef, 0xff, 0xee,
+	0xff, 0xfd, 0xff, 0xfd, 0xdf, 0xff, 0xbf, 0xff,
+	0xbb, 0xff, 0xf7, 0xff, 0xf7, 0x7f, 0x7b, 0xde,
+};
+
+static const u8 tuning_blk_pattern_8bit[] = {
+	0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0x00,
+	0xff, 0xff, 0xcc, 0xcc, 0xcc, 0x33, 0xcc, 0xcc,
+	0xcc, 0x33, 0x33, 0xcc, 0xcc, 0xcc, 0xff, 0xff,
+	0xff, 0xee, 0xff, 0xff, 0xff, 0xee, 0xee, 0xff,
+	0xff, 0xff, 0xdd, 0xff, 0xff, 0xff, 0xdd, 0xdd,
+	0xff, 0xff, 0xff, 0xbb, 0xff, 0xff, 0xff, 0xbb,
+	0xbb, 0xff, 0xff, 0xff, 0x77, 0xff, 0xff, 0xff,
+	0x77, 0x77, 0xff, 0x77, 0xbb, 0xdd, 0xee, 0xff,
+	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
+	0x00, 0xff, 0xff, 0xcc, 0xcc, 0xcc, 0x33, 0xcc,
+	0xcc, 0xcc, 0x33, 0x33, 0xcc, 0xcc, 0xcc, 0xff,
+	0xff, 0xff, 0xee, 0xff, 0xff, 0xff, 0xee, 0xee,
+	0xff, 0xff, 0xff, 0xdd, 0xff, 0xff, 0xff, 0xdd,
+	0xdd, 0xff, 0xff, 0xff, 0xbb, 0xff, 0xff, 0xff,
+	0xbb, 0xbb, 0xff, 0xff, 0xff, 0x77, 0xff, 0xff,
+	0xff, 0x77, 0x77, 0xff, 0x77, 0xbb, 0xdd, 0xee,
+};
+
 /*
  * Data offset is difference according to Version
  * Lower than 2.40a : data register offest is 0x100
@@ -75,6 +106,50 @@
 struct sdmmc_reg {
 u32   addr;
 char    *name;
+};
+
+static const struct sdmmc_reg dw_mci_regs[] = {
+{ 0x0000, "CTRL" },
+{ 0x0004, "PWREN" },
+{ 0x0008, "CLKDIV" },
+{ 0x000C, "CLKSRC" },
+{ 0x0010, "CLKENA" },
+{ 0x0014, "TMOUT" },
+{ 0x0018, "CTYPE" },
+{ 0x001C, "BLKSIZ" },
+{ 0x0020, "BYTCNT" },
+{ 0x0024, "INTMASK" },
+{ 0x0028, "CMDARG" },
+{ 0x002C, "CMD" },
+{ 0x0030, "RESP0" },
+{ 0x0034, "RESP1" },
+{ 0x0038, "RESP2" },
+{ 0x003C, "RESP3" },
+{ 0x0040, "MINSTS" },
+{ 0x0044, "RINTSTS" },
+{ 0x0048, "STATUS" },
+{ 0x004C, "FIFOTH" },
+{ 0x0050, "CDETECT" },
+{ 0x0054, "WRTPRT" },
+{ 0x0058, "GPIO" },
+{ 0x005C, "TCBCNT" },
+{ 0x0060, "TBBCNT" },
+{ 0x0064, "DEBNCE" },
+{ 0x0068, "USRID" },
+{ 0x006C, "VERID" },
+{ 0x0070, "HCON" },
+{ 0x0074, "UHS_REG" },
+{ 0x0078, "RST_n" },
+{ 0x0080, "BMOD" },
+{ 0x0084, "PLDMND" },
+{ 0x0088, "DBADDR" },
+{ 0x008C, "IDSTS" },
+{ 0x0090, "IDINTEN" },
+{ 0x0094, "DSCADDR" },
+{ 0x0098, "BUFADDR" },
+{ 0x0100, "CARDTHRCTL" },
+{ 0x0104, "BackEndPwr" },
+{ 0, 0 }
 };
 
 
@@ -111,7 +186,7 @@ char    *name;
 #define SDMMC_INT_HLE			BIT(12)
 #define SDMMC_INT_FRUN			BIT(11)
 #define SDMMC_INT_HTO			BIT(10)
-#define SDMMC_INT_VSI                   SDMMC_INT_HTO   // VSI => Voltage Switch Interrupt,Volt_Switch_int
+#define SDMMC_INT_VSI                   SDMMC_INT_HTO
 #define SDMMC_INT_DRTO			BIT(9)
 #define SDMMC_INT_RTO			BIT(8)
 #define SDMMC_INT_DCRC			BIT(7)
@@ -126,12 +201,11 @@ char    *name;
 /* Command register defines */
 #define SDMMC_CMD_START                 BIT(31)
 #define SDMMC_CMD_USE_HOLD_REG          BIT(29)
-#define SDMMC_CMD_VOLT_SWITCH           BIT(28)      //Voltage switch bit
-#define SDMMC_CMD_VOLT_SWITCH           BIT(28)      //Voltage switch bit
-#define SDMMC_CMD_BOOT_MODE             BIT(27)      //set boot mode.
-#define SDMMC_CMD_DISABLE_BOOT          BIT(26)      //disable boot.
-#define SDMMC_CMD_EXPECT_BOOT_ACK       BIT(25)      //Expect Boot Acknowledge.
-#define SDMMC_CMD_ENABLE_BOOT           BIT(24)      //be set only for mandatory boot mode.
+#define SDMMC_CMD_VOLT_SWITCH           BIT(28)
+#define SDMMC_CMD_BOOT_MODE             BIT(27)
+#define SDMMC_CMD_DISABLE_BOOT          BIT(26)
+#define SDMMC_CMD_EXPECT_BOOT_ACK       BIT(25)
+#define SDMMC_CMD_ENABLE_BOOT           BIT(24)
 #define SDMMC_CMD_CCS_EXP		BIT(23)
 #define SDMMC_CMD_CEATA_RD		BIT(22)
 #define SDMMC_CMD_UPD_CLK		BIT(21)
@@ -149,15 +223,15 @@ char    *name;
 /* Status register defines */
 #define SDMMC_GET_FCNT(x)               (((x)>>17) & 0x1FFF)
 #define SDMMC_STAUTS_MC_BUSY            BIT(10)
-#define SDMMC_STAUTS_DATA_BUSY          BIT(9)          //Card busy
-#define SDMMC_CMD_FSM_MASK              (0x0F << 4)	    //Command FSM status mask
-#define SDMMC_CMD_FSM_IDLE              (0x00)			//CMD FSM is IDLE
-#define SDMMC_STAUTS_FIFO_FULL          BIT(3)          //FIFO is full status
-#define SDMMC_STAUTS_FIFO_EMPTY         BIT(2)          //FIFO is empty status
+#define SDMMC_STAUTS_DATA_BUSY          BIT(9)
+#define SDMMC_CMD_FSM_MASK              (0x0F << 4)
+#define SDMMC_CMD_FSM_IDLE              (0x00)
+#define SDMMC_STAUTS_FIFO_FULL          BIT(3)
+#define SDMMC_STAUTS_FIFO_EMPTY         BIT(2)
 
 /* Control SDMMC_UHS_REG defines (base+ 0x74)*/
-#define SDMMC_UHS_DDR_MODE              BIT(16)     // 0--Non DDR Mode; 1--DDR mode 
-#define SDMMC_UHS_VOLT_REG_18           BIT(0)      // 0--3.3v; 1--1.8V
+#define SDMMC_UHS_DDR_MODE              BIT(16)
+#define SDMMC_UHS_VOLT_REG_18           BIT(0)
 
 /* FIFOTH register defines */
 #define SDMMC_SET_FIFOTH(m, r, t)	(((m) & 0x7) << 28 | \
@@ -186,9 +260,9 @@ char    *name;
 #define mci_writel(dev, reg, value)			\
 	__raw_writel((value), (dev)->regs + SDMMC_##reg)
 #define mci_readreg(dev, addr)			\
-        __raw_readl((dev)->regs + addr)
+	__raw_readl((dev)->regs + addr)
 #define mci_writereg(dev, addr, value)		\
-  __raw_writel((value), (dev)->regs + addr)
+	__raw_writel((value), (dev)->regs + addr)
 
 
 /* 16-bit FIFO access macros */
@@ -213,17 +287,15 @@ char    *name;
  * rest of the code free from ifdefs.
  */
 #define mci_readq(dev, reg)			\
-	(*(volatile u64 __force *)((dev)->regs + SDMMC_##reg))
+	(*(u64 __force *)((dev)->regs + SDMMC_##reg))
 #define mci_writeq(dev, reg, value)			\
-	(*(volatile u64 __force *)((dev)->regs + SDMMC_##reg) = (value))
+	(*(u64 __force *)((dev)->regs + SDMMC_##reg) = (value))
 #endif
-extern void rk_send_wakeup_key(void);
-extern int dw_mci_probe(struct dw_mci *host);
-extern void dw_mci_remove(struct dw_mci *host);
 #ifdef CONFIG_PM
 extern int dw_mci_suspend(struct dw_mci *host);
 extern int dw_mci_resume(struct dw_mci *host);
 #endif
+static const struct dw_mci_rst_ops dw_mci_pdrst_ops;
 
 /**
  * struct dw_mci_slot - MMC slot state
@@ -245,27 +317,26 @@ extern int dw_mci_resume(struct dw_mci *host);
  * @last_detect_state: Most recently observed card detect state.
  */
 struct dw_mci_slot {
-	struct mmc_host		*mmc;
-	struct dw_mci		*host;
+struct mmc_host		*mmc;
+struct dw_mci		*host;
+int			quirks;
+int			wp_gpio;
+int                     cd_gpio;
+int			pwr_en_gpio;
+u32			ctype;
+u32         pre_ctype;
 
-	int			quirks;
-	int			wp_gpio;
-	int                     cd_gpio;
-        int                     pwr_en_gpio;
-	u32			ctype;
-	u32         pre_ctype;
+struct mmc_request	*mrq;
+struct list_head	queue_node;
 
-	struct mmc_request	*mrq;
-	struct list_head	queue_node;
+unsigned int		clock;
+unsigned int		__clk_old;
 
-	unsigned int		clock;
-	unsigned int		__clk_old;
-
-	unsigned long		flags;
+unsigned long		flags;
 #define DW_MMC_CARD_PRESENT	0
 #define DW_MMC_CARD_NEED_INIT	1
-	int			id;
-	int			last_detect_state;
+int			id;
+int			last_detect_state;
 };
 
 struct dw_mci_tuning_data {
@@ -290,25 +361,29 @@ struct dw_mci_tuning_data {
  * data structure is fully optional and usage of each member in this structure
  * is optional as well.
  */
+
 struct dw_mci_drv_data {
 	unsigned long	*caps;
 	unsigned int    *hold_reg_flag;
+
 	int		(*init)(struct dw_mci *host);
 	int		(*setup_clock)(struct dw_mci *host);
 	void		(*prepare_command)(struct dw_mci *host, u32 *cmdr);
 	void		(*set_ios)(struct dw_mci *host, struct mmc_ios *ios);
 	int		(*parse_dt)(struct dw_mci *host);
-	int		(*execute_tuning)(struct dw_mci_slot *slot, u32 opcode,
-					struct dw_mci_tuning_data *tuning_data);
+	int		(*execute_tuning)(struct dw_mci_slot *slot,
+					  u32 opcode,
+					  struct dw_mci_tuning_data
+					  *tuning_data);
 };
 
 /* Variations in Rockchip specific dw-mshc controller */
 enum dw_mci_rockchip_type {
-         DW_MCI_TYPE_RK3188,
-         DW_MCI_TYPE_RK3288,
-         DW_MCI_TYPE_RK3036,
-         DW_MCI_TYPE_RK312X,
-         DW_MCI_TYPE_RK3368,
+DW_MCI_TYPE_RK3188,
+DW_MCI_TYPE_RK3288,
+DW_MCI_TYPE_RK3036,
+DW_MCI_TYPE_RK312X,
+DW_MCI_TYPE_RK3368,
 };
 
 #endif /* _DW_MMC_H_ */

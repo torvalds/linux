@@ -21,12 +21,11 @@
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/rk_mmc.h>
 #include <linux/of.h>
-
+#include "dw_mmc-pltfm.h"
 #include "rk_sdmmc.h"
 
-
 int dw_mci_pltfm_register(struct platform_device *pdev,
-				const struct dw_mci_drv_data *drv_data)
+			  const struct dw_mci_drv_data *drv_data)
 {
 	struct dw_mci *host;
 	struct resource	*regs;
@@ -49,9 +48,9 @@ int dw_mci_pltfm_register(struct platform_device *pdev,
 	host->irq_flags = 0;
 	host->pdata = pdev->dev.platform_data;
 	host->regs = devm_ioremap_resource(&pdev->dev, regs);
-        #ifdef CONFIG_MMC_DW_IDMAC
-        host->phy_regs = (void *)(regs->start);
-        #endif
+	#ifdef CONFIG_MMC_DW_IDMAC
+	host->phy_regs = (void *)(regs->start);
+	#endif
 	if (IS_ERR(host->regs))
 		return PTR_ERR(host->regs);
 
@@ -72,7 +71,7 @@ static int dw_mci_pltfm_probe(struct platform_device *pdev)
 	return dw_mci_pltfm_register(pdev, NULL);
 }
 
-static int dw_mci_pltfm_remove(struct platform_device *pdev)
+int dw_mci_pltfm_remove(struct platform_device *pdev)
 {
 	struct dw_mci *host = platform_get_drvdata(pdev);
 
@@ -114,7 +113,9 @@ static int dw_mci_pltfm_resume(struct device *dev)
 #define dw_mci_pltfm_resume	NULL
 #endif /* CONFIG_PM_SLEEP */
 
-SIMPLE_DEV_PM_OPS(dw_mci_pltfm_pmops, dw_mci_pltfm_suspend, dw_mci_pltfm_resume);
+SIMPLE_DEV_PM_OPS(dw_mci_pltfm_pmops,
+		  dw_mci_pltfm_suspend,
+		  dw_mci_pltfm_resume);
 EXPORT_SYMBOL_GPL(dw_mci_pltfm_pmops);
 
 static const struct of_device_id dw_mci_pltfm_match[] = {

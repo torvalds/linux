@@ -2431,12 +2431,12 @@ static int mmc_blk_probe(struct mmc_card *card)
 	mmc_set_bus_resume_policy(card->host, 1);
 #endif
 #if defined(CONFIG_MMC_DW_ROCKCHIP)
-    if(card->host->restrict_caps & RESTRICT_CARD_TYPE_EMMC){
-        this_card = card;
-        md->disk->emmc_disk = 1;
-    }else {
-        md->disk->emmc_disk = 0;
-    }
+	if (card->host->restrict_caps & RESTRICT_CARD_TYPE_EMMC) {
+		this_card = card;
+		md->disk->emmc_disk = 1;
+	} else {
+		md->disk->emmc_disk = 0;
+	}
 #endif
 	if (mmc_add_disk(md))
 		goto out;
@@ -2469,10 +2469,10 @@ static int mmc_blk_probe(struct mmc_card *card)
 static void mmc_blk_remove(struct mmc_card *card)
 {
 	struct mmc_blk_data *md = mmc_get_drvdata(card);
-	
+
 #if defined(CONFIG_MMC_DW_ROCKCHIP)
-    if(card->host->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
-        this_card = NULL;
+	if (card->host->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
+		this_card = NULL;
 #endif
 	mmc_blk_remove_parts(card, md);
 	pm_runtime_get_sync(&card->dev);

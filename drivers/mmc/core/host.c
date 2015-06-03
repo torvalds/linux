@@ -35,6 +35,7 @@
 static void mmc_host_classdev_release(struct device *dev)
 {
 	struct mmc_host *host = cls_dev_to_mmc_host(dev);
+
 	mutex_destroy(&host->slot.lock);
 	kfree(host);
 }
@@ -59,14 +60,16 @@ static DEFINE_SPINLOCK(mmc_host_lock);
 
 #ifdef CONFIG_MMC_CLKGATE
 static ssize_t clkgate_delay_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+				  struct device_attribute *attr, char *buf)
 {
 	struct mmc_host *host = cls_dev_to_mmc_host(dev);
+
 	return snprintf(buf, PAGE_SIZE, "%lu\n", host->clkgate_delay);
 }
 
 static ssize_t clkgate_delay_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
 {
 	struct mmc_host *host = cls_dev_to_mmc_host(dev);
 	unsigned long flags, value;
@@ -279,7 +282,7 @@ static inline void mmc_host_clk_sysfs_init(struct mmc_host *host)
 	host->clkgate_delay_attr.attr.mode = S_IRUGO | S_IWUSR;
 	if (device_create_file(&host->class_dev, &host->clkgate_delay_attr))
 		pr_err("%s: Failed to create clkgate_delay sysfs entry\n",
-				mmc_hostname(host));
+		       mmc_hostname(host));
 }
 #else
 
@@ -436,7 +439,6 @@ out:
 	mmc_gpio_free_cd(host);
 	return ret;
 }
-
 EXPORT_SYMBOL(mmc_of_parse);
 
 /**
@@ -451,7 +453,7 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	int err;
 	struct mmc_host *host;
 
-	host = kzalloc(sizeof(struct mmc_host) + extra, GFP_KERNEL);
+	host = kzalloc(sizeof(*host) + extra, GFP_KERNEL);
 	if (!host)
 		return NULL;
 
@@ -482,7 +484,7 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	spin_lock_init(&host->lock);
 	init_waitqueue_head(&host->wq);
 	wake_lock_init(&host->detect_wake_lock, WAKE_LOCK_SUSPEND,
-		kasprintf(GFP_KERNEL, "%s_detect", mmc_hostname(host)));
+		       kasprintf(GFP_KERNEL, "%s_detect", mmc_hostname(host)));
 	INIT_DELAYED_WORK(&host->detect, mmc_rescan);
 #ifdef CONFIG_PM
 	host->pm_notify.notifier_call = mmc_pm_notify;
@@ -505,7 +507,6 @@ free:
 	kfree(host);
 	return NULL;
 }
-
 EXPORT_SYMBOL(mmc_alloc_host);
 
 /**
@@ -539,12 +540,11 @@ int mmc_add_host(struct mmc_host *host)
 	if (!(host->pm_flags & MMC_PM_IGNORE_PM_NOTIFY))
 		register_pm_notifier(&host->pm_notify);
 
-    if(host->restrict_caps & RESTRICT_CARD_TYPE_SDIO) 
-        primary_sdio_host = host;
-        
+	if (host->restrict_caps & RESTRICT_CARD_TYPE_SDIO)
+		primary_sdio_host = host;
+
 	return 0;
 }
-
 EXPORT_SYMBOL(mmc_add_host);
 
 
@@ -573,7 +573,6 @@ void mmc_remove_host(struct mmc_host *host)
 
 	mmc_host_clk_exit(host);
 }
-
 EXPORT_SYMBOL(mmc_remove_host);
 
 /**
@@ -591,7 +590,6 @@ void mmc_free_host(struct mmc_host *host)
 
 	put_device(&host->class_dev);
 }
-
 EXPORT_SYMBOL(mmc_free_host);
 
 /**
@@ -607,19 +605,20 @@ EXPORT_SYMBOL(mmc_free_host);
 int mmc_host_rescan(struct mmc_host *host, int val, int is_cap_sdio_irq)
 {
 	if (NULL != primary_sdio_host) {
-		if(!host)
+		if (!host)
 			host = primary_sdio_host;
 		else
-			printk("%s: mmc_host_rescan pass in host from argument!\n", mmc_hostname(host));
+			pr_info("%s: mmc_host_rescan pass in host from argument!\n",
+				mmc_hostname(host));
 	} else {
-		printk("sdio: host isn't  initialization successfully.\n");
+		pr_err("sdio: host isn't  initialization successfully.\n");
 		return -ENOMEDIUM;
 	}
 
-	printk("%s:mmc host rescan start!\n", mmc_hostname(host));
+	pr_info("%s:mmc host rescan start!\n", mmc_hostname(host));
 
 	/*  0: oob  1:cap-sdio-irq */
-	if (is_cap_sdio_irq == 1) { 
+	if (is_cap_sdio_irq == 1) {
 		host->caps |= MMC_CAP_SDIO_IRQ;
 	} else if (is_cap_sdio_irq == 0) {
 		host->caps &= ~MMC_CAP_SDIO_IRQ;
@@ -630,7 +629,7 @@ int mmc_host_rescan(struct mmc_host *host, int val, int is_cap_sdio_irq)
 
 	if (!(host->caps & MMC_CAP_NONREMOVABLE) && host->ops->set_sdio_status)
 		host->ops->set_sdio_status(host, val);
-	
+
 	return 0;
 }
 EXPORT_SYMBOL(mmc_host_rescan);
