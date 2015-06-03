@@ -1841,6 +1841,8 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 		} else {
 			win->z_order = -1;
 			win->state = 0;
+			for (j = 0; j < 4; j++)
+				win->area[j].state = 0;
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 			if (dev_drv->iommu_enabled) {
 				for (j = 0; j < 4; j++) {
