@@ -252,6 +252,51 @@ MCE_INJECT_GET(bank);
 
 DEFINE_SIMPLE_ATTRIBUTE(bank_fops, inj_bank_get, inj_bank_set, "%llu\n");
 
+static const char readme_msg[] =
+	"\nDescription of the files and their usages:\n\n"
+	"status:  Set a value to be programmed into MCx_STATUS(bank)\n"
+	"\t The status bits provide insight into the type of\n"
+	"\t error that caused the MCE.\n\n"
+	"misc:	 Set value of MCx_MISC(bank)\n"
+	"\t misc register provides auxiliary info about the error. This\n"
+	"\t register is typically used for error thresholding purpose and\n"
+	"\t validity of the register is indicated by MCx_STATUS[MiscV]\n\n"
+	"addr:	 Error address value to be written to MCx_ADDR(bank)\n"
+	"\t This register is used to log address information associated\n"
+	"\t with the error.\n\n"
+	"Note:	 See respective BKDGs for the exact bit definitions of the\n"
+	"\t above registers as they mirror the MCi_[STATUS | MISC | ADDR]\n"
+	"\t hardware registers.\n\n"
+	"bank:	 Specify the bank you want to inject the error into.\n"
+	"\t The number of banks in a processor varies and is family/model\n"
+	"\t dependent. So, a sanity check performed while writing.\n"
+	"\t Writing to this file will trigger a #MC or APIC interrupts or\n"
+	"\t invoke the error decoder routines for AMD processors. The value\n"
+	"\t in 'flags' file decides which of above actions is triggered.\n\n"
+	"flags:	 Write to this file to speficy the error injection policy.\n"
+	"\t Allowed values:\n"
+	"\t\t\"sw\"  -	SW error injection, Only calls error decoder\n"
+	"\t\t\troutines to print error info in human readable format\n"
+	"\t\t\"hw\"  -	HW error injection, Forces a #MC,\n"
+	"\t\t\tcauses exception handler to handle the error\n"
+	"\t\t\tif UC or poll handler catches it if CE\n"
+	"\t\t\tWarning: Might cause system panic if MCx_STATUS[PCC]\n"
+	"\t\t\tis set. For debug purposes, consider setting\n"
+	"\t\t\t/<debugfs_mountpoint>/mce/fake_panic\n"
+	"cpu:	 The cpu to inject the error on.\n\n";
+
+static ssize_t
+inj_readme_read(struct file *filp, char __user *ubuf,
+		       size_t cnt, loff_t *ppos)
+{
+	return simple_read_from_buffer(ubuf, cnt, ppos,
+					readme_msg, strlen(readme_msg));
+}
+
+static const struct file_operations readme_fops = {
+	.read		= inj_readme_read,
+};
+
 static struct dfs_node {
 	char *name;
 	struct dentry *d;
@@ -264,6 +309,7 @@ static struct dfs_node {
 	{ .name = "bank",	.fops = &bank_fops,   .perm = S_IRUSR | S_IWUSR },
 	{ .name = "flags",	.fops = &flags_fops,  .perm = S_IRUSR | S_IWUSR },
 	{ .name = "cpu",	.fops = &extcpu_fops, .perm = S_IRUSR | S_IWUSR },
+	{ .name = "README",	.fops = &readme_fops, .perm = S_IRUSR | S_IRGRP | S_IROTH },
 };
 
 static int __init init_mce_inject(void)
