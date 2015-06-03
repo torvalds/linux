@@ -356,56 +356,6 @@ lnet_counters_reset(void)
 }
 EXPORT_SYMBOL(lnet_counters_reset);
 
-#ifdef LNET_USE_LIB_FREELIST
-
-int
-lnet_freelist_init(lnet_freelist_t *fl, int n, int size)
-{
-	char *space;
-
-	LASSERT(n > 0);
-
-	size += offsetof(lnet_freeobj_t, fo_contents);
-
-	LIBCFS_ALLOC(space, n * size);
-	if (space == NULL)
-		return -ENOMEM;
-
-	INIT_LIST_HEAD(&fl->fl_list);
-	fl->fl_objs = space;
-	fl->fl_nobjs = n;
-	fl->fl_objsize = size;
-
-	do {
-		memset(space, 0, size);
-		list_add((struct list_head *)space, &fl->fl_list);
-		space += size;
-	} while (--n != 0);
-
-	return 0;
-}
-
-void
-lnet_freelist_fini(lnet_freelist_t *fl)
-{
-	struct list_head *el;
-	int count;
-
-	if (fl->fl_nobjs == 0)
-		return;
-
-	count = 0;
-	for (el = fl->fl_list.next; el != &fl->fl_list; el = el->next)
-		count++;
-
-	LASSERT(count == fl->fl_nobjs);
-
-	LIBCFS_FREE(fl->fl_objs, fl->fl_nobjs * fl->fl_objsize);
-	memset(fl, 0, sizeof(*fl));
-}
-
-#endif /* LNET_USE_LIB_FREELIST */
-
 static __u64
 lnet_create_interface_cookie(void)
 {
@@ -462,9 +412,6 @@ lnet_res_container_cleanup(struct lnet_res_container *rec)
 		       count, lnet_res_type2str(rec->rec_type));
 	}
 
-#ifdef LNET_USE_LIB_FREELIST
-	lnet_freelist_fini(&rec->rec_freelist);
-#endif
 	if (rec->rec_lh_hash != NULL) {
 		LIBCFS_FREE(rec->rec_lh_hash,
 			    LNET_LH_HASH_SIZE * sizeof(rec->rec_lh_hash[0]));
@@ -485,13 +432,6 @@ lnet_res_container_setup(struct lnet_res_container *rec,
 
 	rec->rec_type = type;
 	INIT_LIST_HEAD(&rec->rec_active);
-
-#ifdef LNET_USE_LIB_FREELIST
-	memset(&rec->rec_freelist, 0, sizeof(rec->rec_freelist));
-	rc = lnet_freelist_init(&rec->rec_freelist, objnum, objsz);
-	if (rc != 0)
-		goto out;
-#endif
 	rec->rec_lh_cookie = (cpt << LNET_COOKIE_TYPE_BITS) | type;
 
 	/* Arbitrary choice of hash table size */
@@ -635,13 +575,11 @@ lnet_prepare(lnet_pid_t requested_pid)
 		goto failed;
 
 	rc = lnet_res_container_setup(&the_lnet.ln_eq_container, 0,
-				      LNET_COOKIE_TYPE_EQ, LNET_FL_MAX_EQS,
-				      sizeof(lnet_eq_t));
+				      LNET_COOKIE_TYPE_EQ, 0, 0);
 	if (rc != 0)
 		goto failed;
 
-	recs = lnet_res_containers_create(LNET_COOKIE_TYPE_ME, LNET_FL_MAX_MES,
-					  sizeof(lnet_me_t));
+	recs = lnet_res_containers_create(LNET_COOKIE_TYPE_ME, 0, 0);
 	if (recs == NULL) {
 		rc = -ENOMEM;
 		goto failed;
@@ -649,8 +587,7 @@ lnet_prepare(lnet_pid_t requested_pid)
 
 	the_lnet.ln_me_containers = recs;
 
-	recs = lnet_res_containers_create(LNET_COOKIE_TYPE_MD, LNET_FL_MAX_MDS,
-					  sizeof(lnet_libmd_t));
+	recs = lnet_res_containers_create(LNET_COOKIE_TYPE_MD, 0, 0);
 	if (recs == NULL) {
 		rc = -ENOMEM;
 		goto failed;

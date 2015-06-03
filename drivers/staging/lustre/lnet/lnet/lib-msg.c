@@ -427,7 +427,7 @@ lnet_complete_msg_locked(lnet_msg_t *msg, int cpt)
 	}
 
 	lnet_msg_decommit(msg, cpt, status);
-	lnet_msg_free_locked(msg);
+	lnet_msg_free(msg);
 	return 0;
 }
 

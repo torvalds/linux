@@ -191,7 +191,7 @@ LNetEQFree(lnet_handle_eq_t eqh)
 
 	lnet_res_lh_invalidate(&eq->eq_lh);
 	list_del(&eq->eq_list);
-	lnet_eq_free_locked(eq);
+	lnet_eq_free(eq);
  out:
 	lnet_eq_wait_unlock();
 	lnet_res_unlock(LNET_LOCK_EX);

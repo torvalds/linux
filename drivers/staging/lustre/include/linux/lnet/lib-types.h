@@ -280,20 +280,6 @@ typedef struct lnet_libmd {
 #define LNET_MD_FLAG_AUTO_UNLINK      (1 << 1)
 #define LNET_MD_FLAG_ABORTED	 (1 << 2)
 
-#ifdef LNET_USE_LIB_FREELIST
-typedef struct {
-	void		  *fl_objs;	  /* single contiguous array of objects */
-	int		    fl_nobjs;	 /* the number of them */
-	int		    fl_objsize;       /* the size (including overhead) of each of them */
-	struct list_head	     fl_list;	  /* where they are enqueued */
-} lnet_freelist_t;
-
-typedef struct {
-	struct list_head	     fo_list;	     /* enqueue on fl_list */
-	void		  *fo_contents;	 /* aligned contents */
-} lnet_freeobj_t;
-#endif
-
 typedef struct {
 	/* info about peers we are trying to fail */
 	struct list_head	     tp_list;	     /* ln_test_peers */
@@ -639,9 +625,6 @@ struct lnet_res_container {
 	__u64			rec_lh_cookie;	/* cookie generator */
 	struct list_head		rec_active;	/* active resource list */
 	struct list_head		*rec_lh_hash;	/* handle hash */
-#ifdef LNET_USE_LIB_FREELIST
-	lnet_freelist_t		rec_freelist;	/* freelist for resources */
-#endif
 };
 
 /* message container */
@@ -654,9 +637,6 @@ struct lnet_msg_container {
 	struct list_head		msc_active;	/* active message list */
 	/* threads doing finalization */
 	void			**msc_finalizers;
-#ifdef LNET_USE_LIB_FREELIST
-	lnet_freelist_t		msc_freelist;	/* freelist for messages */
-#endif
 };
 
 /* Router Checker states */

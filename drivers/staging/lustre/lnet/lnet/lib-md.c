@@ -82,7 +82,7 @@ lnet_md_unlink(lnet_libmd_t *md)
 
 	LASSERT(!list_empty(&md->md_list));
 	list_del_init(&md->md_list);
-	lnet_md_free_locked(md);
+	lnet_md_free(md);
 }
 
 static int
@@ -320,7 +320,7 @@ LNetMDAttach(lnet_handle_me_t meh, lnet_md_t umd,
 	return 0;
 
  failed:
-	lnet_md_free_locked(md);
+	lnet_md_free(md);
 
 	lnet_res_unlock(cpt);
 	return rc;
@@ -381,7 +381,7 @@ LNetMDBind(lnet_md_t umd, lnet_unlink_t unlink, lnet_handle_md_t *handle)
 	return 0;
 
  failed:
-	lnet_md_free_locked(md);
+	lnet_md_free(md);
 
 	lnet_res_unlock(cpt);
 	return rc;
