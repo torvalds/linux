@@ -83,10 +83,12 @@ static void socfpga_cpu_die(unsigned int cpu)
 		cpu_do_idle();
 }
 
-struct smp_operations socfpga_smp_ops __initdata = {
+static struct smp_operations socfpga_smp_ops __initdata = {
 	.smp_prepare_cpus	= socfpga_smp_prepare_cpus,
 	.smp_boot_secondary	= socfpga_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_die		= socfpga_cpu_die,
 #endif
 };
+
+CPU_METHOD_OF_DECLARE(socfpga_smp, "altr,socfpga-smp", &socfpga_smp_ops);

@@ -78,7 +78,6 @@ static const char *altera_dt_match[] = {
 DT_MACHINE_START(SOCFPGA, "Altera SOCFPGA")
 	.l2c_aux_val	= 0,
 	.l2c_aux_mask	= ~0,
-	.smp		= smp_ops(socfpga_smp_ops),
 	.init_irq	= socfpga_init_irq,
 	.restart	= socfpga_cyclone5_restart,
 	.dt_compat	= altera_dt_match,
