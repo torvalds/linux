@@ -1559,6 +1559,7 @@ void fm10k_down(struct fm10k_intfc *interface)
 
 	/* free any buffers still on the rings */
 	fm10k_clean_all_tx_rings(interface);
+	fm10k_clean_all_rx_rings(interface);
 }
 
 /**
