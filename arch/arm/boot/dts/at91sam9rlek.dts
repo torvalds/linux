@@ -184,6 +184,10 @@
 			watchdog@fffffd40 {
 				status = "okay";
 			};
+
+			rtc@fffffe00 {
+				status = "okay";
+			};
 		};
 	};
 
