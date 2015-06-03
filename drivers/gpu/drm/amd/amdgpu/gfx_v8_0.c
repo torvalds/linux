@@ -4144,6 +4144,7 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_compute = {
 	.emit_semaphore = gfx_v8_0_ring_emit_semaphore,
 	.emit_vm_flush = gfx_v8_0_ring_emit_vm_flush,
 	.emit_gds_switch = gfx_v8_0_ring_emit_gds_switch,
+	.emit_hdp_flush = gfx_v8_0_ring_emit_hdp_flush,
 	.test_ring = gfx_v8_0_ring_test_ring,
 	.test_ib = gfx_v8_0_ring_test_ib,
 	.is_lockup = gfx_v8_0_ring_is_lockup,
