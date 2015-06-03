@@ -127,8 +127,10 @@ config HVC_TILE
 	select HVC_IRQ if TILEGX
 	def_bool y
 
+# Building with ARCH=tilegx (or ARCH=tile) implies using the
+# 64-bit TILE-Gx toolchain, so force CONFIG_TILEGX on.
 config TILEGX
-	bool "Building for TILE-Gx (64-bit) processor"
+	def_bool ARCH != "tilepro"
 	select SPARSE_IRQ
 	select GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
 	select HAVE_FUNCTION_TRACER
