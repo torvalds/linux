@@ -140,6 +140,7 @@ static void sort_add_capa(struct obd_capa *ocapa, struct list_head *head)
 static inline int obd_capa_open_count(struct obd_capa *oc)
 {
 	struct ll_inode_info *lli = ll_i2info(oc->u.cli.inode);
+
 	return atomic_read(&lli->lli_open_count);
 }
 
