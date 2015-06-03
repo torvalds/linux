@@ -895,6 +895,8 @@ static int gfx_v8_0_sw_init(void *handle)
 	if (r)
 		return r;
 
+	adev->gfx.ce_ram_size = 0x8000;
+
 	return 0;
 }
 

@@ -441,6 +441,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		amdgpu_asic_get_cu_info(adev, &cu_info);
 		dev_info.cu_active_number = cu_info.number;
 		dev_info.cu_ao_mask = cu_info.ao_cu_mask;
+		dev_info.ce_ram_size = adev->gfx.ce_ram_size;
 		memcpy(&dev_info.cu_bitmap[0], &cu_info.bitmap[0], sizeof(cu_info.bitmap));
 
 		return copy_to_user(out, &dev_info,

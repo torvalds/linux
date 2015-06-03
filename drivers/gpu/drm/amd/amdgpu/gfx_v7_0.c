@@ -4820,6 +4820,8 @@ static int gfx_v7_0_hw_init(void *handle)
 	if (r)
 		return r;
 
+	adev->gfx.ce_ram_size = 0x8000;
+
 	return r;
 }
 

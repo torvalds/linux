@@ -573,6 +573,8 @@ struct drm_amdgpu_info_device {
 	/** Page table entry - fragment size */
 	uint32_t pte_fragment_size;
 	uint32_t gart_page_size;
+	/** constant engine ram size*/
+	uint32_t ce_ram_size;
 };
 
 struct drm_amdgpu_info_hw_ip {

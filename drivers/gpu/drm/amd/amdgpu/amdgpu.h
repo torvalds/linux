@@ -1136,6 +1136,8 @@ struct amdgpu_gfx {
 	uint32_t gfx_current_status;
 	/* sync signal for const engine */
 	unsigned ce_sync_offs;
+	/* ce ram size*/
+	unsigned ce_ram_size;
 };
 
 int amdgpu_ib_get(struct amdgpu_ring *ring, struct amdgpu_vm *vm,
