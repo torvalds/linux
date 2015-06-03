@@ -329,7 +329,6 @@ gm204_gr_init(struct nvkm_object *object)
 	nv_mask(priv, 0x419cc0, 0x00000008, 0x00000008);
 
 	for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
-	printk(KERN_ERR "ppc %d %d\n", gpc, priv->ppc_nr[gpc]);
 		for (ppc = 0; ppc < priv->ppc_nr[gpc]; ppc++)
 			nv_wr32(priv, PPC_UNIT(gpc, ppc, 0x038), 0xc0000000);
 		nv_wr32(priv, GPC_UNIT(gpc, 0x0420), 0xc0000000);

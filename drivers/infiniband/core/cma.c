@@ -845,18 +845,26 @@ static void cma_save_ib_info(struct rdma_cm_id *id, struct rdma_cm_id *listen_id
 	listen_ib = (struct sockaddr_ib *) &listen_id->route.addr.src_addr;
 	ib = (struct sockaddr_ib *) &id->route.addr.src_addr;
 	ib->sib_family = listen_ib->sib_family;
-	ib->sib_pkey = path->pkey;
-	ib->sib_flowinfo = path->flow_label;
-	memcpy(&ib->sib_addr, &path->sgid, 16);
+	if (path) {
+		ib->sib_pkey = path->pkey;
+		ib->sib_flowinfo = path->flow_label;
+		memcpy(&ib->sib_addr, &path->sgid, 16);
+	} else {
+		ib->sib_pkey = listen_ib->sib_pkey;
+		ib->sib_flowinfo = listen_ib->sib_flowinfo;
+		ib->sib_addr = listen_ib->sib_addr;
+	}
 	ib->sib_sid = listen_ib->sib_sid;
 	ib->sib_sid_mask = cpu_to_be64(0xffffffffffffffffULL);
 	ib->sib_scope_id = listen_ib->sib_scope_id;
 
-	ib = (struct sockaddr_ib *) &id->route.addr.dst_addr;
-	ib->sib_family = listen_ib->sib_family;
-	ib->sib_pkey = path->pkey;
-	ib->sib_flowinfo = path->flow_label;
-	memcpy(&ib->sib_addr, &path->dgid, 16);
+	if (path) {
+		ib = (struct sockaddr_ib *) &id->route.addr.dst_addr;
+		ib->sib_family = listen_ib->sib_family;
+		ib->sib_pkey = path->pkey;
+		ib->sib_flowinfo = path->flow_label;
+		memcpy(&ib->sib_addr, &path->dgid, 16);
+	}
 }
 
 static __be16 ss_get_port(const struct sockaddr_storage *ss)
@@ -905,9 +913,11 @@ static int cma_save_net_info(struct rdma_cm_id *id, struct rdma_cm_id *listen_id
 {
 	struct cma_hdr *hdr;
 
-	if ((listen_id->route.addr.src_addr.ss_family == AF_IB) &&
-	    (ib_event->event == IB_CM_REQ_RECEIVED)) {
-		cma_save_ib_info(id, listen_id, ib_event->param.req_rcvd.primary_path);
+	if (listen_id->route.addr.src_addr.ss_family == AF_IB) {
+		if (ib_event->event == IB_CM_REQ_RECEIVED)
+			cma_save_ib_info(id, listen_id, ib_event->param.req_rcvd.primary_path);
+		else if (ib_event->event == IB_CM_SIDR_REQ_RECEIVED)
+			cma_save_ib_info(id, listen_id, NULL);
 		return 0;
 	}
 
