@@ -1239,7 +1239,7 @@ static int __event_process_build_id(struct build_id_event *bev,
 {
 	int err = -1;
 	struct machine *machine;
-	u16 misc;
+	u16 cpumode;
 	struct dso *dso;
 	enum dso_kernel_type dso_type;
 
@@ -1247,9 +1247,9 @@ static int __event_process_build_id(struct build_id_event *bev,
 	if (!machine)
 		goto out;
 
-	misc = bev->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
+	cpumode = bev->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
-	switch (misc) {
+	switch (cpumode) {
 	case PERF_RECORD_MISC_KERNEL:
 		dso_type = DSO_TYPE_KERNEL;
 		break;
@@ -1270,7 +1270,7 @@ static int __event_process_build_id(struct build_id_event *bev,
 
 		dso__set_build_id(dso, &bev->build_id);
 
-		if (!is_kernel_module(filename))
+		if (!is_kernel_module(filename, cpumode))
 			dso->kernel = dso_type;
 
 		build_id__sprintf(dso->build_id, sizeof(dso->build_id),

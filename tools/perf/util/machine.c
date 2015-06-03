@@ -1149,8 +1149,28 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		struct dso *dso;
 
 		list_for_each_entry(dso, &machine->dsos.head, node) {
-			if (!dso->kernel || is_kernel_module(dso->long_name))
+
+			/*
+			 * The cpumode passed to is_kernel_module is not the
+			 * cpumode of *this* event. If we insist on passing
+			 * correct cpumode to is_kernel_module, we should
+			 * record the cpumode when we adding this dso to the
+			 * linked list.
+			 *
+			 * However we don't really need passing correct
+			 * cpumode.  We know the correct cpumode must be kernel
+			 * mode (if not, we should not link it onto kernel_dsos
+			 * list).
+			 *
+			 * Therefore, we pass PERF_RECORD_MISC_CPUMODE_UNKNOWN.
+			 * is_kernel_module() treats it as a kernel cpumode.
+			 */
+
+			if (!dso->kernel ||
+			    is_kernel_module(dso->long_name,
+					     PERF_RECORD_MISC_CPUMODE_UNKNOWN))
 				continue;
+
 
 			kernel = dso;
 			break;
