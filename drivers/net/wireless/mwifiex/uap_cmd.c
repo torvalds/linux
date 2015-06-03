@@ -755,6 +755,7 @@ int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, u16 cmd_no,
 	case HostCmd_CMD_UAP_BSS_START:
 	case HostCmd_CMD_UAP_BSS_STOP:
 	case HOST_CMD_APCMD_SYS_RESET:
+	case HOST_CMD_APCMD_STA_LIST:
 		cmd->command = cpu_to_le16(cmd_no);
 		cmd->size = cpu_to_le16(S_DS_GEN);
 		break;

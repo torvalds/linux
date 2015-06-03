@@ -334,6 +334,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_UAP_SYS_CONFIG                    0x00b0
 #define HostCmd_CMD_UAP_BSS_START                     0x00b1
 #define HostCmd_CMD_UAP_BSS_STOP                      0x00b2
+#define HOST_CMD_APCMD_STA_LIST                       0x00b3
 #define HostCmd_CMD_UAP_STA_DEAUTH                    0x00b5
 #define HostCmd_CMD_11N_CFG                           0x00cd
 #define HostCmd_CMD_11N_ADDBA_REQ                     0x00ce
@@ -1465,6 +1466,18 @@ struct host_cmd_ds_sta_deauth {
 	__le16 reason;
 } __packed;
 
+struct mwifiex_ie_types_sta_info {
+	struct mwifiex_ie_types_header header;
+	u8 mac[ETH_ALEN];
+	u8 power_mfg_status;
+	s8 rssi;
+};
+
+struct host_cmd_ds_sta_list {
+	u16 sta_count;
+	u8 tlv[0];
+} __packed;
+
 struct mwifiex_ie_types_pwr_capability {
 	struct mwifiex_ie_types_header header;
 	s8 min_pwr;
@@ -1994,6 +2007,7 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_802_11_subsc_evt subsc_evt;
 		struct host_cmd_ds_sys_config uap_sys_config;
 		struct host_cmd_ds_sta_deauth sta_deauth;
+		struct host_cmd_ds_sta_list sta_list;
 		struct host_cmd_11ac_vht_cfg vht_cfg;
 		struct host_cmd_ds_coalesce_cfg coalesce_cfg;
 		struct host_cmd_ds_tdls_oper tdls_oper;
