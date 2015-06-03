@@ -275,4 +275,9 @@ struct axp20x_fg_pdata {
 	int thermistor_curve[MAX_THERM_CURVE_SIZE][2];
 };
 
+struct axp288_extcon_pdata {
+	/* GPIO pin control to switch D+/D- lines b/w PMIC and SOC */
+	struct gpio_desc *gpio_mux_cntl;
+};
+
 #endif /* __LINUX_MFD_AXP20X_H */

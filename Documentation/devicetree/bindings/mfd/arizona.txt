@@ -62,6 +62,12 @@ Optional properties:
     present, the number of values should be less than or equal to the
     number of inputs, unspecified inputs will use the chip default.
 
+  - wlf,hpdet-channel : Headphone detection channel.
+    ARIZONA_ACCDET_MODE_HPL or 1 - Headphone detect mode is set to HPDETL
+    ARIZONA_ACCDET_MODE_HPR or 2 - Headphone detect mode is set to HPDETR
+    If this node is not mentioned or if the value is unknown, then
+    headphone detection mode is set to HPDETL.
+
   - DCVDD-supply, MICVDD-supply : Power supplies, only need to be specified if
     they are being externally supplied. As covered in
     Documentation/devicetree/bindings/regulator/regulator.txt
