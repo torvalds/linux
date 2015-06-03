@@ -248,7 +248,7 @@ struct backend_info;
 #define PERSISTENT_GNT_WAS_ACTIVE	1
 
 /* Number of requests that we can fit in a ring */
-#define XEN_BLKIF_REQS			32
+#define XEN_BLKIF_REQS_PER_PAGE		32
 
 struct persistent_gnt {
 	struct page *page;

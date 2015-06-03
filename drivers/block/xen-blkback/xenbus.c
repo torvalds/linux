@@ -124,8 +124,6 @@ static void xen_update_blkif_status(struct xen_blkif *blkif)
 static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 {
 	struct xen_blkif *blkif;
-	struct pending_req *req, *n;
-	int i, j;
 
 	BUILD_BUG_ON(MAX_INDIRECT_PAGES > BLKIF_MAX_INDIRECT_PAGES_PER_REQUEST);
 
@@ -151,51 +149,11 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 
 	INIT_LIST_HEAD(&blkif->pending_free);
 	INIT_WORK(&blkif->free_work, xen_blkif_deferred_free);
-
-	for (i = 0; i < XEN_BLKIF_REQS; i++) {
-		req = kzalloc(sizeof(*req), GFP_KERNEL);
-		if (!req)
-			goto fail;
-		list_add_tail(&req->free_list,
-		              &blkif->pending_free);
-		for (j = 0; j < MAX_INDIRECT_SEGMENTS; j++) {
-			req->segments[j] = kzalloc(sizeof(*req->segments[0]),
-			                           GFP_KERNEL);
-			if (!req->segments[j])
-				goto fail;
-		}
-		for (j = 0; j < MAX_INDIRECT_PAGES; j++) {
-			req->indirect_pages[j] = kzalloc(sizeof(*req->indirect_pages[0]),
-			                                 GFP_KERNEL);
-			if (!req->indirect_pages[j])
-				goto fail;
-		}
-	}
 	spin_lock_init(&blkif->pending_free_lock);
 	init_waitqueue_head(&blkif->pending_free_wq);
 	init_waitqueue_head(&blkif->shutdown_wq);
 
 	return blkif;
-
-fail:
-	list_for_each_entry_safe(req, n, &blkif->pending_free, free_list) {
-		list_del(&req->free_list);
-		for (j = 0; j < MAX_INDIRECT_SEGMENTS; j++) {
-			if (!req->segments[j])
-				break;
-			kfree(req->segments[j]);
-		}
-		for (j = 0; j < MAX_INDIRECT_PAGES; j++) {
-			if (!req->indirect_pages[j])
-				break;
-			kfree(req->indirect_pages[j]);
-		}
-		kfree(req);
-	}
-
-	kmem_cache_free(xen_blkif_cachep, blkif);
-
-	return ERR_PTR(-ENOMEM);
 }
 
 static int xen_blkif_map(struct xen_blkif *blkif, grant_ref_t gref,
@@ -312,7 +270,7 @@ static void xen_blkif_free(struct xen_blkif *blkif)
 		i++;
 	}
 
-	WARN_ON(i != XEN_BLKIF_REQS);
+	WARN_ON(i != XEN_BLKIF_REQS_PER_PAGE);
 
 	kmem_cache_free(xen_blkif_cachep, blkif);
 }
@@ -864,7 +822,8 @@ static int connect_ring(struct backend_info *be)
 	unsigned int evtchn;
 	unsigned int pers_grants;
 	char protocol[64] = "";
-	int err;
+	struct pending_req *req, *n;
+	int err, i, j;
 
 	pr_debug("%s %s\n", __func__, dev->otherend);
 
@@ -905,6 +864,24 @@ static int connect_ring(struct backend_info *be)
 		ring_ref, evtchn, be->blkif->blk_protocol, protocol,
 		pers_grants ? "persistent grants" : "");
 
+	for (i = 0; i < XEN_BLKIF_REQS_PER_PAGE; i++) {
+		req = kzalloc(sizeof(*req), GFP_KERNEL);
+		if (!req)
+			goto fail;
+		list_add_tail(&req->free_list, &be->blkif->pending_free);
+		for (j = 0; j < MAX_INDIRECT_SEGMENTS; j++) {
+			req->segments[j] = kzalloc(sizeof(*req->segments[0]), GFP_KERNEL);
+			if (!req->segments[j])
+				goto fail;
+		}
+		for (j = 0; j < MAX_INDIRECT_PAGES; j++) {
+			req->indirect_pages[j] = kzalloc(sizeof(*req->indirect_pages[0]),
+							 GFP_KERNEL);
+			if (!req->indirect_pages[j])
+				goto fail;
+		}
+	}
+
 	/* Map the shared frame, irq etc. */
 	err = xen_blkif_map(be->blkif, ring_ref, evtchn);
 	if (err) {
@@ -914,6 +891,23 @@ static int connect_ring(struct backend_info *be)
 	}
 
 	return 0;
+
+fail:
+	list_for_each_entry_safe(req, n, &be->blkif->pending_free, free_list) {
+		list_del(&req->free_list);
+		for (j = 0; j < MAX_INDIRECT_SEGMENTS; j++) {
+			if (!req->segments[j])
+				break;
+			kfree(req->segments[j]);
+		}
+		for (j = 0; j < MAX_INDIRECT_PAGES; j++) {
+			if (!req->indirect_pages[j])
+				break;
+			kfree(req->indirect_pages[j]);
+		}
+		kfree(req);
+	}
+	return -ENOMEM;
 }
 
 static const struct xenbus_device_id xen_blkbk_ids[] = {
