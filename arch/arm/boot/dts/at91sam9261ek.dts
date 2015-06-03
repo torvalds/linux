@@ -13,7 +13,8 @@
 	compatible = "atmel,at91sam9261ek", "atmel,at91sam9261", "atmel,at91sam9";
 
 	chosen {
-		bootargs = "console=ttyS0,115200 rootfstype=ubifs ubi.mtd=5 root=ubi0:rootfs rw";
+		bootargs = "rootfstype=ubifs ubi.mtd=5 root=ubi0:rootfs rw";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
