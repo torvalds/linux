@@ -316,7 +316,7 @@ static int update_vol(struct ubi_device *ubi, struct ubi_attach_info *ai,
 			list_add_tail(&victim->u.list, &ai->erase);
 
 			if (av->highest_lnum == be32_to_cpu(new_vh->lnum))
-				av->last_data_size = \
+				av->last_data_size =
 					be32_to_cpu(new_vh->data_size);
 
 			dbg_bld("vol %i: AEB %i's PEB %i is the newer",
