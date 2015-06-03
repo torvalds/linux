@@ -6,7 +6,7 @@
  * Copyright 2005, Devicescape Software, Inc.
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
- * Copyright 2013-2014  Intel Mobile Communications GmbH
+ * Copyright 2013-2015  Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -69,6 +69,7 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	int clen, srlen;
 	enum nl80211_bss_scan_width scan_width;
 	s32 signal = 0;
+	bool signal_valid;
 
 	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
 		signal = rx_status->signal * 100;
@@ -86,6 +87,11 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 					       GFP_ATOMIC);
 	if (!cbss)
 		return NULL;
+	/* In case the signal is invalid update the status */
+	signal_valid = abs(channel->center_freq - cbss->channel->center_freq)
+		<= local->hw.wiphy->max_adj_channel_rssi_comp;
+	if (!signal_valid)
+		rx_status->flag |= RX_FLAG_NO_SIGNAL_VAL;
 
 	bss = (void *)cbss->priv;
 
