@@ -2729,6 +2729,7 @@ static int cgroup_procs_write_permission(struct task_struct *task,
 		cset = task_css_set(task);
 		list_add(&cset->mg_node, &tset.src_csets);
 		ret = cgroup_allow_attach(dst_cgrp, &tset);
+		list_del(&tset.src_csets);
 		if (ret)
 			ret = -EACCES;
 	}
