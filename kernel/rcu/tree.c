@@ -4082,7 +4082,7 @@ static void __init rcu_init_geometry(void)
 {
 	ulong d;
 	int i;
-	int rcu_capacity[MAX_RCU_LVLS + 1];
+	int rcu_capacity[MAX_RCU_LVLS];
 
 	/*
 	 * Initialize any unspecified boot parameters.
@@ -4119,29 +4119,27 @@ static void __init rcu_init_geometry(void)
 
 	/*
 	 * Compute number of nodes that can be handled an rcu_node tree
-	 * with the given number of levels.  Setting rcu_capacity[0] makes
-	 * some of the arithmetic easier.
+	 * with the given number of levels.
 	 */
-	rcu_capacity[0] = 1;
-	rcu_capacity[1] = rcu_fanout_leaf;
-	for (i = 2; i <= MAX_RCU_LVLS; i++)
+	rcu_capacity[0] = rcu_fanout_leaf;
+	for (i = 1; i < MAX_RCU_LVLS; i++)
 		rcu_capacity[i] = rcu_capacity[i - 1] * RCU_FANOUT;
 
 	/*
 	 * The tree must be able to accommodate the configured number of CPUs.
 	 * If this limit is exceeded than we have a serious problem elsewhere.
 	 */
-	if (nr_cpu_ids > rcu_capacity[MAX_RCU_LVLS])
+	if (nr_cpu_ids > rcu_capacity[MAX_RCU_LVLS - 1])
 		panic("rcu_init_geometry: rcu_capacity[] is too small");
 
 	/* Calculate the number of levels in the tree. */
-	for (i = 1; nr_cpu_ids > rcu_capacity[i]; i++) {
+	for (i = 0; nr_cpu_ids > rcu_capacity[i]; i++) {
 	}
-	rcu_num_lvls = i;
+	rcu_num_lvls = i + 1;
 
 	/* Calculate the number of rcu_nodes at each level of the tree. */
 	for (i = 0; i < rcu_num_lvls; i++) {
-		int cap = rcu_capacity[rcu_num_lvls - i];
+		int cap = rcu_capacity[(rcu_num_lvls - 1) - i];
 		num_rcu_lvl[i] = DIV_ROUND_UP(nr_cpu_ids, cap);
 	}
 
