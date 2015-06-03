@@ -103,9 +103,10 @@ void fm10k_ts_tx_hwtstamp(struct fm10k_intfc *interface, __le16 dglort,
 	if (!skb)
 		return;
 
-	/* timestamp the sk_buff and return it to the socket */
+	/* timestamp the sk_buff and free out copy */
 	fm10k_systime_to_hwtstamp(interface, &shhwtstamps, systime);
-	skb_complete_tx_timestamp(skb, &shhwtstamps);
+	skb_tstamp_tx(skb, &shhwtstamps);
+	dev_kfree_skb_any(skb);
 }
 
 void fm10k_ts_tx_subtask(struct fm10k_intfc *interface)
