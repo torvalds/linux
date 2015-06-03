@@ -51,6 +51,7 @@
 					   < 937500 1000000>,
 					   < 750000 1000000>,
 					   < 375000 1000000>;
+			next-level-cache = <&L2_CA15>;
 		};
 	};
 
@@ -71,6 +72,12 @@
 			cooling-maps {
 			};
 		};
+	};
+
+	L2_CA15: cache-controller@0 {
+		compatible = "cache";
+		cache-unified;
+		cache-level = <2>;
 	};
 
 	gic: interrupt-controller@f1001000 {
