@@ -70,16 +70,16 @@ void fm10k_ts_tx_enqueue(struct fm10k_intfc *interface, struct sk_buff *skb)
 	 * if none are present then insert skb in tail of list
 	 */
 	skb = fm10k_ts_tx_skb(interface, FM10K_CB(clone)->fi.w.dglort);
-	if (!skb)
+	if (!skb) {
+		skb_shinfo(clone)->tx_flags |= SKBTX_IN_PROGRESS;
 		__skb_queue_tail(list, clone);
+	}
 
 	spin_unlock_irqrestore(&list->lock, flags);
 
 	/* if list is already has one then we just free the clone */
 	if (skb)
 		kfree_skb(skb);
-	else
-		skb_shinfo(clone)->tx_flags |= SKBTX_IN_PROGRESS;
 }
 
 void fm10k_ts_tx_hwtstamp(struct fm10k_intfc *interface, __le16 dglort,
