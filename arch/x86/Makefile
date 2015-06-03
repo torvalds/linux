@@ -244,7 +244,7 @@ install:
 
 PHONY += vdso_install
 vdso_install:
-	$(Q)$(MAKE) $(build)=arch/x86/vdso $@
+	$(Q)$(MAKE) $(build)=arch/x86/entry/vdso $@
 
 archclean:
 	$(Q)rm -rf $(objtree)/arch/i386
