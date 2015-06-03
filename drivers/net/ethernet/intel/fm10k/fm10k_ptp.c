@@ -79,7 +79,7 @@ void fm10k_ts_tx_enqueue(struct fm10k_intfc *interface, struct sk_buff *skb)
 
 	/* if list is already has one then we just free the clone */
 	if (skb)
-		kfree_skb(skb);
+		dev_kfree_skb(clone);
 }
 
 void fm10k_ts_tx_hwtstamp(struct fm10k_intfc *interface, __le16 dglort,
