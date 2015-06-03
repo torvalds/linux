@@ -37,6 +37,7 @@
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
 #include <linux/firmware.h>
+#include <linux/dmapool.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -9435,6 +9436,7 @@ static int AscInitSetConfig(struct pci_dev *pdev, struct Scsi_Host *shost)
  * on big-endian platforms so char fields read as words are actually being
  * unswapped on big-endian platforms.
  */
+#ifdef CONFIG_PCI
 static ADVEEP_3550_CONFIG Default_3550_EEPROM_Config = {
 	ADV_EEPROM_BIOS_ENABLE,	/* cfg_lsw */
 	0x0000,			/* cfg_msw */
@@ -9771,7 +9773,6 @@ static ADVEEP_38C1600_CONFIG ADVEEP_38C1600_Config_Field_IsChar = {
 	0			/* 63 reserved */
 };
 
-#ifdef CONFIG_PCI
 /*
  * Wait for EEPROM command to complete
  */
@@ -11385,7 +11386,9 @@ static int advansys_board_found(struct Scsi_Host *shost, unsigned int iop,
  err_unmap:
 	if (boardp->ioremap_addr)
 		iounmap(boardp->ioremap_addr);
+#ifdef CONFIG_PCI
  err_shost:
+#endif
 	return ret;
 }
 
