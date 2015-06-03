@@ -417,8 +417,8 @@ static ssize_t osc_checksum_type_seq_write(struct file *file,
 LPROC_SEQ_FOPS(osc_checksum_type);
 
 static ssize_t resend_count_show(struct kobject *kobj,
-			     struct attribute *attr,
-			     char *buf)
+				 struct attribute *attr,
+				 char *buf)
 {
 	struct obd_device *obd = container_of(kobj, struct obd_device,
 					      obd_kobj);
@@ -427,9 +427,9 @@ static ssize_t resend_count_show(struct kobject *kobj,
 }
 
 static ssize_t resend_count_store(struct kobject *kobj,
-			      struct attribute *attr,
-			      const char *buffer,
-			      size_t count)
+				  struct attribute *attr,
+				  const char *buffer,
+				  size_t count)
 {
 	struct obd_device *obd = container_of(kobj, struct obd_device,
 					      obd_kobj);
@@ -682,8 +682,8 @@ static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
 #undef pct
 
 static ssize_t osc_rpc_stats_seq_write(struct file *file,
-				const char __user *buf,
-				size_t len, loff_t *off)
+				       const char __user *buf,
+				       size_t len, loff_t *off)
 {
 	struct seq_file *seq = file->private_data;
 	struct obd_device *dev = seq->private;
@@ -721,8 +721,8 @@ static int osc_stats_seq_show(struct seq_file *seq, void *v)
 }
 
 static ssize_t osc_stats_seq_write(struct file *file,
-				const char __user *buf,
-				size_t len, loff_t *off)
+				   const char __user *buf,
+				   size_t len, loff_t *off)
 {
 	struct seq_file *seq = file->private_data;
 	struct obd_device *dev = seq->private;
