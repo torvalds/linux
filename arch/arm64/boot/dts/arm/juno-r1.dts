@@ -66,6 +66,7 @@
 			device_type = "cpu";
 			enable-method = "psci";
 			next-level-cache = <&A57_L2>;
+			clocks = <&scpi_dvfs 0>;
 		};
 
 		A57_1: cpu@1 {
@@ -74,6 +75,7 @@
 			device_type = "cpu";
 			enable-method = "psci";
 			next-level-cache = <&A57_L2>;
+			clocks = <&scpi_dvfs 0>;
 		};
 
 		A53_0: cpu@100 {
@@ -82,6 +84,7 @@
 			device_type = "cpu";
 			enable-method = "psci";
 			next-level-cache = <&A53_L2>;
+			clocks = <&scpi_dvfs 1>;
 		};
 
 		A53_1: cpu@101 {
@@ -90,6 +93,7 @@
 			device_type = "cpu";
 			enable-method = "psci";
 			next-level-cache = <&A53_L2>;
+			clocks = <&scpi_dvfs 1>;
 		};
 
 		A53_2: cpu@102 {
@@ -98,6 +102,7 @@
 			device_type = "cpu";
 			enable-method = "psci";
 			next-level-cache = <&A53_L2>;
+			clocks = <&scpi_dvfs 1>;
 		};
 
 		A53_3: cpu@103 {
@@ -106,6 +111,7 @@
 			device_type = "cpu";
 			enable-method = "psci";
 			next-level-cache = <&A53_L2>;
+			clocks = <&scpi_dvfs 1>;
 		};
 
 		A57_L2: l2-cache0 {
