@@ -6705,6 +6705,7 @@ enum skl_disp_power_wells {
 #define	  GEN6_PCODE_READ_RC6VIDS		0x5
 #define     GEN6_ENCODE_RC6_VID(mv)		(((mv) - 245) / 5)
 #define     GEN6_DECODE_RC6_VID(vids)		(((vids) * 5) + 245)
+#define   BDW_PCODE_DISPLAY_FREQ_CHANGE_REQ	0x18
 #define   GEN9_PCODE_READ_MEM_LATENCY		0x6
 #define     GEN9_MEM_LATENCY_LEVEL_MASK		0xFF
 #define     GEN9_MEM_LATENCY_LEVEL_1_5_SHIFT	8
@@ -7167,6 +7168,7 @@ enum skl_disp_power_wells {
 #define  LCPLL_CLK_FREQ_337_5_BDW	(2<<26)
 #define  LCPLL_CLK_FREQ_675_BDW		(3<<26)
 #define  LCPLL_CD_CLOCK_DISABLE		(1<<25)
+#define  LCPLL_ROOT_CD_CLOCK_DISABLE	(1<<24)
 #define  LCPLL_CD2X_CLOCK_DISABLE	(1<<23)
 #define  LCPLL_POWER_DOWN_ALLOW		(1<<22)
 #define  LCPLL_CD_SOURCE_FCLK		(1<<21)
