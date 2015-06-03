@@ -32,7 +32,7 @@ struct ts2020_config {
 	/*
 	 * RF loop-through
 	 */
-	u8 loop_through:1;
+	bool loop_through:1;
 
 	/*
 	 * clock output

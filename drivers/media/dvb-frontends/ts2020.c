@@ -37,6 +37,7 @@ struct ts2020_priv {
 	/* i2c details */
 	struct i2c_adapter *i2c;
 	int i2c_address;
+	bool loop_through:1;
 	u8 clk_out:2;
 	u8 clk_out_div:5;
 	u32 frequency_div; /* LO output divider switch frequency */
@@ -44,7 +45,6 @@ struct ts2020_priv {
 #define TS2020_M88TS2020 0
 #define TS2020_M88TS2022 1
 	u8 tuner;
-	u8 loop_through:1;
 };
 
 struct ts2020_reg_val {
@@ -582,6 +582,7 @@ static int ts2020_probe(struct i2c_client *client,
 
 	dev->i2c = client->adapter;
 	dev->i2c_address = client->addr;
+	dev->loop_through = pdata->loop_through;
 	dev->clk_out = pdata->clk_out;
 	dev->clk_out_div = pdata->clk_out_div;
 	dev->frequency_div = pdata->frequency_div;
