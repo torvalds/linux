@@ -1820,7 +1820,7 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 				    "Failed to disable 11h extensions!!");
 			return -1;
 		}
-		priv->state_11h.is_11h_active = true;
+		priv->state_11h.is_11h_active = false;
 	}
 
 	if (mwifiex_config_start_uap(priv, bss_cfg)) {
