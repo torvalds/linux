@@ -529,14 +529,13 @@ GLOBAL(\label)
 GLOBAL(stub32_clone)
 	leaq	sys_clone(%rip), %rax
 	/*
-	 * 32-bit clone API is clone(..., int tls_val, int *child_tidptr).
-	 * 64-bit clone API is clone(..., int *child_tidptr, int tls_val).
-	 * Native 64-bit kernel's sys_clone() implements the latter.
-	 * We need to swap args here. But since tls_val is in fact ignored
-	 * by sys_clone(), we can get away with an assignment
-	 * (arg4 = arg5) instead of a full swap:
+	 * The 32-bit clone ABI is: clone(..., int tls_val, int *child_tidptr).
+	 * The 64-bit clone ABI is: clone(..., int *child_tidptr, int tls_val).
+	 *
+	 * The native 64-bit kernel's sys_clone() implements the latter,
+	 * so we need to swap arguments here before calling it:
 	 */
-	mov	%r8, %rcx
+	xchg	%r8, %rcx
 	jmp	ia32_ptregs_common
 
 	ALIGN
