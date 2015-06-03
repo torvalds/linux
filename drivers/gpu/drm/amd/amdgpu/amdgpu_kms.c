@@ -414,11 +414,15 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		dev_info.num_shader_arrays_per_engine = adev->gfx.config.max_sh_per_se;
 		/* return all clocks in KHz */
 		dev_info.gpu_counter_freq = amdgpu_asic_get_xclk(adev) * 10;
-		if (adev->pm.dpm_enabled)
+		if (adev->pm.dpm_enabled) {
 			dev_info.max_engine_clock =
 				adev->pm.dpm.dyn_state.max_clock_voltage_on_ac.sclk * 10;
-		else
+			dev_info.max_memory_clock =
+				adev->pm.dpm.dyn_state.max_clock_voltage_on_ac.mclk * 10;
+		} else {
 			dev_info.max_engine_clock = adev->pm.default_sclk * 10;
+			dev_info.max_memory_clock = adev->pm.default_mclk * 10;
+		}
 		dev_info.enabled_rb_pipes_mask = adev->gfx.config.backend_enable_mask;
 		dev_info.num_rb_pipes = adev->gfx.config.max_backends_per_se *
 					adev->gfx.config.max_shader_engines;

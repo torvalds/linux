@@ -553,6 +553,7 @@ struct drm_amdgpu_info_device {
 	uint32_t num_shader_arrays_per_engine;
 	uint32_t gpu_counter_freq; /* in KHz */
 	uint64_t max_engine_clock; /* in KHz */
+	uint64_t max_memory_clock; /* in KHz */
 	/* cu information */
 	uint32_t cu_active_number;
 	uint32_t cu_ao_mask;
