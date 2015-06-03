@@ -1430,13 +1430,6 @@ static int blkfront_probe(struct xenbus_device *dev,
 	info->handle = simple_strtoul(strrchr(dev->nodename, '/')+1, NULL, 0);
 	dev_set_drvdata(&dev->dev, info);
 
-	err = talk_to_blkback(dev, info);
-	if (err) {
-		kfree(info);
-		dev_set_drvdata(&dev->dev, NULL);
-		return err;
-	}
-
 	return 0;
 }
 
@@ -1906,8 +1899,13 @@ static void blkback_changed(struct xenbus_device *dev,
 	dev_dbg(&dev->dev, "blkfront:blkback_changed to state %d.\n", backend_state);
 
 	switch (backend_state) {
-	case XenbusStateInitialising:
 	case XenbusStateInitWait:
+		if (talk_to_blkback(dev, info)) {
+			kfree(info);
+			dev_set_drvdata(&dev->dev, NULL);
+			break;
+		}
+	case XenbusStateInitialising:
 	case XenbusStateInitialised:
 	case XenbusStateReconfiguring:
 	case XenbusStateReconfigured:
