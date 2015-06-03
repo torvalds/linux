@@ -156,7 +156,7 @@ int mwifiex_ret_11n_delba(struct mwifiex_private *priv,
 int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
 			      struct host_cmd_ds_command *resp)
 {
-	int tid;
+	int tid, tid_down;
 	struct host_cmd_ds_11n_addba_rsp *add_ba_rsp = &resp->params.add_ba_rsp;
 	struct mwifiex_tx_ba_stream_tbl *tx_ba_tbl;
 	struct mwifiex_ra_list_tbl *ra_list;
@@ -167,7 +167,9 @@ int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
 
 	tid = (block_ack_param_set & IEEE80211_ADDBA_PARAM_TID_MASK)
 	       >> BLOCKACKPARAM_TID_POS;
-	ra_list = mwifiex_wmm_get_ralist_node(priv, tid, add_ba_rsp->
+
+	tid_down = mwifiex_wmm_downgrade_tid(priv, tid);
+	ra_list = mwifiex_wmm_get_ralist_node(priv, tid_down, add_ba_rsp->
 		peer_mac_addr);
 	if (le16_to_cpu(add_ba_rsp->status_code) != BA_RESULT_SUCCESS) {
 		if (ra_list) {
@@ -530,13 +532,16 @@ void mwifiex_create_ba_tbl(struct mwifiex_private *priv, u8 *ra, int tid,
 	struct mwifiex_tx_ba_stream_tbl *new_node;
 	struct mwifiex_ra_list_tbl *ra_list;
 	unsigned long flags;
+	int tid_down;
 
 	if (!mwifiex_get_ba_tbl(priv, tid, ra)) {
 		new_node = kzalloc(sizeof(struct mwifiex_tx_ba_stream_tbl),
 				   GFP_ATOMIC);
 		if (!new_node)
 			return;
-		ra_list = mwifiex_wmm_get_ralist_node(priv, tid, ra);
+
+		tid_down = mwifiex_wmm_downgrade_tid(priv, tid);
+		ra_list = mwifiex_wmm_get_ralist_node(priv, tid_down, ra);
 		if (ra_list) {
 			ra_list->ba_status = ba_status;
 			ra_list->amsdu_in_ampdu = false;

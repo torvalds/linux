@@ -663,6 +663,7 @@ mwifiex_del_ba_tbl(struct mwifiex_private *priv, int tid, u8 *peer_mac,
 	struct mwifiex_ra_list_tbl *ra_list;
 	u8 cleanup_rx_reorder_tbl;
 	unsigned long flags;
+	int tid_down;
 
 	if (type == TYPE_DELBA_RECEIVE)
 		cleanup_rx_reorder_tbl = (initiator) ? true : false;
@@ -688,7 +689,9 @@ mwifiex_del_ba_tbl(struct mwifiex_private *priv, int tid, u8 *peer_mac,
 				    "event: TID, RA not found in table\n");
 			return;
 		}
-		ra_list = mwifiex_wmm_get_ralist_node(priv, tid, peer_mac);
+
+		tid_down = mwifiex_wmm_downgrade_tid(priv, tid);
+		ra_list = mwifiex_wmm_get_ralist_node(priv, tid_down, peer_mac);
 		if (ra_list) {
 			ra_list->amsdu_in_ampdu = false;
 			ra_list->ba_status = BA_SETUP_NONE;
