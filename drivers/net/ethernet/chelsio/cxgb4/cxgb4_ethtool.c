@@ -133,12 +133,30 @@ static char adapter_stats_strings[][ETH_GSTRING_LEN] = {
 	"write_coal_fail        ",
 };
 
+static char channel_stats_strings[][ETH_GSTRING_LEN] = {
+	"--------Channel--------- ",
+	"tp_cpl_requests        ",
+	"tp_cpl_responses       ",
+	"tp_mac_in_errs         ",
+	"tp_hdr_in_errs         ",
+	"tp_tcp_in_errs         ",
+	"tp_tcp6_in_errs        ",
+	"tp_tnl_cong_drops      ",
+	"tp_tnl_tx_drops        ",
+	"tp_ofld_vlan_drops     ",
+	"tp_ofld_chan_drops     ",
+	"fcoe_octets_ddp        ",
+	"fcoe_frames_ddp        ",
+	"fcoe_frames_drop       ",
+};
+
 static int get_sset_count(struct net_device *dev, int sset)
 {
 	switch (sset) {
 	case ETH_SS_STATS:
 		return ARRAY_SIZE(stats_strings) +
-		       ARRAY_SIZE(adapter_stats_strings);
+		       ARRAY_SIZE(adapter_stats_strings) +
+		       ARRAY_SIZE(channel_stats_strings);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -195,6 +213,9 @@ static void get_strings(struct net_device *dev, u32 stringset, u8 *data)
 		data += sizeof(stats_strings);
 		memcpy(data, adapter_stats_strings,
 		       sizeof(adapter_stats_strings));
+		data += sizeof(adapter_stats_strings);
+		memcpy(data, channel_stats_strings,
+		       sizeof(channel_stats_strings));
 	}
 }
 
@@ -232,6 +253,22 @@ struct adapter_stats {
 	u64 ofld_cong_defer;
 	u64 wc_success;
 	u64 wc_fail;
+};
+
+struct channel_stats {
+	u64 cpl_req;
+	u64 cpl_rsp;
+	u64 mac_in_errs;
+	u64 hdr_in_errs;
+	u64 tcp_in_errs;
+	u64 tcp6_in_errs;
+	u64 tnl_cong_drops;
+	u64 tnl_tx_drops;
+	u64 ofld_vlan_drops;
+	u64 ofld_chan_drops;
+	u64 octets_ddp;
+	u64 frames_ddp;
+	u64 frames_drop;
 };
 
 static void collect_sge_port_stats(const struct adapter *adap,
@@ -308,6 +345,36 @@ static void collect_adapter_stats(struct adapter *adap, struct adapter_stats *s)
 	}
 }
 
+static void collect_channel_stats(struct adapter *adap, struct channel_stats *s,
+				  u8 i)
+{
+	struct tp_cpl_stats cpl_stats;
+	struct tp_err_stats err_stats;
+	struct tp_fcoe_stats fcoe_stats;
+
+	memset(s, 0, sizeof(*s));
+
+	spin_lock(&adap->stats_lock);
+	t4_tp_get_cpl_stats(adap, &cpl_stats);
+	t4_tp_get_err_stats(adap, &err_stats);
+	t4_get_fcoe_stats(adap, i, &fcoe_stats);
+	spin_unlock(&adap->stats_lock);
+
+	s->cpl_req = cpl_stats.req[i];
+	s->cpl_rsp = cpl_stats.rsp[i];
+	s->mac_in_errs = err_stats.mac_in_errs[i];
+	s->hdr_in_errs = err_stats.hdr_in_errs[i];
+	s->tcp_in_errs = err_stats.tcp_in_errs[i];
+	s->tcp6_in_errs = err_stats.tcp6_in_errs[i];
+	s->tnl_cong_drops = err_stats.tnl_cong_drops[i];
+	s->tnl_tx_drops = err_stats.tnl_tx_drops[i];
+	s->ofld_vlan_drops = err_stats.ofld_vlan_drops[i];
+	s->ofld_chan_drops = err_stats.ofld_chan_drops[i];
+	s->octets_ddp = fcoe_stats.octets_ddp;
+	s->frames_ddp = fcoe_stats.frames_ddp;
+	s->frames_drop = fcoe_stats.frames_drop;
+}
+
 static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 		      u64 *data)
 {
@@ -322,6 +389,12 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 	collect_sge_port_stats(adapter, pi, (struct queue_port_stats *)data);
 	data += sizeof(struct queue_port_stats) / sizeof(u64);
 	collect_adapter_stats(adapter, (struct adapter_stats *)data);
+	data += sizeof(struct adapter_stats) / sizeof(u64);
+
+	*data++ = (u64)pi->port_id;
+	collect_channel_stats(adapter, (struct channel_stats *)data,
+			      pi->port_id);
+
 }
 
 static void get_regs(struct net_device *dev, struct ethtool_regs *regs,

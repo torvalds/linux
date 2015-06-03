@@ -3829,6 +3829,27 @@ void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st)
 }
 
 /**
+ *	t4_tp_get_cpl_stats - read TP's CPL MIB counters
+ *	@adap: the adapter
+ *	@st: holds the counter values
+ *
+ *	Returns the values of TP's CPL counters.
+ */
+void t4_tp_get_cpl_stats(struct adapter *adap, struct tp_cpl_stats *st)
+{
+	/* T6 and later has 2 channels */
+	if (adap->params.arch.nchan == NCHAN) {
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, st->req,
+				 8, TP_MIB_CPL_IN_REQ_0_A);
+	} else {
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, st->req,
+				 2, TP_MIB_CPL_IN_REQ_0_A);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, st->rsp,
+				 2, TP_MIB_CPL_OUT_RSP_0_A);
+	}
+}
+
+/**
  *	t4_tp_get_rdma_stats - read TP's RDMA MIB counters
  *	@adap: the adapter
  *	@st: holds the counter values
@@ -3839,6 +3860,28 @@ void t4_tp_get_rdma_stats(struct adapter *adap, struct tp_rdma_stats *st)
 {
 	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, &st->rqe_dfr_pkt,
 			 2, TP_MIB_RQE_DFR_PKT_A);
+}
+
+/**
+ *	t4_get_fcoe_stats - read TP's FCoE MIB counters for a port
+ *	@adap: the adapter
+ *	@idx: the port index
+ *	@st: holds the counter values
+ *
+ *	Returns the values of TP's FCoE counters for the selected port.
+ */
+void t4_get_fcoe_stats(struct adapter *adap, unsigned int idx,
+		       struct tp_fcoe_stats *st)
+{
+	u32 val[2];
+
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, &st->frames_ddp,
+			 1, TP_MIB_FCOE_DDP_0_A + idx);
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, &st->frames_drop,
+			 1, TP_MIB_FCOE_DROP_0_A + idx);
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, val,
+			 2, TP_MIB_FCOE_BYTE_0_HI_A + 2 * idx);
+	st->octets_ddp = ((u64)val[0] << 32) | val[1];
 }
 
 /**

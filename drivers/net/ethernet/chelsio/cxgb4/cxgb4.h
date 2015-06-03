@@ -210,6 +210,12 @@ struct tp_usm_stats {
 	u64 octets;
 };
 
+struct tp_fcoe_stats {
+	u32 frames_ddp;
+	u32 frames_drop;
+	u64 octets_ddp;
+};
+
 struct tp_err_stats {
 	u32 mac_in_errs[4];
 	u32 hdr_in_errs[4];
@@ -221,6 +227,11 @@ struct tp_err_stats {
 	u32 tcp6_in_errs[4];
 	u32 ofld_no_neigh;
 	u32 ofld_cong_defer;
+};
+
+struct tp_cpl_stats {
+	u32 req[4];
+	u32 rsp[4];
 };
 
 struct tp_rdma_stats {
@@ -1320,10 +1331,13 @@ void t4_tp_wr_bits_indirect(struct adapter *adap, unsigned int addr,
 			    unsigned int mask, unsigned int val);
 void t4_tp_read_la(struct adapter *adap, u64 *la_buf, unsigned int *wrptr);
 void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st);
+void t4_tp_get_cpl_stats(struct adapter *adap, struct tp_cpl_stats *st);
 void t4_tp_get_rdma_stats(struct adapter *adap, struct tp_rdma_stats *st);
 void t4_get_usm_stats(struct adapter *adap, struct tp_usm_stats *st);
 void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
 			 struct tp_tcp_stats *v6);
+void t4_get_fcoe_stats(struct adapter *adap, unsigned int idx,
+		       struct tp_fcoe_stats *st);
 void t4_load_mtus(struct adapter *adap, const unsigned short *mtus,
 		  const unsigned short *alpha, const unsigned short *beta);
 
