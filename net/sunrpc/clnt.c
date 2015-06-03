@@ -891,15 +891,8 @@ void rpc_task_set_client(struct rpc_task *task, struct rpc_clnt *clnt)
 			task->tk_flags |= RPC_TASK_SOFT;
 		if (clnt->cl_noretranstimeo)
 			task->tk_flags |= RPC_TASK_NO_RETRANS_TIMEOUT;
-		if (sk_memalloc_socks()) {
-			struct rpc_xprt *xprt;
-
-			rcu_read_lock();
-			xprt = rcu_dereference(clnt->cl_xprt);
-			if (xprt->swapper)
-				task->tk_flags |= RPC_TASK_SWAPPER;
-			rcu_read_unlock();
-		}
+		if (atomic_read(&clnt->cl_swapper))
+			task->tk_flags |= RPC_TASK_SWAPPER;
 		/* Add to the client's list of all tasks */
 		spin_lock(&clnt->cl_lock);
 		list_add_tail(&task->tk_task, &clnt->cl_tasks);
@@ -2479,3 +2472,59 @@ void rpc_show_tasks(struct net *net)
 	spin_unlock(&sn->rpc_client_lock);
 }
 #endif
+
+#if IS_ENABLED(CONFIG_SUNRPC_SWAP)
+int
+rpc_clnt_swap_activate(struct rpc_clnt *clnt)
+{
+	int ret = 0;
+	struct rpc_xprt	*xprt;
+
+	if (atomic_inc_return(&clnt->cl_swapper) == 1) {
+retry:
+		rcu_read_lock();
+		xprt = xprt_get(rcu_dereference(clnt->cl_xprt));
+		rcu_read_unlock();
+		if (!xprt) {
+			/*
+			 * If we didn't get a reference, then we likely are
+			 * racing with a migration event. Wait for a grace
+			 * period and try again.
+			 */
+			synchronize_rcu();
+			goto retry;
+		}
+
+		ret = xs_swapper(xprt, 1);
+		xprt_put(xprt);
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(rpc_clnt_swap_activate);
+
+void
+rpc_clnt_swap_deactivate(struct rpc_clnt *clnt)
+{
+	struct rpc_xprt	*xprt;
+
+	if (atomic_dec_if_positive(&clnt->cl_swapper) == 0) {
+retry:
+		rcu_read_lock();
+		xprt = xprt_get(rcu_dereference(clnt->cl_xprt));
+		rcu_read_unlock();
+		if (!xprt) {
+			/*
+			 * If we didn't get a reference, then we likely are
+			 * racing with a migration event. Wait for a grace
+			 * period and try again.
+			 */
+			synchronize_rcu();
+			goto retry;
+		}
+
+		xs_swapper(xprt, 0);
+		xprt_put(xprt);
+	}
+}
+EXPORT_SYMBOL_GPL(rpc_clnt_swap_deactivate);
+#endif /* CONFIG_SUNRPC_SWAP */
