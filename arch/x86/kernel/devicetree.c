@@ -4,7 +4,6 @@
 #include <linux/bootmem.h>
 #include <linux/export.h>
 #include <linux/io.h>
-#include <linux/irqdomain.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/of.h>
@@ -17,6 +16,7 @@
 #include <linux/of_pci.h>
 #include <linux/initrd.h>
 
+#include <asm/irqdomain.h>
 #include <asm/hpet.h>
 #include <asm/apic.h>
 #include <asm/pci_x86.h>
@@ -196,38 +196,31 @@ static struct of_ioapic_type of_ioapic_type[] =
 	},
 };
 
-static int ioapic_xlate(struct irq_domain *domain,
-			struct device_node *controller,
-			const u32 *intspec, u32 intsize,
-			irq_hw_number_t *out_hwirq, u32 *out_type)
+static int dt_irqdomain_alloc(struct irq_domain *domain, unsigned int virq,
+			      unsigned int nr_irqs, void *arg)
 {
+	struct of_phandle_args *irq_data = (void *)arg;
 	struct of_ioapic_type *it;
-	u32 line, idx, gsi;
+	struct irq_alloc_info tmp;
 
-	if (WARN_ON(intsize < 2))
+	if (WARN_ON(irq_data->args_count < 2))
+		return -EINVAL;
+	if (irq_data->args[1] >= ARRAY_SIZE(of_ioapic_type))
 		return -EINVAL;
 
-	line = intspec[0];
+	it = &of_ioapic_type[irq_data->args[1]];
+	ioapic_set_alloc_attr(&tmp, NUMA_NO_NODE, it->trigger, it->polarity);
+	tmp.ioapic_id = mpc_ioapic_id(mp_irqdomain_ioapic_idx(domain));
+	tmp.ioapic_pin = irq_data->args[0];
 
-	if (intspec[1] >= ARRAY_SIZE(of_ioapic_type))
-		return -EINVAL;
-
-	it = &of_ioapic_type[intspec[1]];
-
-	idx = (u32)(long)domain->host_data;
-	gsi = mp_pin_to_gsi(idx, line);
-	if (mp_set_gsi_attr(gsi, it->trigger, it->polarity, cpu_to_node(0)))
-		return -EBUSY;
-
-	*out_hwirq = line;
-	*out_type = it->out_type;
-	return 0;
+	return mp_irqdomain_alloc(domain, virq, nr_irqs, &tmp);
 }
 
-const struct irq_domain_ops ioapic_irq_domain_ops = {
-	.map = mp_irqdomain_map,
-	.unmap = mp_irqdomain_unmap,
-	.xlate = ioapic_xlate,
+static const struct irq_domain_ops ioapic_irq_domain_ops = {
+	.alloc		= dt_irqdomain_alloc,
+	.free		= mp_irqdomain_free,
+	.activate	= mp_irqdomain_activate,
+	.deactivate	= mp_irqdomain_deactivate,
 };
 
 static void __init dtb_add_ioapic(struct device_node *dn)

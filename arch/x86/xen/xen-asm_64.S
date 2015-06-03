@@ -15,6 +15,8 @@
 #include <asm/percpu.h>
 #include <asm/processor-flags.h>
 #include <asm/segment.h>
+#include <asm/asm-offsets.h>
+#include <asm/thread_info.h>
 
 #include <xen/interface/xen.h>
 
@@ -47,29 +49,13 @@ ENTRY(xen_iret)
 ENDPATCH(xen_iret)
 RELOC(xen_iret, 1b+1)
 
-/*
- * sysexit is not used for 64-bit processes, so it's only ever used to
- * return to 32-bit compat userspace.
- */
-ENTRY(xen_sysexit)
-	pushq $__USER32_DS
-	pushq %rcx
-	pushq $X86_EFLAGS_IF
-	pushq $__USER32_CS
-	pushq %rdx
-
-	pushq $0
-1:	jmp hypercall_iret
-ENDPATCH(xen_sysexit)
-RELOC(xen_sysexit, 1b+1)
-
 ENTRY(xen_sysret64)
 	/*
 	 * We're already on the usermode stack at this point, but
 	 * still with the kernel gs, so we can easily switch back
 	 */
 	movq %rsp, PER_CPU_VAR(rsp_scratch)
-	movq PER_CPU_VAR(kernel_stack), %rsp
+	movq PER_CPU_VAR(cpu_current_top_of_stack), %rsp
 
 	pushq $__USER_DS
 	pushq PER_CPU_VAR(rsp_scratch)
@@ -88,7 +74,7 @@ ENTRY(xen_sysret32)
 	 * still with the kernel gs, so we can easily switch back
 	 */
 	movq %rsp, PER_CPU_VAR(rsp_scratch)
-	movq PER_CPU_VAR(kernel_stack), %rsp
+	movq PER_CPU_VAR(cpu_current_top_of_stack), %rsp
 
 	pushq $__USER32_DS
 	pushq PER_CPU_VAR(rsp_scratch)

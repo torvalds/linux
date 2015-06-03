@@ -82,7 +82,7 @@ iomap_atomic_prot_pfn(unsigned long pfn, pgprot_t prot)
 	 * MTRR is UC or WC.  UC_MINUS gets the real intention, of the
 	 * user, which is "WC if the MTRR is WC, UC if you can't do that."
 	 */
-	if (!pat_enabled && pgprot_val(prot) ==
+	if (!pat_enabled() && pgprot_val(prot) ==
 	    (__PAGE_KERNEL | cachemode2protval(_PAGE_CACHE_MODE_WC)))
 		prot = __pgprot(__PAGE_KERNEL |
 				cachemode2protval(_PAGE_CACHE_MODE_UC_MINUS));

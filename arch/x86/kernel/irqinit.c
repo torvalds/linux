@@ -86,7 +86,7 @@ void __init init_IRQ(void)
 	int i;
 
 	/*
-	 * On cpu 0, Assign IRQ0_VECTOR..IRQ15_VECTOR's to IRQ 0..15.
+	 * On cpu 0, Assign ISA_IRQ_VECTOR(irq) to IRQ 0..15.
 	 * If these IRQ's are handled by legacy interrupt-controllers like PIC,
 	 * then this configuration will likely be static after the boot. If
 	 * these IRQ's are handled by more mordern controllers like IO-APIC,
@@ -94,7 +94,7 @@ void __init init_IRQ(void)
 	 * irq's migrate etc.
 	 */
 	for (i = 0; i < nr_legacy_irqs(); i++)
-		per_cpu(vector_irq, 0)[IRQ0_VECTOR + i] = i;
+		per_cpu(vector_irq, 0)[ISA_IRQ_VECTOR(i)] = i;
 
 	x86_init.irqs.intr_init();
 }
@@ -144,6 +144,8 @@ static void __init apic_intr_init(void)
 #ifdef CONFIG_HAVE_KVM
 	/* IPI for KVM to deliver posted interrupt */
 	alloc_intr_gate(POSTED_INTR_VECTOR, kvm_posted_intr_ipi);
+	/* IPI for KVM to deliver interrupt to wake up tasks */
+	alloc_intr_gate(POSTED_INTR_WAKEUP_VECTOR, kvm_posted_intr_wakeup_ipi);
 #endif
 
 	/* IPI vectors for APIC spurious and error interrupts */

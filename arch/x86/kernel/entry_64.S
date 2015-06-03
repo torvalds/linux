@@ -216,7 +216,7 @@ ENTRY(system_call)
 GLOBAL(system_call_after_swapgs)
 
 	movq	%rsp,PER_CPU_VAR(rsp_scratch)
-	movq	PER_CPU_VAR(kernel_stack),%rsp
+	movq	PER_CPU_VAR(cpu_current_top_of_stack),%rsp
 
 	/* Construct struct pt_regs on stack */
 	pushq_cfi $__USER_DS			/* pt_regs->ss */
@@ -419,26 +419,27 @@ syscall_return:
 	 * a completely clean 64-bit userspace context.
 	 */
 	movq RCX(%rsp),%rcx
-	cmpq %rcx,RIP(%rsp)		/* RCX == RIP */
+	movq RIP(%rsp),%r11
+	cmpq %rcx,%r11			/* RCX == RIP */
 	jne opportunistic_sysret_failed
 
 	/*
 	 * On Intel CPUs, SYSRET with non-canonical RCX/RIP will #GP
 	 * in kernel space.  This essentially lets the user take over
-	 * the kernel, since userspace controls RSP.  It's not worth
-	 * testing for canonicalness exactly -- this check detects any
-	 * of the 17 high bits set, which is true for non-canonical
-	 * or kernel addresses.  (This will pessimize vsyscall=native.
-	 * Big deal.)
+	 * the kernel, since userspace controls RSP.
 	 *
-	 * If virtual addresses ever become wider, this will need
+	 * If width of "canonical tail" ever becomes variable, this will need
 	 * to be updated to remain correct on both old and new CPUs.
 	 */
 	.ifne __VIRTUAL_MASK_SHIFT - 47
 	.error "virtual address width changed -- SYSRET checks need update"
 	.endif
-	shr $__VIRTUAL_MASK_SHIFT, %rcx
-	jnz opportunistic_sysret_failed
+	/* Change top 16 bits to be the sign-extension of 47th bit */
+	shl	$(64 - (__VIRTUAL_MASK_SHIFT+1)), %rcx
+	sar	$(64 - (__VIRTUAL_MASK_SHIFT+1)), %rcx
+	/* If this changed %rcx, it was not canonical */
+	cmpq	%rcx, %r11
+	jne	opportunistic_sysret_failed
 
 	cmpq $__USER_CS,CS(%rsp)	/* CS must match SYSRET */
 	jne opportunistic_sysret_failed
@@ -475,8 +476,8 @@ syscall_return:
 	 */
 syscall_return_via_sysret:
 	CFI_REMEMBER_STATE
-	/* r11 is already restored (see code above) */
-	RESTORE_C_REGS_EXCEPT_R11
+	/* rcx and r11 are already restored (see code above) */
+	RESTORE_C_REGS_EXCEPT_RCX_R11
 	movq RSP(%rsp),%rsp
 	USERGS_SYSRET64
 	CFI_RESTORE_STATE
@@ -533,40 +534,27 @@ GLOBAL(stub_execveat)
 	CFI_ENDPROC
 END(stub_execveat)
 
-#ifdef CONFIG_X86_X32_ABI
+#if defined(CONFIG_X86_X32_ABI) || defined(CONFIG_IA32_EMULATION)
 	.align	8
 GLOBAL(stub_x32_execve)
-	CFI_STARTPROC
-	DEFAULT_FRAME 0, 8
-	call	compat_sys_execve
-	jmp	return_from_execve
-	CFI_ENDPROC
-END(stub_x32_execve)
-	.align	8
-GLOBAL(stub_x32_execveat)
-	CFI_STARTPROC
-	DEFAULT_FRAME 0, 8
-	call	compat_sys_execveat
-	jmp	return_from_execve
-	CFI_ENDPROC
-END(stub_x32_execveat)
-#endif
-
-#ifdef CONFIG_IA32_EMULATION
-	.align	8
 GLOBAL(stub32_execve)
 	CFI_STARTPROC
+	DEFAULT_FRAME 0, 8
 	call	compat_sys_execve
 	jmp	return_from_execve
 	CFI_ENDPROC
 END(stub32_execve)
+END(stub_x32_execve)
 	.align	8
+GLOBAL(stub_x32_execveat)
 GLOBAL(stub32_execveat)
 	CFI_STARTPROC
+	DEFAULT_FRAME 0, 8
 	call	compat_sys_execveat
 	jmp	return_from_execve
 	CFI_ENDPROC
 END(stub32_execveat)
+END(stub_x32_execveat)
 #endif
 
 /*
@@ -622,7 +610,7 @@ ENTRY(ret_from_fork)
 
 	RESTORE_EXTRA_REGS
 
-	testl $3,CS(%rsp)			# from kernel_thread?
+	testb	$3, CS(%rsp)			# from kernel_thread?
 
 	/*
 	 * By the time we get here, we have no idea whether our pt_regs,
@@ -686,8 +674,8 @@ END(irq_entries_start)
 
 	leaq -RBP(%rsp),%rdi	/* arg1 for \func (pointer to pt_regs) */
 
-	testl $3, CS-RBP(%rsp)
-	je 1f
+	testb	$3, CS-RBP(%rsp)
+	jz	1f
 	SWAPGS
 1:
 	/*
@@ -741,8 +729,8 @@ ret_from_intr:
 	CFI_DEF_CFA_REGISTER	rsp
 	CFI_ADJUST_CFA_OFFSET	RBP
 
-	testl $3,CS(%rsp)
-	je retint_kernel
+	testb	$3, CS(%rsp)
+	jz	retint_kernel
 	/* Interrupt came from user space */
 
 	GET_THREAD_INFO(%rcx)
@@ -928,6 +916,8 @@ apicinterrupt X86_PLATFORM_IPI_VECTOR \
 #ifdef CONFIG_HAVE_KVM
 apicinterrupt3 POSTED_INTR_VECTOR \
 	kvm_posted_intr_ipi smp_kvm_posted_intr_ipi
+apicinterrupt3 POSTED_INTR_WAKEUP_VECTOR \
+	kvm_posted_intr_wakeup_ipi smp_kvm_posted_intr_wakeup_ipi
 #endif
 
 #ifdef CONFIG_X86_MCE_THRESHOLD
@@ -989,7 +979,7 @@ ENTRY(\sym)
 	.if \paranoid
 	.if \paranoid == 1
 	CFI_REMEMBER_STATE
-	testl $3, CS(%rsp)		/* If coming from userspace, switch */
+	testb	$3, CS(%rsp)		/* If coming from userspace, switch */
 	jnz 1f				/* stacks. */
 	.endif
 	call paranoid_entry
@@ -1202,17 +1192,17 @@ ENTRY(xen_failsafe_callback)
 	/*CFI_REL_OFFSET ds,DS*/
 	CFI_REL_OFFSET r11,8
 	CFI_REL_OFFSET rcx,0
-	movw %ds,%cx
+	movl %ds,%ecx
 	cmpw %cx,0x10(%rsp)
 	CFI_REMEMBER_STATE
 	jne 1f
-	movw %es,%cx
+	movl %es,%ecx
 	cmpw %cx,0x18(%rsp)
 	jne 1f
-	movw %fs,%cx
+	movl %fs,%ecx
 	cmpw %cx,0x20(%rsp)
 	jne 1f
-	movw %gs,%cx
+	movl %gs,%ecx
 	cmpw %cx,0x28(%rsp)
 	jne 1f
 	/* All segments match their saved values => Category 2 (Bad IRET). */
@@ -1330,8 +1320,8 @@ ENTRY(error_entry)
 	SAVE_C_REGS 8
 	SAVE_EXTRA_REGS 8
 	xorl %ebx,%ebx
-	testl $3,CS+8(%rsp)
-	je error_kernelspace
+	testb	$3, CS+8(%rsp)
+	jz	error_kernelspace
 error_swapgs:
 	SWAPGS
 error_sti:
@@ -1382,7 +1372,7 @@ ENTRY(error_exit)
 	TRACE_IRQS_OFF
 	GET_THREAD_INFO(%rcx)
 	testl %eax,%eax
-	jne retint_kernel
+	jnz retint_kernel
 	LOCKDEP_SYS_EXIT_IRQ
 	movl TI_flags(%rcx),%edx
 	movl $_TIF_WORK_MASK,%edi
@@ -1627,7 +1617,6 @@ end_repeat_nmi:
 	je 1f
 	movq %r12, %cr2
 1:
-	
 	testl %ebx,%ebx				/* swapgs needed? */
 	jnz nmi_restore
 nmi_swapgs:

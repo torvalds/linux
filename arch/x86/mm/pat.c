@@ -33,13 +33,15 @@
 #include "pat_internal.h"
 #include "mm_internal.h"
 
-#ifdef CONFIG_X86_PAT
-int __read_mostly pat_enabled = 1;
+#undef pr_fmt
+#define pr_fmt(fmt) "" fmt
+
+static int __read_mostly __pat_enabled = IS_ENABLED(CONFIG_X86_PAT);
 
 static inline void pat_disable(const char *reason)
 {
-	pat_enabled = 0;
-	printk(KERN_INFO "%s\n", reason);
+	__pat_enabled = 0;
+	pr_info("x86/PAT: %s\n", reason);
 }
 
 static int __init nopat(char *str)
@@ -48,13 +50,12 @@ static int __init nopat(char *str)
 	return 0;
 }
 early_param("nopat", nopat);
-#else
-static inline void pat_disable(const char *reason)
-{
-	(void)reason;
-}
-#endif
 
+bool pat_enabled(void)
+{
+	return !!__pat_enabled;
+}
+EXPORT_SYMBOL_GPL(pat_enabled);
 
 int pat_debug_enable;
 
@@ -188,7 +189,7 @@ void pat_init_cache_modes(void)
 					   pat_msg + 4 * i);
 		update_cache_mode_entry(i, cache);
 	}
-	pr_info("PAT configuration [0-7]: %s\n", pat_msg);
+	pr_info("x86/PAT: Configuration [0-7]: %s\n", pat_msg);
 }
 
 #define PAT(x, y)	((u64)PAT_ ## y << ((x)*8))
@@ -198,7 +199,7 @@ void pat_init(void)
 	u64 pat;
 	bool boot_cpu = !boot_pat_state;
 
-	if (!pat_enabled)
+	if (!pat_enabled())
 		return;
 
 	if (!cpu_has_pat) {
@@ -211,8 +212,7 @@ void pat_init(void)
 			 * switched to PAT on the boot CPU. We have no way to
 			 * undo PAT.
 			 */
-			printk(KERN_ERR "PAT enabled, "
-			       "but not supported by secondary CPU\n");
+			pr_err("x86/PAT: PAT enabled, but not supported by secondary CPU\n");
 			BUG();
 		}
 	}
@@ -267,9 +267,9 @@ static unsigned long pat_x_mtrr_type(u64 start, u64 end,
 	 * request is for WB.
 	 */
 	if (req_type == _PAGE_CACHE_MODE_WB) {
-		u8 mtrr_type;
+		u8 mtrr_type, uniform;
 
-		mtrr_type = mtrr_type_lookup(start, end);
+		mtrr_type = mtrr_type_lookup(start, end, &uniform);
 		if (mtrr_type != MTRR_TYPE_WRBACK)
 			return _PAGE_CACHE_MODE_UC_MINUS;
 
@@ -347,7 +347,7 @@ static int reserve_ram_pages_type(u64 start, u64 end,
 		page = pfn_to_page(pfn);
 		type = get_page_memtype(page);
 		if (type != -1) {
-			pr_info("reserve_ram_pages_type failed [mem %#010Lx-%#010Lx], track 0x%x, req 0x%x\n",
+			pr_info("x86/PAT: reserve_ram_pages_type failed [mem %#010Lx-%#010Lx], track 0x%x, req 0x%x\n",
 				start, end - 1, type, req_type);
 			if (new_type)
 				*new_type = type;
@@ -400,7 +400,7 @@ int reserve_memtype(u64 start, u64 end, enum page_cache_mode req_type,
 
 	BUG_ON(start >= end); /* end is exclusive */
 
-	if (!pat_enabled) {
+	if (!pat_enabled()) {
 		/* This is identical to page table setting without PAT */
 		if (new_type) {
 			if (req_type == _PAGE_CACHE_MODE_WC)
@@ -451,9 +451,9 @@ int reserve_memtype(u64 start, u64 end, enum page_cache_mode req_type,
 
 	err = rbt_memtype_check_insert(new, new_type);
 	if (err) {
-		printk(KERN_INFO "reserve_memtype failed [mem %#010Lx-%#010Lx], track %s, req %s\n",
-		       start, end - 1,
-		       cattr_name(new->type), cattr_name(req_type));
+		pr_info("x86/PAT: reserve_memtype failed [mem %#010Lx-%#010Lx], track %s, req %s\n",
+			start, end - 1,
+			cattr_name(new->type), cattr_name(req_type));
 		kfree(new);
 		spin_unlock(&memtype_lock);
 
@@ -475,7 +475,7 @@ int free_memtype(u64 start, u64 end)
 	int is_range_ram;
 	struct memtype *entry;
 
-	if (!pat_enabled)
+	if (!pat_enabled())
 		return 0;
 
 	/* Low ISA region is always mapped WB. No need to track */
@@ -497,8 +497,8 @@ int free_memtype(u64 start, u64 end)
 	spin_unlock(&memtype_lock);
 
 	if (!entry) {
-		printk(KERN_INFO "%s:%d freeing invalid memtype [mem %#010Lx-%#010Lx]\n",
-		       current->comm, current->pid, start, end - 1);
+		pr_info("x86/PAT: %s:%d freeing invalid memtype [mem %#010Lx-%#010Lx]\n",
+			current->comm, current->pid, start, end - 1);
 		return -EINVAL;
 	}
 
@@ -623,13 +623,13 @@ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 	u64 to = from + size;
 	u64 cursor = from;
 
-	if (!pat_enabled)
+	if (!pat_enabled())
 		return 1;
 
 	while (cursor < to) {
 		if (!devmem_is_allowed(pfn)) {
-			printk(KERN_INFO "Program %s tried to access /dev/mem between [mem %#010Lx-%#010Lx], PAT prevents it\n",
-			       current->comm, from, to - 1);
+			pr_info("x86/PAT: Program %s tried to access /dev/mem between [mem %#010Lx-%#010Lx], PAT prevents it\n",
+				current->comm, from, to - 1);
 			return 0;
 		}
 		cursor += PAGE_SIZE;
@@ -659,7 +659,7 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 	 * caching for the high addresses through the KEN pin, but
 	 * we maintain the tradition of paranoia in this code.
 	 */
-	if (!pat_enabled &&
+	if (!pat_enabled() &&
 	    !(boot_cpu_has(X86_FEATURE_MTRR) ||
 	      boot_cpu_has(X86_FEATURE_K6_MTRR) ||
 	      boot_cpu_has(X86_FEATURE_CYRIX_ARR) ||
@@ -698,8 +698,7 @@ int kernel_map_sync_memtype(u64 base, unsigned long size,
 				size;
 
 	if (ioremap_change_attr((unsigned long)__va(base), id_sz, pcm) < 0) {
-		printk(KERN_INFO "%s:%d ioremap_change_attr failed %s "
-			"for [mem %#010Lx-%#010Lx]\n",
+		pr_info("x86/PAT: %s:%d ioremap_change_attr failed %s for [mem %#010Lx-%#010Lx]\n",
 			current->comm, current->pid,
 			cattr_name(pcm),
 			base, (unsigned long long)(base + size-1));
@@ -729,12 +728,12 @@ static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
 	 * the type requested matches the type of first page in the range.
 	 */
 	if (is_ram) {
-		if (!pat_enabled)
+		if (!pat_enabled())
 			return 0;
 
 		pcm = lookup_memtype(paddr);
 		if (want_pcm != pcm) {
-			printk(KERN_WARNING "%s:%d map pfn RAM range req %s for [mem %#010Lx-%#010Lx], got %s\n",
+			pr_warn("x86/PAT: %s:%d map pfn RAM range req %s for [mem %#010Lx-%#010Lx], got %s\n",
 				current->comm, current->pid,
 				cattr_name(want_pcm),
 				(unsigned long long)paddr,
@@ -755,13 +754,12 @@ static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
 		if (strict_prot ||
 		    !is_new_memtype_allowed(paddr, size, want_pcm, pcm)) {
 			free_memtype(paddr, paddr + size);
-			printk(KERN_ERR "%s:%d map pfn expected mapping type %s"
-				" for [mem %#010Lx-%#010Lx], got %s\n",
-				current->comm, current->pid,
-				cattr_name(want_pcm),
-				(unsigned long long)paddr,
-				(unsigned long long)(paddr + size - 1),
-				cattr_name(pcm));
+			pr_err("x86/PAT: %s:%d map pfn expected mapping type %s for [mem %#010Lx-%#010Lx], got %s\n",
+			       current->comm, current->pid,
+			       cattr_name(want_pcm),
+			       (unsigned long long)paddr,
+			       (unsigned long long)(paddr + size - 1),
+			       cattr_name(pcm));
 			return -EINVAL;
 		}
 		/*
@@ -844,7 +842,7 @@ int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
 		return ret;
 	}
 
-	if (!pat_enabled)
+	if (!pat_enabled())
 		return 0;
 
 	/*
@@ -872,7 +870,7 @@ int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
 {
 	enum page_cache_mode pcm;
 
-	if (!pat_enabled)
+	if (!pat_enabled())
 		return 0;
 
 	/* Set prot based on lookup */
@@ -913,7 +911,7 @@ void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
 
 pgprot_t pgprot_writecombine(pgprot_t prot)
 {
-	if (pat_enabled)
+	if (pat_enabled())
 		return __pgprot(pgprot_val(prot) |
 				cachemode2protval(_PAGE_CACHE_MODE_WC));
 	else
@@ -996,7 +994,7 @@ static const struct file_operations memtype_fops = {
 
 static int __init pat_memtype_list_init(void)
 {
-	if (pat_enabled) {
+	if (pat_enabled()) {
 		debugfs_create_file("pat_memtype_list", S_IRUSR,
 				    arch_debugfs_dir, NULL, &memtype_fops);
 	}

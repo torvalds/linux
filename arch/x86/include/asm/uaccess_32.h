@@ -59,6 +59,10 @@ __copy_to_user_inatomic(void __user *to, const void *from, unsigned long n)
 			__put_user_size(*(u32 *)from, (u32 __user *)to,
 					4, ret, 4);
 			return ret;
+		case 8:
+			__put_user_size(*(u64 *)from, (u64 __user *)to,
+					8, ret, 8);
+			return ret;
 		}
 	}
 	return __copy_to_user_ll(to, from, n);

@@ -129,16 +129,15 @@ within(unsigned long addr, unsigned long start, unsigned long end)
  */
 void clflush_cache_range(void *vaddr, unsigned int size)
 {
-	void *vend = vaddr + size - 1;
+	unsigned long clflush_mask = boot_cpu_data.x86_clflush_size - 1;
+	void *vend = vaddr + size;
+	void *p;
 
 	mb();
 
-	for (; vaddr < vend; vaddr += boot_cpu_data.x86_clflush_size)
-		clflushopt(vaddr);
-	/*
-	 * Flush any possible final partial cacheline:
-	 */
-	clflushopt(vend);
+	for (p = (void *)((unsigned long)vaddr & ~clflush_mask);
+	     p < vend; p += boot_cpu_data.x86_clflush_size)
+		clflushopt(p);
 
 	mb();
 }
@@ -418,13 +417,11 @@ phys_addr_t slow_virt_to_phys(void *__virt_addr)
 	phys_addr_t phys_addr;
 	unsigned long offset;
 	enum pg_level level;
-	unsigned long psize;
 	unsigned long pmask;
 	pte_t *pte;
 
 	pte = lookup_address(virt_addr, &level);
 	BUG_ON(!pte);
-	psize = page_level_size(level);
 	pmask = page_level_mask(level);
 	offset = virt_addr & ~pmask;
 	phys_addr = (phys_addr_t)pte_pfn(*pte) << PAGE_SHIFT;
@@ -1468,6 +1465,9 @@ int _set_memory_uc(unsigned long addr, int numpages)
 {
 	/*
 	 * for now UC MINUS. see comments in ioremap_nocache()
+	 * If you really need strong UC use ioremap_uc(), but note
+	 * that you cannot override IO areas with set_memory_*() as
+	 * these helpers cannot work with IO memory.
 	 */
 	return change_page_attr_set(&addr, numpages,
 				    cachemode2pgprot(_PAGE_CACHE_MODE_UC_MINUS),
@@ -1571,7 +1571,7 @@ int set_memory_wc(unsigned long addr, int numpages)
 {
 	int ret;
 
-	if (!pat_enabled)
+	if (!pat_enabled())
 		return set_memory_uc(addr, numpages);
 
 	ret = reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,

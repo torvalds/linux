@@ -344,7 +344,7 @@ ENTRY(early_idt_handler)
 	cld
 
 	cmpl $2,(%rsp)		# X86_TRAP_NMI
-	je is_nmi		# Ignore NMI
+	je .Lis_nmi		# Ignore NMI
 
 	cmpl $2,early_recursion_flag(%rip)
 	jz  1f
@@ -409,7 +409,7 @@ ENTRY(early_idt_handler)
 	popq %rcx
 	popq %rax
 	decl early_recursion_flag(%rip)
-is_nmi:
+.Lis_nmi:
 	addq $16,%rsp		# drop vector number and error code
 	INTERRUPT_RETURN
 ENDPROC(early_idt_handler)
