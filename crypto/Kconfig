@@ -78,6 +78,10 @@ config CRYPTO_RNG2
 	tristate
 	select CRYPTO_ALGAPI2
 
+config CRYPTO_RNG_DEFAULT
+	tristate
+	select CRYPTO_DRBG_MENU
+
 config CRYPTO_PCOMP
 	tristate
 	select CRYPTO_PCOMP2
@@ -234,7 +238,7 @@ config CRYPTO_SEQIV
 	select CRYPTO_AEAD
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_NULL
-	select CRYPTO_RNG
+	select CRYPTO_RNG_DEFAULT
 	help
 	  This IV generator generates an IV based on a sequence number by
 	  xoring it with a salt.  This algorithm is mainly useful for CTR
@@ -243,7 +247,7 @@ config CRYPTO_ECHAINIV
 	tristate "Encrypted Chain IV Generator"
 	select CRYPTO_AEAD
 	select CRYPTO_NULL
-	select CRYPTO_RNG
+	select CRYPTO_RNG_DEFAULT
 	default m
 	help
 	  This IV generator generates an IV based on the encryption of
@@ -1484,7 +1488,6 @@ comment "Random Number Generation"
 
 config CRYPTO_ANSI_CPRNG
 	tristate "Pseudo Random Number Generation for Cryptographic modules"
-	default m
 	select CRYPTO_AES
 	select CRYPTO_RNG
 	help
@@ -1502,11 +1505,9 @@ menuconfig CRYPTO_DRBG_MENU
 if CRYPTO_DRBG_MENU
 
 config CRYPTO_DRBG_HMAC
-	bool "Enable HMAC DRBG"
+	bool
 	default y
 	select CRYPTO_HMAC
-	help
-	  Enable the HMAC DRBG variant as defined in NIST SP800-90A.
 
 config CRYPTO_DRBG_HASH
 	bool "Enable Hash DRBG"
@@ -1522,7 +1523,7 @@ config CRYPTO_DRBG_CTR
 
 config CRYPTO_DRBG
 	tristate
-	default CRYPTO_DRBG_MENU if (CRYPTO_DRBG_HMAC || CRYPTO_DRBG_HASH || CRYPTO_DRBG_CTR)
+	default CRYPTO_DRBG_MENU
 	select CRYPTO_RNG
 	select CRYPTO_JITTERENTROPY
 
