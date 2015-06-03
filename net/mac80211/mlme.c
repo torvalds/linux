@@ -4601,6 +4601,9 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	eth_zero_addr(ifmgd->bssid);
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BSSID);
 	ifmgd->auth_data = NULL;
+	mutex_lock(&sdata->local->mtx);
+	ieee80211_vif_release_channel(sdata);
+	mutex_unlock(&sdata->local->mtx);
  err_free:
 	kfree(auth_data);
 	return err;
