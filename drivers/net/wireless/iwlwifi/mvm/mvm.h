@@ -276,6 +276,7 @@ enum iwl_mvm_ref_type {
 	IWL_MVM_REF_UCODE_DOWN,
 	IWL_MVM_REF_SCAN,
 	IWL_MVM_REF_ROC,
+	IWL_MVM_REF_ROC_AUX,
 	IWL_MVM_REF_P2P_CLIENT,
 	IWL_MVM_REF_AP_IBSS,
 	IWL_MVM_REF_USER,
@@ -446,6 +447,8 @@ iwl_mvm_vif_from_mac80211(struct ieee80211_vif *vif)
 
 extern const u8 tid_to_mac80211_ac[];
 
+#define IWL_MVM_SCAN_STOPPING_SHIFT	8
+
 enum iwl_scan_status {
 	IWL_MVM_SCAN_REGULAR		= BIT(0),
 	IWL_MVM_SCAN_SCHED		= BIT(1),
@@ -462,8 +465,8 @@ enum iwl_scan_status {
 	IWL_MVM_SCAN_NETDETECT_MASK	= IWL_MVM_SCAN_NETDETECT |
 					  IWL_MVM_SCAN_STOPPING_NETDETECT,
 
-	IWL_MVM_SCAN_STOPPING_MASK	= 0xff00,
-	IWL_MVM_SCAN_MASK		= 0x00ff,
+	IWL_MVM_SCAN_STOPPING_MASK	= 0xff << IWL_MVM_SCAN_STOPPING_SHIFT,
+	IWL_MVM_SCAN_MASK		= 0xff,
 };
 
 /**
@@ -627,8 +630,7 @@ struct iwl_mvm {
 	unsigned int max_scans;
 
 	/* UMAC scan tracking */
-	u32 scan_uid[IWL_MVM_MAX_UMAC_SCANS];
-	u8 scan_seq_num, sched_scan_seq_num;
+	u32 scan_uid_status[IWL_MVM_MAX_UMAC_SCANS];
 
 	/* rx chain antennas set through debugfs for the scan command */
 	u8 scan_rx_ant;
@@ -818,6 +820,8 @@ struct iwl_mvm {
 	} tdls_cs;
 
 	struct iwl_mvm_shared_mem_cfg shared_mem_cfg;
+
+	u32 ciphers[6];
 };
 
 /* Extract MVM priv from op_mode and _hw */
@@ -887,14 +891,15 @@ static inline bool iwl_mvm_is_d0i3_supported(struct iwl_mvm *mvm)
 	return mvm->trans->cfg->d0i3 &&
 	       mvm->trans->d0i3_mode != IWL_D0I3_MODE_OFF &&
 	       !iwlwifi_mod_params.d0i3_disable &&
-	       (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_D0I3_SUPPORT);
+	       fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_D0I3_SUPPORT);
 }
 
 static inline bool iwl_mvm_is_lar_supported(struct iwl_mvm *mvm)
 {
 	bool nvm_lar = mvm->nvm_data->lar_enabled;
-	bool tlv_lar = mvm->fw->ucode_capa.capa[0] &
-		IWL_UCODE_TLV_CAPA_LAR_SUPPORT;
+	bool tlv_lar = fw_has_capa(&mvm->fw->ucode_capa,
+				   IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
 
 	if (iwlwifi_mod_params.lar_disable)
 		return false;
@@ -911,24 +916,28 @@ static inline bool iwl_mvm_is_lar_supported(struct iwl_mvm *mvm)
 
 static inline bool iwl_mvm_is_wifi_mcc_supported(struct iwl_mvm *mvm)
 {
-	return mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_WIFI_MCC_UPDATE ||
-	       mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_LAR_MULTI_MCC;
+	return fw_has_api(&mvm->fw->ucode_capa,
+			  IWL_UCODE_TLV_API_WIFI_MCC_UPDATE) ||
+	       fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_LAR_MULTI_MCC);
 }
 
 static inline bool iwl_mvm_is_scd_cfg_supported(struct iwl_mvm *mvm)
 {
-	return mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_SCD_CFG;
+	return fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_SCD_CFG);
 }
 
 static inline bool iwl_mvm_bt_is_plcr_supported(struct iwl_mvm *mvm)
 {
-	return (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_BT_COEX_PLCR) &&
+	return fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_BT_COEX_PLCR) &&
 		IWL_MVM_BT_COEX_CORUNNING;
 }
 
 static inline bool iwl_mvm_bt_is_rrc_supported(struct iwl_mvm *mvm)
 {
-	return (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_BT_COEX_RRC) &&
+	return fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_BT_COEX_RRC) &&
 		IWL_MVM_BT_COEX_RRC;
 }
 
@@ -1121,34 +1130,34 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			   struct cfg80211_scan_request *req,
 			   struct ieee80211_scan_ies *ies);
 int iwl_mvm_scan_size(struct iwl_mvm *mvm);
-int iwl_mvm_cancel_scan(struct iwl_mvm *mvm);
+int iwl_mvm_scan_stop(struct iwl_mvm *mvm, int type, bool notify);
 int iwl_mvm_max_scan_ie_len(struct iwl_mvm *mvm);
 void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm);
 
 /* Scheduled scan */
-int iwl_mvm_rx_scan_offload_complete_notif(struct iwl_mvm *mvm,
-					   struct iwl_rx_cmd_buffer *rxb,
-					   struct iwl_device_cmd *cmd);
-int iwl_mvm_rx_scan_offload_iter_complete_notif(struct iwl_mvm *mvm,
-						struct iwl_rx_cmd_buffer *rxb,
-						struct iwl_device_cmd *cmd);
-int iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
-				       struct cfg80211_sched_scan_request *req);
+int iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
+					struct iwl_rx_cmd_buffer *rxb,
+					struct iwl_device_cmd *cmd);
+int iwl_mvm_rx_lmac_scan_iter_complete_notif(struct iwl_mvm *mvm,
+					     struct iwl_rx_cmd_buffer *rxb,
+					     struct iwl_device_cmd *cmd);
 int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 			     struct ieee80211_vif *vif,
 			     struct cfg80211_sched_scan_request *req,
 			     struct ieee80211_scan_ies *ies,
 			     int type);
-int iwl_mvm_scan_offload_stop(struct iwl_mvm *mvm, bool notify);
-int iwl_mvm_rx_scan_offload_results(struct iwl_mvm *mvm,
-				    struct iwl_rx_cmd_buffer *rxb,
-				    struct iwl_device_cmd *cmd);
+int iwl_mvm_rx_scan_match_found(struct iwl_mvm *mvm,
+				struct iwl_rx_cmd_buffer *rxb,
+				struct iwl_device_cmd *cmd);
 
 /* UMAC scan */
 int iwl_mvm_config_scan(struct iwl_mvm *mvm);
 int iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 					struct iwl_rx_cmd_buffer *rxb,
 					struct iwl_device_cmd *cmd);
+int iwl_mvm_rx_umac_scan_iter_complete_notif(struct iwl_mvm *mvm,
+					     struct iwl_rx_cmd_buffer *rxb,
+					     struct iwl_device_cmd *cmd);
 
 /* MVM debugfs */
 #ifdef CONFIG_IWLWIFI_DEBUGFS

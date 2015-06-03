@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -316,8 +316,8 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 	phy_sku = (const __le16 *)sections[NVM_SECTION_TYPE_PHY_SKU].data;
 
 	lar_enabled = !iwlwifi_mod_params.lar_disable &&
-		      (mvm->fw->ucode_capa.capa[0] &
-		       IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
+		      fw_has_capa(&mvm->fw->ucode_capa,
+				  IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
 
 	return iwl_parse_nvm_data(mvm->trans->dev, mvm->cfg, hw, sw, calib,
 				  regulatory, mac_override, phy_sku,
@@ -583,9 +583,9 @@ int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic)
 		kfree(nvm_buffer);
 	}
 
-	/* load external NVM if configured */
+	/* Only if PNVM selected in the mod param - load external NVM  */
 	if (mvm->nvm_file_name) {
-		/* read External NVM file - take the default */
+		/* read External NVM file from the mod param */
 		ret = iwl_mvm_read_external_nvm(mvm);
 		if (ret) {
 			/* choose the nvm_file name according to the
@@ -792,8 +792,8 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 	char mcc[3];
 
 	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_8000) {
-		tlv_lar = mvm->fw->ucode_capa.capa[0] &
-			IWL_UCODE_TLV_CAPA_LAR_SUPPORT;
+		tlv_lar = fw_has_capa(&mvm->fw->ucode_capa,
+				      IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
 		nvm_lar = mvm->nvm_data->lar_enabled;
 		if (tlv_lar != nvm_lar)
 			IWL_INFO(mvm,

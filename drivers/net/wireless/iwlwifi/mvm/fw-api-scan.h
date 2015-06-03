@@ -294,6 +294,7 @@ enum iwl_scan_ebs_status {
 	IWL_SCAN_EBS_SUCCESS,
 	IWL_SCAN_EBS_FAILED,
 	IWL_SCAN_EBS_CHAN_NOT_FOUND,
+	IWL_SCAN_EBS_INACTIVE,
 };
 
 /**
@@ -429,6 +430,17 @@ enum iwl_scan_priority {
 	IWL_SCAN_PRIORITY_LOW,
 	IWL_SCAN_PRIORITY_MEDIUM,
 	IWL_SCAN_PRIORITY_HIGH,
+};
+
+enum iwl_scan_priority_ext {
+	IWL_SCAN_PRIORITY_EXT_0_LOWEST,
+	IWL_SCAN_PRIORITY_EXT_1,
+	IWL_SCAN_PRIORITY_EXT_2,
+	IWL_SCAN_PRIORITY_EXT_3,
+	IWL_SCAN_PRIORITY_EXT_4,
+	IWL_SCAN_PRIORITY_EXT_5,
+	IWL_SCAN_PRIORITY_EXT_6,
+	IWL_SCAN_PRIORITY_EXT_7_HIGHEST,
 };
 
 /**
@@ -836,5 +848,28 @@ struct iwl_scan_offload_profiles_query {
 	__le16 reserved;
 	struct iwl_scan_offload_profile_match matches[IWL_SCAN_MAX_PROFILES];
 } __packed; /* SCAN_OFFLOAD_PROFILES_QUERY_RSP_S_VER_2 */
+
+/**
+ * struct iwl_umac_scan_iter_complete_notif - notifies end of scanning iteration
+ * @uid: scan id, &enum iwl_umac_scan_uid_offsets
+ * @scanned_channels: number of channels scanned and number of valid elements in
+ *	results array
+ * @status: one of SCAN_COMP_STATUS_*
+ * @bt_status: BT on/off status
+ * @last_channel: last channel that was scanned
+ * @tsf_low: TSF timer (lower half) in usecs
+ * @tsf_high: TSF timer (higher half) in usecs
+ * @results: array of scan results, only "scanned_channels" of them are valid
+ */
+struct iwl_umac_scan_iter_complete_notif {
+	__le32 uid;
+	u8 scanned_channels;
+	u8 status;
+	u8 bt_status;
+	u8 last_channel;
+	__le32 tsf_low;
+	__le32 tsf_high;
+	struct iwl_scan_results_notif results[];
+} __packed; /* SCAN_ITER_COMPLETE_NTF_UMAC_API_S_VER_1 */
 
 #endif
