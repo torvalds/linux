@@ -124,21 +124,24 @@
 	msr	sp_el0, x23
 
 #ifdef CONFIG_ARM64_ERRATUM_845719
-	alternative_insn						\
-	"nop",								\
-	"tbz x22, #4, 1f",						\
-	ARM64_WORKAROUND_845719
+
+#undef SEQUENCE_ORG
+#undef SEQUENCE_ALT
+
 #ifdef CONFIG_PID_IN_CONTEXTIDR
-	alternative_insn						\
-	"nop; nop",							\
-	"mrs x29, contextidr_el1; msr contextidr_el1, x29; 1:",		\
-	ARM64_WORKAROUND_845719
+
+#define SEQUENCE_ORG	"nop ; nop ; nop"
+#define SEQUENCE_ALT	"tbz x22, #4, 1f ; mrs x29, contextidr_el1; msr contextidr_el1, x29; 1:"
+
 #else
-	alternative_insn						\
-	"nop",								\
-	"msr contextidr_el1, xzr; 1:",					\
-	ARM64_WORKAROUND_845719
+
+#define SEQUENCE_ORG	"nop ; nop"
+#define SEQUENCE_ALT	"tbz x22, #4, 1f ; msr contextidr_el1, xzr; 1:"
+
 #endif
+
+	alternative_insn SEQUENCE_ORG, SEQUENCE_ALT, ARM64_WORKAROUND_845719
+
 #endif
 	.endif
 	msr	elr_el1, x21			// set up the return data
