@@ -806,6 +806,8 @@ void mwifiex_uap_set_channel(struct mwifiex_uap_bss_param *bss_cfg,
 int mwifiex_config_start_uap(struct mwifiex_private *priv,
 			     struct mwifiex_uap_bss_param *bss_cfg)
 {
+	enum state_11d_t state_11d;
+
 	if (mwifiex_del_mgmt_ies(priv))
 		mwifiex_dbg(priv->adapter, ERROR,
 			    "Failed to delete mgmt IEs!\n");
@@ -827,6 +829,16 @@ int mwifiex_config_start_uap(struct mwifiex_private *priv,
 			     UAP_BSS_PARAMS_I, bss_cfg, false)) {
 		mwifiex_dbg(priv->adapter, ERROR,
 			    "Failed to set the SSID\n");
+		return -1;
+	}
+
+	/* Send cmd to FW to enable 11D function */
+	state_11d = ENABLE_11D;
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_802_11_SNMP_MIB,
+			     HostCmd_ACT_GEN_SET, DOT11D_I,
+			     &state_11d, true)) {
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "11D: failed to enable 11D\n");
 		return -1;
 	}
 
