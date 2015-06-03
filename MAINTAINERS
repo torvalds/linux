@@ -51,9 +51,9 @@ trivial patch so apply some common sense.
 	or does something very odd once a month document it.
 
 	PLEASE remember that submissions must be made under the terms
-	of the OSDL certificate of contribution and should include a
-	Signed-off-by: line.  The current version of this "Developer's
-	Certificate of Origin" (DCO) is listed in the file
+	of the Linux Foundation certificate of contribution and should
+	include a Signed-off-by: line.  The current version of this
+	"Developer's Certificate of Origin" (DCO) is listed in the file
 	Documentation/SubmittingPatches.
 
 6.	Make sure you have the right to send any changes you make. If you
