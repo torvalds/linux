@@ -16,7 +16,7 @@
 
 	chosen {
 		bootargs = "ubi.mtd=ubi";
-		linux,stdout-path = &dbgu;
+		stdout-path = &dbgu;
 	};
 
 	memory {
