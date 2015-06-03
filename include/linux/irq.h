@@ -110,8 +110,8 @@ enum {
 /*
  * Return value for chip->irq_set_affinity()
  *
- * IRQ_SET_MASK_OK	- OK, core updates irq_data.affinity
- * IRQ_SET_MASK_NOCPY	- OK, chip did update irq_data.affinity
+ * IRQ_SET_MASK_OK	- OK, core updates irq_common_data.affinity
+ * IRQ_SET_MASK_NOCPY	- OK, chip did update irq_common_data.affinity
  * IRQ_SET_MASK_OK_DONE	- Same as IRQ_SET_MASK_OK for core. Special code to
  *			  support stacked irqchips, which indicates skipping
  *			  all descendent irqchips.
@@ -131,6 +131,7 @@ struct irq_domain;
  *			Use accessor functions to deal with it
  * @node:		node index useful for balancing
  * @handler_data:	per-IRQ data for the irq_chip methods
+ * @affinity:		IRQ affinity on SMP
  */
 struct irq_common_data {
 	unsigned int		state_use_accessors;
@@ -138,6 +139,7 @@ struct irq_common_data {
 	unsigned int		node;
 #endif
 	void			*handler_data;
+	cpumask_var_t		affinity;
 };
 
 /**
@@ -154,7 +156,6 @@ struct irq_common_data {
  * @chip_data:		platform-specific per-chip private data for the chip
  *			methods, to allow shared chip implementations
  * @msi_desc:		MSI descriptor
- * @affinity:		IRQ affinity on SMP
  */
 struct irq_data {
 	u32			mask;
@@ -168,7 +169,6 @@ struct irq_data {
 #endif
 	void			*chip_data;
 	struct msi_desc		*msi_desc;
-	cpumask_var_t		affinity;
 };
 
 /*
@@ -684,12 +684,12 @@ static inline struct cpumask *irq_get_affinity_mask(int irq)
 {
 	struct irq_data *d = irq_get_irq_data(irq);
 
-	return d ? d->affinity : NULL;
+	return d ? d->common->affinity : NULL;
 }
 
 static inline struct cpumask *irq_data_get_affinity_mask(struct irq_data *d)
 {
-	return d->affinity;
+	return d->common->affinity;
 }
 
 unsigned int arch_dynirq_lower_bound(unsigned int from);
