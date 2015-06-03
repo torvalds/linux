@@ -1961,31 +1961,43 @@ static void xs_set_memalloc(struct rpc_xprt *xprt)
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt,
 			xprt);
 
-	if (xprt->swapper)
+	if (atomic_read(&xprt->swapper))
 		sk_set_memalloc(transport->inet);
 }
 
 /**
- * xs_swapper - Tag this transport as being used for swap.
+ * xs_swapper_enable - Tag this transport as being used for swap.
  * @xprt: transport to tag
- * @enable: enable/disable
  *
+ * Take a reference to this transport on behalf of the rpc_clnt, and
+ * optionally mark it for swapping if it wasn't already.
  */
-int xs_swapper(struct rpc_xprt *xprt, int enable)
+int
+xs_swapper_enable(struct rpc_xprt *xprt)
 {
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt,
 			xprt);
-	int err = 0;
 
-	if (enable) {
-		xprt->swapper++;
-		xs_set_memalloc(xprt);
-	} else if (xprt->swapper) {
-		xprt->swapper--;
+	if (atomic_inc_return(&xprt->swapper) == 1)
+		sk_set_memalloc(transport->inet);
+	return 0;
+}
+
+/**
+ * xs_swapper_disable - Untag this transport as being used for swap.
+ * @xprt: transport to tag
+ *
+ * Drop a "swapper" reference to this xprt on behalf of the rpc_clnt. If the
+ * swapper refcount goes to 0, untag the socket as a memalloc socket.
+ */
+void
+xs_swapper_disable(struct rpc_xprt *xprt)
+{
+	struct sock_xprt *transport = container_of(xprt, struct sock_xprt,
+			xprt);
+
+	if (atomic_dec_and_test(&xprt->swapper))
 		sk_clear_memalloc(transport->inet);
-	}
-
-	return err;
 }
 #else
 static void xs_set_memalloc(struct rpc_xprt *xprt)
