@@ -1056,6 +1056,9 @@ int drm_vblank_get(struct drm_device *dev, int crtc)
 	unsigned long irqflags;
 	int ret = 0;
 
+	if (!dev->num_crtcs)
+		return -EINVAL;
+
 	if (WARN_ON(crtc >= dev->num_crtcs))
 		return -EINVAL;
 
