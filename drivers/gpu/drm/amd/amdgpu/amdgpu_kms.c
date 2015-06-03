@@ -457,6 +457,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		dev_info.cu_ao_mask = cu_info.ao_cu_mask;
 		dev_info.ce_ram_size = adev->gfx.ce_ram_size;
 		memcpy(&dev_info.cu_bitmap[0], &cu_info.bitmap[0], sizeof(cu_info.bitmap));
+		dev_info.vram_type = adev->mc.vram_type;
+		dev_info.vram_bit_width = adev->mc.vram_width;
 
 		return copy_to_user(out, &dev_info,
 				    min((size_t)size, sizeof(dev_info))) ? -EFAULT : 0;

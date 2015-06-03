@@ -38,6 +38,7 @@
 #include "vid.h"
 #include "vi.h"
 
+
 static void gmc_v8_0_set_gart_funcs(struct amdgpu_device *adev);
 static void gmc_v8_0_set_irq_funcs(struct amdgpu_device *adev);
 
@@ -786,6 +787,28 @@ static void gmc_v8_0_vm_decode_fault(struct amdgpu_device *adev,
 	       "write" : "read", block, mc_client, mc_id);
 }
 
+static int gmc_v8_0_convert_vram_type(int mc_seq_vram_type)
+{
+	switch (mc_seq_vram_type) {
+	case MC_SEQ_MISC0__MT__GDDR1:
+		return AMDGPU_VRAM_TYPE_GDDR1;
+	case MC_SEQ_MISC0__MT__DDR2:
+		return AMDGPU_VRAM_TYPE_DDR2;
+	case MC_SEQ_MISC0__MT__GDDR3:
+		return AMDGPU_VRAM_TYPE_GDDR3;
+	case MC_SEQ_MISC0__MT__GDDR4:
+		return AMDGPU_VRAM_TYPE_GDDR4;
+	case MC_SEQ_MISC0__MT__GDDR5:
+		return AMDGPU_VRAM_TYPE_GDDR5;
+	case MC_SEQ_MISC0__MT__HBM:
+		return AMDGPU_VRAM_TYPE_HBM;
+	case MC_SEQ_MISC0__MT__DDR3:
+		return AMDGPU_VRAM_TYPE_DDR3;
+	default:
+		return AMDGPU_VRAM_TYPE_UNKNOWN;
+	}
+}
+
 static int gmc_v8_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -794,15 +817,11 @@ static int gmc_v8_0_early_init(void *handle)
 	gmc_v8_0_set_irq_funcs(adev);
 
 	if (adev->flags & AMDGPU_IS_APU) {
-		adev->mc.is_gddr5 = false;
+		adev->mc.vram_type = AMDGPU_VRAM_TYPE_UNKNOWN;
 	} else {
 		u32 tmp = RREG32(mmMC_SEQ_MISC0);
-
-		if (((tmp & MC_SEQ_MISC0__GDDR5_MASK) >>
-		     MC_SEQ_MISC0__GDDR5__SHIFT) == MC_SEQ_MISC0__GDDR5_VALUE)
-			adev->mc.is_gddr5 = true;
-		else
-			adev->mc.is_gddr5 = false;
+		tmp &= MC_SEQ_MISC0__MT__MASK;
+		adev->mc.vram_type = gmc_v8_0_convert_vram_type(tmp);
 	}
 
 	return 0;

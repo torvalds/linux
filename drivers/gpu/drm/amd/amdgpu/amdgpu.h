@@ -767,7 +767,7 @@ struct amdgpu_mc {
 	const struct firmware   *fw;	/* MC firmware */
 	uint32_t                fw_version;
 	struct amdgpu_irq_src	vm_fault;
-	bool                    is_gddr5;
+	uint32_t		vram_type;
 };
 
 /*
