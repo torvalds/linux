@@ -148,6 +148,7 @@ int imx_cpu_kill(unsigned int cpu);
 void imx_busfreq_map_io(void);
 void imx7d_low_power_idle(void);
 void imx6sx_low_power_idle(void);
+void imx6ul_low_power_idle(void);
 
 #ifdef CONFIG_SUSPEND
 void v7_cpu_resume(void);

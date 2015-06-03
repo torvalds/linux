@@ -20,6 +20,7 @@
 #include <asm/mach/map.h>
 
 #include "common.h"
+#include "cpuidle.h"
 
 static void __init imx6ul_enet_clk_init(void)
 {
@@ -85,6 +86,8 @@ static void __init imx6ul_init_irq(void)
 static void __init imx6ul_init_late(void)
 {
 	platform_device_register_simple("imx6q-cpufreq", -1, NULL, 0);
+
+	imx6ul_cpuidle_init();
 }
 
 static void __init imx6ul_map_io(void)
