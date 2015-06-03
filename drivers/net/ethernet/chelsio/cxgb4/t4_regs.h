@@ -462,8 +462,13 @@
 #define SGE_STAT_MATCH_A	0x10e8
 #define SGE_STAT_CFG_A		0x10ec
 
+#define STATMODE_S    2
+#define STATMODE_V(x) ((x) << STATMODE_S)
+
 #define STATSOURCE_T5_S    9
+#define STATSOURCE_T5_M    0xfU
 #define STATSOURCE_T5_V(x) ((x) << STATSOURCE_T5_S)
+#define STATSOURCE_T5_G(x) (((x) >> STATSOURCE_T5_S) & STATSOURCE_T5_M)
 
 #define SGE_DBFIFO_STATUS2_A 0x1118
 
@@ -1417,6 +1422,8 @@
 #define CSUM_HAS_PSEUDO_HDR_F    CSUM_HAS_PSEUDO_HDR_V(1U)
 
 #define TP_MIB_MAC_IN_ERR_0_A	0x0
+#define TP_MIB_HDR_IN_ERR_0_A	0x4
+#define TP_MIB_TCP_IN_ERR_0_A	0x8
 #define TP_MIB_TCP_OUT_RST_A	0xc
 #define TP_MIB_TCP_IN_SEG_HI_A	0x10
 #define TP_MIB_TCP_IN_SEG_LO_A	0x11
@@ -1425,11 +1432,14 @@
 #define TP_MIB_TCP_RXT_SEG_HI_A	0x14
 #define TP_MIB_TCP_RXT_SEG_LO_A	0x15
 #define TP_MIB_TNL_CNG_DROP_0_A 0x18
+#define TP_MIB_OFD_CHN_DROP_0_A 0x1c
 #define TP_MIB_TCP_V6IN_ERR_0_A 0x28
 #define TP_MIB_TCP_V6OUT_RST_A	0x2c
 #define TP_MIB_OFD_ARP_DROP_A	0x36
 #define TP_MIB_TNL_DROP_0_A	0x44
 #define TP_MIB_OFD_VLN_DROP_0_A	0x58
+#define TP_MIB_USM_PKTS_A	0x5c
+#define TP_MIB_RQE_DFR_PKT_A	0x64
 
 #define ULP_TX_INT_CAUSE_A	0x8dcc
 

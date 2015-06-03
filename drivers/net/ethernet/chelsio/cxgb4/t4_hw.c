@@ -3760,22 +3760,103 @@ void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
 	if (v4) {
 		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, val,
 				 ARRAY_SIZE(val), TP_MIB_TCP_OUT_RST_A);
-		v4->tcpOutRsts = STAT(OUT_RST);
-		v4->tcpInSegs  = STAT64(IN_SEG);
-		v4->tcpOutSegs = STAT64(OUT_SEG);
-		v4->tcpRetransSegs = STAT64(RXT_SEG);
+		v4->tcp_out_rsts = STAT(OUT_RST);
+		v4->tcp_in_segs  = STAT64(IN_SEG);
+		v4->tcp_out_segs = STAT64(OUT_SEG);
+		v4->tcp_retrans_segs = STAT64(RXT_SEG);
 	}
 	if (v6) {
 		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, val,
 				 ARRAY_SIZE(val), TP_MIB_TCP_V6OUT_RST_A);
-		v6->tcpOutRsts = STAT(OUT_RST);
-		v6->tcpInSegs  = STAT64(IN_SEG);
-		v6->tcpOutSegs = STAT64(OUT_SEG);
-		v6->tcpRetransSegs = STAT64(RXT_SEG);
+		v6->tcp_out_rsts = STAT(OUT_RST);
+		v6->tcp_in_segs  = STAT64(IN_SEG);
+		v6->tcp_out_segs = STAT64(OUT_SEG);
+		v6->tcp_retrans_segs = STAT64(RXT_SEG);
 	}
 #undef STAT64
 #undef STAT
 #undef STAT_IDX
+}
+
+/**
+ *	t4_tp_get_err_stats - read TP's error MIB counters
+ *	@adap: the adapter
+ *	@st: holds the counter values
+ *
+ *	Returns the values of TP's error counters.
+ */
+void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st)
+{
+	/* T6 and later has 2 channels */
+	if (adap->params.arch.nchan == NCHAN) {
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->mac_in_errs, 12, TP_MIB_MAC_IN_ERR_0_A);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->tnl_cong_drops, 8,
+				 TP_MIB_TNL_CNG_DROP_0_A);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->tnl_tx_drops, 4,
+				 TP_MIB_TNL_DROP_0_A);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->ofld_vlan_drops, 4,
+				 TP_MIB_OFD_VLN_DROP_0_A);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->tcp6_in_errs, 4,
+				 TP_MIB_TCP_V6IN_ERR_0_A);
+	} else {
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->mac_in_errs, 2, TP_MIB_MAC_IN_ERR_0_A);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->hdr_in_errs, 2, TP_MIB_HDR_IN_ERR_0_A);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->tcp_in_errs, 2, TP_MIB_TCP_IN_ERR_0_A);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->tnl_cong_drops, 2,
+				 TP_MIB_TNL_CNG_DROP_0_A);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->ofld_chan_drops, 2,
+				 TP_MIB_OFD_CHN_DROP_0_A);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->tnl_tx_drops, 2, TP_MIB_TNL_DROP_0_A);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->ofld_vlan_drops, 2,
+				 TP_MIB_OFD_VLN_DROP_0_A);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->tcp6_in_errs, 2, TP_MIB_TCP_V6IN_ERR_0_A);
+	}
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+			 &st->ofld_no_neigh, 2, TP_MIB_OFD_ARP_DROP_A);
+}
+
+/**
+ *	t4_tp_get_rdma_stats - read TP's RDMA MIB counters
+ *	@adap: the adapter
+ *	@st: holds the counter values
+ *
+ *	Returns the values of TP's RDMA counters.
+ */
+void t4_tp_get_rdma_stats(struct adapter *adap, struct tp_rdma_stats *st)
+{
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, &st->rqe_dfr_pkt,
+			 2, TP_MIB_RQE_DFR_PKT_A);
+}
+
+/**
+ *	t4_get_usm_stats - read TP's non-TCP DDP MIB counters
+ *	@adap: the adapter
+ *	@st: holds the counter values
+ *
+ *	Returns the values of TP's counters for non-TCP directly-placed packets.
+ */
+void t4_get_usm_stats(struct adapter *adap, struct tp_usm_stats *st)
+{
+	u32 val[4];
+
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, val, 4,
+			 TP_MIB_USM_PKTS_A);
+	st->frames = val[0];
+	st->drops = val[1];
+	st->octets = ((u64)val[2] << 32) | val[3];
 }
 
 /**
@@ -4032,6 +4113,28 @@ const char *t4_get_port_type_description(enum fw_port_type port_type)
 	if (port_type < ARRAY_SIZE(port_type_description))
 		return port_type_description[port_type];
 	return "UNKNOWN";
+}
+
+/**
+ *      t4_get_port_stats_offset - collect port stats relative to a previous
+ *                                 snapshot
+ *      @adap: The adapter
+ *      @idx: The port
+ *      @stats: Current stats to fill
+ *      @offset: Previous stats snapshot
+ */
+void t4_get_port_stats_offset(struct adapter *adap, int idx,
+			      struct port_stats *stats,
+			      struct port_stats *offset)
+{
+	u64 *s, *o;
+	int i;
+
+	t4_get_port_stats(adap, idx, stats);
+	for (i = 0, s = (u64 *)stats, o = (u64 *)offset;
+			i < (sizeof(struct port_stats) / sizeof(u64));
+			i++, s++, o++)
+		*s -= *o;
 }
 
 /**

@@ -108,15 +108,37 @@ static const char stats_strings[][ETH_GSTRING_LEN] = {
 	"VLANinsertions     ",
 	"GROpackets         ",
 	"GROmerged          ",
-	"WriteCoalSuccess   ",
-	"WriteCoalFail      ",
+};
+
+static char adapter_stats_strings[][ETH_GSTRING_LEN] = {
+	"db_drop                ",
+	"db_full                ",
+	"db_empty               ",
+	"tcp_ipv4_out_rsts      ",
+	"tcp_ipv4_in_segs       ",
+	"tcp_ipv4_out_segs      ",
+	"tcp_ipv4_retrans_segs  ",
+	"tcp_ipv6_out_rsts      ",
+	"tcp_ipv6_in_segs       ",
+	"tcp_ipv6_out_segs      ",
+	"tcp_ipv6_retrans_segs  ",
+	"usm_ddp_frames         ",
+	"usm_ddp_octets         ",
+	"usm_ddp_drops          ",
+	"rdma_no_rqe_mod_defer  ",
+	"rdma_no_rqe_pkt_defer  ",
+	"tp_err_ofld_no_neigh   ",
+	"tp_err_ofld_cong_defer ",
+	"write_coal_success     ",
+	"write_coal_fail        ",
 };
 
 static int get_sset_count(struct net_device *dev, int sset)
 {
 	switch (sset) {
 	case ETH_SS_STATS:
-		return ARRAY_SIZE(stats_strings);
+		return ARRAY_SIZE(stats_strings) +
+		       ARRAY_SIZE(adapter_stats_strings);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -168,8 +190,12 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 
 static void get_strings(struct net_device *dev, u32 stringset, u8 *data)
 {
-	if (stringset == ETH_SS_STATS)
+	if (stringset == ETH_SS_STATS) {
 		memcpy(data, stats_strings, sizeof(stats_strings));
+		data += sizeof(stats_strings);
+		memcpy(data, adapter_stats_strings,
+		       sizeof(adapter_stats_strings));
+	}
 }
 
 /* port stats maintained per queue of the port. They should be in the same
@@ -183,6 +209,29 @@ struct queue_port_stats {
 	u64 vlan_ins;
 	u64 gro_pkts;
 	u64 gro_merged;
+};
+
+struct adapter_stats {
+	u64 db_drop;
+	u64 db_full;
+	u64 db_empty;
+	u64 tcp_v4_out_rsts;
+	u64 tcp_v4_in_segs;
+	u64 tcp_v4_out_segs;
+	u64 tcp_v4_retrans_segs;
+	u64 tcp_v6_out_rsts;
+	u64 tcp_v6_in_segs;
+	u64 tcp_v6_out_segs;
+	u64 tcp_v6_retrans_segs;
+	u64 frames;
+	u64 octets;
+	u64 drops;
+	u64 rqe_dfr_mod;
+	u64 rqe_dfr_pkt;
+	u64 ofld_no_neigh;
+	u64 ofld_cong_defer;
+	u64 wc_success;
+	u64 wc_fail;
 };
 
 static void collect_sge_port_stats(const struct adapter *adap,
@@ -205,30 +254,74 @@ static void collect_sge_port_stats(const struct adapter *adap,
 	}
 }
 
+static void collect_adapter_stats(struct adapter *adap, struct adapter_stats *s)
+{
+	struct tp_tcp_stats v4, v6;
+	struct tp_rdma_stats rdma_stats;
+	struct tp_err_stats err_stats;
+	struct tp_usm_stats usm_stats;
+	u64 val1, val2;
+
+	memset(s, 0, sizeof(*s));
+
+	spin_lock(&adap->stats_lock);
+	t4_tp_get_tcp_stats(adap, &v4, &v6);
+	t4_tp_get_rdma_stats(adap, &rdma_stats);
+	t4_get_usm_stats(adap, &usm_stats);
+	t4_tp_get_err_stats(adap, &err_stats);
+	spin_unlock(&adap->stats_lock);
+
+	s->db_drop = adap->db_stats.db_drop;
+	s->db_full = adap->db_stats.db_full;
+	s->db_empty = adap->db_stats.db_empty;
+
+	s->tcp_v4_out_rsts = v4.tcp_out_rsts;
+	s->tcp_v4_in_segs = v4.tcp_in_segs;
+	s->tcp_v4_out_segs = v4.tcp_out_segs;
+	s->tcp_v4_retrans_segs = v4.tcp_retrans_segs;
+	s->tcp_v6_out_rsts = v6.tcp_out_rsts;
+	s->tcp_v6_in_segs = v6.tcp_in_segs;
+	s->tcp_v6_out_segs = v6.tcp_out_segs;
+	s->tcp_v6_retrans_segs = v6.tcp_retrans_segs;
+
+	if (is_offload(adap)) {
+		s->frames = usm_stats.frames;
+		s->octets = usm_stats.octets;
+		s->drops = usm_stats.drops;
+		s->rqe_dfr_mod = rdma_stats.rqe_dfr_mod;
+		s->rqe_dfr_pkt = rdma_stats.rqe_dfr_pkt;
+	}
+
+	s->ofld_no_neigh = err_stats.ofld_no_neigh;
+	s->ofld_cong_defer = err_stats.ofld_cong_defer;
+
+	if (!is_t4(adap->params.chip)) {
+		int v;
+
+		v = t4_read_reg(adap, SGE_STAT_CFG_A);
+		if (STATSOURCE_T5_G(v) == 7) {
+			val2 = t4_read_reg(adap, SGE_STAT_MATCH_A);
+			val1 = t4_read_reg(adap, SGE_STAT_TOTAL_A);
+			s->wc_success = val1 - val2;
+			s->wc_fail = val2;
+		}
+	}
+}
+
 static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 		      u64 *data)
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
-	u32 val1, val2;
 
-	t4_get_port_stats(adapter, pi->tx_chan, (struct port_stats *)data);
+	t4_get_port_stats_offset(adapter, pi->tx_chan,
+				 (struct port_stats *)data,
+				 &pi->stats_base);
 
 	data += sizeof(struct port_stats) / sizeof(u64);
 	collect_sge_port_stats(adapter, pi, (struct queue_port_stats *)data);
 	data += sizeof(struct queue_port_stats) / sizeof(u64);
-	if (!is_t4(adapter->params.chip)) {
-		t4_write_reg(adapter, SGE_STAT_CFG_A, STATSOURCE_T5_V(7));
-		val1 = t4_read_reg(adapter, SGE_STAT_TOTAL_A);
-		val2 = t4_read_reg(adapter, SGE_STAT_MATCH_A);
-		*data = val1 - val2;
-		data++;
-		*data = val2;
-		data++;
-	} else {
-		memset(data, 0, 2 * sizeof(u64));
-		*data += 2;
-	}
+	collect_adapter_stats(adapter, (struct adapter_stats *)data);
 }
 
 static void get_regs(struct net_device *dev, struct ethtool_regs *regs,
