@@ -195,6 +195,7 @@ static struct phy_ops rcar_gen2_phy_ops = {
 static const struct of_device_id rcar_gen2_phy_match_table[] = {
 	{ .compatible = "renesas,usb-phy-r8a7790" },
 	{ .compatible = "renesas,usb-phy-r8a7791" },
+	{ .compatible = "renesas,usb-phy-r8a7794" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rcar_gen2_phy_match_table);
@@ -205,11 +206,6 @@ static struct phy *rcar_gen2_phy_xlate(struct device *dev,
 	struct rcar_gen2_phy_driver *drv;
 	struct device_node *np = args->np;
 	int i;
-
-	if (!of_device_is_available(np)) {
-		dev_warn(dev, "Requested PHY is disabled\n");
-		return ERR_PTR(-ENODEV);
-	}
 
 	drv = dev_get_drvdata(dev);
 	if (!drv)
