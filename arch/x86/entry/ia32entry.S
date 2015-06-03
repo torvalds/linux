@@ -323,7 +323,7 @@ ENTRY(ia32_cstar_target)
 	 * 32bit zero extended
 	 */
 	ASM_STAC
-1:	movl	(%r8),%r9d
+1:	movl	(%r8),%ebp
 	_ASM_EXTABLE(1b,ia32_badarg)
 	ASM_CLAC
 	orl     $TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
@@ -333,7 +333,7 @@ ENTRY(ia32_cstar_target)
 cstar_do_call:
 	/* 32bit syscall -> 64bit C ABI argument conversion */
 	movl	%edi,%r8d	/* arg5 */
-	/* r9 already loaded */	/* arg6 */
+	movl	%ebp,%r9d	/* arg6 */
 	xchg	%ecx,%esi	/* rsi:arg2, rcx:arg4 */
 	movl	%ebx,%edi	/* arg1 */
 	movl	%edx,%edx	/* arg3 (zero extension) */
@@ -349,6 +349,7 @@ cstar_dispatch:
 	jnz sysretl_audit
 sysretl_from_sys_call:
 	andl $~TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
+	movl	RCX(%rsp), %ebp
 	RESTORE_RSI_RDI_RDX
 	movl RIP(%rsp),%ecx
 	movl EFLAGS(%rsp),%r11d
@@ -375,9 +376,8 @@ sysretl_from_sys_call:
 
 #ifdef CONFIG_AUDITSYSCALL
 cstar_auditsys:
-	movl %r9d,R9(%rsp)	/* register to be clobbered by call */
 	auditsys_entry_common
-	movl R9(%rsp),%r9d	/* reload 6th syscall arg */
+	movl	%ebp, %r9d	/* reload 6th syscall arg */
 	jmp cstar_dispatch
 
 sysretl_audit:
@@ -389,16 +389,14 @@ cstar_tracesys:
 	testl $(_TIF_WORK_SYSCALL_ENTRY & ~_TIF_SYSCALL_AUDIT), ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
 	jz cstar_auditsys
 #endif
-	xchgl %r9d,%ebp
 	SAVE_EXTRA_REGS
 	xorl	%eax, %eax	/* do not leak kernel information */
 	movq	%rax, R11(%rsp)
 	movq	%rax, R10(%rsp)
-	movq	%r9,  R9(%rsp)
+	movq	%rax, R9(%rsp)
 	movq	%rax, R8(%rsp)
-	movq %rsp,%rdi        /* &pt_regs -> arg1 */
-	call syscall_trace_enter
-	movl	R9(%rsp),%r9d
+	movq	%rsp, %rdi        /* &pt_regs -> arg1 */
+	call	syscall_trace_enter
 
 	/* Reload arg registers from stack. (see sysenter_tracesys) */
 	movl	RCX(%rsp), %ecx
@@ -408,8 +406,7 @@ cstar_tracesys:
 	movl	%eax, %eax	/* zero extension */
 
 	RESTORE_EXTRA_REGS
-	xchgl %ebp,%r9d
-	jmp cstar_do_call
+	jmp	cstar_do_call
 END(ia32_cstar_target)
 				
 ia32_badarg:
