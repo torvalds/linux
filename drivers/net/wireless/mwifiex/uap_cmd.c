@@ -222,6 +222,23 @@ void mwifiex_set_vht_params(struct mwifiex_private *priv,
 	return;
 }
 
+/* This function updates 11ac related parameters from IE
+ * and sets them into bss_config structure.
+ */
+void mwifiex_set_tpc_params(struct mwifiex_private *priv,
+			    struct mwifiex_uap_bss_param *bss_cfg,
+			    struct cfg80211_ap_settings *params)
+{
+	const u8 *tpc_ie;
+
+	tpc_ie = cfg80211_find_ie(WLAN_EID_TPC_REQUEST, params->beacon.tail,
+				  params->beacon.tail_len);
+	if (tpc_ie)
+		bss_cfg->power_constraint = *(tpc_ie + 2);
+	else
+		bss_cfg->power_constraint = 0;
+}
+
 /* Enable VHT only when cfg80211_ap_settings has VHT IE.
  * Otherwise disable VHT.
  */
@@ -466,6 +483,7 @@ mwifiex_uap_bss_param_prepare(u8 *tlv, void *cmd_buf, u16 *param_size)
 	struct host_cmd_tlv_auth_type *auth_type;
 	struct host_cmd_tlv_rates *tlv_rates;
 	struct host_cmd_tlv_ageout_timer *ao_timer, *ps_ao_timer;
+	struct host_cmd_tlv_power_constraint *pwr_ct;
 	struct mwifiex_ie_types_htcap *htcap;
 	struct mwifiex_ie_types_wmmcap *wmm_cap;
 	struct mwifiex_uap_bss_param *bss_cfg = cmd_buf;
@@ -642,6 +660,15 @@ mwifiex_uap_bss_param_prepare(u8 *tlv, void *cmd_buf, u16 *param_size)
 		ao_timer->sta_ao_timer = cpu_to_le32(bss_cfg->sta_ao_timer);
 		cmd_size += sizeof(*ao_timer);
 		tlv += sizeof(*ao_timer);
+	}
+
+	if (bss_cfg->power_constraint) {
+		pwr_ct = (void *)tlv;
+		pwr_ct->header.type = cpu_to_le16(TLV_TYPE_PWR_CONSTRAINT);
+		pwr_ct->header.len = cpu_to_le16(sizeof(u8));
+		pwr_ct->constraint = bss_cfg->power_constraint;
+		cmd_size += sizeof(*pwr_ct);
+		tlv += sizeof(*pwr_ct);
 	}
 
 	if (bss_cfg->ps_sta_ao_timer) {

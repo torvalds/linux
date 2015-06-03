@@ -1867,6 +1867,9 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 
 	mwifiex_set_wmm_params(priv, bss_cfg, params);
 
+	if (mwifiex_is_11h_active(priv))
+		mwifiex_set_tpc_params(priv, bss_cfg, params);
+
 	if (mwifiex_is_11h_active(priv) &&
 	    !cfg80211_chandef_dfs_required(wiphy, &params->chandef,
 					   priv->bss_mode)) {

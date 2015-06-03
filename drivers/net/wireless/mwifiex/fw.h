@@ -128,6 +128,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 
 #define TLV_TYPE_UAP_SSID			0x0000
 #define TLV_TYPE_UAP_RATES			0x0001
+#define TLV_TYPE_PWR_CONSTRAINT			0x0020
 
 #define PROPRIETARY_TLV_BASE_ID                 0x0100
 #define TLV_TYPE_KEY_MATERIAL       (PROPRIETARY_TLV_BASE_ID + 0)
@@ -1778,6 +1779,11 @@ struct host_cmd_tlv_channel_band {
 struct host_cmd_tlv_ageout_timer {
 	struct mwifiex_ie_types_header header;
 	__le32 sta_ao_timer;
+} __packed;
+
+struct host_cmd_tlv_power_constraint {
+	struct mwifiex_ie_types_header header;
+	u8 constraint;
 } __packed;
 
 struct host_cmd_ds_version_ext {
