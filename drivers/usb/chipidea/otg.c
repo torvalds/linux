@@ -221,6 +221,7 @@ void ci_hdrc_otg_destroy(struct ci_hdrc *ci)
 	if (ci->wq) {
 		flush_workqueue(ci->wq);
 		destroy_workqueue(ci->wq);
+		ci->wq = NULL;
 	}
 	/* Disable all OTG irq and clear status */
 	hw_write_otgsc(ci, OTGSC_INT_EN_BITS | OTGSC_INT_STATUS_BITS,
