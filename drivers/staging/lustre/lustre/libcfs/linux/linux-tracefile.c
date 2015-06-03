@@ -49,15 +49,13 @@ static unsigned int pages_factor[CFS_TCD_TYPE_MAX] = {
 
 char *cfs_trace_console_buffers[NR_CPUS][CFS_TCD_TYPE_MAX];
 
-struct rw_semaphore cfs_tracefile_sem;
+static DECLARE_RWSEM(cfs_tracefile_sem);
 
 int cfs_tracefile_init_arch(void)
 {
 	int    i;
 	int    j;
 	struct cfs_trace_cpu_data *tcd;
-
-	init_rwsem(&cfs_tracefile_sem);
 
 	/* initialize trace_data */
 	memset(cfs_trace_data, 0, sizeof(cfs_trace_data));

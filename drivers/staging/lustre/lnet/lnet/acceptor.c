@@ -35,8 +35,8 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LNET
+#include <linux/completion.h>
 #include "../../include/linux/lnet/lib-lnet.h"
-
 
 static int   accept_port    = 988;
 static int   accept_backlog = 127;
