@@ -212,7 +212,7 @@ static int qxl_process_single_command(struct qxl_device *qdev,
 		/* add the bos to the list of bos to validate -
 		   need to validate first then process relocs? */
 		if (reloc.reloc_type != QXL_RELOC_TYPE_BO && reloc.reloc_type != QXL_RELOC_TYPE_SURF) {
-			DRM_DEBUG("unknown reloc type %d\n", reloc_info[i].type);
+			DRM_DEBUG("unknown reloc type %d\n", reloc.reloc_type);
 
 			ret = -EINVAL;
 			goto out_free_bos;
