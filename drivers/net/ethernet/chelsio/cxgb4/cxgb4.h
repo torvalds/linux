@@ -1325,6 +1325,7 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p);
 void t4_get_port_stats_offset(struct adapter *adap, int idx,
 			      struct port_stats *stats,
 			      struct port_stats *offset);
+void t4_get_lb_stats(struct adapter *adap, int idx, struct lb_port_stats *p);
 void t4_read_mtu_tbl(struct adapter *adap, u16 *mtus, u8 *mtu_log);
 void t4_read_cong_tbl(struct adapter *adap, u16 incr[NMTUS][NCCTRL_WIN]);
 void t4_tp_wr_bits_indirect(struct adapter *adap, unsigned int addr,

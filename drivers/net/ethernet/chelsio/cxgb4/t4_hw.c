@@ -4264,6 +4264,54 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 }
 
 /**
+ *	t4_get_lb_stats - collect loopback port statistics
+ *	@adap: the adapter
+ *	@idx: the loopback port index
+ *	@p: the stats structure to fill
+ *
+ *	Return HW statistics for the given loopback port.
+ */
+void t4_get_lb_stats(struct adapter *adap, int idx, struct lb_port_stats *p)
+{
+	u32 bgmap = t4_get_mps_bg_map(adap, idx);
+
+#define GET_STAT(name) \
+	t4_read_reg64(adap, \
+	(is_t4(adap->params.chip) ? \
+	PORT_REG(idx, MPS_PORT_STAT_LB_PORT_##name##_L) : \
+	T5_PORT_REG(idx, MPS_PORT_STAT_LB_PORT_##name##_L)))
+#define GET_STAT_COM(name) t4_read_reg64(adap, MPS_STAT_##name##_L)
+
+	p->octets           = GET_STAT(BYTES);
+	p->frames           = GET_STAT(FRAMES);
+	p->bcast_frames     = GET_STAT(BCAST);
+	p->mcast_frames     = GET_STAT(MCAST);
+	p->ucast_frames     = GET_STAT(UCAST);
+	p->error_frames     = GET_STAT(ERROR);
+
+	p->frames_64        = GET_STAT(64B);
+	p->frames_65_127    = GET_STAT(65B_127B);
+	p->frames_128_255   = GET_STAT(128B_255B);
+	p->frames_256_511   = GET_STAT(256B_511B);
+	p->frames_512_1023  = GET_STAT(512B_1023B);
+	p->frames_1024_1518 = GET_STAT(1024B_1518B);
+	p->frames_1519_max  = GET_STAT(1519B_MAX);
+	p->drop             = GET_STAT(DROP_FRAMES);
+
+	p->ovflow0 = (bgmap & 1) ? GET_STAT_COM(RX_BG_0_LB_DROP_FRAME) : 0;
+	p->ovflow1 = (bgmap & 2) ? GET_STAT_COM(RX_BG_1_LB_DROP_FRAME) : 0;
+	p->ovflow2 = (bgmap & 4) ? GET_STAT_COM(RX_BG_2_LB_DROP_FRAME) : 0;
+	p->ovflow3 = (bgmap & 8) ? GET_STAT_COM(RX_BG_3_LB_DROP_FRAME) : 0;
+	p->trunc0 = (bgmap & 1) ? GET_STAT_COM(RX_BG_0_LB_TRUNC_FRAME) : 0;
+	p->trunc1 = (bgmap & 2) ? GET_STAT_COM(RX_BG_1_LB_TRUNC_FRAME) : 0;
+	p->trunc2 = (bgmap & 4) ? GET_STAT_COM(RX_BG_2_LB_TRUNC_FRAME) : 0;
+	p->trunc3 = (bgmap & 8) ? GET_STAT_COM(RX_BG_3_LB_TRUNC_FRAME) : 0;
+
+#undef GET_STAT
+#undef GET_STAT_COM
+}
+
+/**
  *	t4_wol_magic_enable - enable/disable magic packet WoL
  *	@adap: the adapter
  *	@port: the physical port index

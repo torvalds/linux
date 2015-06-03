@@ -150,13 +150,40 @@ static char channel_stats_strings[][ETH_GSTRING_LEN] = {
 	"fcoe_frames_drop       ",
 };
 
+static char loopback_stats_strings[][ETH_GSTRING_LEN] = {
+	"-------Loopback----------- ",
+	"octets_ok              ",
+	"frames_ok              ",
+	"bcast_frames           ",
+	"mcast_frames           ",
+	"ucast_frames           ",
+	"error_frames           ",
+	"frames_64              ",
+	"frames_65_to_127       ",
+	"frames_128_to_255      ",
+	"frames_256_to_511      ",
+	"frames_512_to_1023     ",
+	"frames_1024_to_1518    ",
+	"frames_1519_to_max     ",
+	"frames_dropped         ",
+	"bg0_frames_dropped     ",
+	"bg1_frames_dropped     ",
+	"bg2_frames_dropped     ",
+	"bg3_frames_dropped     ",
+	"bg0_frames_trunc       ",
+	"bg1_frames_trunc       ",
+	"bg2_frames_trunc       ",
+	"bg3_frames_trunc       ",
+};
+
 static int get_sset_count(struct net_device *dev, int sset)
 {
 	switch (sset) {
 	case ETH_SS_STATS:
 		return ARRAY_SIZE(stats_strings) +
 		       ARRAY_SIZE(adapter_stats_strings) +
-		       ARRAY_SIZE(channel_stats_strings);
+		       ARRAY_SIZE(channel_stats_strings) +
+		       ARRAY_SIZE(loopback_stats_strings);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -216,6 +243,9 @@ static void get_strings(struct net_device *dev, u32 stringset, u8 *data)
 		data += sizeof(adapter_stats_strings);
 		memcpy(data, channel_stats_strings,
 		       sizeof(channel_stats_strings));
+		data += sizeof(channel_stats_strings);
+		memcpy(data, loopback_stats_strings,
+		       sizeof(loopback_stats_strings));
 	}
 }
 
@@ -380,6 +410,9 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
+	struct lb_port_stats s;
+	int i;
+	u64 *p0;
 
 	t4_get_port_stats_offset(adapter, pi->tx_chan,
 				 (struct port_stats *)data,
@@ -394,7 +427,15 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 	*data++ = (u64)pi->port_id;
 	collect_channel_stats(adapter, (struct channel_stats *)data,
 			      pi->port_id);
+	data += sizeof(struct channel_stats) / sizeof(u64);
 
+	*data++ = (u64)pi->port_id;
+	memset(&s, 0, sizeof(s));
+	t4_get_lb_stats(adapter, pi->port_id, &s);
+
+	p0 = &s.octets;
+	for (i = 0; i < ARRAY_SIZE(loopback_stats_strings) - 1; i++)
+		*data++ = (unsigned long long)*p0++;
 }
 
 static void get_regs(struct net_device *dev, struct ethtool_regs *regs,
