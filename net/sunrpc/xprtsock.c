@@ -1980,14 +1980,14 @@ static void xs_set_memalloc(struct rpc_xprt *xprt)
 }
 
 /**
- * xs_swapper_enable - Tag this transport as being used for swap.
+ * xs_enable_swap - Tag this transport as being used for swap.
  * @xprt: transport to tag
  *
  * Take a reference to this transport on behalf of the rpc_clnt, and
  * optionally mark it for swapping if it wasn't already.
  */
-int
-xs_swapper_enable(struct rpc_xprt *xprt)
+static int
+xs_enable_swap(struct rpc_xprt *xprt)
 {
 	struct sock_xprt *xs = container_of(xprt, struct sock_xprt, xprt);
 
@@ -2002,14 +2002,14 @@ xs_swapper_enable(struct rpc_xprt *xprt)
 }
 
 /**
- * xs_swapper_disable - Untag this transport as being used for swap.
+ * xs_disable_swap - Untag this transport as being used for swap.
  * @xprt: transport to tag
  *
  * Drop a "swapper" reference to this xprt on behalf of the rpc_clnt. If the
  * swapper refcount goes to 0, untag the socket as a memalloc socket.
  */
-void
-xs_swapper_disable(struct rpc_xprt *xprt)
+static void
+xs_disable_swap(struct rpc_xprt *xprt)
 {
 	struct sock_xprt *xs = container_of(xprt, struct sock_xprt, xprt);
 
@@ -2023,6 +2023,17 @@ xs_swapper_disable(struct rpc_xprt *xprt)
 }
 #else
 static void xs_set_memalloc(struct rpc_xprt *xprt)
+{
+}
+
+static int
+xs_enable_swap(struct rpc_xprt *xprt)
+{
+	return -EINVAL;
+}
+
+static void
+xs_disable_swap(struct rpc_xprt *xprt)
 {
 }
 #endif
@@ -2488,6 +2499,8 @@ static struct rpc_xprt_ops xs_local_ops = {
 	.close			= xs_close,
 	.destroy		= xs_destroy,
 	.print_stats		= xs_local_print_stats,
+	.enable_swap		= xs_enable_swap,
+	.disable_swap		= xs_disable_swap,
 };
 
 static struct rpc_xprt_ops xs_udp_ops = {
@@ -2507,6 +2520,8 @@ static struct rpc_xprt_ops xs_udp_ops = {
 	.close			= xs_close,
 	.destroy		= xs_destroy,
 	.print_stats		= xs_udp_print_stats,
+	.enable_swap		= xs_enable_swap,
+	.disable_swap		= xs_disable_swap,
 };
 
 static struct rpc_xprt_ops xs_tcp_ops = {
@@ -2523,6 +2538,8 @@ static struct rpc_xprt_ops xs_tcp_ops = {
 	.close			= xs_tcp_shutdown,
 	.destroy		= xs_destroy,
 	.print_stats		= xs_tcp_print_stats,
+	.enable_swap		= xs_enable_swap,
+	.disable_swap		= xs_disable_swap,
 };
 
 /*
@@ -2540,6 +2557,8 @@ static struct rpc_xprt_ops bc_tcp_ops = {
 	.close			= bc_close,
 	.destroy		= bc_destroy,
 	.print_stats		= xs_tcp_print_stats,
+	.enable_swap		= xs_enable_swap,
+	.disable_swap		= xs_disable_swap,
 };
 
 static int xs_init_anyaddr(const int family, struct sockaddr *sap)

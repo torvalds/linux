@@ -682,6 +682,17 @@ static void xprt_rdma_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 	   r_xprt->rx_stats.bad_reply_count);
 }
 
+static int
+xprt_rdma_enable_swap(struct rpc_xprt *xprt)
+{
+	return -EINVAL;
+}
+
+static void
+xprt_rdma_disable_swap(struct rpc_xprt *xprt)
+{
+}
+
 /*
  * Plumbing for rpc transport switch and kernel module
  */
@@ -700,7 +711,9 @@ static struct rpc_xprt_ops xprt_rdma_procs = {
 	.send_request		= xprt_rdma_send_request,
 	.close			= xprt_rdma_close,
 	.destroy		= xprt_rdma_destroy,
-	.print_stats		= xprt_rdma_print_stats
+	.print_stats		= xprt_rdma_print_stats,
+	.enable_swap		= xprt_rdma_enable_swap,
+	.disable_swap		= xprt_rdma_disable_swap,
 };
 
 static struct xprt_class xprt_rdma = {

@@ -133,6 +133,8 @@ struct rpc_xprt_ops {
 	void		(*close)(struct rpc_xprt *xprt);
 	void		(*destroy)(struct rpc_xprt *xprt);
 	void		(*print_stats)(struct rpc_xprt *xprt, struct seq_file *seq);
+	int		(*enable_swap)(struct rpc_xprt *xprt);
+	void		(*disable_swap)(struct rpc_xprt *xprt);
 };
 
 /*
@@ -328,6 +330,18 @@ static inline __be32 *xprt_skip_transport_header(struct rpc_xprt *xprt, __be32 *
 	return p + xprt->tsh_size;
 }
 
+static inline int
+xprt_enable_swap(struct rpc_xprt *xprt)
+{
+	return xprt->ops->enable_swap(xprt);
+}
+
+static inline void
+xprt_disable_swap(struct rpc_xprt *xprt)
+{
+	xprt->ops->disable_swap(xprt);
+}
+
 /*
  * Transport switch helper functions
  */
@@ -346,8 +360,6 @@ void			xprt_release_rqst_cong(struct rpc_task *task);
 void			xprt_disconnect_done(struct rpc_xprt *xprt);
 void			xprt_force_disconnect(struct rpc_xprt *xprt);
 void			xprt_conditional_disconnect(struct rpc_xprt *xprt, unsigned int cookie);
-int			xs_swapper_enable(struct rpc_xprt *xprt);
-void			xs_swapper_disable(struct rpc_xprt *xprt);
 
 bool			xprt_lock_connect(struct rpc_xprt *, struct rpc_task *, void *);
 void			xprt_unlock_connect(struct rpc_xprt *, void *);
