@@ -16,6 +16,7 @@
 #include "exynos4412.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/clock/maxim,max77686.h>
 
 / {
 	model = "Samsung Trats 2 based on Exynos4412";
@@ -214,7 +215,7 @@
 		pinctrl-names = "default";
 		status = "okay";
 
-		max77686_pmic@09 {
+		max77686: max77686_pmic@09 {
 			compatible = "maxim,max77686";
 			interrupt-parent = <&gpx0>;
 			interrupts = <7 0>;
@@ -1303,4 +1304,10 @@
 
 		PIN_SLP(gpv4-0, INPUT, DOWN);
 	};
+};
+
+&rtc {
+	status = "okay";
+	clocks = <&clock CLK_RTC>, <&max77686 MAX77686_CLK_AP>;
+	clock-names = "rtc", "rtc_src";
 };
