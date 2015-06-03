@@ -1487,15 +1487,20 @@ xfs_filemap_page_mkwrite(
 	struct vm_fault		*vmf)
 {
 	struct xfs_inode	*ip = XFS_I(vma->vm_file->f_mapping->host);
-	int			error;
+	int			ret;
 
 	trace_xfs_filemap_page_mkwrite(ip);
 
+	sb_start_pagefault(VFS_I(ip)->i_sb);
+	file_update_time(vma->vm_file);
 	xfs_ilock(ip, XFS_MMAPLOCK_SHARED);
-	error = block_page_mkwrite(vma, vmf, xfs_get_blocks);
-	xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
 
-	return error;
+	ret = __block_page_mkwrite(vma, vmf, xfs_get_blocks);
+
+	xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
+	sb_end_pagefault(VFS_I(ip)->i_sb);
+
+	return block_page_mkwrite_return(ret);
 }
 
 const struct file_operations xfs_file_operations = {
