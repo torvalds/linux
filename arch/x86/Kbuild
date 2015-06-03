@@ -1,3 +1,6 @@
+
+obj-y += entry/
+
 obj-$(CONFIG_KVM) += kvm/
 
 # Xen paravirtualization support
