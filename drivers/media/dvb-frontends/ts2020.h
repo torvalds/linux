@@ -48,6 +48,9 @@ struct ts2020_config {
 	 */
 	u8 clk_out_div:5;
 
+	/* Set to true to suppress stat polling */
+	bool dont_poll:1;
+
 	/*
 	 * pointer to DVB frontend
 	 */
