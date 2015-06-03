@@ -1059,7 +1059,8 @@ static void print_ll_cache_misses(FILE *out, int cpu,
 	fprintf(out, " of all LL-cache hits   ");
 }
 
-static void print_shadow_stats(FILE *out, struct perf_evsel *evsel, double avg, int cpu)
+static void print_shadow_stats(FILE *out, struct perf_evsel *evsel,
+			       double avg, int cpu, enum aggr_mode aggr)
 {
 	double total, ratio = 0.0, total2;
 	int ctx = evsel_context(evsel);
@@ -1078,7 +1079,7 @@ static void print_shadow_stats(FILE *out, struct perf_evsel *evsel, double avg, 
 		if (total && avg) {
 			ratio = total / avg;
 			fprintf(out, "\n");
-			if (aggr_mode == AGGR_NONE)
+			if (aggr == AGGR_NONE)
 				fprintf(out, "        ");
 			fprintf(out, "                                                  #   %5.2f  stalled cycles per insn", ratio);
 		}
@@ -1229,7 +1230,7 @@ static void abs_printout(int id, int nr, struct perf_evsel *evsel, double avg)
 	if (csv_output || interval)
 		return;
 
-	print_shadow_stats(output, evsel, avg, cpu);
+	print_shadow_stats(output, evsel, avg, cpu, aggr_mode);
 }
 
 static void print_aggr(char *prefix)
