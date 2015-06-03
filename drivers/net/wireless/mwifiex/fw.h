@@ -632,7 +632,12 @@ struct uap_rxpd {
 	__le16 rx_pkt_type;
 	__le16 seq_num;
 	u8 priority;
-	u8 reserved1;
+	u8 rx_rate;
+	s8 snr;
+	s8 nf;
+	u8 ht_info;
+	u8 reserved[3];
+	u8 flags;
 };
 
 struct mwifiex_fw_chan_stats {

@@ -741,6 +741,18 @@ struct mwifiex_tdls_capab {
 	struct ieee80211_vht_operation vhtoper;
 };
 
+struct mwifiex_station_stats {
+	u64 last_rx;
+	s8 rssi;
+	u64 rx_bytes;
+	u64 tx_bytes;
+	u32 rx_packets;
+	u32 tx_packets;
+	u32 tx_failed;
+	u8 last_tx_rate;
+	u8 last_tx_htinfo;
+};
+
 /* This is AP/TDLS specific structure which stores information
  * about associated/peer STA
  */
@@ -755,6 +767,7 @@ struct mwifiex_sta_node {
 	u16 max_amsdu;
 	u8 tdls_status;
 	struct mwifiex_tdls_capab tdls_cap;
+	struct mwifiex_station_stats stats;
 };
 
 struct mwifiex_auto_tdls_peer {

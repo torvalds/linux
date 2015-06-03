@@ -416,11 +416,24 @@ mwifiex_process_mgmt_packet(struct mwifiex_private *priv,
  */
 int mwifiex_recv_packet(struct mwifiex_private *priv, struct sk_buff *skb)
 {
+	struct mwifiex_sta_node *src_node;
+	struct ethhdr *p_ethhdr;
+
 	if (!skb)
 		return -1;
 
 	priv->stats.rx_bytes += skb->len;
 	priv->stats.rx_packets++;
+
+	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
+		p_ethhdr = (void *)skb->data;
+		src_node = mwifiex_get_sta_entry(priv, p_ethhdr->h_source);
+		if (src_node) {
+			src_node->stats.last_rx = jiffies;
+			src_node->stats.rx_bytes += skb->len;
+			src_node->stats.rx_packets++;
+		}
+	}
 
 	skb->dev = priv->netdev;
 	skb->protocol = eth_type_trans(skb, priv->netdev);
