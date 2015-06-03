@@ -121,22 +121,11 @@ static int exynos_pd_power_off(struct generic_pm_domain *domain)
 
 static __init int exynos4_pm_init_power_domain(void)
 {
-	struct platform_device *pdev;
 	struct device_node *np;
 
 	for_each_compatible_node(np, NULL, "samsung,exynos4210-pd") {
 		struct exynos_pm_domain *pd;
 		int on, i;
-		struct device *dev;
-
-		pdev = of_find_device_by_node(np);
-		if (!pdev) {
-			pr_err("%s: failed to find device for node %s\n",
-					__func__, np->name);
-			of_node_put(np);
-			continue;
-		}
-		dev = &pdev->dev;
 
 		pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 		if (!pd) {
@@ -145,8 +134,8 @@ static __init int exynos4_pm_init_power_domain(void)
 			of_node_put(np);
 			return -ENOMEM;
 		}
-
-		pd->pd.name = kstrdup(dev_name(dev), GFP_KERNEL);
+		pd->pd.name = kstrdup_const(strrchr(np->full_name, '/') + 1,
+					    GFP_KERNEL);
 		if (!pd->pd.name) {
 			kfree(pd);
 			of_node_put(np);
@@ -156,7 +145,7 @@ static __init int exynos4_pm_init_power_domain(void)
 		pd->name = pd->pd.name;
 		pd->base = of_iomap(np, 0);
 		if (!pd->base) {
-			dev_warn(&pdev->dev, "Failed to map memory\n");
+			pr_warn("%s: failed to map memory\n", __func__);
 			kfree(pd->pd.name);
 			kfree(pd);
 			of_node_put(np);
@@ -170,12 +159,12 @@ static __init int exynos4_pm_init_power_domain(void)
 			char clk_name[8];
 
 			snprintf(clk_name, sizeof(clk_name), "asb%d", i);
-			pd->asb_clk[i] = clk_get(dev, clk_name);
+			pd->asb_clk[i] = of_clk_get_by_name(np, clk_name);
 			if (IS_ERR(pd->asb_clk[i]))
 				break;
 		}
 
-		pd->oscclk = clk_get(dev, "oscclk");
+		pd->oscclk = of_clk_get_by_name(np, "oscclk");
 		if (IS_ERR(pd->oscclk))
 			goto no_clk;
 
@@ -183,7 +172,7 @@ static __init int exynos4_pm_init_power_domain(void)
 			char clk_name[8];
 
 			snprintf(clk_name, sizeof(clk_name), "clk%d", i);
-			pd->clk[i] = clk_get(dev, clk_name);
+			pd->clk[i] = of_clk_get_by_name(np, clk_name);
 			if (IS_ERR(pd->clk[i]))
 				break;
 			/*
@@ -234,4 +223,4 @@ next_pd:
 
 	return 0;
 }
-arch_initcall(exynos4_pm_init_power_domain);
+core_initcall(exynos4_pm_init_power_domain);
