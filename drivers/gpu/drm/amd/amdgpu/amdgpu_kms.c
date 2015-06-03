@@ -291,15 +291,15 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			break;
 		case AMDGPU_INFO_FW_GFX_ME:
 			fw_info.ver = adev->gfx.me_fw_version;
-			fw_info.feature = 0;
+			fw_info.feature = adev->gfx.me_feature_version;
 			break;
 		case AMDGPU_INFO_FW_GFX_PFP:
 			fw_info.ver = adev->gfx.pfp_fw_version;
-			fw_info.feature = 0;
+			fw_info.feature = adev->gfx.pfp_feature_version;
 			break;
 		case AMDGPU_INFO_FW_GFX_CE:
 			fw_info.ver = adev->gfx.ce_fw_version;
-			fw_info.feature = 0;
+			fw_info.feature = adev->gfx.ce_feature_version;
 			break;
 		case AMDGPU_INFO_FW_GFX_RLC:
 			fw_info.ver = adev->gfx.rlc_fw_version;

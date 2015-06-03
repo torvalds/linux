@@ -2705,6 +2705,9 @@ static int gfx_v7_0_cp_gfx_load_microcode(struct amdgpu_device *adev)
 	adev->gfx.pfp_fw_version = le32_to_cpu(pfp_hdr->header.ucode_version);
 	adev->gfx.ce_fw_version = le32_to_cpu(ce_hdr->header.ucode_version);
 	adev->gfx.me_fw_version = le32_to_cpu(me_hdr->header.ucode_version);
+	adev->gfx.me_feature_version = le32_to_cpu(me_hdr->ucode_feature_version);
+	adev->gfx.ce_feature_version = le32_to_cpu(ce_hdr->ucode_feature_version);
+	adev->gfx.pfp_feature_version = le32_to_cpu(pfp_hdr->ucode_feature_version);
 
 	gfx_v7_0_cp_gfx_enable(adev, false);
 
