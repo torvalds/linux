@@ -804,6 +804,7 @@ static int rt9455_hw_init(struct rt9455_info *info, u32 ichrg,
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_USB_PHY)
 /*
  * Before setting the charger into boost mode, boost output voltage is
  * set. This is needed because boost output voltage may differ from battery
@@ -828,6 +829,7 @@ static int rt9455_set_boost_voltage_before_boost_mode(struct rt9455_info *info)
 
 	return 0;
 }
+#endif
 
 /*
  * Before setting the charger into charge mode, battery regulation voltage is
@@ -1241,6 +1243,7 @@ static int rt9455_discover_charger(struct rt9455_info *info, u32 *ichrg,
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_USB_PHY)
 static int rt9455_usb_event_none(struct rt9455_info *info,
 				 u8 opa_mode, u8 iaicr)
 {
@@ -1445,6 +1448,7 @@ static int rt9455_usb_event(struct notifier_block *nb,
 	}
 	return NOTIFY_DONE;
 }
+#endif
 
 static void rt9455_pwr_rdy_work_callback(struct work_struct *work)
 {
