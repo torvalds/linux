@@ -33,7 +33,7 @@
  *
  * The example code provided for the asynchronous block cipher operation
  * applies here as well. Naturally all *ablkcipher* symbols must be exchanged
- * the *aead* pendants discussed in the following. In addtion, for the AEAD
+ * the *aead* pendants discussed in the following. In addition, for the AEAD
  * operation, the aead_request_set_assoc function must be used to set the
  * pointer to the associated data memory location before performing the
  * encryption or decryption operation. In case of an encryption, the associated

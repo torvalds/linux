@@ -451,7 +451,7 @@ struct compress_alg {
  *		     transformation algorithm.
  * @cra_type: Type of the cryptographic transformation. This is a pointer to
  *	      struct crypto_type, which implements callbacks common for all
- *	      trasnformation types. There are multiple options:
+ *	      transformation types. There are multiple options:
  *	      &crypto_blkcipher_type, &crypto_ablkcipher_type,
  *	      &crypto_ahash_type, &crypto_aead_type, &crypto_rng_type.
  *	      This field might be empty. In that case, there are no common

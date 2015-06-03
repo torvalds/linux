@@ -28,7 +28,7 @@ struct crypto_rng;
  *		if provided to the call.
  * @seed:	Seed or reseed the random number generator.  With the
  *		invocation of this function call, the random number
- *		generator shall become ready fo generation.  If the
+ *		generator shall become ready for generation.  If the
  *		random number generator requires a seed for setting
  *		up a new state, the seed must be provided by the
  *		consumer while invoking this function. The required
