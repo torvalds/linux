@@ -462,3 +462,36 @@ void media_device_unregister_entity(struct media_entity *entity)
 	entity->parent = NULL;
 }
 EXPORT_SYMBOL_GPL(media_device_unregister_entity);
+
+static void media_device_release_devres(struct device *dev, void *res)
+{
+}
+
+/*
+ * media_device_get_devres() -	get media device as device resource
+ *				creates if one doesn't exist
+*/
+struct media_device *media_device_get_devres(struct device *dev)
+{
+	struct media_device *mdev;
+
+	mdev = devres_find(dev, media_device_release_devres, NULL, NULL);
+	if (mdev)
+		return mdev;
+
+	mdev = devres_alloc(media_device_release_devres,
+				sizeof(struct media_device), GFP_KERNEL);
+	if (!mdev)
+		return NULL;
+	return devres_get(dev, mdev, NULL, NULL);
+}
+EXPORT_SYMBOL_GPL(media_device_get_devres);
+
+/*
+ * media_device_find_devres() - find media device as device resource
+*/
+struct media_device *media_device_find_devres(struct device *dev)
+{
+	return devres_find(dev, media_device_release_devres, NULL, NULL);
+}
+EXPORT_SYMBOL_GPL(media_device_find_devres);

@@ -95,6 +95,8 @@ void media_device_unregister(struct media_device *mdev);
 int __must_check media_device_register_entity(struct media_device *mdev,
 					      struct media_entity *entity);
 void media_device_unregister_entity(struct media_entity *entity);
+struct media_device *media_device_get_devres(struct device *dev);
+struct media_device *media_device_find_devres(struct device *dev);
 
 /* Iterate over all entities. */
 #define media_device_for_each_entity(entity, mdev)			\
