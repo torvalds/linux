@@ -71,12 +71,8 @@ void ext4_release_crypto_ctx(struct ext4_crypto_ctx *ctx)
 {
 	unsigned long flags;
 
-	if (ctx->flags & EXT4_WRITE_PATH_FL && ctx->w.bounce_page) {
-		if (ctx->flags & EXT4_BOUNCE_PAGE_REQUIRES_FREE_ENCRYPT_FL)
-			__free_page(ctx->w.bounce_page);
-		else
-			mempool_free(ctx->w.bounce_page, ext4_bounce_page_pool);
-	}
+	if (ctx->flags & EXT4_WRITE_PATH_FL && ctx->w.bounce_page)
+		mempool_free(ctx->w.bounce_page, ext4_bounce_page_pool);
 	ctx->w.bounce_page = NULL;
 	ctx->w.control_page = NULL;
 	if (ctx->flags & EXT4_CTX_REQUIRES_FREE_ENCRYPT_FL) {
@@ -317,22 +313,11 @@ static int ext4_page_crypto(struct ext4_crypto_ctx *ctx,
 
 static struct page *alloc_bounce_page(struct ext4_crypto_ctx *ctx)
 {
-	struct page *ciphertext_page = alloc_page(GFP_NOFS);
-
-	if (!ciphertext_page) {
-		/* This is a potential bottleneck, but at least we'll have
-		 * forward progress. */
-		ciphertext_page = mempool_alloc(ext4_bounce_page_pool,
-						 GFP_NOFS);
-		if (ciphertext_page == NULL)
-			return ERR_PTR(-ENOMEM);
-		ctx->flags &= ~EXT4_BOUNCE_PAGE_REQUIRES_FREE_ENCRYPT_FL;
-	} else {
-		ctx->flags |= EXT4_BOUNCE_PAGE_REQUIRES_FREE_ENCRYPT_FL;
-	}
+	ctx->w.bounce_page = mempool_alloc(ext4_bounce_page_pool, GFP_NOWAIT);
+	if (ctx->w.bounce_page == NULL)
+		return ERR_PTR(-ENOMEM);
 	ctx->flags |= EXT4_WRITE_PATH_FL;
-	ctx->w.bounce_page = ciphertext_page;
-	return ciphertext_page;
+	return ctx->w.bounce_page;
 }
 
 /**

@@ -83,8 +83,7 @@ struct ext4_crypt_info {
 };
 
 #define EXT4_CTX_REQUIRES_FREE_ENCRYPT_FL             0x00000001
-#define EXT4_BOUNCE_PAGE_REQUIRES_FREE_ENCRYPT_FL     0x00000002
-#define EXT4_WRITE_PATH_FL			      0x00000004
+#define EXT4_WRITE_PATH_FL			      0x00000002
 
 struct ext4_crypto_ctx {
 	union {
