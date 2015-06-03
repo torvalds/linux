@@ -348,7 +348,8 @@ int check_irq_vectors_for_cpu_disable(void)
 				continue;
 
 			data = irq_desc_get_irq_data(desc);
-			cpumask_copy(&affinity_new, data->affinity);
+			cpumask_copy(&affinity_new,
+				     irq_data_get_affinity_mask(data));
 			cpumask_clear_cpu(this_cpu, &affinity_new);
 
 			/* Do not count inactive or per-cpu irqs. */
@@ -426,7 +427,7 @@ void fixup_irqs(void)
 		raw_spin_lock(&desc->lock);
 
 		data = irq_desc_get_irq_data(desc);
-		affinity = data->affinity;
+		affinity = irq_data_get_affinity_mask(data);
 		if (!irq_has_action(irq) || irqd_is_per_cpu(data) ||
 		    cpumask_subset(affinity, cpu_online_mask)) {
 			raw_spin_unlock(&desc->lock);

@@ -2541,7 +2541,7 @@ void __init setup_ioapic_dest(void)
 		 * Honour affinities which have been set in early boot
 		 */
 		if (!irqd_can_balance(idata) || irqd_affinity_was_set(idata))
-			mask = idata->affinity;
+			mask = irq_data_get_affinity_mask(idata);
 		else
 			mask = apic->target_cpus();
 

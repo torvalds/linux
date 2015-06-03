@@ -336,7 +336,7 @@ static void bind_evtchn_to_cpu(unsigned int chn, unsigned int cpu)
 
 	BUG_ON(irq == -1);
 #ifdef CONFIG_SMP
-	cpumask_copy(irq_get_irq_data(irq)->affinity, cpumask_of(cpu));
+	cpumask_copy(irq_get_affinity_mask(irq), cpumask_of(cpu));
 #endif
 	xen_evtchn_port_bind_to_cpu(info, cpu);
 
@@ -373,7 +373,7 @@ static void xen_irq_init(unsigned irq)
 	struct irq_info *info;
 #ifdef CONFIG_SMP
 	/* By default all event channels notify CPU#0. */
-	cpumask_copy(irq_get_irq_data(irq)->affinity, cpumask_of(0));
+	cpumask_copy(irq_get_affinity_mask(irq), cpumask_of(0));
 #endif
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);

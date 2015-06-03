@@ -496,7 +496,8 @@ static int apic_set_affinity(struct irq_data *irq_data,
 	if (err) {
 		struct irq_data *top = irq_get_irq_data(irq);
 
-		if (assign_irq_vector(irq, data, top->affinity))
+		if (assign_irq_vector(irq, data,
+				      irq_data_get_affinity_mask(top)))
 			pr_err("Failed to recover vector for irq %d\n", irq);
 		return err;
 	}
