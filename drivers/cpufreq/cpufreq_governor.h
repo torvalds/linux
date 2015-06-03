@@ -208,8 +208,8 @@ struct common_dbs_data {
 	void *(*get_cpu_dbs_info_s)(int cpu);
 	void (*gov_dbs_timer)(struct work_struct *work);
 	void (*gov_check_cpu)(int cpu, unsigned int load);
-	int (*init)(struct dbs_data *dbs_data);
-	void (*exit)(struct dbs_data *dbs_data);
+	int (*init)(struct dbs_data *dbs_data, bool notify);
+	void (*exit)(struct dbs_data *dbs_data, bool notify);
 
 	/* Governor specific ops, see below */
 	void *gov_ops;
@@ -232,10 +232,6 @@ struct od_ops {
 	unsigned int (*powersave_bias_target)(struct cpufreq_policy *policy,
 			unsigned int freq_next, unsigned int relation);
 	void (*freq_increase)(struct cpufreq_policy *policy, unsigned int freq);
-};
-
-struct cs_ops {
-	struct notifier_block *notifier_block;
 };
 
 static inline int delay_for_sampling_rate(unsigned int sampling_rate)

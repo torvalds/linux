@@ -278,7 +278,7 @@ int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 
 		dbs_data->cdata = cdata;
 		dbs_data->usage_count = 1;
-		rc = cdata->init(dbs_data);
+		rc = cdata->init(dbs_data, !policy->governor->initialized);
 		if (rc) {
 			pr_err("%s: POLICY_INIT: init() failed\n", __func__);
 			kfree(dbs_data);
@@ -291,7 +291,7 @@ int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		rc = sysfs_create_group(get_governor_parent_kobj(policy),
 				get_sysfs_attr(dbs_data));
 		if (rc) {
-			cdata->exit(dbs_data);
+			cdata->exit(dbs_data, !policy->governor->initialized);
 			kfree(dbs_data);
 			return rc;
 		}
@@ -309,14 +309,6 @@ int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		set_sampling_rate(dbs_data, max(dbs_data->min_sampling_rate,
 					latency * LATENCY_MULTIPLIER));
 
-		if ((cdata->governor == GOV_CONSERVATIVE) &&
-				(!policy->governor->initialized)) {
-			struct cs_ops *cs_ops = dbs_data->cdata->gov_ops;
-
-			cpufreq_register_notifier(cs_ops->notifier_block,
-					CPUFREQ_TRANSITION_NOTIFIER);
-		}
-
 		if (!have_governor_per_policy())
 			cdata->gdbs_data = dbs_data;
 
@@ -329,15 +321,7 @@ int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			if (!have_governor_per_policy())
 				cpufreq_put_global_kobject();
 
-			if ((dbs_data->cdata->governor == GOV_CONSERVATIVE) &&
-				(policy->governor->initialized == 1)) {
-				struct cs_ops *cs_ops = dbs_data->cdata->gov_ops;
-
-				cpufreq_unregister_notifier(cs_ops->notifier_block,
-						CPUFREQ_TRANSITION_NOTIFIER);
-			}
-
-			cdata->exit(dbs_data);
+			cdata->exit(dbs_data, policy->governor->initialized == 1);
 			kfree(dbs_data);
 			cdata->gdbs_data = NULL;
 		}
