@@ -117,8 +117,8 @@ int drm_iommu_attach_device(struct drm_device *drm_dev,
 	 * If iommu attach succeeded, the sub driver would have dma_ops
 	 * for iommu and also all sub drivers have same dma_ops.
 	 */
-	if (!dev->archdata.dma_ops)
-		dev->archdata.dma_ops = subdrv_dev->archdata.dma_ops;
+	if (get_dma_ops(dev) == get_dma_ops(NULL))
+		set_dma_ops(dev, get_dma_ops(subdrv_dev));
 
 	return 0;
 }
