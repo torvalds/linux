@@ -138,8 +138,6 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 		__xchg((unsigned long)(x), (ptr), sizeof(*(ptr))));	\
 })
 
-#define __HAVE_ARCH_CMPXCHG 1
-
 #define __cmpxchg_asm(ld, st, m, old, new)				\
 ({									\
 	__typeof(*(m)) __ret;						\

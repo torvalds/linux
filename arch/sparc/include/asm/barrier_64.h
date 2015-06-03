@@ -40,8 +40,8 @@ do {	__asm__ __volatile__("ba,pt	%%xcc, 1f\n\t" \
 #define dma_rmb()	rmb()
 #define dma_wmb()	wmb()
 
-#define set_mb(__var, __value) \
-	do { __var = __value; membar_safe("#StoreLoad"); } while(0)
+#define smp_store_mb(__var, __value) \
+	do { WRITE_ONCE(__var, __value); membar_safe("#StoreLoad"); } while(0)
 
 #ifdef CONFIG_SMP
 #define smp_mb()	mb()

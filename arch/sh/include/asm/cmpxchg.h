@@ -46,8 +46,6 @@ extern void __xchg_called_with_bad_pointer(void);
  * if something tries to do an invalid cmpxchg(). */
 extern void __cmpxchg_called_with_bad_pointer(void);
 
-#define __HAVE_ARCH_CMPXCHG 1
-
 static inline unsigned long __cmpxchg(volatile void * ptr, unsigned long old,
 		unsigned long new, int size)
 {
