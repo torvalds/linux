@@ -37,6 +37,7 @@
 #endif
 
 #ifdef CONFIG_ARM_HEAVY_MB
+extern void (*soc_mb)(void);
 extern void arm_heavy_mb(void);
 #define __arm_heavy_mb(x...) do { dsb(x); arm_heavy_mb(); } while (0)
 #else
