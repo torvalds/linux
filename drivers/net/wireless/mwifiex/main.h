@@ -1473,6 +1473,8 @@ mwifiex_clone_skb_for_tx_status(struct mwifiex_private *priv,
 void mwifiex_dfs_cac_work_queue(struct work_struct *work);
 void mwifiex_dfs_chan_sw_work_queue(struct work_struct *work);
 void mwifiex_abort_cac(struct mwifiex_private *priv);
+int mwifiex_stop_radar_detection(struct mwifiex_private *priv,
+				 struct cfg80211_chan_def *chandef);
 int mwifiex_11h_handle_radar_detected(struct mwifiex_private *priv,
 				      struct sk_buff *skb);
 
