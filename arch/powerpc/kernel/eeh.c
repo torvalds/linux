@@ -717,7 +717,7 @@ static void *eeh_restore_dev_state(void *data, void *userdata)
 
 	/* The caller should restore state for the specified device */
 	if (pdev != dev)
-		pci_save_state(pdev);
+		pci_restore_state(pdev);
 
 	return NULL;
 }
