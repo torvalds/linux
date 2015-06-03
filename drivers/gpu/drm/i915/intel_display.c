@@ -6610,8 +6610,7 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 
 	/* FIXME should check pixel clock limits on all platforms */
 	if (INTEL_INFO(dev)->gen < 4) {
-		int clock_limit =
-			dev_priv->display.get_display_clock_speed(dev);
+		int clock_limit = dev_priv->cdclk_freq;
 
 		/*
 		 * Enable pixel doubling when the dot clock
