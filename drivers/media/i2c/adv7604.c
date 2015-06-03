@@ -2772,6 +2772,7 @@ static int adv76xx_parse_dt(struct adv76xx_state *state)
 	struct device_node *endpoint;
 	struct device_node *np;
 	unsigned int flags;
+	u32 v;
 
 	np = state->i2c_clients[ADV76XX_PAGE_IO]->dev.of_node;
 
@@ -2781,6 +2782,12 @@ static int adv76xx_parse_dt(struct adv76xx_state *state)
 		return -EINVAL;
 
 	v4l2_of_parse_endpoint(endpoint, &bus_cfg);
+
+	if (!of_property_read_u32(endpoint, "default-input", &v))
+		state->pdata.default_input = v;
+	else
+		state->pdata.default_input = -1;
+
 	of_node_put(endpoint);
 
 	flags = bus_cfg.bus.parallel.flags;
@@ -2819,7 +2826,6 @@ static int adv76xx_parse_dt(struct adv76xx_state *state)
 	/* Hardcode the remaining platform data fields. */
 	state->pdata.disable_pwrdnb = 0;
 	state->pdata.disable_cable_det_rst = 0;
-	state->pdata.default_input = -1;
 	state->pdata.blank_data = 1;
 	state->pdata.alt_data_sat = 1;
 	state->pdata.op_format_mode_sel = ADV7604_OP_FORMAT_MODE0;

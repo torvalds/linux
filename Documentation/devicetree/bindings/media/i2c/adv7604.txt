@@ -47,6 +47,7 @@ Optional Endpoint Properties:
   If none of hsync-active, vsync-active and pclk-sample is specified the
   endpoint will use embedded BT.656 synchronization.
 
+  - default-input: Select which input is selected after reset.
 
 Example:
 
@@ -59,6 +60,8 @@ Example:
 
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		default-input = <0>;
 
 		port@0 {
 			reg = <0>;
