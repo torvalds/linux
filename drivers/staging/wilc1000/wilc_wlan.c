@@ -29,10 +29,6 @@ int sdio_xfer_cnt(void);
 uint32_t wilc_get_chipid(uint8_t update);
 WILC_Uint16 Set_machw_change_vir_if(WILC_Bool bValue);
 
-/* static uint32_t vmm_table[WILC_VMM_TBL_SIZE]; */
-/* static uint32_t vmm_table_rbk[WILC_VMM_TBL_SIZE]; */
-
-/* static uint32_t vmm_table_rbk[WILC_VMM_TBL_SIZE]; */
 
 
 typedef struct {
