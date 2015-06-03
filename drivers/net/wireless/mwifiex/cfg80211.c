@@ -1229,6 +1229,7 @@ mwifiex_parse_htinfo(struct mwifiex_private *priv, u8 tx_htinfo,
  */
 static int
 mwifiex_dump_station_info(struct mwifiex_private *priv,
+			  struct mwifiex_sta_node *node,
 			  struct station_info *sinfo)
 {
 	u32 rate;
@@ -1237,6 +1238,30 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 			BIT(NL80211_STA_INFO_RX_PACKETS) | BIT(NL80211_STA_INFO_TX_PACKETS) |
 			BIT(NL80211_STA_INFO_TX_BITRATE) |
 			BIT(NL80211_STA_INFO_SIGNAL) | BIT(NL80211_STA_INFO_SIGNAL_AVG);
+
+	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
+		if (!node)
+			return -ENOENT;
+
+		sinfo->filled |= BIT(NL80211_STA_INFO_INACTIVE_TIME) |
+				BIT(NL80211_STA_INFO_TX_FAILED);
+		sinfo->inactive_time =
+			jiffies_to_msecs(jiffies - node->stats.last_rx);
+
+		sinfo->signal = node->stats.rssi;
+		sinfo->signal_avg = node->stats.rssi;
+		sinfo->rx_bytes = node->stats.rx_bytes;
+		sinfo->tx_bytes = node->stats.tx_bytes;
+		sinfo->rx_packets = node->stats.rx_packets;
+		sinfo->tx_packets = node->stats.tx_packets;
+		sinfo->tx_failed = node->stats.tx_failed;
+
+		mwifiex_parse_htinfo(priv, node->stats.last_tx_htinfo,
+				     &sinfo->txrate);
+		sinfo->txrate.legacy = node->stats.last_tx_rate * 5;
+
+		return 0;
+	}
 
 	/* Get signal information from the firmware */
 	if (mwifiex_send_cmd(priv, HostCmd_CMD_RSSI_INFO,
@@ -1304,7 +1329,7 @@ mwifiex_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 	if (memcmp(mac, priv->cfg_bssid, ETH_ALEN))
 		return -ENOENT;
 
-	return mwifiex_dump_station_info(priv, sinfo);
+	return mwifiex_dump_station_info(priv, NULL, sinfo);
 }
 
 /*
@@ -1315,13 +1340,29 @@ mwifiex_cfg80211_dump_station(struct wiphy *wiphy, struct net_device *dev,
 			      int idx, u8 *mac, struct station_info *sinfo)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	static struct mwifiex_sta_node *node;
 
-	if (!priv->media_connected || idx)
-		return -ENOENT;
+	if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) &&
+	    priv->media_connected && idx == 0) {
+		ether_addr_copy(mac, priv->cfg_bssid);
+		return mwifiex_dump_station_info(priv, NULL, sinfo);
+	} else if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
+		mwifiex_send_cmd(priv, HOST_CMD_APCMD_STA_LIST,
+				 HostCmd_ACT_GEN_GET, 0, NULL, true);
 
-	memcpy(mac, priv->cfg_bssid, ETH_ALEN);
+		if (node && (&node->list == &priv->sta_list)) {
+			node = NULL;
+			return -ENOENT;
+		}
 
-	return mwifiex_dump_station_info(priv, sinfo);
+		node = list_prepare_entry(node, &priv->sta_list, list);
+		list_for_each_entry_continue(node, &priv->sta_list, list) {
+			ether_addr_copy(mac, node->mac_addr);
+			return mwifiex_dump_station_info(priv, node, sinfo);
+		}
+	}
+
+	return -ENOENT;
 }
 
 static int
