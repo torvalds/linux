@@ -1159,6 +1159,8 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_UAP_STA_DEAUTH:
 		break;
+	case HOST_CMD_APCMD_SYS_RESET:
+		break;
 	case HostCmd_CMD_MEF_CFG:
 		break;
 	case HostCmd_CMD_COALESCE_CFG:

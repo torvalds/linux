@@ -754,6 +754,7 @@ int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, u16 cmd_no,
 		break;
 	case HostCmd_CMD_UAP_BSS_START:
 	case HostCmd_CMD_UAP_BSS_STOP:
+	case HOST_CMD_APCMD_SYS_RESET:
 		cmd->command = cpu_to_le16(cmd_no);
 		cmd->size = cpu_to_le16(S_DS_GEN);
 		break;
@@ -811,8 +812,13 @@ int mwifiex_config_start_uap(struct mwifiex_private *priv,
 
 	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_BSS_STOP,
 			     HostCmd_ACT_GEN_SET, 0, NULL, true)) {
-		mwifiex_dbg(priv->adapter, ERROR,
-			    "Failed to stop the BSS\n");
+		mwifiex_dbg(priv->adapter, ERROR, "Failed to stop the BSS\n");
+		return -1;
+	}
+
+	if (mwifiex_send_cmd(priv, HOST_CMD_APCMD_SYS_RESET,
+			     HostCmd_ACT_GEN_SET, 0, NULL, true)) {
+		mwifiex_dbg(priv->adapter, ERROR, "Failed to reset BSS\n");
 		return -1;
 	}
 

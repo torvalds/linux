@@ -1725,6 +1725,13 @@ static int mwifiex_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 		return -1;
 	}
 
+	if (mwifiex_send_cmd(priv, HOST_CMD_APCMD_SYS_RESET,
+			     HostCmd_ACT_GEN_SET, 0, NULL, true)) {
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "Failed to reset BSS\n");
+		return -1;
+	}
+
 	return 0;
 }
 
