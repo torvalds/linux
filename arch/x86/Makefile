@@ -181,7 +181,7 @@ archscripts: scripts_basic
 # Syscall table generation
 
 archheaders:
-	$(Q)$(MAKE) $(build)=arch/x86/syscalls all
+	$(Q)$(MAKE) $(build)=arch/x86/entry/syscalls all
 
 archprepare:
 ifeq ($(CONFIG_KEXEC_FILE),y)
