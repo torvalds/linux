@@ -808,6 +808,7 @@ static void fimd_apply(struct fimd_context *ctx)
 static void fimd_enable(struct exynos_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
+	int ret;
 
 	if (!ctx->suspended)
 		return;
@@ -816,8 +817,17 @@ static void fimd_enable(struct exynos_drm_crtc *crtc)
 
 	pm_runtime_get_sync(ctx->dev);
 
-	clk_prepare_enable(ctx->bus_clk);
-	clk_prepare_enable(ctx->lcd_clk);
+	ret = clk_prepare_enable(ctx->bus_clk);
+	if (ret < 0) {
+		DRM_ERROR("Failed to prepare_enable the bus clk [%d]\n", ret);
+		return;
+	}
+
+	ret = clk_prepare_enable(ctx->lcd_clk);
+	if  (ret < 0) {
+		DRM_ERROR("Failed to prepare_enable the lcd clk [%d]\n", ret);
+		return;
+	}
 
 	/* if vblank was enabled status, enable it again. */
 	if (test_and_clear_bit(0, &ctx->irq_flags))

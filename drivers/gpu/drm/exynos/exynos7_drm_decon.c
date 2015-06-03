@@ -606,6 +606,7 @@ static void decon_init(struct decon_context *ctx)
 static void decon_enable(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
+	int ret;
 
 	if (!ctx->suspended)
 		return;
@@ -614,10 +615,29 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 
 	pm_runtime_get_sync(ctx->dev);
 
-	clk_prepare_enable(ctx->pclk);
-	clk_prepare_enable(ctx->aclk);
-	clk_prepare_enable(ctx->eclk);
-	clk_prepare_enable(ctx->vclk);
+	ret = clk_prepare_enable(ctx->pclk);
+	if (ret < 0) {
+		DRM_ERROR("Failed to prepare_enable the pclk [%d]\n", ret);
+		return;
+	}
+
+	ret = clk_prepare_enable(ctx->aclk);
+	if (ret < 0) {
+		DRM_ERROR("Failed to prepare_enable the aclk [%d]\n", ret);
+		return;
+	}
+
+	ret = clk_prepare_enable(ctx->eclk);
+	if  (ret < 0) {
+		DRM_ERROR("Failed to prepare_enable the eclk [%d]\n", ret);
+		return;
+	}
+
+	ret = clk_prepare_enable(ctx->vclk);
+	if  (ret < 0) {
+		DRM_ERROR("Failed to prepare_enable the vclk [%d]\n", ret);
+		return;
+	}
 
 	decon_init(ctx);
 
