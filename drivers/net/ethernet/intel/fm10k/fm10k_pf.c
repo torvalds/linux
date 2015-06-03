@@ -1046,6 +1046,12 @@ static s32 fm10k_iov_reset_resources_pf(struct fm10k_hw *hw,
 		fm10k_write_reg(hw, FM10K_RQMAP(qmap_idx + i), vf_q_idx + i);
 	}
 
+	/* repeat the first ring for all the remaining VF rings */
+	for (i = queues_per_pool; i < qmap_stride; i++) {
+		fm10k_write_reg(hw, FM10K_TQMAP(qmap_idx + i), vf_q_idx);
+		fm10k_write_reg(hw, FM10K_RQMAP(qmap_idx + i), vf_q_idx);
+	}
+
 	return 0;
 }
 
