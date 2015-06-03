@@ -187,29 +187,6 @@ static int echainiv_decrypt(struct aead_request *req)
 	return crypto_aead_decrypt(subreq);
 }
 
-static int echainiv_encrypt_first(struct aead_request *req)
-{
-	struct crypto_aead *geniv = crypto_aead_reqtfm(req);
-	struct echainiv_ctx *ctx = crypto_aead_ctx(geniv);
-	int err = 0;
-
-	spin_lock_bh(&ctx->geniv.lock);
-	if (geniv->encrypt != echainiv_encrypt_first)
-		goto unlock;
-
-	geniv->encrypt = echainiv_encrypt;
-	err = crypto_rng_get_bytes(crypto_default_rng, ctx->salt,
-				   crypto_aead_ivsize(geniv));
-
-unlock:
-	spin_unlock_bh(&ctx->geniv.lock);
-
-	if (err)
-		return err;
-
-	return echainiv_encrypt(req);
-}
-
 static int echainiv_init(struct crypto_tfm *tfm)
 {
 	struct crypto_aead *geniv = __crypto_aead_cast(tfm);
@@ -219,6 +196,11 @@ static int echainiv_init(struct crypto_tfm *tfm)
 	spin_lock_init(&ctx->geniv.lock);
 
 	crypto_aead_set_reqsize(geniv, sizeof(struct aead_request));
+
+	err = crypto_rng_get_bytes(crypto_default_rng, ctx->salt,
+				   crypto_aead_ivsize(geniv));
+	if (err)
+		goto out;
 
 	ctx->null = crypto_get_default_null_skcipher();
 	err = PTR_ERR(ctx->null);
@@ -272,7 +254,7 @@ static int echainiv_aead_create(struct crypto_template *tmpl,
 	    inst->alg.ivsize > MAX_IV_SIZE)
 		goto free_inst;
 
-	inst->alg.encrypt = echainiv_encrypt_first;
+	inst->alg.encrypt = echainiv_encrypt;
 	inst->alg.decrypt = echainiv_decrypt;
 
 	inst->alg.base.cra_init = echainiv_init;
