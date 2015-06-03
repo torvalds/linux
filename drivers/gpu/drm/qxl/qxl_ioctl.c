@@ -122,10 +122,9 @@ static struct qxl_bo *qxlhw_handle_to_bo(struct qxl_device *qdev,
 	qobj = gem_to_qxl_bo(gobj);
 
 	ret = qxl_release_list_add(release, qobj);
-	if (ret) {
-		drm_gem_object_unreference_unlocked(gobj);
+	drm_gem_object_unreference_unlocked(gobj);
+	if (ret)
 		return NULL;
-	}
 
 	return qobj;
 }
@@ -145,7 +144,7 @@ static int qxl_process_single_command(struct qxl_device *qdev,
 	struct qxl_release *release;
 	struct qxl_bo *cmd_bo;
 	void *fb_cmd;
-	int i, j, ret, num_relocs;
+	int i, ret, num_relocs;
 	int unwritten;
 
 	switch (cmd->type) {
@@ -269,12 +268,6 @@ static int qxl_process_single_command(struct qxl_device *qdev,
 		qxl_release_fence_buffer_objects(release);
 
 out_free_bos:
-	for (j = 0; j < num_relocs; j++) {
-		if (reloc_info[j].dst_bo != cmd_bo)
-			drm_gem_object_unreference_unlocked(&reloc_info[j].dst_bo->gem_base);
-		if (reloc_info[j].src_bo && reloc_info[j].src_bo != cmd_bo)
-			drm_gem_object_unreference_unlocked(&reloc_info[j].src_bo->gem_base);
-	}
 out_free_release:
 	if (ret)
 		qxl_release_free(qdev, release);
