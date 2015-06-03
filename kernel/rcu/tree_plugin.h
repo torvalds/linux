@@ -84,8 +84,8 @@ static void __init rcu_bootup_announce_oddness(void)
 		pr_info("\tRCU torture testing starts during boot.\n");
 	if (IS_ENABLED(CONFIG_RCU_CPU_STALL_INFO))
 		pr_info("\tAdditional per-CPU info printed with stalls.\n");
-	if (NUM_RCU_LVL_4 != 0)
-		pr_info("\tFour-level hierarchy is enabled.\n");
+	if (RCU_NUM_LVLS >= 4)
+		pr_info("\tFour(or more)-level hierarchy is enabled.\n");
 	if (RCU_FANOUT_LEAF != 16)
 		pr_info("\tBuild-time adjustment of leaf fanout to %d.\n",
 			RCU_FANOUT_LEAF);
