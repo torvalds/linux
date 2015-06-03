@@ -947,37 +947,6 @@ static int set_flash(struct net_device *netdev, struct ethtool_flash *ef)
 	return ret;
 }
 
-#define WOL_SUPPORTED (WAKE_BCAST | WAKE_MAGIC)
-#define BCAST_CRC 0xa0ccc1a6
-
-static void get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
-{
-	wol->supported = WAKE_BCAST | WAKE_MAGIC;
-	wol->wolopts = netdev2adap(dev)->wol;
-	memset(&wol->sopass, 0, sizeof(wol->sopass));
-}
-
-static int set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
-{
-	int err = 0;
-	struct port_info *pi = netdev_priv(dev);
-
-	if (wol->wolopts & ~WOL_SUPPORTED)
-		return -EINVAL;
-	t4_wol_magic_enable(pi->adapter, pi->tx_chan,
-			    (wol->wolopts & WAKE_MAGIC) ? dev->dev_addr : NULL);
-	if (wol->wolopts & WAKE_BCAST) {
-		err = t4_wol_pat_enable(pi->adapter, pi->tx_chan, 0xfe, ~0ULL,
-					~0ULL, 0, false);
-		if (!err)
-			err = t4_wol_pat_enable(pi->adapter, pi->tx_chan, 1,
-						~6ULL, ~0ULL, BCAST_CRC, true);
-	} else {
-		t4_wol_pat_enable(pi->adapter, pi->tx_chan, 0, 0, 0, 0, false);
-	}
-	return err;
-}
-
 static u32 get_rss_table_size(struct net_device *dev)
 {
 	const struct port_info *pi = netdev_priv(dev);
@@ -1107,8 +1076,6 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_ethtool_stats = get_stats,
 	.get_regs_len      = get_regs_len,
 	.get_regs          = get_regs,
-	.get_wol           = get_wol,
-	.set_wol           = set_wol,
 	.get_rxnfc         = get_rxnfc,
 	.get_rxfh_indir_size = get_rss_table_size,
 	.get_rxfh	   = get_rss_table,
