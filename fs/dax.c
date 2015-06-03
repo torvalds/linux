@@ -309,14 +309,11 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
  out:
 	i_mmap_unlock_read(mapping);
 
-	if (bh->b_end_io)
-		bh->b_end_io(bh, 1);
-
 	return error;
 }
 
 static int do_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
-			get_block_t get_block)
+			get_block_t get_block, dax_iodone_t complete_unwritten)
 {
 	struct file *file = vma->vm_file;
 	struct address_space *mapping = file->f_mapping;
@@ -417,7 +414,19 @@ static int do_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
 		page_cache_release(page);
 	}
 
+	/*
+	 * If we successfully insert the new mapping over an unwritten extent,
+	 * we need to ensure we convert the unwritten extent. If there is an
+	 * error inserting the mapping, the filesystem needs to leave it as
+	 * unwritten to prevent exposure of the stale underlying data to
+	 * userspace, but we still need to call the completion function so
+	 * the private resources on the mapping buffer can be released. We
+	 * indicate what the callback should do via the uptodate variable, same
+	 * as for normal BH based IO completions.
+	 */
 	error = dax_insert_mapping(inode, &bh, vma, vmf);
+	if (buffer_unwritten(&bh))
+		complete_unwritten(&bh, !error);
 
  out:
 	if (error == -ENOMEM)
@@ -445,7 +454,7 @@ static int do_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
  * fault handler for DAX files.
  */
 int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
-			get_block_t get_block)
+	      get_block_t get_block, dax_iodone_t complete_unwritten)
 {
 	int result;
 	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
@@ -454,7 +463,7 @@ int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
 		sb_start_pagefault(sb);
 		file_update_time(vma->vm_file);
 	}
-	result = do_dax_fault(vma, vmf, get_block);
+	result = do_dax_fault(vma, vmf, get_block, complete_unwritten);
 	if (vmf->flags & FAULT_FLAG_WRITE)
 		sb_end_pagefault(sb);
 
