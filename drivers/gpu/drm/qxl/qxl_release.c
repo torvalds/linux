@@ -153,7 +153,7 @@ qxl_release_alloc(struct qxl_device *qdev, int type,
 		return handle;
 	}
 	*ret = release;
-	QXL_INFO(qdev, "allocated release %lld\n", handle);
+	QXL_INFO(qdev, "allocated release %d\n", handle);
 	release->id = handle;
 	return handle;
 }

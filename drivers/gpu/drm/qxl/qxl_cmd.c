@@ -248,7 +248,7 @@ int qxl_garbage_collect(struct qxl_device *qdev)
 		}
 	}
 
-	QXL_INFO(qdev, "%s: %lld\n", __func__, i);
+	QXL_INFO(qdev, "%s: %d\n", __func__, i);
 
 	return i;
 }
