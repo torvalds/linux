@@ -10,6 +10,7 @@
 */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
