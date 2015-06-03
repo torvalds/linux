@@ -101,6 +101,33 @@ static int cht_aif1_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int cht_ti_jack_event(struct notifier_block *nb,
+		unsigned long event, void *data)
+{
+
+	struct snd_soc_jack *jack = (struct snd_soc_jack *)data;
+	struct snd_soc_dai *codec_dai = jack->card->rtd->codec_dai;
+	struct snd_soc_codec *codec = codec_dai->codec;
+
+	if (event & SND_JACK_MICROPHONE) {
+
+		snd_soc_dapm_force_enable_pin(&codec->dapm, "SHDN");
+		snd_soc_dapm_force_enable_pin(&codec->dapm, "MICBIAS");
+		snd_soc_dapm_sync(&codec->dapm);
+	} else {
+
+		snd_soc_dapm_disable_pin(&codec->dapm, "MICBIAS");
+		snd_soc_dapm_disable_pin(&codec->dapm, "SHDN");
+		snd_soc_dapm_sync(&codec->dapm);
+	}
+
+	return 0;
+}
+
+static struct notifier_block cht_jack_nb = {
+	.notifier_call = cht_ti_jack_event,
+};
+
 static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 {
 	int ret;
@@ -129,6 +156,9 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 		dev_err(runtime->dev, "Headset Jack creation failed %d\n", ret);
 		return ret;
 	}
+
+	if (ctx->ts3a227e_present)
+		snd_soc_jack_notifier_register(jack, &cht_jack_nb);
 
 	return ret;
 }
