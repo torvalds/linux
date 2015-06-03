@@ -28,6 +28,16 @@ struct hdac_widget_tree;
 extern struct bus_type snd_hda_bus_type;
 
 /*
+ * HDA device table
+ */
+struct hda_device_id {
+	__u32 vendor_id;
+	__u32 rev_id;
+	const char *name;
+	unsigned long driver_data;
+};
+
+/*
  * generic arrays
  */
 struct snd_array {
@@ -171,11 +181,15 @@ static inline void snd_hdac_power_down_pm(struct hdac_device *codec) {}
 struct hdac_driver {
 	struct device_driver driver;
 	int type;
+	const struct hda_device_id *id_table;
 	int (*match)(struct hdac_device *dev, struct hdac_driver *drv);
 	void (*unsol_event)(struct hdac_device *dev, unsigned int event);
 };
 
 #define drv_to_hdac_driver(_drv) container_of(_drv, struct hdac_driver, driver)
+
+const struct hda_device_id *
+hdac_get_device_id(struct hdac_device *hdev, struct hdac_driver *drv);
 
 /*
  * Bus verb operators
