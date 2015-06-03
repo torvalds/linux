@@ -618,8 +618,8 @@ static int qxl_reap_surf(struct qxl_device *qdev, struct qxl_bo *surf, bool stal
 	int ret;
 
 	ret = qxl_bo_reserve(surf, false);
-	if (ret == -EBUSY)
-		return -EBUSY;
+	if (ret)
+		return ret;
 
 	if (stall)
 		mutex_unlock(&qdev->surf_evict_mutex);
@@ -628,9 +628,9 @@ static int qxl_reap_surf(struct qxl_device *qdev, struct qxl_bo *surf, bool stal
 
 	if (stall)
 		mutex_lock(&qdev->surf_evict_mutex);
-	if (ret == -EBUSY) {
+	if (ret) {
 		qxl_bo_unreserve(surf);
-		return -EBUSY;
+		return ret;
 	}
 
 	qxl_surface_evict_locked(qdev, surf, true);
