@@ -1059,42 +1059,10 @@ static void print_ll_cache_misses(int cpu,
 	fprintf(output, " of all LL-cache hits   ");
 }
 
-static void abs_printout(int id, int nr, struct perf_evsel *evsel, double avg)
+static void print_shadow_stats(struct perf_evsel *evsel, double avg, int cpu)
 {
 	double total, ratio = 0.0, total2;
-	double sc =  evsel->scale;
-	const char *fmt;
-	int cpu = cpu_map__id_to_cpu(id);
 	int ctx = evsel_context(evsel);
-
-	if (csv_output) {
-		fmt = sc != 1.0 ?  "%.2f%s" : "%.0f%s";
-	} else {
-		if (big_num)
-			fmt = sc != 1.0 ? "%'18.2f%s" : "%'18.0f%s";
-		else
-			fmt = sc != 1.0 ? "%18.2f%s" : "%18.0f%s";
-	}
-
-	aggr_printout(evsel, id, nr);
-
-	if (aggr_mode == AGGR_GLOBAL)
-		cpu = 0;
-
-	fprintf(output, fmt, avg, csv_sep);
-
-	if (evsel->unit)
-		fprintf(output, "%-*s%s",
-			csv_output ? 0 : unit_width,
-			evsel->unit, csv_sep);
-
-	fprintf(output, "%-*s", csv_output ? 0 : 25, perf_evsel__name(evsel));
-
-	if (evsel->cgrp)
-		fprintf(output, "%s%s", csv_sep, evsel->cgrp->name);
-
-	if (csv_output || interval)
-		return;
 
 	if (perf_evsel__match(evsel, HARDWARE, HW_INSTRUCTIONS)) {
 		total = avg_stats(&runtime_cycles_stats[ctx][cpu]);
@@ -1224,6 +1192,44 @@ static void abs_printout(int id, int nr, struct perf_evsel *evsel, double avg)
 	} else {
 		fprintf(output, "                                   ");
 	}
+}
+
+static void abs_printout(int id, int nr, struct perf_evsel *evsel, double avg)
+{
+	double sc =  evsel->scale;
+	const char *fmt;
+	int cpu = cpu_map__id_to_cpu(id);
+
+	if (csv_output) {
+		fmt = sc != 1.0 ?  "%.2f%s" : "%.0f%s";
+	} else {
+		if (big_num)
+			fmt = sc != 1.0 ? "%'18.2f%s" : "%'18.0f%s";
+		else
+			fmt = sc != 1.0 ? "%18.2f%s" : "%18.0f%s";
+	}
+
+	aggr_printout(evsel, id, nr);
+
+	if (aggr_mode == AGGR_GLOBAL)
+		cpu = 0;
+
+	fprintf(output, fmt, avg, csv_sep);
+
+	if (evsel->unit)
+		fprintf(output, "%-*s%s",
+			csv_output ? 0 : unit_width,
+			evsel->unit, csv_sep);
+
+	fprintf(output, "%-*s", csv_output ? 0 : 25, perf_evsel__name(evsel));
+
+	if (evsel->cgrp)
+		fprintf(output, "%s%s", csv_sep, evsel->cgrp->name);
+
+	if (csv_output || interval)
+		return;
+
+	print_shadow_stats(evsel, avg, cpu);
 }
 
 static void print_aggr(char *prefix)
