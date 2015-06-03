@@ -1351,6 +1351,14 @@ s32 fm10k_iov_msg_lport_state_pf(struct fm10k_hw *hw, u32 **results,
 			err = fm10k_update_lport_state_pf(hw, vf_info->glort,
 							  1, false);
 
+		/* we need to clear VF_FLAG_ENABLED flags in order to ensure
+		 * that we actually re-enable the LPORT state below. Note that
+		 * this has no impact if the VF is already disabled, as the
+		 * flags are already cleared.
+		 */
+		if (!err)
+			vf_info->vf_flags = FM10K_VF_FLAG_CAPABLE(vf_info);
+
 		/* when enabling the port we should reset the rate limiters */
 		hw->iov.ops.configure_tc(hw, vf_info->vf_idx, vf_info->rate);
 
