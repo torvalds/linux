@@ -2339,7 +2339,7 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 	 * can cover the codec power request, and so need not set this flag.
 	 * For previous platforms, there is no such power well feature.
 	 */
-	if (is_valleyview_plus(codec))
+	if (is_valleyview_plus(codec) || is_skylake(codec))
 		codec->core.link_power_control = 1;
 
 	if (is_haswell_plus(codec) || is_valleyview_plus(codec))
