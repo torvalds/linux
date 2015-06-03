@@ -122,7 +122,7 @@ static const struct fence_ops qxl_fence_ops = {
 	.wait = qxl_fence_wait,
 };
 
-static uint64_t
+static int
 qxl_release_alloc(struct qxl_device *qdev, int type,
 		  struct qxl_release **ret)
 {
