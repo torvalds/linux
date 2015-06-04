@@ -333,7 +333,6 @@ static int vtg_probe(struct platform_device *pdev)
 	struct device_node *np;
 	struct sti_vtg *vtg;
 	struct resource *res;
-	char irq_name[32];
 	int ret;
 
 	vtg = devm_kzalloc(dev, sizeof(*vtg), GFP_KERNEL);
@@ -364,13 +363,11 @@ static int vtg_probe(struct platform_device *pdev)
 			return vtg->irq;
 		}
 
-		snprintf(irq_name, sizeof(irq_name), "vsync-%s",
-				dev_name(vtg->dev));
-
 		RAW_INIT_NOTIFIER_HEAD(&vtg->notifier_list);
 
 		ret = devm_request_threaded_irq(dev, vtg->irq, vtg_irq,
-				vtg_irq_thread, IRQF_ONESHOT, irq_name, vtg);
+				vtg_irq_thread, IRQF_ONESHOT,
+				dev_name(dev), vtg);
 		if (IS_ERR_VALUE(ret)) {
 			DRM_ERROR("Failed to register VTG interrupt\n");
 			return ret;
