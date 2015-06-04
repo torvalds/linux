@@ -425,7 +425,6 @@ static struct platform_driver i2s_driver = {
 	.probe = zx_i2s_probe,
 	.driver = {
 		.name = "zx-i2s",
-		.owner = THIS_MODULE,
 		.of_match_table = zx_i2s_dt_ids,
 	},
 };
