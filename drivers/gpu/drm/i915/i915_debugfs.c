@@ -2476,13 +2476,13 @@ static int i915_energy_uJ(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int i915_pc8_status(struct seq_file *m, void *unused)
+static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (!IS_HASWELL(dev) && !IS_BROADWELL(dev)) {
+	if (!HAS_RUNTIME_PM(dev)) {
 		seq_puts(m, "not supported\n");
 		return 0;
 	}
@@ -5039,7 +5039,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_edp_psr_status", i915_edp_psr_status, 0},
 	{"i915_sink_crc_eDP1", i915_sink_crc, 0},
 	{"i915_energy_uJ", i915_energy_uJ, 0},
-	{"i915_pc8_status", i915_pc8_status, 0},
+	{"i915_runtime_pm_status", i915_runtime_pm_status, 0},
 	{"i915_power_domain_info", i915_power_domain_info, 0},
 	{"i915_display_info", i915_display_info, 0},
 	{"i915_semaphore_status", i915_semaphore_status, 0},
