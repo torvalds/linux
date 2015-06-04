@@ -269,26 +269,26 @@ static int (*dss_output_drv_reg_funcs[])(void) __initdata = {
 };
 
 static void (*dss_output_drv_unreg_funcs[])(void) __exitdata = {
-#ifdef CONFIG_OMAP2_DSS_DSI
-	dsi_uninit_platform_driver,
-#endif
-#ifdef CONFIG_OMAP2_DSS_DPI
-	dpi_uninit_platform_driver,
-#endif
-#ifdef CONFIG_OMAP2_DSS_SDI
-	sdi_uninit_platform_driver,
-#endif
-#ifdef CONFIG_OMAP2_DSS_RFBI
-	rfbi_uninit_platform_driver,
-#endif
-#ifdef CONFIG_OMAP2_DSS_VENC
-	venc_uninit_platform_driver,
+#ifdef CONFIG_OMAP5_DSS_HDMI
+	hdmi5_uninit_platform_driver,
 #endif
 #ifdef CONFIG_OMAP4_DSS_HDMI
 	hdmi4_uninit_platform_driver,
 #endif
-#ifdef CONFIG_OMAP5_DSS_HDMI
-	hdmi5_uninit_platform_driver,
+#ifdef CONFIG_OMAP2_DSS_VENC
+	venc_uninit_platform_driver,
+#endif
+#ifdef CONFIG_OMAP2_DSS_RFBI
+	rfbi_uninit_platform_driver,
+#endif
+#ifdef CONFIG_OMAP2_DSS_SDI
+	sdi_uninit_platform_driver,
+#endif
+#ifdef CONFIG_OMAP2_DSS_DPI
+	dpi_uninit_platform_driver,
+#endif
+#ifdef CONFIG_OMAP2_DSS_DSI
+	dsi_uninit_platform_driver,
 #endif
 };
 
