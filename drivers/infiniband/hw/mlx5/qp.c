@@ -1012,7 +1012,8 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 			in->ctx.rq_type_srqn |= cpu_to_be32(to_msrq(init_attr->srq)->msrq.srqn);
 		} else {
 			in->ctx.xrcd = cpu_to_be32(to_mxrcd(devr->x1)->xrcdn);
-			in->ctx.rq_type_srqn |= cpu_to_be32(to_msrq(devr->s0)->msrq.srqn);
+			in->ctx.rq_type_srqn |=
+				cpu_to_be32(to_msrq(devr->s1)->msrq.srqn);
 		}
 	}
 

@@ -415,6 +415,7 @@ struct mlx5_ib_resources {
 	struct ib_xrcd	*x1;
 	struct ib_pd	*p0;
 	struct ib_srq	*s0;
+	struct ib_srq	*s1;
 };
 
 struct mlx5_ib_dev {

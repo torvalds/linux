@@ -1324,8 +1324,29 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	atomic_inc(&devr->p0->usecnt);
 	atomic_set(&devr->s0->usecnt, 0);
 
+	memset(&attr, 0, sizeof(attr));
+	attr.attr.max_sge = 1;
+	attr.attr.max_wr = 1;
+	attr.srq_type = IB_SRQT_BASIC;
+	devr->s1 = mlx5_ib_create_srq(devr->p0, &attr, NULL);
+	if (IS_ERR(devr->s1)) {
+		ret = PTR_ERR(devr->s1);
+		goto error5;
+	}
+	devr->s1->device	= &dev->ib_dev;
+	devr->s1->pd		= devr->p0;
+	devr->s1->uobject       = NULL;
+	devr->s1->event_handler = NULL;
+	devr->s1->srq_context   = NULL;
+	devr->s1->srq_type      = IB_SRQT_BASIC;
+	devr->s1->ext.xrc.cq	= devr->c0;
+	atomic_inc(&devr->p0->usecnt);
+	atomic_set(&devr->s0->usecnt, 0);
+
 	return 0;
 
+error5:
+	mlx5_ib_destroy_srq(devr->s0);
 error4:
 	mlx5_ib_dealloc_xrcd(devr->x1);
 error3:
@@ -1340,6 +1361,7 @@ error0:
 
 static void destroy_dev_resources(struct mlx5_ib_resources *devr)
 {
+	mlx5_ib_destroy_srq(devr->s1);
 	mlx5_ib_destroy_srq(devr->s0);
 	mlx5_ib_dealloc_xrcd(devr->x0);
 	mlx5_ib_dealloc_xrcd(devr->x1);
