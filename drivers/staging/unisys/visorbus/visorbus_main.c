@@ -1531,8 +1531,3 @@ MODULE_PARM_DESC(visorbus_forcenomatch,
 
 module_param_named(debugref, visorbus_debugref, int, S_IRUGO);
 MODULE_PARM_DESC(visorbus_debugref, "1 to debug reference counting");
-
-MODULE_AUTHOR("Unisys");
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Supervisor bus driver for service partition: ver " VERSION);
-MODULE_VERSION(VERSION);
