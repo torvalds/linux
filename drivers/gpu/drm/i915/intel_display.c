@@ -5751,7 +5751,18 @@ static void intel_update_max_cdclk(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (IS_BROADWELL(dev))  {
+	if (IS_SKYLAKE(dev)) {
+		u32 limit = I915_READ(SKL_DFSM) & SKL_DFSM_CDCLK_LIMIT_MASK;
+
+		if (limit == SKL_DFSM_CDCLK_LIMIT_675)
+			dev_priv->max_cdclk_freq = 675000;
+		else if (limit == SKL_DFSM_CDCLK_LIMIT_540)
+			dev_priv->max_cdclk_freq = 540000;
+		else if (limit == SKL_DFSM_CDCLK_LIMIT_450)
+			dev_priv->max_cdclk_freq = 450000;
+		else
+			dev_priv->max_cdclk_freq = 337500;
+	} else if (IS_BROADWELL(dev))  {
 		/*
 		 * FIXME with extra cooling we can allow
 		 * 540 MHz for ULX and 675 Mhz for ULT.

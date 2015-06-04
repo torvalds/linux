@@ -5761,6 +5761,13 @@ enum skl_disp_power_wells {
 #define HSW_NDE_RSTWRN_OPT	0x46408
 #define  RESET_PCH_HANDSHAKE_ENABLE	(1<<4)
 
+#define SKL_DFSM			0x51000
+#define SKL_DFSM_CDCLK_LIMIT_MASK	(3 << 23)
+#define SKL_DFSM_CDCLK_LIMIT_675	(0 << 23)
+#define SKL_DFSM_CDCLK_LIMIT_540	(1 << 23)
+#define SKL_DFSM_CDCLK_LIMIT_450	(2 << 23)
+#define SKL_DFSM_CDCLK_LIMIT_337_5	(3 << 23)
+
 #define FF_SLICE_CS_CHICKEN2			0x20e4
 #define  GEN9_TSG_BARRIER_ACK_DISABLE		(1<<8)
 
