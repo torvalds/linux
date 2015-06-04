@@ -33,7 +33,7 @@
 #include <linux/export.h>
 #include <linux/etherdevice.h>
 #include <linux/mlx5/driver.h>
-#include "vport.h"
+#include <linux/mlx5/vport.h>
 #include "mlx5_core.h"
 
 u8 mlx5_query_vport_state(struct mlx5_core_dev *mdev, u8 opmod)
@@ -55,8 +55,9 @@ u8 mlx5_query_vport_state(struct mlx5_core_dev *mdev, u8 opmod)
 
 	return MLX5_GET(query_vport_state_out, out, state);
 }
+EXPORT_SYMBOL(mlx5_query_vport_state);
 
-void mlx5_query_vport_mac_address(struct mlx5_core_dev *mdev, u8 *addr)
+void mlx5_query_nic_vport_mac_address(struct mlx5_core_dev *mdev, u8 *addr)
 {
 	u32  in[MLX5_ST_SZ_DW(query_nic_vport_context_in)];
 	u32 *out;
@@ -82,3 +83,4 @@ void mlx5_query_vport_mac_address(struct mlx5_core_dev *mdev, u8 *addr)
 
 	kvfree(out);
 }
+EXPORT_SYMBOL(mlx5_query_nic_vport_mac_address);

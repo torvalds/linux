@@ -36,6 +36,6 @@
 #include <linux/mlx5/driver.h>
 
 u8 mlx5_query_vport_state(struct mlx5_core_dev *mdev, u8 opmod);
-void mlx5_query_vport_mac_address(struct mlx5_core_dev *mdev, u8 *addr);
+void mlx5_query_nic_vport_mac_address(struct mlx5_core_dev *mdev, u8 *addr);
 
 #endif /* __MLX5_VPORT_H__ */
