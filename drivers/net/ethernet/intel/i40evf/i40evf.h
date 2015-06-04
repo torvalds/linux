@@ -249,8 +249,17 @@ struct i40evf_adapter {
 	bool netdev_registered;
 	bool link_up;
 	enum i40e_virtchnl_ops current_op;
+#define CLIENT_ENABLED(_a) ((_a)->vf_res->vf_offload_flags & \
+			    I40E_VIRTCHNL_VF_OFFLOAD_IWARP)
+#define RSS_AQ(_a) ((_a)->vf_res->vf_offload_flags & \
+		    I40E_VIRTCHNL_VF_OFFLOAD_RSS_AQ)
+#define VLAN_ALLOWED(_a) ((_a)->vf_res->vf_offload_flags & \
+			  I40E_VIRTCHNL_VF_OFFLOAD_VLAN)
 	struct i40e_virtchnl_vf_resource *vf_res; /* incl. all VSIs */
 	struct i40e_virtchnl_vsi_resource *vsi_res; /* our LAN VSI */
+	struct i40e_virtchnl_version_info pf_version;
+#define PF_IS_V11(_a) (((_a)->pf_version.major == 1) && \
+		       ((_a)->pf_version.minor == 1))
 	u16 msg_enable;
 	struct i40e_eth_stats current_stats;
 	struct i40e_vsi vsi;
