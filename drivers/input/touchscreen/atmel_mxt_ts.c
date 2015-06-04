@@ -2278,8 +2278,8 @@ static int mxt_probe_regulators(struct mxt_data *data)
 	struct device *dev = &data->client->dev;
 	int error;
 
+	/* Must have reset GPIO to use regulator support */
 	if (!gpio_is_valid(data->pdata->gpio_reset)) {
-		dev_dbg(dev, "Must have reset GPIO to use regulator support\n");
 		error = -EINVAL;
 		goto fail;
 	}
@@ -3415,7 +3415,6 @@ static const struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
-	/* reset gpio */
 	pdata->gpio_reset = of_get_named_gpio_flags(client->dev.of_node,
 		"atmel,reset-gpio", 0, NULL);
 
