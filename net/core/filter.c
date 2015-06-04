@@ -46,7 +46,6 @@
 #include <linux/seccomp.h>
 #include <linux/if_vlan.h>
 #include <linux/bpf.h>
-#include <net/sch_generic.h>
 
 /**
  *	sk_filter - run a packet through a socket filter
@@ -1426,8 +1425,7 @@ static u64 bpf_clone_redirect(u64 r1, u64 ifindex, u64 flags, u64 r4, u64 r5)
 	if (unlikely(!skb2))
 		return -ENOMEM;
 
-	if (G_TC_AT(skb2->tc_verd) & AT_INGRESS)
-		skb_push(skb2, skb2->mac_len);
+	skb_push(skb2, skb2->data - skb_mac_header(skb2));
 
 	if (BPF_IS_REDIRECT_INGRESS(flags))
 		return dev_forward_skb(dev, skb2);
