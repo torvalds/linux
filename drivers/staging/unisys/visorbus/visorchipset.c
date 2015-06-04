@@ -331,11 +331,16 @@ static const struct attribute_group *visorchipset_dev_groups[] = {
 	NULL
 };
 
+static void visorchipset_dev_release(struct device *dev)
+{
+}
+
 /* /sys/devices/platform/visorchipset */
 static struct platform_device visorchipset_platform_device = {
 	.name = "visorchipset",
 	.id = -1,
 	.dev.groups = visorchipset_dev_groups,
+	.dev.release = visorchipset_dev_release,
 };
 
 /* Function prototypes */
@@ -2355,6 +2360,7 @@ visorchipset_exit(struct acpi_device *acpi_device)
 	visorchannel_destroy(controlvm_channel);
 
 	visorchipset_file_cleanup(visorchipset_platform_device.dev.devt);
+	platform_device_unregister(&visorchipset_platform_device);
 	POSTCODE_LINUX_2(DRIVER_EXIT_PC, POSTCODE_SEVERITY_INFO);
 
 	return 0;
