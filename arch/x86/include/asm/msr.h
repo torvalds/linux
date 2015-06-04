@@ -1,13 +1,14 @@
 #ifndef _ASM_X86_MSR_H
 #define _ASM_X86_MSR_H
 
-#include <uapi/asm/msr.h>
+#include "msr-index.h"
 
 #ifndef __ASSEMBLY__
 
 #include <asm/asm.h>
 #include <asm/errno.h>
 #include <asm/cpumask.h>
+#include <uapi/asm/msr.h>
 
 struct msr {
 	union {
