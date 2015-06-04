@@ -15,6 +15,7 @@
 #include <linux/ppp_defs.h>
 #include <linux/stddef.h>
 #include <linux/if_ether.h>
+#include <linux/mpls.h>
 #include <net/flow_dissector.h>
 #include <scsi/fc/fc_fcoe.h>
 
@@ -288,6 +289,37 @@ ipv6:
 		}
 		return true;
 	}
+
+	case htons(ETH_P_MPLS_UC):
+	case htons(ETH_P_MPLS_MC): {
+		struct mpls_label *hdr, _hdr[2];
+mpls:
+		hdr = __skb_header_pointer(skb, nhoff, sizeof(_hdr), data,
+					   hlen, &_hdr);
+		if (!hdr)
+			return false;
+
+		if ((ntohl(hdr[0].entry) & MPLS_LS_LABEL_MASK) ==
+		     MPLS_LABEL_ENTROPY) {
+			if (skb_flow_dissector_uses_key(flow_dissector,
+							FLOW_DISSECTOR_KEY_MPLS_ENTROPY)) {
+				key_keyid = skb_flow_dissector_target(flow_dissector,
+								      FLOW_DISSECTOR_KEY_MPLS_ENTROPY,
+								      target_container);
+				key_keyid->keyid = hdr[1].entry &
+					htonl(MPLS_LS_LABEL_MASK);
+			}
+
+			key_basic->n_proto = proto;
+			key_basic->ip_proto = ip_proto;
+			key_control->thoff = (u16)nhoff;
+
+			return true;
+		}
+
+		return true;
+	}
+
 	case htons(ETH_P_FCOE):
 		key_control->thoff = (u16)(nhoff + FCOE_HEADER_LEN);
 		/* fall through */
@@ -357,6 +389,9 @@ ipv6:
 	case IPPROTO_IPV6:
 		proto = htons(ETH_P_IPV6);
 		goto ipv6;
+	case IPPROTO_MPLS:
+		proto = htons(ETH_P_MPLS_UC);
+		goto mpls;
 	default:
 		break;
 	}
