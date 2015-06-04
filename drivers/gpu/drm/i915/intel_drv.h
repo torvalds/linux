@@ -241,6 +241,13 @@ typedef struct dpll {
 	int	p;
 } intel_clock_t;
 
+struct intel_atomic_state {
+	struct drm_atomic_state base;
+
+	bool dpll_set;
+	struct intel_shared_dpll_config shared_dpll[I915_NUM_PLLS];
+};
+
 struct intel_plane_state {
 	struct drm_plane_state base;
 	struct drm_rect src;
@@ -628,6 +635,7 @@ struct cxsr_latency {
 	unsigned long cursor_hpll_disable;
 };
 
+#define to_intel_atomic_state(x) container_of(x, struct intel_atomic_state, base)
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
 #define to_intel_crtc_state(x) container_of(x, struct intel_crtc_state, base)
 #define to_intel_connector(x) container_of(x, struct intel_connector, base)
@@ -1404,6 +1412,11 @@ int intel_connector_atomic_get_property(struct drm_connector *connector,
 struct drm_crtc_state *intel_crtc_duplicate_state(struct drm_crtc *crtc);
 void intel_crtc_destroy_state(struct drm_crtc *crtc,
 			       struct drm_crtc_state *state);
+struct drm_atomic_state *intel_atomic_state_alloc(struct drm_device *dev);
+void intel_atomic_state_clear(struct drm_atomic_state *);
+struct intel_shared_dpll_config *
+intel_atomic_get_shared_dpll_state(struct drm_atomic_state *s);
+
 static inline struct intel_crtc_state *
 intel_atomic_get_crtc_state(struct drm_atomic_state *state,
 			    struct intel_crtc *crtc)

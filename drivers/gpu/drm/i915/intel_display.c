@@ -4186,7 +4186,10 @@ struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc,
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 	struct intel_shared_dpll *pll;
+	struct intel_shared_dpll_config *shared_dpll;
 	enum intel_dpll_id i;
+
+	shared_dpll = intel_atomic_get_shared_dpll_state(crtc_state->base.state);
 
 	if (HAS_PCH_IBX(dev_priv->dev)) {
 		/* Ironlake PCH has a fixed PLL->PCH pipe mapping. */
@@ -4196,7 +4199,7 @@ struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc,
 		DRM_DEBUG_KMS("CRTC:%d using pre-allocated %s\n",
 			      crtc->base.base.id, pll->name);
 
-		WARN_ON(pll->new_config->crtc_mask);
+		WARN_ON(shared_dpll[i].crtc_mask);
 
 		goto found;
 	}
@@ -4216,7 +4219,7 @@ struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc,
 		pll = &dev_priv->shared_dplls[i];
 		DRM_DEBUG_KMS("CRTC:%d using pre-allocated %s\n",
 			crtc->base.base.id, pll->name);
-		WARN_ON(pll->new_config->crtc_mask);
+		WARN_ON(shared_dpll[i].crtc_mask);
 
 		goto found;
 	}
@@ -4225,15 +4228,15 @@ struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc,
 		pll = &dev_priv->shared_dplls[i];
 
 		/* Only want to check enabled timings first */
-		if (pll->new_config->crtc_mask == 0)
+		if (shared_dpll[i].crtc_mask == 0)
 			continue;
 
 		if (memcmp(&crtc_state->dpll_hw_state,
-			   &pll->new_config->hw_state,
-			   sizeof(pll->new_config->hw_state)) == 0) {
+			   &shared_dpll[i].hw_state,
+			   sizeof(crtc_state->dpll_hw_state)) == 0) {
 			DRM_DEBUG_KMS("CRTC:%d sharing existing %s (crtc mask 0x%08x, ative %d)\n",
 				      crtc->base.base.id, pll->name,
-				      pll->new_config->crtc_mask,
+				      shared_dpll[i].crtc_mask,
 				      pll->active);
 			goto found;
 		}
@@ -4242,7 +4245,7 @@ struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc,
 	/* Ok no matching timings, maybe there's a free one? */
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
 		pll = &dev_priv->shared_dplls[i];
-		if (pll->new_config->crtc_mask == 0) {
+		if (shared_dpll[i].crtc_mask == 0) {
 			DRM_DEBUG_KMS("CRTC:%d allocated %s\n",
 				      crtc->base.base.id, pll->name);
 			goto found;
@@ -4252,83 +4255,33 @@ struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc,
 	return NULL;
 
 found:
-	if (pll->new_config->crtc_mask == 0)
-		pll->new_config->hw_state = crtc_state->dpll_hw_state;
+	if (shared_dpll[i].crtc_mask == 0)
+		shared_dpll[i].hw_state =
+			crtc_state->dpll_hw_state;
 
 	crtc_state->shared_dpll = i;
 	DRM_DEBUG_DRIVER("using %s for pipe %c\n", pll->name,
 			 pipe_name(crtc->pipe));
 
-	pll->new_config->crtc_mask |= 1 << crtc->pipe;
+	shared_dpll[i].crtc_mask |= 1 << crtc->pipe;
 
 	return pll;
 }
 
-/**
- * intel_shared_dpll_start_config - start a new PLL staged config
- * @dev_priv: DRM device
- * @clear_pipes: mask of pipes that will have their PLLs freed
- *
- * Starts a new PLL staged config, copying the current config but
- * releasing the references of pipes specified in clear_pipes.
- */
-static int intel_shared_dpll_start_config(struct drm_i915_private *dev_priv,
-					  unsigned clear_pipes)
+static void intel_shared_dpll_commit(struct drm_atomic_state *state)
 {
+	struct drm_i915_private *dev_priv = to_i915(state->dev);
+	struct intel_shared_dpll_config *shared_dpll;
 	struct intel_shared_dpll *pll;
 	enum intel_dpll_id i;
 
+	if (!to_intel_atomic_state(state)->dpll_set)
+		return;
+
+	shared_dpll = to_intel_atomic_state(state)->shared_dpll;
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
 		pll = &dev_priv->shared_dplls[i];
-
-		pll->new_config = kmemdup(&pll->config, sizeof pll->config,
-					  GFP_KERNEL);
-		if (!pll->new_config)
-			goto cleanup;
-
-		pll->new_config->crtc_mask &= ~clear_pipes;
-	}
-
-	return 0;
-
-cleanup:
-	while (--i >= 0) {
-		pll = &dev_priv->shared_dplls[i];
-		kfree(pll->new_config);
-		pll->new_config = NULL;
-	}
-
-	return -ENOMEM;
-}
-
-static void intel_shared_dpll_commit(struct drm_i915_private *dev_priv)
-{
-	struct intel_shared_dpll *pll;
-	enum intel_dpll_id i;
-
-	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
-		pll = &dev_priv->shared_dplls[i];
-
-		WARN_ON(pll->new_config == &pll->config);
-
-		pll->config = *pll->new_config;
-		kfree(pll->new_config);
-		pll->new_config = NULL;
-	}
-}
-
-static void intel_shared_dpll_abort_config(struct drm_i915_private *dev_priv)
-{
-	struct intel_shared_dpll *pll;
-	enum intel_dpll_id i;
-
-	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
-		pll = &dev_priv->shared_dplls[i];
-
-		WARN_ON(pll->new_config == &pll->config);
-
-		kfree(pll->new_config);
-		pll->new_config = NULL;
+		pll->config = shared_dpll[i];
 	}
 }
 
@@ -12227,13 +12180,12 @@ static void
 intel_modeset_update_state(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_encoder *intel_encoder;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 	struct drm_connector *connector;
 
-	intel_shared_dpll_commit(dev_priv);
+	intel_shared_dpll_commit(state);
 	drm_atomic_helper_swap_state(state->dev, state);
 
 	for_each_intel_encoder(dev, intel_encoder) {
@@ -12862,9 +12814,13 @@ static int __intel_set_mode_setup_plls(struct drm_atomic_state *state)
 		}
 	}
 
-	ret = intel_shared_dpll_start_config(dev_priv, clear_pipes);
-	if (ret)
-		goto done;
+	if (clear_pipes) {
+		struct intel_shared_dpll_config *shared_dpll =
+			intel_atomic_get_shared_dpll_state(state);
+
+		for (i = 0; i < dev_priv->num_shared_dpll; i++)
+			shared_dpll[i].crtc_mask &= ~clear_pipes;
+	}
 
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		if (!needs_modeset(crtc_state) || !crtc_state->enable)
@@ -12875,13 +12831,10 @@ static int __intel_set_mode_setup_plls(struct drm_atomic_state *state)
 
 		ret = dev_priv->display.crtc_compute_clock(intel_crtc,
 							   intel_crtc_state);
-		if (ret) {
-			intel_shared_dpll_abort_config(dev_priv);
-			goto done;
-		}
+		if (ret)
+			return ret;
 	}
 
-done:
 	return ret;
 }
 
@@ -14582,6 +14535,8 @@ static const struct drm_mode_config_funcs intel_mode_funcs = {
 	.output_poll_changed = intel_fbdev_output_poll_changed,
 	.atomic_check = intel_atomic_check,
 	.atomic_commit = intel_atomic_commit,
+	.atomic_state_alloc = intel_atomic_state_alloc,
+	.atomic_state_clear = intel_atomic_state_clear,
 };
 
 /* Set up chip specific display functions */
