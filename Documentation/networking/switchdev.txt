@@ -300,33 +300,38 @@ IGMP Snooping
 XXX: complete this section
 
 
-L3 routing
-----------
+L3 Routing Offload
+------------------
 
 Offloading L3 routing requires that device be programmed with FIB entries from
 the kernel, with the device doing the FIB lookup and forwarding.  The device
 does a longest prefix match (LPM) on FIB entries matching route prefix and
-forwards the packet to the matching FIB entry's nexthop(s) egress ports.  To
-program the device, the switchdev driver is called with add/delete ops for IPv4
-and IPv6 FIB entries.  For IPv4, the driver implements switchdev ops:
+forwards the packet to the matching FIB entry's nexthop(s) egress ports.
 
-	int (*switchdev_fib_ipv4_add)(struct net_device *dev,
-				  __be32 dst, int dst_len,
-				  struct fib_info *fi,
-				  u8 tos, u8 type,
-				  u32 nlflags, u32 tb_id);
+To program the device, the driver implements support for
+SWITCHDEV_OBJ_IPV[4|6]_FIB object using switchdev_port_obj_xxx ops.
+switchdev_port_obj_add is used for both adding a new FIB entry to the device,
+or modifying an existing entry on the device.
 
-	int (*switchdev_fib_ipv4_del)(struct net_device *dev,
-				  __be32 dst, int dst_len,
-				  struct fib_info *fi,
-				  u8 tos, u8 type,
-				  u32 tb_id);
+XXX: Currently, only SWITCHDEV_OBJ_IPV4_FIB objects are supported.
 
-to add/delete IPv4 dst/dest_len prefix on table tb_id.  The *fi structure holds
-details on the route and route's nexthops.  *dev is one of the port netdevs
-mentioned in the routes next hop list.  If the output port netdevs referenced
-in the route's nexthop list don't all have the same switch ID, the driver is
-not called to add/delete the FIB entry.
+SWITCHDEV_OBJ_IPV4_FIB object passes:
+
+	struct switchdev_obj_ipv4_fib {         /* IPV4_FIB */
+		u32 dst;
+		int dst_len;
+		struct fib_info *fi;
+		u8 tos;
+		u8 type;
+		u32 nlflags;
+		u32 tb_id;
+	} ipv4_fib;
+
+to add/modify/delete IPv4 dst/dest_len prefix on table tb_id.  The *fi
+structure holds details on the route and route's nexthops.  *dev is one of the
+port netdevs mentioned in the routes next hop list.  If the output port netdevs
+referenced in the route's nexthop list don't all have the same switch ID, the
+driver is not called to add/modify/delete the FIB entry.
 
 Routes offloaded to the device are labeled with "offload" in the ip route
 listing:
@@ -344,7 +349,7 @@ listing:
 	12.0.0.4 via 11.0.0.9 dev sw1p2  proto zebra  metric 20 offload
 	192.168.0.0/24 dev eth0  proto kernel  scope link  src 192.168.0.15
 
-XXX: add/del IPv6 FIB API
+XXX: add/mod/del IPv6 FIB API
 
 Nexthop Resolution
 ^^^^^^^^^^^^^^^^^^

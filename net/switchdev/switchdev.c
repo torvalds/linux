@@ -803,7 +803,7 @@ static struct net_device *switchdev_get_dev_by_nhs(struct fib_info *fi)
 }
 
 /**
- *	switchdev_fib_ipv4_add - Add IPv4 route entry to switch
+ *	switchdev_fib_ipv4_add - Add/modify switch IPv4 route entry
  *
  *	@dst: route's IPv4 destination address
  *	@dst_len: destination address length (prefix length)
@@ -813,7 +813,7 @@ static struct net_device *switchdev_get_dev_by_nhs(struct fib_info *fi)
  *	@nlflags: netlink flags passed in (NLM_F_*)
  *	@tb_id: route table ID
  *
- *	Add IPv4 route entry to switch device.
+ *	Add/modify switch IPv4 route entry.
  */
 int switchdev_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 			   u8 tos, u8 type, u32 nlflags, u32 tb_id)
