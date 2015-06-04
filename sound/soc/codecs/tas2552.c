@@ -338,7 +338,6 @@ static DECLARE_TLV_DB_SCALE(dac_tlv, -7, 100, 24);
 static const struct snd_kcontrol_new tas2552_snd_controls[] = {
 	SOC_SINGLE_TLV("Speaker Driver Playback Volume",
 			 TAS2552_PGA_GAIN, 0, 0x1f, 1, dac_tlv),
-	SOC_DAPM_SINGLE("Playback AMP", SND_SOC_NOPM, 0, 1, 0),
 };
 
 static const struct reg_default tas2552_init_regs[] = {
