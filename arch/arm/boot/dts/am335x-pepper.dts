@@ -445,7 +445,7 @@
 			/* VDD_CORE voltage limits 0.95V - 1.26V with +/-4% tolerance */
 			regulator-name = "vdd_core";
 			regulator-min-microvolt = <925000>;
-			regulator-max-microvolt = <1325000>;
+			regulator-max-microvolt = <1150000>;
 			regulator-boot-on;
 			regulator-always-on;
 		};
@@ -454,7 +454,7 @@
 			/* VDD_MPU voltage limits 0.95V - 1.1V with +/-4% tolerance */
 			regulator-name = "vdd_mpu";
 			regulator-min-microvolt = <925000>;
-			regulator-max-microvolt = <1150000>;
+			regulator-max-microvolt = <1325000>;
 			regulator-boot-on;
 			regulator-always-on;
 		};
