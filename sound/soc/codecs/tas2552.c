@@ -83,17 +83,15 @@ struct tas2552_data {
 	unsigned int tdm_delay;
 };
 
-/* Input mux controls */
-static const char *tas2552_input_texts[] = {
-	"Digital", "Analog"
-};
 
+/* Input mux controls */
+static const char * const tas2552_input_texts[] = {
+	"Digital", "Analog" };
 static SOC_ENUM_SINGLE_DECL(tas2552_input_mux_enum, TAS2552_CFG_3, 7,
 			    tas2552_input_texts);
 
-static const struct snd_kcontrol_new tas2552_input_mux_control[] = {
-	SOC_DAPM_ENUM("Input selection", tas2552_input_mux_enum)
-};
+static const struct snd_kcontrol_new tas2552_input_mux_control =
+	SOC_DAPM_ENUM("Route", tas2552_input_mux_enum);
 
 static const struct snd_soc_dapm_widget tas2552_dapm_widgets[] =
 {
@@ -101,7 +99,7 @@ static const struct snd_soc_dapm_widget tas2552_dapm_widgets[] =
 
 	/* MUX Controls */
 	SND_SOC_DAPM_MUX("Input selection", SND_SOC_NOPM, 0, 0,
-				tas2552_input_mux_control),
+			 &tas2552_input_mux_control),
 
 	SND_SOC_DAPM_AIF_IN("DAC IN", "DAC Playback", 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_DAC("DAC", NULL, SND_SOC_NOPM, 0, 0),
