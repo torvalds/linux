@@ -522,6 +522,10 @@ long amdgpu_fence_wait_seq_timeout(struct amdgpu_device *adev, u64 *target_seq,
 	bool signaled;
 	int i, r;
 
+	if (timeout == 0) {
+		return amdgpu_fence_any_seq_signaled(adev, target_seq);
+	}
+
 	while (!amdgpu_fence_any_seq_signaled(adev, target_seq)) {
 
 		/* Save current sequence values, used to check for GPU lockups */
