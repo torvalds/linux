@@ -1319,7 +1319,7 @@ void svc_rdma_send_error(struct svcxprt_rdma *xprt, struct rpcrdma_msg *rmsgp,
 	struct ib_send_wr err_wr;
 	struct page *p;
 	struct svc_rdma_op_ctxt *ctxt;
-	u32 *va;
+	__be32 *va;
 	int length;
 	int ret;
 

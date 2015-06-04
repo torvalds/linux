@@ -184,7 +184,7 @@ struct svcxprt_rdma {
 extern int svc_rdma_xdr_decode_req(struct rpcrdma_msg **, struct svc_rqst *);
 extern int svc_rdma_xdr_encode_error(struct svcxprt_rdma *,
 				     struct rpcrdma_msg *,
-				     enum rpcrdma_errcode, u32 *);
+				     enum rpcrdma_errcode, __be32 *);
 extern void svc_rdma_xdr_encode_write_list(struct rpcrdma_msg *, int);
 extern void svc_rdma_xdr_encode_reply_array(struct rpcrdma_write_array *, int);
 extern void svc_rdma_xdr_encode_array_chunk(struct rpcrdma_write_array *, int,
