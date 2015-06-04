@@ -88,9 +88,11 @@ struct device_queue_manager_ops {
 				struct queue *q,
 				struct qcm_process_device *qpd,
 				int *allocate_vmid);
+
 	int	(*destroy_queue)(struct device_queue_manager *dqm,
 				struct qcm_process_device *qpd,
 				struct queue *q);
+
 	int	(*update_queue)(struct device_queue_manager *dqm,
 				struct queue *q);
 
@@ -100,8 +102,10 @@ struct device_queue_manager_ops {
 
 	int	(*register_process)(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);
+
 	int	(*unregister_process)(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);
+
 	int	(*initialize)(struct device_queue_manager *dqm);
 	int	(*start)(struct device_queue_manager *dqm);
 	int	(*stop)(struct device_queue_manager *dqm);
@@ -109,9 +113,11 @@ struct device_queue_manager_ops {
 	int	(*create_kernel_queue)(struct device_queue_manager *dqm,
 					struct kernel_queue *kq,
 					struct qcm_process_device *qpd);
+
 	void	(*destroy_kernel_queue)(struct device_queue_manager *dqm,
 					struct kernel_queue *kq,
 					struct qcm_process_device *qpd);
+
 	bool	(*set_cache_memory_policy)(struct device_queue_manager *dqm,
 					   struct qcm_process_device *qpd,
 					   enum cache_policy default_policy,

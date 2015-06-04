@@ -218,7 +218,8 @@ struct drm_property_blob {
 	struct drm_mode_object base;
 	struct drm_device *dev;
 	struct kref refcount;
-	struct list_head head;
+	struct list_head head_global;
+	struct list_head head_file;
 	size_t length;
 	unsigned char data[];
 };
@@ -297,6 +298,9 @@ struct drm_crtc_state {
 	struct drm_display_mode adjusted_mode;
 
 	struct drm_display_mode mode;
+
+	/* blob property to expose current mode to atomic userspace */
+	struct drm_property_blob *mode_blob;
 
 	struct drm_pending_vblank_event *event;
 
@@ -903,6 +907,8 @@ struct drm_bridge_funcs {
 /**
  * struct drm_bridge - central DRM bridge control structure
  * @dev: DRM device this bridge belongs to
+ * @encoder: encoder to which this bridge is connected
+ * @next: the next bridge in the encoder chain
  * @of_node: device node pointer to the bridge
  * @list: to keep track of all added bridges
  * @base: base mode object
@@ -912,6 +918,7 @@ struct drm_bridge_funcs {
 struct drm_bridge {
 	struct drm_device *dev;
 	struct drm_encoder *encoder;
+	struct drm_bridge *next;
 #ifdef CONFIG_OF
 	struct device_node *of_node;
 #endif
@@ -1139,6 +1146,7 @@ struct drm_mode_config {
 	struct drm_property *prop_fb_id;
 	struct drm_property *prop_crtc_id;
 	struct drm_property *prop_active;
+	struct drm_property *prop_mode_id;
 
 	/* DVI-I properties */
 	struct drm_property *dvi_i_subconnector_property;
@@ -1247,6 +1255,17 @@ extern void drm_bridge_remove(struct drm_bridge *bridge);
 extern struct drm_bridge *of_drm_find_bridge(struct device_node *np);
 extern int drm_bridge_attach(struct drm_device *dev, struct drm_bridge *bridge);
 
+bool drm_bridge_mode_fixup(struct drm_bridge *bridge,
+			const struct drm_display_mode *mode,
+			struct drm_display_mode *adjusted_mode);
+void drm_bridge_disable(struct drm_bridge *bridge);
+void drm_bridge_post_disable(struct drm_bridge *bridge);
+void drm_bridge_mode_set(struct drm_bridge *bridge,
+			struct drm_display_mode *mode,
+			struct drm_display_mode *adjusted_mode);
+void drm_bridge_pre_enable(struct drm_bridge *bridge);
+void drm_bridge_enable(struct drm_bridge *bridge);
+
 extern int drm_encoder_init(struct drm_device *dev,
 			    struct drm_encoder *encoder,
 			    const struct drm_encoder_funcs *funcs,
@@ -1301,6 +1320,8 @@ extern const char *drm_get_dvi_i_select_name(int val);
 extern const char *drm_get_tv_subconnector_name(int val);
 extern const char *drm_get_tv_select_name(int val);
 extern void drm_fb_release(struct drm_file *file_priv);
+extern void drm_property_destroy_user_blobs(struct drm_device *dev,
+                                            struct drm_file *file_priv);
 extern int drm_mode_group_init_legacy_group(struct drm_device *dev, struct drm_mode_group *group);
 extern void drm_mode_group_destroy(struct drm_mode_group *group);
 extern void drm_reinit_primary_mode_group(struct drm_device *dev);
@@ -1446,6 +1467,10 @@ extern int drm_mode_getproperty_ioctl(struct drm_device *dev,
 				      void *data, struct drm_file *file_priv);
 extern int drm_mode_getblob_ioctl(struct drm_device *dev,
 				  void *data, struct drm_file *file_priv);
+extern int drm_mode_createblob_ioctl(struct drm_device *dev,
+				     void *data, struct drm_file *file_priv);
+extern int drm_mode_destroyblob_ioctl(struct drm_device *dev,
+				      void *data, struct drm_file *file_priv);
 extern int drm_mode_connector_property_set_ioctl(struct drm_device *dev,
 					      void *data, struct drm_file *file_priv);
 extern int drm_mode_getencoder(struct drm_device *dev,

@@ -1049,9 +1049,11 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
 		iwl_pcie_rx_stop(trans);
 
 		/* Power-down device's busmaster DMA clocks */
-		iwl_write_prph(trans, APMG_CLK_DIS_REG,
-			       APMG_CLK_VAL_DMA_CLK_RQT);
-		udelay(5);
+		if (trans->cfg->device_family != IWL_DEVICE_FAMILY_8000) {
+			iwl_write_prph(trans, APMG_CLK_DIS_REG,
+				       APMG_CLK_VAL_DMA_CLK_RQT);
+			udelay(5);
+		}
 	}
 
 	/* Make sure (redundant) we've released our request to stay awake */

@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2012 Texas Instruments
- * Author: Rob Clark <robdclark@gmail.com>
+ * Copyright (C) 2015 Texas Instruments
+ * Author: Jyri Sarha <jsarha@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published by
@@ -14,13 +14,12 @@
  * You should have received a copy of the GNU General Public License along with
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+/* This header declares the symbols defined in tilcdc_slave_compat.dts */
 
-#ifndef __TILCDC_SLAVE_H__
-#define __TILCDC_SLAVE_H__
+#ifndef __TILCDC_SLAVE_COMPAT_H__
+#define __TILCDC_SLAVE_COMPAT_H__
 
-/* sub-module for i2c slave encoder output */
+extern uint8_t __dtb_tilcdc_slave_compat_begin[];
+extern uint8_t __dtb_tilcdc_slave_compat_end[];
 
-int tilcdc_slave_init(void);
-void tilcdc_slave_fini(void);
-
-#endif /* __TILCDC_SLAVE_H__ */
+#endif /* __TILCDC_SLAVE_COMPAT_H__ */

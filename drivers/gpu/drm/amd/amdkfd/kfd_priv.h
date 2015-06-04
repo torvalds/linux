@@ -128,6 +128,7 @@ struct kfd_device_info {
 	unsigned int asic_family;
 	const struct kfd_event_interrupt_class *event_interrupt_class;
 	unsigned int max_pasid_bits;
+	unsigned int max_no_of_hqd;
 	size_t ih_ring_entry_size;
 	uint8_t num_of_watch_points;
 	uint16_t mqd_size_aligned;
@@ -167,8 +168,8 @@ struct kfd_dev {
 
 	const struct kfd2kgd_calls *kfd2kgd;
 	struct mutex doorbell_mutex;
-	unsigned long doorbell_available_index[DIV_ROUND_UP(
-		KFD_MAX_NUM_OF_QUEUES_PER_PROCESS, BITS_PER_LONG)];
+	DECLARE_BITMAP(doorbell_available_index,
+			KFD_MAX_NUM_OF_QUEUES_PER_PROCESS);
 
 	void *gtt_mem;
 	uint64_t gtt_start_gpu_addr;
@@ -195,6 +196,9 @@ struct kfd_dev {
 	 * from the HW ring into a SW ring.
 	 */
 	bool interrupts_active;
+
+	/* Debug manager */
+	struct kfd_dbgmgr           *dbgmgr;
 };
 
 /* KGD2KFD callbacks */
@@ -231,6 +235,7 @@ struct device *kfd_chardev(void);
 enum kfd_preempt_type_filter {
 	KFD_PREEMPT_TYPE_FILTER_SINGLE_QUEUE,
 	KFD_PREEMPT_TYPE_FILTER_ALL_QUEUES,
+	KFD_PREEMPT_TYPE_FILTER_DYNAMIC_QUEUES,
 	KFD_PREEMPT_TYPE_FILTER_BY_PASID
 };
 
@@ -503,8 +508,6 @@ struct kfd_process {
 	/* Size is queue_array_size, up to MAX_PROCESS_QUEUES. */
 	struct kfd_queue **queues;
 
-	unsigned long allocated_queue_bitmap[DIV_ROUND_UP(KFD_MAX_NUM_OF_QUEUES_PER_PROCESS, BITS_PER_LONG)];
-
 	/*Is the user space process 32 bit?*/
 	bool is_32bit_user_mode;
 
@@ -516,6 +519,11 @@ struct kfd_process {
 								event_pages */
 	u32 next_nonsignal_event_id;
 	size_t signal_event_count;
+	/*
+	 * This flag tells if we should reset all wavefronts on
+	 * process termination
+	 */
+	bool reset_wavefronts;
 };
 
 /**
@@ -650,6 +658,12 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid);
 int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
 			struct queue_properties *p);
+struct kernel_queue *pqm_get_kernel_queue(struct process_queue_manager *pqm,
+						unsigned int qid);
+
+int amdkfd_fence_wait_timeout(unsigned int *fence_addr,
+				unsigned int fence_value,
+				unsigned long timeout);
 
 /* Packet Manager */
 
@@ -716,5 +730,7 @@ int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 		     uint32_t *event_id, uint32_t *event_trigger_data,
 		     uint64_t *event_page_offset, uint32_t *event_slot_index);
 int kfd_event_destroy(struct kfd_process *p, uint32_t event_id);
+
+int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p);
 
 #endif

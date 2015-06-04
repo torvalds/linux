@@ -58,6 +58,7 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 				     struct drm_atomic_state *state);
 void drm_atomic_helper_cleanup_planes(struct drm_device *dev,
 				      struct drm_atomic_state *old_state);
+void drm_atomic_helper_commit_planes_on_crtc(struct drm_crtc_state *old_crtc_state);
 
 void drm_atomic_helper_swap_state(struct drm_device *dev,
 				  struct drm_atomic_state *state);

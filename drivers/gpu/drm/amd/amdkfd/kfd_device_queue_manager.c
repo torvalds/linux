@@ -45,7 +45,8 @@ static int create_compute_queue_nocpsch(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);
 
 static int execute_queues_cpsch(struct device_queue_manager *dqm, bool lock);
-static int destroy_queues_cpsch(struct device_queue_manager *dqm, bool lock);
+static int destroy_queues_cpsch(struct device_queue_manager *dqm,
+				bool preempt_static_queues, bool lock);
 
 static int create_sdma_queue_nocpsch(struct device_queue_manager *dqm,
 					struct queue *q,
@@ -775,7 +776,7 @@ static int stop_cpsch(struct device_queue_manager *dqm)
 
 	BUG_ON(!dqm);
 
-	destroy_queues_cpsch(dqm, true);
+	destroy_queues_cpsch(dqm, true, true);
 
 	list_for_each_entry(node, &dqm->queues, list) {
 		pdd = qpd_to_pdd(node->qpd);
@@ -829,7 +830,8 @@ static void destroy_kernel_queue_cpsch(struct device_queue_manager *dqm,
 	pr_debug("kfd: In %s\n", __func__);
 
 	mutex_lock(&dqm->lock);
-	destroy_queues_cpsch(dqm, false);
+	/* here we actually preempt the DIQ */
+	destroy_queues_cpsch(dqm, true, false);
 	list_del(&kq->list);
 	dqm->queue_count--;
 	qpd->is_debug = false;
@@ -913,7 +915,7 @@ out:
 	return retval;
 }
 
-static int amdkfd_fence_wait_timeout(unsigned int *fence_addr,
+int amdkfd_fence_wait_timeout(unsigned int *fence_addr,
 				unsigned int fence_value,
 				unsigned long timeout)
 {
@@ -935,13 +937,16 @@ static int destroy_sdma_queues(struct device_queue_manager *dqm,
 				unsigned int sdma_engine)
 {
 	return pm_send_unmap_queue(&dqm->packets, KFD_QUEUE_TYPE_SDMA,
-			KFD_PREEMPT_TYPE_FILTER_ALL_QUEUES, 0, false,
+			KFD_PREEMPT_TYPE_FILTER_DYNAMIC_QUEUES, 0, false,
 			sdma_engine);
 }
 
-static int destroy_queues_cpsch(struct device_queue_manager *dqm, bool lock)
+static int destroy_queues_cpsch(struct device_queue_manager *dqm,
+				bool preempt_static_queues, bool lock)
 {
 	int retval;
+	enum kfd_preempt_type_filter preempt_type;
+	struct kfd_process *p;
 
 	BUG_ON(!dqm);
 
@@ -960,8 +965,12 @@ static int destroy_queues_cpsch(struct device_queue_manager *dqm, bool lock)
 		destroy_sdma_queues(dqm, 1);
 	}
 
+	preempt_type = preempt_static_queues ?
+			KFD_PREEMPT_TYPE_FILTER_ALL_QUEUES :
+			KFD_PREEMPT_TYPE_FILTER_DYNAMIC_QUEUES;
+
 	retval = pm_send_unmap_queue(&dqm->packets, KFD_QUEUE_TYPE_COMPUTE,
-			KFD_PREEMPT_TYPE_FILTER_ALL_QUEUES, 0, false, 0);
+			preempt_type, 0, false, 0);
 	if (retval != 0)
 		goto out;
 
@@ -969,8 +978,13 @@ static int destroy_queues_cpsch(struct device_queue_manager *dqm, bool lock)
 	pm_send_query_status(&dqm->packets, dqm->fence_gpu_addr,
 				KFD_FENCE_COMPLETED);
 	/* should be timed out */
-	amdkfd_fence_wait_timeout(dqm->fence_addr, KFD_FENCE_COMPLETED,
+	retval = amdkfd_fence_wait_timeout(dqm->fence_addr, KFD_FENCE_COMPLETED,
 				QUEUE_PREEMPT_DEFAULT_TIMEOUT_MS);
+	if (retval != 0) {
+		p = kfd_get_process(current);
+		p->reset_wavefronts = true;
+		goto out;
+	}
 	pm_release_ib(&dqm->packets);
 	dqm->active_runlist = false;
 
@@ -989,7 +1003,7 @@ static int execute_queues_cpsch(struct device_queue_manager *dqm, bool lock)
 	if (lock)
 		mutex_lock(&dqm->lock);
 
-	retval = destroy_queues_cpsch(dqm, false);
+	retval = destroy_queues_cpsch(dqm, false, false);
 	if (retval != 0) {
 		pr_err("kfd: the cp might be in an unrecoverable state due to an unsuccessful queues preemption");
 		goto out;
@@ -1024,13 +1038,27 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 {
 	int retval;
 	struct mqd_manager *mqd;
+	bool preempt_all_queues;
 
 	BUG_ON(!dqm || !qpd || !q);
+
+	preempt_all_queues = false;
 
 	retval = 0;
 
 	/* remove queue from list to prevent rescheduling after preemption */
 	mutex_lock(&dqm->lock);
+
+	if (qpd->is_debug) {
+		/*
+		 * error, currently we do not allow to destroy a queue
+		 * of a currently debugged process
+		 */
+		retval = -EBUSY;
+		goto failed_try_destroy_debugged_queue;
+
+	}
+
 	mqd = dqm->ops.get_mqd_manager(dqm,
 			get_mqd_type_from_queue_type(q->properties.type));
 	if (!mqd) {
@@ -1062,6 +1090,8 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 	return 0;
 
 failed:
+failed_try_destroy_debugged_queue:
+
 	mutex_unlock(&dqm->lock);
 	return retval;
 }

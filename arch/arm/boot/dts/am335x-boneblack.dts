@@ -80,7 +80,3 @@
 		status = "okay";
 	};
 };
-
-&rtc {
-	system-power-controller;
-};

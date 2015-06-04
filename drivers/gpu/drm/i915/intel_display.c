@@ -4828,11 +4828,22 @@ intel_pre_disable_primary(struct drm_crtc *crtc)
 
 static void intel_crtc_enable_planes(struct drm_crtc *crtc)
 {
+	struct drm_device *dev = crtc->dev;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+
 	intel_enable_primary_hw_plane(crtc->primary, crtc);
 	intel_enable_sprite_planes(crtc);
 	intel_crtc_update_cursor(crtc, true);
 
 	intel_post_enable_primary(crtc);
+
+	/*
+	 * FIXME: Once we grow proper nuclear flip support out of this we need
+	 * to compute the mask of flip planes precisely. For the time being
+	 * consider this a flip to a NULL plane.
+	 */
+	intel_frontbuffer_flip(dev, INTEL_FRONTBUFFER_ALL_MASK(pipe));
 }
 
 static void intel_crtc_disable_planes(struct drm_crtc *crtc)

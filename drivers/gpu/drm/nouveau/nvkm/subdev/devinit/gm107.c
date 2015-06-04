@@ -48,7 +48,7 @@ struct nvkm_oclass *
 gm107_devinit_oclass = &(struct nvkm_devinit_impl) {
 	.base.handle = NV_SUBDEV(DEVINIT, 0x07),
 	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_devinit_ctor,
+		.ctor = gf100_devinit_ctor,
 		.dtor = _nvkm_devinit_dtor,
 		.init = nv50_devinit_init,
 		.fini = _nvkm_devinit_fini,
