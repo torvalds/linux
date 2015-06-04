@@ -29,6 +29,11 @@
 
 /* --------------------------------------------------------------------- */
 
+struct vesafb_par {
+	u32 pseudo_palette[256];
+	int wc_cookie;
+};
+
 static struct fb_var_screeninfo vesafb_defined = {
 	.activate	= FB_ACTIVATE_NOW,
 	.height		= -1,
@@ -175,7 +180,16 @@ static int vesafb_setcolreg(unsigned regno, unsigned red, unsigned green,
 
 static void vesafb_destroy(struct fb_info *info)
 {
+#ifdef CONFIG_MTRR
+	struct vesafb_par *par = info->par;
+#endif
+
 	fb_dealloc_cmap(&info->cmap);
+
+#ifdef CONFIG_MTRR
+	if (par->wc_cookie >= 0)
+		mtrr_del(par->wc_cookie, 0, 0);
+#endif
 	if (info->screen_base)
 		iounmap(info->screen_base);
 	release_mem_region(info->apertures->ranges[0].base, info->apertures->ranges[0].size);
@@ -228,6 +242,7 @@ static int vesafb_setup(char *options)
 static int vesafb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
+	struct vesafb_par *par;
 	int i, err;
 	unsigned int size_vmode;
 	unsigned int size_remap;
@@ -291,14 +306,14 @@ static int vesafb_probe(struct platform_device *dev)
 		   spaces our resource handlers simply don't know about */
 	}
 
-	info = framebuffer_alloc(sizeof(u32) * 256, &dev->dev);
+	info = framebuffer_alloc(sizeof(struct vesafb_par), &dev->dev);
 	if (!info) {
 		release_mem_region(vesafb_fix.smem_start, size_total);
 		return -ENOMEM;
 	}
 	platform_set_drvdata(dev, info);
-	info->pseudo_palette = info->par;
-	info->par = NULL;
+	par = info->par;
+	info->pseudo_palette = par->pseudo_palette;
 
 	/* set vesafb aperture size for generic probing */
 	info->apertures = alloc_apertures(1);
@@ -407,17 +422,17 @@ static int vesafb_probe(struct platform_device *dev)
 	if (mtrr == 3) {
 #ifdef CONFIG_MTRR
 		unsigned int temp_size = size_total;
-		int rc;
 
 		/* Find the largest power-of-two */
 		temp_size = roundup_pow_of_two(temp_size);
 
 		/* Try and find a power of two to add */
 		do {
-			rc = mtrr_add(vesafb_fix.smem_start, temp_size,
-				      MTRR_TYPE_WRCOMB, 1);
+			par->wc_cookie = mtrr_add(vesafb_fix.smem_start,
+						  temp_size,
+						  MTRR_TYPE_WRCOMB, 1);
 			temp_size >>= 1;
-		} while (temp_size >= PAGE_SIZE && rc == -EINVAL);
+		} while (temp_size >= PAGE_SIZE && par->wc_cookie == -EINVAL);
 #endif
 		info->screen_base = ioremap_wc(vesafb_fix.smem_start, vesafb_fix.smem_len);
 	} else {
@@ -462,6 +477,10 @@ static int vesafb_probe(struct platform_device *dev)
 	fb_info(info, "%s frame buffer device\n", info->fix.id);
 	return 0;
 err:
+#ifdef CONFIG_MTRR
+	if (par->wc_cookie >= 0)
+		mtrr_del(par->wc_cookie, 0, 0);
+#endif
 	if (info->screen_base)
 		iounmap(info->screen_base);
 	framebuffer_release(info);
