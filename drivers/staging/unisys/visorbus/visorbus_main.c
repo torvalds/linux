@@ -572,7 +572,7 @@ static ssize_t client_bus_info_show(struct device *dev,
 		if (vdev->name)
 			partition_name = vdev->name;
 		x = snprintf(p, remain,
-			     "Client device / client driver info for %s partition (vbus #%ld):\n",
+			     "Client device / client driver info for %s partition (vbus #%d):\n",
 			     partition_name, vdev->chipset_dev_no);
 		p += x;
 		remain -= x;

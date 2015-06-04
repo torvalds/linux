@@ -150,8 +150,8 @@ struct visor_device {
 	struct semaphore visordriver_callback_lock;
 	bool pausing;
 	bool resuming;
-	unsigned long chipset_bus_no;
-	unsigned long chipset_dev_no;
+	u32 chipset_bus_no;
+	u32 chipset_dev_no;
 	struct visorchipset_state state;
 	uuid_le type;
 	uuid_le inst;

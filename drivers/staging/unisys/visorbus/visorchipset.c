@@ -56,6 +56,8 @@
 #define UNISYS_SPAR_ID_ECX 0x70537379
 #define UNISYS_SPAR_ID_EDX 0x34367261
 
+#define BUS_ROOT_DEVICE	UINT_MAX
+
 /*
  * Module parameters
  */
@@ -727,8 +729,8 @@ static int match_visorbus_dev_by_id(struct device *dev, void *data)
 	u32 bus_no = id->bus_no;
 	u32 dev_no = id->dev_no;
 
-	if (((bus_no == -1) || (vdev->chipset_bus_no == bus_no)) &&
-	    ((dev_no == -1) || (vdev->chipset_dev_no == dev_no)))
+	if ((vdev->chipset_bus_no == bus_no) &&
+	    (vdev->chipset_dev_no == dev_no))
 		return 1;
 
 	return 0;
