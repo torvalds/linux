@@ -166,7 +166,45 @@ static int tas2552_hw_params(struct snd_pcm_substream *substream,
 	struct tas2552_data *tas2552 = dev_get_drvdata(codec->dev);
 	int sample_rate, pll_clk;
 	int d;
+	int cpf;
 	u8 p, j;
+	u8 ser_ctrl1_reg;
+
+	switch (params_width(params)) {
+	case 16:
+		ser_ctrl1_reg = TAS2552_WORDLENGTH_16BIT;
+		cpf = 32 + tas2552->tdm_delay;
+		break;
+	case 20:
+		ser_ctrl1_reg = TAS2552_WORDLENGTH_20BIT;
+		cpf = 64 + tas2552->tdm_delay;
+		break;
+	case 24:
+		ser_ctrl1_reg = TAS2552_WORDLENGTH_24BIT;
+		cpf = 64 + tas2552->tdm_delay;
+		break;
+	case 32:
+		ser_ctrl1_reg = TAS2552_WORDLENGTH_32BIT;
+		cpf = 64 + tas2552->tdm_delay;
+		break;
+	default:
+		dev_err(codec->dev, "Not supported sample size: %d\n",
+			params_width(params));
+		return -EINVAL;
+	}
+
+	if (cpf <= 32)
+		ser_ctrl1_reg |= TAS2552_CLKSPERFRAME_32;
+	else if (cpf <= 64)
+		ser_ctrl1_reg |= TAS2552_CLKSPERFRAME_64;
+	else if (cpf <= 128)
+		ser_ctrl1_reg |= TAS2552_CLKSPERFRAME_128;
+	else
+		ser_ctrl1_reg |= TAS2552_CLKSPERFRAME_256;
+
+	snd_soc_update_bits(codec, TAS2552_SER_CTRL_1,
+			    TAS2552_WORDLENGTH_MASK | TAS2552_CLKSPERFRAME_MASK,
+			    ser_ctrl1_reg);
 
 	if (!tas2552->pll_clkin)
 		return -EINVAL;
