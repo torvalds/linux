@@ -1128,6 +1128,9 @@ static int i40e_vc_get_version_msg(struct i40e_vf *vf, u8 *msg)
 	};
 
 	vf->vf_ver = *(struct i40e_virtchnl_version_info *)msg;
+	/* VFs running the 1.0 API expect to get 1.0 back or they will cry. */
+	if (VF_IS_V10(vf))
+		info.minor = I40E_VIRTCHNL_VERSION_MINOR_NO_VF_CAPS;
 	return i40e_vc_send_msg_to_vf(vf, I40E_VIRTCHNL_OP_VERSION,
 				      I40E_SUCCESS, (u8 *)&info,
 				      sizeof(struct
