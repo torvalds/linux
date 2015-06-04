@@ -768,9 +768,9 @@ static int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 		goto err_stop_poll;
 	}
 
-	err = mlx5_cmd_query_adapter(dev);
+	err = mlx5_query_board_id(dev);
 	if (err) {
-		dev_err(&pdev->dev, "query adapter failed\n");
+		dev_err(&pdev->dev, "query board id failed\n");
 		goto err_stop_poll;
 	}
 

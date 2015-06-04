@@ -2470,9 +2470,12 @@ union mlx5_ifc_cong_control_roce_ecn_auto_bits {
 };
 
 struct mlx5_ifc_query_adapter_param_block_bits {
-	u8         reserved_0[0xe0];
+	u8         reserved_0[0xc0];
 
-	u8         reserved_1[0x10];
+	u8         reserved_1[0x8];
+	u8         ieee_vendor_id[0x18];
+
+	u8         reserved_2[0x10];
 	u8         vsd_vendor_id[0x10];
 
 	u8         vsd[208][0x8];
