@@ -80,6 +80,91 @@
 /* SDRAM Controller ECC Error Address Register */
 #define CV_ERRADDR_OFST            0x48
 
+/*-----------------------------------------*/
+
+/* SDRAM Controller EccCtrl Register */
+#define A10_ECCCTRL1_OFST          0x00
+
+/* SDRAM Controller EccCtrl Register Bit Masks */
+#define A10_ECCCTRL1_ECC_EN        0x001
+#define A10_ECCCTRL1_CNT_RST       0x010
+#define A10_ECCCTRL1_AWB_CNT_RST   0x100
+#define A10_ECC_CNT_RESET_MASK     (A10_ECCCTRL1_CNT_RST | \
+				    A10_ECCCTRL1_AWB_CNT_RST)
+
+/* SDRAM Controller Address Width Register */
+#define CV_DRAMADDRW               0xFFC2502C
+#define A10_DRAMADDRW              0xFFCFA0A8
+
+/* SDRAM Controller Address Widths Field Register */
+#define DRAMADDRW_COLBIT_MASK      0x001F
+#define DRAMADDRW_COLBIT_SHIFT     0
+#define DRAMADDRW_ROWBIT_MASK      0x03E0
+#define DRAMADDRW_ROWBIT_SHIFT     5
+#define CV_DRAMADDRW_BANKBIT_MASK  0x1C00
+#define CV_DRAMADDRW_BANKBIT_SHIFT 10
+#define CV_DRAMADDRW_CSBIT_MASK    0xE000
+#define CV_DRAMADDRW_CSBIT_SHIFT   13
+
+#define A10_DRAMADDRW_BANKBIT_MASK  0x3C00
+#define A10_DRAMADDRW_BANKBIT_SHIFT 10
+#define A10_DRAMADDRW_GRPBIT_MASK   0xC000
+#define A10_DRAMADDRW_GRPBIT_SHIFT  14
+#define A10_DRAMADDRW_CSBIT_MASK    0x70000
+#define A10_DRAMADDRW_CSBIT_SHIFT   16
+
+/* SDRAM Controller Interface Data Width Register */
+#define CV_DRAMIFWIDTH             0xFFC25030
+#define A10_DRAMIFWIDTH            0xFFCFB008
+
+/* SDRAM Controller Interface Data Width Defines */
+#define CV_DRAMIFWIDTH_16B_ECC     24
+#define CV_DRAMIFWIDTH_32B_ECC     40
+
+#define A10_DRAMIFWIDTH_16B        0x0
+#define A10_DRAMIFWIDTH_32B        0x1
+#define A10_DRAMIFWIDTH_64B        0x2
+
+/* SDRAM Controller DRAM IRQ Register */
+#define A10_ERRINTEN_OFST          0x10
+
+/* SDRAM Controller DRAM IRQ Register Bit Masks */
+#define A10_ERRINTEN_SERRINTEN     0x01
+#define A10_ERRINTEN_DERRINTEN     0x02
+#define A10_ECC_IRQ_EN_MASK        (A10_ERRINTEN_SERRINTEN | \
+				    A10_ERRINTEN_DERRINTEN)
+
+/* SDRAM Interrupt Mode Register */
+#define A10_INTMODE_OFST           0x1C
+#define A10_INTMODE_SB_INT         1
+
+/* SDRAM Controller Error Status Register */
+#define A10_INTSTAT_OFST           0x20
+
+/* SDRAM Controller Error Status Register Bit Masks */
+#define A10_INTSTAT_SBEERR         0x01
+#define A10_INTSTAT_DBEERR         0x02
+
+/* SDRAM Controller ECC Error Address Register */
+#define A10_DERRADDR_OFST          0x2C
+#define A10_SERRADDR_OFST          0x30
+
+/* SDRAM Controller ECC Diagnostic Register */
+#define A10_DIAGINTTEST_OFST       0x24
+
+#define A10_DIAGINT_TSERRA_MASK    0x0001
+#define A10_DIAGINT_TDERRA_MASK    0x0100
+
+#define A10_SBERR_IRQ              34
+#define A10_DBERR_IRQ              32
+
+/* SDRAM Single Bit Error Count Compare Set Register */
+#define A10_SERRCNTREG_OFST        0x3C
+
+#define A10_SYMAN_INTMASK_CLR      0xFFD06098
+#define A10_INTMASK_CLR_OFST       0x10
+#define A10_DDR0_IRQ_MASK          BIT(17)
+
 struct altr_sdram_prv_data {
 	int ecc_ctrl_offset;
 	int ecc_ctl_en_mask;

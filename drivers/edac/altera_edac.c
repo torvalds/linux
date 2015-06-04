@@ -42,6 +42,7 @@ static const struct altr_sdram_prv_data c5_data = {
 	.ecc_stat_ce_mask   = CV_DRAMSTS_SBEERR,
 	.ecc_stat_ue_mask   = CV_DRAMSTS_DBEERR,
 	.ecc_saddr_offset   = CV_ERRADDR_OFST,
+	.ecc_daddr_offset   = CV_ERRADDR_OFST,
 	.ecc_cecnt_offset   = CV_SBECOUNT_OFST,
 	.ecc_uecnt_offset   = CV_DBECOUNT_OFST,
 	.ecc_irq_en_offset  = CV_DRAMINTR_OFST,
@@ -57,37 +58,62 @@ static const struct altr_sdram_prv_data c5_data = {
 #endif
 };
 
+static const struct altr_sdram_prv_data a10_data = {
+	.ecc_ctrl_offset    = A10_ECCCTRL1_OFST,
+	.ecc_ctl_en_mask    = A10_ECCCTRL1_ECC_EN,
+	.ecc_stat_offset    = A10_INTSTAT_OFST,
+	.ecc_stat_ce_mask   = A10_INTSTAT_SBEERR,
+	.ecc_stat_ue_mask   = A10_INTSTAT_DBEERR,
+	.ecc_saddr_offset   = A10_SERRADDR_OFST,
+	.ecc_daddr_offset   = A10_DERRADDR_OFST,
+	.ecc_irq_en_offset  = A10_ERRINTEN_OFST,
+	.ecc_irq_en_mask    = A10_ECC_IRQ_EN_MASK,
+	.ecc_irq_clr_offset = A10_INTSTAT_OFST,
+	.ecc_irq_clr_mask   = (A10_INTSTAT_SBEERR | A10_INTSTAT_DBEERR),
+	.ecc_cnt_rst_offset = A10_ECCCTRL1_OFST,
+	.ecc_cnt_rst_mask   = A10_ECC_CNT_RESET_MASK,
+#ifdef CONFIG_EDAC_DEBUG
+	.ce_ue_trgr_offset  = A10_DIAGINTTEST_OFST,
+	.ce_set_mask        = A10_DIAGINT_TSERRA_MASK,
+	.ue_set_mask        = A10_DIAGINT_TDERRA_MASK,
+#endif
+};
+
 static irqreturn_t altr_sdram_mc_err_handler(int irq, void *dev_id)
 {
 	struct mem_ctl_info *mci = dev_id;
 	struct altr_sdram_mc_data *drvdata = mci->pvt_info;
 	const struct altr_sdram_prv_data *priv = drvdata->data;
-	u32 status, err_count, err_addr;
-
-	/* Error Address is shared by both SBE & DBE */
-	regmap_read(drvdata->mc_vbase, priv->ecc_saddr_offset, &err_addr);
+	u32 status, err_count = 1, err_addr;
 
 	regmap_read(drvdata->mc_vbase, priv->ecc_stat_offset, &status);
 
 	if (status & priv->ecc_stat_ue_mask) {
-		regmap_read(drvdata->mc_vbase, priv->ecc_uecnt_offset,
-			    &err_count);
+		regmap_read(drvdata->mc_vbase, priv->ecc_daddr_offset,
+			    &err_addr);
+		if (priv->ecc_uecnt_offset)
+			regmap_read(drvdata->mc_vbase, priv->ecc_uecnt_offset,
+				    &err_count);
 		panic("\nEDAC: [%d Uncorrectable errors @ 0x%08X]\n",
 		      err_count, err_addr);
 	}
 	if (status & priv->ecc_stat_ce_mask) {
-		regmap_read(drvdata->mc_vbase,  priv->ecc_cecnt_offset,
-			    &err_count);
+		regmap_read(drvdata->mc_vbase, priv->ecc_saddr_offset,
+			    &err_addr);
+		if (priv->ecc_uecnt_offset)
+			regmap_read(drvdata->mc_vbase,  priv->ecc_cecnt_offset,
+				    &err_count);
 		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, err_count,
 				     err_addr >> PAGE_SHIFT,
 				     err_addr & ~PAGE_MASK, 0,
 				     0, 0, -1, mci->ctl_name, "");
+		/* Clear IRQ to resume */
+		regmap_write(drvdata->mc_vbase,	priv->ecc_irq_clr_offset,
+			     priv->ecc_irq_clr_mask);
+
+		return IRQ_HANDLED;
 	}
-
-	regmap_write(drvdata->mc_vbase,	priv->ecc_irq_clr_offset,
-		     priv->ecc_irq_clr_mask);
-
-	return IRQ_HANDLED;
+	return IRQ_NONE;
 }
 
 #ifdef CONFIG_EDAC_DEBUG
@@ -203,9 +229,59 @@ static unsigned long get_total_mem(void)
 
 static const struct of_device_id altr_sdram_ctrl_of_match[] = {
 	{ .compatible = "altr,sdram-edac", .data = (void *)&c5_data},
+	{ .compatible = "altr,sdram-edac-a10", .data = (void *)&a10_data},
 	{},
 };
 MODULE_DEVICE_TABLE(of, altr_sdram_ctrl_of_match);
+
+static int a10_init(struct regmap *mc_vbase)
+{
+	if (regmap_update_bits(mc_vbase, A10_INTMODE_OFST,
+			       A10_INTMODE_SB_INT, A10_INTMODE_SB_INT)) {
+		edac_printk(KERN_ERR, EDAC_MC,
+			    "Error setting SB IRQ mode\n");
+		return -ENODEV;
+	}
+
+	if (regmap_write(mc_vbase, A10_SERRCNTREG_OFST, 1)) {
+		edac_printk(KERN_ERR, EDAC_MC,
+			    "Error setting trigger count\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+static int a10_unmask_irq(struct platform_device *pdev, u32 mask)
+{
+	void __iomem  *sm_base;
+	int  ret = 0;
+
+	if (!request_mem_region(A10_SYMAN_INTMASK_CLR, sizeof(u32),
+				dev_name(&pdev->dev))) {
+		edac_printk(KERN_ERR, EDAC_MC,
+			    "Unable to request mem region\n");
+		return -EBUSY;
+	}
+
+	sm_base = ioremap(A10_SYMAN_INTMASK_CLR, sizeof(u32));
+	if (!sm_base) {
+		edac_printk(KERN_ERR, EDAC_MC,
+			    "Unable to ioremap device\n");
+
+		ret = -ENOMEM;
+		goto release;
+	}
+
+	iowrite32(mask, sm_base);
+
+	iounmap(sm_base);
+
+release:
+	release_mem_region(A10_SYMAN_INTMASK_CLR, sizeof(u32));
+
+	return ret;
+}
 
 static int altr_sdram_probe(struct platform_device *pdev)
 {
@@ -217,8 +293,8 @@ static int altr_sdram_probe(struct platform_device *pdev)
 	struct regmap *mc_vbase;
 	struct dimm_info *dimm;
 	u32 read_reg;
-	int irq, res = 0;
-	unsigned long mem_size;
+	int irq, irq2, res = 0;
+	unsigned long mem_size, irqflags = 0;
 
 	id = of_match_device(altr_sdram_ctrl_of_match, &pdev->dev);
 	if (!id)
@@ -283,6 +359,9 @@ static int altr_sdram_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	/* Arria10 has a 2nd IRQ */
+	irq2 = platform_get_irq(pdev, 1);
+
 	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
 	layers[0].size = 1;
 	layers[0].is_virt_csrow = true;
@@ -327,8 +406,32 @@ static int altr_sdram_probe(struct platform_device *pdev)
 	if (res < 0)
 		goto err;
 
+	/* Only the Arria10 has separate IRQs */
+	if (irq2 > 0) {
+		/* Arria10 specific initialization */
+		res = a10_init(mc_vbase);
+		if (res < 0)
+			goto err2;
+
+		res = devm_request_irq(&pdev->dev, irq2,
+				       altr_sdram_mc_err_handler,
+				       IRQF_SHARED, dev_name(&pdev->dev), mci);
+		if (res < 0) {
+			edac_mc_printk(mci, KERN_ERR,
+				       "Unable to request irq %d\n", irq2);
+			res = -ENODEV;
+			goto err2;
+		}
+
+		res = a10_unmask_irq(pdev, A10_DDR0_IRQ_MASK);
+		if (res < 0)
+			goto err2;
+
+		irqflags = IRQF_SHARED;
+	}
+
 	res = devm_request_irq(&pdev->dev, irq, altr_sdram_mc_err_handler,
-			       0, dev_name(&pdev->dev), mci);
+			       irqflags, dev_name(&pdev->dev), mci);
 	if (res < 0) {
 		edac_mc_printk(mci, KERN_ERR,
 			       "Unable to request irq %d\n", irq);
