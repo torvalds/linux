@@ -25,7 +25,7 @@ struct gb_connection {
 	struct gb_bundle		*bundle;
 	struct device			dev;
 	u16				hd_cport_id;
-	u16				bundle_cport_id;
+	u16				intf_cport_id;
 
 	struct list_head		hd_links;
 	struct list_head		bundle_links;

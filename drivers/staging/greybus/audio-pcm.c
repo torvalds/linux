@@ -52,7 +52,7 @@ static void gb_pcm_work(struct work_struct *work)
 		if (snd_dev->cport_active) {
 			ret = gb_i2s_mgmt_deactivate_cport(
 				snd_dev->mgmt_connection,
-				snd_dev->i2s_tx_connection->bundle_cport_id);
+				snd_dev->i2s_tx_connection->intf_cport_id);
 			if (ret) /* XXX Do what else with failure? */
 				pr_err("deactivate_cport failed: %d\n", ret);
 
@@ -62,7 +62,7 @@ static void gb_pcm_work(struct work_struct *work)
 		return;
 	} else if (!snd_dev->cport_active) {
 		ret = gb_i2s_mgmt_activate_cport(snd_dev->mgmt_connection,
-				snd_dev->i2s_tx_connection->bundle_cport_id);
+				snd_dev->i2s_tx_connection->intf_cport_id);
 		if (ret)
 			pr_err("activate_cport failed: %d\n", ret);
 

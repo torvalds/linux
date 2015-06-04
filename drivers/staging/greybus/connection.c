@@ -184,7 +184,7 @@ struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 	}
 
 	connection->bundle = bundle;
-	connection->bundle_cport_id = cport_id;
+	connection->intf_cport_id = cport_id;
 	connection->state = GB_CONNECTION_STATE_DISABLED;
 
 	connection->dev.parent = &bundle->dev;
