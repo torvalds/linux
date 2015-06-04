@@ -367,7 +367,7 @@ static int mlx5e_enable_rq(struct mlx5e_rq *rq, struct mlx5e_rq_param *param)
 	mlx5_fill_page_array(&rq->wq_ctrl.buf,
 			     (__be64 *)MLX5_ADDR_OF(wq, wq, pas));
 
-	err = mlx5_create_rq(mdev, in, inlen, &rq->rqn);
+	err = mlx5_core_create_rq(mdev, in, inlen, &rq->rqn);
 
 	kvfree(in);
 
@@ -395,7 +395,7 @@ static int mlx5e_modify_rq(struct mlx5e_rq *rq, int curr_state, int next_state)
 	MLX5_SET(modify_rq_in, in, rq_state, curr_state);
 	MLX5_SET(rqc, rqc, state, next_state);
 
-	err = mlx5_modify_rq(mdev, rq->rqn, in, inlen);
+	err = mlx5_core_modify_rq(mdev, rq->rqn, in, inlen);
 
 	kvfree(in);
 
@@ -408,7 +408,7 @@ static void mlx5e_disable_rq(struct mlx5e_rq *rq)
 	struct mlx5e_priv *priv = c->priv;
 	struct mlx5_core_dev *mdev = priv->mdev;
 
-	mlx5_destroy_rq(mdev, rq->rqn);
+	mlx5_core_destroy_rq(mdev, rq->rqn);
 }
 
 static int mlx5e_wait_for_min_rx_wqes(struct mlx5e_rq *rq)
@@ -596,7 +596,7 @@ static int mlx5e_enable_sq(struct mlx5e_sq *sq, struct mlx5e_sq_param *param)
 	mlx5_fill_page_array(&sq->wq_ctrl.buf,
 			     (__be64 *)MLX5_ADDR_OF(wq, wq, pas));
 
-	err = mlx5_create_sq(mdev, in, inlen, &sq->sqn);
+	err = mlx5_core_create_sq(mdev, in, inlen, &sq->sqn);
 
 	kvfree(in);
 
@@ -624,7 +624,7 @@ static int mlx5e_modify_sq(struct mlx5e_sq *sq, int curr_state, int next_state)
 	MLX5_SET(modify_sq_in, in, sq_state, curr_state);
 	MLX5_SET(sqc, sqc, state, next_state);
 
-	err = mlx5_modify_sq(mdev, sq->sqn, in, inlen);
+	err = mlx5_core_modify_sq(mdev, sq->sqn, in, inlen);
 
 	kvfree(in);
 
@@ -637,7 +637,7 @@ static void mlx5e_disable_sq(struct mlx5e_sq *sq)
 	struct mlx5e_priv *priv = c->priv;
 	struct mlx5_core_dev *mdev = priv->mdev;
 
-	mlx5_destroy_sq(mdev, sq->sqn);
+	mlx5_core_destroy_sq(mdev, sq->sqn);
 }
 
 static int mlx5e_open_sq(struct mlx5e_channel *c,
@@ -1115,12 +1115,12 @@ static int mlx5e_open_tis(struct mlx5e_priv *priv, int tc)
 
 	MLX5_SET(tisc, tisc, prio,  tc);
 
-	return mlx5_create_tis(mdev, in, sizeof(in), &priv->tisn[tc]);
+	return mlx5_core_create_tis(mdev, in, sizeof(in), &priv->tisn[tc]);
 }
 
 static void mlx5e_close_tis(struct mlx5e_priv *priv, int tc)
 {
-	mlx5_destroy_tis(priv->mdev, priv->tisn[tc]);
+	mlx5_core_destroy_tis(priv->mdev, priv->tisn[tc]);
 }
 
 static int mlx5e_open_tises(struct mlx5e_priv *priv)
@@ -1326,7 +1326,7 @@ static int mlx5e_open_tir(struct mlx5e_priv *priv, int tt)
 
 	mlx5e_build_tir_ctx(priv, tirc, tt);
 
-	err = mlx5_create_tir(mdev, in, inlen, &priv->tirn[tt]);
+	err = mlx5_core_create_tir(mdev, in, inlen, &priv->tirn[tt]);
 
 	kvfree(in);
 
@@ -1335,7 +1335,7 @@ static int mlx5e_open_tir(struct mlx5e_priv *priv, int tt)
 
 static void mlx5e_close_tir(struct mlx5e_priv *priv, int tt)
 {
-	mlx5_destroy_tir(priv->mdev, priv->tirn[tt]);
+	mlx5_core_destroy_tir(priv->mdev, priv->tirn[tt]);
 }
 
 static int mlx5e_open_tirs(struct mlx5e_priv *priv)

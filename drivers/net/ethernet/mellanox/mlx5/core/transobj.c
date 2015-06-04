@@ -34,7 +34,7 @@
 #include "mlx5_core.h"
 #include "transobj.h"
 
-int mlx5_create_rq(struct mlx5_core_dev *dev, u32 *in, int inlen, u32 *rqn)
+int mlx5_core_create_rq(struct mlx5_core_dev *dev, u32 *in, int inlen, u32 *rqn)
 {
 	u32 out[MLX5_ST_SZ_DW(create_rq_out)];
 	int err;
@@ -49,7 +49,7 @@ int mlx5_create_rq(struct mlx5_core_dev *dev, u32 *in, int inlen, u32 *rqn)
 	return err;
 }
 
-int mlx5_modify_rq(struct mlx5_core_dev *dev, u32 rqn, u32 *in, int inlen)
+int mlx5_core_modify_rq(struct mlx5_core_dev *dev, u32 rqn, u32 *in, int inlen)
 {
 	u32 out[MLX5_ST_SZ_DW(modify_rq_out)];
 
@@ -60,7 +60,7 @@ int mlx5_modify_rq(struct mlx5_core_dev *dev, u32 rqn, u32 *in, int inlen)
 	return mlx5_cmd_exec_check_status(dev, in, inlen, out, sizeof(out));
 }
 
-void mlx5_destroy_rq(struct mlx5_core_dev *dev, u32 rqn)
+void mlx5_core_destroy_rq(struct mlx5_core_dev *dev, u32 rqn)
 {
 	u32 in[MLX5_ST_SZ_DW(destroy_rq_in)];
 	u32 out[MLX5_ST_SZ_DW(destroy_rq_out)];
@@ -73,7 +73,7 @@ void mlx5_destroy_rq(struct mlx5_core_dev *dev, u32 rqn)
 	mlx5_cmd_exec_check_status(dev, in, sizeof(in), out, sizeof(out));
 }
 
-int mlx5_create_sq(struct mlx5_core_dev *dev, u32 *in, int inlen, u32 *sqn)
+int mlx5_core_create_sq(struct mlx5_core_dev *dev, u32 *in, int inlen, u32 *sqn)
 {
 	u32 out[MLX5_ST_SZ_DW(create_sq_out)];
 	int err;
@@ -88,7 +88,7 @@ int mlx5_create_sq(struct mlx5_core_dev *dev, u32 *in, int inlen, u32 *sqn)
 	return err;
 }
 
-int mlx5_modify_sq(struct mlx5_core_dev *dev, u32 sqn, u32 *in, int inlen)
+int mlx5_core_modify_sq(struct mlx5_core_dev *dev, u32 sqn, u32 *in, int inlen)
 {
 	u32 out[MLX5_ST_SZ_DW(modify_sq_out)];
 
@@ -99,7 +99,7 @@ int mlx5_modify_sq(struct mlx5_core_dev *dev, u32 sqn, u32 *in, int inlen)
 	return mlx5_cmd_exec_check_status(dev, in, inlen, out, sizeof(out));
 }
 
-void mlx5_destroy_sq(struct mlx5_core_dev *dev, u32 sqn)
+void mlx5_core_destroy_sq(struct mlx5_core_dev *dev, u32 sqn)
 {
 	u32 in[MLX5_ST_SZ_DW(destroy_sq_in)];
 	u32 out[MLX5_ST_SZ_DW(destroy_sq_out)];
@@ -112,7 +112,8 @@ void mlx5_destroy_sq(struct mlx5_core_dev *dev, u32 sqn)
 	mlx5_cmd_exec_check_status(dev, in, sizeof(in), out, sizeof(out));
 }
 
-int mlx5_create_tir(struct mlx5_core_dev *dev, u32 *in, int inlen, u32 *tirn)
+int mlx5_core_create_tir(struct mlx5_core_dev *dev, u32 *in, int inlen,
+			 u32 *tirn)
 {
 	u32 out[MLX5_ST_SZ_DW(create_tir_out)];
 	int err;
@@ -127,7 +128,7 @@ int mlx5_create_tir(struct mlx5_core_dev *dev, u32 *in, int inlen, u32 *tirn)
 	return err;
 }
 
-void mlx5_destroy_tir(struct mlx5_core_dev *dev, u32 tirn)
+void mlx5_core_destroy_tir(struct mlx5_core_dev *dev, u32 tirn)
 {
 	u32 in[MLX5_ST_SZ_DW(destroy_tir_out)];
 	u32 out[MLX5_ST_SZ_DW(destroy_tir_out)];
@@ -140,7 +141,8 @@ void mlx5_destroy_tir(struct mlx5_core_dev *dev, u32 tirn)
 	mlx5_cmd_exec_check_status(dev, in, sizeof(in), out, sizeof(out));
 }
 
-int mlx5_create_tis(struct mlx5_core_dev *dev, u32 *in, int inlen, u32 *tisn)
+int mlx5_core_create_tis(struct mlx5_core_dev *dev, u32 *in, int inlen,
+			 u32 *tisn)
 {
 	u32 out[MLX5_ST_SZ_DW(create_tis_out)];
 	int err;
@@ -155,7 +157,7 @@ int mlx5_create_tis(struct mlx5_core_dev *dev, u32 *in, int inlen, u32 *tisn)
 	return err;
 }
 
-void mlx5_destroy_tis(struct mlx5_core_dev *dev, u32 tisn)
+void mlx5_core_destroy_tis(struct mlx5_core_dev *dev, u32 tisn)
 {
 	u32 in[MLX5_ST_SZ_DW(destroy_tis_out)];
 	u32 out[MLX5_ST_SZ_DW(destroy_tis_out)];
