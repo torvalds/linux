@@ -109,7 +109,7 @@ xfs_setfilesize_trans_alloc(
 
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_fsyncts, 0, 0);
 	if (error) {
-		xfs_trans_cancel(tp, 0);
+		xfs_trans_cancel(tp);
 		return error;
 	}
 
@@ -145,7 +145,7 @@ xfs_setfilesize(
 	isize = xfs_new_eof(ip, offset + size);
 	if (!isize) {
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-		xfs_trans_cancel(tp, 0);
+		xfs_trans_cancel(tp);
 		return 0;
 	}
 
@@ -155,7 +155,7 @@ xfs_setfilesize(
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
-	return xfs_trans_commit(tp, 0);
+	return xfs_trans_commit(tp);
 }
 
 STATIC int

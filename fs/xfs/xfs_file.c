@@ -147,7 +147,7 @@ xfs_update_prealloc_flags(
 	tp = xfs_trans_alloc(ip->i_mount, XFS_TRANS_WRITEID);
 	error = xfs_trans_reserve(tp, &M_RES(ip->i_mount)->tr_writeid, 0, 0);
 	if (error) {
-		xfs_trans_cancel(tp, 0);
+		xfs_trans_cancel(tp);
 		return error;
 	}
 
@@ -169,7 +169,7 @@ xfs_update_prealloc_flags(
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 	if (flags & XFS_PREALLOC_SYNC)
 		xfs_trans_set_sync(tp);
-	return xfs_trans_commit(tp, 0);
+	return xfs_trans_commit(tp);
 }
 
 /*

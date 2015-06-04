@@ -513,7 +513,7 @@ xfs_log_done(
 	struct xfs_mount	*mp,
 	struct xlog_ticket	*ticket,
 	struct xlog_in_core	**iclog,
-	uint			flags)
+	bool			regrant)
 {
 	struct xlog		*log = mp->m_log;
 	xfs_lsn_t		lsn = 0;
@@ -526,14 +526,11 @@ xfs_log_done(
 	    (((ticket->t_flags & XLOG_TIC_INITED) == 0) &&
 	     (xlog_commit_record(log, ticket, iclog, &lsn)))) {
 		lsn = (xfs_lsn_t) -1;
-		if (ticket->t_flags & XLOG_TIC_PERM_RESERV) {
-			flags |= XFS_LOG_REL_PERM_RESERV;
-		}
+		regrant = false;
 	}
 
 
-	if ((ticket->t_flags & XLOG_TIC_PERM_RESERV) == 0 ||
-	    (flags & XFS_LOG_REL_PERM_RESERV)) {
+	if (!regrant) {
 		trace_xfs_log_done_nonperm(log, ticket);
 
 		/*
@@ -541,7 +538,6 @@ xfs_log_done(
 		 * request has been made to release a permanent reservation.
 		 */
 		xlog_ungrant_log_space(log, ticket);
-		xfs_log_ticket_put(ticket);
 	} else {
 		trace_xfs_log_done_perm(log, ticket);
 
@@ -553,6 +549,7 @@ xfs_log_done(
 		ticket->t_flags |= XLOG_TIC_INITED;
 	}
 
+	xfs_log_ticket_put(ticket);
 	return lsn;
 }
 

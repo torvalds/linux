@@ -780,7 +780,6 @@ xfs_growfs_rt_alloc(
 	 * Allocate space to the file, as necessary.
 	 */
 	while (oblocks < nblocks) {
-		int		cancelflags = 0;
 		xfs_trans_t	*tp;
 
 		tp = xfs_trans_alloc(mp, XFS_TRANS_GROWFSRT_ALLOC);
@@ -792,7 +791,6 @@ xfs_growfs_rt_alloc(
 					  resblks, 0);
 		if (error)
 			goto error_cancel;
-		cancelflags = XFS_TRANS_RELEASE_LOG_RES;
 		/*
 		 * Lock the inode.
 		 */
@@ -804,7 +802,6 @@ xfs_growfs_rt_alloc(
 		 * Allocate blocks to the bitmap file.
 		 */
 		nmap = 1;
-		cancelflags |= XFS_TRANS_ABORT;
 		error = xfs_bmapi_write(tp, ip, oblocks, nblocks - oblocks,
 					XFS_BMAPI_METADATA, &firstblock,
 					resblks, &map, &nmap, &flist);
@@ -818,14 +815,13 @@ xfs_growfs_rt_alloc(
 		error = xfs_bmap_finish(&tp, &flist, &committed);
 		if (error)
 			goto error_cancel;
-		error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+		error = xfs_trans_commit(tp);
 		if (error)
 			goto error;
 		/*
 		 * Now we need to clear the allocated blocks.
 		 * Do this one block per transaction, to keep it simple.
 		 */
-		cancelflags = 0;
 		for (bno = map.br_startoff, fsbno = map.br_startblock;
 		     bno < map.br_startoff + map.br_blockcount;
 		     bno++, fsbno++) {
@@ -851,7 +847,7 @@ xfs_growfs_rt_alloc(
 			if (bp == NULL) {
 				error = -EIO;
 error_cancel:
-				xfs_trans_cancel(tp, cancelflags);
+				xfs_trans_cancel(tp);
 				goto error;
 			}
 			memset(bp->b_addr, 0, mp->m_sb.sb_blocksize);
@@ -859,7 +855,7 @@ error_cancel:
 			/*
 			 * Commit the transaction.
 			 */
-			error = xfs_trans_commit(tp, 0);
+			error = xfs_trans_commit(tp);
 			if (error)
 				goto error;
 		}
@@ -973,7 +969,6 @@ xfs_growfs_rt(
 	     bmbno < nrbmblocks;
 	     bmbno++) {
 		xfs_trans_t	*tp;
-		int		cancelflags = 0;
 
 		*nmp = *mp;
 		nsbp = &nmp->m_sb;
@@ -1015,7 +1010,6 @@ xfs_growfs_rt(
 		mp->m_rbmip->i_d.di_size =
 			nsbp->sb_rbmblocks * nsbp->sb_blocksize;
 		xfs_trans_log_inode(tp, mp->m_rbmip, XFS_ILOG_CORE);
-		cancelflags |= XFS_TRANS_ABORT;
 		/*
 		 * Get the summary inode into the transaction.
 		 */
@@ -1062,7 +1056,7 @@ xfs_growfs_rt(
 			nsbp->sb_rextents - sbp->sb_rextents, &bp, &sumbno);
 		if (error) {
 error_cancel:
-			xfs_trans_cancel(tp, cancelflags);
+			xfs_trans_cancel(tp);
 			break;
 		}
 		/*
@@ -1076,7 +1070,7 @@ error_cancel:
 		mp->m_rsumlevels = nrsumlevels;
 		mp->m_rsumsize = nrsumsize;
 
-		error = xfs_trans_commit(tp, 0);
+		error = xfs_trans_commit(tp);
 		if (error)
 			break;
 	}
