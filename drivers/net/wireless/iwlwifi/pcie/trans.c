@@ -2515,6 +2515,12 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		trans->hw_rev = (trans->hw_rev & 0xfff0) |
 				(CSR_HW_REV_STEP(trans->hw_rev << 2) << 2);
 
+		ret = iwl_pcie_prepare_card_hw(trans);
+		if (ret) {
+			IWL_WARN(trans, "Exit HW not ready\n");
+			goto out_pci_disable_msi;
+		}
+
 		/*
 		 * in-order to recognize C step driver should read chip version
 		 * id located at the AUX bus MISC address space.
