@@ -120,6 +120,9 @@ static void tas2552_sw_shutdown(struct tas2552_data *tas_data, int sw_shutdown)
 {
 	u8 cfg1_reg;
 
+	if (!tas_data->codec)
+		return;
+
 	if (sw_shutdown)
 		cfg1_reg = 0;
 	else
