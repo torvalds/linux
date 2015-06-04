@@ -1386,7 +1386,7 @@ int mlx5e_open_locked(struct net_device *netdev)
 		return err;
 	}
 
-	err = mlx5_query_port_oper_mtu(mdev, &actual_mtu);
+	err = mlx5_query_port_oper_mtu(mdev, &actual_mtu, 1);
 	if (err) {
 		netdev_err(netdev, "%s: mlx5_query_port_oper_mtu failed %d\n",
 			   __func__, err);
@@ -1614,7 +1614,7 @@ static int mlx5e_change_mtu(struct net_device *netdev, int new_mtu)
 	int max_mtu;
 	int err = 0;
 
-	err = mlx5_query_port_max_mtu(mdev, &max_mtu);
+	err = mlx5_query_port_max_mtu(mdev, &max_mtu, 1);
 	if (err)
 		return err;
 
