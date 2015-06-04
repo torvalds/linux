@@ -2057,8 +2057,19 @@ void kvm_apic_accept_events(struct kvm_vcpu *vcpu)
 	if (!kvm_vcpu_has_lapic(vcpu) || !apic->pending_events)
 		return;
 
-	pe = xchg(&apic->pending_events, 0);
+	/*
+	 * INITs are latched while in SMM.  Because an SMM CPU cannot
+	 * be in KVM_MP_STATE_INIT_RECEIVED state, just eat SIPIs
+	 * and delay processing of INIT until the next RSM.
+	 */
+	if (is_smm(vcpu)) {
+		WARN_ON_ONCE(vcpu->arch.mp_state == KVM_MP_STATE_INIT_RECEIVED);
+		if (test_bit(KVM_APIC_SIPI, &apic->pending_events))
+			clear_bit(KVM_APIC_SIPI, &apic->pending_events);
+		return;
+	}
 
+	pe = xchg(&apic->pending_events, 0);
 	if (test_bit(KVM_APIC_INIT, &pe)) {
 		kvm_lapic_reset(vcpu, true);
 		kvm_vcpu_reset(vcpu, true);

@@ -5482,6 +5482,9 @@ static void kvm_smm_changed(struct kvm_vcpu *vcpu)
 		if (unlikely(vcpu->arch.smi_pending)) {
 			kvm_make_request(KVM_REQ_SMI, vcpu);
 			vcpu->arch.smi_pending = 0;
+		} else {
+			/* Process a latched INIT, if any.  */
+			kvm_make_request(KVM_REQ_EVENT, vcpu);
 		}
 	}
 }
