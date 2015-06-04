@@ -156,14 +156,6 @@ struct extra_info_for_iommu {
 	struct extra_info_elem elem[20];
 };
 
-#define VPU_SERVICE_SHOW_TIME			0
-
-#if VPU_SERVICE_SHOW_TIME
-static struct timeval enc_start, enc_end;
-static struct timeval dec_start, dec_end;
-static struct timeval pp_start,  pp_end;
-#endif
-
 #define MHZ					(1000*1000)
 
 #define REG_NUM_9190_DEC			(60)
@@ -221,21 +213,56 @@ static VPU_HW_INFO_E vpu_hw_set[] = {
 	},
 };
 
+#ifndef BIT
+#define BIT(x)					(1<<(x))
+#endif
 
+// interrupt and error status register
 #define DEC_INTERRUPT_REGISTER			1
+#define DEC_INTERRUPT_BIT			BIT(8)
+#define DEC_READY_BIT				BIT(12)
+#define DEC_BUS_ERROR_BIT			BIT(13)
+#define DEC_BUFFER_EMPTY_BIT			BIT(14)
+#define DEC_ASO_ERROR_BIT			BIT(15)
+#define DEC_STREAM_ERROR_BIT			BIT(16)
+#define DEC_SLICE_DONE_BIT			BIT(17)
+#define DEC_TIMEOUT_BIT				BIT(18)
+#define DEC_ERR_MASK				DEC_BUS_ERROR_BIT \
+						|DEC_BUFFER_EMPTY_BIT \
+						|DEC_STREAM_ERROR_BIT \
+						|DEC_TIMEOUT_BIT
+
 #define PP_INTERRUPT_REGISTER			60
+#define PP_INTERRUPT_BIT			BIT(8)
+#define PP_READY_BIT				BIT(12)
+#define PP_BUS_ERROR_BIT			BIT(13)
+#define PP_ERR_MASK				PP_BUS_ERROR_BIT
+
 #define ENC_INTERRUPT_REGISTER			1
+#define ENC_INTERRUPT_BIT			BIT(0)
+#define ENC_READY_BIT				BIT(2)
+#define ENC_BUS_ERROR_BIT			BIT(3)
+#define ENC_BUFFER_FULL_BIT			BIT(5)
+#define ENC_TIMEOUT_BIT				BIT(6)
+#define ENC_ERR_MASK				ENC_BUS_ERROR_BIT \
+						|ENC_BUFFER_FULL_BIT \
+						|ENC_TIMEOUT_BIT
 
-#define DEC_INTERRUPT_BIT			0x100
-#define DEC_BUFFER_EMPTY_BIT			0x4000
-#define PP_INTERRUPT_BIT			0x100
-#define ENC_INTERRUPT_BIT			0x1
+#define HEVC_INTERRUPT_REGISTER			1
+#define HEVC_DEC_INT_RAW_BIT			BIT(9)
+#define HEVC_DEC_BUS_ERROR_BIT			BIT(13)
+#define HEVC_DEC_STR_ERROR_BIT			BIT(14)
+#define HEVC_DEC_TIMEOUT_BIT			BIT(15)
+#define HEVC_DEC_BUFFER_EMPTY_BIT		BIT(16)
+#define HEVC_DEC_COLMV_ERROR_BIT		BIT(17)
+#define HEVC_DEC_ERR_MASK			HEVC_DEC_BUS_ERROR_BIT \
+						|HEVC_DEC_STR_ERROR_BIT \
+						|HEVC_DEC_TIMEOUT_BIT \
+						|HEVC_DEC_BUFFER_EMPTY_BIT \
+						|HEVC_DEC_COLMV_ERROR_BIT
 
-#define HEVC_DEC_INT_RAW_BIT			0x200
-#define HEVC_DEC_STR_ERROR_BIT			0x4000
-#define HEVC_DEC_BUS_ERROR_BIT			0x2000
-#define HEVC_DEC_BUFFER_EMPTY_BIT		0x10000
 
+// gating configuration set
 #define VPU_REG_EN_ENC				14
 #define VPU_REG_ENC_GATE			2
 #define VPU_REG_ENC_GATE_BIT			(1<<4)
@@ -549,6 +576,54 @@ static const struct file_operations debug_vcodec_fops = {
 
 #define VPU_POWER_OFF_DELAY		4*HZ /* 4s */
 #define VPU_TIMEOUT_DELAY		2*HZ /* 2s */
+
+typedef struct {
+	char *name;
+	struct timeval start;
+	struct timeval end;
+	u32 error_mask;
+} task_info;
+
+typedef enum {
+	TASK_VPU_ENC,
+	TASK_VPU_DEC,
+	TASK_VPU_PP,
+	TASK_RKDEC_HEVC,
+	TASK_TYPE_BUTT,
+} TASK_TYPE;
+
+task_info tasks[TASK_TYPE_BUTT] = {
+	{
+		.name = "enc",
+		.error_mask = ENC_ERR_MASK
+	},
+	{
+		.name = "dec",
+		.error_mask = DEC_ERR_MASK
+	},
+	{
+		.name = "pp",
+		.error_mask = PP_ERR_MASK
+	},
+	{
+		.name = "hevc",
+		.error_mask = HEVC_DEC_ERR_MASK
+	},
+};
+
+static void time_record(task_info *task, int is_end)
+{
+	if (unlikely(debug & DEBUG_TIMING)) {
+		do_gettimeofday((is_end)?(&task->end):(&task->start));
+	}
+}
+
+static void time_diff(task_info *task)
+{
+	vpu_debug(DEBUG_TIMING, "%s task: %ld ms\n", task->name,
+			(task->end.tv_sec  - task->start.tv_sec)  * 1000 +
+			(task->end.tv_usec - task->start.tv_usec) / 1000);
+}
 
 static void vcodec_enter_mode(struct vpu_subdev_data *data)
 {
@@ -1360,10 +1435,7 @@ static void reg_copy_to_hw(struct vpu_subdev_data *data, vpu_reg *reg)
 		dst[VPU_REG_ENC_GATE] = src[VPU_REG_ENC_GATE] | VPU_REG_ENC_GATE_BIT;
 		dst[VPU_REG_EN_ENC]   = src[VPU_REG_EN_ENC];
 
-#if VPU_SERVICE_SHOW_TIME
-		do_gettimeofday(&enc_start);
-#endif
-
+		time_record(&tasks[TASK_VPU_ENC], 0);
 	} break;
 	case VPU_DEC : {
 		u32 *dst = (u32 *)data->dec_dev.hwregs;
@@ -1390,9 +1462,8 @@ static void reg_copy_to_hw(struct vpu_subdev_data *data, vpu_reg *reg)
 		}
 		dsb(sy);
 		dmb(sy);
-#if VPU_SERVICE_SHOW_TIME
-		do_gettimeofday(&dec_start);
-#endif
+
+		time_record(&tasks[TASK_VPU_DEC], 0);
 	} break;
 	case VPU_PP : {
 		u32 *dst = (u32 *)data->dec_dev.hwregs + PP_INTERRUPT_REGISTER;
@@ -1406,10 +1477,8 @@ static void reg_copy_to_hw(struct vpu_subdev_data *data, vpu_reg *reg)
 		dsb(sy);
 
 		dst[VPU_REG_EN_PP] = src[VPU_REG_EN_PP];
-#if VPU_SERVICE_SHOW_TIME
-		do_gettimeofday(&pp_start);
-#endif
 
+		time_record(&tasks[TASK_VPU_PP], 0);
 	} break;
 	case VPU_DEC_PP : {
 		u32 *dst = (u32 *)data->dec_dev.hwregs;
@@ -1428,16 +1497,14 @@ static void reg_copy_to_hw(struct vpu_subdev_data *data, vpu_reg *reg)
 		dst[VPU_REG_DEC_PP_GATE] = src[VPU_REG_DEC_PP_GATE] | VPU_REG_PP_GATE_BIT;
 		dst[VPU_REG_DEC_GATE]	 = src[VPU_REG_DEC_GATE]    | VPU_REG_DEC_GATE_BIT;
 		dst[VPU_REG_EN_DEC]	 = src[VPU_REG_EN_DEC];
-#if VPU_SERVICE_SHOW_TIME
-		do_gettimeofday(&dec_start);
-#endif
+
+		time_record(&tasks[TASK_VPU_DEC], 0);
 	} break;
 	default : {
 		vpu_err("error: unsupport session type %d", reg->type);
 		atomic_sub(1, &pservice->total_running);
 		atomic_sub(1, &reg->session->task_running);
-		break;
-	}
+	} break;
 	}
 
 	/*vcodec_exit_mode(data);*/
@@ -2409,7 +2476,7 @@ static void get_hw_info(struct vpu_subdev_data *data)
 			enc->reserv[0] = enc->reserv[1] = 0;
 		}
 		pservice->auto_freq = true;
-		vpu_debug(3, "vpu_service set to auto frequency mode\n");
+		vpu_debug(DEBUG_EXTRA_INFO, "vpu_service set to auto frequency mode\n");
 		atomic_set(&pservice->freq_status, VPU_FREQ_BUT);
 
 		pservice->bug_dec_addr = cpu_is_rk30xx();
@@ -2436,6 +2503,7 @@ static irqreturn_t vdpu_irq(int irq, void *dev_id)
 	irq_status = raw_status = readl(dev->hwregs + DEC_INTERRUPT_REGISTER);
 
 	if (irq_status & DEC_INTERRUPT_BIT) {
+		time_record(&tasks[TASK_VPU_DEC], 1);
 		vpu_debug(DEBUG_IRQ_STATUS, "vdpu_irq dec status %08x\n", irq_status);
 		if ((irq_status & 0x40001) == 0x40001) {
 			do {
@@ -2447,15 +2515,18 @@ static irqreturn_t vdpu_irq(int irq, void *dev_id)
 
 		writel(0, dev->hwregs + DEC_INTERRUPT_REGISTER);
 		atomic_add(1, &dev->irq_count_codec);
+		time_diff(&tasks[TASK_VPU_DEC]);
 	}
 
 	if (data->hw_info->hw_id != HEVC_ID) {
 		irq_status = readl(dev->hwregs + PP_INTERRUPT_REGISTER);
 		if (irq_status & PP_INTERRUPT_BIT) {
+			time_record(&tasks[TASK_VPU_PP], 1);
 			vpu_debug(DEBUG_IRQ_STATUS, "vdpu_irq pp status %08x\n", irq_status);
 			/* clear pp IRQ */
 			writel(irq_status & (~DEC_INTERRUPT_BIT), dev->hwregs + PP_INTERRUPT_REGISTER);
 			atomic_add(1, &dev->irq_count_pp);
+			time_diff(&tasks[TASK_VPU_PP]);
 		}
 	}
 
@@ -2478,12 +2549,6 @@ static irqreturn_t vdpu_isr(int irq, void *dev_id)
 
 	mutex_lock(&pservice->lock);
 	if (atomic_read(&dev->irq_count_codec)) {
-#if VPU_SERVICE_SHOW_TIME
-		do_gettimeofday(&dec_end);
-		vpu_debug(3, "dec task: %ld ms\n",
-			(dec_end.tv_sec  - dec_start.tv_sec)  * 1000 +
-			(dec_end.tv_usec - dec_start.tv_usec) / 1000);
-#endif
 		atomic_sub(1, &dev->irq_count_codec);
 		if (NULL == pservice->reg_codec) {
 			vpu_err("error: dec isr with no task waiting\n");
@@ -2495,12 +2560,6 @@ static irqreturn_t vdpu_isr(int irq, void *dev_id)
 	}
 
 	if (atomic_read(&dev->irq_count_pp)) {
-#if VPU_SERVICE_SHOW_TIME
-		do_gettimeofday(&pp_end);
-		printk("pp  task: %ld ms\n",
-			(pp_end.tv_sec  - pp_start.tv_sec)  * 1000 +
-			(pp_end.tv_usec - pp_start.tv_usec) / 1000);
-#endif
 		atomic_sub(1, &dev->irq_count_pp);
 		if (NULL == pservice->reg_pproc) {
 			vpu_err("error: pp isr with no task waiting\n");
@@ -2525,16 +2584,12 @@ static irqreturn_t vepu_irq(int irq, void *dev_id)
 
 	vpu_debug(DEBUG_IRQ_STATUS, "vepu_irq irq status %x\n", irq_status);
 
-#if VPU_SERVICE_SHOW_TIME
-	do_gettimeofday(&enc_end);
-	vpu_debug(3, "enc task: %ld ms\n",
-		(enc_end.tv_sec  - enc_start.tv_sec)  * 1000 +
-		(enc_end.tv_usec - enc_start.tv_usec) / 1000);
-#endif
 	if (likely(irq_status & ENC_INTERRUPT_BIT)) {
+		time_record(&tasks[TASK_VPU_ENC], 1);
 		/* clear enc IRQ */
 		writel(irq_status & (~ENC_INTERRUPT_BIT), dev->hwregs + ENC_INTERRUPT_REGISTER);
 		atomic_add(1, &dev->irq_count_codec);
+		time_diff(&tasks[TASK_VPU_ENC]);
 	}
 
 	pservice->irq_status = irq_status;
