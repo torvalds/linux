@@ -423,8 +423,8 @@ static int rk3368_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 		dev_err(lcdc_dev->dev, "failed to get lcdc%d clk source\n",
 			lcdc_dev->id);
 	}
-
-	rk_disp_pwr_enable(dev_drv);
+	if (!support_uboot_display())
+		rk_disp_pwr_enable(dev_drv);
 	rk3368_lcdc_clk_enable(lcdc_dev);
 
 	/*backup reg config at uboot */
@@ -2231,7 +2231,7 @@ static int rk3368_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		if (dev_drv->cur_screen->dsp_lut)
 			rk3368_lcdc_set_lut(dev_drv,
 					    dev_drv->cur_screen->dsp_lut);
-		if (dev_drv->cur_screen->cabc_lut)
+		if ((dev_drv->cur_screen->cabc_lut) && dev_drv->cabc_mode)
 			rk3368_set_cabc_lut(dev_drv,
 					    dev_drv->cur_screen->cabc_lut);
 		spin_unlock(&lcdc_dev->reg_lock);
@@ -3313,7 +3313,7 @@ static int rk3368_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 		if (dev_drv->cur_screen->dsp_lut)
 			rk3368_lcdc_set_lut(dev_drv,
 					    dev_drv->cur_screen->dsp_lut);
-		if (dev_drv->cur_screen->cabc_lut)
+		if (dev_drv->cur_screen->cabc_lut && dev_drv->cabc_mode)
 			rk3368_set_cabc_lut(dev_drv,
 					    dev_drv->cur_screen->cabc_lut);
 
@@ -4252,6 +4252,7 @@ static int rk3368_lcdc_set_dsp_cabc(struct rk_lcdc_driver *dev_drv,
 		return 0;
 	}
 	if (cabc_status == 0) { /*get from pwm*/
+		rk3368_set_cabc_lut(dev_drv, dev_drv->cur_screen->cabc_lut);
 		rk_pwm_get(&pwm_period_hpr, &pwm_duty_lpr);
 		pr_info("pwm_period_hpr=0x%x, pwm_duty_lpr=0x%x\n",
 			pwm_period_hpr, pwm_duty_lpr);
