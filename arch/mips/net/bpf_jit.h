@@ -15,7 +15,6 @@
 /* Registers used by JIT */
 #define MIPS_R_ZERO	0
 #define MIPS_R_V0	2
-#define MIPS_R_V1	3
 #define MIPS_R_A0	4
 #define MIPS_R_A1	5
 #define MIPS_R_T4	12
@@ -43,20 +42,6 @@
 #define MIPS_COND_X	(0x1 << 5)
 #define MIPS_COND_K	(0x1 << 6)
 
-/* ABI specific return values */
-#ifdef CONFIG_32BIT /* O32 */
-#ifdef CONFIG_CPU_LITTLE_ENDIAN
-#define r_err	MIPS_R_V1
-#define r_val	MIPS_R_V0
-#else /* CONFIG_CPU_LITTLE_ENDIAN */
-#define r_err	MIPS_R_V0
-#define r_val	MIPS_R_V1
-#endif
-#else /* N64 */
-#define r_err	MIPS_R_V0
-#define r_val	MIPS_R_V0
-#endif
-
 #define r_ret	MIPS_R_V0
 
 /*
@@ -65,11 +50,14 @@
  * any of the $s0-$s6 registers will only be preserved if
  * they are going to actually be used.
  */
+#define r_skb_hl	MIPS_R_S0 /* skb header length */
+#define r_skb_data	MIPS_R_S1 /* skb actual data */
 #define r_off		MIPS_R_S2
 #define r_A		MIPS_R_S3
 #define r_X		MIPS_R_S4
 #define r_skb		MIPS_R_S5
 #define r_M		MIPS_R_S6
+#define r_skb_len	MIPS_R_S7
 #define r_s0		MIPS_R_T4 /* scratch reg 1 */
 #define r_s1		MIPS_R_T5 /* scratch reg 2 */
 #define r_tmp_imm	MIPS_R_T6 /* No need to preserve this */
@@ -77,5 +65,20 @@
 #define r_zero		MIPS_R_ZERO
 #define r_sp		MIPS_R_SP
 #define r_ra		MIPS_R_RA
+
+#ifndef __ASSEMBLY__
+
+/* Declare ASM helpers */
+
+#define DECLARE_LOAD_FUNC(func) \
+	extern u8 func(unsigned long *skb, int offset); \
+	extern u8 func##_negative(unsigned long *skb, int offset); \
+	extern u8 func##_positive(unsigned long *skb, int offset)
+
+DECLARE_LOAD_FUNC(sk_load_word);
+DECLARE_LOAD_FUNC(sk_load_half);
+DECLARE_LOAD_FUNC(sk_load_byte);
+
+#endif
 
 #endif /* BPF_JIT_MIPS_OP_H */

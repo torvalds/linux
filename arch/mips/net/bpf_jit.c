@@ -29,11 +29,14 @@
 #include "bpf_jit.h"
 
 /* ABI
- *
+ * r_skb_hl	SKB header length
+ * r_data	SKB data pointer
+ * r_off	Offset
  * r_A		BPF register A
  * r_X		BPF register X
  * r_skb	*skb
  * r_M		*scratch memory
+ * r_skb_len	SKB length
  *
  * On entry (*bpf_func)(*skb, *filter)
  * a0 = MIPS_R_A0 = skb;
@@ -75,6 +78,8 @@
 #define SEEN_X			SEEN_SREG(4)
 #define SEEN_SKB		SEEN_SREG(5)
 #define SEEN_MEM		SEEN_SREG(6)
+/* SEEN_SK_DATA also implies skb_hl an skb_len */
+#define SEEN_SKB_DATA		(SEEN_SREG(7) | SEEN_SREG(1) | SEEN_SREG(0))
 
 /* Arguments used by JIT */
 #define ARGS_USED_BY_JIT	2 /* only applicable to 64-bit */
@@ -537,20 +542,6 @@ static void save_bpf_jit_regs(struct jit_ctx *ctx, unsigned offset)
 	/* Adjust the stack pointer */
 	emit_stack_offset(-align_sp(offset), ctx);
 
-	if (ctx->flags & SEEN_CALL) {
-		/* Argument save area */
-		if (config_enabled(CONFIG_64BIT))
-			/* Bottom of current frame */
-			real_off = align_sp(offset) - SZREG;
-		else
-			/* Top of previous frame */
-			real_off = align_sp(offset) + SZREG;
-		emit_store_stack_reg(MIPS_R_A0, r_sp, real_off, ctx);
-		emit_store_stack_reg(MIPS_R_A1, r_sp, real_off + SZREG, ctx);
-
-		real_off = 0;
-	}
-
 	tmp_flags = sflags = ctx->flags >> SEEN_SREG_SFT;
 	/* sflags is essentially a bitmap */
 	while (tmp_flags) {
@@ -582,19 +573,6 @@ static void restore_bpf_jit_regs(struct jit_ctx *ctx,
 {
 	int i, real_off = 0;
 	u32 sflags, tmp_flags;
-
-	if (ctx->flags & SEEN_CALL) {
-		if (config_enabled(CONFIG_64BIT))
-			/* Bottom of current frame */
-			real_off = align_sp(offset) - SZREG;
-		else
-			/* Top of previous frame */
-			real_off = align_sp(offset) + SZREG;
-		emit_load_stack_reg(MIPS_R_A0, r_sp, real_off, ctx);
-		emit_load_stack_reg(MIPS_R_A1, r_sp, real_off + SZREG, ctx);
-
-		real_off = 0;
-	}
 
 	tmp_flags = sflags = ctx->flags >> SEEN_SREG_SFT;
 	/* sflags is a bitmap */
@@ -629,17 +607,7 @@ static unsigned int get_stack_depth(struct jit_ctx *ctx)
 		sp_off += 4 * BPF_MEMWORDS; /* BPF_MEMWORDS are 32-bit */
 
 	if (ctx->flags & SEEN_CALL)
-		/*
-		 * The JIT code make calls to external functions using 2
-		 * arguments. Therefore, for o32 we don't need to allocate
-		 * space because we don't care if the argumetns are lost
-		 * across calls. We do need however to preserve incoming
-		 * arguments but the space is already allocated for us by
-		 * the caller. On the other hand, for n64, we need to allocate
-		 * this space ourselves. We need to preserve $ra as well.
-		 */
-		sp_off += config_enabled(CONFIG_64BIT) ?
-			(ARGS_USED_BY_JIT + 1) * SZREG : SZREG;
+		sp_off += SZREG; /* Space for our ra register */
 
 	return sp_off;
 }
@@ -655,6 +623,19 @@ static void build_prologue(struct jit_ctx *ctx)
 
 	if (ctx->flags & SEEN_SKB)
 		emit_reg_move(r_skb, MIPS_R_A0, ctx);
+
+	if (ctx->flags & SEEN_SKB_DATA) {
+		/* Load packet length */
+		emit_load(r_skb_len, r_skb, offsetof(struct sk_buff, len),
+			  ctx);
+		emit_load(r_tmp, r_skb, offsetof(struct sk_buff, data_len),
+			  ctx);
+		/* Load the data pointer */
+		emit_load_ptr(r_skb_data, r_skb,
+			      offsetof(struct sk_buff, data), ctx);
+		/* Load the header length */
+		emit_subu(r_skb_hl, r_skb_len, r_tmp, ctx);
+	}
 
 	if (ctx->flags & SEEN_X)
 		emit_jit_reg_move(r_X, r_zero, ctx);
@@ -678,43 +659,17 @@ static void build_epilogue(struct jit_ctx *ctx)
 	emit_nop(ctx);
 }
 
-static u64 jit_get_skb_b(struct sk_buff *skb, unsigned offset)
-{
-	u8 ret;
-	int err;
-
-	err = skb_copy_bits(skb, offset, &ret, 1);
-
-	return (u64)err << 32 | ret;
-}
-
-static u64 jit_get_skb_h(struct sk_buff *skb, unsigned offset)
-{
-	u16 ret;
-	int err;
-
-	err = skb_copy_bits(skb, offset, &ret, 2);
-
-	return (u64)err << 32 | ntohs(ret);
-}
-
-static u64 jit_get_skb_w(struct sk_buff *skb, unsigned offset)
-{
-	u32 ret;
-	int err;
-
-	err = skb_copy_bits(skb, offset, &ret, 4);
-
-	return (u64)err << 32 | ntohl(ret);
-}
+#define CHOOSE_LOAD_FUNC(K, func) \
+	((int)K < 0 ? ((int)K >= SKF_LL_OFF ? func##_negative : func) : \
+	 func##_positive)
 
 static int build_body(struct jit_ctx *ctx)
 {
-	void *load_func[] = {jit_get_skb_b, jit_get_skb_h, jit_get_skb_w};
 	const struct bpf_prog *prog = ctx->skf;
 	const struct sock_filter *inst;
-	unsigned int i, off, load_order, condt;
+	unsigned int i, off, condt;
 	u32 k, b_off __maybe_unused;
+	u8 (*sk_load_func)(unsigned long *skb, int offset);
 
 	for (i = 0; i < prog->len; i++) {
 		u16 code;
@@ -748,71 +703,46 @@ static int build_body(struct jit_ctx *ctx)
 			break;
 		case BPF_LD | BPF_W | BPF_ABS:
 			/* A <- P[k:4] */
-			load_order = 2;
+			sk_load_func = CHOOSE_LOAD_FUNC(k, sk_load_word);
 			goto load;
 		case BPF_LD | BPF_H | BPF_ABS:
 			/* A <- P[k:2] */
-			load_order = 1;
+			sk_load_func = CHOOSE_LOAD_FUNC(k, sk_load_half);
 			goto load;
 		case BPF_LD | BPF_B | BPF_ABS:
 			/* A <- P[k:1] */
-			load_order = 0;
+			sk_load_func = CHOOSE_LOAD_FUNC(k, sk_load_byte);
 load:
-			/* the interpreter will deal with the negative K */
-			if ((int)k < 0)
-				return -ENOTSUPP;
-
 			emit_load_imm(r_off, k, ctx);
 load_common:
-			/*
-			 * We may got here from the indirect loads so
-			 * return if offset is negative.
-			 */
-			emit_slt(r_s0, r_off, r_zero, ctx);
-			emit_bcond(MIPS_COND_NE, r_s0, r_zero,
-				   b_imm(prog->len, ctx), ctx);
-			emit_reg_move(r_ret, r_zero, ctx);
-
 			ctx->flags |= SEEN_CALL | SEEN_OFF |
-				SEEN_SKB | SEEN_A;
+				SEEN_SKB | SEEN_A | SEEN_SKB_DATA;
 
-			emit_load_func(r_s0, (ptr)load_func[load_order],
-				      ctx);
+			emit_load_func(r_s0, (ptr)sk_load_func, ctx);
 			emit_reg_move(MIPS_R_A0, r_skb, ctx);
 			emit_jalr(MIPS_R_RA, r_s0, ctx);
 			/* Load second argument to delay slot */
 			emit_reg_move(MIPS_R_A1, r_off, ctx);
 			/* Check the error value */
-			if (config_enabled(CONFIG_64BIT)) {
-				/* Get error code from the top 32-bits */
-				emit_dsrl32(r_s0, r_val, 0, ctx);
-				/* Branch to 3 instructions ahead */
-				emit_bcond(MIPS_COND_NE, r_s0, r_zero, 3 << 2,
-					   ctx);
-			} else {
-				/* Branch to 3 instructions ahead */
-				emit_bcond(MIPS_COND_NE, r_err, r_zero, 3 << 2,
-					   ctx);
-			}
-			emit_nop(ctx);
-			/* We are good */
-			emit_b(b_imm(i + 1, ctx), ctx);
-			emit_jit_reg_move(r_A, r_val, ctx);
+			emit_bcond(MIPS_COND_EQ, r_ret, 0, b_imm(i + 1, ctx),
+				   ctx);
+			/* Load return register on DS for failures */
+			emit_reg_move(r_ret, r_zero, ctx);
 			/* Return with error */
 			emit_b(b_imm(prog->len, ctx), ctx);
-			emit_reg_move(r_ret, r_zero, ctx);
+			emit_nop(ctx);
 			break;
 		case BPF_LD | BPF_W | BPF_IND:
 			/* A <- P[X + k:4] */
-			load_order = 2;
+			sk_load_func = sk_load_word;
 			goto load_ind;
 		case BPF_LD | BPF_H | BPF_IND:
 			/* A <- P[X + k:2] */
-			load_order = 1;
+			sk_load_func = sk_load_half;
 			goto load_ind;
 		case BPF_LD | BPF_B | BPF_IND:
 			/* A <- P[X + k:1] */
-			load_order = 0;
+			sk_load_func = sk_load_byte;
 load_ind:
 			ctx->flags |= SEEN_OFF | SEEN_X;
 			emit_addiu(r_off, r_X, k, ctx);
@@ -834,14 +764,10 @@ load_ind:
 			emit_load(r_X, r_skb, off, ctx);
 			break;
 		case BPF_LDX | BPF_B | BPF_MSH:
-			/* the interpreter will deal with the negative K */
-			if ((int)k < 0)
-				return -ENOTSUPP;
-
 			/* X <- 4 * (P[k:1] & 0xf) */
 			ctx->flags |= SEEN_X | SEEN_CALL | SEEN_SKB;
 			/* Load offset to a1 */
-			emit_load_func(r_s0, (ptr)jit_get_skb_b, ctx);
+			emit_load_func(r_s0, (ptr)sk_load_byte, ctx);
 			/*
 			 * This may emit two instructions so it may not fit
 			 * in the delay slot. So use a0 in the delay slot.
@@ -850,25 +776,15 @@ load_ind:
 			emit_jalr(MIPS_R_RA, r_s0, ctx);
 			emit_reg_move(MIPS_R_A0, r_skb, ctx); /* delay slot */
 			/* Check the error value */
-			if (config_enabled(CONFIG_64BIT)) {
-				/* Top 32-bits of $v0 on 64-bit */
-				emit_dsrl32(r_s0, r_val, 0, ctx);
-				emit_bcond(MIPS_COND_NE, r_s0, r_zero,
-					   3 << 2, ctx);
-			} else {
-				emit_bcond(MIPS_COND_NE, r_err, r_zero,
-					   3 << 2, ctx);
-			}
-			/* No need for delay slot */
+			emit_bcond(MIPS_COND_NE, r_ret, 0,
+				   b_imm(prog->len, ctx), ctx);
+			emit_reg_move(r_ret, r_zero, ctx);
 			/* We are good */
 			/* X <- P[1:K] & 0xf */
-			emit_andi(r_X, r_val, 0xf, ctx);
+			emit_andi(r_X, r_A, 0xf, ctx);
 			/* X << 2 */
 			emit_b(b_imm(i + 1, ctx), ctx);
 			emit_sll(r_X, r_X, 2, ctx); /* delay slot */
-			/* Return with error */
-			emit_b(b_imm(prog->len, ctx), ctx);
-			emit_load_imm(r_ret, 0, ctx); /* delay slot */
 			break;
 		case BPF_ST:
 			/* M[k] <- A */
@@ -942,7 +858,7 @@ load_ind:
 			/* Check if r_X is zero */
 			emit_bcond(MIPS_COND_EQ, r_X, r_zero,
 				   b_imm(prog->len, ctx), ctx);
-			emit_load_imm(r_val, 0, ctx); /* delay slot */
+			emit_load_imm(r_ret, 0, ctx); /* delay slot */
 			emit_div(r_A, r_X, ctx);
 			break;
 		case BPF_ALU | BPF_MOD | BPF_X:
@@ -951,7 +867,7 @@ load_ind:
 			/* Check if r_X is zero */
 			emit_bcond(MIPS_COND_EQ, r_X, r_zero,
 				   b_imm(prog->len, ctx), ctx);
-			emit_load_imm(r_val, 0, ctx); /* delay slot */
+			emit_load_imm(r_ret, 0, ctx); /* delay slot */
 			emit_mod(r_A, r_X, ctx);
 			break;
 		case BPF_ALU | BPF_OR | BPF_K:
