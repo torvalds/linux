@@ -27,19 +27,6 @@
 
 struct visorchannel;
 
-enum visorchipset_addresstype {
-	/** address is guest physical, but outside of the physical memory
-	 *  region that is controlled by the running OS (this is the normal
-	 *  address type for Supervisor channels)
-	 */
-	ADDRTYPE_LOCALPHYSICAL,
-
-	/** address is guest physical, and withIN the confines of the
-	 *  physical memory controlled by the running OS.
-	 */
-	ADDRTYPE_LOCALTEST,
-};
-
 /** Attributes for a particular Supervisor device.
  *  Any visorchipset client can query these attributes using
  *  visorchipset_get_client_device_info() or

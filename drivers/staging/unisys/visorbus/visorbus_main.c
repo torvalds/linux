@@ -31,8 +31,6 @@
 static int visorbus_debug;
 static int visorbus_forcematch;
 static int visorbus_forcenomatch;
-#define MAXDEVICETEST 4
-static int visorbus_devicetest;
 static int visorbus_debugref;
 #define SERIALLOOPBACKCHANADDR (100 * 1024 * 1024)
 
@@ -93,7 +91,6 @@ static struct delayed_work periodic_work;
 static struct workqueue_struct *periodic_test_workqueue;
 static struct workqueue_struct *periodic_dev_workqueue;
 static long long bus_count;	/** number of bus instances */
-static long long total_devices_created;
 					/** ever-increasing */
 
 static void chipset_bus_create(struct visorchipset_bus_info *bus_info);
@@ -462,33 +459,12 @@ static ssize_t typename_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "%s\n", drv->channel_types[i - 1].name);
 }
 
-static ssize_t dump_show(struct device *dev, struct device_attribute *attr,
-			 char *buf)
-{
-/* TODO: replace this with debugfs code
-	struct visor_device *vdev = to_visor_device(dev);
-	int count = 0;
-	struct seq_file *m = NULL;
-	if (vdev->visorchannel == NULL)
-		return 0;
-	m = visor_seq_file_new_buffer(buf, PAGE_SIZE - 1);
-	if (m == NULL)
-		return 0;
-	visorchannel_debug(vdev->visorchannel, 1, m, 0);
-	count = m->count;
-	visor_seq_file_done_buffer(m);
-	m = NULL;
-*/
-	return 0;
-}
-
 static DEVICE_ATTR_RO(physaddr);
 static DEVICE_ATTR_RO(nbytes);
 static DEVICE_ATTR_RO(clientpartition);
 static DEVICE_ATTR_RO(typeguid);
 static DEVICE_ATTR_RO(zoneguid);
 static DEVICE_ATTR_RO(typename);
-static DEVICE_ATTR_RO(dump);
 
 static struct attribute *channel_attrs[] = {
 		&dev_attr_physaddr.attr,
@@ -497,7 +473,6 @@ static struct attribute *channel_attrs[] = {
 		&dev_attr_typeguid.attr,
 		&dev_attr_zoneguid.attr,
 		&dev_attr_typename.attr,
-		&dev_attr_dump.attr,
 };
 
 static struct attribute_group channel_attr_grp = {
@@ -701,25 +676,6 @@ unregister_driver_attributes(struct visor_driver *drv)
 {
 	driver_remove_file(&drv->driver, &drv->version_attr);
 }
-
-/*  DEVICE attributes
- *
- *  define & implement display of device attributes under
- *  /sys/bus/visorbus/devices/<devicename>.
- *
- */
-
-#define DEVATTR(nam, func) { \
-	.attr = { .name = __stringify(nam), \
-		  .mode = 0444, \
-		  .owner = THIS_MODULE },	\
-	.show = func, \
-}
-
-static struct device_attribute visor_device_attrs[] = {
-	/* DEVATTR(channel_nbytes, DEVICE_ATTR_channel_nbytes), */
-	__ATTR_NULL
-};
 
 static void
 dev_periodic_work(void *xdev)
@@ -1088,7 +1044,6 @@ away:
 			put_device(&dev->device);
 		kfree(dev);
 	} else {
-		total_devices_created++;
 		list_add_tail(&dev->list_all, &list_all_device_instances);
 	}
 	return rc;
@@ -1400,7 +1355,6 @@ create_bus_type(void)
 {
 	int rc = 0;
 
-	visorbus_type.dev_attrs = visor_device_attrs;
 	rc = bus_register(&visorbus_type);
 	return rc;
 }
@@ -1427,11 +1381,6 @@ remove_all_visor_devices(void)
 		remove_visor_device(dev);
 	}
 }
-
-static bool entered_testing_mode;
-static struct visorchannel *test_channel_infos[MAXDEVICETEST];
-static unsigned long test_bus_nos[MAXDEVICETEST];
-static unsigned long test_dev_nos[MAXDEVICETEST];
 
 static void
 chipset_bus_create(struct visorchipset_bus_info *bus_info)
@@ -1492,17 +1441,8 @@ chipset_device_create(struct visorchipset_device_info *dev_info)
 	POSTCODE_LINUX_4(DEVICE_CREATE_ENTRY_PC, dev_no, bus_no,
 			 POSTCODE_SEVERITY_INFO);
 
-	if (entered_testing_mode)
-		return;
 	if (!visorchipset_get_bus_info(bus_no, &bus_info))
 		goto away;
-	if (visorbus_devicetest)
-		if (total_devices_created < MAXDEVICETEST) {
-			test_channel_infos[total_devices_created] =
-			    dev_info->visorchannel;
-			test_bus_nos[total_devices_created] = bus_no;
-			test_dev_nos[total_devices_created] = dev_no;
-		}
 	POSTCODE_LINUX_4(DEVICE_CREATE_EXIT_PC, dev_no, bus_no,
 			 POSTCODE_SEVERITY_INFO);
 	rc = 0;
@@ -1527,8 +1467,6 @@ chipset_device_destroy(struct visorchipset_device_info *dev_info)
 	struct visor_device *dev;
 	int rc = -1;
 
-	if (entered_testing_mode)
-		return;
 	dev = find_visor_device_by_channel(dev_info->visorchannel);
 	if (!dev)
 		goto away;
@@ -1691,11 +1629,6 @@ visorbus_init(void)
 			     "clientbus", "visorbus",
 			     VERSION, NULL);
 
-	/* process module options */
-
-	if (visorbus_devicetest > MAXDEVICETEST)
-			visorbus_devicetest = MAXDEVICETEST;
-
 	rc = create_bus_type();
 	if (rc < 0) {
 		POSTCODE_LINUX_2(BUS_CREATE_ENTRY_PC, DIAG_SEVERITY_ERR);
@@ -1764,10 +1697,6 @@ MODULE_PARM_DESC(visorbus_forcematch,
 module_param_named(forcenomatch, visorbus_forcenomatch, int, S_IRUGO);
 MODULE_PARM_DESC(visorbus_forcenomatch,
 		 "1 to force an UNsuccessful dev <--> drv match");
-
-module_param_named(devicetest, visorbus_devicetest, int, S_IRUGO);
-MODULE_PARM_DESC(visorbus_devicetest,
-		 "non-0 to just test device creation and destruction");
 
 module_param_named(debugref, visorbus_debugref, int, S_IRUGO);
 MODULE_PARM_DESC(visorbus_debugref, "1 to debug reference counting");
