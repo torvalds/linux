@@ -523,6 +523,7 @@ EXPORT_SYMBOL_GPL(save_mc_for_early);
 
 static bool __init load_builtin_intel_microcode(struct cpio_data *cp)
 {
+#ifdef CONFIG_X86_64
 	u32 eax = 0x00000001, ebx, ecx = 0, edx;
 	int family, model, stepping;
 	char name[30];
@@ -536,6 +537,9 @@ static bool __init load_builtin_intel_microcode(struct cpio_data *cp)
 	sprintf(name, "intel-ucode/%02x-%02x-%02x", family, model, stepping);
 
 	return get_builtin_firmware(cp, name);
+#else
+	return false;
+#endif
 }
 
 static __initdata char ucode_name[] = "kernel/x86/microcode/GenuineIntel.bin";

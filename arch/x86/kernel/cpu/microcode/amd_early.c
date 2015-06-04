@@ -230,6 +230,7 @@ static void apply_ucode_in_initrd(void *ucode, size_t size, bool save_patch)
 
 static bool __init load_builtin_amd_microcode(struct cpio_data *cp, int family)
 {
+#ifdef CONFIG_X86_64
 	char fw_name[36] = "amd-ucode/microcode_amd.bin";
 
 	if (family >= 0x15)
@@ -237,6 +238,9 @@ static bool __init load_builtin_amd_microcode(struct cpio_data *cp, int family)
 			 "amd-ucode/microcode_amd_fam%.2xh.bin", family);
 
 	return get_builtin_firmware(cp, fw_name);
+#else
+	return false;
+#endif
 }
 
 void __init load_ucode_amd_bsp(int family)
