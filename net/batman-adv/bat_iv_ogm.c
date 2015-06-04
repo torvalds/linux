@@ -28,7 +28,7 @@
 
 /**
  * enum batadv_dup_status - duplicate status
- * @BATADV_NO_DUP: the packet is a duplicate
+ * @BATADV_NO_DUP: the packet is no duplicate
  * @BATADV_ORIG_DUP: OGM is a duplicate in the originator (but not for the
  *  neighbor)
  * @BATADV_NEIGH_DUP: OGM is a duplicate for the neighbor
@@ -55,7 +55,7 @@ static void batadv_ring_buffer_set(uint8_t lq_recv[], uint8_t *lq_index,
 }
 
 /**
- * batadv_ring_buffer_set - compute the average of all non-zero values stored
+ * batadv_ring_buffer_avg - compute the average of all non-zero values stored
  * in the given ring buffer
  * @lq_recv: pointer to the ring buffer
  *
@@ -64,7 +64,9 @@ static void batadv_ring_buffer_set(uint8_t lq_recv[], uint8_t *lq_index,
 static uint8_t batadv_ring_buffer_avg(const uint8_t lq_recv[])
 {
 	const uint8_t *ptr;
-	uint16_t count = 0, i = 0, sum = 0;
+	uint16_t count = 0;
+	uint16_t i = 0;
+	uint16_t sum = 0;
 
 	ptr = lq_recv;
 
@@ -642,19 +644,16 @@ static void batadv_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 		if (!batadv_atomic_dec_not_zero(&bat_priv->batman_queue_left)) {
 			batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 				   "batman packet queue full\n");
-			goto out;
+			goto out_free_outgoing;
 		}
 	}
 
 	forw_packet_aggr = kmalloc(sizeof(*forw_packet_aggr), GFP_ATOMIC);
-	if (!forw_packet_aggr) {
-		if (!own_packet)
-			atomic_inc(&bat_priv->batman_queue_left);
-		goto out;
-	}
+	if (!forw_packet_aggr)
+		goto out_nomem;
 
-	if ((atomic_read(&bat_priv->aggregated_ogms)) &&
-	    (packet_len < BATADV_MAX_AGGREGATION_BYTES))
+	if (atomic_read(&bat_priv->aggregated_ogms) &&
+	    packet_len < BATADV_MAX_AGGREGATION_BYTES)
 		skb_size = BATADV_MAX_AGGREGATION_BYTES;
 	else
 		skb_size = packet_len;
@@ -662,12 +661,8 @@ static void batadv_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 	skb_size += ETH_HLEN;
 
 	forw_packet_aggr->skb = netdev_alloc_skb_ip_align(NULL, skb_size);
-	if (!forw_packet_aggr->skb) {
-		if (!own_packet)
-			atomic_inc(&bat_priv->batman_queue_left);
-		kfree(forw_packet_aggr);
-		goto out;
-	}
+	if (!forw_packet_aggr->skb)
+		goto out_free_forw_packet;
 	forw_packet_aggr->skb->priority = TC_PRIO_CONTROL;
 	skb_reserve(forw_packet_aggr->skb, ETH_HLEN);
 
@@ -699,7 +694,12 @@ static void batadv_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 			   send_time - jiffies);
 
 	return;
-out:
+out_free_forw_packet:
+	kfree(forw_packet_aggr);
+out_nomem:
+	if (!own_packet)
+		atomic_inc(&bat_priv->batman_queue_left);
+out_free_outgoing:
 	batadv_hardif_free_ref(if_outgoing);
 out_free_incoming:
 	batadv_hardif_free_ref(if_incoming);
@@ -752,13 +752,13 @@ static void batadv_iv_ogm_queue_add(struct batadv_priv *bat_priv,
 	unsigned long max_aggregation_jiffies;
 
 	batadv_ogm_packet = (struct batadv_ogm_packet *)packet_buff;
-	direct_link = batadv_ogm_packet->flags & BATADV_DIRECTLINK ? 1 : 0;
+	direct_link = !!(batadv_ogm_packet->flags & BATADV_DIRECTLINK);
 	max_aggregation_jiffies = msecs_to_jiffies(BATADV_MAX_AGGREGATION_MS);
 
 	/* find position for the packet in the forward queue */
 	spin_lock_bh(&bat_priv->forw_bat_list_lock);
 	/* own packets are not to be aggregated */
-	if ((atomic_read(&bat_priv->aggregated_ogms)) && (!own_packet)) {
+	if (atomic_read(&bat_priv->aggregated_ogms) && !own_packet) {
 		hlist_for_each_entry(forw_packet_pos,
 				     &bat_priv->forw_bat_list, list) {
 			if (batadv_iv_ogm_can_aggregate(batadv_ogm_packet,
@@ -1034,9 +1034,10 @@ batadv_iv_ogm_orig_update(struct batadv_priv *bat_priv,
 		batadv_orig_node_free_ref(orig_tmp);
 		if (!neigh_node)
 			goto unlock;
-	} else
+	} else {
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Updating existing last-hop neighbor of originator\n");
+	}
 
 	rcu_read_unlock();
 	neigh_ifinfo = batadv_neigh_ifinfo_new(neigh_node, if_outgoing);
@@ -1356,8 +1357,7 @@ batadv_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 out:
 	spin_unlock_bh(&orig_node->bat_iv.ogm_cnt_lock);
 	batadv_orig_node_free_ref(orig_node);
-	if (orig_ifinfo)
-		batadv_orig_ifinfo_free_ref(orig_ifinfo);
+	batadv_orig_ifinfo_free_ref(orig_ifinfo);
 	return ret;
 }
 
