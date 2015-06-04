@@ -16,6 +16,7 @@
  */
 
 #include <linux/gpio.h>
+#include <linux/pinctrl/consumer.h>
 
 #include "msm_kms.h"
 #include "hdmi.h"
@@ -150,6 +151,12 @@ static int hpd_enable(struct hdmi_connector *hdmi_connector)
 		}
 	}
 
+	ret = pinctrl_pm_select_default_state(dev);
+	if (ret) {
+		dev_err(dev, "pinctrl state chg failed: %d\n", ret);
+		goto fail;
+	}
+
 	ret = gpio_config(hdmi, true);
 	if (ret) {
 		dev_err(dev, "failed to configure GPIOs: %d\n", ret);
@@ -218,6 +225,10 @@ static void hdp_disable(struct hdmi_connector *hdmi_connector)
 	ret = gpio_config(hdmi, false);
 	if (ret)
 		dev_warn(dev, "failed to unconfigure GPIOs: %d\n", ret);
+
+	ret = pinctrl_pm_select_sleep_state(dev);
+	if (ret)
+		dev_warn(dev, "pinctrl state chg failed: %d\n", ret);
 
 	for (i = 0; i < config->hpd_reg_cnt; i++) {
 		ret = regulator_disable(hdmi->hpd_regs[i]);
