@@ -188,6 +188,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		struct drm_amdgpu_info_hw_ip ip = {};
 		enum amd_ip_block_type type;
 		uint32_t ring_mask = 0;
+		uint32_t ib_start_alignment = 0;
+		uint32_t ib_size_alignment = 0;
 
 		if (info->query_hw_ip.ip_instance >= AMDGPU_HW_IP_INSTANCE_MAX_COUNT)
 			return -EINVAL;
@@ -197,25 +199,35 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			type = AMD_IP_BLOCK_TYPE_GFX;
 			for (i = 0; i < adev->gfx.num_gfx_rings; i++)
 				ring_mask |= ((adev->gfx.gfx_ring[i].ready ? 1 : 0) << i);
+			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
+			ib_size_alignment = 8;
 			break;
 		case AMDGPU_HW_IP_COMPUTE:
 			type = AMD_IP_BLOCK_TYPE_GFX;
 			for (i = 0; i < adev->gfx.num_compute_rings; i++)
 				ring_mask |= ((adev->gfx.compute_ring[i].ready ? 1 : 0) << i);
+			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
+			ib_size_alignment = 8;
 			break;
 		case AMDGPU_HW_IP_DMA:
 			type = AMD_IP_BLOCK_TYPE_SDMA;
 			ring_mask = adev->sdma[0].ring.ready ? 1 : 0;
 			ring_mask |= ((adev->sdma[1].ring.ready ? 1 : 0) << 1);
+			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
+			ib_size_alignment = 1;
 			break;
 		case AMDGPU_HW_IP_UVD:
 			type = AMD_IP_BLOCK_TYPE_UVD;
 			ring_mask = adev->uvd.ring.ready ? 1 : 0;
+			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
+			ib_size_alignment = 8;
 			break;
 		case AMDGPU_HW_IP_VCE:
 			type = AMD_IP_BLOCK_TYPE_VCE;
 			for (i = 0; i < AMDGPU_MAX_VCE_RINGS; i++)
 				ring_mask |= ((adev->vce.ring[i].ready ? 1 : 0) << i);
+			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
+			ib_size_alignment = 8;
 			break;
 		default:
 			return -EINVAL;
@@ -228,6 +240,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 				ip.hw_ip_version_minor = adev->ip_blocks[i].minor;
 				ip.capabilities_flags = 0;
 				ip.available_rings = ring_mask;
+				ip.ib_start_alignment = ib_start_alignment;
+				ip.ib_size_alignment = ib_size_alignment;
 				break;
 			}
 		}

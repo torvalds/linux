@@ -583,6 +583,10 @@ struct drm_amdgpu_info_hw_ip {
 	uint32_t  hw_ip_version_minor;
 	/** Capabilities */
 	uint64_t  capabilities_flags;
+	/** command buffer address start alignment*/
+	uint32_t  ib_start_alignment;
+	/** command buffer size alignment*/
+	uint32_t  ib_size_alignment;
 	/** Bitmask of available rings. Bit 0 means ring 0, etc. */
 	uint32_t  available_rings;
 	uint32_t  _pad;
