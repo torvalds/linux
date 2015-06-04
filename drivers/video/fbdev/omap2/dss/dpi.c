@@ -731,7 +731,7 @@ static void dpi_init_output(struct platform_device *pdev)
 	omapdss_register_output(out);
 }
 
-static void __exit dpi_uninit_output(struct platform_device *pdev)
+static void dpi_uninit_output(struct platform_device *pdev)
 {
 	struct dpi_data *dpi = dpi_get_data_from_pdev(pdev);
 	struct omap_dss_device *out = &dpi->output;
@@ -775,7 +775,7 @@ static void dpi_init_output_port(struct platform_device *pdev,
 	omapdss_register_output(out);
 }
 
-static void __exit dpi_uninit_output_port(struct device_node *port)
+static void dpi_uninit_output_port(struct device_node *port)
 {
 	struct dpi_data *dpi = port->data;
 	struct omap_dss_device *out = &dpi->output;
@@ -802,7 +802,7 @@ static int omap_dpi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit omap_dpi_remove(struct platform_device *pdev)
+static int omap_dpi_remove(struct platform_device *pdev)
 {
 	dpi_uninit_output(pdev);
 
@@ -811,7 +811,7 @@ static int __exit omap_dpi_remove(struct platform_device *pdev)
 
 static struct platform_driver omap_dpi_driver = {
 	.probe		= omap_dpi_probe,
-	.remove         = __exit_p(omap_dpi_remove),
+	.remove         = omap_dpi_remove,
 	.driver         = {
 		.name   = "omapdss_dpi",
 		.suppress_bind_attrs = true,
@@ -823,12 +823,12 @@ int __init dpi_init_platform_driver(void)
 	return platform_driver_register(&omap_dpi_driver);
 }
 
-void __exit dpi_uninit_platform_driver(void)
+void dpi_uninit_platform_driver(void)
 {
 	platform_driver_unregister(&omap_dpi_driver);
 }
 
-int __init dpi_init_port(struct platform_device *pdev, struct device_node *port)
+int dpi_init_port(struct platform_device *pdev, struct device_node *port)
 {
 	struct dpi_data *dpi;
 	struct device_node *ep;
@@ -870,7 +870,7 @@ err_datalines:
 	return r;
 }
 
-void __exit dpi_uninit_port(struct device_node *port)
+void dpi_uninit_port(struct device_node *port)
 {
 	struct dpi_data *dpi = port->data;
 

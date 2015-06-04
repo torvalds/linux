@@ -350,7 +350,7 @@ static void sdi_init_output(struct platform_device *pdev)
 	omapdss_register_output(out);
 }
 
-static void __exit sdi_uninit_output(struct platform_device *pdev)
+static void sdi_uninit_output(struct platform_device *pdev)
 {
 	struct omap_dss_device *out = &sdi.output;
 
@@ -366,7 +366,7 @@ static int omap_sdi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit omap_sdi_remove(struct platform_device *pdev)
+static int omap_sdi_remove(struct platform_device *pdev)
 {
 	sdi_uninit_output(pdev);
 
@@ -375,7 +375,7 @@ static int __exit omap_sdi_remove(struct platform_device *pdev)
 
 static struct platform_driver omap_sdi_driver = {
 	.probe		= omap_sdi_probe,
-	.remove         = __exit_p(omap_sdi_remove),
+	.remove         = omap_sdi_remove,
 	.driver         = {
 		.name   = "omapdss_sdi",
 		.suppress_bind_attrs = true,
@@ -387,12 +387,12 @@ int __init sdi_init_platform_driver(void)
 	return platform_driver_register(&omap_sdi_driver);
 }
 
-void __exit sdi_uninit_platform_driver(void)
+void sdi_uninit_platform_driver(void)
 {
 	platform_driver_unregister(&omap_sdi_driver);
 }
 
-int __init sdi_init_port(struct platform_device *pdev, struct device_node *port)
+int sdi_init_port(struct platform_device *pdev, struct device_node *port)
 {
 	struct device_node *ep;
 	u32 datapairs;
@@ -426,7 +426,7 @@ err_datapairs:
 	return r;
 }
 
-void __exit sdi_uninit_port(struct device_node *port)
+void sdi_uninit_port(struct device_node *port)
 {
 	if (!sdi.port_initialized)
 		return;

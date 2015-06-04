@@ -802,7 +802,7 @@ static void venc_init_output(struct platform_device *pdev)
 	omapdss_register_output(out);
 }
 
-static void __exit venc_uninit_output(struct platform_device *pdev)
+static void venc_uninit_output(struct platform_device *pdev)
 {
 	struct omap_dss_device *out = &venc.output;
 
@@ -912,7 +912,7 @@ err_runtime_get:
 	return r;
 }
 
-static int __exit omap_venchw_remove(struct platform_device *pdev)
+static int omap_venchw_remove(struct platform_device *pdev)
 {
 	venc_uninit_output(pdev);
 
@@ -960,7 +960,7 @@ static const struct of_device_id venc_of_match[] = {
 
 static struct platform_driver omap_venchw_driver = {
 	.probe		= omap_venchw_probe,
-	.remove         = __exit_p(omap_venchw_remove),
+	.remove         = omap_venchw_remove,
 	.driver         = {
 		.name   = "omapdss_venc",
 		.pm	= &venc_pm_ops,
@@ -974,7 +974,7 @@ int __init venc_init_platform_driver(void)
 	return platform_driver_register(&omap_venchw_driver);
 }
 
-void __exit venc_uninit_platform_driver(void)
+void venc_uninit_platform_driver(void)
 {
 	platform_driver_unregister(&omap_venchw_driver);
 }

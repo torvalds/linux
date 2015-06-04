@@ -819,7 +819,7 @@ static const enum omap_display_type dra7xx_ports[] = {
 	OMAP_DISPLAY_TYPE_DPI,
 };
 
-static const struct dss_features omap24xx_dss_feats __initconst = {
+static const struct dss_features omap24xx_dss_feats = {
 	/*
 	 * fck div max is really 16, but the divider range has gaps. The range
 	 * from 1 to 6 has no gaps, so let's use that as a max.
@@ -832,7 +832,7 @@ static const struct dss_features omap24xx_dss_feats __initconst = {
 	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
 };
 
-static const struct dss_features omap34xx_dss_feats __initconst = {
+static const struct dss_features omap34xx_dss_feats = {
 	.fck_div_max		=	16,
 	.dss_fck_multiplier	=	2,
 	.parent_clk_name	=	"dpll4_ck",
@@ -841,7 +841,7 @@ static const struct dss_features omap34xx_dss_feats __initconst = {
 	.num_ports		=	ARRAY_SIZE(omap34xx_ports),
 };
 
-static const struct dss_features omap3630_dss_feats __initconst = {
+static const struct dss_features omap3630_dss_feats = {
 	.fck_div_max		=	32,
 	.dss_fck_multiplier	=	1,
 	.parent_clk_name	=	"dpll4_ck",
@@ -850,7 +850,7 @@ static const struct dss_features omap3630_dss_feats __initconst = {
 	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
 };
 
-static const struct dss_features omap44xx_dss_feats __initconst = {
+static const struct dss_features omap44xx_dss_feats = {
 	.fck_div_max		=	32,
 	.dss_fck_multiplier	=	1,
 	.parent_clk_name	=	"dpll_per_x2_ck",
@@ -859,7 +859,7 @@ static const struct dss_features omap44xx_dss_feats __initconst = {
 	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
 };
 
-static const struct dss_features omap54xx_dss_feats __initconst = {
+static const struct dss_features omap54xx_dss_feats = {
 	.fck_div_max		=	64,
 	.dss_fck_multiplier	=	1,
 	.parent_clk_name	=	"dpll_per_x2_ck",
@@ -868,7 +868,7 @@ static const struct dss_features omap54xx_dss_feats __initconst = {
 	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
 };
 
-static const struct dss_features am43xx_dss_feats __initconst = {
+static const struct dss_features am43xx_dss_feats = {
 	.fck_div_max		=	0,
 	.dss_fck_multiplier	=	0,
 	.parent_clk_name	=	NULL,
@@ -877,7 +877,7 @@ static const struct dss_features am43xx_dss_feats __initconst = {
 	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
 };
 
-static const struct dss_features dra7xx_dss_feats __initconst = {
+static const struct dss_features dra7xx_dss_feats = {
 	.fck_div_max		=	64,
 	.dss_fck_multiplier	=	1,
 	.parent_clk_name	=	"dpll_per_x2_ck",
@@ -886,7 +886,7 @@ static const struct dss_features dra7xx_dss_feats __initconst = {
 	.num_ports		=	ARRAY_SIZE(dra7xx_ports),
 };
 
-static int __init dss_init_features(struct platform_device *pdev)
+static int dss_init_features(struct platform_device *pdev)
 {
 	const struct dss_features *src;
 	struct dss_features *dst;
@@ -940,7 +940,7 @@ static int __init dss_init_features(struct platform_device *pdev)
 	return 0;
 }
 
-static int __init dss_init_ports(struct platform_device *pdev)
+static int dss_init_ports(struct platform_device *pdev)
 {
 	struct device_node *parent = pdev->dev.of_node;
 	struct device_node *port;
@@ -984,7 +984,7 @@ static int __init dss_init_ports(struct platform_device *pdev)
 	return 0;
 }
 
-static void __exit dss_uninit_ports(struct platform_device *pdev)
+static void dss_uninit_ports(struct platform_device *pdev)
 {
 	struct device_node *parent = pdev->dev.of_node;
 	struct device_node *port;
@@ -1088,7 +1088,7 @@ static int dss_video_pll_probe(struct platform_device *pdev)
 }
 
 /* DSS HW IP initialisation */
-static int __init omap_dsshw_probe(struct platform_device *pdev)
+static int omap_dsshw_probe(struct platform_device *pdev)
 {
 	struct resource *dss_mem;
 	u32 rev;
@@ -1182,7 +1182,7 @@ err_setup_clocks:
 	return r;
 }
 
-static int __exit omap_dsshw_remove(struct platform_device *pdev)
+static int omap_dsshw_remove(struct platform_device *pdev)
 {
 	dss_initialized = false;
 
@@ -1243,7 +1243,7 @@ static const struct of_device_id dss_of_match[] = {
 MODULE_DEVICE_TABLE(of, dss_of_match);
 
 static struct platform_driver omap_dsshw_driver = {
-	.remove         = __exit_p(omap_dsshw_remove),
+	.remove         = omap_dsshw_remove,
 	.driver         = {
 		.name   = "omapdss_dss",
 		.pm	= &dss_pm_ops,

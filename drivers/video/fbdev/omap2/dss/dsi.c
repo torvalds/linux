@@ -5484,7 +5484,7 @@ err_runtime_get:
 	return r;
 }
 
-static int __exit omap_dsihw_remove(struct platform_device *dsidev)
+static int omap_dsihw_remove(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 
@@ -5570,7 +5570,7 @@ static const struct of_device_id dsi_of_match[] = {
 
 static struct platform_driver omap_dsihw_driver = {
 	.probe		= omap_dsihw_probe,
-	.remove         = __exit_p(omap_dsihw_remove),
+	.remove         = omap_dsihw_remove,
 	.driver         = {
 		.name   = "omapdss_dsi",
 		.pm	= &dsi_pm_ops,
@@ -5584,7 +5584,7 @@ int __init dsi_init_platform_driver(void)
 	return platform_driver_register(&omap_dsihw_driver);
 }
 
-void __exit dsi_uninit_platform_driver(void)
+void dsi_uninit_platform_driver(void)
 {
 	platform_driver_unregister(&omap_dsihw_driver);
 }

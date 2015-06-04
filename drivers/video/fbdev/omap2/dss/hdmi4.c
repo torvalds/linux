@@ -713,7 +713,7 @@ err:
 	return r;
 }
 
-static int __exit omapdss_hdmihw_remove(struct platform_device *pdev)
+static int omapdss_hdmihw_remove(struct platform_device *pdev)
 {
 	if (hdmi.audio_pdev)
 		platform_device_unregister(hdmi.audio_pdev);
@@ -757,7 +757,7 @@ static const struct of_device_id hdmi_of_match[] = {
 
 static struct platform_driver omapdss_hdmihw_driver = {
 	.probe		= omapdss_hdmihw_probe,
-	.remove         = __exit_p(omapdss_hdmihw_remove),
+	.remove         = omapdss_hdmihw_remove,
 	.driver         = {
 		.name   = "omapdss_hdmi",
 		.pm	= &hdmi_pm_ops,
@@ -771,7 +771,7 @@ int __init hdmi4_init_platform_driver(void)
 	return platform_driver_register(&omapdss_hdmihw_driver);
 }
 
-void __exit hdmi4_uninit_platform_driver(void)
+void hdmi4_uninit_platform_driver(void)
 {
 	platform_driver_unregister(&omapdss_hdmihw_driver);
 }
