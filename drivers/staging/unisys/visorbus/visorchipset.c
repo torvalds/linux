@@ -1107,6 +1107,7 @@ bus_create(struct controlvm_message *inmsg)
 		goto cleanup;
 	}
 
+	INIT_LIST_HEAD(&bus_info->list_all);
 	bus_info->chipset_bus_no = bus_no;
 	bus_info->chipset_dev_no = BUS_ROOT_DEVICE;
 
