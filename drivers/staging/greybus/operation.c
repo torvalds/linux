@@ -221,9 +221,7 @@ static void gb_operation_message_init(struct greybus_host_device *hd,
 				size_t payload_size, u8 type)
 {
 	struct gb_operation_msg_hdr *header;
-	u8 *buffer;
 
-	buffer = message->buffer;
 	header = message->buffer;
 
 	message->header = header;
