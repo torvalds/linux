@@ -245,9 +245,13 @@ static void lpss_ssp_setup(struct driver_data *drv_data)
 	if (drv_data->master_info->enable_dma) {
 		__lpss_ssp_write_priv(drv_data, config->reg_ssp, 1);
 
-		value = __lpss_ssp_read_priv(drv_data, config->reg_general);
-		value |= GENERAL_REG_RXTO_HOLDOFF_DISABLE;
-		__lpss_ssp_write_priv(drv_data, config->reg_general, value);
+		if (config->reg_general >= 0) {
+			value = __lpss_ssp_read_priv(drv_data,
+						     config->reg_general);
+			value |= GENERAL_REG_RXTO_HOLDOFF_DISABLE;
+			__lpss_ssp_write_priv(drv_data,
+					      config->reg_general, value);
+		}
 	}
 }
 
