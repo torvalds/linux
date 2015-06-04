@@ -59,8 +59,6 @@ struct visorchipset_state {
 struct visor_channeltype_descriptor {
 	const uuid_le guid;
 	const char *name;
-	unsigned long min_size;
-	unsigned long max_size;
 };
 
 /** Information provided by each visor driver when it registers with the
