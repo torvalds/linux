@@ -1215,7 +1215,7 @@ xfs_bmap_add_attrfork(
 	error = xfs_bmap_finish(&tp, &flist, &committed);
 	if (error)
 		goto bmap_cancel;
-	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+	error = xfs_trans_commit(tp);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;
 
@@ -5926,8 +5926,7 @@ xfs_bmap_split_extent(
 	if (error)
 		goto out;
 
-	return xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
-
+	return xfs_trans_commit(tp);
 
 out:
 	xfs_trans_cancel(tp);

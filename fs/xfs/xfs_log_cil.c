@@ -773,13 +773,13 @@ xfs_log_commit_cil(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
 	xfs_lsn_t		*commit_lsn,
-	int			flags)
+	bool			regrant)
 {
 	struct xlog		*log = mp->m_log;
 	struct xfs_cil		*cil = log->l_cilp;
 	int			log_flags = 0;
 
-	if (flags & XFS_TRANS_RELEASE_LOG_RES)
+	if (!regrant)
 		log_flags = XFS_LOG_REL_PERM_RESERV;
 
 	/* lock out background commit */

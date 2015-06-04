@@ -346,7 +346,7 @@ xfs_set_dmattrs(
 	ip->i_d.di_dmstate  = state;
 
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-	error = xfs_trans_commit(tp, 0);
+	error = xfs_trans_commit(tp);
 
 	return error;
 }
@@ -1253,7 +1253,7 @@ xfs_ioctl_setattr(
 	else
 		ip->i_d.di_extsize = 0;
 
-	code = xfs_trans_commit(tp, 0);
+	code = xfs_trans_commit(tp);
 
 	/*
 	 * Release any dquot(s) the inode had kept before chown.
@@ -1342,7 +1342,7 @@ xfs_ioc_setxflags(
 		goto out_drop_write;
 	}
 
-	error = xfs_trans_commit(tp, 0);
+	error = xfs_trans_commit(tp);
 out_drop_write:
 	mnt_drop_write_file(filp);
 	return error;

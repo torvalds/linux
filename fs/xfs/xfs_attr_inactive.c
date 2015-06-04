@@ -438,7 +438,7 @@ xfs_attr_inactive(xfs_inode_t *dp)
 	if (error)
 		goto out;
 
-	error = xfs_trans_commit(trans, XFS_TRANS_RELEASE_LOG_RES);
+	error = xfs_trans_commit(trans);
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
 
 	return error;

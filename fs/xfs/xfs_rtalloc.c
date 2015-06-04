@@ -815,7 +815,7 @@ xfs_growfs_rt_alloc(
 		error = xfs_bmap_finish(&tp, &flist, &committed);
 		if (error)
 			goto error_cancel;
-		error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+		error = xfs_trans_commit(tp);
 		if (error)
 			goto error;
 		/*
@@ -855,7 +855,7 @@ error_cancel:
 			/*
 			 * Commit the transaction.
 			 */
-			error = xfs_trans_commit(tp, 0);
+			error = xfs_trans_commit(tp);
 			if (error)
 				goto error;
 		}
@@ -1070,7 +1070,7 @@ error_cancel:
 		mp->m_rsumlevels = nrsumlevels;
 		mp->m_rsumsize = nrsumsize;
 
-		error = xfs_trans_commit(tp, 0);
+		error = xfs_trans_commit(tp);
 		if (error)
 			break;
 	}
