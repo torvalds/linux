@@ -39,6 +39,7 @@
 #include <linux/of.h>
 #include <linux/regulator/consumer.h>
 #include <linux/suspend.h>
+#include <linux/component.h>
 
 #include <video/omapdss.h>
 
@@ -1088,8 +1089,9 @@ static int dss_video_pll_probe(struct platform_device *pdev)
 }
 
 /* DSS HW IP initialisation */
-static int omap_dsshw_probe(struct platform_device *pdev)
+static int dss_bind(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct resource *dss_mem;
 	u32 rev;
 	int r;
@@ -1159,6 +1161,10 @@ static int omap_dsshw_probe(struct platform_device *pdev)
 
 	dss_runtime_put();
 
+	r = component_bind_all(&pdev->dev, NULL);
+	if (r)
+		goto err_component;
+
 	dss_debugfs_create_file("dss", dss_dump_regs);
 
 	pm_set_vt_switch(0);
@@ -1167,6 +1173,7 @@ static int omap_dsshw_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_component:
 err_runtime_get:
 	pm_runtime_disable(&pdev->dev);
 	dss_uninit_ports(pdev);
@@ -1182,9 +1189,13 @@ err_setup_clocks:
 	return r;
 }
 
-static int omap_dsshw_remove(struct platform_device *pdev)
+static void dss_unbind(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
+
 	dss_initialized = false;
+
+	component_unbind_all(&pdev->dev, NULL);
 
 	if (dss.video1_pll)
 		dss_video_pll_uninit(dss.video1_pll);
@@ -1197,7 +1208,46 @@ static int omap_dsshw_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	dss_put_clocks();
+}
 
+static const struct component_master_ops dss_component_ops = {
+	.bind = dss_bind,
+	.unbind = dss_unbind,
+};
+
+static int dss_component_compare(struct device *dev, void *data)
+{
+	struct device *child = data;
+	return dev == child;
+}
+
+static int dss_add_child_component(struct device *dev, void *data)
+{
+	struct component_match **match = data;
+
+	component_match_add(dev->parent, match, dss_component_compare, dev);
+
+	return 0;
+}
+
+static int dss_probe(struct platform_device *pdev)
+{
+	struct component_match *match = NULL;
+	int r;
+
+	/* add all the child devices as components */
+	device_for_each_child(&pdev->dev, &match, dss_add_child_component);
+
+	r = component_master_add_with_match(&pdev->dev, &dss_component_ops, match);
+	if (r)
+		return r;
+
+	return 0;
+}
+
+static int dss_remove(struct platform_device *pdev)
+{
+	component_master_del(&pdev->dev, &dss_component_ops);
 	return 0;
 }
 
@@ -1243,7 +1293,8 @@ static const struct of_device_id dss_of_match[] = {
 MODULE_DEVICE_TABLE(of, dss_of_match);
 
 static struct platform_driver omap_dsshw_driver = {
-	.remove         = omap_dsshw_remove,
+	.probe		= dss_probe,
+	.remove		= dss_remove,
 	.driver         = {
 		.name   = "omapdss_dss",
 		.pm	= &dss_pm_ops,
@@ -1254,7 +1305,7 @@ static struct platform_driver omap_dsshw_driver = {
 
 int __init dss_init_platform_driver(void)
 {
-	return platform_driver_probe(&omap_dsshw_driver, omap_dsshw_probe);
+	return platform_driver_register(&omap_dsshw_driver);
 }
 
 void dss_uninit_platform_driver(void)

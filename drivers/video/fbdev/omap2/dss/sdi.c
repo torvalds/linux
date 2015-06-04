@@ -27,6 +27,7 @@
 #include <linux/platform_device.h>
 #include <linux/string.h>
 #include <linux/of.h>
+#include <linux/component.h>
 
 #include <video/omapdss.h>
 #include "dss.h"
@@ -357,8 +358,10 @@ static void sdi_uninit_output(struct platform_device *pdev)
 	omapdss_unregister_output(out);
 }
 
-static int omap_sdi_probe(struct platform_device *pdev)
+static int sdi_bind(struct device *dev, struct device *master, void *data)
 {
+	struct platform_device *pdev = to_platform_device(dev);
+
 	sdi.pdev = pdev;
 
 	sdi_init_output(pdev);
@@ -366,16 +369,32 @@ static int omap_sdi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int omap_sdi_remove(struct platform_device *pdev)
+static void sdi_unbind(struct device *dev, struct device *master, void *data)
 {
-	sdi_uninit_output(pdev);
+	struct platform_device *pdev = to_platform_device(dev);
 
+	sdi_uninit_output(pdev);
+}
+
+static const struct component_ops sdi_component_ops = {
+	.bind	= sdi_bind,
+	.unbind	= sdi_unbind,
+};
+
+static int sdi_probe(struct platform_device *pdev)
+{
+	return component_add(&pdev->dev, &sdi_component_ops);
+}
+
+static int sdi_remove(struct platform_device *pdev)
+{
+	component_del(&pdev->dev, &sdi_component_ops);
 	return 0;
 }
 
 static struct platform_driver omap_sdi_driver = {
-	.probe		= omap_sdi_probe,
-	.remove         = omap_sdi_remove,
+	.probe		= sdi_probe,
+	.remove         = sdi_remove,
 	.driver         = {
 		.name   = "omapdss_sdi",
 		.suppress_bind_attrs = true,

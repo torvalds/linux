@@ -36,6 +36,7 @@
 #include <linux/semaphore.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/component.h>
 
 #include <video/omapdss.h>
 #include "dss.h"
@@ -946,8 +947,9 @@ static void rfbi_uninit_output(struct platform_device *pdev)
 }
 
 /* RFBI HW IP initialisation */
-static int omap_rfbihw_probe(struct platform_device *pdev)
+static int rfbi_bind(struct device *dev, struct device *master, void *data)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	u32 rev;
 	struct resource *rfbi_mem;
 	struct clk *clk;
@@ -1005,12 +1007,30 @@ err_runtime_get:
 	return r;
 }
 
-static int omap_rfbihw_remove(struct platform_device *pdev)
+static void rfbi_unbind(struct device *dev, struct device *master, void *data)
 {
+	struct platform_device *pdev = to_platform_device(dev);
+
 	rfbi_uninit_output(pdev);
 
 	pm_runtime_disable(&pdev->dev);
 
+	return 0;
+}
+
+static const struct component_ops rfbi_component_ops = {
+	.bind	= rfbi_bind,
+	.unbind	= rfbi_unbind,
+};
+
+static int rfbi_probe(struct platform_device *pdev)
+{
+	return component_add(&pdev->dev, &rfbi_component_ops);
+}
+
+static int rfbi_remove(struct platform_device *pdev)
+{
+	component_del(&pdev->dev, &rfbi_component_ops);
 	return 0;
 }
 
@@ -1038,8 +1058,8 @@ static const struct dev_pm_ops rfbi_pm_ops = {
 };
 
 static struct platform_driver omap_rfbihw_driver = {
-	.probe		= omap_rfbihw_probe,
-	.remove         = omap_rfbihw_remove,
+	.probe		= rfbi_probe,
+	.remove         = rfbi_remove,
 	.driver         = {
 		.name   = "omapdss_rfbi",
 		.pm	= &rfbi_pm_ops,
