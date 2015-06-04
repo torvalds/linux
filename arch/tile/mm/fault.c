@@ -699,11 +699,10 @@ struct intvec_state do_page_fault_ics(struct pt_regs *regs, int fault_num,
  * interrupt away appropriately and return immediately.  We can't do
  * page faults for user code while in kernel mode.
  */
-void do_page_fault(struct pt_regs *regs, int fault_num,
-		   unsigned long address, unsigned long write)
+static inline void __do_page_fault(struct pt_regs *regs, int fault_num,
+				   unsigned long address, unsigned long write)
 {
 	int is_page_fault;
-	enum ctx_state prev_state = exception_enter();
 
 #ifdef CONFIG_KPROBES
 	/*
@@ -713,7 +712,7 @@ void do_page_fault(struct pt_regs *regs, int fault_num,
 	 */
 	if (notify_die(DIE_PAGE_FAULT, "page fault", regs, -1,
 		       regs->faultnum, SIGSEGV) == NOTIFY_STOP)
-		goto done;
+		return;
 #endif
 
 #ifdef __tilegx__
@@ -835,17 +834,21 @@ void do_page_fault(struct pt_regs *regs, int fault_num,
 			async->is_fault = is_page_fault;
 			async->is_write = write;
 			async->address = address;
-			goto done;
+			return;
 		}
 	}
 #endif
 
 	handle_page_fault(regs, fault_num, is_page_fault, address, write);
-
-done:
-	exception_exit(prev_state);
 }
 
+void do_page_fault(struct pt_regs *regs, int fault_num,
+		   unsigned long address, unsigned long write)
+{
+	enum ctx_state prev_state = exception_enter();
+	__do_page_fault(regs, fault_num, address, write);
+	exception_exit(prev_state);
+}
 
 #if CHIP_HAS_TILE_DMA()
 /*
