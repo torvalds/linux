@@ -2022,12 +2022,9 @@ struct mlx5_ifc_srqc_bits {
 
 	u8         reserved_9[0x40];
 
-	u8         db_record_addr_h[0x20];
+	u8         dbr_addr[0x40];
 
-	u8         db_record_addr_l[0x1e];
-	u8         reserved_10[0x2];
-
-	u8         reserved_11[0x80];
+	u8         reserved_10[0x80];
 };
 
 enum {
@@ -4167,6 +4164,13 @@ struct mlx5_ifc_modify_rmp_out_bits {
 	u8         reserved_1[0x40];
 };
 
+struct mlx5_ifc_rmp_bitmask_bits {
+	u8	   reserved[0x20];
+
+	u8         reserved1[0x1f];
+	u8         lwm[0x1];
+};
+
 struct mlx5_ifc_modify_rmp_in_bits {
 	u8         opcode[0x10];
 	u8         reserved_0[0x10];
@@ -4180,7 +4184,7 @@ struct mlx5_ifc_modify_rmp_in_bits {
 
 	u8         reserved_3[0x20];
 
-	u8         modify_bitmask[0x40];
+	struct mlx5_ifc_rmp_bitmask_bits bitmask;
 
 	u8         reserved_4[0x40];
 

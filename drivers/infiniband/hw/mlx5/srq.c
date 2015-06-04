@@ -302,7 +302,7 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 
 	in->ctx.pd = cpu_to_be32(to_mpd(pd)->pdn);
 	in->ctx.db_record = cpu_to_be64(srq->db.dma);
-	err = mlx5_core_create_srq(dev->mdev, &srq->msrq, in, inlen);
+	err = mlx5_core_create_srq(dev->mdev, &srq->msrq, in, inlen, is_xrc);
 	kvfree(in);
 	if (err) {
 		mlx5_ib_dbg(dev, "create SRQ failed, err %d\n", err);
