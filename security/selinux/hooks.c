@@ -2416,10 +2416,12 @@ static void selinux_bprm_committed_creds(struct linux_binprm *bprm)
 		for (i = 0; i < 3; i++)
 			do_setitimer(i, &itimer, NULL);
 		spin_lock_irq(&current->sighand->siglock);
-		if (!(current->signal->flags & SIGNAL_GROUP_EXIT)) {
-			__flush_signals(current);
+		if (!fatal_signal_pending(current)) {
+			flush_sigqueue(&current->pending);
+			flush_sigqueue(&current->signal->shared_pending);
 			flush_signal_handlers(current, 1);
 			sigemptyset(&current->blocked);
+			recalc_sigpending();
 		}
 		spin_unlock_irq(&current->sighand->siglock);
 	}
