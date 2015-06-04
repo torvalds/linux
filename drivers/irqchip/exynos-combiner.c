@@ -67,8 +67,8 @@ static void combiner_unmask_irq(struct irq_data *data)
 
 static void combiner_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
 {
-	struct combiner_chip_data *chip_data = irq_get_handler_data(irq);
-	struct irq_chip *chip = irq_get_chip(irq);
+	struct combiner_chip_data *chip_data = irq_desc_get_handler_data(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int cascade_irq, combiner_irq;
 	unsigned long status;
 

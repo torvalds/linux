@@ -450,7 +450,7 @@ static void armada_370_xp_handle_msi_irq(struct pt_regs *r, bool b) {}
 static void armada_370_xp_mpic_handle_cascade_irq(unsigned int irq,
 						  struct irq_desc *desc)
 {
-	struct irq_chip *chip = irq_get_chip(irq);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned long irqmap, irqn, irqsrc, cpuid;
 	unsigned int cascade_irq;
 

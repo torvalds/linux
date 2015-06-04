@@ -184,7 +184,7 @@ static struct spear_shirq *spear320_shirq_blocks[] = {
 
 static void shirq_handler(unsigned irq, struct irq_desc *desc)
 {
-	struct spear_shirq *shirq = irq_get_handler_data(irq);
+	struct spear_shirq *shirq = irq_desc_get_handler_data(desc);
 	u32 pend;
 
 	pend = readl(shirq->base + shirq->status_reg) & shirq->mask;
