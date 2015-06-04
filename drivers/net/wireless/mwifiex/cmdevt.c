@@ -469,10 +469,11 @@ int mwifiex_process_event(struct mwifiex_adapter *adapter)
 		memset(rx_info, 0, sizeof(*rx_info));
 		rx_info->bss_num = priv->bss_num;
 		rx_info->bss_type = priv->bss_type;
+		mwifiex_dbg_dump(adapter, EVT_D, "Event Buf:",
+				 skb->data, skb->len);
 	}
 
 	mwifiex_dbg(adapter, EVENT, "EVENT: cause: %#x\n", eventcause);
-	mwifiex_dbg_dump(adapter, EVT_D, "Event Buf:", skb->data, skb->len);
 
 	if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
 		ret = mwifiex_process_uap_event(priv);
