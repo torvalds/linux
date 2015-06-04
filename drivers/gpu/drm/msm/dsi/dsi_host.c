@@ -1605,8 +1605,12 @@ int msm_dsi_host_register(struct mipi_dsi_host *host, bool check_defer)
 			node = of_get_child_by_name(msm_host->pdev->dev.of_node,
 							"panel");
 			if (node) {
-				if (!of_drm_find_panel(node))
+				if (!of_drm_find_panel(node)) {
+					of_node_put(node);
 					return -EPROBE_DEFER;
+				}
+
+				of_node_put(node);
 			}
 		}
 	}
