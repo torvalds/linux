@@ -343,12 +343,6 @@ flow_label:
 		break;
 	}
 
-	/* It is ensured by skb_flow_dissector_init() that basic key will
-	 * be always present.
-	 */
-	key_basic = skb_flow_dissector_target(flow_dissector,
-					      FLOW_DISSECTOR_KEY_BASIC,
-					      target_container);
 	key_basic->n_proto = proto;
 	key_basic->ip_proto = ip_proto;
 	key_basic->thoff = (u16) nhoff;
