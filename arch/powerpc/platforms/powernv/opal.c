@@ -711,9 +711,10 @@ static int __init opal_init(void)
 		opal_msglog_init();
 	}
 
-	/* Initialize platform devices: IPMI backend & flash interface */
+	/* Initialize platform devices: IPMI backend, PRD & flash interface */
 	opal_pdev_init(opal_node, "ibm,opal-ipmi");
 	opal_pdev_init(opal_node, "ibm,opal-flash");
+	opal_pdev_init(opal_node, "ibm,opal-prd");
 
 	return 0;
 }
@@ -752,6 +753,7 @@ EXPORT_SYMBOL_GPL(opal_ipmi_recv);
 EXPORT_SYMBOL_GPL(opal_flash_read);
 EXPORT_SYMBOL_GPL(opal_flash_write);
 EXPORT_SYMBOL_GPL(opal_flash_erase);
+EXPORT_SYMBOL_GPL(opal_prd_msg);
 
 /* Convert a region of vmalloc memory to an opal sg list */
 struct opal_sg_list *opal_vmalloc_to_sg_list(void *vmalloc_addr,

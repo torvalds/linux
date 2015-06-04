@@ -153,7 +153,8 @@
 #define OPAL_FLASH_READ				110
 #define OPAL_FLASH_WRITE			111
 #define OPAL_FLASH_ERASE			112
-#define OPAL_LAST				112
+#define OPAL_PRD_MSG				113
+#define OPAL_LAST				113
 
 /* Device tree flags */
 
@@ -359,6 +360,7 @@ enum opal_msg_type {
 	OPAL_MSG_SHUTDOWN,		/* params[0] = 1 reboot, 0 shutdown */
 	OPAL_MSG_HMI_EVT,
 	OPAL_MSG_DPO,
+	OPAL_MSG_PRD,
 	OPAL_MSG_TYPE_MAX,
 };
 
@@ -680,6 +682,23 @@ typedef struct oppanel_line {
 	__be64 line;
 	__be64 line_len;
 } oppanel_line_t;
+
+enum opal_prd_msg_type {
+	OPAL_PRD_MSG_TYPE_INIT = 0,	/* HBRT --> OPAL */
+	OPAL_PRD_MSG_TYPE_FINI,		/* HBRT/kernel --> OPAL */
+	OPAL_PRD_MSG_TYPE_ATTN,		/* HBRT <-- OPAL */
+	OPAL_PRD_MSG_TYPE_ATTN_ACK,	/* HBRT --> OPAL */
+	OPAL_PRD_MSG_TYPE_OCC_ERROR,	/* HBRT <-- OPAL */
+	OPAL_PRD_MSG_TYPE_OCC_RESET,	/* HBRT <-- OPAL */
+};
+
+struct opal_prd_msg_header {
+	uint8_t		type;
+	uint8_t		pad[1];
+	__be16		size;
+};
+
+struct opal_prd_msg;
 
 /*
  * SG entries
