@@ -35,7 +35,8 @@ struct r8a7779_pm_domain {
 	struct rcar_sysc_ch ch;
 };
 
-static inline struct rcar_sysc_ch *to_r8a7779_ch(struct generic_pm_domain *d)
+static inline
+const struct rcar_sysc_ch *to_r8a7779_ch(struct generic_pm_domain *d)
 {
 	return &container_of(d, struct r8a7779_pm_domain, genpd)->ch;
 }
