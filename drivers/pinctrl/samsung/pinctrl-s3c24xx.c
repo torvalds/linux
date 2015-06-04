@@ -243,7 +243,7 @@ static struct irq_chip s3c2410_eint0_3_chip = {
 static void s3c2410_demux_eint0_3(unsigned int irq, struct irq_desc *desc)
 {
 	struct irq_data *data = irq_desc_get_irq_data(desc);
-	struct s3c24xx_eint_data *eint_data = irq_get_handler_data(irq);
+	struct s3c24xx_eint_data *eint_data = irq_desc_get_handler_data(desc);
 	unsigned int virq;
 
 	/* the first 4 eints have a simple 1 to 1 mapping */
@@ -297,9 +297,9 @@ static struct irq_chip s3c2412_eint0_3_chip = {
 
 static void s3c2412_demux_eint0_3(unsigned int irq, struct irq_desc *desc)
 {
-	struct irq_chip *chip = irq_get_chip(irq);
+	struct s3c24xx_eint_data *eint_data = irq_desc_get_handler_data(desc);
 	struct irq_data *data = irq_desc_get_irq_data(desc);
-	struct s3c24xx_eint_data *eint_data = irq_get_handler_data(irq);
+	struct irq_chip *chip = irq_data_get_irq_chip(data);
 	unsigned int virq;
 
 	chained_irq_enter(chip, desc);
@@ -357,11 +357,11 @@ static struct irq_chip s3c24xx_eint_chip = {
 	.irq_set_type	= s3c24xx_eint_type,
 };
 
-static inline void s3c24xx_demux_eint(unsigned int irq, struct irq_desc *desc,
+static inline void s3c24xx_demux_eint(struct irq_desc *desc,
 				      u32 offset, u32 range)
 {
-	struct irq_chip *chip = irq_get_chip(irq);
-	struct s3c24xx_eint_data *data = irq_get_handler_data(irq);
+	struct s3c24xx_eint_data *data = irq_desc_get_handler_data(desc);
+	struct irq_chip *chip = irq_desc_get_irq_chip(desc);
 	struct samsung_pinctrl_drv_data *d = data->drvdata;
 	unsigned int pend, mask;
 
@@ -374,7 +374,7 @@ static inline void s3c24xx_demux_eint(unsigned int irq, struct irq_desc *desc,
 	pend &= range;
 
 	while (pend) {
-		unsigned int virq;
+		unsigned int virq, irq;
 
 		irq = __ffs(pend);
 		pend &= ~(1 << irq);
@@ -390,12 +390,12 @@ static inline void s3c24xx_demux_eint(unsigned int irq, struct irq_desc *desc,
 
 static void s3c24xx_demux_eint4_7(unsigned int irq, struct irq_desc *desc)
 {
-	s3c24xx_demux_eint(irq, desc, 0, 0xf0);
+	s3c24xx_demux_eint(desc, 0, 0xf0);
 }
 
 static void s3c24xx_demux_eint8_23(unsigned int irq, struct irq_desc *desc)
 {
-	s3c24xx_demux_eint(irq, desc, 8, 0xffff00);
+	s3c24xx_demux_eint(desc, 8, 0xffff00);
 }
 
 static irq_flow_handler_t s3c2410_eint_handlers[NUM_EINT_IRQ] = {

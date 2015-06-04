@@ -1471,8 +1471,8 @@ static const struct gpio_chip rockchip_gpiolib_chip = {
 
 static void rockchip_irq_demux(unsigned int irq, struct irq_desc *desc)
 {
-	struct irq_chip *chip = irq_get_chip(irq);
-	struct rockchip_pin_bank *bank = irq_get_handler_data(irq);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct rockchip_pin_bank *bank = irq_desc_get_handler_data(desc);
 	u32 pend;
 
 	dev_dbg(bank->drvdata->dev, "got irq for bank %s\n", bank->name);

@@ -770,7 +770,7 @@ static void msm_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	const struct msm_pingroup *g;
 	struct msm_pinctrl *pctrl = to_msm_pinctrl(gc);
-	struct irq_chip *chip = irq_get_chip(irq);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	int irq_pin;
 	int handled = 0;
 	u32 val;

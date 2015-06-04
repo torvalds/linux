@@ -843,10 +843,9 @@ static void nmk_gpio_irq_shutdown(struct irq_data *d)
 	clk_disable(nmk_chip->clk);
 }
 
-static void __nmk_gpio_irq_handler(unsigned int irq, struct irq_desc *desc,
-				   u32 status)
+static void __nmk_gpio_irq_handler(struct irq_desc *desc, u32 status)
 {
-	struct irq_chip *host_chip = irq_get_chip(irq);
+	struct irq_chip *host_chip = irq_desc_get_chip(desc);
 	struct gpio_chip *chip = irq_desc_get_handler_data(desc);
 
 	chained_irq_enter(host_chip, desc);
@@ -871,17 +870,16 @@ static void nmk_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 	status = readl(nmk_chip->addr + NMK_GPIO_IS);
 	clk_disable(nmk_chip->clk);
 
-	__nmk_gpio_irq_handler(irq, desc, status);
+	__nmk_gpio_irq_handler(desc, status);
 }
 
-static void nmk_gpio_latent_irq_handler(unsigned int irq,
-					   struct irq_desc *desc)
+static void nmk_gpio_latent_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	struct gpio_chip *chip = irq_desc_get_handler_data(desc);
 	struct nmk_gpio_chip *nmk_chip = container_of(chip, struct nmk_gpio_chip, chip);
 	u32 status = nmk_chip->get_latent_status(nmk_chip->bank);
 
-	__nmk_gpio_irq_handler(irq, desc, status);
+	__nmk_gpio_irq_handler(desc, status);
 }
 
 /* I/O Functions */

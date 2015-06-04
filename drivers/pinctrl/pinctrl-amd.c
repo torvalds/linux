@@ -501,7 +501,7 @@ static void amd_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 	u64 reg64;
 	int handled = 0;
 	unsigned long flags;
-	struct irq_chip *chip = irq_get_chip(irq);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	struct amd_gpio *gpio_dev = to_amd_gpio(gc);
 

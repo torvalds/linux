@@ -552,7 +552,7 @@ static void sirfsoc_gpio_handle_irq(unsigned int irq, struct irq_desc *desc)
 	struct sirfsoc_gpio_bank *bank;
 	u32 status, ctrl;
 	int idx = 0;
-	struct irq_chip *chip = irq_get_chip(irq);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	int i;
 
 	for (i = 0; i < SIRFSOC_GPIO_NO_OF_BANKS; i++) {

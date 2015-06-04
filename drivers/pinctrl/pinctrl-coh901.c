@@ -521,8 +521,8 @@ static struct irq_chip u300_gpio_irqchip = {
 
 static void u300_gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 {
-	struct irq_chip *parent_chip = irq_get_chip(irq);
-	struct gpio_chip *chip = irq_get_handler_data(irq);
+	struct irq_chip *parent_chip = irq_desc_get_chip(desc);
+	struct gpio_chip *chip = irq_desc_get_handler_data(desc);
 	struct u300_gpio *gpio = to_u300_gpio(chip);
 	struct u300_gpio_port *port = &gpio->ports[irq - chip->base];
 	int pinoffset = port->number << 3; /* get the right stride */
