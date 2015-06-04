@@ -102,18 +102,6 @@ extern void pcibios_finish_adding_to_bus(struct pci_bus *bus);
 
 extern void pcibios_resource_survey(void);
 
-extern struct pci_controller *init_phb_dynamic(struct device_node *dn);
-extern int remove_phb_dynamic(struct pci_controller *phb);
-
-extern struct pci_dev *of_create_pci_dev(struct device_node *node,
-					struct pci_bus *bus, int devfn);
-
-extern void of_scan_pci_bridge(struct device_node *node,
-				struct pci_dev *dev);
-
-extern void of_scan_bus(struct device_node *node, struct pci_bus *bus);
-extern void of_rescan_bus(struct device_node *node, struct pci_bus *bus);
-
 extern int pci_bus_find_capability(struct pci_bus *bus,
 						unsigned int devfn, int cap);
 
