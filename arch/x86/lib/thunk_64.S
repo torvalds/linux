@@ -49,9 +49,7 @@
 
 #ifdef CONFIG_PREEMPT
 	THUNK ___preempt_schedule, preempt_schedule
-#ifdef CONFIG_CONTEXT_TRACKING
-	THUNK ___preempt_schedule_context, preempt_schedule_context
-#endif
+	THUNK ___preempt_schedule_notrace, preempt_schedule_notrace
 #endif
 
 #if defined(CONFIG_TRACE_IRQFLAGS) \

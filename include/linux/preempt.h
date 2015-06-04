@@ -204,15 +204,11 @@ do { \
 
 #ifdef CONFIG_PREEMPT
 
-#ifndef CONFIG_CONTEXT_TRACKING
-#define __preempt_schedule_context() __preempt_schedule()
-#endif
-
 #define preempt_enable_notrace() \
 do { \
 	barrier(); \
 	if (unlikely(__preempt_count_dec_and_test())) \
-		__preempt_schedule_context(); \
+		__preempt_schedule_notrace(); \
 } while (0)
 #else
 #define preempt_enable_notrace() \
