@@ -2489,27 +2489,38 @@ static void get_hw_info(struct vpu_subdev_data *data)
 	}
 }
 
+static bool check_irq_err(task_info *task, u32 irq_status)
+{
+	return (task->error_mask & irq_status) ? true : false;
+}
+
 static irqreturn_t vdpu_irq(int irq, void *dev_id)
 {
 	struct vpu_subdev_data *data = (struct vpu_subdev_data*)dev_id;
 	struct vpu_service_info *pservice = data->pservice;
 	vpu_device *dev = &data->dec_dev;
 	u32 raw_status;
-	u32 irq_status;
+	u32 dec_status;
 
 	/*vcodec_enter_mode(data);*/
 
-	irq_status = raw_status = readl(dev->hwregs + DEC_INTERRUPT_REGISTER);
+	dec_status = raw_status = readl(dev->hwregs + DEC_INTERRUPT_REGISTER);
 
-	if (irq_status & DEC_INTERRUPT_BIT) {
+	if (dec_status & DEC_INTERRUPT_BIT) {
 		time_record(&tasks[TASK_VPU_DEC], 1);
-		vpu_debug(DEBUG_IRQ_STATUS, "vdpu_irq dec status %08x\n", irq_status);
-		if ((irq_status & 0x40001) == 0x40001) {
+		vpu_debug(DEBUG_IRQ_STATUS, "vdpu_irq dec status %08x\n", dec_status);
+		if ((dec_status & 0x40001) == 0x40001) {
 			do {
-				irq_status =
+				dec_status =
 					readl(dev->hwregs +
 						DEC_INTERRUPT_REGISTER);
-			} while ((irq_status & 0x40001) == 0x40001);
+			} while ((dec_status & 0x40001) == 0x40001);
+		}
+
+		if (check_irq_err((data->hw_info->hw_id == HEVC_ID)?
+					(&tasks[TASK_RKDEC_HEVC]) : (&tasks[TASK_VPU_DEC]),
+					dec_status)) {
+			atomic_add(1, &pservice->reset_request);
 		}
 
 		writel(0, dev->hwregs + DEC_INTERRUPT_REGISTER);
@@ -2518,12 +2529,16 @@ static irqreturn_t vdpu_irq(int irq, void *dev_id)
 	}
 
 	if (data->hw_info->hw_id != HEVC_ID) {
-		irq_status = readl(dev->hwregs + PP_INTERRUPT_REGISTER);
-		if (irq_status & PP_INTERRUPT_BIT) {
+		u32 pp_status = readl(dev->hwregs + PP_INTERRUPT_REGISTER);
+		if (pp_status & PP_INTERRUPT_BIT) {
 			time_record(&tasks[TASK_VPU_PP], 1);
-			vpu_debug(DEBUG_IRQ_STATUS, "vdpu_irq pp status %08x\n", irq_status);
+			vpu_debug(DEBUG_IRQ_STATUS, "vdpu_irq pp status %08x\n", pp_status);
+
+			if (check_irq_err(&tasks[TASK_VPU_PP], dec_status))
+				atomic_add(1, &pservice->reset_request);
+
 			/* clear pp IRQ */
-			writel(irq_status & (~DEC_INTERRUPT_BIT), dev->hwregs + PP_INTERRUPT_REGISTER);
+			writel(pp_status & (~DEC_INTERRUPT_BIT), dev->hwregs + PP_INTERRUPT_REGISTER);
 			atomic_add(1, &dev->irq_count_pp);
 			time_diff(&tasks[TASK_VPU_PP]);
 		}
@@ -2585,6 +2600,10 @@ static irqreturn_t vepu_irq(int irq, void *dev_id)
 
 	if (likely(irq_status & ENC_INTERRUPT_BIT)) {
 		time_record(&tasks[TASK_VPU_ENC], 1);
+
+		if (check_irq_err(&tasks[TASK_VPU_ENC], irq_status))
+			atomic_add(1, &pservice->reset_request);
+
 		/* clear enc IRQ */
 		writel(irq_status & (~ENC_INTERRUPT_BIT), dev->hwregs + ENC_INTERRUPT_REGISTER);
 		atomic_add(1, &dev->irq_count_codec);
