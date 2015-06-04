@@ -90,30 +90,6 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-
-			blsp1_uart2_default: blsp1_uart2_default {
-				pinmux {
-					function = "blsp_uart2";
-					pins = "gpio4", "gpio5";
-				};
-				pinconf {
-					pins = "gpio4", "gpio5";
-					drive-strength = <16>;
-					bias-disable;
-				};
-			};
-
-			blsp1_uart2_sleep: blsp1_uart2_sleep {
-				pinmux {
-					function = "blsp_uart2";
-					pins = "gpio4", "gpio5";
-				};
-				pinconf {
-					pins = "gpio4", "gpio5";
-					drive-strength = <2>;
-					bias-pull-down;
-				};
-			};
 		};
 
 		gcc: qcom,gcc@1800000 {
@@ -217,3 +193,5 @@
 		};
 	};
 };
+
+#include "msm8916-pins.dtsi"
