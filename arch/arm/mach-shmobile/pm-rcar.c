@@ -42,6 +42,9 @@
 #define SYSCSR_RETRIES		100
 #define SYSCSR_DELAY_US		1
 
+#define PWRER_RETRIES		100
+#define PWRER_DELAY_US		1
+
 #define SYSCISR_RETRIES		1000
 #define SYSCISR_DELAY_US	1
 
@@ -95,14 +98,23 @@ static int rcar_sysc_update(struct rcar_sysc_ch *sysc_ch,
 	iowrite32(isr_mask, rcar_sysc_base + SYSCISCR);
 
 	/* Submit power shutoff or resume request until it was accepted */
-	do {
+	for (k = 0; k < PWRER_RETRIES; k++) {
 		ret = on_off_fn(sysc_ch);
 		if (ret)
 			goto out;
 
 		status = ioread32(rcar_sysc_base +
 				  sysc_ch->chan_offs + PWRER_OFFS);
-	} while (status & chan_mask);
+		if (!(status & chan_mask))
+			break;
+
+		udelay(PWRER_DELAY_US);
+	}
+
+	if (k == PWRER_RETRIES) {
+		ret = -EIO;
+		goto out;
+	}
 
 	/* Wait until the power shutoff or resume request has completed * */
 	for (k = 0; k < SYSCISR_RETRIES; k++) {
