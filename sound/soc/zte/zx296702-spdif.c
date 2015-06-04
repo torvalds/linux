@@ -309,7 +309,7 @@ static int zx_spdif_probe(struct platform_device *pdev)
 	struct zx_spdif_info *zx_spdif;
 	int ret;
 
-	zx_spdif = devm_kzalloc(sizeof(*zx_spdif), GFP_KERNEL);
+	zx_spdif = devm_kzalloc(&pdev->dev, sizeof(*zx_spdif), GFP_KERNEL);
 	if (!zx_spdif)
 		return -ENOMEM;
 
