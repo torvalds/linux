@@ -26,12 +26,6 @@ struct rmobile_pm_domain {
 	bool no_debug;
 };
 
-static inline
-struct rmobile_pm_domain *to_rmobile_pd(struct generic_pm_domain *d)
-{
-	return container_of(d, struct rmobile_pm_domain, genpd);
-}
-
 struct pm_domain_device {
 	const char *domain_name;
 	struct platform_device *pdev;
