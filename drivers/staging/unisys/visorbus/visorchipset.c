@@ -110,16 +110,7 @@ static DEFINE_SEMAPHORE(notifier_lock);
 static struct cdev file_cdev;
 static struct visorchannel **file_controlvm_channel;
 static struct controlvm_message_header g_chipset_msg_hdr;
-static const uuid_le spar_diag_pool_channel_protocol_uuid =
-	SPAR_DIAG_POOL_CHANNEL_PROTOCOL_UUID;
-/* 0xffffff is an invalid Bus/Device number */
-static u32 g_diagpool_bus_no = 0xffffff;
-static u32 g_diagpool_dev_no = 0xffffff;
 static struct controlvm_message_packet g_devicechangestate_packet;
-
-#define is_diagpool_channel(channel_type_guid) \
-	(uuid_le_cmp(channel_type_guid,\
-		     spar_diag_pool_channel_protocol_uuid) == 0)
 
 static LIST_HEAD(bus_info_list);
 static LIST_HEAD(dev_info_list);
@@ -827,14 +818,6 @@ controlvm_respond(struct controlvm_message_header *msg_hdr, int response)
 	struct controlvm_message outmsg;
 
 	controlvm_init_response(&outmsg, msg_hdr, response);
-	/* For DiagPool channel DEVICE_CHANGESTATE, we need to send
-	* back the deviceChangeState structure in the packet. */
-	if (msg_hdr->id == CONTROLVM_DEVICE_CHANGESTATE &&
-	    g_devicechangestate_packet.device_change_state.bus_no ==
-	    g_diagpool_bus_no &&
-	    g_devicechangestate_packet.device_change_state.dev_no ==
-	    g_diagpool_dev_no)
-		outmsg.cmd = g_devicechangestate_packet;
 	if (outmsg.hdr.flags.test_message == 1)
 		return;
 
@@ -1008,14 +991,7 @@ device_epilog(struct visor_device *dev_info,
 {
 	struct visorchipset_busdev_notifiers *notifiers;
 	bool notified = false;
-	u32 bus_no = dev_info->chipset_bus_no;
-	u32 dev_no = dev_info->chipset_dev_no;
 	struct controlvm_message_header *pmsg_hdr = NULL;
-
-	char *envp[] = {
-		"SPARSP_DIAGPOOL_PAUSED_STATE = 1",
-		NULL
-	};
 
 	notifiers = &busdev_notifiers;
 
@@ -1074,21 +1050,6 @@ device_epilog(struct visor_device *dev_info,
 				if (notifiers->device_pause) {
 					(*notifiers->device_pause) (dev_info);
 					notified = true;
-				}
-			} else if (state.alive == segment_state_paused.alive &&
-				   state.operating ==
-				   segment_state_paused.operating) {
-				/* this is lite pause where channel is
-				 * still valid just 'pause' of it
-				 */
-				if (bus_no == g_diagpool_bus_no &&
-				    dev_no == g_diagpool_dev_no) {
-					/* this will trigger the
-					 * diag_shutdown.sh script in
-					 * the visorchipset hotplug */
-					kobject_uevent_env
-					    (&visorchipset_platform_device.dev.
-					     kobj, KOBJ_ONLINE, envp);
 				}
 			}
 			break;
@@ -1298,12 +1259,6 @@ my_device_create(struct controlvm_message *inmsg)
 	POSTCODE_LINUX_4(DEVICE_CREATE_EXIT_PC, dev_no, bus_no,
 			 POSTCODE_SEVERITY_INFO);
 cleanup:
-	/* get the bus and devNo for DiagPool channel */
-	if (dev_info &&
-	    is_diagpool_channel(cmd->create_device.data_type_uuid)) {
-		g_diagpool_bus_no = bus_no;
-		g_diagpool_dev_no = dev_no;
-	}
 	device_epilog(dev_info, segment_state_running,
 		      CONTROLVM_DEVICE_CREATE, &inmsg->hdr, rc,
 		      inmsg->hdr.flags.response_expected == 1, 1);
