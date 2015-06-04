@@ -29,9 +29,6 @@
 
 /* ABI
  *
- * s0	1st scratch register
- * s1	2nd scratch register
- * s2	offset register
  * s3	BPF register A
  * s4	BPF register X
  * s5	*skb
@@ -88,13 +85,13 @@
  * any of the $s0-$s6 registers will only be preserved if
  * they are going to actually be used.
  */
-#define r_s0		MIPS_R_S0 /* scratch reg 1 */
-#define r_s1		MIPS_R_S1 /* scratch reg 2 */
 #define r_off		MIPS_R_S2
 #define r_A		MIPS_R_S3
 #define r_X		MIPS_R_S4
 #define r_skb		MIPS_R_S5
 #define r_M		MIPS_R_S6
+#define r_s0		MIPS_R_T4 /* scratch reg 1 */
+#define r_s1		MIPS_R_T5 /* scratch reg 2 */
 #define r_tmp_imm	MIPS_R_T6 /* No need to preserve this */
 #define r_tmp		MIPS_R_T7 /* No need to preserve this */
 #define r_zero		MIPS_R_ZERO
@@ -108,8 +105,6 @@
 #define SEEN_SREG_SFT		(BPF_MEMWORDS + 1)
 #define SEEN_SREG_BASE		(1 << SEEN_SREG_SFT)
 #define SEEN_SREG(x)		(SEEN_SREG_BASE << (x))
-#define SEEN_S0			SEEN_SREG(0)
-#define SEEN_S1			SEEN_SREG(1)
 #define SEEN_OFF		SEEN_SREG(2)
 #define SEEN_A			SEEN_SREG(3)
 #define SEEN_X			SEEN_SREG(4)
@@ -813,7 +808,7 @@ load_common:
 				   b_imm(prog->len, ctx), ctx);
 			emit_reg_move(r_ret, r_zero, ctx);
 
-			ctx->flags |= SEEN_CALL | SEEN_OFF | SEEN_S0 |
+			ctx->flags |= SEEN_CALL | SEEN_OFF |
 				SEEN_SKB | SEEN_A;
 
 			emit_load_func(r_s0, (ptr)load_func[load_order],
@@ -879,7 +874,7 @@ load_ind:
 				return -ENOTSUPP;
 
 			/* X <- 4 * (P[k:1] & 0xf) */
-			ctx->flags |= SEEN_X | SEEN_CALL | SEEN_S0 | SEEN_SKB;
+			ctx->flags |= SEEN_X | SEEN_CALL | SEEN_SKB;
 			/* Load offset to a1 */
 			emit_load_func(r_s0, (ptr)jit_get_skb_b, ctx);
 			/*
@@ -943,7 +938,7 @@ load_ind:
 		case BPF_ALU | BPF_MUL | BPF_K:
 			/* A *= K */
 			/* Load K to scratch register before MUL */
-			ctx->flags |= SEEN_A | SEEN_S0;
+			ctx->flags |= SEEN_A;
 			emit_load_imm(r_s0, k, ctx);
 			emit_mul(r_A, r_A, r_s0, ctx);
 			break;
@@ -961,7 +956,7 @@ load_ind:
 				emit_srl(r_A, r_A, k, ctx);
 				break;
 			}
-			ctx->flags |= SEEN_A | SEEN_S0;
+			ctx->flags |= SEEN_A;
 			emit_load_imm(r_s0, k, ctx);
 			emit_div(r_A, r_s0, ctx);
 			break;
@@ -971,7 +966,7 @@ load_ind:
 				ctx->flags |= SEEN_A;
 				emit_jit_reg_move(r_A, r_zero, ctx);
 			} else {
-				ctx->flags |= SEEN_A | SEEN_S0;
+				ctx->flags |= SEEN_A;
 				emit_load_imm(r_s0, k, ctx);
 				emit_mod(r_A, r_s0, ctx);
 			}
@@ -1085,10 +1080,10 @@ jmp_cmp:
 			if ((condt & MIPS_COND_GE) ||
 			    (condt & MIPS_COND_GT)) {
 				if (condt & MIPS_COND_K) { /* K */
-					ctx->flags |= SEEN_S0 | SEEN_A;
+					ctx->flags |= SEEN_A;
 					emit_sltiu(r_s0, r_A, k, ctx);
 				} else { /* X */
-					ctx->flags |= SEEN_S0 | SEEN_A |
+					ctx->flags |= SEEN_A |
 						SEEN_X;
 					emit_sltu(r_s0, r_A, r_X, ctx);
 				}
@@ -1100,7 +1095,7 @@ jmp_cmp:
 				/* A > (K|X) ? scratch = 0 */
 				if (condt & MIPS_COND_GT) {
 					/* Checking for equality */
-					ctx->flags |= SEEN_S0 | SEEN_A | SEEN_X;
+					ctx->flags |= SEEN_A | SEEN_X;
 					if (condt & MIPS_COND_K)
 						emit_load_imm(r_s0, k, ctx);
 					else
@@ -1123,7 +1118,7 @@ jmp_cmp:
 			} else {
 				/* A == K|X */
 				if (condt & MIPS_COND_K) { /* K */
-					ctx->flags |= SEEN_S0 | SEEN_A;
+					ctx->flags |= SEEN_A;
 					emit_load_imm(r_s0, k, ctx);
 					/* jump true */
 					b_off = b_imm(i + inst->jt + 1, ctx);
@@ -1153,7 +1148,7 @@ jmp_cmp:
 			}
 			break;
 		case BPF_JMP | BPF_JSET | BPF_K:
-			ctx->flags |= SEEN_S0 | SEEN_S1 | SEEN_A;
+			ctx->flags |= SEEN_A;
 			/* pc += (A & K) ? pc -> jt : pc -> jf */
 			emit_load_imm(r_s1, k, ctx);
 			emit_and(r_s0, r_A, r_s1, ctx);
@@ -1167,7 +1162,7 @@ jmp_cmp:
 			emit_nop(ctx);
 			break;
 		case BPF_JMP | BPF_JSET | BPF_X:
-			ctx->flags |= SEEN_S0 | SEEN_X | SEEN_A;
+			ctx->flags |= SEEN_X | SEEN_A;
 			/* pc += (A & X) ? pc -> jt : pc -> jf */
 			emit_and(r_s0, r_A, r_X, ctx);
 			/* jump true */
@@ -1251,7 +1246,7 @@ jmp_cmp:
 			break;
 		case BPF_ANC | SKF_AD_IFINDEX:
 			/* A = skb->dev->ifindex */
-			ctx->flags |= SEEN_SKB | SEEN_A | SEEN_S0;
+			ctx->flags |= SEEN_SKB | SEEN_A;
 			off = offsetof(struct sk_buff, dev);
 			/* Load *dev pointer */
 			emit_load_ptr(r_s0, r_skb, off, ctx);
@@ -1278,7 +1273,7 @@ jmp_cmp:
 			break;
 		case BPF_ANC | SKF_AD_VLAN_TAG:
 		case BPF_ANC | SKF_AD_VLAN_TAG_PRESENT:
-			ctx->flags |= SEEN_SKB | SEEN_S0 | SEEN_A;
+			ctx->flags |= SEEN_SKB | SEEN_A;
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff,
 						  vlan_tci) != 2);
 			off = offsetof(struct sk_buff, vlan_tci);

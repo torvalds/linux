@@ -18,6 +18,8 @@
 #define MIPS_R_V1	3
 #define MIPS_R_A0	4
 #define MIPS_R_A1	5
+#define MIPS_R_T4	12
+#define MIPS_R_T5	13
 #define MIPS_R_T6	14
 #define MIPS_R_T7	15
 #define MIPS_R_S0	16
