@@ -19,10 +19,9 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/screen_info.h>
+#include <linux/io.h>
 
 #include <video/vga.h>
-#include <asm/io.h>
-#include <asm/mtrr.h>
 
 #define dac_reg	(0x3c8)
 #define dac_val	(0x3c9)
@@ -180,16 +179,10 @@ static int vesafb_setcolreg(unsigned regno, unsigned red, unsigned green,
 
 static void vesafb_destroy(struct fb_info *info)
 {
-#ifdef CONFIG_MTRR
 	struct vesafb_par *par = info->par;
-#endif
 
 	fb_dealloc_cmap(&info->cmap);
-
-#ifdef CONFIG_MTRR
-	if (par->wc_cookie >= 0)
-		mtrr_del(par->wc_cookie, 0, 0);
-#endif
+	arch_phys_wc_del(par->wc_cookie);
 	if (info->screen_base)
 		iounmap(info->screen_base);
 	release_mem_region(info->apertures->ranges[0].base, info->apertures->ranges[0].size);
@@ -420,7 +413,6 @@ static int vesafb_probe(struct platform_device *dev)
 	request_region(0x3c0, 32, "vesafb");
 
 	if (mtrr == 3) {
-#ifdef CONFIG_MTRR
 		unsigned int temp_size = size_total;
 
 		/* Find the largest power-of-two */
@@ -428,18 +420,16 @@ static int vesafb_probe(struct platform_device *dev)
 
 		/* Try and find a power of two to add */
 		do {
-			par->wc_cookie = mtrr_add(vesafb_fix.smem_start,
-						  temp_size,
-						  MTRR_TYPE_WRCOMB, 1);
+			par->wc_cookie =
+				arch_phys_wc_add(vesafb_fix.smem_start,
+						 temp_size);
 			temp_size >>= 1;
-		} while (temp_size >= PAGE_SIZE && par->wc_cookie == -EINVAL);
-#endif
+		} while (temp_size >= PAGE_SIZE && par->wc_cookie < 0);
+
 		info->screen_base = ioremap_wc(vesafb_fix.smem_start, vesafb_fix.smem_len);
 	} else {
-#ifdef CONFIG_MTRR
 		if (mtrr && mtrr != 3)
 			WARN_ONCE(1, "Only MTRR_TYPE_WRCOMB (3) make sense\n");
-#endif
 		info->screen_base = ioremap(vesafb_fix.smem_start, vesafb_fix.smem_len);
 	}
 
@@ -477,10 +467,7 @@ static int vesafb_probe(struct platform_device *dev)
 	fb_info(info, "%s frame buffer device\n", info->fix.id);
 	return 0;
 err:
-#ifdef CONFIG_MTRR
-	if (par->wc_cookie >= 0)
-		mtrr_del(par->wc_cookie, 0, 0);
-#endif
+	arch_phys_wc_del(par->wc_cookie);
 	if (info->screen_base)
 		iounmap(info->screen_base);
 	framebuffer_release(info);
