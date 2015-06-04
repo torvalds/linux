@@ -104,13 +104,13 @@ int mlx5_set_port_caps(struct mlx5_core_dev *dev, u8 port_num, u32 caps)
 EXPORT_SYMBOL_GPL(mlx5_set_port_caps);
 
 int mlx5_query_port_ptys(struct mlx5_core_dev *dev, u32 *ptys,
-			 int ptys_size, int proto_mask)
+			 int ptys_size, int proto_mask, u8 local_port)
 {
 	u32 in[MLX5_ST_SZ_DW(ptys_reg)];
 	int err;
 
 	memset(in, 0, sizeof(in));
-	MLX5_SET(ptys_reg, in, local_port, 1);
+	MLX5_SET(ptys_reg, in, local_port, local_port);
 	MLX5_SET(ptys_reg, in, proto_mask, proto_mask);
 
 	err = mlx5_core_access_reg(dev, in, sizeof(in), ptys,
@@ -126,7 +126,7 @@ int mlx5_query_port_proto_cap(struct mlx5_core_dev *dev,
 	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
 	int err;
 
-	err = mlx5_query_port_ptys(dev, out, sizeof(out), proto_mask);
+	err = mlx5_query_port_ptys(dev, out, sizeof(out), proto_mask, 1);
 	if (err)
 		return err;
 
@@ -145,7 +145,7 @@ int mlx5_query_port_proto_admin(struct mlx5_core_dev *dev,
 	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
 	int err;
 
-	err = mlx5_query_port_ptys(dev, out, sizeof(out), proto_mask);
+	err = mlx5_query_port_ptys(dev, out, sizeof(out), proto_mask, 1);
 	if (err)
 		return err;
 
