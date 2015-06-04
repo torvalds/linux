@@ -1698,6 +1698,7 @@ struct btrfs_fs_info {
 	struct btrfs_workqueue *scrub_workers;
 	struct btrfs_workqueue *scrub_wr_completion_workers;
 	struct btrfs_workqueue *scrub_nocow_workers;
+	struct btrfs_workqueue *scrub_parity_workers;
 
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 	u32 check_integrity_print_mask;
