@@ -166,12 +166,28 @@ bool is_supported_compression(const char *ext)
 	return false;
 }
 
-bool is_kernel_module(const char *pathname)
+bool is_kernel_module(const char *pathname, int cpumode)
 {
 	struct kmod_path m;
+	int mode = cpumode & PERF_RECORD_MISC_CPUMODE_MASK;
 
-	if (kmod_path__parse(&m, pathname))
-		return NULL;
+	WARN_ONCE(mode != cpumode,
+		  "Internal error: passing unmasked cpumode (%x) to is_kernel_module",
+		  cpumode);
+
+	switch (mode) {
+	case PERF_RECORD_MISC_USER:
+	case PERF_RECORD_MISC_HYPERVISOR:
+	case PERF_RECORD_MISC_GUEST_USER:
+		return false;
+	/* Treat PERF_RECORD_MISC_CPUMODE_UNKNOWN as kernel */
+	default:
+		if (kmod_path__parse(&m, pathname)) {
+			pr_err("Failed to check whether %s is a kernel module or not. Assume it is.",
+					pathname);
+			return true;
+		}
+	}
 
 	return m.kmod;
 }
@@ -215,12 +231,33 @@ int __kmod_path__parse(struct kmod_path *m, const char *path,
 {
 	const char *name = strrchr(path, '/');
 	const char *ext  = strrchr(path, '.');
+	bool is_simple_name = false;
 
 	memset(m, 0x0, sizeof(*m));
 	name = name ? name + 1 : path;
 
+	/*
+	 * '.' is also a valid character for module name. For example:
+	 * [aaa.bbb] is a valid module name. '[' should have higher
+	 * priority than '.ko' suffix.
+	 *
+	 * The kernel names are from machine__mmap_name. Such
+	 * name should belong to kernel itself, not kernel module.
+	 */
+	if (name[0] == '[') {
+		is_simple_name = true;
+		if ((strncmp(name, "[kernel.kallsyms]", 17) == 0) ||
+		    (strncmp(name, "[guest.kernel.kallsyms", 22) == 0) ||
+		    (strncmp(name, "[vdso]", 6) == 0) ||
+		    (strncmp(name, "[vsyscall]", 10) == 0)) {
+			m->kmod = false;
+
+		} else
+			m->kmod = true;
+	}
+
 	/* No extension, just return name. */
-	if (ext == NULL) {
+	if ((ext == NULL) || is_simple_name) {
 		if (alloc_name) {
 			m->name = strdup(name);
 			return m->name ? 0 : -ENOMEM;
