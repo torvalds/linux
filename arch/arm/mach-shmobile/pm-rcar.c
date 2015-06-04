@@ -58,7 +58,7 @@ static int rcar_sysc_pwr_on_off(const struct rcar_sysc_ch *sysc_ch,
 
 	/* Wait until SYSC is ready to accept a power request */
 	for (k = 0; k < SYSCSR_RETRIES; k++) {
-		if (ioread32(rcar_sysc_base + SYSCSR) & (1 << sr_bit))
+		if (ioread32(rcar_sysc_base + SYSCSR) & BIT(sr_bit))
 			break;
 		udelay(SYSCSR_DELAY_US);
 	}
@@ -67,7 +67,7 @@ static int rcar_sysc_pwr_on_off(const struct rcar_sysc_ch *sysc_ch,
 		return -EAGAIN;
 
 	/* Submit power shutoff or power resume request */
-	iowrite32(1 << sysc_ch->chan_bit,
+	iowrite32(BIT(sysc_ch->chan_bit),
 		  rcar_sysc_base + sysc_ch->chan_offs + reg_offs);
 
 	return 0;
@@ -86,8 +86,8 @@ static int rcar_sysc_pwr_on(const struct rcar_sysc_ch *sysc_ch)
 static int rcar_sysc_update(const struct rcar_sysc_ch *sysc_ch,
 			    int (*on_off_fn)(const struct rcar_sysc_ch *))
 {
-	unsigned int isr_mask = 1 << sysc_ch->isr_bit;
-	unsigned int chan_mask = 1 << sysc_ch->chan_bit;
+	unsigned int isr_mask = BIT(sysc_ch->isr_bit);
+	unsigned int chan_mask = BIT(sysc_ch->chan_bit);
 	unsigned int status;
 	unsigned long flags;
 	int ret = 0;
@@ -151,7 +151,7 @@ bool rcar_sysc_power_is_off(const struct rcar_sysc_ch *sysc_ch)
 	unsigned int st;
 
 	st = ioread32(rcar_sysc_base + sysc_ch->chan_offs + PWRSR_OFFS);
-	if (st & (1 << sysc_ch->chan_bit))
+	if (st & BIT(sysc_ch->chan_bit))
 		return true;
 
 	return false;
