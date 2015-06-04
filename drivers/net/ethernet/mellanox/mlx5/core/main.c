@@ -284,14 +284,6 @@ static u16 to_fw_pkey_sz(u32 size)
 	}
 }
 
-static u16 to_sw_pkey_sz(int pkey_sz)
-{
-	if (pkey_sz > MLX5_MAX_LOG_PKEY_TABLE)
-		return 0;
-
-	return MLX5_MIN_PKEY_TABLE_SIZE << pkey_sz;
-}
-
 int mlx5_core_get_caps(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_type,
 		       enum mlx5_cap_mode cap_mode)
 {
@@ -386,7 +378,7 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 	       MLX5_ST_SZ_BYTES(cmd_hca_cap));
 
 	mlx5_core_dbg(dev, "Current Pkey table size %d Setting new size %d\n",
-		      to_sw_pkey_sz(MLX5_CAP_GEN(dev, pkey_table_size)),
+		      mlx5_to_sw_pkey_sz(MLX5_CAP_GEN(dev, pkey_table_size)),
 		      128);
 	/* we limit the size of the pkey table to 128 entries for now */
 	MLX5_SET(cmd_hca_cap, set_hca_cap, pkey_table_size,

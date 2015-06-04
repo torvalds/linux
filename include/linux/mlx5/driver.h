@@ -553,6 +553,41 @@ struct mlx5_pas {
 	u8	log_sz;
 };
 
+enum port_state_policy {
+	MLX5_AAA_000
+};
+
+enum phy_port_state {
+	MLX5_AAA_111
+};
+
+struct mlx5_hca_vport_context {
+	u32			field_select;
+	bool			sm_virt_aware;
+	bool			has_smi;
+	bool			has_raw;
+	enum port_state_policy	policy;
+	enum phy_port_state	phys_state;
+	enum ib_port_state	vport_state;
+	u8			port_physical_state;
+	u64			sys_image_guid;
+	u64			port_guid;
+	u64			node_guid;
+	u32			cap_mask1;
+	u32			cap_mask1_perm;
+	u32			cap_mask2;
+	u32			cap_mask2_perm;
+	u16			lid;
+	u8			init_type_reply; /* bitmask: see ib spec 14.2.5.6 InitTypeReply */
+	u8			lmc;
+	u8			subnet_timeout;
+	u16			sm_lid;
+	u8			sm_sl;
+	u16			qkey_violation_counter;
+	u16			pkey_violation_counter;
+	bool			grh_required;
+};
+
 static inline void *mlx5_buf_offset(struct mlx5_buf *buf, int offset)
 {
 		return buf->direct.buf + offset;
@@ -791,5 +826,15 @@ struct mlx5_profile {
 		int	limit;
 	} mr_cache[MAX_MR_CACHE_ENTRIES];
 };
+
+static inline int mlx5_get_gid_table_len(u16 param)
+{
+	if (param > 4) {
+		pr_warn("gid table length is zero\n");
+		return 0;
+	}
+
+	return 8 * (1 << param);
+}
 
 #endif /* MLX5_DRIVER_H */
