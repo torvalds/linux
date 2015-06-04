@@ -210,30 +210,17 @@ ipv6:
 
 			memcpy(key_ipv6_addrs, &iph->saddr, sizeof(*key_ipv6_addrs));
 			key_control->addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
-			goto flow_label;
 		}
-		break;
-flow_label:
+
 		flow_label = ip6_flowlabel(iph);
 		if (flow_label) {
-			/* Awesome, IPv6 packet has a flow label so we can
-			 * use that to represent the ports without any
-			 * further dissection.
-			 */
-
-			key_basic->n_proto = proto;
-			key_basic->ip_proto = ip_proto;
-			key_control->thoff = (u16)nhoff;
-
 			if (skb_flow_dissector_uses_key(flow_dissector,
-							FLOW_DISSECTOR_KEY_PORTS)) {
-				key_ports = skb_flow_dissector_target(flow_dissector,
-								      FLOW_DISSECTOR_KEY_PORTS,
-								      target_container);
-				key_ports->ports = flow_label;
+				FLOW_DISSECTOR_KEY_FLOW_LABEL)) {
+				key_tags = skb_flow_dissector_target(flow_dissector,
+								     FLOW_DISSECTOR_KEY_FLOW_LABEL,
+								     target_container);
+				key_tags->flow_label = ntohl(flow_label);
 			}
-
-			return true;
 		}
 
 		break;
@@ -657,6 +644,10 @@ static const struct flow_dissector_key flow_keys_dissector_keys[] = {
 	},
 	{
 		.key_id = FLOW_DISSECTOR_KEY_VLANID,
+		.offset = offsetof(struct flow_keys, tags),
+	},
+	{
+		.key_id = FLOW_DISSECTOR_KEY_FLOW_LABEL,
 		.offset = offsetof(struct flow_keys, tags),
 	},
 };
