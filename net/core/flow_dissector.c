@@ -127,6 +127,7 @@ bool __skb_flow_dissect(const struct sk_buff *skb,
 	struct flow_dissector_key_addrs *key_addrs;
 	struct flow_dissector_key_ports *key_ports;
 	struct flow_dissector_key_tags *key_tags;
+	struct flow_dissector_key_keyid *key_keyid;
 	u8 ip_proto;
 
 	if (!data) {
@@ -315,8 +316,25 @@ ipv6:
 		nhoff += 4;
 		if (hdr->flags & GRE_CSUM)
 			nhoff += 4;
-		if (hdr->flags & GRE_KEY)
+		if (hdr->flags & GRE_KEY) {
+			const __be32 *keyid;
+			__be32 _keyid;
+
+			keyid = __skb_header_pointer(skb, nhoff, sizeof(_keyid),
+						     data, hlen, &_keyid);
+
+			if (!keyid)
+				return false;
+
+			if (skb_flow_dissector_uses_key(flow_dissector,
+							FLOW_DISSECTOR_KEY_GRE_KEYID)) {
+				key_keyid = skb_flow_dissector_target(flow_dissector,
+								      FLOW_DISSECTOR_KEY_GRE_KEYID,
+								      target_container);
+				key_keyid->keyid = *keyid;
+			}
 			nhoff += 4;
+		}
 		if (hdr->flags & GRE_SEQ)
 			nhoff += 4;
 		if (proto == htons(ETH_P_TEB)) {
@@ -649,6 +667,10 @@ static const struct flow_dissector_key flow_keys_dissector_keys[] = {
 	{
 		.key_id = FLOW_DISSECTOR_KEY_FLOW_LABEL,
 		.offset = offsetof(struct flow_keys, tags),
+	},
+	{
+		.key_id = FLOW_DISSECTOR_KEY_GRE_KEYID,
+		.offset = offsetof(struct flow_keys, keyid),
 	},
 };
 
