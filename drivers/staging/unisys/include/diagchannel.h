@@ -58,20 +58,6 @@ static const uuid_le spar_diag_channel_protocol_uuid =
 * increment this. */
 #define ULTRA_DIAG_CHANNEL_PROTOCOL_VERSIONID 2
 
-#define SPAR_DIAG_CHANNEL_OK_CLIENT(ch)\
-	(spar_check_channel_client(ch,\
-				   spar_diag_channel_protocol_uuid,\
-				   "diag",\
-				   sizeof(struct spar_diag_channel_protocol),\
-				   ULTRA_DIAG_CHANNEL_PROTOCOL_VERSIONID,\
-				   ULTRA_DIAG_CHANNEL_PROTOCOL_SIGNATURE))
-
-#define SPAR_DIAG_CHANNEL_OK_SERVER(bytes)\
-	(spar_check_channel_server(spar_diag_channel_protocol_uuid,\
-				   "diag",\
-				   sizeof(struct spar_diag_channel_protocol),\
-				   bytes))
-
 #define MAX_MODULE_NAME_SIZE 128	/* Maximum length of module name... */
 #define MAX_ADDITIONAL_INFO_SIZE 256	/* Maximum length of any additional info
 					 * accompanying event... */
@@ -204,16 +190,16 @@ struct diag_channel_event {
 * change is made to this enum, they should also be reflected in that file.  */
 enum diag_severity {
 		DIAG_SEVERITY_ENUM_BEGIN = 0,
-		DIAG_SEVERITY_OVERRIDE = DIAG_SEVERITY_ENUM_BEGIN,
-		DIAG_SEVERITY_VERBOSE = DIAG_SEVERITY_OVERRIDE,	/* 0 */
-		DIAG_SEVERITY_INFO = DIAG_SEVERITY_VERBOSE + 1,	/* 1 */
-		DIAG_SEVERITY_WARNING = DIAG_SEVERITY_INFO + 1,	/* 2 */
-		DIAG_SEVERITY_ERR = DIAG_SEVERITY_WARNING + 1,	/* 3 */
-		DIAG_SEVERITY_PRINT = DIAG_SEVERITY_ERR + 1,	/* 4 */
-		DIAG_SEVERITY_SHUTOFF = DIAG_SEVERITY_PRINT + 1, /* 5 */
-		DIAG_SEVERITY_ENUM_END = DIAG_SEVERITY_SHUTOFF,	/* 5 */
-		DIAG_SEVERITY_NONFATAL_ERR = DIAG_SEVERITY_ERR,
-		DIAG_SEVERITY_FATAL_ERR = DIAG_SEVERITY_PRINT
+		DIAG_SEVERITY_OVERRIDE = 0,
+		DIAG_SEVERITY_VERBOSE = 0,
+		DIAG_SEVERITY_INFO = 1,
+		DIAG_SEVERITY_WARNING = 2,
+		DIAG_SEVERITY_ERR = 3,
+		DIAG_SEVERITY_NONFATAL_ERR = 3,
+		DIAG_SEVERITY_PRINT = 4,
+		DIAG_SEVERITY_FATAL_ERR = 4,
+		DIAG_SEVERITY_SHUTOFF = 5,
+		DIAG_SEVERITY_ENUM_END = 5
 };
 
 /* Event Cause enums
