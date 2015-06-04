@@ -20,6 +20,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <asm/asm.h>
 #include <asm/bitops.h>
 #include <asm/cacheflush.h>
 #include <asm/cpu-features.h>
@@ -60,7 +61,6 @@
  * ----------------------------------------------------
  */
 
-#define RSIZE	(sizeof(unsigned long))
 #define ptr typeof(unsigned long)
 
 /* ABI specific return values */
@@ -576,12 +576,12 @@ static void save_bpf_jit_regs(struct jit_ctx *ctx, unsigned offset)
 		/* Argument save area */
 		if (config_enabled(CONFIG_64BIT))
 			/* Bottom of current frame */
-			real_off = align_sp(offset) - RSIZE;
+			real_off = align_sp(offset) - SZREG;
 		else
 			/* Top of previous frame */
-			real_off = align_sp(offset) + RSIZE;
+			real_off = align_sp(offset) + SZREG;
 		emit_store_stack_reg(MIPS_R_A0, r_sp, real_off, ctx);
-		emit_store_stack_reg(MIPS_R_A1, r_sp, real_off + RSIZE, ctx);
+		emit_store_stack_reg(MIPS_R_A1, r_sp, real_off + SZREG, ctx);
 
 		real_off = 0;
 	}
@@ -592,7 +592,7 @@ static void save_bpf_jit_regs(struct jit_ctx *ctx, unsigned offset)
 		if ((sflags >> i) & 0x1) {
 			emit_store_stack_reg(MIPS_R_S0 + i, r_sp, real_off,
 					     ctx);
-			real_off += RSIZE;
+			real_off += SZREG;
 		}
 		i++;
 		tmp_flags >>= 1;
@@ -601,13 +601,13 @@ static void save_bpf_jit_regs(struct jit_ctx *ctx, unsigned offset)
 	/* save return address */
 	if (ctx->flags & SEEN_CALL) {
 		emit_store_stack_reg(r_ra, r_sp, real_off, ctx);
-		real_off += RSIZE;
+		real_off += SZREG;
 	}
 
 	/* Setup r_M leaving the alignment gap if necessary */
 	if (ctx->flags & SEEN_MEM) {
-		if (real_off % (RSIZE * 2))
-			real_off += RSIZE;
+		if (real_off % (SZREG * 2))
+			real_off += SZREG;
 		emit_long_instr(ctx, ADDIU, r_M, r_sp, real_off);
 	}
 }
@@ -621,12 +621,12 @@ static void restore_bpf_jit_regs(struct jit_ctx *ctx,
 	if (ctx->flags & SEEN_CALL) {
 		if (config_enabled(CONFIG_64BIT))
 			/* Bottom of current frame */
-			real_off = align_sp(offset) - RSIZE;
+			real_off = align_sp(offset) - SZREG;
 		else
 			/* Top of previous frame */
-			real_off = align_sp(offset) + RSIZE;
+			real_off = align_sp(offset) + SZREG;
 		emit_load_stack_reg(MIPS_R_A0, r_sp, real_off, ctx);
-		emit_load_stack_reg(MIPS_R_A1, r_sp, real_off + RSIZE, ctx);
+		emit_load_stack_reg(MIPS_R_A1, r_sp, real_off + SZREG, ctx);
 
 		real_off = 0;
 	}
@@ -638,7 +638,7 @@ static void restore_bpf_jit_regs(struct jit_ctx *ctx,
 		if ((sflags >> i) & 0x1) {
 			emit_load_stack_reg(MIPS_R_S0 + i, r_sp, real_off,
 					    ctx);
-			real_off += RSIZE;
+			real_off += SZREG;
 		}
 		i++;
 		tmp_flags >>= 1;
@@ -658,7 +658,7 @@ static unsigned int get_stack_depth(struct jit_ctx *ctx)
 
 
 	/* How may s* regs do we need to preserved? */
-	sp_off += hweight32(ctx->flags >> SEEN_SREG_SFT) * RSIZE;
+	sp_off += hweight32(ctx->flags >> SEEN_SREG_SFT) * SZREG;
 
 	if (ctx->flags & SEEN_MEM)
 		sp_off += 4 * BPF_MEMWORDS; /* BPF_MEMWORDS are 32-bit */
@@ -674,7 +674,7 @@ static unsigned int get_stack_depth(struct jit_ctx *ctx)
 		 * this space ourselves. We need to preserve $ra as well.
 		 */
 		sp_off += config_enabled(CONFIG_64BIT) ?
-			(ARGS_USED_BY_JIT + 1) * RSIZE : RSIZE;
+			(ARGS_USED_BY_JIT + 1) * SZREG : SZREG;
 
 	return sp_off;
 }
