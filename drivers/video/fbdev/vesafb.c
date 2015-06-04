@@ -404,60 +404,30 @@ static int vesafb_probe(struct platform_device *dev)
 	 * region already (FIXME) */
 	request_region(0x3c0, 32, "vesafb");
 
+	if (mtrr == 3) {
 #ifdef CONFIG_MTRR
-	if (mtrr) {
 		unsigned int temp_size = size_total;
-		unsigned int type = 0;
+		int rc;
 
-		switch (mtrr) {
-		case 1:
-			type = MTRR_TYPE_UNCACHABLE;
-			break;
-		case 2:
-			type = MTRR_TYPE_WRBACK;
-			break;
-		case 3:
-			type = MTRR_TYPE_WRCOMB;
-			break;
-		case 4:
-			type = MTRR_TYPE_WRTHROUGH;
-			break;
-		default:
-			type = 0;
-			break;
-		}
+		/* Find the largest power-of-two */
+		temp_size = roundup_pow_of_two(temp_size);
 
-		if (type) {
-			int rc;
-
-			/* Find the largest power-of-two */
-			temp_size = roundup_pow_of_two(temp_size);
-
-			/* Try and find a power of two to add */
-			do {
-				rc = mtrr_add(vesafb_fix.smem_start, temp_size,
-					      type, 1);
-				temp_size >>= 1;
-			} while (temp_size >= PAGE_SIZE && rc == -EINVAL);
-		}
-	}
+		/* Try and find a power of two to add */
+		do {
+			rc = mtrr_add(vesafb_fix.smem_start, temp_size,
+				      MTRR_TYPE_WRCOMB, 1);
+			temp_size >>= 1;
+		} while (temp_size >= PAGE_SIZE && rc == -EINVAL);
 #endif
-	
-	switch (mtrr) {
-	case 1: /* uncachable */
-		info->screen_base = ioremap_nocache(vesafb_fix.smem_start, vesafb_fix.smem_len);
-		break;
-	case 2: /* write-back */
-		info->screen_base = ioremap_cache(vesafb_fix.smem_start, vesafb_fix.smem_len);
-		break;
-	case 3: /* write-combining */
 		info->screen_base = ioremap_wc(vesafb_fix.smem_start, vesafb_fix.smem_len);
-		break;
-	case 4: /* write-through */
-	default:
+	} else {
+#ifdef CONFIG_MTRR
+		if (mtrr && mtrr != 3)
+			WARN_ONCE(1, "Only MTRR_TYPE_WRCOMB (3) make sense\n");
+#endif
 		info->screen_base = ioremap(vesafb_fix.smem_start, vesafb_fix.smem_len);
-		break;
 	}
+
 	if (!info->screen_base) {
 		printk(KERN_ERR
 		       "vesafb: abort, cannot ioremap video memory 0x%x @ 0x%lx\n",
