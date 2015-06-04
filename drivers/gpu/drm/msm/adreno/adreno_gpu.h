@@ -167,7 +167,7 @@ struct adreno_gpu {
 struct adreno_platform_config {
 	struct adreno_rev rev;
 	uint32_t fast_rate, slow_rate, bus_freq;
-#ifdef CONFIG_MSM_BUS_SCALING
+#ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
 	struct msm_bus_scale_pdata *bus_scale_table;
 #endif
 };

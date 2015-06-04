@@ -229,7 +229,7 @@ static inline struct clk *mpd4_lvds_pll_init(struct drm_device *dev)
 }
 #endif
 
-#ifdef CONFIG_MSM_BUS_SCALING
+#ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
 static inline int match_dev_name(struct device *dev, void *data)
 {
 	return !strcmp(dev_name(dev), data);

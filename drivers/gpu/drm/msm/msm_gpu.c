@@ -24,7 +24,7 @@
  * Power Management:
  */
 
-#ifdef CONFIG_MSM_BUS_SCALING
+#ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
 #include <mach/board.h>
 static void bs_init(struct msm_gpu *gpu)
 {

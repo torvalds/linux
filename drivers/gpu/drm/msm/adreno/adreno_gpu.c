@@ -334,7 +334,7 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	gpu->fast_rate = config->fast_rate;
 	gpu->slow_rate = config->slow_rate;
 	gpu->bus_freq  = config->bus_freq;
-#ifdef CONFIG_MSM_BUS_SCALING
+#ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
 	gpu->bus_scale_table = config->bus_scale_table;
 #endif
 
