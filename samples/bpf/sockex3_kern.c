@@ -89,7 +89,6 @@ static inline __u32 ipv6_addr_hash(struct __sk_buff *ctx, __u64 off)
 
 struct globals {
 	struct flow_keys flow;
-	__u32 nhoff;
 };
 
 struct bpf_map_def SEC("maps") percpu_map = {
@@ -139,7 +138,7 @@ static void update_stats(struct __sk_buff *skb, struct globals *g)
 static __always_inline void parse_ip_proto(struct __sk_buff *skb,
 					   struct globals *g, __u32 ip_proto)
 {
-	__u32 nhoff = g->nhoff;
+	__u32 nhoff = skb->cb[0];
 	int poff;
 
 	switch (ip_proto) {
@@ -165,7 +164,7 @@ static __always_inline void parse_ip_proto(struct __sk_buff *skb,
 		if (gre_flags & GRE_SEQ)
 			nhoff += 4;
 
-		g->nhoff = nhoff;
+		skb->cb[0] = nhoff;
 		parse_eth_proto(skb, gre_proto);
 		break;
 	}
@@ -195,7 +194,7 @@ PROG(PARSE_IP)(struct __sk_buff *skb)
 	if (!g)
 		return 0;
 
-	nhoff = g->nhoff;
+	nhoff = skb->cb[0];
 
 	if (unlikely(ip_is_fragment(skb, nhoff)))
 		return 0;
@@ -210,7 +209,7 @@ PROG(PARSE_IP)(struct __sk_buff *skb)
 	verlen = load_byte(skb, nhoff + 0/*offsetof(struct iphdr, ihl)*/);
 	nhoff += (verlen & 0xF) << 2;
 
-	g->nhoff = nhoff;
+	skb->cb[0] = nhoff;
 	parse_ip_proto(skb, g, ip_proto);
 	return 0;
 }
@@ -223,7 +222,7 @@ PROG(PARSE_IPV6)(struct __sk_buff *skb)
 	if (!g)
 		return 0;
 
-	nhoff = g->nhoff;
+	nhoff = skb->cb[0];
 
 	ip_proto = load_byte(skb,
 			     nhoff + offsetof(struct ipv6hdr, nexthdr));
@@ -233,25 +232,21 @@ PROG(PARSE_IPV6)(struct __sk_buff *skb)
 				     nhoff + offsetof(struct ipv6hdr, daddr));
 	nhoff += sizeof(struct ipv6hdr);
 
-	g->nhoff = nhoff;
+	skb->cb[0] = nhoff;
 	parse_ip_proto(skb, g, ip_proto);
 	return 0;
 }
 
 PROG(PARSE_VLAN)(struct __sk_buff *skb)
 {
-	struct globals *g = this_cpu_globals();
 	__u32 nhoff, proto;
 
-	if (!g)
-		return 0;
-
-	nhoff = g->nhoff;
+	nhoff = skb->cb[0];
 
 	proto = load_half(skb, nhoff + offsetof(struct vlan_hdr,
 						h_vlan_encapsulated_proto));
 	nhoff += sizeof(struct vlan_hdr);
-	g->nhoff = nhoff;
+	skb->cb[0] = nhoff;
 
 	parse_eth_proto(skb, proto);
 
@@ -260,17 +255,13 @@ PROG(PARSE_VLAN)(struct __sk_buff *skb)
 
 PROG(PARSE_MPLS)(struct __sk_buff *skb)
 {
-	struct globals *g = this_cpu_globals();
 	__u32 nhoff, label;
 
-	if (!g)
-		return 0;
-
-	nhoff = g->nhoff;
+	nhoff = skb->cb[0];
 
 	label = load_word(skb, nhoff);
 	nhoff += sizeof(struct mpls_label);
-	g->nhoff = nhoff;
+	skb->cb[0] = nhoff;
 
 	if (label & MPLS_LS_S_MASK) {
 		__u8 verlen = load_byte(skb, nhoff);
@@ -288,14 +279,10 @@ PROG(PARSE_MPLS)(struct __sk_buff *skb)
 SEC("socket/0")
 int main_prog(struct __sk_buff *skb)
 {
-	struct globals *g = this_cpu_globals();
 	__u32 nhoff = ETH_HLEN;
 	__u32 proto = load_half(skb, 12);
 
-	if (!g)
-		return 0;
-
-	g->nhoff = nhoff;
+	skb->cb[0] = nhoff;
 	parse_eth_proto(skb, proto);
 	return 0;
 }
