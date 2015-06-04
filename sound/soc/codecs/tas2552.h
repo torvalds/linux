@@ -99,12 +99,12 @@
 #define TAS2552_PDM_DATA_V_I	(0x11 << 6)
 
 /* PDM CFG Register */
-#define TAS2552_PDM_DATA_ES_RISE 0x4
-
-#define TAS2552_PDM_PLL_CLK_SEL 0x00
-#define TAS2552_PDM_IV_CLK_SEL	(1 << 1)
-#define TAS2552_PDM_BCLK_SEL	(1 << 2)
-#define TAS2552_PDM_MCLK_SEL	(1 << 3)
+#define TAS2552_PDM_CLK_SEL_PLL		(0x0 << 0)
+#define TAS2552_PDM_CLK_SEL_IVCLKIN	(0x1 << 0)
+#define TAS2552_PDM_CLK_SEL_BCLK	(0x2 << 0)
+#define TAS2552_PDM_CLK_SEL_MCLK	(0x3 << 0)
+#define TAS2552_PDM_CLK_SEL_MASK	TAS2552_PDM_CLK_SEL_MCLK
+#define TAS2552_PDM_DATA_ES	 	(1 << 2)
 
 /* Boost pass-through register */
 #define TAS2552_APT_DELAY_50	0x00
