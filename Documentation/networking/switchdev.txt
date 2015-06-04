@@ -177,6 +177,10 @@ entries are installed, for example, using iproute2 bridge cmd:
 
 	bridge fdb add ADDR dev DEV [vlan VID] [self]
 
+The driver should use the helper switchdev_port_fdb_xxx ops for ndo_fdb_xxx
+ops, and handle add/delete/dump of SWITCHDEV_OBJ_PORT_FDB object using
+switchdev_port_obj_xxx ops.
+
 XXX: what should be done if offloading this rule to hardware fails (for
 example, due to full capacity in hardware tables) ?
 
