@@ -480,6 +480,11 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *);
  */
 int rpcrdma_marshal_req(struct rpc_rqst *);
 
+/* RPC/RDMA module init - xprtrdma/transport.c
+ */
+int xprt_rdma_init(void);
+void xprt_rdma_cleanup(void);
+
 /* Temporary NFS request map cache. Created in svc_rdma.c  */
 extern struct kmem_cache *svc_rdma_map_cachep;
 /* WR context cache. Created in svc_rdma.c  */
