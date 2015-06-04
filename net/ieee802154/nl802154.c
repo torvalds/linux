@@ -228,6 +228,8 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 	[NL802154_ATTR_LBT_MODE] = { .type = NLA_U8, },
 
 	[NL802154_ATTR_WPAN_PHY_CAPS] = { .type = NLA_NESTED },
+
+	[NL802154_ATTR_SUPPORTED_COMMANDS] = { .type = NLA_NESTED },
 };
 
 /* message building helper */
@@ -372,7 +374,9 @@ static int nl802154_send_wpan_phy(struct cfg802154_registered_device *rdev,
 				  struct sk_buff *msg, u32 portid, u32 seq,
 				  int flags)
 {
+	struct nlattr *nl_cmds;
 	void *hdr;
+	int i;
 
 	hdr = nl802154hdr_put(msg, portid, seq, flags, cmd);
 	if (!hdr)
@@ -430,6 +434,42 @@ static int nl802154_send_wpan_phy(struct cfg802154_registered_device *rdev,
 
 	if (nl802154_put_capabilities(msg, rdev))
 		goto nla_put_failure;
+
+	nl_cmds = nla_nest_start(msg, NL802154_ATTR_SUPPORTED_COMMANDS);
+	if (!nl_cmds)
+		goto nla_put_failure;
+
+	i = 0;
+#define CMD(op, n)							\
+	do {								\
+		if (rdev->ops->op) {					\
+			i++;						\
+			if (nla_put_u32(msg, i, NL802154_CMD_ ## n))	\
+				goto nla_put_failure;			\
+		}							\
+	} while (0)
+
+	CMD(add_virtual_intf, NEW_INTERFACE);
+	CMD(del_virtual_intf, DEL_INTERFACE);
+	CMD(set_channel, SET_CHANNEL);
+	CMD(set_pan_id, SET_PAN_ID);
+	CMD(set_short_addr, SET_SHORT_ADDR);
+	CMD(set_backoff_exponent, SET_BACKOFF_EXPONENT);
+	CMD(set_max_csma_backoffs, SET_MAX_CSMA_BACKOFFS);
+	CMD(set_max_frame_retries, SET_MAX_FRAME_RETRIES);
+	CMD(set_lbt_mode, SET_LBT_MODE);
+
+	if (rdev->wpan_phy.flags & WPAN_PHY_FLAG_TXPOWER)
+		CMD(set_tx_power, SET_TX_POWER);
+
+	if (rdev->wpan_phy.flags & WPAN_PHY_FLAG_CCA_ED_LEVEL)
+		CMD(set_cca_ed_level, SET_CCA_ED_LEVEL);
+
+	if (rdev->wpan_phy.flags & WPAN_PHY_FLAG_CCA_MODE)
+		CMD(set_cca_mode, SET_CCA_MODE);
+
+#undef CMD
+	nla_nest_end(msg, nl_cmds);
 
 finish:
 	genlmsg_end(msg, hdr);
