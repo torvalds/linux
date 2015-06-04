@@ -641,21 +641,6 @@ void rtl92c_init_retry_function(struct ieee80211_hw *hw)
 	rtl_write_byte(rtlpriv, REG_ACKTO, 0x40);
 }
 
-void rtl92c_init_beacon_parameters(struct ieee80211_hw *hw,
-				   enum version_8192c version)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
-
-	rtl_write_word(rtlpriv, REG_TBTT_PROHIBIT, 0x6404);/* ms */
-	rtl_write_byte(rtlpriv, REG_DRVERLYINT, DRIVER_EARLY_INT_TIME);/*ms*/
-	rtl_write_byte(rtlpriv, REG_BCNDMATIM, BCN_DMA_ATIME_INT_TIME);
-	if (IS_NORMAL_CHIP(rtlhal->version))
-		rtl_write_word(rtlpriv, REG_BCNTCFG, 0x660F);
-	else
-		rtl_write_word(rtlpriv, REG_BCNTCFG, 0x66FF);
-}
-
 void rtl92c_disable_fast_edca(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
