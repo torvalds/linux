@@ -251,14 +251,7 @@ xfs_trans_reserve(
 	 */
 undo_log:
 	if (resp->tr_logres > 0) {
-		int		log_flags;
-
-		if (resp->tr_logflags & XFS_TRANS_PERM_LOG_RES) {
-			log_flags = XFS_LOG_REL_PERM_RESERV;
-		} else {
-			log_flags = 0;
-		}
-		xfs_log_done(tp->t_mountp, tp->t_ticket, NULL, log_flags);
+		xfs_log_done(tp->t_mountp, tp->t_ticket, NULL, false);
 		tp->t_ticket = NULL;
 		tp->t_log_res = 0;
 		tp->t_flags &= ~XFS_TRANS_PERM_LOG_RES;
@@ -954,13 +947,7 @@ out_unreserve:
 	 */
 	xfs_trans_unreserve_and_mod_dquots(tp);
 	if (tp->t_ticket) {
-		int			log_flags = 0;
-
-		if (regrant)
-			ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
-		else
-			log_flags = XFS_LOG_REL_PERM_RESERV;
-		commit_lsn = xfs_log_done(mp, tp->t_ticket, NULL, log_flags);
+		commit_lsn = xfs_log_done(mp, tp->t_ticket, NULL, regrant);
 		if (commit_lsn == -1 && !error)
 			error = -EIO;
 	}
@@ -1014,13 +1001,8 @@ xfs_trans_cancel(
 	xfs_trans_unreserve_and_mod_sb(tp);
 	xfs_trans_unreserve_and_mod_dquots(tp);
 
-	if (tp->t_ticket) {
-		uint		log_flags = 0;
-
-		if (tp->t_flags & XFS_TRANS_PERM_LOG_RES)
-			log_flags = XFS_LOG_REL_PERM_RESERV;
-		xfs_log_done(mp, tp->t_ticket, NULL, log_flags);
-	}
+	if (tp->t_ticket)
+		xfs_log_done(mp, tp->t_ticket, NULL, false);
 
 	/* mark this thread as no longer being in a transaction */
 	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
@@ -1071,13 +1053,6 @@ xfs_trans_roll(
 		return error;
 
 	trans = *tpp;
-
-	/*
-	 * transaction commit worked ok so we can drop the extra ticket
-	 * reference that we gained in xfs_trans_dup()
-	 */
-	xfs_log_ticket_put(trans->t_ticket);
-
 
 	/*
 	 * Reserve space in the log for th next transaction.

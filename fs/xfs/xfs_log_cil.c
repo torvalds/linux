@@ -624,7 +624,7 @@ restart:
 	spin_unlock(&cil->xc_push_lock);
 
 	/* xfs_log_done always frees the ticket on error. */
-	commit_lsn = xfs_log_done(log->l_mp, tic, &commit_iclog, 0);
+	commit_lsn = xfs_log_done(log->l_mp, tic, &commit_iclog, false);
 	if (commit_lsn == -1)
 		goto out_abort;
 
@@ -777,10 +777,6 @@ xfs_log_commit_cil(
 {
 	struct xlog		*log = mp->m_log;
 	struct xfs_cil		*cil = log->l_cilp;
-	int			log_flags = 0;
-
-	if (!regrant)
-		log_flags = XFS_LOG_REL_PERM_RESERV;
 
 	/* lock out background commit */
 	down_read(&cil->xc_ctx_lock);
@@ -795,7 +791,7 @@ xfs_log_commit_cil(
 	if (commit_lsn)
 		*commit_lsn = tp->t_commit_lsn;
 
-	xfs_log_done(mp, tp->t_ticket, NULL, log_flags);
+	xfs_log_done(mp, tp->t_ticket, NULL, regrant);
 	xfs_trans_unreserve_and_mod_sb(tp);
 
 	/*
