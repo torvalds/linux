@@ -703,8 +703,8 @@ static void _mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds,
 		u32 high = 0;
 
 		if (s->reg >= 0x100) {
-			ret = mv88e6xxx_reg_read(ds, REG_PORT(port),
-						 s->reg - 0x100);
+			ret = _mv88e6xxx_reg_read(ds, REG_PORT(port),
+						  s->reg - 0x100);
 			if (ret < 0)
 				goto error;
 			low = ret;
