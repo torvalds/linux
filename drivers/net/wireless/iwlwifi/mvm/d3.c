@@ -1168,13 +1168,17 @@ remove_notif:
 int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int ret;
 
-	iwl_trans_suspend(mvm->trans);
+	ret = iwl_trans_suspend(mvm->trans);
+	if (ret)
+		return ret;
+
 	mvm->trans->wowlan_d0i3 = wowlan->any;
 	if (mvm->trans->wowlan_d0i3) {
 		/* 'any' trigger means d0i3 usage */
 		if (mvm->trans->d0i3_mode == IWL_D0I3_MODE_ON_SUSPEND) {
-			int ret = iwl_mvm_enter_d0i3_sync(mvm);
+			ret = iwl_mvm_enter_d0i3_sync(mvm);
 
 			if (ret)
 				return ret;
