@@ -314,7 +314,7 @@ static struct snd_pcm_hardware dw_hdmi_hw = {
 		 SNDRV_PCM_RATE_192000,
 	.channels_min = 2,
 	.channels_max = 8,
-	.buffer_bytes_max = 64 * 1024,
+	.buffer_bytes_max = 1024 * 1024,
 	.period_bytes_min = 256,
 	.period_bytes_max = 8192,	/* ERR004323: must limit to 8k */
 	.periods_min = 2,
@@ -339,7 +339,15 @@ static int dw_hdmi_open(struct snd_pcm_substream *substream)
 	if (ret < 0)
 		return ret;
 
-	ret = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
+	ret = snd_pcm_hw_constraint_integer(runtime,
+					    SNDRV_PCM_HW_PARAM_PERIODS);
+	if (ret < 0)
+		return ret;
+
+	/* Limit the buffer size to the size of the preallocated buffer */
+	ret = snd_pcm_hw_constraint_minmax(runtime,
+					   SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
+					   0, substream->dma_buffer.bytes);
 	if (ret < 0)
 		return ret;
 
@@ -389,6 +397,7 @@ static int dw_hdmi_hw_free(struct snd_pcm_substream *substream)
 static int dw_hdmi_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
+	/* Allocate the PCM runtime buffer, which is exposed to userspace. */
 	return snd_pcm_lib_alloc_vmalloc_buffer(substream,
 						params_buffer_bytes(params));
 }
@@ -566,8 +575,12 @@ static int snd_dw_hdmi_probe(struct platform_device *pdev)
 	strlcpy(pcm->name, DRIVER_NAME, sizeof(pcm->name));
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_dw_hdmi_ops);
 
+	/*
+	 * To support 8-channel 96kHz audio reliably, we need 512k
+	 * to satisfy alsa with our restricted period (ERR004323).
+	 */
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-			dev, 64 * 1024, 64 * 1024);
+			dev, 128 * 1024, 1024 * 1024);
 
 	ret = snd_card_register(card);
 	if (ret < 0)
