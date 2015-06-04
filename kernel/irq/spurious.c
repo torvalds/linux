@@ -270,9 +270,10 @@ try_misrouted_irq(unsigned int irq, struct irq_desc *desc,
 
 #define SPURIOUS_DEFERRED	0x80000000
 
-void note_interrupt(unsigned int irq, struct irq_desc *desc,
-		    irqreturn_t action_ret)
+void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
 {
+	unsigned int irq;
+
 	if (desc->istate & IRQS_POLL_INPROGRESS ||
 	    irq_settings_is_polled(desc))
 		return;
@@ -396,6 +397,7 @@ void note_interrupt(unsigned int irq, struct irq_desc *desc,
 		desc->last_unhandled = jiffies;
 	}
 
+	irq = irq_desc_get_irq(desc);
 	if (unlikely(try_misrouted_irq(irq, desc, action_ret))) {
 		int ok = misrouted_irq(irq);
 		if (action_ret == IRQ_NONE)
