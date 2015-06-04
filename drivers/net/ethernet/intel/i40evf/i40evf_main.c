@@ -240,7 +240,7 @@ void i40evf_irq_enable_queues(struct i40evf_adapter *adapter, u32 mask)
 	int i;
 
 	for (i = 1; i < adapter->num_msix_vectors; i++) {
-		if (mask & (1 << (i - 1))) {
+		if (mask & BIT(i - 1)) {
 			wr32(hw, I40E_VFINT_DYN_CTLN1(i - 1),
 			     I40E_VFINT_DYN_CTLN1_INTENA_MASK |
 			     I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK |
@@ -268,7 +268,7 @@ static void i40evf_fire_sw_int(struct i40evf_adapter *adapter, u32 mask)
 		wr32(hw, I40E_VFINT_DYN_CTL01, dyn_ctl);
 	}
 	for (i = 1; i < adapter->num_msix_vectors; i++) {
-		if (mask & (1 << i)) {
+		if (mask & BIT(i)) {
 			dyn_ctl = rd32(hw, I40E_VFINT_DYN_CTLN1(i - 1));
 			dyn_ctl |= I40E_VFINT_DYN_CTLN_SWINT_TRIG_MASK |
 				   I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK |
@@ -377,7 +377,7 @@ i40evf_map_vector_to_txq(struct i40evf_adapter *adapter, int v_idx, int t_idx)
 	q_vector->tx.count++;
 	q_vector->tx.latency_range = I40E_LOW_LATENCY;
 	q_vector->num_ringpairs++;
-	q_vector->ring_mask |= (1 << t_idx);
+	q_vector->ring_mask |= BIT(t_idx);
 }
 
 /**
@@ -2320,7 +2320,7 @@ static int i40evf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw = &adapter->hw;
 	hw->back = adapter;
 
-	adapter->msg_enable = (1 << DEFAULT_DEBUG_LEVEL_SHIFT) - 1;
+	adapter->msg_enable = BIT(DEFAULT_DEBUG_LEVEL_SHIFT) - 1;
 	adapter->state = __I40EVF_STARTUP;
 
 	/* Call save state here because it relies on the adapter struct. */

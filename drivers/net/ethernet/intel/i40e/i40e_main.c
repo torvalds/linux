@@ -520,7 +520,7 @@ static void i40e_stat_update48(struct i40e_hw *hw, u32 hireg, u32 loreg,
 	if (likely(new_data >= *offset))
 		*stat = new_data - *offset;
 	else
-		*stat = (new_data + ((u64)1 << 48)) - *offset;
+		*stat = (new_data + BIT_ULL(48)) - *offset;
 	*stat &= 0xFFFFFFFFFFFFULL;
 }
 
@@ -543,7 +543,7 @@ static void i40e_stat_update32(struct i40e_hw *hw, u32 reg,
 	if (likely(new_data >= *offset))
 		*stat = (u32)(new_data - *offset);
 	else
-		*stat = (u32)((new_data + ((u64)1 << 32)) - *offset);
+		*stat = (u32)((new_data + BIT_ULL(32)) - *offset);
 }
 
 /**
@@ -1526,7 +1526,7 @@ static void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
 	if (enabled_tc && (vsi->back->flags & I40E_FLAG_DCB_ENABLED)) {
 		/* Find numtc from enabled TC bitmap */
 		for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
-			if (enabled_tc & (1 << i)) /* TC is enabled */
+			if (enabled_tc & BIT_ULL(i)) /* TC is enabled */
 				numtc++;
 		}
 		if (!numtc) {
@@ -1552,7 +1552,8 @@ static void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
 	/* Setup queue offset/count for all TCs for given VSI */
 	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
 		/* See if the given TC is enabled for the given VSI */
-		if (vsi->tc_config.enabled_tc & (1 << i)) { /* TC is enabled */
+		if (vsi->tc_config.enabled_tc & BIT_ULL(i)) {
+			/* TC is enabled */
 			int pow, num_qps;
 
 			switch (vsi->type) {
@@ -1578,7 +1579,7 @@ static void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
 			/* find the next higher power-of-2 of num queue pairs */
 			num_qps = qcount;
 			pow = 0;
-			while (num_qps && ((1 << pow) < qcount)) {
+			while (num_qps && (BIT_ULL(pow) < qcount)) {
 				pow++;
 				num_qps >>= 1;
 			}
@@ -2723,9 +2724,9 @@ static int i40e_vsi_configure_rx(struct i40e_vsi *vsi)
 #endif /* I40E_FCOE */
 	/* round up for the chip's needs */
 	vsi->rx_hdr_len = ALIGN(vsi->rx_hdr_len,
-				(1 << I40E_RXQ_CTX_HBUFF_SHIFT));
+				BIT_ULL(I40E_RXQ_CTX_HBUFF_SHIFT));
 	vsi->rx_buf_len = ALIGN(vsi->rx_buf_len,
-				(1 << I40E_RXQ_CTX_DBUFF_SHIFT));
+				BIT_ULL(I40E_RXQ_CTX_DBUFF_SHIFT));
 
 	/* set up individual rings */
 	for (i = 0; i < vsi->num_queue_pairs && !err; i++)
@@ -2755,7 +2756,7 @@ static void i40e_vsi_config_dcb_rings(struct i40e_vsi *vsi)
 	}
 
 	for (n = 0; n < I40E_MAX_TRAFFIC_CLASS; n++) {
-		if (!(vsi->tc_config.enabled_tc & (1 << n)))
+		if (!(vsi->tc_config.enabled_tc & BIT_ULL(n)))
 			continue;
 
 		qoffset = vsi->tc_config.tc_info[n].qoffset;
@@ -4100,7 +4101,7 @@ static u8 i40e_get_iscsi_tc_map(struct i40e_pf *pf)
 		if (app.selector == I40E_APP_SEL_TCPIP &&
 		    app.protocolid == I40E_APP_PROTOID_ISCSI) {
 			tc = dcbcfg->etscfg.prioritytable[app.priority];
-			enabled_tc |= (1 << tc);
+			enabled_tc |= BIT_ULL(tc);
 			break;
 		}
 	}
@@ -4149,7 +4150,7 @@ static u8 i40e_dcb_get_enabled_tc(struct i40e_dcbx_config *dcbcfg)
 	u8 i;
 
 	for (i = 0; i < num_tc; i++)
-		enabled_tc |= 1 << i;
+		enabled_tc |= BIT(i);
 
 	return enabled_tc;
 }
@@ -4184,7 +4185,7 @@ static u8 i40e_pf_get_num_tc(struct i40e_pf *pf)
 	/* At least have TC0 */
 	enabled_tc = (enabled_tc ? enabled_tc : 0x1);
 	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
-		if (enabled_tc & (1 << i))
+		if (enabled_tc & BIT_ULL(i))
 			num_tc++;
 	}
 	return num_tc;
@@ -4206,11 +4207,11 @@ static u8 i40e_pf_get_default_tc(struct i40e_pf *pf)
 
 	/* Find the first enabled TC */
 	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
-		if (enabled_tc & (1 << i))
+		if (enabled_tc & BIT_ULL(i))
 			break;
 	}
 
-	return 1 << i;
+	return BIT(i);
 }
 
 /**
@@ -4366,7 +4367,7 @@ static void i40e_vsi_config_netdev_tc(struct i40e_vsi *vsi, u8 enabled_tc)
 		 * will set the numtc for netdev as 2 that will be
 		 * referenced by the netdev layer as TC 0 and 1.
 		 */
-		if (vsi->tc_config.enabled_tc & (1 << i))
+		if (vsi->tc_config.enabled_tc & BIT_ULL(i))
 			netdev_set_tc_queue(netdev,
 					vsi->tc_config.tc_info[i].netdev_tc,
 					vsi->tc_config.tc_info[i].qcount,
@@ -4428,7 +4429,7 @@ static int i40e_vsi_config_tc(struct i40e_vsi *vsi, u8 enabled_tc)
 
 	/* Enable ETS TCs with equal BW Share for now across all VSIs */
 	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
-		if (enabled_tc & (1 << i))
+		if (enabled_tc & BIT_ULL(i))
 			bw_share[i] = 1;
 	}
 
@@ -4502,7 +4503,7 @@ int i40e_veb_config_tc(struct i40e_veb *veb, u8 enabled_tc)
 
 	/* Enable ETS TCs with equal BW Share for now */
 	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
-		if (enabled_tc & (1 << i))
+		if (enabled_tc & BIT_ULL(i))
 			bw_data.tc_bw_share_credits[i] = 1;
 	}
 
@@ -4896,7 +4897,7 @@ static int i40e_setup_tc(struct net_device *netdev, u8 tc)
 
 	/* Generate TC map for number of tc requested */
 	for (i = 0; i < tc; i++)
-		enabled_tc |= (1 << i);
+		enabled_tc |= BIT_ULL(i);
 
 	/* Requesting same TC configuration as already enabled */
 	if (enabled_tc == vsi->tc_config.enabled_tc)
@@ -5035,7 +5036,7 @@ err_setup_rx:
 err_setup_tx:
 	i40e_vsi_free_tx_resources(vsi);
 	if (vsi == pf->vsi[pf->lan_vsi])
-		i40e_do_reset(pf, (1 << __I40E_PF_RESET_REQUESTED));
+		i40e_do_reset(pf, BIT_ULL(__I40E_PF_RESET_REQUESTED));
 
 	return err;
 }
@@ -5103,7 +5104,7 @@ void i40e_do_reset(struct i40e_pf *pf, u32 reset_flags)
 		i40e_vc_notify_reset(pf);
 
 	/* do the biggest reset indicated */
-	if (reset_flags & (1 << __I40E_GLOBAL_RESET_REQUESTED)) {
+	if (reset_flags & BIT_ULL(__I40E_GLOBAL_RESET_REQUESTED)) {
 
 		/* Request a Global Reset
 		 *
@@ -5118,7 +5119,7 @@ void i40e_do_reset(struct i40e_pf *pf, u32 reset_flags)
 		val |= I40E_GLGEN_RTRIG_GLOBR_MASK;
 		wr32(&pf->hw, I40E_GLGEN_RTRIG, val);
 
-	} else if (reset_flags & (1 << __I40E_CORE_RESET_REQUESTED)) {
+	} else if (reset_flags & BIT_ULL(__I40E_CORE_RESET_REQUESTED)) {
 
 		/* Request a Core Reset
 		 *
@@ -5130,7 +5131,7 @@ void i40e_do_reset(struct i40e_pf *pf, u32 reset_flags)
 		wr32(&pf->hw, I40E_GLGEN_RTRIG, val);
 		i40e_flush(&pf->hw);
 
-	} else if (reset_flags & (1 << __I40E_PF_RESET_REQUESTED)) {
+	} else if (reset_flags & BIT_ULL(__I40E_PF_RESET_REQUESTED)) {
 
 		/* Request a PF Reset
 		 *
@@ -5143,7 +5144,7 @@ void i40e_do_reset(struct i40e_pf *pf, u32 reset_flags)
 		dev_dbg(&pf->pdev->dev, "PFR requested\n");
 		i40e_handle_reset_warning(pf);
 
-	} else if (reset_flags & (1 << __I40E_REINIT_REQUESTED)) {
+	} else if (reset_flags & BIT_ULL(__I40E_REINIT_REQUESTED)) {
 		int v;
 
 		/* Find the VSI(s) that requested a re-init */
@@ -5160,7 +5161,7 @@ void i40e_do_reset(struct i40e_pf *pf, u32 reset_flags)
 
 		/* no further action needed, so return now */
 		return;
-	} else if (reset_flags & (1 << __I40E_DOWN_REQUESTED)) {
+	} else if (reset_flags & BIT_ULL(__I40E_DOWN_REQUESTED)) {
 		int v;
 
 		/* Find the VSI(s) that needs to be brought down */
@@ -5801,23 +5802,23 @@ static void i40e_reset_subtask(struct i40e_pf *pf)
 
 	rtnl_lock();
 	if (test_bit(__I40E_REINIT_REQUESTED, &pf->state)) {
-		reset_flags |= (1 << __I40E_REINIT_REQUESTED);
+		reset_flags |= BIT_ULL(__I40E_REINIT_REQUESTED);
 		clear_bit(__I40E_REINIT_REQUESTED, &pf->state);
 	}
 	if (test_bit(__I40E_PF_RESET_REQUESTED, &pf->state)) {
-		reset_flags |= (1 << __I40E_PF_RESET_REQUESTED);
+		reset_flags |= BIT_ULL(__I40E_PF_RESET_REQUESTED);
 		clear_bit(__I40E_PF_RESET_REQUESTED, &pf->state);
 	}
 	if (test_bit(__I40E_CORE_RESET_REQUESTED, &pf->state)) {
-		reset_flags |= (1 << __I40E_CORE_RESET_REQUESTED);
+		reset_flags |= BIT_ULL(__I40E_CORE_RESET_REQUESTED);
 		clear_bit(__I40E_CORE_RESET_REQUESTED, &pf->state);
 	}
 	if (test_bit(__I40E_GLOBAL_RESET_REQUESTED, &pf->state)) {
-		reset_flags |= (1 << __I40E_GLOBAL_RESET_REQUESTED);
+		reset_flags |= BIT_ULL(__I40E_GLOBAL_RESET_REQUESTED);
 		clear_bit(__I40E_GLOBAL_RESET_REQUESTED, &pf->state);
 	}
 	if (test_bit(__I40E_DOWN_REQUESTED, &pf->state)) {
-		reset_flags |= (1 << __I40E_DOWN_REQUESTED);
+		reset_flags |= BIT_ULL(__I40E_DOWN_REQUESTED);
 		clear_bit(__I40E_DOWN_REQUESTED, &pf->state);
 	}
 
@@ -6699,8 +6700,8 @@ static void i40e_sync_vxlan_filters_subtask(struct i40e_pf *pf)
 	pf->flags &= ~I40E_FLAG_VXLAN_FILTER_SYNC;
 
 	for (i = 0; i < I40E_MAX_PF_UDP_OFFLOAD_PORTS; i++) {
-		if (pf->pending_vxlan_bitmap & (1 << i)) {
-			pf->pending_vxlan_bitmap &= ~(1 << i);
+		if (pf->pending_vxlan_bitmap & BIT_ULL(i)) {
+			pf->pending_vxlan_bitmap &= ~BIT_ULL(i);
 			port = pf->vxlan_ports[i];
 			if (port)
 				ret = i40e_aq_add_udp_tunnel(hw, ntohs(port),
@@ -7513,7 +7514,7 @@ static int i40e_config_rss(struct i40e_pf *pf)
 			j = 0;
 		/* lut = 4-byte sliding window of 4 lut entries */
 		lut = (lut << 8) | (j &
-			 ((0x1 << pf->hw.func_caps.rss_table_entry_width) - 1));
+			 (BIT(pf->hw.func_caps.rss_table_entry_width) - 1));
 		/* On i = 3, we have 4 entries in lut; write to the register */
 		if ((i & 3) == 3)
 			wr32(hw, I40E_PFQF_HLUT(i >> 2), lut);
@@ -7587,7 +7588,7 @@ i40e_status i40e_set_npar_bw_setting(struct i40e_pf *pf)
 	i40e_status status;
 
 	/* Set the valid bit for this PF */
-	bw_data.pf_valid_bits = cpu_to_le16(1 << pf->hw.pf_id);
+	bw_data.pf_valid_bits = cpu_to_le16(BIT(pf->hw.pf_id));
 	bw_data.max_bw[pf->hw.pf_id] = pf->npar_max_bw & I40E_ALT_BW_VALUE_MASK;
 	bw_data.min_bw[pf->hw.pf_id] = pf->npar_min_bw & I40E_ALT_BW_VALUE_MASK;
 
@@ -7720,7 +7721,7 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	/* Depending on PF configurations, it is possible that the RSS
 	 * maximum might end up larger than the available queues
 	 */
-	pf->rss_size_max = 0x1 << pf->hw.func_caps.rss_table_entry_width;
+	pf->rss_size_max = BIT(pf->hw.func_caps.rss_table_entry_width);
 	pf->rss_size = 1;
 	pf->rss_table_size = pf->hw.func_caps.rss_table_size;
 	pf->rss_size_max = min_t(int, pf->rss_size_max,
@@ -7870,7 +7871,7 @@ static int i40e_set_features(struct net_device *netdev,
 	need_reset = i40e_set_ntuple(pf, features);
 
 	if (need_reset)
-		i40e_do_reset(pf, (1 << __I40E_PF_RESET_REQUESTED));
+		i40e_do_reset(pf, BIT_ULL(__I40E_PF_RESET_REQUESTED));
 
 	return 0;
 }
@@ -7933,7 +7934,7 @@ static void i40e_add_vxlan_port(struct net_device *netdev,
 
 	/* New port: add it and mark its index in the bitmap */
 	pf->vxlan_ports[next_idx] = port;
-	pf->pending_vxlan_bitmap |= (1 << next_idx);
+	pf->pending_vxlan_bitmap |= BIT_ULL(next_idx);
 	pf->flags |= I40E_FLAG_VXLAN_FILTER_SYNC;
 
 	dev_info(&pf->pdev->dev, "adding vxlan port %d\n", ntohs(port));
@@ -7964,7 +7965,7 @@ static void i40e_del_vxlan_port(struct net_device *netdev,
 		 * and make it pending
 		 */
 		pf->vxlan_ports[idx] = 0;
-		pf->pending_vxlan_bitmap |= (1 << idx);
+		pf->pending_vxlan_bitmap |= BIT_ULL(idx);
 		pf->flags |= I40E_FLAG_VXLAN_FILTER_SYNC;
 
 		dev_info(&pf->pdev->dev, "deleting vxlan port %d\n",

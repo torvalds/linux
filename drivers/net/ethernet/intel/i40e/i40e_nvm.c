@@ -50,7 +50,7 @@ i40e_status i40e_init_nvm(struct i40e_hw *hw)
 	sr_size = ((gens & I40E_GLNVM_GENS_SR_SIZE_MASK) >>
 			   I40E_GLNVM_GENS_SR_SIZE_SHIFT);
 	/* Switching to words (sr_size contains power of 2KB) */
-	nvm->sr_size = (1 << sr_size) * I40E_SR_WORDS_IN_1KB;
+	nvm->sr_size = BIT(sr_size) * I40E_SR_WORDS_IN_1KB;
 
 	/* Check if we are in the normal or blank NVM programming mode */
 	fla = rd32(hw, I40E_GLNVM_FLA);
@@ -189,8 +189,8 @@ static i40e_status i40e_read_nvm_word_srctl(struct i40e_hw *hw, u16 offset,
 	ret_code = i40e_poll_sr_srctl_done_bit(hw);
 	if (!ret_code) {
 		/* Write the address and start reading */
-		sr_reg = (u32)(offset << I40E_GLNVM_SRCTL_ADDR_SHIFT) |
-			 (1 << I40E_GLNVM_SRCTL_START_SHIFT);
+		sr_reg = ((u32)offset << I40E_GLNVM_SRCTL_ADDR_SHIFT) |
+			 BIT(I40E_GLNVM_SRCTL_START_SHIFT);
 		wr32(hw, I40E_GLNVM_SRCTL, sr_reg);
 
 		/* Poll I40E_GLNVM_SRCTL until the done bit is set */

@@ -207,17 +207,17 @@ struct i40evf_adapter {
 	struct msix_entry *msix_entries;
 
 	u32 flags;
-#define I40EVF_FLAG_RX_CSUM_ENABLED              (u32)(1)
-#define I40EVF_FLAG_RX_1BUF_CAPABLE              (u32)(1 << 1)
-#define I40EVF_FLAG_RX_PS_CAPABLE                (u32)(1 << 2)
-#define I40EVF_FLAG_RX_PS_ENABLED                (u32)(1 << 3)
-#define I40EVF_FLAG_IN_NETPOLL                   (u32)(1 << 4)
-#define I40EVF_FLAG_IMIR_ENABLED                 (u32)(1 << 5)
-#define I40EVF_FLAG_MQ_CAPABLE                   (u32)(1 << 6)
-#define I40EVF_FLAG_NEED_LINK_UPDATE             (u32)(1 << 7)
-#define I40EVF_FLAG_PF_COMMS_FAILED              (u32)(1 << 8)
-#define I40EVF_FLAG_RESET_PENDING                (u32)(1 << 9)
-#define I40EVF_FLAG_RESET_NEEDED                 (u32)(1 << 10)
+#define I40EVF_FLAG_RX_CSUM_ENABLED              BIT(0)
+#define I40EVF_FLAG_RX_1BUF_CAPABLE              BIT(1)
+#define I40EVF_FLAG_RX_PS_CAPABLE                BIT(2)
+#define I40EVF_FLAG_RX_PS_ENABLED                BIT(3)
+#define I40EVF_FLAG_IN_NETPOLL                   BIT(4)
+#define I40EVF_FLAG_IMIR_ENABLED                 BIT(5)
+#define I40EVF_FLAG_MQ_CAPABLE                   BIT(6)
+#define I40EVF_FLAG_NEED_LINK_UPDATE             BIT(7)
+#define I40EVF_FLAG_PF_COMMS_FAILED              BIT(8)
+#define I40EVF_FLAG_RESET_PENDING                BIT(9)
+#define I40EVF_FLAG_RESET_NEEDED                 BIT(10)
 /* duplcates for common code */
 #define I40E_FLAG_FDIR_ATR_ENABLED		 0
 #define I40E_FLAG_DCB_ENABLED			 0
@@ -225,16 +225,16 @@ struct i40evf_adapter {
 #define I40E_FLAG_RX_CSUM_ENABLED                I40EVF_FLAG_RX_CSUM_ENABLED
 	/* flags for admin queue service task */
 	u32 aq_required;
-#define I40EVF_FLAG_AQ_ENABLE_QUEUES		(u32)(1)
-#define I40EVF_FLAG_AQ_DISABLE_QUEUES		(u32)(1 << 1)
-#define I40EVF_FLAG_AQ_ADD_MAC_FILTER		(u32)(1 << 2)
-#define I40EVF_FLAG_AQ_ADD_VLAN_FILTER		(u32)(1 << 3)
-#define I40EVF_FLAG_AQ_DEL_MAC_FILTER		(u32)(1 << 4)
-#define I40EVF_FLAG_AQ_DEL_VLAN_FILTER		(u32)(1 << 5)
-#define I40EVF_FLAG_AQ_CONFIGURE_QUEUES		(u32)(1 << 6)
-#define I40EVF_FLAG_AQ_MAP_VECTORS		(u32)(1 << 7)
-#define I40EVF_FLAG_AQ_HANDLE_RESET		(u32)(1 << 8)
-#define I40EVF_FLAG_AQ_GET_CONFIG		(u32)(1 << 10)
+#define I40EVF_FLAG_AQ_ENABLE_QUEUES		BIT(0)
+#define I40EVF_FLAG_AQ_DISABLE_QUEUES		BIT(1)
+#define I40EVF_FLAG_AQ_ADD_MAC_FILTER		BIT(2)
+#define I40EVF_FLAG_AQ_ADD_VLAN_FILTER		BIT(3)
+#define I40EVF_FLAG_AQ_DEL_MAC_FILTER		BIT(4)
+#define I40EVF_FLAG_AQ_DEL_VLAN_FILTER		BIT(5)
+#define I40EVF_FLAG_AQ_CONFIGURE_QUEUES		BIT(6)
+#define I40EVF_FLAG_AQ_MAP_VECTORS		BIT(7)
+#define I40EVF_FLAG_AQ_HANDLE_RESET		BIT(8)
+#define I40EVF_FLAG_AQ_GET_CONFIG		BIT(10)
 
 	/* OS defined structs */
 	struct net_device *netdev;
