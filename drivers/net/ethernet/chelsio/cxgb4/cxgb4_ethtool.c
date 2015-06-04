@@ -108,15 +108,82 @@ static const char stats_strings[][ETH_GSTRING_LEN] = {
 	"VLANinsertions     ",
 	"GROpackets         ",
 	"GROmerged          ",
-	"WriteCoalSuccess   ",
-	"WriteCoalFail      ",
+};
+
+static char adapter_stats_strings[][ETH_GSTRING_LEN] = {
+	"db_drop                ",
+	"db_full                ",
+	"db_empty               ",
+	"tcp_ipv4_out_rsts      ",
+	"tcp_ipv4_in_segs       ",
+	"tcp_ipv4_out_segs      ",
+	"tcp_ipv4_retrans_segs  ",
+	"tcp_ipv6_out_rsts      ",
+	"tcp_ipv6_in_segs       ",
+	"tcp_ipv6_out_segs      ",
+	"tcp_ipv6_retrans_segs  ",
+	"usm_ddp_frames         ",
+	"usm_ddp_octets         ",
+	"usm_ddp_drops          ",
+	"rdma_no_rqe_mod_defer  ",
+	"rdma_no_rqe_pkt_defer  ",
+	"tp_err_ofld_no_neigh   ",
+	"tp_err_ofld_cong_defer ",
+	"write_coal_success     ",
+	"write_coal_fail        ",
+};
+
+static char channel_stats_strings[][ETH_GSTRING_LEN] = {
+	"--------Channel--------- ",
+	"tp_cpl_requests        ",
+	"tp_cpl_responses       ",
+	"tp_mac_in_errs         ",
+	"tp_hdr_in_errs         ",
+	"tp_tcp_in_errs         ",
+	"tp_tcp6_in_errs        ",
+	"tp_tnl_cong_drops      ",
+	"tp_tnl_tx_drops        ",
+	"tp_ofld_vlan_drops     ",
+	"tp_ofld_chan_drops     ",
+	"fcoe_octets_ddp        ",
+	"fcoe_frames_ddp        ",
+	"fcoe_frames_drop       ",
+};
+
+static char loopback_stats_strings[][ETH_GSTRING_LEN] = {
+	"-------Loopback----------- ",
+	"octets_ok              ",
+	"frames_ok              ",
+	"bcast_frames           ",
+	"mcast_frames           ",
+	"ucast_frames           ",
+	"error_frames           ",
+	"frames_64              ",
+	"frames_65_to_127       ",
+	"frames_128_to_255      ",
+	"frames_256_to_511      ",
+	"frames_512_to_1023     ",
+	"frames_1024_to_1518    ",
+	"frames_1519_to_max     ",
+	"frames_dropped         ",
+	"bg0_frames_dropped     ",
+	"bg1_frames_dropped     ",
+	"bg2_frames_dropped     ",
+	"bg3_frames_dropped     ",
+	"bg0_frames_trunc       ",
+	"bg1_frames_trunc       ",
+	"bg2_frames_trunc       ",
+	"bg3_frames_trunc       ",
 };
 
 static int get_sset_count(struct net_device *dev, int sset)
 {
 	switch (sset) {
 	case ETH_SS_STATS:
-		return ARRAY_SIZE(stats_strings);
+		return ARRAY_SIZE(stats_strings) +
+		       ARRAY_SIZE(adapter_stats_strings) +
+		       ARRAY_SIZE(channel_stats_strings) +
+		       ARRAY_SIZE(loopback_stats_strings);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -168,8 +235,18 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 
 static void get_strings(struct net_device *dev, u32 stringset, u8 *data)
 {
-	if (stringset == ETH_SS_STATS)
+	if (stringset == ETH_SS_STATS) {
 		memcpy(data, stats_strings, sizeof(stats_strings));
+		data += sizeof(stats_strings);
+		memcpy(data, adapter_stats_strings,
+		       sizeof(adapter_stats_strings));
+		data += sizeof(adapter_stats_strings);
+		memcpy(data, channel_stats_strings,
+		       sizeof(channel_stats_strings));
+		data += sizeof(channel_stats_strings);
+		memcpy(data, loopback_stats_strings,
+		       sizeof(loopback_stats_strings));
+	}
 }
 
 /* port stats maintained per queue of the port. They should be in the same
@@ -183,6 +260,45 @@ struct queue_port_stats {
 	u64 vlan_ins;
 	u64 gro_pkts;
 	u64 gro_merged;
+};
+
+struct adapter_stats {
+	u64 db_drop;
+	u64 db_full;
+	u64 db_empty;
+	u64 tcp_v4_out_rsts;
+	u64 tcp_v4_in_segs;
+	u64 tcp_v4_out_segs;
+	u64 tcp_v4_retrans_segs;
+	u64 tcp_v6_out_rsts;
+	u64 tcp_v6_in_segs;
+	u64 tcp_v6_out_segs;
+	u64 tcp_v6_retrans_segs;
+	u64 frames;
+	u64 octets;
+	u64 drops;
+	u64 rqe_dfr_mod;
+	u64 rqe_dfr_pkt;
+	u64 ofld_no_neigh;
+	u64 ofld_cong_defer;
+	u64 wc_success;
+	u64 wc_fail;
+};
+
+struct channel_stats {
+	u64 cpl_req;
+	u64 cpl_rsp;
+	u64 mac_in_errs;
+	u64 hdr_in_errs;
+	u64 tcp_in_errs;
+	u64 tcp6_in_errs;
+	u64 tnl_cong_drops;
+	u64 tnl_tx_drops;
+	u64 ofld_vlan_drops;
+	u64 ofld_chan_drops;
+	u64 octets_ddp;
+	u64 frames_ddp;
+	u64 frames_drop;
 };
 
 static void collect_sge_port_stats(const struct adapter *adap,
@@ -205,30 +321,121 @@ static void collect_sge_port_stats(const struct adapter *adap,
 	}
 }
 
+static void collect_adapter_stats(struct adapter *adap, struct adapter_stats *s)
+{
+	struct tp_tcp_stats v4, v6;
+	struct tp_rdma_stats rdma_stats;
+	struct tp_err_stats err_stats;
+	struct tp_usm_stats usm_stats;
+	u64 val1, val2;
+
+	memset(s, 0, sizeof(*s));
+
+	spin_lock(&adap->stats_lock);
+	t4_tp_get_tcp_stats(adap, &v4, &v6);
+	t4_tp_get_rdma_stats(adap, &rdma_stats);
+	t4_get_usm_stats(adap, &usm_stats);
+	t4_tp_get_err_stats(adap, &err_stats);
+	spin_unlock(&adap->stats_lock);
+
+	s->db_drop = adap->db_stats.db_drop;
+	s->db_full = adap->db_stats.db_full;
+	s->db_empty = adap->db_stats.db_empty;
+
+	s->tcp_v4_out_rsts = v4.tcp_out_rsts;
+	s->tcp_v4_in_segs = v4.tcp_in_segs;
+	s->tcp_v4_out_segs = v4.tcp_out_segs;
+	s->tcp_v4_retrans_segs = v4.tcp_retrans_segs;
+	s->tcp_v6_out_rsts = v6.tcp_out_rsts;
+	s->tcp_v6_in_segs = v6.tcp_in_segs;
+	s->tcp_v6_out_segs = v6.tcp_out_segs;
+	s->tcp_v6_retrans_segs = v6.tcp_retrans_segs;
+
+	if (is_offload(adap)) {
+		s->frames = usm_stats.frames;
+		s->octets = usm_stats.octets;
+		s->drops = usm_stats.drops;
+		s->rqe_dfr_mod = rdma_stats.rqe_dfr_mod;
+		s->rqe_dfr_pkt = rdma_stats.rqe_dfr_pkt;
+	}
+
+	s->ofld_no_neigh = err_stats.ofld_no_neigh;
+	s->ofld_cong_defer = err_stats.ofld_cong_defer;
+
+	if (!is_t4(adap->params.chip)) {
+		int v;
+
+		v = t4_read_reg(adap, SGE_STAT_CFG_A);
+		if (STATSOURCE_T5_G(v) == 7) {
+			val2 = t4_read_reg(adap, SGE_STAT_MATCH_A);
+			val1 = t4_read_reg(adap, SGE_STAT_TOTAL_A);
+			s->wc_success = val1 - val2;
+			s->wc_fail = val2;
+		}
+	}
+}
+
+static void collect_channel_stats(struct adapter *adap, struct channel_stats *s,
+				  u8 i)
+{
+	struct tp_cpl_stats cpl_stats;
+	struct tp_err_stats err_stats;
+	struct tp_fcoe_stats fcoe_stats;
+
+	memset(s, 0, sizeof(*s));
+
+	spin_lock(&adap->stats_lock);
+	t4_tp_get_cpl_stats(adap, &cpl_stats);
+	t4_tp_get_err_stats(adap, &err_stats);
+	t4_get_fcoe_stats(adap, i, &fcoe_stats);
+	spin_unlock(&adap->stats_lock);
+
+	s->cpl_req = cpl_stats.req[i];
+	s->cpl_rsp = cpl_stats.rsp[i];
+	s->mac_in_errs = err_stats.mac_in_errs[i];
+	s->hdr_in_errs = err_stats.hdr_in_errs[i];
+	s->tcp_in_errs = err_stats.tcp_in_errs[i];
+	s->tcp6_in_errs = err_stats.tcp6_in_errs[i];
+	s->tnl_cong_drops = err_stats.tnl_cong_drops[i];
+	s->tnl_tx_drops = err_stats.tnl_tx_drops[i];
+	s->ofld_vlan_drops = err_stats.ofld_vlan_drops[i];
+	s->ofld_chan_drops = err_stats.ofld_chan_drops[i];
+	s->octets_ddp = fcoe_stats.octets_ddp;
+	s->frames_ddp = fcoe_stats.frames_ddp;
+	s->frames_drop = fcoe_stats.frames_drop;
+}
+
 static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 		      u64 *data)
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
-	u32 val1, val2;
+	struct lb_port_stats s;
+	int i;
+	u64 *p0;
 
-	t4_get_port_stats(adapter, pi->tx_chan, (struct port_stats *)data);
+	t4_get_port_stats_offset(adapter, pi->tx_chan,
+				 (struct port_stats *)data,
+				 &pi->stats_base);
 
 	data += sizeof(struct port_stats) / sizeof(u64);
 	collect_sge_port_stats(adapter, pi, (struct queue_port_stats *)data);
 	data += sizeof(struct queue_port_stats) / sizeof(u64);
-	if (!is_t4(adapter->params.chip)) {
-		t4_write_reg(adapter, SGE_STAT_CFG_A, STATSOURCE_T5_V(7));
-		val1 = t4_read_reg(adapter, SGE_STAT_TOTAL_A);
-		val2 = t4_read_reg(adapter, SGE_STAT_MATCH_A);
-		*data = val1 - val2;
-		data++;
-		*data = val2;
-		data++;
-	} else {
-		memset(data, 0, 2 * sizeof(u64));
-		*data += 2;
-	}
+	collect_adapter_stats(adapter, (struct adapter_stats *)data);
+	data += sizeof(struct adapter_stats) / sizeof(u64);
+
+	*data++ = (u64)pi->port_id;
+	collect_channel_stats(adapter, (struct channel_stats *)data,
+			      pi->port_id);
+	data += sizeof(struct channel_stats) / sizeof(u64);
+
+	*data++ = (u64)pi->port_id;
+	memset(&s, 0, sizeof(s));
+	t4_get_lb_stats(adapter, pi->port_id, &s);
+
+	p0 = &s.octets;
+	for (i = 0; i < ARRAY_SIZE(loopback_stats_strings) - 1; i++)
+		*data++ = (unsigned long long)*p0++;
 }
 
 static void get_regs(struct net_device *dev, struct ethtool_regs *regs,
@@ -740,37 +947,6 @@ static int set_flash(struct net_device *netdev, struct ethtool_flash *ef)
 	return ret;
 }
 
-#define WOL_SUPPORTED (WAKE_BCAST | WAKE_MAGIC)
-#define BCAST_CRC 0xa0ccc1a6
-
-static void get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
-{
-	wol->supported = WAKE_BCAST | WAKE_MAGIC;
-	wol->wolopts = netdev2adap(dev)->wol;
-	memset(&wol->sopass, 0, sizeof(wol->sopass));
-}
-
-static int set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
-{
-	int err = 0;
-	struct port_info *pi = netdev_priv(dev);
-
-	if (wol->wolopts & ~WOL_SUPPORTED)
-		return -EINVAL;
-	t4_wol_magic_enable(pi->adapter, pi->tx_chan,
-			    (wol->wolopts & WAKE_MAGIC) ? dev->dev_addr : NULL);
-	if (wol->wolopts & WAKE_BCAST) {
-		err = t4_wol_pat_enable(pi->adapter, pi->tx_chan, 0xfe, ~0ULL,
-					~0ULL, 0, false);
-		if (!err)
-			err = t4_wol_pat_enable(pi->adapter, pi->tx_chan, 1,
-						~6ULL, ~0ULL, BCAST_CRC, true);
-	} else {
-		t4_wol_pat_enable(pi->adapter, pi->tx_chan, 0, 0, 0, 0, false);
-	}
-	return err;
-}
-
 static u32 get_rss_table_size(struct net_device *dev)
 {
 	const struct port_info *pi = netdev_priv(dev);
@@ -900,8 +1076,6 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_ethtool_stats = get_stats,
 	.get_regs_len      = get_regs_len,
 	.get_regs          = get_regs,
-	.get_wol           = get_wol,
-	.set_wol           = set_wol,
 	.get_rxnfc         = get_rxnfc,
 	.get_rxfh_indir_size = get_rss_table_size,
 	.get_rxfh	   = get_rss_table,

@@ -3760,22 +3760,146 @@ void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
 	if (v4) {
 		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, val,
 				 ARRAY_SIZE(val), TP_MIB_TCP_OUT_RST_A);
-		v4->tcpOutRsts = STAT(OUT_RST);
-		v4->tcpInSegs  = STAT64(IN_SEG);
-		v4->tcpOutSegs = STAT64(OUT_SEG);
-		v4->tcpRetransSegs = STAT64(RXT_SEG);
+		v4->tcp_out_rsts = STAT(OUT_RST);
+		v4->tcp_in_segs  = STAT64(IN_SEG);
+		v4->tcp_out_segs = STAT64(OUT_SEG);
+		v4->tcp_retrans_segs = STAT64(RXT_SEG);
 	}
 	if (v6) {
 		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, val,
 				 ARRAY_SIZE(val), TP_MIB_TCP_V6OUT_RST_A);
-		v6->tcpOutRsts = STAT(OUT_RST);
-		v6->tcpInSegs  = STAT64(IN_SEG);
-		v6->tcpOutSegs = STAT64(OUT_SEG);
-		v6->tcpRetransSegs = STAT64(RXT_SEG);
+		v6->tcp_out_rsts = STAT(OUT_RST);
+		v6->tcp_in_segs  = STAT64(IN_SEG);
+		v6->tcp_out_segs = STAT64(OUT_SEG);
+		v6->tcp_retrans_segs = STAT64(RXT_SEG);
 	}
 #undef STAT64
 #undef STAT
 #undef STAT_IDX
+}
+
+/**
+ *	t4_tp_get_err_stats - read TP's error MIB counters
+ *	@adap: the adapter
+ *	@st: holds the counter values
+ *
+ *	Returns the values of TP's error counters.
+ */
+void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st)
+{
+	/* T6 and later has 2 channels */
+	if (adap->params.arch.nchan == NCHAN) {
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->mac_in_errs, 12, TP_MIB_MAC_IN_ERR_0_A);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->tnl_cong_drops, 8,
+				 TP_MIB_TNL_CNG_DROP_0_A);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->tnl_tx_drops, 4,
+				 TP_MIB_TNL_DROP_0_A);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->ofld_vlan_drops, 4,
+				 TP_MIB_OFD_VLN_DROP_0_A);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->tcp6_in_errs, 4,
+				 TP_MIB_TCP_V6IN_ERR_0_A);
+	} else {
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->mac_in_errs, 2, TP_MIB_MAC_IN_ERR_0_A);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->hdr_in_errs, 2, TP_MIB_HDR_IN_ERR_0_A);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->tcp_in_errs, 2, TP_MIB_TCP_IN_ERR_0_A);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->tnl_cong_drops, 2,
+				 TP_MIB_TNL_CNG_DROP_0_A);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->ofld_chan_drops, 2,
+				 TP_MIB_OFD_CHN_DROP_0_A);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->tnl_tx_drops, 2, TP_MIB_TNL_DROP_0_A);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->ofld_vlan_drops, 2,
+				 TP_MIB_OFD_VLN_DROP_0_A);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+				 st->tcp6_in_errs, 2, TP_MIB_TCP_V6IN_ERR_0_A);
+	}
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
+			 &st->ofld_no_neigh, 2, TP_MIB_OFD_ARP_DROP_A);
+}
+
+/**
+ *	t4_tp_get_cpl_stats - read TP's CPL MIB counters
+ *	@adap: the adapter
+ *	@st: holds the counter values
+ *
+ *	Returns the values of TP's CPL counters.
+ */
+void t4_tp_get_cpl_stats(struct adapter *adap, struct tp_cpl_stats *st)
+{
+	/* T6 and later has 2 channels */
+	if (adap->params.arch.nchan == NCHAN) {
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, st->req,
+				 8, TP_MIB_CPL_IN_REQ_0_A);
+	} else {
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, st->req,
+				 2, TP_MIB_CPL_IN_REQ_0_A);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, st->rsp,
+				 2, TP_MIB_CPL_OUT_RSP_0_A);
+	}
+}
+
+/**
+ *	t4_tp_get_rdma_stats - read TP's RDMA MIB counters
+ *	@adap: the adapter
+ *	@st: holds the counter values
+ *
+ *	Returns the values of TP's RDMA counters.
+ */
+void t4_tp_get_rdma_stats(struct adapter *adap, struct tp_rdma_stats *st)
+{
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, &st->rqe_dfr_pkt,
+			 2, TP_MIB_RQE_DFR_PKT_A);
+}
+
+/**
+ *	t4_get_fcoe_stats - read TP's FCoE MIB counters for a port
+ *	@adap: the adapter
+ *	@idx: the port index
+ *	@st: holds the counter values
+ *
+ *	Returns the values of TP's FCoE counters for the selected port.
+ */
+void t4_get_fcoe_stats(struct adapter *adap, unsigned int idx,
+		       struct tp_fcoe_stats *st)
+{
+	u32 val[2];
+
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, &st->frames_ddp,
+			 1, TP_MIB_FCOE_DDP_0_A + idx);
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, &st->frames_drop,
+			 1, TP_MIB_FCOE_DROP_0_A + idx);
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, val,
+			 2, TP_MIB_FCOE_BYTE_0_HI_A + 2 * idx);
+	st->octets_ddp = ((u64)val[0] << 32) | val[1];
+}
+
+/**
+ *	t4_get_usm_stats - read TP's non-TCP DDP MIB counters
+ *	@adap: the adapter
+ *	@st: holds the counter values
+ *
+ *	Returns the values of TP's counters for non-TCP directly-placed packets.
+ */
+void t4_get_usm_stats(struct adapter *adap, struct tp_usm_stats *st)
+{
+	u32 val[4];
+
+	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, val, 4,
+			 TP_MIB_USM_PKTS_A);
+	st->frames = val[0];
+	st->drops = val[1];
+	st->octets = ((u64)val[2] << 32) | val[3];
 }
 
 /**
@@ -4035,6 +4159,28 @@ const char *t4_get_port_type_description(enum fw_port_type port_type)
 }
 
 /**
+ *      t4_get_port_stats_offset - collect port stats relative to a previous
+ *                                 snapshot
+ *      @adap: The adapter
+ *      @idx: The port
+ *      @stats: Current stats to fill
+ *      @offset: Previous stats snapshot
+ */
+void t4_get_port_stats_offset(struct adapter *adap, int idx,
+			      struct port_stats *stats,
+			      struct port_stats *offset)
+{
+	u64 *s, *o;
+	int i;
+
+	t4_get_port_stats(adap, idx, stats);
+	for (i = 0, s = (u64 *)stats, o = (u64 *)offset;
+			i < (sizeof(struct port_stats) / sizeof(u64));
+			i++, s++, o++)
+		*s -= *o;
+}
+
+/**
  *	t4_get_port_stats - collect port statistics
  *	@adap: the adapter
  *	@idx: the port index
@@ -4118,103 +4264,51 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 }
 
 /**
- *	t4_wol_magic_enable - enable/disable magic packet WoL
+ *	t4_get_lb_stats - collect loopback port statistics
  *	@adap: the adapter
- *	@port: the physical port index
- *	@addr: MAC address expected in magic packets, %NULL to disable
+ *	@idx: the loopback port index
+ *	@p: the stats structure to fill
  *
- *	Enables/disables magic packet wake-on-LAN for the selected port.
+ *	Return HW statistics for the given loopback port.
  */
-void t4_wol_magic_enable(struct adapter *adap, unsigned int port,
-			 const u8 *addr)
+void t4_get_lb_stats(struct adapter *adap, int idx, struct lb_port_stats *p)
 {
-	u32 mag_id_reg_l, mag_id_reg_h, port_cfg_reg;
+	u32 bgmap = t4_get_mps_bg_map(adap, idx);
 
-	if (is_t4(adap->params.chip)) {
-		mag_id_reg_l = PORT_REG(port, XGMAC_PORT_MAGIC_MACID_LO);
-		mag_id_reg_h = PORT_REG(port, XGMAC_PORT_MAGIC_MACID_HI);
-		port_cfg_reg = PORT_REG(port, XGMAC_PORT_CFG2_A);
-	} else {
-		mag_id_reg_l = T5_PORT_REG(port, MAC_PORT_MAGIC_MACID_LO);
-		mag_id_reg_h = T5_PORT_REG(port, MAC_PORT_MAGIC_MACID_HI);
-		port_cfg_reg = T5_PORT_REG(port, MAC_PORT_CFG2_A);
-	}
-
-	if (addr) {
-		t4_write_reg(adap, mag_id_reg_l,
-			     (addr[2] << 24) | (addr[3] << 16) |
-			     (addr[4] << 8) | addr[5]);
-		t4_write_reg(adap, mag_id_reg_h,
-			     (addr[0] << 8) | addr[1]);
-	}
-	t4_set_reg_field(adap, port_cfg_reg, MAGICEN_F,
-			 addr ? MAGICEN_F : 0);
-}
-
-/**
- *	t4_wol_pat_enable - enable/disable pattern-based WoL
- *	@adap: the adapter
- *	@port: the physical port index
- *	@map: bitmap of which HW pattern filters to set
- *	@mask0: byte mask for bytes 0-63 of a packet
- *	@mask1: byte mask for bytes 64-127 of a packet
- *	@crc: Ethernet CRC for selected bytes
- *	@enable: enable/disable switch
- *
- *	Sets the pattern filters indicated in @map to mask out the bytes
- *	specified in @mask0/@mask1 in received packets and compare the CRC of
- *	the resulting packet against @crc.  If @enable is %true pattern-based
- *	WoL is enabled, otherwise disabled.
- */
-int t4_wol_pat_enable(struct adapter *adap, unsigned int port, unsigned int map,
-		      u64 mask0, u64 mask1, unsigned int crc, bool enable)
-{
-	int i;
-	u32 port_cfg_reg;
-
-	if (is_t4(adap->params.chip))
-		port_cfg_reg = PORT_REG(port, XGMAC_PORT_CFG2_A);
-	else
-		port_cfg_reg = T5_PORT_REG(port, MAC_PORT_CFG2_A);
-
-	if (!enable) {
-		t4_set_reg_field(adap, port_cfg_reg, PATEN_F, 0);
-		return 0;
-	}
-	if (map > 0xff)
-		return -EINVAL;
-
-#define EPIO_REG(name) \
+#define GET_STAT(name) \
+	t4_read_reg64(adap, \
 	(is_t4(adap->params.chip) ? \
-	 PORT_REG(port, XGMAC_PORT_EPIO_##name##_A) : \
-	 T5_PORT_REG(port, MAC_PORT_EPIO_##name##_A))
+	PORT_REG(idx, MPS_PORT_STAT_LB_PORT_##name##_L) : \
+	T5_PORT_REG(idx, MPS_PORT_STAT_LB_PORT_##name##_L)))
+#define GET_STAT_COM(name) t4_read_reg64(adap, MPS_STAT_##name##_L)
 
-	t4_write_reg(adap, EPIO_REG(DATA1), mask0 >> 32);
-	t4_write_reg(adap, EPIO_REG(DATA2), mask1);
-	t4_write_reg(adap, EPIO_REG(DATA3), mask1 >> 32);
+	p->octets           = GET_STAT(BYTES);
+	p->frames           = GET_STAT(FRAMES);
+	p->bcast_frames     = GET_STAT(BCAST);
+	p->mcast_frames     = GET_STAT(MCAST);
+	p->ucast_frames     = GET_STAT(UCAST);
+	p->error_frames     = GET_STAT(ERROR);
 
-	for (i = 0; i < NWOL_PAT; i++, map >>= 1) {
-		if (!(map & 1))
-			continue;
+	p->frames_64        = GET_STAT(64B);
+	p->frames_65_127    = GET_STAT(65B_127B);
+	p->frames_128_255   = GET_STAT(128B_255B);
+	p->frames_256_511   = GET_STAT(256B_511B);
+	p->frames_512_1023  = GET_STAT(512B_1023B);
+	p->frames_1024_1518 = GET_STAT(1024B_1518B);
+	p->frames_1519_max  = GET_STAT(1519B_MAX);
+	p->drop             = GET_STAT(DROP_FRAMES);
 
-		/* write byte masks */
-		t4_write_reg(adap, EPIO_REG(DATA0), mask0);
-		t4_write_reg(adap, EPIO_REG(OP), ADDRESS_V(i) | EPIOWR_F);
-		t4_read_reg(adap, EPIO_REG(OP));                /* flush */
-		if (t4_read_reg(adap, EPIO_REG(OP)) & SF_BUSY_F)
-			return -ETIMEDOUT;
+	p->ovflow0 = (bgmap & 1) ? GET_STAT_COM(RX_BG_0_LB_DROP_FRAME) : 0;
+	p->ovflow1 = (bgmap & 2) ? GET_STAT_COM(RX_BG_1_LB_DROP_FRAME) : 0;
+	p->ovflow2 = (bgmap & 4) ? GET_STAT_COM(RX_BG_2_LB_DROP_FRAME) : 0;
+	p->ovflow3 = (bgmap & 8) ? GET_STAT_COM(RX_BG_3_LB_DROP_FRAME) : 0;
+	p->trunc0 = (bgmap & 1) ? GET_STAT_COM(RX_BG_0_LB_TRUNC_FRAME) : 0;
+	p->trunc1 = (bgmap & 2) ? GET_STAT_COM(RX_BG_1_LB_TRUNC_FRAME) : 0;
+	p->trunc2 = (bgmap & 4) ? GET_STAT_COM(RX_BG_2_LB_TRUNC_FRAME) : 0;
+	p->trunc3 = (bgmap & 8) ? GET_STAT_COM(RX_BG_3_LB_TRUNC_FRAME) : 0;
 
-		/* write CRC */
-		t4_write_reg(adap, EPIO_REG(DATA0), crc);
-		t4_write_reg(adap, EPIO_REG(OP), ADDRESS_V(i + 32) | EPIOWR_F);
-		t4_read_reg(adap, EPIO_REG(OP));                /* flush */
-		if (t4_read_reg(adap, EPIO_REG(OP)) & SF_BUSY_F)
-			return -ETIMEDOUT;
-	}
-#undef EPIO_REG
-
-	t4_set_reg_field(adap, PORT_REG(port, XGMAC_PORT_CFG2_A), 0, PATEN_F);
-	return 0;
+#undef GET_STAT
+#undef GET_STAT_COM
 }
 
 /*     t4_mk_filtdelwr - create a delete filter WR
