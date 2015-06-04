@@ -3392,6 +3392,7 @@ static void isert_free_conn(struct iscsi_conn *conn)
 {
 	struct isert_conn *isert_conn = conn->context;
 
+	isert_wait4flush(isert_conn);
 	isert_put_conn(isert_conn);
 }
 
