@@ -207,32 +207,33 @@ static inline void __cache_line_loop(unsigned long paddr, unsigned long vaddr,
  * Machine specific helpers for Entire D-Cache or Per Line ops
  */
 
-static inline unsigned int __before_dc_op(const int op)
+static inline void __before_dc_op(const int op)
 {
-	unsigned int reg = reg;
-
 	if (op == OP_FLUSH_N_INV) {
 		/* Dcache provides 2 cmd: FLUSH or INV
 		 * INV inturn has sub-modes: DISCARD or FLUSH-BEFORE
 		 * flush-n-inv is achieved by INV cmd but with IM=1
 		 * So toggle INV sub-mode depending on op request and default
 		 */
-		reg = read_aux_reg(ARC_REG_DC_CTRL);
-		write_aux_reg(ARC_REG_DC_CTRL, reg | DC_CTRL_INV_MODE_FLUSH)
-			;
+		const unsigned int ctl = ARC_REG_DC_CTRL;
+		write_aux_reg(ctl, read_aux_reg(ctl) | DC_CTRL_INV_MODE_FLUSH);
 	}
-
-	return reg;
 }
 
-static inline void __after_dc_op(const int op, unsigned int reg)
+static inline void __after_dc_op(const int op)
 {
-	if (op & OP_FLUSH)	/* flush / flush-n-inv both wait */
-		while (read_aux_reg(ARC_REG_DC_CTRL) & DC_CTRL_FLUSH_STATUS);
+	if (op & OP_FLUSH) {
+		const unsigned int ctl = ARC_REG_DC_CTRL;
+		unsigned int reg;
 
-	/* Switch back to default Invalidate mode */
-	if (op == OP_FLUSH_N_INV)
-		write_aux_reg(ARC_REG_DC_CTRL, reg & ~DC_CTRL_INV_MODE_FLUSH);
+		/* flush / flush-n-inv both wait */
+		while ((reg = read_aux_reg(ctl)) & DC_CTRL_FLUSH_STATUS)
+			;
+
+		/* Switch back to default Invalidate mode */
+		if (op == OP_FLUSH_N_INV)
+			write_aux_reg(ctl, reg & ~DC_CTRL_INV_MODE_FLUSH);
+	}
 }
 
 /*
@@ -243,10 +244,9 @@ static inline void __after_dc_op(const int op, unsigned int reg)
  */
 static inline void __dc_entire_op(const int op)
 {
-	unsigned int ctrl_reg;
 	int aux;
 
-	ctrl_reg = __before_dc_op(op);
+	__before_dc_op(op);
 
 	if (op & OP_INV)	/* Inv or flush-n-inv use same cmd reg */
 		aux = ARC_REG_DC_IVDC;
@@ -255,7 +255,7 @@ static inline void __dc_entire_op(const int op)
 
 	write_aux_reg(aux, 0x1);
 
-	__after_dc_op(op, ctrl_reg);
+	__after_dc_op(op);
 }
 
 /* For kernel mappings cache operation: index is same as paddr */
@@ -268,15 +268,14 @@ static inline void __dc_line_op(unsigned long paddr, unsigned long vaddr,
 				unsigned long sz, const int op)
 {
 	unsigned long flags;
-	unsigned int ctrl_reg;
 
 	local_irq_save(flags);
 
-	ctrl_reg = __before_dc_op(op);
+	__before_dc_op(op);
 
 	__cache_line_loop(paddr, vaddr, sz, op);
 
-	__after_dc_op(op, ctrl_reg);
+	__after_dc_op(op);
 
 	local_irq_restore(flags);
 }
