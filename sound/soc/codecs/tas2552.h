@@ -62,15 +62,14 @@
 #define TAS2552_LIM_EN			(1 << 2)
 #define TAS2552_IVSENSE_EN		(1 << 1)
 
-/* CFG3 Register Masks */
-#define TAS2552_WORD_CLK_MASK		(1 << 7)
-#define TAS2552_BIT_CLK_MASK		(1 << 6)
-#define TAS2552_DATA_FORMAT_MASK	(0x11 << 2)
-
-#define TAS2552_DAIFMT_I2S_MASK		0xf3
-#define TAS2552_DAIFMT_DSP			(1 << 3)
-#define TAS2552_DAIFMT_RIGHT_J		(1 << 4)
-#define TAS2552_DAIFMT_LEFT_J		(0x11 << 3)
+/* Serial Interface Control Register Masks */
+#define TAS2552_DATAFORMAT_I2S		(0x0 << 2)
+#define TAS2552_DATAFORMAT_DSP		(0x1 << 2)
+#define TAS2552_DATAFORMAT_RIGHT_J	(0x2 << 2)
+#define TAS2552_DATAFORMAT_LEFT_J	(0x3 << 2)
+#define TAS2552_DATAFORMAT_MASK		TAS2552_DATAFORMAT_LEFT_J
+#define TAS2552_BCLKDIR			(1 << 6)
+#define TAS2552_WCLKDIR			(1 << 7)
 
 #define TAS2552_DIN_SRC_SEL_MUTED	0x00
 #define TAS2552_DIN_SRC_SEL_LEFT	(1 << 4)

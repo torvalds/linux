@@ -188,9 +188,9 @@ static int tas2552_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-#define TAS2552_DAI_FMT_MASK	(TAS2552_BIT_CLK_MASK | \
-				 TAS2552_WORD_CLK_MASK | \
-				 TAS2552_DATA_FORMAT_MASK)
+#define TAS2552_DAI_FMT_MASK	(TAS2552_BCLKDIR | \
+				 TAS2552_WCLKDIR | \
+				 TAS2552_DATAFORMAT_MASK)
 static int tas2552_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct snd_soc_codec *codec = dai->codec;
@@ -202,13 +202,13 @@ static int tas2552_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		serial_format = 0x00;
 		break;
 	case SND_SOC_DAIFMT_CBS_CFM:
-		serial_format = TAS2552_WORD_CLK_MASK;
+		serial_format = TAS2552_WCLKDIR;
 		break;
 	case SND_SOC_DAIFMT_CBM_CFS:
-		serial_format = TAS2552_BIT_CLK_MASK;
+		serial_format = TAS2552_BCLKDIR;
 		break;
 	case SND_SOC_DAIFMT_CBM_CFM:
-		serial_format = (TAS2552_BIT_CLK_MASK | TAS2552_WORD_CLK_MASK);
+		serial_format = (TAS2552_BCLKDIR | TAS2552_WCLKDIR);
 		break;
 	default:
 		dev_vdbg(codec->dev, "DAI Format master is not found\n");
@@ -222,13 +222,13 @@ static int tas2552_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case (SND_SOC_DAIFMT_DSP_A | SND_SOC_DAIFMT_IB_NF):
 		delay = 1;
 	case (SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_IB_NF):
-		serial_format |= TAS2552_DAIFMT_DSP;
+		serial_format |= TAS2552_DATAFORMAT_DSP;
 		break;
 	case (SND_SOC_DAIFMT_RIGHT_J | SND_SOC_DAIFMT_NB_NF):
-		serial_format |= TAS2552_DAIFMT_RIGHT_J;
+		serial_format |= TAS2552_DATAFORMAT_RIGHT_J;
 		break;
 	case (SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_NB_NF):
-		serial_format |= TAS2552_DAIFMT_LEFT_J;
+		serial_format |= TAS2552_DATAFORMAT_LEFT_J;
 		break;
 	default:
 		dev_vdbg(codec->dev, "DAI Format is not found\n");
