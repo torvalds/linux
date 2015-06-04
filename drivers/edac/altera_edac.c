@@ -1,5 +1,5 @@
 /*
- *  Copyright Altera Corporation (C) 2014. All rights reserved.
+ *  Copyright Altera Corporation (C) 2014-2015. All rights reserved.
  *  Copyright 2011-2012 Calxeda, Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -28,111 +28,64 @@
 #include <linux/types.h>
 #include <linux/uaccess.h>
 
+#include "altera_edac.h"
 #include "edac_core.h"
 #include "edac_module.h"
 
 #define EDAC_MOD_STR		"altera_edac"
 #define EDAC_VERSION		"1"
 
-/* SDRAM Controller CtrlCfg Register */
-#define CTLCFG_OFST             0x00
-
-/* SDRAM Controller CtrlCfg Register Bit Masks */
-#define CTLCFG_ECC_EN           0x400
-#define CTLCFG_ECC_CORR_EN      0x800
-#define CTLCFG_GEN_SB_ERR       0x2000
-#define CTLCFG_GEN_DB_ERR       0x4000
-
-#define CTLCFG_ECC_AUTO_EN	(CTLCFG_ECC_EN | \
-				 CTLCFG_ECC_CORR_EN)
-
-/* SDRAM Controller Address Width Register */
-#define DRAMADDRW_OFST          0x2C
-
-/* SDRAM Controller Address Widths Field Register */
-#define DRAMADDRW_COLBIT_MASK   0x001F
-#define DRAMADDRW_COLBIT_SHIFT  0
-#define DRAMADDRW_ROWBIT_MASK   0x03E0
-#define DRAMADDRW_ROWBIT_SHIFT  5
-#define DRAMADDRW_BANKBIT_MASK	0x1C00
-#define DRAMADDRW_BANKBIT_SHIFT 10
-#define DRAMADDRW_CSBIT_MASK	0xE000
-#define DRAMADDRW_CSBIT_SHIFT   13
-
-/* SDRAM Controller Interface Data Width Register */
-#define DRAMIFWIDTH_OFST        0x30
-
-/* SDRAM Controller Interface Data Width Defines */
-#define DRAMIFWIDTH_16B_ECC     24
-#define DRAMIFWIDTH_32B_ECC     40
-
-/* SDRAM Controller DRAM Status Register */
-#define DRAMSTS_OFST            0x38
-
-/* SDRAM Controller DRAM Status Register Bit Masks */
-#define DRAMSTS_SBEERR          0x04
-#define DRAMSTS_DBEERR          0x08
-#define DRAMSTS_CORR_DROP       0x10
-
-/* SDRAM Controller DRAM IRQ Register */
-#define DRAMINTR_OFST           0x3C
-
-/* SDRAM Controller DRAM IRQ Register Bit Masks */
-#define DRAMINTR_INTREN         0x01
-#define DRAMINTR_SBEMASK        0x02
-#define DRAMINTR_DBEMASK        0x04
-#define DRAMINTR_CORRDROPMASK   0x08
-#define DRAMINTR_INTRCLR        0x10
-
-/* SDRAM Controller Single Bit Error Count Register */
-#define SBECOUNT_OFST           0x40
-
-/* SDRAM Controller Single Bit Error Count Register Bit Masks */
-#define SBECOUNT_MASK           0x0F
-
-/* SDRAM Controller Double Bit Error Count Register */
-#define DBECOUNT_OFST           0x44
-
-/* SDRAM Controller Double Bit Error Count Register Bit Masks */
-#define DBECOUNT_MASK           0x0F
-
-/* SDRAM Controller ECC Error Address Register */
-#define ERRADDR_OFST            0x48
-
-/* SDRAM Controller ECC Error Address Register Bit Masks */
-#define ERRADDR_MASK            0xFFFFFFFF
-
-/* Altera SDRAM Memory Controller data */
-struct altr_sdram_mc_data {
-	struct regmap *mc_vbase;
+static const struct altr_sdram_prv_data c5_data = {
+	.ecc_ctrl_offset    = CV_CTLCFG_OFST,
+	.ecc_ctl_en_mask    = CV_CTLCFG_ECC_AUTO_EN,
+	.ecc_stat_offset    = CV_DRAMSTS_OFST,
+	.ecc_stat_ce_mask   = CV_DRAMSTS_SBEERR,
+	.ecc_stat_ue_mask   = CV_DRAMSTS_DBEERR,
+	.ecc_saddr_offset   = CV_ERRADDR_OFST,
+	.ecc_cecnt_offset   = CV_SBECOUNT_OFST,
+	.ecc_uecnt_offset   = CV_DBECOUNT_OFST,
+	.ecc_irq_en_offset  = CV_DRAMINTR_OFST,
+	.ecc_irq_en_mask    = CV_DRAMINTR_INTREN,
+	.ecc_irq_clr_offset = CV_DRAMINTR_OFST,
+	.ecc_irq_clr_mask   = (CV_DRAMINTR_INTRCLR | CV_DRAMINTR_INTREN),
+	.ecc_cnt_rst_offset = CV_DRAMINTR_OFST,
+	.ecc_cnt_rst_mask   = CV_DRAMINTR_INTRCLR,
+#ifdef CONFIG_EDAC_DEBUG
+	.ce_ue_trgr_offset  = CV_CTLCFG_OFST,
+	.ce_set_mask        = CV_CTLCFG_GEN_SB_ERR,
+	.ue_set_mask        = CV_CTLCFG_GEN_DB_ERR,
+#endif
 };
 
 static irqreturn_t altr_sdram_mc_err_handler(int irq, void *dev_id)
 {
 	struct mem_ctl_info *mci = dev_id;
 	struct altr_sdram_mc_data *drvdata = mci->pvt_info;
+	const struct altr_sdram_prv_data *priv = drvdata->data;
 	u32 status, err_count, err_addr;
 
 	/* Error Address is shared by both SBE & DBE */
-	regmap_read(drvdata->mc_vbase, ERRADDR_OFST, &err_addr);
+	regmap_read(drvdata->mc_vbase, priv->ecc_saddr_offset, &err_addr);
 
-	regmap_read(drvdata->mc_vbase, DRAMSTS_OFST, &status);
+	regmap_read(drvdata->mc_vbase, priv->ecc_stat_offset, &status);
 
-	if (status & DRAMSTS_DBEERR) {
-		regmap_read(drvdata->mc_vbase, DBECOUNT_OFST, &err_count);
+	if (status & priv->ecc_stat_ue_mask) {
+		regmap_read(drvdata->mc_vbase, priv->ecc_uecnt_offset,
+			    &err_count);
 		panic("\nEDAC: [%d Uncorrectable errors @ 0x%08X]\n",
 		      err_count, err_addr);
 	}
-	if (status & DRAMSTS_SBEERR) {
-		regmap_read(drvdata->mc_vbase, SBECOUNT_OFST, &err_count);
+	if (status & priv->ecc_stat_ce_mask) {
+		regmap_read(drvdata->mc_vbase,  priv->ecc_cecnt_offset,
+			    &err_count);
 		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, err_count,
 				     err_addr >> PAGE_SHIFT,
 				     err_addr & ~PAGE_MASK, 0,
 				     0, 0, -1, mci->ctl_name, "");
 	}
 
-	regmap_write(drvdata->mc_vbase,	DRAMINTR_OFST,
-		     (DRAMINTR_INTRCLR | DRAMINTR_INTREN));
+	regmap_write(drvdata->mc_vbase,	priv->ecc_irq_clr_offset,
+		     priv->ecc_irq_clr_mask);
 
 	return IRQ_HANDLED;
 }
@@ -144,6 +97,7 @@ static ssize_t altr_sdr_mc_err_inject_write(struct file *file,
 {
 	struct mem_ctl_info *mci = file->private_data;
 	struct altr_sdram_mc_data *drvdata = mci->pvt_info;
+	const struct altr_sdram_prv_data *priv = drvdata->data;
 	u32 *ptemp;
 	dma_addr_t dma_handle;
 	u32 reg, read_reg;
@@ -156,8 +110,9 @@ static ssize_t altr_sdr_mc_err_inject_write(struct file *file,
 		return -ENOMEM;
 	}
 
-	regmap_read(drvdata->mc_vbase, CTLCFG_OFST, &read_reg);
-	read_reg &= ~(CTLCFG_GEN_SB_ERR | CTLCFG_GEN_DB_ERR);
+	regmap_read(drvdata->mc_vbase, priv->ce_ue_trgr_offset,
+		    &read_reg);
+	read_reg &= ~(priv->ce_set_mask | priv->ue_set_mask);
 
 	/* Error are injected by writing a word while the SBE or DBE
 	 * bit in the CTLCFG register is set. Reading the word will
@@ -166,20 +121,20 @@ static ssize_t altr_sdr_mc_err_inject_write(struct file *file,
 	if (count == 3) {
 		edac_printk(KERN_ALERT, EDAC_MC,
 			    "Inject Double bit error\n");
-		regmap_write(drvdata->mc_vbase, CTLCFG_OFST,
-			     (read_reg | CTLCFG_GEN_DB_ERR));
+		regmap_write(drvdata->mc_vbase, priv->ce_ue_trgr_offset,
+			     (read_reg | priv->ue_set_mask));
 	} else {
 		edac_printk(KERN_ALERT, EDAC_MC,
 			    "Inject Single bit error\n");
-		regmap_write(drvdata->mc_vbase,	CTLCFG_OFST,
-			     (read_reg | CTLCFG_GEN_SB_ERR));
+		regmap_write(drvdata->mc_vbase,	priv->ce_ue_trgr_offset,
+			     (read_reg | priv->ce_set_mask));
 	}
 
 	ptemp[0] = 0x5A5A5A5A;
 	ptemp[1] = 0xA5A5A5A5;
 
 	/* Clear the error injection bits */
-	regmap_write(drvdata->mc_vbase,	CTLCFG_OFST, read_reg);
+	regmap_write(drvdata->mc_vbase,	priv->ce_ue_trgr_offset, read_reg);
 	/* Ensure it has been written out */
 	wmb();
 
@@ -246,18 +201,29 @@ static unsigned long get_total_mem(void)
 	return total_mem;
 }
 
+static const struct of_device_id altr_sdram_ctrl_of_match[] = {
+	{ .compatible = "altr,sdram-edac", .data = (void *)&c5_data},
+	{},
+};
+MODULE_DEVICE_TABLE(of, altr_sdram_ctrl_of_match);
+
 static int altr_sdram_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *id;
 	struct edac_mc_layer layers[2];
 	struct mem_ctl_info *mci;
 	struct altr_sdram_mc_data *drvdata;
+	const struct altr_sdram_prv_data *priv;
 	struct regmap *mc_vbase;
 	struct dimm_info *dimm;
-	u32 read_reg, mem_size;
-	int irq;
-	int res = 0;
+	u32 read_reg;
+	int irq, res = 0;
+	unsigned long mem_size;
 
-	/* Validate the SDRAM controller has ECC enabled */
+	id = of_match_device(altr_sdram_ctrl_of_match, &pdev->dev);
+	if (!id)
+		return -ENODEV;
+
 	/* Grab the register range from the sdr controller in device tree */
 	mc_vbase = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
 						   "altr,sdr-syscon");
@@ -267,8 +233,13 @@ static int altr_sdram_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (regmap_read(mc_vbase, CTLCFG_OFST, &read_reg) ||
-	    ((read_reg & CTLCFG_ECC_AUTO_EN) !=	CTLCFG_ECC_AUTO_EN)) {
+	/* Check specific dependencies for the module */
+	priv = of_match_node(altr_sdram_ctrl_of_match,
+			     pdev->dev.of_node)->data;
+
+	/* Validate the SDRAM controller has ECC enabled */
+	if (regmap_read(mc_vbase, priv->ecc_ctrl_offset, &read_reg) ||
+	    ((read_reg & priv->ecc_ctl_en_mask) != priv->ecc_ctl_en_mask)) {
 		edac_printk(KERN_ERR, EDAC_MC,
 			    "No ECC/ECC disabled [0x%08X]\n", read_reg);
 		return -ENODEV;
@@ -281,10 +252,27 @@ static int altr_sdram_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	/* Ensure the SDRAM Interrupt is disabled and cleared */
-	if (regmap_write(mc_vbase, DRAMINTR_OFST, DRAMINTR_INTRCLR)) {
+	/* Ensure the SDRAM Interrupt is disabled */
+	if (regmap_update_bits(mc_vbase, priv->ecc_irq_en_offset,
+			       priv->ecc_irq_en_mask, 0)) {
 		edac_printk(KERN_ERR, EDAC_MC,
-			    "Error clearing SDRAM ECC IRQ\n");
+			    "Error disabling SDRAM ECC IRQ\n");
+		return -ENODEV;
+	}
+
+	/* Toggle to clear the SDRAM Error count */
+	if (regmap_update_bits(mc_vbase, priv->ecc_cnt_rst_offset,
+			       priv->ecc_cnt_rst_mask,
+			       priv->ecc_cnt_rst_mask)) {
+		edac_printk(KERN_ERR, EDAC_MC,
+			    "Error clearing SDRAM ECC count\n");
+		return -ENODEV;
+	}
+
+	if (regmap_update_bits(mc_vbase, priv->ecc_cnt_rst_offset,
+			       priv->ecc_cnt_rst_mask, 0)) {
+		edac_printk(KERN_ERR, EDAC_MC,
+			    "Error clearing SDRAM ECC count\n");
 		return -ENODEV;
 	}
 
@@ -309,9 +297,12 @@ static int altr_sdram_probe(struct platform_device *pdev)
 	mci->pdev = &pdev->dev;
 	drvdata = mci->pvt_info;
 	drvdata->mc_vbase = mc_vbase;
+	drvdata->data = priv;
 	platform_set_drvdata(pdev, mci);
 
 	if (!devres_open_group(&pdev->dev, NULL, GFP_KERNEL)) {
+		edac_printk(KERN_ERR, EDAC_MC,
+			    "Unable to get managed device resource\n");
 		res = -ENOMEM;
 		goto free;
 	}
@@ -345,8 +336,9 @@ static int altr_sdram_probe(struct platform_device *pdev)
 		goto err2;
 	}
 
-	if (regmap_write(drvdata->mc_vbase, DRAMINTR_OFST,
-			 (DRAMINTR_INTRCLR | DRAMINTR_INTREN))) {
+	/* Infrastructure ready - enable the IRQ */
+	if (regmap_update_bits(drvdata->mc_vbase, priv->ecc_irq_en_offset,
+			       priv->ecc_irq_en_mask, priv->ecc_irq_en_mask)) {
 		edac_mc_printk(mci, KERN_ERR,
 			       "Error enabling SDRAM ECC IRQ\n");
 		res = -ENODEV;
@@ -381,12 +373,6 @@ static int altr_sdram_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id altr_sdram_ctrl_of_match[] = {
-	{ .compatible = "altr,sdram-edac", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, altr_sdram_ctrl_of_match);
 
 static struct platform_driver altr_sdram_edac_driver = {
 	.probe = altr_sdram_probe,
