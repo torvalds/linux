@@ -26,7 +26,7 @@
 #define _ASM_X86_TOPOLOGY_H
 
 #ifdef CONFIG_X86_32
-# ifdef CONFIG_X86_HT
+# ifdef CONFIG_SMP
 #  define ENABLE_TOPO_DEFINES
 # endif
 #else

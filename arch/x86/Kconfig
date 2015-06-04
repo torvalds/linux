@@ -261,10 +261,6 @@ config X86_64_SMP
 	def_bool y
 	depends on X86_64 && SMP
 
-config X86_HT
-	def_bool y
-	depends on SMP
-
 config X86_32_LAZY_GS
 	def_bool y
 	depends on X86_32 && !CC_STACKPROTECTOR
@@ -865,7 +861,7 @@ config NR_CPUS
 
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
-	depends on X86_HT
+	depends on SMP
 	---help---
 	  SMT scheduler support improves the CPU scheduler's decision making
 	  when dealing with Intel Pentium 4 chips with HyperThreading at a
@@ -875,7 +871,7 @@ config SCHED_SMT
 config SCHED_MC
 	def_bool y
 	prompt "Multi-core scheduler support"
-	depends on X86_HT
+	depends on SMP
 	---help---
 	  Multi-core scheduler support improves the CPU scheduler's decision
 	  making when dealing with multi-core CPU chips at a cost of slightly
