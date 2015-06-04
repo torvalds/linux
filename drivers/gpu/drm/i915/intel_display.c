@@ -6737,10 +6737,8 @@ static int skylake_get_display_clock_speed(struct drm_device *dev)
 	uint32_t cdctl = I915_READ(CDCLK_CTL);
 	uint32_t linkrate;
 
-	if (!(lcpll1 & LCPLL_PLL_ENABLE)) {
-		WARN(1, "LCPLL1 not enabled\n");
+	if (!(lcpll1 & LCPLL_PLL_ENABLE))
 		return 24000; /* 24MHz is the cd freq with NSSC ref */
-	}
 
 	if ((cdctl & CDCLK_FREQ_SEL_MASK) == CDCLK_FREQ_540)
 		return 540000;
