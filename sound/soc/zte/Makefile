@@ -1,0 +1,1 @@
+obj-$(CONFIG_ZX296702_SPDIF)	+= zx296702-spdif.o
