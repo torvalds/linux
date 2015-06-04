@@ -75,28 +75,20 @@ xfs_bmap_finish(
 	xfs_efi_log_item_t	*efi;		/* extent free intention */
 	int			error;		/* error return value */
 	xfs_bmap_free_item_t	*free;		/* free extent item */
-	struct xfs_trans_res	tres;		/* new log reservation */
 	xfs_mount_t		*mp;		/* filesystem mount structure */
 	xfs_bmap_free_item_t	*next;		/* next item on free list */
-	xfs_trans_t		*ntp;		/* new transaction pointer */
 
 	ASSERT((*tp)->t_flags & XFS_TRANS_PERM_LOG_RES);
 	if (flist->xbf_count == 0) {
 		*committed = 0;
 		return 0;
 	}
-	ntp = *tp;
-	efi = xfs_trans_get_efi(ntp, flist->xbf_count);
+	efi = xfs_trans_get_efi(*tp, flist->xbf_count);
 	for (free = flist->xbf_first; free; free = free->xbfi_next)
-		xfs_trans_log_efi_extent(ntp, efi, free->xbfi_startblock,
+		xfs_trans_log_efi_extent(*tp, efi, free->xbfi_startblock,
 			free->xbfi_blockcount);
 
-	tres.tr_logres = ntp->t_log_res;
-	tres.tr_logcount = ntp->t_log_count;
-	tres.tr_logflags = XFS_TRANS_PERM_LOG_RES;
-	ntp = xfs_trans_dup(*tp);
-	error = xfs_trans_commit(*tp, 0);
-	*tp = ntp;
+	error = xfs_trans_roll(tp, NULL);
 	*committed = 1;
 	/*
 	 * We have a new transaction, so we should return committed=1,
@@ -105,19 +97,10 @@ xfs_bmap_finish(
 	if (error)
 		return error;
 
-	/*
-	 * transaction commit worked ok so we can drop the extra ticket
-	 * reference that we gained in xfs_trans_dup()
-	 */
-	xfs_log_ticket_put(ntp->t_ticket);
-
-	error = xfs_trans_reserve(ntp, &tres, 0, 0);
-	if (error)
-		return error;
-	efd = xfs_trans_get_efd(ntp, efi, flist->xbf_count);
+	efd = xfs_trans_get_efd(*tp, efi, flist->xbf_count);
 	for (free = flist->xbf_first; free != NULL; free = next) {
 		next = free->xbfi_next;
-		if ((error = xfs_free_extent(ntp, free->xbfi_startblock,
+		if ((error = xfs_free_extent(*tp, free->xbfi_startblock,
 				free->xbfi_blockcount))) {
 			/*
 			 * The bmap free list will be cleaned up at a
@@ -127,7 +110,7 @@ xfs_bmap_finish(
 			 * happens, since this transaction may not be
 			 * dirty yet.
 			 */
-			mp = ntp->t_mountp;
+			mp = (*tp)->t_mountp;
 			if (!XFS_FORCED_SHUTDOWN(mp))
 				xfs_force_shutdown(mp,
 						   (error == -EFSCORRUPTED) ?
@@ -135,7 +118,7 @@ xfs_bmap_finish(
 						   SHUTDOWN_META_IO_ERROR);
 			return error;
 		}
-		xfs_trans_log_efd_extent(ntp, efd, free->xbfi_startblock,
+		xfs_trans_log_efd_extent(*tp, efd, free->xbfi_startblock,
 			free->xbfi_blockcount);
 		xfs_bmap_del_free(flist, NULL, free);
 	}
