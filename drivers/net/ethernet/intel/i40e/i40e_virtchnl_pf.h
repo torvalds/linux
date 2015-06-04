@@ -78,6 +78,8 @@ struct i40e_vf {
 	u16 vf_id;
 	/* all VF vsis connect to the same parent */
 	enum i40e_switch_element_types parent_type;
+	struct i40e_virtchnl_version_info vf_ver;
+	u32 driver_caps; /* reported by VF driver */
 
 	/* VF Port Extender (PE) stag if used */
 	u16 stag;
