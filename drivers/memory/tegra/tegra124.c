@@ -1032,6 +1032,7 @@ const struct tegra_mc_soc tegra124_mc_soc = {
 	.num_clients = ARRAY_SIZE(tegra124_mc_clients),
 	.num_address_bits = 34,
 	.atom_size = 32,
+	.client_id_mask = 0x7f,
 	.smmu = &tegra124_smmu_soc,
 	.emem_regs = tegra124_mc_emem_regs,
 	.num_emem_regs = ARRAY_SIZE(tegra124_mc_emem_regs),
@@ -1067,6 +1068,7 @@ const struct tegra_mc_soc tegra132_mc_soc = {
 	.num_clients = ARRAY_SIZE(tegra124_mc_clients),
 	.num_address_bits = 34,
 	.atom_size = 32,
+	.client_id_mask = 0x7f,
 	.smmu = &tegra132_smmu_soc,
 };
 #endif /* CONFIG_ARCH_TEGRA_132_SOC */
