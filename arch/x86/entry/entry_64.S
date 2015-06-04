@@ -663,8 +663,6 @@ retint_kernel:
 restore_c_regs_and_iret:
 	RESTORE_C_REGS
 	REMOVE_PT_GPREGS_FROM_STACK 8
-
-irq_return:
 	INTERRUPT_RETURN
 
 ENTRY(native_iret)
@@ -1432,7 +1430,7 @@ nmi_restore:
 
 	/* Clear the NMI executing stack variable */
 	movq $0, 5*8(%rsp)
-	jmp irq_return
+	INTERRUPT_RETURN
 END(nmi)
 
 ENTRY(ignore_sysret)
