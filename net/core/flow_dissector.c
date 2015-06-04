@@ -200,19 +200,6 @@ ipv6:
 		nhoff += sizeof(struct ipv6hdr);
 
 		if (skb_flow_dissector_uses_key(flow_dissector,
-						FLOW_DISSECTOR_KEY_IPV6_HASH_ADDRS)) {
-			key_addrs = skb_flow_dissector_target(flow_dissector,
-							      FLOW_DISSECTOR_KEY_IPV6_HASH_ADDRS,
-							      target_container);
-
-			key_addrs->v4addrs.src =
-				(__force __be32)ipv6_addr_hash(&iph->saddr);
-			key_addrs->v4addrs.dst =
-				(__force __be32)ipv6_addr_hash(&iph->daddr);
-			key_control->addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
-			goto flow_label;
-		}
-		if (skb_flow_dissector_uses_key(flow_dissector,
 						FLOW_DISSECTOR_KEY_IPV6_ADDRS)) {
 			struct flow_dissector_key_ipv6_addrs *key_ipv6_addrs;
 
@@ -649,10 +636,6 @@ static const struct flow_dissector_key flow_keys_dissector_keys[] = {
 	{
 		.key_id = FLOW_DISSECTOR_KEY_IPV6_ADDRS,
 		.offset = offsetof(struct flow_keys, addrs.v6addrs),
-	},
-	{
-		.key_id = FLOW_DISSECTOR_KEY_IPV6_HASH_ADDRS,
-		.offset = offsetof(struct flow_keys, addrs.v4addrs),
 	},
 	{
 		.key_id = FLOW_DISSECTOR_KEY_TIPC_ADDRS,
