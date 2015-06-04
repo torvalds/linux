@@ -1125,6 +1125,10 @@ static int __init omap_dsshw_probe(struct platform_device *pdev)
 	if (r)
 		goto err_pll_init;
 
+	r = dss_init_ports(pdev);
+	if (r)
+		goto err_init_ports;
+
 	pm_runtime_enable(&pdev->dev);
 
 	r = dss_runtime_get();
@@ -1149,8 +1153,6 @@ static int __init omap_dsshw_probe(struct platform_device *pdev)
 	dss.lcd_clk_source[0] = OMAP_DSS_CLK_SRC_FCK;
 	dss.lcd_clk_source[1] = OMAP_DSS_CLK_SRC_FCK;
 
-	dss_init_ports(pdev);
-
 	rev = dss_read_reg(DSS_REVISION);
 	printk(KERN_INFO "OMAP DSS rev %d.%d\n",
 			FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
@@ -1167,7 +1169,8 @@ static int __init omap_dsshw_probe(struct platform_device *pdev)
 
 err_runtime_get:
 	pm_runtime_disable(&pdev->dev);
-
+	dss_uninit_ports(pdev);
+err_init_ports:
 	if (dss.video1_pll)
 		dss_video_pll_uninit(dss.video1_pll);
 
