@@ -282,6 +282,7 @@ static inline void __iomem *ioremap_nocache(unsigned long offset, unsigned long 
 }
 
 #define ioremap_wc ioremap_nocache
+#define ioremap_wt ioremap_nocache
 
 static inline void iounmap(void __iomem *addr)
 {
