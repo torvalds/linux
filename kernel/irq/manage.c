@@ -361,8 +361,7 @@ EXPORT_SYMBOL_GPL(irq_set_affinity_notifier);
 /*
  * Generic version of the affinity autoselector.
  */
-static int
-setup_affinity(unsigned int irq, struct irq_desc *desc, struct cpumask *mask)
+static int setup_affinity(struct irq_desc *desc, struct cpumask *mask)
 {
 	struct cpumask *set = irq_default_affinity;
 	int node = irq_desc_get_node(desc);
@@ -395,10 +394,10 @@ setup_affinity(unsigned int irq, struct irq_desc *desc, struct cpumask *mask)
 	return 0;
 }
 #else
-static inline int
-setup_affinity(unsigned int irq, struct irq_desc *d, struct cpumask *mask)
+/* Wrapper for ALPHA specific affinity selector magic */
+static inline int setup_affinity(struct irq_desc *d, struct cpumask *mask)
 {
-	return irq_select_affinity(irq);
+	return irq_select_affinity(irq_desc_get_irq(d));
 }
 #endif
 
@@ -412,14 +411,14 @@ int irq_select_affinity_usr(unsigned int irq, struct cpumask *mask)
 	int ret;
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
-	ret = setup_affinity(irq, desc, mask);
+	ret = setup_affinity(desc, mask);
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	return ret;
 }
 
 #else
 static inline int
-setup_affinity(unsigned int irq, struct irq_desc *desc, struct cpumask *mask)
+setup_affinity(struct irq_desc *desc, struct cpumask *mask)
 {
 	return 0;
 }
@@ -1256,7 +1255,7 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 		}
 
 		/* Set default affinity mask once everything is setup */
-		setup_affinity(irq, desc, mask);
+		setup_affinity(desc, mask);
 
 	} else if (new->flags & IRQF_TRIGGER_MASK) {
 		unsigned int nmsk = new->flags & IRQF_TRIGGER_MASK;
