@@ -1349,7 +1349,7 @@ __xfs_get_blocks(
 	sector_t		iblock,
 	struct buffer_head	*bh_result,
 	int			create,
-	int			direct)
+	bool			direct)
 {
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
@@ -1414,6 +1414,7 @@ __xfs_get_blocks(
 			if (error)
 				return error;
 			new = 1;
+
 		} else {
 			/*
 			 * Delalloc reservations do not require a transaction,
@@ -1508,49 +1509,29 @@ xfs_get_blocks(
 	struct buffer_head	*bh_result,
 	int			create)
 {
-	return __xfs_get_blocks(inode, iblock, bh_result, create, 0);
+	return __xfs_get_blocks(inode, iblock, bh_result, create, false);
 }
 
-STATIC int
+int
 xfs_get_blocks_direct(
 	struct inode		*inode,
 	sector_t		iblock,
 	struct buffer_head	*bh_result,
 	int			create)
 {
-	return __xfs_get_blocks(inode, iblock, bh_result, create, 1);
+	return __xfs_get_blocks(inode, iblock, bh_result, create, true);
 }
 
-/*
- * Complete a direct I/O write request.
- *
- * The ioend structure is passed from __xfs_get_blocks() to tell us what to do.
- * If no ioend exists (i.e. @private == NULL) then the write IO is an overwrite
- * wholly within the EOF and so there is nothing for us to do. Note that in this
- * case the completion can be called in interrupt context, whereas if we have an
- * ioend we will always be called in task context (i.e. from a workqueue).
- */
-STATIC void
-xfs_end_io_direct_write(
-	struct kiocb		*iocb,
+static void
+__xfs_end_io_direct_write(
+	struct inode		*inode,
+	struct xfs_ioend	*ioend,
 	loff_t			offset,
-	ssize_t			size,
-	void			*private)
+	ssize_t			size)
 {
-	struct inode		*inode = file_inode(iocb->ki_filp);
-	struct xfs_inode	*ip = XFS_I(inode);
-	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_ioend	*ioend = private;
+	struct xfs_mount	*mp = XFS_I(inode)->i_mount;
 
-	trace_xfs_gbmap_direct_endio(ip, offset, size,
-				     ioend ? ioend->io_type : 0, NULL);
-
-	if (!ioend) {
-		ASSERT(offset + size <= i_size_read(inode));
-		return;
-	}
-
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (XFS_FORCED_SHUTDOWN(mp) || ioend->io_error)
 		goto out_end_io;
 
 	/*
@@ -1587,10 +1568,10 @@ xfs_end_io_direct_write(
 	 * here can result in EOF moving backwards and Bad Things Happen when
 	 * that occurs.
 	 */
-	spin_lock(&ip->i_flags_lock);
+	spin_lock(&XFS_I(inode)->i_flags_lock);
 	if (offset + size > i_size_read(inode))
 		i_size_write(inode, offset + size);
-	spin_unlock(&ip->i_flags_lock);
+	spin_unlock(&XFS_I(inode)->i_flags_lock);
 
 	/*
 	 * If we are doing an append IO that needs to update the EOF on disk,
@@ -1607,6 +1588,98 @@ out_end_io:
 	return;
 }
 
+/*
+ * Complete a direct I/O write request.
+ *
+ * The ioend structure is passed from __xfs_get_blocks() to tell us what to do.
+ * If no ioend exists (i.e. @private == NULL) then the write IO is an overwrite
+ * wholly within the EOF and so there is nothing for us to do. Note that in this
+ * case the completion can be called in interrupt context, whereas if we have an
+ * ioend we will always be called in task context (i.e. from a workqueue).
+ */
+STATIC void
+xfs_end_io_direct_write(
+	struct kiocb		*iocb,
+	loff_t			offset,
+	ssize_t			size,
+	void			*private)
+{
+	struct inode		*inode = file_inode(iocb->ki_filp);
+	struct xfs_ioend	*ioend = private;
+
+	trace_xfs_gbmap_direct_endio(XFS_I(inode), offset, size,
+				     ioend ? ioend->io_type : 0, NULL);
+
+	if (!ioend) {
+		ASSERT(offset + size <= i_size_read(inode));
+		return;
+	}
+
+	__xfs_end_io_direct_write(inode, ioend, offset, size);
+}
+
+/*
+ * For DAX we need a mapping buffer callback for unwritten extent conversion
+ * when page faults allocate blocks and then zero them. Note that in this
+ * case the mapping indicated by the ioend may extend beyond EOF. We most
+ * definitely do not want to extend EOF here, so we trim back the ioend size to
+ * EOF.
+ */
+#ifdef CONFIG_FS_DAX
+void
+xfs_end_io_dax_write(
+	struct buffer_head	*bh,
+	int			uptodate)
+{
+	struct xfs_ioend	*ioend = bh->b_private;
+	struct inode		*inode = ioend->io_inode;
+	ssize_t			size = ioend->io_size;
+
+	ASSERT(IS_DAX(ioend->io_inode));
+
+	/* if there was an error zeroing, then don't convert it */
+	if (!uptodate)
+		ioend->io_error = -EIO;
+
+	/*
+	 * Trim update to EOF, so we don't extend EOF during unwritten extent
+	 * conversion of partial EOF blocks.
+	 */
+	spin_lock(&XFS_I(inode)->i_flags_lock);
+	if (ioend->io_offset + size > i_size_read(inode))
+		size = i_size_read(inode) - ioend->io_offset;
+	spin_unlock(&XFS_I(inode)->i_flags_lock);
+
+	__xfs_end_io_direct_write(inode, ioend, ioend->io_offset, size);
+
+}
+#else
+void xfs_end_io_dax_write(struct buffer_head *bh, int uptodate) { }
+#endif
+
+static inline ssize_t
+xfs_vm_do_dio(
+	struct inode		*inode,
+	struct kiocb		*iocb,
+	struct iov_iter		*iter,
+	loff_t			offset,
+	void			(*endio)(struct kiocb	*iocb,
+					 loff_t		offset,
+					 ssize_t	size,
+					 void		*private),
+	int			flags)
+{
+	struct block_device	*bdev;
+
+	if (IS_DAX(inode))
+		return dax_do_io(iocb, inode, iter, offset,
+				 xfs_get_blocks_direct, endio, 0);
+
+	bdev = xfs_find_bdev_for_inode(inode);
+	return  __blockdev_direct_IO(iocb, inode, bdev, iter, offset,
+				     xfs_get_blocks_direct, endio, NULL, flags);
+}
+
 STATIC ssize_t
 xfs_vm_direct_IO(
 	struct kiocb		*iocb,
@@ -1614,16 +1687,11 @@ xfs_vm_direct_IO(
 	loff_t			offset)
 {
 	struct inode		*inode = iocb->ki_filp->f_mapping->host;
-	struct block_device	*bdev = xfs_find_bdev_for_inode(inode);
 
-	if (iov_iter_rw(iter) == WRITE) {
-		return __blockdev_direct_IO(iocb, inode, bdev, iter, offset,
-					    xfs_get_blocks_direct,
-					    xfs_end_io_direct_write, NULL,
-					    DIO_ASYNC_EXTEND);
-	}
-	return __blockdev_direct_IO(iocb, inode, bdev, iter, offset,
-				    xfs_get_blocks_direct, NULL, NULL, 0);
+	if (iov_iter_rw(iter) == WRITE)
+		return xfs_vm_do_dio(inode, iocb, iter, offset,
+				     xfs_end_io_direct_write, DIO_ASYNC_EXTEND);
+	return xfs_vm_do_dio(inode, iocb, iter, offset, NULL, 0);
 }
 
 /*

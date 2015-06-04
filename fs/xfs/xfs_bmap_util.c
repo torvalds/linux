@@ -1133,14 +1133,29 @@ xfs_zero_remaining_bytes(
 			break;
 		ASSERT(imap.br_blockcount >= 1);
 		ASSERT(imap.br_startoff == offset_fsb);
+		ASSERT(imap.br_startblock != DELAYSTARTBLOCK);
+
+		if (imap.br_startblock == HOLESTARTBLOCK ||
+		    imap.br_state == XFS_EXT_UNWRITTEN) {
+			/* skip the entire extent */
+			lastoffset = XFS_FSB_TO_B(mp, imap.br_startoff +
+						      imap.br_blockcount) - 1;
+			continue;
+		}
+
 		lastoffset = XFS_FSB_TO_B(mp, imap.br_startoff + 1) - 1;
 		if (lastoffset > endoff)
 			lastoffset = endoff;
-		if (imap.br_startblock == HOLESTARTBLOCK)
+
+		/* DAX can just zero the backing device directly */
+		if (IS_DAX(VFS_I(ip))) {
+			error = dax_zero_page_range(VFS_I(ip), offset,
+						    lastoffset - offset + 1,
+						    xfs_get_blocks_direct);
+			if (error)
+				return error;
 			continue;
-		ASSERT(imap.br_startblock != DELAYSTARTBLOCK);
-		if (imap.br_state == XFS_EXT_UNWRITTEN)
-			continue;
+		}
 
 		error = xfs_buf_read_uncached(XFS_IS_REALTIME_INODE(ip) ?
 				mp->m_rtdev_targp : mp->m_ddev_targp,
