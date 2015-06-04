@@ -2960,7 +2960,13 @@ asmlinkage __visible void __sched notrace preempt_schedule_context(void)
 		return;
 
 	do {
-		preempt_active_enter();
+		/*
+		 * Use raw __prempt_count() ops that don't call function.
+		 * We can't call functions before disabling preemption which
+		 * disarm preemption tracing recursions.
+		 */
+		__preempt_count_add(PREEMPT_ACTIVE + PREEMPT_DISABLE_OFFSET);
+		barrier();
 		/*
 		 * Needs preempt disabled in case user_exit() is traced
 		 * and the tracer calls preempt_enable_notrace() causing
@@ -2970,7 +2976,8 @@ asmlinkage __visible void __sched notrace preempt_schedule_context(void)
 		__schedule();
 		exception_exit(prev_ctx);
 
-		preempt_active_exit();
+		barrier();
+		__preempt_count_sub(PREEMPT_ACTIVE + PREEMPT_DISABLE_OFFSET);
 	} while (need_resched());
 }
 EXPORT_SYMBOL_GPL(preempt_schedule_context);
