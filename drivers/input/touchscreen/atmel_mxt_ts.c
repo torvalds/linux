@@ -87,12 +87,12 @@
 #define MXT_COMMAND_DIAGNOSTIC	5
 
 /* Define for T6 status byte */
-#define MXT_T6_STATUS_RESET	(1 << 7)
-#define MXT_T6_STATUS_OFL	(1 << 6)
-#define MXT_T6_STATUS_SIGERR	(1 << 5)
-#define MXT_T6_STATUS_CAL	(1 << 4)
-#define MXT_T6_STATUS_CFGERR	(1 << 3)
-#define MXT_T6_STATUS_COMSERR	(1 << 2)
+#define MXT_T6_STATUS_RESET	BIT(7)
+#define MXT_T6_STATUS_OFL	BIT(6)
+#define MXT_T6_STATUS_SIGERR	BIT(5)
+#define MXT_T6_STATUS_CAL	BIT(4)
+#define MXT_T6_STATUS_CFGERR	BIT(3)
+#define MXT_T6_STATUS_COMSERR	BIT(2)
 
 /* MXT_GEN_POWER_T7 field */
 struct t7_config {
@@ -109,14 +109,14 @@ struct t7_config {
 #define MXT_T9_RANGE		18
 
 /* MXT_TOUCH_MULTI_T9 status */
-#define MXT_T9_UNGRIP		(1 << 0)
-#define MXT_T9_SUPPRESS		(1 << 1)
-#define MXT_T9_AMP		(1 << 2)
-#define MXT_T9_VECTOR		(1 << 3)
-#define MXT_T9_MOVE		(1 << 4)
-#define MXT_T9_RELEASE		(1 << 5)
-#define MXT_T9_PRESS		(1 << 6)
-#define MXT_T9_DETECT		(1 << 7)
+#define MXT_T9_UNGRIP		BIT(0)
+#define MXT_T9_SUPPRESS		BIT(1)
+#define MXT_T9_AMP		BIT(2)
+#define MXT_T9_VECTOR		BIT(3)
+#define MXT_T9_MOVE		BIT(4)
+#define MXT_T9_RELEASE		BIT(5)
+#define MXT_T9_PRESS		BIT(6)
+#define MXT_T9_DETECT		BIT(7)
 
 struct t9_range {
 	u16 x;
@@ -124,12 +124,12 @@ struct t9_range {
 } __packed;
 
 /* MXT_TOUCH_MULTI_T9 orient */
-#define MXT_T9_ORIENT_SWITCH	(1 << 0)
+#define MXT_T9_ORIENT_SWITCH	BIT(0)
 
 /* MXT_SPT_COMMSCONFIG_T18 */
 #define MXT_COMMS_CTRL		0
 #define MXT_COMMS_CMD		1
-#define MXT_COMMS_RETRIGEN      (1 << 6)
+#define MXT_COMMS_RETRIGEN      BIT(6)
 
 /* Define for MXT_GEN_COMMAND_T6 */
 #define MXT_BOOT_VALUE		0xa5
@@ -137,18 +137,18 @@ struct t9_range {
 #define MXT_BACKUP_VALUE	0x55
 
 /* Define for MXT_PROCI_TOUCHSUPPRESSION_T42 */
-#define MXT_T42_MSG_TCHSUP	(1 << 0)
+#define MXT_T42_MSG_TCHSUP	BIT(0)
 
 /* T63 Stylus */
-#define MXT_T63_STYLUS_PRESS	(1 << 0)
-#define MXT_T63_STYLUS_RELEASE	(1 << 1)
-#define MXT_T63_STYLUS_MOVE		(1 << 2)
-#define MXT_T63_STYLUS_SUPPRESS	(1 << 3)
+#define MXT_T63_STYLUS_PRESS	BIT(0)
+#define MXT_T63_STYLUS_RELEASE	BIT(1)
+#define MXT_T63_STYLUS_MOVE		BIT(2)
+#define MXT_T63_STYLUS_SUPPRESS	BIT(3)
 
-#define MXT_T63_STYLUS_DETECT	(1 << 4)
-#define MXT_T63_STYLUS_TIP		(1 << 5)
-#define MXT_T63_STYLUS_ERASER	(1 << 6)
-#define MXT_T63_STYLUS_BARREL	(1 << 7)
+#define MXT_T63_STYLUS_DETECT	BIT(4)
+#define MXT_T63_STYLUS_TIP		BIT(5)
+#define MXT_T63_STYLUS_ERASER	BIT(6)
+#define MXT_T63_STYLUS_BARREL	BIT(7)
 
 #define MXT_T63_STYLUS_PRESSURE_MASK	0x3F
 
@@ -159,13 +159,13 @@ struct t9_range {
 #define MXT_T100_XRANGE		13
 #define MXT_T100_YRANGE		24
 
-#define MXT_T100_CFG_SWITCHXY	(1 << 5)
+#define MXT_T100_CFG_SWITCHXY	BIT(5)
 
-#define MXT_T100_TCHAUX_VECT	(1 << 0)
-#define MXT_T100_TCHAUX_AMPL	(1 << 1)
-#define MXT_T100_TCHAUX_AREA	(1 << 2)
+#define MXT_T100_TCHAUX_VECT	BIT(0)
+#define MXT_T100_TCHAUX_AMPL	BIT(1)
+#define MXT_T100_TCHAUX_AREA	BIT(2)
 
-#define MXT_T100_DETECT		(1 << 7)
+#define MXT_T100_DETECT		BIT(7)
 #define MXT_T100_TYPE_MASK	0x70
 
 enum t100_type {
@@ -179,13 +179,13 @@ enum t100_type {
 
 /* Gen2 Active Stylus */
 #define MXT_T107_STYLUS_STYAUX		42
-#define MXT_T107_STYLUS_STYAUX_PRESSURE	(1 << 0)
-#define MXT_T107_STYLUS_STYAUX_PEAK	(1 << 4)
+#define MXT_T107_STYLUS_STYAUX_PRESSURE	BIT(0)
+#define MXT_T107_STYLUS_STYAUX_PEAK	BIT(4)
 
-#define MXT_T107_STYLUS_HOVER		(1 << 0)
-#define MXT_T107_STYLUS_TIPSWITCH	(1 << 1)
-#define MXT_T107_STYLUS_BUTTON0		(1 << 2)
-#define MXT_T107_STYLUS_BUTTON1		(1 << 3)
+#define MXT_T107_STYLUS_HOVER		BIT(0)
+#define MXT_T107_STYLUS_TIPSWITCH	BIT(1)
+#define MXT_T107_STYLUS_BUTTON0		BIT(2)
+#define MXT_T107_STYLUS_BUTTON1		BIT(3)
 
 #define MXT_TOUCH_MAJOR_DEFAULT	1
 #define MXT_PRESSURE_DEFAULT	1
@@ -215,7 +215,7 @@ enum t100_type {
 #define MXT_FRAME_CRC_PASS	0x04
 #define MXT_APP_CRC_FAIL	0x40	/* valid 7 8 bit only */
 #define MXT_BOOT_STATUS_MASK	0x3f
-#define MXT_BOOT_EXTENDED_ID	(1 << 5)
+#define MXT_BOOT_EXTENDED_ID	BIT(5)
 #define MXT_BOOT_ID_MASK	0x1f
 
 /* Touchscreen absolute values */
