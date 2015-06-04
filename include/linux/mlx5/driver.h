@@ -107,6 +107,7 @@ enum {
 	MLX5_REG_PUDE		 = 0x5009,
 	MLX5_REG_PMPE		 = 0x5010,
 	MLX5_REG_PELC		 = 0x500e,
+	MLX5_REG_PVLC		 = 0x500f,
 	MLX5_REG_PMLP		 = 0, /* TBD */
 	MLX5_REG_NODE_DESC	 = 0x6001,
 	MLX5_REG_HOST_ENDIANNESS = 0x7004,
@@ -744,6 +745,11 @@ int mlx5_query_port_proto_cap(struct mlx5_core_dev *dev,
 			      u32 *proto_cap, int proto_mask);
 int mlx5_query_port_proto_admin(struct mlx5_core_dev *dev,
 				u32 *proto_admin, int proto_mask);
+int mlx5_query_port_link_width_oper(struct mlx5_core_dev *dev,
+				    u8 *link_width_oper, u8 local_port);
+int mlx5_query_port_proto_oper(struct mlx5_core_dev *dev,
+			       u8 *proto_oper, int proto_mask,
+			       u8 local_port);
 int mlx5_set_port_proto(struct mlx5_core_dev *dev, u32 proto_admin,
 			int proto_mask);
 int mlx5_set_port_status(struct mlx5_core_dev *dev,
@@ -755,6 +761,8 @@ int mlx5_query_port_max_mtu(struct mlx5_core_dev *dev, int *max_mtu,
 			    u8 local_port);
 int mlx5_query_port_oper_mtu(struct mlx5_core_dev *dev, int *oper_mtu,
 			     u8 local_port);
+int mlx5_query_port_vl_hw_cap(struct mlx5_core_dev *dev,
+			      u8 *vl_hw_cap, u8 local_port);
 
 int mlx5_debug_eq_add(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
 void mlx5_debug_eq_remove(struct mlx5_core_dev *dev, struct mlx5_eq *eq);

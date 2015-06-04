@@ -158,6 +158,42 @@ int mlx5_query_port_proto_admin(struct mlx5_core_dev *dev,
 }
 EXPORT_SYMBOL_GPL(mlx5_query_port_proto_admin);
 
+int mlx5_query_port_link_width_oper(struct mlx5_core_dev *dev,
+				    u8 *link_width_oper, u8 local_port)
+{
+	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
+	int err;
+
+	err = mlx5_query_port_ptys(dev, out, sizeof(out), MLX5_PTYS_IB, local_port);
+	if (err)
+		return err;
+
+	*link_width_oper = MLX5_GET(ptys_reg, out, ib_link_width_oper);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx5_query_port_link_width_oper);
+
+int mlx5_query_port_proto_oper(struct mlx5_core_dev *dev,
+			       u8 *proto_oper, int proto_mask,
+			       u8 local_port)
+{
+	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
+	int err;
+
+	err = mlx5_query_port_ptys(dev, out, sizeof(out), proto_mask, local_port);
+	if (err)
+		return err;
+
+	if (proto_mask == MLX5_PTYS_EN)
+		*proto_oper = MLX5_GET(ptys_reg, out, eth_proto_oper);
+	else
+		*proto_oper = MLX5_GET(ptys_reg, out, ib_proto_oper);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx5_query_port_proto_oper);
+
 int mlx5_set_port_proto(struct mlx5_core_dev *dev, u32 proto_admin,
 			int proto_mask)
 {
@@ -267,3 +303,34 @@ int mlx5_query_port_oper_mtu(struct mlx5_core_dev *dev, int *oper_mtu,
 	return mlx5_query_port_mtu(dev, NULL, NULL, oper_mtu, local_port);
 }
 EXPORT_SYMBOL_GPL(mlx5_query_port_oper_mtu);
+
+static int mlx5_query_port_pvlc(struct mlx5_core_dev *dev, u32 *pvlc,
+				int pvlc_size,  u8 local_port)
+{
+	u32 in[MLX5_ST_SZ_DW(pvlc_reg)];
+	int err;
+
+	memset(in, 0, sizeof(in));
+	MLX5_SET(ptys_reg, in, local_port, local_port);
+
+	err = mlx5_core_access_reg(dev, in, sizeof(in), pvlc,
+				   pvlc_size, MLX5_REG_PVLC, 0, 0);
+
+	return err;
+}
+
+int mlx5_query_port_vl_hw_cap(struct mlx5_core_dev *dev,
+			      u8 *vl_hw_cap, u8 local_port)
+{
+	u32 out[MLX5_ST_SZ_DW(pvlc_reg)];
+	int err;
+
+	err = mlx5_query_port_pvlc(dev, out, sizeof(out), local_port);
+	if (err)
+		return err;
+
+	*vl_hw_cap = MLX5_GET(pvlc_reg, out, vl_hw_cap);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx5_query_port_vl_hw_cap);
