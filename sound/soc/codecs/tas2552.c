@@ -254,13 +254,11 @@ static int tas2552_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 
 static int tas2552_mute(struct snd_soc_dai *dai, int mute)
 {
-	u8 cfg1_reg;
+	u8 cfg1_reg = 0;
 	struct snd_soc_codec *codec = dai->codec;
 
 	if (mute)
-		cfg1_reg = TAS2552_MUTE;
-	else
-		cfg1_reg = ~TAS2552_MUTE;
+		cfg1_reg |= TAS2552_MUTE;
 
 	snd_soc_update_bits(codec, TAS2552_CFG_1, TAS2552_MUTE, cfg1_reg);
 
