@@ -184,8 +184,8 @@ mwifiex_set_ht_params(struct mwifiex_private *priv,
 			bss_cfg->ht_cap.mcs.rx_mask[1] = 0xff;
 			break;
 		default:
-			dev_warn(priv->adapter->dev,
-				 "Unsupported RX-STBC, default to 2x2\n");
+			mwifiex_dbg(priv->adapter, WARN,
+				    "Unsupported RX-STBC, default to 2x2\n");
 			bss_cfg->ht_cap.mcs.rx_mask[0] = 0xff;
 			bss_cfg->ht_cap.mcs.rx_mask[1] = 0xff;
 			break;
@@ -767,8 +767,8 @@ int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, u16 cmd_no,
 			return -1;
 		break;
 	default:
-		dev_err(priv->adapter->dev,
-			"PREP_CMD: unknown cmd %#x\n", cmd_no);
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "PREP_CMD: unknown cmd %#x\n", cmd_no);
 		return -1;
 	}
 
@@ -806,24 +806,28 @@ int mwifiex_config_start_uap(struct mwifiex_private *priv,
 			     struct mwifiex_uap_bss_param *bss_cfg)
 {
 	if (mwifiex_del_mgmt_ies(priv))
-		dev_err(priv->adapter->dev, "Failed to delete mgmt IEs!\n");
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "Failed to delete mgmt IEs!\n");
 
 	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_BSS_STOP,
 			     HostCmd_ACT_GEN_SET, 0, NULL, true)) {
-		dev_err(priv->adapter->dev, "Failed to stop the BSS\n");
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "Failed to stop the BSS\n");
 		return -1;
 	}
 
 	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_SYS_CONFIG,
 			     HostCmd_ACT_GEN_SET,
 			     UAP_BSS_PARAMS_I, bss_cfg, false)) {
-		dev_err(priv->adapter->dev, "Failed to set the SSID\n");
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "Failed to set the SSID\n");
 		return -1;
 	}
 
 	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_BSS_START,
 			     HostCmd_ACT_GEN_SET, 0, NULL, false)) {
-		dev_err(priv->adapter->dev, "Failed to start the BSS\n");
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "Failed to start the BSS\n");
 		return -1;
 	}
 

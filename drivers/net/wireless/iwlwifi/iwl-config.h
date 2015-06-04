@@ -360,6 +360,7 @@ struct iwl_cfg {
 	const u32 smem_offset;
 	const u32 smem_len;
 	const struct iwl_tt_params *thermal_params;
+	bool apmg_not_supported;
 };
 
 /*

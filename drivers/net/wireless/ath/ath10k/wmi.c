@@ -1645,10 +1645,10 @@ void ath10k_wmi_event_chan_info(struct ath10k *ar, struct sk_buff *skb)
 
 		survey = &ar->survey[idx];
 		survey->time = WMI_CHAN_INFO_MSEC(cycle_count);
-		survey->time_rx = WMI_CHAN_INFO_MSEC(rx_clear_count);
+		survey->time_busy = WMI_CHAN_INFO_MSEC(rx_clear_count);
 		survey->noise = noise_floor;
 		survey->filled = SURVEY_INFO_TIME |
-				 SURVEY_INFO_TIME_RX |
+				 SURVEY_INFO_TIME_BUSY |
 				 SURVEY_INFO_NOISE_DBM;
 	}
 

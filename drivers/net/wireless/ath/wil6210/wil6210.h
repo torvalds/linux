@@ -21,6 +21,7 @@
 #include <linux/wireless.h>
 #include <net/cfg80211.h>
 #include <linux/timex.h>
+#include <linux/types.h>
 #include "wil_platform.h"
 
 extern bool no_fw_recovery;
@@ -29,10 +30,11 @@ extern unsigned short rx_ring_overflow_thrsh;
 extern int agg_wsize;
 extern u32 vring_idle_trsh;
 extern bool rx_align_2;
+extern bool debug_fw;
 
 #define WIL_NAME "wil6210"
 #define WIL_FW_NAME "wil6210.fw" /* code */
-#define WIL_FW2_NAME "wil6210.board" /* board & radio parameters */
+#define WIL_FW2_NAME "wil6210.brd" /* board & radio parameters */
 
 #define WIL_MAX_BUS_REQUEST_KBPS 800000 /* ~6.1Gbps */
 
@@ -396,6 +398,7 @@ struct vring {
  * Additional data for Tx Vring
  */
 struct vring_tx_data {
+	bool dot1x_open;
 	int enabled;
 	cycles_t idle, last_idle, begin;
 	u8 agg_wsize; /* agreed aggregation window, 0 - no agg */
@@ -484,7 +487,6 @@ struct wil_sta_info {
 	u8 addr[ETH_ALEN];
 	enum wil_sta_status status;
 	struct wil_net_stats stats;
-	bool data_port_open; /* can send any data, not only EAPOL */
 	/* Rx BACK */
 	struct wil_tid_ampdu_rx *tid_rx[WIL_STA_TID_NUM];
 	spinlock_t tid_rx_lock; /* guarding tid_rx array */
@@ -524,6 +526,17 @@ struct wil_probe_client_req {
 	struct list_head list;
 	u64 cookie;
 	u8 cid;
+};
+
+struct pmc_ctx {
+	/* alloc, free, and read operations must own the lock */
+	struct mutex		lock;
+	struct vring_tx_desc	*pring_va;
+	dma_addr_t		pring_pa;
+	struct desc_alloc_info  *descriptors;
+	int			last_cmd_status;
+	int			num_descriptors;
+	int			descriptor_size;
 };
 
 struct wil6210_priv {
@@ -610,6 +623,8 @@ struct wil6210_priv {
 
 	void *platform_handle;
 	struct wil_platform_ops platform_ops;
+
+	struct pmc_ctx pmc;
 };
 
 #define wil_to_wiphy(i) (i->wdev->wiphy)
@@ -701,9 +716,10 @@ int wmi_get_ssid(struct wil6210_priv *wil, u8 *ssid_len, void *ssid);
 int wmi_set_channel(struct wil6210_priv *wil, int channel);
 int wmi_get_channel(struct wil6210_priv *wil, int *channel);
 int wmi_del_cipher_key(struct wil6210_priv *wil, u8 key_index,
-		       const void *mac_addr);
+		       const void *mac_addr, int key_usage);
 int wmi_add_cipher_key(struct wil6210_priv *wil, u8 key_index,
-		       const void *mac_addr, int key_len, const void *key);
+		       const void *mac_addr, int key_len, const void *key,
+		       int key_usage);
 int wmi_echo(struct wil6210_priv *wil);
 int wmi_set_ie(struct wil6210_priv *wil, u8 type, u16 ie_len, const void *ie);
 int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring);

@@ -761,7 +761,7 @@ void iwl_mvm_set_last_nonqos_seq(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 static int iwl_mvm_switch_to_d3(struct iwl_mvm *mvm)
 {
-	iwl_mvm_cancel_scan(mvm);
+	iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_REGULAR, true);
 
 	iwl_trans_stop_device(mvm->trans);
 
@@ -1170,7 +1170,8 @@ int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
 	iwl_trans_suspend(mvm->trans);
-	if (wowlan->any) {
+	mvm->trans->wowlan_d0i3 = wowlan->any;
+	if (mvm->trans->wowlan_d0i3) {
 		/* 'any' trigger means d0i3 usage */
 		if (mvm->trans->d0i3_mode == IWL_D0I3_MODE_ON_SUSPEND) {
 			int ret = iwl_mvm_enter_d0i3_sync(mvm);
@@ -1785,7 +1786,7 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 	for_each_set_bit(i, &matched_profiles, mvm->n_nd_match_sets) {
 		struct iwl_scan_offload_profile_match *fw_match;
 		struct cfg80211_wowlan_nd_match *match;
-		int n_channels = 0;
+		int idx, n_channels = 0;
 
 		fw_match = &query.matches[i];
 
@@ -1800,8 +1801,12 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 
 		net_detect->matches[net_detect->n_matches++] = match;
 
-		match->ssid.ssid_len = mvm->nd_match_sets[i].ssid.ssid_len;
-		memcpy(match->ssid.ssid, mvm->nd_match_sets[i].ssid.ssid,
+		/* We inverted the order of the SSIDs in the scan
+		 * request, so invert the index here.
+		 */
+		idx = mvm->n_nd_match_sets - i - 1;
+		match->ssid.ssid_len = mvm->nd_match_sets[idx].ssid.ssid_len;
+		memcpy(match->ssid.ssid, mvm->nd_match_sets[idx].ssid.ssid,
 		       match->ssid.ssid_len);
 
 		if (mvm->n_nd_channels < n_channels)

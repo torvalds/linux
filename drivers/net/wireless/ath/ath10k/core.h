@@ -460,6 +460,14 @@ enum ath10k_fw_features {
 	 */
 	ATH10K_FW_FEATURE_WOWLAN_SUPPORT = 6,
 
+	/* Don't trust error code from otp.bin */
+	ATH10K_FW_FEATURE_IGNORE_OTP_RESULT,
+
+	/* Some firmware revisions pad 4th hw address to 4 byte boundary making
+	 * it 8 bytes long in Native Wifi Rx decap.
+	 */
+	ATH10K_FW_FEATURE_NO_NWIFI_DECAP_4ADDR_PADDING,
+
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
 };
