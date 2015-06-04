@@ -95,10 +95,10 @@ static long long bus_count;	/** number of bus instances */
 
 static void chipset_bus_create(struct visor_device *bus_info);
 static void chipset_bus_destroy(struct visor_device *bus_info);
-static void chipset_device_create(struct visorchipset_device_info *dev_info);
-static void chipset_device_destroy(struct visorchipset_device_info *dev_info);
-static void chipset_device_pause(struct visorchipset_device_info *dev_info);
-static void chipset_device_resume(struct visorchipset_device_info *dev_info);
+static void chipset_device_create(struct visor_device *dev_info);
+static void chipset_device_destroy(struct visor_device *dev_info);
+static void chipset_device_pause(struct visor_device *dev_info);
+static void chipset_device_resume(struct visor_device *dev_info);
 
 /** These functions are implemented herein, and are called by the chipset
  *  driver to notify us about specific events.
@@ -184,7 +184,6 @@ visorbus_release_busdevice(struct device *xdev)
 
 	dev_set_drvdata(xdev, NULL);
 	kfree(dev);
-	kfree(xdev);
 }
 
 /** This is called when device_unregister() is called for each child
@@ -754,17 +753,10 @@ away:
 	 *  initialized.
 	 */
 	if (!dev->responded_to_device_create) {
-		struct visorchipset_device_info dev_info;
-
-		if (!visorchipset_get_device_info(dev->chipset_bus_no,
-						  dev->chipset_dev_no,
-						  &dev_info))
-			/* hmm, what to do here */
-			return rc;
 
 		dev->responded_to_device_create = true;
 		if (chipset_responders.device_create)
-			(*chipset_responders.device_create)(&dev_info, rc);
+			(*chipset_responders.device_create)(dev, rc);
 	}
 	return rc;
 }
@@ -949,30 +941,15 @@ EXPORT_SYMBOL_GPL(visorbus_disable_channel_interrupts);
  *  device.
  */
 static int
-create_visor_device(struct visor_device *bdev,
-		    struct visorchipset_device_info *dev_info)
+create_visor_device(struct visor_device *dev)
 {
 	int rc = -1;
-	struct visor_device *dev = NULL;
-	bool gotten = false, registered1 = false, registered2 = false;
-	u32 chipset_bus_no = dev_info->bus_no;
-	u32 chipset_dev_no = dev_info->dev_no;
+	u32 chipset_bus_no = dev->chipset_bus_no;
+	u32 chipset_dev_no = dev->chipset_dev_no;
 
 	POSTCODE_LINUX_4(DEVICE_CREATE_ENTRY_PC, chipset_dev_no, chipset_bus_no,
 			 POSTCODE_SEVERITY_INFO);
-	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev) {
-		POSTCODE_LINUX_3(DEVICE_CREATE_FAILURE_PC, chipset_dev_no,
-				 DIAG_SEVERITY_ERR);
-		goto away;
-	}
 
-	memset(dev, 0, sizeof(struct visor_device));
-	dev->visorchannel = dev_info->visorchannel;
-	dev->channel_type_guid = dev_info->channel_type_guid;
-	dev->chipset_bus_no = chipset_bus_no;
-	dev->chipset_dev_no = chipset_dev_no;
-	dev->device.parent = &bdev->device;
 	sema_init(&dev->visordriver_callback_lock, 1);	/* unlocked */
 	dev->device.bus = &visorbus_type;
 	dev->device.groups = visorbus_dev_groups;
@@ -980,7 +957,6 @@ create_visor_device(struct visor_device *bdev,
 	dev->device.release = visorbus_release_device;
 	/* keep a reference just for us (now 2) */
 	get_device(&dev->device);
-	gotten = true;
 	dev->periodic_work =
 		visor_periodic_work_create(POLLJIFFIES_NORMALCHANNEL,
 					   periodic_dev_workqueue,
@@ -1022,29 +998,20 @@ create_visor_device(struct visor_device *bdev,
 		goto away;
 	}
 
-	/* note: device_register is simply device_initialize + device_add */
-	registered1 = true;
-
 	rc = register_devmajorminor_attributes(dev);
 	if (rc < 0) {
 		POSTCODE_LINUX_3(DEVICE_REGISTER_FAILURE_PC, chipset_dev_no,
 				 DIAG_SEVERITY_ERR);
-		goto away;
+		goto away_register;
 	}
 
-	registered2 = true;
-	rc = 0;
+	list_add_tail(&dev->list_all, &list_all_device_instances);
+	return 0;
 
+away_register:
+	device_unregister(&dev->device);
 away:
-	if (rc < 0) {
-		if (registered2)
-			unregister_devmajorminor_attributes(dev);
-		if (gotten)
-			put_device(&dev->device);
-		kfree(dev);
-	} else {
-		list_add_tail(&dev->list_all, &list_all_device_instances);
-	}
+	put_device(&dev->device);
 	return rc;
 }
 
@@ -1055,21 +1022,6 @@ remove_visor_device(struct visor_device *dev)
 	unregister_devmajorminor_attributes(dev);
 	put_device(&dev->device);
 	device_unregister(&dev->device);
-}
-
-static struct visor_device *
-find_visor_device_by_channel(struct visorchannel *channel)
-{
-	struct list_head *listentry, *listtmp;
-
-	list_for_each_safe(listentry, listtmp, &list_all_device_instances) {
-		struct visor_device *dev = list_entry(listentry,
-						      struct visor_device,
-						      list_all);
-		if (dev->visorchannel == channel)
-			return dev;
-	}
-	return NULL;
 }
 
 static int
@@ -1344,25 +1296,16 @@ chipset_bus_destroy(struct visor_device *dev)
 }
 
 static void
-chipset_device_create(struct visorchipset_device_info *dev_info)
+chipset_device_create(struct visor_device *dev_info)
 {
-	struct visor_device *bdev;
 	int rc = -1;
-	u32 bus_no = dev_info->bus_no;
-	u32 dev_no = dev_info->dev_no;
+	u32 bus_no = dev_info->chipset_bus_no;
+	u32 dev_no = dev_info->chipset_dev_no;
 
 	POSTCODE_LINUX_4(DEVICE_CREATE_ENTRY_PC, dev_no, bus_no,
 			 POSTCODE_SEVERITY_INFO);
 
-	bdev = visorbus_get_device_by_id(bus_no, BUS_ROOT_DEVICE, NULL);
-	if (!bdev)
-		goto away;
-
-	POSTCODE_LINUX_4(DEVICE_CREATE_EXIT_PC, dev_no, bus_no,
-			 POSTCODE_SEVERITY_INFO);
-
-	rc = create_visor_device(bdev, dev_info);
-away:
+	rc = create_visor_device(dev_info);
 	if (rc < 0) {
 		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, dev_no, bus_no,
 				 POSTCODE_SEVERITY_ERR);
@@ -1375,22 +1318,12 @@ away:
 }
 
 static void
-chipset_device_destroy(struct visorchipset_device_info *dev_info)
+chipset_device_destroy(struct visor_device *dev_info)
 {
-	struct visor_device *dev;
-	int rc = -1;
-
-	dev = find_visor_device_by_channel(dev_info->visorchannel);
-	if (!dev)
-		goto away;
-	rc = 0;
-away:
-	if (rc < 0)
-			return;
+	remove_visor_device(dev_info);
 
 	if (chipset_responders.device_destroy)
-		(*chipset_responders.device_destroy) (dev_info, rc);
-	remove_visor_device(dev);
+		(*chipset_responders.device_destroy) (dev_info, 0);
 }
 
 /* This is the callback function specified for a function driver, to
@@ -1398,11 +1331,8 @@ away:
  * completed.
  */
 static void
-pause_state_change_complete(struct visor_device *dev, int status,
-			    void *info)
+pause_state_change_complete(struct visor_device *dev, int status)
 {
-	struct visorchipset_device_info *dev_info = info;
-
 	if (!dev->pausing)
 			return;
 
@@ -1413,7 +1343,7 @@ pause_state_change_complete(struct visor_device *dev, int status,
 	/* Notify the chipset driver that the pause is complete, which
 	* will presumably want to send some sort of response to the
 	* initiator. */
-	(*chipset_responders.device_pause) (dev_info, status);
+	(*chipset_responders.device_pause) (dev, status);
 }
 
 /* This is the callback function specified for a function driver, to
@@ -1421,11 +1351,8 @@ pause_state_change_complete(struct visor_device *dev, int status,
  * completed.
  */
 static void
-resume_state_change_complete(struct visor_device *dev, int status,
-			     void *info)
+resume_state_change_complete(struct visor_device *dev, int status)
 {
-	struct visorchipset_device_info *dev_info = info;
-
 	if (!dev->resuming)
 			return;
 
@@ -1436,7 +1363,7 @@ resume_state_change_complete(struct visor_device *dev, int status,
 	/* Notify the chipset driver that the resume is complete,
 	 * which will presumably want to send some sort of response to
 	 * the initiator. */
-	(*chipset_responders.device_resume) (dev_info, status);
+	(*chipset_responders.device_resume) (dev, status);
 }
 
 /* Tell the subordinate function driver for a specific device to pause
@@ -1444,24 +1371,17 @@ resume_state_change_complete(struct visor_device *dev, int status,
  * callback function.
  */
 static void
-initiate_chipset_device_pause_resume(struct visorchipset_device_info *dev_info,
-				     bool is_pause)
+initiate_chipset_device_pause_resume(struct visor_device *dev, bool is_pause)
 {
-	struct visor_device *dev = NULL;
 	int rc = -1, x;
 	struct visor_driver *drv = NULL;
-	void (*notify_func)(struct visorchipset_device_info *dev_info,
-			    int response) = NULL;
+	void (*notify_func)(struct visor_device *dev, int response) = NULL;
 
 	if (is_pause)
 		notify_func = chipset_responders.device_pause;
 	else
 		notify_func = chipset_responders.device_resume;
 	if (!notify_func)
-			goto away;
-
-	dev = find_visor_device_by_channel(dev_info->visorchannel);
-	if (!dev)
 			goto away;
 
 	drv = to_visor_driver(dev->device.driver);
@@ -1483,8 +1403,7 @@ initiate_chipset_device_pause_resume(struct visorchipset_device_info *dev_info,
 				goto away;
 
 		dev->pausing = true;
-		x = drv->pause(dev, pause_state_change_complete,
-			       (void *)dev_info);
+		x = drv->pause(dev, pause_state_change_complete);
 	} else {
 		/* This should be done at BUS resume time, but an
 		 * existing problem prevents us from ever getting a bus
@@ -1496,8 +1415,7 @@ initiate_chipset_device_pause_resume(struct visorchipset_device_info *dev_info,
 				goto away;
 
 		dev->resuming = true;
-		x = drv->resume(dev, resume_state_change_complete,
-				(void *)dev_info);
+		x = drv->resume(dev, resume_state_change_complete);
 	}
 	if (x < 0) {
 		if (is_pause)
@@ -1510,18 +1428,18 @@ initiate_chipset_device_pause_resume(struct visorchipset_device_info *dev_info,
 away:
 	if (rc < 0) {
 		if (notify_func)
-				(*notify_func)(dev_info, rc);
+				(*notify_func)(dev, rc);
 	}
 }
 
 static void
-chipset_device_pause(struct visorchipset_device_info *dev_info)
+chipset_device_pause(struct visor_device *dev_info)
 {
 	initiate_chipset_device_pause_resume(dev_info, true);
 }
 
 static void
-chipset_device_resume(struct visorchipset_device_info *dev_info)
+chipset_device_resume(struct visor_device *dev_info)
 {
 	initiate_chipset_device_pause_resume(dev_info, false);
 }

@@ -20,34 +20,9 @@
 
 #include <linux/uuid.h>
 
-#include "channel.h"
 #include "controlvmchannel.h"
 #include "vbusdeviceinfo.h"
 #include "vbushelper.h"
-
-struct visorchannel;
-
-/** Attributes for a particular Supervisor device.
- *  Any visorchipset client can query these attributes using
- *  visorchipset_get_client_device_info() or
- *  visorchipset_get_server_device_info().
- */
-struct visorchipset_device_info {
-	struct list_head entry;
-	u32 bus_no;
-	u32 dev_no;
-	uuid_le dev_inst_uuid;
-	struct visorchipset_state state;
-	struct visorchannel *visorchannel;
-	uuid_le channel_type_guid;
-	u32 reserved1;		/* control_vm_id */
-	u64 reserved2;
-	u32 switch_no;		/* when devState.attached==1 */
-	u32 internal_port_no;	/* when devState.attached==1 */
-	struct controlvm_message_header *pending_msg_hdr;/* CONTROLVM_MESSAGE */
-	/** For private use by the bus driver */
-	void *bus_driver_context;
-};
 
 /*  These functions will be called from within visorchipset when certain
  *  events happen.  (The implementation of these functions is outside of
@@ -56,10 +31,10 @@ struct visorchipset_device_info {
 struct visorchipset_busdev_notifiers {
 	void (*bus_create)(struct visor_device *bus_info);
 	void (*bus_destroy)(struct visor_device *bus_info);
-	void (*device_create)(struct visorchipset_device_info *bus_info);
-	void (*device_destroy)(struct visorchipset_device_info *bus_info);
-	void (*device_pause)(struct visorchipset_device_info *bus_info);
-	void (*device_resume)(struct visorchipset_device_info *bus_info);
+	void (*device_create)(struct visor_device *bus_info);
+	void (*device_destroy)(struct visor_device *bus_info);
+	void (*device_pause)(struct visor_device *bus_info);
+	void (*device_resume)(struct visor_device *bus_info);
 };
 
 /*  These functions live inside visorchipset, and will be called to indicate
@@ -71,11 +46,10 @@ struct visorchipset_busdev_notifiers {
 struct visorchipset_busdev_responders {
 	void (*bus_create)(struct visor_device *p, int response);
 	void (*bus_destroy)(struct visor_device *p, int response);
-	void (*device_create)(struct visorchipset_device_info *p, int response);
-	void (*device_destroy)(struct visorchipset_device_info *p,
-			       int response);
-	void (*device_pause)(struct visorchipset_device_info *p, int response);
-	void (*device_resume)(struct visorchipset_device_info *p, int response);
+	void (*device_create)(struct visor_device *p, int response);
+	void (*device_destroy)(struct visor_device *p, int response);
+	void (*device_pause)(struct visor_device *p, int response);
+	void (*device_resume)(struct visor_device *p, int response);
 };
 
 /** Register functions (in the bus driver) to get called by visorchipset
@@ -88,13 +62,6 @@ visorchipset_register_busdev(
 			struct visorchipset_busdev_notifiers *notifiers,
 			struct visorchipset_busdev_responders *responders,
 			struct ultra_vbus_deviceinfo *driver_info);
-
-bool visorchipset_get_bus_info(u32 bus_no,
-			       struct visor_device *bus_info);
-bool visorchipset_get_device_info(u32 bus_no, u32 dev_no,
-				  struct visorchipset_device_info *dev_info);
-bool visorchipset_set_bus_context(struct visor_device *bus_info,
-				  void *context);
 
 /* visorbus init and exit functions */
 int visorbus_init(void);

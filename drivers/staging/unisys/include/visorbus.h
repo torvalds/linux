@@ -43,7 +43,7 @@ struct visor_device;
 extern struct bus_type visorbus_type;
 
 typedef void (*visorbus_state_complete_func) (struct visor_device *dev,
-					      int status, void *dev_info);
+					      int status);
 struct visorchipset_state {
 	u32 created:1;
 	u32 attached:1;
@@ -106,11 +106,9 @@ struct visor_driver {
 	 *  fails or completes successfully.
 	 */
 	int (*pause)(struct visor_device *dev,
-		     visorbus_state_complete_func complete_func,
-		     void *dev_info);
+		     visorbus_state_complete_func complete_func);
 	int (*resume)(struct visor_device *dev,
-		      visorbus_state_complete_func complete_func,
-		      void *dev_info);
+		      visorbus_state_complete_func complete_func);
 
 	/** These fields are for private use by the bus driver only. */
 	struct device_driver driver;
