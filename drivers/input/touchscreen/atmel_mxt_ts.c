@@ -3622,9 +3622,9 @@ static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 				     data->pdata->cfg_name,
 				     strlen(data->pdata->cfg_name));
 
+	init_completion(&data->chg_completion);
 	init_completion(&data->reset_completion);
 	init_completion(&data->crc_completion);
-	init_completion(&data->chg_completion);
 	mutex_init(&data->debug_msg_lock);
 
 	if (pdata->suspend_mode == MXT_SUSPEND_REGULATOR) {
