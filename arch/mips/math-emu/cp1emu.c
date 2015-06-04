@@ -889,7 +889,7 @@ static inline void cop1_cfc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 		break;
 
 	case FPCREG_RID:
-		value = current_cpu_data.fpu_id;
+		value = boot_cpu_data.fpu_id;
 		break;
 
 	default:
@@ -921,7 +921,7 @@ static inline void cop1_ctc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
 
 		/* Preserve read-only bits.  */
-		mask = current_cpu_data.fpu_msk31;
+		mask = boot_cpu_data.fpu_msk31;
 		fcr31 = (value & ~mask) | (fcr31 & mask);
 		break;
 

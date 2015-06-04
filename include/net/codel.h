@@ -120,11 +120,13 @@ static inline u32 codel_time_to_us(codel_time_t val)
  * struct codel_params - contains codel parameters
  * @target:	target queue size (in time units)
  * @interval:	width of moving time window
+ * @mtu:	device mtu, or minimal queue backlog in bytes.
  * @ecn:	is Explicit Congestion Notification enabled
  */
 struct codel_params {
 	codel_time_t	target;
 	codel_time_t	interval;
+	u32		mtu;
 	bool		ecn;
 };
 
@@ -166,10 +168,12 @@ struct codel_stats {
 	u32		ecn_mark;
 };
 
-static void codel_params_init(struct codel_params *params)
+static void codel_params_init(struct codel_params *params,
+			      const struct Qdisc *sch)
 {
 	params->interval = MS2TIME(100);
 	params->target = MS2TIME(5);
+	params->mtu = psched_mtu(qdisc_dev(sch));
 	params->ecn = false;
 }
 
@@ -180,7 +184,7 @@ static void codel_vars_init(struct codel_vars *vars)
 
 static void codel_stats_init(struct codel_stats *stats)
 {
-	stats->maxpacket = 256;
+	stats->maxpacket = 0;
 }
 
 /*
@@ -234,7 +238,7 @@ static bool codel_should_drop(const struct sk_buff *skb,
 		stats->maxpacket = qdisc_pkt_len(skb);
 
 	if (codel_time_before(vars->ldelay, params->target) ||
-	    sch->qstats.backlog <= stats->maxpacket) {
+	    sch->qstats.backlog <= params->mtu) {
 		/* went below - stay below for at least interval */
 		vars->first_above_time = 0;
 		return false;

@@ -21,6 +21,7 @@ config IWLWIFI
 		Intel 7260 Wi-Fi Adapter
 		Intel 3160 Wi-Fi Adapter
 		Intel 7265 Wi-Fi Adapter
+		Intel 3165 Wi-Fi Adapter
 
 
 	  This driver uses the kernel's mac80211 subsystem.

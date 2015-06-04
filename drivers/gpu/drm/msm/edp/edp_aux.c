@@ -132,7 +132,7 @@ ssize_t edp_aux_transfer(struct drm_dp_aux *drm_aux, struct drm_dp_aux_msg *msg)
 	/* msg sanity check */
 	if ((native && (msg->size > AUX_CMD_NATIVE_MAX)) ||
 		(msg->size > AUX_CMD_I2C_MAX)) {
-		pr_err("%s: invalid msg: size(%d), request(%x)\n",
+		pr_err("%s: invalid msg: size(%zu), request(%x)\n",
 			__func__, msg->size, msg->request);
 		return -EINVAL;
 	}
@@ -155,7 +155,7 @@ ssize_t edp_aux_transfer(struct drm_dp_aux *drm_aux, struct drm_dp_aux_msg *msg)
 		 */
 		edp_write(aux->base + REG_EDP_AUX_TRANS_CTRL, 0);
 		msm_edp_aux_ctrl(aux, 1);
-		pr_err("%s: aux timeout, %d\n", __func__, ret);
+		pr_err("%s: aux timeout, %zd\n", __func__, ret);
 		goto unlock_exit;
 	}
 	DBG("completion");

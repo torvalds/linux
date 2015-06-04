@@ -2071,8 +2071,8 @@ static int xudc_probe(struct platform_device *pdev)
 	/* Map the registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	udc->addr = devm_ioremap_resource(&pdev->dev, res);
-	if (!udc->addr)
-		return -ENOMEM;
+	if (IS_ERR(udc->addr))
+		return PTR_ERR(udc->addr);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {

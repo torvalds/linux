@@ -1210,6 +1210,7 @@ static int omap2_mcspi_transfer_one_message(struct spi_master *master,
 	struct omap2_mcspi	*mcspi;
 	struct omap2_mcspi_dma	*mcspi_dma;
 	struct spi_transfer	*t;
+	int status;
 
 	spi = m->spi;
 	mcspi = spi_master_get_devdata(master);
@@ -1229,7 +1230,8 @@ static int omap2_mcspi_transfer_one_message(struct spi_master *master,
 					tx_buf ? "tx" : "",
 					rx_buf ? "rx" : "",
 					t->bits_per_word);
-			return -EINVAL;
+			status = -EINVAL;
+			goto out;
 		}
 
 		if (m->is_dma_mapped || len < DMA_MIN_BYTES)
@@ -1241,7 +1243,8 @@ static int omap2_mcspi_transfer_one_message(struct spi_master *master,
 			if (dma_mapping_error(mcspi->dev, t->tx_dma)) {
 				dev_dbg(mcspi->dev, "dma %cX %d bytes error\n",
 						'T', len);
-				return -EINVAL;
+				status = -EINVAL;
+				goto out;
 			}
 		}
 		if (mcspi_dma->dma_rx && rx_buf != NULL) {
@@ -1253,14 +1256,19 @@ static int omap2_mcspi_transfer_one_message(struct spi_master *master,
 				if (tx_buf != NULL)
 					dma_unmap_single(mcspi->dev, t->tx_dma,
 							len, DMA_TO_DEVICE);
-				return -EINVAL;
+				status = -EINVAL;
+				goto out;
 			}
 		}
 	}
 
 	omap2_mcspi_work(mcspi, m);
+	/* spi_finalize_current_message() changes the status inside the
+	 * spi_message, save the status here. */
+	status = m->status;
+out:
 	spi_finalize_current_message(master);
-	return 0;
+	return status;
 }
 
 static int omap2_mcspi_master_setup(struct omap2_mcspi *mcspi)

@@ -465,6 +465,10 @@ static void pppoe_unbind_sock_work(struct work_struct *work)
 	struct sock *sk = sk_pppox(po);
 
 	lock_sock(sk);
+	if (po->pppoe_dev) {
+		dev_put(po->pppoe_dev);
+		po->pppoe_dev = NULL;
+	}
 	pppox_unbind_sock(sk);
 	release_sock(sk);
 	sock_put(sk);

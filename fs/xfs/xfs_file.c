@@ -124,7 +124,7 @@ xfs_iozero(
 		status = 0;
 	} while (count);
 
-	return (-status);
+	return status;
 }
 
 int

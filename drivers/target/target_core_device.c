@@ -33,6 +33,7 @@
 #include <linux/kthread.h>
 #include <linux/in.h>
 #include <linux/export.h>
+#include <asm/unaligned.h>
 #include <net/sock.h>
 #include <net/tcp.h>
 #include <scsi/scsi.h>
@@ -527,7 +528,7 @@ static void core_export_port(
 	list_add_tail(&port->sep_list, &dev->dev_sep_list);
 	spin_unlock(&dev->se_port_lock);
 
-	if (dev->transport->transport_type != TRANSPORT_PLUGIN_PHBA_PDEV &&
+	if (!(dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH) &&
 	    !(dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE)) {
 		tg_pt_gp_mem = core_alua_allocate_tg_pt_gp_mem(port);
 		if (IS_ERR(tg_pt_gp_mem) || !tg_pt_gp_mem) {
@@ -1603,7 +1604,7 @@ int target_configure_device(struct se_device *dev)
 	 * anything virtual (IBLOCK, FILEIO, RAMDISK), but not for TCM/pSCSI
 	 * passthrough because this is being provided by the backend LLD.
 	 */
-	if (dev->transport->transport_type != TRANSPORT_PLUGIN_PHBA_PDEV) {
+	if (!(dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)) {
 		strncpy(&dev->t10_wwn.vendor[0], "LIO-ORG", 8);
 		strncpy(&dev->t10_wwn.model[0],
 			dev->transport->inquiry_prod, 16);
@@ -1707,3 +1708,76 @@ void core_dev_release_virtual_lun0(void)
 		target_free_device(g_lun0_dev);
 	core_delete_hba(hba);
 }
+
+/*
+ * Common CDB parsing for kernel and user passthrough.
+ */
+sense_reason_t
+passthrough_parse_cdb(struct se_cmd *cmd,
+	sense_reason_t (*exec_cmd)(struct se_cmd *cmd))
+{
+	unsigned char *cdb = cmd->t_task_cdb;
+
+	/*
+	 * Clear a lun set in the cdb if the initiator talking to use spoke
+	 * and old standards version, as we can't assume the underlying device
+	 * won't choke up on it.
+	 */
+	switch (cdb[0]) {
+	case READ_10: /* SBC - RDProtect */
+	case READ_12: /* SBC - RDProtect */
+	case READ_16: /* SBC - RDProtect */
+	case SEND_DIAGNOSTIC: /* SPC - SELF-TEST Code */
+	case VERIFY: /* SBC - VRProtect */
+	case VERIFY_16: /* SBC - VRProtect */
+	case WRITE_VERIFY: /* SBC - VRProtect */
+	case WRITE_VERIFY_12: /* SBC - VRProtect */
+	case MAINTENANCE_IN: /* SPC - Parameter Data Format for SA RTPG */
+		break;
+	default:
+		cdb[1] &= 0x1f; /* clear logical unit number */
+		break;
+	}
+
+	/*
+	 * For REPORT LUNS we always need to emulate the response, for everything
+	 * else, pass it up.
+	 */
+	if (cdb[0] == REPORT_LUNS) {
+		cmd->execute_cmd = spc_emulate_report_luns;
+		return TCM_NO_SENSE;
+	}
+
+	/* Set DATA_CDB flag for ops that should have it */
+	switch (cdb[0]) {
+	case READ_6:
+	case READ_10:
+	case READ_12:
+	case READ_16:
+	case WRITE_6:
+	case WRITE_10:
+	case WRITE_12:
+	case WRITE_16:
+	case WRITE_VERIFY:
+	case WRITE_VERIFY_12:
+	case 0x8e: /* WRITE_VERIFY_16 */
+	case COMPARE_AND_WRITE:
+	case XDWRITEREAD_10:
+		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
+		break;
+	case VARIABLE_LENGTH_CMD:
+		switch (get_unaligned_be16(&cdb[8])) {
+		case READ_32:
+		case WRITE_32:
+		case 0x0c: /* WRITE_VERIFY_32 */
+		case XDWRITEREAD_32:
+			cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
+			break;
+		}
+	}
+
+	cmd->execute_cmd = exec_cmd;
+
+	return TCM_NO_SENSE;
+}
+EXPORT_SYMBOL(passthrough_parse_cdb);
