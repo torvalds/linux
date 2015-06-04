@@ -39,6 +39,7 @@
 #include <linux/of_irq.h>
 #include <linux/rockchip/cpu.h>
 #include <linux/rockchip/cru.h>
+#include <linux/rockchip/pmu.h>
 #ifdef CONFIG_MFD_SYSCON
 #include <linux/regmap.h>
 #endif
@@ -496,6 +497,7 @@ typedef struct vpu_service_info {
 	struct device *dev;
 
 	u32 irq_status;
+	atomic_t reset_request;
 #if defined(CONFIG_VCODEC_MMU)
 	struct ion_client *ion_client;
 	struct list_head mem_region_list;
@@ -765,6 +767,26 @@ static void vpu_put_clk(struct vpu_service_info *pservice)
 #endif
 }
 
+static const u8 pmu_idle_map[] = {
+	[IDLE_REQ_VIDEO] = 7,
+};
+
+extern void __iomem *rk_cru_base;
+static void cru_writel(u32 val, u32 offset)
+{
+	writel_relaxed(val, rk_cru_base + (offset));
+	dsb(sy);
+}
+
+extern int rk3368_pmu_set_idle_request(enum pmu_idle_req req, bool idle);
+static inline void rk3368_cru_set_soft_reset(u32 idx, bool on)
+{
+	u32 val = on ? 0x10001U << (idx & 0xf) : 0x10000U << (idx & 0xf);
+	cru_writel(val, 0x31c);
+}
+#define SOFT_RST_VCODEC_AXI	(7*16)
+#define SOFT_RST_VCODEC_AHB	(7*16+1)
+
 static void vpu_reset(struct vpu_subdev_data *data)
 {
 	struct vpu_service_info *pservice = data->pservice;
@@ -794,10 +816,27 @@ static void vpu_reset(struct vpu_subdev_data *data)
 	cru_set_soft_reset(SOFT_RST_VCODEC_NIU_AXI, false);
 	cru_set_soft_reset(SOFT_RST_CPU_VCODEC, false);
 	pmu_set_idle_request(IDLE_REQ_VIDEO, false);
+#else
 #endif
+	WARN_ON(pservice->reg_codec != NULL);
+	WARN_ON(pservice->reg_pproc != NULL);
+	WARN_ON(pservice->reg_resev != NULL);
 	pservice->reg_codec = NULL;
 	pservice->reg_pproc = NULL;
 	pservice->reg_resev = NULL;
+
+	pr_info("for 3288/3368...");
+	/**rk3368_pmu_set_idle_request(IDLE_REQ_VIDEO, true);*/
+	/*rockchip_pmu_ops.set_idle_request(IDLE_REQ_VIDEO, true);*/
+	/**rockchip_pmu_ops.set_power_domain(PD_VIDEO, false);*/
+	/*rk3368_cru_set_soft_reset(SOFT_RST_VCODEC_AHB, true);
+	rk3368_cru_set_soft_reset(SOFT_RST_VCODEC_AXI, true);
+	mdelay(1);
+	rk3368_cru_set_soft_reset(SOFT_RST_VCODEC_AXI, false);
+	rk3368_cru_set_soft_reset(SOFT_RST_VCODEC_AHB, false);*/
+	/**rockchip_pmu_ops.set_power_domain(PD_VIDEO, true);*/
+	/*rockchip_pmu_ops.set_idle_request(IDLE_REQ_VIDEO, false);*/
+	/**rk3368_pmu_set_idle_request(IDLE_REQ_VIDEO, false);*/
 
 #if defined(CONFIG_VCODEC_MMU)
 	if (data->mmu_dev && test_bit(MMU_ACTIVATED, &data->state)) {
@@ -808,6 +847,8 @@ static void vpu_reset(struct vpu_subdev_data *data)
 			BUG_ON(!atomic_read(&pservice->enabled));
 	}
 #endif
+	atomic_set(&pservice->reset_request, 0);
+	pr_info("done\n");
 }
 
 static void reg_deinit(struct vpu_subdev_data *data, vpu_reg *reg);
@@ -1517,41 +1558,55 @@ static void try_set_reg(struct vpu_subdev_data *data)
 	vpu_debug_enter();
 	if (!list_empty(&pservice->waiting)) {
 		int can_set = 0;
+		bool change_able = (NULL == pservice->reg_codec) && (NULL == pservice->reg_pproc);
+		int reset_request = atomic_read(&pservice->reset_request);
 		vpu_reg *reg = list_entry(pservice->waiting.next, vpu_reg, status_link);
 
 		vpu_service_power_on(pservice);
 
-		switch (reg->type) {
-		case VPU_ENC : {
-			if ((NULL == pservice->reg_codec) &&  (NULL == pservice->reg_pproc))
-				can_set = 1;
-		} break;
-		case VPU_DEC : {
-			if (NULL == pservice->reg_codec)
-				can_set = 1;
-			if (pservice->auto_freq && (NULL != pservice->reg_pproc))
-				can_set = 0;
-		} break;
-		case VPU_PP : {
-			if (NULL == pservice->reg_codec) {
-				if (NULL == pservice->reg_pproc)
+		// first check can_set flag
+		if (change_able || !reset_request) {
+			switch (reg->type) {
+			case VPU_ENC : {
+				if (change_able)
 					can_set = 1;
-			} else {
-				if ((VPU_DEC == pservice->reg_codec->type) && (NULL == pservice->reg_pproc))
-					can_set = 1;
-				/* can not charge frequency when vpu is working */
-				if (pservice->auto_freq)
-					can_set = 0;
-			}
-		} break;
-		case VPU_DEC_PP : {
-			if ((NULL == pservice->reg_codec) && (NULL == pservice->reg_pproc))
-				can_set = 1;
 			} break;
-		default : {
-			printk("undefined reg type %d\n", reg->type);
-		} break;
+			case VPU_DEC : {
+				if (NULL == pservice->reg_codec)
+					can_set = 1;
+				if (pservice->auto_freq && (NULL != pservice->reg_pproc))
+					can_set = 0;
+			} break;
+			case VPU_PP : {
+				if (NULL == pservice->reg_codec) {
+					if (NULL == pservice->reg_pproc)
+						can_set = 1;
+				} else {
+					if ((VPU_DEC == pservice->reg_codec->type) && (NULL == pservice->reg_pproc))
+						can_set = 1;
+					/* can not charge frequency when vpu is working */
+					if (pservice->auto_freq)
+						can_set = 0;
+				}
+			} break;
+			case VPU_DEC_PP : {
+				if (change_able)
+					can_set = 1;
+				} break;
+			default : {
+				printk("undefined reg type %d\n", reg->type);
+			} break;
+			}
 		}
+
+		// then check reset request
+		if (reset_request && !change_able)
+			reset_request = 0;
+
+		// do reset before setting registers
+		if (reset_request)
+			vpu_reset(data);
+
 		if (can_set) {
 			reg_from_wait_to_run(pservice, reg);
 			reg_copy_to_hw(reg->data, reg);
@@ -2287,6 +2342,7 @@ static void vcodec_init_drvdata(struct vpu_service_info *pservice)
 	atomic_set(&pservice->enabled,       0);
 	atomic_set(&pservice->power_on_cnt,  0);
 	atomic_set(&pservice->power_off_cnt, 0);
+	atomic_set(&pservice->reset_request, 0);
 
 	INIT_DELAYED_WORK(&pservice->power_off_work, vpu_power_off_work);
 
