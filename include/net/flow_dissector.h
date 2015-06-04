@@ -27,6 +27,10 @@ struct flow_dissector_key_basic {
 	u8	padding;
 };
 
+struct flow_dissector_key_tags {
+	u32	vlan_id:12;
+};
+
 /**
  * struct flow_dissector_key_ipv4_addrs:
  * @src: source ip address
@@ -106,6 +110,7 @@ enum flow_dissector_key_id {
 	FLOW_DISSECTOR_KEY_PORTS, /* struct flow_dissector_key_ports */
 	FLOW_DISSECTOR_KEY_ETH_ADDRS, /* struct flow_dissector_key_eth_addrs */
 	FLOW_DISSECTOR_KEY_TIPC_ADDRS, /* struct flow_dissector_key_tipc_addrs */
+	FLOW_DISSECTOR_KEY_VLANID, /* struct flow_dissector_key_flow_tags */
 
 	FLOW_DISSECTOR_KEY_MAX,
 };
@@ -142,6 +147,7 @@ struct flow_keys {
 	struct flow_dissector_key_control control;
 #define FLOW_KEYS_HASH_START_FIELD basic
 	struct flow_dissector_key_basic basic;
+	struct flow_dissector_key_tags tags;
 	struct flow_dissector_key_ports ports;
 	struct flow_dissector_key_addrs addrs;
 };

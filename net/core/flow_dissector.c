@@ -126,6 +126,7 @@ bool __skb_flow_dissect(const struct sk_buff *skb,
 	struct flow_dissector_key_basic *key_basic;
 	struct flow_dissector_key_addrs *key_addrs;
 	struct flow_dissector_key_ports *key_ports;
+	struct flow_dissector_key_tags *key_tags;
 	u8 ip_proto;
 
 	if (!data) {
@@ -245,6 +246,15 @@ flow_label:
 		vlan = __skb_header_pointer(skb, nhoff, sizeof(_vlan), data, hlen, &_vlan);
 		if (!vlan)
 			return false;
+
+		if (skb_flow_dissector_uses_key(flow_dissector,
+						FLOW_DISSECTOR_KEY_VLANID)) {
+			key_tags = skb_flow_dissector_target(flow_dissector,
+							     FLOW_DISSECTOR_KEY_VLANID,
+							     target_container);
+
+			key_tags->vlan_id = skb_vlan_tag_get_id(skb);
+		}
 
 		proto = vlan->h_vlan_encapsulated_proto;
 		nhoff += sizeof(*vlan);
@@ -644,6 +654,10 @@ static const struct flow_dissector_key flow_keys_dissector_keys[] = {
 	{
 		.key_id = FLOW_DISSECTOR_KEY_PORTS,
 		.offset = offsetof(struct flow_keys, ports),
+	},
+	{
+		.key_id = FLOW_DISSECTOR_KEY_VLANID,
+		.offset = offsetof(struct flow_keys, tags),
 	},
 };
 
