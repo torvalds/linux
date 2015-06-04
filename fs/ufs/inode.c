@@ -41,7 +41,7 @@
 #include "swab.h"
 #include "util.h"
 
-static int ufs_block_to_path(struct inode *inode, sector_t i_block, sector_t offsets[4])
+static int ufs_block_to_path(struct inode *inode, sector_t i_block, unsigned offsets[4])
 {
 	struct ufs_sb_private_info *uspi = UFS_SB(inode->i_sb)->s_uspi;
 	int ptrs = uspi->s_apb;
@@ -153,7 +153,7 @@ again:
 	while (--depth) {
 		__fs32 *ptr;
 		struct buffer_head *bh;
-		sector_t n = *p++;
+		unsigned n = *p++;
 
 		bh = sb_bread(sb, uspi->s_sbbase +
 				  fs32_to_cpu(sb, q->key32) + (n>>shift));
@@ -177,7 +177,7 @@ ufs2:
 	while (--depth) {
 		__fs64 *ptr;
 		struct buffer_head *bh;
-		sector_t n = *p++;
+		unsigned n = *p++;
 
 		bh = sb_bread(sb, uspi->s_sbbase +
 				  fs64_to_cpu(sb, q->key64) + (n>>shift));
