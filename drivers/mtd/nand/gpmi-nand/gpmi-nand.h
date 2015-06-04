@@ -22,7 +22,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 
-#define GPMI_CLK_MAX 4 /* MX6Q needs four clocks */
+#define GPMI_CLK_MAX 5 /* MX6Q needs five clocks */
 struct resources {
 	void __iomem  *gpmi_regs;
 	void __iomem  *bch_regs;

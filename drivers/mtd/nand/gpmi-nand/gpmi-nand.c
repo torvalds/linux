@@ -598,7 +598,7 @@ acquire_err:
 }
 
 static char *extra_clks_for_mx6q[GPMI_CLK_MAX] = {
-	"gpmi_apb", "gpmi_bch", "gpmi_bch_apb",
+	"gpmi_apb", "gpmi_bch", "gpmi_bch_apb", "per1_bch",
 };
 
 static char *extra_clks_for_mx7d[GPMI_CLK_MAX] = {
