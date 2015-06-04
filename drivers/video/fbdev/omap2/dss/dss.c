@@ -111,6 +111,14 @@ static const char * const dss_generic_clk_source_names[] = {
 	[OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DSI]	= "DSI_PLL2_HSDIV_DSI",
 };
 
+static bool dss_initialized;
+
+bool omapdss_is_initialized(void)
+{
+	return dss_initialized;
+}
+EXPORT_SYMBOL(omapdss_is_initialized);
+
 static inline void dss_write_reg(const struct dss_reg idx, u32 val)
 {
 	__raw_writel(val, dss.base + idx.idx);
@@ -1141,6 +1149,8 @@ static int __init omap_dsshw_probe(struct platform_device *pdev)
 
 	pm_set_vt_switch(0);
 
+	dss_initialized = true;
+
 	return 0;
 
 err_pll_init:
@@ -1158,6 +1168,8 @@ err_setup_clocks:
 
 static int __exit omap_dsshw_remove(struct platform_device *pdev)
 {
+	dss_initialized = false;
+
 	if (dss.video1_pll)
 		dss_video_pll_uninit(dss.video1_pll);
 
