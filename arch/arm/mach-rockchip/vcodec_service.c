@@ -2235,8 +2235,7 @@ static void vcodec_subdev_remove(struct vpu_subdev_data *data)
 	free_irq(data->irq_dec, (void *)&data);
 
 #ifdef CONFIG_DEBUG_FS
-	debugfs_remove(data->debugfs_file_regs);
-	debugfs_remove(data->debugfs_dir);
+	debugfs_remove_recursive(data->debugfs_dir);
 #endif
 }
 
