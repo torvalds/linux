@@ -9,6 +9,16 @@ struct stats
 	u64 max, min;
 };
 
+enum perf_stat_evsel_id {
+	PERF_STAT_EVSEL_ID__NONE = 0,
+	PERF_STAT_EVSEL_ID__MAX,
+};
+
+struct perf_stat {
+	struct stats		res_stats[3];
+	enum perf_stat_evsel_id	id;
+};
+
 void update_stats(struct stats *stats, u64 val);
 double avg_stats(struct stats *stats);
 double stddev_stats(struct stats *stats);
@@ -22,4 +32,14 @@ static inline void init_stats(struct stats *stats)
 	stats->min  = (u64) -1;
 	stats->max  = 0;
 }
+
+struct perf_evsel;
+bool __perf_evsel_stat__is(struct perf_evsel *evsel,
+			   enum perf_stat_evsel_id id);
+
+#define perf_stat_evsel__is(evsel, id) \
+	__perf_evsel_stat__is(evsel, PERF_STAT_EVSEL_ID__ ## id)
+
+void perf_stat_evsel_id_init(struct perf_evsel *evsel);
+
 #endif

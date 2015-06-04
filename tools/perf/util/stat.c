@@ -1,6 +1,6 @@
 #include <math.h>
-
 #include "stat.h"
+#include "evsel.h"
 
 void update_stats(struct stats *stats, u64 val)
 {
@@ -60,4 +60,33 @@ double rel_stddev_stats(double stddev, double avg)
 		pct = 100.0 * stddev/avg;
 
 	return pct;
+}
+
+bool __perf_evsel_stat__is(struct perf_evsel *evsel,
+			   enum perf_stat_evsel_id id)
+{
+	struct perf_stat *ps = evsel->priv;
+
+	return ps->id == id;
+}
+
+#define ID(id, name) [PERF_STAT_EVSEL_ID__##id] = #name
+static const char *id_str[PERF_STAT_EVSEL_ID__MAX] = {
+	ID(NONE, x),
+};
+#undef ID
+
+void perf_stat_evsel_id_init(struct perf_evsel *evsel)
+{
+	struct perf_stat *ps = evsel->priv;
+	int i;
+
+	/* ps->id is 0 hence PERF_STAT_EVSEL_ID__NONE by default */
+
+	for (i = 0; i < PERF_STAT_EVSEL_ID__MAX; i++) {
+		if (!strcmp(perf_evsel__name(evsel), id_str[i])) {
+			ps->id = i;
+			break;
+		}
+	}
 }

@@ -147,10 +147,6 @@ static int			(*aggr_get_id)(struct cpu_map *m, int cpu);
 
 static volatile int done = 0;
 
-struct perf_stat {
-	struct stats	  res_stats[3];
-};
-
 static inline void diff_timespec(struct timespec *r, struct timespec *a,
 				 struct timespec *b)
 {
@@ -180,6 +176,8 @@ static void perf_evsel__reset_stat_priv(struct perf_evsel *evsel)
 
 	for (i = 0; i < 3; i++)
 		init_stats(&ps->res_stats[i]);
+
+	perf_stat_evsel_id_init(evsel);
 }
 
 static int perf_evsel__alloc_stat_priv(struct perf_evsel *evsel)
