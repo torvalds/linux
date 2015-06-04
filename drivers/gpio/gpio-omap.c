@@ -714,7 +714,7 @@ static void omap_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 	struct gpio_bank *bank;
 	int unmasked = 0;
 	struct irq_chip *irqchip = irq_desc_get_chip(desc);
-	struct gpio_chip *chip = irq_get_handler_data(irq);
+	struct gpio_chip *chip = irq_desc_get_handler_data(desc);
 
 	chained_irq_enter(irqchip, desc);
 

@@ -268,15 +268,13 @@ static void tegra_gpio_irq_shutdown(struct irq_data *d)
 
 static void tegra_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
-	struct tegra_gpio_bank *bank;
 	int port;
 	int pin;
 	int unmasked = 0;
 	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct tegra_gpio_bank *bank = irq_desc_get_handler_data(desc);
 
 	chained_irq_enter(chip, desc);
-
-	bank = irq_get_handler_data(irq);
 
 	for (port = 0; port < 4; port++) {
 		int gpio = tegra_gpio_compose(bank->bank, port, 0);
