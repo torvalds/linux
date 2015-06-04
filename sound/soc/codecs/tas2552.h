@@ -45,10 +45,14 @@
 #define TAS2552_MAX_REG			0x20
 
 /* CFG1 Register Masks */
-#define TAS2552_MUTE_MASK		(1 << 2)
-#define TAS2552_SWS_MASK		(1 << 1)
-#define TAS2552_WCLK_MASK		0x07
-#define TAS2552_CLASSD_EN_MASK	(1 << 7)
+#define TAS2552_DEV_RESET		(1 << 0)
+#define TAS2552_SWS			(1 << 1)
+#define TAS2552_MUTE			(1 << 2)
+#define TAS2552_PLL_SRC_MCLK		(0x0 << 4)
+#define TAS2552_PLL_SRC_BCLK		(0x1 << 4)
+#define TAS2552_PLL_SRC_IVCLKIN		(0x2 << 4)
+#define TAS2552_PLL_SRC_1_8_FIXED 	(0x3 << 4)
+#define TAS2552_PLL_SRC_MASK	 	TAS2552_PLL_SRC_1_8_FIXED
 
 /* CFG2 Register Masks */
 #define TAS2552_CLASSD_EN		(1 << 7)
@@ -67,11 +71,6 @@
 #define TAS2552_DAIFMT_DSP			(1 << 3)
 #define TAS2552_DAIFMT_RIGHT_J		(1 << 4)
 #define TAS2552_DAIFMT_LEFT_J		(0x11 << 3)
-
-#define TAS2552_PLL_SRC_MCLK	0x00
-#define TAS2552_PLL_SRC_BCLK	(1 << 3)
-#define TAS2552_PLL_SRC_IVCLKIN	(1 << 4)
-#define TAS2552_PLL_SRC_1_8_FIXED (0x11 << 3)
 
 #define TAS2552_DIN_SRC_SEL_MUTED	0x00
 #define TAS2552_DIN_SRC_SEL_LEFT	(1 << 4)

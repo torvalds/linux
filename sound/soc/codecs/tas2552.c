@@ -126,10 +126,10 @@ static void tas2552_sw_shutdown(struct tas2552_data *tas_data, int sw_shutdown)
 	if (sw_shutdown)
 		cfg1_reg = 0;
 	else
-		cfg1_reg = TAS2552_SWS_MASK;
+		cfg1_reg = TAS2552_SWS;
 
-	snd_soc_update_bits(tas_data->codec, TAS2552_CFG_1,
-						 TAS2552_SWS_MASK, cfg1_reg);
+	snd_soc_update_bits(tas_data->codec, TAS2552_CFG_1, TAS2552_SWS,
+			    cfg1_reg);
 }
 #endif
 
@@ -258,11 +258,11 @@ static int tas2552_mute(struct snd_soc_dai *dai, int mute)
 	struct snd_soc_codec *codec = dai->codec;
 
 	if (mute)
-		cfg1_reg = TAS2552_MUTE_MASK;
+		cfg1_reg = TAS2552_MUTE;
 	else
-		cfg1_reg = ~TAS2552_MUTE_MASK;
+		cfg1_reg = ~TAS2552_MUTE;
 
-	snd_soc_update_bits(codec, TAS2552_CFG_1, TAS2552_MUTE_MASK, cfg1_reg);
+	snd_soc_update_bits(codec, TAS2552_CFG_1, TAS2552_MUTE, cfg1_reg);
 
 	return 0;
 }
@@ -370,7 +370,7 @@ static int tas2552_codec_probe(struct snd_soc_codec *codec)
 		goto probe_fail;
 	}
 
-	snd_soc_write(codec, TAS2552_CFG_1, TAS2552_MUTE_MASK |
+	snd_soc_write(codec, TAS2552_CFG_1, TAS2552_MUTE |
 				TAS2552_PLL_SRC_BCLK);
 	snd_soc_write(codec, TAS2552_CFG_3, TAS2552_I2S_OUT_SEL |
 				TAS2552_DIN_SRC_SEL_AVG_L_R | TAS2552_88_96KHZ);
