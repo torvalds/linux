@@ -118,14 +118,12 @@ static const struct snd_soc_dapm_route tas2552_audio_map[] = {
 #ifdef CONFIG_PM
 static void tas2552_sw_shutdown(struct tas2552_data *tas_data, int sw_shutdown)
 {
-	u8 cfg1_reg;
+	u8 cfg1_reg = 0;
 
 	if (!tas_data->codec)
 		return;
 
 	if (sw_shutdown)
-		cfg1_reg = 0;
-	else
 		cfg1_reg = TAS2552_SWS;
 
 	snd_soc_update_bits(tas_data->codec, TAS2552_CFG_1, TAS2552_SWS,
@@ -270,7 +268,7 @@ static int tas2552_runtime_suspend(struct device *dev)
 {
 	struct tas2552_data *tas2552 = dev_get_drvdata(dev);
 
-	tas2552_sw_shutdown(tas2552, 0);
+	tas2552_sw_shutdown(tas2552, 1);
 
 	regcache_cache_only(tas2552->regmap, true);
 	regcache_mark_dirty(tas2552->regmap);
@@ -288,7 +286,7 @@ static int tas2552_runtime_resume(struct device *dev)
 	if (tas2552->enable_gpio)
 		gpiod_set_value(tas2552->enable_gpio, 1);
 
-	tas2552_sw_shutdown(tas2552, 1);
+	tas2552_sw_shutdown(tas2552, 0);
 
 	regcache_cache_only(tas2552->regmap, false);
 	regcache_sync(tas2552->regmap);
