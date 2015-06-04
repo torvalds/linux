@@ -2380,7 +2380,6 @@ isert_build_rdma_wr(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd,
 	page_off = offset % PAGE_SIZE;
 
 	send_wr->sg_list = ib_sge;
-	send_wr->num_sge = sg_nents;
 	send_wr->wr_id = (uintptr_t)&isert_cmd->tx_desc;
 	/*
 	 * Perform mapping of TCM scatterlist memory ib_sge dma_addr.
@@ -2400,14 +2399,17 @@ isert_build_rdma_wr(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd,
 			  ib_sge->addr, ib_sge->length, ib_sge->lkey);
 		page_off = 0;
 		data_left -= ib_sge->length;
+		if (!data_left)
+			break;
 		ib_sge++;
 		isert_dbg("Incrementing ib_sge pointer to %p\n", ib_sge);
 	}
 
+	send_wr->num_sge = ++i;
 	isert_dbg("Set outgoing sg_list: %p num_sg: %u from TCM SGLs\n",
 		  send_wr->sg_list, send_wr->num_sge);
 
-	return sg_nents;
+	return send_wr->num_sge;
 }
 
 static int
