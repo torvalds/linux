@@ -245,6 +245,8 @@ static struct platform_driver omap_dss_driver = {
 
 /* INIT */
 static int (*dss_output_drv_reg_funcs[])(void) __initdata = {
+	dss_init_platform_driver,
+	dispc_init_platform_driver,
 #ifdef CONFIG_OMAP2_DSS_DSI
 	dsi_init_platform_driver,
 #endif
@@ -268,7 +270,7 @@ static int (*dss_output_drv_reg_funcs[])(void) __initdata = {
 #endif
 };
 
-static void (*dss_output_drv_unreg_funcs[])(void) __exitdata = {
+static void (*dss_output_drv_unreg_funcs[])(void) = {
 #ifdef CONFIG_OMAP5_DSS_HDMI
 	hdmi5_uninit_platform_driver,
 #endif
@@ -290,9 +292,9 @@ static void (*dss_output_drv_unreg_funcs[])(void) __exitdata = {
 #ifdef CONFIG_OMAP2_DSS_DSI
 	dsi_uninit_platform_driver,
 #endif
+	dispc_uninit_platform_driver,
+	dss_uninit_platform_driver,
 };
-
-static bool dss_output_drv_loaded[ARRAY_SIZE(dss_output_drv_reg_funcs)];
 
 static int __init omap_dss_init(void)
 {
@@ -303,33 +305,20 @@ static int __init omap_dss_init(void)
 	if (r)
 		return r;
 
-	r = dss_init_platform_driver();
-	if (r) {
-		DSSERR("Failed to initialize DSS platform driver\n");
-		goto err_dss;
-	}
-
-	r = dispc_init_platform_driver();
-	if (r) {
-		DSSERR("Failed to initialize dispc platform driver\n");
-		goto err_dispc;
-	}
-
-	/*
-	 * It's ok if the output-driver register fails. It happens, for example,
-	 * when there is no output-device (e.g. SDI for OMAP4).
-	 */
 	for (i = 0; i < ARRAY_SIZE(dss_output_drv_reg_funcs); ++i) {
 		r = dss_output_drv_reg_funcs[i]();
-		if (r == 0)
-			dss_output_drv_loaded[i] = true;
+		if (r)
+			goto err_reg;
 	}
 
 	return 0;
 
-err_dispc:
-	dss_uninit_platform_driver();
-err_dss:
+err_reg:
+	for (i = ARRAY_SIZE(dss_output_drv_reg_funcs) - i;
+			i < ARRAY_SIZE(dss_output_drv_reg_funcs);
+			++i)
+		dss_output_drv_unreg_funcs[i]();
+
 	platform_driver_unregister(&omap_dss_driver);
 
 	return r;
@@ -339,13 +328,8 @@ static void __exit omap_dss_exit(void)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(dss_output_drv_unreg_funcs); ++i) {
-		if (dss_output_drv_loaded[i])
-			dss_output_drv_unreg_funcs[i]();
-	}
-
-	dispc_uninit_platform_driver();
-	dss_uninit_platform_driver();
+	for (i = 0; i < ARRAY_SIZE(dss_output_drv_unreg_funcs); ++i)
+		dss_output_drv_unreg_funcs[i]();
 
 	platform_driver_unregister(&omap_dss_driver);
 }
