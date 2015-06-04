@@ -401,9 +401,12 @@ static int pat_pagerange_is_ram(resource_size_t start, resource_size_t end)
 
 /*
  * For RAM pages, we use page flags to mark the pages with appropriate type.
- * Here we do two pass:
- * - Find the memtype of all the pages in the range, look for any conflicts
- * - In case of no conflicts, set the new memtype for pages in the range
+ * The page flags are limited to three types, WB, WC and UC-. WT and WP requests
+ * fail with -EINVAL, and UC gets redirected to UC-.
+ *
+ * Here we do two passes:
+ * - Find the memtype of all the pages in the range, look for any conflicts.
+ * - In case of no conflicts, set the new memtype for pages in the range.
  */
 static int reserve_ram_pages_type(u64 start, u64 end,
 				  enum page_cache_mode req_type,
@@ -411,6 +414,13 @@ static int reserve_ram_pages_type(u64 start, u64 end,
 {
 	struct page *page;
 	u64 pfn;
+
+	if ((req_type == _PAGE_CACHE_MODE_WT) ||
+	    (req_type == _PAGE_CACHE_MODE_WP)) {
+		if (new_type)
+			*new_type = _PAGE_CACHE_MODE_UC_MINUS;
+		return -EINVAL;
+	}
 
 	if (req_type == _PAGE_CACHE_MODE_UC) {
 		/* We do not support strong UC */
@@ -461,6 +471,7 @@ static int free_ram_pages_type(u64 start, u64 end)
  * - _PAGE_CACHE_MODE_WC
  * - _PAGE_CACHE_MODE_UC_MINUS
  * - _PAGE_CACHE_MODE_UC
+ * - _PAGE_CACHE_MODE_WT
  *
  * If new_type is NULL, function will return an error if it cannot reserve the
  * region with req_type. If new_type is non-NULL, function will return
