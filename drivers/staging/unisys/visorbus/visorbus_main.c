@@ -1074,54 +1074,6 @@ find_visor_device_by_channel(struct visorchannel *channel)
 }
 
 static int
-init_vbus_channel(struct visorchannel *chan)
-{
-	int rc = -1;
-	unsigned long allocated_bytes = visorchannel_get_nbytes(chan);
-	struct spar_vbus_channel_protocol *x =
-		kmalloc(sizeof(struct spar_vbus_channel_protocol),
-			GFP_KERNEL);
-
-	POSTCODE_LINUX_3(VBUS_CHANNEL_ENTRY_PC, rc, POSTCODE_SEVERITY_INFO);
-
-	if (x) {
-		POSTCODE_LINUX_2(MALLOC_FAILURE_PC, POSTCODE_SEVERITY_ERR);
-		goto away;
-	}
-	if (visorchannel_clear(chan, 0, 0, allocated_bytes) < 0) {
-		POSTCODE_LINUX_2(VBUS_CHANNEL_FAILURE_PC,
-				 POSTCODE_SEVERITY_ERR);
-		goto away;
-	}
-	if (visorchannel_read
-	    (chan, 0, x, sizeof(struct spar_vbus_channel_protocol)) < 0) {
-		POSTCODE_LINUX_2(VBUS_CHANNEL_FAILURE_PC,
-				 POSTCODE_SEVERITY_ERR);
-		goto away;
-	}
-	if (!SPAR_VBUS_CHANNEL_OK_SERVER(allocated_bytes)) {
-		POSTCODE_LINUX_2(VBUS_CHANNEL_FAILURE_PC,
-				 POSTCODE_SEVERITY_ERR);
-		goto away;
-	}
-
-	if (visorchannel_write
-	    (chan, 0, x, sizeof(struct spar_vbus_channel_protocol)) < 0) {
-		POSTCODE_LINUX_3(VBUS_CHANNEL_FAILURE_PC, chan,
-				 POSTCODE_SEVERITY_ERR);
-		goto away;
-	}
-
-	POSTCODE_LINUX_3(VBUS_CHANNEL_EXIT_PC, chan, POSTCODE_SEVERITY_INFO);
-	rc = 0;
-
-away:
-	kfree(x);
-	x = NULL;
-	return rc;
-}
-
-static int
 get_vbus_header_info(struct visorchannel *chan,
 		     struct spar_vbus_headerinfo *hdr_info)
 {
@@ -1296,18 +1248,14 @@ create_bus_instance(struct visorchipset_bus_info *bus_info)
 	}
 	dev->chipset_bus_no = id;
 	dev->visorchannel = bus_info->visorchannel;
-	if (bus_info->flags.server) {
-		init_vbus_channel(dev->visorchannel);
+	if (get_vbus_header_info(dev->visorchannel, hdr_info) >= 0) {
+		dev->vbus_hdr_info = (void *)hdr_info;
+		write_vbus_chp_info(dev->visorchannel, hdr_info,
+				    &chipset_driverinfo);
+		write_vbus_bus_info(dev->visorchannel, hdr_info,
+				    &clientbus_driverinfo);
 	} else {
-		if (get_vbus_header_info(dev->visorchannel, hdr_info) >= 0) {
-			dev->vbus_hdr_info = (void *)hdr_info;
-			write_vbus_chp_info(dev->visorchannel, hdr_info,
-					    &chipset_driverinfo);
-			write_vbus_bus_info(dev->visorchannel, hdr_info,
-					    &clientbus_driverinfo);
-		} else {
-			kfree(hdr_info);
-		}
+		kfree(hdr_info);
 	}
 	bus_count++;
 	list_add_tail(&dev->list_all, &list_all_bus_instances);

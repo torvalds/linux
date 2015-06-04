@@ -66,11 +66,6 @@ struct visorchipset_bus_info {
 	u8 *description;	/* UTF8 */
 	u64 reserved1;
 	u32 reserved2;
-	struct {
-		u32 server:1;
-		/* Add new fields above. */
-		/* Remaining bits in this 32-bit word are unused. */
-	} flags;
 	struct controlvm_message_header *pending_msg_hdr;/* CONTROLVM MsgHdr */
 	/** For private use by the bus driver */
 	void *bus_driver_context;

@@ -1228,8 +1228,6 @@ bus_create(struct controlvm_message *inmsg)
 
 	POSTCODE_LINUX_3(BUS_CREATE_ENTRY_PC, bus_no, POSTCODE_SEVERITY_INFO);
 
-	bus_info->flags.server = inmsg->hdr.flags.server;
-
 	visorchannel = visorchannel_create(cmd->create_bus.channel_addr,
 					   cmd->create_bus.channel_bytes,
 					   GFP_KERNEL,
