@@ -196,7 +196,7 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
 	}
 
 	spin_lock_irq(&gb_bundles_lock);
-	list_add_tail(&bundle->links, &intf->bundles);
+	list_add(&bundle->links, &intf->bundles);
 	spin_unlock_irq(&gb_bundles_lock);
 
 	return bundle;

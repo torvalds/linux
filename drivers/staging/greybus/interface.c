@@ -122,7 +122,7 @@ static struct gb_interface *gb_interface_create(struct greybus_host_device *hd,
 	}
 
 	spin_lock_irq(&gb_interfaces_lock);
-	list_add_tail(&intf->links, &hd->interfaces);
+	list_add(&intf->links, &hd->interfaces);
 	spin_unlock_irq(&gb_interfaces_lock);
 
 	return intf;

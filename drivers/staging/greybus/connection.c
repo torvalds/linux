@@ -213,8 +213,8 @@ struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 			 "protocol 0x%02hhx handler not found\n", protocol_id);
 
 	spin_lock_irq(&gb_connections_lock);
-	list_add_tail(&connection->hd_links, &hd->connections);
-	list_add_tail(&connection->bundle_links, &bundle->connections);
+	list_add(&connection->hd_links, &hd->connections);
+	list_add(&connection->bundle_links, &bundle->connections);
 	spin_unlock_irq(&gb_connections_lock);
 
 	atomic_set(&connection->op_cycle, 0);
