@@ -438,12 +438,8 @@ int reserve_memtype(u64 start, u64 end, enum page_cache_mode req_type,
 
 	if (!pat_enabled()) {
 		/* This is identical to page table setting without PAT */
-		if (new_type) {
-			if (req_type == _PAGE_CACHE_MODE_WC)
-				*new_type = _PAGE_CACHE_MODE_UC_MINUS;
-			else
-				*new_type = req_type;
-		}
+		if (new_type)
+			*new_type = req_type;
 		return 0;
 	}
 
@@ -947,11 +943,8 @@ void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
 
 pgprot_t pgprot_writecombine(pgprot_t prot)
 {
-	if (pat_enabled())
-		return __pgprot(pgprot_val(prot) |
+	return __pgprot(pgprot_val(prot) |
 				cachemode2protval(_PAGE_CACHE_MODE_WC));
-	else
-		return pgprot_noncached(prot);
 }
 EXPORT_SYMBOL_GPL(pgprot_writecombine);
 
