@@ -107,7 +107,7 @@ struct t7_config {
 #define MXT_POWER_CFG_DEEPSLEEP		1
 
 /* MXT_TOUCH_MULTI_T9 field */
-#define MXT_TOUCH_CTRL		0
+#define MXT_T9_CTRL		0
 #define MXT_T9_ORIENT		9
 #define MXT_T9_RANGE		18
 
@@ -3328,12 +3328,13 @@ static void mxt_start(struct mxt_data *data)
 		return;
 
 	switch (data->pdata->suspend_mode) {
-	case MXT_SUSPEND_TOUCH_CTRL:
+	case MXT_SUSPEND_T9_CTRL:
 		mxt_soft_reset(data);
 
 		/* Touch enable */
+		/* 0x83 = SCANEN | RPTEN | ENABLE */
 		mxt_write_object(data,
-				MXT_TOUCH_MULTI_T9, MXT_TOUCH_CTRL, 0x83);
+				MXT_TOUCH_MULTI_T9, MXT_T9_CTRL, 0x83);
 		break;
 
 	case MXT_SUSPEND_REGULATOR:
@@ -3367,10 +3368,10 @@ static void mxt_stop(struct mxt_data *data)
 		return;
 
 	switch (data->pdata->suspend_mode) {
-	case MXT_SUSPEND_TOUCH_CTRL:
+	case MXT_SUSPEND_T9_CTRL:
 		/* Touch disable */
 		mxt_write_object(data,
-				MXT_TOUCH_MULTI_T9, MXT_TOUCH_CTRL, 0);
+				MXT_TOUCH_MULTI_T9, MXT_T9_CTRL, 0);
 		break;
 
 	case MXT_SUSPEND_REGULATOR:
