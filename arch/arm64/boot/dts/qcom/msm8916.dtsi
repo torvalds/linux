@@ -268,6 +268,45 @@
 			status = "disabled";
 		};
 
+		usb_dev: usb@78d9000 {
+			compatible = "qcom,ci-hdrc";
+			reg = <0x78d9000 0x400>;
+			dr_mode = "peripheral";
+			interrupts = <GIC_SPI 134 IRQ_TYPE_NONE>;
+			usb-phy = <&usb_otg>;
+			status = "disabled";
+		};
+
+		usb_host: ehci@78d9000 {
+			compatible = "qcom,ehci-host";
+			reg = <0x78d9000 0x400>;
+			interrupts = <GIC_SPI 134 IRQ_TYPE_NONE>;
+			usb-phy = <&usb_otg>;
+			status = "disabled";
+		};
+
+		usb_otg: phy@78d9000 {
+			compatible = "qcom,usb-otg-snps";
+			reg = <0x78d9000 0x400>;
+			interrupts = <GIC_SPI 134 IRQ_TYPE_EDGE_BOTH>,
+				     <GIC_SPI 140 IRQ_TYPE_EDGE_RISING>;
+
+			qcom,vdd-levels = <1 5 7>;
+			qcom,phy-init-sequence = <0x44 0x6B 0x24 0x13>;
+			dr_mode = "peripheral";
+			qcom,otg-control = <2>; // PMIC
+
+			clocks = <&gcc GCC_USB_HS_AHB_CLK>,
+				 <&gcc GCC_USB_HS_SYSTEM_CLK>,
+				 <&gcc GCC_USB2A_PHY_SLEEP_CLK>;
+			clock-names = "iface", "core", "sleep";
+
+			resets = <&gcc GCC_USB2A_PHY_BCR>,
+				 <&gcc GCC_USB_HS_BCR>;
+			reset-names = "phy", "link";
+			status = "disabled";
+		};
+
 		intc: interrupt-controller@b000000 {
 			compatible = "qcom,msm-qgic2";
 			interrupt-controller;
