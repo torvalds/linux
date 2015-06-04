@@ -24,7 +24,7 @@ Optional properties for main touchpad device:
 
 - atmel,suspend-mode: Select method used to suspend:
     MXT_SUSPEND_DEEP_SLEEP - use T7 to suspend the device into deep sleep
-    MXT_SUSPEND_TOUCH_CTRL - use T9.CTRL to turn off touch processing
+    MXT_SUSPEND_T9_CTRL - use T9.CTRL to turn off touch processing
     Definitions are in <dt-bindings/input/atmel_mxt_ts.h>.
 
 - atmel,reset-gpio: Configure RESET GPIO. Required for regulator support.
