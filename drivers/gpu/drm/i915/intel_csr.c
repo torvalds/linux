@@ -389,6 +389,7 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 	intel_csr_load_program(dev);
 	fw_loaded = true;
 
+	DRM_DEBUG_KMS("Finished loading %s\n", dev_priv->csr.fw_path);
 out:
 	if (fw_loaded)
 		intel_runtime_pm_put(dev_priv);
@@ -421,6 +422,8 @@ void intel_csr_ucode_init(struct drm_device *dev)
 		intel_csr_load_status_set(dev_priv, FW_FAILED);
 		return;
 	}
+
+	DRM_DEBUG_KMS("Loading %s\n", csr->fw_path);
 
 	/*
 	 * Obtain a runtime pm reference, until CSR is loaded,
