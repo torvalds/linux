@@ -93,8 +93,8 @@ static struct workqueue_struct *periodic_dev_workqueue;
 static long long bus_count;	/** number of bus instances */
 					/** ever-increasing */
 
-static void chipset_bus_create(struct visorchipset_bus_info *bus_info);
-static void chipset_bus_destroy(struct visorchipset_bus_info *bus_info);
+static void chipset_bus_create(struct visor_device *bus_info);
+static void chipset_bus_destroy(struct visor_device *bus_info);
 static void chipset_device_create(struct visorchipset_device_info *dev_info);
 static void chipset_device_destroy(struct visorchipset_device_info *dev_info);
 static void chipset_device_pause(struct visorchipset_device_info *dev_info);
@@ -950,8 +950,7 @@ EXPORT_SYMBOL_GPL(visorbus_disable_channel_interrupts);
  */
 static int
 create_visor_device(struct visor_device *bdev,
-		    struct visorchipset_device_info *dev_info,
-		    u64 partition_handle)
+		    struct visorchipset_device_info *dev_info)
 {
 	int rc = -1;
 	struct visor_device *dev = NULL;
@@ -1161,8 +1160,7 @@ static void
 fix_vbus_dev_info(struct visor_device *visordev)
 {
 	int i;
-	struct visorchipset_bus_info bus_info;
-	struct visor_device *dev = NULL;
+	struct visor_device *bdev;
 	struct visor_driver *visordrv;
 	int bus_no = visordev->chipset_bus_no;
 	int dev_no = visordev->chipset_dev_no;
@@ -1174,17 +1172,14 @@ fix_vbus_dev_info(struct visor_device *visordev)
 			return;
 
 	hdr_info = (struct spar_vbus_headerinfo *)visordev->vbus_hdr_info;
+	if (!hdr_info)
+		return;
+
+	bdev = visorbus_get_device_by_id(bus_no, BUS_ROOT_DEVICE, NULL);
+	if (!bdev)
+		return;
 
 	visordrv = to_visor_driver(visordev->device.driver);
-	if (!visorchipset_get_bus_info(bus_no, &bus_info))
-			return;
-
-	dev = (struct visor_device *)(bus_info.bus_driver_context);
-	if (!dev)
-			return;
-
-	if (!hdr_info)
-			return;
 
 	/* Within the list of device types (by GUID) that the driver
 	 * says it supports, find out which one of those types matches
@@ -1203,51 +1198,45 @@ fix_vbus_dev_info(struct visor_device *visordev)
 	bus_device_info_init(&dev_info, chan_type_name,
 			     visordrv->name, visordrv->version,
 			     visordrv->vertag);
-	write_vbus_dev_info(dev->visorchannel, hdr_info, &dev_info, dev_no);
+	write_vbus_dev_info(bdev->visorchannel, hdr_info, &dev_info, dev_no);
 
 	/* Re-write bus+chipset info, because it is possible that this
 	* was previously written by our evil counterpart, virtpci.
 	*/
-	write_vbus_chp_info(dev->visorchannel, hdr_info, &chipset_driverinfo);
-	write_vbus_bus_info(dev->visorchannel, hdr_info, &clientbus_driverinfo);
+	write_vbus_chp_info(bdev->visorchannel, hdr_info, &chipset_driverinfo);
+	write_vbus_bus_info(bdev->visorchannel, hdr_info,
+			    &clientbus_driverinfo);
 }
 
 /** Create a device instance for the visor bus itself.
  */
-static struct visor_device *
-create_bus_instance(struct visorchipset_bus_info *bus_info)
+static int
+create_bus_instance(struct visor_device *dev)
 {
-	struct visor_device *rc = NULL;
-	struct visor_device *dev = NULL;
-	int id = bus_info->bus_no;
+	int rc;
+	int id = dev->chipset_bus_no;
 	struct spar_vbus_headerinfo *hdr_info;
 
 	POSTCODE_LINUX_2(BUS_CREATE_ENTRY_PC, POSTCODE_SEVERITY_INFO);
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev) {
-		POSTCODE_LINUX_2(MALLOC_FAILURE_PC, POSTCODE_SEVERITY_ERR);
-		rc = NULL;
-		goto away;
-	}
 
 	hdr_info = kzalloc(sizeof(*hdr_info), GFP_KERNEL);
 	if (!hdr_info) {
-		rc = NULL;
-		goto away_mem;
+		rc = -1;
+		goto away;
 	}
 
 	dev_set_name(&dev->device, "visorbus%d", id);
 	dev->device.bus = &visorbus_type;
 	dev->device.groups = visorbus_groups;
 	dev->device.release = visorbus_release_busdevice;
+
 	if (device_register(&dev->device) < 0) {
 		POSTCODE_LINUX_3(DEVICE_CREATE_FAILURE_PC, id,
 				 POSTCODE_SEVERITY_ERR);
-		rc = NULL;
-		goto away_mem2;
+		rc = -1;
+		goto away_mem;
 	}
-	dev->chipset_bus_no = id;
-	dev->visorchannel = bus_info->visorchannel;
+
 	if (get_vbus_header_info(dev->visorchannel, hdr_info) >= 0) {
 		dev->vbus_hdr_info = (void *)hdr_info;
 		write_vbus_chp_info(dev->visorchannel, hdr_info,
@@ -1259,16 +1248,11 @@ create_bus_instance(struct visorchipset_bus_info *bus_info)
 	}
 	bus_count++;
 	list_add_tail(&dev->list_all, &list_all_bus_instances);
-	if (id == 0)
-			dev = dev;	/* for testing ONLY */
 	dev_set_drvdata(&dev->device, dev);
-	rc = dev;
-	return rc;
+	return 0;
 
-away_mem2:
-	kfree(hdr_info);
 away_mem:
-	kfree(dev);
+	kfree(hdr_info);
 away:
 	return rc;
 }
@@ -1331,57 +1315,38 @@ remove_all_visor_devices(void)
 }
 
 static void
-chipset_bus_create(struct visorchipset_bus_info *bus_info)
+chipset_bus_create(struct visor_device *dev)
 {
-	struct visor_device *dev;
-	int rc = -1;
-	u32 bus_no = bus_info->bus_no;
+	int rc;
+	u32 bus_no = dev->chipset_bus_no;
 
 	POSTCODE_LINUX_3(BUS_CREATE_ENTRY_PC, bus_no, POSTCODE_SEVERITY_INFO);
-	dev = create_bus_instance(bus_info);
-	if (!dev)
-		goto away;
-	if (!visorchipset_set_bus_context(bus_info, dev))
-		goto away;
+	rc = create_bus_instance(dev);
 	POSTCODE_LINUX_3(BUS_CREATE_EXIT_PC, bus_no, POSTCODE_SEVERITY_INFO);
-	rc = 0;
-away:
-	if (rc < 0) {
+
+	if (rc < 0)
 		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus_no,
 				 POSTCODE_SEVERITY_ERR);
-		return;
-	}
-	POSTCODE_LINUX_3(CHIPSET_INIT_SUCCESS_PC, bus_no,
-			 POSTCODE_SEVERITY_INFO);
+	else
+		POSTCODE_LINUX_3(CHIPSET_INIT_SUCCESS_PC, bus_no,
+				 POSTCODE_SEVERITY_INFO);
+
 	if (chipset_responders.bus_create)
-		(*chipset_responders.bus_create) (bus_info, rc);
+		(*chipset_responders.bus_create) (dev, rc);
 }
 
 static void
-chipset_bus_destroy(struct visorchipset_bus_info *bus_info)
+chipset_bus_destroy(struct visor_device *dev)
 {
-	struct visor_device *dev;
-	int rc = -1;
-
-	dev = (struct visor_device *)(bus_info->bus_driver_context);
-	if (!dev)
-		goto away;
 	remove_bus_instance(dev);
-	if (!visorchipset_set_bus_context(bus_info, NULL))
-		goto away;
-	rc = 0;
-away:
-	if (rc < 0)
-		return;
 	if (chipset_responders.bus_destroy)
-		(*chipset_responders.bus_destroy)(bus_info, rc);
+		(*chipset_responders.bus_destroy)(dev, 0);
 }
 
 static void
 chipset_device_create(struct visorchipset_device_info *dev_info)
 {
-	struct visorchipset_bus_info bus_info;
-	struct visor_device *dev = NULL;
+	struct visor_device *bdev;
 	int rc = -1;
 	u32 bus_no = dev_info->bus_no;
 	u32 dev_no = dev_info->dev_no;
@@ -1389,24 +1354,24 @@ chipset_device_create(struct visorchipset_device_info *dev_info)
 	POSTCODE_LINUX_4(DEVICE_CREATE_ENTRY_PC, dev_no, bus_no,
 			 POSTCODE_SEVERITY_INFO);
 
-	if (!visorchipset_get_bus_info(bus_no, &bus_info))
+	bdev = visorbus_get_device_by_id(bus_no, BUS_ROOT_DEVICE, NULL);
+	if (!bdev)
 		goto away;
+
 	POSTCODE_LINUX_4(DEVICE_CREATE_EXIT_PC, dev_no, bus_no,
 			 POSTCODE_SEVERITY_INFO);
-	rc = 0;
+
+	rc = create_visor_device(bdev, dev_info);
 away:
 	if (rc < 0) {
 		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, dev_no, bus_no,
 				 POSTCODE_SEVERITY_ERR);
-		return;
-	}
-	dev = (struct visor_device *)(bus_info.bus_driver_context);
-	rc = create_visor_device(dev, dev_info, bus_info.partition_handle);
-	POSTCODE_LINUX_4(DEVICE_CREATE_SUCCESS_PC, dev_no, bus_no,
-			 POSTCODE_SEVERITY_INFO);
-	if (rc < 0)
 		if (chipset_responders.device_create)
 			(*chipset_responders.device_create)(dev_info, rc);
+	}
+
+	POSTCODE_LINUX_4(DEVICE_CREATE_SUCCESS_PC, dev_no, bus_no,
+			 POSTCODE_SEVERITY_INFO);
 }
 
 static void

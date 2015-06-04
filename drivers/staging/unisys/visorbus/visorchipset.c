@@ -56,8 +56,6 @@
 #define UNISYS_SPAR_ID_ECX 0x70537379
 #define UNISYS_SPAR_ID_EDX 0x34367261
 
-#define BUS_ROOT_DEVICE	UINT_MAX
-
 /*
  * Module parameters
  */
@@ -230,8 +228,8 @@ static void parahotplug_process_list(void);
  */
 static struct visorchipset_busdev_notifiers busdev_notifiers;
 
-static void bus_create_response(struct visorchipset_bus_info *p, int response);
-static void bus_destroy_response(struct visorchipset_bus_info *p, int response);
+static void bus_create_response(struct visor_device *p, int response);
+static void bus_destroy_response(struct visor_device *p, int response);
 static void device_create_response(struct visorchipset_device_info *p,
 				   int response);
 static void device_destroy_response(struct visorchipset_device_info *p,
@@ -699,16 +697,6 @@ static ssize_t remaining_steps_store(struct device *dev,
 }
 
 static void
-bus_info_clear(void *v)
-{
-	struct visorchipset_bus_info *p = (struct visorchipset_bus_info *) v;
-
-	kfree(p->name);
-	kfree(p->description);
-	memset(p, 0, sizeof(struct visorchipset_bus_info));
-}
-
-static void
 dev_info_clear(void *v)
 {
 	struct visorchipset_device_info *p =
@@ -755,19 +743,6 @@ struct visor_device *visorbus_get_device_by_id(u32 bus_no, u32 dev_no,
 	return vdev;
 }
 EXPORT_SYMBOL(visorbus_get_device_by_id);
-
-static struct visorchipset_bus_info *
-bus_find(struct list_head *list, u32 bus_no)
-{
-	struct visorchipset_bus_info *p;
-
-	list_for_each_entry(p, list, entry) {
-		if (p->bus_no == bus_no)
-			return p;
-	}
-
-	return NULL;
-}
 
 static struct visorchipset_device_info *
 device_find(struct list_head *list, u32 bus_no, u32 dev_no)
@@ -842,14 +817,7 @@ EXPORT_SYMBOL_GPL(visorchipset_register_busdev);
 static void
 cleanup_controlvm_structures(void)
 {
-	struct visorchipset_bus_info *bi, *tmp_bi;
 	struct visorchipset_device_info *di, *tmp_di;
-
-	list_for_each_entry_safe(bi, tmp_bi, &bus_info_list, entry) {
-		bus_info_clear(bi);
-		list_del(&bi->entry);
-		kfree(bi);
-	}
 
 	list_for_each_entry_safe(di, tmp_di, &dev_info_list, entry) {
 		dev_info_clear(di);
@@ -1017,7 +985,7 @@ device_responder(enum controlvm_id cmd_id,
 }
 
 static void
-bus_epilog(struct visorchipset_bus_info *bus_info,
+bus_epilog(struct visor_device *bus_info,
 	   u32 cmd, struct controlvm_message_header *msg_hdr,
 	   int response, bool need_response)
 {
@@ -1207,10 +1175,10 @@ bus_create(struct controlvm_message *inmsg)
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	u32 bus_no = cmd->create_bus.bus_no;
 	int rc = CONTROLVM_RESP_SUCCESS;
-	struct visorchipset_bus_info *bus_info;
+	struct visor_device *bus_info;
 	struct visorchannel *visorchannel;
 
-	bus_info = bus_find(&bus_info_list, bus_no);
+	bus_info = visorbus_get_device_by_id(bus_no, BUS_ROOT_DEVICE, NULL);
 	if (bus_info && (bus_info->state.created == 1)) {
 		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus_no,
 				 POSTCODE_SEVERITY_ERR);
@@ -1225,8 +1193,8 @@ bus_create(struct controlvm_message *inmsg)
 		goto cleanup;
 	}
 
-	INIT_LIST_HEAD(&bus_info->entry);
-	bus_info->bus_no = bus_no;
+	bus_info->chipset_bus_no = bus_no;
+	bus_info->chipset_dev_no = BUS_ROOT_DEVICE;
 
 	POSTCODE_LINUX_3(BUS_CREATE_ENTRY_PC, bus_no, POSTCODE_SEVERITY_INFO);
 
@@ -1244,7 +1212,6 @@ bus_create(struct controlvm_message *inmsg)
 		goto cleanup;
 	}
 	bus_info->visorchannel = visorchannel;
-	list_add(&bus_info->entry, &bus_info_list);
 
 	POSTCODE_LINUX_3(BUS_CREATE_EXIT_PC, bus_no, POSTCODE_SEVERITY_INFO);
 
@@ -1258,10 +1225,10 @@ bus_destroy(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	u32 bus_no = cmd->destroy_bus.bus_no;
-	struct visorchipset_bus_info *bus_info;
+	struct visor_device *bus_info;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
-	bus_info = bus_find(&bus_info_list, bus_no);
+	bus_info = visorbus_get_device_by_id(bus_no, BUS_ROOT_DEVICE, NULL);
 	if (!bus_info)
 		rc = -CONTROLVM_RESP_ERROR_BUS_INVALID;
 	else if (bus_info->state.created == 0)
@@ -1269,6 +1236,8 @@ bus_destroy(struct controlvm_message *inmsg)
 
 	bus_epilog(bus_info, CONTROLVM_BUS_DESTROY, &inmsg->hdr,
 		   rc, inmsg->hdr.flags.response_expected == 1);
+
+	/* bus_info is freed as part of the busdevice_release function */
 }
 
 static void
@@ -1277,15 +1246,14 @@ bus_configure(struct controlvm_message *inmsg,
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	u32 bus_no;
-	struct visorchipset_bus_info *bus_info;
+	struct visor_device *bus_info;
 	int rc = CONTROLVM_RESP_SUCCESS;
-	char s[99];
 
 	bus_no = cmd->configure_bus.bus_no;
 	POSTCODE_LINUX_3(BUS_CONFIGURE_ENTRY_PC, bus_no,
 			 POSTCODE_SEVERITY_INFO);
 
-	bus_info = bus_find(&bus_info_list, bus_no);
+	bus_info = visorbus_get_device_by_id(bus_no, BUS_ROOT_DEVICE, NULL);
 	if (!bus_info) {
 		POSTCODE_LINUX_3(BUS_CONFIGURE_FAILURE_PC, bus_no,
 				 POSTCODE_SEVERITY_ERR);
@@ -1305,7 +1273,6 @@ bus_configure(struct controlvm_message *inmsg,
 		parser_param_start(parser_ctx, PARSERSTRING_NAME);
 		bus_info->name = parser_string_get(parser_ctx);
 
-		visorchannel_uuid_id(&bus_info->partition_uuid, s);
 		POSTCODE_LINUX_3(BUS_CONFIGURE_EXIT_PC, bus_no,
 				 POSTCODE_SEVERITY_INFO);
 	}
@@ -1320,7 +1287,7 @@ my_device_create(struct controlvm_message *inmsg)
 	u32 bus_no = cmd->create_device.bus_no;
 	u32 dev_no = cmd->create_device.dev_no;
 	struct visorchipset_device_info *dev_info;
-	struct visorchipset_bus_info *bus_info;
+	struct visor_device *bus_info;
 	struct visorchannel *visorchannel;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
@@ -1331,7 +1298,7 @@ my_device_create(struct controlvm_message *inmsg)
 		rc = -CONTROLVM_RESP_ERROR_ALREADY_DONE;
 		goto cleanup;
 	}
-	bus_info = bus_find(&bus_info_list, bus_no);
+	bus_info = visorbus_get_device_by_id(bus_no, dev_no, NULL);
 	if (!bus_info) {
 		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, dev_no, bus_no,
 				 POSTCODE_SEVERITY_ERR);
@@ -2134,14 +2101,15 @@ cleanup:
 }
 
 static void
-bus_create_response(struct visorchipset_bus_info *bus_info, int response)
+bus_create_response(struct visor_device *bus_info, int response)
 {
 	if (response >= 0) {
 		bus_info->state.created = 1;
 	} else {
 		if (response != -CONTROLVM_RESP_ERROR_ALREADY_DONE)
 			/* undo the row we just created... */
-			busdevices_del(&dev_info_list, bus_info->bus_no);
+			busdevices_del(&dev_info_list,
+				       bus_info->chipset_bus_no);
 	}
 
 	bus_responder(CONTROLVM_BUS_CREATE, bus_info->pending_msg_hdr,
@@ -2152,7 +2120,7 @@ bus_create_response(struct visorchipset_bus_info *bus_info, int response)
 }
 
 static void
-bus_destroy_response(struct visorchipset_bus_info *bus_info, int response)
+bus_destroy_response(struct visor_device *bus_info, int response)
 {
 	bus_responder(CONTROLVM_BUS_DESTROY, bus_info->pending_msg_hdr,
 		      response);
@@ -2160,8 +2128,7 @@ bus_destroy_response(struct visorchipset_bus_info *bus_info, int response)
 	kfree(bus_info->pending_msg_hdr);
 	bus_info->pending_msg_hdr = NULL;
 
-	bus_info_clear(bus_info);
-	busdevices_del(&dev_info_list, bus_info->bus_no);
+	busdevices_del(&dev_info_list, bus_info->chipset_bus_no);
 }
 
 static void
@@ -2211,28 +2178,6 @@ device_resume_response(struct visorchipset_device_info *dev_info, int response)
 	kfree(dev_info->pending_msg_hdr);
 	dev_info->pending_msg_hdr = NULL;
 }
-
-bool
-visorchipset_get_bus_info(u32 bus_no, struct visorchipset_bus_info *bus_info)
-{
-	void *p = bus_find(&bus_info_list, bus_no);
-
-	if (!p)
-		return false;
-	memcpy(bus_info, p, sizeof(struct visorchipset_bus_info));
-	return true;
-}
-EXPORT_SYMBOL_GPL(visorchipset_get_bus_info);
-
-bool
-visorchipset_set_bus_context(struct visorchipset_bus_info *p, void *context)
-{
-	if (!p)
-		return false;
-	p->bus_driver_context = context;
-	return true;
-}
-EXPORT_SYMBOL_GPL(visorchipset_set_bus_context);
 
 bool
 visorchipset_get_device_info(u32 bus_no, u32 dev_no,

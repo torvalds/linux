@@ -49,35 +49,13 @@ struct visorchipset_device_info {
 	void *bus_driver_context;
 };
 
-/** Attributes for a particular Supervisor bus.
- *  (For a service partition acting as the server for buses/devices, there
- *  is a 1-to-1 relationship between busses and guest partitions.)
- *  Any visorchipset client can query these attributes using
- *  visorchipset_get_client_bus_info() or visorchipset_get_bus_info().
- */
-struct visorchipset_bus_info {
-	struct list_head entry;
-	u32 bus_no;
-	struct visorchipset_state state;
-	struct visorchannel *visorchannel;
-	uuid_le partition_uuid;
-	u64 partition_handle;
-	u8 *name;		/* UTF8 */
-	u8 *description;	/* UTF8 */
-	u64 reserved1;
-	u32 reserved2;
-	struct controlvm_message_header *pending_msg_hdr;/* CONTROLVM MsgHdr */
-	/** For private use by the bus driver */
-	void *bus_driver_context;
-};
-
 /*  These functions will be called from within visorchipset when certain
  *  events happen.  (The implementation of these functions is outside of
  *  visorchipset.)
  */
 struct visorchipset_busdev_notifiers {
-	void (*bus_create)(struct visorchipset_bus_info *bus_info);
-	void (*bus_destroy)(struct visorchipset_bus_info *bus_info);
+	void (*bus_create)(struct visor_device *bus_info);
+	void (*bus_destroy)(struct visor_device *bus_info);
 	void (*device_create)(struct visorchipset_device_info *bus_info);
 	void (*device_destroy)(struct visorchipset_device_info *bus_info);
 	void (*device_pause)(struct visorchipset_device_info *bus_info);
@@ -91,8 +69,8 @@ struct visorchipset_busdev_notifiers {
  *      -1 = it failed
  */
 struct visorchipset_busdev_responders {
-	void (*bus_create)(struct visorchipset_bus_info *p, int response);
-	void (*bus_destroy)(struct visorchipset_bus_info *p, int response);
+	void (*bus_create)(struct visor_device *p, int response);
+	void (*bus_destroy)(struct visor_device *p, int response);
 	void (*device_create)(struct visorchipset_device_info *p, int response);
 	void (*device_destroy)(struct visorchipset_device_info *p,
 			       int response);
@@ -112,10 +90,10 @@ visorchipset_register_busdev(
 			struct ultra_vbus_deviceinfo *driver_info);
 
 bool visorchipset_get_bus_info(u32 bus_no,
-			       struct visorchipset_bus_info *bus_info);
+			       struct visor_device *bus_info);
 bool visorchipset_get_device_info(u32 bus_no, u32 dev_no,
 				  struct visorchipset_device_info *dev_info);
-bool visorchipset_set_bus_context(struct visorchipset_bus_info *bus_info,
+bool visorchipset_set_bus_context(struct visor_device *bus_info,
 				  void *context);
 
 /* visorbus init and exit functions */
