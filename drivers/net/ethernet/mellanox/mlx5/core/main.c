@@ -654,7 +654,7 @@ static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 		dev->issi = 1;
 
 		return 0;
-	} else if (sup_issi & (1 << 0)) {
+	} else if (sup_issi & (1 << 0) || !sup_issi) {
 		return 0;
 	}
 
