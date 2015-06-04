@@ -17,11 +17,16 @@
 #define MCG_EXT_CNT(c)		(((c) & MCG_EXT_CNT_MASK) >> MCG_EXT_CNT_SHIFT)
 #define MCG_SER_P		(1ULL<<24)   /* MCA recovery/new status bits */
 #define MCG_ELOG_P		(1ULL<<26)   /* Extended error log supported */
+#define MCG_LMCE_P		(1ULL<<27)   /* Local machine check supported */
 
 /* MCG_STATUS register defines */
 #define MCG_STATUS_RIPV  (1ULL<<0)   /* restart ip valid */
 #define MCG_STATUS_EIPV  (1ULL<<1)   /* ip points to correct instruction */
 #define MCG_STATUS_MCIP  (1ULL<<2)   /* machine check in progress */
+#define MCG_STATUS_LMCES (1ULL<<3)   /* LMCE signaled */
+
+/* MCG_EXT_CTL register defines */
+#define MCG_EXT_CTL_LMCE_EN (1ULL<<0) /* Enable LMCE */
 
 /* MCi_STATUS register defines */
 #define MCI_STATUS_VAL   (1ULL<<63)  /* valid error */
