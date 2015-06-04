@@ -2,9 +2,6 @@
 
 &pm8916_gpios {
 
-	pinctrl-names = "default";
-	pinctrl-0 = <&pm8916_gpios_default>;
-
 	pm8916_gpios_default: default {
 		usb_hub_reset_pm {
 			pins = "gpio1";
