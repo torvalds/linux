@@ -5104,7 +5104,7 @@ static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 	int rc;
 	struct ctlr_info *h;
 	struct hpsa_scsi_dev_t *dev;
-	char msg[40];
+	char msg[48];
 
 	/* find the controller to which the command to be aborted was sent */
 	h = sdev_to_hba(scsicmd->device);
@@ -5122,16 +5122,18 @@ static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 
 	/* if controller locked up, we can guarantee command won't complete */
 	if (lockup_detected(h)) {
-		sprintf(msg, "cmd %d RESET FAILED, lockup detected",
-				hpsa_get_cmd_index(scsicmd));
+		snprintf(msg, sizeof(msg),
+			 "cmd %d RESET FAILED, lockup detected",
+			 hpsa_get_cmd_index(scsicmd));
 		hpsa_show_dev_msg(KERN_WARNING, h, dev, msg);
 		return FAILED;
 	}
 
 	/* this reset request might be the result of a lockup; check */
 	if (detect_controller_lockup(h)) {
-		sprintf(msg, "cmd %d RESET FAILED, new lockup detected",
-				hpsa_get_cmd_index(scsicmd));
+		snprintf(msg, sizeof(msg),
+			 "cmd %d RESET FAILED, new lockup detected",
+			 hpsa_get_cmd_index(scsicmd));
 		hpsa_show_dev_msg(KERN_WARNING, h, dev, msg);
 		return FAILED;
 	}
@@ -5145,7 +5147,8 @@ static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 	/* send a reset to the SCSI LUN which the command was sent to */
 	rc = hpsa_do_reset(h, dev, dev->scsi3addr, HPSA_RESET_TYPE_LUN,
 			   DEFAULT_REPLY_QUEUE);
-	sprintf(msg, "reset %s", rc == 0 ? "completed successfully" : "failed");
+	snprintf(msg, sizeof(msg), "reset %s",
+		 rc == 0 ? "completed successfully" : "failed");
 	hpsa_show_dev_msg(KERN_WARNING, h, dev, msg);
 	return rc == 0 ? SUCCESS : FAILED;
 }
