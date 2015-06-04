@@ -53,6 +53,9 @@ static ssize_t wilc_debug_level_write(struct file *filp, const char *buf, size_t
 	char buffer[128] = {};
 	int flag = 0;
 
+	if (count > sizeof(buffer))
+		return -EINVAL;
+
 	if (copy_from_user(buffer, buf, count)) {
 		return -EFAULT;
 	}
@@ -98,6 +101,9 @@ static ssize_t wilc_debug_region_write(struct file *filp, const char *buf, size_
 {
 	char buffer[128] = {};
 	int flag;
+
+	if (count > sizeof(buffer))
+		return -EINVAL;
 
 	if (copy_from_user(buffer, buf, count)) {
 		return -EFAULT;
