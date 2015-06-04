@@ -2517,7 +2517,6 @@ void intel_ddi_pll_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t val = I915_READ(LCPLL_CTL);
-	int cdclk_freq;
 
 	if (IS_SKYLAKE(dev))
 		skl_shared_dplls_init(dev_priv);
@@ -2526,10 +2525,10 @@ void intel_ddi_pll_init(struct drm_device *dev)
 	else
 		hsw_shared_dplls_init(dev_priv);
 
-	cdclk_freq = dev_priv->display.get_display_clock_speed(dev);
-	DRM_DEBUG_KMS("CDCLK running at %dKHz\n", cdclk_freq);
-
 	if (IS_SKYLAKE(dev)) {
+		int cdclk_freq;
+
+		cdclk_freq = dev_priv->display.get_display_clock_speed(dev);
 		dev_priv->skl_boot_cdclk = cdclk_freq;
 		if (!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_ENABLE))
 			DRM_ERROR("LCPLL1 is disabled\n");
