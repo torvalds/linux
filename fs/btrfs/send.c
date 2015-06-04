@@ -2356,8 +2356,12 @@ static int send_subvol_begin(struct send_ctx *sctx)
 	TLV_PUT_U64(sctx, BTRFS_SEND_A_CTRANSID,
 		    le64_to_cpu(sctx->send_root->root_item.ctransid));
 	if (parent_root) {
-		TLV_PUT_UUID(sctx, BTRFS_SEND_A_CLONE_UUID,
-				sctx->parent_root->root_item.uuid);
+		if (!btrfs_is_empty_uuid(parent_root->root_item.received_uuid))
+			TLV_PUT_UUID(sctx, BTRFS_SEND_A_CLONE_UUID,
+				     parent_root->root_item.received_uuid);
+		else
+			TLV_PUT_UUID(sctx, BTRFS_SEND_A_CLONE_UUID,
+				     parent_root->root_item.uuid);
 		TLV_PUT_U64(sctx, BTRFS_SEND_A_CLONE_CTRANSID,
 			    le64_to_cpu(sctx->parent_root->root_item.ctransid));
 	}
@@ -4586,8 +4590,21 @@ verbose_printk("btrfs: send_clone offset=%llu, len=%d, clone_root=%llu, "
 	if (ret < 0)
 		goto out;
 
-	TLV_PUT_UUID(sctx, BTRFS_SEND_A_CLONE_UUID,
-			clone_root->root->root_item.uuid);
+	/*
+	 * If the parent we're using has a received_uuid set then use that as
+	 * our clone source as that is what we will look for when doing a
+	 * receive.
+	 *
+	 * This covers the case that we create a snapshot off of a received
+	 * subvolume and then use that as the parent and try to receive on a
+	 * different host.
+	 */
+	if (!btrfs_is_empty_uuid(clone_root->root->root_item.received_uuid))
+		TLV_PUT_UUID(sctx, BTRFS_SEND_A_CLONE_UUID,
+			     clone_root->root->root_item.received_uuid);
+	else
+		TLV_PUT_UUID(sctx, BTRFS_SEND_A_CLONE_UUID,
+			     clone_root->root->root_item.uuid);
 	TLV_PUT_U64(sctx, BTRFS_SEND_A_CLONE_CTRANSID,
 		    le64_to_cpu(clone_root->root->root_item.ctransid));
 	TLV_PUT_PATH(sctx, BTRFS_SEND_A_CLONE_PATH, p);
