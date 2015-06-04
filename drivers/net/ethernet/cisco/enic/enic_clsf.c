@@ -33,8 +33,8 @@ int enic_addfltr_5t(struct enic *enic, struct flow_keys *keys, u16 rq)
 		return -EPROTONOSUPPORT;
 	};
 	data.type = FILTER_IPV4_5TUPLE;
-	data.u.ipv4.src_addr = ntohl(keys->addrs.src);
-	data.u.ipv4.dst_addr = ntohl(keys->addrs.dst);
+	data.u.ipv4.src_addr = ntohl(keys->addrs.v4addrs.src);
+	data.u.ipv4.dst_addr = ntohl(keys->addrs.v4addrs.dst);
 	data.u.ipv4.src_port = ntohs(keys->ports.src);
 	data.u.ipv4.dst_port = ntohs(keys->ports.dst);
 	data.u.ipv4.flags = FILTER_FIELDS_IPV4_5TUPLE;
@@ -158,8 +158,8 @@ static struct enic_rfs_fltr_node *htbl_key_search(struct hlist_head *h,
 	struct enic_rfs_fltr_node *tpos;
 
 	hlist_for_each_entry(tpos, h, node)
-		if (tpos->keys.addrs.src == k->addrs.src &&
-		    tpos->keys.addrs.dst == k->addrs.dst &&
+		if (tpos->keys.addrs.v4addrs.src == k->addrs.v4addrs.src &&
+		    tpos->keys.addrs.v4addrs.dst == k->addrs.v4addrs.dst &&
 		    tpos->keys.ports.ports == k->ports.ports &&
 		    tpos->keys.basic.ip_proto == k->basic.ip_proto &&
 		    tpos->keys.basic.n_proto == k->basic.n_proto)

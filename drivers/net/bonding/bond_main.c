@@ -3059,8 +3059,7 @@ static bool bond_flow_dissect(struct bonding *bond, struct sk_buff *skb,
 		if (unlikely(!pskb_may_pull(skb, noff + sizeof(*iph))))
 			return false;
 		iph = ip_hdr(skb);
-		fk->addrs.src = iph->saddr;
-		fk->addrs.dst = iph->daddr;
+		iph_to_flow_copy_v4addrs(fk, iph);
 		noff += iph->ihl << 2;
 		if (!ip_is_fragment(iph))
 			proto = iph->protocol;
@@ -3068,8 +3067,7 @@ static bool bond_flow_dissect(struct bonding *bond, struct sk_buff *skb,
 		if (unlikely(!pskb_may_pull(skb, noff + sizeof(*iph6))))
 			return false;
 		iph6 = ipv6_hdr(skb);
-		fk->addrs.src = (__force __be32)ipv6_addr_hash(&iph6->saddr);
-		fk->addrs.dst = (__force __be32)ipv6_addr_hash(&iph6->daddr);
+		iph_to_flow_copy_v6addrs(fk, iph6);
 		noff += sizeof(*iph6);
 		proto = iph6->nexthdr;
 	} else {
@@ -3103,7 +3101,8 @@ u32 bond_xmit_hash(struct bonding *bond, struct sk_buff *skb)
 		hash = bond_eth_hash(skb);
 	else
 		hash = (__force u32)flow.ports.ports;
-	hash ^= (__force u32)flow.addrs.dst ^ (__force u32)flow.addrs.src;
+	hash ^= (__force u32)flow_get_u32_dst(&flow) ^
+		(__force u32)flow_get_u32_src(&flow);
 	hash ^= (hash >> 16);
 	hash ^= (hash >> 8);
 

@@ -25,10 +25,12 @@
 
 struct fl_flow_key {
 	int	indev_ifindex;
+	struct flow_dissector_key_control control;
 	struct flow_dissector_key_basic basic;
 	struct flow_dissector_key_eth_addrs eth;
+	struct flow_dissector_key_addrs ipaddrs;
 	union {
-		struct flow_dissector_key_addrs ipv4;
+		struct flow_dissector_key_ipv4_addrs ipv4;
 		struct flow_dissector_key_ipv6_addrs ipv6;
 	};
 	struct flow_dissector_key_ports tp;
@@ -259,14 +261,14 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 			       &mask->basic.ip_proto, TCA_FLOWER_UNSPEC,
 			       sizeof(key->basic.ip_proto));
 	}
-	if (key->basic.n_proto == htons(ETH_P_IP)) {
+	if (key->control.addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
 		fl_set_key_val(tb, &key->ipv4.src, TCA_FLOWER_KEY_IPV4_SRC,
 			       &mask->ipv4.src, TCA_FLOWER_KEY_IPV4_SRC_MASK,
 			       sizeof(key->ipv4.src));
 		fl_set_key_val(tb, &key->ipv4.dst, TCA_FLOWER_KEY_IPV4_DST,
 			       &mask->ipv4.dst, TCA_FLOWER_KEY_IPV4_DST_MASK,
 			       sizeof(key->ipv4.dst));
-	} else if (key->basic.n_proto == htons(ETH_P_IPV6)) {
+	} else if (key->control.addr_type == FLOW_DISSECTOR_KEY_IPV6_ADDRS) {
 		fl_set_key_val(tb, &key->ipv6.src, TCA_FLOWER_KEY_IPV6_SRC,
 			       &mask->ipv6.src, TCA_FLOWER_KEY_IPV6_SRC_MASK,
 			       sizeof(key->ipv6.src));
@@ -347,6 +349,7 @@ static void fl_init_dissector(struct cls_fl_head *head,
 	struct flow_dissector_key keys[FLOW_DISSECTOR_KEY_MAX];
 	size_t cnt = 0;
 
+	FL_KEY_SET(keys, cnt, FLOW_DISSECTOR_KEY_CONTROL, control);
 	FL_KEY_SET(keys, cnt, FLOW_DISSECTOR_KEY_BASIC, basic);
 	FL_KEY_SET_IF_IN_RANGE(mask, keys, cnt,
 			       FLOW_DISSECTOR_KEY_ETH_ADDRS, eth);
@@ -608,7 +611,7 @@ static int fl_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 			    sizeof(key->basic.ip_proto)))
 		goto nla_put_failure;
 
-	if (key->basic.n_proto == htons(ETH_P_IP) &&
+	if (key->control.addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS &&
 	    (fl_dump_key_val(skb, &key->ipv4.src, TCA_FLOWER_KEY_IPV4_SRC,
 			     &mask->ipv4.src, TCA_FLOWER_KEY_IPV4_SRC_MASK,
 			     sizeof(key->ipv4.src)) ||
@@ -616,7 +619,7 @@ static int fl_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 			     &mask->ipv4.dst, TCA_FLOWER_KEY_IPV4_DST_MASK,
 			     sizeof(key->ipv4.dst))))
 		goto nla_put_failure;
-	else if (key->basic.n_proto == htons(ETH_P_IPV6) &&
+	else if (key->control.addr_type == FLOW_DISSECTOR_KEY_IPV6_ADDRS &&
 		 (fl_dump_key_val(skb, &key->ipv6.src, TCA_FLOWER_KEY_IPV6_SRC,
 				  &mask->ipv6.src, TCA_FLOWER_KEY_IPV6_SRC_MASK,
 				  sizeof(key->ipv6.src)) ||
