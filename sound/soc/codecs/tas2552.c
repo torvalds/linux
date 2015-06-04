@@ -75,7 +75,7 @@ struct tas2552_data {
 	struct regulator_bulk_data supplies[TAS2552_NUM_SUPPLIES];
 	struct gpio_desc *enable_gpio;
 	unsigned char regs[TAS2552_VBAT_DATA];
-	unsigned int mclk;
+	unsigned int pll_clkin;
 };
 
 /* Input mux controls */
@@ -141,13 +141,13 @@ static int tas2552_hw_params(struct snd_pcm_substream *substream,
 	int d;
 	u8 p, j;
 
-	if (!tas2552->mclk)
+	if (!tas2552->pll_clkin)
 		return -EINVAL;
 
 	snd_soc_update_bits(codec, TAS2552_CFG_2, TAS2552_PLL_ENABLE, 0);
 
-	if (tas2552->mclk == TAS2552_245MHZ_CLK ||
-		tas2552->mclk == TAS2552_225MHZ_CLK) {
+	if (tas2552->pll_clkin == TAS2552_245MHZ_CLK ||
+	    tas2552->pll_clkin == TAS2552_225MHZ_CLK) {
 		/* By pass the PLL configuration */
 		snd_soc_update_bits(codec, TAS2552_PLL_CTRL_2,
 				    TAS2552_PLL_BYPASS_MASK,
@@ -171,8 +171,8 @@ static int tas2552_hw_params(struct snd_pcm_substream *substream,
 			return -EINVAL;
 		}
 
-		j = (pll_clk * 2 * (1 << p)) / tas2552->mclk;
-		d = (pll_clk * 2 * (1 << p)) % tas2552->mclk;
+		j = (pll_clk * 2 * (1 << p)) / tas2552->pll_clkin;
+		d = (pll_clk * 2 * (1 << p)) % tas2552->pll_clkin;
 
 		snd_soc_update_bits(codec, TAS2552_PLL_CTRL_1,
 				TAS2552_PLL_J_MASK, j);
@@ -245,7 +245,7 @@ static int tas2552_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 	struct snd_soc_codec *codec = dai->codec;
 	struct tas2552_data *tas2552 = dev_get_drvdata(codec->dev);
 
-	tas2552->mclk = freq;
+	tas2552->pll_clkin = freq;
 
 	return 0;
 }
