@@ -885,6 +885,7 @@ static struct drm_driver msm_driver = {
 				DRIVER_GEM |
 				DRIVER_PRIME |
 				DRIVER_RENDER |
+				DRIVER_ATOMIC |
 				DRIVER_MODESET,
 	.load               = msm_load,
 	.unload             = msm_unload,
