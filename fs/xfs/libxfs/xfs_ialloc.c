@@ -606,19 +606,19 @@ xfs_ialloc_ag_alloc(
 	uint16_t	allocmask = (uint16_t) -1; /* init. to full chunk */
 	struct xfs_inobt_rec_incore rec;
 	struct xfs_perag *pag;
-
 	int		do_sparse = 0;
-
-#ifdef DEBUG
-	/* randomly do sparse inode allocations */
-	if (xfs_sb_version_hassparseinodes(&tp->t_mountp->m_sb))
-		do_sparse = prandom_u32() & 1;
-#endif
 
 	memset(&args, 0, sizeof(args));
 	args.tp = tp;
 	args.mp = tp->t_mountp;
 	args.fsbno = NULLFSBLOCK;
+
+#ifdef DEBUG
+	/* randomly do sparse inode allocations */
+	if (xfs_sb_version_hassparseinodes(&tp->t_mountp->m_sb) &&
+	    args.mp->m_ialloc_min_blks < args.mp->m_ialloc_blks)
+		do_sparse = prandom_u32() & 1;
+#endif
 
 	/*
 	 * Locking will ensure that we don't have two callers in here
@@ -768,6 +768,7 @@ sparse_alloc:
 			return error;
 
 		newlen = args.len << args.mp->m_sb.sb_inopblog;
+		ASSERT(newlen <= XFS_INODES_PER_CHUNK);
 		allocmask = (1 << (newlen / XFS_INODES_PER_HOLEMASK_BIT)) - 1;
 	}
 

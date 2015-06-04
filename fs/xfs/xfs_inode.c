@@ -2244,6 +2244,7 @@ xfs_ifree_cluster(
 	int			inodes_per_cluster;
 	int			nbufs;
 	int			i, j;
+	int			ioffset;
 	xfs_daddr_t		blkno;
 	xfs_buf_t		*bp;
 	xfs_inode_t		*ip;
@@ -2264,9 +2265,9 @@ xfs_ifree_cluster(
 		 * physically allocated. Skip the cluster if an inode falls into
 		 * a sparse region.
 		 */
-		if ((xic->alloc & XFS_INOBT_MASK(inum - xic->first_ino)) == 0) {
-			ASSERT(((inum - xic->first_ino) %
-				inodes_per_cluster) == 0);
+		ioffset = inum - xic->first_ino;
+		if ((xic->alloc & XFS_INOBT_MASK(ioffset)) == 0) {
+			ASSERT(do_mod(ioffset, inodes_per_cluster) == 0);
 			continue;
 		}
 
