@@ -355,7 +355,7 @@ static ssize_t w1_seq_show(struct device *device,
 	struct w1_reg_num *reg_num;
 	int seq = 0;
 
-	mutex_lock(&sl->master->mutex);
+	mutex_lock(&sl->master->bus_mutex);
 	/* Place all devices in CHAIN state */
 	if (w1_reset_bus(sl->master))
 		goto error;
@@ -407,7 +407,7 @@ static ssize_t w1_seq_show(struct device *device,
 	ack = w1_read_8(sl->master);
 	if (ack != W1_42_SUCCESS_CONFIRM_BYTE)
 		goto error;
-	mutex_unlock(&sl->master->mutex);
+	mutex_unlock(&sl->master->bus_mutex);
 
 	c -= snprintf(buf + PAGE_SIZE - c, c, "%d\n", seq);
 	return PAGE_SIZE - c;
