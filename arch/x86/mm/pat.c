@@ -36,6 +36,8 @@
 #undef pr_fmt
 #define pr_fmt(fmt) "" fmt
 
+static bool boot_cpu_done;
+
 static int __read_mostly __pat_enabled = IS_ENABLED(CONFIG_X86_PAT);
 
 static inline void pat_disable(const char *reason)
@@ -194,31 +196,47 @@ void pat_init_cache_modes(void)
 
 #define PAT(x, y)	((u64)PAT_ ## y << ((x)*8))
 
+static void pat_bsp_init(u64 pat)
+{
+	if (!cpu_has_pat) {
+		pat_disable("PAT not supported by CPU.");
+		return;
+	}
+
+	rdmsrl(MSR_IA32_CR_PAT, boot_pat_state);
+	if (!boot_pat_state) {
+		pat_disable("PAT MSR is 0, disabled.");
+		return;
+	}
+
+	wrmsrl(MSR_IA32_CR_PAT, pat);
+
+	pat_init_cache_modes();
+}
+
+static void pat_ap_init(u64 pat)
+{
+	if (!cpu_has_pat) {
+		/*
+		 * If this happens we are on a secondary CPU, but switched to
+		 * PAT on the boot CPU. We have no way to undo PAT.
+		 */
+		panic("x86/PAT: PAT enabled, but not supported by secondary CPU\n");
+	}
+
+	wrmsrl(MSR_IA32_CR_PAT, pat);
+}
+
 void pat_init(void)
 {
 	u64 pat;
-	bool boot_cpu = !boot_pat_state;
 
 	if (!pat_enabled())
 		return;
 
-	if (!cpu_has_pat) {
-		if (!boot_pat_state) {
-			pat_disable("PAT not supported by CPU.");
-			return;
-		} else {
-			/*
-			 * If this happens we are on a secondary CPU, but
-			 * switched to PAT on the boot CPU. We have no way to
-			 * undo PAT.
-			 */
-			pr_err("x86/PAT: PAT enabled, but not supported by secondary CPU\n");
-			BUG();
-		}
-	}
-
-	/* Set PWT to Write-Combining. All other bits stay the same */
 	/*
+	 * Set PWT to Write-Combining. All other bits stay the same:
+	 *
 	 * PTE encoding used in Linux:
 	 *      PAT
 	 *      |PCD
@@ -233,19 +251,12 @@ void pat_init(void)
 	pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
 	      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, UC);
 
-	/* Boot CPU check */
-	if (!boot_pat_state) {
-		rdmsrl(MSR_IA32_CR_PAT, boot_pat_state);
-		if (!boot_pat_state) {
-			pat_disable("PAT read returns always zero, disabled.");
-			return;
-		}
+	if (!boot_cpu_done) {
+		pat_bsp_init(pat);
+		boot_cpu_done = true;
+	} else {
+		pat_ap_init(pat);
 	}
-
-	wrmsrl(MSR_IA32_CR_PAT, pat);
-
-	if (boot_cpu)
-		pat_init_cache_modes();
 }
 
 #undef PAT
