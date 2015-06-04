@@ -3,9 +3,6 @@
 
 /*
  * Core internal functions to deal with irq descriptors
- *
- * This include will move to kernel/irq once we cleaned up the tree.
- * For now it's included from <linux/irq.h>
  */
 
 struct irq_affinity_notify;
