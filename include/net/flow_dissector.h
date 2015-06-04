@@ -12,7 +12,7 @@
  */
 struct flow_dissector_key_control {
 	u16	thoff;
-	u16	padding;
+	u16	addr_type;
 };
 
 /**
@@ -28,16 +28,37 @@ struct flow_dissector_key_basic {
 };
 
 /**
- * struct flow_dissector_key_addrs:
- * @src: source ip address in case of IPv4
- *	 For IPv6 it contains 32bit hash of src address
- * @dst: destination ip address in case of IPv4
- *	 For IPv6 it contains 32bit hash of dst address
+ * struct flow_dissector_key_ipv4_addrs:
+ * @src: source ip address
+ * @dst: destination ip address
  */
-struct flow_dissector_key_addrs {
+struct flow_dissector_key_ipv4_addrs {
 	/* (src,dst) must be grouped, in the same way than in IP header */
 	__be32 src;
 	__be32 dst;
+};
+
+/**
+ * struct flow_dissector_key_ipv6_addrs:
+ * @src: source ip address
+ * @dst: destination ip address
+ */
+struct flow_dissector_key_ipv6_addrs {
+	/* (src,dst) must be grouped, in the same way than in IP header */
+	struct in6_addr src;
+	struct in6_addr dst;
+};
+
+/**
+ * struct flow_dissector_key_addrs:
+ * @v4addrs: IPv4 addresses
+ * @v6addrs: IPv6 addresses
+ */
+struct flow_dissector_key_addrs {
+	union {
+		struct flow_dissector_key_ipv4_addrs v4addrs;
+		struct flow_dissector_key_ipv6_addrs v6addrs;
+	};
 };
 
 /**
@@ -56,16 +77,6 @@ struct flow_dissector_key_ports {
 	};
 };
 
-/**
- * struct flow_dissector_key_ipv6_addrs:
- * @src: source ip address
- * @dst: destination ip address
- */
-struct flow_dissector_key_ipv6_addrs {
-	/* (src,dst) must be grouped, in the same way than in IP header */
-	struct in6_addr src;
-	struct in6_addr dst;
-};
 
 /**
  * struct flow_dissector_key_eth_addrs:
@@ -81,10 +92,10 @@ struct flow_dissector_key_eth_addrs {
 enum flow_dissector_key_id {
 	FLOW_DISSECTOR_KEY_CONTROL, /* struct flow_dissector_key_control */
 	FLOW_DISSECTOR_KEY_BASIC, /* struct flow_dissector_key_basic */
-	FLOW_DISSECTOR_KEY_IPV4_ADDRS, /* struct flow_dissector_key_addrs */
+	FLOW_DISSECTOR_KEY_IPV4_ADDRS, /* struct flow_dissector_key_ipv4_addrs */
+	FLOW_DISSECTOR_KEY_IPV6_ADDRS, /* struct flow_dissector_key_ipv6_addrs */
 	FLOW_DISSECTOR_KEY_IPV6_HASH_ADDRS, /* struct flow_dissector_key_addrs */
 	FLOW_DISSECTOR_KEY_PORTS, /* struct flow_dissector_key_ports */
-	FLOW_DISSECTOR_KEY_IPV6_ADDRS, /* struct flow_dissector_key_ipv6_addrs */
 	FLOW_DISSECTOR_KEY_ETH_ADDRS, /* struct flow_dissector_key_eth_addrs */
 
 	FLOW_DISSECTOR_KEY_MAX,
@@ -128,6 +139,9 @@ struct flow_keys {
 
 #define FLOW_KEYS_HASH_OFFSET		\
 	offsetof(struct flow_keys, FLOW_KEYS_HASH_START_FIELD)
+
+__be32 flow_get_u32_src(const struct flow_keys *flow);
+__be32 flow_get_u32_dst(const struct flow_keys *flow);
 
 extern struct flow_dissector flow_keys_dissector;
 extern struct flow_dissector flow_keys_buf_dissector;

@@ -355,6 +355,20 @@ static inline __wsum inet_compute_pseudo(struct sk_buff *skb, int proto)
 				  skb->len, proto, 0);
 }
 
+/* copy IPv4 saddr & daddr to flow_keys, possibly using 64bit load/store
+ * Equivalent to :	flow->v4addrs.src = iph->saddr;
+ *			flow->v4addrs.dst = iph->daddr;
+ */
+static inline void iph_to_flow_copy_v4addrs(struct flow_keys *flow,
+					    const struct iphdr *iph)
+{
+	BUILD_BUG_ON(offsetof(typeof(flow->addrs), v4addrs.dst) !=
+		     offsetof(typeof(flow->addrs), v4addrs.src) +
+			      sizeof(flow->addrs.v4addrs.src));
+	memcpy(&flow->addrs.v4addrs, &iph->saddr, sizeof(flow->addrs.v4addrs));
+	flow->control.addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
+}
+
 static inline void inet_set_txhash(struct sock *sk)
 {
 	struct inet_sock *inet = inet_sk(sk);
@@ -362,8 +376,9 @@ static inline void inet_set_txhash(struct sock *sk)
 
 	memset(&keys, 0, sizeof(keys));
 
-	keys.addrs.src = inet->inet_saddr;
-	keys.addrs.dst = inet->inet_daddr;
+	keys.addrs.v4addrs.src = inet->inet_saddr;
+	keys.addrs.v4addrs.dst = inet->inet_daddr;
+	keys.control.addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
 	keys.ports.src = inet->inet_sport;
 	keys.ports.dst = inet->inet_dport;
 

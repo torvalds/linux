@@ -178,10 +178,12 @@ ip:
 		if (!skb_flow_dissector_uses_key(flow_dissector,
 						 FLOW_DISSECTOR_KEY_IPV4_ADDRS))
 			break;
+
 		key_addrs = skb_flow_dissector_target(flow_dissector,
-						      FLOW_DISSECTOR_KEY_IPV4_ADDRS,
-						      target_container);
-		memcpy(key_addrs, &iph->saddr, sizeof(*key_addrs));
+			      FLOW_DISSECTOR_KEY_IPV4_ADDRS, target_container);
+		memcpy(&key_addrs->v4addrs, &iph->saddr,
+		       sizeof(key_addrs->v4addrs));
+		key_control->addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
 		break;
 	}
 	case htons(ETH_P_IPV6): {
@@ -203,8 +205,11 @@ ipv6:
 							      FLOW_DISSECTOR_KEY_IPV6_HASH_ADDRS,
 							      target_container);
 
-			key_addrs->src = (__force __be32)ipv6_addr_hash(&iph->saddr);
-			key_addrs->dst = (__force __be32)ipv6_addr_hash(&iph->daddr);
+			key_addrs->v4addrs.src =
+				(__force __be32)ipv6_addr_hash(&iph->saddr);
+			key_addrs->v4addrs.dst =
+				(__force __be32)ipv6_addr_hash(&iph->daddr);
+			key_control->addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
 			goto flow_label;
 		}
 		if (skb_flow_dissector_uses_key(flow_dissector,
@@ -216,6 +221,7 @@ ipv6:
 								   target_container);
 
 			memcpy(key_ipv6_addrs, &iph->saddr, sizeof(*key_ipv6_addrs));
+			key_control->addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
 			goto flow_label;
 		}
 		break;
@@ -292,8 +298,9 @@ flow_label:
 			key_addrs = skb_flow_dissector_target(flow_dissector,
 							      FLOW_DISSECTOR_KEY_IPV6_HASH_ADDRS,
 							      target_container);
-			key_addrs->src = hdr->srcnode;
-			key_addrs->dst = 0;
+			key_addrs->v4addrs.src = hdr->srcnode;
+			key_addrs->v4addrs.dst = 0;
+			key_control->addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
 		}
 		return true;
 	}
@@ -389,21 +396,88 @@ static inline void *flow_keys_hash_start(struct flow_keys *flow)
 
 static inline size_t flow_keys_hash_length(struct flow_keys *flow)
 {
+	size_t diff = FLOW_KEYS_HASH_OFFSET + sizeof(flow->addrs);
 	BUILD_BUG_ON((sizeof(*flow) - FLOW_KEYS_HASH_OFFSET) % sizeof(u32));
-	return (sizeof(*flow) - FLOW_KEYS_HASH_OFFSET) / sizeof(u32);
+	BUILD_BUG_ON(offsetof(typeof(*flow), addrs) !=
+		     sizeof(*flow) - sizeof(flow->addrs));
+
+	switch (flow->control.addr_type) {
+	case FLOW_DISSECTOR_KEY_IPV4_ADDRS:
+		diff -= sizeof(flow->addrs.v4addrs);
+		break;
+	case FLOW_DISSECTOR_KEY_IPV6_ADDRS:
+		diff -= sizeof(flow->addrs.v6addrs);
+		break;
+	}
+	return (sizeof(*flow) - diff) / sizeof(u32);
+}
+
+__be32 flow_get_u32_src(const struct flow_keys *flow)
+{
+	switch (flow->control.addr_type) {
+	case FLOW_DISSECTOR_KEY_IPV4_ADDRS:
+		return flow->addrs.v4addrs.src;
+	case FLOW_DISSECTOR_KEY_IPV6_ADDRS:
+		return (__force __be32)ipv6_addr_hash(
+			&flow->addrs.v6addrs.src);
+	default:
+		return 0;
+	}
+}
+EXPORT_SYMBOL(flow_get_u32_src);
+
+__be32 flow_get_u32_dst(const struct flow_keys *flow)
+{
+	switch (flow->control.addr_type) {
+	case FLOW_DISSECTOR_KEY_IPV4_ADDRS:
+		return flow->addrs.v4addrs.dst;
+	case FLOW_DISSECTOR_KEY_IPV6_ADDRS:
+		return (__force __be32)ipv6_addr_hash(
+			&flow->addrs.v6addrs.dst);
+	default:
+		return 0;
+	}
+}
+EXPORT_SYMBOL(flow_get_u32_dst);
+
+static inline void __flow_hash_consistentify(struct flow_keys *keys)
+{
+	int addr_diff, i;
+
+	switch (keys->control.addr_type) {
+	case FLOW_DISSECTOR_KEY_IPV4_ADDRS:
+		addr_diff = (__force u32)keys->addrs.v4addrs.dst -
+			    (__force u32)keys->addrs.v4addrs.src;
+		if ((addr_diff < 0) ||
+		    (addr_diff == 0 &&
+		     ((__force u16)keys->ports.dst <
+		      (__force u16)keys->ports.src))) {
+			swap(keys->addrs.v4addrs.src, keys->addrs.v4addrs.dst);
+			swap(keys->ports.src, keys->ports.dst);
+		}
+		break;
+	case FLOW_DISSECTOR_KEY_IPV6_ADDRS:
+		addr_diff = memcmp(&keys->addrs.v6addrs.dst,
+				   &keys->addrs.v6addrs.src,
+				   sizeof(keys->addrs.v6addrs.dst));
+		if ((addr_diff < 0) ||
+		    (addr_diff == 0 &&
+		     ((__force u16)keys->ports.dst <
+		      (__force u16)keys->ports.src))) {
+			for (i = 0; i < 4; i++)
+				swap(keys->addrs.v6addrs.src.s6_addr32[i],
+				     keys->addrs.v6addrs.dst.s6_addr32[i]);
+			swap(keys->ports.src, keys->ports.dst);
+		}
+		break;
+	}
 }
 
 static inline u32 __flow_hash_from_keys(struct flow_keys *keys, u32 keyval)
 {
 	u32 hash;
 
-	/* get a consistent hash (same value on both flow directions) */
-	if (((__force u32)keys->addrs.dst < (__force u32)keys->addrs.src) ||
-	    (((__force u32)keys->addrs.dst == (__force u32)keys->addrs.src) &&
-	     ((__force u16)keys->ports.dst < (__force u16)keys->ports.src))) {
-		swap(keys->addrs.dst, keys->addrs.src);
-		swap(keys->ports.src, keys->ports.dst);
-	}
+	__flow_hash_consistentify(keys);
 
 	hash = __flow_hash_words((u32 *)flow_keys_hash_start(keys),
 				 flow_keys_hash_length(keys), keyval);
@@ -451,8 +525,8 @@ void make_flow_keys_digest(struct flow_keys_digest *digest,
 	data->n_proto = flow->basic.n_proto;
 	data->ip_proto = flow->basic.ip_proto;
 	data->ports = flow->ports.ports;
-	data->src = flow->addrs.src;
-	data->dst = flow->addrs.dst;
+	data->src = flow->addrs.v4addrs.src;
+	data->dst = flow->addrs.v4addrs.dst;
 }
 EXPORT_SYMBOL(make_flow_keys_digest);
 
@@ -566,11 +640,15 @@ static const struct flow_dissector_key flow_keys_dissector_keys[] = {
 	},
 	{
 		.key_id = FLOW_DISSECTOR_KEY_IPV4_ADDRS,
-		.offset = offsetof(struct flow_keys, addrs),
+		.offset = offsetof(struct flow_keys, addrs.v4addrs),
+	},
+	{
+		.key_id = FLOW_DISSECTOR_KEY_IPV6_ADDRS,
+		.offset = offsetof(struct flow_keys, addrs.v6addrs),
 	},
 	{
 		.key_id = FLOW_DISSECTOR_KEY_IPV6_HASH_ADDRS,
-		.offset = offsetof(struct flow_keys, addrs),
+		.offset = offsetof(struct flow_keys, addrs.v4addrs),
 	},
 	{
 		.key_id = FLOW_DISSECTOR_KEY_PORTS,
