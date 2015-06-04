@@ -1353,6 +1353,10 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	int err;
 	int i;
 
+	/* don't create IB instance over Eth ports, no RoCE yet! */
+	if (MLX5_CAP_GEN(mdev, port_type) == MLX5_CAP_PORT_TYPE_ETH)
+		return NULL;
+
 	printk_once(KERN_INFO "%s", mlx5_version);
 
 	dev = (struct mlx5_ib_dev *)ib_alloc_device(sizeof(*dev));
