@@ -151,7 +151,7 @@ static int __init pt_pmu_hw_init(void)
 
 		de_attr->attr.attr.name = pt_caps[i].name;
 
-		sysfs_attr_init(&de_attrs->attr.attr);
+		sysfs_attr_init(&de_attr->attr.attr);
 
 		de_attr->attr.attr.mode		= S_IRUGO;
 		de_attr->attr.show		= pt_cap_show;
