@@ -173,8 +173,11 @@ static void vtg_set_mode(struct sti_vtg *vtg,
 	tmp |= 1;
 	writel(tmp, vtg->regs + VTG_TOP_V_VD_1);
 	writel(tmp, vtg->regs + VTG_BOT_V_VD_1);
-	writel(0, vtg->regs + VTG_TOP_V_HD_1);
-	writel(0, vtg->regs + VTG_BOT_V_HD_1);
+
+	tmp = HDMI_DELAY << 16;
+	tmp |= HDMI_DELAY;
+	writel(tmp, vtg->regs + VTG_TOP_V_HD_1);
+	writel(tmp, vtg->regs + VTG_BOT_V_HD_1);
 
 	/* prepare VTG set 2 for for HD DCS */
 	tmp = (mode->hsync_end - mode->hsync_start) << 16;
