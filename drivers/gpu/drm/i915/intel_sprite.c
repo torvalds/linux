@@ -1189,6 +1189,6 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 
 	drm_plane_helper_add(&intel_plane->base, &intel_plane_helper_funcs);
 
- out:
+out:
 	return ret;
 }

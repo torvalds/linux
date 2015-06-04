@@ -7077,7 +7077,7 @@ static int i965gm_get_display_clock_speed(struct drm_device *dev)
 
 	return DIV_ROUND_CLOSEST(vco, div_table[cdclk_sel]);
 
- fail:
+fail:
 	DRM_ERROR("Unable to determine CDCLK. HPLL VCO=%u kHz, CFGC=0x%04x\n", vco, tmp);
 	return 200000;
 }
@@ -7118,7 +7118,7 @@ static int g33_get_display_clock_speed(struct drm_device *dev)
 
 	return DIV_ROUND_CLOSEST(vco, div_table[cdclk_sel]);
 
- fail:
+fail:
 	DRM_ERROR("Unable to determine CDCLK. HPLL VCO=%u kHz, CFGC=0x%08x\n", vco, tmp);
 	return 190476;
 }
