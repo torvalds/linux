@@ -594,6 +594,22 @@ struct ib_xrcd *mlx5_ib_alloc_xrcd(struct ib_device *ibdev,
 int mlx5_ib_dealloc_xrcd(struct ib_xrcd *xrcd);
 int mlx5_ib_get_buf_offset(u64 addr, int page_shift, u32 *offset);
 int mlx5_query_ext_port_caps(struct mlx5_ib_dev *dev, u8 port);
+int mlx5_query_mad_ifc_smp_attr_node_info(struct ib_device *ibdev,
+					  struct ib_smp *out_mad);
+int mlx5_query_mad_ifc_system_image_guid(struct ib_device *ibdev,
+					 __be64 *sys_image_guid);
+int mlx5_query_mad_ifc_max_pkeys(struct ib_device *ibdev,
+				 u16 *max_pkeys);
+int mlx5_query_mad_ifc_vendor_id(struct ib_device *ibdev,
+				 u32 *vendor_id);
+int mlx5_query_mad_ifc_node_desc(struct mlx5_ib_dev *dev, char *node_desc);
+int mlx5_query_mad_ifc_node_guid(struct mlx5_ib_dev *dev, __be64 *node_guid);
+int mlx5_query_mad_ifc_pkey(struct ib_device *ibdev, u8 port, u16 index,
+			    u16 *pkey);
+int mlx5_query_mad_ifc_gids(struct ib_device *ibdev, u8 port, int index,
+			    union ib_gid *gid);
+int mlx5_query_mad_ifc_port(struct ib_device *ibdev, u8 port,
+			    struct ib_port_attr *props);
 int mlx5_ib_query_port(struct ib_device *ibdev, u8 port,
 		       struct ib_port_attr *props);
 int mlx5_ib_init_fmr(struct mlx5_ib_dev *dev);
