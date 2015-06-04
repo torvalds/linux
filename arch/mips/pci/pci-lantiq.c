@@ -20,7 +20,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_pci.h>
 
-#include <asm/pci.h>
 #include <asm/gpio.h>
 #include <asm/addrspace.h>
 
