@@ -7,15 +7,24 @@
 #include <uapi/linux/if_ether.h>
 
 /**
+ * struct flow_dissector_key_control:
+ * @thoff: Transport header offset
+ */
+struct flow_dissector_key_control {
+	u16	thoff;
+	u16	padding;
+};
+
+/**
  * struct flow_dissector_key_basic:
  * @thoff: Transport header offset
  * @n_proto: Network header protocol (eg. IPv4/IPv6)
  * @ip_proto: Transport header protocol (eg. TCP/UDP)
  */
 struct flow_dissector_key_basic {
-	u16	thoff;
 	__be16	n_proto;
 	u8	ip_proto;
+	u8	padding;
 };
 
 /**
@@ -70,6 +79,7 @@ struct flow_dissector_key_eth_addrs {
 };
 
 enum flow_dissector_key_id {
+	FLOW_DISSECTOR_KEY_CONTROL, /* struct flow_dissector_key_control */
 	FLOW_DISSECTOR_KEY_BASIC, /* struct flow_dissector_key_basic */
 	FLOW_DISSECTOR_KEY_IPV4_ADDRS, /* struct flow_dissector_key_addrs */
 	FLOW_DISSECTOR_KEY_IPV6_HASH_ADDRS, /* struct flow_dissector_key_addrs */
@@ -109,10 +119,15 @@ static inline bool skb_flow_dissect(const struct sk_buff *skb,
 }
 
 struct flow_keys {
-	struct flow_dissector_key_addrs addrs;
-	struct flow_dissector_key_ports ports;
+	struct flow_dissector_key_control control;
+#define FLOW_KEYS_HASH_START_FIELD basic
 	struct flow_dissector_key_basic basic;
+	struct flow_dissector_key_ports ports;
+	struct flow_dissector_key_addrs addrs;
 };
+
+#define FLOW_KEYS_HASH_OFFSET		\
+	offsetof(struct flow_keys, FLOW_KEYS_HASH_START_FIELD)
 
 extern struct flow_dissector flow_keys_dissector;
 extern struct flow_dissector flow_keys_buf_dissector;

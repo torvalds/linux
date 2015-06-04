@@ -25,6 +25,7 @@
 
 struct fl_flow_key {
 	int	indev_ifindex;
+	struct flow_dissector_key_control control;
 	struct flow_dissector_key_basic basic;
 	struct flow_dissector_key_eth_addrs eth;
 	union {
@@ -347,6 +348,7 @@ static void fl_init_dissector(struct cls_fl_head *head,
 	struct flow_dissector_key keys[FLOW_DISSECTOR_KEY_MAX];
 	size_t cnt = 0;
 
+	FL_KEY_SET(keys, cnt, FLOW_DISSECTOR_KEY_CONTROL, control);
 	FL_KEY_SET(keys, cnt, FLOW_DISSECTOR_KEY_BASIC, basic);
 	FL_KEY_SET_IF_IN_RANGE(mask, keys, cnt,
 			       FLOW_DISSECTOR_KEY_ETH_ADDRS, eth);

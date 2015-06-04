@@ -699,6 +699,8 @@ static inline void ip6_set_txhash(struct sock *sk)
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct flow_keys keys;
 
+	memset(&keys, 0, sizeof(keys));
+
 	keys.addrs.src = (__force __be32)ipv6_addr_hash(&np->saddr);
 	keys.addrs.dst = (__force __be32)ipv6_addr_hash(&sk->sk_v6_daddr);
 	keys.ports.src = inet->inet_sport;

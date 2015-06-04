@@ -57,9 +57,11 @@ void skb_flow_dissector_init(struct flow_dissector *flow_dissector,
 		flow_dissector->offset[key->key_id] = key->offset;
 	}
 
-	/* Ensure that the dissector always includes basic key. That way
-	 * we are able to avoid handling lack of it in fast path.
+	/* Ensure that the dissector always includes control and basic key.
+	 * That way we are able to avoid handling lack of these in fast path.
 	 */
+	BUG_ON(!skb_flow_dissector_uses_key(flow_dissector,
+					    FLOW_DISSECTOR_KEY_CONTROL));
 	BUG_ON(!skb_flow_dissector_uses_key(flow_dissector,
 					    FLOW_DISSECTOR_KEY_BASIC));
 }
@@ -120,6 +122,7 @@ bool __skb_flow_dissect(const struct sk_buff *skb,
 			void *target_container,
 			void *data, __be16 proto, int nhoff, int hlen)
 {
+	struct flow_dissector_key_control *key_control;
 	struct flow_dissector_key_basic *key_basic;
 	struct flow_dissector_key_addrs *key_addrs;
 	struct flow_dissector_key_ports *key_ports;
@@ -131,6 +134,13 @@ bool __skb_flow_dissect(const struct sk_buff *skb,
 		nhoff = skb_network_offset(skb);
 		hlen = skb_headlen(skb);
 	}
+
+	/* It is ensured by skb_flow_dissector_init() that control key will
+	 * be always present.
+	 */
+	key_control = skb_flow_dissector_target(flow_dissector,
+						FLOW_DISSECTOR_KEY_CONTROL,
+						target_container);
 
 	/* It is ensured by skb_flow_dissector_init() that basic key will
 	 * be always present.
@@ -219,7 +229,7 @@ flow_label:
 
 			key_basic->n_proto = proto;
 			key_basic->ip_proto = ip_proto;
-			key_basic->thoff = (u16)nhoff;
+			key_control->thoff = (u16)nhoff;
 
 			if (skb_flow_dissector_uses_key(flow_dissector,
 							FLOW_DISSECTOR_KEY_PORTS)) {
@@ -275,7 +285,7 @@ flow_label:
 		if (!hdr)
 			return false;
 		key_basic->n_proto = proto;
-		key_basic->thoff = (u16)nhoff;
+		key_control->thoff = (u16)nhoff;
 
 		if (skb_flow_dissector_uses_key(flow_dissector,
 						FLOW_DISSECTOR_KEY_IPV6_HASH_ADDRS)) {
@@ -288,7 +298,7 @@ flow_label:
 		return true;
 	}
 	case htons(ETH_P_FCOE):
-		key_basic->thoff = (u16)(nhoff + FCOE_HEADER_LEN);
+		key_control->thoff = (u16)(nhoff + FCOE_HEADER_LEN);
 		/* fall through */
 	default:
 		return false;
@@ -345,7 +355,7 @@ flow_label:
 
 	key_basic->n_proto = proto;
 	key_basic->ip_proto = ip_proto;
-	key_basic->thoff = (u16) nhoff;
+	key_control->thoff = (u16)nhoff;
 
 	if (skb_flow_dissector_uses_key(flow_dissector,
 					FLOW_DISSECTOR_KEY_PORTS)) {
@@ -366,9 +376,21 @@ static __always_inline void __flow_hash_secret_init(void)
 	net_get_random_once(&hashrnd, sizeof(hashrnd));
 }
 
-static __always_inline u32 __flow_hash_3words(u32 a, u32 b, u32 c, u32 keyval)
+static __always_inline u32 __flow_hash_words(u32 *words, u32 length, u32 keyval)
 {
-	return jhash_3words(a, b, c, keyval);
+	return jhash2(words, length, keyval);
+}
+
+static inline void *flow_keys_hash_start(struct flow_keys *flow)
+{
+	BUILD_BUG_ON(FLOW_KEYS_HASH_OFFSET % sizeof(u32));
+	return (void *)flow + FLOW_KEYS_HASH_OFFSET;
+}
+
+static inline size_t flow_keys_hash_length(struct flow_keys *flow)
+{
+	BUILD_BUG_ON((sizeof(*flow) - FLOW_KEYS_HASH_OFFSET) % sizeof(u32));
+	return (sizeof(*flow) - FLOW_KEYS_HASH_OFFSET) / sizeof(u32);
 }
 
 static inline u32 __flow_hash_from_keys(struct flow_keys *keys, u32 keyval)
@@ -383,10 +405,8 @@ static inline u32 __flow_hash_from_keys(struct flow_keys *keys, u32 keyval)
 		swap(keys->ports.src, keys->ports.dst);
 	}
 
-	hash = __flow_hash_3words((__force u32)keys->addrs.dst,
-				  (__force u32)keys->addrs.src,
-				  (__force u32)keys->ports.ports,
-				  keyval);
+	hash = __flow_hash_words((u32 *)flow_keys_hash_start(keys),
+				 flow_keys_hash_length(keys), keyval);
 	if (!hash)
 		hash = 1;
 
@@ -473,7 +493,7 @@ EXPORT_SYMBOL(skb_get_hash_perturb);
 u32 __skb_get_poff(const struct sk_buff *skb, void *data,
 		   const struct flow_keys *keys, int hlen)
 {
-	u32 poff = keys->basic.thoff;
+	u32 poff = keys->control.thoff;
 
 	switch (keys->basic.ip_proto) {
 	case IPPROTO_TCP: {
@@ -537,6 +557,10 @@ u32 skb_get_poff(const struct sk_buff *skb)
 
 static const struct flow_dissector_key flow_keys_dissector_keys[] = {
 	{
+		.key_id = FLOW_DISSECTOR_KEY_CONTROL,
+		.offset = offsetof(struct flow_keys, control),
+	},
+	{
 		.key_id = FLOW_DISSECTOR_KEY_BASIC,
 		.offset = offsetof(struct flow_keys, basic),
 	},
@@ -555,6 +579,10 @@ static const struct flow_dissector_key flow_keys_dissector_keys[] = {
 };
 
 static const struct flow_dissector_key flow_keys_buf_dissector_keys[] = {
+	{
+		.key_id = FLOW_DISSECTOR_KEY_CONTROL,
+		.offset = offsetof(struct flow_keys, control),
+	},
 	{
 		.key_id = FLOW_DISSECTOR_KEY_BASIC,
 		.offset = offsetof(struct flow_keys, basic),
