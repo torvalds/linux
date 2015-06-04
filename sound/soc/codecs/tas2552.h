@@ -62,6 +62,9 @@
 #define TAS2552_LIM_EN			(1 << 2)
 #define TAS2552_IVSENSE_EN		(1 << 1)
 
+/* DOUT Register Masks */
+#define TAS2552_SDOUT_TRISTATE		(1 << 2)
+
 /* Serial Interface Control Register Masks */
 #define TAS2552_DATAFORMAT_I2S		(0x0 << 2)
 #define TAS2552_DATAFORMAT_DSP		(0x1 << 2)
