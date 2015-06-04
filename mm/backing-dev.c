@@ -554,8 +554,10 @@ static int cgwb_create(struct backing_dev_info *bdi,
 		goto err_ref_exit;
 
 	wb->congested = wb_congested_get_create(bdi, blkcg_css->id, gfp);
-	if (!wb->congested)
+	if (!wb->congested) {
+		ret = -ENOMEM;
 		goto err_fprop_exit;
+	}
 
 	wb->memcg_css = memcg_css;
 	wb->blkcg_css = blkcg_css;
