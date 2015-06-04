@@ -30,10 +30,10 @@
 
 /* ABI
  *
- * s3	BPF register A
- * s4	BPF register X
- * s5	*skb
- * s6	*scratch memory
+ * r_A		BPF register A
+ * r_X		BPF register X
+ * r_skb	*skb
+ * r_M		*scratch memory
  *
  * On entry (*bpf_func)(*skb, *filter)
  * a0 = MIPS_R_A0 = skb;
