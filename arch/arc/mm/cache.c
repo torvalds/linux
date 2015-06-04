@@ -21,6 +21,9 @@
 #include <asm/cachectl.h>
 #include <asm/setup.h>
 
+void (*_cache_line_loop_ic_fn)(unsigned long paddr, unsigned long vaddr,
+			       unsigned long sz, const int cacheop);
+
 char *arc_cache_mumbojumbo(int c, char *buf, int len)
 {
 	int n = 0;
@@ -414,7 +417,7 @@ __ic_line_inv_vaddr_local(unsigned long paddr, unsigned long vaddr,
 	unsigned long flags;
 
 	local_irq_save(flags);
-	__cache_line_loop(paddr, vaddr, sz, OP_INV_IC);
+	(*_cache_line_loop_ic_fn)(paddr, vaddr, sz, OP_INV_IC);
 	local_irq_restore(flags);
 }
 
@@ -746,6 +749,15 @@ void arc_cache_init(void)
 		if (ic->ver != CONFIG_ARC_MMU_VER)
 			panic("Cache ver [%d] doesn't match MMU ver [%d]\n",
 			      ic->ver, CONFIG_ARC_MMU_VER);
+
+		/*
+		 * In MMU v4 (HS38x) the alising icache config uses IVIL/PTAG
+		 * pair to provide vaddr/paddr respectively, just as in MMU v3
+		 */
+		if (is_isa_arcv2() && ic->alias)
+			_cache_line_loop_ic_fn = __cache_line_loop_v3;
+		else
+			_cache_line_loop_ic_fn = __cache_line_loop;
 	}
 
 	if (IS_ENABLED(CONFIG_ARC_HAS_DCACHE)) {
