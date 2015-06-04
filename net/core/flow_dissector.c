@@ -308,30 +308,30 @@ flow_label:
 		 * Only look inside GRE if version zero and no
 		 * routing
 		 */
-		if (!(hdr->flags & (GRE_VERSION|GRE_ROUTING))) {
-			proto = hdr->proto;
-			nhoff += 4;
-			if (hdr->flags & GRE_CSUM)
-				nhoff += 4;
-			if (hdr->flags & GRE_KEY)
-				nhoff += 4;
-			if (hdr->flags & GRE_SEQ)
-				nhoff += 4;
-			if (proto == htons(ETH_P_TEB)) {
-				const struct ethhdr *eth;
-				struct ethhdr _eth;
+		if (hdr->flags & (GRE_VERSION | GRE_ROUTING))
+			break;
 
-				eth = __skb_header_pointer(skb, nhoff,
-							   sizeof(_eth),
-							   data, hlen, &_eth);
-				if (!eth)
-					return false;
-				proto = eth->h_proto;
-				nhoff += sizeof(*eth);
-			}
-			goto again;
+		proto = hdr->proto;
+		nhoff += 4;
+		if (hdr->flags & GRE_CSUM)
+			nhoff += 4;
+		if (hdr->flags & GRE_KEY)
+			nhoff += 4;
+		if (hdr->flags & GRE_SEQ)
+			nhoff += 4;
+		if (proto == htons(ETH_P_TEB)) {
+			const struct ethhdr *eth;
+			struct ethhdr _eth;
+
+			eth = __skb_header_pointer(skb, nhoff,
+						   sizeof(_eth),
+						   data, hlen, &_eth);
+			if (!eth)
+				return false;
+			proto = eth->h_proto;
+			nhoff += sizeof(*eth);
 		}
-		break;
+		goto again;
 	}
 	case IPPROTO_IPIP:
 		proto = htons(ETH_P_IP);
