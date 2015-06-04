@@ -119,20 +119,18 @@ static inline int grow_chain64(struct ufs_inode_info *ufsi,
  * the beginning of the filesystem.
  */
 
-static u64 ufs_frag_map(struct inode *inode, sector_t frag)
+static u64 ufs_frag_map(struct inode *inode, unsigned offsets[4], int depth)
 {
 	struct ufs_inode_info *ufsi = UFS_I(inode);
 	struct super_block *sb = inode->i_sb;
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
 	u64 mask = (u64) uspi->s_apbmask>>uspi->s_fpbshift;
 	int shift = uspi->s_apbshift-uspi->s_fpbshift;
-	unsigned offsets[4], *p;
 	Indirect chain[4], *q = chain;
-	int depth = ufs_block_to_path(inode, frag >> uspi->s_fpbshift, offsets);
+	unsigned *p;
 	unsigned flags = UFS_SB(sb)->s_flags;
 	u64 res = 0;
 
-	UFSD(": frag = %llu  depth = %d\n", (unsigned long long)frag, depth);
 	UFSD(": uspi->s_fpbshift = %d ,uspi->s_apbmask = %x, mask=%llx\n",
 		uspi->s_fpbshift, uspi->s_apbmask,
 		(unsigned long long)mask);
@@ -191,7 +189,7 @@ ufs2:
 	}
 	res = fs64_to_cpu(sb, q->key64);
 found:
-	res += uspi->s_sbbase + (frag & uspi->s_fpbmask);
+	res += uspi->s_sbbase;
 no_block:
 	while (q > chain) {
 		brelse(q->bh);
@@ -443,14 +441,17 @@ static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buff
 	struct ufs_sb_private_info * uspi = sbi->s_uspi;
 	struct buffer_head * bh;
 	int ret, err, new;
+	unsigned offsets[4];
+	int depth = ufs_block_to_path(inode, fragment >> uspi->s_fpbshift, offsets);
 	unsigned long ptr,phys;
 	u64 phys64 = 0;
 
 	if (!create) {
-		phys64 = ufs_frag_map(inode, fragment);
-		UFSD("phys64 = %llu\n", (unsigned long long)phys64);
-		if (phys64)
+		phys64 = ufs_frag_map(inode, offsets, depth);
+		if (phys64) {
+			phys64 += fragment & uspi->s_fpbmask;
 			map_bh(bh_result, sb, phys64);
+		}
 		return 0;
 	}
 
