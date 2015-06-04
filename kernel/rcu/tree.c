@@ -4103,6 +4103,7 @@ static void __init rcu_init_geometry(void)
 	 */
 	if (rcu_fanout_leaf < RCU_FANOUT_LEAF ||
 	    rcu_fanout_leaf > sizeof(unsigned long) * 8) {
+		rcu_fanout_leaf = RCU_FANOUT_LEAF;
 		WARN_ON(1);
 		return;
 	}
