@@ -135,7 +135,7 @@ static ssize_t rk1000_show(struct device *dev,
 	return 0;
 }
 
-static DEVICE_ATTR(rkcontrl, 0666, rk1000_show, NULL);
+static DEVICE_ATTR(rkcontrl, S_IRUGO, rk1000_show, NULL);
 
 
 static int __init bootloader_cvbs_setup(char *str)
