@@ -36,6 +36,20 @@
 #include <linux/mlx5/driver.h>
 
 u8 mlx5_query_vport_state(struct mlx5_core_dev *mdev, u8 opmod);
-void mlx5_query_vport_mac_address(struct mlx5_core_dev *mdev, u8 *addr);
+void mlx5_query_nic_vport_mac_address(struct mlx5_core_dev *mdev, u8 *addr);
+int mlx5_query_hca_vport_gid(struct mlx5_core_dev *dev, u8 other_vport,
+			     u8 port_num, u16  vf_num, u16 gid_index,
+			     union ib_gid *gid);
+int mlx5_query_hca_vport_pkey(struct mlx5_core_dev *dev, u8 other_vport,
+			      u8 port_num, u16 vf_num, u16 pkey_index,
+			      u16 *pkey);
+int mlx5_query_hca_vport_context(struct mlx5_core_dev *dev,
+				 u8 other_vport, u8 port_num,
+				 u16 vf_num,
+				 struct mlx5_hca_vport_context *rep);
+int mlx5_query_hca_vport_system_image_guid(struct mlx5_core_dev *dev,
+					   __be64 *sys_image_guid);
+int mlx5_query_hca_vport_node_guid(struct mlx5_core_dev *dev,
+				   u64 *node_guid);
 
 #endif /* __MLX5_VPORT_H__ */

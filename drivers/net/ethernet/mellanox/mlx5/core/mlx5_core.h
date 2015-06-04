@@ -78,7 +78,7 @@ static inline int mlx5_cmd_exec_check_status(struct mlx5_core_dev *dev, u32 *in,
 }
 
 int mlx5_query_hca_caps(struct mlx5_core_dev *dev);
-int mlx5_cmd_query_adapter(struct mlx5_core_dev *dev);
+int mlx5_query_board_id(struct mlx5_core_dev *dev);
 int mlx5_cmd_init_hca(struct mlx5_core_dev *dev);
 int mlx5_cmd_teardown_hca(struct mlx5_core_dev *dev);
 

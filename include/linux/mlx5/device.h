@@ -99,6 +99,12 @@ __mlx5_mask(typ, fld))
 
 #define MLX5_GET64(typ, p, fld) be64_to_cpu(*((__be64 *)(p) + __mlx5_64_off(typ, fld)))
 
+#define MLX5_GET64_PR(typ, p, fld) ({ \
+	u64 ___t = MLX5_GET64(typ, p, fld); \
+	pr_debug(#fld " = 0x%llx\n", ___t); \
+	___t; \
+})
+
 enum {
 	MLX5_MAX_COMMANDS		= 32,
 	MLX5_CMD_DATA_BLOCK_SIZE	= 512,
@@ -1171,5 +1177,12 @@ enum {
 	MLX5_CMD_STAT_BAD_PKT_ERR		= 0x30,
 	MLX5_CMD_STAT_BAD_SIZE_OUTS_CQES_ERR	= 0x40,
 };
+
+static inline u16 mlx5_to_sw_pkey_sz(int pkey_sz)
+{
+	if (pkey_sz > MLX5_MAX_LOG_PKEY_TABLE)
+		return 0;
+	return MLX5_MIN_PKEY_TABLE_SIZE << pkey_sz;
+}
 
 #endif /* MLX5_DEVICE_H */

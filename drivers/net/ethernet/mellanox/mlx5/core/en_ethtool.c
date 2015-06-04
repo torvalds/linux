@@ -543,7 +543,7 @@ static int mlx5e_get_settings(struct net_device *netdev,
 	u32 eth_proto_oper;
 	int err;
 
-	err = mlx5_query_port_ptys(mdev, out, sizeof(out), MLX5_PTYS_EN);
+	err = mlx5_query_port_ptys(mdev, out, sizeof(out), MLX5_PTYS_EN, 1);
 
 	if (err) {
 		netdev_err(netdev, "%s: query port ptys failed: %d\n",

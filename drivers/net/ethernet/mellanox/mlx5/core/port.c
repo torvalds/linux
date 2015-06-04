@@ -104,13 +104,13 @@ int mlx5_set_port_caps(struct mlx5_core_dev *dev, u8 port_num, u32 caps)
 EXPORT_SYMBOL_GPL(mlx5_set_port_caps);
 
 int mlx5_query_port_ptys(struct mlx5_core_dev *dev, u32 *ptys,
-			 int ptys_size, int proto_mask)
+			 int ptys_size, int proto_mask, u8 local_port)
 {
 	u32 in[MLX5_ST_SZ_DW(ptys_reg)];
 	int err;
 
 	memset(in, 0, sizeof(in));
-	MLX5_SET(ptys_reg, in, local_port, 1);
+	MLX5_SET(ptys_reg, in, local_port, local_port);
 	MLX5_SET(ptys_reg, in, proto_mask, proto_mask);
 
 	err = mlx5_core_access_reg(dev, in, sizeof(in), ptys,
@@ -126,7 +126,7 @@ int mlx5_query_port_proto_cap(struct mlx5_core_dev *dev,
 	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
 	int err;
 
-	err = mlx5_query_port_ptys(dev, out, sizeof(out), proto_mask);
+	err = mlx5_query_port_ptys(dev, out, sizeof(out), proto_mask, 1);
 	if (err)
 		return err;
 
@@ -145,7 +145,7 @@ int mlx5_query_port_proto_admin(struct mlx5_core_dev *dev,
 	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
 	int err;
 
-	err = mlx5_query_port_ptys(dev, out, sizeof(out), proto_mask);
+	err = mlx5_query_port_ptys(dev, out, sizeof(out), proto_mask, 1);
 	if (err)
 		return err;
 
@@ -157,6 +157,42 @@ int mlx5_query_port_proto_admin(struct mlx5_core_dev *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx5_query_port_proto_admin);
+
+int mlx5_query_port_link_width_oper(struct mlx5_core_dev *dev,
+				    u8 *link_width_oper, u8 local_port)
+{
+	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
+	int err;
+
+	err = mlx5_query_port_ptys(dev, out, sizeof(out), MLX5_PTYS_IB, local_port);
+	if (err)
+		return err;
+
+	*link_width_oper = MLX5_GET(ptys_reg, out, ib_link_width_oper);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx5_query_port_link_width_oper);
+
+int mlx5_query_port_proto_oper(struct mlx5_core_dev *dev,
+			       u8 *proto_oper, int proto_mask,
+			       u8 local_port)
+{
+	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
+	int err;
+
+	err = mlx5_query_port_ptys(dev, out, sizeof(out), proto_mask, local_port);
+	if (err)
+		return err;
+
+	if (proto_mask == MLX5_PTYS_EN)
+		*proto_oper = MLX5_GET(ptys_reg, out, eth_proto_oper);
+	else
+		*proto_oper = MLX5_GET(ptys_reg, out, ib_proto_oper);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx5_query_port_proto_oper);
 
 int mlx5_set_port_proto(struct mlx5_core_dev *dev, u32 proto_admin,
 			int proto_mask)
@@ -213,7 +249,8 @@ int mlx5_query_port_status(struct mlx5_core_dev *dev, u8 *status)
 }
 
 static int mlx5_query_port_mtu(struct mlx5_core_dev *dev,
-			       int *admin_mtu, int *max_mtu, int *oper_mtu)
+			       int *admin_mtu, int *max_mtu, int *oper_mtu,
+			       u8 local_port)
 {
 	u32 in[MLX5_ST_SZ_DW(pmtu_reg)];
 	u32 out[MLX5_ST_SZ_DW(pmtu_reg)];
@@ -221,7 +258,7 @@ static int mlx5_query_port_mtu(struct mlx5_core_dev *dev,
 
 	memset(in, 0, sizeof(in));
 
-	MLX5_SET(pmtu_reg, in, local_port, 1);
+	MLX5_SET(pmtu_reg, in, local_port, local_port);
 
 	err = mlx5_core_access_reg(dev, in, sizeof(in), out,
 				   sizeof(out), MLX5_REG_PMTU, 0, 0);
@@ -253,14 +290,47 @@ int mlx5_set_port_mtu(struct mlx5_core_dev *dev, int mtu)
 }
 EXPORT_SYMBOL_GPL(mlx5_set_port_mtu);
 
-int mlx5_query_port_max_mtu(struct mlx5_core_dev *dev, int *max_mtu)
+int mlx5_query_port_max_mtu(struct mlx5_core_dev *dev, int *max_mtu,
+			    u8 local_port)
 {
-	return mlx5_query_port_mtu(dev, NULL, max_mtu, NULL);
+	return mlx5_query_port_mtu(dev, NULL, max_mtu, NULL, local_port);
 }
 EXPORT_SYMBOL_GPL(mlx5_query_port_max_mtu);
 
-int mlx5_query_port_oper_mtu(struct mlx5_core_dev *dev, int *oper_mtu)
+int mlx5_query_port_oper_mtu(struct mlx5_core_dev *dev, int *oper_mtu,
+			     u8 local_port)
 {
-	return mlx5_query_port_mtu(dev, NULL, NULL, oper_mtu);
+	return mlx5_query_port_mtu(dev, NULL, NULL, oper_mtu, local_port);
 }
 EXPORT_SYMBOL_GPL(mlx5_query_port_oper_mtu);
+
+static int mlx5_query_port_pvlc(struct mlx5_core_dev *dev, u32 *pvlc,
+				int pvlc_size,  u8 local_port)
+{
+	u32 in[MLX5_ST_SZ_DW(pvlc_reg)];
+	int err;
+
+	memset(in, 0, sizeof(in));
+	MLX5_SET(ptys_reg, in, local_port, local_port);
+
+	err = mlx5_core_access_reg(dev, in, sizeof(in), pvlc,
+				   pvlc_size, MLX5_REG_PVLC, 0, 0);
+
+	return err;
+}
+
+int mlx5_query_port_vl_hw_cap(struct mlx5_core_dev *dev,
+			      u8 *vl_hw_cap, u8 local_port)
+{
+	u32 out[MLX5_ST_SZ_DW(pvlc_reg)];
+	int err;
+
+	err = mlx5_query_port_pvlc(dev, out, sizeof(out), local_port);
+	if (err)
+		return err;
+
+	*vl_hw_cap = MLX5_GET(pvlc_reg, out, vl_hw_cap);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx5_query_port_vl_hw_cap);

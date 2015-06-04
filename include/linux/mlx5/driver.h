@@ -107,6 +107,7 @@ enum {
 	MLX5_REG_PUDE		 = 0x5009,
 	MLX5_REG_PMPE		 = 0x5010,
 	MLX5_REG_PELC		 = 0x500e,
+	MLX5_REG_PVLC		 = 0x500f,
 	MLX5_REG_PMLP		 = 0, /* TBD */
 	MLX5_REG_NODE_DESC	 = 0x6001,
 	MLX5_REG_HOST_ENDIANNESS = 0x7004,
@@ -339,6 +340,8 @@ struct mlx5_core_mr {
 
 enum mlx5_res_type {
 	MLX5_RES_QP,
+	MLX5_RES_SRQ,
+	MLX5_RES_XSRQ,
 };
 
 struct mlx5_core_rsc_common {
@@ -348,6 +351,7 @@ struct mlx5_core_rsc_common {
 };
 
 struct mlx5_core_srq {
+	struct mlx5_core_rsc_common	common; /* must be first */
 	u32		srqn;
 	int		max;
 	int		max_gs;
@@ -550,6 +554,41 @@ struct mlx5_pas {
 	u8	log_sz;
 };
 
+enum port_state_policy {
+	MLX5_AAA_000
+};
+
+enum phy_port_state {
+	MLX5_AAA_111
+};
+
+struct mlx5_hca_vport_context {
+	u32			field_select;
+	bool			sm_virt_aware;
+	bool			has_smi;
+	bool			has_raw;
+	enum port_state_policy	policy;
+	enum phy_port_state	phys_state;
+	enum ib_port_state	vport_state;
+	u8			port_physical_state;
+	u64			sys_image_guid;
+	u64			port_guid;
+	u64			node_guid;
+	u32			cap_mask1;
+	u32			cap_mask1_perm;
+	u32			cap_mask2;
+	u32			cap_mask2_perm;
+	u16			lid;
+	u8			init_type_reply; /* bitmask: see ib spec 14.2.5.6 InitTypeReply */
+	u8			lmc;
+	u8			subnet_timeout;
+	u16			sm_lid;
+	u8			sm_sl;
+	u16			qkey_violation_counter;
+	u16			pkey_violation_counter;
+	bool			grh_required;
+};
+
 static inline void *mlx5_buf_offset(struct mlx5_buf *buf, int offset)
 {
 		return buf->direct.buf + offset;
@@ -640,7 +679,8 @@ struct mlx5_cmd_mailbox *mlx5_alloc_cmd_mailbox_chain(struct mlx5_core_dev *dev,
 void mlx5_free_cmd_mailbox_chain(struct mlx5_core_dev *dev,
 				 struct mlx5_cmd_mailbox *head);
 int mlx5_core_create_srq(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
-			 struct mlx5_create_srq_mbox_in *in, int inlen);
+			 struct mlx5_create_srq_mbox_in *in, int inlen,
+			 int is_xrc);
 int mlx5_core_destroy_srq(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq);
 int mlx5_core_query_srq(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
 			struct mlx5_query_srq_mbox_out *out);
@@ -700,11 +740,16 @@ int mlx5_core_access_reg(struct mlx5_core_dev *dev, void *data_in,
 
 int mlx5_set_port_caps(struct mlx5_core_dev *dev, u8 port_num, u32 caps);
 int mlx5_query_port_ptys(struct mlx5_core_dev *dev, u32 *ptys,
-			 int ptys_size, int proto_mask);
+			 int ptys_size, int proto_mask, u8 local_port);
 int mlx5_query_port_proto_cap(struct mlx5_core_dev *dev,
 			      u32 *proto_cap, int proto_mask);
 int mlx5_query_port_proto_admin(struct mlx5_core_dev *dev,
 				u32 *proto_admin, int proto_mask);
+int mlx5_query_port_link_width_oper(struct mlx5_core_dev *dev,
+				    u8 *link_width_oper, u8 local_port);
+int mlx5_query_port_proto_oper(struct mlx5_core_dev *dev,
+			       u8 *proto_oper, int proto_mask,
+			       u8 local_port);
 int mlx5_set_port_proto(struct mlx5_core_dev *dev, u32 proto_admin,
 			int proto_mask);
 int mlx5_set_port_status(struct mlx5_core_dev *dev,
@@ -712,8 +757,12 @@ int mlx5_set_port_status(struct mlx5_core_dev *dev,
 int mlx5_query_port_status(struct mlx5_core_dev *dev, u8 *status);
 
 int mlx5_set_port_mtu(struct mlx5_core_dev *dev, int mtu);
-int mlx5_query_port_max_mtu(struct mlx5_core_dev *dev, int *max_mtu);
-int mlx5_query_port_oper_mtu(struct mlx5_core_dev *dev, int *oper_mtu);
+int mlx5_query_port_max_mtu(struct mlx5_core_dev *dev, int *max_mtu,
+			    u8 local_port);
+int mlx5_query_port_oper_mtu(struct mlx5_core_dev *dev, int *oper_mtu,
+			     u8 local_port);
+int mlx5_query_port_vl_hw_cap(struct mlx5_core_dev *dev,
+			      u8 *vl_hw_cap, u8 local_port);
 
 int mlx5_debug_eq_add(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
 void mlx5_debug_eq_remove(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
@@ -778,6 +827,7 @@ struct mlx5_interface {
 void *mlx5_get_protocol_dev(struct mlx5_core_dev *mdev, int protocol);
 int mlx5_register_interface(struct mlx5_interface *intf);
 void mlx5_unregister_interface(struct mlx5_interface *intf);
+int mlx5_core_query_vendor_id(struct mlx5_core_dev *mdev, u32 *vendor_id);
 
 struct mlx5_profile {
 	u64	mask;
@@ -787,5 +837,15 @@ struct mlx5_profile {
 		int	limit;
 	} mr_cache[MAX_MR_CACHE_ENTRIES];
 };
+
+static inline int mlx5_get_gid_table_len(u16 param)
+{
+	if (param > 4) {
+		pr_warn("gid table length is zero\n");
+		return 0;
+	}
+
+	return 8 * (1 << param);
+}
 
 #endif /* MLX5_DRIVER_H */

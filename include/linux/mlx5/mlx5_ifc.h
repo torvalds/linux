@@ -2022,12 +2022,9 @@ struct mlx5_ifc_srqc_bits {
 
 	u8         reserved_9[0x40];
 
-	u8         db_record_addr_h[0x20];
+	u8         dbr_addr[0x40];
 
-	u8         db_record_addr_l[0x1e];
-	u8         reserved_10[0x2];
-
-	u8         reserved_11[0x80];
+	u8         reserved_10[0x80];
 };
 
 enum {
@@ -2224,12 +2221,15 @@ struct mlx5_ifc_hca_vport_context_bits {
 	u8         has_smi[0x1];
 	u8         has_raw[0x1];
 	u8         grh_required[0x1];
-	u8         reserved_1[0x10];
-	u8         port_state_policy[0x4];
-	u8         phy_port_state[0x4];
+	u8         reserved_1[0xc];
+	u8         port_physical_state[0x4];
+	u8         vport_state_policy[0x4];
+	u8         port_state[0x4];
 	u8         vport_state[0x4];
 
-	u8         reserved_2[0x60];
+	u8         reserved_2[0x20];
+
+	u8         system_image_guid[0x40];
 
 	u8         port_guid[0x40];
 
@@ -2470,9 +2470,12 @@ union mlx5_ifc_cong_control_roce_ecn_auto_bits {
 };
 
 struct mlx5_ifc_query_adapter_param_block_bits {
-	u8         reserved_0[0xe0];
+	u8         reserved_0[0xc0];
 
-	u8         reserved_1[0x10];
+	u8         reserved_1[0x8];
+	u8         ieee_vendor_id[0x18];
+
+	u8         reserved_2[0x10];
 	u8         vsd_vendor_id[0x10];
 
 	u8         vsd[208][0x8];
@@ -3493,7 +3496,8 @@ struct mlx5_ifc_query_hca_vport_pkey_in_bits {
 	u8         op_mod[0x10];
 
 	u8         other_vport[0x1];
-	u8         reserved_2[0xf];
+	u8         reserved_2[0xb];
+	u8         port_num[0x4];
 	u8         vport_number[0x10];
 
 	u8         reserved_3[0x10];
@@ -3522,7 +3526,8 @@ struct mlx5_ifc_query_hca_vport_gid_in_bits {
 	u8         op_mod[0x10];
 
 	u8         other_vport[0x1];
-	u8         reserved_2[0xf];
+	u8         reserved_2[0xb];
+	u8         port_num[0x4];
 	u8         vport_number[0x10];
 
 	u8         reserved_3[0x10];
@@ -3548,7 +3553,8 @@ struct mlx5_ifc_query_hca_vport_context_in_bits {
 	u8         op_mod[0x10];
 
 	u8         other_vport[0x1];
-	u8         reserved_2[0xf];
+	u8         reserved_2[0xb];
+	u8         port_num[0x4];
 	u8         vport_number[0x10];
 
 	u8         reserved_3[0x20];
@@ -4167,6 +4173,13 @@ struct mlx5_ifc_modify_rmp_out_bits {
 	u8         reserved_1[0x40];
 };
 
+struct mlx5_ifc_rmp_bitmask_bits {
+	u8	   reserved[0x20];
+
+	u8         reserved1[0x1f];
+	u8         lwm[0x1];
+};
+
 struct mlx5_ifc_modify_rmp_in_bits {
 	u8         opcode[0x10];
 	u8         reserved_0[0x10];
@@ -4180,7 +4193,7 @@ struct mlx5_ifc_modify_rmp_in_bits {
 
 	u8         reserved_3[0x20];
 
-	u8         modify_bitmask[0x40];
+	struct mlx5_ifc_rmp_bitmask_bits bitmask;
 
 	u8         reserved_4[0x40];
 
@@ -4239,7 +4252,8 @@ struct mlx5_ifc_modify_hca_vport_context_in_bits {
 	u8         op_mod[0x10];
 
 	u8         other_vport[0x1];
-	u8         reserved_2[0xf];
+	u8         reserved_2[0xb];
+	u8         port_num[0x4];
 	u8         vport_number[0x10];
 
 	u8         reserved_3[0x20];

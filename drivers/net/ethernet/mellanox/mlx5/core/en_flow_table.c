@@ -722,6 +722,8 @@ static int mlx5e_create_main_flow_table(struct mlx5e_priv *priv)
 	u8 *dmac;
 
 	g = kcalloc(9, sizeof(*g), GFP_KERNEL);
+	if (!g)
+		return -ENOMEM;
 
 	g[0].log_sz = 2;
 	g[0].match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
