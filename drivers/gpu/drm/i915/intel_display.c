@@ -5346,7 +5346,7 @@ static void modeset_update_crtc_power_domains(struct drm_atomic_state *state)
 	intel_display_set_init_power(dev_priv, false);
 }
 
-void broxton_set_cdclk(struct drm_device *dev, int frequency)
+static void broxton_set_cdclk(struct drm_device *dev, int frequency)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t divider;

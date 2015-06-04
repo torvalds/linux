@@ -1113,7 +1113,6 @@ void hsw_enable_pc8(struct drm_i915_private *dev_priv);
 void hsw_disable_pc8(struct drm_i915_private *dev_priv);
 void broxton_init_cdclk(struct drm_device *dev);
 void broxton_uninit_cdclk(struct drm_device *dev);
-void broxton_set_cdclk(struct drm_device *dev, int frequency);
 void broxton_ddi_phy_init(struct drm_device *dev);
 void broxton_ddi_phy_uninit(struct drm_device *dev);
 void bxt_enable_dc9(struct drm_i915_private *dev_priv);
