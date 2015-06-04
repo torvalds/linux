@@ -188,11 +188,14 @@ static int tas2552_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+#define TAS2552_DAI_FMT_MASK	(TAS2552_BIT_CLK_MASK | \
+				 TAS2552_WORD_CLK_MASK | \
+				 TAS2552_DATA_FORMAT_MASK)
 static int tas2552_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct snd_soc_codec *codec = dai->codec;
+	u8 delay = 0;
 	u8 serial_format;
-	u8 serial_control_mask;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
@@ -212,19 +215,19 @@ static int tas2552_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	serial_control_mask = TAS2552_BIT_CLK_MASK | TAS2552_WORD_CLK_MASK;
-
-	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
-	case SND_SOC_DAIFMT_I2S:
-		serial_format &= TAS2552_DAIFMT_I2S_MASK;
+	switch (fmt & (SND_SOC_DAIFMT_FORMAT_MASK |
+		       SND_SOC_DAIFMT_INV_MASK)) {
+	case (SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF):
 		break;
-	case SND_SOC_DAIFMT_DSP_A:
+	case (SND_SOC_DAIFMT_DSP_A | SND_SOC_DAIFMT_IB_NF):
+		delay = 1;
+	case (SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_IB_NF):
 		serial_format |= TAS2552_DAIFMT_DSP;
 		break;
-	case SND_SOC_DAIFMT_RIGHT_J:
+	case (SND_SOC_DAIFMT_RIGHT_J | SND_SOC_DAIFMT_NB_NF):
 		serial_format |= TAS2552_DAIFMT_RIGHT_J;
 		break;
-	case SND_SOC_DAIFMT_LEFT_J:
+	case (SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_NB_NF):
 		serial_format |= TAS2552_DAIFMT_LEFT_J;
 		break;
 	default:
@@ -232,11 +235,9 @@ static int tas2552_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	if (fmt & SND_SOC_DAIFMT_FORMAT_MASK)
-		serial_control_mask |= TAS2552_DATA_FORMAT_MASK;
-
-	snd_soc_update_bits(codec, TAS2552_SER_CTRL_1, serial_control_mask,
-						serial_format);
+	snd_soc_update_bits(codec, TAS2552_SER_CTRL_1, TAS2552_DAI_FMT_MASK,
+			    serial_format);
+	snd_soc_write(codec, TAS2552_SER_CTRL_2, delay);
 
 	return 0;
 }
