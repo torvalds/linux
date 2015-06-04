@@ -2,9 +2,9 @@
 #define PM_RCAR_H
 
 struct rcar_sysc_ch {
-	unsigned long chan_offs;
-	unsigned int chan_bit;
-	unsigned int isr_bit;
+	u16 chan_offs;
+	u8 chan_bit;
+	u8 isr_bit;
 };
 
 int rcar_sysc_power_down(struct rcar_sysc_ch *sysc_ch);
