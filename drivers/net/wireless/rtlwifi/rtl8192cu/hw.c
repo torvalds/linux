@@ -987,7 +987,6 @@ int rtl92cu_hw_init(struct ieee80211_hw *hw)
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	int err = 0;
-	static bool iqk_initialized;
 	unsigned long flags;
 
 	/* As this function can take a very long time (up to 350 ms)
@@ -1038,11 +1037,11 @@ int rtl92cu_hw_init(struct ieee80211_hw *hw)
 	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_ETHER_ADDR, mac->mac_addr);
 	if (ppsc->rfpwr_state == ERFON) {
 		rtl92c_phy_set_rfpath_switch(hw, 1);
-		if (iqk_initialized) {
+		if (rtlphy->iqk_initialized) {
 			rtl92c_phy_iq_calibrate(hw, true);
 		} else {
 			rtl92c_phy_iq_calibrate(hw, false);
-			iqk_initialized = true;
+			rtlphy->iqk_initialized = true;
 		}
 		rtl92c_dm_check_txpower_tracking(hw);
 		rtl92c_phy_lc_calibrate(hw);
@@ -1391,6 +1390,9 @@ void rtl92cu_card_disable(struct ieee80211_hw *hw)
 		_CardDisableHWSM(hw);
 	else
 		_CardDisableWithoutHWSM(hw);
+
+	/* after power off we should do iqk again */
+	rtlpriv->phy.iqk_initialized = false;
 }
 
 void rtl92cu_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid)
