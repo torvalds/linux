@@ -187,7 +187,7 @@ int irq_startup(struct irq_desc *desc, bool resend)
 		irq_enable(desc);
 	}
 	if (resend)
-		check_irq_resend(desc, desc->irq_data.irq);
+		check_irq_resend(desc);
 	return ret;
 }
 
