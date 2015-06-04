@@ -66,7 +66,8 @@ bool get_builtin_firmware(struct cpio_data *cd, const char *name)
 
 void __init load_ucode_bsp(void)
 {
-	int vendor, family;
+	int vendor;
+	unsigned int family;
 
 	if (check_loader_disabled_bsp())
 		return;

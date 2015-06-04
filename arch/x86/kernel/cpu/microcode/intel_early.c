@@ -524,8 +524,8 @@ EXPORT_SYMBOL_GPL(save_mc_for_early);
 static bool __init load_builtin_intel_microcode(struct cpio_data *cp)
 {
 #ifdef CONFIG_X86_64
-	u32 eax = 0x00000001, ebx, ecx = 0, edx;
-	int family, model, stepping;
+	unsigned int eax = 0x00000001, ebx, ecx = 0, edx;
+	unsigned int family, model, stepping;
 	char name[30];
 
 	native_cpuid(&eax, &ebx, &ecx, &edx);

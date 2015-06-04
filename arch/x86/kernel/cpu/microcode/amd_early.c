@@ -228,7 +228,8 @@ static void apply_ucode_in_initrd(void *ucode, size_t size, bool save_patch)
 	}
 }
 
-static bool __init load_builtin_amd_microcode(struct cpio_data *cp, int family)
+static bool __init load_builtin_amd_microcode(struct cpio_data *cp,
+					      unsigned int family)
 {
 #ifdef CONFIG_X86_64
 	char fw_name[36] = "amd-ucode/microcode_amd.bin";
@@ -243,7 +244,7 @@ static bool __init load_builtin_amd_microcode(struct cpio_data *cp, int family)
 #endif
 }
 
-void __init load_ucode_amd_bsp(int family)
+void __init load_ucode_amd_bsp(unsigned int family)
 {
 	struct cpio_data cp;
 	void **data;
