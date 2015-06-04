@@ -42,6 +42,9 @@ int ioremap_change_attr(unsigned long vaddr, unsigned long size,
 	case _PAGE_CACHE_MODE_WC:
 		err = _set_memory_wc(vaddr, nrpages);
 		break;
+	case _PAGE_CACHE_MODE_WT:
+		err = _set_memory_wt(vaddr, nrpages);
+		break;
 	case _PAGE_CACHE_MODE_WB:
 		err = _set_memory_wb(vaddr, nrpages);
 		break;
