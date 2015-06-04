@@ -1066,8 +1066,6 @@ static int fbtft_init_display_dt(struct fbtft_par *par)
 	const __be32 *p;
 	u32 val;
 	int buf[64], i, j;
-	char msg[128];
-	char str[16];
 
 	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
 
@@ -1093,13 +1091,11 @@ static int fbtft_init_display_dt(struct fbtft_par *par)
 				p = of_prop_next_u32(prop, p, &val);
 			}
 			/* make debug message */
-			msg[0] = '\0';
-			for (j = 0; j < i; j++) {
-				snprintf(str, 128, " %02X", buf[j]);
-				strcat(msg, str);
-			}
 			fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
 				"init: write_register:%s\n", msg);
+			for (j = 0; j < i; j++)
+				fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
+					      "buf[%d] = %02X\n", j, buf[j]);
 
 			par->fbtftops.write_register(par, i,
 				buf[0], buf[1], buf[2], buf[3],
