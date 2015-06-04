@@ -1026,69 +1026,16 @@ static void __exit dss_uninit_ports(struct platform_device *pdev)
 	} while ((port = omapdss_of_get_next_port(parent, port)) != NULL);
 }
 
-/* DSS HW IP initialisation */
-static int __init omap_dsshw_probe(struct platform_device *pdev)
+static int dss_video_pll_probe(struct platform_device *pdev)
 {
-	struct resource *dss_mem;
 	struct device_node *np = pdev->dev.of_node;
-	u32 rev;
-	int r;
 	struct regulator *pll_regulator;
+	int r;
 
-	dss.pdev = pdev;
+	if (!np)
+		return 0;
 
-	r = dss_init_features(dss.pdev);
-	if (r)
-		return r;
-
-	dss_mem = platform_get_resource(dss.pdev, IORESOURCE_MEM, 0);
-	if (!dss_mem) {
-		DSSERR("can't get IORESOURCE_MEM DSS\n");
-		return -EINVAL;
-	}
-
-	dss.base = devm_ioremap(&pdev->dev, dss_mem->start,
-				resource_size(dss_mem));
-	if (!dss.base) {
-		DSSERR("can't ioremap DSS\n");
-		return -ENOMEM;
-	}
-
-	r = dss_get_clocks();
-	if (r)
-		return r;
-
-	r = dss_setup_default_clock();
-	if (r)
-		goto err_setup_clocks;
-
-	pm_runtime_enable(&pdev->dev);
-
-	r = dss_runtime_get();
-	if (r)
-		goto err_runtime_get;
-
-	dss.dss_clk_rate = clk_get_rate(dss.dss_clk);
-
-	/* Select DPLL */
-	REG_FLD_MOD(DSS_CONTROL, 0, 0, 0);
-
-	dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
-
-#ifdef CONFIG_OMAP2_DSS_VENC
-	REG_FLD_MOD(DSS_CONTROL, 1, 4, 4);	/* venc dac demen */
-	REG_FLD_MOD(DSS_CONTROL, 1, 3, 3);	/* venc clock 4x enable */
-	REG_FLD_MOD(DSS_CONTROL, 0, 2, 2);	/* venc clock mode = normal */
-#endif
-	dss.dsi_clk_source[0] = OMAP_DSS_CLK_SRC_FCK;
-	dss.dsi_clk_source[1] = OMAP_DSS_CLK_SRC_FCK;
-	dss.dispc_clk_source = OMAP_DSS_CLK_SRC_FCK;
-	dss.lcd_clk_source[0] = OMAP_DSS_CLK_SRC_FCK;
-	dss.lcd_clk_source[1] = OMAP_DSS_CLK_SRC_FCK;
-
-	dss_init_ports(pdev);
-
-	if (np && of_property_read_bool(np, "syscon-pll-ctrl")) {
+	if (of_property_read_bool(np, "syscon-pll-ctrl")) {
 		dss.syscon_pll_ctrl = syscon_regmap_lookup_by_phandle(np,
 			"syscon-pll-ctrl");
 		if (IS_ERR(dss.syscon_pll_ctrl)) {
@@ -1125,19 +1072,84 @@ static int __init omap_dsshw_probe(struct platform_device *pdev)
 
 	if (of_property_match_string(np, "reg-names", "pll1") >= 0) {
 		dss.video1_pll = dss_video_pll_init(pdev, 0, pll_regulator);
-		if (IS_ERR(dss.video1_pll)) {
-			r = PTR_ERR(dss.video1_pll);
-			goto err_pll_init;
-		}
+		if (IS_ERR(dss.video1_pll))
+			return PTR_ERR(dss.video1_pll);
 	}
 
 	if (of_property_match_string(np, "reg-names", "pll2") >= 0) {
 		dss.video2_pll = dss_video_pll_init(pdev, 1, pll_regulator);
 		if (IS_ERR(dss.video2_pll)) {
-			r = PTR_ERR(dss.video2_pll);
-			goto err_pll_init;
+			dss_video_pll_uninit(dss.video1_pll);
+			return PTR_ERR(dss.video2_pll);
 		}
 	}
+
+	return 0;
+}
+
+/* DSS HW IP initialisation */
+static int __init omap_dsshw_probe(struct platform_device *pdev)
+{
+	struct resource *dss_mem;
+	u32 rev;
+	int r;
+
+	dss.pdev = pdev;
+
+	r = dss_init_features(dss.pdev);
+	if (r)
+		return r;
+
+	dss_mem = platform_get_resource(dss.pdev, IORESOURCE_MEM, 0);
+	if (!dss_mem) {
+		DSSERR("can't get IORESOURCE_MEM DSS\n");
+		return -EINVAL;
+	}
+
+	dss.base = devm_ioremap(&pdev->dev, dss_mem->start,
+				resource_size(dss_mem));
+	if (!dss.base) {
+		DSSERR("can't ioremap DSS\n");
+		return -ENOMEM;
+	}
+
+	r = dss_get_clocks();
+	if (r)
+		return r;
+
+	r = dss_setup_default_clock();
+	if (r)
+		goto err_setup_clocks;
+
+	r = dss_video_pll_probe(pdev);
+	if (r)
+		goto err_pll_init;
+
+	pm_runtime_enable(&pdev->dev);
+
+	r = dss_runtime_get();
+	if (r)
+		goto err_runtime_get;
+
+	dss.dss_clk_rate = clk_get_rate(dss.dss_clk);
+
+	/* Select DPLL */
+	REG_FLD_MOD(DSS_CONTROL, 0, 0, 0);
+
+	dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
+
+#ifdef CONFIG_OMAP2_DSS_VENC
+	REG_FLD_MOD(DSS_CONTROL, 1, 4, 4);	/* venc dac demen */
+	REG_FLD_MOD(DSS_CONTROL, 1, 3, 3);	/* venc clock 4x enable */
+	REG_FLD_MOD(DSS_CONTROL, 0, 2, 2);	/* venc clock mode = normal */
+#endif
+	dss.dsi_clk_source[0] = OMAP_DSS_CLK_SRC_FCK;
+	dss.dsi_clk_source[1] = OMAP_DSS_CLK_SRC_FCK;
+	dss.dispc_clk_source = OMAP_DSS_CLK_SRC_FCK;
+	dss.lcd_clk_source[0] = OMAP_DSS_CLK_SRC_FCK;
+	dss.lcd_clk_source[1] = OMAP_DSS_CLK_SRC_FCK;
+
+	dss_init_ports(pdev);
 
 	rev = dss_read_reg(DSS_REVISION);
 	printk(KERN_INFO "OMAP DSS rev %d.%d\n",
@@ -1153,14 +1165,15 @@ static int __init omap_dsshw_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_pll_init:
+err_runtime_get:
+	pm_runtime_disable(&pdev->dev);
+
 	if (dss.video1_pll)
 		dss_video_pll_uninit(dss.video1_pll);
 
 	if (dss.video2_pll)
 		dss_video_pll_uninit(dss.video2_pll);
-err_runtime_get:
-	pm_runtime_disable(&pdev->dev);
+err_pll_init:
 err_setup_clocks:
 	dss_put_clocks();
 	return r;
