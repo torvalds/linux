@@ -102,9 +102,6 @@ extern void pcibios_finish_adding_to_bus(struct pci_bus *bus);
 
 extern void pcibios_resource_survey(void);
 
-extern int pci_bus_find_capability(struct pci_bus *bus,
-						unsigned int devfn, int cap);
-
 struct file;
 extern pgprot_t	pci_phys_mem_access_prot(struct file *file,
 					 unsigned long pfn,
