@@ -227,11 +227,9 @@ static int rk1000_probe(struct i2c_client *client,
 			goto err;
 		}
 		rk1000->io_reset.active = !(flags & OF_GPIO_ACTIVE_LOW);
-
-
 		gpio_direction_output(rk1000->io_reset.gpio,
 				      !(rk1000->io_reset.active));
-		msleep(20);
+		usleep_range(500, 1000);
 		/********Get power pin***********/
 		rk1000->io_power.gpio = of_get_named_gpio_flags(rk1000_np,
 								"gpio-power",
@@ -252,7 +250,7 @@ static int rk1000_probe(struct i2c_client *client,
 		/********rk1000 reset***********/
 		gpio_set_value(rk1000->io_reset.gpio,
 			       rk1000->io_reset.active);
-		msleep(100);
+		usleep_range(5000, 10000);
 		gpio_set_value(rk1000->io_reset.gpio,
 			       !(rk1000->io_reset.active));
 	}
