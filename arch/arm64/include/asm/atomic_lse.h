@@ -149,28 +149,6 @@ static inline int atomic_sub_return(int i, atomic_t *v)
 	return w0;
 }
 
-static inline int atomic_cmpxchg(atomic_t *ptr, int old, int new)
-{
-	register unsigned long x0 asm ("x0") = (unsigned long)ptr;
-	register int w1 asm ("w1") = old;
-	register int w2 asm ("w2") = new;
-
-	asm volatile(ARM64_LSE_ATOMIC_INSN(
-	/* LL/SC */
-	"	nop\n"
-	__LL_SC_ATOMIC(cmpxchg)
-	"	nop",
-	/* LSE atomics */
-	"	mov	w30, %w[old]\n"
-	"	casal	w30, %w[new], %[v]\n"
-	"	mov	%w[ret], w30")
-	: [ret] "+r" (x0), [v] "+Q" (ptr->counter)
-	: [old] "r" (w1), [new] "r" (w2)
-	: "x30", "memory");
-
-	return x0;
-}
-
 #undef __LL_SC_ATOMIC
 
 #define __LL_SC_ATOMIC64(op)	__LL_SC_CALL(atomic64_##op)
@@ -292,27 +270,6 @@ static inline long atomic64_sub_return(long i, atomic64_t *v)
 	"	add	%[i], %[i], x30")
 	: [i] "+r" (x0), [v] "+Q" (v->counter)
 	: "r" (x1)
-	: "x30", "memory");
-
-	return x0;
-}
-static inline long atomic64_cmpxchg(atomic64_t *ptr, long old, long new)
-{
-	register unsigned long x0 asm ("x0") = (unsigned long)ptr;
-	register long x1 asm ("x1") = old;
-	register long x2 asm ("x2") = new;
-
-	asm volatile(ARM64_LSE_ATOMIC_INSN(
-	/* LL/SC */
-	"	nop\n"
-	__LL_SC_ATOMIC64(cmpxchg)
-	"	nop",
-	/* LSE atomics */
-	"	mov	x30, %[old]\n"
-	"	casal	x30, %[new], %[v]\n"
-	"	mov	%[ret], x30")
-	: [ret] "+r" (x0), [v] "+Q" (ptr->counter)
-	: [old] "r" (x1), [new] "r" (x2)
 	: "x30", "memory");
 
 	return x0;

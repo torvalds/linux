@@ -56,6 +56,7 @@
 #define atomic_read(v)			READ_ONCE((v)->counter)
 #define atomic_set(v, i)		(((v)->counter) = (i))
 #define atomic_xchg(v, new)		xchg(&((v)->counter), (new))
+#define atomic_cmpxchg(v, old, new)	cmpxchg(&((v)->counter), (old), (new))
 
 #define atomic_inc(v)			atomic_add(1, (v))
 #define atomic_dec(v)			atomic_sub(1, (v))
@@ -75,6 +76,7 @@
 #define atomic64_read			atomic_read
 #define atomic64_set			atomic_set
 #define atomic64_xchg			atomic_xchg
+#define atomic64_cmpxchg		atomic_cmpxchg
 
 #define atomic64_inc(v)			atomic64_add(1, (v))
 #define atomic64_dec(v)			atomic64_sub(1, (v))

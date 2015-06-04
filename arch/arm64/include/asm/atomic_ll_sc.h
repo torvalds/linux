@@ -93,29 +93,6 @@ ATOMIC_OP(xor, eor)
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
 
-__LL_SC_INLINE int
-__LL_SC_PREFIX(atomic_cmpxchg(atomic_t *ptr, int old, int new))
-{
-	unsigned long tmp;
-	int oldval;
-
-	asm volatile("// atomic_cmpxchg\n"
-"	prfm	pstl1strm, %2\n"
-"1:	ldxr	%w1, %2\n"
-"	eor	%w0, %w1, %w3\n"
-"	cbnz	%w0, 2f\n"
-"	stlxr	%w0, %w4, %2\n"
-"	cbnz	%w0, 1b\n"
-"	dmb	ish\n"
-"2:"
-	: "=&r" (tmp), "=&r" (oldval), "+Q" (ptr->counter)
-	: "Lr" (old), "r" (new)
-	: "memory");
-
-	return oldval;
-}
-__LL_SC_EXPORT(atomic_cmpxchg);
-
 #define ATOMIC64_OP(op, asm_op)						\
 __LL_SC_INLINE void							\
 __LL_SC_PREFIX(atomic64_##op(long i, atomic64_t *v))			\
@@ -171,29 +148,6 @@ ATOMIC64_OP(xor, eor)
 #undef ATOMIC64_OPS
 #undef ATOMIC64_OP_RETURN
 #undef ATOMIC64_OP
-
-__LL_SC_INLINE long
-__LL_SC_PREFIX(atomic64_cmpxchg(atomic64_t *ptr, long old, long new))
-{
-	long oldval;
-	unsigned long res;
-
-	asm volatile("// atomic64_cmpxchg\n"
-"	prfm	pstl1strm, %2\n"
-"1:	ldxr	%1, %2\n"
-"	eor	%0, %1, %3\n"
-"	cbnz	%w0, 2f\n"
-"	stlxr	%w0, %4, %2\n"
-"	cbnz	%w0, 1b\n"
-"	dmb	ish\n"
-"2:"
-	: "=&r" (res), "=&r" (oldval), "+Q" (ptr->counter)
-	: "Lr" (old), "r" (new)
-	: "memory");
-
-	return oldval;
-}
-__LL_SC_EXPORT(atomic64_cmpxchg);
 
 __LL_SC_INLINE long
 __LL_SC_PREFIX(atomic64_dec_if_positive(atomic64_t *v))
