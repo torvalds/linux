@@ -51,7 +51,7 @@
 static void __iomem *rcar_sysc_base;
 static DEFINE_SPINLOCK(rcar_sysc_lock); /* SMP CPUs + I/O devices */
 
-static int rcar_sysc_pwr_on_off(struct rcar_sysc_ch *sysc_ch,
+static int rcar_sysc_pwr_on_off(const struct rcar_sysc_ch *sysc_ch,
 				int sr_bit, int reg_offs)
 {
 	int k;
@@ -73,18 +73,18 @@ static int rcar_sysc_pwr_on_off(struct rcar_sysc_ch *sysc_ch,
 	return 0;
 }
 
-static int rcar_sysc_pwr_off(struct rcar_sysc_ch *sysc_ch)
+static int rcar_sysc_pwr_off(const struct rcar_sysc_ch *sysc_ch)
 {
 	return rcar_sysc_pwr_on_off(sysc_ch, SYSCSR_POFFENB, PWROFFCR_OFFS);
 }
 
-static int rcar_sysc_pwr_on(struct rcar_sysc_ch *sysc_ch)
+static int rcar_sysc_pwr_on(const struct rcar_sysc_ch *sysc_ch)
 {
 	return rcar_sysc_pwr_on_off(sysc_ch, SYSCSR_PONENB, PWRONCR_OFFS);
 }
 
-static int rcar_sysc_update(struct rcar_sysc_ch *sysc_ch,
-			    int (*on_off_fn)(struct rcar_sysc_ch *))
+static int rcar_sysc_update(const struct rcar_sysc_ch *sysc_ch,
+			    int (*on_off_fn)(const struct rcar_sysc_ch *))
 {
 	unsigned int isr_mask = 1 << sysc_ch->isr_bit;
 	unsigned int chan_mask = 1 << sysc_ch->chan_bit;
@@ -136,17 +136,17 @@ static int rcar_sysc_update(struct rcar_sysc_ch *sysc_ch,
 	return ret;
 }
 
-int rcar_sysc_power_down(struct rcar_sysc_ch *sysc_ch)
+int rcar_sysc_power_down(const struct rcar_sysc_ch *sysc_ch)
 {
 	return rcar_sysc_update(sysc_ch, rcar_sysc_pwr_off);
 }
 
-int rcar_sysc_power_up(struct rcar_sysc_ch *sysc_ch)
+int rcar_sysc_power_up(const struct rcar_sysc_ch *sysc_ch)
 {
 	return rcar_sysc_update(sysc_ch, rcar_sysc_pwr_on);
 }
 
-bool rcar_sysc_power_is_off(struct rcar_sysc_ch *sysc_ch)
+bool rcar_sysc_power_is_off(const struct rcar_sysc_ch *sysc_ch)
 {
 	unsigned int st;
 
