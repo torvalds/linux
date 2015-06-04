@@ -411,7 +411,7 @@ xfs_attr_inactive(xfs_inode_t *dp)
 	trans = xfs_trans_alloc(mp, XFS_TRANS_ATTRINVAL);
 	error = xfs_trans_reserve(trans, &M_RES(mp)->tr_attrinval, 0, 0);
 	if (error) {
-		xfs_trans_cancel(trans, 0);
+		xfs_trans_cancel(trans);
 		return error;
 	}
 	xfs_ilock(dp, XFS_ILOCK_EXCL);
@@ -444,7 +444,7 @@ xfs_attr_inactive(xfs_inode_t *dp)
 	return error;
 
 out:
-	xfs_trans_cancel(trans, XFS_TRANS_RELEASE_LOG_RES|XFS_TRANS_ABORT);
+	xfs_trans_cancel(trans);
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
 	return error;
 }

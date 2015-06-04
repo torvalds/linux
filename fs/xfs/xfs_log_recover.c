@@ -3755,7 +3755,7 @@ xlog_recover_process_efi(
 	return error;
 
 abort_error:
-	xfs_trans_cancel(tp, XFS_TRANS_ABORT);
+	xfs_trans_cancel(tp);
 	return error;
 }
 
@@ -3863,7 +3863,7 @@ xlog_recover_clear_agi_bucket(
 	return;
 
 out_abort:
-	xfs_trans_cancel(tp, XFS_TRANS_ABORT);
+	xfs_trans_cancel(tp);
 out_error:
 	xfs_warn(mp, "%s: failed to clear agi %d. Continuing.", __func__, agno);
 	return;

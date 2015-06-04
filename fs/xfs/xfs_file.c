@@ -138,7 +138,7 @@ xfs_update_prealloc_flags(
 	tp = xfs_trans_alloc(ip->i_mount, XFS_TRANS_WRITEID);
 	error = xfs_trans_reserve(tp, &M_RES(ip->i_mount)->tr_writeid, 0, 0);
 	if (error) {
-		xfs_trans_cancel(tp, 0);
+		xfs_trans_cancel(tp);
 		return error;
 	}
 

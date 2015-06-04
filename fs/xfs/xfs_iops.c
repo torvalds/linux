@@ -733,7 +733,7 @@ xfs_setattr_nonsize(
 	return 0;
 
 out_trans_cancel:
-	xfs_trans_cancel(tp, 0);
+	xfs_trans_cancel(tp);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 out_dqrele:
 	xfs_qm_dqrele(udqp);
@@ -755,7 +755,6 @@ xfs_setattr_size(
 	struct xfs_trans	*tp;
 	int			error;
 	uint			lock_flags = 0;
-	uint			commit_flags = 0;
 	bool			did_zeroing = false;
 
 	trace_xfs_setattr(ip);
@@ -861,7 +860,6 @@ xfs_setattr_size(
 	if (error)
 		goto out_trans_cancel;
 
-	commit_flags = XFS_TRANS_RELEASE_LOG_RES;
 	lock_flags |= XFS_ILOCK_EXCL;
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);
@@ -901,7 +899,7 @@ xfs_setattr_size(
 	if (newsize <= oldsize) {
 		error = xfs_itruncate_extents(&tp, ip, XFS_DATA_FORK, newsize);
 		if (error)
-			goto out_trans_abort;
+			goto out_trans_cancel;
 
 		/*
 		 * Truncated "down", so we're removing references to old data
@@ -934,10 +932,8 @@ out_unlock:
 		xfs_iunlock(ip, lock_flags);
 	return error;
 
-out_trans_abort:
-	commit_flags |= XFS_TRANS_ABORT;
 out_trans_cancel:
-	xfs_trans_cancel(tp, commit_flags);
+	xfs_trans_cancel(tp);
 	goto out_unlock;
 }
 
@@ -984,7 +980,7 @@ xfs_vn_update_time(
 	tp = xfs_trans_alloc(mp, XFS_TRANS_FSYNC_TS);
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_fsyncts, 0, 0);
 	if (error) {
-		xfs_trans_cancel(tp, 0);
+		xfs_trans_cancel(tp);
 		return error;
 	}
 

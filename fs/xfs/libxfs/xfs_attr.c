@@ -266,7 +266,7 @@ xfs_attr_set(
 	tres.tr_logflags = XFS_TRANS_PERM_LOG_RES;
 	error = xfs_trans_reserve(args.trans, &tres, args.total, 0);
 	if (error) {
-		xfs_trans_cancel(args.trans, 0);
+		xfs_trans_cancel(args.trans);
 		return error;
 	}
 	xfs_ilock(dp, XFS_ILOCK_EXCL);
@@ -276,7 +276,7 @@ xfs_attr_set(
 				       XFS_QMOPT_RES_REGBLKS);
 	if (error) {
 		xfs_iunlock(dp, XFS_ILOCK_EXCL);
-		xfs_trans_cancel(args.trans, XFS_TRANS_RELEASE_LOG_RES);
+		xfs_trans_cancel(args.trans);
 		return error;
 	}
 
@@ -389,10 +389,8 @@ xfs_attr_set(
 	return error;
 
 out:
-	if (args.trans) {
-		xfs_trans_cancel(args.trans,
-			XFS_TRANS_RELEASE_LOG_RES|XFS_TRANS_ABORT);
-	}
+	if (args.trans)
+		xfs_trans_cancel(args.trans);
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
 	return error;
 }
@@ -462,7 +460,7 @@ xfs_attr_remove(
 	error = xfs_trans_reserve(args.trans, &M_RES(mp)->tr_attrrm,
 				  XFS_ATTRRM_SPACE_RES(mp), 0);
 	if (error) {
-		xfs_trans_cancel(args.trans, 0);
+		xfs_trans_cancel(args.trans);
 		return error;
 	}
 
@@ -507,10 +505,8 @@ xfs_attr_remove(
 	return error;
 
 out:
-	if (args.trans) {
-		xfs_trans_cancel(args.trans,
-			XFS_TRANS_RELEASE_LOG_RES|XFS_TRANS_ABORT);
-	}
+	if (args.trans)
+		xfs_trans_cancel(args.trans);
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
 	return error;
 }

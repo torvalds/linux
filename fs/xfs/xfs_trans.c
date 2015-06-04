@@ -986,29 +986,22 @@ out_unreserve:
  */
 void
 xfs_trans_cancel(
-	xfs_trans_t		*tp,
-	int			flags)
+	struct xfs_trans	*tp)
 {
-	int			log_flags;
-	xfs_mount_t		*mp = tp->t_mountp;
+	struct xfs_mount	*mp = tp->t_mountp;
+	bool			dirty = (tp->t_flags & XFS_TRANS_DIRTY);
 
-	/*
-	 * See if the caller is being too lazy to figure out if
-	 * the transaction really needs an abort.
-	 */
-	if ((flags & XFS_TRANS_ABORT) && !(tp->t_flags & XFS_TRANS_DIRTY))
-		flags &= ~XFS_TRANS_ABORT;
 	/*
 	 * See if the caller is relying on us to shut down the
 	 * filesystem.  This happens in paths where we detect
 	 * corruption and decide to give up.
 	 */
-	if ((tp->t_flags & XFS_TRANS_DIRTY) && !XFS_FORCED_SHUTDOWN(mp)) {
+	if (dirty && !XFS_FORCED_SHUTDOWN(mp)) {
 		XFS_ERROR_REPORT("xfs_trans_cancel", XFS_ERRLEVEL_LOW, mp);
 		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 	}
 #ifdef DEBUG
-	if (!(flags & XFS_TRANS_ABORT) && !XFS_FORCED_SHUTDOWN(mp)) {
+	if (!dirty && !XFS_FORCED_SHUTDOWN(mp)) {
 		struct xfs_log_item_desc *lidp;
 
 		list_for_each_entry(lidp, &tp->t_items, lid_trans)
@@ -1019,19 +1012,17 @@ xfs_trans_cancel(
 	xfs_trans_unreserve_and_mod_dquots(tp);
 
 	if (tp->t_ticket) {
-		if (flags & XFS_TRANS_RELEASE_LOG_RES) {
-			ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
+		uint		log_flags = 0;
+
+		if (tp->t_flags & XFS_TRANS_PERM_LOG_RES)
 			log_flags = XFS_LOG_REL_PERM_RESERV;
-		} else {
-			log_flags = 0;
-		}
 		xfs_log_done(mp, tp->t_ticket, NULL, log_flags);
 	}
 
 	/* mark this thread as no longer being in a transaction */
 	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
 
-	xfs_trans_free_items(tp, NULLCOMMITLSN, flags & XFS_TRANS_ABORT);
+	xfs_trans_free_items(tp, NULLCOMMITLSN, dirty);
 	xfs_trans_free(tp);
 }
 
