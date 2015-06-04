@@ -86,7 +86,7 @@ config KVM_MMU_AUDIT
 	 auditing of KVM MMU events at runtime.
 
 config KVM_DEVICE_ASSIGNMENT
-	bool "KVM legacy PCI device assignment support"
+	bool "KVM legacy PCI device assignment support (DEPRECATED)"
 	depends on KVM && PCI && IOMMU_API
 	default n
 	---help---

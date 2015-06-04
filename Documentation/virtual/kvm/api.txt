@@ -1294,7 +1294,7 @@ The flags bitmap is defined as:
    /* the host supports the ePAPR idle hcall
    #define KVM_PPC_PVINFO_FLAGS_EV_IDLE   (1<<0)
 
-4.48 KVM_ASSIGN_PCI_DEVICE
+4.48 KVM_ASSIGN_PCI_DEVICE (deprecated)
 
 Capability: none
 Architectures: x86
@@ -1344,7 +1344,7 @@ Errors:
   have their standard meanings.
 
 
-4.49 KVM_DEASSIGN_PCI_DEVICE
+4.49 KVM_DEASSIGN_PCI_DEVICE (deprecated)
 
 Capability: none
 Architectures: x86
@@ -1363,7 +1363,7 @@ Errors:
   Other error conditions may be defined by individual device types or
   have their standard meanings.
 
-4.50 KVM_ASSIGN_DEV_IRQ
+4.50 KVM_ASSIGN_DEV_IRQ (deprecated)
 
 Capability: KVM_CAP_ASSIGN_DEV_IRQ
 Architectures: x86
@@ -1403,7 +1403,7 @@ Errors:
   have their standard meanings.
 
 
-4.51 KVM_DEASSIGN_DEV_IRQ
+4.51 KVM_DEASSIGN_DEV_IRQ (deprecated)
 
 Capability: KVM_CAP_ASSIGN_DEV_IRQ
 Architectures: x86
@@ -1477,7 +1477,7 @@ struct kvm_irq_routing_s390_adapter {
 };
 
 
-4.53 KVM_ASSIGN_SET_MSIX_NR
+4.53 KVM_ASSIGN_SET_MSIX_NR (deprecated)
 
 Capability: none
 Architectures: x86
@@ -1499,7 +1499,7 @@ struct kvm_assigned_msix_nr {
 #define KVM_MAX_MSIX_PER_DEV		256
 
 
-4.54 KVM_ASSIGN_SET_MSIX_ENTRY
+4.54 KVM_ASSIGN_SET_MSIX_ENTRY (deprecated)
 
 Capability: none
 Architectures: x86
@@ -1655,7 +1655,7 @@ should skip processing the bitmap and just invalidate everything.  It must
 be set to the number of set bits in the bitmap.
 
 
-4.61 KVM_ASSIGN_SET_INTX_MASK
+4.61 KVM_ASSIGN_SET_INTX_MASK (deprecated)
 
 Capability: KVM_CAP_PCI_2_3
 Architectures: x86
