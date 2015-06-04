@@ -491,6 +491,7 @@ struct i40e_hw {
 
 	/* debug mask */
 	u32 debug_mask;
+	char err_str[16];
 };
 
 static inline bool i40e_is_vf(struct i40e_hw *hw)

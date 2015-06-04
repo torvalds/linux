@@ -51,8 +51,9 @@ static int i40evf_send_pf_msg(struct i40evf_adapter *adapter,
 
 	err = i40e_aq_send_msg_to_pf(hw, op, 0, msg, len, NULL);
 	if (err)
-		dev_err(&adapter->pdev->dev, "Unable to send opcode %d to PF, error %d, aq status %d\n",
-			op, err, hw->aq.asq_last_status);
+		dev_err(&adapter->pdev->dev, "Unable to send opcode %d to PF, err %s, aq_err %s\n",
+			op, i40evf_stat_str(hw, err),
+			i40evf_aq_str(hw, hw->aq.asq_last_status));
 	return err;
 }
 
@@ -727,8 +728,9 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 		return;
 	}
 	if (v_retval) {
-		dev_err(&adapter->pdev->dev, "%s: PF returned error %d to our request %d\n",
-			__func__, v_retval, v_opcode);
+		dev_err(&adapter->pdev->dev, "%s: PF returned error %d (%s) to our request %d\n",
+			__func__, v_retval,
+			i40evf_stat_str(&adapter->hw, v_retval), v_opcode);
 	}
 	switch (v_opcode) {
 	case I40E_VIRTCHNL_OP_GET_STATS: {
