@@ -809,7 +809,7 @@ xfs_log_commit_cil(
 	 * the log items. This affects (at least) processing of stale buffers,
 	 * inodes and EFIs.
 	 */
-	xfs_trans_free_items(tp, tp->t_commit_lsn, 0);
+	xfs_trans_free_items(tp, tp->t_commit_lsn, false);
 
 	xlog_cil_push_background(log);
 
