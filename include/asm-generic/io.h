@@ -785,8 +785,17 @@ static inline void __iomem *ioremap_wc(phys_addr_t offset, size_t size)
 }
 #endif
 
+#ifndef ioremap_wt
+#define ioremap_wt ioremap_wt
+static inline void __iomem *ioremap_wt(phys_addr_t offset, size_t size)
+{
+	return ioremap_nocache(offset, size);
+}
+#endif
+
 #ifndef iounmap
 #define iounmap iounmap
+
 static inline void iounmap(void __iomem *addr)
 {
 }
