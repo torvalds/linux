@@ -2,26 +2,20 @@
 
 &pm8916_gpios {
 
-	pm8916_gpios_default: default {
-		usb_hub_reset_pm {
-			pins = "gpio1";
-			function = PMIC_GPIO_FUNC_NORMAL;
-			output-low;
-		};
-		usb_sw_sel_pm {
-			pins = "gpio2";
-			function = PMIC_GPIO_FUNC_NORMAL;
-			input-disable;
-		};
-		usr_led_3_ctrl {
+	usb_hub_reset_pm: usb_hub_reset_pm {
+		pinconf {
 			pins = "gpio3";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			output-low;
 		};
-		usr_led_4_ctrl {
+	};
+
+	usb_sw_sel_pm: usb_sw_sel_pm {
+		pinconf {
 			pins = "gpio4";
 			function = PMIC_GPIO_FUNC_NORMAL;
-			output-low;
+			power-source = <PM8916_GPIO_VPH>;
+			input-disable;
 		};
 	};
 };
