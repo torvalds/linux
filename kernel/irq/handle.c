@@ -30,7 +30,7 @@
 void handle_bad_irq(unsigned int irq, struct irq_desc *desc)
 {
 	print_irq_desc(irq, desc);
-	kstat_incr_irqs_this_cpu(irq, desc);
+	kstat_incr_irqs_this_cpu(desc);
 	ack_bad_irq(irq);
 }
 
