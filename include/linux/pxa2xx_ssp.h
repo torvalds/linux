@@ -194,8 +194,9 @@ enum pxa_ssp_type {
 	PXA168_SSP,
 	PXA910_SSP,
 	CE4100_SSP,
-	LPSS_SSP,
 	QUARK_X1000_SSP,
+	LPSS_LPT_SSP,
+	LPSS_BYT_SSP,
 };
 
 struct ssp_device {

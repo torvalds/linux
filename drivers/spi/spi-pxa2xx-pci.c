@@ -62,7 +62,7 @@ static struct pxa_spi_info spi_info_configs[] = {
 		.max_clk_rate = 3686400,
 	},
 	[PORT_BYT] = {
-		.type = LPSS_SSP,
+		.type = LPSS_BYT_SSP,
 		.port_id = 0,
 		.num_chipselect = 1,
 		.max_clk_rate = 50000000,
@@ -70,7 +70,7 @@ static struct pxa_spi_info spi_info_configs[] = {
 		.rx_param = &byt_rx_param,
 	},
 	[PORT_BSW0] = {
-		.type = LPSS_SSP,
+		.type = LPSS_BYT_SSP,
 		.port_id = 0,
 		.num_chipselect = 1,
 		.max_clk_rate = 50000000,
@@ -78,7 +78,7 @@ static struct pxa_spi_info spi_info_configs[] = {
 		.rx_param = &bsw0_rx_param,
 	},
 	[PORT_BSW1] = {
-		.type = LPSS_SSP,
+		.type = LPSS_BYT_SSP,
 		.port_id = 1,
 		.num_chipselect = 1,
 		.max_clk_rate = 50000000,
@@ -86,7 +86,7 @@ static struct pxa_spi_info spi_info_configs[] = {
 		.rx_param = &bsw1_rx_param,
 	},
 	[PORT_BSW2] = {
-		.type = LPSS_SSP,
+		.type = LPSS_BYT_SSP,
 		.port_id = 2,
 		.num_chipselect = 1,
 		.max_clk_rate = 50000000,
