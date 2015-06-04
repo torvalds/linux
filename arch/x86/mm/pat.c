@@ -68,8 +68,6 @@ static int __init pat_debug_setup(char *str)
 }
 __setup("debugpat", pat_debug_setup);
 
-static u64 __read_mostly boot_pat_state;
-
 #ifdef CONFIG_X86_PAT
 /*
  * X86 PAT uses page flags WC and Uncached together to keep track of
@@ -177,14 +175,12 @@ static enum page_cache_mode pat_get_cache_mode(unsigned pat_val, char *msg)
  * configuration.
  * Using lower indices is preferred, so we start with highest index.
  */
-void pat_init_cache_modes(void)
+void pat_init_cache_modes(u64 pat)
 {
-	int i;
 	enum page_cache_mode cache;
 	char pat_msg[33];
-	u64 pat;
+	int i;
 
-	rdmsrl(MSR_IA32_CR_PAT, pat);
 	pat_msg[32] = 0;
 	for (i = 7; i >= 0; i--) {
 		cache = pat_get_cache_mode((pat >> (i * 8)) & 7,
@@ -198,24 +194,33 @@ void pat_init_cache_modes(void)
 
 static void pat_bsp_init(u64 pat)
 {
+	u64 tmp_pat;
+
 	if (!cpu_has_pat) {
 		pat_disable("PAT not supported by CPU.");
 		return;
 	}
 
-	rdmsrl(MSR_IA32_CR_PAT, boot_pat_state);
-	if (!boot_pat_state) {
+	if (!pat_enabled())
+		goto done;
+
+	rdmsrl(MSR_IA32_CR_PAT, tmp_pat);
+	if (!tmp_pat) {
 		pat_disable("PAT MSR is 0, disabled.");
 		return;
 	}
 
 	wrmsrl(MSR_IA32_CR_PAT, pat);
 
-	pat_init_cache_modes();
+done:
+	pat_init_cache_modes(pat);
 }
 
 static void pat_ap_init(u64 pat)
 {
+	if (!pat_enabled())
+		return;
+
 	if (!cpu_has_pat) {
 		/*
 		 * If this happens we are on a secondary CPU, but switched to
@@ -231,25 +236,45 @@ void pat_init(void)
 {
 	u64 pat;
 
-	if (!pat_enabled())
-		return;
-
-	/*
-	 * Set PWT to Write-Combining. All other bits stay the same:
-	 *
-	 * PTE encoding used in Linux:
-	 *      PAT
-	 *      |PCD
-	 *      ||PWT
-	 *      |||
-	 *      000 WB		_PAGE_CACHE_WB
-	 *      001 WC		_PAGE_CACHE_WC
-	 *      010 UC-		_PAGE_CACHE_UC_MINUS
-	 *      011 UC		_PAGE_CACHE_UC
-	 * PAT bit unused
-	 */
-	pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
-	      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, UC);
+	if (!pat_enabled()) {
+		/*
+		 * No PAT. Emulate the PAT table that corresponds to the two
+		 * cache bits, PWT (Write Through) and PCD (Cache Disable). This
+		 * setup is the same as the BIOS default setup when the system
+		 * has PAT but the "nopat" boot option has been specified. This
+		 * emulated PAT table is used when MSR_IA32_CR_PAT returns 0.
+		 *
+		 * PTE encoding used:
+		 *
+		 *       PCD
+		 *       |PWT  PAT
+		 *       ||    slot
+		 *       00    0    WB : _PAGE_CACHE_MODE_WB
+		 *       01    1    WT : _PAGE_CACHE_MODE_WT
+		 *       10    2    UC-: _PAGE_CACHE_MODE_UC_MINUS
+		 *       11    3    UC : _PAGE_CACHE_MODE_UC
+		 *
+		 * NOTE: When WC or WP is used, it is redirected to UC- per
+		 * the default setup in __cachemode2pte_tbl[].
+		 */
+		pat = PAT(0, WB) | PAT(1, WT) | PAT(2, UC_MINUS) | PAT(3, UC) |
+		      PAT(4, WB) | PAT(5, WT) | PAT(6, UC_MINUS) | PAT(7, UC);
+	} else {
+		/*
+		 * PTE encoding used in Linux:
+		 *      PAT
+		 *      |PCD
+		 *      ||PWT
+		 *      |||
+		 *      000 WB          _PAGE_CACHE_WB
+		 *      001 WC          _PAGE_CACHE_WC
+		 *      010 UC-         _PAGE_CACHE_UC_MINUS
+		 *      011 UC          _PAGE_CACHE_UC
+		 * PAT bit unused
+		 */
+		pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
+		      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, UC);
+	}
 
 	if (!boot_cpu_done) {
 		pat_bsp_init(pat);
