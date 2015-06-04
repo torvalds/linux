@@ -34,6 +34,7 @@
 #include <sound/soc-dapm.h>
 #include <sound/tlv.h>
 #include <sound/tas2552-plat.h>
+#include <dt-bindings/sound/tas2552.h>
 
 #include "tas2552.h"
 
@@ -76,6 +77,7 @@ struct tas2552_data {
 	struct gpio_desc *enable_gpio;
 	unsigned char regs[TAS2552_VBAT_DATA];
 	unsigned int pll_clkin;
+	unsigned int pdm_clk;
 };
 
 /* Input mux controls */
@@ -244,8 +246,33 @@ static int tas2552_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct tas2552_data *tas2552 = dev_get_drvdata(codec->dev);
+	u8 reg, mask, val;
 
-	tas2552->pll_clkin = freq;
+	switch (clk_id) {
+	case TAS2552_PLL_CLKIN_MCLK:
+	case TAS2552_PLL_CLKIN_BCLK:
+	case TAS2552_PLL_CLKIN_IVCLKIN:
+	case TAS2552_PLL_CLKIN_1_8_FIXED:
+		mask = TAS2552_PLL_SRC_MASK;
+		val = (clk_id << 3) & mask; /* bit 4:5 in the register */
+		reg = TAS2552_CFG_1;
+		tas2552->pll_clkin = freq;
+		break;
+	case TAS2552_PDM_CLK_PLL:
+	case TAS2552_PDM_CLK_IVCLKIN:
+	case TAS2552_PDM_CLK_BCLK:
+	case TAS2552_PDM_CLK_MCLK:
+		mask = TAS2552_PDM_CLK_SEL_MASK;
+		val = (clk_id >> 1) & mask; /* bit 0:1 in the register */
+		reg = TAS2552_PDM_CFG;
+		tas2552->pdm_clk = freq;
+		break;
+	default:
+		dev_err(codec->dev, "Invalid clk id: %d\n", clk_id);
+		return -EINVAL;
+	}
+
+	snd_soc_update_bits(codec, reg, mask, val);
 
 	return 0;
 }
@@ -366,13 +393,11 @@ static int tas2552_codec_probe(struct snd_soc_codec *codec)
 		goto probe_fail;
 	}
 
-	snd_soc_write(codec, TAS2552_CFG_1, TAS2552_MUTE |
-				TAS2552_PLL_SRC_BCLK);
+	snd_soc_write(codec, TAS2552_CFG_1, TAS2552_MUTE);
 	snd_soc_write(codec, TAS2552_CFG_3, TAS2552_I2S_OUT_SEL |
 				TAS2552_DIN_SRC_SEL_AVG_L_R | TAS2552_88_96KHZ);
 	snd_soc_write(codec, TAS2552_DOUT, TAS2552_PDM_DATA_I);
 	snd_soc_write(codec, TAS2552_OUTPUT_DATA, TAS2552_PDM_DATA_V_I | 0x8);
-	snd_soc_write(codec, TAS2552_PDM_CFG, TAS2552_PDM_CLK_SEL_PLL);
 	snd_soc_write(codec, TAS2552_BOOST_PT_CTRL, TAS2552_APT_DELAY_200 |
 				TAS2552_APT_THRESH_2_1_7);
 
