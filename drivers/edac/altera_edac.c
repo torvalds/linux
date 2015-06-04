@@ -219,36 +219,31 @@ static void altr_sdr_mc_create_debugfs_nodes(struct mem_ctl_info *mci)
 {}
 #endif
 
-/* Get total memory size in bytes */
-static u32 altr_sdram_get_total_mem_size(struct regmap *mc_vbase)
+/* Get total memory size from Open Firmware DTB */
+static unsigned long get_total_mem(void)
 {
-	u32 size, read_reg, row, bank, col, cs, width;
+	struct device_node *np = NULL;
+	const unsigned int *reg, *reg_end;
+	int len, sw, aw;
+	unsigned long start, size, total_mem = 0;
 
-	if (regmap_read(mc_vbase, DRAMADDRW_OFST, &read_reg) < 0)
-		return 0;
+	for_each_node_by_type(np, "memory") {
+		aw = of_n_addr_cells(np);
+		sw = of_n_size_cells(np);
+		reg = (const unsigned int *)of_get_property(np, "reg", &len);
+		reg_end = reg + (len / sizeof(u32));
 
-	if (regmap_read(mc_vbase, DRAMIFWIDTH_OFST, &width) < 0)
-		return 0;
-
-	col = (read_reg & DRAMADDRW_COLBIT_MASK) >>
-		DRAMADDRW_COLBIT_SHIFT;
-	row = (read_reg & DRAMADDRW_ROWBIT_MASK) >>
-		DRAMADDRW_ROWBIT_SHIFT;
-	bank = (read_reg & DRAMADDRW_BANKBIT_MASK) >>
-		DRAMADDRW_BANKBIT_SHIFT;
-	cs = (read_reg & DRAMADDRW_CSBIT_MASK) >>
-		DRAMADDRW_CSBIT_SHIFT;
-
-	/* Correct for ECC as its not addressible */
-	if (width == DRAMIFWIDTH_32B_ECC)
-		width = 32;
-	if (width == DRAMIFWIDTH_16B_ECC)
-		width = 16;
-
-	/* calculate the SDRAM size base on this info */
-	size = 1 << (row + bank + col);
-	size = size * cs * (width / 8);
-	return size;
+		total_mem = 0;
+		do {
+			start = of_read_number(reg, aw);
+			reg += aw;
+			size = of_read_number(reg, sw);
+			reg += sw;
+			total_mem += size;
+		} while (reg < reg_end);
+	}
+	edac_dbg(0, "total_mem 0x%lx\n", total_mem);
+	return total_mem;
 }
 
 static int altr_sdram_probe(struct platform_device *pdev)
@@ -280,10 +275,9 @@ static int altr_sdram_probe(struct platform_device *pdev)
 	}
 
 	/* Grab memory size from device tree. */
-	mem_size = altr_sdram_get_total_mem_size(mc_vbase);
+	mem_size = get_total_mem();
 	if (!mem_size) {
-		edac_printk(KERN_ERR, EDAC_MC,
-			    "Unable to calculate memory size\n");
+		edac_printk(KERN_ERR, EDAC_MC, "Unable to calculate memory size\n");
 		return -ENODEV;
 	}
 
