@@ -452,4 +452,5 @@ void mce_intel_feature_init(struct cpuinfo_x86 *c)
 {
 	intel_init_thermal(c);
 	intel_init_cmci();
+	intel_init_lmce();
 }
