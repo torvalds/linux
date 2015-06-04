@@ -234,6 +234,7 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_AQ_CONFIGURE_QUEUES		(u32)(1 << 6)
 #define I40EVF_FLAG_AQ_MAP_VECTORS		(u32)(1 << 7)
 #define I40EVF_FLAG_AQ_HANDLE_RESET		(u32)(1 << 8)
+#define I40EVF_FLAG_AQ_GET_CONFIG		(u32)(1 << 10)
 
 	/* OS defined structs */
 	struct net_device *netdev;
@@ -273,6 +274,7 @@ extern const char i40evf_driver_version[];
 
 int i40evf_up(struct i40evf_adapter *adapter);
 void i40evf_down(struct i40evf_adapter *adapter);
+int i40evf_process_config(struct i40evf_adapter *adapter);
 void i40evf_reset(struct i40evf_adapter *adapter);
 void i40evf_set_ethtool_ops(struct net_device *netdev);
 void i40evf_update_stats(struct i40evf_adapter *adapter);
