@@ -142,7 +142,7 @@ The port netdevs representing the physical switch ports can be organized into
 higher-level switching constructs.  The default construct is a standalone
 router port, used to offload L3 forwarding.  Two or more ports can be bonded
 together to form a LAG.  Two or more ports (or LAGs) can be bridged to bridge
-to L2 networks.  VLANs can be applied to sub-divide L2 networks.  L2-over-L3
+L2 networks.  VLANs can be applied to sub-divide L2 networks.  L2-over-L3
 tunnels can be built on ports.  These constructs are built using standard Linux
 tools such as the bridge driver, the bonding/team drivers, and netlink-based
 tools such as iproute2.
