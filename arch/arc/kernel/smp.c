@@ -31,7 +31,7 @@ arch_spinlock_t smp_atomic_ops_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 arch_spinlock_t smp_bitops_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 #endif
 
-struct plat_smp_ops  plat_smp_ops;
+struct plat_smp_ops  __weak plat_smp_ops;
 
 /* XXX: per cpu ? Only needed once in early seconday boot */
 struct task_struct *secondary_idle_tsk;
