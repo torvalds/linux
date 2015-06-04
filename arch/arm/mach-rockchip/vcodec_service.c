@@ -71,6 +71,28 @@
 
 #include "vcodec_service.h"
 
+/*
+ * debug flag usage:
+ * +------+-------------------+
+ * | 8bit |      24bit        |
+ * +------+-------------------+
+ *  0~23 bit is for different information type
+ * 24~31 bit is for information print format
+ */
+
+#define DEBUG_POWER				0x00000001
+#define DEBUG_CLOCK				0x00000002
+#define DEBUG_IRQ_STATUS			0x00000004
+#define DEBUG_IOMMU				0x00000008
+#define DEBUG_IOCTL				0x00000010
+#define DEBUG_FUNCTION				0x00000020
+#define DEBUG_REGISTER				0x00000040
+#define DEBUG_EXTRA_INFO			0x00000080
+#define DEBUG_TIMING				0x00000100
+
+#define PRINT_FUNCTION				0x80000000
+#define PRINT_LINE				0x40000000
+
 static int debug;
 module_param(debug, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug,
@@ -230,18 +252,26 @@ static VPU_HW_INFO_E vpu_hw_set[] = {
 
 #define DEBUG
 #ifdef DEBUG
-#define vpu_debug(level, fmt, args...)				\
+#define vpu_debug_func(type, fmt, args...)			\
 	do {							\
-		if (debug >= level)				\
+		if (unlikely(debug & type)) {			\
 			pr_info("%s:%d: " fmt,	                \
 				 __func__, __LINE__, ##args);	\
+		}						\
+	} while (0)
+#define vpu_debug(type, fmt, args...)				\
+	do {							\
+		if (unlikely(debug & type)) {			\
+			pr_info(fmt, ##args);			\
+		}						\
 	} while (0)
 #else
+#define vpu_debug_func(level, fmt, args...)
 #define vpu_debug(level, fmt, args...)
 #endif
 
-#define vpu_debug_enter() vpu_debug(4, "enter\n")
-#define vpu_debug_leave() vpu_debug(4, "leave\n")
+#define vpu_debug_enter() vpu_debug_func(DEBUG_FUNCTION, "enter\n")
+#define vpu_debug_leave() vpu_debug_func(DEBUG_FUNCTION, "leave\n")
 
 #define vpu_err(fmt, args...)				\
 		pr_err("%s:%d: " fmt, __func__, __LINE__, ##args)
@@ -542,7 +572,7 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 	if (pservice->curr_mode == data->mode)
 		return;
 
-	vpu_debug(3, "vcodec enter mode %d\n", data->mode);
+	vpu_debug(DEBUG_IOMMU, "vcodec enter mode %d\n", data->mode);
 #if defined(CONFIG_VCODEC_MMU)
 	list_for_each_entry_safe(subdata, n, &pservice->subdev_list, lnk_service) {
 		if (data != subdata && subdata->mmu_dev &&
@@ -663,6 +693,8 @@ static void vpu_put_clk(struct vpu_service_info *pservice)
 static void vpu_reset(struct vpu_subdev_data *data)
 {
 	struct vpu_service_info *pservice = data->pservice;
+	pr_info("%s: resetting...", dev_name(pservice->dev));
+
 #if defined(CONFIG_ARCH_RK29)
 	clk_disable(aclk_ddr_vepu);
 	cru_set_soft_reset(SOFT_RST_CPU_VODEC_A2A_AHB, true);
@@ -977,7 +1009,7 @@ static int vcodec_bufid_to_iova(struct vpu_subdev_data *data, u8 *tbl,
 
 	if (ext_inf != NULL && ext_inf->magic == EXTRA_INFO_MAGIC) {
 		for (i=0; i<ext_inf->cnt; i++) {
-			vpu_debug(3, "reg[%d] + offset %d\n",
+			vpu_debug(DEBUG_IOMMU, "reg[%d] + offset %d\n",
 				  ext_inf->elem[i].index,
 				  ext_inf->elem[i].offset);
 			reg->reg[ext_inf->elem[i].index] +=
@@ -1508,17 +1540,18 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd,
 	struct vpu_service_info *pservice = data->pservice;
 	vpu_session *session = (vpu_session *)filp->private_data;
 	vpu_debug_enter();
-	vpu_debug(3, "cmd %x, VPU_IOC_SET_CLIENT_TYPE %x\n", cmd, (u32)VPU_IOC_SET_CLIENT_TYPE);
 	if (NULL == session)
 		return -EINVAL;
 
 	switch (cmd) {
 	case VPU_IOC_SET_CLIENT_TYPE : {
 		session->type = (enum VPU_CLIENT_TYPE)arg;
+		vpu_debug(DEBUG_IOCTL, "VPU_IOC_SET_CLIENT_TYPE %d\n", session->type);
 		break;
 	}
 	case VPU_IOC_GET_HW_FUSE_STATUS : {
 		struct vpu_request req;
+		vpu_debug(DEBUG_IOCTL, "VPU_IOC_GET_HW_FUSE_STATUS type %d\n", session->type);
 		if (copy_from_user(&req, (void __user *)arg, sizeof(struct vpu_request))) {
 			vpu_err("error: VPU_IOC_GET_HW_FUSE_STATUS copy_from_user failed\n");
 			return -EFAULT;
@@ -1547,6 +1580,7 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd,
 	case VPU_IOC_SET_REG : {
 		struct vpu_request req;
 		vpu_reg *reg;
+		vpu_debug(DEBUG_IOCTL, "VPU_IOC_SET_REG type %d\n", session->type);
 		if (copy_from_user(&req, (void __user *)arg,
 			sizeof(struct vpu_request))) {
 			vpu_err("error: VPU_IOC_SET_REG copy_from_user failed\n");
@@ -1567,6 +1601,7 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd,
 	case VPU_IOC_GET_REG : {
 		struct vpu_request req;
 		vpu_reg *reg;
+		vpu_debug(DEBUG_IOCTL, "VPU_IOC_GET_REG type %d\n", session->type);
 		if (copy_from_user(&req, (void __user *)arg,
 			sizeof(struct vpu_request))) {
 			vpu_err("error: VPU_IOC_GET_REG copy_from_user failed\n");
@@ -1611,6 +1646,8 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd,
 	case VPU_IOC_PROBE_IOMMU_STATUS: {
 		int iommu_enable = 0;
 
+		vpu_debug(DEBUG_IOCTL, "VPU_IOC_PROBE_IOMMU_STATUS\n");
+
 #if defined(CONFIG_VCODEC_MMU)
 		iommu_enable = data->mmu_dev ? 1 : 0;
 #endif
@@ -1648,11 +1685,12 @@ static long compat_vpu_service_ioctl(struct file *filp, unsigned int cmd,
 	switch (cmd) {
 	case COMPAT_VPU_IOC_SET_CLIENT_TYPE : {
 		session->type = (enum VPU_CLIENT_TYPE)arg;
+		vpu_debug(DEBUG_IOCTL, "COMPAT_VPU_IOC_SET_CLIENT_TYPE type %d\n", session->type);
 		break;
 	}
 	case COMPAT_VPU_IOC_GET_HW_FUSE_STATUS : {
 		struct compat_vpu_request req;
-
+		vpu_debug(DEBUG_IOCTL, "COMPAT_VPU_IOC_GET_HW_FUSE_STATUS type %d\n", session->type);
 		if (copy_from_user(&req, compat_ptr((compat_uptr_t)arg),
 				   sizeof(struct compat_vpu_request))) {
 			vpu_err("error: VPU_IOC_GET_HW_FUSE_STATUS"
@@ -1685,6 +1723,7 @@ static long compat_vpu_service_ioctl(struct file *filp, unsigned int cmd,
 	case COMPAT_VPU_IOC_SET_REG : {
 		struct compat_vpu_request req;
 		vpu_reg *reg;
+		vpu_debug(DEBUG_IOCTL, "COMPAT_VPU_IOC_SET_REG type %d\n", session->type);
 		if (copy_from_user(&req, compat_ptr((compat_uptr_t)arg),
 				   sizeof(struct compat_vpu_request))) {
 			vpu_err("VPU_IOC_SET_REG copy_from_user failed\n");
@@ -1705,6 +1744,7 @@ static long compat_vpu_service_ioctl(struct file *filp, unsigned int cmd,
 	case COMPAT_VPU_IOC_GET_REG : {
 		struct compat_vpu_request req;
 		vpu_reg *reg;
+		vpu_debug(DEBUG_IOCTL, "COMPAT_VPU_IOC_GET_REG type %d\n", session->type);
 		if (copy_from_user(&req, compat_ptr((compat_uptr_t)arg),
 				   sizeof(struct compat_vpu_request))) {
 			vpu_err("VPU_IOC_GET_REG copy_from_user failed\n");
@@ -1749,6 +1789,7 @@ static long compat_vpu_service_ioctl(struct file *filp, unsigned int cmd,
 	case COMPAT_VPU_IOC_PROBE_IOMMU_STATUS : {
 		int iommu_enable = 0;
 
+		vpu_debug(DEBUG_IOCTL, "COMPAT_VPU_IOC_PROBE_IOMMU_STATUS\n");
 #if defined(CONFIG_VCODEC_MMU)
 		iommu_enable = data->mmu_dev ? 1 : 0;
 #endif
@@ -1920,11 +1961,11 @@ int vcodec_sysmmu_fault_hdl(struct device *dev,
 	if (pservice->reg_codec) {
 		struct vcodec_mem_region *mem, *n;
 		int i = 0;
-		vpu_debug(3, "vcodec, fault addr 0x%08x\n", (u32)fault_addr);
+		vpu_debug(DEBUG_IOMMU, "vcodec, fault addr 0x%08x\n", (u32)fault_addr);
 		list_for_each_entry_safe(mem, n,
 					 &pservice->reg_codec->mem_region_list,
 					 reg_lnk) {
-			vpu_debug(3, "vcodec, reg[%02u] mem region [%02d] 0x%08x %ld\n",
+			vpu_debug(DEBUG_IOMMU, "vcodec, reg[%02u] mem region [%02d] 0x%08x %ld\n",
 				mem->reg_idx, i, (u32)mem->iova, mem->len);
 			i++;
 		}
@@ -2188,7 +2229,7 @@ static void vcodec_init_drvdata(struct vpu_service_info *pservice)
 		vpu_err("failed to create ion client for vcodec ret %ld\n",
 			PTR_ERR(pservice->ion_client));
 	} else {
-		vpu_debug(3, "vcodec ion client create success!\n");
+		vpu_debug(DEBUG_IOMMU, "vcodec ion client create success!\n");
 	}
 }
 
@@ -2394,10 +2435,8 @@ static irqreturn_t vdpu_irq(int irq, void *dev_id)
 
 	irq_status = raw_status = readl(dev->hwregs + DEC_INTERRUPT_REGISTER);
 
-	vpu_debug(3, "%s status %08x\n", __func__, raw_status);
-
 	if (irq_status & DEC_INTERRUPT_BIT) {
-		pr_debug("dec_isr dec %x\n", irq_status);
+		vpu_debug(DEBUG_IRQ_STATUS, "vdpu_irq dec status %08x\n", irq_status);
 		if ((irq_status & 0x40001) == 0x40001) {
 			do {
 				irq_status =
@@ -2413,7 +2452,7 @@ static irqreturn_t vdpu_irq(int irq, void *dev_id)
 	if (data->hw_info->hw_id != HEVC_ID) {
 		irq_status = readl(dev->hwregs + PP_INTERRUPT_REGISTER);
 		if (irq_status & PP_INTERRUPT_BIT) {
-			pr_debug("vdpu_isr pp  %x\n", irq_status);
+			vpu_debug(DEBUG_IRQ_STATUS, "vdpu_irq pp status %08x\n", irq_status);
 			/* clear pp IRQ */
 			writel(irq_status & (~DEC_INTERRUPT_BIT), dev->hwregs + PP_INTERRUPT_REGISTER);
 			atomic_add(1, &dev->irq_count_pp);
@@ -2484,7 +2523,7 @@ static irqreturn_t vepu_irq(int irq, void *dev_id)
 	/*vcodec_enter_mode(data);*/
 	irq_status= readl(dev->hwregs + ENC_INTERRUPT_REGISTER);
 
-	pr_debug("vepu_irq irq status %x\n", irq_status);
+	vpu_debug(DEBUG_IRQ_STATUS, "vepu_irq irq status %x\n", irq_status);
 
 #if VPU_SERVICE_SHOW_TIME
 	do_gettimeofday(&enc_end);
@@ -2877,7 +2916,7 @@ static int hevc_test_case0(vpu_service_info *pservice)
 			vpu_err("test index %d failed\n", testidx);
 			break;
 		} else {
-			vpu_debug(3, "test index %d success\n", testidx);
+			vpu_debug(DEBUG_EXTRA_INFO, "test index %d success\n", testidx);
 
 			vpu_reg *reg = list_entry(session.done.next, vpu_reg, session_link);
 
