@@ -5346,6 +5346,73 @@ static void modeset_update_crtc_power_domains(struct drm_atomic_state *state)
 	intel_display_set_init_power(dev_priv, false);
 }
 
+static void intel_update_max_cdclk(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (IS_SKYLAKE(dev)) {
+		u32 limit = I915_READ(SKL_DFSM) & SKL_DFSM_CDCLK_LIMIT_MASK;
+
+		if (limit == SKL_DFSM_CDCLK_LIMIT_675)
+			dev_priv->max_cdclk_freq = 675000;
+		else if (limit == SKL_DFSM_CDCLK_LIMIT_540)
+			dev_priv->max_cdclk_freq = 540000;
+		else if (limit == SKL_DFSM_CDCLK_LIMIT_450)
+			dev_priv->max_cdclk_freq = 450000;
+		else
+			dev_priv->max_cdclk_freq = 337500;
+	} else if (IS_BROADWELL(dev))  {
+		/*
+		 * FIXME with extra cooling we can allow
+		 * 540 MHz for ULX and 675 Mhz for ULT.
+		 * How can we know if extra cooling is
+		 * available? PCI ID, VTB, something else?
+		 */
+		if (I915_READ(FUSE_STRAP) & HSW_CDCLK_LIMIT)
+			dev_priv->max_cdclk_freq = 450000;
+		else if (IS_BDW_ULX(dev))
+			dev_priv->max_cdclk_freq = 450000;
+		else if (IS_BDW_ULT(dev))
+			dev_priv->max_cdclk_freq = 540000;
+		else
+			dev_priv->max_cdclk_freq = 675000;
+	} else if (IS_VALLEYVIEW(dev)) {
+		dev_priv->max_cdclk_freq = 400000;
+	} else {
+		/* otherwise assume cdclk is fixed */
+		dev_priv->max_cdclk_freq = dev_priv->cdclk_freq;
+	}
+
+	DRM_DEBUG_DRIVER("Max CD clock rate: %d kHz\n",
+			 dev_priv->max_cdclk_freq);
+}
+
+static void intel_update_cdclk(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	dev_priv->cdclk_freq = dev_priv->display.get_display_clock_speed(dev);
+	DRM_DEBUG_DRIVER("Current CD clock rate: %d kHz\n",
+			 dev_priv->cdclk_freq);
+
+	/*
+	 * Program the gmbus_freq based on the cdclk frequency.
+	 * BSpec erroneously claims we should aim for 4MHz, but
+	 * in fact 1MHz is the correct frequency.
+	 */
+	if (IS_VALLEYVIEW(dev)) {
+		/*
+		 * Program the gmbus_freq based on the cdclk frequency.
+		 * BSpec erroneously claims we should aim for 4MHz, but
+		 * in fact 1MHz is the correct frequency.
+		 */
+		I915_WRITE(GMBUSFREQ_VLV, DIV_ROUND_UP(dev_priv->cdclk_freq, 1000));
+	}
+
+	if (dev_priv->max_cdclk_freq == 0)
+		intel_update_max_cdclk(dev);
+}
+
 static void broxton_set_cdclk(struct drm_device *dev, int frequency)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -5637,6 +5704,7 @@ static bool skl_cdclk_wait_for_pcu_ready(struct drm_i915_private *dev_priv)
 
 static void skl_set_cdclk(struct drm_i915_private *dev_priv, unsigned int freq)
 {
+	struct drm_device *dev = dev_priv->dev;
 	u32 freq_select, pcu_ack;
 
 	DRM_DEBUG_DRIVER("Changing CDCLK to %dKHz\n", freq);
@@ -5677,6 +5745,8 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv, unsigned int freq)
 	mutex_lock(&dev_priv->rps.hw_lock);
 	sandybridge_pcode_write(dev_priv, SKL_PCODE_CDCLK_CONTROL, pcu_ack);
 	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	intel_update_cdclk(dev);
 }
 
 void skl_uninit_cdclk(struct drm_i915_private *dev_priv)
@@ -5745,73 +5815,6 @@ static int valleyview_get_vco(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->sb_lock);
 
 	return vco_freq[hpll_freq] * 1000;
-}
-
-static void intel_update_max_cdclk(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (IS_SKYLAKE(dev)) {
-		u32 limit = I915_READ(SKL_DFSM) & SKL_DFSM_CDCLK_LIMIT_MASK;
-
-		if (limit == SKL_DFSM_CDCLK_LIMIT_675)
-			dev_priv->max_cdclk_freq = 675000;
-		else if (limit == SKL_DFSM_CDCLK_LIMIT_540)
-			dev_priv->max_cdclk_freq = 540000;
-		else if (limit == SKL_DFSM_CDCLK_LIMIT_450)
-			dev_priv->max_cdclk_freq = 450000;
-		else
-			dev_priv->max_cdclk_freq = 337500;
-	} else if (IS_BROADWELL(dev))  {
-		/*
-		 * FIXME with extra cooling we can allow
-		 * 540 MHz for ULX and 675 Mhz for ULT.
-		 * How can we know if extra cooling is
-		 * available? PCI ID, VTB, something else?
-		 */
-		if (I915_READ(FUSE_STRAP) & HSW_CDCLK_LIMIT)
-			dev_priv->max_cdclk_freq = 450000;
-		else if (IS_BDW_ULX(dev))
-			dev_priv->max_cdclk_freq = 450000;
-		else if (IS_BDW_ULT(dev))
-			dev_priv->max_cdclk_freq = 540000;
-		else
-			dev_priv->max_cdclk_freq = 675000;
-	} else if (IS_VALLEYVIEW(dev)) {
-		dev_priv->max_cdclk_freq = 400000;
-	} else {
-		/* otherwise assume cdclk is fixed */
-		dev_priv->max_cdclk_freq = dev_priv->cdclk_freq;
-	}
-
-	DRM_DEBUG_DRIVER("Max CD clock rate: %d kHz\n",
-			 dev_priv->max_cdclk_freq);
-}
-
-static void intel_update_cdclk(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	dev_priv->cdclk_freq = dev_priv->display.get_display_clock_speed(dev);
-	DRM_DEBUG_DRIVER("Current CD clock rate: %d kHz\n",
-			 dev_priv->cdclk_freq);
-
-	/*
-	 * Program the gmbus_freq based on the cdclk frequency.
-	 * BSpec erroneously claims we should aim for 4MHz, but
-	 * in fact 1MHz is the correct frequency.
-	 */
-	if (IS_VALLEYVIEW(dev)) {
-		/*
-		 * Program the gmbus_freq based on the cdclk frequency.
-		 * BSpec erroneously claims we should aim for 4MHz, but
-		 * in fact 1MHz is the correct frequency.
-		 */
-		I915_WRITE(GMBUSFREQ_VLV, DIV_ROUND_UP(dev_priv->cdclk_freq, 1000));
-	}
-
-	if (dev_priv->max_cdclk_freq == 0)
-		intel_update_max_cdclk(dev);
 }
 
 /* Adjust CDclk dividers to allow high res or save power if possible */
