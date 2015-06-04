@@ -465,9 +465,7 @@ static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buff
 	mutex_lock(&UFS_I(inode)->truncate_mutex);
 
 	UFSD("ENTER, ino %lu, fragment %llu\n", inode->i_ino, (unsigned long long)fragment);
-	if (fragment >
-	    ((UFS_NDADDR + uspi->s_apb + uspi->s_2apb + uspi->s_3apb)
-	     << uspi->s_fpbshift))
+	if (!depth)
 		goto abort_too_big;
 
 	err = 0;
@@ -490,17 +488,17 @@ static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buff
 	ufs_inode_getblock(inode, bh, x, fragment,	\
 			  &err, NULL, NULL, NULL)
 
-	if (ptr < UFS_NDIR_FRAGMENT) {
+	if (depth == 1) {
 		bh = GET_INODE_DATABLOCK(ptr);
 		goto out;
 	}
 	ptr -= UFS_NDIR_FRAGMENT;
-	if (ptr < (1 << (uspi->s_apbshift + uspi->s_fpbshift))) {
+	if (depth == 2) {
 		bh = GET_INODE_PTR(UFS_IND_FRAGMENT + (ptr >> uspi->s_apbshift));
 		goto get_indirect;
 	}
 	ptr -= 1 << (uspi->s_apbshift + uspi->s_fpbshift);
-	if (ptr < (1 << (uspi->s_2apbshift + uspi->s_fpbshift))) {
+	if (depth == 3) {
 		bh = GET_INODE_PTR(UFS_DIND_FRAGMENT + (ptr >> uspi->s_2apbshift));
 		goto get_double;
 	}
