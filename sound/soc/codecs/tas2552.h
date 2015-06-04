@@ -62,6 +62,24 @@
 #define TAS2552_LIM_EN			(1 << 2)
 #define TAS2552_IVSENSE_EN		(1 << 1)
 
+/* CFG3 Register Masks */
+#define TAS2552_WCLK_FREQ_8KHZ		(0x0 << 0)
+#define TAS2552_WCLK_FREQ_11_12KHZ	(0x1 << 0)
+#define TAS2552_WCLK_FREQ_16KHZ		(0x2 << 0)
+#define TAS2552_WCLK_FREQ_22_24KHZ	(0x3 << 0)
+#define TAS2552_WCLK_FREQ_32KHZ		(0x4 << 0)
+#define TAS2552_WCLK_FREQ_44_48KHZ	(0x5 << 0)
+#define TAS2552_WCLK_FREQ_88_96KHZ	(0x6 << 0)
+#define TAS2552_WCLK_FREQ_176_192KHZ	(0x7 << 0)
+#define TAS2552_WCLK_FREQ_MASK		TAS2552_WCLK_FREQ_176_192KHZ
+#define TAS2552_DIN_SRC_SEL_MUTED	(0x0 << 3)
+#define TAS2552_DIN_SRC_SEL_LEFT	(0x1 << 3)
+#define TAS2552_DIN_SRC_SEL_RIGHT	(0x2 << 3)
+#define TAS2552_DIN_SRC_SEL_AVG_L_R	(0x3 << 3)
+#define TAS2552_PDM_IN_SEL		(1 << 5)
+#define TAS2552_I2S_OUT_SEL		(1 << 6)
+#define TAS2552_ANALOG_IN_SEL		(1 << 7)
+
 /* DOUT Register Masks */
 #define TAS2552_SDOUT_TRISTATE		(1 << 2)
 
@@ -83,25 +101,6 @@
 #define TAS2552_CLKSPERFRAME_MASK	TAS2552_CLKSPERFRAME_256
 #define TAS2552_BCLKDIR			(1 << 6)
 #define TAS2552_WCLKDIR			(1 << 7)
-
-#define TAS2552_DIN_SRC_SEL_MUTED	0x00
-#define TAS2552_DIN_SRC_SEL_LEFT	(1 << 4)
-#define TAS2552_DIN_SRC_SEL_RIGHT	(1 << 5)
-#define TAS2552_DIN_SRC_SEL_AVG_L_R	(0x11 << 4)
-
-#define TAS2552_PDM_IN_SEL		(1 << 5)
-#define TAS2552_I2S_OUT_SEL		(1 << 6)
-#define TAS2552_ANALOG_IN_SEL	(1 << 7)
-
-/* CFG3 WCLK Dividers */
-#define TAS2552_8KHZ		0x00
-#define TAS2552_11_12KHZ	(1 << 1)
-#define TAS2552_16KHZ		(1 << 2)
-#define TAS2552_22_24KHZ	(1 << 3)
-#define TAS2552_32KHZ		(1 << 4)
-#define TAS2552_44_48KHZ	(1 << 5)
-#define TAS2552_88_96KHZ	(1 << 6)
-#define TAS2552_176_192KHZ	(1 << 7)
 
 /* OUTPUT_DATA register */
 #define TAS2552_PDM_DATA_I		0x00

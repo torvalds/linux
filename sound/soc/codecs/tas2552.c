@@ -168,7 +168,7 @@ static int tas2552_hw_params(struct snd_pcm_substream *substream,
 	int d;
 	int cpf;
 	u8 p, j;
-	u8 ser_ctrl1_reg;
+	u8 ser_ctrl1_reg, wclk_rate;
 
 	switch (params_width(params)) {
 	case 16:
@@ -205,6 +205,45 @@ static int tas2552_hw_params(struct snd_pcm_substream *substream,
 	snd_soc_update_bits(codec, TAS2552_SER_CTRL_1,
 			    TAS2552_WORDLENGTH_MASK | TAS2552_CLKSPERFRAME_MASK,
 			    ser_ctrl1_reg);
+
+	switch (params_rate(params)) {
+	case 8000:
+		wclk_rate = TAS2552_WCLK_FREQ_8KHZ;
+		break;
+	case 11025:
+	case 12000:
+		wclk_rate = TAS2552_WCLK_FREQ_11_12KHZ;
+		break;
+	case 16000:
+		wclk_rate = TAS2552_WCLK_FREQ_16KHZ;
+		break;
+	case 22050:
+	case 24000:
+		wclk_rate = TAS2552_WCLK_FREQ_22_24KHZ;
+		break;
+	case 32000:
+		wclk_rate = TAS2552_WCLK_FREQ_32KHZ;
+		break;
+	case 44100:
+	case 48000:
+		wclk_rate = TAS2552_WCLK_FREQ_44_48KHZ;
+		break;
+	case 88200:
+	case 96000:
+		wclk_rate = TAS2552_WCLK_FREQ_88_96KHZ;
+		break;
+	case 176400:
+	case 192000:
+		wclk_rate = TAS2552_WCLK_FREQ_176_192KHZ;
+		break;
+	default:
+		dev_err(codec->dev, "Not supported sample rate: %d\n",
+			params_rate(params));
+		return -EINVAL;
+	}
+
+	snd_soc_update_bits(codec, TAS2552_CFG_3, TAS2552_WCLK_FREQ_MASK,
+			    wclk_rate);
 
 	if (!tas2552->pll_clkin)
 		return -EINVAL;
@@ -503,7 +542,7 @@ static int tas2552_codec_probe(struct snd_soc_codec *codec)
 
 	snd_soc_update_bits(codec, TAS2552_CFG_1, TAS2552_MUTE, TAS2552_MUTE);
 	snd_soc_write(codec, TAS2552_CFG_3, TAS2552_I2S_OUT_SEL |
-				TAS2552_DIN_SRC_SEL_AVG_L_R | TAS2552_88_96KHZ);
+					    TAS2552_DIN_SRC_SEL_AVG_L_R);
 	snd_soc_write(codec, TAS2552_DOUT, TAS2552_PDM_DATA_I);
 	snd_soc_write(codec, TAS2552_OUTPUT_DATA, TAS2552_PDM_DATA_V_I | 0x8);
 	snd_soc_write(codec, TAS2552_BOOST_PT_CTRL, TAS2552_APT_DELAY_200 |
