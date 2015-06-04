@@ -1351,6 +1351,7 @@ bc_svc_process(struct svc_serv *serv, struct rpc_rqst *req,
 	struct kvec	*argv = &rqstp->rq_arg.head[0];
 	struct kvec	*resv = &rqstp->rq_res.head[0];
 	struct rpc_task *task;
+	int proc_error;
 	int error;
 
 	dprintk("svc: %s(%p)\n", __func__, req);
@@ -1382,7 +1383,10 @@ bc_svc_process(struct svc_serv *serv, struct rpc_rqst *req,
 	svc_getnl(argv);	/* CALLDIR */
 
 	/* Parse and execute the bc call */
-	if (!svc_process_common(rqstp, argv, resv)) {
+	proc_error = svc_process_common(rqstp, argv, resv);
+
+	atomic_inc(&req->rq_xprt->bc_free_slots);
+	if (!proc_error) {
 		/* Processing error: drop the request */
 		xprt_free_bc_request(req);
 		return 0;

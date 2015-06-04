@@ -212,7 +212,8 @@ struct rpc_xprt {
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
 	struct svc_serv		*bc_serv;       /* The RPC service which will */
 						/* process the callback */
-	unsigned int		bc_alloc_count;	/* Total number of preallocs */
+	int			bc_alloc_count;	/* Total number of preallocs */
+	atomic_t		bc_free_slots;
 	spinlock_t		bc_pa_lock;	/* Protects the preallocated
 						 * items */
 	struct list_head	bc_pa_list;	/* List of preallocated
