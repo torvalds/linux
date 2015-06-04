@@ -517,7 +517,7 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	inline_bytes = rqstp->rq_res.len;
 
 	/* Create the RDMA response header */
-	res_page = svc_rdma_get_page();
+	res_page = alloc_page(GFP_KERNEL | __GFP_NOFAIL);
 	rdma_resp = page_address(res_page);
 	reply_ary = svc_rdma_get_reply_array(rdma_argp);
 	if (reply_ary)
