@@ -832,6 +832,8 @@ void mwifiex_uap_set_channel(struct mwifiex_private *priv,
 		if (chandef.width > NL80211_CHAN_WIDTH_40)
 			config_bands |= BAND_AAC;
 	}
+
+	priv->adapter->config_bands = config_bands;
 }
 
 int mwifiex_config_start_uap(struct mwifiex_private *priv,
