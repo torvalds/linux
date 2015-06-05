@@ -252,10 +252,9 @@ static int das08_di_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int das08_do_wbits(struct comedi_device *dev,
-			  struct comedi_subdevice *s,
-			  struct comedi_insn *insn,
-			  unsigned int *data)
+static int das08_do_insn_bits(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn, unsigned int *data)
 {
 	struct das08_private_struct *devpriv = dev->private;
 
@@ -283,10 +282,9 @@ static int das08jr_di_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int das08jr_do_wbits(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn,
-			    unsigned int *data)
+static int das08jr_do_insn_bits(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn, unsigned int *data)
 {
 	if (comedi_dio_update_state(s, data))
 		outb(s->state, dev->iobase + DAS08JR_DO_REG);
@@ -417,8 +415,8 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 		s->n_chan = thisboard->do_nchan;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
-		s->insn_bits =
-			thisboard->is_jr ? das08jr_do_wbits : das08_do_wbits;
+		s->insn_bits = thisboard->is_jr ? das08jr_do_insn_bits :
+			       das08_do_insn_bits;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
