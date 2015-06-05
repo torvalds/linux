@@ -135,7 +135,6 @@ static int tce_iommu_enable(struct tce_container *container)
 {
 	int ret = 0;
 	unsigned long locked;
-	struct iommu_table *tbl;
 	struct iommu_table_group *table_group;
 
 	if (!container->grp)
@@ -171,13 +170,19 @@ static int tce_iommu_enable(struct tce_container *container)
 	 * this is that we cannot tell here the amount of RAM used by the guest
 	 * as this information is only available from KVM and VFIO is
 	 * KVM agnostic.
+	 *
+	 * So we do not allow enabling a container without a group attached
+	 * as there is no way to know how much we should increment
+	 * the locked_vm counter.
 	 */
 	table_group = iommu_group_get_iommudata(container->grp);
 	if (!table_group)
 		return -ENODEV;
 
-	tbl = table_group->tables[0];
-	locked = (tbl->it_size << tbl->it_page_shift) >> PAGE_SHIFT;
+	if (!table_group->tce32_size)
+		return -EPERM;
+
+	locked = table_group->tce32_size >> PAGE_SHIFT;
 	ret = try_increment_locked_vm(locked);
 	if (ret)
 		return ret;
@@ -350,7 +355,6 @@ static long tce_iommu_ioctl(void *iommu_data,
 
 	case VFIO_IOMMU_SPAPR_TCE_GET_INFO: {
 		struct vfio_iommu_spapr_tce_info info;
-		struct iommu_table *tbl;
 		struct iommu_table_group *table_group;
 
 		if (WARN_ON(!container->grp))
@@ -358,8 +362,7 @@ static long tce_iommu_ioctl(void *iommu_data,
 
 		table_group = iommu_group_get_iommudata(container->grp);
 
-		tbl = table_group->tables[0];
-		if (WARN_ON_ONCE(!tbl))
+		if (!table_group)
 			return -ENXIO;
 
 		minsz = offsetofend(struct vfio_iommu_spapr_tce_info,
@@ -371,8 +374,8 @@ static long tce_iommu_ioctl(void *iommu_data,
 		if (info.argsz < minsz)
 			return -EINVAL;
 
-		info.dma32_window_start = tbl->it_offset << tbl->it_page_shift;
-		info.dma32_window_size = tbl->it_size << tbl->it_page_shift;
+		info.dma32_window_start = table_group->tce32_start;
+		info.dma32_window_size = table_group->tce32_size;
 		info.flags = 0;
 
 		if (copy_to_user((void __user *)arg, &info, minsz))

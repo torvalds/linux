@@ -70,6 +70,7 @@ struct iommu_table_ops {
 	/* get() returns a physical address */
 	unsigned long (*get)(struct iommu_table *tbl, long index);
 	void (*flush)(struct iommu_table *tbl);
+	void (*free)(struct iommu_table *tbl);
 };
 
 /* These are used by VIO */
@@ -146,6 +147,17 @@ extern struct iommu_table *iommu_init_table(struct iommu_table * tbl,
 struct iommu_table_group;
 
 struct iommu_table_group_ops {
+	long (*create_table)(struct iommu_table_group *table_group,
+			int num,
+			__u32 page_shift,
+			__u64 window_size,
+			__u32 levels,
+			struct iommu_table **ptbl);
+	long (*set_window)(struct iommu_table_group *table_group,
+			int num,
+			struct iommu_table *tblnew);
+	long (*unset_window)(struct iommu_table_group *table_group,
+			int num);
 	/* Switch ownership from platform code to external user (e.g. VFIO) */
 	void (*take_ownership)(struct iommu_table_group *table_group);
 	/* Switch ownership from external user (e.g. VFIO) back to core */
@@ -159,6 +171,13 @@ struct iommu_table_group_link {
 };
 
 struct iommu_table_group {
+	/* IOMMU properties */
+	__u32 tce32_start;
+	__u32 tce32_size;
+	__u64 pgsizes; /* Bitmap of supported page sizes */
+	__u32 max_dynamic_windows_supported;
+	__u32 max_levels;
+
 	struct iommu_group *group;
 	struct iommu_table *tables[IOMMU_TABLE_GROUP_MAX_TABLES];
 	struct iommu_table_group_ops *ops;
