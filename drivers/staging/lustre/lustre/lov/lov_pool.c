@@ -268,7 +268,7 @@ static int pool_proc_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-static struct seq_operations pool_proc_ops = {
+static const struct seq_operations pool_proc_ops = {
 	.start	  = pool_proc_start,
 	.next	   = pool_proc_next,
 	.stop	   = pool_proc_stop,

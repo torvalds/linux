@@ -177,7 +177,7 @@ static int lmv_tgt_seq_show(struct seq_file *p, void *v)
 	return 0;
 }
 
-static struct seq_operations lmv_tgt_sops = {
+static const struct seq_operations lmv_tgt_sops = {
 	.start		 = lmv_tgt_seq_start,
 	.stop		  = lmv_tgt_seq_stop,
 	.next		  = lmv_tgt_seq_next,
