@@ -443,13 +443,23 @@ static bool mdio_bus_phy_may_suspend(struct phy_device *phydev)
 	if (!drv || !phydrv->suspend)
 		return false;
 
-	/* PHY not attached? May suspend if the PHY has not already been
-	 * suspended as part of a prior call to phy_disconnect() ->
-	 * phy_detach() -> phy_suspend() because the parent netdev might be the
-	 * MDIO bus driver and clock gated at this point.
+	/*
+	 * netdev is NULL has three cases:
+	 * - phy is not found
+	 * - phy is found, match to general phy driver
+	 * - phy is found, match to specifical phy driver
+	 *
+	 * Case 1: phy is not found, cannot communicate by MDIO bus.
+	 * Case 2: phy is found:
+	 *         if phy dev driver probe/bind err, netdev is not __open__ status,
+	 *            mdio bus is unregistered.
+	 *	   if phy is detached, phy had entered suspended status.
+	 * Case 3: phy is found, phy is detached, phy had entered suspended status.
+	 *
+	 * So, in here, it shouldn't set phy to suspend by calling mdio bus.
 	 */
 	if (!netdev)
-		return !phydev->suspended;
+		return false;
 
 	/* Don't suspend PHY if the attched netdev parent may wakeup.
 	 * The parent may point to a PCI device, as in tg3 driver.
