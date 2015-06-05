@@ -2131,13 +2131,15 @@ int gpiod_hog(struct gpio_desc *desc, const char *name,
 
 	local_desc = gpiochip_request_own_desc(chip, hwnum, name);
 	if (IS_ERR(local_desc)) {
-		pr_err("requesting own GPIO %s failed\n", name);
+		pr_err("requesting hog GPIO %s (chip %s, offset %d) failed\n",
+		       name, chip->label, hwnum);
 		return PTR_ERR(local_desc);
 	}
 
 	status = gpiod_configure_flags(desc, name, lflags, dflags);
 	if (status < 0) {
-		pr_err("setup of GPIO %s failed\n", name);
+		pr_err("setup of hog GPIO %s (chip %s, offset %d) failed\n",
+		       name, chip->label, hwnum);
 		gpiochip_free_own_desc(desc);
 		return status;
 	}
