@@ -115,7 +115,8 @@ static int edp_msg_fifo_rx(struct edp_aux *aux, struct drm_dp_aux_msg *msg)
  * msm_edp_aux_ctrl() running concurrently in other threads, i.e.
  * start transaction only when AUX channel is fully enabled.
  */
-ssize_t edp_aux_transfer(struct drm_dp_aux *drm_aux, struct drm_dp_aux_msg *msg)
+static ssize_t edp_aux_transfer(struct drm_dp_aux *drm_aux,
+		struct drm_dp_aux_msg *msg)
 {
 	struct edp_aux *aux = to_edp_aux(drm_aux);
 	ssize_t ret;
