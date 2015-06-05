@@ -4530,6 +4530,32 @@ void t4_sge_decode_idma_state(struct adapter *adapter, int state)
 }
 
 /**
+ *      t4_sge_ctxt_flush - flush the SGE context cache
+ *      @adap: the adapter
+ *      @mbox: mailbox to use for the FW command
+ *
+ *      Issues a FW command through the given mailbox to flush the
+ *      SGE context cache.
+ */
+int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox)
+{
+	int ret;
+	u32 ldst_addrspace;
+	struct fw_ldst_cmd c;
+
+	memset(&c, 0, sizeof(c));
+	ldst_addrspace = FW_LDST_CMD_ADDRSPACE_V(FW_LDST_ADDRSPC_SGE_EGRC);
+	c.op_to_addrspace = cpu_to_be32(FW_CMD_OP_V(FW_LDST_CMD) |
+					FW_CMD_REQUEST_F | FW_CMD_READ_F |
+					ldst_addrspace);
+	c.cycles_to_len16 = cpu_to_be32(FW_LEN16(c));
+	c.u.idctxt.msg_ctxtflush = cpu_to_be32(FW_LDST_CMD_CTXTFLUSH_F);
+
+	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
+	return ret;
+}
+
+/**
  *      t4_fw_hello - establish communication with FW
  *      @adap: the adapter
  *      @mbox: mailbox to use for the FW command

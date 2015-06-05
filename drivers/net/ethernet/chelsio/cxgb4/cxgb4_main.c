@@ -2007,11 +2007,8 @@ EXPORT_SYMBOL(cxgb4_iscsi_init);
 int cxgb4_flush_eq_cache(struct net_device *dev)
 {
 	struct adapter *adap = netdev2adap(dev);
-	int ret;
 
-	ret = t4_fwaddrspace_write(adap, adap->mbox,
-				   0xe1000000 + SGE_CTXT_CMD_A, 0x20000000);
-	return ret;
+	return t4_sge_ctxt_flush(adap, adap->mbox);
 }
 EXPORT_SYMBOL(cxgb4_flush_eq_cache);
 

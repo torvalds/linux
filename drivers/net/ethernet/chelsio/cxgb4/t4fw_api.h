@@ -772,7 +772,7 @@ struct fw_ldst_cmd {
 		} addrval;
 		struct fw_ldst_idctxt {
 			__be32 physid;
-			__be32 msg_pkd;
+			__be32 msg_ctxtflush;
 			__be32 ctxt_data7;
 			__be32 ctxt_data6;
 			__be32 ctxt_data5;
@@ -833,6 +833,10 @@ struct fw_ldst_cmd {
 
 #define FW_LDST_CMD_MSG_S       31
 #define FW_LDST_CMD_MSG_V(x)	((x) << FW_LDST_CMD_MSG_S)
+
+#define FW_LDST_CMD_CTXTFLUSH_S		30
+#define FW_LDST_CMD_CTXTFLUSH_V(x)	((x) << FW_LDST_CMD_CTXTFLUSH_S)
+#define FW_LDST_CMD_CTXTFLUSH_F		FW_LDST_CMD_CTXTFLUSH_V(1U)
 
 #define FW_LDST_CMD_PADDR_S     8
 #define FW_LDST_CMD_PADDR_V(x)	((x) << FW_LDST_CMD_PADDR_S)
