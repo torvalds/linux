@@ -1157,39 +1157,57 @@ static int rk3288_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		case OUT_P565:
 			face = OUT_P565;
 			mask = m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE |
-			    m_DITHER_DOWN_SEL;
+			    m_DITHER_DOWN_SEL | m_DITHER_UP_EN |
+			    m_PRE_DITHER_DOWN_EN;
 			val = v_DITHER_DOWN_EN(1) | v_DITHER_DOWN_MODE(0) |
-			    v_DITHER_DOWN_SEL(1);
+			    v_DITHER_DOWN_SEL(1) | v_DITHER_UP_EN(1) |
+			    v_PRE_DITHER_DOWN_EN(1);
 			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, mask, val);
 			break;
 		case OUT_P666:
 			face = OUT_P666;
 			mask = m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE |
-			    m_DITHER_DOWN_SEL;
+			    m_DITHER_DOWN_SEL | m_DITHER_UP_EN |
+			    m_PRE_DITHER_DOWN_EN;
 			val = v_DITHER_DOWN_EN(1) | v_DITHER_DOWN_MODE(1) |
-			    v_DITHER_DOWN_SEL(1);
+			    v_DITHER_DOWN_SEL(1) | v_DITHER_UP_EN(1) |
+			    v_PRE_DITHER_DOWN_EN(1);
 			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, mask, val);
 			break;
 		case OUT_D888_P565:
 			face = OUT_P888;
 			mask = m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE |
-			    m_DITHER_DOWN_SEL;
+			    m_DITHER_DOWN_SEL | m_DITHER_UP_EN |
+			    m_PRE_DITHER_DOWN_EN;
 			val = v_DITHER_DOWN_EN(1) | v_DITHER_DOWN_MODE(0) |
-			    v_DITHER_DOWN_SEL(1);
+			    v_DITHER_DOWN_SEL(1) | v_DITHER_UP_EN(1) |
+			    v_PRE_DITHER_DOWN_EN(1);
 			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, mask, val);
 			break;
 		case OUT_D888_P666:
 			face = OUT_P888;
 			mask = m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE |
-			    m_DITHER_DOWN_SEL;
+			    m_DITHER_DOWN_SEL | m_DITHER_UP_EN |
+			    m_PRE_DITHER_DOWN_EN;
 			val = v_DITHER_DOWN_EN(1) | v_DITHER_DOWN_MODE(1) |
-			    v_DITHER_DOWN_SEL(1);
+			    v_DITHER_DOWN_SEL(1) | v_DITHER_UP_EN(1) |
+			    v_PRE_DITHER_DOWN_EN(1);
 			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, mask, val);
 			break;
 		case OUT_P888:
 			face = OUT_P888;
-			mask = m_DITHER_DOWN_EN | m_DITHER_UP_EN;
-			val = v_DITHER_DOWN_EN(0) | v_DITHER_UP_EN(0);
+			mask = m_DITHER_DOWN_EN | m_DITHER_UP_EN |
+				m_PRE_DITHER_DOWN_EN;
+			val = v_DITHER_DOWN_EN(0) | v_DITHER_UP_EN(1) |
+			    v_PRE_DITHER_DOWN_EN(1);
+			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, mask, val);
+			break;
+		case OUT_P101010:
+			face = OUT_P101010;
+			mask = m_DITHER_DOWN_EN | m_DITHER_UP_EN |
+				m_PRE_DITHER_DOWN_EN;
+			val = v_DITHER_DOWN_EN(0) | v_DITHER_UP_EN(1) |
+			    v_PRE_DITHER_DOWN_EN(0);
 			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, mask, val);
 			break;
 		default:
@@ -1199,24 +1217,18 @@ static int rk3288_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		switch(screen->type){
 		case SCREEN_RGB:
 		case SCREEN_LVDS:
-		case SCREEN_DUAL_LVDS:			
-			mask = m_RGB_OUT_EN;
-			val = v_RGB_OUT_EN(1);
-			v = 1 << (3+16);
-			v |= (lcdc_dev->id << 3);
-			break;
+		case SCREEN_DUAL_LVDS:
 		case SCREEN_LVDS_10BIT:
 		case SCREEN_DUAL_LVDS_10BIT:
 			mask = m_RGB_OUT_EN;
 			val = v_RGB_OUT_EN(1);
 			v = 1 << (3+16);
 			v |= (lcdc_dev->id << 3);
-			face = OUT_RGB_AAA;  /*RGB AAA output*/
 		        break;
 		case SCREEN_HDMI:
-			face = OUT_RGB_AAA;
+			face = OUT_P101010;/*RGB 101010 output*/
 			mask = m_HDMI_OUT_EN;
-			val = v_HDMI_OUT_EN(1); 	
+			val = v_HDMI_OUT_EN(1);
 			break;
 		case SCREEN_MIPI:
 			mask = m_MIPI_OUT_EN;
@@ -1227,12 +1239,9 @@ static int rk3288_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			val = v_MIPI_OUT_EN(1) | v_DOUB_CHANNEL_EN(1); 	
 			break;
 		case SCREEN_EDP:
-			face = OUT_RGB_AAA;  /*RGB AAA output*/
-			mask = m_DITHER_DOWN_EN | m_DITHER_UP_EN;
-			val = v_DITHER_DOWN_EN(0) | v_DITHER_UP_EN(0);
-			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, mask, val);
+			face = OUT_P101010;  /*RGB 101010 output*/
 			mask = m_EDP_OUT_EN;
-			val = v_EDP_OUT_EN(1); 		
+			val = v_EDP_OUT_EN(1);
 			break;
 		}
 		lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
