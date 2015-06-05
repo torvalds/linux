@@ -485,7 +485,7 @@ static int adau1977_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF)
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF)
 			ret = adau1977_power_enable(adau1977);
 		break;
 	case SND_SOC_BIAS_OFF:
@@ -848,12 +848,13 @@ static int adau1977_set_sysclk(struct snd_soc_codec *codec,
 
 static int adau1977_codec_probe(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct adau1977 *adau1977 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
 	switch (adau1977->type) {
 	case ADAU1977:
-		ret = snd_soc_dapm_new_controls(&codec->dapm,
+		ret = snd_soc_dapm_new_controls(dapm,
 			adau1977_micbias_dapm_widgets,
 			ARRAY_SIZE(adau1977_micbias_dapm_widgets));
 		if (ret < 0)
