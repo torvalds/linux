@@ -600,7 +600,7 @@ static void vou_adjust_output(struct sh_vou_geometry *geo, v4l2_std_id std)
 {
 	unsigned int best_err = UINT_MAX, best = geo->in_width,
 		width_max, height_max, img_height_max;
-	int i, idx = 0;
+	int i, idx_h = 0, idx_v = 0;
 
 	if (std & V4L2_STD_525_60) {
 		width_max = 858;
@@ -625,7 +625,7 @@ static void vou_adjust_output(struct sh_vou_geometry *geo, v4l2_std_id std)
 		err = abs(found - geo->output.width);
 		if (err < best_err) {
 			best_err = err;
-			idx = i;
+			idx_h = i;
 			best = found;
 		}
 		if (!err)
@@ -633,12 +633,12 @@ static void vou_adjust_output(struct sh_vou_geometry *geo, v4l2_std_id std)
 	}
 
 	geo->output.width = best;
-	geo->scale_idx_h = idx;
+	geo->scale_idx_h = idx_h;
 	if (geo->output.left + best > width_max)
 		geo->output.left = width_max - best;
 
 	pr_debug("%s(): W %u * %u/%u = %u\n", __func__, geo->in_width,
-		 vou_scale_h_num[idx], vou_scale_h_den[idx], best);
+		 vou_scale_h_num[idx_h], vou_scale_h_den[idx_h], best);
 
 	best_err = UINT_MAX;
 
@@ -655,7 +655,7 @@ static void vou_adjust_output(struct sh_vou_geometry *geo, v4l2_std_id std)
 		err = abs(found - geo->output.height);
 		if (err < best_err) {
 			best_err = err;
-			idx = i;
+			idx_v = i;
 			best = found;
 		}
 		if (!err)
@@ -663,12 +663,12 @@ static void vou_adjust_output(struct sh_vou_geometry *geo, v4l2_std_id std)
 	}
 
 	geo->output.height = best;
-	geo->scale_idx_v = idx;
+	geo->scale_idx_v = idx_v;
 	if (geo->output.top + best > height_max)
 		geo->output.top = height_max - best;
 
 	pr_debug("%s(): H %u * %u/%u = %u\n", __func__, geo->in_height,
-		 vou_scale_v_num[idx], vou_scale_v_den[idx], best);
+		 vou_scale_v_num[idx_v], vou_scale_v_den[idx_v], best);
 }
 
 static int sh_vou_s_fmt_vid_out(struct file *file, void *priv,
