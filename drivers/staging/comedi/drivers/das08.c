@@ -42,8 +42,20 @@
 
 */
 
-#define DAS08_LSB		0
-#define DAS08_MSB		1
+/*
+ * Data format of DAS08_AI_LSB_REG and DAS08_AI_MSB_REG depends on
+ * 'ai_encoding' member of board structure:
+ *
+ * das08_encode12     : DATA[11..4] = MSB[7..0], DATA[3..0] = LSB[7..4].
+ * das08_pcm_encode12 : DATA[11..8] = MSB[3..0], DATA[7..9] = LSB[7..0].
+ * das08_encode16     : SIGN = MSB[7], MAGNITUDE[14..8] = MSB[6..0],
+ *                      MAGNITUDE[7..0] = LSB[7..0].
+ *                      SIGN==0 for negative input, SIGN==1 for positive input.
+ *                      Note: when read a second time after conversion
+ *                            complete, MSB[7] is an "over-range" bit.
+ */
+#define DAS08_AI_LSB_REG	0x00	/* (R) AI least significant bits */
+#define DAS08_AI_MSB_REG	0x01	/* (R) AI most significant bits */
 #define DAS08_TRIG_12BIT	1
 #define DAS08_STATUS		2
 #define   DAS08_EOC			(1<<7)
@@ -214,8 +226,8 @@ static int das08_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	range = CR_RANGE(insn->chanspec);
 
 	/* clear crap */
-	inb(dev->iobase + DAS08_LSB);
-	inb(dev->iobase + DAS08_MSB);
+	inb(dev->iobase + DAS08_AI_LSB_REG);
+	inb(dev->iobase + DAS08_AI_MSB_REG);
 
 	/* set multiplexer */
 	/*  lock to prevent race with digital output */
@@ -235,7 +247,7 @@ static int das08_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	for (n = 0; n < insn->n; n++) {
 		/* clear over-range bits for 16-bit boards */
 		if (thisboard->ai_nbits == 16)
-			if (inb(dev->iobase + DAS08_MSB) & 0x80)
+			if (inb(dev->iobase + DAS08_AI_MSB_REG) & 0x80)
 				dev_info(dev->class_dev, "over-range\n");
 
 		/* trigger conversion */
@@ -245,8 +257,8 @@ static int das08_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		if (ret)
 			return ret;
 
-		msb = inb(dev->iobase + DAS08_MSB);
-		lsb = inb(dev->iobase + DAS08_LSB);
+		msb = inb(dev->iobase + DAS08_AI_MSB_REG);
+		lsb = inb(dev->iobase + DAS08_AI_LSB_REG);
 		if (thisboard->ai_encoding == das08_encode12) {
 			data[n] = (lsb >> 4) | (msb << 4);
 		} else if (thisboard->ai_encoding == das08_pcm_encode12) {
