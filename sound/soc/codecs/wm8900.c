@@ -998,8 +998,8 @@ static int wm8900_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 		      SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
 
 #define WM8900_PCM_FORMATS \
-	(SNDRV_PCM_FORMAT_S16_LE | SNDRV_PCM_FORMAT_S20_3LE | \
-	 SNDRV_PCM_FORMAT_S24_LE)
+	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
+	 SNDRV_PCM_FMTBIT_S24_LE)
 
 static const struct snd_soc_dai_ops wm8900_dai_ops = {
 	.hw_params	= wm8900_hw_params,
