@@ -198,8 +198,8 @@ see <xref linkend="colorspaces" />.</entry>
         <row>
           <entry>__u16</entry>
           <entry><structfield>reserved[6]</structfield></entry>
-          <entry>Reserved for future extensions. Should be zeroed by the
-           application.</entry>
+          <entry>Reserved for future extensions. Should be zeroed by drivers and
+           applications.</entry>
         </row>
       </tbody>
     </tgroup>
@@ -283,8 +283,8 @@ see <xref linkend="colorspaces" />.</entry>
         <row>
           <entry>__u8</entry>
           <entry><structfield>reserved[7]</structfield></entry>
-          <entry>Reserved for future extensions. Should be zeroed by the
-           application.</entry>
+          <entry>Reserved for future extensions. Should be zeroed by drivers
+           and applications.</entry>
         </row>
       </tbody>
     </tgroup>

@@ -841,15 +841,15 @@ is the file descriptor associated with a DMABUF buffer.</entry>
 	    <entry>__u32</entry>
 	    <entry><structfield>reserved2</structfield></entry>
 	    <entry></entry>
-	    <entry>A place holder for future extensions. Applications
-should set this to 0.</entry>
+	    <entry>A place holder for future extensions. Drivers and applications
+must set this to 0.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>reserved</structfield></entry>
 	    <entry></entry>
-	    <entry>A place holder for future extensions. Applications
-should set this to 0.</entry>
+	    <entry>A place holder for future extensions. Drivers and applications
+must set this to 0.</entry>
 	  </row>
 	</tbody>
       </tgroup>
@@ -930,8 +930,8 @@ should set this to 0.</entry>
 	    <entry>__u32</entry>
 	    <entry><structfield>reserved[11]</structfield></entry>
 	    <entry></entry>
-	    <entry>Reserved for future use. Should be zeroed by an
-	    application.</entry>
+	    <entry>Reserved for future use. Should be zeroed by drivers and
+	    applications.</entry>
 	  </row>
 	</tbody>
       </tgroup>
