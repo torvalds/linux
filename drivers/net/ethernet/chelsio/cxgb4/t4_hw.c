@@ -5226,6 +5226,33 @@ int t4_alloc_vi(struct adapter *adap, unsigned int mbox, unsigned int port,
 }
 
 /**
+ *	t4_free_vi - free a virtual interface
+ *	@adap: the adapter
+ *	@mbox: mailbox to use for the FW command
+ *	@pf: the PF owning the VI
+ *	@vf: the VF owning the VI
+ *	@viid: virtual interface identifiler
+ *
+ *	Free a previously allocated virtual interface.
+ */
+int t4_free_vi(struct adapter *adap, unsigned int mbox, unsigned int pf,
+	       unsigned int vf, unsigned int viid)
+{
+	struct fw_vi_cmd c;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_VI_CMD) |
+				  FW_CMD_REQUEST_F |
+				  FW_CMD_EXEC_F |
+				  FW_VI_CMD_PFN_V(pf) |
+				  FW_VI_CMD_VFN_V(vf));
+	c.alloc_to_len16 = cpu_to_be32(FW_VI_CMD_FREE_F | FW_LEN16(c));
+	c.type_viid = cpu_to_be16(FW_VI_CMD_VIID_V(viid));
+
+	return t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
+}
+
+/**
  *	t4_set_rxmode - set Rx properties of a virtual interface
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command

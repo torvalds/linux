@@ -4538,6 +4538,11 @@ static void free_some_resources(struct adapter *adapter)
 
 	for_each_port(adapter, i)
 		if (adapter->port[i]) {
+			struct port_info *pi = adap2pinfo(adapter, i);
+
+			if (pi->viid != 0)
+				t4_free_vi(adapter, adapter->mbox, adapter->pf,
+					   0, pi->viid);
 			kfree(adap2pinfo(adapter, i)->rss);
 			free_netdev(adapter->port[i]);
 		}
