@@ -75,8 +75,9 @@
 #define DAS08_CONTROL_MUX_MASK	0x7	/* multiplexor channel mask */
 #define DAS08_CONTROL_MUX(x)	((x) & DAS08_CONTROL_MUX_MASK) /* mux channel */
 #define DAS08_CONTROL_INTE	BIT(3)	/* interrupt enable (not "JR" boards) */
-#define   DAS08_DO_MASK		0xf0
-#define   DAS08_OP(x)		(((x) << 4) & DAS08_DO_MASK)
+#define DAS08_CONTROL_DO_MASK	0xf0	/* digital outputs mask (not "JR") */
+/* digital outputs (not "JR" boards) */
+#define DAS08_CONTROL_DO(x)	(((x) << 4) & DAS08_CONTROL_DO_MASK)
 
 /*
     cio-das08jr.pdf
@@ -307,8 +308,8 @@ static int das08_do_wbits(struct comedi_device *dev,
 	if (comedi_dio_update_state(s, data)) {
 		/* prevent race with setting of analog input mux */
 		spin_lock(&dev->spinlock);
-		devpriv->do_mux_bits &= ~DAS08_DO_MASK;
-		devpriv->do_mux_bits |= DAS08_OP(s->state);
+		devpriv->do_mux_bits &= ~DAS08_CONTROL_DO_MASK;
+		devpriv->do_mux_bits |= DAS08_CONTROL_DO(s->state);
 		outb(devpriv->do_mux_bits, dev->iobase + DAS08_CONTROL_REG);
 		spin_unlock(&dev->spinlock);
 	}
