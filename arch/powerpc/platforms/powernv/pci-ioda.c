@@ -1655,21 +1655,15 @@ static u64 pnv_pci_ioda_dma_get_required_mask(struct pnv_phb *phb,
 }
 
 static void pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe,
-				   struct pci_bus *bus,
-				   bool add_to_iommu_group)
+				   struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
-		if (add_to_iommu_group)
-			set_iommu_table_base_and_group(&dev->dev,
-						       pe->tce32_table);
-		else
-			set_iommu_table_base(&dev->dev, pe->tce32_table);
+		set_iommu_table_base_and_group(&dev->dev, pe->tce32_table);
 
 		if (dev->subordinate)
-			pnv_ioda_setup_bus_dma(pe, dev->subordinate,
-					       add_to_iommu_group);
+			pnv_ioda_setup_bus_dma(pe, dev->subordinate);
 	}
 }
 
@@ -1846,7 +1840,7 @@ static void pnv_pci_ioda_setup_dma_pe(struct pnv_phb *phb,
 	} else if (pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL)) {
 		iommu_register_group(tbl, phb->hose->global_number,
 				     pe->pe_number);
-		pnv_ioda_setup_bus_dma(pe, pe->pbus, true);
+		pnv_ioda_setup_bus_dma(pe, pe->pbus);
 	} else if (pe->flags & PNV_IODA_PE_VF) {
 		iommu_register_group(tbl, phb->hose->global_number,
 				     pe->pe_number);
@@ -1883,17 +1877,6 @@ static void pnv_pci_ioda2_set_bypass(struct iommu_table *tbl, bool enable)
 						     window_id,
 						     pe->tce_bypass_base,
 						     0);
-
-		/*
-		 * EEH needs the mapping between IOMMU table and group
-		 * of those VFIO/KVM pass-through devices. We can postpone
-		 * resetting DMA ops until the DMA mask is configured in
-		 * host side.
-		 */
-		if (pe->pdev)
-			set_iommu_table_base(&pe->pdev->dev, tbl);
-		else
-			pnv_ioda_setup_bus_dma(pe, pe->pbus, false);
 	}
 	if (rc)
 		pe_err(pe, "OPAL error %lld configuring bypass window\n", rc);
@@ -1985,7 +1968,7 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 	} else if (pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL)) {
 		iommu_register_group(tbl, phb->hose->global_number,
 				     pe->pe_number);
-		pnv_ioda_setup_bus_dma(pe, pe->pbus, true);
+		pnv_ioda_setup_bus_dma(pe, pe->pbus);
 	} else if (pe->flags & PNV_IODA_PE_VF) {
 		iommu_register_group(tbl, phb->hose->global_number,
 				     pe->pe_number);

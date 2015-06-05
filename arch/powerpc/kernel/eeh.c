@@ -1410,13 +1410,11 @@ static int dev_has_iommu_table(struct device *dev, void *data)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct pci_dev **ppdev = data;
-	struct iommu_table *tbl;
 
 	if (!dev)
 		return 0;
 
-	tbl = get_iommu_table_base(dev);
-	if (tbl && tbl->it_group) {
+	if (dev->iommu_group) {
 		*ppdev = pdev;
 		return 1;
 	}
