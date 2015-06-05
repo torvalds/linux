@@ -200,6 +200,9 @@ void __init omap4_map_io(void);
 void __init omap5_map_io(void);
 void __init ti81xx_map_io(void);
 
+/* omap_barriers_init() is OMAP4 only */
+void omap_barriers_init(void);
+
 /**
  * omap_test_timeout - busy-loop, testing a condition
  * @cond: condition to test until it evaluates to true
