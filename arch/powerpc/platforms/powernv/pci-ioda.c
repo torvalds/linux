@@ -40,6 +40,7 @@
 #include <asm/debug.h>
 #include <asm/firmware.h>
 #include <asm/pnv-pci.h>
+#include <asm/mmzone.h>
 
 #include <misc/cxl-base.h>
 
@@ -48,6 +49,8 @@
 
 /* 256M DMA window, 4K TCE pages, 8 bytes TCE */
 #define TCE32_TABLE_SIZE	((0x10000000 / 0x1000) * 8)
+
+static void pnv_pci_ioda2_table_free_pages(struct iommu_table *tbl);
 
 static void pe_level_printk(const struct pnv_ioda_pe *pe, const char *level,
 			    const char *fmt, ...)
@@ -1313,8 +1316,8 @@ static void pnv_pci_ioda2_release_dma_pe(struct pci_dev *dev, struct pnv_ioda_pe
 		iommu_group_put(pe->table_group.group);
 		BUG_ON(pe->table_group.group);
 	}
+	pnv_pci_ioda2_table_free_pages(tbl);
 	iommu_free_table(tbl, of_node_full_name(dev->dev.of_node));
-	free_pages(addr, get_order(TCE32_TABLE_SIZE));
 }
 
 static void pnv_ioda_release_vf_PE(struct pci_dev *pdev, u16 num_vfs)
@@ -2033,13 +2036,62 @@ static void pnv_pci_ioda_setup_opal_tce_kill(struct pnv_phb *phb)
 	phb->ioda.tce_inval_reg = ioremap(phb->ioda.tce_inval_reg_phys, 8);
 }
 
+static __be64 *pnv_pci_ioda2_table_do_alloc_pages(int nid, unsigned shift)
+{
+	struct page *tce_mem = NULL;
+	__be64 *addr;
+	unsigned order = max_t(unsigned, shift, PAGE_SHIFT) - PAGE_SHIFT;
+
+	tce_mem = alloc_pages_node(nid, GFP_KERNEL, order);
+	if (!tce_mem) {
+		pr_err("Failed to allocate a TCE memory, order=%d\n", order);
+		return NULL;
+	}
+	addr = page_address(tce_mem);
+	memset(addr, 0, 1UL << (order + PAGE_SHIFT));
+
+	return addr;
+}
+
+static long pnv_pci_ioda2_table_alloc_pages(int nid, __u64 bus_offset,
+		__u32 page_shift, __u64 window_size, struct iommu_table *tbl)
+{
+	void *addr;
+	const unsigned window_shift = ilog2(window_size);
+	unsigned entries_shift = window_shift - page_shift;
+	unsigned table_shift = max_t(unsigned, entries_shift + 3, PAGE_SHIFT);
+	const unsigned long tce_table_size = 1UL << table_shift;
+
+	if ((window_size > memory_hotplug_max()) || !is_power_of_2(window_size))
+		return -EINVAL;
+
+	/* Allocate TCE table */
+	addr = pnv_pci_ioda2_table_do_alloc_pages(nid, table_shift);
+	if (!addr)
+		return -ENOMEM;
+
+	/* Setup linux iommu table */
+	pnv_pci_setup_iommu_table(tbl, addr, tce_table_size, bus_offset,
+			page_shift);
+
+	pr_devel("Created TCE table: ws=%08llx ts=%lx @%08llx\n",
+			window_size, tce_table_size, bus_offset);
+
+	return 0;
+}
+
+static void pnv_pci_ioda2_table_free_pages(struct iommu_table *tbl)
+{
+	if (!tbl->it_size)
+		return;
+
+	free_pages(tbl->it_base, get_order(tbl->it_size << 3));
+}
+
 static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 				       struct pnv_ioda_pe *pe)
 {
-	struct page *tce_mem = NULL;
-	void *addr;
 	struct iommu_table *tbl;
-	unsigned int tce_table_size, end;
 	int64_t rc;
 
 	/* We shouldn't already have a 32-bit DMA associated */
@@ -2056,24 +2108,16 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 
 	/* The PE will reserve all possible 32-bits space */
 	pe->tce32_seg = 0;
-	end = (1 << ilog2(phb->ioda.m32_pci_base));
-	tce_table_size = (end / 0x1000) * 8;
 	pe_info(pe, "Setting up 32-bit TCE table at 0..%08x\n",
-		end);
-
-	/* Allocate TCE table */
-	tce_mem = alloc_pages_node(phb->hose->node, GFP_KERNEL,
-				   get_order(tce_table_size));
-	if (!tce_mem) {
-		pe_err(pe, "Failed to allocate a 32-bit TCE memory\n");
-		goto fail;
-	}
-	addr = page_address(tce_mem);
-	memset(addr, 0, tce_table_size);
+		phb->ioda.m32_pci_base);
 
 	/* Setup linux iommu table */
-	pnv_pci_setup_iommu_table(tbl, addr, tce_table_size, 0,
-			IOMMU_PAGE_SHIFT_4K);
+	rc = pnv_pci_ioda2_table_alloc_pages(pe->phb->hose->node,
+			0, IOMMU_PAGE_SHIFT_4K, phb->ioda.m32_pci_base, tbl);
+	if (rc) {
+		pe_err(pe, "Failed to create 32-bit TCE table, err %ld", rc);
+		goto fail;
+	}
 
 	tbl->it_ops = &pnv_ioda2_iommu_ops;
 	iommu_init_table(tbl, phb->hose->node);
@@ -2119,9 +2163,8 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 fail:
 	if (pe->tce32_seg >= 0)
 		pe->tce32_seg = -1;
-	if (tce_mem)
-		__free_pages(tce_mem, get_order(tce_table_size));
 	if (tbl) {
+		pnv_pci_ioda2_table_free_pages(tbl);
 		pnv_pci_unlink_table_and_group(tbl, &pe->table_group);
 		iommu_free_table(tbl, "pnv");
 	}
