@@ -1805,6 +1805,8 @@ static int v4l_create_bufs(const struct v4l2_ioctl_ops *ops,
 	if (ret)
 		return ret;
 
+	CLEAR_AFTER_FIELD(create, format);
+
 	v4l_sanitize_format(&create->format);
 
 	ret = ops->vidioc_create_bufs(file, fh, create);
