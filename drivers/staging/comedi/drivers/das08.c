@@ -68,8 +68,12 @@
 /* digital inputs (not "JR" boards) */
 #define DAS08_STATUS_DI(x)	(((x) & 0x70) >> 4)
 #define DAS08_CONTROL_REG	0x02	/* (W) control */
-#define   DAS08_MUX_MASK	0x7
-#define   DAS08_MUX(x)		((x) & DAS08_MUX_MASK)
+/*
+ * Note: The AI multiplexor channel can also be read from status register using
+ * the same mask.
+ */
+#define DAS08_CONTROL_MUX_MASK	0x7	/* multiplexor channel mask */
+#define DAS08_CONTROL_MUX(x)	((x) & DAS08_CONTROL_MUX_MASK) /* mux channel */
 #define   DAS08_INTE			(1<<3)
 #define   DAS08_DO_MASK		0xf0
 #define   DAS08_OP(x)		(((x) << 4) & DAS08_DO_MASK)
@@ -238,8 +242,8 @@ static int das08_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	/* set multiplexer */
 	/*  lock to prevent race with digital output */
 	spin_lock(&dev->spinlock);
-	devpriv->do_mux_bits &= ~DAS08_MUX_MASK;
-	devpriv->do_mux_bits |= DAS08_MUX(chan);
+	devpriv->do_mux_bits &= ~DAS08_CONTROL_MUX_MASK;
+	devpriv->do_mux_bits |= DAS08_CONTROL_MUX(chan);
 	outb(devpriv->do_mux_bits, dev->iobase + DAS08_CONTROL_REG);
 	spin_unlock(&dev->spinlock);
 
