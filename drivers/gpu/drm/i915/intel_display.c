@@ -13264,8 +13264,9 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
 
-	if (set->mode)
-		drm_mode_copy(&crtc_state->mode, set->mode);
+	ret = drm_atomic_set_mode_for_crtc(crtc_state, set->mode);
+	if (ret)
+		return ret;
 
 	if (set->num_connectors)
 		crtc_state->active = true;
