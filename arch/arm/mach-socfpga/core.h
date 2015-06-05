@@ -1,6 +1,6 @@
 /*
  * Copyright 2012 Pavel Machek <pavel@denx.de>
- * Copyright (C) 2012 Altera Corporation
+ * Copyright (C) 2012-2015 Altera Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,6 +40,10 @@ extern void socfpga_sysmgr_init(void);
 
 extern void __iomem *sys_manager_base_addr;
 extern void __iomem *rst_manager_base_addr;
+extern void __iomem *sdr_ctl_base_addr;
+
+u32 socfpga_sdram_self_refresh(u32 sdr_base);
+extern unsigned int socfpga_sdram_self_refresh_sz;
 
 extern char secondary_trampoline, secondary_trampoline_end;
 
