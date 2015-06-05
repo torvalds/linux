@@ -46,6 +46,24 @@ struct hash_testvec {
 	unsigned char ksize;
 };
 
+/*
+ * cipher_testvec:	structure to describe a cipher test
+ * @key:	A pointer to a key used by the test
+ * @klen:	The length of @key
+ * @iv:		A pointer to the IV used by the test
+ * @input:	A pointer to data used as input
+ * @ilen	The length of data in @input
+ * @result:	A pointer to what the test need to produce
+ * @rlen:	The length of data in @result
+ * @fail:	If set to one, the test need to fail
+ * @wk:		Does the test need CRYPTO_TFM_REQ_WEAK_KEY
+ * 		( e.g. test needs to fail due to a weak key )
+ * @np: 	numbers of SG to distribute data in (from 1 to MAX_TAP)
+ * @tap:	How to distribute data in @np SGs
+ * @also_non_np: 	if set to 1, the test will be also done without
+ * 			splitting data in @np SGs
+ */
+
 struct cipher_testvec {
 	char *key;
 	char *iv;
