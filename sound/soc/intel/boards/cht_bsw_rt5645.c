@@ -185,7 +185,7 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 		return ret;
 	}
 
-	rt5645_set_jack_detect(codec, &ctx->hp_jack, &ctx->mic_jack);
+	rt5645_set_jack_detect(codec, &ctx->hp_jack, &ctx->mic_jack, NULL);
 
 	return ret;
 }
