@@ -561,20 +561,22 @@ bool v4l2_detect_gtf(unsigned frame_height,
 
 		num = ((image_width * GTF_D_C_PRIME * (u64)hfreq) -
 		      ((u64)image_width * GTF_D_M_PRIME * 1000));
-		den = hfreq * (100 - GTF_D_C_PRIME) + GTF_D_M_PRIME * 1000;
+		den = (hfreq * (100 - GTF_D_C_PRIME) + GTF_D_M_PRIME * 1000) *
+		      (2 * GTF_CELL_GRAN);
 		h_blank = div_u64((num + (den >> 1)), den);
+		h_blank *= (2 * GTF_CELL_GRAN);
 	} else {
 		u64 num;
 		u32 den;
 
 		num = ((image_width * GTF_S_C_PRIME * (u64)hfreq) -
 		      ((u64)image_width * GTF_S_M_PRIME * 1000));
-		den = hfreq * (100 - GTF_S_C_PRIME) + GTF_S_M_PRIME * 1000;
+		den = (hfreq * (100 - GTF_S_C_PRIME) + GTF_S_M_PRIME * 1000) *
+		      (2 * GTF_CELL_GRAN);
 		h_blank = div_u64((num + (den >> 1)), den);
+		h_blank *= (2 * GTF_CELL_GRAN);
 	}
 
-	h_blank = ((h_blank + GTF_CELL_GRAN) / (2 * GTF_CELL_GRAN)) *
-		  (2 * GTF_CELL_GRAN);
 	frame_width = image_width + h_blank;
 
 	pix_clk = (image_width + h_blank) * hfreq;
