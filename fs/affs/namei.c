@@ -53,7 +53,8 @@ affs_intl_toupper(int ch)
 static inline toupper_t
 affs_get_toupper(struct super_block *sb)
 {
-	return AFFS_SB(sb)->s_flags & SF_INTL ? affs_intl_toupper : affs_toupper;
+	return affs_test_opt(AFFS_SB(sb)->s_flags, SF_INTL) ?
+	       affs_intl_toupper : affs_toupper;
 }
 
 /*
@@ -250,7 +251,7 @@ int
 affs_unlink(struct inode *dir, struct dentry *dentry)
 {
 	pr_debug("%s(dir=%lu, %lu \"%pd\")\n", __func__, dir->i_ino,
-		 dentry->d_inode->i_ino, dentry);
+		 d_inode(dentry)->i_ino, dentry);
 
 	return affs_remove_header(dentry);
 }
@@ -275,7 +276,8 @@ affs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl)
 
 	inode->i_op = &affs_file_inode_operations;
 	inode->i_fop = &affs_file_operations;
-	inode->i_mapping->a_ops = (AFFS_SB(sb)->s_flags & SF_OFS) ? &affs_aops_ofs : &affs_aops;
+	inode->i_mapping->a_ops = affs_test_opt(AFFS_SB(sb)->s_flags, SF_OFS) ?
+				  &affs_aops_ofs : &affs_aops;
 	error = affs_add_entry(dir, inode, dentry, ST_FILE);
 	if (error) {
 		clear_nlink(inode);
@@ -318,7 +320,7 @@ int
 affs_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	pr_debug("%s(dir=%lu, %lu \"%pd\")\n", __func__, dir->i_ino,
-		 dentry->d_inode->i_ino, dentry);
+		 d_inode(dentry)->i_ino, dentry);
 
 	return affs_remove_header(dentry);
 }
@@ -401,7 +403,7 @@ err:
 int
 affs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
 {
-	struct inode *inode = old_dentry->d_inode;
+	struct inode *inode = d_inode(old_dentry);
 
 	pr_debug("%s(%lu, %lu, \"%pd\")\n", __func__, inode->i_ino, dir->i_ino,
 		 dentry);
@@ -428,13 +430,13 @@ affs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		return retval;
 
 	/* Unlink destination if it already exists */
-	if (new_dentry->d_inode) {
+	if (d_really_is_positive(new_dentry)) {
 		retval = affs_remove_header(new_dentry);
 		if (retval)
 			return retval;
 	}
 
-	bh = affs_bread(sb, old_dentry->d_inode->i_ino);
+	bh = affs_bread(sb, d_inode(old_dentry)->i_ino);
 	if (!bh)
 		return -EIO;
 

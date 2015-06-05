@@ -347,7 +347,7 @@ static int collie_bat_probe(struct ucb1x00_dev *dev)
 		goto err_psy_reg_main;
 	}
 
-	psy_main_cfg.drv_data = &collie_bat_bu;
+	psy_bu_cfg.drv_data = &collie_bat_bu;
 	collie_bat_bu.psy = power_supply_register(&dev->ucb->dev,
 						  &collie_bat_bu_desc,
 						  &psy_bu_cfg);

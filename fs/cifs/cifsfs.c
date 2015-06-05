@@ -469,6 +469,8 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 		seq_puts(s, ",nouser_xattr");
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR)
 		seq_puts(s, ",mapchars");
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SFM_CHR)
+		seq_puts(s, ",mapposix");
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL)
 		seq_puts(s, ",sfu");
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
@@ -607,7 +609,7 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 	p = s = full_path;
 
 	do {
-		struct inode *dir = dentry->d_inode;
+		struct inode *dir = d_inode(dentry);
 		struct dentry *child;
 
 		if (!dir) {

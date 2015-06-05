@@ -38,6 +38,7 @@
 #include <linux/regmap.h>
 #include <linux/of.h>
 #include <linux/regulator/consumer.h>
+#include <linux/suspend.h>
 
 #include <video/omapdss.h>
 
@@ -1137,6 +1138,8 @@ static int __init omap_dsshw_probe(struct platform_device *pdev)
 	dss_runtime_put();
 
 	dss_debugfs_create_file("dss", dss_dump_regs);
+
+	pm_set_vt_switch(0);
 
 	return 0;
 

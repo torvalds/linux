@@ -33,6 +33,7 @@
 enum fixed_addresses {
 	FIX_HOLE,
 	FIX_EARLYCON_MEM_BASE,
+	FIX_TEXT_POKE0,
 	__end_of_permanent_fixed_addresses,
 
 	/*
@@ -49,7 +50,6 @@ enum fixed_addresses {
 
 	FIX_BTMAP_END = __end_of_permanent_fixed_addresses,
 	FIX_BTMAP_BEGIN = FIX_BTMAP_END + TOTAL_FIX_BTMAPS - 1,
-	FIX_TEXT_POKE0,
 	__end_of_fixed_addresses
 };
 
@@ -61,6 +61,9 @@ enum fixed_addresses {
 void __init early_fixmap_init(void);
 
 #define __early_set_fixmap __set_fixmap
+
+#define __late_set_fixmap __set_fixmap
+#define __late_clear_fixmap(idx) __set_fixmap((idx), 0, FIXMAP_PAGE_CLEAR)
 
 extern void __set_fixmap(enum fixed_addresses idx, phys_addr_t phys, pgprot_t prot);
 

@@ -89,6 +89,8 @@ u32 acpi_hw_get_gpe_register_bit(struct acpi_gpe_event_info *gpe_event_info)
  * RETURN:	Status
  *
  * DESCRIPTION: Enable or disable a single GPE in the parent enable register.
+ *              The enable_mask field of the involved GPE register must be
+ *              updated by the caller if necessary.
  *
  ******************************************************************************/
 
@@ -119,7 +121,7 @@ acpi_hw_low_set_gpe(struct acpi_gpe_event_info *gpe_event_info, u32 action)
 	/* Set or clear just the bit that corresponds to this GPE */
 
 	register_bit = acpi_hw_get_gpe_register_bit(gpe_event_info);
-	switch (action & ~ACPI_GPE_SAVE_MASK) {
+	switch (action) {
 	case ACPI_GPE_CONDITIONAL_ENABLE:
 
 		/* Only enable if the corresponding enable_mask bit is set */
@@ -149,9 +151,6 @@ acpi_hw_low_set_gpe(struct acpi_gpe_event_info *gpe_event_info, u32 action)
 	/* Write the updated enable mask */
 
 	status = acpi_hw_write(enable_mask, &gpe_register_info->enable_address);
-	if (ACPI_SUCCESS(status) && (action & ACPI_GPE_SAVE_MASK)) {
-		gpe_register_info->enable_mask = (u8)enable_mask;
-	}
 	return (status);
 }
 
@@ -250,6 +249,17 @@ acpi_hw_get_gpe_status(struct acpi_gpe_event_info * gpe_event_info,
 		local_event_status |= ACPI_EVENT_FLAG_WAKE_ENABLED;
 	}
 
+	/* GPE currently enabled (enable bit == 1)? */
+
+	status = acpi_hw_read(&in_byte, &gpe_register_info->enable_address);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
+
+	if (register_bit & in_byte) {
+		local_event_status |= ACPI_EVENT_FLAG_ENABLE_SET;
+	}
+
 	/* GPE currently active (status bit == 1)? */
 
 	status = acpi_hw_read(&in_byte, &gpe_register_info->status_address);
@@ -258,7 +268,7 @@ acpi_hw_get_gpe_status(struct acpi_gpe_event_info * gpe_event_info,
 	}
 
 	if (register_bit & in_byte) {
-		local_event_status |= ACPI_EVENT_FLAG_SET;
+		local_event_status |= ACPI_EVENT_FLAG_STATUS_SET;
 	}
 
 	/* Set return value */
@@ -286,10 +296,8 @@ acpi_hw_gpe_enable_write(u8 enable_mask,
 {
 	acpi_status status;
 
+	gpe_register_info->enable_mask = enable_mask;
 	status = acpi_hw_write(enable_mask, &gpe_register_info->enable_address);
-	if (ACPI_SUCCESS(status)) {
-		gpe_register_info->enable_mask = enable_mask;
-	}
 	return (status);
 }
 

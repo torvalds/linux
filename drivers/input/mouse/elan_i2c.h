@@ -25,6 +25,7 @@
 #define ETP_ENABLE_CALIBRATE	0x0002
 #define ETP_DISABLE_CALIBRATE	0x0000
 #define ETP_DISABLE_POWER	0x0001
+#define ETP_PRESSURE_OFFSET	25
 
 /* IAP Firmware handling */
 #define ETP_FW_NAME		"elan_i2c.bin"
@@ -79,6 +80,8 @@ struct elan_transport_ops {
 				struct completion *reset_done);
 
 	int (*get_report)(struct i2c_client *client, u8 *report);
+	int (*get_pressure_adjustment)(struct i2c_client *client,
+				       int *adjustment);
 };
 
 extern const struct elan_transport_ops elan_smbus_ops, elan_i2c_ops;

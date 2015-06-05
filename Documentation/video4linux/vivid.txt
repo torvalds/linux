@@ -912,6 +912,11 @@ looped to the video input provided that:
   sequence and field counting in struct v4l2_buffer on the capture side may not
   be 100% accurate.
 
+- field settings V4L2_FIELD_SEQ_TB/BT are not supported. While it is possible to
+  implement this, it would mean a lot of work to get this right. Since these
+  field values are rarely used the decision was made not to implement this for
+  now.
+
 - on the input side the "Standard Signal Mode" for the S-Video input or the
   "DV Timings Signal Mode" for the HDMI input should be configured so that a
   valid signal is passed to the video input.

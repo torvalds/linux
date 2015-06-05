@@ -1693,7 +1693,7 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	loff_t *ppos = &iocb->ki_pos;
 	loff_t pos = *ppos;
 
-	if (io_is_direct(file)) {
+	if (iocb->ki_flags & IOCB_DIRECT) {
 		struct address_space *mapping = file->f_mapping;
 		struct inode *inode = mapping->host;
 		size_t count = iov_iter_count(iter);
@@ -1706,7 +1706,7 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 					pos + count - 1);
 		if (!retval) {
 			struct iov_iter data = *iter;
-			retval = mapping->a_ops->direct_IO(READ, iocb, &data, pos);
+			retval = mapping->a_ops->direct_IO(iocb, &data, pos);
 		}
 
 		if (retval > 0) {
@@ -2259,41 +2259,38 @@ EXPORT_SYMBOL(read_cache_page_gfp);
  * Returns appropriate error code that caller should return or
  * zero in case that write should be allowed.
  */
-inline int generic_write_checks(struct file *file, loff_t *pos, size_t *count, int isblk)
+inline ssize_t generic_write_checks(struct kiocb *iocb, struct iov_iter *from)
 {
+	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 	unsigned long limit = rlimit(RLIMIT_FSIZE);
+	loff_t pos;
 
-        if (unlikely(*pos < 0))
-                return -EINVAL;
+	if (!iov_iter_count(from))
+		return 0;
 
-	if (!isblk) {
-		/* FIXME: this is for backwards compatibility with 2.4 */
-		if (file->f_flags & O_APPEND)
-                        *pos = i_size_read(inode);
+	/* FIXME: this is for backwards compatibility with 2.4 */
+	if (iocb->ki_flags & IOCB_APPEND)
+		iocb->ki_pos = i_size_read(inode);
 
-		if (limit != RLIM_INFINITY) {
-			if (*pos >= limit) {
-				send_sig(SIGXFSZ, current, 0);
-				return -EFBIG;
-			}
-			if (*count > limit - (typeof(limit))*pos) {
-				*count = limit - (typeof(limit))*pos;
-			}
+	pos = iocb->ki_pos;
+
+	if (limit != RLIM_INFINITY) {
+		if (iocb->ki_pos >= limit) {
+			send_sig(SIGXFSZ, current, 0);
+			return -EFBIG;
 		}
+		iov_iter_truncate(from, limit - (unsigned long)pos);
 	}
 
 	/*
 	 * LFS rule
 	 */
-	if (unlikely(*pos + *count > MAX_NON_LFS &&
+	if (unlikely(pos + iov_iter_count(from) > MAX_NON_LFS &&
 				!(file->f_flags & O_LARGEFILE))) {
-		if (*pos >= MAX_NON_LFS) {
+		if (pos >= MAX_NON_LFS)
 			return -EFBIG;
-		}
-		if (*count > MAX_NON_LFS - (unsigned long)*pos) {
-			*count = MAX_NON_LFS - (unsigned long)*pos;
-		}
+		iov_iter_truncate(from, MAX_NON_LFS - (unsigned long)pos);
 	}
 
 	/*
@@ -2303,34 +2300,11 @@ inline int generic_write_checks(struct file *file, loff_t *pos, size_t *count, i
 	 * exceeded without writing data we send a signal and return EFBIG.
 	 * Linus frestrict idea will clean these up nicely..
 	 */
-	if (likely(!isblk)) {
-		if (unlikely(*pos >= inode->i_sb->s_maxbytes)) {
-			if (*count || *pos > inode->i_sb->s_maxbytes) {
-				return -EFBIG;
-			}
-			/* zero-length writes at ->s_maxbytes are OK */
-		}
+	if (unlikely(pos >= inode->i_sb->s_maxbytes))
+		return -EFBIG;
 
-		if (unlikely(*pos + *count > inode->i_sb->s_maxbytes))
-			*count = inode->i_sb->s_maxbytes - *pos;
-	} else {
-#ifdef CONFIG_BLOCK
-		loff_t isize;
-		if (bdev_read_only(I_BDEV(inode)))
-			return -EPERM;
-		isize = i_size_read(inode);
-		if (*pos >= isize) {
-			if (*count || *pos > isize)
-				return -ENOSPC;
-		}
-
-		if (*pos + *count > isize)
-			*count = isize - *pos;
-#else
-		return -EPERM;
-#endif
-	}
-	return 0;
+	iov_iter_truncate(from, inode->i_sb->s_maxbytes - pos);
+	return iov_iter_count(from);
 }
 EXPORT_SYMBOL(generic_write_checks);
 
@@ -2394,7 +2368,7 @@ generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from, loff_t pos)
 	}
 
 	data = *from;
-	written = mapping->a_ops->direct_IO(WRITE, iocb, &data, pos);
+	written = mapping->a_ops->direct_IO(iocb, &data, pos);
 
 	/*
 	 * Finally, try again to invalidate clean pages which might have been
@@ -2556,23 +2530,12 @@ ssize_t __generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct file *file = iocb->ki_filp;
 	struct address_space * mapping = file->f_mapping;
 	struct inode 	*inode = mapping->host;
-	loff_t		pos = iocb->ki_pos;
 	ssize_t		written = 0;
 	ssize_t		err;
 	ssize_t		status;
-	size_t		count = iov_iter_count(from);
 
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = inode_to_bdi(inode);
-	err = generic_write_checks(file, &pos, &count, S_ISBLK(inode->i_mode));
-	if (err)
-		goto out;
-
-	if (count == 0)
-		goto out;
-
-	iov_iter_truncate(from, count);
-
 	err = file_remove_suid(file);
 	if (err)
 		goto out;
@@ -2581,10 +2544,10 @@ ssize_t __generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (err)
 		goto out;
 
-	if (io_is_direct(file)) {
-		loff_t endbyte;
+	if (iocb->ki_flags & IOCB_DIRECT) {
+		loff_t pos, endbyte;
 
-		written = generic_file_direct_write(iocb, from, pos);
+		written = generic_file_direct_write(iocb, from, iocb->ki_pos);
 		/*
 		 * If the write stopped short of completing, fall back to
 		 * buffered writes.  Some filesystems do this for writes to
@@ -2592,13 +2555,10 @@ ssize_t __generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		 * not succeed (even if it did, DAX does not handle dirty
 		 * page-cache pages correctly).
 		 */
-		if (written < 0 || written == count || IS_DAX(inode))
+		if (written < 0 || !iov_iter_count(from) || IS_DAX(inode))
 			goto out;
 
-		pos += written;
-		count -= written;
-
-		status = generic_perform_write(file, from, pos);
+		status = generic_perform_write(file, from, pos = iocb->ki_pos);
 		/*
 		 * If generic_perform_write() returned a synchronous error
 		 * then we want to return the number of bytes which were
@@ -2610,15 +2570,15 @@ ssize_t __generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 			err = status;
 			goto out;
 		}
-		iocb->ki_pos = pos + status;
 		/*
 		 * We need to ensure that the page cache pages are written to
 		 * disk and invalidated to preserve the expected O_DIRECT
 		 * semantics.
 		 */
 		endbyte = pos + status - 1;
-		err = filemap_write_and_wait_range(file->f_mapping, pos, endbyte);
+		err = filemap_write_and_wait_range(mapping, pos, endbyte);
 		if (err == 0) {
+			iocb->ki_pos = endbyte + 1;
 			written += status;
 			invalidate_mapping_pages(mapping,
 						 pos >> PAGE_CACHE_SHIFT,
@@ -2630,9 +2590,9 @@ ssize_t __generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 			 */
 		}
 	} else {
-		written = generic_perform_write(file, from, pos);
-		if (likely(written >= 0))
-			iocb->ki_pos = pos + written;
+		written = generic_perform_write(file, from, iocb->ki_pos);
+		if (likely(written > 0))
+			iocb->ki_pos += written;
 	}
 out:
 	current->backing_dev_info = NULL;
@@ -2656,7 +2616,9 @@ ssize_t generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	ssize_t ret;
 
 	mutex_lock(&inode->i_mutex);
-	ret = __generic_file_write_iter(iocb, from);
+	ret = generic_write_checks(iocb, from);
+	if (ret > 0)
+		ret = __generic_file_write_iter(iocb, from);
 	mutex_unlock(&inode->i_mutex);
 
 	if (ret > 0) {

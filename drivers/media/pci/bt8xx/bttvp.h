@@ -404,9 +404,9 @@ struct bttv {
 	struct v4l2_subdev	  *sd_tda7432;
 
 	/* video4linux (1) */
-	struct video_device *video_dev;
-	struct video_device *radio_dev;
-	struct video_device *vbi_dev;
+	struct video_device video_dev;
+	struct video_device radio_dev;
+	struct video_device vbi_dev;
 
 	/* controls */
 	struct v4l2_ctrl_handler   ctrl_handler;

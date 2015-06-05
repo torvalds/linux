@@ -48,7 +48,7 @@ static void __init test_hexdump(size_t len, int rowsize, int groupsize,
 	char test[32 * 3 + 2 + 32 + 1];
 	char real[32 * 3 + 2 + 32 + 1];
 	char *p;
-	const char **result;
+	const char * const *result;
 	size_t l = len;
 	int gs = groupsize, rs = rowsize;
 	unsigned int i;

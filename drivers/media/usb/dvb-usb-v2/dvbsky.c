@@ -20,7 +20,7 @@
 
 #include "dvb_usb.h"
 #include "m88ds3103.h"
-#include "m88ts2022.h"
+#include "ts2020.h"
 #include "sp2.h"
 #include "si2168.h"
 #include "si2157.h"
@@ -315,9 +315,7 @@ static int dvbsky_s960_attach(struct dvb_usb_adapter *adap)
 	struct i2c_adapter *i2c_adapter;
 	struct i2c_client *client;
 	struct i2c_board_info info;
-	struct m88ts2022_config m88ts2022_config = {
-			.clock = 27000000,
-		};
+	struct ts2020_config ts2020_config = {};
 	memset(&info, 0, sizeof(struct i2c_board_info));
 
 	/* attach demod */
@@ -332,11 +330,11 @@ static int dvbsky_s960_attach(struct dvb_usb_adapter *adap)
 	}
 
 	/* attach tuner */
-	m88ts2022_config.fe = adap->fe[0];
-	strlcpy(info.type, "m88ts2022", I2C_NAME_SIZE);
+	ts2020_config.fe = adap->fe[0];
+	strlcpy(info.type, "ts2020", I2C_NAME_SIZE);
 	info.addr = 0x60;
-	info.platform_data = &m88ts2022_config;
-	request_module("m88ts2022");
+	info.platform_data = &ts2020_config;
+	request_module("ts2020");
 	client = i2c_new_device(i2c_adapter, &info);
 	if (client == NULL || client->dev.driver == NULL) {
 		dvb_frontend_detach(adap->fe[0]);
@@ -439,9 +437,7 @@ static int dvbsky_s960c_attach(struct dvb_usb_adapter *adap)
 	struct i2c_client *client_tuner, *client_ci;
 	struct i2c_board_info info;
 	struct sp2_config sp2_config;
-	struct m88ts2022_config m88ts2022_config = {
-			.clock = 27000000,
-		};
+	struct ts2020_config ts2020_config = {};
 	memset(&info, 0, sizeof(struct i2c_board_info));
 
 	/* attach demod */
@@ -456,11 +452,11 @@ static int dvbsky_s960c_attach(struct dvb_usb_adapter *adap)
 	}
 
 	/* attach tuner */
-	m88ts2022_config.fe = adap->fe[0];
-	strlcpy(info.type, "m88ts2022", I2C_NAME_SIZE);
+	ts2020_config.fe = adap->fe[0];
+	strlcpy(info.type, "ts2020", I2C_NAME_SIZE);
 	info.addr = 0x60;
-	info.platform_data = &m88ts2022_config;
-	request_module("m88ts2022");
+	info.platform_data = &ts2020_config;
+	request_module("ts2020");
 	client_tuner = i2c_new_device(i2c_adapter, &info);
 	if (client_tuner == NULL || client_tuner->dev.driver == NULL) {
 		ret = -ENODEV;

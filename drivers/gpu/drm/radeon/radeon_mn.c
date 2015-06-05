@@ -53,6 +53,11 @@ struct radeon_mn {
 	struct rb_root		objects;
 };
 
+struct radeon_mn_node {
+	struct interval_tree_node	it;
+	struct list_head		bos;
+};
+
 /**
  * radeon_mn_destroy - destroy the rmn
  *
@@ -64,14 +69,21 @@ static void radeon_mn_destroy(struct work_struct *work)
 {
 	struct radeon_mn *rmn = container_of(work, struct radeon_mn, work);
 	struct radeon_device *rdev = rmn->rdev;
-	struct radeon_bo *bo, *next;
+	struct radeon_mn_node *node, *next_node;
+	struct radeon_bo *bo, *next_bo;
 
 	mutex_lock(&rdev->mn_lock);
 	mutex_lock(&rmn->lock);
 	hash_del(&rmn->node);
-	rbtree_postorder_for_each_entry_safe(bo, next, &rmn->objects, mn_it.rb) {
-		interval_tree_remove(&bo->mn_it, &rmn->objects);
-		bo->mn = NULL;
+	rbtree_postorder_for_each_entry_safe(node, next_node, &rmn->objects,
+					     it.rb) {
+
+		interval_tree_remove(&node->it, &rmn->objects);
+		list_for_each_entry_safe(bo, next_bo, &node->bos, mn_list) {
+			bo->mn = NULL;
+			list_del_init(&bo->mn_list);
+		}
+		kfree(node);
 	}
 	mutex_unlock(&rmn->lock);
 	mutex_unlock(&rdev->mn_lock);
@@ -121,29 +133,36 @@ static void radeon_mn_invalidate_range_start(struct mmu_notifier *mn,
 
 	it = interval_tree_iter_first(&rmn->objects, start, end);
 	while (it) {
+		struct radeon_mn_node *node;
 		struct radeon_bo *bo;
-		int r;
+		long r;
 
-		bo = container_of(it, struct radeon_bo, mn_it);
+		node = container_of(it, struct radeon_mn_node, it);
 		it = interval_tree_iter_next(it, start, end);
 
-		r = radeon_bo_reserve(bo, true);
-		if (r) {
-			DRM_ERROR("(%d) failed to reserve user bo\n", r);
-			continue;
+		list_for_each_entry(bo, &node->bos, mn_list) {
+
+			if (!bo->tbo.ttm || bo->tbo.ttm->state != tt_bound)
+				continue;
+
+			r = radeon_bo_reserve(bo, true);
+			if (r) {
+				DRM_ERROR("(%ld) failed to reserve user bo\n", r);
+				continue;
+			}
+
+			r = reservation_object_wait_timeout_rcu(bo->tbo.resv,
+				true, false, MAX_SCHEDULE_TIMEOUT);
+			if (r <= 0)
+				DRM_ERROR("(%ld) failed to wait for user bo\n", r);
+
+			radeon_ttm_placement_from_domain(bo, RADEON_GEM_DOMAIN_CPU);
+			r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
+			if (r)
+				DRM_ERROR("(%ld) failed to validate user bo\n", r);
+
+			radeon_bo_unreserve(bo);
 		}
-
-		r = reservation_object_wait_timeout_rcu(bo->tbo.resv, true,
-			false, MAX_SCHEDULE_TIMEOUT);
-		if (r)
-			DRM_ERROR("(%d) failed to wait for user bo\n", r);
-
-		radeon_ttm_placement_from_domain(bo, RADEON_GEM_DOMAIN_CPU);
-		r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
-		if (r)
-			DRM_ERROR("(%d) failed to validate user bo\n", r);
-
-		radeon_bo_unreserve(bo);
 	}
 	
 	mutex_unlock(&rmn->lock);
@@ -220,24 +239,44 @@ int radeon_mn_register(struct radeon_bo *bo, unsigned long addr)
 	unsigned long end = addr + radeon_bo_size(bo) - 1;
 	struct radeon_device *rdev = bo->rdev;
 	struct radeon_mn *rmn;
+	struct radeon_mn_node *node = NULL;
+	struct list_head bos;
 	struct interval_tree_node *it;
 
 	rmn = radeon_mn_get(rdev);
 	if (IS_ERR(rmn))
 		return PTR_ERR(rmn);
 
+	INIT_LIST_HEAD(&bos);
+
 	mutex_lock(&rmn->lock);
 
-	it = interval_tree_iter_first(&rmn->objects, addr, end);
-	if (it) {
-		mutex_unlock(&rmn->lock);
-		return -EEXIST;
+	while ((it = interval_tree_iter_first(&rmn->objects, addr, end))) {
+		kfree(node);
+		node = container_of(it, struct radeon_mn_node, it);
+		interval_tree_remove(&node->it, &rmn->objects);
+		addr = min(it->start, addr);
+		end = max(it->last, end);
+		list_splice(&node->bos, &bos);
+	}
+
+	if (!node) {
+		node = kmalloc(sizeof(struct radeon_mn_node), GFP_KERNEL);
+		if (!node) {
+			mutex_unlock(&rmn->lock);
+			return -ENOMEM;
+		}
 	}
 
 	bo->mn = rmn;
-	bo->mn_it.start = addr;
-	bo->mn_it.last = end;
-	interval_tree_insert(&bo->mn_it, &rmn->objects);
+
+	node->it.start = addr;
+	node->it.last = end;
+	INIT_LIST_HEAD(&node->bos);
+	list_splice(&bos, &node->bos);
+	list_add(&bo->mn_list, &node->bos);
+
+	interval_tree_insert(&node->it, &rmn->objects);
 
 	mutex_unlock(&rmn->lock);
 
@@ -255,6 +294,7 @@ void radeon_mn_unregister(struct radeon_bo *bo)
 {
 	struct radeon_device *rdev = bo->rdev;
 	struct radeon_mn *rmn;
+	struct list_head *head;
 
 	mutex_lock(&rdev->mn_lock);
 	rmn = bo->mn;
@@ -264,8 +304,19 @@ void radeon_mn_unregister(struct radeon_bo *bo)
 	}
 
 	mutex_lock(&rmn->lock);
-	interval_tree_remove(&bo->mn_it, &rmn->objects);
+	/* save the next list entry for later */
+	head = bo->mn_list.next;
+
 	bo->mn = NULL;
+	list_del(&bo->mn_list);
+
+	if (list_empty(head)) {
+		struct radeon_mn_node *node;
+		node = container_of(head, struct radeon_mn_node, bos);
+		interval_tree_remove(&node->it, &rmn->objects);
+		kfree(node);
+	}
+
 	mutex_unlock(&rmn->lock);
 	mutex_unlock(&rdev->mn_lock);
 }

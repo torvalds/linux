@@ -127,16 +127,14 @@ gm100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 #endif
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
-#if 0
-		device->oclass[NVDEV_ENGINE_FIFO   ] =  gk208_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] =  gm204_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] =  gm107_gr_oclass;
-#endif
+		device->oclass[NVDEV_ENGINE_GR     ] =  gm204_gr_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  gm204_disp_oclass;
-#if 0
 		device->oclass[NVDEV_ENGINE_CE0    ] = &gm204_ce0_oclass;
 		device->oclass[NVDEV_ENGINE_CE1    ] = &gm204_ce1_oclass;
 		device->oclass[NVDEV_ENGINE_CE2    ] = &gm204_ce2_oclass;
+#if 0
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &gk104_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_MSPDEC ] = &gk104_mspdec_oclass;
 		device->oclass[NVDEV_ENGINE_MSPPP  ] = &gf100_msppp_oclass;
@@ -170,16 +168,14 @@ gm100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 #endif
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
-#if 0
-		device->oclass[NVDEV_ENGINE_FIFO   ] =  gk208_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] =  gm204_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] =  gm107_gr_oclass;
-#endif
+		device->oclass[NVDEV_ENGINE_GR     ] =  gm206_gr_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  gm204_disp_oclass;
-#if 0
 		device->oclass[NVDEV_ENGINE_CE0    ] = &gm204_ce0_oclass;
 		device->oclass[NVDEV_ENGINE_CE1    ] = &gm204_ce1_oclass;
 		device->oclass[NVDEV_ENGINE_CE2    ] = &gm204_ce2_oclass;
+#if 0
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &gk104_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_MSPDEC ] = &gk104_mspdec_oclass;
 		device->oclass[NVDEV_ENGINE_MSPPP  ] = &gf100_msppp_oclass;

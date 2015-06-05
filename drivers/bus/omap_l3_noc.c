@@ -1,7 +1,7 @@
 /*
  * OMAP L3 Interconnect error handling driver
  *
- * Copyright (C) 2011-2014 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011-2015 Texas Instruments Incorporated - http://www.ti.com/
  *	Santosh Shilimkar <santosh.shilimkar@ti.com>
  *	Sricharan <r.sricharan@ti.com>
  *
@@ -233,7 +233,8 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 }
 
 static const struct of_device_id l3_noc_match[] = {
-	{.compatible = "ti,omap4-l3-noc", .data = &omap_l3_data},
+	{.compatible = "ti,omap4-l3-noc", .data = &omap4_l3_data},
+	{.compatible = "ti,omap5-l3-noc", .data = &omap5_l3_data},
 	{.compatible = "ti,dra7-l3-noc", .data = &dra_l3_data},
 	{.compatible = "ti,am4372-l3-noc", .data = &am4372_l3_data},
 	{},

@@ -3128,7 +3128,7 @@ static unsigned long bnx2x_get_q_flags(struct bnx2x *bp,
 		__set_bit(BNX2X_Q_FLG_FORCE_DEFAULT_PRI, &flags);
 	}
 
-	if (!fp->disable_tpa) {
+	if (fp->mode != TPA_MODE_DISABLED) {
 		__set_bit(BNX2X_Q_FLG_TPA, &flags);
 		__set_bit(BNX2X_Q_FLG_TPA_IPV6, &flags);
 		if (fp->mode == TPA_MODE_GRO)
@@ -3176,7 +3176,7 @@ static void bnx2x_pf_rx_q_prep(struct bnx2x *bp,
 	u16 sge_sz = 0;
 	u16 tpa_agg_size = 0;
 
-	if (!fp->disable_tpa) {
+	if (fp->mode != TPA_MODE_DISABLED) {
 		pause->sge_th_lo = SGE_TH_LO(bp);
 		pause->sge_th_hi = SGE_TH_HI(bp);
 
@@ -3304,7 +3304,7 @@ static void bnx2x_pf_init(struct bnx2x *bp)
 	/* This flag is relevant for E1x only.
 	 * E2 doesn't have a TPA configuration in a function level.
 	 */
-	flags |= (bp->flags & TPA_ENABLE_FLAG) ? FUNC_FLG_TPA : 0;
+	flags |= (bp->dev->features & NETIF_F_LRO) ? FUNC_FLG_TPA : 0;
 
 	func_init.func_flgs = flags;
 	func_init.pf_id = BP_FUNC(bp);
@@ -12054,7 +12054,7 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 	mutex_init(&bp->port.phy_mutex);
 	mutex_init(&bp->fw_mb_mutex);
 	mutex_init(&bp->drv_info_mutex);
-	mutex_init(&bp->stats_lock);
+	sema_init(&bp->stats_lock, 1);
 	bp->drv_info_mng_owner = false;
 
 	INIT_DELAYED_WORK(&bp->sp_task, bnx2x_sp_task);
@@ -12107,11 +12107,8 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 
 	/* Set TPA flags */
 	if (bp->disable_tpa) {
-		bp->flags &= ~(TPA_ENABLE_FLAG | GRO_ENABLE_FLAG);
+		bp->dev->hw_features &= ~NETIF_F_LRO;
 		bp->dev->features &= ~NETIF_F_LRO;
-	} else {
-		bp->flags |= (TPA_ENABLE_FLAG | GRO_ENABLE_FLAG);
-		bp->dev->features |= NETIF_F_LRO;
 	}
 
 	if (CHIP_IS_E1(bp))
@@ -13371,6 +13368,17 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 	bool is_vf;
 	int cnic_cnt;
 
+	/* Management FW 'remembers' living interfaces. Allow it some time
+	 * to forget previously living interfaces, allowing a proper re-load.
+	 */
+	if (is_kdump_kernel()) {
+		ktime_t now = ktime_get_boottime();
+		ktime_t fw_ready_time = ktime_set(5, 0);
+
+		if (ktime_before(now, fw_ready_time))
+			msleep(ktime_ms_delta(fw_ready_time, now));
+	}
+
 	/* An estimated maximum supported CoS number according to the chip
 	 * version.
 	 * We will try to roughly estimate the maximum number of CoSes this chip
@@ -13682,9 +13690,10 @@ static int bnx2x_eeh_nic_unload(struct bnx2x *bp)
 	cancel_delayed_work_sync(&bp->sp_task);
 	cancel_delayed_work_sync(&bp->period_task);
 
-	mutex_lock(&bp->stats_lock);
-	bp->stats_state = STATS_STATE_DISABLED;
-	mutex_unlock(&bp->stats_lock);
+	if (!down_timeout(&bp->stats_lock, HZ / 10)) {
+		bp->stats_state = STATS_STATE_DISABLED;
+		up(&bp->stats_lock);
+	}
 
 	bnx2x_save_statistics(bp);
 

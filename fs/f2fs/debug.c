@@ -35,6 +35,8 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	/* validation check of the segment numbers */
 	si->hit_ext = sbi->read_hit_ext;
 	si->total_ext = sbi->total_hit_ext;
+	si->ext_tree = sbi->total_ext_tree;
+	si->ext_node = atomic_read(&sbi->total_ext_node);
 	si->ndirty_node = get_pages(sbi, F2FS_DIRTY_NODES);
 	si->ndirty_dent = get_pages(sbi, F2FS_DIRTY_DENTS);
 	si->ndirty_dirs = sbi->n_dirty_dirs;
@@ -185,6 +187,9 @@ get_cache:
 	si->cache_mem += sbi->n_dirty_dirs * sizeof(struct inode_entry);
 	for (i = 0; i <= UPDATE_INO; i++)
 		si->cache_mem += sbi->im[i].ino_num * sizeof(struct ino_entry);
+	si->cache_mem += sbi->total_ext_tree * sizeof(struct extent_tree);
+	si->cache_mem += atomic_read(&sbi->total_ext_node) *
+						sizeof(struct extent_node);
 
 	si->page_mem = 0;
 	npages = NODE_MAPPING(sbi)->nrpages;
@@ -260,13 +265,20 @@ static int stat_show(struct seq_file *s, void *v)
 		seq_printf(s, "CP calls: %d\n", si->cp_count);
 		seq_printf(s, "GC calls: %d (BG: %d)\n",
 			   si->call_count, si->bg_gc);
-		seq_printf(s, "  - data segments : %d\n", si->data_segs);
-		seq_printf(s, "  - node segments : %d\n", si->node_segs);
-		seq_printf(s, "Try to move %d blocks\n", si->tot_blks);
-		seq_printf(s, "  - data blocks : %d\n", si->data_blks);
-		seq_printf(s, "  - node blocks : %d\n", si->node_blks);
+		seq_printf(s, "  - data segments : %d (%d)\n",
+				si->data_segs, si->bg_data_segs);
+		seq_printf(s, "  - node segments : %d (%d)\n",
+				si->node_segs, si->bg_node_segs);
+		seq_printf(s, "Try to move %d blocks (BG: %d)\n", si->tot_blks,
+				si->bg_data_blks + si->bg_node_blks);
+		seq_printf(s, "  - data blocks : %d (%d)\n", si->data_blks,
+				si->bg_data_blks);
+		seq_printf(s, "  - node blocks : %d (%d)\n", si->node_blks,
+				si->bg_node_blks);
 		seq_printf(s, "\nExtent Hit Ratio: %d / %d\n",
 			   si->hit_ext, si->total_ext);
+		seq_printf(s, "\nExtent Tree Count: %d\n", si->ext_tree);
+		seq_printf(s, "\nExtent Node Count: %d\n", si->ext_node);
 		seq_puts(s, "\nBalancing F2FS Async:\n");
 		seq_printf(s, "  - inmem: %4d, wb: %4d\n",
 			   si->inmem_pages, si->wb_pages);

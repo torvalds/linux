@@ -142,8 +142,8 @@ static struct config_group *target_core_register_fabric(
 
 	tf = target_core_get_fabric(name);
 	if (!tf) {
-		pr_err("target_core_register_fabric() trying autoload for %s\n",
-			name);
+		pr_debug("target_core_register_fabric() trying autoload for %s\n",
+			 name);
 
 		/*
 		 * Below are some hardcoded request_module() calls to automatically
@@ -165,8 +165,8 @@ static struct config_group *target_core_register_fabric(
 			 */
 			ret = request_module("iscsi_target_mod");
 			if (ret < 0) {
-				pr_err("request_module() failed for"
-				       " iscsi_target_mod.ko: %d\n", ret);
+				pr_debug("request_module() failed for"
+				         " iscsi_target_mod.ko: %d\n", ret);
 				return ERR_PTR(-EINVAL);
 			}
 		} else if (!strncmp(name, "loopback", 8)) {
@@ -178,8 +178,8 @@ static struct config_group *target_core_register_fabric(
 			 */
 			ret = request_module("tcm_loop");
 			if (ret < 0) {
-				pr_err("request_module() failed for"
-				       " tcm_loop.ko: %d\n", ret);
+				pr_debug("request_module() failed for"
+				         " tcm_loop.ko: %d\n", ret);
 				return ERR_PTR(-EINVAL);
 			}
 		}
@@ -188,8 +188,8 @@ static struct config_group *target_core_register_fabric(
 	}
 
 	if (!tf) {
-		pr_err("target_core_get_fabric() failed for %s\n",
-		       name);
+		pr_debug("target_core_get_fabric() failed for %s\n",
+		         name);
 		return ERR_PTR(-EINVAL);
 	}
 	pr_debug("Target_Core_ConfigFS: REGISTER -> Located fabric:"
@@ -212,10 +212,6 @@ static struct config_group *target_core_register_fabric(
 
 	pr_debug("Target_Core_ConfigFS: REGISTER -> Allocated Fabric:"
 			" %s\n", tf->tf_group.cg_item.ci_name);
-	/*
-	 * Setup tf_ops.tf_subsys pointer for usage with configfs_depend_item()
-	 */
-	tf->tf_ops.tf_subsys = tf->tf_subsys;
 	tf->tf_fabric = &tf->tf_group.cg_item;
 	pr_debug("Target_Core_ConfigFS: REGISTER -> Set tf->tf_fabric"
 			" for %s\n", name);
@@ -291,90 +287,33 @@ static struct configfs_subsystem target_core_fabrics = {
 	},
 };
 
-struct configfs_subsystem *target_core_subsystem[] = {
-	&target_core_fabrics,
-	NULL,
-};
+int target_depend_item(struct config_item *item)
+{
+	return configfs_depend_item(&target_core_fabrics, item);
+}
+EXPORT_SYMBOL(target_depend_item);
+
+void target_undepend_item(struct config_item *item)
+{
+	return configfs_undepend_item(&target_core_fabrics, item);
+}
+EXPORT_SYMBOL(target_undepend_item);
 
 /*##############################################################################
 // Start functions called by external Target Fabrics Modules
 //############################################################################*/
 
-/*
- * First function called by fabric modules to:
- *
- * 1) Allocate a struct target_fabric_configfs and save the *fabric_cit pointer.
- * 2) Add struct target_fabric_configfs to g_tf_list
- * 3) Return struct target_fabric_configfs to fabric module to be passed
- *    into target_fabric_configfs_register().
- */
-struct target_fabric_configfs *target_fabric_configfs_init(
-	struct module *fabric_mod,
-	const char *name)
+static int target_fabric_tf_ops_check(const struct target_core_fabric_ops *tfo)
 {
-	struct target_fabric_configfs *tf;
-
-	if (!(name)) {
-		pr_err("Unable to locate passed fabric name\n");
-		return ERR_PTR(-EINVAL);
+	if (!tfo->name) {
+		pr_err("Missing tfo->name\n");
+		return -EINVAL;
 	}
-	if (strlen(name) >= TARGET_FABRIC_NAME_SIZE) {
+	if (strlen(tfo->name) >= TARGET_FABRIC_NAME_SIZE) {
 		pr_err("Passed name: %s exceeds TARGET_FABRIC"
-			"_NAME_SIZE\n", name);
-		return ERR_PTR(-EINVAL);
+			"_NAME_SIZE\n", tfo->name);
+		return -EINVAL;
 	}
-
-	tf = kzalloc(sizeof(struct target_fabric_configfs), GFP_KERNEL);
-	if (!tf)
-		return ERR_PTR(-ENOMEM);
-
-	INIT_LIST_HEAD(&tf->tf_list);
-	atomic_set(&tf->tf_access_cnt, 0);
-	/*
-	 * Setup the default generic struct config_item_type's (cits) in
-	 * struct target_fabric_configfs->tf_cit_tmpl
-	 */
-	tf->tf_module = fabric_mod;
-	target_fabric_setup_cits(tf);
-
-	tf->tf_subsys = target_core_subsystem[0];
-	snprintf(tf->tf_name, TARGET_FABRIC_NAME_SIZE, "%s", name);
-
-	mutex_lock(&g_tf_lock);
-	list_add_tail(&tf->tf_list, &g_tf_list);
-	mutex_unlock(&g_tf_lock);
-
-	pr_debug("<<<<<<<<<<<<<<<<<<<<<< BEGIN FABRIC API >>>>>>>>"
-			">>>>>>>>>>>>>>\n");
-	pr_debug("Initialized struct target_fabric_configfs: %p for"
-			" %s\n", tf, tf->tf_name);
-	return tf;
-}
-EXPORT_SYMBOL(target_fabric_configfs_init);
-
-/*
- * Called by fabric plugins after FAILED target_fabric_configfs_register() call.
- */
-void target_fabric_configfs_free(
-	struct target_fabric_configfs *tf)
-{
-	mutex_lock(&g_tf_lock);
-	list_del(&tf->tf_list);
-	mutex_unlock(&g_tf_lock);
-
-	kfree(tf);
-}
-EXPORT_SYMBOL(target_fabric_configfs_free);
-
-/*
- * Perform a sanity check of the passed tf->tf_ops before completing
- * TCM fabric module registration.
- */
-static int target_fabric_tf_ops_check(
-	struct target_fabric_configfs *tf)
-{
-	struct target_core_fabric_ops *tfo = &tf->tf_ops;
-
 	if (!tfo->get_fabric_name) {
 		pr_err("Missing tfo->get_fabric_name()\n");
 		return -EINVAL;
@@ -508,77 +447,58 @@ static int target_fabric_tf_ops_check(
 	return 0;
 }
 
-/*
- * Called 2nd from fabric module with returned parameter of
- * struct target_fabric_configfs * from target_fabric_configfs_init().
- *
- * Upon a successful registration, the new fabric's struct config_item is
- * return.  Also, a pointer to this struct is set in the passed
- * struct target_fabric_configfs.
- */
-int target_fabric_configfs_register(
-	struct target_fabric_configfs *tf)
+int target_register_template(const struct target_core_fabric_ops *fo)
 {
+	struct target_fabric_configfs *tf;
 	int ret;
 
-	if (!tf) {
-		pr_err("Unable to locate target_fabric_configfs"
-			" pointer\n");
-		return -EINVAL;
-	}
-	if (!tf->tf_subsys) {
-		pr_err("Unable to target struct config_subsystem"
-			" pointer\n");
-		return -EINVAL;
-	}
-	ret = target_fabric_tf_ops_check(tf);
-	if (ret < 0)
+	ret = target_fabric_tf_ops_check(fo);
+	if (ret)
 		return ret;
 
-	pr_debug("<<<<<<<<<<<<<<<<<<<<<< END FABRIC API >>>>>>>>>>>>"
-		">>>>>>>>>>\n");
-	return 0;
-}
-EXPORT_SYMBOL(target_fabric_configfs_register);
-
-void target_fabric_configfs_deregister(
-	struct target_fabric_configfs *tf)
-{
-	struct configfs_subsystem *su;
-
+	tf = kzalloc(sizeof(struct target_fabric_configfs), GFP_KERNEL);
 	if (!tf) {
-		pr_err("Unable to locate passed target_fabric_"
-			"configfs\n");
-		return;
+		pr_err("%s: could not allocate memory!\n", __func__);
+		return -ENOMEM;
 	}
-	su = tf->tf_subsys;
-	if (!su) {
-		pr_err("Unable to locate passed tf->tf_subsys"
-			" pointer\n");
-		return;
-	}
-	pr_debug("<<<<<<<<<<<<<<<<<<<<<< BEGIN FABRIC API >>>>>>>>>>"
-			">>>>>>>>>>>>\n");
+
+	INIT_LIST_HEAD(&tf->tf_list);
+	atomic_set(&tf->tf_access_cnt, 0);
+
+	/*
+	 * Setup the default generic struct config_item_type's (cits) in
+	 * struct target_fabric_configfs->tf_cit_tmpl
+	 */
+	tf->tf_module = fo->module;
+	snprintf(tf->tf_name, TARGET_FABRIC_NAME_SIZE, "%s", fo->name);
+
+	tf->tf_ops = *fo;
+	target_fabric_setup_cits(tf);
+
 	mutex_lock(&g_tf_lock);
-	if (atomic_read(&tf->tf_access_cnt)) {
-		mutex_unlock(&g_tf_lock);
-		pr_err("Non zero tf->tf_access_cnt for fabric %s\n",
-			tf->tf_name);
-		BUG();
-	}
-	list_del(&tf->tf_list);
+	list_add_tail(&tf->tf_list, &g_tf_list);
 	mutex_unlock(&g_tf_lock);
 
-	pr_debug("Target_Core_ConfigFS: DEREGISTER -> Releasing tf:"
-			" %s\n", tf->tf_name);
-	tf->tf_module = NULL;
-	tf->tf_subsys = NULL;
-	kfree(tf);
-
-	pr_debug("<<<<<<<<<<<<<<<<<<<<<< END FABRIC API >>>>>>>>>>>>>>>>>"
-			">>>>>\n");
+	return 0;
 }
-EXPORT_SYMBOL(target_fabric_configfs_deregister);
+EXPORT_SYMBOL(target_register_template);
+
+void target_unregister_template(const struct target_core_fabric_ops *fo)
+{
+	struct target_fabric_configfs *t;
+
+	mutex_lock(&g_tf_lock);
+	list_for_each_entry(t, &g_tf_list, tf_list) {
+		if (!strcmp(t->tf_name, fo->name)) {
+			BUG_ON(atomic_read(&t->tf_access_cnt));
+			list_del(&t->tf_list);
+			kfree(t);
+			break;
+		}
+	}
+	mutex_unlock(&g_tf_lock);
+}
+EXPORT_SYMBOL(target_unregister_template);
 
 /*##############################################################################
 // Stop functions called by external Target Fabrics Modules
@@ -891,7 +811,7 @@ static ssize_t target_core_dev_pr_show_attr_res_holder(struct se_device *dev,
 {
 	int ret;
 
-	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV)
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
 		return sprintf(page, "Passthrough\n");
 
 	spin_lock(&dev->dev_reservation_lock);
@@ -945,7 +865,7 @@ static ssize_t target_core_dev_pr_show_attr_res_pr_holder_tg_port(
 	struct se_lun *lun;
 	struct se_portal_group *se_tpg;
 	struct t10_pr_registration *pr_reg;
-	struct target_core_fabric_ops *tfo;
+	const struct target_core_fabric_ops *tfo;
 	ssize_t len = 0;
 
 	spin_lock(&dev->dev_reservation_lock);
@@ -979,7 +899,7 @@ SE_DEV_PR_ATTR_RO(res_pr_holder_tg_port);
 static ssize_t target_core_dev_pr_show_attr_res_pr_registered_i_pts(
 		struct se_device *dev, char *page)
 {
-	struct target_core_fabric_ops *tfo;
+	const struct target_core_fabric_ops *tfo;
 	struct t10_pr_registration *pr_reg;
 	unsigned char buf[384];
 	char i_buf[PR_REG_ISID_ID_LEN];
@@ -1042,7 +962,7 @@ SE_DEV_PR_ATTR_RO(res_pr_type);
 static ssize_t target_core_dev_pr_show_attr_res_type(
 		struct se_device *dev, char *page)
 {
-	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV)
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
 		return sprintf(page, "SPC_PASSTHROUGH\n");
 	else if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
 		return sprintf(page, "SPC2_RESERVATIONS\n");
@@ -1055,7 +975,7 @@ SE_DEV_PR_ATTR_RO(res_type);
 static ssize_t target_core_dev_pr_show_attr_res_aptpl_active(
 		struct se_device *dev, char *page)
 {
-	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV)
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
 		return 0;
 
 	return sprintf(page, "APTPL Bit Status: %s\n",
@@ -1070,7 +990,7 @@ SE_DEV_PR_ATTR_RO(res_aptpl_active);
 static ssize_t target_core_dev_pr_show_attr_res_aptpl_metadata(
 		struct se_device *dev, char *page)
 {
-	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV)
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
 		return 0;
 
 	return sprintf(page, "Ready to process PR APTPL metadata..\n");
@@ -1117,7 +1037,7 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 	u16 port_rpti = 0, tpgt = 0;
 	u8 type = 0, scope;
 
-	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV)
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
 		return 0;
 	if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
 		return 0;
@@ -2952,7 +2872,7 @@ static int __init target_core_init_configfs(void)
 {
 	struct config_group *target_cg, *hba_cg = NULL, *alua_cg = NULL;
 	struct config_group *lu_gp_cg = NULL;
-	struct configfs_subsystem *subsys;
+	struct configfs_subsystem *subsys = &target_core_fabrics;
 	struct t10_alua_lu_gp *lu_gp;
 	int ret;
 
@@ -2960,7 +2880,6 @@ static int __init target_core_init_configfs(void)
 		" Engine: %s on %s/%s on "UTS_RELEASE"\n",
 		TARGET_CORE_VERSION, utsname()->sysname, utsname()->machine);
 
-	subsys = target_core_subsystem[0];
 	config_group_init(&subsys->su_group);
 	mutex_init(&subsys->su_mutex);
 
@@ -3090,12 +3009,9 @@ out_global:
 
 static void __exit target_core_exit_configfs(void)
 {
-	struct configfs_subsystem *subsys;
 	struct config_group *hba_cg, *alua_cg, *lu_gp_cg;
 	struct config_item *item;
 	int i;
-
-	subsys = target_core_subsystem[0];
 
 	lu_gp_cg = &alua_lu_gps_group;
 	for (i = 0; lu_gp_cg->default_groups[i]; i++) {
@@ -3127,8 +3043,8 @@ static void __exit target_core_exit_configfs(void)
 	 * We expect subsys->su_group.default_groups to be released
 	 * by configfs subsystem provider logic..
 	 */
-	configfs_unregister_subsystem(subsys);
-	kfree(subsys->su_group.default_groups);
+	configfs_unregister_subsystem(&target_core_fabrics);
+	kfree(target_core_fabrics.su_group.default_groups);
 
 	core_alua_free_lu_gp(default_lu_gp);
 	default_lu_gp = NULL;

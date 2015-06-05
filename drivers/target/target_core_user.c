@@ -71,13 +71,6 @@ struct tcmu_hba {
 	u32 host_id;
 };
 
-/* User wants all cmds or just some */
-enum passthru_level {
-	TCMU_PASS_ALL = 0,
-	TCMU_PASS_IO,
-	TCMU_PASS_INVALID,
-};
-
 #define TCMU_CONFIG_LEN 256
 
 struct tcmu_dev {
@@ -89,7 +82,6 @@ struct tcmu_dev {
 #define TCMU_DEV_BIT_OPEN 0
 #define TCMU_DEV_BIT_BROKEN 1
 	unsigned long flags;
-	enum passthru_level pass_level;
 
 	struct uio_info uio_info;
 
@@ -344,8 +336,11 @@ static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 
 		entry = (void *) mb + CMDR_OFF + cmd_head;
 		tcmu_flush_dcache_range(entry, sizeof(*entry));
-		tcmu_hdr_set_op(&entry->hdr, TCMU_OP_PAD);
-		tcmu_hdr_set_len(&entry->hdr, pad_size);
+		tcmu_hdr_set_op(&entry->hdr.len_op, TCMU_OP_PAD);
+		tcmu_hdr_set_len(&entry->hdr.len_op, pad_size);
+		entry->hdr.cmd_id = 0; /* not used for PAD */
+		entry->hdr.kflags = 0;
+		entry->hdr.uflags = 0;
 
 		UPDATE_HEAD(mb->cmd_head, pad_size, udev->cmdr_size);
 
@@ -355,9 +350,11 @@ static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 
 	entry = (void *) mb + CMDR_OFF + cmd_head;
 	tcmu_flush_dcache_range(entry, sizeof(*entry));
-	tcmu_hdr_set_op(&entry->hdr, TCMU_OP_CMD);
-	tcmu_hdr_set_len(&entry->hdr, command_size);
-	entry->cmd_id = tcmu_cmd->cmd_id;
+	tcmu_hdr_set_op(&entry->hdr.len_op, TCMU_OP_CMD);
+	tcmu_hdr_set_len(&entry->hdr.len_op, command_size);
+	entry->hdr.cmd_id = tcmu_cmd->cmd_id;
+	entry->hdr.kflags = 0;
+	entry->hdr.uflags = 0;
 
 	/*
 	 * Fix up iovecs, and handle if allocation in data ring wrapped.
@@ -376,7 +373,8 @@ static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 
 		/* Even iov_base is relative to mb_addr */
 		iov->iov_len = copy_bytes;
-		iov->iov_base = (void *) udev->data_off + udev->data_head;
+		iov->iov_base = (void __user *) udev->data_off +
+						udev->data_head;
 		iov_cnt++;
 		iov++;
 
@@ -388,7 +386,8 @@ static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 			copy_bytes = sg->length - copy_bytes;
 
 			iov->iov_len = copy_bytes;
-			iov->iov_base = (void *) udev->data_off + udev->data_head;
+			iov->iov_base = (void __user *) udev->data_off +
+							udev->data_head;
 
 			if (se_cmd->data_direction == DMA_TO_DEVICE) {
 				to = (void *) mb + udev->data_off + udev->data_head;
@@ -405,6 +404,8 @@ static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 		kunmap_atomic(from);
 	}
 	entry->req.iov_cnt = iov_cnt;
+	entry->req.iov_bidi_cnt = 0;
+	entry->req.iov_dif_cnt = 0;
 
 	/* All offsets relative to mb_addr, not start of entry! */
 	cdb_off = CMDR_OFF + cmd_head + base_command_size;
@@ -459,6 +460,17 @@ static void tcmu_handle_completion(struct tcmu_cmd *cmd, struct tcmu_cmd_entry *
 		/* cmd has been completed already from timeout, just reclaim data
 		   ring space */
 		UPDATE_HEAD(udev->data_tail, cmd->data_length, udev->data_size);
+		return;
+	}
+
+	if (entry->hdr.uflags & TCMU_UFLAG_UNKNOWN_OP) {
+		UPDATE_HEAD(udev->data_tail, cmd->data_length, udev->data_size);
+		pr_warn("TCMU: Userspace set UNKNOWN_OP flag on se_cmd %p\n",
+			cmd->se_cmd);
+		transport_generic_request_failure(cmd->se_cmd,
+			TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE);
+		cmd->se_cmd = NULL;
+		kmem_cache_free(tcmu_cmd_cache, cmd);
 		return;
 	}
 
@@ -540,14 +552,16 @@ static unsigned int tcmu_handle_completions(struct tcmu_dev *udev)
 
 		tcmu_flush_dcache_range(entry, sizeof(*entry));
 
-		if (tcmu_hdr_get_op(&entry->hdr) == TCMU_OP_PAD) {
-			UPDATE_HEAD(udev->cmdr_last_cleaned, tcmu_hdr_get_len(&entry->hdr), udev->cmdr_size);
+		if (tcmu_hdr_get_op(entry->hdr.len_op) == TCMU_OP_PAD) {
+			UPDATE_HEAD(udev->cmdr_last_cleaned,
+				    tcmu_hdr_get_len(entry->hdr.len_op),
+				    udev->cmdr_size);
 			continue;
 		}
-		WARN_ON(tcmu_hdr_get_op(&entry->hdr) != TCMU_OP_CMD);
+		WARN_ON(tcmu_hdr_get_op(entry->hdr.len_op) != TCMU_OP_CMD);
 
 		spin_lock(&udev->commands_lock);
-		cmd = idr_find(&udev->commands, entry->cmd_id);
+		cmd = idr_find(&udev->commands, entry->hdr.cmd_id);
 		if (cmd)
 			idr_remove(&udev->commands, cmd->cmd_id);
 		spin_unlock(&udev->commands_lock);
@@ -560,7 +574,9 @@ static unsigned int tcmu_handle_completions(struct tcmu_dev *udev)
 
 		tcmu_handle_completion(cmd, entry);
 
-		UPDATE_HEAD(udev->cmdr_last_cleaned, tcmu_hdr_get_len(&entry->hdr), udev->cmdr_size);
+		UPDATE_HEAD(udev->cmdr_last_cleaned,
+			    tcmu_hdr_get_len(entry->hdr.len_op),
+			    udev->cmdr_size);
 
 		handled++;
 	}
@@ -658,8 +674,6 @@ static struct se_device *tcmu_alloc_device(struct se_hba *hba, const char *name)
 
 	setup_timer(&udev->timeout, tcmu_device_timedout,
 		(unsigned long)udev);
-
-	udev->pass_level = TCMU_PASS_ALL;
 
 	return &udev->se_dev;
 }
@@ -838,14 +852,14 @@ static int tcmu_configure_device(struct se_device *dev)
 	udev->data_size = TCMU_RING_SIZE - CMDR_SIZE;
 
 	mb = udev->mb_addr;
-	mb->version = 1;
+	mb->version = TCMU_MAILBOX_VERSION;
 	mb->cmdr_off = CMDR_OFF;
 	mb->cmdr_size = udev->cmdr_size;
 
 	WARN_ON(!PAGE_ALIGNED(udev->data_off));
 	WARN_ON(udev->data_size % PAGE_SIZE);
 
-	info->version = "1";
+	info->version = xstr(TCMU_MAILBOX_VERSION);
 
 	info->mem[0].name = "tcm-user command & data buffer";
 	info->mem[0].addr = (phys_addr_t) udev->mb_addr;
@@ -924,13 +938,13 @@ static void tcmu_free_device(struct se_device *dev)
 }
 
 enum {
-	Opt_dev_config, Opt_dev_size, Opt_err, Opt_pass_level,
+	Opt_dev_config, Opt_dev_size, Opt_hw_block_size, Opt_err,
 };
 
 static match_table_t tokens = {
 	{Opt_dev_config, "dev_config=%s"},
 	{Opt_dev_size, "dev_size=%u"},
-	{Opt_pass_level, "pass_level=%u"},
+	{Opt_hw_block_size, "hw_block_size=%u"},
 	{Opt_err, NULL}
 };
 
@@ -941,7 +955,7 @@ static ssize_t tcmu_set_configfs_dev_params(struct se_device *dev,
 	char *orig, *ptr, *opts, *arg_p;
 	substring_t args[MAX_OPT_ARGS];
 	int ret = 0, token;
-	int arg;
+	unsigned long tmp_ul;
 
 	opts = kstrdup(page, GFP_KERNEL);
 	if (!opts)
@@ -974,15 +988,23 @@ static ssize_t tcmu_set_configfs_dev_params(struct se_device *dev,
 			if (ret < 0)
 				pr_err("kstrtoul() failed for dev_size=\n");
 			break;
-		case Opt_pass_level:
-			match_int(args, &arg);
-			if (arg >= TCMU_PASS_INVALID) {
-				pr_warn("TCMU: Invalid pass_level: %d\n", arg);
+		case Opt_hw_block_size:
+			arg_p = match_strdup(&args[0]);
+			if (!arg_p) {
+				ret = -ENOMEM;
 				break;
 			}
-
-			pr_debug("TCMU: Setting pass_level to %d\n", arg);
-			udev->pass_level = arg;
+			ret = kstrtoul(arg_p, 0, &tmp_ul);
+			kfree(arg_p);
+			if (ret < 0) {
+				pr_err("kstrtoul() failed for hw_block_size=\n");
+				break;
+			}
+			if (!tmp_ul) {
+				pr_err("hw_block_size must be nonzero\n");
+				break;
+			}
+			dev->dev_attrib.hw_block_size = tmp_ul;
 			break;
 		default:
 			break;
@@ -1000,8 +1022,7 @@ static ssize_t tcmu_show_configfs_dev_params(struct se_device *dev, char *b)
 
 	bl = sprintf(b + bl, "Config: %s ",
 		     udev->dev_config[0] ? udev->dev_config : "NULL");
-	bl += sprintf(b + bl, "Size: %zu PassLevel: %u\n",
-		      udev->dev_size, udev->pass_level);
+	bl += sprintf(b + bl, "Size: %zu\n", udev->dev_size);
 
 	return bl;
 }
@@ -1015,20 +1036,6 @@ static sector_t tcmu_get_blocks(struct se_device *dev)
 }
 
 static sense_reason_t
-tcmu_execute_rw(struct se_cmd *se_cmd, struct scatterlist *sgl, u32 sgl_nents,
-		enum dma_data_direction data_direction)
-{
-	int ret;
-
-	ret = tcmu_queue_cmd(se_cmd);
-
-	if (ret != 0)
-		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-	else
-		return TCM_NO_SENSE;
-}
-
-static sense_reason_t
 tcmu_pass_op(struct se_cmd *se_cmd)
 {
 	int ret = tcmu_queue_cmd(se_cmd);
@@ -1039,91 +1046,29 @@ tcmu_pass_op(struct se_cmd *se_cmd)
 		return TCM_NO_SENSE;
 }
 
-static struct sbc_ops tcmu_sbc_ops = {
-	.execute_rw = tcmu_execute_rw,
-	.execute_sync_cache	= tcmu_pass_op,
-	.execute_write_same	= tcmu_pass_op,
-	.execute_write_same_unmap = tcmu_pass_op,
-	.execute_unmap		= tcmu_pass_op,
-};
-
 static sense_reason_t
 tcmu_parse_cdb(struct se_cmd *cmd)
 {
-	unsigned char *cdb = cmd->t_task_cdb;
-	struct tcmu_dev *udev = TCMU_DEV(cmd->se_dev);
-	sense_reason_t ret;
-
-	switch (udev->pass_level) {
-	case TCMU_PASS_ALL:
-		/* We're just like pscsi, then */
-		/*
-		 * For REPORT LUNS we always need to emulate the response, for everything
-		 * else, pass it up.
-		 */
-		switch (cdb[0]) {
-		case REPORT_LUNS:
-			cmd->execute_cmd = spc_emulate_report_luns;
-			break;
-		case READ_6:
-		case READ_10:
-		case READ_12:
-		case READ_16:
-		case WRITE_6:
-		case WRITE_10:
-		case WRITE_12:
-		case WRITE_16:
-		case WRITE_VERIFY:
-			cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-			/* FALLTHROUGH */
-		default:
-			cmd->execute_cmd = tcmu_pass_op;
-		}
-		ret = TCM_NO_SENSE;
-		break;
-	case TCMU_PASS_IO:
-		ret = sbc_parse_cdb(cmd, &tcmu_sbc_ops);
-		break;
-	default:
-		pr_err("Unknown tcm-user pass level %d\n", udev->pass_level);
-		ret = TCM_CHECK_CONDITION_ABORT_CMD;
-	}
-
-	return ret;
+	return passthrough_parse_cdb(cmd, tcmu_pass_op);
 }
 
-DEF_TB_DEFAULT_ATTRIBS(tcmu);
+DEF_TB_DEV_ATTRIB_RO(tcmu, hw_pi_prot_type);
+TB_DEV_ATTR_RO(tcmu, hw_pi_prot_type);
+
+DEF_TB_DEV_ATTRIB_RO(tcmu, hw_block_size);
+TB_DEV_ATTR_RO(tcmu, hw_block_size);
+
+DEF_TB_DEV_ATTRIB_RO(tcmu, hw_max_sectors);
+TB_DEV_ATTR_RO(tcmu, hw_max_sectors);
+
+DEF_TB_DEV_ATTRIB_RO(tcmu, hw_queue_depth);
+TB_DEV_ATTR_RO(tcmu, hw_queue_depth);
 
 static struct configfs_attribute *tcmu_backend_dev_attrs[] = {
-	&tcmu_dev_attrib_emulate_model_alias.attr,
-	&tcmu_dev_attrib_emulate_dpo.attr,
-	&tcmu_dev_attrib_emulate_fua_write.attr,
-	&tcmu_dev_attrib_emulate_fua_read.attr,
-	&tcmu_dev_attrib_emulate_write_cache.attr,
-	&tcmu_dev_attrib_emulate_ua_intlck_ctrl.attr,
-	&tcmu_dev_attrib_emulate_tas.attr,
-	&tcmu_dev_attrib_emulate_tpu.attr,
-	&tcmu_dev_attrib_emulate_tpws.attr,
-	&tcmu_dev_attrib_emulate_caw.attr,
-	&tcmu_dev_attrib_emulate_3pc.attr,
-	&tcmu_dev_attrib_pi_prot_type.attr,
 	&tcmu_dev_attrib_hw_pi_prot_type.attr,
-	&tcmu_dev_attrib_pi_prot_format.attr,
-	&tcmu_dev_attrib_enforce_pr_isids.attr,
-	&tcmu_dev_attrib_is_nonrot.attr,
-	&tcmu_dev_attrib_emulate_rest_reord.attr,
-	&tcmu_dev_attrib_force_pr_aptpl.attr,
 	&tcmu_dev_attrib_hw_block_size.attr,
-	&tcmu_dev_attrib_block_size.attr,
 	&tcmu_dev_attrib_hw_max_sectors.attr,
-	&tcmu_dev_attrib_optimal_sectors.attr,
 	&tcmu_dev_attrib_hw_queue_depth.attr,
-	&tcmu_dev_attrib_queue_depth.attr,
-	&tcmu_dev_attrib_max_unmap_lba_count.attr,
-	&tcmu_dev_attrib_max_unmap_block_desc_count.attr,
-	&tcmu_dev_attrib_unmap_granularity.attr,
-	&tcmu_dev_attrib_unmap_granularity_alignment.attr,
-	&tcmu_dev_attrib_max_write_same_len.attr,
 	NULL,
 };
 
@@ -1132,7 +1077,7 @@ static struct se_subsystem_api tcmu_template = {
 	.inquiry_prod		= "USER",
 	.inquiry_rev		= TCMU_VERSION,
 	.owner			= THIS_MODULE,
-	.transport_type		= TRANSPORT_PLUGIN_VHBA_PDEV,
+	.transport_flags	= TRANSPORT_FLAG_PASSTHROUGH,
 	.attach_hba		= tcmu_attach_hba,
 	.detach_hba		= tcmu_detach_hba,
 	.alloc_device		= tcmu_alloc_device,

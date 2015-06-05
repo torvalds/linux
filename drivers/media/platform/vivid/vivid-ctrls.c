@@ -818,7 +818,7 @@ static int vivid_vid_out_s_ctrl(struct v4l2_ctrl *ctrl)
 		dev->dvi_d_out = ctrl->val == V4L2_DV_TX_MODE_DVI_D;
 		if (!vivid_is_hdmi_out(dev))
 			break;
-		if (!dev->dvi_d_out && (bt->standards & V4L2_DV_BT_STD_CEA861)) {
+		if (!dev->dvi_d_out && (bt->flags & V4L2_DV_FL_IS_CE_VIDEO)) {
 			if (bt->width == 720 && bt->height <= 576)
 				dev->colorspace_out = V4L2_COLORSPACE_SMPTE170M;
 			else

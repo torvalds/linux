@@ -820,8 +820,8 @@ int coda_downcall(struct venus_comm *vcp, int opcode, union outputArgs *out)
 	case CODA_FLUSH:
 		coda_cache_clear_all(sb);
 		shrink_dcache_sb(sb);
-		if (sb->s_root->d_inode)
-			coda_flag_inode(sb->s_root->d_inode, C_FLUSH);
+		if (d_really_is_positive(sb->s_root))
+			coda_flag_inode(d_inode(sb->s_root), C_FLUSH);
 		break;
 
 	case CODA_PURGEUSER:

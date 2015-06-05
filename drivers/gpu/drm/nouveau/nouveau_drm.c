@@ -181,6 +181,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 			break;
 		case FERMI_CHANNEL_GPFIFO:
 		case KEPLER_CHANNEL_GPFIFO_A:
+		case MAXWELL_CHANNEL_GPFIFO_A:
 			ret = nvc0_fence_create(drm);
 			break;
 		default:

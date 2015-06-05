@@ -43,7 +43,7 @@ static int __apply_alternatives(void *alt_region)
 		if (!cpus_have_cap(alt->cpufeature))
 			continue;
 
-		BUG_ON(alt->alt_len > alt->orig_len);
+		BUG_ON(alt->alt_len != alt->orig_len);
 
 		pr_info_once("patching kernel code\n");
 

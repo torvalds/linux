@@ -356,6 +356,11 @@ _GLOBAL(ppc64_swapcontext)
 	bl	sys_swapcontext
 	b	.Lsyscall_exit
 
+_GLOBAL(ppc_switch_endian)
+	bl	save_nvgprs
+	bl	sys_switch_endian
+	b	.Lsyscall_exit
+
 _GLOBAL(ret_from_fork)
 	bl	schedule_tail
 	REST_NVGPRS(r1)

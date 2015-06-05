@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/acpi.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/stddef.h>
@@ -46,11 +47,11 @@
 #include <linux/efi.h>
 #include <linux/personality.h>
 
+#include <asm/acpi.h>
 #include <asm/fixmap.h>
 #include <asm/cpu.h>
 #include <asm/cputype.h>
 #include <asm/elf.h>
-#include <asm/cputable.h>
 #include <asm/cpufeature.h>
 #include <asm/cpu_ops.h>
 #include <asm/sections.h>
@@ -62,9 +63,7 @@
 #include <asm/memblock.h>
 #include <asm/psci.h>
 #include <asm/efi.h>
-
-unsigned int processor_id;
-EXPORT_SYMBOL(processor_id);
+#include <asm/virt.h>
 
 unsigned long elf_hwcap __read_mostly;
 EXPORT_SYMBOL_GPL(elf_hwcap);
@@ -83,7 +82,6 @@ unsigned int compat_elf_hwcap2 __read_mostly;
 
 DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);
 
-static const char *cpu_name;
 phys_addr_t __fdt_pointer __initdata;
 
 /*
@@ -118,6 +116,11 @@ void __init early_print(const char *str, ...)
 
 	printk("%s", buf);
 }
+
+/*
+ * The recorded values of x0 .. x3 upon kernel entry.
+ */
+u64 __cacheline_aligned boot_args[4];
 
 void __init smp_setup_processor_id(void)
 {
@@ -207,24 +210,38 @@ static void __init smp_build_mpidr_hash(void)
 }
 #endif
 
+static void __init hyp_mode_check(void)
+{
+	if (is_hyp_mode_available())
+		pr_info("CPU: All CPU(s) started at EL2\n");
+	else if (is_hyp_mode_mismatched())
+		WARN_TAINT(1, TAINT_CPU_OUT_OF_SPEC,
+			   "CPU: CPUs started in inconsistent modes");
+	else
+		pr_info("CPU: All CPU(s) started at EL1\n");
+}
+
+void __init do_post_cpus_up_work(void)
+{
+	hyp_mode_check();
+	apply_alternatives_all();
+}
+
+#ifdef CONFIG_UP_LATE_INIT
+void __init up_late_init(void)
+{
+	do_post_cpus_up_work();
+}
+#endif /* CONFIG_UP_LATE_INIT */
+
 static void __init setup_processor(void)
 {
-	struct cpu_info *cpu_info;
 	u64 features, block;
 	u32 cwg;
 	int cls;
 
-	cpu_info = lookup_processor_type(read_cpuid_id());
-	if (!cpu_info) {
-		printk("CPU configuration botched (ID %08x), unable to continue.\n",
-		       read_cpuid_id());
-		while (1);
-	}
-
-	cpu_name = cpu_info->cpu_name;
-
-	printk("CPU: %s [%08x] revision %d\n",
-	       cpu_name, read_cpuid_id(), read_cpuid_id() & 15);
+	printk("CPU: AArch64 Processor [%08x] revision %d\n",
+	       read_cpuid_id(), read_cpuid_id() & 15);
 
 	sprintf(init_utsname()->machine, ELF_PLATFORM);
 	elf_hwcap = 0;
@@ -380,18 +397,27 @@ void __init setup_arch(char **cmdline_p)
 	efi_init();
 	arm64_memblock_init();
 
+	/* Parse the ACPI tables for possible boot-time configuration */
+	acpi_boot_table_init();
+
 	paging_init();
 	request_standard_resources();
 
 	early_ioremap_reset();
 
-	unflatten_device_tree();
-
-	psci_init();
-
-	cpu_read_bootcpu_ops();
+	if (acpi_disabled) {
+		unflatten_device_tree();
+		psci_dt_init();
+		cpu_read_bootcpu_ops();
 #ifdef CONFIG_SMP
-	smp_init_cpus();
+		of_smp_init_cpus();
+#endif
+	} else {
+		psci_acpi_init();
+		acpi_init_cpus();
+	}
+
+#ifdef CONFIG_SMP
 	smp_build_mpidr_hash();
 #endif
 
@@ -402,6 +428,12 @@ void __init setup_arch(char **cmdline_p)
 	conswitchp = &dummy_con;
 #endif
 #endif
+	if (boot_args[1] || boot_args[2] || boot_args[3]) {
+		pr_err("WARNING: x1-x3 nonzero in violation of boot protocol:\n"
+			"\tx1: %016llx\n\tx2: %016llx\n\tx3: %016llx\n"
+			"This indicates a broken bootloader or old kernel\n",
+			boot_args[1], boot_args[2], boot_args[3]);
+	}
 }
 
 static int __init arm64_device_init(void)

@@ -380,6 +380,9 @@ static int pppoe_rcv_core(struct sock *sk, struct sk_buff *skb)
 	 * can't change.
 	 */
 
+	if (skb->pkt_type == PACKET_OTHERHOST)
+		goto abort_kfree;
+
 	if (sk->sk_state & PPPOX_BOUND) {
 		ppp_input(&po->chan, skb);
 	} else if (sk->sk_state & PPPOX_RELAY) {
@@ -462,6 +465,10 @@ static void pppoe_unbind_sock_work(struct work_struct *work)
 	struct sock *sk = sk_pppox(po);
 
 	lock_sock(sk);
+	if (po->pppoe_dev) {
+		dev_put(po->pppoe_dev);
+		po->pppoe_dev = NULL;
+	}
 	pppox_unbind_sock(sk);
 	release_sock(sk);
 	sock_put(sk);

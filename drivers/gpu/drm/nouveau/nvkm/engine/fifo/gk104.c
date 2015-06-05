@@ -323,8 +323,8 @@ gk104_fifo_chan_fini(struct nvkm_object *object, bool suspend)
 	return nvkm_fifo_channel_fini(&chan->base, suspend);
 }
 
-static struct nvkm_ofuncs
-gk104_fifo_ofuncs = {
+struct nvkm_ofuncs
+gk104_fifo_chan_ofuncs = {
 	.ctor = gk104_fifo_chan_ctor,
 	.dtor = _nvkm_fifo_channel_dtor,
 	.init = gk104_fifo_chan_init,
@@ -337,7 +337,7 @@ gk104_fifo_ofuncs = {
 
 static struct nvkm_oclass
 gk104_fifo_sclass[] = {
-	{ KEPLER_CHANNEL_GPFIFO_A, &gk104_fifo_ofuncs },
+	{ KEPLER_CHANNEL_GPFIFO_A, &gk104_fifo_chan_ofuncs },
 	{}
 };
 
@@ -774,6 +774,7 @@ gk104_fifo_intr_fault(struct gk104_fifo_priv *priv, int unit)
 	while (object) {
 		switch (nv_mclass(object)) {
 		case KEPLER_CHANNEL_GPFIFO_A:
+		case MAXWELL_CHANNEL_GPFIFO_A:
 			gk104_fifo_recover(priv, engine, (void *)object);
 			break;
 		}

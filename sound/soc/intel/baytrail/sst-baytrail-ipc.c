@@ -759,7 +759,6 @@ fw_err:
 dsp_new_err:
 	sst_ipc_fini(ipc);
 ipc_init_err:
-	kfree(byt);
 
 	return err;
 }

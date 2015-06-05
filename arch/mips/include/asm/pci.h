@@ -35,6 +35,8 @@ struct pci_controller {
 	struct resource *io_resource;
 	unsigned long io_offset;
 	unsigned long io_map_base;
+	struct resource *busn_resource;
+	unsigned long busn_offset;
 
 	unsigned int index;
 	/* For compatibility with current (as of July 2003) pciutils

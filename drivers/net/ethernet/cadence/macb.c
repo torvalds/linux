@@ -350,6 +350,9 @@ static int macb_mii_probe(struct net_device *dev)
 	else
 		phydev->supported &= PHY_BASIC_FEATURES;
 
+	if (bp->caps & MACB_CAPS_NO_GIGABIT_HALF)
+		phydev->supported &= ~SUPPORTED_1000baseT_Half;
+
 	phydev->advertising = phydev->supported;
 
 	bp->link = 0;
@@ -707,6 +710,9 @@ static void gem_rx_refill(struct macb *bp)
 
 			/* properly align Ethernet header */
 			skb_reserve(skb, NET_IP_ALIGN);
+		} else {
+			bp->rx_ring[entry].addr &= ~MACB_BIT(RX_USED);
+			bp->rx_ring[entry].ctrl = 0;
 		}
 	}
 
@@ -978,7 +984,7 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 	struct macb_queue *queue = dev_id;
 	struct macb *bp = queue->bp;
 	struct net_device *dev = bp->dev;
-	u32 status;
+	u32 status, ctrl;
 
 	status = queue_readl(queue, ISR);
 
@@ -1033,6 +1039,21 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 		 * Link change detection isn't possible with RMII, so we'll
 		 * add that if/when we get our hands on a full-blown MII PHY.
 		 */
+
+		/* There is a hardware issue under heavy load where DMA can
+		 * stop, this causes endless "used buffer descriptor read"
+		 * interrupts but it can be cleared by re-enabling RX. See
+		 * the at91 manual, section 41.3.1 or the Zynq manual
+		 * section 16.7.4 for details.
+		 */
+		if (status & MACB_BIT(RXUBR)) {
+			ctrl = macb_readl(bp, NCR);
+			macb_writel(bp, NCR, ctrl & ~MACB_BIT(RE));
+			macb_writel(bp, NCR, ctrl | MACB_BIT(RE));
+
+			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
+				macb_writel(bp, ISR, MACB_BIT(RXUBR));
+		}
 
 		if (status & MACB_BIT(ISR_ROVR)) {
 			/* We missed at least one packet */
@@ -1473,9 +1494,9 @@ static void macb_init_rings(struct macb *bp)
 	for (i = 0; i < TX_RING_SIZE; i++) {
 		bp->queues[0].tx_ring[i].addr = 0;
 		bp->queues[0].tx_ring[i].ctrl = MACB_BIT(TX_USED);
-		bp->queues[0].tx_head = 0;
-		bp->queues[0].tx_tail = 0;
 	}
+	bp->queues[0].tx_head = 0;
+	bp->queues[0].tx_tail = 0;
 	bp->queues[0].tx_ring[TX_RING_SIZE - 1].ctrl |= MACB_BIT(TX_WRAP);
 
 	bp->rx_tail = 0;
@@ -2681,6 +2702,14 @@ static const struct macb_config emac_config = {
 	.init = at91ether_init,
 };
 
+static const struct macb_config zynq_config = {
+	.caps = MACB_CAPS_SG_DISABLED | MACB_CAPS_GIGABIT_MODE_AVAILABLE |
+		MACB_CAPS_NO_GIGABIT_HALF,
+	.dma_burst_length = 16,
+	.clk_init = macb_clk_init,
+	.init = macb_init,
+};
+
 static const struct of_device_id macb_dt_ids[] = {
 	{ .compatible = "cdns,at32ap7000-macb" },
 	{ .compatible = "cdns,at91sam9260-macb", .data = &at91sam9260_config },
@@ -2691,6 +2720,7 @@ static const struct of_device_id macb_dt_ids[] = {
 	{ .compatible = "atmel,sama5d4-gem", .data = &sama5d4_config },
 	{ .compatible = "cdns,at91rm9200-emac", .data = &emac_config },
 	{ .compatible = "cdns,emac", .data = &emac_config },
+	{ .compatible = "cdns,zynq-gem", .data = &zynq_config },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, macb_dt_ids);

@@ -42,46 +42,40 @@ rcar_du_connector_best_encoder(struct drm_connector *connector)
  * Encoder
  */
 
-static void rcar_du_encoder_dpms(struct drm_encoder *encoder, int mode)
+static void rcar_du_encoder_disable(struct drm_encoder *encoder)
 {
 	struct rcar_du_encoder *renc = to_rcar_encoder(encoder);
-
-	if (mode != DRM_MODE_DPMS_ON)
-		mode = DRM_MODE_DPMS_OFF;
 
 	if (renc->lvds)
-		rcar_du_lvdsenc_dpms(renc->lvds, encoder->crtc, mode);
+		rcar_du_lvdsenc_enable(renc->lvds, encoder->crtc, false);
 }
 
-static bool rcar_du_encoder_mode_fixup(struct drm_encoder *encoder,
-				       const struct drm_display_mode *mode,
-				       struct drm_display_mode *adjusted_mode)
+static void rcar_du_encoder_enable(struct drm_encoder *encoder)
 {
 	struct rcar_du_encoder *renc = to_rcar_encoder(encoder);
+
+	if (renc->lvds)
+		rcar_du_lvdsenc_enable(renc->lvds, encoder->crtc, true);
+}
+
+static int rcar_du_encoder_atomic_check(struct drm_encoder *encoder,
+					struct drm_crtc_state *crtc_state,
+					struct drm_connector_state *conn_state)
+{
+	struct rcar_du_encoder *renc = to_rcar_encoder(encoder);
+	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
+	const struct drm_display_mode *mode = &crtc_state->mode;
 	const struct drm_display_mode *panel_mode;
+	struct drm_connector *connector = conn_state->connector;
 	struct drm_device *dev = encoder->dev;
-	struct drm_connector *connector;
-	bool found = false;
 
 	/* DAC encoders have currently no restriction on the mode. */
 	if (encoder->encoder_type == DRM_MODE_ENCODER_DAC)
-		return true;
-
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (connector->encoder == encoder) {
-			found = true;
-			break;
-		}
-	}
-
-	if (!found) {
-		dev_dbg(dev->dev, "mode_fixup: no connector found\n");
-		return false;
-	}
+		return 0;
 
 	if (list_empty(&connector->modes)) {
-		dev_dbg(dev->dev, "mode_fixup: empty modes list\n");
-		return false;
+		dev_dbg(dev->dev, "encoder: empty modes list\n");
+		return -EINVAL;
 	}
 
 	panel_mode = list_first_entry(&connector->modes,
@@ -90,7 +84,7 @@ static bool rcar_du_encoder_mode_fixup(struct drm_encoder *encoder,
 	/* We're not allowed to modify the resolution. */
 	if (mode->hdisplay != panel_mode->hdisplay ||
 	    mode->vdisplay != panel_mode->vdisplay)
-		return false;
+		return -EINVAL;
 
 	/* The flat panel mode is fixed, just copy it to the adjusted mode. */
 	drm_mode_copy(adjusted_mode, panel_mode);
@@ -102,25 +96,7 @@ static bool rcar_du_encoder_mode_fixup(struct drm_encoder *encoder,
 		adjusted_mode->clock = clamp(adjusted_mode->clock,
 					     30000, 150000);
 
-	return true;
-}
-
-static void rcar_du_encoder_mode_prepare(struct drm_encoder *encoder)
-{
-	struct rcar_du_encoder *renc = to_rcar_encoder(encoder);
-
-	if (renc->lvds)
-		rcar_du_lvdsenc_dpms(renc->lvds, encoder->crtc,
-				     DRM_MODE_DPMS_OFF);
-}
-
-static void rcar_du_encoder_mode_commit(struct drm_encoder *encoder)
-{
-	struct rcar_du_encoder *renc = to_rcar_encoder(encoder);
-
-	if (renc->lvds)
-		rcar_du_lvdsenc_dpms(renc->lvds, encoder->crtc,
-				     DRM_MODE_DPMS_ON);
+	return 0;
 }
 
 static void rcar_du_encoder_mode_set(struct drm_encoder *encoder,
@@ -133,11 +109,10 @@ static void rcar_du_encoder_mode_set(struct drm_encoder *encoder,
 }
 
 static const struct drm_encoder_helper_funcs encoder_helper_funcs = {
-	.dpms = rcar_du_encoder_dpms,
-	.mode_fixup = rcar_du_encoder_mode_fixup,
-	.prepare = rcar_du_encoder_mode_prepare,
-	.commit = rcar_du_encoder_mode_commit,
 	.mode_set = rcar_du_encoder_mode_set,
+	.disable = rcar_du_encoder_disable,
+	.enable = rcar_du_encoder_enable,
+	.atomic_check = rcar_du_encoder_atomic_check,
 };
 
 static const struct drm_encoder_funcs encoder_funcs = {

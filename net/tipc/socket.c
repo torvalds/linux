@@ -1764,13 +1764,14 @@ static int tipc_sk_enqueue(struct sk_buff_head *inputq, struct sock *sk,
 int tipc_sk_rcv(struct net *net, struct sk_buff_head *inputq)
 {
 	u32 dnode, dport = 0;
-	int err = -TIPC_ERR_NO_PORT;
+	int err;
 	struct sk_buff *skb;
 	struct tipc_sock *tsk;
 	struct tipc_net *tn;
 	struct sock *sk;
 
 	while (skb_queue_len(inputq)) {
+		err = -TIPC_ERR_NO_PORT;
 		skb = NULL;
 		dport = tipc_skb_peek_port(inputq, dport);
 		tsk = tipc_sk_lookup(net, dport);

@@ -76,6 +76,14 @@ struct iwpm_mapping_info {
 	u8     nl_client;
 };
 
+struct iwpm_remote_info {
+	struct hlist_node hlist_node;
+	struct sockaddr_storage remote_sockaddr;
+	struct sockaddr_storage mapped_loc_sockaddr;
+	struct sockaddr_storage mapped_rem_sockaddr;
+	u8     nl_client;
+};
+
 struct iwpm_admin_data {
 	atomic_t refcount;
 	atomic_t nlmsg_seq;
@@ -126,6 +134,13 @@ int iwpm_wait_complete_req(struct iwpm_nlmsg_request *nlmsg_request);
  * Returns the sequence number for the netlink message.
  */
 int iwpm_get_nlmsg_seq(void);
+
+/**
+ * iwpm_add_reminfo - Add remote address info of the connecting peer
+ *                    to the remote info hash table
+ * @reminfo: The remote info to be added
+ */
+void iwpm_add_remote_info(struct iwpm_remote_info *reminfo);
 
 /**
  * iwpm_valid_client - Check if the port mapper client is valid

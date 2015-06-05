@@ -2418,9 +2418,9 @@ static int smsc911x_drv_probe(struct platform_device *pdev)
 	struct net_device *dev;
 	struct smsc911x_data *pdata;
 	struct smsc911x_platform_config *config = dev_get_platdata(&pdev->dev);
-	struct resource *res, *irq_res;
+	struct resource *res;
 	unsigned int intcfg = 0;
-	int res_size, irq_flags;
+	int res_size, irq, irq_flags;
 	int retval;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
@@ -2434,8 +2434,8 @@ static int smsc911x_drv_probe(struct platform_device *pdev)
 	}
 	res_size = resource_size(res);
 
-	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!irq_res) {
+	irq = platform_get_irq(pdev, 0);
+	if (irq <= 0) {
 		pr_warn("Could not allocate irq resource\n");
 		retval = -ENODEV;
 		goto out_0;
@@ -2455,8 +2455,8 @@ static int smsc911x_drv_probe(struct platform_device *pdev)
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	pdata = netdev_priv(dev);
-	dev->irq = irq_res->start;
-	irq_flags = irq_res->flags & IRQF_TRIGGER_MASK;
+	dev->irq = irq;
+	irq_flags = irq_get_trigger_type(irq);
 	pdata->ioaddr = ioremap_nocache(res->start, res_size);
 
 	pdata->dev = dev;

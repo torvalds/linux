@@ -170,7 +170,7 @@ nfs_file_read(struct kiocb *iocb, struct iov_iter *to)
 	struct inode *inode = file_inode(iocb->ki_filp);
 	ssize_t result;
 
-	if (iocb->ki_filp->f_flags & O_DIRECT)
+	if (iocb->ki_flags & IOCB_DIRECT)
 		return nfs_file_direct_read(iocb, to, iocb->ki_pos);
 
 	dprintk("NFS: read(%pD2, %zu@%lu)\n",
@@ -280,6 +280,7 @@ nfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 
 	trace_nfs_fsync_enter(inode);
 
+	nfs_inode_dio_wait(inode);
 	do {
 		ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
 		if (ret != 0)
@@ -674,17 +675,20 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
 	unsigned long written = 0;
 	ssize_t result;
 	size_t count = iov_iter_count(from);
-	loff_t pos = iocb->ki_pos;
 
 	result = nfs_key_timeout_notify(file, inode);
 	if (result)
 		return result;
 
-	if (file->f_flags & O_DIRECT)
-		return nfs_file_direct_write(iocb, from, pos);
+	if (iocb->ki_flags & IOCB_DIRECT) {
+		result = generic_write_checks(iocb, from);
+		if (result <= 0)
+			return result;
+		return nfs_file_direct_write(iocb, from);
+	}
 
 	dprintk("NFS: write(%pD2, %zu@%Ld)\n",
-		file, count, (long long) pos);
+		file, count, (long long) iocb->ki_pos);
 
 	result = -EBUSY;
 	if (IS_SWAPFILE(inode))
@@ -692,7 +696,7 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
 	/*
 	 * O_APPEND implies that we must revalidate the file length.
 	 */
-	if (file->f_flags & O_APPEND) {
+	if (iocb->ki_flags & IOCB_APPEND) {
 		result = nfs_revalidate_file_size(inode, file);
 		if (result)
 			goto out;
@@ -779,7 +783,7 @@ do_unlk(struct file *filp, int cmd, struct file_lock *fl, int is_local)
 	 * Flush all pending writes before doing anything
 	 * with locks..
 	 */
-	nfs_sync_mapping(filp->f_mapping);
+	vfs_fsync(filp, 0);
 
 	l_ctx = nfs_get_lock_context(nfs_file_open_context(filp));
 	if (!IS_ERR(l_ctx)) {

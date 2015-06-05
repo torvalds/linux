@@ -774,12 +774,12 @@ posix_acl_xattr_get(struct dentry *dentry, const char *name,
 	struct posix_acl *acl;
 	int error;
 
-	if (!IS_POSIXACL(dentry->d_inode))
+	if (!IS_POSIXACL(d_backing_inode(dentry)))
 		return -EOPNOTSUPP;
 	if (d_is_symlink(dentry))
 		return -EOPNOTSUPP;
 
-	acl = get_acl(dentry->d_inode, type);
+	acl = get_acl(d_backing_inode(dentry), type);
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);
 	if (acl == NULL)
@@ -795,7 +795,7 @@ static int
 posix_acl_xattr_set(struct dentry *dentry, const char *name,
 		const void *value, size_t size, int flags, int type)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_backing_inode(dentry);
 	struct posix_acl *acl = NULL;
 	int ret;
 
@@ -834,7 +834,7 @@ posix_acl_xattr_list(struct dentry *dentry, char *list, size_t list_size,
 	const char *xname;
 	size_t size;
 
-	if (!IS_POSIXACL(dentry->d_inode))
+	if (!IS_POSIXACL(d_backing_inode(dentry)))
 		return -EOPNOTSUPP;
 	if (d_is_symlink(dentry))
 		return -EOPNOTSUPP;

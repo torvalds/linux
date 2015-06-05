@@ -51,18 +51,6 @@ void s5p_jpeg_input_raw_mode(void __iomem *regs, unsigned long mode)
 	writel(reg, regs + S5P_JPGCMOD);
 }
 
-void s5p_jpeg_input_raw_y16(void __iomem *regs, bool y16)
-{
-	unsigned long reg;
-
-	reg = readl(regs + S5P_JPGCMOD);
-	if (y16)
-		reg |= S5P_MODE_Y16;
-	else
-		reg &= ~S5P_MODE_Y16_MASK;
-	writel(reg, regs + S5P_JPGCMOD);
-}
-
 void s5p_jpeg_proc_mode(void __iomem *regs, unsigned long mode)
 {
 	unsigned long reg, m;
@@ -206,26 +194,6 @@ void s5p_jpeg_final_mcu_num_int_enable(void __iomem *regs, bool enbl)
 	if (enbl)
 		reg |= S5P_FINAL_MCU_NUM_INT_EN;
 	writel(reg, regs + S5P_JPGINTSE);
-}
-
-void s5p_jpeg_timer_enable(void __iomem *regs, unsigned long val)
-{
-	unsigned long reg;
-
-	reg = readl(regs + S5P_JPG_TIMER_SE);
-	reg |= S5P_TIMER_INT_EN;
-	reg &= ~S5P_TIMER_INIT_MASK;
-	reg |= val & S5P_TIMER_INIT_MASK;
-	writel(reg, regs + S5P_JPG_TIMER_SE);
-}
-
-void s5p_jpeg_timer_disable(void __iomem *regs)
-{
-	unsigned long reg;
-
-	reg = readl(regs + S5P_JPG_TIMER_SE);
-	reg &= ~S5P_TIMER_INT_EN_MASK;
-	writel(reg, regs + S5P_JPG_TIMER_SE);
 }
 
 int s5p_jpeg_timer_stat(void __iomem *regs)

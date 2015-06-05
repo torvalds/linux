@@ -439,10 +439,10 @@ TRACE_EVENT(ext3_sync_file_enter,
 	TP_fast_assign(
 		struct dentry *dentry = file->f_path.dentry;
 
-		__entry->dev		= dentry->d_inode->i_sb->s_dev;
-		__entry->ino		= dentry->d_inode->i_ino;
+		__entry->dev		= d_inode(dentry)->i_sb->s_dev;
+		__entry->ino		= d_inode(dentry)->i_ino;
 		__entry->datasync	= datasync;
-		__entry->parent		= dentry->d_parent->d_inode->i_ino;
+		__entry->parent		= d_inode(dentry->d_parent)->i_ino;
 	),
 
 	TP_printk("dev %d,%d ino %lu parent %ld datasync %d ",
@@ -710,9 +710,9 @@ TRACE_EVENT(ext3_unlink_enter,
 
 	TP_fast_assign(
 		__entry->parent		= parent->i_ino;
-		__entry->ino		= dentry->d_inode->i_ino;
-		__entry->size		= dentry->d_inode->i_size;
-		__entry->dev		= dentry->d_inode->i_sb->s_dev;
+		__entry->ino		= d_inode(dentry)->i_ino;
+		__entry->size		= d_inode(dentry)->i_size;
+		__entry->dev		= d_inode(dentry)->i_sb->s_dev;
 	),
 
 	TP_printk("dev %d,%d ino %lu size %lld parent %ld",
@@ -734,8 +734,8 @@ TRACE_EVENT(ext3_unlink_exit,
 	),
 
 	TP_fast_assign(
-		__entry->ino		= dentry->d_inode->i_ino;
-		__entry->dev		= dentry->d_inode->i_sb->s_dev;
+		__entry->ino		= d_inode(dentry)->i_ino;
+		__entry->dev		= d_inode(dentry)->i_sb->s_dev;
 		__entry->ret		= ret;
 	),
 

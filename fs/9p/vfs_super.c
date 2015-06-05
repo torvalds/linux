@@ -168,8 +168,8 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 			retval = PTR_ERR(st);
 			goto release_sb;
 		}
-		root->d_inode->i_ino = v9fs_qid2ino(&st->qid);
-		v9fs_stat2inode_dotl(st, root->d_inode);
+		d_inode(root)->i_ino = v9fs_qid2ino(&st->qid);
+		v9fs_stat2inode_dotl(st, d_inode(root));
 		kfree(st);
 	} else {
 		struct p9_wstat *st = NULL;
@@ -179,8 +179,8 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 			goto release_sb;
 		}
 
-		root->d_inode->i_ino = v9fs_qid2ino(&st->qid);
-		v9fs_stat2inode(st, root->d_inode, sb);
+		d_inode(root)->i_ino = v9fs_qid2ino(&st->qid);
+		v9fs_stat2inode(st, d_inode(root), sb);
 
 		p9stat_free(st);
 		kfree(st);

@@ -1505,7 +1505,7 @@ static void destroy_ep_files (struct dev_data *dev)
 		list_del_init (&ep->epfiles);
 		dentry = ep->dentry;
 		ep->dentry = NULL;
-		parent = dentry->d_parent->d_inode;
+		parent = d_inode(dentry->d_parent);
 
 		/* break link to controller */
 		if (ep->state == STATE_EP_ENABLED)

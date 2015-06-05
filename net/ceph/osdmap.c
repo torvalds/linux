@@ -122,6 +122,22 @@ bad:
 	return -EINVAL;
 }
 
+static int crush_decode_straw2_bucket(void **p, void *end,
+				      struct crush_bucket_straw2 *b)
+{
+	int j;
+	dout("crush_decode_straw2_bucket %p to %p\n", *p, end);
+	b->item_weights = kcalloc(b->h.size, sizeof(u32), GFP_NOFS);
+	if (b->item_weights == NULL)
+		return -ENOMEM;
+	ceph_decode_need(p, end, b->h.size * sizeof(u32), bad);
+	for (j = 0; j < b->h.size; j++)
+		b->item_weights[j] = ceph_decode_32(p);
+	return 0;
+bad:
+	return -EINVAL;
+}
+
 static int skip_name_map(void **p, void *end)
 {
         int len;
@@ -204,6 +220,9 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 		case CRUSH_BUCKET_STRAW:
 			size = sizeof(struct crush_bucket_straw);
 			break;
+		case CRUSH_BUCKET_STRAW2:
+			size = sizeof(struct crush_bucket_straw2);
+			break;
 		default:
 			err = -EINVAL;
 			goto bad;
@@ -258,6 +277,12 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 		case CRUSH_BUCKET_STRAW:
 			err = crush_decode_straw_bucket(p, end,
 				(struct crush_bucket_straw *)b);
+			if (err < 0)
+				goto bad;
+			break;
+		case CRUSH_BUCKET_STRAW2:
+			err = crush_decode_straw2_bucket(p, end,
+				(struct crush_bucket_straw2 *)b);
 			if (err < 0)
 				goto bad;
 			break;

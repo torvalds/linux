@@ -278,7 +278,7 @@ sba_dump_sg( struct ioc *ioc, struct scatterlist *startsg, int nents)
 				nents,
 				(unsigned long) sg_dma_address(startsg),
 				sg_dma_len(startsg),
-				sg_virt_addr(startsg), startsg->length);
+				sg_virt(startsg), startsg->length);
 		startsg++;
 	}
 }
@@ -945,8 +945,7 @@ sba_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
 
 	/* Fast path single entry scatterlists. */
 	if (nents == 1) {
-		sg_dma_address(sglist) = sba_map_single(dev,
-						(void *)sg_virt_addr(sglist),
+		sg_dma_address(sglist) = sba_map_single(dev, sg_virt(sglist),
 						sglist->length, direction);
 		sg_dma_len(sglist)     = sglist->length;
 		return 1;
@@ -1025,7 +1024,7 @@ sba_unmap_sg(struct device *dev, struct scatterlist *sglist, int nents,
 #endif
 
 	DBG_RUN_SG("%s() START %d entries,  %p,%x\n",
-		__func__, nents, sg_virt_addr(sglist), sglist->length);
+		__func__, nents, sg_virt(sglist), sglist->length);
 
 	ioc = GET_IOC(dev);
 

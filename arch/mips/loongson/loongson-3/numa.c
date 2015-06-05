@@ -233,7 +233,7 @@ static __init void prom_meminit(void)
 		if (node_online(node)) {
 			szmem(node);
 			node_mem_init(node);
-			cpus_clear(__node_data[(node)]->cpumask);
+			cpumask_clear(&__node_data[(node)]->cpumask);
 		}
 	}
 	for (cpu = 0; cpu < loongson_sysconf.nr_cpus; cpu++) {
@@ -244,7 +244,7 @@ static __init void prom_meminit(void)
 		if (loongson_sysconf.reserved_cpus_mask & (1<<cpu))
 			continue;
 
-		cpu_set(active_cpu, __node_data[(node)]->cpumask);
+		cpumask_set_cpu(active_cpu, &__node_data[(node)]->cpumask);
 		pr_info("NUMA: set cpumask cpu %d on node %d\n", active_cpu, node);
 
 		active_cpu++;

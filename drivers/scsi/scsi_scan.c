@@ -897,6 +897,12 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	 */
 	if (*bflags & BLIST_MAX_512)
 		blk_queue_max_hw_sectors(sdev->request_queue, 512);
+	/*
+	 * Max 1024 sector transfer length for targets that report incorrect
+	 * max/optimal lengths and relied on the old block layer safe default
+	 */
+	else if (*bflags & BLIST_MAX_1024)
+		blk_queue_max_hw_sectors(sdev->request_queue, 1024);
 
 	/*
 	 * Some devices may not want to have a start command automatically
@@ -1570,16 +1576,15 @@ EXPORT_SYMBOL(scsi_add_device);
 
 void scsi_rescan_device(struct device *dev)
 {
-	if (!dev->driver)
-		return;
-
-	if (try_module_get(dev->driver->owner)) {
+	device_lock(dev);
+	if (dev->driver && try_module_get(dev->driver->owner)) {
 		struct scsi_driver *drv = to_scsi_driver(dev->driver);
 
 		if (drv->rescan)
 			drv->rescan(dev);
 		module_put(dev->driver->owner);
 	}
+	device_unlock(dev);
 }
 EXPORT_SYMBOL(scsi_rescan_device);
 

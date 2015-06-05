@@ -21,7 +21,6 @@
 #define MAX_CRTC	3
 #define MAX_PLANE	5
 #define MAX_FB_BUFFER	4
-#define DEFAULT_ZPOS	-1
 
 #define to_exynos_crtc(x)	container_of(x, struct exynos_drm_crtc, base)
 #define to_exynos_plane(x)	container_of(x, struct exynos_drm_plane, base)
@@ -48,20 +47,22 @@ enum exynos_drm_output_type {
  * Exynos drm common overlay structure.
  *
  * @base: plane object
- * @fb_x: offset x on a framebuffer to be displayed.
+ * @src_x: offset x on a framebuffer to be displayed.
  *	- the unit is screen coordinates.
- * @fb_y: offset y on a framebuffer to be displayed.
+ * @src_y: offset y on a framebuffer to be displayed.
  *	- the unit is screen coordinates.
- * @fb_width: width of a framebuffer.
- * @fb_height: height of a framebuffer.
  * @src_width: width of a partial image to be displayed from framebuffer.
  * @src_height: height of a partial image to be displayed from framebuffer.
+ * @fb_width: width of a framebuffer.
+ * @fb_height: height of a framebuffer.
  * @crtc_x: offset x on hardware screen.
  * @crtc_y: offset y on hardware screen.
  * @crtc_width: window width to be displayed (hardware screen).
  * @crtc_height: window height to be displayed (hardware screen).
  * @mode_width: width of screen mode.
  * @mode_height: height of screen mode.
+ * @h_ratio: horizontal scaling ratio, 16.16 fixed point
+ * @v_ratio: vertical scaling ratio, 16.16 fixed point
  * @refresh: refresh rate.
  * @scan_flag: interlace or progressive way.
  *	(it could be DRM_MODE_FLAG_*)
@@ -70,14 +71,8 @@ enum exynos_drm_output_type {
  * @dma_addr: array of bus(accessed by dma) address to the memory region
  *	      allocated for a overlay.
  * @zpos: order of overlay layer(z position).
- * @index_color: if using color key feature then this value would be used
- *			as index color.
- * @default_win: a window to be enabled.
- * @color_key: color key on or off.
- * @local_path: in case of lcd type, local path mode on or off.
- * @transparency: transparency on or off.
- * @activated: activated or not.
  * @enabled: enabled or not.
+ * @resume: to resume or not.
  *
  * this structure is common to exynos SoC and its contents would be copied
  * to hardware specific overlay info.
@@ -85,33 +80,30 @@ enum exynos_drm_output_type {
 
 struct exynos_drm_plane {
 	struct drm_plane base;
-	unsigned int fb_x;
-	unsigned int fb_y;
-	unsigned int fb_width;
-	unsigned int fb_height;
+	unsigned int src_x;
+	unsigned int src_y;
 	unsigned int src_width;
 	unsigned int src_height;
+	unsigned int fb_width;
+	unsigned int fb_height;
 	unsigned int crtc_x;
 	unsigned int crtc_y;
 	unsigned int crtc_width;
 	unsigned int crtc_height;
 	unsigned int mode_width;
 	unsigned int mode_height;
+	unsigned int h_ratio;
+	unsigned int v_ratio;
 	unsigned int refresh;
 	unsigned int scan_flag;
 	unsigned int bpp;
 	unsigned int pitch;
 	uint32_t pixel_format;
 	dma_addr_t dma_addr[MAX_FB_BUFFER];
-	int zpos;
-	unsigned int index_color;
+	unsigned int zpos;
 
-	bool default_win:1;
-	bool color_key:1;
-	bool local_path:1;
-	bool transparency:1;
-	bool activated:1;
 	bool enabled:1;
+	bool resume:1;
 };
 
 /*
@@ -172,12 +164,14 @@ struct exynos_drm_display {
  * @disable_vblank: specific driver callback for disabling vblank interrupt.
  * @wait_for_vblank: wait for vblank interrupt to make sure that
  *	hardware overlay is updated.
- * @win_mode_set: copy drm overlay info to hw specific overlay info.
  * @win_commit: apply hardware specific overlay data to registers.
- * @win_enable: enable hardware specific overlay.
  * @win_disable: disable hardware specific overlay.
  * @te_handler: trigger to transfer video image at the tearing effect
  *	synchronization signal if there is a page flip request.
+ * @clock_enable: optional function enabling/disabling display domain clock,
+ *	called from exynos-dp driver before powering up (with
+ *	'enable' argument as true) and after powering down (with
+ *	'enable' as false).
  */
 struct exynos_drm_crtc;
 struct exynos_drm_crtc_ops {
@@ -189,12 +183,10 @@ struct exynos_drm_crtc_ops {
 	int (*enable_vblank)(struct exynos_drm_crtc *crtc);
 	void (*disable_vblank)(struct exynos_drm_crtc *crtc);
 	void (*wait_for_vblank)(struct exynos_drm_crtc *crtc);
-	void (*win_mode_set)(struct exynos_drm_crtc *crtc,
-				struct exynos_drm_plane *plane);
-	void (*win_commit)(struct exynos_drm_crtc *crtc, int zpos);
-	void (*win_enable)(struct exynos_drm_crtc *crtc, int zpos);
-	void (*win_disable)(struct exynos_drm_crtc *crtc, int zpos);
+	void (*win_commit)(struct exynos_drm_crtc *crtc, unsigned int zpos);
+	void (*win_disable)(struct exynos_drm_crtc *crtc, unsigned int zpos);
 	void (*te_handler)(struct exynos_drm_crtc *crtc);
+	void (*clock_enable)(struct exynos_drm_crtc *crtc, bool enable);
 };
 
 /*
@@ -210,6 +202,7 @@ struct exynos_drm_crtc_ops {
  *	we can refer to the crtc to current hardware interrupt occurred through
  *	this pipe value.
  * @dpms: store the crtc dpms value
+ * @event: vblank event that is currently queued for flip
  * @ops: pointer to callbacks for exynos drm specific functionality
  * @ctx: A pointer to the crtc's implementation specific context
  */
@@ -219,8 +212,8 @@ struct exynos_drm_crtc {
 	unsigned int			pipe;
 	unsigned int			dpms;
 	wait_queue_head_t		pending_flip_queue;
-	atomic_t			pending_flip;
-	struct exynos_drm_crtc_ops	*ops;
+	struct drm_pending_vblank_event	*event;
+	const struct exynos_drm_crtc_ops	*ops;
 	void				*ctx;
 };
 
@@ -248,9 +241,6 @@ struct drm_exynos_file_private {
  */
 struct exynos_drm_private {
 	struct drm_fb_helper *fb_helper;
-
-	/* list head for new event to be added. */
-	struct list_head pageflip_event_list;
 
 	/*
 	 * created crtc object would be contained at this array and

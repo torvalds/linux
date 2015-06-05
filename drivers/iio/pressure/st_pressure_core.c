@@ -417,6 +417,7 @@ int st_press_common_probe(struct iio_dev *indio_dev)
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &press_info;
+	mutex_init(&press_data->tb.buf_lock);
 
 	st_sensors_power_enable(indio_dev);
 

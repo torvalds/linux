@@ -395,6 +395,12 @@ static int vmci_host_do_send_datagram(struct vmci_host_dev *vmci_host_dev,
 		return -EFAULT;
 	}
 
+	if (VMCI_DG_SIZE(dg) != send_info.len) {
+		vmci_ioctl_err("datagram size mismatch\n");
+		kfree(dg);
+		return -EINVAL;
+	}
+
 	pr_devel("Datagram dst (handle=0x%x:0x%x) src (handle=0x%x:0x%x), payload (size=%llu bytes)\n",
 		 dg->dst.context, dg->dst.resource,
 		 dg->src.context, dg->src.resource,

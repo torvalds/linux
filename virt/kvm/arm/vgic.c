@@ -1561,6 +1561,9 @@ int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid, unsigned int irq_num,
 			goto out;
 	}
 
+	if (irq_num >= kvm->arch.vgic.nr_irqs)
+		return -EINVAL;
+
 	vcpu_id = vgic_update_irq_pending(kvm, cpuid, irq_num, level);
 	if (vcpu_id >= 0) {
 		/* kick the specified vcpu */
@@ -2141,7 +2144,7 @@ int kvm_irq_map_gsi(struct kvm *kvm,
 		    struct kvm_kernel_irq_routing_entry *entries,
 		    int gsi)
 {
-	return gsi;
+	return 0;
 }
 
 int kvm_irq_map_chip_pin(struct kvm *kvm, unsigned irqchip, unsigned pin)

@@ -190,7 +190,7 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 
 int jffs2_setattr(struct dentry *dentry, struct iattr *iattr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int rc;
 
 	rc = inode_change_ok(inode, iattr);

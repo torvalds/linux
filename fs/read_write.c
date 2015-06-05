@@ -477,7 +477,8 @@ static ssize_t new_sync_write(struct file *filp, const char __user *buf, size_t 
 
 	ret = filp->f_op->write_iter(&kiocb, &iter);
 	BUG_ON(ret == -EIOCBQUEUED);
-	*ppos = kiocb.ki_pos;
+	if (ret > 0)
+		*ppos = kiocb.ki_pos;
 	return ret;
 }
 

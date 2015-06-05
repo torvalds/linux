@@ -1397,7 +1397,8 @@ peek_stack:
 			/* tell verifier to check for equivalent states
 			 * after every call and jump
 			 */
-			env->explored_states[t + 1] = STATE_LIST_MARK;
+			if (t + 1 < insn_cnt)
+				env->explored_states[t + 1] = STATE_LIST_MARK;
 		} else {
 			/* conditional jump with two edges */
 			ret = push_insn(t, t + 1, FALLTHROUGH, env);
@@ -1636,6 +1637,8 @@ static int do_check(struct verifier_env *env)
 			if (err)
 				return err;
 
+			src_reg_type = regs[insn->src_reg].type;
+
 			/* check that memory (src_reg + off) is readable,
 			 * the state of dst_reg will be updated by this func
 			 */
@@ -1645,9 +1648,12 @@ static int do_check(struct verifier_env *env)
 			if (err)
 				return err;
 
-			src_reg_type = regs[insn->src_reg].type;
+			if (BPF_SIZE(insn->code) != BPF_W) {
+				insn_idx++;
+				continue;
+			}
 
-			if (insn->imm == 0 && BPF_SIZE(insn->code) == BPF_W) {
+			if (insn->imm == 0) {
 				/* saw a valid insn
 				 * dst_reg = *(u32 *)(src_reg + off)
 				 * use reserved 'imm' field to mark this insn

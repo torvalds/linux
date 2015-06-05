@@ -27,6 +27,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/export.h>
 #include <drm/drmP.h>
+#include "drm_internal.h"
 #include "drm_legacy.h"
 
 /**

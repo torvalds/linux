@@ -242,6 +242,7 @@ struct i40e_hw_capabilities {
 	u8 rx_buf_chain_len;
 	u32 enabled_tcmap;
 	u32 maxtc;
+	u64 wr_csr_prot;
 };
 
 struct i40e_mac_info {

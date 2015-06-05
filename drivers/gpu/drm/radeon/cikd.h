@@ -2088,6 +2088,8 @@
 #	define CLK_OD(x)				((x) << 6)
 #	define CLK_OD_MASK				(0x1f << 6)
 
+#define UVD_STATUS					0xf6bc
+
 /* UVD clocks */
 
 #define CG_DCLK_CNTL			0xC050009C

@@ -130,7 +130,7 @@ struct kmem_cache *ecryptfs_file_info_cache;
 
 static int read_or_initialize_metadata(struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat;
 	struct ecryptfs_crypt_stat *crypt_stat;
 	int rc;

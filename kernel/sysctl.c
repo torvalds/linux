@@ -93,11 +93,9 @@
 #include <linux/nmi.h>
 #endif
 
-
 #if defined(CONFIG_SYSCTL)
 
 /* External variables not in a header file. */
-extern int max_threads;
 extern int suid_dumpable;
 #ifdef CONFIG_COREDUMP
 extern int core_uses_pid;
@@ -710,10 +708,10 @@ static struct ctl_table kern_table[] = {
 #endif
 	{
 		.procname	= "threads-max",
-		.data		= &max_threads,
+		.data		= NULL,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.proc_handler	= sysctl_max_threads,
 	},
 	{
 		.procname	= "random",
@@ -1983,7 +1981,15 @@ static int do_proc_dointvec_conv(bool *negp, unsigned long *lvalp,
 				 int write, void *data)
 {
 	if (write) {
-		*valp = *negp ? -*lvalp : *lvalp;
+		if (*negp) {
+			if (*lvalp > (unsigned long) INT_MAX + 1)
+				return -EINVAL;
+			*valp = -*lvalp;
+		} else {
+			if (*lvalp > (unsigned long) INT_MAX)
+				return -EINVAL;
+			*valp = *lvalp;
+		}
 	} else {
 		int val = *valp;
 		if (val < 0) {

@@ -80,7 +80,7 @@ static void hex_dump(const void *src, size_t length, size_t line_size, char *pre
  *  Unescape - process hexadecimal escape character
  *      converts shell input "\x23" -> 0x23
  */
-int unespcape(char *_dst, char *_src, size_t len)
+static int unescape(char *_dst, char *_src, size_t len)
 {
 	int ret = 0;
 	char *src = _src;
@@ -304,7 +304,7 @@ int main(int argc, char *argv[])
 		size = strlen(input_tx+1);
 		tx = malloc(size);
 		rx = malloc(size);
-		size = unespcape((char *)tx, input_tx, size);
+		size = unescape((char *)tx, input_tx, size);
 		transfer(fd, tx, rx, size);
 		free(rx);
 		free(tx);

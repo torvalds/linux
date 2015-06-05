@@ -45,6 +45,8 @@ Optional properties:
   If not passed then the system clock will be used and this is fine on some
   platforms.
 - snps,burst_len: The AXI burst lenth value of the AXI BUS MODE register.
+- tx-fifo-depth: See ethernet.txt file in the same directory
+- rx-fifo-depth: See ethernet.txt file in the same directory
 
 Examples:
 
@@ -59,6 +61,8 @@ Examples:
 		phy-mode = "gmii";
 		snps,multicast-filter-bins = <256>;
 		snps,perfect-filter-entries = <128>;
+		rx-fifo-depth = <16384>;
+		tx-fifo-depth = <16384>;
 		clocks = <&clock>;
 		clock-names = "stmmaceth";
 	};

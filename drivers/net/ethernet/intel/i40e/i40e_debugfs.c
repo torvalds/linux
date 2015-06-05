@@ -1388,6 +1388,50 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 					 r_cfg->app[i].selector,
 					 r_cfg->app[i].protocolid);
 			}
+		} else if (strncmp(&cmd_buf[5], "debug fwdata", 12) == 0) {
+			int cluster_id, table_id;
+			int index, ret;
+			u16 buff_len = 4096;
+			u32 next_index;
+			u8 next_table;
+			u8 *buff;
+			u16 rlen;
+
+			cnt = sscanf(&cmd_buf[18], "%i %i %i",
+				     &cluster_id, &table_id, &index);
+			if (cnt != 3) {
+				dev_info(&pf->pdev->dev,
+					 "dump debug fwdata <cluster_id> <table_id> <index>\n");
+				goto command_write_done;
+			}
+
+			dev_info(&pf->pdev->dev,
+				 "AQ debug dump fwdata params %x %x %x %x\n",
+				 cluster_id, table_id, index, buff_len);
+			buff = kzalloc(buff_len, GFP_KERNEL);
+			if (!buff)
+				goto command_write_done;
+
+			ret = i40e_aq_debug_dump(&pf->hw, cluster_id, table_id,
+						 index, buff_len, buff, &rlen,
+						 &next_table, &next_index,
+						 NULL);
+			if (ret) {
+				dev_info(&pf->pdev->dev,
+					 "debug dump fwdata AQ Failed %d 0x%x\n",
+					 ret, pf->hw.aq.asq_last_status);
+				kfree(buff);
+				buff = NULL;
+				goto command_write_done;
+			}
+			dev_info(&pf->pdev->dev,
+				 "AQ debug dump fwdata rlen=0x%x next_table=0x%x next_index=0x%x\n",
+				 rlen, next_table, next_index);
+			print_hex_dump(KERN_INFO, "AQ buffer WB: ",
+				       DUMP_PREFIX_OFFSET, 16, 1,
+				       buff, rlen, true);
+			kfree(buff);
+			buff = NULL;
 		} else {
 			dev_info(&pf->pdev->dev,
 				 "dump desc tx <vsi_seid> <ring_id> [<desc_n>], dump desc rx <vsi_seid> <ring_id> [<desc_n>],\n");
@@ -1903,6 +1947,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		dev_info(&pf->pdev->dev, "  dump desc rx <vsi_seid> <ring_id> [<desc_n>]\n");
 		dev_info(&pf->pdev->dev, "  dump desc aq\n");
 		dev_info(&pf->pdev->dev, "  dump reset stats\n");
+		dev_info(&pf->pdev->dev, "  dump debug fwdata <cluster_id> <table_id> <index>\n");
 		dev_info(&pf->pdev->dev, "  msg_enable [level]\n");
 		dev_info(&pf->pdev->dev, "  read <reg>\n");
 		dev_info(&pf->pdev->dev, "  write <reg> <value>\n");

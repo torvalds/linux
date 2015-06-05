@@ -1467,6 +1467,7 @@ static void mlx4_en_service_task(struct work_struct *work)
 		if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_TS)
 			mlx4_en_ptp_overflow_check(mdev);
 
+		mlx4_en_recover_from_oom(priv);
 		queue_delayed_work(mdev->workqueue, &priv->service_task,
 				   SERVICE_TASK_DELAY);
 	}
@@ -1500,17 +1501,13 @@ static int mlx4_en_init_affinity_hint(struct mlx4_en_priv *priv, int ring_idx)
 {
 	struct mlx4_en_rx_ring *ring = priv->rx_ring[ring_idx];
 	int numa_node = priv->mdev->dev->numa_node;
-	int ret = 0;
 
 	if (!zalloc_cpumask_var(&ring->affinity_mask, GFP_KERNEL))
 		return -ENOMEM;
 
-	ret = cpumask_set_cpu_local_first(ring_idx, numa_node,
-					  ring->affinity_mask);
-	if (ret)
-		free_cpumask_var(ring->affinity_mask);
-
-	return ret;
+	cpumask_set_cpu(cpumask_local_spread(ring_idx, numa_node),
+			ring->affinity_mask);
+	return 0;
 }
 
 static void mlx4_en_free_affinity_hint(struct mlx4_en_priv *priv, int ring_idx)
@@ -1721,7 +1718,7 @@ mac_err:
 cq_err:
 	while (rx_index--) {
 		mlx4_en_deactivate_cq(priv, priv->rx_cq[rx_index]);
-		mlx4_en_free_affinity_hint(priv, i);
+		mlx4_en_free_affinity_hint(priv, rx_index);
 	}
 	for (i = 0; i < priv->rx_ring_num; i++)
 		mlx4_en_deactivate_rx_ring(priv, priv->rx_ring[i]);

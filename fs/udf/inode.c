@@ -33,7 +33,6 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/pagemap.h>
-#include <linux/buffer_head.h>
 #include <linux/writeback.h>
 #include <linux/slab.h>
 #include <linux/crc-itu-t.h>
@@ -215,8 +214,7 @@ static int udf_write_begin(struct file *file, struct address_space *mapping,
 	return ret;
 }
 
-static ssize_t udf_direct_IO(int rw, struct kiocb *iocb,
-			     struct iov_iter *iter,
+static ssize_t udf_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 			     loff_t offset)
 {
 	struct file *file = iocb->ki_filp;
@@ -225,8 +223,8 @@ static ssize_t udf_direct_IO(int rw, struct kiocb *iocb,
 	size_t count = iov_iter_count(iter);
 	ssize_t ret;
 
-	ret = blockdev_direct_IO(rw, iocb, inode, iter, offset, udf_get_block);
-	if (unlikely(ret < 0 && (rw & WRITE)))
+	ret = blockdev_direct_IO(iocb, inode, iter, offset, udf_get_block);
+	if (unlikely(ret < 0 && iov_iter_rw(iter) == WRITE))
 		udf_write_failed(mapping, offset + count);
 	return ret;
 }
@@ -1637,7 +1635,7 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 			udf_get_lb_pblock(inode->i_sb, &iinfo->i_location, 0));
 	if (!bh) {
 		udf_debug("getblk failure\n");
-		return -ENOMEM;
+		return -EIO;
 	}
 
 	lock_buffer(bh);

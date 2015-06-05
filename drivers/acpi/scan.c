@@ -375,7 +375,11 @@ bool acpi_scan_is_offline(struct acpi_device *adev, bool uevent)
 	struct acpi_device_physical_node *pn;
 	bool offline = true;
 
-	mutex_lock(&adev->physical_node_lock);
+	/*
+	 * acpi_container_offline() calls this for all of the container's
+	 * children under the container's physical_node_lock lock.
+	 */
+	mutex_lock_nested(&adev->physical_node_lock, SINGLE_DEPTH_NESTING);
 
 	list_for_each_entry(pn, &adev->physical_node_list, node)
 		if (device_supports_offline(pn->dev) && !pn->dev->offline) {
@@ -2388,9 +2392,6 @@ static void acpi_default_enumeration(struct acpi_device *device)
 	struct list_head resource_list;
 	bool is_spi_i2c_slave = false;
 
-	if (!device->pnp.type.platform_id || device->handler)
-		return;
-
 	/*
 	 * Do not enemerate SPI/I2C slaves as they will be enuerated by their
 	 * respective parents.
@@ -2402,6 +2403,29 @@ static void acpi_default_enumeration(struct acpi_device *device)
 	if (!is_spi_i2c_slave)
 		acpi_create_platform_device(device);
 }
+
+static const struct acpi_device_id generic_device_ids[] = {
+	{"PRP0001", },
+	{"", },
+};
+
+static int acpi_generic_device_attach(struct acpi_device *adev,
+				      const struct acpi_device_id *not_used)
+{
+	/*
+	 * Since PRP0001 is the only ID handled here, the test below can be
+	 * unconditional.
+	 */
+	if (adev->data.of_compatible)
+		acpi_default_enumeration(adev);
+
+	return 1;
+}
+
+static struct acpi_scan_handler generic_device_handler = {
+	.ids = generic_device_ids,
+	.attach = acpi_generic_device_attach,
+};
 
 static int acpi_scan_attach_handler(struct acpi_device *device)
 {
@@ -2428,8 +2452,6 @@ static int acpi_scan_attach_handler(struct acpi_device *device)
 				break;
 		}
 	}
-	if (!ret)
-		acpi_default_enumeration(device);
 
 	return ret;
 }
@@ -2471,6 +2493,9 @@ static void acpi_bus_attach(struct acpi_device *device)
 		ret = device_attach(&device->dev);
 		if (ret < 0)
 			return;
+
+		if (!ret && device->pnp.type.platform_id)
+			acpi_default_enumeration(device);
 	}
 	device->flags.visited = true;
 
@@ -2628,6 +2653,8 @@ int __init acpi_scan_init(void)
 	acpi_memory_hotplug_init();
 	acpi_pnp_init();
 	acpi_int340x_thermal_init();
+
+	acpi_scan_add_handler(&generic_device_handler);
 
 	mutex_lock(&acpi_scan_lock);
 	/*

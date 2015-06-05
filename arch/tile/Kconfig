@@ -27,6 +27,7 @@ config TILE
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select HAVE_DEBUG_STACKOVERFLOW
 	select ARCH_WANT_FRAME_POINTERS
+	select HAVE_CONTEXT_TRACKING
 
 # FIXME: investigate whether we need/want these options.
 #	select HAVE_IOREMAP_PROT

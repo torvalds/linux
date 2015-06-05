@@ -488,7 +488,6 @@ static struct platform_driver ar2315_pci_driver = {
 	.probe = ar2315_pci_probe,
 	.driver = {
 		.name = "ar2315-pci",
-		.owner = THIS_MODULE,
 	},
 };
 

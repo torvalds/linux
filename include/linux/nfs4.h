@@ -16,6 +16,13 @@
 #include <linux/uidgid.h>
 #include <uapi/linux/nfs4.h>
 
+enum nfs4_acl_whotype {
+	NFS4_ACL_WHO_NAMED = 0,
+	NFS4_ACL_WHO_OWNER,
+	NFS4_ACL_WHO_GROUP,
+	NFS4_ACL_WHO_EVERYONE,
+};
+
 struct nfs4_ace {
 	uint32_t	type;
 	uint32_t	flag;

@@ -244,6 +244,7 @@ enum iwl_ucode_tlv_flag {
  *	longer than the passive one, which is essential for fragmented scan.
  * @IWL_UCODE_TLV_API_WIFI_MCC_UPDATE: ucode supports MCC updates with source.
  * IWL_UCODE_TLV_API_HDC_PHASE_0: ucode supports finer configuration of LTR
+ * @IWL_UCODE_TLV_API_TX_POWER_DEV: new API for tx power.
  * @IWL_UCODE_TLV_API_BASIC_DWELL: use only basic dwell time in scan command,
  *	regardless of the band or the number of the probes. FW will calculate
  *	the actual dwell time.
@@ -260,6 +261,7 @@ enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_FRAGMENTED_SCAN	= BIT(8),
 	IWL_UCODE_TLV_API_WIFI_MCC_UPDATE	= BIT(9),
 	IWL_UCODE_TLV_API_HDC_PHASE_0		= BIT(10),
+	IWL_UCODE_TLV_API_TX_POWER_DEV		= BIT(11),
 	IWL_UCODE_TLV_API_BASIC_DWELL		= BIT(13),
 	IWL_UCODE_TLV_API_SCD_CFG		= BIT(15),
 	IWL_UCODE_TLV_API_SINGLE_SCAN_EBS	= BIT(16),

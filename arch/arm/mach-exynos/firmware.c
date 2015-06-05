@@ -48,7 +48,13 @@ static int exynos_do_idle(unsigned long mode)
 		__raw_writel(virt_to_phys(exynos_cpu_resume_ns),
 			     sysram_ns_base_addr + 0x24);
 		__raw_writel(EXYNOS_AFTR_MAGIC, sysram_ns_base_addr + 0x20);
-		exynos_smc(SMC_CMD_CPU0AFTR, 0, 0, 0);
+		if (soc_is_exynos3250()) {
+			exynos_smc(SMC_CMD_SAVE, OP_TYPE_CORE,
+				   SMC_POWERSTATE_IDLE, 0);
+			exynos_smc(SMC_CMD_SHUTDOWN, OP_TYPE_CLUSTER,
+				   SMC_POWERSTATE_IDLE, 0);
+		} else
+			exynos_smc(SMC_CMD_CPU0AFTR, 0, 0, 0);
 		break;
 	case FW_DO_IDLE_SLEEP:
 		exynos_smc(SMC_CMD_SLEEP, 0, 0, 0);
@@ -205,4 +211,29 @@ void __init exynos_firmware_init(void)
 		outer_cache.write_sec = exynos_l2_write_sec;
 		outer_cache.configure = exynos_l2_configure;
 	}
+}
+
+#define REG_CPU_STATE_ADDR	(sysram_ns_base_addr + 0x28)
+#define BOOT_MODE_MASK		0x1f
+
+void exynos_set_boot_flag(unsigned int cpu, unsigned int mode)
+{
+	unsigned int tmp;
+
+	tmp = __raw_readl(REG_CPU_STATE_ADDR + cpu * 4);
+
+	if (mode & BOOT_MODE_MASK)
+		tmp &= ~BOOT_MODE_MASK;
+
+	tmp |= mode;
+	__raw_writel(tmp, REG_CPU_STATE_ADDR + cpu * 4);
+}
+
+void exynos_clear_boot_flag(unsigned int cpu, unsigned int mode)
+{
+	unsigned int tmp;
+
+	tmp = __raw_readl(REG_CPU_STATE_ADDR + cpu * 4);
+	tmp &= ~mode;
+	__raw_writel(tmp, REG_CPU_STATE_ADDR + cpu * 4);
 }

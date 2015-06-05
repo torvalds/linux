@@ -405,7 +405,7 @@ static void nv17_tv_prepare(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct drm_encoder_helper_funcs *helper = encoder->helper_private;
+	const struct drm_encoder_helper_funcs *helper = encoder->helper_private;
 	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
 	int head = nouveau_crtc(encoder->crtc)->index;
 	uint8_t *cr_lcd = &nv04_display(dev)->mode_reg.crtc_reg[head].CRTC[
@@ -583,7 +583,7 @@ static void nv17_tv_commit(struct drm_encoder *encoder)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct drm_encoder_helper_funcs *helper = encoder->helper_private;
+	const struct drm_encoder_helper_funcs *helper = encoder->helper_private;
 
 	if (get_tv_norm(encoder)->kind == TV_ENC_MODE) {
 		nv17_tv_update_rescaler(encoder);

@@ -200,6 +200,7 @@ struct exynos_iommu_domain {
 	short *lv2entcnt; /* free lv2 entry counter for each section */
 	spinlock_t lock; /* lock for this structure */
 	spinlock_t pgtablelock; /* lock for modifying page table @ pgtable */
+	struct iommu_domain domain; /* generic domain data structure */
 };
 
 struct sysmmu_drvdata {
@@ -213,6 +214,11 @@ struct sysmmu_drvdata {
 	struct iommu_domain *domain;
 	phys_addr_t pgtable;
 };
+
+static struct exynos_iommu_domain *to_exynos_domain(struct iommu_domain *dom)
+{
+	return container_of(dom, struct exynos_iommu_domain, domain);
+}
 
 static bool set_sysmmu_active(struct sysmmu_drvdata *data)
 {
@@ -696,58 +702,60 @@ static inline void pgtable_flush(void *vastart, void *vaend)
 				virt_to_phys(vaend));
 }
 
-static int exynos_iommu_domain_init(struct iommu_domain *domain)
+static struct iommu_domain *exynos_iommu_domain_alloc(unsigned type)
 {
-	struct exynos_iommu_domain *priv;
+	struct exynos_iommu_domain *exynos_domain;
 	int i;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
+	if (type != IOMMU_DOMAIN_UNMANAGED)
+		return NULL;
 
-	priv->pgtable = (sysmmu_pte_t *)__get_free_pages(GFP_KERNEL, 2);
-	if (!priv->pgtable)
+	exynos_domain = kzalloc(sizeof(*exynos_domain), GFP_KERNEL);
+	if (!exynos_domain)
+		return NULL;
+
+	exynos_domain->pgtable = (sysmmu_pte_t *)__get_free_pages(GFP_KERNEL, 2);
+	if (!exynos_domain->pgtable)
 		goto err_pgtable;
 
-	priv->lv2entcnt = (short *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 1);
-	if (!priv->lv2entcnt)
+	exynos_domain->lv2entcnt = (short *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 1);
+	if (!exynos_domain->lv2entcnt)
 		goto err_counter;
 
 	/* Workaround for System MMU v3.3 to prevent caching 1MiB mapping */
 	for (i = 0; i < NUM_LV1ENTRIES; i += 8) {
-		priv->pgtable[i + 0] = ZERO_LV2LINK;
-		priv->pgtable[i + 1] = ZERO_LV2LINK;
-		priv->pgtable[i + 2] = ZERO_LV2LINK;
-		priv->pgtable[i + 3] = ZERO_LV2LINK;
-		priv->pgtable[i + 4] = ZERO_LV2LINK;
-		priv->pgtable[i + 5] = ZERO_LV2LINK;
-		priv->pgtable[i + 6] = ZERO_LV2LINK;
-		priv->pgtable[i + 7] = ZERO_LV2LINK;
+		exynos_domain->pgtable[i + 0] = ZERO_LV2LINK;
+		exynos_domain->pgtable[i + 1] = ZERO_LV2LINK;
+		exynos_domain->pgtable[i + 2] = ZERO_LV2LINK;
+		exynos_domain->pgtable[i + 3] = ZERO_LV2LINK;
+		exynos_domain->pgtable[i + 4] = ZERO_LV2LINK;
+		exynos_domain->pgtable[i + 5] = ZERO_LV2LINK;
+		exynos_domain->pgtable[i + 6] = ZERO_LV2LINK;
+		exynos_domain->pgtable[i + 7] = ZERO_LV2LINK;
 	}
 
-	pgtable_flush(priv->pgtable, priv->pgtable + NUM_LV1ENTRIES);
+	pgtable_flush(exynos_domain->pgtable, exynos_domain->pgtable + NUM_LV1ENTRIES);
 
-	spin_lock_init(&priv->lock);
-	spin_lock_init(&priv->pgtablelock);
-	INIT_LIST_HEAD(&priv->clients);
+	spin_lock_init(&exynos_domain->lock);
+	spin_lock_init(&exynos_domain->pgtablelock);
+	INIT_LIST_HEAD(&exynos_domain->clients);
 
-	domain->geometry.aperture_start = 0;
-	domain->geometry.aperture_end   = ~0UL;
-	domain->geometry.force_aperture = true;
+	exynos_domain->domain.geometry.aperture_start = 0;
+	exynos_domain->domain.geometry.aperture_end   = ~0UL;
+	exynos_domain->domain.geometry.force_aperture = true;
 
-	domain->priv = priv;
-	return 0;
+	return &exynos_domain->domain;
 
 err_counter:
-	free_pages((unsigned long)priv->pgtable, 2);
+	free_pages((unsigned long)exynos_domain->pgtable, 2);
 err_pgtable:
-	kfree(priv);
-	return -ENOMEM;
+	kfree(exynos_domain);
+	return NULL;
 }
 
-static void exynos_iommu_domain_destroy(struct iommu_domain *domain)
+static void exynos_iommu_domain_free(struct iommu_domain *domain)
 {
-	struct exynos_iommu_domain *priv = domain->priv;
+	struct exynos_iommu_domain *priv = to_exynos_domain(domain);
 	struct exynos_iommu_owner *owner;
 	unsigned long flags;
 	int i;
@@ -773,15 +781,14 @@ static void exynos_iommu_domain_destroy(struct iommu_domain *domain)
 
 	free_pages((unsigned long)priv->pgtable, 2);
 	free_pages((unsigned long)priv->lv2entcnt, 1);
-	kfree(domain->priv);
-	domain->priv = NULL;
+	kfree(priv);
 }
 
 static int exynos_iommu_attach_device(struct iommu_domain *domain,
 				   struct device *dev)
 {
 	struct exynos_iommu_owner *owner = dev->archdata.iommu;
-	struct exynos_iommu_domain *priv = domain->priv;
+	struct exynos_iommu_domain *priv = to_exynos_domain(domain);
 	phys_addr_t pagetable = virt_to_phys(priv->pgtable);
 	unsigned long flags;
 	int ret;
@@ -812,7 +819,7 @@ static void exynos_iommu_detach_device(struct iommu_domain *domain,
 				    struct device *dev)
 {
 	struct exynos_iommu_owner *owner;
-	struct exynos_iommu_domain *priv = domain->priv;
+	struct exynos_iommu_domain *priv = to_exynos_domain(domain);
 	phys_addr_t pagetable = virt_to_phys(priv->pgtable);
 	unsigned long flags;
 
@@ -988,7 +995,7 @@ static int lv2set_page(sysmmu_pte_t *pent, phys_addr_t paddr, size_t size,
 static int exynos_iommu_map(struct iommu_domain *domain, unsigned long l_iova,
 			 phys_addr_t paddr, size_t size, int prot)
 {
-	struct exynos_iommu_domain *priv = domain->priv;
+	struct exynos_iommu_domain *priv = to_exynos_domain(domain);
 	sysmmu_pte_t *entry;
 	sysmmu_iova_t iova = (sysmmu_iova_t)l_iova;
 	unsigned long flags;
@@ -1042,7 +1049,7 @@ static void exynos_iommu_tlb_invalidate_entry(struct exynos_iommu_domain *priv,
 static size_t exynos_iommu_unmap(struct iommu_domain *domain,
 					unsigned long l_iova, size_t size)
 {
-	struct exynos_iommu_domain *priv = domain->priv;
+	struct exynos_iommu_domain *priv = to_exynos_domain(domain);
 	sysmmu_iova_t iova = (sysmmu_iova_t)l_iova;
 	sysmmu_pte_t *ent;
 	size_t err_pgsize;
@@ -1119,7 +1126,7 @@ err:
 static phys_addr_t exynos_iommu_iova_to_phys(struct iommu_domain *domain,
 					  dma_addr_t iova)
 {
-	struct exynos_iommu_domain *priv = domain->priv;
+	struct exynos_iommu_domain *priv = to_exynos_domain(domain);
 	sysmmu_pte_t *entry;
 	unsigned long flags;
 	phys_addr_t phys = 0;
@@ -1171,8 +1178,8 @@ static void exynos_iommu_remove_device(struct device *dev)
 }
 
 static const struct iommu_ops exynos_iommu_ops = {
-	.domain_init = exynos_iommu_domain_init,
-	.domain_destroy = exynos_iommu_domain_destroy,
+	.domain_alloc = exynos_iommu_domain_alloc,
+	.domain_free = exynos_iommu_domain_free,
 	.attach_dev = exynos_iommu_attach_device,
 	.detach_dev = exynos_iommu_detach_device,
 	.map = exynos_iommu_map,

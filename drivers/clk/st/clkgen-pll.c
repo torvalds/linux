@@ -593,7 +593,7 @@ static struct clk * __init clkgen_odf_register(const char *parent_name,
 	return clk;
 }
 
-static struct of_device_id c32_pll_of_match[] = {
+static const struct of_device_id c32_pll_of_match[] = {
 	{
 		.compatible = "st,plls-c32-a1x-0",
 		.data = &st_pll3200c32_a1x_0,
@@ -708,7 +708,7 @@ err:
 }
 CLK_OF_DECLARE(clkgen_c32_pll, "st,clkgen-plls-c32", clkgen_c32_pll_setup);
 
-static struct of_device_id c32_gpu_pll_of_match[] = {
+static const struct of_device_id c32_gpu_pll_of_match[] = {
 	{
 		.compatible = "st,stih415-gpu-pll-c32",
 		.data = &st_pll1200c32_gpu_415,

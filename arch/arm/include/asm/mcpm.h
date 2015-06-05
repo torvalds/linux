@@ -171,12 +171,73 @@ void mcpm_cpu_suspend(u64 expected_residency);
 int mcpm_cpu_powered_up(void);
 
 /*
- * Platform specific methods used in the implementation of the above API.
+ * Platform specific callbacks used in the implementation of the above API.
+ *
+ * cpu_powerup:
+ * Make given CPU runable. Called with MCPM lock held and IRQs disabled.
+ * The given cluster is assumed to be set up (cluster_powerup would have
+ * been called beforehand). Must return 0 for success or negative error code.
+ *
+ * cluster_powerup:
+ * Set up power for given cluster. Called with MCPM lock held and IRQs
+ * disabled. Called before first cpu_powerup when cluster is down. Must
+ * return 0 for success or negative error code.
+ *
+ * cpu_suspend_prepare:
+ * Special suspend configuration. Called on target CPU with MCPM lock held
+ * and IRQs disabled. This callback is optional. If provided, it is called
+ * before cpu_powerdown_prepare.
+ *
+ * cpu_powerdown_prepare:
+ * Configure given CPU for power down. Called on target CPU with MCPM lock
+ * held and IRQs disabled. Power down must be effective only at the next WFI instruction.
+ *
+ * cluster_powerdown_prepare:
+ * Configure given cluster for power down. Called on one CPU from target
+ * cluster with MCPM lock held and IRQs disabled. A cpu_powerdown_prepare
+ * for each CPU in the cluster has happened when this occurs.
+ *
+ * cpu_cache_disable:
+ * Clean and disable CPU level cache for the calling CPU. Called on with IRQs
+ * disabled only. The CPU is no longer cache coherent with the rest of the
+ * system when this returns.
+ *
+ * cluster_cache_disable:
+ * Clean and disable the cluster wide cache as well as the CPU level cache
+ * for the calling CPU. No call to cpu_cache_disable will happen for this
+ * CPU. Called with IRQs disabled and only when all the other CPUs are done
+ * with their own cpu_cache_disable. The cluster is no longer cache coherent
+ * with the rest of the system when this returns.
+ *
+ * cpu_is_up:
+ * Called on given CPU after it has been powered up or resumed. The MCPM lock
+ * is held and IRQs disabled. This callback is optional.
+ *
+ * cluster_is_up:
+ * Called by the first CPU to be powered up or resumed in given cluster.
+ * The MCPM lock is held and IRQs disabled. This callback is optional. If
+ * provided, it is called before cpu_is_up for that CPU.
+ *
+ * wait_for_powerdown:
+ * Wait until given CPU is powered down. This is called in sleeping context.
+ * Some reasonable timeout must be considered. Must return 0 for success or
+ * negative error code.
  */
 struct mcpm_platform_ops {
+	int (*cpu_powerup)(unsigned int cpu, unsigned int cluster);
+	int (*cluster_powerup)(unsigned int cluster);
+	void (*cpu_suspend_prepare)(unsigned int cpu, unsigned int cluster);
+	void (*cpu_powerdown_prepare)(unsigned int cpu, unsigned int cluster);
+	void (*cluster_powerdown_prepare)(unsigned int cluster);
+	void (*cpu_cache_disable)(void);
+	void (*cluster_cache_disable)(void);
+	void (*cpu_is_up)(unsigned int cpu, unsigned int cluster);
+	void (*cluster_is_up)(unsigned int cluster);
+	int (*wait_for_powerdown)(unsigned int cpu, unsigned int cluster);
+
+	/* deprecated callbacks */
 	int (*power_up)(unsigned int cpu, unsigned int cluster);
 	void (*power_down)(void);
-	int (*wait_for_powerdown)(unsigned int cpu, unsigned int cluster);
 	void (*suspend)(u64);
 	void (*powered_up)(void);
 };

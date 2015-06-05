@@ -10,10 +10,6 @@
 #include <linux/module.h>
 #include <linux/compat.h>
 #include <linux/mount.h>
-#include <linux/time.h>
-#include <linux/buffer_head.h>
-#include <linux/writeback.h>
-#include <linux/backing-dev.h>
 #include <linux/blkdev.h>
 #include <linux/fsnotify.h>
 #include <linux/security.h>
@@ -309,7 +305,7 @@ void fat_truncate_blocks(struct inode *inode, loff_t offset)
 
 int fat_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	generic_fillattr(inode, stat);
 	stat->blksize = MSDOS_SB(inode->i_sb)->cluster_size;
 
@@ -381,7 +377,7 @@ static int fat_allow_set_time(struct msdos_sb_info *sbi, struct inode *inode)
 int fat_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(dentry->d_sb);
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	unsigned int ia_valid;
 	int error;
 

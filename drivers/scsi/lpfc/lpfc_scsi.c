@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2014 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2015 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -5118,9 +5118,10 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 	int status;
 
 	rdata = lpfc_rport_data_from_scsi_device(cmnd->device);
-	if (!rdata) {
+	if (!rdata || !rdata->pnode) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
-			"0798 Device Reset rport failure: rdata x%p\n", rdata);
+				 "0798 Device Reset rport failure: rdata x%p\n",
+				 rdata);
 		return FAILED;
 	}
 	pnode = rdata->pnode;
@@ -5202,10 +5203,12 @@ lpfc_target_reset_handler(struct scsi_cmnd *cmnd)
 	if (status == FAILED) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
 			"0722 Target Reset rport failure: rdata x%p\n", rdata);
-		spin_lock_irq(shost->host_lock);
-		pnode->nlp_flag &= ~NLP_NPR_ADISC;
-		pnode->nlp_fcp_info &= ~NLP_FCP_2_DEVICE;
-		spin_unlock_irq(shost->host_lock);
+		if (pnode) {
+			spin_lock_irq(shost->host_lock);
+			pnode->nlp_flag &= ~NLP_NPR_ADISC;
+			pnode->nlp_fcp_info &= ~NLP_FCP_2_DEVICE;
+			spin_unlock_irq(shost->host_lock);
+		}
 		lpfc_reset_flush_io_context(vport, tgt_id, lun_id,
 					  LPFC_CTX_TGT);
 		return FAST_IO_FAIL;
@@ -5856,6 +5859,31 @@ lpfc_disable_oas_lun(struct lpfc_hba *phba, struct lpfc_name *vport_wwpn,
 	spin_unlock_irqrestore(&phba->devicelock, flags);
 	return false;
 }
+
+struct scsi_host_template lpfc_template_s3 = {
+	.module			= THIS_MODULE,
+	.name			= LPFC_DRIVER_NAME,
+	.info			= lpfc_info,
+	.queuecommand		= lpfc_queuecommand,
+	.eh_abort_handler	= lpfc_abort_handler,
+	.eh_device_reset_handler = lpfc_device_reset_handler,
+	.eh_target_reset_handler = lpfc_target_reset_handler,
+	.eh_bus_reset_handler	= lpfc_bus_reset_handler,
+	.slave_alloc		= lpfc_slave_alloc,
+	.slave_configure	= lpfc_slave_configure,
+	.slave_destroy		= lpfc_slave_destroy,
+	.scan_finished		= lpfc_scan_finished,
+	.this_id		= -1,
+	.sg_tablesize		= LPFC_DEFAULT_SG_SEG_CNT,
+	.cmd_per_lun		= LPFC_CMD_PER_LUN,
+	.use_clustering		= ENABLE_CLUSTERING,
+	.shost_attrs		= lpfc_hba_attrs,
+	.max_sectors		= 0xFFFF,
+	.vendor_id		= LPFC_NL_VENDOR_ID,
+	.change_queue_depth	= scsi_change_queue_depth,
+	.use_blk_tags		= 1,
+	.track_queue_depth	= 1,
+};
 
 struct scsi_host_template lpfc_template = {
 	.module			= THIS_MODULE,

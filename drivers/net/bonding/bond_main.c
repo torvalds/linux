@@ -82,6 +82,8 @@
 #include <net/bond_3ad.h>
 #include <net/bond_alb.h>
 
+#include "bonding_priv.h"
+
 /*---------------------------- Module parameters ----------------------------*/
 
 /* monitor all links that often (in milliseconds). <=0 disables monitoring */
@@ -4542,6 +4544,8 @@ unsigned int bond_get_num_tx_queues(void)
 int bond_create(struct net *net, const char *name)
 {
 	struct net_device *bond_dev;
+	struct bonding *bond;
+	struct alb_bond_info *bond_info;
 	int res;
 
 	rtnl_lock();
@@ -4554,6 +4558,14 @@ int bond_create(struct net *net, const char *name)
 		rtnl_unlock();
 		return -ENOMEM;
 	}
+
+	/*
+	 * Initialize rx_hashtbl_used_head to RLB_NULL_INDEX.
+	 * It is set to 0 by default which is wrong.
+	 */
+	bond = netdev_priv(bond_dev);
+	bond_info = &(BOND_ALB_INFO(bond));
+	bond_info->rx_hashtbl_used_head = RLB_NULL_INDEX;
 
 	dev_net_set(bond_dev, net);
 	bond_dev->rtnl_link_ops = &bond_link_ops;

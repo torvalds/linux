@@ -16,7 +16,6 @@
 #include <linux/export.h>
 #include <linux/user_namespace.h>
 #include <linux/net_namespace.h>
-#include <linux/rtnetlink.h>
 #include <net/sock.h>
 #include <net/netlink.h>
 #include <net/net_namespace.h>
@@ -602,7 +601,7 @@ static int rtnl_net_getid(struct sk_buff *skb, struct nlmsghdr *nlh)
 	}
 
 	err = rtnl_net_fill(msg, NETLINK_CB(skb).portid, nlh->nlmsg_seq, 0,
-			    RTM_GETNSID, net, peer, -1);
+			    RTM_NEWNSID, net, peer, -1);
 	if (err < 0)
 		goto err_out;
 

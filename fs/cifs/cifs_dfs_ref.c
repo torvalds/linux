@@ -24,6 +24,7 @@
 #include "cifsfs.h"
 #include "dns_resolve.h"
 #include "cifs_debug.h"
+#include "cifs_unicode.h"
 
 static LIST_HEAD(cifs_dfs_automount_list);
 
@@ -301,7 +302,7 @@ static struct vfsmount *cifs_dfs_do_automount(struct dentry *mntpt)
 	if (full_path == NULL)
 		goto cdda_exit;
 
-	cifs_sb = CIFS_SB(mntpt->d_inode->i_sb);
+	cifs_sb = CIFS_SB(d_inode(mntpt)->i_sb);
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink)) {
 		mnt = ERR_CAST(tlink);
@@ -312,7 +313,7 @@ static struct vfsmount *cifs_dfs_do_automount(struct dentry *mntpt)
 	xid = get_xid();
 	rc = get_dfs_path(xid, ses, full_path + 1, cifs_sb->local_nls,
 		&num_referrals, &referrals,
-		cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+		cifs_remap(cifs_sb));
 	free_xid(xid);
 
 	cifs_put_tlink(tlink);

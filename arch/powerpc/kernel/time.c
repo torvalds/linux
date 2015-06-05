@@ -608,6 +608,12 @@ void arch_suspend_enable_irqs(void)
 }
 #endif
 
+unsigned long long tb_to_ns(unsigned long long ticks)
+{
+	return mulhdu(ticks, tb_to_ns_scale) << tb_to_ns_shift;
+}
+EXPORT_SYMBOL_GPL(tb_to_ns);
+
 /*
  * Scheduler clock - returns current time in nanosec units.
  *

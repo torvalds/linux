@@ -4340,7 +4340,6 @@ static int nft_verdict_init(const struct nft_ctx *ctx, struct nft_data *data,
 	case NFT_CONTINUE:
 	case NFT_BREAK:
 	case NFT_RETURN:
-		desc->len = sizeof(data->verdict);
 		break;
 	case NFT_JUMP:
 	case NFT_GOTO:
@@ -4355,10 +4354,10 @@ static int nft_verdict_init(const struct nft_ctx *ctx, struct nft_data *data,
 
 		chain->use++;
 		data->verdict.chain = chain;
-		desc->len = sizeof(data);
 		break;
 	}
 
+	desc->len = sizeof(data->verdict);
 	desc->type = NFT_DATA_VERDICT;
 	return 0;
 }
@@ -4473,9 +4472,9 @@ EXPORT_SYMBOL_GPL(nft_data_init);
  */
 void nft_data_uninit(const struct nft_data *data, enum nft_data_types type)
 {
-	switch (type) {
-	case NFT_DATA_VALUE:
+	if (type < NFT_DATA_VERDICT)
 		return;
+	switch (type) {
 	case NFT_DATA_VERDICT:
 		return nft_verdict_uninit(data);
 	default:

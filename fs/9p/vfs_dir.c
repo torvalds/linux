@@ -138,6 +138,8 @@ static int v9fs_dir_readdir(struct file *file, struct dir_context *ctx)
 					   &err);
 			if (err)
 				return err;
+			if (n == 0)
+				return 0;
 
 			rdir->head = 0;
 			rdir->tail = n;

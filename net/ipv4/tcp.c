@@ -252,6 +252,7 @@
 #include <linux/types.h>
 #include <linux/fcntl.h>
 #include <linux/poll.h>
+#include <linux/inet_diag.h>
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/skbuff.h>
@@ -401,6 +402,7 @@ void tcp_init_sock(struct sock *sk)
 	tp->snd_ssthresh = TCP_INFINITE_SSTHRESH;
 	tp->snd_cwnd_clamp = ~0;
 	tp->mss_cache = TCP_MSS_DEFAULT;
+	u64_stats_init(&tp->syncp);
 
 	tp->reordering = sysctl_tcp_reordering;
 	tcp_enable_early_retrans(tp);
@@ -520,8 +522,10 @@ unsigned int tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 
 				/* Race breaker. If space is freed after
 				 * wspace test but before the flags are set,
-				 * IO signal will be lost.
+				 * IO signal will be lost. Memory barrier
+				 * pairs with the input side.
 				 */
+				smp_mb__after_atomic();
 				if (sk_stream_is_writeable(sk))
 					mask |= POLLOUT | POLLWRNORM;
 			}
@@ -2590,11 +2594,13 @@ EXPORT_SYMBOL(compat_tcp_setsockopt);
 #endif
 
 /* Return information about state of tcp endpoint in API format. */
-void tcp_get_info(const struct sock *sk, struct tcp_info *info)
+void tcp_get_info(struct sock *sk, struct tcp_info *info)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	u32 now = tcp_time_stamp;
+	unsigned int start;
+	u32 rate;
 
 	memset(info, 0, sizeof(*info));
 
@@ -2655,10 +2661,17 @@ void tcp_get_info(const struct sock *sk, struct tcp_info *info)
 
 	info->tcpi_total_retrans = tp->total_retrans;
 
-	info->tcpi_pacing_rate = sk->sk_pacing_rate != ~0U ?
-					sk->sk_pacing_rate : ~0ULL;
-	info->tcpi_max_pacing_rate = sk->sk_max_pacing_rate != ~0U ?
-					sk->sk_max_pacing_rate : ~0ULL;
+	rate = READ_ONCE(sk->sk_pacing_rate);
+	info->tcpi_pacing_rate = rate != ~0U ? rate : ~0ULL;
+
+	rate = READ_ONCE(sk->sk_max_pacing_rate);
+	info->tcpi_max_pacing_rate = rate != ~0U ? rate : ~0ULL;
+
+	do {
+		start = u64_stats_fetch_begin_irq(&tp->syncp);
+		info->tcpi_bytes_acked = tp->bytes_acked;
+		info->tcpi_bytes_received = tp->bytes_received;
+	} while (u64_stats_fetch_retry_irq(&tp->syncp, start));
 }
 EXPORT_SYMBOL_GPL(tcp_get_info);
 
@@ -2724,6 +2737,26 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 		tcp_get_info(sk, &info);
 
 		len = min_t(unsigned int, len, sizeof(info));
+		if (put_user(len, optlen))
+			return -EFAULT;
+		if (copy_to_user(optval, &info, len))
+			return -EFAULT;
+		return 0;
+	}
+	case TCP_CC_INFO: {
+		const struct tcp_congestion_ops *ca_ops;
+		union tcp_cc_info info;
+		size_t sz = 0;
+		int attr;
+
+		if (get_user(len, optlen))
+			return -EFAULT;
+
+		ca_ops = icsk->icsk_ca_ops;
+		if (ca_ops && ca_ops->get_info)
+			sz = ca_ops->get_info(sk, ~0U, &attr, &info);
+
+		len = min_t(unsigned int, len, sz);
 		if (put_user(len, optlen))
 			return -EFAULT;
 		if (copy_to_user(optval, &info, len))

@@ -10,7 +10,7 @@
 
 static void *sysv_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	nd_set_link(nd, (char *)SYSV_I(dentry->d_inode)->i_data);
+	nd_set_link(nd, (char *)SYSV_I(d_inode(dentry))->i_data);
 	return NULL;
 }
 

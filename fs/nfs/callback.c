@@ -128,7 +128,7 @@ nfs41_callback_svc(void *vrqstp)
 		if (try_to_freeze())
 			continue;
 
-		prepare_to_wait(&serv->sv_cb_waitq, &wq, TASK_UNINTERRUPTIBLE);
+		prepare_to_wait(&serv->sv_cb_waitq, &wq, TASK_INTERRUPTIBLE);
 		spin_lock_bh(&serv->sv_cb_lock);
 		if (!list_empty(&serv->sv_cb_list)) {
 			req = list_first_entry(&serv->sv_cb_list,
@@ -142,10 +142,10 @@ nfs41_callback_svc(void *vrqstp)
 				error);
 		} else {
 			spin_unlock_bh(&serv->sv_cb_lock);
-			/* schedule_timeout to game the hung task watchdog */
-			schedule_timeout(60 * HZ);
+			schedule();
 			finish_wait(&serv->sv_cb_waitq, &wq);
 		}
+		flush_signals(current);
 	}
 	return 0;
 }

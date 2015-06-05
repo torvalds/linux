@@ -1250,7 +1250,7 @@ static void xenvif_tx_build_gops(struct xenvif_queue *queue,
 			netdev_err(queue->vif->dev,
 				   "txreq.offset: %x, size: %u, end: %lu\n",
 				   txreq.offset, txreq.size,
-				   (txreq.offset&~PAGE_MASK) + txreq.size);
+				   (unsigned long)(txreq.offset&~PAGE_MASK) + txreq.size);
 			xenvif_fatal_tx_err(queue->vif);
 			break;
 		}
@@ -1780,7 +1780,7 @@ int xenvif_map_frontend_rings(struct xenvif_queue *queue,
 	int err = -ENOMEM;
 
 	err = xenbus_map_ring_valloc(xenvif_to_xenbus_device(queue->vif),
-				     tx_ring_ref, &addr);
+				     &tx_ring_ref, 1, &addr);
 	if (err)
 		goto err;
 
@@ -1788,7 +1788,7 @@ int xenvif_map_frontend_rings(struct xenvif_queue *queue,
 	BACK_RING_INIT(&queue->tx, txs, PAGE_SIZE);
 
 	err = xenbus_map_ring_valloc(xenvif_to_xenbus_device(queue->vif),
-				     rx_ring_ref, &addr);
+				     &rx_ring_ref, 1, &addr);
 	if (err)
 		goto err;
 

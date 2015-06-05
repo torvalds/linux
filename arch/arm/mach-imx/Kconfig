@@ -21,6 +21,7 @@ config MXC_AVIC
 
 config MXC_DEBUG_BOARD
 	bool "Enable MXC debug board(for 3-stack)"
+	depends on MACH_MX27_3DS || MACH_MX31_3DS || MACH_MX35_3DS
 	help
 	  The debug board is an integral part of the MXC 3-stack(PDK)
 	  platforms, it can be attached or removed from the peripheral
@@ -50,6 +51,7 @@ config HAVE_IMX_ANATOP
 
 config HAVE_IMX_GPC
 	bool
+	select PM_GENERIC_DOMAINS if PM
 
 config HAVE_IMX_MMDC
 	bool
@@ -76,13 +78,6 @@ config SOC_IMX21
 	select CPU_ARM926T
 	select IMX_HAVE_IOMUX_V1
 	select MXC_AVIC
-
-config SOC_IMX25
-	bool
-	select ARCH_MXC_IOMUX_V3
-	select CPU_ARM926T
-	select MXC_AVIC
-	select PINCTRL_IMX25
 
 config SOC_IMX27
 	bool
@@ -148,62 +143,6 @@ config MACH_MX21ADS
 	help
 	  Include support for MX21ADS platform. This includes specific
 	  configurations for the board and its peripherals.
-
-comment "MX25 platforms:"
-
-config MACH_MX25_3DS
-	bool "Support MX25PDK (3DS) Platform"
-	select IMX_HAVE_PLATFORM_FLEXCAN
-	select IMX_HAVE_PLATFORM_FSL_USB2_UDC
-	select IMX_HAVE_PLATFORM_IMX2_WDT
-	select IMX_HAVE_PLATFORM_IMXDI_RTC
-	select IMX_HAVE_PLATFORM_IMX_FB
-	select IMX_HAVE_PLATFORM_IMX_I2C
-	select IMX_HAVE_PLATFORM_IMX_KEYPAD
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_MXC_EHCI
-	select IMX_HAVE_PLATFORM_MXC_NAND
-	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
-	select SOC_IMX25
-
-config MACH_EUKREA_CPUIMX25SD
-	bool "Support Eukrea CPUIMX25 Platform"
-	select IMX_HAVE_PLATFORM_FLEXCAN
-	select IMX_HAVE_PLATFORM_FSL_USB2_UDC
-	select IMX_HAVE_PLATFORM_IMX2_WDT
-	select IMX_HAVE_PLATFORM_IMXDI_RTC
-	select IMX_HAVE_PLATFORM_IMX_FB
-	select IMX_HAVE_PLATFORM_IMX_I2C
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_MXC_EHCI
-	select IMX_HAVE_PLATFORM_MXC_NAND
-	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
-	select USB_ULPI_VIEWPORT if USB_ULPI
-	select SOC_IMX25
-
-choice
-	prompt "Baseboard"
-	depends on MACH_EUKREA_CPUIMX25SD
-	default MACH_EUKREA_MBIMXSD25_BASEBOARD
-
-config MACH_EUKREA_MBIMXSD25_BASEBOARD
-	bool "Eukrea MBIMXSD development board"
-	select IMX_HAVE_PLATFORM_GPIO_KEYS
-	select IMX_HAVE_PLATFORM_IMX_SSI
-	select IMX_HAVE_PLATFORM_SPI_IMX
-	select LEDS_GPIO_REGISTER
-	help
-	  This adds board specific devices that can be found on Eukrea's
-	  MBIMXSD evaluation board.
-
-endchoice
-
-config MACH_IMX25_DT
-	bool "Support i.MX25 platforms from device tree"
-	select SOC_IMX25
-	help
-	  Include support for Freescale i.MX25 based platforms
-	  using the device tree for discovery
 
 comment "MX27 platforms:"
 
@@ -557,6 +496,20 @@ config MACH_VPR200
 
 endif
 
+if ARCH_MULTI_V5
+
+comment "Device tree only"
+
+config SOC_IMX25
+	bool "i.MX25 support"
+	select ARCH_MXC_IOMUX_V3
+	select CPU_ARM926T
+	select MXC_AVIC
+	select PINCTRL_IMX25
+	help
+	  This enables support for Freescale i.MX25 processor
+endif
+
 if ARCH_MULTI_V7
 
 comment "Device tree only"
@@ -635,9 +588,10 @@ config SOC_VF610
 	select ARM_GIC
 	select PINCTRL_VF610
 	select PL310_ERRATA_769419 if CACHE_L2X0
+	select SMP_ON_UP if SMP
 
 	help
-	  This enable support for Freescale Vybrid VF610 processor.
+	  This enables support for Freescale Vybrid VF610 processor.
 
 choice
 	prompt "Clocksource for scheduler clock"
@@ -667,7 +621,7 @@ config SOC_LS1021A
 	select ZONE_DMA if ARM_LPAE
 
 	help
-	  This enable support for Freescale LS1021A processor.
+	  This enables support for Freescale LS1021A processor.
 
 endif
 

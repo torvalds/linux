@@ -1871,16 +1871,9 @@ static int vpfe_probe(struct platform_device *pdev)
 		goto probe_free_ccdc_cfg_mem;
 	}
 
-	/* Allocate memory for video device */
-	vfd = video_device_alloc();
-	if (NULL == vfd) {
-		ret = -ENOMEM;
-		v4l2_err(pdev->dev.driver, "Unable to alloc video device\n");
-		goto probe_out_release_irq;
-	}
-
+	vfd = &vpfe_dev->video_dev;
 	/* Initialize field of video device */
-	vfd->release		= video_device_release;
+	vfd->release		= video_device_release_empty;
 	vfd->fops		= &vpfe_fops;
 	vfd->ioctl_ops		= &vpfe_ioctl_ops;
 	vfd->tvnorms		= 0;
@@ -1891,14 +1884,12 @@ static int vpfe_probe(struct platform_device *pdev)
 		 (VPFE_CAPTURE_VERSION_CODE >> 16) & 0xff,
 		 (VPFE_CAPTURE_VERSION_CODE >> 8) & 0xff,
 		 (VPFE_CAPTURE_VERSION_CODE) & 0xff);
-	/* Set video_dev to the video device */
-	vpfe_dev->video_dev	= vfd;
 
 	ret = v4l2_device_register(&pdev->dev, &vpfe_dev->v4l2_dev);
 	if (ret) {
 		v4l2_err(pdev->dev.driver,
 			"Unable to register v4l2 device.\n");
-		goto probe_out_video_release;
+		goto probe_out_release_irq;
 	}
 	v4l2_info(&vpfe_dev->v4l2_dev, "v4l2 device registered\n");
 	spin_lock_init(&vpfe_dev->irqlock);
@@ -1914,7 +1905,7 @@ static int vpfe_probe(struct platform_device *pdev)
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev,
 		"video_dev=%p\n", &vpfe_dev->video_dev);
 	vpfe_dev->fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	ret = video_register_device(vpfe_dev->video_dev,
+	ret = video_register_device(&vpfe_dev->video_dev,
 				    VFL_TYPE_GRABBER, -1);
 
 	if (ret) {
@@ -1927,7 +1918,7 @@ static int vpfe_probe(struct platform_device *pdev)
 	/* set the driver data in platform device */
 	platform_set_drvdata(pdev, vpfe_dev);
 	/* set driver private data */
-	video_set_drvdata(vpfe_dev->video_dev, vpfe_dev);
+	video_set_drvdata(&vpfe_dev->video_dev, vpfe_dev);
 	i2c_adap = i2c_get_adapter(vpfe_cfg->i2c_adapter_id);
 	num_subdevs = vpfe_cfg->num_subdevs;
 	vpfe_dev->sd = kmalloc(sizeof(struct v4l2_subdev *) * num_subdevs,
@@ -1979,12 +1970,9 @@ static int vpfe_probe(struct platform_device *pdev)
 probe_sd_out:
 	kfree(vpfe_dev->sd);
 probe_out_video_unregister:
-	video_unregister_device(vpfe_dev->video_dev);
+	video_unregister_device(&vpfe_dev->video_dev);
 probe_out_v4l2_unregister:
 	v4l2_device_unregister(&vpfe_dev->v4l2_dev);
-probe_out_video_release:
-	if (!video_is_registered(vpfe_dev->video_dev))
-		video_device_release(vpfe_dev->video_dev);
 probe_out_release_irq:
 	free_irq(vpfe_dev->ccdc_irq0, vpfe_dev);
 probe_free_ccdc_cfg_mem:
@@ -2007,7 +1995,7 @@ static int vpfe_remove(struct platform_device *pdev)
 	free_irq(vpfe_dev->ccdc_irq0, vpfe_dev);
 	kfree(vpfe_dev->sd);
 	v4l2_device_unregister(&vpfe_dev->v4l2_dev);
-	video_unregister_device(vpfe_dev->video_dev);
+	video_unregister_device(&vpfe_dev->video_dev);
 	kfree(vpfe_dev);
 	kfree(ccdc_cfg);
 	return 0;

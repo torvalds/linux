@@ -6,6 +6,15 @@ menuconfig MAILBOX
 	  signals. Say Y if your platform supports hardware mailboxes.
 
 if MAILBOX
+
+config ARM_MHU
+	tristate "ARM MHU Mailbox"
+	depends on ARM_AMBA
+	help
+	  Say Y here if you want to build the ARM MHU controller driver.
+	  The controller has 3 mailbox channels, the last of which can be
+	  used in Secure mode only.
+
 config PL320_MBOX
 	bool "ARM PL320 Mailbox"
 	depends on ARM_AMBA

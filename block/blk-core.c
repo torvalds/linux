@@ -552,10 +552,24 @@ void blk_cleanup_queue(struct request_queue *q)
 		q->queue_lock = &q->__queue_lock;
 	spin_unlock_irq(lock);
 
+	bdi_destroy(&q->backing_dev_info);
+
 	/* @q is and will stay empty, shutdown and put */
 	blk_put_queue(q);
 }
 EXPORT_SYMBOL(blk_cleanup_queue);
+
+/* Allocate memory local to the request queue */
+static void *alloc_request_struct(gfp_t gfp_mask, void *data)
+{
+	int nid = (int)(long)data;
+	return kmem_cache_alloc_node(request_cachep, gfp_mask, nid);
+}
+
+static void free_request_struct(void *element, void *unused)
+{
+	kmem_cache_free(request_cachep, element);
+}
 
 int blk_init_rl(struct request_list *rl, struct request_queue *q,
 		gfp_t gfp_mask)
@@ -569,9 +583,10 @@ int blk_init_rl(struct request_list *rl, struct request_queue *q,
 	init_waitqueue_head(&rl->wait[BLK_RW_SYNC]);
 	init_waitqueue_head(&rl->wait[BLK_RW_ASYNC]);
 
-	rl->rq_pool = mempool_create_node(BLKDEV_MIN_RQ, mempool_alloc_slab,
-					  mempool_free_slab, request_cachep,
-					  gfp_mask, q->node);
+	rl->rq_pool = mempool_create_node(BLKDEV_MIN_RQ, alloc_request_struct,
+					  free_request_struct,
+					  (void *)(long)q->node, gfp_mask,
+					  q->node);
 	if (!rl->rq_pool)
 		return -ENOMEM;
 
@@ -718,6 +733,8 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 	return q;
 }
 EXPORT_SYMBOL(blk_init_queue_node);
+
+static void blk_queue_bio(struct request_queue *q, struct bio *bio);
 
 struct request_queue *
 blk_init_allocated_queue(struct request_queue *q, request_fn_proc *rfn,
@@ -1563,7 +1580,7 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 	blk_rq_bio_prep(req->q, req, bio);
 }
 
-void blk_queue_bio(struct request_queue *q, struct bio *bio)
+static void blk_queue_bio(struct request_queue *q, struct bio *bio)
 {
 	const bool sync = !!(bio->bi_rw & REQ_SYNC);
 	struct blk_plug *plug;
@@ -1671,7 +1688,6 @@ out_unlock:
 		spin_unlock_irq(q->queue_lock);
 	}
 }
-EXPORT_SYMBOL_GPL(blk_queue_bio);	/* for device mapper only */
 
 /*
  * If bio->bi_dev is a partition, remap the location

@@ -38,7 +38,8 @@ static int iio_request_update_kfifo(struct iio_buffer *r)
 		kfifo_free(&buf->kf);
 		ret = __iio_allocate_kfifo(buf, buf->buffer.bytes_per_datum,
 				   buf->buffer.length);
-		buf->update_needed = false;
+		if (ret >= 0)
+			buf->update_needed = false;
 	} else {
 		kfifo_reset_out(&buf->kf);
 	}

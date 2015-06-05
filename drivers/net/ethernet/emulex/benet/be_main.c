@@ -2358,11 +2358,11 @@ static int be_evt_queues_create(struct be_adapter *adapter)
 				    adapter->cfg_num_qs);
 
 	for_all_evt_queues(adapter, eqo, i) {
+		int numa_node = dev_to_node(&adapter->pdev->dev);
 		if (!zalloc_cpumask_var(&eqo->affinity_mask, GFP_KERNEL))
 			return -ENOMEM;
-		cpumask_set_cpu_local_first(i, dev_to_node(&adapter->pdev->dev),
-					    eqo->affinity_mask);
-
+		cpumask_set_cpu(cpumask_local_spread(i, numa_node),
+				eqo->affinity_mask);
 		netif_napi_add(adapter->netdev, &eqo->napi, be_poll,
 			       BE_NAPI_WEIGHT);
 		napi_hash_add(&eqo->napi);
@@ -4846,7 +4846,8 @@ err:
 }
 
 static int be_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
-				 struct net_device *dev, u32 filter_mask)
+				 struct net_device *dev, u32 filter_mask,
+				 int nlflags)
 {
 	struct be_adapter *adapter = netdev_priv(dev);
 	int status = 0;
@@ -4868,7 +4869,7 @@ static int be_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 	return ndo_dflt_bridge_getlink(skb, pid, seq, dev,
 				       hsw_mode == PORT_FWD_TYPE_VEPA ?
 				       BRIDGE_MODE_VEPA : BRIDGE_MODE_VEB,
-				       0, 0);
+				       0, 0, nlflags);
 }
 
 #ifdef CONFIG_BE2NET_VXLAN

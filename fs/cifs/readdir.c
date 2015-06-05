@@ -78,7 +78,7 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 {
 	struct dentry *dentry, *alias;
 	struct inode *inode;
-	struct super_block *sb = parent->d_inode->i_sb;
+	struct super_block *sb = d_inode(parent)->i_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 
 	cifs_dbg(FYI, "%s: for %s\n", __func__, name->name);
@@ -88,8 +88,10 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 		return;
 
 	if (dentry) {
-		inode = dentry->d_inode;
+		inode = d_inode(dentry);
 		if (inode) {
+			if (d_mountpoint(dentry))
+				goto out;
 			/*
 			 * If we're generating inode numbers, then we don't
 			 * want to clobber the existing one with the one that

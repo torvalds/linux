@@ -412,7 +412,7 @@ static void mei_txe_intr_disable(struct mei_device *dev)
 	mei_txe_br_reg_write(hw, HIER_REG, 0);
 }
 /**
- * mei_txe_intr_disable - enable all interrupts
+ * mei_txe_intr_enable - enable all interrupts
  *
  * @dev: the device structure
  */

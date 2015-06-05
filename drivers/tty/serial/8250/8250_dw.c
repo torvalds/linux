@@ -17,7 +17,6 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/serial_8250.h>
-#include <linux/serial_core.h>
 #include <linux/serial_reg.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
@@ -364,9 +363,9 @@ static int dw8250_probe_of(struct uart_port *p,
 	}
 
 	if (of_property_read_bool(np, "cts-override")) {
-		/* Always report DSR as active */
-		data->msr_mask_on |= UART_MSR_DSR;
-		data->msr_mask_off |= UART_MSR_DDSR;
+		/* Always report CTS as active */
+		data->msr_mask_on |= UART_MSR_CTS;
+		data->msr_mask_off |= UART_MSR_DCTS;
 	}
 
 	if (of_property_read_bool(np, "ri-override")) {
@@ -375,36 +374,15 @@ static int dw8250_probe_of(struct uart_port *p,
 		data->msr_mask_off |= UART_MSR_TERI;
 	}
 
-	/* clock got configured through clk api, all done */
-	if (p->uartclk)
-		return 0;
-
-	/* try to find out clock frequency from DT as fallback */
-	if (of_property_read_u32(np, "clock-frequency", &val)) {
-		dev_err(p->dev, "clk or clock-frequency not defined\n");
-		return -EINVAL;
-	}
-	p->uartclk = val;
-
 	return 0;
 }
 
 static int dw8250_probe_acpi(struct uart_8250_port *up,
 			     struct dw8250_data *data)
 {
-	const struct acpi_device_id *id;
 	struct uart_port *p = &up->port;
 
 	dw8250_setup_port(up);
-
-	id = acpi_match_device(p->dev->driver->acpi_match_table, p->dev);
-	if (!id)
-		return -ENODEV;
-
-	if (!p->uartclk)
-		if (device_property_read_u32(p->dev, "clock-frequency",
-					     &p->uartclk))
-			return -EINVAL;
 
 	p->iotype = UPIO_MEM32;
 	p->serial_in = dw8250_serial_in32;
@@ -425,18 +403,24 @@ static int dw8250_probe(struct platform_device *pdev)
 {
 	struct uart_8250_port uart = {};
 	struct resource *regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	struct resource *irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	int irq = platform_get_irq(pdev, 0);
 	struct dw8250_data *data;
 	int err;
 
-	if (!regs || !irq) {
-		dev_err(&pdev->dev, "no registers/irq defined\n");
+	if (!regs) {
+		dev_err(&pdev->dev, "no registers defined\n");
 		return -EINVAL;
+	}
+
+	if (irq < 0) {
+		if (irq != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "cannot get irq\n");
+		return irq;
 	}
 
 	spin_lock_init(&uart.port.lock);
 	uart.port.mapbase = regs->start;
-	uart.port.irq = irq->start;
+	uart.port.irq = irq;
 	uart.port.handle_irq = dw8250_handle_irq;
 	uart.port.pm = dw8250_do_pm;
 	uart.port.type = PORT_8250;
@@ -453,18 +437,30 @@ static int dw8250_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	data->usr_reg = DW_UART_USR;
+
+	/* Always ask for fixed clock rate from a property. */
+	device_property_read_u32(&pdev->dev, "clock-frequency",
+				 &uart.port.uartclk);
+
+	/* If there is separate baudclk, get the rate from it. */
 	data->clk = devm_clk_get(&pdev->dev, "baudclk");
 	if (IS_ERR(data->clk) && PTR_ERR(data->clk) != -EPROBE_DEFER)
 		data->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(data->clk) && PTR_ERR(data->clk) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
-	if (!IS_ERR(data->clk)) {
+	if (!IS_ERR_OR_NULL(data->clk)) {
 		err = clk_prepare_enable(data->clk);
 		if (err)
 			dev_warn(&pdev->dev, "could not enable optional baudclk: %d\n",
 				 err);
 		else
 			uart.port.uartclk = clk_get_rate(data->clk);
+	}
+
+	/* If no clock rate is defined, fail. */
+	if (!uart.port.uartclk) {
+		dev_err(&pdev->dev, "clock rate not defined\n");
+		return -EINVAL;
 	}
 
 	data->pclk = devm_clk_get(&pdev->dev, "apb_pclk");
@@ -629,6 +625,7 @@ static const struct acpi_device_id dw8250_acpi_match[] = {
 	{ "80860F0A", 0 },
 	{ "8086228A", 0 },
 	{ "APMC0D08", 0},
+	{ "AMD0020", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, dw8250_acpi_match);
@@ -649,3 +646,4 @@ module_platform_driver(dw8250_platform_driver);
 MODULE_AUTHOR("Jamie Iles");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Synopsys DesignWare 8250 serial port driver");
+MODULE_ALIAS("platform:dw-apb-uart");

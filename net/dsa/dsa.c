@@ -124,7 +124,7 @@ static ssize_t temp1_max_store(struct device *dev,
 
 	return count;
 }
-static DEVICE_ATTR(temp1_max, S_IRUGO, temp1_max_show, temp1_max_store);
+static DEVICE_ATTR_RW(temp1_max);
 
 static ssize_t temp1_max_alarm_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
@@ -159,8 +159,8 @@ static umode_t dsa_hwmon_attrs_visible(struct kobject *kobj,
 	if (index == 1) {
 		if (!drv->get_temp_limit)
 			mode = 0;
-		else if (drv->set_temp_limit)
-			mode |= S_IWUSR;
+		else if (!drv->set_temp_limit)
+			mode &= ~S_IWUSR;
 	} else if (index == 2 && !drv->get_temp_alarm) {
 		mode = 0;
 	}
@@ -359,7 +359,7 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	 */
 	ds = kzalloc(sizeof(*ds) + drv->priv_size, GFP_KERNEL);
 	if (ds == NULL)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	ds->dst = dst;
 	ds->index = index;
@@ -370,7 +370,7 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 
 	ret = dsa_switch_setup_one(ds, parent);
 	if (ret)
-		return NULL;
+		return ERR_PTR(ret);
 
 	return ds;
 }
@@ -633,7 +633,7 @@ static int dsa_of_probe(struct device *dev)
 		if (cd->sw_addr > PHY_MAX_ADDR)
 			continue;
 
-		if (!of_property_read_u32(np, "eeprom-length", &eeprom_len))
+		if (!of_property_read_u32(child, "eeprom-length", &eeprom_len))
 			cd->eeprom_len = eeprom_len;
 
 		for_each_available_child_of_node(child, port) {

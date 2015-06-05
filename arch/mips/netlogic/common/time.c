@@ -40,7 +40,6 @@
 #include <asm/netlogic/interrupt.h>
 #include <asm/netlogic/common.h>
 #include <asm/netlogic/haldefs.h>
-#include <asm/netlogic/common.h>
 
 #if defined(CONFIG_CPU_XLP)
 #include <asm/netlogic/xlp-hal/iomap.h>

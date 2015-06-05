@@ -736,7 +736,7 @@
 
 			display-timings {
 				timing-0 {
-					clock-frequency = <0>;
+					clock-frequency = <57153600>;
 					hactive = <720>;
 					vactive = <1280>;
 					hfront-porch = <5>;

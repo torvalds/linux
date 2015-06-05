@@ -902,6 +902,10 @@ static int ip_error(struct sk_buff *skb)
 	bool send;
 	int code;
 
+	/* IP on this device is disabled. */
+	if (!in_dev)
+		goto out;
+
 	net = dev_net(rt->dst.dev);
 	if (!IN_DEV_FORWARD(in_dev)) {
 		switch (rt->dst.error) {
@@ -962,10 +966,7 @@ static void __ip_rt_update_pmtu(struct rtable *rt, struct flowi4 *fl4, u32 mtu)
 	if (dst_metric_locked(dst, RTAX_MTU))
 		return;
 
-	if (dst->dev->mtu < mtu)
-		return;
-
-	if (rt->rt_pmtu && rt->rt_pmtu < mtu)
+	if (ipv4_mtu(dst) < mtu)
 		return;
 
 	if (mtu < ip_rt_min_pmtu)

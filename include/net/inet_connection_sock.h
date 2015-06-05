@@ -98,7 +98,8 @@ struct inet_connection_sock {
 	const struct tcp_congestion_ops *icsk_ca_ops;
 	const struct inet_connection_sock_af_ops *icsk_af_ops;
 	unsigned int		  (*icsk_sync_mss)(struct sock *sk, u32 pmtu);
-	__u8			  icsk_ca_state:7,
+	__u8			  icsk_ca_state:6,
+				  icsk_ca_setsockopt:1,
 				  icsk_ca_dst_locked:1;
 	__u8			  icsk_retransmits;
 	__u8			  icsk_pending;
@@ -129,9 +130,10 @@ struct inet_connection_sock {
 
 		u32		  probe_timestamp;
 	} icsk_mtup;
-	u32			  icsk_ca_priv[16];
 	u32			  icsk_user_timeout;
-#define ICSK_CA_PRIV_SIZE	(16 * sizeof(u32))
+
+	u64			  icsk_ca_priv[64 / sizeof(u64)];
+#define ICSK_CA_PRIV_SIZE      (8 * sizeof(u64))
 };
 
 #define ICSK_TIME_RETRANS	1	/* Retransmit timer */
@@ -279,12 +281,6 @@ static inline void inet_csk_reqsk_queue_add(struct sock *sk,
 void inet_csk_reqsk_queue_hash_add(struct sock *sk, struct request_sock *req,
 				   unsigned long timeout);
 
-static inline void inet_csk_reqsk_queue_removed(struct sock *sk,
-						struct request_sock *req)
-{
-	reqsk_queue_removed(&inet_csk(sk)->icsk_accept_queue, req);
-}
-
 static inline void inet_csk_reqsk_queue_added(struct sock *sk,
 					      const unsigned long timeout)
 {
@@ -306,19 +302,7 @@ static inline int inet_csk_reqsk_queue_is_full(const struct sock *sk)
 	return reqsk_queue_is_full(&inet_csk(sk)->icsk_accept_queue);
 }
 
-static inline void inet_csk_reqsk_queue_unlink(struct sock *sk,
-					       struct request_sock *req)
-{
-	reqsk_queue_unlink(&inet_csk(sk)->icsk_accept_queue, req);
-}
-
-static inline void inet_csk_reqsk_queue_drop(struct sock *sk,
-					     struct request_sock *req)
-{
-	inet_csk_reqsk_queue_unlink(sk, req);
-	inet_csk_reqsk_queue_removed(sk, req);
-	reqsk_put(req);
-}
+void inet_csk_reqsk_queue_drop(struct sock *sk, struct request_sock *req);
 
 void inet_csk_destroy_sock(struct sock *sk);
 void inet_csk_prepare_forced_close(struct sock *sk);

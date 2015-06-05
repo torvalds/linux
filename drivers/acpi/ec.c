@@ -861,7 +861,7 @@ void acpi_ec_remove_query_handler(struct acpi_ec *ec, u8 query_bit)
 		}
 	}
 	mutex_unlock(&ec->mutex);
-	list_for_each_entry(handler, &free_list, node)
+	list_for_each_entry_safe(handler, tmp, &free_list, node)
 		acpi_ec_put_query_handler(handler);
 }
 EXPORT_SYMBOL_GPL(acpi_ec_remove_query_handler);

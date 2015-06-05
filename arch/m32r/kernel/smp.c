@@ -45,7 +45,7 @@ static volatile unsigned long flushcache_cpumask = 0;
 /*
  * For flush_tlb_others()
  */
-static volatile cpumask_t flush_cpumask;
+static cpumask_t flush_cpumask;
 static struct mm_struct *flush_mm;
 static struct vm_area_struct *flush_vma;
 static volatile unsigned long flush_va;
@@ -415,7 +415,7 @@ static void flush_tlb_others(cpumask_t cpumask, struct mm_struct *mm,
 	 */
 	send_IPI_mask(&cpumask, INVALIDATE_TLB_IPI, 0);
 
-	while (!cpumask_empty((cpumask_t*)&flush_cpumask)) {
+	while (!cpumask_empty(&flush_cpumask)) {
 		/* nothing. lockup detection does not belong here */
 		mb();
 	}
@@ -468,7 +468,7 @@ void smp_invalidate_interrupt(void)
 			__flush_tlb_page(va);
 		}
 	}
-	cpumask_clear_cpu(cpu_id, (cpumask_t*)&flush_cpumask);
+	cpumask_clear_cpu(cpu_id, &flush_cpumask);
 }
 
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/

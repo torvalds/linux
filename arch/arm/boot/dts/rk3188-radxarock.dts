@@ -103,6 +103,14 @@
 		regulator-always-on;
 		regulator-boot-on;
 	};
+
+	vsys: vsys-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vsys";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+	};
 };
 
 &emac {
@@ -147,6 +155,14 @@
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&act8846_dvs0_ctl>;
+
+		vp1-supply = <&vsys>;
+		vp2-supply = <&vsys>;
+		vp3-supply = <&vsys>;
+		vp4-supply = <&vsys>;
+		inl1-supply = <&vcc_io>;
+		inl2-supply = <&vsys>;
+		inl3-supply = <&vsys>;
 
 		regulators {
 			vcc_ddr: REG1 {

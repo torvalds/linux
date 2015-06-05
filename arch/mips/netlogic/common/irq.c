@@ -230,16 +230,16 @@ static void nlm_init_node_irqs(int node)
 	}
 }
 
-void nlm_smp_irq_init(int hwcpuid)
+void nlm_smp_irq_init(int hwtid)
 {
-	int node, cpu;
+	int cpu, node;
 
-	node = nlm_cpuid_to_node(hwcpuid);
-	cpu  = hwcpuid % nlm_threads_per_node();
+	cpu = hwtid % nlm_threads_per_node();
+	node = hwtid / nlm_threads_per_node();
 
 	if (cpu == 0 && node != 0)
 		nlm_init_node_irqs(node);
-	write_c0_eimr(nlm_current_node()->irqmask);
+	write_c0_eimr(nlm_get_node(node)->irqmask);
 }
 
 asmlinkage void plat_irq_dispatch(void)

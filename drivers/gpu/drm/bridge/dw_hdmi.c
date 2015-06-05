@@ -16,6 +16,7 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/hdmi.h>
+#include <linux/mutex.h>
 #include <linux/of_device.h>
 
 #include <drm/drm_of.h>
@@ -126,6 +127,7 @@ struct dw_hdmi {
 	struct i2c_adapter *ddc;
 	void __iomem *regs;
 
+	struct mutex audio_mutex;
 	unsigned int sample_rate;
 	int ratio;
 
@@ -177,26 +179,23 @@ static void hdmi_mask_writeb(struct dw_hdmi *hdmi, u8 data, unsigned int reg,
 	hdmi_modb(hdmi, data << shift, mask, reg);
 }
 
-static void hdmi_set_clock_regenerator_n(struct dw_hdmi *hdmi,
-					 unsigned int value)
-{
-	hdmi_writeb(hdmi, value & 0xff, HDMI_AUD_N1);
-	hdmi_writeb(hdmi, (value >> 8) & 0xff, HDMI_AUD_N2);
-	hdmi_writeb(hdmi, (value >> 16) & 0x0f, HDMI_AUD_N3);
-
-	/* nshift factor = 0 */
-	hdmi_modb(hdmi, 0, HDMI_AUD_CTS3_N_SHIFT_MASK, HDMI_AUD_CTS3);
-}
-
-static void hdmi_regenerate_cts(struct dw_hdmi *hdmi, unsigned int cts)
+static void hdmi_set_cts_n(struct dw_hdmi *hdmi, unsigned int cts,
+			   unsigned int n)
 {
 	/* Must be set/cleared first */
 	hdmi_modb(hdmi, 0, HDMI_AUD_CTS3_CTS_MANUAL, HDMI_AUD_CTS3);
 
-	hdmi_writeb(hdmi, cts & 0xff, HDMI_AUD_CTS1);
-	hdmi_writeb(hdmi, (cts >> 8) & 0xff, HDMI_AUD_CTS2);
+	/* nshift factor = 0 */
+	hdmi_modb(hdmi, 0, HDMI_AUD_CTS3_N_SHIFT_MASK, HDMI_AUD_CTS3);
+
 	hdmi_writeb(hdmi, ((cts >> 16) & HDMI_AUD_CTS3_AUDCTS19_16_MASK) |
 		    HDMI_AUD_CTS3_CTS_MANUAL, HDMI_AUD_CTS3);
+	hdmi_writeb(hdmi, (cts >> 8) & 0xff, HDMI_AUD_CTS2);
+	hdmi_writeb(hdmi, cts & 0xff, HDMI_AUD_CTS1);
+
+	hdmi_writeb(hdmi, (n >> 16) & 0x0f, HDMI_AUD_N3);
+	hdmi_writeb(hdmi, (n >> 8) & 0xff, HDMI_AUD_N2);
+	hdmi_writeb(hdmi, n & 0xff, HDMI_AUD_N1);
 }
 
 static unsigned int hdmi_compute_n(unsigned int freq, unsigned long pixel_clk,
@@ -355,18 +354,21 @@ static void hdmi_set_clk_regenerator(struct dw_hdmi *hdmi,
 		__func__, hdmi->sample_rate, hdmi->ratio,
 		pixel_clk, clk_n, clk_cts);
 
-	hdmi_set_clock_regenerator_n(hdmi, clk_n);
-	hdmi_regenerate_cts(hdmi, clk_cts);
+	hdmi_set_cts_n(hdmi, clk_cts, clk_n);
 }
 
 static void hdmi_init_clk_regenerator(struct dw_hdmi *hdmi)
 {
+	mutex_lock(&hdmi->audio_mutex);
 	hdmi_set_clk_regenerator(hdmi, 74250000);
+	mutex_unlock(&hdmi->audio_mutex);
 }
 
 static void hdmi_clk_regenerator_update_pixel_clock(struct dw_hdmi *hdmi)
 {
+	mutex_lock(&hdmi->audio_mutex);
 	hdmi_set_clk_regenerator(hdmi, hdmi->hdmi_data.video_mode.mpixelclock);
+	mutex_unlock(&hdmi->audio_mutex);
 }
 
 /*
@@ -753,10 +755,10 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi, unsigned char prep,
 {
 	unsigned res_idx, i;
 	u8 val, msec;
-	const struct dw_hdmi_mpll_config *mpll_config =
-						hdmi->plat_data->mpll_cfg;
-	const struct dw_hdmi_curr_ctrl *curr_ctrl = hdmi->plat_data->cur_ctr;
-	const struct dw_hdmi_sym_term *sym_term =  hdmi->plat_data->sym_term;
+	const struct dw_hdmi_plat_data *plat_data = hdmi->plat_data;
+	const struct dw_hdmi_mpll_config *mpll_config = plat_data->mpll_cfg;
+	const struct dw_hdmi_curr_ctrl *curr_ctrl = plat_data->cur_ctr;
+	const struct dw_hdmi_phy_config *phy_config = plat_data->phy_config;
 
 	if (prep)
 		return -EINVAL;
@@ -827,18 +829,18 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi, unsigned char prep,
 	hdmi_phy_i2c_write(hdmi, 0x0000, 0x13);  /* PLLPHBYCTRL */
 	hdmi_phy_i2c_write(hdmi, 0x0006, 0x17);
 
-	for (i = 0; sym_term[i].mpixelclock != (~0UL); i++)
+	for (i = 0; phy_config[i].mpixelclock != (~0UL); i++)
 		if (hdmi->hdmi_data.video_mode.mpixelclock <=
-		    sym_term[i].mpixelclock)
+		    phy_config[i].mpixelclock)
 			break;
 
 	/* RESISTANCE TERM 133Ohm Cfg */
-	hdmi_phy_i2c_write(hdmi, sym_term[i].term, 0x19);  /* TXTERM */
+	hdmi_phy_i2c_write(hdmi, phy_config[i].term, 0x19);  /* TXTERM */
 	/* PREEMP Cgf 0.00 */
-	hdmi_phy_i2c_write(hdmi, sym_term[i].sym_ctr, 0x09);  /* CKSYMTXCTRL */
-
+	hdmi_phy_i2c_write(hdmi, phy_config[i].sym_ctr, 0x09); /* CKSYMTXCTRL */
 	/* TX/CK LVL 10 */
-	hdmi_phy_i2c_write(hdmi, 0x01ad, 0x0E);  /* VLEVCTRL */
+	hdmi_phy_i2c_write(hdmi, phy_config[i].vlev_ctr, 0x0E); /* VLEVCTRL */
+
 	/* REMOVE CLK TERM */
 	hdmi_phy_i2c_write(hdmi, 0x8000, 0x05);  /* CKCALCTRL */
 
@@ -1568,6 +1570,8 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 	hdmi->sample_rate = 48000;
 	hdmi->ratio = 100;
 	hdmi->encoder = encoder;
+
+	mutex_init(&hdmi->audio_mutex);
 
 	of_property_read_u32(np, "reg-io-width", &val);
 
