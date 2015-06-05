@@ -1078,6 +1078,7 @@ EXPORT_SYMBOL_GPL(iommu_release_ownership);
 int iommu_add_device(struct device *dev)
 {
 	struct iommu_table *tbl;
+	struct iommu_table_group_link *tgl;
 
 	/*
 	 * The sysfs entries should be populated before
@@ -1095,15 +1096,22 @@ int iommu_add_device(struct device *dev)
 	}
 
 	tbl = get_iommu_table_base(dev);
-	if (!tbl || !tbl->it_table_group || !tbl->it_table_group->group) {
+	if (!tbl) {
 		pr_debug("%s: Skipping device %s with no tbl\n",
 			 __func__, dev_name(dev));
 		return 0;
 	}
 
+	tgl = list_first_entry_or_null(&tbl->it_group_list,
+			struct iommu_table_group_link, next);
+	if (!tgl) {
+		pr_debug("%s: Skipping device %s with no group\n",
+			 __func__, dev_name(dev));
+		return 0;
+	}
 	pr_debug("%s: Adding %s to iommu group %d\n",
 		 __func__, dev_name(dev),
-		 iommu_group_id(tbl->it_table_group->group));
+		 iommu_group_id(tgl->table_group->group));
 
 	if (PAGE_SIZE < IOMMU_PAGE_SIZE(tbl)) {
 		pr_err("%s: Invalid IOMMU page size %lx (%lx) on %s\n",
@@ -1112,7 +1120,7 @@ int iommu_add_device(struct device *dev)
 		return -EINVAL;
 	}
 
-	return iommu_group_add_device(tbl->it_table_group->group, dev);
+	return iommu_group_add_device(tgl->table_group->group, dev);
 }
 EXPORT_SYMBOL_GPL(iommu_add_device);
 

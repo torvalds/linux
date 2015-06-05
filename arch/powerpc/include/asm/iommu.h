@@ -91,7 +91,7 @@ struct iommu_table {
 	struct iommu_pool pools[IOMMU_NR_POOLS];
 	unsigned long *it_map;       /* A simple allocation bitmap for now */
 	unsigned long  it_page_shift;/* table iommu page size */
-	struct iommu_table_group *it_table_group;
+	struct list_head it_group_list;/* List of iommu_table_group_link */
 	struct iommu_table_ops *it_ops;
 	void (*set_bypass)(struct iommu_table *tbl, bool enable);
 };
@@ -125,6 +125,12 @@ extern void iommu_free_table(struct iommu_table *tbl, const char *node_name);
 extern struct iommu_table *iommu_init_table(struct iommu_table * tbl,
 					    int nid);
 #define IOMMU_TABLE_GROUP_MAX_TABLES	1
+
+struct iommu_table_group_link {
+	struct list_head next;
+	struct rcu_head rcu;
+	struct iommu_table_group *table_group;
+};
 
 struct iommu_table_group {
 	struct iommu_group *group;

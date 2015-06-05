@@ -37,6 +37,7 @@
 #include <linux/memory.h>
 #include <linux/of.h>
 #include <linux/iommu.h>
+#include <linux/rculist.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/rtas.h>
@@ -56,6 +57,7 @@ static struct iommu_table_group *iommu_pseries_alloc_group(int node)
 {
 	struct iommu_table_group *table_group = NULL;
 	struct iommu_table *tbl = NULL;
+	struct iommu_table_group_link *tgl = NULL;
 
 	table_group = kzalloc_node(sizeof(struct iommu_table_group), GFP_KERNEL,
 			   node);
@@ -66,12 +68,21 @@ static struct iommu_table_group *iommu_pseries_alloc_group(int node)
 	if (!tbl)
 		goto fail_exit;
 
-	tbl->it_table_group = table_group;
+	tgl = kzalloc_node(sizeof(struct iommu_table_group_link), GFP_KERNEL,
+			node);
+	if (!tgl)
+		goto fail_exit;
+
+	INIT_LIST_HEAD_RCU(&tbl->it_group_list);
+	tgl->table_group = table_group;
+	list_add_rcu(&tgl->next, &tbl->it_group_list);
+
 	table_group->tables[0] = tbl;
 
 	return table_group;
 
 fail_exit:
+	kfree(tgl);
 	kfree(table_group);
 	kfree(tbl);
 
@@ -82,18 +93,28 @@ static void iommu_pseries_free_group(struct iommu_table_group *table_group,
 		const char *node_name)
 {
 	struct iommu_table *tbl;
+#ifdef CONFIG_IOMMU_API
+	struct iommu_table_group_link *tgl;
+#endif
 
 	if (!table_group)
 		return;
 
+	tbl = table_group->tables[0];
 #ifdef CONFIG_IOMMU_API
+	tgl = list_first_entry_or_null(&tbl->it_group_list,
+			struct iommu_table_group_link, next);
+
+	WARN_ON_ONCE(!tgl);
+	if (tgl) {
+		list_del_rcu(&tgl->next);
+		kfree(tgl);
+	}
 	if (table_group->group) {
 		iommu_group_put(table_group->group);
 		BUG_ON(table_group->group);
 	}
 #endif
-
-	tbl = table_group->tables[0];
 	iommu_free_table(tbl, node_name);
 
 	kfree(table_group);

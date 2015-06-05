@@ -606,6 +606,81 @@ unsigned long pnv_tce_get(struct iommu_table *tbl, long index)
 	return ((u64 *)tbl->it_base)[index - tbl->it_offset];
 }
 
+struct iommu_table *pnv_pci_table_alloc(int nid)
+{
+	struct iommu_table *tbl;
+
+	tbl = kzalloc_node(sizeof(struct iommu_table), GFP_KERNEL, nid);
+	INIT_LIST_HEAD_RCU(&tbl->it_group_list);
+
+	return tbl;
+}
+
+long pnv_pci_link_table_and_group(int node, int num,
+		struct iommu_table *tbl,
+		struct iommu_table_group *table_group)
+{
+	struct iommu_table_group_link *tgl = NULL;
+
+	if (WARN_ON(!tbl || !table_group))
+		return -EINVAL;
+
+	tgl = kzalloc_node(sizeof(struct iommu_table_group_link), GFP_KERNEL,
+			node);
+	if (!tgl)
+		return -ENOMEM;
+
+	tgl->table_group = table_group;
+	list_add_rcu(&tgl->next, &tbl->it_group_list);
+
+	table_group->tables[num] = tbl;
+
+	return 0;
+}
+
+static void pnv_iommu_table_group_link_free(struct rcu_head *head)
+{
+	struct iommu_table_group_link *tgl = container_of(head,
+			struct iommu_table_group_link, rcu);
+
+	kfree(tgl);
+}
+
+void pnv_pci_unlink_table_and_group(struct iommu_table *tbl,
+		struct iommu_table_group *table_group)
+{
+	long i;
+	bool found;
+	struct iommu_table_group_link *tgl;
+
+	if (!tbl || !table_group)
+		return;
+
+	/* Remove link to a group from table's list of attached groups */
+	found = false;
+	list_for_each_entry_rcu(tgl, &tbl->it_group_list, next) {
+		if (tgl->table_group == table_group) {
+			list_del_rcu(&tgl->next);
+			call_rcu(&tgl->rcu, pnv_iommu_table_group_link_free);
+			found = true;
+			break;
+		}
+	}
+	if (WARN_ON(!found))
+		return;
+
+	/* Clean a pointer to iommu_table in iommu_table_group::tables[] */
+	found = false;
+	for (i = 0; i < IOMMU_TABLE_GROUP_MAX_TABLES; ++i) {
+		if (table_group->tables[i] == tbl) {
+			table_group->tables[i] = NULL;
+			found = true;
+			break;
+		}
+	}
+	WARN_ON(!found);
+}
+
 void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
 			       void *tce_mem, u64 tce_size,
 			       u64 dma_offset, unsigned page_shift)
