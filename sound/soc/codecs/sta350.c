@@ -1217,8 +1217,8 @@ static int sta350_i2c_probe(struct i2c_client *i2c,
 	if (IS_ERR(sta350->gpiod_nreset))
 		return PTR_ERR(sta350->gpiod_nreset);
 
-	sta350->gpiod_power_down = devm_gpiod_get(dev, "power-down",
-						  GPIOD_OUT_LOW);
+	sta350->gpiod_power_down = devm_gpiod_get_optional(dev, "power-down",
+							   GPIOD_OUT_LOW);
 	if (IS_ERR(sta350->gpiod_power_down))
 		return PTR_ERR(sta350->gpiod_power_down);
 

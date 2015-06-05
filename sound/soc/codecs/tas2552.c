@@ -34,6 +34,7 @@
 #include <sound/soc-dapm.h>
 #include <sound/tlv.h>
 #include <sound/tas2552-plat.h>
+#include <dt-bindings/sound/tas2552.h>
 
 #include "tas2552.h"
 
@@ -45,7 +46,7 @@ static struct reg_default tas2552_reg_defs[] = {
 	{TAS2552_PDM_CFG, 0x01},
 	{TAS2552_PGA_GAIN, 0x00},
 	{TAS2552_BOOST_PT_CTRL, 0x0f},
-	{TAS2552_RESERVED_0D, 0x00},
+	{TAS2552_RESERVED_0D, 0xbe},
 	{TAS2552_LIMIT_RATE_HYS, 0x08},
 	{TAS2552_CFG_2, 0xef},
 	{TAS2552_SER_CTRL_1, 0x00},
@@ -75,20 +76,45 @@ struct tas2552_data {
 	struct regulator_bulk_data supplies[TAS2552_NUM_SUPPLIES];
 	struct gpio_desc *enable_gpio;
 	unsigned char regs[TAS2552_VBAT_DATA];
-	unsigned int mclk;
+	unsigned int pll_clkin;
+	unsigned int pdm_clk;
+
+	unsigned int dai_fmt;
+	unsigned int tdm_delay;
 };
+
+static int tas2552_post_event(struct snd_soc_dapm_widget *w,
+			      struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		snd_soc_write(codec, TAS2552_RESERVED_0D, 0xc0);
+		snd_soc_update_bits(codec, TAS2552_LIMIT_RATE_HYS, (1 << 5),
+				    (1 << 5));
+		snd_soc_update_bits(codec, TAS2552_CFG_2, 1, 0);
+		snd_soc_update_bits(codec, TAS2552_CFG_1, TAS2552_SWS, 0);
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		snd_soc_update_bits(codec, TAS2552_CFG_1, TAS2552_SWS,
+				    TAS2552_SWS);
+		snd_soc_update_bits(codec, TAS2552_CFG_2, 1, 1);
+		snd_soc_update_bits(codec, TAS2552_LIMIT_RATE_HYS, (1 << 5), 0);
+		snd_soc_write(codec, TAS2552_RESERVED_0D, 0xbe);
+		break;
+	}
+	return 0;
+}
 
 /* Input mux controls */
-static const char *tas2552_input_texts[] = {
-	"Digital", "Analog"
-};
-
+static const char * const tas2552_input_texts[] = {
+	"Digital", "Analog" };
 static SOC_ENUM_SINGLE_DECL(tas2552_input_mux_enum, TAS2552_CFG_3, 7,
 			    tas2552_input_texts);
 
-static const struct snd_kcontrol_new tas2552_input_mux_control[] = {
-	SOC_DAPM_ENUM("Input selection", tas2552_input_mux_enum)
-};
+static const struct snd_kcontrol_new tas2552_input_mux_control =
+	SOC_DAPM_ENUM("Route", tas2552_input_mux_enum);
 
 static const struct snd_soc_dapm_widget tas2552_dapm_widgets[] =
 {
@@ -96,12 +122,13 @@ static const struct snd_soc_dapm_widget tas2552_dapm_widgets[] =
 
 	/* MUX Controls */
 	SND_SOC_DAPM_MUX("Input selection", SND_SOC_NOPM, 0, 0,
-				tas2552_input_mux_control),
+			 &tas2552_input_mux_control),
 
 	SND_SOC_DAPM_AIF_IN("DAC IN", "DAC Playback", 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_DAC("DAC", NULL, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_OUT_DRV("ClassD", TAS2552_CFG_2, 7, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("PLL", TAS2552_CFG_2, 3, 0, NULL, 0),
+	SND_SOC_DAPM_POST("Post Event", tas2552_post_event),
 
 	SND_SOC_DAPM_OUTPUT("OUT")
 };
@@ -118,15 +145,16 @@ static const struct snd_soc_dapm_route tas2552_audio_map[] = {
 #ifdef CONFIG_PM
 static void tas2552_sw_shutdown(struct tas2552_data *tas_data, int sw_shutdown)
 {
-	u8 cfg1_reg;
+	u8 cfg1_reg = 0;
+
+	if (!tas_data->codec)
+		return;
 
 	if (sw_shutdown)
-		cfg1_reg = 0;
-	else
-		cfg1_reg = TAS2552_SWS_MASK;
+		cfg1_reg = TAS2552_SWS;
 
-	snd_soc_update_bits(tas_data->codec, TAS2552_CFG_1,
-						 TAS2552_SWS_MASK, cfg1_reg);
+	snd_soc_update_bits(tas_data->codec, TAS2552_CFG_1, TAS2552_SWS,
+			    cfg1_reg);
 }
 #endif
 
@@ -138,15 +166,92 @@ static int tas2552_hw_params(struct snd_pcm_substream *substream,
 	struct tas2552_data *tas2552 = dev_get_drvdata(codec->dev);
 	int sample_rate, pll_clk;
 	int d;
+	int cpf;
 	u8 p, j;
+	u8 ser_ctrl1_reg, wclk_rate;
 
-	if (!tas2552->mclk)
+	switch (params_width(params)) {
+	case 16:
+		ser_ctrl1_reg = TAS2552_WORDLENGTH_16BIT;
+		cpf = 32 + tas2552->tdm_delay;
+		break;
+	case 20:
+		ser_ctrl1_reg = TAS2552_WORDLENGTH_20BIT;
+		cpf = 64 + tas2552->tdm_delay;
+		break;
+	case 24:
+		ser_ctrl1_reg = TAS2552_WORDLENGTH_24BIT;
+		cpf = 64 + tas2552->tdm_delay;
+		break;
+	case 32:
+		ser_ctrl1_reg = TAS2552_WORDLENGTH_32BIT;
+		cpf = 64 + tas2552->tdm_delay;
+		break;
+	default:
+		dev_err(codec->dev, "Not supported sample size: %d\n",
+			params_width(params));
+		return -EINVAL;
+	}
+
+	if (cpf <= 32)
+		ser_ctrl1_reg |= TAS2552_CLKSPERFRAME_32;
+	else if (cpf <= 64)
+		ser_ctrl1_reg |= TAS2552_CLKSPERFRAME_64;
+	else if (cpf <= 128)
+		ser_ctrl1_reg |= TAS2552_CLKSPERFRAME_128;
+	else
+		ser_ctrl1_reg |= TAS2552_CLKSPERFRAME_256;
+
+	snd_soc_update_bits(codec, TAS2552_SER_CTRL_1,
+			    TAS2552_WORDLENGTH_MASK | TAS2552_CLKSPERFRAME_MASK,
+			    ser_ctrl1_reg);
+
+	switch (params_rate(params)) {
+	case 8000:
+		wclk_rate = TAS2552_WCLK_FREQ_8KHZ;
+		break;
+	case 11025:
+	case 12000:
+		wclk_rate = TAS2552_WCLK_FREQ_11_12KHZ;
+		break;
+	case 16000:
+		wclk_rate = TAS2552_WCLK_FREQ_16KHZ;
+		break;
+	case 22050:
+	case 24000:
+		wclk_rate = TAS2552_WCLK_FREQ_22_24KHZ;
+		break;
+	case 32000:
+		wclk_rate = TAS2552_WCLK_FREQ_32KHZ;
+		break;
+	case 44100:
+	case 48000:
+		wclk_rate = TAS2552_WCLK_FREQ_44_48KHZ;
+		break;
+	case 88200:
+	case 96000:
+		wclk_rate = TAS2552_WCLK_FREQ_88_96KHZ;
+		break;
+	case 176400:
+	case 192000:
+		wclk_rate = TAS2552_WCLK_FREQ_176_192KHZ;
+		break;
+	default:
+		dev_err(codec->dev, "Not supported sample rate: %d\n",
+			params_rate(params));
+		return -EINVAL;
+	}
+
+	snd_soc_update_bits(codec, TAS2552_CFG_3, TAS2552_WCLK_FREQ_MASK,
+			    wclk_rate);
+
+	if (!tas2552->pll_clkin)
 		return -EINVAL;
 
 	snd_soc_update_bits(codec, TAS2552_CFG_2, TAS2552_PLL_ENABLE, 0);
 
-	if (tas2552->mclk == TAS2552_245MHZ_CLK ||
-		tas2552->mclk == TAS2552_225MHZ_CLK) {
+	if (tas2552->pll_clkin == TAS2552_245MHZ_CLK ||
+	    tas2552->pll_clkin == TAS2552_225MHZ_CLK) {
 		/* By pass the PLL configuration */
 		snd_soc_update_bits(codec, TAS2552_PLL_CTRL_2,
 				    TAS2552_PLL_BYPASS_MASK,
@@ -170,8 +275,8 @@ static int tas2552_hw_params(struct snd_pcm_substream *substream,
 			return -EINVAL;
 		}
 
-		j = (pll_clk * 2 * (1 << p)) / tas2552->mclk;
-		d = (pll_clk * 2 * (1 << p)) % tas2552->mclk;
+		j = (pll_clk * 2 * (1 << p)) / tas2552->pll_clkin;
+		d = (pll_clk * 2 * (1 << p)) % tas2552->pll_clkin;
 
 		snd_soc_update_bits(codec, TAS2552_PLL_CTRL_1,
 				TAS2552_PLL_J_MASK, j);
@@ -185,56 +290,74 @@ static int tas2552_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+#define TAS2552_DAI_FMT_MASK	(TAS2552_BCLKDIR | \
+				 TAS2552_WCLKDIR | \
+				 TAS2552_DATAFORMAT_MASK)
+static int tas2552_prepare(struct snd_pcm_substream *substream,
+			   struct snd_soc_dai *dai)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	struct tas2552_data *tas2552 = snd_soc_codec_get_drvdata(codec);
+	int delay = 0;
+
+	/* TDM slot selection only valid in DSP_A/_B mode */
+	if (tas2552->dai_fmt == SND_SOC_DAIFMT_DSP_A)
+		delay += (tas2552->tdm_delay + 1);
+	else if (tas2552->dai_fmt == SND_SOC_DAIFMT_DSP_B)
+		delay += tas2552->tdm_delay;
+
+	/* Configure data delay */
+	snd_soc_write(codec, TAS2552_SER_CTRL_2, delay);
+
+	return 0;
+}
+
 static int tas2552_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct snd_soc_codec *codec = dai->codec;
+	struct tas2552_data *tas2552 = dev_get_drvdata(codec->dev);
 	u8 serial_format;
-	u8 serial_control_mask;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
 		serial_format = 0x00;
 		break;
 	case SND_SOC_DAIFMT_CBS_CFM:
-		serial_format = TAS2552_WORD_CLK_MASK;
+		serial_format = TAS2552_WCLKDIR;
 		break;
 	case SND_SOC_DAIFMT_CBM_CFS:
-		serial_format = TAS2552_BIT_CLK_MASK;
+		serial_format = TAS2552_BCLKDIR;
 		break;
 	case SND_SOC_DAIFMT_CBM_CFM:
-		serial_format = (TAS2552_BIT_CLK_MASK | TAS2552_WORD_CLK_MASK);
+		serial_format = (TAS2552_BCLKDIR | TAS2552_WCLKDIR);
 		break;
 	default:
 		dev_vdbg(codec->dev, "DAI Format master is not found\n");
 		return -EINVAL;
 	}
 
-	serial_control_mask = TAS2552_BIT_CLK_MASK | TAS2552_WORD_CLK_MASK;
-
-	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
-	case SND_SOC_DAIFMT_I2S:
-		serial_format &= TAS2552_DAIFMT_I2S_MASK;
+	switch (fmt & (SND_SOC_DAIFMT_FORMAT_MASK |
+		       SND_SOC_DAIFMT_INV_MASK)) {
+	case (SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF):
 		break;
-	case SND_SOC_DAIFMT_DSP_A:
-		serial_format |= TAS2552_DAIFMT_DSP;
+	case (SND_SOC_DAIFMT_DSP_A | SND_SOC_DAIFMT_IB_NF):
+	case (SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_IB_NF):
+		serial_format |= TAS2552_DATAFORMAT_DSP;
 		break;
-	case SND_SOC_DAIFMT_RIGHT_J:
-		serial_format |= TAS2552_DAIFMT_RIGHT_J;
+	case (SND_SOC_DAIFMT_RIGHT_J | SND_SOC_DAIFMT_NB_NF):
+		serial_format |= TAS2552_DATAFORMAT_RIGHT_J;
 		break;
-	case SND_SOC_DAIFMT_LEFT_J:
-		serial_format |= TAS2552_DAIFMT_LEFT_J;
+	case (SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_NB_NF):
+		serial_format |= TAS2552_DATAFORMAT_LEFT_J;
 		break;
 	default:
 		dev_vdbg(codec->dev, "DAI Format is not found\n");
 		return -EINVAL;
 	}
+	tas2552->dai_fmt = fmt & SND_SOC_DAIFMT_FORMAT_MASK;
 
-	if (fmt & SND_SOC_DAIFMT_FORMAT_MASK)
-		serial_control_mask |= TAS2552_DATA_FORMAT_MASK;
-
-	snd_soc_update_bits(codec, TAS2552_SER_CTRL_1, serial_control_mask,
-						serial_format);
-
+	snd_soc_update_bits(codec, TAS2552_SER_CTRL_1, TAS2552_DAI_FMT_MASK,
+			    serial_format);
 	return 0;
 }
 
@@ -243,23 +366,75 @@ static int tas2552_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct tas2552_data *tas2552 = dev_get_drvdata(codec->dev);
+	u8 reg, mask, val;
 
-	tas2552->mclk = freq;
+	switch (clk_id) {
+	case TAS2552_PLL_CLKIN_MCLK:
+	case TAS2552_PLL_CLKIN_BCLK:
+	case TAS2552_PLL_CLKIN_IVCLKIN:
+	case TAS2552_PLL_CLKIN_1_8_FIXED:
+		mask = TAS2552_PLL_SRC_MASK;
+		val = (clk_id << 3) & mask; /* bit 4:5 in the register */
+		reg = TAS2552_CFG_1;
+		tas2552->pll_clkin = freq;
+		break;
+	case TAS2552_PDM_CLK_PLL:
+	case TAS2552_PDM_CLK_IVCLKIN:
+	case TAS2552_PDM_CLK_BCLK:
+	case TAS2552_PDM_CLK_MCLK:
+		mask = TAS2552_PDM_CLK_SEL_MASK;
+		val = (clk_id >> 1) & mask; /* bit 0:1 in the register */
+		reg = TAS2552_PDM_CFG;
+		tas2552->pdm_clk = freq;
+		break;
+	default:
+		dev_err(codec->dev, "Invalid clk id: %d\n", clk_id);
+		return -EINVAL;
+	}
+
+	snd_soc_update_bits(codec, reg, mask, val);
+
+	return 0;
+}
+
+static int tas2552_set_dai_tdm_slot(struct snd_soc_dai *dai,
+				    unsigned int tx_mask, unsigned int rx_mask,
+				    int slots, int slot_width)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	struct tas2552_data *tas2552 = snd_soc_codec_get_drvdata(codec);
+	unsigned int lsb;
+
+	if (unlikely(!tx_mask)) {
+		dev_err(codec->dev, "tx masks need to be non 0\n");
+		return -EINVAL;
+	}
+
+	/* TDM based on DSP mode requires slots to be adjacent */
+	lsb = __ffs(tx_mask);
+	if ((lsb + 1) != __fls(tx_mask)) {
+		dev_err(codec->dev, "Invalid mask, slots must be adjacent\n");
+		return -EINVAL;
+	}
+
+	tas2552->tdm_delay = lsb * slot_width;
+
+	/* DOUT in high-impedance on inactive bit clocks */
+	snd_soc_update_bits(codec, TAS2552_DOUT,
+			    TAS2552_SDOUT_TRISTATE, TAS2552_SDOUT_TRISTATE);
 
 	return 0;
 }
 
 static int tas2552_mute(struct snd_soc_dai *dai, int mute)
 {
-	u8 cfg1_reg;
+	u8 cfg1_reg = 0;
 	struct snd_soc_codec *codec = dai->codec;
 
 	if (mute)
-		cfg1_reg = TAS2552_MUTE_MASK;
-	else
-		cfg1_reg = ~TAS2552_MUTE_MASK;
+		cfg1_reg |= TAS2552_MUTE;
 
-	snd_soc_update_bits(codec, TAS2552_CFG_1, TAS2552_MUTE_MASK, cfg1_reg);
+	snd_soc_update_bits(codec, TAS2552_CFG_1, TAS2552_MUTE, cfg1_reg);
 
 	return 0;
 }
@@ -269,7 +444,7 @@ static int tas2552_runtime_suspend(struct device *dev)
 {
 	struct tas2552_data *tas2552 = dev_get_drvdata(dev);
 
-	tas2552_sw_shutdown(tas2552, 0);
+	tas2552_sw_shutdown(tas2552, 1);
 
 	regcache_cache_only(tas2552->regmap, true);
 	regcache_mark_dirty(tas2552->regmap);
@@ -287,7 +462,7 @@ static int tas2552_runtime_resume(struct device *dev)
 	if (tas2552->enable_gpio)
 		gpiod_set_value(tas2552->enable_gpio, 1);
 
-	tas2552_sw_shutdown(tas2552, 1);
+	tas2552_sw_shutdown(tas2552, 0);
 
 	regcache_cache_only(tas2552->regmap, false);
 	regcache_sync(tas2552->regmap);
@@ -303,8 +478,10 @@ static const struct dev_pm_ops tas2552_pm = {
 
 static struct snd_soc_dai_ops tas2552_speaker_dai_ops = {
 	.hw_params	= tas2552_hw_params,
+	.prepare	= tas2552_prepare,
 	.set_sysclk	= tas2552_set_dai_sysclk,
 	.set_fmt	= tas2552_set_dai_fmt,
+	.set_tdm_slot	= tas2552_set_dai_tdm_slot,
 	.digital_mute = tas2552_mute,
 };
 
@@ -330,16 +507,11 @@ static struct snd_soc_dai_driver tas2552_dai[] = {
 /*
  * DAC digital volumes. From -7 to 24 dB in 1 dB steps
  */
-static DECLARE_TLV_DB_SCALE(dac_tlv, -7, 100, 24);
+static DECLARE_TLV_DB_SCALE(dac_tlv, -7, 100, 0);
 
 static const struct snd_kcontrol_new tas2552_snd_controls[] = {
 	SOC_SINGLE_TLV("Speaker Driver Playback Volume",
-			 TAS2552_PGA_GAIN, 0, 0x1f, 1, dac_tlv),
-	SOC_DAPM_SINGLE("Playback AMP", SND_SOC_NOPM, 0, 1, 0),
-};
-
-static const struct reg_default tas2552_init_regs[] = {
-	{ TAS2552_RESERVED_0D, 0xc0 },
+			 TAS2552_PGA_GAIN, 0, 0x1f, 0, dac_tlv),
 };
 
 static int tas2552_codec_probe(struct snd_soc_codec *codec)
@@ -368,31 +540,19 @@ static int tas2552_codec_probe(struct snd_soc_codec *codec)
 		goto probe_fail;
 	}
 
-	snd_soc_write(codec, TAS2552_CFG_1, TAS2552_MUTE_MASK |
-				TAS2552_PLL_SRC_BCLK);
+	snd_soc_update_bits(codec, TAS2552_CFG_1, TAS2552_MUTE, TAS2552_MUTE);
 	snd_soc_write(codec, TAS2552_CFG_3, TAS2552_I2S_OUT_SEL |
-				TAS2552_DIN_SRC_SEL_AVG_L_R | TAS2552_88_96KHZ);
+					    TAS2552_DIN_SRC_SEL_AVG_L_R);
 	snd_soc_write(codec, TAS2552_DOUT, TAS2552_PDM_DATA_I);
 	snd_soc_write(codec, TAS2552_OUTPUT_DATA, TAS2552_PDM_DATA_V_I | 0x8);
-	snd_soc_write(codec, TAS2552_PDM_CFG, TAS2552_PDM_BCLK_SEL);
 	snd_soc_write(codec, TAS2552_BOOST_PT_CTRL, TAS2552_APT_DELAY_200 |
 				TAS2552_APT_THRESH_2_1_7);
-
-	ret = regmap_register_patch(tas2552->regmap, tas2552_init_regs,
-					    ARRAY_SIZE(tas2552_init_regs));
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to write init registers: %d\n",
-			ret);
-		goto patch_fail;
-	}
 
 	snd_soc_write(codec, TAS2552_CFG_2, TAS2552_BOOST_EN |
 				  TAS2552_APT_EN | TAS2552_LIM_EN);
 
 	return 0;
 
-patch_fail:
-	pm_runtime_put(codec->dev);
 probe_fail:
 	if (tas2552->enable_gpio)
 		gpiod_set_value(tas2552->enable_gpio, 0);
@@ -454,6 +614,8 @@ static struct snd_soc_codec_driver soc_codec_dev_tas2552 = {
 	.remove = tas2552_codec_remove,
 	.suspend =	tas2552_suspend,
 	.resume = tas2552_resume,
+	.ignore_pmdown_time = true,
+
 	.controls = tas2552_snd_controls,
 	.num_controls = ARRAY_SIZE(tas2552_snd_controls),
 	.dapm_widgets = tas2552_dapm_widgets,
@@ -486,8 +648,12 @@ static int tas2552_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	data->enable_gpio = devm_gpiod_get(dev, "enable", GPIOD_OUT_LOW);
-	if (IS_ERR(data->enable_gpio))
-		return PTR_ERR(data->enable_gpio);
+	if (IS_ERR(data->enable_gpio)) {
+		if (PTR_ERR(data->enable_gpio) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+
+		data->enable_gpio = NULL;;
+	}
 
 	data->tas2552_client = client;
 	data->regmap = devm_regmap_init_i2c(client, &tas2552_regmap_config);
