@@ -1919,13 +1919,8 @@ static void pnv_pci_ioda_setup_dma_pe(struct pnv_phb *phb,
 	}
 }
 
-static void pnv_pci_ioda2_set_bypass(struct iommu_table *tbl, bool enable)
+static void pnv_pci_ioda2_set_bypass(struct pnv_ioda_pe *pe, bool enable)
 {
-	struct iommu_table_group_link *tgl = list_first_entry_or_null(
-			&tbl->it_group_list, struct iommu_table_group_link,
-			next);
-	struct pnv_ioda_pe *pe = container_of(tgl->table_group,
-			struct pnv_ioda_pe, table_group);
 	uint16_t window_id = (pe->pe_number << 1 ) + 1;
 	int64_t rc;
 
@@ -1952,18 +1947,30 @@ static void pnv_pci_ioda2_set_bypass(struct iommu_table *tbl, bool enable)
 		pe->tce_bypass_enabled = enable;
 }
 
-static void pnv_pci_ioda2_setup_bypass_pe(struct pnv_phb *phb,
-					  struct pnv_ioda_pe *pe)
+#ifdef CONFIG_IOMMU_API
+static void pnv_ioda2_take_ownership(struct iommu_table_group *table_group)
 {
-	/* TVE #1 is selected by PCI address bit 59 */
-	pe->tce_bypass_base = 1ull << 59;
+	struct pnv_ioda_pe *pe = container_of(table_group, struct pnv_ioda_pe,
+						table_group);
 
-	/* Install set_bypass callback for VFIO */
-	pe->table_group.tables[0]->set_bypass = pnv_pci_ioda2_set_bypass;
-
-	/* Enable bypass by default */
-	pnv_pci_ioda2_set_bypass(pe->table_group.tables[0], true);
+	iommu_take_ownership(table_group->tables[0]);
+	pnv_pci_ioda2_set_bypass(pe, false);
 }
+
+static void pnv_ioda2_release_ownership(struct iommu_table_group *table_group)
+{
+	struct pnv_ioda_pe *pe = container_of(table_group, struct pnv_ioda_pe,
+						table_group);
+
+	iommu_release_ownership(table_group->tables[0]);
+	pnv_pci_ioda2_set_bypass(pe, true);
+}
+
+static struct iommu_table_group_ops pnv_pci_ioda2_ops = {
+	.take_ownership = pnv_ioda2_take_ownership,
+	.release_ownership = pnv_ioda2_release_ownership,
+};
+#endif
 
 static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 				       struct pnv_ioda_pe *pe)
@@ -1978,6 +1985,9 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 	/* We shouldn't already have a 32-bit DMA associated */
 	if (WARN_ON(pe->tce32_seg >= 0))
 		return;
+
+	/* TVE #1 is selected by PCI address bit 59 */
+	pe->tce_bypass_base = 1ull << 59;
 
 	tbl = pnv_pci_table_alloc(phb->hose->node);
 	iommu_register_group(&pe->table_group, phb->hose->global_number,
@@ -2033,6 +2043,9 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 	}
 	tbl->it_ops = &pnv_ioda2_iommu_ops;
 	iommu_init_table(tbl, phb->hose->node);
+#ifdef CONFIG_IOMMU_API
+	pe->table_group.ops = &pnv_pci_ioda2_ops;
+#endif
 
 	if (pe->flags & PNV_IODA_PE_DEV) {
 		/*
@@ -2047,7 +2060,7 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 
 	/* Also create a bypass window */
 	if (!pnv_iommu_bypass_disabled)
-		pnv_pci_ioda2_setup_bypass_pe(phb, pe);
+		pnv_pci_ioda2_set_bypass(pe, true);
 
 	return;
 fail:

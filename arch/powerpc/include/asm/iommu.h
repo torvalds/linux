@@ -93,7 +93,6 @@ struct iommu_table {
 	unsigned long  it_page_shift;/* table iommu page size */
 	struct list_head it_group_list;/* List of iommu_table_group_link */
 	struct iommu_table_ops *it_ops;
-	void (*set_bypass)(struct iommu_table *tbl, bool enable);
 };
 
 /* Pure 2^n version of get_order */
@@ -126,6 +125,15 @@ extern struct iommu_table *iommu_init_table(struct iommu_table * tbl,
 					    int nid);
 #define IOMMU_TABLE_GROUP_MAX_TABLES	1
 
+struct iommu_table_group;
+
+struct iommu_table_group_ops {
+	/* Switch ownership from platform code to external user (e.g. VFIO) */
+	void (*take_ownership)(struct iommu_table_group *table_group);
+	/* Switch ownership from external user (e.g. VFIO) back to core */
+	void (*release_ownership)(struct iommu_table_group *table_group);
+};
+
 struct iommu_table_group_link {
 	struct list_head next;
 	struct rcu_head rcu;
@@ -135,6 +143,7 @@ struct iommu_table_group_link {
 struct iommu_table_group {
 	struct iommu_group *group;
 	struct iommu_table *tables[IOMMU_TABLE_GROUP_MAX_TABLES];
+	struct iommu_table_group_ops *ops;
 };
 
 #ifdef CONFIG_IOMMU_API
