@@ -601,14 +601,18 @@ enum i40e_rx_desc_status_bits {
 	I40E_RX_DESC_STATUS_CRCP_SHIFT		= 4,
 	I40E_RX_DESC_STATUS_TSYNINDX_SHIFT	= 5, /* 2 BITS */
 	I40E_RX_DESC_STATUS_TSYNVALID_SHIFT	= 7,
-	I40E_RX_DESC_STATUS_PIF_SHIFT		= 8,
+	/* Note: Bit 8 is reserved in X710 and XL710 */
+	I40E_RX_DESC_STATUS_EXT_UDP_0_SHIFT	= 8,
 	I40E_RX_DESC_STATUS_UMBCAST_SHIFT	= 9, /* 2 BITS */
 	I40E_RX_DESC_STATUS_FLM_SHIFT		= 11,
 	I40E_RX_DESC_STATUS_FLTSTAT_SHIFT	= 12, /* 2 BITS */
 	I40E_RX_DESC_STATUS_LPBK_SHIFT		= 14,
 	I40E_RX_DESC_STATUS_IPV6EXADD_SHIFT	= 15,
 	I40E_RX_DESC_STATUS_RESERVED_SHIFT	= 16, /* 2 BITS */
-	I40E_RX_DESC_STATUS_UDP_0_SHIFT		= 18,
+	/* Note: For non-tunnel packets INT_UDP_0 is the right status for
+	 * UDP header
+	 */
+	I40E_RX_DESC_STATUS_INT_UDP_0_SHIFT	= 18,
 	I40E_RX_DESC_STATUS_LAST /* this entry must be last!!! */
 };
 
@@ -949,6 +953,8 @@ enum i40e_tx_ctx_desc_eipt_offload {
 #define I40E_TXD_CTX_QW0_DECTTL_MASK	(0xFULL << \
 					 I40E_TXD_CTX_QW0_DECTTL_SHIFT)
 
+#define I40E_TXD_CTX_QW0_L4T_CS_SHIFT	23
+#define I40E_TXD_CTX_QW0_L4T_CS_MASK	BIT_ULL(I40E_TXD_CTX_QW0_L4T_CS_SHIFT)
 struct i40e_filter_program_desc {
 	__le32 qindex_flex_ptype_vsi;
 	__le32 rsvd;
