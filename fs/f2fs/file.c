@@ -651,16 +651,16 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 				f2fs_get_encryption_info(inode))
 			return -EACCES;
 
-		if (attr->ia_size != i_size_read(inode)) {
+		if (attr->ia_size <= i_size_read(inode)) {
 			truncate_setsize(inode, attr->ia_size);
 			f2fs_truncate(inode);
 			f2fs_balance_fs(F2FS_I_SB(inode));
 		} else {
 			/*
-			 * giving a chance to truncate blocks past EOF which
-			 * are fallocated with FALLOC_FL_KEEP_SIZE.
+			 * do not trim all blocks after i_size if target size is
+			 * larger than i_size.
 			 */
-			f2fs_truncate(inode);
+			truncate_setsize(inode, attr->ia_size);
 		}
 	}
 
