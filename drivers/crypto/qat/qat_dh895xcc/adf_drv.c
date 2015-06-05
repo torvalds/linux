@@ -300,6 +300,8 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		goto out_err;
 
+	pcie_set_readrq(pdev, 1024);
+
 	/* enable PCI device */
 	if (pci_enable_device(pdev)) {
 		ret = -EFAULT;
