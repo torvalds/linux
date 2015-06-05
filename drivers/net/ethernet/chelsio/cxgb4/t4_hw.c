@@ -1729,17 +1729,16 @@ int t4_seeprom_wp(struct adapter *adapter, bool enable)
 }
 
 /**
- *	get_vpd_params - read VPD parameters from VPD EEPROM
+ *	t4_get_raw_vpd_params - read VPD parameters from VPD EEPROM
  *	@adapter: adapter to read
  *	@p: where to store the parameters
  *
  *	Reads card parameters stored in VPD EEPROM.
  */
-int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
+int t4_get_raw_vpd_params(struct adapter *adapter, struct vpd_params *p)
 {
-	u32 cclk_param, cclk_val;
-	int i, ret, addr;
-	int ec, sn, pn;
+	int i, ret = 0, addr;
+	int ec, sn, pn, na;
 	u8 *vpd, csum;
 	unsigned int vpdr_len, kw_offset, id_len;
 
@@ -1747,6 +1746,9 @@ int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	if (!vpd)
 		return -ENOMEM;
 
+	/* Card information normally starts at VPD_BASE but early cards had
+	 * it at 0.
+	 */
 	ret = pci_read_vpd(adapter->pdev, VPD_BASE, sizeof(u32), vpd);
 	if (ret < 0)
 		goto out;
@@ -1812,6 +1814,7 @@ int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	FIND_VPD_KW(ec, "EC");
 	FIND_VPD_KW(sn, "SN");
 	FIND_VPD_KW(pn, "PN");
+	FIND_VPD_KW(na, "NA");
 #undef FIND_VPD_KW
 
 	memcpy(p->id, vpd + PCI_VPD_LRDT_TAG_SIZE, id_len);
@@ -1824,18 +1827,42 @@ int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	i = pci_vpd_info_field_size(vpd + pn - PCI_VPD_INFO_FLD_HDR_SIZE);
 	memcpy(p->pn, vpd + pn, min(i, PN_LEN));
 	strim(p->pn);
+	memcpy(p->na, vpd + na, min(i, MACADDR_LEN));
+	strim((char *)p->na);
 
-	/*
-	 * Ask firmware for the Core Clock since it knows how to translate the
+out:
+	vfree(vpd);
+	return ret;
+}
+
+/**
+ *	t4_get_vpd_params - read VPD parameters & retrieve Core Clock
+ *	@adapter: adapter to read
+ *	@p: where to store the parameters
+ *
+ *	Reads card parameters stored in VPD EEPROM and retrieves the Core
+ *	Clock.  This can only be called after a connection to the firmware
+ *	is established.
+ */
+int t4_get_vpd_params(struct adapter *adapter, struct vpd_params *p)
+{
+	u32 cclk_param, cclk_val;
+	int ret;
+
+	/* Grab the raw VPD parameters.
+	 */
+	ret = t4_get_raw_vpd_params(adapter, p);
+	if (ret)
+		return ret;
+
+	/* Ask firmware for the Core Clock since it knows how to translate the
 	 * Reference Clock ('V2') VPD field into a Core Clock value ...
 	 */
 	cclk_param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
 		      FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_CCLK));
-	ret = t4_query_params(adapter, adapter->mbox, 0, 0,
+	ret = t4_query_params(adapter, adapter->mbox, adapter->pf, 0,
 			      1, &cclk_param, &cclk_val);
 
-out:
-	vfree(vpd);
 	if (ret)
 		return ret;
 	p->cclk = cclk_val;

@@ -3712,7 +3712,7 @@ static int adap_init0(struct adapter *adap)
 	 * the firmware.  On the other hand, we need these fairly early on
 	 * so we do this right after getting ahold of the firmware.
 	 */
-	ret = get_vpd_params(adap, &adap->params.vpd);
+	ret = t4_get_vpd_params(adap, &adap->params.vpd);
 	if (ret < 0)
 		goto bye;
 
@@ -4735,10 +4735,25 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		err = t4_port_init(adapter, func, func, 0);
 		if (err)
 			goto out_free_dev;
+	} else if (adapter->params.nports == 1) {
+		/* If we don't have a connection to the firmware -- possibly
+		 * because of an error -- grab the raw VPD parameters so we
+		 * can set the proper MAC Address on the debug network
+		 * interface that we've created.
+		 */
+		u8 hw_addr[ETH_ALEN];
+		u8 *na = adapter->params.vpd.na;
+
+		err = t4_get_raw_vpd_params(adapter, &adapter->params.vpd);
+		if (!err) {
+			for (i = 0; i < ETH_ALEN; i++)
+				hw_addr[i] = (hex2val(na[2 * i + 0]) * 16 +
+					      hex2val(na[2 * i + 1]));
+			t4_set_hw_addr(adapter, 0, hw_addr);
+		}
 	}
 
-	/*
-	 * Configure queues and allocate tables now, they can be needed as
+	/* Configure queues and allocate tables now, they can be needed as
 	 * soon as the first register_netdev completes.
 	 */
 	cfg_queues(adapter);
