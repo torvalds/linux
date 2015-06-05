@@ -97,8 +97,10 @@
 
 #define DAS08JR_DI_REG		0x03	/* (R) digital inputs ("JR" boards) */
 #define DAS08JR_DO_REG		0x03	/* (W) digital outputs ("JR" boards) */
-#define DAS08JR_AO_LSB(x)	((x) ? 6 : 4)
-#define DAS08JR_AO_MSB(x)	((x) ? 7 : 5)
+/* (W) analog output l.s.b. registers for 2 channels ("JR" boards) */
+#define DAS08JR_AO_LSB_REG(x)	((x) ? 0x06 : 0x04)
+/* (W) analog output m.s.b. registers for 2 channels ("JR" boards) */
+#define DAS08JR_AO_MSB_REG(x)	((x) ? 0x07 : 0x05)
 
 /*
     cio-das08_aox.pdf
@@ -353,8 +355,8 @@ static void das08_ao_set_data(struct comedi_device *dev,
 	lsb = data & 0xff;
 	msb = (data >> 8) & 0xff;
 	if (thisboard->is_jr) {
-		outb(lsb, dev->iobase + DAS08JR_AO_LSB(chan));
-		outb(msb, dev->iobase + DAS08JR_AO_MSB(chan));
+		outb(lsb, dev->iobase + DAS08JR_AO_LSB_REG(chan));
+		outb(msb, dev->iobase + DAS08JR_AO_MSB_REG(chan));
 		/* load DACs */
 		inb(dev->iobase + DAS08JR_DI_REG);
 	} else {
