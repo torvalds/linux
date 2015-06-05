@@ -44,7 +44,7 @@ static const char * const flags_options[] = {
 };
 
 /* Set default injection to SW_INJ */
-enum injection_type inj_type = SW_INJ;
+static enum injection_type inj_type = SW_INJ;
 
 #define MCE_INJECT_SET(reg)						\
 static int inj_##reg##_set(void *data, u64 val)				\
