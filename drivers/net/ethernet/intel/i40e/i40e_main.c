@@ -2908,6 +2908,9 @@ static void i40e_enable_misc_int_causes(struct i40e_pf *pf)
 	      I40E_PFINT_ICR0_ENA_VFLR_MASK          |
 	      I40E_PFINT_ICR0_ENA_ADMINQ_MASK;
 
+	if (pf->flags & I40E_FLAG_IWARP_ENABLED)
+		val |= I40E_PFINT_ICR0_ENA_PE_CRITERR_MASK;
+
 	if (pf->flags & I40E_FLAG_PTP)
 		val |= I40E_PFINT_ICR0_ENA_TIMESYNC_MASK;
 
@@ -3197,6 +3200,13 @@ static irqreturn_t i40e_intr(int irq, void *data)
 	if (((icr0 & ~I40E_PFINT_ICR0_INTEVENT_MASK) == 0) ||
 	    (icr0 & I40E_PFINT_ICR0_SWINT_MASK))
 		pf->sw_int_count++;
+
+	if ((pf->flags & I40E_FLAG_IWARP_ENABLED) &&
+	    (ena_mask & I40E_PFINT_ICR0_ENA_PE_CRITERR_MASK)) {
+		ena_mask &= ~I40E_PFINT_ICR0_ENA_PE_CRITERR_MASK;
+		icr0 &= ~I40E_PFINT_ICR0_ENA_PE_CRITERR_MASK;
+		dev_info(&pf->pdev->dev, "cleared PE_CRITERR\n");
+	}
 
 	/* only q0 is used in MSI/Legacy mode, and none are used in MSIX */
 	if (icr0 & I40E_PFINT_ICR0_QUEUE_0_MASK) {
