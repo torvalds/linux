@@ -1670,7 +1670,7 @@ static int bmc150_accel_probe(struct i2c_client *client,
 	if (client->irq < 0)
 		client->irq = bmc150_accel_gpio_probe(client, data);
 
-	if (client->irq >= 0) {
+	if (client->irq > 0) {
 		ret = devm_request_threaded_irq(
 						&client->dev, client->irq,
 						bmc150_accel_irq_handler,

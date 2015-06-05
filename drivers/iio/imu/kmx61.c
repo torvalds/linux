@@ -1363,7 +1363,7 @@ static int kmx61_probe(struct i2c_client *client,
 	if (client->irq < 0)
 		client->irq = kmx61_gpio_probe(client, data);
 
-	if (client->irq >= 0) {
+	if (client->irq > 0) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 						kmx61_data_rdy_trig_poll,
 						kmx61_event_handler,
@@ -1445,10 +1445,10 @@ err_iio_unregister_mag:
 err_iio_unregister_acc:
 	iio_device_unregister(data->acc_indio_dev);
 err_buffer_cleanup_mag:
-	if (client->irq >= 0)
+	if (client->irq > 0)
 		iio_triggered_buffer_cleanup(data->mag_indio_dev);
 err_buffer_cleanup_acc:
-	if (client->irq >= 0)
+	if (client->irq > 0)
 		iio_triggered_buffer_cleanup(data->acc_indio_dev);
 err_trigger_unregister_motion:
 	iio_trigger_unregister(data->motion_trig);
@@ -1472,7 +1472,7 @@ static int kmx61_remove(struct i2c_client *client)
 	iio_device_unregister(data->acc_indio_dev);
 	iio_device_unregister(data->mag_indio_dev);
 
-	if (client->irq >= 0) {
+	if (client->irq > 0) {
 		iio_triggered_buffer_cleanup(data->acc_indio_dev);
 		iio_triggered_buffer_cleanup(data->mag_indio_dev);
 		iio_trigger_unregister(data->acc_dready_trig);
