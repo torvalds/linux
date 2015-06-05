@@ -1087,10 +1087,6 @@ static void pnv_ioda_setup_bus_PE(struct pci_bus *bus, int all)
 		return;
 	}
 
-	pe->tce32_table = kzalloc_node(sizeof(struct iommu_table),
-			GFP_KERNEL, hose->node);
-	pe->tce32_table->data = pe;
-
 	/* Associate it with all child devices */
 	pnv_ioda_setup_same_PE(bus, pe);
 
@@ -1292,11 +1288,12 @@ static void pnv_pci_ioda2_release_dma_pe(struct pci_dev *dev, struct pnv_ioda_pe
 	struct iommu_table    *tbl;
 	unsigned long         addr;
 	int64_t               rc;
+	struct iommu_table_group *table_group;
 
 	bus = dev->bus;
 	hose = pci_bus_to_host(bus);
 	phb = hose->private_data;
-	tbl = pe->tce32_table;
+	tbl = pe->table_group.tables[0];
 	addr = tbl->it_base;
 
 	opal_pci_map_pe_dma_window(phb->opal_id, pe->pe_number,
@@ -1311,13 +1308,14 @@ static void pnv_pci_ioda2_release_dma_pe(struct pci_dev *dev, struct pnv_ioda_pe
 	if (rc)
 		pe_warn(pe, "OPAL error %ld release DMA window\n", rc);
 
-	if (tbl->it_group) {
-		iommu_group_put(tbl->it_group);
-		BUG_ON(tbl->it_group);
+	table_group = tbl->it_table_group;
+	if (table_group->group) {
+		iommu_group_put(table_group->group);
+		BUG_ON(table_group->group);
 	}
 	iommu_free_table(tbl, of_node_full_name(dev->dev.of_node));
 	free_pages(addr, get_order(TCE32_TABLE_SIZE));
-	pe->tce32_table = NULL;
+	pe->table_group.tables[0] = NULL;
 }
 
 static void pnv_ioda_release_vf_PE(struct pci_dev *pdev, u16 num_vfs)
@@ -1465,10 +1463,6 @@ static void pnv_ioda_setup_vf_PE(struct pci_dev *pdev, u16 num_vfs)
 			continue;
 		}
 
-		pe->tce32_table = kzalloc_node(sizeof(struct iommu_table),
-				GFP_KERNEL, hose->node);
-		pe->tce32_table->data = pe;
-
 		/* Put PE to the list */
 		mutex_lock(&phb->ioda.pe_list_mutex);
 		list_add_tail(&pe->list, &phb->ioda.pe_list);
@@ -1603,7 +1597,7 @@ static void pnv_pci_ioda_dma_dev_setup(struct pnv_phb *phb, struct pci_dev *pdev
 
 	pe = &phb->ioda.pe_array[pdn->pe_number];
 	WARN_ON(get_dma_ops(&pdev->dev) != &dma_iommu_ops);
-	set_iommu_table_base(&pdev->dev, pe->tce32_table);
+	set_iommu_table_base(&pdev->dev, pe->table_group.tables[0]);
 	/*
 	 * Note: iommu_add_device() will fail here as
 	 * for physical PE: the device is already added by now;
@@ -1637,7 +1631,7 @@ static int pnv_pci_ioda_dma_set_mask(struct pci_dev *pdev, u64 dma_mask)
 	} else {
 		dev_info(&pdev->dev, "Using 32-bit DMA via iommu\n");
 		set_dma_ops(&pdev->dev, &dma_iommu_ops);
-		set_iommu_table_base(&pdev->dev, pe->tce32_table);
+		set_iommu_table_base(&pdev->dev, pe->table_group.tables[0]);
 	}
 	*pdev->dev.dma_mask = dma_mask;
 	return 0;
@@ -1671,7 +1665,7 @@ static void pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe,
 	struct pci_dev *dev;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
-		set_iommu_table_base(&dev->dev, pe->tce32_table);
+		set_iommu_table_base(&dev->dev, pe->table_group.tables[0]);
 		iommu_add_device(&dev->dev);
 
 		if (dev->subordinate)
@@ -1682,7 +1676,8 @@ static void pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe,
 static void pnv_pci_ioda1_tce_invalidate(struct iommu_table *tbl,
 		unsigned long index, unsigned long npages, bool rm)
 {
-	struct pnv_ioda_pe *pe = tbl->data;
+	struct pnv_ioda_pe *pe = container_of(tbl->it_table_group,
+			struct pnv_ioda_pe, table_group);
 	__be64 __iomem *invalidate = rm ?
 		(__be64 __iomem *)pe->tce_inval_reg_phys :
 		(__be64 __iomem *)tbl->it_index;
@@ -1759,7 +1754,8 @@ static struct iommu_table_ops pnv_ioda1_iommu_ops = {
 static void pnv_pci_ioda2_tce_invalidate(struct iommu_table *tbl,
 		unsigned long index, unsigned long npages, bool rm)
 {
-	struct pnv_ioda_pe *pe = tbl->data;
+	struct pnv_ioda_pe *pe = container_of(tbl->it_table_group,
+			struct pnv_ioda_pe, table_group);
 	unsigned long start, end, inc;
 	__be64 __iomem *invalidate = rm ?
 		(__be64 __iomem *)pe->tce_inval_reg_phys :
@@ -1835,8 +1831,12 @@ static void pnv_pci_ioda_setup_dma_pe(struct pnv_phb *phb,
 	if (WARN_ON(pe->tce32_seg >= 0))
 		return;
 
-	tbl = pe->tce32_table;
-	iommu_register_group(tbl, phb->hose->global_number, pe->pe_number);
+	tbl = kzalloc_node(sizeof(struct iommu_table), GFP_KERNEL,
+			phb->hose->node);
+	tbl->it_table_group = &pe->table_group;
+	pe->table_group.tables[0] = tbl;
+	iommu_register_group(&pe->table_group, phb->hose->global_number,
+			pe->pe_number);
 
 	/* Grab a 32-bit TCE table */
 	pe->tce32_seg = base;
@@ -1915,7 +1915,8 @@ static void pnv_pci_ioda_setup_dma_pe(struct pnv_phb *phb,
 
 static void pnv_pci_ioda2_set_bypass(struct iommu_table *tbl, bool enable)
 {
-	struct pnv_ioda_pe *pe = tbl->data;
+	struct pnv_ioda_pe *pe = container_of(tbl->it_table_group,
+			struct pnv_ioda_pe, table_group);
 	uint16_t window_id = (pe->pe_number << 1 ) + 1;
 	int64_t rc;
 
@@ -1949,10 +1950,10 @@ static void pnv_pci_ioda2_setup_bypass_pe(struct pnv_phb *phb,
 	pe->tce_bypass_base = 1ull << 59;
 
 	/* Install set_bypass callback for VFIO */
-	pe->tce32_table->set_bypass = pnv_pci_ioda2_set_bypass;
+	pe->table_group.tables[0]->set_bypass = pnv_pci_ioda2_set_bypass;
 
 	/* Enable bypass by default */
-	pnv_pci_ioda2_set_bypass(pe->tce32_table, true);
+	pnv_pci_ioda2_set_bypass(pe->table_group.tables[0], true);
 }
 
 static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
@@ -1969,8 +1970,12 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 	if (WARN_ON(pe->tce32_seg >= 0))
 		return;
 
-	tbl = pe->tce32_table;
-	iommu_register_group(tbl, phb->hose->global_number, pe->pe_number);
+	tbl = kzalloc_node(sizeof(struct iommu_table), GFP_KERNEL,
+			phb->hose->node);
+	tbl->it_table_group = &pe->table_group;
+	pe->table_group.tables[0] = tbl;
+	iommu_register_group(&pe->table_group, phb->hose->global_number,
+			pe->pe_number);
 
 	/* The PE will reserve all possible 32-bits space */
 	pe->tce32_seg = 0;

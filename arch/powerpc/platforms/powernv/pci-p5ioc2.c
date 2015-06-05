@@ -92,14 +92,16 @@ static struct iommu_table_ops pnv_p5ioc2_iommu_ops = {
 static void pnv_pci_p5ioc2_dma_dev_setup(struct pnv_phb *phb,
 					 struct pci_dev *pdev)
 {
-	if (phb->p5ioc2.iommu_table.it_map == NULL) {
-		phb->p5ioc2.iommu_table.it_ops = &pnv_p5ioc2_iommu_ops;
-		iommu_init_table(&phb->p5ioc2.iommu_table, phb->hose->node);
-		iommu_register_group(&phb->p5ioc2.iommu_table,
+	struct iommu_table *tbl = phb->p5ioc2.table_group.tables[0];
+
+	if (!tbl->it_map) {
+		tbl->it_ops = &pnv_p5ioc2_iommu_ops;
+		iommu_init_table(tbl, phb->hose->node);
+		iommu_register_group(&phb->p5ioc2.table_group,
 				pci_domain_nr(phb->hose->bus), phb->opal_id);
 	}
 
-	set_iommu_table_base(&pdev->dev, &phb->p5ioc2.iommu_table);
+	set_iommu_table_base(&pdev->dev, tbl);
 	iommu_add_device(&pdev->dev);
 }
 
@@ -188,6 +190,12 @@ static void __init pnv_pci_init_p5ioc2_phb(struct device_node *np, u64 hub_id,
 	pnv_pci_setup_iommu_table(&phb->p5ioc2.iommu_table,
 				  tce_mem, tce_size, 0,
 				  IOMMU_PAGE_SHIFT_4K);
+	/*
+	 * We do not allocate iommu_table as we do not support
+	 * hotplug or SRIOV on P5IOC2 and therefore iommu_free_table()
+	 * should not be called for phb->p5ioc2.table_group.tables[0] ever.
+	 */
+	phb->p5ioc2.table_group.tables[0] = &phb->p5ioc2.iommu_table;
 }
 
 void __init pnv_pci_init_p5ioc2_hub(struct device_node *np)

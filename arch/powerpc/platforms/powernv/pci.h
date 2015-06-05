@@ -57,7 +57,7 @@ struct pnv_ioda_pe {
 	/* "Base" iommu table, ie, 4K TCEs, 32-bit DMA */
 	int			tce32_seg;
 	int			tce32_segcount;
-	struct iommu_table	*tce32_table;
+	struct iommu_table_group table_group;
 	phys_addr_t		tce_inval_reg_phys;
 
 	/* 64-bit TCE bypass region */
@@ -120,6 +120,7 @@ struct pnv_phb {
 	union {
 		struct {
 			struct iommu_table iommu_table;
+			struct iommu_table_group table_group;
 		} p5ioc2;
 
 		struct {

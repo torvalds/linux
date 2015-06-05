@@ -52,16 +52,51 @@
 
 #include "pseries.h"
 
-static void iommu_pseries_free_table(struct iommu_table *tbl,
+static struct iommu_table_group *iommu_pseries_alloc_group(int node)
+{
+	struct iommu_table_group *table_group = NULL;
+	struct iommu_table *tbl = NULL;
+
+	table_group = kzalloc_node(sizeof(struct iommu_table_group), GFP_KERNEL,
+			   node);
+	if (!table_group)
+		goto fail_exit;
+
+	tbl = kzalloc_node(sizeof(struct iommu_table), GFP_KERNEL, node);
+	if (!tbl)
+		goto fail_exit;
+
+	tbl->it_table_group = table_group;
+	table_group->tables[0] = tbl;
+
+	return table_group;
+
+fail_exit:
+	kfree(table_group);
+	kfree(tbl);
+
+	return NULL;
+}
+
+static void iommu_pseries_free_group(struct iommu_table_group *table_group,
 		const char *node_name)
 {
+	struct iommu_table *tbl;
+
+	if (!table_group)
+		return;
+
 #ifdef CONFIG_IOMMU_API
-	if (tbl->it_group) {
-		iommu_group_put(tbl->it_group);
-		BUG_ON(tbl->it_group);
+	if (table_group->group) {
+		iommu_group_put(table_group->group);
+		BUG_ON(table_group->group);
 	}
 #endif
+
+	tbl = table_group->tables[0];
 	iommu_free_table(tbl, node_name);
+
+	kfree(table_group);
 }
 
 static void tce_invalidate_pSeries_sw(struct iommu_table *tbl,
@@ -631,13 +666,13 @@ static void pci_dma_bus_setup_pSeries(struct pci_bus *bus)
 	pci->phb->dma_window_size = 0x8000000ul;
 	pci->phb->dma_window_base_cur = 0x8000000ul;
 
-	tbl = kzalloc_node(sizeof(struct iommu_table), GFP_KERNEL,
-			   pci->phb->node);
+	pci->table_group = iommu_pseries_alloc_group(pci->phb->node);
+	tbl = pci->table_group->tables[0];
 
 	iommu_table_setparms(pci->phb, dn, tbl);
 	tbl->it_ops = &iommu_table_pseries_ops;
-	pci->iommu_table = iommu_init_table(tbl, pci->phb->node);
-	iommu_register_group(tbl, pci_domain_nr(bus), 0);
+	iommu_init_table(tbl, pci->phb->node);
+	iommu_register_group(pci->table_group, pci_domain_nr(bus), 0);
 
 	/* Divide the rest (1.75GB) among the children */
 	pci->phb->dma_window_size = 0x80000000ul;
@@ -680,16 +715,17 @@ static void pci_dma_bus_setup_pSeriesLP(struct pci_bus *bus)
 	ppci = PCI_DN(pdn);
 
 	pr_debug("  parent is %s, iommu_table: 0x%p\n",
-		 pdn->full_name, ppci->iommu_table);
+		 pdn->full_name, ppci->table_group);
 
-	if (!ppci->iommu_table) {
-		tbl = kzalloc_node(sizeof(struct iommu_table), GFP_KERNEL,
-				   ppci->phb->node);
+	if (!ppci->table_group) {
+		ppci->table_group = iommu_pseries_alloc_group(ppci->phb->node);
+		tbl = ppci->table_group->tables[0];
 		iommu_table_setparms_lpar(ppci->phb, pdn, tbl, dma_window);
 		tbl->it_ops = &iommu_table_lpar_multi_ops;
-		ppci->iommu_table = iommu_init_table(tbl, ppci->phb->node);
-		iommu_register_group(tbl, pci_domain_nr(bus), 0);
-		pr_debug("  created table: %p\n", ppci->iommu_table);
+		iommu_init_table(tbl, ppci->phb->node);
+		iommu_register_group(ppci->table_group,
+				pci_domain_nr(bus), 0);
+		pr_debug("  created table: %p\n", ppci->table_group);
 	}
 }
 
@@ -711,12 +747,13 @@ static void pci_dma_dev_setup_pSeries(struct pci_dev *dev)
 		struct pci_controller *phb = PCI_DN(dn)->phb;
 
 		pr_debug(" --> first child, no bridge. Allocating iommu table.\n");
-		tbl = kzalloc_node(sizeof(struct iommu_table), GFP_KERNEL,
-				   phb->node);
+		PCI_DN(dn)->table_group = iommu_pseries_alloc_group(phb->node);
+		tbl = PCI_DN(dn)->table_group->tables[0];
 		iommu_table_setparms(phb, dn, tbl);
 		tbl->it_ops = &iommu_table_pseries_ops;
-		PCI_DN(dn)->iommu_table = iommu_init_table(tbl, phb->node);
-		iommu_register_group(tbl, pci_domain_nr(phb->bus), 0);
+		iommu_init_table(tbl, phb->node);
+		iommu_register_group(PCI_DN(dn)->table_group,
+				pci_domain_nr(phb->bus), 0);
 		set_iommu_table_base(&dev->dev, tbl);
 		iommu_add_device(&dev->dev);
 		return;
@@ -726,11 +763,12 @@ static void pci_dma_dev_setup_pSeries(struct pci_dev *dev)
 	 * an already allocated iommu table is found and use that.
 	 */
 
-	while (dn && PCI_DN(dn) && PCI_DN(dn)->iommu_table == NULL)
+	while (dn && PCI_DN(dn) && PCI_DN(dn)->table_group == NULL)
 		dn = dn->parent;
 
 	if (dn && PCI_DN(dn)) {
-		set_iommu_table_base(&dev->dev, PCI_DN(dn)->iommu_table);
+		set_iommu_table_base(&dev->dev,
+				PCI_DN(dn)->table_group->tables[0]);
 		iommu_add_device(&dev->dev);
 	} else
 		printk(KERN_WARNING "iommu: Device %s has no iommu table\n",
@@ -1117,7 +1155,7 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 	dn = pci_device_to_OF_node(dev);
 	pr_debug("  node is %s\n", dn->full_name);
 
-	for (pdn = dn; pdn && PCI_DN(pdn) && !PCI_DN(pdn)->iommu_table;
+	for (pdn = dn; pdn && PCI_DN(pdn) && !PCI_DN(pdn)->table_group;
 	     pdn = pdn->parent) {
 		dma_window = of_get_property(pdn, "ibm,dma-window", NULL);
 		if (dma_window)
@@ -1133,19 +1171,20 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 	pr_debug("  parent is %s\n", pdn->full_name);
 
 	pci = PCI_DN(pdn);
-	if (!pci->iommu_table) {
-		tbl = kzalloc_node(sizeof(struct iommu_table), GFP_KERNEL,
-				   pci->phb->node);
+	if (!pci->table_group) {
+		pci->table_group = iommu_pseries_alloc_group(pci->phb->node);
+		tbl = pci->table_group->tables[0];
 		iommu_table_setparms_lpar(pci->phb, pdn, tbl, dma_window);
 		tbl->it_ops = &iommu_table_lpar_multi_ops;
-		pci->iommu_table = iommu_init_table(tbl, pci->phb->node);
-		iommu_register_group(tbl, pci_domain_nr(pci->phb->bus), 0);
-		pr_debug("  created table: %p\n", pci->iommu_table);
+		iommu_init_table(tbl, pci->phb->node);
+		iommu_register_group(pci->table_group,
+				pci_domain_nr(pci->phb->bus), 0);
+		pr_debug("  created table: %p\n", pci->table_group);
 	} else {
-		pr_debug("  found DMA window, table: %p\n", pci->iommu_table);
+		pr_debug("  found DMA window, table: %p\n", pci->table_group);
 	}
 
-	set_iommu_table_base(&dev->dev, pci->iommu_table);
+	set_iommu_table_base(&dev->dev, pci->table_group->tables[0]);
 	iommu_add_device(&dev->dev);
 }
 
@@ -1176,7 +1215,7 @@ static int dma_set_mask_pSeriesLP(struct device *dev, u64 dma_mask)
 		 * search upwards in the tree until we either hit a dma-window
 		 * property, OR find a parent with a table already allocated.
 		 */
-		for (pdn = dn; pdn && PCI_DN(pdn) && !PCI_DN(pdn)->iommu_table;
+		for (pdn = dn; pdn && PCI_DN(pdn) && !PCI_DN(pdn)->table_group;
 				pdn = pdn->parent) {
 			dma_window = of_get_property(pdn, "ibm,dma-window", NULL);
 			if (dma_window)
@@ -1220,7 +1259,7 @@ static u64 dma_get_required_mask_pSeriesLP(struct device *dev)
 		dn = pci_device_to_OF_node(pdev);
 
 		/* search upwards for ibm,dma-window */
-		for (; dn && PCI_DN(dn) && !PCI_DN(dn)->iommu_table;
+		for (; dn && PCI_DN(dn) && !PCI_DN(dn)->table_group;
 				dn = dn->parent)
 			if (of_get_property(dn, "ibm,dma-window", NULL))
 				break;
@@ -1300,8 +1339,8 @@ static int iommu_reconfig_notifier(struct notifier_block *nb, unsigned long acti
 		 * the device node.
 		 */
 		remove_ddw(np, false);
-		if (pci && pci->iommu_table)
-			iommu_pseries_free_table(pci->iommu_table,
+		if (pci && pci->table_group)
+			iommu_pseries_free_group(pci->table_group,
 					np->full_name);
 
 		spin_lock(&direct_window_list_lock);

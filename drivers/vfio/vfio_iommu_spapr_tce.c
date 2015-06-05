@@ -190,10 +190,11 @@ static void tce_iommu_release(void *iommu_data)
 {
 	struct tce_container *container = iommu_data;
 
-	WARN_ON(container->tbl && !container->tbl->it_group);
+	WARN_ON(container->tbl && !container->tbl->it_table_group->group);
 
-	if (container->tbl && container->tbl->it_group)
-		tce_iommu_detach_group(iommu_data, container->tbl->it_group);
+	if (container->tbl && container->tbl->it_table_group->group)
+		tce_iommu_detach_group(iommu_data,
+				container->tbl->it_table_group->group);
 
 	tce_iommu_disable(container);
 	mutex_destroy(&container->lock);
@@ -345,7 +346,7 @@ static long tce_iommu_ioctl(void *iommu_data,
 		if (!tbl)
 			return -ENXIO;
 
-		BUG_ON(!tbl->it_group);
+		BUG_ON(!tbl->it_table_group->group);
 
 		minsz = offsetofend(struct vfio_iommu_type1_dma_map, size);
 
@@ -433,11 +434,12 @@ static long tce_iommu_ioctl(void *iommu_data,
 		mutex_unlock(&container->lock);
 		return 0;
 	case VFIO_EEH_PE_OP:
-		if (!container->tbl || !container->tbl->it_group)
+		if (!container->tbl || !container->tbl->it_table_group->group)
 			return -ENODEV;
 
-		return vfio_spapr_iommu_eeh_ioctl(container->tbl->it_group,
-						  cmd, arg);
+		return vfio_spapr_iommu_eeh_ioctl(
+				container->tbl->it_table_group->group,
+				cmd, arg);
 	}
 
 	return -ENOTTY;
@@ -457,7 +459,8 @@ static int tce_iommu_attach_group(void *iommu_data,
 			iommu_group_id(iommu_group), iommu_group); */
 	if (container->tbl) {
 		pr_warn("tce_vfio: Only one group per IOMMU container is allowed, existing id=%d, attaching id=%d\n",
-				iommu_group_id(container->tbl->it_group),
+				iommu_group_id(container->tbl->
+						it_table_group->group),
 				iommu_group_id(iommu_group));
 		ret = -EBUSY;
 		goto unlock_exit;
@@ -491,13 +494,13 @@ static void tce_iommu_detach_group(void *iommu_data,
 	if (tbl != container->tbl) {
 		pr_warn("tce_vfio: detaching group #%u, expected group is #%u\n",
 				iommu_group_id(iommu_group),
-				iommu_group_id(tbl->it_group));
+				iommu_group_id(tbl->it_table_group->group));
 		goto unlock_exit;
 	}
 
 	if (container->enabled) {
 		pr_warn("tce_vfio: detaching group #%u from enabled container, forcing disable\n",
-				iommu_group_id(tbl->it_group));
+				iommu_group_id(tbl->it_table_group->group));
 		tce_iommu_disable(container);
 	}
 
