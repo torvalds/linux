@@ -123,7 +123,6 @@ struct dw_hdmi {
 	bool phy_enabled;
 	struct drm_display_mode previous_mode;
 
-	struct regmap *regmap;
 	struct i2c_adapter *ddc;
 	void __iomem *regs;
 
