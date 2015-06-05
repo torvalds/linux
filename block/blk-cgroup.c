@@ -9,6 +9,10 @@
  *
  * Copyright (C) 2009 Vivek Goyal <vgoyal@redhat.com>
  * 	              Nauman Rafique <nauman@google.com>
+ *
+ * For policy-specific per-blkcg data:
+ * Copyright (C) 2015 Paolo Valente <paolo.valente@unimore.it>
+ *                    Arianna Avanzini <avanzini.arianna@gmail.com>
  */
 #include <linux/ioprio.h>
 #include <linux/kdev_t.h>
@@ -26,8 +30,7 @@
 
 static DEFINE_MUTEX(blkcg_pol_mutex);
 
-struct blkcg blkcg_root = { .cfq_weight = 2 * CFQ_WEIGHT_DEFAULT,
-			    .cfq_leaf_weight = 2 * CFQ_WEIGHT_DEFAULT, };
+struct blkcg blkcg_root;
 EXPORT_SYMBOL_GPL(blkcg_root);
 
 static struct blkcg_policy *blkcg_policy[BLKCG_MAX_POLS];
@@ -823,6 +826,8 @@ static struct cgroup_subsys_state *
 blkcg_css_alloc(struct cgroup_subsys_state *parent_css)
 {
 	struct blkcg *blkcg;
+	struct cgroup_subsys_state *ret;
+	int i;
 
 	if (!parent_css) {
 		blkcg = &blkcg_root;
@@ -830,17 +835,49 @@ blkcg_css_alloc(struct cgroup_subsys_state *parent_css)
 	}
 
 	blkcg = kzalloc(sizeof(*blkcg), GFP_KERNEL);
-	if (!blkcg)
-		return ERR_PTR(-ENOMEM);
+	if (!blkcg) {
+		ret = ERR_PTR(-ENOMEM);
+		goto free_blkcg;
+	}
 
-	blkcg->cfq_weight = CFQ_WEIGHT_DEFAULT;
-	blkcg->cfq_leaf_weight = CFQ_WEIGHT_DEFAULT;
+	for (i = 0; i < BLKCG_MAX_POLS ; i++) {
+		struct blkcg_policy *pol = blkcg_policy[i];
+		struct blkcg_policy_data *cpd;
+
+		/*
+		 * If the policy hasn't been attached yet, wait for it
+		 * to be attached before doing anything else. Otherwise,
+		 * check if the policy requires any specific per-cgroup
+		 * data: if it does, allocate and initialize it.
+		 */
+		if (!pol || !pol->cpd_size)
+			continue;
+
+		BUG_ON(blkcg->pd[i]);
+		cpd = kzalloc(pol->cpd_size, GFP_KERNEL);
+		if (!cpd) {
+			ret = ERR_PTR(-ENOMEM);
+			goto free_pd_blkcg;
+		}
+		blkcg->pd[i] = cpd;
+		cpd->plid = i;
+		pol->cpd_init_fn(blkcg);
+	}
+
 done:
 	spin_lock_init(&blkcg->lock);
 	INIT_RADIX_TREE(&blkcg->blkg_tree, GFP_ATOMIC);
 	INIT_HLIST_HEAD(&blkcg->blkg_list);
 
 	return &blkcg->css;
+
+free_pd_blkcg:
+	for (i--; i >= 0; i--)
+		kfree(blkcg->pd[i]);
+
+free_blkcg:
+	kfree(blkcg);
+	return ret;
 }
 
 /**
@@ -958,8 +995,10 @@ int blkcg_activate_policy(struct request_queue *q,
 			  const struct blkcg_policy *pol)
 {
 	LIST_HEAD(pds);
+	LIST_HEAD(cpds);
 	struct blkcg_gq *blkg, *new_blkg;
-	struct blkg_policy_data *pd, *n;
+	struct blkg_policy_data *pd, *nd;
+	struct blkcg_policy_data *cpd, *cnd;
 	int cnt = 0, ret;
 	bool preloaded;
 
@@ -1003,7 +1042,10 @@ int blkcg_activate_policy(struct request_queue *q,
 
 	spin_unlock_irq(q->queue_lock);
 
-	/* allocate policy_data for all existing blkgs */
+	/*
+	 * Allocate per-blkg and per-blkcg policy data
+	 * for all existing blkgs.
+	 */
 	while (cnt--) {
 		pd = kzalloc_node(pol->pd_size, GFP_KERNEL, q->node);
 		if (!pd) {
@@ -1011,26 +1053,50 @@ int blkcg_activate_policy(struct request_queue *q,
 			goto out_free;
 		}
 		list_add_tail(&pd->alloc_node, &pds);
+
+		if (!pol->cpd_size)
+			continue;
+		cpd = kzalloc_node(pol->cpd_size, GFP_KERNEL, q->node);
+		if (!cpd) {
+			ret = -ENOMEM;
+			goto out_free;
+		}
+		list_add_tail(&cpd->alloc_node, &cpds);
 	}
 
 	/*
-	 * Install the allocated pds.  With @q bypassing, no new blkg
+	 * Install the allocated pds and cpds. With @q bypassing, no new blkg
 	 * should have been created while the queue lock was dropped.
 	 */
 	spin_lock_irq(q->queue_lock);
 
 	list_for_each_entry(blkg, &q->blkg_list, q_node) {
-		if (WARN_ON(list_empty(&pds))) {
+		if (WARN_ON(list_empty(&pds)) ||
+		    WARN_ON(pol->cpd_size && list_empty(&cpds))) {
 			/* umm... this shouldn't happen, just abort */
 			ret = -ENOMEM;
 			goto out_unlock;
 		}
+		cpd = list_first_entry(&cpds, struct blkcg_policy_data,
+				       alloc_node);
+		list_del_init(&cpd->alloc_node);
 		pd = list_first_entry(&pds, struct blkg_policy_data, alloc_node);
 		list_del_init(&pd->alloc_node);
 
 		/* grab blkcg lock too while installing @pd on @blkg */
 		spin_lock(&blkg->blkcg->lock);
 
+		if (!pol->cpd_size)
+			goto no_cpd;
+		if (!blkg->blkcg->pd[pol->plid]) {
+			/* Per-policy per-blkcg data */
+			blkg->blkcg->pd[pol->plid] = cpd;
+			cpd->plid = pol->plid;
+			pol->cpd_init_fn(blkg->blkcg);
+		} else { /* must free it as it has already been extracted */
+			kfree(cpd);
+		}
+no_cpd:
 		blkg->pd[pol->plid] = pd;
 		pd->blkg = blkg;
 		pd->plid = pol->plid;
@@ -1045,8 +1111,10 @@ out_unlock:
 	spin_unlock_irq(q->queue_lock);
 out_free:
 	blk_queue_bypass_end(q);
-	list_for_each_entry_safe(pd, n, &pds, alloc_node)
+	list_for_each_entry_safe(pd, nd, &pds, alloc_node)
 		kfree(pd);
+	list_for_each_entry_safe(cpd, cnd, &cpds, alloc_node)
+		kfree(cpd);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(blkcg_activate_policy);
@@ -1087,6 +1155,8 @@ void blkcg_deactivate_policy(struct request_queue *q,
 
 		kfree(blkg->pd[pol->plid]);
 		blkg->pd[pol->plid] = NULL;
+		kfree(blkg->blkcg->pd[pol->plid]);
+		blkg->blkcg->pd[pol->plid] = NULL;
 
 		spin_unlock(&blkg->blkcg->lock);
 	}

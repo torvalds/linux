@@ -23,11 +23,6 @@
 /* Max limits for throttle policy */
 #define THROTL_IOPS_MAX		UINT_MAX
 
-/* CFQ specific, out here for blkcg->cfq_weight */
-#define CFQ_WEIGHT_MIN		10
-#define CFQ_WEIGHT_MAX		1000
-#define CFQ_WEIGHT_DEFAULT	500
-
 #ifdef CONFIG_BLK_CGROUP
 
 enum blkg_rwstat_type {
@@ -50,9 +45,7 @@ struct blkcg {
 	struct blkcg_gq			*blkg_hint;
 	struct hlist_head		blkg_list;
 
-	/* TODO: per-policy storage in blkcg */
-	unsigned int			cfq_weight;	/* belongs to cfq */
-	unsigned int			cfq_leaf_weight;
+	struct blkcg_policy_data	*pd[BLKCG_MAX_POLS];
 };
 
 struct blkg_stat {
@@ -87,6 +80,24 @@ struct blkg_policy_data {
 	struct list_head		alloc_node;
 };
 
+/*
+ * Policies that need to keep per-blkcg data which is independent
+ * from any request_queue associated to it must specify its size
+ * with the cpd_size field of the blkcg_policy structure and
+ * embed a blkcg_policy_data in it. blkcg core allocates
+ * policy-specific per-blkcg structures lazily the first time
+ * they are actually needed, so it handles them together with
+ * blkgs. cpd_init() is invoked to let each policy handle
+ * per-blkcg data.
+ */
+struct blkcg_policy_data {
+	/* the policy id this per-policy data belongs to */
+	int				plid;
+
+	/* used during policy activation */
+	struct list_head		alloc_node;
+};
+
 /* association between a blk cgroup and a request queue */
 struct blkcg_gq {
 	/* Pointer to the associated request_queue */
@@ -112,6 +123,7 @@ struct blkcg_gq {
 	struct rcu_head			rcu_head;
 };
 
+typedef void (blkcg_pol_init_cpd_fn)(const struct blkcg *blkcg);
 typedef void (blkcg_pol_init_pd_fn)(struct blkcg_gq *blkg);
 typedef void (blkcg_pol_online_pd_fn)(struct blkcg_gq *blkg);
 typedef void (blkcg_pol_offline_pd_fn)(struct blkcg_gq *blkg);
@@ -122,10 +134,13 @@ struct blkcg_policy {
 	int				plid;
 	/* policy specific private data size */
 	size_t				pd_size;
+	/* policy specific per-blkcg data size */
+	size_t				cpd_size;
 	/* cgroup files for the policy */
 	struct cftype			*cftypes;
 
 	/* operations */
+	blkcg_pol_init_cpd_fn		*cpd_init_fn;
 	blkcg_pol_init_pd_fn		*pd_init_fn;
 	blkcg_pol_online_pd_fn		*pd_online_fn;
 	blkcg_pol_offline_pd_fn		*pd_offline_fn;
@@ -216,6 +231,12 @@ static inline struct blkg_policy_data *blkg_to_pd(struct blkcg_gq *blkg,
 						  struct blkcg_policy *pol)
 {
 	return blkg ? blkg->pd[pol->plid] : NULL;
+}
+
+static inline struct blkcg_policy_data *blkcg_to_cpd(struct blkcg *blkcg,
+						     struct blkcg_policy *pol)
+{
+	return blkcg ? blkcg->pd[pol->plid] : NULL;
 }
 
 /**
@@ -562,6 +583,9 @@ struct cgroup;
 struct blkcg;
 
 struct blkg_policy_data {
+};
+
+struct blkcg_policy_data {
 };
 
 struct blkcg_gq {
