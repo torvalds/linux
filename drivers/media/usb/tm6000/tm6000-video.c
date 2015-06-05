@@ -621,7 +621,7 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev)
 		    dev->isoc_in.maxsize, size);
 
 
-	if (!dev->urb_buffer && tm6000_alloc_urb_buffers(dev) < 0) {
+	if (tm6000_alloc_urb_buffers(dev) < 0) {
 		tm6000_err("cannot allocate memory for urb buffers\n");
 
 		/* call free, as some buffers might have been allocated */
