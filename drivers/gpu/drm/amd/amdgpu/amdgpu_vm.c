@@ -1002,6 +1002,8 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 	list_add(&mapping->list, &bo_va->mappings);
 	interval_tree_insert(&mapping->it, &vm->va);
 
+	bo_va->addr = 0;
+
 	/* Make sure the page tables are allocated */
 	saddr >>= amdgpu_vm_block_size;
 	eaddr >>= amdgpu_vm_block_size;
