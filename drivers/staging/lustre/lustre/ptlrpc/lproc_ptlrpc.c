@@ -1035,9 +1035,9 @@ static ssize_t high_priority_ratio_store(struct kobject *kobj,
 	struct ptlrpc_service *svc = container_of(kobj, struct ptlrpc_service,
 						  srv_kobj);
 	int rc;
-	unsigned long val;
+	int val;
 
-	rc = kstrtoul(buffer, 10, &val);
+	rc = kstrtoint(buffer, 10, &val);
 	if (rc < 0)
 		return rc;
 
