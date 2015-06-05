@@ -36,13 +36,12 @@ struct das08_board_struct {
 	unsigned int do_nchan;
 	unsigned int i8255_offset;
 	unsigned int i8254_offset;
-	unsigned int iosize;	/*  number of ioports used */
+	unsigned int iosize;	/* number of ioports used */
 };
 
 struct das08_private_struct {
-	unsigned int do_mux_bits;	/*  bits for do/mux register on boards
-					 *  without separate do register
-					 */
+	/* bits for do/mux register on boards without separate do register */
+	unsigned int do_mux_bits;
 	const unsigned int *pg_gainlist;
 };
 
