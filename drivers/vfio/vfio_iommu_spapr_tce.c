@@ -191,14 +191,30 @@ static void tce_iommu_release(void *iommu_data)
 	struct tce_container *container = iommu_data;
 
 	WARN_ON(container->tbl && !container->tbl->it_group);
-	tce_iommu_disable(container);
 
 	if (container->tbl && container->tbl->it_group)
 		tce_iommu_detach_group(iommu_data, container->tbl->it_group);
 
+	tce_iommu_disable(container);
 	mutex_destroy(&container->lock);
 
 	kfree(container);
+}
+
+static void tce_iommu_unuse_page(struct tce_container *container,
+		unsigned long oldtce)
+{
+	struct page *page;
+
+	if (!(oldtce & (TCE_PCI_READ | TCE_PCI_WRITE)))
+		return;
+
+	page = pfn_to_page(oldtce >> PAGE_SHIFT);
+
+	if (oldtce & TCE_PCI_WRITE)
+		SetPageDirty(page);
+
+	put_page(page);
 }
 
 static int tce_iommu_clear(struct tce_container *container,
@@ -206,21 +222,28 @@ static int tce_iommu_clear(struct tce_container *container,
 		unsigned long entry, unsigned long pages)
 {
 	unsigned long oldtce;
-	struct page *page;
 
 	for ( ; pages; --pages, ++entry) {
 		oldtce = iommu_clear_tce(tbl, entry);
 		if (!oldtce)
 			continue;
 
-		page = pfn_to_page(oldtce >> PAGE_SHIFT);
-		WARN_ON(!page);
-		if (page) {
-			if (oldtce & TCE_PCI_WRITE)
-				SetPageDirty(page);
-			put_page(page);
-		}
+		tce_iommu_unuse_page(container, oldtce);
 	}
+
+	return 0;
+}
+
+static int tce_iommu_use_page(unsigned long tce, unsigned long *hpa)
+{
+	struct page *page = NULL;
+	enum dma_data_direction direction = iommu_tce_direction(tce);
+
+	if (get_user_pages_fast(tce & PAGE_MASK, 1,
+			direction != DMA_TO_DEVICE, &page) != 1)
+		return -EFAULT;
+
+	*hpa = __pa((unsigned long) page_address(page));
 
 	return 0;
 }
@@ -230,30 +253,28 @@ static long tce_iommu_build(struct tce_container *container,
 		unsigned long entry, unsigned long tce, unsigned long pages)
 {
 	long i, ret = 0;
-	struct page *page = NULL;
-	unsigned long hva;
+	struct page *page;
+	unsigned long hpa;
 	enum dma_data_direction direction = iommu_tce_direction(tce);
 
 	for (i = 0; i < pages; ++i) {
 		unsigned long offset = tce & IOMMU_PAGE_MASK(tbl) & ~PAGE_MASK;
 
-		ret = get_user_pages_fast(tce & PAGE_MASK, 1,
-				direction != DMA_TO_DEVICE, &page);
-		if (unlikely(ret != 1)) {
-			ret = -EFAULT;
+		ret = tce_iommu_use_page(tce, &hpa);
+		if (ret)
 			break;
-		}
 
+		page = pfn_to_page(hpa >> PAGE_SHIFT);
 		if (!tce_page_is_contained(page, tbl->it_page_shift)) {
 			ret = -EPERM;
 			break;
 		}
 
-		hva = (unsigned long) page_address(page) + offset;
-
-		ret = iommu_tce_build(tbl, entry + i, hva, direction);
+		hpa |= offset;
+		ret = iommu_tce_build(tbl, entry + i, (unsigned long) __va(hpa),
+				direction);
 		if (ret) {
-			put_page(page);
+			tce_iommu_unuse_page(container, hpa);
 			pr_err("iommu_tce: %s failed ioba=%lx, tce=%lx, ret=%ld\n",
 					__func__, entry << tbl->it_page_shift,
 					tce, ret);
