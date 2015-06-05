@@ -1492,12 +1492,10 @@ void tpg_gen_text(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
 	else if (tpg->field == V4L2_FIELD_SEQ_TB || tpg->field == V4L2_FIELD_SEQ_BT)
 		div = 2;
 
-	for (p = 0; p < tpg->planes; p++) {
-		unsigned vdiv = tpg->vdownsampling[p];
-		unsigned hdiv = tpg->hdownsampling[p];
-
-		/* Print text */
-#define PRINTSTR(PIXTYPE) do {	\
+	/* Print text */
+#define PRINTSTR(PIXTYPE) for (p = 0; p < tpg->planes; p++) {	\
+	unsigned vdiv = tpg->vdownsampling[p];	\
+	unsigned hdiv = tpg->hdownsampling[p];	\
 	PIXTYPE fg;	\
 	PIXTYPE bg;	\
 	memcpy(&fg, tpg->textfg[p], sizeof(PIXTYPE));	\
@@ -1548,16 +1546,19 @@ void tpg_gen_text(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
 	}	\
 } while (0)
 
-		switch (tpg->twopixelsize[p]) {
-		case 2:
-			PRINTSTR(u8); break;
-		case 4:
-			PRINTSTR(u16); break;
-		case 6:
-			PRINTSTR(x24); break;
-		case 8:
-			PRINTSTR(u32); break;
-		}
+	switch (tpg->twopixelsize[p]) {
+	case 2:
+		PRINTSTR(u8);
+		break;
+	case 4:
+		PRINTSTR(u16);
+		break;
+	case 6:
+		PRINTSTR(x24);
+		break;
+	case 8:
+		PRINTSTR(u32);
+		break;
 	}
 }
 
