@@ -366,15 +366,32 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
  **/
 static void i40e_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector)
 {
-	u32 val = I40E_VFINT_DYN_CTLN_INTENA_MASK |
-		  I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK | /* set noitr */
-		  I40E_VFINT_DYN_CTLN_SWINT_TRIG_MASK |
-		  I40E_VFINT_DYN_CTLN_SW_ITR_INDX_ENA_MASK;
-		  /* allow 00 to be written to the index */
+	u16 flags = q_vector->tx.ring[0].flags;
 
-	wr32(&vsi->back->hw,
-	     I40E_VFINT_DYN_CTLN1(q_vector->v_idx + vsi->base_vector - 1),
-	     val);
+	if (flags & I40E_TXR_FLAGS_WB_ON_ITR) {
+		u32 val;
+
+		if (q_vector->arm_wb_state)
+			return;
+
+		val = I40E_VFINT_DYN_CTLN1_WB_ON_ITR_MASK;
+
+		wr32(&vsi->back->hw,
+		     I40E_VFINT_DYN_CTLN1(q_vector->v_idx +
+					  vsi->base_vector - 1),
+		     val);
+		q_vector->arm_wb_state = true;
+	} else {
+		u32 val = I40E_VFINT_DYN_CTLN1_INTENA_MASK |
+			  I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK | /* set noitr */
+			  I40E_VFINT_DYN_CTLN1_SWINT_TRIG_MASK |
+			  I40E_VFINT_DYN_CTLN1_SW_ITR_INDX_ENA_MASK;
+			  /* allow 00 to be written to the index */
+
+		wr32(&vsi->back->hw,
+		     I40E_VFINT_DYN_CTLN1(q_vector->v_idx +
+					  vsi->base_vector - 1), val);
+	}
 }
 
 /**
@@ -1371,6 +1388,9 @@ int i40evf_napi_poll(struct napi_struct *napi, int budget)
 			i40e_force_wb(vsi, q_vector);
 		return budget;
 	}
+
+	if (vsi->back->flags & I40E_TXR_FLAGS_WB_ON_ITR)
+		q_vector->arm_wb_state = false;
 
 	/* Work is done so exit the polling mode and re-enable the interrupt */
 	napi_complete(napi);

@@ -117,6 +117,7 @@ struct i40e_q_vector {
 	u8 num_ringpairs;	/* total number of ring pairs in vector */
 	int v_idx;	  /* vector index in list */
 	char name[IFNAMSIZ + 9];
+	bool arm_wb_state;
 	cpumask_var_t affinity_mask;
 };
 

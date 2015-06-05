@@ -560,6 +560,7 @@ struct i40e_q_vector {
 	cpumask_t affinity_mask;
 	struct rcu_head rcu;	/* to avoid race with update stats on free */
 	char name[I40E_INT_NAME_STR_LEN];
+	bool arm_wb_state;
 } ____cacheline_internodealigned_in_smp;
 
 /* lan device */
