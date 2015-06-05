@@ -1504,7 +1504,7 @@ static irqreturn_t dw_hdmi_irq(int irq, void *dev_id)
 
 			dw_hdmi_poweroff(hdmi);
 		}
-		drm_helper_hpd_irq_event(hdmi->connector.dev);
+		drm_helper_hpd_irq_event(hdmi->bridge->dev);
 	}
 
 	hdmi_writeb(hdmi, intr_stat, HDMI_IH_PHY_STAT0);
