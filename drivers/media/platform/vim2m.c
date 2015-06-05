@@ -693,6 +693,8 @@ static const struct v4l2_ioctl_ops vim2m_ioctl_ops = {
 	.vidioc_querybuf	= v4l2_m2m_ioctl_querybuf,
 	.vidioc_qbuf		= v4l2_m2m_ioctl_qbuf,
 	.vidioc_dqbuf		= v4l2_m2m_ioctl_dqbuf,
+	.vidioc_prepare_buf	= v4l2_m2m_ioctl_prepare_buf,
+	.vidioc_create_bufs	= v4l2_m2m_ioctl_create_bufs,
 	.vidioc_expbuf		= v4l2_m2m_ioctl_expbuf,
 
 	.vidioc_streamon	= v4l2_m2m_ioctl_streamon,
@@ -719,6 +721,12 @@ static int vim2m_queue_setup(struct vb2_queue *vq,
 	q_data = get_q_data(ctx, vq->type);
 
 	size = q_data->width * q_data->height * q_data->fmt->depth >> 3;
+
+	if (fmt) {
+		if (fmt->fmt.pix.sizeimage < size)
+			return -EINVAL;
+		size = fmt->fmt.pix.sizeimage;
+	}
 
 	while (size * count > MEM2MEM_VID_MEM_LIMIT)
 		(count)--;
