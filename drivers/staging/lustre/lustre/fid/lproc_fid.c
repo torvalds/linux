@@ -157,10 +157,8 @@ ldebugfs_fid_width_seq_write(struct file *file,
 	if (val <= max && val > 0) {
 		seq->lcs_width = val;
 
-		if (rc == 0) {
-			CDEBUG(D_INFO, "%s: Sequence size: %llu\n",
-			       seq->lcs_name, seq->lcs_width);
-		}
+		CDEBUG(D_INFO, "%s: Sequence size: %llu\n", seq->lcs_name,
+		       seq->lcs_width);
 	}
 
 	mutex_unlock(&seq->lcs_mutex);
