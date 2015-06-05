@@ -664,8 +664,7 @@ static int fsl_sai_probe(struct platform_device *pdev)
 	if (sai->sai_on_imx)
 		return imx_pcm_dma_init(pdev);
 	else
-		return devm_snd_dmaengine_pcm_register(&pdev->dev, NULL,
-				SND_DMAENGINE_PCM_FLAG_NO_RESIDUE);
+		return devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 }
 
 static const struct of_device_id fsl_sai_ids[] = {
