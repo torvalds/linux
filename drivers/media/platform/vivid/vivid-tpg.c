@@ -900,12 +900,19 @@ static void gen_twopix(struct tpg_data *tpg,
 		buf[0][offset] = r_y;
 		break;
 	case V4L2_PIX_FMT_Y16:
-		buf[0][offset] = 0;
+		/*
+		 * Ideally both bytes should be set to r_y, but then you won't
+		 * be able to detect endian problems. So keep it 0 except for
+		 * the corner case where r_y is 0xff so white really will be
+		 * white (0xffff).
+		 */
+		buf[0][offset] = r_y == 0xff ? r_y : 0;
 		buf[0][offset+1] = r_y;
 		break;
 	case V4L2_PIX_FMT_Y16_BE:
+		/* See comment for V4L2_PIX_FMT_Y16 above */
 		buf[0][offset] = r_y;
-		buf[0][offset+1] = 0;
+		buf[0][offset+1] = r_y == 0xff ? r_y : 0;
 		break;
 	case V4L2_PIX_FMT_YUV422P:
 	case V4L2_PIX_FMT_YUV420:
