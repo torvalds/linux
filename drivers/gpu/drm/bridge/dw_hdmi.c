@@ -125,6 +125,9 @@ struct dw_hdmi {
 	bool sink_is_hdmi;
 	bool sink_has_audio;
 
+	struct mutex mutex;		/* for state below and previous_mode */
+	bool disabled;			/* DRM has disabled our bridge */
+
 	spinlock_t audio_lock;
 	struct mutex audio_mutex;
 	unsigned int sample_rate;
@@ -1375,8 +1378,12 @@ static void dw_hdmi_bridge_mode_set(struct drm_bridge *bridge,
 {
 	struct dw_hdmi *hdmi = bridge->driver_private;
 
+	mutex_lock(&hdmi->mutex);
+
 	/* Store the display mode for plugin/DKMS poweron events */
 	memcpy(&hdmi->previous_mode, mode, sizeof(hdmi->previous_mode));
+
+	mutex_unlock(&hdmi->mutex);
 }
 
 static bool dw_hdmi_bridge_mode_fixup(struct drm_bridge *bridge,
@@ -1390,14 +1397,20 @@ static void dw_hdmi_bridge_disable(struct drm_bridge *bridge)
 {
 	struct dw_hdmi *hdmi = bridge->driver_private;
 
+	mutex_lock(&hdmi->mutex);
+	hdmi->disabled = true;
 	dw_hdmi_poweroff(hdmi);
+	mutex_unlock(&hdmi->mutex);
 }
 
 static void dw_hdmi_bridge_enable(struct drm_bridge *bridge)
 {
 	struct dw_hdmi *hdmi = bridge->driver_private;
 
+	mutex_lock(&hdmi->mutex);
 	dw_hdmi_poweron(hdmi);
+	hdmi->disabled = false;
+	mutex_unlock(&hdmi->mutex);
 }
 
 static void dw_hdmi_bridge_nop(struct drm_bridge *bridge)
@@ -1520,20 +1533,20 @@ static irqreturn_t dw_hdmi_irq(int irq, void *dev_id)
 	phy_int_pol = hdmi_readb(hdmi, HDMI_PHY_POL0);
 
 	if (intr_stat & HDMI_IH_PHY_STAT0_HPD) {
+		hdmi_modb(hdmi, ~phy_int_pol, HDMI_PHY_HPD, HDMI_PHY_POL0);
+		mutex_lock(&hdmi->mutex);
 		if (phy_int_pol & HDMI_PHY_HPD) {
 			dev_dbg(hdmi->dev, "EVENT=plugin\n");
 
-			hdmi_modb(hdmi, 0, HDMI_PHY_HPD, HDMI_PHY_POL0);
-
-			dw_hdmi_poweron(hdmi);
+			if (!hdmi->disabled)
+				dw_hdmi_poweron(hdmi);
 		} else {
 			dev_dbg(hdmi->dev, "EVENT=plugout\n");
 
-			hdmi_modb(hdmi, HDMI_PHY_HPD, HDMI_PHY_HPD,
-				  HDMI_PHY_POL0);
-
-			dw_hdmi_poweroff(hdmi);
+			if (!hdmi->disabled)
+				dw_hdmi_poweroff(hdmi);
 		}
+		mutex_unlock(&hdmi->mutex);
 		drm_helper_hpd_irq_event(hdmi->bridge->dev);
 	}
 
@@ -1601,7 +1614,9 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 	hdmi->sample_rate = 48000;
 	hdmi->ratio = 100;
 	hdmi->encoder = encoder;
+	hdmi->disabled = true;
 
+	mutex_init(&hdmi->mutex);
 	mutex_init(&hdmi->audio_mutex);
 	spin_lock_init(&hdmi->audio_lock);
 
