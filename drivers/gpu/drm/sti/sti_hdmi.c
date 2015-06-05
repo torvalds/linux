@@ -192,8 +192,8 @@ static void hdmi_active_area(struct sti_hdmi *hdmi)
 	u32 xmin, xmax;
 	u32 ymin, ymax;
 
-	xmin = sti_vtg_get_pixel_number(hdmi->mode, 0);
-	xmax = sti_vtg_get_pixel_number(hdmi->mode, hdmi->mode.hdisplay - 1);
+	xmin = sti_vtg_get_pixel_number(hdmi->mode, 1);
+	xmax = sti_vtg_get_pixel_number(hdmi->mode, hdmi->mode.hdisplay);
 	ymin = sti_vtg_get_line_number(hdmi->mode, 0);
 	ymax = sti_vtg_get_line_number(hdmi->mode, hdmi->mode.vdisplay - 1);
 
