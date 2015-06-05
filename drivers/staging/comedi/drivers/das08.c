@@ -59,7 +59,12 @@
 #define DAS08_AI_TRIG_REG	0x01	/* (W) AI software trigger */
 #define DAS08_STATUS_REG	0x02	/* (R) status */
 #define DAS08_STATUS_AI_BUSY	BIT(7)	/* AI conversion in progress */
-#define   DAS08_IRQ			(1<<3)
+/*
+ * The IRQ status bit is set to 1 by a rising edge on the external interrupt
+ * input (which may be jumpered to the pacer output).  It is cleared by
+ * setting the INTE control bit to 0.  Not present on "JR" boards.
+ */
+#define DAS08_STATUS_IRQ	BIT(3)	/* latched interrupt input */
 #define   DAS08_IP(x)			(((x)>>4)&0x7)
 #define DAS08_CONTROL		2
 #define   DAS08_MUX_MASK	0x7
