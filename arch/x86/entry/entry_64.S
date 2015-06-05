@@ -516,7 +516,7 @@ ENTRY(ret_from_fork)
 	/*
 	 * By the time we get here, we have no idea whether our pt_regs,
 	 * ti flags, and ti status came from the 64-bit SYSCALL fast path,
-	 * the slow path, or one of the ia32entry paths.
+	 * the slow path, or one of the 32-bit compat paths.
 	 * Use IRET code path to return, since it can safely handle
 	 * all of the above.
 	 */
