@@ -318,6 +318,9 @@ static long tce_iommu_ioctl(void *iommu_data,
 		struct iommu_table *tbl = container->tbl;
 		unsigned long tce;
 
+		if (!container->enabled)
+			return -EPERM;
+
 		if (!tbl)
 			return -ENXIO;
 
@@ -361,6 +364,9 @@ static long tce_iommu_ioctl(void *iommu_data,
 	case VFIO_IOMMU_UNMAP_DMA: {
 		struct vfio_iommu_type1_dma_unmap param;
 		struct iommu_table *tbl = container->tbl;
+
+		if (!container->enabled)
+			return -EPERM;
 
 		if (WARN_ON(!tbl))
 			return -ENXIO;
