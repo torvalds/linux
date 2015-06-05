@@ -83,10 +83,15 @@ static int hdmi_edid_parse_dtd(unsigned char *block, struct fb_videomode *mode)
 int hdmi_edid_parse_base(unsigned char *buf,
 			 int *extend_num, struct hdmi_edid *pedid)
 {
-	int rc;
+	int rc = E_HDMI_EDID_SUCCESS;
 
 	if (buf == NULL || extend_num == NULL)
 		return E_HDMI_EDID_PARAM;
+
+	*extend_num = buf[0x7e];
+	#ifdef DEBUG
+	EDBG("[EDID] extend block num is %d\n", buf[0x7e]);
+	#endif
 
 	/* Check first 8 byte to ensure it is an edid base block. */
 	if (buf[0] != 0x00 ||
@@ -98,19 +103,16 @@ int hdmi_edid_parse_base(unsigned char *buf,
 	    buf[6] != 0xFF ||
 	    buf[7] != 0x00) {
 		pr_err("[EDID] check header error\n");
-		return E_HDMI_EDID_HEAD;
+		rc = E_HDMI_EDID_HEAD;
+		goto out;
 	}
-
-	*extend_num = buf[0x7e];
-	#ifdef DEBUG
-	EDBG("[EDID] extend block num is %d\n", buf[0x7e]);
-	#endif
 
 	/* Checksum */
 	rc = hdmi_edid_checksum(buf);
 	if (rc != E_HDMI_EDID_SUCCESS) {
 		pr_err("[EDID] base block checksum error\n");
-		return E_HDMI_EDID_CHECKSUM;
+		rc = E_HDMI_EDID_CHECKSUM;
+		goto out;
 	}
 
 	pedid->specs = kzalloc(sizeof(*pedid->specs), GFP_KERNEL);
@@ -119,7 +121,11 @@ int hdmi_edid_parse_base(unsigned char *buf,
 
 	fb_edid_to_monspecs(buf, pedid->specs);
 
-	return E_HDMI_EDID_SUCCESS;
+out:
+	if (rc != E_HDMI_EDID_SUCCESS && *extend_num > 4)
+		return rc;
+	else
+		return E_HDMI_EDID_SUCCESS;
 }
 
 /* Parse CEA Short Video Descriptor */
