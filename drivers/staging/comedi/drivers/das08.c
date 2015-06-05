@@ -74,7 +74,7 @@
  */
 #define DAS08_CONTROL_MUX_MASK	0x7	/* multiplexor channel mask */
 #define DAS08_CONTROL_MUX(x)	((x) & DAS08_CONTROL_MUX_MASK) /* mux channel */
-#define   DAS08_INTE			(1<<3)
+#define DAS08_CONTROL_INTE	BIT(3)	/* interrupt enable (not "JR" boards) */
 #define   DAS08_DO_MASK		0xf0
 #define   DAS08_OP(x)		(((x) << 4) & DAS08_DO_MASK)
 
