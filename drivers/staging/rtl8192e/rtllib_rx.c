@@ -623,9 +623,9 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 		else
 			pTS->RxIndicateSeq = 4095 -
 					     (WinSize - (SeqNum + 1)) + 1;
-			netdev_dbg(ieee->dev,
-				   "Window Shift! IndicateSeq: %d, NewSeq: %d\n",
-				   pTS->RxIndicateSeq, SeqNum);
+		netdev_dbg(ieee->dev,
+			   "Window Shift! IndicateSeq: %d, NewSeq: %d\n",
+			   pTS->RxIndicateSeq, SeqNum);
 	}
 
 	/* Indication process.
