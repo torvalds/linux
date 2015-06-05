@@ -238,7 +238,7 @@ static int octeon_spi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id octeon_spi_match[] = {
+static const struct of_device_id octeon_spi_match[] = {
 	{ .compatible = "cavium,octeon-3010-spi", },
 	{},
 };
@@ -247,7 +247,6 @@ MODULE_DEVICE_TABLE(of, octeon_spi_match);
 static struct platform_driver octeon_spi_driver = {
 	.driver = {
 		.name		= "spi-octeon",
-		.owner		= THIS_MODULE,
 		.of_match_table = octeon_spi_match,
 	},
 	.probe		= octeon_spi_probe,

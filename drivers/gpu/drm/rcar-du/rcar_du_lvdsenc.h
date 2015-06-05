@@ -16,7 +16,6 @@
 
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/platform_data/rcar-du.h>
 
 struct rcar_drm_crtc;
 struct rcar_du_lvdsenc;
@@ -29,15 +28,15 @@ enum rcar_lvds_input {
 
 #if IS_ENABLED(CONFIG_DRM_RCAR_LVDS)
 int rcar_du_lvdsenc_init(struct rcar_du_device *rcdu);
-int rcar_du_lvdsenc_dpms(struct rcar_du_lvdsenc *lvds,
-			 struct drm_crtc *crtc, int mode);
+int rcar_du_lvdsenc_enable(struct rcar_du_lvdsenc *lvds,
+			   struct drm_crtc *crtc, bool enable);
 #else
 static inline int rcar_du_lvdsenc_init(struct rcar_du_device *rcdu)
 {
 	return 0;
 }
-static inline int rcar_du_lvdsenc_dpms(struct rcar_du_lvdsenc *lvds,
-				       struct drm_crtc *crtc, int mode)
+static inline int rcar_du_lvdsenc_enable(struct rcar_du_lvdsenc *lvds,
+					 struct drm_crtc *crtc, bool enable)
 {
 	return 0;
 }

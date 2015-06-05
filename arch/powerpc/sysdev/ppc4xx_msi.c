@@ -22,7 +22,6 @@
  */
 
 #include <linux/irq.h>
-#include <linux/bootmem.h>
 #include <linux/pci.h>
 #include <linux/msi.h>
 #include <linux/of_platform.h>
@@ -116,7 +115,7 @@ static int ppc4xx_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 
 		irq_set_msi_desc(virq, entry);
 		msg.data = int_no;
-		write_msi_msg(virq, &msg);
+		pci_write_msi_msg(virq, &msg);
 	}
 	return 0;
 }
@@ -270,7 +269,6 @@ static struct platform_driver ppc4xx_msi_driver = {
 	.remove = ppc4xx_of_msi_remove,
 	.driver = {
 		   .name = "ppc4xx-msi",
-		   .owner = THIS_MODULE,
 		   .of_match_table = ppc4xx_msi_ids,
 		   },
 

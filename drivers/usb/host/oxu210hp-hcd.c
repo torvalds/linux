@@ -445,7 +445,7 @@ static void ehci_hub_descriptor(struct oxu_hcd *oxu,
 	int ports = HCS_N_PORTS(oxu->hcs_params);
 	u16 temp;
 
-	desc->bDescriptorType = 0x29;
+	desc->bDescriptorType = USB_DT_HUB;
 	desc->bPwrOn2PwrGood = 10;	/* oxu 1.0, 2.3.9 says 20ms max */
 	desc->bHubContrCurrent = 0;
 
@@ -457,11 +457,11 @@ static void ehci_hub_descriptor(struct oxu_hcd *oxu,
 	memset(&desc->u.hs.DeviceRemovable[0], 0, temp);
 	memset(&desc->u.hs.DeviceRemovable[temp], 0xff, temp);
 
-	temp = 0x0008;			/* per-port overcurrent reporting */
+	temp = HUB_CHAR_INDV_PORT_OCPM;	/* per-port overcurrent reporting */
 	if (HCS_PPC(oxu->hcs_params))
-		temp |= 0x0001;		/* per-port power control */
+		temp |= HUB_CHAR_INDV_PORT_LPSM; /* per-port power control */
 	else
-		temp |= 0x0002;		/* no power switching */
+		temp |= HUB_CHAR_NO_LPSM; /* no power switching */
 	desc->wHubCharacteristics = (__force __u16)cpu_to_le16(temp);
 }
 
@@ -2500,11 +2500,12 @@ static irqreturn_t oxu210_hcd_irq(struct usb_hcd *hcd)
 					|| oxu->reset_done[i] != 0)
 				continue;
 
-			/* start 20 msec resume signaling from this port,
-			 * and make hub_wq collect PORT_STAT_C_SUSPEND to
+			/* start USB_RESUME_TIMEOUT resume signaling from this
+			 * port, and make hub_wq collect PORT_STAT_C_SUSPEND to
 			 * stop that signaling.
 			 */
-			oxu->reset_done[i] = jiffies + msecs_to_jiffies(20);
+			oxu->reset_done[i] = jiffies +
+				msecs_to_jiffies(USB_RESUME_TIMEOUT);
 			oxu_dbg(oxu, "port %d remote wakeup\n", i + 1);
 			mod_timer(&hcd->rh_timer, oxu->reset_done[i]);
 		}
@@ -2598,9 +2599,7 @@ static int oxu_hcd_init(struct usb_hcd *hcd)
 
 	spin_lock_init(&oxu->lock);
 
-	init_timer(&oxu->watchdog);
-	oxu->watchdog.function = oxu_watchdog;
-	oxu->watchdog.data = (unsigned long) oxu;
+	setup_timer(&oxu->watchdog, oxu_watchdog, (unsigned long)oxu);
 
 	/*
 	 * hw default: 1K periodic list heads, one per frame.
@@ -3087,7 +3086,7 @@ static int oxu_hub_status_data(struct usb_hcd *hcd, char *buf)
 	int ports, i, retval = 1;
 	unsigned long flags;
 
-	/* if !PM_RUNTIME, root hub timers won't get shut down ... */
+	/* if !PM, root hub timers won't get shut down ... */
 	if (!HC_IS_RUNNING(hcd->state))
 		return 0;
 
@@ -3846,7 +3845,6 @@ static int oxu_drv_probe(struct platform_device *pdev)
 	 */
 	info = devm_kzalloc(&pdev->dev, sizeof(struct oxu_info), GFP_KERNEL);
 	if (!info) {
-		dev_dbg(&pdev->dev, "error allocating memory\n");
 		ret = -EFAULT;
 		goto error;
 	}

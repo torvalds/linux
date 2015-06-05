@@ -62,7 +62,7 @@
  * (1 << 1):	Bluetooth enable/disable, RW.
  * (1 << 2):	GPS enable/disable, RW.
  * (1 << 3):	WiFi enable/disable, RW.
- * (1 << 4):	WWAN (3G) enable/disalbe, RW.
+ * (1 << 4):	WWAN (3G) enable/disable, RW.
  * (1 << 5):	Touchscreen enable/disable, Read Only.
  */
 #define OT_EC_DEVICE_STATE_ADDRESS	0xD6
@@ -271,8 +271,7 @@ static int oaktrail_backlight_init(void)
 
 static void oaktrail_backlight_exit(void)
 {
-	if (oaktrail_bl_device)
-		backlight_device_unregister(oaktrail_bl_device);
+	backlight_device_unregister(oaktrail_bl_device);
 }
 
 static int oaktrail_probe(struct platform_device *pdev)
@@ -288,7 +287,6 @@ static int oaktrail_remove(struct platform_device *pdev)
 static struct platform_driver oaktrail_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe	= oaktrail_probe,
 	.remove	= oaktrail_remove,

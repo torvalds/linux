@@ -131,6 +131,19 @@ performs best-effort detection of overlapping wildcarded flows and may reject
 some but not all of them. However, this behavior may change in future versions.
 
 
+Unique flow identifiers
+-----------------------
+
+An alternative to using the original match portion of a key as the handle for
+flow identification is a unique flow identifier, or "UFID". UFIDs are optional
+for both the kernel and user space program.
+
+User space programs that support UFID are expected to provide it during flow
+setup in addition to the flow, then refer to the flow using the UFID for all
+future operations. The kernel is not required to index flows by the original
+flow key if a UFID is specified.
+
+
 Basic rule for evolving flow keys
 ---------------------------------
 

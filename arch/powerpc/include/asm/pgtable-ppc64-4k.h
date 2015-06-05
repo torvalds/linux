@@ -57,7 +57,21 @@
 #define pgd_present(pgd)	(pgd_val(pgd) != 0)
 #define pgd_clear(pgdp)		(pgd_val(*(pgdp)) = 0)
 #define pgd_page_vaddr(pgd)	(pgd_val(pgd) & ~PGD_MASKED_BITS)
-#define pgd_page(pgd)		virt_to_page(pgd_page_vaddr(pgd))
+
+#ifndef __ASSEMBLY__
+
+static inline pte_t pgd_pte(pgd_t pgd)
+{
+	return __pte(pgd_val(pgd));
+}
+
+static inline pgd_t pte_pgd(pte_t pte)
+{
+	return __pgd(pte_val(pte));
+}
+extern struct page *pgd_page(pgd_t pgd);
+
+#endif /* !__ASSEMBLY__ */
 
 #define pud_offset(pgdp, addr)	\
   (((pud_t *) pgd_page_vaddr(*(pgdp))) + \

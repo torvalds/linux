@@ -3,14 +3,14 @@
 
 #include <linux/types.h>
 
+enum hv_perf_domains {
+#define DOMAIN(n, v, x, c) HV_PERF_DOMAIN_##n = v,
+#include "hv-24x7-domains.h"
+#undef DOMAIN
+};
+
 struct hv_24x7_request {
 	/* PHYSICAL domains require enabling via phyp/hmc. */
-#define HV_24X7_PERF_DOMAIN_PHYSICAL_CHIP 0x01
-#define HV_24X7_PERF_DOMAIN_PHYSICAL_CORE 0x02
-#define HV_24X7_PERF_DOMAIN_VIRTUAL_PROCESSOR_HOME_CORE   0x03
-#define HV_24X7_PERF_DOMAIN_VIRTUAL_PROCESSOR_HOME_CHIP   0x04
-#define HV_24X7_PERF_DOMAIN_VIRTUAL_PROCESSOR_HOME_NODE   0x05
-#define HV_24X7_PERF_DOMAIN_VIRTUAL_PROCESSOR_REMOTE_NODE 0x06
 	__u8 performance_domain;
 	__u8 reserved[0x1];
 
@@ -50,7 +50,7 @@ struct hv_24x7_request_buffer {
 	__u8 interface_version;
 	__u8 num_requests;
 	__u8 reserved[0xE];
-	struct hv_24x7_request requests[];
+	struct hv_24x7_request requests[1];
 } __packed;
 
 struct hv_24x7_result_element {
@@ -66,7 +66,7 @@ struct hv_24x7_result_element {
 	__be32 lpar_cfg_instance_id;
 
 	/* size = @result_element_data_size of cointaining result. */
-	__u8 element_data[];
+	__u64 element_data[1];
 } __packed;
 
 struct hv_24x7_result {
@@ -87,7 +87,7 @@ struct hv_24x7_result {
 	/* WARNING: only valid for first result element due to variable sizes
 	 *          of result elements */
 	/* struct hv_24x7_result_element[@num_elements_returned] */
-	struct hv_24x7_result_element elements[];
+	struct hv_24x7_result_element elements[1];
 } __packed;
 
 struct hv_24x7_data_result_buffer {
@@ -103,7 +103,7 @@ struct hv_24x7_data_result_buffer {
 	__u8 reserved2[0x8];
 	/* WARNING: only valid for the first result due to variable sizes of
 	 *	    results */
-	struct hv_24x7_result results[]; /* [@num_results] */
+	struct hv_24x7_result results[1]; /* [@num_results] */
 } __packed;
 
 #endif

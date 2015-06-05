@@ -157,14 +157,20 @@ void drm_modeset_unlock_all(struct drm_device *dev)
 EXPORT_SYMBOL(drm_modeset_unlock_all);
 
 /**
- * drm_modeset_lock_crtc - lock crtc with hidden acquire ctx
- * @crtc: drm crtc
+ * drm_modeset_lock_crtc - lock crtc with hidden acquire ctx for a plane update
+ * @crtc: DRM CRTC
+ * @plane: DRM plane to be updated on @crtc
  *
- * This function locks the given crtc using a hidden acquire context. This is
- * necessary so that drivers internally using the atomic interfaces can grab
- * further locks with the lock acquire context.
+ * This function locks the given crtc and plane (which should be either the
+ * primary or cursor plane) using a hidden acquire context. This is necessary so
+ * that drivers internally using the atomic interfaces can grab further locks
+ * with the lock acquire context.
+ *
+ * Note that @plane can be NULL, e.g. when the cursor support hasn't yet been
+ * converted to universal planes yet.
  */
-void drm_modeset_lock_crtc(struct drm_crtc *crtc)
+void drm_modeset_lock_crtc(struct drm_crtc *crtc,
+			   struct drm_plane *plane)
 {
 	struct drm_modeset_acquire_ctx *ctx;
 	int ret;
@@ -179,6 +185,18 @@ retry:
 	ret = drm_modeset_lock(&crtc->mutex, ctx);
 	if (ret)
 		goto fail;
+
+	if (plane) {
+		ret = drm_modeset_lock(&plane->mutex, ctx);
+		if (ret)
+			goto fail;
+
+		if (plane->crtc) {
+			ret = drm_modeset_lock(&plane->crtc->mutex, ctx);
+			if (ret)
+				goto fail;
+		}
+	}
 
 	WARN_ON(crtc->acquire_ctx);
 
@@ -437,19 +455,24 @@ void drm_modeset_unlock(struct drm_modeset_lock *lock)
 }
 EXPORT_SYMBOL(drm_modeset_unlock);
 
-/* Temporary.. until we have sufficiently fine grained locking, there
- * are a couple scenarios where it is convenient to grab all crtc locks.
- * It is planned to remove this:
- */
+/* In some legacy codepaths it's convenient to just grab all the crtc and plane
+ * related locks. */
 int drm_modeset_lock_all_crtcs(struct drm_device *dev,
 		struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_crtc *crtc;
+	struct drm_plane *plane;
 	int ret = 0;
 
 	list_for_each_entry(crtc, &config->crtc_list, head) {
 		ret = drm_modeset_lock(&crtc->mutex, ctx);
+		if (ret)
+			return ret;
+	}
+
+	list_for_each_entry(plane, &config->plane_list, head) {
+		ret = drm_modeset_lock(&plane->mutex, ctx);
 		if (ret)
 			return ret;
 	}

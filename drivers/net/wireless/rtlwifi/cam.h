@@ -28,13 +28,11 @@
 
 #define CAM_CONTENT_COUNT				8
 
-#define CFG_DEFAULT_KEY					BIT(5)
 #define CFG_VALID					BIT(15)
 
 #define PAIRWISE_KEYIDX					0
 #define CAM_PAIRWISE_KEY_POSITION			4
 
-#define	CAM_CONFIG_USEDK				1
 #define	CAM_CONFIG_NO_USEDK				0
 
 void rtl_cam_reset_all_entry(struct ieee80211_hw *hw);

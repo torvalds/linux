@@ -52,6 +52,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "dec",         VCPU_STAT(dec_exits) },
 	{ "ext_intr",    VCPU_STAT(ext_intr_exits) },
 	{ "queue_intr",  VCPU_STAT(queue_intr) },
+	{ "halt_successful_poll", VCPU_STAT(halt_successful_poll), },
 	{ "halt_wakeup", VCPU_STAT(halt_wakeup) },
 	{ "pf_storage",  VCPU_STAT(pf_storage) },
 	{ "sp_storage",  VCPU_STAT(sp_storage) },
@@ -63,14 +64,6 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "st_slow",     VCPU_STAT(st_slow) },
 	{ NULL }
 };
-
-void kvmppc_core_load_host_debugstate(struct kvm_vcpu *vcpu)
-{
-}
-
-void kvmppc_core_load_guest_debugstate(struct kvm_vcpu *vcpu)
-{
-}
 
 void kvmppc_unfixup_split_real(struct kvm_vcpu *vcpu)
 {
@@ -827,6 +820,82 @@ void kvmppc_core_destroy_vm(struct kvm *kvm)
 	WARN_ON(!list_empty(&kvm->arch.spapr_tce_tables));
 #endif
 }
+
+int kvmppc_h_logical_ci_load(struct kvm_vcpu *vcpu)
+{
+	unsigned long size = kvmppc_get_gpr(vcpu, 4);
+	unsigned long addr = kvmppc_get_gpr(vcpu, 5);
+	u64 buf;
+	int ret;
+
+	if (!is_power_of_2(size) || (size > sizeof(buf)))
+		return H_TOO_HARD;
+
+	ret = kvm_io_bus_read(vcpu, KVM_MMIO_BUS, addr, size, &buf);
+	if (ret != 0)
+		return H_TOO_HARD;
+
+	switch (size) {
+	case 1:
+		kvmppc_set_gpr(vcpu, 4, *(u8 *)&buf);
+		break;
+
+	case 2:
+		kvmppc_set_gpr(vcpu, 4, be16_to_cpu(*(__be16 *)&buf));
+		break;
+
+	case 4:
+		kvmppc_set_gpr(vcpu, 4, be32_to_cpu(*(__be32 *)&buf));
+		break;
+
+	case 8:
+		kvmppc_set_gpr(vcpu, 4, be64_to_cpu(*(__be64 *)&buf));
+		break;
+
+	default:
+		BUG();
+	}
+
+	return H_SUCCESS;
+}
+EXPORT_SYMBOL_GPL(kvmppc_h_logical_ci_load);
+
+int kvmppc_h_logical_ci_store(struct kvm_vcpu *vcpu)
+{
+	unsigned long size = kvmppc_get_gpr(vcpu, 4);
+	unsigned long addr = kvmppc_get_gpr(vcpu, 5);
+	unsigned long val = kvmppc_get_gpr(vcpu, 6);
+	u64 buf;
+	int ret;
+
+	switch (size) {
+	case 1:
+		*(u8 *)&buf = val;
+		break;
+
+	case 2:
+		*(__be16 *)&buf = cpu_to_be16(val);
+		break;
+
+	case 4:
+		*(__be32 *)&buf = cpu_to_be32(val);
+		break;
+
+	case 8:
+		*(__be64 *)&buf = cpu_to_be64(val);
+		break;
+
+	default:
+		return H_TOO_HARD;
+	}
+
+	ret = kvm_io_bus_write(vcpu, KVM_MMIO_BUS, addr, size, &buf);
+	if (ret != 0)
+		return H_TOO_HARD;
+
+	return H_SUCCESS;
+}
+EXPORT_SYMBOL_GPL(kvmppc_h_logical_ci_store);
 
 int kvmppc_core_check_processor_compat(void)
 {

@@ -232,7 +232,7 @@ static int test_no_shared_qgroup(struct btrfs_root *root)
 	init_dummy_trans(&trans);
 
 	test_msg("Qgroup basic add\n");
-	ret = btrfs_create_qgroup(NULL, fs_info, 5, NULL);
+	ret = btrfs_create_qgroup(NULL, fs_info, 5);
 	if (ret) {
 		test_msg("Couldn't create a qgroup %d\n", ret);
 		return ret;
@@ -301,7 +301,7 @@ static int test_multiple_refs(struct btrfs_root *root)
 	test_msg("Qgroup multiple refs test\n");
 
 	/* We have 5 created already from the previous test */
-	ret = btrfs_create_qgroup(NULL, fs_info, 256, NULL);
+	ret = btrfs_create_qgroup(NULL, fs_info, 256);
 	if (ret) {
 		test_msg("Couldn't create a qgroup %d\n", ret);
 		return ret;
@@ -404,12 +404,22 @@ int btrfs_test_qgroups(void)
 		ret = -ENOMEM;
 		goto out;
 	}
+	/* We are using this root as our extent root */
+	root->fs_info->extent_root = root;
+
+	/*
+	 * Some of the paths we test assume we have a filled out fs_info, so we
+	 * just need to add the root in there so we don't panic.
+	 */
+	root->fs_info->tree_root = root;
+	root->fs_info->quota_root = root;
+	root->fs_info->quota_enabled = 1;
 
 	/*
 	 * Can't use bytenr 0, some things freak out
 	 * *cough*backref walking code*cough*
 	 */
-	root->node = alloc_test_extent_buffer(root->fs_info, 4096, 4096);
+	root->node = alloc_test_extent_buffer(root->fs_info, 4096);
 	if (!root->node) {
 		test_msg("Couldn't allocate dummy buffer\n");
 		ret = -ENOMEM;
@@ -447,17 +457,6 @@ int btrfs_test_qgroups(void)
 		test_msg("Couldn't insert fs root %d\n", ret);
 		goto out;
 	}
-
-	/* We are using this root as our extent root */
-	root->fs_info->extent_root = root;
-
-	/*
-	 * Some of the paths we test assume we have a filled out fs_info, so we
-	 * just need to addt he root in there so we don't panic.
-	 */
-	root->fs_info->tree_root = root;
-	root->fs_info->quota_root = root;
-	root->fs_info->quota_enabled = 1;
 
 	test_msg("Running qgroup tests\n");
 	ret = test_no_shared_qgroup(root);

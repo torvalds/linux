@@ -380,9 +380,6 @@ static void __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 
 static int __init acpi_parse_madt(struct acpi_table_header *table)
 {
-	if (!table)
-		return -EINVAL;
-
 	acpi_madt = (struct acpi_table_madt *)table;
 
 	acpi_madt_rev = acpi_madt->header.revision;
@@ -486,7 +483,7 @@ acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
 	    (pa->apic_id << 8) | (pa->local_sapic_eid);
 	/* nid should be overridden as logical node id later */
 	node_cpuid[srat_num_cpus].nid = pxm;
-	cpu_set(srat_num_cpus, early_cpu_possible_map);
+	cpumask_set_cpu(srat_num_cpus, &early_cpu_possible_map);
 	srat_num_cpus++;
 }
 
@@ -644,9 +641,6 @@ static int __init acpi_parse_fadt(struct acpi_table_header *table)
 {
 	struct acpi_table_header *fadt_header;
 	struct acpi_table_fadt *fadt;
-
-	if (!table)
-		return -EINVAL;
 
 	fadt_header = (struct acpi_table_header *)table;
 	if (fadt_header->revision != 3)
@@ -893,13 +887,13 @@ static int _acpi_map_lsapic(acpi_handle handle, int physid, int *pcpu)
 }
 
 /* wrapper to silence section mismatch warning */
-int __ref acpi_map_lsapic(acpi_handle handle, int physid, int *pcpu)
+int __ref acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, int *pcpu)
 {
 	return _acpi_map_lsapic(handle, physid, pcpu);
 }
-EXPORT_SYMBOL(acpi_map_lsapic);
+EXPORT_SYMBOL(acpi_map_cpu);
 
-int acpi_unmap_lsapic(int cpu)
+int acpi_unmap_cpu(int cpu)
 {
 	ia64_cpu_to_sapicid[cpu] = -1;
 	set_cpu_present(cpu, false);
@@ -910,8 +904,7 @@ int acpi_unmap_lsapic(int cpu)
 
 	return (0);
 }
-
-EXPORT_SYMBOL(acpi_unmap_lsapic);
+EXPORT_SYMBOL(acpi_unmap_cpu);
 #endif				/* CONFIG_ACPI_HOTPLUG_CPU */
 
 #ifdef CONFIG_ACPI_NUMA

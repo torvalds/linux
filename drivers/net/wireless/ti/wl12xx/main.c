@@ -24,8 +24,6 @@
 
 #include <linux/err.h>
 
-#include <linux/wl12xx.h>
-
 #include "../wlcore/wlcore.h"
 #include "../wlcore/debug.h"
 #include "../wlcore/io.h"
@@ -250,6 +248,7 @@ static struct wlcore_conf wl12xx_conf = {
 		.keep_alive_interval         = 55000,
 		.max_listen_interval         = 20,
 		.sta_sleep_auth              = WL1271_PSM_ILLEGAL,
+		.suspend_rx_ba_activity      = 0,
 	},
 	.itrim = {
 		.enable = false,
@@ -1728,6 +1727,9 @@ static struct wlcore_ops wl12xx_ops = {
 	.convert_hwaddr		= wl12xx_convert_hwaddr,
 	.lnk_high_prio		= wl12xx_lnk_high_prio,
 	.lnk_low_prio		= wl12xx_lnk_low_prio,
+	.interrupt_notify	= NULL,
+	.rx_ba_filter		= NULL,
+	.ap_sleep		= NULL,
 };
 
 static struct ieee80211_sta_ht_cap wl12xx_ht_cap = {
@@ -1766,11 +1768,44 @@ wl12xx_iface_combinations[] = {
 	},
 };
 
+static const struct wl12xx_clock wl12xx_refclock_table[] = {
+	{ 19200000,	false,	WL12XX_REFCLOCK_19	},
+	{ 26000000,	false,	WL12XX_REFCLOCK_26	},
+	{ 26000000,	true,	WL12XX_REFCLOCK_26_XTAL	},
+	{ 38400000,	false,	WL12XX_REFCLOCK_38	},
+	{ 38400000,	true,	WL12XX_REFCLOCK_38_XTAL	},
+	{ 52000000,	false,	WL12XX_REFCLOCK_52	},
+	{ 0,		false,	0 }
+};
+
+static const struct wl12xx_clock wl12xx_tcxoclock_table[] = {
+	{ 16368000,	true,	WL12XX_TCXOCLOCK_16_368	},
+	{ 16800000,	true,	WL12XX_TCXOCLOCK_16_8	},
+	{ 19200000,	true,	WL12XX_TCXOCLOCK_19_2	},
+	{ 26000000,	true,	WL12XX_TCXOCLOCK_26	},
+	{ 32736000,	true,	WL12XX_TCXOCLOCK_32_736	},
+	{ 33600000,	true,	WL12XX_TCXOCLOCK_33_6	},
+	{ 38400000,	true,	WL12XX_TCXOCLOCK_38_4	},
+	{ 52000000,	true,	WL12XX_TCXOCLOCK_52	},
+	{ 0,		false,	0 }
+};
+
+static int wl12xx_get_clock_idx(const struct wl12xx_clock *table,
+				u32 freq, bool xtal)
+{
+	int i;
+
+	for (i = 0; table[i].freq != 0; i++)
+		if ((table[i].freq == freq) && (table[i].xtal == xtal))
+			return table[i].hw_idx;
+
+	return -EINVAL;
+}
+
 static int wl12xx_setup(struct wl1271 *wl)
 {
 	struct wl12xx_priv *priv = wl->priv;
 	struct wlcore_platdev_data *pdev_data = dev_get_platdata(&wl->pdev->dev);
-	struct wl12xx_platform_data *pdata = pdev_data->pdata;
 
 	BUILD_BUG_ON(WL12XX_MAX_LINKS > WLCORE_MAX_LINKS);
 	BUILD_BUG_ON(WL12XX_MAX_AP_STATIONS > WL12XX_MAX_LINKS);
@@ -1795,7 +1830,17 @@ static int wl12xx_setup(struct wl1271 *wl)
 	wl12xx_conf_init(wl);
 
 	if (!fref_param) {
-		priv->ref_clock = pdata->board_ref_clock;
+		priv->ref_clock = wl12xx_get_clock_idx(wl12xx_refclock_table,
+						pdev_data->ref_clock_freq,
+						pdev_data->ref_clock_xtal);
+		if (priv->ref_clock < 0) {
+			wl1271_error("Invalid ref_clock frequency (%d Hz, %s)",
+				     pdev_data->ref_clock_freq,
+				     pdev_data->ref_clock_xtal ?
+				     "XTAL" : "not XTAL");
+
+			return priv->ref_clock;
+		}
 	} else {
 		if (!strcmp(fref_param, "19.2"))
 			priv->ref_clock = WL12XX_REFCLOCK_19;
@@ -1813,9 +1858,17 @@ static int wl12xx_setup(struct wl1271 *wl)
 			wl1271_error("Invalid fref parameter %s", fref_param);
 	}
 
-	if (!tcxo_param) {
-		priv->tcxo_clock = pdata->board_tcxo_clock;
-	} else {
+	if (!tcxo_param && pdev_data->tcxo_clock_freq) {
+		priv->tcxo_clock = wl12xx_get_clock_idx(wl12xx_tcxoclock_table,
+						pdev_data->tcxo_clock_freq,
+						true);
+		if (priv->tcxo_clock < 0) {
+			wl1271_error("Invalid tcxo_clock frequency (%d Hz)",
+				     pdev_data->tcxo_clock_freq);
+
+			return priv->tcxo_clock;
+		}
+	} else if (tcxo_param) {
 		if (!strcmp(tcxo_param, "19.2"))
 			priv->tcxo_clock = WL12XX_TCXOCLOCK_19_2;
 		else if (!strcmp(tcxo_param, "26"))
@@ -1900,7 +1953,6 @@ static struct platform_driver wl12xx_driver = {
 	.id_table	= wl12xx_id_table,
 	.driver = {
 		.name	= "wl12xx_driver",
-		.owner	= THIS_MODULE,
 	}
 };
 

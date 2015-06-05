@@ -15,11 +15,9 @@
  * details.
  */
 
-
 #ifndef __VISORCHIPSET_GLOBALS_H__
 #define __VISORCHIPSET_GLOBALS_H__
 
-#include "uniklog.h"
 #include "diagnostics/appos_subsystems.h"
 #include "timskmod.h"
 #include "visorchipset.h"
@@ -27,7 +25,6 @@
 #include "version.h"
 
 #define MYDRVNAME "visorchipset"
-
 
 /* module parameters */
 

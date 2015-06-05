@@ -283,7 +283,6 @@ MODULE_DEVICE_TABLE(of, twl4030_audio_of_match);
 
 static struct platform_driver twl4030_audio_driver = {
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "twl4030-audio",
 		.of_match_table = twl4030_audio_of_match,
 	},

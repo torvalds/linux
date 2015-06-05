@@ -964,18 +964,16 @@ static void preview_setup_hw(struct isp_prev_device *prev, u32 update,
  * @prev: pointer to previewer private structure
  * @pixelcode: pixel code
  */
-static void
-preview_config_ycpos(struct isp_prev_device *prev,
-		     enum v4l2_mbus_pixelcode pixelcode)
+static void preview_config_ycpos(struct isp_prev_device *prev, u32 pixelcode)
 {
 	struct isp_device *isp = to_isp_device(prev);
 	enum preview_ycpos_mode mode;
 
 	switch (pixelcode) {
-	case V4L2_MBUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
 		mode = YCPOS_CrYCbY;
 		break;
-	case V4L2_MBUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_UYVY8_1X16:
 		mode = YCPOS_YCrYCb;
 		break;
 	default:
@@ -1028,16 +1026,16 @@ static void preview_config_input_format(struct isp_prev_device *prev,
 			    ISPPRV_PCR_WIDTH);
 
 	switch (info->flavor) {
-	case V4L2_MBUS_FMT_SGRBG8_1X8:
+	case MEDIA_BUS_FMT_SGRBG8_1X8:
 		prev->params.cfa_order = 0;
 		break;
-	case V4L2_MBUS_FMT_SRGGB8_1X8:
+	case MEDIA_BUS_FMT_SRGGB8_1X8:
 		prev->params.cfa_order = 1;
 		break;
-	case V4L2_MBUS_FMT_SBGGR8_1X8:
+	case MEDIA_BUS_FMT_SBGGR8_1X8:
 		prev->params.cfa_order = 2;
 		break;
-	case V4L2_MBUS_FMT_SGBRG8_1X8:
+	case MEDIA_BUS_FMT_SGBRG8_1X8:
 		prev->params.cfa_order = 3;
 		break;
 	default:
@@ -1078,8 +1076,8 @@ static void preview_config_input_size(struct isp_prev_device *prev, u32 active)
 	unsigned int elv = prev->crop.top + prev->crop.height - 1;
 	u32 features;
 
-	if (format->code != V4L2_MBUS_FMT_Y8_1X8 &&
-	    format->code != V4L2_MBUS_FMT_Y10_1X10) {
+	if (format->code != MEDIA_BUS_FMT_Y8_1X8 &&
+	    format->code != MEDIA_BUS_FMT_Y10_1X10) {
 		sph -= 2;
 		eph += 2;
 		slv -= 2;
@@ -1688,48 +1686,48 @@ static int preview_set_stream(struct v4l2_subdev *sd, int enable)
 }
 
 static struct v4l2_mbus_framefmt *
-__preview_get_format(struct isp_prev_device *prev, struct v4l2_subdev_fh *fh,
+__preview_get_format(struct isp_prev_device *prev, struct v4l2_subdev_pad_config *cfg,
 		     unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(fh, pad);
+		return v4l2_subdev_get_try_format(&prev->subdev, cfg, pad);
 	else
 		return &prev->formats[pad];
 }
 
 static struct v4l2_rect *
-__preview_get_crop(struct isp_prev_device *prev, struct v4l2_subdev_fh *fh,
+__preview_get_crop(struct isp_prev_device *prev, struct v4l2_subdev_pad_config *cfg,
 		   enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_crop(fh, PREV_PAD_SINK);
+		return v4l2_subdev_get_try_crop(&prev->subdev, cfg, PREV_PAD_SINK);
 	else
 		return &prev->crop;
 }
 
 /* previewer format descriptions */
 static const unsigned int preview_input_fmts[] = {
-	V4L2_MBUS_FMT_Y8_1X8,
-	V4L2_MBUS_FMT_SGRBG8_1X8,
-	V4L2_MBUS_FMT_SRGGB8_1X8,
-	V4L2_MBUS_FMT_SBGGR8_1X8,
-	V4L2_MBUS_FMT_SGBRG8_1X8,
-	V4L2_MBUS_FMT_Y10_1X10,
-	V4L2_MBUS_FMT_SGRBG10_1X10,
-	V4L2_MBUS_FMT_SRGGB10_1X10,
-	V4L2_MBUS_FMT_SBGGR10_1X10,
-	V4L2_MBUS_FMT_SGBRG10_1X10,
+	MEDIA_BUS_FMT_Y8_1X8,
+	MEDIA_BUS_FMT_SGRBG8_1X8,
+	MEDIA_BUS_FMT_SRGGB8_1X8,
+	MEDIA_BUS_FMT_SBGGR8_1X8,
+	MEDIA_BUS_FMT_SGBRG8_1X8,
+	MEDIA_BUS_FMT_Y10_1X10,
+	MEDIA_BUS_FMT_SGRBG10_1X10,
+	MEDIA_BUS_FMT_SRGGB10_1X10,
+	MEDIA_BUS_FMT_SBGGR10_1X10,
+	MEDIA_BUS_FMT_SGBRG10_1X10,
 };
 
 static const unsigned int preview_output_fmts[] = {
-	V4L2_MBUS_FMT_UYVY8_1X16,
-	V4L2_MBUS_FMT_YUYV8_1X16,
+	MEDIA_BUS_FMT_UYVY8_1X16,
+	MEDIA_BUS_FMT_YUYV8_1X16,
 };
 
 /*
  * preview_try_format - Validate a format
  * @prev: ISP preview engine
- * @fh: V4L2 subdev file handle
+ * @cfg: V4L2 subdev pad configuration
  * @pad: pad number
  * @fmt: format to be validated
  * @which: try/active format selector
@@ -1738,11 +1736,11 @@ static const unsigned int preview_output_fmts[] = {
  * engine limits and the format and crop rectangles on other pads.
  */
 static void preview_try_format(struct isp_prev_device *prev,
-			       struct v4l2_subdev_fh *fh, unsigned int pad,
+			       struct v4l2_subdev_pad_config *cfg, unsigned int pad,
 			       struct v4l2_mbus_framefmt *fmt,
 			       enum v4l2_subdev_format_whence which)
 {
-	enum v4l2_mbus_pixelcode pixelcode;
+	u32 pixelcode;
 	struct v4l2_rect *crop;
 	unsigned int i;
 
@@ -1774,21 +1772,21 @@ static void preview_try_format(struct isp_prev_device *prev,
 
 		/* If not found, use SGRBG10 as default */
 		if (i >= ARRAY_SIZE(preview_input_fmts))
-			fmt->code = V4L2_MBUS_FMT_SGRBG10_1X10;
+			fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 		break;
 
 	case PREV_PAD_SOURCE:
 		pixelcode = fmt->code;
-		*fmt = *__preview_get_format(prev, fh, PREV_PAD_SINK, which);
+		*fmt = *__preview_get_format(prev, cfg, PREV_PAD_SINK, which);
 
 		switch (pixelcode) {
-		case V4L2_MBUS_FMT_YUYV8_1X16:
-		case V4L2_MBUS_FMT_UYVY8_1X16:
+		case MEDIA_BUS_FMT_YUYV8_1X16:
+		case MEDIA_BUS_FMT_UYVY8_1X16:
 			fmt->code = pixelcode;
 			break;
 
 		default:
-			fmt->code = V4L2_MBUS_FMT_YUYV8_1X16;
+			fmt->code = MEDIA_BUS_FMT_YUYV8_1X16;
 			break;
 		}
 
@@ -1797,7 +1795,7 @@ static void preview_try_format(struct isp_prev_device *prev,
 		 * is not supported yet, hardcode the output size to the crop
 		 * rectangle size.
 		 */
-		crop = __preview_get_crop(prev, fh, which);
+		crop = __preview_get_crop(prev, cfg, which);
 		fmt->width = crop->width;
 		fmt->height = crop->height;
 
@@ -1843,8 +1841,8 @@ static void preview_try_crop(struct isp_prev_device *prev,
 	 * and no columns in other modes. Increase the margins based on the sink
 	 * format.
 	 */
-	if (sink->code != V4L2_MBUS_FMT_Y8_1X8 &&
-	    sink->code != V4L2_MBUS_FMT_Y10_1X10) {
+	if (sink->code != MEDIA_BUS_FMT_Y8_1X8 &&
+	    sink->code != MEDIA_BUS_FMT_Y10_1X10) {
 		left += 2;
 		right -= 2;
 		top += 2;
@@ -1866,12 +1864,12 @@ static void preview_try_crop(struct isp_prev_device *prev,
 /*
  * preview_enum_mbus_code - Handle pixel format enumeration
  * @sd     : pointer to v4l2 subdev structure
- * @fh     : V4L2 subdev file handle
+ * @cfg: V4L2 subdev pad configuration
  * @code   : pointer to v4l2_subdev_mbus_code_enum structure
  * return -EINVAL or zero on success
  */
 static int preview_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_fh *fh,
+				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	switch (code->pad) {
@@ -1895,7 +1893,7 @@ static int preview_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int preview_enum_frame_size(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_fh *fh,
+				   struct v4l2_subdev_pad_config *cfg,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct isp_prev_device *prev = v4l2_get_subdevdata(sd);
@@ -1907,7 +1905,7 @@ static int preview_enum_frame_size(struct v4l2_subdev *sd,
 	format.code = fse->code;
 	format.width = 1;
 	format.height = 1;
-	preview_try_format(prev, fh, fse->pad, &format, V4L2_SUBDEV_FORMAT_TRY);
+	preview_try_format(prev, cfg, fse->pad, &format, fse->which);
 	fse->min_width = format.width;
 	fse->min_height = format.height;
 
@@ -1917,7 +1915,7 @@ static int preview_enum_frame_size(struct v4l2_subdev *sd,
 	format.code = fse->code;
 	format.width = -1;
 	format.height = -1;
-	preview_try_format(prev, fh, fse->pad, &format, V4L2_SUBDEV_FORMAT_TRY);
+	preview_try_format(prev, cfg, fse->pad, &format, fse->which);
 	fse->max_width = format.width;
 	fse->max_height = format.height;
 
@@ -1927,7 +1925,7 @@ static int preview_enum_frame_size(struct v4l2_subdev *sd,
 /*
  * preview_get_selection - Retrieve a selection rectangle on a pad
  * @sd: ISP preview V4L2 subdevice
- * @fh: V4L2 subdev file handle
+ * @cfg: V4L2 subdev pad configuration
  * @sel: Selection rectangle
  *
  * The only supported rectangles are the crop rectangles on the sink pad.
@@ -1935,7 +1933,7 @@ static int preview_enum_frame_size(struct v4l2_subdev *sd,
  * Return 0 on success or a negative error code otherwise.
  */
 static int preview_get_selection(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_fh *fh,
+				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_selection *sel)
 {
 	struct isp_prev_device *prev = v4l2_get_subdevdata(sd);
@@ -1951,13 +1949,13 @@ static int preview_get_selection(struct v4l2_subdev *sd,
 		sel->r.width = INT_MAX;
 		sel->r.height = INT_MAX;
 
-		format = __preview_get_format(prev, fh, PREV_PAD_SINK,
+		format = __preview_get_format(prev, cfg, PREV_PAD_SINK,
 					      sel->which);
 		preview_try_crop(prev, format, &sel->r);
 		break;
 
 	case V4L2_SEL_TGT_CROP:
-		sel->r = *__preview_get_crop(prev, fh, sel->which);
+		sel->r = *__preview_get_crop(prev, cfg, sel->which);
 		break;
 
 	default:
@@ -1970,7 +1968,7 @@ static int preview_get_selection(struct v4l2_subdev *sd,
 /*
  * preview_set_selection - Set a selection rectangle on a pad
  * @sd: ISP preview V4L2 subdevice
- * @fh: V4L2 subdev file handle
+ * @cfg: V4L2 subdev pad configuration
  * @sel: Selection rectangle
  *
  * The only supported rectangle is the actual crop rectangle on the sink pad.
@@ -1978,7 +1976,7 @@ static int preview_get_selection(struct v4l2_subdev *sd,
  * Return 0 on success or a negative error code otherwise.
  */
 static int preview_set_selection(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_fh *fh,
+				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_selection *sel)
 {
 	struct isp_prev_device *prev = v4l2_get_subdevdata(sd);
@@ -1997,17 +1995,17 @@ static int preview_set_selection(struct v4l2_subdev *sd,
 	 * rectangle.
 	 */
 	if (sel->flags & V4L2_SEL_FLAG_KEEP_CONFIG) {
-		sel->r = *__preview_get_crop(prev, fh, sel->which);
+		sel->r = *__preview_get_crop(prev, cfg, sel->which);
 		return 0;
 	}
 
-	format = __preview_get_format(prev, fh, PREV_PAD_SINK, sel->which);
+	format = __preview_get_format(prev, cfg, PREV_PAD_SINK, sel->which);
 	preview_try_crop(prev, format, &sel->r);
-	*__preview_get_crop(prev, fh, sel->which) = sel->r;
+	*__preview_get_crop(prev, cfg, sel->which) = sel->r;
 
 	/* Update the source format. */
-	format = __preview_get_format(prev, fh, PREV_PAD_SOURCE, sel->which);
-	preview_try_format(prev, fh, PREV_PAD_SOURCE, format, sel->which);
+	format = __preview_get_format(prev, cfg, PREV_PAD_SOURCE, sel->which);
+	preview_try_format(prev, cfg, PREV_PAD_SOURCE, format, sel->which);
 
 	return 0;
 }
@@ -2015,17 +2013,17 @@ static int preview_set_selection(struct v4l2_subdev *sd,
 /*
  * preview_get_format - Handle get format by pads subdev method
  * @sd : pointer to v4l2 subdev structure
- * @fh : V4L2 subdev file handle
+ * @cfg: V4L2 subdev pad configuration
  * @fmt: pointer to v4l2 subdev format structure
  * return -EINVAL or zero on success
  */
-static int preview_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+static int preview_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 			      struct v4l2_subdev_format *fmt)
 {
 	struct isp_prev_device *prev = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	format = __preview_get_format(prev, fh, fmt->pad, fmt->which);
+	format = __preview_get_format(prev, cfg, fmt->pad, fmt->which);
 	if (format == NULL)
 		return -EINVAL;
 
@@ -2036,28 +2034,28 @@ static int preview_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 /*
  * preview_set_format - Handle set format by pads subdev method
  * @sd : pointer to v4l2 subdev structure
- * @fh : V4L2 subdev file handle
+ * @cfg: V4L2 subdev pad configuration
  * @fmt: pointer to v4l2 subdev format structure
  * return -EINVAL or zero on success
  */
-static int preview_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+static int preview_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 			      struct v4l2_subdev_format *fmt)
 {
 	struct isp_prev_device *prev = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *crop;
 
-	format = __preview_get_format(prev, fh, fmt->pad, fmt->which);
+	format = __preview_get_format(prev, cfg, fmt->pad, fmt->which);
 	if (format == NULL)
 		return -EINVAL;
 
-	preview_try_format(prev, fh, fmt->pad, &fmt->format, fmt->which);
+	preview_try_format(prev, cfg, fmt->pad, &fmt->format, fmt->which);
 	*format = fmt->format;
 
 	/* Propagate the format from sink to source */
 	if (fmt->pad == PREV_PAD_SINK) {
 		/* Reset the crop rectangle. */
-		crop = __preview_get_crop(prev, fh, fmt->which);
+		crop = __preview_get_crop(prev, cfg, fmt->which);
 		crop->left = 0;
 		crop->top = 0;
 		crop->width = fmt->format.width;
@@ -2066,9 +2064,9 @@ static int preview_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 		preview_try_crop(prev, &fmt->format, crop);
 
 		/* Update the source format. */
-		format = __preview_get_format(prev, fh, PREV_PAD_SOURCE,
+		format = __preview_get_format(prev, cfg, PREV_PAD_SOURCE,
 					      fmt->which);
-		preview_try_format(prev, fh, PREV_PAD_SOURCE, format,
+		preview_try_format(prev, cfg, PREV_PAD_SOURCE, format,
 				   fmt->which);
 	}
 
@@ -2092,10 +2090,10 @@ static int preview_init_formats(struct v4l2_subdev *sd,
 	memset(&format, 0, sizeof(format));
 	format.pad = PREV_PAD_SINK;
 	format.which = fh ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
-	format.format.code = V4L2_MBUS_FMT_SGRBG10_1X10;
+	format.format.code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	format.format.width = 4096;
 	format.format.height = 4096;
-	preview_set_format(sd, fh, &format);
+	preview_set_format(sd, fh ? fh->pad : NULL, &format);
 
 	return 0;
 }

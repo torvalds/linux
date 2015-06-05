@@ -1,0 +1,34 @@
+Elantech I2C Touchpad
+
+Required properties:
+- compatible: must be "elan,ekth3000".
+- reg: I2C address of the chip.
+- interrupt-parent: a phandle for the interrupt controller (see interrupt
+  binding[0]).
+- interrupts: interrupt to which the chip is connected (see interrupt
+  binding[0]).
+
+Optional properties:
+- wakeup-source: touchpad can be used as a wakeup source.
+- pinctrl-names: should be "default" (see pinctrl binding [1]).
+- pinctrl-0: a phandle pointing to the pin settings for the device (see
+  pinctrl binding [1]).
+- vcc-supply: a phandle for the regulator supplying 3.3V power.
+
+[0]: Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
+[1]: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
+
+Example:
+	&i2c1 {
+		/* ... */
+
+		touchpad@15 {
+			compatible = "elan,ekth3000";
+			reg = <0x15>;
+			interrupt-parent = <&gpio4>;
+			interrupts = <0x0 IRQ_TYPE_EDGE_FALLING>;
+			wakeup-source;
+		};
+
+		/* ... */
+	};

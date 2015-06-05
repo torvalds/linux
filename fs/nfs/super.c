@@ -43,7 +43,6 @@
 #include <linux/seq_file.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
-#include <linux/nfs_idmap.h>
 #include <linux/vfs.h>
 #include <linux/inet.h>
 #include <linux/in6.h>
@@ -311,7 +310,6 @@ const struct super_operations nfs_sops = {
 	.destroy_inode	= nfs_destroy_inode,
 	.write_inode	= nfs_write_inode,
 	.drop_inode	= nfs_drop_inode,
-	.put_super	= nfs_put_super,
 	.statfs		= nfs_statfs,
 	.evict_inode	= nfs_evict_inode,
 	.umount_begin	= nfs_umount_begin,
@@ -405,12 +403,15 @@ void __exit unregister_nfs_fs(void)
 	unregister_filesystem(&nfs_fs_type);
 }
 
-void nfs_sb_active(struct super_block *sb)
+bool nfs_sb_active(struct super_block *sb)
 {
 	struct nfs_server *server = NFS_SB(sb);
 
-	if (atomic_inc_return(&server->active) == 1)
-		atomic_inc(&sb->s_active);
+	if (!atomic_inc_not_zero(&sb->s_active))
+		return false;
+	if (atomic_inc_return(&server->active) != 1)
+		atomic_dec(&sb->s_active);
+	return true;
 }
 EXPORT_SYMBOL_GPL(nfs_sb_active);
 
@@ -431,7 +432,7 @@ int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct nfs_server *server = NFS_SB(dentry->d_sb);
 	unsigned char blockbits;
 	unsigned long blockres;
-	struct nfs_fh *fh = NFS_FH(dentry->d_inode);
+	struct nfs_fh *fh = NFS_FH(d_inode(dentry));
 	struct nfs_fsstat res;
 	int error = -ENOMEM;
 
@@ -445,7 +446,7 @@ int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 		pd_dentry = dget_parent(dentry);
 		if (pd_dentry != NULL) {
-			nfs_zap_caches(pd_dentry->d_inode);
+			nfs_zap_caches(d_inode(pd_dentry));
 			dput(pd_dentry);
 		}
 	}
@@ -2191,7 +2192,7 @@ nfs_compare_remount_data(struct nfs_server *nfss,
 	    data->version != nfss->nfs_client->rpc_ops->version ||
 	    data->minorversion != nfss->nfs_client->cl_minorversion ||
 	    data->retrans != nfss->client->cl_timeout->to_retries ||
-	    data->selected_flavor != nfss->client->cl_auth->au_flavor ||
+	    !nfs_auth_info_match(&data->auth_info, nfss->client->cl_auth->au_flavor) ||
 	    data->acregmin != nfss->acregmin / HZ ||
 	    data->acregmax != nfss->acregmax / HZ ||
 	    data->acdirmin != nfss->acdirmin / HZ ||
@@ -2239,7 +2240,6 @@ nfs_remount(struct super_block *sb, int *flags, char *raw_data)
 	data->wsize = nfss->wsize;
 	data->retrans = nfss->client->cl_timeout->to_retries;
 	data->selected_flavor = nfss->client->cl_auth->au_flavor;
-	data->auth_info = nfss->auth_info;
 	data->acregmin = nfss->acregmin / HZ;
 	data->acregmax = nfss->acregmax / HZ;
 	data->acdirmin = nfss->acdirmin / HZ;
@@ -2524,7 +2524,7 @@ int nfs_clone_sb_security(struct super_block *s, struct dentry *mntroot,
 			  struct nfs_mount_info *mount_info)
 {
 	/* clone any lsm security options from the parent to the new sb */
-	if (mntroot->d_inode->i_op != NFS_SB(s)->nfs_client->rpc_ops->dir_inode_ops)
+	if (d_inode(mntroot)->i_op != NFS_SB(s)->nfs_client->rpc_ops->dir_inode_ops)
 		return -ESTALE;
 	return security_sb_clone_mnt_opts(mount_info->cloned->sb, s);
 }
@@ -2569,7 +2569,7 @@ struct dentry *nfs_fs_mount_common(struct nfs_server *server,
 		error = nfs_bdi_register(server);
 		if (error) {
 			mntroot = ERR_PTR(error);
-			goto error_splat_bdi;
+			goto error_splat_super;
 		}
 		server->super = s;
 	}
@@ -2601,9 +2601,6 @@ error_splat_root:
 	dput(mntroot);
 	mntroot = ERR_PTR(error);
 error_splat_super:
-	if (server && !s->s_root)
-		bdi_unregister(&server->backing_dev_info);
-error_splat_bdi:
 	deactivate_locked_super(s);
 	goto out;
 }
@@ -2651,27 +2648,19 @@ out:
 EXPORT_SYMBOL_GPL(nfs_fs_mount);
 
 /*
- * Ensure that we unregister the bdi before kill_anon_super
- * releases the device name
- */
-void nfs_put_super(struct super_block *s)
-{
-	struct nfs_server *server = NFS_SB(s);
-
-	bdi_unregister(&server->backing_dev_info);
-}
-EXPORT_SYMBOL_GPL(nfs_put_super);
-
-/*
  * Destroy an NFS2/3 superblock
  */
 void nfs_kill_super(struct super_block *s)
 {
 	struct nfs_server *server = NFS_SB(s);
+	dev_t dev = s->s_dev;
 
-	kill_anon_super(s);
+	generic_shutdown_super(s);
+
 	nfs_fscache_release_super_cookie(s);
+
 	nfs_free_server(server);
+	free_anon_bdev(dev);
 }
 EXPORT_SYMBOL_GPL(nfs_kill_super);
 

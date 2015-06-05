@@ -12,7 +12,7 @@ ifeq ($(CROSS_COMPILE),)
 CROSS_COMPILE := arc-linux-uclibc-
 endif
 
-KBUILD_DEFCONFIG := fpga_defconfig
+KBUILD_DEFCONFIG := nsim_700_defconfig
 
 cflags-y	+= -mA7 -fno-common -pipe -fno-builtin -D__linux__
 

@@ -73,11 +73,8 @@ void rv370_pcie_gart_tlb_flush(struct radeon_device *rdev)
 #define R300_PTE_WRITEABLE (1 << 2)
 #define R300_PTE_READABLE  (1 << 3)
 
-void rv370_pcie_gart_set_page(struct radeon_device *rdev, unsigned i,
-			      uint64_t addr, uint32_t flags)
+uint64_t rv370_pcie_gart_get_page_entry(uint64_t addr, uint32_t flags)
 {
-	void __iomem *ptr = rdev->gart.ptr;
-
 	addr = (lower_32_bits(addr) >> 8) |
 		((upper_32_bits(addr) & 0xff) << 24);
 	if (flags & RADEON_GART_PAGE_READ)
@@ -86,10 +83,18 @@ void rv370_pcie_gart_set_page(struct radeon_device *rdev, unsigned i,
 		addr |= R300_PTE_WRITEABLE;
 	if (!(flags & RADEON_GART_PAGE_SNOOP))
 		addr |= R300_PTE_UNSNOOPED;
+	return addr;
+}
+
+void rv370_pcie_gart_set_page(struct radeon_device *rdev, unsigned i,
+			      uint64_t entry)
+{
+	void __iomem *ptr = rdev->gart.ptr;
+
 	/* on x86 we want this to be CPU endian, on powerpc
 	 * on powerpc without HW swappers, it'll get swapped on way
 	 * into VRAM - so no need for cpu_to_le32 on VRAM tables */
-	writel(addr, ((void __iomem *)ptr) + (i * 4));
+	writel(entry, ((void __iomem *)ptr) + (i * 4));
 }
 
 int rv370_pcie_gart_init(struct radeon_device *rdev)
@@ -109,6 +114,7 @@ int rv370_pcie_gart_init(struct radeon_device *rdev)
 		DRM_ERROR("Failed to register debugfs file for PCIE gart !\n");
 	rdev->gart.table_size = rdev->gart.num_gpu_pages * 4;
 	rdev->asic->gart.tlb_flush = &rv370_pcie_gart_tlb_flush;
+	rdev->asic->gart.get_page_entry = &rv370_pcie_gart_get_page_entry;
 	rdev->asic->gart.set_page = &rv370_pcie_gart_set_page;
 	return radeon_gart_table_vram_alloc(rdev);
 }
@@ -598,7 +604,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		struct radeon_cs_packet *pkt,
 		unsigned idx, unsigned reg)
 {
-	struct radeon_cs_reloc *reloc;
+	struct radeon_bo_list *reloc;
 	struct r100_cs_track *track;
 	volatile uint32_t *ib;
 	uint32_t tmp, tile_flags = 0;
@@ -1142,7 +1148,7 @@ fail:
 static int r300_packet3_check(struct radeon_cs_parser *p,
 			      struct radeon_cs_packet *pkt)
 {
-	struct radeon_cs_reloc *reloc;
+	struct radeon_bo_list *reloc;
 	struct r100_cs_track *track;
 	volatile uint32_t *ib;
 	unsigned idx;
@@ -1283,7 +1289,7 @@ int r300_cs_parse(struct radeon_cs_parser *p)
 		if (r) {
 			return r;
 		}
-	} while (p->idx < p->chunks[p->chunk_ib_idx].length_dw);
+	} while (p->idx < p->chunk_ib->length_dw);
 	return 0;
 }
 

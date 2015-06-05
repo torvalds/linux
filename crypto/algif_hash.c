@@ -34,15 +34,13 @@ struct hash_ctx {
 	struct ahash_request req;
 };
 
-static int hash_sendmsg(struct kiocb *unused, struct socket *sock,
-			struct msghdr *msg, size_t ignored)
+static int hash_sendmsg(struct socket *sock, struct msghdr *msg,
+			size_t ignored)
 {
 	int limit = ALG_MAX_PAGES * PAGE_SIZE;
 	struct sock *sk = sock->sk;
 	struct alg_sock *ask = alg_sk(sk);
 	struct hash_ctx *ctx = ask->private;
-	unsigned long iovlen;
-	struct iovec *iov;
 	long copied = 0;
 	int err;
 
@@ -58,37 +56,28 @@ static int hash_sendmsg(struct kiocb *unused, struct socket *sock,
 
 	ctx->more = 0;
 
-	for (iov = msg->msg_iov, iovlen = msg->msg_iovlen; iovlen > 0;
-	     iovlen--, iov++) {
-		unsigned long seglen = iov->iov_len;
-		char __user *from = iov->iov_base;
+	while (msg_data_left(msg)) {
+		int len = msg_data_left(msg);
 
-		while (seglen) {
-			int len = min_t(unsigned long, seglen, limit);
-			int newlen;
+		if (len > limit)
+			len = limit;
 
-			newlen = af_alg_make_sg(&ctx->sgl, from, len, 0);
-			if (newlen < 0) {
-				err = copied ? 0 : newlen;
-				goto unlock;
-			}
-
-			ahash_request_set_crypt(&ctx->req, ctx->sgl.sg, NULL,
-						newlen);
-
-			err = af_alg_wait_for_completion(
-				crypto_ahash_update(&ctx->req),
-				&ctx->completion);
-
-			af_alg_free_sg(&ctx->sgl);
-
-			if (err)
-				goto unlock;
-
-			seglen -= newlen;
-			from += newlen;
-			copied += newlen;
+		len = af_alg_make_sg(&ctx->sgl, &msg->msg_iter, len);
+		if (len < 0) {
+			err = copied ? 0 : len;
+			goto unlock;
 		}
+
+		ahash_request_set_crypt(&ctx->req, ctx->sgl.sg, NULL, len);
+
+		err = af_alg_wait_for_completion(crypto_ahash_update(&ctx->req),
+						 &ctx->completion);
+		af_alg_free_sg(&ctx->sgl);
+		if (err)
+			goto unlock;
+
+		copied += len;
+		iov_iter_advance(&msg->msg_iter, len);
 	}
 
 	err = 0;
@@ -150,8 +139,8 @@ unlock:
 	return err ?: size;
 }
 
-static int hash_recvmsg(struct kiocb *unused, struct socket *sock,
-			struct msghdr *msg, size_t len, int flags)
+static int hash_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
+			int flags)
 {
 	struct sock *sk = sock->sk;
 	struct alg_sock *ask = alg_sk(sk);
@@ -174,7 +163,7 @@ static int hash_recvmsg(struct kiocb *unused, struct socket *sock,
 			goto unlock;
 	}
 
-	err = memcpy_toiovec(msg->msg_iov, ctx->result, len);
+	err = memcpy_to_msg(msg, ctx->result, len);
 
 unlock:
 	release_sock(sk);
@@ -258,8 +247,8 @@ static void hash_sock_destruct(struct sock *sk)
 	struct alg_sock *ask = alg_sk(sk);
 	struct hash_ctx *ctx = ask->private;
 
-	sock_kfree_s(sk, ctx->result,
-		     crypto_ahash_digestsize(crypto_ahash_reqtfm(&ctx->req)));
+	sock_kzfree_s(sk, ctx->result,
+		      crypto_ahash_digestsize(crypto_ahash_reqtfm(&ctx->req)));
 	sock_kfree_s(sk, ctx, ctx->len);
 	af_alg_release_parent(sk);
 }

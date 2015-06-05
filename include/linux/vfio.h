@@ -14,6 +14,8 @@
 
 #include <linux/iommu.h>
 #include <linux/mm.h>
+#include <linux/workqueue.h>
+#include <linux/poll.h>
 #include <uapi/linux/vfio.h>
 
 /**
@@ -26,6 +28,7 @@
  * @ioctl: Perform ioctl(2) on device file descriptor, supporting VFIO_DEVICE_*
  *         operations documented below
  * @mmap: Perform mmap(2) on a region of the device file descriptor
+ * @request: Request for the bus driver to release the device
  */
 struct vfio_device_ops {
 	char	*name;
@@ -38,6 +41,7 @@ struct vfio_device_ops {
 	long	(*ioctl)(void *device_data, unsigned int cmd,
 			 unsigned long arg);
 	int	(*mmap)(void *device_data, struct vm_area_struct *vma);
+	void	(*request)(void *device_data, unsigned int count);
 };
 
 extern int vfio_add_group_dev(struct device *dev,
@@ -76,19 +80,6 @@ extern int vfio_register_iommu_driver(const struct vfio_iommu_driver_ops *ops);
 extern void vfio_unregister_iommu_driver(
 				const struct vfio_iommu_driver_ops *ops);
 
-/**
- * offsetofend(TYPE, MEMBER)
- *
- * @TYPE: The type of the structure
- * @MEMBER: The member within the structure to get the end offset of
- *
- * Simple helper macro for dealing with variable sized structures passed
- * from user space.  This allows us to easily determine if the provided
- * structure is sized to include various fields.
- */
-#define offsetofend(TYPE, MEMBER) \
-	(offsetof(TYPE, MEMBER)	+ sizeof(((TYPE *)0)->MEMBER))
-
 /*
  * External user API
  */
@@ -121,4 +112,27 @@ static inline long vfio_spapr_iommu_eeh_ioctl(struct iommu_group *group,
 	return -ENOTTY;
 }
 #endif /* CONFIG_EEH */
+
+/*
+ * IRQfd - generic
+ */
+struct virqfd {
+	void			*opaque;
+	struct eventfd_ctx	*eventfd;
+	int			(*handler)(void *, void *);
+	void			(*thread)(void *, void *);
+	void			*data;
+	struct work_struct	inject;
+	wait_queue_t		wait;
+	poll_table		pt;
+	struct work_struct	shutdown;
+	struct virqfd		**pvirqfd;
+};
+
+extern int vfio_virqfd_enable(void *opaque,
+			      int (*handler)(void *, void *),
+			      void (*thread)(void *, void *),
+			      void *data, struct virqfd **pvirqfd, int fd);
+extern void vfio_virqfd_disable(struct virqfd **pvirqfd);
+
 #endif /* VFIO_H */

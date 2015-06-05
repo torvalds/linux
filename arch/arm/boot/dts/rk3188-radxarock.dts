@@ -43,16 +43,19 @@
 		compatible = "gpio-leds";
 
 		green {
+			label = "rock:green:user1";
 			gpios = <&gpio0 12 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
-		yellow {
+		blue {
+			label = "rock:blue:user2";
 			gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
 		sleep {
+			label = "rock:red:power";
 			gpios = <&gpio0 15 0>;
 			default-state = "off";
 		};
@@ -100,6 +103,14 @@
 		regulator-always-on;
 		regulator-boot-on;
 	};
+
+	vsys: vsys-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vsys";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+	};
 };
 
 &emac {
@@ -116,6 +127,10 @@
 		interrupt-parent = <&gpio3>;
 		interrupts = <26 IRQ_TYPE_LEVEL_LOW>;
 	};
+};
+
+&cpu0 {
+	cpu0-supply = <&vdd_arm>;
 };
 
 &i2c1 {
@@ -141,6 +156,14 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&act8846_dvs0_ctl>;
 
+		vp1-supply = <&vsys>;
+		vp2-supply = <&vsys>;
+		vp3-supply = <&vsys>;
+		vp4-supply = <&vsys>;
+		inl1-supply = <&vcc_io>;
+		inl2-supply = <&vsys>;
+		inl3-supply = <&vsys>;
+
 		regulators {
 			vcc_ddr: REG1 {
 				regulator-name = "VCC_DDR";
@@ -159,7 +182,7 @@
 			vdd_arm: REG3 {
 				regulator-name = "VDD_ARM";
 				regulator-min-microvolt = <875000>;
-				regulator-max-microvolt = <1300000>;
+				regulator-max-microvolt = <1350000>;
 				regulator-always-on;
 			};
 
@@ -237,6 +260,18 @@
 
 	bus-width = <4>;
 	disable-wp;
+};
+
+&pwm1 {
+	status = "okay";
+};
+
+&pwm2 {
+	status = "okay";
+};
+
+&pwm3 {
+	status = "okay";
 };
 
 &pinctrl {

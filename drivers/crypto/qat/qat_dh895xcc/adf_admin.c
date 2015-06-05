@@ -93,7 +93,8 @@ int adf_put_admin_msg_sync(struct adf_accel_dev *accel_dev,
 		memcpy(out, admin->virt_addr + offset +
 		       ADF_ADMINMSG_LEN, ADF_ADMINMSG_LEN);
 	else
-		pr_err("QAT: Failed to send admin msg to accelerator\n");
+		dev_err(&GET_DEV(accel_dev),
+			"Failed to send admin msg to accelerator\n");
 
 	mutex_unlock(&admin->lock);
 	return received ? 0 : -EFAULT;
@@ -108,7 +109,7 @@ int adf_init_admin_comms(struct adf_accel_dev *accel_dev)
 	uint64_t reg_val;
 
 	admin = kzalloc_node(sizeof(*accel_dev->admin), GFP_KERNEL,
-			     accel_dev->numa_node);
+			     dev_to_node(&GET_DEV(accel_dev)));
 	if (!admin)
 		return -ENOMEM;
 	admin->virt_addr = dma_zalloc_coherent(&GET_DEV(accel_dev), PAGE_SIZE,

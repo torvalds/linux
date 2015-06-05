@@ -83,6 +83,7 @@ enum {
 #define PSB_PGETBL_CTL		 0x2020
 #define _PSB_PGETBL_ENABLED	 0x00000001
 #define PSB_SGX_2D_SLAVE_PORT	 0x4000
+#define PSB_LPC_GBA		 0x44
 
 /* TODO: To get rid of */
 #define PSB_TT_PRIV0_LIMIT	 (256*1024*1024)
@@ -441,6 +442,7 @@ struct psb_ops;
 struct drm_psb_private {
 	struct drm_device *dev;
 	struct pci_dev *aux_pdev; /* Currently only used by mrst */
+	struct pci_dev *lpc_pdev; /* Currently only used by mrst */
 	const struct psb_ops *ops;
 	const struct psb_offset *regmap;
 	
@@ -470,6 +472,7 @@ struct drm_psb_private {
 	uint8_t __iomem *sgx_reg;
 	uint8_t __iomem *vdc_reg;
 	uint8_t __iomem *aux_reg; /* Auxillary vdc pipe regs */
+	uint16_t lpc_gpio_base;
 	uint32_t gatt_free_offset;
 
 	/* Fencing / irq */

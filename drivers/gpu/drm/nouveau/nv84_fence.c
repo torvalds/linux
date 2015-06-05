@@ -213,8 +213,9 @@ nv84_fence_destroy(struct nouveau_drm *drm)
 int
 nv84_fence_create(struct nouveau_drm *drm)
 {
-	struct nouveau_fifo *pfifo = nvkm_fifo(&drm->device);
+	struct nvkm_fifo *pfifo = nvxx_fifo(&drm->device);
 	struct nv84_fence_priv *priv;
+	u32 domain;
 	int ret;
 
 	priv = drm->fence = kzalloc(sizeof(*priv), GFP_KERNEL);
@@ -231,10 +232,17 @@ nv84_fence_create(struct nouveau_drm *drm)
 	priv->base.context_base = fence_context_alloc(priv->base.contexts);
 	priv->base.uevent = true;
 
-	ret = nouveau_bo_new(drm->dev, 16 * priv->base.contexts, 0,
-			     TTM_PL_FLAG_VRAM, 0, 0, NULL, NULL, &priv->bo);
+	/* Use VRAM if there is any ; otherwise fallback to system memory */
+	domain = drm->device.info.ram_size != 0 ? TTM_PL_FLAG_VRAM :
+			 /*
+			  * fences created in sysmem must be non-cached or we
+			  * will lose CPU/GPU coherency!
+			  */
+			 TTM_PL_FLAG_TT | TTM_PL_FLAG_UNCACHED;
+	ret = nouveau_bo_new(drm->dev, 16 * priv->base.contexts, 0, domain, 0,
+			     0, NULL, NULL, &priv->bo);
 	if (ret == 0) {
-		ret = nouveau_bo_pin(priv->bo, TTM_PL_FLAG_VRAM);
+		ret = nouveau_bo_pin(priv->bo, domain, false);
 		if (ret == 0) {
 			ret = nouveau_bo_map(priv->bo);
 			if (ret)
@@ -246,10 +254,10 @@ nv84_fence_create(struct nouveau_drm *drm)
 
 	if (ret == 0)
 		ret = nouveau_bo_new(drm->dev, 16 * priv->base.contexts, 0,
-				     TTM_PL_FLAG_TT, 0, 0, NULL, NULL,
-				     &priv->bo_gart);
+				     TTM_PL_FLAG_TT | TTM_PL_FLAG_UNCACHED, 0,
+				     0, NULL, NULL, &priv->bo_gart);
 	if (ret == 0) {
-		ret = nouveau_bo_pin(priv->bo_gart, TTM_PL_FLAG_TT);
+		ret = nouveau_bo_pin(priv->bo_gart, TTM_PL_FLAG_TT, false);
 		if (ret == 0) {
 			ret = nouveau_bo_map(priv->bo_gart);
 			if (ret)

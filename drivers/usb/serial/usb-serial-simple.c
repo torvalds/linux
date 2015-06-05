@@ -56,6 +56,14 @@ DEVICE(funsoft, FUNSOFT_IDS);
 	{ USB_DEVICE(0x8087, 0x0716) }
 DEVICE(flashloader, FLASHLOADER_IDS);
 
+/* Google Serial USB SubClass */
+#define GOOGLE_IDS()						\
+	{ USB_VENDOR_AND_INTERFACE_INFO(0x18d1,			\
+					USB_CLASS_VENDOR_SPEC,	\
+					0x50,			\
+					0x01) }
+DEVICE(google, GOOGLE_IDS);
+
 /* ViVOpay USB Serial Driver */
 #define VIVOPAY_IDS()			\
 	{ USB_DEVICE(0x1d5f, 0x1004) }	/* ViVOpay 8800 */
@@ -64,7 +72,7 @@ DEVICE(vivopay, VIVOPAY_IDS);
 /* Motorola USB Phone driver */
 #define MOTO_IDS()			\
 	{ USB_DEVICE(0x05c6, 0x3197) },	/* unknown Motorola phone */	\
-	{ USB_DEVICE(0x0c44, 0x0022) },	/* unknown Mororola phone */	\
+	{ USB_DEVICE(0x0c44, 0x0022) },	/* unknown Motorola phone */	\
 	{ USB_DEVICE(0x22b8, 0x2a64) },	/* Motorola KRZR K1m */		\
 	{ USB_DEVICE(0x22b8, 0x2c84) },	/* Motorola VE240 phone */	\
 	{ USB_DEVICE(0x22b8, 0x2c64) }	/* Motorola V950 phone */
@@ -97,6 +105,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&zio_device,
 	&funsoft_device,
 	&flashloader_device,
+	&google_device,
 	&vivopay_device,
 	&moto_modem_device,
 	&novatel_gps_device,
@@ -111,6 +120,7 @@ static const struct usb_device_id id_table[] = {
 	ZIO_IDS(),
 	FUNSOFT_IDS(),
 	FLASHLOADER_IDS(),
+	GOOGLE_IDS(),
 	VIVOPAY_IDS(),
 	MOTO_IDS(),
 	NOVATEL_IDS(),

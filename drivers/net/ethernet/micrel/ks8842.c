@@ -1255,7 +1255,6 @@ static int ks8842_remove(struct platform_device *pdev)
 static struct platform_driver ks8842_platform_driver = {
 	.driver = {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ks8842_probe,
 	.remove		= ks8842_remove,

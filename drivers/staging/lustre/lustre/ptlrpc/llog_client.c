@@ -334,8 +334,7 @@ static int llog_client_read_header(const struct lu_env *env,
 		       llh_hdr->lrh_type, LLOG_HDR_MAGIC);
 		rc = -EIO;
 	} else if (llh_hdr->lrh_len != LLOG_CHUNK_SIZE) {
-		CERROR("incorrectly sized log header: %#x "
-		       "(expecting %#x)\n",
+		CERROR("incorrectly sized log header: %#x (expecting %#x)\n",
 		       llh_hdr->lrh_len, LLOG_CHUNK_SIZE);
 		CERROR("you may need to re-run lconf --write_conf.\n");
 		rc = -EIO;

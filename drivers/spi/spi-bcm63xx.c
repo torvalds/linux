@@ -13,10 +13,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
  */
 
 #include <linux/kernel.h>
@@ -469,7 +465,6 @@ static const struct dev_pm_ops bcm63xx_spi_pm_ops = {
 static struct platform_driver bcm63xx_spi_driver = {
 	.driver = {
 		.name	= "bcm63xx-spi",
-		.owner	= THIS_MODULE,
 		.pm	= &bcm63xx_spi_pm_ops,
 	},
 	.probe		= bcm63xx_spi_probe,

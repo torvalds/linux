@@ -29,13 +29,20 @@
 
 #include "core.h"
 #include "host.h"
+#include "slot-gpio.h"
+#include "pwrseq.h"
 
 #define cls_dev_to_mmc_host(d)	container_of(d, struct mmc_host, class_dev)
+
+static DEFINE_IDR(mmc_host_idr);
+static DEFINE_SPINLOCK(mmc_host_lock);
 
 static void mmc_host_classdev_release(struct device *dev)
 {
 	struct mmc_host *host = cls_dev_to_mmc_host(dev);
-	mutex_destroy(&host->slot.lock);
+	spin_lock(&mmc_host_lock);
+	idr_remove(&mmc_host_idr, host->index);
+	spin_unlock(&mmc_host_lock);
 	kfree(host);
 }
 
@@ -53,9 +60,6 @@ void mmc_unregister_host_class(void)
 {
 	class_unregister(&mmc_host_class);
 }
-
-static DEFINE_IDR(mmc_host_idr);
-static DEFINE_SPINLOCK(mmc_host_lock);
 
 #ifdef CONFIG_MMC_CLKGATE
 static ssize_t clkgate_delay_show(struct device *dev,
@@ -311,7 +315,8 @@ int mmc_of_parse(struct mmc_host *host)
 	struct device_node *np;
 	u32 bus_width;
 	int len, ret;
-	bool cap_invert, gpio_invert;
+	bool cd_cap_invert, cd_gpio_invert = false;
+	bool ro_cap_invert, ro_gpio_invert = false;
 
 	if (!host->parent || !host->parent->of_node)
 		return 0;
@@ -359,26 +364,17 @@ int mmc_of_parse(struct mmc_host *host)
 	if (of_find_property(np, "non-removable", &len)) {
 		host->caps |= MMC_CAP_NONREMOVABLE;
 	} else {
-		if (of_property_read_bool(np, "cd-inverted"))
-			cap_invert = true;
-		else
-			cap_invert = false;
+		cd_cap_invert = of_property_read_bool(np, "cd-inverted");
 
 		if (of_find_property(np, "broken-cd", &len))
 			host->caps |= MMC_CAP_NEEDS_POLL;
 
 		ret = mmc_gpiod_request_cd(host, "cd", 0, true,
-					   0, &gpio_invert);
-		if (ret) {
-			if (ret == -EPROBE_DEFER)
-				return ret;
-			if (ret != -ENOENT) {
-				dev_err(host->parent,
-					"Failed to request CD GPIO: %d\n",
-					ret);
-			}
-		} else
+					   0, &cd_gpio_invert);
+		if (!ret)
 			dev_info(host->parent, "Got CD GPIO\n");
+		else if (ret != -ENOENT)
+			return ret;
 
 		/*
 		 * There are two ways to flag that the CD line is inverted:
@@ -391,30 +387,21 @@ int mmc_of_parse(struct mmc_host *host)
 		 * both inverted, the end result is that the CD line is
 		 * not inverted.
 		 */
-		if (cap_invert ^ gpio_invert)
+		if (cd_cap_invert ^ cd_gpio_invert)
 			host->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
 	}
 
 	/* Parse Write Protection */
-	if (of_property_read_bool(np, "wp-inverted"))
-		cap_invert = true;
-	else
-		cap_invert = false;
+	ro_cap_invert = of_property_read_bool(np, "wp-inverted");
 
-	ret = mmc_gpiod_request_ro(host, "wp", 0, false, 0, &gpio_invert);
-	if (ret) {
-		if (ret == -EPROBE_DEFER)
-			goto out;
-		if (ret != -ENOENT) {
-			dev_err(host->parent,
-				"Failed to request WP GPIO: %d\n",
-				ret);
-		}
-	} else
+	ret = mmc_gpiod_request_ro(host, "wp", 0, false, 0, &ro_gpio_invert);
+	if (!ret)
 		dev_info(host->parent, "Got WP GPIO\n");
+	else if (ret != -ENOENT)
+		return ret;
 
 	/* See the comment on CD inversion above */
-	if (cap_invert ^ gpio_invert)
+	if (ro_cap_invert ^ ro_gpio_invert)
 		host->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
 
 	if (of_find_property(np, "cap-sd-highspeed", &len))
@@ -462,11 +449,7 @@ int mmc_of_parse(struct mmc_host *host)
 		host->dsr_req = 0;
 	}
 
-	return 0;
-
-out:
-	mmc_gpio_free_cd(host);
-	return ret;
+	return mmc_pwrseq_alloc(host);
 }
 
 EXPORT_SYMBOL(mmc_of_parse);
@@ -496,8 +479,10 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 		host->index = err;
 	spin_unlock(&mmc_host_lock);
 	idr_preload_end();
-	if (err < 0)
-		goto free;
+	if (err < 0) {
+		kfree(host);
+		return NULL;
+	}
 
 	dev_set_name(&host->class_dev, "mmc%d", host->index);
 
@@ -506,10 +491,12 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	host->class_dev.class = &mmc_host_class;
 	device_initialize(&host->class_dev);
 
-	mmc_host_clk_init(host);
+	if (mmc_gpio_alloc(host)) {
+		put_device(&host->class_dev);
+		return NULL;
+	}
 
-	mutex_init(&host->slot.lock);
-	host->slot.cd_irq = -EINVAL;
+	mmc_host_clk_init(host);
 
 	spin_lock_init(&host->lock);
 	init_waitqueue_head(&host->wq);
@@ -530,10 +517,6 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	host->max_blk_count = PAGE_CACHE_SIZE / 512;
 
 	return host;
-
-free:
-	kfree(host);
-	return NULL;
 }
 
 EXPORT_SYMBOL(mmc_alloc_host);
@@ -606,10 +589,7 @@ EXPORT_SYMBOL(mmc_remove_host);
  */
 void mmc_free_host(struct mmc_host *host)
 {
-	spin_lock(&mmc_host_lock);
-	idr_remove(&mmc_host_idr, host->index);
-	spin_unlock(&mmc_host_lock);
-
+	mmc_pwrseq_free(host);
 	put_device(&host->class_dev);
 }
 

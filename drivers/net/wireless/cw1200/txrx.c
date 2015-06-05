@@ -1429,7 +1429,7 @@ void cw1200_link_id_gc_work(struct work_struct *work)
 				priv->link_id_map &= ~mask;
 				priv->sta_asleep_mask &= ~mask;
 				priv->pspoll_mask &= ~mask;
-				memset(map_link.mac_addr, 0, ETH_ALEN);
+				eth_zero_addr(map_link.mac_addr);
 				spin_unlock_bh(&priv->ps_state_lock);
 				reset.link_id = i + 1;
 				wsm_reset(priv, &reset);

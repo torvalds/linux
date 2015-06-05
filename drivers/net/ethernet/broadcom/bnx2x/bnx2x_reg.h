@@ -29,7 +29,7 @@
 #define ATC_ATC_INT_STS_REG_ATC_TCPL_TO_NOT_PEND		 (0x1<<1)
 /* [RW 1] Initiate the ATC array - reset all the valid bits */
 #define ATC_REG_ATC_INIT_ARRAY					 0x1100b8
-/* [R 1] ATC initalization done */
+/* [R 1] ATC initialization done */
 #define ATC_REG_ATC_INIT_DONE					 0x1100bc
 /* [RC 6] Interrupt register #0 read clear */
 #define ATC_REG_ATC_INT_STS_CLR					 0x1101c0
@@ -7341,6 +7341,8 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_WC_REG_TX2_ANA_CTRL0			0x8081
 #define MDIO_WC_REG_TX3_ANA_CTRL0			0x8091
 #define MDIO_WC_REG_TX0_TX_DRIVER			0x8067
+#define MDIO_WC_REG_TX0_TX_DRIVER_IFIR_OFFSET			0x01
+#define MDIO_WC_REG_TX0_TX_DRIVER_IFIR_MASK				0x000e
 #define MDIO_WC_REG_TX0_TX_DRIVER_IPRE_DRIVER_OFFSET		0x04
 #define MDIO_WC_REG_TX0_TX_DRIVER_IPRE_DRIVER_MASK			0x00f0
 #define MDIO_WC_REG_TX0_TX_DRIVER_IDRIVER_OFFSET		0x08
@@ -7549,7 +7551,7 @@ Theotherbitsarereservedandshouldbezero*/
 #define IGU_REG_SISR_MDPC_WOMASK_UPPER		0x05a6
 
 #define IGU_REG_RESERVED_UPPER				0x05ff
-/* Fields of IGU PF CONFIGRATION REGISTER */
+/* Fields of IGU PF CONFIGURATION REGISTER */
 #define IGU_PF_CONF_FUNC_EN	  (0x1<<0)  /* function enable	      */
 #define IGU_PF_CONF_MSI_MSIX_EN   (0x1<<1)  /* MSI/MSIX enable	      */
 #define IGU_PF_CONF_INT_LINE_EN   (0x1<<2)  /* INT enable	      */
@@ -7557,7 +7559,7 @@ Theotherbitsarereservedandshouldbezero*/
 #define IGU_PF_CONF_SINGLE_ISR_EN (0x1<<4)  /* single ISR mode enable */
 #define IGU_PF_CONF_SIMD_MODE	  (0x1<<5)  /* simd all ones mode     */
 
-/* Fields of IGU VF CONFIGRATION REGISTER */
+/* Fields of IGU VF CONFIGURATION REGISTER */
 #define IGU_VF_CONF_FUNC_EN	   (0x1<<0)  /* function enable        */
 #define IGU_VF_CONF_MSI_MSIX_EN    (0x1<<1)  /* MSI/MSIX enable        */
 #define IGU_VF_CONF_PARENT_MASK    (0x3<<2)  /* Parent PF	       */

@@ -23,6 +23,7 @@
 #include <linux/timer.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include "md-cluster.h"
 
 #define MaxSector (~(sector_t)0)
 
@@ -170,6 +171,10 @@ enum flag_bits {
 				 * a want_replacement device with same
 				 * raid_disk number.
 				 */
+	Candidate,		/* For clustered environments only:
+				 * This device is seen locally but not
+				 * by the whole cluster
+				 */
 };
 
 #define BB_LEN_MASK	(0x00000000000001FFULL)
@@ -201,6 +206,8 @@ extern int rdev_set_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
 extern int rdev_clear_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
 				int is_new);
 extern void md_ack_all_badblocks(struct badblocks *bb);
+
+struct md_cluster_info;
 
 struct mddev {
 	void				*private;
@@ -386,7 +393,18 @@ struct mddev {
 
 	struct work_struct del_work;	/* used for delayed sysfs removal */
 
-	spinlock_t			write_lock;
+	/* "lock" protects:
+	 *   flush_bio transition from NULL to !NULL
+	 *   rdev superblocks, events
+	 *   clearing MD_CHANGE_*
+	 *   in_sync - and related safemode and MD_CHANGE changes
+	 *   pers (also protected by reconfig_mutex and pending IO).
+	 *   clearing ->bitmap
+	 *   clearing ->bitmap_info.file
+	 *   changing ->resync_{min,max}
+	 *   setting MD_RECOVERY_RUNNING (which interacts with resync_{min,max})
+	 */
+	spinlock_t			lock;
 	wait_queue_head_t		sb_wait;	/* for waiting on superblock updates */
 	atomic_t			pending_writes;	/* number of active superblock writes */
 
@@ -419,6 +437,8 @@ struct mddev {
 		unsigned long		daemon_sleep; /* how many jiffies between updates? */
 		unsigned long		max_write_behind; /* write-behind mode */
 		int			external;
+		int			nodes; /* Maximum number of nodes in the cluster */
+		char                    cluster_name[64]; /* Name of the cluster */
 	} bitmap_info;
 
 	atomic_t			max_corr_read_errors; /* max read retries */
@@ -437,14 +457,32 @@ struct mddev {
 	struct work_struct flush_work;
 	struct work_struct event_work;	/* used by dm to report failure event */
 	void (*sync_super)(struct mddev *mddev, struct md_rdev *rdev);
+	struct md_cluster_info		*cluster_info;
 };
 
-static inline void rdev_dec_pending(struct md_rdev *rdev, struct mddev *mddev)
+static inline int __must_check mddev_lock(struct mddev *mddev)
 {
-	int faulty = test_bit(Faulty, &rdev->flags);
-	if (atomic_dec_and_test(&rdev->nr_pending) && faulty)
-		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+	return mutex_lock_interruptible(&mddev->reconfig_mutex);
 }
+
+/* Sometimes we need to take the lock in a situation where
+ * failure due to interrupts is not acceptable.
+ */
+static inline void mddev_lock_nointr(struct mddev *mddev)
+{
+	mutex_lock(&mddev->reconfig_mutex);
+}
+
+static inline int mddev_is_locked(struct mddev *mddev)
+{
+	return mutex_is_locked(&mddev->reconfig_mutex);
+}
+
+static inline int mddev_trylock(struct mddev *mddev)
+{
+	return mutex_trylock(&mddev->reconfig_mutex);
+}
+extern void mddev_unlock(struct mddev *mddev);
 
 static inline void md_sync_acct(struct block_device *bdev, unsigned long nr_sectors)
 {
@@ -459,7 +497,7 @@ struct md_personality
 	struct module *owner;
 	void (*make_request)(struct mddev *mddev, struct bio *bio);
 	int (*run)(struct mddev *mddev);
-	int (*stop)(struct mddev *mddev);
+	void (*free)(struct mddev *mddev, void *priv);
 	void (*status)(struct seq_file *seq, struct mddev *mddev);
 	/* error_handler must set ->faulty and clear ->in_sync
 	 * if appropriate, and should abort recovery if needed
@@ -468,7 +506,7 @@ struct md_personality
 	int (*hot_add_disk) (struct mddev *mddev, struct md_rdev *rdev);
 	int (*hot_remove_disk) (struct mddev *mddev, struct md_rdev *rdev);
 	int (*spare_active) (struct mddev *mddev);
-	sector_t (*sync_request)(struct mddev *mddev, sector_t sector_nr, int *skipped, int go_faster);
+	sector_t (*sync_request)(struct mddev *mddev, sector_t sector_nr, int *skipped);
 	int (*resize) (struct mddev *mddev, sector_t sectors);
 	sector_t (*size) (struct mddev *mddev, sector_t sectors, int raid_disks);
 	int (*check_reshape) (struct mddev *mddev);
@@ -490,6 +528,13 @@ struct md_personality
 	 * array.
 	 */
 	void *(*takeover) (struct mddev *mddev);
+	/* congested implements bdi.congested_fn().
+	 * Will not be called while array is 'suspended' */
+	int (*congested)(struct mddev *mddev, int bits);
+	/* mergeable_bvec is use to implement ->merge_bvec_fn */
+	int (*mergeable_bvec)(struct mddev *mddev,
+			      struct bvec_merge_data *bvm,
+			      struct bio_vec *biovec);
 };
 
 struct md_sysfs_entry {
@@ -573,6 +618,11 @@ static inline void safe_put_page(struct page *p)
 
 extern int register_md_personality(struct md_personality *p);
 extern int unregister_md_personality(struct md_personality *p);
+extern int register_md_cluster_operations(struct md_cluster_operations *ops,
+		struct module *module);
+extern int unregister_md_cluster_operations(void);
+extern int md_setup_cluster(struct mddev *mddev, int nodes);
+extern void md_cluster_stop(struct mddev *mddev);
 extern struct md_thread *md_register_thread(
 	void (*run)(struct md_thread *thread),
 	struct mddev *mddev,
@@ -619,9 +669,28 @@ extern struct bio *bio_alloc_mddev(gfp_t gfp_mask, int nr_iovecs,
 				   struct mddev *mddev);
 
 extern void md_unplug(struct blk_plug_cb *cb, bool from_schedule);
+extern void md_reload_sb(struct mddev *mddev);
+extern void md_update_sb(struct mddev *mddev, int force);
+extern void md_kick_rdev_from_array(struct md_rdev * rdev);
+struct md_rdev *md_find_rdev_nr_rcu(struct mddev *mddev, int nr);
 static inline int mddev_check_plugged(struct mddev *mddev)
 {
 	return !!blk_check_plugged(md_unplug, mddev,
 				   sizeof(struct blk_plug_cb));
+}
+
+static inline void rdev_dec_pending(struct md_rdev *rdev, struct mddev *mddev)
+{
+	int faulty = test_bit(Faulty, &rdev->flags);
+	if (atomic_dec_and_test(&rdev->nr_pending) && faulty) {
+		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+		md_wakeup_thread(mddev->thread);
+	}
+}
+
+extern struct md_cluster_operations *md_cluster_ops;
+static inline int mddev_is_clustered(struct mddev *mddev)
+{
+	return mddev->cluster_info && mddev->bitmap_info.nodes > 1;
 }
 #endif /* _MD_MD_H */

@@ -72,7 +72,7 @@ static inline void octeon_send_ipi_mask(const struct cpumask *mask,
 {
 	unsigned int i;
 
-	for_each_cpu_mask(i, *mask)
+	for_each_cpu(i, mask)
 		octeon_send_ipi_single(i, action);
 }
 
@@ -239,10 +239,8 @@ static int octeon_cpu_disable(void)
 		return -ENOTSUPP;
 
 	set_cpu_online(cpu, false);
-	cpu_clear(cpu, cpu_callin_map);
-	local_irq_disable();
+	cpumask_clear_cpu(cpu, &cpu_callin_map);
 	octeon_fixup_irqs();
-	local_irq_enable();
 
 	flush_cache_all();
 	local_flush_tlb_all();

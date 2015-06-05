@@ -80,7 +80,7 @@ static unsigned desc_size(const struct kvm_device_desc *desc)
 }
 
 /* This gets the device's feature bits. */
-static u32 kvm_get_features(struct virtio_device *vdev)
+static u64 kvm_get_features(struct virtio_device *vdev)
 {
 	unsigned int i;
 	u32 features = 0;
@@ -93,7 +93,7 @@ static u32 kvm_get_features(struct virtio_device *vdev)
 	return features;
 }
 
-static void kvm_finalize_features(struct virtio_device *vdev)
+static int kvm_finalize_features(struct virtio_device *vdev)
 {
 	unsigned int i, bits;
 	struct kvm_device_desc *desc = to_kvmdev(vdev)->desc;
@@ -103,12 +103,17 @@ static void kvm_finalize_features(struct virtio_device *vdev)
 	/* Give virtio_ring a chance to accept features. */
 	vring_transport_features(vdev);
 
+	/* Make sure we don't have any features > 32 bits! */
+	BUG_ON((u32)vdev->features != vdev->features);
+
 	memset(out_features, 0, desc->feature_len);
 	bits = min_t(unsigned, desc->feature_len, sizeof(vdev->features)) * 8;
 	for (i = 0; i < bits; i++) {
-		if (test_bit(i, vdev->features))
+		if (__virtio_test_bit(vdev, i))
 			out_features[i / 8] |= (1 << (i % 8));
 	}
+
+	return 0;
 }
 
 /*

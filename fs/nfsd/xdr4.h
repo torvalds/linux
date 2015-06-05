@@ -40,7 +40,6 @@
 #include "state.h"
 #include "nfsd.h"
 
-#define NFSD4_MAX_SEC_LABEL_LEN	2048
 #define NFSD4_MAX_TAGLEN	128
 #define XDR_LEN(n)                     (((n) + 3) & ~3)
 
@@ -248,6 +247,7 @@ struct nfsd4_open {
 	struct nfs4_openowner *op_openowner; /* used during processing */
 	struct nfs4_file *op_file;          /* used during processing */
 	struct nfs4_ol_stateid *op_stp;	    /* used during processing */
+	struct nfs4_clnt_odstate *op_odstate; /* used during processing */
 	struct nfs4_acl *op_acl;
 	struct xdr_netobj op_label;
 };
@@ -428,6 +428,68 @@ struct nfsd4_reclaim_complete {
 	u32 rca_one_fs;
 };
 
+struct nfsd4_deviceid {
+	u64			fsid_idx;
+	u32			generation;
+	u32			pad;
+};
+
+struct nfsd4_layout_seg {
+	u32			iomode;
+	u64			offset;
+	u64			length;
+};
+
+struct nfsd4_getdeviceinfo {
+	struct nfsd4_deviceid	gd_devid;	/* request */
+	u32			gd_layout_type;	/* request */
+	u32			gd_maxcount;	/* request */
+	u32			gd_notify_types;/* request - response */
+	void			*gd_device;	/* response */
+};
+
+struct nfsd4_layoutget {
+	u64			lg_minlength;	/* request */
+	u32			lg_signal;	/* request */
+	u32			lg_layout_type;	/* request */
+	u32			lg_maxcount;	/* request */
+	stateid_t		lg_sid;		/* request/response */
+	struct nfsd4_layout_seg	lg_seg;		/* request/response */
+	void			*lg_content;	/* response */
+};
+
+struct nfsd4_layoutcommit {
+	stateid_t		lc_sid;		/* request */
+	struct nfsd4_layout_seg	lc_seg;		/* request */
+	u32			lc_reclaim;	/* request */
+	u32			lc_newoffset;	/* request */
+	u64			lc_last_wr;	/* request */
+	struct timespec		lc_mtime;	/* request */
+	u32			lc_layout_type;	/* request */
+	u32			lc_up_len;	/* layout length */
+	void			*lc_up_layout;	/* decoded by callback */
+	u32			lc_size_chg;	/* boolean for response */
+	u64			lc_newsize;	/* response */
+};
+
+struct nfsd4_layoutreturn {
+	u32			lr_return_type;	/* request */
+	u32			lr_layout_type;	/* request */
+	struct nfsd4_layout_seg	lr_seg;		/* request */
+	u32			lr_reclaim;	/* request */
+	u32			lrf_body_len;	/* request */
+	void			*lrf_body;	/* request */
+	stateid_t		lr_sid;		/* request/response */
+	u32			lrs_present;	/* response */
+};
+
+struct nfsd4_fallocate {
+	/* request */
+	stateid_t	falloc_stateid;
+	loff_t		falloc_offset;
+	u64		falloc_length;
+};
+
 struct nfsd4_seek {
 	/* request */
 	stateid_t	seek_stateid;
@@ -484,8 +546,14 @@ struct nfsd4_op {
 		struct nfsd4_reclaim_complete	reclaim_complete;
 		struct nfsd4_test_stateid	test_stateid;
 		struct nfsd4_free_stateid	free_stateid;
+		struct nfsd4_getdeviceinfo	getdeviceinfo;
+		struct nfsd4_layoutget		layoutget;
+		struct nfsd4_layoutcommit	layoutcommit;
+		struct nfsd4_layoutreturn	layoutreturn;
 
 		/* NFSv4.2 */
+		struct nfsd4_fallocate		allocate;
+		struct nfsd4_fallocate		deallocate;
 		struct nfsd4_seek		seek;
 	} u;
 	struct nfs4_replay *			replay;
@@ -564,7 +632,7 @@ set_change_info(struct nfsd4_change_info *cinfo, struct svc_fh *fhp)
 {
 	BUG_ON(!fhp->fh_pre_saved);
 	cinfo->atomic = fhp->fh_post_saved;
-	cinfo->change_supported = IS_I_VERSION(fhp->fh_dentry->d_inode);
+	cinfo->change_supported = IS_I_VERSION(d_inode(fhp->fh_dentry));
 
 	cinfo->before_change = fhp->fh_pre_change;
 	cinfo->after_change = fhp->fh_post_change;
@@ -615,7 +683,7 @@ extern __be32 nfsd4_process_open2(struct svc_rqst *rqstp,
 		struct svc_fh *current_fh, struct nfsd4_open *open);
 extern void nfsd4_cstate_clear_replay(struct nfsd4_compound_state *cstate);
 extern void nfsd4_cleanup_open_state(struct nfsd4_compound_state *cstate,
-		struct nfsd4_open *open, __be32 status);
+		struct nfsd4_open *open);
 extern __be32 nfsd4_open_confirm(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *, struct nfsd4_open_confirm *oc);
 extern __be32 nfsd4_close(struct svc_rqst *rqstp,

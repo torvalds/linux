@@ -267,7 +267,6 @@ ncp_iget(struct super_block *sb, struct ncp_entry_info *info)
 	if (inode) {
 		atomic_set(&NCP_FINFO(inode)->opened, info->opened);
 
-		inode->i_mapping->backing_dev_info = sb->s_bdi;
 		inode->i_ino = info->ino;
 		ncp_set_attr(inode, info);
 		if (S_ISREG(inode->i_mode)) {
@@ -560,7 +559,7 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 	server = NCP_SBP(sb);
 	memset(server, 0, sizeof(*server));
 
-	error = bdi_setup_and_register(&server->bdi, "ncpfs", BDI_CAP_MAP_COPY);
+	error = bdi_setup_and_register(&server->bdi, "ncpfs");
 	if (error)
 		goto out_fput;
 
@@ -813,7 +812,7 @@ static int ncp_statfs(struct dentry *dentry, struct kstatfs *buf)
 	if (!d) {
 		goto dflt;
 	}
-	i = d->d_inode;
+	i = d_inode(d);
 	if (!i) {
 		goto dflt;
 	}
@@ -866,7 +865,7 @@ dflt:;
 
 int ncp_notify_change(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int result = 0;
 	__le32 info_mask;
 	struct nw_modify_dos_info info;
@@ -879,7 +878,7 @@ int ncp_notify_change(struct dentry *dentry, struct iattr *attr)
 		goto out;
 
 	result = -EPERM;
-	if (IS_DEADDIR(dentry->d_inode))
+	if (IS_DEADDIR(d_inode(dentry)))
 		goto out;
 
 	/* ageing the dentry to force validation */

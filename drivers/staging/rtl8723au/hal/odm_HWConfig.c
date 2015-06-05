@@ -33,24 +33,23 @@ static s32 odm_SignalScaleMapping_92CSeries(struct dm_odm_t *pDM_Odm, s32 CurrSi
 {
 	s32 RetSig = 0;
 
-	if ((pDM_Odm->SupportInterface  == ODM_ITRF_USB) || (pDM_Odm->SupportInterface  == ODM_ITRF_SDIO)) {
-		if (CurrSig >= 51 && CurrSig <= 100)
-			RetSig = 100;
-		else if (CurrSig >= 41 && CurrSig <= 50)
-			RetSig = 80 + ((CurrSig - 40)*2);
-		else if (CurrSig >= 31 && CurrSig <= 40)
-			RetSig = 66 + (CurrSig - 30);
-		else if (CurrSig >= 21 && CurrSig <= 30)
-			RetSig = 54 + (CurrSig - 20);
-		else if (CurrSig >= 10 && CurrSig <= 20)
-			RetSig = 42 + (((CurrSig - 10) * 2) / 3);
-		else if (CurrSig >= 5 && CurrSig <= 9)
-			RetSig = 22 + (((CurrSig - 5) * 3) / 2);
-		else if (CurrSig >= 1 && CurrSig <= 4)
-			RetSig = 6 + (((CurrSig - 1) * 3) / 2);
-		else
-			RetSig = CurrSig;
-	}
+	if (CurrSig >= 51 && CurrSig <= 100)
+		RetSig = 100;
+	else if (CurrSig >= 41 && CurrSig <= 50)
+		RetSig = 80 + ((CurrSig - 40)*2);
+	else if (CurrSig >= 31 && CurrSig <= 40)
+		RetSig = 66 + (CurrSig - 30);
+	else if (CurrSig >= 21 && CurrSig <= 30)
+		RetSig = 54 + (CurrSig - 20);
+	else if (CurrSig >= 10 && CurrSig <= 20)
+		RetSig = 42 + (((CurrSig - 10) * 2) / 3);
+	else if (CurrSig >= 5 && CurrSig <= 9)
+		RetSig = 22 + (((CurrSig - 5) * 3) / 2);
+	else if (CurrSig >= 1 && CurrSig <= 4)
+		RetSig = 6 + (((CurrSig - 1) * 3) / 2);
+	else
+		RetSig = CurrSig;
+
 	return RetSig;
 }
 
@@ -113,7 +112,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct dm_odm_t *pDM_Odm,
 
 		cck_highpwr = pDM_Odm->bCckHighPower;
 
-		cck_agc_rpt =  pPhyStaRpt->cck_agc_rpt_ofdm_cfosho_a ;
+		cck_agc_rpt =  pPhyStaRpt->cck_agc_rpt_ofdm_cfosho_a;
 
 		/* The RSSI formula should be modified according to the gain table */
 		if (!cck_highpwr) {
@@ -138,16 +137,16 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct dm_odm_t *pDM_Odm,
 			report = (cck_agc_rpt & 0x60)>>5;
 			switch (report) {
 			case 0x3:
-				rx_pwr_all = -46 - ((cck_agc_rpt & 0x1f)<<1) ;
+				rx_pwr_all = -46 - ((cck_agc_rpt & 0x1f)<<1);
 				break;
 			case 0x2:
 				rx_pwr_all = -26 - ((cck_agc_rpt & 0x1f)<<1);
 				break;
 			case 0x1:
-				rx_pwr_all = -12 - ((cck_agc_rpt & 0x1f)<<1) ;
+				rx_pwr_all = -12 - ((cck_agc_rpt & 0x1f)<<1);
 				break;
 			case 0x0:
-				rx_pwr_all = 16 - ((cck_agc_rpt & 0x1f)<<1) ;
+				rx_pwr_all = 16 - ((cck_agc_rpt & 0x1f)<<1);
 				break;
 			}
 		}
@@ -391,20 +390,11 @@ static void odm_Process_RSSIForDM(struct dm_odm_t *pDM_Odm,
 	}
 }
 
-/*  Endianness before calling this API */
-static void ODM_PhyStatusQuery23a_92CSeries(struct dm_odm_t *pDM_Odm,
-					 struct phy_info *pPhyInfo,
-					 u8 *pPhyStatus,
-					 struct odm_packet_info *pPktinfo)
+void ODM_PhyStatusQuery23a(struct dm_odm_t *pDM_Odm, struct phy_info *pPhyInfo,
+			   u8 *pPhyStatus, struct odm_packet_info *pPktinfo)
 {
 	odm_RxPhyStatus92CSeries_Parsing(pDM_Odm, pPhyInfo,
 					 pPhyStatus, pPktinfo);
 
 	odm_Process_RSSIForDM(pDM_Odm, pPhyInfo, pPktinfo);
-}
-
-void ODM_PhyStatusQuery23a(struct dm_odm_t *pDM_Odm, struct phy_info *pPhyInfo,
-			   u8 *pPhyStatus, struct odm_packet_info *pPktinfo)
-{
-	ODM_PhyStatusQuery23a_92CSeries(pDM_Odm, pPhyInfo, pPhyStatus, pPktinfo);
 }

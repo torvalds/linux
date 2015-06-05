@@ -16,7 +16,6 @@
 #define _LINUX_HUGETLB_CGROUP_H
 
 #include <linux/mmdebug.h>
-#include <linux/res_counter.h>
 
 struct hugetlb_cgroup;
 /*

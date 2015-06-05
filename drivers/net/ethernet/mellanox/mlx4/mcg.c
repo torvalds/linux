@@ -999,12 +999,27 @@ int mlx4_flow_attach(struct mlx4_dev *dev,
 	}
 
 	ret = mlx4_QP_FLOW_STEERING_ATTACH(dev, mailbox, size >> 2, reg_id);
-	if (ret == -ENOMEM)
+	if (ret == -ENOMEM) {
 		mlx4_err_rule(dev,
 			      "mcg table is full. Fail to register network rule\n",
 			      rule);
-	else if (ret)
-		mlx4_err_rule(dev, "Fail to register network rule\n", rule);
+	} else if (ret) {
+		if (ret == -ENXIO) {
+			if (dev->caps.steering_mode != MLX4_STEERING_MODE_DEVICE_MANAGED)
+				mlx4_err_rule(dev,
+					      "DMFS is not enabled, "
+					      "failed to register network rule.\n",
+					      rule);
+			else
+				mlx4_err_rule(dev,
+					      "Rule exceeds the dmfs_high_rate_mode limitations, "
+					      "failed to register network rule.\n",
+					      rule);
+
+		} else {
+			mlx4_err_rule(dev, "Fail to register network rule.\n", rule);
+		}
+	}
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
 
@@ -1303,6 +1318,9 @@ out:
 	mutex_unlock(&priv->mcg_table.mutex);
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
+	if (err && dev->persist->state & MLX4_DEVICE_STATE_INTERNAL_ERROR)
+		/* In case device is under an error, return success as a closing command */
+		err = 0;
 	return err;
 }
 
@@ -1332,6 +1350,9 @@ static int mlx4_QP_ATTACH(struct mlx4_dev *dev, struct mlx4_qp *qp,
 		       MLX4_CMD_WRAPPED);
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
+	if (err && !attach &&
+	    dev->persist->state & MLX4_DEVICE_STATE_INTERNAL_ERROR)
+		err = 0;
 	return err;
 }
 

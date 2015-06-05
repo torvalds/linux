@@ -22,8 +22,6 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
@@ -39,7 +37,6 @@
 #include "xfs_trace.h"
 #include "xfs_buf_item.h"
 #include "xfs_cksum.h"
-#include "xfs_dinode.h"
 #include "xfs_dir2.h"
 
 STATIC int
@@ -228,6 +225,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 	int error, i;
 	struct xfs_buf *bp;
 	struct xfs_inode	*dp = context->dp;
+	struct xfs_mount	*mp = dp->i_mount;
 
 	trace_xfs_attr_node_list(context);
 
@@ -259,7 +257,8 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 			case XFS_ATTR_LEAF_MAGIC:
 			case XFS_ATTR3_LEAF_MAGIC:
 				leaf = bp->b_addr;
-				xfs_attr3_leaf_hdr_from_disk(&leafhdr, leaf);
+				xfs_attr3_leaf_hdr_from_disk(mp->m_attr_geo,
+							     &leafhdr, leaf);
 				entries = xfs_attr3_leaf_entryp(leaf);
 				if (cursor->hashval > be32_to_cpu(
 						entries[leafhdr.count - 1].hashval)) {
@@ -343,7 +342,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 			xfs_trans_brelse(NULL, bp);
 			return error;
 		}
-		xfs_attr3_leaf_hdr_from_disk(&leafhdr, leaf);
+		xfs_attr3_leaf_hdr_from_disk(mp->m_attr_geo, &leafhdr, leaf);
 		if (context->seen_enough || leafhdr.forw == 0)
 			break;
 		cursor->blkno = leafhdr.forw;
@@ -371,11 +370,12 @@ xfs_attr3_leaf_list_int(
 	struct xfs_attr_leaf_entry	*entry;
 	int				retval;
 	int				i;
+	struct xfs_mount		*mp = context->dp->i_mount;
 
 	trace_xfs_attr_list_leaf(context);
 
 	leaf = bp->b_addr;
-	xfs_attr3_leaf_hdr_from_disk(&ichdr, leaf);
+	xfs_attr3_leaf_hdr_from_disk(mp->m_attr_geo, &ichdr, leaf);
 	entries = xfs_attr3_leaf_entryp(leaf);
 
 	cursor = context->cursor;

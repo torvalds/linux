@@ -64,6 +64,8 @@ enum pm_qos_flags_status __dev_pm_qos_flags(struct device *dev, s32 mask)
 	struct pm_qos_flags *pqf;
 	s32 val;
 
+	lockdep_assert_held(&dev->power.lock);
+
 	if (IS_ERR_OR_NULL(qos))
 		return PM_QOS_FLAGS_UNDEFINED;
 
@@ -104,6 +106,8 @@ EXPORT_SYMBOL_GPL(dev_pm_qos_flags);
  */
 s32 __dev_pm_qos_read_value(struct device *dev)
 {
+	lockdep_assert_held(&dev->power.lock);
+
 	return IS_ERR_OR_NULL(dev->power.qos) ?
 		0 : pm_qos_read_value(&dev->power.qos->resume_latency);
 }
@@ -599,7 +603,6 @@ int dev_pm_qos_add_ancestor_request(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(dev_pm_qos_add_ancestor_request);
 
-#ifdef CONFIG_PM_RUNTIME
 static void __dev_pm_qos_drop_user_request(struct device *dev,
 					   enum dev_pm_qos_req_type type)
 {
@@ -880,7 +883,3 @@ int dev_pm_qos_update_user_latency_tolerance(struct device *dev, s32 val)
 	mutex_unlock(&dev_pm_qos_mtx);
 	return ret;
 }
-#else /* !CONFIG_PM_RUNTIME */
-static void __dev_pm_qos_hide_latency_limit(struct device *dev) {}
-static void __dev_pm_qos_hide_flags(struct device *dev) {}
-#endif /* CONFIG_PM_RUNTIME */

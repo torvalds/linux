@@ -104,11 +104,12 @@ struct osf_dirent_callback {
 };
 
 static int
-osf_filldir(void *__buf, const char *name, int namlen, loff_t offset,
-	    u64 ino, unsigned int d_type)
+osf_filldir(struct dir_context *ctx, const char *name, int namlen,
+	    loff_t offset, u64 ino, unsigned int d_type)
 {
 	struct osf_dirent __user *dirent;
-	struct osf_dirent_callback *buf = (struct osf_dirent_callback *) __buf;
+	struct osf_dirent_callback *buf =
+		container_of(ctx, struct osf_dirent_callback, ctx);
 	unsigned int reclen = ALIGN(NAME_OFFSET + namlen + 1, sizeof(u32));
 	unsigned int d_ino;
 
@@ -1018,13 +1019,12 @@ SYSCALL_DEFINE2(osf_settimeofday, struct timeval32 __user *, tv,
  	if (tv) {
 		if (get_tv32((struct timeval *)&kts, tv))
 			return -EFAULT;
+		kts.tv_nsec *= 1000;
 	}
 	if (tz) {
 		if (copy_from_user(&ktz, tz, sizeof(*tz)))
 			return -EFAULT;
 	}
-
-	kts.tv_nsec *= 1000;
 
 	return do_sys_settimeofday(tv ? &kts : NULL, tz ? &ktz : NULL);
 }

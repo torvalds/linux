@@ -195,6 +195,7 @@ static struct device_node *find_pe_total_msi(struct pci_dev *dev, int *total)
 static struct device_node *find_pe_dn(struct pci_dev *dev, int *total)
 {
 	struct device_node *dn;
+	struct pci_dn *pdn;
 	struct eeh_dev *edev;
 
 	/* Found our PE and assume 8 at that point. */
@@ -204,10 +205,11 @@ static struct device_node *find_pe_dn(struct pci_dev *dev, int *total)
 		return NULL;
 
 	/* Get the top level device in the PE */
-	edev = of_node_to_eeh_dev(dn);
+	edev = pdn_to_eeh_dev(PCI_DN(dn));
 	if (edev->pe)
 		edev = list_first_entry(&edev->pe->edevs, struct eeh_dev, list);
-	dn = eeh_dev_to_of_node(edev);
+	pdn = eeh_dev_to_pdn(edev);
+	dn = pdn ? pdn->node : NULL;
 	if (!dn)
 		return NULL;
 
@@ -420,7 +422,7 @@ static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec_in, int type)
 	 */
 again:
 	if (type == PCI_CAP_ID_MSI) {
-		if (pdn->force_32bit_msi) {
+		if (pdev->no_64bit_msi) {
 			rc = rtas_change_msi(pdn, RTAS_CHANGE_32MSI_FN, nvec);
 			if (rc < 0) {
 				/*
@@ -476,7 +478,7 @@ again:
 		irq_set_msi_desc(virq, entry);
 
 		/* Read config space back so we can restore after reset */
-		__read_msi_msg(entry, &msg);
+		__pci_read_msi_msg(entry, &msg);
 		entry->msg = msg;
 	}
 

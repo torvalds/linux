@@ -45,7 +45,6 @@
 #include <linux/ptrace.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/ctype.h>
 #include <linux/timer.h>
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -1005,7 +1004,7 @@ static void frag_rx_path(struct atmel_private *priv,
 			atmel_copy_to_host(priv->dev, (void *)&netcrc, rx_packet_loc + msdu_size, 4);
 			if ((crc ^ 0xffffffff) != netcrc) {
 				priv->dev->stats.rx_crc_errors++;
-				memset(priv->frag_source, 0xff, ETH_ALEN);
+				eth_broadcast_addr(priv->frag_source);
 			}
 		}
 
@@ -1023,7 +1022,7 @@ static void frag_rx_path(struct atmel_private *priv,
 			atmel_copy_to_host(priv->dev, (void *)&netcrc, rx_packet_loc + msdu_size, 4);
 			if ((crc ^ 0xffffffff) != netcrc) {
 				priv->dev->stats.rx_crc_errors++;
-				memset(priv->frag_source, 0xff, ETH_ALEN);
+				eth_broadcast_addr(priv->frag_source);
 				more_frags = 1; /* don't send broken assembly */
 			}
 		}
@@ -1032,7 +1031,7 @@ static void frag_rx_path(struct atmel_private *priv,
 		priv->frag_no++;
 
 		if (!more_frags) { /* last one */
-			memset(priv->frag_source, 0xff, ETH_ALEN);
+			eth_broadcast_addr(priv->frag_source);
 			if (!(skb = dev_alloc_skb(priv->frag_len + 14))) {
 				priv->dev->stats.rx_dropped++;
 			} else {
@@ -1128,7 +1127,7 @@ static void rx_done_irq(struct atmel_private *priv)
 			atmel_copy_to_host(priv->dev, (unsigned char *)&priv->rx_buf, rx_packet_loc + 24, msdu_size);
 
 			/* we use the same buffer for frag reassembly and control packets */
-			memset(priv->frag_source, 0xff, ETH_ALEN);
+			eth_broadcast_addr(priv->frag_source);
 
 			if (priv->do_rx_crc) {
 				/* last 4 octets is crc */
@@ -1380,7 +1379,7 @@ static int atmel_close(struct net_device *dev)
 		wrqu.data.length = 0;
 		wrqu.data.flags = 0;
 		wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-		memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
+		eth_zero_addr(wrqu.ap_addr.sa_data);
 		wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
 	}
 
@@ -1556,7 +1555,7 @@ struct net_device *init_atmel_card(unsigned short irq, unsigned long port,
 	priv->last_qual = jiffies;
 	priv->last_beacon_timestamp = 0;
 	memset(priv->frag_source, 0xff, sizeof(priv->frag_source));
-	memset(priv->BSSID, 0, ETH_ALEN);
+	eth_zero_addr(priv->BSSID);
 	priv->CurrentBSSID[0] = 0xFF; /* Initialize to something invalid.... */
 	priv->station_was_associated = 0;
 
@@ -2699,16 +2698,7 @@ static int atmel_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		domain[REGDOMAINSZ] = 0;
 		rc = -EINVAL;
 		for (i = 0; i < ARRAY_SIZE(channel_table); i++) {
-			/* strcasecmp doesn't exist in the library */
-			char *a = channel_table[i].name;
-			char *b = domain;
-			while (*a) {
-				char c1 = *a++;
-				char c2 = *b++;
-				if (tolower(c1) != tolower(c2))
-					break;
-			}
-			if (!*a && !*b) {
+			if (!strcasecmp(channel_table[i].name, domain)) {
 				priv->config_reg_domain = channel_table[i].reg_domain;
 				rc = 0;
 			}
@@ -2770,7 +2760,7 @@ static void atmel_scan(struct atmel_private *priv, int specific_ssid)
 		u8 SSID_size;
 	} cmd;
 
-	memset(cmd.BSSID, 0xff, ETH_ALEN);
+	eth_broadcast_addr(cmd.BSSID);
 
 	if (priv->fast_scan) {
 		cmd.SSID_size = priv->SSID_size;
@@ -4059,7 +4049,7 @@ static int reset_atmel_card(struct net_device *dev)
 		wrqu.data.length = 0;
 		wrqu.data.flags = 0;
 		wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-		memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
+		eth_zero_addr(wrqu.ap_addr.sa_data);
 		wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
 	}
 

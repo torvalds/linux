@@ -723,13 +723,13 @@ static int amd8111e_rx_poll(struct napi_struct *napi, int budget)
 			 * the last correctly noting the error.
 			 */
 			if(status & ERR_BIT) {
-				/* reseting flags */
+				/* resetting flags */
 				lp->rx_ring[rx_index].rx_flags &= RESET_RX_FLAGS;
 				goto err_next_pkt;
 			}
 			/* check for STP and ENP */
 			if(!((status & STP_BIT) && (status & ENP_BIT))){
-				/* reseting flags */
+				/* resetting flags */
 				lp->rx_ring[rx_index].rx_flags &= RESET_RX_FLAGS;
 				goto err_next_pkt;
 			}
@@ -1299,11 +1299,11 @@ static netdev_tx_t amd8111e_start_xmit(struct sk_buff *skb,
 	lp->tx_ring[tx_index].tx_flags = 0;
 
 #if AMD8111E_VLAN_TAG_USED
-	if (vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		lp->tx_ring[tx_index].tag_ctrl_cmd |=
 				cpu_to_le16(TCC_VLAN_INSERT);
 		lp->tx_ring[tx_index].tag_ctrl_info =
-				cpu_to_le16(vlan_tx_tag_get(skb));
+				cpu_to_le16(skb_vlan_tag_get(skb));
 
 	}
 #endif

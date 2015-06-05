@@ -239,8 +239,10 @@ static struct ntc_thermistor_platform_data *
 ntc_thermistor_parse_dt(struct platform_device *pdev)
 {
 	struct iio_channel *chan;
+	enum iio_chan_type type;
 	struct device_node *np = pdev->dev.of_node;
 	struct ntc_thermistor_platform_data *pdata;
+	int ret;
 
 	if (!np)
 		return NULL;
@@ -252,6 +254,13 @@ ntc_thermistor_parse_dt(struct platform_device *pdev)
 	chan = iio_channel_get(&pdev->dev, NULL);
 	if (IS_ERR(chan))
 		return ERR_CAST(chan);
+
+	ret = iio_get_channel_type(chan, &type);
+	if (ret < 0)
+		return ERR_PTR(ret);
+
+	if (type != IIO_VOLTAGE)
+		return ERR_PTR(-EINVAL);
 
 	if (of_property_read_u32(np, "pullup-uv", &pdata->pullup_uv))
 		return ERR_PTR(-ENODEV);
@@ -486,6 +495,10 @@ static const struct attribute_group ntc_attr_group = {
 	.attrs = ntc_attributes,
 };
 
+static const struct thermal_zone_of_device_ops ntc_of_thermal_ops = {
+	.get_temp = ntc_read_temp,
+};
+
 static int ntc_thermistor_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
@@ -579,7 +592,7 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 								pdev_id->name);
 
 	data->tz = thermal_zone_of_sensor_register(data->dev, 0, data->dev,
-						ntc_read_temp, NULL);
+						   &ntc_of_thermal_ops);
 	if (IS_ERR(data->tz)) {
 		dev_dbg(&pdev->dev, "Failed to register to thermal fw.\n");
 		data->tz = NULL;
@@ -609,7 +622,6 @@ static int ntc_thermistor_remove(struct platform_device *pdev)
 static struct platform_driver ntc_thermistor_driver = {
 	.driver = {
 		.name = "ntc-thermistor",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(ntc_match),
 	},
 	.probe = ntc_thermistor_probe,

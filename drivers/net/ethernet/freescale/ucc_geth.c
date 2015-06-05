@@ -3893,6 +3893,9 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 	ugeth->phy_interface = phy_interface;
 	ugeth->max_speed = max_speed;
 
+	/* Carrier starts down, phylib will bring it up */
+	netif_carrier_off(dev);
+
 	err = register_netdev(dev);
 	if (err) {
 		if (netif_msg_probe(ugeth))
@@ -3930,7 +3933,7 @@ static int ucc_geth_remove(struct platform_device* ofdev)
 	return 0;
 }
 
-static struct of_device_id ucc_geth_match[] = {
+static const struct of_device_id ucc_geth_match[] = {
 	{
 		.type = "network",
 		.compatible = "ucc_geth",
@@ -3943,7 +3946,6 @@ MODULE_DEVICE_TABLE(of, ucc_geth_match);
 static struct platform_driver ucc_geth_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = ucc_geth_match,
 	},
 	.probe		= ucc_geth_probe,

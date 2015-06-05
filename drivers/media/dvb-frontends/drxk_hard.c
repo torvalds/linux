@@ -166,9 +166,9 @@ static unsigned int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages");
 
-#define dprintk(level, fmt, arg...) do {			\
-if (debug >= level)						\
-	pr_debug(fmt, ##arg);					\
+#define dprintk(level, fmt, arg...) do {				\
+if (debug >= level)							\
+	printk(KERN_DEBUG KBUILD_MODNAME ": %s " fmt, __func__, ##arg);	\
 } while (0)
 
 
@@ -6310,8 +6310,7 @@ static void drxk_release(struct dvb_frontend *fe)
 	struct drxk_state *state = fe->demodulator_priv;
 
 	dprintk(1, "\n");
-	if (state->fw)
-		release_firmware(state->fw);
+	release_firmware(state->fw);
 
 	kfree(state);
 }

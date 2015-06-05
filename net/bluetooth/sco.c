@@ -285,7 +285,7 @@ static int sco_send_frame(struct sock *sk, struct msghdr *msg, int len)
 	if (!skb)
 		return err;
 
-	if (memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len)) {
+	if (memcpy_from_msg(skb_put(skb, len), msg, len)) {
 		kfree_skb(skb);
 		return -EFAULT;
 	}
@@ -618,7 +618,7 @@ done:
 
 static int sco_sock_accept(struct socket *sock, struct socket *newsock, int flags)
 {
-	DECLARE_WAITQUEUE(wait, current);
+	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 	struct sock *sk = sock->sk, *ch;
 	long timeo;
 	int err = 0;
@@ -632,8 +632,6 @@ static int sco_sock_accept(struct socket *sock, struct socket *newsock, int flag
 	/* Wait for an incoming connection. (wake-one). */
 	add_wait_queue_exclusive(sk_sleep(sk), &wait);
 	while (1) {
-		set_current_state(TASK_INTERRUPTIBLE);
-
 		if (sk->sk_state != BT_LISTEN) {
 			err = -EBADFD;
 			break;
@@ -654,10 +652,10 @@ static int sco_sock_accept(struct socket *sock, struct socket *newsock, int flag
 		}
 
 		release_sock(sk);
-		timeo = schedule_timeout(timeo);
+
+		timeo = wait_woken(&wait, TASK_INTERRUPTIBLE, timeo);
 		lock_sock(sk);
 	}
-	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(sk_sleep(sk), &wait);
 
 	if (err)
@@ -690,8 +688,8 @@ static int sco_sock_getname(struct socket *sock, struct sockaddr *addr, int *len
 	return 0;
 }
 
-static int sco_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
-			    struct msghdr *msg, size_t len)
+static int sco_sock_sendmsg(struct socket *sock, struct msghdr *msg,
+			    size_t len)
 {
 	struct sock *sk = sock->sk;
 	int err;
@@ -760,8 +758,8 @@ static void sco_conn_defer_accept(struct hci_conn *conn, u16 setting)
 	}
 }
 
-static int sco_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
-			    struct msghdr *msg, size_t len, int flags)
+static int sco_sock_recvmsg(struct socket *sock, struct msghdr *msg,
+			    size_t len, int flags)
 {
 	struct sock *sk = sock->sk;
 	struct sco_pinfo *pi = sco_pi(sk);
@@ -779,7 +777,7 @@ static int sco_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	release_sock(sk);
 
-	return bt_sock_recvmsg(iocb, sock, msg, len, flags);
+	return bt_sock_recvmsg(sock, msg, len, flags);
 }
 
 static int sco_sock_setsockopt(struct socket *sock, int level, int optname, char __user *optval, unsigned int optlen)
@@ -1085,9 +1083,13 @@ int sco_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags)
 	return lm;
 }
 
-void sco_connect_cfm(struct hci_conn *hcon, __u8 status)
+static void sco_connect_cfm(struct hci_conn *hcon, __u8 status)
 {
+	if (hcon->type != SCO_LINK && hcon->type != ESCO_LINK)
+		return;
+
 	BT_DBG("hcon %p bdaddr %pMR status %d", hcon, &hcon->dst, status);
+
 	if (!status) {
 		struct sco_conn *conn;
 
@@ -1098,8 +1100,11 @@ void sco_connect_cfm(struct hci_conn *hcon, __u8 status)
 		sco_conn_del(hcon, bt_to_errno(status));
 }
 
-void sco_disconn_cfm(struct hci_conn *hcon, __u8 reason)
+static void sco_disconn_cfm(struct hci_conn *hcon, __u8 reason)
 {
+	if (hcon->type != SCO_LINK && hcon->type != ESCO_LINK)
+		return;
+
 	BT_DBG("hcon %p reason %d", hcon, reason);
 
 	sco_conn_del(hcon, bt_to_errno(reason));
@@ -1123,6 +1128,12 @@ drop:
 	kfree_skb(skb);
 	return 0;
 }
+
+static struct hci_cb sco_cb = {
+	.name		= "SCO",
+	.connect_cfm	= sco_connect_cfm,
+	.disconn_cfm	= sco_disconn_cfm,
+};
 
 static int sco_debugfs_show(struct seq_file *f, void *p)
 {
@@ -1184,6 +1195,8 @@ int __init sco_init(void)
 {
 	int err;
 
+	BUILD_BUG_ON(sizeof(struct sockaddr_sco) > sizeof(struct sockaddr));
+
 	err = proto_register(&sco_proto, 0);
 	if (err < 0)
 		return err;
@@ -1203,6 +1216,8 @@ int __init sco_init(void)
 
 	BT_INFO("SCO socket layer initialized");
 
+	hci_register_cb(&sco_cb);
+
 	if (IS_ERR_OR_NULL(bt_debugfs))
 		return 0;
 
@@ -1216,11 +1231,13 @@ error:
 	return err;
 }
 
-void __exit sco_exit(void)
+void sco_exit(void)
 {
 	bt_procfs_cleanup(&init_net, "sco");
 
 	debugfs_remove(sco_debugfs);
+
+	hci_unregister_cb(&sco_cb);
 
 	bt_sock_unregister(BTPROTO_SCO);
 

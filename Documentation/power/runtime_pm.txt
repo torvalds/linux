@@ -229,13 +229,13 @@ defined in include/linux/pm.h:
     - if set, the value of child_count is ignored (but still updated)
 
   unsigned int disable_depth;
-    - used for disabling the helper funcions (they work normally if this is
+    - used for disabling the helper functions (they work normally if this is
       equal to zero); the initial value of it is 1 (i.e. runtime PM is
       initially disabled for all devices)
 
   int runtime_error;
     - if set, there was a fatal error (one of the callbacks returned error code
-      as described in Section 2), so the helper funtions will not work until
+      as described in Section 2), so the helper functions will not work until
       this flag is cleared; this is the error code returned by the failing
       callback
 
@@ -468,6 +468,10 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
     - set the power.irq_safe flag for the device, causing the runtime-PM
       callbacks to be invoked with interrupts off
 
+  bool pm_runtime_is_irq_safe(struct device *dev);
+    - return true if power.irq_safe flag was set for the device, causing
+      the runtime-PM callbacks to be invoked with interrupts off
+
   void pm_runtime_mark_last_busy(struct device *dev);
     - set the power.last_busy field to the current time
 
@@ -524,7 +528,7 @@ pm_runtime_put_sync_autosuspend()
 5. Runtime PM Initialization, Device Probing and Removal
 
 Initially, the runtime PM is disabled for all devices, which means that the
-majority of the runtime PM helper funtions described in Section 4 will return
+majority of the runtime PM helper functions described in Section 4 will return
 -EAGAIN until pm_runtime_enable() is called for the device.
 
 In addition to that, the initial runtime PM status of all devices is

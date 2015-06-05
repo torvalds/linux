@@ -176,10 +176,11 @@ smb2_find_mid(struct TCP_Server_Info *server, char *buf)
 {
 	struct mid_q_entry *mid;
 	struct smb2_hdr *hdr = (struct smb2_hdr *)buf;
+	__u64 wire_mid = le64_to_cpu(hdr->MessageId);
 
 	spin_lock(&GlobalMid_Lock);
 	list_for_each_entry(mid, &server->pending_mid_q, qhead) {
-		if ((mid->mid == hdr->MessageId) &&
+		if ((mid->mid == wire_mid) &&
 		    (mid->mid_state == MID_REQUEST_SUBMITTED) &&
 		    (mid->command == hdr->Command)) {
 			spin_unlock(&GlobalMid_Lock);
@@ -523,7 +524,7 @@ smb2_print_stats(struct seq_file *m, struct cifs_tcon *tcon)
 static void
 smb2_set_fid(struct cifsFileInfo *cfile, struct cifs_fid *fid, __u32 oplock)
 {
-	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
+	struct cifsInodeInfo *cinode = CIFS_I(d_inode(cfile->dentry));
 	struct TCP_Server_Info *server = tlink_tcon(cfile->tlink)->ses->server;
 
 	cfile->fid.persistent_fid = fid->persistent_fid;
@@ -600,7 +601,7 @@ smb2_clone_range(const unsigned int xid,
 		goto cchunk_out;
 
 	/* For now array only one chunk long, will make more flexible later */
-	pcchunk->ChunkCount = __constant_cpu_to_le32(1);
+	pcchunk->ChunkCount = cpu_to_le32(1);
 	pcchunk->Reserved = 0;
 	pcchunk->Reserved2 = 0;
 
@@ -683,7 +684,8 @@ smb2_clone_range(const unsigned int xid,
 
 			/* No need to change MaxChunks since already set to 1 */
 			chunk_sizes_updated = true;
-		}
+		} else
+			goto cchunk_out;
 	}
 
 cchunk_out:
@@ -791,7 +793,7 @@ smb2_set_file_size(const unsigned int xid, struct cifs_tcon *tcon,
 	 * If extending file more than one page make sparse. Many Linux fs
 	 * make files sparse by default when extending via ftruncate
 	 */
-	inode = cfile->dentry->d_inode;
+	inode = d_inode(cfile->dentry);
 
 	if (!set_alloc && (size > inode->i_size + 8192)) {
 		__u8 set_sparse = 1;
@@ -1030,7 +1032,7 @@ static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
 
 	xid = get_xid();
 
-	inode = cfile->dentry->d_inode;
+	inode = d_inode(cfile->dentry);
 	cifsi = CIFS_I(inode);
 
 	/* if file not oplocked can't be sure whether asking to extend size */
@@ -1081,7 +1083,7 @@ static long smb3_punch_hole(struct file *file, struct cifs_tcon *tcon,
 
 	xid = get_xid();
 
-	inode = cfile->dentry->d_inode;
+	inode = d_inode(cfile->dentry);
 	cifsi = CIFS_I(inode);
 
 	/* Need to make file sparse, if not already, before freeing range. */
@@ -1102,6 +1104,64 @@ static long smb3_punch_hole(struct file *file, struct cifs_tcon *tcon,
 	return rc;
 }
 
+static long smb3_simple_falloc(struct file *file, struct cifs_tcon *tcon,
+			    loff_t off, loff_t len, bool keep_size)
+{
+	struct inode *inode;
+	struct cifsInodeInfo *cifsi;
+	struct cifsFileInfo *cfile = file->private_data;
+	long rc = -EOPNOTSUPP;
+	unsigned int xid;
+
+	xid = get_xid();
+
+	inode = d_inode(cfile->dentry);
+	cifsi = CIFS_I(inode);
+
+	/* if file not oplocked can't be sure whether asking to extend size */
+	if (!CIFS_CACHE_READ(cifsi))
+		if (keep_size == false)
+			return -EOPNOTSUPP;
+
+	/*
+	 * Files are non-sparse by default so falloc may be a no-op
+	 * Must check if file sparse. If not sparse, and not extending
+	 * then no need to do anything since file already allocated
+	 */
+	if ((cifsi->cifsAttrs & FILE_ATTRIBUTE_SPARSE_FILE) == 0) {
+		if (keep_size == true)
+			return 0;
+		/* check if extending file */
+		else if (i_size_read(inode) >= off + len)
+			/* not extending file and already not sparse */
+			return 0;
+		/* BB: in future add else clause to extend file */
+		else
+			return -EOPNOTSUPP;
+	}
+
+	if ((keep_size == true) || (i_size_read(inode) >= off + len)) {
+		/*
+		 * Check if falloc starts within first few pages of file
+		 * and ends within a few pages of the end of file to
+		 * ensure that most of file is being forced to be
+		 * fallocated now. If so then setting whole file sparse
+		 * ie potentially making a few extra pages at the beginning
+		 * or end of the file non-sparse via set_sparse is harmless.
+		 */
+		if ((off > 8192) || (off + len + 8192 < i_size_read(inode)))
+			return -EOPNOTSUPP;
+
+		rc = smb2_set_sparse(xid, tcon, cfile, inode, false);
+	}
+	/* BB: else ... in future add code to extend file and set sparse */
+
+
+	free_xid(xid);
+	return rc;
+}
+
+
 static long smb3_fallocate(struct file *file, struct cifs_tcon *tcon, int mode,
 			   loff_t off, loff_t len)
 {
@@ -1112,7 +1172,10 @@ static long smb3_fallocate(struct file *file, struct cifs_tcon *tcon, int mode,
 		if (mode & FALLOC_FL_KEEP_SIZE)
 			return smb3_zero_range(file, tcon, off, len, true);
 		return smb3_zero_range(file, tcon, off, len, false);
-	}
+	} else if (mode == FALLOC_FL_KEEP_SIZE)
+		return smb3_simple_falloc(file, tcon, off, len, true);
+	else if (mode == 0)
+		return smb3_simple_falloc(file, tcon, off, len, false);
 
 	return -EOPNOTSUPP;
 }

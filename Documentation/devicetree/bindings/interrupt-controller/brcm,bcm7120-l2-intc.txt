@@ -13,7 +13,11 @@ Such an interrupt controller has the following hardware design:
   or if they will output an interrupt signal at this 2nd level interrupt
   controller, in particular for UARTs
 
-- not all 32-bits within the interrupt controller actually map to an interrupt
+- has one 32-bit enable word and one 32-bit status word
+
+- no atomic set/clear operations
+
+- not all bits within the interrupt controller actually map to an interrupt
 
 The typical hardware layout for this controller is represented below:
 
@@ -66,11 +70,11 @@ Optional properties:
 - brcm,irq-can-wake: if present, this means the L2 controller can be used as a
   wakeup source for system suspend/resume.
 
-- brcm,int-fwd-mask: if present, a 32-bits bit mask to configure for the
-  interrupts which have a mux gate, typically UARTs. Setting these bits will
-  make their respective interrupts outputs bypass this 2nd level interrupt
-  controller completely, it completely transparent for the interrupt controller
-  parent
+- brcm,int-fwd-mask: if present, a bit mask to configure the interrupts which
+  have a mux gate, typically UARTs. Setting these bits will make their
+  respective interrupt outputs bypass this 2nd level interrupt controller
+  completely; it is completely transparent for the interrupt controller
+  parent. This should have one 32-bit word per enable/status pair.
 
 Example:
 

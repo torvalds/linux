@@ -866,7 +866,6 @@ static struct platform_driver bcm2835_i2s_driver = {
 	.probe		= bcm2835_i2s_probe,
 	.driver		= {
 		.name	= "bcm2835-i2s",
-		.owner	= THIS_MODULE,
 		.of_match_table = bcm2835_i2s_of_match,
 	},
 };

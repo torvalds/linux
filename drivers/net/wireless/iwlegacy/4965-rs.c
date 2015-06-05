@@ -1678,7 +1678,7 @@ il4965_rs_stay_in_table(struct il_lq_sta *lq_sta, bool force_search)
 		    lq_sta->total_success > lq_sta->max_success_limit ||
 		    (!lq_sta->search_better_tbl && lq_sta->flush_timer &&
 		     flush_interval_passed)) {
-			D_RATE("LQ: stay is expired %d %d %d\n:",
+			D_RATE("LQ: stay is expired %d %d %d\n",
 			       lq_sta->total_failed, lq_sta->total_success,
 			       flush_interval_passed);
 

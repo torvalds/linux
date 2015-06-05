@@ -244,7 +244,7 @@ static void nv04_dfp_prepare_sel_clk(struct drm_device *dev,
 static void nv04_dfp_prepare(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct drm_encoder_helper_funcs *helper = encoder->helper_private;
+	const struct drm_encoder_helper_funcs *helper = encoder->helper_private;
 	struct drm_device *dev = encoder->dev;
 	int head = nouveau_crtc(encoder->crtc)->index;
 	struct nv04_crtc_reg *crtcstate = nv04_display(dev)->mode_reg.crtc_reg;
@@ -445,7 +445,7 @@ static void nv04_dfp_commit(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct drm_encoder_helper_funcs *helper = encoder->helper_private;
+	const struct drm_encoder_helper_funcs *helper = encoder->helper_private;
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct dcb_output *dcbe = nv_encoder->dcb;
@@ -623,9 +623,9 @@ static void nv04_tmds_slave_init(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 	struct dcb_output *dcb = nouveau_encoder(encoder)->dcb;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_i2c *i2c = nvkm_i2c(&drm->device);
-	struct nouveau_i2c_port *port = i2c->find(i2c, 2);
-	struct nouveau_i2c_board_info info[] = {
+	struct nvkm_i2c *i2c = nvxx_i2c(&drm->device);
+	struct nvkm_i2c_port *port = i2c->find(i2c, 2);
+	struct nvkm_i2c_board_info info[] = {
 		{
 		    {
 		        .type = "sil164",

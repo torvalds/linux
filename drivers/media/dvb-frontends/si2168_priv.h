@@ -28,8 +28,7 @@
 #define SI2168_B40_FIRMWARE_FALLBACK "dvb-demod-si2168-02.fw"
 
 /* state struct */
-struct si2168 {
-	struct i2c_client *client;
+struct si2168_dev {
 	struct i2c_adapter *adapter;
 	struct mutex i2c_mutex;
 	struct dvb_frontend fe;
@@ -38,9 +37,10 @@ struct si2168 {
 	bool active;
 	bool fw_loaded;
 	u8 ts_mode;
+	bool ts_clock_inv;
 };
 
-/* firmare command struct */
+/* firmware command struct */
 #define SI2168_ARGLEN      30
 struct si2168_cmd {
 	u8 args[SI2168_ARGLEN];

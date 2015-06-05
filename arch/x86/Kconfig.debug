@@ -43,10 +43,6 @@ config EARLY_PRINTK
 	  with klogd/syslogd or the X server. You should normally N here,
 	  unless you want to debug such a crash.
 
-config EARLY_PRINTK_INTEL_MID
-	bool "Early printk for Intel MID platform support"
-	depends on EARLY_PRINTK && X86_INTEL_MID
-
 config EARLY_PRINTK_DBGP
 	bool "Early printk via EHCI debug port"
 	depends on EARLY_PRINTK && PCI
@@ -312,6 +308,19 @@ config DEBUG_NMI_SELFTEST
 	  function properly.
 
 	  If unsure, say N.
+
+config DEBUG_IMR_SELFTEST
+	bool "Isolated Memory Region self test"
+	default n
+	depends on INTEL_IMR
+	---help---
+	  This option enables automated sanity testing of the IMR code.
+	  Some simple tests are run to verify IMR bounds checking, alignment
+	  and overlapping. This option is really only useful if you are
+	  debugging an IMR memory map or are modifying the IMR code and want to
+	  test your changes.
+
+	  If unsure say N here.
 
 config X86_DEBUG_STATIC_CPU_HAS
 	bool "Debug alternatives"

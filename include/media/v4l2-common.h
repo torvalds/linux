@@ -80,24 +80,9 @@
 
 /* ------------------------------------------------------------------------- */
 
-/* Control helper functions */
+/* Control helper function */
 
-int v4l2_ctrl_check(struct v4l2_ext_control *ctrl, struct v4l2_queryctrl *qctrl,
-		const char * const *menu_items);
-const char *v4l2_ctrl_get_name(u32 id);
-const char * const *v4l2_ctrl_get_menu(u32 id);
-const s64 *v4l2_ctrl_get_int_menu(u32 id, u32 *len);
 int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 step, s32 def);
-int v4l2_ctrl_query_menu(struct v4l2_querymenu *qmenu,
-		struct v4l2_queryctrl *qctrl, const char * const *menu_items);
-#define V4L2_CTRL_MENU_IDS_END (0xffffffff)
-int v4l2_ctrl_query_menu_valid_items(struct v4l2_querymenu *qmenu, const u32 *ids);
-
-/* Note: ctrl_classes points to an array of u32 pointers. Each u32 array is a
-   0-terminated array of control IDs. Each array must be sorted low to high
-   and belong to the same control class. The array of u32 pointers must also
-   be sorted, from low class IDs to high class IDs. */
-u32 v4l2_ctrl_next(const u32 * const *ctrl_classes, u32 id);
 
 /* ------------------------------------------------------------------------- */
 

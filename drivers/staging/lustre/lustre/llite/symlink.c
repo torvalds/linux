@@ -100,8 +100,8 @@ static int ll_readlink_internal(struct inode *inode,
 	if (*symname == NULL ||
 	    strnlen(*symname, symlen) != symlen - 1) {
 		/* not full/NULL terminated */
-		CERROR("inode %lu: symlink not NULL terminated string"
-			"of length %d\n", inode->i_ino, symlen - 1);
+		CERROR("inode %lu: symlink not NULL terminated string of length %d\n",
+		       inode->i_ino, symlen - 1);
 		rc = -EPROTO;
 		goto failed;
 	}
@@ -120,7 +120,7 @@ failed:
 
 static void *ll_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct ptlrpc_request *request = NULL;
 	int rc;
 	char *symname = NULL;

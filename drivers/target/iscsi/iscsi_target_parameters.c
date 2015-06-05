@@ -18,7 +18,7 @@
 
 #include <linux/slab.h>
 
-#include "iscsi_target_core.h"
+#include <target/iscsi/iscsi_target_core.h>
 #include "iscsi_target_util.h"
 #include "iscsi_target_parameters.h"
 

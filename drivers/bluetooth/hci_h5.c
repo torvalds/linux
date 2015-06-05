@@ -168,6 +168,27 @@ wakeup:
 	hci_uart_tx_wakeup(hu);
 }
 
+static void h5_peer_reset(struct hci_uart *hu)
+{
+	struct h5 *h5 = hu->priv;
+
+	BT_ERR("Peer device has reset");
+
+	h5->state = H5_UNINITIALIZED;
+
+	del_timer(&h5->timer);
+
+	skb_queue_purge(&h5->rel);
+	skb_queue_purge(&h5->unrel);
+	skb_queue_purge(&h5->unack);
+
+	h5->tx_seq = 0;
+	h5->tx_ack = 0;
+
+	/* Send reset request to upper stack */
+	hci_reset_dev(hu->hdev);
+}
+
 static int h5_open(struct hci_uart *hu)
 {
 	struct h5 *h5;
@@ -283,8 +304,12 @@ static void h5_handle_internal_rx(struct hci_uart *hu)
 	conf_req[2] = h5_cfg_field(h5);
 
 	if (memcmp(data, sync_req, 2) == 0) {
+		if (h5->state == H5_ACTIVE)
+			h5_peer_reset(hu);
 		h5_link_control(hu, sync_rsp, 2);
 	} else if (memcmp(data, sync_rsp, 2) == 0) {
+		if (h5->state == H5_ACTIVE)
+			h5_peer_reset(hu);
 		h5->state = H5_INITIALIZED;
 		h5_link_control(hu, conf_req, 3);
 	} else if (memcmp(data, conf_req, 2) == 0) {
@@ -486,10 +511,10 @@ static void h5_reset_rx(struct h5 *h5)
 	clear_bit(H5_RX_ESC, &h5->flags);
 }
 
-static int h5_recv(struct hci_uart *hu, void *data, int count)
+static int h5_recv(struct hci_uart *hu, const void *data, int count)
 {
 	struct h5 *h5 = hu->priv;
-	unsigned char *ptr = data;
+	const unsigned char *ptr = data;
 
 	BT_DBG("%s pending %zu count %d", hu->hdev->name, h5->rx_pending,
 	       count);
@@ -718,8 +743,9 @@ static int h5_flush(struct hci_uart *hu)
 	return 0;
 }
 
-static struct hci_uart_proto h5p = {
+static const struct hci_uart_proto h5p = {
 	.id		= HCI_UART_3WIRE,
+	.name		= "Three-wire (H5)",
 	.open		= h5_open,
 	.close		= h5_close,
 	.recv		= h5_recv,
@@ -730,14 +756,7 @@ static struct hci_uart_proto h5p = {
 
 int __init h5_init(void)
 {
-	int err = hci_uart_register_proto(&h5p);
-
-	if (!err)
-		BT_INFO("HCI Three-wire UART (H5) protocol initialized");
-	else
-		BT_ERR("HCI Three-wire UART (H5) protocol init failed");
-
-	return err;
+	return hci_uart_register_proto(&h5p);
 }
 
 int __exit h5_deinit(void)

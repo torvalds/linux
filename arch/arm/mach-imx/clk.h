@@ -20,6 +20,7 @@ enum imx_pllv3_type {
 	IMX_PLLV3_GENERIC,
 	IMX_PLLV3_SYS,
 	IMX_PLLV3_USB,
+	IMX_PLLV3_USB_VF610,
 	IMX_PLLV3_AV,
 	IMX_PLLV3_ENET,
 };
@@ -130,5 +131,9 @@ static inline struct clk *imx_clk_fixed_factor(const char *name,
 	return clk_register_fixed_factor(NULL, name, parent,
 			CLK_SET_RATE_PARENT, mult, div);
 }
+
+struct clk *imx_clk_cpu(const char *name, const char *parent_name,
+		struct clk *div, struct clk *mux, struct clk *pll,
+		struct clk *step);
 
 #endif

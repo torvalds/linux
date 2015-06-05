@@ -540,8 +540,7 @@ bail:
 	if (status < 0)
 		make_bad_inode(inode);
 
-	if (args && bh)
-		brelse(bh);
+	brelse(bh);
 
 	return status;
 }
@@ -625,7 +624,7 @@ static int ocfs2_remove_inode(struct inode *inode,
 		ocfs2_get_system_file_inode(osb, INODE_ALLOC_SYSTEM_INODE,
 					    le16_to_cpu(di->i_suballoc_slot));
 	if (!inode_alloc_inode) {
-		status = -EEXIST;
+		status = -ENOENT;
 		mlog_errno(status);
 		goto bail;
 	}
@@ -649,7 +648,7 @@ static int ocfs2_remove_inode(struct inode *inode,
 
 	if (!(OCFS2_I(inode)->ip_flags & OCFS2_INODE_SKIP_ORPHAN_DIR)) {
 		status = ocfs2_orphan_del(osb, handle, orphan_dir_inode, inode,
-					  orphan_dir_bh);
+					  orphan_dir_bh, false);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail_commit;
@@ -743,7 +742,7 @@ static int ocfs2_wipe_inode(struct inode *inode,
 							       ORPHAN_DIR_SYSTEM_INODE,
 							       orphaned_slot);
 		if (!orphan_dir_inode) {
-			status = -EEXIST;
+			status = -ENOENT;
 			mlog_errno(status);
 			goto bail;
 		}
@@ -1210,7 +1209,7 @@ int ocfs2_drop_inode(struct inode *inode)
  */
 int ocfs2_inode_revalidate(struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int status = 0;
 
 	trace_ocfs2_inode_revalidate(inode,

@@ -49,6 +49,17 @@ enum hv_cpuid_function {
 	HVCPUID_IMPLEMENTATION_LIMITS		= 0x40000005,
 };
 
+#define  HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE   0x400
+
+#define HV_X64_MSR_CRASH_P0   0x40000100
+#define HV_X64_MSR_CRASH_P1   0x40000101
+#define HV_X64_MSR_CRASH_P2   0x40000102
+#define HV_X64_MSR_CRASH_P3   0x40000103
+#define HV_X64_MSR_CRASH_P4   0x40000104
+#define HV_X64_MSR_CRASH_CTL  0x40000105
+
+#define HV_CRASH_CTL_CRASH_NOTIFY (1ULL << 63)
+
 /* Define version of the synthetic interrupt controller. */
 #define HV_SYNIC_VERSION		(1)
 
@@ -177,6 +188,23 @@ struct hv_message_header {
 		union hv_port_id port;
 	};
 };
+
+/*
+ * Timer configuration register.
+ */
+union hv_timer_config {
+	u64 as_uint64;
+	struct {
+		u64 enable:1;
+		u64 periodic:1;
+		u64 lazy:1;
+		u64 auto_enable:1;
+		u64 reserved_z0:12;
+		u64 sintx:4;
+		u64 reserved_z1:44;
+	};
+};
+
 
 /* Define timer message payload structure. */
 struct hv_timer_message_payload {
@@ -519,6 +547,10 @@ struct hv_context {
 	 * buffer to post messages to the host.
 	 */
 	void *post_msg_page[NR_CPUS];
+	/*
+	 * Support PV clockevent device.
+	 */
+	struct clock_event_device *clk_evt[NR_CPUS];
 };
 
 extern struct hv_context hv_context;
@@ -550,6 +582,8 @@ extern void hv_synic_free(void);
 extern void hv_synic_init(void *irqarg);
 
 extern void hv_synic_cleanup(void *arg);
+
+extern void hv_synic_clockevents_cleanup(void);
 
 /*
  * Host version information.
@@ -651,6 +685,23 @@ struct vmbus_msginfo {
 
 extern struct vmbus_connection vmbus_connection;
 
+enum vmbus_message_handler_type {
+	/* The related handler can sleep. */
+	VMHT_BLOCKING = 0,
+
+	/* The related handler must NOT sleep. */
+	VMHT_NON_BLOCKING = 1,
+};
+
+struct vmbus_channel_message_table_entry {
+	enum vmbus_channel_message_type message_type;
+	enum vmbus_message_handler_type handler_type;
+	void (*message_handler)(struct vmbus_channel_message_header *msg);
+};
+
+extern struct vmbus_channel_message_table_entry
+	channel_message_table[CHANNELMSG_COUNT];
+
 /* General vmbus interface */
 
 struct hv_device *vmbus_device_create(const uuid_le *type,
@@ -671,6 +722,7 @@ void vmbus_free_channels(void);
 /* Connection interface */
 
 int vmbus_connect(void);
+void vmbus_disconnect(void);
 
 int vmbus_post_msg(void *buffer, size_t buflen);
 

@@ -562,8 +562,8 @@ setup_arch (char **cmdline_p)
 #  ifdef CONFIG_ACPI_HOTPLUG_CPU
 	prefill_possible_map();
 #  endif
-	per_cpu_scan_finalize((cpus_weight(early_cpu_possible_map) == 0 ?
-		32 : cpus_weight(early_cpu_possible_map)),
+	per_cpu_scan_finalize((cpumask_weight(&early_cpu_possible_map) == 0 ?
+		32 : cpumask_weight(&early_cpu_possible_map)),
 		additional_cpus > 0 ? additional_cpus : 0);
 # endif
 #endif /* CONFIG_APCI_BOOT */
@@ -702,7 +702,8 @@ show_cpuinfo (struct seq_file *m, void *v)
 		   c->itc_freq / 1000000, c->itc_freq % 1000000,
 		   lpj*HZ/500000, (lpj*HZ/5000) % 100);
 #ifdef CONFIG_SMP
-	seq_printf(m, "siblings   : %u\n", cpus_weight(cpu_core_map[cpunum]));
+	seq_printf(m, "siblings   : %u\n",
+		   cpumask_weight(&cpu_core_map[cpunum]));
 	if (c->socket_id != -1)
 		seq_printf(m, "physical id: %u\n", c->socket_id);
 	if (c->threads_per_core > 1 || c->cores_per_socket > 1)
@@ -933,8 +934,8 @@ cpu_init (void)
 	 * (must be done after per_cpu area is setup)
 	 */
 	if (smp_processor_id() == 0) {
-		cpu_set(0, per_cpu(cpu_sibling_map, 0));
-		cpu_set(0, cpu_core_map[0]);
+		cpumask_set_cpu(0, &per_cpu(cpu_sibling_map, 0));
+		cpumask_set_cpu(0, &cpu_core_map[0]);
 	} else {
 		/*
 		 * Set ar.k3 so that assembly code in MCA handler can compute

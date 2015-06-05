@@ -128,16 +128,57 @@ static inline void percpu_ref_kill(struct percpu_ref *ref)
 static inline bool __ref_is_percpu(struct percpu_ref *ref,
 					  unsigned long __percpu **percpu_countp)
 {
-	unsigned long percpu_ptr = ACCESS_ONCE(ref->percpu_count_ptr);
+	unsigned long percpu_ptr;
 
-	/* paired with smp_store_release() in percpu_ref_reinit() */
-	smp_read_barrier_depends();
+	/*
+	 * The value of @ref->percpu_count_ptr is tested for
+	 * !__PERCPU_REF_ATOMIC, which may be set asynchronously, and then
+	 * used as a pointer.  If the compiler generates a separate fetch
+	 * when using it as a pointer, __PERCPU_REF_ATOMIC may be set in
+	 * between contaminating the pointer value, meaning that
+	 * ACCESS_ONCE() is required when fetching it.
+	 *
+	 * Also, we need a data dependency barrier to be paired with
+	 * smp_store_release() in __percpu_ref_switch_to_percpu().
+	 *
+	 * Use lockless deref which contains both.
+	 */
+	percpu_ptr = lockless_dereference(ref->percpu_count_ptr);
 
-	if (unlikely(percpu_ptr & __PERCPU_REF_ATOMIC))
+	/*
+	 * Theoretically, the following could test just ATOMIC; however,
+	 * then we'd have to mask off DEAD separately as DEAD may be
+	 * visible without ATOMIC if we race with percpu_ref_kill().  DEAD
+	 * implies ATOMIC anyway.  Test them together.
+	 */
+	if (unlikely(percpu_ptr & __PERCPU_REF_ATOMIC_DEAD))
 		return false;
 
 	*percpu_countp = (unsigned long __percpu *)percpu_ptr;
 	return true;
+}
+
+/**
+ * percpu_ref_get_many - increment a percpu refcount
+ * @ref: percpu_ref to get
+ * @nr: number of references to get
+ *
+ * Analogous to atomic_long_add().
+ *
+ * This function is safe to call as long as @ref is between init and exit.
+ */
+static inline void percpu_ref_get_many(struct percpu_ref *ref, unsigned long nr)
+{
+	unsigned long __percpu *percpu_count;
+
+	rcu_read_lock_sched();
+
+	if (__ref_is_percpu(ref, &percpu_count))
+		this_cpu_add(*percpu_count, nr);
+	else
+		atomic_long_add(nr, &ref->count);
+
+	rcu_read_unlock_sched();
 }
 
 /**
@@ -150,16 +191,7 @@ static inline bool __ref_is_percpu(struct percpu_ref *ref,
  */
 static inline void percpu_ref_get(struct percpu_ref *ref)
 {
-	unsigned long __percpu *percpu_count;
-
-	rcu_read_lock_sched();
-
-	if (__ref_is_percpu(ref, &percpu_count))
-		this_cpu_inc(*percpu_count);
-	else
-		atomic_long_inc(&ref->count);
-
-	rcu_read_unlock_sched();
+	percpu_ref_get_many(ref, 1);
 }
 
 /**
@@ -215,13 +247,37 @@ static inline bool percpu_ref_tryget_live(struct percpu_ref *ref)
 	if (__ref_is_percpu(ref, &percpu_count)) {
 		this_cpu_inc(*percpu_count);
 		ret = true;
-	} else if (!(ACCESS_ONCE(ref->percpu_count_ptr) & __PERCPU_REF_DEAD)) {
+	} else if (!(ref->percpu_count_ptr & __PERCPU_REF_DEAD)) {
 		ret = atomic_long_inc_not_zero(&ref->count);
 	}
 
 	rcu_read_unlock_sched();
 
 	return ret;
+}
+
+/**
+ * percpu_ref_put_many - decrement a percpu refcount
+ * @ref: percpu_ref to put
+ * @nr: number of references to put
+ *
+ * Decrement the refcount, and if 0, call the release function (which was passed
+ * to percpu_ref_init())
+ *
+ * This function is safe to call as long as @ref is between init and exit.
+ */
+static inline void percpu_ref_put_many(struct percpu_ref *ref, unsigned long nr)
+{
+	unsigned long __percpu *percpu_count;
+
+	rcu_read_lock_sched();
+
+	if (__ref_is_percpu(ref, &percpu_count))
+		this_cpu_sub(*percpu_count, nr);
+	else if (unlikely(atomic_long_sub_and_test(nr, &ref->count)))
+		ref->release(ref);
+
+	rcu_read_unlock_sched();
 }
 
 /**
@@ -235,16 +291,21 @@ static inline bool percpu_ref_tryget_live(struct percpu_ref *ref)
  */
 static inline void percpu_ref_put(struct percpu_ref *ref)
 {
-	unsigned long __percpu *percpu_count;
+	percpu_ref_put_many(ref, 1);
+}
 
-	rcu_read_lock_sched();
-
-	if (__ref_is_percpu(ref, &percpu_count))
-		this_cpu_dec(*percpu_count);
-	else if (unlikely(atomic_long_dec_and_test(&ref->count)))
-		ref->release(ref);
-
-	rcu_read_unlock_sched();
+/**
+ * percpu_ref_is_dying - test whether a percpu refcount is dying or dead
+ * @ref: percpu_ref to test
+ *
+ * Returns %true if @ref is dying or dead.
+ *
+ * This function is safe to call as long as @ref is between init and exit
+ * and the caller is responsible for synchronizing against state changes.
+ */
+static inline bool percpu_ref_is_dying(struct percpu_ref *ref)
+{
+	return ref->percpu_count_ptr & __PERCPU_REF_DEAD;
 }
 
 /**

@@ -1079,7 +1079,6 @@ static struct platform_driver spear_smi_driver = {
 	.driver = {
 		.name = "smi",
 		.bus = &platform_bus_type,
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(spear_smi_id_table),
 		.pm = &spear_smi_pm_ops,
 	},

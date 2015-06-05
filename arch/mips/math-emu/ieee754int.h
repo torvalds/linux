@@ -44,6 +44,11 @@ static inline int ieee754_setandtestcx(const unsigned int x)
 	return ieee754_csr.mx & x;
 }
 
+static inline int ieee754_class_nan(int xc)
+{
+	return xc >= IEEE754_CLASS_SNAN;
+}
+
 #define COMPXSP \
 	unsigned xm; int xe; int xs __maybe_unused; int xc
 

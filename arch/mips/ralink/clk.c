@@ -56,6 +56,12 @@ unsigned long clk_get_rate(struct clk *clk)
 }
 EXPORT_SYMBOL_GPL(clk_get_rate);
 
+int clk_set_rate(struct clk *clk, unsigned long rate)
+{
+	return -1;
+}
+EXPORT_SYMBOL_GPL(clk_set_rate);
+
 void __init plat_time_init(void)
 {
 	struct clk *clk;

@@ -5,7 +5,6 @@ header-y +=
 generic-y += barrier.h
 generic-y += clkdev.h
 generic-y += cputime.h
-generic-y += hash.h
 generic-y += irq_work.h
 generic-y += mcs_spinlock.h
 generic-y += preempt.h

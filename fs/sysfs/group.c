@@ -41,7 +41,7 @@ static int create_files(struct kernfs_node *parent, struct kobject *kobj,
 
 	if (grp->attrs) {
 		for (i = 0, attr = grp->attrs; *attr && !error; i++, attr++) {
-			umode_t mode = 0;
+			umode_t mode = (*attr)->mode;
 
 			/*
 			 * In update mode, we're changing the permissions or
@@ -55,9 +55,14 @@ static int create_files(struct kernfs_node *parent, struct kobject *kobj,
 				if (!mode)
 					continue;
 			}
+
+			WARN(mode & ~(SYSFS_PREALLOC | 0664),
+			     "Attribute %s: Invalid permissions 0%o\n",
+			     (*attr)->name, mode);
+
+			mode &= SYSFS_PREALLOC | 0664;
 			error = sysfs_add_file_mode_ns(parent, *attr, false,
-						       (*attr)->mode | mode,
-						       NULL);
+						       mode, NULL);
 			if (unlikely(error))
 				break;
 		}
@@ -99,7 +104,7 @@ static int internal_create_group(struct kobject *kobj, int update,
 		return -EINVAL;
 	if (!grp->attrs && !grp->bin_attrs) {
 		WARN(1, "sysfs: (bin_)attrs not set by subsystem for group: %s/%s\n",
-			kobj->name, grp->name ? "" : grp->name);
+			kobj->name, grp->name ?: "");
 		return -EINVAL;
 	}
 	if (grp->name) {

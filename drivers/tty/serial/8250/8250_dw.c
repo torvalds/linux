@@ -17,7 +17,6 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/serial_8250.h>
-#include <linux/serial_core.h>
 #include <linux/serial_reg.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
@@ -59,6 +58,8 @@ struct dw8250_data {
 	u8			usr_reg;
 	int			last_mcr;
 	int			line;
+	int			msr_mask_on;
+	int			msr_mask_off;
 	struct clk		*clk;
 	struct clk		*pclk;
 	struct reset_control	*rst;
@@ -79,6 +80,12 @@ static inline int dw8250_modify_msr(struct uart_port *p, int offset, int value)
 	if (offset == UART_MSR && d->last_mcr & UART_MCR_AFE) {
 		value |= UART_MSR_CTS;
 		value &= ~UART_MSR_DCTS;
+	}
+
+	/* Override any modem control signals if needed */
+	if (offset == UART_MSR) {
+		value |= d->msr_mask_on;
+		value &= ~d->msr_mask_off;
 	}
 
 	return value;
@@ -111,7 +118,10 @@ static void dw8250_serial_out(struct uart_port *p, int offset, int value)
 			dw8250_force_idle(p);
 			writeb(value, p->membase + (UART_LCR << p->regshift));
 		}
-		dev_err(p->dev, "Couldn't set LCR to %d\n", value);
+		/*
+		 * FIXME: this deadlocks if port->lock is already held
+		 * dev_err(p->dev, "Couldn't set LCR to %d\n", value);
+		 */
 	}
 }
 
@@ -122,12 +132,46 @@ static unsigned int dw8250_serial_in(struct uart_port *p, int offset)
 	return dw8250_modify_msr(p, offset, value);
 }
 
-/* Read Back (rb) version to ensure register access ording. */
-static void dw8250_serial_out_rb(struct uart_port *p, int offset, int value)
+#ifdef CONFIG_64BIT
+static unsigned int dw8250_serial_inq(struct uart_port *p, int offset)
 {
-	dw8250_serial_out(p, offset, value);
-	dw8250_serial_in(p, UART_LCR);
+	unsigned int value;
+
+	value = (u8)__raw_readq(p->membase + (offset << p->regshift));
+
+	return dw8250_modify_msr(p, offset, value);
 }
+
+static void dw8250_serial_outq(struct uart_port *p, int offset, int value)
+{
+	struct dw8250_data *d = p->private_data;
+
+	if (offset == UART_MCR)
+		d->last_mcr = value;
+
+	value &= 0xff;
+	__raw_writeq(value, p->membase + (offset << p->regshift));
+	/* Read back to ensure register write ordering. */
+	__raw_readq(p->membase + (UART_LCR << p->regshift));
+
+	/* Make sure LCR write wasn't ignored */
+	if (offset == UART_LCR) {
+		int tries = 1000;
+		while (tries--) {
+			unsigned int lcr = p->serial_in(p, UART_LCR);
+			if ((value & ~UART_LCR_SPAR) == (lcr & ~UART_LCR_SPAR))
+				return;
+			dw8250_force_idle(p);
+			__raw_writeq(value & 0xff,
+				     p->membase + (UART_LCR << p->regshift));
+		}
+		/*
+		 * FIXME: this deadlocks if port->lock is already held
+		 * dev_err(p->dev, "Couldn't set LCR to %d\n", value);
+		 */
+	}
+}
+#endif /* CONFIG_64BIT */
 
 static void dw8250_serial_out32(struct uart_port *p, int offset, int value)
 {
@@ -148,7 +192,10 @@ static void dw8250_serial_out32(struct uart_port *p, int offset, int value)
 			dw8250_force_idle(p);
 			writel(value, p->membase + (UART_LCR << p->regshift));
 		}
-		dev_err(p->dev, "Couldn't set LCR to %d\n", value);
+		/*
+		 * FIXME: this deadlocks if port->lock is already held
+		 * dev_err(p->dev, "Couldn't set LCR to %d\n", value);
+		 */
 	}
 }
 
@@ -258,22 +305,19 @@ static int dw8250_probe_of(struct uart_port *p,
 	struct uart_8250_port *up = up_to_u8250p(p);
 	u32			val;
 	bool has_ucv = true;
+	int id;
 
+#ifdef CONFIG_64BIT
 	if (of_device_is_compatible(np, "cavium,octeon-3860-uart")) {
-#ifdef __BIG_ENDIAN
-		/*
-		 * Low order bits of these 64-bit registers, when
-		 * accessed as a byte, are 7 bytes further down in the
-		 * address space in big endian mode.
-		 */
-		p->membase += 7;
-#endif
-		p->serial_out = dw8250_serial_out_rb;
+		p->serial_in = dw8250_serial_inq;
+		p->serial_out = dw8250_serial_outq;
 		p->flags = UPF_SKIP_TEST | UPF_SHARE_IRQ | UPF_FIXED_TYPE;
 		p->type = PORT_OCTEON;
 		data->usr_reg = 0x27;
 		has_ucv = false;
-	} else if (!of_property_read_u32(np, "reg-io-width", &val)) {
+	} else
+#endif
+	if (!of_property_read_u32(np, "reg-io-width", &val)) {
 		switch (val) {
 		case 1:
 			break;
@@ -290,19 +334,45 @@ static int dw8250_probe_of(struct uart_port *p,
 	if (has_ucv)
 		dw8250_setup_port(up);
 
+	/* if we have a valid fifosize, try hooking up DMA here */
+	if (p->fifosize) {
+		up->dma = &data->dma;
+
+		up->dma->rxconf.src_maxburst = p->fifosize / 4;
+		up->dma->txconf.dst_maxburst = p->fifosize / 4;
+	}
+
 	if (!of_property_read_u32(np, "reg-shift", &val))
 		p->regshift = val;
 
-	/* clock got configured through clk api, all done */
-	if (p->uartclk)
-		return 0;
+	/* get index of serial line, if found in DT aliases */
+	id = of_alias_get_id(np, "serial");
+	if (id >= 0)
+		p->line = id;
 
-	/* try to find out clock frequency from DT as fallback */
-	if (of_property_read_u32(np, "clock-frequency", &val)) {
-		dev_err(p->dev, "clk or clock-frequency not defined\n");
-		return -EINVAL;
+	if (of_property_read_bool(np, "dcd-override")) {
+		/* Always report DCD as active */
+		data->msr_mask_on |= UART_MSR_DCD;
+		data->msr_mask_off |= UART_MSR_DDCD;
 	}
-	p->uartclk = val;
+
+	if (of_property_read_bool(np, "dsr-override")) {
+		/* Always report DSR as active */
+		data->msr_mask_on |= UART_MSR_DSR;
+		data->msr_mask_off |= UART_MSR_DDSR;
+	}
+
+	if (of_property_read_bool(np, "cts-override")) {
+		/* Always report CTS as active */
+		data->msr_mask_on |= UART_MSR_CTS;
+		data->msr_mask_off |= UART_MSR_DCTS;
+	}
+
+	if (of_property_read_bool(np, "ri-override")) {
+		/* Always report Ring indicator as inactive */
+		data->msr_mask_off |= UART_MSR_RI;
+		data->msr_mask_off |= UART_MSR_TERI;
+	}
 
 	return 0;
 }
@@ -333,18 +403,24 @@ static int dw8250_probe(struct platform_device *pdev)
 {
 	struct uart_8250_port uart = {};
 	struct resource *regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	struct resource *irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	int irq = platform_get_irq(pdev, 0);
 	struct dw8250_data *data;
 	int err;
 
-	if (!regs || !irq) {
-		dev_err(&pdev->dev, "no registers/irq defined\n");
+	if (!regs) {
+		dev_err(&pdev->dev, "no registers defined\n");
 		return -EINVAL;
+	}
+
+	if (irq < 0) {
+		if (irq != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "cannot get irq\n");
+		return irq;
 	}
 
 	spin_lock_init(&uart.port.lock);
 	uart.port.mapbase = regs->start;
-	uart.port.irq = irq->start;
+	uart.port.irq = irq;
 	uart.port.handle_irq = dw8250_handle_irq;
 	uart.port.pm = dw8250_do_pm;
 	uart.port.type = PORT_8250;
@@ -361,18 +437,30 @@ static int dw8250_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	data->usr_reg = DW_UART_USR;
+
+	/* Always ask for fixed clock rate from a property. */
+	device_property_read_u32(&pdev->dev, "clock-frequency",
+				 &uart.port.uartclk);
+
+	/* If there is separate baudclk, get the rate from it. */
 	data->clk = devm_clk_get(&pdev->dev, "baudclk");
 	if (IS_ERR(data->clk) && PTR_ERR(data->clk) != -EPROBE_DEFER)
 		data->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(data->clk) && PTR_ERR(data->clk) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
-	if (!IS_ERR(data->clk)) {
+	if (!IS_ERR_OR_NULL(data->clk)) {
 		err = clk_prepare_enable(data->clk);
 		if (err)
 			dev_warn(&pdev->dev, "could not enable optional baudclk: %d\n",
 				 err);
 		else
 			uart.port.uartclk = clk_get_rate(data->clk);
+	}
+
+	/* If no clock rate is defined, fail. */
+	if (!uart.port.uartclk) {
+		dev_err(&pdev->dev, "clock rate not defined\n");
+		return -EINVAL;
 	}
 
 	data->pclk = devm_clk_get(&pdev->dev, "apb_pclk");
@@ -489,7 +577,7 @@ static int dw8250_resume(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int dw8250_runtime_suspend(struct device *dev)
 {
 	struct dw8250_data *data = dev_get_drvdata(dev);
@@ -536,6 +624,8 @@ static const struct acpi_device_id dw8250_acpi_match[] = {
 	{ "INT3435", 0 },
 	{ "80860F0A", 0 },
 	{ "8086228A", 0 },
+	{ "APMC0D08", 0},
+	{ "AMD0020", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, dw8250_acpi_match);
@@ -543,7 +633,6 @@ MODULE_DEVICE_TABLE(acpi, dw8250_acpi_match);
 static struct platform_driver dw8250_platform_driver = {
 	.driver = {
 		.name		= "dw-apb-uart",
-		.owner		= THIS_MODULE,
 		.pm		= &dw8250_pm_ops,
 		.of_match_table	= dw8250_of_match,
 		.acpi_match_table = ACPI_PTR(dw8250_acpi_match),
@@ -557,3 +646,4 @@ module_platform_driver(dw8250_platform_driver);
 MODULE_AUTHOR("Jamie Iles");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Synopsys DesignWare 8250 serial port driver");
+MODULE_ALIAS("platform:dw-apb-uart");

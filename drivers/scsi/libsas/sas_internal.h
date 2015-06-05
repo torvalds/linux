@@ -66,9 +66,7 @@ void sas_unregister_ports(struct sas_ha_struct *sas_ha);
 
 enum blk_eh_timer_return sas_scsi_timed_out(struct scsi_cmnd *);
 
-int  sas_init_queue(struct sas_ha_struct *sas_ha);
 int  sas_init_events(struct sas_ha_struct *sas_ha);
-void sas_shutdown_queue(struct sas_ha_struct *sas_ha);
 void sas_disable_revalidation(struct sas_ha_struct *ha);
 void sas_enable_revalidation(struct sas_ha_struct *ha);
 void __sas_drain_work(struct sas_ha_struct *ha);

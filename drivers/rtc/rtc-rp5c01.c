@@ -273,7 +273,6 @@ static int __exit rp5c01_rtc_remove(struct platform_device *dev)
 static struct platform_driver rp5c01_rtc_driver = {
 	.driver	= {
 		.name	= "rtc-rp5c01",
-		.owner	= THIS_MODULE,
 	},
 	.remove	= __exit_p(rp5c01_rtc_remove),
 };

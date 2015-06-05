@@ -43,6 +43,7 @@ static void nci_core_conn_credits_ntf_packet(struct nci_dev *ndev,
 					     struct sk_buff *skb)
 {
 	struct nci_core_conn_credit_ntf *ntf = (void *) skb->data;
+	struct nci_conn_info	*conn_info;
 	int i;
 
 	pr_debug("num_entries %d\n", ntf->num_entries);
@@ -59,11 +60,13 @@ static void nci_core_conn_credits_ntf_packet(struct nci_dev *ndev,
 			 i, ntf->conn_entries[i].conn_id,
 			 ntf->conn_entries[i].credits);
 
-		if (ntf->conn_entries[i].conn_id == NCI_STATIC_RF_CONN_ID) {
-			/* found static rf connection */
-			atomic_add(ntf->conn_entries[i].credits,
-				   &ndev->credits_cnt);
-		}
+		conn_info = nci_get_conn_info_by_conn_id(ndev,
+							 ntf->conn_entries[i].conn_id);
+		if (!conn_info)
+			return;
+
+		atomic_add(ntf->conn_entries[i].credits,
+			   &conn_info->credits_cnt);
 	}
 
 	/* trigger the next tx */
@@ -96,14 +99,14 @@ static void nci_core_conn_intf_error_ntf_packet(struct nci_dev *ndev,
 
 	/* complete the data exchange transaction, if exists */
 	if (test_bit(NCI_DATA_EXCHANGE, &ndev->flags))
-		nci_data_exchange_complete(ndev, NULL, -EIO);
+		nci_data_exchange_complete(ndev, NULL, ntf->conn_id, -EIO);
 }
 
 static __u8 *nci_extract_rf_params_nfca_passive_poll(struct nci_dev *ndev,
 			struct rf_tech_specific_params_nfca_poll *nfca_poll,
 						     __u8 *data)
 {
-	nfca_poll->sens_res = __le16_to_cpu(*((__u16 *)data));
+	nfca_poll->sens_res = __le16_to_cpu(*((__le16 *)data));
 	data += 2;
 
 	nfca_poll->nfcid1_len = min_t(__u8, *data++, NFC_NFCID1_MAXSIZE);
@@ -167,7 +170,19 @@ static __u8 *nci_extract_rf_params_nfcv_passive_poll(struct nci_dev *ndev,
 	return data;
 }
 
-__u32 nci_get_prop_rf_protocol(struct nci_dev *ndev, __u8 rf_protocol)
+static __u8 *nci_extract_rf_params_nfcf_passive_listen(struct nci_dev *ndev,
+			struct rf_tech_specific_params_nfcf_listen *nfcf_listen,
+						     __u8 *data)
+{
+	nfcf_listen->local_nfcid2_len = min_t(__u8, *data++,
+					      NFC_NFCID2_MAXSIZE);
+	memcpy(nfcf_listen->local_nfcid2, data, nfcf_listen->local_nfcid2_len);
+	data += nfcf_listen->local_nfcid2_len;
+
+	return data;
+}
+
+static __u32 nci_get_prop_rf_protocol(struct nci_dev *ndev, __u8 rf_protocol)
 {
 	if (ndev->ops->get_rfprotocol)
 		return ndev->ops->get_rfprotocol(ndev, rf_protocol);
@@ -401,15 +416,27 @@ static int nci_extract_activation_params_nfc_dep(struct nci_dev *ndev,
 			struct nci_rf_intf_activated_ntf *ntf, __u8 *data)
 {
 	struct activation_params_poll_nfc_dep *poll;
+	struct activation_params_listen_nfc_dep *listen;
 
 	switch (ntf->activation_rf_tech_and_mode) {
 	case NCI_NFC_A_PASSIVE_POLL_MODE:
 	case NCI_NFC_F_PASSIVE_POLL_MODE:
 		poll = &ntf->activation_params.poll_nfc_dep;
-		poll->atr_res_len = min_t(__u8, *data++, 63);
+		poll->atr_res_len = min_t(__u8, *data++,
+					  NFC_ATR_RES_MAXSIZE - 2);
 		pr_debug("atr_res_len %d\n", poll->atr_res_len);
 		if (poll->atr_res_len > 0)
 			memcpy(poll->atr_res, data, poll->atr_res_len);
+		break;
+
+	case NCI_NFC_A_PASSIVE_LISTEN_MODE:
+	case NCI_NFC_F_PASSIVE_LISTEN_MODE:
+		listen = &ntf->activation_params.listen_nfc_dep;
+		listen->atr_req_len = min_t(__u8, *data++,
+					    NFC_ATR_REQ_MAXSIZE - 2);
+		pr_debug("atr_req_len %d\n", listen->atr_req_len);
+		if (listen->atr_req_len > 0)
+			memcpy(listen->atr_req, data, listen->atr_req_len);
 		break;
 
 	default:
@@ -444,9 +471,52 @@ static void nci_target_auto_activated(struct nci_dev *ndev,
 	nfc_targets_found(ndev->nfc_dev, ndev->targets, ndev->n_targets);
 }
 
+static int nci_store_general_bytes_nfc_dep(struct nci_dev *ndev,
+		struct nci_rf_intf_activated_ntf *ntf)
+{
+	ndev->remote_gb_len = 0;
+
+	if (ntf->activation_params_len <= 0)
+		return NCI_STATUS_OK;
+
+	switch (ntf->activation_rf_tech_and_mode) {
+	case NCI_NFC_A_PASSIVE_POLL_MODE:
+	case NCI_NFC_F_PASSIVE_POLL_MODE:
+		ndev->remote_gb_len = min_t(__u8,
+			(ntf->activation_params.poll_nfc_dep.atr_res_len
+						- NFC_ATR_RES_GT_OFFSET),
+			NFC_ATR_RES_GB_MAXSIZE);
+		memcpy(ndev->remote_gb,
+		       (ntf->activation_params.poll_nfc_dep.atr_res
+						+ NFC_ATR_RES_GT_OFFSET),
+		       ndev->remote_gb_len);
+		break;
+
+	case NCI_NFC_A_PASSIVE_LISTEN_MODE:
+	case NCI_NFC_F_PASSIVE_LISTEN_MODE:
+		ndev->remote_gb_len = min_t(__u8,
+			(ntf->activation_params.listen_nfc_dep.atr_req_len
+						- NFC_ATR_REQ_GT_OFFSET),
+			NFC_ATR_REQ_GB_MAXSIZE);
+		memcpy(ndev->remote_gb,
+		       (ntf->activation_params.listen_nfc_dep.atr_req
+						+ NFC_ATR_REQ_GT_OFFSET),
+		       ndev->remote_gb_len);
+		break;
+
+	default:
+		pr_err("unsupported activation_rf_tech_and_mode 0x%x\n",
+		       ntf->activation_rf_tech_and_mode);
+		return NCI_STATUS_RF_PROTOCOL_ERROR;
+	}
+
+	return NCI_STATUS_OK;
+}
+
 static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 					     struct sk_buff *skb)
 {
+	struct nci_conn_info    *conn_info;
 	struct nci_rf_intf_activated_ntf ntf;
 	__u8 *data = skb->data;
 	int err = NCI_STATUS_OK;
@@ -471,6 +541,13 @@ static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 	pr_debug("rf_tech_specific_params_len %d\n",
 		 ntf.rf_tech_specific_params_len);
 
+	/* If this contains a value of 0x00 (NFCEE Direct RF
+	 * Interface) then all following parameters SHALL contain a
+	 * value of 0 and SHALL be ignored.
+	 */
+	if (ntf.rf_interface == NCI_RF_INTERFACE_NFCEE_DIRECT)
+		goto listen;
+
 	if (ntf.rf_tech_specific_params_len > 0) {
 		switch (ntf.activation_rf_tech_and_mode) {
 		case NCI_NFC_A_PASSIVE_POLL_MODE:
@@ -491,6 +568,16 @@ static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 		case NCI_NFC_V_PASSIVE_POLL_MODE:
 			data = nci_extract_rf_params_nfcv_passive_poll(ndev,
 				&(ntf.rf_tech_specific_params.nfcv_poll), data);
+			break;
+
+		case NCI_NFC_A_PASSIVE_LISTEN_MODE:
+			/* no RF technology specific parameters */
+			break;
+
+		case NCI_NFC_F_PASSIVE_LISTEN_MODE:
+			data = nci_extract_rf_params_nfcf_passive_listen(ndev,
+				&(ntf.rf_tech_specific_params.nfcf_listen),
+				data);
 			break;
 
 		default:
@@ -538,49 +625,67 @@ static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 
 exit:
 	if (err == NCI_STATUS_OK) {
-		ndev->max_data_pkt_payload_size = ntf.max_data_pkt_payload_size;
-		ndev->initial_num_credits = ntf.initial_num_credits;
+		conn_info = ndev->rf_conn_info;
+		if (!conn_info)
+			return;
+
+		conn_info->max_pkt_payload_len = ntf.max_data_pkt_payload_size;
+		conn_info->initial_num_credits = ntf.initial_num_credits;
 
 		/* set the available credits to initial value */
-		atomic_set(&ndev->credits_cnt, ndev->initial_num_credits);
+		atomic_set(&conn_info->credits_cnt,
+			   conn_info->initial_num_credits);
 
 		/* store general bytes to be reported later in dep_link_up */
 		if (ntf.rf_interface == NCI_RF_INTERFACE_NFC_DEP) {
-			ndev->remote_gb_len = 0;
-
-			if (ntf.activation_params_len > 0) {
-				/* ATR_RES general bytes at offset 15 */
-				ndev->remote_gb_len = min_t(__u8,
-					(ntf.activation_params
-					.poll_nfc_dep.atr_res_len
-					- NFC_ATR_RES_GT_OFFSET),
-					NFC_MAX_GT_LEN);
-				memcpy(ndev->remote_gb,
-				       (ntf.activation_params.poll_nfc_dep
-				       .atr_res + NFC_ATR_RES_GT_OFFSET),
-				       ndev->remote_gb_len);
-			}
+			err = nci_store_general_bytes_nfc_dep(ndev, &ntf);
+			if (err != NCI_STATUS_OK)
+				pr_err("unable to store general bytes\n");
 		}
 	}
 
-	if (atomic_read(&ndev->state) == NCI_DISCOVERY) {
-		/* A single target was found and activated automatically */
-		atomic_set(&ndev->state, NCI_POLL_ACTIVE);
-		if (err == NCI_STATUS_OK)
-			nci_target_auto_activated(ndev, &ntf);
-	} else {	/* ndev->state == NCI_W4_HOST_SELECT */
-		/* A selected target was activated, so complete the request */
-		atomic_set(&ndev->state, NCI_POLL_ACTIVE);
-		nci_req_complete(ndev, err);
+	if (!(ntf.activation_rf_tech_and_mode & NCI_RF_TECH_MODE_LISTEN_MASK)) {
+		/* Poll mode */
+		if (atomic_read(&ndev->state) == NCI_DISCOVERY) {
+			/* A single target was found and activated
+			 * automatically */
+			atomic_set(&ndev->state, NCI_POLL_ACTIVE);
+			if (err == NCI_STATUS_OK)
+				nci_target_auto_activated(ndev, &ntf);
+		} else {	/* ndev->state == NCI_W4_HOST_SELECT */
+			/* A selected target was activated, so complete the
+			 * request */
+			atomic_set(&ndev->state, NCI_POLL_ACTIVE);
+			nci_req_complete(ndev, err);
+		}
+	} else {
+listen:
+		/* Listen mode */
+		atomic_set(&ndev->state, NCI_LISTEN_ACTIVE);
+		if (err == NCI_STATUS_OK &&
+		    ntf.rf_protocol == NCI_RF_PROTOCOL_NFC_DEP) {
+			err = nfc_tm_activated(ndev->nfc_dev,
+					       NFC_PROTO_NFC_DEP_MASK,
+					       NFC_COMM_PASSIVE,
+					       ndev->remote_gb,
+					       ndev->remote_gb_len);
+			if (err != NCI_STATUS_OK)
+				pr_err("error when signaling tm activation\n");
+		}
 	}
 }
 
 static void nci_rf_deactivate_ntf_packet(struct nci_dev *ndev,
 					 struct sk_buff *skb)
 {
+	struct nci_conn_info    *conn_info;
 	struct nci_rf_deactivate_ntf *ntf = (void *) skb->data;
 
 	pr_debug("entry, type 0x%x, reason 0x%x\n", ntf->type, ntf->reason);
+
+	conn_info = ndev->rf_conn_info;
+	if (!conn_info)
+		return;
 
 	/* drop tx data queue */
 	skb_queue_purge(&ndev->tx_q);
@@ -593,11 +698,51 @@ static void nci_rf_deactivate_ntf_packet(struct nci_dev *ndev,
 
 	/* complete the data exchange transaction, if exists */
 	if (test_bit(NCI_DATA_EXCHANGE, &ndev->flags))
-		nci_data_exchange_complete(ndev, NULL, -EIO);
+		nci_data_exchange_complete(ndev, NULL, NCI_STATIC_RF_CONN_ID,
+					   -EIO);
 
-	nci_clear_target_list(ndev);
-	atomic_set(&ndev->state, NCI_IDLE);
+	switch (ntf->type) {
+	case NCI_DEACTIVATE_TYPE_IDLE_MODE:
+		nci_clear_target_list(ndev);
+		atomic_set(&ndev->state, NCI_IDLE);
+		break;
+	case NCI_DEACTIVATE_TYPE_SLEEP_MODE:
+	case NCI_DEACTIVATE_TYPE_SLEEP_AF_MODE:
+		atomic_set(&ndev->state, NCI_W4_HOST_SELECT);
+		break;
+	case NCI_DEACTIVATE_TYPE_DISCOVERY:
+		nci_clear_target_list(ndev);
+		atomic_set(&ndev->state, NCI_DISCOVERY);
+		break;
+	}
+
 	nci_req_complete(ndev, NCI_STATUS_OK);
+}
+
+static void nci_nfcee_discover_ntf_packet(struct nci_dev *ndev,
+					  struct sk_buff *skb)
+{
+	u8 status = NCI_STATUS_OK;
+	struct nci_nfcee_discover_ntf   *nfcee_ntf =
+				(struct nci_nfcee_discover_ntf *)skb->data;
+
+	pr_debug("\n");
+
+	/* NFCForum NCI 9.2.1 HCI Network Specific Handling
+	 * If the NFCC supports the HCI Network, it SHALL return one,
+	 * and only one, NFCEE_DISCOVER_NTF with a Protocol type of
+	 * “HCI Access”, even if the HCI Network contains multiple NFCEEs.
+	 */
+	ndev->hci_dev->nfcee_id = nfcee_ntf->nfcee_id;
+	ndev->cur_id = nfcee_ntf->nfcee_id;
+
+	nci_req_complete(ndev, status);
+}
+
+static void nci_nfcee_action_ntf_packet(struct nci_dev *ndev,
+					struct sk_buff *skb)
+{
+	pr_debug("\n");
 }
 
 void nci_ntf_packet(struct nci_dev *ndev, struct sk_buff *skb)
@@ -636,6 +781,14 @@ void nci_ntf_packet(struct nci_dev *ndev, struct sk_buff *skb)
 
 	case NCI_OP_RF_DEACTIVATE_NTF:
 		nci_rf_deactivate_ntf_packet(ndev, skb);
+		break;
+
+	case NCI_OP_NFCEE_DISCOVER_NTF:
+		nci_nfcee_discover_ntf_packet(ndev, skb);
+		break;
+
+	case NCI_OP_RF_NFCEE_ACTION_NTF:
+		nci_nfcee_action_ntf_packet(ndev, skb);
 		break;
 
 	default:

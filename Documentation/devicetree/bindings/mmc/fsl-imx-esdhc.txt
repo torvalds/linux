@@ -17,6 +17,10 @@ Optional properties:
   to select a proper data sampling window in case the clock quality is not good
   due to signal path is too long on the board. Please refer to eSDHC/uSDHC
   chapter, DLL (Delay Line) section in RM for details.
+- voltage-ranges : Specify the voltage range in case there are software
+  transparent level shifters on the outputs of the controller. Two cells are
+  required, first cell specifies minimum slot voltage (mV), second cell
+  specifies maximum slot voltage (mV). Several ranges could be specified.
 
 Examples:
 

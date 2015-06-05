@@ -32,6 +32,10 @@
 #define SH_ETH_TSU_CAM_ENTRIES	32
 
 enum {
+	/* IMPORTANT: To keep ethtool register dump working, add new
+	 * register names immediately before SH_ETH_MAX_REGISTER_OFFSET.
+	 */
+
 	/* E-DMAC registers */
 	EDSR = 0,
 	EDMR,
@@ -131,9 +135,7 @@ enum {
 	TSU_POST3,
 	TSU_POST4,
 	TSU_ADRH0,
-	TSU_ADRL0,
-	TSU_ADRH31,
-	TSU_ADRL31,
+	/* TSU_ADR{H,L}{0..31} are assumed to be contiguous */
 
 	TXNLCR0,
 	TXALCR0,
@@ -162,9 +164,9 @@ enum {
 
 /* Driver's parameters */
 #if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARCH_SHMOBILE)
-#define SH4_SKB_RX_ALIGN	32
+#define SH_ETH_RX_ALIGN		32
 #else
-#define SH2_SH3_SKB_RX_ALIGN	2
+#define SH_ETH_RX_ALIGN		2
 #endif
 
 /* Register's bits
@@ -369,6 +371,8 @@ enum DESC_I_BIT {
 	DESC_I_RINT1 = 0x0001,
 };
 
+#define DEFAULT_TRSCER_ERR_MASK (DESC_I_RINT8 | DESC_I_RINT5 | DESC_I_TINT2)
+
 /* RPADIR */
 enum RPADIR_BIT {
 	RPADIR_PADS1 = 0x20000, RPADIR_PADS0 = 0x10000,
@@ -457,18 +461,21 @@ struct sh_eth_cpu_data {
 
 	/* mandatory initialize value */
 	int register_type;
-	unsigned long eesipr_value;
+	u32 eesipr_value;
 
 	/* optional initialize value */
-	unsigned long ecsr_value;
-	unsigned long ecsipr_value;
-	unsigned long fdr_value;
-	unsigned long fcftr_value;
-	unsigned long rpadir_value;
+	u32 ecsr_value;
+	u32 ecsipr_value;
+	u32 fdr_value;
+	u32 fcftr_value;
+	u32 rpadir_value;
 
 	/* interrupt checking mask */
-	unsigned long tx_check;
-	unsigned long eesr_err_check;
+	u32 tx_check;
+	u32 eesr_err_check;
+
+	/* Error mask */
+	u32 trscer_err_mask;
 
 	/* hardware features */
 	unsigned long irq_flags; /* IRQ configuration flags */
@@ -486,6 +493,7 @@ struct sh_eth_cpu_data {
 	unsigned select_mii:1;	/* EtherC have RMII_MII (MII select register) */
 	unsigned shift_rd0:1;	/* shift Rx descriptor word 0 right by 16 */
 	unsigned rmiimode:1;	/* EtherC has RMIIMODE register */
+	unsigned rtrate:1;	/* EtherC has RTRATE register */
 };
 
 struct sh_eth_private {
@@ -508,6 +516,7 @@ struct sh_eth_private {
 	u32 rx_buf_sz;			/* Based on MTU+slack. */
 	int edmac_endian;
 	struct napi_struct napi;
+	bool irq_enabled;
 	/* MII transceiver section. */
 	u32 phy_id;			/* PHY ID */
 	struct mii_bus *mii_bus;	/* MDIO bus control */
@@ -522,6 +531,7 @@ struct sh_eth_private {
 
 	unsigned no_ether_link:1;
 	unsigned ether_link_active_low:1;
+	unsigned is_opened:1;
 };
 
 static inline void sh_eth_soft_swap(char *src, int len)
@@ -536,20 +546,29 @@ static inline void sh_eth_soft_swap(char *src, int len)
 #endif
 }
 
-static inline void sh_eth_write(struct net_device *ndev, unsigned long data,
+#define SH_ETH_OFFSET_INVALID	((u16) ~0)
+
+static inline void sh_eth_write(struct net_device *ndev, u32 data,
 				int enum_index)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
+	u16 offset = mdp->reg_offset[enum_index];
 
-	iowrite32(data, mdp->addr + mdp->reg_offset[enum_index]);
+	if (WARN_ON(offset == SH_ETH_OFFSET_INVALID))
+		return;
+
+	iowrite32(data, mdp->addr + offset);
 }
 
-static inline unsigned long sh_eth_read(struct net_device *ndev,
-					int enum_index)
+static inline u32 sh_eth_read(struct net_device *ndev, int enum_index)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
+	u16 offset = mdp->reg_offset[enum_index];
 
-	return ioread32(mdp->addr + mdp->reg_offset[enum_index]);
+	if (WARN_ON(offset == SH_ETH_OFFSET_INVALID))
+		return ~0U;
+
+	return ioread32(mdp->addr + offset);
 }
 
 static inline void *sh_eth_tsu_get_offset(struct sh_eth_private *mdp,
@@ -558,14 +577,13 @@ static inline void *sh_eth_tsu_get_offset(struct sh_eth_private *mdp,
 	return mdp->tsu_addr + mdp->reg_offset[enum_index];
 }
 
-static inline void sh_eth_tsu_write(struct sh_eth_private *mdp,
-				unsigned long data, int enum_index)
+static inline void sh_eth_tsu_write(struct sh_eth_private *mdp, u32 data,
+				    int enum_index)
 {
 	iowrite32(data, mdp->tsu_addr + mdp->reg_offset[enum_index]);
 }
 
-static inline unsigned long sh_eth_tsu_read(struct sh_eth_private *mdp,
-					int enum_index)
+static inline u32 sh_eth_tsu_read(struct sh_eth_private *mdp, int enum_index)
 {
 	return ioread32(mdp->tsu_addr + mdp->reg_offset[enum_index]);
 }

@@ -18,25 +18,11 @@
  * Media Vision
  * (510) 770-8600
  * (800) 348-7116
- * 
- * and 
- *
- * NCR 5380 Family
- * SCSI Protocol Controller
- * Databook
- *
- * NCR Microelectronics
- * 1635 Aeroplaza Drive
- * Colorado Springs, CO 80916
- * 1+ (719) 578-3400
- * 1+ (800) 334-5454
  */
 
 
 #ifndef PAS16_H
 #define PAS16_H
-
-#define PAS16_PUBLIC_RELEASE 3
 
 #define PDEBUG_INIT	0x1
 #define PDEBUG_TRANSFER 0x2
@@ -114,12 +100,6 @@
 
 
 #ifndef ASM
-static int pas16_abort(Scsi_Cmnd *);
-static int pas16_biosparam(struct scsi_device *, struct block_device *,
-			   sector_t, int*);
-static int pas16_detect(struct scsi_host_template *);
-static int pas16_queue_command(struct Scsi_Host *, struct scsi_cmnd *);
-static int pas16_bus_reset(Scsi_Cmnd *);
 
 #ifndef CMD_PER_LUN
 #define CMD_PER_LUN 2
@@ -161,6 +141,7 @@ static int pas16_bus_reset(Scsi_Cmnd *);
 #define NCR5380_queue_command pas16_queue_command
 #define NCR5380_abort pas16_abort
 #define NCR5380_bus_reset pas16_bus_reset
+#define NCR5380_info pas16_info
 #define NCR5380_show_info pas16_show_info
 #define NCR5380_write_info pas16_write_info
 

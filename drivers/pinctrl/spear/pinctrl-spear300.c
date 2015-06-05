@@ -685,7 +685,6 @@ static int spear300_pinctrl_remove(struct platform_device *pdev)
 static struct platform_driver spear300_pinctrl_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = spear300_pinctrl_of_match,
 	},
 	.probe = spear300_pinctrl_probe,

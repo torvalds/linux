@@ -60,26 +60,6 @@ struct	__queue	{
 #define LIST_CONTAINOR(ptr, type, member) \
 	((type *)((char *)(ptr)-(SIZE_T)(&((type *)0)->member)))
 
-static inline void _init_timer(struct timer_list *ptimer,
-			       struct  net_device *padapter,
-			       void *pfunc, void *cntx)
-{
-	ptimer->function = pfunc;
-	ptimer->data = (addr_t)cntx;
-	init_timer(ptimer);
-}
-
-static inline void _set_timer(struct timer_list *ptimer, u32 delay_time)
-{
-	mod_timer(ptimer, (jiffies+(delay_time*HZ/1000)));
-}
-
-static inline void _cancel_timer(struct timer_list *ptimer, u8 *bcancelled)
-{
-	del_timer(ptimer);
-	*bcancelled = true; /*true ==1; false==0*/
-}
-
 #ifndef BIT
 	#define BIT(x)	(1 << (x))
 #endif
@@ -88,34 +68,22 @@ static inline u32 _down_sema(struct semaphore *sema)
 {
 	if (down_interruptible(sema))
 		return _FAIL;
-	else
-		return _SUCCESS;
+	return _SUCCESS;
 }
 
 static inline u32 end_of_queue_search(struct list_head *head,
 		struct list_head *plist)
 {
-	if (head == plist)
-		return true;
-	else
-		return false;
+	return (head == plist);
 }
 
 static inline void sleep_schedulable(int ms)
 {
 	u32 delta;
 
-	delta = (ms * HZ) / 1000;/*(ms)*/
-	if (delta == 0)
-		delta = 1;/* 1 ms */
+	delta = msecs_to_jiffies(ms);/*(ms)*/
 	set_current_state(TASK_INTERRUPTIBLE);
-	if (schedule_timeout(delta) != 0)
-		return;
-}
-
-static inline unsigned char _cancel_timer_ex(struct timer_list *ptimer)
-{
-	return del_timer(ptimer);
+	schedule_timeout(delta);
 }
 
 static inline void flush_signals_thread(void)

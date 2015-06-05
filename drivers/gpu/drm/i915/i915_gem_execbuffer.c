@@ -37,6 +37,7 @@
 #define  __EXEC_OBJECT_HAS_FENCE (1<<30)
 #define  __EXEC_OBJECT_NEEDS_MAP (1<<29)
 #define  __EXEC_OBJECT_NEEDS_BIAS (1<<28)
+#define  __EXEC_OBJECT_PURGEABLE (1<<27)
 
 #define BATCH_OFFSET_BIAS (256*1024)
 
@@ -223,7 +224,12 @@ i915_gem_execbuffer_unreserve_vma(struct i915_vma *vma)
 	if (entry->flags & __EXEC_OBJECT_HAS_PIN)
 		vma->pin_count--;
 
-	entry->flags &= ~(__EXEC_OBJECT_HAS_FENCE | __EXEC_OBJECT_HAS_PIN);
+	if (entry->flags & __EXEC_OBJECT_PURGEABLE)
+		obj->madv = I915_MADV_DONTNEED;
+
+	entry->flags &= ~(__EXEC_OBJECT_HAS_FENCE |
+			  __EXEC_OBJECT_HAS_PIN |
+			  __EXEC_OBJECT_PURGEABLE);
 }
 
 static void eb_destroy(struct eb_vmas *eb)
@@ -245,7 +251,6 @@ static inline int use_cpu_reloc(struct drm_i915_gem_object *obj)
 {
 	return (HAS_LLC(obj->base.dev) ||
 		obj->base.write_domain == I915_GEM_DOMAIN_CPU ||
-		!obj->map_and_fenceable ||
 		obj->cache_level != I915_CACHE_NONE);
 }
 
@@ -331,6 +336,51 @@ relocate_entry_gtt(struct drm_i915_gem_object *obj,
 	return 0;
 }
 
+static void
+clflush_write32(void *addr, uint32_t value)
+{
+	/* This is not a fast path, so KISS. */
+	drm_clflush_virt_range(addr, sizeof(uint32_t));
+	*(uint32_t *)addr = value;
+	drm_clflush_virt_range(addr, sizeof(uint32_t));
+}
+
+static int
+relocate_entry_clflush(struct drm_i915_gem_object *obj,
+		       struct drm_i915_gem_relocation_entry *reloc,
+		       uint64_t target_offset)
+{
+	struct drm_device *dev = obj->base.dev;
+	uint32_t page_offset = offset_in_page(reloc->offset);
+	uint64_t delta = (int)reloc->delta + target_offset;
+	char *vaddr;
+	int ret;
+
+	ret = i915_gem_object_set_to_gtt_domain(obj, true);
+	if (ret)
+		return ret;
+
+	vaddr = kmap_atomic(i915_gem_object_get_page(obj,
+				reloc->offset >> PAGE_SHIFT));
+	clflush_write32(vaddr + page_offset, lower_32_bits(delta));
+
+	if (INTEL_INFO(dev)->gen >= 8) {
+		page_offset = offset_in_page(page_offset + sizeof(uint32_t));
+
+		if (page_offset == 0) {
+			kunmap_atomic(vaddr);
+			vaddr = kmap_atomic(i915_gem_object_get_page(obj,
+			    (reloc->offset + sizeof(uint32_t)) >> PAGE_SHIFT));
+		}
+
+		clflush_write32(vaddr + page_offset, upper_32_bits(delta));
+	}
+
+	kunmap_atomic(vaddr);
+
+	return 0;
+}
+
 static int
 i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 				   struct eb_vmas *eb,
@@ -357,11 +407,11 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	 * through the ppgtt for non_secure batchbuffers. */
 	if (unlikely(IS_GEN6(dev) &&
 	    reloc->write_domain == I915_GEM_DOMAIN_INSTRUCTION &&
-	    !target_i915_obj->has_global_gtt_mapping)) {
-		struct i915_vma *vma =
-			list_first_entry(&target_i915_obj->vma_list,
-					 typeof(*vma), vma_link);
-		vma->bind_vma(vma, target_i915_obj->cache_level, GLOBAL_BIND);
+	    !(target_vma->bound & GLOBAL_BIND))) {
+		ret = i915_vma_bind(target_vma, target_i915_obj->cache_level,
+				    GLOBAL_BIND);
+		if (WARN_ONCE(ret, "Unexpected failure to bind target VMA!"))
+			return ret;
 	}
 
 	/* Validate that the target is in a valid r/w GPU domain */
@@ -420,8 +470,14 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 
 	if (use_cpu_reloc(obj))
 		ret = relocate_entry_cpu(obj, reloc, target_offset);
-	else
+	else if (obj->map_and_fenceable)
 		ret = relocate_entry_gtt(obj, reloc, target_offset);
+	else if (cpu_has_clflush)
+		ret = relocate_entry_clflush(obj, reloc, target_offset);
+	else {
+		WARN_ONCE(1, "Impossible case in relocation handling\n");
+		ret = -ENODEV;
+	}
 
 	if (ret)
 		return ret;
@@ -519,6 +575,12 @@ i915_gem_execbuffer_relocate(struct eb_vmas *eb)
 	return ret;
 }
 
+static bool only_mappable_for_reloc(unsigned int flags)
+{
+	return (flags & (EXEC_OBJECT_NEEDS_FENCE | __EXEC_OBJECT_NEEDS_MAP)) ==
+		__EXEC_OBJECT_NEEDS_MAP;
+}
+
 static int
 i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 				struct intel_engine_cs *ring,
@@ -530,14 +592,21 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 	int ret;
 
 	flags = 0;
-	if (entry->flags & __EXEC_OBJECT_NEEDS_MAP)
-		flags |= PIN_MAPPABLE;
-	if (entry->flags & EXEC_OBJECT_NEEDS_GTT)
-		flags |= PIN_GLOBAL;
-	if (entry->flags & __EXEC_OBJECT_NEEDS_BIAS)
-		flags |= BATCH_OFFSET_BIAS | PIN_OFFSET_BIAS;
+	if (!drm_mm_node_allocated(&vma->node)) {
+		if (entry->flags & __EXEC_OBJECT_NEEDS_MAP)
+			flags |= PIN_GLOBAL | PIN_MAPPABLE;
+		if (entry->flags & EXEC_OBJECT_NEEDS_GTT)
+			flags |= PIN_GLOBAL;
+		if (entry->flags & __EXEC_OBJECT_NEEDS_BIAS)
+			flags |= BATCH_OFFSET_BIAS | PIN_OFFSET_BIAS;
+	}
 
 	ret = i915_gem_object_pin(obj, vma->vm, entry->alignment, flags);
+	if ((ret == -ENOSPC  || ret == -E2BIG) &&
+	    only_mappable_for_reloc(entry->flags))
+		ret = i915_gem_object_pin(obj, vma->vm,
+					  entry->alignment,
+					  flags & ~(PIN_GLOBAL | PIN_MAPPABLE));
 	if (ret)
 		return ret;
 
@@ -599,12 +668,13 @@ eb_vma_misplaced(struct i915_vma *vma)
 	    vma->node.start & (entry->alignment - 1))
 		return true;
 
-	if (entry->flags & __EXEC_OBJECT_NEEDS_MAP && !obj->map_and_fenceable)
-		return true;
-
 	if (entry->flags & __EXEC_OBJECT_NEEDS_BIAS &&
 	    vma->node.start < BATCH_OFFSET_BIAS)
 		return true;
+
+	/* avoid costly ping-pong once a batch bo ended up non-mappable */
+	if (entry->flags & __EXEC_OBJECT_NEEDS_MAP && !obj->map_and_fenceable)
+		return !only_mappable_for_reloc(entry->flags);
 
 	return false;
 }
@@ -946,7 +1016,7 @@ void
 i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 				   struct intel_engine_cs *ring)
 {
-	u32 seqno = intel_ring_get_seqno(ring);
+	struct drm_i915_gem_request *req = intel_ring_get_request(ring);
 	struct i915_vma *vma;
 
 	list_for_each_entry(vma, vmas, exec_list) {
@@ -963,15 +1033,15 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 		i915_vma_move_to_active(vma, ring);
 		if (obj->base.write_domain) {
 			obj->dirty = 1;
-			obj->last_write_seqno = seqno;
+			i915_gem_request_assign(&obj->last_write_req, req);
 
-			intel_fb_obj_invalidate(obj, ring);
+			intel_fb_obj_invalidate(obj, ring, ORIGIN_CS);
 
 			/* update for the implicit flush after a batch */
 			obj->base.write_domain &= ~I915_GEM_GPU_DOMAINS;
 		}
 		if (entry->flags & EXEC_OBJECT_NEEDS_FENCE) {
-			obj->last_fenced_seqno = seqno;
+			i915_gem_request_assign(&obj->last_fenced_req, req);
 			if (entry->flags & __EXEC_OBJECT_HAS_FENCE) {
 				struct drm_i915_private *dev_priv = to_i915(ring->dev);
 				list_move_tail(&dev_priv->fence_regs[obj->fence_reg].lru_list,
@@ -993,7 +1063,7 @@ i915_gem_execbuffer_retire_commands(struct drm_device *dev,
 	ring->gpu_caches_dirty = true;
 
 	/* Add a breadcrumb for the completion of the batch buffer */
-	(void)__i915_add_request(ring, file, obj, NULL);
+	(void)__i915_add_request(ring, file, obj);
 }
 
 static int
@@ -1023,6 +1093,97 @@ i915_reset_gen7_sol_offsets(struct drm_device *dev,
 	return 0;
 }
 
+static int
+i915_emit_box(struct intel_engine_cs *ring,
+	      struct drm_clip_rect *box,
+	      int DR1, int DR4)
+{
+	int ret;
+
+	if (box->y2 <= box->y1 || box->x2 <= box->x1 ||
+	    box->y2 <= 0 || box->x2 <= 0) {
+		DRM_ERROR("Bad box %d,%d..%d,%d\n",
+			  box->x1, box->y1, box->x2, box->y2);
+		return -EINVAL;
+	}
+
+	if (INTEL_INFO(ring->dev)->gen >= 4) {
+		ret = intel_ring_begin(ring, 4);
+		if (ret)
+			return ret;
+
+		intel_ring_emit(ring, GFX_OP_DRAWRECT_INFO_I965);
+		intel_ring_emit(ring, (box->x1 & 0xffff) | box->y1 << 16);
+		intel_ring_emit(ring, ((box->x2 - 1) & 0xffff) | (box->y2 - 1) << 16);
+		intel_ring_emit(ring, DR4);
+	} else {
+		ret = intel_ring_begin(ring, 6);
+		if (ret)
+			return ret;
+
+		intel_ring_emit(ring, GFX_OP_DRAWRECT_INFO);
+		intel_ring_emit(ring, DR1);
+		intel_ring_emit(ring, (box->x1 & 0xffff) | box->y1 << 16);
+		intel_ring_emit(ring, ((box->x2 - 1) & 0xffff) | (box->y2 - 1) << 16);
+		intel_ring_emit(ring, DR4);
+		intel_ring_emit(ring, 0);
+	}
+	intel_ring_advance(ring);
+
+	return 0;
+}
+
+static struct drm_i915_gem_object*
+i915_gem_execbuffer_parse(struct intel_engine_cs *ring,
+			  struct drm_i915_gem_exec_object2 *shadow_exec_entry,
+			  struct eb_vmas *eb,
+			  struct drm_i915_gem_object *batch_obj,
+			  u32 batch_start_offset,
+			  u32 batch_len,
+			  bool is_master)
+{
+	struct drm_i915_private *dev_priv = to_i915(batch_obj->base.dev);
+	struct drm_i915_gem_object *shadow_batch_obj;
+	struct i915_vma *vma;
+	int ret;
+
+	shadow_batch_obj = i915_gem_batch_pool_get(&dev_priv->mm.batch_pool,
+						   PAGE_ALIGN(batch_len));
+	if (IS_ERR(shadow_batch_obj))
+		return shadow_batch_obj;
+
+	ret = i915_parse_cmds(ring,
+			      batch_obj,
+			      shadow_batch_obj,
+			      batch_start_offset,
+			      batch_len,
+			      is_master);
+	if (ret)
+		goto err;
+
+	ret = i915_gem_obj_ggtt_pin(shadow_batch_obj, 0, 0);
+	if (ret)
+		goto err;
+
+	memset(shadow_exec_entry, 0, sizeof(*shadow_exec_entry));
+
+	vma = i915_gem_obj_to_ggtt(shadow_batch_obj);
+	vma->exec_entry = shadow_exec_entry;
+	vma->exec_entry->flags = __EXEC_OBJECT_PURGEABLE | __EXEC_OBJECT_HAS_PIN;
+	drm_gem_object_reference(&shadow_batch_obj->base);
+	list_add_tail(&vma->exec_list, &eb->vmas);
+
+	shadow_batch_obj->base.pending_read_domains = I915_GEM_DOMAIN_COMMAND;
+
+	return shadow_batch_obj;
+
+err:
+	if (ret == -EACCES) /* unhandled chained batch */
+		return batch_obj;
+	else
+		return ERR_PTR(ret);
+}
+
 int
 i915_gem_ringbuffer_submission(struct drm_device *dev, struct drm_file *file,
 			       struct intel_engine_cs *ring,
@@ -1030,7 +1191,7 @@ i915_gem_ringbuffer_submission(struct drm_device *dev, struct drm_file *file,
 			       struct drm_i915_gem_execbuffer2 *args,
 			       struct list_head *vmas,
 			       struct drm_i915_gem_object *batch_obj,
-			       u64 exec_start, u32 flags)
+			       u64 exec_start, u32 dispatch_flags)
 {
 	struct drm_clip_rect *cliprects = NULL;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1089,6 +1250,13 @@ i915_gem_ringbuffer_submission(struct drm_device *dev, struct drm_file *file,
 	ret = i915_switch_context(ring, ctx);
 	if (ret)
 		goto error;
+
+	if (ctx->ppgtt)
+		WARN(ctx->ppgtt->pd_dirty_rings & (1<<ring->id),
+			"%s didn't clear reload\n", ring->name);
+	else if (dev_priv->mm.aliasing_ppgtt)
+		WARN(dev_priv->mm.aliasing_ppgtt->pd_dirty_rings &
+			(1<<ring->id), "%s didn't clear reload\n", ring->name);
 
 	instp_mode = args->flags & I915_EXEC_CONSTANTS_MASK;
 	instp_mask = I915_EXEC_CONSTANTS_MASK;
@@ -1151,26 +1319,26 @@ i915_gem_ringbuffer_submission(struct drm_device *dev, struct drm_file *file,
 	exec_len = args->batch_len;
 	if (cliprects) {
 		for (i = 0; i < args->num_cliprects; i++) {
-			ret = i915_emit_box(dev, &cliprects[i],
+			ret = i915_emit_box(ring, &cliprects[i],
 					    args->DR1, args->DR4);
 			if (ret)
 				goto error;
 
 			ret = ring->dispatch_execbuffer(ring,
 							exec_start, exec_len,
-							flags);
+							dispatch_flags);
 			if (ret)
 				goto error;
 		}
 	} else {
 		ret = ring->dispatch_execbuffer(ring,
 						exec_start, exec_len,
-						flags);
+						dispatch_flags);
 		if (ret)
 			return ret;
 	}
 
-	trace_i915_gem_ring_dispatch(ring, intel_ring_get_seqno(ring), flags);
+	trace_i915_gem_ring_dispatch(intel_ring_get_request(ring), dispatch_flags);
 
 	i915_gem_execbuffer_move_to_active(vmas, ring);
 	i915_gem_execbuffer_retire_commands(dev, file, ring, batch_obj);
@@ -1239,12 +1407,13 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct eb_vmas *eb;
 	struct drm_i915_gem_object *batch_obj;
+	struct drm_i915_gem_exec_object2 shadow_exec_entry;
 	struct intel_engine_cs *ring;
 	struct intel_context *ctx;
 	struct i915_address_space *vm;
 	const u32 ctx_id = i915_execbuffer2_get_context_id(*args);
 	u64 exec_start = args->batch_start_offset;
-	u32 flags;
+	u32 dispatch_flags;
 	int ret;
 	bool need_relocs;
 
@@ -1255,15 +1424,15 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	flags = 0;
+	dispatch_flags = 0;
 	if (args->flags & I915_EXEC_SECURE) {
 		if (!file->is_master || !capable(CAP_SYS_ADMIN))
 		    return -EPERM;
 
-		flags |= I915_DISPATCH_SECURE;
+		dispatch_flags |= I915_DISPATCH_SECURE;
 	}
 	if (args->flags & I915_EXEC_IS_PINNED)
-		flags |= I915_DISPATCH_PINNED;
+		dispatch_flags |= I915_DISPATCH_PINNED;
 
 	if ((args->flags & I915_EXEC_RING_MASK) > LAST_USER_RING) {
 		DRM_DEBUG("execbuf with unknown ring: %d\n",
@@ -1271,13 +1440,35 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
+	if (((args->flags & I915_EXEC_RING_MASK) != I915_EXEC_BSD) &&
+	    ((args->flags & I915_EXEC_BSD_MASK) != 0)) {
+		DRM_DEBUG("execbuf with non bsd ring but with invalid "
+			"bsd dispatch flags: %d\n", (int)(args->flags));
+		return -EINVAL;
+	} 
+
 	if ((args->flags & I915_EXEC_RING_MASK) == I915_EXEC_DEFAULT)
 		ring = &dev_priv->ring[RCS];
 	else if ((args->flags & I915_EXEC_RING_MASK) == I915_EXEC_BSD) {
 		if (HAS_BSD2(dev)) {
 			int ring_id;
-			ring_id = gen8_dispatch_bsd_ring(dev, file);
-			ring = &dev_priv->ring[ring_id];
+
+			switch (args->flags & I915_EXEC_BSD_MASK) {
+			case I915_EXEC_BSD_DEFAULT:
+				ring_id = gen8_dispatch_bsd_ring(dev, file);
+				ring = &dev_priv->ring[ring_id];
+				break;
+			case I915_EXEC_BSD_RING1:
+				ring = &dev_priv->ring[VCS];
+				break;
+			case I915_EXEC_BSD_RING2:
+				ring = &dev_priv->ring[VCS2];
+				break;
+			default:
+				DRM_DEBUG("execbuf with unknown bsd ring: %d\n",
+					  (int)(args->flags & I915_EXEC_BSD_MASK));
+				return -EINVAL;
+			}
 		} else
 			ring = &dev_priv->ring[VCS];
 	} else
@@ -1299,12 +1490,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
 		goto pre_mutex_err;
-
-	if (dev_priv->ums.mm_suspended) {
-		mutex_unlock(&dev->struct_mutex);
-		ret = -EBUSY;
-		goto pre_mutex_err;
-	}
 
 	ctx = i915_gem_validate_context(dev, file, ring, ctx_id);
 	if (IS_ERR(ctx)) {
@@ -1361,37 +1546,50 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		ret = -EINVAL;
 		goto err;
 	}
-	batch_obj->base.pending_read_domains |= I915_GEM_DOMAIN_COMMAND;
 
-	if (i915_needs_cmd_parser(ring)) {
-		ret = i915_parse_cmds(ring,
-				      batch_obj,
-				      args->batch_start_offset,
-				      file->is_master);
-		if (ret)
+	if (i915_needs_cmd_parser(ring) && args->batch_len) {
+		batch_obj = i915_gem_execbuffer_parse(ring,
+						      &shadow_exec_entry,
+						      eb,
+						      batch_obj,
+						      args->batch_start_offset,
+						      args->batch_len,
+						      file->is_master);
+		if (IS_ERR(batch_obj)) {
+			ret = PTR_ERR(batch_obj);
 			goto err;
+		}
 
 		/*
-		 * XXX: Actually do this when enabling batch copy...
+		 * Set the DISPATCH_SECURE bit to remove the NON_SECURE
+		 * bit from MI_BATCH_BUFFER_START commands issued in the
+		 * dispatch_execbuffer implementations. We specifically
+		 * don't want that set when the command parser is
+		 * enabled.
 		 *
-		 * Set the DISPATCH_SECURE bit to remove the NON_SECURE bit
-		 * from MI_BATCH_BUFFER_START commands issued in the
-		 * dispatch_execbuffer implementations. We specifically don't
-		 * want that set when the command parser is enabled.
+		 * FIXME: with aliasing ppgtt, buffers that should only
+		 * be in ggtt still end up in the aliasing ppgtt. remove
+		 * this check when that is fixed.
 		 */
+		if (USES_FULL_PPGTT(dev))
+			dispatch_flags |= I915_DISPATCH_SECURE;
+
+		exec_start = 0;
 	}
+
+	batch_obj->base.pending_read_domains |= I915_GEM_DOMAIN_COMMAND;
 
 	/* snb/ivb/vlv conflate the "batch in ppgtt" bit with the "non-secure
 	 * batch" bit. Hence we need to pin secure batches into the global gtt.
 	 * hsw should have this fixed, but bdw mucks it up again. */
-	if (flags & I915_DISPATCH_SECURE) {
+	if (dispatch_flags & I915_DISPATCH_SECURE) {
 		/*
 		 * So on first glance it looks freaky that we pin the batch here
 		 * outside of the reservation loop. But:
 		 * - The batch is already pinned into the relevant ppgtt, so we
 		 *   already have the backing storage fully allocated.
 		 * - No other BO uses the global gtt (well contexts, but meh),
-		 *   so we don't really have issues with mutliple objects not
+		 *   so we don't really have issues with multiple objects not
 		 *   fitting due to fragmentation.
 		 * So this is actually safe.
 		 */
@@ -1404,7 +1602,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		exec_start += i915_gem_obj_offset(batch_obj, vm);
 
 	ret = dev_priv->gt.do_execbuf(dev, file, ring, ctx, args,
-				      &eb->vmas, batch_obj, exec_start, flags);
+				      &eb->vmas, batch_obj, exec_start,
+				      dispatch_flags);
 
 	/*
 	 * FIXME: We crucially rely upon the active tracking for the (ppgtt)
@@ -1412,7 +1611,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	 * needs to be adjusted to also track the ggtt batch vma properly as
 	 * active.
 	 */
-	if (flags & I915_DISPATCH_SECURE)
+	if (dispatch_flags & I915_DISPATCH_SECURE)
 		i915_gem_object_ggtt_unpin(batch_obj);
 err:
 	/* the request owns the ref now */

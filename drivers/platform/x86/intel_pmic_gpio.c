@@ -314,7 +314,6 @@ err2:
 static struct platform_driver platform_pmic_gpio_driver = {
 	.driver = {
 		.name		= DRIVER_NAME,
-		.owner		= THIS_MODULE,
 	},
 	.probe		= platform_pmic_gpio_probe,
 };

@@ -219,7 +219,6 @@ static int smsc47b397_probe(struct platform_device *pdev);
 
 static struct platform_driver smsc47b397_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= DRVNAME,
 	},
 	.probe		= smsc47b397_probe,

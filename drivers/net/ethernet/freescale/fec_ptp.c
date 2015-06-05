@@ -136,7 +136,7 @@ static int fec_ptp_enable_pps(struct fec_enet_private *fep, uint enable)
 		 */
 		writel(FEC_T_TF_MASK, fep->hwp + FEC_TCSR(fep->pps_channel));
 
-		/* It is recommended to doulbe check the TMODE field in the
+		/* It is recommended to double check the TMODE field in the
 		 * TCSR register to be cleared before the first compare counter
 		 * is written into TCCR register. Just add a double check.
 		 */
@@ -374,23 +374,9 @@ static int fec_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	struct fec_enet_private *fep =
 	    container_of(ptp, struct fec_enet_private, ptp_caps);
 	unsigned long flags;
-	u64 now;
-	u32 counter;
 
 	spin_lock_irqsave(&fep->tmreg_lock, flags);
-
-	now = timecounter_read(&fep->tc);
-	now += delta;
-
-	/* Get the timer value based on adjusted timestamp.
-	 * Update the counter with the masked value.
-	 */
-	counter = now & fep->cc.mask;
-	writel(counter, fep->hwp + FEC_ATIME);
-
-	/* reset the timecounter */
-	timecounter_init(&fep->tc, &fep->cc, now);
-
+	timecounter_adjtime(&fep->tc, delta);
 	spin_unlock_irqrestore(&fep->tmreg_lock, flags);
 
 	return 0;
@@ -404,20 +390,18 @@ static int fec_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
  * read the timecounter and return the correct value on ns,
  * after converting it into a struct timespec.
  */
-static int fec_ptp_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
+static int fec_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 {
 	struct fec_enet_private *adapter =
 	    container_of(ptp, struct fec_enet_private, ptp_caps);
 	u64 ns;
-	u32 remainder;
 	unsigned long flags;
 
 	spin_lock_irqsave(&adapter->tmreg_lock, flags);
 	ns = timecounter_read(&adapter->tc);
 	spin_unlock_irqrestore(&adapter->tmreg_lock, flags);
 
-	ts->tv_sec = div_u64_rem(ns, 1000000000ULL, &remainder);
-	ts->tv_nsec = remainder;
+	*ts = ns_to_timespec64(ns);
 
 	return 0;
 }
@@ -431,7 +415,7 @@ static int fec_ptp_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
  * wall timer value.
  */
 static int fec_ptp_settime(struct ptp_clock_info *ptp,
-			   const struct timespec *ts)
+			   const struct timespec64 *ts)
 {
 	struct fec_enet_private *fep =
 	    container_of(ptp, struct fec_enet_private, ptp_caps);
@@ -447,8 +431,7 @@ static int fec_ptp_settime(struct ptp_clock_info *ptp,
 		return -EINVAL;
 	}
 
-	ns = ts->tv_sec * 1000000000ULL;
-	ns += ts->tv_nsec;
+	ns = timespec64_to_ns(ts);
 	/* Get the timer value based on timestamp.
 	 * Update the counter with the masked value.
 	 */
@@ -598,8 +581,8 @@ void fec_ptp_init(struct platform_device *pdev)
 	fep->ptp_caps.pps = 1;
 	fep->ptp_caps.adjfreq = fec_ptp_adjfreq;
 	fep->ptp_caps.adjtime = fec_ptp_adjtime;
-	fep->ptp_caps.gettime = fec_ptp_gettime;
-	fep->ptp_caps.settime = fec_ptp_settime;
+	fep->ptp_caps.gettime64 = fec_ptp_gettime;
+	fep->ptp_caps.settime64 = fec_ptp_settime;
 	fep->ptp_caps.enable = fec_ptp_enable;
 
 	fep->cycle_speed = clk_get_rate(fep->clk_ptp);

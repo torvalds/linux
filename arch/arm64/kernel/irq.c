@@ -40,6 +40,8 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 	return 0;
 }
 
+void (*handle_arch_irq)(struct pt_regs *) = NULL;
+
 void __init set_handle_irq(void (*handle_irq)(struct pt_regs *))
 {
 	if (handle_arch_irq)

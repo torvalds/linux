@@ -264,7 +264,7 @@ static int cs35l32_codec_set_sysclk(struct snd_soc_codec *codec,
 			CS35L32_MCLK_DIV2_MASK | CS35L32_MCLK_RATIO_MASK, val);
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_cs35l32 = {
+static const struct snd_soc_codec_driver soc_codec_dev_cs35l32 = {
 	.set_sysclk = cs35l32_codec_set_sysclk,
 
 	.dapm_widgets = cs35l32_dapm_widgets,
@@ -288,7 +288,7 @@ static const struct reg_default cs35l32_monitor_patch[] = {
 	{ 0x00, 0x00 },
 };
 
-static struct regmap_config cs35l32_regmap = {
+static const struct regmap_config cs35l32_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
@@ -437,20 +437,13 @@ static int cs35l32_i2c_probe(struct i2c_client *i2c_client,
 	}
 
 	/* Reset the Device */
-	cs35l32->reset_gpio = devm_gpiod_get(&i2c_client->dev,
-		"reset-gpios");
-	if (IS_ERR(cs35l32->reset_gpio)) {
-		ret = PTR_ERR(cs35l32->reset_gpio);
-		if (ret != -ENOENT && ret != -ENOSYS)
-			return ret;
+	cs35l32->reset_gpio = devm_gpiod_get_optional(&i2c_client->dev,
+		"reset", GPIOD_OUT_LOW);
+	if (IS_ERR(cs35l32->reset_gpio))
+		return PTR_ERR(cs35l32->reset_gpio);
 
-		cs35l32->reset_gpio = NULL;
-	} else {
-		ret = gpiod_direction_output(cs35l32->reset_gpio, 0);
-		if (ret)
-			return ret;
+	if (cs35l32->reset_gpio)
 		gpiod_set_value_cansleep(cs35l32->reset_gpio, 1);
-	}
 
 	/* initialize codec */
 	ret = regmap_read(cs35l32->regmap, CS35L32_DEVID_AB, &reg);
@@ -550,7 +543,7 @@ static int cs35l32_i2c_remove(struct i2c_client *i2c_client)
 	return 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int cs35l32_runtime_suspend(struct device *dev)
 {
 	struct cs35l32_private *cs35l32 = dev_get_drvdata(dev);

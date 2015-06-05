@@ -35,6 +35,7 @@
 			regulator-max-microvolt = <5000000>;
 			gpio = <&gpio3 22 0>;
 			enable-active-high;
+			vin-supply = <&swbst_reg>;
 		};
 
 		reg_usb_h1_vbus: regulator@1 {
@@ -45,6 +46,7 @@
 			regulator-max-microvolt = <5000000>;
 			gpio = <&gpio1 29 0>;
 			enable-active-high;
+			vin-supply = <&swbst_reg>;
 		};
 
 		reg_audio: regulator@2 {
@@ -107,10 +109,8 @@
 			"Headphone Jack", "HPOUTR",
 			"Ext Spk", "SPKOUTL",
 			"Ext Spk", "SPKOUTR",
-			"MICBIAS", "AMIC",
-			"IN3R", "MICBIAS",
-			"DMIC", "MICBIAS",
-			"DMICDAT", "DMIC";
+			"AMIC", "MICBIAS",
+			"IN3R", "AMIC";
 		mux-int-port = <2>;
 		mux-ext-port = <3>;
 	};
@@ -179,7 +179,7 @@
 	codec: wm8962@1a {
 		compatible = "wlf,wm8962";
 		reg = <0x1a>;
-		clocks = <&clks 201>;
+		clocks = <&clks IMX6QDL_CLK_CKO>;
 		DCVDD-supply = <&reg_audio>;
 		DBVDD-supply = <&reg_audio>;
 		AVDD-supply = <&reg_audio>;
@@ -528,6 +528,10 @@
 &pwm1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
+	status = "okay";
+};
+
+&snvs_poweroff {
 	status = "okay";
 };
 

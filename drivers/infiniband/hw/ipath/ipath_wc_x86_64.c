@@ -167,18 +167,3 @@ void ipath_disable_wc(struct ipath_devdata *dd)
 		dd->ipath_wc_cookie = 0; /* even on failure */
 	}
 }
-
-/**
- * ipath_unordered_wc - indicate whether write combining is ordered
- *
- * Because our performance depends on our ability to do write combining mmio
- * writes in the most efficient way, we need to know if we are on an Intel
- * or AMD x86_64 processor.  AMD x86_64 processors flush WC buffers out in
- * the order completed, and so no special flushing is required to get
- * correct ordering.  Intel processors, however, will flush write buffers
- * out in "random" orders, and so explicit ordering is needed at times.
- */
-int ipath_unordered_wc(void)
-{
-	return boot_cpu_data.x86_vendor != X86_VENDOR_AMD;
-}

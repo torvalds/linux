@@ -248,7 +248,7 @@ enum s5k5baf_gpio_id {
 #define NUM_ISP_PADS 2
 
 struct s5k5baf_pixfmt {
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	u32 colorspace;
 	/* REG_P_FMT(x) register value */
 	u16 reg_p_fmt;
@@ -331,10 +331,10 @@ struct s5k5baf {
 };
 
 static const struct s5k5baf_pixfmt s5k5baf_formats[] = {
-	{ V4L2_MBUS_FMT_VYUY8_2X8,	V4L2_COLORSPACE_JPEG,	5 },
+	{ MEDIA_BUS_FMT_VYUY8_2X8,	V4L2_COLORSPACE_JPEG,	5 },
 	/* range 16-240 */
-	{ V4L2_MBUS_FMT_VYUY8_2X8,	V4L2_COLORSPACE_REC709,	6 },
-	{ V4L2_MBUS_FMT_RGB565_2X8_BE,	V4L2_COLORSPACE_JPEG,	0 },
+	{ MEDIA_BUS_FMT_VYUY8_2X8,	V4L2_COLORSPACE_REC709,	6 },
+	{ MEDIA_BUS_FMT_RGB565_2X8_BE,	V4L2_COLORSPACE_JPEG,	0 },
 };
 
 static struct v4l2_rect s5k5baf_cis_rect = {
@@ -353,7 +353,7 @@ static struct v4l2_rect s5k5baf_cis_rect = {
  *
  */
 static int s5k5baf_fw_parse(struct device *dev, struct s5k5baf_fw **fw,
-			    size_t count, const u16 *data)
+			    size_t count, const __le16 *data)
 {
 	struct s5k5baf_fw *f;
 	u16 *d, i, *end;
@@ -374,6 +374,8 @@ static int s5k5baf_fw_parse(struct device *dev, struct s5k5baf_fw **fw,
 	count -= S5K5BAG_FW_TAG_LEN;
 
 	d = devm_kzalloc(dev, count * sizeof(u16), GFP_KERNEL);
+	if (!d)
+		return -ENOMEM;
 
 	for (i = 0; i < count; ++i)
 		d[i] = le16_to_cpu(data[i]);
@@ -421,6 +423,7 @@ static u16 s5k5baf_i2c_read(struct s5k5baf *state, u16 addr)
 {
 	struct i2c_client *c = v4l2_get_subdevdata(&state->sd);
 	__be16 w, r;
+	u16 res;
 	struct i2c_msg msg[] = {
 		{ .addr = c->addr, .flags = 0,
 		  .len = 2, .buf = (u8 *)&w },
@@ -434,15 +437,15 @@ static u16 s5k5baf_i2c_read(struct s5k5baf *state, u16 addr)
 
 	w = cpu_to_be16(addr);
 	ret = i2c_transfer(c->adapter, msg, 2);
-	r = be16_to_cpu(r);
+	res = be16_to_cpu(r);
 
-	v4l2_dbg(3, debug, c, "i2c_read: 0x%04x : 0x%04x\n", addr, r);
+	v4l2_dbg(3, debug, c, "i2c_read: 0x%04x : 0x%04x\n", addr, res);
 
 	if (ret != 2) {
 		v4l2_err(c, "i2c_read: error during transfer (%d)\n", ret);
 		state->error = ret;
 	}
-	return r;
+	return res;
 }
 
 static void s5k5baf_i2c_write(struct s5k5baf *state, u16 addr, u16 val)
@@ -1037,7 +1040,7 @@ static int s5k5baf_load_setfile(struct s5k5baf *state)
 	}
 
 	ret = s5k5baf_fw_parse(&c->dev, &state->fw, fw->size / 2,
-			       (u16 *)fw->data);
+			       (__le16 *)fw->data);
 
 	release_firmware(fw);
 
@@ -1181,7 +1184,7 @@ static int s5k5baf_s_frame_interval(struct v4l2_subdev *sd,
  * V4L2 subdev pad level and video operations
  */
 static int s5k5baf_enum_frame_interval(struct v4l2_subdev *sd,
-			      struct v4l2_subdev_fh *fh,
+			      struct v4l2_subdev_pad_config *cfg,
 			      struct v4l2_subdev_frame_interval_enum *fie)
 {
 	if (fie->index > S5K5BAF_MAX_FR_TIME - S5K5BAF_MIN_FR_TIME ||
@@ -1200,13 +1203,13 @@ static int s5k5baf_enum_frame_interval(struct v4l2_subdev *sd,
 }
 
 static int s5k5baf_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_fh *fh,
+				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->pad == PAD_CIS) {
 		if (code->index > 0)
 			return -EINVAL;
-		code->code = V4L2_MBUS_FMT_FIXED;
+		code->code = MEDIA_BUS_FMT_FIXED;
 		return 0;
 	}
 
@@ -1218,7 +1221,7 @@ static int s5k5baf_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int s5k5baf_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_fh *fh,
+				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	int i;
@@ -1227,7 +1230,7 @@ static int s5k5baf_enum_frame_size(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	if (fse->pad == PAD_CIS) {
-		fse->code = V4L2_MBUS_FMT_FIXED;
+		fse->code = MEDIA_BUS_FMT_FIXED;
 		fse->min_width = S5K5BAF_CIS_WIDTH;
 		fse->max_width = S5K5BAF_CIS_WIDTH;
 		fse->min_height = S5K5BAF_CIS_HEIGHT;
@@ -1252,7 +1255,7 @@ static void s5k5baf_try_cis_format(struct v4l2_mbus_framefmt *mf)
 {
 	mf->width = S5K5BAF_CIS_WIDTH;
 	mf->height = S5K5BAF_CIS_HEIGHT;
-	mf->code = V4L2_MBUS_FMT_FIXED;
+	mf->code = MEDIA_BUS_FMT_FIXED;
 	mf->colorspace = V4L2_COLORSPACE_JPEG;
 	mf->field = V4L2_FIELD_NONE;
 }
@@ -1275,7 +1278,7 @@ static int s5k5baf_try_isp_format(struct v4l2_mbus_framefmt *mf)
 	return pixfmt;
 }
 
-static int s5k5baf_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+static int s5k5baf_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct s5k5baf *state = to_s5k5baf(sd);
@@ -1283,7 +1286,7 @@ static int s5k5baf_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	struct v4l2_mbus_framefmt *mf;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mf = v4l2_subdev_get_try_format(fh, fmt->pad);
+		mf = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
 		fmt->format = *mf;
 		return 0;
 	}
@@ -1305,7 +1308,7 @@ static int s5k5baf_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	return 0;
 }
 
-static int s5k5baf_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+static int s5k5baf_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_mbus_framefmt *mf = &fmt->format;
@@ -1316,7 +1319,7 @@ static int s5k5baf_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	mf->field = V4L2_FIELD_NONE;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_try_format(fh, fmt->pad) = *mf;
+		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = *mf;
 		return 0;
 	}
 
@@ -1368,7 +1371,7 @@ static int s5k5baf_is_bound_target(u32 target)
 }
 
 static int s5k5baf_get_selection(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_fh *fh,
+				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_selection *sel)
 {
 	static enum selection_rect rtype;
@@ -1388,9 +1391,9 @@ static int s5k5baf_get_selection(struct v4l2_subdev *sd,
 
 	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
 		if (rtype == R_COMPOSE)
-			sel->r = *v4l2_subdev_get_try_compose(fh, sel->pad);
+			sel->r = *v4l2_subdev_get_try_compose(sd, cfg, sel->pad);
 		else
-			sel->r = *v4l2_subdev_get_try_crop(fh, sel->pad);
+			sel->r = *v4l2_subdev_get_try_crop(sd, cfg, sel->pad);
 		return 0;
 	}
 
@@ -1459,7 +1462,7 @@ static bool s5k5baf_cmp_rect(const struct v4l2_rect *r1,
 }
 
 static int s5k5baf_set_selection(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_fh *fh,
+				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_selection *sel)
 {
 	static enum selection_rect rtype;
@@ -1480,9 +1483,9 @@ static int s5k5baf_set_selection(struct v4l2_subdev *sd,
 	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
 		rects = (struct v4l2_rect * []) {
 				&s5k5baf_cis_rect,
-				v4l2_subdev_get_try_crop(fh, PAD_CIS),
-				v4l2_subdev_get_try_compose(fh, PAD_CIS),
-				v4l2_subdev_get_try_crop(fh, PAD_OUT)
+				v4l2_subdev_get_try_crop(sd, cfg, PAD_CIS),
+				v4l2_subdev_get_try_compose(sd, cfg, PAD_CIS),
+				v4l2_subdev_get_try_crop(sd, cfg, PAD_OUT)
 			};
 		s5k5baf_set_rect_and_adjust(rects, rtype, &sel->r);
 		return 0;
@@ -1700,22 +1703,22 @@ static int s5k5baf_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct v4l2_mbus_framefmt *mf;
 
-	mf = v4l2_subdev_get_try_format(fh, PAD_CIS);
+	mf = v4l2_subdev_get_try_format(sd, fh->pad, PAD_CIS);
 	s5k5baf_try_cis_format(mf);
 
 	if (s5k5baf_is_cis_subdev(sd))
 		return 0;
 
-	mf = v4l2_subdev_get_try_format(fh, PAD_OUT);
+	mf = v4l2_subdev_get_try_format(sd, fh->pad, PAD_OUT);
 	mf->colorspace = s5k5baf_formats[0].colorspace;
 	mf->code = s5k5baf_formats[0].code;
 	mf->width = s5k5baf_cis_rect.width;
 	mf->height = s5k5baf_cis_rect.height;
 	mf->field = V4L2_FIELD_NONE;
 
-	*v4l2_subdev_get_try_crop(fh, PAD_CIS) = s5k5baf_cis_rect;
-	*v4l2_subdev_get_try_compose(fh, PAD_CIS) = s5k5baf_cis_rect;
-	*v4l2_subdev_get_try_crop(fh, PAD_OUT) = s5k5baf_cis_rect;
+	*v4l2_subdev_get_try_crop(sd, fh->pad, PAD_CIS) = s5k5baf_cis_rect;
+	*v4l2_subdev_get_try_compose(sd, fh->pad, PAD_CIS) = s5k5baf_cis_rect;
+	*v4l2_subdev_get_try_crop(sd, fh->pad, PAD_OUT) = s5k5baf_cis_rect;
 
 	return 0;
 }
@@ -1793,7 +1796,7 @@ static const struct v4l2_subdev_ops s5k5baf_subdev_ops = {
 
 static int s5k5baf_configure_gpios(struct s5k5baf *state)
 {
-	static const char const *name[] = { "S5K5BAF_STBY", "S5K5BAF_RST" };
+	static const char * const name[] = { "S5K5BAF_STBY", "S5K5BAF_RST" };
 	struct i2c_client *c = v4l2_get_subdevdata(&state->sd);
 	struct s5k5baf_gpio *g = state->gpios;
 	int ret, i;

@@ -99,7 +99,7 @@ static struct bcma_device_id brcms_coreid_table[] = {
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_80211, 17, BCMA_ANY_CLASS),
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_80211, 23, BCMA_ANY_CLASS),
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_80211, 24, BCMA_ANY_CLASS),
-	BCMA_CORETABLE_END
+	{},
 };
 MODULE_DEVICE_TABLE(bcma, brcms_coreid_table);
 
@@ -764,7 +764,9 @@ brcms_ops_configure_filter(struct ieee80211_hw *hw,
 	return;
 }
 
-static void brcms_ops_sw_scan_start(struct ieee80211_hw *hw)
+static void brcms_ops_sw_scan_start(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    const u8 *mac_addr)
 {
 	struct brcms_info *wl = hw->priv;
 	spin_lock_bh(&wl->lock);
@@ -773,7 +775,8 @@ static void brcms_ops_sw_scan_start(struct ieee80211_hw *hw)
 	return;
 }
 
-static void brcms_ops_sw_scan_complete(struct ieee80211_hw *hw)
+static void brcms_ops_sw_scan_complete(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif)
 {
 	struct brcms_info *wl = hw->priv;
 	spin_lock_bh(&wl->lock);

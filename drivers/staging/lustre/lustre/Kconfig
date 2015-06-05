@@ -10,6 +10,7 @@ config LUSTRE_FS
 	select CRYPTO_SHA1
 	select CRYPTO_SHA256
 	select CRYPTO_SHA512
+	depends on MULTIUSER
 	help
 	  This option enables Lustre file system client support. Choose Y
 	  here if you want to access a Lustre file system cluster. To compile
@@ -57,5 +58,5 @@ config LUSTRE_TRANSLATE_ERRNOS
 config LUSTRE_LLITE_LLOOP
 	tristate "Lustre virtual block device"
 	depends on LUSTRE_FS && BLOCK
-	depends on !PPC_64K_PAGES && !ARM64_64K_PAGES
+	depends on !PPC_64K_PAGES && !ARM64_64K_PAGES && !MICROBLAZE_64K_PAGES && !PAGE_SIZE_64KB && !IA64_PAGE_SIZE_64KB && !PARISC_PAGE_SIZE_64KB
 	default m

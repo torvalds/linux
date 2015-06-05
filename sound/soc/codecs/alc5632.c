@@ -116,18 +116,20 @@ static inline int alc5632_reset(struct regmap *map)
 static int amp_mixer_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+
 	/* to power-on/off class-d amp generators/speaker */
 	/* need to write to 'index-46h' register :        */
 	/* so write index num (here 0x46) to reg 0x6a     */
 	/* and then 0xffff/0 to reg 0x6c                  */
-	snd_soc_write(w->codec, ALC5632_HID_CTRL_INDEX, 0x46);
+	snd_soc_write(codec, ALC5632_HID_CTRL_INDEX, 0x46);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		snd_soc_write(w->codec, ALC5632_HID_CTRL_DATA, 0xFFFF);
+		snd_soc_write(codec, ALC5632_HID_CTRL_DATA, 0xFFFF);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		snd_soc_write(w->codec, ALC5632_HID_CTRL_DATA, 0);
+		snd_soc_write(codec, ALC5632_HID_CTRL_DATA, 0);
 		break;
 	}
 
@@ -1038,32 +1040,21 @@ static struct snd_soc_dai_driver alc5632_dai = {
 };
 
 #ifdef CONFIG_PM
-static int alc5632_suspend(struct snd_soc_codec *codec)
-{
-	alc5632_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static int alc5632_resume(struct snd_soc_codec *codec)
 {
 	struct alc5632_priv *alc5632 = snd_soc_codec_get_drvdata(codec);
 
 	regcache_sync(alc5632->regmap);
 
-	alc5632_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	return 0;
 }
 #else
-#define	alc5632_suspend	NULL
 #define	alc5632_resume	NULL
 #endif
 
 static int alc5632_probe(struct snd_soc_codec *codec)
 {
 	struct alc5632_priv *alc5632 = snd_soc_codec_get_drvdata(codec);
-
-	/* power on device  */
-	alc5632_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	switch (alc5632->id) {
 	case 0x5c:
@@ -1077,19 +1068,12 @@ static int alc5632_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-/* power down chip */
-static int alc5632_remove(struct snd_soc_codec *codec)
-{
-	alc5632_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static struct snd_soc_codec_driver soc_codec_device_alc5632 = {
+static const struct snd_soc_codec_driver soc_codec_device_alc5632 = {
 	.probe = alc5632_probe,
-	.remove = alc5632_remove,
-	.suspend = alc5632_suspend,
 	.resume = alc5632_resume,
 	.set_bias_level = alc5632_set_bias_level,
+	.suspend_bias_off = true,
+
 	.controls = alc5632_snd_controls,
 	.num_controls = ARRAY_SIZE(alc5632_snd_controls),
 	.dapm_widgets = alc5632_dapm_widgets,
@@ -1098,7 +1082,7 @@ static struct snd_soc_codec_driver soc_codec_device_alc5632 = {
 	.num_dapm_routes = ARRAY_SIZE(alc5632_dapm_routes),
 };
 
-static struct regmap_config alc5632_regmap = {
+static const struct regmap_config alc5632_regmap = {
 	.reg_bits = 8,
 	.val_bits = 16,
 

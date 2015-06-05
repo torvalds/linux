@@ -12,6 +12,7 @@
 #include <linux/platform_device.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_plane_helper.h>
 #include "armada_crtc.h"
 #include "armada_drm.h"
 #include "armada_fb.h"
@@ -652,10 +653,6 @@ static int armada_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	return 0;
 }
 
-static void armada_drm_crtc_load_lut(struct drm_crtc *crtc)
-{
-}
-
 /* The mode_config.mutex will be held for this call */
 static void armada_drm_crtc_disable(struct drm_crtc *crtc)
 {
@@ -677,7 +674,6 @@ static const struct drm_crtc_helper_funcs armada_crtc_helper_funcs = {
 	.mode_fixup	= armada_drm_crtc_mode_fixup,
 	.mode_set	= armada_drm_crtc_mode_set,
 	.mode_set_base	= armada_drm_crtc_mode_set_base,
-	.load_lut	= armada_drm_crtc_load_lut,
 	.disable	= armada_drm_crtc_disable,
 };
 

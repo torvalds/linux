@@ -272,8 +272,7 @@ int capa_hmac(__u8 *hmac, struct lustre_capa *capa, __u8 *key)
 
 	tfm = crypto_alloc_hash(alg->ha_name, 0, 0);
 	if (IS_ERR(tfm)) {
-		CERROR("crypto_alloc_tfm failed, check whether your kernel"
-		       "has crypto support!\n");
+		CERROR("crypto_alloc_tfm failed, check whether your kernel has crypto support!\n");
 		return PTR_ERR(tfm);
 	}
 	keylen = alg->ha_keylen;
@@ -302,7 +301,7 @@ int capa_encrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 
 	/* passing "aes" in a variable instead of a constant string keeps gcc
 	 * 4.3.2 happy */
-	tfm = crypto_alloc_blkcipher(alg, 0, 0 );
+	tfm = crypto_alloc_blkcipher(alg, 0, 0);
 	if (IS_ERR(tfm)) {
 		CERROR("failed to load transform for aes\n");
 		return PTR_ERR(tfm);
@@ -355,7 +354,7 @@ int capa_decrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 
 	/* passing "aes" in a variable instead of a constant string keeps gcc
 	 * 4.3.2 happy */
-	tfm = crypto_alloc_blkcipher(alg, 0, 0 );
+	tfm = crypto_alloc_blkcipher(alg, 0, 0);
 	if (IS_ERR(tfm)) {
 		CERROR("failed to load transform for aes\n");
 		return PTR_ERR(tfm);
@@ -407,14 +406,13 @@ EXPORT_SYMBOL(capa_cpy);
 
 void _debug_capa(struct lustre_capa *c,
 		 struct libcfs_debug_msg_data *msgdata,
-		 const char *fmt, ... )
+		 const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
 	libcfs_debug_vmsg2(msgdata, fmt, args,
-			   " capability@%p fid "DFID" opc %#llx uid %llu"
-			   " gid %llu flags %u alg %d keyid %u timeout %u "
-			   "expiry %u\n", c, PFID(capa_fid(c)), capa_opc(c),
+			   " capability@%p fid " DFID " opc %#llx uid %llu gid %llu flags %u alg %d keyid %u timeout %u expiry %u\n",
+			   c, PFID(capa_fid(c)), capa_opc(c),
 			   capa_uid(c), capa_gid(c), capa_flags(c),
 			   capa_alg(c), capa_keyid(c), capa_timeout(c),
 			   capa_expiry(c));

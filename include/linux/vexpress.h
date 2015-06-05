@@ -15,21 +15,12 @@
 #define _LINUX_VEXPRESS_H
 
 #include <linux/device.h>
-#include <linux/platform_device.h>
-#include <linux/reboot.h>
 #include <linux/regmap.h>
 
 #define VEXPRESS_SITE_MB		0
 #define VEXPRESS_SITE_DB1		1
 #define VEXPRESS_SITE_DB2		2
 #define VEXPRESS_SITE_MASTER		0xf
-
-#define VEXPRESS_RES_FUNC(_site, _func)	\
-{					\
-	.start = (_site),		\
-	.end = (_func),			\
-	.flags = IORESOURCE_BUS,	\
-}
 
 /* Config infrastructure */
 
@@ -58,16 +49,6 @@ struct regmap *devm_regmap_init_vexpress_config(struct device *dev);
 
 /* Platform control */
 
-unsigned int vexpress_get_mci_cardin(struct device *dev);
-u32 vexpress_get_procid(int site);
-void *vexpress_get_24mhz_clock_base(void);
 void vexpress_flags_set(u32 data);
-
-void vexpress_sysreg_early_init(void __iomem *base);
-int vexpress_syscfg_device_register(struct platform_device *pdev);
-
-/* Clocks */
-
-void vexpress_clk_init(void __iomem *sp810_base);
 
 #endif

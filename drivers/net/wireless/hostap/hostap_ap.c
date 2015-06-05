@@ -145,7 +145,7 @@ static void ap_free_sta(struct ap_data *ap, struct sta_info *sta)
 	if (sta->aid > 0)
 		ap->sta_aid[sta->aid - 1] = NULL;
 
-	if (!sta->ap && sta->u.sta.challenge)
+	if (!sta->ap)
 		kfree(sta->u.sta.challenge);
 	del_timer_sync(&sta->timer);
 #endif /* PRISM2_NO_KERNEL_IEEE80211_MGMT */
@@ -309,7 +309,7 @@ void hostap_deauth_all_stas(struct net_device *dev, struct ap_data *ap,
 	int i;
 
 	PDEBUG(DEBUG_AP, "%s: Deauthenticate all stations\n", dev->name);
-	memset(addr, 0xff, ETH_ALEN);
+	eth_broadcast_addr(addr);
 
 	resp = cpu_to_le16(WLAN_REASON_PREV_AUTH_NOT_VALID);
 
@@ -1015,8 +1015,8 @@ static void prism2_send_mgmt(struct net_device *dev,
 		memcpy(hdr->addr3, dev->dev_addr, ETH_ALEN); /* SA */
 	} else if (ieee80211_is_ctl(hdr->frame_control)) {
 		/* control:ACK does not have addr2 or addr3 */
-		memset(hdr->addr2, 0, ETH_ALEN);
-		memset(hdr->addr3, 0, ETH_ALEN);
+		eth_zero_addr(hdr->addr2);
+		eth_zero_addr(hdr->addr3);
 	} else {
 		memcpy(hdr->addr2, dev->dev_addr, ETH_ALEN); /* SA */
 		memcpy(hdr->addr3, dev->dev_addr, ETH_ALEN); /* BSSID */
@@ -1601,7 +1601,7 @@ static void handle_assoc(local_info_t *local, struct sk_buff *skb,
 		memcpy(prev_ap, pos, ETH_ALEN);
 		pos++; pos++; pos++; left -= 6;
 	} else
-		memset(prev_ap, 0, ETH_ALEN);
+		eth_zero_addr(prev_ap);
 
 	if (left >= 2) {
 		unsigned int ileft;

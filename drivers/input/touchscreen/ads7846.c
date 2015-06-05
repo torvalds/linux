@@ -883,8 +883,7 @@ static irqreturn_t ads7846_irq(int irq, void *handle)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int ads7846_suspend(struct device *dev)
+static int __maybe_unused ads7846_suspend(struct device *dev)
 {
 	struct ads7846 *ts = dev_get_drvdata(dev);
 
@@ -906,7 +905,7 @@ static int ads7846_suspend(struct device *dev)
 	return 0;
 }
 
-static int ads7846_resume(struct device *dev)
+static int __maybe_unused ads7846_resume(struct device *dev)
 {
 	struct ads7846 *ts = dev_get_drvdata(dev);
 
@@ -927,7 +926,6 @@ static int ads7846_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(ads7846_pm, ads7846_suspend, ads7846_resume);
 

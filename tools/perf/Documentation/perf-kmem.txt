@@ -3,7 +3,7 @@ perf-kmem(1)
 
 NAME
 ----
-perf-kmem - Tool to trace/measure kernel memory(slab) properties
+perf-kmem - Tool to trace/measure kernel memory properties
 
 SYNOPSIS
 --------
@@ -25,6 +25,10 @@ OPTIONS
 --input=<file>::
 	Select the input file (default: perf.data unless stdin is a fifo)
 
+-v::
+--verbose::
+        Be more verbose. (show symbol address, etc)
+
 --caller::
 	Show per-callsite statistics
 
@@ -41,6 +45,12 @@ OPTIONS
 
 --raw-ip::
 	Print raw ip instead of symbol
+
+--slab::
+	Analyze SLAB allocator events.
+
+--page::
+	Analyze page allocator events
 
 SEE ALSO
 --------

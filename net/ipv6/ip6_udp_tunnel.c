@@ -62,14 +62,15 @@ error:
 }
 EXPORT_SYMBOL_GPL(udp_sock_create6);
 
-int udp_tunnel6_xmit_skb(struct socket *sock, struct dst_entry *dst,
-			 struct sk_buff *skb, struct net_device *dev,
-			 struct in6_addr *saddr, struct in6_addr *daddr,
-			 __u8 prio, __u8 ttl, __be16 src_port, __be16 dst_port)
+int udp_tunnel6_xmit_skb(struct dst_entry *dst, struct sock *sk,
+			 struct sk_buff *skb,
+			 struct net_device *dev, struct in6_addr *saddr,
+			 struct in6_addr *daddr,
+			 __u8 prio, __u8 ttl, __be16 src_port,
+			 __be16 dst_port, bool nocheck)
 {
 	struct udphdr *uh;
 	struct ipv6hdr *ip6h;
-	struct sock *sk = sock->sk;
 
 	__skb_push(skb, sizeof(*uh));
 	skb_reset_transport_header(skb);
@@ -79,15 +80,13 @@ int udp_tunnel6_xmit_skb(struct socket *sock, struct dst_entry *dst,
 	uh->source = src_port;
 
 	uh->len = htons(skb->len);
-	uh->check = 0;
 
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
 	IPCB(skb)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED
 			    | IPSKB_REROUTED);
 	skb_dst_set(skb, dst);
 
-	udp6_set_csum(udp_get_no_check6_tx(sk), skb, &inet6_sk(sk)->saddr,
-		      &sk->sk_v6_daddr, skb->len);
+	udp6_set_csum(nocheck, skb, saddr, daddr, skb->len);
 
 	__skb_push(skb, sizeof(*ip6h));
 	skb_reset_network_header(skb);
@@ -99,7 +98,7 @@ int udp_tunnel6_xmit_skb(struct socket *sock, struct dst_entry *dst,
 	ip6h->daddr	  = *daddr;
 	ip6h->saddr	  = *saddr;
 
-	ip6tunnel_xmit(skb, dev);
+	ip6tunnel_xmit(sk, skb, dev);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(udp_tunnel6_xmit_skb);

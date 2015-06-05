@@ -306,7 +306,7 @@ static int bcma_hcd_resume(struct bcma_device *dev)
 
 static const struct bcma_device_id bcma_hcd_table[] = {
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_USB20_HOST, BCMA_ANY_REV, BCMA_ANY_CLASS),
-	BCMA_CORETABLE_END
+	{},
 };
 MODULE_DEVICE_TABLE(bcma, bcma_hcd_table);
 

@@ -22,7 +22,9 @@ enum dso_binary_type {
 	DSO_BINARY_TYPE__BUILDID_DEBUGINFO,
 	DSO_BINARY_TYPE__SYSTEM_PATH_DSO,
 	DSO_BINARY_TYPE__GUEST_KMODULE,
+	DSO_BINARY_TYPE__GUEST_KMODULE_COMP,
 	DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE,
+	DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP,
 	DSO_BINARY_TYPE__KCORE,
 	DSO_BINARY_TYPE__GUEST_KCORE,
 	DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO,
@@ -56,6 +58,31 @@ enum dso_type {
 	DSO__TYPE_64BIT,
 	DSO__TYPE_32BIT,
 	DSO__TYPE_X32BIT,
+};
+
+enum dso_load_errno {
+	DSO_LOAD_ERRNO__SUCCESS		= 0,
+
+	/*
+	 * Choose an arbitrary negative big number not to clash with standard
+	 * errno since SUS requires the errno has distinct positive values.
+	 * See 'Issue 6' in the link below.
+	 *
+	 * http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/errno.h.html
+	 */
+	__DSO_LOAD_ERRNO__START		= -10000,
+
+	DSO_LOAD_ERRNO__INTERNAL_ERROR	= __DSO_LOAD_ERRNO__START,
+
+	/* for symsrc__init() */
+	DSO_LOAD_ERRNO__INVALID_ELF,
+	DSO_LOAD_ERRNO__CANNOT_READ_BUILDID,
+	DSO_LOAD_ERRNO__MISMATCHING_BUILDID,
+
+	/* for decompress_kmodule */
+	DSO_LOAD_ERRNO__DECOMPRESSION_FAILURE,
+
+	__DSO_LOAD_ERRNO__END,
 };
 
 #define DSO__SWAP(dso, type, val)			\
@@ -111,6 +138,7 @@ struct dso {
 	enum dso_swap_type	needs_swap;
 	enum dso_binary_type	symtab_type;
 	enum dso_binary_type	binary_type;
+	enum dso_load_errno	load_errno;
 	u8		 adjust_symbols:1;
 	u8		 has_build_id:1;
 	u8		 has_srcline:1;
@@ -127,6 +155,7 @@ struct dso {
 	const char	 *long_name;
 	u16		 long_name_len;
 	u16		 short_name_len;
+	void		*dwfl;			/* DWARF debug info */
 
 	/* dso data file */
 	struct {
@@ -136,7 +165,14 @@ struct dso {
 		u32		 status_seen;
 		size_t		 file_size;
 		struct list_head open_entry;
+		u64		 debug_frame_offset;
+		u64		 eh_frame_hdr_offset;
 	} data;
+
+	union { /* Tool specific area */
+		void	 *priv;
+		u64	 db_id;
+	};
 
 	char		 name[0];
 };
@@ -179,6 +215,24 @@ int dso__kernel_module_get_build_id(struct dso *dso, const char *root_dir);
 char dso__symtab_origin(const struct dso *dso);
 int dso__read_binary_type_filename(const struct dso *dso, enum dso_binary_type type,
 				   char *root_dir, char *filename, size_t size);
+bool is_supported_compression(const char *ext);
+bool is_kernel_module(const char *pathname);
+bool decompress_to_file(const char *ext, const char *filename, int output_fd);
+bool dso__needs_decompress(struct dso *dso);
+
+struct kmod_path {
+	char *name;
+	char *ext;
+	bool  comp;
+	bool  kmod;
+};
+
+int __kmod_path__parse(struct kmod_path *m, const char *path,
+		     bool alloc_name, bool alloc_ext);
+
+#define kmod_path__parse(__m, __p)      __kmod_path__parse(__m, __p, false, false)
+#define kmod_path__parse_name(__m, __p) __kmod_path__parse(__m, __p, true , false)
+#define kmod_path__parse_ext(__m, __p)  __kmod_path__parse(__m, __p, false, true)
 
 /*
  * The dso__data_* external interface provides following functions:
@@ -235,6 +289,7 @@ struct dso *dso__kernel_findnew(struct machine *machine, const char *name,
 				const char *short_name, int dso_type);
 
 void dsos__add(struct dsos *dsos, struct dso *dso);
+struct dso *dsos__addnew(struct dsos *dsos, const char *name);
 struct dso *dsos__find(const struct dsos *dsos, const char *name,
 		       bool cmp_short);
 struct dso *__dsos__findnew(struct dsos *dsos, const char *name);
@@ -264,5 +319,7 @@ static inline bool dso__is_kcore(struct dso *dso)
 void dso__free_a2l(struct dso *dso);
 
 enum dso_type dso__type(struct dso *dso, struct machine *machine);
+
+int dso__strerror_load(struct dso *dso, char *buf, size_t buflen);
 
 #endif /* __PERF_DSO */

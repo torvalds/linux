@@ -53,6 +53,11 @@ static DEFINE_SPINLOCK(gmac_lock);
 #define SUN7I_A20_GMAC_MASK	0x3
 #define SUN7I_A20_GMAC_PARENTS	2
 
+static u32 sun7i_a20_gmac_mux_table[SUN7I_A20_GMAC_PARENTS] = {
+	0x00, /* Select mii_phy_tx_clk */
+	0x02, /* Select gmac_int_tx_clk */
+};
+
 static void __init sun7i_a20_gmac_clk_setup(struct device_node *node)
 {
 	struct clk *clk;
@@ -90,7 +95,7 @@ static void __init sun7i_a20_gmac_clk_setup(struct device_node *node)
 	gate->lock = &gmac_lock;
 	mux->reg = reg;
 	mux->mask = SUN7I_A20_GMAC_MASK;
-	mux->flags = CLK_MUX_INDEX_BIT;
+	mux->table = sun7i_a20_gmac_mux_table;
 	mux->lock = &gmac_lock;
 
 	clk = clk_register_composite(NULL, clk_name,

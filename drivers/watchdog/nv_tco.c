@@ -471,7 +471,6 @@ static struct platform_driver nv_tco_driver = {
 	.remove		= nv_tco_remove,
 	.shutdown	= nv_tco_shutdown,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= TCO_MODULE_NAME,
 	},
 };

@@ -85,7 +85,7 @@ static int hsta_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 			msi_bitmap_free_hwirqs(&ppc4xx_hsta_msi.bmp, irq, 1);
 			return -EINVAL;
 		}
-		write_msi_msg(hwirq, &msg);
+		pci_write_msi_msg(hwirq, &msg);
 	}
 
 	return 0;
@@ -145,7 +145,7 @@ static int hsta_msi_probe(struct platform_device *pdev)
 	ppc4xx_hsta_msi.address = mem->start;
 	ppc4xx_hsta_msi.data = ioremap(mem->start, resource_size(mem));
 	ppc4xx_hsta_msi.irq_count = irq_count;
-	if (IS_ERR(ppc4xx_hsta_msi.data)) {
+	if (!ppc4xx_hsta_msi.data) {
 		dev_err(dev, "Unable to map memory\n");
 		return -ENOMEM;
 	}
@@ -197,7 +197,6 @@ static struct platform_driver hsta_msi_driver = {
 	.probe = hsta_msi_probe,
 	.driver = {
 		.name = "hsta-msi",
-		.owner = THIS_MODULE,
 		.of_match_table = hsta_msi_ids,
 	},
 };

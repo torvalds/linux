@@ -120,6 +120,8 @@ static void __soc_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt,
 
 	if (skt->ops->hw_shutdown)
 		skt->ops->hw_shutdown(skt);
+
+	clk_disable_unprepare(skt->clk);
 }
 
 static void soc_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt)
@@ -130,6 +132,8 @@ static void soc_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt)
 static int soc_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
 	int ret = 0, i;
+
+	clk_prepare_enable(skt->clk);
 
 	if (skt->ops->hw_init) {
 		ret = skt->ops->hw_init(skt);
@@ -722,9 +726,8 @@ int soc_pcmcia_add_one(struct soc_pcmcia_socket *skt)
 {
 	int ret;
 
-	init_timer(&skt->poll_timer);
-	skt->poll_timer.function = soc_common_pcmcia_poll_event;
-	skt->poll_timer.data = (unsigned long)skt;
+	setup_timer(&skt->poll_timer, soc_common_pcmcia_poll_event,
+		    (unsigned long)skt);
 	skt->poll_timer.expires = jiffies + SOC_PCMCIA_POLL_PERIOD;
 
 	ret = request_resource(&iomem_resource, &skt->res_skt);

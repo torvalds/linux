@@ -47,6 +47,16 @@ DEFINE_EVENT(dwc3_log_msg, dwc3_writel,
 	TP_ARGS(vaf)
 );
 
+DEFINE_EVENT(dwc3_log_msg, dwc3_gadget,
+	TP_PROTO(struct va_format *vaf),
+	TP_ARGS(vaf)
+);
+
+DEFINE_EVENT(dwc3_log_msg, dwc3_core,
+	TP_PROTO(struct va_format *vaf),
+	TP_ARGS(vaf)
+);
+
 DEFINE_EVENT(dwc3_log_msg, dwc3_ep0,
 	TP_PROTO(struct va_format *vaf),
 	TP_ARGS(vaf)
@@ -61,7 +71,7 @@ DECLARE_EVENT_CLASS(dwc3_log_event,
 	TP_fast_assign(
 		__entry->event = event;
 	),
-	TP_printk("event %08x\n", __entry->event)
+	TP_printk("event %08x", __entry->event)
 );
 
 DEFINE_EVENT(dwc3_log_event, dwc3_event,
@@ -157,7 +167,7 @@ DECLARE_EVENT_CLASS(dwc3_log_generic_cmd,
 		__entry->cmd = cmd;
 		__entry->param = param;
 	),
-	TP_printk("cmd '%s' [%d] param %08x\n",
+	TP_printk("cmd '%s' [%d] param %08x",
 		dwc3_gadget_generic_cmd_string(__entry->cmd),
 		__entry->cmd, __entry->param
 	)
@@ -175,17 +185,21 @@ DECLARE_EVENT_CLASS(dwc3_log_gadget_ep_cmd,
 	TP_STRUCT__entry(
 		__dynamic_array(char, name, DWC3_MSG_MAX)
 		__field(unsigned int, cmd)
-		__field(struct dwc3_gadget_ep_cmd_params *, params)
+		__field(u32, param0)
+		__field(u32, param1)
+		__field(u32, param2)
 	),
 	TP_fast_assign(
 		snprintf(__get_str(name), DWC3_MSG_MAX, "%s", dep->name);
 		__entry->cmd = cmd;
-		__entry->params = params;
+		__entry->param0 = params->param0;
+		__entry->param1 = params->param1;
+		__entry->param2 = params->param2;
 	),
-	TP_printk("%s: cmd '%s' [%d] params %08x %08x %08x\n",
+	TP_printk("%s: cmd '%s' [%d] params %08x %08x %08x",
 		__get_str(name), dwc3_gadget_ep_cmd_string(__entry->cmd),
-		__entry->cmd, __entry->params->param0,
-		__entry->params->param1, __entry->params->param2
+		__entry->cmd, __entry->param0,
+		__entry->param1, __entry->param2
 	)
 );
 
@@ -214,7 +228,7 @@ DECLARE_EVENT_CLASS(dwc3_log_trb,
 		__entry->size = trb->size;
 		__entry->ctrl = trb->ctrl;
 	),
-	TP_printk("%s: trb %p bph %08x bpl %08x size %08x ctrl %08x\n",
+	TP_printk("%s: trb %p bph %08x bpl %08x size %08x ctrl %08x",
 		__get_str(name), __entry->trb, __entry->bph, __entry->bpl,
 		__entry->size, __entry->ctrl
 	)

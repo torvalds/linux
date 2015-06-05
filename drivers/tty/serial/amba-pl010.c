@@ -75,7 +75,8 @@ struct uart_amba_port {
 
 static void pl010_stop_tx(struct uart_port *port)
 {
-	struct uart_amba_port *uap = (struct uart_amba_port *)port;
+	struct uart_amba_port *uap =
+		container_of(port, struct uart_amba_port, port);
 	unsigned int cr;
 
 	cr = readb(uap->port.membase + UART010_CR);
@@ -85,7 +86,8 @@ static void pl010_stop_tx(struct uart_port *port)
 
 static void pl010_start_tx(struct uart_port *port)
 {
-	struct uart_amba_port *uap = (struct uart_amba_port *)port;
+	struct uart_amba_port *uap =
+		container_of(port, struct uart_amba_port, port);
 	unsigned int cr;
 
 	cr = readb(uap->port.membase + UART010_CR);
@@ -95,7 +97,8 @@ static void pl010_start_tx(struct uart_port *port)
 
 static void pl010_stop_rx(struct uart_port *port)
 {
-	struct uart_amba_port *uap = (struct uart_amba_port *)port;
+	struct uart_amba_port *uap =
+		container_of(port, struct uart_amba_port, port);
 	unsigned int cr;
 
 	cr = readb(uap->port.membase + UART010_CR);
@@ -103,9 +106,20 @@ static void pl010_stop_rx(struct uart_port *port)
 	writel(cr, uap->port.membase + UART010_CR);
 }
 
-static void pl010_enable_ms(struct uart_port *port)
+static void pl010_disable_ms(struct uart_port *port)
 {
 	struct uart_amba_port *uap = (struct uart_amba_port *)port;
+	unsigned int cr;
+
+	cr = readb(uap->port.membase + UART010_CR);
+	cr &= ~UART010_CR_MSIE;
+	writel(cr, uap->port.membase + UART010_CR);
+}
+
+static void pl010_enable_ms(struct uart_port *port)
+{
+	struct uart_amba_port *uap =
+		container_of(port, struct uart_amba_port, port);
 	unsigned int cr;
 
 	cr = readb(uap->port.membase + UART010_CR);
@@ -259,14 +273,16 @@ static irqreturn_t pl010_int(int irq, void *dev_id)
 
 static unsigned int pl010_tx_empty(struct uart_port *port)
 {
-	struct uart_amba_port *uap = (struct uart_amba_port *)port;
+	struct uart_amba_port *uap =
+		container_of(port, struct uart_amba_port, port);
 	unsigned int status = readb(uap->port.membase + UART01x_FR);
 	return status & UART01x_FR_BUSY ? 0 : TIOCSER_TEMT;
 }
 
 static unsigned int pl010_get_mctrl(struct uart_port *port)
 {
-	struct uart_amba_port *uap = (struct uart_amba_port *)port;
+	struct uart_amba_port *uap =
+		container_of(port, struct uart_amba_port, port);
 	unsigned int result = 0;
 	unsigned int status;
 
@@ -283,7 +299,8 @@ static unsigned int pl010_get_mctrl(struct uart_port *port)
 
 static void pl010_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
-	struct uart_amba_port *uap = (struct uart_amba_port *)port;
+	struct uart_amba_port *uap =
+		container_of(port, struct uart_amba_port, port);
 
 	if (uap->data)
 		uap->data->set_mctrl(uap->dev, uap->port.membase, mctrl);
@@ -291,7 +308,8 @@ static void pl010_set_mctrl(struct uart_port *port, unsigned int mctrl)
 
 static void pl010_break_ctl(struct uart_port *port, int break_state)
 {
-	struct uart_amba_port *uap = (struct uart_amba_port *)port;
+	struct uart_amba_port *uap =
+		container_of(port, struct uart_amba_port, port);
 	unsigned long flags;
 	unsigned int lcr_h;
 
@@ -307,7 +325,8 @@ static void pl010_break_ctl(struct uart_port *port, int break_state)
 
 static int pl010_startup(struct uart_port *port)
 {
-	struct uart_amba_port *uap = (struct uart_amba_port *)port;
+	struct uart_amba_port *uap =
+		container_of(port, struct uart_amba_port, port);
 	int retval;
 
 	/*
@@ -347,7 +366,8 @@ static int pl010_startup(struct uart_port *port)
 
 static void pl010_shutdown(struct uart_port *port)
 {
-	struct uart_amba_port *uap = (struct uart_amba_port *)port;
+	struct uart_amba_port *uap =
+		container_of(port, struct uart_amba_port, port);
 
 	/*
 	 * Free the interrupt
@@ -374,7 +394,8 @@ static void
 pl010_set_termios(struct uart_port *port, struct ktermios *termios,
 		     struct ktermios *old)
 {
-	struct uart_amba_port *uap = (struct uart_amba_port *)port;
+	struct uart_amba_port *uap =
+		container_of(port, struct uart_amba_port, port);
 	unsigned int lcr_h, old_cr;
 	unsigned long flags;
 	unsigned int baud, quot;
@@ -468,13 +489,21 @@ pl010_set_termios(struct uart_port *port, struct ktermios *termios,
 	spin_unlock_irqrestore(&uap->port.lock, flags);
 }
 
-static void pl010_set_ldisc(struct uart_port *port, int new)
+static void pl010_set_ldisc(struct uart_port *port, struct ktermios *termios)
 {
-	if (new == N_PPS) {
+	if (termios->c_line == N_PPS) {
 		port->flags |= UPF_HARDPPS_CD;
+		spin_lock_irq(&port->lock);
 		pl010_enable_ms(port);
-	} else
+		spin_unlock_irq(&port->lock);
+	} else {
 		port->flags &= ~UPF_HARDPPS_CD;
+		if (!UART_ENABLE_MS(port, termios->c_cflag)) {
+			spin_lock_irq(&port->lock);
+			pl010_disable_ms(port);
+			spin_unlock_irq(&port->lock);
+		}
+	}
 }
 
 static const char *pl010_type(struct uart_port *port)
@@ -551,7 +580,8 @@ static struct uart_amba_port *amba_ports[UART_NR];
 
 static void pl010_console_putchar(struct uart_port *port, int ch)
 {
-	struct uart_amba_port *uap = (struct uart_amba_port *)port;
+	struct uart_amba_port *uap =
+		container_of(port, struct uart_amba_port, port);
 	unsigned int status;
 
 	do {

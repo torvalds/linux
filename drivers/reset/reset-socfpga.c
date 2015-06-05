@@ -76,9 +76,24 @@ static int socfpga_reset_deassert(struct reset_controller_dev *rcdev,
 	return 0;
 }
 
+static int socfpga_reset_status(struct reset_controller_dev *rcdev,
+				unsigned long id)
+{
+	struct socfpga_reset_data *data = container_of(rcdev,
+						struct socfpga_reset_data, rcdev);
+	int bank = id / BITS_PER_LONG;
+	int offset = id % BITS_PER_LONG;
+	u32 reg;
+
+	reg = readl(data->membase + OFFSET_MODRST + (bank * NR_BANKS));
+
+	return !(reg & BIT(offset));
+}
+
 static struct reset_control_ops socfpga_reset_ops = {
 	.assert		= socfpga_reset_assert,
 	.deassert	= socfpga_reset_deassert,
+	.status		= socfpga_reset_status,
 };
 
 static int socfpga_reset_probe(struct platform_device *pdev)
@@ -135,7 +150,6 @@ static struct platform_driver socfpga_reset_driver = {
 	.remove	= socfpga_reset_remove,
 	.driver = {
 		.name		= "socfpga-reset",
-		.owner		= THIS_MODULE,
 		.of_match_table	= socfpga_reset_dt_ids,
 	},
 };

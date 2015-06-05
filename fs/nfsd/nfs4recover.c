@@ -192,14 +192,14 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 
 	dir = nn->rec_file->f_path.dentry;
 	/* lock the parent */
-	mutex_lock(&dir->d_inode->i_mutex);
+	mutex_lock(&d_inode(dir)->i_mutex);
 
 	dentry = lookup_one_len(dname, dir, HEXDIR_LEN-1);
 	if (IS_ERR(dentry)) {
 		status = PTR_ERR(dentry);
 		goto out_unlock;
 	}
-	if (dentry->d_inode)
+	if (d_really_is_positive(dentry))
 		/*
 		 * In the 4.1 case, where we're called from
 		 * reclaim_complete(), records from the previous reboot
@@ -209,11 +209,11 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 		 * as well be forgiving and just succeed silently.
 		 */
 		goto out_put;
-	status = vfs_mkdir(dir->d_inode, dentry, S_IRWXU);
+	status = vfs_mkdir(d_inode(dir), dentry, S_IRWXU);
 out_put:
 	dput(dentry);
 out_unlock:
-	mutex_unlock(&dir->d_inode->i_mutex);
+	mutex_unlock(&d_inode(dir)->i_mutex);
 	if (status == 0) {
 		if (nn->in_grace) {
 			crp = nfs4_client_to_reclaim(dname, nn);
@@ -245,10 +245,11 @@ struct nfs4_dir_ctx {
 };
 
 static int
-nfsd4_build_namelist(void *arg, const char *name, int namlen,
+nfsd4_build_namelist(struct dir_context *__ctx, const char *name, int namlen,
 		loff_t offset, u64 ino, unsigned int d_type)
 {
-	struct nfs4_dir_ctx *ctx = arg;
+	struct nfs4_dir_ctx *ctx =
+		container_of(__ctx, struct nfs4_dir_ctx, ctx);
 	struct name_list *entry;
 
 	if (namlen != HEXDIR_LEN - 1)
@@ -284,7 +285,7 @@ nfsd4_list_rec_dir(recdir_func *f, struct nfsd_net *nn)
 	}
 
 	status = iterate_dir(nn->rec_file, &ctx.ctx);
-	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_PARENT);
+	mutex_lock_nested(&d_inode(dir)->i_mutex, I_MUTEX_PARENT);
 	while (!list_empty(&ctx.names)) {
 		struct name_list *entry;
 		entry = list_entry(ctx.names.next, struct name_list, list);
@@ -301,7 +302,7 @@ nfsd4_list_rec_dir(recdir_func *f, struct nfsd_net *nn)
 		list_del(&entry->list);
 		kfree(entry);
 	}
-	mutex_unlock(&dir->d_inode->i_mutex);
+	mutex_unlock(&d_inode(dir)->i_mutex);
 	nfs4_reset_creds(original_cred);
 	return status;
 }
@@ -315,20 +316,20 @@ nfsd4_unlink_clid_dir(char *name, int namlen, struct nfsd_net *nn)
 	dprintk("NFSD: nfsd4_unlink_clid_dir. name %.*s\n", namlen, name);
 
 	dir = nn->rec_file->f_path.dentry;
-	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_PARENT);
+	mutex_lock_nested(&d_inode(dir)->i_mutex, I_MUTEX_PARENT);
 	dentry = lookup_one_len(name, dir, namlen);
 	if (IS_ERR(dentry)) {
 		status = PTR_ERR(dentry);
 		goto out_unlock;
 	}
 	status = -ENOENT;
-	if (!dentry->d_inode)
+	if (d_really_is_negative(dentry))
 		goto out;
-	status = vfs_rmdir(dir->d_inode, dentry);
+	status = vfs_rmdir(d_inode(dir), dentry);
 out:
 	dput(dentry);
 out_unlock:
-	mutex_unlock(&dir->d_inode->i_mutex);
+	mutex_unlock(&d_inode(dir)->i_mutex);
 	return status;
 }
 
@@ -384,7 +385,7 @@ purge_old(struct dentry *parent, struct dentry *child, struct nfsd_net *nn)
 	if (nfs4_has_reclaimed_state(child->d_name.name, nn))
 		return 0;
 
-	status = vfs_rmdir(parent->d_inode, child);
+	status = vfs_rmdir(d_inode(parent), child);
 	if (status)
 		printk("failed to remove client recovery directory %pd\n",
 				child);
@@ -582,7 +583,7 @@ nfs4_reset_recoverydir(char *recdir)
 	if (status)
 		return status;
 	status = -ENOTDIR;
-	if (S_ISDIR(path.dentry->d_inode->i_mode)) {
+	if (d_is_dir(path.dentry)) {
 		strcpy(user_recovery_dirname, recdir);
 		status = 0;
 	}
@@ -704,7 +705,7 @@ cld_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	struct cld_upcall *tmp, *cup;
 	struct cld_msg __user *cmsg = (struct cld_msg __user *)src;
 	uint32_t xid;
-	struct nfsd_net *nn = net_generic(filp->f_dentry->d_sb->s_fs_info,
+	struct nfsd_net *nn = net_generic(file_inode(filp)->i_sb->s_fs_info,
 						nfsd_net_id);
 	struct cld_net *cn = nn->cld_net;
 
@@ -1425,7 +1426,7 @@ nfsd4_client_tracking_init(struct net *net)
 	nn->client_tracking_ops = &nfsd4_legacy_tracking_ops;
 	status = kern_path(nfs4_recoverydir(), LOOKUP_FOLLOW, &path);
 	if (!status) {
-		status = S_ISDIR(path.dentry->d_inode->i_mode);
+		status = d_is_dir(path.dentry);
 		path_put(&path);
 		if (status)
 			goto do_init;

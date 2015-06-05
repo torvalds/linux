@@ -1,0 +1,30 @@
+Binding for Xilinx Clocking Wizard IP Core
+
+This binding uses the common clock binding[1]. Details about the devices can be
+found in the product guide[2].
+
+[1] Documentation/devicetree/bindings/clock/clock-bindings.txt
+[2] Clocking Wizard Product Guide
+http://www.xilinx.com/support/documentation/ip_documentation/clk_wiz/v5_1/pg065-clk-wiz.pdf
+
+Required properties:
+ - compatible: Must be 'xlnx,clocking-wizard'
+ - reg: Base and size of the cores register space
+ - clocks: Handle to input clock
+ - clock-names: Tuple containing 'clk_in1' and 's_axi_aclk'
+ - clock-output-names: Names for the output clocks
+
+Optional properties:
+ - speed-grade: Speed grade of the device (valid values are 1..3)
+
+Example:
+	clock-generator@40040000 {
+		reg = <0x40040000 0x1000>;
+		compatible = "xlnx,clocking-wizard";
+		speed-grade = <1>;
+		clock-names = "clk_in1", "s_axi_aclk";
+		clocks = <&clkc 15>, <&clkc 15>;
+		clock-output-names = "clk_out0", "clk_out1", "clk_out2",
+				     "clk_out3", "clk_out4", "clk_out5",
+				     "clk_out6", "clk_out7";
+	};

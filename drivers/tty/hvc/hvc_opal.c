@@ -41,7 +41,7 @@
 
 static const char hvc_opal_name[] = "hvc_opal";
 
-static struct of_device_id hvc_opal_match[] = {
+static const struct of_device_id hvc_opal_match[] = {
 	{ .name = "serial", .compatible = "ibm,opal-console-raw" },
 	{ .name = "serial", .compatible = "ibm,opal-console-hvsi" },
 	{ },
@@ -262,7 +262,6 @@ static struct platform_driver hvc_opal_driver = {
 	.remove		= hvc_opal_remove,
 	.driver		= {
 		.name	= hvc_opal_name,
-		.owner	= THIS_MODULE,
 		.of_match_table	= hvc_opal_match,
 	}
 };

@@ -127,8 +127,6 @@ void sdhci_pci_o2_fujin2_pci_init(struct sdhci_pci_chip *chip)
 		return;
 	scratch_32 &= ~((1 << 21) | (1 << 30));
 
-	/* Set RTD3 function disabled */
-	scratch_32 |= ((1 << 29) | (1 << 28));
 	pci_write_config_dword(chip->pdev, O2_SD_FUNC_REG3, scratch_32);
 
 	/* Set L1 Entrance Timer */

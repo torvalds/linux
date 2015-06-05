@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2014-2015 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,12 +15,12 @@
  */
 #include <linux/firmware.h>
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/crc32.h>
 #include "wil6210.h"
 #include "fw.h"
 
 MODULE_FIRMWARE(WIL_FW_NAME);
+MODULE_FIRMWARE(WIL_FW2_NAME);
 
 /* target operations */
 /* register read */

@@ -112,6 +112,18 @@ config CPU_THERMAL
 
 	  If you want this support, you should say Y here.
 
+config CLOCK_THERMAL
+	bool "Generic clock cooling support"
+	depends on COMMON_CLK
+	depends on PM_OPP
+	help
+	  This entry implements the generic clock cooling mechanism through
+	  frequency clipping. Typically used to cool off co-processors. The
+	  device that is configured to use this cooling mechanism will be
+	  controlled to reduce clock frequency whenever temperature is high.
+
+	  If you want this support, you should say Y here.
+
 config THERMAL_EMULATION
 	bool "Thermal emulation mode support"
 	help
@@ -142,6 +154,16 @@ config SPEAR_THERMAL
 	help
 	  Enable this to plug the SPEAr thermal sensor driver into the Linux
 	  thermal framework.
+
+config ROCKCHIP_THERMAL
+	tristate "Rockchip thermal driver"
+	depends on ARCH_ROCKCHIP
+	depends on RESET_CONTROLLER
+	help
+	  Rockchip thermal driver provides support for Temperature sensor
+	  ADC (TS-ADC) found on Rockchip SoCs. It supports one critical
+	  trip point. Cpufreq is used as the cooling device and will throttle
+	  CPUs when the Temperature crosses the passive trip point.
 
 config RCAR_THERMAL
 	tristate "Renesas R-Car thermal driver"
@@ -184,6 +206,16 @@ config ARMADA_THERMAL
 	help
 	  Enable this option if you want to have support for thermal management
 	  controller present in Armada 370 and Armada XP SoC.
+
+config TEGRA_SOCTHERM
+	tristate "Tegra SOCTHERM thermal management"
+	depends on ARCH_TEGRA
+	help
+	  Enable this option for integrated thermal management support on NVIDIA
+	  Tegra124 systems-on-chip. The driver supports four thermal zones
+	  (CPU, GPU, MEM, PLLX). Cooling devices can be bound to the thermal
+	  zones to manage temperatures. This option is also required for the
+	  emergency thermal reset (thermtrip) feature to function.
 
 config DB8500_CPUFREQ_COOLING
 	tristate "DB8500 cpufreq cooling"

@@ -99,7 +99,6 @@ static struct platform_driver gpio_poweroff_driver = {
 	.remove = gpio_poweroff_remove,
 	.driver = {
 		.name = "poweroff-gpio",
-		.owner = THIS_MODULE,
 		.of_match_table = of_gpio_poweroff_match,
 	},
 };

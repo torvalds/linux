@@ -27,6 +27,8 @@
 #include <linux/of.h>
 #include <linux/reset.h>
 #include <linux/regulator/consumer.h>
+#include <linux/iommu.h>
+#include <soc/tegra/fuse.h>
 #include <soc/tegra/pmc.h>
 
 #include "nouveau_drm.h"
@@ -90,6 +92,72 @@ static int nouveau_platform_power_down(struct nouveau_platform_gpu *gpu)
 	return 0;
 }
 
+static void nouveau_platform_probe_iommu(struct device *dev,
+					 struct nouveau_platform_gpu *gpu)
+{
+	int err;
+	unsigned long pgsize_bitmap;
+
+	mutex_init(&gpu->iommu.mutex);
+
+	if (iommu_present(&platform_bus_type)) {
+		gpu->iommu.domain = iommu_domain_alloc(&platform_bus_type);
+		if (IS_ERR(gpu->iommu.domain))
+			goto error;
+
+		/*
+		 * A IOMMU is only usable if it supports page sizes smaller
+		 * or equal to the system's PAGE_SIZE, with a preference if
+		 * both are equal.
+		 */
+		pgsize_bitmap = gpu->iommu.domain->ops->pgsize_bitmap;
+		if (pgsize_bitmap & PAGE_SIZE) {
+			gpu->iommu.pgshift = PAGE_SHIFT;
+		} else {
+			gpu->iommu.pgshift = fls(pgsize_bitmap & ~PAGE_MASK);
+			if (gpu->iommu.pgshift == 0) {
+				dev_warn(dev, "unsupported IOMMU page size\n");
+				goto free_domain;
+			}
+			gpu->iommu.pgshift -= 1;
+		}
+
+		err = iommu_attach_device(gpu->iommu.domain, dev);
+		if (err)
+			goto free_domain;
+
+		err = nvkm_mm_init(&gpu->iommu._mm, 0,
+				   (1ULL << 40) >> gpu->iommu.pgshift, 1);
+		if (err)
+			goto detach_device;
+
+		gpu->iommu.mm = &gpu->iommu._mm;
+	}
+
+	return;
+
+detach_device:
+	iommu_detach_device(gpu->iommu.domain, dev);
+
+free_domain:
+	iommu_domain_free(gpu->iommu.domain);
+
+error:
+	gpu->iommu.domain = NULL;
+	gpu->iommu.pgshift = 0;
+	dev_err(dev, "cannot initialize IOMMU MM\n");
+}
+
+static void nouveau_platform_remove_iommu(struct device *dev,
+					  struct nouveau_platform_gpu *gpu)
+{
+	if (gpu->iommu.domain) {
+		nvkm_mm_fini(&gpu->iommu._mm);
+		iommu_detach_device(gpu->iommu.domain, dev);
+		iommu_domain_free(gpu->iommu.domain);
+	}
+}
+
 static int nouveau_platform_probe(struct platform_device *pdev)
 {
 	struct nouveau_platform_gpu *gpu;
@@ -117,6 +185,8 @@ static int nouveau_platform_probe(struct platform_device *pdev)
 	if (IS_ERR(gpu->clk_pwr))
 		return PTR_ERR(gpu->clk_pwr);
 
+	nouveau_platform_probe_iommu(&pdev->dev, gpu);
+
 	err = nouveau_platform_power_up(gpu);
 	if (err)
 		return err;
@@ -128,6 +198,7 @@ static int nouveau_platform_probe(struct platform_device *pdev)
 	}
 
 	device->gpu = gpu;
+	device->gpu_speedo = tegra_sku_info.gpu_speedo_value;
 
 	err = drm_dev_register(drm, 0);
 	if (err < 0)
@@ -138,10 +209,9 @@ static int nouveau_platform_probe(struct platform_device *pdev)
 err_unref:
 	drm_dev_unref(drm);
 
-	return 0;
-
 power_down:
 	nouveau_platform_power_down(gpu);
+	nouveau_platform_remove_iommu(&pdev->dev, gpu);
 
 	return err;
 }
@@ -150,12 +220,17 @@ static int nouveau_platform_remove(struct platform_device *pdev)
 {
 	struct drm_device *drm_dev = platform_get_drvdata(pdev);
 	struct nouveau_drm *drm = nouveau_drm(drm_dev);
-	struct nouveau_device *device = nvkm_device(&drm->device);
+	struct nvkm_device *device = nvxx_device(&drm->device);
 	struct nouveau_platform_gpu *gpu = nv_device_to_platform(device)->gpu;
+	int err;
 
 	nouveau_drm_device_remove(drm_dev);
 
-	return nouveau_platform_power_down(gpu);
+	err = nouveau_platform_power_down(gpu);
+
+	nouveau_platform_remove_iommu(&pdev->dev, gpu);
+
+	return err;
 }
 
 #if IS_ENABLED(CONFIG_OF)
@@ -175,9 +250,3 @@ struct platform_driver nouveau_platform_driver = {
 	.probe = nouveau_platform_probe,
 	.remove = nouveau_platform_remove,
 };
-
-module_platform_driver(nouveau_platform_driver);
-
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE("GPL and additional rights");

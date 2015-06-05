@@ -219,7 +219,6 @@ static ssize_t amd_uncore_attr_show_cpumask(struct device *dev,
 					    struct device_attribute *attr,
 					    char *buf)
 {
-	int n;
 	cpumask_t *active_mask;
 	struct pmu *pmu = dev_get_drvdata(dev);
 
@@ -230,10 +229,7 @@ static ssize_t amd_uncore_attr_show_cpumask(struct device *dev,
 	else
 		return 0;
 
-	n = cpulist_scnprintf(buf, PAGE_SIZE - 2, active_mask);
-	buf[n++] = '\n';
-	buf[n] = '\0';
-	return n;
+	return cpumap_print_to_pagebuf(true, buf, active_mask);
 }
 static DEVICE_ATTR(cpumask, S_IRUGO, amd_uncore_attr_show_cpumask, NULL);
 

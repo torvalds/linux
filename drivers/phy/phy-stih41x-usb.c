@@ -87,8 +87,12 @@ static int stih41x_usb_phy_power_on(struct phy *phy)
 		return ret;
 	}
 
-	return regmap_update_bits(phy_dev->regmap, phy_dev->cfg->syscfg,
-			phy_dev->cfg->oscok, phy_dev->cfg->oscok);
+	ret = regmap_update_bits(phy_dev->regmap, phy_dev->cfg->syscfg,
+				 phy_dev->cfg->oscok, phy_dev->cfg->oscok);
+	if (ret)
+		clk_disable_unprepare(phy_dev->clk);
+
+	return ret;
 }
 
 static int stih41x_usb_phy_power_off(struct phy *phy)
@@ -148,7 +152,7 @@ static int stih41x_usb_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(phy_dev->clk);
 	}
 
-	phy = devm_phy_create(dev, NULL, &stih41x_usb_phy_ops, NULL);
+	phy = devm_phy_create(dev, NULL, &stih41x_usb_phy_ops);
 
 	if (IS_ERR(phy)) {
 		dev_err(dev, "failed to create phy\n");
@@ -160,10 +164,7 @@ static int stih41x_usb_phy_probe(struct platform_device *pdev)
 	phy_set_drvdata(phy, phy_dev);
 
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
-	if (IS_ERR(phy_provider))
-		return PTR_ERR(phy_provider);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(phy_provider);
 }
 
 static const struct of_device_id stih41x_usb_phy_of_match[] = {

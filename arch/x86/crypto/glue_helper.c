@@ -232,7 +232,6 @@ static void glue_ctr_crypt_final_128bit(const common_glue_ctr_func_t fn_ctr,
 
 	le128_to_be128((be128 *)walk->iv, &ctrblk);
 }
-EXPORT_SYMBOL_GPL(glue_ctr_crypt_final_128bit);
 
 static unsigned int __glue_ctr_crypt_128bit(const struct common_glue_ctx *gctx,
 					    struct blkcipher_desc *desc,

@@ -22,9 +22,13 @@
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/sdio_func.h>
+#include <linux/of.h>
 
+#include "core.h"
 #include "sdio_cis.h"
 #include "sdio_bus.h"
+
+#define to_sdio_driver(d)	container_of(d, struct sdio_driver, drv)
 
 /* show configuration fields */
 #define sdio_config_attr(field, format_string)				\
@@ -196,8 +200,6 @@ static int sdio_bus_remove(struct device *dev)
 	return ret;
 }
 
-#ifdef CONFIG_PM
-
 static const struct dev_pm_ops sdio_bus_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(pm_generic_suspend, pm_generic_resume)
 	SET_RUNTIME_PM_OPS(
@@ -207,14 +209,6 @@ static const struct dev_pm_ops sdio_bus_pm_ops = {
 	)
 };
 
-#define SDIO_PM_OPS_PTR	(&sdio_bus_pm_ops)
-
-#else /* !CONFIG_PM */
-
-#define SDIO_PM_OPS_PTR	NULL
-
-#endif /* !CONFIG_PM */
-
 static struct bus_type sdio_bus_type = {
 	.name		= "sdio",
 	.dev_groups	= sdio_dev_groups,
@@ -222,7 +216,7 @@ static struct bus_type sdio_bus_type = {
 	.uevent		= sdio_bus_uevent,
 	.probe		= sdio_bus_probe,
 	.remove		= sdio_bus_remove,
-	.pm		= SDIO_PM_OPS_PTR,
+	.pm		= &sdio_bus_pm_ops,
 };
 
 int sdio_register_bus(void)
@@ -295,13 +289,20 @@ struct sdio_func *sdio_alloc_func(struct mmc_card *card)
 static void sdio_acpi_set_handle(struct sdio_func *func)
 {
 	struct mmc_host *host = func->card->host;
-	u64 addr = (host->slotno << 16) | func->num;
+	u64 addr = ((u64)host->slotno << 16) | func->num;
 
 	acpi_preset_companion(&func->dev, ACPI_COMPANION(host->parent), addr);
 }
 #else
 static inline void sdio_acpi_set_handle(struct sdio_func *func) {}
 #endif
+
+static void sdio_set_of_node(struct sdio_func *func)
+{
+	struct mmc_host *host = func->card->host;
+
+	func->dev.of_node = mmc_of_find_child_device(host, func->num);
+}
 
 /*
  * Register a new SDIO function with the driver model.
@@ -312,6 +313,7 @@ int sdio_add_func(struct sdio_func *func)
 
 	dev_set_name(&func->dev, "%s:%d", mmc_card_id(func->card), func->num);
 
+	sdio_set_of_node(func);
 	sdio_acpi_set_handle(func);
 	ret = device_add(&func->dev);
 	if (ret == 0) {
@@ -335,6 +337,7 @@ void sdio_remove_func(struct sdio_func *func)
 
 	dev_pm_domain_detach(&func->dev, false);
 	device_del(&func->dev);
+	of_node_put(func->dev.of_node);
 	put_device(&func->dev);
 }
 

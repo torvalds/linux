@@ -25,65 +25,68 @@
 #include <net/netfilter/nft_meta.h>
 
 void nft_meta_get_eval(const struct nft_expr *expr,
-		       struct nft_data data[NFT_REG_MAX + 1],
+		       struct nft_regs *regs,
 		       const struct nft_pktinfo *pkt)
 {
 	const struct nft_meta *priv = nft_expr_priv(expr);
 	const struct sk_buff *skb = pkt->skb;
 	const struct net_device *in = pkt->in, *out = pkt->out;
-	struct nft_data *dest = &data[priv->dreg];
+	u32 *dest = &regs->data[priv->dreg];
 
 	switch (priv->key) {
 	case NFT_META_LEN:
-		dest->data[0] = skb->len;
+		*dest = skb->len;
 		break;
 	case NFT_META_PROTOCOL:
-		*(__be16 *)dest->data = skb->protocol;
+		*dest = 0;
+		*(__be16 *)dest = skb->protocol;
 		break;
 	case NFT_META_NFPROTO:
-		dest->data[0] = pkt->ops->pf;
+		*dest = pkt->ops->pf;
 		break;
 	case NFT_META_L4PROTO:
-		dest->data[0] = pkt->tprot;
+		*dest = pkt->tprot;
 		break;
 	case NFT_META_PRIORITY:
-		dest->data[0] = skb->priority;
+		*dest = skb->priority;
 		break;
 	case NFT_META_MARK:
-		dest->data[0] = skb->mark;
+		*dest = skb->mark;
 		break;
 	case NFT_META_IIF:
 		if (in == NULL)
 			goto err;
-		dest->data[0] = in->ifindex;
+		*dest = in->ifindex;
 		break;
 	case NFT_META_OIF:
 		if (out == NULL)
 			goto err;
-		dest->data[0] = out->ifindex;
+		*dest = out->ifindex;
 		break;
 	case NFT_META_IIFNAME:
 		if (in == NULL)
 			goto err;
-		strncpy((char *)dest->data, in->name, sizeof(dest->data));
+		strncpy((char *)dest, in->name, IFNAMSIZ);
 		break;
 	case NFT_META_OIFNAME:
 		if (out == NULL)
 			goto err;
-		strncpy((char *)dest->data, out->name, sizeof(dest->data));
+		strncpy((char *)dest, out->name, IFNAMSIZ);
 		break;
 	case NFT_META_IIFTYPE:
 		if (in == NULL)
 			goto err;
-		*(u16 *)dest->data = in->type;
+		*dest = 0;
+		*(u16 *)dest = in->type;
 		break;
 	case NFT_META_OIFTYPE:
 		if (out == NULL)
 			goto err;
-		*(u16 *)dest->data = out->type;
+		*dest = 0;
+		*(u16 *)dest = out->type;
 		break;
 	case NFT_META_SKUID:
-		if (skb->sk == NULL || skb->sk->sk_state == TCP_TIME_WAIT)
+		if (skb->sk == NULL || !sk_fullsock(skb->sk))
 			goto err;
 
 		read_lock_bh(&skb->sk->sk_callback_lock);
@@ -93,13 +96,12 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 			goto err;
 		}
 
-		dest->data[0] =
-			from_kuid_munged(&init_user_ns,
+		*dest =	from_kuid_munged(&init_user_ns,
 				skb->sk->sk_socket->file->f_cred->fsuid);
 		read_unlock_bh(&skb->sk->sk_callback_lock);
 		break;
 	case NFT_META_SKGID:
-		if (skb->sk == NULL || skb->sk->sk_state == TCP_TIME_WAIT)
+		if (skb->sk == NULL || !sk_fullsock(skb->sk))
 			goto err;
 
 		read_lock_bh(&skb->sk->sk_callback_lock);
@@ -108,8 +110,7 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 			read_unlock_bh(&skb->sk->sk_callback_lock);
 			goto err;
 		}
-		dest->data[0] =
-			from_kgid_munged(&init_user_ns,
+		*dest =	from_kgid_munged(&init_user_ns,
 				 skb->sk->sk_socket->file->f_cred->fsgid);
 		read_unlock_bh(&skb->sk->sk_callback_lock);
 		break;
@@ -119,33 +120,33 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 
 		if (dst == NULL)
 			goto err;
-		dest->data[0] = dst->tclassid;
+		*dest = dst->tclassid;
 		break;
 	}
 #endif
 #ifdef CONFIG_NETWORK_SECMARK
 	case NFT_META_SECMARK:
-		dest->data[0] = skb->secmark;
+		*dest = skb->secmark;
 		break;
 #endif
 	case NFT_META_PKTTYPE:
 		if (skb->pkt_type != PACKET_LOOPBACK) {
-			dest->data[0] = skb->pkt_type;
+			*dest = skb->pkt_type;
 			break;
 		}
 
 		switch (pkt->ops->pf) {
 		case NFPROTO_IPV4:
 			if (ipv4_is_multicast(ip_hdr(skb)->daddr))
-				dest->data[0] = PACKET_MULTICAST;
+				*dest = PACKET_MULTICAST;
 			else
-				dest->data[0] = PACKET_BROADCAST;
+				*dest = PACKET_BROADCAST;
 			break;
 		case NFPROTO_IPV6:
 			if (ipv6_hdr(skb)->daddr.s6_addr[0] == 0xFF)
-				dest->data[0] = PACKET_MULTICAST;
+				*dest = PACKET_MULTICAST;
 			else
-				dest->data[0] = PACKET_BROADCAST;
+				*dest = PACKET_BROADCAST;
 			break;
 		default:
 			WARN_ON(1);
@@ -153,17 +154,22 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		}
 		break;
 	case NFT_META_CPU:
-		dest->data[0] = smp_processor_id();
+		*dest = raw_smp_processor_id();
 		break;
 	case NFT_META_IIFGROUP:
 		if (in == NULL)
 			goto err;
-		dest->data[0] = in->group;
+		*dest = in->group;
 		break;
 	case NFT_META_OIFGROUP:
 		if (out == NULL)
 			goto err;
-		dest->data[0] = out->group;
+		*dest = out->group;
+		break;
+	case NFT_META_CGROUP:
+		if (skb->sk == NULL || !sk_fullsock(skb->sk))
+			goto err;
+		*dest = skb->sk->sk_classid;
 		break;
 	default:
 		WARN_ON(1);
@@ -172,17 +178,17 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 	return;
 
 err:
-	data[NFT_REG_VERDICT].verdict = NFT_BREAK;
+	regs->verdict.code = NFT_BREAK;
 }
 EXPORT_SYMBOL_GPL(nft_meta_get_eval);
 
 void nft_meta_set_eval(const struct nft_expr *expr,
-		       struct nft_data data[NFT_REG_MAX + 1],
+		       struct nft_regs *regs,
 		       const struct nft_pktinfo *pkt)
 {
 	const struct nft_meta *meta = nft_expr_priv(expr);
 	struct sk_buff *skb = pkt->skb;
-	u32 value = data[meta->sreg].data[0];
+	u32 value = regs->data[meta->sreg];
 
 	switch (meta->key) {
 	case NFT_META_MARK:
@@ -212,22 +218,22 @@ int nft_meta_get_init(const struct nft_ctx *ctx,
 		      const struct nlattr * const tb[])
 {
 	struct nft_meta *priv = nft_expr_priv(expr);
-	int err;
+	unsigned int len;
 
 	priv->key = ntohl(nla_get_be32(tb[NFTA_META_KEY]));
 	switch (priv->key) {
-	case NFT_META_LEN:
 	case NFT_META_PROTOCOL:
+	case NFT_META_IIFTYPE:
+	case NFT_META_OIFTYPE:
+		len = sizeof(u16);
+		break;
 	case NFT_META_NFPROTO:
 	case NFT_META_L4PROTO:
+	case NFT_META_LEN:
 	case NFT_META_PRIORITY:
 	case NFT_META_MARK:
 	case NFT_META_IIF:
 	case NFT_META_OIF:
-	case NFT_META_IIFNAME:
-	case NFT_META_OIFNAME:
-	case NFT_META_IIFTYPE:
-	case NFT_META_OIFTYPE:
 	case NFT_META_SKUID:
 	case NFT_META_SKGID:
 #ifdef CONFIG_IP_ROUTE_CLASSID
@@ -240,21 +246,20 @@ int nft_meta_get_init(const struct nft_ctx *ctx,
 	case NFT_META_CPU:
 	case NFT_META_IIFGROUP:
 	case NFT_META_OIFGROUP:
+	case NFT_META_CGROUP:
+		len = sizeof(u32);
+		break;
+	case NFT_META_IIFNAME:
+	case NFT_META_OIFNAME:
+		len = IFNAMSIZ;
 		break;
 	default:
 		return -EOPNOTSUPP;
 	}
 
-	priv->dreg = ntohl(nla_get_be32(tb[NFTA_META_DREG]));
-	err = nft_validate_output_register(priv->dreg);
-	if (err < 0)
-		return err;
-
-	err = nft_validate_data_load(ctx, priv->dreg, NULL, NFT_DATA_VALUE);
-	if (err < 0)
-		return err;
-
-	return 0;
+	priv->dreg = nft_parse_register(tb[NFTA_META_DREG]);
+	return nft_validate_register_store(ctx, priv->dreg, NULL,
+					   NFT_DATA_VALUE, len);
 }
 EXPORT_SYMBOL_GPL(nft_meta_get_init);
 
@@ -263,20 +268,24 @@ int nft_meta_set_init(const struct nft_ctx *ctx,
 		      const struct nlattr * const tb[])
 {
 	struct nft_meta *priv = nft_expr_priv(expr);
+	unsigned int len;
 	int err;
 
 	priv->key = ntohl(nla_get_be32(tb[NFTA_META_KEY]));
 	switch (priv->key) {
 	case NFT_META_MARK:
 	case NFT_META_PRIORITY:
+		len = sizeof(u32);
+		break;
 	case NFT_META_NFTRACE:
+		len = sizeof(u8);
 		break;
 	default:
 		return -EOPNOTSUPP;
 	}
 
-	priv->sreg = ntohl(nla_get_be32(tb[NFTA_META_SREG]));
-	err = nft_validate_input_register(priv->sreg);
+	priv->sreg = nft_parse_register(tb[NFTA_META_SREG]);
+	err = nft_validate_register_load(priv->sreg, len);
 	if (err < 0)
 		return err;
 
@@ -291,7 +300,7 @@ int nft_meta_get_dump(struct sk_buff *skb,
 
 	if (nla_put_be32(skb, NFTA_META_KEY, htonl(priv->key)))
 		goto nla_put_failure;
-	if (nla_put_be32(skb, NFTA_META_DREG, htonl(priv->dreg)))
+	if (nft_dump_register(skb, NFTA_META_DREG, priv->dreg))
 		goto nla_put_failure;
 	return 0;
 
@@ -307,7 +316,7 @@ int nft_meta_set_dump(struct sk_buff *skb,
 
 	if (nla_put_be32(skb, NFTA_META_KEY, htonl(priv->key)))
 		goto nla_put_failure;
-	if (nla_put_be32(skb, NFTA_META_SREG, htonl(priv->sreg)))
+	if (nft_dump_register(skb, NFTA_META_SREG, priv->sreg))
 		goto nla_put_failure;
 
 	return 0;

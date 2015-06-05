@@ -108,7 +108,7 @@ static int vvp_io_fault_iter_init(const struct lu_env *env,
 	struct inode  *inode = ccc_object_inode(ios->cis_obj);
 
 	LASSERT(inode ==
-		cl2ccc_io(env, ios)->cui_fd->fd_file->f_dentry->d_inode);
+		file_inode(cl2ccc_io(env, ios)->cui_fd->fd_file));
 	vio->u.fault.ft_mtime = LTIME_S(inode->i_mtime);
 	return 0;
 }
@@ -239,7 +239,7 @@ static int vvp_mmap_locks(const struct lu_env *env,
 
 		down_read(&mm->mmap_sem);
 		while ((vma = our_vma(mm, addr, count)) != NULL) {
-			struct inode *inode = vma->vm_file->f_dentry->d_inode;
+			struct inode *inode = file_inode(vma->vm_file);
 			int flags = CEF_MUST;
 
 			if (ll_file_nolock(vma->vm_file)) {
@@ -307,18 +307,13 @@ static int vvp_io_rw_lock(const struct lu_env *env, struct cl_io *io,
 static int vvp_io_read_lock(const struct lu_env *env,
 			    const struct cl_io_slice *ios)
 {
-	struct cl_io	 *io  = ios->cis_io;
-	struct ll_inode_info *lli = ll_i2info(ccc_object_inode(io->ci_obj));
+	struct cl_io	 *io = ios->cis_io;
+	struct cl_io_rw_common *rd = &io->u.ci_rd.rd;
 	int result;
 
-	/* XXX: Layer violation, we shouldn't see lsm at llite level. */
-	if (lli->lli_has_smd) /* lsm-less file doesn't need to lock */
-		result = vvp_io_rw_lock(env, io, CLM_READ,
-					io->u.ci_rd.rd.crw_pos,
-					io->u.ci_rd.rd.crw_pos +
-					io->u.ci_rd.rd.crw_count - 1);
-	else
-		result = 0;
+	result = vvp_io_rw_lock(env, io, CLM_READ, rd->crw_pos,
+				rd->crw_pos + rd->crw_count - 1);
+
 	return result;
 }
 
@@ -632,7 +627,7 @@ static int vvp_io_kernel_fault(struct vvp_fault_io *cfio)
 		return 0;
 	}
 
-	if (cfio->fault.ft_flags & VM_FAULT_SIGBUS) {
+	if (cfio->fault.ft_flags & (VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV)) {
 		CDEBUG(D_PAGE, "got addr %p - SIGBUS\n", vmf->virtual_address);
 		return -EFAULT;
 	}
@@ -709,7 +704,7 @@ static int vvp_io_fault_start(const struct lu_env *env,
 	}
 
 
-	if (fio->ft_mkwrite ) {
+	if (fio->ft_mkwrite) {
 		pgoff_t last_index;
 		/*
 		 * Capture the size while holding the lli_trunc_sem from above
@@ -720,9 +715,8 @@ static int vvp_io_fault_start(const struct lu_env *env,
 		last_index = cl_index(obj, size - 1);
 		if (last_index < fio->ft_index) {
 			CDEBUG(D_PAGE,
-				"llite: mkwrite and truncate race happened: "
-				"%p: 0x%lx 0x%lx\n",
-				vmpage->mapping, fio->ft_index, last_index);
+			       "llite: mkwrite and truncate race happened: %p: 0x%lx 0x%lx\n",
+			       vmpage->mapping, fio->ft_index, last_index);
 			/*
 			 * We need to return if we are
 			 * passed the end of the file. This will propagate

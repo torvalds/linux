@@ -482,9 +482,16 @@ static void __init numa_clear_kernel_node_hotplug(void)
 				  &memblock.reserved, mb->nid);
 	}
 
-	/* Mark all kernel nodes. */
+	/*
+	 * Mark all kernel nodes.
+	 *
+	 * When booting with mem=nn[kMG] or in a kdump kernel, numa_meminfo
+	 * may not include all the memblock.reserved memory ranges because
+	 * trim_snb_memory() reserves specific pages for Sandy Bridge graphics.
+	 */
 	for_each_memblock(reserved, r)
-		node_set(r->nid, numa_kernel_nodes);
+		if (r->nid != MAX_NUMNODES)
+			node_set(r->nid, numa_kernel_nodes);
 
 	/* Clear MEMBLOCK_HOTPLUG flag for memory in kernel nodes. */
 	for (i = 0; i < numa_meminfo.nr_blks; i++) {
@@ -794,7 +801,6 @@ int early_cpu_to_node(int cpu)
 void debug_cpumask_set_cpu(int cpu, int node, bool enable)
 {
 	struct cpumask *mask;
-	char buf[64];
 
 	if (node == NUMA_NO_NODE) {
 		/* early_cpu_to_node() already emits a warning and trace */
@@ -812,10 +818,9 @@ void debug_cpumask_set_cpu(int cpu, int node, bool enable)
 	else
 		cpumask_clear_cpu(cpu, mask);
 
-	cpulist_scnprintf(buf, sizeof(buf), mask);
-	printk(KERN_DEBUG "%s cpu %d node %d: mask now %s\n",
+	printk(KERN_DEBUG "%s cpu %d node %d: mask now %*pbl\n",
 		enable ? "numa_add_cpu" : "numa_remove_cpu",
-		cpu, node, buf);
+		cpu, node, cpumask_pr_args(mask));
 	return;
 }
 

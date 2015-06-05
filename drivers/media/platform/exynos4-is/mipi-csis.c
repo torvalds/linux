@@ -238,34 +238,34 @@ struct csis_state {
  */
 struct csis_pix_format {
 	unsigned int pix_width_alignment;
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	u32 fmt_reg;
 	u8 data_alignment;
 };
 
 static const struct csis_pix_format s5pcsis_formats[] = {
 	{
-		.code = V4L2_MBUS_FMT_VYUY8_2X8,
+		.code = MEDIA_BUS_FMT_VYUY8_2X8,
 		.fmt_reg = S5PCSIS_CFG_FMT_YCBCR422_8BIT,
 		.data_alignment = 32,
 	}, {
-		.code = V4L2_MBUS_FMT_JPEG_1X8,
+		.code = MEDIA_BUS_FMT_JPEG_1X8,
 		.fmt_reg = S5PCSIS_CFG_FMT_USER(1),
 		.data_alignment = 32,
 	}, {
-		.code = V4L2_MBUS_FMT_S5C_UYVY_JPEG_1X8,
+		.code = MEDIA_BUS_FMT_S5C_UYVY_JPEG_1X8,
 		.fmt_reg = S5PCSIS_CFG_FMT_USER(1),
 		.data_alignment = 32,
 	}, {
-		.code = V4L2_MBUS_FMT_SGRBG8_1X8,
+		.code = MEDIA_BUS_FMT_SGRBG8_1X8,
 		.fmt_reg = S5PCSIS_CFG_FMT_RAW8,
 		.data_alignment = 24,
 	}, {
-		.code = V4L2_MBUS_FMT_SGRBG10_1X10,
+		.code = MEDIA_BUS_FMT_SGRBG10_1X10,
 		.fmt_reg = S5PCSIS_CFG_FMT_RAW10,
 		.data_alignment = 24,
 	}, {
-		.code = V4L2_MBUS_FMT_SGRBG12_1X12,
+		.code = MEDIA_BUS_FMT_SGRBG12_1X12,
 		.fmt_reg = S5PCSIS_CFG_FMT_RAW12,
 		.data_alignment = 24,
 	}
@@ -540,7 +540,7 @@ unlock:
 }
 
 static int s5pcsis_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_fh *fh,
+				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index >= ARRAY_SIZE(s5pcsis_formats))
@@ -568,23 +568,23 @@ static struct csis_pix_format const *s5pcsis_try_format(
 }
 
 static struct v4l2_mbus_framefmt *__s5pcsis_get_format(
-		struct csis_state *state, struct v4l2_subdev_fh *fh,
+		struct csis_state *state, struct v4l2_subdev_pad_config *cfg,
 		enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return fh ? v4l2_subdev_get_try_format(fh, 0) : NULL;
+		return cfg ? v4l2_subdev_get_try_format(&state->sd, cfg, 0) : NULL;
 
 	return &state->format;
 }
 
-static int s5pcsis_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+static int s5pcsis_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct csis_state *state = sd_to_csis_state(sd);
 	struct csis_pix_format const *csis_fmt;
 	struct v4l2_mbus_framefmt *mf;
 
-	mf = __s5pcsis_get_format(state, fh, fmt->which);
+	mf = __s5pcsis_get_format(state, cfg, fmt->which);
 
 	if (fmt->pad == CSIS_PAD_SOURCE) {
 		if (mf) {
@@ -605,13 +605,13 @@ static int s5pcsis_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	return 0;
 }
 
-static int s5pcsis_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+static int s5pcsis_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct csis_state *state = sd_to_csis_state(sd);
 	struct v4l2_mbus_framefmt *mf;
 
-	mf = __s5pcsis_get_format(state, fh, fmt->which);
+	mf = __s5pcsis_get_format(state, cfg, fmt->which);
 	if (!mf)
 		return -EINVAL;
 
@@ -651,7 +651,7 @@ static int s5pcsis_log_status(struct v4l2_subdev *sd)
 
 static int s5pcsis_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
-	struct v4l2_mbus_framefmt *format = v4l2_subdev_get_try_format(fh, 0);
+	struct v4l2_mbus_framefmt *format = v4l2_subdev_get_try_format(sd, fh->pad, 0);
 
 	format->colorspace = V4L2_COLORSPACE_JPEG;
 	format->code = s5pcsis_formats[0].code;
@@ -978,7 +978,7 @@ static int s5pcsis_resume(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int s5pcsis_runtime_suspend(struct device *dev)
 {
 	return s5pcsis_pm_suspend(dev, true);
@@ -1041,7 +1041,6 @@ static struct platform_driver s5pcsis_driver = {
 	.driver		= {
 		.of_match_table = s5pcsis_of_match,
 		.name		= CSIS_DRIVER_NAME,
-		.owner		= THIS_MODULE,
 		.pm		= &s5pcsis_pm_ops,
 	},
 };

@@ -890,7 +890,8 @@ static int vmw_translate_mob_ptr(struct vmw_private *dev_priv,
 	ret = vmw_user_dmabuf_lookup(sw_context->fp->tfile, handle, &vmw_bo);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Could not find or use MOB buffer.\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_no_reloc;
 	}
 	bo = &vmw_bo->base;
 
@@ -914,7 +915,7 @@ static int vmw_translate_mob_ptr(struct vmw_private *dev_priv,
 
 out_no_reloc:
 	vmw_dmabuf_unreference(&vmw_bo);
-	vmw_bo_p = NULL;
+	*vmw_bo_p = NULL;
 	return ret;
 }
 
@@ -951,7 +952,8 @@ static int vmw_translate_guest_ptr(struct vmw_private *dev_priv,
 	ret = vmw_user_dmabuf_lookup(sw_context->fp->tfile, handle, &vmw_bo);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Could not find or use GMR region.\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_no_reloc;
 	}
 	bo = &vmw_bo->base;
 
@@ -974,7 +976,7 @@ static int vmw_translate_guest_ptr(struct vmw_private *dev_priv,
 
 out_no_reloc:
 	vmw_dmabuf_unreference(&vmw_bo);
-	vmw_bo_p = NULL;
+	*vmw_bo_p = NULL;
 	return ret;
 }
 
@@ -2487,7 +2489,8 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	if (unlikely(ret != 0))
 		goto out_err_nores;
 
-	ret = ttm_eu_reserve_buffers(&ticket, &sw_context->validate_nodes, true);
+	ret = ttm_eu_reserve_buffers(&ticket, &sw_context->validate_nodes,
+				     true, NULL);
 	if (unlikely(ret != 0))
 		goto out_err;
 
@@ -2677,7 +2680,8 @@ void __vmw_execbuf_release_pinned_bo(struct vmw_private *dev_priv,
 	query_val.shared = false;
 	list_add_tail(&query_val.head, &validate_list);
 
-	ret = ttm_eu_reserve_buffers(&ticket, &validate_list, false);
+	ret = ttm_eu_reserve_buffers(&ticket, &validate_list,
+				     false, NULL);
 	if (unlikely(ret != 0)) {
 		vmw_execbuf_unpin_panic(dev_priv);
 		goto out_no_reserve;
@@ -2778,13 +2782,11 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 				  NULL, arg->command_size, arg->throttle_us,
 				  (void __user *)(unsigned long)arg->fence_rep,
 				  NULL);
-
+	ttm_read_unlock(&dev_priv->reservation_sem);
 	if (unlikely(ret != 0))
-		goto out_unlock;
+		return ret;
 
 	vmw_kms_cursor_post_execbuf(dev_priv);
 
-out_unlock:
-	ttm_read_unlock(&dev_priv->reservation_sem);
-	return ret;
+	return 0;
 }

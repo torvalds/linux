@@ -21,6 +21,7 @@ config IWLWIFI
 		Intel 7260 Wi-Fi Adapter
 		Intel 3160 Wi-Fi Adapter
 		Intel 7265 Wi-Fi Adapter
+		Intel 3165 Wi-Fi Adapter
 
 
 	  This driver uses the kernel's mac80211 subsystem.
@@ -59,6 +60,7 @@ config IWLDVM
 
 config IWLMVM
 	tristate "Intel Wireless WiFi MVM Firmware support"
+	select WANT_DEV_COREDUMP
 	help
 	  This is the driver that supports the MVM firmware which is
 	  currently only available for 7260 and 3160 devices.

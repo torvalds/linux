@@ -37,7 +37,6 @@ struct ccp_tasklet_data {
 	struct ccp_cmd *cmd;
 };
 
-
 static struct ccp_device *ccp_dev;
 static inline struct ccp_device *ccp_get_device(void)
 {
@@ -296,11 +295,9 @@ struct ccp_device *ccp_alloc_struct(struct device *dev)
 {
 	struct ccp_device *ccp;
 
-	ccp = kzalloc(sizeof(*ccp), GFP_KERNEL);
-	if (ccp == NULL) {
-		dev_err(dev, "unable to allocate device struct\n");
+	ccp = devm_kzalloc(dev, sizeof(*ccp), GFP_KERNEL);
+	if (!ccp)
 		return NULL;
-	}
 	ccp->dev = dev;
 
 	INIT_LIST_HEAD(&ccp->cmd);
@@ -583,6 +580,7 @@ bool ccp_queues_suspended(struct ccp_device *ccp)
 #ifdef CONFIG_X86
 static const struct x86_cpu_id ccp_support[] = {
 	{ X86_VENDOR_AMD, 22, },
+	{ },
 };
 #endif
 

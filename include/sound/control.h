@@ -93,12 +93,17 @@ struct snd_kctl_event {
 
 struct pid;
 
+enum {
+	SND_CTL_SUBDEV_PCM,
+	SND_CTL_SUBDEV_RAWMIDI,
+	SND_CTL_SUBDEV_ITEMS,
+};
+
 struct snd_ctl_file {
 	struct list_head list;		/* list of all control files */
 	struct snd_card *card;
 	struct pid *pid;
-	int prefer_pcm_subdevice;
-	int prefer_rawmidi_subdevice;
+	int preferred_subdevice[SND_CTL_SUBDEV_ITEMS];
 	wait_queue_head_t change_sleep;
 	spinlock_t read_lock;
 	struct fasync_struct *fasync;
@@ -137,6 +142,8 @@ int snd_ctl_unregister_ioctl_compat(snd_kctl_ioctl_func_t fcn);
 #define snd_ctl_register_ioctl_compat(fcn)
 #define snd_ctl_unregister_ioctl_compat(fcn)
 #endif
+
+int snd_ctl_get_preferred_subdevice(struct snd_card *card, int type);
 
 static inline unsigned int snd_ctl_get_ioffnum(struct snd_kcontrol *kctl, struct snd_ctl_elem_id *id)
 {
@@ -220,7 +227,7 @@ snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave)
  * Add a virtual slave control to the given master.
  * Unlike snd_ctl_add_slave(), the element added via this function
  * is supposed to have volatile values, and get callback is called
- * at each time quried from the master.
+ * at each time queried from the master.
  *
  * When the control peeks the hardware values directly and the value
  * can be changed by other means than the put callback of the element,

@@ -1557,7 +1557,7 @@ static int octeon_mgmt_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id octeon_mgmt_match[] = {
+static const struct of_device_id octeon_mgmt_match[] = {
 	{
 		.compatible = "cavium,octeon-5750-mix",
 	},
@@ -1568,7 +1568,6 @@ MODULE_DEVICE_TABLE(of, octeon_mgmt_match);
 static struct platform_driver octeon_mgmt_driver = {
 	.driver = {
 		.name		= "octeon_mgmt",
-		.owner		= THIS_MODULE,
 		.of_match_table = octeon_mgmt_match,
 	},
 	.probe		= octeon_mgmt_probe,

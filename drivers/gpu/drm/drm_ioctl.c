@@ -32,6 +32,7 @@
 #include <drm/drm_core.h>
 #include "drm_legacy.h"
 #include "drm_internal.h"
+#include "drm_crtc_internal.h"
 
 #include <linux/pci.h>
 #include <linux/export.h>
@@ -320,6 +321,9 @@ static int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_
 		else
 			req->value = 64;
 		break;
+	case DRM_CAP_ADDFB2_MODIFIERS:
+		req->value = dev->mode_config.allow_fb_modifiers;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -343,6 +347,17 @@ drm_setclientcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	case DRM_CLIENT_CAP_UNIVERSAL_PLANES:
 		if (req->value > 1)
 			return -EINVAL;
+		file_priv->universal_planes = req->value;
+		break;
+	case DRM_CLIENT_CAP_ATOMIC:
+		/* for now, hide behind experimental drm.atomic moduleparam */
+		if (!drm_atomic)
+			return -EINVAL;
+		if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
+			return -EINVAL;
+		if (req->value > 1)
+			return -EINVAL;
+		file_priv->atomic = req->value;
 		file_priv->universal_planes = req->value;
 		break;
 	default:
@@ -509,8 +524,13 @@ static int drm_ioctl_permit(u32 flags, struct drm_file *file_priv)
 	return 0;
 }
 
-#define DRM_IOCTL_DEF(ioctl, _func, _flags) \
-	[DRM_IOCTL_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags, .cmd_drv = 0, .name = #ioctl}
+#define DRM_IOCTL_DEF(ioctl, _func, _flags)	\
+	[DRM_IOCTL_NR(ioctl)] = {		\
+		.cmd = ioctl,			\
+		.func = _func,			\
+		.flags = _flags,		\
+		.name = #ioctl			\
+	}
 
 /** Ioctl table */
 static const struct drm_ioctl_desc drm_ioctls[] = {
@@ -620,6 +640,7 @@ static const struct drm_ioctl_desc drm_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_IOCTL_MODE_OBJ_GETPROPERTIES, drm_mode_obj_get_properties_ioctl, DRM_CONTROL_ALLOW|DRM_UNLOCKED),
 	DRM_IOCTL_DEF(DRM_IOCTL_MODE_OBJ_SETPROPERTY, drm_mode_obj_set_property_ioctl, DRM_MASTER|DRM_CONTROL_ALLOW|DRM_UNLOCKED),
 	DRM_IOCTL_DEF(DRM_IOCTL_MODE_CURSOR2, drm_mode_cursor2_ioctl, DRM_MASTER|DRM_CONTROL_ALLOW|DRM_UNLOCKED),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_ATOMIC, drm_mode_atomic_ioctl, DRM_MASTER|DRM_CONTROL_ALLOW|DRM_UNLOCKED),
 };
 
 #define DRM_CORE_IOCTL_COUNT	ARRAY_SIZE( drm_ioctls )
@@ -647,39 +668,29 @@ long drm_ioctl(struct file *filp,
 	int retcode = -EINVAL;
 	char stack_kdata[128];
 	char *kdata = NULL;
-	unsigned int usize, asize;
+	unsigned int usize, asize, drv_size;
 
 	dev = file_priv->minor->dev;
 
 	if (drm_device_is_unplugged(dev))
 		return -ENODEV;
 
-	if ((nr >= DRM_CORE_IOCTL_COUNT) &&
-	    ((nr < DRM_COMMAND_BASE) || (nr >= DRM_COMMAND_END)))
-		goto err_i1;
-	if ((nr >= DRM_COMMAND_BASE) && (nr < DRM_COMMAND_END) &&
-	    (nr < DRM_COMMAND_BASE + dev->driver->num_ioctls)) {
-		u32 drv_size;
+	if (nr >= DRM_COMMAND_BASE && nr < DRM_COMMAND_END) {
+		/* driver ioctl */
+		if (nr - DRM_COMMAND_BASE >= dev->driver->num_ioctls)
+			goto err_i1;
 		ioctl = &dev->driver->ioctls[nr - DRM_COMMAND_BASE];
-		drv_size = _IOC_SIZE(ioctl->cmd_drv);
-		usize = asize = _IOC_SIZE(cmd);
-		if (drv_size > asize)
-			asize = drv_size;
-		cmd = ioctl->cmd_drv;
-	}
-	else if ((nr >= DRM_COMMAND_END) || (nr < DRM_COMMAND_BASE)) {
-		u32 drv_size;
-
+	} else {
+		/* core ioctl */
+		if (nr >= DRM_CORE_IOCTL_COUNT)
+			goto err_i1;
 		ioctl = &drm_ioctls[nr];
+	}
 
-		drv_size = _IOC_SIZE(ioctl->cmd);
-		usize = asize = _IOC_SIZE(cmd);
-		if (drv_size > asize)
-			asize = drv_size;
-
-		cmd = ioctl->cmd;
-	} else
-		goto err_i1;
+	drv_size = _IOC_SIZE(ioctl->cmd);
+	usize = _IOC_SIZE(cmd);
+	asize = max(usize, drv_size);
+	cmd = ioctl->cmd;
 
 	DRM_DEBUG("pid=%d, dev=0x%lx, auth=%d, %s\n",
 		  task_pid_nr(current),
@@ -760,12 +771,13 @@ EXPORT_SYMBOL(drm_ioctl);
  */
 bool drm_ioctl_flags(unsigned int nr, unsigned int *flags)
 {
-	if ((nr >= DRM_COMMAND_END && nr < DRM_CORE_IOCTL_COUNT) ||
-	    (nr < DRM_COMMAND_BASE)) {
-		*flags = drm_ioctls[nr].flags;
-		return true;
-	}
+	if (nr >= DRM_COMMAND_BASE && nr < DRM_COMMAND_END)
+		return false;
 
-	return false;
+	if (nr >= DRM_CORE_IOCTL_COUNT)
+		return false;
+
+	*flags = drm_ioctls[nr].flags;
+	return true;
 }
 EXPORT_SYMBOL(drm_ioctl_flags);

@@ -25,7 +25,7 @@ extern void __iomem *mips_cpc_base;
  * memory mapped registers. This is platform dependant & must therefore be
  * implemented per-platform.
  */
-extern phys_t mips_cpc_default_phys_base(void);
+extern phys_addr_t mips_cpc_default_phys_base(void);
 
 /**
  * mips_cpc_phys_base - retrieve the physical base address of the CPC
@@ -35,7 +35,7 @@ extern phys_t mips_cpc_default_phys_base(void);
  * is present. It may be overriden by individual platforms which determine
  * this address in a different way.
  */
-extern phys_t __weak mips_cpc_phys_base(void);
+extern phys_addr_t __weak mips_cpc_phys_base(void);
 
 /**
  * mips_cpc_probe - probe for a Cluster Power Controller

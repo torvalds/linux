@@ -580,10 +580,24 @@ int __init_memblock memblock_add_node(phys_addr_t base, phys_addr_t size,
 	return memblock_add_range(&memblock.memory, base, size, nid, 0);
 }
 
+static int __init_memblock memblock_add_region(phys_addr_t base,
+						phys_addr_t size,
+						int nid,
+						unsigned long flags)
+{
+	struct memblock_type *_rgn = &memblock.memory;
+
+	memblock_dbg("memblock_add: [%#016llx-%#016llx] flags %#02lx %pF\n",
+		     (unsigned long long)base,
+		     (unsigned long long)base + size - 1,
+		     flags, (void *)_RET_IP_);
+
+	return memblock_add_range(_rgn, base, size, nid, flags);
+}
+
 int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
 {
-	return memblock_add_range(&memblock.memory, base, size,
-				   MAX_NUMNODES, 0);
+	return memblock_add_region(base, size, MAX_NUMNODES, 0);
 }
 
 /**
@@ -699,14 +713,14 @@ static int __init_memblock memblock_reserve_region(phys_addr_t base,
 						   int nid,
 						   unsigned long flags)
 {
-	struct memblock_type *_rgn = &memblock.reserved;
+	struct memblock_type *type = &memblock.reserved;
 
 	memblock_dbg("memblock_reserve: [%#016llx-%#016llx] flags %#02lx %pF\n",
 		     (unsigned long long)base,
 		     (unsigned long long)base + size - 1,
 		     flags, (void *)_RET_IP_);
 
-	return memblock_add_range(_rgn, base, size, nid, flags);
+	return memblock_add_range(type, base, size, nid, flags);
 }
 
 int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
@@ -715,16 +729,13 @@ int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
 }
 
 /**
- * memblock_mark_hotplug - Mark hotpluggable memory with flag MEMBLOCK_HOTPLUG.
- * @base: the base phys addr of the region
- * @size: the size of the region
  *
- * This function isolates region [@base, @base + @size), and mark it with flag
- * MEMBLOCK_HOTPLUG.
+ * This function isolates region [@base, @base + @size), and sets/clears flag
  *
  * Return 0 on succees, -errno on failure.
  */
-int __init_memblock memblock_mark_hotplug(phys_addr_t base, phys_addr_t size)
+static int __init_memblock memblock_setclr_flag(phys_addr_t base,
+				phys_addr_t size, int set, int flag)
 {
 	struct memblock_type *type = &memblock.memory;
 	int i, ret, start_rgn, end_rgn;
@@ -734,10 +745,25 @@ int __init_memblock memblock_mark_hotplug(phys_addr_t base, phys_addr_t size)
 		return ret;
 
 	for (i = start_rgn; i < end_rgn; i++)
-		memblock_set_region_flags(&type->regions[i], MEMBLOCK_HOTPLUG);
+		if (set)
+			memblock_set_region_flags(&type->regions[i], flag);
+		else
+			memblock_clear_region_flags(&type->regions[i], flag);
 
 	memblock_merge_regions(type);
 	return 0;
+}
+
+/**
+ * memblock_mark_hotplug - Mark hotpluggable memory with flag MEMBLOCK_HOTPLUG.
+ * @base: the base phys addr of the region
+ * @size: the size of the region
+ *
+ * Return 0 on succees, -errno on failure.
+ */
+int __init_memblock memblock_mark_hotplug(phys_addr_t base, phys_addr_t size)
+{
+	return memblock_setclr_flag(base, size, 1, MEMBLOCK_HOTPLUG);
 }
 
 /**
@@ -745,26 +771,11 @@ int __init_memblock memblock_mark_hotplug(phys_addr_t base, phys_addr_t size)
  * @base: the base phys addr of the region
  * @size: the size of the region
  *
- * This function isolates region [@base, @base + @size), and clear flag
- * MEMBLOCK_HOTPLUG for the isolated regions.
- *
  * Return 0 on succees, -errno on failure.
  */
 int __init_memblock memblock_clear_hotplug(phys_addr_t base, phys_addr_t size)
 {
-	struct memblock_type *type = &memblock.memory;
-	int i, ret, start_rgn, end_rgn;
-
-	ret = memblock_isolate_range(type, base, size, &start_rgn, &end_rgn);
-	if (ret)
-		return ret;
-
-	for (i = start_rgn; i < end_rgn; i++)
-		memblock_clear_region_flags(&type->regions[i],
-					    MEMBLOCK_HOTPLUG);
-
-	memblock_merge_regions(type);
-	return 0;
+	return memblock_setclr_flag(base, size, 0, MEMBLOCK_HOTPLUG);
 }
 
 /**

@@ -170,9 +170,6 @@ static void delete_context(struct sasem_context *context)
 	kfree(context->driver->rbuf);
 	kfree(context->driver);
 	kfree(context);
-
-	if (debug)
-		pr_info("%s: context deleted\n", __func__);
 }
 
 static void deregister_from_lirc(struct sasem_context *context)
@@ -182,10 +179,12 @@ static void deregister_from_lirc(struct sasem_context *context)
 
 	retval = lirc_unregister_driver(minor);
 	if (retval)
-		pr_err("%s: unable to deregister from lirc (%d)\n",
+		dev_err(&context->dev->dev,
+			"%s: unable to deregister from lirc (%d)\n",
 		       __func__, retval);
 	else
-		pr_info("Deregistered Sasem driver (minor:%d)\n", minor);
+		dev_info(&context->dev->dev,
+		         "Deregistered Sasem driver (minor:%d)\n", minor);
 
 }
 
@@ -214,9 +213,8 @@ static int vfd_open(struct inode *inode, struct file *file)
 	context = usb_get_intfdata(interface);
 
 	if (!context) {
-		dev_err(&interface->dev,
-			"%s: no context found for minor %d\n",
-			__func__, subminor);
+		dev_err(&interface->dev, "no context found for minor %d\n",
+			subminor);
 		retval = -ENODEV;
 		goto exit;
 	}
@@ -332,13 +330,13 @@ static int send_packet(struct sasem_context *context)
 	context->tx_urb->actual_length = 0;
 
 	init_completion(&context->tx.finished);
-	atomic_set(&(context->tx.busy), 1);
+	atomic_set(&context->tx.busy, 1);
 
 	retval =  usb_submit_urb(context->tx_urb, GFP_KERNEL);
 	if (retval) {
-		atomic_set(&(context->tx.busy), 0);
-		dev_err(&context->dev->dev, "%s: error submitting urb (%d)\n",
-			__func__, retval);
+		atomic_set(&context->tx.busy, 0);
+		dev_err(&context->dev->dev, "error submitting urb (%d)\n",
+			retval);
 	} else {
 		/* Wait for transmission to complete (or abort) */
 		mutex_unlock(&context->ctx_lock);
@@ -348,8 +346,7 @@ static int send_packet(struct sasem_context *context)
 		retval = context->tx.status;
 		if (retval)
 			dev_err(&context->dev->dev,
-				"%s: packet tx failed (%d)\n",
-				__func__, retval);
+				"packet tx failed (%d)\n", retval);
 	}
 
 	return retval;
@@ -389,7 +386,7 @@ static ssize_t vfd_write(struct file *file, const char __user *buf,
 		goto exit;
 	}
 
-	data_buf = memdup_user((void const __user *)buf, n_bytes);
+	data_buf = memdup_user(buf, n_bytes);
 	if (IS_ERR(data_buf)) {
 		retval = PTR_ERR(data_buf);
 		data_buf = NULL;
@@ -444,8 +441,7 @@ static ssize_t vfd_write(struct file *file, const char __user *buf,
 		retval = send_packet(context);
 		if (retval) {
 			dev_err(&context->dev->dev,
-				"%s: send packet failed for packet #%d\n",
-				__func__, i);
+				"send packet failed for packet #%d\n", i);
 			goto exit;
 		}
 	}
@@ -488,7 +484,7 @@ static int ir_open(void *data)
 	/* prevent races with disconnect */
 	mutex_lock(&disconnect_lock);
 
-	context = (struct sasem_context *) data;
+	context = data;
 
 	mutex_lock(&context->ctx_lock);
 
@@ -509,8 +505,7 @@ static int ir_open(void *data)
 
 	if (retval)
 		dev_err(&context->dev->dev,
-			"%s: usb_submit_urb failed for ir_open (%d)\n",
-			__func__, retval);
+			"usb_submit_urb failed for ir_open (%d)\n", retval);
 	else {
 		context->ir_isopen = 1;
 		dev_info(&context->dev->dev, "IR port opened\n");
@@ -530,7 +525,7 @@ static void ir_close(void *data)
 {
 	struct sasem_context *context;
 
-	context = (struct sasem_context *)data;
+	context = data;
 	if (!context) {
 		pr_err("%s: no context for device\n", __func__);
 		return;
@@ -573,7 +568,6 @@ static void incoming_packet(struct sasem_context *context,
 	unsigned char *buf = urb->transfer_buffer;
 	long ms;
 	struct timeval tv;
-	int i;
 
 	if (len != 8) {
 		dev_warn(&context->dev->dev,
@@ -582,13 +576,8 @@ static void incoming_packet(struct sasem_context *context,
 		return;
 	}
 
-	if (debug) {
-		printk(KERN_INFO "Incoming data: ");
-		for (i = 0; i < 8; ++i)
-			printk(KERN_CONT "%02x ", buf[i]);
-		printk(KERN_CONT "\n");
-	}
-
+	if (debug)
+		dev_info(&context->dev->dev, "Incoming data: %*ph\n", len, buf);
 	/*
 	 * Lirc could deal with the repeat code, but we really need to block it
 	 * if it arrives too late.  Otherwise we could repeat the wrong code.

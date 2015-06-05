@@ -21,6 +21,7 @@ struct cc2520_platform_data {
 	int sfd;
 	int reset;
 	int vreg;
+	bool amplified;
 };
 
 #endif

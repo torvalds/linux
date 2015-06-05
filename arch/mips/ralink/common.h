@@ -11,25 +11,6 @@
 
 #define RAMIPS_SYS_TYPE_LEN	32
 
-struct ralink_pinmux_grp {
-	const char *name;
-	u32 mask;
-	int gpio_first;
-	int gpio_last;
-};
-
-struct ralink_pinmux {
-	struct ralink_pinmux_grp *mode;
-	struct ralink_pinmux_grp *uart;
-	int uart_shift;
-	u32 uart_mask;
-	void (*wdt_reset)(void);
-	struct ralink_pinmux_grp *pci;
-	int pci_shift;
-	u32 pci_mask;
-};
-extern struct ralink_pinmux rt_gpio_pinmux;
-
 struct ralink_soc_info {
 	unsigned char sys_type[RAMIPS_SYS_TYPE_LEN];
 	unsigned char *compatible;

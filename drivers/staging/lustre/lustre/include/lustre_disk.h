@@ -368,8 +368,7 @@ static inline void check_lcd(char *obd_name, int index,
 	if (strnlen((char*)lcd->lcd_uuid, length) == length) {
 		lcd->lcd_uuid[length - 1] = '\0';
 
-		LCONSOLE_ERROR("the client UUID (%s) on %s for exports"
-			       "stored in last_rcvd(index = %d) is bad!\n",
+		LCONSOLE_ERROR("the client UUID (%s) on %s for exports stored in last_rcvd(index = %d) is bad!\n",
 			       lcd->lcd_uuid, obd_name, index);
 	}
 }

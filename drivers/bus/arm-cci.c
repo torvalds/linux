@@ -16,54 +16,49 @@
 
 #include <linux/arm-cci.h>
 #include <linux/io.h>
+#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <linux/perf_event.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
 #include <asm/cacheflush.h>
-#include <asm/irq_regs.h>
-#include <asm/pmu.h>
 #include <asm/smp_plat.h>
 
-#define DRIVER_NAME		"CCI-400"
-#define DRIVER_NAME_PMU		DRIVER_NAME " PMU"
+static void __iomem *cci_ctrl_base;
+static unsigned long cci_ctrl_phys;
 
-#define CCI_PORT_CTRL		0x0
-#define CCI_CTRL_STATUS		0xc
-
-#define CCI_ENABLE_SNOOP_REQ	0x1
-#define CCI_ENABLE_DVM_REQ	0x2
-#define CCI_ENABLE_REQ		(CCI_ENABLE_SNOOP_REQ | CCI_ENABLE_DVM_REQ)
-
+#ifdef CONFIG_ARM_CCI400_PORT_CTRL
 struct cci_nb_ports {
 	unsigned int nb_ace;
 	unsigned int nb_ace_lite;
 };
 
-enum cci_ace_port_type {
-	ACE_INVALID_PORT = 0x0,
-	ACE_PORT,
-	ACE_LITE_PORT,
+static const struct cci_nb_ports cci400_ports = {
+	.nb_ace = 2,
+	.nb_ace_lite = 3
 };
 
-struct cci_ace_port {
-	void __iomem *base;
-	unsigned long phys;
-	enum cci_ace_port_type type;
-	struct device_node *dn;
+#define CCI400_PORTS_DATA	(&cci400_ports)
+#else
+#define CCI400_PORTS_DATA	(NULL)
+#endif
+
+static const struct of_device_id arm_cci_matches[] = {
+#ifdef CONFIG_ARM_CCI400_COMMON
+	{.compatible = "arm,cci-400", .data = CCI400_PORTS_DATA },
+#endif
+	{},
 };
 
-static struct cci_ace_port *ports;
-static unsigned int nb_cci_ports;
+#ifdef CONFIG_ARM_CCI400_PMU
 
-static void __iomem *cci_ctrl_base;
-static unsigned long cci_ctrl_phys;
-
-#ifdef CONFIG_HW_PERF_EVENTS
+#define DRIVER_NAME		"CCI-400"
+#define DRIVER_NAME_PMU		DRIVER_NAME " PMU"
 
 #define CCI_PMCR		0x0100
 #define CCI_PID2		0x0fe8
@@ -74,6 +69,66 @@ static unsigned long cci_ctrl_phys;
 
 #define CCI_PID2_REV_MASK	0xf0
 #define CCI_PID2_REV_SHIFT	4
+
+#define CCI_PMU_EVT_SEL		0x000
+#define CCI_PMU_CNTR		0x004
+#define CCI_PMU_CNTR_CTRL	0x008
+#define CCI_PMU_OVRFLW		0x00c
+
+#define CCI_PMU_OVRFLW_FLAG	1
+
+#define CCI_PMU_CNTR_BASE(idx)	((idx) * SZ_4K)
+
+#define CCI_PMU_CNTR_MASK	((1ULL << 32) -1)
+
+#define CCI_PMU_EVENT_MASK		0xffUL
+#define CCI_PMU_EVENT_SOURCE(event)	((event >> 5) & 0x7)
+#define CCI_PMU_EVENT_CODE(event)	(event & 0x1f)
+
+#define CCI_PMU_MAX_HW_EVENTS 5   /* CCI PMU has 4 counters + 1 cycle counter */
+
+/* Types of interfaces that can generate events */
+enum {
+	CCI_IF_SLAVE,
+	CCI_IF_MASTER,
+	CCI_IF_MAX,
+};
+
+struct event_range {
+	u32 min;
+	u32 max;
+};
+
+struct cci_pmu_hw_events {
+	struct perf_event *events[CCI_PMU_MAX_HW_EVENTS];
+	unsigned long used_mask[BITS_TO_LONGS(CCI_PMU_MAX_HW_EVENTS)];
+	raw_spinlock_t pmu_lock;
+};
+
+struct cci_pmu_model {
+	char *name;
+	struct event_range event_ranges[CCI_IF_MAX];
+};
+
+static struct cci_pmu_model cci_pmu_models[];
+
+struct cci_pmu {
+	void __iomem *base;
+	struct pmu pmu;
+	int nr_irqs;
+	int irqs[CCI_PMU_MAX_HW_EVENTS];
+	unsigned long active_irqs;
+	const struct cci_pmu_model *model;
+	struct cci_pmu_hw_events hw_events;
+	struct platform_device *plat_device;
+	int num_events;
+	atomic_t active_events;
+	struct mutex reserve_mutex;
+	cpumask_t cpus;
+};
+static struct cci_pmu *pmu;
+
+#define to_cci_pmu(c)	(container_of(c, struct cci_pmu, pmu))
 
 /* Port ids */
 #define CCI_PORT_S0	0
@@ -89,15 +144,6 @@ static unsigned long cci_ctrl_phys;
 #define CCI_REV_R1		1
 #define CCI_REV_R1_PX		5
 
-#define CCI_PMU_EVT_SEL		0x000
-#define CCI_PMU_CNTR		0x004
-#define CCI_PMU_CNTR_CTRL	0x008
-#define CCI_PMU_OVRFLW		0x00c
-
-#define CCI_PMU_OVRFLW_FLAG	1
-
-#define CCI_PMU_CNTR_BASE(idx)	((idx) * SZ_4K)
-
 /*
  * Instead of an event id to monitor CCI cycles, a dedicated counter is
  * provided. Use 0xff to represent CCI cycles and hope that no future revisions
@@ -106,12 +152,6 @@ static unsigned long cci_ctrl_phys;
 enum cci400_perf_events {
 	CCI_PMU_CYCLES = 0xff
 };
-
-#define CCI_PMU_EVENT_MASK		0xff
-#define CCI_PMU_EVENT_SOURCE(event)	((event >> 5) & 0x7)
-#define CCI_PMU_EVENT_CODE(event)	(event & 0x1f)
-
-#define CCI_PMU_MAX_HW_EVENTS 5   /* CCI PMU has 4 counters + 1 cycle counter */
 
 #define CCI_PMU_CYCLE_CNTR_IDX		0
 #define CCI_PMU_CNTR0_IDX		1
@@ -139,59 +179,39 @@ enum cci400_perf_events {
 #define CCI_REV_R1_MASTER_PORT_MIN_EV	0x00
 #define CCI_REV_R1_MASTER_PORT_MAX_EV	0x11
 
-struct pmu_port_event_ranges {
-	u8 slave_min;
-	u8 slave_max;
-	u8 master_min;
-	u8 master_max;
-};
-
-static struct pmu_port_event_ranges port_event_range[] = {
-	[CCI_REV_R0] = {
-		.slave_min = CCI_REV_R0_SLAVE_PORT_MIN_EV,
-		.slave_max = CCI_REV_R0_SLAVE_PORT_MAX_EV,
-		.master_min = CCI_REV_R0_MASTER_PORT_MIN_EV,
-		.master_max = CCI_REV_R0_MASTER_PORT_MAX_EV,
-	},
-	[CCI_REV_R1] = {
-		.slave_min = CCI_REV_R1_SLAVE_PORT_MIN_EV,
-		.slave_max = CCI_REV_R1_SLAVE_PORT_MAX_EV,
-		.master_min = CCI_REV_R1_MASTER_PORT_MIN_EV,
-		.master_max = CCI_REV_R1_MASTER_PORT_MAX_EV,
-	},
-};
-
-/*
- * Export different PMU names for the different revisions so userspace knows
- * because the event ids are different
- */
-static char *const pmu_names[] = {
-	[CCI_REV_R0] = "CCI_400",
-	[CCI_REV_R1] = "CCI_400_r1",
-};
-
-struct cci_pmu_drv_data {
-	void __iomem *base;
-	struct arm_pmu *cci_pmu;
-	int nr_irqs;
-	int irqs[CCI_PMU_MAX_HW_EVENTS];
-	unsigned long active_irqs;
-	struct perf_event *events[CCI_PMU_MAX_HW_EVENTS];
-	unsigned long used_mask[BITS_TO_LONGS(CCI_PMU_MAX_HW_EVENTS)];
-	struct pmu_port_event_ranges *port_ranges;
-	struct pmu_hw_events hw_events;
-};
-static struct cci_pmu_drv_data *pmu;
-
-static bool is_duplicate_irq(int irq, int *irqs, int nr_irqs)
+static int pmu_validate_hw_event(unsigned long hw_event)
 {
-	int i;
+	u8 ev_source = CCI_PMU_EVENT_SOURCE(hw_event);
+	u8 ev_code = CCI_PMU_EVENT_CODE(hw_event);
+	int if_type;
 
-	for (i = 0; i < nr_irqs; i++)
-		if (irq == irqs[i])
-			return true;
+	if (hw_event & ~CCI_PMU_EVENT_MASK)
+		return -ENOENT;
 
-	return false;
+	switch (ev_source) {
+	case CCI_PORT_S0:
+	case CCI_PORT_S1:
+	case CCI_PORT_S2:
+	case CCI_PORT_S3:
+	case CCI_PORT_S4:
+		/* Slave Interface */
+		if_type = CCI_IF_SLAVE;
+		break;
+	case CCI_PORT_M0:
+	case CCI_PORT_M1:
+	case CCI_PORT_M2:
+		/* Master Interface */
+		if_type = CCI_IF_MASTER;
+		break;
+	default:
+		return -ENOENT;
+	}
+
+	if (ev_code >= pmu->model->event_ranges[if_type].min &&
+		ev_code <= pmu->model->event_ranges[if_type].max)
+		return hw_event;
+
+	return -ENOENT;
 }
 
 static int probe_cci_revision(void)
@@ -206,53 +226,14 @@ static int probe_cci_revision(void)
 		return CCI_REV_R1;
 }
 
-static struct pmu_port_event_ranges *port_range_by_rev(void)
+static const struct cci_pmu_model *probe_cci_model(struct platform_device *pdev)
 {
-	int rev = probe_cci_revision();
-
-	return &port_event_range[rev];
+	if (platform_has_secure_cci_access())
+		return &cci_pmu_models[probe_cci_revision()];
+	return NULL;
 }
 
-static int pmu_is_valid_slave_event(u8 ev_code)
-{
-	return pmu->port_ranges->slave_min <= ev_code &&
-		ev_code <= pmu->port_ranges->slave_max;
-}
-
-static int pmu_is_valid_master_event(u8 ev_code)
-{
-	return pmu->port_ranges->master_min <= ev_code &&
-		ev_code <= pmu->port_ranges->master_max;
-}
-
-static int pmu_validate_hw_event(u8 hw_event)
-{
-	u8 ev_source = CCI_PMU_EVENT_SOURCE(hw_event);
-	u8 ev_code = CCI_PMU_EVENT_CODE(hw_event);
-
-	switch (ev_source) {
-	case CCI_PORT_S0:
-	case CCI_PORT_S1:
-	case CCI_PORT_S2:
-	case CCI_PORT_S3:
-	case CCI_PORT_S4:
-		/* Slave Interface */
-		if (pmu_is_valid_slave_event(ev_code))
-			return hw_event;
-		break;
-	case CCI_PORT_M0:
-	case CCI_PORT_M1:
-	case CCI_PORT_M2:
-		/* Master Interface */
-		if (pmu_is_valid_master_event(ev_code))
-			return hw_event;
-		break;
-	}
-
-	return -ENOENT;
-}
-
-static int pmu_is_valid_counter(struct arm_pmu *cci_pmu, int idx)
+static int pmu_is_valid_counter(struct cci_pmu *cci_pmu, int idx)
 {
 	return CCI_PMU_CYCLE_CNTR_IDX <= idx &&
 		idx <= CCI_PMU_CNTR_LAST(cci_pmu);
@@ -280,7 +261,6 @@ static void pmu_enable_counter(int idx)
 
 static void pmu_set_event(int idx, unsigned long event)
 {
-	event &= CCI_PMU_EVENT_MASK;
 	pmu_write_register(event, idx, CCI_PMU_EVT_SEL);
 }
 
@@ -293,16 +273,11 @@ static u32 pmu_get_max_counters(void)
 	return n_cnts + 1;
 }
 
-static struct pmu_hw_events *pmu_get_hw_events(void)
+static int pmu_get_event_idx(struct cci_pmu_hw_events *hw, struct perf_event *event)
 {
-	return &pmu->hw_events;
-}
-
-static int pmu_get_event_idx(struct pmu_hw_events *hw, struct perf_event *event)
-{
-	struct arm_pmu *cci_pmu = to_arm_pmu(event->pmu);
+	struct cci_pmu *cci_pmu = to_cci_pmu(event->pmu);
 	struct hw_perf_event *hw_event = &event->hw;
-	unsigned long cci_event = hw_event->config_base & CCI_PMU_EVENT_MASK;
+	unsigned long cci_event = hw_event->config_base;
 	int idx;
 
 	if (cci_event == CCI_PMU_CYCLES) {
@@ -323,7 +298,7 @@ static int pmu_get_event_idx(struct pmu_hw_events *hw, struct perf_event *event)
 static int pmu_map_event(struct perf_event *event)
 {
 	int mapping;
-	u8 config = event->attr.config & CCI_PMU_EVENT_MASK;
+	unsigned long config = event->attr.config;
 
 	if (event->attr.type < PERF_TYPE_MAX)
 		return -ENOENT;
@@ -336,7 +311,7 @@ static int pmu_map_event(struct perf_event *event)
 	return mapping;
 }
 
-static int pmu_request_irq(struct arm_pmu *cci_pmu, irq_handler_t handler)
+static int pmu_request_irq(struct cci_pmu *cci_pmu, irq_handler_t handler)
 {
 	int i;
 	struct platform_device *pmu_device = cci_pmu->plat_device;
@@ -371,17 +346,91 @@ static int pmu_request_irq(struct arm_pmu *cci_pmu, irq_handler_t handler)
 	return 0;
 }
 
+static void pmu_free_irq(struct cci_pmu *cci_pmu)
+{
+	int i;
+
+	for (i = 0; i < pmu->nr_irqs; i++) {
+		if (!test_and_clear_bit(i, &pmu->active_irqs))
+			continue;
+
+		free_irq(pmu->irqs[i], cci_pmu);
+	}
+}
+
+static u32 pmu_read_counter(struct perf_event *event)
+{
+	struct cci_pmu *cci_pmu = to_cci_pmu(event->pmu);
+	struct hw_perf_event *hw_counter = &event->hw;
+	int idx = hw_counter->idx;
+	u32 value;
+
+	if (unlikely(!pmu_is_valid_counter(cci_pmu, idx))) {
+		dev_err(&cci_pmu->plat_device->dev, "Invalid CCI PMU counter %d\n", idx);
+		return 0;
+	}
+	value = pmu_read_register(idx, CCI_PMU_CNTR);
+
+	return value;
+}
+
+static void pmu_write_counter(struct perf_event *event, u32 value)
+{
+	struct cci_pmu *cci_pmu = to_cci_pmu(event->pmu);
+	struct hw_perf_event *hw_counter = &event->hw;
+	int idx = hw_counter->idx;
+
+	if (unlikely(!pmu_is_valid_counter(cci_pmu, idx)))
+		dev_err(&cci_pmu->plat_device->dev, "Invalid CCI PMU counter %d\n", idx);
+	else
+		pmu_write_register(value, idx, CCI_PMU_CNTR);
+}
+
+static u64 pmu_event_update(struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+	u64 delta, prev_raw_count, new_raw_count;
+
+	do {
+		prev_raw_count = local64_read(&hwc->prev_count);
+		new_raw_count = pmu_read_counter(event);
+	} while (local64_cmpxchg(&hwc->prev_count, prev_raw_count,
+		 new_raw_count) != prev_raw_count);
+
+	delta = (new_raw_count - prev_raw_count) & CCI_PMU_CNTR_MASK;
+
+	local64_add(delta, &event->count);
+
+	return new_raw_count;
+}
+
+static void pmu_read(struct perf_event *event)
+{
+	pmu_event_update(event);
+}
+
+void pmu_event_set_period(struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+	/*
+	 * The CCI PMU counters have a period of 2^32. To account for the
+	 * possiblity of extreme interrupt latency we program for a period of
+	 * half that. Hopefully we can handle the interrupt before another 2^31
+	 * events occur and the counter overtakes its previous value.
+	 */
+	u64 val = 1ULL << 31;
+	local64_set(&hwc->prev_count, val);
+	pmu_write_counter(event, val);
+}
+
 static irqreturn_t pmu_handle_irq(int irq_num, void *dev)
 {
 	unsigned long flags;
-	struct arm_pmu *cci_pmu = (struct arm_pmu *)dev;
-	struct pmu_hw_events *events = cci_pmu->get_hw_events();
-	struct perf_sample_data data;
-	struct pt_regs *regs;
+	struct cci_pmu *cci_pmu = dev;
+	struct cci_pmu_hw_events *events = &pmu->hw_events;
 	int idx, handled = IRQ_NONE;
 
 	raw_spin_lock_irqsave(&events->pmu_lock, flags);
-	regs = get_irq_regs();
 	/*
 	 * Iterate over counters and update the corresponding perf events.
 	 * This should work regardless of whether we have per-counter overflow
@@ -403,170 +452,503 @@ static irqreturn_t pmu_handle_irq(int irq_num, void *dev)
 
 		pmu_write_register(CCI_PMU_OVRFLW_FLAG, idx, CCI_PMU_OVRFLW);
 
+		pmu_event_update(event);
+		pmu_event_set_period(event);
 		handled = IRQ_HANDLED;
-
-		armpmu_event_update(event);
-		perf_sample_data_init(&data, 0, hw_counter->last_period);
-		if (!armpmu_event_set_period(event))
-			continue;
-
-		if (perf_event_overflow(event, &data, regs))
-			cci_pmu->disable(event);
 	}
 	raw_spin_unlock_irqrestore(&events->pmu_lock, flags);
 
 	return IRQ_RETVAL(handled);
 }
 
-static void pmu_free_irq(struct arm_pmu *cci_pmu)
+static int cci_pmu_get_hw(struct cci_pmu *cci_pmu)
 {
-	int i;
+	int ret = pmu_request_irq(cci_pmu, pmu_handle_irq);
+	if (ret) {
+		pmu_free_irq(cci_pmu);
+		return ret;
+	}
+	return 0;
+}
 
-	for (i = 0; i < pmu->nr_irqs; i++) {
-		if (!test_and_clear_bit(i, &pmu->active_irqs))
-			continue;
+static void cci_pmu_put_hw(struct cci_pmu *cci_pmu)
+{
+	pmu_free_irq(cci_pmu);
+}
 
-		free_irq(pmu->irqs[i], cci_pmu);
+static void hw_perf_event_destroy(struct perf_event *event)
+{
+	struct cci_pmu *cci_pmu = to_cci_pmu(event->pmu);
+	atomic_t *active_events = &cci_pmu->active_events;
+	struct mutex *reserve_mutex = &cci_pmu->reserve_mutex;
+
+	if (atomic_dec_and_mutex_lock(active_events, reserve_mutex)) {
+		cci_pmu_put_hw(cci_pmu);
+		mutex_unlock(reserve_mutex);
 	}
 }
 
-static void pmu_enable_event(struct perf_event *event)
+static void cci_pmu_enable(struct pmu *pmu)
 {
+	struct cci_pmu *cci_pmu = to_cci_pmu(pmu);
+	struct cci_pmu_hw_events *hw_events = &cci_pmu->hw_events;
+	int enabled = bitmap_weight(hw_events->used_mask, cci_pmu->num_events);
 	unsigned long flags;
-	struct arm_pmu *cci_pmu = to_arm_pmu(event->pmu);
-	struct pmu_hw_events *events = cci_pmu->get_hw_events();
-	struct hw_perf_event *hw_counter = &event->hw;
-	int idx = hw_counter->idx;
-
-	if (unlikely(!pmu_is_valid_counter(cci_pmu, idx))) {
-		dev_err(&cci_pmu->plat_device->dev, "Invalid CCI PMU counter %d\n", idx);
-		return;
-	}
-
-	raw_spin_lock_irqsave(&events->pmu_lock, flags);
-
-	/* Configure the event to count, unless you are counting cycles */
-	if (idx != CCI_PMU_CYCLE_CNTR_IDX)
-		pmu_set_event(idx, hw_counter->config_base);
-
-	pmu_enable_counter(idx);
-
-	raw_spin_unlock_irqrestore(&events->pmu_lock, flags);
-}
-
-static void pmu_disable_event(struct perf_event *event)
-{
-	struct arm_pmu *cci_pmu = to_arm_pmu(event->pmu);
-	struct hw_perf_event *hw_counter = &event->hw;
-	int idx = hw_counter->idx;
-
-	if (unlikely(!pmu_is_valid_counter(cci_pmu, idx))) {
-		dev_err(&cci_pmu->plat_device->dev, "Invalid CCI PMU counter %d\n", idx);
-		return;
-	}
-
-	pmu_disable_counter(idx);
-}
-
-static void pmu_start(struct arm_pmu *cci_pmu)
-{
 	u32 val;
-	unsigned long flags;
-	struct pmu_hw_events *events = cci_pmu->get_hw_events();
 
-	raw_spin_lock_irqsave(&events->pmu_lock, flags);
+	if (!enabled)
+		return;
+
+	raw_spin_lock_irqsave(&hw_events->pmu_lock, flags);
 
 	/* Enable all the PMU counters. */
 	val = readl_relaxed(cci_ctrl_base + CCI_PMCR) | CCI_PMCR_CEN;
 	writel(val, cci_ctrl_base + CCI_PMCR);
+	raw_spin_unlock_irqrestore(&hw_events->pmu_lock, flags);
 
-	raw_spin_unlock_irqrestore(&events->pmu_lock, flags);
 }
 
-static void pmu_stop(struct arm_pmu *cci_pmu)
+static void cci_pmu_disable(struct pmu *pmu)
 {
-	u32 val;
+	struct cci_pmu *cci_pmu = to_cci_pmu(pmu);
+	struct cci_pmu_hw_events *hw_events = &cci_pmu->hw_events;
 	unsigned long flags;
-	struct pmu_hw_events *events = cci_pmu->get_hw_events();
+	u32 val;
 
-	raw_spin_lock_irqsave(&events->pmu_lock, flags);
+	raw_spin_lock_irqsave(&hw_events->pmu_lock, flags);
 
 	/* Disable all the PMU counters. */
 	val = readl_relaxed(cci_ctrl_base + CCI_PMCR) & ~CCI_PMCR_CEN;
 	writel(val, cci_ctrl_base + CCI_PMCR);
-
-	raw_spin_unlock_irqrestore(&events->pmu_lock, flags);
+	raw_spin_unlock_irqrestore(&hw_events->pmu_lock, flags);
 }
 
-static u32 pmu_read_counter(struct perf_event *event)
+static void cci_pmu_start(struct perf_event *event, int pmu_flags)
 {
-	struct arm_pmu *cci_pmu = to_arm_pmu(event->pmu);
-	struct hw_perf_event *hw_counter = &event->hw;
-	int idx = hw_counter->idx;
-	u32 value;
+	struct cci_pmu *cci_pmu = to_cci_pmu(event->pmu);
+	struct cci_pmu_hw_events *hw_events = &cci_pmu->hw_events;
+	struct hw_perf_event *hwc = &event->hw;
+	int idx = hwc->idx;
+	unsigned long flags;
+
+	/*
+	 * To handle interrupt latency, we always reprogram the period
+	 * regardlesss of PERF_EF_RELOAD.
+	 */
+	if (pmu_flags & PERF_EF_RELOAD)
+		WARN_ON_ONCE(!(hwc->state & PERF_HES_UPTODATE));
+
+	hwc->state = 0;
 
 	if (unlikely(!pmu_is_valid_counter(cci_pmu, idx))) {
 		dev_err(&cci_pmu->plat_device->dev, "Invalid CCI PMU counter %d\n", idx);
-		return 0;
+		return;
 	}
-	value = pmu_read_register(idx, CCI_PMU_CNTR);
 
-	return value;
+	raw_spin_lock_irqsave(&hw_events->pmu_lock, flags);
+
+	/* Configure the event to count, unless you are counting cycles */
+	if (idx != CCI_PMU_CYCLE_CNTR_IDX)
+		pmu_set_event(idx, hwc->config_base);
+
+	pmu_event_set_period(event);
+	pmu_enable_counter(idx);
+
+	raw_spin_unlock_irqrestore(&hw_events->pmu_lock, flags);
 }
 
-static void pmu_write_counter(struct perf_event *event, u32 value)
+static void cci_pmu_stop(struct perf_event *event, int pmu_flags)
 {
-	struct arm_pmu *cci_pmu = to_arm_pmu(event->pmu);
-	struct hw_perf_event *hw_counter = &event->hw;
-	int idx = hw_counter->idx;
+	struct cci_pmu *cci_pmu = to_cci_pmu(event->pmu);
+	struct hw_perf_event *hwc = &event->hw;
+	int idx = hwc->idx;
 
-	if (unlikely(!pmu_is_valid_counter(cci_pmu, idx)))
+	if (hwc->state & PERF_HES_STOPPED)
+		return;
+
+	if (unlikely(!pmu_is_valid_counter(cci_pmu, idx))) {
 		dev_err(&cci_pmu->plat_device->dev, "Invalid CCI PMU counter %d\n", idx);
-	else
-		pmu_write_register(value, idx, CCI_PMU_CNTR);
+		return;
+	}
+
+	/*
+	 * We always reprogram the counter, so ignore PERF_EF_UPDATE. See
+	 * cci_pmu_start()
+	 */
+	pmu_disable_counter(idx);
+	pmu_event_update(event);
+	hwc->state |= PERF_HES_STOPPED | PERF_HES_UPTODATE;
 }
 
-static int cci_pmu_init(struct arm_pmu *cci_pmu, struct platform_device *pdev)
+static int cci_pmu_add(struct perf_event *event, int flags)
 {
-	*cci_pmu = (struct arm_pmu){
-		.name		  = pmu_names[probe_cci_revision()],
-		.max_period       = (1LLU << 32) - 1,
-		.get_hw_events    = pmu_get_hw_events,
-		.get_event_idx    = pmu_get_event_idx,
-		.map_event        = pmu_map_event,
-		.request_irq      = pmu_request_irq,
-		.handle_irq       = pmu_handle_irq,
-		.free_irq         = pmu_free_irq,
-		.enable           = pmu_enable_event,
-		.disable          = pmu_disable_event,
-		.start            = pmu_start,
-		.stop             = pmu_stop,
-		.read_counter     = pmu_read_counter,
-		.write_counter    = pmu_write_counter,
+	struct cci_pmu *cci_pmu = to_cci_pmu(event->pmu);
+	struct cci_pmu_hw_events *hw_events = &cci_pmu->hw_events;
+	struct hw_perf_event *hwc = &event->hw;
+	int idx;
+	int err = 0;
+
+	perf_pmu_disable(event->pmu);
+
+	/* If we don't have a space for the counter then finish early. */
+	idx = pmu_get_event_idx(hw_events, event);
+	if (idx < 0) {
+		err = idx;
+		goto out;
+	}
+
+	event->hw.idx = idx;
+	hw_events->events[idx] = event;
+
+	hwc->state = PERF_HES_STOPPED | PERF_HES_UPTODATE;
+	if (flags & PERF_EF_START)
+		cci_pmu_start(event, PERF_EF_RELOAD);
+
+	/* Propagate our changes to the userspace mapping. */
+	perf_event_update_userpage(event);
+
+out:
+	perf_pmu_enable(event->pmu);
+	return err;
+}
+
+static void cci_pmu_del(struct perf_event *event, int flags)
+{
+	struct cci_pmu *cci_pmu = to_cci_pmu(event->pmu);
+	struct cci_pmu_hw_events *hw_events = &cci_pmu->hw_events;
+	struct hw_perf_event *hwc = &event->hw;
+	int idx = hwc->idx;
+
+	cci_pmu_stop(event, PERF_EF_UPDATE);
+	hw_events->events[idx] = NULL;
+	clear_bit(idx, hw_events->used_mask);
+
+	perf_event_update_userpage(event);
+}
+
+static int
+validate_event(struct pmu *cci_pmu,
+               struct cci_pmu_hw_events *hw_events,
+               struct perf_event *event)
+{
+	if (is_software_event(event))
+		return 1;
+
+	/*
+	 * Reject groups spanning multiple HW PMUs (e.g. CPU + CCI). The
+	 * core perf code won't check that the pmu->ctx == leader->ctx
+	 * until after pmu->event_init(event).
+	 */
+	if (event->pmu != cci_pmu)
+		return 0;
+
+	if (event->state < PERF_EVENT_STATE_OFF)
+		return 1;
+
+	if (event->state == PERF_EVENT_STATE_OFF && !event->attr.enable_on_exec)
+		return 1;
+
+	return pmu_get_event_idx(hw_events, event) >= 0;
+}
+
+static int
+validate_group(struct perf_event *event)
+{
+	struct perf_event *sibling, *leader = event->group_leader;
+	struct cci_pmu_hw_events fake_pmu = {
+		/*
+		 * Initialise the fake PMU. We only need to populate the
+		 * used_mask for the purposes of validation.
+		 */
+		.used_mask = { 0 },
+	};
+
+	if (!validate_event(event->pmu, &fake_pmu, leader))
+		return -EINVAL;
+
+	list_for_each_entry(sibling, &leader->sibling_list, group_entry) {
+		if (!validate_event(event->pmu, &fake_pmu, sibling))
+			return -EINVAL;
+	}
+
+	if (!validate_event(event->pmu, &fake_pmu, event))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int
+__hw_perf_event_init(struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+	int mapping;
+
+	mapping = pmu_map_event(event);
+
+	if (mapping < 0) {
+		pr_debug("event %x:%llx not supported\n", event->attr.type,
+			 event->attr.config);
+		return mapping;
+	}
+
+	/*
+	 * We don't assign an index until we actually place the event onto
+	 * hardware. Use -1 to signify that we haven't decided where to put it
+	 * yet.
+	 */
+	hwc->idx		= -1;
+	hwc->config_base	= 0;
+	hwc->config		= 0;
+	hwc->event_base		= 0;
+
+	/*
+	 * Store the event encoding into the config_base field.
+	 */
+	hwc->config_base	    |= (unsigned long)mapping;
+
+	/*
+	 * Limit the sample_period to half of the counter width. That way, the
+	 * new counter value is far less likely to overtake the previous one
+	 * unless you have some serious IRQ latency issues.
+	 */
+	hwc->sample_period  = CCI_PMU_CNTR_MASK >> 1;
+	hwc->last_period    = hwc->sample_period;
+	local64_set(&hwc->period_left, hwc->sample_period);
+
+	if (event->group_leader != event) {
+		if (validate_group(event) != 0)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int cci_pmu_event_init(struct perf_event *event)
+{
+	struct cci_pmu *cci_pmu = to_cci_pmu(event->pmu);
+	atomic_t *active_events = &cci_pmu->active_events;
+	int err = 0;
+	int cpu;
+
+	if (event->attr.type != event->pmu->type)
+		return -ENOENT;
+
+	/* Shared by all CPUs, no meaningful state to sample */
+	if (is_sampling_event(event) || event->attach_state & PERF_ATTACH_TASK)
+		return -EOPNOTSUPP;
+
+	/* We have no filtering of any kind */
+	if (event->attr.exclude_user	||
+	    event->attr.exclude_kernel	||
+	    event->attr.exclude_hv	||
+	    event->attr.exclude_idle	||
+	    event->attr.exclude_host	||
+	    event->attr.exclude_guest)
+		return -EINVAL;
+
+	/*
+	 * Following the example set by other "uncore" PMUs, we accept any CPU
+	 * and rewrite its affinity dynamically rather than having perf core
+	 * handle cpu == -1 and pid == -1 for this case.
+	 *
+	 * The perf core will pin online CPUs for the duration of this call and
+	 * the event being installed into its context, so the PMU's CPU can't
+	 * change under our feet.
+	 */
+	cpu = cpumask_first(&cci_pmu->cpus);
+	if (event->cpu < 0 || cpu < 0)
+		return -EINVAL;
+	event->cpu = cpu;
+
+	event->destroy = hw_perf_event_destroy;
+	if (!atomic_inc_not_zero(active_events)) {
+		mutex_lock(&cci_pmu->reserve_mutex);
+		if (atomic_read(active_events) == 0)
+			err = cci_pmu_get_hw(cci_pmu);
+		if (!err)
+			atomic_inc(active_events);
+		mutex_unlock(&cci_pmu->reserve_mutex);
+	}
+	if (err)
+		return err;
+
+	err = __hw_perf_event_init(event);
+	if (err)
+		hw_perf_event_destroy(event);
+
+	return err;
+}
+
+static ssize_t pmu_attr_cpumask_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	int n = scnprintf(buf, PAGE_SIZE - 1, "%*pbl",
+			  cpumask_pr_args(&pmu->cpus));
+	buf[n++] = '\n';
+	buf[n] = '\0';
+	return n;
+}
+
+static DEVICE_ATTR(cpumask, S_IRUGO, pmu_attr_cpumask_show, NULL);
+
+static struct attribute *pmu_attrs[] = {
+	&dev_attr_cpumask.attr,
+	NULL,
+};
+
+static struct attribute_group pmu_attr_group = {
+	.attrs = pmu_attrs,
+};
+
+static const struct attribute_group *pmu_attr_groups[] = {
+	&pmu_attr_group,
+	NULL
+};
+
+static int cci_pmu_init(struct cci_pmu *cci_pmu, struct platform_device *pdev)
+{
+	char *name = cci_pmu->model->name;
+	cci_pmu->pmu = (struct pmu) {
+		.name		= cci_pmu->model->name,
+		.task_ctx_nr	= perf_invalid_context,
+		.pmu_enable	= cci_pmu_enable,
+		.pmu_disable	= cci_pmu_disable,
+		.event_init	= cci_pmu_event_init,
+		.add		= cci_pmu_add,
+		.del		= cci_pmu_del,
+		.start		= cci_pmu_start,
+		.stop		= cci_pmu_stop,
+		.read		= pmu_read,
+		.attr_groups	= pmu_attr_groups,
 	};
 
 	cci_pmu->plat_device = pdev;
 	cci_pmu->num_events = pmu_get_max_counters();
 
-	return armpmu_register(cci_pmu, -1);
+	return perf_pmu_register(&cci_pmu->pmu, name, -1);
 }
+
+static int cci_pmu_cpu_notifier(struct notifier_block *self,
+				unsigned long action, void *hcpu)
+{
+	unsigned int cpu = (long)hcpu;
+	unsigned int target;
+
+	switch (action & ~CPU_TASKS_FROZEN) {
+	case CPU_DOWN_PREPARE:
+		if (!cpumask_test_and_clear_cpu(cpu, &pmu->cpus))
+			break;
+		target = cpumask_any_but(cpu_online_mask, cpu);
+		if (target < 0) // UP, last CPU
+			break;
+		/*
+		 * TODO: migrate context once core races on event->ctx have
+		 * been fixed.
+		 */
+		cpumask_set_cpu(target, &pmu->cpus);
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block cci_pmu_cpu_nb = {
+	.notifier_call	= cci_pmu_cpu_notifier,
+	/*
+	 * to migrate uncore events, our notifier should be executed
+	 * before perf core's notifier.
+	 */
+	.priority	= CPU_PRI_PERF + 1,
+};
+
+static struct cci_pmu_model cci_pmu_models[] = {
+	[CCI_REV_R0] = {
+		.name = "CCI_400",
+		.event_ranges = {
+			[CCI_IF_SLAVE] = {
+				CCI_REV_R0_SLAVE_PORT_MIN_EV,
+				CCI_REV_R0_SLAVE_PORT_MAX_EV,
+			},
+			[CCI_IF_MASTER] = {
+				CCI_REV_R0_MASTER_PORT_MIN_EV,
+				CCI_REV_R0_MASTER_PORT_MAX_EV,
+			},
+		},
+	},
+	[CCI_REV_R1] = {
+		.name = "CCI_400_r1",
+		.event_ranges = {
+			[CCI_IF_SLAVE] = {
+				CCI_REV_R1_SLAVE_PORT_MIN_EV,
+				CCI_REV_R1_SLAVE_PORT_MAX_EV,
+			},
+			[CCI_IF_MASTER] = {
+				CCI_REV_R1_MASTER_PORT_MIN_EV,
+				CCI_REV_R1_MASTER_PORT_MAX_EV,
+			},
+		},
+	},
+};
 
 static const struct of_device_id arm_cci_pmu_matches[] = {
 	{
 		.compatible = "arm,cci-400-pmu",
+		.data	= NULL,
+	},
+	{
+		.compatible = "arm,cci-400-pmu,r0",
+		.data	= &cci_pmu_models[CCI_REV_R0],
+	},
+	{
+		.compatible = "arm,cci-400-pmu,r1",
+		.data	= &cci_pmu_models[CCI_REV_R1],
 	},
 	{},
 };
+
+static inline const struct cci_pmu_model *get_cci_model(struct platform_device *pdev)
+{
+	const struct of_device_id *match = of_match_node(arm_cci_pmu_matches,
+							pdev->dev.of_node);
+	if (!match)
+		return NULL;
+	if (match->data)
+		return match->data;
+
+	dev_warn(&pdev->dev, "DEPRECATED compatible property,"
+			 "requires secure access to CCI registers");
+	return probe_cci_model(pdev);
+}
+
+static bool is_duplicate_irq(int irq, int *irqs, int nr_irqs)
+{
+	int i;
+
+	for (i = 0; i < nr_irqs; i++)
+		if (irq == irqs[i])
+			return true;
+
+	return false;
+}
 
 static int cci_pmu_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	int i, ret, irq;
+	const struct cci_pmu_model *model;
+
+	model = get_cci_model(pdev);
+	if (!model) {
+		dev_warn(&pdev->dev, "CCI PMU version not supported\n");
+		return -ENODEV;
+	}
 
 	pmu = devm_kzalloc(&pdev->dev, sizeof(*pmu), GFP_KERNEL);
 	if (!pmu)
 		return -ENOMEM;
 
+	pmu->model = model;
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	pmu->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(pmu->base))
@@ -598,24 +980,20 @@ static int cci_pmu_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	pmu->port_ranges = port_range_by_rev();
-	if (!pmu->port_ranges) {
-		dev_warn(&pdev->dev, "CCI PMU version not supported\n");
-		return -EINVAL;
-	}
-
-	pmu->cci_pmu = devm_kzalloc(&pdev->dev, sizeof(*(pmu->cci_pmu)), GFP_KERNEL);
-	if (!pmu->cci_pmu)
-		return -ENOMEM;
-
-	pmu->hw_events.events = pmu->events;
-	pmu->hw_events.used_mask = pmu->used_mask;
 	raw_spin_lock_init(&pmu->hw_events.pmu_lock);
+	mutex_init(&pmu->reserve_mutex);
+	atomic_set(&pmu->active_events, 0);
+	cpumask_set_cpu(smp_processor_id(), &pmu->cpus);
 
-	ret = cci_pmu_init(pmu->cci_pmu, pdev);
+	ret = register_cpu_notifier(&cci_pmu_cpu_nb);
 	if (ret)
 		return ret;
 
+	ret = cci_pmu_init(pmu, pdev);
+	if (ret)
+		return ret;
+
+	pr_info("ARM %s PMU driver probed", pmu->model->name);
 	return 0;
 }
 
@@ -627,7 +1005,66 @@ static int cci_platform_probe(struct platform_device *pdev)
 	return of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
 }
 
-#endif /* CONFIG_HW_PERF_EVENTS */
+static struct platform_driver cci_pmu_driver = {
+	.driver = {
+		   .name = DRIVER_NAME_PMU,
+		   .of_match_table = arm_cci_pmu_matches,
+		  },
+	.probe = cci_pmu_probe,
+};
+
+static struct platform_driver cci_platform_driver = {
+	.driver = {
+		   .name = DRIVER_NAME,
+		   .of_match_table = arm_cci_matches,
+		  },
+	.probe = cci_platform_probe,
+};
+
+static int __init cci_platform_init(void)
+{
+	int ret;
+
+	ret = platform_driver_register(&cci_pmu_driver);
+	if (ret)
+		return ret;
+
+	return platform_driver_register(&cci_platform_driver);
+}
+
+#else /* !CONFIG_ARM_CCI400_PMU */
+
+static int __init cci_platform_init(void)
+{
+	return 0;
+}
+
+#endif /* CONFIG_ARM_CCI400_PMU */
+
+#ifdef CONFIG_ARM_CCI400_PORT_CTRL
+
+#define CCI_PORT_CTRL		0x0
+#define CCI_CTRL_STATUS		0xc
+
+#define CCI_ENABLE_SNOOP_REQ	0x1
+#define CCI_ENABLE_DVM_REQ	0x2
+#define CCI_ENABLE_REQ		(CCI_ENABLE_SNOOP_REQ | CCI_ENABLE_DVM_REQ)
+
+enum cci_ace_port_type {
+	ACE_INVALID_PORT = 0x0,
+	ACE_PORT,
+	ACE_LITE_PORT,
+};
+
+struct cci_ace_port {
+	void __iomem *base;
+	unsigned long phys;
+	enum cci_ace_port_type type;
+	struct device_node *dn;
+};
+
+static struct cci_ace_port *ports;
+static unsigned int nb_cci_ports;
 
 struct cpu_port {
 	u64 mpidr;
@@ -948,33 +1385,20 @@ int notrace __cci_control_port_by_index(u32 port, bool enable)
 }
 EXPORT_SYMBOL_GPL(__cci_control_port_by_index);
 
-static const struct cci_nb_ports cci400_ports = {
-	.nb_ace = 2,
-	.nb_ace_lite = 3
-};
-
-static const struct of_device_id arm_cci_matches[] = {
-	{.compatible = "arm,cci-400", .data = &cci400_ports },
-	{},
-};
-
 static const struct of_device_id arm_cci_ctrl_if_matches[] = {
 	{.compatible = "arm,cci-400-ctrl-if", },
 	{},
 };
 
-static int cci_probe(void)
+static int cci_probe_ports(struct device_node *np)
 {
 	struct cci_nb_ports const *cci_config;
 	int ret, i, nb_ace = 0, nb_ace_lite = 0;
-	struct device_node *np, *cp;
+	struct device_node *cp;
 	struct resource res;
 	const char *match_str;
 	bool is_ace;
 
-	np = of_find_matching_node(NULL, arm_cci_matches);
-	if (!np)
-		return -ENODEV;
 
 	cci_config = of_match_node(arm_cci_matches, np)->data;
 	if (!cci_config)
@@ -985,17 +1409,6 @@ static int cci_probe(void)
 	ports = kcalloc(nb_cci_ports, sizeof(*ports), GFP_KERNEL);
 	if (!ports)
 		return -ENOMEM;
-
-	ret = of_address_to_resource(np, 0, &res);
-	if (!ret) {
-		cci_ctrl_base = ioremap(res.start, resource_size(&res));
-		cci_ctrl_phys =	res.start;
-	}
-	if (ret || !cci_ctrl_base) {
-		WARN(1, "unable to ioremap CCI ctrl\n");
-		ret = -ENXIO;
-		goto memalloc_err;
-	}
 
 	for_each_child_of_node(np, cp) {
 		if (!of_match_node(arm_cci_ctrl_if_matches, cp))
@@ -1056,12 +1469,37 @@ static int cci_probe(void)
 	sync_cache_w(&cpu_port);
 	__sync_cache_range_w(ports, sizeof(*ports) * nb_cci_ports);
 	pr_info("ARM CCI driver probed\n");
+
 	return 0;
+}
+#else /* !CONFIG_ARM_CCI400_PORT_CTRL */
+static inline int cci_probe_ports(struct device_node *np)
+{
+	return 0;
+}
+#endif /* CONFIG_ARM_CCI400_PORT_CTRL */
 
-memalloc_err:
+static int cci_probe(void)
+{
+	int ret;
+	struct device_node *np;
+	struct resource res;
 
-	kfree(ports);
-	return ret;
+	np = of_find_matching_node(NULL, arm_cci_matches);
+	if(!np || !of_device_is_available(np))
+		return -ENODEV;
+
+	ret = of_address_to_resource(np, 0, &res);
+	if (!ret) {
+		cci_ctrl_base = ioremap(res.start, resource_size(&res));
+		cci_ctrl_phys =	res.start;
+	}
+	if (ret || !cci_ctrl_base) {
+		WARN(1, "unable to ioremap CCI ctrl\n");
+		return -ENXIO;
+	}
+
+	return cci_probe_ports(np);
 }
 
 static int cci_init_status = -EAGAIN;
@@ -1079,42 +1517,6 @@ static int cci_init(void)
 	return cci_init_status;
 }
 
-#ifdef CONFIG_HW_PERF_EVENTS
-static struct platform_driver cci_pmu_driver = {
-	.driver = {
-		   .name = DRIVER_NAME_PMU,
-		   .of_match_table = arm_cci_pmu_matches,
-		  },
-	.probe = cci_pmu_probe,
-};
-
-static struct platform_driver cci_platform_driver = {
-	.driver = {
-		   .name = DRIVER_NAME,
-		   .of_match_table = arm_cci_matches,
-		  },
-	.probe = cci_platform_probe,
-};
-
-static int __init cci_platform_init(void)
-{
-	int ret;
-
-	ret = platform_driver_register(&cci_pmu_driver);
-	if (ret)
-		return ret;
-
-	return platform_driver_register(&cci_platform_driver);
-}
-
-#else
-
-static int __init cci_platform_init(void)
-{
-	return 0;
-}
-
-#endif
 /*
  * To sort out early init calls ordering a helper function is provided to
  * check if the CCI driver has beed initialized. Function check if the driver

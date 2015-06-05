@@ -45,11 +45,10 @@
 int restore_sigcontext(struct pt_regs *regs,
 		       struct sigcontext __user *sc)
 {
-	int err = 0;
-	int i;
+	int err;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_no_restart_syscall;
 
 	/*
 	 * Enforce that sigcontext is like pt_regs, and doesn't mess
@@ -57,9 +56,7 @@ int restore_sigcontext(struct pt_regs *regs,
 	 */
 	BUILD_BUG_ON(sizeof(struct sigcontext) != sizeof(struct pt_regs));
 	BUILD_BUG_ON(sizeof(struct sigcontext) % 8 != 0);
-
-	for (i = 0; i < sizeof(struct pt_regs)/sizeof(long); ++i)
-		err |= __get_user(regs->regs[i], &sc->gregs[i]);
+	err = __copy_from_user(regs, sc, sizeof(*regs));
 
 	/* Ensure that the PL is always set to USER_PL. */
 	regs->ex1 = PL_ICS_EX1(USER_PL, EX1_ICS(regs->ex1));
@@ -110,12 +107,7 @@ badframe:
 
 int setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs)
 {
-	int i, err = 0;
-
-	for (i = 0; i < sizeof(struct pt_regs)/sizeof(long); ++i)
-		err |= __put_user(regs->regs[i], &sc->gregs[i]);
-
-	return err;
+	return  __copy_to_user(sc, regs, sizeof(*regs));
 }
 
 /*
@@ -159,18 +151,11 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	unsigned long restorer;
 	struct rt_sigframe __user *frame;
 	int err = 0, sig = ksig->sig;
-	int usig;
 
 	frame = get_sigframe(&ksig->ka, regs, sizeof(*frame));
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		goto err;
-
-	usig = current_thread_info()->exec_domain
-		&& current_thread_info()->exec_domain->signal_invmap
-		&& sig < 32
-		? current_thread_info()->exec_domain->signal_invmap[sig]
-		: sig;
 
 	/* Always write at least the signal number for the stack backtracer. */
 	if (ksig->ka.sa.sa_flags & SA_SIGINFO) {
@@ -206,7 +191,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	regs->ex1 = PL_ICS_EX1(USER_PL, 1); /* set crit sec in handler */
 	regs->sp = (unsigned long) frame;
 	regs->lr = restorer;
-	regs->regs[0] = (unsigned long) usig;
+	regs->regs[0] = (unsigned long) sig;
 	regs->regs[1] = (unsigned long) &frame->info;
 	regs->regs[2] = (unsigned long) &frame->uc;
 	regs->flags |= PT_FLAGS_CALLER_SAVES;
@@ -345,7 +330,6 @@ static void dump_mem(void __user *address)
 	int i, j, k;
 	int found_readable_mem = 0;
 
-	pr_err("\n");
 	if (!access_ok(VERIFY_READ, address, 1)) {
 		pr_err("Not dumping at address 0x%lx (kernel address)\n",
 		       (unsigned long)address);
@@ -367,7 +351,7 @@ static void dump_mem(void __user *address)
 			       (unsigned long)address);
 			found_readable_mem = 1;
 		}
-		j = sprintf(line, REGFMT":", (unsigned long)addr);
+		j = sprintf(line, REGFMT ":", (unsigned long)addr);
 		for (k = 0; k < bytes_per_line; ++k)
 			j += sprintf(&line[j], " %02x", buf[k]);
 		pr_err("%s\n", line);
@@ -411,8 +395,7 @@ void trace_unhandled_signal(const char *type, struct pt_regs *regs,
 		case SIGFPE:
 		case SIGSEGV:
 		case SIGBUS:
-			pr_err("User crash: signal %d,"
-			       " trap %ld, address 0x%lx\n",
+			pr_err("User crash: signal %d, trap %ld, address 0x%lx\n",
 			       sig, regs->faultnum, address);
 			show_regs(regs);
 			dump_mem((void __user *)address);

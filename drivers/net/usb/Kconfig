@@ -161,6 +161,7 @@ config USB_NET_AX8817X
 	    * Linksys USB200M
 	    * Netgear FA120
 	    * Sitecom LN-029
+	    * Sitecom LN-028
 	    * Intellinet USB 2.0 Ethernet
 	    * ST Lab USB 2.0 Ethernet
 	    * TrendNet TU2-ET100
@@ -397,14 +398,14 @@ config USB_NET_CDC_SUBSET
 	  not generally have permanently assigned Ethernet addresses.
 
 config USB_ALI_M5632
-	boolean "ALi M5632 based 'USB 2.0 Data Link' cables"
+	bool "ALi M5632 based 'USB 2.0 Data Link' cables"
 	depends on USB_NET_CDC_SUBSET
 	help
 	  Choose this option if you're using a host-to-host cable
 	  based on this design, which supports USB 2.0 high speed.
 
 config USB_AN2720
-	boolean "AnchorChips 2720 based cables (Xircom PGUNET, ...)"
+	bool "AnchorChips 2720 based cables (Xircom PGUNET, ...)"
 	depends on USB_NET_CDC_SUBSET
 	help
 	  Choose this option if you're using a host-to-host cable
@@ -412,7 +413,7 @@ config USB_AN2720
 	  Cypress brand.
 
 config USB_BELKIN
-	boolean "eTEK based host-to-host cables (Advance, Belkin, ...)"
+	bool "eTEK based host-to-host cables (Advance, Belkin, ...)"
 	depends on USB_NET_CDC_SUBSET
 	default y
 	help
@@ -421,7 +422,7 @@ config USB_BELKIN
 	  microcontroller, with LEDs that indicate traffic.
 
 config USB_ARMLINUX
-	boolean "Embedded ARM Linux links (iPaq, ...)"
+	bool "Embedded ARM Linux links (iPaq, ...)"
 	depends on USB_NET_CDC_SUBSET
 	default y
 	help
@@ -438,14 +439,14 @@ config USB_ARMLINUX
 	  this simpler protocol by installing a different kernel.
 
 config USB_EPSON2888
-	boolean "Epson 2888 based firmware (DEVELOPMENT)"
+	bool "Epson 2888 based firmware (DEVELOPMENT)"
 	depends on USB_NET_CDC_SUBSET
 	help
 	  Choose this option to support the usb networking links used
 	  by some sample firmware from Epson.
 
 config USB_KC2190
-	boolean "KT Technology KC2190 based cables (InstaNet)"
+	bool "KT Technology KC2190 based cables (InstaNet)"
 	depends on USB_NET_CDC_SUBSET
 	help
 	  Choose this option if you're using a host-to-host cable

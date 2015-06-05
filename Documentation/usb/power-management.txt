@@ -47,14 +47,15 @@ dynamic PM is implemented in the USB subsystem, although system PM is
 covered to some extent (see Documentation/power/*.txt for more
 information about system PM).
 
-Note: Dynamic PM support for USB is present only if the kernel was
-built with CONFIG_USB_SUSPEND enabled (which depends on
-CONFIG_PM_RUNTIME).  System PM support is present only if the kernel
-was built with CONFIG_SUSPEND or CONFIG_HIBERNATION enabled.
+System PM support is present only if the kernel was built with CONFIG_SUSPEND
+or CONFIG_HIBERNATION enabled.  Dynamic PM support for USB is present whenever
+the kernel was built with CONFIG_PM enabled.
 
-(Starting with the 3.10 kernel release, dynamic PM support for USB is
-present whenever the kernel was built with CONFIG_PM_RUNTIME enabled.
-The CONFIG_USB_SUSPEND option has been eliminated.)
+[Historically, dynamic PM support for USB was present only if the
+kernel had been built with CONFIG_USB_SUSPEND enabled (which depended on
+CONFIG_PM_RUNTIME).  Starting with the 3.10 kernel release, dynamic PM support
+for USB was present whenever the kernel was built with CONFIG_PM_RUNTIME
+enabled.  The CONFIG_USB_SUSPEND option had been eliminated.]
 
 
 	What is Remote Wakeup?

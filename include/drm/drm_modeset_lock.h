@@ -33,6 +33,7 @@ struct drm_modeset_lock;
  * @ww_ctx: base acquire ctx
  * @contended: used internally for -EDEADLK handling
  * @locked: list of held locks
+ * @trylock_only: trylock mode used in atomic contexts/panic notifiers
  *
  * Each thread competing for a set of locks must use one acquire
  * ctx.  And if any lock fxn returns -EDEADLK, it must backoff and
@@ -126,11 +127,13 @@ void drm_modeset_unlock(struct drm_modeset_lock *lock);
 
 struct drm_device;
 struct drm_crtc;
+struct drm_plane;
 
 void drm_modeset_lock_all(struct drm_device *dev);
 int __drm_modeset_lock_all(struct drm_device *dev, bool trylock);
 void drm_modeset_unlock_all(struct drm_device *dev);
-void drm_modeset_lock_crtc(struct drm_crtc *crtc);
+void drm_modeset_lock_crtc(struct drm_crtc *crtc,
+			   struct drm_plane *plane);
 void drm_modeset_unlock_crtc(struct drm_crtc *crtc);
 void drm_warn_on_modeset_not_all_locked(struct drm_device *dev);
 struct drm_modeset_acquire_ctx *

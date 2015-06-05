@@ -417,8 +417,7 @@ static void auo_pixcir_input_close(struct input_dev *dev)
 	return;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int auo_pixcir_suspend(struct device *dev)
+static int __maybe_unused auo_pixcir_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct auo_pixcir_ts *ts = i2c_get_clientdata(client);
@@ -450,7 +449,7 @@ unlock:
 	return ret;
 }
 
-static int auo_pixcir_resume(struct device *dev)
+static int __maybe_unused auo_pixcir_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct auo_pixcir_ts *ts = i2c_get_clientdata(client);
@@ -479,7 +478,6 @@ unlock:
 
 	return ret;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(auo_pixcir_pm_ops,
 			 auo_pixcir_suspend, auo_pixcir_resume);

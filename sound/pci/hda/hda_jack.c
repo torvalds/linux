@@ -20,6 +20,16 @@
 #include "hda_auto_parser.h"
 #include "hda_jack.h"
 
+/**
+ * is_jack_detectable - Check whether the given pin is jack-detectable
+ * @codec: the HDA codec
+ * @nid: pin NID
+ *
+ * Check whether the given pin is capable to report the jack detection.
+ * The jack detection might not work by various reasons, e.g. the jack
+ * detection is prohibited in the codec level, the pin config has
+ * AC_DEFCFG_MISC_NO_PRESENCE bit, no unsol support, etc.
+ */
 bool is_jack_detectable(struct hda_codec *codec, hda_nid_t nid)
 {
 	if (codec->no_jack_detect)
@@ -57,6 +67,8 @@ static u32 read_pin_sense(struct hda_codec *codec, hda_nid_t nid)
 
 /**
  * snd_hda_jack_tbl_get - query the jack-table entry for the given NID
+ * @codec: the HDA codec
+ * @nid: pin NID to refer to
  */
 struct hda_jack_tbl *
 snd_hda_jack_tbl_get(struct hda_codec *codec, hda_nid_t nid)
@@ -75,6 +87,8 @@ EXPORT_SYMBOL_GPL(snd_hda_jack_tbl_get);
 
 /**
  * snd_hda_jack_tbl_get_from_tag - query the jack-table entry for the given tag
+ * @codec: the HDA codec
+ * @tag: tag value to refer to
  */
 struct hda_jack_tbl *
 snd_hda_jack_tbl_get_from_tag(struct hda_codec *codec, unsigned char tag)
@@ -93,6 +107,8 @@ EXPORT_SYMBOL_GPL(snd_hda_jack_tbl_get_from_tag);
 
 /**
  * snd_hda_jack_tbl_new - create a jack-table entry for the given NID
+ * @codec: the HDA codec
+ * @nid: pin NID to assign
  */
 static struct hda_jack_tbl *
 snd_hda_jack_tbl_new(struct hda_codec *codec, hda_nid_t nid)
@@ -119,7 +135,7 @@ void snd_hda_jack_tbl_clear(struct hda_codec *codec)
 #ifdef CONFIG_SND_HDA_INPUT_JACK
 		/* free jack instances manually when clearing/reconfiguring */
 		if (!codec->bus->shutdown && jack->jack)
-			snd_device_free(codec->bus->card, jack->jack);
+			snd_device_free(codec->card, jack->jack);
 #endif
 		for (cb = jack->callback; cb; cb = next) {
 			next = cb->next;
@@ -162,6 +178,7 @@ static void jack_detect_update(struct hda_codec *codec,
 
 /**
  * snd_hda_set_dirty_all - Mark all the cached as dirty
+ * @codec: the HDA codec
  *
  * This function sets the dirty flag to all entries of jack table.
  * It's called from the resume path in hda_codec.c.
@@ -218,6 +235,9 @@ EXPORT_SYMBOL_GPL(snd_hda_jack_detect_state);
 
 /**
  * snd_hda_jack_detect_enable - enable the jack-detection
+ * @codec: the HDA codec
+ * @nid: pin NID to enable
+ * @func: callback function to register
  *
  * In the case of error, the return value will be a pointer embedded with
  * errno.  Check and handle the return value appropriately with standard
@@ -258,6 +278,14 @@ snd_hda_jack_detect_enable_callback(struct hda_codec *codec, hda_nid_t nid,
 }
 EXPORT_SYMBOL_GPL(snd_hda_jack_detect_enable_callback);
 
+/**
+ * snd_hda_jack_detect_enable - Enable the jack detection on the given pin
+ * @codec: the HDA codec
+ * @nid: pin NID to enable jack detection
+ *
+ * Enable the jack detection with the default callback.  Returns zero if
+ * successful or a negative error code.
+ */
 int snd_hda_jack_detect_enable(struct hda_codec *codec, hda_nid_t nid)
 {
 	return PTR_ERR_OR_ZERO(snd_hda_jack_detect_enable_callback(codec, nid, NULL));
@@ -266,6 +294,9 @@ EXPORT_SYMBOL_GPL(snd_hda_jack_detect_enable);
 
 /**
  * snd_hda_jack_set_gating_jack - Set gating jack.
+ * @codec: the HDA codec
+ * @gated_nid: gated pin NID
+ * @gating_nid: gating pin NID
  *
  * Indicates the gated jack is only valid when the gating jack is plugged.
  */
@@ -287,6 +318,7 @@ EXPORT_SYMBOL_GPL(snd_hda_jack_set_gating_jack);
 
 /**
  * snd_hda_jack_report_sync - sync the states of all jacks and report if changed
+ * @codec: the HDA codec
  */
 void snd_hda_jack_report_sync(struct hda_codec *codec)
 {
@@ -308,7 +340,7 @@ void snd_hda_jack_report_sync(struct hda_codec *codec)
 			if (!jack->kctl || jack->block_report)
 				continue;
 			state = get_jack_plug_state(jack->pin_sense);
-			snd_kctl_jack_report(codec->bus->card, jack->kctl, state);
+			snd_kctl_jack_report(codec->card, jack->kctl, state);
 #ifdef CONFIG_SND_HDA_INPUT_JACK
 			if (jack->jack)
 				snd_jack_report(jack->jack,
@@ -349,6 +381,11 @@ static void hda_free_jack_priv(struct snd_jack *jack)
 
 /**
  * snd_hda_jack_add_kctl - Add a kctl for the given pin
+ * @codec: the HDA codec
+ * @nid: pin NID to assign
+ * @name: string name for the jack
+ * @idx: index number for the jack
+ * @phantom_jack: flag to deal as a phantom jack
  *
  * This assigns a jack-detection kctl to the given pin.  The kcontrol
  * will have the given name and index.
@@ -375,11 +412,11 @@ static int __snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
 	jack->phantom_jack = !!phantom_jack;
 
 	state = snd_hda_jack_detect(codec, nid);
-	snd_kctl_jack_report(codec->bus->card, kctl, state);
+	snd_kctl_jack_report(codec->card, kctl, state);
 #ifdef CONFIG_SND_HDA_INPUT_JACK
 	if (!phantom_jack) {
 		jack->type = get_input_jack_type(codec, nid);
-		err = snd_jack_new(codec->bus->card, name, jack->type,
+		err = snd_jack_new(codec->card, name, jack->type,
 				   &jack->jack);
 		if (err < 0)
 			return err;
@@ -391,6 +428,15 @@ static int __snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
 	return 0;
 }
 
+/**
+ * snd_hda_jack_add_kctl - Add a jack kctl for the given pin
+ * @codec: the HDA codec
+ * @nid: pin NID
+ * @name: the name string for the jack ctl
+ * @idx: the ctl index for the jack ctl
+ *
+ * This is a simple helper calling __snd_hda_jack_add_kctl().
+ */
 int snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
 			  const char *name, int idx)
 {
@@ -456,6 +502,8 @@ static int add_jack_kctl(struct hda_codec *codec, hda_nid_t nid,
 
 /**
  * snd_hda_jack_add_kctls - Add kctls for all pins included in the given pincfg
+ * @codec: the HDA codec
+ * @cfg: pin config table to parse
  */
 int snd_hda_jack_add_kctls(struct hda_codec *codec,
 			   const struct auto_pin_cfg *cfg)
@@ -531,6 +579,11 @@ static void call_jack_callback(struct hda_codec *codec,
 	}
 }
 
+/**
+ * snd_hda_jack_unsol_event - Handle an unsolicited event
+ * @codec: the HDA codec
+ * @res: the unsolicited event data
+ */
 void snd_hda_jack_unsol_event(struct hda_codec *codec, unsigned int res)
 {
 	struct hda_jack_tbl *event;
@@ -546,6 +599,13 @@ void snd_hda_jack_unsol_event(struct hda_codec *codec, unsigned int res)
 }
 EXPORT_SYMBOL_GPL(snd_hda_jack_unsol_event);
 
+/**
+ * snd_hda_jack_poll_all - Poll all jacks
+ * @codec: the HDA codec
+ *
+ * Poll all detectable jacks with dirty flag, update the status, call
+ * callbacks and call snd_hda_jack_report_sync() if any changes are found.
+ */
 void snd_hda_jack_poll_all(struct hda_codec *codec)
 {
 	struct hda_jack_tbl *jack = codec->jacktbl.list;

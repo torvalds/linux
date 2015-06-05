@@ -1,5 +1,5 @@
 /*
- * Freescale MPC85xx Memory Controller kenel module
+ * Freescale MPC85xx Memory Controller kernel module
  *
  * Parts Copyrighted (c) 2013 by Freescale Semiconductor, Inc.
  *
@@ -134,29 +134,14 @@ DEVICE_ATTR(inject_data_lo, S_IRUGO | S_IWUSR,
 DEVICE_ATTR(inject_ctrl, S_IRUGO | S_IWUSR,
 	    mpc85xx_mc_inject_ctrl_show, mpc85xx_mc_inject_ctrl_store);
 
-static int mpc85xx_create_sysfs_attributes(struct mem_ctl_info *mci)
-{
-	int rc;
+static struct attribute *mpc85xx_dev_attrs[] = {
+	&dev_attr_inject_data_hi.attr,
+	&dev_attr_inject_data_lo.attr,
+	&dev_attr_inject_ctrl.attr,
+	NULL
+};
 
-	rc = device_create_file(&mci->dev, &dev_attr_inject_data_hi);
-	if (rc < 0)
-		return rc;
-	rc = device_create_file(&mci->dev, &dev_attr_inject_data_lo);
-	if (rc < 0)
-		return rc;
-	rc = device_create_file(&mci->dev, &dev_attr_inject_ctrl);
-	if (rc < 0)
-		return rc;
-
-	return 0;
-}
-
-static void mpc85xx_remove_sysfs_attributes(struct mem_ctl_info *mci)
-{
-	device_remove_file(&mci->dev, &dev_attr_inject_data_hi);
-	device_remove_file(&mci->dev, &dev_attr_inject_data_lo);
-	device_remove_file(&mci->dev, &dev_attr_inject_ctrl);
-}
+ATTRIBUTE_GROUPS(mpc85xx_dev);
 
 /**************************** PCI Err device ***************************/
 #ifdef CONFIG_PCI
@@ -685,7 +670,7 @@ static int mpc85xx_l2_err_remove(struct platform_device *op)
 	return 0;
 }
 
-static struct of_device_id mpc85xx_l2_err_of_match[] = {
+static const struct of_device_id mpc85xx_l2_err_of_match[] = {
 /* deprecate the fsl,85.. forms in the future, 2.6.30? */
 	{ .compatible = "fsl,8540-l2-cache-controller", },
 	{ .compatible = "fsl,8541-l2-cache-controller", },
@@ -715,7 +700,6 @@ static struct platform_driver mpc85xx_l2_err_driver = {
 	.remove = mpc85xx_l2_err_remove,
 	.driver = {
 		.name = "mpc85xx_l2_err",
-		.owner = THIS_MODULE,
 		.of_match_table = mpc85xx_l2_err_of_match,
 	},
 };
@@ -1107,13 +1091,7 @@ static int mpc85xx_mc_err_probe(struct platform_device *op)
 	/* clear all error bits */
 	out_be32(pdata->mc_vbase + MPC85XX_MC_ERR_DETECT, ~0);
 
-	if (edac_mc_add_mc(mci)) {
-		edac_dbg(3, "failed edac_mc_add_mc()\n");
-		goto err;
-	}
-
-	if (mpc85xx_create_sysfs_attributes(mci)) {
-		edac_mc_del_mc(mci->pdev);
+	if (edac_mc_add_mc_with_groups(mci, mpc85xx_dev_groups)) {
 		edac_dbg(3, "failed edac_mc_add_mc()\n");
 		goto err;
 	}
@@ -1177,13 +1155,12 @@ static int mpc85xx_mc_err_remove(struct platform_device *op)
 		 orig_ddr_err_disable);
 	out_be32(pdata->mc_vbase + MPC85XX_MC_ERR_SBE, orig_ddr_err_sbe);
 
-	mpc85xx_remove_sysfs_attributes(mci);
 	edac_mc_del_mc(&op->dev);
 	edac_mc_free(mci);
 	return 0;
 }
 
-static struct of_device_id mpc85xx_mc_err_of_match[] = {
+static const struct of_device_id mpc85xx_mc_err_of_match[] = {
 /* deprecate the fsl,85.. forms in the future, 2.6.30? */
 	{ .compatible = "fsl,8540-memory-controller", },
 	{ .compatible = "fsl,8541-memory-controller", },
@@ -1215,7 +1192,6 @@ static struct platform_driver mpc85xx_mc_err_driver = {
 	.remove = mpc85xx_mc_err_remove,
 	.driver = {
 		.name = "mpc85xx_mc_err",
-		.owner = THIS_MODULE,
 		.of_match_table = mpc85xx_mc_err_of_match,
 	},
 };

@@ -25,7 +25,7 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
-#include <linux/debugfs.h>
+#include <linux/tracefs.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
@@ -229,13 +229,6 @@ ASSIGN_FETCH_FUNC(file_offset, ftype),			\
 #define FETCH_TYPE_STRING	0
 #define FETCH_TYPE_STRSIZE	1
 
-/*
- * Fetch type information table.
- * It's declared as a weak symbol due to conditional compilation.
- */
-extern __weak const struct fetch_type kprobes_fetch_type_table[];
-extern __weak const struct fetch_type uprobes_fetch_type_table[];
-
 #ifdef CONFIG_KPROBE_EVENT
 struct symbol_cache;
 unsigned long update_symbol_cache(struct symbol_cache *sc);
@@ -333,7 +326,8 @@ find_event_file_link(struct trace_probe *tp, struct ftrace_event_file *file)
 }
 
 extern int traceprobe_parse_probe_arg(char *arg, ssize_t *size,
-		   struct probe_arg *parg, bool is_return, bool is_kprobe);
+		   struct probe_arg *parg, bool is_return, bool is_kprobe,
+		   const struct fetch_type *ftbl);
 
 extern int traceprobe_conflict_field_name(const char *name,
 			       struct probe_arg *args, int narg);

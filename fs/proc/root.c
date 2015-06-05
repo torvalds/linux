@@ -195,7 +195,7 @@ void __init proc_root_init(void)
 static int proc_root_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat
 )
 {
-	generic_fillattr(dentry->d_inode, stat);
+	generic_fillattr(d_inode(dentry), stat);
 	stat->nlink = proc_root.nlink + nr_processes();
 	return 0;
 }
@@ -251,6 +251,7 @@ struct proc_dir_entry proc_root = {
 	.proc_iops	= &proc_root_inode_operations, 
 	.proc_fops	= &proc_root_operations,
 	.parent		= &proc_root,
+	.subdir		= RB_ROOT,
 	.name		= "/proc",
 };
 

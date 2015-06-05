@@ -912,23 +912,6 @@ static struct snd_soc_dai_driver sta350_dai = {
 	.ops = &sta350_dai_ops,
 };
 
-#ifdef CONFIG_PM
-static int sta350_suspend(struct snd_soc_codec *codec)
-{
-	sta350_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int sta350_resume(struct snd_soc_codec *codec)
-{
-	sta350_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-#else
-#define sta350_suspend NULL
-#define sta350_resume NULL
-#endif
-
 static int sta350_probe(struct snd_soc_codec *codec)
 {
 	struct sta350_priv *sta350 = snd_soc_codec_get_drvdata(codec);
@@ -1065,7 +1048,6 @@ static int sta350_remove(struct snd_soc_codec *codec)
 {
 	struct sta350_priv *sta350 = snd_soc_codec_get_drvdata(codec);
 
-	sta350_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	regulator_bulk_disable(ARRAY_SIZE(sta350->supplies), sta350->supplies);
 
 	return 0;
@@ -1074,9 +1056,8 @@ static int sta350_remove(struct snd_soc_codec *codec)
 static const struct snd_soc_codec_driver sta350_codec = {
 	.probe =		sta350_probe,
 	.remove =		sta350_remove,
-	.suspend =		sta350_suspend,
-	.resume =		sta350_resume,
 	.set_bias_level =	sta350_set_bias_level,
+	.suspend_bias_off =	true,
 	.controls =		sta350_snd_controls,
 	.num_controls =		ARRAY_SIZE(sta350_snd_controls),
 	.dapm_widgets =		sta350_dapm_widgets,
@@ -1232,27 +1213,15 @@ static int sta350_i2c_probe(struct i2c_client *i2c,
 #endif
 
 	/* GPIOs */
-	sta350->gpiod_nreset = devm_gpiod_get(dev, "reset");
-	if (IS_ERR(sta350->gpiod_nreset)) {
-		ret = PTR_ERR(sta350->gpiod_nreset);
-		if (ret != -ENOENT && ret != -ENOSYS)
-			return ret;
+	sta350->gpiod_nreset = devm_gpiod_get_optional(dev, "reset",
+						       GPIOD_OUT_LOW);
+	if (IS_ERR(sta350->gpiod_nreset))
+		return PTR_ERR(sta350->gpiod_nreset);
 
-		sta350->gpiod_nreset = NULL;
-	} else {
-		gpiod_direction_output(sta350->gpiod_nreset, 0);
-	}
-
-	sta350->gpiod_power_down = devm_gpiod_get(dev, "power-down");
-	if (IS_ERR(sta350->gpiod_power_down)) {
-		ret = PTR_ERR(sta350->gpiod_power_down);
-		if (ret != -ENOENT && ret != -ENOSYS)
-			return ret;
-
-		sta350->gpiod_power_down = NULL;
-	} else {
-		gpiod_direction_output(sta350->gpiod_power_down, 0);
-	}
+	sta350->gpiod_power_down = devm_gpiod_get(dev, "power-down",
+						  GPIOD_OUT_LOW);
+	if (IS_ERR(sta350->gpiod_power_down))
+		return PTR_ERR(sta350->gpiod_power_down);
 
 	/* regulators */
 	for (i = 0; i < ARRAY_SIZE(sta350->supplies); i++)

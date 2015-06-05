@@ -50,8 +50,8 @@ struct netns_xfrm {
 	struct list_head	policy_all;
 	struct hlist_head	*policy_byidx;
 	unsigned int		policy_idx_hmask;
-	struct hlist_head	policy_inexact[XFRM_POLICY_MAX * 2];
-	struct xfrm_policy_hash	policy_bydst[XFRM_POLICY_MAX * 2];
+	struct hlist_head	policy_inexact[XFRM_POLICY_MAX];
+	struct xfrm_policy_hash	policy_bydst[XFRM_POLICY_MAX];
 	unsigned int		policy_count[XFRM_POLICY_MAX * 2];
 	struct work_struct	policy_hash_work;
 	struct xfrm_policy_hthresh policy_hthresh;

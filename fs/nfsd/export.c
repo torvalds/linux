@@ -20,6 +20,7 @@
 #include "nfsd.h"
 #include "nfsfh.h"
 #include "netns.h"
+#include "pnfs.h"
 
 #define NFSDDBG_FACILITY	NFSDDBG_EXPORT
 
@@ -545,6 +546,7 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 
 	exp.ex_client = dom;
 	exp.cd = cd;
+	exp.ex_devid_map = NULL;
 
 	/* expiry */
 	err = -EINVAL;
@@ -597,7 +599,7 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 				goto out4;
 		}
 
-		err = check_export(exp.ex_path.dentry->d_inode, &exp.ex_flags,
+		err = check_export(d_inode(exp.ex_path.dentry), &exp.ex_flags,
 				   exp.ex_uuid);
 		if (err)
 			goto out4;
@@ -621,6 +623,8 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 		if (!gid_valid(exp.ex_anon_gid))
 			goto out4;
 		err = 0;
+
+		nfsd4_setup_layout_type(&exp);
 	}
 
 	expp = svc_export_lookup(&exp);
@@ -687,8 +691,7 @@ static int svc_export_match(struct cache_head *a, struct cache_head *b)
 	struct svc_export *orig = container_of(a, struct svc_export, h);
 	struct svc_export *new = container_of(b, struct svc_export, h);
 	return orig->ex_client == new->ex_client &&
-		orig->ex_path.dentry == new->ex_path.dentry &&
-		orig->ex_path.mnt == new->ex_path.mnt;
+		path_equal(&orig->ex_path, &new->ex_path);
 }
 
 static void svc_export_init(struct cache_head *cnew, struct cache_head *citem)
@@ -703,6 +706,7 @@ static void svc_export_init(struct cache_head *cnew, struct cache_head *citem)
 	new->ex_fslocs.locations = NULL;
 	new->ex_fslocs.locations_count = 0;
 	new->ex_fslocs.migrated = 0;
+	new->ex_layout_type = 0;
 	new->ex_uuid = NULL;
 	new->cd = item->cd;
 }
@@ -717,6 +721,8 @@ static void export_update(struct cache_head *cnew, struct cache_head *citem)
 	new->ex_anon_uid = item->ex_anon_uid;
 	new->ex_anon_gid = item->ex_anon_gid;
 	new->ex_fsid = item->ex_fsid;
+	new->ex_devid_map = item->ex_devid_map;
+	item->ex_devid_map = NULL;
 	new->ex_uuid = item->ex_uuid;
 	item->ex_uuid = NULL;
 	new->ex_fslocs.locations = item->ex_fslocs.locations;
@@ -725,6 +731,7 @@ static void export_update(struct cache_head *cnew, struct cache_head *citem)
 	item->ex_fslocs.locations_count = 0;
 	new->ex_fslocs.migrated = item->ex_fslocs.migrated;
 	item->ex_fslocs.migrated = 0;
+	new->ex_layout_type = item->ex_layout_type;
 	new->ex_nflavors = item->ex_nflavors;
 	for (i = 0; i < MAX_SECINFO_LIST; i++) {
 		new->ex_flavors[i] = item->ex_flavors[i];
@@ -883,7 +890,7 @@ exp_rootfh(struct net *net, struct auth_domain *clp, char *name,
 		printk("nfsd: exp_rootfh path not found %s", name);
 		return err;
 	}
-	inode = path.dentry->d_inode;
+	inode = d_inode(path.dentry);
 
 	dprintk("nfsd: exp_rootfh(%s [%p] %s:%s/%ld)\n",
 		 name, path.dentry, clp->name,
@@ -1151,6 +1158,7 @@ static struct flags {
 	{ NFSEXP_NOSUBTREECHECK, {"no_subtree_check", ""}},
 	{ NFSEXP_NOAUTHNLM, {"insecure_locks", ""}},
 	{ NFSEXP_V4ROOT, {"v4root", ""}},
+	{ NFSEXP_PNFS, {"pnfs", ""}},
 	{ 0, {"", ""}}
 };
 

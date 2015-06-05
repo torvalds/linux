@@ -34,7 +34,6 @@ static struct ti_dt_clk omap3xxx_clks[] = {
 	DT_CLK(NULL, "omap_96m_alwon_fck", "omap_96m_alwon_fck"),
 	DT_CLK("etb", "emu_core_alwon_ck", "emu_core_alwon_ck"),
 	DT_CLK(NULL, "sys_altclk", "sys_altclk"),
-	DT_CLK(NULL, "mcbsp_clks", "mcbsp_clks"),
 	DT_CLK(NULL, "sys_clkout1", "sys_clkout1"),
 	DT_CLK(NULL, "dpll1_ck", "dpll1_ck"),
 	DT_CLK(NULL, "dpll1_x2_ck", "dpll1_x2_ck"),
@@ -82,8 +81,6 @@ static struct ti_dt_clk omap3xxx_clks[] = {
 	DT_CLK(NULL, "i2c3_fck", "i2c3_fck"),
 	DT_CLK(NULL, "i2c2_fck", "i2c2_fck"),
 	DT_CLK(NULL, "i2c1_fck", "i2c1_fck"),
-	DT_CLK(NULL, "mcbsp5_fck", "mcbsp5_fck"),
-	DT_CLK(NULL, "mcbsp1_fck", "mcbsp1_fck"),
 	DT_CLK(NULL, "core_48m_fck", "core_48m_fck"),
 	DT_CLK(NULL, "mcspi4_fck", "mcspi4_fck"),
 	DT_CLK(NULL, "mcspi3_fck", "mcspi3_fck"),
@@ -122,10 +119,6 @@ static struct ti_dt_clk omap3xxx_clks[] = {
 	DT_CLK(NULL, "uart1_ick", "uart1_ick"),
 	DT_CLK(NULL, "gpt11_ick", "gpt11_ick"),
 	DT_CLK(NULL, "gpt10_ick", "gpt10_ick"),
-	DT_CLK("omap-mcbsp.5", "ick", "mcbsp5_ick"),
-	DT_CLK("omap-mcbsp.1", "ick", "mcbsp1_ick"),
-	DT_CLK(NULL, "mcbsp5_ick", "mcbsp5_ick"),
-	DT_CLK(NULL, "mcbsp1_ick", "mcbsp1_ick"),
 	DT_CLK(NULL, "omapctrl_ick", "omapctrl_ick"),
 	DT_CLK(NULL, "dss_tv_fck", "dss_tv_fck"),
 	DT_CLK(NULL, "dss_96m_fck", "dss_96m_fck"),
@@ -179,15 +172,17 @@ static struct ti_dt_clk omap3xxx_clks[] = {
 	DT_CLK(NULL, "gpt4_ick", "gpt4_ick"),
 	DT_CLK(NULL, "gpt3_ick", "gpt3_ick"),
 	DT_CLK(NULL, "gpt2_ick", "gpt2_ick"),
-	DT_CLK("omap-mcbsp.2", "ick", "mcbsp2_ick"),
-	DT_CLK("omap-mcbsp.3", "ick", "mcbsp3_ick"),
-	DT_CLK("omap-mcbsp.4", "ick", "mcbsp4_ick"),
-	DT_CLK(NULL, "mcbsp4_ick", "mcbsp2_ick"),
+	DT_CLK(NULL, "mcbsp_clks", "mcbsp_clks"),
+	DT_CLK(NULL, "mcbsp1_ick", "mcbsp1_ick"),
+	DT_CLK(NULL, "mcbsp2_ick", "mcbsp2_ick"),
 	DT_CLK(NULL, "mcbsp3_ick", "mcbsp3_ick"),
-	DT_CLK(NULL, "mcbsp2_ick", "mcbsp4_ick"),
+	DT_CLK(NULL, "mcbsp4_ick", "mcbsp4_ick"),
+	DT_CLK(NULL, "mcbsp5_ick", "mcbsp5_ick"),
+	DT_CLK(NULL, "mcbsp1_fck", "mcbsp1_fck"),
 	DT_CLK(NULL, "mcbsp2_fck", "mcbsp2_fck"),
 	DT_CLK(NULL, "mcbsp3_fck", "mcbsp3_fck"),
 	DT_CLK(NULL, "mcbsp4_fck", "mcbsp4_fck"),
+	DT_CLK(NULL, "mcbsp5_fck", "mcbsp5_fck"),
 	DT_CLK("etb", "emu_src_ck", "emu_src_ck"),
 	DT_CLK(NULL, "emu_src_ck", "emu_src_ck"),
 	DT_CLK(NULL, "pclk_fck", "pclk_fck"),
@@ -327,7 +322,6 @@ enum {
 	OMAP3_SOC_OMAP3430_ES1,
 	OMAP3_SOC_OMAP3430_ES2_PLUS,
 	OMAP3_SOC_OMAP3630,
-	OMAP3_SOC_TI81XX,
 };
 
 static int __init omap3xxx_dt_clk_init(int soc_type)
@@ -370,7 +364,7 @@ static int __init omap3xxx_dt_clk_init(int soc_type)
 		(clk_get_rate(clk_get_sys(NULL, "core_ck")) / 1000000),
 		(clk_get_rate(clk_get_sys(NULL, "arm_fck")) / 1000000));
 
-	if (soc_type != OMAP3_SOC_TI81XX && soc_type != OMAP3_SOC_OMAP3430_ES1)
+	if (soc_type != OMAP3_SOC_OMAP3430_ES1)
 		omap3_clk_lock_dpll5();
 
 	return 0;
@@ -389,9 +383,4 @@ int __init omap3630_dt_clk_init(void)
 int __init am35xx_dt_clk_init(void)
 {
 	return omap3xxx_dt_clk_init(OMAP3_SOC_AM35XX);
-}
-
-int __init ti81xx_dt_clk_init(void)
-{
-	return omap3xxx_dt_clk_init(OMAP3_SOC_TI81XX);
 }

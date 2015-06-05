@@ -70,12 +70,14 @@ static const int multicast_filter_limit = 32;
 /* Operational parameters that are set at compile time. */
 
 /* Keep the ring sizes a power of two for compile efficiency.
-   The compiler will convert <unsigned>'%'<2^N> into a bit mask.
-   Making the Tx ring too large decreases the effectiveness of channel
-   bonding and packet priority.
-   There are no ill effects from too-large receive rings. */
-#define TX_RING_SIZE	16
-#define TX_QUEUE_LEN	10	/* Limit ring entries actually used. */
+ * The compiler will convert <unsigned>'%'<2^N> into a bit mask.
+ * Making the Tx ring too large decreases the effectiveness of channel
+ * bonding and packet priority.
+ * With BQL support, we can increase TX ring safely.
+ * There are no ill effects from too-large receive rings.
+ */
+#define TX_RING_SIZE	64
+#define TX_QUEUE_LEN	(TX_RING_SIZE - 6)	/* Limit ring entries actually used. */
 #define RX_RING_SIZE	64
 
 /* Operational parameters that usually are not changed. */
@@ -286,7 +288,7 @@ MODULE_DEVICE_TABLE(pci, rhine_pci_tbl);
  * The .data field is currently only used to store quirks
  */
 static u32 vt8500_quirks = rqWOL | rqForceReset | rq6patterns;
-static struct of_device_id rhine_of_tbl[] = {
+static const struct of_device_id rhine_of_tbl[] = {
 	{ .compatible = "via,vt8500-rhine", .data = &vt8500_quirks },
 	{ }	/* terminate list */
 };
@@ -1295,6 +1297,7 @@ static void alloc_tbufs(struct net_device* dev)
 	}
 	rp->tx_ring[i-1].next_desc = cpu_to_le32(rp->tx_ring_dma);
 
+	netdev_reset_queue(dev);
 }
 
 static void free_tbufs(struct net_device* dev)
@@ -1326,7 +1329,8 @@ static void rhine_check_media(struct net_device *dev, unsigned int init_media)
 	struct rhine_private *rp = netdev_priv(dev);
 	void __iomem *ioaddr = rp->base;
 
-	mii_check_media(&rp->mii_if, netif_msg_link(rp), init_media);
+	if (!rp->mii_if.force_media)
+		mii_check_media(&rp->mii_if, netif_msg_link(rp), init_media);
 
 	if (rp->mii_if.full_duplex)
 	    iowrite8(ioread8(ioaddr + ChipCmd1) | Cmd1FDuplex,
@@ -1781,8 +1785,8 @@ static netdev_tx_t rhine_start_tx(struct sk_buff *skb,
 	rp->tx_ring[entry].desc_length =
 		cpu_to_le32(TXDESC | (skb->len >= ETH_ZLEN ? skb->len : ETH_ZLEN));
 
-	if (unlikely(vlan_tx_tag_present(skb))) {
-		u16 vid_pcp = vlan_tx_tag_get(skb);
+	if (unlikely(skb_vlan_tag_present(skb))) {
+		u16 vid_pcp = skb_vlan_tag_get(skb);
 
 		/* drop CFI/DEI bit, register needs VID and PCP */
 		vid_pcp = (vid_pcp & VLAN_VID_MASK) |
@@ -1794,6 +1798,7 @@ static netdev_tx_t rhine_start_tx(struct sk_buff *skb,
 	else
 		rp->tx_ring[entry].tx_status = 0;
 
+	netdev_sent_queue(dev, skb->len);
 	/* lock eth irq */
 	wmb();
 	rp->tx_ring[entry].tx_status |= cpu_to_le32(DescOwn);
@@ -1803,7 +1808,7 @@ static netdev_tx_t rhine_start_tx(struct sk_buff *skb,
 
 	/* Non-x86 Todo: explicitly flush cache lines here. */
 
-	if (vlan_tx_tag_present(skb))
+	if (skb_vlan_tag_present(skb))
 		/* Tx queues are bits 7-0 (first Tx queue: bit 7) */
 		BYTE_REG_BITS_ON(1 << 7, ioaddr + TQWake);
 
@@ -1862,6 +1867,8 @@ static void rhine_tx(struct net_device *dev)
 	struct rhine_private *rp = netdev_priv(dev);
 	struct device *hwdev = dev->dev.parent;
 	int txstatus = 0, entry = rp->dirty_tx % TX_RING_SIZE;
+	unsigned int pkts_compl = 0, bytes_compl = 0;
+	struct sk_buff *skb;
 
 	/* find and cleanup dirty tx descriptors */
 	while (rp->dirty_tx != rp->cur_tx) {
@@ -1870,6 +1877,7 @@ static void rhine_tx(struct net_device *dev)
 			  entry, txstatus);
 		if (txstatus & DescOwn)
 			break;
+		skb = rp->tx_skbuff[entry];
 		if (txstatus & 0x8000) {
 			netif_dbg(rp, tx_done, dev,
 				  "Transmit error, Tx status %08x\n", txstatus);
@@ -1898,7 +1906,7 @@ static void rhine_tx(struct net_device *dev)
 				  (txstatus >> 3) & 0xF, txstatus & 0xF);
 
 			u64_stats_update_begin(&rp->tx_stats.syncp);
-			rp->tx_stats.bytes += rp->tx_skbuff[entry]->len;
+			rp->tx_stats.bytes += skb->len;
 			rp->tx_stats.packets++;
 			u64_stats_update_end(&rp->tx_stats.syncp);
 		}
@@ -1906,13 +1914,17 @@ static void rhine_tx(struct net_device *dev)
 		if (rp->tx_skbuff_dma[entry]) {
 			dma_unmap_single(hwdev,
 					 rp->tx_skbuff_dma[entry],
-					 rp->tx_skbuff[entry]->len,
+					 skb->len,
 					 DMA_TO_DEVICE);
 		}
-		dev_consume_skb_any(rp->tx_skbuff[entry]);
+		bytes_compl += skb->len;
+		pkts_compl++;
+		dev_consume_skb_any(skb);
 		rp->tx_skbuff[entry] = NULL;
 		entry = (++rp->dirty_tx) % TX_RING_SIZE;
 	}
+
+	netdev_completed_queue(dev, pkts_compl, bytes_compl);
 	if ((rp->cur_tx - rp->dirty_tx) < TX_QUEUE_LEN - 4)
 		netif_wake_queue(dev);
 }
@@ -2508,7 +2520,6 @@ static struct platform_driver rhine_driver_platform = {
 	.remove		= rhine_remove_one_platform,
 	.driver = {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table	= rhine_of_tbl,
 		.pm		= RHINE_PM_OPS,
 	}

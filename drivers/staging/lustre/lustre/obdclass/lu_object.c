@@ -866,8 +866,7 @@ static int lu_htable_order(void)
 
 	/* clear off unreasonable cache setting. */
 	if (lu_cache_percent == 0 || lu_cache_percent > LU_CACHE_PERCENT_MAX) {
-		CWARN("obdclass: invalid lu_cache_percent: %u, it must be in"
-		      " the range of (0, %u]. Will use default value: %u.\n",
+		CWARN("obdclass: invalid lu_cache_percent: %u, it must be in the range of (0, %u]. Will use default value: %u.\n",
 		      lu_cache_percent, LU_CACHE_PERCENT_MAX,
 		      LU_CACHE_PERCENT_DEFAULT);
 
@@ -1309,7 +1308,7 @@ static DEFINE_SPINLOCK(lu_keys_guard);
  * lu_context_refill(). No locking is provided, as initialization and shutdown
  * are supposed to be externally serialized.
  */
-static unsigned key_set_version = 0;
+static unsigned key_set_version;
 
 /**
  * Register new key.
@@ -1770,8 +1769,6 @@ EXPORT_SYMBOL(lu_env_refill);
 int lu_env_refill_by_tags(struct lu_env *env, __u32 ctags,
 			  __u32 stags)
 {
-	int    result;
-
 	if ((env->le_ctx.lc_tags & ctags) != ctags) {
 		env->le_ctx.lc_version = 0;
 		env->le_ctx.lc_tags |= ctags;
@@ -1782,9 +1779,7 @@ int lu_env_refill_by_tags(struct lu_env *env, __u32 ctags,
 		env->le_ses->lc_tags |= stags;
 	}
 
-	result = lu_env_refill(env);
-
-	return result;
+	return lu_env_refill(env);
 }
 EXPORT_SYMBOL(lu_env_refill_by_tags);
 
@@ -2015,18 +2010,19 @@ int lu_site_stats_print(const struct lu_site *s, struct seq_file *m)
 	memset(&stats, 0, sizeof(stats));
 	lu_site_stats_get(s->ls_obj_hash, &stats, 1);
 
-	return seq_printf(m, "%d/%d %d/%d %d %d %d %d %d %d %d\n",
-			stats.lss_busy,
-			stats.lss_total,
-			stats.lss_populated,
-			CFS_HASH_NHLIST(s->ls_obj_hash),
-			stats.lss_max_search,
-			ls_stats_read(s->ls_stats, LU_SS_CREATED),
-			ls_stats_read(s->ls_stats, LU_SS_CACHE_HIT),
-			ls_stats_read(s->ls_stats, LU_SS_CACHE_MISS),
-			ls_stats_read(s->ls_stats, LU_SS_CACHE_RACE),
-			ls_stats_read(s->ls_stats, LU_SS_CACHE_DEATH_RACE),
-			ls_stats_read(s->ls_stats, LU_SS_LRU_PURGED));
+	seq_printf(m, "%d/%d %d/%d %d %d %d %d %d %d %d\n",
+		   stats.lss_busy,
+		   stats.lss_total,
+		   stats.lss_populated,
+		   CFS_HASH_NHLIST(s->ls_obj_hash),
+		   stats.lss_max_search,
+		   ls_stats_read(s->ls_stats, LU_SS_CREATED),
+		   ls_stats_read(s->ls_stats, LU_SS_CACHE_HIT),
+		   ls_stats_read(s->ls_stats, LU_SS_CACHE_MISS),
+		   ls_stats_read(s->ls_stats, LU_SS_CACHE_RACE),
+		   ls_stats_read(s->ls_stats, LU_SS_CACHE_DEATH_RACE),
+		   ls_stats_read(s->ls_stats, LU_SS_LRU_PURGED));
+	return 0;
 }
 EXPORT_SYMBOL(lu_site_stats_print);
 

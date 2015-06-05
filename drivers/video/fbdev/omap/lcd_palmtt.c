@@ -109,7 +109,6 @@ static struct platform_driver palmtt_panel_driver = {
 	.resume		= palmtt_panel_resume,
 	.driver		= {
 		.name	= "lcd_palmtt",
-		.owner	= THIS_MODULE,
 	},
 };
 

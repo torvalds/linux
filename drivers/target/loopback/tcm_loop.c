@@ -41,8 +41,7 @@
 
 #define to_tcm_loop_hba(hba)	container_of(hba, struct tcm_loop_hba, dev)
 
-/* Local pointer to allocated TCM configfs fabric module */
-static struct target_fabric_configfs *tcm_loop_fabric_configfs;
+static const struct target_core_fabric_ops loop_ops;
 
 static struct workqueue_struct *tcm_loop_workqueue;
 static struct kmem_cache *tcm_loop_cmd_cache;
@@ -108,59 +107,7 @@ static struct device_driver tcm_loop_driverfs = {
 /*
  * Used with root_device_register() in tcm_loop_alloc_core_bus() below
  */
-struct device *tcm_loop_primary;
-
-/*
- * Copied from drivers/scsi/libfc/fc_fcp.c:fc_change_queue_depth() and
- * drivers/scsi/libiscsi.c:iscsi_change_queue_depth()
- */
-static int tcm_loop_change_queue_depth(
-	struct scsi_device *sdev,
-	int depth,
-	int reason)
-{
-	switch (reason) {
-	case SCSI_QDEPTH_DEFAULT:
-		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), depth);
-		break;
-	case SCSI_QDEPTH_QFULL:
-		scsi_track_queue_full(sdev, depth);
-		break;
-	case SCSI_QDEPTH_RAMP_UP:
-		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), depth);
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-	return sdev->queue_depth;
-}
-
-static int tcm_loop_change_queue_type(struct scsi_device *sdev, int tag)
-{
-	if (sdev->tagged_supported) {
-		scsi_set_tag_type(sdev, tag);
-
-		if (tag)
-			scsi_activate_tcq(sdev, sdev->queue_depth);
-		else
-			scsi_deactivate_tcq(sdev, sdev->queue_depth);
-	} else
-		tag = 0;
-
-	return tag;
-}
-
-/*
- * Locate the SAM Task Attr from struct scsi_cmnd *
- */
-static int tcm_loop_sam_attr(struct scsi_cmnd *sc, int tag)
-{
-	if (sc->device->tagged_supported &&
-	    sc->device->ordered_tags && tag >= 0)
-		return MSG_ORDERED_TAG;
-
-	return MSG_SIMPLE_TAG;
-}
+static struct device *tcm_loop_primary;
 
 static void tcm_loop_submission_work(struct work_struct *work)
 {
@@ -190,7 +137,7 @@ static void tcm_loop_submission_work(struct work_struct *work)
 		set_host_byte(sc, DID_TRANSPORT_DISRUPTED);
 		goto out_done;
 	}
-	tl_nexus = tl_hba->tl_nexus;
+	tl_nexus = tl_tpg->tl_nexus;
 	if (!tl_nexus) {
 		scmd_printk(KERN_ERR, sc, "TCM_Loop I_T Nexus"
 				" does not exist\n");
@@ -220,7 +167,7 @@ static void tcm_loop_submission_work(struct work_struct *work)
 
 	rc = target_submit_cmd_map_sgls(se_cmd, tl_nexus->se_sess, sc->cmnd,
 			&tl_cmd->tl_sense_buf[0], tl_cmd->sc->device->lun,
-			transfer_length, tcm_loop_sam_attr(sc, tl_cmd->sc_cmd_tag),
+			transfer_length, TCM_SIMPLE_TAG,
 			sc->sc_data_direction, 0,
 			scsi_sglist(sc), scsi_sg_count(sc),
 			sgl_bidi, sgl_bidi_count,
@@ -270,15 +217,25 @@ static int tcm_loop_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *sc)
  * to struct scsi_device
  */
 static int tcm_loop_issue_tmr(struct tcm_loop_tpg *tl_tpg,
-			      struct tcm_loop_nexus *tl_nexus,
 			      int lun, int task, enum tcm_tmreq_table tmr)
 {
 	struct se_cmd *se_cmd = NULL;
 	struct se_session *se_sess;
 	struct se_portal_group *se_tpg;
+	struct tcm_loop_nexus *tl_nexus;
 	struct tcm_loop_cmd *tl_cmd = NULL;
 	struct tcm_loop_tmr *tl_tmr = NULL;
 	int ret = TMR_FUNCTION_FAILED, rc;
+
+	/*
+	 * Locate the tl_nexus and se_sess pointers
+	 */
+	tl_nexus = tl_tpg->tl_nexus;
+	if (!tl_nexus) {
+		pr_err("Unable to perform device reset without"
+				" active I_T Nexus\n");
+		return ret;
+	}
 
 	tl_cmd = kmem_cache_zalloc(tcm_loop_cmd_cache, GFP_KERNEL);
 	if (!tl_cmd) {
@@ -295,12 +252,12 @@ static int tcm_loop_issue_tmr(struct tcm_loop_tpg *tl_tpg,
 
 	se_cmd = &tl_cmd->tl_se_cmd;
 	se_tpg = &tl_tpg->tl_se_tpg;
-	se_sess = tl_nexus->se_sess;
+	se_sess = tl_tpg->tl_nexus->se_sess;
 	/*
 	 * Initialize struct se_cmd descriptor from target_core_mod infrastructure
 	 */
 	transport_init_se_cmd(se_cmd, se_tpg->se_tpg_tfo, se_sess, 0,
-				DMA_NONE, MSG_SIMPLE_TAG,
+				DMA_NONE, TCM_SIMPLE_TAG,
 				&tl_cmd->tl_sense_buf[0]);
 
 	rc = core_tmr_alloc_req(se_cmd, tl_tmr, tmr, GFP_KERNEL);
@@ -340,7 +297,6 @@ release:
 static int tcm_loop_abort_task(struct scsi_cmnd *sc)
 {
 	struct tcm_loop_hba *tl_hba;
-	struct tcm_loop_nexus *tl_nexus;
 	struct tcm_loop_tpg *tl_tpg;
 	int ret = FAILED;
 
@@ -348,21 +304,8 @@ static int tcm_loop_abort_task(struct scsi_cmnd *sc)
 	 * Locate the tcm_loop_hba_t pointer
 	 */
 	tl_hba = *(struct tcm_loop_hba **)shost_priv(sc->device->host);
-	/*
-	 * Locate the tl_nexus and se_sess pointers
-	 */
-	tl_nexus = tl_hba->tl_nexus;
-	if (!tl_nexus) {
-		pr_err("Unable to perform device reset without"
-				" active I_T Nexus\n");
-		return FAILED;
-	}
-
-	/*
-	 * Locate the tl_tpg pointer from TargetID in sc->device->id
-	 */
 	tl_tpg = &tl_hba->tl_hba_tpgs[sc->device->id];
-	ret = tcm_loop_issue_tmr(tl_tpg, tl_nexus, sc->device->lun,
+	ret = tcm_loop_issue_tmr(tl_tpg, sc->device->lun,
 				 sc->request->tag, TMR_ABORT_TASK);
 	return (ret == TMR_FUNCTION_COMPLETE) ? SUCCESS : FAILED;
 }
@@ -374,7 +317,6 @@ static int tcm_loop_abort_task(struct scsi_cmnd *sc)
 static int tcm_loop_device_reset(struct scsi_cmnd *sc)
 {
 	struct tcm_loop_hba *tl_hba;
-	struct tcm_loop_nexus *tl_nexus;
 	struct tcm_loop_tpg *tl_tpg;
 	int ret = FAILED;
 
@@ -382,20 +324,9 @@ static int tcm_loop_device_reset(struct scsi_cmnd *sc)
 	 * Locate the tcm_loop_hba_t pointer
 	 */
 	tl_hba = *(struct tcm_loop_hba **)shost_priv(sc->device->host);
-	/*
-	 * Locate the tl_nexus and se_sess pointers
-	 */
-	tl_nexus = tl_hba->tl_nexus;
-	if (!tl_nexus) {
-		pr_err("Unable to perform device reset without"
-				" active I_T Nexus\n");
-		return FAILED;
-	}
-	/*
-	 * Locate the tl_tpg pointer from TargetID in sc->device->id
-	 */
 	tl_tpg = &tl_hba->tl_hba_tpgs[sc->device->id];
-	ret = tcm_loop_issue_tmr(tl_tpg, tl_nexus, sc->device->lun,
+
+	ret = tcm_loop_issue_tmr(tl_tpg, sc->device->lun,
 				 0, TMR_LUN_RESET);
 	return (ret == TMR_FUNCTION_COMPLETE) ? SUCCESS : FAILED;
 }
@@ -431,27 +362,12 @@ static int tcm_loop_slave_alloc(struct scsi_device *sd)
 	return 0;
 }
 
-static int tcm_loop_slave_configure(struct scsi_device *sd)
-{
-	if (sd->tagged_supported) {
-		scsi_activate_tcq(sd, sd->queue_depth);
-		scsi_adjust_queue_depth(sd, MSG_SIMPLE_TAG,
-					sd->host->cmd_per_lun);
-	} else {
-		scsi_adjust_queue_depth(sd, 0,
-					sd->host->cmd_per_lun);
-	}
-
-	return 0;
-}
-
 static struct scsi_host_template tcm_loop_driver_template = {
 	.show_info		= tcm_loop_show_info,
 	.proc_name		= "tcm_loopback",
 	.name			= "TCM_Loopback",
 	.queuecommand		= tcm_loop_queuecommand,
-	.change_queue_depth	= tcm_loop_change_queue_depth,
-	.change_queue_type	= tcm_loop_change_queue_type,
+	.change_queue_depth	= scsi_change_queue_depth,
 	.eh_abort_handler = tcm_loop_abort_task,
 	.eh_device_reset_handler = tcm_loop_device_reset,
 	.eh_target_reset_handler = tcm_loop_target_reset,
@@ -462,8 +378,9 @@ static struct scsi_host_template tcm_loop_driver_template = {
 	.max_sectors		= 0xFFFF,
 	.use_clustering		= DISABLE_CLUSTERING,
 	.slave_alloc		= tcm_loop_slave_alloc,
-	.slave_configure	= tcm_loop_slave_configure,
 	.module			= THIS_MODULE,
+	.use_blk_tags		= 1,
+	.track_queue_depth	= 1,
 };
 
 static int tcm_loop_driver_probe(struct device *dev)
@@ -779,6 +696,13 @@ static int tcm_loop_check_prod_mode_write_protect(struct se_portal_group *se_tpg
 	return 0;
 }
 
+static int tcm_loop_check_prot_fabric_only(struct se_portal_group *se_tpg)
+{
+	struct tcm_loop_tpg *tl_tpg = container_of(se_tpg, struct tcm_loop_tpg,
+						   tl_se_tpg);
+	return tl_tpg->tl_fabric_prot_type;
+}
+
 static struct se_node_acl *tcm_loop_tpg_alloc_fabric_acl(
 	struct se_portal_group *se_tpg)
 {
@@ -994,6 +918,46 @@ static void tcm_loop_port_unlink(
 
 /* End items for tcm_loop_port_cit */
 
+static ssize_t tcm_loop_tpg_attrib_show_fabric_prot_type(
+	struct se_portal_group *se_tpg,
+	char *page)
+{
+	struct tcm_loop_tpg *tl_tpg = container_of(se_tpg, struct tcm_loop_tpg,
+						   tl_se_tpg);
+
+	return sprintf(page, "%d\n", tl_tpg->tl_fabric_prot_type);
+}
+
+static ssize_t tcm_loop_tpg_attrib_store_fabric_prot_type(
+	struct se_portal_group *se_tpg,
+	const char *page,
+	size_t count)
+{
+	struct tcm_loop_tpg *tl_tpg = container_of(se_tpg, struct tcm_loop_tpg,
+						   tl_se_tpg);
+	unsigned long val;
+	int ret = kstrtoul(page, 0, &val);
+
+	if (ret) {
+		pr_err("kstrtoul() returned %d for fabric_prot_type\n", ret);
+		return ret;
+	}
+	if (val != 0 && val != 1 && val != 3) {
+		pr_err("Invalid qla2xxx fabric_prot_type: %lu\n", val);
+		return -EINVAL;
+	}
+	tl_tpg->tl_fabric_prot_type = val;
+
+	return count;
+}
+
+TF_TPG_ATTRIB_ATTR(tcm_loop, fabric_prot_type, S_IRUGO | S_IWUSR);
+
+static struct configfs_attribute *tcm_loop_tpg_attrib_attrs[] = {
+	&tcm_loop_tpg_attrib_fabric_prot_type.attr,
+	NULL,
+};
+
 /* Start items for tcm_loop_nexus_cit */
 
 static int tcm_loop_make_nexus(
@@ -1005,8 +969,8 @@ static int tcm_loop_make_nexus(
 	struct tcm_loop_nexus *tl_nexus;
 	int ret = -ENOMEM;
 
-	if (tl_tpg->tl_hba->tl_nexus) {
-		pr_debug("tl_tpg->tl_hba->tl_nexus already exists\n");
+	if (tl_tpg->tl_nexus) {
+		pr_debug("tl_tpg->tl_nexus already exists\n");
 		return -EEXIST;
 	}
 	se_tpg = &tl_tpg->tl_se_tpg;
@@ -1019,7 +983,8 @@ static int tcm_loop_make_nexus(
 	/*
 	 * Initialize the struct se_session pointer
 	 */
-	tl_nexus->se_sess = transport_init_session(TARGET_PROT_ALL);
+	tl_nexus->se_sess = transport_init_session(
+				TARGET_PROT_DIN_PASS | TARGET_PROT_DOUT_PASS);
 	if (IS_ERR(tl_nexus->se_sess)) {
 		ret = PTR_ERR(tl_nexus->se_sess);
 		goto out;
@@ -1035,13 +1000,10 @@ static int tcm_loop_make_nexus(
 		transport_free_session(tl_nexus->se_sess);
 		goto out;
 	}
-	/*
-	 * Now, register the SAS I_T Nexus as active with the call to
-	 * transport_register_session()
-	 */
-	__transport_register_session(se_tpg, tl_nexus->se_sess->se_node_acl,
+	/* Now, register the SAS I_T Nexus as active. */
+	transport_register_session(se_tpg, tl_nexus->se_sess->se_node_acl,
 			tl_nexus->se_sess, tl_nexus);
-	tl_tpg->tl_hba->tl_nexus = tl_nexus;
+	tl_tpg->tl_nexus = tl_nexus;
 	pr_debug("TCM_Loop_ConfigFS: Established I_T Nexus to emulated"
 		" %s Initiator Port: %s\n", tcm_loop_dump_proto_id(tl_hba),
 		name);
@@ -1057,12 +1019,8 @@ static int tcm_loop_drop_nexus(
 {
 	struct se_session *se_sess;
 	struct tcm_loop_nexus *tl_nexus;
-	struct tcm_loop_hba *tl_hba = tpg->tl_hba;
 
-	if (!tl_hba)
-		return -ENODEV;
-
-	tl_nexus = tl_hba->tl_nexus;
+	tl_nexus = tpg->tl_nexus;
 	if (!tl_nexus)
 		return -ENODEV;
 
@@ -1078,13 +1036,13 @@ static int tcm_loop_drop_nexus(
 	}
 
 	pr_debug("TCM_Loop_ConfigFS: Removing I_T Nexus to emulated"
-		" %s Initiator Port: %s\n", tcm_loop_dump_proto_id(tl_hba),
+		" %s Initiator Port: %s\n", tcm_loop_dump_proto_id(tpg->tl_hba),
 		tl_nexus->se_sess->se_node_acl->initiatorname);
 	/*
 	 * Release the SCSI I_T Nexus to the emulated SAS Target Port
 	 */
 	transport_deregister_session(tl_nexus->se_sess);
-	tpg->tl_hba->tl_nexus = NULL;
+	tpg->tl_nexus = NULL;
 	kfree(tl_nexus);
 	return 0;
 }
@@ -1100,7 +1058,7 @@ static ssize_t tcm_loop_tpg_show_nexus(
 	struct tcm_loop_nexus *tl_nexus;
 	ssize_t ret;
 
-	tl_nexus = tl_tpg->tl_hba->tl_nexus;
+	tl_nexus = tl_tpg->tl_nexus;
 	if (!tl_nexus)
 		return -ENODEV;
 
@@ -1254,21 +1212,19 @@ static struct se_portal_group *tcm_loop_make_naa_tpg(
 	struct tcm_loop_hba *tl_hba = container_of(wwn,
 			struct tcm_loop_hba, tl_hba_wwn);
 	struct tcm_loop_tpg *tl_tpg;
-	char *tpgt_str, *end_ptr;
 	int ret;
-	unsigned short int tpgt;
+	unsigned long tpgt;
 
-	tpgt_str = strstr(name, "tpgt_");
-	if (!tpgt_str) {
+	if (strstr(name, "tpgt_") != name) {
 		pr_err("Unable to locate \"tpgt_#\" directory"
 				" group\n");
 		return ERR_PTR(-EINVAL);
 	}
-	tpgt_str += 5; /* Skip ahead of "tpgt_" */
-	tpgt = (unsigned short int) simple_strtoul(tpgt_str, &end_ptr, 0);
+	if (kstrtoul(name+5, 10, &tpgt))
+		return ERR_PTR(-EINVAL);
 
 	if (tpgt >= TL_TPGS_PER_HBA) {
-		pr_err("Passed tpgt: %hu exceeds TL_TPGS_PER_HBA:"
+		pr_err("Passed tpgt: %lu exceeds TL_TPGS_PER_HBA:"
 				" %u\n", tpgt, TL_TPGS_PER_HBA);
 		return ERR_PTR(-EINVAL);
 	}
@@ -1278,14 +1234,13 @@ static struct se_portal_group *tcm_loop_make_naa_tpg(
 	/*
 	 * Register the tl_tpg as a emulated SAS TCM Target Endpoint
 	 */
-	ret = core_tpg_register(&tcm_loop_fabric_configfs->tf_ops,
-			wwn, &tl_tpg->tl_se_tpg, tl_tpg,
+	ret = core_tpg_register(&loop_ops, wwn, &tl_tpg->tl_se_tpg, tl_tpg,
 			TRANSPORT_TPG_TYPE_NORMAL);
 	if (ret < 0)
 		return ERR_PTR(-ENOMEM);
 
 	pr_debug("TCM_Loop_ConfigFS: Allocated Emulated %s"
-		" Target Port %s,t,0x%04x\n", tcm_loop_dump_proto_id(tl_hba),
+		" Target Port %s,t,0x%04lx\n", tcm_loop_dump_proto_id(tl_hba),
 		config_item_name(&wwn->wwn_group.cg_item), tpgt);
 
 	return &tl_tpg->tl_se_tpg;
@@ -1427,127 +1382,51 @@ static struct configfs_attribute *tcm_loop_wwn_attrs[] = {
 
 /* End items for tcm_loop_cit */
 
-static int tcm_loop_register_configfs(void)
-{
-	struct target_fabric_configfs *fabric;
-	int ret;
-	/*
-	 * Set the TCM Loop HBA counter to zero
-	 */
-	tcm_loop_hba_no_cnt = 0;
-	/*
-	 * Register the top level struct config_item_type with TCM core
-	 */
-	fabric = target_fabric_configfs_init(THIS_MODULE, "loopback");
-	if (IS_ERR(fabric)) {
-		pr_err("tcm_loop_register_configfs() failed!\n");
-		return PTR_ERR(fabric);
-	}
-	/*
-	 * Setup the fabric API of function pointers used by target_core_mod
-	 */
-	fabric->tf_ops.get_fabric_name = &tcm_loop_get_fabric_name;
-	fabric->tf_ops.get_fabric_proto_ident = &tcm_loop_get_fabric_proto_ident;
-	fabric->tf_ops.tpg_get_wwn = &tcm_loop_get_endpoint_wwn;
-	fabric->tf_ops.tpg_get_tag = &tcm_loop_get_tag;
-	fabric->tf_ops.tpg_get_default_depth = &tcm_loop_get_default_depth;
-	fabric->tf_ops.tpg_get_pr_transport_id = &tcm_loop_get_pr_transport_id;
-	fabric->tf_ops.tpg_get_pr_transport_id_len =
-					&tcm_loop_get_pr_transport_id_len;
-	fabric->tf_ops.tpg_parse_pr_out_transport_id =
-					&tcm_loop_parse_pr_out_transport_id;
-	fabric->tf_ops.tpg_check_demo_mode = &tcm_loop_check_demo_mode;
-	fabric->tf_ops.tpg_check_demo_mode_cache =
-					&tcm_loop_check_demo_mode_cache;
-	fabric->tf_ops.tpg_check_demo_mode_write_protect =
-					&tcm_loop_check_demo_mode_write_protect;
-	fabric->tf_ops.tpg_check_prod_mode_write_protect =
-					&tcm_loop_check_prod_mode_write_protect;
-	/*
-	 * The TCM loopback fabric module runs in demo-mode to a local
-	 * virtual SCSI device, so fabric dependent initator ACLs are
-	 * not required.
-	 */
-	fabric->tf_ops.tpg_alloc_fabric_acl = &tcm_loop_tpg_alloc_fabric_acl;
-	fabric->tf_ops.tpg_release_fabric_acl =
-					&tcm_loop_tpg_release_fabric_acl;
-	fabric->tf_ops.tpg_get_inst_index = &tcm_loop_get_inst_index;
-	/*
-	 * Used for setting up remaining TCM resources in process context
-	 */
-	fabric->tf_ops.check_stop_free = &tcm_loop_check_stop_free;
-	fabric->tf_ops.release_cmd = &tcm_loop_release_cmd;
-	fabric->tf_ops.shutdown_session = &tcm_loop_shutdown_session;
-	fabric->tf_ops.close_session = &tcm_loop_close_session;
-	fabric->tf_ops.sess_get_index = &tcm_loop_sess_get_index;
-	fabric->tf_ops.sess_get_initiator_sid = NULL;
-	fabric->tf_ops.write_pending = &tcm_loop_write_pending;
-	fabric->tf_ops.write_pending_status = &tcm_loop_write_pending_status;
-	/*
-	 * Not used for TCM loopback
-	 */
-	fabric->tf_ops.set_default_node_attributes =
-					&tcm_loop_set_default_node_attributes;
-	fabric->tf_ops.get_task_tag = &tcm_loop_get_task_tag;
-	fabric->tf_ops.get_cmd_state = &tcm_loop_get_cmd_state;
-	fabric->tf_ops.queue_data_in = &tcm_loop_queue_data_in;
-	fabric->tf_ops.queue_status = &tcm_loop_queue_status;
-	fabric->tf_ops.queue_tm_rsp = &tcm_loop_queue_tm_rsp;
-	fabric->tf_ops.aborted_task = &tcm_loop_aborted_task;
-
-	/*
-	 * Setup function pointers for generic logic in target_core_fabric_configfs.c
-	 */
-	fabric->tf_ops.fabric_make_wwn = &tcm_loop_make_scsi_hba;
-	fabric->tf_ops.fabric_drop_wwn = &tcm_loop_drop_scsi_hba;
-	fabric->tf_ops.fabric_make_tpg = &tcm_loop_make_naa_tpg;
-	fabric->tf_ops.fabric_drop_tpg = &tcm_loop_drop_naa_tpg;
-	/*
-	 * fabric_post_link() and fabric_pre_unlink() are used for
-	 * registration and release of TCM Loop Virtual SCSI LUNs.
-	 */
-	fabric->tf_ops.fabric_post_link = &tcm_loop_port_link;
-	fabric->tf_ops.fabric_pre_unlink = &tcm_loop_port_unlink;
-	fabric->tf_ops.fabric_make_np = NULL;
-	fabric->tf_ops.fabric_drop_np = NULL;
-	/*
-	 * Setup default attribute lists for various fabric->tf_cit_tmpl
-	 */
-	fabric->tf_cit_tmpl.tfc_wwn_cit.ct_attrs = tcm_loop_wwn_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_base_cit.ct_attrs = tcm_loop_tpg_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_attrib_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_param_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_np_base_cit.ct_attrs = NULL;
-	/*
-	 * Once fabric->tf_ops has been setup, now register the fabric for
-	 * use within TCM
-	 */
-	ret = target_fabric_configfs_register(fabric);
-	if (ret < 0) {
-		pr_err("target_fabric_configfs_register() for"
-				" TCM_Loop failed!\n");
-		target_fabric_configfs_free(fabric);
-		return -1;
-	}
-	/*
-	 * Setup our local pointer to *fabric.
-	 */
-	tcm_loop_fabric_configfs = fabric;
-	pr_debug("TCM_LOOP[0] - Set fabric ->"
-			" tcm_loop_fabric_configfs\n");
-	return 0;
-}
-
-static void tcm_loop_deregister_configfs(void)
-{
-	if (!tcm_loop_fabric_configfs)
-		return;
-
-	target_fabric_configfs_deregister(tcm_loop_fabric_configfs);
-	tcm_loop_fabric_configfs = NULL;
-	pr_debug("TCM_LOOP[0] - Cleared"
-				" tcm_loop_fabric_configfs\n");
-}
+static const struct target_core_fabric_ops loop_ops = {
+	.module				= THIS_MODULE,
+	.name				= "loopback",
+	.get_fabric_name		= tcm_loop_get_fabric_name,
+	.get_fabric_proto_ident		= tcm_loop_get_fabric_proto_ident,
+	.tpg_get_wwn			= tcm_loop_get_endpoint_wwn,
+	.tpg_get_tag			= tcm_loop_get_tag,
+	.tpg_get_default_depth		= tcm_loop_get_default_depth,
+	.tpg_get_pr_transport_id	= tcm_loop_get_pr_transport_id,
+	.tpg_get_pr_transport_id_len	= tcm_loop_get_pr_transport_id_len,
+	.tpg_parse_pr_out_transport_id	= tcm_loop_parse_pr_out_transport_id,
+	.tpg_check_demo_mode		= tcm_loop_check_demo_mode,
+	.tpg_check_demo_mode_cache	= tcm_loop_check_demo_mode_cache,
+	.tpg_check_demo_mode_write_protect =
+				tcm_loop_check_demo_mode_write_protect,
+	.tpg_check_prod_mode_write_protect =
+				tcm_loop_check_prod_mode_write_protect,
+	.tpg_check_prot_fabric_only	= tcm_loop_check_prot_fabric_only,
+	.tpg_alloc_fabric_acl		= tcm_loop_tpg_alloc_fabric_acl,
+	.tpg_release_fabric_acl		= tcm_loop_tpg_release_fabric_acl,
+	.tpg_get_inst_index		= tcm_loop_get_inst_index,
+	.check_stop_free		= tcm_loop_check_stop_free,
+	.release_cmd			= tcm_loop_release_cmd,
+	.shutdown_session		= tcm_loop_shutdown_session,
+	.close_session			= tcm_loop_close_session,
+	.sess_get_index			= tcm_loop_sess_get_index,
+	.write_pending			= tcm_loop_write_pending,
+	.write_pending_status		= tcm_loop_write_pending_status,
+	.set_default_node_attributes	= tcm_loop_set_default_node_attributes,
+	.get_task_tag			= tcm_loop_get_task_tag,
+	.get_cmd_state			= tcm_loop_get_cmd_state,
+	.queue_data_in			= tcm_loop_queue_data_in,
+	.queue_status			= tcm_loop_queue_status,
+	.queue_tm_rsp			= tcm_loop_queue_tm_rsp,
+	.aborted_task			= tcm_loop_aborted_task,
+	.fabric_make_wwn		= tcm_loop_make_scsi_hba,
+	.fabric_drop_wwn		= tcm_loop_drop_scsi_hba,
+	.fabric_make_tpg		= tcm_loop_make_naa_tpg,
+	.fabric_drop_tpg		= tcm_loop_drop_naa_tpg,
+	.fabric_post_link		= tcm_loop_port_link,
+	.fabric_pre_unlink		= tcm_loop_port_unlink,
+	.tfc_wwn_attrs			= tcm_loop_wwn_attrs,
+	.tfc_tpg_base_attrs		= tcm_loop_tpg_attrs,
+	.tfc_tpg_attrib_attrs		= tcm_loop_tpg_attrib_attrs,
+};
 
 static int __init tcm_loop_fabric_init(void)
 {
@@ -1571,7 +1450,7 @@ static int __init tcm_loop_fabric_init(void)
 	if (ret)
 		goto out_destroy_cache;
 
-	ret = tcm_loop_register_configfs();
+	ret = target_register_template(&loop_ops);
 	if (ret)
 		goto out_release_core_bus;
 
@@ -1589,7 +1468,7 @@ out:
 
 static void __exit tcm_loop_fabric_exit(void)
 {
-	tcm_loop_deregister_configfs();
+	target_unregister_template(&loop_ops);
 	tcm_loop_release_core_bus();
 	kmem_cache_destroy(tcm_loop_cmd_cache);
 	destroy_workqueue(tcm_loop_workqueue);

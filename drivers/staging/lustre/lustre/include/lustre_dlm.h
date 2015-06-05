@@ -1075,7 +1075,7 @@ extern char *ldlm_it2str(int it);
 void _ldlm_lock_debug(struct ldlm_lock *lock,
 		      struct libcfs_debug_msg_data *data,
 		      const char *fmt, ...)
-	__attribute__ ((format (printf, 3, 4)));
+	__printf(3, 4);
 
 /**
  * Rate-limited version of lock printing function.
@@ -1446,7 +1446,7 @@ static inline void check_res_locked(struct ldlm_resource *res)
 	assert_spin_locked(&res->lr_lock);
 }
 
-struct ldlm_resource * lock_res_and_lock(struct ldlm_lock *lock);
+struct ldlm_resource *lock_res_and_lock(struct ldlm_lock *lock);
 void unlock_res_and_lock(struct ldlm_lock *lock);
 
 /* ldlm_pool.c */

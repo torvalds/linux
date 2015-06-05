@@ -284,8 +284,7 @@ static void ad7879_close(struct input_dev* input)
 		__ad7879_disable(ts);
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int ad7879_suspend(struct device *dev)
+static int __maybe_unused ad7879_suspend(struct device *dev)
 {
 	struct ad7879 *ts = dev_get_drvdata(dev);
 
@@ -301,7 +300,7 @@ static int ad7879_suspend(struct device *dev)
 	return 0;
 }
 
-static int ad7879_resume(struct device *dev)
+static int __maybe_unused ad7879_resume(struct device *dev)
 {
 	struct ad7879 *ts = dev_get_drvdata(dev);
 
@@ -316,7 +315,6 @@ static int ad7879_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 SIMPLE_DEV_PM_OPS(ad7879_pm_ops, ad7879_suspend, ad7879_resume);
 EXPORT_SYMBOL(ad7879_pm_ops);

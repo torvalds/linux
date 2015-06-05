@@ -1029,7 +1029,6 @@ static const struct dev_pm_ops dm644x_ccdc_pm_ops = {
 static struct platform_driver dm644x_ccdc_driver = {
 	.driver = {
 		.name	= "dm644x_ccdc",
-		.owner = THIS_MODULE,
 		.pm = &dm644x_ccdc_pm_ops,
 	},
 	.remove = dm644x_ccdc_remove,

@@ -599,7 +599,7 @@ static void wm8996_bg_disable(struct snd_soc_codec *codec)
 static int bg_event(struct snd_soc_dapm_widget *w,
 		    struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	int ret = 0;
 
 	switch (event) {
@@ -634,7 +634,8 @@ static int cp_event(struct snd_soc_dapm_widget *w,
 static int rmv_short_event(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
 {
-	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(w->codec);
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
 
 	/* Record which outputs we enabled */
 	switch (event) {
@@ -758,7 +759,8 @@ static void wm8996_seq_notifier(struct snd_soc_dapm_context *dapm,
 static int dcs_start(struct snd_soc_dapm_widget *w,
 		     struct snd_kcontrol *kcontrol, int event)
 {
-	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(w->codec);
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -2007,7 +2009,7 @@ static int wm8996_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
 	struct i2c_client *i2c = to_i2c_client(codec->dev);
 	struct _fll_div fll_div;
-	unsigned long timeout;
+	unsigned long timeout, time_left;
 	int ret, reg, retry;
 
 	/* Any change? */
@@ -2108,13 +2110,15 @@ static int wm8996_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	if (i2c->irq)
 		timeout *= 10;
 	else
-		timeout /= 2;
+		/* ensure timeout of atleast 1 jiffies */
+		timeout = timeout/2 ? : 1;
 
 	for (retry = 0; retry < 10; retry++) {
-		ret = wait_for_completion_timeout(&wm8996->fll_lock,
-						  timeout);
-		if (ret != 0) {
+		time_left = wait_for_completion_timeout(&wm8996->fll_lock,
+							timeout);
+		if (time_left != 0) {
 			WARN_ON(!i2c->irq);
+			ret = 1;
 			break;
 		}
 

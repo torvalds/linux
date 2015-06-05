@@ -89,7 +89,6 @@ struct spi_imx_data {
 
 	struct completion xfer_done;
 	void __iomem *base;
-	int irq;
 	struct clk *clk_per;
 	struct clk *clk_ipg;
 	unsigned long spi_clk;
@@ -371,8 +370,6 @@ static int __maybe_unused mx51_ecspi_config(struct spi_imx_data *spi_imx,
 	if (spi_imx->dma_is_inited) {
 		dma = readl(spi_imx->base + MX51_ECSPI_DMA);
 
-		spi_imx->tx_wml = spi_imx_get_fifosize(spi_imx) / 2;
-		spi_imx->rx_wml = spi_imx_get_fifosize(spi_imx) / 2;
 		spi_imx->rxt_wml = spi_imx_get_fifosize(spi_imx) / 2;
 		rx_wml_cfg = spi_imx->rx_wml << MX51_ECSPI_DMA_RX_WML_OFFSET;
 		tx_wml_cfg = spi_imx->tx_wml << MX51_ECSPI_DMA_TX_WML_OFFSET;
@@ -823,6 +820,10 @@ static int spi_imx_sdma_init(struct device *dev, struct spi_imx_data *spi_imx,
 	struct dma_slave_config slave_config = {};
 	int ret;
 
+	/* use pio mode for i.mx6dl chip TKT238285 */
+	if (of_machine_is_compatible("fsl,imx6dl"))
+		return 0;
+
 	/* Prepare for TX DMA: */
 	master->dma_tx = dma_request_slave_channel(dev, "tx");
 	if (!master->dma_tx) {
@@ -865,6 +866,8 @@ static int spi_imx_sdma_init(struct device *dev, struct spi_imx_data *spi_imx,
 	master->max_dma_len = MAX_SDMA_BD_BYTES;
 	spi_imx->bitbang.master->flags = SPI_MASTER_MUST_RX |
 					 SPI_MASTER_MUST_TX;
+	spi_imx->tx_wml = spi_imx_get_fifosize(spi_imx) / 2;
+	spi_imx->rx_wml = spi_imx_get_fifosize(spi_imx) / 2;
 	spi_imx->dma_is_inited = 1;
 
 	return 0;
@@ -892,6 +895,7 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 {
 	struct dma_async_tx_descriptor *desc_tx = NULL, *desc_rx = NULL;
 	int ret;
+	unsigned long timeout;
 	u32 dma;
 	int left;
 	struct spi_master *master = spi_imx->bitbang.master;
@@ -899,7 +903,7 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 
 	if (tx) {
 		desc_tx = dmaengine_prep_slave_sg(master->dma_tx,
-					tx->sgl, tx->nents, DMA_TO_DEVICE,
+					tx->sgl, tx->nents, DMA_MEM_TO_DEV,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 		if (!desc_tx)
 			goto no_dma;
@@ -911,7 +915,7 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 
 	if (rx) {
 		desc_rx = dmaengine_prep_slave_sg(master->dma_rx,
-					rx->sgl, rx->nents, DMA_FROM_DEVICE,
+					rx->sgl, rx->nents, DMA_DEV_TO_MEM,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 		if (!desc_rx)
 			goto no_dma;
@@ -939,17 +943,17 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 	dma_async_issue_pending(master->dma_tx);
 	dma_async_issue_pending(master->dma_rx);
 	/* Wait SDMA to finish the data transfer.*/
-	ret = wait_for_completion_timeout(&spi_imx->dma_tx_completion,
+	timeout = wait_for_completion_timeout(&spi_imx->dma_tx_completion,
 						IMX_DMA_TIMEOUT);
-	if (!ret) {
+	if (!timeout) {
 		pr_warn("%s %s: I/O Error in DMA TX\n",
 			dev_driver_string(&master->dev),
 			dev_name(&master->dev));
 		dmaengine_terminate_all(master->dma_tx);
 	} else {
-		ret = wait_for_completion_timeout(&spi_imx->dma_rx_completion,
-				IMX_DMA_TIMEOUT);
-		if (!ret) {
+		timeout = wait_for_completion_timeout(
+				&spi_imx->dma_rx_completion, IMX_DMA_TIMEOUT);
+		if (!timeout) {
 			pr_warn("%s %s: I/O Error in DMA RX\n",
 				dev_driver_string(&master->dev),
 				dev_name(&master->dev));
@@ -964,9 +968,9 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 	spi_imx->dma_finished = 1;
 	spi_imx->devtype_data->trigger(spi_imx);
 
-	if (!ret)
+	if (!timeout)
 		ret = -ETIMEDOUT;
-	else if (ret > 0)
+	else
 		ret = transfer->len;
 
 	return ret;
@@ -1076,7 +1080,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 	struct spi_master *master;
 	struct spi_imx_data *spi_imx;
 	struct resource *res;
-	int i, ret, num_cs;
+	int i, ret, num_cs, irq;
 
 	if (!np && !mxc_platform_info) {
 		dev_err(&pdev->dev, "can't get the platform data\n");
@@ -1143,16 +1147,16 @@ static int spi_imx_probe(struct platform_device *pdev)
 		goto out_master_put;
 	}
 
-	spi_imx->irq = platform_get_irq(pdev, 0);
-	if (spi_imx->irq < 0) {
-		ret = spi_imx->irq;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		ret = irq;
 		goto out_master_put;
 	}
 
-	ret = devm_request_irq(&pdev->dev, spi_imx->irq, spi_imx_isr, 0,
+	ret = devm_request_irq(&pdev->dev, irq, spi_imx_isr, 0,
 			       dev_name(&pdev->dev), spi_imx);
 	if (ret) {
-		dev_err(&pdev->dev, "can't get irq%d: %d\n", spi_imx->irq, ret);
+		dev_err(&pdev->dev, "can't get irq%d: %d\n", irq, ret);
 		goto out_master_put;
 	}
 
@@ -1231,7 +1235,6 @@ static int spi_imx_remove(struct platform_device *pdev)
 static struct platform_driver spi_imx_driver = {
 	.driver = {
 		   .name = DRIVER_NAME,
-		   .owner = THIS_MODULE,
 		   .of_match_table = spi_imx_dt_ids,
 		   },
 	.id_table = spi_imx_devtype,

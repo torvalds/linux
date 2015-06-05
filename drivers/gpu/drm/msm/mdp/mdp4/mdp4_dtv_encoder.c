@@ -94,61 +94,6 @@ static const struct drm_encoder_funcs mdp4_dtv_encoder_funcs = {
 	.destroy = mdp4_dtv_encoder_destroy,
 };
 
-static void mdp4_dtv_encoder_dpms(struct drm_encoder *encoder, int mode)
-{
-	struct drm_device *dev = encoder->dev;
-	struct mdp4_dtv_encoder *mdp4_dtv_encoder = to_mdp4_dtv_encoder(encoder);
-	struct mdp4_kms *mdp4_kms = get_kms(encoder);
-	bool enabled = (mode == DRM_MODE_DPMS_ON);
-
-	DBG("mode=%d", mode);
-
-	if (enabled == mdp4_dtv_encoder->enabled)
-		return;
-
-	if (enabled) {
-		unsigned long pc = mdp4_dtv_encoder->pixclock;
-		int ret;
-
-		bs_set(mdp4_dtv_encoder, 1);
-
-		DBG("setting src_clk=%lu", pc);
-
-		ret = clk_set_rate(mdp4_dtv_encoder->src_clk, pc);
-		if (ret)
-			dev_err(dev->dev, "failed to set src_clk to %lu: %d\n", pc, ret);
-		clk_prepare_enable(mdp4_dtv_encoder->src_clk);
-		ret = clk_prepare_enable(mdp4_dtv_encoder->hdmi_clk);
-		if (ret)
-			dev_err(dev->dev, "failed to enable hdmi_clk: %d\n", ret);
-		ret = clk_prepare_enable(mdp4_dtv_encoder->mdp_clk);
-		if (ret)
-			dev_err(dev->dev, "failed to enabled mdp_clk: %d\n", ret);
-
-		mdp4_write(mdp4_kms, REG_MDP4_DTV_ENABLE, 1);
-	} else {
-		mdp4_write(mdp4_kms, REG_MDP4_DTV_ENABLE, 0);
-
-		/*
-		 * Wait for a vsync so we know the ENABLE=0 latched before
-		 * the (connector) source of the vsync's gets disabled,
-		 * otherwise we end up in a funny state if we re-enable
-		 * before the disable latches, which results that some of
-		 * the settings changes for the new modeset (like new
-		 * scanout buffer) don't latch properly..
-		 */
-		mdp_irq_wait(&mdp4_kms->base, MDP4_IRQ_EXTERNAL_VSYNC);
-
-		clk_disable_unprepare(mdp4_dtv_encoder->src_clk);
-		clk_disable_unprepare(mdp4_dtv_encoder->hdmi_clk);
-		clk_disable_unprepare(mdp4_dtv_encoder->mdp_clk);
-
-		bs_set(mdp4_dtv_encoder, 0);
-	}
-
-	mdp4_dtv_encoder->enabled = enabled;
-}
-
 static bool mdp4_dtv_encoder_mode_fixup(struct drm_encoder *encoder,
 		const struct drm_display_mode *mode,
 		struct drm_display_mode *adjusted_mode)
@@ -221,28 +166,78 @@ static void mdp4_dtv_encoder_mode_set(struct drm_encoder *encoder,
 	mdp4_write(mdp4_kms, REG_MDP4_DTV_ACTIVE_VEND, 0);
 }
 
-static void mdp4_dtv_encoder_prepare(struct drm_encoder *encoder)
+static void mdp4_dtv_encoder_disable(struct drm_encoder *encoder)
 {
-	mdp4_dtv_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
+	struct mdp4_dtv_encoder *mdp4_dtv_encoder = to_mdp4_dtv_encoder(encoder);
+	struct mdp4_kms *mdp4_kms = get_kms(encoder);
+
+	if (WARN_ON(!mdp4_dtv_encoder->enabled))
+		return;
+
+	mdp4_write(mdp4_kms, REG_MDP4_DTV_ENABLE, 0);
+
+	/*
+	 * Wait for a vsync so we know the ENABLE=0 latched before
+	 * the (connector) source of the vsync's gets disabled,
+	 * otherwise we end up in a funny state if we re-enable
+	 * before the disable latches, which results that some of
+	 * the settings changes for the new modeset (like new
+	 * scanout buffer) don't latch properly..
+	 */
+	mdp_irq_wait(&mdp4_kms->base, MDP4_IRQ_EXTERNAL_VSYNC);
+
+	clk_disable_unprepare(mdp4_dtv_encoder->src_clk);
+	clk_disable_unprepare(mdp4_dtv_encoder->hdmi_clk);
+	clk_disable_unprepare(mdp4_dtv_encoder->mdp_clk);
+
+	bs_set(mdp4_dtv_encoder, 0);
+
+	mdp4_dtv_encoder->enabled = false;
 }
 
-static void mdp4_dtv_encoder_commit(struct drm_encoder *encoder)
+static void mdp4_dtv_encoder_enable(struct drm_encoder *encoder)
 {
+	struct drm_device *dev = encoder->dev;
+	struct mdp4_dtv_encoder *mdp4_dtv_encoder = to_mdp4_dtv_encoder(encoder);
+	struct mdp4_kms *mdp4_kms = get_kms(encoder);
+	unsigned long pc = mdp4_dtv_encoder->pixclock;
+	int ret;
+
+	if (WARN_ON(mdp4_dtv_encoder->enabled))
+		return;
+
 	mdp4_crtc_set_config(encoder->crtc,
 			MDP4_DMA_CONFIG_R_BPC(BPC8) |
 			MDP4_DMA_CONFIG_G_BPC(BPC8) |
 			MDP4_DMA_CONFIG_B_BPC(BPC8) |
 			MDP4_DMA_CONFIG_PACK(0x21));
 	mdp4_crtc_set_intf(encoder->crtc, INTF_LCDC_DTV, 1);
-	mdp4_dtv_encoder_dpms(encoder, DRM_MODE_DPMS_ON);
+
+	bs_set(mdp4_dtv_encoder, 1);
+
+	DBG("setting src_clk=%lu", pc);
+
+	ret = clk_set_rate(mdp4_dtv_encoder->src_clk, pc);
+	if (ret)
+		dev_err(dev->dev, "failed to set src_clk to %lu: %d\n", pc, ret);
+	clk_prepare_enable(mdp4_dtv_encoder->src_clk);
+	ret = clk_prepare_enable(mdp4_dtv_encoder->hdmi_clk);
+	if (ret)
+		dev_err(dev->dev, "failed to enable hdmi_clk: %d\n", ret);
+	ret = clk_prepare_enable(mdp4_dtv_encoder->mdp_clk);
+	if (ret)
+		dev_err(dev->dev, "failed to enabled mdp_clk: %d\n", ret);
+
+	mdp4_write(mdp4_kms, REG_MDP4_DTV_ENABLE, 1);
+
+	mdp4_dtv_encoder->enabled = true;
 }
 
 static const struct drm_encoder_helper_funcs mdp4_dtv_encoder_helper_funcs = {
-	.dpms = mdp4_dtv_encoder_dpms,
 	.mode_fixup = mdp4_dtv_encoder_mode_fixup,
 	.mode_set = mdp4_dtv_encoder_mode_set,
-	.prepare = mdp4_dtv_encoder_prepare,
-	.commit = mdp4_dtv_encoder_commit,
+	.enable = mdp4_dtv_encoder_enable,
+	.disable = mdp4_dtv_encoder_disable,
 };
 
 long mdp4_dtv_round_pixclk(struct drm_encoder *encoder, unsigned long rate)

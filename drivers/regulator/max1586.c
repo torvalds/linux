@@ -163,7 +163,7 @@ static int of_get_max1586_platform_data(struct device *dev,
 				 struct max1586_platform_data *pdata)
 {
 	struct max1586_subdev_data *sub;
-	struct of_regulator_match rmatch[ARRAY_SIZE(max1586_reg)];
+	struct of_regulator_match rmatch[ARRAY_SIZE(max1586_reg)] = { };
 	struct device_node *np = dev->of_node;
 	int i, matched;
 

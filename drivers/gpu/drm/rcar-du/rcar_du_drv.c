@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
+#include <linux/wait.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
@@ -56,7 +57,8 @@ static const struct rcar_du_device_info rcar_du_r8a7779_info = {
 };
 
 static const struct rcar_du_device_info rcar_du_r8a7790_info = {
-	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK | RCAR_DU_FEATURE_DEFR8,
+	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
+		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
 	.quirks = RCAR_DU_QUIRK_ALIGN_128B | RCAR_DU_QUIRK_LVDS_LANES,
 	.num_crtcs = 3,
 	.routes = {
@@ -83,7 +85,8 @@ static const struct rcar_du_device_info rcar_du_r8a7790_info = {
 };
 
 static const struct rcar_du_device_info rcar_du_r8a7791_info = {
-	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK | RCAR_DU_FEATURE_DEFR8,
+	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
+		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
 	.num_crtcs = 2,
 	.routes = {
 		/* R8A7791 has one RGB output, one LVDS output and one
@@ -146,12 +149,11 @@ static int rcar_du_load(struct drm_device *dev, unsigned long flags)
 {
 	struct platform_device *pdev = dev->platformdev;
 	struct device_node *np = pdev->dev.of_node;
-	struct rcar_du_platform_data *pdata = pdev->dev.platform_data;
 	struct rcar_du_device *rcdu;
 	struct resource *mem;
 	int ret;
 
-	if (pdata == NULL && np == NULL) {
+	if (np == NULL) {
 		dev_err(dev->dev, "no platform data\n");
 		return -ENODEV;
 	}
@@ -162,8 +164,9 @@ static int rcar_du_load(struct drm_device *dev, unsigned long flags)
 		return -ENOMEM;
 	}
 
+	init_waitqueue_head(&rcdu->commit.wait);
+
 	rcdu->dev = &pdev->dev;
-	rcdu->pdata = pdata;
 	rcdu->info = np ? of_match_device(rcar_du_of_table, rcdu->dev)->data
 		   : (void *)platform_get_device_id(pdev)->driver_data;
 	rcdu->ddev = dev;
@@ -175,17 +178,19 @@ static int rcar_du_load(struct drm_device *dev, unsigned long flags)
 	if (IS_ERR(rcdu->mmio))
 		return PTR_ERR(rcdu->mmio);
 
+	/* Initialize vertical blanking interrupts handling. Start with vblank
+	 * disabled for all CRTCs.
+	 */
+	ret = drm_vblank_init(dev, (1 << rcdu->info->num_crtcs) - 1);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to initialize vblank\n");
+		goto done;
+	}
+
 	/* DRM/KMS objects */
 	ret = rcar_du_modeset_init(rcdu);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to initialize DRM/KMS\n");
-		goto done;
-	}
-
-	/* vblank handling */
-	ret = drm_vblank_init(dev, (1 << rcdu->num_crtcs) - 1);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to initialize vblank\n");
 		goto done;
 	}
 
@@ -247,7 +252,8 @@ static const struct file_operations rcar_du_fops = {
 };
 
 static struct drm_driver rcar_du_driver = {
-	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME,
+	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME
+				| DRIVER_ATOMIC,
 	.load			= rcar_du_load,
 	.unload			= rcar_du_unload,
 	.preclose		= rcar_du_preclose,
@@ -330,7 +336,6 @@ static struct platform_driver rcar_du_platform_driver = {
 	.probe		= rcar_du_probe,
 	.remove		= rcar_du_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "rcar-du",
 		.pm	= &rcar_du_pm_ops,
 		.of_match_table = rcar_du_of_table,

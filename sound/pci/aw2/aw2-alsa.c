@@ -229,9 +229,7 @@ static int snd_aw2_dev_free(struct snd_device *device)
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void *)chip);
 	/* release the i/o ports & memory */
-	if (chip->iobase_virt)
-		iounmap(chip->iobase_virt);
-
+	iounmap(chip->iobase_virt);
 	pci_release_regions(chip->pci);
 	/* disable the PCI entry */
 	pci_disable_device(chip->pci);
@@ -725,19 +723,10 @@ static int snd_aw2_new_pcm(struct aw2 *chip)
 static int snd_aw2_control_switch_capture_info(struct snd_kcontrol *kcontrol,
 					       struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[2] = {
+	static const char * const texts[2] = {
 		"Analog", "Digital"
 	};
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items) {
-		uinfo->value.enumerated.item =
-		    uinfo->value.enumerated.items - 1;
-	}
-	strcpy(uinfo->value.enumerated.name,
-	       texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 2, texts);
 }
 
 static int snd_aw2_control_switch_capture_get(struct snd_kcontrol *kcontrol,

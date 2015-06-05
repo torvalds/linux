@@ -74,15 +74,11 @@ int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev,
 	ret = ec_dev->cmd_xfer(ec_dev, msg);
 	if (msg->result == EC_RES_IN_PROGRESS) {
 		int i;
-		struct cros_ec_command status_msg;
-		struct ec_response_get_comms_status status;
+		struct cros_ec_command status_msg = { };
+		struct ec_response_get_comms_status *status;
 
-		status_msg.version = 0;
 		status_msg.command = EC_CMD_GET_COMMS_STATUS;
-		status_msg.outdata = NULL;
-		status_msg.outsize = 0;
-		status_msg.indata = (uint8_t *)&status;
-		status_msg.insize = sizeof(status);
+		status_msg.insize = sizeof(*status);
 
 		/*
 		 * Query the EC's status until it's no longer busy or
@@ -98,7 +94,10 @@ int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev,
 			msg->result = status_msg.result;
 			if (status_msg.result != EC_RES_SUCCESS)
 				break;
-			if (!(status.flags & EC_COMMS_STATUS_PROCESSING))
+
+			status = (struct ec_response_get_comms_status *)
+				 status_msg.indata;
+			if (!(status->flags & EC_COMMS_STATUS_PROCESSING))
 				break;
 		}
 	}
@@ -118,6 +117,10 @@ static const struct mfd_cell cros_devs[] = {
 		.name = "cros-ec-i2c-tunnel",
 		.id = 2,
 		.of_compatible = "google,cros-ec-i2c-tunnel",
+	},
+	{
+		.name = "cros-ec-ctl",
+		.id = 3,
 	},
 };
 

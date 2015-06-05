@@ -20,10 +20,10 @@
 
 #include <brcmu_wifi.h>
 #include "fwil_types.h"
-#include "dhd.h"
+#include "core.h"
 #include "p2p.h"
-#include "dhd_dbg.h"
-#include "wl_cfg80211.h"
+#include "debug.h"
+#include "cfg80211.h"
 #include "vendor.h"
 #include "fwil.h"
 
@@ -31,18 +31,30 @@ static int brcmf_cfg80211_vndr_cmds_dcmd_handler(struct wiphy *wiphy,
 						 struct wireless_dev *wdev,
 						 const void *data, int len)
 {
-	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
-	struct net_device *ndev = cfg_to_ndev(cfg);
+	struct brcmf_cfg80211_vif *vif;
+	struct brcmf_if *ifp;
 	const struct brcmf_vndr_dcmd_hdr *cmdhdr = data;
 	struct sk_buff *reply;
 	int ret, payload, ret_len;
 	void *dcmd_buf = NULL, *wr_pointer;
 	u16 msglen, maxmsglen = PAGE_SIZE - 0x100;
 
-	brcmf_dbg(TRACE, "cmd %x set %d len %d\n", cmdhdr->cmd, cmdhdr->set,
-		  cmdhdr->len);
+	if (len < sizeof(*cmdhdr)) {
+		brcmf_err("vendor command too short: %d\n", len);
+		return -EINVAL;
+	}
 
-	len -= sizeof(struct brcmf_vndr_dcmd_hdr);
+	vif = container_of(wdev, struct brcmf_cfg80211_vif, wdev);
+	ifp = vif->ifp;
+
+	brcmf_dbg(TRACE, "ifidx=%d, cmd=%d\n", ifp->ifidx, cmdhdr->cmd);
+
+	if (cmdhdr->offset > len) {
+		brcmf_err("bad buffer offset %d > %d\n", cmdhdr->offset, len);
+		return -EINVAL;
+	}
+
+	len -= cmdhdr->offset;
 	ret_len = cmdhdr->len;
 	if (ret_len > 0 || len > 0) {
 		if (len > BRCMF_DCMD_MAXLEN) {
@@ -63,11 +75,11 @@ static int brcmf_cfg80211_vndr_cmds_dcmd_handler(struct wiphy *wiphy,
 	}
 
 	if (cmdhdr->set)
-		ret = brcmf_fil_cmd_data_set(netdev_priv(ndev), cmdhdr->cmd,
-					     dcmd_buf, ret_len);
+		ret = brcmf_fil_cmd_data_set(ifp, cmdhdr->cmd, dcmd_buf,
+					     ret_len);
 	else
-		ret = brcmf_fil_cmd_data_get(netdev_priv(ndev), cmdhdr->cmd,
-					     dcmd_buf, ret_len);
+		ret = brcmf_fil_cmd_data_get(ifp, cmdhdr->cmd, dcmd_buf,
+					     ret_len);
 	if (ret != 0)
 		goto exit;
 

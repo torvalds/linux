@@ -37,6 +37,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_gem.h>
 
+#include "drm_internal.h"
 #include "drm_legacy.h"
 
 /**
@@ -148,30 +149,6 @@ int drm_bufs_info(struct seq_file *m, void *data)
 		seq_printf(m, " %d", dma->buflist[i]->list);
 	}
 	seq_printf(m, "\n");
-	mutex_unlock(&dev->struct_mutex);
-	return 0;
-}
-
-/**
- * Called when "/proc/dri/.../vblank" is read.
- */
-int drm_vblank_info(struct seq_file *m, void *data)
-{
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	int crtc;
-
-	mutex_lock(&dev->struct_mutex);
-	for (crtc = 0; crtc < dev->num_crtcs; crtc++) {
-		seq_printf(m, "CRTC %d enable:     %d\n",
-			   crtc, atomic_read(&dev->vblank[crtc].refcount));
-		seq_printf(m, "CRTC %d counter:    %d\n",
-			   crtc, drm_vblank_count(dev, crtc));
-		seq_printf(m, "CRTC %d last wait:  %d\n",
-			   crtc, dev->vblank[crtc].last_wait);
-		seq_printf(m, "CRTC %d in modeset: %d\n",
-			   crtc, dev->vblank[crtc].inmodeset);
-	}
 	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }

@@ -100,6 +100,7 @@ static int radeon_process_aux_ch(struct radeon_i2c_chan *chan,
 	memset(&args, 0, sizeof(args));
 
 	mutex_lock(&chan->mutex);
+	mutex_lock(&rdev->mode_info.atom_context->scratch_mutex);
 
 	base = (unsigned char *)(rdev->mode_info.atom_context->scratch + 1);
 
@@ -113,7 +114,7 @@ static int radeon_process_aux_ch(struct radeon_i2c_chan *chan,
 	if (ASIC_IS_DCE4(rdev))
 		args.v2.ucHPD_ID = chan->rec.hpd;
 
-	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+	atom_execute_table_scratch_unlocked(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 
 	*ack = args.v1.ucReplyStatus;
 
@@ -147,6 +148,7 @@ static int radeon_process_aux_ch(struct radeon_i2c_chan *chan,
 
 	r = recv_bytes;
 done:
+	mutex_unlock(&rdev->mode_info.atom_context->scratch_mutex);
 	mutex_unlock(&chan->mutex);
 
 	return r;
@@ -156,7 +158,7 @@ done:
 #define HEADER_SIZE (BARE_ADDRESS_SIZE + 1)
 
 static ssize_t
-radeon_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
+radeon_dp_aux_transfer_atom(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 {
 	struct radeon_i2c_chan *chan =
 		container_of(aux, struct radeon_i2c_chan, aux);
@@ -176,6 +178,13 @@ radeon_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 	switch (msg->request & ~DP_AUX_I2C_MOT) {
 	case DP_AUX_NATIVE_WRITE:
 	case DP_AUX_I2C_WRITE:
+		/* The atom implementation only supports writes with a max payload of
+		 * 12 bytes since it uses 4 bits for the total count (header + payload)
+		 * in the parameter space.  The atom interface supports 16 byte
+		 * payloads for reads. The hw itself supports up to 16 bytes of payload.
+		 */
+		if (WARN_ON_ONCE(msg->size > 12))
+			return -E2BIG;
 		/* tx_size needs to be 4 even for bare address packets since the atom
 		 * table needs the info in tx_buf[3].
 		 */
@@ -217,11 +226,20 @@ radeon_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 
 void radeon_dp_aux_init(struct radeon_connector *radeon_connector)
 {
+	struct drm_device *dev = radeon_connector->base.dev;
+	struct radeon_device *rdev = dev->dev_private;
 	int ret;
 
 	radeon_connector->ddc_bus->rec.hpd = radeon_connector->hpd.hpd;
 	radeon_connector->ddc_bus->aux.dev = radeon_connector->base.kdev;
-	radeon_connector->ddc_bus->aux.transfer = radeon_dp_aux_transfer;
+	if (ASIC_IS_DCE5(rdev)) {
+		if (radeon_auxch)
+			radeon_connector->ddc_bus->aux.transfer = radeon_dp_aux_transfer_native;
+		else
+			radeon_connector->ddc_bus->aux.transfer = radeon_dp_aux_transfer_atom;
+	} else {
+		radeon_connector->ddc_bus->aux.transfer = radeon_dp_aux_transfer_atom;
+	}
 
 	ret = drm_dp_aux_register(&radeon_connector->ddc_bus->aux);
 	if (!ret)
@@ -292,8 +310,8 @@ static int dp_get_max_dp_pix_clock(int link_rate,
 
 /***** radeon specific DP functions *****/
 
-static int radeon_dp_get_max_link_rate(struct drm_connector *connector,
-				       u8 dpcd[DP_DPCD_SIZE])
+int radeon_dp_get_max_link_rate(struct drm_connector *connector,
+				u8 dpcd[DP_DPCD_SIZE])
 {
 	int max_link_rate;
 
@@ -403,19 +421,21 @@ bool radeon_dp_getdpcd(struct radeon_connector *radeon_connector)
 {
 	struct radeon_connector_atom_dig *dig_connector = radeon_connector->con_priv;
 	u8 msg[DP_DPCD_SIZE];
-	int ret;
+	int ret, i;
 
-	ret = drm_dp_dpcd_read(&radeon_connector->ddc_bus->aux, DP_DPCD_REV, msg,
-			       DP_DPCD_SIZE);
-	if (ret > 0) {
-		memcpy(dig_connector->dpcd, msg, DP_DPCD_SIZE);
+	for (i = 0; i < 7; i++) {
+		ret = drm_dp_dpcd_read(&radeon_connector->ddc_bus->aux, DP_DPCD_REV, msg,
+				       DP_DPCD_SIZE);
+		if (ret == DP_DPCD_SIZE) {
+			memcpy(dig_connector->dpcd, msg, DP_DPCD_SIZE);
 
-		DRM_DEBUG_KMS("DPCD: %*ph\n", (int)sizeof(dig_connector->dpcd),
-			      dig_connector->dpcd);
+			DRM_DEBUG_KMS("DPCD: %*ph\n", (int)sizeof(dig_connector->dpcd),
+				      dig_connector->dpcd);
 
-		radeon_dp_probe_oui(radeon_connector);
+			radeon_dp_probe_oui(radeon_connector);
 
-		return true;
+			return true;
+		}
 	}
 	dig_connector->dpcd[0] = 0;
 	return false;
@@ -489,6 +509,10 @@ int radeon_dp_mode_valid_helper(struct drm_connector *connector,
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct radeon_connector_atom_dig *dig_connector;
 	int dp_clock;
+
+	if ((mode->clock > 340000) &&
+	    (!radeon_connector_is_dp12_capable(connector)))
+		return MODE_CLOCK_HIGH;
 
 	if (!radeon_connector->con_priv)
 		return MODE_CLOCK_HIGH;
@@ -617,10 +641,8 @@ static int radeon_dp_link_train_init(struct radeon_dp_link_train_info *dp_info)
 		drm_dp_dpcd_writeb(dp_info->aux,
 				   DP_DOWNSPREAD_CTRL, 0);
 
-	if ((dp_info->connector->connector_type == DRM_MODE_CONNECTOR_eDP) &&
-	    (dig->panel_mode == DP_PANEL_MODE_INTERNAL_DP2_MODE)) {
+	if (dig->panel_mode == DP_PANEL_MODE_INTERNAL_DP2_MODE)
 		drm_dp_dpcd_writeb(dp_info->aux, DP_EDP_CONFIGURATION_SET, 1);
-	}
 
 	/* set the lane count on the sink */
 	tmp = dp_info->dp_lane_count;

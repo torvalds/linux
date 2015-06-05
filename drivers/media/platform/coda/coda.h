@@ -12,6 +12,9 @@
  * (at your option) any later version.
  */
 
+#ifndef __CODA_H__
+#define __CODA_H__
+
 #include <linux/debugfs.h>
 #include <linux/irqreturn.h>
 #include <linux/mutex.h>
@@ -26,7 +29,6 @@
 #include "coda_regs.h"
 
 #define CODA_MAX_FRAMEBUFFERS	8
-#define CODA_MAX_FRAME_SIZE	0x100000
 #define FMO_SLICE_SAVE_BUF_SIZE	(32)
 
 enum {
@@ -45,11 +47,15 @@ enum coda_product {
 	CODA_960 = 0xf020,
 };
 
+struct coda_video_device;
+
 struct coda_devtype {
 	char			*firmware;
 	enum coda_product	product;
 	const struct coda_codec	*codecs;
 	unsigned int		num_codecs;
+	const struct coda_video_device **vdevs;
+	unsigned int		num_vdevs;
 	size_t			workbuf_size;
 	size_t			tempbuf_size;
 	size_t			iram_size;
@@ -65,7 +71,7 @@ struct coda_aux_buf {
 
 struct coda_dev {
 	struct v4l2_device	v4l2_dev;
-	struct video_device	vfd[2];
+	struct video_device	vfd[5];
 	struct platform_device	*plat_dev;
 	const struct coda_devtype *devtype;
 
@@ -114,6 +120,9 @@ struct coda_params {
 	u8			mpeg4_inter_qp;
 	u8			gop_size;
 	int			intra_refresh;
+	u8			jpeg_quality;
+	u8			jpeg_restart_interval;
+	u8			*jpeg_qmat_tab[3];
 	int			codec_mode;
 	int			codec_mode_aux;
 	enum v4l2_mpeg_video_multi_slice_mode slice_mode;
@@ -123,11 +132,13 @@ struct coda_params {
 	u32			slice_max_mb;
 };
 
-struct coda_timestamp {
+struct coda_buffer_meta {
 	struct list_head	list;
 	u32			sequence;
 	struct v4l2_timecode	timecode;
 	struct timeval		timestamp;
+	u32			start;
+	u32			end;
 };
 
 /* Per-queue, driver-specific private data */
@@ -169,6 +180,7 @@ struct coda_ctx;
 struct coda_context_ops {
 	int (*queue_init)(void *priv, struct vb2_queue *src_vq,
 			  struct vb2_queue *dst_vq);
+	int (*reqbufs)(struct coda_ctx *ctx, struct v4l2_requestbuffers *rb);
 	int (*start_streaming)(struct coda_ctx *ctx);
 	int (*prepare_run)(struct coda_ctx *ctx);
 	void (*finish_run)(struct coda_ctx *ctx);
@@ -183,12 +195,12 @@ struct coda_ctx {
 	struct work_struct		pic_run_work;
 	struct work_struct		seq_end_work;
 	struct completion		completion;
+	const struct coda_video_device	*cvd;
 	const struct coda_context_ops	*ops;
 	int				aborting;
 	int				initialized;
 	int				streamon_out;
 	int				streamon_cap;
-	u32				isequence;
 	u32				qsequence;
 	u32				osequence;
 	u32				sequence_offset;
@@ -212,9 +224,9 @@ struct coda_ctx {
 	struct coda_aux_buf		slicebuf;
 	struct coda_aux_buf		internal_frames[CODA_MAX_FRAMEBUFFERS];
 	u32				frame_types[CODA_MAX_FRAMEBUFFERS];
-	struct coda_timestamp		frame_timestamps[CODA_MAX_FRAMEBUFFERS];
+	struct coda_buffer_meta		frame_metas[CODA_MAX_FRAMEBUFFERS];
 	u32				frame_errors[CODA_MAX_FRAMEBUFFERS];
-	struct list_head		timestamp_list;
+	struct list_head		buffer_meta_list;
 	struct coda_aux_buf		workbuf;
 	int				num_internal_frames;
 	int				idx;
@@ -226,23 +238,19 @@ struct coda_ctx {
 	u32				frame_mem_ctrl;
 	int				display_idx;
 	struct dentry			*debugfs_entry;
+	bool				use_bit;
 };
 
 extern int coda_debug;
 
 void coda_write(struct coda_dev *dev, u32 data, u32 reg);
 unsigned int coda_read(struct coda_dev *dev, u32 reg);
+void coda_write_base(struct coda_ctx *ctx, struct coda_q_data *q_data,
+		     struct vb2_buffer *buf, unsigned int reg_y);
 
 int coda_alloc_aux_buf(struct coda_dev *dev, struct coda_aux_buf *buf,
 		       size_t size, const char *name, struct dentry *parent);
 void coda_free_aux_buf(struct coda_dev *dev, struct coda_aux_buf *buf);
-
-static inline int coda_alloc_context_buf(struct coda_ctx *ctx,
-					 struct coda_aux_buf *buf, size_t size,
-					 const char *name)
-{
-	return coda_alloc_aux_buf(ctx->dev, buf, size, name, ctx->debugfs_entry);
-}
 
 int coda_encoder_queue_init(void *priv, struct vb2_queue *src_vq,
 			    struct vb2_queue *dst_vq);
@@ -251,7 +259,7 @@ int coda_decoder_queue_init(void *priv, struct vb2_queue *src_vq,
 
 int coda_hw_reset(struct coda_ctx *ctx);
 
-void coda_fill_bitstream(struct coda_ctx *ctx);
+void coda_fill_bitstream(struct coda_ctx *ctx, bool streaming);
 
 void coda_set_gdi_regs(struct coda_ctx *ctx);
 
@@ -272,7 +280,7 @@ const char *coda_product_name(int product);
 
 int coda_check_firmware(struct coda_dev *dev);
 
-static inline int coda_get_bitstream_payload(struct coda_ctx *ctx)
+static inline unsigned int coda_get_bitstream_payload(struct coda_ctx *ctx)
 {
 	return kfifo_len(&ctx->bitstream_fifo);
 }
@@ -281,7 +289,13 @@ void coda_bit_stream_end_flag(struct coda_ctx *ctx);
 
 int coda_h264_padding(int size, char *p);
 
+bool coda_jpeg_check_buffer(struct coda_ctx *ctx, struct vb2_buffer *vb);
+int coda_jpeg_write_tables(struct coda_ctx *ctx);
+void coda_set_jpeg_compression_quality(struct coda_ctx *ctx, int quality);
+
 extern const struct coda_context_ops coda_bit_encode_ops;
 extern const struct coda_context_ops coda_bit_decode_ops;
 
 irqreturn_t coda_irq_handler(int irq, void *data);
+
+#endif /* __CODA_H__ */

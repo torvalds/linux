@@ -129,8 +129,7 @@ static void cl_lock_trace0(int level, const struct lu_env *env,
 			   const char *func, const int line)
 {
 	struct cl_object_header *h = cl_object_header(lock->cll_descr.cld_obj);
-	CDEBUG(level, "%s: %p@(%d %p %d %d %d %d %d %lx)"
-		      "(%p/%d/%d) at %s():%d\n",
+	CDEBUG(level, "%s: %p@(%d %p %d %d %d %d %d %lx)(%p/%d/%d) at %s():%d\n",
 	       prefix, lock, atomic_read(&lock->cll_ref),
 	       lock->cll_guarder, lock->cll_depth,
 	       lock->cll_state, lock->cll_error, lock->cll_holds,

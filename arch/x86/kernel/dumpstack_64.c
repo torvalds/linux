@@ -24,7 +24,6 @@ static char x86_stack_ids[][8] = {
 		[ DEBUG_STACK-1			]	= "#DB",
 		[ NMI_STACK-1			]	= "NMI",
 		[ DOUBLEFAULT_STACK-1		]	= "#DF",
-		[ STACKFAULT_STACK-1		]	= "#SS",
 		[ MCE_STACK-1			]	= "#MC",
 #if DEBUG_STKSZ > EXCEPTION_STKSZ
 		[ N_EXCEPTION_STACKS ...
@@ -281,12 +280,15 @@ show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
 				pr_cont(" <EOI> ");
 			}
 		} else {
-		if (((long) stack & (THREAD_SIZE-1)) == 0)
+		if (kstack_end(stack))
 			break;
 		}
-		if (i && ((i % STACKSLOTS_PER_LINE) == 0))
-			pr_cont("\n");
-		pr_cont(" %016lx", *stack++);
+		if ((i % STACKSLOTS_PER_LINE) == 0) {
+			if (i != 0)
+				pr_cont("\n");
+			printk("%s %016lx", log_lvl, *stack++);
+		} else
+			pr_cont(" %016lx", *stack++);
 		touch_nmi_watchdog();
 	}
 	preempt_enable();

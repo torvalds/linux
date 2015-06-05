@@ -76,7 +76,6 @@ static struct scsi_host_template pm8001_sht = {
 	.scan_finished		= pm8001_scan_finished,
 	.scan_start		= pm8001_scan_start,
 	.change_queue_depth	= sas_change_queue_depth,
-	.change_queue_type	= sas_change_queue_type,
 	.bios_param		= sas_bios_param,
 	.can_queue		= 1,
 	.cmd_per_lun		= 1,
@@ -89,6 +88,8 @@ static struct scsi_host_template pm8001_sht = {
 	.target_destroy		= sas_target_destroy,
 	.ioctl			= sas_ioctl,
 	.shost_attrs		= pm8001_host_attrs,
+	.use_blk_tags		= 1,
+	.track_queue_depth	= 1,
 };
 
 /**
@@ -599,8 +600,6 @@ static void  pm8001_post_sas_ha_init(struct Scsi_Host *shost,
 	sha->lldd_module = THIS_MODULE;
 	sha->sas_addr = &pm8001_ha->sas_addr[0];
 	sha->num_phys = chip_info->n_phy;
-	sha->lldd_max_execute_num = 1;
-	sha->lldd_queue_size = PM8001_CAN_QUEUE;
 	sha->core.shost = shost;
 }
 

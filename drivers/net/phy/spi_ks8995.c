@@ -353,7 +353,9 @@ static int ks8995_probe(struct spi_device *spi)
 
 static int ks8995_remove(struct spi_device *spi)
 {
-	sysfs_remove_bin_file(&spi->dev.kobj, &ks8995_registers_attr);
+	struct ks8995_switch *ks = spi_get_drvdata(spi);
+
+	sysfs_remove_bin_file(&spi->dev.kobj, &ks->regs_attr);
 
 	return 0;
 }

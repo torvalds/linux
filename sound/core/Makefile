@@ -14,6 +14,9 @@ snd-pcm-y := pcm.o pcm_native.o pcm_lib.o pcm_timer.o pcm_misc.o \
 		pcm_memory.o memalloc.o
 snd-pcm-$(CONFIG_SND_DMA_SGBUF) += sgbuf.o
 
+# for trace-points
+CFLAGS_pcm_lib.o := -I$(src)
+
 snd-pcm-dmaengine-objs := pcm_dmaengine.o
 
 snd-rawmidi-objs  := rawmidi.o

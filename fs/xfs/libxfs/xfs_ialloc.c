@@ -22,9 +22,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_inum.h"
 #include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
@@ -39,7 +37,6 @@
 #include "xfs_buf_item.h"
 #include "xfs_icreate_item.h"
 #include "xfs_icache.h"
-#include "xfs_dinode.h"
 #include "xfs_trace.h"
 
 
@@ -48,12 +45,12 @@
  */
 static inline int
 xfs_ialloc_cluster_alignment(
-	xfs_alloc_arg_t	*args)
+	struct xfs_mount	*mp)
 {
-	if (xfs_sb_version_hasalign(&args->mp->m_sb) &&
-	    args->mp->m_sb.sb_inoalignmt >=
-	     XFS_B_TO_FSBT(args->mp, args->mp->m_inode_cluster_size))
-		return args->mp->m_sb.sb_inoalignmt;
+	if (xfs_sb_version_hasalign(&mp->m_sb) &&
+	    mp->m_sb.sb_inoalignmt >=
+			XFS_B_TO_FSBT(mp, mp->m_inode_cluster_size))
+		return mp->m_sb.sb_inoalignmt;
 	return 1;
 }
 
@@ -379,7 +376,8 @@ xfs_ialloc_ag_alloc(
 	 */
 	newlen = args.mp->m_ialloc_inos;
 	if (args.mp->m_maxicount &&
-	    args.mp->m_sb.sb_icount + newlen > args.mp->m_maxicount)
+	    percpu_counter_read_positive(&args.mp->m_icount) + newlen >
+							args.mp->m_maxicount)
 		return -ENOSPC;
 	args.minlen = args.maxlen = args.mp->m_ialloc_blks;
 	/*
@@ -412,7 +410,7 @@ xfs_ialloc_ag_alloc(
 		 * but not to use them in the actual exact allocation.
 		 */
 		args.alignment = 1;
-		args.minalignslop = xfs_ialloc_cluster_alignment(&args) - 1;
+		args.minalignslop = xfs_ialloc_cluster_alignment(args.mp) - 1;
 
 		/* Allow space for the inode btree to split. */
 		args.minleft = args.mp->m_in_maxlevels - 1;
@@ -448,7 +446,7 @@ xfs_ialloc_ag_alloc(
 			args.alignment = args.mp->m_dalign;
 			isaligned = 1;
 		} else
-			args.alignment = xfs_ialloc_cluster_alignment(&args);
+			args.alignment = xfs_ialloc_cluster_alignment(args.mp);
 		/*
 		 * Need to figure out where to allocate the inode blocks.
 		 * Ideally they should be spaced out through the a.g.
@@ -477,7 +475,7 @@ xfs_ialloc_ag_alloc(
 		args.type = XFS_ALLOCTYPE_NEAR_BNO;
 		args.agbno = be32_to_cpu(agi->agi_root);
 		args.fsbno = XFS_AGB_TO_FSB(args.mp, agno, args.agbno);
-		args.alignment = xfs_ialloc_cluster_alignment(&args);
+		args.alignment = xfs_ialloc_cluster_alignment(args.mp);
 		if ((error = xfs_alloc_vextent(&args)))
 			return error;
 	}
@@ -632,10 +630,24 @@ xfs_ialloc_ag_select(
 		}
 
 		/*
-		 * Is there enough free space for the file plus a block of
-		 * inodes? (if we need to allocate some)?
+		 * Check that there is enough free space for the file plus a
+		 * chunk of inodes if we need to allocate some. If this is the
+		 * first pass across the AGs, take into account the potential
+		 * space needed for alignment of inode chunks when checking the
+		 * longest contiguous free space in the AG - this prevents us
+		 * from getting ENOSPC because we have free space larger than
+		 * m_ialloc_blks but alignment constraints prevent us from using
+		 * it.
+		 *
+		 * If we can't find an AG with space for full alignment slack to
+		 * be taken into account, we must be near ENOSPC in all AGs.
+		 * Hence we don't include alignment for the second pass and so
+		 * if we fail allocation due to alignment issues then it is most
+		 * likely a real ENOSPC condition.
 		 */
 		ineed = mp->m_ialloc_blks;
+		if (flags && ineed > 1)
+			ineed += xfs_ialloc_cluster_alignment(mp);
 		longest = pag->pagf_longest;
 		if (!longest)
 			longest = pag->pagf_flcount > 0;
@@ -689,7 +701,7 @@ xfs_ialloc_next_rec(
 		error = xfs_inobt_get_rec(cur, rec, &i);
 		if (error)
 			return error;
-		XFS_WANT_CORRUPTED_RETURN(i == 1);
+		XFS_WANT_CORRUPTED_RETURN(cur->bc_mp, i == 1);
 	}
 
 	return 0;
@@ -713,7 +725,7 @@ xfs_ialloc_get_rec(
 		error = xfs_inobt_get_rec(cur, rec, &i);
 		if (error)
 			return error;
-		XFS_WANT_CORRUPTED_RETURN(i == 1);
+		XFS_WANT_CORRUPTED_RETURN(cur->bc_mp, i == 1);
 	}
 
 	return 0;
@@ -772,12 +784,12 @@ xfs_dialloc_ag_inobt(
 		error = xfs_inobt_lookup(cur, pagino, XFS_LOOKUP_LE, &i);
 		if (error)
 			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
+		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error0);
 
 		error = xfs_inobt_get_rec(cur, &rec, &j);
 		if (error)
 			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(j == 1, error0);
+		XFS_WANT_CORRUPTED_GOTO(mp, j == 1, error0);
 
 		if (rec.ir_freecount > 0) {
 			/*
@@ -933,19 +945,19 @@ newino:
 	error = xfs_inobt_lookup(cur, 0, XFS_LOOKUP_GE, &i);
 	if (error)
 		goto error0;
-	XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
+	XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error0);
 
 	for (;;) {
 		error = xfs_inobt_get_rec(cur, &rec, &i);
 		if (error)
 			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
+		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error0);
 		if (rec.ir_freecount > 0)
 			break;
 		error = xfs_btree_increment(cur, 0, &i);
 		if (error)
 			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
+		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error0);
 	}
 
 alloc_inode:
@@ -1005,7 +1017,7 @@ xfs_dialloc_ag_finobt_near(
 		error = xfs_inobt_get_rec(lcur, rec, &i);
 		if (error)
 			return error;
-		XFS_WANT_CORRUPTED_RETURN(i == 1);
+		XFS_WANT_CORRUPTED_RETURN(lcur->bc_mp, i == 1);
 
 		/*
 		 * See if we've landed in the parent inode record. The finobt
@@ -1028,10 +1040,10 @@ xfs_dialloc_ag_finobt_near(
 		error = xfs_inobt_get_rec(rcur, &rrec, &j);
 		if (error)
 			goto error_rcur;
-		XFS_WANT_CORRUPTED_GOTO(j == 1, error_rcur);
+		XFS_WANT_CORRUPTED_GOTO(lcur->bc_mp, j == 1, error_rcur);
 	}
 
-	XFS_WANT_CORRUPTED_GOTO(i == 1 || j == 1, error_rcur);
+	XFS_WANT_CORRUPTED_GOTO(lcur->bc_mp, i == 1 || j == 1, error_rcur);
 	if (i == 1 && j == 1) {
 		/*
 		 * Both the left and right records are valid. Choose the closer
@@ -1084,7 +1096,7 @@ xfs_dialloc_ag_finobt_newino(
 			error = xfs_inobt_get_rec(cur, rec, &i);
 			if (error)
 				return error;
-			XFS_WANT_CORRUPTED_RETURN(i == 1);
+			XFS_WANT_CORRUPTED_RETURN(cur->bc_mp, i == 1);
 			return 0;
 		}
 	}
@@ -1095,12 +1107,12 @@ xfs_dialloc_ag_finobt_newino(
 	error = xfs_inobt_lookup(cur, 0, XFS_LOOKUP_GE, &i);
 	if (error)
 		return error;
-	XFS_WANT_CORRUPTED_RETURN(i == 1);
+	XFS_WANT_CORRUPTED_RETURN(cur->bc_mp, i == 1);
 
 	error = xfs_inobt_get_rec(cur, rec, &i);
 	if (error)
 		return error;
-	XFS_WANT_CORRUPTED_RETURN(i == 1);
+	XFS_WANT_CORRUPTED_RETURN(cur->bc_mp, i == 1);
 
 	return 0;
 }
@@ -1122,26 +1134,22 @@ xfs_dialloc_ag_update_inobt(
 	error = xfs_inobt_lookup(cur, frec->ir_startino, XFS_LOOKUP_EQ, &i);
 	if (error)
 		return error;
-	XFS_WANT_CORRUPTED_RETURN(i == 1);
+	XFS_WANT_CORRUPTED_RETURN(cur->bc_mp, i == 1);
 
 	error = xfs_inobt_get_rec(cur, &rec, &i);
 	if (error)
 		return error;
-	XFS_WANT_CORRUPTED_RETURN(i == 1);
+	XFS_WANT_CORRUPTED_RETURN(cur->bc_mp, i == 1);
 	ASSERT((XFS_AGINO_TO_OFFSET(cur->bc_mp, rec.ir_startino) %
 				   XFS_INODES_PER_CHUNK) == 0);
 
 	rec.ir_free &= ~XFS_INOBT_MASK(offset);
 	rec.ir_freecount--;
 
-	XFS_WANT_CORRUPTED_RETURN((rec.ir_free == frec->ir_free) &&
+	XFS_WANT_CORRUPTED_RETURN(cur->bc_mp, (rec.ir_free == frec->ir_free) &&
 				  (rec.ir_freecount == frec->ir_freecount));
 
-	error = xfs_inobt_update(cur, &rec);
-	if (error)
-		return error;
-
-	return 0;
+	return xfs_inobt_update(cur, &rec);
 }
 
 /*
@@ -1331,9 +1339,13 @@ xfs_dialloc(
 	 * If we have already hit the ceiling of inode blocks then clear
 	 * okalloc so we scan all available agi structures for a free
 	 * inode.
+	 *
+	 * Read rough value of mp->m_icount by percpu_counter_read_positive,
+	 * which will sacrifice the preciseness but improve the performance.
 	 */
 	if (mp->m_maxicount &&
-	    mp->m_sb.sb_icount + mp->m_ialloc_inos > mp->m_maxicount) {
+	    percpu_counter_read_positive(&mp->m_icount) + mp->m_ialloc_inos
+							> mp->m_maxicount) {
 		noroom = 1;
 		okalloc = 0;
 	}
@@ -1468,14 +1480,14 @@ xfs_difree_inobt(
 			__func__, error);
 		goto error0;
 	}
-	XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
+	XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error0);
 	error = xfs_inobt_get_rec(cur, &rec, &i);
 	if (error) {
 		xfs_warn(mp, "%s: xfs_inobt_get_rec() returned error %d.",
 			__func__, error);
 		goto error0;
 	}
-	XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
+	XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error0);
 	/*
 	 * Get the offset in the inode chunk.
 	 */
@@ -1585,7 +1597,7 @@ xfs_difree_finobt(
 		 * freed an inode in a previously fully allocated chunk. If not,
 		 * something is out of sync.
 		 */
-		XFS_WANT_CORRUPTED_GOTO(ibtrec->ir_freecount == 1, error);
+		XFS_WANT_CORRUPTED_GOTO(mp, ibtrec->ir_freecount == 1, error);
 
 		error = xfs_inobt_insert_rec(cur, ibtrec->ir_freecount,
 					     ibtrec->ir_free, &i);
@@ -1606,12 +1618,12 @@ xfs_difree_finobt(
 	error = xfs_inobt_get_rec(cur, &rec, &i);
 	if (error)
 		goto error;
-	XFS_WANT_CORRUPTED_GOTO(i == 1, error);
+	XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error);
 
 	rec.ir_free |= XFS_INOBT_MASK(offset);
 	rec.ir_freecount++;
 
-	XFS_WANT_CORRUPTED_GOTO((rec.ir_free == ibtrec->ir_free) &&
+	XFS_WANT_CORRUPTED_GOTO(mp, (rec.ir_free == ibtrec->ir_free) &&
 				(rec.ir_freecount == ibtrec->ir_freecount),
 				error);
 

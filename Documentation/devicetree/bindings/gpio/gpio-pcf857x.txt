@@ -39,7 +39,7 @@ Optional Properties:
   - lines-initial-states: Bitmask that specifies the initial state of each
   line. When a bit is set to zero, the corresponding line will be initialized to
   the input (pulled-up) state. When the  bit is set to one, the line will be
-  initialized the the low-level output state. If the property is not specified
+  initialized the low-level output state. If the property is not specified
   all lines will be initialized to the input state.
 
   The I/O expander can detect input state changes, and thus optionally act as

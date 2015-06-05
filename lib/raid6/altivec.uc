@@ -119,6 +119,7 @@ int raid6_have_altivec(void)
 
 const struct raid6_calls raid6_altivec$# = {
 	raid6_altivec$#_gen_syndrome,
+	NULL,			/* XOR not yet implemented */
 	raid6_have_altivec,
 	"altivecx$#",
 	0

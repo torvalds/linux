@@ -63,12 +63,12 @@ int vsp1_entity_set_streaming(struct vsp1_entity *entity, bool streaming)
 
 struct v4l2_mbus_framefmt *
 vsp1_entity_get_pad_format(struct vsp1_entity *entity,
-			   struct v4l2_subdev_fh *fh,
+			   struct v4l2_subdev_pad_config *cfg,
 			   unsigned int pad, u32 which)
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_format(fh, pad);
+		return v4l2_subdev_get_try_format(&entity->subdev, cfg, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &entity->formats[pad];
 	default:
@@ -79,14 +79,14 @@ vsp1_entity_get_pad_format(struct vsp1_entity *entity,
 /*
  * vsp1_entity_init_formats - Initialize formats on all pads
  * @subdev: V4L2 subdevice
- * @fh: V4L2 subdev file handle
+ * @cfg: V4L2 subdev pad configuration
  *
- * Initialize all pad formats with default values. If fh is not NULL, try
+ * Initialize all pad formats with default values. If cfg is not NULL, try
  * formats are initialized on the file handle. Otherwise active formats are
  * initialized on the device.
  */
 void vsp1_entity_init_formats(struct v4l2_subdev *subdev,
-			    struct v4l2_subdev_fh *fh)
+			    struct v4l2_subdev_pad_config *cfg)
 {
 	struct v4l2_subdev_format format;
 	unsigned int pad;
@@ -95,17 +95,17 @@ void vsp1_entity_init_formats(struct v4l2_subdev *subdev,
 		memset(&format, 0, sizeof(format));
 
 		format.pad = pad;
-		format.which = fh ? V4L2_SUBDEV_FORMAT_TRY
+		format.which = cfg ? V4L2_SUBDEV_FORMAT_TRY
 			     : V4L2_SUBDEV_FORMAT_ACTIVE;
 
-		v4l2_subdev_call(subdev, pad, set_fmt, fh, &format);
+		v4l2_subdev_call(subdev, pad, set_fmt, cfg, &format);
 	}
 }
 
 static int vsp1_entity_open(struct v4l2_subdev *subdev,
 			    struct v4l2_subdev_fh *fh)
 {
-	vsp1_entity_init_formats(subdev, fh);
+	vsp1_entity_init_formats(subdev, fh->pad);
 
 	return 0;
 }

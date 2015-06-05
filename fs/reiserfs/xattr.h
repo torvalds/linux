@@ -78,7 +78,7 @@ static inline size_t reiserfs_xattr_jcreate_nblocks(struct inode *inode)
 
 	if ((REISERFS_I(inode)->i_flags & i_has_xattr_dir) == 0) {
 		nblocks += JOURNAL_BLOCKS_PER_OBJECT(inode->i_sb);
-		if (!REISERFS_SB(inode->i_sb)->xattr_root->d_inode)
+		if (d_really_is_negative(REISERFS_SB(inode->i_sb)->xattr_root))
 			nblocks += JOURNAL_BLOCKS_PER_OBJECT(inode->i_sb);
 	}
 

@@ -47,8 +47,6 @@ struct press_state {
 static const struct iio_chan_spec press_channels[] = {
 	{
 		.type = IIO_PRESSURE,
-		.modified = 1,
-		.channel2 = IIO_NO_MOD,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
 		BIT(IIO_CHAN_INFO_SCALE) |
@@ -79,7 +77,6 @@ static int press_read_raw(struct iio_dev *indio_dev,
 	int report_id = -1;
 	u32 address;
 	int ret_type;
-	s32 poll_value;
 
 	*val = 0;
 	*val2 = 0;
@@ -96,19 +93,13 @@ static int press_read_raw(struct iio_dev *indio_dev,
 			break;
 		}
 		if (report_id >= 0) {
-			poll_value = hid_sensor_read_poll_value(
-					&press_state->common_attributes);
-			if (poll_value < 0)
-				return -EINVAL;
 			hid_sensor_power_state(&press_state->common_attributes,
 						true);
-
-			msleep_interruptible(poll_value * 2);
-
 			*val = sensor_hub_input_attr_get_raw_value(
 				press_state->common_attributes.hsdev,
 				HID_USAGE_SENSOR_PRESSURE, address,
-				report_id);
+				report_id,
+				SENSOR_HUB_SYNC);
 			hid_sensor_power_state(&press_state->common_attributes,
 						false);
 		} else {
@@ -382,6 +373,7 @@ static struct platform_driver hid_press_platform_driver = {
 	.id_table = hid_press_ids,
 	.driver = {
 		.name	= KBUILD_MODNAME,
+		.pm	= &hid_sensor_pm_ops,
 	},
 	.probe		= hid_press_probe,
 	.remove		= hid_press_remove,

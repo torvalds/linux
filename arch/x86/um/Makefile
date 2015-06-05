@@ -21,7 +21,6 @@ obj-$(CONFIG_BINFMT_ELF) += elfcore.o
 
 subarch-y = ../lib/string_32.o ../lib/atomic64_32.o ../lib/atomic64_cx8_32.o
 subarch-$(CONFIG_RWSEM_XCHGADD_ALGORITHM) += ../lib/rwsem.o
-subarch-$(CONFIG_HIGHMEM) += ../mm/highmem_32.o
 
 else
 

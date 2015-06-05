@@ -34,7 +34,7 @@
 /*
  * Per cpu nohz control structure
  */
-DEFINE_PER_CPU(struct tick_sched, tick_cpu_sched);
+static DEFINE_PER_CPU(struct tick_sched, tick_cpu_sched);
 
 /*
  * The time, when the last jiffy update happened. Protected by jiffies_lock.
@@ -235,7 +235,7 @@ void tick_nohz_full_kick(void)
 	if (!tick_nohz_full_cpu(smp_processor_id()))
 		return;
 
-	irq_work_queue(&__get_cpu_var(nohz_full_kick_work));
+	irq_work_queue(this_cpu_ptr(&nohz_full_kick_work));
 }
 
 /*
@@ -326,13 +326,6 @@ static int tick_nohz_cpu_down_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-/*
- * Worst case string length in chunks of CPU range seems 2 steps
- * separations: 0,2,4,6,...
- * This is NR_CPUS + sizeof('\0')
- */
-static char __initdata nohz_full_buf[NR_CPUS + 1];
-
 static int tick_nohz_init_all(void)
 {
 	int err = -1;
@@ -393,8 +386,8 @@ void __init tick_nohz_init(void)
 		context_tracking_cpu_set(cpu);
 
 	cpu_notifier(tick_nohz_cpu_down_callback, 0);
-	cpulist_scnprintf(nohz_full_buf, sizeof(nohz_full_buf), tick_nohz_full_mask);
-	pr_info("NO_HZ: Full dynticks CPUs: %s.\n", nohz_full_buf);
+	pr_info("NO_HZ: Full dynticks CPUs: %*pbl.\n",
+		cpumask_pr_args(tick_nohz_full_mask));
 }
 #endif
 
@@ -422,6 +415,11 @@ static int __init setup_tick_nohz(char *str)
 }
 
 __setup("nohz=", setup_tick_nohz);
+
+int tick_nohz_tick_stopped(void)
+{
+	return __this_cpu_read(tick_cpu_sched.tick_stopped);
+}
 
 /**
  * tick_nohz_update_jiffies - update jiffies when idle was interrupted
@@ -585,7 +583,7 @@ static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 		last_jiffies = jiffies;
 	} while (read_seqretry(&jiffies_lock, seq));
 
-	if (rcu_needs_cpu(cpu, &rcu_delta_jiffies) ||
+	if (rcu_needs_cpu(&rcu_delta_jiffies) ||
 	    arch_needs_cpu() || irq_work_needs_cpu()) {
 		next_jiffies = last_jiffies + 1;
 		delta_jiffies = 1;
@@ -847,7 +845,6 @@ void tick_nohz_idle_enter(void)
 
 	local_irq_enable();
 }
-EXPORT_SYMBOL_GPL(tick_nohz_idle_enter);
 
 /**
  * tick_nohz_irq_exit - update next tick event from interrupt exit
@@ -974,7 +971,6 @@ void tick_nohz_idle_exit(void)
 
 	local_irq_enable();
 }
-EXPORT_SYMBOL_GPL(tick_nohz_idle_exit);
 
 static int tick_nohz_reprogram(struct tick_sched *ts, ktime_t now)
 {

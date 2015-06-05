@@ -43,3 +43,5 @@
  42 -> Leadtek Winfast PxPVR2200                           [107d:6f21]
  43 -> Hauppauge ImpactVCB-e                               [0070:7133]
  44 -> DViCO FusionHDTV DVB-T Dual Express2                [18ac:db98]
+ 45 -> DVBSky T9580                                        [4254:9580]
+ 46 -> DVBSky T980C                                        [4254:980c]

@@ -29,7 +29,7 @@ static inline unsigned long long rdclock(void)
 	return ts.tv_sec * 1000000000ULL + ts.tv_nsec;
 }
 
-#define MAX_NR_CPUS			256
+#define MAX_NR_CPUS			1024
 
 extern const char *input_name;
 extern bool perf_host, perf_guest;
@@ -52,6 +52,8 @@ struct record_opts {
 	bool	     sample_weight;
 	bool	     sample_time;
 	bool	     period;
+	bool	     sample_intr_regs;
+	bool	     running_time;
 	unsigned int freq;
 	unsigned int mmap_pages;
 	unsigned int user_freq;
@@ -60,6 +62,11 @@ struct record_opts {
 	u64	     user_interval;
 	bool	     sample_transaction;
 	unsigned     initial_delay;
+	bool         use_clockid;
+	clockid_t    clockid;
 };
 
+struct option;
+extern const char * const *record_usage;
+extern struct option *record_options;
 #endif

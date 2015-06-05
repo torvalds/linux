@@ -127,6 +127,35 @@ config AT91_ADC
 	help
 	  Say yes here to build support for Atmel AT91 ADC.
 
+config AXP288_ADC
+	tristate "X-Powers AXP288 ADC driver"
+	depends on MFD_AXP20X
+	help
+	  Say yes here to have support for X-Powers power management IC (PMIC) ADC
+	  device. Depending on platform configuration, this general purpose ADC can
+	  be used for sampling sensors such as thermal resistors.
+
+config DA9150_GPADC
+	tristate "Dialog DA9150 GPADC driver support"
+	depends on MFD_DA9150
+	help
+	  Say yes here to build support for Dialog DA9150 GPADC.
+
+	  This driver can also be built as a module. If chosen, the module name
+	  will be da9150-gpadc.
+
+config CC10001_ADC
+	tristate "Cosmic Circuits 10001 ADC driver"
+	depends on HAVE_CLK || REGULATOR
+	depends on HAS_IOMEM
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Cosmic Circuits 10001 ADC.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called cc10001_adc.
+
 config EXYNOS_ADC
 	tristate "Exynos ADC driver support"
 	depends on ARCH_EXYNOS || ARCH_S3C24XX || ARCH_S3C64XX || (OF && COMPILE_TEST)
@@ -167,10 +196,11 @@ config MAX1363
 	  data via the iio dev interface.
 
 config MCP320X
-	tristate "Microchip Technology MCP3204/08"
+	tristate "Microchip Technology MCP3x01/02/04/08"
 	depends on SPI
 	help
-	  Say yes here to build support for Microchip Technology's MCP3204 or
+	  Say yes here to build support for Microchip Technology's
+	  MCP3001, MCP3002, MCP3004, MCP3008, MCP3201, MCP3202, MCP3204 or
 	  MCP3208 analog to digital converter.
 
 	  This driver can also be built as a module. If so, the module will be
@@ -205,6 +235,34 @@ config NAU7802
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called nau7802.
+
+config QCOM_SPMI_IADC
+	tristate "Qualcomm SPMI PMIC current ADC"
+	depends on SPMI
+	select REGMAP_SPMI
+	help
+	  This is the IIO Current ADC driver for Qualcomm QPNP IADC Chip.
+
+	  The driver supports single mode operation to read from one of two
+	  channels (external or internal). Hardware have additional
+	  channels internally used for gain and offset calibration.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called qcom-spmi-iadc.
+
+config QCOM_SPMI_VADC
+	tristate "Qualcomm SPMI PMIC voltage ADC"
+	depends on SPMI
+	select REGMAP_SPMI
+	help
+	  This is the IIO Voltage ADC driver for Qualcomm QPNP VADC Chip.
+
+	  The driver supports multiple channels read. The VADC is a 15-bit
+	  sigma-delta ADC. Some of the channels are internally used for
+	  calibration.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called qcom-spmi-vadc.
 
 config ROCKCHIP_SARADC
 	tristate "Rockchip SARADC driver"

@@ -304,8 +304,6 @@ struct sc16is7xx_one {
 	struct uart_port		port;
 	struct work_struct		tx_work;
 	struct work_struct		md_work;
-
-	struct serial_rs485		rs485;
 };
 
 struct sc16is7xx_port {
@@ -657,15 +655,15 @@ static void sc16is7xx_stop_tx(struct uart_port* port)
 	struct circ_buf *xmit = &one->port.state->xmit;
 
 	/* handle rs485 */
-	if (one->rs485.flags & SER_RS485_ENABLED) {
+	if (port->rs485.flags & SER_RS485_ENABLED) {
 		/* do nothing if current tx not yet completed */
 		int lsr = sc16is7xx_port_read(port, SC16IS7XX_LSR_REG);
 		if (!(lsr & SC16IS7XX_LSR_TEMT_BIT))
 			return;
 
 		if (uart_circ_empty(xmit) &&
-		    (one->rs485.delay_rts_after_send > 0))
-			mdelay(one->rs485.delay_rts_after_send);
+		    (port->rs485.delay_rts_after_send > 0))
+			mdelay(port->rs485.delay_rts_after_send);
 	}
 
 	sc16is7xx_port_update(port, SC16IS7XX_IER_REG,
@@ -688,9 +686,9 @@ static void sc16is7xx_start_tx(struct uart_port *port)
 	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
 
 	/* handle rs485 */
-	if ((one->rs485.flags & SER_RS485_ENABLED) &&
-	    (one->rs485.delay_rts_before_send > 0)) {
-		mdelay(one->rs485.delay_rts_before_send);
+	if ((port->rs485.flags & SER_RS485_ENABLED) &&
+	    (port->rs485.delay_rts_before_send > 0)) {
+		mdelay(port->rs485.delay_rts_before_send);
 	}
 
 	if (!work_pending(&one->tx_work))
@@ -830,51 +828,36 @@ static void sc16is7xx_set_termios(struct uart_port *port,
 	uart_update_timeout(port, termios->c_cflag, baud);
 }
 
-#if defined(TIOCSRS485) && defined(TIOCGRS485)
-static void sc16is7xx_config_rs485(struct uart_port *port,
-				   struct serial_rs485 *rs485)
+static int sc16is7xx_config_rs485(struct uart_port *port,
+				  struct serial_rs485 *rs485)
 {
-	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
+	const u32 mask = SC16IS7XX_EFCR_AUTO_RS485_BIT |
+			 SC16IS7XX_EFCR_RTS_INVERT_BIT;
+	u32 efcr = 0;
 
-	one->rs485 = *rs485;
+	if (rs485->flags & SER_RS485_ENABLED) {
+		bool rts_during_rx, rts_during_tx;
 
-	if (one->rs485.flags & SER_RS485_ENABLED) {
-		sc16is7xx_port_update(port, SC16IS7XX_EFCR_REG,
-				      SC16IS7XX_EFCR_AUTO_RS485_BIT,
-				      SC16IS7XX_EFCR_AUTO_RS485_BIT);
-	} else {
-		sc16is7xx_port_update(port, SC16IS7XX_EFCR_REG,
-				      SC16IS7XX_EFCR_AUTO_RS485_BIT,
-				      0);
+		rts_during_rx = rs485->flags & SER_RS485_RTS_AFTER_SEND;
+		rts_during_tx = rs485->flags & SER_RS485_RTS_ON_SEND;
+
+		efcr |= SC16IS7XX_EFCR_AUTO_RS485_BIT;
+
+		if (!rts_during_rx && rts_during_tx)
+			/* default */;
+		else if (rts_during_rx && !rts_during_tx)
+			efcr |= SC16IS7XX_EFCR_RTS_INVERT_BIT;
+		else
+			dev_err(port->dev,
+				"unsupported RTS signalling on_send:%d after_send:%d - exactly one of RS485 RTS flags should be set\n",
+				rts_during_tx, rts_during_rx);
 	}
-}
-#endif
 
-static int sc16is7xx_ioctl(struct uart_port *port, unsigned int cmd,
-			   unsigned long arg)
-{
-#if defined(TIOCSRS485) && defined(TIOCGRS485)
-	struct serial_rs485 rs485;
+	sc16is7xx_port_update(port, SC16IS7XX_EFCR_REG, mask, efcr);
 
-	switch (cmd) {
-	case TIOCSRS485:
-		if (copy_from_user(&rs485, (void __user *)arg, sizeof(rs485)))
-			return -EFAULT;
+	port->rs485 = *rs485;
 
-		sc16is7xx_config_rs485(port, &rs485);
-		return 0;
-	case TIOCGRS485:
-		if (copy_to_user((void __user *)arg,
-				 &(to_sc16is7xx_one(port, port)->rs485),
-				 sizeof(rs485)))
-			return -EFAULT;
-		return 0;
-	default:
-		break;
-	}
-#endif
-
-	return -ENOIOCTLCMD;
+	return 0;
 }
 
 static int sc16is7xx_startup(struct uart_port *port)
@@ -936,9 +919,11 @@ static void sc16is7xx_shutdown(struct uart_port *port)
 	/* Disable all interrupts */
 	sc16is7xx_port_write(port, SC16IS7XX_IER_REG, 0);
 	/* Disable TX/RX */
-	sc16is7xx_port_write(port, SC16IS7XX_EFCR_REG,
-			     SC16IS7XX_EFCR_RXDISABLE_BIT |
-			     SC16IS7XX_EFCR_TXDISABLE_BIT);
+	sc16is7xx_port_update(port, SC16IS7XX_EFCR_REG,
+			      SC16IS7XX_EFCR_RXDISABLE_BIT |
+			      SC16IS7XX_EFCR_TXDISABLE_BIT,
+			      SC16IS7XX_EFCR_RXDISABLE_BIT |
+			      SC16IS7XX_EFCR_TXDISABLE_BIT);
 
 	sc16is7xx_power(port, 0);
 }
@@ -1000,7 +985,6 @@ static const struct uart_ops sc16is7xx_ops = {
 	.release_port	= sc16is7xx_null_void,
 	.config_port	= sc16is7xx_config_port,
 	.verify_port	= sc16is7xx_verify_port,
-	.ioctl		= sc16is7xx_ioctl,
 	.pm		= sc16is7xx_pm,
 };
 
@@ -1082,6 +1066,7 @@ static int sc16is7xx_probe(struct device *dev,
 		else
 			return PTR_ERR(s->clk);
 	} else {
+		clk_prepare_enable(s->clk);
 		freq = clk_get_rate(s->clk);
 	}
 
@@ -1130,6 +1115,7 @@ static int sc16is7xx_probe(struct device *dev,
 		s->p[i].port.flags	= UPF_FIXED_TYPE | UPF_LOW_LATENCY;
 		s->p[i].port.iotype	= UPIO_PORT;
 		s->p[i].port.uartclk	= freq;
+		s->p[i].port.rs485_config = sc16is7xx_config_rs485;
 		s->p[i].port.ops	= &sc16is7xx_ops;
 		/* Disable all interrupts */
 		sc16is7xx_port_write(&s->p[i].port, SC16IS7XX_IER_REG, 0);
@@ -1152,6 +1138,9 @@ static int sc16is7xx_probe(struct device *dev,
 					IRQF_ONESHOT | flags, dev_name(dev), s);
 	if (!ret)
 		return 0;
+
+	for (i = 0; i < s->uart.nr; i++)
+		uart_remove_one_port(&s->uart, &s->p[i].port);
 
 	mutex_destroy(&s->mutex);
 

@@ -126,23 +126,16 @@ static int ll_xattr_cache_add(struct list_head *cache,
 		return -ENOMEM;
 	}
 
-	xattr->xe_namelen = strlen(xattr_name) + 1;
-
-	xattr->xe_name = kzalloc(xattr->xe_namelen, GFP_NOFS);
+	xattr->xe_name = kstrdup(xattr_name, GFP_NOFS);
 	if (!xattr->xe_name) {
 		CDEBUG(D_CACHE, "failed to alloc xattr name %u\n",
 		       xattr->xe_namelen);
 		goto err_name;
 	}
-	xattr->xe_value = kzalloc(xattr_val_len, GFP_NOFS);
-	if (!xattr->xe_value) {
-		CDEBUG(D_CACHE, "failed to alloc xattr value %d\n",
-		       xattr_val_len);
+	xattr->xe_value = kmemdup(xattr_val, xattr_val_len, GFP_NOFS);
+	if (!xattr->xe_value)
 		goto err_value;
-	}
 
-	memcpy(xattr->xe_name, xattr_name, xattr->xe_namelen);
-	memcpy(xattr->xe_value, xattr_val, xattr_val_len);
 	xattr->xe_vallen = xattr_val_len;
 	list_add(&xattr->xe_list, cache);
 
@@ -302,13 +295,18 @@ static int ll_xattr_find_get_lock(struct inode *inode,
 
 
 	mutex_lock(&lli->lli_xattrs_enq_lock);
-	/* Try matching first. */
-	mode = ll_take_md_lock(inode, MDS_INODELOCK_XATTR, &lockh, 0, LCK_PR);
-	if (mode != 0) {
-		/* fake oit in mdc_revalidate_lock() manner */
-		oit->d.lustre.it_lock_handle = lockh.cookie;
-		oit->d.lustre.it_lock_mode = mode;
-		goto out;
+	/* inode may have been shrunk and recreated, so data is gone, match lock
+	 * only when data exists. */
+	if (ll_xattr_cache_valid(lli)) {
+		/* Try matching first. */
+		mode = ll_take_md_lock(inode, MDS_INODELOCK_XATTR, &lockh, 0,
+				       LCK_PR);
+		if (mode != 0) {
+			/* fake oit in mdc_revalidate_lock() manner */
+			oit->d.lustre.it_lock_handle = lockh.cookie;
+			oit->d.lustre.it_lock_mode = mode;
+			goto out;
+		}
 	}
 
 	/* Enqueue if the lock isn't cached locally. */

@@ -47,13 +47,6 @@ extern int max_threads;
 
 static struct workqueue_struct *khelper_wq;
 
-/*
- * kmod_thread_locker is used for deadlock avoidance.  There is no explicit
- * locking to protect this global - it is private to the singleton khelper
- * thread and should only ever be modified by that thread.
- */
-static const struct task_struct *kmod_thread_locker;
-
 #define CAP_BSET	(void *)1
 #define CAP_PI		(void *)2
 
@@ -223,7 +216,6 @@ static void umh_complete(struct subprocess_info *sub_info)
 static int ____call_usermodehelper(void *data)
 {
 	struct subprocess_info *sub_info = data;
-	int wait = sub_info->wait & ~UMH_KILLABLE;
 	struct cred *new;
 	int retval;
 
@@ -267,18 +259,11 @@ static int ____call_usermodehelper(void *data)
 out:
 	sub_info->retval = retval;
 	/* wait_for_helper() will call umh_complete if UHM_WAIT_PROC. */
-	if (wait != UMH_WAIT_PROC)
+	if (!(sub_info->wait & UMH_WAIT_PROC))
 		umh_complete(sub_info);
 	if (!retval)
 		return 0;
 	do_exit(0);
-}
-
-static int call_helper(void *data)
-{
-	/* Worker thread started blocking khelper thread. */
-	kmod_thread_locker = current;
-	return ____call_usermodehelper(data);
 }
 
 /* Keventd can't block, but this (a child) can. */
@@ -323,21 +308,14 @@ static void __call_usermodehelper(struct work_struct *work)
 {
 	struct subprocess_info *sub_info =
 		container_of(work, struct subprocess_info, work);
-	int wait = sub_info->wait & ~UMH_KILLABLE;
 	pid_t pid;
 
-	/* CLONE_VFORK: wait until the usermode helper has execve'd
-	 * successfully We need the data structures to stay around
-	 * until that is done.  */
-	if (wait == UMH_WAIT_PROC)
+	if (sub_info->wait & UMH_WAIT_PROC)
 		pid = kernel_thread(wait_for_helper, sub_info,
 				    CLONE_FS | CLONE_FILES | SIGCHLD);
-	else {
-		pid = kernel_thread(call_helper, sub_info,
-				    CLONE_VFORK | SIGCHLD);
-		/* Worker thread stopped blocking khelper thread. */
-		kmod_thread_locker = NULL;
-	}
+	else
+		pid = kernel_thread(____call_usermodehelper, sub_info,
+				    SIGCHLD);
 
 	if (pid < 0) {
 		sub_info->retval = pid;
@@ -570,17 +548,6 @@ int call_usermodehelper_exec(struct subprocess_info *sub_info, int wait)
 		retval = -EBUSY;
 		goto out;
 	}
-	/*
-	 * Worker thread must not wait for khelper thread at below
-	 * wait_for_completion() if the thread was created with CLONE_VFORK
-	 * flag, for khelper thread is already waiting for the thread at
-	 * wait_for_completion() in do_fork().
-	 */
-	if (wait != UMH_NO_WAIT && current == kmod_thread_locker) {
-		retval = -EBUSY;
-		goto out;
-	}
-
 	/*
 	 * Set the completion pointer only if there is a waiter.
 	 * This makes it possible to use umh_complete to free

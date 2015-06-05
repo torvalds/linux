@@ -170,7 +170,7 @@ static int sdo_g_mbus_fmt(struct v4l2_subdev *sd,
 	/* all modes are 720 pixels wide */
 	fmt->width = 720;
 	fmt->height = sdev->fmt->height;
-	fmt->code = V4L2_MBUS_FMT_FIXED;
+	fmt->code = MEDIA_BUS_FMT_FIXED;
 	fmt->field = V4L2_FIELD_INTERLACED;
 	fmt->colorspace = V4L2_COLORSPACE_JPEG;
 	return 0;
@@ -482,7 +482,6 @@ static struct platform_driver sdo_driver __refdata = {
 	.remove = sdo_remove,
 	.driver = {
 		.name = "s5p-sdo",
-		.owner = THIS_MODULE,
 		.pm = &sdo_pm_ops,
 	}
 };

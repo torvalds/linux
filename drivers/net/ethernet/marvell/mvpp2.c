@@ -1423,7 +1423,7 @@ static void mvpp2_prs_mac_promisc_set(struct mvpp2 *priv, int port, bool add)
 {
 	struct mvpp2_prs_entry pe;
 
-	/* Promiscous mode - Accept unknown packets */
+	/* Promiscuous mode - Accept unknown packets */
 
 	if (priv->prs_shadow[MVPP2_PE_MAC_PROMISCUOUS].valid) {
 		/* Entry exist - update port only */
@@ -1692,6 +1692,7 @@ static int mvpp2_prs_vlan_add(struct mvpp2 *priv, unsigned short tpid, int ai,
 {
 	struct mvpp2_prs_entry *pe;
 	int tid_aux, tid;
+	int ret = 0;
 
 	pe = mvpp2_prs_vlan_find(priv, tpid, ai);
 
@@ -1723,8 +1724,10 @@ static int mvpp2_prs_vlan_add(struct mvpp2 *priv, unsigned short tpid, int ai,
 				break;
 		}
 
-		if (tid <= tid_aux)
-			return -EINVAL;
+		if (tid <= tid_aux) {
+			ret = -EINVAL;
+			goto error;
+		}
 
 		memset(pe, 0 , sizeof(struct mvpp2_prs_entry));
 		mvpp2_prs_tcam_lu_set(pe, MVPP2_PRS_LU_VLAN);
@@ -1756,9 +1759,10 @@ static int mvpp2_prs_vlan_add(struct mvpp2 *priv, unsigned short tpid, int ai,
 
 	mvpp2_prs_hw_write(priv, pe);
 
+error:
 	kfree(pe);
 
-	return 0;
+	return ret;
 }
 
 /* Get first free double vlan ai number */
@@ -1821,7 +1825,7 @@ static int mvpp2_prs_double_vlan_add(struct mvpp2 *priv, unsigned short tpid1,
 				     unsigned int port_map)
 {
 	struct mvpp2_prs_entry *pe;
-	int tid_aux, tid, ai;
+	int tid_aux, tid, ai, ret = 0;
 
 	pe = mvpp2_prs_double_vlan_find(priv, tpid1, tpid2);
 
@@ -1838,8 +1842,10 @@ static int mvpp2_prs_double_vlan_add(struct mvpp2 *priv, unsigned short tpid1,
 
 		/* Set ai value for new double vlan entry */
 		ai = mvpp2_prs_double_vlan_ai_free_get(priv);
-		if (ai < 0)
-			return ai;
+		if (ai < 0) {
+			ret = ai;
+			goto error;
+		}
 
 		/* Get first single/triple vlan tid */
 		for (tid_aux = MVPP2_PE_FIRST_FREE_TID;
@@ -1859,8 +1865,10 @@ static int mvpp2_prs_double_vlan_add(struct mvpp2 *priv, unsigned short tpid1,
 				break;
 		}
 
-		if (tid >= tid_aux)
-			return -ERANGE;
+		if (tid >= tid_aux) {
+			ret = -ERANGE;
+			goto error;
+		}
 
 		memset(pe, 0, sizeof(struct mvpp2_prs_entry));
 		mvpp2_prs_tcam_lu_set(pe, MVPP2_PRS_LU_VLAN);
@@ -1887,8 +1895,9 @@ static int mvpp2_prs_double_vlan_add(struct mvpp2 *priv, unsigned short tpid1,
 	mvpp2_prs_tcam_port_map_set(pe, port_map);
 	mvpp2_prs_hw_write(priv, pe);
 
+error:
 	kfree(pe);
-	return 0;
+	return ret;
 }
 
 /* IPv4 header parsing for fragmentation and L4 offset */
@@ -3393,7 +3402,7 @@ static void mvpp2_bm_bufs_free(struct mvpp2 *priv, struct mvpp2_bm_pool *bm_pool
 	for (i = 0; i < bm_pool->buf_num; i++) {
 		u32 vaddr;
 
-		/* Get buffer virtual adress (indirect access) */
+		/* Get buffer virtual address (indirect access) */
 		mvpp2_read(priv, MVPP2_BM_PHY_ALLOC_REG(bm_pool->id));
 		vaddr = mvpp2_read(priv, MVPP2_BM_VIRT_ALLOC_REG);
 		if (!vaddr)

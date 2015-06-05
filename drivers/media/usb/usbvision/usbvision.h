@@ -357,8 +357,8 @@ extern struct usb_device_id usbvision_table[];
 
 struct usb_usbvision {
 	struct v4l2_device v4l2_dev;
-	struct video_device *vdev;					/* Video Device */
-	struct video_device *rdev;					/* Radio Device */
+	struct video_device vdev;					/* Video Device */
+	struct video_device rdev;					/* Radio Device */
 
 	/* i2c Declaration Section*/
 	struct i2c_adapter i2c_adap;
@@ -517,11 +517,3 @@ int usbvision_power_off(struct usb_usbvision *usbvision);
 int usbvision_power_on(struct usb_usbvision *usbvision);
 
 #endif									/* __LINUX_USBVISION_H */
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

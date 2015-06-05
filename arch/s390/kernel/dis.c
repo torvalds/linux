@@ -32,12 +32,6 @@
 #include <asm/debug.h>
 #include <asm/irq.h>
 
-#ifndef CONFIG_64BIT
-#define ONELONG "%08lx: "
-#else /* CONFIG_64BIT */
-#define ONELONG "%016lx: "
-#endif /* CONFIG_64BIT */
-
 enum {
 	UNUSED,	/* Indicates the end of the operand list */
 	R_8,	/* GPR starting at position 8 */
@@ -137,7 +131,7 @@ enum {
 	INSTR_RSI_RRP,
 	INSTR_RSL_LRDFU, INSTR_RSL_R0RD,
 	INSTR_RSY_AARD, INSTR_RSY_CCRD, INSTR_RSY_RRRD, INSTR_RSY_RURD,
-	INSTR_RSY_RDRM,
+	INSTR_RSY_RDRM, INSTR_RSY_RMRD,
 	INSTR_RS_AARD, INSTR_RS_CCRD, INSTR_RS_R0RD, INSTR_RS_RRRD,
 	INSTR_RS_RURD,
 	INSTR_RXE_FRRD, INSTR_RXE_RRRD, INSTR_RXE_RRRDM,
@@ -226,7 +220,6 @@ static const struct s390_operand operands[] =
 	[U16_32] = { 16, 32, 0 },
 	[J16_16] = { 16, 16, OPERAND_PCREL },
 	[J16_32] = { 16, 32, OPERAND_PCREL },
-	[I16_32] = { 16, 32, OPERAND_SIGNED },
 	[I24_24] = { 24, 24, OPERAND_SIGNED },
 	[J32_16] = { 32, 16, OPERAND_PCREL },
 	[I32_16] = { 32, 16, OPERAND_SIGNED },
@@ -308,6 +301,7 @@ static const unsigned char formats[][7] = {
 	[INSTR_RSY_AARD]  = { 0xff, A_8,A_12,D20_20,B_16,0,0 },
 	[INSTR_RSY_CCRD]  = { 0xff, C_8,C_12,D20_20,B_16,0,0 },
 	[INSTR_RSY_RDRM]  = { 0xff, R_8,D20_20,B_16,U4_12,0,0 },
+	[INSTR_RSY_RMRD]  = { 0xff, R_8,U4_12,D20_20,B_16,0,0 },
 	[INSTR_RSY_RRRD]  = { 0xff, R_8,R_12,D20_20,B_16,0,0 },
 	[INSTR_RSY_RURD]  = { 0xff, R_8,U4_12,D20_20,B_16,0,0 },
 	[INSTR_RS_AARD]	  = { 0xff, A_8,A_12,D_20,B_16,0,0 },
@@ -451,7 +445,8 @@ enum {
 	LONG_INSN_VERLLV,
 	LONG_INSN_VESRAV,
 	LONG_INSN_VESRLV,
-	LONG_INSN_VSBCBI
+	LONG_INSN_VSBCBI,
+	LONG_INSN_STCCTM
 };
 
 static char *long_insn_name[] = {
@@ -531,15 +526,14 @@ static char *long_insn_name[] = {
 	[LONG_INSN_VESRAV] = "vesrav",
 	[LONG_INSN_VESRLV] = "vesrlv",
 	[LONG_INSN_VSBCBI] = "vsbcbi",
+	[LONG_INSN_STCCTM] = "stcctm",
 };
 
 static struct s390_insn opcode[] = {
-#ifdef CONFIG_64BIT
 	{ "bprp", 0xc5, INSTR_MII_UPI },
 	{ "bpp", 0xc7, INSTR_SMI_U0RDP },
 	{ "trtr", 0xd0, INSTR_SS_L0RDRD },
 	{ "lmd", 0xef, INSTR_SS_RRRDRD3 },
-#endif
 	{ "spm", 0x04, INSTR_RR_R0 },
 	{ "balr", 0x05, INSTR_RR_RR },
 	{ "bctr", 0x06, INSTR_RR_RR },
@@ -723,11 +717,9 @@ static struct s390_insn opcode[] = {
 };
 
 static struct s390_insn opcode_01[] = {
-#ifdef CONFIG_64BIT
 	{ "ptff", 0x04, INSTR_E },
 	{ "pfpo", 0x0a, INSTR_E },
 	{ "sam64", 0x0e, INSTR_E },
-#endif
 	{ "pr", 0x01, INSTR_E },
 	{ "upt", 0x02, INSTR_E },
 	{ "sckpf", 0x07, INSTR_E },
@@ -739,7 +731,6 @@ static struct s390_insn opcode_01[] = {
 };
 
 static struct s390_insn opcode_a5[] = {
-#ifdef CONFIG_64BIT
 	{ "iihh", 0x00, INSTR_RI_RU },
 	{ "iihl", 0x01, INSTR_RI_RU },
 	{ "iilh", 0x02, INSTR_RI_RU },
@@ -756,12 +747,10 @@ static struct s390_insn opcode_a5[] = {
 	{ "llihl", 0x0d, INSTR_RI_RU },
 	{ "llilh", 0x0e, INSTR_RI_RU },
 	{ "llill", 0x0f, INSTR_RI_RU },
-#endif
 	{ "", 0, INSTR_INVALID }
 };
 
 static struct s390_insn opcode_a7[] = {
-#ifdef CONFIG_64BIT
 	{ "tmhh", 0x02, INSTR_RI_RU },
 	{ "tmhl", 0x03, INSTR_RI_RU },
 	{ "brctg", 0x07, INSTR_RI_RP },
@@ -769,7 +758,6 @@ static struct s390_insn opcode_a7[] = {
 	{ "aghi", 0x0b, INSTR_RI_RI },
 	{ "mghi", 0x0d, INSTR_RI_RI },
 	{ "cghi", 0x0f, INSTR_RI_RI },
-#endif
 	{ "tmlh", 0x00, INSTR_RI_RU },
 	{ "tmll", 0x01, INSTR_RI_RU },
 	{ "brc", 0x04, INSTR_RI_UP },
@@ -783,18 +771,15 @@ static struct s390_insn opcode_a7[] = {
 };
 
 static struct s390_insn opcode_aa[] = {
-#ifdef CONFIG_64BIT
 	{ { 0, LONG_INSN_RINEXT }, 0x00, INSTR_RI_RI },
 	{ "rion", 0x01, INSTR_RI_RI },
 	{ "tric", 0x02, INSTR_RI_RI },
 	{ "rioff", 0x03, INSTR_RI_RI },
 	{ { 0, LONG_INSN_RIEMIT }, 0x04, INSTR_RI_RI },
-#endif
 	{ "", 0, INSTR_INVALID }
 };
 
 static struct s390_insn opcode_b2[] = {
-#ifdef CONFIG_64BIT
 	{ "stckf", 0x7c, INSTR_S_RD },
 	{ "lpp", 0x80, INSTR_S_RD },
 	{ "lcctl", 0x84, INSTR_S_RD },
@@ -817,7 +802,6 @@ static struct s390_insn opcode_b2[] = {
 	{ "tend", 0xf8, INSTR_S_00 },
 	{ "niai", 0xfa, INSTR_IE_UU },
 	{ { 0, LONG_INSN_TABORT }, 0xfc, INSTR_S_RD },
-#endif
 	{ "stidp", 0x02, INSTR_S_RD },
 	{ "sck", 0x04, INSTR_S_RD },
 	{ "stck", 0x05, INSTR_S_RD },
@@ -906,7 +890,6 @@ static struct s390_insn opcode_b2[] = {
 };
 
 static struct s390_insn opcode_b3[] = {
-#ifdef CONFIG_64BIT
 	{ "maylr", 0x38, INSTR_RRF_F0FF },
 	{ "mylr", 0x39, INSTR_RRF_F0FF },
 	{ "mayr", 0x3a, INSTR_RRF_F0FF },
@@ -994,7 +977,6 @@ static struct s390_insn opcode_b3[] = {
 	{ "qaxtr", 0xfd, INSTR_RRF_FUFF },
 	{ "iextr", 0xfe, INSTR_RRF_F0FR },
 	{ "rrxtr", 0xff, INSTR_RRF_FFRU },
-#endif
 	{ "lpebr", 0x00, INSTR_RRE_FF },
 	{ "lnebr", 0x01, INSTR_RRE_FF },
 	{ "ltebr", 0x02, INSTR_RRE_FF },
@@ -1089,7 +1071,6 @@ static struct s390_insn opcode_b3[] = {
 };
 
 static struct s390_insn opcode_b9[] = {
-#ifdef CONFIG_64BIT
 	{ "lpgr", 0x00, INSTR_RRE_RR },
 	{ "lngr", 0x01, INSTR_RRE_RR },
 	{ "ltgr", 0x02, INSTR_RRE_RR },
@@ -1202,7 +1183,6 @@ static struct s390_insn opcode_b9[] = {
 	{ "srk", 0xf9, INSTR_RRF_R0RR2 },
 	{ "alrk", 0xfa, INSTR_RRF_R0RR2 },
 	{ "slrk", 0xfb, INSTR_RRF_R0RR2 },
-#endif
 	{ "kmac", 0x1e, INSTR_RRE_RR },
 	{ "lrvr", 0x1f, INSTR_RRE_RR },
 	{ "km", 0x2e, INSTR_RRE_RR },
@@ -1222,7 +1202,6 @@ static struct s390_insn opcode_b9[] = {
 };
 
 static struct s390_insn opcode_c0[] = {
-#ifdef CONFIG_64BIT
 	{ "lgfi", 0x01, INSTR_RIL_RI },
 	{ "xihf", 0x06, INSTR_RIL_RU },
 	{ "xilf", 0x07, INSTR_RIL_RU },
@@ -1234,7 +1213,6 @@ static struct s390_insn opcode_c0[] = {
 	{ "oilf", 0x0d, INSTR_RIL_RU },
 	{ "llihf", 0x0e, INSTR_RIL_RU },
 	{ "llilf", 0x0f, INSTR_RIL_RU },
-#endif
 	{ "larl", 0x00, INSTR_RIL_RP },
 	{ "brcl", 0x04, INSTR_RIL_UP },
 	{ "brasl", 0x05, INSTR_RIL_RP },
@@ -1242,7 +1220,6 @@ static struct s390_insn opcode_c0[] = {
 };
 
 static struct s390_insn opcode_c2[] = {
-#ifdef CONFIG_64BIT
 	{ "msgfi", 0x00, INSTR_RIL_RI },
 	{ "msfi", 0x01, INSTR_RIL_RI },
 	{ "slgfi", 0x04, INSTR_RIL_RU },
@@ -1255,12 +1232,10 @@ static struct s390_insn opcode_c2[] = {
 	{ "cfi", 0x0d, INSTR_RIL_RI },
 	{ "clgfi", 0x0e, INSTR_RIL_RU },
 	{ "clfi", 0x0f, INSTR_RIL_RU },
-#endif
 	{ "", 0, INSTR_INVALID }
 };
 
 static struct s390_insn opcode_c4[] = {
-#ifdef CONFIG_64BIT
 	{ "llhrl", 0x02, INSTR_RIL_RP },
 	{ "lghrl", 0x04, INSTR_RIL_RP },
 	{ "lhrl", 0x05, INSTR_RIL_RP },
@@ -1272,12 +1247,10 @@ static struct s390_insn opcode_c4[] = {
 	{ "lrl", 0x0d, INSTR_RIL_RP },
 	{ { 0, LONG_INSN_LLGFRL }, 0x0e, INSTR_RIL_RP },
 	{ "strl", 0x0f, INSTR_RIL_RP },
-#endif
 	{ "", 0, INSTR_INVALID }
 };
 
 static struct s390_insn opcode_c6[] = {
-#ifdef CONFIG_64BIT
 	{ "exrl", 0x00, INSTR_RIL_RP },
 	{ "pfdrl", 0x02, INSTR_RIL_UP },
 	{ "cghrl", 0x04, INSTR_RIL_RP },
@@ -1290,35 +1263,29 @@ static struct s390_insn opcode_c6[] = {
 	{ "crl", 0x0d, INSTR_RIL_RP },
 	{ { 0, LONG_INSN_CLGFRL }, 0x0e, INSTR_RIL_RP },
 	{ "clrl", 0x0f, INSTR_RIL_RP },
-#endif
 	{ "", 0, INSTR_INVALID }
 };
 
 static struct s390_insn opcode_c8[] = {
-#ifdef CONFIG_64BIT
 	{ "mvcos", 0x00, INSTR_SSF_RRDRD },
 	{ "ectg", 0x01, INSTR_SSF_RRDRD },
 	{ "csst", 0x02, INSTR_SSF_RRDRD },
 	{ "lpd", 0x04, INSTR_SSF_RRDRD2 },
 	{ "lpdg", 0x05, INSTR_SSF_RRDRD2 },
-#endif
 	{ "", 0, INSTR_INVALID }
 };
 
 static struct s390_insn opcode_cc[] = {
-#ifdef CONFIG_64BIT
 	{ "brcth", 0x06, INSTR_RIL_RP },
 	{ "aih", 0x08, INSTR_RIL_RI },
 	{ "alsih", 0x0a, INSTR_RIL_RI },
 	{ { 0, LONG_INSN_ALSIHN }, 0x0b, INSTR_RIL_RI },
 	{ "cih", 0x0d, INSTR_RIL_RI },
 	{ "clih", 0x0f, INSTR_RIL_RI },
-#endif
 	{ "", 0, INSTR_INVALID }
 };
 
 static struct s390_insn opcode_e3[] = {
-#ifdef CONFIG_64BIT
 	{ "ltg", 0x02, INSTR_RXY_RRRD },
 	{ "lrag", 0x03, INSTR_RXY_RRRD },
 	{ "lg", 0x04, INSTR_RXY_RRRD },
@@ -1412,7 +1379,6 @@ static struct s390_insn opcode_e3[] = {
 	{ "clhf", 0xcf, INSTR_RXY_RRRD },
 	{ { 0, LONG_INSN_MPCIFC }, 0xd0, INSTR_RXY_RRRD },
 	{ { 0, LONG_INSN_STPCIFC }, 0xd4, INSTR_RXY_RRRD },
-#endif
 	{ "lrv", 0x1e, INSTR_RXY_RRRD },
 	{ "lrvh", 0x1f, INSTR_RXY_RRRD },
 	{ "strv", 0x3e, INSTR_RXY_RRRD },
@@ -1424,7 +1390,6 @@ static struct s390_insn opcode_e3[] = {
 };
 
 static struct s390_insn opcode_e5[] = {
-#ifdef CONFIG_64BIT
 	{ "strag", 0x02, INSTR_SSE_RDRD },
 	{ "mvhhi", 0x44, INSTR_SIL_RDI },
 	{ "mvghi", 0x48, INSTR_SIL_RDI },
@@ -1437,7 +1402,6 @@ static struct s390_insn opcode_e5[] = {
 	{ { 0, LONG_INSN_CLFHSI }, 0x5d, INSTR_SIL_RDU },
 	{ { 0, LONG_INSN_TBEGIN }, 0x60, INSTR_SIL_RDU },
 	{ { 0, LONG_INSN_TBEGINC }, 0x61, INSTR_SIL_RDU },
-#endif
 	{ "lasp", 0x00, INSTR_SSE_RDRD },
 	{ "tprot", 0x01, INSTR_SSE_RDRD },
 	{ "mvcsk", 0x0e, INSTR_SSE_RDRD },
@@ -1446,7 +1410,6 @@ static struct s390_insn opcode_e5[] = {
 };
 
 static struct s390_insn opcode_e7[] = {
-#ifdef CONFIG_64BIT
 	{ "lcbb", 0x27, INSTR_RXE_RRRDM },
 	{ "vgef", 0x13, INSTR_VRV_VVRDM },
 	{ "vgeg", 0x12, INSTR_VRV_VVRDM },
@@ -1586,11 +1549,9 @@ static struct s390_insn opcode_e7[] = {
 	{ "vfsq", 0xce, INSTR_VRR_VV000MM },
 	{ "vfs", 0xe2, INSTR_VRR_VVV00MM },
 	{ "vftci", 0x4a, INSTR_VRI_VVIMM },
-#endif
 };
 
 static struct s390_insn opcode_eb[] = {
-#ifdef CONFIG_64BIT
 	{ "lmg", 0x04, INSTR_RSY_RRRD },
 	{ "srag", 0x0a, INSTR_RSY_RRRD },
 	{ "slag", 0x0b, INSTR_RSY_RRRD },
@@ -1656,7 +1617,7 @@ static struct s390_insn opcode_eb[] = {
 	{ "lric", 0x60, INSTR_RSY_RDRM },
 	{ "stric", 0x61, INSTR_RSY_RDRM },
 	{ "mric", 0x62, INSTR_RSY_RDRM },
-#endif
+	{ { 0, LONG_INSN_STCCTM }, 0x17, INSTR_RSY_RMRD },
 	{ "rll", 0x1d, INSTR_RSY_RRRD },
 	{ "mvclu", 0x8e, INSTR_RSY_RRRD },
 	{ "tp", 0xc0, INSTR_RSL_R0RD },
@@ -1664,7 +1625,6 @@ static struct s390_insn opcode_eb[] = {
 };
 
 static struct s390_insn opcode_ec[] = {
-#ifdef CONFIG_64BIT
 	{ "brxhg", 0x44, INSTR_RIE_RRP },
 	{ "brxlg", 0x45, INSTR_RIE_RRP },
 	{ { 0, LONG_INSN_RISBLG }, 0x51, INSTR_RIE_RRUUU },
@@ -1698,12 +1658,10 @@ static struct s390_insn opcode_ec[] = {
 	{ "clgib", 0xfd, INSTR_RIS_RURDU },
 	{ "cib", 0xfe, INSTR_RIS_RURDI },
 	{ "clib", 0xff, INSTR_RIS_RURDU },
-#endif
 	{ "", 0, INSTR_INVALID }
 };
 
 static struct s390_insn opcode_ed[] = {
-#ifdef CONFIG_64BIT
 	{ "mayl", 0x38, INSTR_RXF_FRRDF },
 	{ "myl", 0x39, INSTR_RXF_FRRDF },
 	{ "may", 0x3a, INSTR_RXF_FRRDF },
@@ -1728,7 +1686,6 @@ static struct s390_insn opcode_ed[] = {
 	{ "czxt", 0xa9, INSTR_RSL_LRDFU },
 	{ "cdzt", 0xaa, INSTR_RSL_LRDFU },
 	{ "cxzt", 0xab, INSTR_RSL_LRDFU },
-#endif
 	{ "ldeb", 0x04, INSTR_RXE_FRRD },
 	{ "lxdb", 0x05, INSTR_RXE_FRRD },
 	{ "lxeb", 0x06, INSTR_RXE_FRRD },
@@ -2048,7 +2005,7 @@ void show_code(struct pt_regs *regs)
 		else
 			*ptr++ = ' ';
 		addr = regs->psw.addr + start - 32;
-		ptr += sprintf(ptr, ONELONG, addr);
+		ptr += sprintf(ptr, "%016lx: ", addr);
 		if (start + opsize >= end)
 			break;
 		for (i = 0; i < opsize; i++)

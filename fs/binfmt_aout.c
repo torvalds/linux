@@ -292,8 +292,8 @@ static int load_aout_binary(struct linux_binprm * bprm)
 		if ((fd_offset & ~PAGE_MASK) != 0 && printk_ratelimit())
 		{
 			printk(KERN_WARNING 
-			       "fd_offset is not page aligned. Please convert program: %s\n",
-			       bprm->file->f_path.dentry->d_name.name);
+			       "fd_offset is not page aligned. Please convert program: %pD\n",
+			       bprm->file);
 		}
 
 		if (!bprm->file->f_op->mmap||((fd_offset & ~PAGE_MASK) != 0)) {
@@ -375,8 +375,8 @@ static int load_aout_library(struct file *file)
 		if (printk_ratelimit())
 		{
 			printk(KERN_WARNING 
-			       "N_TXTOFF is not page aligned. Please convert library: %s\n",
-			       file->f_path.dentry->d_name.name);
+			       "N_TXTOFF is not page aligned. Please convert library: %pD\n",
+			       file);
 		}
 		vm_brk(start_addr, ex.a_text + ex.a_data + ex.a_bss);
 		

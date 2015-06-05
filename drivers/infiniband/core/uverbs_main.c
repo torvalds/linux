@@ -122,7 +122,8 @@ static int (*uverbs_ex_cmd_table[])(struct ib_uverbs_file *file,
 				    struct ib_udata *ucore,
 				    struct ib_udata *uhw) = {
 	[IB_USER_VERBS_EX_CMD_CREATE_FLOW]	= ib_uverbs_ex_create_flow,
-	[IB_USER_VERBS_EX_CMD_DESTROY_FLOW]	= ib_uverbs_ex_destroy_flow
+	[IB_USER_VERBS_EX_CMD_DESTROY_FLOW]	= ib_uverbs_ex_destroy_flow,
+	[IB_USER_VERBS_EX_CMD_QUERY_DEVICE]	= ib_uverbs_ex_query_device,
 };
 
 static void ib_uverbs_add_one(struct ib_device *device);
@@ -245,6 +246,17 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 		kfree(uqp);
 	}
 
+	list_for_each_entry_safe(uobj, tmp, &context->srq_list, list) {
+		struct ib_srq *srq = uobj->object;
+		struct ib_uevent_object *uevent =
+			container_of(uobj, struct ib_uevent_object, uobject);
+
+		idr_remove_uobj(&ib_uverbs_srq_idr, uobj);
+		ib_destroy_srq(srq);
+		ib_uverbs_release_uevent(file, uevent);
+		kfree(uevent);
+	}
+
 	list_for_each_entry_safe(uobj, tmp, &context->cq_list, list) {
 		struct ib_cq *cq = uobj->object;
 		struct ib_uverbs_event_file *ev_file = cq->cq_context;
@@ -255,17 +267,6 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 		ib_destroy_cq(cq);
 		ib_uverbs_release_ucq(file, ev_file, ucq);
 		kfree(ucq);
-	}
-
-	list_for_each_entry_safe(uobj, tmp, &context->srq_list, list) {
-		struct ib_srq *srq = uobj->object;
-		struct ib_uevent_object *uevent =
-			container_of(uobj, struct ib_uevent_object, uobject);
-
-		idr_remove_uobj(&ib_uverbs_srq_idr, uobj);
-		ib_destroy_srq(srq);
-		ib_uverbs_release_uevent(file, uevent);
-		kfree(uevent);
 	}
 
 	list_for_each_entry_safe(uobj, tmp, &context->mr_list, list) {
@@ -295,6 +296,8 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 		ib_dealloc_pd(pd);
 		kfree(uobj);
 	}
+
+	put_pid(context->tgid);
 
 	return context->device->dealloc_ucontext(context);
 }

@@ -374,7 +374,6 @@ static struct platform_driver pm8921_driver = {
 	.remove		= pm8921_remove,
 	.driver		= {
 		.name	= "pm8921-core",
-		.owner	= THIS_MODULE,
 		.of_match_table = pm8921_id_table,
 	},
 };

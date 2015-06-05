@@ -172,7 +172,6 @@ static struct platform_driver jz4740_hwmon_driver = {
 	.remove = jz4740_hwmon_remove,
 	.driver = {
 		.name = "jz4740-hwmon",
-		.owner = THIS_MODULE,
 	},
 };
 

@@ -79,12 +79,14 @@ extern unsigned vivid_debug;
 struct vivid_fmt {
 	const char *name;
 	u32	fourcc;          /* v4l2 format id */
-	u8	depth;
 	bool	is_yuv;
 	bool	can_do_overlay;
+	u8	vdownsampling[TPG_MAX_PLANES];
 	u32	alpha_mask;
 	u8	planes;
-	u32	data_offset[2];
+	u8	buffers;
+	u32	data_offset[TPG_MAX_PLANES];
+	u32	bit_depth[TPG_MAX_PLANES];
 };
 
 extern struct vivid_fmt vivid_formats[];
@@ -114,6 +116,17 @@ enum vivid_signal_mode {
 	CYCLE_DV_TIMINGS,
 	CYCLE_STD = CYCLE_DV_TIMINGS,
 	CUSTOM_DV_TIMINGS,
+};
+
+enum vivid_colorspace {
+	VIVID_CS_170M,
+	VIVID_CS_709,
+	VIVID_CS_SRGB,
+	VIVID_CS_ADOBERGB,
+	VIVID_CS_2020,
+	VIVID_CS_240M,
+	VIVID_CS_SYS_M,
+	VIVID_CS_SYS_BG,
 };
 
 #define VIVID_INVALID_SIGNAL(mode) \
@@ -318,8 +331,10 @@ struct vivid_dev {
 	v4l2_std_id			std_out;
 	struct v4l2_dv_timings		dv_timings_out;
 	u32				colorspace_out;
+	u32				ycbcr_enc_out;
+	u32				quantization_out;
 	u32				service_set_out;
-	u32				bytesperline_out[2];
+	unsigned			bytesperline_out[TPG_MAX_PLANES];
 	unsigned			tv_field_out;
 	unsigned			tv_audio_output;
 	bool				vbi_out_have_wss;
@@ -513,8 +528,5 @@ static inline bool vivid_is_hdmi_out(const struct vivid_dev *dev)
 {
 	return dev->output_type[dev->output] == HDMI;
 }
-
-void vivid_lock(struct vb2_queue *vq);
-void vivid_unlock(struct vb2_queue *vq);
 
 #endif

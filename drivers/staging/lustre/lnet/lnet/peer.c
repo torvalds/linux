@@ -87,7 +87,7 @@ lnet_peer_tables_destroy(void)
 
 	cfs_percpt_for_each(ptable, i, the_lnet.ln_peer_tables) {
 		hash = ptable->pt_hash;
-		if (hash == NULL) /* not intialized */
+		if (hash == NULL) /* not initialized */
 			break;
 
 		LASSERT(list_empty(&ptable->pt_deathrow));
@@ -132,7 +132,7 @@ lnet_peer_tables_cleanup(void)
 	}
 
 	cfs_percpt_for_each(ptable, i, the_lnet.ln_peer_tables) {
-		LIST_HEAD	(deathrow);
+		LIST_HEAD(deathrow);
 		lnet_peer_t	*lp;
 
 		lnet_net_lock(i);

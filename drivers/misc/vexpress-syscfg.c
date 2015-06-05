@@ -145,7 +145,7 @@ static struct regmap_config vexpress_syscfg_regmap_config = {
 static struct regmap *vexpress_syscfg_regmap_init(struct device *dev,
 		void *context)
 {
-	struct platform_device *pdev = to_platform_device(dev);
+	int err;
 	struct vexpress_syscfg *syscfg = context;
 	struct vexpress_syscfg_func *func;
 	struct property *prop;
@@ -155,32 +155,18 @@ static struct regmap *vexpress_syscfg_regmap_init(struct device *dev,
 	u32 site, position, dcc;
 	int i;
 
-	if (dev->of_node) {
-		int err = vexpress_config_get_topo(dev->of_node, &site,
+	err = vexpress_config_get_topo(dev->of_node, &site,
 				&position, &dcc);
+	if (err)
+		return ERR_PTR(err);
 
-		if (err)
-			return ERR_PTR(err);
+	prop = of_find_property(dev->of_node,
+			"arm,vexpress-sysreg,func", NULL);
+	if (!prop)
+		return ERR_PTR(-EINVAL);
 
-		prop = of_find_property(dev->of_node,
-				"arm,vexpress-sysreg,func", NULL);
-		if (!prop)
-			return ERR_PTR(-EINVAL);
-
-		num = prop->length / sizeof(u32) / 2;
-		val = prop->value;
-	} else {
-		if (pdev->num_resources != 1 ||
-				pdev->resource[0].flags != IORESOURCE_BUS)
-			return ERR_PTR(-EFAULT);
-
-		site = pdev->resource[0].start;
-		if (site == VEXPRESS_SITE_MASTER)
-			site = vexpress_config_get_master();
-		position = 0;
-		dcc = 0;
-		num = 1;
-	}
+	num = prop->length / sizeof(u32) / 2;
+	val = prop->value;
 
 	/*
 	 * "arm,vexpress-energy" function used to be described
@@ -207,13 +193,8 @@ static struct regmap *vexpress_syscfg_regmap_init(struct device *dev,
 	for (i = 0; i < num; i++) {
 		u32 function, device;
 
-		if (dev->of_node) {
-			function = be32_to_cpup(val++);
-			device = be32_to_cpup(val++);
-		} else {
-			function = pdev->resource[0].end;
-			device = pdev->id;
-		}
+		function = be32_to_cpup(val++);
+		device = be32_to_cpup(val++);
 
 		dev_dbg(dev, "func %p: %u/%u/%u/%u/%u\n",
 				func, site, position, dcc,
@@ -265,17 +246,6 @@ static struct vexpress_config_bridge_ops vexpress_syscfg_bridge_ops = {
 };
 
 
-/* Non-DT hack, to be gone... */
-static struct device *vexpress_syscfg_bridge;
-
-int vexpress_syscfg_device_register(struct platform_device *pdev)
-{
-	pdev->dev.parent = vexpress_syscfg_bridge;
-
-	return platform_device_register(pdev);
-}
-
-
 static int vexpress_syscfg_probe(struct platform_device *pdev)
 {
 	struct vexpress_syscfg *syscfg;
@@ -302,10 +272,6 @@ static int vexpress_syscfg_probe(struct platform_device *pdev)
 			&vexpress_syscfg_bridge_ops, syscfg);
 	if (IS_ERR(bridge))
 		return PTR_ERR(bridge);
-
-	/* Non-DT case */
-	if (!pdev->dev.of_node)
-		vexpress_syscfg_bridge = bridge;
 
 	return 0;
 }

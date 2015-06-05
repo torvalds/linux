@@ -25,6 +25,9 @@
 #define DRIVER_MINOR		0
 #define DRIVER_PATCHLEVEL	1
 
+#define UDL_BO_CACHEABLE		(1 << 0)
+#define UDL_BO_WC		(1 << 1)
+
 struct udl_device;
 
 struct urb_node {
@@ -69,6 +72,7 @@ struct udl_gem_object {
 	struct page **pages;
 	void *vmapping;
 	struct sg_table *sg;
+	unsigned int flags;
 };
 
 #define to_udl_bo(x) container_of(x, struct udl_gem_object, base)
@@ -120,9 +124,13 @@ int udl_gem_mmap(struct drm_file *file_priv, struct drm_device *dev,
 void udl_gem_free_object(struct drm_gem_object *gem_obj);
 struct udl_gem_object *udl_gem_alloc_object(struct drm_device *dev,
 					    size_t size);
+struct dma_buf *udl_gem_prime_export(struct drm_device *dev,
+				     struct drm_gem_object *obj, int flags);
 struct drm_gem_object *udl_gem_prime_import(struct drm_device *dev,
 				struct dma_buf *dma_buf);
 
+int udl_gem_get_pages(struct udl_gem_object *obj);
+void udl_gem_put_pages(struct udl_gem_object *obj);
 int udl_gem_vmap(struct udl_gem_object *obj);
 void udl_gem_vunmap(struct udl_gem_object *obj);
 int udl_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);

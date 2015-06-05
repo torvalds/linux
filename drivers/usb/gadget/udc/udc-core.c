@@ -35,6 +35,8 @@
  * @dev - the child device to the actual controller
  * @gadget - the gadget. For use by the class code
  * @list - for use by the udc class driver
+ * @vbus - for udcs who care about vbus status, this value is real vbus status;
+ * for udcs who do not care about vbus status, this value is always true
  *
  * This represents the internal data structure which is used by the UDC-class
  * to hold information about udc driver and gadget together.
@@ -44,6 +46,7 @@ struct usb_udc {
 	struct usb_gadget		*gadget;
 	struct device			dev;
 	struct list_head		list;
+	bool				vbus;
 };
 
 static struct class *udc_class;
@@ -128,21 +131,11 @@ EXPORT_SYMBOL_GPL(usb_gadget_giveback_request);
 
 static void usb_gadget_state_work(struct work_struct *work)
 {
-	struct usb_gadget	*gadget = work_to_gadget(work);
-	struct usb_udc		*udc = NULL;
+	struct usb_gadget *gadget = work_to_gadget(work);
+	struct usb_udc *udc = gadget->udc;
 
-	mutex_lock(&udc_lock);
-	list_for_each_entry(udc, &udc_list, list)
-		if (udc->gadget == gadget)
-			goto found;
-	mutex_unlock(&udc_lock);
-
-	return;
-
-found:
-	mutex_unlock(&udc_lock);
-
-	sysfs_notify(&udc->dev.kobj, NULL, "state");
+	if (udc)
+		sysfs_notify(&udc->dev.kobj, NULL, "state");
 }
 
 void usb_gadget_set_state(struct usb_gadget *gadget,
@@ -154,6 +147,34 @@ void usb_gadget_set_state(struct usb_gadget *gadget,
 EXPORT_SYMBOL_GPL(usb_gadget_set_state);
 
 /* ------------------------------------------------------------------------- */
+
+static void usb_udc_connect_control(struct usb_udc *udc)
+{
+	if (udc->vbus)
+		usb_gadget_connect(udc->gadget);
+	else
+		usb_gadget_disconnect(udc->gadget);
+}
+
+/**
+ * usb_udc_vbus_handler - updates the udc core vbus status, and try to
+ * connect or disconnect gadget
+ * @gadget: The gadget which vbus change occurs
+ * @status: The vbus status
+ *
+ * The udc driver calls it when it wants to connect or disconnect gadget
+ * according to vbus status.
+ */
+void usb_udc_vbus_handler(struct usb_gadget *gadget, bool status)
+{
+	struct usb_udc *udc = gadget->udc;
+
+	if (udc) {
+		udc->vbus = status;
+		usb_udc_connect_control(udc);
+	}
+}
+EXPORT_SYMBOL_GPL(usb_udc_vbus_handler);
 
 /**
  * usb_gadget_udc_reset - notifies the udc core that bus reset occurs
@@ -174,8 +195,7 @@ EXPORT_SYMBOL_GPL(usb_gadget_udc_reset);
 
 /**
  * usb_gadget_udc_start - tells usb device controller to start up
- * @gadget: The gadget we want to get started
- * @driver: The driver we want to bind to @gadget
+ * @udc: The UDC to be started
  *
  * This call is issued by the UDC Class driver when it's about
  * to register a gadget driver to the device controller, before
@@ -186,10 +206,9 @@ EXPORT_SYMBOL_GPL(usb_gadget_udc_reset);
  *
  * Returns zero on success, else negative errno.
  */
-static inline int usb_gadget_udc_start(struct usb_gadget *gadget,
-		struct usb_gadget_driver *driver)
+static inline int usb_gadget_udc_start(struct usb_udc *udc)
 {
-	return gadget->ops->udc_start(gadget, driver);
+	return udc->gadget->ops->udc_start(udc->gadget, udc->driver);
 }
 
 /**
@@ -204,10 +223,9 @@ static inline int usb_gadget_udc_start(struct usb_gadget *gadget,
  * far as powering off UDC completely and disable its data
  * line pullups.
  */
-static inline void usb_gadget_udc_stop(struct usb_gadget *gadget,
-		struct usb_gadget_driver *driver)
+static inline void usb_gadget_udc_stop(struct usb_udc *udc)
 {
-	gadget->ops->udc_stop(gadget, driver);
+	udc->gadget->ops->udc_stop(udc->gadget);
 }
 
 /**
@@ -281,6 +299,7 @@ int usb_add_gadget_udc_release(struct device *parent, struct usb_gadget *gadget,
 		goto err3;
 
 	udc->gadget = gadget;
+	gadget->udc = udc;
 
 	mutex_lock(&udc_lock);
 	list_add_tail(&udc->list, &udc_list);
@@ -290,6 +309,7 @@ int usb_add_gadget_udc_release(struct device *parent, struct usb_gadget *gadget,
 		goto err4;
 
 	usb_gadget_set_state(gadget, USB_STATE_NOTATTACHED);
+	udc->vbus = true;
 
 	mutex_unlock(&udc_lock);
 
@@ -328,14 +348,14 @@ EXPORT_SYMBOL_GPL(usb_add_gadget_udc);
 static void usb_gadget_remove_driver(struct usb_udc *udc)
 {
 	dev_dbg(&udc->dev, "unregistering UDC driver [%s]\n",
-			udc->gadget->name);
+			udc->driver->function);
 
 	kobject_uevent(&udc->dev.kobj, KOBJ_CHANGE);
 
 	usb_gadget_disconnect(udc->gadget);
 	udc->driver->disconnect(udc->gadget);
 	udc->driver->unbind(udc->gadget);
-	usb_gadget_udc_stop(udc->gadget, NULL);
+	usb_gadget_udc_stop(udc);
 
 	udc->driver = NULL;
 	udc->dev.driver = NULL;
@@ -351,21 +371,14 @@ static void usb_gadget_remove_driver(struct usb_udc *udc)
  */
 void usb_del_gadget_udc(struct usb_gadget *gadget)
 {
-	struct usb_udc		*udc = NULL;
+	struct usb_udc *udc = gadget->udc;
 
-	mutex_lock(&udc_lock);
-	list_for_each_entry(udc, &udc_list, list)
-		if (udc->gadget == gadget)
-			goto found;
+	if (!udc)
+		return;
 
-	dev_err(gadget->dev.parent, "gadget not registered.\n");
-	mutex_unlock(&udc_lock);
-
-	return;
-
-found:
 	dev_vdbg(gadget->dev.parent, "unregistering gadget\n");
 
+	mutex_lock(&udc_lock);
 	list_del(&udc->list);
 	mutex_unlock(&udc_lock);
 
@@ -395,12 +408,12 @@ static int udc_bind_to_driver(struct usb_udc *udc, struct usb_gadget_driver *dri
 	ret = driver->bind(udc->gadget, driver);
 	if (ret)
 		goto err1;
-	ret = usb_gadget_udc_start(udc->gadget, driver);
+	ret = usb_gadget_udc_start(udc);
 	if (ret) {
 		driver->unbind(udc->gadget);
 		goto err1;
 	}
-	usb_gadget_connect(udc->gadget);
+	usb_udc_connect_control(udc);
 
 	kobject_uevent(&udc->dev.kobj, KOBJ_CHANGE);
 	return 0;
@@ -414,7 +427,7 @@ err1:
 	return ret;
 }
 
-int udc_attach_driver(const char *name, struct usb_gadget_driver *driver)
+int usb_udc_attach_driver(const char *name, struct usb_gadget_driver *driver)
 {
 	struct usb_udc *udc = NULL;
 	int ret = -ENODEV;
@@ -438,7 +451,7 @@ out:
 	mutex_unlock(&udc_lock);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(udc_attach_driver);
+EXPORT_SYMBOL_GPL(usb_udc_attach_driver);
 
 int usb_gadget_probe_driver(struct usb_gadget_driver *driver)
 {
@@ -513,11 +526,12 @@ static ssize_t usb_udc_softconn_store(struct device *dev,
 	}
 
 	if (sysfs_streq(buf, "connect")) {
-		usb_gadget_udc_start(udc->gadget, udc->driver);
+		usb_gadget_udc_start(udc);
 		usb_gadget_connect(udc->gadget);
 	} else if (sysfs_streq(buf, "disconnect")) {
 		usb_gadget_disconnect(udc->gadget);
-		usb_gadget_udc_stop(udc->gadget, udc->driver);
+		udc->driver->disconnect(udc->gadget);
+		usb_gadget_udc_stop(udc);
 	} else {
 		dev_err(dev, "unsupported command '%s'\n", buf);
 		return -EINVAL;
@@ -566,6 +580,7 @@ static USB_UDC_ATTR(is_a_peripheral);
 static USB_UDC_ATTR(b_hnp_enable);
 static USB_UDC_ATTR(a_hnp_support);
 static USB_UDC_ATTR(a_alt_hnp_support);
+static USB_UDC_ATTR(is_selfpowered);
 
 static struct attribute *usb_udc_attrs[] = {
 	&dev_attr_srp.attr,
@@ -579,6 +594,7 @@ static struct attribute *usb_udc_attrs[] = {
 	&dev_attr_b_hnp_enable.attr,
 	&dev_attr_a_hnp_support.attr,
 	&dev_attr_a_alt_hnp_support.attr,
+	&dev_attr_is_selfpowered.attr,
 	NULL,
 };
 

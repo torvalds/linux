@@ -528,7 +528,7 @@ static int hix5hd2_i2c_runtime_resume(struct device *dev)
 #endif
 
 static const struct dev_pm_ops hix5hd2_i2c_pm_ops = {
-	SET_PM_RUNTIME_PM_OPS(hix5hd2_i2c_runtime_suspend,
+	SET_RUNTIME_PM_OPS(hix5hd2_i2c_runtime_suspend,
 			      hix5hd2_i2c_runtime_resume,
 			      NULL)
 };

@@ -146,7 +146,7 @@ static int da9055_gpio_probe(struct platform_device *pdev)
 	int ret;
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
-	if (gpio == NULL)
+	if (!gpio)
 		return -ENOMEM;
 
 	gpio->da9055 = dev_get_drvdata(pdev->dev.parent);
@@ -183,7 +183,6 @@ static struct platform_driver da9055_gpio_driver = {
 	.remove = da9055_gpio_remove,
 	.driver = {
 		.name	= "da9055-gpio",
-		.owner	= THIS_MODULE,
 	},
 };
 

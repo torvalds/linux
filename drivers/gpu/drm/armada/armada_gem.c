@@ -226,7 +226,7 @@ struct armada_gem_object *armada_gem_alloc_object(struct drm_device *dev,
 
 	obj->dev_addr = DMA_ERROR_CODE;
 
-	mapping = obj->obj.filp->f_path.dentry->d_inode->i_mapping;
+	mapping = file_inode(obj->obj.filp)->i_mapping;
 	mapping_set_gfp_mask(mapping, GFP_HIGHUSER | __GFP_RECLAIMABLE);
 
 	DRM_DEBUG_DRIVER("alloc obj %p size %zu\n", obj, size);
@@ -538,8 +538,14 @@ struct dma_buf *
 armada_gem_prime_export(struct drm_device *dev, struct drm_gem_object *obj,
 	int flags)
 {
-	return dma_buf_export(obj, &armada_gem_prime_dmabuf_ops, obj->size,
-			      O_RDWR, NULL);
+	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
+
+	exp_info.ops = &armada_gem_prime_dmabuf_ops;
+	exp_info.size = obj->size;
+	exp_info.flags = O_RDWR;
+	exp_info.priv = obj;
+
+	return dma_buf_export(&exp_info);
 }
 
 struct drm_gem_object *

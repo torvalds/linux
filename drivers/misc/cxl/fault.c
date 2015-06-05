@@ -20,6 +20,7 @@
 #include <asm/mmu.h>
 
 #include "cxl.h"
+#include "trace.h"
 
 static bool sste_matches(struct cxl_sste *sste, struct copro_slb *slb)
 {
@@ -75,6 +76,7 @@ static void cxl_load_segment(struct cxl_context *ctx, struct copro_slb *slb)
 
 	pr_devel("CXL Populating SST[%li]: %#llx %#llx\n",
 			sste - ctx->sstp, slb->vsid, slb->esid);
+	trace_cxl_ste_write(ctx, sste - ctx->sstp, slb->esid, slb->vsid);
 
 	sste->vsid_data = cpu_to_be64(slb->vsid);
 	sste->esid_data = cpu_to_be64(slb->esid);
@@ -116,6 +118,7 @@ static int cxl_handle_segment_miss(struct cxl_context *ctx,
 	int rc;
 
 	pr_devel("CXL interrupt: Segment fault pe: %i ea: %#llx\n", ctx->pe, ea);
+	trace_cxl_ste_miss(ctx, ea);
 
 	if ((rc = cxl_fault_segment(ctx, mm, ea)))
 		cxl_ack_ae(ctx);
@@ -133,7 +136,9 @@ static void cxl_handle_page_fault(struct cxl_context *ctx,
 {
 	unsigned flt = 0;
 	int result;
-	unsigned long access, flags;
+	unsigned long access, flags, inv_flags = 0;
+
+	trace_cxl_pte_miss(ctx, dsisr, dar);
 
 	if ((result = copro_handle_mm_fault(mm, dar, dsisr, &flt))) {
 		pr_devel("copro_handle_mm_fault failed: %#x\n", result);
@@ -149,8 +154,12 @@ static void cxl_handle_page_fault(struct cxl_context *ctx,
 		access |= _PAGE_RW;
 	if ((!ctx->kernel) || ~(dar & (1ULL << 63)))
 		access |= _PAGE_USER;
+
+	if (dsisr & DSISR_NOHPTE)
+		inv_flags |= HPTE_NOHPTE_UPDATE;
+
 	local_irq_save(flags);
-	hash_page_mm(mm, dar, access, 0x300);
+	hash_page_mm(mm, dar, access, 0x300, inv_flags);
 	local_irq_restore(flags);
 
 	pr_devel("Page fault successfully handled for pe: %i!\n", ctx->pe);
@@ -173,6 +182,12 @@ void cxl_handle_fault(struct work_struct *fault_work)
 		 * has detached and these were cleared by the PSL purge, but
 		 * warn about it just in case */
 		dev_notice(&ctx->afu->dev, "cxl_handle_fault: Translation fault regs changed\n");
+		return;
+	}
+
+	/* Early return if the context is being / has been detached */
+	if (ctx->status == CLOSED) {
+		cxl_ack_ae(ctx);
 		return;
 	}
 

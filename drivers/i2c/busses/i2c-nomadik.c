@@ -446,9 +446,9 @@ static void setup_i2c_controller(struct nmk_i2c_dev *dev)
  */
 static int read_i2c(struct nmk_i2c_dev *dev, u16 flags)
 {
-	u32 status = 0;
+	int status = 0;
 	u32 mcr, irq_mask;
-	int timeout;
+	unsigned long timeout;
 
 	mcr = load_i2c_mcr_reg(dev, flags);
 	writel(mcr, dev->virtbase + I2C_MCR);
@@ -517,7 +517,7 @@ static int write_i2c(struct nmk_i2c_dev *dev, u16 flags)
 {
 	u32 status = 0;
 	u32 mcr, irq_mask;
-	int timeout;
+	unsigned long timeout;
 
 	mcr = load_i2c_mcr_reg(dev, flags);
 
@@ -932,7 +932,7 @@ static int nmk_i2c_runtime_resume(struct device *dev)
 
 static const struct dev_pm_ops nmk_i2c_pm = {
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(nmk_i2c_suspend_late, nmk_i2c_resume_early)
-	SET_PM_RUNTIME_PM_OPS(nmk_i2c_runtime_suspend,
+	SET_RUNTIME_PM_OPS(nmk_i2c_runtime_suspend,
 			nmk_i2c_runtime_resume,
 			NULL)
 };

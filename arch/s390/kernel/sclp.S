@@ -36,21 +36,17 @@ _sclp_wait_int:
 	ahi	%r15,-96			# create stack frame
 	la	%r8,LC_EXT_NEW_PSW		# register int handler
 	la	%r9,.LextpswS1-.LbaseS1(%r13)
-#ifdef CONFIG_64BIT
 	tm	LC_AR_MODE_ID,1
 	jno	.Lesa1
 	la	%r8,LC_EXT_NEW_PSW_64		# register int handler 64 bit
 	la	%r9,.LextpswS1_64-.LbaseS1(%r13)
 .Lesa1:
-#endif
 	mvc	.LoldpswS1-.LbaseS1(16,%r13),0(%r8)
 	mvc	0(16,%r8),0(%r9)
-#ifdef CONFIG_64BIT
 	epsw	%r6,%r7				# set current addressing mode
 	nill	%r6,0x1				# in new psw (31 or 64 bit mode)
 	nilh	%r7,0x8000
 	stm	%r6,%r7,0(%r8)
-#endif
 	lhi	%r6,0x0200			# cr mask for ext int (cr0.54)
 	ltr	%r2,%r2
 	jz	.LsetctS1
@@ -92,10 +88,8 @@ _sclp_wait_int:
 	.long	0, 0, 0, 0			# old ext int PSW
 .LextpswS1:
 	.long	0x00080000, 0x80000000+.LwaitS1	# PSW to handle ext int
-#ifdef CONFIG_64BIT
 .LextpswS1_64:
 	.quad	0, .LwaitS1			# PSW to handle ext int, 64 bit
-#endif
 .LwaitpswS1:
 	.long	0x010a0000, 0x00000000+.LloopS1	# PSW to wait for ext int
 .LtimeS1:
@@ -272,13 +266,11 @@ _sclp_print:
 ENTRY(_sclp_print_early)
 	stm	%r6,%r15,24(%r15)		# save registers
 	ahi	%r15,-96			# create stack frame
-#ifdef CONFIG_64BIT
 	tm	LC_AR_MODE_ID,1
 	jno	.Lesa2
 	ahi	%r15,-80
 	stmh	%r6,%r15,96(%r15)		# store upper register halves
 .Lesa2:
-#endif
 	lr	%r10,%r2			# save string pointer
 	lhi	%r2,0
 	bras	%r14,_sclp_setup		# enable console
@@ -291,13 +283,12 @@ ENTRY(_sclp_print_early)
 	lhi	%r2,1
 	bras	%r14,_sclp_setup		# disable console
 .LendS5:
-#ifdef CONFIG_64BIT
 	tm	LC_AR_MODE_ID,1
 	jno	.Lesa3
-	lmh	%r6,%r15,96(%r15)		# store upper register halves
+	lgfr	%r2,%r2				# sign extend return value
+	lmh	%r6,%r15,96(%r15)		# restore upper register halves
 	ahi	%r15,80
 .Lesa3:
-#endif
 	lm	%r6,%r15,120(%r15)		# restore registers
 	br	%r14
 

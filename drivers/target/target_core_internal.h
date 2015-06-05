@@ -5,6 +5,9 @@
 extern struct t10_alua_lu_gp *default_lu_gp;
 
 /* target_core_device.c */
+extern struct mutex g_device_mutex;
+extern struct list_head g_device_list;
+
 struct se_dev_entry *core_get_se_deve_from_rtpi(struct se_node_acl *, u16);
 int	core_free_device_list_for_node(struct se_node_acl *,
 		struct se_portal_group *);
@@ -18,34 +21,6 @@ int	core_dev_export(struct se_device *, struct se_portal_group *,
 		struct se_lun *);
 void	core_dev_unexport(struct se_device *, struct se_portal_group *,
 		struct se_lun *);
-int	se_dev_set_task_timeout(struct se_device *, u32);
-int	se_dev_set_max_unmap_lba_count(struct se_device *, u32);
-int	se_dev_set_max_unmap_block_desc_count(struct se_device *, u32);
-int	se_dev_set_unmap_granularity(struct se_device *, u32);
-int	se_dev_set_unmap_granularity_alignment(struct se_device *, u32);
-int	se_dev_set_max_write_same_len(struct se_device *, u32);
-int	se_dev_set_emulate_model_alias(struct se_device *, int);
-int	se_dev_set_emulate_dpo(struct se_device *, int);
-int	se_dev_set_emulate_fua_write(struct se_device *, int);
-int	se_dev_set_emulate_fua_read(struct se_device *, int);
-int	se_dev_set_emulate_write_cache(struct se_device *, int);
-int	se_dev_set_emulate_ua_intlck_ctrl(struct se_device *, int);
-int	se_dev_set_emulate_tas(struct se_device *, int);
-int	se_dev_set_emulate_tpu(struct se_device *, int);
-int	se_dev_set_emulate_tpws(struct se_device *, int);
-int	se_dev_set_emulate_caw(struct se_device *, int);
-int	se_dev_set_emulate_3pc(struct se_device *, int);
-int	se_dev_set_pi_prot_type(struct se_device *, int);
-int	se_dev_set_pi_prot_format(struct se_device *, int);
-int	se_dev_set_enforce_pr_isids(struct se_device *, int);
-int	se_dev_set_force_pr_aptpl(struct se_device *, int);
-int	se_dev_set_is_nonrot(struct se_device *, int);
-int	se_dev_set_emulate_rest_reord(struct se_device *dev, int);
-int	se_dev_set_queue_depth(struct se_device *, u32);
-int	se_dev_set_max_sectors(struct se_device *, u32);
-int	se_dev_set_fabric_max_sectors(struct se_device *, u32);
-int	se_dev_set_optimal_sectors(struct se_device *, u32);
-int	se_dev_set_block_size(struct se_device *, u32);
 struct se_lun *core_dev_add_lun(struct se_portal_group *, struct se_device *, u32);
 void	core_dev_del_lun(struct se_portal_group *, struct se_lun *);
 struct se_lun *core_get_lun_from_tpg(struct se_portal_group *, u32);

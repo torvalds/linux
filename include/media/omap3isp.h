@@ -45,7 +45,7 @@ enum {
 };
 
 /**
- * struct isp_parallel_platform_data - Parallel interface platform data
+ * struct isp_parallel_cfg - Parallel interface configuration
  * @data_lane_shift: Data lane shifter
  *		ISP_LANE_SHIFT_0 - CAMEXT[13:0] -> CAM[13:0]
  *		ISP_LANE_SHIFT_2 - CAMEXT[13:2] -> CAM[11:0]
@@ -62,7 +62,7 @@ enum {
  * @data_pol: Data polarity
  *		0 - Normal, 1 - One's complement
  */
-struct isp_parallel_platform_data {
+struct isp_parallel_cfg {
 	unsigned int data_lane_shift:2;
 	unsigned int clk_pol:1;
 	unsigned int hs_pol:1;
@@ -105,7 +105,7 @@ struct isp_csiphy_lanes_cfg {
 };
 
 /**
- * struct isp_ccp2_platform_data - CCP2 interface platform data
+ * struct isp_ccp2_cfg - CCP2 interface configuration
  * @strobe_clk_pol: Strobe/clock polarity
  *		0 - Non Inverted, 1 - Inverted
  * @crc: Enable the cyclic redundancy check
@@ -117,7 +117,7 @@ struct isp_csiphy_lanes_cfg {
  *		ISP_CCP2_PHY_DATA_STROBE - Data/strobe physical layer
  * @vpclk_div: Video port output clock control
  */
-struct isp_ccp2_platform_data {
+struct isp_ccp2_cfg {
 	unsigned int strobe_clk_pol:1;
 	unsigned int crc:1;
 	unsigned int ccp2_mode:1;
@@ -127,39 +127,31 @@ struct isp_ccp2_platform_data {
 };
 
 /**
- * struct isp_csi2_platform_data - CSI2 interface platform data
+ * struct isp_csi2_cfg - CSI2 interface configuration
  * @crc: Enable the cyclic redundancy check
- * @vpclk_div: Video port output clock control
  */
-struct isp_csi2_platform_data {
+struct isp_csi2_cfg {
 	unsigned crc:1;
-	unsigned vpclk_div:2;
 	struct isp_csiphy_lanes_cfg lanecfg;
 };
 
-struct isp_subdev_i2c_board_info {
-	struct i2c_board_info *board_info;
-	int i2c_adapter_id;
-};
-
-struct isp_v4l2_subdevs_group {
-	struct isp_subdev_i2c_board_info *subdevs;
+struct isp_bus_cfg {
 	enum isp_interface_type interface;
 	union {
-		struct isp_parallel_platform_data parallel;
-		struct isp_ccp2_platform_data ccp2;
-		struct isp_csi2_platform_data csi2;
+		struct isp_parallel_cfg parallel;
+		struct isp_ccp2_cfg ccp2;
+		struct isp_csi2_cfg csi2;
 	} bus; /* gcc < 4.6.0 chokes on anonymous union initializers */
 };
 
-struct isp_platform_xclk {
-	const char *dev_id;
-	const char *con_id;
+struct isp_platform_subdev {
+	struct i2c_board_info *board_info;
+	int i2c_adapter_id;
+	struct isp_bus_cfg *bus;
 };
 
 struct isp_platform_data {
-	struct isp_platform_xclk xclks[2];
-	struct isp_v4l2_subdevs_group *subdevs;
+	struct isp_platform_subdev *subdevs;
 	void (*set_constraints)(struct isp_device *isp, bool enable);
 };
 

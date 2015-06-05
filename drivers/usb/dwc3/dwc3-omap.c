@@ -65,8 +65,8 @@
 #define USBOTGSS_IRQENABLE_SET_MISC		0x003c
 #define USBOTGSS_IRQENABLE_CLR_MISC		0x0040
 #define USBOTGSS_IRQMISC_OFFSET			0x03fc
-#define USBOTGSS_UTMI_OTG_CTRL			0x0080
-#define USBOTGSS_UTMI_OTG_STATUS		0x0084
+#define USBOTGSS_UTMI_OTG_STATUS		0x0080
+#define USBOTGSS_UTMI_OTG_CTRL			0x0084
 #define USBOTGSS_UTMI_OTG_OFFSET		0x0480
 #define USBOTGSS_TXFIFO_DEPTH			0x0508
 #define USBOTGSS_RXFIFO_DEPTH			0x050c
@@ -98,20 +98,20 @@
 #define USBOTGSS_IRQMISC_DISCHRGVBUS_FALL		(1 << 3)
 #define USBOTGSS_IRQMISC_IDPULLUP_FALL		(1 << 0)
 
-/* UTMI_OTG_CTRL REGISTER */
-#define USBOTGSS_UTMI_OTG_CTRL_DRVVBUS		(1 << 5)
-#define USBOTGSS_UTMI_OTG_CTRL_CHRGVBUS		(1 << 4)
-#define USBOTGSS_UTMI_OTG_CTRL_DISCHRGVBUS	(1 << 3)
-#define USBOTGSS_UTMI_OTG_CTRL_IDPULLUP		(1 << 0)
-
 /* UTMI_OTG_STATUS REGISTER */
-#define USBOTGSS_UTMI_OTG_STATUS_SW_MODE	(1 << 31)
-#define USBOTGSS_UTMI_OTG_STATUS_POWERPRESENT	(1 << 9)
-#define USBOTGSS_UTMI_OTG_STATUS_TXBITSTUFFENABLE (1 << 8)
-#define USBOTGSS_UTMI_OTG_STATUS_IDDIG		(1 << 4)
-#define USBOTGSS_UTMI_OTG_STATUS_SESSEND	(1 << 3)
-#define USBOTGSS_UTMI_OTG_STATUS_SESSVALID	(1 << 2)
-#define USBOTGSS_UTMI_OTG_STATUS_VBUSVALID	(1 << 1)
+#define USBOTGSS_UTMI_OTG_STATUS_DRVVBUS	(1 << 5)
+#define USBOTGSS_UTMI_OTG_STATUS_CHRGVBUS	(1 << 4)
+#define USBOTGSS_UTMI_OTG_STATUS_DISCHRGVBUS	(1 << 3)
+#define USBOTGSS_UTMI_OTG_STATUS_IDPULLUP	(1 << 0)
+
+/* UTMI_OTG_CTRL REGISTER */
+#define USBOTGSS_UTMI_OTG_CTRL_SW_MODE		(1 << 31)
+#define USBOTGSS_UTMI_OTG_CTRL_POWERPRESENT	(1 << 9)
+#define USBOTGSS_UTMI_OTG_CTRL_TXBITSTUFFENABLE (1 << 8)
+#define USBOTGSS_UTMI_OTG_CTRL_IDDIG		(1 << 4)
+#define USBOTGSS_UTMI_OTG_CTRL_SESSEND		(1 << 3)
+#define USBOTGSS_UTMI_OTG_CTRL_SESSVALID	(1 << 2)
+#define USBOTGSS_UTMI_OTG_CTRL_VBUSVALID	(1 << 1)
 
 struct dwc3_omap {
 	struct device		*dev;
@@ -119,7 +119,7 @@ struct dwc3_omap {
 	int			irq;
 	void __iomem		*base;
 
-	u32			utmi_otg_status;
+	u32			utmi_otg_ctrl;
 	u32			utmi_otg_offset;
 	u32			irqmisc_offset;
 	u32			irq_eoi_offset;
@@ -153,15 +153,15 @@ static inline void dwc3_omap_writel(void __iomem *base, u32 offset, u32 value)
 	writel(value, base + offset);
 }
 
-static u32 dwc3_omap_read_utmi_status(struct dwc3_omap *omap)
+static u32 dwc3_omap_read_utmi_ctrl(struct dwc3_omap *omap)
 {
-	return dwc3_omap_readl(omap->base, USBOTGSS_UTMI_OTG_STATUS +
+	return dwc3_omap_readl(omap->base, USBOTGSS_UTMI_OTG_CTRL +
 							omap->utmi_otg_offset);
 }
 
-static void dwc3_omap_write_utmi_status(struct dwc3_omap *omap, u32 value)
+static void dwc3_omap_write_utmi_ctrl(struct dwc3_omap *omap, u32 value)
 {
-	dwc3_omap_writel(omap->base, USBOTGSS_UTMI_OTG_STATUS +
+	dwc3_omap_writel(omap->base, USBOTGSS_UTMI_OTG_CTRL +
 					omap->utmi_otg_offset, value);
 
 }
@@ -205,6 +205,18 @@ static void dwc3_omap_write_irq0_set(struct dwc3_omap *omap, u32 value)
 						omap->irq0_offset, value);
 }
 
+static void dwc3_omap_write_irqmisc_clr(struct dwc3_omap *omap, u32 value)
+{
+	dwc3_omap_writel(omap->base, USBOTGSS_IRQENABLE_CLR_MISC +
+						omap->irqmisc_offset, value);
+}
+
+static void dwc3_omap_write_irq0_clr(struct dwc3_omap *omap, u32 value)
+{
+	dwc3_omap_writel(omap->base, USBOTGSS_IRQENABLE_CLR_0 -
+						omap->irq0_offset, value);
+}
+
 static void dwc3_omap_set_mailbox(struct dwc3_omap *omap,
 	enum omap_dwc3_vbus_id_status status)
 {
@@ -223,25 +235,25 @@ static void dwc3_omap_set_mailbox(struct dwc3_omap *omap,
 			}
 		}
 
-		val = dwc3_omap_read_utmi_status(omap);
-		val &= ~(USBOTGSS_UTMI_OTG_STATUS_IDDIG
-				| USBOTGSS_UTMI_OTG_STATUS_VBUSVALID
-				| USBOTGSS_UTMI_OTG_STATUS_SESSEND);
-		val |= USBOTGSS_UTMI_OTG_STATUS_SESSVALID
-				| USBOTGSS_UTMI_OTG_STATUS_POWERPRESENT;
-		dwc3_omap_write_utmi_status(omap, val);
+		val = dwc3_omap_read_utmi_ctrl(omap);
+		val &= ~(USBOTGSS_UTMI_OTG_CTRL_IDDIG
+				| USBOTGSS_UTMI_OTG_CTRL_VBUSVALID
+				| USBOTGSS_UTMI_OTG_CTRL_SESSEND);
+		val |= USBOTGSS_UTMI_OTG_CTRL_SESSVALID
+				| USBOTGSS_UTMI_OTG_CTRL_POWERPRESENT;
+		dwc3_omap_write_utmi_ctrl(omap, val);
 		break;
 
 	case OMAP_DWC3_VBUS_VALID:
 		dev_dbg(omap->dev, "VBUS Connect\n");
 
-		val = dwc3_omap_read_utmi_status(omap);
-		val &= ~USBOTGSS_UTMI_OTG_STATUS_SESSEND;
-		val |= USBOTGSS_UTMI_OTG_STATUS_IDDIG
-				| USBOTGSS_UTMI_OTG_STATUS_VBUSVALID
-				| USBOTGSS_UTMI_OTG_STATUS_SESSVALID
-				| USBOTGSS_UTMI_OTG_STATUS_POWERPRESENT;
-		dwc3_omap_write_utmi_status(omap, val);
+		val = dwc3_omap_read_utmi_ctrl(omap);
+		val &= ~USBOTGSS_UTMI_OTG_CTRL_SESSEND;
+		val |= USBOTGSS_UTMI_OTG_CTRL_IDDIG
+				| USBOTGSS_UTMI_OTG_CTRL_VBUSVALID
+				| USBOTGSS_UTMI_OTG_CTRL_SESSVALID
+				| USBOTGSS_UTMI_OTG_CTRL_POWERPRESENT;
+		dwc3_omap_write_utmi_ctrl(omap, val);
 		break;
 
 	case OMAP_DWC3_ID_FLOAT:
@@ -251,13 +263,13 @@ static void dwc3_omap_set_mailbox(struct dwc3_omap *omap,
 	case OMAP_DWC3_VBUS_OFF:
 		dev_dbg(omap->dev, "VBUS Disconnect\n");
 
-		val = dwc3_omap_read_utmi_status(omap);
-		val &= ~(USBOTGSS_UTMI_OTG_STATUS_SESSVALID
-				| USBOTGSS_UTMI_OTG_STATUS_VBUSVALID
-				| USBOTGSS_UTMI_OTG_STATUS_POWERPRESENT);
-		val |= USBOTGSS_UTMI_OTG_STATUS_SESSEND
-				| USBOTGSS_UTMI_OTG_STATUS_IDDIG;
-		dwc3_omap_write_utmi_status(omap, val);
+		val = dwc3_omap_read_utmi_ctrl(omap);
+		val &= ~(USBOTGSS_UTMI_OTG_CTRL_SESSVALID
+				| USBOTGSS_UTMI_OTG_CTRL_VBUSVALID
+				| USBOTGSS_UTMI_OTG_CTRL_POWERPRESENT);
+		val |= USBOTGSS_UTMI_OTG_CTRL_SESSEND
+				| USBOTGSS_UTMI_OTG_CTRL_IDDIG;
+		dwc3_omap_write_utmi_ctrl(omap, val);
 		break;
 
 	default:
@@ -313,15 +325,6 @@ static irqreturn_t dwc3_omap_interrupt(int irq, void *_omap)
 	return IRQ_HANDLED;
 }
 
-static int dwc3_omap_remove_core(struct device *dev, void *c)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-
-	of_device_unregister(pdev);
-
-	return 0;
-}
-
 static void dwc3_omap_enable_irqs(struct dwc3_omap *omap)
 {
 	u32			reg;
@@ -345,9 +348,23 @@ static void dwc3_omap_enable_irqs(struct dwc3_omap *omap)
 
 static void dwc3_omap_disable_irqs(struct dwc3_omap *omap)
 {
+	u32			reg;
+
 	/* disable all IRQs */
-	dwc3_omap_write_irqmisc_set(omap, 0x00);
-	dwc3_omap_write_irq0_set(omap, 0x00);
+	reg = USBOTGSS_IRQO_COREIRQ_ST;
+	dwc3_omap_write_irq0_clr(omap, reg);
+
+	reg = (USBOTGSS_IRQMISC_OEVT |
+			USBOTGSS_IRQMISC_DRVVBUS_RISE |
+			USBOTGSS_IRQMISC_CHRGVBUS_RISE |
+			USBOTGSS_IRQMISC_DISCHRGVBUS_RISE |
+			USBOTGSS_IRQMISC_IDPULLUP_RISE |
+			USBOTGSS_IRQMISC_DRVVBUS_FALL |
+			USBOTGSS_IRQMISC_CHRGVBUS_FALL |
+			USBOTGSS_IRQMISC_DISCHRGVBUS_FALL |
+			USBOTGSS_IRQMISC_IDPULLUP_FALL);
+
+	dwc3_omap_write_irqmisc_clr(omap, reg);
 }
 
 static u64 dwc3_omap_dma_mask = DMA_BIT_MASK(32);
@@ -405,22 +422,22 @@ static void dwc3_omap_set_utmi_mode(struct dwc3_omap *omap)
 	struct device_node	*node = omap->dev->of_node;
 	int			utmi_mode = 0;
 
-	reg = dwc3_omap_read_utmi_status(omap);
+	reg = dwc3_omap_read_utmi_ctrl(omap);
 
 	of_property_read_u32(node, "utmi-mode", &utmi_mode);
 
 	switch (utmi_mode) {
 	case DWC3_OMAP_UTMI_MODE_SW:
-		reg |= USBOTGSS_UTMI_OTG_STATUS_SW_MODE;
+		reg |= USBOTGSS_UTMI_OTG_CTRL_SW_MODE;
 		break;
 	case DWC3_OMAP_UTMI_MODE_HW:
-		reg &= ~USBOTGSS_UTMI_OTG_STATUS_SW_MODE;
+		reg &= ~USBOTGSS_UTMI_OTG_CTRL_SW_MODE;
 		break;
 	default:
 		dev_dbg(omap->dev, "UNKNOWN utmi mode %d\n", utmi_mode);
 	}
 
-	dwc3_omap_write_utmi_status(omap, reg);
+	dwc3_omap_write_utmi_ctrl(omap, reg);
 }
 
 static int dwc3_omap_extcon_register(struct dwc3_omap *omap)
@@ -574,7 +591,7 @@ static int dwc3_omap_remove(struct platform_device *pdev)
 	if (omap->extcon_id_dev.edev)
 		extcon_unregister_interest(&omap->extcon_id_dev);
 	dwc3_omap_disable_irqs(omap);
-	device_for_each_child(&pdev->dev, NULL, dwc3_omap_remove_core);
+	of_platform_depopulate(omap->dev);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
@@ -593,27 +610,12 @@ static const struct of_device_id of_dwc3_match[] = {
 MODULE_DEVICE_TABLE(of, of_dwc3_match);
 
 #ifdef CONFIG_PM_SLEEP
-static int dwc3_omap_prepare(struct device *dev)
-{
-	struct dwc3_omap	*omap = dev_get_drvdata(dev);
-
-	dwc3_omap_disable_irqs(omap);
-
-	return 0;
-}
-
-static void dwc3_omap_complete(struct device *dev)
-{
-	struct dwc3_omap	*omap = dev_get_drvdata(dev);
-
-	dwc3_omap_enable_irqs(omap);
-}
-
 static int dwc3_omap_suspend(struct device *dev)
 {
 	struct dwc3_omap	*omap = dev_get_drvdata(dev);
 
-	omap->utmi_otg_status = dwc3_omap_read_utmi_status(omap);
+	omap->utmi_otg_ctrl = dwc3_omap_read_utmi_ctrl(omap);
+	dwc3_omap_disable_irqs(omap);
 
 	return 0;
 }
@@ -622,7 +624,8 @@ static int dwc3_omap_resume(struct device *dev)
 {
 	struct dwc3_omap	*omap = dev_get_drvdata(dev);
 
-	dwc3_omap_write_utmi_status(omap, omap->utmi_otg_status);
+	dwc3_omap_write_utmi_ctrl(omap, omap->utmi_otg_ctrl);
+	dwc3_omap_enable_irqs(omap);
 
 	pm_runtime_disable(dev);
 	pm_runtime_set_active(dev);
@@ -632,8 +635,6 @@ static int dwc3_omap_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops dwc3_omap_dev_pm_ops = {
-	.prepare	= dwc3_omap_prepare,
-	.complete	= dwc3_omap_complete,
 
 	SET_SYSTEM_SLEEP_PM_OPS(dwc3_omap_suspend, dwc3_omap_resume)
 };

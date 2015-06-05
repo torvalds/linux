@@ -77,17 +77,18 @@ void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
 			   struct udp_tunnel_sock_cfg *sock_cfg);
 
 /* Transmit the skb using UDP encapsulation. */
-int udp_tunnel_xmit_skb(struct socket *sock, struct rtable *rt,
-			struct sk_buff *skb, __be32 src, __be32 dst,
-			__u8 tos, __u8 ttl, __be16 df, __be16 src_port,
-			__be16 dst_port, bool xnet);
+int udp_tunnel_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *skb,
+			__be32 src, __be32 dst, __u8 tos, __u8 ttl,
+			__be16 df, __be16 src_port, __be16 dst_port,
+			bool xnet, bool nocheck);
 
 #if IS_ENABLED(CONFIG_IPV6)
-int udp_tunnel6_xmit_skb(struct socket *sock, struct dst_entry *dst,
-			 struct sk_buff *skb, struct net_device *dev,
-			 struct in6_addr *saddr, struct in6_addr *daddr,
+int udp_tunnel6_xmit_skb(struct dst_entry *dst, struct sock *sk,
+			 struct sk_buff *skb,
+			 struct net_device *dev, struct in6_addr *saddr,
+			 struct in6_addr *daddr,
 			 __u8 prio, __u8 ttl, __be16 src_port,
-			 __be16 dst_port);
+			 __be16 dst_port, bool nocheck);
 #endif
 
 void udp_tunnel_sock_release(struct socket *sock);
@@ -98,6 +99,15 @@ static inline struct sk_buff *udp_tunnel_handle_offloads(struct sk_buff *skb,
 	int type = udp_csum ? SKB_GSO_UDP_TUNNEL_CSUM : SKB_GSO_UDP_TUNNEL;
 
 	return iptunnel_handle_offloads(skb, udp_csum, type);
+}
+
+static inline void udp_tunnel_gro_complete(struct sk_buff *skb, int nhoff)
+{
+	struct udphdr *uh;
+
+	uh = (struct udphdr *)(skb->data + nhoff - sizeof(struct udphdr));
+	skb_shinfo(skb)->gso_type |= uh->check ?
+				SKB_GSO_UDP_TUNNEL_CSUM : SKB_GSO_UDP_TUNNEL;
 }
 
 static inline void udp_tunnel_encap_enable(struct socket *sock)

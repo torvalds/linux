@@ -4610,13 +4610,10 @@ static void adapter_uninit(struct AdapterCtlBlk *acb)
 }
 
 
-#undef SPRINTF
-#define SPRINTF(args...) seq_printf(m,##args)
-
 #undef YESNO
 #define YESNO(YN) \
- if (YN) SPRINTF(" Yes ");\
- else SPRINTF(" No  ")
+ if (YN) seq_printf(m, " Yes ");\
+ else seq_printf(m, " No  ")
 
 static int dc395x_show_info(struct seq_file *m, struct Scsi_Host *host)
 {
@@ -4626,47 +4623,45 @@ static int dc395x_show_info(struct seq_file *m, struct Scsi_Host *host)
 	unsigned long flags;
 	int dev;
 
-	SPRINTF(DC395X_BANNER " PCI SCSI Host Adapter\n");
-	SPRINTF(" Driver Version " DC395X_VERSION "\n");
+	seq_puts(m, DC395X_BANNER " PCI SCSI Host Adapter\n"
+		" Driver Version " DC395X_VERSION "\n");
 
 	DC395x_LOCK_IO(acb->scsi_host, flags);
 
-	SPRINTF("SCSI Host Nr %i, ", host->host_no);
-	SPRINTF("DC395U/UW/F DC315/U %s\n",
+	seq_printf(m, "SCSI Host Nr %i, ", host->host_no);
+	seq_printf(m, "DC395U/UW/F DC315/U %s\n",
 		(acb->config & HCC_WIDE_CARD) ? "Wide" : "");
-	SPRINTF("io_port_base 0x%04lx, ", acb->io_port_base);
-	SPRINTF("irq_level 0x%04x, ", acb->irq_level);
-	SPRINTF(" SelTimeout %ims\n", (1638 * acb->sel_timeout) / 1000);
+	seq_printf(m, "io_port_base 0x%04lx, ", acb->io_port_base);
+	seq_printf(m, "irq_level 0x%04x, ", acb->irq_level);
+	seq_printf(m, " SelTimeout %ims\n", (1638 * acb->sel_timeout) / 1000);
 
-	SPRINTF("MaxID %i, MaxLUN %llu, ", host->max_id, host->max_lun);
-	SPRINTF("AdapterID %i\n", host->this_id);
+	seq_printf(m, "MaxID %i, MaxLUN %llu, ", host->max_id, host->max_lun);
+	seq_printf(m, "AdapterID %i\n", host->this_id);
 
-	SPRINTF("tag_max_num %i", acb->tag_max_num);
-	/*SPRINTF(", DMA_Status %i\n", DC395x_read8(acb, TRM_S1040_DMA_STATUS)); */
-	SPRINTF(", FilterCfg 0x%02x",
+	seq_printf(m, "tag_max_num %i", acb->tag_max_num);
+	/*seq_printf(m, ", DMA_Status %i\n", DC395x_read8(acb, TRM_S1040_DMA_STATUS)); */
+	seq_printf(m, ", FilterCfg 0x%02x",
 		DC395x_read8(acb, TRM_S1040_SCSI_CONFIG1));
-	SPRINTF(", DelayReset %is\n", acb->eeprom.delay_time);
-	/*SPRINTF("\n"); */
+	seq_printf(m, ", DelayReset %is\n", acb->eeprom.delay_time);
+	/*seq_printf(m, "\n"); */
 
-	SPRINTF("Nr of DCBs: %i\n", list_size(&acb->dcb_list));
-	SPRINTF
-	    ("Map of attached LUNs: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+	seq_printf(m, "Nr of DCBs: %i\n", list_size(&acb->dcb_list));
+	seq_printf(m, "Map of attached LUNs: %02x %02x %02x %02x %02x %02x %02x %02x\n",
 	     acb->dcb_map[0], acb->dcb_map[1], acb->dcb_map[2],
 	     acb->dcb_map[3], acb->dcb_map[4], acb->dcb_map[5],
 	     acb->dcb_map[6], acb->dcb_map[7]);
-	SPRINTF
-	    ("                      %02x %02x %02x %02x %02x %02x %02x %02x\n",
+	seq_printf(m, "                      %02x %02x %02x %02x %02x %02x %02x %02x\n",
 	     acb->dcb_map[8], acb->dcb_map[9], acb->dcb_map[10],
 	     acb->dcb_map[11], acb->dcb_map[12], acb->dcb_map[13],
 	     acb->dcb_map[14], acb->dcb_map[15]);
 
-	SPRINTF
-	    ("Un ID LUN Prty Sync Wide DsCn SndS TagQ nego_period SyncFreq SyncOffs MaxCmd\n");
+	seq_puts(m,
+		 "Un ID LUN Prty Sync Wide DsCn SndS TagQ nego_period SyncFreq SyncOffs MaxCmd\n");
 
 	dev = 0;
 	list_for_each_entry(dcb, &acb->dcb_list, list) {
 		int nego_period;
-		SPRINTF("%02i %02i  %02i ", dev, dcb->target_id,
+		seq_printf(m, "%02i %02i  %02i ", dev, dcb->target_id,
 			dcb->target_lun);
 		YESNO(dcb->dev_mode & NTC_DO_PARITY_CHK);
 		YESNO(dcb->sync_offset);
@@ -4676,53 +4671,53 @@ static int dc395x_show_info(struct seq_file *m, struct Scsi_Host *host)
 		YESNO(dcb->sync_mode & EN_TAG_QUEUEING);
 		nego_period = clock_period[dcb->sync_period & 0x07] << 2;
 		if (dcb->sync_offset)
-			SPRINTF("  %03i ns ", nego_period);
+			seq_printf(m, "  %03i ns ", nego_period);
 		else
-			SPRINTF(" (%03i ns)", (dcb->min_nego_period << 2));
+			seq_printf(m, " (%03i ns)", (dcb->min_nego_period << 2));
 
 		if (dcb->sync_offset & 0x0f) {
 			spd = 1000 / (nego_period);
 			spd1 = 1000 % (nego_period);
 			spd1 = (spd1 * 10 + nego_period / 2) / (nego_period);
-			SPRINTF("   %2i.%1i M     %02i ", spd, spd1,
+			seq_printf(m, "   %2i.%1i M     %02i ", spd, spd1,
 				(dcb->sync_offset & 0x0f));
 		} else
-			SPRINTF("                 ");
+			seq_puts(m, "                 ");
 
 		/* Add more info ... */
-		SPRINTF("     %02i\n", dcb->max_command);
+		seq_printf(m, "     %02i\n", dcb->max_command);
 		dev++;
 	}
 
 	if (timer_pending(&acb->waiting_timer))
-		SPRINTF("Waiting queue timer running\n");
+		seq_puts(m, "Waiting queue timer running\n");
 	else
-		SPRINTF("\n");
+		seq_putc(m, '\n');
 
 	list_for_each_entry(dcb, &acb->dcb_list, list) {
 		struct ScsiReqBlk *srb;
 		if (!list_empty(&dcb->srb_waiting_list))
-			SPRINTF("DCB (%02i-%i): Waiting: %i:",
+			seq_printf(m, "DCB (%02i-%i): Waiting: %i:",
 				dcb->target_id, dcb->target_lun,
 				list_size(&dcb->srb_waiting_list));
                 list_for_each_entry(srb, &dcb->srb_waiting_list, list)
-			SPRINTF(" %p", srb->cmd);
+			seq_printf(m, " %p", srb->cmd);
 		if (!list_empty(&dcb->srb_going_list))
-			SPRINTF("\nDCB (%02i-%i): Going  : %i:",
+			seq_printf(m, "\nDCB (%02i-%i): Going  : %i:",
 				dcb->target_id, dcb->target_lun,
 				list_size(&dcb->srb_going_list));
 		list_for_each_entry(srb, &dcb->srb_going_list, list)
-			SPRINTF(" %p", srb->cmd);
+			seq_printf(m, " %p", srb->cmd);
 		if (!list_empty(&dcb->srb_waiting_list) || !list_empty(&dcb->srb_going_list))
-			SPRINTF("\n");
+			seq_putc(m, '\n');
 	}
 
 	if (debug_enabled(DBG_1)) {
-		SPRINTF("DCB list for ACB %p:\n", acb);
+		seq_printf(m, "DCB list for ACB %p:\n", acb);
 		list_for_each_entry(dcb, &acb->dcb_list, list) {
-			SPRINTF("%p -> ", dcb);
+			seq_printf(m, "%p -> ", dcb);
 		}
-		SPRINTF("END\n");
+		seq_puts(m, "END\n");
 	}
 
 	DC395x_UNLOCK_IO(acb->scsi_host, flags);

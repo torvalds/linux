@@ -21,13 +21,13 @@
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
-#include <linux/unaligned/access_ok.h>
 #include <linux/crypto.h>
 #include <linux/cryptohash.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/algapi.h>
 #include <crypto/hash.h>
 #include <crypto/internal/hash.h>
+#include <asm/unaligned.h>
 
 #include <asm/dma.h>
 #include <asm/portmux.h>
@@ -110,7 +110,7 @@ static int sg_count(struct scatterlist *sg_list)
 
 	while (!sg_is_last(sg)) {
 		sg_nents++;
-		sg = scatterwalk_sg_next(sg);
+		sg = sg_next(sg);
 	}
 
 	return sg_nents;
@@ -724,7 +724,6 @@ static struct platform_driver bfin_crypto_crc_driver = {
 	.resume    = bfin_crypto_crc_resume,
 	.driver    = {
 		.name  = DRIVER_NAME,
-		.owner = THIS_MODULE,
 	},
 };
 
@@ -745,7 +744,7 @@ static int __init bfin_crypto_crc_mod_init(void)
 
 	ret = platform_driver_register(&bfin_crypto_crc_driver);
 	if (ret) {
-		pr_info(KERN_ERR "unable to register driver\n");
+		pr_err("unable to register driver\n");
 		return ret;
 	}
 

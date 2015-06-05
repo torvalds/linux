@@ -1,12 +1,13 @@
 config ATH5K
 	tristate "Atheros 5xxx wireless cards support"
-	depends on PCI && MAC80211
+	depends on (PCI || ATH25) && MAC80211
 	select ATH_COMMON
 	select MAC80211_LEDS
 	select LEDS_CLASS
 	select NEW_LEDS
 	select AVERAGE
-	select ATH5K_PCI
+	select ATH5K_AHB if ATH25
+	select ATH5K_PCI if !ATH25
 	---help---
 	  This module adds support for wireless adapters based on
 	  Atheros 5xxx chipset.
@@ -51,9 +52,16 @@ config ATH5K_TRACER
 
 	  If unsure, say N.
 
+config ATH5K_AHB
+	bool "Atheros 5xxx AHB bus support"
+	depends on ATH25
+	---help---
+	  This adds support for WiSoC type chipsets of the 5xxx Atheros
+	  family.
+
 config ATH5K_PCI
 	bool "Atheros 5xxx PCI bus support"
-	depends on PCI
+	depends on (!ATH25 && PCI)
 	---help---
 	  This adds support for PCI type chipsets of the 5xxx Atheros
 	  family.

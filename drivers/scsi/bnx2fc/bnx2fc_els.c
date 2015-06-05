@@ -480,9 +480,7 @@ void bnx2fc_rec_compl(struct bnx2fc_els_cb_arg *cb_arg)
 			bnx2fc_initiate_cleanup(orig_io_req);
 			/* Post a new IO req with the same sc_cmd */
 			BNX2FC_IO_DBG(rec_req, "Post IO request again\n");
-			spin_unlock_bh(&tgt->tgt_lock);
 			rc = bnx2fc_post_io_req(tgt, new_io_req);
-			spin_lock_bh(&tgt->tgt_lock);
 			if (!rc)
 				goto free_frame;
 			BNX2FC_IO_DBG(rec_req, "REC: io post err\n");

@@ -604,7 +604,7 @@ static bool proc_sys_fill_cache(struct file *file,
 			return false;
 		}
 	}
-	inode = child->d_inode;
+	inode = d_inode(child);
 	ino  = inode->i_ino;
 	type = inode->i_mode >> 12;
 	dput(child);
@@ -710,7 +710,7 @@ static int proc_sys_permission(struct inode *inode, int mask)
 
 static int proc_sys_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int error;
 
 	if (attr->ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID))
@@ -727,7 +727,7 @@ static int proc_sys_setattr(struct dentry *dentry, struct iattr *attr)
 
 static int proc_sys_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct ctl_table_header *head = grab_header(inode);
 	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
 
@@ -773,12 +773,12 @@ static int proc_sys_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
-	return !PROC_I(dentry->d_inode)->sysctl->unregistering;
+	return !PROC_I(d_inode(dentry))->sysctl->unregistering;
 }
 
 static int proc_sys_delete(const struct dentry *dentry)
 {
-	return !!PROC_I(dentry->d_inode)->sysctl->unregistering;
+	return !!PROC_I(d_inode(dentry))->sysctl->unregistering;
 }
 
 static int sysctl_is_seen(struct ctl_table_header *p)
@@ -805,7 +805,7 @@ static int proc_sys_compare(const struct dentry *parent, const struct dentry *de
 	/* Although proc doesn't have negative dentries, rcu-walk means
 	 * that inode here can be NULL */
 	/* AV: can it, indeed? */
-	inode = ACCESS_ONCE(dentry->d_inode);
+	inode = d_inode_rcu(dentry);
 	if (!inode)
 		return 1;
 	if (name->len != len)

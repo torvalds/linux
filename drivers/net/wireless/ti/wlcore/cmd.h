@@ -31,8 +31,6 @@ struct acx_header;
 
 int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 		    size_t res_len);
-int wlcore_cmd_send_failsafe(struct wl1271 *wl, u16 id, void *buf, size_t len,
-			     size_t res_len, unsigned long valid_rets);
 int wl12xx_cmd_role_enable(struct wl1271 *wl, u8 *addr, u8 role_type,
 			   u8 *role_id);
 int wl12xx_cmd_role_disable(struct wl1271 *wl, u8 *role_id);
@@ -107,6 +105,7 @@ int wl12xx_allocate_link(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 void wl12xx_free_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid);
 int wlcore_cmd_wait_for_event_or_timeout(struct wl1271 *wl,
 					 u32 mask, bool *timeout);
+u8 wlcore_get_native_channel_type(u8 nl_channel_type);
 
 enum wl1271_commands {
 	CMD_INTERROGATE	= 1, /* use this to read information elements */
@@ -173,6 +172,11 @@ enum wl1271_commands {
 	CMD_SMART_CONFIG_START		= 61,
 	CMD_SMART_CONFIG_STOP		= 62,
 	CMD_SMART_CONFIG_SET_GROUP_KEY	= 63,
+
+	CMD_CAC_START			= 64,
+	CMD_CAC_STOP			= 65,
+	CMD_DFS_MASTER_RESTART		= 66,
+	CMD_DFS_RADAR_DETECTION_DEBUG	= 67,
 
 	MAX_COMMAND_ID = 0xFFFF,
 };
@@ -644,6 +648,8 @@ struct wl12xx_cmd_regdomain_dfs_config {
 
 	__le32 ch_bit_map1;
 	__le32 ch_bit_map2;
+	u8 dfs_region;
+	u8 padding[3];
 } __packed;
 
 struct wl12xx_cmd_config_fwlog {

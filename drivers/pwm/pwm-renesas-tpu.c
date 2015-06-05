@@ -468,7 +468,6 @@ static struct platform_driver tpu_driver = {
 	.remove		= tpu_remove,
 	.driver		= {
 		.name	= "renesas-tpu-pwm",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(tpu_of_table),
 	}
 };

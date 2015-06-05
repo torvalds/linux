@@ -34,6 +34,10 @@ struct dma_map_ops {
 	void (*unmap_page)(struct device *dev, dma_addr_t dma_handle,
 			   size_t size, enum dma_data_direction dir,
 			   struct dma_attrs *attrs);
+	/*
+	 * map_sg returns 0 on error and a value > 0 on success.
+	 * It should never return a value < 0.
+	 */
 	int (*map_sg)(struct device *dev, struct scatterlist *sg,
 		      int nents, enum dma_data_direction dir,
 		      struct dma_attrs *attrs);
@@ -129,11 +133,14 @@ static inline int dma_coerce_mask_and_coherent(struct device *dev, u64 mask)
 
 extern u64 dma_get_required_mask(struct device *dev);
 
-#ifndef set_arch_dma_coherent_ops
-static inline int set_arch_dma_coherent_ops(struct device *dev)
-{
-	return 0;
-}
+#ifndef arch_setup_dma_ops
+static inline void arch_setup_dma_ops(struct device *dev, u64 dma_base,
+				      u64 size, struct iommu_ops *iommu,
+				      bool coherent) { }
+#endif
+
+#ifndef arch_teardown_dma_ops
+static inline void arch_teardown_dma_ops(struct device *dev) { }
 #endif
 
 static inline unsigned int dma_get_max_seg_size(struct device *dev)

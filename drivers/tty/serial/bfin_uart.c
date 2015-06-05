@@ -464,6 +464,7 @@ void bfin_serial_rx_dma_timeout(struct bfin_serial_port *uart)
 	int x_pos, pos;
 	unsigned long flags;
 
+	dma_disable_irq_nosync(uart->rx_dma_channel);
 	spin_lock_irqsave(&uart->rx_lock, flags);
 
 	/* 2D DMA RX buffer ring is used. Because curr_y_count and
@@ -496,6 +497,7 @@ void bfin_serial_rx_dma_timeout(struct bfin_serial_port *uart)
 	}
 
 	spin_unlock_irqrestore(&uart->rx_lock, flags);
+	dma_enable_irq(uart->rx_dma_channel);
 
 	mod_timer(&(uart->rx_dma_timer), jiffies + DMA_RX_FLUSH_JIFFIES);
 }
@@ -944,12 +946,13 @@ bfin_serial_verify_port(struct uart_port *port, struct serial_struct *ser)
  * Enable the IrDA function if tty->ldisc.num is N_IRDA.
  * In other cases, disable IrDA function.
  */
-static void bfin_serial_set_ldisc(struct uart_port *port, int ld)
+static void bfin_serial_set_ldisc(struct uart_port *port,
+				  struct ktermios *termios)
 {
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
 	unsigned int val;
 
-	switch (ld) {
+	switch (termios->c_line) {
 	case N_IRDA:
 		val = UART_GET_GCTL(uart);
 		val |= (UMOD_IRDA | RPOLC);
@@ -1386,7 +1389,6 @@ static struct platform_driver bfin_serial_driver = {
 	.resume		= bfin_serial_resume,
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 

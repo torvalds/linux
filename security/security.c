@@ -135,6 +135,29 @@ int __init register_security(struct security_operations *ops)
 
 /* Security operations */
 
+int security_binder_set_context_mgr(struct task_struct *mgr)
+{
+	return security_ops->binder_set_context_mgr(mgr);
+}
+
+int security_binder_transaction(struct task_struct *from,
+				struct task_struct *to)
+{
+	return security_ops->binder_transaction(from, to);
+}
+
+int security_binder_transfer_binder(struct task_struct *from,
+				    struct task_struct *to)
+{
+	return security_ops->binder_transfer_binder(from, to);
+}
+
+int security_binder_transfer_file(struct task_struct *from,
+				  struct task_struct *to, struct file *file)
+{
+	return security_ops->binder_transfer_file(from, to, file);
+}
+
 int security_ptrace_access_check(struct task_struct *child, unsigned int mode)
 {
 #ifdef CONFIG_SECURITY_YAMA_STACKED
@@ -387,7 +410,7 @@ EXPORT_SYMBOL(security_old_inode_init_security);
 int security_path_mknod(struct path *dir, struct dentry *dentry, umode_t mode,
 			unsigned int dev)
 {
-	if (unlikely(IS_PRIVATE(dir->dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
 		return 0;
 	return security_ops->path_mknod(dir, dentry, mode, dev);
 }
@@ -395,7 +418,7 @@ EXPORT_SYMBOL(security_path_mknod);
 
 int security_path_mkdir(struct path *dir, struct dentry *dentry, umode_t mode)
 {
-	if (unlikely(IS_PRIVATE(dir->dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
 		return 0;
 	return security_ops->path_mkdir(dir, dentry, mode);
 }
@@ -403,14 +426,14 @@ EXPORT_SYMBOL(security_path_mkdir);
 
 int security_path_rmdir(struct path *dir, struct dentry *dentry)
 {
-	if (unlikely(IS_PRIVATE(dir->dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
 		return 0;
 	return security_ops->path_rmdir(dir, dentry);
 }
 
 int security_path_unlink(struct path *dir, struct dentry *dentry)
 {
-	if (unlikely(IS_PRIVATE(dir->dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
 		return 0;
 	return security_ops->path_unlink(dir, dentry);
 }
@@ -419,7 +442,7 @@ EXPORT_SYMBOL(security_path_unlink);
 int security_path_symlink(struct path *dir, struct dentry *dentry,
 			  const char *old_name)
 {
-	if (unlikely(IS_PRIVATE(dir->dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
 		return 0;
 	return security_ops->path_symlink(dir, dentry, old_name);
 }
@@ -427,7 +450,7 @@ int security_path_symlink(struct path *dir, struct dentry *dentry,
 int security_path_link(struct dentry *old_dentry, struct path *new_dir,
 		       struct dentry *new_dentry)
 {
-	if (unlikely(IS_PRIVATE(old_dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(d_backing_inode(old_dentry))))
 		return 0;
 	return security_ops->path_link(old_dentry, new_dir, new_dentry);
 }
@@ -436,8 +459,8 @@ int security_path_rename(struct path *old_dir, struct dentry *old_dentry,
 			 struct path *new_dir, struct dentry *new_dentry,
 			 unsigned int flags)
 {
-	if (unlikely(IS_PRIVATE(old_dentry->d_inode) ||
-		     (new_dentry->d_inode && IS_PRIVATE(new_dentry->d_inode))))
+	if (unlikely(IS_PRIVATE(d_backing_inode(old_dentry)) ||
+		     (d_is_positive(new_dentry) && IS_PRIVATE(d_backing_inode(new_dentry)))))
 		return 0;
 
 	if (flags & RENAME_EXCHANGE) {
@@ -454,21 +477,21 @@ EXPORT_SYMBOL(security_path_rename);
 
 int security_path_truncate(struct path *path)
 {
-	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(d_backing_inode(path->dentry))))
 		return 0;
 	return security_ops->path_truncate(path);
 }
 
 int security_path_chmod(struct path *path, umode_t mode)
 {
-	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(d_backing_inode(path->dentry))))
 		return 0;
 	return security_ops->path_chmod(path, mode);
 }
 
 int security_path_chown(struct path *path, kuid_t uid, kgid_t gid)
 {
-	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(d_backing_inode(path->dentry))))
 		return 0;
 	return security_ops->path_chown(path, uid, gid);
 }
@@ -490,14 +513,14 @@ EXPORT_SYMBOL_GPL(security_inode_create);
 int security_inode_link(struct dentry *old_dentry, struct inode *dir,
 			 struct dentry *new_dentry)
 {
-	if (unlikely(IS_PRIVATE(old_dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(d_backing_inode(old_dentry))))
 		return 0;
 	return security_ops->inode_link(old_dentry, dir, new_dentry);
 }
 
 int security_inode_unlink(struct inode *dir, struct dentry *dentry)
 {
-	if (unlikely(IS_PRIVATE(dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
 		return 0;
 	return security_ops->inode_unlink(dir, dentry);
 }
@@ -520,7 +543,7 @@ EXPORT_SYMBOL_GPL(security_inode_mkdir);
 
 int security_inode_rmdir(struct inode *dir, struct dentry *dentry)
 {
-	if (unlikely(IS_PRIVATE(dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
 		return 0;
 	return security_ops->inode_rmdir(dir, dentry);
 }
@@ -536,8 +559,8 @@ int security_inode_rename(struct inode *old_dir, struct dentry *old_dentry,
 			   struct inode *new_dir, struct dentry *new_dentry,
 			   unsigned int flags)
 {
-        if (unlikely(IS_PRIVATE(old_dentry->d_inode) ||
-            (new_dentry->d_inode && IS_PRIVATE(new_dentry->d_inode))))
+        if (unlikely(IS_PRIVATE(d_backing_inode(old_dentry)) ||
+            (d_is_positive(new_dentry) && IS_PRIVATE(d_backing_inode(new_dentry)))))
 		return 0;
 
 	if (flags & RENAME_EXCHANGE) {
@@ -553,14 +576,14 @@ int security_inode_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 int security_inode_readlink(struct dentry *dentry)
 {
-	if (unlikely(IS_PRIVATE(dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
 		return 0;
 	return security_ops->inode_readlink(dentry);
 }
 
 int security_inode_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	if (unlikely(IS_PRIVATE(dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
 		return 0;
 	return security_ops->inode_follow_link(dentry, nd);
 }
@@ -576,7 +599,7 @@ int security_inode_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	int ret;
 
-	if (unlikely(IS_PRIVATE(dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
 		return 0;
 	ret = security_ops->inode_setattr(dentry, attr);
 	if (ret)
@@ -585,11 +608,11 @@ int security_inode_setattr(struct dentry *dentry, struct iattr *attr)
 }
 EXPORT_SYMBOL_GPL(security_inode_setattr);
 
-int security_inode_getattr(struct vfsmount *mnt, struct dentry *dentry)
+int security_inode_getattr(const struct path *path)
 {
-	if (unlikely(IS_PRIVATE(dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(d_backing_inode(path->dentry))))
 		return 0;
-	return security_ops->inode_getattr(mnt, dentry);
+	return security_ops->inode_getattr(path);
 }
 
 int security_inode_setxattr(struct dentry *dentry, const char *name,
@@ -597,7 +620,7 @@ int security_inode_setxattr(struct dentry *dentry, const char *name,
 {
 	int ret;
 
-	if (unlikely(IS_PRIVATE(dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
 		return 0;
 	ret = security_ops->inode_setxattr(dentry, name, value, size, flags);
 	if (ret)
@@ -611,7 +634,7 @@ int security_inode_setxattr(struct dentry *dentry, const char *name,
 void security_inode_post_setxattr(struct dentry *dentry, const char *name,
 				  const void *value, size_t size, int flags)
 {
-	if (unlikely(IS_PRIVATE(dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
 		return;
 	security_ops->inode_post_setxattr(dentry, name, value, size, flags);
 	evm_inode_post_setxattr(dentry, name, value, size);
@@ -619,14 +642,14 @@ void security_inode_post_setxattr(struct dentry *dentry, const char *name,
 
 int security_inode_getxattr(struct dentry *dentry, const char *name)
 {
-	if (unlikely(IS_PRIVATE(dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
 		return 0;
 	return security_ops->inode_getxattr(dentry, name);
 }
 
 int security_inode_listxattr(struct dentry *dentry)
 {
-	if (unlikely(IS_PRIVATE(dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
 		return 0;
 	return security_ops->inode_listxattr(dentry);
 }
@@ -635,7 +658,7 @@ int security_inode_removexattr(struct dentry *dentry, const char *name)
 {
 	int ret;
 
-	if (unlikely(IS_PRIVATE(dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
 		return 0;
 	ret = security_ops->inode_removexattr(dentry, name);
 	if (ret)
@@ -726,16 +749,15 @@ static inline unsigned long mmap_prot(struct file *file, unsigned long prot)
 		return prot | PROT_EXEC;
 	/*
 	 * ditto if it's not on noexec mount, except that on !MMU we need
-	 * BDI_CAP_EXEC_MMAP (== VM_MAYEXEC) in this case
+	 * NOMMU_MAP_EXEC (== VM_MAYEXEC) in this case
 	 */
 	if (!(file->f_path.mnt->mnt_flags & MNT_NOEXEC)) {
 #ifndef CONFIG_MMU
-		unsigned long caps = 0;
-		struct address_space *mapping = file->f_mapping;
-		if (mapping && mapping->backing_dev_info)
-			caps = mapping->backing_dev_info->capabilities;
-		if (!(caps & BDI_CAP_EXEC_MAP))
-			return prot;
+		if (file->f_op->mmap_capabilities) {
+			unsigned caps = file->f_op->mmap_capabilities(file);
+			if (!(caps & NOMMU_MAP_EXEC))
+				return prot;
+		}
 #endif
 		return prot | PROT_EXEC;
 	}
@@ -1336,11 +1358,6 @@ int security_tun_dev_open(void *security)
 	return security_ops->tun_dev_open(security);
 }
 EXPORT_SYMBOL(security_tun_dev_open);
-
-void security_skb_owned_by(struct sk_buff *skb, struct sock *sk)
-{
-	security_ops->skb_owned_by(skb, sk);
-}
 
 #endif	/* CONFIG_SECURITY_NETWORK */
 

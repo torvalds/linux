@@ -844,21 +844,39 @@ static int sci_handle_fifo_overrun(struct uart_port *port)
 	struct tty_port *tport = &port->state->port;
 	struct sci_port *s = to_sci_port(port);
 	struct plat_sci_reg *reg;
-	int copied = 0;
+	int copied = 0, offset;
+	u16 status, bit;
 
-	reg = sci_getreg(port, SCLSR);
+	switch (port->type) {
+	case PORT_SCIF:
+	case PORT_HSCIF:
+		offset = SCLSR;
+		break;
+	case PORT_SCIFA:
+	case PORT_SCIFB:
+		offset = SCxSR;
+		break;
+	default:
+		return 0;
+	}
+
+	reg = sci_getreg(port, offset);
 	if (!reg->size)
 		return 0;
 
-	if ((serial_port_in(port, SCLSR) & (1 << s->overrun_bit))) {
-		serial_port_out(port, SCLSR, 0);
+	status = serial_port_in(port, offset);
+	bit = 1 << s->overrun_bit;
+
+	if (status & bit) {
+		status &= ~bit;
+		serial_port_out(port, offset, status);
 
 		port->icount.overrun++;
 
 		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 		tty_flip_buffer_push(tport);
 
-		dev_notice(port->dev, "overrun error\n");
+		dev_dbg(port->dev, "overrun error\n");
 		copied++;
 	}
 
@@ -996,13 +1014,24 @@ static inline unsigned long port_rx_irq_mask(struct uart_port *port)
 
 static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 {
-	unsigned short ssr_status, scr_status, err_enabled;
+	unsigned short ssr_status, scr_status, err_enabled, orer_status = 0;
 	struct uart_port *port = ptr;
 	struct sci_port *s = to_sci_port(port);
 	irqreturn_t ret = IRQ_NONE;
 
 	ssr_status = serial_port_in(port, SCxSR);
 	scr_status = serial_port_in(port, SCSCR);
+	switch (port->type) {
+	case PORT_SCIF:
+	case PORT_HSCIF:
+		orer_status = serial_port_in(port, SCLSR);
+		break;
+	case PORT_SCIFA:
+	case PORT_SCIFB:
+		orer_status = ssr_status;
+		break;
+	}
+
 	err_enabled = scr_status & port_rx_irq_mask(port);
 
 	/* Tx Interrupt */
@@ -1015,8 +1044,11 @@ static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 	 * DR flags
 	 */
 	if (((ssr_status & SCxSR_RDxF(port)) || s->chan_rx) &&
-	    (scr_status & SCSCR_RIE))
+	    (scr_status & SCSCR_RIE)) {
+		if (port->type == PORT_SCIF || port->type == PORT_HSCIF)
+			sci_handle_fifo_overrun(port);
 		ret = sci_rx_interrupt(irq, ptr);
+	}
 
 	/* Error Interrupt */
 	if ((ssr_status & SCxSR_ERRORS(port)) && err_enabled)
@@ -1025,6 +1057,10 @@ static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 	/* Break Interrupt */
 	if ((ssr_status & SCxSR_BRK(port)) && err_enabled)
 		ret = sci_br_interrupt(irq, ptr);
+
+	/* Overrun Interrupt */
+	if (orer_status & (1 << s->overrun_bit))
+		sci_handle_fifo_overrun(port);
 
 	return ret;
 }
@@ -1812,9 +1848,6 @@ static void sci_baud_calc_hscif(unsigned int bps, unsigned long freq,
 			err = DIV_ROUND_CLOSEST(freq, ((br + 1) * bps * sr *
 					       (1 << (2 * c + 1)) / 1000)) -
 					       1000;
-			if (err < 0)
-				continue;
-
 			/* Calc recv margin
 			 * M: Receive margin (%)
 			 * N: Ratio of bit rate to clock (N = sampling rate)
@@ -1829,7 +1862,7 @@ static void sci_baud_calc_hscif(unsigned int bps, unsigned long freq,
 			 */
 			recv_margin = abs((500 -
 					DIV_ROUND_CLOSEST(1000, sr << 1)) / 10);
-			if (min_err > err) {
+			if (abs(min_err) > abs(err)) {
 				min_err = err;
 				recv_max_margin = recv_margin;
 			} else if ((min_err == err) &&
@@ -1958,18 +1991,40 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
 	/*
-	 * Calculate delay for 1.5 DMA buffers: see
-	 * drivers/serial/serial_core.c::uart_update_timeout(). With 10 bits
-	 * (CS8), 250Hz, 115200 baud and 64 bytes FIFO, the above function
+	 * Calculate delay for 2 DMA buffers (4 FIFO).
+	 * See drivers/serial/serial_core.c::uart_update_timeout(). With 10
+	 * bits (CS8), 250Hz, 115200 baud and 64 bytes FIFO, the above function
 	 * calculates 1 jiffie for the data plus 5 jiffies for the "slop(e)."
-	 * Then below we calculate 3 jiffies (12ms) for 1.5 DMA buffers (3 FIFO
-	 * sizes), but it has been found out experimentally, that this is not
-	 * enough: the driver too often needlessly runs on a DMA timeout. 20ms
-	 * as a minimum seem to work perfectly.
+	 * Then below we calculate 5 jiffies (20ms) for 2 DMA buffers (4 FIFO
+	 * sizes), but when performing a faster transfer, value obtained by
+	 * this formula is may not enough. Therefore, if value is smaller than
+	 * 20msec, this sets 20msec as timeout of DMA.
 	 */
 	if (s->chan_rx) {
-		s->rx_timeout = (port->timeout - HZ / 50) * s->buf_len_rx * 3 /
-			port->fifosize / 2;
+		unsigned int bits;
+
+		/* byte size and parity */
+		switch (termios->c_cflag & CSIZE) {
+		case CS5:
+			bits = 7;
+			break;
+		case CS6:
+			bits = 8;
+			break;
+		case CS7:
+			bits = 9;
+			break;
+		default:
+			bits = 10;
+			break;
+		}
+
+		if (termios->c_cflag & CSTOPB)
+			bits++;
+		if (termios->c_cflag & PARENB)
+			bits++;
+		s->rx_timeout = DIV_ROUND_UP((s->buf_len_rx * 2 * bits * HZ) /
+					     (baud / 10), 10);
 		dev_dbg(port->dev, "DMA Rx t-out %ums, tty t-out %u jiffies\n",
 			s->rx_timeout * 1000 / HZ, port->timeout);
 		if (s->rx_timeout < msecs_to_jiffies(20))
@@ -2608,7 +2663,7 @@ static int sci_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int sci_suspend(struct device *dev)
+static __maybe_unused int sci_suspend(struct device *dev)
 {
 	struct sci_port *sport = dev_get_drvdata(dev);
 
@@ -2618,7 +2673,7 @@ static int sci_suspend(struct device *dev)
 	return 0;
 }
 
-static int sci_resume(struct device *dev)
+static __maybe_unused int sci_resume(struct device *dev)
 {
 	struct sci_port *sport = dev_get_drvdata(dev);
 
@@ -2628,17 +2683,13 @@ static int sci_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops sci_dev_pm_ops = {
-	.suspend	= sci_suspend,
-	.resume		= sci_resume,
-};
+static SIMPLE_DEV_PM_OPS(sci_dev_pm_ops, sci_suspend, sci_resume);
 
 static struct platform_driver sci_driver = {
 	.probe		= sci_probe,
 	.remove		= sci_remove,
 	.driver		= {
 		.name	= "sh-sci",
-		.owner	= THIS_MODULE,
 		.pm	= &sci_dev_pm_ops,
 		.of_match_table = of_match_ptr(of_sci_match),
 	},

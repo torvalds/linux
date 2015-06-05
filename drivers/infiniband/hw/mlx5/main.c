@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -61,95 +61,6 @@ MODULE_PARM_DESC(prof_sel, "profile selector. Deprecated here. Moved to module m
 static char mlx5_version[] =
 	DRIVER_NAME ": Mellanox Connect-IB Infiniband driver v"
 	DRIVER_VERSION " (" DRIVER_RELDATE ")\n";
-
-int mlx5_vector2eqn(struct mlx5_ib_dev *dev, int vector, int *eqn, int *irqn)
-{
-	struct mlx5_eq_table *table = &dev->mdev->priv.eq_table;
-	struct mlx5_eq *eq, *n;
-	int err = -ENOENT;
-
-	spin_lock(&table->lock);
-	list_for_each_entry_safe(eq, n, &dev->eqs_list, list) {
-		if (eq->index == vector) {
-			*eqn = eq->eqn;
-			*irqn = eq->irqn;
-			err = 0;
-			break;
-		}
-	}
-	spin_unlock(&table->lock);
-
-	return err;
-}
-
-static int alloc_comp_eqs(struct mlx5_ib_dev *dev)
-{
-	struct mlx5_eq_table *table = &dev->mdev->priv.eq_table;
-	char name[MLX5_MAX_EQ_NAME];
-	struct mlx5_eq *eq, *n;
-	int ncomp_vec;
-	int nent;
-	int err;
-	int i;
-
-	INIT_LIST_HEAD(&dev->eqs_list);
-	ncomp_vec = table->num_comp_vectors;
-	nent = MLX5_COMP_EQ_SIZE;
-	for (i = 0; i < ncomp_vec; i++) {
-		eq = kzalloc(sizeof(*eq), GFP_KERNEL);
-		if (!eq) {
-			err = -ENOMEM;
-			goto clean;
-		}
-
-		snprintf(name, MLX5_MAX_EQ_NAME, "mlx5_comp%d", i);
-		err = mlx5_create_map_eq(dev->mdev, eq,
-					 i + MLX5_EQ_VEC_COMP_BASE, nent, 0,
-					 name, &dev->mdev->priv.uuari.uars[0]);
-		if (err) {
-			kfree(eq);
-			goto clean;
-		}
-		mlx5_ib_dbg(dev, "allocated completion EQN %d\n", eq->eqn);
-		eq->index = i;
-		spin_lock(&table->lock);
-		list_add_tail(&eq->list, &dev->eqs_list);
-		spin_unlock(&table->lock);
-	}
-
-	dev->num_comp_vectors = ncomp_vec;
-	return 0;
-
-clean:
-	spin_lock(&table->lock);
-	list_for_each_entry_safe(eq, n, &dev->eqs_list, list) {
-		list_del(&eq->list);
-		spin_unlock(&table->lock);
-		if (mlx5_destroy_unmap_eq(dev->mdev, eq))
-			mlx5_ib_warn(dev, "failed to destroy EQ 0x%x\n", eq->eqn);
-		kfree(eq);
-		spin_lock(&table->lock);
-	}
-	spin_unlock(&table->lock);
-	return err;
-}
-
-static void free_comp_eqs(struct mlx5_ib_dev *dev)
-{
-	struct mlx5_eq_table *table = &dev->mdev->priv.eq_table;
-	struct mlx5_eq *eq, *n;
-
-	spin_lock(&table->lock);
-	list_for_each_entry_safe(eq, n, &dev->eqs_list, list) {
-		list_del(&eq->list);
-		spin_unlock(&table->lock);
-		if (mlx5_destroy_unmap_eq(dev->mdev, eq))
-			mlx5_ib_warn(dev, "failed to destroy EQ 0x%x\n", eq->eqn);
-		kfree(eq);
-		spin_lock(&table->lock);
-	}
-	spin_unlock(&table->lock);
-}
 
 static int mlx5_ib_query_device(struct ib_device *ibdev,
 				struct ib_device_attr *props)
@@ -243,6 +154,12 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	props->max_total_mcast_qp_attach = props->max_mcast_qp_attach *
 					   props->max_mcast_grp;
 	props->max_map_per_fmr = INT_MAX; /* no limit in ConnectIB */
+
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	if (dev->mdev->caps.gen.flags & MLX5_DEV_CAP_FLAG_ON_DMND_PG)
+		props->device_cap_flags |= IB_DEVICE_ON_DEMAND_PAGING;
+	props->odp_caps = dev->odp_caps;
+#endif
 
 out:
 	kfree(in_mad);
@@ -568,6 +485,10 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 			goto out_count;
 	}
 
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	context->ibucontext.invalidate_range = &mlx5_ib_invalidate_range;
+#endif
+
 	INIT_LIST_HEAD(&context->db_page_list);
 	mutex_init(&context->db_page_mutex);
 
@@ -858,7 +779,7 @@ static ssize_t show_reg_pages(struct device *device,
 	struct mlx5_ib_dev *dev =
 		container_of(device, struct mlx5_ib_dev, ib_dev.dev);
 
-	return sprintf(buf, "%d\n", dev->mdev->priv.reg_pages);
+	return sprintf(buf, "%d\n", atomic_read(&dev->mdev->priv.reg_pages));
 }
 
 static ssize_t show_hca(struct device *device, struct device_attribute *attr,
@@ -987,7 +908,7 @@ static int get_port_caps(struct mlx5_ib_dev *dev)
 	struct ib_device_attr *dprops = NULL;
 	struct ib_port_attr *pprops = NULL;
 	struct mlx5_general_caps *gen;
-	int err = 0;
+	int err = -ENOMEM;
 	int port;
 
 	gen = &dev->mdev->caps.gen;
@@ -1281,10 +1202,6 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 
 	get_ext_port_caps(dev);
 
-	err = alloc_comp_eqs(dev);
-	if (err)
-		goto err_dealloc;
-
 	MLX5_INIT_DOORBELL_LOCK(&dev->uar_lock);
 
 	strlcpy(dev->ib_dev.name, "mlx5_%d", IB_DEVICE_NAME_MAX);
@@ -1293,7 +1210,8 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	dev->ib_dev.local_dma_lkey	= mdev->caps.gen.reserved_lkey;
 	dev->num_ports		= mdev->caps.gen.num_ports;
 	dev->ib_dev.phys_port_cnt     = dev->num_ports;
-	dev->ib_dev.num_comp_vectors	= dev->num_comp_vectors;
+	dev->ib_dev.num_comp_vectors    =
+		dev->mdev->priv.eq_table.num_comp_vectors;
 	dev->ib_dev.dma_device	= &mdev->pdev->dev;
 
 	dev->ib_dev.uverbs_abi_ver	= MLX5_IB_UVERBS_ABI_VERSION;
@@ -1321,6 +1239,8 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 		(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ)		|
 		(1ull << IB_USER_VERBS_CMD_CREATE_XSRQ)		|
 		(1ull << IB_USER_VERBS_CMD_OPEN_QP);
+	dev->ib_dev.uverbs_ex_cmd_mask =
+		(1ull << IB_USER_VERBS_EX_CMD_QUERY_DEVICE);
 
 	dev->ib_dev.query_device	= mlx5_ib_query_device;
 	dev->ib_dev.query_port		= mlx5_ib_query_port;
@@ -1366,6 +1286,8 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	dev->ib_dev.free_fast_reg_page_list  = mlx5_ib_free_fast_reg_page_list;
 	dev->ib_dev.check_mr_status	= mlx5_ib_check_mr_status;
 
+	mlx5_ib_internal_query_odp_caps(dev);
+
 	if (mdev->caps.gen.flags & MLX5_DEV_CAP_FLAG_XRC) {
 		dev->ib_dev.alloc_xrcd = mlx5_ib_alloc_xrcd;
 		dev->ib_dev.dealloc_xrcd = mlx5_ib_dealloc_xrcd;
@@ -1376,18 +1298,21 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 
 	err = init_node_data(dev);
 	if (err)
-		goto err_eqs;
+		goto err_dealloc;
 
 	mutex_init(&dev->cap_mask_mutex);
-	spin_lock_init(&dev->mr_lock);
 
 	err = create_dev_resources(&dev->devr);
 	if (err)
-		goto err_eqs;
+		goto err_dealloc;
+
+	err = mlx5_ib_odp_init_one(dev);
+	if (err)
+		goto err_rsrc;
 
 	err = ib_register_device(&dev->ib_dev, NULL);
 	if (err)
-		goto err_rsrc;
+		goto err_odp;
 
 	err = create_umr_res(dev);
 	if (err)
@@ -1410,11 +1335,11 @@ err_umrc:
 err_dev:
 	ib_unregister_device(&dev->ib_dev);
 
+err_odp:
+	mlx5_ib_odp_remove_one(dev);
+
 err_rsrc:
 	destroy_dev_resources(&dev->devr);
-
-err_eqs:
-	free_comp_eqs(dev);
 
 err_dealloc:
 	ib_dealloc_device((struct ib_device *)dev);
@@ -1425,10 +1350,11 @@ err_dealloc:
 static void mlx5_ib_remove(struct mlx5_core_dev *mdev, void *context)
 {
 	struct mlx5_ib_dev *dev = context;
+
 	ib_unregister_device(&dev->ib_dev);
 	destroy_umrc_res(dev);
+	mlx5_ib_odp_remove_one(dev);
 	destroy_dev_resources(&dev->devr);
-	free_comp_eqs(dev);
 	ib_dealloc_device(&dev->ib_dev);
 }
 
@@ -1436,19 +1362,35 @@ static struct mlx5_interface mlx5_ib_interface = {
 	.add            = mlx5_ib_add,
 	.remove         = mlx5_ib_remove,
 	.event          = mlx5_ib_event,
+	.protocol	= MLX5_INTERFACE_PROTOCOL_IB,
 };
 
 static int __init mlx5_ib_init(void)
 {
+	int err;
+
 	if (deprecated_prof_sel != 2)
 		pr_warn("prof_sel is deprecated for mlx5_ib, set it for mlx5_core\n");
 
-	return mlx5_register_interface(&mlx5_ib_interface);
+	err = mlx5_ib_odp_init();
+	if (err)
+		return err;
+
+	err = mlx5_register_interface(&mlx5_ib_interface);
+	if (err)
+		goto clean_odp;
+
+	return err;
+
+clean_odp:
+	mlx5_ib_odp_cleanup();
+	return err;
 }
 
 static void __exit mlx5_ib_cleanup(void)
 {
 	mlx5_unregister_interface(&mlx5_ib_interface);
+	mlx5_ib_odp_cleanup();
 }
 
 module_init(mlx5_ib_init);

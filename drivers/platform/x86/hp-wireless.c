@@ -85,6 +85,9 @@ static int hpwl_add(struct acpi_device *device)
 	int err;
 
 	err = hp_wireless_input_setup();
+	if (err)
+		pr_err("Failed to setup hp wireless hotkeys\n");
+
 	return err;
 }
 

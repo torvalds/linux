@@ -31,7 +31,7 @@
 #include <linux/mm.h>
 #include <linux/export.h>
 #include <linux/swap.h>
-#include <linux/aio.h>
+#include <linux/uio.h>
 
 static struct vfsmount *shm_mnt;
 
@@ -190,11 +190,6 @@ static const struct inode_operations shmem_inode_operations;
 static const struct inode_operations shmem_dir_inode_operations;
 static const struct inode_operations shmem_special_inode_operations;
 static const struct vm_operations_struct shmem_vm_ops;
-
-static struct backing_dev_info shmem_backing_dev_info  __read_mostly = {
-	.ra_pages	= 0,	/* No readahead */
-	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK | BDI_CAP_SWAP_BACKED,
-};
 
 static LIST_HEAD(shmem_swaplist);
 static DEFINE_MUTEX(shmem_swaplist_mutex);
@@ -549,7 +544,7 @@ EXPORT_SYMBOL_GPL(shmem_truncate_range);
 
 static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct shmem_inode_info *info = SHMEM_I(inode);
 	int error;
 
@@ -765,11 +760,11 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 		goto redirty;
 
 	/*
-	 * shmem_backing_dev_info's capabilities prevent regular writeback or
-	 * sync from ever calling shmem_writepage; but a stacking filesystem
-	 * might use ->writepage of its underlying filesystem, in which case
-	 * tmpfs should write out to swap only in response to memory pressure,
-	 * and not for the writeback threads or sync.
+	 * Our capabilities prevent regular writeback or sync from ever calling
+	 * shmem_writepage; but a stacking filesystem might use ->writepage of
+	 * its underlying filesystem, in which case tmpfs should write out to
+	 * swap only in response to memory pressure, and not for the writeback
+	 * threads or sync.
 	 */
 	if (!wbc->for_reclaim) {
 		WARN_ON_ONCE(1);	/* Still happens? Tell us about it! */
@@ -1013,7 +1008,7 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
 		 */
 		oldpage = newpage;
 	} else {
-		mem_cgroup_migrate(oldpage, newpage, false);
+		mem_cgroup_migrate(oldpage, newpage, true);
 		lru_cache_add_anon(newpage);
 		*pagep = newpage;
 	}
@@ -1131,7 +1126,7 @@ repeat:
 			 * truncated or holepunched since swap was confirmed.
 			 * shmem_undo_range() will have done some of the
 			 * unaccounting, now delete_from_swap_cache() will do
-			 * the rest (including mem_cgroup_uncharge_swapcache).
+			 * the rest.
 			 * Reset swap.val? No, leave it so "failed" goes back to
 			 * "repeat": reading a hole and writing should succeed.
 			 */
@@ -1415,7 +1410,6 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode 
 		inode->i_ino = get_next_ino();
 		inode_init_owner(inode, dir, mode);
 		inode->i_blocks = 0;
-		inode->i_mapping->backing_dev_info = &shmem_backing_dev_info;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		inode->i_generation = get_seconds();
 		info = SHMEM_I(inode);
@@ -1461,7 +1455,10 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode 
 
 bool shmem_mapping(struct address_space *mapping)
 {
-	return mapping->backing_dev_info == &shmem_backing_dev_info;
+	if (!mapping->host)
+		return false;
+
+	return mapping->host->i_sb->s_op == &shmem_ops;
 }
 
 #ifdef CONFIG_TMPFS
@@ -1536,7 +1533,7 @@ static ssize_t shmem_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	 * holes of a sparse file, we actually need to allocate those pages,
 	 * and even mark them dirty, so it cannot exceed the max_blocks limit.
 	 */
-	if (segment_eq(get_fs(), KERNEL_DS))
+	if (!iter_is_iovec(to))
 		sgp = SGP_DIRTY;
 
 	index = *ppos >> PAGE_CACHE_SHIFT;
@@ -2277,7 +2274,7 @@ static int shmem_create(struct inode *dir, struct dentry *dentry, umode_t mode,
  */
 static int shmem_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
 {
-	struct inode *inode = old_dentry->d_inode;
+	struct inode *inode = d_inode(old_dentry);
 	int ret;
 
 	/*
@@ -2301,7 +2298,7 @@ out:
 
 static int shmem_unlink(struct inode *dir, struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 
 	if (inode->i_nlink > 1 && !S_ISDIR(inode->i_mode))
 		shmem_free_inode(inode->i_sb);
@@ -2318,15 +2315,15 @@ static int shmem_rmdir(struct inode *dir, struct dentry *dentry)
 	if (!simple_empty(dentry))
 		return -ENOTEMPTY;
 
-	drop_nlink(dentry->d_inode);
+	drop_nlink(d_inode(dentry));
 	drop_nlink(dir);
 	return shmem_unlink(dir, dentry);
 }
 
 static int shmem_exchange(struct inode *old_dir, struct dentry *old_dentry, struct inode *new_dir, struct dentry *new_dentry)
 {
-	bool old_is_dir = S_ISDIR(old_dentry->d_inode->i_mode);
-	bool new_is_dir = S_ISDIR(new_dentry->d_inode->i_mode);
+	bool old_is_dir = d_is_dir(old_dentry);
+	bool new_is_dir = d_is_dir(new_dentry);
 
 	if (old_dir != new_dir && old_is_dir != new_is_dir) {
 		if (old_is_dir) {
@@ -2339,8 +2336,8 @@ static int shmem_exchange(struct inode *old_dir, struct dentry *old_dentry, stru
 	}
 	old_dir->i_ctime = old_dir->i_mtime =
 	new_dir->i_ctime = new_dir->i_mtime =
-	old_dentry->d_inode->i_ctime =
-	new_dentry->d_inode->i_ctime = CURRENT_TIME;
+	d_inode(old_dentry)->i_ctime =
+	d_inode(new_dentry)->i_ctime = CURRENT_TIME;
 
 	return 0;
 }
@@ -2379,7 +2376,7 @@ static int shmem_whiteout(struct inode *old_dir, struct dentry *old_dentry)
  */
 static int shmem_rename2(struct inode *old_dir, struct dentry *old_dentry, struct inode *new_dir, struct dentry *new_dentry, unsigned int flags)
 {
-	struct inode *inode = old_dentry->d_inode;
+	struct inode *inode = d_inode(old_dentry);
 	int they_are_dirs = S_ISDIR(inode->i_mode);
 
 	if (flags & ~(RENAME_NOREPLACE | RENAME_EXCHANGE | RENAME_WHITEOUT))
@@ -2399,10 +2396,10 @@ static int shmem_rename2(struct inode *old_dir, struct dentry *old_dentry, struc
 			return error;
 	}
 
-	if (new_dentry->d_inode) {
+	if (d_really_is_positive(new_dentry)) {
 		(void) shmem_unlink(new_dir, new_dentry);
 		if (they_are_dirs) {
-			drop_nlink(new_dentry->d_inode);
+			drop_nlink(d_inode(new_dentry));
 			drop_nlink(old_dir);
 		}
 	} else if (they_are_dirs) {
@@ -2479,14 +2476,14 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 
 static void *shmem_follow_short_symlink(struct dentry *dentry, struct nameidata *nd)
 {
-	nd_set_link(nd, SHMEM_I(dentry->d_inode)->symlink);
+	nd_set_link(nd, SHMEM_I(d_inode(dentry))->symlink);
 	return NULL;
 }
 
 static void *shmem_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	struct page *page = NULL;
-	int error = shmem_getpage(dentry->d_inode, 0, &page, SGP_READ, NULL);
+	int error = shmem_getpage(d_inode(dentry), 0, &page, SGP_READ, NULL);
 	nd_set_link(nd, error ? ERR_PTR(error) : kmap(page));
 	if (page)
 		unlock_page(page);
@@ -2577,7 +2574,7 @@ static int shmem_xattr_validate(const char *name)
 static ssize_t shmem_getxattr(struct dentry *dentry, const char *name,
 			      void *buffer, size_t size)
 {
-	struct shmem_inode_info *info = SHMEM_I(dentry->d_inode);
+	struct shmem_inode_info *info = SHMEM_I(d_inode(dentry));
 	int err;
 
 	/*
@@ -2598,7 +2595,7 @@ static ssize_t shmem_getxattr(struct dentry *dentry, const char *name,
 static int shmem_setxattr(struct dentry *dentry, const char *name,
 			  const void *value, size_t size, int flags)
 {
-	struct shmem_inode_info *info = SHMEM_I(dentry->d_inode);
+	struct shmem_inode_info *info = SHMEM_I(d_inode(dentry));
 	int err;
 
 	/*
@@ -2618,7 +2615,7 @@ static int shmem_setxattr(struct dentry *dentry, const char *name,
 
 static int shmem_removexattr(struct dentry *dentry, const char *name)
 {
-	struct shmem_inode_info *info = SHMEM_I(dentry->d_inode);
+	struct shmem_inode_info *info = SHMEM_I(d_inode(dentry));
 	int err;
 
 	/*
@@ -2638,7 +2635,7 @@ static int shmem_removexattr(struct dentry *dentry, const char *name)
 
 static ssize_t shmem_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
-	struct shmem_inode_info *info = SHMEM_I(dentry->d_inode);
+	struct shmem_inode_info *info = SHMEM_I(d_inode(dentry));
 	return simple_xattr_list(&info->xattrs, buffer, size);
 }
 #endif /* CONFIG_TMPFS_XATTR */
@@ -3121,8 +3118,6 @@ static const struct file_operations shmem_file_operations = {
 	.mmap		= shmem_mmap,
 #ifdef CONFIG_TMPFS
 	.llseek		= shmem_file_llseek,
-	.read		= new_sync_read,
-	.write		= new_sync_write,
 	.read_iter	= shmem_file_read_iter,
 	.write_iter	= generic_file_write_iter,
 	.fsync		= noop_fsync,
@@ -3201,7 +3196,6 @@ static const struct vm_operations_struct shmem_vm_ops = {
 	.set_policy     = shmem_set_policy,
 	.get_policy     = shmem_get_policy,
 #endif
-	.remap_pages	= generic_file_remap_pages,
 };
 
 static struct dentry *shmem_mount(struct file_system_type *fs_type,
@@ -3226,10 +3220,6 @@ int __init shmem_init(void)
 	if (shmem_inode_cachep)
 		return 0;
 
-	error = bdi_init(&shmem_backing_dev_info);
-	if (error)
-		goto out4;
-
 	error = shmem_init_inodecache();
 	if (error)
 		goto out3;
@@ -3253,8 +3243,6 @@ out1:
 out2:
 	shmem_destroy_inodecache();
 out3:
-	bdi_destroy(&shmem_backing_dev_info);
-out4:
 	shm_mnt = ERR_PTR(error);
 	return error;
 }

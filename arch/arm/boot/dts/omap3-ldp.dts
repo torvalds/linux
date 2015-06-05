@@ -7,6 +7,7 @@
  */
 /dts-v1/;
 
+#include <dt-bindings/input/input.h>
 #include "omap34xx.dtsi"
 #include "omap-gpmc-smsc911x.dtsi"
 
@@ -101,8 +102,9 @@
 
 	nand@0,0 {
 		linux,mtd-name= "micron,nand";
-		reg = <0 0 0>;
+		reg = <0 0 4>;	/* CS0, offset 0, IO size 4 */
 		nand-bus-width = <16>;
+		gpmc,device-width = <2>;
 		ti,nand-ecc-opt = "bch8";
 
 		gpmc,sync-clk-ps = <0>;
@@ -141,7 +143,7 @@
 		};
 		partition@2000000 {
 			label = "Filesystem";
-			reg = <0x2000000 0xe000000>;
+			reg = <0x2000000 0x6000000>;
 		};
 	};
 
@@ -261,6 +263,26 @@
 			OMAP3_CORE1_IOPAD(0x214e, PIN_INPUT_PULLUP | MUX_MODE0)	/* mmc1_dat3.mmc1_dat3 */
 		>;
 	};
+};
+
+&twl_keypad {
+	linux,keymap = <MATRIX_KEY(0, 0, KEY_1)
+			MATRIX_KEY(0, 1, KEY_2)
+			MATRIX_KEY(0, 2, KEY_3)
+			MATRIX_KEY(1, 0, KEY_4)
+			MATRIX_KEY(1, 1, KEY_5)
+			MATRIX_KEY(1, 2, KEY_6)
+			MATRIX_KEY(1, 3, KEY_F5)
+			MATRIX_KEY(2, 0, KEY_7)
+			MATRIX_KEY(2, 1, KEY_8)
+			MATRIX_KEY(2, 2, KEY_9)
+			MATRIX_KEY(2, 3, KEY_F6)
+			MATRIX_KEY(3, 0, KEY_F7)
+			MATRIX_KEY(3, 1, KEY_0)
+			MATRIX_KEY(3, 2, KEY_F8)
+			MATRIX_KEY(5, 4, KEY_RESERVED)
+			MATRIX_KEY(4, 4, KEY_VOLUMEUP)
+			MATRIX_KEY(5, 5, KEY_VOLUMEDOWN)>;
 };
 
 &uart3 {

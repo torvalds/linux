@@ -1034,7 +1034,6 @@ static struct platform_driver exynos4_busfreq_driver = {
 	.id_table = exynos4_busfreq_id,
 	.driver = {
 		.name	= "exynos4-busfreq",
-		.owner	= THIS_MODULE,
 		.pm	= &exynos4_busfreq_pm_ops,
 	},
 };

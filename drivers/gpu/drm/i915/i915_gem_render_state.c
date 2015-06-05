@@ -38,6 +38,8 @@ render_state_get_rodata(struct drm_device *dev, const int gen)
 		return &gen7_null_state;
 	case 8:
 		return &gen8_null_state;
+	case 9:
+		return &gen9_null_state;
 	}
 
 	return NULL;
@@ -171,7 +173,7 @@ int i915_gem_render_state_init(struct intel_engine_cs *ring)
 
 	i915_vma_move_to_active(i915_gem_obj_to_ggtt(so.obj), ring);
 
-	ret = __i915_add_request(ring, NULL, so.obj, NULL);
+	ret = __i915_add_request(ring, NULL, so.obj);
 	/* __i915_add_request moves object to inactive if it fails */
 out:
 	i915_gem_render_state_fini(&so);

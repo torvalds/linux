@@ -192,8 +192,7 @@ lnet_try_match_md(lnet_libmd_t *md,
 	}
 
 	/* Commit to this ME/MD */
-	CDEBUG(D_NET, "Incoming %s index %x from %s of "
-	       "length %d/%d into md %#llx [%d] + %d\n",
+	CDEBUG(D_NET, "Incoming %s index %x from %s of length %d/%d into md %#llx [%d] + %d\n",
 	       (info->mi_opc == LNET_MD_OP_PUT) ? "put" : "get",
 	       info->mi_portal, libcfs_id2str(info->mi_id), mlength,
 	       info->mi_rlength, md->md_lh.lh_cookie, md->md_niov, offset);
@@ -263,10 +262,10 @@ lnet_mt_of_match(struct lnet_match_info *info, struct lnet_msg *msg)
 {
 	struct lnet_match_table	*mtable;
 	struct lnet_portal	*ptl;
-	int			nmaps;
-	int			rotor;
-	int			routed;
-	int			cpt;
+	unsigned int		nmaps;
+	unsigned int		rotor;
+	unsigned int		cpt;
+	bool			routed;
 
 	/* NB: called w/o lock */
 	LASSERT(info->mi_portal < the_lnet.ln_nportals);

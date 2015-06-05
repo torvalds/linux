@@ -20,13 +20,12 @@
  *  channel memory (in main memory of the host system) from code running in
  *  a virtual partition.
  */
-#include "uniklog.h"
 #include "timskmod.h"
 #include "memregion.h"
 
 #define MYDRVNAME "memregion"
 
-struct MEMREGION_Tag {
+struct memregion {
 	HOSTADDRESS physaddr;
 	ulong nbytes;
 	void __iomem *mapped;
@@ -34,130 +33,117 @@ struct MEMREGION_Tag {
 	BOOL overlapped;
 };
 
-static BOOL mapit(MEMREGION *memregion);
-static void unmapit(MEMREGION *memregion);
+static BOOL mapit(struct memregion *memregion);
+static void unmapit(struct memregion *memregion);
 
-MEMREGION *
+struct memregion *
 visor_memregion_create(HOSTADDRESS physaddr, ulong nbytes)
 {
-	MEMREGION *rc = NULL;
-	MEMREGION *memregion = kzalloc(sizeof(MEMREGION),
-				       GFP_KERNEL | __GFP_NORETRY);
-	if (memregion == NULL) {
-		ERRDRV("visor_memregion_create allocation failed");
+	struct memregion *rc = NULL;
+	struct memregion *memregion;
+
+	memregion = kzalloc(sizeof(*memregion), GFP_KERNEL | __GFP_NORETRY);
+	if (memregion == NULL)
 		return NULL;
-	}
+
 	memregion->physaddr = physaddr;
 	memregion->nbytes = nbytes;
 	memregion->overlapped = FALSE;
 	if (!mapit(memregion)) {
 		rc = NULL;
-		goto Away;
+		goto cleanup;
 	}
 	rc = memregion;
-Away:
+cleanup:
 	if (rc == NULL) {
-		if (memregion != NULL) {
-			visor_memregion_destroy(memregion);
-			memregion = NULL;
-		}
+		visor_memregion_destroy(memregion);
+		memregion = NULL;
 	}
 	return rc;
 }
 EXPORT_SYMBOL_GPL(visor_memregion_create);
 
-MEMREGION *
-visor_memregion_create_overlapped(MEMREGION *parent, ulong offset, ulong nbytes)
+struct memregion *
+visor_memregion_create_overlapped(struct memregion *parent, ulong offset,
+				  ulong nbytes)
 {
-	MEMREGION *memregion = NULL;
+	struct memregion *memregion = NULL;
 
-	if (parent == NULL) {
-		ERRDRV("%s parent is NULL", __func__);
+	if (parent == NULL)
 		return NULL;
-	}
-	if (parent->mapped == NULL) {
-		ERRDRV("%s parent is not mapped!", __func__);
+
+	if (parent->mapped == NULL)
 		return NULL;
-	}
+
 	if ((offset >= parent->nbytes) ||
-	    ((offset + nbytes) >= parent->nbytes)) {
-		ERRDRV("%s range (%lu,%lu) out of parent range",
-		       __func__, offset, nbytes);
+	    ((offset + nbytes) >= parent->nbytes))
 		return NULL;
-	}
-	memregion = kzalloc(sizeof(MEMREGION), GFP_KERNEL|__GFP_NORETRY);
-	if (memregion == NULL) {
-		ERRDRV("%s allocation failed", __func__);
+
+	memregion = kzalloc(sizeof(*memregion), GFP_KERNEL|__GFP_NORETRY);
+	if (memregion == NULL)
 		return NULL;
-	}
 
 	memregion->physaddr = parent->physaddr + offset;
 	memregion->nbytes = nbytes;
-	memregion->mapped = ((u8 __iomem *) (parent->mapped)) + offset;
+	memregion->mapped = ((u8 __iomem *)(parent->mapped)) + offset;
 	memregion->requested = FALSE;
 	memregion->overlapped = TRUE;
 	return memregion;
 }
 EXPORT_SYMBOL_GPL(visor_memregion_create_overlapped);
 
-
 static BOOL
-mapit(MEMREGION *memregion)
+mapit(struct memregion *memregion)
 {
-	ulong physaddr = (ulong) (memregion->physaddr);
+	ulong physaddr = (ulong)(memregion->physaddr);
 	ulong nbytes = memregion->nbytes;
 
 	memregion->requested = FALSE;
-	if (!request_mem_region(physaddr, nbytes, MYDRVNAME))
-		ERRDRV("cannot reserve channel memory @0x%lx for 0x%lx-- no big deal", physaddr, nbytes);
-	else
+	if (request_mem_region(physaddr, nbytes, MYDRVNAME))
 		memregion->requested = TRUE;
 	memregion->mapped = ioremap_cache(physaddr, nbytes);
-	if (memregion->mapped == NULL) {
-		ERRDRV("cannot ioremap_cache channel memory @0x%lx for 0x%lx",
-		       physaddr, nbytes);
+	if (!memregion->mapped)
 		return FALSE;
-	}
 	return TRUE;
 }
 
 static void
-unmapit(MEMREGION *memregion)
+unmapit(struct memregion *memregion)
 {
 	if (memregion->mapped != NULL) {
 		iounmap(memregion->mapped);
 		memregion->mapped = NULL;
 	}
 	if (memregion->requested) {
-		release_mem_region((ulong) (memregion->physaddr),
+		release_mem_region((ulong)(memregion->physaddr),
 				   memregion->nbytes);
 		memregion->requested = FALSE;
 	}
 }
 
 HOSTADDRESS
-visor_memregion_get_physaddr(MEMREGION *memregion)
+visor_memregion_get_physaddr(struct memregion *memregion)
 {
 	return memregion->physaddr;
 }
 EXPORT_SYMBOL_GPL(visor_memregion_get_physaddr);
 
 ulong
-visor_memregion_get_nbytes(MEMREGION *memregion)
+visor_memregion_get_nbytes(struct memregion *memregion)
 {
 	return memregion->nbytes;
 }
 EXPORT_SYMBOL_GPL(visor_memregion_get_nbytes);
 
 void __iomem *
-visor_memregion_get_pointer(MEMREGION *memregion)
+visor_memregion_get_pointer(struct memregion *memregion)
 {
 	return memregion->mapped;
 }
 EXPORT_SYMBOL_GPL(visor_memregion_get_pointer);
 
 int
-visor_memregion_resize(MEMREGION *memregion, ulong newsize)
+visor_memregion_resize(struct memregion *memregion, ulong newsize)
 {
 	if (newsize == memregion->nbytes)
 		return 0;
@@ -176,16 +162,14 @@ visor_memregion_resize(MEMREGION *memregion, ulong newsize)
 }
 EXPORT_SYMBOL_GPL(visor_memregion_resize);
 
-
 static int
 memregion_readwrite(BOOL is_write,
-		    MEMREGION *memregion, ulong offset,
+		    struct memregion *memregion, ulong offset,
 		    void *local, ulong nbytes)
 {
-	if (offset + nbytes > memregion->nbytes) {
-		ERRDRV("memregion_readwrite offset out of range!!");
+	if (offset + nbytes > memregion->nbytes)
 		return -EIO;
-	}
+
 	if (is_write)
 		memcpy_toio(memregion->mapped + offset, local, nbytes);
 	else
@@ -195,7 +179,7 @@ memregion_readwrite(BOOL is_write,
 }
 
 int
-visor_memregion_read(MEMREGION *memregion, ulong offset, void *dest,
+visor_memregion_read(struct memregion *memregion, ulong offset, void *dest,
 		     ulong nbytes)
 {
 	return memregion_readwrite(FALSE, memregion, offset, dest, nbytes);
@@ -203,7 +187,7 @@ visor_memregion_read(MEMREGION *memregion, ulong offset, void *dest,
 EXPORT_SYMBOL_GPL(visor_memregion_read);
 
 int
-visor_memregion_write(MEMREGION *memregion, ulong offset, void *src,
+visor_memregion_write(struct memregion *memregion, ulong offset, void *src,
 		      ulong nbytes)
 {
 	return memregion_readwrite(TRUE, memregion, offset, src, nbytes);
@@ -211,7 +195,7 @@ visor_memregion_write(MEMREGION *memregion, ulong offset, void *src,
 EXPORT_SYMBOL_GPL(visor_memregion_write);
 
 void
-visor_memregion_destroy(MEMREGION *memregion)
+visor_memregion_destroy(struct memregion *memregion)
 {
 	if (memregion == NULL)
 		return;

@@ -788,7 +788,7 @@ void xlr_set_gmac_speed(struct xlr_net_priv *priv)
 			xlr_nae_wreg(priv->base_addr, R_MAC_CONFIG_2, 0x7117);
 			priv->phy_speed = speed;
 		}
-		/* Set SGMII speed in Interface controll reg */
+		/* Set SGMII speed in Interface control reg */
 		if (phydev->interface == PHY_INTERFACE_MODE_SGMII) {
 			if (speed == SPEED_10)
 				xlr_nae_wreg(priv->base_addr,
@@ -1012,7 +1012,7 @@ static int xlr_net_probe(struct platform_device *pdev)
 	 * Allocate our adapter data structure and attach it to the device.
 	 */
 	adapter = (struct xlr_adapter *)
-		devm_kzalloc(&pdev->dev, sizeof(adapter), GFP_KERNEL);
+		devm_kzalloc(&pdev->dev, sizeof(*adapter), GFP_KERNEL);
 	if (!adapter) {
 		err = -ENOMEM;
 		return err;
@@ -1133,7 +1133,6 @@ static struct platform_driver xlr_net_driver = {
 	.remove		= xlr_net_remove,
 	.driver		= {
 		.name	= "xlr-net",
-		.owner	= THIS_MODULE,
 	},
 };
 

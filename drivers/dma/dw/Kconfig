@@ -3,7 +3,7 @@
 #
 
 config DW_DMAC_CORE
-	tristate "Synopsys DesignWare AHB DMA support"
+	tristate
 	select DMA_ENGINE
 
 config DW_DMAC

@@ -10,17 +10,18 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
-#include <linux/platform_device.h>
-#include <linux/i2c.h>
 #include <linux/clk.h>
-#include <linux/io.h>
 #include <linux/delay.h>
-#include <linux/interrupt.h>
 #include <linux/err.h>
-#include <linux/of.h>
+#include <linux/i2c.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/of.h>
+#include <linux/pinctrl/consumer.h>
+#include <linux/platform_device.h>
 
 /* SSC registers */
 #define SSC_BRG				0x000
@@ -863,7 +864,6 @@ MODULE_DEVICE_TABLE(of, st_i2c_match);
 static struct platform_driver st_i2c_driver = {
 	.driver = {
 		.name = "st-i2c",
-		.owner = THIS_MODULE,
 		.of_match_table = st_i2c_match,
 		.pm = ST_I2C_PM,
 	},

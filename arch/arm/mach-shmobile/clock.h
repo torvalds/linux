@@ -1,19 +1,6 @@
 #ifndef CLOCK_H
 #define CLOCK_H
 
-#ifdef CONFIG_COMMON_CLK
-/* temporary clock configuration helper for platform devices */
-
-struct clk_name {
-	const char *clk;
-	const char *con_id;
-	const char *dev_id;
-};
-
-void shmobile_clk_workaround(const struct clk_name *clks, int nr_clks,
-			     bool enable);
-
-#else /* CONFIG_COMMON_CLK */
 /* legacy clock implementation */
 
 struct clk;
@@ -52,5 +39,4 @@ do {			\
 	(p)->div = d;	\
 } while (0)
 
-#endif /* CONFIG_COMMON_CLK */
 #endif

@@ -304,13 +304,19 @@ static int tw68_initdev(struct pci_dev *pci_dev,
 	/* Then do any initialisation wanted before interrupts are on */
 	tw68_hw_init1(dev);
 
+	dev->alloc_ctx = vb2_dma_sg_init_ctx(&pci_dev->dev);
+	if (IS_ERR(dev->alloc_ctx)) {
+		err = PTR_ERR(dev->alloc_ctx);
+		goto fail3;
+	}
+
 	/* get irq */
 	err = devm_request_irq(&pci_dev->dev, pci_dev->irq, tw68_irq,
 			  IRQF_SHARED, dev->name, dev);
 	if (err < 0) {
 		pr_err("%s: can't get IRQ %d\n",
 		       dev->name, pci_dev->irq);
-		goto fail3;
+		goto fail4;
 	}
 
 	/*
@@ -324,7 +330,7 @@ static int tw68_initdev(struct pci_dev *pci_dev,
 	if (err < 0) {
 		pr_err("%s: can't register video device\n",
 		       dev->name);
-		goto fail4;
+		goto fail5;
 	}
 	tw_setl(TW68_INTMASK, dev->pci_irqmask);
 
@@ -333,8 +339,10 @@ static int tw68_initdev(struct pci_dev *pci_dev,
 
 	return 0;
 
-fail4:
+fail5:
 	video_unregister_device(&dev->vdev);
+fail4:
+	vb2_dma_sg_cleanup_ctx(dev->alloc_ctx);
 fail3:
 	iounmap(dev->lmmio);
 fail2:
@@ -358,6 +366,7 @@ static void tw68_finidev(struct pci_dev *pci_dev)
 	/* unregister */
 	video_unregister_device(&dev->vdev);
 	v4l2_ctrl_handler_free(&dev->hdl);
+	vb2_dma_sg_cleanup_ctx(dev->alloc_ctx);
 
 	/* release resources */
 	iounmap(dev->lmmio);

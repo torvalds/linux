@@ -408,7 +408,7 @@ static int msi001_s_ctrl(struct v4l2_ctrl *ctrl)
 				s->mixer_gain->cur.val, s->if_gain->val);
 		break;
 	default:
-		dev_dbg(&s->spi->dev, "unkown control %d\n", ctrl->id);
+		dev_dbg(&s->spi->dev, "unknown control %d\n", ctrl->id);
 		ret = -EINVAL;
 	}
 

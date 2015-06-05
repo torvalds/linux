@@ -1622,8 +1622,7 @@ int cl_sync_io_wait(const struct lu_env *env, struct cl_io *io,
 			  atomic_read(&anchor->csi_sync_nr) == 0,
 			  &lwi);
 	if (rc < 0) {
-		CERROR("SYNC IO failed with error: %d, try to cancel "
-		       "%d remaining pages\n",
+		CERROR("SYNC IO failed with error: %d, try to cancel %d remaining pages\n",
 		       rc, atomic_read(&anchor->csi_sync_nr));
 
 		(void)cl_io_cancel(env, io, queue);

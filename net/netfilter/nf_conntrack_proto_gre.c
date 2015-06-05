@@ -226,20 +226,20 @@ static bool gre_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
 }
 
 /* print gre part of tuple */
-static int gre_print_tuple(struct seq_file *s,
-			   const struct nf_conntrack_tuple *tuple)
+static void gre_print_tuple(struct seq_file *s,
+			    const struct nf_conntrack_tuple *tuple)
 {
-	return seq_printf(s, "srckey=0x%x dstkey=0x%x ",
-			  ntohs(tuple->src.u.gre.key),
-			  ntohs(tuple->dst.u.gre.key));
+	seq_printf(s, "srckey=0x%x dstkey=0x%x ",
+		   ntohs(tuple->src.u.gre.key),
+		   ntohs(tuple->dst.u.gre.key));
 }
 
 /* print private data for conntrack */
-static int gre_print_conntrack(struct seq_file *s, struct nf_conn *ct)
+static void gre_print_conntrack(struct seq_file *s, struct nf_conn *ct)
 {
-	return seq_printf(s, "timeout=%u, stream_timeout=%u ",
-			  (ct->proto.gre.timeout / HZ),
-			  (ct->proto.gre.stream_timeout / HZ));
+	seq_printf(s, "timeout=%u, stream_timeout=%u ",
+		   (ct->proto.gre.timeout / HZ),
+		   (ct->proto.gre.stream_timeout / HZ));
 }
 
 static unsigned int *gre_get_timeouts(struct net *net)

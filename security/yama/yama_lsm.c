@@ -379,20 +379,17 @@ static struct security_operations yama_ops = {
 static int yama_dointvec_minmax(struct ctl_table *table, int write,
 				void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	int rc;
+	struct ctl_table table_copy;
 
 	if (write && !capable(CAP_SYS_PTRACE))
 		return -EPERM;
 
-	rc = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-	if (rc)
-		return rc;
-
 	/* Lock the max value if it ever gets set. */
-	if (write && *(int *)table->data == *(int *)table->extra2)
-		table->extra1 = table->extra2;
+	table_copy = *table;
+	if (*(int *)table_copy.data == *(int *)table_copy.extra2)
+		table_copy.extra1 = table_copy.extra2;
 
-	return rc;
+	return proc_dointvec_minmax(&table_copy, write, buffer, lenp, ppos);
 }
 
 static int zero;

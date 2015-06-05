@@ -178,13 +178,6 @@ static void xlp_msi_mask_ack(struct irq_data *d)
 	else
 		nlm_write_reg(md->lnkbase, PCIE_MSI_STATUS, 1u << vec);
 
-	/* Ack at eirr and PIC */
-	ack_c0_eirr(PIC_PCIE_LINK_MSI_IRQ(link));
-	if (cpu_is_xlp9xx())
-		nlm_pic_ack(md->node->picbase,
-				PIC_9XX_IRT_PCIE_LINK_INDEX(link));
-	else
-		nlm_pic_ack(md->node->picbase, PIC_IRT_PCIE_LINK_INDEX(link));
 }
 
 static struct irq_chip xlp_msi_chip = {
@@ -217,7 +210,7 @@ static void xlp_msix_mask_ack(struct irq_data *d)
 
 	msixvec = nlm_irq_msixvec(d->irq);
 	link = nlm_irq_msixlink(msixvec);
-	mask_msi_irq(d);
+	pci_msi_mask_irq(d);
 	md = irq_data_get_irq_handler_data(d);
 
 	/* Ack MSI on bridge */
@@ -230,8 +223,6 @@ static void xlp_msix_mask_ack(struct irq_data *d)
 	}
 	nlm_write_reg(md->lnkbase, status_reg, 1u << bit);
 
-	/* Ack at eirr and PIC */
-	ack_c0_eirr(PIC_PCIE_MSIX_IRQ(link));
 	if (!cpu_is_xlp9xx())
 		nlm_pic_ack(md->node->picbase,
 				PIC_IRT_PCIE_MSIX_INDEX(msixvec));
@@ -239,10 +230,10 @@ static void xlp_msix_mask_ack(struct irq_data *d)
 
 static struct irq_chip xlp_msix_chip = {
 	.name		= "XLP-MSIX",
-	.irq_enable	= unmask_msi_irq,
-	.irq_disable	= mask_msi_irq,
+	.irq_enable	= pci_msi_unmask_irq,
+	.irq_disable	= pci_msi_mask_irq,
 	.irq_mask_ack	= xlp_msix_mask_ack,
-	.irq_unmask	= unmask_msi_irq,
+	.irq_unmask	= pci_msi_unmask_irq,
 };
 
 void arch_teardown_msi_irq(unsigned int irq)
@@ -345,7 +336,7 @@ static int xlp_setup_msi(uint64_t lnkbase, int node, int link,
 	if (ret < 0)
 		return ret;
 
-	write_msi_msg(xirq, &msg);
+	pci_write_msi_msg(xirq, &msg);
 	return 0;
 }
 
@@ -443,12 +434,10 @@ static int xlp_setup_msix(uint64_t lnkbase, int node, int link,
 	msg.data = 0xc00 | msixvec;
 
 	ret = irq_set_msi_desc(xirq, desc);
-	if (ret < 0) {
-		destroy_irq(xirq);
+	if (ret < 0)
 		return ret;
-	}
 
-	write_msi_msg(xirq, &msg);
+	pci_write_msi_msg(xirq, &msg);
 	return 0;
 }
 
@@ -543,6 +532,14 @@ void nlm_dispatch_msi(int node, int lirq)
 		do_IRQ(irqbase + i);
 		status &= status - 1;
 	}
+
+	/* Ack at eirr and PIC */
+	ack_c0_eirr(PIC_PCIE_LINK_MSI_IRQ(link));
+	if (cpu_is_xlp9xx())
+		nlm_pic_ack(md->node->picbase,
+				PIC_9XX_IRT_PCIE_LINK_INDEX(link));
+	else
+		nlm_pic_ack(md->node->picbase, PIC_IRT_PCIE_LINK_INDEX(link));
 }
 
 void nlm_dispatch_msix(int node, int lirq)
@@ -569,4 +566,6 @@ void nlm_dispatch_msix(int node, int lirq)
 		do_IRQ(irqbase + i);
 		status &= status - 1;
 	}
+	/* Ack at eirr and PIC */
+	ack_c0_eirr(PIC_PCIE_MSIX_IRQ(link));
 }

@@ -1,7 +1,7 @@
 /*
  * extcon-max14577.c - MAX14577/77836 extcon driver to support MUIC
  *
- * Copyright (C) 2013,2014 Samsung Electrnoics
+ * Copyright (C) 2013,2014 Samsung Electronics
  * Chanwoo Choi <cw00.choi@samsung.com>
  * Krzysztof Kozlowski <k.kozlowski@samsung.com>
  *
@@ -539,8 +539,6 @@ static void max14577_muic_irq_work(struct work_struct *work)
 		dev_err(info->dev, "failed to handle MUIC interrupt\n");
 
 	mutex_unlock(&info->mutex);
-
-	return;
 }
 
 /*
@@ -730,8 +728,7 @@ static int max14577_muic_probe(struct platform_device *pdev)
 				muic_irq->name, info);
 		if (ret) {
 			dev_err(&pdev->dev,
-				"failed: irq request (IRQ: %d,"
-				" error :%d)\n",
+				"failed: irq request (IRQ: %d, error :%d)\n",
 				muic_irq->irq, ret);
 			return ret;
 		}
@@ -807,7 +804,6 @@ MODULE_DEVICE_TABLE(platform, max14577_muic_id);
 static struct platform_driver max14577_muic_driver = {
 	.driver		= {
 		.name	= "max14577-muic",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= max14577_muic_probe,
 	.remove		= max14577_muic_remove,

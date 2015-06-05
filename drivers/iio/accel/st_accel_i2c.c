@@ -21,6 +21,10 @@
 #ifdef CONFIG_OF
 static const struct of_device_id st_accel_of_match[] = {
 	{
+		.compatible = "st,lis3lv02dl-accel",
+		.data = LIS3LV02DL_ACCEL_DEV_NAME,
+	},
+	{
 		.compatible = "st,lsm303dlh-accel",
 		.data = LSM303DLH_ACCEL_DEV_NAME,
 	},
@@ -79,12 +83,11 @@ static int st_accel_i2c_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	adata = iio_priv(indio_dev);
-	adata->dev = &client->dev;
 	st_sensors_of_i2c_probe(client, st_accel_of_match);
 
 	st_sensors_i2c_configure(indio_dev, client, adata);
 
-	err = st_accel_common_probe(indio_dev, client->dev.platform_data);
+	err = st_accel_common_probe(indio_dev);
 	if (err < 0)
 		return err;
 

@@ -52,12 +52,12 @@ static int __net_init fib4_rules_init(struct net *net)
 {
 	struct fib_table *local_table, *main_table;
 
-	local_table = fib_trie_table(RT_TABLE_LOCAL);
-	if (local_table == NULL)
+	main_table  = fib_trie_table(RT_TABLE_MAIN, NULL);
+	if (!main_table)
 		return -ENOMEM;
 
-	main_table  = fib_trie_table(RT_TABLE_MAIN);
-	if (main_table == NULL)
+	local_table = fib_trie_table(RT_TABLE_LOCAL, main_table);
+	if (!local_table)
 		goto fail;
 
 	hlist_add_head_rcu(&local_table->tb_hlist,
@@ -67,14 +67,14 @@ static int __net_init fib4_rules_init(struct net *net)
 	return 0;
 
 fail:
-	kfree(local_table);
+	fib_free_table(main_table);
 	return -ENOMEM;
 }
 #else
 
 struct fib_table *fib_new_table(struct net *net, u32 id)
 {
-	struct fib_table *tb;
+	struct fib_table *tb, *alias = NULL;
 	unsigned int h;
 
 	if (id == 0)
@@ -83,23 +83,23 @@ struct fib_table *fib_new_table(struct net *net, u32 id)
 	if (tb)
 		return tb;
 
-	tb = fib_trie_table(id);
+	if (id == RT_TABLE_LOCAL)
+		alias = fib_new_table(net, RT_TABLE_MAIN);
+
+	tb = fib_trie_table(id, alias);
 	if (!tb)
 		return NULL;
 
 	switch (id) {
 	case RT_TABLE_LOCAL:
-		net->ipv4.fib_local = tb;
+		rcu_assign_pointer(net->ipv4.fib_local, tb);
 		break;
-
 	case RT_TABLE_MAIN:
-		net->ipv4.fib_main = tb;
+		rcu_assign_pointer(net->ipv4.fib_main, tb);
 		break;
-
 	case RT_TABLE_DEFAULT:
-		net->ipv4.fib_default = tb;
+		rcu_assign_pointer(net->ipv4.fib_default, tb);
 		break;
-
 	default:
 		break;
 	}
@@ -109,6 +109,7 @@ struct fib_table *fib_new_table(struct net *net, u32 id)
 	return tb;
 }
 
+/* caller must hold either rtnl or rcu read lock */
 struct fib_table *fib_get_table(struct net *net, u32 id)
 {
 	struct fib_table *tb;
@@ -119,22 +120,80 @@ struct fib_table *fib_get_table(struct net *net, u32 id)
 		id = RT_TABLE_MAIN;
 	h = id & (FIB_TABLE_HASHSZ - 1);
 
-	rcu_read_lock();
 	head = &net->ipv4.fib_table_hash[h];
 	hlist_for_each_entry_rcu(tb, head, tb_hlist) {
-		if (tb->tb_id == id) {
-			rcu_read_unlock();
+		if (tb->tb_id == id)
 			return tb;
-		}
 	}
-	rcu_read_unlock();
 	return NULL;
 }
 #endif /* CONFIG_IP_MULTIPLE_TABLES */
 
+static void fib_replace_table(struct net *net, struct fib_table *old,
+			      struct fib_table *new)
+{
+#ifdef CONFIG_IP_MULTIPLE_TABLES
+	switch (new->tb_id) {
+	case RT_TABLE_LOCAL:
+		rcu_assign_pointer(net->ipv4.fib_local, new);
+		break;
+	case RT_TABLE_MAIN:
+		rcu_assign_pointer(net->ipv4.fib_main, new);
+		break;
+	case RT_TABLE_DEFAULT:
+		rcu_assign_pointer(net->ipv4.fib_default, new);
+		break;
+	default:
+		break;
+	}
+
+#endif
+	/* replace the old table in the hlist */
+	hlist_replace_rcu(&old->tb_hlist, &new->tb_hlist);
+}
+
+int fib_unmerge(struct net *net)
+{
+	struct fib_table *old, *new;
+
+	/* attempt to fetch local table if it has been allocated */
+	old = fib_get_table(net, RT_TABLE_LOCAL);
+	if (!old)
+		return 0;
+
+	new = fib_trie_unmerge(old);
+	if (!new)
+		return -ENOMEM;
+
+	/* replace merged table with clean table */
+	if (new != old) {
+		fib_replace_table(net, old, new);
+		fib_free_table(old);
+	}
+
+	return 0;
+}
+
 static void fib_flush(struct net *net)
 {
 	int flushed = 0;
+	unsigned int h;
+
+	for (h = 0; h < FIB_TABLE_HASHSZ; h++) {
+		struct hlist_head *head = &net->ipv4.fib_table_hash[h];
+		struct hlist_node *tmp;
+		struct fib_table *tb;
+
+		hlist_for_each_entry_safe(tb, tmp, head, tb_hlist)
+			flushed += fib_table_flush(tb);
+	}
+
+	if (flushed)
+		rt_cache_flush(net);
+}
+
+void fib_flush_external(struct net *net)
+{
 	struct fib_table *tb;
 	struct hlist_head *head;
 	unsigned int h;
@@ -142,11 +201,8 @@ static void fib_flush(struct net *net)
 	for (h = 0; h < FIB_TABLE_HASHSZ; h++) {
 		head = &net->ipv4.fib_table_hash[h];
 		hlist_for_each_entry(tb, head, tb_hlist)
-			flushed += fib_table_flush(tb);
+			fib_table_flush_external(tb);
 	}
-
-	if (flushed)
-		rt_cache_flush(net);
 }
 
 /*
@@ -167,16 +223,18 @@ static inline unsigned int __inet_dev_addr_type(struct net *net,
 	if (ipv4_is_multicast(addr))
 		return RTN_MULTICAST;
 
+	rcu_read_lock();
+
 	local_table = fib_get_table(net, RT_TABLE_LOCAL);
 	if (local_table) {
 		ret = RTN_UNICAST;
-		rcu_read_lock();
 		if (!fib_table_lookup(local_table, &fl4, &res, FIB_LOOKUP_NOREF)) {
 			if (!dev || dev == res.fi->fib_dev)
 				ret = res.type;
 		}
-		rcu_read_unlock();
 	}
+
+	rcu_read_unlock();
 	return ret;
 }
 
@@ -428,7 +486,7 @@ static int rtentry_to_fib_config(struct net *net, int cmd, struct rtentry *rt,
 			for (ifa = in_dev->ifa_list; ifa; ifa = ifa->ifa_next)
 				if (strcmp(ifa->ifa_label, devname) == 0)
 					break;
-			if (ifa == NULL)
+			if (!ifa)
 				return -ENODEV;
 			cfg->fc_prefsrc = ifa->ifa_local;
 		}
@@ -456,7 +514,7 @@ static int rtentry_to_fib_config(struct net *net, int cmd, struct rtentry *rt,
 		int len = 0;
 
 		mx = kzalloc(3 * nla_total_size(4), GFP_KERNEL);
-		if (mx == NULL)
+		if (!mx)
 			return -ENOMEM;
 
 		if (rt->rt_flags & RTF_MTU)
@@ -618,7 +676,7 @@ static int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh)
 		goto errout;
 
 	tb = fib_get_table(net, cfg.fc_table);
-	if (tb == NULL) {
+	if (!tb) {
 		err = -ESRCH;
 		goto errout;
 	}
@@ -640,7 +698,7 @@ static int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh)
 		goto errout;
 
 	tb = fib_new_table(net, cfg.fc_table);
-	if (tb == NULL) {
+	if (!tb) {
 		err = -ENOBUFS;
 		goto errout;
 	}
@@ -666,10 +724,12 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	s_h = cb->args[0];
 	s_e = cb->args[1];
 
+	rcu_read_lock();
+
 	for (h = s_h; h < FIB_TABLE_HASHSZ; h++, s_e = 0) {
 		e = 0;
 		head = &net->ipv4.fib_table_hash[h];
-		hlist_for_each_entry(tb, head, tb_hlist) {
+		hlist_for_each_entry_rcu(tb, head, tb_hlist) {
 			if (e < s_e)
 				goto next;
 			if (dumped)
@@ -683,6 +743,8 @@ next:
 		}
 	}
 out:
+	rcu_read_unlock();
+
 	cb->args[1] = e;
 	cb->args[0] = h;
 
@@ -717,7 +779,7 @@ static void fib_magic(int cmd, int type, __be32 dst, int dst_len, struct in_ifad
 	else
 		tb = fib_new_table(net, RT_TABLE_LOCAL);
 
-	if (tb == NULL)
+	if (!tb)
 		return;
 
 	cfg.fc_table = tb->tb_id;
@@ -744,7 +806,7 @@ void fib_add_ifaddr(struct in_ifaddr *ifa)
 
 	if (ifa->ifa_flags & IFA_F_SECONDARY) {
 		prim = inet_ifa_byprefix(in_dev, prefix, mask);
-		if (prim == NULL) {
+		if (!prim) {
 			pr_warn("%s: bug: prim == NULL\n", __func__);
 			return;
 		}
@@ -798,7 +860,7 @@ void fib_del_ifaddr(struct in_ifaddr *ifa, struct in_ifaddr *iprim)
 
 	if (ifa->ifa_flags & IFA_F_SECONDARY) {
 		prim = inet_ifa_byprefix(in_dev, any, ifa->ifa_mask);
-		if (prim == NULL) {
+		if (!prim) {
 			pr_warn("%s: bug: prim == NULL\n", __func__);
 			return;
 		}
@@ -919,7 +981,7 @@ void fib_del_ifaddr(struct in_ifaddr *ifa, struct in_ifaddr *iprim)
 #undef BRD1_OK
 }
 
-static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb)
+static void nl_fib_lookup(struct net *net, struct fib_result_nl *frn)
 {
 
 	struct fib_result       res;
@@ -929,6 +991,11 @@ static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb)
 		.flowi4_tos = frn->fl_tos,
 		.flowi4_scope = frn->fl_scope,
 	};
+	struct fib_table *tb;
+
+	rcu_read_lock();
+
+	tb = fib_get_table(net, frn->tb_id_in);
 
 	frn->err = -ENOENT;
 	if (tb) {
@@ -945,6 +1012,8 @@ static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb)
 		}
 		local_bh_enable();
 	}
+
+	rcu_read_unlock();
 }
 
 static void nl_fib_input(struct sk_buff *skb)
@@ -952,7 +1021,6 @@ static void nl_fib_input(struct sk_buff *skb)
 	struct net *net;
 	struct fib_result_nl *frn;
 	struct nlmsghdr *nlh;
-	struct fib_table *tb;
 	u32 portid;
 
 	net = sock_net(skb->sk);
@@ -962,14 +1030,12 @@ static void nl_fib_input(struct sk_buff *skb)
 		return;
 
 	skb = netlink_skb_clone(skb, GFP_KERNEL);
-	if (skb == NULL)
+	if (!skb)
 		return;
 	nlh = nlmsg_hdr(skb);
 
 	frn = (struct fib_result_nl *) nlmsg_data(nlh);
-	tb = fib_get_table(net, frn->tb_id_in);
-
-	nl_fib_lookup(frn, tb);
+	nl_fib_lookup(net, frn);
 
 	portid = NETLINK_CB(skb).portid;      /* netlink portid */
 	NETLINK_CB(skb).portid = 0;        /* from kernel */
@@ -985,7 +1051,7 @@ static int __net_init nl_fib_lookup_init(struct net *net)
 	};
 
 	sk = netlink_kernel_create(net, NETLINK_FIB_LOOKUP, &cfg);
-	if (sk == NULL)
+	if (!sk)
 		return -EAFNOSUPPORT;
 	net->ipv4.fibnl = sk;
 	return 0;
@@ -1023,7 +1089,7 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 	case NETDEV_DOWN:
 		fib_del_ifaddr(ifa, NULL);
 		atomic_inc(&net->ipv4.dev_addr_genid);
-		if (ifa->ifa_dev->ifa_list == NULL) {
+		if (!ifa->ifa_dev->ifa_list) {
 			/* Last address was deleted from this interface.
 			 * Disable IP.
 			 */
@@ -1091,7 +1157,7 @@ static int __net_init ip_fib_net_init(struct net *net)
 	size = max_t(size_t, size, L1_CACHE_BYTES);
 
 	net->ipv4.fib_table_hash = kzalloc(size, GFP_KERNEL);
-	if (net->ipv4.fib_table_hash == NULL)
+	if (!net->ipv4.fib_table_hash)
 		return -ENOMEM;
 
 	err = fib4_rules_init(net);
@@ -1108,23 +1174,27 @@ static void ip_fib_net_exit(struct net *net)
 {
 	unsigned int i;
 
-#ifdef CONFIG_IP_MULTIPLE_TABLES
-	fib4_rules_exit(net);
-#endif
-
 	rtnl_lock();
+#ifdef CONFIG_IP_MULTIPLE_TABLES
+	RCU_INIT_POINTER(net->ipv4.fib_local, NULL);
+	RCU_INIT_POINTER(net->ipv4.fib_main, NULL);
+	RCU_INIT_POINTER(net->ipv4.fib_default, NULL);
+#endif
 	for (i = 0; i < FIB_TABLE_HASHSZ; i++) {
-		struct fib_table *tb;
-		struct hlist_head *head;
+		struct hlist_head *head = &net->ipv4.fib_table_hash[i];
 		struct hlist_node *tmp;
+		struct fib_table *tb;
 
-		head = &net->ipv4.fib_table_hash[i];
 		hlist_for_each_entry_safe(tb, tmp, head, tb_hlist) {
 			hlist_del(&tb->tb_hlist);
 			fib_table_flush(tb);
 			fib_free_table(tb);
 		}
 	}
+
+#ifdef CONFIG_IP_MULTIPLE_TABLES
+	fib4_rules_exit(net);
+#endif
 	rtnl_unlock();
 	kfree(net->ipv4.fib_table_hash);
 }

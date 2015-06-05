@@ -192,14 +192,14 @@ static struct phy *spear1310_miphy_xlate(struct device *dev,
 
 	if (args->args_count < 1) {
 		dev_err(dev, "DT did not pass correct no of args\n");
-		return NULL;
+		return ERR_PTR(-ENODEV);
 	}
 
 	priv->mode = args->args[0];
 
 	if (priv->mode != SATA && priv->mode != PCIE) {
 		dev_err(dev, "DT did not pass correct phy mode\n");
-		return NULL;
+		return ERR_PTR(-ENODEV);
 	}
 
 	return priv->phy;
@@ -227,7 +227,7 @@ static int spear1310_miphy_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	priv->phy = devm_phy_create(dev, NULL, &spear1310_miphy_ops, NULL);
+	priv->phy = devm_phy_create(dev, NULL, &spear1310_miphy_ops);
 	if (IS_ERR(priv->phy)) {
 		dev_err(dev, "failed to create SATA PCIe PHY\n");
 		return PTR_ERR(priv->phy);

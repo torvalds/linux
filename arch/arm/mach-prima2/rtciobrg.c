@@ -104,7 +104,6 @@ EXPORT_SYMBOL_GPL(sirfsoc_rtc_iobrg_writel);
 
 static const struct of_device_id rtciobrg_ids[] = {
 	{ .compatible = "sirf,prima2-rtciobg" },
-	{ .compatible = "sirf,marco-rtciobg" },
 	{}
 };
 
@@ -123,7 +122,6 @@ static struct platform_driver sirfsoc_rtciobrg_driver = {
 	.probe		= sirfsoc_rtciobrg_probe,
 	.driver = {
 		.name = "sirfsoc-rtciobrg",
-		.owner = THIS_MODULE,
 		.of_match_table	= rtciobrg_ids,
 	},
 };

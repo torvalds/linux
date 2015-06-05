@@ -268,14 +268,14 @@ static void __init psurge_quad_init(void)
 	mdelay(33);
 }
 
-static int __init smp_psurge_probe(void)
+static void __init smp_psurge_probe(void)
 {
 	int i, ncpus;
 	struct device_node *dn;
 
 	/* We don't do SMP on the PPC601 -- paulus */
 	if (PVR_VER(mfspr(SPRN_PVR)) == 1)
-		return 1;
+		return;
 
 	/*
 	 * The powersurge cpu board can be used in the generation
@@ -289,7 +289,7 @@ static int __init smp_psurge_probe(void)
 	 */
 	dn = of_find_node_by_name(NULL, "hammerhead");
 	if (dn == NULL)
-		return 1;
+		return;
 	of_node_put(dn);
 
 	hhead_base = ioremap(HAMMERHEAD_BASE, 0x800);
@@ -310,13 +310,13 @@ static int __init smp_psurge_probe(void)
 			/* not a dual-cpu card */
 			iounmap(hhead_base);
 			psurge_type = PSURGE_NONE;
-			return 1;
+			return;
 		}
 		ncpus = 2;
 	}
 
 	if (psurge_secondary_ipi_init())
-		return 1;
+		return;
 
 	psurge_start = ioremap(PSURGE_START, 4);
 	psurge_pri_intr = ioremap(PSURGE_PRI_INTR, 4);
@@ -332,8 +332,6 @@ static int __init smp_psurge_probe(void)
 		set_cpu_present(i, true);
 
 	if (ppc_md.progress) ppc_md.progress("smp_psurge_probe - done", 0x352);
-
-	return ncpus;
 }
 
 static int __init smp_psurge_kick_cpu(int nr)
@@ -766,7 +764,7 @@ static void __init smp_core99_setup(int ncpus)
 		powersave_nap = 0;
 }
 
-static int __init smp_core99_probe(void)
+static void __init smp_core99_probe(void)
 {
 	struct device_node *cpus;
 	int ncpus = 0;
@@ -781,7 +779,7 @@ static int __init smp_core99_probe(void)
 
 	/* Nothing more to do if less than 2 of them */
 	if (ncpus <= 1)
-		return 1;
+		return;
 
 	/* We need to perform some early initialisations before we can start
 	 * setting up SMP as we are running before initcalls
@@ -797,8 +795,6 @@ static int __init smp_core99_probe(void)
 
 	/* Collect l2cr and l3cr values from CPU 0 */
 	core99_init_caches(0);
-
-	return ncpus;
 }
 
 static int smp_core99_kick_cpu(int nr)

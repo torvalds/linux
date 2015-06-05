@@ -125,9 +125,7 @@ int dbg_set_reg(int regno, void *mem, struct pt_regs *regs)
 void
 sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *task)
 {
-	int reg;
 	struct pt_regs *thread_regs;
-	unsigned long *ptr = gdb_regs;
 
 	if (task == NULL)
 		return;
@@ -136,9 +134,7 @@ sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *task)
 	memset(gdb_regs, 0, NUMREGBYTES);
 
 	thread_regs = task_pt_regs(task);
-	for (reg = 0; reg <= TREG_LAST_GPR; reg++)
-		*(ptr++) = thread_regs->regs[reg];
-
+	memcpy(gdb_regs, thread_regs, TREG_LAST_GPR * sizeof(unsigned long));
 	gdb_regs[TILEGX_PC_REGNUM] = thread_regs->pc;
 	gdb_regs[TILEGX_FAULTNUM_REGNUM] = thread_regs->faultnum;
 }

@@ -71,10 +71,11 @@ static void at91_poweroff(void)
 	writel(AT91_SHDW_KEY | AT91_SHDW_SHDW, at91_shdwc_base + AT91_SHDW_CR);
 }
 
-const enum wakeup_type at91_poweroff_get_wakeup_mode(struct device_node *np)
+static int at91_poweroff_get_wakeup_mode(struct device_node *np)
 {
 	const char *pm;
-	int err, i;
+	unsigned int i;
+	int err;
 
 	err = of_property_read_string(np, "atmel,wakeup-mode", &pm);
 	if (err < 0)
@@ -90,7 +91,7 @@ const enum wakeup_type at91_poweroff_get_wakeup_mode(struct device_node *np)
 static void at91_poweroff_dt_set_wakeup_mode(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	enum wakeup_type wakeup_mode;
+	int wakeup_mode;
 	u32 mode = 0, tmp;
 
 	wakeup_mode = at91_poweroff_get_wakeup_mode(np);
@@ -139,7 +140,7 @@ static int at91_poweroff_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id at91_poweroff_of_match[] = {
+static const struct of_device_id at91_poweroff_of_match[] = {
 	{ .compatible = "atmel,at91sam9260-shdwc", },
 	{ .compatible = "atmel,at91sam9rl-shdwc", },
 	{ .compatible = "atmel,at91sam9x5-shdwc", },

@@ -297,14 +297,12 @@ urb_submit:
 		case -ENODEV:
 		case -ESHUTDOWN:
 			RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
-				 ("usb_read_port_complete:bSurpriseRemoved ="
-				  "true\n"));
+				 "usb_read_port_complete:bSurpriseRemoved =true\n");
 			/* Fall Through here */
 		case -ENOENT:
 			padapter->bDriverStopped = true;
 			RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
-				 ("usb_read_port_complete:bDriverStopped ="
-				  "true\n"));
+				 "usb_read_port_complete:bDriverStopped =true\n");
 			break;
 		case -EPROTO:
 			break;
@@ -317,7 +315,7 @@ urb_submit:
 	}
 }
 
-int rtl8723au_read_interrupt(struct rtw_adapter *adapter, u32 addr)
+int rtl8723au_read_interrupt(struct rtw_adapter *adapter)
 {
 	int err;
 	unsigned int pipe;
@@ -367,16 +365,16 @@ static int recvbuf2recvframe(struct rtw_adapter *padapter, struct sk_buff *pskb)
 
 	do {
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
-			 ("recvbuf2recvframe: rxdesc = offsset 0:0x%08x, "
-			  "4:0x%08x, 8:0x%08x, C:0x%08x\n", prxstat->rxdw0,
-			  prxstat->rxdw1, prxstat->rxdw2, prxstat->rxdw4));
+			 "recvbuf2recvframe: rxdesc = offsset 0:0x%08x, 4:0x%08x, 8:0x%08x, C:0x%08x\n",
+			 prxstat->rxdw0, prxstat->rxdw1,
+			 prxstat->rxdw2, prxstat->rxdw4);
 
 		prxstat = (struct recv_stat *)pbuf;
 
 		precvframe = rtw_alloc_recvframe23a(pfree_recv_queue);
 		if (!precvframe) {
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
-				 ("recvbuf2recvframe: precvframe == NULL\n"));
+				 "recvbuf2recvframe: precvframe == NULL\n");
 			DBG_8723A("%s()-%d: rtw_alloc_recvframe23a() failed! RX "
 				  "Drop!\n", __func__, __LINE__);
 			goto _exit_recvbuf2recvframe;
@@ -400,7 +398,7 @@ static int recvbuf2recvframe(struct rtw_adapter *padapter, struct sk_buff *pskb)
 
 		if (pattrib->pkt_len <= 0 || pkt_offset > transfer_len) {
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
-				 ("recvbuf2recvframe: pkt_len<= 0\n"));
+				 "recvbuf2recvframe: pkt_len<= 0\n");
 			DBG_8723A("%s()-%d: RX Warning!\n",
 				  __func__, __LINE__);
 			rtw_free_recvframe23a(precvframe);
@@ -471,8 +469,7 @@ static int recvbuf2recvframe(struct rtw_adapter *padapter, struct sk_buff *pskb)
 
 		if (rtw_recv_entry23a(precvframe) != _SUCCESS)
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
-				 ("recvbuf2recvframe: rtw_recv_entry23a"
-				  "(precvframe) != _SUCCESS\n"));
+				 "recvbuf2recvframe: rtw_recv_entry23a(precvframe) != _SUCCESS\n");
 
 		pkt_cnt--;
 		transfer_len -= pkt_offset;
@@ -520,16 +517,15 @@ static void usb_read_port_complete(struct urb *purb)
 	struct recv_priv *precvpriv = &padapter->recvpriv;
 
 	RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
-		 ("usb_read_port_complete!!!\n"));
+		 "usb_read_port_complete!!!\n");
 
 	precvpriv->rx_pending_cnt--;
 
 	if (padapter->bSurpriseRemoved || padapter->bDriverStopped ||
 	    padapter->bReadPortCancel) {
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
-			 ("usb_read_port_complete:bDriverStopped(%d) OR "
-			  "bSurpriseRemoved(%d)\n", padapter->bDriverStopped,
-			  padapter->bSurpriseRemoved));
+			 "usb_read_port_complete:bDriverStopped(%d) OR bSurpriseRemoved(%d)\n",
+			 padapter->bDriverStopped, padapter->bSurpriseRemoved);
 
 		DBG_8723A("%s()-%d: RX Warning! bDriverStopped(%d) OR "
 			  "bSurpriseRemoved(%d) bReadPortCancel(%d)\n",
@@ -542,11 +538,8 @@ static void usb_read_port_complete(struct urb *purb)
 		if (purb->actual_length > MAX_RECVBUF_SZ ||
 		    purb->actual_length < RXDESC_SIZE) {
 			RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
-				 ("usb_read_port_complete: (purb->actual_"
-				  "length > MAX_RECVBUF_SZ) || (purb->actual_"
-				  "length < RXDESC_SIZE)\n"));
-			rtl8723au_read_port(padapter, RECV_BULK_IN_ADDR, 0,
-					    precvbuf);
+				 "usb_read_port_complete: (purb->actual_length > MAX_RECVBUF_SZ) || (purb->actual_length < RXDESC_SIZE)\n");
+			rtl8723au_read_port(padapter, 0, precvbuf);
 			DBG_8723A("%s()-%d: RX Warning!\n",
 				  __func__, __LINE__);
 		} else {
@@ -561,13 +554,12 @@ static void usb_read_port_complete(struct urb *purb)
 				tasklet_schedule(&precvpriv->recv_tasklet);
 
 			precvbuf->pskb = NULL;
-			rtl8723au_read_port(padapter, RECV_BULK_IN_ADDR, 0,
-					    precvbuf);
+			rtl8723au_read_port(padapter, 0, precvbuf);
 		}
 	} else {
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
-			 ("usb_read_port_complete : purb->status(%d) != 0 \n",
-			  purb->status));
+			 "usb_read_port_complete : purb->status(%d) != 0\n",
+			 purb->status);
 		skb_put(precvbuf->pskb, purb->actual_length);
 		precvbuf->pskb = NULL;
 
@@ -585,19 +577,16 @@ static void usb_read_port_complete(struct urb *purb)
 		case -ENODEV:
 		case -ESHUTDOWN:
 			RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
-				 ("usb_read_port_complete:bSurprise"
-				  "Removed = true\n"));
+				 "usb_read_port_complete:bSurpriseRemoved = true\n");
 			/* Intentional fall through here */
 		case -ENOENT:
 			padapter->bDriverStopped = true;
 			RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
-				 ("usb_read_port_complete:"
-				  "bDriverStopped = true\n"));
+				 "usb_read_port_complete:bDriverStopped = true\n");
 			break;
 		case -EPROTO:
 		case -EOVERFLOW:
-			rtl8723au_read_port(padapter, RECV_BULK_IN_ADDR, 0,
-					    precvbuf);
+			rtl8723au_read_port(padapter, 0, precvbuf);
 			break;
 		case -EINPROGRESS:
 			DBG_8723A("ERROR: URB IS IN PROGRESS!\n");
@@ -608,29 +597,28 @@ static void usb_read_port_complete(struct urb *purb)
 	}
 }
 
-int rtl8723au_read_port(struct rtw_adapter *adapter, u32 addr, u32 cnt,
+int rtl8723au_read_port(struct rtw_adapter *adapter, u32 cnt,
 			struct recv_buf *precvbuf)
 {
+	struct urb *purb;
+	struct dvobj_priv *pdvobj = adapter_to_dvobj(adapter);
+	struct recv_priv *precvpriv = &adapter->recvpriv;
+	struct usb_device *pusbd = pdvobj->pusbdev;
 	int err;
 	unsigned int pipe;
 	unsigned long tmpaddr;
 	unsigned long alignment;
 	int ret = _SUCCESS;
-	struct urb *purb;
-	struct dvobj_priv *pdvobj = adapter_to_dvobj(adapter);
-	struct recv_priv *precvpriv = &adapter->recvpriv;
-	struct usb_device *pusbd = pdvobj->pusbdev;
 
 	if (adapter->bDriverStopped || adapter->bSurpriseRemoved) {
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
-			 ("usb_read_port:(padapter->bDriverStopped ||"
-			  "padapter->bSurpriseRemoved)!!!\n"));
+			 "usb_read_port:(padapter->bDriverStopped ||padapter->bSurpriseRemoved)!!!\n");
 		return _FAIL;
 	}
 
 	if (!precvbuf) {
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
-			 ("usb_read_port:precvbuf == NULL\n"));
+			 "usb_read_port:precvbuf == NULL\n");
 		return _FAIL;
 	}
 
@@ -641,7 +629,8 @@ int rtl8723au_read_port(struct rtw_adapter *adapter, u32 addr, u32 cnt,
 	if (!precvbuf->pskb) {
 		precvbuf->pskb = netdev_alloc_skb(adapter->pnetdev, MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
 		if (precvbuf->pskb == NULL) {
-			RT_TRACE(_module_hci_ops_os_c_, _drv_err_, ("init_recvbuf(): alloc_skb fail!\n"));
+			RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
+				 "init_recvbuf(): alloc_skb fail!\n");
 			return _FAIL;
 		}
 
@@ -664,8 +653,8 @@ int rtl8723au_read_port(struct rtw_adapter *adapter, u32 addr, u32 cnt,
 	err = usb_submit_urb(purb, GFP_ATOMIC);
 	if ((err) && (err != -EPERM)) {
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
-			 ("cannot submit rx in-token(err = 0x%.8x), URB_STATUS "
-			  "= 0x%.8x", err, purb->status));
+			 "cannot submit rx in-token(err = 0x%.8x), URB_STATUS = 0x%.8x\n",
+			 err, purb->status);
 		DBG_8723A("cannot submit rx in-token(err = 0x%08x), urb_status "
 			  "= %d\n", err, purb->status);
 		ret = _FAIL;

@@ -729,8 +729,7 @@ static int ideapad_backlight_init(struct ideapad_private *priv)
 
 static void ideapad_backlight_exit(struct ideapad_private *priv)
 {
-	if (priv->blightdev)
-		backlight_device_unregister(priv->blightdev);
+	backlight_device_unregister(priv->blightdev);
 	priv->blightdev = NULL;
 }
 
@@ -830,6 +829,13 @@ static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
  * report all radios as hardware-blocked.
  */
 static const struct dmi_system_id no_hw_rfkill_list[] = {
+	{
+		.ident = "Lenovo G40-30",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo G40-30"),
+		},
+	},
 	{
 		.ident = "Lenovo Yoga 2 11 / 13 / Pro",
 		.matches = {
@@ -966,7 +972,6 @@ static struct platform_driver ideapad_acpi_driver = {
 	.remove = ideapad_acpi_remove,
 	.driver = {
 		.name   = "ideapad_acpi",
-		.owner  = THIS_MODULE,
 		.pm     = &ideapad_pm,
 		.acpi_match_table = ACPI_PTR(ideapad_device_ids),
 	},

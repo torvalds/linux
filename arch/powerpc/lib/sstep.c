@@ -1865,6 +1865,7 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 		}
 		goto ldst_done;
 
+#ifdef CONFIG_PPC_FPU
 	case LOAD_FP:
 		if (regs->msr & MSR_LE)
 			return 0;
@@ -1873,7 +1874,7 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 		else
 			err = do_fp_load(op.reg, do_lfd, op.ea, size, regs);
 		goto ldst_done;
-
+#endif
 #ifdef CONFIG_ALTIVEC
 	case LOAD_VMX:
 		if (regs->msr & MSR_LE)
@@ -1919,6 +1920,7 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 		err = write_mem(op.val, op.ea, size, regs);
 		goto ldst_done;
 
+#ifdef CONFIG_PPC_FPU
 	case STORE_FP:
 		if (regs->msr & MSR_LE)
 			return 0;
@@ -1927,7 +1929,7 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 		else
 			err = do_fp_store(op.reg, do_stfd, op.ea, size, regs);
 		goto ldst_done;
-
+#endif
 #ifdef CONFIG_ALTIVEC
 	case STORE_VMX:
 		if (regs->msr & MSR_LE)

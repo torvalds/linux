@@ -154,7 +154,7 @@ static inline __u32 capa_expiry(struct lustre_capa *capa)
 }
 
 void _debug_capa(struct lustre_capa *, struct libcfs_debug_msg_data *,
-		 const char *fmt, ... );
+		 const char *fmt, ...);
 #define DEBUG_CAPA(level, capa, fmt, args...)				  \
 do {									   \
 	if (((level) & D_CANTMASK) != 0 ||				     \

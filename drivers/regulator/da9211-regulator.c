@@ -24,6 +24,7 @@
 #include <linux/regmap.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
+#include <linux/of_gpio.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/da9211.h>
 #include "da9211-regulator.h"
@@ -276,7 +277,10 @@ static struct da9211_pdata *da9211_parse_regulators_dt(
 			continue;
 
 		pdata->init_data[n] = da9211_matches[i].init_data;
-
+		pdata->reg_node[n] = da9211_matches[i].of_node;
+		pdata->gpio_ren[n] =
+			of_get_named_gpio(da9211_matches[i].of_node,
+				"enable-gpios", 0);
 		n++;
 	}
 
@@ -301,8 +305,7 @@ static irqreturn_t da9211_irq_handler(int irq, void *data)
 
 	if (reg_val & DA9211_E_OV_CURR_A) {
 		regulator_notifier_call_chain(chip->rdev[0],
-			REGULATOR_EVENT_OVER_CURRENT,
-			rdev_get_drvdata(chip->rdev[0]));
+			REGULATOR_EVENT_OVER_CURRENT, NULL);
 
 		err = regmap_write(chip->regmap, DA9211_REG_EVENT_B,
 			DA9211_E_OV_CURR_A);
@@ -314,8 +317,7 @@ static irqreturn_t da9211_irq_handler(int irq, void *data)
 
 	if (reg_val & DA9211_E_OV_CURR_B) {
 		regulator_notifier_call_chain(chip->rdev[1],
-			REGULATOR_EVENT_OVER_CURRENT,
-			rdev_get_drvdata(chip->rdev[1]));
+			REGULATOR_EVENT_OVER_CURRENT, NULL);
 
 		err = regmap_write(chip->regmap, DA9211_REG_EVENT_B,
 			DA9211_E_OV_CURR_B);
@@ -340,7 +342,7 @@ static int da9211_regulator_init(struct da9211 *chip)
 
 	ret = regmap_read(chip->regmap, DA9211_REG_CONFIG_E, &data);
 	if (ret < 0) {
-		dev_err(chip->dev, "Failed to read CONTROL_E reg: %d\n", ret);
+		dev_err(chip->dev, "Failed to read CONFIG_E reg: %d\n", ret);
 		return ret;
 	}
 
@@ -364,7 +366,15 @@ static int da9211_regulator_init(struct da9211 *chip)
 		config.dev = chip->dev;
 		config.driver_data = chip;
 		config.regmap = chip->regmap;
-		config.of_node = chip->dev->of_node;
+		config.of_node = chip->pdata->reg_node[i];
+
+		if (gpio_is_valid(chip->pdata->gpio_ren[i])) {
+			config.ena_gpio = chip->pdata->gpio_ren[i];
+			config.ena_gpio_initialized = true;
+		} else {
+			config.ena_gpio = -EINVAL;
+			config.ena_gpio_initialized = false;
+		}
 
 		chip->rdev[i] = devm_regulator_register(chip->dev,
 			&da9211_regulators[i], &config);

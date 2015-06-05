@@ -51,7 +51,6 @@
 */
 
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/types.h>
@@ -60,6 +59,7 @@
 #include <linux/netdevice.h>
 #include <linux/workqueue.h>
 #include <linux/byteorder/generic.h>
+#include <linux/etherdevice.h>
 
 #include <linux/io.h>
 #include <linux/delay.h>
@@ -199,7 +199,7 @@ static int prism2sta_close(wlandevice_t *wlandev)
 /*----------------------------------------------------------------
 * prism2sta_reset
 *
-* Not currently implented.
+* Currently not implemented.
 *
 * Arguments:
 *	wlandev		wlan device structure
@@ -243,7 +243,6 @@ static int prism2sta_txframe(wlandevice_t *wlandev, struct sk_buff *skb,
 			     struct p80211_metawep *p80211_wep)
 {
 	hfa384x_t *hw = (hfa384x_t *) wlandev->priv;
-	int result;
 
 	/* If necessary, set the 802.11 WEP bit */
 	if ((wlandev->hostwep & (HOSTWEP_PRIVACYINVOKED | HOSTWEP_ENCRYPT)) ==
@@ -251,9 +250,7 @@ static int prism2sta_txframe(wlandevice_t *wlandev, struct sk_buff *skb,
 		p80211_hdr->a3.fc |= cpu_to_le16(WLAN_SET_FC_ISWEP(1));
 	}
 
-	result = hfa384x_drvr_txframe(hw, skb, p80211_hdr, p80211_wep);
-
-	return result;
+	return hfa384x_drvr_txframe(hw, skb, p80211_hdr, p80211_wep);
 }
 
 /*----------------------------------------------------------------
@@ -662,7 +659,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 		       "ident:  ap f/w: id=0x%02x %d.%d.%d\n",
 		       hw->ident_sta_fw.id, hw->ident_sta_fw.major,
 		       hw->ident_sta_fw.minor, hw->ident_sta_fw.variant);
-		netdev_err(wlandev->netdev, "Unsupported Tertiary AP firmeare loaded!\n");
+		netdev_err(wlandev->netdev, "Unsupported Tertiary AP firmware loaded!\n");
 		goto failed;
 	}
 
@@ -1548,7 +1545,7 @@ static void prism2sta_inf_authreq_defer(wlandevice_t *wlandev,
 	 ** authentication.
 	 */
 
-	memcpy(rec.address, inf->info.authreq.sta_addr, ETH_ALEN);
+	ether_addr_copy(rec.address, inf->info.authreq.sta_addr);
 	rec.status = P80211ENUM_status_unspec_failure;
 
 	/*
@@ -1661,8 +1658,8 @@ static void prism2sta_inf_authreq_defer(wlandevice_t *wlandev,
 			if (hw->authlist.cnt >= WLAN_AUTH_MAX) {
 				rec.status = P80211ENUM_status_ap_full;
 			} else {
-				memcpy(hw->authlist.addr[hw->authlist.cnt],
-				       rec.address, ETH_ALEN);
+				ether_addr_copy(hw->authlist.addr[hw->authlist.cnt],
+						rec.address);
 				hw->authlist.cnt++;
 				added = 1;
 			}

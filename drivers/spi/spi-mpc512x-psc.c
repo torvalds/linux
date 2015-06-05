@@ -588,7 +588,7 @@ static int mpc512x_psc_spi_of_remove(struct platform_device *op)
 	return mpc512x_psc_spi_do_remove(&op->dev);
 }
 
-static struct of_device_id mpc512x_psc_spi_of_match[] = {
+static const struct of_device_id mpc512x_psc_spi_of_match[] = {
 	{ .compatible = "fsl,mpc5121-psc-spi", },
 	{},
 };
@@ -600,7 +600,6 @@ static struct platform_driver mpc512x_psc_spi_of_driver = {
 	.remove = mpc512x_psc_spi_of_remove,
 	.driver = {
 		.name = "mpc512x-psc-spi",
-		.owner = THIS_MODULE,
 		.of_match_table = mpc512x_psc_spi_of_match,
 	},
 };

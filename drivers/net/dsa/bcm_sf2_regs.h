@@ -61,6 +61,10 @@
 #define  LPI_COUNT_SHIFT		9
 #define  LPI_COUNT_MASK			0x3F
 
+#define REG_LED_CNTRL_BASE		0x90
+#define REG_LED_CNTRL(x)		(REG_LED_CNTRL_BASE + (x) * 4)
+#define  SPDLNK_SRC_SEL			(1 << 24)
+
 /* Register set relative to 'INTRL2_0' and 'INTRL2_1' */
 #define INTRL2_CPU_STATUS		0x00
 #define INTRL2_CPU_SET			0x04
@@ -158,6 +162,21 @@
 #define  SOFTWARE_RESET			(1 << 7)
 #define  EN_CHIP_RST			(1 << 6)
 #define  EN_SW_RESET			(1 << 4)
+
+#define CORE_FAST_AGE_CTRL		0x00220
+#define  EN_FAST_AGE_STATIC		(1 << 0)
+#define  EN_AGE_DYNAMIC			(1 << 1)
+#define  EN_AGE_PORT			(1 << 2)
+#define  EN_AGE_VLAN			(1 << 3)
+#define  EN_AGE_SPT			(1 << 4)
+#define  EN_AGE_MCAST			(1 << 5)
+#define  FAST_AGE_STR_DONE		(1 << 7)
+
+#define CORE_FAST_AGE_PORT		0x00224
+#define  AGE_PORT_MASK			0xf
+
+#define CORE_FAST_AGE_VID		0x00228
+#define  AGE_VID_MASK			0x3fff
 
 #define CORE_LNKSTS			0x00400
 #define  LNK_STS_MASK			0x1ff

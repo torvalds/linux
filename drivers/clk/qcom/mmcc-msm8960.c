@@ -33,18 +33,21 @@
 #include "clk-branch.h"
 #include "reset.h"
 
-#define P_PXO	0
-#define P_PLL8	1
-#define P_PLL2	2
-#define P_PLL3	3
-#define P_PLL15	3
+enum {
+	P_PXO,
+	P_PLL8,
+	P_PLL2,
+	P_PLL3,
+	P_PLL15,
+	P_HDMI_PLL,
+};
 
 #define F_MN(f, s, _m, _n) { .freq = f, .src = s, .m = _m, .n = _n }
 
-static u8 mmcc_pxo_pll8_pll2_map[] = {
-	[P_PXO]		= 0,
-	[P_PLL8]	= 2,
-	[P_PLL2]	= 1,
+static const struct parent_map mmcc_pxo_pll8_pll2_map[] = {
+	{ P_PXO, 0 },
+	{ P_PLL8, 2 },
+	{ P_PLL2, 1 }
 };
 
 static const char *mmcc_pxo_pll8_pll2[] = {
@@ -53,11 +56,11 @@ static const char *mmcc_pxo_pll8_pll2[] = {
 	"pll2",
 };
 
-static u8 mmcc_pxo_pll8_pll2_pll3_map[] = {
-	[P_PXO]		= 0,
-	[P_PLL8]	= 2,
-	[P_PLL2]	= 1,
-	[P_PLL3]	= 3,
+static const struct parent_map mmcc_pxo_pll8_pll2_pll3_map[] = {
+	{ P_PXO, 0 },
+	{ P_PLL8, 2 },
+	{ P_PLL2, 1 },
+	{ P_PLL3, 3 }
 };
 
 static const char *mmcc_pxo_pll8_pll2_pll15[] = {
@@ -67,11 +70,11 @@ static const char *mmcc_pxo_pll8_pll2_pll15[] = {
 	"pll15",
 };
 
-static u8 mmcc_pxo_pll8_pll2_pll15_map[] = {
-	[P_PXO]		= 0,
-	[P_PLL8]	= 2,
-	[P_PLL2]	= 1,
-	[P_PLL15]	= 3,
+static const struct parent_map mmcc_pxo_pll8_pll2_pll15_map[] = {
+	{ P_PXO, 0 },
+	{ P_PLL8, 2 },
+	{ P_PLL2, 1 },
+	{ P_PLL15, 3 }
 };
 
 static const char *mmcc_pxo_pll8_pll2_pll3[] = {
@@ -1377,11 +1380,9 @@ static struct clk_branch rot_clk = {
 	},
 };
 
-#define P_HDMI_PLL 1
-
-static u8 mmcc_pxo_hdmi_map[] = {
-	[P_PXO]		= 0,
-	[P_HDMI_PLL]	= 3,
+static const struct parent_map mmcc_pxo_hdmi_map[] = {
+	{ P_PXO, 0 },
+	{ P_HDMI_PLL, 3 }
 };
 
 static const char *mmcc_pxo_hdmi[] = {

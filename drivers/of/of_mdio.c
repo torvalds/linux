@@ -88,7 +88,7 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio, struct device_node *chi
 	return 0;
 }
 
-static int of_mdio_parse_addr(struct device *dev, const struct device_node *np)
+int of_mdio_parse_addr(struct device *dev, const struct device_node *np)
 {
 	u32 addr;
 	int ret;
@@ -108,6 +108,7 @@ static int of_mdio_parse_addr(struct device *dev, const struct device_node *np)
 
 	return addr;
 }
+EXPORT_SYMBOL(of_mdio_parse_addr);
 
 /**
  * of_mdiobus_register - Register mii_bus and create PHYs from the device tree

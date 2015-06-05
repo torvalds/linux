@@ -242,7 +242,7 @@ static int sp_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id sp_of_table[] = {
+static const struct of_device_id sp_of_table[] = {
 	{.compatible = "nxp,sja1000"},
 	{},
 };
@@ -253,7 +253,6 @@ static struct platform_driver sp_driver = {
 	.remove = sp_remove,
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = sp_of_table,
 	},
 };

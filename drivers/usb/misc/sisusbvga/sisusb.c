@@ -2472,8 +2472,7 @@ sisusb_delete(struct kref *kref)
 	if (!sisusb)
 		return;
 
-	if (sisusb->sisusb_dev)
-		usb_put_dev(sisusb->sisusb_dev);
+	usb_put_dev(sisusb->sisusb_dev);
 
 	sisusb->sisusb_dev = NULL;
 	sisusb_free_buffers(sisusb);

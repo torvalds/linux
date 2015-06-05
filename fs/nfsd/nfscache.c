@@ -165,13 +165,17 @@ int nfsd_reply_cache_init(void)
 {
 	unsigned int hashsize;
 	unsigned int i;
+	int status = 0;
 
 	max_drc_entries = nfsd_cache_size_limit();
 	atomic_set(&num_drc_entries, 0);
 	hashsize = nfsd_hashsize(max_drc_entries);
 	maskbits = ilog2(hashsize);
 
-	register_shrinker(&nfsd_reply_cache_shrinker);
+	status = register_shrinker(&nfsd_reply_cache_shrinker);
+	if (status)
+		return status;
+
 	drc_slab = kmem_cache_create("nfsd_drc", sizeof(struct svc_cacherep),
 					0, 0, NULL);
 	if (!drc_slab)
@@ -490,7 +494,7 @@ found_entry:
 	/* From the hall of fame of impractical attacks:
 	 * Is this a user who tries to snoop on the cache? */
 	rtn = RC_DOIT;
-	if (!rqstp->rq_secure && rp->c_secure)
+	if (!test_bit(RQ_SECURE, &rqstp->rq_flags) && rp->c_secure)
 		goto out;
 
 	/* Compose RPC reply header */
@@ -579,7 +583,7 @@ nfsd_cache_update(struct svc_rqst *rqstp, int cachetype, __be32 *statp)
 	spin_lock(&b->cache_lock);
 	drc_mem_usage += bufsize;
 	lru_put_end(b, rp);
-	rp->c_secure = rqstp->rq_secure;
+	rp->c_secure = test_bit(RQ_SECURE, &rqstp->rq_flags);
 	rp->c_type = cachetype;
 	rp->c_state = RC_DONE;
 	spin_unlock(&b->cache_lock);

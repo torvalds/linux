@@ -79,6 +79,9 @@ struct Qdisc {
 	struct netdev_queue	*dev_queue;
 
 	struct gnet_stats_rate_est64	rate_est;
+	struct gnet_stats_basic_cpu __percpu *cpu_bstats;
+	struct gnet_stats_queue	__percpu *cpu_qstats;
+
 	struct Qdisc		*next_sched;
 	struct sk_buff		*gso_skb;
 	/*
@@ -86,15 +89,9 @@ struct Qdisc {
 	 */
 	unsigned long		state;
 	struct sk_buff_head	q;
-	union {
-		struct gnet_stats_basic_packed bstats;
-		struct gnet_stats_basic_cpu __percpu *cpu_bstats;
-	} __packed;
+	struct gnet_stats_basic_packed bstats;
 	unsigned int		__state;
-	union {
-		struct gnet_stats_queue	qstats;
-		struct gnet_stats_queue	__percpu *cpu_qstats;
-	} __packed;
+	struct gnet_stats_queue	qstats;
 	struct rcu_head		rcu_head;
 	int			padded;
 	atomic_t		refcnt;
@@ -216,10 +213,9 @@ struct tcf_proto_ops {
 					    const struct tcf_proto *,
 					    struct tcf_result *);
 	int			(*init)(struct tcf_proto*);
-	void			(*destroy)(struct tcf_proto*);
+	bool			(*destroy)(struct tcf_proto*, bool);
 
 	unsigned long		(*get)(struct tcf_proto*, u32 handle);
-	void			(*put)(struct tcf_proto*, unsigned long);
 	int			(*change)(struct net *net, struct sk_buff *,
 					struct tcf_proto*, unsigned long,
 					u32 handle, struct nlattr **,
@@ -403,7 +399,7 @@ struct Qdisc *qdisc_create_dflt(struct netdev_queue *dev_queue,
 				const struct Qdisc_ops *ops, u32 parentid);
 void __qdisc_calculate_pkt_len(struct sk_buff *skb,
 			       const struct qdisc_size_table *stab);
-void tcf_destroy(struct tcf_proto *tp);
+bool tcf_destroy(struct tcf_proto *tp, bool force);
 void tcf_destroy_chain(struct tcf_proto __rcu **fl);
 
 /* Reset all TX qdiscs greater then index of a device.  */

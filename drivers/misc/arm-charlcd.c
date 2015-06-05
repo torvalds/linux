@@ -375,7 +375,6 @@ static const struct of_device_id charlcd_match[] = {
 static struct platform_driver charlcd_driver = {
 	.driver = {
 		.name = DRIVERNAME,
-		.owner = THIS_MODULE,
 		.pm = &charlcd_pm_ops,
 		.of_match_table = of_match_ptr(charlcd_match),
 	},

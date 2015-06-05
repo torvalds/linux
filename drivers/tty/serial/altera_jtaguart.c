@@ -441,6 +441,7 @@ static int altera_jtaguart_probe(struct platform_device *pdev)
 	port->iotype = SERIAL_IO_MEM;
 	port->ops = &altera_jtaguart_ops;
 	port->flags = UPF_BOOT_AUTOCONF;
+	port->dev = &pdev->dev;
 
 	uart_add_one_port(&altera_jtaguart_driver, port);
 
@@ -475,7 +476,6 @@ static struct platform_driver altera_jtaguart_platform_driver = {
 	.remove	= altera_jtaguart_remove,
 	.driver	= {
 		.name		= DRV_NAME,
-		.owner		= THIS_MODULE,
 		.of_match_table	= of_match_ptr(altera_jtaguart_match),
 	},
 };

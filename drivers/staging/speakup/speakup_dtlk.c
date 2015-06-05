@@ -231,7 +231,7 @@ static void do_catch_up(struct spk_synth *synth)
 		if (ch == '\n')
 			ch = PROCSPEECH;
 		spk_out(ch);
-		if ((jiffies >= jiff_max) && (ch == SPACE)) {
+		if (time_after_eq(jiffies, jiff_max) && (ch == SPACE)) {
 			spk_out(PROCSPEECH);
 			spin_lock_irqsave(&speakup_info.spinlock, flags);
 			delay_time_val = delay_time->u.n.value;
@@ -325,7 +325,7 @@ static struct synth_settings *synth_interrogate(struct spk_synth *synth)
 
 static int synth_probe(struct spk_synth *synth)
 {
-		unsigned int port_val = 0;
+	unsigned int port_val = 0;
 	int i = 0;
 	struct synth_settings *sp;
 
@@ -361,7 +361,8 @@ static int synth_probe(struct spk_synth *synth)
 	port_val &= 0xfbff;
 	if (port_val != 0x107f) {
 		pr_info("DoubleTalk PC: not found\n");
-		synth_release_region(synth_lpc, SYNTH_IO_EXTENT);
+		if (synth_lpc)
+			synth_release_region(synth_lpc, SYNTH_IO_EXTENT);
 		return -ENODEV;
 	}
 	while (inw_p(synth_lpc) != 0x147f)
@@ -369,7 +370,7 @@ static int synth_probe(struct spk_synth *synth)
 	sp = synth_interrogate(synth);
 	pr_info("%s: %03x-%03x, ROM ver %s, s/n %u, driver: %s\n",
 		synth->long_name, synth_lpc, synth_lpc+SYNTH_IO_EXTENT - 1,
-	 sp->rom_version, sp->serial_number, synth->version);
+		sp->rom_version, sp->serial_number, synth->version);
 	synth->alive = 1;
 	return 0;
 }
@@ -387,18 +388,8 @@ module_param_named(start, synth_dtlk.startup, short, S_IRUGO);
 MODULE_PARM_DESC(port, "Set the port for the synthesizer (override probing).");
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
 
-static int __init dtlk_init(void)
-{
-	return synth_add(&synth_dtlk);
-}
+module_spk_synth(synth_dtlk);
 
-static void __exit dtlk_exit(void)
-{
-	synth_remove(&synth_dtlk);
-}
-
-module_init(dtlk_init);
-module_exit(dtlk_exit);
 MODULE_AUTHOR("Kirk Reiser <kirk@braille.uwo.ca>");
 MODULE_AUTHOR("David Borowski");
 MODULE_DESCRIPTION("Speakup support for DoubleTalk PC synthesizers");

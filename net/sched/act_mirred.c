@@ -1,5 +1,5 @@
 /*
- * net/sched/mirred.c	packet mirroring and redirect actions
+ * net/sched/act_mirred.c	packet mirroring and redirect actions
  *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License
@@ -157,7 +157,7 @@ static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
 
 	if (!(at & AT_EGRESS)) {
 		if (m->tcfm_ok_push)
-			skb_push(skb2, skb2->dev->hard_header_len);
+			skb_push(skb2, skb->mac_len);
 	}
 
 	/* mirror is always swallowed */

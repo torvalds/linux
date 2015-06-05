@@ -269,7 +269,8 @@ static struct pcie_host_ops spear13xx_pcie_host_ops = {
 	.host_init = spear13xx_pcie_host_init,
 };
 
-static int add_pcie_port(struct pcie_port *pp, struct platform_device *pdev)
+static int spear13xx_add_pcie_port(struct pcie_port *pp,
+					 struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	int ret;
@@ -298,7 +299,7 @@ static int add_pcie_port(struct pcie_port *pp, struct platform_device *pdev)
 	return 0;
 }
 
-static int __init spear13xx_pcie_probe(struct platform_device *pdev)
+static int spear13xx_pcie_probe(struct platform_device *pdev)
 {
 	struct spear13xx_pcie *spear13xx_pcie;
 	struct pcie_port *pp;
@@ -308,10 +309,8 @@ static int __init spear13xx_pcie_probe(struct platform_device *pdev)
 	int ret;
 
 	spear13xx_pcie = devm_kzalloc(dev, sizeof(*spear13xx_pcie), GFP_KERNEL);
-	if (!spear13xx_pcie) {
-		dev_err(dev, "no memory for SPEAr13xx pcie\n");
+	if (!spear13xx_pcie)
 		return -ENOMEM;
-	}
 
 	spear13xx_pcie->phy = devm_phy_get(dev, "pcie-phy");
 	if (IS_ERR(spear13xx_pcie->phy)) {
@@ -352,7 +351,7 @@ static int __init spear13xx_pcie_probe(struct platform_device *pdev)
 	if (of_property_read_bool(np, "st,pcie-is-gen1"))
 		spear13xx_pcie->is_gen1 = true;
 
-	ret = add_pcie_port(pp, pdev);
+	ret = spear13xx_add_pcie_port(pp, pdev);
 	if (ret < 0)
 		goto fail_clk;
 
@@ -371,22 +370,21 @@ static const struct of_device_id spear13xx_pcie_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, spear13xx_pcie_of_match);
 
-static struct platform_driver spear13xx_pcie_driver __initdata = {
+static struct platform_driver spear13xx_pcie_driver = {
 	.probe		= spear13xx_pcie_probe,
 	.driver = {
 		.name	= "spear-pcie",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(spear13xx_pcie_of_match),
 	},
 };
 
 /* SPEAr13xx PCIe driver does not allow module unload */
 
-static int __init pcie_init(void)
+static int __init spear13xx_pcie_init(void)
 {
 	return platform_driver_register(&spear13xx_pcie_driver);
 }
-module_init(pcie_init);
+module_init(spear13xx_pcie_init);
 
 MODULE_DESCRIPTION("ST Microelectronics SPEAr13xx PCIe host controller driver");
 MODULE_AUTHOR("Pratyush Anand <pratyush.anand@st.com>");

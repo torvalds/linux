@@ -230,11 +230,15 @@ struct xenvif {
 	 */
 	bool disabled;
 	unsigned long status;
+	unsigned long drain_timeout;
+	unsigned long stall_timeout;
 
 	/* Queues */
 	struct xenvif_queue *queues;
 	unsigned int num_queues; /* active queues, resource allocated */
 	unsigned int stalled_queues;
+
+	struct xenbus_watch credit_watch;
 
 	spinlock_t lock;
 
@@ -249,7 +253,6 @@ struct xenvif {
 struct xenvif_rx_cb {
 	unsigned long expires;
 	int meta_slots_used;
-	bool full_coalesce;
 };
 
 #define XENVIF_RX_CB(skb) ((struct xenvif_rx_cb *)(skb)->cb)
@@ -258,6 +261,8 @@ static inline struct xenbus_device *xenvif_to_xenbus_device(struct xenvif *vif)
 {
 	return to_xenbus_device(vif->dev->dev.parent);
 }
+
+void xenvif_tx_credit_callback(unsigned long data);
 
 struct xenvif *xenvif_alloc(struct device *parent,
 			    domid_t domid,
@@ -328,7 +333,7 @@ irqreturn_t xenvif_interrupt(int irq, void *dev_id);
 extern bool separate_tx_rx_irq;
 
 extern unsigned int rx_drain_timeout_msecs;
-extern unsigned int rx_drain_timeout_jiffies;
+extern unsigned int rx_stall_timeout_msecs;
 extern unsigned int xenvif_max_queues;
 
 #ifdef CONFIG_DEBUG_FS

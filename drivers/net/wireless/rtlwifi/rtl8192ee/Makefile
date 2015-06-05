@@ -1,6 +1,3 @@
-obj-m := rtl8192ee.o
-
-
 rtl8192ee-objs :=		\
 		dm.o		\
 		fw.o		\
@@ -14,6 +11,6 @@ rtl8192ee-objs :=		\
 		trx.o		\
 
 
-obj-$(CONFIG_RTL8821AE) += rtl8192ee.o
+obj-$(CONFIG_RTL8192EE) += rtl8192ee.o
 
 ccflags-y += -D__CHECK_ENDIAN__

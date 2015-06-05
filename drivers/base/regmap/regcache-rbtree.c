@@ -10,11 +10,11 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/slab.h>
-#include <linux/device.h>
 #include <linux/debugfs.h>
+#include <linux/device.h>
 #include <linux/rbtree.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 
 #include "internal.h"
 
@@ -307,7 +307,7 @@ static int regcache_rbtree_insert_to_block(struct regmap *map,
 	if (pos == 0) {
 		memmove(blk + offset * map->cache_word_size,
 			blk, rbnode->blklen * map->cache_word_size);
-		bitmap_shift_right(present, present, offset, blklen);
+		bitmap_shift_left(present, present, offset, blklen);
 	}
 
 	/* update the rbnode block, its size and the base register */

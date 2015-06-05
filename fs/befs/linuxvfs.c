@@ -51,7 +51,7 @@ static int befs_nls2utf(struct super_block *sb, const char *in, int in_len,
 static void befs_put_super(struct super_block *);
 static int befs_remount(struct super_block *, int *, char *);
 static int befs_statfs(struct dentry *, struct kstatfs *);
-static int parse_options(char *, befs_mount_options *);
+static int parse_options(char *, struct befs_mount_options *);
 
 static const struct super_operations befs_sops = {
 	.alloc_inode	= befs_alloc_inode,	/* allocate a new inode */
@@ -172,8 +172,8 @@ befs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 	char *utfname;
 	const char *name = dentry->d_name.name;
 
-	befs_debug(sb, "---> %s name %s inode %ld", __func__,
-		   dentry->d_name.name, dir->i_ino);
+	befs_debug(sb, "---> %s name %pd inode %ld", __func__,
+		   dentry, dir->i_ino);
 
 	/* Convert to UTF-8 */
 	if (BEFS_SB(sb)->nls) {
@@ -191,8 +191,7 @@ befs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 	}
 
 	if (ret == BEFS_BT_NOT_FOUND) {
-		befs_debug(sb, "<--- %s %s not found", __func__,
-			   dentry->d_name.name);
+		befs_debug(sb, "<--- %s %pd not found", __func__, dentry);
 		return ERR_PTR(-ENOENT);
 
 	} else if (ret != BEFS_OK || offset == 0) {
@@ -222,10 +221,9 @@ befs_readdir(struct file *file, struct dir_context *ctx)
 	size_t keysize;
 	unsigned char d_type;
 	char keybuf[BEFS_NAME_LEN + 1];
-	const char *dirname = file->f_path.dentry->d_name.name;
 
-	befs_debug(sb, "---> %s name %s, inode %ld, ctx->pos %lld",
-		  __func__, dirname, inode->i_ino, ctx->pos);
+	befs_debug(sb, "---> %s name %pD, inode %ld, ctx->pos %lld",
+		  __func__, file, inode->i_ino, ctx->pos);
 
 more:
 	result = befs_btree_read(sb, ds, ctx->pos, BEFS_NAME_LEN + 1,
@@ -233,8 +231,8 @@ more:
 
 	if (result == BEFS_ERR) {
 		befs_debug(sb, "<--- %s ERROR", __func__);
-		befs_error(sb, "IO error reading %s (inode %lu)",
-			   dirname, inode->i_ino);
+		befs_error(sb, "IO error reading %pD (inode %lu)",
+			   file, inode->i_ino);
 		return -EIO;
 
 	} else if (result == BEFS_BT_END) {
@@ -271,18 +269,14 @@ more:
 	}
 	ctx->pos++;
 	goto more;
-
-	befs_debug(sb, "<--- %s pos %lld", __func__, ctx->pos);
-
-	return 0;
 }
 
 static struct inode *
 befs_alloc_inode(struct super_block *sb)
 {
-        struct befs_inode_info *bi;
-        bi = (struct befs_inode_info *)kmem_cache_alloc(befs_inode_cachep,
-							GFP_KERNEL);
+	struct befs_inode_info *bi;
+
+	bi = kmem_cache_alloc(befs_inode_cachep, GFP_KERNEL);
         if (!bi)
                 return NULL;
         return &bi->vfs_inode;
@@ -310,9 +304,8 @@ static struct inode *befs_iget(struct super_block *sb, unsigned long ino)
 {
 	struct buffer_head *bh = NULL;
 	befs_inode *raw_inode = NULL;
-
-	befs_sb_info *befs_sb = BEFS_SB(sb);
-	befs_inode_info *befs_ino = NULL;
+	struct befs_sb_info *befs_sb = BEFS_SB(sb);
+	struct befs_inode_info *befs_ino = NULL;
 	struct inode *inode;
 	long ret = -EIO;
 
@@ -478,7 +471,7 @@ static void *
 befs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	struct super_block *sb = dentry->d_sb;
-	befs_inode_info *befs_ino = BEFS_I(dentry->d_inode);
+	struct befs_inode_info *befs_ino = BEFS_I(d_inode(dentry));
 	befs_data_stream *data = &befs_ino->i_data.ds;
 	befs_off_t len = data->size;
 	char *link;
@@ -508,7 +501,8 @@ befs_follow_link(struct dentry *dentry, struct nameidata *nd)
 static void *
 befs_fast_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	befs_inode_info *befs_ino = BEFS_I(dentry->d_inode);
+	struct befs_inode_info *befs_ino = BEFS_I(d_inode(dentry));
+
 	nd_set_link(nd, befs_ino->i_data.symlink);
 	return NULL;
 }
@@ -675,7 +669,7 @@ static const match_table_t befs_tokens = {
 };
 
 static int
-parse_options(char *options, befs_mount_options * opts)
+parse_options(char *options, struct befs_mount_options *opts)
 {
 	char *p;
 	substring_t args[MAX_OPT_ARGS];
@@ -775,7 +769,7 @@ static int
 befs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct buffer_head *bh;
-	befs_sb_info *befs_sb;
+	struct befs_sb_info *befs_sb;
 	befs_super_block *disk_sb;
 	struct inode *root;
 	long ret = -EINVAL;

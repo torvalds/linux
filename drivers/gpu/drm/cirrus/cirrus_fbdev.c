@@ -139,6 +139,7 @@ static int cirrusfb_create_object(struct cirrus_fbdev *afbdev,
 			       struct drm_gem_object **gobj_p)
 {
 	struct drm_device *dev = afbdev->helper.dev;
+	struct cirrus_device *cdev = dev->dev_private;
 	u32 bpp, depth;
 	u32 size;
 	struct drm_gem_object *gobj;
@@ -146,8 +147,10 @@ static int cirrusfb_create_object(struct cirrus_fbdev *afbdev,
 	int ret = 0;
 	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &depth, &bpp);
 
-	if (bpp > 24)
+	if (!cirrus_check_framebuffer(cdev, mode_cmd->width, mode_cmd->height,
+				      bpp, mode_cmd->pitches[0]))
 		return -EINVAL;
+
 	size = mode_cmd->pitches[0] * mode_cmd->height;
 	ret = cirrus_gem_create(dev, size, true, &gobj);
 	if (ret)
@@ -314,17 +317,17 @@ int cirrus_fbdev_init(struct cirrus_device *cdev)
 
 	ret = drm_fb_helper_init(cdev->dev, &gfbdev->helper,
 				 cdev->num_crtc, CIRRUSFB_CONN_LIMIT);
-	if (ret) {
-		kfree(gfbdev);
+	if (ret)
 		return ret;
-	}
-	drm_fb_helper_single_add_all_connectors(&gfbdev->helper);
+
+	ret = drm_fb_helper_single_add_all_connectors(&gfbdev->helper);
+	if (ret)
+		return ret;
 
 	/* disable all the possible outputs/crtcs before entering KMS mode */
 	drm_helper_disable_unused_functions(cdev->dev);
-	drm_fb_helper_initial_config(&gfbdev->helper, bpp_sel);
 
-	return 0;
+	return drm_fb_helper_initial_config(&gfbdev->helper, bpp_sel);
 }
 
 void cirrus_fbdev_fini(struct cirrus_device *cdev)

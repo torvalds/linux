@@ -1874,8 +1874,10 @@ static void bttv_set_frequency(struct bttv *btv, const struct v4l2_frequency *f)
 	if (new_freq.type == V4L2_TUNER_RADIO) {
 		radio_enable(btv);
 		btv->radio_freq = new_freq.frequency;
-		if (btv->has_matchbox)
-			tea5757_set_freq(btv, btv->radio_freq);
+		if (btv->has_tea575x) {
+			btv->tea.freq = btv->radio_freq;
+			snd_tea575x_set_freq(&btv->tea);
+		}
 	} else {
 		btv->tv_freq = new_freq.frequency;
 	}
@@ -2472,7 +2474,7 @@ static int bttv_querycap(struct file *file, void  *priv,
 		return -EINVAL;
 
 	strlcpy(cap->driver, "bttv", sizeof(cap->driver));
-	strlcpy(cap->card, btv->video_dev->name, sizeof(cap->card));
+	strlcpy(cap->card, btv->video_dev.name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 		 "PCI:%s", pci_name(btv->c.pci));
 	cap->capabilities =
@@ -2482,9 +2484,9 @@ static int bttv_querycap(struct file *file, void  *priv,
 		V4L2_CAP_DEVICE_CAPS;
 	if (no_overlay <= 0)
 		cap->capabilities |= V4L2_CAP_VIDEO_OVERLAY;
-	if (btv->vbi_dev)
+	if (video_is_registered(&btv->vbi_dev))
 		cap->capabilities |= V4L2_CAP_VBI_CAPTURE;
-	if (btv->radio_dev)
+	if (video_is_registered(&btv->radio_dev))
 		cap->capabilities |= V4L2_CAP_RADIO;
 
 	/*
@@ -2513,6 +2515,8 @@ static int bttv_querycap(struct file *file, void  *priv,
 		if (btv->has_saa6588)
 			cap->device_caps |= V4L2_CAP_READWRITE |
 						V4L2_CAP_RDS_CAPTURE;
+		if (btv->has_tea575x)
+			cap->device_caps |= V4L2_CAP_HW_FREQ_SEEK;
 	}
 	return 0;
 }
@@ -3242,6 +3246,9 @@ static int radio_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 	if (btv->audio_mode_gpio)
 		btv->audio_mode_gpio(btv, t, 0);
 
+	if (btv->has_tea575x)
+		return snd_tea575x_g_tuner(&btv->tea, t);
+
 	return 0;
 }
 
@@ -3257,6 +3264,30 @@ static int radio_s_tuner(struct file *file, void *priv,
 	radio_enable(btv);
 	bttv_call_all(btv, tuner, s_tuner, t);
 	return 0;
+}
+
+static int radio_s_hw_freq_seek(struct file *file, void *priv,
+					const struct v4l2_hw_freq_seek *a)
+{
+	struct bttv_fh *fh = priv;
+	struct bttv *btv = fh->btv;
+
+	if (btv->has_tea575x)
+		return snd_tea575x_s_hw_freq_seek(file, &btv->tea, a);
+
+	return -ENOTTY;
+}
+
+static int radio_enum_freq_bands(struct file *file, void *priv,
+					 struct v4l2_frequency_band *band)
+{
+	struct bttv_fh *fh = priv;
+	struct bttv *btv = fh->btv;
+
+	if (btv->has_tea575x)
+		return snd_tea575x_enum_freq_bands(&btv->tea, band);
+
+	return -ENOTTY;
 }
 
 static ssize_t radio_read(struct file *file, char __user *data,
@@ -3316,6 +3347,8 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_s_tuner         = radio_s_tuner,
 	.vidioc_g_frequency     = bttv_g_frequency,
 	.vidioc_s_frequency     = bttv_s_frequency,
+	.vidioc_s_hw_freq_seek	= radio_s_hw_freq_seek,
+	.vidioc_enum_freq_bands	= radio_enum_freq_bands,
 	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
@@ -3872,19 +3905,14 @@ static irqreturn_t bttv_irq(int irq, void *dev_id)
 /* ----------------------------------------------------------------------- */
 /* initialization                                                          */
 
-static struct video_device *vdev_init(struct bttv *btv,
-				      const struct video_device *template,
-				      const char *type_name)
+static void vdev_init(struct bttv *btv,
+		      struct video_device *vfd,
+		      const struct video_device *template,
+		      const char *type_name)
 {
-	struct video_device *vfd;
-
-	vfd = video_device_alloc();
-	if (NULL == vfd)
-		return NULL;
 	*vfd = *template;
 	vfd->v4l2_dev = &btv->c.v4l2_dev;
-	vfd->release = video_device_release;
-	vfd->debug   = bttv_debug;
+	vfd->release = video_device_release_empty;
 	video_set_drvdata(vfd, btv);
 	snprintf(vfd->name, sizeof(vfd->name), "BT%d%s %s (%s)",
 		 btv->id, (btv->id==848 && btv->revision==0x12) ? "A" : "",
@@ -3895,32 +3923,13 @@ static struct video_device *vdev_init(struct bttv *btv,
 		v4l2_disable_ioctl(vfd, VIDIOC_G_TUNER);
 		v4l2_disable_ioctl(vfd, VIDIOC_S_TUNER);
 	}
-	return vfd;
 }
 
 static void bttv_unregister_video(struct bttv *btv)
 {
-	if (btv->video_dev) {
-		if (video_is_registered(btv->video_dev))
-			video_unregister_device(btv->video_dev);
-		else
-			video_device_release(btv->video_dev);
-		btv->video_dev = NULL;
-	}
-	if (btv->vbi_dev) {
-		if (video_is_registered(btv->vbi_dev))
-			video_unregister_device(btv->vbi_dev);
-		else
-			video_device_release(btv->vbi_dev);
-		btv->vbi_dev = NULL;
-	}
-	if (btv->radio_dev) {
-		if (video_is_registered(btv->radio_dev))
-			video_unregister_device(btv->radio_dev);
-		else
-			video_device_release(btv->radio_dev);
-		btv->radio_dev = NULL;
-	}
+	video_unregister_device(&btv->video_dev);
+	video_unregister_device(&btv->vbi_dev);
+	video_unregister_device(&btv->radio_dev);
 }
 
 /* register video4linux devices */
@@ -3930,44 +3939,38 @@ static int bttv_register_video(struct bttv *btv)
 		pr_notice("Overlay support disabled\n");
 
 	/* video */
-	btv->video_dev = vdev_init(btv, &bttv_video_template, "video");
+	vdev_init(btv, &btv->video_dev, &bttv_video_template, "video");
 
-	if (NULL == btv->video_dev)
-		goto err;
-	if (video_register_device(btv->video_dev, VFL_TYPE_GRABBER,
+	if (video_register_device(&btv->video_dev, VFL_TYPE_GRABBER,
 				  video_nr[btv->c.nr]) < 0)
 		goto err;
 	pr_info("%d: registered device %s\n",
-		btv->c.nr, video_device_node_name(btv->video_dev));
-	if (device_create_file(&btv->video_dev->dev,
+		btv->c.nr, video_device_node_name(&btv->video_dev));
+	if (device_create_file(&btv->video_dev.dev,
 				     &dev_attr_card)<0) {
 		pr_err("%d: device_create_file 'card' failed\n", btv->c.nr);
 		goto err;
 	}
 
 	/* vbi */
-	btv->vbi_dev = vdev_init(btv, &bttv_video_template, "vbi");
+	vdev_init(btv, &btv->vbi_dev, &bttv_video_template, "vbi");
 
-	if (NULL == btv->vbi_dev)
-		goto err;
-	if (video_register_device(btv->vbi_dev, VFL_TYPE_VBI,
+	if (video_register_device(&btv->vbi_dev, VFL_TYPE_VBI,
 				  vbi_nr[btv->c.nr]) < 0)
 		goto err;
 	pr_info("%d: registered device %s\n",
-		btv->c.nr, video_device_node_name(btv->vbi_dev));
+		btv->c.nr, video_device_node_name(&btv->vbi_dev));
 
 	if (!btv->has_radio)
 		return 0;
 	/* radio */
-	btv->radio_dev = vdev_init(btv, &radio_template, "radio");
-	if (NULL == btv->radio_dev)
-		goto err;
-	btv->radio_dev->ctrl_handler = &btv->radio_ctrl_handler;
-	if (video_register_device(btv->radio_dev, VFL_TYPE_RADIO,
+	vdev_init(btv, &btv->radio_dev, &radio_template, "radio");
+	btv->radio_dev.ctrl_handler = &btv->radio_ctrl_handler;
+	if (video_register_device(&btv->radio_dev, VFL_TYPE_RADIO,
 				  radio_nr[btv->c.nr]) < 0)
 		goto err;
 	pr_info("%d: registered device %s\n",
-		btv->c.nr, video_device_node_name(btv->radio_dev));
+		btv->c.nr, video_device_node_name(&btv->radio_dev));
 
 	/* all done */
 	return 0;
@@ -4429,9 +4432,3 @@ static void __exit bttv_cleanup_module(void)
 
 module_init(bttv_init_module);
 module_exit(bttv_cleanup_module);
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

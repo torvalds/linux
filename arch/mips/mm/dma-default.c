@@ -61,6 +61,11 @@ static inline struct page *dma_addr_to_page(struct device *dev,
  * Warning on the terminology - Linux calls an uncached area coherent;
  * MIPS terminology calls memory areas with hardware maintained coherency
  * coherent.
+ *
+ * Note that the R14000 and R16000 should also be checked for in this
+ * condition.  However this function is only called on non-I/O-coherent
+ * systems and only the R10000 and R12000 are used in such systems, the
+ * SGI IP28 Indigo² rsp. SGI IP32 aka O2.
  */
 static inline int cpu_needs_post_dma_flush(struct device *dev)
 {
@@ -253,7 +258,7 @@ static void mips_dma_unmap_page(struct device *dev, dma_addr_t dma_addr,
 	if (cpu_needs_post_dma_flush(dev))
 		__dma_sync(dma_addr_to_page(dev, dma_addr),
 			   dma_addr & ~PAGE_MASK, size, direction);
-
+	plat_post_dma_flush(dev);
 	plat_unmap_dma_mem(dev, dma_addr, size, direction);
 }
 
@@ -307,6 +312,7 @@ static void mips_dma_sync_single_for_cpu(struct device *dev,
 	if (cpu_needs_post_dma_flush(dev))
 		__dma_sync(dma_addr_to_page(dev, dma_handle),
 			   dma_handle & ~PAGE_MASK, size, direction);
+	plat_post_dma_flush(dev);
 }
 
 static void mips_dma_sync_single_for_device(struct device *dev,
@@ -326,6 +332,7 @@ static void mips_dma_sync_sg_for_cpu(struct device *dev,
 		for (i = 0; i < nelems; i++, sg++)
 			__dma_sync(sg_page(sg), sg->offset, sg->length,
 				   direction);
+	plat_post_dma_flush(dev);
 }
 
 static void mips_dma_sync_sg_for_device(struct device *dev,

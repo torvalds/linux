@@ -27,6 +27,7 @@ struct ring_buffer {
 	local_t				lost;		/* nr records lost   */
 
 	long				watermark;	/* wakeup watermark  */
+	long				aux_watermark;
 	/* poll crap */
 	spinlock_t			event_lock;
 	struct list_head		event_list;
@@ -34,6 +35,20 @@ struct ring_buffer {
 	atomic_t			mmap_count;
 	unsigned long			mmap_locked;
 	struct user_struct		*mmap_user;
+
+	/* AUX area */
+	local_t				aux_head;
+	local_t				aux_nest;
+	local_t				aux_wakeup;
+	unsigned long			aux_pgoff;
+	int				aux_nr_pages;
+	int				aux_overwrite;
+	atomic_t			aux_mmap_count;
+	unsigned long			aux_mmap_locked;
+	void				(*free_aux)(void *);
+	atomic_t			aux_refcount;
+	void				**aux_pages;
+	void				*aux_priv;
 
 	struct perf_event_mmap_page	*user_page;
 	void				*data_pages[0];
@@ -43,6 +58,19 @@ extern void rb_free(struct ring_buffer *rb);
 extern struct ring_buffer *
 rb_alloc(int nr_pages, long watermark, int cpu, int flags);
 extern void perf_event_wakeup(struct perf_event *event);
+extern int rb_alloc_aux(struct ring_buffer *rb, struct perf_event *event,
+			pgoff_t pgoff, int nr_pages, long watermark, int flags);
+extern void rb_free_aux(struct ring_buffer *rb);
+extern struct ring_buffer *ring_buffer_get(struct perf_event *event);
+extern void ring_buffer_put(struct ring_buffer *rb);
+
+static inline bool rb_has_aux(struct ring_buffer *rb)
+{
+	return !!rb->aux_nr_pages;
+}
+
+void perf_event_aux_event(struct perf_event *event, unsigned long head,
+			  unsigned long size, u64 flags);
 
 extern void
 perf_event_header__init_id(struct perf_event_header *header,
@@ -79,6 +107,11 @@ static inline int page_order(struct ring_buffer *rb)
 static inline unsigned long perf_data_size(struct ring_buffer *rb)
 {
 	return rb->nr_pages << (PAGE_SHIFT + page_order(rb));
+}
+
+static inline unsigned long perf_aux_size(struct ring_buffer *rb)
+{
+	return rb->aux_nr_pages << PAGE_SHIFT;
 }
 
 #define DEFINE_OUTPUT_COPY(func_name, memcpy_func)			\

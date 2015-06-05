@@ -194,6 +194,41 @@ static void stsi_2_2_2(struct seq_file *m, struct sysinfo_2_2_2 *info)
 	seq_printf(m, "LPAR CPUs Reserved:   %d\n", info->cpus_reserved);
 	seq_printf(m, "LPAR CPUs Dedicated:  %d\n", info->cpus_dedicated);
 	seq_printf(m, "LPAR CPUs Shared:     %d\n", info->cpus_shared);
+	if (info->mt_installed & 0x80) {
+		seq_printf(m, "LPAR CPUs G-MTID:     %d\n",
+			   info->mt_general & 0x1f);
+		seq_printf(m, "LPAR CPUs S-MTID:     %d\n",
+			   info->mt_installed & 0x1f);
+		seq_printf(m, "LPAR CPUs PS-MTID:    %d\n",
+			   info->mt_psmtid & 0x1f);
+	}
+}
+
+static void print_ext_name(struct seq_file *m, int lvl,
+			   struct sysinfo_3_2_2 *info)
+{
+	if (info->vm[lvl].ext_name_encoding == 0)
+		return;
+	if (info->ext_names[lvl][0] == 0)
+		return;
+	switch (info->vm[lvl].ext_name_encoding) {
+	case 1: /* EBCDIC */
+		EBCASC(info->ext_names[lvl], sizeof(info->ext_names[lvl]));
+		break;
+	case 2:	/* UTF-8 */
+		break;
+	default:
+		return;
+	}
+	seq_printf(m, "VM%02d Extended Name:   %-.256s\n", lvl,
+		   info->ext_names[lvl]);
+}
+
+static void print_uuid(struct seq_file *m, int i, struct sysinfo_3_2_2 *info)
+{
+	if (!memcmp(&info->vm[i].uuid, &NULL_UUID_BE, sizeof(uuid_be)))
+		return;
+	seq_printf(m, "VM%02d UUID:            %pUb\n", i, &info->vm[i].uuid);
 }
 
 static void stsi_3_2_2(struct seq_file *m, struct sysinfo_3_2_2 *info)
@@ -213,6 +248,8 @@ static void stsi_3_2_2(struct seq_file *m, struct sysinfo_3_2_2 *info)
 		seq_printf(m, "VM%02d CPUs Configured: %d\n", i, info->vm[i].cpus_configured);
 		seq_printf(m, "VM%02d CPUs Standby:    %d\n", i, info->vm[i].cpus_standby);
 		seq_printf(m, "VM%02d CPUs Reserved:   %d\n", i, info->vm[i].cpus_reserved);
+		print_ext_name(m, i, info);
+		print_uuid(m, i, info);
 	}
 }
 

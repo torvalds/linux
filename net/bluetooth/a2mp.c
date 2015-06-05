@@ -19,9 +19,11 @@
 #include "a2mp.h"
 #include "amp.h"
 
+#define A2MP_FEAT_EXT	0x8000
+
 /* Global AMP Manager list */
-LIST_HEAD(amp_mgr_list);
-DEFINE_MUTEX(amp_mgr_list_lock);
+static LIST_HEAD(amp_mgr_list);
+static DEFINE_MUTEX(amp_mgr_list_lock);
 
 /* A2MP build & send command helper functions */
 static struct a2mp_cmd *__a2mp_build(u8 code, u8 ident, u16 len, void *data)
@@ -43,7 +45,7 @@ static struct a2mp_cmd *__a2mp_build(u8 code, u8 ident, u16 len, void *data)
 	return cmd;
 }
 
-void a2mp_send(struct amp_mgr *mgr, u8 code, u8 ident, u16 len, void *data)
+static void a2mp_send(struct amp_mgr *mgr, u8 code, u8 ident, u16 len, void *data)
 {
 	struct l2cap_chan *chan = mgr->a2mp_chan;
 	struct a2mp_cmd *cmd;
@@ -60,20 +62,36 @@ void a2mp_send(struct amp_mgr *mgr, u8 code, u8 ident, u16 len, void *data)
 
 	memset(&msg, 0, sizeof(msg));
 
-	msg.msg_iov = (struct iovec *) &iv;
-	msg.msg_iovlen = 1;
+	iov_iter_kvec(&msg.msg_iter, WRITE | ITER_KVEC, &iv, 1, total_len);
 
 	l2cap_chan_send(chan, &msg, total_len);
 
 	kfree(cmd);
 }
 
-u8 __next_ident(struct amp_mgr *mgr)
+static u8 __next_ident(struct amp_mgr *mgr)
 {
 	if (++mgr->ident == 0)
 		mgr->ident = 1;
 
 	return mgr->ident;
+}
+
+static struct amp_mgr *amp_mgr_lookup_by_state(u8 state)
+{
+	struct amp_mgr *mgr;
+
+	mutex_lock(&amp_mgr_list_lock);
+	list_for_each_entry(mgr, &amp_mgr_list, list) {
+		if (test_and_clear_bit(state, &mgr->state)) {
+			amp_mgr_get(mgr);
+			mutex_unlock(&amp_mgr_list_lock);
+			return mgr;
+		}
+	}
+	mutex_unlock(&amp_mgr_list_lock);
+
+	return NULL;
 }
 
 /* hci_dev_list shall be locked */
@@ -720,7 +738,6 @@ static const struct l2cap_ops a2mp_chan_ops = {
 	.resume = l2cap_chan_no_resume,
 	.set_shutdown = l2cap_chan_no_set_shutdown,
 	.get_sndtimeo = l2cap_chan_no_get_sndtimeo,
-	.memcpy_fromiovec = l2cap_chan_no_memcpy_fromiovec,
 };
 
 static struct l2cap_chan *a2mp_chan_open(struct l2cap_conn *conn, bool locked)
@@ -860,23 +877,6 @@ struct l2cap_chan *a2mp_channel_create(struct l2cap_conn *conn,
 	BT_DBG("mgr: %p chan %p", mgr, mgr->a2mp_chan);
 
 	return mgr->a2mp_chan;
-}
-
-struct amp_mgr *amp_mgr_lookup_by_state(u8 state)
-{
-	struct amp_mgr *mgr;
-
-	mutex_lock(&amp_mgr_list_lock);
-	list_for_each_entry(mgr, &amp_mgr_list, list) {
-		if (test_and_clear_bit(state, &mgr->state)) {
-			amp_mgr_get(mgr);
-			mutex_unlock(&amp_mgr_list_lock);
-			return mgr;
-		}
-	}
-	mutex_unlock(&amp_mgr_list_lock);
-
-	return NULL;
 }
 
 void a2mp_send_getinfo_rsp(struct hci_dev *hdev)

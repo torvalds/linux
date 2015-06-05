@@ -26,7 +26,38 @@
 /* Define max times to check status register before we give up. */
 #define	MAX_READY_WAIT_JIFFIES	(40 * HZ) /* M25P16 specs 40s max chip erase */
 
-#define JEDEC_MFR(_jedec_id)	((_jedec_id) >> 16)
+#define SPI_NOR_MAX_ID_LEN	6
+
+struct flash_info {
+	/*
+	 * This array stores the ID bytes.
+	 * The first three bytes are the JEDIC ID.
+	 * JEDEC ID zero means "no ID" (mostly older chips).
+	 */
+	u8		id[SPI_NOR_MAX_ID_LEN];
+	u8		id_len;
+
+	/* The size listed here is what works with SPINOR_OP_SE, which isn't
+	 * necessarily called a "sector" by the vendor.
+	 */
+	unsigned	sector_size;
+	u16		n_sectors;
+
+	u16		page_size;
+	u16		addr_width;
+
+	u16		flags;
+#define	SECT_4K			0x01	/* SPINOR_OP_BE_4K works uniformly */
+#define	SPI_NOR_NO_ERASE	0x02	/* No erase command needed */
+#define	SST_WRITE		0x04	/* use SST byte programming */
+#define	SPI_NOR_NO_FR		0x08	/* Can't do fastread */
+#define	SECT_4K_PMC		0x10	/* SPINOR_OP_BE_4K_PMC works uniformly */
+#define	SPI_NOR_DUAL_READ	0x20    /* Flash supports Dual Read */
+#define	SPI_NOR_QUAD_READ	0x40    /* Flash supports Quad Read */
+#define	USE_FSR			0x80	/* use flag status register */
+};
+
+#define JEDEC_MFR(info)	((info)->id[0])
 
 static const struct spi_device_id *spi_nor_match_id(const char *name);
 
@@ -98,7 +129,7 @@ static inline int spi_nor_read_dummy_cycles(struct spi_nor *nor)
 	case SPI_NOR_FAST:
 	case SPI_NOR_DUAL:
 	case SPI_NOR_QUAD:
-		return 1;
+		return 8;
 	case SPI_NOR_NORMAL:
 		return 0;
 	}
@@ -138,13 +169,14 @@ static inline struct spi_nor *mtd_to_spi_nor(struct mtd_info *mtd)
 }
 
 /* Enable/disable 4-byte addressing mode. */
-static inline int set_4byte(struct spi_nor *nor, u32 jedec_id, int enable)
+static inline int set_4byte(struct spi_nor *nor, struct flash_info *info,
+			    int enable)
 {
 	int status;
 	bool need_wren = false;
 	u8 cmd;
 
-	switch (JEDEC_MFR(jedec_id)) {
+	switch (JEDEC_MFR(info)) {
 	case CFI_MFR_ST: /* Micron, actually */
 		/* Some Micron need WREN command; all will accept it */
 		need_wren = true;
@@ -165,60 +197,63 @@ static inline int set_4byte(struct spi_nor *nor, u32 jedec_id, int enable)
 		return nor->write_reg(nor, SPINOR_OP_BRWR, nor->cmd_buf, 1, 0);
 	}
 }
-
-static int spi_nor_wait_till_ready(struct spi_nor *nor)
+static inline int spi_nor_sr_ready(struct spi_nor *nor)
 {
-	unsigned long deadline;
-	int sr;
-
-	deadline = jiffies + MAX_READY_WAIT_JIFFIES;
-
-	do {
-		cond_resched();
-
-		sr = read_sr(nor);
-		if (sr < 0)
-			break;
-		else if (!(sr & SR_WIP))
-			return 0;
-	} while (!time_after_eq(jiffies, deadline));
-
-	return -ETIMEDOUT;
+	int sr = read_sr(nor);
+	if (sr < 0)
+		return sr;
+	else
+		return !(sr & SR_WIP);
 }
 
-static int spi_nor_wait_till_fsr_ready(struct spi_nor *nor)
+static inline int spi_nor_fsr_ready(struct spi_nor *nor)
 {
-	unsigned long deadline;
-	int sr;
-	int fsr;
+	int fsr = read_fsr(nor);
+	if (fsr < 0)
+		return fsr;
+	else
+		return fsr & FSR_READY;
+}
 
-	deadline = jiffies + MAX_READY_WAIT_JIFFIES;
-
-	do {
-		cond_resched();
-
-		sr = read_sr(nor);
-		if (sr < 0) {
-			break;
-		} else if (!(sr & SR_WIP)) {
-			fsr = read_fsr(nor);
-			if (fsr < 0)
-				break;
-			if (fsr & FSR_READY)
-				return 0;
-		}
-	} while (!time_after_eq(jiffies, deadline));
-
-	return -ETIMEDOUT;
+static int spi_nor_ready(struct spi_nor *nor)
+{
+	int sr, fsr;
+	sr = spi_nor_sr_ready(nor);
+	if (sr < 0)
+		return sr;
+	fsr = nor->flags & SNOR_F_USE_FSR ? spi_nor_fsr_ready(nor) : 1;
+	if (fsr < 0)
+		return fsr;
+	return sr && fsr;
 }
 
 /*
  * Service routine to read status register until ready, or timeout occurs.
  * Returns non-zero if error.
  */
-static int wait_till_ready(struct spi_nor *nor)
+static int spi_nor_wait_till_ready(struct spi_nor *nor)
 {
-	return nor->wait_till_ready(nor);
+	unsigned long deadline;
+	int timeout = 0, ret;
+
+	deadline = jiffies + MAX_READY_WAIT_JIFFIES;
+
+	while (!timeout) {
+		if (time_after_eq(jiffies, deadline))
+			timeout = 1;
+
+		ret = spi_nor_ready(nor);
+		if (ret < 0)
+			return ret;
+		if (ret)
+			return 0;
+
+		cond_resched();
+	}
+
+	dev_err(nor->dev, "flash operation timed out\n");
+
+	return -ETIMEDOUT;
 }
 
 /*
@@ -228,17 +263,7 @@ static int wait_till_ready(struct spi_nor *nor)
  */
 static int erase_chip(struct spi_nor *nor)
 {
-	int ret;
-
 	dev_dbg(nor->dev, " %lldKiB\n", (long long)(nor->mtd->size >> 10));
-
-	/* Wait until finished previous write command. */
-	ret = wait_till_ready(nor);
-	if (ret)
-		return ret;
-
-	/* Send write enable, then erase commands. */
-	write_enable(nor);
 
 	return nor->write_reg(nor, SPINOR_OP_CHIP_ERASE, NULL, 0, 0);
 }
@@ -294,10 +319,16 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 	/* whole-chip erase? */
 	if (len == mtd->size) {
+		write_enable(nor);
+
 		if (erase_chip(nor)) {
 			ret = -EIO;
 			goto erase_err;
 		}
+
+		ret = spi_nor_wait_till_ready(nor);
+		if (ret)
+			goto erase_err;
 
 	/* REVISIT in some cases we could speed up erasing large regions
 	 * by using SPINOR_OP_SE instead of SPINOR_OP_BE_4K.  We may have set up
@@ -307,6 +338,8 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 	/* "sector"-at-a-time erase */
 	} else {
 		while (len) {
+			write_enable(nor);
+
 			if (nor->erase(nor, addr)) {
 				ret = -EIO;
 				goto erase_err;
@@ -314,8 +347,14 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 			addr += mtd->erasesize;
 			len -= mtd->erasesize;
+
+			ret = spi_nor_wait_till_ready(nor);
+			if (ret)
+				goto erase_err;
 		}
 	}
+
+	write_disable(nor);
 
 	spi_nor_unlock_and_unprep(nor, SPI_NOR_OPS_ERASE);
 
@@ -330,21 +369,12 @@ erase_err:
 	return ret;
 }
 
-static int spi_nor_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
+static int stm_lock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 {
-	struct spi_nor *nor = mtd_to_spi_nor(mtd);
+	struct mtd_info *mtd = nor->mtd;
 	uint32_t offset = ofs;
 	uint8_t status_old, status_new;
 	int ret = 0;
-
-	ret = spi_nor_lock_and_prep(nor, SPI_NOR_OPS_LOCK);
-	if (ret)
-		return ret;
-
-	/* Wait until finished previous command */
-	ret = wait_till_ready(nor);
-	if (ret)
-		goto err;
 
 	status_old = read_sr(nor);
 
@@ -368,30 +398,17 @@ static int spi_nor_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 				(status_old & (SR_BP2 | SR_BP1 | SR_BP0))) {
 		write_enable(nor);
 		ret = write_sr(nor, status_new);
-		if (ret)
-			goto err;
 	}
 
-err:
-	spi_nor_unlock_and_unprep(nor, SPI_NOR_OPS_LOCK);
 	return ret;
 }
 
-static int spi_nor_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
+static int stm_unlock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 {
-	struct spi_nor *nor = mtd_to_spi_nor(mtd);
+	struct mtd_info *mtd = nor->mtd;
 	uint32_t offset = ofs;
 	uint8_t status_old, status_new;
 	int ret = 0;
-
-	ret = spi_nor_lock_and_prep(nor, SPI_NOR_OPS_UNLOCK);
-	if (ret)
-		return ret;
-
-	/* Wait until finished previous command */
-	ret = wait_till_ready(nor);
-	if (ret)
-		goto err;
 
 	status_old = read_sr(nor);
 
@@ -415,47 +432,69 @@ static int spi_nor_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 				(status_old & (SR_BP2 | SR_BP1 | SR_BP0))) {
 		write_enable(nor);
 		ret = write_sr(nor, status_new);
-		if (ret)
-			goto err;
 	}
 
-err:
+	return ret;
+}
+
+static int spi_nor_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
+{
+	struct spi_nor *nor = mtd_to_spi_nor(mtd);
+	int ret;
+
+	ret = spi_nor_lock_and_prep(nor, SPI_NOR_OPS_LOCK);
+	if (ret)
+		return ret;
+
+	ret = nor->flash_lock(nor, ofs, len);
+
 	spi_nor_unlock_and_unprep(nor, SPI_NOR_OPS_UNLOCK);
 	return ret;
 }
 
-struct flash_info {
-	/* JEDEC id zero means "no ID" (most older chips); otherwise it has
-	 * a high byte of zero plus three data bytes: the manufacturer id,
-	 * then a two byte device id.
-	 */
-	u32		jedec_id;
-	u16             ext_id;
+static int spi_nor_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
+{
+	struct spi_nor *nor = mtd_to_spi_nor(mtd);
+	int ret;
 
-	/* The size listed here is what works with SPINOR_OP_SE, which isn't
-	 * necessarily called a "sector" by the vendor.
-	 */
-	unsigned	sector_size;
-	u16		n_sectors;
+	ret = spi_nor_lock_and_prep(nor, SPI_NOR_OPS_UNLOCK);
+	if (ret)
+		return ret;
 
-	u16		page_size;
-	u16		addr_width;
+	ret = nor->flash_unlock(nor, ofs, len);
 
-	u16		flags;
-#define	SECT_4K			0x01	/* SPINOR_OP_BE_4K works uniformly */
-#define	SPI_NOR_NO_ERASE	0x02	/* No erase command needed */
-#define	SST_WRITE		0x04	/* use SST byte programming */
-#define	SPI_NOR_NO_FR		0x08	/* Can't do fastread */
-#define	SECT_4K_PMC		0x10	/* SPINOR_OP_BE_4K_PMC works uniformly */
-#define	SPI_NOR_DUAL_READ	0x20    /* Flash supports Dual Read */
-#define	SPI_NOR_QUAD_READ	0x40    /* Flash supports Quad Read */
-#define	USE_FSR			0x80	/* use flag status register */
-};
+	spi_nor_unlock_and_unprep(nor, SPI_NOR_OPS_LOCK);
+	return ret;
+}
 
+/* Used when the "_ext_id" is two bytes at most */
 #define INFO(_jedec_id, _ext_id, _sector_size, _n_sectors, _flags)	\
 	((kernel_ulong_t)&(struct flash_info) {				\
-		.jedec_id = (_jedec_id),				\
-		.ext_id = (_ext_id),					\
+		.id = {							\
+			((_jedec_id) >> 16) & 0xff,			\
+			((_jedec_id) >> 8) & 0xff,			\
+			(_jedec_id) & 0xff,				\
+			((_ext_id) >> 8) & 0xff,			\
+			(_ext_id) & 0xff,				\
+			},						\
+		.id_len = (!(_jedec_id) ? 0 : (3 + ((_ext_id) ? 2 : 0))),	\
+		.sector_size = (_sector_size),				\
+		.n_sectors = (_n_sectors),				\
+		.page_size = 256,					\
+		.flags = (_flags),					\
+	})
+
+#define INFO6(_jedec_id, _ext_id, _sector_size, _n_sectors, _flags)	\
+	((kernel_ulong_t)&(struct flash_info) {				\
+		.id = {							\
+			((_jedec_id) >> 16) & 0xff,			\
+			((_jedec_id) >> 8) & 0xff,			\
+			(_jedec_id) & 0xff,				\
+			((_ext_id) >> 16) & 0xff,			\
+			((_ext_id) >> 8) & 0xff,			\
+			(_ext_id) & 0xff,				\
+			},						\
+		.id_len = 6,						\
 		.sector_size = (_sector_size),				\
 		.n_sectors = (_n_sectors),				\
 		.page_size = 256,					\
@@ -499,6 +538,7 @@ static const struct spi_device_id spi_nor_ids[] = {
 	{ "en25q64",    INFO(0x1c3017, 0, 64 * 1024,  128, SECT_4K) },
 	{ "en25qh128",  INFO(0x1c7018, 0, 64 * 1024,  256, 0) },
 	{ "en25qh256",  INFO(0x1c7019, 0, 64 * 1024,  512, 0) },
+	{ "en25s64",	INFO(0x1c3817, 0, 64 * 1024,  128, 0) },
 
 	/* ESMT */
 	{ "f25l32pa", INFO(0x8c2016, 0, 64 * 1024, 64, SECT_4K) },
@@ -507,9 +547,13 @@ static const struct spi_device_id spi_nor_ids[] = {
 	{ "mr25h256", CAT25_INFO( 32 * 1024, 1, 256, 2, SPI_NOR_NO_ERASE | SPI_NOR_NO_FR) },
 	{ "mr25h10",  CAT25_INFO(128 * 1024, 1, 256, 3, SPI_NOR_NO_ERASE | SPI_NOR_NO_FR) },
 
+	/* Fujitsu */
+	{ "mb85rs1mt", INFO(0x047f27, 0, 128 * 1024, 1, SPI_NOR_NO_ERASE) },
+
 	/* GigaDevice */
 	{ "gd25q32", INFO(0xc84016, 0, 64 * 1024,  64, SECT_4K) },
 	{ "gd25q64", INFO(0xc84017, 0, 64 * 1024, 128, SECT_4K) },
+	{ "gd25q128", INFO(0xc84018, 0, 64 * 1024, 256, SECT_4K) },
 
 	/* Intel/Numonyx -- xxxs33b */
 	{ "160s33b",  INFO(0x898911, 0, 64 * 1024,  32, 0) },
@@ -524,6 +568,7 @@ static const struct spi_device_id spi_nor_ids[] = {
 	{ "mx25l3205d",  INFO(0xc22016, 0, 64 * 1024,  64, 0) },
 	{ "mx25l3255e",  INFO(0xc29e16, 0, 64 * 1024,  64, SECT_4K) },
 	{ "mx25l6405d",  INFO(0xc22017, 0, 64 * 1024, 128, 0) },
+	{ "mx25u6435f",  INFO(0xc22537, 0, 64 * 1024, 128, SECT_4K) },
 	{ "mx25l12805d", INFO(0xc22018, 0, 64 * 1024, 256, 0) },
 	{ "mx25l12855e", INFO(0xc22618, 0, 64 * 1024, 256, 0) },
 	{ "mx25l25635e", INFO(0xc22019, 0, 64 * 1024, 512, 0) },
@@ -532,13 +577,14 @@ static const struct spi_device_id spi_nor_ids[] = {
 	{ "mx66l1g55g",  INFO(0xc2261b, 0, 64 * 1024, 2048, SPI_NOR_QUAD_READ) },
 
 	/* Micron */
-	{ "n25q064",     INFO(0x20ba17, 0, 64 * 1024,  128, 0) },
-	{ "n25q128a11",  INFO(0x20bb18, 0, 64 * 1024,  256, 0) },
-	{ "n25q128a13",  INFO(0x20ba18, 0, 64 * 1024,  256, 0) },
-	{ "n25q256a",    INFO(0x20ba19, 0, 64 * 1024,  512, SECT_4K) },
-	{ "n25q512a",    INFO(0x20bb20, 0, 64 * 1024, 1024, SECT_4K) },
-	{ "n25q512ax3",  INFO(0x20ba20, 0, 64 * 1024, 1024, USE_FSR) },
-	{ "n25q00",      INFO(0x20ba21, 0, 64 * 1024, 2048, USE_FSR) },
+	{ "n25q032",	 INFO(0x20ba16, 0, 64 * 1024,   64, SPI_NOR_QUAD_READ) },
+	{ "n25q064",     INFO(0x20ba17, 0, 64 * 1024,  128, SPI_NOR_QUAD_READ) },
+	{ "n25q128a11",  INFO(0x20bb18, 0, 64 * 1024,  256, SPI_NOR_QUAD_READ) },
+	{ "n25q128a13",  INFO(0x20ba18, 0, 64 * 1024,  256, SPI_NOR_QUAD_READ) },
+	{ "n25q256a",    INFO(0x20ba19, 0, 64 * 1024,  512, SECT_4K | SPI_NOR_QUAD_READ) },
+	{ "n25q512a",    INFO(0x20bb20, 0, 64 * 1024, 1024, SECT_4K | USE_FSR | SPI_NOR_QUAD_READ) },
+	{ "n25q512ax3",  INFO(0x20ba20, 0, 64 * 1024, 1024, SECT_4K | USE_FSR | SPI_NOR_QUAD_READ) },
+	{ "n25q00",      INFO(0x20ba21, 0, 64 * 1024, 2048, SECT_4K | USE_FSR | SPI_NOR_QUAD_READ) },
 
 	/* PMC */
 	{ "pm25lv512",   INFO(0,        0, 32 * 1024,    2, SECT_4K_PMC) },
@@ -556,6 +602,7 @@ static const struct spi_device_id spi_nor_ids[] = {
 	{ "s70fl01gs",  INFO(0x010221, 0x4d00, 256 * 1024, 256, 0) },
 	{ "s25sl12800", INFO(0x012018, 0x0300, 256 * 1024,  64, 0) },
 	{ "s25sl12801", INFO(0x012018, 0x0301,  64 * 1024, 256, 0) },
+	{ "s25fl128s",	INFO6(0x012018, 0x4d0180, 64 * 1024, 256, SPI_NOR_QUAD_READ) },
 	{ "s25fl129p0", INFO(0x012018, 0x4d00, 256 * 1024,  64, 0) },
 	{ "s25fl129p1", INFO(0x012018, 0x4d01,  64 * 1024, 256, 0) },
 	{ "s25sl004a",  INFO(0x010212,      0,  64 * 1024,   8, 0) },
@@ -566,6 +613,7 @@ static const struct spi_device_id spi_nor_ids[] = {
 	{ "s25fl008k",  INFO(0xef4014,      0,  64 * 1024,  16, SECT_4K) },
 	{ "s25fl016k",  INFO(0xef4015,      0,  64 * 1024,  32, SECT_4K) },
 	{ "s25fl064k",  INFO(0xef4017,      0,  64 * 1024, 128, SECT_4K) },
+	{ "s25fl132k",  INFO(0x014016,      0,  64 * 1024,  64, 0) },
 
 	/* SST -- large erase sizes are "overlays", "sectors" are 4K */
 	{ "sst25vf040b", INFO(0xbf258d, 0, 64 * 1024,  8, SECT_4K | SST_WRITE) },
@@ -577,6 +625,7 @@ static const struct spi_device_id spi_nor_ids[] = {
 	{ "sst25wf010",  INFO(0xbf2502, 0, 64 * 1024,  2, SECT_4K | SST_WRITE) },
 	{ "sst25wf020",  INFO(0xbf2503, 0, 64 * 1024,  4, SECT_4K | SST_WRITE) },
 	{ "sst25wf040",  INFO(0xbf2504, 0, 64 * 1024,  8, SECT_4K | SST_WRITE) },
+	{ "sst25wf080",  INFO(0xbf2505, 0, 64 * 1024, 16, SECT_4K | SST_WRITE) },
 
 	/* ST Microelectronics -- newer production may have feature updates */
 	{ "m25p05",  INFO(0x202010,  0,  32 * 1024,   2, 0) },
@@ -588,7 +637,6 @@ static const struct spi_device_id spi_nor_ids[] = {
 	{ "m25p32",  INFO(0x202016,  0,  64 * 1024,  64, 0) },
 	{ "m25p64",  INFO(0x202017,  0,  64 * 1024, 128, 0) },
 	{ "m25p128", INFO(0x202018,  0, 256 * 1024,  64, 0) },
-	{ "n25q032", INFO(0x20ba16,  0,  64 * 1024,  64, 0) },
 
 	{ "m25p05-nonjedec",  INFO(0, 0,  32 * 1024,   2, 0) },
 	{ "m25p10-nonjedec",  INFO(0, 0,  32 * 1024,   4, 0) },
@@ -616,6 +664,7 @@ static const struct spi_device_id spi_nor_ids[] = {
 	{ "m25px80",    INFO(0x207114,  0, 64 * 1024, 16, 0) },
 
 	/* Winbond -- w25x "blocks" are 64K, "sectors" are 4KiB */
+	{ "w25x05", INFO(0xef3010, 0, 64 * 1024,  1,  SECT_4K) },
 	{ "w25x10", INFO(0xef3011, 0, 64 * 1024,  2,  SECT_4K) },
 	{ "w25x20", INFO(0xef3012, 0, 64 * 1024,  4,  SECT_4K) },
 	{ "w25x40", INFO(0xef3013, 0, 64 * 1024,  8,  SECT_4K) },
@@ -626,6 +675,7 @@ static const struct spi_device_id spi_nor_ids[] = {
 	{ "w25q32dw", INFO(0xef6016, 0, 64 * 1024,  64, SECT_4K) },
 	{ "w25x64", INFO(0xef3017, 0, 64 * 1024, 128, SECT_4K) },
 	{ "w25q64", INFO(0xef4017, 0, 64 * 1024, 128, SECT_4K) },
+	{ "w25q64dw", INFO(0xef6017, 0, 64 * 1024, 128, SECT_4K) },
 	{ "w25q80", INFO(0xef5014, 0, 64 * 1024,  16, SECT_4K) },
 	{ "w25q80bl", INFO(0xef4014, 0, 64 * 1024,  16, SECT_4K) },
 	{ "w25q128", INFO(0xef4018, 0, 64 * 1024, 256, SECT_4K) },
@@ -643,32 +693,24 @@ static const struct spi_device_id spi_nor_ids[] = {
 static const struct spi_device_id *spi_nor_read_id(struct spi_nor *nor)
 {
 	int			tmp;
-	u8			id[5];
-	u32			jedec;
-	u16                     ext_jedec;
+	u8			id[SPI_NOR_MAX_ID_LEN];
 	struct flash_info	*info;
 
-	tmp = nor->read_reg(nor, SPINOR_OP_RDID, id, 5);
+	tmp = nor->read_reg(nor, SPINOR_OP_RDID, id, SPI_NOR_MAX_ID_LEN);
 	if (tmp < 0) {
 		dev_dbg(nor->dev, " error %d reading JEDEC ID\n", tmp);
 		return ERR_PTR(tmp);
 	}
-	jedec = id[0];
-	jedec = jedec << 8;
-	jedec |= id[1];
-	jedec = jedec << 8;
-	jedec |= id[2];
-
-	ext_jedec = id[3] << 8 | id[4];
 
 	for (tmp = 0; tmp < ARRAY_SIZE(spi_nor_ids) - 1; tmp++) {
 		info = (void *)spi_nor_ids[tmp].driver_data;
-		if (info->jedec_id == jedec) {
-			if (info->ext_id == 0 || info->ext_id == ext_jedec)
+		if (info->id_len) {
+			if (!memcmp(info->id, id, info->id_len))
 				return &spi_nor_ids[tmp];
 		}
 	}
-	dev_err(nor->dev, "unrecognized JEDEC id %06x\n", jedec);
+	dev_err(nor->dev, "unrecognized JEDEC id bytes: %02x, %2x, %2x\n",
+		id[0], id[1], id[2]);
 	return ERR_PTR(-ENODEV);
 }
 
@@ -703,11 +745,6 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 	if (ret)
 		return ret;
 
-	/* Wait until finished previous write command. */
-	ret = wait_till_ready(nor);
-	if (ret)
-		goto time_out;
-
 	write_enable(nor);
 
 	nor->sst_write_second = false;
@@ -719,7 +756,7 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 		/* write one byte. */
 		nor->write(nor, to, 1, retlen, buf);
-		ret = wait_till_ready(nor);
+		ret = spi_nor_wait_till_ready(nor);
 		if (ret)
 			goto time_out;
 	}
@@ -731,7 +768,7 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 		/* write two bytes. */
 		nor->write(nor, to, 2, retlen, buf + actual);
-		ret = wait_till_ready(nor);
+		ret = spi_nor_wait_till_ready(nor);
 		if (ret)
 			goto time_out;
 		to += 2;
@@ -740,7 +777,7 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 	nor->sst_write_second = false;
 
 	write_disable(nor);
-	ret = wait_till_ready(nor);
+	ret = spi_nor_wait_till_ready(nor);
 	if (ret)
 		goto time_out;
 
@@ -751,7 +788,7 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 		nor->program_opcode = SPINOR_OP_BP;
 		nor->write(nor, to, 1, retlen, buf + actual);
 
-		ret = wait_till_ready(nor);
+		ret = spi_nor_wait_till_ready(nor);
 		if (ret)
 			goto time_out;
 		write_disable(nor);
@@ -779,11 +816,6 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
 	if (ret)
 		return ret;
 
-	/* Wait until finished previous write command. */
-	ret = wait_till_ready(nor);
-	if (ret)
-		goto write_err;
-
 	write_enable(nor);
 
 	page_offset = to & (nor->page_size - 1);
@@ -802,16 +834,20 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
 			if (page_size > nor->page_size)
 				page_size = nor->page_size;
 
-			wait_till_ready(nor);
+			ret = spi_nor_wait_till_ready(nor);
+			if (ret)
+				goto write_err;
+
 			write_enable(nor);
 
 			nor->write(nor, to + i, page_size, retlen, buf + i);
 		}
 	}
 
+	ret = spi_nor_wait_till_ready(nor);
 write_err:
 	spi_nor_unlock_and_unprep(nor, SPI_NOR_OPS_WRITE);
-	return 0;
+	return ret;
 }
 
 static int macronix_quad_enable(struct spi_nor *nor)
@@ -824,7 +860,7 @@ static int macronix_quad_enable(struct spi_nor *nor)
 	nor->cmd_buf[0] = val | SR_QUAD_EN_MX;
 	nor->write_reg(nor, SPINOR_OP_WRSR, nor->cmd_buf, 1, 0);
 
-	if (wait_till_ready(nor))
+	if (spi_nor_wait_till_ready(nor))
 		return 1;
 
 	ret = read_sr(nor);
@@ -874,15 +910,61 @@ static int spansion_quad_enable(struct spi_nor *nor)
 	return 0;
 }
 
-static int set_quad_mode(struct spi_nor *nor, u32 jedec_id)
+static int micron_quad_enable(struct spi_nor *nor)
+{
+	int ret;
+	u8 val;
+
+	ret = nor->read_reg(nor, SPINOR_OP_RD_EVCR, &val, 1);
+	if (ret < 0) {
+		dev_err(nor->dev, "error %d reading EVCR\n", ret);
+		return ret;
+	}
+
+	write_enable(nor);
+
+	/* set EVCR, enable quad I/O */
+	nor->cmd_buf[0] = val & ~EVCR_QUAD_EN_MICRON;
+	ret = nor->write_reg(nor, SPINOR_OP_WD_EVCR, nor->cmd_buf, 1, 0);
+	if (ret < 0) {
+		dev_err(nor->dev, "error while writing EVCR register\n");
+		return ret;
+	}
+
+	ret = spi_nor_wait_till_ready(nor);
+	if (ret)
+		return ret;
+
+	/* read EVCR and check it */
+	ret = nor->read_reg(nor, SPINOR_OP_RD_EVCR, &val, 1);
+	if (ret < 0) {
+		dev_err(nor->dev, "error %d reading EVCR\n", ret);
+		return ret;
+	}
+	if (val & EVCR_QUAD_EN_MICRON) {
+		dev_err(nor->dev, "Micron EVCR Quad bit not clear\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int set_quad_mode(struct spi_nor *nor, struct flash_info *info)
 {
 	int status;
 
-	switch (JEDEC_MFR(jedec_id)) {
+	switch (JEDEC_MFR(info)) {
 	case CFI_MFR_MACRONIX:
 		status = macronix_quad_enable(nor);
 		if (status) {
 			dev_err(nor->dev, "Macronix quad-read not enabled\n");
+			return -EINVAL;
+		}
+		return status;
+	case CFI_MFR_ST:
+		status = micron_quad_enable(nor);
+		if (status) {
+			dev_err(nor->dev, "Micron quad-read not enabled\n");
 			return -EINVAL;
 		}
 		return status;
@@ -904,11 +986,6 @@ static int spi_nor_check(struct spi_nor *nor)
 		return -EINVAL;
 	}
 
-	if (!nor->read_id)
-		nor->read_id = spi_nor_read_id;
-	if (!nor->wait_till_ready)
-		nor->wait_till_ready = spi_nor_wait_till_ready;
-
 	return 0;
 }
 
@@ -926,16 +1003,24 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 	if (ret)
 		return ret;
 
-	id = spi_nor_match_id(name);
-	if (!id)
+	/* Try to auto-detect if chip name wasn't specified */
+	if (!name)
+		id = spi_nor_read_id(nor);
+	else
+		id = spi_nor_match_id(name);
+	if (IS_ERR_OR_NULL(id))
 		return -ENOENT;
 
 	info = (void *)id->driver_data;
 
-	if (info->jedec_id) {
+	/*
+	 * If caller has specified name of flash model that can normally be
+	 * detected using JEDEC, let's verify it.
+	 */
+	if (name && info->id_len) {
 		const struct spi_device_id *jid;
 
-		jid = nor->read_id(nor);
+		jid = spi_nor_read_id(nor);
 		if (IS_ERR(jid)) {
 			return PTR_ERR(jid);
 		} else if (jid != id) {
@@ -960,9 +1045,9 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 	 * up with the software protection bits set
 	 */
 
-	if (JEDEC_MFR(info->jedec_id) == CFI_MFR_ATMEL ||
-	    JEDEC_MFR(info->jedec_id) == CFI_MFR_INTEL ||
-	    JEDEC_MFR(info->jedec_id) == CFI_MFR_SST) {
+	if (JEDEC_MFR(info) == CFI_MFR_ATMEL ||
+	    JEDEC_MFR(info) == CFI_MFR_INTEL ||
+	    JEDEC_MFR(info) == CFI_MFR_SST) {
 		write_enable(nor);
 		write_sr(nor, 0);
 	}
@@ -977,7 +1062,12 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 	mtd->_read = spi_nor_read;
 
 	/* nor protection support for STmicro chips */
-	if (JEDEC_MFR(info->jedec_id) == CFI_MFR_ST) {
+	if (JEDEC_MFR(info) == CFI_MFR_ST) {
+		nor->flash_lock = stm_lock;
+		nor->flash_unlock = stm_unlock;
+	}
+
+	if (nor->flash_lock && nor->flash_unlock) {
 		mtd->_lock = spi_nor_lock;
 		mtd->_unlock = spi_nor_unlock;
 	}
@@ -988,9 +1078,8 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 	else
 		mtd->_write = spi_nor_write;
 
-	if ((info->flags & USE_FSR) &&
-	    nor->wait_till_ready == spi_nor_wait_till_ready)
-		nor->wait_till_ready = spi_nor_wait_till_fsr_ready;
+	if (info->flags & USE_FSR)
+		nor->flags |= SNOR_F_USE_FSR;
 
 #ifdef CONFIG_MTD_SPI_NOR_USE_4K_SECTORS
 	/* prefer "small sector" erase if possible */
@@ -1031,7 +1120,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 
 	/* Quad/Dual-read mode takes precedence over fast/normal */
 	if (mode == SPI_NOR_QUAD && info->flags & SPI_NOR_QUAD_READ) {
-		ret = set_quad_mode(nor, info->jedec_id);
+		ret = set_quad_mode(nor, info);
 		if (ret) {
 			dev_err(dev, "quad mode not supported\n");
 			return ret;
@@ -1067,7 +1156,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 	else if (mtd->size > 0x1000000) {
 		/* enable 4-byte addressing if the device exceeds 16MiB */
 		nor->addr_width = 4;
-		if (JEDEC_MFR(info->jedec_id) == CFI_MFR_AMD) {
+		if (JEDEC_MFR(info) == CFI_MFR_AMD) {
 			/* Dedicated 4-byte command set */
 			switch (nor->flash_read) {
 			case SPI_NOR_QUAD:
@@ -1088,7 +1177,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 			nor->erase_opcode = SPINOR_OP_SE_4B;
 			mtd->erasesize = info->sector_size;
 		} else
-			set_4byte(nor, info->jedec_id, 1);
+			set_4byte(nor, info, 1);
 	} else {
 		nor->addr_width = 3;
 	}

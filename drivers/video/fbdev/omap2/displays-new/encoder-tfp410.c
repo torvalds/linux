@@ -114,11 +114,20 @@ static void tfp410_disable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
+static void tfp410_fix_timings(struct omap_video_timings *timings)
+{
+	timings->data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
+	timings->sync_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
+	timings->de_level = OMAPDSS_SIG_ACTIVE_HIGH;
+}
+
 static void tfp410_set_timings(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
+
+	tfp410_fix_timings(timings);
 
 	ddata->timings = *timings;
 	dssdev->panel.timings = *timings;
@@ -139,6 +148,8 @@ static int tfp410_check_timings(struct omap_dss_device *dssdev,
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
+
+	tfp410_fix_timings(timings);
 
 	return in->ops.dpi->check_timings(in, timings);
 }
@@ -249,6 +260,7 @@ static int tfp410_probe(struct platform_device *pdev)
 	dssdev->output_type = OMAP_DISPLAY_TYPE_DVI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->phy.dpi.data_lines = ddata->data_lines;
+	dssdev->port_num = 1;
 
 	r = omapdss_register_output(dssdev);
 	if (r) {
@@ -296,7 +308,6 @@ static struct platform_driver tfp410_driver = {
 	.remove	= __exit_p(tfp410_remove),
 	.driver	= {
 		.name	= "tfp410",
-		.owner	= THIS_MODULE,
 		.of_match_table = tfp410_of_match,
 		.suppress_bind_attrs = true,
 	},

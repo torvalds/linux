@@ -37,6 +37,28 @@
 
 #define TTY_BUFFER_PAGE	(((PAGE_SIZE - sizeof(struct tty_buffer)) / 2) & ~0xFF)
 
+/*
+ * If all tty flip buffers have been processed by flush_to_ldisc() or
+ * dropped by tty_buffer_flush(), check if the linked pty has been closed.
+ * If so, wake the reader/poll to process
+ */
+static inline void check_other_closed(struct tty_struct *tty)
+{
+	unsigned long flags, old;
+
+	/* transition from TTY_OTHER_CLOSED => TTY_OTHER_DONE must be atomic */
+	for (flags = ACCESS_ONCE(tty->flags);
+	     test_bit(TTY_OTHER_CLOSED, &flags);
+	     ) {
+		old = flags;
+		__set_bit(TTY_OTHER_DONE, &flags);
+		flags = cmpxchg(&tty->flags, old, flags);
+		if (old == flags) {
+			wake_up_interruptible(&tty->read_wait);
+			break;
+		}
+	}
+}
 
 /**
  *	tty_buffer_lock_exclusive	-	gain exclusive access to buffer
@@ -202,14 +224,16 @@ static void tty_buffer_free(struct tty_port *port, struct tty_buffer *b)
 /**
  *	tty_buffer_flush		-	flush full tty buffers
  *	@tty: tty to flush
+ *	@ld:  optional ldisc ptr (must be referenced)
  *
- *	flush all the buffers containing receive data.
+ *	flush all the buffers containing receive data. If ld != NULL,
+ *	flush the ldisc input buffer.
  *
  *	Locking: takes buffer lock to ensure single-threaded flip buffer
  *		 'consumer'
  */
 
-void tty_buffer_flush(struct tty_struct *tty)
+void tty_buffer_flush(struct tty_struct *tty, struct tty_ldisc *ld)
 {
 	struct tty_port *port = tty->port;
 	struct tty_bufhead *buf = &port->buf;
@@ -223,6 +247,12 @@ void tty_buffer_flush(struct tty_struct *tty)
 		buf->head = next;
 	}
 	buf->head->read = buf->head->commit;
+
+	if (ld && ld->ops->flush_buffer)
+		ld->ops->flush_buffer(tty);
+
+	check_other_closed(tty);
+
 	atomic_dec(&buf->priority);
 	mutex_unlock(&buf->lock);
 }
@@ -465,8 +495,10 @@ static void flush_to_ldisc(struct work_struct *work)
 		smp_rmb();
 		count = head->commit - head->read;
 		if (!count) {
-			if (next == NULL)
+			if (next == NULL) {
+				check_other_closed(tty);
 				break;
+			}
 			buf->head = next;
 			tty_buffer_free(port, head);
 			continue;
@@ -480,19 +512,6 @@ static void flush_to_ldisc(struct work_struct *work)
 	mutex_unlock(&buf->lock);
 
 	tty_ldisc_deref(disc);
-}
-
-/**
- *	tty_flush_to_ldisc
- *	@tty: tty to push
- *
- *	Push the terminal flip buffers to the line discipline.
- *
- *	Must not be called from IRQ context.
- */
-void tty_flush_to_ldisc(struct tty_struct *tty)
-{
-	flush_work(&tty->port->buf.work);
 }
 
 /**
@@ -551,3 +570,9 @@ int tty_buffer_set_limit(struct tty_port *port, int limit)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(tty_buffer_set_limit);
+
+/* slave ptys can claim nested buffer lock when handling BRK and INTR */
+void tty_buffer_set_lock_subclass(struct tty_port *port)
+{
+	lockdep_set_subclass(&port->buf.lock, TTY_LOCK_SLAVE);
+}

@@ -146,7 +146,8 @@ int radeon_gem_object_open(struct drm_gem_object *obj, struct drm_file *file_pri
 	struct radeon_bo_va *bo_va;
 	int r;
 
-	if (rdev->family < CHIP_CAYMAN) {
+	if ((rdev->family < CHIP_CAYMAN) ||
+	    (!rdev->accel_working)) {
 		return 0;
 	}
 
@@ -176,7 +177,8 @@ void radeon_gem_object_close(struct drm_gem_object *obj,
 	struct radeon_bo_va *bo_va;
 	int r;
 
-	if (rdev->family < CHIP_CAYMAN) {
+	if ((rdev->family < CHIP_CAYMAN) ||
+	    (!rdev->accel_working)) {
 		return;
 	}
 
@@ -518,6 +520,68 @@ out:
 	return r;
 }
 
+/**
+ * radeon_gem_va_update_vm -update the bo_va in its VM
+ *
+ * @rdev: radeon_device pointer
+ * @bo_va: bo_va to update
+ *
+ * Update the bo_va directly after setting it's address. Errors are not
+ * vital here, so they are not reported back to userspace.
+ */
+static void radeon_gem_va_update_vm(struct radeon_device *rdev,
+				    struct radeon_bo_va *bo_va)
+{
+	struct ttm_validate_buffer tv, *entry;
+	struct radeon_bo_list *vm_bos;
+	struct ww_acquire_ctx ticket;
+	struct list_head list;
+	unsigned domain;
+	int r;
+
+	INIT_LIST_HEAD(&list);
+
+	tv.bo = &bo_va->bo->tbo;
+	tv.shared = true;
+	list_add(&tv.head, &list);
+
+	vm_bos = radeon_vm_get_bos(rdev, bo_va->vm, &list);
+	if (!vm_bos)
+		return;
+
+	r = ttm_eu_reserve_buffers(&ticket, &list, true, NULL);
+	if (r)
+		goto error_free;
+
+	list_for_each_entry(entry, &list, head) {
+		domain = radeon_mem_type_to_domain(entry->bo->mem.mem_type);
+		/* if anything is swapped out don't swap it in here,
+		   just abort and wait for the next CS */
+		if (domain == RADEON_GEM_DOMAIN_CPU)
+			goto error_unreserve;
+	}
+
+	mutex_lock(&bo_va->vm->mutex);
+	r = radeon_vm_clear_freed(rdev, bo_va->vm);
+	if (r)
+		goto error_unlock;
+
+	if (bo_va->it.start)
+		r = radeon_vm_bo_update(rdev, bo_va, &bo_va->bo->tbo.mem);
+
+error_unlock:
+	mutex_unlock(&bo_va->vm->mutex);
+
+error_unreserve:
+	ttm_eu_backoff_reservation(&ticket, &list);
+
+error_free:
+	drm_free_large(vm_bos);
+
+	if (r && r != -ERESTARTSYS)
+		DRM_ERROR("Couldn't update BO_VA (%d)\n", r);
+}
+
 int radeon_gem_va_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *filp)
 {
@@ -601,6 +665,7 @@ int radeon_gem_va_ioctl(struct drm_device *dev, void *data,
 		if (bo_va->it.start) {
 			args->operation = RADEON_VA_RESULT_VA_EXIST;
 			args->offset = bo_va->it.start * RADEON_GPU_PAGE_SIZE;
+			radeon_bo_unreserve(rbo);
 			goto out;
 		}
 		r = radeon_vm_bo_set_addr(rdev, bo_va, args->offset, args->flags);
@@ -611,12 +676,13 @@ int radeon_gem_va_ioctl(struct drm_device *dev, void *data,
 	default:
 		break;
 	}
+	if (!r)
+		radeon_gem_va_update_vm(rdev, bo_va);
 	args->operation = RADEON_VA_RESULT_OK;
 	if (r) {
 		args->operation = RADEON_VA_RESULT_ERROR;
 	}
 out:
-	radeon_bo_unreserve(rbo);
 	drm_gem_object_unreference_unlocked(gobj);
 	return r;
 }

@@ -194,6 +194,7 @@ irqreturn_t lis3l02dq_data_rdy_trig_poll(int irq, void *private);
 static inline void lis3l02dq_remove_trigger(struct iio_dev *indio_dev)
 {
 }
+
 static inline int lis3l02dq_probe_trigger(struct iio_dev *indio_dev)
 {
 	return 0;
@@ -203,6 +204,7 @@ static int lis3l02dq_configure_buffer(struct iio_dev *indio_dev)
 {
 	return 0;
 }
+
 static inline void lis3l02dq_unconfigure_buffer(struct iio_dev *indio_dev)
 {
 }

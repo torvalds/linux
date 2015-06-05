@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -111,6 +111,7 @@
 #define ARGP_DWORD_OP                   ARGP_LIST1 (ARGP_DWORDDATA)
 #define ARGP_ELSE_OP                    ARGP_LIST2 (ARGP_PKGLENGTH,  ARGP_TERMLIST)
 #define ARGP_EVENT_OP                   ARGP_LIST1 (ARGP_NAME)
+#define ARGP_EXTERNAL_OP                ARGP_LIST3 (ARGP_NAMESTRING, ARGP_BYTEDATA,      ARGP_BYTEDATA)
 #define ARGP_FATAL_OP                   ARGP_LIST3 (ARGP_BYTEDATA,   ARGP_DWORDDATA,     ARGP_TERMARG)
 #define ARGP_FIELD_OP                   ARGP_LIST4 (ARGP_PKGLENGTH,  ARGP_NAMESTRING,    ARGP_BYTEDATA,  ARGP_FIELDLIST)
 #define ARGP_FIND_SET_LEFT_BIT_OP       ARGP_LIST2 (ARGP_TERMARG,    ARGP_TARGET)
@@ -243,6 +244,7 @@
 #define ARGI_DWORD_OP                   ARGI_INVALID_OPCODE
 #define ARGI_ELSE_OP                    ARGI_INVALID_OPCODE
 #define ARGI_EVENT_OP                   ARGI_INVALID_OPCODE
+#define ARGI_EXTERNAL_OP                ARGI_LIST3 (ARGI_STRING,     ARGI_INTEGER,       ARGI_INTEGER)
 #define ARGI_FATAL_OP                   ARGI_LIST3 (ARGI_INTEGER,    ARGI_INTEGER,       ARGI_INTEGER)
 #define ARGI_FIELD_OP                   ARGI_INVALID_OPCODE
 #define ARGI_FIND_SET_LEFT_BIT_OP       ARGI_LIST2 (ARGI_INTEGER,    ARGI_TARGETREF)

@@ -56,7 +56,7 @@ MODULE_PARM_DESC(debug, "activates debug info");
 #define dprintk(fmt, arg...) do {					\
 	    if (debug)							\
 		printk(KERN_INFO "em28xx-audio %s: " fmt,		\
-				  __func__, ##arg); 		\
+				  __func__, ##arg);		\
 	} while (0)
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
@@ -232,7 +232,6 @@ static struct snd_pcm_hardware snd_em28xx_hw_capture = {
 	.channels_max = 2,
 	.buffer_bytes_max = 62720 * 8,	/* just about the value in usbaudio.c */
 
-
 	/*
 	 * The period is 12.288 bytes. Allow a 10% of variation along its
 	 * value, in order to avoid overruns/underruns due to some clock
@@ -361,7 +360,7 @@ static int snd_em28xx_hw_capture_params(struct snd_pcm_substream *substream,
 	dprintk("Setting capture parameters\n");
 
 	ret = snd_pcm_alloc_vmalloc_buffer(substream,
-				params_buffer_bytes(hw_params));
+					   params_buffer_bytes(hw_params));
 	if (ret < 0)
 		return ret;
 #if 0
@@ -478,7 +477,7 @@ static struct page *snd_pcm_get_vmalloc_page(struct snd_pcm_substream *subs,
  * AC97 volume control support
  */
 static int em28xx_vol_info(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_info *info)
+			   struct snd_ctl_elem_info *info)
 {
 	struct em28xx *dev = snd_kcontrol_chip(kcontrol);
 
@@ -494,7 +493,7 @@ static int em28xx_vol_info(struct snd_kcontrol *kcontrol,
 }
 
 static int em28xx_vol_put(struct snd_kcontrol *kcontrol,
-			       struct snd_ctl_elem_value *value)
+			  struct snd_ctl_elem_value *value)
 {
 	struct em28xx *dev = snd_kcontrol_chip(kcontrol);
 	struct snd_pcm_substream *substream = dev->adev.capture_pcm_substream;
@@ -534,7 +533,7 @@ err:
 }
 
 static int em28xx_vol_get(struct snd_kcontrol *kcontrol,
-			       struct snd_ctl_elem_value *value)
+			  struct snd_ctl_elem_value *value)
 {
 	struct em28xx *dev = snd_kcontrol_chip(kcontrol);
 	struct snd_pcm_substream *substream = dev->adev.capture_pcm_substream;
@@ -655,7 +654,7 @@ static int em28xx_cvol_new(struct snd_card *card, struct em28xx *dev,
 	struct snd_kcontrol *kctl;
 	struct snd_kcontrol_new tmp;
 
-	memset (&tmp, 0, sizeof(tmp));
+	memset(&tmp, 0, sizeof(tmp));
 	tmp.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	tmp.private_value = id,
 	tmp.name  = ctl_name,
@@ -672,7 +671,7 @@ static int em28xx_cvol_new(struct snd_card *card, struct em28xx *dev,
 	dprintk("Added control %s for ac97 volume control 0x%04x\n",
 		ctl_name, id);
 
-	memset (&tmp, 0, sizeof(tmp));
+	memset(&tmp, 0, sizeof(tmp));
 	tmp.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	tmp.private_value = id,
 	tmp.name  = ctl_name,
@@ -731,7 +730,7 @@ static void em28xx_audio_free_urb(struct em28xx *dev)
 
 /* high bandwidth multiplier, as encoded in highspeed endpoint descriptors */
 static int em28xx_audio_ep_packet_size(struct usb_device *udev,
-					struct usb_endpoint_descriptor *e)
+				       struct usb_endpoint_descriptor *e)
 {
 	int size = le16_to_cpu(e->wMaxPacketSize);
 
@@ -781,7 +780,7 @@ static int em28xx_audio_urb_init(struct em28xx *dev)
 	interval = 1 << (ep->bInterval - 1);
 
 	em28xx_info("Endpoint 0x%02x %s on intf %d alt %d interval = %d, size %d\n",
-		     EM28XX_EP_AUDIO, usb_speed_string(dev->udev->speed),
+		    EM28XX_EP_AUDIO, usb_speed_string(dev->udev->speed),
 		     dev->ifnum, alt,
 		     interval,
 		     ep_size);
@@ -821,7 +820,7 @@ static int em28xx_audio_urb_init(struct em28xx *dev)
 	if (urb_size > ep_size * npackets)
 		npackets = DIV_ROUND_UP(urb_size, ep_size);
 
-	em28xx_info("Number of URBs: %d, with %d packets and %d size",
+	em28xx_info("Number of URBs: %d, with %d packets and %d size\n",
 		    num_urb, npackets, urb_size);
 
 	/* Estimate the bytes per period */
@@ -982,7 +981,7 @@ static int em28xx_audio_fini(struct em28xx *dev)
 		return 0;
 	}
 
-	em28xx_info("Closing audio extension");
+	em28xx_info("Closing audio extension\n");
 
 	if (dev->adev.sndcard) {
 		snd_card_disconnect(dev->adev.sndcard);
@@ -1006,7 +1005,7 @@ static int em28xx_audio_suspend(struct em28xx *dev)
 	if (dev->usb_audio_type != EM28XX_USB_AUDIO_VENDOR)
 		return 0;
 
-	em28xx_info("Suspending audio extension");
+	em28xx_info("Suspending audio extension\n");
 	em28xx_deinit_isoc_audio(dev);
 	atomic_set(&dev->adev.stream_started, 0);
 	return 0;
@@ -1020,7 +1019,7 @@ static int em28xx_audio_resume(struct em28xx *dev)
 	if (dev->usb_audio_type != EM28XX_USB_AUDIO_VENDOR)
 		return 0;
 
-	em28xx_info("Resuming audio extension");
+	em28xx_info("Resuming audio extension\n");
 	/* Nothing to do other than schedule_work() ?? */
 	schedule_work(&dev->adev.wq_trigger);
 	return 0;

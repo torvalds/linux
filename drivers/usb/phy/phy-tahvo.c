@@ -81,33 +81,35 @@ static void check_vbus_state(struct tahvo_usb *tu)
 
 	reg = retu_read(rdev, TAHVO_REG_IDSR);
 	if (reg & TAHVO_STAT_VBUS) {
-		switch (tu->phy.state) {
+		switch (tu->phy.otg->state) {
 		case OTG_STATE_B_IDLE:
 			/* Enable the gadget driver */
 			if (tu->phy.otg->gadget)
 				usb_gadget_vbus_connect(tu->phy.otg->gadget);
-			tu->phy.state = OTG_STATE_B_PERIPHERAL;
+			tu->phy.otg->state = OTG_STATE_B_PERIPHERAL;
+			usb_phy_set_event(&tu->phy, USB_EVENT_ENUMERATED);
 			break;
 		case OTG_STATE_A_IDLE:
 			/*
 			 * Session is now valid assuming the USB hub is driving
 			 * Vbus.
 			 */
-			tu->phy.state = OTG_STATE_A_HOST;
+			tu->phy.otg->state = OTG_STATE_A_HOST;
 			break;
 		default:
 			break;
 		}
 		dev_info(&tu->pt_dev->dev, "USB cable connected\n");
 	} else {
-		switch (tu->phy.state) {
+		switch (tu->phy.otg->state) {
 		case OTG_STATE_B_PERIPHERAL:
 			if (tu->phy.otg->gadget)
 				usb_gadget_vbus_disconnect(tu->phy.otg->gadget);
-			tu->phy.state = OTG_STATE_B_IDLE;
+			tu->phy.otg->state = OTG_STATE_B_IDLE;
+			usb_phy_set_event(&tu->phy, USB_EVENT_NONE);
 			break;
 		case OTG_STATE_A_HOST:
-			tu->phy.state = OTG_STATE_A_IDLE;
+			tu->phy.otg->state = OTG_STATE_A_IDLE;
 			break;
 		default:
 			break;
@@ -132,14 +134,14 @@ static void tahvo_usb_become_host(struct tahvo_usb *tu)
 	/* Power up the transceiver in USB host mode */
 	retu_write(rdev, TAHVO_REG_USBR, USBR_REGOUT | USBR_NSUSPEND |
 		   USBR_MASTER_SW2 | USBR_MASTER_SW1);
-	tu->phy.state = OTG_STATE_A_IDLE;
+	tu->phy.otg->state = OTG_STATE_A_IDLE;
 
 	check_vbus_state(tu);
 }
 
 static void tahvo_usb_stop_host(struct tahvo_usb *tu)
 {
-	tu->phy.state = OTG_STATE_A_IDLE;
+	tu->phy.otg->state = OTG_STATE_A_IDLE;
 }
 
 static void tahvo_usb_become_peripheral(struct tahvo_usb *tu)
@@ -151,7 +153,7 @@ static void tahvo_usb_become_peripheral(struct tahvo_usb *tu)
 	/* Power up transceiver and set it in USB peripheral mode */
 	retu_write(rdev, TAHVO_REG_USBR, USBR_SLAVE_CONTROL | USBR_REGOUT |
 		   USBR_NSUSPEND | USBR_SLAVE_SW);
-	tu->phy.state = OTG_STATE_B_IDLE;
+	tu->phy.otg->state = OTG_STATE_B_IDLE;
 
 	check_vbus_state(tu);
 }
@@ -160,7 +162,7 @@ static void tahvo_usb_stop_peripheral(struct tahvo_usb *tu)
 {
 	if (tu->phy.otg->gadget)
 		usb_gadget_vbus_disconnect(tu->phy.otg->gadget);
-	tu->phy.state = OTG_STATE_B_IDLE;
+	tu->phy.otg->state = OTG_STATE_B_IDLE;
 }
 
 static void tahvo_usb_power_off(struct tahvo_usb *tu)
@@ -173,7 +175,7 @@ static void tahvo_usb_power_off(struct tahvo_usb *tu)
 
 	/* Power off transceiver */
 	retu_write(rdev, TAHVO_REG_USBR, 0);
-	tu->phy.state = OTG_STATE_UNDEFINED;
+	tu->phy.otg->state = OTG_STATE_UNDEFINED;
 }
 
 static int tahvo_usb_set_suspend(struct usb_phy *dev, int suspend)
@@ -196,7 +198,8 @@ static int tahvo_usb_set_suspend(struct usb_phy *dev, int suspend)
 
 static int tahvo_usb_set_host(struct usb_otg *otg, struct usb_bus *host)
 {
-	struct tahvo_usb *tu = container_of(otg->phy, struct tahvo_usb, phy);
+	struct tahvo_usb *tu = container_of(otg->usb_phy, struct tahvo_usb,
+					    phy);
 
 	dev_dbg(&tu->pt_dev->dev, "%s %p\n", __func__, host);
 
@@ -225,7 +228,8 @@ static int tahvo_usb_set_host(struct usb_otg *otg, struct usb_bus *host)
 static int tahvo_usb_set_peripheral(struct usb_otg *otg,
 				    struct usb_gadget *gadget)
 {
-	struct tahvo_usb *tu = container_of(otg->phy, struct tahvo_usb, phy);
+	struct tahvo_usb *tu = container_of(otg->usb_phy, struct tahvo_usb,
+					    phy);
 
 	dev_dbg(&tu->pt_dev->dev, "%s %p\n", __func__, gadget);
 
@@ -379,11 +383,11 @@ static int tahvo_usb_probe(struct platform_device *pdev)
 	/* Create OTG interface */
 	tahvo_usb_power_off(tu);
 	tu->phy.dev = &pdev->dev;
-	tu->phy.state = OTG_STATE_UNDEFINED;
+	tu->phy.otg->state = OTG_STATE_UNDEFINED;
 	tu->phy.label = DRIVER_NAME;
 	tu->phy.set_suspend = tahvo_usb_set_suspend;
 
-	tu->phy.otg->phy = &tu->phy;
+	tu->phy.otg->usb_phy = &tu->phy;
 	tu->phy.otg->set_host = tahvo_usb_set_host;
 	tu->phy.otg->set_peripheral = tahvo_usb_set_peripheral;
 
@@ -446,7 +450,6 @@ static struct platform_driver tahvo_usb_driver = {
 	.remove		= tahvo_usb_remove,
 	.driver		= {
 		.name	= "tahvo-usb",
-		.owner	= THIS_MODULE,
 	},
 };
 module_platform_driver(tahvo_usb_driver);

@@ -26,11 +26,14 @@ static void *real_vmalloc_addr(void *x)
 {
 	unsigned long addr = (unsigned long) x;
 	pte_t *p;
-
-	p = find_linux_pte_or_hugepte(swapper_pg_dir, addr, NULL);
+	/*
+	 * assume we don't have huge pages in vmalloc space...
+	 * So don't worry about THP collapse/split. Called
+	 * Only in realmode, hence won't need irq_save/restore.
+	 */
+	p = __find_linux_pte_or_hugepte(swapper_pg_dir, addr, NULL);
 	if (!p || !pte_present(*p))
 		return NULL;
-	/* assume we don't have huge pages in vmalloc space... */
 	addr = (pte_pfn(*p) << PAGE_SHIFT) | (addr & ~PAGE_MASK);
 	return __va(addr);
 }
@@ -45,16 +48,12 @@ static int global_invalidates(struct kvm *kvm, unsigned long flags)
 	 * as indicated by local_paca->kvm_hstate.kvm_vcpu being set,
 	 * we can use tlbiel as long as we mark all other physical
 	 * cores as potentially having stale TLB entries for this lpid.
-	 * If we're not using MMU notifiers, we never take pages away
-	 * from the guest, so we can use tlbiel if requested.
 	 * Otherwise, don't use tlbiel.
 	 */
 	if (kvm->arch.online_vcores == 1 && local_paca->kvm_hstate.kvm_vcpu)
 		global = 0;
-	else if (kvm->arch.using_mmu_notifiers)
-		global = 1;
 	else
-		global = !(flags & H_LOCAL);
+		global = 1;
 
 	if (!global) {
 		/* any other core might now have stale TLB entries... */
@@ -135,31 +134,6 @@ static void remove_revmap_chain(struct kvm *kvm, long pte_index,
 	unlock_rmap(rmap);
 }
 
-static pte_t lookup_linux_pte_and_update(pgd_t *pgdir, unsigned long hva,
-			      int writing, unsigned long *pte_sizep)
-{
-	pte_t *ptep;
-	unsigned long ps = *pte_sizep;
-	unsigned int hugepage_shift;
-
-	ptep = find_linux_pte_or_hugepte(pgdir, hva, &hugepage_shift);
-	if (!ptep)
-		return __pte(0);
-	if (hugepage_shift)
-		*pte_sizep = 1ul << hugepage_shift;
-	else
-		*pte_sizep = PAGE_SIZE;
-	if (ps > *pte_sizep)
-		return __pte(0);
-	return kvmppc_read_update_linux_pte(ptep, writing, hugepage_shift);
-}
-
-static inline void unlock_hpte(__be64 *hpte, unsigned long hpte_v)
-{
-	asm volatile(PPC_RELEASE_BARRIER "" : : : "memory");
-	hpte[0] = cpu_to_be64(hpte_v);
-}
-
 long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 		       long pte_index, unsigned long pteh, unsigned long ptel,
 		       pgd_t *pgdir, bool realmode, unsigned long *pte_idx_ret)
@@ -170,13 +144,13 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 	struct revmap_entry *rev;
 	unsigned long g_ptel;
 	struct kvm_memory_slot *memslot;
-	unsigned long *physp, pte_size;
+	unsigned hpage_shift;
 	unsigned long is_io;
 	unsigned long *rmap;
-	pte_t pte;
+	pte_t *ptep;
 	unsigned int writing;
 	unsigned long mmu_seq;
-	unsigned long rcbits;
+	unsigned long rcbits, irq_flags = 0;
 
 	psize = hpte_page_size(pteh, ptel);
 	if (!psize)
@@ -198,9 +172,6 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 	is_io = ~0ul;
 	rmap = NULL;
 	if (!(memslot && !(memslot->flags & KVM_MEMSLOT_INVALID))) {
-		/* PPC970 can't do emulated MMIO */
-		if (!cpu_has_feature(CPU_FTR_ARCH_206))
-			return H_PARAMETER;
 		/* Emulated MMIO - mark this with key=31 */
 		pteh |= HPTE_V_ABSENT;
 		ptel |= HPTE_R_KEY_HI | HPTE_R_KEY_LO;
@@ -213,41 +184,48 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 	slot_fn = gfn - memslot->base_gfn;
 	rmap = &memslot->arch.rmap[slot_fn];
 
-	if (!kvm->arch.using_mmu_notifiers) {
-		physp = memslot->arch.slot_phys;
-		if (!physp)
-			return H_PARAMETER;
-		physp += slot_fn;
-		if (realmode)
-			physp = real_vmalloc_addr(physp);
-		pa = *physp;
-		if (!pa)
-			return H_TOO_HARD;
-		is_io = pa & (HPTE_R_I | HPTE_R_W);
-		pte_size = PAGE_SIZE << (pa & KVMPPC_PAGE_ORDER_MASK);
-		pa &= PAGE_MASK;
-		pa |= gpa & ~PAGE_MASK;
-	} else {
-		/* Translate to host virtual address */
-		hva = __gfn_to_hva_memslot(memslot, gfn);
+	/* Translate to host virtual address */
+	hva = __gfn_to_hva_memslot(memslot, gfn);
+	/*
+	 * If we had a page table table change after lookup, we would
+	 * retry via mmu_notifier_retry.
+	 */
+	if (realmode)
+		ptep = __find_linux_pte_or_hugepte(pgdir, hva, &hpage_shift);
+	else {
+		local_irq_save(irq_flags);
+		ptep = find_linux_pte_or_hugepte(pgdir, hva, &hpage_shift);
+	}
+	if (ptep) {
+		pte_t pte;
+		unsigned int host_pte_size;
 
-		/* Look up the Linux PTE for the backing page */
-		pte_size = psize;
-		pte = lookup_linux_pte_and_update(pgdir, hva, writing,
-						  &pte_size);
-		if (pte_present(pte) && !pte_numa(pte)) {
+		if (hpage_shift)
+			host_pte_size = 1ul << hpage_shift;
+		else
+			host_pte_size = PAGE_SIZE;
+		/*
+		 * We should always find the guest page size
+		 * to <= host page size, if host is using hugepage
+		 */
+		if (host_pte_size < psize) {
+			if (!realmode)
+				local_irq_restore(flags);
+			return H_PARAMETER;
+		}
+		pte = kvmppc_read_update_linux_pte(ptep, writing);
+		if (pte_present(pte) && !pte_protnone(pte)) {
 			if (writing && !pte_write(pte))
 				/* make the actual HPTE be read-only */
 				ptel = hpte_make_readonly(ptel);
 			is_io = hpte_cache_bits(pte_val(pte));
 			pa = pte_pfn(pte) << PAGE_SHIFT;
-			pa |= hva & (pte_size - 1);
+			pa |= hva & (host_pte_size - 1);
 			pa |= gpa & ~PAGE_MASK;
 		}
 	}
-
-	if (pte_size < psize)
-		return H_PARAMETER;
+	if (!realmode)
+		local_irq_restore(irq_flags);
 
 	ptel &= ~(HPTE_R_PP0 - psize);
 	ptel |= pa;
@@ -295,10 +273,10 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 				u64 pte;
 				while (!try_lock_hpte(hpte, HPTE_V_HVLOCK))
 					cpu_relax();
-				pte = be64_to_cpu(*hpte);
+				pte = be64_to_cpu(hpte[0]);
 				if (!(pte & (HPTE_V_VALID | HPTE_V_ABSENT)))
 					break;
-				*hpte &= ~cpu_to_be64(HPTE_V_HVLOCK);
+				__unlock_hpte(hpte, pte);
 				hpte += 2;
 			}
 			if (i == 8)
@@ -314,9 +292,9 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 
 			while (!try_lock_hpte(hpte, HPTE_V_HVLOCK))
 				cpu_relax();
-			pte = be64_to_cpu(*hpte);
+			pte = be64_to_cpu(hpte[0]);
 			if (pte & (HPTE_V_VALID | HPTE_V_ABSENT)) {
-				*hpte &= ~cpu_to_be64(HPTE_V_HVLOCK);
+				__unlock_hpte(hpte, pte);
 				return H_PTEG_FULL;
 			}
 		}
@@ -337,8 +315,7 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 			rmap = real_vmalloc_addr(rmap);
 		lock_rmap(rmap);
 		/* Check for pending invalidations under the rmap chain lock */
-		if (kvm->arch.using_mmu_notifiers &&
-		    mmu_notifier_retry(kvm, mmu_seq)) {
+		if (mmu_notifier_retry(kvm, mmu_seq)) {
 			/* inval in progress, write a non-present HPTE */
 			pteh |= HPTE_V_ABSENT;
 			pteh &= ~HPTE_V_VALID;
@@ -356,7 +333,7 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 
 	/* Write the first HPTE dword, unlocking the HPTE and making it valid */
 	eieio();
-	hpte[0] = cpu_to_be64(pteh);
+	__unlock_hpte(hpte, pteh);
 	asm volatile("ptesync" : : : "memory");
 
 	*pte_idx_ret = pte_index;
@@ -395,61 +372,11 @@ static inline int try_lock_tlbie(unsigned int *lock)
 	return old == 0;
 }
 
-/*
- * tlbie/tlbiel is a bit different on the PPC970 compared to later
- * processors such as POWER7; the large page bit is in the instruction
- * not RB, and the top 16 bits and the bottom 12 bits of the VA
- * in RB must be 0.
- */
-static void do_tlbies_970(struct kvm *kvm, unsigned long *rbvalues,
-			  long npages, int global, bool need_sync)
-{
-	long i;
-
-	if (global) {
-		while (!try_lock_tlbie(&kvm->arch.tlbie_lock))
-			cpu_relax();
-		if (need_sync)
-			asm volatile("ptesync" : : : "memory");
-		for (i = 0; i < npages; ++i) {
-			unsigned long rb = rbvalues[i];
-
-			if (rb & 1)		/* large page */
-				asm volatile("tlbie %0,1" : :
-					     "r" (rb & 0x0000fffffffff000ul));
-			else
-				asm volatile("tlbie %0,0" : :
-					     "r" (rb & 0x0000fffffffff000ul));
-		}
-		asm volatile("eieio; tlbsync; ptesync" : : : "memory");
-		kvm->arch.tlbie_lock = 0;
-	} else {
-		if (need_sync)
-			asm volatile("ptesync" : : : "memory");
-		for (i = 0; i < npages; ++i) {
-			unsigned long rb = rbvalues[i];
-
-			if (rb & 1)		/* large page */
-				asm volatile("tlbiel %0,1" : :
-					     "r" (rb & 0x0000fffffffff000ul));
-			else
-				asm volatile("tlbiel %0,0" : :
-					     "r" (rb & 0x0000fffffffff000ul));
-		}
-		asm volatile("ptesync" : : : "memory");
-	}
-}
-
 static void do_tlbies(struct kvm *kvm, unsigned long *rbvalues,
 		      long npages, int global, bool need_sync)
 {
 	long i;
 
-	if (cpu_has_feature(CPU_FTR_ARCH_201)) {
-		/* PPC970 tlbie instruction is a bit different */
-		do_tlbies_970(kvm, rbvalues, npages, global, need_sync);
-		return;
-	}
 	if (global) {
 		while (!try_lock_tlbie(&kvm->arch.tlbie_lock))
 			cpu_relax();
@@ -487,7 +414,7 @@ long kvmppc_do_h_remove(struct kvm *kvm, unsigned long flags,
 	if ((pte & (HPTE_V_ABSENT | HPTE_V_VALID)) == 0 ||
 	    ((flags & H_AVPN) && (pte & ~0x7fUL) != avpn) ||
 	    ((flags & H_ANDCOND) && (pte & avpn) != 0)) {
-		hpte[0] &= ~cpu_to_be64(HPTE_V_HVLOCK);
+		__unlock_hpte(hpte, pte);
 		return H_NOT_FOUND;
 	}
 
@@ -623,7 +550,7 @@ long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
 				be64_to_cpu(hp[0]), be64_to_cpu(hp[1]));
 			rcbits = rev->guest_rpte & (HPTE_R_R|HPTE_R_C);
 			args[j] |= rcbits << (56 - 5);
-			hp[0] = 0;
+			__unlock_hpte(hp, 0);
 		}
 	}
 
@@ -649,7 +576,7 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 	pte = be64_to_cpu(hpte[0]);
 	if ((pte & (HPTE_V_ABSENT | HPTE_V_VALID)) == 0 ||
 	    ((flags & H_AVPN) && (pte & ~0x7fUL) != avpn)) {
-		hpte[0] &= ~cpu_to_be64(HPTE_V_HVLOCK);
+		__unlock_hpte(hpte, pte);
 		return H_NOT_FOUND;
 	}
 
@@ -667,40 +594,29 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 		rev->guest_rpte = r;
 		note_hpte_modification(kvm, rev);
 	}
-	r = (be64_to_cpu(hpte[1]) & ~mask) | bits;
 
 	/* Update HPTE */
 	if (v & HPTE_V_VALID) {
-		rb = compute_tlbie_rb(v, r, pte_index);
-		hpte[0] = cpu_to_be64(v & ~HPTE_V_VALID);
-		do_tlbies(kvm, &rb, 1, global_invalidates(kvm, flags), true);
 		/*
-		 * If the host has this page as readonly but the guest
-		 * wants to make it read/write, reduce the permissions.
-		 * Checking the host permissions involves finding the
-		 * memslot and then the Linux PTE for the page.
+		 * If the page is valid, don't let it transition from
+		 * readonly to writable.  If it should be writable, we'll
+		 * take a trap and let the page fault code sort it out.
 		 */
-		if (hpte_is_writable(r) && kvm->arch.using_mmu_notifiers) {
-			unsigned long psize, gfn, hva;
-			struct kvm_memory_slot *memslot;
-			pgd_t *pgdir = vcpu->arch.pgdir;
-			pte_t pte;
-
-			psize = hpte_page_size(v, r);
-			gfn = ((r & HPTE_R_RPN) & ~(psize - 1)) >> PAGE_SHIFT;
-			memslot = __gfn_to_memslot(kvm_memslots_raw(kvm), gfn);
-			if (memslot) {
-				hva = __gfn_to_hva_memslot(memslot, gfn);
-				pte = lookup_linux_pte_and_update(pgdir, hva,
-								  1, &psize);
-				if (pte_present(pte) && !pte_write(pte))
-					r = hpte_make_readonly(r);
-			}
+		pte = be64_to_cpu(hpte[1]);
+		r = (pte & ~mask) | bits;
+		if (hpte_is_writable(r) && !hpte_is_writable(pte))
+			r = hpte_make_readonly(r);
+		/* If the PTE is changing, invalidate it first */
+		if (r != pte) {
+			rb = compute_tlbie_rb(v, r, pte_index);
+			hpte[0] = cpu_to_be64((v & ~HPTE_V_VALID) |
+					      HPTE_V_ABSENT);
+			do_tlbies(kvm, &rb, 1, global_invalidates(kvm, flags),
+				  true);
+			hpte[1] = cpu_to_be64(r);
 		}
 	}
-	hpte[1] = cpu_to_be64(r);
-	eieio();
-	hpte[0] = cpu_to_be64(v & ~HPTE_V_HVLOCK);
+	unlock_hpte(hpte, v & ~HPTE_V_HVLOCK);
 	asm volatile("ptesync" : : : "memory");
 	return H_SUCCESS;
 }
@@ -841,8 +757,7 @@ long kvmppc_hv_find_lock_hpte(struct kvm *kvm, gva_t eaddr, unsigned long slb_v,
 				/* Return with the HPTE still locked */
 				return (hash << 3) + (i >> 1);
 
-			/* Unlock and move on */
-			hpte[i] = cpu_to_be64(v);
+			__unlock_hpte(&hpte[i], v);
 		}
 
 		if (val & HPTE_V_SECONDARY)

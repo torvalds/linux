@@ -119,7 +119,7 @@ void rt2x00mac_tx(struct ieee80211_hw *hw,
 	 * Use the ATIM queue if appropriate and present.
 	 */
 	if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM &&
-	    test_bit(REQUIRE_ATIM_QUEUE, &rt2x00dev->cap_flags))
+	    rt2x00_has_cap_flag(rt2x00dev, REQUIRE_ATIM_QUEUE))
 		qid = QID_ATIM;
 
 	queue = rt2x00queue_get_tx_queue(rt2x00dev, qid);
@@ -568,7 +568,9 @@ int rt2x00mac_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_sta_remove);
 
-void rt2x00mac_sw_scan_start(struct ieee80211_hw *hw)
+void rt2x00mac_sw_scan_start(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
+			     const u8 *mac_addr)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	set_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags);
@@ -576,7 +578,8 @@ void rt2x00mac_sw_scan_start(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_sw_scan_start);
 
-void rt2x00mac_sw_scan_complete(struct ieee80211_hw *hw)
+void rt2x00mac_sw_scan_complete(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	clear_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags);

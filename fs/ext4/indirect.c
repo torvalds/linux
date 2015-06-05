@@ -20,9 +20,9 @@
  *	(sct@redhat.com), 1993, 1998
  */
 
-#include <linux/aio.h>
 #include "ext4_jbd2.h"
 #include "truncate.h"
+#include <linux/uio.h>
 
 #include <trace/events/ext4.h>
 
@@ -642,8 +642,8 @@ out:
  * crashes then stale disk data _may_ be exposed inside the file. But current
  * VFS code falls back into buffered path in that case so we are safe.
  */
-ssize_t ext4_ind_direct_IO(int rw, struct kiocb *iocb,
-			   struct iov_iter *iter, loff_t offset)
+ssize_t ext4_ind_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
+			   loff_t offset)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
@@ -654,7 +654,7 @@ ssize_t ext4_ind_direct_IO(int rw, struct kiocb *iocb,
 	size_t count = iov_iter_count(iter);
 	int retries = 0;
 
-	if (rw == WRITE) {
+	if (iov_iter_rw(iter) == WRITE) {
 		loff_t final_size = offset + count;
 
 		if (final_size > inode->i_size) {
@@ -676,29 +676,38 @@ ssize_t ext4_ind_direct_IO(int rw, struct kiocb *iocb,
 	}
 
 retry:
-	if (rw == READ && ext4_should_dioread_nolock(inode)) {
+	if (iov_iter_rw(iter) == READ && ext4_should_dioread_nolock(inode)) {
 		/*
 		 * Nolock dioread optimization may be dynamically disabled
 		 * via ext4_inode_block_unlocked_dio(). Check inode's state
 		 * while holding extra i_dio_count ref.
 		 */
-		atomic_inc(&inode->i_dio_count);
+		inode_dio_begin(inode);
 		smp_mb();
 		if (unlikely(ext4_test_inode_state(inode,
 						    EXT4_STATE_DIOREAD_LOCK))) {
-			inode_dio_done(inode);
+			inode_dio_end(inode);
 			goto locked;
 		}
-		ret = __blockdev_direct_IO(rw, iocb, inode,
-				 inode->i_sb->s_bdev, iter, offset,
-				 ext4_get_block, NULL, NULL, 0);
-		inode_dio_done(inode);
+		if (IS_DAX(inode))
+			ret = dax_do_io(iocb, inode, iter, offset,
+					ext4_get_block, NULL, 0);
+		else
+			ret = __blockdev_direct_IO(iocb, inode,
+						   inode->i_sb->s_bdev, iter,
+						   offset, ext4_get_block, NULL,
+						   NULL, 0);
+		inode_dio_end(inode);
 	} else {
 locked:
-		ret = blockdev_direct_IO(rw, iocb, inode, iter,
-				 offset, ext4_get_block);
+		if (IS_DAX(inode))
+			ret = dax_do_io(iocb, inode, iter, offset,
+					ext4_get_block, NULL, DIO_LOCKING);
+		else
+			ret = blockdev_direct_IO(iocb, inode, iter, offset,
+						 ext4_get_block);
 
-		if (unlikely((rw & WRITE) && ret < 0)) {
+		if (unlikely(iov_iter_rw(iter) == WRITE && ret < 0)) {
 			loff_t isize = i_size_read(inode);
 			loff_t end = offset + count;
 
@@ -1393,10 +1402,7 @@ end_range:
 				 * to free. Everything was covered by the start
 				 * of the range.
 				 */
-				return 0;
-			} else {
-				/* Shared branch grows from an indirect block */
-				partial2--;
+				goto do_indirects;
 			}
 		} else {
 			/*
@@ -1427,56 +1433,96 @@ end_range:
 	/* Punch happened within the same level (n == n2) */
 	partial = ext4_find_shared(inode, n, offsets, chain, &nr);
 	partial2 = ext4_find_shared(inode, n2, offsets2, chain2, &nr2);
-	/*
-	 * ext4_find_shared returns Indirect structure which
-	 * points to the last element which should not be
-	 * removed by truncate. But this is end of the range
-	 * in punch_hole so we need to point to the next element
-	 */
-	partial2->p++;
-	while ((partial > chain) || (partial2 > chain2)) {
-		/* We're at the same block, so we're almost finished */
-		if ((partial->bh && partial2->bh) &&
-		    (partial->bh->b_blocknr == partial2->bh->b_blocknr)) {
-			if ((partial > chain) && (partial2 > chain2)) {
-				ext4_free_branches(handle, inode, partial->bh,
-						   partial->p + 1,
-						   partial2->p,
-						   (chain+n-1) - partial);
-				BUFFER_TRACE(partial->bh, "call brelse");
-				brelse(partial->bh);
-				BUFFER_TRACE(partial2->bh, "call brelse");
-				brelse(partial2->bh);
+
+	/* Free top, but only if partial2 isn't its subtree. */
+	if (nr) {
+		int level = min(partial - chain, partial2 - chain2);
+		int i;
+		int subtree = 1;
+
+		for (i = 0; i <= level; i++) {
+			if (offsets[i] != offsets2[i]) {
+				subtree = 0;
+				break;
 			}
+		}
+
+		if (!subtree) {
+			if (partial == chain) {
+				/* Shared branch grows from the inode */
+				ext4_free_branches(handle, inode, NULL,
+						   &nr, &nr+1,
+						   (chain+n-1) - partial);
+				*partial->p = 0;
+			} else {
+				/* Shared branch grows from an indirect block */
+				BUFFER_TRACE(partial->bh, "get_write_access");
+				ext4_free_branches(handle, inode, partial->bh,
+						   partial->p,
+						   partial->p+1,
+						   (chain+n-1) - partial);
+			}
+		}
+	}
+
+	if (!nr2) {
+		/*
+		 * ext4_find_shared returns Indirect structure which
+		 * points to the last element which should not be
+		 * removed by truncate. But this is end of the range
+		 * in punch_hole so we need to point to the next element
+		 */
+		partial2->p++;
+	}
+
+	while (partial > chain || partial2 > chain2) {
+		int depth = (chain+n-1) - partial;
+		int depth2 = (chain2+n2-1) - partial2;
+
+		if (partial > chain && partial2 > chain2 &&
+		    partial->bh->b_blocknr == partial2->bh->b_blocknr) {
+			/*
+			 * We've converged on the same block. Clear the range,
+			 * then we're done.
+			 */
+			ext4_free_branches(handle, inode, partial->bh,
+					   partial->p + 1,
+					   partial2->p,
+					   (chain+n-1) - partial);
+			BUFFER_TRACE(partial->bh, "call brelse");
+			brelse(partial->bh);
+			BUFFER_TRACE(partial2->bh, "call brelse");
+			brelse(partial2->bh);
 			return 0;
 		}
+
 		/*
-		 * Clear the ends of indirect blocks on the shared branch
-		 * at the start of the range
+		 * The start and end partial branches may not be at the same
+		 * level even though the punch happened within one level. So, we
+		 * give them a chance to arrive at the same level, then walk
+		 * them in step with each other until we converge on the same
+		 * block.
 		 */
-		if (partial > chain) {
+		if (partial > chain && depth <= depth2) {
 			ext4_free_branches(handle, inode, partial->bh,
-				   partial->p + 1,
-				   (__le32 *)partial->bh->b_data+addr_per_block,
-				   (chain+n-1) - partial);
+					   partial->p + 1,
+					   (__le32 *)partial->bh->b_data+addr_per_block,
+					   (chain+n-1) - partial);
 			BUFFER_TRACE(partial->bh, "call brelse");
 			brelse(partial->bh);
 			partial--;
 		}
-		/*
-		 * Clear the ends of indirect blocks on the shared branch
-		 * at the end of the range
-		 */
-		if (partial2 > chain2) {
+		if (partial2 > chain2 && depth2 <= depth) {
 			ext4_free_branches(handle, inode, partial2->bh,
 					   (__le32 *)partial2->bh->b_data,
 					   partial2->p,
-					   (chain2+n-1) - partial2);
+					   (chain2+n2-1) - partial2);
 			BUFFER_TRACE(partial2->bh, "call brelse");
 			brelse(partial2->bh);
 			partial2--;
 		}
 	}
+	return 0;
 
 do_indirects:
 	/* Kill the remaining (whole) subtrees */

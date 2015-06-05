@@ -438,7 +438,9 @@ atc_pcm_playback_position(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	position = src->ops->get_ca(src);
 
 	if (position < apcm->vm_block->addr) {
-		snd_printdd("ctxfi: bad ca - ca=0x%08x, vba=0x%08x, vbs=0x%08x\n", position, apcm->vm_block->addr, apcm->vm_block->size);
+		dev_dbg(atc->card->dev,
+			"bad ca - ca=0x%08x, vba=0x%08x, vbs=0x%08x\n",
+			position, apcm->vm_block->addr, apcm->vm_block->size);
 		position = apcm->vm_block->addr;
 	}
 
@@ -1145,7 +1147,6 @@ static int atc_release_resources(struct ct_atc *atc)
 	int i;
 	struct daio_mgr *daio_mgr = NULL;
 	struct dao *dao = NULL;
-	struct dai *dai = NULL;
 	struct daio *daio = NULL;
 	struct sum_mgr *sum_mgr = NULL;
 	struct src_mgr *src_mgr = NULL;
@@ -1172,9 +1173,6 @@ static int atc_release_resources(struct ct_atc *atc)
 				dao = container_of(daio, struct dao, daio);
 				dao->ops->clear_left_input(dao);
 				dao->ops->clear_right_input(dao);
-			} else {
-				dai = container_of(daio, struct dai, daio);
-				/* some thing to do for dai ... */
 			}
 			daio_mgr->put_daio(daio_mgr, daio);
 		}
@@ -1299,7 +1297,7 @@ static int atc_identify_card(struct ct_atc *atc, unsigned int ssid)
 			atc->model = CT20K2_UNKNOWN;
 	}
 	atc->model_name = ct_subsys_name[atc->model];
-	snd_printd("ctxfi: chip %s model %s (%04x:%04x) is found\n",
+	dev_info(atc->card->dev, "chip %s model %s (%04x:%04x) is found\n",
 		   atc->chip_name, atc->model_name,
 		   vendor_id, device_id);
 	return 0;

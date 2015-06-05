@@ -168,7 +168,6 @@ static void usb_write_mem_complete(struct urb *purb)
 void r8712_usb_write_mem(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *wmem)
 {
 	unsigned int pipe;
-	int status;
 	struct _adapter *padapter = (struct _adapter *)pintfhdl->adapter;
 	struct intf_priv *pintfpriv = pintfhdl->pintfpriv;
 	struct io_queue *pio_queue = (struct io_queue *)padapter->pio_queue;
@@ -186,7 +185,7 @@ void r8712_usb_write_mem(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *wmem)
 	usb_fill_bulk_urb(piorw_urb, pusbd, pipe,
 			  wmem, cnt, usb_write_mem_complete,
 			  pio_queue);
-	status = usb_submit_urb(piorw_urb, GFP_ATOMIC);
+	usb_submit_urb(piorw_urb, GFP_ATOMIC);
 	_down_sema(&pintfpriv->io_retevt);
 }
 
@@ -267,7 +266,7 @@ u32 r8712_usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
 	if (adapter->bDriverStopped || adapter->bSurpriseRemoved ||
 	    adapter->pwrctrlpriv.pnp_bstop_trx)
 		return _FAIL;
-	if ((precvbuf->reuse == false) || (precvbuf->pskb == NULL)) {
+	if (!precvbuf->reuse == false || !precvbuf->pskb) {
 		precvbuf->pskb = skb_dequeue(&precvpriv->free_recv_skb_queue);
 		if (NULL != precvbuf->pskb)
 			precvbuf->reuse = true;
@@ -275,10 +274,10 @@ u32 r8712_usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
 	if (precvbuf != NULL) {
 		r8712_init_recvbuf(adapter, precvbuf);
 		/* re-assign for linux based on skb */
-		if ((precvbuf->reuse == false) || (precvbuf->pskb == NULL)) {
+		if (!precvbuf->reuse || !precvbuf->pskb) {
 			precvbuf->pskb = netdev_alloc_skb(adapter->pnetdev,
 					 MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
-			if (precvbuf->pskb == NULL)
+			if (!precvbuf->pskb)
 				return _FAIL;
 			tmpaddr = (addr_t)precvbuf->pskb->data;
 			alignment = tmpaddr & (RECVBUFF_ALIGN_SZ-1);

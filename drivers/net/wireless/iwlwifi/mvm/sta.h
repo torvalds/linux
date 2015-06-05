@@ -150,7 +150,7 @@ struct iwl_mvm_vif;
  * DOC: station table - AP Station in STA mode
  *
  * %iwl_mvm_vif includes the index of the AP station in the fw's STA table:
- * %ap_sta_id. To get the point to the coresponsding %ieee80211_sta,
+ * %ap_sta_id. To get the point to the corresponding %ieee80211_sta,
  * &fw_id_to_mac_id can be used. Due to the way the fw works, we must not remove
  * the AP station from the fw before setting the MAC context as unassociated.
  * Hence, %fw_id_to_mac_id[%ap_sta_id] will be NULLed when the AP station is
@@ -209,14 +209,14 @@ struct iwl_mvm_vif;
  * When a trigger frame is received, mac80211 tells the driver to send frames
  * from the AMPDU queues or sends frames to non-aggregation queues itself,
  * depending on which ACs are delivery-enabled and what TID has frames to
- * transmit. Note that mac80211 has all the knowledege since all the non-agg
+ * transmit. Note that mac80211 has all the knowledge since all the non-agg
  * frames are buffered / filtered, and the driver tells mac80211 about agg
  * frames). The driver needs to tell the fw to let frames out even if the
  * station is asleep. This is done by %iwl_mvm_sta_modify_sleep_tx_count.
  *
  * When we receive a frame from that station with PM bit unset, the driver
  * needs to let the fw know that this station isn't asleep any more. This is
- * done by %iwl_mvm_sta_modify_ps_wake in response to mac80211 signalling the
+ * done by %iwl_mvm_sta_modify_ps_wake in response to mac80211 signaling the
  * station's wakeup.
  *
  * For a GO, the Service Period might be cut short due to an absence period
@@ -264,6 +264,7 @@ enum iwl_mvm_agg_state {
  *	the first packet to be sent in legacy HW queue in Tx AGG stop flow.
  *	Basically when next_reclaimed reaches ssn, we can tell mac80211 that
  *	we are ready to finish the Tx AGG stop / start flow.
+ * @tx_time: medium time consumed by this A-MPDU
  */
 struct iwl_mvm_tid_data {
 	u16 seq_number;
@@ -274,6 +275,7 @@ struct iwl_mvm_tid_data {
 	enum iwl_mvm_agg_state state;
 	u16 txq_id;
 	u16 ssn;
+	u16 tx_time;
 };
 
 static inline u16 iwl_mvm_tid_queued(struct iwl_mvm_tid_data *tid_data)
@@ -286,6 +288,7 @@ static inline u16 iwl_mvm_tid_queued(struct iwl_mvm_tid_data *tid_data)
  * struct iwl_mvm_sta - representation of a station in the driver
  * @sta_id: the index of the station in the fw (will be replaced by id_n_color)
  * @tfd_queue_msk: the tfd queues used by the station
+ * @hw_queue: per-AC mapping of the TFD queues used by station
  * @mac_id_n_color: the MAC context this station is linked to
  * @tid_disable_agg: bitmap: if bit(tid) is set, the fw won't send ampdus for
  *	tid.
@@ -309,6 +312,7 @@ static inline u16 iwl_mvm_tid_queued(struct iwl_mvm_tid_data *tid_data)
 struct iwl_mvm_sta {
 	u32 sta_id;
 	u32 tfd_queue_msk;
+	u8 hw_queue[IEEE80211_NUM_ACS];
 	u32 mac_id_n_color;
 	u16 tid_disable_agg;
 	u8 max_agg_bufsize;
@@ -418,5 +422,6 @@ void iwl_mvm_sta_modify_disable_tx_ap(struct iwl_mvm *mvm,
 void iwl_mvm_modify_all_sta_disable_tx(struct iwl_mvm *mvm,
 				       struct iwl_mvm_vif *mvmvif,
 				       bool disable);
+void iwl_mvm_csa_client_absent(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 
 #endif /* __sta_h__ */

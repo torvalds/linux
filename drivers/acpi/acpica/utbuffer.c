@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -148,6 +148,14 @@ void acpi_ut_dump_buffer(u8 *buffer, u32 count, u32 display, u32 base_offset)
 			if (i + j >= count) {
 				acpi_os_printf("\n");
 				return;
+			}
+
+			/*
+			 * Add comment characters so rest of line is ignored when
+			 * compiled
+			 */
+			if (j == 0) {
+				acpi_os_printf("// ");
 			}
 
 			buf_char = buffer[(acpi_size) i + j];

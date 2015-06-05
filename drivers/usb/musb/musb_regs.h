@@ -239,14 +239,6 @@
 #define MUSB_INDEX		0x0E	/* 8 bit */
 #define MUSB_TESTMODE		0x0F	/* 8 bit */
 
-/* Get offset for a given FIFO from musb->mregs */
-#if defined(CONFIG_USB_MUSB_TUSB6010) ||	\
-	defined(CONFIG_USB_MUSB_TUSB6010_MODULE)
-#define MUSB_FIFO_OFFSET(epnum)	(0x200 + ((epnum) * 0x20))
-#else
-#define MUSB_FIFO_OFFSET(epnum)	(0x20 + ((epnum) * 4))
-#endif
-
 /*
  * Additional Control Registers
  */
@@ -295,21 +287,7 @@
 #define MUSB_FIFOSIZE		0x0F
 #define MUSB_CONFIGDATA		MUSB_FIFOSIZE	/* Re-used for EP0 */
 
-/* Offsets to endpoint registers in indexed model (using INDEX register) */
-#define MUSB_INDEXED_OFFSET(_epnum, _offset)	\
-	(0x10 + (_offset))
-
-/* Offsets to endpoint registers in flat models */
-#define MUSB_FLAT_OFFSET(_epnum, _offset)	\
-	(0x100 + (0x10*(_epnum)) + (_offset))
-
-#if defined(CONFIG_USB_MUSB_TUSB6010) ||	\
-	defined(CONFIG_USB_MUSB_TUSB6010_MODULE)
-/* TUSB6010 EP0 configuration register is special */
-#define MUSB_TUSB_OFFSET(_epnum, _offset)	\
-	(0x10 + _offset)
 #include "tusb6010.h"		/* Needed "only" for TUSB_EP0_CONF */
-#endif
 
 #define MUSB_TXCSR_MODE			0x2000
 
@@ -479,10 +457,6 @@ static inline u8  musb_read_txhubport(void __iomem *mbase, u8 epnum)
 #define MUSB_FRAME		USB_OFFSET(USB_FRAME)
 #define MUSB_INDEX		USB_OFFSET(USB_INDEX)	/* 8 bit */
 #define MUSB_TESTMODE		USB_OFFSET(USB_TESTMODE)/* 8 bit */
-
-/* Get offset for a given FIFO from musb->mregs */
-#define MUSB_FIFO_OFFSET(epnum)	\
-	(USB_OFFSET(USB_EP0_FIFO) + ((epnum) * 8))
 
 /*
  * Additional Control Registers

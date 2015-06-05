@@ -165,7 +165,7 @@ out_fail:
 static int ufs_link (struct dentry * old_dentry, struct inode * dir,
 	struct dentry *dentry)
 {
-	struct inode *inode = old_dentry->d_inode;
+	struct inode *inode = d_inode(old_dentry);
 	int error;
 
 	lock_ufs(dir->i_sb);
@@ -222,7 +222,7 @@ out_fail:
 
 static int ufs_unlink(struct inode *dir, struct dentry *dentry)
 {
-	struct inode * inode = dentry->d_inode;
+	struct inode * inode = d_inode(dentry);
 	struct ufs_dir_entry *de;
 	struct page *page;
 	int err = -ENOENT;
@@ -244,7 +244,7 @@ out:
 
 static int ufs_rmdir (struct inode * dir, struct dentry *dentry)
 {
-	struct inode * inode = dentry->d_inode;
+	struct inode * inode = d_inode(dentry);
 	int err= -ENOTEMPTY;
 
 	lock_ufs(dir->i_sb);
@@ -263,8 +263,8 @@ static int ufs_rmdir (struct inode * dir, struct dentry *dentry)
 static int ufs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		      struct inode *new_dir, struct dentry *new_dentry)
 {
-	struct inode *old_inode = old_dentry->d_inode;
-	struct inode *new_inode = new_dentry->d_inode;
+	struct inode *old_inode = d_inode(old_dentry);
+	struct inode *new_inode = d_inode(new_dentry);
 	struct page *dir_page = NULL;
 	struct ufs_dir_entry * dir_de = NULL;
 	struct page *old_page;

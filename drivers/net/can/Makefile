@@ -29,4 +29,5 @@ obj-$(CONFIG_CAN_GRCAN)		+= grcan.o
 obj-$(CONFIG_CAN_RCAR)		+= rcar_can.o
 obj-$(CONFIG_CAN_XILINXCAN)	+= xilinx_can.o
 
-subdir-ccflags-$(CONFIG_CAN_DEBUG_DEVICES) := -DDEBUG
+subdir-ccflags-y += -D__CHECK_ENDIAN__
+subdir-ccflags-$(CONFIG_CAN_DEBUG_DEVICES) += -DDEBUG

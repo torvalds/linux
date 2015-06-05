@@ -258,6 +258,28 @@ static int kvmppc_h_pr_put_tce(struct kvm_vcpu *vcpu)
 	return EMULATE_DONE;
 }
 
+static int kvmppc_h_pr_logical_ci_load(struct kvm_vcpu *vcpu)
+{
+	long rc;
+
+	rc = kvmppc_h_logical_ci_load(vcpu);
+	if (rc == H_TOO_HARD)
+		return EMULATE_FAIL;
+	kvmppc_set_gpr(vcpu, 3, rc);
+	return EMULATE_DONE;
+}
+
+static int kvmppc_h_pr_logical_ci_store(struct kvm_vcpu *vcpu)
+{
+	long rc;
+
+	rc = kvmppc_h_logical_ci_store(vcpu);
+	if (rc == H_TOO_HARD)
+		return EMULATE_FAIL;
+	kvmppc_set_gpr(vcpu, 3, rc);
+	return EMULATE_DONE;
+}
+
 static int kvmppc_h_pr_xics_hcall(struct kvm_vcpu *vcpu, u32 cmd)
 {
 	long rc = kvmppc_xics_hcall(vcpu, cmd);
@@ -290,6 +312,10 @@ int kvmppc_h_pr(struct kvm_vcpu *vcpu, unsigned long cmd)
 		clear_bit(KVM_REQ_UNHALT, &vcpu->requests);
 		vcpu->stat.halt_wakeup++;
 		return EMULATE_DONE;
+	case H_LOGICAL_CI_LOAD:
+		return kvmppc_h_pr_logical_ci_load(vcpu);
+	case H_LOGICAL_CI_STORE:
+		return kvmppc_h_pr_logical_ci_store(vcpu);
 	case H_XIRR:
 	case H_CPPR:
 	case H_EOI:
@@ -323,6 +349,8 @@ int kvmppc_hcall_impl_pr(unsigned long cmd)
 	case H_BULK_REMOVE:
 	case H_PUT_TCE:
 	case H_CEDE:
+	case H_LOGICAL_CI_LOAD:
+	case H_LOGICAL_CI_STORE:
 #ifdef CONFIG_KVM_XICS
 	case H_XIRR:
 	case H_CPPR:

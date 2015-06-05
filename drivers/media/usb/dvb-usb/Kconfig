@@ -130,7 +130,6 @@ config DVB_USB_CXUSB
 
 	  Medion MD95700 hybrid USB2.0 device.
 	  DViCO FusionHDTV (Bluebird) USB2.0 devices
-	  TechnoTrend TVStick CT2-4400 and CT2-4650 CI devices
 
 config DVB_USB_M920X
 	tristate "Uli m920x DVB-T USB2.0 support"
@@ -279,9 +278,10 @@ config DVB_USB_DW2102
 	select DVB_STV6110 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_STV0900 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_M88RS2000 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_M88DS3103 if MEDIA_SUBDRV_AUTOSELECT
 	help
-	  Say Y here to support the DvbWorld, TeVii, Prof DVB-S/S2 USB2.0
-	  receivers.
+	  Say Y here to support the DvbWorld, TeVii, Prof, TechnoTrend
+	  DVB-S/S2 USB2.0 receivers.
 
 config DVB_USB_CINERGY_T2
 	tristate "Terratec CinergyT2/qanu USB 2.0 DVB-T receiver"

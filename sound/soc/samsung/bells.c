@@ -445,7 +445,6 @@ static int bells_probe(struct platform_device *pdev)
 static struct platform_driver bells_driver = {
 	.driver = {
 		.name = "bells",
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = bells_probe,

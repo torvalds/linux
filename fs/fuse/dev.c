@@ -19,7 +19,6 @@
 #include <linux/pipe_fs_i.h>
 #include <linux/swap.h>
 #include <linux/splice.h>
-#include <linux/aio.h>
 
 MODULE_ALIAS_MISCDEV(FUSE_MINOR);
 MODULE_ALIAS("devname:fuse");
@@ -131,6 +130,13 @@ static void fuse_req_init_context(struct fuse_req *req)
 	req->in.h.pid = current->pid;
 }
 
+void fuse_set_initialized(struct fuse_conn *fc)
+{
+	/* Make sure stores before this are seen on another CPU */
+	smp_wmb();
+	fc->initialized = 1;
+}
+
 static bool fuse_block_alloc(struct fuse_conn *fc, bool for_background)
 {
 	return !fc->initialized || (for_background && fc->blocked);
@@ -155,6 +161,8 @@ static struct fuse_req *__fuse_get_req(struct fuse_conn *fc, unsigned npages,
 		if (intr)
 			goto out;
 	}
+	/* Matches smp_wmb() in fuse_set_initialized() */
+	smp_rmb();
 
 	err = -ENOTCONN;
 	if (!fc->connected)
@@ -253,6 +261,8 @@ struct fuse_req *fuse_get_req_nofail_nopages(struct fuse_conn *fc,
 
 	atomic_inc(&fc->num_waiting);
 	wait_event(fc->blocked_waitq, fc->initialized);
+	/* Matches smp_wmb() in fuse_set_initialized() */
+	smp_rmb();
 	req = fuse_request_alloc(0);
 	if (!req)
 		req = get_reserved_req(fc, file);
@@ -511,6 +521,71 @@ void fuse_request_send(struct fuse_conn *fc, struct fuse_req *req)
 }
 EXPORT_SYMBOL_GPL(fuse_request_send);
 
+static void fuse_adjust_compat(struct fuse_conn *fc, struct fuse_args *args)
+{
+	if (fc->minor < 4 && args->in.h.opcode == FUSE_STATFS)
+		args->out.args[0].size = FUSE_COMPAT_STATFS_SIZE;
+
+	if (fc->minor < 9) {
+		switch (args->in.h.opcode) {
+		case FUSE_LOOKUP:
+		case FUSE_CREATE:
+		case FUSE_MKNOD:
+		case FUSE_MKDIR:
+		case FUSE_SYMLINK:
+		case FUSE_LINK:
+			args->out.args[0].size = FUSE_COMPAT_ENTRY_OUT_SIZE;
+			break;
+		case FUSE_GETATTR:
+		case FUSE_SETATTR:
+			args->out.args[0].size = FUSE_COMPAT_ATTR_OUT_SIZE;
+			break;
+		}
+	}
+	if (fc->minor < 12) {
+		switch (args->in.h.opcode) {
+		case FUSE_CREATE:
+			args->in.args[0].size = sizeof(struct fuse_open_in);
+			break;
+		case FUSE_MKNOD:
+			args->in.args[0].size = FUSE_COMPAT_MKNOD_IN_SIZE;
+			break;
+		}
+	}
+}
+
+ssize_t fuse_simple_request(struct fuse_conn *fc, struct fuse_args *args)
+{
+	struct fuse_req *req;
+	ssize_t ret;
+
+	req = fuse_get_req(fc, 0);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	/* Needs to be done after fuse_get_req() so that fc->minor is valid */
+	fuse_adjust_compat(fc, args);
+
+	req->in.h.opcode = args->in.h.opcode;
+	req->in.h.nodeid = args->in.h.nodeid;
+	req->in.numargs = args->in.numargs;
+	memcpy(req->in.args, args->in.args,
+	       args->in.numargs * sizeof(struct fuse_in_arg));
+	req->out.argvar = args->out.argvar;
+	req->out.numargs = args->out.numargs;
+	memcpy(req->out.args, args->out.args,
+	       args->out.numargs * sizeof(struct fuse_arg));
+	fuse_request_send(fc, req);
+	ret = req->out.h.error;
+	if (!ret && args->out.argvar) {
+		BUG_ON(args->out.numargs != 1);
+		ret = req->out.args[0].size;
+	}
+	fuse_put_request(fc, req);
+
+	return ret;
+}
+
 static void fuse_request_send_nowait_locked(struct fuse_conn *fc,
 					    struct fuse_req *req)
 {
@@ -635,28 +710,26 @@ struct fuse_copy_state {
 	struct fuse_conn *fc;
 	int write;
 	struct fuse_req *req;
-	const struct iovec *iov;
+	struct iov_iter *iter;
 	struct pipe_buffer *pipebufs;
 	struct pipe_buffer *currbuf;
 	struct pipe_inode_info *pipe;
 	unsigned long nr_segs;
-	unsigned long seglen;
-	unsigned long addr;
 	struct page *pg;
 	unsigned len;
 	unsigned offset;
 	unsigned move_pages:1;
 };
 
-static void fuse_copy_init(struct fuse_copy_state *cs, struct fuse_conn *fc,
+static void fuse_copy_init(struct fuse_copy_state *cs,
+			   struct fuse_conn *fc,
 			   int write,
-			   const struct iovec *iov, unsigned long nr_segs)
+			   struct iov_iter *iter)
 {
 	memset(cs, 0, sizeof(*cs));
 	cs->fc = fc;
 	cs->write = write;
-	cs->iov = iov;
-	cs->nr_segs = nr_segs;
+	cs->iter = iter;
 }
 
 /* Unmap and put previous page of userspace buffer */
@@ -724,22 +797,16 @@ static int fuse_copy_fill(struct fuse_copy_state *cs)
 			cs->nr_segs++;
 		}
 	} else {
-		if (!cs->seglen) {
-			BUG_ON(!cs->nr_segs);
-			cs->seglen = cs->iov[0].iov_len;
-			cs->addr = (unsigned long) cs->iov[0].iov_base;
-			cs->iov++;
-			cs->nr_segs--;
-		}
-		err = get_user_pages_fast(cs->addr, 1, cs->write, &page);
+		size_t off;
+		err = iov_iter_get_pages(cs->iter, &page, PAGE_SIZE, 1, &off);
 		if (err < 0)
 			return err;
-		BUG_ON(err != 1);
+		BUG_ON(!err);
+		cs->len = err;
+		cs->offset = off;
 		cs->pg = page;
-		cs->offset = cs->addr % PAGE_SIZE;
-		cs->len = min(PAGE_SIZE - cs->offset, cs->seglen);
-		cs->seglen -= cs->len;
-		cs->addr += cs->len;
+		cs->offset = off;
+		iov_iter_advance(cs->iter, err);
 	}
 
 	return lock_request(cs->fc, cs->req);
@@ -814,8 +881,8 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 
 	newpage = buf->page;
 
-	if (WARN_ON(!PageUptodate(newpage)))
-		return -EIO;
+	if (!PageUptodate(newpage))
+		SetPageUptodate(newpage);
 
 	ClearPageMappedToDisk(newpage);
 
@@ -1277,8 +1344,18 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 	return err;
 }
 
-static ssize_t fuse_dev_read(struct kiocb *iocb, const struct iovec *iov,
-			      unsigned long nr_segs, loff_t pos)
+static int fuse_dev_open(struct inode *inode, struct file *file)
+{
+	/*
+	 * The fuse device's file's private_data is used to hold
+	 * the fuse_conn(ection) when it is mounted, and is used to
+	 * keep track of whether the file has been mounted already.
+	 */
+	file->private_data = NULL;
+	return 0;
+}
+
+static ssize_t fuse_dev_read(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct fuse_copy_state cs;
 	struct file *file = iocb->ki_filp;
@@ -1286,9 +1363,12 @@ static ssize_t fuse_dev_read(struct kiocb *iocb, const struct iovec *iov,
 	if (!fc)
 		return -EPERM;
 
-	fuse_copy_init(&cs, fc, 1, iov, nr_segs);
+	if (!iter_is_iovec(to))
+		return -EINVAL;
 
-	return fuse_dev_do_read(fc, file, &cs, iov_length(iov, nr_segs));
+	fuse_copy_init(&cs, fc, 1, to);
+
+	return fuse_dev_do_read(fc, file, &cs, iov_iter_count(to));
 }
 
 static ssize_t fuse_dev_splice_read(struct file *in, loff_t *ppos,
@@ -1308,7 +1388,7 @@ static ssize_t fuse_dev_splice_read(struct file *in, loff_t *ppos,
 	if (!bufs)
 		return -ENOMEM;
 
-	fuse_copy_init(&cs, fc, 1, NULL, 0);
+	fuse_copy_init(&cs, fc, 1, NULL);
 	cs.pipebufs = bufs;
 	cs.pipe = pipe;
 	ret = fuse_dev_do_read(fc, in, &cs, len);
@@ -1721,6 +1801,9 @@ copy_finish:
 static int fuse_notify(struct fuse_conn *fc, enum fuse_notify_code code,
 		       unsigned int size, struct fuse_copy_state *cs)
 {
+	/* Don't try to move pages (yet) */
+	cs->move_pages = 0;
+
 	switch (code) {
 	case FUSE_NOTIFY_POLL:
 		return fuse_notify_poll(fc, size, cs);
@@ -1881,17 +1964,19 @@ static ssize_t fuse_dev_do_write(struct fuse_conn *fc,
 	return err;
 }
 
-static ssize_t fuse_dev_write(struct kiocb *iocb, const struct iovec *iov,
-			      unsigned long nr_segs, loff_t pos)
+static ssize_t fuse_dev_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct fuse_copy_state cs;
 	struct fuse_conn *fc = fuse_get_conn(iocb->ki_filp);
 	if (!fc)
 		return -EPERM;
 
-	fuse_copy_init(&cs, fc, 0, iov, nr_segs);
+	if (!iter_is_iovec(from))
+		return -EINVAL;
 
-	return fuse_dev_do_write(fc, &cs, iov_length(iov, nr_segs));
+	fuse_copy_init(&cs, fc, 0, from);
+
+	return fuse_dev_do_write(fc, &cs, iov_iter_count(from));
 }
 
 static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
@@ -1954,8 +2039,9 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
 	}
 	pipe_unlock(pipe);
 
-	fuse_copy_init(&cs, fc, 0, NULL, nbuf);
+	fuse_copy_init(&cs, fc, 0, NULL);
 	cs.pipebufs = bufs;
+	cs.nr_segs = nbuf;
 	cs.pipe = pipe;
 
 	if (flags & SPLICE_F_MOVE)
@@ -2098,7 +2184,7 @@ void fuse_abort_conn(struct fuse_conn *fc)
 	if (fc->connected) {
 		fc->connected = 0;
 		fc->blocked = 0;
-		fc->initialized = 1;
+		fuse_set_initialized(fc);
 		end_io_requests(fc);
 		end_queued_requests(fc);
 		end_polls(fc);
@@ -2117,7 +2203,7 @@ int fuse_dev_release(struct inode *inode, struct file *file)
 		spin_lock(&fc->lock);
 		fc->connected = 0;
 		fc->blocked = 0;
-		fc->initialized = 1;
+		fuse_set_initialized(fc);
 		end_queued_requests(fc);
 		end_polls(fc);
 		wake_up_all(&fc->blocked_waitq);
@@ -2141,12 +2227,11 @@ static int fuse_dev_fasync(int fd, struct file *file, int on)
 
 const struct file_operations fuse_dev_operations = {
 	.owner		= THIS_MODULE,
+	.open		= fuse_dev_open,
 	.llseek		= no_llseek,
-	.read		= do_sync_read,
-	.aio_read	= fuse_dev_read,
+	.read_iter	= fuse_dev_read,
 	.splice_read	= fuse_dev_splice_read,
-	.write		= do_sync_write,
-	.aio_write	= fuse_dev_write,
+	.write_iter	= fuse_dev_write,
 	.splice_write	= fuse_dev_splice_write,
 	.poll		= fuse_dev_poll,
 	.release	= fuse_dev_release,

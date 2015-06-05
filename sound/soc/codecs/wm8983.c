@@ -967,29 +967,6 @@ static int wm8983_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm8983_suspend(struct snd_soc_codec *codec)
-{
-	wm8983_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int wm8983_resume(struct snd_soc_codec *codec)
-{
-	wm8983_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-#else
-#define wm8983_suspend NULL
-#define wm8983_resume NULL
-#endif
-
-static int wm8983_remove(struct snd_soc_codec *codec)
-{
-	wm8983_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static int wm8983_probe(struct snd_soc_codec *codec)
 {
 	int ret;
@@ -1055,10 +1032,8 @@ static struct snd_soc_dai_driver wm8983_dai = {
 
 static struct snd_soc_codec_driver soc_codec_dev_wm8983 = {
 	.probe = wm8983_probe,
-	.remove = wm8983_remove,
-	.suspend = wm8983_suspend,
-	.resume = wm8983_resume,
 	.set_bias_level = wm8983_set_bias_level,
+	.suspend_bias_off = true,
 	.controls = wm8983_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8983_snd_controls),
 	.dapm_widgets = wm8983_dapm_widgets,

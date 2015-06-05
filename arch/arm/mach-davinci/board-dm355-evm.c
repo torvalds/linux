@@ -294,7 +294,7 @@ static struct vpbe_output dm355evm_vpbe_outputs[] = {
 		.default_mode	= "ntsc",
 		.num_modes	= ARRAY_SIZE(dm355evm_enc_preset_timing),
 		.modes		= dm355evm_enc_preset_timing,
-		.if_params	= V4L2_MBUS_FMT_FIXED,
+		.if_params	= MEDIA_BUS_FMT_FIXED,
 	},
 };
 

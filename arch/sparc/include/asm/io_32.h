@@ -4,10 +4,6 @@
 #include <linux/kernel.h>
 #include <linux/ioport.h>  /* struct resource */
 
-#define readb_relaxed(__addr)	readb(__addr)
-#define readw_relaxed(__addr)	readw(__addr)
-#define readl_relaxed(__addr)	readl(__addr)
-
 #define IO_SPACE_LIMIT 0xffffffff
 
 #define memset_io(d,c,sz)     _memset_io(d,c,sz)

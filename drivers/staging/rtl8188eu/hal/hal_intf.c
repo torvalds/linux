@@ -275,13 +275,6 @@ void rtw_hal_write_rfreg(struct adapter *adapt, enum rf_radio_path rfpath,
 					      bitmask, data);
 }
 
-s32 rtw_hal_interrupt_handler(struct adapter *adapt)
-{
-	if (adapt->HalFunc.interrupt_handler)
-		return adapt->HalFunc.interrupt_handler(adapt);
-	return _FAIL;
-}
-
 void rtw_hal_set_bwmode(struct adapter *adapt,
 			enum ht_channel_width bandwidth, u8 offset)
 {
@@ -327,15 +320,6 @@ void rtw_hal_sreset_init(struct adapter *adapt)
 {
 	if (adapt->HalFunc.sreset_init_value)
 		adapt->HalFunc.sreset_init_value(adapt);
-}
-
-u8   rtw_hal_sreset_get_wifi_status(struct adapter *adapt)
-{
-	u8 status = 0;
-
-	if (adapt->HalFunc.sreset_get_wifi_status)
-		status = adapt->HalFunc.sreset_get_wifi_status(adapt);
-	return status;
 }
 
 void rtw_hal_notch_filter(struct adapter *adapter, bool enable)

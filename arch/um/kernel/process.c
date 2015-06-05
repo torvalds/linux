@@ -259,17 +259,6 @@ int strlen_user_proc(char __user *str)
 	return strlen_user(str);
 }
 
-int smp_sigio_handler(void)
-{
-#ifdef CONFIG_SMP
-	int cpu = current_thread_info()->cpu;
-	IPI_handler(cpu);
-	if (cpu != 0)
-		return 1;
-#endif
-	return 0;
-}
-
 int cpu(void)
 {
 	return current_thread_info()->cpu;

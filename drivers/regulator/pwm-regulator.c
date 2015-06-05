@@ -149,7 +149,8 @@ static int pwm_regulator_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	config.init_data = of_get_regulator_init_data(&pdev->dev, np);
+	config.init_data = of_get_regulator_init_data(&pdev->dev, np,
+						      &drvdata->desc);
 	if (!config.init_data)
 		return -ENOMEM;
 
@@ -183,7 +184,6 @@ MODULE_DEVICE_TABLE(of, pwm_of_match);
 static struct platform_driver pwm_regulator_driver = {
 	.driver = {
 		.name		= "pwm-regulator",
-		.owner		= THIS_MODULE,
 		.of_match_table = of_match_ptr(pwm_of_match),
 	},
 	.probe = pwm_regulator_probe,

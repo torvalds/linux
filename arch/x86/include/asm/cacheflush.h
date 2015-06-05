@@ -5,65 +5,6 @@
 #include <asm-generic/cacheflush.h>
 #include <asm/special_insns.h>
 
-#ifdef CONFIG_X86_PAT
-/*
- * X86 PAT uses page flags WC and Uncached together to keep track of
- * memory type of pages that have backing page struct. X86 PAT supports 3
- * different memory types, _PAGE_CACHE_WB, _PAGE_CACHE_WC and
- * _PAGE_CACHE_UC_MINUS and fourth state where page's memory type has not
- * been changed from its default (value of -1 used to denote this).
- * Note we do not support _PAGE_CACHE_UC here.
- */
-
-#define _PGMT_DEFAULT		0
-#define _PGMT_WC		(1UL << PG_arch_1)
-#define _PGMT_UC_MINUS		(1UL << PG_uncached)
-#define _PGMT_WB		(1UL << PG_uncached | 1UL << PG_arch_1)
-#define _PGMT_MASK		(1UL << PG_uncached | 1UL << PG_arch_1)
-#define _PGMT_CLEAR_MASK	(~_PGMT_MASK)
-
-static inline unsigned long get_page_memtype(struct page *pg)
-{
-	unsigned long pg_flags = pg->flags & _PGMT_MASK;
-
-	if (pg_flags == _PGMT_DEFAULT)
-		return -1;
-	else if (pg_flags == _PGMT_WC)
-		return _PAGE_CACHE_WC;
-	else if (pg_flags == _PGMT_UC_MINUS)
-		return _PAGE_CACHE_UC_MINUS;
-	else
-		return _PAGE_CACHE_WB;
-}
-
-static inline void set_page_memtype(struct page *pg, unsigned long memtype)
-{
-	unsigned long memtype_flags = _PGMT_DEFAULT;
-	unsigned long old_flags;
-	unsigned long new_flags;
-
-	switch (memtype) {
-	case _PAGE_CACHE_WC:
-		memtype_flags = _PGMT_WC;
-		break;
-	case _PAGE_CACHE_UC_MINUS:
-		memtype_flags = _PGMT_UC_MINUS;
-		break;
-	case _PAGE_CACHE_WB:
-		memtype_flags = _PGMT_WB;
-		break;
-	}
-
-	do {
-		old_flags = pg->flags;
-		new_flags = (old_flags & _PGMT_CLEAR_MASK) | memtype_flags;
-	} while (cmpxchg(&pg->flags, old_flags, new_flags) != old_flags);
-}
-#else
-static inline unsigned long get_page_memtype(struct page *pg) { return -1; }
-static inline void set_page_memtype(struct page *pg, unsigned long memtype) { }
-#endif
-
 /*
  * The set_memory_* API can be used to change various attributes of a virtual
  * address range. The attributes include:

@@ -80,8 +80,10 @@ static long clk_factors_round_rate(struct clk_hw *hw, unsigned long rate,
 }
 
 static long clk_factors_determine_rate(struct clk_hw *hw, unsigned long rate,
+				       unsigned long min_rate,
+				       unsigned long max_rate,
 				       unsigned long *best_parent_rate,
-				       struct clk **best_parent_p)
+				       struct clk_hw **best_parent_p)
 {
 	struct clk *clk = hw->clk, *parent, *best_parent = NULL;
 	int i, num_parents;
@@ -108,7 +110,7 @@ static long clk_factors_determine_rate(struct clk_hw *hw, unsigned long rate,
 	}
 
 	if (best_parent)
-		*best_parent_p = best_parent;
+		*best_parent_p = __clk_get_hw(best_parent);
 	*best_parent_rate = best;
 
 	return best_child_rate;
@@ -156,9 +158,10 @@ static const struct clk_ops clk_factors_ops = {
 	.set_rate = clk_factors_set_rate,
 };
 
-struct clk * __init sunxi_factors_register(struct device_node *node,
-					   const struct factors_data *data,
-					   spinlock_t *lock)
+struct clk *sunxi_factors_register(struct device_node *node,
+				   const struct factors_data *data,
+				   spinlock_t *lock,
+				   void __iomem *reg)
 {
 	struct clk *clk;
 	struct clk_factors *factors;
@@ -168,10 +171,7 @@ struct clk * __init sunxi_factors_register(struct device_node *node,
 	struct clk_hw *mux_hw = NULL;
 	const char *clk_name = node->name;
 	const char *parents[FACTORS_MAX_PARENTS];
-	void __iomem *reg;
 	int i = 0;
-
-	reg = of_iomap(node, 0);
 
 	/* if we have a mux, we will have >1 parents */
 	while (i < FACTORS_MAX_PARENTS &&
@@ -224,7 +224,7 @@ struct clk * __init sunxi_factors_register(struct device_node *node,
 		/* set up gate properties */
 		mux->reg = reg;
 		mux->shift = data->mux;
-		mux->mask = SUNXI_FACTORS_MUX_MASK;
+		mux->mask = data->muxmask;
 		mux->lock = factors->lock;
 		mux_hw = &mux->hw;
 	}

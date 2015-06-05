@@ -109,7 +109,7 @@ static void ipte_range(pte_t *pte, unsigned long address, int nr)
 {
 	int i;
 
-	if (test_facility(13) && IS_ENABLED(CONFIG_64BIT)) {
+	if (test_facility(13)) {
 		__ptep_ipte_range(address, nr - 1, pte);
 		return;
 	}
@@ -120,7 +120,7 @@ static void ipte_range(pte_t *pte, unsigned long address, int nr)
 	}
 }
 
-void kernel_map_pages(struct page *page, int numpages, int enable)
+void __kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	unsigned long address;
 	int nr, i, j;

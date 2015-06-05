@@ -34,12 +34,35 @@
 #include <linux/moduleparam.h>
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_plane_helper.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
 
+/**
+ * DOC: overview
+ *
+ * The CRTC modeset helper library provides a default set_config implementation
+ * in drm_crtc_helper_set_config(). Plus a few other convenience functions using
+ * the same callbacks which drivers can use to e.g. restore the modeset
+ * configuration on resume with drm_helper_resume_force_mode().
+ *
+ * The driver callbacks are mostly compatible with the atomic modeset helpers,
+ * except for the handling of the primary plane: Atomic helpers require that the
+ * primary plane is implemented as a real standalone plane and not directly tied
+ * to the CRTC state. For easier transition this library provides functions to
+ * implement the old semantics required by the CRTC helpers using the new plane
+ * and atomic helper callbacks.
+ *
+ * Drivers are strongly urged to convert to the atomic helpers (by way of first
+ * converting to the plane helpers). New drivers must not use these functions
+ * but need to implement the atomic interface instead, potentially using the
+ * atomic helpers for that.
+ */
 MODULE_AUTHOR("David Airlie, Jesse Barnes");
 MODULE_DESCRIPTION("DRM KMS helper");
 MODULE_LICENSE("GPL and additional rights");
@@ -138,7 +161,7 @@ EXPORT_SYMBOL(drm_helper_crtc_in_use);
 static void
 drm_encoder_disable(struct drm_encoder *encoder)
 {
-	struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
+	const struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
 
 	if (encoder->bridge)
 		encoder->bridge->funcs->disable(encoder->bridge);
@@ -168,7 +191,7 @@ static void __drm_helper_disable_unused_functions(struct drm_device *dev)
 	}
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+		const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 		crtc->enabled = drm_helper_crtc_in_use(crtc);
 		if (!crtc->enabled) {
 			if (crtc_funcs->disable)
@@ -206,7 +229,7 @@ EXPORT_SYMBOL(drm_helper_disable_unused_functions);
 static void
 drm_crtc_prepare_encoders(struct drm_device *dev)
 {
-	struct drm_encoder_helper_funcs *encoder_funcs;
+	const struct drm_encoder_helper_funcs *encoder_funcs;
 	struct drm_encoder *encoder;
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
@@ -247,9 +270,9 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 			      struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_display_mode *adjusted_mode, saved_mode;
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-	struct drm_encoder_helper_funcs *encoder_funcs;
+	struct drm_display_mode *adjusted_mode, saved_mode, saved_hwmode;
+	const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+	const struct drm_encoder_helper_funcs *encoder_funcs;
 	int saved_x, saved_y;
 	bool saved_enabled;
 	struct drm_encoder *encoder;
@@ -269,6 +292,7 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 	}
 
 	saved_mode = crtc->mode;
+	saved_hwmode = crtc->hwmode;
 	saved_x = crtc->x;
 	saved_y = crtc->y;
 
@@ -310,6 +334,8 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		goto done;
 	}
 	DRM_DEBUG_KMS("[CRTC:%d]\n", crtc->base.id);
+
+	crtc->hwmode = *adjusted_mode;
 
 	/* Prepare the encoders and CRTCs before setting the mode. */
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
@@ -373,9 +399,6 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 			encoder->bridge->funcs->enable(encoder->bridge);
 	}
 
-	/* Store real post-adjustment hardware mode. */
-	crtc->hwmode = *adjusted_mode;
-
 	/* Calculate and store various constants which
 	 * are later needed by vblank and swap-completion
 	 * timestamping. They are derived from true hwmode.
@@ -388,6 +411,7 @@ done:
 	if (!ret) {
 		crtc->enabled = saved_enabled;
 		crtc->mode = saved_mode;
+		crtc->hwmode = saved_hwmode;
 		crtc->x = saved_x;
 		crtc->y = saved_y;
 	}
@@ -449,7 +473,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	bool fb_changed = false; /* if true and !mode_changed just do a flip */
 	struct drm_connector *save_connectors, *connector;
 	int count = 0, ro, fail = 0;
-	struct drm_crtc_helper_funcs *crtc_funcs;
+	const struct drm_crtc_helper_funcs *crtc_funcs;
 	struct drm_mode_set save_set;
 	int ret;
 	int i;
@@ -549,7 +573,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	/* a) traverse passed in connector list and get encoders for them */
 	count = 0;
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		struct drm_connector_helper_funcs *connector_funcs =
+		const struct drm_connector_helper_funcs *connector_funcs =
 			connector->helper_private;
 		new_encoder = connector->encoder;
 		for (ro = 0; ro < set->num_connectors; ro++) {
@@ -709,7 +733,7 @@ static int drm_helper_choose_encoder_dpms(struct drm_encoder *encoder)
 static void drm_helper_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct drm_bridge *bridge = encoder->bridge;
-	struct drm_encoder_helper_funcs *encoder_funcs;
+	const struct drm_encoder_helper_funcs *encoder_funcs;
 
 	if (bridge) {
 		if (mode == DRM_MODE_DPMS_ON)
@@ -771,7 +795,7 @@ void drm_helper_connector_dpms(struct drm_connector *connector, int mode)
 	/* from off to on, do crtc then encoder */
 	if (mode < old_dpms) {
 		if (crtc) {
-			struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+			const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 			if (crtc_funcs->dpms)
 				(*crtc_funcs->dpms) (crtc,
 						     drm_helper_choose_crtc_dpms(crtc));
@@ -785,7 +809,7 @@ void drm_helper_connector_dpms(struct drm_connector *connector, int mode)
 		if (encoder)
 			drm_helper_encoder_dpms(encoder, encoder_dpms);
 		if (crtc) {
-			struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+			const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 			if (crtc_funcs->dpms)
 				(*crtc_funcs->dpms) (crtc,
 						     drm_helper_choose_crtc_dpms(crtc));
@@ -814,6 +838,7 @@ void drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
 	for (i = 0; i < 4; i++) {
 		fb->pitches[i] = mode_cmd->pitches[i];
 		fb->offsets[i] = mode_cmd->offsets[i];
+		fb->modifier[i] = mode_cmd->modifier[i];
 	}
 	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &fb->depth,
 				    &fb->bits_per_pixel);
@@ -846,7 +871,7 @@ void drm_helper_resume_force_mode(struct drm_device *dev)
 {
 	struct drm_crtc *crtc;
 	struct drm_encoder *encoder;
-	struct drm_crtc_helper_funcs *crtc_funcs;
+	const struct drm_crtc_helper_funcs *crtc_funcs;
 	int encoder_dpms;
 	bool ret;
 
@@ -888,3 +913,114 @@ void drm_helper_resume_force_mode(struct drm_device *dev)
 	drm_modeset_unlock_all(dev);
 }
 EXPORT_SYMBOL(drm_helper_resume_force_mode);
+
+/**
+ * drm_helper_crtc_mode_set - mode_set implementation for atomic plane helpers
+ * @crtc: DRM CRTC
+ * @mode: DRM display mode which userspace requested
+ * @adjusted_mode: DRM display mode adjusted by ->mode_fixup callbacks
+ * @x: x offset of the CRTC scanout area on the underlying framebuffer
+ * @y: y offset of the CRTC scanout area on the underlying framebuffer
+ * @old_fb: previous framebuffer
+ *
+ * This function implements a callback useable as the ->mode_set callback
+ * required by the crtc helpers. Besides the atomic plane helper functions for
+ * the primary plane the driver must also provide the ->mode_set_nofb callback
+ * to set up the crtc.
+ *
+ * This is a transitional helper useful for converting drivers to the atomic
+ * interfaces.
+ */
+int drm_helper_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
+			     struct drm_display_mode *adjusted_mode, int x, int y,
+			     struct drm_framebuffer *old_fb)
+{
+	struct drm_crtc_state *crtc_state;
+	const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+	int ret;
+
+	if (crtc->funcs->atomic_duplicate_state)
+		crtc_state = crtc->funcs->atomic_duplicate_state(crtc);
+	else if (crtc->state)
+		crtc_state = kmemdup(crtc->state, sizeof(*crtc_state),
+				     GFP_KERNEL);
+	else
+		crtc_state = kzalloc(sizeof(*crtc_state), GFP_KERNEL);
+	if (!crtc_state)
+		return -ENOMEM;
+	crtc_state->crtc = crtc;
+
+	crtc_state->enable = true;
+	crtc_state->planes_changed = true;
+	crtc_state->mode_changed = true;
+	drm_mode_copy(&crtc_state->mode, mode);
+	drm_mode_copy(&crtc_state->adjusted_mode, adjusted_mode);
+
+	if (crtc_funcs->atomic_check) {
+		ret = crtc_funcs->atomic_check(crtc, crtc_state);
+		if (ret) {
+			kfree(crtc_state);
+
+			return ret;
+		}
+	}
+
+	swap(crtc->state, crtc_state);
+
+	crtc_funcs->mode_set_nofb(crtc);
+
+	if (crtc_state) {
+		if (crtc->funcs->atomic_destroy_state)
+			crtc->funcs->atomic_destroy_state(crtc, crtc_state);
+		else
+			kfree(crtc_state);
+	}
+
+	return drm_helper_crtc_mode_set_base(crtc, x, y, old_fb);
+}
+EXPORT_SYMBOL(drm_helper_crtc_mode_set);
+
+/**
+ * drm_helper_crtc_mode_set_base - mode_set_base implementation for atomic plane helpers
+ * @crtc: DRM CRTC
+ * @x: x offset of the CRTC scanout area on the underlying framebuffer
+ * @y: y offset of the CRTC scanout area on the underlying framebuffer
+ * @old_fb: previous framebuffer
+ *
+ * This function implements a callback useable as the ->mode_set_base used
+ * required by the crtc helpers. The driver must provide the atomic plane helper
+ * functions for the primary plane.
+ *
+ * This is a transitional helper useful for converting drivers to the atomic
+ * interfaces.
+ */
+int drm_helper_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
+				  struct drm_framebuffer *old_fb)
+{
+	struct drm_plane_state *plane_state;
+	struct drm_plane *plane = crtc->primary;
+
+	if (plane->funcs->atomic_duplicate_state)
+		plane_state = plane->funcs->atomic_duplicate_state(plane);
+	else if (plane->state)
+		plane_state = drm_atomic_helper_plane_duplicate_state(plane);
+	else
+		plane_state = kzalloc(sizeof(*plane_state), GFP_KERNEL);
+	if (!plane_state)
+		return -ENOMEM;
+	plane_state->plane = plane;
+
+	plane_state->crtc = crtc;
+	drm_atomic_set_fb_for_plane(plane_state, crtc->primary->fb);
+	plane_state->crtc_x = 0;
+	plane_state->crtc_y = 0;
+	plane_state->crtc_h = crtc->mode.vdisplay;
+	plane_state->crtc_w = crtc->mode.hdisplay;
+	plane_state->src_x = x << 16;
+	plane_state->src_y = y << 16;
+	plane_state->src_h = crtc->mode.vdisplay << 16;
+	plane_state->src_w = crtc->mode.hdisplay << 16;
+
+	return drm_plane_helper_commit(plane, plane_state, old_fb);
+}
+EXPORT_SYMBOL(drm_helper_crtc_mode_set_base);

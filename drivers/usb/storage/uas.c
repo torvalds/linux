@@ -66,7 +66,7 @@ enum {
 /* Overrides scsi_pointer */
 struct uas_cmd_info {
 	unsigned int state;
-	unsigned int stream;
+	unsigned int uas_tag;
 	struct urb *cmd_urb;
 	struct urb *data_in_urb;
 	struct urb *data_out_urb;
@@ -173,30 +173,15 @@ static void uas_sense(struct urb *urb, struct scsi_cmnd *cmnd)
 	cmnd->result = sense_iu->status;
 }
 
-/*
- * scsi-tags go from 0 - (nr_tags - 1), uas tags need to match stream-ids,
- * which go from 1 - nr_streams. And we use 1 for untagged commands.
- */
-static int uas_get_tag(struct scsi_cmnd *cmnd)
-{
-	int tag;
-
-	if (blk_rq_tagged(cmnd->request))
-		tag = cmnd->request->tag + 2;
-	else
-		tag = 1;
-
-	return tag;
-}
-
 static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *prefix,
 			      int status)
 {
 	struct uas_cmd_info *ci = (void *)&cmnd->SCp;
+	struct uas_cmd_info *cmdinfo = (void *)&cmnd->SCp;
 
 	scmd_printk(KERN_INFO, cmnd,
-		    "%s %d tag %d inflight:%s%s%s%s%s%s%s%s%s%s%s%s ",
-		    prefix, status, uas_get_tag(cmnd),
+		    "%s %d uas-tag %d inflight:%s%s%s%s%s%s%s%s%s%s%s%s ",
+		    prefix, status, cmdinfo->uas_tag,
 		    (ci->state & SUBMIT_STATUS_URB)     ? " s-st"  : "",
 		    (ci->state & ALLOC_DATA_IN_URB)     ? " a-in"  : "",
 		    (ci->state & SUBMIT_DATA_IN_URB)    ? " s-in"  : "",
@@ -242,7 +227,7 @@ static int uas_try_complete(struct scsi_cmnd *cmnd, const char *caller)
 			      DATA_OUT_URB_INFLIGHT |
 			      COMMAND_ABORTED))
 		return -EBUSY;
-	devinfo->cmnd[uas_get_tag(cmnd) - 1] = NULL;
+	devinfo->cmnd[cmdinfo->uas_tag - 1] = NULL;
 	uas_free_unsubmitted_urbs(cmnd);
 	cmnd->scsi_done(cmnd);
 	return 0;
@@ -289,7 +274,7 @@ static void uas_stat_cmplt(struct urb *urb)
 	idx = be16_to_cpup(&iu->tag) - 1;
 	if (idx >= MAX_CMNDS || !devinfo->cmnd[idx]) {
 		dev_err(&urb->dev->dev,
-			"stat urb: no pending cmd for tag %d\n", idx + 1);
+			"stat urb: no pending cmd for uas-tag %d\n", idx + 1);
 		goto out;
 	}
 
@@ -427,7 +412,8 @@ static struct urb *uas_alloc_data_urb(struct uas_dev_info *devinfo, gfp_t gfp,
 		goto out;
 	usb_fill_bulk_urb(urb, udev, pipe, NULL, sdb->length,
 			  uas_data_cmplt, cmnd);
-	urb->stream_id = cmdinfo->stream;
+	if (devinfo->use_streams)
+		urb->stream_id = cmdinfo->uas_tag;
 	urb->num_sgs = udev->bus->sg_tablesize ? sdb->table.nents : 0;
 	urb->sg = sdb->table.sgl;
  out:
@@ -451,7 +437,8 @@ static struct urb *uas_alloc_sense_urb(struct uas_dev_info *devinfo, gfp_t gfp,
 
 	usb_fill_bulk_urb(urb, udev, devinfo->status_pipe, iu, sizeof(*iu),
 			  uas_stat_cmplt, cmnd->device->host);
-	urb->stream_id = cmdinfo->stream;
+	if (devinfo->use_streams)
+		urb->stream_id = cmdinfo->uas_tag;
 	urb->transfer_flags |= URB_FREE_BUFFER;
  out:
 	return urb;
@@ -465,6 +452,7 @@ static struct urb *uas_alloc_cmd_urb(struct uas_dev_info *devinfo, gfp_t gfp,
 {
 	struct usb_device *udev = devinfo->udev;
 	struct scsi_device *sdev = cmnd->device;
+	struct uas_cmd_info *cmdinfo = (void *)&cmnd->SCp;
 	struct urb *urb = usb_alloc_urb(0, gfp);
 	struct command_iu *iu;
 	int len;
@@ -481,7 +469,7 @@ static struct urb *uas_alloc_cmd_urb(struct uas_dev_info *devinfo, gfp_t gfp,
 		goto free;
 
 	iu->iu_id = IU_ID_COMMAND;
-	iu->tag = cpu_to_be16(uas_get_tag(cmnd));
+	iu->tag = cpu_to_be16(cmdinfo->uas_tag);
 	iu->prio_attr = UAS_SIMPLE_TAG;
 	iu->len = len;
 	int_to_scsilun(sdev->lun, &iu->lun);
@@ -608,8 +596,7 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 	struct uas_dev_info *devinfo = sdev->hostdata;
 	struct uas_cmd_info *cmdinfo = (void *)&cmnd->SCp;
 	unsigned long flags;
-	unsigned int stream;
-	int err;
+	int idx, err;
 
 	BUILD_BUG_ON(sizeof(struct uas_cmd_info) > sizeof(struct scsi_pointer));
 
@@ -635,8 +622,12 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 		return 0;
 	}
 
-	stream = uas_get_tag(cmnd);
-	if (devinfo->cmnd[stream - 1]) {
+	/* Find a free uas-tag */
+	for (idx = 0; idx < devinfo->qdepth; idx++) {
+		if (!devinfo->cmnd[idx])
+			break;
+	}
+	if (idx == devinfo->qdepth) {
 		spin_unlock_irqrestore(&devinfo->lock, flags);
 		return SCSI_MLQUEUE_DEVICE_BUSY;
 	}
@@ -644,7 +635,7 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 	cmnd->scsi_done = done;
 
 	memset(cmdinfo, 0, sizeof(*cmdinfo));
-	cmdinfo->stream = stream;
+	cmdinfo->uas_tag = idx + 1; /* uas-tag == usb-stream-id, so 1 based */
 	cmdinfo->state = SUBMIT_STATUS_URB | ALLOC_CMD_URB | SUBMIT_CMD_URB;
 
 	switch (cmnd->sc_data_direction) {
@@ -659,10 +650,8 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 		break;
 	}
 
-	if (!devinfo->use_streams) {
+	if (!devinfo->use_streams)
 		cmdinfo->state &= ~(SUBMIT_DATA_IN_URB | SUBMIT_DATA_OUT_URB);
-		cmdinfo->stream = 0;
-	}
 
 	err = uas_submit_urbs(cmnd, devinfo, GFP_ATOMIC);
 	if (err) {
@@ -674,7 +663,7 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 		uas_add_work(cmdinfo);
 	}
 
-	devinfo->cmnd[stream - 1] = cmnd;
+	devinfo->cmnd[idx] = cmnd;
 	spin_unlock_irqrestore(&devinfo->lock, flags);
 	return 0;
 }
@@ -702,7 +691,7 @@ static int uas_eh_abort_handler(struct scsi_cmnd *cmnd)
 	cmdinfo->state |= COMMAND_ABORTED;
 
 	/* Drop all refs to this cmnd, kill data urbs to break their ref */
-	devinfo->cmnd[uas_get_tag(cmnd) - 1] = NULL;
+	devinfo->cmnd[cmdinfo->uas_tag - 1] = NULL;
 	if (cmdinfo->state & DATA_IN_URB_INFLIGHT)
 		data_in_urb = usb_get_urb(cmdinfo->data_in_urb);
 	if (cmdinfo->state & DATA_OUT_URB_INFLIGHT)
@@ -770,7 +759,10 @@ static int uas_eh_bus_reset_handler(struct scsi_cmnd *cmnd)
 
 static int uas_slave_alloc(struct scsi_device *sdev)
 {
-	sdev->hostdata = (void *)sdev->host->hostdata;
+	struct uas_dev_info *devinfo =
+		(struct uas_dev_info *)sdev->host->hostdata;
+
+	sdev->hostdata = devinfo;
 
 	/* USB has unusual DMA-alignment requirements: Although the
 	 * starting address of each scatter-gather element doesn't matter,
@@ -789,6 +781,11 @@ static int uas_slave_alloc(struct scsi_device *sdev)
 	 */
 	blk_queue_update_dma_alignment(sdev->request_queue, (512 - 1));
 
+	if (devinfo->flags & US_FL_MAX_SECTORS_64)
+		blk_queue_max_hw_sectors(sdev->request_queue, 64);
+	else if (devinfo->flags & US_FL_MAX_SECTORS_240)
+		blk_queue_max_hw_sectors(sdev->request_queue, 240);
+
 	return 0;
 }
 
@@ -799,8 +796,7 @@ static int uas_slave_configure(struct scsi_device *sdev)
 	if (devinfo->flags & US_FL_NO_REPORT_OPCODES)
 		sdev->no_report_opcodes = 1;
 
-	scsi_set_tag_type(sdev, MSG_ORDERED_TAG);
-	scsi_activate_tcq(sdev, devinfo->qdepth - 2);
+	scsi_change_queue_depth(sdev, devinfo->qdepth - 2);
 	return 0;
 }
 
@@ -817,14 +813,7 @@ static struct scsi_host_template uas_host_template = {
 	.sg_tablesize = SG_NONE,
 	.cmd_per_lun = 1,	/* until we override it */
 	.skip_settle_delay = 1,
-	.ordered_tag = 1,
-
-	/*
-	 * The uas drivers expects tags not to be bigger than the maximum
-	 * per-device queue depth, which is not true with the blk-mq tag
-	 * allocator.
-	 */
-	.disable_blk_mq = true,
+	.use_blk_tags = 1,
 };
 
 #define UNUSUAL_DEV(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax, \
@@ -906,8 +895,9 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	struct Scsi_Host *shost = NULL;
 	struct uas_dev_info *devinfo;
 	struct usb_device *udev = interface_to_usbdev(intf);
+	unsigned long dev_flags;
 
-	if (!uas_use_uas_driver(intf, id))
+	if (!uas_use_uas_driver(intf, id, &dev_flags))
 		return -ENODEV;
 
 	if (uas_switch_interface(udev, intf))
@@ -929,8 +919,7 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	devinfo->udev = udev;
 	devinfo->resetting = 0;
 	devinfo->shutdown = 0;
-	devinfo->flags = id->driver_info;
-	usb_stor_adjust_quirks(udev, &devinfo->flags);
+	devinfo->flags = dev_flags;
 	init_usb_anchor(&devinfo->cmd_urbs);
 	init_usb_anchor(&devinfo->sense_urbs);
 	init_usb_anchor(&devinfo->data_urbs);

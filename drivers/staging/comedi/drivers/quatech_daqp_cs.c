@@ -48,16 +48,10 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 */
 
 #include <linux/module.h>
-#include "../comedidev.h"
 #include <linux/semaphore.h>
-
-#include <pcmcia/cistpl.h>
-#include <pcmcia/cisreg.h>
-#include <pcmcia/ds.h>
-
 #include <linux/completion.h>
 
-#include "comedi_fc.h"
+#include "../comedi_pcmcia.h"
 
 struct daqp_private {
 	int stop;
@@ -65,8 +59,6 @@ struct daqp_private {
 	enum { semaphore, buffer } interrupt_mode;
 
 	struct completion eos;
-
-	int count;
 };
 
 /* The DAQP communicates with the system through a 16 byte I/O window. */
@@ -194,6 +186,7 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 	struct comedi_device *dev = dev_id;
 	struct daqp_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int loop_limit = 10000;
 	int status;
 
@@ -211,8 +204,7 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 			unsigned short data;
 
 			if (status & DAQP_STATUS_DATA_LOST) {
-				s->async->events |=
-				    COMEDI_CB_EOA | COMEDI_CB_OVERFLOW;
+				s->async->events |= COMEDI_CB_OVERFLOW;
 				dev_warn(dev->class_dev, "data lost\n");
 				break;
 			}
@@ -221,18 +213,16 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 			data |= inb(dev->iobase + DAQP_FIFO) << 8;
 			data ^= 0x8000;
 
-			comedi_buf_put(s, data);
+			comedi_buf_write_samples(s, &data, 1);
 
 			/* If there's a limit, decrement it
 			 * and stop conversion if zero
 			 */
 
-			if (devpriv->count > 0) {
-				devpriv->count--;
-				if (devpriv->count == 0) {
-					s->async->events |= COMEDI_CB_EOA;
-					break;
-				}
+			if (cmd->stop_src == TRIG_COUNT &&
+			    s->async->scans_done >= cmd->stop_arg) {
+				s->async->events |= COMEDI_CB_EOA;
+				break;
 			}
 
 			if ((loop_limit--) <= 0)
@@ -242,12 +232,10 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 		if (loop_limit <= 0) {
 			dev_warn(dev->class_dev,
 				 "loop_limit reached in daqp_interrupt()\n");
-			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+			s->async->events |= COMEDI_CB_ERROR;
 		}
 
-		s->async->events |= COMEDI_CB_BLOCK;
-
-		cfc_handle_events(dev, s);
+		comedi_handle_events(dev, s);
 	}
 	return IRQ_HANDLED;
 }
@@ -326,7 +314,6 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 	devpriv->interrupt_mode = semaphore;
 
 	for (i = 0; i < insn->n; i++) {
-
 		/* Start conversion */
 		outb(DAQP_COMMAND_ARM | DAQP_COMMAND_FIFO_DATA,
 		     dev->iobase + DAQP_COMMAND);
@@ -377,22 +364,22 @@ static int daqp_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src,
 					TRIG_TIMER | TRIG_FOLLOW);
-	err |= cfc_check_trigger_src(&cmd->convert_src,
+	err |= comedi_check_trigger_src(&cmd->convert_src,
 					TRIG_TIMER | TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
-	err |= cfc_check_trigger_is_unique(cmd->convert_src);
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= comedi_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= comedi_check_trigger_is_unique(cmd->convert_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
@@ -401,13 +388,14 @@ static int daqp_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
 #define MAX_SPEED	10000	/* 100 kHz - in nanoseconds */
 
-	if (cmd->scan_begin_src == TRIG_TIMER)
-		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-						 MAX_SPEED);
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+						    MAX_SPEED);
+	}
 
 	/* If both scan_begin and convert are both timer values, the only
 	 * way that can make sense is if the scan time is the number of
@@ -419,15 +407,18 @@ static int daqp_ai_cmdtest(struct comedi_device *dev,
 		err |= -EINVAL;
 	}
 
-	if (cmd->convert_src == TRIG_TIMER)
-		err |= cfc_check_trigger_arg_min(&cmd->convert_arg, MAX_SPEED);
+	if (cmd->convert_src == TRIG_TIMER) {
+		err |= comedi_check_trigger_arg_min(&cmd->convert_arg,
+						    MAX_SPEED);
+	}
 
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_max(&cmd->stop_arg, 0x00ffffff);
+		err |= comedi_check_trigger_arg_max(&cmd->stop_arg, 0x00ffffff);
 	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -437,13 +428,13 @@ static int daqp_ai_cmdtest(struct comedi_device *dev,
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		arg = cmd->scan_begin_arg;
 		daqp_ns_to_timer(&arg, cmd->flags);
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		arg = cmd->convert_arg;
 		daqp_ns_to_timer(&arg, cmd->flags);
-		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
+		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, arg);
 	}
 
 	if (err)
@@ -575,12 +566,16 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	 */
 
 	if (cmd->stop_src == TRIG_COUNT) {
-		devpriv->count = cmd->stop_arg * cmd->scan_end_arg;
-		threshold = 2 * devpriv->count;
-		while (threshold > DAQP_FIFO_SIZE * 3 / 4)
-			threshold /= 2;
+		unsigned long long nsamples;
+		unsigned long long nbytes;
+
+		nsamples = (unsigned long long)cmd->stop_arg *
+			   cmd->scan_end_arg;
+		nbytes = nsamples * comedi_bytes_per_sample(s);
+		while (nbytes > DAQP_FIFO_SIZE * 3 / 4)
+			nbytes /= 2;
+		threshold = nbytes;
 	} else {
-		devpriv->count = -1;
 		threshold = DAQP_FIFO_SIZE / 2;
 	}
 
@@ -736,12 +731,11 @@ static int daqp_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[1];
 	s->type		= COMEDI_SUBD_AO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 2;
 	s->maxdata	= 0x0fff;
 	s->range_table	= &range_bipolar5;
 	s->insn_write	= daqp_ao_insn_write;
-	s->insn_read	= comedi_readback_insn_read;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)
@@ -756,7 +750,7 @@ static int daqp_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[3];
 	s->type		= COMEDI_SUBD_DO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 1;
 	s->maxdata	= 1;
 	s->insn_bits	= daqp_do_insn_bits;

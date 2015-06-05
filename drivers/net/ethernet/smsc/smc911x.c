@@ -2173,7 +2173,6 @@ static struct platform_driver smc911x_driver = {
 	.resume	 = smc911x_drv_resume,
 	.driver	 = {
 		.name	 = CARDNAME,
-		.owner	= THIS_MODULE,
 	},
 };
 

@@ -1,8 +1,6 @@
 config VT6655
    tristate "VIA Technologies VT6655 support"
-   depends on PCI && WLAN && m
-   select WIRELESS_EXT
-   select WEXT_PRIV
+   depends on PCI && MAC80211 && m
    ---help---
    This is a vendor-written driver for VIA VT6655.
 

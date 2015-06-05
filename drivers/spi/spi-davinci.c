@@ -11,10 +11,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/interrupt.h>
@@ -1119,7 +1115,6 @@ static int davinci_spi_remove(struct platform_device *pdev)
 static struct platform_driver davinci_spi_driver = {
 	.driver = {
 		.name = "spi_davinci",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(davinci_spi_of_match),
 	},
 	.probe = davinci_spi_probe,

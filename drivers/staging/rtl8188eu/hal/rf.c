@@ -131,7 +131,7 @@ void rtl88eu_phy_rf6052_set_cck_txpower(struct adapter *adapt, u8 *powerlevel)
 /*  powerbase1 for HT MCS rates */
 static void getpowerbase88e(struct adapter *adapt, u8 *pwr_level_ofdm,
 			    u8 *pwr_level_bw20, u8 *pwr_level_bw40,
-			    u8 channel,u32 *ofdmbase, u32 *mcs_base)
+			    u8 channel, u32 *ofdmbase, u32 *mcs_base)
 {
 	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
 	u32 powerbase0, powerbase1;
@@ -201,7 +201,7 @@ static void get_rx_power_val_by_reg(struct adapter *adapt, u8 channel,
 			break;
 		case 2:	/*  Better regulatory */
 				/*  don't increase any power diff */
-			write_val = ((index < 2) ? powerbase0[rf] : powerbase1[rf]);
+			write_val = (index < 2) ? powerbase0[rf] : powerbase1[rf];
 			break;
 		case 3:	/*  Customer defined power diff. */
 				/*  increase power diff defined by customer. */

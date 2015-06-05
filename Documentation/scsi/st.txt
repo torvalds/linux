@@ -506,9 +506,11 @@ user does not request data that far.)
 
 DEBUGGING HINTS
 
-To enable debugging messages, edit st.c and #define DEBUG 1. As seen
-above, debugging can be switched off with an ioctl if debugging is
-compiled into the driver. The debugging output is not voluminous.
+Debugging code is now compiled in by default but debugging is turned off
+with the kernel module parameter debug_flag defaulting to 0.  Debugging
+can still be switched on and off with an ioctl.  To enable debug at
+module load time add debug_flag=1 to the module load options, the
+debugging output is not voluminous.
 
 If the tape seems to hang, I would be very interested to hear where
 the driver is waiting. With the command 'ps -l' you can see the state

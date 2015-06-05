@@ -10,6 +10,9 @@
 		rtc0 = "/i2c@7000c000/rtc@68";
 		rtc1 = "/i2c@7000d000/tps65911@2d";
 		rtc2 = "/rtc@7000e000";
+		serial0 = &uarta;
+		serial1 = &uartb;
+		serial2 = &uartd;
 	};
 
 	host1x@50000000 {

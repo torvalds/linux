@@ -346,8 +346,8 @@ repeat:
 			}
 			if (rec->lrh_len == 0 ||
 			    rec->lrh_len > LLOG_CHUNK_SIZE) {
-				CWARN("invalid length %d in llog record for "
-				      "index %d/%d\n", rec->lrh_len,
+				CWARN("invalid length %d in llog record for index %d/%d\n",
+				      rec->lrh_len,
 				      rec->lrh_index, index);
 				rc = -EINVAL;
 				goto out;

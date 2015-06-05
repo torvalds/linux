@@ -319,16 +319,16 @@ static char tegra_uart_decode_rx_error(struct tegra_uart_port *tup,
 	if (unlikely(lsr & TEGRA_UART_LSR_ANY)) {
 		if (lsr & UART_LSR_OE) {
 			/* Overrrun error */
-			flag |= TTY_OVERRUN;
+			flag = TTY_OVERRUN;
 			tup->uport.icount.overrun++;
 			dev_err(tup->uport.dev, "Got overrun errors\n");
 		} else if (lsr & UART_LSR_PE) {
 			/* Parity error */
-			flag |= TTY_PARITY;
+			flag = TTY_PARITY;
 			tup->uport.icount.parity++;
 			dev_err(tup->uport.dev, "Got Parity errors\n");
 		} else if (lsr & UART_LSR_FE) {
-			flag |= TTY_FRAME;
+			flag = TTY_FRAME;
 			tup->uport.icount.frame++;
 			dev_err(tup->uport.dev, "Got frame errors\n");
 		} else if (lsr & UART_LSR_BI) {
@@ -1034,6 +1034,20 @@ fail_rx_dma:
 	return ret;
 }
 
+/*
+ * Flush any TX data submitted for DMA and PIO. Called when the
+ * TX circular buffer is reset.
+ */
+static void tegra_uart_flush_buffer(struct uart_port *u)
+{
+	struct tegra_uart_port *tup = to_tegra_uport(u);
+
+	tup->tx_bytes = 0;
+	if (tup->tx_dma_chan)
+		dmaengine_terminate_all(tup->tx_dma_chan);
+	return;
+}
+
 static void tegra_uart_shutdown(struct uart_port *u)
 {
 	struct tegra_uart_port *tup = to_tegra_uport(u);
@@ -1046,6 +1060,8 @@ static void tegra_uart_shutdown(struct uart_port *u)
 	tegra_uart_dma_channel_free(tup, true);
 	tegra_uart_dma_channel_free(tup, false);
 	free_irq(u->irq, tup);
+
+	tegra_uart_flush_buffer(u);
 }
 
 static void tegra_uart_enable_ms(struct uart_port *u)
@@ -1174,20 +1190,6 @@ static void tegra_uart_set_termios(struct uart_port *u,
 	return;
 }
 
-/*
- * Flush any TX data submitted for DMA and PIO. Called when the
- * TX circular buffer is reset.
- */
-static void tegra_uart_flush_buffer(struct uart_port *u)
-{
-	struct tegra_uart_port *tup = to_tegra_uport(u);
-
-	tup->tx_bytes = 0;
-	if (tup->tx_dma_chan)
-		dmaengine_terminate_all(tup->tx_dma_chan);
-	return;
-}
-
 static const char *tegra_uart_type(struct uart_port *u)
 {
 	return TEGRA_UART_TYPE;
@@ -1249,7 +1251,7 @@ static struct tegra_uart_chip_data tegra30_uart_chip_data = {
 	.support_clk_src_div		= true,
 };
 
-static struct of_device_id tegra_uart_of_match[] = {
+static const struct of_device_id tegra_uart_of_match[] = {
 	{
 		.compatible	= "nvidia,tegra30-hsuart",
 		.data		= &tegra30_uart_chip_data,

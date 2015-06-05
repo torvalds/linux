@@ -819,6 +819,7 @@ vmxnet3_parse_and_copy_hdr(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 			   struct vmxnet3_adapter *adapter)
 {
 	struct Vmxnet3_TxDataDesc *tdd;
+	u8 protocol = 0;
 
 	if (ctx->mss) {	/* TSO */
 		ctx->eth_ip_hdr_size = skb_transport_offset(skb);
@@ -831,16 +832,25 @@ vmxnet3_parse_and_copy_hdr(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 			if (ctx->ipv4) {
 				const struct iphdr *iph = ip_hdr(skb);
 
-				if (iph->protocol == IPPROTO_TCP)
-					ctx->l4_hdr_size = tcp_hdrlen(skb);
-				else if (iph->protocol == IPPROTO_UDP)
-					ctx->l4_hdr_size = sizeof(struct udphdr);
-				else
-					ctx->l4_hdr_size = 0;
-			} else {
-				/* for simplicity, don't copy L4 headers */
-				ctx->l4_hdr_size = 0;
+				protocol = iph->protocol;
+			} else if (ctx->ipv6) {
+				const struct ipv6hdr *ipv6h = ipv6_hdr(skb);
+
+				protocol = ipv6h->nexthdr;
 			}
+
+			switch (protocol) {
+			case IPPROTO_TCP:
+				ctx->l4_hdr_size = tcp_hdrlen(skb);
+				break;
+			case IPPROTO_UDP:
+				ctx->l4_hdr_size = sizeof(struct udphdr);
+				break;
+			default:
+				ctx->l4_hdr_size = 0;
+				break;
+			}
+
 			ctx->copy_size = min(ctx->eth_ip_hdr_size +
 					 ctx->l4_hdr_size, skb->len);
 		} else {
@@ -887,7 +897,7 @@ vmxnet3_prepare_tso(struct sk_buff *skb,
 		iph->check = 0;
 		tcph->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr, 0,
 						 IPPROTO_TCP, 0);
-	} else {
+	} else if (ctx->ipv6) {
 		struct ipv6hdr *iph = ipv6_hdr(skb);
 
 		tcph->check = ~csum_ipv6_magic(&iph->saddr, &iph->daddr, 0,
@@ -938,6 +948,7 @@ vmxnet3_tq_xmit(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 	count = txd_estimate(skb);
 
 	ctx.ipv4 = (vlan_get_protocol(skb) == cpu_to_be16(ETH_P_IP));
+	ctx.ipv6 = (vlan_get_protocol(skb) == cpu_to_be16(ETH_P_IPV6));
 
 	ctx.mss = skb_shinfo(skb)->gso_size;
 	if (ctx.mss) {
@@ -1038,9 +1049,9 @@ vmxnet3_tq_xmit(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 		le32_add_cpu(&tq->shared->txNumDeferred, 1);
 	}
 
-	if (vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		gdesc->txd.ti = 1;
-		gdesc->txd.tci = vlan_tx_tag_get(skb);
+		gdesc->txd.tci = skb_vlan_tag_get(skb);
 	}
 
 	/* finally flips the GEN bit of the SOP desc. */
@@ -2199,13 +2210,6 @@ vmxnet3_setup_driver_shared(struct vmxnet3_adapter *adapter)
 
 	if (adapter->rss) {
 		struct UPT1_RSSConf *rssConf = adapter->rss_conf;
-		static const uint8_t rss_key[UPT1_RSS_MAX_KEY_SIZE] = {
-			0x3b, 0x56, 0xd1, 0x56, 0x13, 0x4a, 0xe7, 0xac,
-			0xe8, 0x79, 0x09, 0x75, 0xe8, 0x65, 0x79, 0x28,
-			0x35, 0x12, 0xb9, 0x56, 0x7c, 0x76, 0x4b, 0x70,
-			0xd8, 0x56, 0xa3, 0x18, 0x9b, 0x0a, 0xee, 0xf3,
-			0x96, 0xa6, 0x9f, 0x8f, 0x9e, 0x8c, 0x90, 0xc9,
-		};
 
 		devRead->misc.uptFeatures |= UPT1_F_RSS;
 		devRead->misc.numRxQueues = adapter->num_rx_queues;
@@ -2216,7 +2220,7 @@ vmxnet3_setup_driver_shared(struct vmxnet3_adapter *adapter)
 		rssConf->hashFunc = UPT1_RSS_HASH_FUNC_TOEPLITZ;
 		rssConf->hashKeySize = UPT1_RSS_MAX_KEY_SIZE;
 		rssConf->indTableSize = VMXNET3_RSS_IND_TABLE_SIZE;
-		memcpy(rssConf->hashKey, rss_key, sizeof(rss_key));
+		netdev_rss_key_fill(rssConf->hashKey, sizeof(rssConf->hashKey));
 
 		for (i = 0; i < rssConf->indTableSize; i++)
 			rssConf->indTable[i] = ethtool_rxfh_indir_default(
@@ -2512,6 +2516,9 @@ vmxnet3_adjust_rx_ring_size(struct vmxnet3_adapter *adapter)
 	ring0_size = min_t(u32, ring0_size, VMXNET3_RX_RING_MAX_SIZE /
 			   sz * sz);
 	ring1_size = adapter->rx_queue[0].rx_ring[1].size;
+	ring1_size = (ring1_size + sz - 1) / sz * sz;
+	ring1_size = min_t(u32, ring1_size, VMXNET3_RX_RING2_MAX_SIZE /
+			   sz * sz);
 	comp_size = ring0_size + ring1_size;
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
@@ -2592,7 +2599,7 @@ vmxnet3_open(struct net_device *netdev)
 
 	err = vmxnet3_create_queues(adapter, adapter->tx_ring_size,
 				    adapter->rx_ring_size,
-				    VMXNET3_DEF_RX_RING_SIZE);
+				    adapter->rx_ring2_size);
 	if (err)
 		goto queue_err;
 
@@ -2971,6 +2978,7 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 
 	adapter->tx_ring_size = VMXNET3_DEF_TX_RING_SIZE;
 	adapter->rx_ring_size = VMXNET3_DEF_RX_RING_SIZE;
+	adapter->rx_ring2_size = VMXNET3_DEF_RX_RING2_SIZE;
 
 	spin_lock_init(&adapter->cmd_lock);
 	adapter->adapter_pa = dma_map_single(&adapter->pdev->dev, adapter,
@@ -3293,27 +3301,15 @@ skip_arp:
 static int
 vmxnet3_resume(struct device *device)
 {
-	int err, i = 0;
+	int err;
 	unsigned long flags;
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
-	struct Vmxnet3_PMConf *pmConf;
 
 	if (!netif_running(netdev))
 		return 0;
 
-	/* Destroy wake-up filters. */
-	pmConf = adapter->pm_conf;
-	memset(pmConf, 0, sizeof(*pmConf));
-
-	adapter->shared->devRead.pmConfDesc.confVer = cpu_to_le32(1);
-	adapter->shared->devRead.pmConfDesc.confLen = cpu_to_le32(sizeof(
-								  *pmConf));
-	adapter->shared->devRead.pmConfDesc.confPA =
-		cpu_to_le64(adapter->pm_conf_pa);
-
-	netif_device_attach(netdev);
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 	err = pci_enable_device_mem(pdev);
@@ -3322,15 +3318,31 @@ vmxnet3_resume(struct device *device)
 
 	pci_enable_wake(pdev, PCI_D0, 0);
 
+	vmxnet3_alloc_intr_resources(adapter);
+
+	/* During hibernate and suspend, device has to be reinitialized as the
+	 * device state need not be preserved.
+	 */
+
+	/* Need not check adapter state as other reset tasks cannot run during
+	 * device resume.
+	 */
 	spin_lock_irqsave(&adapter->cmd_lock, flags);
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
-			       VMXNET3_CMD_UPDATE_PMCFG);
+			       VMXNET3_CMD_QUIESCE_DEV);
 	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
-	vmxnet3_alloc_intr_resources(adapter);
-	vmxnet3_request_irqs(adapter);
-	for (i = 0; i < adapter->num_rx_queues; i++)
-		napi_enable(&adapter->rx_queue[i].napi);
-	vmxnet3_enable_all_intrs(adapter);
+	vmxnet3_tq_cleanup_all(adapter);
+	vmxnet3_rq_cleanup_all(adapter);
+
+	vmxnet3_reset_dev(adapter);
+	err = vmxnet3_activate_dev(adapter);
+	if (err != 0) {
+		netdev_err(netdev,
+			   "failed to re-activate on resume, error: %d", err);
+		vmxnet3_force_close(adapter);
+		return err;
+	}
+	netif_device_attach(netdev);
 
 	return 0;
 }
@@ -3338,6 +3350,8 @@ vmxnet3_resume(struct device *device)
 static const struct dev_pm_ops vmxnet3_pm_ops = {
 	.suspend = vmxnet3_suspend,
 	.resume = vmxnet3_resume,
+	.freeze = vmxnet3_suspend,
+	.restore = vmxnet3_resume,
 };
 #endif
 

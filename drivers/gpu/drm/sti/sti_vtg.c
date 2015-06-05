@@ -51,9 +51,18 @@
 #define VTG_TOP_V_HD_3      0x010C
 #define VTG_BOT_V_HD_3      0x0110
 
+#define VTG_H_HD_4          0x0120
+#define VTG_TOP_V_VD_4      0x0124
+#define VTG_BOT_V_VD_4      0x0128
+#define VTG_TOP_V_HD_4      0x012c
+#define VTG_BOT_V_HD_4      0x0130
+
 #define VTG_IRQ_BOTTOM      BIT(0)
 #define VTG_IRQ_TOP         BIT(1)
 #define VTG_IRQ_MASK        (VTG_IRQ_TOP | VTG_IRQ_BOTTOM)
+
+/* Delay introduced by the HDMI in nb of pixel */
+#define HDMI_DELAY          (6)
 
 /* delay introduced by the Arbitrary Waveform Generator in nb of pixels */
 #define AWG_DELAY_HD        (-9)
@@ -133,10 +142,10 @@ static void vtg_set_mode(struct sti_vtg *vtg,
 	writel(tmp, vtg->regs + VTG_VID_TFS);
 	writel(tmp, vtg->regs + VTG_VID_BFS);
 
-	/* prepare VTG set 1 and 2 for HDMI and VTG set 3 for HD DAC */
-	tmp = (mode->hsync_end - mode->hsync_start) << 16;
+	/* prepare VTG set 1 for HDMI */
+	tmp = (mode->hsync_end - mode->hsync_start + HDMI_DELAY) << 16;
+	tmp |= HDMI_DELAY;
 	writel(tmp, vtg->regs + VTG_H_HD_1);
-	writel(tmp, vtg->regs + VTG_H_HD_2);
 
 	tmp = (mode->vsync_end - mode->vsync_start + 1) << 16;
 	tmp |= 1;
@@ -146,6 +155,11 @@ static void vtg_set_mode(struct sti_vtg *vtg,
 	writel(0, vtg->regs + VTG_BOT_V_HD_1);
 
 	/* prepare VTG set 2 for for HD DCS */
+	tmp = (mode->hsync_end - mode->hsync_start) << 16;
+	writel(tmp, vtg->regs + VTG_H_HD_2);
+
+	tmp = (mode->vsync_end - mode->vsync_start + 1) << 16;
+	tmp |= 1;
 	writel(tmp, vtg->regs + VTG_TOP_V_VD_2);
 	writel(tmp, vtg->regs + VTG_BOT_V_VD_2);
 	writel(0, vtg->regs + VTG_TOP_V_HD_2);
@@ -165,6 +179,17 @@ static void vtg_set_mode(struct sti_vtg *vtg,
 	tmp |= mode->htotal + AWG_DELAY_HD;
 	writel(tmp, vtg->regs + VTG_TOP_V_HD_3);
 	writel(tmp, vtg->regs + VTG_BOT_V_HD_3);
+
+	/* Prepare VTG set 4 for DVO */
+	tmp = (mode->hsync_end - mode->hsync_start) << 16;
+	writel(tmp, vtg->regs + VTG_H_HD_4);
+
+	tmp = (mode->vsync_end - mode->vsync_start + 1) << 16;
+	tmp |= 1;
+	writel(tmp, vtg->regs + VTG_TOP_V_VD_4);
+	writel(tmp, vtg->regs + VTG_BOT_V_VD_4);
+	writel(0, vtg->regs + VTG_TOP_V_HD_4);
+	writel(0, vtg->regs + VTG_BOT_V_HD_4);
 
 	/* mode */
 	writel(type, vtg->regs + VTG_MODE);

@@ -126,15 +126,6 @@ static struct ctl_table irda_table[] = {
 		.mode		= 0644,
 		.proc_handler	= do_devname,
 	},
-#ifdef CONFIG_IRDA_DEBUG
-	{
-		.procname	= "debug",
-		.data		= &irda_debug,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
-	},
-#endif
 #ifdef CONFIG_IRDA_FAST_RR
 	{
 		.procname	= "fast_poll_increase",

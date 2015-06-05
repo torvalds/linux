@@ -208,7 +208,7 @@ static int tvc_probe_pdata(struct platform_device *pdev)
 	ddata->in = in;
 
 	ddata->connector_type = pdata->connector_type;
-	ddata->invert_polarity = ddata->invert_polarity;
+	ddata->invert_polarity = pdata->invert_polarity;
 
 	dssdev = &ddata->dssdev;
 	dssdev->name = pdata->name;
@@ -308,7 +308,6 @@ static struct platform_driver tvc_connector_driver = {
 	.remove	= __exit_p(tvc_remove),
 	.driver	= {
 		.name	= "connector-analog-tv",
-		.owner	= THIS_MODULE,
 		.of_match_table = tvc_of_match,
 		.suppress_bind_attrs = true,
 	},

@@ -94,7 +94,7 @@ static unsigned int fq_codel_classify(struct sk_buff *skb, struct Qdisc *sch,
 	    TC_H_MIN(skb->priority) <= q->flows_cnt)
 		return TC_H_MIN(skb->priority);
 
-	filter = rcu_dereference(q->filter_list);
+	filter = rcu_dereference_bh(q->filter_list);
 	if (!filter)
 		return fq_codel_hash(q, skb) + 1;
 
@@ -391,7 +391,7 @@ static int fq_codel_init(struct Qdisc *sch, struct nlattr *opt)
 	q->perturbation = prandom_u32();
 	INIT_LIST_HEAD(&q->new_flows);
 	INIT_LIST_HEAD(&q->old_flows);
-	codel_params_init(&q->cparams);
+	codel_params_init(&q->cparams, sch);
 	codel_stats_init(&q->cstats);
 	q->cparams.ecn = true;
 

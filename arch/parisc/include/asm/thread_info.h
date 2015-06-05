@@ -9,25 +9,19 @@
 
 struct thread_info {
 	struct task_struct *task;	/* main task structure */
-	struct exec_domain *exec_domain;/* execution domain */
 	unsigned long flags;		/* thread_info flags (see TIF_*) */
 	mm_segment_t addr_limit;	/* user-level address space limit */
 	__u32 cpu;			/* current CPU */
 	int preempt_count;		/* 0=premptable, <0=BUG; will also serve as bh-counter */
-	struct restart_block restart_block;
 };
 
 #define INIT_THREAD_INFO(tsk)			\
 {						\
 	.task		= &tsk,			\
-	.exec_domain	= &default_exec_domain,	\
 	.flags		= 0,			\
 	.cpu		= 0,			\
 	.addr_limit	= KERNEL_DS,		\
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
-  	.restart_block	= {			\
-		.fn = do_no_restart_syscall	\
-	}					\
 }
 
 #define init_thread_info        (init_thread_union.thread_info)

@@ -64,6 +64,11 @@
 		};
 	};
 
+	sram: sram@00300000 {
+		compatible = "mmio-sram";
+		reg = <0x00300000 0x8000>;
+	};
+
 	ahb {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -752,7 +757,7 @@
 			};
 
 			dbgu: serial@fffff200 {
-				compatible = "atmel,at91sam9260-usart";
+				compatible = "atmel,at91sam9260-dbgu", "atmel,at91sam9260-usart";
 				reg = <0xfffff200 0x200>;
 				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
 				pinctrl-names = "default";
@@ -889,7 +894,13 @@
 				atmel,watchdog-type = "hardware";
 				atmel,reset-type = "all";
 				atmel,dbg-halt;
-				atmel,idle-halt;
+				status = "disabled";
+			};
+
+			rtc@fffffeb0 {
+				compatible = "atmel,at91rm9200-rtc";
+				reg = <0xfffffeb0 0x40>;
+				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
 				status = "disabled";
 			};
 
@@ -899,6 +910,15 @@
 				interrupts = <18 IRQ_TYPE_LEVEL_HIGH 4>;
 				#pwm-cells = <3>;
 				clocks = <&pwm_clk>;
+				status = "disabled";
+			};
+
+			usb1: gadget@f803c000 {
+				compatible = "atmel,at91sam9260-udc";
+				reg = <0xf803c000 0x4000>;
+				interrupts = <23 IRQ_TYPE_LEVEL_HIGH 2>;
+				clocks = <&udphs_clk>, <&udpck>;
+				clock-names = "pclk", "hclk";
 				status = "disabled";
 			};
 		};

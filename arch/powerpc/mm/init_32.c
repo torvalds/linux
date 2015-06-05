@@ -26,7 +26,6 @@
 #include <linux/mm.h>
 #include <linux/stddef.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
 #include <linux/highmem.h>
 #include <linux/initrd.h>
 #include <linux/pagemap.h>
@@ -193,15 +192,6 @@ void __init MMU_init(void)
 
 	/* Shortly after that, the entire linear mapping will be available */
 	memblock_set_current_limit(lowmem_end_addr);
-}
-
-/* This is only called until mem_init is done. */
-void __init *early_get_page(void)
-{
-	if (init_bootmem_done)
-		return alloc_bootmem_pages(PAGE_SIZE);
-	else
-		return __va(memblock_alloc(PAGE_SIZE, PAGE_SIZE));
 }
 
 #ifdef CONFIG_8xx /* No 8xx specific .c file to put that in ... */

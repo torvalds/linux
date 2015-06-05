@@ -13,7 +13,6 @@
  *
  */
 #include <linux/irq.h>
-#include <linux/bootmem.h>
 #include <linux/msi.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
@@ -82,8 +81,8 @@ static void fsl_msi_print_chip(struct irq_data *irqd, struct seq_file *p)
 
 
 static struct irq_chip fsl_msi_chip = {
-	.irq_mask	= mask_msi_irq,
-	.irq_unmask	= unmask_msi_irq,
+	.irq_mask	= pci_msi_mask_irq,
+	.irq_unmask	= pci_msi_unmask_irq,
 	.irq_ack	= fsl_msi_end_irq,
 	.irq_print_chip = fsl_msi_print_chip,
 };
@@ -163,7 +162,17 @@ static void fsl_compose_msi_msg(struct pci_dev *pdev, int hwirq,
 	msg->address_lo = lower_32_bits(address);
 	msg->address_hi = upper_32_bits(address);
 
-	msg->data = hwirq;
+	/*
+	 * MPIC version 2.0 has erratum PIC1. It causes
+	 * that neither MSI nor MSI-X can work fine.
+	 * This is a workaround to allow MSI-X to function
+	 * properly. It only works for MSI-X, we prevent
+	 * MSI on buggy chips in fsl_setup_msi_irqs().
+	 */
+	if (msi_data->feature & MSI_HW_ERRATA_ENDIAN)
+		msg->data = __swab32(hwirq);
+	else
+		msg->data = hwirq;
 
 	pr_debug("%s: allocated srs: %d, ibs: %d\n", __func__,
 		 (hwirq >> msi_data->srs_shift) & MSI_SRS_MASK,
@@ -181,8 +190,16 @@ static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	struct msi_msg msg;
 	struct fsl_msi *msi_data;
 
-	if (type == PCI_CAP_ID_MSIX)
-		pr_debug("fslmsi: MSI-X untested, trying anyway.\n");
+	if (type == PCI_CAP_ID_MSI) {
+		/*
+		 * MPIC version 2.0 has erratum PIC1. For now MSI
+		 * could not work. So check to prevent MSI from
+		 * being used on the board with this erratum.
+		 */
+		list_for_each_entry(msi_data, &msi_head, list)
+			if (msi_data->feature & MSI_HW_ERRATA_ENDIAN)
+				return -EINVAL;
+	}
 
 	/*
 	 * If the PCI node has an fsl,msi property, then we need to use it
@@ -242,7 +259,7 @@ static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		irq_set_msi_desc(virq, entry);
 
 		fsl_compose_msi_msg(pdev, hwirq, &msg, msi_data);
-		write_msi_msg(virq, &msg);
+		pci_write_msi_msg(virq, &msg);
 	}
 	return 0;
 
@@ -361,7 +378,7 @@ static int fsl_msi_setup_hwirq(struct fsl_msi *msi, struct platform_device *dev,
 	cascade_data->virq = virt_msir;
 	msi->cascade_array[irq_index] = cascade_data;
 
-	ret = request_irq(virt_msir, fsl_msi_cascade, 0,
+	ret = request_irq(virt_msir, fsl_msi_cascade, IRQF_NO_THREAD,
 			  "fsl-msi-cascade", cascade_data);
 	if (ret) {
 		dev_err(&dev->dev, "failed to request_irq(%d), ret = %d\n",
@@ -446,6 +463,11 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 	}
 
 	msi->feature = features->fsl_pic_ip;
+
+	/* For erratum PIC1 on MPIC version 2.0*/
+	if ((features->fsl_pic_ip & FSL_PIC_IP_MASK) == FSL_PIC_IP_MPIC
+			&& (fsl_mpic_primary_get_version() == 0x0200))
+		msi->feature |= MSI_HW_ERRATA_ENDIAN;
 
 	/*
 	 * Remember the phandle, so that we can match with any PCI nodes
@@ -578,7 +600,6 @@ static const struct of_device_id fsl_of_msi_ids[] = {
 static struct platform_driver fsl_of_msi_driver = {
 	.driver = {
 		.name = "fsl-msi",
-		.owner = THIS_MODULE,
 		.of_match_table = fsl_of_msi_ids,
 	},
 	.probe = fsl_of_msi_probe,

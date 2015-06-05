@@ -133,4 +133,25 @@
 	non-removable;
 	bus-width = <4>;
 	cap-power-off-card;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	wlcore: wlcore@2 {
+		compatible = "ti,wl1271";
+		reg = <2>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <17 IRQ_TYPE_LEVEL_HIGH>; /* gpio 145 */
+		ref-clock-frequency = <38400000>;
+	};
 };
+
+&dss {
+	status = "ok";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <
+		&dss_dpi_pins_common
+		&dss_dpi_pins_cm_t35x
+	>;
+};
+

@@ -276,6 +276,17 @@ static struct intel_uncore_box *uncore_alloc_box(struct intel_uncore_type *type,
 	return box;
 }
 
+/*
+ * Using uncore_pmu_event_init pmu event_init callback
+ * as a detection point for uncore events.
+ */
+static int uncore_pmu_event_init(struct perf_event *event);
+
+static bool is_uncore_event(struct perf_event *event)
+{
+	return event->pmu->event_init == uncore_pmu_event_init;
+}
+
 static int
 uncore_collect_events(struct intel_uncore_box *box, struct perf_event *leader, bool dogrp)
 {
@@ -290,13 +301,18 @@ uncore_collect_events(struct intel_uncore_box *box, struct perf_event *leader, b
 		return -EINVAL;
 
 	n = box->n_events;
-	box->event_list[n] = leader;
-	n++;
+
+	if (is_uncore_event(leader)) {
+		box->event_list[n] = leader;
+		n++;
+	}
+
 	if (!dogrp)
 		return n;
 
 	list_for_each_entry(event, &leader->sibling_list, group_entry) {
-		if (event->state <= PERF_EVENT_STATE_OFF)
+		if (!is_uncore_event(event) ||
+		    event->state <= PERF_EVENT_STATE_OFF)
 			continue;
 
 		if (n >= max_count)
@@ -647,11 +663,7 @@ static int uncore_pmu_event_init(struct perf_event *event)
 static ssize_t uncore_get_attr_cpumask(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	int n = cpulist_scnprintf(buf, PAGE_SIZE - 2, &uncore_cpu_mask);
-
-	buf[n++] = '\n';
-	buf[n] = '\0';
-	return n;
+	return cpumap_print_to_pagebuf(true, buf, &uncore_cpu_mask);
 }
 
 static DEVICE_ATTR(cpumask, S_IRUGO, uncore_get_attr_cpumask, NULL);
@@ -828,7 +840,6 @@ static int uncore_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	box->phys_id = phys_id;
 	box->pci_dev = pdev;
 	box->pmu = pmu;
-	uncore_box_init(box);
 	pci_set_drvdata(pdev, box);
 
 	raw_spin_lock(&uncore_box_lock);
@@ -992,10 +1003,8 @@ static int uncore_cpu_starting(int cpu)
 			pmu = &type->pmus[j];
 			box = *per_cpu_ptr(pmu->box, cpu);
 			/* called by uncore_cpu_init? */
-			if (box && box->phys_id >= 0) {
-				uncore_box_init(box);
+			if (box && box->phys_id >= 0)
 				continue;
-			}
 
 			for_each_online_cpu(k) {
 				exist = *per_cpu_ptr(pmu->box, k);
@@ -1011,10 +1020,8 @@ static int uncore_cpu_starting(int cpu)
 				}
 			}
 
-			if (box) {
+			if (box)
 				box->phys_id = phys_id;
-				uncore_box_init(box);
-			}
 		}
 	}
 	return 0;

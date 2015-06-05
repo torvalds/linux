@@ -644,6 +644,7 @@ int r100_pci_gart_init(struct radeon_device *rdev)
 		return r;
 	rdev->gart.table_size = rdev->gart.num_gpu_pages * 4;
 	rdev->asic->gart.tlb_flush = &r100_pci_gart_tlb_flush;
+	rdev->asic->gart.get_page_entry = &r100_pci_gart_get_page_entry;
 	rdev->asic->gart.set_page = &r100_pci_gart_set_page;
 	return radeon_gart_table_ram_alloc(rdev);
 }
@@ -681,11 +682,16 @@ void r100_pci_gart_disable(struct radeon_device *rdev)
 	WREG32(RADEON_AIC_HI_ADDR, 0);
 }
 
+uint64_t r100_pci_gart_get_page_entry(uint64_t addr, uint32_t flags)
+{
+	return addr;
+}
+
 void r100_pci_gart_set_page(struct radeon_device *rdev, unsigned i,
-			    uint64_t addr, uint32_t flags)
+			    uint64_t entry)
 {
 	u32 *gtt = rdev->gart.ptr;
-	gtt[i] = cpu_to_le32(lower_32_bits(addr));
+	gtt[i] = cpu_to_le32(lower_32_bits(entry));
 }
 
 void r100_pci_gart_fini(struct radeon_device *rdev)
@@ -722,6 +728,10 @@ int r100_irq_set(struct radeon_device *rdev)
 		tmp |= RADEON_FP2_DETECT_MASK;
 	}
 	WREG32(RADEON_GEN_INT_CNTL, tmp);
+
+	/* read back to post the write */
+	RREG32(RADEON_GEN_INT_CNTL);
+
 	return 0;
 }
 
@@ -1254,7 +1264,7 @@ int r100_reloc_pitch_offset(struct radeon_cs_parser *p,
 	int r;
 	u32 tile_flags = 0;
 	u32 tmp;
-	struct radeon_cs_reloc *reloc;
+	struct radeon_bo_list *reloc;
 	u32 value;
 
 	r = radeon_cs_packet_next_reloc(p, &reloc, 0);
@@ -1293,7 +1303,7 @@ int r100_packet3_load_vbpntr(struct radeon_cs_parser *p,
 			     int idx)
 {
 	unsigned c, i;
-	struct radeon_cs_reloc *reloc;
+	struct radeon_bo_list *reloc;
 	struct r100_cs_track *track;
 	int r = 0;
 	volatile uint32_t *ib;
@@ -1542,7 +1552,7 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 			      struct radeon_cs_packet *pkt,
 			      unsigned idx, unsigned reg)
 {
-	struct radeon_cs_reloc *reloc;
+	struct radeon_bo_list *reloc;
 	struct r100_cs_track *track;
 	volatile uint32_t *ib;
 	uint32_t tmp;
@@ -1901,7 +1911,7 @@ int r100_cs_track_check_pkt3_indx_buffer(struct radeon_cs_parser *p,
 static int r100_packet3_check(struct radeon_cs_parser *p,
 			      struct radeon_cs_packet *pkt)
 {
-	struct radeon_cs_reloc *reloc;
+	struct radeon_bo_list *reloc;
 	struct r100_cs_track *track;
 	unsigned idx;
 	volatile uint32_t *ib;
@@ -2061,7 +2071,7 @@ int r100_cs_parse(struct radeon_cs_parser *p)
 		}
 		if (r)
 			return r;
-	} while (p->idx < p->chunks[p->chunk_ib_idx].length_dw);
+	} while (p->idx < p->chunk_ib->length_dw);
 	return 0;
 }
 
@@ -3206,6 +3216,9 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 	struct drm_display_mode *mode2 = NULL;
 	uint32_t pixel_bytes1 = 0;
 	uint32_t pixel_bytes2 = 0;
+
+	if (!rdev->mode_info.mode_config_initialized)
+		return;
 
 	radeon_update_display_priority(rdev);
 

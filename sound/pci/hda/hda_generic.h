@@ -46,7 +46,10 @@ struct nid_path {
 	unsigned char idx[MAX_NID_PATH_DEPTH];
 	unsigned char multi[MAX_NID_PATH_DEPTH];
 	unsigned int ctls[NID_PATH_NUM_CTLS]; /* NID_PATH_XXX_CTL */
-	bool active;
+	bool active:1;		/* activated by driver */
+	bool pin_enabled:1;	/* pins are enabled */
+	bool pin_fixed:1;	/* path with fixed pin */
+	bool stream_enabled:1;	/* stream is active */
 };
 
 /* mic/line-in auto switching entry */
@@ -144,7 +147,7 @@ struct hda_gen_spec {
 	int const_channel_count;	/* channel count for all */
 
 	/* PCM information */
-	struct hda_pcm pcm_rec[3];	/* used in build_pcms() */
+	struct hda_pcm *pcm_rec[3];	/* used in build_pcms() */
 
 	/* dynamic controls, init_verbs and input_mux */
 	struct auto_pin_cfg autocfg;
@@ -222,7 +225,7 @@ struct hda_gen_spec {
 	unsigned int vmaster_mute_enum:1; /* add vmaster mute mode enum */
 	unsigned int indep_hp:1; /* independent HP supported */
 	unsigned int prefer_hp_amp:1; /* enable HP amp for speaker if any */
-	unsigned int add_stereo_mix_input:1; /* add aamix as a capture src */
+	unsigned int add_stereo_mix_input:2; /* add aamix as a capture src */
 	unsigned int add_jack_modes:1; /* add i/o jack mode enum ctls */
 	unsigned int power_down_unused:1; /* power down unused widgets */
 	unsigned int dac_min_mute:1; /* minimal = mute for DACs */
@@ -291,6 +294,13 @@ struct hda_gen_spec {
 				    struct hda_jack_callback *cb);
 };
 
+/* values for add_stereo_mix_input flag */
+enum {
+	HDA_HINT_STEREO_MIX_DISABLE,	/* No stereo mix input */
+	HDA_HINT_STEREO_MIX_ENABLE,	/* Add stereo mix input */
+	HDA_HINT_STEREO_MIX_AUTO,	/* Add only if auto-mic is disabled */
+};
+
 int snd_hda_gen_spec_init(struct hda_gen_spec *spec);
 
 int snd_hda_gen_init(struct hda_codec *codec);
@@ -333,5 +343,7 @@ int snd_hda_gen_check_power_status(struct hda_codec *codec, hda_nid_t nid);
 unsigned int snd_hda_gen_path_power_filter(struct hda_codec *codec,
 					   hda_nid_t nid,
 					   unsigned int power_state);
+void snd_hda_gen_stream_pm(struct hda_codec *codec, hda_nid_t nid, bool on);
+int snd_hda_gen_fix_pin_power(struct hda_codec *codec, hda_nid_t pin);
 
 #endif /* __SOUND_HDA_GENERIC_H */

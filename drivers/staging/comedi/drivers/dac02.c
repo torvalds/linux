@@ -24,7 +24,7 @@
 /*
  * Driver: dac02
  * Description: Comedi driver for DAC02 compatible boards
- * Devices: (Keithley Metrabyte) DAC-02 [dac02]
+ * Devices: [Keithley Metrabyte] DAC-02 (dac02)
  * Author: H Hartley Sweeten <hsweeten@visionengravers.com>
  * Updated: Tue, 11 Mar 2014 11:27:19 -0700
  * Status: unknown
@@ -129,7 +129,6 @@ static int dac02_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata	= 0x0fff;
 	s->range_table	= &das02_ao_ranges;
 	s->insn_write	= dac02_ao_insn_write;
-	s->insn_read	= comedi_readback_insn_read;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)

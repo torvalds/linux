@@ -937,6 +937,8 @@ struct bnx2x_general_setup_params {
 	u8		spcl_id;
 	u16		mtu;
 	u8		cos;
+
+	u8		fp_hsi;
 };
 
 struct bnx2x_rxq_setup_params {

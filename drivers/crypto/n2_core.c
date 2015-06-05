@@ -1754,7 +1754,7 @@ static int spu_mdesc_walk_arcs(struct mdesc_handle *mdesc,
 				dev->dev.of_node->full_name);
 			return -EINVAL;
 		}
-		cpu_set(*id, p->sharing);
+		cpumask_set_cpu(*id, &p->sharing);
 		table[*id] = p;
 	}
 	return 0;
@@ -1776,7 +1776,7 @@ static int handle_exec_unit(struct spu_mdesc_info *ip, struct list_head *list,
 		return -ENOMEM;
 	}
 
-	cpus_clear(p->sharing);
+	cpumask_clear(&p->sharing);
 	spin_lock_init(&p->lock);
 	p->q_type = q_type;
 	INIT_LIST_HEAD(&p->jobs);
@@ -2210,7 +2210,6 @@ MODULE_DEVICE_TABLE(of, n2_crypto_match);
 static struct platform_driver n2_crypto_driver = {
 	.driver = {
 		.name		=	"n2cp",
-		.owner		=	THIS_MODULE,
 		.of_match_table	=	n2_crypto_match,
 	},
 	.probe		=	n2_crypto_probe,
@@ -2238,7 +2237,6 @@ MODULE_DEVICE_TABLE(of, n2_mau_match);
 static struct platform_driver n2_mau_driver = {
 	.driver = {
 		.name		=	"ncp",
-		.owner		=	THIS_MODULE,
 		.of_match_table	=	n2_mau_match,
 	},
 	.probe		=	n2_mau_probe,

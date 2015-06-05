@@ -137,7 +137,11 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 		r = devm_request_mem_region(dev->dev, base + 1,
 					    dev_priv->gtt.stolen_size - 1,
 					    "Graphics Stolen Memory");
-		if (r == NULL) {
+		/*
+		 * GEN3 firmware likes to smash pci bridges into the stolen
+		 * range. Apparently this works.
+		 */
+		if (r == NULL && !IS_GEN3(dev)) {
 			DRM_ERROR("conflict detected with stolen region: [0x%08x - 0x%08x]\n",
 				  base, base + (uint32_t)dev_priv->gtt.stolen_size);
 			base = 0;
@@ -227,7 +231,7 @@ static int i915_setup_compression(struct drm_device *dev, int size, int fb_cpp)
 			   dev_priv->mm.stolen_base + compressed_llb->start);
 	}
 
-	dev_priv->fbc.size = size / dev_priv->fbc.threshold;
+	dev_priv->fbc.uncompressed_size = size;
 
 	DRM_DEBUG_KMS("reserved %d bytes of contiguous stolen space for FBC\n",
 		      size);
@@ -249,7 +253,7 @@ int i915_gem_stolen_setup_compression(struct drm_device *dev, int size, int fb_c
 	if (!drm_mm_initialized(&dev_priv->mm.stolen))
 		return -ENODEV;
 
-	if (size < dev_priv->fbc.size)
+	if (size <= dev_priv->fbc.uncompressed_size)
 		return 0;
 
 	/* Release any current block */
@@ -262,7 +266,7 @@ void i915_gem_stolen_cleanup_compression(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (dev_priv->fbc.size == 0)
+	if (dev_priv->fbc.uncompressed_size == 0)
 		return;
 
 	drm_mm_remove_node(&dev_priv->fbc.compressed_fb);
@@ -272,7 +276,7 @@ void i915_gem_stolen_cleanup_compression(struct drm_device *dev)
 		kfree(dev_priv->fbc.compressed_llb);
 	}
 
-	dev_priv->fbc.size = 0;
+	dev_priv->fbc.uncompressed_size = 0;
 }
 
 void i915_gem_cleanup_stolen(struct drm_device *dev)
@@ -481,10 +485,8 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 			stolen_offset, gtt_offset, size);
 
 	/* KISS and expect everything to be page-aligned */
-	BUG_ON(stolen_offset & 4095);
-	BUG_ON(size & 4095);
-
-	if (WARN_ON(size == 0))
+	if (WARN_ON(size == 0) || WARN_ON(size & 4095) ||
+	    WARN_ON(stolen_offset & 4095))
 		return NULL;
 
 	stolen = kzalloc(sizeof(*stolen), GFP_KERNEL);
@@ -533,7 +535,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 		}
 	}
 
-	obj->has_global_gtt_mapping = 1;
+	vma->bound |= GLOBAL_BIND;
 
 	list_add_tail(&obj->global_list, &dev_priv->mm.bound_list);
 	list_add_tail(&vma->mm_list, &ggtt->inactive_list);

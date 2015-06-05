@@ -367,19 +367,22 @@ static void set_link_state(struct dummy_hcd *dum_hcd)
 	     dum_hcd->active)
 		dum_hcd->resuming = 0;
 
-	/* if !connected or reset */
+	/* Currently !connected or in reset */
 	if ((dum_hcd->port_status & USB_PORT_STAT_CONNECTION) == 0 ||
 			(dum_hcd->port_status & USB_PORT_STAT_RESET) != 0) {
-		/*
-		 * We're connected and not reset (reset occurred now),
-		 * and driver attached - disconnect!
-		 */
-		if ((dum_hcd->old_status & USB_PORT_STAT_CONNECTION) != 0 &&
-		    (dum_hcd->old_status & USB_PORT_STAT_RESET) == 0 &&
-		    dum->driver) {
+		unsigned disconnect = USB_PORT_STAT_CONNECTION &
+				dum_hcd->old_status & (~dum_hcd->port_status);
+		unsigned reset = USB_PORT_STAT_RESET &
+				(~dum_hcd->old_status) & dum_hcd->port_status;
+
+		/* Report reset and disconnect events to the driver */
+		if (dum->driver && (disconnect || reset)) {
 			stop_activity(dum);
 			spin_unlock(&dum->lock);
-			dum->driver->disconnect(&dum->gadget);
+			if (reset)
+				usb_gadget_udc_reset(&dum->gadget, dum->driver);
+			else
+				dum->driver->disconnect(&dum->gadget);
 			spin_lock(&dum->lock);
 		}
 	} else if (dum_hcd->active != dum_hcd->old_active) {
@@ -799,6 +802,7 @@ static int dummy_set_selfpowered(struct usb_gadget *_gadget, int value)
 {
 	struct dummy	*dum;
 
+	_gadget->is_selfpowered = (value != 0);
 	dum = gadget_to_dummy_hcd(_gadget)->dum;
 	if (value)
 		dum->devstatus |= (1 << USB_DEVICE_SELF_POWERED);
@@ -851,8 +855,7 @@ static int dummy_pullup(struct usb_gadget *_gadget, int value)
 
 static int dummy_udc_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver);
-static int dummy_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver);
+static int dummy_udc_stop(struct usb_gadget *g);
 
 static const struct usb_gadget_ops dummy_ops = {
 	.get_frame	= dummy_g_get_frame,
@@ -908,22 +911,15 @@ static int dummy_udc_start(struct usb_gadget *g,
 	 */
 
 	dum->devstatus = 0;
-
 	dum->driver = driver;
-	dev_dbg(udc_dev(dum), "binding gadget driver '%s'\n",
-			driver->driver.name);
+
 	return 0;
 }
 
-static int dummy_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver)
+static int dummy_udc_stop(struct usb_gadget *g)
 {
 	struct dummy_hcd	*dum_hcd = gadget_to_dummy_hcd(g);
 	struct dummy		*dum = dum_hcd->dum;
-
-	if (driver)
-		dev_dbg(udc_dev(dum), "unregister gadget driver '%s'\n",
-				driver->driver.name);
 
 	dum->driver = NULL;
 
@@ -1042,7 +1038,6 @@ static struct platform_driver dummy_udc_driver = {
 	.resume		= dummy_udc_resume,
 	.driver		= {
 		.name	= (char *) gadget_name,
-		.owner	= THIS_MODULE,
 	},
 };
 
@@ -1928,9 +1923,11 @@ static inline void
 ss_hub_descriptor(struct usb_hub_descriptor *desc)
 {
 	memset(desc, 0, sizeof *desc);
-	desc->bDescriptorType = 0x2a;
+	desc->bDescriptorType = USB_DT_SS_HUB;
 	desc->bDescLength = 12;
-	desc->wHubCharacteristics = cpu_to_le16(0x0001);
+	desc->wHubCharacteristics = cpu_to_le16(
+			HUB_CHAR_INDV_PORT_LPSM |
+			HUB_CHAR_COMMON_OCPM);
 	desc->bNbrPorts = 1;
 	desc->u.ss.bHubHdrDecLat = 0x04; /* Worst case: 0.4 micro sec*/
 	desc->u.ss.DeviceRemovable = 0xffff;
@@ -1939,9 +1936,11 @@ ss_hub_descriptor(struct usb_hub_descriptor *desc)
 static inline void hub_descriptor(struct usb_hub_descriptor *desc)
 {
 	memset(desc, 0, sizeof *desc);
-	desc->bDescriptorType = 0x29;
+	desc->bDescriptorType = USB_DT_HUB;
 	desc->bDescLength = 9;
-	desc->wHubCharacteristics = cpu_to_le16(0x0001);
+	desc->wHubCharacteristics = cpu_to_le16(
+			HUB_CHAR_INDV_PORT_LPSM |
+			HUB_CHAR_COMMON_OCPM);
 	desc->bNbrPorts = 1;
 	desc->u.hs.DeviceRemovable[0] = 0xff;
 	desc->u.hs.DeviceRemovable[1] = 0xff;
@@ -2370,7 +2369,6 @@ static void dummy_stop(struct usb_hcd *hcd)
 
 	dum = hcd_to_dummy_hcd(hcd)->dum;
 	device_remove_file(dummy_dev(hcd_to_dummy_hcd(hcd)), &dev_attr_urbs);
-	usb_gadget_unregister_driver(dum->driver);
 	dev_info(dummy_dev(hcd_to_dummy_hcd(hcd)), "stopped\n");
 }
 
@@ -2612,7 +2610,6 @@ static struct platform_driver dummy_hcd_driver = {
 	.resume		= dummy_hcd_resume,
 	.driver		= {
 		.name	= (char *) driver_name,
-		.owner	= THIS_MODULE,
 	},
 };
 
@@ -2634,7 +2631,7 @@ static int __init init(void)
 		return -EINVAL;
 
 	if (mod_data.num < 1 || mod_data.num > MAX_NUM_UDC) {
-		pr_err("Number of emulated UDC must be in range of 1…%d\n",
+		pr_err("Number of emulated UDC must be in range of 1...%d\n",
 				MAX_NUM_UDC);
 		return -EINVAL;
 	}

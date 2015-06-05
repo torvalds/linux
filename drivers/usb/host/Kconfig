@@ -198,7 +198,7 @@ config USB_EHCI_HCD_AT91
 
 config USB_EHCI_MSM
 	tristate "Support for Qualcomm QSD/MSM on-chip EHCI USB controller"
-	depends on ARCH_MSM || ARCH_QCOM
+	depends on ARCH_QCOM
 	select USB_EHCI_ROOT_HUB_TT
 	---help---
 	  Enables support for the USB Host controller present on the
@@ -219,7 +219,7 @@ config USB_EHCI_TEGRA
 
 config USB_EHCI_HCD_PPC_OF
 	bool "EHCI support for PPC USB controller on OF platform bus"
-	depends on PPC_OF
+	depends on PPC
 	default y
 	---help---
 	  Enables support for the USB controller present on the PowerPC
@@ -234,7 +234,7 @@ config USB_EHCI_SH
 
 config USB_EHCI_EXYNOS
        tristate "EHCI support for Samsung S5P/EXYNOS SoC Series"
-       depends on PLAT_S5P || ARCH_EXYNOS
+       depends on ARCH_S5PV210 || ARCH_EXYNOS
        help
 	Enable support for the Samsung Exynos SOC's on-chip EHCI controller.
 
@@ -292,11 +292,15 @@ config USB_EHCI_HCD_PLATFORM
 	  If unsure, say N.
 
 config USB_OCTEON_EHCI
-	bool "Octeon on-chip EHCI support"
+	bool "Octeon on-chip EHCI support (DEPRECATED)"
 	depends on CAVIUM_OCTEON_SOC
 	default n
 	select USB_EHCI_BIG_ENDIAN_MMIO
+	select USB_EHCI_HCD_PLATFORM
 	help
+	  This option is deprecated now and the driver was removed, use
+	  USB_EHCI_HCD_PLATFORM instead.
+
 	  Enable support for the Octeon II SOC's on-chip EHCI
 	  controller.  It is needed for high-speed (480Mbit/sec)
 	  USB 2.0 device support.  All CN6XXX based chips with USB are
@@ -326,20 +330,6 @@ config USB_ISP116X_HCD
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called isp116x-hcd.
-
-config USB_ISP1760_HCD
-	tristate "ISP 1760 HCD support"
-	---help---
-	  The ISP1760 chip is a USB 2.0 host controller.
-
-	  This driver does not support isochronous transfers or OTG.
-	  This USB controller is usually attached to a non-DMA-Master
-	  capable bus. NXP's eval kit brings this chip on PCI card
-	  where the chip itself is behind a PLB to simulate such
-	  a bus.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called isp1760.
 
 config USB_ISP1362_HCD
 	tristate "ISP1362 HCD support"
@@ -490,7 +480,7 @@ config USB_OHCI_ATH79
 
 config USB_OHCI_HCD_PPC_OF_BE
 	bool "OHCI support for OF platform bus (big endian)"
-	depends on PPC_OF
+	depends on PPC
 	select USB_OHCI_BIG_ENDIAN_DESC
 	select USB_OHCI_BIG_ENDIAN_MMIO
 	---help---
@@ -499,7 +489,7 @@ config USB_OHCI_HCD_PPC_OF_BE
 
 config USB_OHCI_HCD_PPC_OF_LE
 	bool "OHCI support for OF platform bus (little endian)"
-	depends on PPC_OF
+	depends on PPC
 	select USB_OHCI_LITTLE_ENDIAN
 	---help---
 	  Enables support for little-endian USB controllers present on the
@@ -507,7 +497,7 @@ config USB_OHCI_HCD_PPC_OF_LE
 
 config USB_OHCI_HCD_PPC_OF
 	bool
-	depends on PPC_OF
+	depends on PPC
 	default USB_OHCI_HCD_PPC_OF_BE || USB_OHCI_HCD_PPC_OF_LE
 
 config USB_OHCI_HCD_PCI
@@ -550,7 +540,7 @@ config USB_OHCI_SH
 
 config USB_OHCI_EXYNOS
 	tristate "OHCI support for Samsung S5P/EXYNOS SoC Series"
-	depends on PLAT_S5P || ARCH_EXYNOS
+	depends on ARCH_S5PV210 || ARCH_EXYNOS
 	help
 	 Enable support for the Samsung Exynos SOC's on-chip OHCI controller.
 
@@ -575,12 +565,16 @@ config USB_OHCI_HCD_PLATFORM
 	  If unsure, say N.
 
 config USB_OCTEON_OHCI
-	bool "Octeon on-chip OHCI support"
+	bool "Octeon on-chip OHCI support (DEPRECATED)"
 	depends on CAVIUM_OCTEON_SOC
 	default USB_OCTEON_EHCI
 	select USB_OHCI_BIG_ENDIAN_MMIO
 	select USB_OHCI_LITTLE_ENDIAN
+	select USB_OHCI_HCD_PLATFORM
 	help
+	  This option is deprecated now and the driver was removed, use
+	  USB_OHCI_HCD_PLATFORM instead.
+
 	  Enable support for the Octeon II SOC's on-chip OHCI
 	  controller.  It is needed for low-speed USB 1.0 device
 	  support.  All CN6XXX based chips with USB are supported.
@@ -753,12 +747,6 @@ config USB_IMX21_HCD
 
          To compile this driver as a module, choose M here: the
          module will be called "imx21-hcd".
-
-
-
-config USB_OCTEON2_COMMON
-	bool
-	default y if USB_OCTEON_EHCI || USB_OCTEON_OHCI
 
 config USB_HCD_BCMA
 	tristate "BCMA usb host driver"

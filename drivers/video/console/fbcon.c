@@ -146,9 +146,6 @@ static const struct consw fb_con;
 
 static int fbcon_set_origin(struct vc_data *);
 
-#define CURSOR_DRAW_DELAY		(1)
-
-static int vbl_cursor_cnt;
 static int fbcon_cursor_noblink;
 
 #define divides(a, b)	((!(a) || (b)%(a)) ? 0 : 1)
@@ -1329,7 +1326,6 @@ static void fbcon_cursor(struct vc_data *vc, int mode)
 
 	ops->cursor(vc, info, mode, y, get_color(vc, info, c, 1),
 		    get_color(vc, info, c, 0));
-	vbl_cursor_cnt = CURSOR_DRAW_DELAY;
 }
 
 static int scrollback_phys_max = 0;
@@ -3624,7 +3620,7 @@ static int __init fb_console_init(void)
 	return 0;
 }
 
-module_init(fb_console_init);
+fs_initcall(fb_console_init);
 
 #ifdef MODULE
 

@@ -116,7 +116,7 @@ static int ade7759_spi_read_reg_40(struct device *dev,
 
 	mutex_lock(&st->buf_lock);
 	st->tx[0] = ADE7759_READ_REG(reg_address);
-	memset(&st->tx[1], 0 , 5);
+	memset(&st->tx[1], 0, 5);
 
 	ret = spi_sync_transfer(st->us, xfers, ARRAY_SIZE(xfers));
 	if (ret) {
@@ -218,15 +218,16 @@ static int ade7759_reset(struct device *dev)
 	int ret;
 	u16 val;
 
-	ade7759_spi_read_reg_16(dev,
+	ret = ade7759_spi_read_reg_16(dev,
 			ADE7759_MODE,
 			&val);
+	if (ret < 0)
+		return ret;
+
 	val |= 1 << 6; /* Software Chip Reset */
-	ret = ade7759_spi_write_reg_16(dev,
+	return ade7759_spi_write_reg_16(dev,
 			ADE7759_MODE,
 			val);
-
-	return ret;
 }
 
 static IIO_DEV_ATTR_AENERGY(ade7759_read_40bit, ADE7759_AENERGY);
@@ -301,11 +302,18 @@ error_ret:
 /* Power down the device */
 static int ade7759_stop_device(struct device *dev)
 {
+	int ret;
 	u16 val;
 
-	ade7759_spi_read_reg_16(dev,
+	ret = ade7759_spi_read_reg_16(dev,
 			ADE7759_MODE,
 			&val);
+	if (ret < 0) {
+		dev_err(dev, "unable to power down the device, error: %d\n",
+			ret);
+		return ret;
+	}
+
 	val |= 1 << 4;  /* AD converters can be turned off */
 
 	return ade7759_spi_write_reg_16(dev, ADE7759_MODE, val);
@@ -374,7 +382,7 @@ static ssize_t ade7759_write_frequency(struct device *dev,
 
 	mutex_lock(&indio_dev->mlock);
 
-	t = (27900 / val);
+	t = 27900 / val;
 	if (t > 0)
 		t--;
 
@@ -465,11 +473,7 @@ static int ade7759_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		return ret;
-
-	return 0;
+	return iio_device_register(indio_dev);
 }
 
 /* fixme, confirm ordering in this function */

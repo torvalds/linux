@@ -1036,7 +1036,6 @@ static struct platform_driver exynos5440_pinctrl_driver = {
 	.probe		= exynos5440_pinctrl_probe,
 	.driver = {
 		.name	= "exynos5440-pinctrl",
-		.owner	= THIS_MODULE,
 		.of_match_table = exynos5440_pinctrl_dt_match,
 	},
 };

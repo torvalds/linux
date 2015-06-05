@@ -94,7 +94,7 @@ static int avr_probe(struct i2c_client *client,
 {
 	avr_i2c_client = client;
 	ppc_md.restart = avr_reset_system;
-	ppc_md.power_off = avr_power_off_system;
+	pm_power_off = avr_power_off_system;
 	return 0;
 }
 

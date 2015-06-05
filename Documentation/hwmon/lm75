@@ -53,6 +53,11 @@ Supported chips:
                http://www.ti.com/product/tmp75
                http://www.ti.com/product/tmp175
                http://www.ti.com/product/tmp275
+  * NXP LM75B
+    Prefix: 'lm75b'
+    Addresses scanned: none
+    Datasheet: Publicly available at the NXP website
+               http://www.nxp.com/documents/data_sheet/LM75B.pdf
 
 Author: Frodo Looijaard <frodol@dds.nl>
 

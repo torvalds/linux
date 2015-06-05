@@ -13,9 +13,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
-#ifdef CONFIG_PM_RUNTIME
 #include <linux/pm_runtime.h>
-#endif
 #include "s5p_mfc_common.h"
 #include "s5p_mfc_debug.h"
 #include "s5p_mfc_pm.h"
@@ -67,7 +65,7 @@ int s5p_mfc_init_pm(struct s5p_mfc_dev *dev)
 	}
 
 	atomic_set(&pm->power, 0);
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	pm->device = &dev->plat_dev->dev;
 	pm_runtime_enable(pm->device);
 #endif
@@ -93,7 +91,7 @@ void s5p_mfc_final_pm(struct s5p_mfc_dev *dev)
 	}
 	clk_unprepare(pm->clock_gate);
 	clk_put(pm->clock_gate);
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	pm_runtime_disable(pm->device);
 #endif
 }
@@ -120,7 +118,7 @@ void s5p_mfc_clock_off(void)
 
 int s5p_mfc_power_on(void)
 {
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	return pm_runtime_get_sync(pm->device);
 #else
 	atomic_set(&pm->power, 1);
@@ -130,7 +128,7 @@ int s5p_mfc_power_on(void)
 
 int s5p_mfc_power_off(void)
 {
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	return pm_runtime_put_sync(pm->device);
 #else
 	atomic_set(&pm->power, 0);

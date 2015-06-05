@@ -20,8 +20,6 @@
 #include "xfs_fs.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_error.h"
 
@@ -133,7 +131,7 @@ xfs_error_report(
 {
 	if (level <= xfs_error_level) {
 		xfs_alert_tag(mp, XFS_PTAG_ERROR_REPORT,
-		"Internal error %s at line %d of file %s.  Caller %pF",
+		"Internal error %s at line %d of file %s.  Caller %pS",
 			    tag, linenum, filename, ra);
 
 		xfs_stack_trace();

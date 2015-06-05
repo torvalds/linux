@@ -417,7 +417,6 @@ static const struct dev_pm_ops xpram_pm_ops = {
 static struct platform_driver xpram_pdrv = {
 	.driver = {
 		.name	= XPRAM_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &xpram_pm_ops,
 	},
 };

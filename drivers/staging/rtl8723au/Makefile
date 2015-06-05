@@ -2,7 +2,6 @@ r8723au-y :=				\
 		core/rtw_cmd.o		\
 		core/rtw_efuse.o	\
 		core/rtw_ieee80211.o	\
-		core/rtw_led.o		\
 		core/rtw_mlme.o		\
 		core/rtw_mlme_ext.o	\
 		core/rtw_pwrctrl.o	\
@@ -33,8 +32,6 @@ r8723au-y :=				\
 		hal/rtl8723a_rf6052.o	\
 		hal/rtl8723a_rxdesc.o	\
 		hal/rtl8723a_sreset.o	\
-		hal/rtl8723a_xmit.o	\
-		hal/rtl8723au_led.o	\
 		hal/rtl8723au_recv.o	\
 		hal/rtl8723au_xmit.o	\
 		hal/usb_halinit.o	\

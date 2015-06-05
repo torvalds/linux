@@ -178,7 +178,7 @@ static void start_caching(struct btrfs_root *root)
 			  root->root_key.objectid);
 	if (IS_ERR(tsk)) {
 		btrfs_warn(root->fs_info, "failed to start inode caching task");
-		btrfs_clear_and_info(root, CHANGE_INODE_CACHE,
+		btrfs_clear_pending_and_info(root->fs_info, INODE_MAP_CACHE,
 				"disabling inode map caching");
 	}
 }
@@ -364,6 +364,8 @@ void btrfs_init_free_ino_ctl(struct btrfs_root *root)
 	ctl->start = 0;
 	ctl->private = NULL;
 	ctl->op = &free_ino_op;
+	INIT_LIST_HEAD(&ctl->trimming_ranges);
+	mutex_init(&ctl->cache_writeout_mutex);
 
 	/*
 	 * Initially we allow to use 16K of ram to cache chunks of
@@ -454,7 +456,7 @@ again:
 	}
 
 	if (i_size_read(inode) > 0) {
-		ret = btrfs_truncate_free_space_cache(root, trans, inode);
+		ret = btrfs_truncate_free_space_cache(root, trans, NULL, inode);
 		if (ret) {
 			if (ret != -ENOSPC)
 				btrfs_abort_transaction(trans, root, ret);

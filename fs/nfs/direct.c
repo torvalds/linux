@@ -66,6 +66,10 @@ static struct kmem_cache *nfs_direct_cachep;
 /*
  * This represents a set of asynchronous requests that we're waiting on
  */
+struct nfs_direct_mirror {
+	ssize_t count;
+};
+
 struct nfs_direct_req {
 	struct kref		kref;		/* release manager */
 
@@ -78,8 +82,13 @@ struct nfs_direct_req {
 	/* completion state */
 	atomic_t		io_count;	/* i/os we're waiting for */
 	spinlock_t		lock;		/* protect completion state */
+
+	struct nfs_direct_mirror mirrors[NFS_PAGEIO_DESCRIPTOR_MIRROR_MAX];
+	int			mirror_count;
+
 	ssize_t			count,		/* bytes actually processed */
 				bytes_left,	/* bytes left to be sent */
+				io_start,	/* start of IO */
 				error;		/* any reported error */
 	struct completion	completion;	/* wait for i/o completion */
 
@@ -108,26 +117,59 @@ static inline int put_dreq(struct nfs_direct_req *dreq)
 	return atomic_dec_and_test(&dreq->io_count);
 }
 
+void nfs_direct_set_resched_writes(struct nfs_direct_req *dreq)
+{
+	dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
+}
+EXPORT_SYMBOL_GPL(nfs_direct_set_resched_writes);
+
+static void
+nfs_direct_good_bytes(struct nfs_direct_req *dreq, struct nfs_pgio_header *hdr)
+{
+	int i;
+	ssize_t count;
+
+	if (dreq->mirror_count == 1) {
+		dreq->mirrors[hdr->pgio_mirror_idx].count += hdr->good_bytes;
+		dreq->count += hdr->good_bytes;
+	} else {
+		/* mirrored writes */
+		count = dreq->mirrors[hdr->pgio_mirror_idx].count;
+		if (count + dreq->io_start < hdr->io_start + hdr->good_bytes) {
+			count = hdr->io_start + hdr->good_bytes - dreq->io_start;
+			dreq->mirrors[hdr->pgio_mirror_idx].count = count;
+		}
+		/* update the dreq->count by finding the minimum agreed count from all
+		 * mirrors */
+		count = dreq->mirrors[0].count;
+
+		for (i = 1; i < dreq->mirror_count; i++)
+			count = min(count, dreq->mirrors[i].count);
+
+		dreq->count = count;
+	}
+}
+
 /*
  * nfs_direct_select_verf - select the right verifier
  * @dreq - direct request possibly spanning multiple servers
  * @ds_clp - nfs_client of data server or NULL if MDS / non-pnfs
- * @ds_idx - index of data server in data server list, only valid if ds_clp set
+ * @commit_idx - commit bucket index for the DS
  *
  * returns the correct verifier to use given the role of the server
  */
 static struct nfs_writeverf *
 nfs_direct_select_verf(struct nfs_direct_req *dreq,
 		       struct nfs_client *ds_clp,
-		       int ds_idx)
+		       int commit_idx)
 {
 	struct nfs_writeverf *verfp = &dreq->verf;
 
 #ifdef CONFIG_NFS_V4_1
 	if (ds_clp) {
 		/* pNFS is in use, use the DS verf */
-		if (ds_idx >= 0 && ds_idx < dreq->ds_cinfo.nbuckets)
-			verfp = &dreq->ds_cinfo.buckets[ds_idx].direct_verf;
+		if (commit_idx >= 0 && commit_idx < dreq->ds_cinfo.nbuckets)
+			verfp = &dreq->ds_cinfo.buckets[commit_idx].direct_verf;
 		else
 			WARN_ON_ONCE(1);
 	}
@@ -148,8 +190,7 @@ static void nfs_direct_set_hdr_verf(struct nfs_direct_req *dreq,
 {
 	struct nfs_writeverf *verfp;
 
-	verfp = nfs_direct_select_verf(dreq, hdr->ds_clp,
-				      hdr->ds_idx);
+	verfp = nfs_direct_select_verf(dreq, hdr->ds_clp, hdr->ds_commit_idx);
 	WARN_ON_ONCE(verfp->committed >= 0);
 	memcpy(verfp, &hdr->verf, sizeof(struct nfs_writeverf));
 	WARN_ON_ONCE(verfp->committed < 0);
@@ -169,8 +210,7 @@ static int nfs_direct_set_or_cmp_hdr_verf(struct nfs_direct_req *dreq,
 {
 	struct nfs_writeverf *verfp;
 
-	verfp = nfs_direct_select_verf(dreq, hdr->ds_clp,
-					 hdr->ds_idx);
+	verfp = nfs_direct_select_verf(dreq, hdr->ds_clp, hdr->ds_commit_idx);
 	if (verfp->committed < 0) {
 		nfs_direct_set_hdr_verf(dreq, hdr);
 		return 0;
@@ -193,13 +233,16 @@ static int nfs_direct_cmp_commit_data_verf(struct nfs_direct_req *dreq,
 
 	verfp = nfs_direct_select_verf(dreq, data->ds_clp,
 					 data->ds_commit_index);
-	WARN_ON_ONCE(verfp->committed < 0);
+
+	/* verifier not set so always fail */
+	if (verfp->committed < 0)
+		return 1;
+
 	return memcmp(verfp, &data->verf, sizeof(struct nfs_writeverf));
 }
 
 /**
  * nfs_direct_IO - NFS address space operation for direct I/O
- * @rw: direction (read or write)
  * @iocb: target I/O control block
  * @iov: array of vectors that define I/O buffer
  * @pos: offset in file to begin the operation
@@ -210,20 +253,19 @@ static int nfs_direct_cmp_commit_data_verf(struct nfs_direct_req *dreq,
  * shunt off direct read and write requests before the VFS gets them,
  * so this method is only ever called for swap.
  */
-ssize_t nfs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter, loff_t pos)
+ssize_t nfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t pos)
 {
-#ifndef CONFIG_NFS_SWAP
-	dprintk("NFS: nfs_direct_IO (%pD) off/no(%Ld/%lu) EINVAL\n",
-			iocb->ki_filp, (long long) pos, iter->nr_segs);
+	struct inode *inode = iocb->ki_filp->f_mapping->host;
 
-	return -EINVAL;
-#else
-	VM_BUG_ON(iocb->ki_nbytes != PAGE_SIZE);
+	/* we only support swap file calling nfs_direct_IO */
+	if (!IS_SWAPFILE(inode))
+		return 0;
 
-	if (rw == READ)
+	VM_BUG_ON(iov_iter_count(iter) != PAGE_SIZE);
+
+	if (iov_iter_rw(iter) == READ)
 		return nfs_file_direct_read(iocb, iter, pos);
-	return nfs_file_direct_write(iocb, iter, pos);
-#endif /* CONFIG_NFS_SWAP */
+	return nfs_file_direct_write(iocb, iter);
 }
 
 static void nfs_direct_release_pages(struct page **pages, unsigned int npages)
@@ -236,11 +278,23 @@ static void nfs_direct_release_pages(struct page **pages, unsigned int npages)
 void nfs_init_cinfo_from_dreq(struct nfs_commit_info *cinfo,
 			      struct nfs_direct_req *dreq)
 {
-	cinfo->lock = &dreq->lock;
+	cinfo->lock = &dreq->inode->i_lock;
 	cinfo->mds = &dreq->mds_cinfo;
 	cinfo->ds = &dreq->ds_cinfo;
 	cinfo->dreq = dreq;
 	cinfo->completion_ops = &nfs_direct_commit_completion_ops;
+}
+
+static inline void nfs_direct_setup_mirroring(struct nfs_direct_req *dreq,
+					     struct nfs_pageio_descriptor *pgio,
+					     struct nfs_page *req)
+{
+	int mirror_count = 1;
+
+	if (pgio->pg_ops->pg_get_mirror_count)
+		mirror_count = pgio->pg_ops->pg_get_mirror_count(pgio, req);
+
+	dreq->mirror_count = mirror_count;
 }
 
 static inline struct nfs_direct_req *nfs_direct_req_alloc(void)
@@ -257,6 +311,7 @@ static inline struct nfs_direct_req *nfs_direct_req_alloc(void)
 	INIT_LIST_HEAD(&dreq->mds_cinfo.list);
 	dreq->verf.committed = NFS_INVALID_STABLE_HOW;	/* not set yet */
 	INIT_WORK(&dreq->work, nfs_direct_write_schedule_work);
+	dreq->mirror_count = 1;
 	spin_lock_init(&dreq->lock);
 
 	return dreq;
@@ -266,6 +321,7 @@ static void nfs_direct_req_free(struct kref *kref)
 {
 	struct nfs_direct_req *dreq = container_of(kref, struct nfs_direct_req, kref);
 
+	nfs_free_pnfs_ds_cinfo(&dreq->ds_cinfo);
 	if (dreq->l_ctx != NULL)
 		nfs_put_lock_context(dreq->l_ctx);
 	if (dreq->ctx != NULL)
@@ -326,13 +382,13 @@ static void nfs_direct_complete(struct nfs_direct_req *dreq, bool write)
 	if (write)
 		nfs_zap_mapping(inode, inode->i_mapping);
 
-	inode_dio_done(inode);
+	inode_dio_end(inode);
 
 	if (dreq->iocb) {
 		long res = (long) dreq->error;
 		if (!res)
 			res = (long) dreq->count;
-		aio_complete(dreq->iocb, res, 0);
+		dreq->iocb->ki_complete(dreq->iocb, res, 0);
 	}
 
 	complete_all(&dreq->completion);
@@ -343,8 +399,8 @@ static void nfs_direct_complete(struct nfs_direct_req *dreq, bool write)
 static void nfs_direct_readpage_release(struct nfs_page *req)
 {
 	dprintk("NFS: direct read done (%s/%llu %d@%lld)\n",
-		req->wb_context->dentry->d_inode->i_sb->s_id,
-		(unsigned long long)NFS_FILEID(req->wb_context->dentry->d_inode),
+		d_inode(req->wb_context->dentry)->i_sb->s_id,
+		(unsigned long long)NFS_FILEID(d_inode(req->wb_context->dentry)),
 		req->wb_bytes,
 		(long long)req_offset(req));
 	nfs_release_request(req);
@@ -362,7 +418,8 @@ static void nfs_direct_read_completion(struct nfs_pgio_header *hdr)
 	if (test_bit(NFS_IOHDR_ERROR, &hdr->flags) && (hdr->good_bytes == 0))
 		dreq->error = hdr->error;
 	else
-		dreq->count += hdr->good_bytes;
+		nfs_direct_good_bytes(dreq, hdr);
+
 	spin_unlock(&dreq->lock);
 
 	while (!list_empty(&hdr->pages)) {
@@ -425,7 +482,7 @@ static ssize_t nfs_direct_read_schedule_iovec(struct nfs_direct_req *dreq,
 			     &nfs_direct_read_completion_ops);
 	get_dreq(dreq);
 	desc.pg_dreq = dreq;
-	atomic_inc(&inode->i_dio_count);
+	inode_dio_begin(inode);
 
 	while (iov_iter_count(iter)) {
 		struct page **pagevec;
@@ -477,7 +534,7 @@ static ssize_t nfs_direct_read_schedule_iovec(struct nfs_direct_req *dreq,
 	 * generic layer handle the completion.
 	 */
 	if (requested_bytes == 0) {
-		inode_dio_done(inode);
+		inode_dio_end(inode);
 		nfs_direct_req_release(dreq);
 		return result < 0 ? result : -EIO;
 	}
@@ -540,6 +597,7 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, struct iov_iter *iter,
 
 	dreq->inode = inode;
 	dreq->bytes_left = count;
+	dreq->io_start = pos;
 	dreq->ctx = get_nfs_open_context(nfs_file_open_context(iocb->ki_filp));
 	l_ctx = nfs_get_lock_context(dreq->ctx);
 	if (IS_ERR(l_ctx)) {
@@ -572,6 +630,20 @@ out:
 	return result;
 }
 
+static void
+nfs_direct_write_scan_commit_list(struct inode *inode,
+				  struct list_head *list,
+				  struct nfs_commit_info *cinfo)
+{
+	spin_lock(cinfo->lock);
+#ifdef CONFIG_NFS_V4_1
+	if (cinfo->ds != NULL && cinfo->ds->nwritten != 0)
+		NFS_SERVER(inode)->pnfs_curr_ld->recover_commit_reqs(list, cinfo);
+#endif
+	nfs_scan_commit_list(&cinfo->mds->list, list, cinfo, 0);
+	spin_unlock(cinfo->lock);
+}
+
 static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 {
 	struct nfs_pageio_descriptor desc;
@@ -579,19 +651,22 @@ static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 	LIST_HEAD(reqs);
 	struct nfs_commit_info cinfo;
 	LIST_HEAD(failed);
+	int i;
 
 	nfs_init_cinfo_from_dreq(&cinfo, dreq);
-	pnfs_recover_commit_reqs(dreq->inode, &reqs, &cinfo);
-	spin_lock(cinfo.lock);
-	nfs_scan_commit_list(&cinfo.mds->list, &reqs, &cinfo, 0);
-	spin_unlock(cinfo.lock);
+	nfs_direct_write_scan_commit_list(dreq->inode, &reqs, &cinfo);
 
 	dreq->count = 0;
+	for (i = 0; i < dreq->mirror_count; i++)
+		dreq->mirrors[i].count = 0;
 	get_dreq(dreq);
 
 	nfs_pageio_init_write(&desc, dreq->inode, FLUSH_STABLE, false,
 			      &nfs_direct_write_completion_ops);
 	desc.pg_dreq = dreq;
+
+	req = nfs_list_entry(reqs.next);
+	nfs_direct_setup_mirroring(dreq, &desc, req);
 
 	list_for_each_entry_safe(req, tmp, &reqs, wb_list) {
 		if (!nfs_pageio_add_request(&desc, req)) {
@@ -639,7 +714,7 @@ static void nfs_direct_commit_complete(struct nfs_commit_data *data)
 		nfs_list_remove_request(req);
 		if (dreq->flags == NFS_ODIRECT_RESCHED_WRITES) {
 			/* Note the rewrite will go through mds */
-			nfs_mark_request_commit(req, NULL, &cinfo);
+			nfs_mark_request_commit(req, NULL, &cinfo, 0);
 		} else
 			nfs_release_request(req);
 		nfs_unlock_and_release_request(req);
@@ -714,7 +789,7 @@ static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 		dreq->error = hdr->error;
 	}
 	if (dreq->error == 0) {
-		dreq->count += hdr->good_bytes;
+		nfs_direct_good_bytes(dreq, hdr);
 		if (nfs_write_need_commit(hdr)) {
 			if (dreq->flags == NFS_ODIRECT_RESCHED_WRITES)
 				request_commit = true;
@@ -738,7 +813,8 @@ static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 		nfs_list_remove_request(req);
 		if (request_commit) {
 			kref_get(&req->wb_kref);
-			nfs_mark_request_commit(req, hdr->lseg, &cinfo);
+			nfs_mark_request_commit(req, hdr->lseg, &cinfo,
+				hdr->ds_commit_idx);
 		}
 		nfs_unlock_and_release_request(req);
 	}
@@ -792,7 +868,7 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
 			      &nfs_direct_write_completion_ops);
 	desc.pg_dreq = dreq;
 	get_dreq(dreq);
-	atomic_inc(&inode->i_dio_count);
+	inode_dio_begin(inode);
 
 	NFS_I(inode)->write_io += iov_iter_count(iter);
 	while (iov_iter_count(iter)) {
@@ -819,6 +895,9 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
 				result = PTR_ERR(req);
 				break;
 			}
+
+			nfs_direct_setup_mirroring(dreq, &desc, req);
+
 			nfs_lock_request(req);
 			req->wb_index = pos >> PAGE_SHIFT;
 			req->wb_offset = pos & ~PAGE_MASK;
@@ -845,7 +924,7 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
 	 * generic layer handle the completion.
 	 */
 	if (requested_bytes == 0) {
-		inode_dio_done(inode);
+		inode_dio_end(inode);
 		nfs_direct_req_release(dreq);
 		return result < 0 ? result : -EIO;
 	}
@@ -876,8 +955,7 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
  * Note that O_APPEND is not supported for NFS direct writes, as there
  * is no atomic O_APPEND write facility in the NFS protocol.
  */
-ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter,
-				loff_t pos)
+ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter)
 {
 	ssize_t result = -EINVAL;
 	struct file *file = iocb->ki_filp;
@@ -885,25 +963,16 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter,
 	struct inode *inode = mapping->host;
 	struct nfs_direct_req *dreq;
 	struct nfs_lock_context *l_ctx;
-	loff_t end;
-	size_t count = iov_iter_count(iter);
-	end = (pos + count - 1) >> PAGE_CACHE_SHIFT;
-
-	nfs_add_stats(mapping->host, NFSIOS_DIRECTWRITTENBYTES, count);
+	loff_t pos, end;
 
 	dfprintk(FILE, "NFS: direct write(%pD2, %zd@%Ld)\n",
-		file, count, (long long) pos);
+		file, iov_iter_count(iter), (long long) iocb->ki_pos);
 
-	result = generic_write_checks(file, &pos, &count, 0);
-	if (result)
-		goto out;
+	nfs_add_stats(mapping->host, NFSIOS_DIRECTWRITTENBYTES,
+		      iov_iter_count(iter));
 
-	result = -EINVAL;
-	if ((ssize_t) count < 0)
-		goto out;
-	result = 0;
-	if (!count)
-		goto out;
+	pos = iocb->ki_pos;
+	end = (pos + iov_iter_count(iter) - 1) >> PAGE_CACHE_SHIFT;
 
 	mutex_lock(&inode->i_mutex);
 
@@ -918,7 +987,7 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter,
 			goto out_unlock;
 	}
 
-	task_io_account_write(count);
+	task_io_account_write(iov_iter_count(iter));
 
 	result = -ENOMEM;
 	dreq = nfs_direct_req_alloc();
@@ -926,7 +995,8 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter,
 		goto out_unlock;
 
 	dreq->inode = inode;
-	dreq->bytes_left = count;
+	dreq->bytes_left = iov_iter_count(iter);
+	dreq->io_start = pos;
 	dreq->ctx = get_nfs_open_context(nfs_file_open_context(iocb->ki_filp));
 	l_ctx = nfs_get_lock_context(dreq->ctx);
 	if (IS_ERR(l_ctx)) {
@@ -956,6 +1026,7 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter,
 			if (i_size_read(inode) < iocb->ki_pos)
 				i_size_write(inode, iocb->ki_pos);
 			spin_unlock(&inode->i_lock);
+			generic_write_sync(file, pos, result);
 		}
 	}
 	nfs_direct_req_release(dreq);
@@ -965,7 +1036,6 @@ out_release:
 	nfs_direct_req_release(dreq);
 out_unlock:
 	mutex_unlock(&inode->i_mutex);
-out:
 	return result;
 }
 

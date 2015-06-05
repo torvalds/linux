@@ -38,6 +38,9 @@
 #ifndef cpu_has_maar
 #define cpu_has_maar		(cpu_data[0].options & MIPS_CPU_MAAR)
 #endif
+#ifndef cpu_has_rw_llb
+#define cpu_has_rw_llb		(cpu_data[0].options & MIPS_CPU_RW_LLB)
+#endif
 
 /*
  * For the moment we don't consider R6000 and R8000 so we can assume that
@@ -65,6 +68,7 @@
 #ifndef cpu_has_octeon_cache
 #define cpu_has_octeon_cache	0
 #endif
+/* Don't override `cpu_has_fpu' to 1 or the "nofpu" option won't work.  */
 #ifndef cpu_has_fpu
 #define cpu_has_fpu		(current_cpu_data.options & MIPS_CPU_FPU)
 #define raw_cpu_has_fpu		(raw_current_cpu_data.options & MIPS_CPU_FPU)
@@ -136,6 +140,9 @@
 # endif
 #endif
 
+#ifndef cpu_has_xpa
+#define cpu_has_xpa		(cpu_data[0].options & MIPS_CPU_XPA)
+#endif
 #ifndef cpu_has_vtag_icache
 #define cpu_has_vtag_icache	(cpu_data[0].icache.flags & MIPS_CACHE_VTAG)
 #endif
@@ -171,6 +178,9 @@
 #endif
 #endif
 
+#ifndef cpu_has_mips_1
+# define cpu_has_mips_1		(!cpu_has_mips_r6)
+#endif
 #ifndef cpu_has_mips_2
 # define cpu_has_mips_2		(cpu_data[0].isa_level & MIPS_CPU_ISA_II)
 #endif
@@ -189,11 +199,17 @@
 #ifndef cpu_has_mips32r2
 # define cpu_has_mips32r2	(cpu_data[0].isa_level & MIPS_CPU_ISA_M32R2)
 #endif
+#ifndef cpu_has_mips32r6
+# define cpu_has_mips32r6	(cpu_data[0].isa_level & MIPS_CPU_ISA_M32R6)
+#endif
 #ifndef cpu_has_mips64r1
 # define cpu_has_mips64r1	(cpu_data[0].isa_level & MIPS_CPU_ISA_M64R1)
 #endif
 #ifndef cpu_has_mips64r2
 # define cpu_has_mips64r2	(cpu_data[0].isa_level & MIPS_CPU_ISA_M64R2)
+#endif
+#ifndef cpu_has_mips64r6
+# define cpu_has_mips64r6	(cpu_data[0].isa_level & MIPS_CPU_ISA_M64R6)
 #endif
 
 /*
@@ -208,17 +224,57 @@
 #define cpu_has_mips_4_5_r	(cpu_has_mips_4 | cpu_has_mips_5_r)
 #define cpu_has_mips_5_r	(cpu_has_mips_5 | cpu_has_mips_r)
 
-#define cpu_has_mips_4_5_r2	(cpu_has_mips_4_5 | cpu_has_mips_r2)
+#define cpu_has_mips_3_4_5_64_r2_r6					\
+				(cpu_has_mips_3 | cpu_has_mips_4_5_64_r2_r6)
+#define cpu_has_mips_4_5_64_r2_r6					\
+				(cpu_has_mips_4_5 | cpu_has_mips64r1 |	\
+				 cpu_has_mips_r2 | cpu_has_mips_r6)
 
-#define cpu_has_mips32	(cpu_has_mips32r1 | cpu_has_mips32r2)
-#define cpu_has_mips64	(cpu_has_mips64r1 | cpu_has_mips64r2)
+#define cpu_has_mips32	(cpu_has_mips32r1 | cpu_has_mips32r2 | cpu_has_mips32r6)
+#define cpu_has_mips64	(cpu_has_mips64r1 | cpu_has_mips64r2 | cpu_has_mips64r6)
 #define cpu_has_mips_r1 (cpu_has_mips32r1 | cpu_has_mips64r1)
 #define cpu_has_mips_r2 (cpu_has_mips32r2 | cpu_has_mips64r2)
+#define cpu_has_mips_r6	(cpu_has_mips32r6 | cpu_has_mips64r6)
 #define cpu_has_mips_r	(cpu_has_mips32r1 | cpu_has_mips32r2 | \
-			 cpu_has_mips64r1 | cpu_has_mips64r2)
+			 cpu_has_mips32r6 | cpu_has_mips64r1 | \
+			 cpu_has_mips64r2 | cpu_has_mips64r6)
 
+/* MIPSR2 and MIPSR6 have a lot of similarities */
+#define cpu_has_mips_r2_r6	(cpu_has_mips_r2 | cpu_has_mips_r6)
+
+/*
+ * cpu_has_mips_r2_exec_hazard - return if IHB is required on current processor
+ *
+ * Returns non-zero value if the current processor implementation requires
+ * an IHB instruction to deal with an instruction hazard as per MIPS R2
+ * architecture specification, zero otherwise.
+ */
 #ifndef cpu_has_mips_r2_exec_hazard
-#define cpu_has_mips_r2_exec_hazard cpu_has_mips_r2
+#define cpu_has_mips_r2_exec_hazard					\
+({									\
+	int __res;							\
+									\
+	switch (current_cpu_type()) {					\
+	case CPU_M14KC:							\
+	case CPU_74K:							\
+	case CPU_1074K:							\
+	case CPU_PROAPTIV:						\
+	case CPU_P5600:							\
+	case CPU_M5150:							\
+	case CPU_QEMU_GENERIC:						\
+	case CPU_CAVIUM_OCTEON:						\
+	case CPU_CAVIUM_OCTEON_PLUS:					\
+	case CPU_CAVIUM_OCTEON2:					\
+	case CPU_CAVIUM_OCTEON3:					\
+		__res = 0;						\
+		break;							\
+									\
+	default:							\
+		__res = 1;						\
+	}								\
+									\
+	__res;								\
+})
 #endif
 
 /*
@@ -342,6 +398,14 @@
 # define cpu_has_msa		(cpu_data[0].ases & MIPS_ASE_MSA)
 #elif !defined(cpu_has_msa)
 # define cpu_has_msa		0
+#endif
+
+#ifndef cpu_has_fre
+# define cpu_has_fre		(cpu_data[0].options & MIPS_CPU_FRE)
+#endif
+
+#ifndef cpu_has_cdmm
+# define cpu_has_cdmm		(cpu_data[0].options & MIPS_CPU_CDMM)
 #endif
 
 #endif /* __ASM_CPU_FEATURES_H */

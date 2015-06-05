@@ -112,7 +112,6 @@ MODULE_DEVICE_TABLE(of, gpio_beeper_of_match);
 static struct platform_driver gpio_beeper_platform_driver = {
 	.driver	= {
 		.name		= BEEPER_MODNAME,
-		.owner		= THIS_MODULE,
 		.of_match_table	= of_match_ptr(gpio_beeper_of_match),
 	},
 	.probe	= gpio_beeper_probe,

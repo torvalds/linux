@@ -371,9 +371,15 @@ void ath_ani_calibrate(unsigned long data)
 
 	/* Perform calibration if necessary */
 	if (longcal || shortcal) {
-		common->ani.caldone =
-			ath9k_hw_calibrate(ah, ah->curchan,
-					   ah->rxchainmask, longcal);
+		int ret = ath9k_hw_calibrate(ah, ah->curchan, ah->rxchainmask,
+					     longcal);
+		if (ret < 0) {
+			common->ani.caldone = 0;
+			ath9k_queue_reset(sc, RESET_TYPE_CALIBRATION);
+			return;
+		}
+
+		common->ani.caldone = ret;
 	}
 
 	ath_dbg(common, ANI,
@@ -510,14 +516,14 @@ int ath_update_survey_stats(struct ath_softc *sc)
 		ath_hw_cycle_counters_update(common);
 
 	if (cc->cycles > 0) {
-		survey->filled |= SURVEY_INFO_CHANNEL_TIME |
-			SURVEY_INFO_CHANNEL_TIME_BUSY |
-			SURVEY_INFO_CHANNEL_TIME_RX |
-			SURVEY_INFO_CHANNEL_TIME_TX;
-		survey->channel_time += cc->cycles / div;
-		survey->channel_time_busy += cc->rx_busy / div;
-		survey->channel_time_rx += cc->rx_frame / div;
-		survey->channel_time_tx += cc->tx_frame / div;
+		survey->filled |= SURVEY_INFO_TIME |
+			SURVEY_INFO_TIME_BUSY |
+			SURVEY_INFO_TIME_RX |
+			SURVEY_INFO_TIME_TX;
+		survey->time += cc->cycles / div;
+		survey->time_busy += cc->rx_busy / div;
+		survey->time_rx += cc->rx_frame / div;
+		survey->time_tx += cc->tx_frame / div;
 	}
 
 	if (cc->cycles < div)

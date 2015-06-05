@@ -70,8 +70,7 @@ rtllib_frag_cache_find(struct rtllib_device *ieee, unsigned int seq,
 		if (entry->skb != NULL &&
 		    time_after(jiffies, entry->first_frag_time + 2 * HZ)) {
 			RTLLIB_DEBUG_FRAG(
-				"expiring fragment cache entry "
-				"seq=%u last_frag=%u\n",
+				"expiring fragment cache entry seq=%u last_frag=%u\n",
 				entry->seq, entry->last_frag);
 			dev_kfree_skb_any(entry->skb);
 			entry->skb = NULL;
@@ -144,7 +143,8 @@ rtllib_frag_cache_get(struct rtllib_device *ieee,
 		memcpy(entry->dst_addr, hdr->addr1, ETH_ALEN);
 	} else {
 		/* received a fragment of a frame for which the head fragment
-		 * should have already been received */
+		 * should have already been received
+		 */
 		entry = rtllib_frag_cache_find(ieee, seq, frag, tid, hdr->addr2,
 						  hdr->addr1);
 		if (entry != NULL) {
@@ -188,8 +188,7 @@ static int rtllib_frag_cache_invalidate(struct rtllib_device *ieee,
 
 	if (entry == NULL) {
 		RTLLIB_DEBUG_FRAG(
-			"could not invalidate fragment cache "
-			"entry (seq=%u)\n", seq);
+			"could not invalidate fragment cache entry (seq=%u)\n", seq);
 		return -1;
 	}
 
@@ -201,7 +200,8 @@ static int rtllib_frag_cache_invalidate(struct rtllib_device *ieee,
  *
  * Responsible for handling management control frames
  *
- * Called by rtllib_rx */
+ * Called by rtllib_rx
+ */
 static inline int
 rtllib_rx_frame_mgmt(struct rtllib_device *ieee, struct sk_buff *skb,
 			struct rtllib_rx_stats *rx_stats, u16 type,
@@ -226,8 +226,9 @@ rtllib_rx_frame_mgmt(struct rtllib_device *ieee, struct sk_buff *skb,
 	return 0;
 }
 
-/* See IEEE 802.1H for LLC/SNAP encapsulation/decapsulation */
-/* Ethernet-II snap header (RFC1042 for most EtherTypes) */
+/* See IEEE 802.1H for LLC/SNAP encapsulation/decapsulation
+ * Ethernet-II snap header (RFC1042 for most EtherTypes)
+ */
 static unsigned char rfc1042_header[] = {
 	0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00
 };
@@ -305,11 +306,9 @@ rtllib_rx_frame_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 	atomic_dec(&crypt->refcnt);
 	if (res < 0) {
 		RTLLIB_DEBUG_DROP(
-			"decryption failed (SA= %pM"
-			") res=%d\n", hdr->addr2, res);
+			"decryption failed (SA= %pM) res=%d\n", hdr->addr2, res);
 		if (res == -2)
-			RTLLIB_DEBUG_DROP("Decryption failed ICV "
-					     "mismatch (key %d)\n",
+			RTLLIB_DEBUG_DROP("Decryption failed ICV mismatch (key %d)\n",
 					     skb->data[hdrlen + 3] >> 6);
 		ieee->ieee_stats.rx_discards_undecryptable++;
 		return -1;
@@ -345,8 +344,7 @@ rtllib_rx_frame_decrypt_msdu(struct rtllib_device *ieee, struct sk_buff *skb,
 	res = crypt->ops->decrypt_msdu(skb, keyidx, hdrlen, crypt->priv);
 	atomic_dec(&crypt->refcnt);
 	if (res < 0) {
-		printk(KERN_DEBUG "%s: MSDU decryption/MIC verification failed"
-		       " (SA= %pM keyidx=%d)\n",
+		printk(KERN_DEBUG "%s: MSDU decryption/MIC verification failed (SA= %pM keyidx=%d)\n",
 		       ieee->dev->name, hdr->addr2, keyidx);
 		return -1;
 	}
@@ -399,10 +397,9 @@ static int is_duplicate_packet(struct rtllib_device *ieee,
 		}
 		if (p == &ieee->ibss_mac_hash[index]) {
 			entry = kmalloc(sizeof(struct ieee_ibss_seq), GFP_ATOMIC);
-			if (!entry) {
-				printk(KERN_WARNING "Cannot malloc new mac entry\n");
+			if (!entry)
 				return 0;
-			}
+
 			memcpy(entry->mac, mac, ETH_ALEN);
 			entry->seq_num[tid] = seq;
 			entry->frag_num[tid] = frag;
@@ -488,7 +485,8 @@ void rtllib_indicate_packets(struct rtllib_device *ieee, struct rtllib_rxb **prx
 			    ethertype != ETH_P_AARP && ethertype != ETH_P_IPX) ||
 			    memcmp(sub_skb->data, bridge_tunnel_header, SNAP_SIZE) == 0)) {
 				/* remove RFC1042 or Bridge-Tunnel encapsulation
-				 * and replace EtherType */
+				 * and replace EtherType
+				 */
 				skb_pull(sub_skb, SNAP_SIZE);
 				memcpy(skb_push(sub_skb, ETH_ALEN), prxb->src, ETH_ALEN);
 				memcpy(skb_push(sub_skb, ETH_ALEN), prxb->dst, ETH_ALEN);
@@ -529,7 +527,9 @@ void rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee,	struct rx_ts_record
 	del_timer_sync(&pTS->RxPktPendingTimer);
 	while (!list_empty(&pTS->RxPendingPktList)) {
 		if (RfdCnt >= REORDER_WIN_SIZE) {
-			printk(KERN_INFO "-------------->%s() error! RfdCnt >= REORDER_WIN_SIZE\n", __func__);
+			netdev_info(ieee->dev,
+				    "-------------->%s() error! RfdCnt >= REORDER_WIN_SIZE\n",
+				    __func__);
 			break;
 		}
 
@@ -559,8 +559,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 	bool bMatchWinStart = false, bPktInBuf = false;
 	unsigned long flags;
 
-	RTLLIB_DEBUG(RTLLIB_DL_REORDER, "%s(): Seq is %d, pTS->RxIndicateSeq"
-		     " is %d, WinSize is %d\n", __func__, SeqNum,
+	RTLLIB_DEBUG(RTLLIB_DL_REORDER, "%s(): Seq is %d, pTS->RxIndicateSeq is %d, WinSize is %d\n", __func__, SeqNum,
 		     pTS->RxIndicateSeq, WinSize);
 
 	spin_lock_irqsave(&(ieee->reorder_spinlock), flags);
@@ -587,8 +586,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 		return;
 	}
 
-	/*
-	 * Sliding window manipulation. Conditions includes:
+	/* Sliding window manipulation. Conditions includes:
 	 * 1. Incoming SeqNum is equal to WinStart =>Window shift 1
 	 * 2. Incoming SeqNum is larger than the WinEnd => Window shift N
 	 */
@@ -600,25 +598,22 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 			pTS->RxIndicateSeq = SeqNum + 1 - WinSize;
 		else
 			pTS->RxIndicateSeq = 4095 - (WinSize - (SeqNum + 1)) + 1;
-		RTLLIB_DEBUG(RTLLIB_DL_REORDER, "Window Shift! IndicateSeq: %d,"
-			     " NewSeq: %d\n", pTS->RxIndicateSeq, SeqNum);
+		RTLLIB_DEBUG(RTLLIB_DL_REORDER, "Window Shift! IndicateSeq: %d, NewSeq: %d\n", pTS->RxIndicateSeq, SeqNum);
 	}
 
-	/*
-	 * Indication process.
+	/* Indication process.
 	 * After Packet dropping and Sliding Window shifting as above, we can
 	 * now just indicate the packets with the SeqNum smaller than latest
 	 * WinStart and struct buffer other packets.
-	 */
-	/* For Rx Reorder condition:
+	 *
+	 * For Rx Reorder condition:
 	 * 1. All packets with SeqNum smaller than WinStart => Indicate
 	 * 2. All packets with SeqNum larger than or equal to
 	 *	 WinStart => Buffer it.
 	 */
 	if (bMatchWinStart) {
 		/* Current packet is going to be indicated.*/
-		RTLLIB_DEBUG(RTLLIB_DL_REORDER, "Packets indication!! "
-				"IndicateSeq: %d, NewSeq: %d\n",
+		RTLLIB_DEBUG(RTLLIB_DL_REORDER, "Packets indication!! IndicateSeq: %d, NewSeq: %d\n",
 				pTS->RxIndicateSeq, SeqNum);
 		ieee->prxbIndicateArray[0] = prxb;
 		index = 1;
@@ -636,9 +631,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 
 			if (!AddReorderEntry(pTS, pReorderEntry)) {
 				RTLLIB_DEBUG(RTLLIB_DL_REORDER,
-					     "%s(): Duplicate packet is "
-					     "dropped!! IndicateSeq: %d, "
-					     "NewSeq: %d\n",
+					     "%s(): Duplicate packet is dropped!! IndicateSeq: %d, NewSeq: %d\n",
 					    __func__, pTS->RxIndicateSeq,
 					    SeqNum);
 				list_add_tail(&pReorderEntry->List,
@@ -652,20 +645,16 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 				}
 			} else {
 				RTLLIB_DEBUG(RTLLIB_DL_REORDER,
-					 "Pkt insert into struct buffer!! "
-					 "IndicateSeq: %d, NewSeq: %d\n",
+					 "Pkt insert into struct buffer!! IndicateSeq: %d, NewSeq: %d\n",
 					 pTS->RxIndicateSeq, SeqNum);
 			}
 		} else {
-			/*
-			 * Packets are dropped if there are not enough reorder
+			/* Packets are dropped if there are not enough reorder
 			 * entries. This part should be modified!! We can just
 			 * indicate all the packets in struct buffer and get
 			 * reorder entries.
 			 */
-			RTLLIB_DEBUG(RTLLIB_DL_ERR, "RxReorderIndicatePacket():"
-				     " There is no reorder entry!! Packet is "
-				     "dropped!!\n");
+			RTLLIB_DEBUG(RTLLIB_DL_ERR, "RxReorderIndicatePacket(): There is no reorder entry!! Packet is dropped!!\n");
 			{
 				int i;
 
@@ -687,8 +676,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 				SN_EQUAL(pReorderEntry->SeqNum, pTS->RxIndicateSeq)) {
 			/* This protect struct buffer from overflow. */
 			if (index >= REORDER_WIN_SIZE) {
-				RTLLIB_DEBUG(RTLLIB_DL_ERR, "RxReorderIndicate"
-					     "Packet(): Buffer overflow!!\n");
+				RTLLIB_DEBUG(RTLLIB_DL_ERR, "RxReorderIndicatePacket(): Buffer overflow!!\n");
 				bPktInBuf = true;
 				break;
 			}
@@ -699,8 +687,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 				pTS->RxIndicateSeq = (pTS->RxIndicateSeq + 1) % 4096;
 
 			ieee->prxbIndicateArray[index] = pReorderEntry->prxb;
-			RTLLIB_DEBUG(RTLLIB_DL_REORDER, "%s(): Indicate SeqNum"
-				     " %d!\n", __func__, pReorderEntry->SeqNum);
+			RTLLIB_DEBUG(RTLLIB_DL_REORDER, "%s(): Indicate SeqNum %d!\n", __func__, pReorderEntry->SeqNum);
 			index++;
 
 			list_add_tail(&pReorderEntry->List,
@@ -712,15 +699,15 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 	}
 
 	/* Handling pending timer. Set this timer to prevent from long time
-	 * Rx buffering.*/
+	 * Rx buffering.
+	 */
 	if (index > 0) {
 		if (timer_pending(&pTS->RxPktPendingTimer))
 			del_timer_sync(&pTS->RxPktPendingTimer);
 		pTS->RxTimeoutIndicateSeq = 0xffff;
 
 		if (index > REORDER_WIN_SIZE) {
-			RTLLIB_DEBUG(RTLLIB_DL_ERR, "RxReorderIndicatePacket():"
-				     " Rx Reorder struct buffer full!!\n");
+			RTLLIB_DEBUG(RTLLIB_DL_ERR, "RxReorderIndicatePacket(): Rx Reorder struct buffer full!!\n");
 			spin_unlock_irqrestore(&(ieee->reorder_spinlock),
 					       flags);
 			return;
@@ -734,7 +721,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 			     __func__);
 		pTS->RxTimeoutIndicateSeq = pTS->RxIndicateSeq;
 		mod_timer(&pTS->RxPktPendingTimer, jiffies +
-			  MSECS(pHTInfo->RxReorderPendingTime));
+			  msecs_to_jiffies(pHTInfo->RxReorderPendingTime));
 	}
 	spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 }
@@ -798,73 +785,74 @@ static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 		memcpy(rxb->dst, dst, ETH_ALEN);
 		rxb->subframes[0]->dev = ieee->dev;
 		return 1;
-	} else {
-		rxb->nr_subframes = 0;
-		memcpy(rxb->src, src, ETH_ALEN);
-		memcpy(rxb->dst, dst, ETH_ALEN);
-		while (skb->len > ETHERNET_HEADER_SIZE) {
-			/* Offset 12 denote 2 mac address */
-			nSubframe_Length = *((u16 *)(skb->data + 12));
-			nSubframe_Length = (nSubframe_Length >> 8) +
-					   (nSubframe_Length << 8);
+	}
 
-			if (skb->len < (ETHERNET_HEADER_SIZE + nSubframe_Length)) {
-				printk(KERN_INFO "%s: A-MSDU parse error!! "
-				       "pRfd->nTotalSubframe : %d\n",\
-				       __func__, rxb->nr_subframes);
-				printk(KERN_INFO "%s: A-MSDU parse error!! "
-				       "Subframe Length: %d\n", __func__,
-				       nSubframe_Length);
-				printk(KERN_INFO "nRemain_Length is %d and "
-				       "nSubframe_Length is : %d\n", skb->len,
-				       nSubframe_Length);
-				printk(KERN_INFO "The Packet SeqNum is %d\n", SeqNum);
-				return 0;
-			}
+	rxb->nr_subframes = 0;
+	memcpy(rxb->src, src, ETH_ALEN);
+	memcpy(rxb->dst, dst, ETH_ALEN);
+	while (skb->len > ETHERNET_HEADER_SIZE) {
+		/* Offset 12 denote 2 mac address */
+		nSubframe_Length = *((u16 *)(skb->data + 12));
+		nSubframe_Length = (nSubframe_Length >> 8) +
+				   (nSubframe_Length << 8);
 
-			/* move the data point to data content */
-			skb_pull(skb, ETHERNET_HEADER_SIZE);
-
-			/* altered by clark 3/30/2010
-			 * The struct buffer size of the skb indicated to upper layer
-			 * must be less than 5000, or the defraged IP datagram
-			 * in the IP layer will exceed "ipfrag_high_tresh" and be
-			 * discarded. so there must not use the function
-			 * "skb_copy" and "skb_clone" for "skb".
-			 */
-
-			/* Allocate new skb for releasing to upper layer */
-			sub_skb = dev_alloc_skb(nSubframe_Length + 12);
-			if (!sub_skb)
-				return 0;
-			skb_reserve(sub_skb, 12);
-			data_ptr = (u8 *)skb_put(sub_skb, nSubframe_Length);
-			memcpy(data_ptr, skb->data, nSubframe_Length);
-
-			sub_skb->dev = ieee->dev;
-			rxb->subframes[rxb->nr_subframes++] = sub_skb;
-			if (rxb->nr_subframes >= MAX_SUBFRAME_COUNT) {
-				RTLLIB_DEBUG_RX("ParseSubframe(): Too many "
-						"Subframes! Packets dropped!\n");
-				break;
-			}
-			skb_pull(skb, nSubframe_Length);
-
-			if (skb->len != 0) {
-				nPadding_Length = 4 - ((nSubframe_Length +
-						  ETHERNET_HEADER_SIZE) % 4);
-				if (nPadding_Length == 4)
-					nPadding_Length = 0;
-
-				if (skb->len < nPadding_Length)
-					return 0;
-
-				skb_pull(skb, nPadding_Length);
-			}
+		if (skb->len < (ETHERNET_HEADER_SIZE + nSubframe_Length)) {
+			netdev_info(ieee->dev,
+				    "%s: A-MSDU parse error!! pRfd->nTotalSubframe : %d\n",
+				    __func__, rxb->nr_subframes);
+			netdev_info(ieee->dev,
+				    "%s: A-MSDU parse error!! Subframe Length: %d\n",
+				    __func__, nSubframe_Length);
+			netdev_info(ieee->dev,
+				    "nRemain_Length is %d and nSubframe_Length is : %d\n",
+				    skb->len, nSubframe_Length);
+			netdev_info(ieee->dev,
+				    "The Packet SeqNum is %d\n",
+				    SeqNum);
+			return 0;
 		}
 
-		return rxb->nr_subframes;
+		/* move the data point to data content */
+		skb_pull(skb, ETHERNET_HEADER_SIZE);
+
+		/* altered by clark 3/30/2010
+		 * The struct buffer size of the skb indicated to upper layer
+		 * must be less than 5000, or the defraged IP datagram
+		 * in the IP layer will exceed "ipfrag_high_tresh" and be
+		 * discarded. so there must not use the function
+		 * "skb_copy" and "skb_clone" for "skb".
+		 */
+
+		/* Allocate new skb for releasing to upper layer */
+		sub_skb = dev_alloc_skb(nSubframe_Length + 12);
+		if (!sub_skb)
+			return 0;
+		skb_reserve(sub_skb, 12);
+		data_ptr = (u8 *)skb_put(sub_skb, nSubframe_Length);
+		memcpy(data_ptr, skb->data, nSubframe_Length);
+
+		sub_skb->dev = ieee->dev;
+		rxb->subframes[rxb->nr_subframes++] = sub_skb;
+		if (rxb->nr_subframes >= MAX_SUBFRAME_COUNT) {
+			RTLLIB_DEBUG_RX("ParseSubframe(): Too many Subframes! Packets dropped!\n");
+			break;
+		}
+		skb_pull(skb, nSubframe_Length);
+
+		if (skb->len != 0) {
+			nPadding_Length = 4 - ((nSubframe_Length +
+					  ETHERNET_HEADER_SIZE) % 4);
+			if (nPadding_Length == 4)
+				nPadding_Length = 0;
+
+			if (skb->len < nPadding_Length)
+				return 0;
+
+			skb_pull(skb, nPadding_Length);
+		}
 	}
+
+	return rxb->nr_subframes;
 }
 
 
@@ -879,7 +867,8 @@ static size_t rtllib_rx_get_hdrlen(struct rtllib_device *ieee,
 	hdrlen = rtllib_get_hdrlen(fc);
 	if (HTCCheck(ieee, skb->data)) {
 		if (net_ratelimit())
-			printk(KERN_INFO "%s: find HTCControl!\n", __func__);
+			netdev_info(ieee->dev, "%s: find HTCControl!\n",
+				    __func__);
 		hdrlen += 4;
 		rx_stats->bContainHTC = true;
 	}
@@ -922,8 +911,7 @@ static int rtllib_rx_check_duplicate(struct rtllib_device *ieee,
 			pRxTS->RxLastFragNum = frag;
 			pRxTS->RxLastSeqNum = WLAN_GET_SEQ_SEQ(sc);
 		} else {
-			RTLLIB_DEBUG(RTLLIB_DL_ERR, "ERR!!%s(): No TS!! Skip"
-				     " the check!!\n", __func__);
+			RTLLIB_DEBUG(RTLLIB_DL_ERR, "ERR!!%s(): No TS!! Skip the check!!\n", __func__);
 			return -1;
 		}
 	}
@@ -987,7 +975,8 @@ static int rtllib_rx_data_filter(struct rtllib_device *ieee, u16 fc,
 	}
 
 	/* Nullfunc frames may have PS-bit set, so they must be passed to
-	 * hostap_handle_sta_rx() before being dropped here. */
+	 * hostap_handle_sta_rx() before being dropped here.
+	 */
 	if (!ieee->IntelPromiscuousModeInfo.bPromiscuousOn) {
 		if (stype != RTLLIB_STYPE_DATA &&
 		    stype != RTLLIB_STYPE_DATA_CFACK &&
@@ -996,9 +985,7 @@ static int rtllib_rx_data_filter(struct rtllib_device *ieee, u16 fc,
 		    stype != RTLLIB_STYPE_QOS_DATA) {
 			if (stype != RTLLIB_STYPE_NULLFUNC)
 				RTLLIB_DEBUG_DROP(
-					"RX: dropped data frame "
-					"with no data (type=0x%02x, "
-					"subtype=0x%02x)\n",
+					"RX: dropped data frame with no data (type=0x%02x, subtype=0x%02x)\n",
 					type, stype);
 			return -1;
 		}
@@ -1031,7 +1018,8 @@ static int rtllib_rx_get_crypt(struct rtllib_device *ieee, struct sk_buff *skb,
 
 		*crypt = ieee->crypt_info.crypt[idx];
 		/* allow NULL decrypt to indicate an station specific override
-		 * for default encryption */
+		 * for default encryption
+		 */
 		if (*crypt && ((*crypt)->ops == NULL ||
 			      (*crypt)->ops->decrypt_mpdu == NULL))
 			*crypt = NULL;
@@ -1040,9 +1028,9 @@ static int rtllib_rx_get_crypt(struct rtllib_device *ieee, struct sk_buff *skb,
 			/* This seems to be triggered by some (multicast?)
 			 * frames from other than current BSS, so just drop the
 			 * frames silently instead of filling system log with
-			 * these reports. */
-			RTLLIB_DEBUG_DROP("Decryption failed (not set)"
-					     " (SA= %pM)\n",
+			 * these reports.
+			 */
+			RTLLIB_DEBUG_DROP("Decryption failed (not set) (SA= %pM)\n",
 					     hdr->addr2);
 			ieee->ieee_stats.rx_discards_undecryptable++;
 			return -1;
@@ -1073,7 +1061,7 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 
 	keyidx = rtllib_rx_frame_decrypt(ieee, skb, crypt);
 	if (ieee->host_decrypt && (fc & RTLLIB_FCTL_WEP) && (keyidx < 0)) {
-		printk(KERN_INFO "%s: decrypt frame error\n", __func__);
+		netdev_info(ieee->dev, "%s: decrypt frame error\n", __func__);
 		return -1;
 	}
 
@@ -1086,8 +1074,7 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 
 		if (!frag_skb) {
 			RTLLIB_DEBUG(RTLLIB_DL_RX | RTLLIB_DL_FRAG,
-					"Rx cannot get skb from fragment "
-					"cache (morefrag=%d seq=%u frag=%u)\n",
+					"Rx cannot get skb from fragment cache (morefrag=%d seq=%u frag=%u)\n",
 					(fc & RTLLIB_FCTL_MOREFRAGS) != 0,
 					WLAN_GET_SEQ_SEQ(sc), frag);
 			return -1;
@@ -1097,20 +1084,22 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 			flen -= hdrlen;
 
 		if (frag_skb->tail + flen > frag_skb->end) {
-			printk(KERN_WARNING "%s: host decrypted and "
-			       "reassembled frame did not fit skb\n",
-			       __func__);
+			netdev_warn(ieee->dev,
+				    "%s: host decrypted and reassembled frame did not fit skb\n",
+				    __func__);
 			rtllib_frag_cache_invalidate(ieee, hdr);
 			return -1;
 		}
 
 		if (frag == 0) {
 			/* copy first fragment (including full headers) into
-			 * beginning of the fragment cache skb */
+			 * beginning of the fragment cache skb
+			 */
 			memcpy(skb_put(frag_skb, flen), skb->data, flen);
 		} else {
 			/* append frame payload to the end of the fragment
-			 * cache skb */
+			 * cache skb
+			 */
 			memcpy(skb_put(frag_skb, flen), skb->data + hdrlen,
 			       flen);
 		}
@@ -1120,22 +1109,25 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 		if (fc & RTLLIB_FCTL_MOREFRAGS) {
 			/* more fragments expected - leave the skb in fragment
 			 * cache for now; it will be delivered to upper layers
-			 * after all fragments have been received */
+			 * after all fragments have been received
+			 */
 			return -2;
 		}
 
 		/* this was the last fragment and the frame will be
-		 * delivered, so remove skb from fragment cache */
+		 * delivered, so remove skb from fragment cache
+		 */
 		skb = frag_skb;
 		hdr = (struct rtllib_hdr_4addr *) skb->data;
 		rtllib_frag_cache_invalidate(ieee, hdr);
 	}
 
 	/* skb: hdr + (possible reassembled) full MSDU payload; possibly still
-	 * encrypted/authenticated */
+	 * encrypted/authenticated
+	 */
 	if (ieee->host_decrypt && (fc & RTLLIB_FCTL_WEP) &&
 		rtllib_rx_frame_decrypt_msdu(ieee, skb, keyidx, crypt)) {
-		printk(KERN_INFO "%s: ==>decrypt msdu error\n", __func__);
+		netdev_info(ieee->dev, "%s: ==>decrypt msdu error\n", __func__);
 		return -1;
 	}
 
@@ -1145,15 +1137,15 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 		    rtllib_is_eapol_frame(ieee, skb, hdrlen)) {
 
 			/* pass unencrypted EAPOL frames even if encryption is
-			 * configured */
+			 * configured
+			 */
 			struct eapol *eap = (struct eapol *)(skb->data +
 				24);
 			RTLLIB_DEBUG_EAP("RX: IEEE 802.1X EAPOL frame: %s\n",
 						eap_get_type(eap->type));
 		} else {
 			RTLLIB_DEBUG_DROP(
-				"encryption configured, but RX "
-				"frame not encrypted (SA= %pM)\n",
+				"encryption configured, but RX frame not encrypted (SA= %pM)\n",
 				hdr->addr2);
 			return -1;
 		}
@@ -1170,15 +1162,13 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 	if (crypt && !(fc & RTLLIB_FCTL_WEP) && !ieee->open_wep &&
 	    !rtllib_is_eapol_frame(ieee, skb, hdrlen)) {
 		RTLLIB_DEBUG_DROP(
-			"dropped unencrypted RX data "
-			"frame from %pM"
-			" (drop_unencrypted=1)\n",
+			"dropped unencrypted RX data frame from %pM (drop_unencrypted=1)\n",
 			hdr->addr2);
 		return -1;
 	}
 
 	if (rtllib_is_eapol_frame(ieee, skb, hdrlen))
-		printk(KERN_WARNING "RX: IEEE802.1X EAPOL frame!\n");
+		netdev_warn(ieee->dev, "RX: IEEE802.1X EAPOL frame!\n");
 
 	return 0;
 }
@@ -1187,7 +1177,7 @@ static void rtllib_rx_check_leave_lps(struct rtllib_device *ieee, u8 unicast, u8
 {
 	if (unicast) {
 
-		if ((ieee->state == RTLLIB_LINKED)) {
+		if (ieee->state == RTLLIB_LINKED) {
 			if (((ieee->LinkDetectInfo.NumRxUnicastOkInPeriod +
 			    ieee->LinkDetectInfo.NumTxOkInPeriod) > 8) ||
 			    (ieee->LinkDetectInfo.NumRxUnicastOkInPeriod > 2)) {
@@ -1210,8 +1200,8 @@ static void rtllib_rx_indicate_pkt_legacy(struct rtllib_device *ieee,
 	int i = 0;
 
 	if (rxb == NULL) {
-		printk(KERN_INFO "%s: rxb is NULL!!\n", __func__);
-		return ;
+		netdev_info(dev, "%s: rxb is NULL!!\n", __func__);
+		return;
 	}
 
 	for (i = 0; i < rxb->nr_subframes; i++) {
@@ -1225,7 +1215,8 @@ static void rtllib_rx_indicate_pkt_legacy(struct rtllib_device *ieee,
 				ethertype != ETH_P_AARP && ethertype != ETH_P_IPX) ||
 				memcmp(sub_skb->data, bridge_tunnel_header, SNAP_SIZE) == 0)) {
 				/* remove RFC1042 or Bridge-Tunnel encapsulation and
-				 * replace EtherType */
+				 * replace EtherType
+				 */
 				skb_pull(sub_skb, SNAP_SIZE);
 				memcpy(skb_push(sub_skb, ETH_ALEN), src, ETH_ALEN);
 				memcpy(skb_push(sub_skb, ETH_ALEN), dst, ETH_ALEN);
@@ -1255,7 +1246,6 @@ static void rtllib_rx_indicate_pkt_legacy(struct rtllib_device *ieee,
 		}
 	}
 	kfree(rxb);
-	rxb = NULL;
 }
 
 static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
@@ -1292,7 +1282,8 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	/*Filter pkt has too small length */
 	hdrlen = rtllib_rx_get_hdrlen(ieee, skb, rx_stats);
 	if (skb->len < hdrlen) {
-		printk(KERN_INFO "%s():ERR!!! skb->len is smaller than hdrlen\n", __func__);
+		netdev_info(dev, "%s():ERR!!! skb->len is smaller than hdrlen\n",
+			    __func__);
 		goto rx_dropped;
 	}
 
@@ -1374,11 +1365,9 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	/* skb: hdr + (possible reassembled) full plaintext payload */
 	payload = skb->data + hdrlen;
 	rxb = kmalloc(sizeof(struct rtllib_rxb), GFP_ATOMIC);
-	if (rxb == NULL) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR,
-			     "%s(): kmalloc rxb error\n", __func__);
+	if (rxb == NULL)
 		goto rx_dropped;
-	}
+
 	/* to parse amsdu packets */
 	/* qos data packets & reserved bit is 1 */
 	if (parse_subframe(ieee, skb, rx_stats, rxb, src, dst) == 0) {
@@ -1415,15 +1404,12 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	return 1;
 
  rx_dropped:
-	if (rxb != NULL) {
-		kfree(rxb);
-		rxb = NULL;
-	}
 	ieee->stats.rx_dropped++;
 
 	/* Returning 0 indicates to caller that we have not handled the SKB--
 	 * so it is still allocated and can be used again by underlying
-	 * hardware as a DMA target */
+	 * hardware as a DMA target
+	 */
 	return 0;
 }
 
@@ -1441,13 +1427,16 @@ static int rtllib_rx_Monitor(struct rtllib_device *ieee, struct sk_buff *skb,
 	size_t hdrlen = rtllib_get_hdrlen(fc);
 
 	if (skb->len < hdrlen) {
-		printk(KERN_INFO "%s():ERR!!! skb->len is smaller than hdrlen\n", __func__);
+		netdev_info(ieee->dev,
+			    "%s():ERR!!! skb->len is smaller than hdrlen\n",
+			    __func__);
 		return 0;
 	}
 
 	if (HTCCheck(ieee, skb->data)) {
 		if (net_ratelimit())
-			printk(KERN_INFO "%s: Find HTCControl!\n", __func__);
+			netdev_info(ieee->dev, "%s: Find HTCControl!\n",
+				    __func__);
 		hdrlen += 4;
 	}
 
@@ -1466,18 +1455,19 @@ static int rtllib_rx_Mesh(struct rtllib_device *ieee, struct sk_buff *skb,
 
 /* All received frames are sent to this function. @skb contains the frame in
  * IEEE 802.11 format, i.e., in the format it was sent over air.
- * This function is called only as a tasklet (software IRQ). */
+ * This function is called only as a tasklet (software IRQ).
+ */
 int rtllib_rx(struct rtllib_device *ieee, struct sk_buff *skb,
 		 struct rtllib_rx_stats *rx_stats)
 {
 	int ret = 0;
 
 	if ((NULL == ieee) || (NULL == skb) || (NULL == rx_stats)) {
-		printk(KERN_INFO "%s: Input parameters NULL!\n", __func__);
+		pr_info("%s: Input parameters NULL!\n", __func__);
 		goto rx_dropped;
 	}
 	if (skb->len < 10) {
-		printk(KERN_INFO "%s: SKB length < 10\n", __func__);
+		netdev_info(ieee->dev, "%s: SKB length < 10\n", __func__);
 		goto rx_dropped;
 	}
 
@@ -1497,7 +1487,7 @@ int rtllib_rx(struct rtllib_device *ieee, struct sk_buff *skb,
 		ret = rtllib_rx_Mesh(ieee, skb, rx_stats);
 		break;
 	default:
-		printk(KERN_INFO"%s: ERR iw mode!!!\n", __func__);
+		netdev_info(ieee->dev, "%s: ERR iw mode!!!\n", __func__);
 		break;
 	}
 
@@ -1512,10 +1502,7 @@ EXPORT_SYMBOL(rtllib_rx);
 
 static u8 qos_oui[QOS_OUI_LEN] = { 0x00, 0x50, 0xF2 };
 
-/*
-* Make ther structure we read from the beacon packet has
-* the right values
-*/
+/* Make ther structure we read from the beacon packet has the right values */
 static int rtllib_verify_qos_info(struct rtllib_qos_information_element
 				     *info_element, int sub_type)
 {
@@ -1533,9 +1520,7 @@ static int rtllib_verify_qos_info(struct rtllib_qos_information_element
 }
 
 
-/*
- * Parse a QoS parameter element
- */
+/* Parse a QoS parameter element */
 static int rtllib_read_qos_param_element(struct rtllib_qos_parameter_info
 					    *element_param, struct rtllib_info_element
 					    *info_element)
@@ -1559,9 +1544,7 @@ static int rtllib_read_qos_param_element(struct rtllib_qos_parameter_info
 	return ret;
 }
 
-/*
- * Parse a QoS information element
- */
+/* Parse a QoS information element */
 static int rtllib_read_qos_info_element(struct
 					   rtllib_qos_information_element
 					   *element_info, struct rtllib_info_element
@@ -1590,9 +1573,7 @@ static int rtllib_read_qos_info_element(struct
 }
 
 
-/*
- * Write QoS parameters from the ac parameters.
- */
+/* Write QoS parameters from the ac parameters. */
 static int rtllib_qos_convert_ac_to_parameters(struct rtllib_qos_parameter_info *param_elm,
 		struct rtllib_qos_data *qos_data)
 {
@@ -1651,8 +1632,7 @@ static int rtllib_qos_convert_ac_to_parameters(struct rtllib_qos_parameter_info 
 	return 0;
 }
 
-/*
- * we have a generic data element which it may contain QoS information or
+/* we have a generic data element which it may contain QoS information or
  * parameters element. check the information element length to decide
  * which type to read
  */
@@ -1738,7 +1718,9 @@ static inline void rtllib_extract_country_ie(
 
 			if (!IS_COUNTRY_IE_VALID(ieee)) {
 				if (rtllib_act_scanning(ieee, false) && ieee->FirstIe_InScan)
-					printk(KERN_INFO "Received beacon ContryIE, SSID: <%s>\n", network->ssid);
+					netdev_info(ieee->dev,
+						    "Received beacon ContryIE, SSID: <%s>\n",
+						    network->ssid);
 				Dot11d_UpdateCountryIe(ieee, addr2, info_element->len, info_element->data);
 			}
 		}
@@ -1766,15 +1748,14 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 
 	while (length >= sizeof(*info_element)) {
 		if (sizeof(*info_element) + info_element->len > length) {
-			RTLLIB_DEBUG_MGMT("Info elem: parse failed: "
-					     "info_element->len + 2 > left : "
-					     "info_element->len+2=%zd left=%d, id=%d.\n",
+			RTLLIB_DEBUG_MGMT("Info elem: parse failed: info_element->len + 2 > left : info_element->len+2=%zd left=%d, id=%d.\n",
 					     info_element->len +
 					     sizeof(*info_element),
 					     length, info_element->id);
 			/* We stop processing but don't return an error here
 			 * because some misbehaviour APs break this rule. ie.
-			 * Orinoco AP1000. */
+			 * Orinoco AP1000.
+			 */
 			break;
 		}
 
@@ -1943,7 +1924,7 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 				   info_element->data[2] == 0x4c &&
 				   info_element->data[3] == 0x033) {
 
-						tmp_htcap_len = min(info_element->len, (u8)MAX_IE_LEN);
+						tmp_htcap_len = min_t(u8, info_element->len, MAX_IE_LEN);
 						if (tmp_htcap_len != 0) {
 							network->bssht.bdHTSpecVer = HT_SPEC_VER_EWC;
 							network->bssht.bdHTCapLen = tmp_htcap_len > sizeof(network->bssht.bdHTCapBuf) ?
@@ -1967,7 +1948,7 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 				    info_element->data[1] == 0x90 &&
 				    info_element->data[2] == 0x4c &&
 				    info_element->data[3] == 0x034) {
-					tmp_htinfo_len = min(info_element->len, (u8)MAX_IE_LEN);
+					tmp_htinfo_len = min_t(u8, info_element->len, MAX_IE_LEN);
 					if (tmp_htinfo_len != 0) {
 						network->bssht.bdHTSpecVer = HT_SPEC_VER_EWC;
 						if (tmp_htinfo_len) {
@@ -1988,7 +1969,7 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 					    info_element->data[1] == 0xe0 &&
 					    info_element->data[2] == 0x4c &&
 					    info_element->data[3] == 0x02) {
-						ht_realtek_agg_len = min(info_element->len, (u8)MAX_IE_LEN);
+						ht_realtek_agg_len = min_t(u8, info_element->len, MAX_IE_LEN);
 						memcpy(ht_realtek_agg_buf, info_element->data, info_element->len);
 					}
 					if (ht_realtek_agg_len >= 5) {
@@ -2118,7 +2099,7 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 		case MFIE_TYPE_HT_CAP:
 			RTLLIB_DEBUG_SCAN("MFIE_TYPE_HT_CAP: %d bytes\n",
 					     info_element->len);
-			tmp_htcap_len = min(info_element->len, (u8)MAX_IE_LEN);
+			tmp_htcap_len = min_t(u8, info_element->len, MAX_IE_LEN);
 			if (tmp_htcap_len != 0) {
 				network->bssht.bdHTSpecVer = HT_SPEC_VER_EWC;
 				network->bssht.bdHTCapLen = tmp_htcap_len > sizeof(network->bssht.bdHTCapBuf) ?
@@ -2145,7 +2126,7 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 		case MFIE_TYPE_HT_INFO:
 			RTLLIB_DEBUG_SCAN("MFIE_TYPE_HT_INFO: %d bytes\n",
 					     info_element->len);
-			tmp_htinfo_len = min(info_element->len, (u8)MAX_IE_LEN);
+			tmp_htinfo_len = min_t(u8, info_element->len, MAX_IE_LEN);
 			if (tmp_htinfo_len) {
 				network->bssht.bdHTSpecVer = HT_SPEC_VER_IEEE;
 				network->bssht.bdHTInfoLen = tmp_htinfo_len >
@@ -2177,8 +2158,8 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 			}
 			break;
 		case MFIE_TYPE_QOS_PARAMETER:
-			printk(KERN_ERR
-			       "QoS Error need to parse QOS_PARAMETER IE\n");
+			netdev_err(ieee->dev,
+				   "QoS Error need to parse QOS_PARAMETER IE\n");
 			break;
 
 		case MFIE_TYPE_COUNTRY:
@@ -2211,34 +2192,6 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 	return 0;
 }
 
-static inline u8 rtllib_SignalStrengthTranslate(u8  CurrSS)
-{
-	u8 RetSS;
-
-	if (CurrSS >= 71 && CurrSS <= 100)
-		RetSS = 90 + ((CurrSS - 70) / 3);
-	else if (CurrSS >= 41 && CurrSS <= 70)
-		RetSS = 78 + ((CurrSS - 40) / 3);
-	else if (CurrSS >= 31 && CurrSS <= 40)
-		RetSS = 66 + (CurrSS - 30);
-	else if (CurrSS >= 21 && CurrSS <= 30)
-		RetSS = 54 + (CurrSS - 20);
-	else if (CurrSS >= 5 && CurrSS <= 20)
-		RetSS = 42 + (((CurrSS - 5) * 2) / 3);
-	else if (CurrSS == 4)
-		RetSS = 36;
-	else if (CurrSS == 3)
-		RetSS = 27;
-	else if (CurrSS == 2)
-		RetSS = 18;
-	else if (CurrSS == 1)
-		RetSS = 9;
-	else
-		RetSS = CurrSS;
-
-	return RetSS;
-}
-
 static long rtllib_translate_todbm(u8 signal_strength_index)
 {
 	long	signal_power;
@@ -2255,13 +2208,6 @@ static inline int rtllib_network_init(
 	struct rtllib_network *network,
 	struct rtllib_rx_stats *stats)
 {
-
-	/*
-	network->qos_data.active = 0;
-	network->qos_data.supported = 0;
-	network->qos_data.param_count = 0;
-	network->qos_data.old_param_count = 0;
-	*/
 	memset(&network->qos_data, 0, sizeof(struct rtllib_qos_data));
 
 	/* Pull out fixed field data */
@@ -2325,8 +2271,7 @@ static inline int rtllib_network_init(
 	}
 
 	if (network->mode == 0) {
-		RTLLIB_DEBUG_SCAN("Filtered out '%s (%pM)' "
-				     "network.\n",
+		RTLLIB_DEBUG_SCAN("Filtered out '%s (%pM)' network.\n",
 				     escape_essid(network->ssid,
 						  network->ssid_len),
 				     network->bssid);
@@ -2355,7 +2300,8 @@ static inline int is_same_network(struct rtllib_network *src,
 	/* A network is only a duplicate if the channel, BSSID, ESSID
 	 * and the capability field (in particular IBSS and BSS) all match.
 	 * We treat all <hidden> with the same BSSID and channel
-	 * as one network */
+	 * as one network
+	 */
 	return (((src->ssid_len == dst->ssid_len) || (!ssidbroad)) &&
 		(src->channel == dst->channel) &&
 		!memcmp(src->bssid, dst->bssid, ETH_ALEN) &&
@@ -2365,13 +2311,6 @@ static inline int is_same_network(struct rtllib_network *src,
 		(dst->capability & WLAN_CAPABILITY_IBSS)) &&
 		((src->capability & WLAN_CAPABILITY_ESS) ==
 		(dst->capability & WLAN_CAPABILITY_ESS)));
-}
-
-static inline void update_ibss_network(struct rtllib_network *dst,
-				  struct rtllib_network *src)
-{
-	memcpy(&dst->stats, &src->stats, sizeof(struct rtllib_rx_stats));
-	dst->last_scanned = jiffies;
 }
 
 
@@ -2493,7 +2432,7 @@ static inline int is_beacon(__le16 fc)
 static int IsPassiveChannel(struct rtllib_device *rtllib, u8 channel)
 {
 	if (MAX_CHANNEL_NUMBER < channel) {
-		printk(KERN_INFO "%s(): Invalid Channel\n", __func__);
+		netdev_info(rtllib->dev, "%s(): Invalid Channel\n", __func__);
 		return 0;
 	}
 
@@ -2506,7 +2445,7 @@ static int IsPassiveChannel(struct rtllib_device *rtllib, u8 channel)
 int rtllib_legal_channel(struct rtllib_device *rtllib, u8 channel)
 {
 	if (MAX_CHANNEL_NUMBER < channel) {
-		printk(KERN_INFO "%s(): Invalid Channel\n", __func__);
+		netdev_info(rtllib->dev, "%s(): Invalid Channel\n", __func__);
 		return 0;
 	}
 	if (rtllib->active_channel_map[channel] > 0)
@@ -2572,9 +2511,9 @@ static inline void rtllib_process_probe_response(
 	if (WLAN_FC_GET_STYPE(le16_to_cpu(beacon->header.frame_ctl)) ==
 	    RTLLIB_STYPE_PROBE_RESP) {
 		if (IsPassiveChannel(ieee, network->channel)) {
-			printk(KERN_INFO "GetScanInfo(): For Global Domain, "
-			       "filter probe response at channel(%d).\n",
-			       network->channel);
+			netdev_info(ieee->dev,
+				    "GetScanInfo(): For Global Domain, filter probe response at channel(%d).\n",
+				    network->channel);
 			goto free_network;
 		}
 	}
@@ -2584,10 +2523,12 @@ static inline void rtllib_process_probe_response(
 	 *
 	 * NOTE:  This search is definitely not optimized.  Once its doing
 	 *	the "right thing" we'll optimize it for efficiency if
-	 *	necessary */
+	 *	necessary
+	 */
 
 	/* Search for this entry in the list and update it if it is
-	 * already there. */
+	 * already there.
+	 */
 
 	spin_lock_irqsave(&ieee->lock, flags);
 	if (is_same_network(&ieee->current_network, network,
@@ -2616,14 +2557,14 @@ static inline void rtllib_process_probe_response(
 	}
 
 	/* If we didn't find a match, then get a new network slot to initialize
-	 * with this beacon's information */
+	 * with this beacon's information
+	 */
 	if (&target->list == &ieee->network_list) {
 		if (list_empty(&ieee->network_free_list)) {
 			/* If there are no more slots, expire the oldest */
 			list_del(&oldest->list);
 			target = oldest;
-			RTLLIB_DEBUG_SCAN("Expired '%s' ( %pM) from "
-					     "network list.\n",
+			RTLLIB_DEBUG_SCAN("Expired '%s' ( %pM) from network list.\n",
 					     escape_essid(target->ssid,
 							  target->ssid_len),
 					     target->bssid);
@@ -2684,14 +2625,13 @@ static inline void rtllib_process_probe_response(
 	}
 free_network:
 	kfree(network);
-	return;
 }
 
 void rtllib_rx_mgt(struct rtllib_device *ieee,
 		      struct sk_buff *skb,
 		      struct rtllib_rx_stats *stats)
 {
-	struct rtllib_hdr_4addr *header = (struct rtllib_hdr_4addr *)skb->data ;
+	struct rtllib_hdr_4addr *header = (struct rtllib_hdr_4addr *)skb->data;
 
 	if ((WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl)) !=
 	    RTLLIB_STYPE_PROBE_RESP) &&

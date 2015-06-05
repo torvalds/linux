@@ -12,6 +12,9 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/if_arp.h>
@@ -20,6 +23,7 @@
 #include <linux/ipv6.h>
 #include <linux/netdevice.h>
 #include <linux/netfilter.h>
+#include <linux/netfilter_bridge.h>
 #include <net/netlink.h>
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_log.h>
@@ -59,7 +63,7 @@ struct nfulnl_instance {
 	struct timer_list timer;
 	struct net *net;
 	struct user_namespace *peer_user_ns;	/* User namespace of the peer process */
-	int peer_portid;			/* PORTID of the peer process */
+	u32 peer_portid;		/* PORTID of the peer process */
 
 	/* configurable parameters */
 	unsigned int flushtimeout;	/* timeout until queue flush */
@@ -148,7 +152,7 @@ static void nfulnl_timer(unsigned long data);
 
 static struct nfulnl_instance *
 instance_create(struct net *net, u_int16_t group_num,
-		int portid, struct user_namespace *user_ns)
+		u32 portid, struct user_namespace *user_ns)
 {
 	struct nfulnl_instance *inst;
 	struct nfnl_log_net *log = nfnl_log_pernet(net);
@@ -337,9 +341,6 @@ nfulnl_alloc_skb(struct net *net, u32 peer_portid, unsigned int inst_size,
 
 			skb = nfnetlink_alloc_skb(net, pkt_size,
 						  peer_portid, GFP_ATOMIC);
-			if (!skb)
-				pr_err("nfnetlink_log: can't even alloc %u bytes\n",
-				       pkt_size);
 		}
 	}
 
@@ -448,14 +449,18 @@ __build_packet_message(struct nfnl_log_net *log,
 					 htonl(br_port_get_rcu(indev)->br->dev->ifindex)))
 				goto nla_put_failure;
 		} else {
+			struct net_device *physindev;
+
 			/* Case 2: indev is bridge group, we need to look for
 			 * physical device (when called from ipv4) */
 			if (nla_put_be32(inst->skb, NFULA_IFINDEX_INDEV,
 					 htonl(indev->ifindex)))
 				goto nla_put_failure;
-			if (skb->nf_bridge && skb->nf_bridge->physindev &&
+
+			physindev = nf_bridge_get_physindev(skb);
+			if (physindev &&
 			    nla_put_be32(inst->skb, NFULA_IFINDEX_PHYSINDEV,
-					 htonl(skb->nf_bridge->physindev->ifindex)))
+					 htonl(physindev->ifindex)))
 				goto nla_put_failure;
 		}
 #endif
@@ -479,14 +484,18 @@ __build_packet_message(struct nfnl_log_net *log,
 					 htonl(br_port_get_rcu(outdev)->br->dev->ifindex)))
 				goto nla_put_failure;
 		} else {
+			struct net_device *physoutdev;
+
 			/* Case 2: indev is a bridge group, we need to look
 			 * for physical device (when called from ipv4) */
 			if (nla_put_be32(inst->skb, NFULA_IFINDEX_OUTDEV,
 					 htonl(outdev->ifindex)))
 				goto nla_put_failure;
-			if (skb->nf_bridge && skb->nf_bridge->physoutdev &&
+
+			physoutdev = nf_bridge_get_physoutdev(skb);
+			if (physoutdev &&
 			    nla_put_be32(inst->skb, NFULA_IFINDEX_PHYSOUTDEV,
-					 htonl(skb->nf_bridge->physoutdev->ifindex)))
+					 htonl(physoutdev->ifindex)))
 				goto nla_put_failure;
 		}
 #endif
@@ -539,7 +548,7 @@ __build_packet_message(struct nfnl_log_net *log,
 
 	/* UID */
 	sk = skb->sk;
-	if (sk && sk->sk_state != TCP_TIME_WAIT) {
+	if (sk && sk_fullsock(sk)) {
 		read_lock_bh(&sk->sk_callback_lock);
 		if (sk->sk_socket && sk->sk_socket->file) {
 			struct file *file = sk->sk_socket->file;
@@ -570,10 +579,8 @@ __build_packet_message(struct nfnl_log_net *log,
 		struct nlattr *nla;
 		int size = nla_attr_size(data_len);
 
-		if (skb_tailroom(inst->skb) < nla_total_size(data_len)) {
-			printk(KERN_WARNING "nfnetlink_log: no tailroom!\n");
-			return -1;
-		}
+		if (skb_tailroom(inst->skb) < nla_total_size(data_len))
+			goto nla_put_failure;
 
 		nla = (struct nlattr *)skb_put(inst->skb, nla_total_size(data_len));
 		nla->nla_type = NFULA_PAYLOAD;
@@ -1000,11 +1007,13 @@ static int seq_show(struct seq_file *s, void *v)
 {
 	const struct nfulnl_instance *inst = v;
 
-	return seq_printf(s, "%5d %6d %5d %1d %5d %6d %2d\n",
-			  inst->group_num,
-			  inst->peer_portid, inst->qlen,
-			  inst->copy_mode, inst->copy_range,
-			  inst->flushtimeout, atomic_read(&inst->use));
+	seq_printf(s, "%5u %6u %5u %1u %5u %6u %2u\n",
+		   inst->group_num,
+		   inst->peer_portid, inst->qlen,
+		   inst->copy_mode, inst->copy_range,
+		   inst->flushtimeout, atomic_read(&inst->use));
+
+	return 0;
 }
 
 static const struct seq_operations nful_seq_ops = {
@@ -1064,43 +1073,44 @@ static struct pernet_operations nfnl_log_net_ops = {
 
 static int __init nfnetlink_log_init(void)
 {
-	int status = -ENOMEM;
+	int status;
+
+	status = register_pernet_subsys(&nfnl_log_net_ops);
+	if (status < 0) {
+		pr_err("failed to register pernet ops\n");
+		goto out;
+	}
 
 	netlink_register_notifier(&nfulnl_rtnl_notifier);
 	status = nfnetlink_subsys_register(&nfulnl_subsys);
 	if (status < 0) {
-		pr_err("log: failed to create netlink socket\n");
+		pr_err("failed to create netlink socket\n");
 		goto cleanup_netlink_notifier;
 	}
 
 	status = nf_log_register(NFPROTO_UNSPEC, &nfulnl_logger);
 	if (status < 0) {
-		pr_err("log: failed to register logger\n");
+		pr_err("failed to register logger\n");
 		goto cleanup_subsys;
 	}
 
-	status = register_pernet_subsys(&nfnl_log_net_ops);
-	if (status < 0) {
-		pr_err("log: failed to register pernet ops\n");
-		goto cleanup_logger;
-	}
 	return status;
 
-cleanup_logger:
-	nf_log_unregister(&nfulnl_logger);
 cleanup_subsys:
 	nfnetlink_subsys_unregister(&nfulnl_subsys);
 cleanup_netlink_notifier:
 	netlink_unregister_notifier(&nfulnl_rtnl_notifier);
+	unregister_pernet_subsys(&nfnl_log_net_ops);
+out:
 	return status;
 }
 
 static void __exit nfnetlink_log_fini(void)
 {
-	unregister_pernet_subsys(&nfnl_log_net_ops);
 	nf_log_unregister(&nfulnl_logger);
 	nfnetlink_subsys_unregister(&nfulnl_subsys);
 	netlink_unregister_notifier(&nfulnl_rtnl_notifier);
+	unregister_pernet_subsys(&nfnl_log_net_ops);
 }
 
 MODULE_DESCRIPTION("netfilter userspace logging");

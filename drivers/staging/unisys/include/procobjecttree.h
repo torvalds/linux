@@ -26,7 +26,6 @@
 #ifndef __PROCOBJECTTREE_H__
 #define __PROCOBJECTTREE_H__
 
-#include "uniklog.h"
 #include "timskmod.h"
 
 /* These are opaque structures to users.

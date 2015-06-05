@@ -250,7 +250,7 @@ DEFINE_FETCH_symbol(string_size)
 #define fetch_file_offset_string_size	NULL
 
 /* Fetch type information table */
-const struct fetch_type kprobes_fetch_type_table[] = {
+static const struct fetch_type kprobes_fetch_type_table[] = {
 	/* Special types */
 	[FETCH_TYPE_STRING] = __ASSIGN_FETCH_TYPE("string", string, string,
 					sizeof(u32), 1, "__data_loc char[]"),
@@ -760,7 +760,8 @@ static int create_trace_kprobe(int argc, char **argv)
 
 		/* Parse fetch argument */
 		ret = traceprobe_parse_probe_arg(arg, &tk->tp.size, parg,
-						is_return, true);
+						is_return, true,
+						kprobes_fetch_type_table);
 		if (ret) {
 			pr_info("Parse error at argument[%d]. (%d)\n", i, ret);
 			goto error;
@@ -826,7 +827,7 @@ static int probes_seq_show(struct seq_file *m, void *v)
 	struct trace_kprobe *tk = v;
 	int i;
 
-	seq_printf(m, "%c", trace_kprobe_is_return(tk) ? 'r' : 'p');
+	seq_putc(m, trace_kprobe_is_return(tk) ? 'r' : 'p');
 	seq_printf(m, ":%s/%s", tk->tp.call.class->system,
 			ftrace_event_name(&tk->tp.call));
 
@@ -840,7 +841,7 @@ static int probes_seq_show(struct seq_file *m, void *v)
 
 	for (i = 0; i < tk->tp.nr_args; i++)
 		seq_printf(m, " %s=%s", tk->tp.args[i].name, tk->tp.args[i].comm);
-	seq_printf(m, "\n");
+	seq_putc(m, '\n');
 
 	return 0;
 }
@@ -1024,27 +1025,22 @@ print_kprobe_event(struct trace_iterator *iter, int flags,
 	field = (struct kprobe_trace_entry_head *)iter->ent;
 	tp = container_of(event, struct trace_probe, call.event);
 
-	if (!trace_seq_printf(s, "%s: (", ftrace_event_name(&tp->call)))
-		goto partial;
+	trace_seq_printf(s, "%s: (", ftrace_event_name(&tp->call));
 
 	if (!seq_print_ip_sym(s, field->ip, flags | TRACE_ITER_SYM_OFFSET))
-		goto partial;
+		goto out;
 
-	if (!trace_seq_puts(s, ")"))
-		goto partial;
+	trace_seq_putc(s, ')');
 
 	data = (u8 *)&field[1];
 	for (i = 0; i < tp->nr_args; i++)
 		if (!tp->args[i].type->print(s, tp->args[i].name,
 					     data + tp->args[i].offset, field))
-			goto partial;
+			goto out;
 
-	if (!trace_seq_puts(s, "\n"))
-		goto partial;
-
-	return TRACE_TYPE_HANDLED;
-partial:
-	return TRACE_TYPE_PARTIAL_LINE;
+	trace_seq_putc(s, '\n');
+ out:
+	return trace_handle_return(s);
 }
 
 static enum print_line_t
@@ -1060,33 +1056,28 @@ print_kretprobe_event(struct trace_iterator *iter, int flags,
 	field = (struct kretprobe_trace_entry_head *)iter->ent;
 	tp = container_of(event, struct trace_probe, call.event);
 
-	if (!trace_seq_printf(s, "%s: (", ftrace_event_name(&tp->call)))
-		goto partial;
+	trace_seq_printf(s, "%s: (", ftrace_event_name(&tp->call));
 
 	if (!seq_print_ip_sym(s, field->ret_ip, flags | TRACE_ITER_SYM_OFFSET))
-		goto partial;
+		goto out;
 
-	if (!trace_seq_puts(s, " <- "))
-		goto partial;
+	trace_seq_puts(s, " <- ");
 
 	if (!seq_print_ip_sym(s, field->func, flags & ~TRACE_ITER_SYM_OFFSET))
-		goto partial;
+		goto out;
 
-	if (!trace_seq_puts(s, ")"))
-		goto partial;
+	trace_seq_putc(s, ')');
 
 	data = (u8 *)&field[1];
 	for (i = 0; i < tp->nr_args; i++)
 		if (!tp->args[i].type->print(s, tp->args[i].name,
 					     data + tp->args[i].offset, field))
-			goto partial;
+			goto out;
 
-	if (!trace_seq_puts(s, "\n"))
-		goto partial;
+	trace_seq_putc(s, '\n');
 
-	return TRACE_TYPE_HANDLED;
-partial:
-	return TRACE_TYPE_PARTIAL_LINE;
+ out:
+	return trace_handle_return(s);
 }
 
 
@@ -1144,10 +1135,14 @@ static void
 kprobe_perf_func(struct trace_kprobe *tk, struct pt_regs *regs)
 {
 	struct ftrace_event_call *call = &tk->tp.call;
+	struct bpf_prog *prog = call->prog;
 	struct kprobe_trace_entry_head *entry;
 	struct hlist_head *head;
 	int size, __size, dsize;
 	int rctx;
+
+	if (prog && !trace_call_bpf(prog, regs))
+		return;
 
 	head = this_cpu_ptr(call->perf_events);
 	if (hlist_empty(head))
@@ -1158,7 +1153,7 @@ kprobe_perf_func(struct trace_kprobe *tk, struct pt_regs *regs)
 	size = ALIGN(__size + sizeof(u32), sizeof(u64));
 	size -= sizeof(u32);
 
-	entry = perf_trace_buf_prepare(size, call->event.type, regs, &rctx);
+	entry = perf_trace_buf_prepare(size, call->event.type, NULL, &rctx);
 	if (!entry)
 		return;
 
@@ -1175,10 +1170,14 @@ kretprobe_perf_func(struct trace_kprobe *tk, struct kretprobe_instance *ri,
 		    struct pt_regs *regs)
 {
 	struct ftrace_event_call *call = &tk->tp.call;
+	struct bpf_prog *prog = call->prog;
 	struct kretprobe_trace_entry_head *entry;
 	struct hlist_head *head;
 	int size, __size, dsize;
 	int rctx;
+
+	if (prog && !trace_call_bpf(prog, regs))
+		return;
 
 	head = this_cpu_ptr(call->perf_events);
 	if (hlist_empty(head))
@@ -1189,7 +1188,7 @@ kretprobe_perf_func(struct trace_kprobe *tk, struct kretprobe_instance *ri,
 	size = ALIGN(__size + sizeof(u32), sizeof(u64));
 	size -= sizeof(u32);
 
-	entry = perf_trace_buf_prepare(size, call->event.type, regs, &rctx);
+	entry = perf_trace_buf_prepare(size, call->event.type, NULL, &rctx);
 	if (!entry)
 		return;
 
@@ -1296,7 +1295,7 @@ static int register_kprobe_event(struct trace_kprobe *tk)
 		kfree(call->print_fmt);
 		return -ENODEV;
 	}
-	call->flags = 0;
+	call->flags = TRACE_EVENT_FL_KPROBE;
 	call->class->reg = kprobe_register;
 	call->data = tk;
 	ret = trace_add_event_call(call);
@@ -1320,7 +1319,7 @@ static int unregister_kprobe_event(struct trace_kprobe *tk)
 	return ret;
 }
 
-/* Make a debugfs interface for controlling probe points */
+/* Make a tracefs interface for controlling probe points */
 static __init int init_kprobe_trace(void)
 {
 	struct dentry *d_tracer;
@@ -1330,23 +1329,23 @@ static __init int init_kprobe_trace(void)
 		return -EINVAL;
 
 	d_tracer = tracing_init_dentry();
-	if (!d_tracer)
+	if (IS_ERR(d_tracer))
 		return 0;
 
-	entry = debugfs_create_file("kprobe_events", 0644, d_tracer,
+	entry = tracefs_create_file("kprobe_events", 0644, d_tracer,
 				    NULL, &kprobe_events_ops);
 
 	/* Event list interface */
 	if (!entry)
-		pr_warning("Could not create debugfs "
+		pr_warning("Could not create tracefs "
 			   "'kprobe_events' entry\n");
 
 	/* Profile interface */
-	entry = debugfs_create_file("kprobe_profile", 0444, d_tracer,
+	entry = tracefs_create_file("kprobe_profile", 0444, d_tracer,
 				    NULL, &kprobe_profile_ops);
 
 	if (!entry)
-		pr_warning("Could not create debugfs "
+		pr_warning("Could not create tracefs "
 			   "'kprobe_profile' entry\n");
 	return 0;
 }

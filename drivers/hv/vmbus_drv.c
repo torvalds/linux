@@ -32,9 +32,13 @@
 #include <linux/completion.h>
 #include <linux/hyperv.h>
 #include <linux/kernel_stat.h>
+#include <linux/clockchips.h>
+#include <linux/cpu.h>
 #include <asm/hyperv.h>
 #include <asm/hypervisor.h>
 #include <asm/mshyperv.h>
+#include <linux/notifier.h>
+#include <linux/ptrace.h>
 #include "hyperv_vmbus.h"
 
 static struct acpi_device  *hv_acpi_dev;
@@ -42,6 +46,31 @@ static struct acpi_device  *hv_acpi_dev;
 static struct tasklet_struct msg_dpc;
 static struct completion probe_event;
 static int irq;
+
+
+static int hyperv_panic_event(struct notifier_block *nb,
+			unsigned long event, void *ptr)
+{
+	struct pt_regs *regs;
+
+	regs = current_pt_regs();
+
+	wrmsrl(HV_X64_MSR_CRASH_P0, regs->ip);
+	wrmsrl(HV_X64_MSR_CRASH_P1, regs->ax);
+	wrmsrl(HV_X64_MSR_CRASH_P2, regs->bx);
+	wrmsrl(HV_X64_MSR_CRASH_P3, regs->cx);
+	wrmsrl(HV_X64_MSR_CRASH_P4, regs->dx);
+
+	/*
+	 * Let Hyper-V know there is crash data available
+	 */
+	wrmsrl(HV_X64_MSR_CRASH_CTL, HV_CRASH_CTL_CRASH_NOTIFY);
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block hyperv_panic_block = {
+	.notifier_call = hyperv_panic_event,
+};
 
 struct resource hyperv_mmio = {
 	.name  = "hyperv mmio",
@@ -506,14 +535,26 @@ static int vmbus_probe(struct device *child_device)
  */
 static int vmbus_remove(struct device *child_device)
 {
-	struct hv_driver *drv = drv_to_hv_drv(child_device->driver);
+	struct hv_driver *drv;
 	struct hv_device *dev = device_to_hv_device(child_device);
+	u32 relid = dev->channel->offermsg.child_relid;
 
-	if (drv->remove)
-		drv->remove(dev);
-	else
-		pr_err("remove not set for driver %s\n",
-			dev_name(child_device));
+	if (child_device->driver) {
+		drv = drv_to_hv_drv(child_device->driver);
+		if (drv->remove)
+			drv->remove(dev);
+		else {
+			hv_process_channel_removal(dev->channel, relid);
+			pr_err("remove not set for driver %s\n",
+				dev_name(child_device));
+		}
+	} else {
+		/*
+		 * We don't have a driver for this device; deal with the
+		 * rescind message by removing the channel.
+		 */
+		hv_process_channel_removal(dev->channel, relid);
+	}
 
 	return 0;
 }
@@ -572,10 +613,42 @@ static void vmbus_onmessage_work(struct work_struct *work)
 {
 	struct onmessage_work_context *ctx;
 
+	/* Do not process messages if we're in DISCONNECTED state */
+	if (vmbus_connection.conn_state == DISCONNECTED)
+		return;
+
 	ctx = container_of(work, struct onmessage_work_context,
 			   work);
 	vmbus_onmessage(&ctx->msg);
 	kfree(ctx);
+}
+
+static void hv_process_timer_expiration(struct hv_message *msg, int cpu)
+{
+	struct clock_event_device *dev = hv_context.clk_evt[cpu];
+
+	if (dev->event_handler)
+		dev->event_handler(dev);
+
+	msg->header.message_type = HVMSG_NONE;
+
+	/*
+	 * Make sure the write to MessageType (ie set to
+	 * HVMSG_NONE) happens before we read the
+	 * MessagePending and EOMing. Otherwise, the EOMing
+	 * will not deliver any more messages since there is
+	 * no empty slot
+	 */
+	mb();
+
+	if (msg->header.message_flags.msg_pending) {
+		/*
+		 * This will cause message queue rescan to
+		 * possibly deliver another msg from the
+		 * hypervisor
+		 */
+		wrmsrl(HV_X64_MSR_EOM, 0);
+	}
 }
 
 static void vmbus_on_msg_dpc(unsigned long data)
@@ -584,21 +657,36 @@ static void vmbus_on_msg_dpc(unsigned long data)
 	void *page_addr = hv_context.synic_message_page[cpu];
 	struct hv_message *msg = (struct hv_message *)page_addr +
 				  VMBUS_MESSAGE_SINT;
+	struct vmbus_channel_message_header *hdr;
+	struct vmbus_channel_message_table_entry *entry;
 	struct onmessage_work_context *ctx;
 
 	while (1) {
-		if (msg->header.message_type == HVMSG_NONE) {
+		if (msg->header.message_type == HVMSG_NONE)
 			/* no msg */
 			break;
-		} else {
+
+		hdr = (struct vmbus_channel_message_header *)msg->u.payload;
+
+		if (hdr->msgtype >= CHANNELMSG_COUNT) {
+			WARN_ONCE(1, "unknown msgtype=%d\n", hdr->msgtype);
+			goto msg_handled;
+		}
+
+		entry = &channel_message_table[hdr->msgtype];
+		if (entry->handler_type	== VMHT_BLOCKING) {
 			ctx = kmalloc(sizeof(*ctx), GFP_ATOMIC);
 			if (ctx == NULL)
 				continue;
+
 			INIT_WORK(&ctx->work, vmbus_onmessage_work);
 			memcpy(&ctx->msg, msg, sizeof(*msg));
-			queue_work(vmbus_connection.work_queue, &ctx->work);
-		}
 
+			queue_work(vmbus_connection.work_queue, &ctx->work);
+		} else
+			entry->message_handler(hdr);
+
+msg_handled:
 		msg->header.message_type = HVMSG_NONE;
 
 		/*
@@ -667,9 +755,46 @@ static void vmbus_isr(void)
 	msg = (struct hv_message *)page_addr + VMBUS_MESSAGE_SINT;
 
 	/* Check if there are actual msgs to be processed */
-	if (msg->header.message_type != HVMSG_NONE)
-		tasklet_schedule(&msg_dpc);
+	if (msg->header.message_type != HVMSG_NONE) {
+		if (msg->header.message_type == HVMSG_TIMER_EXPIRED)
+			hv_process_timer_expiration(msg, cpu);
+		else
+			tasklet_schedule(&msg_dpc);
+	}
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+static int hyperv_cpu_disable(void)
+{
+	return -ENOSYS;
+}
+
+static void hv_cpu_hotplug_quirk(bool vmbus_loaded)
+{
+	static void *previous_cpu_disable;
+
+	/*
+	 * Offlining a CPU when running on newer hypervisors (WS2012R2, Win8,
+	 * ...) is not supported at this moment as channel interrupts are
+	 * distributed across all of them.
+	 */
+
+	if ((vmbus_proto_version == VERSION_WS2008) ||
+	    (vmbus_proto_version == VERSION_WIN7))
+		return;
+
+	if (vmbus_loaded) {
+		previous_cpu_disable = smp_ops.cpu_disable;
+		smp_ops.cpu_disable = hyperv_cpu_disable;
+		pr_notice("CPU offlining is not supported by hypervisor\n");
+	} else if (previous_cpu_disable)
+		smp_ops.cpu_disable = previous_cpu_disable;
+}
+#else
+static void hv_cpu_hotplug_quirk(bool vmbus_loaded)
+{
+}
+#endif
 
 /*
  * vmbus_bus_init -Main vmbus driver initialization routine.
@@ -710,6 +835,16 @@ static int vmbus_bus_init(int irq)
 	ret = vmbus_connect();
 	if (ret)
 		goto err_alloc;
+
+	hv_cpu_hotplug_quirk(true);
+
+	/*
+	 * Only register if the crash MSRs are available
+	 */
+	if (ms_hyperv.features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE) {
+		atomic_notifier_chain_register(&panic_notifier_list,
+					       &hyperv_panic_block);
+	}
 
 	vmbus_request_offers();
 
@@ -807,10 +942,8 @@ int vmbus_device_register(struct hv_device *child_device_obj)
 {
 	int ret = 0;
 
-	static atomic_t device_num = ATOMIC_INIT(0);
-
-	dev_set_name(&child_device_obj->device, "vmbus_0_%d",
-		     atomic_inc_return(&device_num));
+	dev_set_name(&child_device_obj->device, "vmbus_%d",
+		     child_device_obj->channel->id);
 
 	child_device_obj->device.bus = &hv_bus;
 	child_device_obj->device.parent = &hv_acpi_dev->dev;
@@ -861,8 +994,8 @@ static acpi_status vmbus_walk_resources(struct acpi_resource *res, void *ctx)
 		break;
 
 	case ACPI_RESOURCE_TYPE_ADDRESS64:
-		hyperv_mmio.start = res->data.address64.minimum;
-		hyperv_mmio.end = res->data.address64.maximum;
+		hyperv_mmio.start = res->data.address64.address.minimum;
+		hyperv_mmio.end = res->data.address64.address.maximum;
 		break;
 	}
 
@@ -959,11 +1092,19 @@ cleanup:
 
 static void __exit vmbus_exit(void)
 {
+	int cpu;
+
+	vmbus_connection.conn_state = DISCONNECTED;
+	hv_synic_clockevents_cleanup();
 	hv_remove_vmbus_irq();
 	vmbus_free_channels();
 	bus_unregister(&hv_bus);
 	hv_cleanup();
+	for_each_online_cpu(cpu)
+		smp_call_function_single(cpu, hv_synic_cleanup, NULL, 1);
 	acpi_bus_unregister_driver(&vmbus_acpi_driver);
+	hv_cpu_hotplug_quirk(false);
+	vmbus_disconnect();
 }
 
 

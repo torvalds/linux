@@ -559,6 +559,7 @@ config KEYBOARD_SH_KEYSC
 config KEYBOARD_STMPE
 	tristate "STMPE keypad support"
 	depends on MFD_STMPE
+	depends on OF
 	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if you want to use the keypad controller on STMPE I/O
@@ -566,6 +567,16 @@ config KEYBOARD_STMPE
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called stmpe-keypad.
+
+config KEYBOARD_SUN4I_LRADC
+	tristate "Allwinner sun4i low res adc attached tablet keys support"
+	depends on ARCH_SUNXI
+	help
+	  This selects support for the Allwinner low res adc attached tablet
+	  keys found on Allwinner sunxi SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sun4i-lradc-keys.
 
 config KEYBOARD_DAVINCI
 	tristate "TI DaVinci Key Scan"
@@ -576,6 +587,16 @@ config KEYBOARD_DAVINCI
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called davinci_keyscan.
+
+config KEYBOARD_IPAQ_MICRO
+	tristate "Buttons on Micro SoC (iPaq h3100,h3600,h3700)"
+	depends on MFD_IPAQ_MICRO
+	help
+	  Say Y to enable support for the buttons attached to
+	  Micro peripheral controller on iPAQ h3100/h3600/h3700
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ipaq-micro-keys.
 
 config KEYBOARD_OMAP
 	tristate "TI OMAP keypad support"
@@ -665,14 +686,25 @@ config KEYBOARD_CROS_EC
 	  To compile this driver as a module, choose M here: the
 	  module will be called cros_ec_keyb.
 
-config KEYBOARD_CAP1106
-	tristate "Microchip CAP1106 touch sensor"
+config KEYBOARD_CAP11XX
+	tristate "Microchip CAP11XX based touch sensors"
 	depends on OF && I2C
 	select REGMAP_I2C
 	help
-	  Say Y here to enable the CAP1106 touch sensor driver.
+	  Say Y here to enable the CAP11XX touch sensor driver.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called cap1106.
+	  module will be called cap11xx.
+
+config KEYBOARD_BCM
+	tristate "Broadcom keypad driver"
+	depends on OF && HAVE_CLK
+	select INPUT_MATRIXKMAP
+	default ARCH_BCM_CYGNUS
+	help
+	  Say Y here if you want to use Broadcom keypad.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bcm-keypad.
 
 endif

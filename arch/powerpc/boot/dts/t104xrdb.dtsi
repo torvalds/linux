@@ -33,6 +33,16 @@
  */
 
 / {
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		bman_fbpr: bman-fbpr {
+			size = <0 0x1000000>;
+			alignment = <0 0x1000000>;
+		};
+	};
 
 	ifc: localbus@ffe124000 {
 		reg = <0xf 0xfe124000 0 0x2000>;
@@ -69,6 +79,10 @@
 		ranges = <0x00000000 0xf 0x00000000 0x01072000>;
 	};
 
+	bportals: bman-portals@ff4000000 {
+		ranges = <0x0 0xf 0xf4000000 0x2000000>;
+	};
+
 	soc: soc@ffe000000 {
 		ranges = <0x00000000 0xf 0xfe000000 0x1000000>;
 		reg = <0xf 0xfe000000 0 0x00001000>;
@@ -80,6 +94,13 @@
 				compatible = "micron,n25q512a";
 				reg = <0>;
 				spi-max-frequency = <10000000>; /* input clock */
+			};
+		};
+
+		i2c@118000 {
+			adt7461@4c {
+				compatible = "adi,adt7461";
+				reg = <0x4c>;
 			};
 		};
 

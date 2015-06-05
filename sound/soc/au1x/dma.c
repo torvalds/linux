@@ -287,11 +287,6 @@ static struct snd_pcm_ops alchemy_pcm_ops = {
 	.pointer		= alchemy_pcm_pointer,
 };
 
-static void alchemy_pcm_free_dma_buffers(struct snd_pcm *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int alchemy_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_pcm *pcm = rtd->pcm;
@@ -305,7 +300,6 @@ static int alchemy_pcm_new(struct snd_soc_pcm_runtime *rtd)
 static struct snd_soc_platform_driver alchemy_pcm_soc_platform = {
 	.ops		= &alchemy_pcm_ops,
 	.pcm_new	= alchemy_pcm_new,
-	.pcm_free	= alchemy_pcm_free_dma_buffers,
 };
 
 static int alchemy_pcm_drvprobe(struct platform_device *pdev)
@@ -331,7 +325,6 @@ static int alchemy_pcm_drvremove(struct platform_device *pdev)
 static struct platform_driver alchemy_pcmdma_driver = {
 	.driver	= {
 		.name	= "alchemy-pcm-dma",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= alchemy_pcm_drvprobe,
 	.remove		= alchemy_pcm_drvremove,

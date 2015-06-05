@@ -69,11 +69,7 @@
 #include <net/ip.h>
 #include <net/tcp.h>
 #include <asm/byteorder.h>
-#include <asm/io.h>
 #include <asm/processor.h>
-#ifdef CONFIG_MTRR
-#include <asm/mtrr.h>
-#endif
 #include <net/busy_poll.h>
 
 #include "myri10ge_mcp.h"
@@ -242,8 +238,7 @@ struct myri10ge_priv {
 	unsigned int rdma_tags_available;
 	int intr_coal_delay;
 	__be32 __iomem *intr_coal_delay_ptr;
-	int mtrr;
-	int wc_enabled;
+	int wc_cookie;
 	int down_cnt;
 	wait_queue_head_t down_wq;
 	struct work_struct watchdog_work;
@@ -1905,7 +1900,7 @@ static const char myri10ge_gstrings_main_stats[][ETH_GSTRING_LEN] = {
 	"tx_aborted_errors", "tx_carrier_errors", "tx_fifo_errors",
 	"tx_heartbeat_errors", "tx_window_errors",
 	/* device-specific stats */
-	"tx_boundary", "WC", "irq", "MSI", "MSIX",
+	"tx_boundary", "irq", "MSI", "MSIX",
 	"read_dma_bw_MBs", "write_dma_bw_MBs", "read_write_dma_bw_MBs",
 	"serial_number", "watchdog_resets",
 #ifdef CONFIG_MYRI10GE_DCA
@@ -1984,7 +1979,6 @@ myri10ge_get_ethtool_stats(struct net_device *netdev,
 		data[i] = ((u64 *)&link_stats)[i];
 
 	data[i++] = (unsigned int)mgp->tx_boundary;
-	data[i++] = (unsigned int)mgp->wc_enabled;
 	data[i++] = (unsigned int)mgp->pdev->irq;
 	data[i++] = (unsigned int)mgp->msi_enabled;
 	data[i++] = (unsigned int)mgp->msix_enabled;
@@ -2913,16 +2907,11 @@ again:
 		flags |= MXGEFW_FLAGS_SMALL;
 
 		/* pad frames to at least ETH_ZLEN bytes */
-		if (unlikely(skb->len < ETH_ZLEN)) {
-			if (skb_padto(skb, ETH_ZLEN)) {
-				/* The packet is gone, so we must
-				 * return 0 */
-				ss->stats.tx_dropped += 1;
-				return NETDEV_TX_OK;
-			}
-			/* adjust the len to account for the zero pad
-			 * so that the nic can know how long it is */
-			skb->len = ETH_ZLEN;
+		if (eth_skb_pad(skb)) {
+			/* The packet is gone, so we must
+			 * return 0 */
+			ss->stats.tx_dropped += 1;
+			return NETDEV_TX_OK;
 		}
 	}
 
@@ -4038,19 +4027,14 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	(void)pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 	mgp->cmd = dma_alloc_coherent(&pdev->dev, sizeof(*mgp->cmd),
 				      &mgp->cmd_bus, GFP_KERNEL);
-	if (mgp->cmd == NULL)
+	if (!mgp->cmd) {
+		status = -ENOMEM;
 		goto abort_with_enabled;
+	}
 
 	mgp->board_span = pci_resource_len(pdev, 0);
 	mgp->iomem_base = pci_resource_start(pdev, 0);
-	mgp->mtrr = -1;
-	mgp->wc_enabled = 0;
-#ifdef CONFIG_MTRR
-	mgp->mtrr = mtrr_add(mgp->iomem_base, mgp->board_span,
-			     MTRR_TYPE_WRCOMB, 1);
-	if (mgp->mtrr >= 0)
-		mgp->wc_enabled = 1;
-#endif
+	mgp->wc_cookie = arch_phys_wc_add(mgp->iomem_base, mgp->board_span);
 	mgp->sram = ioremap_wc(mgp->iomem_base, mgp->board_span);
 	if (mgp->sram == NULL) {
 		dev_err(&pdev->dev, "ioremap failed for %ld bytes at 0x%lx\n",
@@ -4149,14 +4133,14 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto abort_with_state;
 	}
 	if (mgp->msix_enabled)
-		dev_info(dev, "%d MSI-X IRQs, tx bndry %d, fw %s, WC %s\n",
+		dev_info(dev, "%d MSI-X IRQs, tx bndry %d, fw %s, MTRR %s, WC Enabled\n",
 			 mgp->num_slices, mgp->tx_boundary, mgp->fw_name,
-			 (mgp->wc_enabled ? "Enabled" : "Disabled"));
+			 (mgp->wc_cookie > 0 ? "Enabled" : "Disabled"));
 	else
-		dev_info(dev, "%s IRQ %d, tx bndry %d, fw %s, WC %s\n",
+		dev_info(dev, "%s IRQ %d, tx bndry %d, fw %s, MTRR %s, WC Enabled\n",
 			 mgp->msi_enabled ? "MSI" : "xPIC",
 			 pdev->irq, mgp->tx_boundary, mgp->fw_name,
-			 (mgp->wc_enabled ? "Enabled" : "Disabled"));
+			 (mgp->wc_cookie > 0 ? "Enabled" : "Disabled"));
 
 	board_number++;
 	return 0;
@@ -4178,10 +4162,7 @@ abort_with_ioremap:
 	iounmap(mgp->sram);
 
 abort_with_mtrr:
-#ifdef CONFIG_MTRR
-	if (mgp->mtrr >= 0)
-		mtrr_del(mgp->mtrr, mgp->iomem_base, mgp->board_span);
-#endif
+	arch_phys_wc_del(mgp->wc_cookie);
 	dma_free_coherent(&pdev->dev, sizeof(*mgp->cmd),
 			  mgp->cmd, mgp->cmd_bus);
 
@@ -4223,14 +4204,9 @@ static void myri10ge_remove(struct pci_dev *pdev)
 	pci_restore_state(pdev);
 
 	iounmap(mgp->sram);
-
-#ifdef CONFIG_MTRR
-	if (mgp->mtrr >= 0)
-		mtrr_del(mgp->mtrr, mgp->iomem_base, mgp->board_span);
-#endif
+	arch_phys_wc_del(mgp->wc_cookie);
 	myri10ge_free_slices(mgp);
-	if (mgp->msix_vectors != NULL)
-		kfree(mgp->msix_vectors);
+	kfree(mgp->msix_vectors);
 	dma_free_coherent(&pdev->dev, sizeof(*mgp->cmd),
 			  mgp->cmd, mgp->cmd_bus);
 

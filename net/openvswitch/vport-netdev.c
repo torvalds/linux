@@ -33,6 +33,8 @@
 #include "vport-internal_dev.h"
 #include "vport-netdev.h"
 
+static struct vport_ops ovs_netdev_vport_ops;
+
 /* Must be called with rcu_read_lock. */
 static void netdev_port_receive(struct vport *vport, struct sk_buff *skb)
 {
@@ -75,7 +77,7 @@ static rx_handler_result_t netdev_frame_hook(struct sk_buff **pskb)
 	return RX_HANDLER_CONSUMED;
 }
 
-static struct net_device *get_dpdev(struct datapath *dp)
+static struct net_device *get_dpdev(const struct datapath *dp)
 {
 	struct vport *local;
 
@@ -224,10 +226,20 @@ struct vport *ovs_netdev_get_vport(struct net_device *dev)
 		return NULL;
 }
 
-const struct vport_ops ovs_netdev_vport_ops = {
+static struct vport_ops ovs_netdev_vport_ops = {
 	.type		= OVS_VPORT_TYPE_NETDEV,
 	.create		= netdev_create,
 	.destroy	= netdev_destroy,
 	.get_name	= ovs_netdev_get_name,
 	.send		= netdev_send,
 };
+
+int __init ovs_netdev_init(void)
+{
+	return ovs_vport_ops_register(&ovs_netdev_vport_ops);
+}
+
+void ovs_netdev_exit(void)
+{
+	ovs_vport_ops_unregister(&ovs_netdev_vport_ops);
+}

@@ -31,7 +31,6 @@
 #include <linux/mtd/nand_ecc.h>
 #include <linux/fsl_ifc.h>
 
-#define FSL_IFC_V1_1_0	0x01010000
 #define ERR_BYTE		0xFF /* Value returned for read
 					bytes when read failed	*/
 #define IFC_TIMEOUT_MSECS	500  /* Maximum number of mSecs to wait
@@ -318,7 +317,7 @@ static void fsl_ifc_run_command(struct mtd_info *mtd)
 
 	/* wait for command complete flag or timeout */
 	wait_event_timeout(ctrl->nand_wait, ctrl->nand_stat,
-			   IFC_TIMEOUT_MSECS * HZ/1000);
+			   msecs_to_jiffies(IFC_TIMEOUT_MSECS));
 
 	/* ctrl->nand_stat will be updated from IRQ context */
 	if (!ctrl->nand_stat)
@@ -861,7 +860,7 @@ static void fsl_ifc_sram_init(struct fsl_ifc_mtd *priv)
 
 	/* wait for command complete flag or timeout */
 	wait_event_timeout(ctrl->nand_wait, ctrl->nand_stat,
-			   IFC_TIMEOUT_MSECS * HZ/1000);
+			   msecs_to_jiffies(IFC_TIMEOUT_MSECS));
 
 	if (ctrl->nand_stat != IFC_NAND_EVTER_STAT_OPC)
 		printk(KERN_ERR "fsl-ifc: Failed to Initialise SRAM\n");
@@ -877,7 +876,7 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 	struct fsl_ifc_regs __iomem *ifc = ctrl->regs;
 	struct nand_chip *chip = &priv->chip;
 	struct nand_ecclayout *layout;
-	u32 csor, ver;
+	u32 csor;
 
 	/* Fill in fsl_ifc_mtd structure */
 	priv->mtd.priv = chip;
@@ -984,8 +983,7 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 		chip->ecc.mode = NAND_ECC_SOFT;
 	}
 
-	ver = ioread32be(&ifc->ifc_rev);
-	if (ver == FSL_IFC_V1_1_0)
+	if (ctrl->version == FSL_IFC_VERSION_1_1_0)
 		fsl_ifc_sram_init(priv);
 
 	return 0;
@@ -1045,12 +1043,12 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 	}
 
 	/* find which chip select it is connected to */
-	for (bank = 0; bank < FSL_IFC_BANK_COUNT; bank++) {
+	for (bank = 0; bank < fsl_ifc_ctrl_dev->banks; bank++) {
 		if (match_bank(ifc, bank, res.start))
 			break;
 	}
 
-	if (bank >= FSL_IFC_BANK_COUNT) {
+	if (bank >= fsl_ifc_ctrl_dev->banks) {
 		dev_err(&dev->dev, "%s: address did not match any chip selects\n",
 			__func__);
 		return -ENODEV;
@@ -1167,7 +1165,6 @@ static const struct of_device_id fsl_ifc_nand_match[] = {
 static struct platform_driver fsl_ifc_nand_driver = {
 	.driver = {
 		.name	= "fsl,ifc-nand",
-		.owner = THIS_MODULE,
 		.of_match_table = fsl_ifc_nand_match,
 	},
 	.probe       = fsl_ifc_nand_probe,

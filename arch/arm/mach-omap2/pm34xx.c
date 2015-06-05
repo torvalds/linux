@@ -29,6 +29,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/omap-dma.h>
+#include <linux/omap-gpmc.h>
 #include <linux/platform_data/gpio-omap.h>
 
 #include <trace/events/power.h>
@@ -43,7 +44,6 @@
 #include "common.h"
 #include "cm3xxx.h"
 #include "cm-regbits-34xx.h"
-#include "gpmc.h"
 #include "prm-regbits-34xx.h"
 #include "prm3xxx.h"
 #include "pm.h"
@@ -137,9 +137,8 @@ static irqreturn_t _prcm_int_handle_io(int irq, void *unused)
 {
 	int c;
 
-	c = omap3xxx_prm_clear_mod_irqs(WKUP_MOD, 1,
-					~(OMAP3430_ST_IO_MASK |
-					  OMAP3430_ST_IO_CHAIN_MASK));
+	c = omap_prm_clear_mod_irqs(WKUP_MOD, 1, OMAP3430_ST_IO_MASK |
+				    OMAP3430_ST_IO_CHAIN_MASK);
 
 	return c ? IRQ_HANDLED : IRQ_NONE;
 }
@@ -153,14 +152,13 @@ static irqreturn_t _prcm_int_handle_wakeup(int irq, void *unused)
 	 * these are handled in a separate handler to avoid acking
 	 * IO events before parsing in mux code
 	 */
-	c = omap3xxx_prm_clear_mod_irqs(WKUP_MOD, 1,
-					OMAP3430_ST_IO_MASK |
-					OMAP3430_ST_IO_CHAIN_MASK);
-	c += omap3xxx_prm_clear_mod_irqs(CORE_MOD, 1, 0);
-	c += omap3xxx_prm_clear_mod_irqs(OMAP3430_PER_MOD, 1, 0);
+	c = omap_prm_clear_mod_irqs(WKUP_MOD, 1, ~(OMAP3430_ST_IO_MASK |
+						   OMAP3430_ST_IO_CHAIN_MASK));
+	c += omap_prm_clear_mod_irqs(CORE_MOD, 1, ~0);
+	c += omap_prm_clear_mod_irqs(OMAP3430_PER_MOD, 1, ~0);
 	if (omap_rev() > OMAP3430_REV_ES1_0) {
-		c += omap3xxx_prm_clear_mod_irqs(CORE_MOD, 3, 0);
-		c += omap3xxx_prm_clear_mod_irqs(OMAP3430ES2_USBHOST_MOD, 1, 0);
+		c += omap_prm_clear_mod_irqs(CORE_MOD, 3, ~0);
+		c += omap_prm_clear_mod_irqs(OMAP3430ES2_USBHOST_MOD, 1, ~0);
 	}
 
 	return c ? IRQ_HANDLED : IRQ_NONE;

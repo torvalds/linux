@@ -135,7 +135,6 @@ static struct platform_driver sirfsoc_memc_driver = {
 	.probe		= sirfsoc_memc_probe,
 	.driver = {
 		.name = "sirfsoc-memc",
-		.owner = THIS_MODULE,
 		.of_match_table	= memc_ids,
 	},
 };

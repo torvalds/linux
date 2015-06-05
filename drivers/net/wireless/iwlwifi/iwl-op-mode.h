@@ -94,7 +94,7 @@ struct iwl_cfg;
  * The operational mode has a very simple life cycle.
  *
  *	1) The driver layer (iwl-drv.c) chooses the op_mode based on the
- *	   capabilities advertized by the fw file (in TLV format).
+ *	   capabilities advertised by the fw file (in TLV format).
  *	2) The driver layer starts the op_mode (ops->start)
  *	3) The op_mode registers mac80211
  *	4) The op_mode is governed by mac80211
@@ -116,7 +116,7 @@ struct iwl_cfg;
  *	May sleep
  * @rx: Rx notification to the op_mode. rxb is the Rx buffer itself. Cmd is the
  *	HCMD this Rx responds to. Can't sleep.
- * @napi_add: NAPI initialisation. The transport is fully responsible for NAPI,
+ * @napi_add: NAPI initialization. The transport is fully responsible for NAPI,
  *	but the higher layers need to know about it (in particular mac80211 to
  *	to able to call the right NAPI RX functions); this function is needed
  *	to eventually call netif_napi_add() with higher layer involvement.
@@ -138,7 +138,8 @@ struct iwl_cfg;
  * @nic_config: configure NIC, called before firmware is started.
  *	May sleep
  * @wimax_active: invoked when WiMax becomes active. May sleep
- * @enter_d0i3: configure the fw to enter d0i3. May sleep.
+ * @enter_d0i3: configure the fw to enter d0i3. return 1 to indicate d0i3
+ *	entrance is aborted (e.g. due to held reference). May sleep.
  * @exit_d0i3: configure the fw to exit d0i3. May sleep.
  */
 struct iwl_op_mode_ops {

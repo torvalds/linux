@@ -16,6 +16,7 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/io.h>		/* for inb_p, outb_p, inb, outb, etc... */
+#include <linux/device.h>
 
 enum var_type_t {
 	VAR_NUM = 0,
@@ -167,7 +168,8 @@ struct spk_synth {
 	int *default_vol;
 	int (*probe)(struct spk_synth *synth);
 	void (*release)(void);
-	const char *(*synth_immediate)(struct spk_synth *synth, const char *buff);
+	const char *(*synth_immediate)(struct spk_synth *synth,
+					const char *buff);
 	void (*catch_up)(struct spk_synth *synth);
 	void (*flush)(struct spk_synth *synth);
 	int (*is_alive)(struct spk_synth *synth);
@@ -178,6 +180,16 @@ struct spk_synth {
 	int alive;
 	struct attribute_group attributes;
 };
+
+/**
+ * module_spk_synth() - Helper macro for registering a speakup driver
+ * @__spk_synth: spk_synth struct
+ * Helper macro for speakup drivers which do not do anything special in module
+ * init/exit. This eliminates a lot of boilerplate. Each module may only
+ * use this macro once, and calling it replaces module_init() and module_exit()
+ */
+#define module_spk_synth(__spk_synth) \
+	module_driver(__spk_synth, synth_add, synth_remove)
 
 struct speakup_info_t {
 	spinlock_t spinlock;

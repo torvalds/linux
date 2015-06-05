@@ -880,6 +880,8 @@ static int __add_keyed_refs(struct btrfs_fs_info *fs_info,
  * indirect refs to their parent bytenr.
  * When roots are found, they're added to the roots list
  *
+ * NOTE: This can return values > 0
+ *
  * FIXME some caching might speed things up
  */
 static int find_parent_nodes(struct btrfs_trans_handle *trans,
@@ -1198,6 +1200,19 @@ int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
+/**
+ * btrfs_check_shared - tell us whether an extent is shared
+ *
+ * @trans: optional trans handle
+ *
+ * btrfs_check_shared uses the backref walking code but will short
+ * circuit as soon as it finds a root or inode that doesn't match the
+ * one passed in. This provides a significant performance benefit for
+ * callers (such as fiemap) which want to know whether the extent is
+ * shared but do not need a ref count.
+ *
+ * Return: 0 if extent is not shared, 1 if it is shared, < 0 on error.
+ */
 int btrfs_check_shared(struct btrfs_trans_handle *trans,
 		       struct btrfs_fs_info *fs_info, u64 root_objectid,
 		       u64 inum, u64 bytenr)
@@ -1206,7 +1221,7 @@ int btrfs_check_shared(struct btrfs_trans_handle *trans,
 	struct ulist *roots = NULL;
 	struct ulist_iterator uiter;
 	struct ulist_node *node;
-	struct seq_list elem = {};
+	struct seq_list elem = SEQ_LIST_INIT(elem);
 	int ret = 0;
 
 	tmp = ulist_alloc(GFP_NOFS);
@@ -1226,11 +1241,13 @@ int btrfs_check_shared(struct btrfs_trans_handle *trans,
 		ret = find_parent_nodes(trans, fs_info, bytenr, elem.seq, tmp,
 					roots, NULL, root_objectid, inum);
 		if (ret == BACKREF_FOUND_SHARED) {
+			/* this is the only condition under which we return 1 */
 			ret = 1;
 			break;
 		}
 		if (ret < 0 && ret != -ENOENT)
 			break;
+		ret = 0;
 		node = ulist_next(tmp, &uiter);
 		if (!node)
 			break;
@@ -1244,25 +1261,6 @@ int btrfs_check_shared(struct btrfs_trans_handle *trans,
 	ulist_free(tmp);
 	ulist_free(roots);
 	return ret;
-}
-
-/*
- * this makes the path point to (inum INODE_ITEM ioff)
- */
-int inode_item_info(u64 inum, u64 ioff, struct btrfs_root *fs_root,
-			struct btrfs_path *path)
-{
-	struct btrfs_key key;
-	return btrfs_find_item(fs_root, path, inum, ioff,
-			BTRFS_INODE_ITEM_KEY, &key);
-}
-
-static int inode_ref_info(u64 inum, u64 ioff, struct btrfs_root *fs_root,
-				struct btrfs_path *path,
-				struct btrfs_key *found_key)
-{
-	return btrfs_find_item(fs_root, path, inum, ioff,
-			BTRFS_INODE_REF_KEY, found_key);
 }
 
 int btrfs_find_one_extref(struct btrfs_root *root, u64 inode_objectid,
@@ -1374,7 +1372,8 @@ char *btrfs_ref_to_path(struct btrfs_root *fs_root, struct btrfs_path *path,
 			btrfs_tree_read_unlock_blocking(eb);
 			free_extent_buffer(eb);
 		}
-		ret = inode_ref_info(parent, 0, fs_root, path, &found_key);
+		ret = btrfs_find_item(fs_root, path, parent, 0,
+				BTRFS_INODE_REF_KEY, &found_key);
 		if (ret > 0)
 			ret = -ENOENT;
 		if (ret)
@@ -1552,7 +1551,6 @@ int tree_backref_for_extent(unsigned long *ptr, struct extent_buffer *eb,
 {
 	int ret;
 	int type;
-	struct btrfs_tree_block_info *info;
 	struct btrfs_extent_inline_ref *eiref;
 
 	if (*ptr == (unsigned long)-1)
@@ -1573,9 +1571,17 @@ int tree_backref_for_extent(unsigned long *ptr, struct extent_buffer *eb,
 	}
 
 	/* we can treat both ref types equally here */
-	info = (struct btrfs_tree_block_info *)(ei + 1);
 	*out_root = btrfs_extent_inline_ref_offset(eb, eiref);
-	*out_level = btrfs_tree_block_level(eb, info);
+
+	if (key->type == BTRFS_EXTENT_ITEM_KEY) {
+		struct btrfs_tree_block_info *info;
+
+		info = (struct btrfs_tree_block_info *)(ei + 1);
+		*out_level = btrfs_tree_block_level(eb, info);
+	} else {
+		ASSERT(key->type == BTRFS_METADATA_ITEM_KEY);
+		*out_level = (u8)key->offset;
+	}
 
 	if (ret == 1)
 		*ptr = (unsigned long)-1;
@@ -1621,7 +1627,7 @@ int iterate_extent_inodes(struct btrfs_fs_info *fs_info,
 	struct ulist *roots = NULL;
 	struct ulist_node *ref_node = NULL;
 	struct ulist_node *root_node = NULL;
-	struct seq_list tree_mod_seq_elem = {};
+	struct seq_list tree_mod_seq_elem = SEQ_LIST_INIT(tree_mod_seq_elem);
 	struct ulist_iterator ref_uiter;
 	struct ulist_iterator root_uiter;
 
@@ -1720,8 +1726,10 @@ static int iterate_inode_refs(u64 inum, struct btrfs_root *fs_root,
 	struct btrfs_key found_key;
 
 	while (!ret) {
-		ret = inode_ref_info(inum, parent ? parent+1 : 0, fs_root, path,
-				     &found_key);
+		ret = btrfs_find_item(fs_root, path, inum,
+				parent ? parent + 1 : 0, BTRFS_INODE_REF_KEY,
+				&found_key);
+
 		if (ret < 0)
 			break;
 		if (ret) {

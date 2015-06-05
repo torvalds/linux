@@ -44,6 +44,9 @@
 
 extern struct ieee80211_ops ath9k_htc_ops;
 extern int htc_modparam_nohwcrypt;
+#ifdef CONFIG_MAC80211_LEDS
+extern int ath9k_htc_led_blink;
+#endif
 
 enum htc_phymode {
 	HTC_MODE_11NA		= 0,
@@ -441,6 +444,10 @@ static inline void ath9k_htc_stop_btcoex(struct ath9k_htc_priv *priv)
 #define OP_BT_SCAN                 BIT(4)
 #define OP_TSF_RESET               BIT(6)
 
+enum htc_op_flags {
+	HTC_FWFLAG_NO_RMW,
+};
+
 struct ath9k_htc_priv {
 	struct device *dev;
 	struct ieee80211_hw *hw;
@@ -479,8 +486,10 @@ struct ath9k_htc_priv {
 	bool reconfig_beacon;
 	unsigned int rxfilter;
 	unsigned long op_flags;
+	unsigned long fw_flags;
 
 	struct ath9k_hw_cal_data caldata;
+	struct ath_spec_scan_priv spec_priv;
 
 	spinlock_t beacon_lock;
 	struct ath_beacon_config cur_beacon_conf;
@@ -625,8 +634,12 @@ int ath9k_htc_resume(struct htc_target *htc_handle);
 #endif
 #ifdef CONFIG_ATH9K_HTC_DEBUGFS
 int ath9k_htc_init_debug(struct ath_hw *ah);
+void ath9k_htc_deinit_debug(struct ath9k_htc_priv *priv);
 #else
 static inline int ath9k_htc_init_debug(struct ath_hw *ah) { return 0; };
+static inline void ath9k_htc_deinit_debug(struct ath9k_htc_priv *priv)
+{
+}
 #endif /* CONFIG_ATH9K_HTC_DEBUGFS */
 
 #endif /* HTC_H */

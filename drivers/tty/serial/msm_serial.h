@@ -65,6 +65,7 @@
 #define UART_CR_TX_ENABLE		(1 << 2)
 #define UART_CR_RX_DISABLE		(1 << 1)
 #define UART_CR_RX_ENABLE		(1 << 0)
+#define UART_CR_CMD_RESET_RXBREAK_START	((1 << 11) | (2 << 4))
 
 #define UART_IMR		0x0014
 #define UART_IMR_TXLEV		(1 << 0)
@@ -72,6 +73,7 @@
 #define UART_IMR_RXLEV		(1 << 4)
 #define UART_IMR_DELTA_CTS	(1 << 5)
 #define UART_IMR_CURRENT_CTS	(1 << 6)
+#define UART_IMR_RXBREAK_START	(1 << 10)
 
 #define UART_IPR_RXSTALE_LAST		0x20
 #define UART_IPR_STALE_LSB		0x1F
@@ -168,15 +170,6 @@ void msm_serial_set_mnd_regs_from_uartclk(struct uart_port *port)
 		msm_serial_set_mnd_regs_tcxoby4(port);
 }
 
-/*
- * TROUT has a specific defect that makes it report it's uartclk
- * as 19.2Mhz (TCXO) when it's actually 4.8Mhz (TCXO/4). This special
- * cases TROUT to use the right clock.
- */
-#ifdef CONFIG_MACH_TROUT
-#define msm_serial_set_mnd_regs msm_serial_set_mnd_regs_tcxoby4
-#else
 #define msm_serial_set_mnd_regs msm_serial_set_mnd_regs_from_uartclk
-#endif
 
 #endif	/* __DRIVERS_SERIAL_MSM_SERIAL_H */

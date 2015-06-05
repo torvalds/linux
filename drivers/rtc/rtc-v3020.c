@@ -382,7 +382,6 @@ static struct platform_driver rtc_device_driver = {
 	.remove = rtc_remove,
 	.driver = {
 		.name	= "v3020",
-		.owner	= THIS_MODULE,
 	},
 };
 

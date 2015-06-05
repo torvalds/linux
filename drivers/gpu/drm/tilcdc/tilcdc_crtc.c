@@ -16,6 +16,7 @@
  */
 
 #include "drm_flip_work.h"
+#include <drm/drm_plane_helper.h>
 
 #include "tilcdc_drv.h"
 #include "tilcdc_regs.h"
@@ -664,12 +665,8 @@ struct drm_crtc *tilcdc_crtc_create(struct drm_device *dev)
 	tilcdc_crtc->dpms = DRM_MODE_DPMS_OFF;
 	init_waitqueue_head(&tilcdc_crtc->frame_done_wq);
 
-	ret = drm_flip_work_init(&tilcdc_crtc->unref_work, 16,
+	drm_flip_work_init(&tilcdc_crtc->unref_work,
 			"unref", unref_worker);
-	if (ret) {
-		dev_err(dev->dev, "could not allocate unref FIFO\n");
-		goto fail;
-	}
 
 	ret = drm_crtc_init(dev, crtc, &tilcdc_crtc_funcs);
 	if (ret < 0)

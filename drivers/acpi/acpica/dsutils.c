@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -563,6 +563,17 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 					    ACPI_CAST_PTR(union
 								 acpi_operand_object,
 								 acpi_gbl_root_node);
+					status = AE_OK;
+				} else if (parent_op->common.aml_opcode ==
+					   AML_EXTERNAL_OP) {
+
+					/* TBD: May only be temporary */
+
+					obj_desc =
+					    acpi_ut_create_string_object((acpi_size) name_length);
+
+					ACPI_STRNCPY(obj_desc->string.pointer,
+						     name_string, name_length);
 					status = AE_OK;
 				} else {
 					/*

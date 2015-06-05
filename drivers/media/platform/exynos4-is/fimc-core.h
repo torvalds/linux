@@ -579,8 +579,8 @@ static inline bool fimc_jpeg_fourcc(u32 pixelformat)
 
 static inline bool fimc_user_defined_mbus_fmt(u32 code)
 {
-	return (code == V4L2_MBUS_FMT_JPEG_1X8 ||
-		code == V4L2_MBUS_FMT_S5C_UYVY_JPEG_1X8);
+	return (code == MEDIA_BUS_FMT_JPEG_1X8 ||
+		code == MEDIA_BUS_FMT_S5C_UYVY_JPEG_1X8);
 }
 
 /* Return the alpha component bit mask */

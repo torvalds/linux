@@ -32,6 +32,12 @@
 
 /* Static data */
 
+static void omap44xx_prm_read_pending_irqs(unsigned long *events);
+static void omap44xx_prm_ocp_barrier(void);
+static void omap44xx_prm_save_and_clear_irqen(u32 *saved_mask);
+static void omap44xx_prm_restore_irqen(u32 *saved_mask);
+static void omap44xx_prm_reconfigure_io_chain(void);
+
 static const struct omap_prcm_irq omap4_prcm_irqs[] = {
 	OMAP_PRCM_IRQ("io",     9,      1),
 };
@@ -43,6 +49,7 @@ static struct omap_prcm_irq_setup omap4_prcm_irq_setup = {
 	.irqs			= omap4_prcm_irqs,
 	.nr_irqs		= ARRAY_SIZE(omap4_prcm_irqs),
 	.irq			= 11 + OMAP44XX_IRQ_GIC_START,
+	.xlate_irq		= omap4_xlate_irq,
 	.read_pending_irqs	= &omap44xx_prm_read_pending_irqs,
 	.ocp_barrier		= &omap44xx_prm_ocp_barrier,
 	.save_and_clear_irqen	= &omap44xx_prm_save_and_clear_irqen,
@@ -80,19 +87,19 @@ static struct prm_reset_src_map omap44xx_prm_reset_src_map[] = {
 /* PRM low-level functions */
 
 /* Read a register in a CM/PRM instance in the PRM module */
-u32 omap4_prm_read_inst_reg(s16 inst, u16 reg)
+static u32 omap4_prm_read_inst_reg(s16 inst, u16 reg)
 {
 	return readl_relaxed(prm_base + inst + reg);
 }
 
 /* Write into a register in a CM/PRM instance in the PRM module */
-void omap4_prm_write_inst_reg(u32 val, s16 inst, u16 reg)
+static void omap4_prm_write_inst_reg(u32 val, s16 inst, u16 reg)
 {
 	writel_relaxed(val, prm_base + inst + reg);
 }
 
 /* Read-modify-write a register in a PRM module. Caller must lock */
-u32 omap4_prm_rmw_inst_reg_bits(u32 mask, u32 bits, s16 inst, s16 reg)
+static u32 omap4_prm_rmw_inst_reg_bits(u32 mask, u32 bits, s16 inst, s16 reg)
 {
 	u32 v;
 
@@ -131,7 +138,7 @@ static struct omap4_vp omap4_vp[] = {
 	},
 };
 
-u32 omap4_prm_vp_check_txdone(u8 vp_id)
+static u32 omap4_prm_vp_check_txdone(u8 vp_id)
 {
 	struct omap4_vp *vp = &omap4_vp[vp_id];
 	u32 irqstatus;
@@ -142,7 +149,7 @@ u32 omap4_prm_vp_check_txdone(u8 vp_id)
 	return irqstatus & vp->tranxdone_status;
 }
 
-void omap4_prm_vp_clear_txdone(u8 vp_id)
+static void omap4_prm_vp_clear_txdone(u8 vp_id)
 {
 	struct omap4_vp *vp = &omap4_vp[vp_id];
 
@@ -207,7 +214,7 @@ static inline u32 _read_pending_irq_reg(u16 irqen_offs, u16 irqst_offs)
  * MPU IRQs, and store the result into the two u32s pointed to by @events.
  * No return value.
  */
-void omap44xx_prm_read_pending_irqs(unsigned long *events)
+static void omap44xx_prm_read_pending_irqs(unsigned long *events)
 {
 	events[0] = _read_pending_irq_reg(OMAP4_PRM_IRQENABLE_MPU_OFFSET,
 					  OMAP4_PRM_IRQSTATUS_MPU_OFFSET);
@@ -224,7 +231,7 @@ void omap44xx_prm_read_pending_irqs(unsigned long *events)
  * block, to avoid race conditions after acknowledging or clearing IRQ
  * bits.  No return value.
  */
-void omap44xx_prm_ocp_barrier(void)
+static void omap44xx_prm_ocp_barrier(void)
 {
 	omap4_prm_read_inst_reg(OMAP4430_PRM_OCP_SOCKET_INST,
 				OMAP4_REVISION_PRM_OFFSET);
@@ -241,14 +248,14 @@ void omap44xx_prm_ocp_barrier(void)
  * interrupts reaches the PRM before returning; otherwise, spurious
  * interrupts might occur.  No return value.
  */
-void omap44xx_prm_save_and_clear_irqen(u32 *saved_mask)
+static void omap44xx_prm_save_and_clear_irqen(u32 *saved_mask)
 {
 	saved_mask[0] =
 		omap4_prm_read_inst_reg(OMAP4430_PRM_OCP_SOCKET_INST,
-					OMAP4_PRM_IRQSTATUS_MPU_OFFSET);
+					OMAP4_PRM_IRQENABLE_MPU_OFFSET);
 	saved_mask[1] =
 		omap4_prm_read_inst_reg(OMAP4430_PRM_OCP_SOCKET_INST,
-					OMAP4_PRM_IRQSTATUS_MPU_2_OFFSET);
+					OMAP4_PRM_IRQENABLE_MPU_2_OFFSET);
 
 	omap4_prm_write_inst_reg(0, OMAP4430_PRM_OCP_SOCKET_INST,
 				 OMAP4_PRM_IRQENABLE_MPU_OFFSET);
@@ -270,7 +277,7 @@ void omap44xx_prm_save_and_clear_irqen(u32 *saved_mask)
  * No OCP barrier should be needed here; any pending PRM interrupts will fire
  * once the writes reach the PRM.  No return value.
  */
-void omap44xx_prm_restore_irqen(u32 *saved_mask)
+static void omap44xx_prm_restore_irqen(u32 *saved_mask)
 {
 	omap4_prm_write_inst_reg(saved_mask[0], OMAP4430_PRM_OCP_SOCKET_INST,
 				 OMAP4_PRM_IRQENABLE_MPU_OFFSET);
@@ -287,7 +294,7 @@ void omap44xx_prm_restore_irqen(u32 *saved_mask)
  * deasserting WUCLKIN and waiting for WUCLKOUT to be deasserted.
  * No return value. XXX Are the final two steps necessary?
  */
-void omap44xx_prm_reconfigure_io_chain(void)
+static void omap44xx_prm_reconfigure_io_chain(void)
 {
 	int i = 0;
 	s32 inst = omap4_prmst_get_prm_dev_inst();
@@ -652,11 +659,10 @@ static int omap4_pwrdm_wait_transition(struct powerdomain *pwrdm)
 
 static int omap4_check_vcvp(void)
 {
-	/* No VC/VP on dra7xx devices */
-	if (soc_is_dra7xx())
-		return 0;
+	if (prm_features & PRM_HAS_VOLTAGE)
+		return 1;
 
-	return 1;
+	return 0;
 }
 
 struct pwrdm_ops omap4_pwrdm_operations = {
@@ -689,26 +695,35 @@ static struct prm_ll_data omap44xx_prm_ll_data = {
 	.was_any_context_lost_old = &omap44xx_prm_was_any_context_lost_old,
 	.clear_context_loss_flags_old = &omap44xx_prm_clear_context_loss_flags_old,
 	.late_init = &omap44xx_prm_late_init,
+	.assert_hardreset	= omap4_prminst_assert_hardreset,
+	.deassert_hardreset	= omap4_prminst_deassert_hardreset,
+	.is_hardreset_asserted	= omap4_prminst_is_hardreset_asserted,
+	.reset_system		= omap4_prminst_global_warm_sw_reset,
+	.vp_check_txdone	= omap4_prm_vp_check_txdone,
+	.vp_clear_txdone	= omap4_prm_vp_clear_txdone,
 };
 
-int __init omap44xx_prm_init(void)
+static const struct omap_prcm_init_data *prm_init_data;
+
+int __init omap44xx_prm_init(const struct omap_prcm_init_data *data)
 {
-	if (cpu_is_omap44xx() || soc_is_omap54xx() || soc_is_dra7xx())
+	omap_prm_base_init();
+
+	prm_init_data = data;
+
+	if (data->flags & PRM_HAS_IO_WAKEUP)
 		prm_features |= PRM_HAS_IO_WAKEUP;
+
+	if (data->flags & PRM_HAS_VOLTAGE)
+		prm_features |= PRM_HAS_VOLTAGE;
+
+	omap4_prminst_set_prm_dev_inst(data->device_inst_offset);
 
 	return prm_register(&omap44xx_prm_ll_data);
 }
 
-static struct of_device_id omap_prm_dt_match_table[] = {
-	{ .compatible = "ti,omap4-prm" },
-	{ .compatible = "ti,omap5-prm" },
-	{ .compatible = "ti,dra7-prm" },
-	{ }
-};
-
 static int omap44xx_prm_late_init(void)
 {
-	struct device_node *np;
 	int irq_num;
 
 	if (!(prm_features & PRM_HAS_IO_WAKEUP))
@@ -718,29 +733,23 @@ static int omap44xx_prm_late_init(void)
 	if (!of_have_populated_dt())
 		return 0;
 
-	np = of_find_matching_node(NULL, omap_prm_dt_match_table);
+	irq_num = of_irq_get(prm_init_data->np, 0);
+	/*
+	 * Already have OMAP4 IRQ num. For all other platforms, we need
+	 * IRQ numbers from DT
+	 */
+	if (irq_num < 0 && !(prm_init_data->flags & PRM_IRQ_DEFAULT)) {
+		if (irq_num == -EPROBE_DEFER)
+			return irq_num;
 
-	if (!np) {
-		/* Default loaded up with OMAP4 values */
-		if (!cpu_is_omap44xx())
-			return 0;
-	} else {
-		irq_num = of_irq_get(np, 0);
-		/*
-		 * Already have OMAP4 IRQ num. For all other platforms, we need
-		 * IRQ numbers from DT
-		 */
-		if (irq_num < 0 && !cpu_is_omap44xx()) {
-			if (irq_num == -EPROBE_DEFER)
-				return irq_num;
+		/* Have nothing to do */
+		return 0;
+	}
 
-			/* Have nothing to do */
-			return 0;
-		}
-
-		/* Once OMAP4 DT is filled as well */
-		if (irq_num >= 0)
-			omap4_prcm_irq_setup.irq = irq_num;
+	/* Once OMAP4 DT is filled as well */
+	if (irq_num >= 0) {
+		omap4_prcm_irq_setup.irq = irq_num;
+		omap4_prcm_irq_setup.xlate_irq = NULL;
 	}
 
 	omap44xx_prm_enable_io_wakeup();

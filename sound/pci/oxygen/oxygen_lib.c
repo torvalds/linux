@@ -319,11 +319,12 @@ static void oxygen_restore_eeprom(struct oxygen *chip,
 
 static void configure_pcie_bridge(struct pci_dev *pci)
 {
-	enum { PEX811X, PI7C9X110 };
+	enum { PEX811X, PI7C9X110, XIO2001 };
 	static const struct pci_device_id bridge_ids[] = {
 		{ PCI_VDEVICE(PLX, 0x8111), .driver_data = PEX811X },
 		{ PCI_VDEVICE(PLX, 0x8112), .driver_data = PEX811X },
 		{ PCI_DEVICE(0x12d8, 0xe110), .driver_data = PI7C9X110 },
+		{ PCI_VDEVICE(TI, 0x8240), .driver_data = XIO2001 },
 		{ }
 	};
 	struct pci_dev *bridge;
@@ -356,6 +357,14 @@ static void configure_pcie_bridge(struct pci_dev *pci)
 		pci_read_config_dword(bridge, 0x40, &tmp);
 		tmp |= 1;	/* park the PCI arbiter to the sound chip */
 		pci_write_config_dword(bridge, 0x40, tmp);
+		break;
+
+	case XIO2001: /* Texas Instruments XIO2001 PCIe/PCI bridge */
+		pci_read_config_dword(bridge, 0xe8, &tmp);
+		tmp &= ~0xf;	/* request length limit: 64 bytes */
+		tmp &= ~(0xf << 8);
+		tmp |= 1 << 8;	/* request count limit: one buffer */
+		pci_write_config_dword(bridge, 0xe8, tmp);
 		break;
 	}
 }
@@ -441,9 +450,18 @@ static void oxygen_init(struct oxygen *chip)
 		oxygen_write16(chip, OXYGEN_I2S_B_FORMAT,
 			       OXYGEN_I2S_MASTER |
 			       OXYGEN_I2S_MUTE_MCLK);
-	oxygen_write16(chip, OXYGEN_I2S_C_FORMAT,
-		       OXYGEN_I2S_MASTER |
-		       OXYGEN_I2S_MUTE_MCLK);
+	if (chip->model.device_config & CAPTURE_3_FROM_I2S_3)
+		oxygen_write16(chip, OXYGEN_I2S_C_FORMAT,
+			       OXYGEN_RATE_48000 |
+			       chip->model.adc_i2s_format |
+			       OXYGEN_I2S_MCLK(chip->model.adc_mclks) |
+			       OXYGEN_I2S_BITS_16 |
+			       OXYGEN_I2S_MASTER |
+			       OXYGEN_I2S_BCLK_64);
+	else
+		oxygen_write16(chip, OXYGEN_I2S_C_FORMAT,
+			       OXYGEN_I2S_MASTER |
+			       OXYGEN_I2S_MUTE_MCLK);
 	oxygen_clear_bits32(chip, OXYGEN_SPDIF_CONTROL,
 			    OXYGEN_SPDIF_OUT_ENABLE |
 			    OXYGEN_SPDIF_LOOPBACK);
@@ -728,7 +746,6 @@ EXPORT_SYMBOL(oxygen_pci_remove);
 #ifdef CONFIG_PM_SLEEP
 static int oxygen_pci_suspend(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct oxygen *chip = card->private_data;
 	unsigned int i, saved_interrupt_mask;
@@ -736,8 +753,7 @@ static int oxygen_pci_suspend(struct device *dev)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 
 	for (i = 0; i < PCM_COUNT; ++i)
-		if (chip->streams[i])
-			snd_pcm_suspend(chip->streams[i]);
+		snd_pcm_suspend(chip->streams[i]);
 
 	if (chip->model.suspend)
 		chip->model.suspend(chip);
@@ -753,10 +769,6 @@ static int oxygen_pci_suspend(struct device *dev)
 	flush_work(&chip->spdif_input_bits_work);
 	flush_work(&chip->gpio_work);
 	chip->interrupt_mask = saved_interrupt_mask;
-
-	pci_disable_device(pci);
-	pci_save_state(pci);
-	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
@@ -788,19 +800,9 @@ static void oxygen_restore_ac97(struct oxygen *chip, unsigned int codec)
 
 static int oxygen_pci_resume(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct oxygen *chip = card->private_data;
 	unsigned int i;
-
-	pci_set_power_state(pci, PCI_D0);
-	pci_restore_state(pci);
-	if (pci_enable_device(pci) < 0) {
-		dev_err(dev, "cannot reenable device");
-		snd_card_disconnect(card);
-		return -EIO;
-	}
-	pci_set_master(pci);
 
 	oxygen_write16(chip, OXYGEN_DMA_STATUS, 0);
 	oxygen_write16(chip, OXYGEN_INTERRUPT_MASK, 0);

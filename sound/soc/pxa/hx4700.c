@@ -126,24 +126,12 @@ static const struct snd_soc_dapm_route hx4700_audio_map[] = {
  */
 static int hx4700_ak4641_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int err;
 
-	/* NC codec pins */
-	/* FIXME: is anything connected here? */
-	snd_soc_dapm_nc_pin(dapm, "MOUT1");
-	snd_soc_dapm_nc_pin(dapm, "MICEXT");
-	snd_soc_dapm_nc_pin(dapm, "AUX");
-
 	/* Jack detection API stuff */
-	err = snd_soc_jack_new(codec, "Headphone Jack",
-				SND_JACK_HEADPHONE, &hs_jack);
-	if (err)
-		return err;
-
-	err = snd_soc_jack_add_pins(&hs_jack, ARRAY_SIZE(hs_jack_pin),
-					hs_jack_pin);
+	err = snd_soc_card_jack_new(rtd->card, "Headphone Jack",
+				    SND_JACK_HEADPHONE, &hs_jack, hs_jack_pin,
+				    ARRAY_SIZE(hs_jack_pin));
 	if (err)
 		return err;
 
@@ -184,6 +172,7 @@ static struct snd_soc_card snd_soc_card_hx4700 = {
 	.num_dapm_widgets	= ARRAY_SIZE(hx4700_dapm_widgets),
 	.dapm_routes		= hx4700_audio_map,
 	.num_dapm_routes	= ARRAY_SIZE(hx4700_audio_map),
+	.fully_routed		= true,
 };
 
 static struct gpio hx4700_audio_gpios[] = {
@@ -226,7 +215,6 @@ static int hx4700_audio_remove(struct platform_device *pdev)
 static struct platform_driver hx4700_audio_driver = {
 	.driver	= {
 		.name = "hx4700-audio",
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe	= hx4700_audio_probe,

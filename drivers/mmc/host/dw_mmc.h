@@ -55,6 +55,17 @@
 #define SDMMC_BUFADDR		0x098
 #define SDMMC_CDTHRCTL		0x100
 #define SDMMC_DATA(x)		(x)
+/*
+* Registers to support idmac 64-bit address mode
+*/
+#define SDMMC_DBADDRL		0x088
+#define SDMMC_DBADDRU		0x08c
+#define SDMMC_IDSTS64		0x090
+#define SDMMC_IDINTEN64		0x094
+#define SDMMC_DSCADDRL		0x098
+#define SDMMC_DSCADDRU		0x09c
+#define SDMMC_BUFADDRL		0x0A0
+#define SDMMC_BUFADDRU		0x0A4
 
 /*
  * Data offset is difference according to Version
@@ -158,24 +169,34 @@
 #define SDMMC_CTRL_ALL_RESET_FLAGS \
 	(SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET)
 
+/* FIFO register access macros. These should not change the data endian-ness
+ * as they are written to memory to be dealt with by the upper layers */
+#define mci_fifo_readw(__reg)	__raw_readw(__reg)
+#define mci_fifo_readl(__reg)	__raw_readl(__reg)
+#define mci_fifo_readq(__reg)	__raw_readq(__reg)
+
+#define mci_fifo_writew(__value, __reg)	__raw_writew(__reg, __value)
+#define mci_fifo_writel(__value, __reg)	__raw_writel(__reg, __value)
+#define mci_fifo_writeq(__value, __reg)	__raw_writeq(__reg, __value)
+
 /* Register access macros */
 #define mci_readl(dev, reg)			\
-	__raw_readl((dev)->regs + SDMMC_##reg)
+	readl_relaxed((dev)->regs + SDMMC_##reg)
 #define mci_writel(dev, reg, value)			\
-	__raw_writel((value), (dev)->regs + SDMMC_##reg)
+	writel_relaxed((value), (dev)->regs + SDMMC_##reg)
 
 /* 16-bit FIFO access macros */
 #define mci_readw(dev, reg)			\
-	__raw_readw((dev)->regs + SDMMC_##reg)
+	readw_relaxed((dev)->regs + SDMMC_##reg)
 #define mci_writew(dev, reg, value)			\
-	__raw_writew((value), (dev)->regs + SDMMC_##reg)
+	writew_relaxed((value), (dev)->regs + SDMMC_##reg)
 
 /* 64-bit FIFO access macros */
 #ifdef readq
 #define mci_readq(dev, reg)			\
-	__raw_readq((dev)->regs + SDMMC_##reg)
+	readq_relaxed((dev)->regs + SDMMC_##reg)
 #define mci_writeq(dev, reg, value)			\
-	__raw_writeq((value), (dev)->regs + SDMMC_##reg)
+	writeq_relaxed((value), (dev)->regs + SDMMC_##reg)
 #else
 /*
  * Dummy readq implementation for architectures that don't define it.
@@ -189,6 +210,10 @@
 	(*(volatile u64 __force *)((dev)->regs + SDMMC_##reg))
 #define mci_writeq(dev, reg, value)			\
 	(*(volatile u64 __force *)((dev)->regs + SDMMC_##reg) = (value))
+
+#define __raw_writeq(__value, __reg) \
+	(*(volatile u64 __force *)(__reg) = (__value))
+#define __raw_readq(__reg) (*(volatile u64 __force *)(__reg))
 #endif
 
 extern int dw_mci_probe(struct dw_mci *host);
@@ -214,7 +239,7 @@ extern int dw_mci_resume(struct dw_mci *host);
  *	with CONFIG_MMC_CLKGATE.
  * @flags: Random state bits associated with the slot.
  * @id: Number of this slot.
- * @last_detect_state: Most recently observed card detect state.
+ * @sdio_id: Number of this slot in the SDIO interrupt registers.
  */
 struct dw_mci_slot {
 	struct mmc_host		*mmc;
@@ -233,13 +258,9 @@ struct dw_mci_slot {
 	unsigned long		flags;
 #define DW_MMC_CARD_PRESENT	0
 #define DW_MMC_CARD_NEED_INIT	1
+#define DW_MMC_CARD_NO_LOW_PWR	2
 	int			id;
-	int			last_detect_state;
-};
-
-struct dw_mci_tuning_data {
-	const u8 *blk_pattern;
-	unsigned int blksz;
+	int			sdio_id;
 };
 
 /**
@@ -263,7 +284,8 @@ struct dw_mci_drv_data {
 	void		(*prepare_command)(struct dw_mci *host, u32 *cmdr);
 	void		(*set_ios)(struct dw_mci *host, struct mmc_ios *ios);
 	int		(*parse_dt)(struct dw_mci *host);
-	int		(*execute_tuning)(struct dw_mci_slot *slot, u32 opcode,
-					struct dw_mci_tuning_data *tuning_data);
+	int		(*execute_tuning)(struct dw_mci_slot *slot);
+	int		(*prepare_hs400_tuning)(struct dw_mci *host,
+						struct mmc_ios *ios);
 };
 #endif /* _DW_MMC_H_ */

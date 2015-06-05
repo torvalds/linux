@@ -10,7 +10,6 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/serial.h>
-#include <linux/serial_core.h>
 #include <linux/serial_8250.h>
 #include <linux/delay.h>
 #include <linux/dio.h>
@@ -88,10 +87,6 @@ extern int hp300_uart_scode;
 /*
  * Parse the bootinfo to find descriptions for headless console and
  * debug serial ports and register them with the 8250 driver.
- * This function should be called before serial_console_init() is called
- * to make sure the serial console will be available for use. IA-64 kernel
- * calls this function from setup_arch() after the EFI and ACPI tables have
- * been parsed.
  */
 int __init hp300_setup_serial_console(void)
 {

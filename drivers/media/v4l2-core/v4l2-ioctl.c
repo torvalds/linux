@@ -257,7 +257,7 @@ static void v4l_print_format(const void *arg, bool write_only)
 		pr_cont(", width=%u, height=%u, "
 			"pixelformat=%c%c%c%c, field=%s, "
 			"bytesperline=%u, sizeimage=%u, colorspace=%d, "
-			"flags %u\n",
+			"flags=0x%x, ycbcr_enc=%u, quantization=%u\n",
 			pix->width, pix->height,
 			(pix->pixelformat & 0xff),
 			(pix->pixelformat >>  8) & 0xff,
@@ -265,21 +265,24 @@ static void v4l_print_format(const void *arg, bool write_only)
 			(pix->pixelformat >> 24) & 0xff,
 			prt_names(pix->field, v4l2_field_names),
 			pix->bytesperline, pix->sizeimage,
-			pix->colorspace, pix->flags);
+			pix->colorspace, pix->flags, pix->ycbcr_enc,
+			pix->quantization);
 		break;
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
 		mp = &p->fmt.pix_mp;
 		pr_cont(", width=%u, height=%u, "
 			"format=%c%c%c%c, field=%s, "
-			"colorspace=%d, num_planes=%u\n",
+			"colorspace=%d, num_planes=%u, flags=0x%x, "
+			"ycbcr_enc=%u, quantization=%u\n",
 			mp->width, mp->height,
 			(mp->pixelformat & 0xff),
 			(mp->pixelformat >>  8) & 0xff,
 			(mp->pixelformat >> 16) & 0xff,
 			(mp->pixelformat >> 24) & 0xff,
 			prt_names(mp->field, v4l2_field_names),
-			mp->colorspace, mp->num_planes);
+			mp->colorspace, mp->num_planes, mp->flags,
+			mp->ycbcr_enc, mp->quantization);
 		for (i = 0; i < mp->num_planes; i++)
 			printk(KERN_DEBUG "plane %u: bytesperline=%u sizeimage=%u\n", i,
 					mp->plane_fmt[i].bytesperline,
@@ -898,6 +901,8 @@ static int check_ext_ctrls(struct v4l2_ext_controls *c, int allow_priv)
 	 */
 	if (!allow_priv && c->ctrl_class == V4L2_CID_PRIVATE_BASE)
 		return 0;
+	if (c->ctrl_class == 0)
+		return 1;
 	/* Check that all controls are from the same control class. */
 	for (i = 0; i < c->count; i++) {
 		if (V4L2_CTRL_ID2CLASS(c->controls[i].id) != c->ctrl_class) {
@@ -1014,6 +1019,12 @@ static int v4l_querycap(const struct v4l2_ioctl_ops *ops,
 	ret = ops->vidioc_querycap(file, fh, cap);
 
 	cap->capabilities |= V4L2_CAP_EXT_PIX_FORMAT;
+	/*
+	 * Drivers MUST fill in device_caps, so check for this and
+	 * warn if it was forgotten.
+	 */
+	WARN_ON(!(cap->capabilities & V4L2_CAP_DEVICE_CAPS) ||
+		!cap->device_caps);
 	cap->device_caps |= V4L2_CAP_EXT_PIX_FORMAT;
 
 	return ret;
@@ -1037,10 +1048,8 @@ static int v4l_g_priority(const struct v4l2_ioctl_ops *ops,
 	struct video_device *vfd;
 	u32 *p = arg;
 
-	if (ops->vidioc_g_priority)
-		return ops->vidioc_g_priority(file, fh, arg);
 	vfd = video_devdata(file);
-	*p = v4l2_prio_max(&vfd->v4l2_dev->prio);
+	*p = v4l2_prio_max(vfd->prio);
 	return 0;
 }
 
@@ -1051,11 +1060,11 @@ static int v4l_s_priority(const struct v4l2_ioctl_ops *ops,
 	struct v4l2_fh *vfh;
 	u32 *p = arg;
 
-	if (ops->vidioc_s_priority)
-		return ops->vidioc_s_priority(file, fh, *p);
 	vfd = video_devdata(file);
+	if (!test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags))
+		return -ENOTTY;
 	vfh = file->private_data;
-	return v4l2_prio_change(&vfd->v4l2_dev->prio, &vfh->prio, *p);
+	return v4l2_prio_change(vfd->prio, &vfh->prio, *p);
 }
 
 static int v4l_enuminput(const struct v4l2_ioctl_ops *ops,
@@ -2330,7 +2339,7 @@ static long __video_do_ioctl(struct file *file,
 	const struct v4l2_ioctl_info *info;
 	void *fh = file->private_data;
 	struct v4l2_fh *vfh = NULL;
-	int debug = vfd->debug;
+	int dev_debug = vfd->dev_debug;
 	long ret = -ENOTTY;
 
 	if (ops == NULL) {
@@ -2379,11 +2388,15 @@ static long __video_do_ioctl(struct file *file,
 	}
 
 done:
-	if (debug) {
+	if (dev_debug & (V4L2_DEV_DEBUG_IOCTL | V4L2_DEV_DEBUG_IOCTL_ARG)) {
+		if (!(dev_debug & V4L2_DEV_DEBUG_STREAMING) &&
+		    (cmd == VIDIOC_QBUF || cmd == VIDIOC_DQBUF))
+			return ret;
+
 		v4l_printk_ioctl(video_device_node_name(vfd), cmd);
 		if (ret < 0)
 			pr_cont(": error %ld", ret);
-		if (debug == V4L2_DEBUG_IOCTL)
+		if (!(dev_debug & V4L2_DEV_DEBUG_IOCTL_ARG))
 			pr_cont("\n");
 		else if (_IOC_DIR(cmd) == _IOC_NONE)
 			info->debug(arg, write_only);

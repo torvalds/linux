@@ -426,18 +426,21 @@ int exynos_drm_ipp_set_property(struct drm_device *drm_dev, void *data,
 	c_node->start_work = ipp_create_cmd_work();
 	if (IS_ERR(c_node->start_work)) {
 		DRM_ERROR("failed to create start work.\n");
+		ret = PTR_ERR(c_node->start_work);
 		goto err_remove_id;
 	}
 
 	c_node->stop_work = ipp_create_cmd_work();
 	if (IS_ERR(c_node->stop_work)) {
 		DRM_ERROR("failed to create stop work.\n");
+		ret = PTR_ERR(c_node->stop_work);
 		goto err_free_start;
 	}
 
 	c_node->event_work = ipp_create_event_work();
 	if (IS_ERR(c_node->event_work)) {
 		DRM_ERROR("failed to create event work.\n");
+		ret = PTR_ERR(c_node->event_work);
 		goto err_free_stop;
 	}
 
@@ -471,6 +474,45 @@ err_remove_id:
 err_clear:
 	kfree(c_node);
 	return ret;
+}
+
+static int ipp_validate_mem_node(struct drm_device *drm_dev,
+				 struct drm_exynos_ipp_mem_node *m_node,
+				 struct drm_exynos_ipp_cmd_node *c_node)
+{
+	struct drm_exynos_ipp_config *ipp_cfg;
+	unsigned int num_plane;
+	unsigned long min_size, size;
+	unsigned int bpp;
+	int i;
+
+	/* The property id should already be varified */
+	ipp_cfg = &c_node->property.config[m_node->prop_id];
+	num_plane = drm_format_num_planes(ipp_cfg->fmt);
+
+	/**
+	 * This is a rather simplified validation of a memory node.
+	 * It basically verifies provided gem object handles
+	 * and the buffer sizes with respect to current configuration.
+	 * This is not the best that can be done
+	 * but it seems more than enough
+	 */
+	for (i = 0; i < num_plane; ++i) {
+		if (!m_node->buf_info.handles[i]) {
+			DRM_ERROR("invalid handle for plane %d\n", i);
+			return -EINVAL;
+		}
+		bpp = drm_format_plane_cpp(ipp_cfg->fmt, i);
+		min_size = (ipp_cfg->sz.hsize * ipp_cfg->sz.vsize * bpp) >> 3;
+		size = exynos_drm_gem_get_size(drm_dev,
+					       m_node->buf_info.handles[i],
+					       c_node->filp);
+		if (min_size > size) {
+			DRM_ERROR("invalid size for plane %d\n", i);
+			return -EINVAL;
+		}
+	}
+	return 0;
 }
 
 static int ipp_put_mem_node(struct drm_device *drm_dev,
@@ -549,6 +591,11 @@ static struct drm_exynos_ipp_mem_node
 	}
 
 	mutex_lock(&c_node->mem_lock);
+	if (ipp_validate_mem_node(drm_dev, m_node, c_node)) {
+		ipp_put_mem_node(drm_dev, c_node, m_node);
+		mutex_unlock(&c_node->mem_lock);
+		return ERR_PTR(-EFAULT);
+	}
 	list_add_tail(&m_node->list, &c_node->mem_list[qbuf->ops_id]);
 	mutex_unlock(&c_node->mem_lock);
 

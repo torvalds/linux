@@ -437,16 +437,16 @@ static int cachefiles_attr_changed(struct fscache_object *_object)
 	if (!object->backer)
 		return -ENOBUFS;
 
-	ASSERT(S_ISREG(object->backer->d_inode->i_mode));
+	ASSERT(d_is_reg(object->backer));
 
 	fscache_set_store_limit(&object->fscache, ni_size);
 
-	oi_size = i_size_read(object->backer->d_inode);
+	oi_size = i_size_read(d_backing_inode(object->backer));
 	if (oi_size == ni_size)
 		return 0;
 
 	cachefiles_begin_secure(cache, &saved_cred);
-	mutex_lock(&object->backer->d_inode->i_mutex);
+	mutex_lock(&d_inode(object->backer)->i_mutex);
 
 	/* if there's an extension to a partial page at the end of the backing
 	 * file, we need to discard the partial page so that we pick up new
@@ -465,7 +465,7 @@ static int cachefiles_attr_changed(struct fscache_object *_object)
 	ret = notify_change(object->backer, &newattrs, NULL);
 
 truncate_failed:
-	mutex_unlock(&object->backer->d_inode->i_mutex);
+	mutex_unlock(&d_inode(object->backer)->i_mutex);
 	cachefiles_end_secure(cache, saved_cred);
 
 	if (ret == -EIO) {
@@ -501,7 +501,7 @@ static void cachefiles_invalidate_object(struct fscache_operation *op)
 	       op->object->debug_id, (unsigned long long)ni_size);
 
 	if (object->backer) {
-		ASSERT(S_ISREG(object->backer->d_inode->i_mode));
+		ASSERT(d_is_reg(object->backer));
 
 		fscache_set_store_limit(&object->fscache, ni_size);
 

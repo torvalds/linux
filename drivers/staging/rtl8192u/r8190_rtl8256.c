@@ -23,7 +23,7 @@
  * Return:      NONE
  * Note:	8226 support both 20M  and 40 MHz
  *---------------------------------------------------------------------------*/
-void PHY_SetRF8256Bandwidth(struct net_device *dev , HT_CHANNEL_WIDTH Bandwidth)
+void PHY_SetRF8256Bandwidth(struct net_device *dev, HT_CHANNEL_WIDTH Bandwidth)
 {
 	u8	eRFPath;
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -225,7 +225,7 @@ void PHY_SetRF8256CCKTxPower(struct net_device *dev, u8 powerlevel)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	TxAGC = powerlevel;
 
-	if (priv->bDynamicTxLowPower == TRUE) {
+	if (priv->bDynamicTxLowPower) {
 		if (priv->CustomerID == RT_CID_819x_Netcore)
 			TxAGC = 0x22;
 		else
@@ -275,7 +275,7 @@ void PHY_SetRF8256OFDMTxPower(struct net_device *dev, u8 powerlevel)
 			priv->Pwr_Track = writeVal_tmp;
 		}
 
-		if (priv->bDynamicTxHighPower == TRUE) {
+		if (priv->bDynamicTxHighPower) {
 			/*Add by Jacken 2008/03/06
 			 *Emily, 20080613. Set low tx power for both MCS and legacy OFDM
 			 */

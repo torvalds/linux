@@ -211,8 +211,7 @@ static void rawsock_tx_work(struct work_struct *work)
 	}
 }
 
-static int rawsock_sendmsg(struct kiocb *iocb, struct socket *sock,
-			   struct msghdr *msg, size_t len)
+static int rawsock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 {
 	struct sock *sk = sock->sk;
 	struct nfc_dev *dev = nfc_rawsock(sk)->dev;
@@ -231,7 +230,7 @@ static int rawsock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	if (skb == NULL)
 		return rc;
 
-	rc = memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len);
+	rc = memcpy_from_msg(skb_put(skb, len), msg, len);
 	if (rc < 0) {
 		kfree_skb(skb);
 		return rc;
@@ -248,8 +247,8 @@ static int rawsock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	return len;
 }
 
-static int rawsock_recvmsg(struct kiocb *iocb, struct socket *sock,
-			   struct msghdr *msg, size_t len, int flags)
+static int rawsock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
+			   int flags)
 {
 	int noblock = flags & MSG_DONTWAIT;
 	struct sock *sk = sock->sk;
@@ -269,7 +268,7 @@ static int rawsock_recvmsg(struct kiocb *iocb, struct socket *sock,
 		copied = len;
 	}
 
-	rc = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
+	rc = skb_copy_datagram_msg(skb, 0, msg, copied);
 
 	skb_free_datagram(sk, skb);
 

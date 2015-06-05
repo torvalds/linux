@@ -21,8 +21,6 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
@@ -38,7 +36,6 @@
 #include "xfs_quota.h"
 #include "xfs_dquot_item.h"
 #include "xfs_dquot.h"
-#include "xfs_dinode.h"
 
 
 #define XFS_WRITEIO_ALIGN(mp,off)	(((off) >> mp->m_writeio_log) \
@@ -52,7 +49,6 @@ xfs_iomap_eof_align_last_fsb(
 	xfs_extlen_t	extsize,
 	xfs_fileoff_t	*last_fsb)
 {
-	xfs_fileoff_t	new_last_fsb = 0;
 	xfs_extlen_t	align = 0;
 	int		eof, error;
 
@@ -70,8 +66,8 @@ xfs_iomap_eof_align_last_fsb(
 		else if (mp->m_dalign)
 			align = mp->m_dalign;
 
-		if (align && XFS_ISIZE(ip) >= XFS_FSB_TO_B(mp, align))
-			new_last_fsb = roundup_64(*last_fsb, align);
+		if (align && XFS_ISIZE(ip) < XFS_FSB_TO_B(mp, align))
+			align = 0;
 	}
 
 	/*
@@ -79,14 +75,14 @@ xfs_iomap_eof_align_last_fsb(
 	 * (when file on a real-time subvolume or has di_extsize hint).
 	 */
 	if (extsize) {
-		if (new_last_fsb)
-			align = roundup_64(new_last_fsb, extsize);
+		if (align)
+			align = roundup_64(align, extsize);
 		else
 			align = extsize;
-		new_last_fsb = roundup_64(*last_fsb, align);
 	}
 
-	if (new_last_fsb) {
+	if (align) {
+		xfs_fileoff_t	new_last_fsb = roundup_64(*last_fsb, align);
 		error = xfs_bmap_eof(ip, new_last_fsb, XFS_DATA_FORK, &eof);
 		if (error)
 			return error;
@@ -264,7 +260,6 @@ xfs_iomap_eof_want_preallocate(
 {
 	xfs_fileoff_t   start_fsb;
 	xfs_filblks_t   count_fsb;
-	xfs_fsblock_t	firstblock;
 	int		n, error, imaps;
 	int		found_delalloc = 0;
 
@@ -289,7 +284,6 @@ xfs_iomap_eof_want_preallocate(
 	count_fsb = XFS_B_TO_FSB(mp, mp->m_super->s_maxbytes);
 	while (count_fsb > 0) {
 		imaps = nimaps;
-		firstblock = NULLFSBLOCK;
 		error = xfs_bmapi_read(ip, start_fsb, count_fsb, imap, &imaps,
 				       0);
 		if (error)
@@ -466,8 +460,7 @@ xfs_iomap_prealloc_size(
 	alloc_blocks = XFS_FILEOFF_MIN(roundup_pow_of_two(MAXEXTLEN),
 				       alloc_blocks);
 
-	xfs_icsb_sync_counters(mp, XFS_ICSB_LAZY_COUNT);
-	freesp = mp->m_sb.sb_fdblocks;
+	freesp = percpu_counter_read_positive(&mp->m_fdblocks);
 	if (freesp < mp->m_low_space[XFS_LOWSP_5_PCNT]) {
 		shift = 2;
 		if (freesp < mp->m_low_space[XFS_LOWSP_4_PCNT])
@@ -808,7 +801,7 @@ int
 xfs_iomap_write_unwritten(
 	xfs_inode_t	*ip,
 	xfs_off_t	offset,
-	size_t		count)
+	xfs_off_t	count)
 {
 	xfs_mount_t	*mp = ip->i_mount;
 	xfs_fileoff_t	offset_fsb;

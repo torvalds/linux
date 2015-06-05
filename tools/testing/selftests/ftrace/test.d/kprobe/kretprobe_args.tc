@@ -12,4 +12,5 @@ echo 1 > events/kprobes/testprobe2/enable
 ( echo "forked")
 echo 0 > events/kprobes/testprobe2/enable
 echo '-:testprobe2' >> kprobe_events
+clear_trace
 test -d events/kprobes/testprobe2 && exit 1 || exit 0

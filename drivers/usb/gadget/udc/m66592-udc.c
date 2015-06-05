@@ -1142,7 +1142,7 @@ static void irq_device_state(struct m66592 *m66592)
 	m66592_write(m66592, ~M66592_DVST, M66592_INTSTS0);
 
 	if (dvsq == M66592_DS_DFLT) {	/* bus reset */
-		m66592->driver->disconnect(&m66592->gadget);
+		usb_gadget_udc_reset(&m66592->gadget, m66592->driver);
 		m66592_update_usb_speed(m66592);
 	}
 	if (m66592->old_dvsq == M66592_DS_CNFG && dvsq != M66592_DS_CNFG)
@@ -1485,8 +1485,7 @@ static int m66592_udc_start(struct usb_gadget *g,
 	return 0;
 }
 
-static int m66592_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver)
+static int m66592_udc_stop(struct usb_gadget *g)
 {
 	struct m66592 *m66592 = to_m66592(g);
 
@@ -1529,7 +1528,7 @@ static const struct usb_gadget_ops m66592_gadget_ops = {
 	.pullup			= m66592_pullup,
 };
 
-static int __exit m66592_remove(struct platform_device *pdev)
+static int m66592_remove(struct platform_device *pdev)
 {
 	struct m66592		*m66592 = platform_get_drvdata(pdev);
 
@@ -1696,10 +1695,9 @@ clean_up:
 
 /*-------------------------------------------------------------------------*/
 static struct platform_driver m66592_driver = {
-	.remove =	__exit_p(m66592_remove),
+	.remove =	m66592_remove,
 	.driver		= {
 		.name =	(char *) udc_name,
-		.owner	= THIS_MODULE,
 	},
 };
 

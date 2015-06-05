@@ -25,7 +25,6 @@
  *  GNU General Public License for more details.
  */
 
-#include <linux/version.h>
 #include <linux/pci.h>
 #include <linux/videodev2.h>
 #include <linux/notifier.h>
@@ -181,6 +180,7 @@ struct tw68_dev {
 	unsigned		field;
 	struct vb2_queue	vidq;
 	struct list_head	active;
+	void			*alloc_ctx;
 
 	/* various v4l controls */
 	const struct tw68_tvnorm *tvnorm;	/* video */

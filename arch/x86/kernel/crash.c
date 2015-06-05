@@ -28,6 +28,7 @@
 #include <asm/nmi.h>
 #include <asm/hw_irq.h>
 #include <asm/apic.h>
+#include <asm/io_apic.h>
 #include <asm/hpet.h>
 #include <linux/kdebug.h>
 #include <asm/cpu.h>
@@ -104,7 +105,7 @@ static void kdump_nmi_callback(int cpu, struct pt_regs *regs)
 #ifdef CONFIG_X86_32
 	struct pt_regs fixed_regs;
 
-	if (!user_mode_vm(regs)) {
+	if (!user_mode(regs)) {
 		crash_fixup_ss_esp(&fixed_regs, regs);
 		regs = &fixed_regs;
 	}

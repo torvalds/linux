@@ -23,12 +23,9 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/interrupt.h>
 
-#include "../comedidev.h"
-
-#include "comedi_fc.h"
+#include "../comedi_pci.h"
 
 #define CONV_UNIT_NS		(1 << 0)
 #define CONV_UNIT_US		(1 << 1)
@@ -371,10 +368,10 @@ static irqreturn_t apci3xxx_irq_handler(int irq, void *d)
 		writel(status, dev->mmio + 16);
 
 		val = readl(dev->mmio + 28);
-		comedi_buf_put(s, val);
+		comedi_buf_write_samples(s, &val, 1);
 
 		s->async->events |= COMEDI_CB_EOA;
-		comedi_event(dev, s);
+		comedi_handle_events(dev, s);
 
 		return IRQ_HANDLED;
 	}
@@ -529,18 +526,18 @@ static int apci3xxx_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
@@ -549,16 +546,17 @@ static int apci3xxx_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
-	err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
-					 board->ai_min_acq_ns);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+	err |= comedi_check_trigger_arg_min(&cmd->convert_arg,
+					    board->ai_min_acq_ns);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
 	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -567,7 +565,7 @@ static int apci3xxx_ai_cmdtest(struct comedi_device *dev,
 
 	arg = cmd->convert_arg;
 	err |= apci3xxx_ai_ns_to_timer(dev, &arg, cmd->flags);
-	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
+	err |= comedi_check_trigger_arg_is(&cmd->convert_arg, arg);
 
 	if (err)
 		return 4;
@@ -849,12 +847,11 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	if (board->has_ao) {
 		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_AO;
-		s->subdev_flags	= SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan	= 4;
 		s->maxdata	= 0x0fff;
 		s->range_table	= &apci3xxx_ao_range;
 		s->insn_write	= apci3xxx_ao_insn_write;
-		s->insn_read	= comedi_readback_insn_read;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)
@@ -880,7 +877,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	if (board->has_dig_out) {
 		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_DO;
-		s->subdev_flags	= SDF_WRITEABLE;
+		s->subdev_flags	= SDF_WRITABLE;
 		s->n_chan	= 4;
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
@@ -893,7 +890,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	if (board->has_ttl_io) {
 		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_DIO;
-		s->subdev_flags	= SDF_READABLE | SDF_WRITEABLE;
+		s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
 		s->n_chan	= 24;
 		s->maxdata	= 1;
 		s->io_bits	= 0xff;	/* channels 0-7 are always outputs */

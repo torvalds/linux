@@ -486,7 +486,6 @@ static struct platform_driver armada_drm_platform_driver = {
 	.remove	= armada_drm_remove,
 	.driver	= {
 		.name	= "armada-drm",
-		.owner	= THIS_MODULE,
 	},
 	.id_table = armada_drm_platform_ids,
 };

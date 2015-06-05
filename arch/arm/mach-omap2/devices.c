@@ -49,7 +49,7 @@ static int __init omap3_l3_init(void)
 	 * To avoid code running on other OMAPs in
 	 * multi-omap builds
 	 */
-	if (!(cpu_is_omap34xx()))
+	if (!(cpu_is_omap34xx()) || of_have_populated_dt())
 		return -ENODEV;
 
 	snprintf(oh_name, L3_MODULES_MAX_LEN, "l3_main");
@@ -67,62 +67,6 @@ static int __init omap3_l3_init(void)
 }
 omap_postcore_initcall(omap3_l3_init);
 
-static int __init omap4_l3_init(void)
-{
-	int i;
-	struct omap_hwmod *oh[3];
-	struct platform_device *pdev;
-	char oh_name[L3_MODULES_MAX_LEN];
-
-	/* If dtb is there, the devices will be created dynamically */
-	if (of_have_populated_dt())
-		return -ENODEV;
-
-	/*
-	 * To avoid code running on other OMAPs in
-	 * multi-omap builds
-	 */
-	if (!cpu_is_omap44xx() && !soc_is_omap54xx())
-		return -ENODEV;
-
-	for (i = 0; i < L3_MODULES; i++) {
-		snprintf(oh_name, L3_MODULES_MAX_LEN, "l3_main_%d", i+1);
-
-		oh[i] = omap_hwmod_lookup(oh_name);
-		if (!(oh[i]))
-			pr_err("could not look up %s\n", oh_name);
-	}
-
-	pdev = omap_device_build_ss("omap_l3_noc", 0, oh, 3, NULL, 0);
-
-	WARN(IS_ERR(pdev), "could not build omap_device for %s\n", oh_name);
-
-	return PTR_RET(pdev);
-}
-omap_postcore_initcall(omap4_l3_init);
-
-#if defined(CONFIG_VIDEO_OMAP2) || defined(CONFIG_VIDEO_OMAP2_MODULE)
-
-static struct resource omap2cam_resources[] = {
-	{
-		.start		= OMAP24XX_CAMERA_BASE,
-		.end		= OMAP24XX_CAMERA_BASE + 0xfff,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= 24 + OMAP_INTC_START,
-		.flags		= IORESOURCE_IRQ,
-	}
-};
-
-static struct platform_device omap2cam_device = {
-	.name		= "omap24xxcam",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(omap2cam_resources),
-	.resource	= omap2cam_resources,
-};
-#endif
-
 #if defined(CONFIG_IOMMU_API)
 
 #include <linux/platform_data/iommu-omap.h>
@@ -130,82 +74,12 @@ static struct platform_device omap2cam_device = {
 static struct resource omap3isp_resources[] = {
 	{
 		.start		= OMAP3430_ISP_BASE,
-		.end		= OMAP3430_ISP_END,
+		.end		= OMAP3430_ISP_BASE + 0x12fc,
 		.flags		= IORESOURCE_MEM,
 	},
 	{
-		.start		= OMAP3430_ISP_CCP2_BASE,
-		.end		= OMAP3430_ISP_CCP2_END,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= OMAP3430_ISP_CCDC_BASE,
-		.end		= OMAP3430_ISP_CCDC_END,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= OMAP3430_ISP_HIST_BASE,
-		.end		= OMAP3430_ISP_HIST_END,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= OMAP3430_ISP_H3A_BASE,
-		.end		= OMAP3430_ISP_H3A_END,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= OMAP3430_ISP_PREV_BASE,
-		.end		= OMAP3430_ISP_PREV_END,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= OMAP3430_ISP_RESZ_BASE,
-		.end		= OMAP3430_ISP_RESZ_END,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= OMAP3430_ISP_SBL_BASE,
-		.end		= OMAP3430_ISP_SBL_END,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= OMAP3430_ISP_CSI2A_REGS1_BASE,
-		.end		= OMAP3430_ISP_CSI2A_REGS1_END,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= OMAP3430_ISP_CSIPHY2_BASE,
-		.end		= OMAP3430_ISP_CSIPHY2_END,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= OMAP3630_ISP_CSI2A_REGS2_BASE,
-		.end		= OMAP3630_ISP_CSI2A_REGS2_END,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= OMAP3630_ISP_CSI2C_REGS1_BASE,
-		.end		= OMAP3630_ISP_CSI2C_REGS1_END,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= OMAP3630_ISP_CSIPHY1_BASE,
-		.end		= OMAP3630_ISP_CSIPHY1_END,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= OMAP3630_ISP_CSI2C_REGS2_BASE,
-		.end		= OMAP3630_ISP_CSI2C_REGS2_END,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= OMAP343X_CTRL_BASE + OMAP343X_CONTROL_CSIRXFE,
-		.end		= OMAP343X_CTRL_BASE + OMAP343X_CONTROL_CSIRXFE + 3,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= OMAP343X_CTRL_BASE + OMAP3630_CONTROL_CAMERA_PHY_CTRL,
-		.end		= OMAP343X_CTRL_BASE + OMAP3630_CONTROL_CAMERA_PHY_CTRL + 3,
+		.start		= OMAP3430_ISP_BASE2,
+		.end		= OMAP3430_ISP_BASE2 + 0x0600,
 		.flags		= IORESOURCE_MEM,
 	},
 	{
@@ -244,14 +118,6 @@ int omap3_init_camera(struct isp_platform_data *pdata)
 }
 
 #endif
-
-static inline void omap_init_camera(void)
-{
-#if defined(CONFIG_VIDEO_OMAP2) || defined(CONFIG_VIDEO_OMAP2_MODULE)
-	if (cpu_is_omap24xx())
-		platform_device_register(&omap2cam_device);
-#endif
-}
 
 #if defined(CONFIG_OMAP2PLUS_MBOX) || defined(CONFIG_OMAP2PLUS_MBOX_MODULE)
 static inline void __init omap_init_mbox(void)
@@ -431,7 +297,6 @@ static int __init omap2_init_devices(void)
 	 * in alphabetical order so they're easier to sort through.
 	 */
 	omap_init_audio();
-	omap_init_camera();
 	/* If dtb is there, the devices will be created dynamically */
 	if (!of_have_populated_dt()) {
 		omap_init_mbox();
@@ -445,3 +310,29 @@ static int __init omap2_init_devices(void)
 	return 0;
 }
 omap_arch_initcall(omap2_init_devices);
+
+static int __init omap_gpmc_init(void)
+{
+	struct omap_hwmod *oh;
+	struct platform_device *pdev;
+	char *oh_name = "gpmc";
+
+	/*
+	 * if the board boots up with a populated DT, do not
+	 * manually add the device from this initcall
+	 */
+	if (of_have_populated_dt())
+		return -ENODEV;
+
+	oh = omap_hwmod_lookup(oh_name);
+	if (!oh) {
+		pr_err("Could not look up %s\n", oh_name);
+		return -ENODEV;
+	}
+
+	pdev = omap_device_build("omap-gpmc", -1, oh, NULL, 0);
+	WARN(IS_ERR(pdev), "could not build omap_device for %s\n", oh_name);
+
+	return PTR_RET(pdev);
+}
+omap_postcore_initcall(omap_gpmc_init);

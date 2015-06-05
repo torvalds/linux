@@ -30,6 +30,8 @@
 #define AFFS_AC_SIZE		(AFFS_CACHE_SIZE/sizeof(struct affs_ext_key)/2)
 #define AFFS_AC_MASK		(AFFS_AC_SIZE-1)
 
+#define AFFSNAMEMAX 30U
+
 struct affs_ext_key {
 	u32	ext;				/* idx of the extended block */
 	u32	key;				/* block number */
@@ -104,18 +106,22 @@ struct affs_sb_info {
 	spinlock_t work_lock;		/* protects sb_work and work_queued */
 };
 
-#define SF_INTL		0x0001		/* International filesystem. */
-#define SF_BM_VALID	0x0002		/* Bitmap is valid. */
-#define SF_IMMUTABLE	0x0004		/* Protection bits cannot be changed */
-#define SF_QUIET	0x0008		/* chmod errors will be not reported */
-#define SF_SETUID	0x0010		/* Ignore Amiga uid */
-#define SF_SETGID	0x0020		/* Ignore Amiga gid */
-#define SF_SETMODE	0x0040		/* Ignore Amiga protection bits */
-#define SF_MUFS		0x0100		/* Use MUFS uid/gid mapping */
-#define SF_OFS		0x0200		/* Old filesystem */
-#define SF_PREFIX	0x0400		/* Buffer for prefix is allocated */
-#define SF_VERBOSE	0x0800		/* Talk about fs when mounting */
-#define SF_NO_TRUNCATE	0x1000		/* Don't truncate filenames */
+#define AFFS_MOUNT_SF_INTL		0x0001 /* International filesystem. */
+#define AFFS_MOUNT_SF_BM_VALID		0x0002 /* Bitmap is valid. */
+#define AFFS_MOUNT_SF_IMMUTABLE		0x0004 /* Protection bits cannot be changed */
+#define AFFS_MOUNT_SF_QUIET		0x0008 /* chmod errors will be not reported */
+#define AFFS_MOUNT_SF_SETUID		0x0010 /* Ignore Amiga uid */
+#define AFFS_MOUNT_SF_SETGID		0x0020 /* Ignore Amiga gid */
+#define AFFS_MOUNT_SF_SETMODE		0x0040 /* Ignore Amiga protection bits */
+#define AFFS_MOUNT_SF_MUFS		0x0100 /* Use MUFS uid/gid mapping */
+#define AFFS_MOUNT_SF_OFS		0x0200 /* Old filesystem */
+#define AFFS_MOUNT_SF_PREFIX		0x0400 /* Buffer for prefix is allocated */
+#define AFFS_MOUNT_SF_VERBOSE		0x0800 /* Talk about fs when mounting */
+#define AFFS_MOUNT_SF_NO_TRUNCATE	0x1000 /* Don't truncate filenames */
+
+#define affs_clear_opt(o, opt)    (o &= ~AFFS_MOUNT_##opt)
+#define affs_set_opt(o, opt)      (o |= AFFS_MOUNT_##opt)
+#define affs_test_opt(o, opt)     ((o) & AFFS_MOUNT_##opt)
 
 /* short cut to get to the affs specific sb data */
 static inline struct affs_sb_info *AFFS_SB(struct super_block *sb)
@@ -135,8 +141,10 @@ extern void	affs_fix_checksum(struct super_block *sb, struct buffer_head *bh);
 extern void	secs_to_datestamp(time_t secs, struct affs_date *ds);
 extern umode_t	prot_to_mode(u32 prot);
 extern void	mode_to_prot(struct inode *inode);
+__printf(3, 4)
 extern void	affs_error(struct super_block *sb, const char *function,
 			   const char *fmt, ...);
+__printf(3, 4)
 extern void	affs_warning(struct super_block *sb, const char *function,
 			     const char *fmt, ...);
 extern bool	affs_nofilenametruncate(const struct dentry *dentry);

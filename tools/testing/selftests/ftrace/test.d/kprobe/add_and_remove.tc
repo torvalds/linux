@@ -9,3 +9,4 @@ echo p:myevent do_fork > kprobe_events
 grep myevent kprobe_events
 test -d events/kprobes/myevent
 echo > kprobe_events
+clear_trace

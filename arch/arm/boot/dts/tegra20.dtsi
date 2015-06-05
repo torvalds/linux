@@ -7,15 +7,7 @@
 
 / {
 	compatible = "nvidia,tegra20";
-	interrupt-parent = <&intc>;
-
-	aliases {
-		serial0 = &uarta;
-		serial1 = &uartb;
-		serial2 = &uartc;
-		serial3 = &uartd;
-		serial4 = &uarte;
-	};
+	interrupt-parent = <&lic>;
 
 	host1x@50000000 {
 		compatible = "nvidia,tegra20-host1x", "simple-bus";
@@ -76,9 +68,9 @@
 			reset-names = "2d";
 		};
 
-		gr3d@54140000 {
+		gr3d@54180000 {
 			compatible = "nvidia,tegra20-gr3d";
-			reg = <0x54140000 0x00040000>;
+			reg = <0x54180000 0x00040000>;
 			clocks = <&tegra_car TEGRA20_CLK_GR3D>;
 			resets = <&tegra_car 24>;
 			reset-names = "3d";
@@ -138,9 +130,9 @@
 			status = "disabled";
 		};
 
-		dsi@542c0000 {
+		dsi@54300000 {
 			compatible = "nvidia,tegra20-dsi";
-			reg = <0x542c0000 0x00040000>;
+			reg = <0x54300000 0x00040000>;
 			clocks = <&tegra_car TEGRA20_CLK_DSI>;
 			resets = <&tegra_car 48>;
 			reset-names = "dsi";
@@ -148,8 +140,9 @@
 		};
 	};
 
-	timer@50004600 {
+	timer@50040600 {
 		compatible = "arm,cortex-a9-twd-timer";
+		interrupt-parent = <&intc>;
 		reg = <0x50040600 0x20>;
 		interrupts = <GIC_PPI 13
 			(GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;
@@ -162,6 +155,7 @@
 		       0x50040100 0x0100>;
 		interrupt-controller;
 		#interrupt-cells = <3>;
+		interrupt-parent = <&intc>;
 	};
 
 	cache-controller@50043000 {
@@ -171,6 +165,17 @@
 		arm,tag-latency = <4 4 2>;
 		cache-unified;
 		cache-level = <2>;
+	};
+
+	lic: interrupt-controller@60004000 {
+		compatible = "nvidia,tegra20-ictlr";
+		reg = <0x60004000 0x100>,
+		      <0x60004100 0x50>,
+		      <0x60004200 0x50>,
+		      <0x60004300 0x50>;
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		interrupt-parent = <&intc>;
 	};
 
 	timer@60005000 {

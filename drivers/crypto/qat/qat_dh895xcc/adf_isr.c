@@ -73,7 +73,7 @@ static int adf_enable_msix(struct adf_accel_dev *accel_dev)
 	if (pci_enable_msix_exact(pci_dev_info->pci_dev,
 				  pci_dev_info->msix_entries.entries,
 				  msix_num_entries)) {
-		pr_err("QAT: Failed to enable MSIX IRQ\n");
+		dev_err(&GET_DEV(accel_dev), "Failed to enable MSIX IRQ\n");
 		return -EFAULT;
 	}
 	return 0;
@@ -97,7 +97,8 @@ static irqreturn_t adf_msix_isr_ae(int irq, void *dev_ptr)
 {
 	struct adf_accel_dev *accel_dev = dev_ptr;
 
-	pr_info("QAT: qat_dev%d spurious AE interrupt\n", accel_dev->accel_id);
+	dev_info(&GET_DEV(accel_dev), "qat_dev%d spurious AE interrupt\n",
+		 accel_dev->accel_id);
 	return IRQ_HANDLED;
 }
 
@@ -121,8 +122,9 @@ static int adf_request_irqs(struct adf_accel_dev *accel_dev)
 		ret = request_irq(msixe[i].vector,
 				  adf_msix_isr_bundle, 0, name, bank);
 		if (ret) {
-			pr_err("QAT: failed to enable irq %d for %s\n",
-			       msixe[i].vector, name);
+			dev_err(&GET_DEV(accel_dev),
+				"failed to enable irq %d for %s\n",
+				msixe[i].vector, name);
 			return ret;
 		}
 
@@ -136,8 +138,9 @@ static int adf_request_irqs(struct adf_accel_dev *accel_dev)
 		 "qat%d-ae-cluster", accel_dev->accel_id);
 	ret = request_irq(msixe[i].vector, adf_msix_isr_ae, 0, name, accel_dev);
 	if (ret) {
-		pr_err("QAT: failed to enable irq %d, for %s\n",
-		       msixe[i].vector, name);
+		dev_err(&GET_DEV(accel_dev),
+			"failed to enable irq %d, for %s\n",
+			msixe[i].vector, name);
 		return ret;
 	}
 	return ret;
@@ -168,7 +171,7 @@ static int adf_isr_alloc_msix_entry_table(struct adf_accel_dev *accel_dev)
 	uint32_t msix_num_entries = hw_data->num_banks + 1;
 
 	entries = kzalloc_node(msix_num_entries * sizeof(*entries),
-			       GFP_KERNEL, accel_dev->numa_node);
+			       GFP_KERNEL, dev_to_node(&GET_DEV(accel_dev)));
 	if (!entries)
 		return -ENOMEM;
 
@@ -186,10 +189,8 @@ static int adf_isr_alloc_msix_entry_table(struct adf_accel_dev *accel_dev)
 	accel_dev->accel_pci_dev.msix_entries.names = names;
 	return 0;
 err:
-	for (i = 0; i < msix_num_entries; i++) {
-		if (*(names + i))
-			kfree(*(names + i));
-	}
+	for (i = 0; i < msix_num_entries; i++)
+		kfree(*(names + i));
 	kfree(entries);
 	kfree(names);
 	return -ENOMEM;
@@ -203,10 +204,8 @@ static void adf_isr_free_msix_entry_table(struct adf_accel_dev *accel_dev)
 	int i;
 
 	kfree(accel_dev->accel_pci_dev.msix_entries.entries);
-	for (i = 0; i < msix_num_entries; i++) {
-		if (*(names + i))
-			kfree(*(names + i));
-	}
+	for (i = 0; i < msix_num_entries; i++)
+		kfree(*(names + i));
 	kfree(names);
 }
 

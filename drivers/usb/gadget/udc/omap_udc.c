@@ -1171,6 +1171,7 @@ omap_set_selfpowered(struct usb_gadget *gadget, int is_selfpowered)
 	unsigned long	flags;
 	u16		syscon1;
 
+	gadget->is_selfpowered = (is_selfpowered != 0);
 	udc = container_of(gadget, struct omap_udc, gadget);
 	spin_lock_irqsave(&udc->lock, flags);
 	syscon1 = omap_readw(UDC_SYSCON1);
@@ -1311,8 +1312,7 @@ static int omap_pullup(struct usb_gadget *gadget, int is_on)
 
 static int omap_udc_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver);
-static int omap_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver);
+static int omap_udc_stop(struct usb_gadget *g);
 
 static const struct usb_gadget_ops omap_gadget_ops = {
 	.get_frame		= omap_get_frame,
@@ -2102,8 +2102,7 @@ done:
 	return status;
 }
 
-static int omap_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver)
+static int omap_udc_stop(struct usb_gadget *g)
 {
 	unsigned long	flags;
 	int		status = -ENODEV;
@@ -3026,7 +3025,6 @@ static struct platform_driver udc_driver = {
 	.suspend	= omap_udc_suspend,
 	.resume		= omap_udc_resume,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= (char *) driver_name,
 	},
 };

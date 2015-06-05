@@ -1,7 +1,7 @@
 /*
  * Watchdog driver for the RTC based watchdog in STMP3xxx and i.MX23/28
  *
- * Author: Wolfram Sang <w.sang@pengutronix.de>
+ * Author: Wolfram Sang <kernel@pengutronix.de>
  *
  * Copyright (C) 2011-12 Wolfram Sang, Pengutronix
  *
@@ -129,4 +129,4 @@ module_platform_driver(stmp3xxx_wdt_driver);
 
 MODULE_DESCRIPTION("STMP3XXX RTC Watchdog Driver");
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Wolfram Sang <w.sang@pengutronix.de>");
+MODULE_AUTHOR("Wolfram Sang <kernel@pengutronix.de>");

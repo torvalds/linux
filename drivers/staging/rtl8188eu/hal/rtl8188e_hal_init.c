@@ -181,7 +181,8 @@ static void rtl8188e_SetHalODMVar(struct adapter *Adapter, enum hal_odm_variable
 	switch (eVariable) {
 	case HAL_ODM_STA_INFO:
 		{
-			struct sta_info *psta = (struct sta_info *)pValue1;
+			struct sta_info *psta = pValue1;
+
 			if (bSet) {
 				DBG_88E("### Set STA_(%d) info\n", psta->mac_id);
 				ODM_CmnInfoPtrArrayHook(podmpriv, ODM_CMNINFO_STA_STATUS, psta->mac_id, psta);
@@ -239,20 +240,6 @@ void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->SetHalODMVarHandler = &rtl8188e_SetHalODMVar;
 
 	pHalFunc->hal_notch_filter = &hal_notch_filter_8188e;
-}
-
-u8 GetEEPROMSize8188E(struct adapter *padapter)
-{
-	u8 size = 0;
-	u32	cr;
-
-	cr = usb_read16(padapter, REG_9346CR);
-	/*  6: EEPROM used is 93C46, 4: boot from E-Fuse. */
-	size = (cr & BOOT_FROM_EEPROM) ? 6 : 4;
-
-	MSG_88E("EEPROM type is %s\n", size == 4 ? "E-FUSE" : "93C46");
-
-	return size;
 }
 
 /*  */
@@ -609,7 +596,8 @@ void Hal_EfuseParseBoardType88E(struct adapter *pAdapter, u8 *hwinfo, bool AutoL
 	struct hal_data_8188e *pHalData = GET_HAL_DATA(pAdapter);
 
 	if (!AutoLoadFail)
-		pHalData->BoardType = ((hwinfo[EEPROM_RF_BOARD_OPTION_88E]&0xE0)>>5);
+		pHalData->BoardType = (hwinfo[EEPROM_RF_BOARD_OPTION_88E]
+					& 0xE0) >> 5;
 	else
 		pHalData->BoardType = 0;
 	DBG_88E("Board Type: 0x%2x\n", pHalData->BoardType);

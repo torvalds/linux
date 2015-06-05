@@ -111,7 +111,6 @@ struct thread_struct {
  */
 #define start_thread(regs, pc, usp) do {				   \
 	unsigned int *argc = (unsigned int *) bprm->exec;		   \
-	set_fs(USER_DS);						   \
 	current->thread.int_depth = 1;					   \
 	/* Force this process down to user land */			   \
 	regs->ctx.SaveMask = TBICTX_PRIV_BIT;				   \
@@ -149,8 +148,8 @@ extern void exit_thread(void);
 
 unsigned long get_wchan(struct task_struct *p);
 
-#define	KSTK_EIP(tsk)	((tsk)->thread.kernel_context->CurrPC)
-#define	KSTK_ESP(tsk)	((tsk)->thread.kernel_context->AX[0].U0)
+#define	KSTK_EIP(tsk)	(task_pt_regs(tsk)->ctx.CurrPC)
+#define	KSTK_ESP(tsk)	(task_pt_regs(tsk)->ctx.AX[0].U0)
 
 #define user_stack_pointer(regs)        ((regs)->ctx.AX[0].U0)
 

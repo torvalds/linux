@@ -34,11 +34,35 @@ struct drm_fb_helper;
 
 #include <linux/kgdb.h>
 
+struct drm_fb_offset {
+	int x, y;
+};
+
 struct drm_fb_helper_crtc {
 	struct drm_mode_set mode_set;
 	struct drm_display_mode *desired_mode;
+	int x, y;
 };
 
+/**
+ * struct drm_fb_helper_surface_size - describes fbdev size and scanout surface size
+ * @fb_width: fbdev width
+ * @fb_height: fbdev height
+ * @surface_width: scanout buffer width
+ * @surface_height: scanout buffer height
+ * @surface_bpp: scanout buffer bpp
+ * @surface_depth: scanout buffer depth
+ *
+ * Note that the scanout surface width/height may be larger than the fbdev
+ * width/height.  In case of multiple displays, the scanout surface is sized
+ * according to the largest width/height (so it is large enough for all CRTCs
+ * to scanout).  But the fbdev width/height is sized to the minimum width/
+ * height of all the displays.  This ensures that fbcon fits on the smallest
+ * of the attached displays.
+ *
+ * So what is passed to drm_fb_helper_fill_var() should be fb_width/fb_height,
+ * rather than the surface size.
+ */
 struct drm_fb_helper_surface_size {
 	u32 fb_width;
 	u32 fb_height;
@@ -72,6 +96,7 @@ struct drm_fb_helper_funcs {
 	bool (*initial_config)(struct drm_fb_helper *fb_helper,
 			       struct drm_fb_helper_crtc **crtcs,
 			       struct drm_display_mode **modes,
+			       struct drm_fb_offset *offsets,
 			       bool *enabled, int width, int height);
 };
 
@@ -119,7 +144,7 @@ void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
 int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info);
 
 int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper);
-bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel);
+int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel);
 int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper);
 int drm_fb_helper_debug_enter(struct fb_info *info);
 int drm_fb_helper_debug_leave(struct fb_info *info);

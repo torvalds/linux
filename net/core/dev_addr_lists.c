@@ -278,8 +278,8 @@ int __hw_addr_sync_dev(struct netdev_hw_addr_list *list,
 EXPORT_SYMBOL(__hw_addr_sync_dev);
 
 /**
- *  __hw_addr_unsync_dev - Remove synchonized addresses from device
- *  @list: address list to remove syncronized addresses from
+ *  __hw_addr_unsync_dev - Remove synchronized addresses from device
+ *  @list: address list to remove synchronized addresses from
  *  @dev:  device to sync
  *  @unsync: function to call if address should be removed
  *

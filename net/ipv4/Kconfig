@@ -322,6 +322,15 @@ config NET_FOU
 	  network mechanisms and optimizations for UDP (such as ECMP
 	  and RSS) can be leveraged to provide better service.
 
+config NET_FOU_IP_TUNNELS
+	bool "IP: FOU encapsulation of IP tunnels"
+	depends on NET_IPIP || NET_IPGRE || IPV6_SIT
+	select NET_FOU
+	---help---
+	  Allow configuration of FOU or GUE encapsulation for IP tunnels.
+	  When this option is enabled IP tunnels can be configured to use
+	  FOU or GUE encapsulation.
+
 config GENEVE
 	tristate "Generic Network Virtualization Encapsulation (Geneve)"
 	depends on INET

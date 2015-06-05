@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1156,7 +1156,7 @@ osl_table_name_from_file(char *filename, char *signature, u32 *instance)
 	/* Extract instance number */
 
 	if (isdigit((int)filename[ACPI_NAME_SIZE])) {
-		sscanf(&filename[ACPI_NAME_SIZE], "%d", instance);
+		sscanf(&filename[ACPI_NAME_SIZE], "%u", instance);
 	} else if (strlen(filename) != ACPI_NAME_SIZE) {
 		return (AE_BAD_SIGNATURE);
 	} else {

@@ -14,11 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
  */
 
 #include <linux/kernel.h>
@@ -1215,6 +1210,7 @@ static int omap2_mcspi_transfer_one_message(struct spi_master *master,
 	struct omap2_mcspi	*mcspi;
 	struct omap2_mcspi_dma	*mcspi_dma;
 	struct spi_transfer	*t;
+	int status;
 
 	spi = m->spi;
 	mcspi = spi_master_get_devdata(master);
@@ -1234,7 +1230,8 @@ static int omap2_mcspi_transfer_one_message(struct spi_master *master,
 					tx_buf ? "tx" : "",
 					rx_buf ? "rx" : "",
 					t->bits_per_word);
-			return -EINVAL;
+			status = -EINVAL;
+			goto out;
 		}
 
 		if (m->is_dma_mapped || len < DMA_MIN_BYTES)
@@ -1246,7 +1243,8 @@ static int omap2_mcspi_transfer_one_message(struct spi_master *master,
 			if (dma_mapping_error(mcspi->dev, t->tx_dma)) {
 				dev_dbg(mcspi->dev, "dma %cX %d bytes error\n",
 						'T', len);
-				return -EINVAL;
+				status = -EINVAL;
+				goto out;
 			}
 		}
 		if (mcspi_dma->dma_rx && rx_buf != NULL) {
@@ -1258,14 +1256,19 @@ static int omap2_mcspi_transfer_one_message(struct spi_master *master,
 				if (tx_buf != NULL)
 					dma_unmap_single(mcspi->dev, t->tx_dma,
 							len, DMA_TO_DEVICE);
-				return -EINVAL;
+				status = -EINVAL;
+				goto out;
 			}
 		}
 	}
 
 	omap2_mcspi_work(mcspi, m);
+	/* spi_finalize_current_message() changes the status inside the
+	 * spi_message, save the status here. */
+	status = m->status;
+out:
 	spi_finalize_current_message(master);
-	return 0;
+	return status;
 }
 
 static int omap2_mcspi_master_setup(struct omap2_mcspi *mcspi)
@@ -1521,7 +1524,6 @@ static const struct dev_pm_ops omap2_mcspi_pm_ops = {
 static struct platform_driver omap2_mcspi_driver = {
 	.driver = {
 		.name =		"omap2_mcspi",
-		.owner =	THIS_MODULE,
 		.pm =		&omap2_mcspi_pm_ops,
 		.of_match_table = omap_mcspi_of_match,
 	},

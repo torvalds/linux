@@ -13,9 +13,12 @@ typedef struct __wait_queue wait_queue_t;
 typedef int (*wait_queue_func_t)(wait_queue_t *wait, unsigned mode, int flags, void *key);
 int default_wake_function(wait_queue_t *wait, unsigned mode, int flags, void *key);
 
+/* __wait_queue::flags */
+#define WQ_FLAG_EXCLUSIVE	0x01
+#define WQ_FLAG_WOKEN		0x02
+
 struct __wait_queue {
 	unsigned int		flags;
-#define WQ_FLAG_EXCLUSIVE	0x01
 	void			*private;
 	wait_queue_func_t	func;
 	struct list_head	task_list;
@@ -258,10 +261,51 @@ __out:	__ret;								\
  */
 #define wait_event(wq, condition)					\
 do {									\
+	might_sleep();							\
 	if (condition)							\
 		break;							\
 	__wait_event(wq, condition);					\
 } while (0)
+
+#define __io_wait_event(wq, condition)					\
+	(void)___wait_event(wq, condition, TASK_UNINTERRUPTIBLE, 0, 0,	\
+			    io_schedule())
+
+/*
+ * io_wait_event() -- like wait_event() but with io_schedule()
+ */
+#define io_wait_event(wq, condition)					\
+do {									\
+	might_sleep();							\
+	if (condition)							\
+		break;							\
+	__io_wait_event(wq, condition);					\
+} while (0)
+
+#define __wait_event_freezable(wq, condition)				\
+	___wait_event(wq, condition, TASK_INTERRUPTIBLE, 0, 0,		\
+			    schedule(); try_to_freeze())
+
+/**
+ * wait_event - sleep (or freeze) until a condition gets true
+ * @wq: the waitqueue to wait on
+ * @condition: a C expression for the event to wait for
+ *
+ * The process is put to sleep (TASK_INTERRUPTIBLE -- so as not to contribute
+ * to system load) until the @condition evaluates to true. The
+ * @condition is checked each time the waitqueue @wq is woken up.
+ *
+ * wake_up() has to be called after changing any variable that could
+ * change the result of the wait condition.
+ */
+#define wait_event_freezable(wq, condition)				\
+({									\
+	int __ret = 0;							\
+	might_sleep();							\
+	if (!(condition))						\
+		__ret = __wait_event_freezable(wq, condition);		\
+	__ret;								\
+})
 
 #define __wait_event_timeout(wq, condition, timeout)			\
 	___wait_event(wq, ___wait_cond_timeout(condition),		\
@@ -290,8 +334,27 @@ do {									\
 #define wait_event_timeout(wq, condition, timeout)			\
 ({									\
 	long __ret = timeout;						\
+	might_sleep();							\
 	if (!___wait_cond_timeout(condition))				\
 		__ret = __wait_event_timeout(wq, condition, timeout);	\
+	__ret;								\
+})
+
+#define __wait_event_freezable_timeout(wq, condition, timeout)		\
+	___wait_event(wq, ___wait_cond_timeout(condition),		\
+		      TASK_INTERRUPTIBLE, 0, timeout,			\
+		      __ret = schedule_timeout(__ret); try_to_freeze())
+
+/*
+ * like wait_event_timeout() -- except it uses TASK_INTERRUPTIBLE to avoid
+ * increasing load and is freezable.
+ */
+#define wait_event_freezable_timeout(wq, condition, timeout)		\
+({									\
+	long __ret = timeout;						\
+	might_sleep();							\
+	if (!___wait_cond_timeout(condition))				\
+		__ret = __wait_event_freezable_timeout(wq, condition, timeout);	\
 	__ret;								\
 })
 
@@ -342,6 +405,7 @@ do {									\
 #define wait_event_interruptible(wq, condition)				\
 ({									\
 	int __ret = 0;							\
+	might_sleep();							\
 	if (!(condition))						\
 		__ret = __wait_event_interruptible(wq, condition);	\
 	__ret;								\
@@ -375,6 +439,7 @@ do {									\
 #define wait_event_interruptible_timeout(wq, condition, timeout)	\
 ({									\
 	long __ret = timeout;						\
+	might_sleep();							\
 	if (!___wait_cond_timeout(condition))				\
 		__ret = __wait_event_interruptible_timeout(wq,		\
 						condition, timeout);	\
@@ -425,6 +490,7 @@ do {									\
 #define wait_event_hrtimeout(wq, condition, timeout)			\
 ({									\
 	int __ret = 0;							\
+	might_sleep();							\
 	if (!(condition))						\
 		__ret = __wait_event_hrtimeout(wq, condition, timeout,	\
 					       TASK_UNINTERRUPTIBLE);	\
@@ -450,6 +516,7 @@ do {									\
 #define wait_event_interruptible_hrtimeout(wq, condition, timeout)	\
 ({									\
 	long __ret = 0;							\
+	might_sleep();							\
 	if (!(condition))						\
 		__ret = __wait_event_hrtimeout(wq, condition, timeout,	\
 					       TASK_INTERRUPTIBLE);	\
@@ -463,8 +530,23 @@ do {									\
 #define wait_event_interruptible_exclusive(wq, condition)		\
 ({									\
 	int __ret = 0;							\
+	might_sleep();							\
 	if (!(condition))						\
 		__ret = __wait_event_interruptible_exclusive(wq, condition);\
+	__ret;								\
+})
+
+
+#define __wait_event_freezable_exclusive(wq, condition)			\
+	___wait_event(wq, condition, TASK_INTERRUPTIBLE, 1, 0,		\
+			schedule(); try_to_freeze())
+
+#define wait_event_freezable_exclusive(wq, condition)			\
+({									\
+	int __ret = 0;							\
+	might_sleep();							\
+	if (!(condition))						\
+		__ret = __wait_event_freezable_exclusive(wq, condition);\
 	__ret;								\
 })
 
@@ -637,6 +719,7 @@ do {									\
 #define wait_event_killable(wq, condition)				\
 ({									\
 	int __ret = 0;							\
+	might_sleep();							\
 	if (!(condition))						\
 		__ret = __wait_event_killable(wq, condition);		\
 	__ret;								\
@@ -830,6 +913,8 @@ void prepare_to_wait_exclusive(wait_queue_head_t *q, wait_queue_t *wait, int sta
 long prepare_to_wait_event(wait_queue_head_t *q, wait_queue_t *wait, int state);
 void finish_wait(wait_queue_head_t *q, wait_queue_t *wait);
 void abort_exclusive_wait(wait_queue_head_t *q, wait_queue_t *wait, unsigned int mode, void *key);
+long wait_woken(wait_queue_t *wait, unsigned mode, long timeout);
+int woken_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key);
 int autoremove_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key);
 int wake_bit_function(wait_queue_t *wait, unsigned mode, int sync, void *key);
 
@@ -886,6 +971,7 @@ extern int bit_wait_io_timeout(struct wait_bit_key *);
 static inline int
 wait_on_bit(void *word, int bit, unsigned mode)
 {
+	might_sleep();
 	if (!test_bit(bit, word))
 		return 0;
 	return out_of_line_wait_on_bit(word, bit,
@@ -910,11 +996,38 @@ wait_on_bit(void *word, int bit, unsigned mode)
 static inline int
 wait_on_bit_io(void *word, int bit, unsigned mode)
 {
+	might_sleep();
 	if (!test_bit(bit, word))
 		return 0;
 	return out_of_line_wait_on_bit(word, bit,
 				       bit_wait_io,
 				       mode);
+}
+
+/**
+ * wait_on_bit_timeout - wait for a bit to be cleared or a timeout elapses
+ * @word: the word being waited on, a kernel virtual address
+ * @bit: the bit of the word being waited on
+ * @mode: the task state to sleep in
+ * @timeout: timeout, in jiffies
+ *
+ * Use the standard hashed waitqueue table to wait for a bit
+ * to be cleared. This is similar to wait_on_bit(), except also takes a
+ * timeout parameter.
+ *
+ * Returned value will be zero if the bit was cleared before the
+ * @timeout elapsed, or non-zero if the @timeout elapsed or process
+ * received a signal and the mode permitted wakeup on that signal.
+ */
+static inline int
+wait_on_bit_timeout(void *word, int bit, unsigned mode, unsigned long timeout)
+{
+	might_sleep();
+	if (!test_bit(bit, word))
+		return 0;
+	return out_of_line_wait_on_bit_timeout(word, bit,
+					       bit_wait_timeout,
+					       mode, timeout);
 }
 
 /**
@@ -936,6 +1049,7 @@ wait_on_bit_io(void *word, int bit, unsigned mode)
 static inline int
 wait_on_bit_action(void *word, int bit, wait_bit_action_f *action, unsigned mode)
 {
+	might_sleep();
 	if (!test_bit(bit, word))
 		return 0;
 	return out_of_line_wait_on_bit(word, bit, action, mode);
@@ -963,6 +1077,7 @@ wait_on_bit_action(void *word, int bit, wait_bit_action_f *action, unsigned mode
 static inline int
 wait_on_bit_lock(void *word, int bit, unsigned mode)
 {
+	might_sleep();
 	if (!test_and_set_bit(bit, word))
 		return 0;
 	return out_of_line_wait_on_bit_lock(word, bit, bit_wait, mode);
@@ -986,6 +1101,7 @@ wait_on_bit_lock(void *word, int bit, unsigned mode)
 static inline int
 wait_on_bit_lock_io(void *word, int bit, unsigned mode)
 {
+	might_sleep();
 	if (!test_and_set_bit(bit, word))
 		return 0;
 	return out_of_line_wait_on_bit_lock(word, bit, bit_wait_io, mode);
@@ -1011,6 +1127,7 @@ wait_on_bit_lock_io(void *word, int bit, unsigned mode)
 static inline int
 wait_on_bit_lock_action(void *word, int bit, wait_bit_action_f *action, unsigned mode)
 {
+	might_sleep();
 	if (!test_and_set_bit(bit, word))
 		return 0;
 	return out_of_line_wait_on_bit_lock(word, bit, action, mode);
@@ -1029,6 +1146,7 @@ wait_on_bit_lock_action(void *word, int bit, wait_bit_action_f *action, unsigned
 static inline
 int wait_on_atomic_t(atomic_t *val, int (*action)(atomic_t *), unsigned mode)
 {
+	might_sleep();
 	if (atomic_read(val) == 0)
 		return 0;
 	return out_of_line_wait_on_atomic_t(val, action, mode);

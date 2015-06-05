@@ -67,7 +67,7 @@ static inline void _tlbil_va(unsigned long address, unsigned int pid,
 {
 	__tlbil_va(address, pid);
 }
-#endif /* CONIFG_8xx */
+#endif /* CONFIG_8xx */
 
 #if defined(CONFIG_PPC_BOOK3E) || defined(CONFIG_PPC_47x)
 extern void _tlbivax_bcast(unsigned long address, unsigned int pid,
@@ -96,7 +96,7 @@ extern void _tlbia(void);
 extern void mapin_ram(void);
 extern int map_page(unsigned long va, phys_addr_t pa, int flags);
 extern void setbat(int index, unsigned long virt, phys_addr_t phys,
-		   unsigned int size, int flags);
+		   unsigned int size, pgprot_t prot);
 
 extern int __map_without_bats;
 extern int __allow_ioremap_reserved;

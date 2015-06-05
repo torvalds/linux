@@ -289,6 +289,7 @@ static int sproc_probe(struct platform_device *pdev)
 	sproc = rproc->priv;
 	sproc->mdev = mdev;
 	sproc->rproc = rproc;
+	rproc->has_iommu = false;
 	mdev->drv_data = sproc;
 
 	/* Provide callback functions to modem device */
@@ -331,7 +332,6 @@ free_rproc:
 static struct platform_driver sproc_driver = {
 	.driver	= {
 		.name	= SPROC_MODEM_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe	= sproc_probe,
 	.remove	= sproc_drv_remove,

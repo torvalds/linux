@@ -56,7 +56,7 @@ static int oz_usb_submit_elt(struct oz_elt_buf *eb, struct oz_elt_info *ei,
 int oz_usb_get_desc_req(void *hpd, u8 req_id, u8 req_type, u8 desc_type,
 	u8 index, __le16 windex, int offset, int len)
 {
-	struct oz_usb_ctx *usb_ctx = (struct oz_usb_ctx *)hpd;
+	struct oz_usb_ctx *usb_ctx = hpd;
 	struct oz_pd *pd = usb_ctx->pd;
 	struct oz_elt *elt;
 	struct oz_get_desc_req *body;
@@ -92,7 +92,7 @@ int oz_usb_get_desc_req(void *hpd, u8 req_id, u8 req_type, u8 desc_type,
  */
 static int oz_usb_set_config_req(void *hpd, u8 req_id, u8 index)
 {
-	struct oz_usb_ctx *usb_ctx = (struct oz_usb_ctx *)hpd;
+	struct oz_usb_ctx *usb_ctx = hpd;
 	struct oz_pd *pd = usb_ctx->pd;
 	struct oz_elt *elt;
 	struct oz_elt_buf *eb = &pd->elt_buff;
@@ -115,7 +115,7 @@ static int oz_usb_set_config_req(void *hpd, u8 req_id, u8 index)
  */
 static int oz_usb_set_interface_req(void *hpd, u8 req_id, u8 index, u8 alt)
 {
-	struct oz_usb_ctx *usb_ctx = (struct oz_usb_ctx *)hpd;
+	struct oz_usb_ctx *usb_ctx = hpd;
 	struct oz_pd *pd = usb_ctx->pd;
 	struct oz_elt *elt;
 	struct oz_elt_buf *eb = &pd->elt_buff;
@@ -140,7 +140,7 @@ static int oz_usb_set_interface_req(void *hpd, u8 req_id, u8 index, u8 alt)
 static int oz_usb_set_clear_feature_req(void *hpd, u8 req_id, u8 type,
 			u8 recipient, u8 index, __le16 feature)
 {
-	struct oz_usb_ctx *usb_ctx = (struct oz_usb_ctx *)hpd;
+	struct oz_usb_ctx *usb_ctx = hpd;
 	struct oz_pd *pd = usb_ctx->pd;
 	struct oz_elt *elt;
 	struct oz_elt_buf *eb = &pd->elt_buff;
@@ -166,7 +166,7 @@ static int oz_usb_set_clear_feature_req(void *hpd, u8 req_id, u8 type,
 static int oz_usb_vendor_class_req(void *hpd, u8 req_id, u8 req_type,
 	u8 request, __le16 value, __le16 index, const u8 *data, int data_len)
 {
-	struct oz_usb_ctx *usb_ctx = (struct oz_usb_ctx *)hpd;
+	struct oz_usb_ctx *usb_ctx = hpd;
 	struct oz_pd *pd = usb_ctx->pd;
 	struct oz_elt *elt;
 	struct oz_elt_buf *eb = &pd->elt_buff;
@@ -244,7 +244,7 @@ int oz_usb_control_req(void *hpd, u8 req_id, struct usb_ctrlrequest *setup,
  */
 int oz_usb_send_isoc(void *hpd, u8 ep_num, struct urb *urb)
 {
-	struct oz_usb_ctx *usb_ctx = (struct oz_usb_ctx *)hpd;
+	struct oz_usb_ctx *usb_ctx = hpd;
 	struct oz_pd *pd = usb_ctx->pd;
 	struct oz_elt_buf *eb;
 	int i;

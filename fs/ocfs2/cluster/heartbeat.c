@@ -1127,10 +1127,10 @@ static int o2hb_thread(void *data)
 		elapsed_msec = o2hb_elapsed_msecs(&before_hb, &after_hb);
 
 		mlog(ML_HEARTBEAT,
-		     "start = %lu.%lu, end = %lu.%lu, msec = %u\n",
+		     "start = %lu.%lu, end = %lu.%lu, msec = %u, ret = %d\n",
 		     before_hb.tv_sec, (unsigned long) before_hb.tv_usec,
 		     after_hb.tv_sec, (unsigned long) after_hb.tv_usec,
-		     elapsed_msec);
+		     elapsed_msec, ret);
 
 		if (!kthread_should_stop() &&
 		    elapsed_msec < reg->hr_timeout_ms) {

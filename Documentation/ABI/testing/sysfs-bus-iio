@@ -92,6 +92,18 @@ Description:
 		is required is a consistent labeling.  Units after application
 		of scale and offset are millivolts.
 
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_supply_raw
+KernelVersion:	3.17
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw (unscaled no bias removal etc.) current measurement from
+		channel Y. In special cases where the channel does not
+		correspond to externally available input one of the named
+		versions may be used. The number must always be specified and
+		unique to allow association with event codes. Units after
+		application of scale and offset are milliamps.
+
 What:		/sys/bus/iio/devices/iio:deviceX/in_capacitanceY_raw
 KernelVersion:	3.2
 Contact:	linux-iio@vger.kernel.org
@@ -200,6 +212,13 @@ Description:
 		Raw pressure measurement from channel Y. Units after
 		application of scale and offset are kilopascal.
 
+What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_input
+What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_input
+KernelVersion:	3.8
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Scaled pressure measurement from channel Y, in kilopascal.
+
 What:		/sys/bus/iio/devices/iio:deviceX/in_humidityrelative_raw
 KernelVersion:	3.14
 Contact:	linux-iio@vger.kernel.org
@@ -227,10 +246,15 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_accel_y_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_z_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_current_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_tempY_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_temp_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_humidityrelative_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_rot_offset
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -251,11 +275,17 @@ Description:
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_supply_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltage-voltage_scale
 What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_scale
 What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltageY_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_supply_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_current_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_peak_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_energy_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_distance_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_magn_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_magn_x_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_magn_y_scale
@@ -266,6 +296,9 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_rot_from_north_magnetic_tilt_comp_sca
 What:		/sys/bus/iio/devices/iio:deviceX/in_rot_from_north_true_tilt_comp_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_humidityrelative_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_velocity_sqrt(x^2+y^2+z^2)_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_illuminance_scale
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -306,12 +339,51 @@ what		/sys/bus/iio/devices/iio:deviceX/in_illuminance0_calibscale
 what		/sys/bus/iio/devices/iio:deviceX/in_proximity0_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_illuminance_calibscale
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Hardware applied calibration scale factor (assumed to fix
 		production inaccuracies).  If shared across all channels,
 		<type>_calibscale is used.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_activity_calibgender
+What:		/sys/bus/iio/devices/iio:deviceX/in_energy_calibgender
+What:		/sys/bus/iio/devices/iio:deviceX/in_distance_calibgender
+What:		/sys/bus/iio/devices/iio:deviceX/in_velocity_calibgender
+KernelVersion:	4.0
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Gender of the user (e.g.: male, female) used by some pedometers
+		to compute the stride length, distance, speed and activity
+		type.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_activity_calibgender_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_energy_calibgender_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_distance_calibgender_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_velocity_calibgender_available
+KernelVersion:	4.0
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Lists all available gender values (e.g.: male, female).
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_activity_calibheight
+What:		/sys/bus/iio/devices/iio:deviceX/in_energy_calibheight
+What:		/sys/bus/iio/devices/iio:deviceX/in_distance_calibheight
+What:		/sys/bus/iio/devices/iio:deviceX/in_velocity_calibheight
+KernelVersion:	3.19
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Height of the user (in meters) used by some pedometers
+		to compute the stride length, distance, speed and activity
+		type.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_energy_calibweight
+KernelVersion:	4.0
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Weight of the user (in kg). It is needed by some pedometers
+		to compute the calories burnt by the user.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_scale_available
 What:		/sys/.../iio:deviceX/in_voltageX_scale_available
@@ -328,6 +400,10 @@ Description:
 		are listed in this attribute.
 
 What		/sys/bus/iio/devices/iio:deviceX/out_voltageY_hardwaregain
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_red_hardwaregain
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_green_hardwaregain
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_blue_hardwaregain
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_clear_hardwaregain
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -540,6 +616,8 @@ Description:
 		a given event type is enabled a future point (and not those for
 		whatever event was previously enabled).
 
+What:		/sys/.../events/in_accel_thresh_rising_value
+What:		/sys/.../events/in_accel_thresh_falling_value
 What:		/sys/.../events/in_accel_x_raw_thresh_rising_value
 What:		/sys/.../events/in_accel_x_raw_thresh_falling_value
 What:		/sys/.../events/in_accel_y_raw_thresh_rising_value
@@ -588,6 +666,24 @@ Description:
 		The raw or input element of the name indicates whether the
 		value is in raw device units or in processed units (as _raw
 		and _input do on sysfs direct channel read attributes).
+
+What:		/sys/.../events/in_accel_scale
+What:		/sys/.../events/in_accel_peak_scale
+What:		/sys/.../events/in_anglvel_scale
+What:		/sys/.../events/in_magn_scale
+What:		/sys/.../events/in_rot_from_north_magnetic_scale
+What:		/sys/.../events/in_rot_from_north_true_scale
+What:		/sys/.../events/in_voltage_scale
+What:		/sys/.../events/in_voltage_supply_scale
+What:		/sys/.../events/in_temp_scale
+What:		/sys/.../events/in_illuminance_scale
+What:		/sys/.../events/in_proximity_scale
+KernelVersion:	3.21
+Contact:	linux-iio@vger.kernel.org
+Description:
+                Specifies the conversion factor from the standard units
+                to device specific units used to set the event trigger
+                threshold.
 
 What:		/sys/.../events/in_accel_x_thresh_rising_hysteresis
 What:		/sys/.../events/in_accel_x_thresh_falling_hysteresis
@@ -704,7 +800,7 @@ Description:
 
 What:		/sys/.../events/in_accel_x_thresh_rising_period
 What:		/sys/.../events/in_accel_x_thresh_falling_period
-hat:		/sys/.../events/in_accel_x_roc_rising_period
+What:		/sys/.../events/in_accel_x_roc_rising_period
 What:		/sys/.../events/in_accel_x_roc_falling_period
 What:		/sys/.../events/in_accel_y_thresh_rising_period
 What:		/sys/.../events/in_accel_y_thresh_falling_period
@@ -769,12 +865,54 @@ What:		/sys/.../events/in_tempY_roc_falling_period
 What:		/sys/.../events/in_accel_x&y&z_mag_falling_period
 What:		/sys/.../events/in_intensity0_thresh_period
 What:		/sys/.../events/in_proximity0_thresh_period
+What:		/sys/.../events/in_activity_still_thresh_rising_period
+What:		/sys/.../events/in_activity_still_thresh_falling_period
+What:		/sys/.../events/in_activity_walking_thresh_rising_period
+What:		/sys/.../events/in_activity_walking_thresh_falling_period
+What:		/sys/.../events/in_activity_jogging_thresh_rising_period
+What:		/sys/.../events/in_activity_jogging_thresh_falling_period
+What:		/sys/.../events/in_activity_running_thresh_rising_period
+What:		/sys/.../events/in_activity_running_thresh_falling_period
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Period of time (in seconds) for which the condition must be
 		met before an event is generated. If direction is not
 		specified then this period applies to both directions.
+
+What:		/sys/.../events/in_activity_still_thresh_rising_en
+What:		/sys/.../events/in_activity_still_thresh_falling_en
+What:		/sys/.../events/in_activity_walking_thresh_rising_en
+What:		/sys/.../events/in_activity_walking_thresh_falling_en
+What:		/sys/.../events/in_activity_jogging_thresh_rising_en
+What:		/sys/.../events/in_activity_jogging_thresh_falling_en
+What:		/sys/.../events/in_activity_running_thresh_rising_en
+What:		/sys/.../events/in_activity_running_thresh_falling_en
+KernelVersion:	3.19
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Enables or disables activitity events. Depending on direction
+		an event is generated when sensor ENTERS or LEAVES a given state.
+
+What:		/sys/.../events/in_activity_still_thresh_rising_value
+What:		/sys/.../events/in_activity_still_thresh_falling_value
+What:		/sys/.../events/in_activity_walking_thresh_rising_value
+What:		/sys/.../events/in_activity_walking_thresh_falling_value
+What:		/sys/.../events/in_activity_jogging_thresh_rising_value
+What:		/sys/.../events/in_activity_jogging_thresh_falling_value
+What:		/sys/.../events/in_activity_running_thresh_rising_value
+What:		/sys/.../events/in_activity_running_thresh_falling_value
+KernelVersion:	3.19
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Confidence value (in units as percentage) to be used
+		for deciding when an event should be generated. E.g for
+		running: If the confidence value reported by the sensor
+		is greater than in_activity_running_thresh_rising_value
+		then the sensor ENTERS running state. Conversely, if the
+		confidence value reported by the sensor is lower than
+		in_activity_running_thresh_falling_value then the sensor
+		is LEAVING running state.
 
 What:		/sys/.../iio:deviceX/events/in_accel_mag_en
 What:		/sys/.../iio:deviceX/events/in_accel_mag_rising_en
@@ -807,6 +945,25 @@ Description:
 		The value to which the magnitude of the channel is compared. If
 		number or direction is not specified, applies to all channels of
 		this type.
+
+What:		/sys/.../events/in_steps_change_en
+KernelVersion:	4.0
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Event generated when channel passes a threshold on the absolute
+		change in value. E.g. for steps: a step change event is
+		generated each time the user takes N steps, where N is set using
+		in_steps_change_value.
+
+What:		/sys/.../events/in_steps_change_value
+KernelVersion:	4.0
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies the value of change threshold that the
+		device is comparing against for the events enabled by
+		<type>[Y][_name]_roc[_rising|falling|]_en. E.g. for steps:
+		if set to 3, a step change event will be generated every 3
+		steps.
 
 What:		/sys/bus/iio/devices/iio:deviceX/trigger/current_trigger
 KernelVersion:	2.6.35
@@ -864,6 +1021,7 @@ What:		/sys/.../iio:deviceX/scan_elements/in_incli_y_en
 What:		/sys/.../iio:deviceX/scan_elements/in_pressureY_en
 What:		/sys/.../iio:deviceX/scan_elements/in_pressure_en
 What:		/sys/.../iio:deviceX/scan_elements/in_rot_quaternion_en
+What:		/sys/.../iio:deviceX/scan_elements/in_proximity_en
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -880,6 +1038,7 @@ What:		/sys/.../iio:deviceX/scan_elements/in_timestamp_type
 What:		/sys/.../iio:deviceX/scan_elements/in_pressureY_type
 What:		/sys/.../iio:deviceX/scan_elements/in_pressure_type
 What:		/sys/.../iio:deviceX/scan_elements/in_rot_quaternion_type
+What:		/sys/.../iio:deviceX/scan_elements/in_proximity_type
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -931,6 +1090,7 @@ What:		/sys/.../iio:deviceX/scan_elements/in_timestamp_index
 What:		/sys/.../iio:deviceX/scan_elements/in_pressureY_index
 What:		/sys/.../iio:deviceX/scan_elements/in_pressure_index
 What:		/sys/.../iio:deviceX/scan_elements/in_rot_quaternion_index
+What:		/sys/.../iio:deviceX/scan_elements/in_proximity_index
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -941,6 +1101,16 @@ Description:
 		with all _en attributes to establish which channels are present,
 		and the relevant _type attributes to establish the data storage
 		format.
+
+What:		/sys/.../iio:deviceX/in_activity_still_input
+What:		/sys/.../iio:deviceX/in_activity_walking_input
+What:		/sys/.../iio:deviceX/in_activity_jogging_input
+What:		/sys/.../iio:deviceX/in_activity_running_input
+KernelVersion:	3.19
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute is used to read the confidence for an activity
+		expressed in units as percentage.
 
 What:		/sys/.../iio:deviceX/in_anglvel_z_quadrature_correction_raw
 KernelVersion:	2.6.38
@@ -958,6 +1128,24 @@ Description:
 		low_power: enable low current consumption.
 		For a list of available output power modes read
 		in_accel_power_mode_available.
+
+What:		/sys/.../iio:deviceX/in_energy_input
+What:		/sys/.../iio:deviceX/in_energy_raw
+KernelVersion:	4.0
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute is used to read the energy value reported by the
+		device (e.g.: human activity sensors report energy burnt by the
+		user). Units after application of scale are Joules.
+
+What:		/sys/.../iio:deviceX/in_distance_input
+What:		/sys/.../iio:deviceX/in_distance_raw
+KernelVersion:	4.0
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute is used to read the distance covered by the user
+		since the last reboot while activated. Units after application
+		of scale are meters.
 
 What:		/sys/bus/iio/devices/iio:deviceX/store_eeprom
 KernelVersion:	3.4.0
@@ -978,11 +1166,17 @@ Description:
 		reflectivity of infrared or ultrasound emitted.
 		Often these sensors are unit less and as such conversion
 		to SI units is not possible.  Where it is, the units should
-		be meters.
+		be meters.  If such a conversion is not possible, the reported
+		values should behave in the same way as a distance, i.e. lower
+		values indicate something is closer to the sensor.
 
+What:		/sys/.../iio:deviceX/in_illuminance_input
+What:		/sys/.../iio:deviceX/in_illuminance_raw
 What:		/sys/.../iio:deviceX/in_illuminanceY_input
 What:		/sys/.../iio:deviceX/in_illuminanceY_raw
 What:		/sys/.../iio:deviceX/in_illuminanceY_mean_raw
+What:		/sys/.../iio:deviceX/in_illuminance_ir_raw
+What:		/sys/.../iio:deviceX/in_illuminance_clear_raw
 KernelVersion:	3.4
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -1010,6 +1204,12 @@ Description:
 		This attribute is used to get/set the integration time in
 		seconds.
 
+What:		/sys/.../iio:deviceX/in_velocity_sqrt(x^2+y^2+z^2)_integration_time
+KernelVersion:	4.0
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Number of seconds in which to compute speed.
+
 What:		/sys/bus/iio/devices/iio:deviceX/in_rot_quaternion_raw
 KernelVersion:	3.15
 Contact:	linux-iio@vger.kernel.org
@@ -1028,3 +1228,139 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		Raw value of rotation from true/magnetic north measured with
 		or without compensation from tilt sensors.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentX_raw
+KernelVersion:	3.18
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw current measurement from channel X. Units are in milliamps
+		after application of scale and offset. If no offset or scale is
+		present, output should be considered as processed with the
+		unit in milliamps.
+
+What:		/sys/.../iio:deviceX/in_energy_en
+What:		/sys/.../iio:deviceX/in_distance_en
+What:		/sys/.../iio:deviceX/in_velocity_sqrt(x^2+y^2+z^2)_en
+What:		/sys/.../iio:deviceX/in_steps_en
+KernelVersion:	3.19
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Activates a device feature that runs in firmware/hardware.
+		E.g. for steps: the pedometer saves power while not used;
+		when activated, it will count the steps taken by the user in
+		firmware and export them through in_steps_input.
+
+What:		/sys/.../iio:deviceX/in_steps_input
+KernelVersion:	3.19
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute is used to read the number of steps taken by the user
+		since the last reboot while activated.
+
+What:		/sys/.../iio:deviceX/in_velocity_sqrt(x^2+y^2+z^2)_input
+What:		/sys/.../iio:deviceX/in_velocity_sqrt(x^2+y^2+z^2)_raw
+KernelVersion:	3.19
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute is used to read the current speed value of the
+		user (which is the norm or magnitude of the velocity vector).
+		Units after application of scale are m/s.
+
+What:		/sys/.../iio:deviceX/in_steps_debounce_count
+KernelVersion:	4.0
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies the number of steps that must occur within
+		in_steps_filter_debounce_time for the pedometer to decide the
+		consumer is making steps.
+
+What:		/sys/.../iio:deviceX/in_steps_debounce_time
+KernelVersion:	4.0
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies number of seconds in which we compute the steps
+		that occur in order to decide if the consumer is making steps.
+
+What:		/sys/bus/iio/devices/iio:deviceX/buffer/watermark
+KernelVersion:	4.2
+Contact:	linux-iio@vger.kernel.org
+Description:
+		A single positive integer specifying the maximum number of scan
+		elements to wait for.
+		Poll will block until the watermark is reached.
+		Blocking read will wait until the minimum between the requested
+		read amount or the low water mark is available.
+		Non-blocking read will retrieve the available samples from the
+		buffer even if there are less samples then watermark level. This
+		allows the application to block on poll with a timeout and read
+		the available samples after the timeout expires and thus have a
+		maximum delay guarantee.
+
+What:		/sys/bus/iio/devices/iio:deviceX/buffer/hwfifo_enabled
+KernelVersion: 4.2
+Contact:	linux-iio@vger.kernel.org
+Description:
+		A read-only boolean value that indicates if the hardware fifo is
+		currently enabled or disabled. If the device does not have a
+		hardware fifo this entry is not present.
+		The hardware fifo is enabled when the buffer is enabled if the
+		current hardware fifo watermark level is set and other current
+		device settings allows it (e.g. if a trigger is set that samples
+		data differently that the hardware fifo does then hardware fifo
+		will not enabled).
+		If the hardware fifo is enabled and the level of the hardware
+		fifo reaches the hardware fifo watermark level the device will
+		flush its hardware fifo to the device buffer. Doing a non
+		blocking read on the device when no samples are present in the
+		device buffer will also force a flush.
+		When the hardware fifo is enabled there is no need to use a
+		trigger to use buffer mode since the watermark settings
+		guarantees that the hardware fifo is flushed to the device
+		buffer.
+
+What:		/sys/bus/iio/devices/iio:deviceX/buffer/hwfifo_watermark
+KernelVersion: 4.2
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Read-only entry that contains a single integer specifying the
+		current watermark level for the hardware fifo. If the device
+		does not have a hardware fifo this entry is not present.
+		The watermark level for the hardware fifo is set by the driver
+		based on the value set by the user in buffer/watermark but
+		taking into account hardware limitations (e.g. most hardware
+		buffers are limited to 32-64 samples, some hardware buffers
+		watermarks are fixed or have minimum levels).  A value of 0
+		means that the hardware watermark is unset.
+
+What:		/sys/bus/iio/devices/iio:deviceX/buffer/hwfifo_watermark_min
+KernelVersion: 4.2
+Contact:       linux-iio@vger.kernel.org
+Description:
+		A single positive integer specifying the minimum watermark level
+		for the hardware fifo of this device. If the device does not
+		have a hardware fifo this entry is not present.
+		If the user sets buffer/watermark to a value less than this one,
+		then the hardware watermark will remain unset.
+
+What:	       /sys/bus/iio/devices/iio:deviceX/buffer/hwfifo_watermark_max
+KernelVersion: 4.2
+Contact:       linux-iio@vger.kernel.org
+Description:
+		A single positive integer specifying the maximum watermark level
+		for the hardware fifo of this device. If the device does not
+		have a hardware fifo this entry is not present.
+		If the user sets buffer/watermark to a value greater than this
+		one, then the hardware watermark will be capped at this value.
+
+What:	       /sys/bus/iio/devices/iio:deviceX/buffer/hwfifo_watermark_available
+KernelVersion: 4.2
+Contact:       linux-iio@vger.kernel.org
+Description:
+		A list of positive integers specifying the available watermark
+		levels for the hardware fifo. This entry is optional and if it
+		is not present it means that all the values between
+		hwfifo_watermark_min and hwfifo_watermark_max are supported.
+		If the user sets buffer/watermark to a value greater than
+		hwfifo_watermak_min but not equal to any of the values in this
+		list, the driver will chose an appropriate value for the
+		hardware fifo watermark level.

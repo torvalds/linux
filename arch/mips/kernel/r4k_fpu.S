@@ -19,8 +19,12 @@
 #include <asm/asm-offsets.h>
 #include <asm/regdef.h>
 
+/* preprocessor replaces the fp in ".set fp=64" with $30 otherwise */
+#undef fp
+
 	.macro	EX insn, reg, src
 	.set	push
+	SET_HARDFLOAT
 	.set	nomacro
 .ex\@:	\insn	\reg, \src
 	.set	pop
@@ -30,15 +34,20 @@
 	.endm
 
 	.set	noreorder
-	.set	arch=r4000
 
 LEAF(_save_fp_context)
-	cfc1	t1, fcr31
-
-#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPS32_R2)
 	.set	push
+	SET_HARDFLOAT
+	cfc1	t1, fcr31
+	.set	pop
+
+#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPS32_R2) || \
+		defined(CONFIG_CPU_MIPS32_R6)
+	.set	push
+	SET_HARDFLOAT
 #ifdef CONFIG_CPU_MIPS32_R2
-	.set	mips64r2
+	.set	mips32r2
+	.set	fp=64
 	mfc0	t0, CP0_STATUS
 	sll	t0, t0, 5
 	bgez	t0, 1f			# skip storing odd if FR=0
@@ -64,6 +73,8 @@ LEAF(_save_fp_context)
 1:	.set	pop
 #endif
 
+	.set push
+	SET_HARDFLOAT
 	/* Store the 16 even double precision registers */
 	EX	sdc1 $f0, SC_FPREGS+0(a0)
 	EX	sdc1 $f2, SC_FPREGS+16(a0)
@@ -84,17 +95,23 @@ LEAF(_save_fp_context)
 	EX	sw t1, SC_FPC_CSR(a0)
 	jr	ra
 	 li	v0, 0					# success
+	.set pop
 	END(_save_fp_context)
 
 #ifdef CONFIG_MIPS32_COMPAT
 	/* Save 32-bit process floating point context */
 LEAF(_save_fp_context32)
+	.set push
+	.set MIPS_ISA_ARCH_LEVEL_RAW
+	SET_HARDFLOAT
 	cfc1	t1, fcr31
 
+#ifndef CONFIG_CPU_MIPS64_R6
 	mfc0	t0, CP0_STATUS
 	sll	t0, t0, 5
 	bgez	t0, 1f			# skip storing odd if FR=0
 	 nop
+#endif
 
 	/* Store the 16 odd double precision registers */
 	EX      sdc1 $f1, SC32_FPREGS+8(a0)
@@ -134,6 +151,7 @@ LEAF(_save_fp_context32)
 	EX	sw t1, SC32_FPC_CSR(a0)
 	cfc1	t0, $0				# implementation/version
 	EX	sw t0, SC32_FPC_EIR(a0)
+	.set pop
 
 	jr	ra
 	 li	v0, 0					# success
@@ -148,10 +166,13 @@ LEAF(_save_fp_context32)
 LEAF(_restore_fp_context)
 	EX	lw t1, SC_FPC_CSR(a0)
 
-#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPS32_R2)
+#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPS32_R2)  || \
+		defined(CONFIG_CPU_MIPS32_R6)
 	.set	push
+	SET_HARDFLOAT
 #ifdef CONFIG_CPU_MIPS32_R2
-	.set	mips64r2
+	.set	mips32r2
+	.set	fp=64
 	mfc0	t0, CP0_STATUS
 	sll	t0, t0, 5
 	bgez	t0, 1f			# skip loading odd if FR=0
@@ -175,6 +196,8 @@ LEAF(_restore_fp_context)
 	EX	ldc1 $f31, SC_FPREGS+248(a0)
 1:	.set pop
 #endif
+	.set push
+	SET_HARDFLOAT
 	EX	ldc1 $f0, SC_FPREGS+0(a0)
 	EX	ldc1 $f2, SC_FPREGS+16(a0)
 	EX	ldc1 $f4, SC_FPREGS+32(a0)
@@ -192,6 +215,7 @@ LEAF(_restore_fp_context)
 	EX	ldc1 $f28, SC_FPREGS+224(a0)
 	EX	ldc1 $f30, SC_FPREGS+240(a0)
 	ctc1	t1, fcr31
+	.set pop
 	jr	ra
 	 li	v0, 0					# success
 	END(_restore_fp_context)
@@ -199,12 +223,16 @@ LEAF(_restore_fp_context)
 #ifdef CONFIG_MIPS32_COMPAT
 LEAF(_restore_fp_context32)
 	/* Restore an o32 sigcontext.  */
+	.set push
+	SET_HARDFLOAT
 	EX	lw t1, SC32_FPC_CSR(a0)
 
+#ifndef CONFIG_CPU_MIPS64_R6
 	mfc0	t0, CP0_STATUS
 	sll	t0, t0, 5
 	bgez	t0, 1f			# skip loading odd if FR=0
 	 nop
+#endif
 
 	EX      ldc1 $f1, SC32_FPREGS+8(a0)
 	EX      ldc1 $f3, SC32_FPREGS+24(a0)
@@ -242,6 +270,7 @@ LEAF(_restore_fp_context32)
 	ctc1	t1, fcr31
 	jr	ra
 	 li	v0, 0					# success
+	.set pop
 	END(_restore_fp_context32)
 #endif
 

@@ -274,7 +274,6 @@ error_ret:
 
 static int ade7854_spi_probe(struct spi_device *spi)
 {
-	int ret;
 	struct ade7854_state *st;
 	struct iio_dev *indio_dev;
 
@@ -294,10 +293,7 @@ static int ade7854_spi_probe(struct spi_device *spi)
 	st->irq = spi->irq;
 	st->spi = spi;
 
-
-	ret = ade7854_probe(indio_dev, &spi->dev);
-
-	return ret;
+	return ade7854_probe(indio_dev, &spi->dev);
 }
 
 static int ade7854_spi_remove(struct spi_device *spi)

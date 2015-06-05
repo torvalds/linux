@@ -109,12 +109,14 @@ struct qat_crypto_instance *qat_crypto_get_instance_node(int node)
 
 	list_for_each(itr, adf_devmgr_get_head()) {
 		accel_dev = list_entry(itr, struct adf_accel_dev, list);
-		if (accel_dev->numa_node == node && adf_dev_started(accel_dev))
+		if ((node == dev_to_node(&GET_DEV(accel_dev)) ||
+		     dev_to_node(&GET_DEV(accel_dev)) < 0) &&
+		    adf_dev_started(accel_dev))
 			break;
 		accel_dev = NULL;
 	}
 	if (!accel_dev) {
-		pr_err("QAT: Could not find device on give node\n");
+		pr_err("QAT: Could not find a device on node %d\n", node);
 		accel_dev = adf_devmgr_get_first();
 	}
 	if (!accel_dev || !adf_dev_started(accel_dev))
@@ -135,7 +137,8 @@ struct qat_crypto_instance *qat_crypto_get_instance_node(int node)
 		if (atomic_add_return(1, &inst_best->refctr) == 1) {
 			if (adf_dev_get(accel_dev)) {
 				atomic_dec(&inst_best->refctr);
-				pr_err("QAT: Could increment dev refctr\n");
+				dev_err(&GET_DEV(accel_dev),
+					"Could not increment dev refctr\n");
 				return NULL;
 			}
 		}
@@ -164,7 +167,7 @@ static int qat_crypto_create_instances(struct adf_accel_dev *accel_dev)
 
 	for (i = 0; i < num_inst; i++) {
 		inst = kzalloc_node(sizeof(*inst), GFP_KERNEL,
-				    accel_dev->numa_node);
+				    dev_to_node(&GET_DEV(accel_dev)));
 		if (!inst)
 			goto err;
 

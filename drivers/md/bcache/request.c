@@ -601,13 +601,8 @@ static void request_endio(struct bio *bio, int error)
 static void bio_complete(struct search *s)
 {
 	if (s->orig_bio) {
-		int cpu, rw = bio_data_dir(s->orig_bio);
-		unsigned long duration = jiffies - s->start_time;
-
-		cpu = part_stat_lock();
-		part_round_stats(cpu, &s->d->disk->part0);
-		part_stat_add(cpu, &s->d->disk->part0, ticks[rw], duration);
-		part_stat_unlock();
+		generic_end_io_acct(bio_data_dir(s->orig_bio),
+				    &s->d->disk->part0, s->start_time);
 
 		trace_bcache_request_end(s->d, s->orig_bio);
 		bio_endio(s->orig_bio, s->iop.error);
@@ -959,12 +954,9 @@ static void cached_dev_make_request(struct request_queue *q, struct bio *bio)
 	struct search *s;
 	struct bcache_device *d = bio->bi_bdev->bd_disk->private_data;
 	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
-	int cpu, rw = bio_data_dir(bio);
+	int rw = bio_data_dir(bio);
 
-	cpu = part_stat_lock();
-	part_stat_inc(cpu, &d->disk->part0, ios[rw]);
-	part_stat_add(cpu, &d->disk->part0, sectors[rw], bio_sectors(bio));
-	part_stat_unlock();
+	generic_start_io_acct(rw, bio_sectors(bio), &d->disk->part0);
 
 	bio->bi_bdev = dc->bdev;
 	bio->bi_iter.bi_sector += dc->sb.data_offset;
@@ -1074,12 +1066,9 @@ static void flash_dev_make_request(struct request_queue *q, struct bio *bio)
 	struct search *s;
 	struct closure *cl;
 	struct bcache_device *d = bio->bi_bdev->bd_disk->private_data;
-	int cpu, rw = bio_data_dir(bio);
+	int rw = bio_data_dir(bio);
 
-	cpu = part_stat_lock();
-	part_stat_inc(cpu, &d->disk->part0, ios[rw]);
-	part_stat_add(cpu, &d->disk->part0, sectors[rw], bio_sectors(bio));
-	part_stat_unlock();
+	generic_start_io_acct(rw, bio_sectors(bio), &d->disk->part0);
 
 	s = search_alloc(bio, d);
 	cl = &s->cl;

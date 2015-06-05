@@ -330,7 +330,7 @@ err_fll:
 		return err;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int arizona_runtime_resume(struct device *dev)
 {
 	struct arizona *arizona = dev_get_drvdata(dev);
@@ -561,12 +561,23 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 		count++;
 	}
 
+	count = 0;
+	of_property_for_each_u32(arizona->dev->of_node, "wlf,dmic-ref", prop,
+				 cur, val) {
+		if (count == ARRAY_SIZE(arizona->pdata.dmic_ref))
+			break;
+
+		arizona->pdata.dmic_ref[count] = val;
+		count++;
+	}
+
 	return 0;
 }
 
 const struct of_device_id arizona_of_match[] = {
 	{ .compatible = "wlf,wm5102", .data = (void *)WM5102 },
 	{ .compatible = "wlf,wm5110", .data = (void *)WM5110 },
+	{ .compatible = "wlf,wm8280", .data = (void *)WM8280 },
 	{ .compatible = "wlf,wm8997", .data = (void *)WM8997 },
 	{},
 };
@@ -671,6 +682,7 @@ int arizona_dev_init(struct arizona *arizona)
 	switch (arizona->type) {
 	case WM5102:
 	case WM5110:
+	case WM8280:
 	case WM8997:
 		for (i = 0; i < ARRAY_SIZE(wm5102_core_supplies); i++)
 			arizona->core_supplies[i].supply
@@ -834,11 +846,19 @@ int arizona_dev_init(struct arizona *arizona)
 #endif
 #ifdef CONFIG_MFD_WM5110
 	case 0x5110:
-		type_name = "WM5110";
-		if (arizona->type != WM5110) {
+		switch (arizona->type) {
+		case WM5110:
+			type_name = "WM5110";
+			break;
+		case WM8280:
+			type_name = "WM8280";
+			break;
+		default:
+			type_name = "WM5110";
 			dev_err(arizona->dev, "WM5110 registered as %d\n",
 				arizona->type);
 			arizona->type = WM5110;
+			break;
 		}
 		apply_patch = wm5110_patch;
 		break;
@@ -1010,6 +1030,7 @@ int arizona_dev_init(struct arizona *arizona)
 				      ARRAY_SIZE(wm5102_devs), NULL, 0, NULL);
 		break;
 	case WM5110:
+	case WM8280:
 		ret = mfd_add_devices(arizona->dev, -1, wm5110_devs,
 				      ARRAY_SIZE(wm5110_devs), NULL, 0, NULL);
 		break;
@@ -1024,7 +1045,7 @@ int arizona_dev_init(struct arizona *arizona)
 		goto err_irq;
 	}
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	regulator_disable(arizona->dcvdd);
 #endif
 

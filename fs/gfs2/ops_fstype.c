@@ -112,7 +112,6 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	mapping->flags = 0;
 	mapping_set_gfp_mask(mapping, GFP_NOFS);
 	mapping->private_data = NULL;
-	mapping->backing_dev_info = sb->s_bdi;
 	mapping->writeback_index = 0;
 
 	spin_lock_init(&sdp->sd_log_lock);
@@ -129,11 +128,11 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 
 	init_rwsem(&sdp->sd_log_flush_lock);
 	atomic_set(&sdp->sd_log_in_flight, 0);
+	atomic_set(&sdp->sd_reserving_log, 0);
+	init_waitqueue_head(&sdp->sd_reserving_log_wait);
 	init_waitqueue_head(&sdp->sd_log_flush_wait);
-	init_waitqueue_head(&sdp->sd_log_frozen_wait);
-	atomic_set(&sdp->sd_log_freeze, 0);
-	atomic_set(&sdp->sd_frozen_root, 0);
-	init_waitqueue_head(&sdp->sd_frozen_root_wait);
+	atomic_set(&sdp->sd_freeze_state, SFS_UNFROZEN);
+	mutex_init(&sdp->sd_freeze_mutex);
 
 	return sdp;
 }
@@ -648,7 +647,7 @@ out_unlock:
 
 static int init_journal(struct gfs2_sbd *sdp, int undo)
 {
-	struct inode *master = sdp->sd_master_dir->d_inode;
+	struct inode *master = d_inode(sdp->sd_master_dir);
 	struct gfs2_holder ji_gh;
 	struct gfs2_inode *ip;
 	int jindex = 1;
@@ -760,15 +759,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 	set_bit(SDF_JOURNAL_CHECKED, &sdp->sd_flags);
 	gfs2_glock_dq_uninit(&ji_gh);
 	jindex = 0;
-	if (!sdp->sd_args.ar_spectator) {
-		error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED, 0,
-					   &sdp->sd_thaw_gh);
-		if (error) {
-			fs_err(sdp, "can't acquire freeze glock: %d\n", error);
-			goto fail_jinode_gh;
-		}
-	}
-	gfs2_glock_dq_uninit(&sdp->sd_thaw_gh);
+	INIT_WORK(&sdp->sd_freeze_work, gfs2_freeze_func);
 	return 0;
 
 fail_jinode_gh:
@@ -791,7 +782,7 @@ static struct lock_class_key gfs2_quota_imutex_key;
 static int init_inodes(struct gfs2_sbd *sdp, int undo)
 {
 	int error = 0;
-	struct inode *master = sdp->sd_master_dir->d_inode;
+	struct inode *master = d_inode(sdp->sd_master_dir);
 
 	if (undo)
 		goto fail_qinode;
@@ -857,7 +848,7 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 	char buf[30];
 	int error = 0;
 	struct gfs2_inode *ip;
-	struct inode *master = sdp->sd_master_dir->d_inode;
+	struct inode *master = d_inode(sdp->sd_master_dir);
 
 	if (sdp->sd_args.ar_spectator)
 		return 0;
@@ -1082,6 +1073,7 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 	sb->s_export_op = &gfs2_export_ops;
 	sb->s_xattr = gfs2_xattr_handlers;
 	sb->s_qcop = &gfs2_quotactl_ops;
+	sb->s_quota_types = QTYPE_MASK_USR | QTYPE_MASK_GRP;
 	sb_dqopt(sb)->flags |= DQUOT_QUOTA_SYS_FILE;
 	sb->s_time_gran = 1;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
@@ -1365,7 +1357,7 @@ static struct dentry *gfs2_mount_meta(struct file_system_type *fs_type,
 		return ERR_PTR(error);
 	}
 	s = sget(&gfs2_fs_type, test_gfs2_super, set_meta_super, flags,
-		 path.dentry->d_inode->i_sb->s_bdev);
+		 d_inode(path.dentry)->i_sb->s_bdev);
 	path_put(&path);
 	if (IS_ERR(s)) {
 		pr_warn("gfs2 mount does not exist\n");

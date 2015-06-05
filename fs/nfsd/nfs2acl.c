@@ -42,7 +42,7 @@ static __be32 nfsacld_proc_getacl(struct svc_rqst * rqstp,
 	if (nfserr)
 		RETURN_STATUS(nfserr);
 
-	inode = fh->fh_dentry->d_inode;
+	inode = d_inode(fh->fh_dentry);
 
 	if (argp->mask & ~(NFS_ACL|NFS_ACLCNT|NFS_DFACL|NFS_DFACLCNT))
 		RETURN_STATUS(nfserr_inval);
@@ -103,7 +103,7 @@ static __be32 nfsacld_proc_setacl(struct svc_rqst * rqstp,
 	if (nfserr)
 		goto out;
 
-	inode = fh->fh_dentry->d_inode;
+	inode = d_inode(fh->fh_dentry);
 	if (!IS_POSIXACL(inode) || !inode->i_op->set_acl) {
 		error = -EOPNOTSUPP;
 		goto out_errno;
@@ -266,9 +266,9 @@ static int nfsaclsvc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p,
 	 * nfsd_dispatch actually ensures the following cannot happen.
 	 * However, it seems fragile to depend on that.
 	 */
-	if (dentry == NULL || dentry->d_inode == NULL)
+	if (dentry == NULL || d_really_is_negative(dentry))
 		return 0;
-	inode = dentry->d_inode;
+	inode = d_inode(dentry);
 
 	p = nfs2svc_encode_fattr(rqstp, p, &resp->fh, &resp->stat);
 	*p++ = htonl(resp->mask);

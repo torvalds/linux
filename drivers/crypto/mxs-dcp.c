@@ -153,7 +153,7 @@ static int mxs_dcp_start_dma(struct dcp_async_ctx *actx)
 	struct dcp *sdcp = global_sdcp;
 	const int chan = actx->chan;
 	uint32_t stat;
-	int ret;
+	unsigned long ret;
 	struct dcp_dma_desc *desc = &sdcp->coh->desc[actx->chan];
 
 	dma_addr_t desc_phys = dma_map_single(sdcp->dev, desc, sizeof(*desc),
@@ -1090,7 +1090,6 @@ static struct platform_driver mxs_dcp_driver = {
 	.remove	= mxs_dcp_remove,
 	.driver	= {
 		.name		= "mxs-dcp",
-		.owner		= THIS_MODULE,
 		.of_match_table	= mxs_dcp_dt_ids,
 	},
 };

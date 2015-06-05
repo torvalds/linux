@@ -7,11 +7,28 @@ Required properties:
    - SerDes Rx/Tx registers
    - SerDes integration registers (1/2)
    - SerDes integration registers (2/2)
+- interrupt-parent: Should be the phandle for the interrupt controller
+  that services interrupts for this device
+- interrupts: Should contain the amd-xgbe-phy interrupt.
 
 Optional properties:
 - amd,speed-set: Speed capabilities of the device
     0 - 1GbE and 10GbE (default)
     1 - 2.5GbE and 10GbE
+
+The following optional properties are represented by an array with each
+value corresponding to a particular speed. The first array value represents
+the setting for the 1GbE speed, the second value for the 2.5GbE speed and
+the third value for the 10GbE speed.  All three values are required if the
+property is used.
+- amd,serdes-blwc: Baseline wandering correction enablement
+    0 - Off
+    1 - On
+- amd,serdes-cdr-rate: CDR rate speed selection
+- amd,serdes-pq-skew: PQ (data sampling) skew
+- amd,serdes-tx-amp: TX amplitude boost
+- amd,serdes-dfe-tap-config: DFE taps available to run
+- amd,serdes-dfe-tap-enable: DFE taps to enable
 
 Example:
 	xgbe_phy@e1240800 {
@@ -19,5 +36,13 @@ Example:
 		reg = <0 0xe1240800 0 0x00400>,
 		      <0 0xe1250000 0 0x00060>,
 		      <0 0xe1250080 0 0x00004>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 323 4>;
 		amd,speed-set = <0>;
+		amd,serdes-blwc = <1>, <1>, <0>;
+		amd,serdes-cdr-rate = <2>, <2>, <7>;
+		amd,serdes-pq-skew = <10>, <10>, <30>;
+		amd,serdes-tx-amp = <15>, <15>, <10>;
+		amd,serdes-dfe-tap-config = <3>, <3>, <1>;
+		amd,serdes-dfe-tap-enable = <0>, <0>, <127>;
 	};

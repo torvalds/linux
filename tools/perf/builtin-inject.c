@@ -53,6 +53,13 @@ static int perf_event__repipe_synth(struct perf_tool *tool,
 	return 0;
 }
 
+static int perf_event__repipe_oe_synth(struct perf_tool *tool,
+				       union perf_event *event,
+				       struct ordered_events *oe __maybe_unused)
+{
+	return perf_event__repipe_synth(tool, event);
+}
+
 static int perf_event__repipe_op2_synth(struct perf_tool *tool,
 					union perf_event *event,
 					struct perf_session *session
@@ -217,8 +224,7 @@ static int perf_event__inject_buildid(struct perf_tool *tool,
 		goto repipe;
 	}
 
-	thread__find_addr_map(thread, machine, cpumode, MAP__FUNCTION,
-			      sample->ip, &al);
+	thread__find_addr_map(thread, cpumode, MAP__FUNCTION, sample->ip, &al);
 
 	if (al.map != NULL) {
 		if (!al.map->dso->hit) {
@@ -344,6 +350,7 @@ static int __cmd_inject(struct perf_inject *inject)
 	int ret = -EINVAL;
 	struct perf_session *session = inject->session;
 	struct perf_data_file *file_out = &inject->output;
+	int fd = perf_data_file__fd(file_out);
 
 	signal(SIGINT, sig_handler);
 
@@ -358,8 +365,6 @@ static int __cmd_inject(struct perf_inject *inject)
 		inject->tool.sample = perf_event__inject_buildid;
 	} else if (inject->sched_stat) {
 		struct perf_evsel *evsel;
-
-		inject->tool.ordered_events = true;
 
 		evlist__for_each(session->evlist, evsel) {
 			const char *name = perf_evsel__name(evsel);
@@ -377,16 +382,16 @@ static int __cmd_inject(struct perf_inject *inject)
 	}
 
 	if (!file_out->is_pipe)
-		lseek(file_out->fd, session->header.data_offset, SEEK_SET);
+		lseek(fd, session->header.data_offset, SEEK_SET);
 
-	ret = perf_session__process_events(session, &inject->tool);
+	ret = perf_session__process_events(session);
 
 	if (!file_out->is_pipe) {
 		if (inject->build_ids)
 			perf_header__set_feat(&session->header,
 					      HEADER_BUILD_ID);
 		session->header.data_size = inject->bytes_written;
-		perf_session__write_header(session, session->evlist, file_out->fd, true);
+		perf_session__write_header(session, session->evlist, fd, true);
 	}
 
 	return ret;
@@ -408,8 +413,9 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 			.unthrottle	= perf_event__repipe,
 			.attr		= perf_event__repipe_attr,
 			.tracing_data	= perf_event__repipe_op2_synth,
-			.finished_round	= perf_event__repipe_op2_synth,
+			.finished_round	= perf_event__repipe_oe_synth,
 			.build_id	= perf_event__repipe_op2_synth,
+			.id_index	= perf_event__repipe_op2_synth,
 		},
 		.input_name  = "-",
 		.samples = LIST_HEAD_INIT(inject.samples),
@@ -437,6 +443,7 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 			 "be more verbose (show build ids, etc)"),
 		OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name, "file",
 			   "kallsyms pathname"),
+		OPT_BOOLEAN('f', "force", &file.force, "don't complain, do it"),
 		OPT_END()
 	};
 	const char * const inject_usage[] = {
@@ -456,6 +463,8 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 		perror("failed to create output file");
 		return -1;
 	}
+
+	inject.tool.ordered_events = inject.sched_stat;
 
 	file.path = inject.input_name;
 	inject.session = perf_session__new(&file, true, &inject.tool);

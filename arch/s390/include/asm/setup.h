@@ -15,19 +15,11 @@
 #include <asm/lowcore.h>
 #include <asm/types.h>
 
-#ifndef CONFIG_64BIT
-#define IPL_DEVICE        (*(unsigned long *)  (0x10404))
-#define INITRD_START      (*(unsigned long *)  (0x1040C))
-#define INITRD_SIZE       (*(unsigned long *)  (0x10414))
-#define OLDMEM_BASE	  (*(unsigned long *)  (0x1041C))
-#define OLDMEM_SIZE	  (*(unsigned long *)  (0x10424))
-#else /* CONFIG_64BIT */
 #define IPL_DEVICE        (*(unsigned long *)  (0x10400))
 #define INITRD_START      (*(unsigned long *)  (0x10408))
 #define INITRD_SIZE       (*(unsigned long *)  (0x10410))
 #define OLDMEM_BASE	  (*(unsigned long *)  (0x10418))
 #define OLDMEM_SIZE	  (*(unsigned long *)  (0x10420))
-#endif /* CONFIG_64BIT */
 #define COMMAND_LINE      ((char *)            (0x10480))
 
 extern int memory_end_set;
@@ -57,6 +49,7 @@ extern void detect_memory_memblock(void);
 #define MACHINE_FLAG_TE		(1UL << 15)
 #define MACHINE_FLAG_TLB_LC	(1UL << 17)
 #define MACHINE_FLAG_VX		(1UL << 18)
+#define MACHINE_FLAG_CAD	(1UL << 19)
 
 #define MACHINE_IS_VM		(S390_lowcore.machine_flags & MACHINE_FLAG_VM)
 #define MACHINE_IS_KVM		(S390_lowcore.machine_flags & MACHINE_FLAG_KVM)
@@ -67,25 +60,8 @@ extern void detect_memory_memblock(void);
 #define MACHINE_HAS_PFMF	MACHINE_HAS_EDAT1
 #define MACHINE_HAS_HPAGE	MACHINE_HAS_EDAT1
 
-#ifndef CONFIG_64BIT
-#define MACHINE_HAS_IEEE	(S390_lowcore.machine_flags & MACHINE_FLAG_IEEE)
-#define MACHINE_HAS_CSP		(S390_lowcore.machine_flags & MACHINE_FLAG_CSP)
-#define MACHINE_HAS_IDTE	(0)
-#define MACHINE_HAS_DIAG44	(1)
-#define MACHINE_HAS_MVPG	(S390_lowcore.machine_flags & MACHINE_FLAG_MVPG)
-#define MACHINE_HAS_EDAT1	(0)
-#define MACHINE_HAS_EDAT2	(0)
-#define MACHINE_HAS_LPP		(0)
-#define MACHINE_HAS_TOPOLOGY	(0)
-#define MACHINE_HAS_TE		(0)
-#define MACHINE_HAS_TLB_LC	(0)
-#define MACHINE_HAS_VX		(0)
-#else /* CONFIG_64BIT */
-#define MACHINE_HAS_IEEE	(1)
-#define MACHINE_HAS_CSP		(1)
 #define MACHINE_HAS_IDTE	(S390_lowcore.machine_flags & MACHINE_FLAG_IDTE)
 #define MACHINE_HAS_DIAG44	(S390_lowcore.machine_flags & MACHINE_FLAG_DIAG44)
-#define MACHINE_HAS_MVPG	(1)
 #define MACHINE_HAS_EDAT1	(S390_lowcore.machine_flags & MACHINE_FLAG_EDAT1)
 #define MACHINE_HAS_EDAT2	(S390_lowcore.machine_flags & MACHINE_FLAG_EDAT2)
 #define MACHINE_HAS_LPP		(S390_lowcore.machine_flags & MACHINE_FLAG_LPP)
@@ -93,7 +69,7 @@ extern void detect_memory_memblock(void);
 #define MACHINE_HAS_TE		(S390_lowcore.machine_flags & MACHINE_FLAG_TE)
 #define MACHINE_HAS_TLB_LC	(S390_lowcore.machine_flags & MACHINE_FLAG_TLB_LC)
 #define MACHINE_HAS_VX		(S390_lowcore.machine_flags & MACHINE_FLAG_VX)
-#endif /* CONFIG_64BIT */
+#define MACHINE_HAS_CAD		(S390_lowcore.machine_flags & MACHINE_FLAG_CAD)
 
 /*
  * Console mode. Override with conmode=
@@ -132,19 +108,11 @@ extern void (*_machine_power_off)(void);
 
 #else /* __ASSEMBLY__ */
 
-#ifndef CONFIG_64BIT
-#define IPL_DEVICE        0x10404
-#define INITRD_START      0x1040C
-#define INITRD_SIZE       0x10414
-#define OLDMEM_BASE	  0x1041C
-#define OLDMEM_SIZE	  0x10424
-#else /* CONFIG_64BIT */
 #define IPL_DEVICE        0x10400
 #define INITRD_START      0x10408
 #define INITRD_SIZE       0x10410
 #define OLDMEM_BASE	  0x10418
 #define OLDMEM_SIZE	  0x10420
-#endif /* CONFIG_64BIT */
 #define COMMAND_LINE      0x10480
 
 #endif /* __ASSEMBLY__ */

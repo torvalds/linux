@@ -1053,8 +1053,7 @@ static void fotg210_init(struct fotg210_udc *fotg210)
 	iowrite32(value, fotg210->reg + FOTG210_DMISGR0);
 }
 
-static int fotg210_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver)
+static int fotg210_udc_stop(struct usb_gadget *g)
 {
 	struct fotg210_udc *fotg210 = gadget_to_fotg210(g);
 	unsigned long	flags;
@@ -1203,7 +1202,6 @@ err_alloc:
 static struct platform_driver fotg210_driver = {
 	.driver		= {
 		.name =	(char *)udc_name,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= fotg210_udc_probe,
 	.remove		= fotg210_udc_remove,

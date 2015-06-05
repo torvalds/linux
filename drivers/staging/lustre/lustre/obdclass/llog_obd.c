@@ -42,7 +42,7 @@
 #include "llog_internal.h"
 
 /* helper functions for calling the llog obd methods */
-static struct llog_ctxt* llog_new_ctxt(struct obd_device *obd)
+static struct llog_ctxt *llog_new_ctxt(struct obd_device *obd)
 {
 	struct llog_ctxt *ctxt;
 

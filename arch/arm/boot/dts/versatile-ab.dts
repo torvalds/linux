@@ -252,6 +252,11 @@
 			#size-cells = <1>;
 			ranges = <0 0x10000000 0x10000>;
 
+			sysreg@0 {
+				compatible = "arm,versatile-sysreg", "syscon";
+				reg = <0x00000 0x1000>;
+			};
+
 			aaci@4000 {
 				compatible = "arm,primecell";
 				reg = <0x4000 0x1000>;

@@ -1,15 +1,31 @@
 /*
  * Copyright (C) 2012 Avionic Design GmbH
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sub license,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the
+ * next paragraph) shall be included in all copies or substantial portions
+ * of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  */
 
 #ifndef __LINUX_HDMI_H_
 #define __LINUX_HDMI_H_
 
 #include <linux/types.h>
+#include <linux/device.h>
 
 enum hdmi_infoframe_type {
 	HDMI_INFOFRAME_TYPE_VENDOR = 0x81,
@@ -37,12 +53,18 @@ enum hdmi_colorspace {
 	HDMI_COLORSPACE_RGB,
 	HDMI_COLORSPACE_YUV422,
 	HDMI_COLORSPACE_YUV444,
+	HDMI_COLORSPACE_YUV420,
+	HDMI_COLORSPACE_RESERVED4,
+	HDMI_COLORSPACE_RESERVED5,
+	HDMI_COLORSPACE_RESERVED6,
+	HDMI_COLORSPACE_IDO_DEFINED,
 };
 
 enum hdmi_scan_mode {
 	HDMI_SCAN_MODE_NONE,
 	HDMI_SCAN_MODE_OVERSCAN,
 	HDMI_SCAN_MODE_UNDERSCAN,
+	HDMI_SCAN_MODE_RESERVED,
 };
 
 enum hdmi_colorimetry {
@@ -56,6 +78,7 @@ enum hdmi_picture_aspect {
 	HDMI_PICTURE_ASPECT_NONE,
 	HDMI_PICTURE_ASPECT_4_3,
 	HDMI_PICTURE_ASPECT_16_9,
+	HDMI_PICTURE_ASPECT_RESERVED,
 };
 
 enum hdmi_active_aspect {
@@ -77,12 +100,18 @@ enum hdmi_extended_colorimetry {
 	HDMI_EXTENDED_COLORIMETRY_S_YCC_601,
 	HDMI_EXTENDED_COLORIMETRY_ADOBE_YCC_601,
 	HDMI_EXTENDED_COLORIMETRY_ADOBE_RGB,
+
+	/* The following EC values are only defined in CEA-861-F. */
+	HDMI_EXTENDED_COLORIMETRY_BT2020_CONST_LUM,
+	HDMI_EXTENDED_COLORIMETRY_BT2020,
+	HDMI_EXTENDED_COLORIMETRY_RESERVED,
 };
 
 enum hdmi_quantization_range {
 	HDMI_QUANTIZATION_RANGE_DEFAULT,
 	HDMI_QUANTIZATION_RANGE_LIMITED,
 	HDMI_QUANTIZATION_RANGE_FULL,
+	HDMI_QUANTIZATION_RANGE_RESERVED,
 };
 
 /* non-uniform picture scaling */
@@ -99,7 +128,7 @@ enum hdmi_ycc_quantization_range {
 };
 
 enum hdmi_content_type {
-	HDMI_CONTENT_TYPE_NONE,
+	HDMI_CONTENT_TYPE_GRAPHICS,
 	HDMI_CONTENT_TYPE_PHOTO,
 	HDMI_CONTENT_TYPE_CINEMA,
 	HDMI_CONTENT_TYPE_GAME,
@@ -179,6 +208,7 @@ enum hdmi_audio_coding_type {
 	HDMI_AUDIO_CODING_TYPE_MLP,
 	HDMI_AUDIO_CODING_TYPE_DST,
 	HDMI_AUDIO_CODING_TYPE_WMA_PRO,
+	HDMI_AUDIO_CODING_TYPE_CXT,
 };
 
 enum hdmi_audio_sample_size {
@@ -200,10 +230,25 @@ enum hdmi_audio_sample_frequency {
 };
 
 enum hdmi_audio_coding_type_ext {
-	HDMI_AUDIO_CODING_TYPE_EXT_STREAM,
+	/* Refer to Audio Coding Type (CT) field in Data Byte 1 */
+	HDMI_AUDIO_CODING_TYPE_EXT_CT,
+
+	/*
+	 * The next three CXT values are defined in CEA-861-E only.
+	 * They do not exist in older versions, and in CEA-861-F they are
+	 * defined as 'Not in use'.
+	 */
 	HDMI_AUDIO_CODING_TYPE_EXT_HE_AAC,
 	HDMI_AUDIO_CODING_TYPE_EXT_HE_AAC_V2,
 	HDMI_AUDIO_CODING_TYPE_EXT_MPEG_SURROUND,
+
+	/* The following CXT values are only defined in CEA-861-F. */
+	HDMI_AUDIO_CODING_TYPE_EXT_MPEG4_HE_AAC,
+	HDMI_AUDIO_CODING_TYPE_EXT_MPEG4_HE_AAC_V2,
+	HDMI_AUDIO_CODING_TYPE_EXT_MPEG4_AAC_LC,
+	HDMI_AUDIO_CODING_TYPE_EXT_DRA,
+	HDMI_AUDIO_CODING_TYPE_EXT_MPEG4_HE_AAC_SURROUND,
+	HDMI_AUDIO_CODING_TYPE_EXT_MPEG4_AAC_LC_SURROUND = 10,
 };
 
 struct hdmi_audio_infoframe {
@@ -284,5 +329,8 @@ union hdmi_infoframe {
 
 ssize_t
 hdmi_infoframe_pack(union hdmi_infoframe *frame, void *buffer, size_t size);
+int hdmi_infoframe_unpack(union hdmi_infoframe *frame, void *buffer);
+void hdmi_infoframe_log(const char *level, struct device *dev,
+			union hdmi_infoframe *frame);
 
 #endif /* _DRM_HDMI_H */

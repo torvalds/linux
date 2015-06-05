@@ -32,6 +32,8 @@
  * Fix stop command
  */
 
+#include "smscoreapi.h"
+
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
 #include <linux/firmware.h>
@@ -41,7 +43,6 @@
 #include <linux/mmc/sdio_ids.h>
 #include <linux/module.h>
 
-#include "smscoreapi.h"
 #include "sms-cards.h"
 #include "smsendian.h"
 
@@ -141,14 +142,14 @@ static void smssdio_interrupt(struct sdio_func *func)
 	 */
 	(void)sdio_readb(func, SMSSDIO_INT, &ret);
 	if (ret) {
-		sms_err("Unable to read interrupt register!\n");
+		pr_err("Unable to read interrupt register!\n");
 		return;
 	}
 
 	if (smsdev->split_cb == NULL) {
 		cb = smscore_getbuffer(smsdev->coredev);
 		if (!cb) {
-			sms_err("Unable to allocate data buffer!\n");
+			pr_err("Unable to allocate data buffer!\n");
 			return;
 		}
 
@@ -157,7 +158,7 @@ static void smssdio_interrupt(struct sdio_func *func)
 					 SMSSDIO_DATA,
 					 SMSSDIO_BLOCK_SIZE);
 		if (ret) {
-			sms_err("Error %d reading initial block!\n", ret);
+			pr_err("Error %d reading initial block!\n", ret);
 			return;
 		}
 
@@ -198,7 +199,7 @@ static void smssdio_interrupt(struct sdio_func *func)
 					 size);
 		if (ret && ret != -EINVAL) {
 			smscore_putbuffer(smsdev->coredev, cb);
-			sms_err("Error %d reading data from card!\n", ret);
+			pr_err("Error %d reading data from card!\n", ret);
 			return;
 		}
 
@@ -216,8 +217,8 @@ static void smssdio_interrupt(struct sdio_func *func)
 						  smsdev->func->cur_blksize);
 				if (ret) {
 					smscore_putbuffer(smsdev->coredev, cb);
-					sms_err("Error %d reading "
-						"data from card!\n", ret);
+					pr_err("Error %d reading data from card!\n",
+					       ret);
 					return;
 				}
 
@@ -278,7 +279,7 @@ static int smssdio_probe(struct sdio_func *func,
 		goto free;
 	}
 
-	ret = smscore_register_device(&params, &smsdev->coredev);
+	ret = smscore_register_device(&params, &smsdev->coredev, NULL);
 	if (ret < 0)
 		goto free;
 

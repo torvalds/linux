@@ -936,7 +936,7 @@ static int read_rindex_entry(struct gfs2_inode *ip)
 	rgd->rd_gl->gl_vm.start = rgd->rd_addr * bsize;
 	rgd->rd_gl->gl_vm.end = rgd->rd_gl->gl_vm.start + (rgd->rd_length * bsize) - 1;
 	rgd->rd_rgl = (struct gfs2_rgrp_lvb *)rgd->rd_gl->gl_lksb.sb_lvbptr;
-	rgd->rd_flags &= ~GFS2_RDF_UPTODATE;
+	rgd->rd_flags &= ~(GFS2_RDF_UPTODATE | GFS2_RDF_PREFERRED);
 	if (rgd->rd_data > sdp->sd_max_rg_data)
 		sdp->sd_max_rg_data = rgd->rd_data;
 	spin_lock(&sdp->sd_rindex_spin);
@@ -952,6 +952,36 @@ fail:
 	kfree(rgd->rd_bits);
 	kmem_cache_free(gfs2_rgrpd_cachep, rgd);
 	return error;
+}
+
+/**
+ * set_rgrp_preferences - Run all the rgrps, selecting some we prefer to use
+ * @sdp: the GFS2 superblock
+ *
+ * The purpose of this function is to select a subset of the resource groups
+ * and mark them as PREFERRED. We do it in such a way that each node prefers
+ * to use a unique set of rgrps to minimize glock contention.
+ */
+static void set_rgrp_preferences(struct gfs2_sbd *sdp)
+{
+	struct gfs2_rgrpd *rgd, *first;
+	int i;
+
+	/* Skip an initial number of rgrps, based on this node's journal ID.
+	   That should start each node out on its own set. */
+	rgd = gfs2_rgrpd_get_first(sdp);
+	for (i = 0; i < sdp->sd_lockstruct.ls_jid; i++)
+		rgd = gfs2_rgrpd_get_next(rgd);
+	first = rgd;
+
+	do {
+		rgd->rd_flags |= GFS2_RDF_PREFERRED;
+		for (i = 0; i < sdp->sd_journals; i++) {
+			rgd = gfs2_rgrpd_get_next(rgd);
+			if (rgd == first)
+				break;
+		}
+	} while (rgd != first);
 }
 
 /**
@@ -972,6 +1002,8 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 
 	if (error < 0)
 		return error;
+
+	set_rgrp_preferences(sdp);
 
 	sdp->sd_rindex_uptodate = 1;
 	return 0;
@@ -1891,14 +1923,41 @@ static bool gfs2_select_rgrp(struct gfs2_rgrpd **pos, const struct gfs2_rgrpd *b
 }
 
 /**
+ * fast_to_acquire - determine if a resource group will be fast to acquire
+ *
+ * If this is one of our preferred rgrps, it should be quicker to acquire,
+ * because we tried to set ourselves up as dlm lock master.
+ */
+static inline int fast_to_acquire(struct gfs2_rgrpd *rgd)
+{
+	struct gfs2_glock *gl = rgd->rd_gl;
+
+	if (gl->gl_state != LM_ST_UNLOCKED && list_empty(&gl->gl_holders) &&
+	    !test_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags) &&
+	    !test_bit(GLF_DEMOTE, &gl->gl_flags))
+		return 1;
+	if (rgd->rd_flags & GFS2_RDF_PREFERRED)
+		return 1;
+	return 0;
+}
+
+/**
  * gfs2_inplace_reserve - Reserve space in the filesystem
  * @ip: the inode to reserve space for
  * @ap: the allocation parameters
  *
- * Returns: errno
+ * We try our best to find an rgrp that has at least ap->target blocks
+ * available. After a couple of passes (loops == 2), the prospects of finding
+ * such an rgrp diminish. At this stage, we return the first rgrp that has
+ * atleast ap->min_target blocks available. Either way, we set ap->allowed to
+ * the number of blocks available in the chosen rgrp.
+ *
+ * Returns: 0 on success,
+ *          -ENOMEM if a suitable rgrp can't be found
+ *          errno otherwise
  */
 
-int gfs2_inplace_reserve(struct gfs2_inode *ip, const struct gfs2_alloc_parms *ap)
+int gfs2_inplace_reserve(struct gfs2_inode *ip, struct gfs2_alloc_parms *ap)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_rgrpd *begin = NULL;
@@ -1932,10 +1991,15 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, const struct gfs2_alloc_parms *a
 			rg_locked = 0;
 			if (skip && skip--)
 				goto next_rgrp;
-			if (!gfs2_rs_active(rs) && (loops < 2) &&
-			     gfs2_rgrp_used_recently(rs, 1000) &&
-			     gfs2_rgrp_congested(rs->rs_rbm.rgd, loops))
-				goto next_rgrp;
+			if (!gfs2_rs_active(rs)) {
+				if (loops == 0 &&
+				    !fast_to_acquire(rs->rs_rbm.rgd))
+					goto next_rgrp;
+				if ((loops < 2) &&
+				    gfs2_rgrp_used_recently(rs, 1000) &&
+				    gfs2_rgrp_congested(rs->rs_rbm.rgd, loops))
+					goto next_rgrp;
+			}
 			error = gfs2_glock_nq_init(rs->rs_rbm.rgd->rd_gl,
 						   LM_ST_EXCLUSIVE, flags,
 						   &rs->rs_rgd_gh);
@@ -1956,7 +2020,7 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, const struct gfs2_alloc_parms *a
 		/* Skip unuseable resource groups */
 		if ((rs->rs_rbm.rgd->rd_flags & (GFS2_RGF_NOALLOC |
 						 GFS2_RDF_ERROR)) ||
-		    (ap->target > rs->rs_rbm.rgd->rd_extfail_pt))
+		    (loops == 0 && ap->target > rs->rs_rbm.rgd->rd_extfail_pt))
 			goto skip_rgrp;
 
 		if (sdp->sd_args.ar_rgrplvb)
@@ -1971,11 +2035,13 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, const struct gfs2_alloc_parms *a
 			goto check_rgrp;
 
 		/* If rgrp has enough free space, use it */
-		if (rs->rs_rbm.rgd->rd_free_clone >= ap->target) {
+		if (rs->rs_rbm.rgd->rd_free_clone >= ap->target ||
+		    (loops == 2 && ap->min_target &&
+		     rs->rs_rbm.rgd->rd_free_clone >= ap->min_target)) {
 			ip->i_rgd = rs->rs_rbm.rgd;
+			ap->allowed = ip->i_rgd->rd_free_clone;
 			return 0;
 		}
-
 check_rgrp:
 		/* Check for unlinked inodes which can be reclaimed */
 		if (rs->rs_rbm.rgd->rd_flags & GFS2_RDF_CHECK)
@@ -2195,6 +2261,9 @@ static void gfs2_adjust_reservation(struct gfs2_inode *ip,
 			trace_gfs2_rs(rs, TRACE_RS_CLAIM);
 			if (rs->rs_free && !ret)
 				goto out;
+			/* We used up our block reservation, so we should
+			   reserve more blocks next time. */
+			atomic_add(RGRP_RSRV_ADDBLKS, &rs->rs_sizehint);
 		}
 		__rs_deltree(rs);
 	}

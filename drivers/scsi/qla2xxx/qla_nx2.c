@@ -238,7 +238,7 @@ qla8044_rmw_crb_reg(struct scsi_qla_host *vha,
 	return;
 }
 
-inline void
+static inline void
 qla8044_set_qsnt_ready(struct scsi_qla_host *vha)
 {
 	uint32_t qsnt_state;

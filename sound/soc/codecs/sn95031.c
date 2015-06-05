@@ -233,16 +233,18 @@ static int sn95031_set_vaud_bias(struct snd_soc_codec *codec,
 static int sn95031_vhs_event(struct snd_soc_dapm_widget *w,
 		    struct snd_kcontrol *kcontrol, int event)
 {
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
 		pr_debug("VHS SND_SOC_DAPM_EVENT_ON doing rail startup now\n");
 		/* power up the rail */
-		snd_soc_write(w->codec, SN95031_VHSP, 0x3D);
-		snd_soc_write(w->codec, SN95031_VHSN, 0x3F);
+		snd_soc_write(codec, SN95031_VHSP, 0x3D);
+		snd_soc_write(codec, SN95031_VHSN, 0x3F);
 		msleep(1);
 	} else if (SND_SOC_DAPM_EVENT_OFF(event)) {
 		pr_debug("VHS SND_SOC_DAPM_EVENT_OFF doing rail shutdown\n");
-		snd_soc_write(w->codec, SN95031_VHSP, 0xC4);
-		snd_soc_write(w->codec, SN95031_VHSN, 0x04);
+		snd_soc_write(codec, SN95031_VHSP, 0xC4);
+		snd_soc_write(codec, SN95031_VHSN, 0x04);
 	}
 	return 0;
 }
@@ -250,14 +252,16 @@ static int sn95031_vhs_event(struct snd_soc_dapm_widget *w,
 static int sn95031_vihf_event(struct snd_soc_dapm_widget *w,
 		    struct snd_kcontrol *kcontrol, int event)
 {
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
 		pr_debug("VIHF SND_SOC_DAPM_EVENT_ON doing rail startup now\n");
 		/* power up the rail */
-		snd_soc_write(w->codec, SN95031_VIHF, 0x27);
+		snd_soc_write(codec, SN95031_VIHF, 0x27);
 		msleep(1);
 	} else if (SND_SOC_DAPM_EVENT_OFF(event)) {
 		pr_debug("VIHF SND_SOC_DAPM_EVENT_OFF doing rail shutdown\n");
-		snd_soc_write(w->codec, SN95031_VIHF, 0x24);
+		snd_soc_write(codec, SN95031_VIHF, 0x24);
 	}
 	return 0;
 }
@@ -265,6 +269,7 @@ static int sn95031_vihf_event(struct snd_soc_dapm_widget *w,
 static int sn95031_dmic12_event(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *k, int event)
 {
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	unsigned int ldo = 0, clk_dir = 0, data_dir = 0;
 
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
@@ -273,15 +278,16 @@ static int sn95031_dmic12_event(struct snd_soc_dapm_widget *w,
 		data_dir = BIT(7);
 	}
 	/* program DMIC LDO, clock and set clock */
-	snd_soc_update_bits(w->codec, SN95031_MICBIAS, BIT(5)|BIT(4), ldo);
-	snd_soc_update_bits(w->codec, SN95031_DMICBUF0123, BIT(0), clk_dir);
-	snd_soc_update_bits(w->codec, SN95031_DMICBUF0123, BIT(7), data_dir);
+	snd_soc_update_bits(codec, SN95031_MICBIAS, BIT(5)|BIT(4), ldo);
+	snd_soc_update_bits(codec, SN95031_DMICBUF0123, BIT(0), clk_dir);
+	snd_soc_update_bits(codec, SN95031_DMICBUF0123, BIT(7), data_dir);
 	return 0;
 }
 
 static int sn95031_dmic34_event(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *k, int event)
 {
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	unsigned int ldo = 0, clk_dir = 0, data_dir = 0;
 
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
@@ -290,22 +296,23 @@ static int sn95031_dmic34_event(struct snd_soc_dapm_widget *w,
 		data_dir = BIT(1);
 	}
 	/* program DMIC LDO, clock and set clock */
-	snd_soc_update_bits(w->codec, SN95031_MICBIAS, BIT(5)|BIT(4), ldo);
-	snd_soc_update_bits(w->codec, SN95031_DMICBUF0123, BIT(2), clk_dir);
-	snd_soc_update_bits(w->codec, SN95031_DMICBUF45, BIT(1), data_dir);
+	snd_soc_update_bits(codec, SN95031_MICBIAS, BIT(5)|BIT(4), ldo);
+	snd_soc_update_bits(codec, SN95031_DMICBUF0123, BIT(2), clk_dir);
+	snd_soc_update_bits(codec, SN95031_DMICBUF45, BIT(1), data_dir);
 	return 0;
 }
 
 static int sn95031_dmic56_event(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *k, int event)
 {
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	unsigned int ldo = 0;
 
 	if (SND_SOC_DAPM_EVENT_ON(event))
 		ldo = BIT(7)|BIT(6);
 
 	/* program DMIC LDO */
-	snd_soc_update_bits(w->codec, SN95031_MICBIAS, BIT(7)|BIT(6), ldo);
+	snd_soc_update_bits(codec, SN95031_MICBIAS, BIT(7)|BIT(6), ldo);
 	return 0;
 }
 
@@ -531,8 +538,8 @@ static const struct snd_soc_dapm_route sn95031_audio_map[] = {
 	/* speaker map */
 	{ "IHFOUTL", NULL, "Speaker Rail"},
 	{ "IHFOUTR", NULL, "Speaker Rail"},
-	{ "IHFOUTL", "NULL", "Speaker Left Playback"},
-	{ "IHFOUTR", "NULL", "Speaker Right Playback"},
+	{ "IHFOUTL", NULL, "Speaker Left Playback"},
+	{ "IHFOUTR", NULL, "Speaker Right Playback"},
 	{ "Speaker Left Playback", NULL, "Speaker Left Filter"},
 	{ "Speaker Right Playback", NULL, "Speaker Right Filter"},
 	{ "Speaker Left Filter", NULL, "IHFDAC Left"},
@@ -776,19 +783,21 @@ static inline void sn95031_enable_jack_btn(struct snd_soc_codec *codec)
 	snd_soc_write(codec, SN95031_BTNCTRL2, 0x01);
 }
 
-static int sn95031_get_headset_state(struct snd_soc_jack *mfld_jack)
+static int sn95031_get_headset_state(struct snd_soc_codec *codec,
+	struct snd_soc_jack *mfld_jack)
 {
-	int micbias = sn95031_get_mic_bias(mfld_jack->codec);
+	int micbias = sn95031_get_mic_bias(codec);
 
 	int jack_type = snd_soc_jack_get_type(mfld_jack, micbias);
 
 	pr_debug("jack type detected = %d\n", jack_type);
 	if (jack_type == SND_JACK_HEADSET)
-		sn95031_enable_jack_btn(mfld_jack->codec);
+		sn95031_enable_jack_btn(codec);
 	return jack_type;
 }
 
-void sn95031_jack_detection(struct mfld_jack_data *jack_data)
+void sn95031_jack_detection(struct snd_soc_codec *codec,
+	struct mfld_jack_data *jack_data)
 {
 	unsigned int status;
 	unsigned int mask = SND_JACK_BTN_0 | SND_JACK_BTN_1 | SND_JACK_HEADSET;
@@ -802,11 +811,11 @@ void sn95031_jack_detection(struct mfld_jack_data *jack_data)
 		status = SND_JACK_HEADSET | SND_JACK_BTN_1;
 	} else if (jack_data->intr_id & 0x4) {
 		pr_debug("headset or headphones inserted\n");
-		status = sn95031_get_headset_state(jack_data->mfld_jack);
+		status = sn95031_get_headset_state(codec, jack_data->mfld_jack);
 	} else if (jack_data->intr_id & 0x8) {
 		pr_debug("headset or headphones removed\n");
 		status = 0;
-		sn95031_disable_jack_btn(jack_data->mfld_jack->codec);
+		sn95031_disable_jack_btn(codec);
 	} else {
 		pr_err("unidentified interrupt\n");
 		return;
@@ -867,25 +876,16 @@ static int sn95031_codec_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, SN95031_SSR2, 0x10);
 	snd_soc_write(codec, SN95031_SSR3, 0x40);
 
-	snd_soc_add_codec_controls(codec, sn95031_snd_controls,
-			     ARRAY_SIZE(sn95031_snd_controls));
-
-	return 0;
-}
-
-static int sn95031_codec_remove(struct snd_soc_codec *codec)
-{
-	pr_debug("codec_remove called\n");
-	sn95031_set_vaud_bias(codec, SND_SOC_BIAS_OFF);
-
 	return 0;
 }
 
 static struct snd_soc_codec_driver sn95031_codec = {
 	.probe		= sn95031_codec_probe,
-	.remove		= sn95031_codec_remove,
 	.set_bias_level	= sn95031_set_vaud_bias,
 	.idle_bias_off	= true,
+
+	.controls	= sn95031_snd_controls,
+	.num_controls	= ARRAY_SIZE(sn95031_snd_controls),
 	.dapm_widgets	= sn95031_dapm_widgets,
 	.num_dapm_widgets	= ARRAY_SIZE(sn95031_dapm_widgets),
 	.dapm_routes	= sn95031_audio_map,
@@ -916,7 +916,6 @@ static int sn95031_device_remove(struct platform_device *pdev)
 static struct platform_driver sn95031_codec_driver = {
 	.driver		= {
 		.name		= "sn95031",
-		.owner		= THIS_MODULE,
 	},
 	.probe		= sn95031_device_probe,
 	.remove		= sn95031_device_remove,

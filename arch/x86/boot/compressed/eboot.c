@@ -13,16 +13,17 @@
 #include <asm/setup.h>
 #include <asm/desc.h>
 
-#undef memcpy			/* Use memcpy from misc.c */
-
+#include "../string.h"
 #include "eboot.h"
 
 static efi_system_table_t *sys_table;
 
 static struct efi_config *efi_early;
 
-#define efi_call_early(f, ...)						\
-	efi_early->call(efi_early->f, __VA_ARGS__);
+__pure const struct efi_config *__efi_early(void)
+{
+	return efi_early;
+}
 
 #define BOOT_SERVICES(bits)						\
 static void setup_boot_services##bits(struct efi_config *c)		\
@@ -284,8 +285,6 @@ void efi_char16_printk(efi_system_table_t *table, efi_char16_t *str)
 		efi_early->call(*func, out, str);
 	}
 }
-
-#include "../../../../drivers/firmware/efi/libstub/efi-stub-helper.c"
 
 static void find_bits(unsigned long mask, u8 *pos, u8 *size)
 {
@@ -1110,6 +1109,8 @@ struct boot_params *make_boot_params(struct efi_config *c)
 	if (!cmdline_ptr)
 		goto fail;
 	hdr->cmd_line_ptr = (unsigned long)cmdline_ptr;
+	/* Fill in upper bits of command line address, NOP on 32 bit  */
+	boot_params->ext_cmd_line_ptr = (u64)(unsigned long)cmdline_ptr >> 32;
 
 	hdr->ramdisk_image = 0;
 	hdr->ramdisk_size = 0;

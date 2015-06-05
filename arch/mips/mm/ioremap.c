@@ -17,9 +17,9 @@
 #include <asm/tlbflush.h>
 
 static inline void remap_area_pte(pte_t * pte, unsigned long address,
-	phys_t size, phys_t phys_addr, unsigned long flags)
+	phys_addr_t size, phys_addr_t phys_addr, unsigned long flags)
 {
-	phys_t end;
+	phys_addr_t end;
 	unsigned long pfn;
 	pgprot_t pgprot = __pgprot(_PAGE_GLOBAL | _PAGE_PRESENT | __READABLE
 				   | __WRITEABLE | flags);
@@ -43,9 +43,9 @@ static inline void remap_area_pte(pte_t * pte, unsigned long address,
 }
 
 static inline int remap_area_pmd(pmd_t * pmd, unsigned long address,
-	phys_t size, phys_t phys_addr, unsigned long flags)
+	phys_addr_t size, phys_addr_t phys_addr, unsigned long flags)
 {
-	phys_t end;
+	phys_addr_t end;
 
 	address &= ~PGDIR_MASK;
 	end = address + size;
@@ -64,8 +64,8 @@ static inline int remap_area_pmd(pmd_t * pmd, unsigned long address,
 	return 0;
 }
 
-static int remap_area_pages(unsigned long address, phys_t phys_addr,
-	phys_t size, unsigned long flags)
+static int remap_area_pages(unsigned long address, phys_addr_t phys_addr,
+	phys_addr_t size, unsigned long flags)
 {
 	int error;
 	pgd_t * dir;
@@ -111,13 +111,13 @@ static int remap_area_pages(unsigned long address, phys_t phys_addr,
  * caller shouldn't need to know that small detail.
  */
 
-#define IS_LOW512(addr) (!((phys_t)(addr) & (phys_t) ~0x1fffffffULL))
+#define IS_LOW512(addr) (!((phys_addr_t)(addr) & (phys_addr_t) ~0x1fffffffULL))
 
-void __iomem * __ioremap(phys_t phys_addr, phys_t size, unsigned long flags)
+void __iomem * __ioremap(phys_addr_t phys_addr, phys_addr_t size, unsigned long flags)
 {
 	struct vm_struct * area;
 	unsigned long offset;
-	phys_t last_addr;
+	phys_addr_t last_addr;
 	void * addr;
 
 	phys_addr = fixup_bigphys_addr(phys_addr, size);

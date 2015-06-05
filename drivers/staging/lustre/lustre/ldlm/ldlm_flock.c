@@ -260,7 +260,8 @@ ldlm_process_flock_lock(struct ldlm_lock *req, __u64 *flags, int first_enq,
 	int splitted = 0;
 	const struct ldlm_callback_suite null_cbs = { NULL };
 
-	CDEBUG(D_DLMTRACE, "flags %#llx owner %llu pid %u mode %u start %llu end %llu\n",
+	CDEBUG(D_DLMTRACE,
+	       "flags %#llx owner %llu pid %u mode %u start %llu end %llu\n",
 	       *flags, new->l_policy_data.l_flock.owner,
 	       new->l_policy_data.l_flock.pid, mode,
 	       req->l_policy_data.l_flock.start,
@@ -291,6 +292,7 @@ reprocess:
 		}
 	} else {
 		int reprocess_failed = 0;
+
 		lockmode_verify(mode);
 
 		/* This loop determines if there are existing locks
@@ -496,7 +498,8 @@ reprocess:
 			new->l_policy_data.l_flock.end + 1;
 		new2->l_conn_export = lock->l_conn_export;
 		if (lock->l_export != NULL) {
-			new2->l_export = class_export_lock_get(lock->l_export, new2);
+			new2->l_export = class_export_lock_get(lock->l_export,
+							       new2);
 			if (new2->l_export->exp_lock_hash &&
 			    hlist_unhashed(&new2->l_exp_hash))
 				cfs_hash_add(new2->l_export->exp_lock_hash,
@@ -619,8 +622,7 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 		return 0;
 	}
 
-	LDLM_DEBUG(lock, "client-side enqueue returned a blocked lock, "
-		   "sleeping");
+	LDLM_DEBUG(lock, "client-side enqueue returned a blocked lock, sleeping");
 	fwd.fwd_lock = lock;
 	obd = class_exp2obd(lock->l_conn_export);
 

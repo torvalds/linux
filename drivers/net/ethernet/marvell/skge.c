@@ -3433,10 +3433,9 @@ static irqreturn_t skge_intr(int irq, void *dev_id)
 
 	if (status & IS_HW_ERR)
 		skge_error_irq(hw);
-
+out:
 	skge_write32(hw, B0_IMSK, hw->intr_mask);
 	skge_read32(hw, B0_IMSK);
-out:
 	spin_unlock(&hw->hw_lock);
 
 	return IRQ_RETVAL(handled);

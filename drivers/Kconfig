@@ -1,5 +1,7 @@
 menu "Device Drivers"
 
+source "drivers/amba/Kconfig"
+
 source "drivers/base/Kconfig"
 
 source "drivers/bus/Kconfig"
@@ -33,8 +35,6 @@ source "drivers/target/Kconfig"
 source "drivers/message/fusion/Kconfig"
 
 source "drivers/firewire/Kconfig"
-
-source "drivers/message/i2o/Kconfig"
 
 source "drivers/macintosh/Kconfig"
 
@@ -132,8 +132,6 @@ source "drivers/staging/Kconfig"
 
 source "drivers/platform/Kconfig"
 
-source "drivers/soc/Kconfig"
-
 source "drivers/clk/Kconfig"
 
 source "drivers/hwspinlock/Kconfig"
@@ -181,5 +179,7 @@ source "drivers/mcb/Kconfig"
 source "drivers/ras/Kconfig"
 
 source "drivers/thunderbolt/Kconfig"
+
+source "drivers/android/Kconfig"
 
 endmenu

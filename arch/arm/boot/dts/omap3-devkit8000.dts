@@ -48,7 +48,6 @@
 		ti,model = "devkit8000";
 
 		ti,mcbsp = <&mcbsp2>;
-		ti,codec = <&twl_audio>;
 		ti,audio-routing =
 			"Ext Spk", "PREDRIVEL",
 			"Ext Spk", "PREDRIVER",
@@ -106,11 +105,13 @@
 };
 
 &gpmc {
-	ranges = <0 0 0x30000000 0x04>;       /* CS0: NAND */
+	ranges = <0 0 0x30000000 0x1000000>;       /* CS0: 16MB for NAND */
 
 	nand@0,0 {
-		reg = <0 0 0>; /* CS0, offset 0 */
+		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
 		nand-bus-width = <16>;
+		gpmc,device-width = <2>;
+		ti,nand-ecc-opt = "sw";
 
 		gpmc,sync-clk-ps = <0>;
 		gpmc,cs-on-ns = <0>;

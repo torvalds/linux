@@ -151,10 +151,15 @@ static void report_ccb_status(struct device *jrdev, const u32 status,
 	else
 		snprintf(err_err_code, sizeof(err_err_code), "%02x", err_id);
 
-	dev_err(jrdev, "%08x: %s: %s %d: %s%s: %s%s\n",
-		status, error, idx_str, idx,
-		cha_str, cha_err_code,
-		err_str, err_err_code);
+	/*
+	 * CCB ICV check failures are part of normal operation life;
+	 * we leave the upper layers to do what they want with them.
+	 */
+	if (err_id != JRSTA_CCBERR_ERRID_ICVCHK)
+		dev_err(jrdev, "%08x: %s: %s %d: %s%s: %s%s\n",
+			status, error, idx_str, idx,
+			cha_str, cha_err_code,
+			err_str, err_err_code);
 }
 
 static void report_jump_status(struct device *jrdev, const u32 status,
@@ -213,27 +218,36 @@ void caam_jr_strstatus(struct device *jrdev, u32 status)
 		void (*report_ssed)(struct device *jrdev, const u32 status,
 				    const char *error);
 		const char *error;
-	} status_src[] = {
+	} status_src[16] = {
 		{ NULL, "No error" },
 		{ NULL, NULL },
 		{ report_ccb_status, "CCB" },
 		{ report_jump_status, "Jump" },
 		{ report_deco_status, "DECO" },
-		{ NULL, NULL },
+		{ NULL, "Queue Manager Interface" },
 		{ report_jr_status, "Job Ring" },
 		{ report_cond_code_status, "Condition Code" },
+		{ NULL, NULL },
+		{ NULL, NULL },
+		{ NULL, NULL },
+		{ NULL, NULL },
+		{ NULL, NULL },
+		{ NULL, NULL },
+		{ NULL, NULL },
+		{ NULL, NULL },
 	};
 	u32 ssrc = status >> JRSTA_SSRC_SHIFT;
 	const char *error = status_src[ssrc].error;
 
 	/*
-	 * If there is no further error handling function, just
-	 * print the error code, error string and exit. Otherwise
-	 * call the handler function.
+	 * If there is an error handling function, call it to report the error.
+	 * Otherwise print the error source name.
 	 */
-	if (!status_src[ssrc].report_ssed)
-		dev_err(jrdev, "%08x: %s: \n", status, status_src[ssrc].error);
-	else
+	if (status_src[ssrc].report_ssed)
 		status_src[ssrc].report_ssed(jrdev, status, error);
+	else if (error)
+		dev_err(jrdev, "%d: %s\n", ssrc, error);
+	else
+		dev_err(jrdev, "%d: unknown error source\n", ssrc);
 }
 EXPORT_SYMBOL(caam_jr_strstatus);

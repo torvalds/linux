@@ -6,32 +6,31 @@ a fibre cable.
 
 Required properties:
 
-  - compatible : Compatible list, must contain "fsl,imx35-spdif".
+  - compatible		: Compatible list, must contain "fsl,imx35-spdif".
 
-  - reg : Offset and length of the register set for the device.
+  - reg			: Offset and length of the register set for the device.
 
-  - interrupts : Contains the spdif interrupt.
+  - interrupts		: Contains the spdif interrupt.
 
-  - dmas : Generic dma devicetree binding as described in
-  Documentation/devicetree/bindings/dma/dma.txt.
+  - dmas		: Generic dma devicetree binding as described in
+			  Documentation/devicetree/bindings/dma/dma.txt.
 
-  - dma-names : Two dmas have to be defined, "tx" and "rx".
+  - dma-names		: Two dmas have to be defined, "tx" and "rx".
 
-  - clocks : Contains an entry for each entry in clock-names.
+  - clocks		: Contains an entry for each entry in clock-names.
 
-  - clock-names : Includes the following entries:
-	"core"		The core clock of spdif controller
-	"rxtx<0-7>"	Clock source list for tx and rx clock.
-			This clock list should be identical to
-			the source list connecting to the spdif
-			clock mux in "SPDIF Transceiver Clock
-			Diagram" of SoC reference manual. It
-			can also be referred to TxClk_Source
-			bit of register SPDIF_STC.
+  - clock-names		: Includes the following entries:
+	"core"		  The core clock of spdif controller.
+	"rxtx<0-7>"	  Clock source list for tx and rx clock.
+			  This clock list should be identical to the source
+			  list connecting to the spdif clock mux in "SPDIF
+			  Transceiver Clock Diagram" of SoC reference manual.
+			  It can also be referred to TxClk_Source bit of
+			  register SPDIF_STC.
 
-   - big-endian : If this property is absent, the native endian mode will
-   be in use as default, or the big endian mode will be in use for all the
-   device registers.
+   - big-endian		: If this property is absent, the native endian mode
+			  will be in use as default, or the big endian mode
+			  will be in use for all the device registers.
 
 Example:
 

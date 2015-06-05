@@ -27,6 +27,14 @@
 #include <linux/regulator/consumer.h>
 #include "ahci.h"
 
+#define DRV_NAME "ahci-sunxi"
+
+/* Insmod parameters */
+static bool enable_pmp;
+module_param(enable_pmp, bool, 0);
+MODULE_PARM_DESC(enable_pmp,
+	"Enable support for sata port multipliers, only use if you use a pmp!");
+
 #define AHCI_BISTAFR	0x00a0
 #define AHCI_BISTCR	0x00a4
 #define AHCI_BISTFCTR	0x00a8
@@ -163,6 +171,10 @@ static const struct ata_port_info ahci_sunxi_port_info = {
 	.port_ops	= &ahci_platform_ops,
 };
 
+static struct scsi_host_template ahci_platform_sht = {
+	AHCI_SHT(DRV_NAME),
+};
+
 static int ahci_sunxi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -184,9 +196,18 @@ static int ahci_sunxi_probe(struct platform_device *pdev)
 		goto disable_resources;
 
 	hpriv->flags = AHCI_HFLAG_32BIT_ONLY | AHCI_HFLAG_NO_MSI |
-		       AHCI_HFLAG_NO_PMP | AHCI_HFLAG_YES_NCQ;
+		       AHCI_HFLAG_YES_NCQ;
 
-	rc = ahci_platform_init_host(pdev, hpriv, &ahci_sunxi_port_info);
+	/*
+	 * The sunxi sata controller seems to be unable to successfully do a
+	 * soft reset if no pmp is attached, so disable pmp use unless
+	 * requested, otherwise directly attached disks do not work.
+	 */
+	if (!enable_pmp)
+		hpriv->flags |= AHCI_HFLAG_NO_PMP;
+
+	rc = ahci_platform_init_host(pdev, hpriv, &ahci_sunxi_port_info,
+				     &ahci_platform_sht);
 	if (rc)
 		goto disable_resources;
 
@@ -237,8 +258,7 @@ static struct platform_driver ahci_sunxi_driver = {
 	.probe = ahci_sunxi_probe,
 	.remove = ata_platform_remove_one,
 	.driver = {
-		.name = "ahci-sunxi",
-		.owner = THIS_MODULE,
+		.name = DRV_NAME,
 		.of_match_table = ahci_sunxi_of_match,
 		.pm = &ahci_sunxi_pm_ops,
 	},

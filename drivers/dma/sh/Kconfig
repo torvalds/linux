@@ -2,6 +2,10 @@
 # DMA engine configuration for sh
 #
 
+config RENESAS_DMA
+	bool
+	select DMA_ENGINE
+
 #
 # DMA Engine Helpers
 #
@@ -12,7 +16,7 @@ config SH_DMAE_BASE
 	depends on !SUPERH || SH_DMA
 	depends on !SH_DMA_API
 	default y
-	select DMA_ENGINE
+	select RENESAS_DMA
 	help
 	  Enable support for the Renesas SuperH DMA controllers.
 
@@ -47,8 +51,19 @@ config RCAR_HPB_DMAE
 	help
 	  Enable support for the Renesas R-Car series DMA controllers.
 
-config RCAR_AUDMAC_PP
-	tristate "Renesas R-Car Audio DMAC Peripheral Peripheral support"
-	depends on SH_DMAE_BASE
+config RCAR_DMAC
+	tristate "Renesas R-Car Gen2 DMA Controller"
+	depends on ARCH_SHMOBILE || COMPILE_TEST
+	select RENESAS_DMA
 	help
-	  Enable support for the Renesas R-Car Audio DMAC Peripheral Peripheral controllers.
+	  This driver supports the general purpose DMA controller found in the
+	  Renesas R-Car second generation SoCs.
+
+config RENESAS_USB_DMAC
+	tristate "Renesas USB-DMA Controller"
+	depends on ARCH_SHMOBILE || COMPILE_TEST
+	select RENESAS_DMA
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  This driver supports the USB-DMA controller found in the Renesas
+	  SoCs.

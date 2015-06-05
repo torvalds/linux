@@ -26,6 +26,7 @@
 #include <linux/vmalloc.h>
 #include <linux/font.h>
 #include <linux/mutex.h>
+#include <linux/platform_device.h>
 #include <linux/videodev2.h>
 #include <linux/v4l2-dv-timings.h>
 #include <media/videobuf2-vmalloc.h>
@@ -100,11 +101,9 @@ MODULE_PARM_DESC(ccs_out_mode, " output crop/compose/scale mode:\n"
 			   "\t\t    bit 0=crop, 1=compose, 2=scale,\n"
 			   "\t\t    -1=user-controlled (default)");
 
-static unsigned multiplanar[VIVID_MAX_DEVS];
+static unsigned multiplanar[VIVID_MAX_DEVS] = { [0 ... (VIVID_MAX_DEVS - 1)] = 1 };
 module_param_array(multiplanar, uint, NULL, 0444);
-MODULE_PARM_DESC(multiplanar, " 0 (default) is alternating single and multiplanar devices,\n"
-			      "\t\t    1 is single planar devices,\n"
-			      "\t\t    2 is multiplanar devices");
+MODULE_PARM_DESC(multiplanar, " 1 (default) creates a single planar device, 2 creates a multiplanar device.");
 
 /* Default: video + vbi-cap (raw and sliced) + radio rx + radio tx + sdr + vbi-out + vid-out */
 static unsigned node_types[VIVID_MAX_DEVS] = { [0 ... (VIVID_MAX_DEVS - 1)] = 0x1d3d };
@@ -196,20 +195,6 @@ static const u8 vivid_hdmi_edid[256] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xd7
 };
-
-void vivid_lock(struct vb2_queue *vq)
-{
-	struct vivid_dev *dev = vb2_get_drv_priv(vq);
-
-	mutex_lock(&dev->mutex);
-}
-
-void vivid_unlock(struct vb2_queue *vq)
-{
-	struct vivid_dev *dev = vb2_get_drv_priv(vq);
-
-	mutex_unlock(&dev->mutex);
-}
 
 static int vidioc_querycap(struct file *file, void  *priv,
 					struct v4l2_capability *cap)
@@ -588,7 +573,7 @@ static const struct v4l2_ioctl_ops vivid_ioctl_ops = {
 	.vidioc_querybuf		= vb2_ioctl_querybuf,
 	.vidioc_qbuf			= vb2_ioctl_qbuf,
 	.vidioc_dqbuf			= vb2_ioctl_dqbuf,
-/* Not yet	.vidioc_expbuf		= vb2_ioctl_expbuf,*/
+	.vidioc_expbuf			= vb2_ioctl_expbuf,
 	.vidioc_streamon		= vb2_ioctl_streamon,
 	.vidioc_streamoff		= vb2_ioctl_streamoff,
 
@@ -634,7 +619,23 @@ static const struct v4l2_ioctl_ops vivid_ioctl_ops = {
 	Initialization and module stuff
    ------------------------------------------------------------------*/
 
-static int __init vivid_create_instance(int inst)
+static void vivid_dev_release(struct v4l2_device *v4l2_dev)
+{
+	struct vivid_dev *dev = container_of(v4l2_dev, struct vivid_dev, v4l2_dev);
+
+	vivid_free_controls(dev);
+	v4l2_device_unregister(&dev->v4l2_dev);
+	vfree(dev->scaled_line);
+	vfree(dev->blended_line);
+	vfree(dev->edid);
+	vfree(dev->bitmap_cap);
+	vfree(dev->bitmap_out);
+	tpg_free(&dev->tpg);
+	kfree(dev->query_dv_timings_qmenu);
+	kfree(dev);
+}
+
+static int vivid_create_instance(struct platform_device *pdev, int inst)
 {
 	static const struct v4l2_dv_timings def_dv_timings =
 					V4L2_DV_BT_CEA_1280X720P60;
@@ -662,17 +663,17 @@ static int __init vivid_create_instance(int inst)
 	/* register v4l2_device */
 	snprintf(dev->v4l2_dev.name, sizeof(dev->v4l2_dev.name),
 			"%s-%03d", VIVID_MODULE_NAME, inst);
-	ret = v4l2_device_register(NULL, &dev->v4l2_dev);
-	if (ret)
-		goto free_dev;
+	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
+	if (ret) {
+		kfree(dev);
+		return ret;
+	}
+	dev->v4l2_dev.release = vivid_dev_release;
 
 	/* start detecting feature set */
 
 	/* do we use single- or multi-planar? */
-	if (multiplanar[inst] == 0)
-		dev->multiplanar = inst & 1;
-	else
-		dev->multiplanar = multiplanar[inst] > 1;
+	dev->multiplanar = multiplanar[inst] > 1;
 	v4l2_info(&dev->v4l2_dev, "using %splanar format API\n",
 			dev->multiplanar ? "multi" : "single ");
 
@@ -1023,6 +1024,7 @@ static int __init vivid_create_instance(int inst)
 		q->mem_ops = &vb2_vmalloc_memops;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 2;
+		q->lock = &dev->mutex;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1041,6 +1043,7 @@ static int __init vivid_create_instance(int inst)
 		q->mem_ops = &vb2_vmalloc_memops;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 2;
+		q->lock = &dev->mutex;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1059,6 +1062,7 @@ static int __init vivid_create_instance(int inst)
 		q->mem_ops = &vb2_vmalloc_memops;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 2;
+		q->lock = &dev->mutex;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1077,6 +1081,7 @@ static int __init vivid_create_instance(int inst)
 		q->mem_ops = &vb2_vmalloc_memops;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 2;
+		q->lock = &dev->mutex;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1094,6 +1099,7 @@ static int __init vivid_create_instance(int inst)
 		q->mem_ops = &vb2_vmalloc_memops;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 8;
+		q->lock = &dev->mutex;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1270,15 +1276,8 @@ unreg_dev:
 	video_unregister_device(&dev->vbi_cap_dev);
 	video_unregister_device(&dev->vid_out_dev);
 	video_unregister_device(&dev->vid_cap_dev);
-	vivid_free_controls(dev);
-	v4l2_device_unregister(&dev->v4l2_dev);
 free_dev:
-	vfree(dev->scaled_line);
-	vfree(dev->blended_line);
-	vfree(dev->edid);
-	tpg_free(&dev->tpg);
-	kfree(dev->query_dv_timings_qmenu);
-	kfree(dev);
+	v4l2_device_put(&dev->v4l2_dev);
 	return ret;
 }
 
@@ -1288,7 +1287,7 @@ free_dev:
    will succeed. This is limited to the maximum number of devices that
    videodev supports, which is equal to VIDEO_NUM_DEVICES.
  */
-static int __init vivid_init(void)
+static int vivid_probe(struct platform_device *pdev)
 {
 	const struct font_desc *font = find_font("VGA8x16");
 	int ret = 0, i;
@@ -1303,7 +1302,7 @@ static int __init vivid_init(void)
 	n_devs = clamp_t(unsigned, n_devs, 1, VIVID_MAX_DEVS);
 
 	for (i = 0; i < n_devs; i++) {
-		ret = vivid_create_instance(i);
+		ret = vivid_create_instance(pdev, i);
 		if (ret) {
 			/* If some instantiations succeeded, keep driver */
 			if (i)
@@ -1323,7 +1322,7 @@ static int __init vivid_init(void)
 	return ret;
 }
 
-static void __exit vivid_exit(void)
+static int vivid_remove(struct platform_device *pdev)
 {
 	struct vivid_dev *dev;
 	unsigned i;
@@ -1372,18 +1371,48 @@ static void __exit vivid_exit(void)
 			unregister_framebuffer(&dev->fb_info);
 			vivid_fb_release_buffers(dev);
 		}
-		v4l2_device_unregister(&dev->v4l2_dev);
-		vivid_free_controls(dev);
-		vfree(dev->scaled_line);
-		vfree(dev->blended_line);
-		vfree(dev->edid);
-		vfree(dev->bitmap_cap);
-		vfree(dev->bitmap_out);
-		tpg_free(&dev->tpg);
-		kfree(dev->query_dv_timings_qmenu);
-		kfree(dev);
+		v4l2_device_put(&dev->v4l2_dev);
 		vivid_devs[i] = NULL;
 	}
+	return 0;
+}
+
+static void vivid_pdev_release(struct device *dev)
+{
+}
+
+static struct platform_device vivid_pdev = {
+	.name		= "vivid",
+	.dev.release	= vivid_pdev_release,
+};
+
+static struct platform_driver vivid_pdrv = {
+	.probe		= vivid_probe,
+	.remove		= vivid_remove,
+	.driver		= {
+		.name	= "vivid",
+	},
+};
+
+static int __init vivid_init(void)
+{
+	int ret;
+
+	ret = platform_device_register(&vivid_pdev);
+	if (ret)
+		return ret;
+
+	ret = platform_driver_register(&vivid_pdrv);
+	if (ret)
+		platform_device_unregister(&vivid_pdev);
+
+	return ret;
+}
+
+static void __exit vivid_exit(void)
+{
+	platform_driver_unregister(&vivid_pdrv);
+	platform_device_unregister(&vivid_pdev);
 }
 
 module_init(vivid_init);

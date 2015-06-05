@@ -19,6 +19,7 @@
 #include <linux/types.h>
 #include <linux/if_ether.h>
 #include <asm/byteorder.h>
+#include <asm/unaligned.h>
 
 /*
  * DS bit usage
@@ -1016,6 +1017,15 @@ struct ieee80211_mmie {
 	u8 mic[8];
 } __packed;
 
+/* Management MIC information element (IEEE 802.11w) for GMAC and CMAC-256 */
+struct ieee80211_mmie_16 {
+	u8 element_id;
+	u8 length;
+	__le16 key_id;
+	u8 sequence_number[6];
+	u8 mic[16];
+} __packed;
+
 struct ieee80211_vendor_ie {
 	u8 element_id;
 	u8 len;
@@ -1066,6 +1076,12 @@ struct ieee80211_pspoll {
 
 /* TDLS */
 
+/* Channel switch timing */
+struct ieee80211_ch_switch_timing {
+	__le16 switch_time;
+	__le16 switch_timeout;
+} __packed;
+
 /* Link-id information element */
 struct ieee80211_tdls_lnkie {
 	u8 ie_type; /* Link Identifier IE */
@@ -1107,6 +1123,15 @@ struct ieee80211_tdls_data {
 			u8 dialog_token;
 			u8 variable[0];
 		} __packed discover_req;
+		struct {
+			u8 target_channel;
+			u8 oper_class;
+			u8 variable[0];
+		} __packed chan_switch_req;
+		struct {
+			__le16 status_code;
+			u8 variable[0];
+		} __packed chan_switch_resp;
 	} u;
 } __packed;
 
@@ -1274,7 +1299,7 @@ struct ieee80211_ht_cap {
 #define		IEEE80211_HT_AMPDU_PARM_DENSITY_SHIFT	2
 
 /*
- * Maximum length of AMPDU that the STA can receive.
+ * Maximum length of AMPDU that the STA can receive in high-throughput (HT).
  * Length = 2 ^ (13 + max_ampdu_length_exp) - 1 (octets)
  */
 enum ieee80211_max_ampdu_length_exp {
@@ -1282,6 +1307,21 @@ enum ieee80211_max_ampdu_length_exp {
 	IEEE80211_HT_MAX_AMPDU_16K = 1,
 	IEEE80211_HT_MAX_AMPDU_32K = 2,
 	IEEE80211_HT_MAX_AMPDU_64K = 3
+};
+
+/*
+ * Maximum length of AMPDU that the STA can receive in VHT.
+ * Length = 2 ^ (13 + max_ampdu_length_exp) - 1 (octets)
+ */
+enum ieee80211_vht_max_ampdu_length_exp {
+	IEEE80211_VHT_MAX_AMPDU_8K = 0,
+	IEEE80211_VHT_MAX_AMPDU_16K = 1,
+	IEEE80211_VHT_MAX_AMPDU_32K = 2,
+	IEEE80211_VHT_MAX_AMPDU_64K = 3,
+	IEEE80211_VHT_MAX_AMPDU_128K = 4,
+	IEEE80211_VHT_MAX_AMPDU_256K = 5,
+	IEEE80211_VHT_MAX_AMPDU_512K = 6,
+	IEEE80211_VHT_MAX_AMPDU_1024K = 7
 };
 
 #define IEEE80211_HT_MAX_AMPDU_FACTOR 13
@@ -1963,9 +2003,15 @@ enum ieee80211_key_len {
 	WLAN_KEY_LEN_WEP40 = 5,
 	WLAN_KEY_LEN_WEP104 = 13,
 	WLAN_KEY_LEN_CCMP = 16,
+	WLAN_KEY_LEN_CCMP_256 = 32,
 	WLAN_KEY_LEN_TKIP = 32,
 	WLAN_KEY_LEN_AES_CMAC = 16,
 	WLAN_KEY_LEN_SMS4 = 32,
+	WLAN_KEY_LEN_GCMP = 16,
+	WLAN_KEY_LEN_GCMP_256 = 32,
+	WLAN_KEY_LEN_BIP_CMAC_256 = 32,
+	WLAN_KEY_LEN_BIP_GMAC_128 = 16,
+	WLAN_KEY_LEN_BIP_GMAC_256 = 32,
 };
 
 #define IEEE80211_WEP_IV_LEN		4
@@ -1973,9 +2019,16 @@ enum ieee80211_key_len {
 #define IEEE80211_CCMP_HDR_LEN		8
 #define IEEE80211_CCMP_MIC_LEN		8
 #define IEEE80211_CCMP_PN_LEN		6
+#define IEEE80211_CCMP_256_HDR_LEN	8
+#define IEEE80211_CCMP_256_MIC_LEN	16
+#define IEEE80211_CCMP_256_PN_LEN	6
 #define IEEE80211_TKIP_IV_LEN		8
 #define IEEE80211_TKIP_ICV_LEN		4
 #define IEEE80211_CMAC_PN_LEN		6
+#define IEEE80211_GMAC_PN_LEN		6
+#define IEEE80211_GCMP_HDR_LEN		8
+#define IEEE80211_GCMP_MIC_LEN		16
+#define IEEE80211_GCMP_PN_LEN		6
 
 /* Public action codes */
 enum ieee80211_pub_actioncode {
@@ -1998,6 +2051,16 @@ enum ieee80211_tdls_actioncode {
 	WLAN_TDLS_DISCOVERY_REQUEST = 10,
 };
 
+/* Extended Channel Switching capability to be set in the 1st byte of
+ * the @WLAN_EID_EXT_CAPABILITY information element
+ */
+#define WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING	BIT(2)
+
+/* TDLS capabilities in the the 4th byte of @WLAN_EID_EXT_CAPABILITY */
+#define WLAN_EXT_CAPA4_TDLS_BUFFER_STA		BIT(4)
+#define WLAN_EXT_CAPA4_TDLS_PEER_PSM		BIT(5)
+#define WLAN_EXT_CAPA4_TDLS_CHAN_SWITCH		BIT(6)
+
 /* Interworking capabilities are set in 7th bit of 4th byte of the
  * @WLAN_EID_EXT_CAPABILITY information element
  */
@@ -2009,12 +2072,16 @@ enum ieee80211_tdls_actioncode {
  */
 #define WLAN_EXT_CAPA5_TDLS_ENABLED	BIT(5)
 #define WLAN_EXT_CAPA5_TDLS_PROHIBITED	BIT(6)
+#define WLAN_EXT_CAPA5_TDLS_CH_SW_PROHIBITED	BIT(7)
 
 #define WLAN_EXT_CAPA8_OPMODE_NOTIF	BIT(6)
 #define WLAN_EXT_CAPA8_TDLS_WIDE_BW_ENABLED	BIT(7)
 
 /* TDLS specific payload type in the LLC/SNAP header */
 #define WLAN_TDLS_SNAP_RFTYPE	0x2
+
+/* BSS Coex IE information field bits */
+#define WLAN_BSS_COEX_INFORMATION_REQUEST	BIT(0)
 
 /**
  * enum - mesh synchronization method identifier
@@ -2185,6 +2252,11 @@ enum ieee80211_sa_query_action {
 #define WLAN_CIPHER_SUITE_WEP104	0x000FAC05
 #define WLAN_CIPHER_SUITE_AES_CMAC	0x000FAC06
 #define WLAN_CIPHER_SUITE_GCMP		0x000FAC08
+#define WLAN_CIPHER_SUITE_GCMP_256	0x000FAC09
+#define WLAN_CIPHER_SUITE_CCMP_256	0x000FAC0A
+#define WLAN_CIPHER_SUITE_BIP_GMAC_128	0x000FAC0B
+#define WLAN_CIPHER_SUITE_BIP_GMAC_256	0x000FAC0C
+#define WLAN_CIPHER_SUITE_BIP_CMAC_256	0x000FAC0D
 
 #define WLAN_CIPHER_SUITE_SMS4		0x00147201
 
@@ -2396,6 +2468,30 @@ static inline bool ieee80211_check_tim(const struct ieee80211_tim_ie *tim,
 	index -= indexn1;
 
 	return !!(tim->virtual_map[index] & mask);
+}
+
+/**
+ * ieee80211_get_tdls_action - get tdls packet action (or -1, if not tdls packet)
+ * @skb: the skb containing the frame, length will not be checked
+ * @hdr_size: the size of the ieee80211_hdr that starts at skb->data
+ *
+ * This function assumes the frame is a data frame, and that the network header
+ * is in the correct place.
+ */
+static inline int ieee80211_get_tdls_action(struct sk_buff *skb, u32 hdr_size)
+{
+	if (!skb_is_nonlinear(skb) &&
+	    skb->len > (skb_network_offset(skb) + 2)) {
+		/* Point to where the indication of TDLS should start */
+		const u8 *tdls_data = skb_network_header(skb) - 2;
+
+		if (get_unaligned_be16(tdls_data) == ETH_P_TDLS &&
+		    tdls_data[2] == WLAN_TDLS_SNAP_RFTYPE &&
+		    tdls_data[3] == WLAN_CATEGORY_TDLS)
+			return tdls_data[4];
+	}
+
+	return -1;
 }
 
 /* convert time units */

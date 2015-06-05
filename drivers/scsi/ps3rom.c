@@ -220,10 +220,6 @@ static int ps3rom_queuecommand_lck(struct scsi_cmnd *cmd,
 	unsigned char opcode;
 	int res;
 
-#ifdef DEBUG
-	scsi_print_command(cmd);
-#endif
-
 	priv->curr_cmd = cmd;
 	cmd->scsi_done = done;
 
@@ -387,6 +383,7 @@ static int ps3rom_probe(struct ps3_system_bus_device *_dev)
 	if (!host) {
 		dev_err(&dev->sbd.core, "%s:%u: scsi_host_alloc failed\n",
 			__func__, __LINE__);
+		error = -ENOMEM;
 		goto fail_teardown;
 	}
 

@@ -21,18 +21,6 @@
 /* include <rtl8192c_hal.h> */
 #include <rtl8723a_hal.h>
 
-static void do_queue_select(struct rtw_adapter	*padapter, struct pkt_attrib *pattrib)
-{
-	u8 qsel;
-
-	qsel = pattrib->priority;
-	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
-		 ("### do_queue_select priority =%d , qsel = %d\n",
-		  pattrib->priority, qsel));
-
-	pattrib->qsel = qsel;
-}
-
 static int urb_zero_packet_chk(struct rtw_adapter *padapter, int sz)
 {
 	int blnSetTxDescOffset;
@@ -54,7 +42,7 @@ static int urb_zero_packet_chk(struct rtw_adapter *padapter, int sz)
 
 static void rtl8192cu_cal_txdesc_chksum(struct tx_desc	*ptxdesc)
 {
-		u16	*usPtr = (u16 *)ptxdesc;
+		__le16	*usPtr = (__le16 *)ptxdesc;
 		u32 count = 16;		/*  (32 bytes / 2 bytes per XOR) => 16 times */
 		u32 index;
 		u16 checksum = 0;
@@ -91,7 +79,7 @@ static void fill_txdesc_sectype(struct pkt_attrib *pattrib, struct tx_desc *ptxd
 	}
 }
 
-static void fill_txdesc_vcs(struct pkt_attrib *pattrib, u32 *pdw)
+static void fill_txdesc_vcs(struct pkt_attrib *pattrib, __le32 *pdw)
 {
 	/* DBG_8723A("cvs_mode =%d\n", pattrib->vcs_mode); */
 
@@ -126,7 +114,7 @@ static void fill_txdesc_vcs(struct pkt_attrib *pattrib, u32 *pdw)
 	}
 }
 
-static void fill_txdesc_phy(struct pkt_attrib *pattrib, u32 *pdw)
+static void fill_txdesc_phy(struct pkt_attrib *pattrib, __le32 *pdw)
 {
 	if (pattrib->ht_en) {
 		*pdw |= (pattrib->bwmode&HT_CHANNEL_WIDTH_40) ? cpu_to_le32(BIT(25)) : 0;
@@ -142,7 +130,7 @@ static void fill_txdesc_phy(struct pkt_attrib *pattrib, u32 *pdw)
 	}
 }
 
-static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bagg_pkt)
+static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz)
 {
 	int	pull = 0;
 	uint	qsel;
@@ -155,7 +143,7 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
 	int	bmcst = is_multicast_ether_addr(pattrib->ra);
 
-	if ((!bagg_pkt) && (urb_zero_packet_chk(padapter, sz) == 0)) {
+	if (urb_zero_packet_chk(padapter, sz) == 0) {
 		ptxdesc = (struct tx_desc *)(pmem+PACKET_OFFSET_SZ);
 		pull = 1;
 		pxmitframe->pkt_offset--;
@@ -163,7 +151,7 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 
 	memset(ptxdesc, 0, sizeof(struct tx_desc));
 
-	if ((pxmitframe->frame_tag&0x0f) == DATA_FRAMETAG) {
+	if (pxmitframe->frame_tag == DATA_FRAMETAG) {
 		/* offset 4 */
 		ptxdesc->txdw1 |= cpu_to_le32(pattrib->mac_id&0x1f);
 
@@ -215,7 +203,7 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 
 			ptxdesc->txdw5 |= cpu_to_le32(MRateToHwRate23a(pmlmeext->tx_rate));
 		}
-	} else if ((pxmitframe->frame_tag&0x0f) == MGNT_FRAMETAG) {
+	} else if (pxmitframe->frame_tag == MGNT_FRAMETAG) {
 		/* offset 4 */
 		ptxdesc->txdw1 |= cpu_to_le32(pattrib->mac_id&0x1f);
 
@@ -240,10 +228,11 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 		ptxdesc->txdw5 |= cpu_to_le32(0x00180000);/* retry limit = 6 */
 
 		ptxdesc->txdw5 |= cpu_to_le32(MRateToHwRate23a(pmlmeext->tx_rate));
-	} else if ((pxmitframe->frame_tag&0x0f) == TXAGG_FRAMETAG) {
+	} else if (pxmitframe->frame_tag == TXAGG_FRAMETAG) {
 		DBG_8723A("pxmitframe->frame_tag == TXAGG_FRAMETAG\n");
 	} else {
-		DBG_8723A("pxmitframe->frame_tag = %d\n", pxmitframe->frame_tag);
+		DBG_8723A("pxmitframe->frame_tag = %d\n",
+			  pxmitframe->frame_tag);
 
 		/* offset 4 */
 		ptxdesc->txdw1 |= cpu_to_le32((4)&0x1f);/* CAM_ID(MAC_ID) */
@@ -283,7 +272,8 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 	if (bmcst)
 		ptxdesc->txdw0 |= cpu_to_le32(BIT(24));
 
-	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, ("offset0-txdesc = 0x%x\n", ptxdesc->txdw0));
+	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
+		 "offset0-txdesc = 0x%x\n", ptxdesc->txdw0);
 
 	/* offset 4 */
 	/*  pkt_offset, unit:8 bytes padding */
@@ -306,15 +296,15 @@ static int rtw_dump_xframe(struct rtw_adapter *padapter,
 	struct pkt_attrib *pattrib = &pxmitframe->attrib;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
-	if ((pxmitframe->frame_tag == DATA_FRAMETAG) &&
-	    (pxmitframe->attrib.ether_type != 0x0806) &&
-	    (pxmitframe->attrib.ether_type != 0x888e) &&
-	    (pxmitframe->attrib.dhcp_pkt != 1))
+	if (pxmitframe->frame_tag == DATA_FRAMETAG &&
+	    pxmitframe->attrib.ether_type != ETH_P_ARP &&
+	    pxmitframe->attrib.ether_type != ETH_P_PAE &&
+	    pxmitframe->attrib.dhcp_pkt != 1)
 		rtw_issue_addbareq_cmd23a(padapter, pxmitframe);
 
 	mem_addr = pxmitframe->buf_addr;
 
-	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, ("rtw_dump_xframe()\n"));
+	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, "rtw_dump_xframe()\n");
 
 	for (t = 0; t < pattrib->nr_frags; t++) {
 		if (inner_ret != _SUCCESS && ret == _SUCCESS)
@@ -322,7 +312,7 @@ static int rtw_dump_xframe(struct rtw_adapter *padapter,
 
 		if (t != (pattrib->nr_frags - 1)) {
 			RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_,
-				 ("pattrib->nr_frags =%d\n", pattrib->nr_frags));
+				 "pattrib->nr_frags =%d\n", pattrib->nr_frags);
 
 			sz = pxmitpriv->frag_len;
 			sz = sz - 4 - pattrib->icv_len;
@@ -331,7 +321,7 @@ static int rtw_dump_xframe(struct rtw_adapter *padapter,
 			sz = pattrib->last_txcmdsz;
 		}
 
-		pull = update_txdesc(pxmitframe, mem_addr, sz, false);
+		pull = update_txdesc(pxmitframe, mem_addr, sz);
 
 		if (pull) {
 			mem_addr += PACKET_OFFSET_SZ; /* pull txdesc head */
@@ -349,7 +339,7 @@ static int rtw_dump_xframe(struct rtw_adapter *padapter,
 		rtw_count_tx_stats23a(padapter, pxmitframe, sz);
 
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
-			 ("rtw_write_port, w_sz =%d\n", w_sz));
+			 "rtw_write_port, w_sz =%d\n", w_sz);
 
 		mem_addr += w_sz;
 
@@ -376,7 +366,7 @@ bool rtl8723au_xmitframe_complete(struct rtw_adapter *padapter,
 	phwxmits = pxmitpriv->hwxmits;
 	hwentry = pxmitpriv->hwxmit_entry;
 
-	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, ("xmitframe_complete()\n"));
+	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, "xmitframe_complete()\n");
 
 	if (pxmitbuf == NULL) {
 		pxmitbuf = rtw_alloc_xmitbuf23a(pxmitpriv);
@@ -392,14 +382,15 @@ bool rtl8723au_xmitframe_complete(struct rtw_adapter *padapter,
 
 		pxmitbuf->priv_data = pxmitframe;
 
-		if ((pxmitframe->frame_tag&0x0f) == DATA_FRAMETAG) {
+		if (pxmitframe->frame_tag == DATA_FRAMETAG) {
 			if (pxmitframe->attrib.priority <= 15)/* TID0~15 */
 				res = rtw_xmitframe_coalesce23a(padapter, pxmitframe->pkt, pxmitframe);
 
 			rtw_os_xmit_complete23a(padapter, pxmitframe);/* always return ndis_packet after rtw_xmitframe_coalesce23a */
 		}
 
-		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, ("xmitframe_complete(): rtw_dump_xframe\n"));
+		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
+			 "xmitframe_complete(): rtw_dump_xframe\n");
 
 		if (res == _SUCCESS) {
 			rtw_dump_xframe(padapter, pxmitframe);
@@ -440,7 +431,7 @@ bool rtl8723au_hal_xmit(struct rtw_adapter *padapter,
 	struct pkt_attrib *pattrib = &pxmitframe->attrib;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-	do_queue_select(padapter, pattrib);
+	pattrib->qsel = pattrib->priority;
 	spin_lock_bh(&pxmitpriv->lock);
 
 #ifdef CONFIG_8723AU_AP_MODE
@@ -492,7 +483,7 @@ enqueue:
 
 	if (res != _SUCCESS) {
 		RT_TRACE(_module_xmit_osdep_c_, _drv_err_,
-			 ("pre_xmitframe: enqueue xmitframe fail\n"));
+			 "pre_xmitframe: enqueue xmitframe fail\n");
 		rtw_free_xmitframe23a(pxmitpriv, pxmitframe);
 
 		/*  Trick, make the statistics correct */

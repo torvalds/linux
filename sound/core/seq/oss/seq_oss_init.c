@@ -188,10 +188,8 @@ snd_seq_oss_open(struct file *file, int level)
 	struct seq_oss_devinfo *dp;
 
 	dp = kzalloc(sizeof(*dp), GFP_KERNEL);
-	if (!dp) {
-		pr_err("ALSA: seq_oss: can't malloc device info\n");
+	if (!dp)
 		return -ENOMEM;
-	}
 
 	dp->cseq = system_client;
 	dp->port = -1;
@@ -403,14 +401,11 @@ free_devinfo(void *private)
 {
 	struct seq_oss_devinfo *dp = (struct seq_oss_devinfo *)private;
 
-	if (dp->timer)
-		snd_seq_oss_timer_delete(dp->timer);
+	snd_seq_oss_timer_delete(dp->timer);
 		
-	if (dp->writeq)
-		snd_seq_oss_writeq_delete(dp->writeq);
+	snd_seq_oss_writeq_delete(dp->writeq);
 
-	if (dp->readq)
-		snd_seq_oss_readq_delete(dp->readq);
+	snd_seq_oss_readq_delete(dp->readq);
 	
 	kfree(dp);
 }

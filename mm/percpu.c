@@ -1310,7 +1310,7 @@ bool is_kernel_percpu_address(unsigned long addr)
  * and, from the second one, the backing allocator (currently either vm or
  * km) provides translation.
  *
- * The addr can be tranlated simply without checking if it falls into the
+ * The addr can be translated simply without checking if it falls into the
  * first chunk. But the current code reflects better how percpu allocator
  * actually works, and the verification can discover both bugs in percpu
  * allocator itself and per_cpu_ptr_to_phys() callers. So we keep current
@@ -1528,7 +1528,6 @@ static void pcpu_dump_alloc_info(const char *lvl,
 int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 				  void *base_addr)
 {
-	static char cpus_buf[4096] __initdata;
 	static int smap[PERCPU_DYNAMIC_EARLY_SLOTS] __initdata;
 	static int dmap[PERCPU_DYNAMIC_EARLY_SLOTS] __initdata;
 	size_t dyn_size = ai->dyn_size;
@@ -1541,12 +1540,11 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	int *unit_map;
 	int group, unit, i;
 
-	cpumask_scnprintf(cpus_buf, sizeof(cpus_buf), cpu_possible_mask);
-
 #define PCPU_SETUP_BUG_ON(cond)	do {					\
 	if (unlikely(cond)) {						\
 		pr_emerg("PERCPU: failed to initialize, %s", #cond);	\
-		pr_emerg("PERCPU: cpu_possible_mask=%s\n", cpus_buf);	\
+		pr_emerg("PERCPU: cpu_possible_mask=%*pb\n",		\
+			 cpumask_pr_args(cpu_possible_mask));		\
 		pcpu_dump_alloc_info(KERN_EMERG, ai);			\
 		BUG();							\
 	}								\
@@ -1591,7 +1589,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 			if (cpu == NR_CPUS)
 				continue;
 
-			PCPU_SETUP_BUG_ON(cpu > nr_cpu_ids);
+			PCPU_SETUP_BUG_ON(cpu >= nr_cpu_ids);
 			PCPU_SETUP_BUG_ON(!cpu_possible(cpu));
 			PCPU_SETUP_BUG_ON(unit_map[cpu] != UINT_MAX);
 
@@ -1764,7 +1762,7 @@ early_param("percpu_alloc", percpu_alloc_setup);
  * and other parameters considering needed percpu size, allocation
  * atom size and distances between CPUs.
  *
- * Groups are always mutliples of atom size and CPUs which are of
+ * Groups are always multiples of atom size and CPUs which are of
  * LOCAL_DISTANCE both ways are grouped together and share space for
  * units in the same group.  The returned configuration is guaranteed
  * to have CPUs on different nodes on different groups and >=75% usage

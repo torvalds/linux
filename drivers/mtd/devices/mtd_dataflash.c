@@ -149,7 +149,7 @@ static int dataflash_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
 	struct dataflash	*priv = mtd->priv;
 	struct spi_device	*spi = priv->spi;
-	struct spi_transfer	x = { .tx_dma = 0, };
+	struct spi_transfer	x = { };
 	struct spi_message	msg;
 	unsigned		blocksize = priv->page_size << 3;
 	uint8_t			*command;
@@ -235,7 +235,7 @@ static int dataflash_read(struct mtd_info *mtd, loff_t from, size_t len,
 			       size_t *retlen, u_char *buf)
 {
 	struct dataflash	*priv = mtd->priv;
-	struct spi_transfer	x[2] = { { .tx_dma = 0, }, };
+	struct spi_transfer	x[2] = { };
 	struct spi_message	msg;
 	unsigned int		addr;
 	uint8_t			*command;
@@ -301,7 +301,7 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 {
 	struct dataflash	*priv = mtd->priv;
 	struct spi_device	*spi = priv->spi;
-	struct spi_transfer	x[2] = { { .tx_dma = 0, }, };
+	struct spi_transfer	x[2] = { };
 	struct spi_message	msg;
 	unsigned int		pageaddr, addr, offset, writelen;
 	size_t			remaining = len;

@@ -37,6 +37,19 @@ void msm_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 	/* TODO msm_gem_vunmap() */
 }
 
+int msm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
+{
+	int ret;
+
+	mutex_lock(&obj->dev->struct_mutex);
+	ret = drm_gem_mmap_obj(obj, obj->size, vma);
+	mutex_unlock(&obj->dev->struct_mutex);
+	if (ret < 0)
+		return ret;
+
+	return msm_gem_mmap_obj(vma->vm_private_data, vma);
+}
+
 struct drm_gem_object *msm_gem_prime_import_sg_table(struct drm_device *dev,
 		struct dma_buf_attachment *attach, struct sg_table *sg)
 {

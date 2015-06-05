@@ -147,7 +147,7 @@ static unsigned int fan53555_get_mode(struct regulator_dev *rdev)
 		return REGULATOR_MODE_NORMAL;
 }
 
-static int slew_rates[] = {
+static const int slew_rates[] = {
 	64000,
 	32000,
 	16000,
@@ -296,13 +296,14 @@ static int fan53555_regulator_register(struct fan53555_device_info *di,
 	return PTR_ERR_OR_ZERO(di->rdev);
 }
 
-static struct regmap_config fan53555_regmap_config = {
+static const struct regmap_config fan53555_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 };
 
 static struct fan53555_platform_data *fan53555_parse_dt(struct device *dev,
-							struct device_node *np)
+					      struct device_node *np,
+					      const struct regulator_desc *desc)
 {
 	struct fan53555_platform_data *pdata;
 	int ret;
@@ -312,7 +313,7 @@ static struct fan53555_platform_data *fan53555_parse_dt(struct device *dev,
 	if (!pdata)
 		return NULL;
 
-	pdata->regulator = of_get_regulator_init_data(dev, np);
+	pdata->regulator = of_get_regulator_init_data(dev, np, desc);
 
 	ret = of_property_read_u32(np, "fcs,suspend-voltage-selector",
 				   &tmp);
@@ -347,19 +348,19 @@ static int fan53555_regulator_probe(struct i2c_client *client,
 	unsigned int val;
 	int ret;
 
+	di = devm_kzalloc(&client->dev, sizeof(struct fan53555_device_info),
+					GFP_KERNEL);
+	if (!di)
+		return -ENOMEM;
+
 	pdata = dev_get_platdata(&client->dev);
 	if (!pdata)
-		pdata = fan53555_parse_dt(&client->dev, np);
+		pdata = fan53555_parse_dt(&client->dev, np, &di->desc);
 
 	if (!pdata || !pdata->regulator) {
 		dev_err(&client->dev, "Platform data not found!\n");
 		return -ENODEV;
 	}
-
-	di = devm_kzalloc(&client->dev, sizeof(struct fan53555_device_info),
-					GFP_KERNEL);
-	if (!di)
-		return -ENOMEM;
 
 	di->regulator = pdata->regulator;
 	if (client->dev.of_node) {

@@ -696,7 +696,7 @@ static int stmmac_set_coalesce(struct net_device *dev,
 	    (ec->tx_max_coalesced_frames == 0))
 		return -EINVAL;
 
-	if ((ec->tx_coalesce_usecs > STMMAC_COAL_TX_TIMER) ||
+	if ((ec->tx_coalesce_usecs > STMMAC_MAX_COAL_TX_TICK) ||
 	    (ec->tx_max_coalesced_frames > STMMAC_TX_MAX_FRAMES))
 		return -EINVAL;
 

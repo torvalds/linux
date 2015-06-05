@@ -37,6 +37,7 @@
 #include <linux/memblock.h>
 #include <linux/hugetlb.h>
 #include <linux/memory.h>
+#include <linux/nmi.h>
 
 #include <asm/io.h>
 #include <asm/kdump.h>
@@ -660,13 +661,11 @@ static void __init emergency_stack_init(void)
 }
 
 /*
- * Called into from start_kernel this initializes bootmem, which is used
+ * Called into from start_kernel this initializes memblock, which is used
  * to manage page allocation until mem_init is called.
  */
 void __init setup_arch(char **cmdline_p)
 {
-	ppc64_boot_msg(0x12, "Setup Arch");
-
 	*cmdline_p = boot_command_line;
 
 	/*
@@ -691,9 +690,7 @@ void __init setup_arch(char **cmdline_p)
 	exc_lvl_early_init();
 	emergency_stack_init();
 
-	/* set up the bootmem stuff with available memory */
-	do_init_bootmem();
-	sparse_init();
+	initmem_init();
 
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
@@ -711,33 +708,6 @@ void __init setup_arch(char **cmdline_p)
 	if ((unsigned long)_stext & 0xffff)
 		panic("Kernelbase not 64K-aligned (0x%lx)!\n",
 		      (unsigned long)_stext);
-
-	ppc64_boot_msg(0x15, "Setup Done");
-}
-
-
-/* ToDo: do something useful if ppc_md is not yet setup. */
-#define PPC64_LINUX_FUNCTION 0x0f000000
-#define PPC64_IPL_MESSAGE 0xc0000000
-#define PPC64_TERM_MESSAGE 0xb0000000
-
-static void ppc64_do_msg(unsigned int src, const char *msg)
-{
-	if (ppc_md.progress) {
-		char buf[128];
-
-		sprintf(buf, "%08X\n", src);
-		ppc_md.progress(buf, 0);
-		snprintf(buf, 128, "%s", msg);
-		ppc_md.progress(buf, 0);
-	}
-}
-
-/* Print a boot progress message. */
-void ppc64_boot_msg(unsigned int src, const char *msg)
-{
-	ppc64_do_msg(PPC64_LINUX_FUNCTION|PPC64_IPL_MESSAGE|src, msg);
-	printk("[boot]%04x %s\n", src, msg);
 }
 
 #ifdef CONFIG_SMP
@@ -809,4 +779,23 @@ unsigned long memory_block_size_bytes(void)
 #if defined(CONFIG_PPC_INDIRECT_PIO) || defined(CONFIG_PPC_INDIRECT_MMIO)
 struct ppc_pci_io ppc_pci_io;
 EXPORT_SYMBOL(ppc_pci_io);
+#endif
+
+#ifdef CONFIG_HARDLOCKUP_DETECTOR
+u64 hw_nmi_get_sample_period(int watchdog_thresh)
+{
+	return ppc_proc_freq * watchdog_thresh;
+}
+
+/*
+ * The hardlockup detector breaks PMU event based branches and is likely
+ * to get false positives in KVM guests, so disable it by default.
+ */
+static int __init disable_hardlockup_detector(void)
+{
+	hardlockup_detector_disable();
+
+	return 0;
+}
+early_initcall(disable_hardlockup_detector);
 #endif

@@ -61,6 +61,8 @@ struct can_priv {
 	char tx_led_trig_name[CAN_LED_NAME_SZ];
 	struct led_trigger *rx_led_trig;
 	char rx_led_trig_name[CAN_LED_NAME_SZ];
+	struct led_trigger *rxtx_led_trig;
+	char rxtx_led_trig_name[CAN_LED_NAME_SZ];
 #endif
 };
 
@@ -99,6 +101,12 @@ inval_skb:
 	return 1;
 }
 
+static inline bool can_is_canfd_skb(const struct sk_buff *skb)
+{
+	/* the CAN specific type of skb is identified by its data length */
+	return skb->len == CANFD_MTU;
+}
+
 /* get data length from can_dlc with sanitized can_dlc */
 u8 can_dlc2len(u8 can_dlc);
 
@@ -120,6 +128,9 @@ void unregister_candev(struct net_device *dev);
 
 int can_restart_now(struct net_device *dev);
 void can_bus_off(struct net_device *dev);
+
+void can_change_state(struct net_device *dev, struct can_frame *cf,
+		      enum can_state tx_state, enum can_state rx_state);
 
 void can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
 		      unsigned int idx);

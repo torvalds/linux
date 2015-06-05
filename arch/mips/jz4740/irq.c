@@ -30,6 +30,9 @@
 #include <asm/irq_cpu.h>
 
 #include <asm/mach-jz4740/base.h>
+#include <asm/mach-jz4740/irq.h>
+
+#include "irq.h"
 
 static void __iomem *jz_intc_base;
 

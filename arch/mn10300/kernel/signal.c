@@ -40,7 +40,7 @@ static int restore_sigcontext(struct pt_regs *regs,
 	unsigned int err = 0;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_no_restart_syscall;
 
 	if (is_using_fpu(current))
 		fpu_kill_state(current);
@@ -202,20 +202,14 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 		       struct pt_regs *regs)
 {
 	struct sigframe __user *frame;
-	int rsig, sig = ksig->sig;
+	int sig = ksig->sig;
 
 	frame = get_sigframe(ksig, regs, sizeof(*frame));
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		return -EFAULT;
 
-	rsig = sig;
-	if (sig < 32 &&
-	    current_thread_info()->exec_domain &&
-	    current_thread_info()->exec_domain->signal_invmap)
-		rsig = current_thread_info()->exec_domain->signal_invmap[sig];
-
-	if (__put_user(rsig, &frame->sig) < 0 ||
+	if (__put_user(sig, &frame->sig) < 0 ||
 	    __put_user(&frame->sc, &frame->psc) < 0)
 		return -EFAULT;
 
@@ -270,20 +264,14 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 			  struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame;
-	int rsig, sig = ksig->sig;
+	int sig = ksig->sig;
 
 	frame = get_sigframe(ksig, regs, sizeof(*frame));
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		return -EFAULT;
 
-	rsig = sig;
-	if (sig < 32 &&
-	    current_thread_info()->exec_domain &&
-	    current_thread_info()->exec_domain->signal_invmap)
-		rsig = current_thread_info()->exec_domain->signal_invmap[sig];
-
-	if (__put_user(rsig, &frame->sig) ||
+	if (__put_user(sig, &frame->sig) ||
 	    __put_user(&frame->info, &frame->pinfo) ||
 	    __put_user(&frame->uc, &frame->puc) ||
 	    copy_siginfo_to_user(&frame->info, &ksig->info))

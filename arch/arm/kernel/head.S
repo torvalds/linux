@@ -138,9 +138,9 @@ ENTRY(stext)
 						@ mmu has been enabled
 	adr	lr, BSYM(1f)			@ return (PIC) address
 	mov	r8, r4				@ set TTBR1 to swapper_pg_dir
- ARM(	add	pc, r10, #PROCINFO_INITFUNC	)
- THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
- THUMB(	ret	r12				)
+	ldr	r12, [r10, #PROCINFO_INITFUNC]
+	add	r12, r12, r10
+	ret	r12
 1:	b	__enable_mmu
 ENDPROC(stext)
 	.ltorg
@@ -346,6 +346,12 @@ __turn_mmu_on_loc:
 
 #if defined(CONFIG_SMP)
 	.text
+ENTRY(secondary_startup_arm)
+	.arm
+ THUMB(	adr	r9, BSYM(1f)	)	@ Kernel is entered in ARM.
+ THUMB(	bx	r9		)	@ If this is a Thumb-2 kernel,
+ THUMB(	.thumb			)	@ switch to Thumb now.
+ THUMB(1:			)
 ENTRY(secondary_startup)
 	/*
 	 * Common entry point for secondary CPUs.
@@ -380,11 +386,12 @@ ENTRY(secondary_startup)
 	ldr	r8, [r7, lr]			@ get secondary_data.swapper_pg_dir
 	adr	lr, BSYM(__enable_mmu)		@ return address
 	mov	r13, r12			@ __secondary_switched address
- ARM(	add	pc, r10, #PROCINFO_INITFUNC	) @ initialise processor
-						  @ (return control reg)
- THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
- THUMB(	ret	r12				)
+	ldr	r12, [r10, #PROCINFO_INITFUNC]
+	add	r12, r12, r10			@ initialise processor
+						@ (return control reg)
+	ret	r12
 ENDPROC(secondary_startup)
+ENDPROC(secondary_startup_arm)
 
 	/*
 	 * r6  = &secondary_data
@@ -586,7 +593,7 @@ __fixup_pv_table:
 	add	r5, r5, r3	@ adjust table end address
 	add	r6, r6, r3	@ adjust __pv_phys_pfn_offset address
 	add	r7, r7, r3	@ adjust __pv_offset address
-	mov	r0, r8, lsr #12	@ convert to PFN
+	mov	r0, r8, lsr #PAGE_SHIFT	@ convert to PFN
 	str	r0, [r6]	@ save computed PHYS_OFFSET to __pv_phys_pfn_offset
 	strcc	ip, [r7, #HIGH_OFFSET]	@ save to __pv_offset high bits
 	mov	r6, r3, lsr #24	@ constant for add/sub instructions

@@ -101,17 +101,21 @@ static int tcp_orphan_retries(struct sock *sk, int alive)
 
 static void tcp_mtu_probing(struct inet_connection_sock *icsk, struct sock *sk)
 {
+	struct net *net = sock_net(sk);
+
 	/* Black hole detection */
-	if (sysctl_tcp_mtu_probing) {
+	if (net->ipv4.sysctl_tcp_mtu_probing) {
 		if (!icsk->icsk_mtup.enabled) {
 			icsk->icsk_mtup.enabled = 1;
+			icsk->icsk_mtup.probe_timestamp = tcp_time_stamp;
 			tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);
 		} else {
+			struct net *net = sock_net(sk);
 			struct tcp_sock *tp = tcp_sk(sk);
 			int mss;
 
 			mss = tcp_mtu_to_mss(sk, icsk->icsk_mtup.search_low) >> 1;
-			mss = min(sysctl_tcp_base_mss, mss);
+			mss = min(net->ipv4.sysctl_tcp_base_mss, mss);
 			mss = max(mss, 68 - tp->tcp_header_len);
 			icsk->icsk_mtup.search_low = tcp_mss_to_mtu(sk, mss);
 			tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);
@@ -163,7 +167,7 @@ static int tcp_write_timeout(struct sock *sk)
 		if (icsk->icsk_retransmits) {
 			dst_negative_advice(sk);
 			if (tp->syn_fastopen || tp->syn_data)
-				tcp_fastopen_cache_set(sk, 0, NULL, true);
+				tcp_fastopen_cache_set(sk, 0, NULL, true, 0);
 			if (tp->syn_data)
 				NET_INC_STATS_BH(sock_net(sk),
 						 LINUX_MIB_TCPFASTOPENACTIVEFAIL);
@@ -323,7 +327,7 @@ static void tcp_fastopen_synack_timer(struct sock *sk)
 	struct request_sock *req;
 
 	req = tcp_sk(sk)->fastopen_rsk;
-	req->rsk_ops->syn_ack_timeout(sk, req);
+	req->rsk_ops->syn_ack_timeout(req);
 
 	if (req->num_timeout >= max_retries) {
 		tcp_write_err(sk);
@@ -374,17 +378,19 @@ void tcp_retransmit_timer(struct sock *sk)
 		 */
 		struct inet_sock *inet = inet_sk(sk);
 		if (sk->sk_family == AF_INET) {
-			LIMIT_NETDEBUG(KERN_DEBUG pr_fmt("Peer %pI4:%u/%u unexpectedly shrunk window %u:%u (repaired)\n"),
-				       &inet->inet_daddr,
-				       ntohs(inet->inet_dport), inet->inet_num,
-				       tp->snd_una, tp->snd_nxt);
+			net_dbg_ratelimited("Peer %pI4:%u/%u unexpectedly shrunk window %u:%u (repaired)\n",
+					    &inet->inet_daddr,
+					    ntohs(inet->inet_dport),
+					    inet->inet_num,
+					    tp->snd_una, tp->snd_nxt);
 		}
 #if IS_ENABLED(CONFIG_IPV6)
 		else if (sk->sk_family == AF_INET6) {
-			LIMIT_NETDEBUG(KERN_DEBUG pr_fmt("Peer %pI6:%u/%u unexpectedly shrunk window %u:%u (repaired)\n"),
-				       &sk->sk_v6_daddr,
-				       ntohs(inet->inet_dport), inet->inet_num,
-				       tp->snd_una, tp->snd_nxt);
+			net_dbg_ratelimited("Peer %pI6:%u/%u unexpectedly shrunk window %u:%u (repaired)\n",
+					    &sk->sk_v6_daddr,
+					    ntohs(inet->inet_dport),
+					    inet->inet_num,
+					    tp->snd_una, tp->snd_nxt);
 		}
 #endif
 		if (tcp_time_stamp - tp->rcv_tstamp > TCP_RTO_MAX) {
@@ -533,19 +539,11 @@ static void tcp_write_timer(unsigned long data)
 	sock_put(sk);
 }
 
-/*
- *	Timer for listening sockets
- */
-
-static void tcp_synack_timer(struct sock *sk)
+void tcp_syn_ack_timeout(const struct request_sock *req)
 {
-	inet_csk_reqsk_queue_prune(sk, TCP_SYNQ_INTERVAL,
-				   TCP_TIMEOUT_INIT, TCP_RTO_MAX);
-}
+	struct net *net = read_pnet(&inet_rsk(req)->ireq_net);
 
-void tcp_syn_ack_timeout(struct sock *sk, struct request_sock *req)
-{
-	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPTIMEOUTS);
+	NET_INC_STATS_BH(net, LINUX_MIB_TCPTIMEOUTS);
 }
 EXPORT_SYMBOL(tcp_syn_ack_timeout);
 
@@ -577,7 +575,7 @@ static void tcp_keepalive_timer (unsigned long data)
 	}
 
 	if (sk->sk_state == TCP_LISTEN) {
-		tcp_synack_timer(sk);
+		pr_err("Hmm... keepalive on a LISTEN ???\n");
 		goto out;
 	}
 

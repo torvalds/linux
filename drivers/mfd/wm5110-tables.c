@@ -895,8 +895,16 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000548, 0x1818 },    /* R1352  - AIF2 Frame Ctrl 2 */
 	{ 0x00000549, 0x0000 },    /* R1353  - AIF2 Frame Ctrl 3 */
 	{ 0x0000054A, 0x0001 },    /* R1354  - AIF2 Frame Ctrl 4 */
+	{ 0x0000054B, 0x0002 },    /* R1355  - AIF2 Frame Ctrl 5 */
+	{ 0x0000054C, 0x0003 },    /* R1356  - AIF2 Frame Ctrl 6 */
+	{ 0x0000054D, 0x0004 },    /* R1357  - AIF2 Frame Ctrl 7 */
+	{ 0x0000054E, 0x0005 },    /* R1358  - AIF2 Frame Ctrl 8 */
 	{ 0x00000551, 0x0000 },    /* R1361  - AIF2 Frame Ctrl 11 */
 	{ 0x00000552, 0x0001 },    /* R1362  - AIF2 Frame Ctrl 12 */
+	{ 0x00000553, 0x0002 },    /* R1363  - AIF2 Frame Ctrl 13 */
+	{ 0x00000554, 0x0003 },    /* R1364  - AIF2 Frame Ctrl 14 */
+	{ 0x00000555, 0x0004 },    /* R1365  - AIF2 Frame Ctrl 15 */
+	{ 0x00000556, 0x0005 },    /* R1366  - AIF2 Frame Ctrl 16 */
 	{ 0x00000559, 0x0000 },    /* R1369  - AIF2 Tx Enables */
 	{ 0x0000055A, 0x0000 },    /* R1370  - AIF2 Rx Enables */
 	{ 0x00000580, 0x000C },    /* R1408  - AIF3 BCLK Ctrl */
@@ -1790,6 +1798,8 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_MIC_BIAS_CTRL_1:
 	case ARIZONA_MIC_BIAS_CTRL_2:
 	case ARIZONA_MIC_BIAS_CTRL_3:
+	case ARIZONA_HP_CTRL_1L:
+	case ARIZONA_HP_CTRL_1R:
 	case ARIZONA_ACCESSORY_DETECT_MODE_1:
 	case ARIZONA_HEADPHONE_DETECT_1:
 	case ARIZONA_HEADPHONE_DETECT_2:
@@ -1934,8 +1944,16 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_AIF2_FRAME_CTRL_2:
 	case ARIZONA_AIF2_FRAME_CTRL_3:
 	case ARIZONA_AIF2_FRAME_CTRL_4:
+	case ARIZONA_AIF2_FRAME_CTRL_5:
+	case ARIZONA_AIF2_FRAME_CTRL_6:
+	case ARIZONA_AIF2_FRAME_CTRL_7:
+	case ARIZONA_AIF2_FRAME_CTRL_8:
 	case ARIZONA_AIF2_FRAME_CTRL_11:
 	case ARIZONA_AIF2_FRAME_CTRL_12:
+	case ARIZONA_AIF2_FRAME_CTRL_13:
+	case ARIZONA_AIF2_FRAME_CTRL_14:
+	case ARIZONA_AIF2_FRAME_CTRL_15:
+	case ARIZONA_AIF2_FRAME_CTRL_16:
 	case ARIZONA_AIF2_TX_ENABLES:
 	case ARIZONA_AIF2_RX_ENABLES:
 	case ARIZONA_AIF3_BCLK_CTRL:
@@ -2825,6 +2843,8 @@ static bool wm5110_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_ASYNC_SAMPLE_RATE_1_STATUS:
 	case ARIZONA_ASYNC_SAMPLE_RATE_2_STATUS:
 	case ARIZONA_MIC_DETECT_3:
+	case ARIZONA_HP_CTRL_1L:
+	case ARIZONA_HP_CTRL_1R:
 	case ARIZONA_HEADPHONE_DETECT_2:
 	case ARIZONA_INPUT_ENABLES_STATUS:
 	case ARIZONA_OUTPUT_STATUS_1:

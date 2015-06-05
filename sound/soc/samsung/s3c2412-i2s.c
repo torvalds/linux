@@ -180,7 +180,6 @@ static struct platform_driver s3c2412_iis_driver = {
 	.probe  = s3c2412_iis_dev_probe,
 	.driver = {
 		.name = "s3c2412-iis",
-		.owner = THIS_MODULE,
 	},
 };
 

@@ -1298,13 +1298,6 @@ static int libipw_parse_info_param(struct libipw_info_element
 			break;
 
 		case WLAN_EID_IBSS_DFS:
-			if (network->ibss_dfs)
-				break;
-			network->ibss_dfs = kmemdup(info_element->data,
-						    info_element->len,
-						    GFP_ATOMIC);
-			if (!network->ibss_dfs)
-				return 1;
 			network->flags |= NETWORK_HAS_IBSS_DFS;
 			break;
 
@@ -1335,9 +1328,7 @@ static int libipw_parse_info_param(struct libipw_info_element
 static int libipw_handle_assoc_resp(struct libipw_device *ieee, struct libipw_assoc_response
 				       *frame, struct libipw_rx_stats *stats)
 {
-	struct libipw_network network_resp = {
-		.ibss_dfs = NULL,
-	};
+	struct libipw_network network_resp = { };
 	struct libipw_network *network = &network_resp;
 	struct net_device *dev = ieee->dev;
 
@@ -1472,9 +1463,6 @@ static void update_network(struct libipw_network *dst,
 	int qos_active;
 	u8 old_param;
 
-	libipw_network_reset(dst);
-	dst->ibss_dfs = src->ibss_dfs;
-
 	/* We only update the statistics if they were created by receiving
 	 * the network information on the actual channel the network is on.
 	 *
@@ -1548,9 +1536,7 @@ static void libipw_process_probe_response(struct libipw_device
 						    *stats)
 {
 	struct net_device *dev = ieee->dev;
-	struct libipw_network network = {
-		.ibss_dfs = NULL,
-	};
+	struct libipw_network network = { };
 	struct libipw_network *target;
 	struct libipw_network *oldest = NULL;
 #ifdef CONFIG_LIBIPW_DEBUG
@@ -1618,7 +1604,6 @@ static void libipw_process_probe_response(struct libipw_device
 			LIBIPW_DEBUG_SCAN("Expired '%*pE' (%pM) from network list.\n",
 					  target->ssid_len, target->ssid,
 					  target->bssid);
-			libipw_network_reset(target);
 		} else {
 			/* Otherwise just pull from the free list */
 			target = list_entry(ieee->network_free_list.next,
@@ -1634,7 +1619,6 @@ static void libipw_process_probe_response(struct libipw_device
 				  "BEACON" : "PROBE RESPONSE");
 #endif
 		memcpy(target, &network, sizeof(*target));
-		network.ibss_dfs = NULL;
 		list_add_tail(&target->list, &ieee->network_list);
 	} else {
 		LIBIPW_DEBUG_SCAN("Updating '%*pE' (%pM) via %s.\n",
@@ -1643,7 +1627,6 @@ static void libipw_process_probe_response(struct libipw_device
 				  is_beacon(beacon->header.frame_ctl) ?
 				  "BEACON" : "PROBE RESPONSE");
 		update_network(target, &network);
-		network.ibss_dfs = NULL;
 	}
 
 	spin_unlock_irqrestore(&ieee->lock, flags);

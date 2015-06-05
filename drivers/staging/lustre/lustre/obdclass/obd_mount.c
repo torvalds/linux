@@ -100,19 +100,12 @@ int lustre_process_log(struct super_block *sb, char *logname,
 	OBD_FREE_PTR(bufs);
 
 	if (rc == -EINVAL)
-		LCONSOLE_ERROR_MSG(0x15b, "%s: The configuration from log '%s'"
-				   "failed from the MGS (%d).  Make sure this "
-				   "client and the MGS are running compatible "
-				   "versions of Lustre.\n",
+		LCONSOLE_ERROR_MSG(0x15b, "%s: The configuration from log '%s' failed from the MGS (%d).  Make sure this client and the MGS are running compatible versions of Lustre.\n",
 				   mgc->obd_name, logname, rc);
 
 	if (rc)
-		LCONSOLE_ERROR_MSG(0x15c, "%s: The configuration from log '%s' "
-				   "failed (%d). This may be the result of "
-				   "communication errors between this node and "
-				   "the MGS, a bad configuration, or other "
-				   "errors. See the syslog for more "
-				   "information.\n", mgc->obd_name, logname,
+		LCONSOLE_ERROR_MSG(0x15c, "%s: The configuration from log '%s' failed (%d). This may be the result of communication errors between this node and the MGS, a bad configuration, or other errors. See the syslog for more information.\n",
+				   mgc->obd_name, logname,
 				   rc);
 
 	/* class_obd_list(); */
@@ -297,11 +290,8 @@ int lustre_start_mgc(struct super_block *sb)
 			if (has_ir ^ !(*flags & LMD_FLG_NOIR)) {
 				/* LMD_FLG_NOIR is for test purpose only */
 				LCONSOLE_WARN(
-				    "Trying to mount a client with IR setting "
-				    "not compatible with current mgc. "
-				    "Force to use current mgc setting that is "
-				    "IR %s.\n",
-				    has_ir ? "enabled" : "disabled");
+					"Trying to mount a client with IR setting not compatible with current mgc. Force to use current mgc setting that is IR %s.\n",
+					has_ir ? "enabled" : "disabled");
 				if (has_ir)
 					*flags &= ~LMD_FLG_NOIR;
 				else
@@ -386,6 +376,11 @@ int lustre_start_mgc(struct super_block *sb)
 
 	/* Random uuid for MGC allows easier reconnects */
 	OBD_ALLOC_PTR(uuid);
+	if (!uuid) {
+		rc = -ENOMEM;
+		goto out_free;
+	}
+
 	ll_generate_random_uuid(uuidc);
 	class_uuid_unparse(uuidc, uuid);
 
@@ -650,10 +645,10 @@ int lustre_put_lsi(struct super_block *sb)
 }
 
 /*** SERVER NAME ***
- * <FSNAME><SEPERATOR><TYPE><INDEX>
+ * <FSNAME><SEPARATOR><TYPE><INDEX>
  * FSNAME is between 1 and 8 characters (inclusive).
  *	Excluded characters are '/' and ':'
- * SEPERATOR is either ':' or '-'
+ * SEPARATOR is either ':' or '-'
  * TYPE: "OST", "MDT", etc.
  * INDEX: Hex representation of the index
  */
@@ -998,16 +993,14 @@ static int lmd_parse(char *options, struct lustre_mount_data *lmd)
 
 	LASSERT(lmd);
 	if (!options) {
-		LCONSOLE_ERROR_MSG(0x162, "Missing mount data: check that "
-				   "/sbin/mount.lustre is installed.\n");
+		LCONSOLE_ERROR_MSG(0x162, "Missing mount data: check that /sbin/mount.lustre is installed.\n");
 		return -EINVAL;
 	}
 
 	/* Options should be a string - try to detect old lmd data */
 	if ((raw->lmd_magic & 0xffffff00) == (LMD_MAGIC & 0xffffff00)) {
-		LCONSOLE_ERROR_MSG(0x163, "You're using an old version of "
-				   "/sbin/mount.lustre.  Please install "
-				   "version %s\n", LUSTRE_VERSION_STRING);
+		LCONSOLE_ERROR_MSG(0x163, "You're using an old version of /sbin/mount.lustre.  Please install version %s\n",
+				   LUSTRE_VERSION_STRING);
 		return -EINVAL;
 	}
 	lmd->lmd_magic = LMD_MAGIC;
@@ -1139,8 +1132,7 @@ static int lmd_parse(char *options, struct lustre_mount_data *lmd)
 	}
 
 	if (!devname) {
-		LCONSOLE_ERROR_MSG(0x164, "Can't find the device name "
-				   "(need mount option 'device=...')\n");
+		LCONSOLE_ERROR_MSG(0x164, "Can't find the device name (need mount option 'device=...')\n");
 		goto invalid;
 	}
 
@@ -1232,9 +1224,7 @@ int lustre_fill_super(struct super_block *sb, void *data, int silent)
 		if (client_fill_super == NULL)
 			request_module("lustre");
 		if (client_fill_super == NULL) {
-			LCONSOLE_ERROR_MSG(0x165, "Nothing registered for "
-					   "client mount! Is the 'lustre' "
-					   "module loaded?\n");
+			LCONSOLE_ERROR_MSG(0x165, "Nothing registered for client mount! Is the 'lustre' module loaded?\n");
 			lustre_put_lsi(sb);
 			rc = -ENODEV;
 		} else {
@@ -1249,8 +1239,7 @@ int lustre_fill_super(struct super_block *sb, void *data, int silent)
 			/* c_f_s will call lustre_common_put_super on failure */
 		}
 	} else {
-		CERROR("This is client-side-only module, "
-		       "cannot handle server mount.\n");
+		CERROR("This is client-side-only module, cannot handle server mount.\n");
 		rc = -EINVAL;
 	}
 
@@ -1297,7 +1286,7 @@ struct dentry *lustre_mount(struct file_system_type *fs_type, int flags,
 	return mount_nodev(fs_type, flags, &lmd2, lustre_fill_super);
 }
 
-void lustre_kill_super(struct super_block *sb)
+static void lustre_kill_super(struct super_block *sb)
 {
 	struct lustre_sb_info *lsi = s2lsi(sb);
 

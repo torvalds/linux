@@ -94,6 +94,9 @@ struct cache_disk_superblock {
 } __packed;
 
 struct dm_cache_metadata {
+	atomic_t ref_count;
+	struct list_head list;
+
 	struct block_device *bdev;
 	struct dm_block_manager *bm;
 	struct dm_space_map *metadata_sm;
@@ -109,7 +112,7 @@ struct dm_cache_metadata {
 	dm_block_t discard_root;
 
 	sector_t discard_block_size;
-	dm_oblock_t discard_nr_blocks;
+	dm_dblock_t discard_nr_blocks;
 
 	sector_t data_block_size;
 	dm_cblock_t cache_blocks;
@@ -329,7 +332,7 @@ static int __write_initial_superblock(struct dm_cache_metadata *cmd)
 	disk_super->hint_root = cpu_to_le64(cmd->hint_root);
 	disk_super->discard_root = cpu_to_le64(cmd->discard_root);
 	disk_super->discard_block_size = cpu_to_le64(cmd->discard_block_size);
-	disk_super->discard_nr_blocks = cpu_to_le64(from_oblock(cmd->discard_nr_blocks));
+	disk_super->discard_nr_blocks = cpu_to_le64(from_dblock(cmd->discard_nr_blocks));
 	disk_super->metadata_block_size = cpu_to_le32(DM_CACHE_METADATA_BLOCK_SIZE);
 	disk_super->data_block_size = cpu_to_le32(cmd->data_block_size);
 	disk_super->cache_blocks = cpu_to_le32(0);
@@ -528,7 +531,7 @@ static void read_superblock_fields(struct dm_cache_metadata *cmd,
 	cmd->hint_root = le64_to_cpu(disk_super->hint_root);
 	cmd->discard_root = le64_to_cpu(disk_super->discard_root);
 	cmd->discard_block_size = le64_to_cpu(disk_super->discard_block_size);
-	cmd->discard_nr_blocks = to_oblock(le64_to_cpu(disk_super->discard_nr_blocks));
+	cmd->discard_nr_blocks = to_dblock(le64_to_cpu(disk_super->discard_nr_blocks));
 	cmd->data_block_size = le32_to_cpu(disk_super->data_block_size);
 	cmd->cache_blocks = to_cblock(le32_to_cpu(disk_super->cache_blocks));
 	strncpy(cmd->policy_name, disk_super->policy_name, sizeof(cmd->policy_name));
@@ -626,7 +629,7 @@ static int __commit_transaction(struct dm_cache_metadata *cmd,
 	disk_super->hint_root = cpu_to_le64(cmd->hint_root);
 	disk_super->discard_root = cpu_to_le64(cmd->discard_root);
 	disk_super->discard_block_size = cpu_to_le64(cmd->discard_block_size);
-	disk_super->discard_nr_blocks = cpu_to_le64(from_oblock(cmd->discard_nr_blocks));
+	disk_super->discard_nr_blocks = cpu_to_le64(from_dblock(cmd->discard_nr_blocks));
 	disk_super->cache_blocks = cpu_to_le32(from_cblock(cmd->cache_blocks));
 	strncpy(disk_super->policy_name, cmd->policy_name, sizeof(disk_super->policy_name));
 	disk_super->policy_version[0] = cpu_to_le32(cmd->policy_version[0]);
@@ -669,10 +672,10 @@ static void unpack_value(__le64 value_le, dm_oblock_t *block, unsigned *flags)
 
 /*----------------------------------------------------------------*/
 
-struct dm_cache_metadata *dm_cache_metadata_open(struct block_device *bdev,
-						 sector_t data_block_size,
-						 bool may_format_device,
-						 size_t policy_hint_size)
+static struct dm_cache_metadata *metadata_open(struct block_device *bdev,
+					       sector_t data_block_size,
+					       bool may_format_device,
+					       size_t policy_hint_size)
 {
 	int r;
 	struct dm_cache_metadata *cmd;
@@ -680,9 +683,10 @@ struct dm_cache_metadata *dm_cache_metadata_open(struct block_device *bdev,
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
 		DMERR("could not allocate metadata struct");
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
+	atomic_set(&cmd->ref_count, 1);
 	init_rwsem(&cmd->root_lock);
 	cmd->bdev = bdev;
 	cmd->data_block_size = data_block_size;
@@ -705,10 +709,96 @@ struct dm_cache_metadata *dm_cache_metadata_open(struct block_device *bdev,
 	return cmd;
 }
 
+/*
+ * We keep a little list of ref counted metadata objects to prevent two
+ * different target instances creating separate bufio instances.  This is
+ * an issue if a table is reloaded before the suspend.
+ */
+static DEFINE_MUTEX(table_lock);
+static LIST_HEAD(table);
+
+static struct dm_cache_metadata *lookup(struct block_device *bdev)
+{
+	struct dm_cache_metadata *cmd;
+
+	list_for_each_entry(cmd, &table, list)
+		if (cmd->bdev == bdev) {
+			atomic_inc(&cmd->ref_count);
+			return cmd;
+		}
+
+	return NULL;
+}
+
+static struct dm_cache_metadata *lookup_or_open(struct block_device *bdev,
+						sector_t data_block_size,
+						bool may_format_device,
+						size_t policy_hint_size)
+{
+	struct dm_cache_metadata *cmd, *cmd2;
+
+	mutex_lock(&table_lock);
+	cmd = lookup(bdev);
+	mutex_unlock(&table_lock);
+
+	if (cmd)
+		return cmd;
+
+	cmd = metadata_open(bdev, data_block_size, may_format_device, policy_hint_size);
+	if (!IS_ERR(cmd)) {
+		mutex_lock(&table_lock);
+		cmd2 = lookup(bdev);
+		if (cmd2) {
+			mutex_unlock(&table_lock);
+			__destroy_persistent_data_objects(cmd);
+			kfree(cmd);
+			return cmd2;
+		}
+		list_add(&cmd->list, &table);
+		mutex_unlock(&table_lock);
+	}
+
+	return cmd;
+}
+
+static bool same_params(struct dm_cache_metadata *cmd, sector_t data_block_size)
+{
+	if (cmd->data_block_size != data_block_size) {
+		DMERR("data_block_size (%llu) different from that in metadata (%llu)\n",
+		      (unsigned long long) data_block_size,
+		      (unsigned long long) cmd->data_block_size);
+		return false;
+	}
+
+	return true;
+}
+
+struct dm_cache_metadata *dm_cache_metadata_open(struct block_device *bdev,
+						 sector_t data_block_size,
+						 bool may_format_device,
+						 size_t policy_hint_size)
+{
+	struct dm_cache_metadata *cmd = lookup_or_open(bdev, data_block_size,
+						       may_format_device, policy_hint_size);
+
+	if (!IS_ERR(cmd) && !same_params(cmd, data_block_size)) {
+		dm_cache_metadata_close(cmd);
+		return ERR_PTR(-EINVAL);
+	}
+
+	return cmd;
+}
+
 void dm_cache_metadata_close(struct dm_cache_metadata *cmd)
 {
-	__destroy_persistent_data_objects(cmd);
-	kfree(cmd);
+	if (atomic_dec_and_test(&cmd->ref_count)) {
+		mutex_lock(&table_lock);
+		list_del(&cmd->list);
+		mutex_unlock(&table_lock);
+
+		__destroy_persistent_data_objects(cmd);
+		kfree(cmd);
+	}
 }
 
 /*
@@ -797,15 +887,15 @@ out:
 
 int dm_cache_discard_bitset_resize(struct dm_cache_metadata *cmd,
 				   sector_t discard_block_size,
-				   dm_oblock_t new_nr_entries)
+				   dm_dblock_t new_nr_entries)
 {
 	int r;
 
 	down_write(&cmd->root_lock);
 	r = dm_bitset_resize(&cmd->discard_info,
 			     cmd->discard_root,
-			     from_oblock(cmd->discard_nr_blocks),
-			     from_oblock(new_nr_entries),
+			     from_dblock(cmd->discard_nr_blocks),
+			     from_dblock(new_nr_entries),
 			     false, &cmd->discard_root);
 	if (!r) {
 		cmd->discard_block_size = discard_block_size;
@@ -818,28 +908,28 @@ int dm_cache_discard_bitset_resize(struct dm_cache_metadata *cmd,
 	return r;
 }
 
-static int __set_discard(struct dm_cache_metadata *cmd, dm_oblock_t b)
+static int __set_discard(struct dm_cache_metadata *cmd, dm_dblock_t b)
 {
 	return dm_bitset_set_bit(&cmd->discard_info, cmd->discard_root,
-				 from_oblock(b), &cmd->discard_root);
+				 from_dblock(b), &cmd->discard_root);
 }
 
-static int __clear_discard(struct dm_cache_metadata *cmd, dm_oblock_t b)
+static int __clear_discard(struct dm_cache_metadata *cmd, dm_dblock_t b)
 {
 	return dm_bitset_clear_bit(&cmd->discard_info, cmd->discard_root,
-				   from_oblock(b), &cmd->discard_root);
+				   from_dblock(b), &cmd->discard_root);
 }
 
-static int __is_discarded(struct dm_cache_metadata *cmd, dm_oblock_t b,
+static int __is_discarded(struct dm_cache_metadata *cmd, dm_dblock_t b,
 			  bool *is_discarded)
 {
 	return dm_bitset_test_bit(&cmd->discard_info, cmd->discard_root,
-				  from_oblock(b), &cmd->discard_root,
+				  from_dblock(b), &cmd->discard_root,
 				  is_discarded);
 }
 
 static int __discard(struct dm_cache_metadata *cmd,
-		     dm_oblock_t dblock, bool discard)
+		     dm_dblock_t dblock, bool discard)
 {
 	int r;
 
@@ -852,7 +942,7 @@ static int __discard(struct dm_cache_metadata *cmd,
 }
 
 int dm_cache_set_discard(struct dm_cache_metadata *cmd,
-			 dm_oblock_t dblock, bool discard)
+			 dm_dblock_t dblock, bool discard)
 {
 	int r;
 
@@ -870,8 +960,8 @@ static int __load_discards(struct dm_cache_metadata *cmd,
 	dm_block_t b;
 	bool discard;
 
-	for (b = 0; b < from_oblock(cmd->discard_nr_blocks); b++) {
-		dm_oblock_t dblock = to_oblock(b);
+	for (b = 0; b < from_dblock(cmd->discard_nr_blocks); b++) {
+		dm_dblock_t dblock = to_dblock(b);
 
 		if (cmd->clean_when_opened) {
 			r = __is_discarded(cmd, dblock, &discard);

@@ -70,8 +70,6 @@ struct vpbe_disp_buffer {
 
 /* vpbe display object structure */
 struct vpbe_layer {
-	/* number of buffers in fbuffers */
-	unsigned int numbuffers;
 	/* Pointer to the vpbe_display */
 	struct vpbe_display *disp_dev;
 	/* Pointer pointing to current v4l2_buffer */
@@ -91,10 +89,6 @@ struct vpbe_layer {
 	/* V4l2 specific parameters */
 	/* Identifies video device for this layer */
 	struct video_device video_dev;
-	/* This field keeps track of type of buffer exchange mechanism user
-	 * has selected
-	 */
-	enum v4l2_memory memory;
 	/* Used to store pixel format */
 	struct v4l2_pix_format pix_fmt;
 	enum v4l2_field buf_field;
@@ -106,12 +100,8 @@ struct vpbe_layer {
 	unsigned char window_enable;
 	/* number of open instances of the layer */
 	unsigned int usrs;
-	/* number of users performing IO */
-	unsigned int io_usrs;
 	/* Indicates id of the field which is being displayed */
 	unsigned int field_id;
-	/* Indicates whether streaming started */
-	unsigned char started;
 	/* Identifies device object */
 	enum vpbe_display_device_id device_id;
 	/* facilitation of ioctl ops lock by v4l2*/
@@ -129,17 +119,6 @@ struct vpbe_display {
 	struct vpbe_layer *dev[VPBE_DISPLAY_MAX_DEVICES];
 	struct vpbe_device *vpbe_dev;
 	struct osd_state *osd_device;
-};
-
-/* File handle structure */
-struct vpbe_fh {
-	struct v4l2_fh fh;
-	/* vpbe device structure */
-	struct vpbe_display *disp_dev;
-	/* pointer to layer object for opened device */
-	struct vpbe_layer *layer;
-	/* Indicates whether this file handle is doing IO */
-	unsigned char io_allowed;
 };
 
 struct buf_config_params {

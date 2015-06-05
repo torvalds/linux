@@ -139,33 +139,20 @@ struct netem_sched_data {
 
 /* Time stamp put into socket buffer control block
  * Only valid when skbs are in our internal t(ime)fifo queue.
+ *
+ * As skb->rbnode uses same storage than skb->next, skb->prev and skb->tstamp,
+ * and skb->next & skb->prev are scratch space for a qdisc,
+ * we save skb->tstamp value in skb->cb[] before destroying it.
  */
 struct netem_skb_cb {
 	psched_time_t	time_to_send;
 	ktime_t		tstamp_save;
 };
 
-/* Because space in skb->cb[] is tight, netem overloads skb->next/prev/tstamp
- * to hold a rb_node structure.
- *
- * If struct sk_buff layout is changed, the following checks will complain.
- */
-static struct rb_node *netem_rb_node(struct sk_buff *skb)
-{
-	BUILD_BUG_ON(offsetof(struct sk_buff, next) != 0);
-	BUILD_BUG_ON(offsetof(struct sk_buff, prev) !=
-		     offsetof(struct sk_buff, next) + sizeof(skb->next));
-	BUILD_BUG_ON(offsetof(struct sk_buff, tstamp) !=
-		     offsetof(struct sk_buff, prev) + sizeof(skb->prev));
-	BUILD_BUG_ON(sizeof(struct rb_node) > sizeof(skb->next) +
-					      sizeof(skb->prev) +
-					      sizeof(skb->tstamp));
-	return (struct rb_node *)&skb->next;
-}
 
 static struct sk_buff *netem_rb_to_skb(struct rb_node *rb)
 {
-	return (struct sk_buff *)rb;
+	return container_of(rb, struct sk_buff, rbnode);
 }
 
 static inline struct netem_skb_cb *netem_skb_cb(struct sk_buff *skb)
@@ -403,8 +390,8 @@ static void tfifo_enqueue(struct sk_buff *nskb, struct Qdisc *sch)
 		else
 			p = &parent->rb_left;
 	}
-	rb_link_node(netem_rb_node(nskb), parent, p);
-	rb_insert_color(netem_rb_node(nskb), &q->t_root);
+	rb_link_node(&nskb->rbnode, parent, p);
+	rb_insert_color(&nskb->rbnode, &q->t_root);
 	sch->q.qlen++;
 }
 
@@ -573,8 +560,8 @@ static struct sk_buff *netem_dequeue(struct Qdisc *sch)
 tfifo_dequeue:
 	skb = __skb_dequeue(&sch->q);
 	if (skb) {
-deliver:
 		qdisc_qstats_backlog_dec(sch, skb);
+deliver:
 		qdisc_unthrottled(sch);
 		qdisc_bstats_update(sch, skb);
 		return skb;
@@ -591,6 +578,7 @@ deliver:
 			rb_erase(p, &q->t_root);
 
 			sch->q.qlen--;
+			qdisc_qstats_backlog_dec(sch, skb);
 			skb->next = NULL;
 			skb->prev = NULL;
 			skb->tstamp = netem_skb_cb(skb)->tstamp_save;

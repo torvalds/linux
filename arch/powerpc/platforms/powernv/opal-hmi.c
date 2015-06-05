@@ -57,7 +57,7 @@ static void print_hmi_event_info(struct OpalHMIEvent *hmi_evt)
 	};
 
 	/* Print things out */
-	if (hmi_evt->version != OpalHMIEvt_V1) {
+	if (hmi_evt->version < OpalHMIEvt_V1) {
 		pr_err("HMI Interrupt, Unknown event version %d !\n",
 			hmi_evt->version);
 		return;

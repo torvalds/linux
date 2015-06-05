@@ -340,7 +340,7 @@ static u8 bthci_GetAssocInfo(struct rtw_adapter *padapter, u8 EntryNum)
 			tempBuf, TotalLen-BaseMemoryShift);
 
 		pAmpAsoc = (struct amp_assoc_structure *)tempBuf;
-		pAmpAsoc->Length = le16_to_cpu(pAmpAsoc->Length);
+		le16_to_cpus(&pAmpAsoc->Length);
 		BaseMemoryShift += 3 + pAmpAsoc->Length;
 
 		RTPRINT(FIOCTL, IOCTL_BT_HCICMD, ("TypeID = 0x%x, ", pAmpAsoc->TypeID));
@@ -1554,7 +1554,8 @@ static void bthci_ResetBtSec(struct rtw_adapter *padapter, struct bt_security *p
 		pBtSec->bUsedHwEncrypt = true;
 	else
 		pBtSec->bUsedHwEncrypt = false;
-	RT_TRACE(_module_rtl871x_security_c_, _drv_info_, ("%s: bUsedHwEncrypt =%d\n", __func__, pBtSec->bUsedHwEncrypt));
+	RT_TRACE(_module_rtl871x_security_c_, _drv_info_,
+		 "%s: bUsedHwEncrypt =%d\n", __func__, pBtSec->bUsedHwEncrypt);
 
 	pBtSec->RSNIE.Octet = pBtSec->RSNIEBuf;
 }
@@ -1755,18 +1756,6 @@ static enum hci_status bthci_CmdReadConnectionAcceptTimeout(struct rtw_adapter *
 	PPacketIrpEvent->Length = len;
 
 	bthci_IndicateEvent(padapter, PPacketIrpEvent, len+2);
-
-	return status;
-}
-
-/* 7.3.3 */
-static enum hci_status
-bthci_CmdSetEventFilter(
-	struct rtw_adapter *padapter,
-	struct packet_irp_hcicmd_data *pHciCmd
-	)
-{
-	enum hci_status status = HCI_STATUS_SUCCESS;
 
 	return status;
 }
@@ -2982,19 +2971,12 @@ bthci_CmdReadLinkQuality(
 	return status;
 }
 
-static enum hci_status bthci_CmdReadRSSI(struct rtw_adapter *padapter)
-{
-	enum hci_status status = HCI_STATUS_SUCCESS;
-	return status;
-}
-
 static enum hci_status
 bthci_CmdCreateLogicalLink(
 	struct rtw_adapter *padapter,
 	struct packet_irp_hcicmd_data *pHciCmd
 	)
 {
-	enum hci_status status = HCI_STATUS_SUCCESS;
 	struct bt_30info *pBTInfo = GET_BT_INFO(padapter);
 	struct bt_dgb *pBtDbg = &pBTInfo->BtDbg;
 
@@ -3003,7 +2985,7 @@ bthci_CmdCreateLogicalLink(
 	bthci_BuildLogicalLink(padapter, pHciCmd,
 		HCI_CREATE_LOGICAL_LINK);
 
-	return status;
+	return HCI_STATUS_SUCCESS;
 }
 
 static enum hci_status
@@ -3012,7 +2994,6 @@ bthci_CmdAcceptLogicalLink(
 	struct packet_irp_hcicmd_data *pHciCmd
 	)
 {
-	enum hci_status status = HCI_STATUS_SUCCESS;
 	struct bt_30info *pBTInfo = GET_BT_INFO(padapter);
 	struct bt_dgb *pBtDbg = &pBTInfo->BtDbg;
 
@@ -3021,7 +3002,7 @@ bthci_CmdAcceptLogicalLink(
 	bthci_BuildLogicalLink(padapter, pHciCmd,
 		HCI_ACCEPT_LOGICAL_LINK);
 
-	return status;
+	return HCI_STATUS_SUCCESS;
 }
 
 static enum hci_status
@@ -3228,7 +3209,7 @@ bthci_CmdDisconnectPhysicalLink(struct rtw_adapter *padapter,
 	pBtDbg->dbgHciInfo.hciCmdCntDisconnectPhyLink++;
 
 	PLH = *((u8 *)pHciCmd->Data);
-	PhysLinkDisconnectReason = (*((u8 *)pHciCmd->Data+1));
+	PhysLinkDisconnectReason = *((u8 *)pHciCmd->Data+1);
 	RTPRINT(FIOCTL, IOCTL_BT_HCICMD, ("HCI_DISCONNECT_PHYSICAL_LINK  PhyHandle = 0x%x, Reason = 0x%x\n",
 		PLH, PhysLinkDisconnectReason));
 
@@ -4138,15 +4119,6 @@ bthci_CmdHostBufferSize(struct rtw_adapter *padapter,
 }
 
 static enum hci_status
-bthci_CmdHostNumberOfCompletedPackets(struct rtw_adapter *padapter,
-				      struct packet_irp_hcicmd_data *pHciCmd)
-{
-	enum hci_status status = HCI_STATUS_SUCCESS;
-
-	return status;
-}
-
-static enum hci_status
 bthci_UnknownCMD(struct rtw_adapter *padapter, struct packet_irp_hcicmd_data *pHciCmd)
 {
 	enum hci_status status = HCI_STATUS_UNKNOW_HCI_CMD;
@@ -4219,7 +4191,6 @@ bthci_HandleOGFSetEventMaskCMD(struct rtw_adapter *padapter,
 		break;
 	case HCI_SET_EVENT_FILTER:
 		RTPRINT(FIOCTL, IOCTL_BT_HCICMD, ("HCI_SET_EVENT_FILTER\n"));
-		status = bthci_CmdSetEventFilter(padapter, pHciCmd);
 		break;
 	case HCI_WRITE_CONNECTION_ACCEPT_TIMEOUT:
 		RTPRINT(FIOCTL, IOCTL_BT_HCICMD, ("HCI_WRITE_CONNECTION_ACCEPT_TIMEOUT\n"));
@@ -4235,7 +4206,6 @@ bthci_HandleOGFSetEventMaskCMD(struct rtw_adapter *padapter,
 		break;
 	case HCI_HOST_NUMBER_OF_COMPLETED_PACKETS:
 		RTPRINT(FIOCTL, IOCTL_BT_HCICMD, ("HCI_HOST_NUMBER_OF_COMPLETED_PACKETS\n"));
-		status = bthci_CmdHostNumberOfCompletedPackets(padapter, pHciCmd);
 		break;
 	case HCI_READ_LINK_SUPERVISION_TIMEOUT:
 		RTPRINT(FIOCTL, IOCTL_BT_HCICMD, ("HCI_READ_LINK_SUPERVISION_TIMEOUT\n"));
@@ -4323,7 +4293,6 @@ bthci_HandleOGFStatusParameters(struct rtw_adapter *padapter,
 		break;
 	case HCI_READ_RSSI:
 		RTPRINT(FIOCTL, IOCTL_BT_HCICMD, ("HCI_READ_RSSI\n"));
-		status = bthci_CmdReadRSSI(padapter);
 		break;
 	case HCI_READ_LOCAL_AMP_INFO:
 		RTPRINT(FIOCTL, IOCTL_BT_HCICMD, ("HCI_READ_LOCAL_AMP_INFO\n"));
@@ -4550,8 +4519,8 @@ bthci_StateConnecting(struct rtw_adapter *padapter,
 		RTPRINT(FIOCTL, IOCTL_STATE, ("STATE_CMD_MAC_CONNECT_COMPLETE\n"));
 
 		if (pBTInfo->BtAsocEntry[EntryNum].AMPRole == AMP_BTAP_JOINER) {
-			RT_TRACE(_module_rtl871x_security_c_,
-				 _drv_info_, ("StateConnecting \n"));
+			RT_TRACE(_module_rtl871x_security_c_, _drv_info_,
+				 "StateConnecting\n");
 		}
 		break;
 	case STATE_CMD_DISCONNECT_PHY_LINK:
@@ -5828,7 +5797,7 @@ static void
 btdm_1AntUpdateHalRAMask(struct rtw_adapter *padapter, u32 mac_id, u32 filter)
 {
 	u8 init_rate = 0;
-	u8 raid;
+	u8 raid, arg;
 	u32 mask;
 	u8 shortGIrate = false;
 	int supportRateNum = 0;
@@ -5892,26 +5861,16 @@ btdm_1AntUpdateHalRAMask(struct rtw_adapter *padapter, u32 mac_id, u32 filter)
 	mask &= ~filter;
 	init_rate = get_highest_rate_idx23a(mask)&0x3f;
 
-	if (pHalData->fw_ractrl) {
-		u8 arg = 0;
+	arg = mac_id&0x1f;/* MACID */
+	arg |= BIT(7);
+	if (true == shortGIrate)
+		arg |= BIT(5);
 
-		arg = mac_id&0x1f;/* MACID */
-		arg |= BIT(7);
-		if (true == shortGIrate)
-			arg |= BIT(5);
+	RTPRINT(FBT, BT_TRACE,
+		("[BTCoex], Update FW RAID entry, MASK = 0x%08x, "
+		 "arg = 0x%02x\n", mask, arg));
 
-		RTPRINT(FBT, BT_TRACE,
-			("[BTCoex], Update FW RAID entry, MASK = 0x%08x, "
-			 "arg = 0x%02x\n", mask, arg));
-
-		rtl8723a_set_raid_cmd(padapter, mask, arg);
-	} else {
-		if (shortGIrate)
-			init_rate |= BIT(6);
-
-		rtl8723au_write8(padapter, REG_INIDATA_RATE_SEL + mac_id,
-				 init_rate);
-	}
+	rtl8723a_set_raid_cmd(padapter, mask, arg);
 
 	psta->init_rate = init_rate;
 	pdmpriv->INIDATA_RATE[mac_id] = init_rate;
@@ -7287,63 +7246,19 @@ btdm_2AntTdmaDurationAdjust(struct rtw_adapter *padapter, u8 bScoHid,
 		RTPRINT(FBT, BT_TRACE, ("[BTCoex], first run TdmaDurationAdjust()!!\n"));
 		if (bScoHid) {
 			if (bTxPause) {
-				if (maxInterval == 1) {
-					btdm_2AntPsTdma(padapter, true, 15);
-					pBtdm8723->psTdmaDuAdjType = 15;
-				} else if (maxInterval == 2) {
-					btdm_2AntPsTdma(padapter, true, 15);
-					pBtdm8723->psTdmaDuAdjType = 15;
-				} else if (maxInterval == 3) {
-					btdm_2AntPsTdma(padapter, true, 15);
-					pBtdm8723->psTdmaDuAdjType = 15;
-				} else {
-					btdm_2AntPsTdma(padapter, true, 15);
-					pBtdm8723->psTdmaDuAdjType = 15;
-				}
+				btdm_2AntPsTdma(padapter, true, 15);
+				pBtdm8723->psTdmaDuAdjType = 15;
 			} else {
-				if (maxInterval == 1) {
-					btdm_2AntPsTdma(padapter, true, 11);
-					pBtdm8723->psTdmaDuAdjType = 11;
-				} else if (maxInterval == 2) {
-					btdm_2AntPsTdma(padapter, true, 11);
-					pBtdm8723->psTdmaDuAdjType = 11;
-				} else if (maxInterval == 3) {
-					btdm_2AntPsTdma(padapter, true, 11);
-					pBtdm8723->psTdmaDuAdjType = 11;
-				} else {
-					btdm_2AntPsTdma(padapter, true, 11);
-					pBtdm8723->psTdmaDuAdjType = 11;
-				}
+				btdm_2AntPsTdma(padapter, true, 11);
+				pBtdm8723->psTdmaDuAdjType = 11;
 			}
 		} else {
 			if (bTxPause) {
-				if (maxInterval == 1) {
-					btdm_2AntPsTdma(padapter, true, 7);
-					pBtdm8723->psTdmaDuAdjType = 7;
-				} else if (maxInterval == 2) {
-					btdm_2AntPsTdma(padapter, true, 7);
-					pBtdm8723->psTdmaDuAdjType = 7;
-				} else if (maxInterval == 3) {
-					btdm_2AntPsTdma(padapter, true, 7);
-					pBtdm8723->psTdmaDuAdjType = 7;
-				} else {
-					btdm_2AntPsTdma(padapter, true, 7);
-					pBtdm8723->psTdmaDuAdjType = 7;
-				}
+				btdm_2AntPsTdma(padapter, true, 7);
+				pBtdm8723->psTdmaDuAdjType = 7;
 			} else {
-				if (maxInterval == 1) {
-					btdm_2AntPsTdma(padapter, true, 3);
-					pBtdm8723->psTdmaDuAdjType = 3;
-				} else if (maxInterval == 2) {
-					btdm_2AntPsTdma(padapter, true, 3);
-					pBtdm8723->psTdmaDuAdjType = 3;
-				} else if (maxInterval == 3) {
-					btdm_2AntPsTdma(padapter, true, 3);
-					pBtdm8723->psTdmaDuAdjType = 3;
-				} else {
-					btdm_2AntPsTdma(padapter, true, 3);
-					pBtdm8723->psTdmaDuAdjType = 3;
-				}
+				btdm_2AntPsTdma(padapter, true, 3);
+				pBtdm8723->psTdmaDuAdjType = 3;
 			}
 		}
 		up = 0;
@@ -9177,7 +9092,7 @@ u32 BTDM_BtTxRxCounterL(struct rtw_adapter *padapter)
 	u32	counters = 0;
 
 	counters = pHalData->bt_coexist.halCoex8723.lowPriorityTx+
-		pHalData->bt_coexist.halCoex8723.lowPriorityRx ;
+		pHalData->bt_coexist.halCoex8723.lowPriorityRx;
 	return counters;
 }
 
@@ -10671,7 +10586,7 @@ void BTDM_BBBackOffLevel(struct rtw_adapter *padapter, u8 type)
 
 void BTDM_FWCoexAllOff(struct rtw_adapter *padapter)
 {
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);;
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 
 	RTPRINT(FBT, BT_TRACE, ("BTDM_FWCoexAllOff()\n"));
 	if (pHalData->bt_coexist.bFWCoexistAllOff)
@@ -10685,7 +10600,7 @@ void BTDM_FWCoexAllOff(struct rtw_adapter *padapter)
 
 void BTDM_SWCoexAllOff(struct rtw_adapter *padapter)
 {
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);;
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 
 	RTPRINT(FBT, BT_TRACE, ("BTDM_SWCoexAllOff()\n"));
 	if (pHalData->bt_coexist.bSWCoexistAllOff)
@@ -10698,7 +10613,7 @@ void BTDM_SWCoexAllOff(struct rtw_adapter *padapter)
 
 void BTDM_HWCoexAllOff(struct rtw_adapter *padapter)
 {
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);;
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 
 	RTPRINT(FBT, BT_TRACE, ("BTDM_HWCoexAllOff()\n"));
 	if (pHalData->bt_coexist.bHWCoexistAllOff)
@@ -11282,15 +11197,17 @@ void rtl8723a_BT_init_hal_vars(struct rtw_adapter *padapter)
 	pHalData->bt_coexist.bt_radiosharedtype = pHalData->EEPROMBluetoothRadioShared;
 
 	RT_TRACE(_module_hal_init_c_, _drv_info_,
-		 ("BT Coexistance = 0x%x\n", rtl8723a_BT_coexist(padapter)));
+		 "BT Coexistance = 0x%x\n", rtl8723a_BT_coexist(padapter));
 
 	if (rtl8723a_BT_coexist(padapter)) {
 		if (pHalData->bt_coexist.BT_Ant_Num == Ant_x2) {
 			BTDM_SetBtCoexCurrAntNum(padapter, 2);
-			RT_TRACE(_module_hal_init_c_, _drv_info_, ("BlueTooth BT_Ant_Num = Antx2\n"));
+			RT_TRACE(_module_hal_init_c_, _drv_info_,
+				 "BlueTooth BT_Ant_Num = Antx2\n");
 		} else if (pHalData->bt_coexist.BT_Ant_Num == Ant_x1) {
 			BTDM_SetBtCoexCurrAntNum(padapter, 1);
-			RT_TRACE(_module_hal_init_c_, _drv_info_, ("BlueTooth BT_Ant_Num = Antx1\n"));
+			RT_TRACE(_module_hal_init_c_, _drv_info_,
+				 "BlueTooth BT_Ant_Num = Antx1\n");
 		}
 		pHalData->bt_coexist.bBTBusyTraffic = false;
 		pHalData->bt_coexist.bBTTrafficModeSet = false;
@@ -11299,8 +11216,8 @@ void rtl8723a_BT_init_hal_vars(struct rtw_adapter *padapter)
 		pHalData->bt_coexist.PreviousState = 0;
 
 		RT_TRACE(_module_hal_init_c_, _drv_info_,
-			 ("bt_radiosharedType = 0x%x\n",
-			 pHalData->bt_coexist.bt_radiosharedtype));
+			 "bt_radiosharedType = 0x%x\n",
+			 pHalData->bt_coexist.bt_radiosharedtype);
 	}
 }
 

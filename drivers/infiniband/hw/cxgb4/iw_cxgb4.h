@@ -137,6 +137,7 @@ struct c4iw_stats {
 	u64  tcam_full;
 	u64  act_ofld_conn_fails;
 	u64  pas_ofld_conn_fails;
+	u64  neg_adv;
 };
 
 struct c4iw_hw_queue {
@@ -196,7 +197,7 @@ static inline int c4iw_num_stags(struct c4iw_rdev *rdev)
 	return (int)(rdev->lldi.vr->stag.size >> 5);
 }
 
-#define C4IW_WR_TO (30*HZ)
+#define C4IW_WR_TO (60*HZ)
 
 struct c4iw_wr_wait {
 	struct completion completion;
@@ -220,22 +221,21 @@ static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
 				 u32 hwtid, u32 qpid,
 				 const char *func)
 {
-	unsigned to = C4IW_WR_TO;
 	int ret;
 
-	do {
-		ret = wait_for_completion_timeout(&wr_waitp->completion, to);
-		if (!ret) {
-			printk(KERN_ERR MOD "%s - Device %s not responding - "
-			       "tid %u qpid %u\n", func,
-			       pci_name(rdev->lldi.pdev), hwtid, qpid);
-			if (c4iw_fatal_error(rdev)) {
-				wr_waitp->ret = -EIO;
-				break;
-			}
-			to = to << 2;
-		}
-	} while (!ret);
+	if (c4iw_fatal_error(rdev)) {
+		wr_waitp->ret = -EIO;
+		goto out;
+	}
+
+	ret = wait_for_completion_timeout(&wr_waitp->completion, C4IW_WR_TO);
+	if (!ret) {
+		PDBG("%s - Device %s not responding (disabling device) - tid %u qpid %u\n",
+		     func, pci_name(rdev->lldi.pdev), hwtid, qpid);
+		rdev->flags |= T4_FATAL_ERROR;
+		wr_waitp->ret = -EIO;
+	}
+out:
 	if (wr_waitp->ret)
 		PDBG("%s: FW reply %d tid %u qpid %u\n",
 		     pci_name(rdev->lldi.pdev), wr_waitp->ret, hwtid, qpid);
@@ -815,6 +815,11 @@ struct c4iw_listen_ep {
 	int backlog;
 };
 
+struct c4iw_ep_stats {
+	unsigned connect_neg_adv;
+	unsigned abort_neg_adv;
+};
+
 struct c4iw_ep {
 	struct c4iw_ep_common com;
 	struct c4iw_ep *parent_ep;
@@ -847,6 +852,7 @@ struct c4iw_ep {
 	unsigned int retry_count;
 	int snd_win;
 	int rcv_win;
+	struct c4iw_ep_stats stats;
 };
 
 static inline void print_addr(struct c4iw_ep_common *epc, const char *func,

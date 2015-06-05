@@ -55,7 +55,7 @@ config USB_DWC3_OMAP
 
 config USB_DWC3_EXYNOS
 	tristate "Samsung Exynos Platform"
-	depends on ARCH_EXYNOS || COMPILE_TEST
+	depends on ARCH_EXYNOS && OF || COMPILE_TEST
 	default USB_DWC3
 	help
 	  Recent Exynos5 SoCs ship with one DesignWare Core USB3 IP inside,
@@ -103,18 +103,5 @@ config USB_DWC3_DEBUG
 	bool "Enable Debugging Messages"
 	help
 	  Say Y here to enable debugging messages on DWC3 Driver.
-
-config USB_DWC3_VERBOSE
-	bool "Enable Verbose Debugging Messages"
-	depends on USB_DWC3_DEBUG
-	help
-	  Say Y here to enable verbose debugging messages on DWC3 Driver.
-
-config DWC3_HOST_USB3_LPM_ENABLE
-	bool "Enable USB3 LPM Capability"
-	depends on USB_DWC3_HOST=y || USB_DWC3_DUAL_ROLE=y
-	default n
-	help
-	  Select this when you want to enable USB3 LPM with dwc3 xhci host.
 
 endif

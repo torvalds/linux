@@ -1,0 +1,24 @@
+What:		/sys/bus/coresight/devices/<memory_map>.etb/enable_sink
+Date:		November 2014
+KernelVersion:	3.19
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(RW) Add/remove a sink from a trace path.  There can be multiple
+		source for a single sink.
+		ex: echo 1 > /sys/bus/coresight/devices/20010000.etb/enable_sink
+
+What:		/sys/bus/coresight/devices/<memory_map>.etb/status
+Date:		November 2014
+KernelVersion:	3.19
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) List various control and status registers.  The specific
+		layout and content is driver specific.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etb/trigger_cntr
+Date:		November 2014
+KernelVersion:	3.19
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(RW) Disables write access to the Trace RAM by stopping the
+		formatter after a defined number of words have been stored
+		following the trigger event. The number of 32-bit words written
+		into the Trace RAM following the trigger event is equal to the
+		value stored in this register+1 (from ARM ETB-TRM).

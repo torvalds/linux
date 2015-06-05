@@ -36,10 +36,7 @@
 #include <linux/seqlock.h>
 #include <trace/events/kvm.h>
 
-#ifdef __KVM_HAVE_IOAPIC
-#include "ioapic.h"
-#endif
-#include "iodev.h"
+#include <kvm/iodev.h>
 
 #ifdef CONFIG_HAVE_KVM_IRQFD
 /*
@@ -314,6 +311,9 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 	unsigned int events;
 	int idx;
 
+	if (!kvm_arch_intc_initialized(kvm))
+		return -EAGAIN;
+
 	irqfd = kzalloc(sizeof(*irqfd), GFP_KERNEL);
 	if (!irqfd)
 		return -ENOMEM;
@@ -492,9 +492,7 @@ void kvm_register_irq_ack_notifier(struct kvm *kvm,
 	mutex_lock(&kvm->irq_lock);
 	hlist_add_head_rcu(&kian->link, &kvm->irq_ack_notifier_list);
 	mutex_unlock(&kvm->irq_lock);
-#ifdef __KVM_HAVE_IOAPIC
 	kvm_vcpu_request_scan_ioapic(kvm);
-#endif
 }
 
 void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
@@ -504,9 +502,7 @@ void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
 	hlist_del_init_rcu(&kian->link);
 	mutex_unlock(&kvm->irq_lock);
 	synchronize_srcu(&kvm->irq_srcu);
-#ifdef __KVM_HAVE_IOAPIC
 	kvm_vcpu_request_scan_ioapic(kvm);
-#endif
 }
 #endif
 
@@ -719,8 +715,8 @@ ioeventfd_in_range(struct _ioeventfd *p, gpa_t addr, int len, const void *val)
 
 /* MMIO/PIO writes trigger an event if the addr/val match */
 static int
-ioeventfd_write(struct kvm_io_device *this, gpa_t addr, int len,
-		const void *val)
+ioeventfd_write(struct kvm_vcpu *vcpu, struct kvm_io_device *this, gpa_t addr,
+		int len, const void *val)
 {
 	struct _ioeventfd *p = to_ioeventfd(this);
 

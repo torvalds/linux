@@ -79,11 +79,11 @@
 			ssp0 {
 				ssp0_hrefprev60_mode: ssp0_hrefprev60_default {
 					hrefprev60_mux {
-						ste,function = "ssp0";
-						ste,pins = "ssp0_a_1";
+						function = "ssp0";
+						groups = "ssp0_a_1";
 					};
 					hrefprev60_cfg1 {
-						ste,pins = "GPIO145_C13"; /* RXD */
+						pins = "GPIO145_C13"; /* RXD */
 						ste,config = <&in_pd>;
 					};
 
@@ -93,11 +93,11 @@
 				/* This additional pin needed on early MOP500 and HREFs previous to v60 */
 				sdi0_default_mode: sdi0_default {
 					hrefprev60_mux {
-						ste,function = "mc0";
-						ste,pins = "mc0dat31dir_a_1";
+						function = "mc0";
+						groups = "mc0dat31dir_a_1";
 					};
 					hrefprev60_cfg1 {
-						ste,pins = "GPIO21_AB3"; /* DAT31DIR */
+						pins = "GPIO21_AB3"; /* DAT31DIR */
 						ste,config = <&out_hi>;
 					};
 
@@ -106,7 +106,7 @@
 			tc35892 {
 				tc35892_hrefprev60_mode: tc35892_hrefprev60 {
 					hrefprev60_cfg {
-						ste,pins = "GPIO217_AH12";
+						pins = "GPIO217_AH12";
 						ste,config = <&gpio_in_pu>;
 					};
 				};
@@ -114,11 +114,11 @@
 			ipgpio {
 				 ipgpio_hrefprev60_mode: ipgpio_hrefprev60 {
 					hrefprev60_mux {
-						ste,function = "ipgpio";
-						ste,pins = "ipgpio0_c_1", "ipgpio1_c_1";
+						function = "ipgpio";
+						groups = "ipgpio0_c_1", "ipgpio1_c_1";
 					};
 					hrefprev60_cfg1 {
-						ste,pins = "GPIO6_AF6", "GPIO7_AG5";
+						pins = "GPIO6_AF6", "GPIO7_AG5";
 						ste,config = <&in_pu>;
 					};
 				 };

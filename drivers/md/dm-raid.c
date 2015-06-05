@@ -746,13 +746,7 @@ static int raid_is_congested(struct dm_target_callbacks *cb, int bits)
 {
 	struct raid_set *rs = container_of(cb, struct raid_set, callbacks);
 
-	if (rs->raid_type->level == 1)
-		return md_raid1_congested(&rs->md, bits);
-
-	if (rs->raid_type->level == 10)
-		return md_raid10_congested(&rs->md, bits);
-
-	return md_raid5_congested(&rs->md, bits);
+	return mddev_congested(&rs->md, bits);
 }
 
 /*
@@ -789,8 +783,7 @@ struct dm_raid_superblock {
 	__le32 layout;
 	__le32 stripe_sectors;
 
-	__u8 pad[452];		/* Round struct to 512 bytes. */
-				/* Always set to 0 when writing. */
+	/* Remainder of a logical block is zero-filled when writing (see super_sync()). */
 } __packed;
 
 static int read_disk_sb(struct md_rdev *rdev, int size)
@@ -827,7 +820,7 @@ static void super_sync(struct mddev *mddev, struct md_rdev *rdev)
 		    test_bit(Faulty, &(rs->dev[i].rdev.flags)))
 			failed_devices |= (1ULL << i);
 
-	memset(sb, 0, sizeof(*sb));
+	memset(sb + 1, 0, rdev->sb_size - sizeof(*sb));
 
 	sb->magic = cpu_to_le32(DM_RAID_MAGIC);
 	sb->features = cpu_to_le32(0);	/* No features yet */
@@ -862,7 +855,11 @@ static int super_load(struct md_rdev *rdev, struct md_rdev *refdev)
 	uint64_t events_sb, events_refsb;
 
 	rdev->sb_start = 0;
-	rdev->sb_size = sizeof(*sb);
+	rdev->sb_size = bdev_logical_block_size(rdev->meta_bdev);
+	if (rdev->sb_size < sizeof(*sb) || rdev->sb_size > PAGE_SIZE) {
+		DMERR("superblock size of a logical block is no longer valid");
+		return -EINVAL;
+	}
 
 	ret = read_disk_sb(rdev, rdev->sb_size);
 	if (ret)
@@ -1169,8 +1166,12 @@ static void configure_discard_support(struct dm_target *ti, struct raid_set *rs)
 	raid456 = (rs->md.level == 4 || rs->md.level == 5 || rs->md.level == 6);
 
 	for (i = 0; i < rs->md.raid_disks; i++) {
-		struct request_queue *q = bdev_get_queue(rs->dev[i].rdev.bdev);
+		struct request_queue *q;
 
+		if (!rs->dev[i].rdev.bdev)
+			continue;
+
+		q = bdev_get_queue(rs->dev[i].rdev.bdev);
 		if (!q || !blk_queue_discard(q))
 			return;
 
@@ -1236,7 +1237,7 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	argv++;
 
 	/* Skip over RAID params for now and find out # of devices */
-	if (num_raid_params + 1 > argc) {
+	if (num_raid_params >= argc) {
 		ti->error = "Arguments do not agree with counts given";
 		return -EINVAL;
 	}
@@ -1244,6 +1245,12 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	if ((kstrtoul(argv[num_raid_params], 10, &num_raid_devs) < 0) ||
 	    (num_raid_devs >= INT_MAX)) {
 		ti->error = "Cannot understand number of raid devices";
+		return -EINVAL;
+	}
+
+	argc -= num_raid_params + 1; /* +1: we already have num_raid_devs */
+	if (argc != (num_raid_devs * 2)) {
+		ti->error = "Supplied RAID devices does not match the count given";
 		return -EINVAL;
 	}
 
@@ -1255,15 +1262,7 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	if (ret)
 		goto bad;
 
-	ret = -EINVAL;
-
-	argc -= num_raid_params + 1; /* +1: we already have num_raid_devs */
 	argv += num_raid_params + 1;
-
-	if (argc != (num_raid_devs * 2)) {
-		ti->error = "Supplied RAID devices does not match the count given";
-		goto bad;
-	}
 
 	ret = dev_parms(rs, argv);
 	if (ret)

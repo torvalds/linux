@@ -169,44 +169,44 @@ static inline void s5pv210_clk_sleep_init(void) { }
 #endif
 
 /* Mux parent lists. */
-static const char *fin_pll_p[] __initconst = {
+static const char *fin_pll_p[] __initdata = {
 	"xxti",
 	"xusbxti"
 };
 
-static const char *mout_apll_p[] __initconst = {
+static const char *mout_apll_p[] __initdata = {
 	"fin_pll",
 	"fout_apll"
 };
 
-static const char *mout_mpll_p[] __initconst = {
+static const char *mout_mpll_p[] __initdata = {
 	"fin_pll",
 	"fout_mpll"
 };
 
-static const char *mout_epll_p[] __initconst = {
+static const char *mout_epll_p[] __initdata = {
 	"fin_pll",
 	"fout_epll"
 };
 
-static const char *mout_vpllsrc_p[] __initconst = {
+static const char *mout_vpllsrc_p[] __initdata = {
 	"fin_pll",
 	"sclk_hdmi27m"
 };
 
-static const char *mout_vpll_p[] __initconst = {
+static const char *mout_vpll_p[] __initdata = {
 	"mout_vpllsrc",
 	"fout_vpll"
 };
 
-static const char *mout_group1_p[] __initconst = {
+static const char *mout_group1_p[] __initdata = {
 	"dout_a2m",
 	"mout_mpll",
 	"mout_epll",
 	"mout_vpll"
 };
 
-static const char *mout_group2_p[] __initconst = {
+static const char *mout_group2_p[] __initdata = {
 	"xxti",
 	"xusbxti",
 	"sclk_hdmi27m",
@@ -218,7 +218,7 @@ static const char *mout_group2_p[] __initconst = {
 	"mout_vpll",
 };
 
-static const char *mout_audio0_p[] __initconst = {
+static const char *mout_audio0_p[] __initdata = {
 	"xxti",
 	"pcmcdclk0",
 	"sclk_hdmi27m",
@@ -230,7 +230,7 @@ static const char *mout_audio0_p[] __initconst = {
 	"mout_vpll",
 };
 
-static const char *mout_audio1_p[] __initconst = {
+static const char *mout_audio1_p[] __initdata = {
 	"i2scdclk1",
 	"pcmcdclk1",
 	"sclk_hdmi27m",
@@ -242,7 +242,7 @@ static const char *mout_audio1_p[] __initconst = {
 	"mout_vpll",
 };
 
-static const char *mout_audio2_p[] __initconst = {
+static const char *mout_audio2_p[] __initdata = {
 	"i2scdclk2",
 	"pcmcdclk2",
 	"sclk_hdmi27m",
@@ -254,63 +254,63 @@ static const char *mout_audio2_p[] __initconst = {
 	"mout_vpll",
 };
 
-static const char *mout_spdif_p[] __initconst = {
+static const char *mout_spdif_p[] __initdata = {
 	"dout_audio0",
 	"dout_audio1",
 	"dout_audio3",
 };
 
-static const char *mout_group3_p[] __initconst = {
+static const char *mout_group3_p[] __initdata = {
 	"mout_apll",
 	"mout_mpll"
 };
 
-static const char *mout_group4_p[] __initconst = {
+static const char *mout_group4_p[] __initdata = {
 	"mout_mpll",
 	"dout_a2m"
 };
 
-static const char *mout_flash_p[] __initconst = {
+static const char *mout_flash_p[] __initdata = {
 	"dout_hclkd",
 	"dout_hclkp"
 };
 
-static const char *mout_dac_p[] __initconst = {
+static const char *mout_dac_p[] __initdata = {
 	"mout_vpll",
 	"sclk_hdmiphy"
 };
 
-static const char *mout_hdmi_p[] __initconst = {
+static const char *mout_hdmi_p[] __initdata = {
 	"sclk_hdmiphy",
 	"dout_tblk"
 };
 
-static const char *mout_mixer_p[] __initconst = {
+static const char *mout_mixer_p[] __initdata = {
 	"mout_dac",
 	"mout_hdmi"
 };
 
-static const char *mout_vpll_6442_p[] __initconst = {
+static const char *mout_vpll_6442_p[] __initdata = {
 	"fin_pll",
 	"fout_vpll"
 };
 
-static const char *mout_mixer_6442_p[] __initconst = {
+static const char *mout_mixer_6442_p[] __initdata = {
 	"mout_vpll",
 	"dout_mixer"
 };
 
-static const char *mout_d0sync_6442_p[] __initconst = {
+static const char *mout_d0sync_6442_p[] __initdata = {
 	"mout_dsys",
 	"div_apll"
 };
 
-static const char *mout_d1sync_6442_p[] __initconst = {
+static const char *mout_d1sync_6442_p[] __initdata = {
 	"mout_psys",
 	"div_apll"
 };
 
-static const char *mout_group2_6442_p[] __initconst = {
+static const char *mout_group2_6442_p[] __initdata = {
 	"fin_pll",
 	"none",
 	"none",
@@ -322,7 +322,7 @@ static const char *mout_group2_6442_p[] __initconst = {
 	"mout_vpll",
 };
 
-static const char *mout_audio0_6442_p[] __initconst = {
+static const char *mout_audio0_6442_p[] __initdata = {
 	"fin_pll",
 	"pcmcdclk0",
 	"none",
@@ -334,7 +334,7 @@ static const char *mout_audio0_6442_p[] __initconst = {
 	"mout_vpll",
 };
 
-static const char *mout_audio1_6442_p[] __initconst = {
+static const char *mout_audio1_6442_p[] __initdata = {
 	"i2scdclk1",
 	"pcmcdclk1",
 	"none",
@@ -347,7 +347,7 @@ static const char *mout_audio1_6442_p[] __initconst = {
 	"fin_pll",
 };
 
-static const char *mout_clksel_p[] __initconst = {
+static const char *mout_clksel_p[] __initdata = {
 	"fout_apll_clkout",
 	"fout_mpll_clkout",
 	"fout_epll",
@@ -370,7 +370,7 @@ static const char *mout_clksel_p[] __initconst = {
 	"div_dclk"
 };
 
-static const char *mout_clksel_6442_p[] __initconst = {
+static const char *mout_clksel_6442_p[] __initdata = {
 	"fout_apll_clkout",
 	"fout_mpll_clkout",
 	"fout_epll",
@@ -393,7 +393,7 @@ static const char *mout_clksel_6442_p[] __initconst = {
 	"div_dclk"
 };
 
-static const char *mout_clkout_p[] __initconst = {
+static const char *mout_clkout_p[] __initdata = {
 	"dout_clkout",
 	"none",
 	"xxti",

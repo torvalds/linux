@@ -73,7 +73,7 @@ int gfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 
 	BUG_ON(name == NULL);
 
-	if (acl->a_count > GFS2_ACL_MAX_ENTRIES(GFS2_SB(inode)))
+	if (acl && acl->a_count > GFS2_ACL_MAX_ENTRIES(GFS2_SB(inode)))
 		return -E2BIG;
 
 	if (type == ACL_TYPE_ACCESS) {
@@ -110,11 +110,7 @@ int gfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	error = __gfs2_xattr_set(inode, name, data, len, 0, GFS2_EATYPE_SYS);
 	if (error)
 		goto out;
-
-	if (acl)
-		set_cached_acl(inode, type, acl);
-	else
-		forget_cached_acl(inode, type);
+	set_cached_acl(inode, type, acl);
 out:
 	kfree(data);
 	return error;

@@ -464,7 +464,7 @@
 			};
 
 			coda: coda@10023000 {
-				compatible = "fsl,imx27-vpu";
+				compatible = "fsl,imx27-vpu", "cnm,codadx6";
 				reg = <0x10023000 0x0200>;
 				interrupts = <53>;
 				clocks = <&clks IMX27_CLK_VPU_BAUD_GATE>,
@@ -488,6 +488,7 @@
 				interrupts = <54>;
 				clocks = <&clks IMX27_CLK_USB_IPG_GATE>;
 				fsl,usbmisc = <&usbmisc 1>;
+				dr_mode = "host";
 				status = "disabled";
 			};
 
@@ -497,6 +498,7 @@
 				interrupts = <55>;
 				clocks = <&clks IMX27_CLK_USB_IPG_GATE>;
 				fsl,usbmisc = <&usbmisc 2>;
+				dr_mode = "host";
 				status = "disabled";
 			};
 
@@ -531,7 +533,7 @@
 
 			fec: ethernet@1002b000 {
 				compatible = "fsl,imx27-fec";
-				reg = <0x1002b000 0x4000>;
+				reg = <0x1002b000 0x1000>;
 				interrupts = <50>;
 				clocks = <&clks IMX27_CLK_FEC_IPG_GATE>,
 					 <&clks IMX27_CLK_FEC_AHB_GATE>;

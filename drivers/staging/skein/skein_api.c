@@ -31,7 +31,7 @@ int skein_ctx_prepare(struct skein_ctx *ctx, enum skein_size size)
 {
 	skein_assert_ret(ctx && size, SKEIN_FAIL);
 
-	memset(ctx , 0, sizeof(struct skein_ctx));
+	memset(ctx, 0, sizeof(struct skein_ctx));
 	ctx->skein_size = size;
 
 	return SKEIN_SUCCESS;

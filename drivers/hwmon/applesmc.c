@@ -676,7 +676,6 @@ static struct platform_driver applesmc_driver = {
 	.probe = applesmc_probe,
 	.driver	= {
 		.name = "applesmc",
-		.owner = THIS_MODULE,
 		.pm = &applesmc_pm_ops,
 	},
 };

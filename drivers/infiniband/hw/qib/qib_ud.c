@@ -127,7 +127,7 @@ static void qib_ud_loopback(struct qib_qp *sqp, struct qib_swqe *swqe)
 	 * present on the wire.
 	 */
 	length = swqe->length;
-	memset(&wc, 0, sizeof wc);
+	memset(&wc, 0, sizeof(wc));
 	wc.byte_len = length + sizeof(struct ib_grh);
 
 	if (swqe->wr.opcode == IB_WR_SEND_WITH_IMM) {

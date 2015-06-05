@@ -44,10 +44,10 @@ struct v4l2_pix_format;
  * @bpp: Bytes per pixel (when stored in memory)
  */
 struct isp_format_info {
-	enum v4l2_mbus_pixelcode code;
-	enum v4l2_mbus_pixelcode truncated;
-	enum v4l2_mbus_pixelcode uncompressed;
-	enum v4l2_mbus_pixelcode flavor;
+	u32 code;
+	u32 truncated;
+	u32 uncompressed;
+	u32 flavor;
 	u32 pixelformat;
 	unsigned int width;
 	unsigned int bpp;
@@ -206,6 +206,6 @@ void omap3isp_video_resume(struct isp_video *video, int continuous);
 struct media_pad *omap3isp_video_remote_pad(struct isp_video *video);
 
 const struct isp_format_info *
-omap3isp_video_format_info(enum v4l2_mbus_pixelcode code);
+omap3isp_video_format_info(u32 code);
 
 #endif /* OMAP3_ISP_VIDEO_H */

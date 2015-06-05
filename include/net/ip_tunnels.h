@@ -97,7 +97,10 @@ struct ip_tunnel {
 #define TUNNEL_DONT_FRAGMENT    __cpu_to_be16(0x0100)
 #define TUNNEL_OAM		__cpu_to_be16(0x0200)
 #define TUNNEL_CRIT_OPT		__cpu_to_be16(0x0400)
-#define TUNNEL_OPTIONS_PRESENT	__cpu_to_be16(0x0800)
+#define TUNNEL_GENEVE_OPT	__cpu_to_be16(0x0800)
+#define TUNNEL_VXLAN_OPT	__cpu_to_be16(0x1000)
+
+#define TUNNEL_OPTIONS_PRESENT	(TUNNEL_GENEVE_OPT | TUNNEL_VXLAN_OPT)
 
 struct tnl_ptk_info {
 	__be16 flags;
@@ -117,11 +120,29 @@ struct ip_tunnel_net {
 	struct hlist_head tunnels[IP_TNL_HASH_SIZE];
 };
 
+struct ip_tunnel_encap_ops {
+	size_t (*encap_hlen)(struct ip_tunnel_encap *e);
+	int (*build_header)(struct sk_buff *skb, struct ip_tunnel_encap *e,
+			    u8 *protocol, struct flowi4 *fl4);
+};
+
+#define MAX_IPTUN_ENCAP_OPS 8
+
+extern const struct ip_tunnel_encap_ops __rcu *
+		iptun_encaps[MAX_IPTUN_ENCAP_OPS];
+
+int ip_tunnel_encap_add_ops(const struct ip_tunnel_encap_ops *op,
+			    unsigned int num);
+int ip_tunnel_encap_del_ops(const struct ip_tunnel_encap_ops *op,
+			    unsigned int num);
+
 #ifdef CONFIG_INET
 
 int ip_tunnel_init(struct net_device *dev);
 void ip_tunnel_uninit(struct net_device *dev);
 void  ip_tunnel_dellink(struct net_device *dev, struct list_head *head);
+struct net *ip_tunnel_get_link_net(const struct net_device *dev);
+int ip_tunnel_get_iflink(const struct net_device *dev);
 int ip_tunnel_init_net(struct net *net, int ip_tnl_net_id,
 		       struct rtnl_link_ops *ops, char *devname);
 

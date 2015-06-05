@@ -46,6 +46,10 @@
 #include <xen/interface/io/xenbus.h>
 #include <xen/interface/io/xs_wire.h>
 
+#define XENBUS_MAX_RING_PAGE_ORDER 4
+#define XENBUS_MAX_RING_PAGES      (1U << XENBUS_MAX_RING_PAGE_ORDER)
+#define INVALID_GRANT_HANDLE       (~0U)
+
 /* Register callback to watch this node. */
 struct xenbus_watch
 {
@@ -114,9 +118,9 @@ int __must_check __xenbus_register_backend(struct xenbus_driver *drv,
 					   const char *mod_name);
 
 #define xenbus_register_frontend(drv) \
-	__xenbus_register_frontend(drv, THIS_MODULE, KBUILD_MODNAME);
+	__xenbus_register_frontend(drv, THIS_MODULE, KBUILD_MODNAME)
 #define xenbus_register_backend(drv) \
-	__xenbus_register_backend(drv, THIS_MODULE, KBUILD_MODNAME);
+	__xenbus_register_backend(drv, THIS_MODULE, KBUILD_MODNAME)
 
 void xenbus_unregister_driver(struct xenbus_driver *drv);
 
@@ -199,15 +203,19 @@ int xenbus_watch_pathfmt(struct xenbus_device *dev, struct xenbus_watch *watch,
 			 const char *pathfmt, ...);
 
 int xenbus_switch_state(struct xenbus_device *dev, enum xenbus_state new_state);
-int xenbus_grant_ring(struct xenbus_device *dev, unsigned long ring_mfn);
-int xenbus_map_ring_valloc(struct xenbus_device *dev,
-			   int gnt_ref, void **vaddr);
-int xenbus_map_ring(struct xenbus_device *dev, int gnt_ref,
-			   grant_handle_t *handle, void *vaddr);
+int xenbus_grant_ring(struct xenbus_device *dev, void *vaddr,
+		      unsigned int nr_pages, grant_ref_t *grefs);
+int xenbus_map_ring_valloc(struct xenbus_device *dev, grant_ref_t *gnt_refs,
+			   unsigned int nr_grefs, void **vaddr);
+int xenbus_map_ring(struct xenbus_device *dev,
+		    grant_ref_t *gnt_refs, unsigned int nr_grefs,
+		    grant_handle_t *handles, unsigned long *vaddrs,
+		    bool *leaked);
 
 int xenbus_unmap_ring_vfree(struct xenbus_device *dev, void *vaddr);
 int xenbus_unmap_ring(struct xenbus_device *dev,
-		      grant_handle_t handle, void *vaddr);
+		      grant_handle_t *handles, unsigned int nr_handles,
+		      unsigned long *vaddrs);
 
 int xenbus_alloc_evtchn(struct xenbus_device *dev, int *port);
 int xenbus_free_evtchn(struct xenbus_device *dev, int port);

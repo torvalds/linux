@@ -63,8 +63,6 @@ static netdev_tx_t dsa_xmit(struct sk_buff *skb, struct net_device *dev)
 		dsa_header[3] = 0x00;
 	}
 
-	skb->protocol = htons(ETH_P_DSA);
-
 	skb->dev = p->parent->dst->master_netdev;
 	dev_queue_xmit(skb);
 

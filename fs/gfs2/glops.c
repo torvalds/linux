@@ -28,6 +28,8 @@
 #include "trans.h"
 #include "dir.h"
 
+struct workqueue_struct *gfs2_freeze_wq;
+
 static void gfs2_ail_error(struct gfs2_glock *gl, const struct buffer_head *bh)
 {
 	fs_err(gl->gl_sbd, "AIL buffer %p: blocknr %llu state 0x%08lx mapping %p page state 0x%lx\n",
@@ -94,11 +96,8 @@ static void gfs2_ail_empty_gl(struct gfs2_glock *gl)
          * on the stack */
 	tr.tr_reserved = 1 + gfs2_struct2blk(sdp, tr.tr_revokes, sizeof(u64));
 	tr.tr_ip = _RET_IP_;
-	sb_start_intwrite(sdp->sd_vfs);
-	if (gfs2_log_reserve(sdp, tr.tr_reserved) < 0) {
-		sb_end_intwrite(sdp->sd_vfs);
+	if (gfs2_log_reserve(sdp, tr.tr_reserved) < 0)
 		return;
-	}
 	WARN_ON_ONCE(current->journal_info);
 	current->journal_info = &tr;
 
@@ -469,20 +468,19 @@ static void inode_go_dump(struct seq_file *seq, const struct gfs2_glock *gl)
 
 static void freeze_go_sync(struct gfs2_glock *gl)
 {
+	int error = 0;
 	struct gfs2_sbd *sdp = gl->gl_sbd;
-	DEFINE_WAIT(wait);
 
 	if (gl->gl_state == LM_ST_SHARED &&
 	    test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags)) {
-		atomic_set(&sdp->sd_log_freeze, 1);
-		wake_up(&sdp->sd_logd_waitq);
-		do {
-			prepare_to_wait(&sdp->sd_log_frozen_wait, &wait,
-					TASK_UNINTERRUPTIBLE);
-			if (atomic_read(&sdp->sd_log_freeze))
-				io_schedule();
-		} while(atomic_read(&sdp->sd_log_freeze));
-		finish_wait(&sdp->sd_log_frozen_wait, &wait);
+		atomic_set(&sdp->sd_freeze_state, SFS_STARTING_FREEZE);
+		error = freeze_super(sdp->sd_vfs);
+		if (error) {
+			printk(KERN_INFO "GFS2: couldn't freeze filesystem: %d\n", error);
+			gfs2_assert_withdraw(sdp, 0);
+		}
+		queue_work(gfs2_freeze_wq, &sdp->sd_freeze_work);
+		gfs2_log_flush(sdp, NULL, FREEZE_FLUSH);
 	}
 }
 

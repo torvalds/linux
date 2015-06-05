@@ -6,6 +6,12 @@
 
 #include <linux/mm_types.h>
 #include <linux/bug.h>
+#include <linux/errno.h>
+
+#if 4 - defined(__PAGETABLE_PUD_FOLDED) - defined(__PAGETABLE_PMD_FOLDED) != \
+	CONFIG_PGTABLE_LEVELS
+#error CONFIG_PGTABLE_LEVELS is not consistent with __PAGETABLE_{PUD,PMD}_FOLDED
+#endif
 
 /*
  * On almost all architectures and configurations, 0 can be used as the
@@ -99,6 +105,17 @@ static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
 	pmd_t pmd = *pmdp;
 	pmd_clear(pmdp);
 	return pmd;
+}
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+#endif
+
+#ifndef __HAVE_ARCH_PMDP_GET_AND_CLEAR_FULL
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+static inline pmd_t pmdp_get_and_clear_full(struct mm_struct *mm,
+					    unsigned long address, pmd_t *pmdp,
+					    int full)
+{
+	return pmdp_get_and_clear(mm, address, pmdp);
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 #endif
@@ -231,10 +248,6 @@ static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
 
 #ifndef pte_accessible
 # define pte_accessible(mm, pte)	((void)(pte), 1)
-#endif
-
-#ifndef pte_present_nonuma
-#define pte_present_nonuma(pte) pte_present(pte)
 #endif
 
 #ifndef flush_tlb_fix_spurious_fault
@@ -463,21 +476,6 @@ static inline pte_t pte_swp_clear_soft_dirty(pte_t pte)
 {
 	return pte;
 }
-
-static inline pte_t pte_file_clear_soft_dirty(pte_t pte)
-{
-       return pte;
-}
-
-static inline pte_t pte_file_mksoft_dirty(pte_t pte)
-{
-       return pte;
-}
-
-static inline int pte_file_soft_dirty(pte_t pte)
-{
-       return 0;
-}
 #endif
 
 #ifndef __HAVE_PFNMAP_TRACKING
@@ -677,158 +675,51 @@ static inline int pmd_trans_unstable(pmd_t *pmd)
 #endif
 }
 
-#ifdef CONFIG_NUMA_BALANCING
+#ifndef CONFIG_NUMA_BALANCING
 /*
- * _PAGE_NUMA distinguishes between an unmapped page table entry, an entry that
- * is protected for PROT_NONE and a NUMA hinting fault entry. If the
- * architecture defines __PAGE_PROTNONE then it should take that into account
- * but those that do not can rely on the fact that the NUMA hinting scanner
- * skips inaccessible VMAs.
- *
- * pte/pmd_present() returns true if pte/pmd_numa returns true. Page
- * fault triggers on those regions if pte/pmd_numa returns true
- * (because _PAGE_PRESENT is not set).
+ * Technically a PTE can be PROTNONE even when not doing NUMA balancing but
+ * the only case the kernel cares is for NUMA balancing and is only ever set
+ * when the VMA is accessible. For PROT_NONE VMAs, the PTEs are not marked
+ * _PAGE_PROTNONE so by by default, implement the helper as "always no". It
+ * is the responsibility of the caller to distinguish between PROT_NONE
+ * protections and NUMA hinting fault protections.
  */
-#ifndef pte_numa
-static inline int pte_numa(pte_t pte)
-{
-	return ptenuma_flags(pte) == _PAGE_NUMA;
-}
-#endif
-
-#ifndef pmd_numa
-static inline int pmd_numa(pmd_t pmd)
-{
-	return pmdnuma_flags(pmd) == _PAGE_NUMA;
-}
-#endif
-
-/*
- * pte/pmd_mknuma sets the _PAGE_ACCESSED bitflag automatically
- * because they're called by the NUMA hinting minor page fault. If we
- * wouldn't set the _PAGE_ACCESSED bitflag here, the TLB miss handler
- * would be forced to set it later while filling the TLB after we
- * return to userland. That would trigger a second write to memory
- * that we optimize away by setting _PAGE_ACCESSED here.
- */
-#ifndef pte_mknonnuma
-static inline pte_t pte_mknonnuma(pte_t pte)
-{
-	pteval_t val = pte_val(pte);
-
-	val &= ~_PAGE_NUMA;
-	val |= (_PAGE_PRESENT|_PAGE_ACCESSED);
-	return __pte(val);
-}
-#endif
-
-#ifndef pmd_mknonnuma
-static inline pmd_t pmd_mknonnuma(pmd_t pmd)
-{
-	pmdval_t val = pmd_val(pmd);
-
-	val &= ~_PAGE_NUMA;
-	val |= (_PAGE_PRESENT|_PAGE_ACCESSED);
-
-	return __pmd(val);
-}
-#endif
-
-#ifndef pte_mknuma
-static inline pte_t pte_mknuma(pte_t pte)
-{
-	pteval_t val = pte_val(pte);
-
-	VM_BUG_ON(!(val & _PAGE_PRESENT));
-
-	val &= ~_PAGE_PRESENT;
-	val |= _PAGE_NUMA;
-
-	return __pte(val);
-}
-#endif
-
-#ifndef ptep_set_numa
-static inline void ptep_set_numa(struct mm_struct *mm, unsigned long addr,
-				 pte_t *ptep)
-{
-	pte_t ptent = *ptep;
-
-	ptent = pte_mknuma(ptent);
-	set_pte_at(mm, addr, ptep, ptent);
-	return;
-}
-#endif
-
-#ifndef pmd_mknuma
-static inline pmd_t pmd_mknuma(pmd_t pmd)
-{
-	pmdval_t val = pmd_val(pmd);
-
-	val &= ~_PAGE_PRESENT;
-	val |= _PAGE_NUMA;
-
-	return __pmd(val);
-}
-#endif
-
-#ifndef pmdp_set_numa
-static inline void pmdp_set_numa(struct mm_struct *mm, unsigned long addr,
-				 pmd_t *pmdp)
-{
-	pmd_t pmd = *pmdp;
-
-	pmd = pmd_mknuma(pmd);
-	set_pmd_at(mm, addr, pmdp, pmd);
-	return;
-}
-#endif
-#else
-static inline int pmd_numa(pmd_t pmd)
+static inline int pte_protnone(pte_t pte)
 {
 	return 0;
 }
 
-static inline int pte_numa(pte_t pte)
+static inline int pmd_protnone(pmd_t pmd)
 {
 	return 0;
-}
-
-static inline pte_t pte_mknonnuma(pte_t pte)
-{
-	return pte;
-}
-
-static inline pmd_t pmd_mknonnuma(pmd_t pmd)
-{
-	return pmd;
-}
-
-static inline pte_t pte_mknuma(pte_t pte)
-{
-	return pte;
-}
-
-static inline void ptep_set_numa(struct mm_struct *mm, unsigned long addr,
-				 pte_t *ptep)
-{
-	return;
-}
-
-
-static inline pmd_t pmd_mknuma(pmd_t pmd)
-{
-	return pmd;
-}
-
-static inline void pmdp_set_numa(struct mm_struct *mm, unsigned long addr,
-				 pmd_t *pmdp)
-{
-	return ;
 }
 #endif /* CONFIG_NUMA_BALANCING */
 
 #endif /* CONFIG_MMU */
+
+#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
+int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot);
+int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot);
+int pud_clear_huge(pud_t *pud);
+int pmd_clear_huge(pmd_t *pmd);
+#else	/* !CONFIG_HAVE_ARCH_HUGE_VMAP */
+static inline int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot)
+{
+	return 0;
+}
+static inline int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot)
+{
+	return 0;
+}
+static inline int pud_clear_huge(pud_t *pud)
+{
+	return 0;
+}
+static inline int pmd_clear_huge(pmd_t *pmd)
+{
+	return 0;
+}
+#endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */
 
 #endif /* !__ASSEMBLY__ */
 

@@ -52,7 +52,6 @@ int coda_setattr(struct dentry *, struct iattr *);
 
 /* this file:  heloers */
 char *coda_f2s(struct CodaFid *f);
-int coda_isroot(struct inode *i);
 int coda_iscontrol(const char *name, size_t length);
 
 void coda_vattr_to_iattr(struct inode *, struct coda_vattr *);

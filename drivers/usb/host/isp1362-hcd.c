@@ -1538,13 +1538,17 @@ static void isp1362_hub_descriptor(struct isp1362_hcd *isp1362_hcd,
 
 	DBG(3, "%s: enter\n", __func__);
 
-	desc->bDescriptorType = 0x29;
+	desc->bDescriptorType = USB_DT_HUB;
 	desc->bDescLength = 9;
 	desc->bHubContrCurrent = 0;
 	desc->bNbrPorts = reg & 0x3;
 	/* Power switching, device type, overcurrent. */
-	desc->wHubCharacteristics = cpu_to_le16((reg >> 8) & 0x1f);
-	DBG(0, "%s: hubcharacteristics = %02x\n", __func__, cpu_to_le16((reg >> 8) & 0x1f));
+	desc->wHubCharacteristics = cpu_to_le16((reg >> 8) &
+						(HUB_CHAR_LPSM |
+						 HUB_CHAR_COMPOUND |
+						 HUB_CHAR_OCPM));
+	DBG(0, "%s: hubcharacteristics = %02x\n", __func__,
+			desc->wHubCharacteristics);
 	desc->bPwrOn2PwrGood = (reg >> 24) & 0xff;
 	/* ports removable, and legacy PortPwrCtrlMask */
 	desc->u.hs.DeviceRemovable[0] = desc->bNbrPorts == 1 ? 1 << 1 : 3 << 1;
@@ -2778,7 +2782,6 @@ static struct platform_driver isp1362_driver = {
 	.resume = isp1362_resume,
 	.driver = {
 		.name = hcd_name,
-		.owner = THIS_MODULE,
 	},
 };
 

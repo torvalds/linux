@@ -16,12 +16,10 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/module.h>
 #include <linux/kernel.h>
 
-#include <pcmcia/cistpl.h>
-#include <pcmcia/ds.h>
-
-#include "comedidev.h"
+#include "comedi_pcmcia.h"
 
 /**
  * comedi_to_pcmcia_dev() - comedi_device pointer to pcmcia_device pointer.
@@ -154,3 +152,18 @@ void comedi_pcmcia_driver_unregister(struct comedi_driver *comedi_driver,
 	comedi_driver_unregister(comedi_driver);
 }
 EXPORT_SYMBOL_GPL(comedi_pcmcia_driver_unregister);
+
+static int __init comedi_pcmcia_init(void)
+{
+	return 0;
+}
+module_init(comedi_pcmcia_init);
+
+static void __exit comedi_pcmcia_exit(void)
+{
+}
+module_exit(comedi_pcmcia_exit);
+
+MODULE_AUTHOR("http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi PCMCIA interface module");
+MODULE_LICENSE("GPL");

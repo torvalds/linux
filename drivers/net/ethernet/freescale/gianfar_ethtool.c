@@ -579,8 +579,13 @@ static int gfar_spauseparam(struct net_device *dev,
 			u32 tempval;
 			tempval = gfar_read(&regs->maccfg1);
 			tempval &= ~(MACCFG1_TX_FLOW | MACCFG1_RX_FLOW);
-			if (priv->tx_pause_en)
+
+			priv->tx_actual_en = 0;
+			if (priv->tx_pause_en) {
+				priv->tx_actual_en = 1;
 				tempval |= MACCFG1_TX_FLOW;
+			}
+
 			if (priv->rx_pause_en)
 				tempval |= MACCFG1_RX_FLOW;
 			gfar_write(&regs->maccfg1, tempval);
@@ -1581,7 +1586,7 @@ static int gfar_write_filer_table(struct gfar_private *priv,
 		return -EBUSY;
 
 	/* Fill regular entries */
-	for (; i < MAX_FILER_IDX - 1 && (tab->fe[i].ctrl | tab->fe[i].ctrl);
+	for (; i < MAX_FILER_IDX - 1 && (tab->fe[i].ctrl | tab->fe[i].prop);
 	     i++)
 		gfar_write_filer(priv, i, tab->fe[i].ctrl, tab->fe[i].prop);
 	/* Fill the rest with fall-troughs */

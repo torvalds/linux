@@ -51,11 +51,11 @@ static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	res_wr = (struct fw_ri_res_wr *)__skb_put(skb, wr_len);
 	memset(res_wr, 0, wr_len);
 	res_wr->op_nres = cpu_to_be32(
-			FW_WR_OP(FW_RI_RES_WR) |
-			V_FW_RI_RES_WR_NRES(1) |
-			FW_WR_COMPL(1));
+			FW_WR_OP_V(FW_RI_RES_WR) |
+			FW_RI_RES_WR_NRES_V(1) |
+			FW_WR_COMPL_F);
 	res_wr->len16_pkd = cpu_to_be32(DIV_ROUND_UP(wr_len, 16));
-	res_wr->cookie = (unsigned long) &wr_wait;
+	res_wr->cookie = (uintptr_t)&wr_wait;
 	res = res_wr->res;
 	res->u.cq.restype = FW_RI_RES_TYPE_CQ;
 	res->u.cq.op = FW_RI_RES_OP_RESET;
@@ -121,27 +121,27 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	res_wr = (struct fw_ri_res_wr *)__skb_put(skb, wr_len);
 	memset(res_wr, 0, wr_len);
 	res_wr->op_nres = cpu_to_be32(
-			FW_WR_OP(FW_RI_RES_WR) |
-			V_FW_RI_RES_WR_NRES(1) |
-			FW_WR_COMPL(1));
+			FW_WR_OP_V(FW_RI_RES_WR) |
+			FW_RI_RES_WR_NRES_V(1) |
+			FW_WR_COMPL_F);
 	res_wr->len16_pkd = cpu_to_be32(DIV_ROUND_UP(wr_len, 16));
-	res_wr->cookie = (unsigned long) &wr_wait;
+	res_wr->cookie = (uintptr_t)&wr_wait;
 	res = res_wr->res;
 	res->u.cq.restype = FW_RI_RES_TYPE_CQ;
 	res->u.cq.op = FW_RI_RES_OP_WRITE;
 	res->u.cq.iqid = cpu_to_be32(cq->cqid);
 	res->u.cq.iqandst_to_iqandstindex = cpu_to_be32(
-			V_FW_RI_RES_WR_IQANUS(0) |
-			V_FW_RI_RES_WR_IQANUD(1) |
-			F_FW_RI_RES_WR_IQANDST |
-			V_FW_RI_RES_WR_IQANDSTINDEX(
+			FW_RI_RES_WR_IQANUS_V(0) |
+			FW_RI_RES_WR_IQANUD_V(1) |
+			FW_RI_RES_WR_IQANDST_F |
+			FW_RI_RES_WR_IQANDSTINDEX_V(
 				rdev->lldi.ciq_ids[cq->vector]));
 	res->u.cq.iqdroprss_to_iqesize = cpu_to_be16(
-			F_FW_RI_RES_WR_IQDROPRSS |
-			V_FW_RI_RES_WR_IQPCIECH(2) |
-			V_FW_RI_RES_WR_IQINTCNTTHRESH(0) |
-			F_FW_RI_RES_WR_IQO |
-			V_FW_RI_RES_WR_IQESIZE(1));
+			FW_RI_RES_WR_IQDROPRSS_F |
+			FW_RI_RES_WR_IQPCIECH_V(2) |
+			FW_RI_RES_WR_IQINTCNTTHRESH_V(0) |
+			FW_RI_RES_WR_IQO_F |
+			FW_RI_RES_WR_IQESIZE_V(1));
 	res->u.cq.iqsize = cpu_to_be16(cq->size);
 	res->u.cq.iqaddr = cpu_to_be64(cq->dma_addr);
 
@@ -156,12 +156,19 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 		goto err4;
 
 	cq->gen = 1;
-	cq->gts = rdev->lldi.gts_reg;
 	cq->rdev = rdev;
 	if (user) {
-		cq->ugts = (u64)pci_resource_start(rdev->lldi.pdev, 2) +
-					(cq->cqid << rdev->cqshift);
-		cq->ugts &= PAGE_MASK;
+		u32 off = (cq->cqid << rdev->cqshift) & PAGE_MASK;
+
+		cq->ugts = (u64)rdev->bar2_pa + off;
+	} else if (is_t4(rdev->lldi.adapter_type)) {
+		cq->gts = rdev->lldi.gts_reg;
+		cq->qid_mask = -1U;
+	} else {
+		u32 off = ((cq->cqid << rdev->cqshift) & PAGE_MASK) + 12;
+
+		cq->gts = rdev->bar2_kva + off;
+		cq->qid_mask = rdev->qpmask;
 	}
 	return 0;
 err4:
@@ -182,12 +189,12 @@ static void insert_recv_cqe(struct t4_wq *wq, struct t4_cq *cq)
 	PDBG("%s wq %p cq %p sw_cidx %u sw_pidx %u\n", __func__,
 	     wq, cq, cq->sw_cidx, cq->sw_pidx);
 	memset(&cqe, 0, sizeof(cqe));
-	cqe.header = cpu_to_be32(V_CQE_STATUS(T4_ERR_SWFLUSH) |
-				 V_CQE_OPCODE(FW_RI_SEND) |
-				 V_CQE_TYPE(0) |
-				 V_CQE_SWCQE(1) |
-				 V_CQE_QPID(wq->sq.qid));
-	cqe.bits_type_ts = cpu_to_be64(V_CQE_GENBIT((u64)cq->gen));
+	cqe.header = cpu_to_be32(CQE_STATUS_V(T4_ERR_SWFLUSH) |
+				 CQE_OPCODE_V(FW_RI_SEND) |
+				 CQE_TYPE_V(0) |
+				 CQE_SWCQE_V(1) |
+				 CQE_QPID_V(wq->sq.qid));
+	cqe.bits_type_ts = cpu_to_be64(CQE_GENBIT_V((u64)cq->gen));
 	cq->sw_queue[cq->sw_pidx] = cqe;
 	t4_swcq_produce(cq);
 }
@@ -215,13 +222,13 @@ static void insert_sq_cqe(struct t4_wq *wq, struct t4_cq *cq,
 	PDBG("%s wq %p cq %p sw_cidx %u sw_pidx %u\n", __func__,
 	     wq, cq, cq->sw_cidx, cq->sw_pidx);
 	memset(&cqe, 0, sizeof(cqe));
-	cqe.header = cpu_to_be32(V_CQE_STATUS(T4_ERR_SWFLUSH) |
-				 V_CQE_OPCODE(swcqe->opcode) |
-				 V_CQE_TYPE(1) |
-				 V_CQE_SWCQE(1) |
-				 V_CQE_QPID(wq->sq.qid));
+	cqe.header = cpu_to_be32(CQE_STATUS_V(T4_ERR_SWFLUSH) |
+				 CQE_OPCODE_V(swcqe->opcode) |
+				 CQE_TYPE_V(1) |
+				 CQE_SWCQE_V(1) |
+				 CQE_QPID_V(wq->sq.qid));
 	CQE_WRID_SQ_IDX(&cqe) = swcqe->idx;
-	cqe.bits_type_ts = cpu_to_be64(V_CQE_GENBIT((u64)cq->gen));
+	cqe.bits_type_ts = cpu_to_be64(CQE_GENBIT_V((u64)cq->gen));
 	cq->sw_queue[cq->sw_pidx] = cqe;
 	t4_swcq_produce(cq);
 }
@@ -284,7 +291,7 @@ static void flush_completed_wrs(struct t4_wq *wq, struct t4_cq *cq)
 			 */
 			PDBG("%s moving cqe into swcq sq idx %u cq idx %u\n",
 					__func__, cidx, cq->sw_pidx);
-			swsqe->cqe.header |= htonl(V_CQE_SWCQE(1));
+			swsqe->cqe.header |= htonl(CQE_SWCQE_V(1));
 			cq->sw_queue[cq->sw_pidx] = swsqe->cqe;
 			t4_swcq_produce(cq);
 			swsqe->flushed = 1;
@@ -301,10 +308,10 @@ static void create_read_req_cqe(struct t4_wq *wq, struct t4_cqe *hw_cqe,
 {
 	read_cqe->u.scqe.cidx = wq->sq.oldest_read->idx;
 	read_cqe->len = htonl(wq->sq.oldest_read->read_len);
-	read_cqe->header = htonl(V_CQE_QPID(CQE_QPID(hw_cqe)) |
-			V_CQE_SWCQE(SW_CQE(hw_cqe)) |
-			V_CQE_OPCODE(FW_RI_READ_REQ) |
-			V_CQE_TYPE(1));
+	read_cqe->header = htonl(CQE_QPID_V(CQE_QPID(hw_cqe)) |
+			CQE_SWCQE_V(SW_CQE(hw_cqe)) |
+			CQE_OPCODE_V(FW_RI_READ_REQ) |
+			CQE_TYPE_V(1));
 	read_cqe->bits_type_ts = hw_cqe->bits_type_ts;
 }
 
@@ -400,7 +407,7 @@ void c4iw_flush_hw_cq(struct c4iw_cq *chp)
 		} else {
 			swcqe = &chp->cq.sw_queue[chp->cq.sw_pidx];
 			*swcqe = *hw_cqe;
-			swcqe->header |= cpu_to_be32(V_CQE_SWCQE(1));
+			swcqe->header |= cpu_to_be32(CQE_SWCQE_V(1));
 			t4_swcq_produce(&chp->cq);
 		}
 next_cqe:
@@ -576,7 +583,7 @@ static int poll_cq(struct t4_wq *wq, struct t4_cq *cq, struct t4_cqe *cqe,
 		}
 		if (unlikely((CQE_WRID_MSN(hw_cqe) != (wq->rq.msn)))) {
 			t4_set_wq_in_error(wq);
-			hw_cqe->header |= htonl(V_CQE_STATUS(T4_ERR_MSN));
+			hw_cqe->header |= htonl(CQE_STATUS_V(T4_ERR_MSN));
 			goto proc_cqe;
 		}
 		goto proc_cqe;
@@ -970,8 +977,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
 	}
 	PDBG("%s cqid 0x%0x chp %p size %u memsize %zu, dma_addr 0x%0llx\n",
 	     __func__, chp->cq.cqid, chp, chp->cq.size,
-	     chp->cq.memsize,
-	     (unsigned long long) chp->cq.dma_addr);
+	     chp->cq.memsize, (unsigned long long) chp->cq.dma_addr);
 	return &chp->ibcq;
 err5:
 	kfree(mm2);

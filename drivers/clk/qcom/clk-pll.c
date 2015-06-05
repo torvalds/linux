@@ -71,12 +71,8 @@ static int clk_pll_enable(struct clk_hw *hw)
 	udelay(50);
 
 	/* Enable PLL output. */
-	ret = regmap_update_bits(pll->clkr.regmap, pll->mode_reg, PLL_OUTCTRL,
+	return regmap_update_bits(pll->clkr.regmap, pll->mode_reg, PLL_OUTCTRL,
 				 PLL_OUTCTRL);
-	if (ret)
-		return ret;
-
-	return 0;
 }
 
 static void clk_pll_disable(struct clk_hw *hw)
@@ -141,7 +137,8 @@ struct pll_freq_tbl *find_freq(const struct pll_freq_tbl *f, unsigned long rate)
 
 static long
 clk_pll_determine_rate(struct clk_hw *hw, unsigned long rate,
-		       unsigned long *p_rate, struct clk **p)
+		       unsigned long min_rate, unsigned long max_rate,
+		       unsigned long *p_rate, struct clk_hw **p)
 {
 	struct clk_pll *pll = to_clk_pll(hw);
 	const struct pll_freq_tbl *f;

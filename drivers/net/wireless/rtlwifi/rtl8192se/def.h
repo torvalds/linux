@@ -31,7 +31,6 @@
 
 #define RX_MPDU_QUEUE				0
 #define RX_CMD_QUEUE				1
-#define RX_MAX_QUEUE				2
 
 #define SHORT_SLOT_TIME				9
 #define NON_SHORT_SLOT_TIME			20
@@ -450,10 +449,10 @@
 	SHIFT_AND_MASK_LE(__pdesc + 24, 0, 32)
 
 #define SE_RX_HAL_IS_CCK_RATE(_pdesc)\
-	(GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC92_RATE1M ||	\
-	 GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC92_RATE2M ||	\
-	 GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC92_RATE5_5M ||\
-	 GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC92_RATE11M)
+	(GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC_RATE1M ||	\
+	 GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC_RATE2M ||	\
+	 GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC_RATE5_5M ||\
+	 GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC_RATE11M)
 
 enum rf_optype {
 	RF_OP_BY_SW_3WIRE = 0,

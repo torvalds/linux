@@ -194,10 +194,8 @@ static __u64 mds_pack_open_flags(__u64 flags, __u32 mode)
 		cr_flags |= MDS_OPEN_SYNC;
 	if (flags & O_DIRECTORY)
 		cr_flags |= MDS_OPEN_DIRECTORY;
-#ifdef FMODE_EXEC
-	if (flags & FMODE_EXEC)
+	if (flags & __FMODE_EXEC)
 		cr_flags |= MDS_FMODE_EXEC;
-#endif
 	if (cl_is_lov_delay_create(flags))
 		cr_flags |= MDS_OPEN_DELAY_CREATE;
 
@@ -224,10 +222,9 @@ void mdc_open_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 	rec->cr_fsuid    = from_kuid(&init_user_ns, current_fsuid());
 	rec->cr_fsgid    = from_kgid(&init_user_ns, current_fsgid());
 	rec->cr_cap      = cfs_curproc_cap_pack();
-	if (op_data != NULL) {
-		rec->cr_fid1 = op_data->op_fid1;
-		rec->cr_fid2 = op_data->op_fid2;
-	}
+	rec->cr_fid1 = op_data->op_fid1;
+	rec->cr_fid2 = op_data->op_fid2;
+
 	rec->cr_mode     = mode;
 	cr_flags = mds_pack_open_flags(flags, mode);
 	rec->cr_rdev     = rdev;

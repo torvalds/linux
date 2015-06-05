@@ -57,7 +57,7 @@ objio_free_deviceid_node(struct nfs4_deviceid_node *d)
 
 	dprintk("%s: free od=%p\n", __func__, de->od.od);
 	osduld_put_device(de->od.od);
-	kfree(de);
+	kfree_rcu(d, rcu);
 }
 
 struct objio_segment {
@@ -537,11 +537,12 @@ int objio_write_pagelist(struct nfs_pgio_header *hdr, int how)
 static size_t objio_pg_test(struct nfs_pageio_descriptor *pgio,
 			  struct nfs_page *prev, struct nfs_page *req)
 {
+	struct nfs_pgio_mirror *mirror = nfs_pgio_current_mirror(pgio);
 	unsigned int size;
 
 	size = pnfs_generic_pg_test(pgio, prev, req);
 
-	if (!size || pgio->pg_count + req->wb_bytes >
+	if (!size || mirror->pg_count + req->wb_bytes >
 	    (unsigned long)pgio->pg_layout_private)
 		return 0;
 
@@ -607,12 +608,14 @@ static const struct nfs_pageio_ops objio_pg_read_ops = {
 	.pg_init = objio_init_read,
 	.pg_test = objio_pg_test,
 	.pg_doio = pnfs_generic_pg_readpages,
+	.pg_cleanup = pnfs_generic_pg_cleanup,
 };
 
 static const struct nfs_pageio_ops objio_pg_write_ops = {
 	.pg_init = objio_init_write,
 	.pg_test = objio_pg_test,
 	.pg_doio = pnfs_generic_pg_writepages,
+	.pg_cleanup = pnfs_generic_pg_cleanup,
 };
 
 static struct pnfs_layoutdriver_type objlayout_type = {
@@ -633,6 +636,8 @@ static struct pnfs_layoutdriver_type objlayout_type = {
 	.write_pagelist          = objlayout_write_pagelist,
 	.pg_read_ops             = &objio_pg_read_ops,
 	.pg_write_ops            = &objio_pg_write_ops,
+
+	.sync			 = pnfs_generic_sync,
 
 	.free_deviceid_node	 = objio_free_deviceid_node,
 

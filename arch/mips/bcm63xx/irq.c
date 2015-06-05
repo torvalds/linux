@@ -58,9 +58,9 @@ static inline int enable_irq_for_cpu(int cpu, struct irq_data *d,
 
 #ifdef CONFIG_SMP
 	if (m)
-		enable &= cpu_isset(cpu, *m);
+		enable &= cpumask_test_cpu(cpu, m);
 	else if (irqd_affinity_was_set(d))
-		enable &= cpu_isset(cpu, *d->affinity);
+		enable &= cpumask_test_cpu(cpu, d->affinity);
 #endif
 	return enable;
 }

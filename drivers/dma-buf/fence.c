@@ -159,6 +159,9 @@ fence_wait_timeout(struct fence *fence, bool intr, signed long timeout)
 	if (WARN_ON(timeout < 0))
 		return -EINVAL;
 
+	if (timeout == 0)
+		return fence_is_signaled(fence);
+
 	trace_fence_wait_start(fence);
 	ret = fence->ops->wait(fence, intr, timeout);
 	trace_fence_wait_end(fence);
@@ -283,7 +286,7 @@ EXPORT_SYMBOL(fence_add_callback);
  * @cb:		[in]	the callback to remove
  *
  * Remove a previously queued callback from the fence. This function returns
- * true if the callback is succesfully removed, or false if the fence has
+ * true if the callback is successfully removed, or false if the fence has
  * already been signaled.
  *
  * *WARNING*:

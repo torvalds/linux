@@ -707,7 +707,6 @@ static struct platform_driver pxa3xx_gcu_driver = {
 	.probe	  = pxa3xx_gcu_probe,
 	.remove	 = pxa3xx_gcu_remove,
 	.driver	 = {
-		.owner  = THIS_MODULE,
 		.name   = DRV_NAME,
 	},
 };

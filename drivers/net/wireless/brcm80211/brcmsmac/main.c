@@ -316,7 +316,7 @@ static const u16 xmtfifo_sz[][NFIFO] = {
 static const char * const fifo_names[] = {
 	"AC_BK", "AC_BE", "AC_VI", "AC_VO", "BCMC", "ATIM" };
 #else
-static const char fifo_names[6][0];
+static const char fifo_names[6][1];
 #endif
 
 #ifdef DEBUG
@@ -445,18 +445,18 @@ static void brcms_c_detach_mfree(struct brcms_c_info *wlc)
 	kfree(wlc->protection);
 	kfree(wlc->stf);
 	kfree(wlc->bandstate[0]);
-	kfree(wlc->corestate->macstat_snapshot);
+	if (wlc->corestate)
+		kfree(wlc->corestate->macstat_snapshot);
 	kfree(wlc->corestate);
-	kfree(wlc->hw->bandstate[0]);
+	if (wlc->hw)
+		kfree(wlc->hw->bandstate[0]);
 	kfree(wlc->hw);
 	if (wlc->beacon)
 		dev_kfree_skb_any(wlc->beacon);
 	if (wlc->probe_resp)
 		dev_kfree_skb_any(wlc->probe_resp);
 
-	/* free the wlc */
 	kfree(wlc);
-	wlc = NULL;
 }
 
 static struct brcms_bss_cfg *brcms_c_bsscfg_malloc(uint unit)
@@ -1009,8 +1009,7 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 		if (txh)
 			trace_brcms_txdesc(&wlc->hw->d11core->dev, txh,
 					   sizeof(*txh));
-		if (p)
-			brcmu_pkt_buf_free_skb(p);
+		brcmu_pkt_buf_free_skb(p);
 	}
 
 	if (dma && queue < NFIFO) {
@@ -3081,7 +3080,7 @@ static bool brcms_c_ps_allowed(struct brcms_c_info *wlc)
 static void brcms_c_statsupd(struct brcms_c_info *wlc)
 {
 	int i;
-	struct macstat macstats;
+	struct macstat *macstats;
 #ifdef DEBUG
 	u16 delta;
 	u16 rxf0ovfl;
@@ -3092,31 +3091,31 @@ static void brcms_c_statsupd(struct brcms_c_info *wlc)
 	if (!wlc->pub->up)
 		return;
 
+	macstats = wlc->core->macstat_snapshot;
+
 #ifdef DEBUG
 	/* save last rx fifo 0 overflow count */
-	rxf0ovfl = wlc->core->macstat_snapshot->rxf0ovfl;
+	rxf0ovfl = macstats->rxf0ovfl;
 
 	/* save last tx fifo  underflow count */
 	for (i = 0; i < NFIFO; i++)
-		txfunfl[i] = wlc->core->macstat_snapshot->txfunfl[i];
+		txfunfl[i] = macstats->txfunfl[i];
 #endif				/* DEBUG */
 
 	/* Read mac stats from contiguous shared memory */
-	brcms_b_copyfrom_objmem(wlc->hw, M_UCODE_MACSTAT, &macstats,
-				sizeof(struct macstat), OBJADDR_SHM_SEL);
+	brcms_b_copyfrom_objmem(wlc->hw, M_UCODE_MACSTAT, macstats,
+				sizeof(*macstats), OBJADDR_SHM_SEL);
 
 #ifdef DEBUG
 	/* check for rx fifo 0 overflow */
-	delta = (u16) (wlc->core->macstat_snapshot->rxf0ovfl - rxf0ovfl);
+	delta = (u16)(macstats->rxf0ovfl - rxf0ovfl);
 	if (delta)
 		brcms_err(wlc->hw->d11core, "wl%d: %u rx fifo 0 overflows!\n",
 			  wlc->pub->unit, delta);
 
 	/* check for tx fifo underflows */
 	for (i = 0; i < NFIFO; i++) {
-		delta =
-		    (u16) (wlc->core->macstat_snapshot->txfunfl[i] -
-			      txfunfl[i]);
+		delta = macstats->txfunfl[i] - txfunfl[i];
 		if (delta)
 			brcms_err(wlc->hw->d11core,
 				  "wl%d: %u tx fifo %d underflows!\n",
@@ -4669,7 +4668,7 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 	brcms_c_coredisable(wlc_hw);
 
 	/* Match driver "down" state */
-	bcma_core_pci_down(wlc_hw->d11core->bus);
+	bcma_host_pci_down(wlc_hw->d11core->bus);
 
 	/* turn off pll and xtal to match driver "down" state */
 	brcms_b_xtal(wlc_hw, OFF);
@@ -4960,7 +4959,7 @@ static int brcms_b_up_prep(struct brcms_hardware *wlc_hw)
 	 * Configure pci/pcmcia here instead of in brcms_c_attach()
 	 * to allow mfg hotswap:  down, hotswap (chip power cycle), up.
 	 */
-	bcma_core_pci_irq_ctl(&wlc_hw->d11core->bus->drv_pci[0], wlc_hw->d11core,
+	bcma_host_pci_irq_ctl(wlc_hw->d11core->bus, wlc_hw->d11core,
 			      true);
 
 	/*
@@ -4970,12 +4969,12 @@ static int brcms_b_up_prep(struct brcms_hardware *wlc_hw)
 	 */
 	if (brcms_b_radio_read_hwdisabled(wlc_hw)) {
 		/* put SB PCI in down state again */
-		bcma_core_pci_down(wlc_hw->d11core->bus);
+		bcma_host_pci_down(wlc_hw->d11core->bus);
 		brcms_b_xtal(wlc_hw, OFF);
 		return -ENOMEDIUM;
 	}
 
-	bcma_core_pci_up(wlc_hw->d11core->bus);
+	bcma_host_pci_up(wlc_hw->d11core->bus);
 
 	/* reset the d11 core */
 	brcms_b_corereset(wlc_hw, BRCMS_USE_COREFLAGS);
@@ -5172,7 +5171,7 @@ static int brcms_b_down_finish(struct brcms_hardware *wlc_hw)
 
 		/* turn off primary xtal and pll */
 		if (!wlc_hw->noreset) {
-			bcma_core_pci_down(wlc_hw->d11core->bus);
+			bcma_host_pci_down(wlc_hw->d11core->bus);
 			brcms_b_xtal(wlc_hw, OFF);
 		}
 	}

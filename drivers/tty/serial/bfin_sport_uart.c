@@ -517,14 +517,15 @@ static void sport_set_termios(struct uart_port *port,
 		up->csize = 5;
 		break;
 	default:
-		pr_warning("requested word length not supported\n");
+		pr_warn("requested word length not supported\n");
+		break;
 	}
 
 	if (termios->c_cflag & CSTOPB) {
 		up->stopb = 1;
 	}
 	if (termios->c_cflag & PARENB) {
-		pr_warning("PAREN bits is not supported yet\n");
+		pr_warn("PAREN bit is not supported yet\n");
 		/* up->parib = 1; */
 	}
 

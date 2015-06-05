@@ -12,8 +12,10 @@
 #ifndef LINUX_HWRANDOM_H_
 #define LINUX_HWRANDOM_H_
 
+#include <linux/completion.h>
 #include <linux/types.h>
 #include <linux/list.h>
+#include <linux/kref.h>
 
 /**
  * struct hwrng - Hardware Random Number Generator driver
@@ -44,12 +46,18 @@ struct hwrng {
 
 	/* internal. */
 	struct list_head list;
+	struct kref ref;
+	struct completion cleanup_done;
 };
+
+struct device;
 
 /** Register a new Hardware Random Number Generator driver. */
 extern int hwrng_register(struct hwrng *rng);
+extern int devm_hwrng_register(struct device *dev, struct hwrng *rng);
 /** Unregister a Hardware Random Number Generator driver. */
 extern void hwrng_unregister(struct hwrng *rng);
+extern void devm_hwrng_unregister(struct device *dve, struct hwrng *rng);
 /** Feed random bits into the pool. */
 extern void add_hwgenerator_randomness(const char *buffer, size_t count, size_t entropy);
 

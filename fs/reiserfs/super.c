@@ -594,6 +594,10 @@ static struct inode *reiserfs_alloc_inode(struct super_block *sb)
 		return NULL;
 	atomic_set(&ei->openers, 0);
 	mutex_init(&ei->tailpack);
+#ifdef CONFIG_QUOTA
+	memset(&ei->i_dquot, 0, sizeof(ei->i_dquot));
+#endif
+
 	return &ei->vfs_inode;
 }
 
@@ -750,6 +754,11 @@ static ssize_t reiserfs_quota_write(struct super_block *, int, const char *,
 				    size_t, loff_t);
 static ssize_t reiserfs_quota_read(struct super_block *, int, char *, size_t,
 				   loff_t);
+
+static struct dquot **reiserfs_get_dquots(struct inode *inode)
+{
+	return REISERFS_I(inode)->i_dquot;
+}
 #endif
 
 static const struct super_operations reiserfs_sops = {
@@ -768,6 +777,7 @@ static const struct super_operations reiserfs_sops = {
 #ifdef CONFIG_QUOTA
 	.quota_read = reiserfs_quota_read,
 	.quota_write = reiserfs_quota_write,
+	.get_dquots = reiserfs_get_dquots,
 #endif
 };
 
@@ -795,7 +805,7 @@ static const struct quotactl_ops reiserfs_qctl_operations = {
 	.quota_on = reiserfs_quota_on,
 	.quota_off = dquot_quota_off,
 	.quota_sync = dquot_quota_sync,
-	.get_info = dquot_get_dqinfo,
+	.get_state = dquot_get_state,
 	.set_info = dquot_set_dqinfo,
 	.get_dqblk = dquot_get_dqblk,
 	.set_dqblk = dquot_set_dqblk,
@@ -1633,6 +1643,7 @@ static int read_super_block(struct super_block *s, int offset)
 #ifdef CONFIG_QUOTA
 	s->s_qcop = &reiserfs_qctl_operations;
 	s->dq_op = &reiserfs_quota_operations;
+	s->s_quota_types = QTYPE_MASK_USR | QTYPE_MASK_GRP;
 #endif
 
 	/*
@@ -1676,7 +1687,7 @@ static __u32 find_hash_out(struct super_block *s)
 	__u32 hash = DEFAULT_HASH;
 	__u32 deh_hashval, teahash, r5hash, yurahash;
 
-	inode = s->s_root->d_inode;
+	inode = d_inode(s->s_root);
 
 	make_cpu_key(&key, inode, ~0, TYPE_DIRENTRY, 3);
 	retval = search_by_entry_key(s, &key, &path, &de);
@@ -2161,6 +2172,9 @@ error_unlocked:
 		reiserfs_write_unlock(s);
 	}
 
+	if (sbi->commit_wq)
+		destroy_workqueue(sbi->commit_wq);
+
 	cancel_delayed_work_sync(&REISERFS_SB(s)->old_work);
 
 	reiserfs_free_bitmap_cache(s);
@@ -2333,7 +2347,7 @@ static int reiserfs_quota_on(struct super_block *sb, int type, int format_id,
 		err = -EXDEV;
 		goto out;
 	}
-	inode = path->dentry->d_inode;
+	inode = d_inode(path->dentry);
 	/*
 	 * We must not pack tails for quota files on reiserfs for quota
 	 * IO to work

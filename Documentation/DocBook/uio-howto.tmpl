@@ -540,7 +540,7 @@ appears in sysfs.
 </para></listitem>
 
 <listitem><para>
-<varname>unsigned long size</varname>: Fill in the size of the
+<varname>resource_size_t size</varname>: Fill in the size of the
 memory block that <varname>addr</varname> points to. If <varname>size</varname>
 is zero, the mapping is considered unused. Note that you
 <emphasis>must</emphasis> initialize <varname>size</varname> with zero for
@@ -719,7 +719,7 @@ framework to set up sysfs files for this region. Simply leave it alone.
 	</para>
 </sect1>
 
-<sect1 id="using uio_dmem_genirq">
+<sect1 id="using-uio_dmem_genirq">
 <title>Using uio_dmem_genirq for platform devices</title>
 	<para>
 	In addition to statically allocated memory ranges, they may also be
@@ -746,16 +746,16 @@ framework to set up sysfs files for this region. Simply leave it alone.
 	following elements:
 	</para>
 	<itemizedlist>
-	<listitem><varname>struct uio_info uioinfo</varname>: The same
+	<listitem><para><varname>struct uio_info uioinfo</varname>: The same
 	structure used as the  <varname>uio_pdrv_genirq</varname> platform
-	data</listitem>
-	<listitem><varname>unsigned int *dynamic_region_sizes</varname>:
+	data</para></listitem>
+	<listitem><para><varname>unsigned int *dynamic_region_sizes</varname>:
 	Pointer to list of sizes of dynamic memory regions to be mapped into
 	user space.
-	</listitem>
-	<listitem><varname>unsigned int num_dynamic_regions</varname>:
+	</para></listitem>
+	<listitem><para><varname>unsigned int num_dynamic_regions</varname>:
 	Number of elements in <varname>dynamic_region_sizes</varname> array.
-	</listitem>
+	</para></listitem>
 	</itemizedlist>
 	<para>
 	The dynamic regions defined in the platform data will be appended to

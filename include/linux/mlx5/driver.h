@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -111,6 +111,13 @@ enum {
 	MLX5_REG_PMLP		 = 0, /* TBD */
 	MLX5_REG_NODE_DESC	 = 0x6001,
 	MLX5_REG_HOST_ENDIANNESS = 0x7004,
+};
+
+enum mlx5_page_fault_resume_flags {
+	MLX5_PAGE_FAULT_RESUME_REQUESTOR = 1 << 0,
+	MLX5_PAGE_FAULT_RESUME_WRITE	 = 1 << 1,
+	MLX5_PAGE_FAULT_RESUME_RDMA	 = 1 << 2,
+	MLX5_PAGE_FAULT_RESUME_ERROR	 = 1 << 7,
 };
 
 enum dbg_rsc_type {
@@ -225,6 +232,9 @@ struct mlx5_cmd_stats {
 };
 
 struct mlx5_cmd {
+	void	       *cmd_alloc_buf;
+	dma_addr_t	alloc_dma;
+	int		alloc_size;
 	void	       *cmd_buf;
 	dma_addr_t	dma;
 	u16		cmdif_rev;
@@ -400,7 +410,7 @@ struct mlx5_core_srq {
 struct mlx5_eq_table {
 	void __iomem	       *update_ci;
 	void __iomem	       *update_arm_ci;
-	struct list_head       *comp_eq_head;
+	struct list_head	comp_eqs_list;
 	struct mlx5_eq		pages_eq;
 	struct mlx5_eq		async_eq;
 	struct mlx5_eq		cmd_eq;
@@ -467,7 +477,7 @@ struct mlx5_priv {
 	struct workqueue_struct *pg_wq;
 	struct rb_root		page_root;
 	int			fw_pages;
-	int			reg_pages;
+	atomic_t		reg_pages;
 	struct list_head	free_list;
 
 	struct mlx5_core_health health;
@@ -633,14 +643,6 @@ static inline void *mlx5_vzalloc(unsigned long size)
 	return rtn;
 }
 
-static inline void mlx5_vfree(const void *addr)
-{
-	if (addr && is_vmalloc_addr(addr))
-		vfree(addr);
-	else
-		kfree(addr);
-}
-
 static inline u32 mlx5_base_mkey(const u32 key)
 {
 	return key & 0xffffff00u;
@@ -711,6 +713,9 @@ void mlx5_eq_cleanup(struct mlx5_core_dev *dev);
 void mlx5_fill_page_array(struct mlx5_buf *buf, __be64 *pas);
 void mlx5_cq_completion(struct mlx5_core_dev *dev, u32 cqn);
 void mlx5_rsc_event(struct mlx5_core_dev *dev, u32 rsn, int event_type);
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+void mlx5_eq_pagefault(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe);
+#endif
 void mlx5_srq_event(struct mlx5_core_dev *dev, u32 srqn, int event_type);
 struct mlx5_core_srq *mlx5_core_get_srq(struct mlx5_core_dev *dev, u32 srqn);
 void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, unsigned long vector);
@@ -720,6 +725,7 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 int mlx5_destroy_unmap_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
 int mlx5_start_eqs(struct mlx5_core_dev *dev);
 int mlx5_stop_eqs(struct mlx5_core_dev *dev);
+int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn, int *irqn);
 int mlx5_core_attach_mcg(struct mlx5_core_dev *dev, union ib_gid *mgid, u32 qpn);
 int mlx5_core_detach_mcg(struct mlx5_core_dev *dev, union ib_gid *mgid, u32 qpn);
 
@@ -748,6 +754,8 @@ int mlx5_core_create_psv(struct mlx5_core_dev *dev, u32 pdn,
 			 int npsvs, u32 *sig_index);
 int mlx5_core_destroy_psv(struct mlx5_core_dev *dev, int psv_num);
 void mlx5_core_put_rsc(struct mlx5_core_rsc_common *common);
+int mlx5_query_odp_caps(struct mlx5_core_dev *dev,
+			struct mlx5_odp_caps *odp_caps);
 
 static inline u32 mlx5_mkey_to_idx(u32 mkey)
 {
@@ -773,14 +781,22 @@ enum {
 	MAX_MR_CACHE_ENTRIES    = 16,
 };
 
+enum {
+	MLX5_INTERFACE_PROTOCOL_IB  = 0,
+	MLX5_INTERFACE_PROTOCOL_ETH = 1,
+};
+
 struct mlx5_interface {
 	void *			(*add)(struct mlx5_core_dev *dev);
 	void			(*remove)(struct mlx5_core_dev *dev, void *context);
 	void			(*event)(struct mlx5_core_dev *dev, void *context,
 					 enum mlx5_dev_event event, unsigned long param);
+	void *                  (*get_dev)(void *context);
+	int			protocol;
 	struct list_head	list;
 };
 
+void *mlx5_get_protocol_dev(struct mlx5_core_dev *mdev, int protocol);
 int mlx5_register_interface(struct mlx5_interface *intf);
 void mlx5_unregister_interface(struct mlx5_interface *intf);
 

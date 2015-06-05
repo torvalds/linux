@@ -998,7 +998,7 @@ static int saa717x_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt 
 
 	v4l2_dbg(1, debug, sd, "decoder set size\n");
 
-	if (fmt->code != V4L2_MBUS_FMT_FIXED)
+	if (fmt->code != MEDIA_BUS_FMT_FIXED)
 		return -EINVAL;
 
 	/* FIXME need better bounds checking here */

@@ -2277,6 +2277,7 @@ static void btc_update_requested_ps(struct radeon_device *rdev,
 	eg_pi->requested_rps.ps_priv = &eg_pi->requested_ps;
 }
 
+#if 0
 void btc_dpm_reset_asic(struct radeon_device *rdev)
 {
 	rv770_restrict_performance_levels_before_switch(rdev);
@@ -2284,6 +2285,7 @@ void btc_dpm_reset_asic(struct radeon_device *rdev)
 	btc_set_boot_state_timing(rdev);
 	rv770_set_boot_state(rdev);
 }
+#endif
 
 int btc_dpm_pre_set_power_state(struct radeon_device *rdev)
 {
@@ -2749,13 +2751,54 @@ void btc_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 		else /* current_index == 2 */
 			pl = &ps->high;
 		seq_printf(m, "uvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
-		if (rdev->family >= CHIP_CEDAR) {
-			seq_printf(m, "power level %d    sclk: %u mclk: %u vddc: %u vddci: %u\n",
-				   current_index, pl->sclk, pl->mclk, pl->vddc, pl->vddci);
-		} else {
-			seq_printf(m, "power level %d    sclk: %u mclk: %u vddc: %u\n",
-				   current_index, pl->sclk, pl->mclk, pl->vddc);
-		}
+		seq_printf(m, "power level %d    sclk: %u mclk: %u vddc: %u vddci: %u\n",
+			   current_index, pl->sclk, pl->mclk, pl->vddc, pl->vddci);
+	}
+}
+
+u32 btc_dpm_get_current_sclk(struct radeon_device *rdev)
+{
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct radeon_ps *rps = &eg_pi->current_rps;
+	struct rv7xx_ps *ps = rv770_get_ps(rps);
+	struct rv7xx_pl *pl;
+	u32 current_index =
+		(RREG32(TARGET_AND_CURRENT_PROFILE_INDEX) & CURRENT_PROFILE_INDEX_MASK) >>
+		CURRENT_PROFILE_INDEX_SHIFT;
+
+	if (current_index > 2) {
+		return 0;
+	} else {
+		if (current_index == 0)
+			pl = &ps->low;
+		else if (current_index == 1)
+			pl = &ps->medium;
+		else /* current_index == 2 */
+			pl = &ps->high;
+		return pl->sclk;
+	}
+}
+
+u32 btc_dpm_get_current_mclk(struct radeon_device *rdev)
+{
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct radeon_ps *rps = &eg_pi->current_rps;
+	struct rv7xx_ps *ps = rv770_get_ps(rps);
+	struct rv7xx_pl *pl;
+	u32 current_index =
+		(RREG32(TARGET_AND_CURRENT_PROFILE_INDEX) & CURRENT_PROFILE_INDEX_MASK) >>
+		CURRENT_PROFILE_INDEX_SHIFT;
+
+	if (current_index > 2) {
+		return 0;
+	} else {
+		if (current_index == 0)
+			pl = &ps->low;
+		else if (current_index == 1)
+			pl = &ps->medium;
+		else /* current_index == 2 */
+			pl = &ps->high;
+		return pl->mclk;
 	}
 }
 

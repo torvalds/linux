@@ -13,17 +13,15 @@
 #include <linux/pm.h>
 #include "ad714x.h"
 
-#ifdef CONFIG_PM_SLEEP
-static int ad714x_i2c_suspend(struct device *dev)
+static int __maybe_unused ad714x_i2c_suspend(struct device *dev)
 {
 	return ad714x_disable(i2c_get_clientdata(to_i2c_client(dev)));
 }
 
-static int ad714x_i2c_resume(struct device *dev)
+static int __maybe_unused ad714x_i2c_resume(struct device *dev)
 {
 	return ad714x_enable(i2c_get_clientdata(to_i2c_client(dev)));
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(ad714x_i2c_pm, ad714x_i2c_suspend, ad714x_i2c_resume);
 

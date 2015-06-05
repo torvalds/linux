@@ -207,13 +207,15 @@ static int ll_encode_fh(struct inode *inode, __u32 *fh, int *plen,
 	return LUSTRE_NFS_FID;
 }
 
-static int ll_nfs_get_name_filldir(void *cookie, const char *name, int namelen,
-				   loff_t hash, u64 ino, unsigned type)
+static int ll_nfs_get_name_filldir(struct dir_context *ctx, const char *name,
+				   int namelen, loff_t hash, u64 ino,
+				   unsigned type)
 {
 	/* It is hack to access lde_fid for comparison with lgd_fid.
 	 * So the input 'name' must be part of the 'lu_dirent'. */
 	struct lu_dirent *lde = container_of0(name, struct lu_dirent, lde_name);
-	struct ll_getname_data *lgd = cookie;
+	struct ll_getname_data *lgd =
+		container_of(ctx, struct ll_getname_data, ctx);
 	struct lu_fid fid;
 
 	fid_le_to_cpu(&fid, &lde->lde_fid);
@@ -228,11 +230,11 @@ static int ll_nfs_get_name_filldir(void *cookie, const char *name, int namelen,
 static int ll_get_name(struct dentry *dentry, char *name,
 		       struct dentry *child)
 {
-	struct inode *dir = dentry->d_inode;
+	struct inode *dir = d_inode(dentry);
 	int rc;
 	struct ll_getname_data lgd = {
 		.lgd_name = name,
-		.lgd_fid = ll_i2info(child->d_inode)->lli_fid,
+		.lgd_fid = ll_i2info(d_inode(child))->lli_fid,
 		.ctx.actor = ll_nfs_get_name_filldir,
 	};
 
@@ -280,7 +282,7 @@ static struct dentry *ll_fh_to_parent(struct super_block *sb, struct fid *fid,
 static struct dentry *ll_get_parent(struct dentry *dchild)
 {
 	struct ptlrpc_request *req = NULL;
-	struct inode	  *dir = dchild->d_inode;
+	struct inode	  *dir = d_inode(dchild);
 	struct ll_sb_info     *sbi;
 	struct dentry	 *result = NULL;
 	struct mdt_body       *body;

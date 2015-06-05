@@ -1,7 +1,8 @@
 /*
  *  Linux MegaRAID driver for SAS based RAID controllers
  *
- *  Copyright (c) 2003-2012  LSI Corporation.
+ *  Copyright (c) 2003-2013  LSI Corporation
+ *  Copyright (c) 2013-2014  Avago Technologies
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -14,17 +15,18 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *  FILE: megaraid_sas.h
  *
- *  Authors: LSI Corporation
+ *  Authors: Avago Technologies
+ *           Kashyap Desai <kashyap.desai@avagotech.com>
+ *           Sumit Saxena <sumit.saxena@avagotech.com>
  *
- *  Send feedback to: <megaraidlinux@lsi.com>
+ *  Send feedback to: megaraidlinux.pdl@avagotech.com
  *
- *  Mail to: LSI Corporation, 1621 Barber Lane, Milpitas, CA 95035
- *     ATTN: Linuxraid
+ *  Mail to: Avago Technologies, 350 West Trimble Road, Building 90,
+ *  San Jose, California 95131
  */
 
 #ifndef LSI_MEGARAID_SAS_H
@@ -33,9 +35,7 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"06.805.06.00-rc1"
-#define MEGASAS_RELDATE				"Sep. 4, 2014"
-#define MEGASAS_EXT_VERSION			"Thu. Sep. 4 17:00:00 PDT 2014"
+#define MEGASAS_VERSION				"06.806.08.00-rc1"
 
 /*
  * Device IDs
@@ -969,7 +969,20 @@ struct megasas_ctrl_info {
 
 	struct {
 #if defined(__BIG_ENDIAN_BITFIELD)
-		u32     reserved:25;
+		u32     reserved:12;
+		u32     discardCacheDuringLDDelete:1;
+		u32     supportSecurityonJBOD:1;
+		u32     supportCacheBypassModes:1;
+		u32     supportDisableSESMonitoring:1;
+		u32     supportForceFlash:1;
+		u32     supportNVDRAM:1;
+		u32     supportDrvActivityLEDSetting:1;
+		u32     supportAllowedOpsforDrvRemoval:1;
+		u32     supportHOQRebuild:1;
+		u32     supportForceTo512e:1;
+		u32     supportNVCacheErase:1;
+		u32     supportDebugQueue:1;
+		u32     supportSwZone:1;
 		u32     supportCrashDump:1;
 		u32     supportMaxExtLDs:1;
 		u32     supportT10RebuildAssist:1;
@@ -981,9 +994,22 @@ struct megasas_ctrl_info {
 		u32     supportThermalPollInterval:1;
 		u32     supportDisableImmediateIO:1;
 		u32     supportT10RebuildAssist:1;
-		u32     supportMaxExtLDs:1;
-		u32     supportCrashDump:1;
-		u32     reserved:25;
+		u32	supportMaxExtLDs:1;
+		u32	supportCrashDump:1;
+		u32     supportSwZone:1;
+		u32     supportDebugQueue:1;
+		u32     supportNVCacheErase:1;
+		u32     supportForceTo512e:1;
+		u32     supportHOQRebuild:1;
+		u32     supportAllowedOpsforDrvRemoval:1;
+		u32     supportDrvActivityLEDSetting:1;
+		u32     supportNVDRAM:1;
+		u32     supportForceFlash:1;
+		u32     supportDisableSESMonitoring:1;
+		u32     supportCacheBypassModes:1;
+		u32     supportSecurityonJBOD:1;
+		u32     discardCacheDuringLDDelete:1;
+		u32     reserved:12;
 #endif
 	} adapterOperations3;
 
@@ -1022,6 +1048,13 @@ enum MR_MFI_MPT_PTHR_FLAGS {
 	MFI_MPT_ATTACHED = 2,
 };
 
+enum MR_SCSI_CMD_TYPE {
+	READ_WRITE_LDIO = 0,
+	NON_READ_WRITE_LDIO = 1,
+	READ_WRITE_SYSPDIO = 2,
+	NON_READ_WRITE_SYSPDIO = 3,
+};
+
 /* Frame Type */
 #define IO_FRAME				0
 #define PTHRU_FRAME				1
@@ -1049,6 +1082,8 @@ enum MR_MFI_MPT_PTHR_FLAGS {
  */
 #define MEGASAS_INT_CMDS			32
 #define MEGASAS_SKINNY_INT_CMDS			5
+#define MEGASAS_FUSION_INTERNAL_CMDS		5
+#define MEGASAS_FUSION_IOCTL_CMDS		3
 
 #define MEGASAS_MAX_MSIX_QUEUES			128
 /*
@@ -1194,19 +1229,23 @@ union megasas_sgl_frame {
 typedef union _MFI_CAPABILITIES {
 	struct {
 #if   defined(__BIG_ENDIAN_BITFIELD)
-		u32     reserved:27;
+		u32     reserved:25;
+		u32     security_protocol_cmds_fw:1;
+		u32     support_core_affinity:1;
 		u32     support_ndrive_r1_lb:1;
 		u32	support_max_255lds:1;
-		u32	reserved1:1;
+		u32	support_fastpath_wb:1;
 		u32     support_additional_msix:1;
 		u32     support_fp_remote_lun:1;
 #else
 		u32     support_fp_remote_lun:1;
 		u32     support_additional_msix:1;
-		u32	reserved1:1;
+		u32	support_fastpath_wb:1;
 		u32	support_max_255lds:1;
 		u32     support_ndrive_r1_lb:1;
-		u32     reserved:27;
+		u32     support_core_affinity:1;
+		u32     security_protocol_cmds_fw:1;
+		u32     reserved:25;
 #endif
 	} mfi_capabilities;
 	u32     reg;
@@ -1638,20 +1677,20 @@ struct megasas_instance {
 	u32 crash_dump_fw_support;
 	u32 crash_dump_drv_support;
 	u32 crash_dump_app_support;
+	u32 secure_jbod_support;
 	spinlock_t crashdump_lock;
 
 	struct megasas_register_set __iomem *reg_set;
 	u32 *reply_post_host_index_addr[MR_MAX_MSIX_REG_ARRAY];
 	struct megasas_pd_list          pd_list[MEGASAS_MAX_PD];
 	struct megasas_pd_list          local_pd_list[MEGASAS_MAX_PD];
-	u8     ld_ids[MEGASAS_MAX_LD_IDS];
+	u8 ld_ids[MEGASAS_MAX_LD_IDS];
 	s8 init_id;
 
 	u16 max_num_sge;
 	u16 max_fw_cmds;
-	/* For Fusion its num IOCTL cmds, for others MFI based its
-	   max_fw_cmds */
 	u16 max_mfi_cmds;
+	u16 max_scsi_cmds;
 	u32 max_sectors_per_req;
 	struct megasas_aen_event *ev;
 
@@ -1727,7 +1766,7 @@ struct megasas_instance {
 	u8 requestorId;
 	char PlasmaFW111;
 	char mpio;
-	int throttlequeuedepth;
+	u16 throttlequeuedepth;
 	u8 mask_interrupts;
 	u8 is_imr;
 };
@@ -1931,8 +1970,7 @@ u16 get_updated_dev_handle(struct megasas_instance *instance,
 	struct LD_LOAD_BALANCE_INFO *lbInfo, struct IO_REQUEST_INFO *in_info);
 void mr_update_load_balance_params(struct MR_DRV_RAID_MAP_ALL *map,
 	struct LD_LOAD_BALANCE_INFO *lbInfo);
-int megasas_get_ctrl_info(struct megasas_instance *instance,
-	struct megasas_ctrl_info *ctrl_info);
+int megasas_get_ctrl_info(struct megasas_instance *instance);
 int megasas_set_crash_dump_params(struct megasas_instance *instance,
 	u8 crash_buf_state);
 void megasas_free_host_crash_buffer(struct megasas_instance *instance);
@@ -1947,5 +1985,6 @@ void __megasas_return_cmd(struct megasas_instance *instance,
 
 void megasas_return_mfi_mpt_pthr(struct megasas_instance *instance,
 	struct megasas_cmd *cmd_mfi, struct megasas_cmd_fusion *cmd_fusion);
+int megasas_cmd_type(struct scsi_cmnd *cmd);
 
 #endif				/*LSI_MEGARAID_SAS_H */

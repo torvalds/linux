@@ -523,8 +523,7 @@ fail1:
 	pci_unregister_driver(&i3200_driver);
 
 fail0:
-	if (mci_pdev)
-		pci_dev_put(mci_pdev);
+	pci_dev_put(mci_pdev);
 
 	return pci_rc;
 }

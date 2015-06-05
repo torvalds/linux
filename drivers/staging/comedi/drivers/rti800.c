@@ -19,8 +19,7 @@
 /*
  * Driver: rti800
  * Description: Analog Devices RTI-800/815
- * Devices: (Analog Devices) RTI-800 [rti800]
- *	    (Analog Devices) RTI-815 [rti815]
+ * Devices: [Analog Devices] RTI-800 (rti800), RTI-815 (rti815)
  * Author: David A. Schleef <ds@schleef.org>
  * Status: unknown
  * Updated: Fri, 05 Sep 2008 14:50:44 +0100
@@ -313,7 +312,6 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				? rti800_ao_ranges[it->options[7]]
 				: &range_unknown;
 		s->insn_write	= rti800_ao_insn_write;
-		s->insn_read	= comedi_readback_insn_read;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)

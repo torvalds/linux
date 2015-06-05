@@ -90,6 +90,10 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 	case HostCmd_CMD_MAC_CONTROL:
 		break;
 
+	case HostCmd_CMD_SDIO_SP_RX_AGGR_CFG:
+		dev_err(priv->adapter->dev, "SDIO RX single-port aggregation Not support\n");
+		break;
+
 	default:
 		break;
 	}
@@ -248,6 +252,8 @@ static int mwifiex_ret_get_log(struct mwifiex_private *priv,
 			le32_to_cpu(get_log->wep_icv_err_cnt[2]);
 		stats->wep_icv_error[3] =
 			le32_to_cpu(get_log->wep_icv_err_cnt[3]);
+		stats->bcn_rcv_cnt = le32_to_cpu(get_log->bcn_rcv_cnt);
+		stats->bcn_miss_cnt = le32_to_cpu(get_log->bcn_miss_cnt);
 	}
 
 	return 0;
@@ -941,6 +947,20 @@ static int mwifiex_ret_cfg_data(struct mwifiex_private *priv,
 	return 0;
 }
 
+/** This Function handles the command response of sdio rx aggr */
+static int mwifiex_ret_sdio_rx_aggr_cfg(struct mwifiex_private *priv,
+					struct host_cmd_ds_command *resp)
+{
+	struct mwifiex_adapter *adapter = priv->adapter;
+	struct host_cmd_sdio_sp_rx_aggr_cfg *cfg =
+				&resp->params.sdio_rx_aggr_cfg;
+
+	adapter->sdio_rx_aggr_enable = cfg->enable;
+	adapter->sdio_rx_block_size = le16_to_cpu(cfg->block_size);
+
+	return 0;
+}
+
 /*
  * This function handles the command responses.
  *
@@ -983,7 +1003,7 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		adapter->curr_cmd->wait_q_enabled = false;
 		break;
 	case HostCmd_CMD_802_11_SCAN_EXT:
-		ret = mwifiex_ret_802_11_scan_ext(priv);
+		ret = mwifiex_ret_802_11_scan_ext(priv, resp);
 		adapter->curr_cmd->wait_q_enabled = false;
 		break;
 	case HostCmd_CMD_802_11_BG_SCAN_QUERY:
@@ -1103,6 +1123,9 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 	case HostCmd_CMD_UAP_SYS_CONFIG:
 		break;
 	case HostCmd_CMD_UAP_BSS_START:
+		adapter->tx_lock_flag = false;
+		adapter->pps_uapsd_mode = false;
+		adapter->delay_null_pkt = false;
 		priv->bss_started = 1;
 		break;
 	case HostCmd_CMD_UAP_BSS_STOP:
@@ -1116,6 +1139,11 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_TDLS_OPER:
 		ret = mwifiex_ret_tdls_oper(priv, resp);
+		break;
+	case HostCmd_CMD_CHAN_REPORT_REQUEST:
+		break;
+	case HostCmd_CMD_SDIO_SP_RX_AGGR_CFG:
+		ret = mwifiex_ret_sdio_rx_aggr_cfg(priv, resp);
 		break;
 	default:
 		dev_err(adapter->dev, "CMD_RESP: unknown cmd response %#x\n",

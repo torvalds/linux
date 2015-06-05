@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 
 #include "../core.h"
+#include "../../gpio/gpiolib.h"
 #include "pinctrl-sunxi.h"
 
 static struct irq_chip sunxi_pinctrl_edge_irq_chip;
@@ -464,10 +465,19 @@ static int sunxi_pinctrl_gpio_direction_input(struct gpio_chip *chip,
 static int sunxi_pinctrl_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct sunxi_pinctrl *pctl = dev_get_drvdata(chip->dev);
-
 	u32 reg = sunxi_data_reg(offset);
 	u8 index = sunxi_data_offset(offset);
-	u32 val = (readl(pctl->membase + reg) >> index) & DATA_PINS_MASK;
+	u32 set_mux = pctl->desc->irq_read_needs_mux &&
+			test_bit(FLAG_USED_AS_IRQ, &chip->desc[offset].flags);
+	u32 val;
+
+	if (set_mux)
+		sunxi_pmx_set(pctl->pctl_dev, offset, SUN4I_FUNC_INPUT);
+
+	val = (readl(pctl->membase + reg) >> index) & DATA_PINS_MASK;
+
+	if (set_mux)
+		sunxi_pmx_set(pctl->pctl_dev, offset, SUN4I_FUNC_IRQ);
 
 	return val;
 }
@@ -553,7 +563,7 @@ static int sunxi_pinctrl_irq_request_resources(struct irq_data *d)
 	if (!func)
 		return -EINVAL;
 
-	ret = gpio_lock_as_irq(pctl->chip,
+	ret = gpiochip_lock_as_irq(pctl->chip,
 			pctl->irq_array[d->hwirq] - pctl->desc->pin_base);
 	if (ret) {
 		dev_err(pctl->dev, "unable to lock HW IRQ %lu for IRQ\n",
@@ -571,8 +581,8 @@ static void sunxi_pinctrl_irq_release_resources(struct irq_data *d)
 {
 	struct sunxi_pinctrl *pctl = irq_data_get_irq_chip_data(d);
 
-	gpio_unlock_as_irq(pctl->chip,
-			   pctl->irq_array[d->hwirq] - pctl->desc->pin_base);
+	gpiochip_unlock_as_irq(pctl->chip,
+			      pctl->irq_array[d->hwirq] - pctl->desc->pin_base);
 }
 
 static int sunxi_pinctrl_irq_set_type(struct irq_data *d, unsigned int type)

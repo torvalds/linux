@@ -21,14 +21,18 @@
 
 static void msm_fb_output_poll_changed(struct drm_device *dev)
 {
+#ifdef CONFIG_DRM_MSM_FBDEV
 	struct msm_drm_private *priv = dev->dev_private;
 	if (priv->fbdev)
 		drm_fb_helper_hotplug_event(priv->fbdev);
+#endif
 }
 
 static const struct drm_mode_config_funcs mode_config_funcs = {
 	.fb_create = msm_framebuffer_create,
 	.output_poll_changed = msm_fb_output_poll_changed,
+	.atomic_check = msm_atomic_check,
+	.atomic_commit = msm_atomic_commit,
 };
 
 int msm_register_mmu(struct drm_device *dev, struct msm_mmu *mmu)
@@ -50,6 +54,12 @@ MODULE_PARM_DESC(reglog, "Enable register read/write logging");
 module_param(reglog, bool, 0600);
 #else
 #define reglog 0
+#endif
+
+#ifdef CONFIG_DRM_MSM_FBDEV
+static bool fbdev = true;
+MODULE_PARM_DESC(fbdev, "Enable fbdev compat layer");
+module_param(fbdev, bool, 0600);
 #endif
 
 static char *vram = "16m";
@@ -86,7 +96,7 @@ void __iomem *msm_ioremap(struct platform_device *pdev, const char *name,
 	}
 
 	if (reglog)
-		printk(KERN_DEBUG "IO:region %s %08x %08lx\n", dbgname, (u32)ptr, size);
+		printk(KERN_DEBUG "IO:region %s %p %08lx\n", dbgname, ptr, size);
 
 	return ptr;
 }
@@ -94,7 +104,7 @@ void __iomem *msm_ioremap(struct platform_device *pdev, const char *name,
 void msm_writel(u32 data, void __iomem *addr)
 {
 	if (reglog)
-		printk(KERN_DEBUG "IO:W %08x %08x\n", (u32)addr, data);
+		printk(KERN_DEBUG "IO:W %p %08x\n", addr, data);
 	writel(data, addr);
 }
 
@@ -102,7 +112,7 @@ u32 msm_readl(const void __iomem *addr)
 {
 	u32 val = readl(addr);
 	if (reglog)
-		printk(KERN_ERR "IO:R %08x %08x\n", (u32)addr, val);
+		printk(KERN_ERR "IO:R %p %08x\n", addr, val);
 	return val;
 }
 
@@ -135,8 +145,8 @@ static int msm_unload(struct drm_device *dev)
 	if (gpu) {
 		mutex_lock(&dev->struct_mutex);
 		gpu->funcs->pm_suspend(gpu);
-		gpu->funcs->destroy(gpu);
 		mutex_unlock(&dev->struct_mutex);
+		gpu->funcs->destroy(gpu);
 	}
 
 	if (priv->vram.paddr) {
@@ -169,9 +179,86 @@ static int get_mdp_ver(struct platform_device *pdev)
 	const struct of_device_id *match;
 	match = of_match_node(match_types, dev->of_node);
 	if (match)
-		return (int)match->data;
+		return (int)(unsigned long)match->data;
 #endif
 	return 4;
+}
+
+#include <linux/of_address.h>
+
+static int msm_init_vram(struct drm_device *dev)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	unsigned long size = 0;
+	int ret = 0;
+
+#ifdef CONFIG_OF
+	/* In the device-tree world, we could have a 'memory-region'
+	 * phandle, which gives us a link to our "vram".  Allocating
+	 * is all nicely abstracted behind the dma api, but we need
+	 * to know the entire size to allocate it all in one go. There
+	 * are two cases:
+	 *  1) device with no IOMMU, in which case we need exclusive
+	 *     access to a VRAM carveout big enough for all gpu
+	 *     buffers
+	 *  2) device with IOMMU, but where the bootloader puts up
+	 *     a splash screen.  In this case, the VRAM carveout
+	 *     need only be large enough for fbdev fb.  But we need
+	 *     exclusive access to the buffer to avoid the kernel
+	 *     using those pages for other purposes (which appears
+	 *     as corruption on screen before we have a chance to
+	 *     load and do initial modeset)
+	 */
+	struct device_node *node;
+
+	node = of_parse_phandle(dev->dev->of_node, "memory-region", 0);
+	if (node) {
+		struct resource r;
+		ret = of_address_to_resource(node, 0, &r);
+		if (ret)
+			return ret;
+		size = r.end - r.start;
+		DRM_INFO("using VRAM carveout: %lx@%pa\n", size, &r.start);
+	} else
+#endif
+
+	/* if we have no IOMMU, then we need to use carveout allocator.
+	 * Grab the entire CMA chunk carved out in early startup in
+	 * mach-msm:
+	 */
+	if (!iommu_present(&platform_bus_type)) {
+		DRM_INFO("using %s VRAM carveout\n", vram);
+		size = memparse(vram, NULL);
+	}
+
+	if (size) {
+		DEFINE_DMA_ATTRS(attrs);
+		void *p;
+
+		priv->vram.size = size;
+
+		drm_mm_init(&priv->vram.mm, 0, (size >> PAGE_SHIFT) - 1);
+
+		dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &attrs);
+		dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
+
+		/* note that for no-kernel-mapping, the vaddr returned
+		 * is bogus, but non-null if allocation succeeded:
+		 */
+		p = dma_alloc_attrs(dev->dev, size,
+				&priv->vram.paddr, GFP_KERNEL, &attrs);
+		if (!p) {
+			dev_err(dev->dev, "failed to allocate VRAM\n");
+			priv->vram.paddr = 0;
+			return -ENOMEM;
+		}
+
+		dev_info(dev->dev, "VRAM: %08x->%08x\n",
+				(uint32_t)priv->vram.paddr,
+				(uint32_t)(priv->vram.paddr + size));
+	}
+
+	return ret;
 }
 
 static int msm_load(struct drm_device *dev, unsigned long flags)
@@ -191,46 +278,12 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 
 	priv->wq = alloc_ordered_workqueue("msm", 0);
 	init_waitqueue_head(&priv->fence_event);
+	init_waitqueue_head(&priv->pending_crtcs_event);
 
 	INIT_LIST_HEAD(&priv->inactive_list);
 	INIT_LIST_HEAD(&priv->fence_cbs);
 
 	drm_mode_config_init(dev);
-
-	/* if we have no IOMMU, then we need to use carveout allocator.
-	 * Grab the entire CMA chunk carved out in early startup in
-	 * mach-msm:
-	 */
-	if (!iommu_present(&platform_bus_type)) {
-		DEFINE_DMA_ATTRS(attrs);
-		unsigned long size;
-		void *p;
-
-		DBG("using %s VRAM carveout", vram);
-		size = memparse(vram, NULL);
-		priv->vram.size = size;
-
-		drm_mm_init(&priv->vram.mm, 0, (size >> PAGE_SHIFT) - 1);
-
-		dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &attrs);
-		dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
-
-		/* note that for no-kernel-mapping, the vaddr returned
-		 * is bogus, but non-null if allocation succeeded:
-		 */
-		p = dma_alloc_attrs(dev->dev, size,
-				&priv->vram.paddr, GFP_KERNEL, &attrs);
-		if (!p) {
-			dev_err(dev->dev, "failed to allocate VRAM\n");
-			priv->vram.paddr = 0;
-			ret = -ENOMEM;
-			goto fail;
-		}
-
-		dev_info(dev->dev, "VRAM: %08x->%08x\n",
-				(uint32_t)priv->vram.paddr,
-				(uint32_t)(priv->vram.paddr + size));
-	}
 
 	platform_set_drvdata(pdev, dev);
 
@@ -238,6 +291,10 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 	ret = component_bind_all(dev->dev, dev);
 	if (ret)
 		return ret;
+
+	ret = msm_init_vram(dev);
+	if (ret)
+		goto fail;
 
 	switch (get_mdp_ver(pdev)) {
 	case 4:
@@ -294,8 +351,11 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 		goto fail;
 	}
 
+	drm_mode_config_reset(dev);
+
 #ifdef CONFIG_DRM_MSM_FBDEV
-	priv->fbdev = msm_fbdev_init(dev);
+	if (fbdev)
+		priv->fbdev = msm_fbdev_init(dev);
 #endif
 
 	ret = msm_debugfs_late_init(dev);
@@ -361,9 +421,11 @@ static void msm_preclose(struct drm_device *dev, struct drm_file *file)
 
 static void msm_lastclose(struct drm_device *dev)
 {
+#ifdef CONFIG_DRM_MSM_FBDEV
 	struct msm_drm_private *priv = dev->dev_private;
 	if (priv->fbdev)
 		drm_fb_helper_restore_fbdev_mode_unlocked(priv->fbdev);
+#endif
 }
 
 static irqreturn_t msm_irq(int irq, void *arg)
@@ -619,6 +681,26 @@ int msm_wait_fence_interruptable(struct drm_device *dev, uint32_t fence,
 	return ret;
 }
 
+int msm_queue_fence_cb(struct drm_device *dev,
+		struct msm_fence_cb *cb, uint32_t fence)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	int ret = 0;
+
+	mutex_lock(&dev->struct_mutex);
+	if (!list_empty(&cb->work.entry)) {
+		ret = -EINVAL;
+	} else if (fence > priv->completed_fence) {
+		cb->fence = fence;
+		list_add_tail(&cb->work.entry, &priv->fence_cbs);
+	} else {
+		queue_work(priv->wq, &cb->work);
+	}
+	mutex_unlock(&dev->struct_mutex);
+
+	return ret;
+}
+
 /* called from workqueue */
 void msm_update_fence(struct drm_device *dev, uint32_t fence)
 {
@@ -832,6 +914,7 @@ static struct drm_driver msm_driver = {
 	.gem_prime_import_sg_table = msm_gem_prime_import_sg_table,
 	.gem_prime_vmap     = msm_gem_prime_vmap,
 	.gem_prime_vunmap   = msm_gem_prime_vunmap,
+	.gem_prime_mmap     = msm_gem_prime_mmap,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init       = msm_debugfs_init,
 	.debugfs_cleanup    = msm_debugfs_cleanup,
@@ -987,7 +1070,6 @@ static struct platform_driver msm_platform_driver = {
 	.probe      = msm_pdev_probe,
 	.remove     = msm_pdev_remove,
 	.driver     = {
-		.owner  = THIS_MODULE,
 		.name   = "msm",
 		.of_match_table = dt_match,
 		.pm     = &msm_pm_ops,
@@ -998,6 +1080,8 @@ static struct platform_driver msm_platform_driver = {
 static int __init msm_drm_register(void)
 {
 	DBG("init");
+	msm_dsi_register();
+	msm_edp_register();
 	hdmi_register();
 	adreno_register();
 	return platform_driver_register(&msm_platform_driver);
@@ -1009,6 +1093,8 @@ static void __exit msm_drm_unregister(void)
 	platform_driver_unregister(&msm_platform_driver);
 	hdmi_unregister();
 	adreno_unregister();
+	msm_edp_unregister();
+	msm_dsi_unregister();
 }
 
 module_init(msm_drm_register);

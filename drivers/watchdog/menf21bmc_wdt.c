@@ -187,7 +187,6 @@ static void menf21bmc_wdt_shutdown(struct platform_device *pdev)
 
 static struct  platform_driver menf21bmc_wdt = {
 	.driver		= {
-		.owner = THIS_MODULE,
 		.name	= DEVNAME,
 	},
 	.probe		= menf21bmc_wdt_probe,

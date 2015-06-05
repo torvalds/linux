@@ -148,9 +148,13 @@ struct refill_engine {
 
 	bool async;
 
-	wait_queue_head_t wait_for_refill;
+	struct completion compl;
 
 	struct list_head idle_node;
+};
+
+struct dmm_platform_data {
+	uint32_t cpu_cache_flags;
 };
 
 struct dmm {
@@ -183,6 +187,8 @@ struct dmm {
 
 	/* allocation list and lock */
 	struct list_head alloc_head;
+
+	const struct dmm_platform_data *plat_data;
 };
 
 #endif

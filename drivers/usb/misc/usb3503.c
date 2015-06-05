@@ -186,7 +186,30 @@ static int usb3503_probe(struct usb3503 *hub)
 		hub->mode		= pdata->initial_mode;
 	} else if (np) {
 		struct clk *clk;
+		u32 rate = 0;
 		hub->port_off_mask = 0;
+
+		if (!of_property_read_u32(np, "refclk-frequency", &rate)) {
+			switch (rate) {
+			case 38400000:
+			case 26000000:
+			case 19200000:
+			case 12000000:
+				hub->secondary_ref_clk = 0;
+				break;
+			case 24000000:
+			case 27000000:
+			case 25000000:
+			case 50000000:
+				hub->secondary_ref_clk = 1;
+				break;
+			default:
+				dev_err(dev,
+					"unsupported reference clock rate (%d)\n",
+					(int) rate);
+				return -EINVAL;
+			}
+		}
 
 		clk = devm_clk_get(dev, "refclk");
 		if (IS_ERR(clk) && PTR_ERR(clk) != -ENOENT) {
@@ -196,31 +219,9 @@ static int usb3503_probe(struct usb3503 *hub)
 		}
 
 		if (!IS_ERR(clk)) {
-			u32 rate = 0;
 			hub->clk = clk;
 
-			if (!of_property_read_u32(np, "refclk-frequency",
-						 &rate)) {
-
-				switch (rate) {
-				case 38400000:
-				case 26000000:
-				case 19200000:
-				case 12000000:
-					hub->secondary_ref_clk = 0;
-					break;
-				case 24000000:
-				case 27000000:
-				case 25000000:
-				case 50000000:
-					hub->secondary_ref_clk = 1;
-					break;
-				default:
-					dev_err(dev,
-						"unsupported reference clock rate (%d)\n",
-						(int) rate);
-					return -EINVAL;
-				}
+			if (rate != 0) {
 				err = clk_set_rate(hub->clk, rate);
 				if (err) {
 					dev_err(dev,
@@ -314,10 +315,8 @@ static int usb3503_i2c_probe(struct i2c_client *i2c,
 	int err;
 
 	hub = devm_kzalloc(&i2c->dev, sizeof(struct usb3503), GFP_KERNEL);
-	if (!hub) {
-		dev_err(&i2c->dev, "private data alloc fail\n");
+	if (!hub)
 		return -ENOMEM;
-	}
 
 	i2c_set_clientdata(i2c, hub);
 	hub->regmap = devm_regmap_init_i2c(i2c, &usb3503_regmap_config);
@@ -336,10 +335,8 @@ static int usb3503_platform_probe(struct platform_device *pdev)
 	struct usb3503 *hub;
 
 	hub = devm_kzalloc(&pdev->dev, sizeof(struct usb3503), GFP_KERNEL);
-	if (!hub) {
-		dev_err(&pdev->dev, "private data alloc fail\n");
+	if (!hub)
 		return -ENOMEM;
-	}
 	hub->dev = &pdev->dev;
 
 	return usb3503_probe(hub);
@@ -405,7 +402,6 @@ static struct platform_driver usb3503_platform_driver = {
 	.driver = {
 		.name = USB3503_I2C_NAME,
 		.of_match_table = of_match_ptr(usb3503_of_match),
-		.owner = THIS_MODULE,
 	},
 	.probe		= usb3503_platform_probe,
 };

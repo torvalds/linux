@@ -9,14 +9,13 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/version.h>
-
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/net.h>
 #include <linux/rculist.h>
 #include <linux/udp.h>
 #include <linux/if_vlan.h>
+#include <linux/module.h>
 
 #include <net/geneve.h>
 #include <net/icmp.h>
@@ -27,6 +26,8 @@
 
 #include "datapath.h"
 #include "vport.h"
+
+static struct vport_ops ovs_geneve_vport_ops;
 
 /**
  * struct geneve_port - Keeps track of open UDP ports
@@ -65,7 +66,7 @@ static void tunnel_id_to_vni(__be64 tun_id, __u8 *vni)
 }
 
 /* Convert 24 bit VNI to 64 bit tunnel ID. */
-static __be64 vni_to_tunnel_id(__u8 *vni)
+static __be64 vni_to_tunnel_id(const __u8 *vni)
 {
 #ifdef __BIG_ENDIAN
 	return (vni[0] << 16) | (vni[1] << 8) | vni[2];
@@ -87,14 +88,16 @@ static void geneve_rcv(struct geneve_sock *gs, struct sk_buff *skb)
 
 	opts_len = geneveh->opt_len * 4;
 
-	flags = TUNNEL_KEY | TUNNEL_OPTIONS_PRESENT |
+	flags = TUNNEL_KEY | TUNNEL_GENEVE_OPT |
 		(udp_hdr(skb)->check != 0 ? TUNNEL_CSUM : 0) |
 		(geneveh->oam ? TUNNEL_OAM : 0) |
 		(geneveh->critical ? TUNNEL_CRIT_OPT : 0);
 
 	key = vni_to_tunnel_id(geneveh->vni);
 
-	ovs_flow_tun_info_init(&tun_info, ip_hdr(skb), key, flags,
+	ovs_flow_tun_info_init(&tun_info, ip_hdr(skb),
+			       udp_hdr(skb)->source, udp_hdr(skb)->dest,
+			       key, flags,
 			       geneveh->options, opts_len);
 
 	ovs_vport_receive(vport, skb, &tun_info);
@@ -167,7 +170,7 @@ error:
 
 static int geneve_tnl_send(struct vport *vport, struct sk_buff *skb)
 {
-	struct ovs_key_ipv4_tunnel *tun_key;
+	const struct ovs_key_ipv4_tunnel *tun_key;
 	struct ovs_tunnel_info *tun_info;
 	struct net *net = ovs_dp_get_net(vport->dp);
 	struct geneve_port *geneve_port = geneve_vport(vport);
@@ -175,7 +178,7 @@ static int geneve_tnl_send(struct vport *vport, struct sk_buff *skb)
 	__be16 sport;
 	struct rtable *rt;
 	struct flowi4 fl;
-	u8 vni[3];
+	u8 vni[3], opts_len, *opts;
 	__be16 df;
 	int err;
 
@@ -186,16 +189,7 @@ static int geneve_tnl_send(struct vport *vport, struct sk_buff *skb)
 	}
 
 	tun_key = &tun_info->tunnel;
-
-	/* Route lookup */
-	memset(&fl, 0, sizeof(fl));
-	fl.daddr = tun_key->ipv4_dst;
-	fl.saddr = tun_key->ipv4_src;
-	fl.flowi4_tos = RT_TOS(tun_key->ipv4_tos);
-	fl.flowi4_mark = skb->mark;
-	fl.flowi4_proto = IPPROTO_UDP;
-
-	rt = ip_route_output_key(net, &fl);
+	rt = ovs_tunnel_route_lookup(net, tun_key, skb->mark, &fl, IPPROTO_UDP);
 	if (IS_ERR(rt)) {
 		err = PTR_ERR(rt);
 		goto error;
@@ -206,15 +200,25 @@ static int geneve_tnl_send(struct vport *vport, struct sk_buff *skb)
 	tunnel_id_to_vni(tun_key->tun_id, vni);
 	skb->ignore_df = 1;
 
+	if (tun_key->tun_flags & TUNNEL_GENEVE_OPT) {
+		opts = (u8 *)tun_info->options;
+		opts_len = tun_info->options_len;
+	} else {
+		opts = NULL;
+		opts_len = 0;
+	}
+
 	err = geneve_xmit_skb(geneve_port->gs, rt, skb, fl.saddr,
 			      tun_key->ipv4_dst, tun_key->ipv4_tos,
 			      tun_key->ipv4_ttl, df, sport, dport,
-			      tun_key->tun_flags, vni,
-			      tun_info->options_len, (u8 *)tun_info->options,
-			      false);
+			      tun_key->tun_flags, vni, opts_len, opts,
+			      !!(tun_key->tun_flags & TUNNEL_CSUM), false);
 	if (err < 0)
 		ip_rt_put(rt);
+	return err;
+
 error:
+	kfree_skb(skb);
 	return err;
 }
 
@@ -225,11 +229,46 @@ static const char *geneve_get_name(const struct vport *vport)
 	return geneve_port->name;
 }
 
-const struct vport_ops ovs_geneve_vport_ops = {
+static int geneve_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
+				      struct ovs_tunnel_info *egress_tun_info)
+{
+	struct geneve_port *geneve_port = geneve_vport(vport);
+	struct net *net = ovs_dp_get_net(vport->dp);
+	__be16 dport = inet_sk(geneve_port->gs->sock->sk)->inet_sport;
+	__be16 sport = udp_flow_src_port(net, skb, 1, USHRT_MAX, true);
+
+	/* Get tp_src and tp_dst, refert to geneve_build_header().
+	 */
+	return ovs_tunnel_get_egress_info(egress_tun_info,
+					  ovs_dp_get_net(vport->dp),
+					  OVS_CB(skb)->egress_tun_info,
+					  IPPROTO_UDP, skb->mark, sport, dport);
+}
+
+static struct vport_ops ovs_geneve_vport_ops = {
 	.type		= OVS_VPORT_TYPE_GENEVE,
 	.create		= geneve_tnl_create,
 	.destroy	= geneve_tnl_destroy,
 	.get_name	= geneve_get_name,
 	.get_options	= geneve_get_options,
 	.send		= geneve_tnl_send,
+	.owner          = THIS_MODULE,
+	.get_egress_tun_info	= geneve_get_egress_tun_info,
 };
+
+static int __init ovs_geneve_tnl_init(void)
+{
+	return ovs_vport_ops_register(&ovs_geneve_vport_ops);
+}
+
+static void __exit ovs_geneve_tnl_exit(void)
+{
+	ovs_vport_ops_unregister(&ovs_geneve_vport_ops);
+}
+
+module_init(ovs_geneve_tnl_init);
+module_exit(ovs_geneve_tnl_exit);
+
+MODULE_DESCRIPTION("OVS: Geneve swiching port");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("vport-type-5");

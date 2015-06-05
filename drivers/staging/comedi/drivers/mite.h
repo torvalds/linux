@@ -19,10 +19,9 @@
 #ifndef _MITE_H_
 #define _MITE_H_
 
-#include <linux/pci.h>
 #include <linux/log2.h>
 #include <linux/slab.h>
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #define PCIMIO_COMPAT
 

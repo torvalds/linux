@@ -86,11 +86,12 @@ config MACH_GPLUGD
 
 config MACH_MMP_DT
 	bool "Support MMP (ARMv5) platforms from device tree"
-	select CPU_PXA168
-	select CPU_PXA910
 	select USE_OF
 	select PINCTRL
 	select PINCTRL_SINGLE
+	select COMMON_CLK
+	select ARCH_HAS_RESET_CONTROLLER
+	select CPU_MOHAWK
 	help
 	  Include support for Marvell MMP2 based platforms using
 	  the device tree. Needn't select any other machine while
@@ -99,10 +100,12 @@ config MACH_MMP_DT
 config MACH_MMP2_DT
 	bool "Support MMP2 (ARMv7) platforms from device tree"
 	depends on !CPU_MOHAWK
-	select CPU_MMP2
 	select USE_OF
 	select PINCTRL
 	select PINCTRL_SINGLE
+	select COMMON_CLK
+	select ARCH_HAS_RESET_CONTROLLER
+	select CPU_PJ4
 	help
 	  Include support for Marvell MMP2 based platforms using
 	  the device tree.
@@ -111,21 +114,18 @@ endmenu
 
 config CPU_PXA168
 	bool
-	select COMMON_CLK
 	select CPU_MOHAWK
 	help
 	  Select code specific to PXA168
 
 config CPU_PXA910
 	bool
-	select COMMON_CLK
 	select CPU_MOHAWK
 	help
 	  Select code specific to PXA910
 
 config CPU_MMP2
 	bool
-	select COMMON_CLK
 	select CPU_PJ4
 	help
 	  Select code specific to MMP2. MMP2 is ARMv7 compatible.

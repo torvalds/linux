@@ -19,7 +19,7 @@
 /*
  * Driver: ke_counter
  * Description: Driver for Kolter Electronic Counter Card
- * Devices: (Kolter Electronic) PCI Counter Card [ke_counter]
+ * Devices: [Kolter Electronic] PCI Counter Card (ke_counter)
  * Author: Michael Hillmann
  * Updated: Mon, 14 Apr 2008 15:42:42 +0100
  * Status: tested
@@ -28,9 +28,8 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 /*
  * PCI BAR 0 Register I/O map

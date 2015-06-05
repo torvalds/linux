@@ -62,6 +62,63 @@ MODULE_ALIAS("rcupdate");
 
 module_param(rcu_expedited, int, 0);
 
+#ifndef CONFIG_TINY_RCU
+
+static atomic_t rcu_expedited_nesting =
+	ATOMIC_INIT(IS_ENABLED(CONFIG_RCU_EXPEDITE_BOOT) ? 1 : 0);
+
+/*
+ * Should normal grace-period primitives be expedited?  Intended for
+ * use within RCU.  Note that this function takes the rcu_expedited
+ * sysfs/boot variable into account as well as the rcu_expedite_gp()
+ * nesting.  So looping on rcu_unexpedite_gp() until rcu_gp_is_expedited()
+ * returns false is a -really- bad idea.
+ */
+bool rcu_gp_is_expedited(void)
+{
+	return rcu_expedited || atomic_read(&rcu_expedited_nesting);
+}
+EXPORT_SYMBOL_GPL(rcu_gp_is_expedited);
+
+/**
+ * rcu_expedite_gp - Expedite future RCU grace periods
+ *
+ * After a call to this function, future calls to synchronize_rcu() and
+ * friends act as the corresponding synchronize_rcu_expedited() function
+ * had instead been called.
+ */
+void rcu_expedite_gp(void)
+{
+	atomic_inc(&rcu_expedited_nesting);
+}
+EXPORT_SYMBOL_GPL(rcu_expedite_gp);
+
+/**
+ * rcu_unexpedite_gp - Cancel prior rcu_expedite_gp() invocation
+ *
+ * Undo a prior call to rcu_expedite_gp().  If all prior calls to
+ * rcu_expedite_gp() are undone by a subsequent call to rcu_unexpedite_gp(),
+ * and if the rcu_expedited sysfs/boot parameter is not set, then all
+ * subsequent calls to synchronize_rcu() and friends will return to
+ * their normal non-expedited behavior.
+ */
+void rcu_unexpedite_gp(void)
+{
+	atomic_dec(&rcu_expedited_nesting);
+}
+EXPORT_SYMBOL_GPL(rcu_unexpedite_gp);
+
+#endif /* #ifndef CONFIG_TINY_RCU */
+
+/*
+ * Inform RCU of the end of the in-kernel boot sequence.
+ */
+void rcu_end_inkernel_boot(void)
+{
+	if (IS_ENABLED(CONFIG_RCU_EXPEDITE_BOOT))
+		rcu_unexpedite_gp();
+}
+
 #ifdef CONFIG_PREEMPT_RCU
 
 /*
@@ -199,16 +256,13 @@ EXPORT_SYMBOL_GPL(rcu_read_lock_bh_held);
 
 #endif /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
-struct rcu_synchronize {
-	struct rcu_head head;
-	struct completion completion;
-};
-
-/*
- * Awaken the corresponding synchronize_rcu() instance now that a
- * grace period has elapsed.
+/**
+ * wakeme_after_rcu() - Callback function to awaken a task after grace period
+ * @head: Pointer to rcu_head member within rcu_synchronize structure
+ *
+ * Awaken the corresponding task now that a grace period has elapsed.
  */
-static void wakeme_after_rcu(struct rcu_head  *head)
+void wakeme_after_rcu(struct rcu_head *head)
 {
 	struct rcu_synchronize *rcu;
 
@@ -306,7 +360,7 @@ struct debug_obj_descr rcuhead_debug_descr = {
 EXPORT_SYMBOL_GPL(rcuhead_debug_descr);
 #endif /* #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
 
-#if defined(CONFIG_TREE_RCU) || defined(CONFIG_TREE_PREEMPT_RCU) || defined(CONFIG_RCU_TRACE)
+#if defined(CONFIG_TREE_RCU) || defined(CONFIG_PREEMPT_RCU) || defined(CONFIG_RCU_TRACE)
 void do_trace_rcu_torture_read(const char *rcutorturename, struct rcu_head *rhp,
 			       unsigned long secs,
 			       unsigned long c_old, unsigned long c)
@@ -531,7 +585,8 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 	struct rcu_head *next;
 	LIST_HEAD(rcu_tasks_holdouts);
 
-	/* FIXME: Add housekeeping affinity. */
+	/* Run on housekeeping CPUs by default.  Sysadm can move if desired. */
+	housekeeping_affine(current);
 
 	/*
 	 * Each pass through the following loop makes one check for
@@ -690,3 +745,87 @@ static void rcu_spawn_tasks_kthread(void)
 }
 
 #endif /* #ifdef CONFIG_TASKS_RCU */
+
+#ifdef CONFIG_PROVE_RCU
+
+/*
+ * Early boot self test parameters, one for each flavor
+ */
+static bool rcu_self_test;
+static bool rcu_self_test_bh;
+static bool rcu_self_test_sched;
+
+module_param(rcu_self_test, bool, 0444);
+module_param(rcu_self_test_bh, bool, 0444);
+module_param(rcu_self_test_sched, bool, 0444);
+
+static int rcu_self_test_counter;
+
+static void test_callback(struct rcu_head *r)
+{
+	rcu_self_test_counter++;
+	pr_info("RCU test callback executed %d\n", rcu_self_test_counter);
+}
+
+static void early_boot_test_call_rcu(void)
+{
+	static struct rcu_head head;
+
+	call_rcu(&head, test_callback);
+}
+
+static void early_boot_test_call_rcu_bh(void)
+{
+	static struct rcu_head head;
+
+	call_rcu_bh(&head, test_callback);
+}
+
+static void early_boot_test_call_rcu_sched(void)
+{
+	static struct rcu_head head;
+
+	call_rcu_sched(&head, test_callback);
+}
+
+void rcu_early_boot_tests(void)
+{
+	pr_info("Running RCU self tests\n");
+
+	if (rcu_self_test)
+		early_boot_test_call_rcu();
+	if (rcu_self_test_bh)
+		early_boot_test_call_rcu_bh();
+	if (rcu_self_test_sched)
+		early_boot_test_call_rcu_sched();
+}
+
+static int rcu_verify_early_boot_tests(void)
+{
+	int ret = 0;
+	int early_boot_test_counter = 0;
+
+	if (rcu_self_test) {
+		early_boot_test_counter++;
+		rcu_barrier();
+	}
+	if (rcu_self_test_bh) {
+		early_boot_test_counter++;
+		rcu_barrier_bh();
+	}
+	if (rcu_self_test_sched) {
+		early_boot_test_counter++;
+		rcu_barrier_sched();
+	}
+
+	if (rcu_self_test_counter != early_boot_test_counter) {
+		WARN_ON(1);
+		ret = -1;
+	}
+
+	return ret;
+}
+late_initcall(rcu_verify_early_boot_tests);
+#else
+void rcu_early_boot_tests(void) {}
+#endif /* CONFIG_PROVE_RCU */

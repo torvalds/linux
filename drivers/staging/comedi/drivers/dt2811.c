@@ -194,7 +194,6 @@ static const struct comedi_lrange range_dt2811_pgl_ai_5_bipolar = {
 #define DT2811_ADMODE   0x03
 
 struct dt2811_board {
-
 	const char *name;
 	const struct comedi_lrange *bip_5;
 	const struct comedi_lrange *bip_2_5;
@@ -418,7 +417,6 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	devpriv->range_type_list[0] = dac_range_types[devpriv->dac_range[0]];
 	devpriv->range_type_list[1] = dac_range_types[devpriv->dac_range[1]];
 	s->insn_write = dt2811_ao_insn_write;
-	s->insn_read = comedi_readback_insn_read;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)

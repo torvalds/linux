@@ -67,6 +67,10 @@ static bool i8042_notimeout;
 module_param_named(notimeout, i8042_notimeout, bool, 0);
 MODULE_PARM_DESC(notimeout, "Ignore timeouts signalled by i8042");
 
+static bool i8042_kbdreset;
+module_param_named(kbdreset, i8042_kbdreset, bool, 0);
+MODULE_PARM_DESC(kbdreset, "Reset device connected to KBD port");
+
 #ifdef CONFIG_X86
 static bool i8042_dritek;
 module_param_named(dritek, i8042_dritek, bool, 0);
@@ -790,6 +794,16 @@ static int __init i8042_check_aux(void)
 		return -1;
 
 /*
+ * Reset keyboard (needed on some laptops to successfully detect
+ * touchpad, e.g., some Gigabyte laptop models with Elantech
+ * touchpads).
+ */
+	if (i8042_kbdreset) {
+		pr_warn("Attempting to reset device connected to KBD port\n");
+		i8042_kbd_write(NULL, (unsigned char) 0xff);
+	}
+
+/*
  * Test AUX IRQ delivery to make sure BIOS did not grab the IRQ and
  * used it for a PCI card or somethig else.
  */
@@ -1148,13 +1162,32 @@ static int i8042_controller_resume(bool force_reset)
 
 static int i8042_pm_suspend(struct device *dev)
 {
+	int i;
+
 	i8042_controller_reset(true);
+
+	/* Set up serio interrupts for system wakeup. */
+	for (i = 0; i < I8042_NUM_PORTS; i++) {
+		struct serio *serio = i8042_ports[i].serio;
+
+		if (serio && device_may_wakeup(&serio->dev))
+			enable_irq_wake(i8042_ports[i].irq);
+	}
 
 	return 0;
 }
 
 static int i8042_pm_resume(struct device *dev)
 {
+	int i;
+
+	for (i = 0; i < I8042_NUM_PORTS; i++) {
+		struct serio *serio = i8042_ports[i].serio;
+
+		if (serio && device_may_wakeup(&serio->dev))
+			disable_irq_wake(i8042_ports[i].irq);
+	}
+
 	/*
 	 * On resume from S2R we always try to reset the controller
 	 * to bring it in a sane state. (In case of S2D we expect
@@ -1286,13 +1319,16 @@ static void __init i8042_register_ports(void)
 	int i;
 
 	for (i = 0; i < I8042_NUM_PORTS; i++) {
-		if (i8042_ports[i].serio) {
+		struct serio *serio = i8042_ports[i].serio;
+
+		if (serio) {
 			printk(KERN_INFO "serio: %s at %#lx,%#lx irq %d\n",
-				i8042_ports[i].serio->name,
+				serio->name,
 				(unsigned long) I8042_DATA_REG,
 				(unsigned long) I8042_COMMAND_REG,
 				i8042_ports[i].irq);
-			serio_register_port(i8042_ports[i].serio);
+			serio_register_port(serio);
+			device_set_wakeup_capable(&serio->dev, true);
 		}
 	}
 }
@@ -1463,7 +1499,6 @@ static int i8042_remove(struct platform_device *dev)
 static struct platform_driver i8042_driver = {
 	.driver		= {
 		.name	= "i8042",
-		.owner	= THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm	= &i8042_pm_ops,
 #endif

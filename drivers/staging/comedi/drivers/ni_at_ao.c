@@ -19,8 +19,7 @@
 /*
  * Driver: ni_at_ao
  * Description: National Instruments AT-AO-6/10
- * Devices: (National Instruments) AT-AO-6 [at-ao-6]
- *          (National Instruments) AT-AO-10 [at-ao-10]
+ * Devices: [National Instruments] AT-AO-6 (at-ao-6), AT-AO-10 (at-ao-10)
  * Status: should work
  * Author: David A. Schleef <ds@schleef.org>
  * Updated: Sun Dec 26 12:26:28 EST 2004
@@ -38,7 +37,7 @@
 
 #include "../comedidev.h"
 
-#include "8253.h"
+#include "comedi_8254.h"
 
 /*
  * Register map
@@ -244,46 +243,30 @@ static int atao_calib_insn_write(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	struct atao_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int bitstring;
-	unsigned int val;
-	int bit;
 
-	if (insn->n == 0)
-		return 0;
+	if (insn->n) {
+		unsigned int val = data[insn->n - 1];
+		unsigned int bitstring = ((chan & 0x7) << 8) | val;
+		unsigned int bits;
+		int bit;
 
-	devpriv->caldac[chan] = data[insn->n - 1] & s->maxdata;
+		/* write the channel and last data value to the caldac */
+		/* clock the bitstring to the caldac; MSB -> LSB */
+		for (bit = 1 << 10; bit; bit >>= 1) {
+			bits = (bit & bitstring) ? ATAO_CFG2_SDATA : 0;
 
-	/* write the channel and last data value to the caldac */
-	bitstring = ((chan & 0x7) << 8) | devpriv->caldac[chan];
+			outw(bits, dev->iobase + ATAO_CFG2_REG);
+			outw(bits | ATAO_CFG2_SCLK,
+			     dev->iobase + ATAO_CFG2_REG);
+		}
 
-	/* clock the bitstring to the caldac; MSB -> LSB */
-	for (bit = 1 << 10; bit; bit >>= 1) {
-		val = (bit & bitstring) ? ATAO_CFG2_SDATA : 0;
+		/* strobe the caldac to load the value */
+		outw(ATAO_CFG2_CALLD(chan), dev->iobase + ATAO_CFG2_REG);
+		outw(ATAO_CFG2_CALLD_NOP, dev->iobase + ATAO_CFG2_REG);
 
-		outw(val, dev->iobase + ATAO_CFG2_REG);
-		outw(val | ATAO_CFG2_SCLK, dev->iobase + ATAO_CFG2_REG);
+		s->readback[chan] = val;
 	}
-
-	/* strobe the caldac to load the value */
-	outw(ATAO_CFG2_CALLD(chan), dev->iobase + ATAO_CFG2_REG);
-	outw(ATAO_CFG2_CALLD_NOP, dev->iobase + ATAO_CFG2_REG);
-
-	return insn->n;
-}
-
-static int atao_calib_insn_read(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn,
-				unsigned int *data)
-{
-	struct atao_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->caldac[chan];
 
 	return insn->n;
 }
@@ -291,7 +274,6 @@ static int atao_calib_insn_read(struct comedi_device *dev,
 static void atao_reset(struct comedi_device *dev)
 {
 	struct atao_private *devpriv = dev->private;
-	unsigned long timer_base = dev->iobase + ATAO_82C53_BASE;
 
 	/* This is the reset sequence described in the manual */
 
@@ -299,9 +281,9 @@ static void atao_reset(struct comedi_device *dev)
 	outw(devpriv->cfg1, dev->iobase + ATAO_CFG1_REG);
 
 	/* Put outputs of counter 1 and counter 2 in a high state */
-	i8254_set_mode(timer_base, 0, 0, I8254_MODE4 | I8254_BINARY);
-	i8254_set_mode(timer_base, 0, 1, I8254_MODE4 | I8254_BINARY);
-	i8254_write(timer_base, 0, 0, 0x0003);
+	comedi_8254_set_mode(dev->pacer, 0, I8254_MODE4 | I8254_BINARY);
+	comedi_8254_set_mode(dev->pacer, 1, I8254_MODE4 | I8254_BINARY);
+	comedi_8254_write(dev->pacer, 0, 0x0003);
 
 	outw(ATAO_CFG2_CALLD_NOP, dev->iobase + ATAO_CFG2_REG);
 
@@ -332,6 +314,11 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv)
 		return -ENOMEM;
 
+	dev->pacer = comedi_8254_init(dev->iobase + ATAO_82C53_BASE,
+				      0, I8254_IO8, 0);
+	if (!dev->pacer)
+		return -ENOMEM;
+
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
 		return ret;
@@ -344,7 +331,6 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata	= 0x0fff;
 	s->range_table	= it->options[3] ? &range_unipolar10 : &range_bipolar10;
 	s->insn_write	= atao_ao_insn_write;
-	s->insn_read	= comedi_readback_insn_read;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)
@@ -366,8 +352,11 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->subdev_flags	= SDF_WRITABLE | SDF_INTERNAL;
 	s->n_chan	= (board->n_ao_chans * 2) + 1;
 	s->maxdata	= 0xff;
-	s->insn_read	= atao_calib_insn_read;
 	s->insn_write	= atao_calib_insn_write;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	/* EEPROM subdevice */
 	s = &dev->subdevices[3];

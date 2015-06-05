@@ -254,7 +254,7 @@ SOC_SINGLE_TLV("MIXOUTR IN2B Volume", WM9090_OUTPUT_MIXER4, 0, 3, 1,
 static int hp_ev(struct snd_soc_dapm_widget *w,
 		 struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	unsigned int reg = snd_soc_read(codec, WM9090_ANALOGUE_HP_0);
 
 	switch (event) {
@@ -550,45 +550,15 @@ static int wm9090_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, WM9090_CLOCKING_1,
 			    WM9090_TOCLK_ENA, WM9090_TOCLK_ENA);
 
-	wm9090_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	wm9090_add_controls(codec);
-
-	return 0;
-}
-
-#ifdef CONFIG_PM
-static int wm9090_suspend(struct snd_soc_codec *codec)
-{
-	wm9090_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-static int wm9090_resume(struct snd_soc_codec *codec)
-{
-	wm9090_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-#else
-#define wm9090_suspend NULL
-#define wm9090_resume NULL
-#endif
-
-static int wm9090_remove(struct snd_soc_codec *codec)
-{
-	wm9090_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_wm9090 = {
 	.probe = 	wm9090_probe,
-	.remove = 	wm9090_remove,
-	.suspend = 	wm9090_suspend,
-	.resume =	wm9090_resume,
 	.set_bias_level = wm9090_set_bias_level,
+	.suspend_bias_off = true,
 };
 
 static const struct regmap_config wm9090_regmap = {

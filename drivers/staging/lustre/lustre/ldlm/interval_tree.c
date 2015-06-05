@@ -73,6 +73,7 @@ static inline int extent_compare(struct interval_node_extent *e1,
 				 struct interval_node_extent *e2)
 {
 	int rc;
+
 	if (e1->start == e2->start) {
 		if (e1->end < e2->end)
 			rc = -1;
@@ -321,6 +322,7 @@ static void interval_insert_color(struct interval_node *node,
 		/* Parent is RED, so gparent must not be NULL */
 		if (node_is_left_child(parent)) {
 			struct interval_node *uncle;
+
 			uncle = gparent->in_right;
 			if (uncle && node_is_red(uncle)) {
 				uncle->in_color = INTERVAL_BLACK;
@@ -340,6 +342,7 @@ static void interval_insert_color(struct interval_node *node,
 			__rotate_right(gparent, root);
 		} else {
 			struct interval_node *uncle;
+
 			uncle = gparent->in_left;
 			if (uncle && node_is_red(uncle)) {
 				uncle->in_color = INTERVAL_BLACK;
@@ -427,6 +430,7 @@ static void interval_erase_color(struct interval_node *node,
 			} else {
 				if (node_is_black_or_0(tmp->in_right)) {
 					struct interval_node *o_left;
+
 					o_left = tmp->in_left;
 					if (o_left)
 						o_left->in_color = INTERVAL_BLACK;
@@ -458,6 +462,7 @@ static void interval_erase_color(struct interval_node *node,
 			} else {
 				if (node_is_black_or_0(tmp->in_left)) {
 					struct interval_node *o_right;
+
 					o_right = tmp->in_right;
 					if (o_right)
 						o_right->in_color = INTERVAL_BLACK;

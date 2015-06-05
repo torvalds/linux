@@ -38,10 +38,6 @@
 #include "stk1160.h"
 #include "stk1160-reg.h"
 
-static unsigned int vidioc_debug;
-module_param(vidioc_debug, int, 0644);
-MODULE_PARM_DESC(vidioc_debug, "enable debug messages [vidioc]");
-
 static bool keep_buffers;
 module_param(keep_buffers, bool, 0644);
 MODULE_PARM_DESC(keep_buffers, "don't release buffers upon stop streaming");
@@ -244,6 +240,11 @@ static int stk1160_stop_streaming(struct stk1160 *dev)
 	if (mutex_lock_interruptible(&dev->v4l_lock))
 		return -ERESTARTSYS;
 
+	/*
+	 * Once URBs are cancelled, the URB complete handler
+	 * won't be running. This is required to safely release the
+	 * current buffer (dev->isoc_ctl.buf).
+	 */
 	stk1160_cancel_isoc(dev);
 
 	/*
@@ -475,7 +476,7 @@ static int vidioc_s_register(struct file *file, void *priv,
 	struct stk1160 *dev = video_drvdata(file);
 
 	/* Match host */
-	return stk1160_write_reg(dev, reg->reg, cpu_to_le16(reg->val));
+	return stk1160_write_reg(dev, reg->reg, reg->val);
 }
 #endif
 
@@ -624,8 +625,16 @@ void stk1160_clear_queue(struct stk1160 *dev)
 		stk1160_info("buffer [%p/%d] aborted\n",
 				buf, buf->vb.v4l2_buf.index);
 	}
-	/* It's important to clear current buffer */
-	dev->isoc_ctl.buf = NULL;
+
+	/* It's important to release the current buffer */
+	if (dev->isoc_ctl.buf) {
+		buf = dev->isoc_ctl.buf;
+		dev->isoc_ctl.buf = NULL;
+
+		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		stk1160_info("buffer [%p/%d] aborted\n",
+				buf, buf->vb.v4l2_buf.index);
+	}
 	spin_unlock_irqrestore(&dev->buf_lock, flags);
 }
 
@@ -659,7 +668,6 @@ int stk1160_video_register(struct stk1160 *dev)
 
 	/* Initialize video_device with a template structure */
 	dev->vdev = v4l_template;
-	dev->vdev.debug = vidioc_debug;
 	dev->vdev.queue = &dev->vb_vidq;
 
 	/*

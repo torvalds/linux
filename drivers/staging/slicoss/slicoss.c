@@ -84,7 +84,6 @@
 #include <linux/seq_file.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 
 #include <linux/firmware.h>
 #include <linux/types.h>
@@ -99,8 +98,7 @@
 #include "slic.h"
 
 static uint slic_first_init = 1;
-static char *slic_banner = "Alacritech SLIC Technology(tm) Server "
-		"and Storage Accelerator (Non-Accelerated)";
+static char *slic_banner = "Alacritech SLIC Technology(tm) Server and Storage Accelerator (Non-Accelerated)";
 
 static char *slic_proc_version = "2.0.351  2006/07/14 12:26:00";
 
@@ -166,7 +164,7 @@ static void slic_mcast_set_bit(struct adapter *adapter, char *address)
 	/* Get the CRC polynomial for the mac address */
 	/* we use bits 1-8 (lsb), bitwise reversed,
 	 * msb (= lsb bit 0 before bitrev) is automatically discarded */
-	crcpoly = (ether_crc(ETH_ALEN, address)>>23);
+	crcpoly = ether_crc(ETH_ALEN, address)>>23;
 
 	/* We only have space on the SLIC for 64 entries.  Lop
 	 * off the top two bits. (2^6 = 64)
@@ -498,12 +496,14 @@ static int slic_card_download(struct adapter *adapter)
 			slic_reg32_write(&slic_regs->slic_wcs,
 					 baseaddress + codeaddr, FLUSH);
 			/* Write out instruction to low addr */
-			slic_reg32_write(&slic_regs->slic_wcs, instruction, FLUSH);
+			slic_reg32_write(&slic_regs->slic_wcs,
+					instruction, FLUSH);
 			instruction = *(u32 *)(fw->data + index);
 			index += 4;
 
 			/* Write out instruction to high addr */
-			slic_reg32_write(&slic_regs->slic_wcs, instruction, FLUSH);
+			slic_reg32_write(&slic_regs->slic_wcs,
+					instruction, FLUSH);
 			instruction = *(u32 *)(fw->data + index);
 			index += 4;
 		}
@@ -596,8 +596,7 @@ static void slic_mac_address_config(struct adapter *adapter)
 	u32 value2;
 	__iomem struct slic_regs *slic_regs = adapter->slic_regs;
 
-	value = *(u32 *) &adapter->currmacaddr[2];
-	value = ntohl(value);
+	value = ntohl(*(__be32 *) &adapter->currmacaddr[2]);
 	slic_reg32_write(&slic_regs->slic_wraddral, value, FLUSH);
 	slic_reg32_write(&slic_regs->slic_wraddrbl, value, FLUSH);
 
@@ -1533,14 +1532,18 @@ retry_rcvqfill:
 				dev_err(dev, "%s: LOW 32bits PHYSICAL ADDRESS == 0\n",
 					__func__);
 				dev_err(dev, "skb[%p] PROBLEM\n", skb);
-				dev_err(dev, "         skbdata[%p]\n", skb->data);
+				dev_err(dev, "         skbdata[%p]\n",
+						skb->data);
 				dev_err(dev, "         skblen[%x]\n", skb->len);
 				dev_err(dev, "         paddr[%p]\n", paddr);
 				dev_err(dev, "         paddrl[%x]\n", paddrl);
 				dev_err(dev, "         paddrh[%x]\n", paddrh);
-				dev_err(dev, "         rcvq->head[%p]\n", rcvq->head);
-				dev_err(dev, "         rcvq->tail[%p]\n", rcvq->tail);
-				dev_err(dev, "         rcvq->count[%x]\n", rcvq->count);
+				dev_err(dev, "         rcvq->head[%p]\n",
+						rcvq->head);
+				dev_err(dev, "         rcvq->tail[%p]\n",
+						rcvq->tail);
+				dev_err(dev, "         rcvq->count[%x]\n",
+						rcvq->count);
 				dev_err(dev, "SKIP THIS SKB!!!!!!!!\n");
 				goto retry_rcvqfill;
 			}
@@ -1549,14 +1552,18 @@ retry_rcvqfill:
 				dev_err(dev, "%s: LOW 32bits PHYSICAL ADDRESS == 0\n",
 					__func__);
 				dev_err(dev, "skb[%p] PROBLEM\n", skb);
-				dev_err(dev, "         skbdata[%p]\n", skb->data);
+				dev_err(dev, "         skbdata[%p]\n",
+						skb->data);
 				dev_err(dev, "         skblen[%x]\n", skb->len);
 				dev_err(dev, "         paddr[%p]\n", paddr);
 				dev_err(dev, "         paddrl[%x]\n", paddrl);
 				dev_err(dev, "         paddrh[%x]\n", paddrh);
-				dev_err(dev, "         rcvq->head[%p]\n", rcvq->head);
-				dev_err(dev, "         rcvq->tail[%p]\n", rcvq->tail);
-				dev_err(dev, "         rcvq->count[%x]\n", rcvq->count);
+				dev_err(dev, "         rcvq->head[%p]\n",
+						rcvq->head);
+				dev_err(dev, "         rcvq->tail[%p]\n",
+						rcvq->tail);
+				dev_err(dev, "         rcvq->count[%x]\n",
+						rcvq->count);
 				dev_err(dev, "GIVE TO CARD ANYWAY\n");
 			}
 #endif
@@ -1612,7 +1619,7 @@ static int slic_rcvqueue_init(struct adapter *adapter)
 	rcvq->size = SLIC_RCVQ_ENTRIES;
 	rcvq->errors = 0;
 	rcvq->count = 0;
-	i = (SLIC_RCVQ_ENTRIES / SLIC_RCVQ_FILLENTRIES);
+	i = SLIC_RCVQ_ENTRIES / SLIC_RCVQ_FILLENTRIES;
 	count = 0;
 	while (i) {
 		count += slic_rcvqueue_fill(adapter);
@@ -1788,7 +1795,7 @@ static int slic_mcast_add_list(struct adapter *adapter, char *address)
 	if (mcaddr == NULL)
 		return 1;
 
-	memcpy(mcaddr->address, address, ETH_ALEN);
+	ether_addr_copy(mcaddr->address, address);
 
 	mcaddr->next = adapter->mcastaddrs;
 	adapter->mcastaddrs = mcaddr;
@@ -1843,7 +1850,7 @@ static void slic_xmit_build_request(struct adapter *adapter,
 
 	ihcmd = &hcmd->cmd64;
 
-	ihcmd->flags = (adapter->port << IHFLG_IFSHFT);
+	ihcmd->flags = adapter->port << IHFLG_IFSHFT;
 	ihcmd->command = IHCMD_XMT_REQ;
 	ihcmd->u.slic_buffers.totlen = skb->len;
 	phys_addr = pci_map_single(adapter->pcidev, skb->data, skb->len,
@@ -1855,8 +1862,8 @@ static void slic_xmit_build_request(struct adapter *adapter,
 	hcmd->cmdsize = (u32) ((((u64)&ihcmd->u.slic_buffers.bufs[1] -
 				     (u64) hcmd) + 31) >> 5);
 #else
-	hcmd->cmdsize = ((((u32) &ihcmd->u.slic_buffers.bufs[1] -
-			   (u32) hcmd) + 31) >> 5);
+	hcmd->cmdsize = (((u32)&ihcmd->u.slic_buffers.bufs[1] -
+				       (u32)hcmd) + 31) >> 5;
 #endif
 }
 
@@ -1885,7 +1892,8 @@ static void slic_xmit_fail(struct adapter *adapter,
 			break;
 		case XMIT_FAIL_HOSTCMD_FAIL:
 			dev_err(&adapter->netdev->dev,
-				"xmit_start skb[%p] type[%x] No host commands available\n", skb, skb->pkt_type);
+				"xmit_start skb[%p] type[%x] No host commands available\n",
+				skb, skb->pkt_type);
 			break;
 		}
 	}
@@ -2097,7 +2105,8 @@ static void slic_interrupt_card_up(u32 isr, struct adapter *adapter,
 				}
 			} else if (isr & ISR_XDROP) {
 				dev_err(&dev->dev,
-						"isr & ISR_ERR [%x] ISR_XDROP\n", isr);
+						"isr & ISR_ERR [%x] ISR_XDROP\n",
+						isr);
 			} else {
 				dev_err(&dev->dev,
 						"isr & ISR_ERR [%x]\n",
@@ -2304,9 +2313,8 @@ static int slic_if_init(struct adapter *adapter)
 	}
 	rc = slic_adapter_allocresources(adapter);
 	if (rc) {
-		dev_err(&dev->dev,
-			"%s: slic_adapter_allocresources FAILED %x\n",
-			__func__, rc);
+		dev_err(&dev->dev, "slic_adapter_allocresources FAILED %x\n",
+			rc);
 		slic_adapter_freeresources(adapter);
 		goto err;
 	}
@@ -2341,7 +2349,8 @@ static int slic_if_init(struct adapter *adapter)
 				 SLIC_GET_ADDR_LOW(&pshmem->isr), FLUSH);
 #else
 		slic_reg32_write(&slic_regs->slic_addr_upper, 0, DONT_FLUSH);
-		slic_reg32_write(&slic_regs->slic_isp, (u32)&pshmem->isr, FLUSH);
+		slic_reg32_write(&slic_regs->slic_isp, (u32)&pshmem->isr,
+				FLUSH);
 #endif
 		spin_unlock_irqrestore(&adapter->bit64reglock.lock,
 					adapter->bit64reglock.flags);
@@ -2350,22 +2359,19 @@ static int slic_if_init(struct adapter *adapter)
 
 	adapter->state = ADAPT_UP;
 	if (!card->loadtimerset) {
-		init_timer(&card->loadtimer);
+		setup_timer(&card->loadtimer, &slic_timer_load_check,
+			    (ulong)card);
 		card->loadtimer.expires =
 		    jiffies + (SLIC_LOADTIMER_PERIOD * HZ);
-		card->loadtimer.data = (ulong) card;
-		card->loadtimer.function = &slic_timer_load_check;
 		add_timer(&card->loadtimer);
 
 		card->loadtimerset = 1;
 	}
 
 	if (!adapter->pingtimerset) {
-		init_timer(&adapter->pingtimer);
+		setup_timer(&adapter->pingtimer, &slic_timer_ping, (ulong)dev);
 		adapter->pingtimer.expires =
 		    jiffies + (PING_TIMER_INTERVAL * HZ);
-		adapter->pingtimer.data = (ulong) dev;
-		adapter->pingtimer.function = &slic_timer_ping;
 		add_timer(&adapter->pingtimer);
 		adapter->pingtimerset = 1;
 		adapter->card->pingstatus = ISR_PINGMASK;
@@ -2542,46 +2548,11 @@ static int slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		if (copy_from_user(data, rq->ifr_data, 28))
 			return -EFAULT;
 		intagg = data[0];
-		dev_err(&dev->dev, "%s: set interrupt aggregation to %d\n",
-			__func__, intagg);
+		dev_err(&dev->dev, "set interrupt aggregation to %d\n",
+			intagg);
 		slic_intagg_set(adapter, intagg);
 		return 0;
 
-#ifdef SLIC_TRACE_DUMP_ENABLED
-	case SIOCSLICTRACEDUMP:
-		{
-			u32 value;
-
-			DBG_IOCTL("slic_ioctl  SIOCSLIC_TRACE_DUMP\n");
-
-			if (copy_from_user(data, rq->ifr_data, 28)) {
-				PRINT_ERROR
-				    ("slic: copy_from_user FAILED getting initial simba param\n");
-				return -EFAULT;
-			}
-
-			value = data[0];
-			if (tracemon_request == SLIC_DUMP_DONE) {
-				PRINT_ERROR
-				    ("ATK Diagnostic Trace Dump Requested\n");
-				tracemon_request = SLIC_DUMP_REQUESTED;
-				tracemon_request_type = value;
-				tracemon_timestamp = jiffies;
-			} else if ((tracemon_request == SLIC_DUMP_REQUESTED) ||
-				   (tracemon_request ==
-				    SLIC_DUMP_IN_PROGRESS)) {
-				PRINT_ERROR
-				    ("ATK Diagnostic Trace Dump Requested but already in progress... ignore\n");
-			} else {
-				PRINT_ERROR
-				    ("ATK Diagnostic Trace Dump Requested\n");
-				tracemon_request = SLIC_DUMP_REQUESTED;
-				tracemon_request_type = value;
-				tracemon_timestamp = jiffies;
-			}
-			return 0;
-		}
-#endif
 	case SIOCETHTOOL:
 		if (copy_from_user(&ecmd, rq->ifr_data, sizeof(ecmd)))
 			return -EFAULT;

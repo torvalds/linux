@@ -1,3 +1,4 @@
+#include <linux/delay.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
@@ -524,12 +525,6 @@ static struct dma_async_tx_descriptor *cppi41_dma_prep_slave_sg(
 	return &c->txd;
 }
 
-static int cpp41_cfg_chan(struct cppi41_channel *c,
-		struct dma_slave_config *cfg)
-{
-	return 0;
-}
-
 static void cppi41_compute_td_desc(struct cppi41_desc *d)
 {
 	d->pd0 = DESC_TYPE_TEARD << DESC_TYPE;
@@ -567,7 +562,7 @@ static int cppi41_tear_down_chan(struct cppi41_channel *c)
 		reg |= GCR_TEARDOWN;
 		cppi_writel(reg, c->gcr_reg);
 		c->td_queued = 1;
-		c->td_retry = 100;
+		c->td_retry = 500;
 	}
 
 	if (!c->td_seen || !c->td_desc_seen) {
@@ -603,12 +598,16 @@ static int cppi41_tear_down_chan(struct cppi41_channel *c)
 	 * descriptor before the TD we fetch it from enqueue, it has to be
 	 * there waiting for us.
 	 */
-	if (!c->td_seen && c->td_retry)
+	if (!c->td_seen && c->td_retry) {
+		udelay(1);
 		return -EAGAIN;
-
+	}
 	WARN_ON(!c->td_retry);
+
 	if (!c->td_desc_seen) {
 		desc_phys = cppi41_pop_desc(cdd, c->q_num);
+		if (!desc_phys)
+			desc_phys = cppi41_pop_desc(cdd, c->q_comp_num);
 		WARN_ON(!desc_phys);
 	}
 
@@ -640,28 +639,6 @@ static int cppi41_stop_chan(struct dma_chan *chan)
 	cdd->chan_busy[desc_num] = NULL;
 
 	return 0;
-}
-
-static int cppi41_dma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-	unsigned long arg)
-{
-	struct cppi41_channel *c = to_cpp41_chan(chan);
-	int ret;
-
-	switch (cmd) {
-	case DMA_SLAVE_CONFIG:
-		ret = cpp41_cfg_chan(c, (struct dma_slave_config *) arg);
-		break;
-
-	case DMA_TERMINATE_ALL:
-		ret = cppi41_stop_chan(chan);
-		break;
-
-	default:
-		ret = -ENXIO;
-		break;
-	}
-	return ret;
 }
 
 static void cleanup_chans(struct cppi41_dd *cdd)
@@ -926,6 +903,11 @@ static const struct cppi_glue_infos *get_glue_info(struct device *dev)
 	return of_id->data;
 }
 
+#define CPPI41_DMA_BUSWIDTHS	(BIT(DMA_SLAVE_BUSWIDTH_1_BYTE) | \
+				BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) | \
+				BIT(DMA_SLAVE_BUSWIDTH_3_BYTES) | \
+				BIT(DMA_SLAVE_BUSWIDTH_4_BYTES))
+
 static int cppi41_dma_probe(struct platform_device *pdev)
 {
 	struct cppi41_dd *cdd;
@@ -948,7 +930,11 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	cdd->ddev.device_tx_status = cppi41_dma_tx_status;
 	cdd->ddev.device_issue_pending = cppi41_dma_issue_pending;
 	cdd->ddev.device_prep_slave_sg = cppi41_dma_prep_slave_sg;
-	cdd->ddev.device_control = cppi41_dma_control;
+	cdd->ddev.device_terminate_all = cppi41_stop_chan;
+	cdd->ddev.directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
+	cdd->ddev.src_addr_widths = CPPI41_DMA_BUSWIDTHS;
+	cdd->ddev.dst_addr_widths = CPPI41_DMA_BUSWIDTHS;
+	cdd->ddev.residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 	cdd->ddev.dev = dev;
 	INIT_LIST_HEAD(&cdd->ddev.channels);
 	cpp41_dma_info.dma_cap = cdd->ddev.cap_mask;
@@ -1088,7 +1074,6 @@ static struct platform_driver cpp41_dma_driver = {
 	.remove = cppi41_dma_remove,
 	.driver = {
 		.name = "cppi41-dma-engine",
-		.owner = THIS_MODULE,
 		.pm = &cppi41_pm_ops,
 		.of_match_table = of_match_ptr(cppi41_dma_ids),
 	},

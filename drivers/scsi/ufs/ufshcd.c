@@ -183,6 +183,7 @@ static int __ufshcd_setup_clocks(struct ufs_hba *hba, bool on,
 static int ufshcd_setup_clocks(struct ufs_hba *hba, bool on);
 static int ufshcd_uic_hibern8_exit(struct ufs_hba *hba);
 static int ufshcd_uic_hibern8_enter(struct ufs_hba *hba);
+static inline void ufshcd_add_delay_before_dme_cmd(struct ufs_hba *hba);
 static int ufshcd_host_reset_and_restore(struct ufs_hba *hba);
 static irqreturn_t ufshcd_intr(int irq, void *__hba);
 static int ufshcd_config_pwr_mode(struct ufs_hba *hba,
@@ -744,6 +745,8 @@ static void ufshcd_exit_clk_gating(struct ufs_hba *hba)
 	if (!ufshcd_is_clkgating_allowed(hba))
 		return;
 	device_remove_file(hba->dev, &hba->clk_gating.delay_attr);
+	cancel_work_sync(&hba->clk_gating.ungate_work);
+	cancel_delayed_work_sync(&hba->clk_gating.gate_work);
 }
 
 /* Must be called with host lock acquired */
@@ -970,6 +973,8 @@ ufshcd_send_uic_cmd(struct ufs_hba *hba, struct uic_command *uic_cmd)
 
 	ufshcd_hold(hba, false);
 	mutex_lock(&hba->uic_cmd_mutex);
+	ufshcd_add_delay_before_dme_cmd(hba);
+
 	spin_lock_irqsave(hba->host->host_lock, flags);
 	ret = __ufshcd_send_uic_cmd(hba, uic_cmd);
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
@@ -2056,6 +2061,37 @@ static int ufshcd_dme_link_startup(struct ufs_hba *hba)
 	return ret;
 }
 
+static inline void ufshcd_add_delay_before_dme_cmd(struct ufs_hba *hba)
+{
+	#define MIN_DELAY_BEFORE_DME_CMDS_US	1000
+	unsigned long min_sleep_time_us;
+
+	if (!(hba->quirks & UFSHCD_QUIRK_DELAY_BEFORE_DME_CMDS))
+		return;
+
+	/*
+	 * last_dme_cmd_tstamp will be 0 only for 1st call to
+	 * this function
+	 */
+	if (unlikely(!ktime_to_us(hba->last_dme_cmd_tstamp))) {
+		min_sleep_time_us = MIN_DELAY_BEFORE_DME_CMDS_US;
+	} else {
+		unsigned long delta =
+			(unsigned long) ktime_to_us(
+				ktime_sub(ktime_get(),
+				hba->last_dme_cmd_tstamp));
+
+		if (delta < MIN_DELAY_BEFORE_DME_CMDS_US)
+			min_sleep_time_us =
+				MIN_DELAY_BEFORE_DME_CMDS_US - delta;
+		else
+			return; /* no more delay required */
+	}
+
+	/* allow sleep for extra 50us if needed */
+	usleep_range(min_sleep_time_us, min_sleep_time_us + 50);
+}
+
 /**
  * ufshcd_dme_set_attr - UIC command for DME_SET, DME_PEER_SET
  * @hba: per adapter instance
@@ -2155,6 +2191,7 @@ static int ufshcd_uic_pwr_ctrl(struct ufs_hba *hba, struct uic_command *cmd)
 
 	mutex_lock(&hba->uic_cmd_mutex);
 	init_completion(&uic_async_done);
+	ufshcd_add_delay_before_dme_cmd(hba);
 
 	spin_lock_irqsave(hba->host->host_lock, flags);
 	hba->uic_async_done = &uic_async_done;
@@ -2244,6 +2281,22 @@ static int ufshcd_uic_hibern8_exit(struct ufs_hba *hba)
 	}
 
 	return ret;
+}
+
+ /**
+ * ufshcd_init_pwr_info - setting the POR (power on reset)
+ * values in hba power info
+ * @hba: per-adapter instance
+ */
+static void ufshcd_init_pwr_info(struct ufs_hba *hba)
+{
+	hba->pwr_info.gear_rx = UFS_PWM_G1;
+	hba->pwr_info.gear_tx = UFS_PWM_G1;
+	hba->pwr_info.lane_rx = 1;
+	hba->pwr_info.lane_tx = 1;
+	hba->pwr_info.pwr_rx = SLOWAUTO_MODE;
+	hba->pwr_info.pwr_tx = SLOWAUTO_MODE;
+	hba->pwr_info.hs_rate = 0;
 }
 
 /**
@@ -2695,7 +2748,7 @@ static void ufshcd_set_queue_depth(struct scsi_device *sdev)
 
 	dev_dbg(hba->dev, "%s: activate tcq with queue depth %d\n",
 			__func__, lun_qdepth);
-	scsi_activate_tcq(sdev, lun_qdepth);
+	scsi_change_queue_depth(sdev, lun_qdepth);
 }
 
 /*
@@ -2765,11 +2818,9 @@ static int ufshcd_slave_alloc(struct scsi_device *sdev)
 	struct ufs_hba *hba;
 
 	hba = shost_priv(sdev->host);
-	sdev->tagged_supported = 1;
 
 	/* Mode sense(6) is not supported by UFS, so use Mode sense(10) */
 	sdev->use_10_for_ms = 1;
-	scsi_set_tag_type(sdev, MSG_SIMPLE_TAG);
 
 	/* allow SCSI layer to restart the device in case of errors */
 	sdev->allow_restart = 1;
@@ -2789,34 +2840,16 @@ static int ufshcd_slave_alloc(struct scsi_device *sdev)
  * ufshcd_change_queue_depth - change queue depth
  * @sdev: pointer to SCSI device
  * @depth: required depth to set
- * @reason: reason for changing the depth
  *
- * Change queue depth according to the reason and make sure
- * the max. limits are not crossed.
+ * Change queue depth and make sure the max. limits are not crossed.
  */
-static int ufshcd_change_queue_depth(struct scsi_device *sdev,
-		int depth, int reason)
+static int ufshcd_change_queue_depth(struct scsi_device *sdev, int depth)
 {
 	struct ufs_hba *hba = shost_priv(sdev->host);
 
 	if (depth > hba->nutrs)
 		depth = hba->nutrs;
-
-	switch (reason) {
-	case SCSI_QDEPTH_DEFAULT:
-	case SCSI_QDEPTH_RAMP_UP:
-		if (!sdev->tagged_supported)
-			depth = 1;
-		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), depth);
-		break;
-	case SCSI_QDEPTH_QFULL:
-		scsi_track_queue_full(sdev, depth);
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-
-	return depth;
+	return scsi_change_queue_depth(sdev, depth);
 }
 
 /**
@@ -2842,10 +2875,14 @@ static void ufshcd_slave_destroy(struct scsi_device *sdev)
 	struct ufs_hba *hba;
 
 	hba = shost_priv(sdev->host);
-	scsi_deactivate_tcq(sdev, hba->nutrs);
 	/* Drop the reference as it won't be needed anymore */
-	if (ufshcd_scsi_to_upiu_lun(sdev->lun) == UFS_UPIU_UFS_DEVICE_WLUN)
+	if (ufshcd_scsi_to_upiu_lun(sdev->lun) == UFS_UPIU_UFS_DEVICE_WLUN) {
+		unsigned long flags;
+
+		spin_lock_irqsave(hba->host->host_lock, flags);
 		hba->sdev_ufs_device = NULL;
+		spin_unlock_irqrestore(hba->host->host_lock, flags);
+	}
 }
 
 /**
@@ -4062,6 +4099,8 @@ static void ufshcd_init_icc_levels(struct ufs_hba *hba)
 static int ufshcd_scsi_add_wlus(struct ufs_hba *hba)
 {
 	int ret = 0;
+	struct scsi_device *sdev_rpmb;
+	struct scsi_device *sdev_boot;
 
 	hba->sdev_ufs_device = __scsi_add_device(hba->host, 0, 0,
 		ufshcd_upiu_wlun_to_scsi_wlun(UFS_UPIU_UFS_DEVICE_WLUN), NULL);
@@ -4070,54 +4109,31 @@ static int ufshcd_scsi_add_wlus(struct ufs_hba *hba)
 		hba->sdev_ufs_device = NULL;
 		goto out;
 	}
+	scsi_device_put(hba->sdev_ufs_device);
 
-	hba->sdev_boot = __scsi_add_device(hba->host, 0, 0,
+	sdev_boot = __scsi_add_device(hba->host, 0, 0,
 		ufshcd_upiu_wlun_to_scsi_wlun(UFS_UPIU_BOOT_WLUN), NULL);
-	if (IS_ERR(hba->sdev_boot)) {
-		ret = PTR_ERR(hba->sdev_boot);
-		hba->sdev_boot = NULL;
+	if (IS_ERR(sdev_boot)) {
+		ret = PTR_ERR(sdev_boot);
 		goto remove_sdev_ufs_device;
 	}
+	scsi_device_put(sdev_boot);
 
-	hba->sdev_rpmb = __scsi_add_device(hba->host, 0, 0,
+	sdev_rpmb = __scsi_add_device(hba->host, 0, 0,
 		ufshcd_upiu_wlun_to_scsi_wlun(UFS_UPIU_RPMB_WLUN), NULL);
-	if (IS_ERR(hba->sdev_rpmb)) {
-		ret = PTR_ERR(hba->sdev_rpmb);
-		hba->sdev_rpmb = NULL;
+	if (IS_ERR(sdev_rpmb)) {
+		ret = PTR_ERR(sdev_rpmb);
 		goto remove_sdev_boot;
 	}
+	scsi_device_put(sdev_rpmb);
 	goto out;
 
 remove_sdev_boot:
-	scsi_remove_device(hba->sdev_boot);
+	scsi_remove_device(sdev_boot);
 remove_sdev_ufs_device:
 	scsi_remove_device(hba->sdev_ufs_device);
 out:
 	return ret;
-}
-
-/**
- * ufshcd_scsi_remove_wlus - Removes the W-LUs which were added by
- *			     ufshcd_scsi_add_wlus()
- * @hba: per-adapter instance
- *
- */
-static void ufshcd_scsi_remove_wlus(struct ufs_hba *hba)
-{
-	if (hba->sdev_ufs_device) {
-		scsi_remove_device(hba->sdev_ufs_device);
-		hba->sdev_ufs_device = NULL;
-	}
-
-	if (hba->sdev_boot) {
-		scsi_remove_device(hba->sdev_boot);
-		hba->sdev_boot = NULL;
-	}
-
-	if (hba->sdev_rpmb) {
-		scsi_remove_device(hba->sdev_rpmb);
-		hba->sdev_rpmb = NULL;
-	}
 }
 
 /**
@@ -4133,6 +4149,8 @@ static int ufshcd_probe_hba(struct ufs_hba *hba)
 	ret = ufshcd_link_startup(hba);
 	if (ret)
 		goto out;
+
+	ufshcd_init_pwr_info(hba);
 
 	/* UniPro link is active now */
 	ufshcd_set_link_active(hba);
@@ -4235,27 +4253,22 @@ static struct scsi_host_template ufshcd_driver_template = {
 	.cmd_per_lun		= UFSHCD_CMD_PER_LUN,
 	.can_queue		= UFSHCD_CAN_QUEUE,
 	.max_host_blocked	= 1,
+	.use_blk_tags		= 1,
+	.track_queue_depth	= 1,
 };
 
 static int ufshcd_config_vreg_load(struct device *dev, struct ufs_vreg *vreg,
 				   int ua)
 {
-	int ret = 0;
-	struct regulator *reg = vreg->reg;
-	const char *name = vreg->name;
+	int ret;
 
-	BUG_ON(!vreg);
+	if (!vreg)
+		return 0;
 
-	ret = regulator_set_optimum_mode(reg, ua);
-	if (ret >= 0) {
-		/*
-		 * regulator_set_optimum_mode() returns new regulator
-		 * mode upon success.
-		 */
-		ret = 0;
-	} else {
-		dev_err(dev, "%s: %s set optimum mode(ua=%d) failed, err=%d\n",
-				__func__, name, ua, ret);
+	ret = regulator_set_load(vreg->reg, ua);
+	if (ret < 0) {
+		dev_err(dev, "%s: %s set load (ua=%d) failed, err=%d\n",
+				__func__, vreg->name, ua, ret);
 	}
 
 	return ret;
@@ -4471,7 +4484,7 @@ out:
 			if (!IS_ERR_OR_NULL(clki->clk) && clki->enabled)
 				clk_disable_unprepare(clki->clk);
 		}
-	} else if (!ret && on) {
+	} else if (on) {
 		spin_lock_irqsave(hba->host->host_lock, flags);
 		hba->clk_gating.state = CLKS_ON;
 		spin_unlock_irqrestore(hba->host->host_lock, flags);
@@ -4675,11 +4688,25 @@ static int ufshcd_set_dev_pwr_mode(struct ufs_hba *hba,
 {
 	unsigned char cmd[6] = { START_STOP };
 	struct scsi_sense_hdr sshdr;
-	struct scsi_device *sdp = hba->sdev_ufs_device;
+	struct scsi_device *sdp;
+	unsigned long flags;
 	int ret;
 
-	if (!sdp || !scsi_device_online(sdp))
-		return -ENODEV;
+	spin_lock_irqsave(hba->host->host_lock, flags);
+	sdp = hba->sdev_ufs_device;
+	if (sdp) {
+		ret = scsi_device_get(sdp);
+		if (!ret && !scsi_device_online(sdp)) {
+			ret = -ENODEV;
+			scsi_device_put(sdp);
+		}
+	} else {
+		ret = -ENODEV;
+	}
+	spin_unlock_irqrestore(hba->host->host_lock, flags);
+
+	if (ret)
+		return ret;
 
 	/*
 	 * If scsi commands fail, the scsi mid-layer schedules scsi error-
@@ -4707,17 +4734,16 @@ static int ufshcd_set_dev_pwr_mode(struct ufs_hba *hba,
 				     START_STOP_TIMEOUT, 0, NULL, REQ_PM);
 	if (ret) {
 		sdev_printk(KERN_WARNING, sdp,
-			  "START_STOP failed for power mode: %d\n", pwr_mode);
-		scsi_show_result(ret);
-		if (driver_byte(ret) & DRIVER_SENSE) {
-			scsi_show_sense_hdr(&sshdr);
-			scsi_show_extd_sense(sshdr.asc, sshdr.ascq);
-		}
+			    "START_STOP failed for power mode: %d, result %x\n",
+			    pwr_mode, ret);
+		if (driver_byte(ret) & DRIVER_SENSE)
+			scsi_print_sense_hdr(sdp, NULL, &sshdr);
 	}
 
 	if (!ret)
 		hba->curr_dev_pwr_mode = pwr_mode;
 out:
+	scsi_device_put(sdp);
 	hba->host->eh_noresume = 0;
 	return ret;
 }
@@ -5087,7 +5113,7 @@ int ufshcd_system_suspend(struct ufs_hba *hba)
 	int ret = 0;
 
 	if (!hba || !hba->is_powered)
-		goto out;
+		return 0;
 
 	if (pm_runtime_suspended(hba->dev)) {
 		if (hba->rpm_lvl == hba->spm_lvl)
@@ -5231,7 +5257,6 @@ EXPORT_SYMBOL(ufshcd_shutdown);
 void ufshcd_remove(struct ufs_hba *hba)
 {
 	scsi_remove_host(hba->host);
-	ufshcd_scsi_remove_wlus(hba);
 	/* disable interrupts */
 	ufshcd_disable_intr(hba, hba->intr_mask);
 	ufshcd_hba_stop(hba);

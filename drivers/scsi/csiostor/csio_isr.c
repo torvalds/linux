@@ -317,7 +317,7 @@ csio_fcoe_isr(int irq, void *dev_id)
 
 	/* Disable the interrupt for this PCI function. */
 	if (hw->intr_mode == CSIO_IM_INTX)
-		csio_wr_reg32(hw, 0, MYPF_REG(PCIE_PF_CLI));
+		csio_wr_reg32(hw, 0, MYPF_REG(PCIE_PF_CLI_A));
 
 	/*
 	 * The read in the following function will flush the

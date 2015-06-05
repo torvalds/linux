@@ -161,6 +161,15 @@
 				pinctrl-0 = <&pinctrl_pwm_leds>;
 			};
 
+			rtc@fffffd20 {
+				atmel,rtt-rtc-time-reg = <&gpbr 0x0>;
+				status = "okay";
+			};
+
+			gpbr: syscon@fffffd60 {
+				status = "okay";
+			};
+
 			rtc@fffffdb0 {
 				status = "okay";
 			};

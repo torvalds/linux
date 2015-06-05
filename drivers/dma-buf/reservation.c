@@ -327,6 +327,9 @@ long reservation_object_wait_timeout_rcu(struct reservation_object *obj,
 	unsigned seq, shared_count, i = 0;
 	long ret = timeout;
 
+	if (!timeout)
+		return reservation_object_test_signaled_rcu(obj, wait_all);
+
 retry:
 	fence = NULL;
 	shared_count = 0;
@@ -402,8 +405,6 @@ reservation_object_test_signaled_single(struct fence *passed_fence)
 	int ret = 1;
 
 	if (!test_bit(FENCE_FLAG_SIGNALED_BIT, &lfence->flags)) {
-		int ret;
-
 		fence = fence_get_rcu(lfence);
 		if (!fence)
 			return -1;

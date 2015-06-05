@@ -27,12 +27,7 @@ void ath9k_hw_analog_shift_regwrite(struct ath_hw *ah, u32 reg, u32 val)
 void ath9k_hw_analog_shift_rmw(struct ath_hw *ah, u32 reg, u32 mask,
 			       u32 shift, u32 val)
 {
-	u32 regVal;
-
-	regVal = REG_READ(ah, reg) & ~mask;
-	regVal |= (val << shift) & mask;
-
-	REG_WRITE(ah, reg, regVal);
+	REG_RMW(ah, reg, ((val << shift) & mask), mask);
 
 	if (ah->config.analog_shiftreg)
 		udelay(100);

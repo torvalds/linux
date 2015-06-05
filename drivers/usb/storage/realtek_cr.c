@@ -626,6 +626,7 @@ static int config_autodelink_after_power_on(struct us_data *us)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static int config_autodelink_before_power_down(struct us_data *us)
 {
 	struct rts51x_chip *chip = (struct rts51x_chip *)(us->extra);
@@ -716,6 +717,7 @@ static void fw5895_init(struct us_data *us)
 		}
 	}
 }
+#endif
 
 #ifdef CONFIG_REALTEK_AUTOPM
 static void fw5895_set_mmc_wp(struct us_data *us)

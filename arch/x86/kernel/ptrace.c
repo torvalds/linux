@@ -364,18 +364,12 @@ static int set_segment_reg(struct task_struct *task,
 	case offsetof(struct user_regs_struct,cs):
 		if (unlikely(value == 0))
 			return -EIO;
-#ifdef CONFIG_IA32_EMULATION
-		if (test_tsk_thread_flag(task, TIF_IA32))
-			task_pt_regs(task)->cs = value;
-#endif
+		task_pt_regs(task)->cs = value;
 		break;
 	case offsetof(struct user_regs_struct,ss):
 		if (unlikely(value == 0))
 			return -EIO;
-#ifdef CONFIG_IA32_EMULATION
-		if (test_tsk_thread_flag(task, TIF_IA32))
-			task_pt_regs(task)->ss = value;
-#endif
+		task_pt_regs(task)->ss = value;
 		break;
 	}
 
@@ -1421,7 +1415,7 @@ static void fill_sigtrap_info(struct task_struct *tsk,
 	memset(info, 0, sizeof(*info));
 	info->si_signo = SIGTRAP;
 	info->si_code = si_code;
-	info->si_addr = user_mode_vm(regs) ? (void __user *)regs->ip : NULL;
+	info->si_addr = user_mode(regs) ? (void __user *)regs->ip : NULL;
 }
 
 void user_single_step_siginfo(struct task_struct *tsk,
@@ -1484,7 +1478,7 @@ unsigned long syscall_trace_enter_phase1(struct pt_regs *regs, u32 arch)
 	 */
 	if (work & _TIF_NOHZ) {
 		user_exit();
-		work &= ~TIF_NOHZ;
+		work &= ~_TIF_NOHZ;
 	}
 
 #ifdef CONFIG_SECCOMP

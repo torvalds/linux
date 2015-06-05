@@ -812,8 +812,7 @@ static int __init init_pmc551(void)
 	}
 
 	/* Exited early, reference left over */
-	if (PCI_Device)
-		pci_dev_put(PCI_Device);
+	pci_dev_put(PCI_Device);
 
 	if (!pmc551list) {
 		printk(KERN_NOTICE "pmc551: not detected\n");

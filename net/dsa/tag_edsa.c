@@ -76,8 +76,6 @@ static netdev_tx_t edsa_xmit(struct sk_buff *skb, struct net_device *dev)
 		edsa_header[7] = 0x00;
 	}
 
-	skb->protocol = htons(ETH_P_EDSA);
-
 	skb->dev = p->parent->dst->master_netdev;
 	dev_queue_xmit(skb);
 

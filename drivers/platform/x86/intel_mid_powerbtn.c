@@ -133,7 +133,6 @@ static int mfld_pb_remove(struct platform_device *pdev)
 static struct platform_driver mfld_pb_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe	= mfld_pb_probe,
 	.remove	= mfld_pb_remove,

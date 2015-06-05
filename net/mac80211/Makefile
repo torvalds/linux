@@ -15,7 +15,9 @@ mac80211-y := \
 	michael.o \
 	tkip.o \
 	aes_ccm.o \
+	aes_gcm.o \
 	aes_cmac.o \
+	aes_gmac.o \
 	cfg.o \
 	ethtool.o \
 	rx.o \
@@ -27,7 +29,8 @@ mac80211-y := \
 	event.o \
 	chan.o \
 	trace.o mlme.o \
-	tdls.o
+	tdls.o \
+	ocb.o
 
 mac80211-$(CONFIG_MAC80211_LEDS) += led.o
 mac80211-$(CONFIG_MAC80211_DEBUGFS) += \

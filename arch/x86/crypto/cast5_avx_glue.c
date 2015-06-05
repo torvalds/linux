@@ -341,7 +341,8 @@ static struct crypto_alg cast5_algs[6] = { {
 	.cra_name		= "__ecb-cast5-avx",
 	.cra_driver_name	= "__driver-ecb-cast5-avx",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= CAST5_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct cast5_ctx),
 	.cra_alignmask		= 0,
@@ -360,7 +361,8 @@ static struct crypto_alg cast5_algs[6] = { {
 	.cra_name		= "__cbc-cast5-avx",
 	.cra_driver_name	= "__driver-cbc-cast5-avx",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= CAST5_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct cast5_ctx),
 	.cra_alignmask		= 0,
@@ -379,7 +381,8 @@ static struct crypto_alg cast5_algs[6] = { {
 	.cra_name		= "__ctr-cast5-avx",
 	.cra_driver_name	= "__driver-ctr-cast5-avx",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= 1,
 	.cra_ctxsize		= sizeof(struct cast5_ctx),
 	.cra_alignmask		= 0,
@@ -491,4 +494,4 @@ module_exit(cast5_exit);
 
 MODULE_DESCRIPTION("Cast5 Cipher Algorithm, AVX optimized");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("cast5");
+MODULE_ALIAS_CRYPTO("cast5");

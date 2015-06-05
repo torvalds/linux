@@ -402,8 +402,7 @@ exit_busy:
 exit:
 	if (c->workqueue)
 		destroy_workqueue(c->workqueue);
-	if (c->clk)
-		clk_disable(c->clk);
+	clk_disable(c->clk);
 	spi_master_put(master);
 	return ret;
 }
@@ -426,7 +425,6 @@ static struct platform_driver txx9spi_driver = {
 	.remove = txx9spi_remove,
 	.driver = {
 		.name = "spi_txx9",
-		.owner = THIS_MODULE,
 	},
 };
 

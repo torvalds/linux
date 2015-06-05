@@ -727,9 +727,7 @@ show_queue_type_field(struct device *dev, struct device_attribute *attr,
 	struct scsi_device *sdev = to_scsi_device(dev);
 	const char *name = "none";
 
-	if (sdev->ordered_tags)
-		name = "ordered";
-	else if (sdev->simple_tags)
+	if (sdev->simple_tags)
 		name = "simple";
 
 	return snprintf(buf, 20, "%s\n", name);
@@ -740,27 +738,12 @@ store_queue_type_field(struct device *dev, struct device_attribute *attr,
 		       const char *buf, size_t count)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
-	struct scsi_host_template *sht = sdev->host->hostt;
-	int tag_type = 0, retval;
-	int prev_tag_type = scsi_get_tag_type(sdev);
 
-	if (!sdev->tagged_supported || !sht->change_queue_type)
+	if (!sdev->tagged_supported)
 		return -EINVAL;
-
-	if (strncmp(buf, "ordered", 7) == 0)
-		tag_type = MSG_ORDERED_TAG;
-	else if (strncmp(buf, "simple", 6) == 0)
-		tag_type = MSG_SIMPLE_TAG;
-	else if (strncmp(buf, "none", 4) != 0)
-		return -EINVAL;
-
-	if (tag_type == prev_tag_type)
-		return count;
-
-	retval = sht->change_queue_type(sdev, tag_type);
-	if (retval < 0)
-		return retval;
-
+		
+	sdev_printk(KERN_INFO, sdev,
+		    "ignoring write to deprecated queue_type attribute");
 	return count;
 }
 
@@ -876,11 +859,10 @@ sdev_store_queue_depth(struct device *dev, struct device_attribute *attr,
 
 	depth = simple_strtoul(buf, NULL, 0);
 
-	if (depth < 1)
+	if (depth < 1 || depth > sht->can_queue)
 		return -EINVAL;
 
-	retval = sht->change_queue_depth(sdev, depth,
-					 SCSI_QDEPTH_DEFAULT);
+	retval = sht->change_queue_depth(sdev, depth);
 	if (retval < 0)
 		return retval;
 
@@ -937,10 +919,6 @@ static umode_t scsi_sdev_attr_is_visible(struct kobject *kobj,
 	if (attr == &dev_attr_queue_ramp_up_period.attr &&
 	    !sdev->host->hostt->change_queue_depth)
 		return 0;
-
-	if (attr == &dev_attr_queue_type.attr &&
-	    !sdev->host->hostt->change_queue_type)
-		return S_IRUGO;
 
 	return attr->mode;
 }

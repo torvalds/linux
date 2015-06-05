@@ -44,7 +44,7 @@
 #include <linux/stat.h>
 #include <linux/errno.h>
 #include <linux/unistd.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/migrate.h>
 #include <linux/fs.h>
@@ -183,7 +183,7 @@ static int ll_set_page_dirty(struct page *vmpage)
 	return __set_page_dirty_nobuffers(vmpage);
 }
 
-#define MAX_DIRECTIO_SIZE 2*1024*1024*1024UL
+#define MAX_DIRECTIO_SIZE (2*1024*1024*1024UL)
 
 static inline int ll_get_user_pages(int rw, unsigned long user_addr,
 				    size_t size, struct page ***pages,
@@ -359,8 +359,8 @@ static ssize_t ll_direct_IO_26_seg(const struct lu_env *env, struct cl_io *io,
  * up to 22MB for 128kB kmalloc and up to 682MB for 4MB kmalloc. */
 #define MAX_DIO_SIZE ((MAX_MALLOC / sizeof(struct brw_page) * PAGE_CACHE_SIZE) & \
 		      ~(DT_MAX_BRW_SIZE - 1))
-static ssize_t ll_direct_IO_26(int rw, struct kiocb *iocb,
-			       struct iov_iter *iter, loff_t file_offset)
+static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter,
+			       loff_t file_offset)
 {
 	struct lu_env *env;
 	struct cl_io *io;
@@ -399,7 +399,7 @@ static ssize_t ll_direct_IO_26(int rw, struct kiocb *iocb,
 	 *    size changing by concurrent truncates and writes.
 	 * 1. Need inode mutex to operate transient pages.
 	 */
-	if (rw == READ)
+	if (iov_iter_rw(iter) == READ)
 		mutex_lock(&inode->i_mutex);
 
 	LASSERT(obj->cob_transient_pages == 0);
@@ -408,7 +408,7 @@ static ssize_t ll_direct_IO_26(int rw, struct kiocb *iocb,
 		size_t offs;
 
 		count = min_t(size_t, iov_iter_count(iter), size);
-		if (rw == READ) {
+		if (iov_iter_rw(iter) == READ) {
 			if (file_offset >= i_size_read(inode))
 				break;
 			if (file_offset + count > i_size_read(inode))
@@ -417,12 +417,12 @@ static ssize_t ll_direct_IO_26(int rw, struct kiocb *iocb,
 
 		result = iov_iter_get_pages_alloc(iter, &pages, count, &offs);
 		if (likely(result > 0)) {
-			int n = (result + offs + PAGE_SIZE - 1) / PAGE_SIZE;
-			result = ll_direct_IO_26_seg(env, io, rw, inode,
-						     file->f_mapping,
-						     result, file_offset,
-						     pages, n);
-			ll_free_user_pages(pages, n, rw==READ);
+			int n = DIV_ROUND_UP(result + offs, PAGE_SIZE);
+			result = ll_direct_IO_26_seg(env, io, iov_iter_rw(iter),
+						     inode, file->f_mapping,
+						     result, file_offset, pages,
+						     n);
+			ll_free_user_pages(pages, n, iov_iter_rw(iter) == READ);
 		}
 		if (unlikely(result <= 0)) {
 			/* If we can't allocate a large enough buffer
@@ -449,11 +449,11 @@ static ssize_t ll_direct_IO_26(int rw, struct kiocb *iocb,
 	}
 out:
 	LASSERT(obj->cob_transient_pages == 0);
-	if (rw == READ)
+	if (iov_iter_rw(iter) == READ)
 		mutex_unlock(&inode->i_mutex);
 
 	if (tot_bytes > 0) {
-		if (rw == WRITE) {
+		if (iov_iter_rw(iter) == WRITE) {
 			struct lov_stripe_md *lsm;
 
 			lsm = ccc_inode_lsm_get(inode);
@@ -535,7 +535,7 @@ const struct address_space_operations ll_aops = {
 #else
 const struct address_space_operations_ext ll_aops = {
 	.orig_aops.readpage       = ll_readpage,
-//	.orig_aops.readpages      = ll_readpages,
+/*	.orig_aops.readpages      = ll_readpages, */
 	.orig_aops.direct_IO      = ll_direct_IO_26,
 	.orig_aops.writepage      = ll_writepage,
 	.orig_aops.writepages     = ll_writepages,

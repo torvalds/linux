@@ -114,6 +114,7 @@ struct ipu_dc_priv {
 	struct completion	comp;
 	int			dc_irq;
 	int			dp_irq;
+	int			use_count;
 };
 
 static void dc_link_event(struct ipu_dc *dc, int event, int addr, int priority)
@@ -146,20 +147,20 @@ static void dc_write_tmpl(struct ipu_dc *dc, int word, u32 opcode, u32 operand,
 	writel(reg2, priv->dc_tmpl_reg + word * 8 + 4);
 }
 
-static int ipu_pixfmt_to_map(u32 fmt)
+static int ipu_bus_format_to_map(u32 fmt)
 {
 	switch (fmt) {
-	case V4L2_PIX_FMT_RGB24:
+	case MEDIA_BUS_FMT_RGB888_1X24:
 		return IPU_DC_MAP_RGB24;
-	case V4L2_PIX_FMT_RGB565:
+	case MEDIA_BUS_FMT_RGB565_1X16:
 		return IPU_DC_MAP_RGB565;
-	case IPU_PIX_FMT_GBR24:
+	case MEDIA_BUS_FMT_GBR888_1X24:
 		return IPU_DC_MAP_GBR24;
-	case V4L2_PIX_FMT_BGR666:
+	case MEDIA_BUS_FMT_RGB666_1X18:
 		return IPU_DC_MAP_BGR666;
-	case v4l2_fourcc('L', 'V', 'D', '6'):
+	case MEDIA_BUS_FMT_RGB666_1X24_CPADHI:
 		return IPU_DC_MAP_LVDS666;
-	case V4L2_PIX_FMT_BGR24:
+	case MEDIA_BUS_FMT_BGR888_1X24:
 		return IPU_DC_MAP_BGR24;
 	default:
 		return -EINVAL;
@@ -167,7 +168,7 @@ static int ipu_pixfmt_to_map(u32 fmt)
 }
 
 int ipu_dc_init_sync(struct ipu_dc *dc, struct ipu_di *di, bool interlaced,
-		u32 pixel_fmt, u32 width)
+		u32 bus_format, u32 width)
 {
 	struct ipu_dc_priv *priv = dc->priv;
 	u32 reg = 0;
@@ -175,7 +176,7 @@ int ipu_dc_init_sync(struct ipu_dc *dc, struct ipu_di *di, bool interlaced,
 
 	dc->di = ipu_di_get_num(di);
 
-	map = ipu_pixfmt_to_map(pixel_fmt);
+	map = ipu_bus_format_to_map(bus_format);
 	if (map < 0) {
 		dev_dbg(priv->dev, "IPU_DISP: No MAP\n");
 		return map;
@@ -232,7 +233,16 @@ EXPORT_SYMBOL_GPL(ipu_dc_init_sync);
 
 void ipu_dc_enable(struct ipu_soc *ipu)
 {
-	ipu_module_enable(ipu, IPU_CONF_DC_EN);
+	struct ipu_dc_priv *priv = ipu->dc_priv;
+
+	mutex_lock(&priv->mutex);
+
+	if (!priv->use_count)
+		ipu_module_enable(priv->ipu, IPU_CONF_DC_EN);
+
+	priv->use_count++;
+
+	mutex_unlock(&priv->mutex);
 }
 EXPORT_SYMBOL_GPL(ipu_dc_enable);
 
@@ -267,7 +277,8 @@ static irqreturn_t dc_irq_handler(int irq, void *dev_id)
 void ipu_dc_disable_channel(struct ipu_dc *dc)
 {
 	struct ipu_dc_priv *priv = dc->priv;
-	int irq, ret;
+	int irq;
+	unsigned long ret;
 	u32 val;
 
 	/* TODO: Handle MEM_FG_SYNC differently from MEM_BG_SYNC */
@@ -282,7 +293,7 @@ void ipu_dc_disable_channel(struct ipu_dc *dc)
 	enable_irq(irq);
 	ret = wait_for_completion_timeout(&priv->comp, msecs_to_jiffies(50));
 	disable_irq(irq);
-	if (ret <= 0) {
+	if (ret == 0) {
 		dev_warn(priv->dev, "DC stop timeout after 50 ms\n");
 
 		val = readl(dc->base + DC_WR_CH_CONF);
@@ -294,7 +305,18 @@ EXPORT_SYMBOL_GPL(ipu_dc_disable_channel);
 
 void ipu_dc_disable(struct ipu_soc *ipu)
 {
-	ipu_module_disable(ipu, IPU_CONF_DC_EN);
+	struct ipu_dc_priv *priv = ipu->dc_priv;
+
+	mutex_lock(&priv->mutex);
+
+	priv->use_count--;
+	if (!priv->use_count)
+		ipu_module_disable(priv->ipu, IPU_CONF_DC_EN);
+
+	if (priv->use_count < 0)
+		priv->use_count = 0;
+
+	mutex_unlock(&priv->mutex);
 }
 EXPORT_SYMBOL_GPL(ipu_dc_disable);
 

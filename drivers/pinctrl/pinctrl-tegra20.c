@@ -2221,6 +2221,9 @@ static const struct tegra_pinctrl_soc_data tegra20_pinctrl = {
 	.nfunctions = ARRAY_SIZE(tegra20_functions),
 	.groups = tegra20_groups,
 	.ngroups = ARRAY_SIZE(tegra20_groups),
+	.hsm_in_mux = false,
+	.schmitt_in_mux = false,
+	.drvtype_in_mux = false,
 };
 
 static int tegra20_pinctrl_probe(struct platform_device *pdev)
@@ -2236,7 +2239,6 @@ static const struct of_device_id tegra20_pinctrl_of_match[] = {
 static struct platform_driver tegra20_pinctrl_driver = {
 	.driver = {
 		.name = "tegra20-pinctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = tegra20_pinctrl_of_match,
 	},
 	.probe = tegra20_pinctrl_probe,

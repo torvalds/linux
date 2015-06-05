@@ -98,12 +98,6 @@ MODULE_PARM_DESC(pow_send_list, "\n"
 	"\t\"eth2,spi3,spi7\" would cause these three devices to transmit\n"
 	"\tusing the pow_send_group.");
 
-int max_rx_cpus = -1;
-module_param(max_rx_cpus, int, 0444);
-MODULE_PARM_DESC(max_rx_cpus, "\n"
-	"\t\tThe maximum number of CPUs to use for packet reception.\n"
-	"\t\tUse -1 to use all available CPUs.");
-
 int rx_napi_weight = 32;
 module_param(rx_napi_weight, int, 0444);
 MODULE_PARM_DESC(rx_napi_weight, "The NAPI WEIGHT parameter.");
@@ -175,6 +169,16 @@ static void cvm_oct_configure_common_hw(void)
 	if (CVMX_FPA_OUTPUT_BUFFER_POOL != CVMX_FPA_PACKET_POOL)
 		cvm_oct_mem_fill_fpa(CVMX_FPA_OUTPUT_BUFFER_POOL,
 				     CVMX_FPA_OUTPUT_BUFFER_POOL_SIZE, 128);
+
+#ifdef __LITTLE_ENDIAN
+	{
+		union cvmx_ipd_ctl_status ipd_ctl_status;
+		ipd_ctl_status.u64 = cvmx_read_csr(CVMX_IPD_CTL_STATUS);
+		ipd_ctl_status.s.pkt_lend = 1;
+		ipd_ctl_status.s.wqe_lend = 1;
+		cvmx_write_csr(CVMX_IPD_CTL_STATUS, ipd_ctl_status.u64);
+	}
+#endif
 
 	if (USE_RED)
 		cvmx_helper_setup_red(num_packet_buffers / 4,
@@ -452,7 +456,7 @@ int cvm_oct_common_init(struct net_device *dev)
 		mac = of_get_mac_address(priv->of_node);
 
 	if (mac)
-		memcpy(dev->dev_addr, mac, ETH_ALEN);
+		ether_addr_copy(dev->dev_addr, mac);
 	else
 		eth_hw_addr_random(dev);
 
@@ -578,8 +582,6 @@ static const struct net_device_ops cvm_oct_pow_netdev_ops = {
 	.ndo_poll_controller	= cvm_oct_poll_controller,
 #endif
 };
-
-extern void octeon_mdiobus_force_mod_depencency(void);
 
 static struct device_node *cvm_oct_of_get_child(
 				const struct device_node *parent, int reg_val)
@@ -804,7 +806,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 	cvm_oct_rx_initialize();
 
 	/*
-	 * 150 uS: about 10 1500-byte packtes at 1GE.
+	 * 150 uS: about 10 1500-byte packets at 1GE.
 	 */
 	cvm_oct_tx_poll_interval = 150 * (octeon_get_clock_rate() / 1000000);
 
@@ -865,7 +867,7 @@ static int cvm_oct_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id cvm_oct_match[] = {
+static const struct of_device_id cvm_oct_match[] = {
 	{
 		.compatible = "cavium,octeon-3860-pip",
 	},
@@ -877,7 +879,6 @@ static struct platform_driver cvm_oct_driver = {
 	.probe		= cvm_oct_probe,
 	.remove		= cvm_oct_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= KBUILD_MODNAME,
 		.of_match_table = cvm_oct_match,
 	},
