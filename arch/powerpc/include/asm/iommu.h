@@ -44,6 +44,22 @@
 extern int iommu_is_off;
 extern int iommu_force_on;
 
+struct iommu_table_ops {
+	int (*set)(struct iommu_table *tbl,
+			long index, long npages,
+			unsigned long uaddr,
+			enum dma_data_direction direction,
+			struct dma_attrs *attrs);
+	void (*clear)(struct iommu_table *tbl,
+			long index, long npages);
+	unsigned long (*get)(struct iommu_table *tbl, long index);
+	void (*flush)(struct iommu_table *tbl);
+};
+
+/* These are used by VIO */
+extern struct iommu_table_ops iommu_table_lpar_multi_ops;
+extern struct iommu_table_ops iommu_table_pseries_ops;
+
 /*
  * IOMAP_MAX_ORDER defines the largest contiguous block
  * of dma space we can get.  IOMAP_MAX_ORDER = 13
@@ -78,6 +94,7 @@ struct iommu_table {
 #ifdef CONFIG_IOMMU_API
 	struct iommu_group *it_group;
 #endif
+	struct iommu_table_ops *it_ops;
 	void (*set_bypass)(struct iommu_table *tbl, bool enable);
 #ifdef CONFIG_PPC_POWERNV
 	void           *data;
