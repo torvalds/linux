@@ -32,7 +32,7 @@
 #define GDB_RTLBHI	56
 
 /* keep pvr separately because it is unchangeble */
-struct pvr_s pvr;
+static struct pvr_s pvr;
 
 void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 {
