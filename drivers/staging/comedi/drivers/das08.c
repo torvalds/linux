@@ -225,7 +225,7 @@ static int das08_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	outb(devpriv->do_mux_bits, dev->iobase + DAS08_CONTROL);
 	spin_unlock(&dev->spinlock);
 
-	if (s->range_table->length > 1) {
+	if (devpriv->pg_gainlist) {
 		/* set gain/range */
 		range = CR_RANGE(insn->chanspec);
 		outb(devpriv->pg_gainlist[range],
