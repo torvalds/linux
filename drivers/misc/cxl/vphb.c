@@ -72,6 +72,7 @@ static void cxl_pci_disable_device(struct pci_dev *dev)
 			dev_err(&dev->dev, "Default context started\n");
 			return;
 		}
+		dev->dev.archdata.cxl_ctx = NULL;
 		cxl_release_context(ctx);
 	}
 }
