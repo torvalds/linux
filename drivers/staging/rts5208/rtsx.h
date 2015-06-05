@@ -48,9 +48,6 @@
 
 #define CR_DRIVER_NAME		"rts5208"
 
-#define pci_get_bus_and_slot(bus, devfn)	\
-	pci_get_domain_bus_and_slot(0, (bus), (devfn))
-
 /*
  * macros for easy use
  */
