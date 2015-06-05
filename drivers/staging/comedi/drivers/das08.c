@@ -174,8 +174,9 @@ static int das08_ai_eoc(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static int das08_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int das08_ai_insn_read(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn, unsigned int *data)
 {
 	const struct das08_board_struct *thisboard = dev->board_ptr;
 	struct das08_private_struct *devpriv = dev->private;
@@ -364,7 +365,7 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 		s->n_chan = 8;
 		s->maxdata = (1 << thisboard->ai_nbits) - 1;
 		s->range_table = das08_ai_lranges[thisboard->ai_pg];
-		s->insn_read = das08_ai_rinsn;
+		s->insn_read = das08_ai_insn_read;
 		devpriv->pg_gainlist = das08_ai_gainlists[thisboard->ai_pg];
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
