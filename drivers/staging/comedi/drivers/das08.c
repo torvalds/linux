@@ -65,7 +65,8 @@
  * setting the INTE control bit to 0.  Not present on "JR" boards.
  */
 #define DAS08_STATUS_IRQ	BIT(3)	/* latched interrupt input */
-#define   DAS08_IP(x)			(((x)>>4)&0x7)
+/* digital inputs (not "JR" boards) */
+#define DAS08_STATUS_DI(x)	(((x) & 0x70) >> 4)
 #define DAS08_CONTROL		2
 #define   DAS08_MUX_MASK	0x7
 #define   DAS08_MUX(x)		((x) & DAS08_MUX_MASK)
@@ -287,7 +288,7 @@ static int das08_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
 	data[0] = 0;
-	data[1] = DAS08_IP(inb(dev->iobase + DAS08_STATUS_REG));
+	data[1] = DAS08_STATUS_DI(inb(dev->iobase + DAS08_STATUS_REG));
 
 	return insn->n;
 }
