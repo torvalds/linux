@@ -799,6 +799,7 @@ static struct m88rs2000_config m88rs2000_config = {
 static struct ts2020_config ts2020_config = {
 	.tuner_address = 0x60,
 	.clk_out_div = 7,
+	.dont_poll = true
 };
 
 static int dm04_lme2510_set_voltage(struct dvb_frontend *fe,
