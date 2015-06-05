@@ -134,8 +134,10 @@
   cdef	8255
 */
 
-#define DAS08AO_AO_LSB(x)	((x) ? 0xa : 8)
-#define DAS08AO_AO_MSB(x)	((x) ? 0xb : 9)
+/* (W) analog output l.s.b. registers for 2 channels ("AOx" boards) */
+#define DAS08AOX_AO_LSB_REG(x)	((x) ? 0x0a : 0x08)
+/* (W) analog output m.s.b. registers for 2 channels ("AOx" boards) */
+#define DAS08AOX_AO_MSB_REG(x)	((x) ? 0x0b : 0x09)
 #define DAS08AO_AO_UPDATE	8
 
 /* gainlist same as _pgx_ below */
@@ -369,8 +371,8 @@ static void das08_ao_set_data(struct comedi_device *dev,
 		/* load DACs */
 		inb(dev->iobase + DAS08JR_AO_UPDATE_REG);
 	} else {
-		outb(lsb, dev->iobase + DAS08AO_AO_LSB(chan));
-		outb(msb, dev->iobase + DAS08AO_AO_MSB(chan));
+		outb(lsb, dev->iobase + DAS08AOX_AO_LSB_REG(chan));
+		outb(msb, dev->iobase + DAS08AOX_AO_MSB_REG(chan));
 		/* load DACs */
 		inb(dev->iobase + DAS08AO_AO_UPDATE);
 	}
