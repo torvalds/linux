@@ -125,6 +125,7 @@ static const struct iio_chan_spec mmc35240_channels[] = {
 
 static struct attribute *mmc35240_attributes[] = {
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
+	NULL
 };
 
 static const struct attribute_group mmc35240_attribute_group = {
