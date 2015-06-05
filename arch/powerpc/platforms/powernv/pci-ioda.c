@@ -24,6 +24,7 @@
 #include <linux/msi.h>
 #include <linux/memblock.h>
 #include <linux/iommu.h>
+#include <linux/rculist.h>
 
 #include <asm/sections.h>
 #include <asm/io.h>
@@ -1765,23 +1766,15 @@ static inline void pnv_pci_ioda2_tce_invalidate_entire(struct pnv_ioda_pe *pe)
 	__raw_writeq(cpu_to_be64(val), phb->ioda.tce_inval_reg);
 }
 
-static void pnv_pci_ioda2_tce_invalidate(struct iommu_table *tbl,
-		unsigned long index, unsigned long npages, bool rm)
+static void pnv_pci_ioda2_do_tce_invalidate(unsigned pe_number, bool rm,
+		__be64 __iomem *invalidate, unsigned shift,
+		unsigned long index, unsigned long npages)
 {
-	struct iommu_table_group_link *tgl = list_first_entry_or_null(
-			&tbl->it_group_list, struct iommu_table_group_link,
-			next);
-	struct pnv_ioda_pe *pe = container_of(tgl->table_group,
-			struct pnv_ioda_pe, table_group);
 	unsigned long start, end, inc;
-	__be64 __iomem *invalidate = rm ?
-		(__be64 __iomem *)pe->phb->ioda.tce_inval_reg_phys :
-		pe->phb->ioda.tce_inval_reg;
-	const unsigned shift = tbl->it_page_shift;
 
 	/* We'll invalidate DMA address in PE scope */
 	start = 0x2ull << 60;
-	start |= (pe->pe_number & 0xFF);
+	start |= (pe_number & 0xFF);
 	end = start;
 
 	/* Figure out the start, end and step */
@@ -1796,6 +1789,24 @@ static void pnv_pci_ioda2_tce_invalidate(struct iommu_table *tbl,
 		else
 			__raw_writeq(cpu_to_be64(start), invalidate);
 		start += inc;
+	}
+}
+
+static void pnv_pci_ioda2_tce_invalidate(struct iommu_table *tbl,
+		unsigned long index, unsigned long npages, bool rm)
+{
+	struct iommu_table_group_link *tgl;
+
+	list_for_each_entry_rcu(tgl, &tbl->it_group_list, next) {
+		struct pnv_ioda_pe *pe = container_of(tgl->table_group,
+				struct pnv_ioda_pe, table_group);
+		__be64 __iomem *invalidate = rm ?
+			(__be64 __iomem *)pe->phb->ioda.tce_inval_reg_phys :
+			pe->phb->ioda.tce_inval_reg;
+
+		pnv_pci_ioda2_do_tce_invalidate(pe->pe_number, rm,
+			invalidate, tbl->it_page_shift,
+			index, npages);
 	}
 }
 
