@@ -854,7 +854,7 @@ void mesh_rx_path_sel_frame(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee802_11_elems elems;
 	size_t baselen;
-	u32 last_hop_metric;
+	u32 path_metric;
 	struct sta_info *sta;
 
 	/* need action_code */
@@ -877,21 +877,21 @@ void mesh_rx_path_sel_frame(struct ieee80211_sub_if_data *sdata,
 		if (elems.preq_len != 37)
 			/* Right now we support just 1 destination and no AE */
 			return;
-		last_hop_metric = hwmp_route_info_get(sdata, mgmt, elems.preq,
-						      MPATH_PREQ);
-		if (last_hop_metric)
+		path_metric = hwmp_route_info_get(sdata, mgmt, elems.preq,
+						  MPATH_PREQ);
+		if (path_metric)
 			hwmp_preq_frame_process(sdata, mgmt, elems.preq,
-						last_hop_metric);
+						path_metric);
 	}
 	if (elems.prep) {
 		if (elems.prep_len != 31)
 			/* Right now we support no AE */
 			return;
-		last_hop_metric = hwmp_route_info_get(sdata, mgmt, elems.prep,
-						      MPATH_PREP);
-		if (last_hop_metric)
+		path_metric = hwmp_route_info_get(sdata, mgmt, elems.prep,
+						  MPATH_PREP);
+		if (path_metric)
 			hwmp_prep_frame_process(sdata, mgmt, elems.prep,
-						last_hop_metric);
+						path_metric);
 	}
 	if (elems.perr) {
 		if (elems.perr_len != 15)
