@@ -58,7 +58,7 @@
 #define DAS08_AI_MSB_REG	0x01	/* (R) AI most significant bits */
 #define DAS08_AI_TRIG_REG	0x01	/* (W) AI software trigger */
 #define DAS08_STATUS_REG	0x02	/* (R) status */
-#define   DAS08_EOC			(1<<7)
+#define DAS08_STATUS_AI_BUSY	BIT(7)	/* AI conversion in progress */
 #define   DAS08_IRQ			(1<<3)
 #define   DAS08_IP(x)			(((x)>>4)&0x7)
 #define DAS08_CONTROL		2
@@ -206,7 +206,7 @@ static int das08_ai_eoc(struct comedi_device *dev,
 	unsigned int status;
 
 	status = inb(dev->iobase + DAS08_STATUS_REG);
-	if ((status & DAS08_EOC) == 0)
+	if ((status & DAS08_STATUS_AI_BUSY) == 0)
 		return 0;
 	return -EBUSY;
 }
