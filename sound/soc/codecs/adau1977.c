@@ -202,7 +202,7 @@ static const struct snd_soc_dapm_route adau1977_dapm_routes[] = {
 		ADAU1977_REG_DC_HPF_CAL, (x) - 1, 1, 0)
 
 #define ADAU1977_DC_SUB_SWITCH(x) \
-	SOC_SINGLE("ADC" #x " DC Substraction Capture Switch", \
+	SOC_SINGLE("ADC" #x " DC Subtraction Capture Switch", \
 		ADAU1977_REG_DC_HPF_CAL, (x) + 3, 1, 0)
 
 static const struct snd_kcontrol_new adau1977_snd_controls[] = {
