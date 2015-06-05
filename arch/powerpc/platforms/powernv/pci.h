@@ -58,7 +58,6 @@ struct pnv_ioda_pe {
 	int			tce32_seg;
 	int			tce32_segcount;
 	struct iommu_table_group table_group;
-	phys_addr_t		tce_inval_reg_phys;
 
 	/* 64-bit TCE bypass region */
 	bool			tce_bypass_enabled;
@@ -184,6 +183,12 @@ struct pnv_phb {
 			 * boot for resource allocation purposes
 			 */
 			struct list_head	pe_dma_list;
+
+			/* TCE cache invalidate registers (physical and
+			 * remapped)
+			 */
+			phys_addr_t		tce_inval_reg_phys;
+			__be64 __iomem		*tce_inval_reg;
 		} ioda;
 	};
 
