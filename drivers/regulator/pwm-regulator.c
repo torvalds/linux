@@ -23,7 +23,6 @@
 struct pwm_regulator_data {
 	struct pwm_voltages *duty_cycle_table;
 	struct pwm_device *pwm;
-	bool enabled;
 	int state;
 };
 
@@ -60,13 +59,10 @@ static int pwm_regulator_set_voltage_sel(struct regulator_dev *dev,
 
 	drvdata->state = selector;
 
-	if (!drvdata->enabled) {
-		ret = pwm_enable(drvdata->pwm);
-		if (ret) {
-			dev_err(&dev->dev, "Failed to enable PWM\n");
-			return ret;
-		}
-		drvdata->enabled = true;
+	ret = pwm_enable(drvdata->pwm);
+	if (ret) {
+		dev_err(&dev->dev, "Failed to enable PWM\n");
+		return ret;
 	}
 
 	return 0;
