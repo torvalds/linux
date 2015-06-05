@@ -193,7 +193,7 @@ static int das08_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	inb(dev->iobase + DAS08_AI_MSB_REG);
 
 	/* set multiplexer */
-	/*  lock to prevent race with digital output */
+	/* lock to prevent race with digital output */
 	spin_lock(&dev->spinlock);
 	devpriv->do_mux_bits &= ~DAS08_CONTROL_MUX_MASK;
 	devpriv->do_mux_bits |= DAS08_CONTROL_MUX(chan);
@@ -354,7 +354,8 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 	/* ai */
 	if (thisboard->ai_nbits) {
 		s->type = COMEDI_SUBD_AI;
-		/* XXX some boards actually have differential
+		/*
+		 * XXX some boards actually have differential
 		 * inputs instead of single ended.
 		 * The driver does nothing with arefs though,
 		 * so it's no big deal.
