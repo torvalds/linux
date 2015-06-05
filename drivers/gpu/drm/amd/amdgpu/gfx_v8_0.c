@@ -1933,9 +1933,43 @@ static void gfx_v8_0_gpu_init(struct amdgpu_device *adev)
 	case CHIP_CARRIZO:
 		adev->gfx.config.max_shader_engines = 1;
 		adev->gfx.config.max_tile_pipes = 2;
-		adev->gfx.config.max_cu_per_sh = 8;
 		adev->gfx.config.max_sh_per_se = 1;
-		adev->gfx.config.max_backends_per_se = 2;
+
+		switch (adev->pdev->revision) {
+		case 0xc4:
+		case 0x84:
+		case 0xc8:
+		case 0xcc:
+			/* B10 */
+			adev->gfx.config.max_cu_per_sh = 8;
+			adev->gfx.config.max_backends_per_se = 2;
+			break;
+		case 0xc5:
+		case 0x81:
+		case 0x85:
+		case 0xc9:
+		case 0xcd:
+			/* B8 */
+			adev->gfx.config.max_cu_per_sh = 6;
+			adev->gfx.config.max_backends_per_se = 2;
+			break;
+		case 0xc6:
+		case 0xca:
+		case 0xce:
+			/* B6 */
+			adev->gfx.config.max_cu_per_sh = 6;
+			adev->gfx.config.max_backends_per_se = 2;
+			break;
+		case 0xc7:
+		case 0x87:
+		case 0xcb:
+		default:
+			/* B4 */
+			adev->gfx.config.max_cu_per_sh = 4;
+			adev->gfx.config.max_backends_per_se = 1;
+			break;
+		}
+
 		adev->gfx.config.max_texture_channel_caches = 2;
 		adev->gfx.config.max_gprs = 256;
 		adev->gfx.config.max_gs_threads = 32;
