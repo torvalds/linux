@@ -94,7 +94,7 @@
 
 /* gainlist same as _pgx_ below */
 
-static const struct comedi_lrange range_das08_pgl = {
+static const struct comedi_lrange das08_pgl_ai_range = {
 	9, {
 		BIP_RANGE(10),
 		BIP_RANGE(5),
@@ -108,7 +108,7 @@ static const struct comedi_lrange range_das08_pgl = {
 	}
 };
 
-static const struct comedi_lrange range_das08_pgh = {
+static const struct comedi_lrange das08_pgh_ai_range = {
 	12, {
 		BIP_RANGE(10),
 		BIP_RANGE(5),
@@ -125,7 +125,7 @@ static const struct comedi_lrange range_das08_pgh = {
 	}
 };
 
-static const struct comedi_lrange range_das08_pgm = {
+static const struct comedi_lrange das08_pgm_ai_range = {
 	9, {
 		BIP_RANGE(10),
 		BIP_RANGE(5),
@@ -142,9 +142,9 @@ static const struct comedi_lrange range_das08_pgm = {
 static const struct comedi_lrange *const das08_ai_lranges[] = {
 	[das08_pg_none]		= &range_unknown,
 	[das08_bipolar5]	= &range_bipolar5,
-	[das08_pgh]		= &range_das08_pgh,
-	[das08_pgl]		= &range_das08_pgl,
-	[das08_pgm]		= &range_das08_pgm,
+	[das08_pgh]		= &das08_pgh_ai_range,
+	[das08_pgl]		= &das08_pgl_ai_range,
+	[das08_pgm]		= &das08_pgm_ai_range,
 };
 
 static const int das08_pgh_gainlist[] = {
