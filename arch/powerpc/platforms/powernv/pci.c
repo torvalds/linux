@@ -572,38 +572,46 @@ struct pci_ops pnv_pci_ops = {
 	.write = pnv_pci_write_config,
 };
 
+static __be64 *pnv_tce(struct iommu_table *tbl, long idx)
+{
+	__be64 *tmp = ((__be64 *)tbl->it_base);
+
+	return tmp + idx;
+}
+
 int pnv_tce_build(struct iommu_table *tbl, long index, long npages,
 		unsigned long uaddr, enum dma_data_direction direction,
 		struct dma_attrs *attrs)
 {
 	u64 proto_tce = iommu_direction_to_tce_perm(direction);
-	__be64 *tcep;
-	u64 rpn;
+	u64 rpn = __pa(uaddr) >> tbl->it_page_shift;
+	long i;
 
-	tcep = ((__be64 *)tbl->it_base) + index - tbl->it_offset;
-	rpn = __pa(uaddr) >> tbl->it_page_shift;
+	for (i = 0; i < npages; i++) {
+		unsigned long newtce = proto_tce |
+			((rpn + i) << tbl->it_page_shift);
+		unsigned long idx = index - tbl->it_offset + i;
 
-	while (npages--)
-		*(tcep++) = cpu_to_be64(proto_tce |
-				(rpn++ << tbl->it_page_shift));
-
+		*(pnv_tce(tbl, idx)) = cpu_to_be64(newtce);
+	}
 
 	return 0;
 }
 
 void pnv_tce_free(struct iommu_table *tbl, long index, long npages)
 {
-	__be64 *tcep;
+	long i;
 
-	tcep = ((__be64 *)tbl->it_base) + index - tbl->it_offset;
+	for (i = 0; i < npages; i++) {
+		unsigned long idx = index - tbl->it_offset + i;
 
-	while (npages--)
-		*(tcep++) = cpu_to_be64(0);
+		*(pnv_tce(tbl, idx)) = cpu_to_be64(0);
+	}
 }
 
 unsigned long pnv_tce_get(struct iommu_table *tbl, long index)
 {
-	return ((u64 *)tbl->it_base)[index - tbl->it_offset];
+	return *(pnv_tce(tbl, index - tbl->it_offset));
 }
 
 struct iommu_table *pnv_pci_table_alloc(int nid)
