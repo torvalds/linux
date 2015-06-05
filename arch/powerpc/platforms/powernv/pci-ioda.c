@@ -1598,7 +1598,13 @@ static void pnv_pci_ioda_dma_dev_setup(struct pnv_phb *phb, struct pci_dev *pdev
 
 	pe = &phb->ioda.pe_array[pdn->pe_number];
 	WARN_ON(get_dma_ops(&pdev->dev) != &dma_iommu_ops);
-	set_iommu_table_base_and_group(&pdev->dev, pe->tce32_table);
+	set_iommu_table_base(&pdev->dev, pe->tce32_table);
+	/*
+	 * Note: iommu_add_device() will fail here as
+	 * for physical PE: the device is already added by now;
+	 * for virtual PE: sysfs entries are not ready yet and
+	 * tce_iommu_bus_notifier will add the device to a group later.
+	 */
 }
 
 static int pnv_pci_ioda_dma_set_mask(struct pci_dev *pdev, u64 dma_mask)
@@ -1660,7 +1666,8 @@ static void pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe,
 	struct pci_dev *dev;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
-		set_iommu_table_base_and_group(&dev->dev, pe->tce32_table);
+		set_iommu_table_base(&dev->dev, pe->tce32_table);
+		iommu_add_device(&dev->dev);
 
 		if (dev->subordinate)
 			pnv_ioda_setup_bus_dma(pe, dev->subordinate);
@@ -1836,7 +1843,13 @@ static void pnv_pci_ioda_setup_dma_pe(struct pnv_phb *phb,
 	if (pe->flags & PNV_IODA_PE_DEV) {
 		iommu_register_group(tbl, phb->hose->global_number,
 				     pe->pe_number);
-		set_iommu_table_base_and_group(&pe->pdev->dev, tbl);
+		/*
+		 * Setting table base here only for carrying iommu_group
+		 * further down to let iommu_add_device() do the job.
+		 * pnv_pci_ioda_dma_dev_setup will override it later anyway.
+		 */
+		set_iommu_table_base(&pe->pdev->dev, tbl);
+		iommu_add_device(&pe->pdev->dev);
 	} else if (pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL)) {
 		iommu_register_group(tbl, phb->hose->global_number,
 				     pe->pe_number);
@@ -1964,7 +1977,13 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 	if (pe->flags & PNV_IODA_PE_DEV) {
 		iommu_register_group(tbl, phb->hose->global_number,
 				     pe->pe_number);
-		set_iommu_table_base_and_group(&pe->pdev->dev, tbl);
+		/*
+		 * Setting table base here only for carrying iommu_group
+		 * further down to let iommu_add_device() do the job.
+		 * pnv_pci_ioda_dma_dev_setup will override it later anyway.
+		 */
+		set_iommu_table_base(&pe->pdev->dev, tbl);
+		iommu_add_device(&pe->pdev->dev);
 	} else if (pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL)) {
 		iommu_register_group(tbl, phb->hose->global_number,
 				     pe->pe_number);

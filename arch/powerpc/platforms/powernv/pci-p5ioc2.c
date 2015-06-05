@@ -92,7 +92,8 @@ static void pnv_pci_p5ioc2_dma_dev_setup(struct pnv_phb *phb,
 				pci_domain_nr(phb->hose->bus), phb->opal_id);
 	}
 
-	set_iommu_table_base_and_group(&pdev->dev, &phb->p5ioc2.iommu_table);
+	set_iommu_table_base(&pdev->dev, &phb->p5ioc2.iommu_table);
+	iommu_add_device(&pdev->dev);
 }
 
 static const struct pci_controller_ops pnv_pci_p5ioc2_controller_ops = {

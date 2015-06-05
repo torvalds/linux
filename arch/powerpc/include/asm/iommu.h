@@ -140,13 +140,6 @@ static inline int __init tce_iommu_bus_notifier_init(void)
 }
 #endif /* !CONFIG_IOMMU_API */
 
-static inline void set_iommu_table_base_and_group(struct device *dev,
-						  void *base)
-{
-	set_iommu_table_base(dev, base);
-	iommu_add_device(dev);
-}
-
 extern int ppc_iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 			    struct scatterlist *sglist, int nelems,
 			    unsigned long mask,
