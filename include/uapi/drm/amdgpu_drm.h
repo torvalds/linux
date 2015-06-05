@@ -371,11 +371,8 @@ union drm_amdgpu_cs {
 /* This IB should be submitted to CE */
 #define AMDGPU_IB_FLAG_CE	(1<<0)
 
-/* GDS is used by this IB */
-#define AMDGPU_IB_FLAG_GDS	(1<<1)
-
 /* CE Preamble */
-#define AMDGPU_IB_FLAG_PREAMBLE (1<<2)
+#define AMDGPU_IB_FLAG_PREAMBLE (1<<1)
 
 struct drm_amdgpu_cs_chunk_ib {
 	uint32_t _pad;
@@ -580,7 +577,7 @@ struct drm_amdgpu_info_device {
 	uint32_t gart_page_size;
 	/** constant engine ram size*/
 	uint32_t ce_ram_size;
-	/** video memory type infro*/
+	/** video memory type info*/
 	uint32_t vram_type;
 	/** video memory bit width*/
 	uint32_t vram_bit_width;
