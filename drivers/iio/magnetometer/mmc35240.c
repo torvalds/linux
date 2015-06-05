@@ -219,7 +219,8 @@ static int mmc35240_take_measurement(struct mmc35240_data *data)
 			return ret;
 		if (reg_status & MMC35240_STATUS_MEAS_DONE_BIT)
 			break;
-		msleep(20);
+		/* minimum wait time to complete measurement is 10 ms */
+		usleep_range(10000, 11000);
 	}
 
 	if (tries < 0) {
