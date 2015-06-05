@@ -523,7 +523,7 @@ static int ml26124_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		/* VMID ON */
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			snd_soc_update_bits(codec, ML26124_PW_REF_PW_MNG,
 					    ML26124_VMID, ML26124_VMID);
 			msleep(500);
@@ -536,7 +536,6 @@ static int ml26124_set_bias_level(struct snd_soc_codec *codec,
 				    ML26124_VMID, 0);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

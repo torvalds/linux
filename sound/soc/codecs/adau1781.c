@@ -339,7 +339,6 @@ static int adau1781_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

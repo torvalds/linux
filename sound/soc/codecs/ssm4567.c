@@ -361,12 +361,7 @@ static int ssm4567_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	if (ret)
-		return ret;
-
-	codec->dapm.bias_level = level;
-
-	return 0;
+	return ret;
 }
 
 static const struct snd_soc_dai_ops ssm4567_dai_ops = {

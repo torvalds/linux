@@ -190,8 +190,12 @@
 #define SOC_VALUE_ENUM_DOUBLE(xreg, xshift_l, xshift_r, xmask, xitems, xtexts, xvalues) \
 {	.reg = xreg, .shift_l = xshift_l, .shift_r = xshift_r, \
 	.mask = xmask, .items = xitems, .texts = xtexts, .values = xvalues}
-#define SOC_VALUE_ENUM_SINGLE(xreg, xshift, xmask, xnitmes, xtexts, xvalues) \
-	SOC_VALUE_ENUM_DOUBLE(xreg, xshift, xshift, xmask, xnitmes, xtexts, xvalues)
+#define SOC_VALUE_ENUM_SINGLE(xreg, xshift, xmask, xitems, xtexts, xvalues) \
+	SOC_VALUE_ENUM_DOUBLE(xreg, xshift, xshift, xmask, xitems, xtexts, xvalues)
+#define SOC_VALUE_ENUM_SINGLE_AUTODISABLE(xreg, xshift, xmask, xitems, xtexts, xvalues) \
+{	.reg = xreg, .shift_l = xshift, .shift_r = xshift, \
+	.mask = xmask, .items = xitems, .texts = xtexts, \
+	.values = xvalues, .autodisable = 1}
 #define SOC_ENUM_SINGLE_VIRT(xitems, xtexts) \
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, xitems, xtexts)
 #define SOC_ENUM(xname, xenum) \
@@ -312,6 +316,11 @@
 							ARRAY_SIZE(xtexts), xtexts, xvalues)
 #define SOC_VALUE_ENUM_SINGLE_DECL(name, xreg, xshift, xmask, xtexts, xvalues) \
 	SOC_VALUE_ENUM_DOUBLE_DECL(name, xreg, xshift, xshift, xmask, xtexts, xvalues)
+
+#define SOC_VALUE_ENUM_SINGLE_AUTODISABLE_DECL(name, xreg, xshift, xmask, xtexts, xvalues) \
+	const struct soc_enum name = SOC_VALUE_ENUM_SINGLE_AUTODISABLE(xreg, \
+		xshift, xmask, ARRAY_SIZE(xtexts), xtexts, xvalues)
+
 #define SOC_ENUM_SINGLE_VIRT_DECL(name, xtexts) \
 	const struct soc_enum name = SOC_ENUM_SINGLE_VIRT(ARRAY_SIZE(xtexts), xtexts)
 
@@ -819,7 +828,7 @@ struct snd_soc_codec {
 	/* component */
 	struct snd_soc_component component;
 
-	/* dapm */
+	/* Don't access this directly, use snd_soc_codec_get_dapm() */
 	struct snd_soc_dapm_context dapm;
 
 #ifdef CONFIG_DEBUG_FS
@@ -1200,6 +1209,7 @@ struct soc_enum {
 	unsigned int mask;
 	const char * const *texts;
 	const unsigned int *values;
+	unsigned int autodisable:1;
 };
 
 /**
@@ -1279,6 +1289,58 @@ static inline struct snd_soc_dapm_context *snd_soc_component_get_dapm(
 	struct snd_soc_component *component)
 {
 	return component->dapm_ptr;
+}
+
+/**
+ * snd_soc_codec_get_dapm() - Returns the DAPM context for the CODEC
+ * @codec: The CODEC for which to get the DAPM context
+ *
+ * Note: Use this function instead of directly accessing the CODEC's dapm field
+ */
+static inline struct snd_soc_dapm_context *snd_soc_codec_get_dapm(
+	struct snd_soc_codec *codec)
+{
+	return &codec->dapm;
+}
+
+/**
+ * snd_soc_dapm_init_bias_level() - Initialize CODEC DAPM bias level
+ * @dapm: The CODEC for which to initialize the DAPM bias level
+ * @level: The DAPM level to initialize to
+ *
+ * Initializes the CODEC DAPM bias level. See snd_soc_dapm_init_bias_level().
+ */
+static inline void snd_soc_codec_init_bias_level(struct snd_soc_codec *codec,
+	enum snd_soc_bias_level level)
+{
+	snd_soc_dapm_init_bias_level(snd_soc_codec_get_dapm(codec), level);
+}
+
+/**
+ * snd_soc_dapm_get_bias_level() - Get current CODEC DAPM bias level
+ * @codec: The CODEC for which to get the DAPM bias level
+ *
+ * Returns: The current DAPM bias level of the CODEC.
+ */
+static inline enum snd_soc_bias_level snd_soc_codec_get_bias_level(
+	struct snd_soc_codec *codec)
+{
+	return snd_soc_dapm_get_bias_level(snd_soc_codec_get_dapm(codec));
+}
+
+/**
+ * snd_soc_codec_force_bias_level() - Set the CODEC DAPM bias level
+ * @codec: The CODEC for which to set the level
+ * @level: The level to set to
+ *
+ * Forces the CODEC bias level to a specific state. See
+ * snd_soc_dapm_force_bias_level().
+ */
+static inline int snd_soc_codec_force_bias_level(struct snd_soc_codec *codec,
+	enum snd_soc_bias_level level)
+{
+	return snd_soc_dapm_force_bias_level(snd_soc_codec_get_dapm(codec),
+		level);
 }
 
 /**

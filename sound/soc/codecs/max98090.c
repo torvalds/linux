@@ -1500,7 +1500,7 @@ static const struct snd_soc_dapm_route max98091_dapm_routes[] = {
 static int max98090_add_widgets(struct snd_soc_codec *codec)
 {
 	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 
 	snd_soc_add_codec_controls(codec, max98090_snd_controls,
 		ARRAY_SIZE(max98090_snd_controls));
@@ -1798,16 +1798,17 @@ static int max98090_set_bias_level(struct snd_soc_codec *codec,
 		 * away from ON. Disable the clock in that case, otherwise
 		 * enable it.
 		 */
-		if (!IS_ERR(max98090->mclk)) {
-			if (codec->dapm.bias_level == SND_SOC_BIAS_ON)
-				clk_disable_unprepare(max98090->mclk);
-			else
-				clk_prepare_enable(max98090->mclk);
-		}
+		if (IS_ERR(max98090->mclk))
+			break;
+
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_ON)
+			clk_disable_unprepare(max98090->mclk);
+		else
+			clk_prepare_enable(max98090->mclk);
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			ret = regcache_sync(max98090->regmap);
 			if (ret != 0) {
 				dev_err(codec->dev,
@@ -1824,7 +1825,6 @@ static int max98090_set_bias_level(struct snd_soc_codec *codec,
 		regcache_mark_dirty(max98090->regmap);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -2187,7 +2187,6 @@ static void max98090_jack_work(struct work_struct *work)
 		struct max98090_priv,
 		jack_work.work);
 	struct snd_soc_codec *codec = max98090->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int status = 0;
 	int reg;
 
@@ -2266,8 +2265,6 @@ static void max98090_jack_work(struct work_struct *work)
 
 	snd_soc_jack_report(max98090->jack, status,
 			    SND_JACK_HEADSET | SND_JACK_BTN_0);
-
-	snd_soc_dapm_sync(dapm);
 }
 
 static irqreturn_t max98090_interrupt(int irq, void *data)

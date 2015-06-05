@@ -2410,7 +2410,6 @@ static int rt5645_set_bias_level(struct snd_soc_codec *codec,
 	default:
 		break;
 	}
-	codec->dapm.bias_level = level;
 
 	return 0;
 }
@@ -2521,7 +2520,7 @@ static int rt5645_probe(struct snd_soc_codec *codec)
 		break;
 	}
 
-	rt5645_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	snd_soc_update_bits(codec, RT5645_CHARGE_PUMP, 0x0300, 0x0200);
 
