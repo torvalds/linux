@@ -6689,7 +6689,7 @@ static void mib_monitor(unsigned long ptr)
 
 	/* This is used to verify Wake-on-LAN is working. */
 	if (hw_priv->pme_wait) {
-		if (hw_priv->pme_wait <= jiffies) {
+		if (time_is_before_eq_jiffies(hw_priv->pme_wait)) {
 			hw_clr_wol_pme_status(&hw_priv->hw);
 			hw_priv->pme_wait = 0;
 		}
