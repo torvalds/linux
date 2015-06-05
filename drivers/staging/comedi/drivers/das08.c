@@ -165,11 +165,11 @@ static const struct comedi_lrange range_das08_pgm = {
 				 */
 
 static const struct comedi_lrange *const das08_ai_lranges[] = {
-	&range_unknown,
-	&range_bipolar5,
-	&range_das08_pgh,
-	&range_das08_pgl,
-	&range_das08_pgm,
+	[das08_pg_none]		= &range_unknown,
+	[das08_bipolar5]	= &range_bipolar5,
+	[das08_pgh]		= &range_das08_pgh,
+	[das08_pgl]		= &range_das08_pgl,
+	[das08_pgm]		= &range_das08_pgm,
 };
 
 static const int das08_pgh_gainlist[] = {
@@ -179,11 +179,11 @@ static const int das08_pgl_gainlist[] = { 8, 0, 2, 4, 6, 1, 3, 5, 7 };
 static const int das08_pgm_gainlist[] = { 8, 0, 10, 12, 14, 9, 11, 13, 15 };
 
 static const int *const das08_gainlists[] = {
-	NULL,
-	NULL,
-	das08_pgh_gainlist,
-	das08_pgl_gainlist,
-	das08_pgm_gainlist,
+	[das08_pg_none]		= NULL,
+	[das08_bipolar5]	= NULL,
+	[das08_pgh]		= das08_pgh_gainlist,
+	[das08_pgl]		= das08_pgl_gainlist,
+	[das08_pgm]		= das08_pgm_gainlist,
 };
 
 static int das08_ai_eoc(struct comedi_device *dev,
