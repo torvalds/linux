@@ -67,7 +67,7 @@
 #define DAS08_STATUS_IRQ	BIT(3)	/* latched interrupt input */
 /* digital inputs (not "JR" boards) */
 #define DAS08_STATUS_DI(x)	(((x) & 0x70) >> 4)
-#define DAS08_CONTROL		2
+#define DAS08_CONTROL_REG	0x02	/* (W) control */
 #define   DAS08_MUX_MASK	0x7
 #define   DAS08_MUX(x)		((x) & DAS08_MUX_MASK)
 #define   DAS08_INTE			(1<<3)
@@ -240,7 +240,7 @@ static int das08_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	spin_lock(&dev->spinlock);
 	devpriv->do_mux_bits &= ~DAS08_MUX_MASK;
 	devpriv->do_mux_bits |= DAS08_MUX(chan);
-	outb(devpriv->do_mux_bits, dev->iobase + DAS08_CONTROL);
+	outb(devpriv->do_mux_bits, dev->iobase + DAS08_CONTROL_REG);
 	spin_unlock(&dev->spinlock);
 
 	if (devpriv->pg_gainlist) {
@@ -305,7 +305,7 @@ static int das08_do_wbits(struct comedi_device *dev,
 		spin_lock(&dev->spinlock);
 		devpriv->do_mux_bits &= ~DAS08_DO_MASK;
 		devpriv->do_mux_bits |= DAS08_OP(s->state);
-		outb(devpriv->do_mux_bits, dev->iobase + DAS08_CONTROL);
+		outb(devpriv->do_mux_bits, dev->iobase + DAS08_CONTROL_REG);
 		spin_unlock(&dev->spinlock);
 	}
 
