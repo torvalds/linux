@@ -936,6 +936,13 @@ static int br_nf_ip_fragment(struct sock *sk, struct sk_buff *skb,
 	return ip_do_fragment(sk, skb, output);
 }
 
+static unsigned int nf_bridge_mtu_reduction(const struct sk_buff *skb)
+{
+	if (skb->nf_bridge->orig_proto == BRNF_PROTO_PPPOE)
+		return PPPOE_SES_HLEN;
+	return 0;
+}
+
 static int br_nf_dev_queue_xmit(struct sock *sk, struct sk_buff *skb)
 {
 	struct nf_bridge_info *nf_bridge;
