@@ -142,6 +142,7 @@ const char *v4l2_field_names[] = {
 EXPORT_SYMBOL(v4l2_field_names);
 
 const char *v4l2_type_names[] = {
+	[0]				   = "0",
 	[V4L2_BUF_TYPE_VIDEO_CAPTURE]      = "vid-cap",
 	[V4L2_BUF_TYPE_VIDEO_OVERLAY]      = "vid-overlay",
 	[V4L2_BUF_TYPE_VIDEO_OUTPUT]       = "vid-out",
