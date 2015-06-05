@@ -116,6 +116,8 @@ struct brnf_frag_data {
 	char mac[NF_BRIDGE_MAX_MAC_HEADER_LENGTH];
 	u8 encap_size;
 	u8 size;
+	u16 vlan_tci;
+	__be16 vlan_proto;
 };
 
 static DEFINE_PER_CPU(struct brnf_frag_data, brnf_frag_data_storage);
@@ -909,6 +911,11 @@ static int br_nf_push_frag_xmit(struct sock *sk, struct sk_buff *skb)
 		return 0;
 	}
 
+	if (data->vlan_tci) {
+		skb->vlan_tci = data->vlan_tci;
+		skb->vlan_proto = data->vlan_proto;
+	}
+
 	skb_copy_to_linear_data_offset(skb, -data->size, data->mac, data->size);
 	__skb_push(skb, data->encap_size);
 
@@ -972,6 +979,9 @@ static int br_nf_dev_queue_xmit(struct sock *sk, struct sk_buff *skb)
 		nf_bridge_update_protocol(skb);
 
 		data = this_cpu_ptr(&brnf_frag_data_storage);
+
+		data->vlan_tci = skb->vlan_tci;
+		data->vlan_proto = skb->vlan_proto;
 		data->encap_size = nf_bridge_encap_header_len(skb);
 		data->size = ETH_HLEN + data->encap_size;
 
