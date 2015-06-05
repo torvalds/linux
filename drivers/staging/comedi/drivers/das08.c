@@ -78,6 +78,13 @@
 #define DAS08_CONTROL_DO_MASK	0xf0	/* digital outputs mask (not "JR") */
 /* digital outputs (not "JR" boards) */
 #define DAS08_CONTROL_DO(x)	(((x) << 4) & DAS08_CONTROL_DO_MASK)
+/*
+ * (R/W) programmable AI gain ("PGx" and "AOx" boards):
+ * + bits 3..0 (R/W) show/set the gain for the current AI mux channel
+ * + bits 6..4 (R) show the current AI mux channel
+ * + bit 7 (R) not unused
+ */
+#define DAS08_GAIN_REG		0x03
 
 /*
     cio-das08jr.pdf
@@ -126,9 +133,6 @@
   89ab
   cdef	8255
 */
-
-#define DAS08AO_GAIN_CONTROL	3
-#define DAS08AO_GAIN_STATUS	3
 
 #define DAS08AO_AO_LSB(x)	((x) ? 0xa : 8)
 #define DAS08AO_AO_MSB(x)	((x) ? 0xb : 9)
@@ -260,7 +264,7 @@ static int das08_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		/* set gain/range */
 		range = CR_RANGE(insn->chanspec);
 		outb(devpriv->pg_gainlist[range],
-		     dev->iobase + DAS08AO_GAIN_CONTROL);
+		     dev->iobase + DAS08_GAIN_REG);
 	}
 
 	for (n = 0; n < insn->n; n++) {
