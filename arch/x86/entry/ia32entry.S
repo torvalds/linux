@@ -1,15 +1,14 @@
 /*
- * Compatibility mode system call entry point for x86-64. 
- * 		
+ * Compatibility mode system call entry point for x86-64.
+ *
  * Copyright 2000-2002 Andi Kleen, SuSE Labs.
- */		 
-
+ */
 #include "calling.h"
 #include <asm/asm-offsets.h>
 #include <asm/current.h>
 #include <asm/errno.h>
-#include <asm/ia32_unistd.h>	
-#include <asm/thread_info.h>	
+#include <asm/ia32_unistd.h>
+#include <asm/thread_info.h>
 #include <asm/segment.h>
 #include <asm/irqflags.h>
 #include <asm/asm.h>
@@ -20,11 +19,11 @@
 /* Avoid __ASSEMBLER__'ifying <linux/audit.h> just for this.  */
 #include <linux/elf-em.h>
 #define AUDIT_ARCH_I386		(EM_386|__AUDIT_ARCH_LE)
-#define __AUDIT_ARCH_LE	   0x40000000
+#define __AUDIT_ARCH_LE		0x40000000
 
 #ifndef CONFIG_AUDITSYSCALL
-#define sysexit_audit ia32_ret_from_sys_call
-#define sysretl_audit ia32_ret_from_sys_call
+# define sysexit_audit		ia32_ret_from_sys_call
+# define sysretl_audit		ia32_ret_from_sys_call
 #endif
 
 	.section .entry.text, "ax"
@@ -37,7 +36,7 @@ ENDPROC(native_usergs_sysret32)
 #endif
 
 /*
- * 32bit SYSENTER instruction entry.
+ * 32-bit SYSENTER instruction entry.
  *
  * SYSENTER loads ss, rsp, cs, and rip from previously programmed MSRs.
  * IF and VM in rflags are cleared (IOW: interrupts are off).
@@ -79,7 +78,7 @@ ENTRY(ia32_sysenter_target)
 	pushq	%rbp			/* pt_regs->sp */
 	pushfq				/* pt_regs->flags */
 	pushq	$__USER32_CS		/* pt_regs->cs */
-	pushq	%r10 /* pt_regs->ip = thread_info->sysenter_return */
+	pushq	%r10			/* pt_regs->ip = thread_info->sysenter_return */
 	pushq	%rax			/* pt_regs->orig_ax */
 	pushq	%rdi			/* pt_regs->di */
 	pushq	%rsi			/* pt_regs->si */
@@ -87,15 +86,15 @@ ENTRY(ia32_sysenter_target)
 	pushq	%rcx			/* pt_regs->cx */
 	pushq	$-ENOSYS		/* pt_regs->ax */
 	cld
-	sub	$(10*8),%rsp /* pt_regs->r8-11,bp,bx,r12-15 not saved */
+	sub	$(10*8), %rsp /* pt_regs->r8-11, bp, bx, r12-15 not saved */
 
 	/*
 	 * no need to do an access_ok check here because rbp has been
-	 * 32bit zero extended
+	 * 32-bit zero extended
 	 */
 	ASM_STAC
-1:	movl	(%rbp),%ebp
-	_ASM_EXTABLE(1b,ia32_badarg)
+1:	movl	(%rbp), %ebp
+	_ASM_EXTABLE(1b, ia32_badarg)
 	ASM_CLAC
 
 	/*
@@ -103,26 +102,26 @@ ENTRY(ia32_sysenter_target)
 	 * ourselves.  To save a few cycles, we can check whether
 	 * NT was set instead of doing an unconditional popfq.
 	 */
-	testl $X86_EFLAGS_NT,EFLAGS(%rsp)
-	jnz sysenter_fix_flags
+	testl	$X86_EFLAGS_NT, EFLAGS(%rsp)
+	jnz	sysenter_fix_flags
 sysenter_flags_fixed:
 
 	orl     $TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
 	testl   $_TIF_WORK_SYSCALL_ENTRY, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
-	jnz  sysenter_tracesys
+	jnz	sysenter_tracesys
 
 sysenter_do_call:
-	/* 32bit syscall -> 64bit C ABI argument conversion */
-	movl	%edi,%r8d	/* arg5 */
-	movl	%ebp,%r9d	/* arg6 */
-	xchg	%ecx,%esi	/* rsi:arg2, rcx:arg4 */
-	movl	%ebx,%edi	/* arg1 */
-	movl	%edx,%edx	/* arg3 (zero extension) */
+	/* 32-bit syscall -> 64-bit C ABI argument conversion */
+	movl	%edi, %r8d		/* arg5 */
+	movl	%ebp, %r9d		/* arg6 */
+	xchg	%ecx, %esi		/* rsi:arg2, rcx:arg4 */
+	movl	%ebx, %edi		/* arg1 */
+	movl	%edx, %edx		/* arg3 (zero extension) */
 sysenter_dispatch:
-	cmpq	$(IA32_NR_syscalls-1),%rax
+	cmpq	$(IA32_NR_syscalls-1), %rax
 	ja	1f
-	call	*ia32_sys_call_table(,%rax,8)
-	movq	%rax,RAX(%rsp)
+	call	*ia32_sys_call_table(, %rax, 8)
+	movq	%rax, RAX(%rsp)
 1:
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
@@ -139,21 +138,21 @@ sysexit_from_sys_call:
 	 * This code path is still called 'sysexit' because it pairs
 	 * with 'sysenter' and it uses the SYSENTER calling convention.
 	 */
-	andl    $~TS_COMPAT,ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
-	movl	RIP(%rsp),%ecx		/* User %eip */
+	andl    $~TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
+	movl	RIP(%rsp), %ecx		/* User %eip */
 	RESTORE_RSI_RDI
-	xorl	%edx,%edx		/* avoid info leaks */
-	xorq	%r8,%r8
-	xorq	%r9,%r9
-	xorq	%r10,%r10
-	movl	EFLAGS(%rsp),%r11d	/* User eflags */
+	xorl	%edx, %edx		/* Do not leak kernel information */
+	xorq	%r8, %r8
+	xorq	%r9, %r9
+	xorq	%r10, %r10
+	movl	EFLAGS(%rsp), %r11d	/* User eflags */
 	TRACE_IRQS_ON
 
 	/*
 	 * SYSRETL works even on Intel CPUs.  Use it in preference to SYSEXIT,
 	 * since it avoids a dicey window with interrupts enabled.
 	 */
-	movl	RSP(%rsp),%esp
+	movl	RSP(%rsp), %esp
 
 	/*
 	 * USERGS_SYSRET32 does:
@@ -179,51 +178,51 @@ sysexit_from_sys_call:
 
 #ifdef CONFIG_AUDITSYSCALL
 	.macro auditsys_entry_common
-	movl %esi,%r8d			/* 5th arg: 4th syscall arg */
-	movl %ecx,%r9d			/*swap with edx*/
-	movl %edx,%ecx			/* 4th arg: 3rd syscall arg */
-	movl %r9d,%edx			/* 3rd arg: 2nd syscall arg */
-	movl %ebx,%esi			/* 2nd arg: 1st syscall arg */
-	movl %eax,%edi			/* 1st arg: syscall number */
-	call __audit_syscall_entry
-	movl ORIG_RAX(%rsp),%eax	/* reload syscall number */
-	movl %ebx,%edi			/* reload 1st syscall arg */
-	movl RCX(%rsp),%esi	/* reload 2nd syscall arg */
-	movl RDX(%rsp),%edx	/* reload 3rd syscall arg */
-	movl RSI(%rsp),%ecx	/* reload 4th syscall arg */
-	movl RDI(%rsp),%r8d	/* reload 5th syscall arg */
+	movl	%esi, %r8d		/* 5th arg: 4th syscall arg */
+	movl	%ecx, %r9d		/* swap with edx */
+	movl	%edx, %ecx		/* 4th arg: 3rd syscall arg */
+	movl	%r9d, %edx		/* 3rd arg: 2nd syscall arg */
+	movl	%ebx, %esi		/* 2nd arg: 1st syscall arg */
+	movl	%eax, %edi		/* 1st arg: syscall number */
+	call	__audit_syscall_entry
+	movl	ORIG_RAX(%rsp), %eax	/* reload syscall number */
+	movl	%ebx, %edi		/* reload 1st syscall arg */
+	movl	RCX(%rsp), %esi		/* reload 2nd syscall arg */
+	movl	RDX(%rsp), %edx		/* reload 3rd syscall arg */
+	movl	RSI(%rsp), %ecx		/* reload 4th syscall arg */
+	movl	RDI(%rsp), %r8d		/* reload 5th syscall arg */
 	.endm
 
 	.macro auditsys_exit exit
-	testl $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
-	jnz ia32_ret_from_sys_call
+	testl	$(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
+	jnz	ia32_ret_from_sys_call
 	TRACE_IRQS_ON
 	ENABLE_INTERRUPTS(CLBR_NONE)
-	movl %eax,%esi		/* second arg, syscall return value */
-	cmpl $-MAX_ERRNO,%eax	/* is it an error ? */
-	jbe 1f
-	movslq %eax, %rsi	/* if error sign extend to 64 bits */
-1:	setbe %al		/* 1 if error, 0 if not */
-	movzbl %al,%edi		/* zero-extend that into %edi */
-	call __audit_syscall_exit
-	movq RAX(%rsp),%rax	/* reload syscall return value */
-	movl $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT),%edi
+	movl	%eax, %esi		/* second arg, syscall return value */
+	cmpl	$-MAX_ERRNO, %eax	/* is it an error ? */
+	jbe	1f
+	movslq	%eax, %rsi		/* if error sign extend to 64 bits */
+1:	setbe	%al			/* 1 if error, 0 if not */
+	movzbl	%al, %edi		/* zero-extend that into %edi */
+	call	__audit_syscall_exit
+	movq	RAX(%rsp), %rax		/* reload syscall return value */
+	movl	$(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), %edi
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
-	testl %edi, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
-	jz \exit
-	xorl	%eax, %eax	/* do not leak kernel information */
+	testl	%edi, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
+	jz	\exit
+	xorl	%eax, %eax		/* Do not leak kernel information */
 	movq	%rax, R11(%rsp)
 	movq	%rax, R10(%rsp)
 	movq	%rax, R9(%rsp)
 	movq	%rax, R8(%rsp)
-	jmp int_with_check
+	jmp	int_with_check
 	.endm
 
 sysenter_auditsys:
 	auditsys_entry_common
-	movl %ebp,%r9d			/* reload 6th syscall arg */
-	jmp sysenter_dispatch
+	movl	%ebp, %r9d		/* reload 6th syscall arg */
+	jmp	sysenter_dispatch
 
 sysexit_audit:
 	auditsys_exit sysexit_from_sys_call
@@ -232,7 +231,7 @@ sysexit_audit:
 sysenter_fix_flags:
 	pushq $(X86_EFLAGS_IF|X86_EFLAGS_FIXED)
 	popfq
-	jmp sysenter_flags_fixed
+	jmp	sysenter_flags_fixed
 
 sysenter_tracesys:
 #ifdef CONFIG_AUDITSYSCALL
@@ -240,12 +239,12 @@ sysenter_tracesys:
 	jz	sysenter_auditsys
 #endif
 	SAVE_EXTRA_REGS
-	xorl	%eax, %eax	/* do not leak kernel information */
+	xorl	%eax, %eax		/* Do not leak kernel information */
 	movq	%rax, R11(%rsp)
 	movq	%rax, R10(%rsp)
 	movq	%rax, R9(%rsp)
 	movq	%rax, R8(%rsp)
-	movq	%rsp,%rdi        /* &pt_regs -> arg1 */
+	movq	%rsp, %rdi		/* &pt_regs -> arg1 */
 	call	syscall_trace_enter
 
 	/* Reload arg registers from stack. (see sysenter_tracesys) */
@@ -253,23 +252,23 @@ sysenter_tracesys:
 	movl	RDX(%rsp), %edx
 	movl	RSI(%rsp), %esi
 	movl	RDI(%rsp), %edi
-	movl	%eax, %eax	/* zero extension */
+	movl	%eax, %eax		/* zero extension */
 
 	RESTORE_EXTRA_REGS
 	jmp	sysenter_do_call
 ENDPROC(ia32_sysenter_target)
 
 /*
- * 32bit SYSCALL instruction entry.
+ * 32-bit SYSCALL instruction entry.
  *
- * 32bit SYSCALL saves rip to rcx, clears rflags.RF, then saves rflags to r11,
+ * 32-bit SYSCALL saves rip to rcx, clears rflags.RF, then saves rflags to r11,
  * then loads new ss, cs, and rip from previously programmed MSRs.
  * rflags gets masked by a value from another MSR (so CLD and CLAC
  * are not needed). SYSCALL does not save anything on the stack
  * and does not change rsp.
  *
  * Note: rflags saving+masking-with-MSR happens only in Long mode
- * (in legacy 32bit mode, IF, RF and VM bits are cleared and that's it).
+ * (in legacy 32-bit mode, IF, RF and VM bits are cleared and that's it).
  * Don't get confused: rflags saving+masking depends on Long Mode Active bit
  * (EFER.LMA=1), NOT on bitness of userspace where SYSCALL executes
  * or target CS descriptor's L bit (SYSCALL does not read segment descriptors).
@@ -296,12 +295,12 @@ ENTRY(ia32_cstar_target)
 	 * it is too small to ever cause noticeable irq latency.
 	 */
 	SWAPGS_UNSAFE_STACK
-	movl	%esp,%r8d
-	movq	PER_CPU_VAR(cpu_current_top_of_stack),%rsp
+	movl	%esp, %r8d
+	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
 	ENABLE_INTERRUPTS(CLBR_NONE)
 
 	/* Zero-extending 32-bit regs, do not remove */
-	movl	%eax,%eax
+	movl	%eax, %eax
 
 	/* Construct struct pt_regs on stack */
 	pushq	$__USER32_DS		/* pt_regs->ss */
@@ -314,55 +313,58 @@ ENTRY(ia32_cstar_target)
 	pushq	%rsi			/* pt_regs->si */
 	pushq	%rdx			/* pt_regs->dx */
 	pushq	%rbp			/* pt_regs->cx */
-	movl	%ebp,%ecx
+	movl	%ebp, %ecx
 	pushq	$-ENOSYS		/* pt_regs->ax */
-	sub	$(10*8),%rsp /* pt_regs->r8-11,bp,bx,r12-15 not saved */
+	sub	$(10*8), %rsp		/* pt_regs->r8-11, bp, bx, r12-15 not saved */
 
 	/*
-	 * no need to do an access_ok check here because r8 has been
-	 * 32bit zero extended
+	 * No need to do an access_ok check here because r8 has been
+	 * 32-bit zero extended:
 	 */
 	ASM_STAC
-1:	movl	(%r8),%ebp
-	_ASM_EXTABLE(1b,ia32_badarg)
+1:	movl	(%r8), %ebp
+	_ASM_EXTABLE(1b, ia32_badarg)
 	ASM_CLAC
 	orl     $TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
 	testl   $_TIF_WORK_SYSCALL_ENTRY, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
 	jnz   cstar_tracesys
 
 cstar_do_call:
-	/* 32bit syscall -> 64bit C ABI argument conversion */
-	movl	%edi,%r8d	/* arg5 */
-	movl	%ebp,%r9d	/* arg6 */
-	xchg	%ecx,%esi	/* rsi:arg2, rcx:arg4 */
-	movl	%ebx,%edi	/* arg1 */
-	movl	%edx,%edx	/* arg3 (zero extension) */
+	/* 32-bit syscall -> 64-bit C ABI argument conversion */
+	movl	%edi, %r8d		/* arg5 */
+	movl	%ebp, %r9d		/* arg6 */
+	xchg	%ecx, %esi		/* rsi:arg2, rcx:arg4 */
+	movl	%ebx, %edi		/* arg1 */
+	movl	%edx, %edx		/* arg3 (zero extension) */
+
 cstar_dispatch:
-	cmpq	$(IA32_NR_syscalls-1),%rax
+	cmpq	$(IA32_NR_syscalls-1), %rax
 	ja	1f
-	call *ia32_sys_call_table(,%rax,8)
-	movq %rax,RAX(%rsp)
+
+	call	*ia32_sys_call_table(, %rax, 8)
+	movq	%rax, RAX(%rsp)
 1:
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
-	testl $_TIF_ALLWORK_MASK, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
-	jnz sysretl_audit
+	testl	$_TIF_ALLWORK_MASK, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
+	jnz	sysretl_audit
+
 sysretl_from_sys_call:
-	andl $~TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
+	andl	$~TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
 	movl	RCX(%rsp), %ebp
 	RESTORE_RSI_RDI_RDX
-	movl RIP(%rsp),%ecx
-	movl EFLAGS(%rsp),%r11d
-	xorq	%r10,%r10
-	xorq	%r9,%r9
-	xorq	%r8,%r8
+	movl	RIP(%rsp), %ecx
+	movl	EFLAGS(%rsp), %r11d
+	xorq	%r10, %r10
+	xorq	%r9, %r9
+	xorq	%r8, %r8
 	TRACE_IRQS_ON
-	movl RSP(%rsp),%esp
+	movl	RSP(%rsp), %esp
 	/*
-	 * 64bit->32bit SYSRET restores eip from ecx,
+	 * 64-bit->32-bit SYSRET restores eip from ecx,
 	 * eflags from r11 (but RF and VM bits are forced to 0),
 	 * cs and ss are loaded from MSRs.
-	 * (Note: 32bit->32bit SYSRET is different: since r11
+	 * (Note: 32-bit->32-bit SYSRET is different: since r11
 	 * does not exist, it merely sets eflags.IF=1).
 	 *
 	 * NB: On AMD CPUs with the X86_BUG_SYSRET_SS_ATTRS bug, the ss
@@ -377,8 +379,8 @@ sysretl_from_sys_call:
 #ifdef CONFIG_AUDITSYSCALL
 cstar_auditsys:
 	auditsys_entry_common
-	movl	%ebp, %r9d	/* reload 6th syscall arg */
-	jmp cstar_dispatch
+	movl	%ebp, %r9d		/* reload 6th syscall arg */
+	jmp	cstar_dispatch
 
 sysretl_audit:
 	auditsys_exit sysretl_from_sys_call
@@ -386,16 +388,16 @@ sysretl_audit:
 
 cstar_tracesys:
 #ifdef CONFIG_AUDITSYSCALL
-	testl $(_TIF_WORK_SYSCALL_ENTRY & ~_TIF_SYSCALL_AUDIT), ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
-	jz cstar_auditsys
+	testl	$(_TIF_WORK_SYSCALL_ENTRY & ~_TIF_SYSCALL_AUDIT), ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
+	jz	cstar_auditsys
 #endif
 	SAVE_EXTRA_REGS
-	xorl	%eax, %eax	/* do not leak kernel information */
+	xorl	%eax, %eax		/* Do not leak kernel information */
 	movq	%rax, R11(%rsp)
 	movq	%rax, R10(%rsp)
 	movq	%rax, R9(%rsp)
 	movq	%rax, R8(%rsp)
-	movq	%rsp, %rdi        /* &pt_regs -> arg1 */
+	movq	%rsp, %rdi		/* &pt_regs -> arg1 */
 	call	syscall_trace_enter
 
 	/* Reload arg registers from stack. (see sysenter_tracesys) */
@@ -403,24 +405,24 @@ cstar_tracesys:
 	movl	RDX(%rsp), %edx
 	movl	RSI(%rsp), %esi
 	movl	RDI(%rsp), %edi
-	movl	%eax, %eax	/* zero extension */
+	movl	%eax, %eax		/* zero extension */
 
 	RESTORE_EXTRA_REGS
 	jmp	cstar_do_call
 END(ia32_cstar_target)
-				
+
 ia32_badarg:
 	ASM_CLAC
-	movq $-EFAULT,%rax
-	jmp ia32_sysret
+	movq	$-EFAULT, %rax
+	jmp	ia32_sysret
 
 ia32_ret_from_sys_call:
-	xorl	%eax, %eax	/* do not leak kernel information */
+	xorl	%eax, %eax		/* Do not leak kernel information */
 	movq	%rax, R11(%rsp)
 	movq	%rax, R10(%rsp)
 	movq	%rax, R9(%rsp)
 	movq	%rax, R8(%rsp)
-	jmp int_ret_from_sys_call
+	jmp	int_ret_from_sys_call
 
 /*
  * Emulated IA32 system calls via int 0x80.
@@ -454,7 +456,7 @@ ENTRY(ia32_syscall)
 	ENABLE_INTERRUPTS(CLBR_NONE)
 
 	/* Zero-extending 32-bit regs, do not remove */
-	movl	%eax,%eax
+	movl	%eax, %eax
 
 	/* Construct struct pt_regs on stack (iret frame is already on stack) */
 	pushq	%rax			/* pt_regs->orig_ax */
@@ -468,30 +470,33 @@ ENTRY(ia32_syscall)
 	pushq	$0			/* pt_regs->r10 */
 	pushq	$0			/* pt_regs->r11 */
 	cld
-	sub	$(6*8),%rsp /* pt_regs->bp,bx,r12-15 not saved */
+	sub	$(6*8), %rsp /* pt_regs->bp, bx, r12-15 not saved */
 
-	orl $TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
-	testl $_TIF_WORK_SYSCALL_ENTRY, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
-	jnz ia32_tracesys
+	orl	$TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
+	testl	$_TIF_WORK_SYSCALL_ENTRY, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
+	jnz	ia32_tracesys
+
 ia32_do_call:
-	/* 32bit syscall -> 64bit C ABI argument conversion */
-	movl %edi,%r8d	/* arg5 */
-	movl %ebp,%r9d	/* arg6 */
-	xchg %ecx,%esi	/* rsi:arg2, rcx:arg4 */
-	movl %ebx,%edi	/* arg1 */
-	movl %edx,%edx	/* arg3 (zero extension) */
-	cmpq	$(IA32_NR_syscalls-1),%rax
+	/* 32-bit syscall -> 64-bit C ABI argument conversion */
+	movl	%edi, %r8d		/* arg5 */
+	movl	%ebp, %r9d		/* arg6 */
+	xchg	%ecx, %esi		/* rsi:arg2, rcx:arg4 */
+	movl	%ebx, %edi		/* arg1 */
+	movl	%edx, %edx		/* arg3 (zero extension) */
+	cmpq	$(IA32_NR_syscalls-1), %rax
 	ja	1f
-	call *ia32_sys_call_table(,%rax,8) # xxx: rip relative
+
+	call	*ia32_sys_call_table(, %rax, 8) /* RIP relative */
+
 ia32_sysret:
-	movq %rax,RAX(%rsp)
+	movq	%rax, RAX(%rsp)
 1:
-	jmp int_ret_from_sys_call
+	jmp	int_ret_from_sys_call
 
 ia32_tracesys:
 	SAVE_EXTRA_REGS
-	movq %rsp,%rdi        /* &pt_regs -> arg1 */
-	call syscall_trace_enter
+	movq	%rsp, %rdi			/* &pt_regs -> arg1 */
+	call	syscall_trace_enter
 	/*
 	 * Reload arg registers from stack in case ptrace changed them.
 	 * Don't reload %eax because syscall_trace_enter() returned
@@ -503,33 +508,33 @@ ia32_tracesys:
 	movl	RDX(%rsp), %edx
 	movl	RSI(%rsp), %esi
 	movl	RDI(%rsp), %edi
-	movl	%eax, %eax	/* zero extension */
+	movl	%eax, %eax		/* zero extension */
 	RESTORE_EXTRA_REGS
-	jmp ia32_do_call
+	jmp	ia32_do_call
 END(ia32_syscall)
 
 	.macro PTREGSCALL label, func
 	ALIGN
 GLOBAL(\label)
-	leaq \func(%rip),%rax
-	jmp  ia32_ptregs_common	
+	leaq	\func(%rip), %rax
+	jmp	ia32_ptregs_common
 	.endm
 
-	PTREGSCALL stub32_rt_sigreturn, sys32_rt_sigreturn
-	PTREGSCALL stub32_sigreturn, sys32_sigreturn
-	PTREGSCALL stub32_fork, sys_fork
-	PTREGSCALL stub32_vfork, sys_vfork
+	PTREGSCALL stub32_rt_sigreturn,	sys32_rt_sigreturn
+	PTREGSCALL stub32_sigreturn,	sys32_sigreturn
+	PTREGSCALL stub32_fork,		sys_fork
+	PTREGSCALL stub32_vfork,	sys_vfork
 
 	ALIGN
 GLOBAL(stub32_clone)
-	leaq sys_clone(%rip),%rax
+	leaq	sys_clone(%rip), %rax
 	mov	%r8, %rcx
-	jmp  ia32_ptregs_common	
+	jmp	ia32_ptregs_common
 
 	ALIGN
 ia32_ptregs_common:
 	SAVE_EXTRA_REGS 8
-	call *%rax
+	call	*%rax
 	RESTORE_EXTRA_REGS 8
 	ret
 END(ia32_ptregs_common)
