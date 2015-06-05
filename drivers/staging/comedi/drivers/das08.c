@@ -27,22 +27,6 @@
 #include "das08.h"
 
 /*
-    cio-das08.pdf
-
-  "isa-das08"
-
-  0	a/d bits 0-3		start 8 bit
-  1	a/d bits 4-11		start 12 bit
-  2	eoc, ip1-3, irq, mux	op1-4, inte, mux
-  3	unused			unused
-  4567	8254
-  89ab	8255
-
-  requires hard-wiring for async ai
-
-*/
-
-/*
  * Data format of DAS08_AI_LSB_REG and DAS08_AI_MSB_REG depends on
  * 'ai_encoding' member of board structure:
  *
@@ -86,22 +70,6 @@
  */
 #define DAS08_GAIN_REG		0x03
 
-/*
-    cio-das08jr.pdf
-
-  "das08/jr-ao"
-
-  0	a/d bits 0-3		unused
-  1	a/d bits 4-11		start 12 bit
-  2	eoc, mux		mux
-  3	di			do
-  4	unused			ao0_lsb
-  5	unused			ao0_msb
-  6	unused			ao1_lsb
-  7	unused			ao1_msb
-
-*/
-
 #define DAS08JR_DI_REG		0x03	/* (R) digital inputs ("JR" boards) */
 #define DAS08JR_DO_REG		0x03	/* (W) digital outputs ("JR" boards) */
 /* (W) analog output l.s.b. registers for 2 channels ("JR" boards) */
@@ -113,26 +81,6 @@
  *     (same register as digital inputs)
  */
 #define DAS08JR_AO_UPDATE_REG	0x03
-
-/*
-    cio-das08_aox.pdf
-
-  "das08-aoh"
-  "das08-aol"
-  "das08-aom"
-
-  0	a/d bits 0-3		start 8 bit
-  1	a/d bits 4-11		start 12 bit
-  2	eoc, ip1-3, irq, mux	op1-4, inte, mux
-  3	mux, gain status	gain control
-  4567	8254
-  8	unused			ao0_lsb
-  9	unused			ao0_msb
-  a	unused			ao1_lsb
-  b	unused			ao1_msb
-  89ab
-  cdef	8255
-*/
 
 /* (W) analog output l.s.b. registers for 2 channels ("AOx" boards) */
 #define DAS08AOX_AO_LSB_REG(x)	((x) ? 0x0a : 0x08)
@@ -189,21 +137,7 @@ static const struct comedi_lrange range_das08_pgm = {
 		UNI_RANGE(0.1),
 		UNI_RANGE(0.01)
 	}
-};				/*
-				   cio-das08jr.pdf
-
-				   "das08/jr-ao"
-
-				   0 a/d bits 0-3            unused
-				   1 a/d bits 4-11           start 12 bit
-				   2 eoc, mux                mux
-				   3 di                      do
-				   4 unused                  ao0_lsb
-				   5 unused                  ao0_msb
-				   6 unused                  ao1_lsb
-				   7 unused                  ao1_msb
-
-				 */
+};
 
 static const struct comedi_lrange *const das08_ai_lranges[] = {
 	[das08_pg_none]		= &range_unknown,
