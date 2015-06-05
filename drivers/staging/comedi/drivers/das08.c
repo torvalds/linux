@@ -228,11 +228,26 @@ static int das08_ai_insn_read(struct comedi_device *dev,
 		} else if (thisboard->ai_encoding == das08_pcm_encode12) {
 			data[n] = (msb << 8) + lsb;
 		} else if (thisboard->ai_encoding == das08_encode16) {
-			/* FPOS 16-bit boards are sign-magnitude */
+			/*
+			 * "JR" 16-bit boards are sign-magnitude.
+			 *
+			 * XXX The manual seems to imply that 0 is full-scale
+			 * negative and 65535 is full-scale positive, but the
+			 * original COMEDI patch to add support for the
+			 * DAS08/JR/16 and DAS08/JR/16-AO boards have it
+			 * encoded as sign-magnitude.  Assume the original
+			 * COMEDI code is correct for now.
+			 */
+			unsigned int magnitude = lsb | ((msb & 0x7f) << 8);
+
+			/*
+			 * MSB bit 7 is 0 for negative, 1 for positive voltage.
+			 * COMEDI 16-bit bipolar data value for 0V is 0x8000.
+			 */
 			if (msb & 0x80)
-				data[n] = (1 << 15) | lsb | ((msb & 0x7f) << 8);
+				data[n] = (1 << 15) + magnitude;
 			else
-				data[n] = (1 << 15) - (lsb | (msb & 0x7f) << 8);
+				data[n] = (1 << 15) - magnitude;
 		} else {
 			dev_err(dev->class_dev, "bug! unknown ai encoding\n");
 			return -1;
