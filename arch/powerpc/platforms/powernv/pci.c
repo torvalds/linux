@@ -598,6 +598,24 @@ int pnv_tce_build(struct iommu_table *tbl, long index, long npages,
 	return 0;
 }
 
+#ifdef CONFIG_IOMMU_API
+int pnv_tce_xchg(struct iommu_table *tbl, long index,
+		unsigned long *hpa, enum dma_data_direction *direction)
+{
+	u64 proto_tce = iommu_direction_to_tce_perm(*direction);
+	unsigned long newtce = *hpa | proto_tce, oldtce;
+	unsigned long idx = index - tbl->it_offset;
+
+	BUG_ON(*hpa & ~IOMMU_PAGE_MASK(tbl));
+
+	oldtce = xchg(pnv_tce(tbl, idx), cpu_to_be64(newtce));
+	*hpa = be64_to_cpu(oldtce) & ~(TCE_PCI_READ | TCE_PCI_WRITE);
+	*direction = iommu_tce_direction(oldtce);
+
+	return 0;
+}
+#endif
+
 void pnv_tce_free(struct iommu_table *tbl, long index, long npages)
 {
 	long i;

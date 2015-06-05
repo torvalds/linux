@@ -85,6 +85,9 @@ static void pnv_pci_init_p5ioc2_msis(struct pnv_phb *phb) { }
 
 static struct iommu_table_ops pnv_p5ioc2_iommu_ops = {
 	.set = pnv_tce_build,
+#ifdef CONFIG_IOMMU_API
+	.exchange = pnv_tce_xchg,
+#endif
 	.clear = pnv_tce_free,
 	.get = pnv_tce_get,
 };
