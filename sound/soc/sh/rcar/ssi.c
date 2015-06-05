@@ -66,6 +66,7 @@ struct rsnd_ssi {
 
 	u32 cr_own;
 	u32 cr_clk;
+	int chan;
 	int err;
 	unsigned int usrcnt;
 };
@@ -80,7 +81,7 @@ struct rsnd_ssi {
 #define rsnd_mod_to_ssi(_mod) container_of((_mod), struct rsnd_ssi, mod)
 #define rsnd_dma_to_ssi(dma)  rsnd_mod_to_ssi(rsnd_dma_to_mod(dma))
 #define rsnd_ssi_pio_available(ssi) ((ssi)->info->irq > 0)
-#define rsnd_ssi_clk_from_parent(ssi) ((ssi)->parent)
+#define rsnd_ssi_parent(ssi) ((ssi)->parent)
 #define rsnd_ssi_mode_flags(p) ((p)->info->flags)
 #define rsnd_ssi_dai_id(ssi) ((ssi)->info->dai_id)
 #define rsnd_ssi_of_node(priv) \
@@ -189,8 +190,10 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 		rsnd_mod_hw_start(&ssi->mod);
 
 		if (rsnd_rdai_is_clk_master(rdai)) {
-			if (rsnd_ssi_clk_from_parent(ssi))
-				rsnd_ssi_hw_start(ssi->parent, io);
+			struct rsnd_ssi *ssi_parent = rsnd_ssi_parent(ssi);
+
+			if (ssi_parent)
+				rsnd_ssi_hw_start(ssi_parent, io);
 			else
 				rsnd_ssi_master_clk_start(ssi, io);
 		}
@@ -229,8 +232,10 @@ static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi)
 	struct device *dev = rsnd_priv_to_dev(priv);
 	u32 cr;
 
-	if (0 == ssi->usrcnt) /* stop might be called without start */
+	if (0 == ssi->usrcnt) {
+		dev_err(dev, "%s called without starting\n", __func__);
 		return;
+	}
 
 	ssi->usrcnt--;
 
@@ -253,13 +258,17 @@ static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi)
 		rsnd_ssi_status_check(&ssi->mod, IIRQ);
 
 		if (rsnd_rdai_is_clk_master(rdai)) {
-			if (rsnd_ssi_clk_from_parent(ssi))
-				rsnd_ssi_hw_stop(ssi->parent);
+			struct rsnd_ssi *ssi_parent = rsnd_ssi_parent(ssi);
+
+			if (ssi_parent)
+				rsnd_ssi_hw_stop(ssi_parent);
 			else
 				rsnd_ssi_master_clk_stop(ssi);
 		}
 
 		rsnd_mod_hw_stop(&ssi->mod);
+
+		ssi->chan = 0;
 	}
 
 	dev_dbg(dev, "%s[%d] hw stopped\n",
@@ -336,6 +345,35 @@ static int rsnd_ssi_quit(struct rsnd_mod *mod,
 	return 0;
 }
 
+static int rsnd_ssi_hw_params(struct rsnd_mod *mod,
+			      struct snd_pcm_substream *substream,
+			      struct snd_pcm_hw_params *params)
+{
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+	struct rsnd_ssi *ssi_parent = rsnd_ssi_parent(ssi);
+	int chan = params_channels(params);
+
+	/*
+	 * Already working.
+	 * It will happen if SSI has parent/child connection.
+	 */
+	if (ssi->usrcnt) {
+		/*
+		 * it is error if child <-> parent SSI uses
+		 * different channels.
+		 */
+		if (ssi->chan != chan)
+			return -EIO;
+	}
+
+	/* It will be removed on rsnd_ssi_hw_stop */
+	ssi->chan = chan;
+	if (ssi_parent)
+		return rsnd_ssi_hw_params(&ssi_parent->mod, substream, params);
+
+	return 0;
+}
+
 static void rsnd_ssi_record_error(struct rsnd_ssi *ssi, u32 status)
 {
 	/* under/over flow error */
@@ -385,10 +423,15 @@ static irqreturn_t rsnd_ssi_interrupt(int irq, void *data)
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	int is_dma = rsnd_ssi_is_dma_mode(mod);
-	u32 status = rsnd_mod_read(mod, SSISR);
+	u32 status;
 
-	if (!io)
-		return IRQ_NONE;
+	spin_lock(&priv->lock);
+
+	/* ignore all cases if not working */
+	if (!rsnd_mod_is_working(mod))
+		goto rsnd_ssi_interrupt_out;
+
+	status = rsnd_mod_read(mod, SSISR);
 
 	/* PIO only */
 	if (!is_dma && (status & DIRQ)) {
@@ -428,6 +471,9 @@ static irqreturn_t rsnd_ssi_interrupt(int irq, void *data)
 
 	rsnd_ssi_record_error(ssi, status);
 
+rsnd_ssi_interrupt_out:
+	spin_unlock(&priv->lock);
+
 	return IRQ_HANDLED;
 }
 
@@ -456,6 +502,7 @@ static struct rsnd_mod_ops rsnd_ssi_pio_ops = {
 	.quit	= rsnd_ssi_quit,
 	.start	= rsnd_ssi_start,
 	.stop	= rsnd_ssi_stop,
+	.hw_params = rsnd_ssi_hw_params,
 };
 
 static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
@@ -565,6 +612,7 @@ static struct rsnd_mod_ops rsnd_ssi_dma_ops = {
 	.start	= rsnd_ssi_dma_start,
 	.stop	= rsnd_ssi_dma_stop,
 	.fallback = rsnd_ssi_fallback,
+	.hw_params = rsnd_ssi_hw_params,
 };
 
 int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod)
@@ -598,7 +646,7 @@ int rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod)
 	return !!(rsnd_ssi_mode_flags(ssi) & RSND_SSI_CLK_PIN_SHARE);
 }
 
-static void rsnd_ssi_parent_clk_setup(struct rsnd_priv *priv, struct rsnd_ssi *ssi)
+static void rsnd_ssi_parent_setup(struct rsnd_priv *priv, struct rsnd_ssi *ssi)
 {
 	if (!rsnd_ssi_is_pin_sharing(&ssi->mod))
 		return;
@@ -732,7 +780,7 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 		if (ret)
 			return ret;
 
-		rsnd_ssi_parent_clk_setup(priv, ssi);
+		rsnd_ssi_parent_setup(priv, ssi);
 	}
 
 	return 0;

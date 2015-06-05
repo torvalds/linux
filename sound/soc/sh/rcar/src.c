@@ -673,10 +673,13 @@ static int _rsnd_src_stop_gen2(struct rsnd_mod *mod)
 static irqreturn_t rsnd_src_interrupt_gen2(int irq, void *data)
 {
 	struct rsnd_mod *mod = data;
-	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 
-	if (!io)
-		return IRQ_NONE;
+	spin_lock(&priv->lock);
+
+	/* ignore all cases if not working */
+	if (!rsnd_mod_is_working(mod))
+		goto rsnd_src_interrupt_gen2_out;
 
 	if (rsnd_src_error_record_gen2(mod)) {
 		struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
@@ -692,6 +695,8 @@ static irqreturn_t rsnd_src_interrupt_gen2(int irq, void *data)
 		else
 			dev_warn(dev, "no more SRC restart\n");
 	}
+rsnd_src_interrupt_gen2_out:
+	spin_unlock(&priv->lock);
 
 	return IRQ_HANDLED;
 }
