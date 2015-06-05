@@ -147,18 +147,18 @@ static const struct comedi_lrange *const das08_ai_lranges[] = {
 	[das08_pgm]		= &das08_pgm_ai_range,
 };
 
-static const int das08_pgh_gainlist[] = {
+static const int das08_pgh_ai_gainlist[] = {
 	8, 0, 10, 2, 12, 4, 14, 6, 1, 3, 5, 7
 };
-static const int das08_pgl_gainlist[] = { 8, 0, 2, 4, 6, 1, 3, 5, 7 };
-static const int das08_pgm_gainlist[] = { 8, 0, 10, 12, 14, 9, 11, 13, 15 };
+static const int das08_pgl_ai_gainlist[] = { 8, 0, 2, 4, 6, 1, 3, 5, 7 };
+static const int das08_pgm_ai_gainlist[] = { 8, 0, 10, 12, 14, 9, 11, 13, 15 };
 
-static const int *const das08_gainlists[] = {
+static const int *const das08_ai_gainlists[] = {
 	[das08_pg_none]		= NULL,
 	[das08_bipolar5]	= NULL,
-	[das08_pgh]		= das08_pgh_gainlist,
-	[das08_pgl]		= das08_pgl_gainlist,
-	[das08_pgm]		= das08_pgm_gainlist,
+	[das08_pgh]		= das08_pgh_ai_gainlist,
+	[das08_pgl]		= das08_pgl_ai_gainlist,
+	[das08_pgm]		= das08_pgm_ai_gainlist,
 };
 
 static int das08_ai_eoc(struct comedi_device *dev,
@@ -365,7 +365,7 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 		s->maxdata = (1 << thisboard->ai_nbits) - 1;
 		s->range_table = das08_ai_lranges[thisboard->ai_pg];
 		s->insn_read = das08_ai_rinsn;
-		devpriv->pg_gainlist = das08_gainlists[thisboard->ai_pg];
+		devpriv->pg_gainlist = das08_ai_gainlists[thisboard->ai_pg];
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
