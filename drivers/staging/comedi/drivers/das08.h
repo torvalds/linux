@@ -1,7 +1,7 @@
 /*
  * das08.h
  *
- * Header for das08.c and das08_cs.c
+ * Header for common DAS08 support (used by ISA/PCI/PCMCIA drivers)
  *
  * Copyright (C) 2003 Frank Mori Hess <fmhess@users.sourceforge.net>
  *
