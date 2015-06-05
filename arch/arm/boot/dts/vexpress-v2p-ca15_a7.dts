@@ -191,6 +191,7 @@
 		compatible = "arm,cortex-a15-pmu";
 		interrupts = <0 68 4>,
 			     <0 69 4>;
+		interrupt-affinity = <&cpu0>, <&cpu1>;
 	};
 
 	oscclk6a: oscclk6a {

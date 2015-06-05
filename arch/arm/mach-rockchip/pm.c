@@ -83,6 +83,13 @@ static void rk3288_slp_mode_set(int level)
 		     SGRF_PCLK_WDT_GATE | SGRF_FAST_BOOT_EN
 		     | SGRF_PCLK_WDT_GATE_WRITE | SGRF_FAST_BOOT_EN_WRITE);
 
+	/*
+	 * The dapswjdp can not auto reset before resume, that cause it may
+	 * access some illegal address during resume. Let's disable it before
+	 * suspend, and the MASKROM will enable it back.
+	 */
+	regmap_write(sgrf_regmap, RK3288_SGRF_CPU_CON0, SGRF_DAPDEVICEEN_WRITE);
+
 	/* booting address of resuming system is from this register value */
 	regmap_write(sgrf_regmap, RK3288_SGRF_FAST_BOOT_ADDR,
 		     rk3288_bootram_phy);

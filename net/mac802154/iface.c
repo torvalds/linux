@@ -522,7 +522,8 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 
 struct net_device *
 ieee802154_if_add(struct ieee802154_local *local, const char *name,
-		  enum nl802154_iftype type, __le64 extended_addr)
+		  unsigned char name_assign_type, enum nl802154_iftype type,
+		  __le64 extended_addr)
 {
 	struct net_device *ndev = NULL;
 	struct ieee802154_sub_if_data *sdata = NULL;
@@ -531,7 +532,7 @@ ieee802154_if_add(struct ieee802154_local *local, const char *name,
 	ASSERT_RTNL();
 
 	ndev = alloc_netdev(sizeof(*sdata) + local->hw.vif_data_size, name,
-			    NET_NAME_UNKNOWN, ieee802154_if_setup);
+			    name_assign_type, ieee802154_if_setup);
 	if (!ndev)
 		return ERR_PTR(-ENOMEM);
 

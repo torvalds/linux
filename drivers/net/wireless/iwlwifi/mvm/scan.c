@@ -319,7 +319,7 @@ int iwl_mvm_rx_scan_offload_iter_complete_notif(struct iwl_mvm *mvm,
 						struct iwl_device_cmd *cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_scan_complete_notif *notif = (void *)pkt->data;
+	struct iwl_lmac_scan_complete_notif *notif = (void *)pkt->data;
 
 	IWL_DEBUG_SCAN(mvm,
 		       "Scan offload iteration complete: status=0x%x scanned channels=%d\n",

@@ -131,12 +131,11 @@ static void drm_update_vblank_count(struct drm_device *dev, int crtc)
 
 	/* Reinitialize corresponding vblank timestamp if high-precision query
 	 * available. Skip this step if query unsupported or failed. Will
-	 * reinitialize delayed at next vblank interrupt in that case.
+	 * reinitialize delayed at next vblank interrupt in that case and
+	 * assign 0 for now, to mark the vblanktimestamp as invalid.
 	 */
-	if (rc) {
-		tslot = atomic_read(&vblank->count) + diff;
-		vblanktimestamp(dev, crtc, tslot) = t_vblank;
-	}
+	tslot = atomic_read(&vblank->count) + diff;
+	vblanktimestamp(dev, crtc, tslot) = rc ? t_vblank : (struct timeval) {0, 0};
 
 	smp_mb__before_atomic();
 	atomic_add(diff, &vblank->count);

@@ -443,7 +443,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 	case NETDEV_UP:
 		/* Put all VLANs for this dev in the up state too.  */
 		vlan_group_for_each_dev(grp, i, vlandev) {
-			flgs = vlandev->flags;
+			flgs = dev_get_flags(vlandev);
 			if (flgs & IFF_UP)
 				continue;
 

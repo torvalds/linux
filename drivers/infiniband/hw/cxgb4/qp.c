@@ -275,7 +275,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 			FW_RI_RES_WR_NRES_V(2) |
 			FW_WR_COMPL_F);
 	res_wr->len16_pkd = cpu_to_be32(DIV_ROUND_UP(wr_len, 16));
-	res_wr->cookie = (unsigned long) &wr_wait;
+	res_wr->cookie = (uintptr_t)&wr_wait;
 	res = res_wr->res;
 	res->u.sqrq.restype = FW_RI_RES_TYPE_SQ;
 	res->u.sqrq.op = FW_RI_RES_OP_WRITE;
@@ -1209,7 +1209,7 @@ static int rdma_fini(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 	wqe->flowid_len16 = cpu_to_be32(
 		FW_WR_FLOWID_V(ep->hwtid) |
 		FW_WR_LEN16_V(DIV_ROUND_UP(sizeof(*wqe), 16)));
-	wqe->cookie = (unsigned long) &ep->com.wr_wait;
+	wqe->cookie = (uintptr_t)&ep->com.wr_wait;
 
 	wqe->u.fini.type = FW_RI_TYPE_FINI;
 	ret = c4iw_ofld_send(&rhp->rdev, skb);
@@ -1279,7 +1279,7 @@ static int rdma_init(struct c4iw_dev *rhp, struct c4iw_qp *qhp)
 		FW_WR_FLOWID_V(qhp->ep->hwtid) |
 		FW_WR_LEN16_V(DIV_ROUND_UP(sizeof(*wqe), 16)));
 
-	wqe->cookie = (unsigned long) &qhp->ep->com.wr_wait;
+	wqe->cookie = (uintptr_t)&qhp->ep->com.wr_wait;
 
 	wqe->u.init.type = FW_RI_TYPE_INIT;
 	wqe->u.init.mpareqbit_p2ptype =
@@ -1766,11 +1766,11 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 		mm2->len = PAGE_ALIGN(qhp->wq.rq.memsize);
 		insert_mmap(ucontext, mm2);
 		mm3->key = uresp.sq_db_gts_key;
-		mm3->addr = (__force unsigned long) qhp->wq.sq.udb;
+		mm3->addr = (__force unsigned long)qhp->wq.sq.udb;
 		mm3->len = PAGE_SIZE;
 		insert_mmap(ucontext, mm3);
 		mm4->key = uresp.rq_db_gts_key;
-		mm4->addr = (__force unsigned long) qhp->wq.rq.udb;
+		mm4->addr = (__force unsigned long)qhp->wq.rq.udb;
 		mm4->len = PAGE_SIZE;
 		insert_mmap(ucontext, mm4);
 		if (mm5) {

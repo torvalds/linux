@@ -329,7 +329,7 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 		fprintf(stdout, "\n\n");
 	}
 
-	if (sort_order == default_sort_order &&
+	if (sort_order == NULL &&
 	    parent_pattern == default_parent_pattern) {
 		fprintf(stdout, "#\n# (%s)\n#\n", help);
 

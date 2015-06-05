@@ -3865,7 +3865,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 			} else if (el_size == 4) {
 				trace_seq_printf(s, "%u", *(uint32_t *)num);
 			} else if (el_size == 8) {
-				trace_seq_printf(s, "%lu", *(uint64_t *)num);
+				trace_seq_printf(s, "%"PRIu64, *(uint64_t *)num);
 			} else {
 				trace_seq_printf(s, "BAD SIZE:%d 0x%x",
 						 el_size, *(uint8_t *)num);

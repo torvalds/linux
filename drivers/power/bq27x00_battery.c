@@ -1109,6 +1109,14 @@ static void __exit bq27x00_battery_exit(void)
 }
 module_exit(bq27x00_battery_exit);
 
+#ifdef CONFIG_BATTERY_BQ27X00_PLATFORM
+MODULE_ALIAS("platform:bq27000-battery");
+#endif
+
+#ifdef CONFIG_BATTERY_BQ27X00_I2C
+MODULE_ALIAS("i2c:bq27000-battery");
+#endif
+
 MODULE_AUTHOR("Rodolfo Giometti <giometti@linux.it>");
 MODULE_DESCRIPTION("BQ27x00 battery monitor driver");
 MODULE_LICENSE("GPL");

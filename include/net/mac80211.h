@@ -1666,6 +1666,8 @@ struct ieee80211_tx_control {
  * @sta: station table entry, %NULL for per-vif queue
  * @tid: the TID for this queue (unused for per-vif queue)
  * @ac: the AC for this queue
+ * @drv_priv: data area for driver use, will always be aligned to
+ *	sizeof(void *).
  *
  * The driver can obtain packets from this queue by calling
  * ieee80211_tx_dequeue().

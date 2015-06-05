@@ -123,6 +123,11 @@ struct gnttab_ops {
 	int (*query_foreign_access)(grant_ref_t ref);
 };
 
+struct unmap_refs_callback_data {
+	struct completion completion;
+	int result;
+};
+
 static struct gnttab_ops *gnttab_interface;
 
 static int grant_table_version;
@@ -862,6 +867,29 @@ void gnttab_unmap_refs_async(struct gntab_unmap_queue_data* item)
 	__gnttab_unmap_refs_async(item);
 }
 EXPORT_SYMBOL_GPL(gnttab_unmap_refs_async);
+
+static void unmap_refs_callback(int result,
+		struct gntab_unmap_queue_data *data)
+{
+	struct unmap_refs_callback_data *d = data->data;
+
+	d->result = result;
+	complete(&d->completion);
+}
+
+int gnttab_unmap_refs_sync(struct gntab_unmap_queue_data *item)
+{
+	struct unmap_refs_callback_data data;
+
+	init_completion(&data.completion);
+	item->data = &data;
+	item->done = &unmap_refs_callback;
+	gnttab_unmap_refs_async(item);
+	wait_for_completion(&data.completion);
+
+	return data.result;
+}
+EXPORT_SYMBOL_GPL(gnttab_unmap_refs_sync);
 
 static int gnttab_map_frames_v1(xen_pfn_t *frames, unsigned int nr_gframes)
 {
