@@ -95,7 +95,8 @@
 
 */
 
-#define DAS08JR_DIO		3
+#define DAS08JR_DI_REG		0x03	/* (R) digital inputs ("JR" boards) */
+#define DAS08JR_DO_REG		0x03	/* (W) digital outputs ("JR" boards) */
 #define DAS08JR_AO_LSB(x)	((x) ? 6 : 4)
 #define DAS08JR_AO_MSB(x)	((x) ? 7 : 5)
 
@@ -324,7 +325,7 @@ static int das08jr_di_rbits(struct comedi_device *dev,
 			    struct comedi_insn *insn, unsigned int *data)
 {
 	data[0] = 0;
-	data[1] = inb(dev->iobase + DAS08JR_DIO);
+	data[1] = inb(dev->iobase + DAS08JR_DI_REG);
 
 	return insn->n;
 }
@@ -335,7 +336,7 @@ static int das08jr_do_wbits(struct comedi_device *dev,
 			    unsigned int *data)
 {
 	if (comedi_dio_update_state(s, data))
-		outb(s->state, dev->iobase + DAS08JR_DIO);
+		outb(s->state, dev->iobase + DAS08JR_DO_REG);
 
 	data[1] = s->state;
 
@@ -355,7 +356,7 @@ static void das08_ao_set_data(struct comedi_device *dev,
 		outb(lsb, dev->iobase + DAS08JR_AO_LSB(chan));
 		outb(msb, dev->iobase + DAS08JR_AO_MSB(chan));
 		/* load DACs */
-		inb(dev->iobase + DAS08JR_DIO);
+		inb(dev->iobase + DAS08JR_DI_REG);
 	} else {
 		outb(lsb, dev->iobase + DAS08AO_AO_LSB(chan));
 		outb(msb, dev->iobase + DAS08AO_AO_MSB(chan));
