@@ -333,6 +333,45 @@ static long tce_iommu_build(struct tce_container *container,
 	return ret;
 }
 
+static long tce_iommu_create_table(struct tce_container *container,
+			struct iommu_table_group *table_group,
+			int num,
+			__u32 page_shift,
+			__u64 window_size,
+			__u32 levels,
+			struct iommu_table **ptbl)
+{
+	long ret, table_size;
+
+	table_size = table_group->ops->get_table_size(page_shift, window_size,
+			levels);
+	if (!table_size)
+		return -EINVAL;
+
+	ret = try_increment_locked_vm(table_size >> PAGE_SHIFT);
+	if (ret)
+		return ret;
+
+	ret = table_group->ops->create_table(table_group, num,
+			page_shift, window_size, levels, ptbl);
+
+	WARN_ON(!ret && !(*ptbl)->it_ops->free);
+	WARN_ON(!ret && ((*ptbl)->it_allocated_size != table_size));
+
+	if (ret)
+		decrement_locked_vm(table_size >> PAGE_SHIFT);
+
+	return ret;
+}
+
+static void tce_iommu_free_table(struct iommu_table *tbl)
+{
+	unsigned long pages = tbl->it_allocated_size >> PAGE_SHIFT;
+
+	tbl->it_ops->free(tbl);
+	decrement_locked_vm(pages);
+}
+
 static long tce_iommu_ioctl(void *iommu_data,
 				 unsigned int cmd, unsigned long arg)
 {
@@ -546,15 +585,62 @@ static int tce_iommu_take_ownership(struct tce_container *container,
 static void tce_iommu_release_ownership_ddw(struct tce_container *container,
 		struct iommu_table_group *table_group)
 {
+	long i;
+
+	if (!table_group->ops->unset_window) {
+		WARN_ON_ONCE(1);
+		return;
+	}
+
+	for (i = 0; i < IOMMU_TABLE_GROUP_MAX_TABLES; ++i) {
+		/* Store table pointer as unset_window resets it */
+		struct iommu_table *tbl = table_group->tables[i];
+
+		if (!tbl)
+			continue;
+
+		table_group->ops->unset_window(table_group, i);
+		tce_iommu_clear(container, tbl,
+				tbl->it_offset, tbl->it_size);
+		tce_iommu_free_table(tbl);
+	}
+
 	table_group->ops->release_ownership(table_group);
 }
 
 static long tce_iommu_take_ownership_ddw(struct tce_container *container,
 		struct iommu_table_group *table_group)
 {
+	long ret;
+	struct iommu_table *tbl = NULL;
+
+	if (!table_group->ops->create_table || !table_group->ops->set_window ||
+			!table_group->ops->release_ownership) {
+		WARN_ON_ONCE(1);
+		return -EFAULT;
+	}
+
 	table_group->ops->take_ownership(table_group);
 
-	return 0;
+	ret = tce_iommu_create_table(container,
+			table_group,
+			0, /* window number */
+			IOMMU_PAGE_SHIFT_4K,
+			table_group->tce32_size,
+			1, /* default levels */
+			&tbl);
+	if (!ret) {
+		ret = table_group->ops->set_window(table_group, 0, tbl);
+		if (ret)
+			tce_iommu_free_table(tbl);
+		else
+			table_group->tables[0] = tbl;
+	}
+
+	if (ret)
+		table_group->ops->release_ownership(table_group);
+
+	return ret;
 }
 
 static int tce_iommu_attach_group(void *iommu_data,
