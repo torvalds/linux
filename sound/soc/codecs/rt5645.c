@@ -2837,6 +2837,8 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		}
 	}
 
+	INIT_DELAYED_WORK(&rt5645->jack_detect_work, rt5645_jack_detect_work);
+
 	if (rt5645->i2c->irq) {
 		ret = request_threaded_irq(rt5645->i2c->irq, NULL, rt5645_irq,
 			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING
@@ -2854,8 +2856,6 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		if (ret)
 			dev_err(&i2c->dev, "Fail gpio_direction hp_det_gpio\n");
 	}
-
-	INIT_DELAYED_WORK(&rt5645->jack_detect_work, rt5645_jack_detect_work);
 
 	return snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5645,
 				      rt5645_dai, ARRAY_SIZE(rt5645_dai));
