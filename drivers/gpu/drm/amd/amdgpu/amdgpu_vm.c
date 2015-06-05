@@ -1084,6 +1084,8 @@ int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
 	struct amdgpu_bo_va_mapping *mapping;
 	struct amdgpu_vm *vm = bo_va->vm;
 
+	saddr /= AMDGPU_GPU_PAGE_SIZE;
+
 	list_for_each_entry(mapping, &bo_va->mappings, list) {
 		if (mapping->it.start == saddr)
 			break;
