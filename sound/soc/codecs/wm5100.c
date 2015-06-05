@@ -2570,11 +2570,13 @@ static int wm5100_i2c_probe(struct i2c_client *i2c,
 
 		if (irq_flags & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING))
 			ret = request_threaded_irq(i2c->irq, NULL,
-						   wm5100_edge_irq, irq_flags,
+						   wm5100_edge_irq,
+						   irq_flags | IRQF_ONESHOT,
 						   "wm5100", wm5100);
 		else
 			ret = request_threaded_irq(i2c->irq, NULL, wm5100_irq,
-						   irq_flags, "wm5100",
+						   irq_flags | IRQF_ONESHOT,
+						   "wm5100",
 						   wm5100);
 
 		if (ret != 0) {

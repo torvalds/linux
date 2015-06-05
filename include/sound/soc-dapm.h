@@ -15,6 +15,8 @@
 
 #include <linux/types.h>
 #include <sound/control.h>
+#include <sound/soc-topology.h>
+#include <sound/asoc.h>
 
 struct device;
 
@@ -571,6 +573,7 @@ struct snd_soc_dapm_widget {
 	int num_kcontrols;
 	const struct snd_kcontrol_new *kcontrol_news;
 	struct snd_kcontrol **kcontrols;
+	struct snd_soc_dobj dobj;
 
 	/* widget input and outputs */
 	struct list_head sources;
