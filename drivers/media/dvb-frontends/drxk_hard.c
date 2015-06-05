@@ -3262,6 +3262,7 @@ static int dvbt_sc_command(struct drxk_state *state,
 	}
 
 	/* Write needed parameters and the command */
+	status = 0;
 	switch (cmd) {
 		/* All commands using 5 parameters */
 		/* All commands using 4 parameters */
@@ -3270,16 +3271,16 @@ static int dvbt_sc_command(struct drxk_state *state,
 	case OFDM_SC_RA_RAM_CMD_PROC_START:
 	case OFDM_SC_RA_RAM_CMD_SET_PREF_PARAM:
 	case OFDM_SC_RA_RAM_CMD_PROGRAM_PARAM:
-		status = write16(state, OFDM_SC_RA_RAM_PARAM1__A, param1);
+		status |= write16(state, OFDM_SC_RA_RAM_PARAM1__A, param1);
 		/* All commands using 1 parameters */
 	case OFDM_SC_RA_RAM_CMD_SET_ECHO_TIMING:
 	case OFDM_SC_RA_RAM_CMD_USER_IO:
-		status = write16(state, OFDM_SC_RA_RAM_PARAM0__A, param0);
+		status |= write16(state, OFDM_SC_RA_RAM_PARAM0__A, param0);
 		/* All commands using 0 parameters */
 	case OFDM_SC_RA_RAM_CMD_GET_OP_PARAM:
 	case OFDM_SC_RA_RAM_CMD_NULL:
 		/* Write command */
-		status = write16(state, OFDM_SC_RA_RAM_CMD__A, cmd);
+		status |= write16(state, OFDM_SC_RA_RAM_CMD__A, cmd);
 		break;
 	default:
 		/* Unknown command */
