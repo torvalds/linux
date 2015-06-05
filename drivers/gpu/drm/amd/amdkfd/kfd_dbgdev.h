@@ -48,9 +48,9 @@ enum {
 
 /* CONFIG reg space definition */
 enum {
-	CONFIG_REG_BASE = 0x2000,	/* in dwords */
-	CONFIG_REG_END = 0x2B00,
-	CONFIG_REG_SIZE = CONFIG_REG_END - CONFIG_REG_BASE
+	AMD_CONFIG_REG_BASE = 0x2000,	/* in dwords */
+	AMD_CONFIG_REG_END = 0x2B00,
+	AMD_CONFIG_REG_SIZE = AMD_CONFIG_REG_END - AMD_CONFIG_REG_BASE
 };
 
 /* SH reg space definition */

@@ -445,7 +445,7 @@ static int dbgdev_address_watch_diq(struct kfd_dbgdev *dbgdev,
 		aw_reg_add_dword /= sizeof(uint32_t);
 
 		packets_vec[0].bitfields2.reg_offset =
-					aw_reg_add_dword - CONFIG_REG_BASE;
+					aw_reg_add_dword - AMD_CONFIG_REG_BASE;
 
 		packets_vec[0].reg_data[0] = cntl.u32All;
 
@@ -458,7 +458,7 @@ static int dbgdev_address_watch_diq(struct kfd_dbgdev *dbgdev,
 		aw_reg_add_dword /= sizeof(uint32_t);
 
 		packets_vec[1].bitfields2.reg_offset =
-					aw_reg_add_dword - CONFIG_REG_BASE;
+					aw_reg_add_dword - AMD_CONFIG_REG_BASE;
 		packets_vec[1].reg_data[0] = addrHi.u32All;
 
 		aw_reg_add_dword =
@@ -470,7 +470,7 @@ static int dbgdev_address_watch_diq(struct kfd_dbgdev *dbgdev,
 		aw_reg_add_dword /= sizeof(uint32_t);
 
 		packets_vec[2].bitfields2.reg_offset =
-				aw_reg_add_dword - CONFIG_REG_BASE;
+				aw_reg_add_dword - AMD_CONFIG_REG_BASE;
 		packets_vec[2].reg_data[0] = addrLo.u32All;
 
 		/* enable watch flag if address is not zero*/
@@ -488,7 +488,7 @@ static int dbgdev_address_watch_diq(struct kfd_dbgdev *dbgdev,
 		aw_reg_add_dword /= sizeof(uint32_t);
 
 		packets_vec[3].bitfields2.reg_offset =
-					aw_reg_add_dword - CONFIG_REG_BASE;
+					aw_reg_add_dword - AMD_CONFIG_REG_BASE;
 		packets_vec[3].reg_data[0] = cntl.u32All;
 
 		status = dbgdev_diq_submit_ib(
@@ -690,7 +690,7 @@ static int dbgdev_wave_control_diq(struct kfd_dbgdev *dbgdev,
 	packets_vec[1].header.opcode = IT_SET_CONFIG_REG;
 	packets_vec[1].header.type = PM4_TYPE_3;
 	packets_vec[1].bitfields2.reg_offset = SQ_CMD / (sizeof(uint32_t)) -
-						CONFIG_REG_BASE;
+						AMD_CONFIG_REG_BASE;
 
 	packets_vec[1].bitfields2.vmid_shift = SQ_CMD_VMID_OFFSET;
 	packets_vec[1].bitfields2.insert_vmid = 1;
