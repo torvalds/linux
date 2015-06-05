@@ -205,8 +205,13 @@ do {                                                            \
 
 #endif	/* !CONFIG_PARAVIRT */
 
-#define wrmsrl_safe(msr, val) wrmsr_safe((msr), (u32)(val),		\
-					     (u32)((val) >> 32))
+/*
+ * 64-bit version of wrmsr_safe():
+ */
+static inline int wrmsrl_safe(u32 msr, u64 val)
+{
+	return wrmsr_safe(msr, (u32)val,  (u32)(val >> 32));
+}
 
 #define write_tsc(low, high) wrmsr(MSR_IA32_TSC, (low), (high))
 
