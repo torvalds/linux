@@ -56,7 +56,7 @@
  */
 #define DAS08_AI_LSB_REG	0x00	/* (R) AI least significant bits */
 #define DAS08_AI_MSB_REG	0x01	/* (R) AI most significant bits */
-#define DAS08_TRIG_12BIT	1
+#define DAS08_AI_TRIG_REG	0x01	/* (W) AI software trigger */
 #define DAS08_STATUS		2
 #define   DAS08_EOC			(1<<7)
 #define   DAS08_IRQ			(1<<3)
@@ -251,7 +251,7 @@ static int das08_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 				dev_info(dev->class_dev, "over-range\n");
 
 		/* trigger conversion */
-		outb_p(0, dev->iobase + DAS08_TRIG_12BIT);
+		outb_p(0, dev->iobase + DAS08_AI_TRIG_REG);
 
 		ret = comedi_timeout(dev, s, insn, das08_ai_eoc, 0);
 		if (ret)
