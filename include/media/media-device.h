@@ -80,6 +80,8 @@ struct media_device {
 			   unsigned int notification);
 };
 
+#ifdef CONFIG_MEDIA_CONTROLLER
+
 /* Supported link_notify @notification values. */
 #define MEDIA_DEV_NOTIFY_PRE_LINK_CH	0
 #define MEDIA_DEV_NOTIFY_POST_LINK_CH	1
@@ -102,4 +104,29 @@ struct media_device *media_device_find_devres(struct device *dev);
 #define media_device_for_each_entity(entity, mdev)			\
 	list_for_each_entry(entity, &(mdev)->entities, list)
 
+#else
+static inline int media_device_register(struct media_device *mdev)
+{
+	return 0;
+}
+static inline void media_device_unregister(struct media_device *mdev)
+{
+}
+static inline int media_device_register_entity(struct media_device *mdev,
+						struct media_entity *entity)
+{
+	return 0;
+}
+static inline void media_device_unregister_entity(struct media_entity *entity)
+{
+}
+static inline struct media_device *media_device_get_devres(struct device *dev)
+{
+	return NULL;
+}
+static inline struct media_device *media_device_find_devres(struct device *dev)
+{
+	return NULL;
+}
+#endif /* CONFIG_MEDIA_CONTROLLER */
 #endif
