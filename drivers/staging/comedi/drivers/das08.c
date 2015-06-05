@@ -138,7 +138,11 @@
 #define DAS08AOX_AO_LSB_REG(x)	((x) ? 0x0a : 0x08)
 /* (W) analog output m.s.b. registers for 2 channels ("AOx" boards) */
 #define DAS08AOX_AO_MSB_REG(x)	((x) ? 0x0b : 0x09)
-#define DAS08AO_AO_UPDATE	8
+/*
+ * (R) update analog outputs ("AOx" boards set for simultaneous output)
+ *     (any of the analog output registers could be used for this)
+ */
+#define DAS08AOX_AO_UPDATE_REG	0x08
 
 /* gainlist same as _pgx_ below */
 
@@ -374,7 +378,7 @@ static void das08_ao_set_data(struct comedi_device *dev,
 		outb(lsb, dev->iobase + DAS08AOX_AO_LSB_REG(chan));
 		outb(msb, dev->iobase + DAS08AOX_AO_MSB_REG(chan));
 		/* load DACs */
-		inb(dev->iobase + DAS08AO_AO_UPDATE);
+		inb(dev->iobase + DAS08AOX_AO_UPDATE_REG);
 	}
 }
 
