@@ -7785,6 +7785,14 @@ static int i40e_sw_init(struct i40e_pf *pf)
 					I40E_MAX_VF_COUNT);
 	}
 #endif /* CONFIG_PCI_IOV */
+	if (pf->hw.mac.type == I40E_MAC_X722) {
+		pf->flags |= I40E_FLAG_RSS_AQ_CAPABLE |
+			     I40E_FLAG_128_QP_RSS_CAPABLE |
+			     I40E_FLAG_HW_ATR_EVICT_CAPABLE |
+			     I40E_FLAG_OUTER_UDP_CSUM_CAPABLE |
+			     I40E_FLAG_WB_ON_ITR_CAPABLE |
+			     I40E_FLAG_MULTIPLE_TCP_UDP_RSS_PCTYPE;
+	}
 	pf->eeprom_version = 0xDEAD;
 	pf->lan_veb = I40E_NO_VEB;
 	pf->lan_vsi = I40E_NO_VSI;
