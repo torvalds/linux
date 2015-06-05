@@ -77,7 +77,7 @@ static const struct {
 } mmc35240_props_table[] = {
 	/* 16 bits, 100Hz ODR */
 	{
-		{1024, 1024, 770},
+		{1024, 1024, 1024},
 		32768,
 	},
 	/* 16 bits, 200Hz ODR */
