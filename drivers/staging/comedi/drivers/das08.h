@@ -19,6 +19,10 @@
 #ifndef _DAS08_H
 #define _DAS08_H
 
+#include <linux/types.h>
+
+struct comedi_device;
+
 /* different ways ai data is encoded in first two registers */
 enum das08_ai_encoding { das08_encode12, das08_encode16, das08_pcm_encode12 };
 /* types of ai range table used by different boards */
