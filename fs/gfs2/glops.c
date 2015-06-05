@@ -144,6 +144,12 @@ static void rgrp_go_sync(struct gfs2_glock *gl)
 	struct gfs2_rgrpd *rgd;
 	int error;
 
+	spin_lock(&gl->gl_spin);
+	rgd = gl->gl_object;
+	if (rgd)
+		gfs2_rgrp_brelse(rgd);
+	spin_unlock(&gl->gl_spin);
+
 	if (!test_and_clear_bit(GLF_DIRTY, &gl->gl_flags))
 		return;
 	GLOCK_BUG_ON(gl, gl->gl_state != LM_ST_EXCLUSIVE);
@@ -175,15 +181,17 @@ static void rgrp_go_inval(struct gfs2_glock *gl, int flags)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct address_space *mapping = &sdp->sd_aspace;
+	struct gfs2_rgrpd *rgd = gl->gl_object;
+
+	if (rgd)
+		gfs2_rgrp_brelse(rgd);
 
 	WARN_ON_ONCE(!(flags & DIO_METADATA));
 	gfs2_assert_withdraw(sdp, !atomic_read(&gl->gl_ail_count));
 	truncate_inode_pages_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
 
-	if (gl->gl_object) {
-		struct gfs2_rgrpd *rgd = (struct gfs2_rgrpd *)gl->gl_object;
+	if (rgd)
 		rgd->rd_flags &= ~GFS2_RDF_UPTODATE;
-	}
 }
 
 /**

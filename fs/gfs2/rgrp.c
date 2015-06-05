@@ -1244,14 +1244,13 @@ int gfs2_rgrp_go_lock(struct gfs2_holder *gh)
 }
 
 /**
- * gfs2_rgrp_go_unlock - Release RG bitmaps read in with gfs2_rgrp_bh_get()
- * @gh: The glock holder for the resource group
+ * gfs2_rgrp_brelse - Release RG bitmaps read in with gfs2_rgrp_bh_get()
+ * @rgd: The resource group
  *
  */
 
-void gfs2_rgrp_go_unlock(struct gfs2_holder *gh)
+void gfs2_rgrp_brelse(struct gfs2_rgrpd *rgd)
 {
-	struct gfs2_rgrpd *rgd = gh->gh_gl->gl_object;
 	int x, length = rgd->rd_length;
 
 	for (x = 0; x < length; x++) {
@@ -1262,6 +1261,22 @@ void gfs2_rgrp_go_unlock(struct gfs2_holder *gh)
 		}
 	}
 
+}
+
+/**
+ * gfs2_rgrp_go_unlock - Unlock a rgrp glock
+ * @gh: The glock holder for the resource group
+ *
+ */
+
+void gfs2_rgrp_go_unlock(struct gfs2_holder *gh)
+{
+	struct gfs2_rgrpd *rgd = gh->gh_gl->gl_object;
+	int demote_requested = test_bit(GLF_DEMOTE, &gh->gh_gl->gl_flags) |
+		test_bit(GLF_PENDING_DEMOTE, &gh->gh_gl->gl_flags);
+
+	if (rgd && demote_requested)
+		gfs2_rgrp_brelse(rgd);
 }
 
 int gfs2_rgrp_send_discards(struct gfs2_sbd *sdp, u64 offset,
