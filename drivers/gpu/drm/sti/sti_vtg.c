@@ -62,7 +62,7 @@
 #define VTG_IRQ_MASK        (VTG_IRQ_TOP | VTG_IRQ_BOTTOM)
 
 /* Delay introduced by the HDMI in nb of pixel */
-#define HDMI_DELAY          (6)
+#define HDMI_DELAY          (5)
 
 /* delay introduced by the Arbitrary Waveform Generator in nb of pixels */
 #define AWG_DELAY_HD        (-9)
@@ -121,6 +121,32 @@ static void vtg_reset(struct sti_vtg *vtg)
 	writel(1, vtg->regs + VTG_DRST_AUTOC);
 }
 
+static void vtg_set_output_window(void __iomem *regs,
+				  const struct drm_display_mode *mode)
+{
+	u32 video_top_field_start;
+	u32 video_top_field_stop;
+	u32 video_bottom_field_start;
+	u32 video_bottom_field_stop;
+	u32 xstart = sti_vtg_get_pixel_number(*mode, 0);
+	u32 ystart = sti_vtg_get_line_number(*mode, 0);
+	u32 xstop = sti_vtg_get_pixel_number(*mode, mode->hdisplay - 1);
+	u32 ystop = sti_vtg_get_line_number(*mode, mode->vdisplay - 1);
+
+	/* Set output window to fit the display mode selected */
+	video_top_field_start = (ystart << 16) | xstart;
+	video_top_field_stop = (ystop << 16) | xstop;
+
+	/* Only progressive supported for now */
+	video_bottom_field_start = video_top_field_start;
+	video_bottom_field_stop = video_top_field_stop;
+
+	writel(video_top_field_start, regs + VTG_VID_TFO);
+	writel(video_top_field_stop, regs + VTG_VID_TFS);
+	writel(video_bottom_field_start, regs + VTG_VID_BFO);
+	writel(video_bottom_field_stop, regs + VTG_VID_BFS);
+}
+
 static void vtg_set_mode(struct sti_vtg *vtg,
 			 int type, const struct drm_display_mode *mode)
 {
@@ -129,18 +155,14 @@ static void vtg_set_mode(struct sti_vtg *vtg,
 	if (vtg->slave)
 		vtg_set_mode(vtg->slave, VTG_TYPE_SLAVE_BY_EXT0, mode);
 
+	/* Set the number of clock cycles per line */
 	writel(mode->htotal, vtg->regs + VTG_CLKLN);
+
+	/* Set Half Line Per Field (only progressive supported for now) */
 	writel(mode->vtotal * 2, vtg->regs + VTG_HLFLN);
 
-	tmp = (mode->vtotal - mode->vsync_start + 1) << 16;
-	tmp |= mode->htotal - mode->hsync_start;
-	writel(tmp, vtg->regs + VTG_VID_TFO);
-	writel(tmp, vtg->regs + VTG_VID_BFO);
-
-	tmp = (mode->vdisplay + mode->vtotal - mode->vsync_start + 1) << 16;
-	tmp |= mode->hdisplay + mode->htotal - mode->hsync_start;
-	writel(tmp, vtg->regs + VTG_VID_TFS);
-	writel(tmp, vtg->regs + VTG_VID_BFS);
+	/* Program output window */
+	vtg_set_output_window(vtg->regs, mode);
 
 	/* prepare VTG set 1 for HDMI */
 	tmp = (mode->hsync_end - mode->hsync_start + HDMI_DELAY) << 16;
