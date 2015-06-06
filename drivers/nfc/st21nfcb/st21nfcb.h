@@ -25,6 +25,12 @@
 /* Define private flags: */
 #define ST21NFCB_NCI_RUNNING			1
 
+#define ST21NFCB_NCI_CORE_PROP                0x01
+
+struct nci_mode_set_rsp {
+	u8 status;
+} __packed;
+
 struct st21nfcb_nci_info {
 	struct llt_ndlc *ndlc;
 	unsigned long flags;

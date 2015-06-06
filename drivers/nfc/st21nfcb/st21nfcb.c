@@ -20,6 +20,8 @@
 #include <linux/nfc.h>
 #include <net/nfc/nci.h>
 #include <net/nfc/nci_core.h>
+#include <linux/gpio.h>
+#include <linux/delay.h>
 
 #include "st21nfcb.h"
 #include "st21nfcb_se.h"
@@ -76,6 +78,23 @@ static __u32 st21nfcb_nci_get_rfprotocol(struct nci_dev *ndev,
 		NFC_PROTO_ISO15693_MASK : 0;
 }
 
+static int st21nfcb_nci_prop_rsp_packet(struct nci_dev *ndev,
+					struct sk_buff *skb)
+{
+	__u8 status = skb->data[0];
+
+	nci_req_complete(ndev, status);
+	return 0;
+}
+
+static struct nci_prop_ops st21nfcb_nci_prop_ops[] = {
+	{
+		.opcode = nci_opcode_pack(NCI_GID_PROPRIETARY,
+					  ST21NFCB_NCI_CORE_PROP),
+		.rsp = st21nfcb_nci_prop_rsp_packet,
+	},
+};
+
 static struct nci_ops st21nfcb_nci_ops = {
 	.open = st21nfcb_nci_open,
 	.close = st21nfcb_nci_close,
@@ -88,6 +107,8 @@ static struct nci_ops st21nfcb_nci_ops = {
 	.hci_load_session = st21nfcb_hci_load_session,
 	.hci_event_received = st21nfcb_hci_event_received,
 	.hci_cmd_received = st21nfcb_hci_cmd_received,
+	.prop_ops = st21nfcb_nci_prop_ops,
+	.n_prop_ops = ARRAY_SIZE(st21nfcb_nci_prop_ops),
 };
 
 int st21nfcb_nci_probe(struct llt_ndlc *ndlc, int phy_headroom,
