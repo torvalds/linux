@@ -324,6 +324,32 @@ static void nci_rf_deactivate_req(struct nci_dev *ndev, unsigned long opt)
 		     sizeof(struct nci_rf_deactivate_cmd), &cmd);
 }
 
+struct nci_prop_cmd_param {
+	__u16 opcode;
+	size_t len;
+	__u8 *payload;
+};
+
+static void nci_prop_cmd_req(struct nci_dev *ndev, unsigned long opt)
+{
+	struct nci_prop_cmd_param *param = (struct nci_prop_cmd_param *)opt;
+
+	nci_send_cmd(ndev, param->opcode, param->len, param->payload);
+}
+
+int nci_prop_cmd(struct nci_dev *ndev, __u8 oid, size_t len, __u8 *payload)
+{
+	struct nci_prop_cmd_param param;
+
+	param.opcode = nci_opcode_pack(NCI_GID_PROPRIETARY, oid);
+	param.len = len;
+	param.payload = payload;
+
+	return __nci_request(ndev, nci_prop_cmd_req, (unsigned long)&param,
+			     msecs_to_jiffies(NCI_CMD_TIMEOUT));
+}
+EXPORT_SYMBOL(nci_prop_cmd);
+
 static int nci_open_device(struct nci_dev *ndev)
 {
 	int rc = 0;
