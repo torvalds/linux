@@ -47,10 +47,12 @@ static int st21nfcb_nci_close(struct nci_dev *ndev)
 {
 	struct st21nfcb_nci_info *info = nci_get_drvdata(ndev);
 
-	if (!test_and_clear_bit(ST21NFCB_NCI_RUNNING, &info->flags))
+	if (!test_bit(ST21NFCB_NCI_RUNNING, &info->flags))
 		return 0;
 
 	ndlc_close(info->ndlc);
+
+	clear_bit(ST21NFCB_NCI_RUNNING, &info->flags);
 
 	return 0;
 }
