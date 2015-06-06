@@ -571,6 +571,7 @@ static int fc2580_probe(struct i2c_client *client,
 	case 0x5a:
 		break;
 	default:
+		ret = -ENODEV;
 		goto err_kfree;
 	}
 
