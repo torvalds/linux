@@ -569,6 +569,7 @@ static irqreturn_t tda998x_irq_thread(int irq, void *data)
 {
 	struct tda998x_priv *priv = data;
 	u8 sta, cec, lvl, flag0, flag1, flag2;
+	bool handled = false;
 
 	sta = cec_read(priv, REG_CEC_INTSTATUS);
 	cec = cec_read(priv, REG_CEC_RXSHPDINT);
@@ -582,10 +583,12 @@ static irqreturn_t tda998x_irq_thread(int irq, void *data)
 	if ((flag2 & INT_FLAGS_2_EDID_BLK_RD) && priv->wq_edid_wait) {
 		priv->wq_edid_wait = 0;
 		wake_up(&priv->wq_edid);
+		handled = true;
 	} else if (cec != 0) {			/* HPD change */
 		schedule_delayed_work(&priv->dwork, HZ/10);
+		handled = true;
 	}
-	return IRQ_HANDLED;
+	return IRQ_RETVAL(handled);
 }
 
 static uint8_t tda998x_cksum(uint8_t *buf, size_t bytes)
