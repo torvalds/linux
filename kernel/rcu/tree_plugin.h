@@ -1061,8 +1061,7 @@ static int rcu_boost(struct rcu_node *rnp)
 }
 
 /*
- * Priority-boosting kthread.  One per leaf rcu_node and one for the
- * root rcu_node.
+ * Priority-boosting kthread, one per leaf rcu_node.
  */
 static int rcu_boost_kthread(void *arg)
 {
