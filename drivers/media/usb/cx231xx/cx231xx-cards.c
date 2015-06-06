@@ -1092,17 +1092,25 @@ void cx231xx_card_setup(struct cx231xx *dev)
 	case CX231XX_BOARD_HAUPPAUGE_930C_HD_1114xx:
 	case CX231XX_BOARD_HAUPPAUGE_955Q:
 		{
-			struct tveeprom tvee;
-			static u8 eeprom[256];
-			struct i2c_client client;
+			struct eeprom {
+				struct tveeprom tvee;
+				u8 eeprom[256];
+				struct i2c_client client;
+			};
+			struct eeprom *e = kzalloc(sizeof(*e), GFP_KERNEL);
 
-			memset(&client, 0, sizeof(client));
-			client.adapter = cx231xx_get_i2c_adap(dev, I2C_1_MUX_1);
-			client.addr = 0xa0 >> 1;
+			if (e == NULL) {
+				dev_err(dev->dev,
+					"failed to allocate memory to read eeprom\n");
+				break;
+			}
+			e->client.adapter = cx231xx_get_i2c_adap(dev, I2C_1_MUX_1);
+			e->client.addr = 0xa0 >> 1;
 
-			read_eeprom(dev, &client, eeprom, sizeof(eeprom));
-			tveeprom_hauppauge_analog(&client,
-						&tvee, eeprom + 0xc0);
+			read_eeprom(dev, &e->client, e->eeprom, sizeof(e->eeprom));
+			tveeprom_hauppauge_analog(&e->client,
+						&e->tvee, e->eeprom + 0xc0);
+			kfree(e);
 			break;
 		}
 	}
