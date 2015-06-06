@@ -34,8 +34,8 @@ struct tda998x_priv {
 	struct i2c_client *cec;
 	struct i2c_client *hdmi;
 	struct mutex mutex;
-	uint16_t rev;
-	uint8_t current_page;
+	u16 rev;
+	u8 current_page;
 	int dpms;
 	bool is_hdmi_sink;
 	u8 vip_cntrl_0;
@@ -349,10 +349,10 @@ struct tda998x_priv {
 #define TDA19988                  0x0301
 
 static void
-cec_write(struct tda998x_priv *priv, uint16_t addr, uint8_t val)
+cec_write(struct tda998x_priv *priv, u16 addr, u8 val)
 {
 	struct i2c_client *client = priv->cec;
-	uint8_t buf[] = {addr, val};
+	u8 buf[] = {addr, val};
 	int ret;
 
 	ret = i2c_master_send(client, buf, sizeof(buf));
@@ -360,11 +360,11 @@ cec_write(struct tda998x_priv *priv, uint16_t addr, uint8_t val)
 		dev_err(&client->dev, "Error %d writing to cec:0x%x\n", ret, addr);
 }
 
-static uint8_t
-cec_read(struct tda998x_priv *priv, uint8_t addr)
+static u8
+cec_read(struct tda998x_priv *priv, u8 addr)
 {
 	struct i2c_client *client = priv->cec;
-	uint8_t val;
+	u8 val;
 	int ret;
 
 	ret = i2c_master_send(client, &addr, sizeof(addr));
@@ -383,11 +383,11 @@ fail:
 }
 
 static int
-set_page(struct tda998x_priv *priv, uint16_t reg)
+set_page(struct tda998x_priv *priv, u16 reg)
 {
 	if (REG2PAGE(reg) != priv->current_page) {
 		struct i2c_client *client = priv->hdmi;
-		uint8_t buf[] = {
+		u8 buf[] = {
 				REG_CURPAGE, REG2PAGE(reg)
 		};
 		int ret = i2c_master_send(client, buf, sizeof(buf));
@@ -403,10 +403,10 @@ set_page(struct tda998x_priv *priv, uint16_t reg)
 }
 
 static int
-reg_read_range(struct tda998x_priv *priv, uint16_t reg, char *buf, int cnt)
+reg_read_range(struct tda998x_priv *priv, u16 reg, char *buf, int cnt)
 {
 	struct i2c_client *client = priv->hdmi;
-	uint8_t addr = REG2ADDR(reg);
+	u8 addr = REG2ADDR(reg);
 	int ret;
 
 	mutex_lock(&priv->mutex);
@@ -432,10 +432,10 @@ out:
 }
 
 static void
-reg_write_range(struct tda998x_priv *priv, uint16_t reg, uint8_t *p, int cnt)
+reg_write_range(struct tda998x_priv *priv, u16 reg, u8 *p, int cnt)
 {
 	struct i2c_client *client = priv->hdmi;
-	uint8_t buf[cnt+1];
+	u8 buf[cnt+1];
 	int ret;
 
 	buf[0] = REG2ADDR(reg);
@@ -454,9 +454,9 @@ out:
 }
 
 static int
-reg_read(struct tda998x_priv *priv, uint16_t reg)
+reg_read(struct tda998x_priv *priv, u16 reg)
 {
-	uint8_t val = 0;
+	u8 val = 0;
 	int ret;
 
 	ret = reg_read_range(priv, reg, &val, sizeof(val));
@@ -466,10 +466,10 @@ reg_read(struct tda998x_priv *priv, uint16_t reg)
 }
 
 static void
-reg_write(struct tda998x_priv *priv, uint16_t reg, uint8_t val)
+reg_write(struct tda998x_priv *priv, u16 reg, u8 val)
 {
 	struct i2c_client *client = priv->hdmi;
-	uint8_t buf[] = {REG2ADDR(reg), val};
+	u8 buf[] = {REG2ADDR(reg), val};
 	int ret;
 
 	mutex_lock(&priv->mutex);
@@ -485,10 +485,10 @@ out:
 }
 
 static void
-reg_write16(struct tda998x_priv *priv, uint16_t reg, uint16_t val)
+reg_write16(struct tda998x_priv *priv, u16 reg, u16 val)
 {
 	struct i2c_client *client = priv->hdmi;
-	uint8_t buf[] = {REG2ADDR(reg), val >> 8, val};
+	u8 buf[] = {REG2ADDR(reg), val >> 8, val};
 	int ret;
 
 	mutex_lock(&priv->mutex);
@@ -504,7 +504,7 @@ out:
 }
 
 static void
-reg_set(struct tda998x_priv *priv, uint16_t reg, uint8_t val)
+reg_set(struct tda998x_priv *priv, u16 reg, u8 val)
 {
 	int old_val;
 
@@ -514,7 +514,7 @@ reg_set(struct tda998x_priv *priv, uint16_t reg, uint8_t val)
 }
 
 static void
-reg_clear(struct tda998x_priv *priv, uint16_t reg, uint8_t val)
+reg_clear(struct tda998x_priv *priv, u16 reg, u8 val)
 {
 	int old_val;
 
@@ -634,7 +634,7 @@ static irqreturn_t tda998x_irq_thread(int irq, void *data)
 	return IRQ_RETVAL(handled);
 }
 
-static uint8_t tda998x_cksum(uint8_t *buf, size_t bytes)
+static u8 tda998x_cksum(u8 *buf, size_t bytes)
 {
 	int sum = 0;
 
@@ -647,8 +647,8 @@ static uint8_t tda998x_cksum(uint8_t *buf, size_t bytes)
 #define PB(x) (HB(2) + 1 + (x))
 
 static void
-tda998x_write_if(struct tda998x_priv *priv, uint8_t bit, uint16_t addr,
-		 uint8_t *buf, size_t size)
+tda998x_write_if(struct tda998x_priv *priv, u8 bit, u16 addr,
+		 u8 *buf, size_t size)
 {
 	reg_clear(priv, REG_DIP_IF_FLAGS, bit);
 	reg_write_range(priv, addr, buf, size);
@@ -711,8 +711,8 @@ static void
 tda998x_configure_audio(struct tda998x_priv *priv,
 		struct drm_display_mode *mode, struct tda998x_encoder_params *p)
 {
-	uint8_t buf[6], clksel_aip, clksel_fs, cts_n, adiv;
-	uint32_t n;
+	u8 buf[6], clksel_aip, clksel_fs, cts_n, adiv;
+	u32 n;
 
 	/* Enable audio ports */
 	reg_write(priv, REG_ENA_AP, p->audio_cfg);
@@ -888,14 +888,14 @@ tda998x_encoder_mode_set(struct tda998x_priv *priv,
 			 struct drm_display_mode *mode,
 			 struct drm_display_mode *adjusted_mode)
 {
-	uint16_t ref_pix, ref_line, n_pix, n_line;
-	uint16_t hs_pix_s, hs_pix_e;
-	uint16_t vs1_pix_s, vs1_pix_e, vs1_line_s, vs1_line_e;
-	uint16_t vs2_pix_s, vs2_pix_e, vs2_line_s, vs2_line_e;
-	uint16_t vwin1_line_s, vwin1_line_e;
-	uint16_t vwin2_line_s, vwin2_line_e;
-	uint16_t de_pix_s, de_pix_e;
-	uint8_t reg, div, rep;
+	u16 ref_pix, ref_line, n_pix, n_line;
+	u16 hs_pix_s, hs_pix_e;
+	u16 vs1_pix_s, vs1_pix_e, vs1_line_s, vs1_line_e;
+	u16 vs2_pix_s, vs2_pix_e, vs2_line_s, vs2_line_e;
+	u16 vwin1_line_s, vwin1_line_e;
+	u16 vwin2_line_s, vwin2_line_e;
+	u16 de_pix_s, de_pix_e;
+	u8 reg, div, rep;
 
 	/*
 	 * Internally TDA998x is using ITU-R BT.656 style sync but
@@ -1077,7 +1077,7 @@ tda998x_encoder_mode_set(struct tda998x_priv *priv,
 static enum drm_connector_status
 tda998x_encoder_detect(struct tda998x_priv *priv)
 {
-	uint8_t val = cec_read(priv, REG_CEC_RXSHPDLEV);
+	u8 val = cec_read(priv, REG_CEC_RXSHPDLEV);
 
 	return (val & CEC_RXSHPDLEV_HPD) ? connector_status_connected :
 			connector_status_disconnected;
@@ -1086,7 +1086,7 @@ tda998x_encoder_detect(struct tda998x_priv *priv)
 static int read_edid_block(void *data, u8 *buf, unsigned int blk, size_t length)
 {
 	struct tda998x_priv *priv = data;
-	uint8_t offset, segptr;
+	u8 offset, segptr;
 	int ret, i;
 
 	offset = (blk & 1) ? 128 : 0;
@@ -1558,7 +1558,7 @@ static int tda998x_bind(struct device *dev, struct device *master, void *data)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct drm_device *drm = data;
 	struct tda998x_priv2 *priv;
-	uint32_t crtcs = 0;
+	u32 crtcs = 0;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
