@@ -79,7 +79,7 @@ obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
 obj-$(CONFIG_UPROBES)		+= uprobes.o
 
 obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o perf_cpum_cf.o perf_cpum_sf.o
-obj-$(CONFIG_PERF_EVENTS)	+= perf_cpum_cf_events.o
+obj-$(CONFIG_PERF_EVENTS)	+= perf_cpum_cf_events.o perf_regs.o
 
 obj-$(CONFIG_TRACEPOINTS)	+= trace.o
 
