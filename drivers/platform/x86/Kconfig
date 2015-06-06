@@ -138,6 +138,22 @@ config DELL_SMO8800
 	  To compile this driver as a module, choose M here: the module will
 	  be called dell-smo8800.
 
+config DELL_RBTN
+	tristate "Dell Airplane Mode Switch driver"
+	depends on ACPI
+	depends on INPUT
+	depends on RFKILL
+	---help---
+	  Say Y here if you want to support Dell Airplane Mode Switch ACPI
+	  device on Dell laptops. Sometimes it has names: DELLABCE or DELRBTN.
+	  This driver register rfkill device or input hotkey device depending
+	  on hardware type (hw switch slider or keyboard toggle button). For
+	  rfkill devices it receive HW switch events and set correct hard
+	  rfkill state.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called dell-rbtn.
+
 
 config FUJITSU_LAPTOP
 	tristate "Fujitsu Laptop Extras"
