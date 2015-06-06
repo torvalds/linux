@@ -97,6 +97,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-total-media-in-hand-02.o \
 			rc-trekstor.o \
 			rc-tt-1500.o \
+			rc-twinhan-dtv-cab-ci.o \
 			rc-twinhan1027.o \
 			rc-videomate-m1f.o \
 			rc-videomate-s350.o \
