@@ -1924,6 +1924,52 @@ static void ib_mad_complete_recv(struct ib_mad_agent_private *mad_agent_priv,
 	}
 }
 
+static enum smi_action handle_ib_smi(const struct ib_mad_port_private *port_priv,
+				     const struct ib_mad_qp_info *qp_info,
+				     const struct ib_wc *wc,
+				     int port_num,
+				     struct ib_mad_private *recv,
+				     struct ib_mad_private *response)
+{
+	enum smi_forward_action retsmi;
+
+	if (smi_handle_dr_smp_recv(&recv->mad.smp,
+				   port_priv->device->node_type,
+				   port_num,
+				   port_priv->device->phys_port_cnt) ==
+				   IB_SMI_DISCARD)
+		return IB_SMI_DISCARD;
+
+	retsmi = smi_check_forward_dr_smp(&recv->mad.smp);
+	if (retsmi == IB_SMI_LOCAL)
+		return IB_SMI_HANDLE;
+
+	if (retsmi == IB_SMI_SEND) { /* don't forward */
+		if (smi_handle_dr_smp_send(&recv->mad.smp,
+					   port_priv->device->node_type,
+					   port_num) == IB_SMI_DISCARD)
+			return IB_SMI_DISCARD;
+
+		if (smi_check_local_smp(&recv->mad.smp, port_priv->device) == IB_SMI_DISCARD)
+			return IB_SMI_DISCARD;
+	} else if (port_priv->device->node_type == RDMA_NODE_IB_SWITCH) {
+		/* forward case for switches */
+		memcpy(response, recv, sizeof(*response));
+		response->header.recv_wc.wc = &response->header.wc;
+		response->header.recv_wc.recv_buf.mad = &response->mad.mad;
+		response->header.recv_wc.recv_buf.grh = &response->grh;
+
+		agent_send_response(&response->mad.mad,
+				    &response->grh, wc,
+				    port_priv->device,
+				    smi_get_fwd_port(&recv->mad.smp),
+				    qp_info->qp->qp_num);
+
+		return IB_SMI_DISCARD;
+	}
+	return IB_SMI_HANDLE;
+}
+
 static bool generate_unmatched_resp(struct ib_mad_private *recv,
 				    struct ib_mad_private *response)
 {
@@ -1996,45 +2042,12 @@ static void ib_mad_recv_done_handler(struct ib_mad_port_private *port_priv,
 
 	if (recv->mad.mad.mad_hdr.mgmt_class ==
 	    IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE) {
-		enum smi_forward_action retsmi;
-
-		if (smi_handle_dr_smp_recv(&recv->mad.smp,
-					   port_priv->device->node_type,
-					   port_num,
-					   port_priv->device->phys_port_cnt) ==
-					   IB_SMI_DISCARD)
+		if (handle_ib_smi(port_priv, qp_info, wc, port_num, recv,
+				  response)
+		    == IB_SMI_DISCARD)
 			goto out;
-
-		retsmi = smi_check_forward_dr_smp(&recv->mad.smp);
-		if (retsmi == IB_SMI_LOCAL)
-			goto local;
-
-		if (retsmi == IB_SMI_SEND) { /* don't forward */
-			if (smi_handle_dr_smp_send(&recv->mad.smp,
-						   port_priv->device->node_type,
-						   port_num) == IB_SMI_DISCARD)
-				goto out;
-
-			if (smi_check_local_smp(&recv->mad.smp, port_priv->device) == IB_SMI_DISCARD)
-				goto out;
-		} else if (port_priv->device->node_type == RDMA_NODE_IB_SWITCH) {
-			/* forward case for switches */
-			memcpy(response, recv, sizeof(*response));
-			response->header.recv_wc.wc = &response->header.wc;
-			response->header.recv_wc.recv_buf.mad = &response->mad.mad;
-			response->header.recv_wc.recv_buf.grh = &response->grh;
-
-			agent_send_response(&response->mad.mad,
-					    &response->grh, wc,
-					    port_priv->device,
-					    smi_get_fwd_port(&recv->mad.smp),
-					    qp_info->qp->qp_num);
-
-			goto out;
-		}
 	}
 
-local:
 	/* Give driver "right of first refusal" on incoming MAD */
 	if (port_priv->device->process_mad) {
 		ret = port_priv->device->process_mad(port_priv->device, 0,
