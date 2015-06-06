@@ -74,7 +74,6 @@ struct ieee802154_hw {
 	struct	device *parent;
 
 	/* filled by mac802154 core */
-	struct	ieee802154_hw_addr_filt hw_filt;
 	void	*priv;
 	struct	wpan_phy *phy;
 };
