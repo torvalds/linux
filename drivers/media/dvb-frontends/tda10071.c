@@ -1348,18 +1348,30 @@ static int tda10071_probe(struct i2c_client *client,
 
 	/* chip ID */
 	ret = tda10071_rd_reg(dev, 0xff, &u8tmp);
-	if (ret || u8tmp != 0x0f)
+	if (ret)
 		goto err_kfree;
+	if (u8tmp != 0x0f) {
+		ret = -ENODEV;
+		goto err_kfree;
+	}
 
 	/* chip type */
 	ret = tda10071_rd_reg(dev, 0xdd, &u8tmp);
-	if (ret || u8tmp != 0x00)
+	if (ret)
 		goto err_kfree;
+	if (u8tmp != 0x00) {
+		ret = -ENODEV;
+		goto err_kfree;
+	}
 
 	/* chip version */
 	ret = tda10071_rd_reg(dev, 0xfe, &u8tmp);
-	if (ret || u8tmp != 0x01)
+	if (ret)
 		goto err_kfree;
+	if (u8tmp != 0x01) {
+		ret = -ENODEV;
+		goto err_kfree;
+	}
 
 	/* create dvb_frontend */
 	memcpy(&dev->fe.ops, &tda10071_ops, sizeof(struct dvb_frontend_ops));
