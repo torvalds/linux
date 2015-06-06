@@ -26,6 +26,12 @@
 #define ST21NFCB_NCI_RUNNING			1
 
 #define ST21NFCB_NCI_CORE_PROP                0x01
+#define ST21NFCB_NCI_SET_NFC_MODE             0x02
+
+struct nci_mode_set_cmd {
+	u8 cmd_type;
+	u8 mode;
+} __packed;
 
 struct nci_mode_set_rsp {
 	u8 status;

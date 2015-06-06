@@ -66,9 +66,19 @@ EXPORT_SYMBOL(ndlc_open);
 
 void ndlc_close(struct llt_ndlc *ndlc)
 {
+	struct nci_mode_set_cmd cmd;
+
+	cmd.cmd_type = ST21NFCB_NCI_SET_NFC_MODE;
+	cmd.mode = 0;
+
 	/* toggle reset pin */
-	ndlc->ops->disable(ndlc->phy_id);
+	ndlc->ops->enable(ndlc->phy_id);
+
+	nci_prop_cmd(ndlc->ndev, ST21NFCB_NCI_CORE_PROP,
+		     sizeof(struct nci_mode_set_cmd), (__u8 *)&cmd);
+
 	ndlc->powered = 0;
+	ndlc->ops->disable(ndlc->phy_id);
 }
 EXPORT_SYMBOL(ndlc_close);
 

@@ -30,6 +30,17 @@
 
 #define ST21NFCB_NCI1_X_PROPRIETARY_ISO15693 0x83
 
+static int st21nfcb_nci_init(struct nci_dev *ndev)
+{
+	struct nci_mode_set_cmd cmd;
+
+	cmd.cmd_type = ST21NFCB_NCI_SET_NFC_MODE;
+	cmd.mode = 1;
+
+	return nci_prop_cmd(ndev, ST21NFCB_NCI_CORE_PROP,
+			sizeof(struct nci_mode_set_cmd), (__u8 *)&cmd);
+}
+
 static int st21nfcb_nci_open(struct nci_dev *ndev)
 {
 	struct st21nfcb_nci_info *info = nci_get_drvdata(ndev);
@@ -96,6 +107,7 @@ static struct nci_prop_ops st21nfcb_nci_prop_ops[] = {
 };
 
 static struct nci_ops st21nfcb_nci_ops = {
+	.init = st21nfcb_nci_init,
 	.open = st21nfcb_nci_open,
 	.close = st21nfcb_nci_close,
 	.send = st21nfcb_nci_send,
