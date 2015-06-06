@@ -124,7 +124,7 @@ static struct usb_device_descriptor device_desc = {
 	.bLength =		sizeof device_desc,
 	.bDescriptorType =	USB_DT_DEVICE,
 
-	.bcdUSB =		__constant_cpu_to_le16(0x200),
+	.bcdUSB =		cpu_to_le16(0x200),
 
 #ifdef CONFIG_GADGET_UAC1
 	.bDeviceClass =		USB_CLASS_PER_INTERFACE,
@@ -141,8 +141,8 @@ static struct usb_device_descriptor device_desc = {
 	 * we support.  (As does bNumConfigurations.)  These values can
 	 * also be overridden by module parameters.
 	 */
-	.idVendor =		__constant_cpu_to_le16(AUDIO_VENDOR_NUM),
-	.idProduct =		__constant_cpu_to_le16(AUDIO_PRODUCT_NUM),
+	.idVendor =		cpu_to_le16(AUDIO_VENDOR_NUM),
+	.idProduct =		cpu_to_le16(AUDIO_PRODUCT_NUM),
 	/* .bcdDevice = f(hardware) */
 	/* .iManufacturer = DYNAMIC */
 	/* .iProduct = DYNAMIC */
