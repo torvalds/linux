@@ -70,6 +70,9 @@ static int st21nfcb_nci_i2c_enable(void *phy_id)
 	gpio_set_value(phy->gpio_reset, 1);
 	usleep_range(80000, 85000);
 
+	if (phy->ndlc->powered == 0)
+		enable_irq(phy->i2c_dev->irq);
+
 	return 0;
 }
 
@@ -77,10 +80,7 @@ static void st21nfcb_nci_i2c_disable(void *phy_id)
 {
 	struct st21nfcb_i2c_phy *phy = phy_id;
 
-	/* reset chip in order to flush clf */
-	gpio_set_value(phy->gpio_reset, 0);
-	usleep_range(10000, 15000);
-	gpio_set_value(phy->gpio_reset, 1);
+	disable_irq_nosync(phy->i2c_dev->irq);
 }
 
 /*
