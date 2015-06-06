@@ -1602,7 +1602,6 @@ static int at86rf230_probe(struct spi_device *spi)
 	lp->spi = spi;
 	lp->slp_tr = slp_tr;
 	hw->parent = &spi->dev;
-	hw->vif_data_size = sizeof(*lp);
 	ieee802154_random_extended_addr(&hw->phy->perm_extended_addr);
 
 	lp->regmap = devm_regmap_init_spi(spi, &at86rf230_regmap_spi_config);
