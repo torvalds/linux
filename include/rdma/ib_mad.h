@@ -618,6 +618,7 @@ int ib_process_mad_wc(struct ib_mad_agent *mad_agent,
  *   automatically adjust the allocated buffer size to account for any
  *   additional padding that may be necessary.
  * @gfp_mask: GFP mask used for the memory allocation.
+ * @base_version: Base Version of this MAD
  *
  * This routine allocates a MAD for sending.  The returned MAD send buffer
  * will reference a data buffer usable for sending a MAD, along
@@ -633,7 +634,8 @@ struct ib_mad_send_buf *ib_create_send_mad(struct ib_mad_agent *mad_agent,
 					   u32 remote_qpn, u16 pkey_index,
 					   int rmpp_active,
 					   int hdr_len, int data_len,
-					   gfp_t gfp_mask);
+					   gfp_t gfp_mask,
+					   u8 base_version);
 
 /**
  * ib_is_mad_class_rmpp - returns whether given management class

@@ -583,7 +583,8 @@ static int alloc_mad(struct ib_sa_query *query, gfp_t gfp_mask)
 	query->mad_buf = ib_create_send_mad(query->port->agent, 1,
 					    query->sm_ah->pkey_index,
 					    0, IB_MGMT_SA_HDR, IB_MGMT_SA_DATA,
-					    gfp_mask);
+					    gfp_mask,
+					    IB_MGMT_BASE_VERSION);
 	if (IS_ERR(query->mad_buf)) {
 		kref_put(&query->sm_ah->ref, free_sm_ah);
 		return -ENOMEM;

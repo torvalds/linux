@@ -476,7 +476,8 @@ static void srpt_mad_recv_handler(struct ib_mad_agent *mad_agent,
 	rsp = ib_create_send_mad(mad_agent, mad_wc->wc->src_qp,
 				 mad_wc->wc->pkey_index, 0,
 				 IB_MGMT_DEVICE_HDR, IB_MGMT_DEVICE_DATA,
-				 GFP_KERNEL);
+				 GFP_KERNEL,
+				 IB_MGMT_BASE_VERSION);
 	if (IS_ERR(rsp))
 		goto err_rsp;
 

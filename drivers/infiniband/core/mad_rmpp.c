@@ -139,7 +139,8 @@ static void ack_recv(struct mad_rmpp_recv *rmpp_recv,
 	hdr_len = ib_get_mad_data_offset(recv_wc->recv_buf.mad->mad_hdr.mgmt_class);
 	msg = ib_create_send_mad(&rmpp_recv->agent->agent, recv_wc->wc->src_qp,
 				 recv_wc->wc->pkey_index, 1, hdr_len,
-				 0, GFP_KERNEL);
+				 0, GFP_KERNEL,
+				 IB_MGMT_BASE_VERSION);
 	if (IS_ERR(msg))
 		return;
 
@@ -165,7 +166,8 @@ static struct ib_mad_send_buf *alloc_response_msg(struct ib_mad_agent *agent,
 	hdr_len = ib_get_mad_data_offset(recv_wc->recv_buf.mad->mad_hdr.mgmt_class);
 	msg = ib_create_send_mad(agent, recv_wc->wc->src_qp,
 				 recv_wc->wc->pkey_index, 1,
-				 hdr_len, 0, GFP_KERNEL);
+				 hdr_len, 0, GFP_KERNEL,
+				 IB_MGMT_BASE_VERSION);
 	if (IS_ERR(msg))
 		ib_destroy_ah(ah);
 	else {

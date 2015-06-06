@@ -83,7 +83,8 @@ static void qib_send_trap(struct qib_ibport *ibp, void *data, unsigned len)
 		return;
 
 	send_buf = ib_create_send_mad(agent, 0, 0, 0, IB_MGMT_MAD_HDR,
-				      IB_MGMT_MAD_DATA, GFP_ATOMIC);
+				      IB_MGMT_MAD_DATA, GFP_ATOMIC,
+				      IB_MGMT_BASE_VERSION);
 	if (IS_ERR(send_buf))
 		return;
 

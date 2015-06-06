@@ -108,7 +108,8 @@ void agent_send_response(const struct ib_mad *mad, const struct ib_grh *grh,
 
 	send_buf = ib_create_send_mad(agent, wc->src_qp, wc->pkey_index, 0,
 				      IB_MGMT_MAD_HDR, IB_MGMT_MAD_DATA,
-				      GFP_KERNEL);
+				      GFP_KERNEL,
+				      IB_MGMT_BASE_VERSION);
 	if (IS_ERR(send_buf)) {
 		dev_err(&device->dev, "ib_create_send_mad error\n");
 		goto err1;
