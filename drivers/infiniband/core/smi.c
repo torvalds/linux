@@ -5,6 +5,7 @@
  * Copyright (c) 2004, 2005 Topspin Corporation.  All rights reserved.
  * Copyright (c) 2004-2007 Voltaire Corporation.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
+ * Copyright (c) 2014 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -38,6 +39,7 @@
 
 #include <rdma/ib_smi.h>
 #include "smi.h"
+#include "opa_smi.h"
 
 static enum smi_action __smi_handle_dr_smp_send(u8 node_type, int port_num,
 						u8 *hop_ptr, u8 hop_cnt,
@@ -134,6 +136,20 @@ enum smi_action smi_handle_dr_smp_send(struct ib_smp *smp,
 					ib_get_smp_direction(smp),
 					smp->dr_dlid == IB_LID_PERMISSIVE,
 					smp->dr_slid == IB_LID_PERMISSIVE);
+}
+
+enum smi_action opa_smi_handle_dr_smp_send(struct opa_smp *smp,
+				       u8 node_type, int port_num)
+{
+	return __smi_handle_dr_smp_send(node_type, port_num,
+					&smp->hop_ptr, smp->hop_cnt,
+					smp->route.dr.initial_path,
+					smp->route.dr.return_path,
+					opa_get_smp_direction(smp),
+					smp->route.dr.dr_dlid ==
+					OPA_LID_PERMISSIVE,
+					smp->route.dr.dr_slid ==
+					OPA_LID_PERMISSIVE);
 }
 
 static enum smi_action __smi_handle_dr_smp_recv(u8 node_type, int port_num,
@@ -234,6 +250,24 @@ enum smi_action smi_handle_dr_smp_recv(struct ib_smp *smp, u8 node_type,
 					smp->dr_slid == IB_LID_PERMISSIVE);
 }
 
+/*
+ * Adjust information for a received SMP
+ * Return IB_SMI_DISCARD if the SMP should be dropped
+ */
+enum smi_action opa_smi_handle_dr_smp_recv(struct opa_smp *smp, u8 node_type,
+					   int port_num, int phys_port_cnt)
+{
+	return __smi_handle_dr_smp_recv(node_type, port_num, phys_port_cnt,
+					&smp->hop_ptr, smp->hop_cnt,
+					smp->route.dr.initial_path,
+					smp->route.dr.return_path,
+					opa_get_smp_direction(smp),
+					smp->route.dr.dr_dlid ==
+					OPA_LID_PERMISSIVE,
+					smp->route.dr.dr_slid ==
+					OPA_LID_PERMISSIVE);
+}
+
 static enum smi_forward_action __smi_check_forward_dr_smp(u8 hop_ptr, u8 hop_cnt,
 							  u8 direction,
 							  bool dr_dlid_is_permissive,
@@ -274,6 +308,16 @@ enum smi_forward_action smi_check_forward_dr_smp(struct ib_smp *smp)
 					  smp->dr_slid == IB_LID_PERMISSIVE);
 }
 
+enum smi_forward_action opa_smi_check_forward_dr_smp(struct opa_smp *smp)
+{
+	return __smi_check_forward_dr_smp(smp->hop_ptr, smp->hop_cnt,
+					  opa_get_smp_direction(smp),
+					  smp->route.dr.dr_dlid ==
+					  OPA_LID_PERMISSIVE,
+					  smp->route.dr.dr_slid ==
+					  OPA_LID_PERMISSIVE);
+}
+
 /*
  * Return the forwarding port number from initial_path for outgoing SMP and
  * from return_path for returning SMP
@@ -282,4 +326,14 @@ int smi_get_fwd_port(struct ib_smp *smp)
 {
 	return (!ib_get_smp_direction(smp) ? smp->initial_path[smp->hop_ptr+1] :
 		smp->return_path[smp->hop_ptr-1]);
+}
+
+/*
+ * Return the forwarding port number from initial_path for outgoing SMP and
+ * from return_path for returning SMP
+ */
+int opa_smi_get_fwd_port(struct opa_smp *smp)
+{
+	return !opa_get_smp_direction(smp) ? smp->route.dr.initial_path[smp->hop_ptr+1] :
+		smp->route.dr.return_path[smp->hop_ptr-1];
 }

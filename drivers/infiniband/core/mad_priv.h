@@ -41,6 +41,7 @@
 #include <linux/workqueue.h>
 #include <rdma/ib_mad.h>
 #include <rdma/ib_smi.h>
+#include <rdma/opa_smi.h>
 
 #define IB_MAD_QPS_CORE		2 /* Always QP0 and QP1 as a minimum */
 
