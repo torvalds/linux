@@ -1046,7 +1046,6 @@ static void dscc4_pci_reset(struct pci_dev *pdev, void __iomem *ioaddr)
 static int dscc4_open(struct net_device *dev)
 {
 	struct dscc4_dev_priv *dpriv = dscc4_priv(dev);
-	struct dscc4_pci_priv *ppriv;
 	int ret = -EAGAIN;
 
 	if ((dscc4_loopback_check(dpriv) < 0))
@@ -1054,8 +1053,6 @@ static int dscc4_open(struct net_device *dev)
 
 	if ((ret = hdlc_open(dev)))
 		goto err;
-
-	ppriv = dpriv->pci_priv;
 
 	/*
 	 * Due to various bugs, there is no way to reliably reset a
