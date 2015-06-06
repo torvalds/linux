@@ -309,7 +309,7 @@ extern unsigned int hrtimer_resolution;
 # define MONOTONIC_RES_NSEC	LOW_RES_NSEC
 # define KTIME_MONOTONIC_RES	KTIME_LOW_RES
 
-#define hrtimer_resolution	LOW_RES_NSEC
+#define hrtimer_resolution	(unsigned int)LOW_RES_NSEC
 
 static inline void hrtimer_peek_ahead_timers(void) { }
 
