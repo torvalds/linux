@@ -28,6 +28,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": %s: " fmt, __func__
 
 #include <linux/module.h>
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
 #include <linux/completion.h>
@@ -961,6 +962,14 @@ struct nci_dev *nci_allocate_device(struct nci_ops *ops,
 		return NULL;
 
 	ndev->ops = ops;
+
+	if (ops->n_prop_ops > NCI_MAX_PROPRIETARY_CMD) {
+		pr_err("Too many proprietary commands: %zd\n",
+		       ops->n_prop_ops);
+		ops->prop_ops = NULL;
+		ops->n_prop_ops = 0;
+	}
+
 	ndev->tx_headroom = tx_headroom;
 	ndev->tx_tailroom = tx_tailroom;
 	init_completion(&ndev->req_completion);
@@ -1163,6 +1172,49 @@ int nci_send_cmd(struct nci_dev *ndev, __u16 opcode, __u8 plen, void *payload)
 	queue_work(ndev->cmd_wq, &ndev->cmd_work);
 
 	return 0;
+}
+
+/* Proprietary commands API */
+static struct nci_prop_ops *prop_cmd_lookup(struct nci_dev *ndev,
+					    __u16 opcode)
+{
+	size_t i;
+	struct nci_prop_ops *prop_op;
+
+	if (!ndev->ops->prop_ops || !ndev->ops->n_prop_ops)
+		return NULL;
+
+	for (i = 0; i < ndev->ops->n_prop_ops; i++) {
+		prop_op = &ndev->ops->prop_ops[i];
+		if (prop_op->opcode == opcode)
+			return prop_op;
+	}
+
+	return NULL;
+}
+
+int nci_prop_rsp_packet(struct nci_dev *ndev, __u16 rsp_opcode,
+			struct sk_buff *skb)
+{
+	struct nci_prop_ops *prop_op;
+
+	prop_op = prop_cmd_lookup(ndev, rsp_opcode);
+	if (!prop_op || !prop_op->rsp)
+		return -ENOTSUPP;
+
+	return prop_op->rsp(ndev, skb);
+}
+
+int nci_prop_ntf_packet(struct nci_dev *ndev, __u16 ntf_opcode,
+			struct sk_buff *skb)
+{
+	struct nci_prop_ops *prop_op;
+
+	prop_op = prop_cmd_lookup(ndev, ntf_opcode);
+	if (!prop_op || !prop_op->ntf)
+		return -ENOTSUPP;
+
+	return prop_op->ntf(ndev, skb);
 }
 
 /* ---- NCI TX Data worker thread ---- */

@@ -66,6 +66,12 @@ enum nci_state {
 
 struct nci_dev;
 
+struct nci_prop_ops {
+	__u16 opcode;
+	int (*rsp)(struct nci_dev *dev, struct sk_buff *skb);
+	int (*ntf)(struct nci_dev *dev, struct sk_buff *skb);
+};
+
 struct nci_ops {
 	int   (*open)(struct nci_dev *ndev);
 	int   (*close)(struct nci_dev *ndev);
@@ -84,12 +90,16 @@ struct nci_ops {
 				    struct sk_buff *skb);
 	void  (*hci_cmd_received)(struct nci_dev *ndev, u8 pipe, u8 cmd,
 				  struct sk_buff *skb);
+
+	struct nci_prop_ops *prop_ops;
+	size_t n_prop_ops;
 };
 
 #define NCI_MAX_SUPPORTED_RF_INTERFACES		4
 #define NCI_MAX_DISCOVERED_TARGETS		10
 #define NCI_MAX_NUM_NFCEE   255
 #define NCI_MAX_CONN_ID		7
+#define NCI_MAX_PROPRIETARY_CMD 64
 
 struct nci_conn_info {
 	struct list_head list;
@@ -320,6 +330,10 @@ static inline void *nci_get_drvdata(struct nci_dev *ndev)
 
 void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb);
 void nci_ntf_packet(struct nci_dev *ndev, struct sk_buff *skb);
+int nci_prop_rsp_packet(struct nci_dev *ndev, __u16 opcode,
+			struct sk_buff *skb);
+int nci_prop_ntf_packet(struct nci_dev *ndev, __u16 opcode,
+			struct sk_buff *skb);
 void nci_rx_data_packet(struct nci_dev *ndev, struct sk_buff *skb);
 int nci_send_cmd(struct nci_dev *ndev, __u16 opcode, __u8 plen, void *payload);
 int nci_send_data(struct nci_dev *ndev, __u8 conn_id, struct sk_buff *skb);
