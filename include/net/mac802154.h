@@ -31,18 +31,29 @@
  */
 #define MAC802154_FRAME_HARD_HEADER_LEN		(2 + 1 + 20 + 14)
 
-/* The following flags are used to indicate changed address settings from
+/**
+ * enum ieee802154_hw_addr_filt_flags - hardware address filtering flags
+ *
+ * The following flags are used to indicate changed address settings from
  * the stack to the hardware.
+ *
+ * @IEEE802154_AFILT_SADDR_CHANGED: Indicates that the short address will be
+ *	change.
+ *
+ * @IEEE802154_AFILT_IEEEADDR_CHANGED: Indicates that the extended address
+ *	will be change.
+ *
+ * @IEEE802154_AFILT_PANID_CHANGED: Indicates that the pan id will be change.
+ *
+ * @IEEE802154_AFILT_PANC_CHANGED: Indicates that the address filter will
+ *	do frame address filtering as a pan coordinator.
  */
-
-/* indicates that the Short Address changed */
-#define IEEE802154_AFILT_SADDR_CHANGED		0x00000001
-/* indicates that the IEEE Address changed */
-#define IEEE802154_AFILT_IEEEADDR_CHANGED	0x00000002
-/* indicates that the PAN ID changed */
-#define IEEE802154_AFILT_PANID_CHANGED		0x00000004
-/* indicates that PAN Coordinator status changed */
-#define IEEE802154_AFILT_PANC_CHANGED		0x00000008
+enum ieee802154_hw_addr_filt_flags {
+	IEEE802154_AFILT_SADDR_CHANGED		= BIT(1),
+	IEEE802154_AFILT_IEEEADDR_CHANGED	= BIT(2),
+	IEEE802154_AFILT_PANID_CHANGED		= BIT(3),
+	IEEE802154_AFILT_PANC_CHANGED		= BIT(4),
+};
 
 struct ieee802154_hw_addr_filt {
 	__le16	pan_id;		/* Each independent PAN selects a unique
