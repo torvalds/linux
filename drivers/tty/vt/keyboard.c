@@ -130,7 +130,7 @@ static char rep;					/* flag telling character repeat */
 
 static int shift_state = 0;
 
-static unsigned char ledstate = 0xff;			/* undefined */
+static unsigned int ledstate = -1U;			/* undefined */
 static unsigned char ledioctl;
 
 /*
@@ -975,7 +975,7 @@ static void kbd_led_trigger_activate(struct led_classdev *cdev)
 		container_of(cdev->trigger, struct kbd_led_trigger, trigger);
 
 	tasklet_disable(&keyboard_tasklet);
-	if (ledstate != 0xff)
+	if (ledstate != -1U)
 		led_trigger_event(&trigger->trigger,
 				  ledstate & trigger->mask ?
 					LED_FULL : LED_OFF);
@@ -990,11 +990,23 @@ static void kbd_led_trigger_activate(struct led_classdev *cdev)
 		.mask	= BIT(_led_bit),			\
 	}
 
+#define KBD_LOCKSTATE_TRIGGER(_led_bit, _name)		\
+	KBD_LED_TRIGGER((_led_bit) + 8, _name)
+
 static struct kbd_led_trigger kbd_led_triggers[] = {
 	KBD_LED_TRIGGER(VC_SCROLLOCK, "kbd-scrollock"),
 	KBD_LED_TRIGGER(VC_NUMLOCK,   "kbd-numlock"),
 	KBD_LED_TRIGGER(VC_CAPSLOCK,  "kbd-capslock"),
 	KBD_LED_TRIGGER(VC_KANALOCK,  "kbd-kanalock"),
+
+	KBD_LOCKSTATE_TRIGGER(VC_SHIFTLOCK,  "kbd-shiftlock"),
+	KBD_LOCKSTATE_TRIGGER(VC_ALTGRLOCK,  "kbd-altgrlock"),
+	KBD_LOCKSTATE_TRIGGER(VC_CTRLLOCK,   "kbd-ctrllock"),
+	KBD_LOCKSTATE_TRIGGER(VC_ALTLOCK,    "kbd-altlock"),
+	KBD_LOCKSTATE_TRIGGER(VC_SHIFTLLOCK, "kbd-shiftllock"),
+	KBD_LOCKSTATE_TRIGGER(VC_SHIFTRLOCK, "kbd-shiftrlock"),
+	KBD_LOCKSTATE_TRIGGER(VC_CTRLLLOCK,  "kbd-ctrlllock"),
+	KBD_LOCKSTATE_TRIGGER(VC_CTRLRLOCK,  "kbd-ctrlrlock"),
 };
 
 static void kbd_propagate_led_state(unsigned int old_state,
@@ -1073,7 +1085,7 @@ static void kbd_init_leds(void)
  */
 static unsigned char getledstate(void)
 {
-	return ledstate;
+	return ledstate & 0xff;
 }
 
 void setledstate(struct kbd_struct *kb, unsigned int led)
@@ -1183,11 +1195,12 @@ void vt_kbd_con_stop(int console)
  */
 static void kbd_bh(unsigned long dummy)
 {
-	unsigned char leds;
+	unsigned int leds;
 	unsigned long flags;
 
 	spin_lock_irqsave(&led_lock, flags);
 	leds = getleds();
+	leds |= (unsigned int)kbd->lockstate << 8;
 	spin_unlock_irqrestore(&led_lock, flags);
 
 	if (leds != ledstate) {
@@ -1539,10 +1552,8 @@ static void kbd_start(struct input_handle *handle)
 {
 	tasklet_disable(&keyboard_tasklet);
 
-	if (ledstate != 0xff) {
-		unsigned int state = ledstate;
-		kbd_update_leds_helper(handle, &state);
-	}
+	if (ledstate != -1U)
+		kbd_update_leds_helper(handle, &ledstate);
 
 	tasklet_enable(&keyboard_tasklet);
 }
