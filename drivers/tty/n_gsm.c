@@ -2712,7 +2712,7 @@ static void gsm_mux_rx_netchar(struct gsm_dlci *dlci,
 	memcpy(skb_put(skb, size), in_buf, size);
 
 	skb->dev = net;
-	skb->protocol = __constant_htons(ETH_P_IP);
+	skb->protocol = htons(ETH_P_IP);
 
 	/* Ship it off to the kernel */
 	netif_rx(skb);
