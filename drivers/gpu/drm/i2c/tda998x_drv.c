@@ -558,7 +558,7 @@ static void tda998x_hpd(struct work_struct *work)
 	struct tda998x_priv *priv =
 			container_of(dwork, struct tda998x_priv, dwork);
 
-	if (priv->encoder && priv->encoder->dev)
+	if (priv->encoder->dev)
 		drm_kms_helper_hotplug_event(priv->encoder->dev);
 }
 
@@ -570,8 +570,6 @@ static irqreturn_t tda998x_irq_thread(int irq, void *data)
 	struct tda998x_priv *priv = data;
 	u8 sta, cec, lvl, flag0, flag1, flag2;
 
-	if (!priv)
-		return IRQ_HANDLED;
 	sta = cec_read(priv, REG_CEC_INTSTATUS);
 	cec = cec_read(priv, REG_CEC_RXSHPDINT);
 	lvl = cec_read(priv, REG_CEC_RXSHPDLEV);
