@@ -347,8 +347,9 @@ static int nci_open_device(struct nci_dev *ndev)
 	rc = __nci_request(ndev, nci_reset_req, 0,
 			   msecs_to_jiffies(NCI_RESET_TIMEOUT));
 
-	if (ndev->ops->setup)
-		ndev->ops->setup(ndev);
+	if (!rc && ndev->ops->setup) {
+		rc = ndev->ops->setup(ndev);
+	}
 
 	if (!rc) {
 		rc = __nci_request(ndev, nci_init_req, 0,
