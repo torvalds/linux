@@ -198,13 +198,19 @@ int mthca_process_mad(struct ib_device *ibdev,
 		      u8 port_num,
 		      const struct ib_wc *in_wc,
 		      const struct ib_grh *in_grh,
-		      const struct ib_mad *in_mad,
-		      struct ib_mad *out_mad)
+		      const struct ib_mad_hdr *in, size_t in_mad_size,
+		      struct ib_mad_hdr *out, size_t *out_mad_size,
+		      u16 *out_mad_pkey_index)
 {
 	int err;
 	u16 slid = in_wc ? in_wc->slid : be16_to_cpu(IB_LID_PERMISSIVE);
 	u16 prev_lid = 0;
 	struct ib_port_attr pattr;
+	const struct ib_mad *in_mad = (const struct ib_mad *)in;
+	struct ib_mad *out_mad = (struct ib_mad *)out;
+
+	BUG_ON(in_mad_size != sizeof(*in_mad) ||
+	       *out_mad_size != sizeof(*out_mad));
 
 	/* Forward locally generated traps to the SM */
 	if (in_mad->mad_hdr.method == IB_MGMT_METHOD_TRAP &&

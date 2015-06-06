@@ -1463,7 +1463,7 @@ struct ib_flow {
 	struct ib_uobject	*uobject;
 };
 
-struct ib_mad;
+struct ib_mad_hdr;
 struct ib_grh;
 
 enum ib_process_mad_flags {
@@ -1705,8 +1705,11 @@ struct ib_device {
 						  u8 port_num,
 						  const struct ib_wc *in_wc,
 						  const struct ib_grh *in_grh,
-						  const struct ib_mad *in_mad,
-						  struct ib_mad *out_mad);
+						  const struct ib_mad_hdr *in_mad,
+						  size_t in_mad_size,
+						  struct ib_mad_hdr *out_mad,
+						  size_t *out_mad_size,
+						  u16 *out_mad_pkey_index);
 	struct ib_xrcd *	   (*alloc_xrcd)(struct ib_device *device,
 						 struct ib_ucontext *ucontext,
 						 struct ib_udata *udata);

@@ -761,6 +761,7 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 	struct ib_wc mad_wc;
 	struct ib_send_wr *send_wr = &mad_send_wr->send_wr;
 	size_t mad_size = port_mad_size(mad_agent_priv->qp_info->port_priv);
+	u16 out_mad_pkey_index = 0;
 
 	if (device->node_type == RDMA_NODE_IB_SWITCH &&
 	    smp->mgmt_class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE)
@@ -811,8 +812,9 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 
 	/* No GRH for DR SMP */
 	ret = device->process_mad(device, 0, port_num, &mad_wc, NULL,
-				  (const struct ib_mad *)smp,
-				  (struct ib_mad *)mad_priv->mad);
+				  (const struct ib_mad_hdr *)smp, mad_size,
+				  (struct ib_mad_hdr *)mad_priv->mad,
+				  &mad_size, &out_mad_pkey_index);
 	switch (ret)
 	{
 	case IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY:
@@ -2030,6 +2032,8 @@ static void ib_mad_recv_done_handler(struct ib_mad_port_private *port_priv,
 	struct ib_mad_agent_private *mad_agent;
 	int port_num;
 	int ret = IB_MAD_RESULT_SUCCESS;
+	size_t mad_size;
+	u16 resp_mad_pkey_index = 0;
 
 	mad_list = (struct ib_mad_list_head *)(unsigned long)wc->wr_id;
 	qp_info = mad_list->mad_queue->qp_info;
@@ -2057,7 +2061,8 @@ static void ib_mad_recv_done_handler(struct ib_mad_port_private *port_priv,
 	if (!validate_mad((const struct ib_mad_hdr *)recv->mad, qp_info->qp->qp_num))
 		goto out;
 
-	response = alloc_mad_private(recv->mad_size, GFP_ATOMIC);
+	mad_size = recv->mad_size;
+	response = alloc_mad_private(mad_size, GFP_KERNEL);
 	if (!response) {
 		dev_err(&port_priv->device->dev,
 			"ib_mad_recv_done_handler no memory for response buffer\n");
@@ -2082,8 +2087,10 @@ static void ib_mad_recv_done_handler(struct ib_mad_port_private *port_priv,
 		ret = port_priv->device->process_mad(port_priv->device, 0,
 						     port_priv->port_num,
 						     wc, &recv->grh,
-						     (const struct ib_mad *)recv->mad,
-						     (struct ib_mad *)response->mad);
+						     (const struct ib_mad_hdr *)recv->mad,
+						     recv->mad_size,
+						     (struct ib_mad_hdr *)response->mad,
+						     &mad_size, &resp_mad_pkey_index);
 		if (ret & IB_MAD_RESULT_SUCCESS) {
 			if (ret & IB_MAD_RESULT_CONSUMED)
 				goto out;
