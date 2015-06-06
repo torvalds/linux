@@ -477,7 +477,7 @@ void LedControl8188eu(struct adapter *padapter, enum LED_CTL_MODE LedAction)
 {
 	struct led_priv *ledpriv = &(padapter->ledpriv);
 
-       if ((padapter->bSurpriseRemoved) || (padapter->bDriverStopped) ||
+	if ((padapter->bSurpriseRemoved) || (padapter->bDriverStopped) ||
 	   (!padapter->hw_init_completed))
 		return;
 
