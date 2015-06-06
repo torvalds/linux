@@ -47,6 +47,7 @@ struct llt_ndlc {
 	 * and prevents normal operation.
 	 */
 	int hard_fault;
+	int powered;
 };
 
 int ndlc_open(struct llt_ndlc *ndlc);

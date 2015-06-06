@@ -52,8 +52,6 @@ struct st21nfcb_i2c_phy {
 
 	unsigned int gpio_reset;
 	unsigned int irq_polarity;
-
-	int powered;
 };
 
 #define I2C_DUMP_SKB(info, skb)					\
@@ -70,7 +68,6 @@ static int st21nfcb_nci_i2c_enable(void *phy_id)
 	gpio_set_value(phy->gpio_reset, 0);
 	usleep_range(10000, 15000);
 	gpio_set_value(phy->gpio_reset, 1);
-	phy->powered = 1;
 	usleep_range(80000, 85000);
 
 	return 0;
@@ -80,7 +77,6 @@ static void st21nfcb_nci_i2c_disable(void *phy_id)
 {
 	struct st21nfcb_i2c_phy *phy = phy_id;
 
-	phy->powered = 0;
 	/* reset chip in order to flush clf */
 	gpio_set_value(phy->gpio_reset, 0);
 	usleep_range(10000, 15000);
@@ -203,7 +199,7 @@ static irqreturn_t st21nfcb_nci_irq_thread_fn(int irq, void *phy_id)
 	if (phy->ndlc->hard_fault)
 		return IRQ_HANDLED;
 
-	if (!phy->powered) {
+	if (!phy->ndlc->powered) {
 		st21nfcb_nci_i2c_disable(phy);
 		return IRQ_HANDLED;
 	}

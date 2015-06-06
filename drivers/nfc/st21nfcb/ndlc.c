@@ -59,6 +59,7 @@ int ndlc_open(struct llt_ndlc *ndlc)
 {
 	/* toggle reset pin */
 	ndlc->ops->enable(ndlc->phy_id);
+	ndlc->powered = 1;
 	return 0;
 }
 EXPORT_SYMBOL(ndlc_open);
@@ -67,6 +68,7 @@ void ndlc_close(struct llt_ndlc *ndlc)
 {
 	/* toggle reset pin */
 	ndlc->ops->disable(ndlc->phy_id);
+	ndlc->powered = 0;
 }
 EXPORT_SYMBOL(ndlc_close);
 
@@ -262,6 +264,7 @@ int ndlc_probe(void *phy_id, struct nfc_phy_ops *phy_ops, struct device *dev,
 	ndlc->ops = phy_ops;
 	ndlc->phy_id = phy_id;
 	ndlc->dev = dev;
+	ndlc->powered = 0;
 
 	*ndlc_id = ndlc;
 
