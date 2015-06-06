@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <asm/irq.h>
 #include <linux/interrupt.h>
+#include <media/rc-map.h>
 
 #include "dmxdev.h"
 #include "dvbdev.h"
@@ -49,6 +50,7 @@
 #include "mantis_pci.h"
 #include "mantis_i2c.h"
 #include "mantis_reg.h"
+#include "mantis_input.h"
 
 static unsigned int verbose;
 module_param(verbose, int, 0644);
@@ -114,6 +116,9 @@ static irqreturn_t mantis_irq_handler(int irq, void *dev_id)
 	}
 	if (stat & MANTIS_INT_IRQ1) {
 		dprintk(MANTIS_DEBUG, 0, "<%s>", label[2]);
+		spin_lock(&mantis->intmask_lock);
+		mmwrite(mmread(MANTIS_INT_MASK) & ~MANTIS_INT_IRQ1, MANTIS_INT_MASK);
+		spin_unlock(&mantis->intmask_lock);
 		schedule_work(&mantis->uart_work);
 	}
 	if (stat & MANTIS_INT_OCERR) {
@@ -162,6 +167,7 @@ static irqreturn_t mantis_irq_handler(int irq, void *dev_id)
 static int mantis_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *pci_id)
 {
+	struct mantis_pci_drvdata *drvdata;
 	struct mantis_pci *mantis;
 	struct mantis_hwconfig *config;
 	int err = 0;
@@ -172,12 +178,16 @@ static int mantis_pci_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 	}
 
+	drvdata			= (struct mantis_pci_drvdata *) pci_id->driver_data;
 	mantis->num		= devs;
 	mantis->verbose		= verbose;
 	mantis->pdev		= pdev;
-	config			= (struct mantis_hwconfig *) pci_id->driver_data;
+	config			= drvdata->hwconfig;
 	config->irq_handler	= &mantis_irq_handler;
 	mantis->hwconfig	= config;
+	mantis->rc_map_name	= drvdata->rc_map_name;
+
+	spin_lock_init(&mantis->intmask_lock);
 
 	err = mantis_pci_init(mantis);
 	if (err) {
@@ -215,15 +225,24 @@ static int mantis_pci_probe(struct pci_dev *pdev,
 		goto err_dma_exit;
 	}
 
+	err = mantis_input_init(mantis);
+	if (err < 0) {
+		dprintk(MANTIS_ERROR, 1, "ERROR: Mantis DVB initialization failed <%d>", err);
+		goto err_dvb_exit;
+	}
+
 	err = mantis_uart_init(mantis);
 	if (err < 0) {
 		dprintk(MANTIS_ERROR, 1, "ERROR: Mantis UART initialization failed <%d>", err);
-		goto err_dvb_exit;
+		goto err_input_exit;
 	}
 
 	devs++;
 
 	return 0;
+
+err_input_exit:
+	mantis_input_exit(mantis);
 
 err_dvb_exit:
 	mantis_dvb_exit(mantis);
@@ -250,6 +269,7 @@ static void mantis_pci_remove(struct pci_dev *pdev)
 	if (mantis) {
 
 		mantis_uart_exit(mantis);
+		mantis_input_exit(mantis);
 		mantis_dvb_exit(mantis);
 		mantis_dma_exit(mantis);
 		mantis_i2c_exit(mantis);
@@ -260,17 +280,28 @@ static void mantis_pci_remove(struct pci_dev *pdev)
 }
 
 static struct pci_device_id mantis_pci_table[] = {
-	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_1033_DVB_S, &vp1033_config),
-	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_1034_DVB_S, &vp1034_config),
-	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_1041_DVB_S2, &vp1041_config),
-	MAKE_ENTRY(TECHNISAT, SKYSTAR_HD2_10, &vp1041_config),
-	MAKE_ENTRY(TECHNISAT, SKYSTAR_HD2_20, &vp1041_config),
-	MAKE_ENTRY(TERRATEC, CINERGY_S2_PCI_HD, &vp1041_config),
-	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_2033_DVB_C, &vp2033_config),
-	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_2040_DVB_C, &vp2040_config),
-	MAKE_ENTRY(TECHNISAT, CABLESTAR_HD2, &vp2040_config),
-	MAKE_ENTRY(TERRATEC, CINERGY_C, &vp2040_config),
-	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_3030_DVB_T, &vp3030_config),
+	MAKE_ENTRY(TECHNISAT, CABLESTAR_HD2, &vp2040_config,
+		RC_MAP_TECHNISAT_TS35),
+	MAKE_ENTRY(TECHNISAT, SKYSTAR_HD2_10, &vp1041_config,
+		NULL),
+	MAKE_ENTRY(TECHNISAT, SKYSTAR_HD2_20, &vp1041_config,
+		NULL),
+	MAKE_ENTRY(TERRATEC, CINERGY_C, &vp2040_config,
+		RC_MAP_TERRATEC_CINERGY_C_PCI),
+	MAKE_ENTRY(TERRATEC, CINERGY_S2_PCI_HD, &vp1041_config,
+		RC_MAP_TERRATEC_CINERGY_S2_HD),
+	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_1033_DVB_S, &vp1033_config,
+		NULL),
+	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_1034_DVB_S, &vp1034_config,
+		NULL),
+	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_1041_DVB_S2, &vp1041_config,
+		RC_MAP_TWINHAN_DTV_CAB_CI),
+	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_2033_DVB_C, &vp2033_config,
+		RC_MAP_TWINHAN_DTV_CAB_CI),
+	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_2040_DVB_C, &vp2040_config,
+		NULL),
+	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_3030_DVB_T, &vp3030_config,
+		NULL),
 	{ }
 };
 
