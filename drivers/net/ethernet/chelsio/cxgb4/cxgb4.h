@@ -46,17 +46,19 @@
 #include <linux/spinlock.h>
 #include <linux/timer.h>
 #include <linux/vmalloc.h>
+#include <linux/etherdevice.h>
 #include <asm/io.h>
 #include "cxgb4_uld.h"
 
 #define CH_WARN(adap, fmt, ...) dev_warn(adap->pdev_dev, fmt, ## __VA_ARGS__)
 
 enum {
-	MAX_NPORTS = 4,     /* max # of ports */
-	SERNUM_LEN = 24,    /* Serial # length */
-	EC_LEN     = 16,    /* E/C length */
-	ID_LEN     = 16,    /* ID length */
-	PN_LEN     = 16,    /* Part Number length */
+	MAX_NPORTS	= 4,     /* max # of ports */
+	SERNUM_LEN	= 24,    /* Serial # length */
+	EC_LEN		= 16,    /* E/C length */
+	ID_LEN		= 16,    /* ID length */
+	PN_LEN		= 16,    /* Part Number length */
+	MACADDR_LEN	= 12,    /* MAC Address length */
 };
 
 enum {
@@ -280,6 +282,7 @@ struct vpd_params {
 	u8 sn[SERNUM_LEN + 1];
 	u8 id[ID_LEN + 1];
 	u8 pn[PN_LEN + 1];
+	u8 na[MACADDR_LEN + 1];
 };
 
 struct pci_params {
@@ -946,6 +949,22 @@ static inline void t4_write_reg64(struct adapter *adap, u32 reg_addr, u64 val)
 }
 
 /**
+ * t4_set_hw_addr - store a port's MAC address in SW
+ * @adapter: the adapter
+ * @port_idx: the port index
+ * @hw_addr: the Ethernet address
+ *
+ * Store the Ethernet address of the given port in SW.  Called by the common
+ * code when it retrieves a port's Ethernet address from EEPROM.
+ */
+static inline void t4_set_hw_addr(struct adapter *adapter, int port_idx,
+				  u8 hw_addr[])
+{
+	ether_addr_copy(adapter->port[port_idx]->dev_addr, hw_addr);
+	ether_addr_copy(adapter->port[port_idx]->perm_addr, hw_addr);
+}
+
+/**
  * netdev2pinfo - return the port_info structure associated with a net_device
  * @dev: the netdev
  *
@@ -1229,7 +1248,7 @@ void t4_intr_disable(struct adapter *adapter);
 int t4_slow_intr_handler(struct adapter *adapter);
 
 int t4_wait_dev_ready(void __iomem *regs);
-int t4_link_start(struct adapter *adap, unsigned int mbox, unsigned int port,
+int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 		  struct link_config *lc);
 int t4_restart_aneg(struct adapter *adap, unsigned int mbox, unsigned int port);
 
@@ -1251,7 +1270,8 @@ unsigned int t4_get_regs_len(struct adapter *adapter);
 void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size);
 
 int t4_seeprom_wp(struct adapter *adapter, bool enable);
-int get_vpd_params(struct adapter *adapter, struct vpd_params *p);
+int t4_get_raw_vpd_params(struct adapter *adapter, struct vpd_params *p);
+int t4_get_vpd_params(struct adapter *adapter, struct vpd_params *p);
 int t4_read_flash(struct adapter *adapter, unsigned int addr,
 		  unsigned int nwords, u32 *data, int byte_oriented);
 int t4_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size);
@@ -1378,6 +1398,9 @@ int t4_cfg_pfvf(struct adapter *adap, unsigned int mbox, unsigned int pf,
 int t4_alloc_vi(struct adapter *adap, unsigned int mbox, unsigned int port,
 		unsigned int pf, unsigned int vf, unsigned int nmac, u8 *mac,
 		unsigned int *rss_size);
+int t4_free_vi(struct adapter *adap, unsigned int mbox,
+	       unsigned int pf, unsigned int vf,
+	       unsigned int viid);
 int t4_set_rxmode(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		int mtu, int promisc, int all_multi, int bcast, int vlanex,
 		bool sleep_ok);
@@ -1407,6 +1430,7 @@ int t4_ctrl_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		    unsigned int vf, unsigned int eqid);
 int t4_ofld_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		    unsigned int vf, unsigned int eqid);
+int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox);
 int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl);
 void t4_db_full(struct adapter *adapter);
 void t4_db_dropped(struct adapter *adapter);

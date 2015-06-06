@@ -481,7 +481,7 @@ static int link_start(struct net_device *dev)
 		}
 	}
 	if (ret == 0)
-		ret = t4_link_start(pi->adapter, mb, pi->tx_chan,
+		ret = t4_link_l1cfg(pi->adapter, mb, pi->tx_chan,
 				    &pi->link_cfg);
 	if (ret == 0) {
 		local_bh_disable();
@@ -2007,11 +2007,8 @@ EXPORT_SYMBOL(cxgb4_iscsi_init);
 int cxgb4_flush_eq_cache(struct net_device *dev)
 {
 	struct adapter *adap = netdev2adap(dev);
-	int ret;
 
-	ret = t4_fwaddrspace_write(adap, adap->mbox,
-				   0xe1000000 + SGE_CTXT_CMD_A, 0x20000000);
-	return ret;
+	return t4_sge_ctxt_flush(adap, adap->mbox);
 }
 EXPORT_SYMBOL(cxgb4_flush_eq_cache);
 
@@ -3715,7 +3712,7 @@ static int adap_init0(struct adapter *adap)
 	 * the firmware.  On the other hand, we need these fairly early on
 	 * so we do this right after getting ahold of the firmware.
 	 */
-	ret = get_vpd_params(adap, &adap->params.vpd);
+	ret = t4_get_vpd_params(adap, &adap->params.vpd);
 	if (ret < 0)
 		goto bye;
 
@@ -4071,8 +4068,8 @@ static int adap_init0(struct adapter *adap)
 			     adap->params.b_wnd);
 	}
 	t4_init_sge_params(adap);
-	t4_init_tp_params(adap);
 	adap->flags |= FW_OK;
+	t4_init_tp_params(adap);
 	return 0;
 
 	/*
@@ -4538,6 +4535,11 @@ static void free_some_resources(struct adapter *adapter)
 
 	for_each_port(adapter, i)
 		if (adapter->port[i]) {
+			struct port_info *pi = adap2pinfo(adapter, i);
+
+			if (pi->viid != 0)
+				t4_free_vi(adapter, adapter->mbox, adapter->pf,
+					   0, pi->viid);
 			kfree(adap2pinfo(adapter, i)->rss);
 			free_netdev(adapter->port[i]);
 		}
@@ -4733,10 +4735,25 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		err = t4_port_init(adapter, func, func, 0);
 		if (err)
 			goto out_free_dev;
+	} else if (adapter->params.nports == 1) {
+		/* If we don't have a connection to the firmware -- possibly
+		 * because of an error -- grab the raw VPD parameters so we
+		 * can set the proper MAC Address on the debug network
+		 * interface that we've created.
+		 */
+		u8 hw_addr[ETH_ALEN];
+		u8 *na = adapter->params.vpd.na;
+
+		err = t4_get_raw_vpd_params(adapter, &adapter->params.vpd);
+		if (!err) {
+			for (i = 0; i < ETH_ALEN; i++)
+				hw_addr[i] = (hex2val(na[2 * i + 0]) * 16 +
+					      hex2val(na[2 * i + 1]));
+			t4_set_hw_addr(adapter, 0, hw_addr);
+		}
 	}
 
-	/*
-	 * Configure queues and allocate tables now, they can be needed as
+	/* Configure queues and allocate tables now, they can be needed as
 	 * soon as the first register_netdev completes.
 	 */
 	cfg_queues(adapter);
