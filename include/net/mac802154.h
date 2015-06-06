@@ -71,7 +71,7 @@ struct ieee802154_hw_addr_filt {
 	__le16	pan_id;
 	__le16	short_addr;
 	__le64	ieee_addr;
-	u8	pan_coord;
+	bool	pan_coord;
 };
 
 /**
