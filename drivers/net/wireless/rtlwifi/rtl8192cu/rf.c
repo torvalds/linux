@@ -442,9 +442,6 @@ static bool _rtl92c_phy_rf6052_config_parafile(struct ieee80211_hw *hw)
 		udelay(1);
 		switch (rfpath) {
 		case RF90_PATH_A:
-			rtstatus = rtl92cu_phy_config_rf_with_headerfile(hw,
-					(enum radio_path) rfpath);
-			break;
 		case RF90_PATH_B:
 			rtstatus = rtl92cu_phy_config_rf_with_headerfile(hw,
 					(enum radio_path) rfpath);
@@ -473,7 +470,6 @@ static bool _rtl92c_phy_rf6052_config_parafile(struct ieee80211_hw *hw)
 		}
 	}
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE, "<---\n");
-	return rtstatus;
 phy_rf_cfg_fail:
 	return rtstatus;
 }
