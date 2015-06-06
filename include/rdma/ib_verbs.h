@@ -374,6 +374,7 @@ union rdma_protocol_stats {
 #define RDMA_CORE_CAP_IB_CM             0x00000004
 #define RDMA_CORE_CAP_IW_CM             0x00000008
 #define RDMA_CORE_CAP_IB_SA             0x00000010
+#define RDMA_CORE_CAP_OPA_MAD           0x00000020
 
 /* Address format                       0x000FF000 */
 #define RDMA_CORE_CAP_AF_IB             0x00001000
@@ -397,6 +398,8 @@ union rdma_protocol_stats {
 					| RDMA_CORE_CAP_ETH_AH)
 #define RDMA_CORE_PORT_IWARP           (RDMA_CORE_CAP_PROT_IWARP \
 					| RDMA_CORE_CAP_IW_CM)
+#define RDMA_CORE_PORT_INTEL_OPA       (RDMA_CORE_PORT_IBA_IB  \
+					| RDMA_CORE_CAP_OPA_MAD)
 
 struct ib_port_attr {
 	enum ib_port_state	state;
@@ -1883,6 +1886,31 @@ static inline bool rdma_ib_or_roce(const struct ib_device *device, u8 port_num)
 static inline bool rdma_cap_ib_mad(const struct ib_device *device, u8 port_num)
 {
 	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_IB_MAD;
+}
+
+/**
+ * rdma_cap_opa_mad - Check if the port of device provides support for OPA
+ * Management Datagrams.
+ * @device: Device to check
+ * @port_num: Port number to check
+ *
+ * Intel OmniPath devices extend and/or replace the InfiniBand Management
+ * datagrams with their own versions.  These OPA MADs share many but not all of
+ * the characteristics of InfiniBand MADs.
+ *
+ * OPA MADs differ in the following ways:
+ *
+ *    1) MADs are variable size up to 2K
+ *       IBTA defined MADs remain fixed at 256 bytes
+ *    2) OPA SMPs must carry valid PKeys
+ *    3) OPA SMP packets are a different format
+ *
+ * Return: true if the port supports OPA MAD packet formats.
+ */
+static inline bool rdma_cap_opa_mad(struct ib_device *device, u8 port_num)
+{
+	return (device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_OPA_MAD)
+		== RDMA_CORE_CAP_OPA_MAD;
 }
 
 /**
