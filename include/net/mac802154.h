@@ -90,8 +90,6 @@ struct ieee802154_hw {
 
 /* Indicates that xmitter will add FCS on it's own. */
 #define IEEE802154_HW_TX_OMIT_CKSUM	0x00000001
-/* Indicates that receiver will autorespond with ACK frames. */
-#define IEEE802154_HW_AACK		0x00000002
 /* Indicates that transceiver will support listen before transmit. */
 #define IEEE802154_HW_LBT		0x00000004
 /* Indicates that transceiver will support csma (max_be, min_be, csma retries)

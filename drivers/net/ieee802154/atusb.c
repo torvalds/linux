@@ -628,7 +628,7 @@ static int atusb_probe(struct usb_interface *interface,
 
 	hw->parent = &usb_dev->dev;
 	hw->flags = IEEE802154_HW_TX_OMIT_CKSUM | IEEE802154_HW_AFILT |
-		    IEEE802154_HW_AACK | IEEE802154_HW_PROMISCUOUS;
+		    IEEE802154_HW_PROMISCUOUS;
 
 	hw->phy->flags = WPAN_PHY_FLAG_TXPOWER;
 

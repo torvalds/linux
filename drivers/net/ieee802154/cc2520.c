@@ -746,8 +746,7 @@ static int cc2520_register(struct cc2520_private *priv)
 
 	/* We do support only 2.4 Ghz */
 	priv->hw->phy->supported.channels[0] = 0x7FFF800;
-	priv->hw->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AACK |
-			  IEEE802154_HW_AFILT;
+	priv->hw->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AFILT;
 
 	priv->hw->phy->flags = WPAN_PHY_FLAG_TXPOWER;
 
