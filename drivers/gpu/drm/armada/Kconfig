@@ -14,12 +14,3 @@ config DRM_ARMADA
 	  This driver provides no built-in acceleration; acceleration is
 	  performed by other IP found on the SoC.  This driver provides
 	  kernel mode setting and buffer management to userspace.
-
-config DRM_ARMADA_TDA1998X
-	bool "Support TDA1998X HDMI output"
-	depends on DRM_ARMADA != n
-	depends on I2C && DRM_I2C_NXP_TDA998X = y
-	default y
-	help
-	  Support the TDA1998x HDMI output device found on the Solid-Run
-	  CuBox.

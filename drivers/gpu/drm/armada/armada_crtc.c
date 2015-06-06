@@ -1044,7 +1044,7 @@ static int armada_drm_crtc_create_properties(struct drm_device *dev)
 	return 0;
 }
 
-int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
+static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 	struct resource *res, int irq, const struct armada_variant *variant,
 	struct device_node *port)
 {
