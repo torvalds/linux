@@ -72,9 +72,9 @@ struct ieee802154_hw {
 	int	extra_tx_headroom;
 	u32	flags;
 	struct	device *parent;
+	void	*priv;
 
 	/* filled by mac802154 core */
-	void	*priv;
 	struct	wpan_phy *phy;
 };
 
