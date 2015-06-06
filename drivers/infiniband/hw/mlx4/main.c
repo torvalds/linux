@@ -2189,6 +2189,8 @@ static int mlx4_port_immutable(struct ib_device *ibdev, u8 port_num,
 	else
 		immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE;
 
+	immutable->max_mad_size = IB_MGMT_MAD_SIZE;
+
 	return 0;
 }
 

@@ -1534,6 +1534,7 @@ struct ib_port_immutable {
 	int                           pkey_tbl_len;
 	int                           gid_tbl_len;
 	u32                           core_cap_flags;
+	u32                           max_mad_size;
 };
 
 struct ib_device {
@@ -2050,6 +2051,23 @@ static inline bool rdma_cap_read_multi_sge(struct ib_device *device,
 					   u8 port_num)
 {
 	return !(device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_PROT_IWARP);
+}
+
+/**
+ * rdma_max_mad_size - Return the max MAD size required by this RDMA Port.
+ *
+ * @device: Device
+ * @port_num: Port number
+ *
+ * This MAD size includes the MAD headers and MAD payload.  No other headers
+ * are included.
+ *
+ * Return the max MAD size required by the Port.  Will return 0 if the port
+ * does not support MADs
+ */
+static inline size_t rdma_max_mad_size(const struct ib_device *device, u8 port_num)
+{
+	return device->port_immutable[port_num].max_mad_size;
 }
 
 int ib_query_gid(struct ib_device *device,

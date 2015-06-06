@@ -211,6 +211,12 @@ static int add_client_context(struct ib_device *device, struct ib_client *client
 	return 0;
 }
 
+static int verify_immutable(const struct ib_device *dev, u8 port)
+{
+	return WARN_ON(!rdma_cap_ib_mad(dev, port) &&
+			    rdma_max_mad_size(dev, port) != 0);
+}
+
 static int read_port_immutable(struct ib_device *device)
 {
 	int ret = -ENOMEM;
@@ -236,6 +242,11 @@ static int read_port_immutable(struct ib_device *device)
 						 &device->port_immutable[port]);
 		if (ret)
 			goto err;
+
+		if (verify_immutable(device, port)) {
+			ret = -EINVAL;
+			goto err;
+		}
 	}
 
 	ret = 0;

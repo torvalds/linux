@@ -2939,6 +2939,9 @@ static int ib_mad_port_open(struct ib_device *device,
 	int has_smi;
 	struct ib_cq_init_attr cq_attr = {};
 
+	if (WARN_ON(rdma_max_mad_size(device, port_num) < IB_MGMT_MAD_SIZE))
+		return -EFAULT;
+
 	/* Create new device info */
 	port_priv = kzalloc(sizeof *port_priv, GFP_KERNEL);
 	if (!port_priv) {
