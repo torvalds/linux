@@ -55,18 +55,40 @@ enum ieee802154_hw_addr_filt_flags {
 	IEEE802154_AFILT_PANC_CHANGED		= BIT(4),
 };
 
+/**
+ * struct ieee802154_hw_addr_filt - hardware address filtering settings
+ *
+ * @pan_id: pan_id which should be set to the hardware address filter.
+ *
+ * @short_addr: short_addr which should be set to the hardware address filter.
+ *
+ * @ieee_addr: extended address which should be set to the hardware address
+ *	filter.
+ *
+ * @pan_coord: boolean if hardware filtering should be operate as coordinator.
+ */
 struct ieee802154_hw_addr_filt {
-	__le16	pan_id;		/* Each independent PAN selects a unique
-				 * identifier. This PAN id allows communication
-				 * between devices within a network using short
-				 * addresses and enables transmissions between
-				 * devices across independent networks.
-				 */
+	__le16	pan_id;
 	__le16	short_addr;
 	__le64	ieee_addr;
 	u8	pan_coord;
 };
 
+/**
+ * struct ieee802154_hw - ieee802154 hardware
+ *
+ * @extra_tx_headroom: headroom to reserve in each transmit skb for use by the
+ *	driver (e.g. for transmit headers.)
+ *
+ * @flags: hardware flags, see &enum ieee802154_hw_flags
+ *
+ * @parent: parent device of the hardware.
+ *
+ * @priv: pointer to private area that was allocated for driver use along with
+ *	this structure.
+ *
+ * @phy: This points to the &struct wpan_phy allocated for this 802.15.4 PHY.
+ */
 struct ieee802154_hw {
 	/* filled by the driver */
 	int	extra_tx_headroom;
