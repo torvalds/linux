@@ -35,6 +35,7 @@ struct nvram_header {
 };
 
 static char nvram_buf[NVRAM_SPACE];
+static size_t nvram_len;
 static const u32 nvram_sizes[] = {0x8000, 0xF000, 0x10000};
 
 static u32 find_nvram_size(void __iomem *end)
@@ -60,7 +61,7 @@ static int nvram_find_and_copy(void __iomem *iobase, u32 lim)
 	u32 *src, *dst;
 	u32 size;
 
-	if (nvram_buf[0]) {
+	if (nvram_len) {
 		pr_warn("nvram already initialized\n");
 		return -EEXIST;
 	}
@@ -99,17 +100,18 @@ found:
 	for (i = 0; i < sizeof(struct nvram_header); i += 4)
 		*dst++ = __raw_readl(src++);
 	header = (struct nvram_header *)nvram_buf;
-	if (header->len > size) {
+	nvram_len = header->len;
+	if (nvram_len > size) {
 		pr_err("The nvram size according to the header seems to be bigger than the partition on flash\n");
-		header->len = size;
+		nvram_len = size;
 	}
-	if (header->len >= NVRAM_SPACE) {
+	if (nvram_len >= NVRAM_SPACE) {
 		pr_err("nvram on flash (%i bytes) is bigger than the reserved space in memory, will just copy the first %i bytes\n",
 		       header->len, NVRAM_SPACE - 1);
-		header->len = NVRAM_SPACE - 1;
+		nvram_len = NVRAM_SPACE - 1;
 	}
 	/* proceed reading data after header */
-	for (; i < header->len; i += 4)
+	for (; i < nvram_len; i += 4)
 		*dst++ = readl(src++);
 	nvram_buf[NVRAM_SPACE - 1] = '\0';
 
@@ -144,7 +146,6 @@ static int nvram_init(void)
 #ifdef CONFIG_MTD
 	struct mtd_info *mtd;
 	struct nvram_header header;
-	struct nvram_header *pheader;
 	size_t bytes_read;
 	int err;
 
@@ -155,20 +156,16 @@ static int nvram_init(void)
 	err = mtd_read(mtd, 0, sizeof(header), &bytes_read, (uint8_t *)&header);
 	if (!err && header.magic == NVRAM_MAGIC &&
 	    header.len > sizeof(header)) {
-		if (header.len >= NVRAM_SPACE) {
+		nvram_len = header.len;
+		if (nvram_len >= NVRAM_SPACE) {
 			pr_err("nvram on flash (%i bytes) is bigger than the reserved space in memory, will just copy the first %i bytes\n",
 				header.len, NVRAM_SPACE);
-			header.len = NVRAM_SPACE - 1;
+			nvram_len = NVRAM_SPACE - 1;
 		}
 
-		err = mtd_read(mtd, 0, header.len, &bytes_read,
+		err = mtd_read(mtd, 0, nvram_len, &nvram_len,
 			       (u8 *)nvram_buf);
-		if (err)
-			return err;
-
-		pheader = (struct nvram_header *)nvram_buf;
-		pheader->len = header.len;
-		return 0;
+		return err;
 	}
 #endif
 
@@ -183,7 +180,7 @@ int bcm47xx_nvram_getenv(const char *name, char *val, size_t val_len)
 	if (!name)
 		return -EINVAL;
 
-	if (!nvram_buf[0]) {
+	if (!nvram_len) {
 		err = nvram_init();
 		if (err)
 			return err;
@@ -231,16 +228,14 @@ char *bcm47xx_nvram_get_contents(size_t *nvram_size)
 {
 	int err;
 	char *nvram;
-	struct nvram_header *header;
 
-	if (!nvram_buf[0]) {
+	if (!nvram_len) {
 		err = nvram_init();
 		if (err)
 			return NULL;
 	}
 
-	header = (struct nvram_header *)nvram_buf;
-	*nvram_size = header->len - sizeof(struct nvram_header);
+	*nvram_size = nvram_len - sizeof(struct nvram_header);
 	nvram = vmalloc(*nvram_size);
 	if (!nvram)
 		return NULL;
