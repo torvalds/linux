@@ -2035,7 +2035,7 @@ static int rk81x_bat_get_calib_vol(struct rk81x_battery *di)
 		calib_vol = -1;
 	}
 
-	dev_info(di->dev, "c=%d, v=%d, relax:%d, ocv:=%d, est=%d, calib=%d\n",
+	dev_info(di->dev, "c=%d, v=%d, relax=%d, ocv=%d, est=%d, calib=%d\n",
 		 init_cur, di->voltage, relax_vol, ocv_vol, est_vol, calib_vol);
 
 	return calib_vol;
@@ -2106,8 +2106,8 @@ out:
 	di->nac = remain_capacity;
 	if (di->nac <= 0)
 		di->nac = 0;
-	DBG("<%s> init_soc = %d, init_capacity=%d\n",
-	    __func__, di->dsoc, di->nac);
+	dev_info(di->dev, "reg soc=%d, init soc = %d, init cap=%d\n",
+		 pwron_soc, di->dsoc, di->nac);
 }
 
 static u8 rk81x_bat_get_pwroff_min(struct rk81x_battery *di)
@@ -2864,7 +2864,7 @@ static void rk81x_bat_dbg_dmp_info(struct rk81x_battery *di)
 	    "AC-ONLINE = %d, USB-ONLINE = %d, charging_status = %d\n"
 	    "finish_real_soc = %d, finish_temp_soc = %d\n"
 	    "i_offset=0x%x, cal_offset=0x%x, adjust_cap=%d\n"
-	    "plug_in = %d, plug_out = %d, finish_sig = %d\n"
+	    "plug_in = %d, plug_out = %d, finish_sig = %d, finish_chrg=%lu\n"
 	    "sec: chrg=%lu, dischrg=%lu, term_chrg=%lu, emu_chrg=%lu\n"
 	    "emu_dischrg = %lu, power_on_sec = %lu, g_base_sec=%lld\n"
 	    "mode:%d, save_chrg_sec = %lu, save_dischrg_sec = %lu\n"
@@ -2877,7 +2877,7 @@ static void rk81x_bat_dbg_dmp_info(struct rk81x_battery *di)
 	    di->debug_finish_real_soc, di->debug_finish_temp_soc,
 	    rk81x_bat_get_ioffset(di), rk81x_bat_get_cal_offset(di),
 	    di->adjust_cap, di->plug_in_min, di->plug_out_min,
-	    di->finish_sig_min,
+	    di->finish_sig_min, BASE_TO_SEC(di->chrg_finish_base),
 	    BASE_TO_SEC(di->chrg_normal_base),
 	    BASE_TO_SEC(di->dischrg_normal_base),
 	    BASE_TO_SEC(di->chrg_term_base),
@@ -3075,16 +3075,21 @@ static void rk81x_bat_update_time(struct rk81x_battery *di)
 	rk81x_bat_dbg_time_table(di);
 }
 
-static int rk81x_bat_get_rsoc_trend(struct rk81x_battery *di)
+static int rk81x_bat_get_rsoc_trend(struct rk81x_battery *di, int *trend_mult)
 {
 	int trend_start_cap = di->trend_start_cap;
 	int remain_cap = di->remain_capacity;
 	int diff_cap;
 	int state;
 
+	if (di->s2r && !di->slp_psy_status)
+		di->trend_start_cap = di->remain_capacity;
+
 	DBG("<%s>. trend_start_cap = %d, diff_cap = %d\n",
 	    __func__, trend_start_cap, diff_cap);
 	diff_cap = remain_cap - trend_start_cap;
+	*trend_mult = abs(diff_cap) / TREND_CAP_DIFF;
+
 	if (abs(diff_cap) >= TREND_CAP_DIFF) {
 		di->trend_start_cap = di->remain_capacity;
 		state = (diff_cap > 0) ? TREND_STAT_UP : TREND_STAT_DOWN;
@@ -3092,9 +3097,6 @@ static int rk81x_bat_get_rsoc_trend(struct rk81x_battery *di)
 	} else {
 		state = TREND_STAT_FLAT;
 	}
-
-	if (di->s2r)
-		di->trend_start_cap = di->remain_capacity;
 
 	return state;
 }
@@ -3105,41 +3107,42 @@ static void rk81x_bat_arbitrate_rsoc_trend(struct rk81x_battery *di)
 	static int trend_down_cnt, trend_up_cnt;
 	int trend_cnt_thresd;
 	int now_current = di->current_avg;
+	int trend_mult = 0;
 
 	trend_cnt_thresd = di->fcc / 100 / TREND_CAP_DIFF;
-	state = rk81x_bat_get_rsoc_trend(di);
-	DBG("<%s>. TREND_STAT = %d, trend_down_cnt = %d\n",
-	    __func__, state, trend_down_cnt);
+	state = rk81x_bat_get_rsoc_trend(di, &trend_mult);
+	DBG("<%s>. TREND_STAT = %d, trend_mult = %d\n",
+	    __func__, state, trend_mult);
 	if (di->chrg_status == CHARGE_FINISH)
 		return;
 
 	if (state == TREND_STAT_UP) {
 		rk81x_bat_reset_zero_var(di);
 		trend_down_cnt = 0;
-		trend_up_cnt++;
+		trend_up_cnt += trend_mult;
 		if (trend_up_cnt >= trend_cnt_thresd) {
 			trend_up_cnt = 0;
 			di->dischrg_save_sec = 0;
 		}
 	} else if (state == TREND_STAT_DOWN) {
 		trend_up_cnt = 0;
-		trend_down_cnt++;
+		trend_down_cnt += trend_mult;
 		if (trend_down_cnt >= trend_cnt_thresd) {
 			trend_down_cnt = 0;
 			di->chrg_save_sec = 0;
 		}
-	} else {/*state == TREND_STAT_FLAT*/
-		soc_time = di->fcc * 3600 / 100 / div(abs(now_current));
-		if ((di->chrg_save_sec + 20 > soc_time) &&
-		    (trend_up_cnt <= trend_cnt_thresd / 2) &&
-		    (now_current >= 0))
-			di->chrg_save_sec = 0;
-
-		else if ((di->dischrg_save_sec + 20 > soc_time) &&
-			 (trend_down_cnt <= trend_cnt_thresd / 2) &&
-			 (now_current < 0))
-			di->dischrg_save_sec = 0;
 	}
+
+	soc_time = di->fcc * 3600 / 100 / div(abs(now_current));
+	if ((di->chrg_save_sec + 20 > soc_time) &&
+	    (trend_up_cnt <= trend_cnt_thresd / 2) &&
+	    (now_current >= 0))
+		di->chrg_save_sec = 0;
+
+	else if ((di->dischrg_save_sec + 20 > soc_time) &&
+		 (trend_down_cnt <= trend_cnt_thresd / 2) &&
+		 (now_current < 0))
+		di->dischrg_save_sec = 0;
 
 	DBG("<%s>. state=%d, cnt_thresd=%d, soc_time=%d\n"
 	    "up_cnt=%d, down_cnt=%d\n",
@@ -3329,6 +3332,9 @@ static int  rk81x_bat_sleep_dischrg(struct rk81x_battery *di)
 		delta_soc = di->sum_suspend_cap * 100 / di->fcc;
 		temp_dsoc = di->dsoc - delta_soc;
 
+		pr_info("battery calib0: rl=%d, dl=%d, intl=%d\n",
+			di->rsoc, di->dsoc, delta_soc);
+
 		if (delta_soc > 0) {
 			if ((temp_dsoc < di->dsoc) && (di->dsoc < 5))
 				di->dsoc--;
@@ -3345,6 +3351,10 @@ static int  rk81x_bat_sleep_dischrg(struct rk81x_battery *di)
 		di->sum_suspend_cap = (SLP_CURR_MAX * sleep_sec / 3600);
 		delta_soc = di->sum_suspend_cap / (di->fcc / 100);
 		temp_dsoc = di->dsoc - di->rsoc;
+
+		pr_info("battery calib1: rsoc=%d, dsoc=%d, intsoc=%d\n",
+			di->rsoc, di->dsoc, delta_soc);
+
 		if ((di->est_ocv_vol > SLP_DSOC_VOL_THRESD) &&
 		    (temp_dsoc > delta_soc))
 			di->dsoc -= delta_soc;
@@ -3428,8 +3438,8 @@ static void rk81x_bat_power_supply_changed(struct rk81x_battery *di)
 		old_ac_status = di->ac_online;
 		old_usb_status = di->usb_online;
 		old_charge_status = di->psy_status;
-		DBG("<%s>. report: dsoc=%d, rsoc=%d\n",
-		    __func__, di->dsoc, di->rsoc);
+		dev_info(di->dev, "changed: dsoc=%d, rsoc=%d\n",
+			 di->dsoc, di->rsoc);
 	}
 }
 
@@ -4214,11 +4224,6 @@ static int rk81x_battery_suspend(struct platform_device *dev,
 	di->dischrg_normal_base = 0;
 	di->dischrg_emu_base = 0;
 	do_gettimeofday(&di->suspend_rtc_base);
-	/*
-	 * do not modify the g_base_sec
-	 */
-	g_base_sec = BASE_TO_SEC(di->power_on_base)+di->power_on_base;
-
 	if (!rk81x_chrg_online(di)) {
 		di->chrg_save_sec += rk81x_bat_save_chrg_sec(di);
 		di->chrg_normal_base = 0;
@@ -4228,6 +4233,14 @@ static int rk81x_battery_suspend(struct platform_device *dev,
 	}
 
 	di->s2r = 0;
+	/*
+	 * do not modify the g_base_sec
+	 */
+	g_base_sec = get_runtime_sec();
+
+	pr_info("battery suspend dl=%d rl=%d c=%d v=%d at=%ld st=0x%x chg=%d\n",
+		di->dsoc, di->rsoc, di->suspend_charge_current, di->voltage,
+		di->suspend_time_sum, di->chrg_status, di->slp_psy_status);
 
 	return 0;
 }
@@ -4250,14 +4263,9 @@ static int rk81x_battery_resume(struct platform_device *dev)
 	di->est_ocv_soc = rk81x_bat_est_ocv_soc(di);
 	delta_time = rk81x_bat_get_suspend_sec(di);
 	di->suspend_time_sum += delta_time;
-
-	/*
-	 * do not modify the g_base_sec
-	 */
-	if (is_local_clock_reset())
-		g_base_sec += delta_time;
-	else
-		g_base_sec = 0;
+#if defined(CONFIG_ARCH_ROCKCHIP)
+	di->remain_capacity= rk81x_bat_get_realtime_capacity(di);
+#endif
 
 	if (di->slp_psy_status) {
 		time_step = CHRG_TIME_STEP;
@@ -4268,6 +4276,11 @@ static int rk81x_battery_resume(struct platform_device *dev)
 			time_step = DISCHRG_TIME_STEP_1;
 	}
 
+	pr_info("battery resume c=%d v=%d ev=%d rv=%d dt=%d at=%ld chg=%d\n",
+		di->current_avg, di->voltage, di->est_ocv_vol,
+		di->relax_voltage, delta_time, di->suspend_time_sum,
+		di->slp_psy_status);
+
 	if (di->suspend_time_sum > time_step) {
 		delta_soc = rk81x_bat_update_resume_state(di);
 		if (delta_soc)
@@ -4277,12 +4290,13 @@ static int rk81x_battery_resume(struct platform_device *dev)
 	if ((!rk81x_chrg_online(di) && di->voltage <= pwroff_thresd) ||
 	    rk81x_chrg_online(di))
 		wake_lock_timeout(&di->resume_wake_lock, 5 * HZ);
-
-	DBG("<%s>. current:%d, est_ocv_vol:%d, delta_time:%d, vol:%d\n"
-	    "relax-vol:%d, suspend_time:%ld, online:%d, resume_sec:%lld\n",
-	    __func__, di->current_avg, di->est_ocv_vol, delta_time,
-	    di->voltage, di->relax_voltage, di->suspend_time_sum,
-	    di->slp_psy_status, get_runtime_sec());
+	/*
+	 * do not modify the g_base_sec
+	 */
+	if (is_local_clock_reset())
+		g_base_sec += delta_time;
+	else
+		g_base_sec = 0;
 
 	return 0;
 }
