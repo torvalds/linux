@@ -78,9 +78,9 @@ ib_get_agent_port(const struct ib_device *device, int port_num)
 	return entry;
 }
 
-void agent_send_response(const struct ib_mad *mad, const struct ib_grh *grh,
+void agent_send_response(const struct ib_mad_hdr *mad_hdr, const struct ib_grh *grh,
 			 const struct ib_wc *wc, const struct ib_device *device,
-			 int port_num, int qpn)
+			 int port_num, int qpn, size_t resp_mad_len)
 {
 	struct ib_agent_port_private *port_priv;
 	struct ib_mad_agent *agent;
@@ -107,7 +107,8 @@ void agent_send_response(const struct ib_mad *mad, const struct ib_grh *grh,
 	}
 
 	send_buf = ib_create_send_mad(agent, wc->src_qp, wc->pkey_index, 0,
-				      IB_MGMT_MAD_HDR, IB_MGMT_MAD_DATA,
+				      IB_MGMT_MAD_HDR,
+				      resp_mad_len - IB_MGMT_MAD_HDR,
 				      GFP_KERNEL,
 				      IB_MGMT_BASE_VERSION);
 	if (IS_ERR(send_buf)) {
@@ -115,7 +116,7 @@ void agent_send_response(const struct ib_mad *mad, const struct ib_grh *grh,
 		goto err1;
 	}
 
-	memcpy(send_buf->mad, mad, sizeof *mad);
+	memcpy(send_buf->mad, mad_hdr, resp_mad_len);
 	send_buf->ah = ah;
 
 	if (device->node_type == RDMA_NODE_IB_SWITCH) {

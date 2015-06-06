@@ -75,12 +75,9 @@ struct ib_mad_private_header {
 
 struct ib_mad_private {
 	struct ib_mad_private_header header;
+	size_t mad_size;
 	struct ib_grh grh;
-	union {
-		struct ib_mad mad;
-		struct ib_rmpp_mad rmpp_mad;
-		struct ib_smp smp;
-	} mad;
+	u8 mad[0];
 } __attribute__ ((packed));
 
 struct ib_rmpp_segment {
