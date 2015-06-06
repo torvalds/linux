@@ -87,6 +87,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-technisat-ts35.o \
 			rc-technisat-usb2.o \
 			rc-terratec-cinergy-c-pci.o \
+			rc-terratec-cinergy-s2-hd.o \
 			rc-terratec-cinergy-xs.o \
 			rc-terratec-slim.o \
 			rc-terratec-slim-2.o \
