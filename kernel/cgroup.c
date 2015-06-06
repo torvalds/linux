@@ -1106,9 +1106,8 @@ static unsigned long cgroup_calc_child_subsys_mask(struct cgroup *cgrp,
 	while (true) {
 		unsigned long new_ss_mask = cur_ss_mask;
 
-		for_each_subsys(ss, ssid)
-			if (cur_ss_mask & (1 << ssid))
-				new_ss_mask |= ss->depends_on;
+		for_each_subsys_which(ss, ssid, &cur_ss_mask)
+			new_ss_mask |= ss->depends_on;
 
 		/*
 		 * Mask out subsystems which aren't available.  This can
@@ -1246,10 +1245,7 @@ static int rebind_subsystems(struct cgroup_root *dst_root,
 
 	lockdep_assert_held(&cgroup_mutex);
 
-	for_each_subsys(ss, ssid) {
-		if (!(ss_mask & (1 << ssid)))
-			continue;
-
+	for_each_subsys_which(ss, ssid, &ss_mask) {
 		/* if @ss has non-root csses attached to it, can't move */
 		if (css_next_child(NULL, cgroup_css(&ss->root->cgrp, ss)))
 			return -EBUSY;
@@ -1286,17 +1282,13 @@ static int rebind_subsystems(struct cgroup_root *dst_root,
 	 * Nothing can fail from this point on.  Remove files for the
 	 * removed subsystems and rebind each subsystem.
 	 */
-	for_each_subsys(ss, ssid)
-		if (ss_mask & (1 << ssid))
-			cgroup_clear_dir(&ss->root->cgrp, 1 << ssid);
+	for_each_subsys_which(ss, ssid, &ss_mask)
+		cgroup_clear_dir(&ss->root->cgrp, 1 << ssid);
 
-	for_each_subsys(ss, ssid) {
+	for_each_subsys_which(ss, ssid, &ss_mask) {
 		struct cgroup_root *src_root;
 		struct cgroup_subsys_state *css;
 		struct css_set *cset;
-
-		if (!(ss_mask & (1 << ssid)))
-			continue;
 
 		src_root = ss->root;
 		css = cgroup_css(&src_root->cgrp, ss);
@@ -2556,13 +2548,11 @@ static void cgroup_print_ss_mask(struct seq_file *seq, unsigned long ss_mask)
 	bool printed = false;
 	int ssid;
 
-	for_each_subsys(ss, ssid) {
-		if (ss_mask & (1 << ssid)) {
-			if (printed)
-				seq_putc(seq, ' ');
-			seq_printf(seq, "%s", ss->name);
-			printed = true;
-		}
+	for_each_subsys_which(ss, ssid, &ss_mask) {
+		if (printed)
+			seq_putc(seq, ' ');
+		seq_printf(seq, "%s", ss->name);
+		printed = true;
 	}
 	if (printed)
 		seq_putc(seq, '\n');
@@ -2704,11 +2694,12 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 	 */
 	buf = strstrip(buf);
 	while ((tok = strsep(&buf, " "))) {
+		unsigned long tmp_ss_mask = ~cgrp_dfl_root_inhibit_ss_mask;
+
 		if (tok[0] == '\0')
 			continue;
-		for_each_subsys(ss, ssid) {
-			if (ss->disabled || strcmp(tok + 1, ss->name) ||
-			    ((1 << ss->id) & cgrp_dfl_root_inhibit_ss_mask))
+		for_each_subsys_which(ss, ssid, &tmp_ss_mask) {
+			if (ss->disabled || strcmp(tok + 1, ss->name))
 				continue;
 
 			if (*tok == '+') {
@@ -2795,10 +2786,7 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 	 * still around.  In such cases, wait till it's gone using
 	 * offline_waitq.
 	 */
-	for_each_subsys(ss, ssid) {
-		if (!(css_enable & (1 << ssid)))
-			continue;
-
+	for_each_subsys_which(ss, ssid, &css_enable) {
 		cgroup_for_each_live_child(child, cgrp) {
 			DEFINE_WAIT(wait);
 
