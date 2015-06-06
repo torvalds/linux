@@ -44,7 +44,10 @@ static const struct kfd_device_info kaveri_device_info = {
 static const struct kfd_device_info carrizo_device_info = {
 	.asic_family = CHIP_CARRIZO,
 	.max_pasid_bits = 16,
+	/* max num of queues for CZ.TODO should be a dynamic value */
+	.max_no_of_hqd	= 24,
 	.ih_ring_entry_size = 4 * sizeof(uint32_t),
+	.event_interrupt_class = &event_interrupt_class_cik,
 	.num_of_watch_points = 4,
 	.mqd_size_aligned = MQD_SIZE_ALIGNED
 };
