@@ -572,13 +572,14 @@ static int send_next_seg(struct ib_mad_send_wr_private *mad_send_wr)
 
 	if (mad_send_wr->seg_num == 1) {
 		rmpp_mad->rmpp_hdr.rmpp_rtime_flags |= IB_MGMT_RMPP_FLAG_FIRST;
-		paylen = mad_send_wr->send_buf.seg_count * IB_MGMT_RMPP_DATA -
-			 mad_send_wr->pad;
+		paylen = (mad_send_wr->send_buf.seg_count *
+			  mad_send_wr->send_buf.seg_rmpp_size) -
+			  mad_send_wr->pad;
 	}
 
 	if (mad_send_wr->seg_num == mad_send_wr->send_buf.seg_count) {
 		rmpp_mad->rmpp_hdr.rmpp_rtime_flags |= IB_MGMT_RMPP_FLAG_LAST;
-		paylen = IB_MGMT_RMPP_DATA - mad_send_wr->pad;
+		paylen = mad_send_wr->send_buf.seg_rmpp_size - mad_send_wr->pad;
 	}
 	rmpp_mad->rmpp_hdr.paylen_newwin = cpu_to_be32(paylen);
 

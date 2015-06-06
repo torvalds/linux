@@ -42,8 +42,11 @@
 #include <rdma/ib_verbs.h>
 #include <uapi/rdma/ib_user_mad.h>
 
-/* Management base version */
+/* Management base versions */
 #define IB_MGMT_BASE_VERSION			1
+#define OPA_MGMT_BASE_VERSION			0x80
+
+#define OPA_SMP_CLASS_VERSION			0x80
 
 /* Management classes */
 #define IB_MGMT_CLASS_SUBN_LID_ROUTED		0x01
@@ -136,6 +139,9 @@ enum {
 	IB_MGMT_DEVICE_HDR = 64,
 	IB_MGMT_DEVICE_DATA = 192,
 	IB_MGMT_MAD_SIZE = IB_MGMT_MAD_HDR + IB_MGMT_MAD_DATA,
+	OPA_MGMT_MAD_DATA = 2024,
+	OPA_MGMT_RMPP_DATA = 2012,
+	OPA_MGMT_MAD_SIZE = IB_MGMT_MAD_HDR + OPA_MGMT_MAD_DATA,
 };
 
 struct ib_mad_hdr {
@@ -180,6 +186,11 @@ struct ib_sa_hdr {
 struct ib_mad {
 	struct ib_mad_hdr	mad_hdr;
 	u8			data[IB_MGMT_MAD_DATA];
+};
+
+struct opa_mad {
+	struct ib_mad_hdr	mad_hdr;
+	u8			data[OPA_MGMT_MAD_DATA];
 };
 
 struct ib_rmpp_mad {
@@ -236,7 +247,10 @@ struct ib_class_port_info {
  *   includes the common MAD, RMPP, and class specific headers.
  * @data_len: Indicates the total size of user-transferred data.
  * @seg_count: The number of RMPP segments allocated for this send.
- * @seg_size: Size of each RMPP segment.
+ * @seg_size: Size of the data in each RMPP segment.  This does not include
+ *   class specific headers.
+ * @seg_rmpp_size: Size of each RMPP segment including the class specific
+ *   headers.
  * @timeout_ms: Time to wait for a response.
  * @retries: Number of times to retry a request for a response.  For MADs
  *   using RMPP, this applies per window.  On completion, returns the number
@@ -256,6 +270,7 @@ struct ib_mad_send_buf {
 	int			data_len;
 	int			seg_count;
 	int			seg_size;
+	int			seg_rmpp_size;
 	int			timeout_ms;
 	int			retries;
 };
@@ -402,7 +417,10 @@ struct ib_mad_send_wc {
 struct ib_mad_recv_buf {
 	struct list_head	list;
 	struct ib_grh		*grh;
-	struct ib_mad		*mad;
+	union {
+		struct ib_mad	*mad;
+		struct opa_mad	*opa_mad;
+	};
 };
 
 /**
