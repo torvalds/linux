@@ -330,6 +330,8 @@ struct tda998x_priv {
 # define CEC_FRO_IM_CLK_CTRL_FRO_DIV   (1 << 0)
 #define REG_CEC_RXSHPDINTENA	  0xfc		      /* read/write */
 #define REG_CEC_RXSHPDINT	  0xfd		      /* read */
+# define CEC_RXSHPDINT_RXSENS     BIT(0)
+# define CEC_RXSHPDINT_HPD        BIT(1)
 #define REG_CEC_RXSHPDLEV         0xfe                /* read */
 # define CEC_RXSHPDLEV_RXSENS     (1 << 0)
 # define CEC_RXSHPDLEV_HPD        (1 << 1)
@@ -619,11 +621,8 @@ static irqreturn_t tda998x_irq_thread(int irq, void *data)
 	DRM_DEBUG_DRIVER(
 		"tda irq sta %02x cec %02x lvl %02x f0 %02x f1 %02x f2 %02x\n",
 		sta, cec, lvl, flag0, flag1, flag2);
-	if ((flag2 & INT_FLAGS_2_EDID_BLK_RD) && priv->wq_edid_wait) {
-		priv->wq_edid_wait = 0;
-		wake_up(&priv->wq_edid);
-		handled = true;
-	} else if (cec != 0) {			/* HPD change */
+
+	if (cec & CEC_RXSHPDINT_HPD) {
 		if (lvl & CEC_RXSHPDLEV_HPD)
 			tda998x_edid_delay_start(priv);
 		else
@@ -631,6 +630,13 @@ static irqreturn_t tda998x_irq_thread(int irq, void *data)
 
 		handled = true;
 	}
+
+	if ((flag2 & INT_FLAGS_2_EDID_BLK_RD) && priv->wq_edid_wait) {
+		priv->wq_edid_wait = 0;
+		wake_up(&priv->wq_edid);
+		handled = true;
+	}
+
 	return IRQ_RETVAL(handled);
 }
 
