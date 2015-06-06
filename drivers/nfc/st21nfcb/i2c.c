@@ -359,9 +359,6 @@ static int st21nfcb_nci_i2c_remove(struct i2c_client *client)
 
 	ndlc_remove(phy->ndlc);
 
-	if (phy->powered)
-		st21nfcb_nci_i2c_disable(phy);
-
 	return 0;
 }
 
