@@ -440,16 +440,18 @@ static int nci_close_device(struct nci_dev *ndev)
 	set_bit(NCI_INIT, &ndev->flags);
 	__nci_request(ndev, nci_reset_req, 0,
 		      msecs_to_jiffies(NCI_RESET_TIMEOUT));
+
+	/* After this point our queues are empty
+	 * and no works are scheduled.
+	 */
+	ndev->ops->close(ndev);
+
 	clear_bit(NCI_INIT, &ndev->flags);
 
 	del_timer_sync(&ndev->cmd_timer);
 
 	/* Flush cmd wq */
 	flush_workqueue(ndev->cmd_wq);
-
-	/* After this point our queues are empty
-	 * and no works are scheduled. */
-	ndev->ops->close(ndev);
 
 	/* Clear flags */
 	ndev->flags = 0;
