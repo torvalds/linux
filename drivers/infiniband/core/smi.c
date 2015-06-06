@@ -234,21 +234,19 @@ enum smi_action smi_handle_dr_smp_recv(struct ib_smp *smp, u8 node_type,
 					smp->dr_slid == IB_LID_PERMISSIVE);
 }
 
-enum smi_forward_action smi_check_forward_dr_smp(struct ib_smp *smp)
+static enum smi_forward_action __smi_check_forward_dr_smp(u8 hop_ptr, u8 hop_cnt,
+							  u8 direction,
+							  bool dr_dlid_is_permissive,
+							  bool dr_slid_is_permissive)
 {
-	u8 hop_ptr, hop_cnt;
-
-	hop_ptr = smp->hop_ptr;
-	hop_cnt = smp->hop_cnt;
-
-	if (!ib_get_smp_direction(smp)) {
+	if (!direction) {
 		/* C14-9:2 -- intermediate hop */
 		if (hop_ptr && hop_ptr < hop_cnt)
 			return IB_SMI_FORWARD;
 
 		/* C14-9:3 -- at the end of the DR segment of path */
 		if (hop_ptr == hop_cnt)
-			return (smp->dr_dlid == IB_LID_PERMISSIVE ?
+			return (dr_dlid_is_permissive ?
 				IB_SMI_SEND : IB_SMI_LOCAL);
 
 		/* C14-9:4 -- hop_ptr = hop_cnt + 1 -> give to SMA/SM */
@@ -261,10 +259,19 @@ enum smi_forward_action smi_check_forward_dr_smp(struct ib_smp *smp)
 
 		/* C14-13:3 -- at the end of the DR segment of path */
 		if (hop_ptr == 1)
-			return (smp->dr_slid != IB_LID_PERMISSIVE ?
+			return (!dr_slid_is_permissive ?
 				IB_SMI_SEND : IB_SMI_LOCAL);
 	}
 	return IB_SMI_LOCAL;
+
+}
+
+enum smi_forward_action smi_check_forward_dr_smp(struct ib_smp *smp)
+{
+	return __smi_check_forward_dr_smp(smp->hop_ptr, smp->hop_cnt,
+					  ib_get_smp_direction(smp),
+					  smp->dr_dlid == IB_LID_PERMISSIVE,
+					  smp->dr_slid == IB_LID_PERMISSIVE);
 }
 
 /*
