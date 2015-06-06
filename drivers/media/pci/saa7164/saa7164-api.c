@@ -1385,8 +1385,7 @@ int saa7164_api_i2c_read(struct saa7164_i2c *bus, u8 addr, u32 reglen, u8 *reg,
 	 *       08... register address
 	 */
 	memset(buf, 0, sizeof(buf));
-	if (reg)
-		memcpy((buf + 2 * sizeof(u32) + 0), reg, reglen);
+	memcpy((buf + 2 * sizeof(u32) + 0), reg, reglen);
 	*((u32 *)(buf + 0 * sizeof(u32))) = reglen;
 	*((u32 *)(buf + 1 * sizeof(u32))) = datalen;
 
@@ -1475,14 +1474,6 @@ int saa7164_api_i2c_write(struct saa7164_i2c *bus, u8 addr, u32 datalen,
 	 *       04-07 dest bytes to write
 	 *       08... register address
 	 */
-	if (datalen == 1) {
-		/* Workaround for issues with i2c components
-		 * that issue writes with no data. IE: SI2168/2157
-		 * Increase reglen by 1, strobe out an additional byte,
-		 * ignored by SI2168/2157.
-		 */
-		datalen++;
-	}
 	*((u32 *)(buf + 0 * sizeof(u32))) = reglen;
 	*((u32 *)(buf + 1 * sizeof(u32))) = datalen - reglen;
 	memcpy((buf + 2 * sizeof(u32)), data, datalen);
