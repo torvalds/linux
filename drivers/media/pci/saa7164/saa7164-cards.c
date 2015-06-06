@@ -621,7 +621,7 @@ struct saa7164_board saa7164_boards[] = {
 			.name		= "SI2168-1",
 			.i2c_bus_nr	= SAA7164_I2C_BUS_2,
 			.i2c_bus_addr	= 0xc8 >> 1,
-			.i2c_reg_len	= REGLEN_8bit,
+			.i2c_reg_len	= REGLEN_0bit,
 		}, {
 			.id		= 0x25,
 			.type		= SAA7164_UNIT_TUNER,
@@ -635,7 +635,7 @@ struct saa7164_board saa7164_boards[] = {
 			.name		= "SI2168-2",
 			.i2c_bus_nr	= SAA7164_I2C_BUS_2,
 			.i2c_bus_addr	= 0xcc >> 1,
-			.i2c_reg_len	= REGLEN_8bit,
+			.i2c_reg_len	= REGLEN_0bit,
 		} },
 	},
 };
