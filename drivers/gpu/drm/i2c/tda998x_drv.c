@@ -34,7 +34,6 @@ struct tda998x_priv {
 	struct i2c_client *cec;
 	struct i2c_client *hdmi;
 	struct mutex mutex;
-	struct delayed_work dwork;
 	uint16_t rev;
 	uint8_t current_page;
 	int dpms;
@@ -47,6 +46,11 @@ struct tda998x_priv {
 	wait_queue_head_t wq_edid;
 	volatile int wq_edid_wait;
 	struct drm_encoder *encoder;
+
+	struct work_struct detect_work;
+	struct timer_list edid_delay_timer;
+	wait_queue_head_t edid_delay_waitq;
+	bool edid_delay_active;
 };
 
 #define to_tda998x_priv(x)  ((struct tda998x_priv *)to_encoder_slave(x)->slave_priv)
@@ -551,15 +555,50 @@ tda998x_reset(struct tda998x_priv *priv)
 	reg_write(priv, REG_MUX_VP_VIP_OUT, 0x24);
 }
 
-/* handle HDMI connect/disconnect */
-static void tda998x_hpd(struct work_struct *work)
+/*
+ * The TDA998x has a problem when trying to read the EDID close to a
+ * HPD assertion: it needs a delay of 100ms to avoid timing out while
+ * trying to read EDID data.
+ *
+ * However, tda998x_encoder_get_modes() may be called at any moment
+ * after tda998x_encoder_detect() indicates that we are connected, so
+ * we need to delay probing modes in tda998x_encoder_get_modes() after
+ * we have seen a HPD inactive->active transition.  This code implements
+ * that delay.
+ */
+static void tda998x_edid_delay_done(unsigned long data)
 {
-	struct delayed_work *dwork = to_delayed_work(work);
-	struct tda998x_priv *priv =
-			container_of(dwork, struct tda998x_priv, dwork);
+	struct tda998x_priv *priv = (struct tda998x_priv *)data;
 
-	if (priv->encoder->dev)
-		drm_kms_helper_hotplug_event(priv->encoder->dev);
+	priv->edid_delay_active = false;
+	wake_up(&priv->edid_delay_waitq);
+	schedule_work(&priv->detect_work);
+}
+
+static void tda998x_edid_delay_start(struct tda998x_priv *priv)
+{
+	priv->edid_delay_active = true;
+	mod_timer(&priv->edid_delay_timer, jiffies + HZ/10);
+}
+
+static int tda998x_edid_delay_wait(struct tda998x_priv *priv)
+{
+	return wait_event_killable(priv->edid_delay_waitq, !priv->edid_delay_active);
+}
+
+/*
+ * We need to run the KMS hotplug event helper outside of our threaded
+ * interrupt routine as this can call back into our get_modes method,
+ * which will want to make use of interrupts.
+ */
+static void tda998x_detect_work(struct work_struct *work)
+{
+	struct tda998x_priv *priv =
+		container_of(work, struct tda998x_priv, detect_work);
+	struct drm_device *dev = priv->encoder->dev;
+
+	if (dev)
+		drm_kms_helper_hotplug_event(dev);
 }
 
 /*
@@ -585,7 +624,11 @@ static irqreturn_t tda998x_irq_thread(int irq, void *data)
 		wake_up(&priv->wq_edid);
 		handled = true;
 	} else if (cec != 0) {			/* HPD change */
-		schedule_delayed_work(&priv->dwork, HZ/10);
+		if (lvl & CEC_RXSHPDLEV_HPD)
+			tda998x_edid_delay_start(priv);
+		else
+			schedule_work(&priv->detect_work);
+
 		handled = true;
 	}
 	return IRQ_RETVAL(handled);
@@ -1103,6 +1146,14 @@ tda998x_encoder_get_modes(struct tda998x_priv *priv,
 	struct edid *edid;
 	int n;
 
+	/*
+	 * If we get killed while waiting for the HPD timeout, return
+	 * no modes found: we are not in a restartable path, so we
+	 * can't handle signals gracefully.
+	 */
+	if (tda998x_edid_delay_wait(priv))
+		return 0;
+
 	if (priv->rev == TDA19988)
 		reg_clear(priv, REG_TX4, TX4_PD_RAM);
 
@@ -1149,10 +1200,12 @@ static void tda998x_destroy(struct tda998x_priv *priv)
 	/* disable all IRQs and free the IRQ handler */
 	cec_write(priv, REG_CEC_RXSHPDINTENA, 0);
 	reg_clear(priv, REG_INT_FLAGS_2, INT_FLAGS_2_EDID_BLK_RD);
-	if (priv->hdmi->irq) {
+
+	if (priv->hdmi->irq)
 		free_irq(priv->hdmi->irq, priv);
-		cancel_delayed_work_sync(&priv->dwork);
-	}
+
+	del_timer_sync(&priv->edid_delay_timer);
+	cancel_work_sync(&priv->detect_work);
 
 	i2c_unregister_device(priv->cec);
 }
@@ -1253,6 +1306,10 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 	priv->dpms = DRM_MODE_DPMS_OFF;
 
 	mutex_init(&priv->mutex);	/* protect the page access */
+	init_waitqueue_head(&priv->edid_delay_waitq);
+	setup_timer(&priv->edid_delay_timer, tda998x_edid_delay_done,
+		    (unsigned long)priv);
+	INIT_WORK(&priv->detect_work, tda998x_detect_work);
 
 	/* wake up the device: */
 	cec_write(priv, REG_CEC_ENAMODS,
@@ -1311,7 +1368,6 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 
 		/* init read EDID waitqueue and HDP work */
 		init_waitqueue_head(&priv->wq_edid);
-		INIT_DELAYED_WORK(&priv->dwork, tda998x_hpd);
 
 		/* clear pending interrupts */
 		reg_read(priv, REG_INT_FLAGS_0);
