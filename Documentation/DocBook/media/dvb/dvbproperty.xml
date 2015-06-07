@@ -351,11 +351,6 @@ get/set up to 64 properties. The actual meaning of each property is described on
 	</thead>
 	<tbody valign="top">
 	<row>
-	    <entry id="TRANSMISSION-MODE-AUTO"><constant>TRANSMISSION_MODE_AUTO</constant></entry>
-	    <entry>Autodetect transmission mode. The hardware will try to find
-		the correct FFT-size (if capable) to fill in the missing
-		parameters.</entry>
-	</row><row>
 	    <entry id="FEC-NONE"><constant>FEC_NONE</constant></entry>
 	    <entry>No Forward Error Correction Code</entry>
 	</row><row>
