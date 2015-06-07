@@ -704,110 +704,6 @@ static int get_bt_addr(struct mm_struct *mm,
 	return 0;
 }
 
-/*
- * Free the backing physical pages of bounds table 'bt_addr'.
- * Assume start...end is within that bounds table.
- */
-static int zap_bt_entries(struct mm_struct *mm,
-		unsigned long bt_addr,
-		unsigned long start, unsigned long end)
-{
-	struct vm_area_struct *vma;
-	unsigned long addr, len;
-
-	/*
-	 * Find the first overlapping vma. If vma->vm_start > start, there
-	 * will be a hole in the bounds table. This -EINVAL return will
-	 * cause a SIGSEGV.
-	 */
-	vma = find_vma(mm, start);
-	if (!vma || vma->vm_start > start)
-		return -EINVAL;
-
-	/*
-	 * A NUMA policy on a VM_MPX VMA could cause this bouds table to
-	 * be split. So we need to look across the entire 'start -> end'
-	 * range of this bounds table, find all of the VM_MPX VMAs, and
-	 * zap only those.
-	 */
-	addr = start;
-	while (vma && vma->vm_start < end) {
-		/*
-		 * We followed a bounds directory entry down
-		 * here.  If we find a non-MPX VMA, that's bad,
-		 * so stop immediately and return an error.  This
-		 * probably results in a SIGSEGV.
-		 */
-		if (!is_mpx_vma(vma))
-			return -EINVAL;
-
-		len = min(vma->vm_end, end) - addr;
-		zap_page_range(vma, addr, len, NULL);
-		trace_mpx_unmap_zap(addr, addr+len);
-
-		vma = vma->vm_next;
-		addr = vma->vm_start;
-	}
-
-	return 0;
-}
-
-static int unmap_single_bt(struct mm_struct *mm,
-		long __user *bd_entry, unsigned long bt_addr)
-{
-	unsigned long expected_old_val = bt_addr | MPX_BD_ENTRY_VALID_FLAG;
-	unsigned long uninitialized_var(actual_old_val);
-	int ret;
-
-	while (1) {
-		int need_write = 1;
-		unsigned long cleared_bd_entry = 0;
-
-		pagefault_disable();
-		ret = mpx_cmpxchg_bd_entry(mm, &actual_old_val,
-				bd_entry, expected_old_val, cleared_bd_entry);
-		pagefault_enable();
-		if (!ret)
-			break;
-		if (ret == -EFAULT)
-			ret = mpx_resolve_fault(bd_entry, need_write);
-		/*
-		 * If we could not resolve the fault, consider it
-		 * userspace's fault and error out.
-		 */
-		if (ret)
-			return ret;
-	}
-	/*
-	 * The cmpxchg was performed, check the results.
-	 */
-	if (actual_old_val != expected_old_val) {
-		/*
-		 * Someone else raced with us to unmap the table.
-		 * There was no bounds table pointed to by the
-		 * directory, so declare success.  Somebody freed
-		 * it.
-		 */
-		if (!actual_old_val)
-			return 0;
-		/*
-		 * Something messed with the bounds directory
-		 * entry.  We hold mmap_sem for read or write
-		 * here, so it could not be a _new_ bounds table
-		 * that someone just allocated.  Something is
-		 * wrong, so pass up the error and SIGSEGV.
-		 */
-		return -EINVAL;
-	}
-
-	/*
-	 * Note, we are likely being called under do_munmap() already. To
-	 * avoid recursion, do_munmap() will check whether it comes
-	 * from one bounds table through VM_MPX flag.
-	 */
-	return do_munmap(mm, bt_addr, mpx_bt_size_bytes(mm));
-}
-
 static inline int bt_entry_size_bytes(struct mm_struct *mm)
 {
 	if (is_64bit_mm(mm))
@@ -872,13 +768,69 @@ static inline unsigned long bd_entry_virt_space(struct mm_struct *mm)
 }
 
 /*
- * Return an offset in terms of bytes in to the bounds
- * directory where the bounds directory entry for a given
- * virtual address resides.
- *
- * This has to be in bytes because the directory entries
- * are different sizes on 64/32 bit.
+ * Free the backing physical pages of bounds table 'bt_addr'.
+ * Assume start...end is within that bounds table.
  */
+static noinline int zap_bt_entries_mapping(struct mm_struct *mm,
+		unsigned long bt_addr,
+		unsigned long start_mapping, unsigned long end_mapping)
+{
+	struct vm_area_struct *vma;
+	unsigned long addr, len;
+	unsigned long start;
+	unsigned long end;
+
+	/*
+	 * if we 'end' on a boundary, the offset will be 0 which
+	 * is not what we want.  Back it up a byte to get the
+	 * last bt entry.  Then once we have the entry itself,
+	 * move 'end' back up by the table entry size.
+	 */
+	start = bt_addr + mpx_get_bt_entry_offset_bytes(mm, start_mapping);
+	end   = bt_addr + mpx_get_bt_entry_offset_bytes(mm, end_mapping - 1);
+	/*
+	 * Move end back up by one entry.  Among other things
+	 * this ensures that it remains page-aligned and does
+	 * not screw up zap_page_range()
+	 */
+	end += bt_entry_size_bytes(mm);
+
+	/*
+	 * Find the first overlapping vma. If vma->vm_start > start, there
+	 * will be a hole in the bounds table. This -EINVAL return will
+	 * cause a SIGSEGV.
+	 */
+	vma = find_vma(mm, start);
+	if (!vma || vma->vm_start > start)
+		return -EINVAL;
+
+	/*
+	 * A NUMA policy on a VM_MPX VMA could cause this bounds table to
+	 * be split. So we need to look across the entire 'start -> end'
+	 * range of this bounds table, find all of the VM_MPX VMAs, and
+	 * zap only those.
+	 */
+	addr = start;
+	while (vma && vma->vm_start < end) {
+		/*
+		 * We followed a bounds directory entry down
+		 * here.  If we find a non-MPX VMA, that's bad,
+		 * so stop immediately and return an error.  This
+		 * probably results in a SIGSEGV.
+		 */
+		if (!is_mpx_vma(vma))
+			return -EINVAL;
+
+		len = min(vma->vm_end, end) - addr;
+		zap_page_range(vma, addr, len, NULL);
+		trace_mpx_unmap_zap(addr, addr+len);
+
+		vma = vma->vm_next;
+		addr = vma->vm_start;
+	}
+	return 0;
+}
+
 static unsigned long mpx_get_bd_entry_offset(struct mm_struct *mm,
 		unsigned long addr)
 {
@@ -916,69 +868,80 @@ static unsigned long mpx_get_bd_entry_offset(struct mm_struct *mm,
 	 */
 }
 
-/*
- * If the bounds table pointed by bounds directory 'bd_entry' is
- * not shared, unmap this whole bounds table. Otherwise, only free
- * those backing physical pages of bounds table entries covered
- * in this virtual address region start...end.
- */
-static int unmap_shared_bt(struct mm_struct *mm,
-		long __user *bd_entry, unsigned long start,
-		unsigned long end, bool prev_shared, bool next_shared)
+static int unmap_entire_bt(struct mm_struct *mm,
+		long __user *bd_entry, unsigned long bt_addr)
 {
-	unsigned long bt_addr;
-	unsigned long start_off, end_off;
+	unsigned long expected_old_val = bt_addr | MPX_BD_ENTRY_VALID_FLAG;
+	unsigned long uninitialized_var(actual_old_val);
 	int ret;
 
-	ret = get_bt_addr(mm, bd_entry, &bt_addr);
+	while (1) {
+		int need_write = 1;
+		unsigned long cleared_bd_entry = 0;
+
+		pagefault_disable();
+		ret = mpx_cmpxchg_bd_entry(mm, &actual_old_val,
+				bd_entry, expected_old_val, cleared_bd_entry);
+		pagefault_enable();
+		if (!ret)
+			break;
+		if (ret == -EFAULT)
+			ret = mpx_resolve_fault(bd_entry, need_write);
+		/*
+		 * If we could not resolve the fault, consider it
+		 * userspace's fault and error out.
+		 */
+		if (ret)
+			return ret;
+	}
 	/*
-	 * We could see an "error" ret for not-present bounds
-	 * tables (not really an error), or actual errors, but
-	 * stop unmapping either way.
+	 * The cmpxchg was performed, check the results.
 	 */
-	if (ret)
-		return ret;
-
-	start_off = mpx_get_bt_entry_offset_bytes(mm, start);
-	end_off   = mpx_get_bt_entry_offset_bytes(mm, end);
-
-	if (prev_shared && next_shared)
-		ret = zap_bt_entries(mm, bt_addr,
-				bt_addr + start_off,
-				bt_addr + end_off);
-	else if (prev_shared)
-		ret = zap_bt_entries(mm, bt_addr,
-				bt_addr + start_off,
-				bt_addr + mpx_bt_size_bytes(mm));
-	else if (next_shared)
-		ret = zap_bt_entries(mm, bt_addr, bt_addr,
-				bt_addr + end_off);
-	else
-		ret = unmap_single_bt(mm, bd_entry, bt_addr);
-
-	return ret;
+	if (actual_old_val != expected_old_val) {
+		/*
+		 * Someone else raced with us to unmap the table.
+		 * That is OK, since we were both trying to do
+		 * the same thing.  Declare success.
+		 */
+		if (!actual_old_val)
+			return 0;
+		/*
+		 * Something messed with the bounds directory
+		 * entry.  We hold mmap_sem for read or write
+		 * here, so it could not be a _new_ bounds table
+		 * that someone just allocated.  Something is
+		 * wrong, so pass up the error and SIGSEGV.
+		 */
+		return -EINVAL;
+	}
+	/*
+	 * Note, we are likely being called under do_munmap() already. To
+	 * avoid recursion, do_munmap() will check whether it comes
+	 * from one bounds table through VM_MPX flag.
+	 */
+	return do_munmap(mm, bt_addr, mpx_bt_size_bytes(mm));
 }
 
-/*
- * A virtual address region being munmap()ed might share bounds table
- * with adjacent VMAs. We only need to free the backing physical
- * memory of these shared bounds tables entries covered in this virtual
- * address region.
- */
-static int unmap_edge_bts(struct mm_struct *mm,
-		unsigned long start, unsigned long end)
+static int try_unmap_single_bt(struct mm_struct *mm,
+	       unsigned long start, unsigned long end)
 {
-	int ret;
-	long __user *bde_start, *bde_end;
-	struct vm_area_struct *prev, *next;
-	bool prev_shared = false, next_shared = false;
-
-	bde_start = mm->bd_addr + mpx_get_bd_entry_offset(mm, start);
-	bde_end   = mm->bd_addr + mpx_get_bd_entry_offset(mm, end-1);
-
+	struct vm_area_struct *next;
+	struct vm_area_struct *prev;
 	/*
-	 * Check whether bde_start and bde_end are shared with adjacent
-	 * VMAs.
+	 * "bta" == Bounds Table Area: the area controlled by the
+	 * bounds table that we are unmapping.
+	 */
+	unsigned long bta_start_vaddr = start & ~(bd_entry_virt_space(mm)-1);
+	unsigned long bta_end_vaddr = bta_start_vaddr + bd_entry_virt_space(mm);
+	unsigned long uninitialized_var(bt_addr);
+	void __user *bde_vaddr;
+	int ret;
+	/*
+	 * We know 'start' and 'end' lie within an area controlled
+	 * by a single bounds table.  See if there are any other
+	 * VMAs controlled by that bounds table.  If there are not
+	 * then we can "expand" the are we are unmapping to possibly
+	 * cover the entire table.
 	 *
 	 * We already unliked the VMAs from the mm's rbtree so 'start'
 	 * is guaranteed to be in a hole. This gets us the first VMA
@@ -986,102 +949,64 @@ static int unmap_edge_bts(struct mm_struct *mm,
 	 * in to 'next'.
 	 */
 	next = find_vma_prev(mm, start, &prev);
-	if (prev && (mm->bd_addr + mpx_get_bd_entry_offset(mm, prev->vm_end-1))
-			== bde_start)
-		prev_shared = true;
-	if (next && (mm->bd_addr + mpx_get_bd_entry_offset(mm, next->vm_start))
-			== bde_end)
-		next_shared = true;
-
-	/*
-	 * This virtual address region being munmap()ed is only
-	 * covered by one bounds table.
-	 *
-	 * In this case, if this table is also shared with adjacent
-	 * VMAs, only part of the backing physical memory of the bounds
-	 * table need be freeed. Otherwise the whole bounds table need
-	 * be unmapped.
-	 */
-	if (bde_start == bde_end) {
-		return unmap_shared_bt(mm, bde_start, start, end,
-				prev_shared, next_shared);
+	if ((!prev || prev->vm_end <= bta_start_vaddr) &&
+	    (!next || next->vm_start >= bta_end_vaddr)) {
+		/*
+		 * No neighbor VMAs controlled by same bounds
+		 * table.  Try to unmap the whole thing
+		 */
+		start = bta_start_vaddr;
+		end = bta_end_vaddr;
 	}
 
+	bde_vaddr = mm->bd_addr + mpx_get_bd_entry_offset(mm, start);
+	ret = get_bt_addr(mm, bde_vaddr, &bt_addr);
 	/*
-	 * If more than one bounds tables are covered in this virtual
-	 * address region being munmap()ed, we need to separately check
-	 * whether bde_start and bde_end are shared with adjacent VMAs.
+	 * No bounds table there, so nothing to unmap.
 	 */
-	ret = unmap_shared_bt(mm, bde_start, start, end, prev_shared, false);
+	if (ret == -ENOENT) {
+		ret = 0;
+		return 0;
+	}
 	if (ret)
 		return ret;
-	ret = unmap_shared_bt(mm, bde_end, start, end, false, next_shared);
-	if (ret)
-		return ret;
-
-	return 0;
+	/*
+	 * We are unmapping an entire table.  Either because the
+	 * unmap that started this whole process was large enough
+	 * to cover an entire table, or that the unmap was small
+	 * but was the area covered by a bounds table.
+	 */
+	if ((start == bta_start_vaddr) &&
+	    (end == bta_end_vaddr))
+		return unmap_entire_bt(mm, bde_vaddr, bt_addr);
+	return zap_bt_entries_mapping(mm, bt_addr, start, end);
 }
 
 static int mpx_unmap_tables(struct mm_struct *mm,
 		unsigned long start, unsigned long end)
 {
-	int ret;
-	long __user *bd_entry, *bde_start, *bde_end;
-	unsigned long bt_addr;
-
+	unsigned long one_unmap_start;
 	trace_mpx_unmap_search(start, end);
-	/*
-	 * "Edge" bounds tables are those which are being used by the region
-	 * (start -> end), but that may be shared with adjacent areas.  If they
-	 * turn out to be completely unshared, they will be freed.  If they are
-	 * shared, we will free the backing store (like an MADV_DONTNEED) for
-	 * areas used by this region.
-	 */
-	ret = unmap_edge_bts(mm, start, end);
-	switch (ret) {
-		/* non-present tables are OK */
-		case 0:
-		case -ENOENT:
-			/* Success, or no tables to unmap */
-			break;
-		case -EINVAL:
-		case -EFAULT:
-		default:
-			return ret;
-	}
 
-	/*
-	 * Only unmap the bounds table that are
-	 *   1. fully covered
-	 *   2. not at the edges of the mapping, even if full aligned
-	 */
-	bde_start = mm->bd_addr + mpx_get_bd_entry_offset(mm, start);
-	bde_end   = mm->bd_addr + mpx_get_bd_entry_offset(mm, end-1);
-	for (bd_entry = bde_start + 1; bd_entry < bde_end; bd_entry++) {
-		ret = get_bt_addr(mm, bd_entry, &bt_addr);
-		switch (ret) {
-			case 0:
-				break;
-			case -ENOENT:
-				/* No table here, try the next one */
-				continue;
-			case -EINVAL:
-			case -EFAULT:
-			default:
-				/*
-				 * Note: we are being strict here.
-				 * Any time we run in to an issue
-				 * unmapping tables, we stop and
-				 * SIGSEGV.
-				 */
-				return ret;
-		}
-
-		ret = unmap_single_bt(mm, bd_entry, bt_addr);
+	one_unmap_start = start;
+	while (one_unmap_start < end) {
+		int ret;
+		unsigned long next_unmap_start = ALIGN(one_unmap_start+1,
+						       bd_entry_virt_space(mm));
+		unsigned long one_unmap_end = end;
+		/*
+		 * if the end is beyond the current bounds table,
+		 * move it back so we only deal with a single one
+		 * at a time
+		 */
+		if (one_unmap_end > next_unmap_start)
+			one_unmap_end = next_unmap_start;
+		ret = try_unmap_single_bt(mm, one_unmap_start, one_unmap_end);
 		if (ret)
 			return ret;
-	}
 
+		one_unmap_start = next_unmap_start;
+	}
 	return 0;
 }
 
