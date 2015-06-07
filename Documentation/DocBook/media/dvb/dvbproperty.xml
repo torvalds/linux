@@ -1068,15 +1068,37 @@ typedef enum atscmh_sccc_code_mode {
 	</section>
 	<section id="DTV-INTERLEAVING">
 	<title><constant>DTV_INTERLEAVING</constant></title>
-	<para id="fe-interleaving">Interleaving mode</para>
-	<programlisting>
-enum fe_interleaving {
-	INTERLEAVING_NONE,
-	INTERLEAVING_AUTO,
-	INTERLEAVING_240,
-	INTERLEAVING_720,
-};
-	</programlisting>
+
+<para>Time interleaving to be used. Currently, used only on DTMB.</para>
+
+<table pgwide="1" frame="none" id="fe-interleaving">
+    <title>enum fe_interleaving</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry id="INTERLEAVING-NONE"><constant>INTERLEAVING_NONE</constant></entry>
+	    <entry>No interleaving.</entry>
+	</row><row>
+	    <entry id="INTERLEAVING-AUTO"><constant>INTERLEAVING_AUTO</constant></entry>
+	    <entry>Auto-detect interleaving.</entry>
+	</row><row>
+	    <entry id="INTERLEAVING-240"><constant>INTERLEAVING_240</constant></entry>
+	    <entry>Interleaving of 240 symbols.</entry>
+	</row><row>
+	    <entry id="INTERLEAVING-720"><constant>INTERLEAVING_720</constant></entry>
+	    <entry>Interleaving of 720 symbols.</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
+
 	</section>
 	<section id="DTV-LNA">
 	<title><constant>DTV_LNA</constant></title>
