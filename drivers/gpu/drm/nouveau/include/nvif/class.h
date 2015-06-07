@@ -297,6 +297,7 @@ struct nvif_perfdom_v0 {
 	__u8  pad03[1];
 	struct {
 		__u8  signal[4];
+		__u64 source[4][8];
 		__u16 logic_op;
 	} ctr[4];
 };

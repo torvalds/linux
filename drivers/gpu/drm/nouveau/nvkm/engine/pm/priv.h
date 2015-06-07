@@ -4,7 +4,9 @@
 
 struct nvkm_perfctr {
 	struct list_head head;
+	u8 domain;
 	u8  signal[4];
+	u64 source[4][8];
 	int slot;
 	u32 logic_op;
 	u32 ctr;

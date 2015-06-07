@@ -125,6 +125,66 @@ nvkm_perfsrc_find(struct nvkm_pm *ppm, struct nvkm_perfsig *sig, int si)
 	return NULL;
 }
 
+static int
+nvkm_perfsrc_enable(struct nvkm_pm *ppm, struct nvkm_perfctr *ctr)
+{
+	struct nvkm_perfdom *dom = NULL;
+	struct nvkm_perfsig *sig;
+	struct nvkm_perfsrc *src;
+	u32 mask, value;
+	int i, j;
+
+	for (i = 0; i < 4 && ctr->signal[i]; i++) {
+		for (j = 0; j < 8 && ctr->source[i][j]; j++) {
+			sig = nvkm_perfsig_find(ppm, ctr->domain,
+						ctr->signal[i], &dom);
+			if (!sig)
+				return -EINVAL;
+
+			src = nvkm_perfsrc_find(ppm, sig, ctr->source[i][j]);
+			if (!src)
+				return -EINVAL;
+
+			/* set enable bit if needed */
+			mask = value = 0x00000000;
+			if (src->enable)
+				mask = value = 0x80000000;
+			mask  |= (src->mask << src->shift);
+			value |= ((ctr->source[i][j] >> 32) << src->shift);
+
+			/* enable the source */
+			nv_mask(ppm, src->addr, mask, value);
+		}
+	}
+	return 0;
+}
+
+static int
+nvkm_perfsrc_disable(struct nvkm_pm *ppm, struct nvkm_perfctr *ctr)
+{
+	struct nvkm_perfdom *dom = NULL;
+	struct nvkm_perfsig *sig;
+	struct nvkm_perfsrc *src;
+	int i, j;
+
+	for (i = 0; i < 4 && ctr->signal[i]; i++) {
+		for (j = 0; j < 8 && ctr->source[i][j]; j++) {
+			sig = nvkm_perfsig_find(ppm, ctr->domain,
+						ctr->signal[i], &dom);
+			if (!sig)
+				return -EINVAL;
+
+			src = nvkm_perfsrc_find(ppm, sig, ctr->source[i][j]);
+			if (!src)
+				return -EINVAL;
+
+			/* disable the source */
+			nv_mask(ppm, src->addr, src->mask << src->shift, 0);
+		}
+	}
+	return 0;
+}
+
 /*******************************************************************************
  * Perfmon object classes
  ******************************************************************************/
@@ -319,9 +379,14 @@ nvkm_perfdom_init(struct nvkm_object *object, void *data, u32 size)
 	} else
 		return ret;
 
-	for (i = 0; i < 4; i++)
-		if (dom->ctr[i])
+	for (i = 0; i < 4; i++) {
+		if (dom->ctr[i]) {
 			dom->func->init(ppm, dom, dom->ctr[i]);
+
+			/* enable sources */
+			nvkm_perfsrc_enable(ppm, dom->ctr[i]);
+		}
+	}
 
 	/* start next batch of counters for sampling */
 	dom->func->next(ppm, dom);
@@ -402,13 +467,17 @@ nvkm_perfdom_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 static void
 nvkm_perfdom_dtor(struct nvkm_object *object)
 {
+	struct nvkm_pm *ppm = (void *)object->engine;
 	struct nvkm_perfdom *dom = (void *)object;
 	int i;
 
 	for (i = 0; i < 4; i++) {
 		struct nvkm_perfctr *ctr = dom->ctr[i];
-		if (ctr && ctr->head.next)
-			list_del(&ctr->head);
+		if (ctr) {
+			nvkm_perfsrc_disable(ppm, ctr);
+			if (ctr->head.next)
+				list_del(&ctr->head);
+		}
 		kfree(ctr);
 	}
 	nvkm_object_destroy(&dom->base);
@@ -416,11 +485,11 @@ nvkm_perfdom_dtor(struct nvkm_object *object)
 
 static int
 nvkm_perfctr_new(struct nvkm_perfdom *dom, int slot,
-		 struct nvkm_perfsig *signal[4], uint16_t logic_op,
-		 struct nvkm_perfctr **pctr)
+		 struct nvkm_perfsig *signal[4], uint64_t source[4][8],
+		 uint16_t logic_op, struct nvkm_perfctr **pctr)
 {
 	struct nvkm_perfctr *ctr;
-	int i;
+	int i, j;
 
 	if (!dom)
 		return -EINVAL;
@@ -432,8 +501,11 @@ nvkm_perfctr_new(struct nvkm_perfdom *dom, int slot,
 	ctr->logic_op = logic_op;
 	ctr->slot     = slot;
 	for (i = 0; i < 4; i++) {
-		if (signal[i])
+		if (signal[i]) {
 			ctr->signal[i] = signal[i] - dom->signal;
+			for (j = 0; j < 8; j++)
+				ctr->source[i][j] = source[i][j];
+		}
 	}
 	list_add_tail(&ctr->head, &dom->list);
 
@@ -452,7 +524,7 @@ nvkm_perfdom_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	struct nvkm_perfdom *sdom = NULL;
 	struct nvkm_perfctr *ctr[4] = {};
 	struct nvkm_perfdom *dom;
-	int c, s;
+	int c, s, m;
 	int ret;
 
 	nv_ioctl(parent, "create perfdom size %d\n", size);
@@ -464,18 +536,28 @@ nvkm_perfdom_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	for (c = 0; c < ARRAY_SIZE(args->v0.ctr); c++) {
 		struct nvkm_perfsig *sig[4] = {};
+		u64 src[4][8];
+
 		for (s = 0; s < ARRAY_SIZE(args->v0.ctr[c].signal); s++) {
 			sig[s] = nvkm_perfsig_find(ppm, args->v0.domain,
 						   args->v0.ctr[c].signal[s],
 						   &sdom);
 			if (args->v0.ctr[c].signal[s] && !sig[s])
 				return -EINVAL;
+
+			for (m = 0; m < 8; m++) {
+				src[s][m] = args->v0.ctr[c].source[s][m];
+				if (src[s][m] && !nvkm_perfsrc_find(ppm, sig[s],
+							            src[s][m]))
+					return -EINVAL;
+			}
 		}
 
-		ret = nvkm_perfctr_new(sdom, c, sig,
+		ret = nvkm_perfctr_new(sdom, c, sig, src,
 				       args->v0.ctr[c].logic_op, &ctr[c]);
 		if (ret)
 			return ret;
+		ctr[c]->domain = args->v0.domain;
 	}
 
 	if (!sdom)
