@@ -1344,7 +1344,6 @@ static int btusb_setup_csr(struct hci_dev *hdev)
 {
 	struct hci_rp_read_local_version *rp;
 	struct sk_buff *skb;
-	int ret;
 
 	BT_DBG("%s", hdev->name);
 
@@ -1354,26 +1353,21 @@ static int btusb_setup_csr(struct hci_dev *hdev)
 
 	rp = (struct hci_rp_read_local_version *)skb->data;
 
-	if (!rp->status) {
-		if (le16_to_cpu(rp->manufacturer) != 10) {
-			/* Clear the reset quirk since this is not an actual
-			 * early Bluetooth 1.1 device from CSR.
-			 */
-			clear_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks);
+	if (le16_to_cpu(rp->manufacturer) != 10) {
+		/* Clear the reset quirk since this is not an actual
+		 * early Bluetooth 1.1 device from CSR.
+		 */
+		clear_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks);
 
-			/* These fake CSR controllers have all a broken
-			 * stored link key handling and so just disable it.
-			 */
-			set_bit(HCI_QUIRK_BROKEN_STORED_LINK_KEY,
-				&hdev->quirks);
-		}
+		/* These fake CSR controllers have all a broken
+		 * stored link key handling and so just disable it.
+		 */
+		set_bit(HCI_QUIRK_BROKEN_STORED_LINK_KEY, &hdev->quirks);
 	}
-
-	ret = -bt_to_errno(rp->status);
 
 	kfree_skb(skb);
 
-	return ret;
+	return 0;
 }
 
 static const struct firmware *btusb_setup_intel_get_fw(struct hci_dev *hdev,
