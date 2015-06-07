@@ -91,6 +91,18 @@ nvkm_perfsig_find(struct nvkm_pm *ppm, uint8_t di, uint8_t si,
 	return &dom->signal[si];
 }
 
+static u8
+nvkm_perfsig_count_perfsrc(struct nvkm_perfsig *sig)
+{
+	u8 source_nr = 0, i;
+
+	for (i = 0; i < ARRAY_SIZE(sig->source); i++) {
+		if (sig->source[i])
+			source_nr++;
+	}
+	return source_nr;
+}
+
 /*******************************************************************************
  * Perfmon object classes
  ******************************************************************************/
@@ -148,9 +160,9 @@ nvkm_perfmon_mthd_query_signal(struct nvkm_object *object, void *data, u32 size)
 	struct nvkm_device *device = nv_device(object);
 	struct nvkm_pm *ppm = (void *)object->engine;
 	struct nvkm_perfdom *dom;
+	struct nvkm_perfsig *sig;
 	const bool all = nvkm_boolopt(device->cfgopt, "NvPmShowAll", false);
 	const bool raw = nvkm_boolopt(device->cfgopt, "NvPmUnnamed", all);
-	const char *name;
 	int ret, si;
 
 	nv_ioctl(object, "perfmon query signal size %d\n", size);
@@ -167,13 +179,17 @@ nvkm_perfmon_mthd_query_signal(struct nvkm_object *object, void *data, u32 size)
 		return -EINVAL;
 
 	if (si >= 0) {
-		if (raw || !(name = dom->signal[si].name)) {
+		sig = &dom->signal[si];
+		if (raw || !sig->name) {
 			snprintf(args->v0.name, sizeof(args->v0.name),
 				 "/%s/%02x", dom->name, si);
 		} else {
-			strncpy(args->v0.name, name, sizeof(args->v0.name));
+			strncpy(args->v0.name, sig->name,
+				sizeof(args->v0.name));
 		}
+
 		args->v0.signal = si;
+		args->v0.source_nr = nvkm_perfsig_count_perfsrc(sig);
 	}
 
 	while (++si < dom->signal_nr) {

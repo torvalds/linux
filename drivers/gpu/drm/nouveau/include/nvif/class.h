@@ -268,7 +268,8 @@ struct nvif_perfmon_query_signal_v0 {
 	__u8  domain;
 	__u16 iter;
 	__u8  signal;
-	__u8  pad04[3];
+	__u8  source_nr;
+	__u8  pad05[2];
 	char  name[64];
 };
 
