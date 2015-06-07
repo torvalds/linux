@@ -31,10 +31,6 @@ struct nvkm_perfsig {
 	const char *name;
 };
 
-struct nvkm_perfdom;
-struct nvkm_perfctr *
-nvkm_perfsig_wrap(struct nvkm_pm *, const char *, struct nvkm_perfdom **);
-
 struct nvkm_specdom {
 	u16 signal_nr;
 	const struct nvkm_specsig *signal;

@@ -79,26 +79,6 @@ nvkm_perfsig_find(struct nvkm_pm *ppm, const char *name, u32 size,
 	return nvkm_perfsig_find_(dom, name, size);
 }
 
-struct nvkm_perfctr *
-nvkm_perfsig_wrap(struct nvkm_pm *ppm, const char *name,
-		  struct nvkm_perfdom **pdom)
-{
-	struct nvkm_perfsig *sig;
-	struct nvkm_perfctr *ctr;
-
-	sig = nvkm_perfsig_find(ppm, name, strlen(name), pdom);
-	if (!sig)
-		return NULL;
-
-	ctr = kzalloc(sizeof(*ctr), GFP_KERNEL);
-	if (ctr) {
-		ctr->signal[0] = sig;
-		ctr->logic_op = 0xaaaa;
-	}
-
-	return ctr;
-}
-
 /*******************************************************************************
  * Perfmon object classes
  ******************************************************************************/
