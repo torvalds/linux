@@ -174,29 +174,22 @@ nvkm_perfmon_mthd_query_signal(struct nvkm_object *object, void *data, u32 size)
 	} *args = data;
 	struct nvkm_device *device = nv_device(object);
 	struct nvkm_pm *ppm = (void *)object->engine;
-	struct nvkm_perfdom *dom = NULL, *chk;
+	struct nvkm_perfdom *dom;
 	const bool all = nvkm_boolopt(device->cfgopt, "NvPmShowAll", false);
 	const bool raw = nvkm_boolopt(device->cfgopt, "NvPmUnnamed", all);
 	const char *name;
-	int tmp = 0, di, si;
-	int ret;
+	int ret, si;
 
 	nv_ioctl(object, "perfmon query signal size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(object, "perfmon query signal vers %d iter %08x\n",
-			 args->v0.version, args->v0.iter);
-		di = (args->v0.iter & 0xff000000) >> 24;
-		si = (args->v0.iter & 0x00ffffff) - 1;
+		nv_ioctl(object,
+			 "perfmon query signal vers %d dom %d iter %08x\n",
+			 args->v0.version, args->v0.domain, args->v0.iter);
+		si = (args->v0.iter & 0xffffffff) - 1;
 	} else
 		return ret;
 
-	list_for_each_entry(chk, &ppm->domains, head) {
-		if (tmp++ == di) {
-			dom = chk;
-			break;
-		}
-	}
-
+	dom = nvkm_perfdom_find(ppm, args->v0.domain);
 	if (dom == NULL || si >= (int)dom->signal_nr)
 		return -EINVAL;
 
@@ -209,17 +202,12 @@ nvkm_perfmon_mthd_query_signal(struct nvkm_object *object, void *data, u32 size)
 		}
 	}
 
-	do {
-		while (++si < dom->signal_nr) {
-			if (all || dom->signal[si].name) {
-				args->v0.iter = (di << 24) | ++si;
-				return 0;
-			}
+	while (++si < dom->signal_nr) {
+		if (all || dom->signal[si].name) {
+			args->v0.iter = ++si;
+			return 0;
 		}
-		si = -1;
-		di = di + 1;
-		dom = list_entry(dom->head.next, typeof(*dom), head);
-	} while (&dom->head != &ppm->domains);
+	}
 
 	args->v0.iter = 0xffffffff;
 	return 0;
