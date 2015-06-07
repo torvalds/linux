@@ -668,6 +668,7 @@ static int zap_bt_entries(struct mm_struct *mm,
 
 		len = min(vma->vm_end, end) - addr;
 		zap_page_range(vma, addr, len, NULL);
+		trace_mpx_unmap_zap(addr, addr+len);
 
 		vma = vma->vm_next;
 		addr = vma->vm_start;
@@ -840,6 +841,7 @@ static int mpx_unmap_tables(struct mm_struct *mm,
 	long __user *bd_entry, *bde_start, *bde_end;
 	unsigned long bt_addr;
 
+	trace_mpx_unmap_search(start, end);
 	/*
 	 * "Edge" bounds tables are those which are being used by the region
 	 * (start -> end), but that may be shared with adjacent areas.  If they

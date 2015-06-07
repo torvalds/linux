@@ -63,6 +63,38 @@ TRACE_EVENT(bounds_exception_mpx,
 		__entry->bndstatus)
 );
 
+DECLARE_EVENT_CLASS(mpx_range_trace,
+
+	TP_PROTO(unsigned long start,
+		 unsigned long end),
+	TP_ARGS(start, end),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, start)
+		__field(unsigned long, end)
+	),
+
+	TP_fast_assign(
+		__entry->start = start;
+		__entry->end   = end;
+	),
+
+	TP_printk("[0x%p:0x%p]",
+		(void *)__entry->start,
+		(void *)__entry->end
+	)
+);
+
+DEFINE_EVENT(mpx_range_trace, mpx_unmap_zap,
+	TP_PROTO(unsigned long start, unsigned long end),
+	TP_ARGS(start, end)
+);
+
+DEFINE_EVENT(mpx_range_trace, mpx_unmap_search,
+	TP_PROTO(unsigned long start, unsigned long end),
+	TP_ARGS(start, end)
+);
+
 #else
 
 /*
