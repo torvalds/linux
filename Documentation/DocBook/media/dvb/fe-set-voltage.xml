@@ -39,6 +39,7 @@
 	<term><parameter>voltage</parameter></term>
 	<listitem>
 	  <para>pointer to &fe-sec-voltage;</para>
+	  <para>Valid values are described at &fe-sec-voltage;.</para>
 	</listitem>
       </varlistentry>
     </variablelist>
@@ -63,35 +64,6 @@
     used is recommended.</para>
 
 &return-value-dvb;
-</refsect1>
-
-<refsect1 id="fe-sec-voltage-t">
-<title>enum fe_sec_voltage</title>
-
-<table pgwide="1" frame="none" id="fe-sec-voltage">
-    <title>enum fe_status</title>
-    <tgroup cols="2">
-	&cs-def;
-	<thead>
-	<row>
-	    <entry>ID</entry>
-	    <entry>Description</entry>
-	</row>
-	</thead>
-	<tbody valign="top">
-	<row>
-	    <entry align="char" id="SEC-VOLTAGE-13"><constant>SEC_VOLTAGE_13</constant></entry>
-	    <entry align="char">Set DC voltage level to 13V</entry>
-	</row><row>
-	    <entry align="char" id="SEC-VOLTAGE-18"><constant>SEC_VOLTAGE_18</constant></entry>
-	    <entry align="char">Set DC voltage level to 18V</entry>
-	</row><row>
-	    <entry align="char" id="SEC-VOLTAGE-OFF"><constant>SEC_VOLTAGE_OFF</constant></entry>
-	    <entry align="char">Don't send any voltage to the antenna</entry>
-	</row>
-        </tbody>
-    </tgroup>
-</table>
 </refsect1>
 
 </refentry>

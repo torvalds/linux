@@ -401,12 +401,31 @@ get/set up to 64 properties. The actual meaning of each property is described on
 	the polarzation (horizontal/vertical). When using DiSEqC epuipment this
 	voltage has to be switched consistently to the DiSEqC commands as
 	described in the DiSEqC spec.</para>
-	<programlisting>
-		typedef enum fe_sec_voltage {
-		SEC_VOLTAGE_13,
-		SEC_VOLTAGE_18
-		} fe_sec_voltage_t;
-	</programlisting>
+
+<table pgwide="1" frame="none" id="fe-sec-voltage">
+    <title id="fe-sec-voltage-t">enum fe_sec_voltage</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry align="char" id="SEC-VOLTAGE-13"><constant>SEC_VOLTAGE_13</constant></entry>
+	    <entry align="char">Set DC voltage level to 13V</entry>
+	</row><row>
+	    <entry align="char" id="SEC-VOLTAGE-18"><constant>SEC_VOLTAGE_18</constant></entry>
+	    <entry align="char">Set DC voltage level to 18V</entry>
+	</row><row>
+	    <entry align="char" id="SEC-VOLTAGE-OFF"><constant>SEC_VOLTAGE_OFF</constant></entry>
+	    <entry align="char">Don't send any voltage to the antenna</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
 	</section>
 	<section id="DTV-TONE">
 	<title><constant>DTV_TONE</constant></title>
