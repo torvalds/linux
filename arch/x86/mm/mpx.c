@@ -46,8 +46,8 @@ static unsigned long mpx_mmap(unsigned long len)
 	vm_flags_t vm_flags;
 	struct vm_area_struct *vma;
 
-	/* Only bounds table and bounds directory can be allocated here */
-	if (len != MPX_BD_SIZE_BYTES && len != MPX_BT_SIZE_BYTES)
+	/* Only bounds table can be allocated here */
+	if (len != MPX_BT_SIZE_BYTES)
 		return -EINVAL;
 
 	down_write(&mm->mmap_sem);
