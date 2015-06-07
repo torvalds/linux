@@ -6,6 +6,7 @@ struct nvkm_perfctr {
 	struct nvkm_object base;
 	struct list_head head;
 	struct nvkm_perfsig *signal[4];
+	struct nvkm_perfdom *dom;
 	int slot;
 	u32 logic_op;
 	u32 clk;

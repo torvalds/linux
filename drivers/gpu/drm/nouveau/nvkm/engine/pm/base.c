@@ -307,13 +307,43 @@ nvkm_perfmon_ofuncs = {
  * Perfctr object classes
  ******************************************************************************/
 static int
+nvkm_perfctr_init(struct nvkm_object *object, void *data, u32 size)
+{
+	union {
+		struct nvif_perfctr_init none;
+	} *args = data;
+	struct nvkm_pm *ppm = (void *)object->engine;
+	struct nvkm_perfctr *ctr = (void *)object;
+	struct nvkm_perfdom *dom = ctr->dom;
+	int ret;
+
+	nv_ioctl(object, "perfctr init size %d\n", size);
+	if (nvif_unvers(args->none)) {
+		nv_ioctl(object, "perfctr init\n");
+	} else
+		return ret;
+
+	ctr->slot = ffs(dom->quad) - 1;
+	if (ctr->slot < 0) {
+		/* no free slots are available */
+		return -EINVAL;
+	}
+	dom->quad &= ~(QUAD_FREE << ctr->slot);
+	dom->func->init(ppm, dom, ctr);
+
+	/* start next batch of counters for sampling */
+	dom->func->next(ppm, dom);
+	return 0;
+}
+
+static int
 nvkm_perfctr_sample(struct nvkm_object *object, void *data, u32 size)
 {
 	union {
 		struct nvif_perfctr_sample none;
 	} *args = data;
 	struct nvkm_pm *ppm = (void *)object->engine;
-	struct nvkm_perfctr *ctr, *tmp;
+	struct nvkm_perfctr *ctr;
 	struct nvkm_perfdom *dom;
 	int ret;
 
@@ -328,32 +358,15 @@ nvkm_perfctr_sample(struct nvkm_object *object, void *data, u32 size)
 		/* sample previous batch of counters */
 		if (dom->quad != QUAD_MASK) {
 			dom->func->next(ppm, dom);
-			tmp = NULL;
-			while (!list_empty(&dom->list)) {
-				ctr = list_first_entry(&dom->list,
-						       typeof(*ctr), head);
-				if (ctr->slot < 0) break;
-				if ( tmp && tmp == ctr) break;
-				if (!tmp) tmp = ctr;
+
+			/* read counter values */
+			list_for_each_entry(ctr, &dom->list, head) {
 				dom->func->read(ppm, dom, ctr);
-				ctr->slot  = -1;
-				list_move_tail(&ctr->head, &dom->list);
+				ctr->slot = -1;
 			}
+
+			dom->quad = QUAD_MASK;
 		}
-
-		dom->quad = QUAD_MASK;
-
-		/* setup next batch of counters for sampling */
-		list_for_each_entry(ctr, &dom->list, head) {
-			ctr->slot = ffs(dom->quad) - 1;
-			if (ctr->slot < 0)
-				break;
-			dom->quad &= ~(QUAD_FREE << ctr->slot);
-			dom->func->init(ppm, dom, ctr);
-		}
-
-		if (dom->quad != QUAD_MASK)
-			dom->func->next(ppm, dom);
 	}
 
 	return 0;
@@ -386,6 +399,8 @@ static int
 nvkm_perfctr_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
 	switch (mthd) {
+	case NVIF_PERFCTR_V0_INIT:
+		return nvkm_perfctr_init(object, data, size);
 	case NVIF_PERFCTR_V0_SAMPLE:
 		return nvkm_perfctr_sample(object, data, size);
 	case NVIF_PERFCTR_V0_READ:
@@ -400,6 +415,8 @@ static void
 nvkm_perfctr_dtor(struct nvkm_object *object)
 {
 	struct nvkm_perfctr *ctr = (void *)object;
+	if (ctr->dom)
+		ctr->dom->quad |= (QUAD_FREE << ctr->slot);
 	if (ctr->head.next)
 		list_del(&ctr->head);
 	nvkm_object_destroy(&ctr->base);
@@ -441,6 +458,7 @@ nvkm_perfctr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	ctr->dom = dom;
 	ctr->slot = -1;
 	ctr->logic_op = args->v0.logic_op;
 	ctr->signal[0] = sig[0];

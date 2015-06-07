@@ -300,8 +300,12 @@ struct nvif_perfctr_v0 {
 	__u8  pad06[4];
 };
 
-#define NVIF_PERFCTR_V0_SAMPLE                                             0x00
-#define NVIF_PERFCTR_V0_READ                                               0x01
+#define NVIF_PERFCTR_V0_INIT                                               0x00
+#define NVIF_PERFCTR_V0_SAMPLE                                             0x01
+#define NVIF_PERFCTR_V0_READ                                               0x02
+
+struct nvif_perfctr_init {
+};
 
 struct nvif_perfctr_sample {
 };
