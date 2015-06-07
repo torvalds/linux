@@ -52,4 +52,7 @@ BUILD_INTERRUPT(thermal_interrupt,THERMAL_APIC_VECTOR)
 BUILD_INTERRUPT(threshold_interrupt,THRESHOLD_APIC_VECTOR)
 #endif
 
+#ifdef CONFIG_X86_MCE_AMD
+BUILD_INTERRUPT(deferred_error_interrupt, DEFERRED_ERROR_VECTOR)
+#endif
 #endif

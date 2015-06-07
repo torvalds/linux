@@ -122,6 +122,12 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 		seq_printf(p, "%10u ", irq_stats(j)->irq_threshold_count);
 	seq_puts(p, "  Threshold APIC interrupts\n");
 #endif
+#ifdef CONFIG_X86_MCE_AMD
+	seq_printf(p, "%*s: ", prec, "DFR");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", irq_stats(j)->irq_deferred_error_count);
+	seq_puts(p, "  Deferred Error APIC interrupts\n");
+#endif
 #ifdef CONFIG_X86_MCE
 	seq_printf(p, "%*s: ", prec, "MCE");
 	for_each_online_cpu(j)

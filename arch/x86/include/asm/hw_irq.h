@@ -40,6 +40,7 @@ extern asmlinkage void reschedule_interrupt(void);
 extern asmlinkage void irq_move_cleanup_interrupt(void);
 extern asmlinkage void reboot_interrupt(void);
 extern asmlinkage void threshold_interrupt(void);
+extern asmlinkage void deferred_error_interrupt(void);
 
 extern asmlinkage void call_function_interrupt(void);
 extern asmlinkage void call_function_single_interrupt(void);
@@ -54,6 +55,7 @@ extern void trace_spurious_interrupt(void);
 extern void trace_thermal_interrupt(void);
 extern void trace_reschedule_interrupt(void);
 extern void trace_threshold_interrupt(void);
+extern void trace_deferred_error_interrupt(void);
 extern void trace_call_function_interrupt(void);
 extern void trace_call_function_single_interrupt(void);
 #define trace_irq_move_cleanup_interrupt  irq_move_cleanup_interrupt

@@ -101,6 +101,12 @@ DEFINE_IRQ_VECTOR_EVENT(call_function_single);
 DEFINE_IRQ_VECTOR_EVENT(threshold_apic);
 
 /*
+ * deferred_error_apic - called when entering/exiting a deferred apic interrupt
+ * vector handler
+ */
+DEFINE_IRQ_VECTOR_EVENT(deferred_error_apic);
+
+/*
  * thermal_apic - called when entering/exiting a thermal apic interrupt
  * vector handler
  */

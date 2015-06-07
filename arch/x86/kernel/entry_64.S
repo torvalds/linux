@@ -925,6 +925,11 @@ apicinterrupt THRESHOLD_APIC_VECTOR \
 	threshold_interrupt smp_threshold_interrupt
 #endif
 
+#ifdef CONFIG_X86_MCE_AMD
+apicinterrupt DEFERRED_ERROR_VECTOR \
+	deferred_error_interrupt smp_deferred_error_interrupt
+#endif
+
 #ifdef CONFIG_X86_THERMAL_VECTOR
 apicinterrupt THERMAL_APIC_VECTOR \
 	thermal_interrupt smp_thermal_interrupt
