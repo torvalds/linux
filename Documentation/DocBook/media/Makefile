@@ -87,7 +87,7 @@ ENUMS = \
 		$(srctree)/include/uapi/linux/v4l2-subdev.h)
 
 ENUM_DEFS = \
-	$(shell perl -e 'while (<>) { if ($$enum) {print "$$1\n" if (/\s*([A-Z]\S+)\b/); } $$enum = 0 if ($enum && /^\}/); $$enum = 1 if(/^\s*enum\s/); }' \
+	$(shell perl -e 'open IN,"cat @ARGV| cpp -fpreprocessed |"; while (<IN>) { if ($$enum) {print "$$1\n" if (/\s*([A-Z]\S+)\b/); } $$enum = 0 if ($$enum && /^\}/); $$enum = 1 if(/^\s*enum\s/); }; close IN;' \
 		$(srctree)/include/uapi/linux/dvb/audio.h \
 		$(srctree)/include/uapi/linux/dvb/ca.h \
 		$(srctree)/include/uapi/linux/dvb/dmx.h \
