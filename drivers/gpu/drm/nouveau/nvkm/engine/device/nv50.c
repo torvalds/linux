@@ -288,7 +288,7 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_CIPHER ] = &g84_cipher_oclass;
 		device->oclass[NVDEV_ENGINE_BSP    ] = &g84_bsp_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  gt200_disp_oclass;
-		device->oclass[NVDEV_ENGINE_PM     ] =  g84_pm_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] =  gt200_pm_oclass;
 		break;
 	case 0xaa:
 		device->cname = "MCP77/MCP78";

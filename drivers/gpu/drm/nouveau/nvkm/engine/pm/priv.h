@@ -44,6 +44,14 @@ struct nvkm_perfsrc {
 	bool enable;
 };
 
+extern const struct nvkm_specsrc nv50_prop_sources[];
+extern const struct nvkm_specsrc nv50_zcull_sources[];
+extern const struct nvkm_specsrc nv50_zrop_sources[];
+extern const struct nvkm_specsrc g84_vfetch_sources[];
+extern const struct nvkm_specsrc gt200_crop_sources[];
+extern const struct nvkm_specsrc gt200_prop_sources[];
+extern const struct nvkm_specsrc gt200_tex_sources[];
+
 struct nvkm_specsig {
 	u8 signal;
 	const char *name;

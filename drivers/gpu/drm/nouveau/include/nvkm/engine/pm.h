@@ -24,6 +24,7 @@ nvkm_pm(void *obj)
 extern struct nvkm_oclass *nv40_pm_oclass;
 extern struct nvkm_oclass *nv50_pm_oclass;
 extern struct nvkm_oclass *g84_pm_oclass;
+extern struct nvkm_oclass *gt200_pm_oclass;
 extern struct nvkm_oclass *gt215_pm_oclass;
 extern struct nvkm_oclass gf100_pm_oclass;
 extern struct nvkm_oclass gk104_pm_oclass;

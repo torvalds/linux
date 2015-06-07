@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Red Hat Inc.
+ * Copyright 2015 Nouveau project
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,38 +19,55 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs
+ * Authors: Samuel Pitoiset
  */
 #include "nv40.h"
 
-// TODO: check for GT200
-static const struct nvkm_specsrc
-gt215_zcull_sources[] = {
-	{ 0x4002ca4, (const struct nvkm_specmux[]) {
-			{ 0x7fff, 0, "unk0" },
-			{ 0xff, 24, "unk24" },
+const struct nvkm_specsrc
+gt200_crop_sources[] = {
+	{ 0x407008, (const struct nvkm_specmux[]) {
+			{ 0x7, 0, "sel0", true },
+			{ 0x1f, 16, "sel1", true },
 			{}
-		}, "pgraph_zcull_pm_unka4" },
+		}, "pgraph_rop0_crop_pm_mux" },
+	{}
+};
+
+const struct nvkm_specsrc
+gt200_prop_sources[] = {
+	{ 0x408750, (const struct nvkm_specmux[]) {
+			{ 0x3f, 0, "sel", true },
+			{}
+		}, "pgraph_tpc0_prop_pm_mux" },
+	{}
+};
+
+const struct nvkm_specsrc
+gt200_tex_sources[] = {
+	{ 0x408508, (const struct nvkm_specmux[]) {
+			{ 0x3fff, 0, "unk0" },
+			{}
+		}, "pgraph_tpc0_tex_unk08" },
 	{}
 };
 
 static const struct nvkm_specdom
-gt215_pm[] = {
+gt200_pm[] = {
 	{ 0x20, (const struct nvkm_specsig[]) {
 			{}
 		}, &nv40_perfctr_func },
 	{ 0xf0, (const struct nvkm_specsig[]) {
-			{ 0xcb, "pc01_gr_idle" },
-			{ 0x86, "pc01_strmout_00" },
-			{ 0x87, "pc01_strmout_01" },
-			{ 0xe0, "pc01_trast_00" },
-			{ 0xe1, "pc01_trast_01" },
-			{ 0xe2, "pc01_trast_02" },
-			{ 0xe3, "pc01_trast_03" },
-			{ 0xe6, "pc01_trast_04" },
-			{ 0xe7, "pc01_trast_05" },
-			{ 0x84, "pc01_vattr_00" },
-			{ 0x85, "pc01_vattr_01" },
+			{ 0xc9, "pc01_gr_idle" },
+			{ 0x84, "pc01_strmout_00" },
+			{ 0x85, "pc01_strmout_01" },
+			{ 0xde, "pc01_trast_00" },
+			{ 0xdf, "pc01_trast_01" },
+			{ 0xe0, "pc01_trast_02" },
+			{ 0xe1, "pc01_trast_03" },
+			{ 0xe4, "pc01_trast_04" },
+			{ 0xe5, "pc01_trast_05" },
+			{ 0x82, "pc01_vattr_00" },
+			{ 0x83, "pc01_vattr_01" },
 			{ 0x46, "pc01_vfetch_00", g84_vfetch_sources },
 			{ 0x47, "pc01_vfetch_01", g84_vfetch_sources },
 			{ 0x48, "pc01_vfetch_02", g84_vfetch_sources },
@@ -77,21 +94,22 @@ gt215_pm[] = {
 			{ 0x5d, "pc01_vfetch_17", g84_vfetch_sources },
 			{ 0x5e, "pc01_vfetch_18", g84_vfetch_sources },
 			{ 0x5f, "pc01_vfetch_19", g84_vfetch_sources },
-			{ 0x07, "pc01_zcull_00", gt215_zcull_sources },
-			{ 0x08, "pc01_zcull_01", gt215_zcull_sources },
-			{ 0x09, "pc01_zcull_02", gt215_zcull_sources },
-			{ 0x0a, "pc01_zcull_03", gt215_zcull_sources },
-			{ 0x0b, "pc01_zcull_04", gt215_zcull_sources },
-			{ 0x0c, "pc01_zcull_05", gt215_zcull_sources },
-			{ 0xb2, "pc01_unk00" },
+         { 0x07, "pc01_zcull_00", nv50_zcull_sources },
+			{ 0x08, "pc01_zcull_01", nv50_zcull_sources },
+			{ 0x09, "pc01_zcull_02", nv50_zcull_sources },
+			{ 0x0a, "pc01_zcull_03", nv50_zcull_sources },
+			{ 0x0b, "pc01_zcull_04", nv50_zcull_sources },
+			{ 0x0c, "pc01_zcull_05", nv50_zcull_sources },
+
+			{ 0xb0, "pc01_unk00" },
 			{ 0xec, "pc01_trailer" },
 			{}
 		}, &nv40_perfctr_func },
 	{ 0xe0, (const struct nvkm_specsig[]) {
-			{ 0x64, "pc02_crop_00", gt200_crop_sources },
-			{ 0x65, "pc02_crop_01", gt200_crop_sources },
-			{ 0x66, "pc02_crop_02", gt200_crop_sources },
-			{ 0x67, "pc02_crop_03", gt200_crop_sources },
+			{ 0x55, "pc02_crop_00", gt200_crop_sources },
+			{ 0x56, "pc02_crop_01", gt200_crop_sources },
+			{ 0x57, "pc02_crop_02", gt200_crop_sources },
+			{ 0x58, "pc02_crop_03", gt200_crop_sources },
 			{ 0x00, "pc02_prop_00", gt200_prop_sources },
 			{ 0x01, "pc02_prop_01", gt200_prop_sources },
 			{ 0x02, "pc02_prop_02", gt200_prop_sources },
@@ -100,18 +118,18 @@ gt215_pm[] = {
 			{ 0x05, "pc02_prop_05", gt200_prop_sources },
 			{ 0x06, "pc02_prop_06", gt200_prop_sources },
 			{ 0x07, "pc02_prop_07", gt200_prop_sources },
-			{ 0x80, "pc02_tex_00", gt200_tex_sources },
-			{ 0x81, "pc02_tex_01", gt200_tex_sources },
-			{ 0x82, "pc02_tex_02", gt200_tex_sources },
-			{ 0x83, "pc02_tex_03", gt200_tex_sources },
-			{ 0x3a, "pc02_tex_04", gt200_tex_sources },
-			{ 0x3b, "pc02_tex_05", gt200_tex_sources },
-			{ 0x3c, "pc02_tex_06", gt200_tex_sources },
-			{ 0x7c, "pc02_zrop_00", nv50_zrop_sources },
-			{ 0x7d, "pc02_zrop_01", nv50_zrop_sources },
-			{ 0x7e, "pc02_zrop_02", nv50_zrop_sources },
-			{ 0x7f, "pc02_zrop_03", nv50_zrop_sources },
-			{ 0xcc, "pc02_trailer" },
+			{ 0x78, "pc02_tex_00", gt200_tex_sources },
+			{ 0x79, "pc02_tex_01", gt200_tex_sources },
+			{ 0x7a, "pc02_tex_02", gt200_tex_sources },
+			{ 0x7b, "pc02_tex_03", gt200_tex_sources },
+			{ 0x32, "pc02_tex_04", gt200_tex_sources },
+			{ 0x33, "pc02_tex_05", gt200_tex_sources },
+			{ 0x34, "pc02_tex_06", gt200_tex_sources },
+			{ 0x74, "pc02_zrop_00", nv50_zrop_sources },
+			{ 0x75, "pc02_zrop_01", nv50_zrop_sources },
+			{ 0x76, "pc02_zrop_02", nv50_zrop_sources },
+			{ 0x77, "pc02_zrop_03", nv50_zrop_sources },
+			{ 0xec, "pc02_trailer" },
 			{}
 		}, &nv40_perfctr_func },
 	{ 0x20, (const struct nvkm_specsig[]) {
@@ -133,13 +151,13 @@ gt215_pm[] = {
 };
 
 struct nvkm_oclass *
-gt215_pm_oclass = &(struct nv40_pm_oclass) {
-	.base.handle = NV_ENGINE(PM, 0xa3),
+gt200_pm_oclass = &(struct nv40_pm_oclass) {
+	.base.handle = NV_ENGINE(PM, 0xa0),
 	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv40_pm_ctor,
 		.dtor = _nvkm_pm_dtor,
 		.init = _nvkm_pm_init,
 		.fini = _nvkm_pm_fini,
 	},
-	.doms = gt215_pm,
+	.doms = gt200_pm,
 }.base;
