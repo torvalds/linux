@@ -103,35 +103,35 @@ enum adv7842_drive_strength {
 
 struct adv7842_sdp_csc_coeff {
 	bool manual;
-	uint16_t scaling;
-	uint16_t A1;
-	uint16_t A2;
-	uint16_t A3;
-	uint16_t A4;
-	uint16_t B1;
-	uint16_t B2;
-	uint16_t B3;
-	uint16_t B4;
-	uint16_t C1;
-	uint16_t C2;
-	uint16_t C3;
-	uint16_t C4;
+	u16 scaling;
+	u16 A1;
+	u16 A2;
+	u16 A3;
+	u16 A4;
+	u16 B1;
+	u16 B2;
+	u16 B3;
+	u16 B4;
+	u16 C1;
+	u16 C2;
+	u16 C3;
+	u16 C4;
 };
 
 struct adv7842_sdp_io_sync_adjustment {
 	bool adjust;
-	uint16_t hs_beg;
-	uint16_t hs_width;
-	uint16_t de_beg;
-	uint16_t de_end;
-	uint8_t vs_beg_o;
-	uint8_t vs_beg_e;
-	uint8_t vs_end_o;
-	uint8_t vs_end_e;
-	uint8_t de_v_beg_o;
-	uint8_t de_v_beg_e;
-	uint8_t de_v_end_o;
-	uint8_t de_v_end_e;
+	u16 hs_beg;
+	u16 hs_width;
+	u16 de_beg;
+	u16 de_end;
+	u8 vs_beg_o;
+	u8 vs_beg_e;
+	u8 vs_end_o;
+	u8 vs_end_e;
+	u8 de_v_beg_o;
+	u8 de_v_beg_e;
+	u8 de_v_end_o;
+	u8 de_v_end_e;
 };
 
 /* Platform dependent definition */
