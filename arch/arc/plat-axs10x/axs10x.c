@@ -37,7 +37,7 @@
 #define CREG_CPU_ARC770_IRQ_MUX	(AXC001_CREG + 0x114)
 #define CREG_CPU_GPIO_UART_MUX	(AXC001_CREG + 0x120)
 
-static void enable_gpio_intc_wire(void)
+static void __init axs10x_enable_gpio_intc_wire(void)
 {
 	/*
 	 * Peripherals on CPU Card and Mother Board are wired to cpu intc via
@@ -83,7 +83,7 @@ static void enable_gpio_intc_wire(void)
 	iowrite32(1 << MB_TO_GPIO_IRQ, (void __iomem *) GPIO_INTEN);
 }
 
-static void axs10x_print_board_ver(unsigned int creg, const char *str)
+static void __init axs10x_print_board_ver(unsigned int creg, const char *str)
 {
 	union ver {
 		struct {
@@ -101,7 +101,7 @@ static void axs10x_print_board_ver(unsigned int creg, const char *str)
 		board.y);
 }
 
-static void axs10x_early_init(void)
+static void __init axs10x_early_init(void)
 {
 	int mb_rev;
 	char mb[32];
@@ -112,7 +112,7 @@ static void axs10x_early_init(void)
 	else
 		mb_rev = 2;	/* HT-2 (rev2.0) */
 
-	enable_gpio_intc_wire();
+	axs10x_enable_gpio_intc_wire();
 
 	scnprintf(mb, 32, "MainBoard v%d", mb_rev);
 	axs10x_print_board_ver(CREG_MB_VER, mb);
@@ -227,7 +227,7 @@ static const struct aperture axs_mb_memmap[16] = {
 	{AXS_MB_SLV_AXI_TUNNEL_CPU,	0xF},
 };
 
-static noinline void
+static noinline void __init
 axs101_set_memmap(void __iomem *base, const struct aperture map[16])
 {
 	unsigned int slave_select, slave_offset;
@@ -252,7 +252,7 @@ axs101_set_memmap(void __iomem *base, const struct aperture map[16])
 	iowrite32(slave_offset, base + 0xC);	/* OFFSET1 */
 }
 
-static void axs101_early_init(void)
+static void __init axs101_early_init(void)
 {
 	int i;
 
