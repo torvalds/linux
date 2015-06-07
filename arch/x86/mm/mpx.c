@@ -483,6 +483,7 @@ static int allocate_bt(long __user *bd_entry)
 		ret = -EINVAL;
 		goto out_unmap;
 	}
+	trace_mpx_new_bounds_table(bt_addr);
 	return 0;
 out_unmap:
 	vm_munmap(bt_addr & MPX_BT_ADDR_MASK, MPX_BT_SIZE_BYTES);
