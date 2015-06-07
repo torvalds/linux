@@ -358,12 +358,11 @@ nvkm_perfctx_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	mutex_lock(&nv_subdev(ppm)->mutex);
 	if (ppm->context == NULL)
 		ppm->context = ctx;
+	if (ctx != ppm->context)
+		ret = -EBUSY;
 	mutex_unlock(&nv_subdev(ppm)->mutex);
 
-	if (ctx != ppm->context)
-		return -EBUSY;
-
-	return 0;
+	return ret;
 }
 
 struct nvkm_oclass
