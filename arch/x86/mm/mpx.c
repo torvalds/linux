@@ -34,6 +34,22 @@ static int is_mpx_vma(struct vm_area_struct *vma)
 	return (vma->vm_ops == &mpx_vma_ops);
 }
 
+static inline unsigned long mpx_bd_size_bytes(struct mm_struct *mm)
+{
+	if (is_64bit_mm(mm))
+		return MPX_BD_SIZE_BYTES_64;
+	else
+		return MPX_BD_SIZE_BYTES_32;
+}
+
+static inline unsigned long mpx_bt_size_bytes(struct mm_struct *mm)
+{
+	if (is_64bit_mm(mm))
+		return MPX_BT_SIZE_BYTES_64;
+	else
+		return MPX_BT_SIZE_BYTES_32;
+}
+
 /*
  * This is really a simplified "vm_mmap". it only handles MPX
  * bounds tables (the bounds directory is user-allocated).
@@ -50,7 +66,7 @@ static unsigned long mpx_mmap(unsigned long len)
 	struct vm_area_struct *vma;
 
 	/* Only bounds table can be allocated here */
-	if (len != MPX_BT_SIZE_BYTES)
+	if (len != mpx_bt_size_bytes(mm))
 		return -EINVAL;
 
 	down_write(&mm->mmap_sem);
@@ -449,13 +465,12 @@ static int mpx_cmpxchg_bd_entry(struct mm_struct *mm,
 }
 
 /*
- * With 32-bit mode, MPX_BT_SIZE_BYTES is 4MB, and the size of each
- * bounds table is 16KB. With 64-bit mode, MPX_BT_SIZE_BYTES is 2GB,
+ * With 32-bit mode, a bounds directory is 4MB, and the size of each
+ * bounds table is 16KB. With 64-bit mode, a bounds directory is 2GB,
  * and the size of each bounds table is 4MB.
  */
-static int allocate_bt(long __user *bd_entry)
+static int allocate_bt(struct mm_struct *mm, long __user *bd_entry)
 {
-	struct mm_struct *mm = current->mm;
 	unsigned long expected_old_val = 0;
 	unsigned long actual_old_val = 0;
 	unsigned long bt_addr;
@@ -466,7 +481,7 @@ static int allocate_bt(long __user *bd_entry)
 	 * Carve the virtual space out of userspace for the new
 	 * bounds table:
 	 */
-	bt_addr = mpx_mmap(MPX_BT_SIZE_BYTES);
+	bt_addr = mpx_mmap(mpx_bt_size_bytes(mm));
 	if (IS_ERR((void *)bt_addr))
 		return PTR_ERR((void *)bt_addr);
 	/*
@@ -517,7 +532,7 @@ static int allocate_bt(long __user *bd_entry)
 	trace_mpx_new_bounds_table(bt_addr);
 	return 0;
 out_unmap:
-	vm_munmap(bt_addr, MPX_BT_SIZE_BYTES);
+	vm_munmap(bt_addr, mpx_bt_size_bytes(mm));
 	return ret;
 }
 
@@ -536,6 +551,7 @@ static int do_mpx_bt_fault(void)
 {
 	unsigned long bd_entry, bd_base;
 	const struct bndcsr *bndcsr;
+	struct mm_struct *mm = current->mm;
 
 	bndcsr = get_xsave_field_ptr(XSTATE_BNDCSR);
 	if (!bndcsr)
@@ -554,10 +570,10 @@ static int do_mpx_bt_fault(void)
 	 * the directory is.
 	 */
 	if ((bd_entry < bd_base) ||
-	    (bd_entry >= bd_base + MPX_BD_SIZE_BYTES))
+	    (bd_entry >= bd_base + mpx_bd_size_bytes(mm)))
 		return -EINVAL;
 
-	return allocate_bt((long __user *)bd_entry);
+	return allocate_bt(mm, (long __user *)bd_entry);
 }
 
 int mpx_handle_bd_fault(void)
@@ -789,7 +805,115 @@ static int unmap_single_bt(struct mm_struct *mm,
 	 * avoid recursion, do_munmap() will check whether it comes
 	 * from one bounds table through VM_MPX flag.
 	 */
-	return do_munmap(mm, bt_addr, MPX_BT_SIZE_BYTES);
+	return do_munmap(mm, bt_addr, mpx_bt_size_bytes(mm));
+}
+
+static inline int bt_entry_size_bytes(struct mm_struct *mm)
+{
+	if (is_64bit_mm(mm))
+		return MPX_BT_ENTRY_BYTES_64;
+	else
+		return MPX_BT_ENTRY_BYTES_32;
+}
+
+/*
+ * Take a virtual address and turns it in to the offset in bytes
+ * inside of the bounds table where the bounds table entry
+ * controlling 'addr' can be found.
+ */
+static unsigned long mpx_get_bt_entry_offset_bytes(struct mm_struct *mm,
+		unsigned long addr)
+{
+	unsigned long bt_table_nr_entries;
+	unsigned long offset = addr;
+
+	if (is_64bit_mm(mm)) {
+		/* Bottom 3 bits are ignored on 64-bit */
+		offset >>= 3;
+		bt_table_nr_entries = MPX_BT_NR_ENTRIES_64;
+	} else {
+		/* Bottom 2 bits are ignored on 32-bit */
+		offset >>= 2;
+		bt_table_nr_entries = MPX_BT_NR_ENTRIES_32;
+	}
+	/*
+	 * We know the size of the table in to which we are
+	 * indexing, and we have eliminated all the low bits
+	 * which are ignored for indexing.
+	 *
+	 * Mask out all the high bits which we do not need
+	 * to index in to the table.  Note that the tables
+	 * are always powers of two so this gives us a proper
+	 * mask.
+	 */
+	offset &= (bt_table_nr_entries-1);
+	/*
+	 * We now have an entry offset in terms of *entries* in
+	 * the table.  We need to scale it back up to bytes.
+	 */
+	offset *= bt_entry_size_bytes(mm);
+	return offset;
+}
+
+/*
+ * How much virtual address space does a single bounds
+ * directory entry cover?
+ *
+ * Note, we need a long long because 4GB doesn't fit in
+ * to a long on 32-bit.
+ */
+static inline unsigned long bd_entry_virt_space(struct mm_struct *mm)
+{
+	unsigned long long virt_space = (1ULL << boot_cpu_data.x86_virt_bits);
+	if (is_64bit_mm(mm))
+		return virt_space / MPX_BD_NR_ENTRIES_64;
+	else
+		return virt_space / MPX_BD_NR_ENTRIES_32;
+}
+
+/*
+ * Return an offset in terms of bytes in to the bounds
+ * directory where the bounds directory entry for a given
+ * virtual address resides.
+ *
+ * This has to be in bytes because the directory entries
+ * are different sizes on 64/32 bit.
+ */
+static unsigned long mpx_get_bd_entry_offset(struct mm_struct *mm,
+		unsigned long addr)
+{
+	/*
+	 * There are several ways to derive the bd offsets.  We
+	 * use the following approach here:
+	 * 1. We know the size of the virtual address space
+	 * 2. We know the number of entries in a bounds table
+	 * 3. We know that each entry covers a fixed amount of
+	 *    virtual address space.
+	 * So, we can just divide the virtual address by the
+	 * virtual space used by one entry to determine which
+	 * entry "controls" the given virtual address.
+	 */
+	if (is_64bit_mm(mm)) {
+		int bd_entry_size = 8; /* 64-bit pointer */
+		/*
+		 * Take the 64-bit addressing hole in to account.
+		 */
+		addr &= ((1UL << boot_cpu_data.x86_virt_bits) - 1);
+		return (addr / bd_entry_virt_space(mm)) * bd_entry_size;
+	} else {
+		int bd_entry_size = 4; /* 32-bit pointer */
+		/*
+		 * 32-bit has no hole so this case needs no mask
+		 */
+		return (addr / bd_entry_virt_space(mm)) * bd_entry_size;
+	}
+	/*
+	 * The two return calls above are exact copies.  If we
+	 * pull out a single copy and put it in here, gcc won't
+	 * realize that we're doing a power-of-2 divide and use
+	 * shifts.  It uses a real divide.  If we put them up
+	 * there, it manages to figure it out (gcc 4.8.3).
+	 */
 }
 
 /*
@@ -803,6 +927,7 @@ static int unmap_shared_bt(struct mm_struct *mm,
 		unsigned long end, bool prev_shared, bool next_shared)
 {
 	unsigned long bt_addr;
+	unsigned long start_off, end_off;
 	int ret;
 
 	ret = get_bt_addr(mm, bd_entry, &bt_addr);
@@ -814,17 +939,20 @@ static int unmap_shared_bt(struct mm_struct *mm,
 	if (ret)
 		return ret;
 
+	start_off = mpx_get_bt_entry_offset_bytes(mm, start);
+	end_off   = mpx_get_bt_entry_offset_bytes(mm, end);
+
 	if (prev_shared && next_shared)
 		ret = zap_bt_entries(mm, bt_addr,
-				bt_addr+MPX_GET_BT_ENTRY_OFFSET(start),
-				bt_addr+MPX_GET_BT_ENTRY_OFFSET(end));
+				bt_addr + start_off,
+				bt_addr + end_off);
 	else if (prev_shared)
 		ret = zap_bt_entries(mm, bt_addr,
-				bt_addr+MPX_GET_BT_ENTRY_OFFSET(start),
-				bt_addr+MPX_BT_SIZE_BYTES);
+				bt_addr + start_off,
+				bt_addr + mpx_bt_size_bytes(mm));
 	else if (next_shared)
 		ret = zap_bt_entries(mm, bt_addr, bt_addr,
-				bt_addr+MPX_GET_BT_ENTRY_OFFSET(end));
+				bt_addr + end_off);
 	else
 		ret = unmap_single_bt(mm, bd_entry, bt_addr);
 
@@ -845,8 +973,8 @@ static int unmap_edge_bts(struct mm_struct *mm,
 	struct vm_area_struct *prev, *next;
 	bool prev_shared = false, next_shared = false;
 
-	bde_start = mm->bd_addr + MPX_GET_BD_ENTRY_OFFSET(start);
-	bde_end = mm->bd_addr + MPX_GET_BD_ENTRY_OFFSET(end-1);
+	bde_start = mm->bd_addr + mpx_get_bd_entry_offset(mm, start);
+	bde_end   = mm->bd_addr + mpx_get_bd_entry_offset(mm, end-1);
 
 	/*
 	 * Check whether bde_start and bde_end are shared with adjacent
@@ -858,10 +986,10 @@ static int unmap_edge_bts(struct mm_struct *mm,
 	 * in to 'next'.
 	 */
 	next = find_vma_prev(mm, start, &prev);
-	if (prev && (mm->bd_addr + MPX_GET_BD_ENTRY_OFFSET(prev->vm_end-1))
+	if (prev && (mm->bd_addr + mpx_get_bd_entry_offset(mm, prev->vm_end-1))
 			== bde_start)
 		prev_shared = true;
-	if (next && (mm->bd_addr + MPX_GET_BD_ENTRY_OFFSET(next->vm_start))
+	if (next && (mm->bd_addr + mpx_get_bd_entry_offset(mm, next->vm_start))
 			== bde_end)
 		next_shared = true;
 
@@ -927,8 +1055,8 @@ static int mpx_unmap_tables(struct mm_struct *mm,
 	 *   1. fully covered
 	 *   2. not at the edges of the mapping, even if full aligned
 	 */
-	bde_start = mm->bd_addr + MPX_GET_BD_ENTRY_OFFSET(start);
-	bde_end = mm->bd_addr + MPX_GET_BD_ENTRY_OFFSET(end-1);
+	bde_start = mm->bd_addr + mpx_get_bd_entry_offset(mm, start);
+	bde_end   = mm->bd_addr + mpx_get_bd_entry_offset(mm, end-1);
 	for (bd_entry = bde_start + 1; bd_entry < bde_end; bd_entry++) {
 		ret = get_bt_addr(mm, bd_entry, &bt_addr);
 		switch (ret) {
