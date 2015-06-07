@@ -75,25 +75,25 @@ supported via the new <link linkend="FE_GET_PROPERTY">FE_GET_PROPERTY/FE_GET_SET
 	</thead>
 	<tbody valign="top">
 	<row>
-	    <entry>BANDWIDTH_AUTO</entry>
+	    <entry id="BANDWIDTH-AUTO"><constant>BANDWIDTH_AUTO</constant></entry>
 	    <entry>Autodetect bandwidth (if supported)</entry>
 	</row><row>
-	    <entry>BANDWIDTH_1_712_MHZ</entry>
+	    <entry id="BANDWIDTH-1-712-MHZ"><constant>BANDWIDTH_1_712_MHZ</constant></entry>
 	    <entry>1.712 MHz</entry>
 	</row><row>
-	    <entry>BANDWIDTH_5_MHZ</entry>
+	    <entry id="BANDWIDTH-5-MHZ"><constant>BANDWIDTH_5_MHZ</constant></entry>
 	    <entry>5 MHz</entry>
 	</row><row>
-	    <entry>BANDWIDTH_6_MHZ</entry>
+	    <entry id="BANDWIDTH-6-MHZ"><constant>BANDWIDTH_6_MHZ</constant></entry>
 	    <entry>6 MHz</entry>
 	</row><row>
-	    <entry>BANDWIDTH_7_MHZ</entry>
+	    <entry id="BANDWIDTH-7-MHZ"><constant>BANDWIDTH_7_MHZ</constant></entry>
 	    <entry>7 MHz</entry>
 	</row><row>
-	    <entry>BANDWIDTH_8_MHZ</entry>
+	    <entry id="BANDWIDTH-8-MHZ"><constant>BANDWIDTH_8_MHZ</constant></entry>
 	    <entry>8 MHz</entry>
 	</row><row>
-	    <entry>BANDWIDTH_10_MHZ</entry>
+	    <entry id="BANDWIDTH-10-MHZ"><constant>BANDWIDTH_10_MHZ</constant></entry>
 	    <entry>10 MHz</entry>
 	</row>
         </tbody>
