@@ -28,12 +28,14 @@
 
 #include <linux/types.h>
 
-typedef enum fe_type {
+enum fe_type {
 	FE_QPSK,
 	FE_QAM,
 	FE_OFDM,
 	FE_ATSC
-} fe_type_t;
+};
+
+typedef enum fe_type fe_type_t;
 
 
 enum fe_caps {

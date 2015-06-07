@@ -20,22 +20,22 @@
   </thead>
   <tbody valign="top">
   <row>
-     <entry id="FE_QPSK"><constant>FE_QPSK</constant></entry>
+     <entry id="FE-QPSK"><constant>FE_QPSK</constant></entry>
      <entry>For DVB-S standard</entry>
      <entry><constant>SYS_DVBS</constant></entry>
   </row>
   <row>
-     <entry id="FE_QAM"><constant>FE_QAM</constant></entry>
+     <entry id="FE-QAM"><constant>FE_QAM</constant></entry>
      <entry>For DVB-C annex A standard</entry>
      <entry><constant>SYS_DVBC_ANNEX_A</constant></entry>
   </row>
   <row>
-     <entry id="FE_OFDM"><constant>FE_OFDM</constant></entry>
+     <entry id="FE-OFDM"><constant>FE_OFDM</constant></entry>
      <entry>For DVB-T standard</entry>
      <entry><constant>SYS_DVBT</constant></entry>
   </row>
   <row>
-     <entry id="FE_ATSC"><constant>FE_ATSC</constant></entry>
+     <entry id="FE-ATSC"><constant>FE_ATSC</constant></entry>
      <entry>For ATSC standard (terrestrial) or for DVB-C Annex B (cable) used in US.</entry>
      <entry><constant>SYS_ATSC</constant> (terrestrial) or <constant>SYS_DVBC_ANNEX_B</constant> (cable)</entry>
   </row>
