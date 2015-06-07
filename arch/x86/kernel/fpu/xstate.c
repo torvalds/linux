@@ -427,3 +427,35 @@ void *get_xsave_addr(struct xregs_state *xsave, int xstate_feature)
 	return (void *)xsave + xstate_comp_offsets[feature_nr];
 }
 EXPORT_SYMBOL_GPL(get_xsave_addr);
+
+/*
+ * This wraps up the common operations that need to occur when retrieving
+ * data from xsave state.  It first ensures that the current task was
+ * using the FPU and retrieves the data in to a buffer.  It then calculates
+ * the offset of the requested field in the buffer.
+ *
+ * This function is safe to call whether the FPU is in use or not.
+ *
+ * Note that this only works on the current task.
+ *
+ * Inputs:
+ *	@xsave_state: state which is defined in xsave.h (e.g. XSTATE_FP,
+ *	XSTATE_SSE, etc...)
+ * Output:
+ *	address of the state in the xsave area or NULL if the state
+ *	is not present or is in its 'init state'.
+ */
+const void *get_xsave_field_ptr(int xsave_state)
+{
+	struct fpu *fpu = &current->thread.fpu;
+
+	if (!fpu->fpstate_active)
+		return NULL;
+	/*
+	 * fpu__save() takes the CPU's xstate registers
+	 * and saves them off to the 'fpu memory buffer.
+	 */
+	fpu__save(fpu);
+
+	return get_xsave_addr(&fpu->state.xsave, xsave_state);
+}
