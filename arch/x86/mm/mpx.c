@@ -429,6 +429,7 @@ static int allocate_bt(long __user *bd_entry)
 	unsigned long expected_old_val = 0;
 	unsigned long actual_old_val = 0;
 	unsigned long bt_addr;
+	unsigned long bd_new_entry;
 	int ret = 0;
 
 	/*
@@ -441,7 +442,7 @@ static int allocate_bt(long __user *bd_entry)
 	/*
 	 * Set the valid flag (kinda like _PAGE_PRESENT in a pte)
 	 */
-	bt_addr = bt_addr | MPX_BD_ENTRY_VALID_FLAG;
+	bd_new_entry = bt_addr | MPX_BD_ENTRY_VALID_FLAG;
 
 	/*
 	 * Go poke the address of the new bounds table in to the
@@ -455,7 +456,7 @@ static int allocate_bt(long __user *bd_entry)
 	 * of the MPX code that have to pagefault_disable().
 	 */
 	ret = user_atomic_cmpxchg_inatomic(&actual_old_val, bd_entry,
-					   expected_old_val, bt_addr);
+					   expected_old_val, bd_new_entry);
 	if (ret)
 		goto out_unmap;
 
@@ -486,7 +487,7 @@ static int allocate_bt(long __user *bd_entry)
 	trace_mpx_new_bounds_table(bt_addr);
 	return 0;
 out_unmap:
-	vm_munmap(bt_addr & MPX_BT_ADDR_MASK, MPX_BT_SIZE_BYTES);
+	vm_munmap(bt_addr, MPX_BT_SIZE_BYTES);
 	return ret;
 }
 
