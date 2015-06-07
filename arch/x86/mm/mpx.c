@@ -937,16 +937,30 @@ static int try_unmap_single_bt(struct mm_struct *mm,
 	void __user *bde_vaddr;
 	int ret;
 	/*
+	 * We already unlinked the VMAs from the mm's rbtree so 'start'
+	 * is guaranteed to be in a hole. This gets us the first VMA
+	 * before the hole in to 'prev' and the next VMA after the hole
+	 * in to 'next'.
+	 */
+	next = find_vma_prev(mm, start, &prev);
+	/*
+	 * Do not count other MPX bounds table VMAs as neighbors.
+	 * Although theoretically possible, we do not allow bounds
+	 * tables for bounds tables so our heads do not explode.
+	 * If we count them as neighbors here, we may end up with
+	 * lots of tables even though we have no actual table
+	 * entries in use.
+	 */
+	while (next && is_mpx_vma(next))
+		next = next->vm_next;
+	while (prev && is_mpx_vma(prev))
+		prev = prev->vm_prev;
+	/*
 	 * We know 'start' and 'end' lie within an area controlled
 	 * by a single bounds table.  See if there are any other
 	 * VMAs controlled by that bounds table.  If there are not
 	 * then we can "expand" the are we are unmapping to possibly
 	 * cover the entire table.
-	 *
-	 * We already unliked the VMAs from the mm's rbtree so 'start'
-	 * is guaranteed to be in a hole. This gets us the first VMA
-	 * before the hole in to 'prev' and the next VMA after the hole
-	 * in to 'next'.
 	 */
 	next = find_vma_prev(mm, start, &prev);
 	if ((!prev || prev->vm_end <= bta_start_vaddr) &&
