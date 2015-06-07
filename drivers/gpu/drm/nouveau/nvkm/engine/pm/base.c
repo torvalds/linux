@@ -103,6 +103,31 @@ nvkm_perfsig_count_perfsrc(struct nvkm_perfsig *sig)
 	return source_nr;
 }
 
+static struct nvkm_perfsrc *
+nvkm_perfsrc_find(struct nvkm_pm *ppm, struct nvkm_perfsig *sig, int si)
+{
+	struct nvkm_perfsrc *src;
+	bool found = false;
+	int tmp = 1; /* Sources ID start from 1 */
+	u8 i;
+
+	for (i = 0; i < ARRAY_SIZE(sig->source) && sig->source[i]; i++) {
+		if (sig->source[i] == si) {
+			found = true;
+			break;
+		}
+	}
+
+	if (found) {
+		list_for_each_entry(src, &ppm->sources, head) {
+			if (tmp++ == si)
+				return src;
+		}
+	}
+
+	return NULL;
+}
+
 /*******************************************************************************
  * Perfmon object classes
  ******************************************************************************/
@@ -204,6 +229,56 @@ nvkm_perfmon_mthd_query_signal(struct nvkm_object *object, void *data, u32 size)
 }
 
 static int
+nvkm_perfmon_mthd_query_source(struct nvkm_object *object, void *data, u32 size)
+{
+	union {
+		struct nvif_perfmon_query_source_v0 v0;
+	} *args = data;
+	struct nvkm_pm *ppm = (void *)object->engine;
+	struct nvkm_perfdom *dom = NULL;
+	struct nvkm_perfsig *sig;
+	struct nvkm_perfsrc *src;
+	u8 source_nr = 0;
+	int si, ret;
+
+	nv_ioctl(object, "perfmon query source size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(object,
+			 "perfmon source vers %d dom %d sig %02x iter %02x\n",
+			 args->v0.version, args->v0.domain, args->v0.signal,
+			 args->v0.iter);
+		si = (args->v0.iter & 0xff) - 1;
+	} else
+		return ret;
+
+	sig = nvkm_perfsig_find(ppm, args->v0.domain, args->v0.signal, &dom);
+	if (!sig)
+		return -EINVAL;
+
+	source_nr = nvkm_perfsig_count_perfsrc(sig);
+	if (si >= (int)source_nr)
+		return -EINVAL;
+
+	if (si >= 0) {
+		src = nvkm_perfsrc_find(ppm, sig, sig->source[si]);
+		if (!src)
+			return -EINVAL;
+
+		args->v0.source = sig->source[si];
+		args->v0.mask   = src->mask;
+		strncpy(args->v0.name, src->name, sizeof(args->v0.name));
+	}
+
+	if (++si < source_nr) {
+		args->v0.iter = ++si;
+		return 0;
+	}
+
+	args->v0.iter = 0xff;
+	return 0;
+}
+
+static int
 nvkm_perfmon_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
 	switch (mthd) {
@@ -211,6 +286,8 @@ nvkm_perfmon_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 		return nvkm_perfmon_mthd_query_domain(object, data, size);
 	case NVIF_PERFMON_V0_QUERY_SIGNAL:
 		return nvkm_perfmon_mthd_query_signal(object, data, size);
+	case NVIF_PERFMON_V0_QUERY_SOURCE:
+		return nvkm_perfmon_mthd_query_source(object, data, size);
 	default:
 		break;
 	}
