@@ -76,10 +76,10 @@
 	</thead>
 	<tbody valign="top">
 	<row>
-	    <entry align="char">SEC_TONE_ON</entry>
+	    <entry align="char" id="SEC-TONE-ON"><constant>SEC_TONE_ON</constant></entry>
 	    <entry align="char">Sends a 22kHz tone burst to the antenna</entry>
 	</row><row>
-	    <entry align="char">SEC_TONE_OFF</entry>
+	    <entry align="char" id="SEC-TONE-OFF"><constant>SEC_TONE_OFF</constant></entry>
 	    <entry align="char">Don't send a 22kHz tone to the antenna
 		(except if the FE_DISEQC_* ioctls are called)</entry>
 	</row>
