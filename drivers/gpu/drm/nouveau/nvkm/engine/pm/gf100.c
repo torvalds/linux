@@ -48,12 +48,10 @@ gf100_perfctr_init(struct nvkm_pm *ppm, struct nvkm_perfdom *dom,
 	u32 src = 0x00000000;
 	int i;
 
-	for (i = 0; i < 4; i++) {
-		if (ctr->signal[i])
-			src |= (ctr->signal[i] - dom->signal) << (i * 8);
-	}
+	for (i = 0; i < 4; i++)
+		src |= ctr->signal[i] << (i * 8);
 
-	nv_wr32(priv, dom->addr + 0x09c, 0x00040002);
+	nv_wr32(priv, dom->addr + 0x09c, 0x00040002 | (dom->mode << 3));
 	nv_wr32(priv, dom->addr + 0x100, 0x00000000);
 	nv_wr32(priv, dom->addr + 0x040 + (cntr->base.slot * 0x08), src);
 	nv_wr32(priv, dom->addr + 0x044 + (cntr->base.slot * 0x08), log);
@@ -72,7 +70,7 @@ gf100_perfctr_read(struct nvkm_pm *ppm, struct nvkm_perfdom *dom,
 	case 2: cntr->base.ctr = nv_rd32(priv, dom->addr + 0x080); break;
 	case 3: cntr->base.ctr = nv_rd32(priv, dom->addr + 0x090); break;
 	}
-	cntr->base.clk = nv_rd32(priv, dom->addr + 0x070);
+	dom->clk = nv_rd32(priv, dom->addr + 0x070);
 }
 
 static void

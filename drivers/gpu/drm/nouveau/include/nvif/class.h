@@ -287,34 +287,36 @@ struct nvif_perfmon_query_source_v0 {
 
 
 /*******************************************************************************
- * perfctr
+ * perfdom
  ******************************************************************************/
 
-struct nvif_perfctr_v0 {
+struct nvif_perfdom_v0 {
 	__u8  version;
 	__u8  domain;
-	__u8  pad02[2];
-	__u16 logic_op;
-	__u8  pad04[2];
-	__u8  signal[4];
-	__u8  pad06[4];
+	__u8  mode;
+	__u8  pad03[1];
+	struct {
+		__u8  signal[4];
+		__u16 logic_op;
+	} ctr[4];
 };
 
-#define NVIF_PERFCTR_V0_INIT                                               0x00
-#define NVIF_PERFCTR_V0_SAMPLE                                             0x01
-#define NVIF_PERFCTR_V0_READ                                               0x02
+#define NVIF_PERFDOM_V0_INIT                                               0x00
+#define NVIF_PERFDOM_V0_SAMPLE                                             0x01
+#define NVIF_PERFDOM_V0_READ                                               0x02
 
-struct nvif_perfctr_init {
+struct nvif_perfdom_init {
 };
 
-struct nvif_perfctr_sample {
+struct nvif_perfdom_sample {
 };
 
-struct nvif_perfctr_read_v0 {
+struct nvif_perfdom_read_v0 {
 	__u8  version;
 	__u8  pad01[7];
-	__u32 ctr;
+	__u32 ctr[4];
 	__u32 clk;
+	__u8  pad04[4];
 };
 
 

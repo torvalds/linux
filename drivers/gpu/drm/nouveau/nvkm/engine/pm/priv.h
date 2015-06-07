@@ -3,13 +3,10 @@
 #include <engine/pm.h>
 
 struct nvkm_perfctr {
-	struct nvkm_object base;
 	struct list_head head;
-	struct nvkm_perfsig *signal[4];
-	struct nvkm_perfdom *dom;
+	u8  signal[4];
 	int slot;
 	u32 logic_op;
-	u32 clk;
 	u32 ctr;
 };
 
@@ -63,12 +60,15 @@ struct nvkm_specdom {
 };
 
 struct nvkm_perfdom {
+	struct nvkm_object base;
 	struct list_head head;
 	struct list_head list;
 	const struct nvkm_funcdom *func;
+	struct nvkm_perfctr *ctr[4];
 	char name[32];
 	u32 addr;
-	u8  quad;
+	u8  mode;
+	u32 clk;
 	u16 signal_nr;
 	struct nvkm_perfsig signal[];
 };

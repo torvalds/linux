@@ -33,12 +33,10 @@ nv40_perfctr_init(struct nvkm_pm *ppm, struct nvkm_perfdom *dom,
 	u32 src = 0x00000000;
 	int i;
 
-	for (i = 0; i < 4; i++) {
-		if (ctr->signal[i])
-			src |= (ctr->signal[i] - dom->signal) << (i * 8);
-	}
+	for (i = 0; i < 4; i++)
+		src |= ctr->signal[i] << (i * 8);
 
-	nv_wr32(priv, 0x00a7c0 + dom->addr, 0x00000001);
+	nv_wr32(priv, 0x00a7c0 + dom->addr, 0x00000001 | (dom->mode << 4));
 	nv_wr32(priv, 0x00a400 + dom->addr + (cntr->base.slot * 0x40), src);
 	nv_wr32(priv, 0x00a420 + dom->addr + (cntr->base.slot * 0x40), log);
 }
@@ -56,7 +54,7 @@ nv40_perfctr_read(struct nvkm_pm *ppm, struct nvkm_perfdom *dom,
 	case 2: cntr->base.ctr = nv_rd32(priv, 0x00a680 + dom->addr); break;
 	case 3: cntr->base.ctr = nv_rd32(priv, 0x00a740 + dom->addr); break;
 	}
-	cntr->base.clk = nv_rd32(priv, 0x00a600 + dom->addr);
+	dom->clk = nv_rd32(priv, 0x00a600 + dom->addr);
 }
 
 static void
