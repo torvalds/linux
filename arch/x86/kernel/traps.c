@@ -371,7 +371,6 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 
 dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 {
-	struct task_struct *tsk = current;
 	enum ctx_state prev_state;
 	const struct bndcsr *bndcsr;
 	siginfo_t *info;
@@ -407,11 +406,11 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 	 */
 	switch (bndcsr->bndstatus & MPX_BNDSTA_ERROR_CODE) {
 	case 2:	/* Bound directory has invalid entry. */
-		if (mpx_handle_bd_fault(tsk))
+		if (mpx_handle_bd_fault())
 			goto exit_trap;
 		break; /* Success, it was handled */
 	case 1: /* Bound violation. */
-		info = mpx_generate_siginfo(regs, tsk);
+		info = mpx_generate_siginfo(regs);
 		if (IS_ERR(info)) {
 			/*
 			 * We failed to decode the MPX instruction.  Act as if

@@ -802,18 +802,18 @@ extern int get_tsc_mode(unsigned long adr);
 extern int set_tsc_mode(unsigned int val);
 
 /* Register/unregister a process' MPX related resource */
-#define MPX_ENABLE_MANAGEMENT(tsk)	mpx_enable_management((tsk))
-#define MPX_DISABLE_MANAGEMENT(tsk)	mpx_disable_management((tsk))
+#define MPX_ENABLE_MANAGEMENT()	mpx_enable_management()
+#define MPX_DISABLE_MANAGEMENT()	mpx_disable_management()
 
 #ifdef CONFIG_X86_INTEL_MPX
-extern int mpx_enable_management(struct task_struct *tsk);
-extern int mpx_disable_management(struct task_struct *tsk);
+extern int mpx_enable_management(void);
+extern int mpx_disable_management(void);
 #else
-static inline int mpx_enable_management(struct task_struct *tsk)
+static inline int mpx_enable_management(void)
 {
 	return -EINVAL;
 }
-static inline int mpx_disable_management(struct task_struct *tsk)
+static inline int mpx_disable_management(void)
 {
 	return -EINVAL;
 }

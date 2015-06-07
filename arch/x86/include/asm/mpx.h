@@ -59,9 +59,8 @@
 		MPX_BT_ENTRY_MASK) << MPX_BT_ENTRY_SHIFT)
 
 #ifdef CONFIG_X86_INTEL_MPX
-siginfo_t *mpx_generate_siginfo(struct pt_regs *regs,
-				struct task_struct *tsk);
-int mpx_handle_bd_fault(struct task_struct *tsk);
+siginfo_t *mpx_generate_siginfo(struct pt_regs *regs);
+int mpx_handle_bd_fault(void);
 static inline int kernel_managing_mpx_tables(struct mm_struct *mm)
 {
 	return (mm->bd_addr != MPX_INVALID_BOUNDS_DIR);
@@ -77,12 +76,11 @@ static inline void mpx_mm_init(struct mm_struct *mm)
 void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
 		      unsigned long start, unsigned long end);
 #else
-static inline siginfo_t *mpx_generate_siginfo(struct pt_regs *regs,
-					      struct task_struct *tsk)
+static inline siginfo_t *mpx_generate_siginfo(struct pt_regs *regs)
 {
 	return NULL;
 }
-static inline int mpx_handle_bd_fault(struct task_struct *tsk)
+static inline int mpx_handle_bd_fault(void)
 {
 	return -EINVAL;
 }
