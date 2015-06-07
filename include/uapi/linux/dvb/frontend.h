@@ -486,6 +486,12 @@ struct dtv_properties {
 
 #if defined(__DVB_CORE__) || !defined (__KERNEL__)
 
+/*
+ * DEPRECATED: The DVBv3 ioctls, structs and enums should not be used on
+ * newer programs, as it doesn't support the second generation of digital
+ * TV standards, nor supports newer delivery systems.
+ */
+
 enum fe_bandwidth {
 	BANDWIDTH_8_MHZ,
 	BANDWIDTH_7_MHZ,
