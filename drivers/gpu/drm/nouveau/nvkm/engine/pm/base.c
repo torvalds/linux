@@ -333,10 +333,10 @@ nvkm_perfctr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	} else
 		return ret;
 
-	for (i = 0; i < ARRAY_SIZE(args->v0.signal) && args->v0.signal[i]; i++) {
+	for (i = 0; i < ARRAY_SIZE(args->v0.signal); i++) {
 		sig[i] = nvkm_perfsig_find(ppm, args->v0.domain,
 					   args->v0.signal[i], &dom);
-		if (!sig[i])
+		if (args->v0.signal[i] && !sig[i])
 			return -EINVAL;
 	}
 

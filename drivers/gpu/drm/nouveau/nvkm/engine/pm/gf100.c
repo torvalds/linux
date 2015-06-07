@@ -48,8 +48,10 @@ gf100_perfctr_init(struct nvkm_pm *ppm, struct nvkm_perfdom *dom,
 	u32 src = 0x00000000;
 	int i;
 
-	for (i = 0; i < 4 && ctr->signal[i]; i++)
-		src |= (ctr->signal[i] - dom->signal) << (i * 8);
+	for (i = 0; i < 4; i++) {
+		if (ctr->signal[i])
+			src |= (ctr->signal[i] - dom->signal) << (i * 8);
+	}
 
 	nv_wr32(priv, dom->addr + 0x09c, 0x00040002);
 	nv_wr32(priv, dom->addr + 0x100, 0x00000000);

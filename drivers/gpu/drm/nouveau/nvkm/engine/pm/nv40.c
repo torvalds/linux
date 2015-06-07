@@ -33,8 +33,10 @@ nv40_perfctr_init(struct nvkm_pm *ppm, struct nvkm_perfdom *dom,
 	u32 src = 0x00000000;
 	int i;
 
-	for (i = 0; i < 4 && ctr->signal[i]; i++)
-		src |= (ctr->signal[i] - dom->signal) << (i * 8);
+	for (i = 0; i < 4; i++) {
+		if (ctr->signal[i])
+			src |= (ctr->signal[i] - dom->signal) << (i * 8);
+	}
 
 	nv_wr32(priv, 0x00a7c0 + dom->addr, 0x00000001);
 	nv_wr32(priv, 0x00a400 + dom->addr + (cntr->base.slot * 0x40), src);
