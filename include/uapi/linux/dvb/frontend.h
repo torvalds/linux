@@ -407,12 +407,14 @@ enum fe_pilot {
 
 typedef enum fe_pilot fe_pilot_t;
 
-typedef enum fe_rolloff {
+enum fe_rolloff {
 	ROLLOFF_35, /* Implied value in DVB-S, default for DVB-S2 */
 	ROLLOFF_20,
 	ROLLOFF_25,
 	ROLLOFF_AUTO,
-} fe_rolloff_t;
+};
+
+typedef enum fe_rolloff fe_rolloff_t;
 
 typedef enum fe_delivery_system {
 	SYS_UNDEFINED,
