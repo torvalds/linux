@@ -362,7 +362,8 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		np->saddr = addr->sin6_addr;
 
 	/* Make sure we are allowed to bind here. */
-	if (sk->sk_prot->get_port(sk, snum)) {
+	if ((snum || !inet->bind_address_no_port) &&
+	    sk->sk_prot->get_port(sk, snum)) {
 		inet_reset_saddr(sk);
 		err = -EADDRINUSE;
 		goto out;
