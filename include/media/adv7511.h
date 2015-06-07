@@ -42,6 +42,7 @@ struct adv7511_cec_arg {
 struct adv7511_platform_data {
 	u8 i2c_edid;
 	u8 i2c_cec;
+	u8 i2c_pktmem;
 	u32 cec_clk;
 };
 

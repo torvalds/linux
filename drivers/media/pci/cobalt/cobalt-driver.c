@@ -602,6 +602,7 @@ static int cobalt_subdevs_hsma_init(struct cobalt *cobalt)
 	static struct adv7511_platform_data adv7511_pdata = {
 		.i2c_edid = 0x7e >> 1,
 		.i2c_cec = 0x7c >> 1,
+		.i2c_pktmem = 0x70 >> 1,
 		.cec_clk = 12000000,
 	};
 	static struct i2c_board_info adv7511_info = {
