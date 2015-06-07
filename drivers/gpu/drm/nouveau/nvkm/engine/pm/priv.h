@@ -44,7 +44,7 @@ struct nvkm_perfdom {
 	char name[32];
 	u32 addr;
 	u8  quad;
-	u32 signal_nr;
+	u16 signal_nr;
 	struct nvkm_perfsig signal[];
 };
 

@@ -45,10 +45,10 @@ nvkm_pm_count_perfdom(struct nvkm_pm *ppm)
 	return domain_nr;
 }
 
-static u32
+static u16
 nvkm_perfdom_count_perfsig(struct nvkm_perfdom *dom)
 {
-	u32 signal_nr = 0;
+	u16 signal_nr = 0;
 	int i;
 
 	if (dom) {
@@ -183,9 +183,9 @@ nvkm_perfmon_mthd_query_signal(struct nvkm_object *object, void *data, u32 size)
 	nv_ioctl(object, "perfmon query signal size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
 		nv_ioctl(object,
-			 "perfmon query signal vers %d dom %d iter %08x\n",
+			 "perfmon query signal vers %d dom %d iter %04x\n",
 			 args->v0.version, args->v0.domain, args->v0.iter);
-		si = (args->v0.iter & 0xffffffff) - 1;
+		si = (args->v0.iter & 0xffff) - 1;
 	} else
 		return ret;
 
@@ -209,7 +209,7 @@ nvkm_perfmon_mthd_query_signal(struct nvkm_object *object, void *data, u32 size)
 		}
 	}
 
-	args->v0.iter = 0xffffffff;
+	args->v0.iter = 0xffff;
 	return 0;
 }
 
