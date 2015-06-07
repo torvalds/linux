@@ -83,10 +83,10 @@ nvkm_perfsig_find(struct nvkm_pm *ppm, const char *name, u32 size,
  * Perfmon object classes
  ******************************************************************************/
 static int
-nvkm_perfctr_query(struct nvkm_object *object, void *data, u32 size)
+nvkm_perfmon_mthd_query_signal(struct nvkm_object *object, void *data, u32 size)
 {
 	union {
-		struct nvif_perfctr_query_v0 v0;
+		struct nvif_perfmon_query_signal_v0 v0;
 	} *args = data;
 	struct nvkm_device *device = nv_device(object);
 	struct nvkm_pm *ppm = (void *)object->engine;
@@ -97,9 +97,9 @@ nvkm_perfctr_query(struct nvkm_object *object, void *data, u32 size)
 	int tmp = 0, di, si;
 	int ret;
 
-	nv_ioctl(object, "perfctr query size %d\n", size);
+	nv_ioctl(object, "perfmon query signal size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nv_ioctl(object, "perfctr query vers %d iter %08x\n",
+		nv_ioctl(object, "perfmon query signal vers %d iter %08x\n",
 			 args->v0.version, args->v0.iter);
 		di = (args->v0.iter & 0xff000000) >> 24;
 		si = (args->v0.iter & 0x00ffffff) - 1;
@@ -141,6 +141,30 @@ nvkm_perfctr_query(struct nvkm_object *object, void *data, u32 size)
 	return 0;
 }
 
+static int
+nvkm_perfmon_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
+{
+	switch (mthd) {
+	case NVIF_PERFMON_V0_QUERY_SIGNAL:
+		return nvkm_perfmon_mthd_query_signal(object, data, size);
+	default:
+		break;
+	}
+	return -EINVAL;
+}
+
+static struct nvkm_ofuncs
+nvkm_perfmon_ofuncs = {
+	.ctor = _nvkm_object_ctor,
+	.dtor = nvkm_object_destroy,
+	.init = nvkm_object_init,
+	.fini = nvkm_object_fini,
+	.mthd = nvkm_perfmon_mthd,
+};
+
+/*******************************************************************************
+ * Perfctr object classes
+ ******************************************************************************/
 static int
 nvkm_perfctr_sample(struct nvkm_object *object, void *data, u32 size)
 {
@@ -221,8 +245,6 @@ static int
 nvkm_perfctr_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
 	switch (mthd) {
-	case NVIF_PERFCTR_V0_QUERY:
-		return nvkm_perfctr_query(object, data, size);
 	case NVIF_PERFCTR_V0_SAMPLE:
 		return nvkm_perfctr_sample(object, data, size);
 	case NVIF_PERFCTR_V0_READ:
@@ -299,6 +321,10 @@ nvkm_perfctr_ofuncs = {
 
 struct nvkm_oclass
 nvkm_pm_sclass[] = {
+	{
+	  .handle = NVIF_IOCTL_NEW_V0_PERFMON,
+	  .ofuncs = &nvkm_perfmon_ofuncs,
+	},
 	{ .handle = NVIF_IOCTL_NEW_V0_PERFCTR,
 	  .ofuncs = &nvkm_perfctr_ofuncs,
 	},

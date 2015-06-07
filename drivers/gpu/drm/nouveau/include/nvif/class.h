@@ -251,6 +251,20 @@ struct gf110_dma_v0 {
  * perfmon
  ******************************************************************************/
 
+#define NVIF_PERFMON_V0_QUERY_SIGNAL                                       0x00
+
+struct nvif_perfmon_query_signal_v0 {
+	__u8  version;
+	__u8  pad01[3];
+	__u32 iter;
+	char  name[64];
+};
+
+
+/*******************************************************************************
+ * perfctr
+ ******************************************************************************/
+
 struct nvif_perfctr_v0 {
 	__u8  version;
 	__u8  pad01[1];
@@ -259,16 +273,8 @@ struct nvif_perfctr_v0 {
 	char  name[4][64];
 };
 
-#define NVIF_PERFCTR_V0_QUERY                                              0x00
-#define NVIF_PERFCTR_V0_SAMPLE                                             0x01
-#define NVIF_PERFCTR_V0_READ                                               0x02
-
-struct nvif_perfctr_query_v0 {
-	__u8  version;
-	__u8  pad01[3];
-	__u32 iter;
-	char  name[64];
-};
+#define NVIF_PERFCTR_V0_SAMPLE                                             0x00
+#define NVIF_PERFCTR_V0_READ                                               0x01
 
 struct nvif_perfctr_sample {
 };
