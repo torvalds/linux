@@ -294,6 +294,9 @@ nvkm_perfctr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 			return -EINVAL;
 	}
 
+	if (!dom)
+		return -EINVAL;
+
 	ret = nvkm_object_create(parent, engine, oclass, 0, &ctr);
 	*pobject = nv_object(ctr);
 	if (ret)
@@ -305,8 +308,7 @@ nvkm_perfctr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	ctr->signal[1] = sig[1];
 	ctr->signal[2] = sig[2];
 	ctr->signal[3] = sig[3];
-	if (dom)
-		list_add_tail(&ctr->head, &dom->list);
+	list_add_tail(&ctr->head, &dom->list);
 	return 0;
 }
 
