@@ -726,114 +726,172 @@ typedef enum fe_delivery_system {
 		</section>
 		<section id="DTV-ATSCMH-RS-FRAME-MODE">
 			<title><constant>DTV_ATSCMH_RS_FRAME_MODE</constant></title>
-			<para>RS frame mode.</para>
+			<para>Reed Solomon (RS) frame mode.</para>
 			<para>Possible values are:</para>
-		  <para id="atscmh-rs-frame-mode">
-<programlisting>
-typedef enum atscmh_rs_frame_mode {
-	ATSCMH_RSFRAME_PRI_ONLY  = 0,
-	ATSCMH_RSFRAME_PRI_SEC   = 1,
-} atscmh_rs_frame_mode_t;
-</programlisting>
-		  </para>
+<table pgwide="1" frame="none" id="atscmh-rs-frame-mode">
+    <title>enum atscmh_rs_frame_mode</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry id="ATSCMH-RSFRAME-PRI-ONLY"><constant>ATSCMH_RSFRAME_PRI_ONLY</constant></entry>
+	    <entry>to be documented.</entry>
+	</row><row>
+	    <entry id="ATSCMH-RSFRAME-PRI-SEC"><constant>ATSCMH_RSFRAME_PRI_SEC</constant></entry>
+	    <entry>to be documented.</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
 		</section>
 		<section id="DTV-ATSCMH-RS-FRAME-ENSEMBLE">
 			<title><constant>DTV_ATSCMH_RS_FRAME_ENSEMBLE</constant></title>
 			<para>RS frame ensemble.</para>
 			<para>Possible values are:</para>
-		  <para id="atscmh-rs-frame-ensemble">
-<programlisting>
-typedef enum atscmh_rs_frame_ensemble {
-	ATSCMH_RSFRAME_ENS_PRI   = 0,
-	ATSCMH_RSFRAME_ENS_SEC   = 1,
-} atscmh_rs_frame_ensemble_t;
-</programlisting>
-		  </para>
+<table pgwide="1" frame="none" id="atscmh-rs-frame-ensemble">
+    <title>enum atscmh_rs_frame_ensemble</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry id="ATSCMH-RSFRAME-ENS-PRI"><constant>ATSCMH_RSFRAME_ENS_PRI</constant></entry>
+	    <entry>to be documented.</entry>
+	</row><row>
+	    <entry id="ATSCMH-RSFRAME-ENS-SEC"><constant>AATSCMH_RSFRAME_PRI_SEC</constant></entry>
+	    <entry>to be documented.</entry>
+	</row><row>
+	    <entry id="ATSCMH-RSFRAME-RES"><constant>AATSCMH_RSFRAME_RES</constant></entry>
+	    <entry>to be documented.</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
 		</section>
 		<section id="DTV-ATSCMH-RS-CODE-MODE-PRI">
 			<title><constant>DTV_ATSCMH_RS_CODE_MODE_PRI</constant></title>
 			<para>RS code mode (primary).</para>
 			<para>Possible values are:</para>
-		  <para id="atscmh-rs-code-mode">
-<programlisting>
-typedef enum atscmh_rs_code_mode {
-	ATSCMH_RSCODE_211_187    = 0,
-	ATSCMH_RSCODE_223_187    = 1,
-	ATSCMH_RSCODE_235_187    = 2,
-} atscmh_rs_code_mode_t;
-</programlisting>
-		  </para>
+<table pgwide="1" frame="none" id="atscmh-rs-code-mode">
+    <title>enum atscmh_rs_code_mode</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry id="ATSCMH-RSCODE-211-187"><constant>ATSCMH_RSCODE_211_187</constant></entry>
+	    <entry>to be documented.</entry>
+	</row><row>
+	    <entry id="ATSCMH-RSCODE-223-187"><constant>ATSCMH_RSCODE_223_187</constant></entry>
+	    <entry>to be documented.</entry>
+	</row><row>
+	    <entry id="ATSCMH-RSCODE-235-187"><constant>ATSCMH_RSCODE_235_187</constant></entry>
+	    <entry>to be documented.</entry>
+	</row><row>
+	    <entry id="ATSCMH-RSCODE-RES"><constant>ATSCMH_RSCODE_RES</constant></entry>
+	    <entry>to be documented.</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
 		</section>
 		<section id="DTV-ATSCMH-RS-CODE-MODE-SEC">
 			<title><constant>DTV_ATSCMH_RS_CODE_MODE_SEC</constant></title>
 			<para>RS code mode (secondary).</para>
-			<para>Possible values are:</para>
-<programlisting>
-typedef enum atscmh_rs_code_mode {
-	ATSCMH_RSCODE_211_187    = 0,
-	ATSCMH_RSCODE_223_187    = 1,
-	ATSCMH_RSCODE_235_187    = 2,
-} atscmh_rs_code_mode_t;
-</programlisting>
+			<para>Possible values are the same as documented on
+			    &atscmh-rs-code-mode;:</para>
 		</section>
 		<section id="DTV-ATSCMH-SCCC-BLOCK-MODE">
 			<title><constant>DTV_ATSCMH_SCCC_BLOCK_MODE</constant></title>
 			<para>Series Concatenated Convolutional Code Block Mode.</para>
 			<para>Possible values are:</para>
-		  <para id="atscmh-sccc-block-mode">
-<programlisting>
-typedef enum atscmh_sccc_block_mode {
-	ATSCMH_SCCC_BLK_SEP      = 0,
-	ATSCMH_SCCC_BLK_COMB     = 1,
-} atscmh_sccc_block_mode_t;
-</programlisting>
-		  </para>
+<table pgwide="1" frame="none" id="atscmh-sccc-block-mode">
+    <title>enum atscmh_scc_block_mode</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry id="ATSCMH-SCCC-BLK-SEP"><constant>ATSCMH_SCCC_BLK_SEP</constant></entry>
+	    <entry>to be documented.</entry>
+	</row><row>
+	    <entry id="ATSCMH-SCCC-BLK-COMB"><constant>ATSCMH_SCCC_BLK_COMB</constant></entry>
+	    <entry>to be documented.</entry>
+	</row><row>
+	    <entry id="ATSCMH-SCCC-BLK-RES"><constant>ATSCMH_SCCC_BLK_RES</constant></entry>
+	    <entry>to be documented.</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
 		</section>
 		<section id="DTV-ATSCMH-SCCC-CODE-MODE-A">
 			<title><constant>DTV_ATSCMH_SCCC_CODE_MODE_A</constant></title>
 			<para>Series Concatenated Convolutional Code Rate.</para>
 			<para>Possible values are:</para>
-		  <para id="atscmh-sccc-code-mode">
-<programlisting>
-typedef enum atscmh_sccc_code_mode {
-	ATSCMH_SCCC_CODE_HLF     = 0,
-	ATSCMH_SCCC_CODE_QTR     = 1,
-} atscmh_sccc_code_mode_t;
-</programlisting>
-		  </para>
+<table pgwide="1" frame="none" id="atscmh-sccc-code-mode">
+    <title>enum atscmh_sccc_code_mode</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry id="ATSCMH-SCCC-CODE-HLF"><constant>ATSCMH_SCCC_CODE_HLF</constant></entry>
+	    <entry>to be documented.</entry>
+	</row><row>
+	    <entry id="ATSCMH-SCCC-CODE-QTR"><constant>ATSCMH_SCCC_CODE_QTR</constant></entry>
+	    <entry>to be documented.</entry>
+	</row><row>
+	    <entry id="ATSCMH-SCCC-CODE-RES"><constant>ATSCMH_SCCC_CODE_RES</constant></entry>
+	    <entry>to be documented.</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
 		</section>
 		<section id="DTV-ATSCMH-SCCC-CODE-MODE-B">
 			<title><constant>DTV_ATSCMH_SCCC_CODE_MODE_B</constant></title>
 			<para>Series Concatenated Convolutional Code Rate.</para>
-			<para>Possible values are:</para>
-<programlisting>
-typedef enum atscmh_sccc_code_mode {
-	ATSCMH_SCCC_CODE_HLF     = 0,
-	ATSCMH_SCCC_CODE_QTR     = 1,
-} atscmh_sccc_code_mode_t;
-</programlisting>
+			<para>Possible values are the same as documented on
+			    &atscmh-sccc-code-mode;.</para>
 		</section>
 		<section id="DTV-ATSCMH-SCCC-CODE-MODE-C">
 			<title><constant>DTV_ATSCMH_SCCC_CODE_MODE_C</constant></title>
 			<para>Series Concatenated Convolutional Code Rate.</para>
-			<para>Possible values are:</para>
-<programlisting>
-typedef enum atscmh_sccc_code_mode {
-	ATSCMH_SCCC_CODE_HLF     = 0,
-	ATSCMH_SCCC_CODE_QTR     = 1,
-} atscmh_sccc_code_mode_t;
-</programlisting>
+			<para>Possible values are the same as documented on
+			    &atscmh-sccc-code-mode;.</para>
 		</section>
 		<section id="DTV-ATSCMH-SCCC-CODE-MODE-D">
 			<title><constant>DTV_ATSCMH_SCCC_CODE_MODE_D</constant></title>
 			<para>Series Concatenated Convolutional Code Rate.</para>
-			<para>Possible values are:</para>
-<programlisting>
-typedef enum atscmh_sccc_code_mode {
-	ATSCMH_SCCC_CODE_HLF     = 0,
-	ATSCMH_SCCC_CODE_QTR     = 1,
-} atscmh_sccc_code_mode_t;
-</programlisting>
+			<para>Possible values are the same as documented on
+			    &atscmh-sccc-code-mode;.</para>
 		</section>
 	</section>
 	<section id="DTV-API-VERSION">
