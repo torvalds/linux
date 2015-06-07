@@ -22,13 +22,37 @@ struct nvkm_perfctx {
 
 extern struct nvkm_oclass nvkm_pm_cclass;
 
+struct nvkm_specmux {
+	u32 mask;
+	u8 shift;
+	const char *name;
+	bool enable;
+};
+
+struct nvkm_specsrc {
+	u32 addr;
+	const struct nvkm_specmux *mux;
+	const char *name;
+};
+
+struct nvkm_perfsrc {
+	struct list_head head;
+	char *name;
+	u32 addr;
+	u32 mask;
+	u8 shift;
+	bool enable;
+};
+
 struct nvkm_specsig {
 	u8 signal;
 	const char *name;
+	const struct nvkm_specsrc *source;
 };
 
 struct nvkm_perfsig {
 	const char *name;
+	u8 source[8];
 };
 
 struct nvkm_specdom {

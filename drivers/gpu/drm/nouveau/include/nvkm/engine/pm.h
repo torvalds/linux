@@ -11,6 +11,7 @@ struct nvkm_pm {
 	void *profile_data;
 
 	struct list_head domains;
+	struct list_head sources;
 	u32 sequence;
 };
 

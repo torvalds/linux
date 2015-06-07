@@ -434,6 +434,67 @@ nvkm_pm_cclass = {
  * PPM engine/subdev functions
  ******************************************************************************/
 int
+nvkm_perfsrc_new(struct nvkm_pm *ppm, struct nvkm_perfsig *sig,
+		 const struct nvkm_specsrc *spec)
+{
+	const struct nvkm_specsrc *ssrc;
+	const struct nvkm_specmux *smux;
+	struct nvkm_perfsrc *src;
+	u8 source_nr = 0;
+
+	if (!spec) {
+		/* No sources are defined for this signal. */
+		return 0;
+	}
+
+	ssrc = spec;
+	while (ssrc->name) {
+		smux = ssrc->mux;
+		while (smux->name) {
+			bool found = false;
+			u8 source_id = 0;
+			u32 len;
+
+			list_for_each_entry(src, &ppm->sources, head) {
+				if (src->addr == ssrc->addr &&
+				    src->shift == smux->shift) {
+					found = true;
+					break;
+				}
+				source_id++;
+			}
+
+			if (!found) {
+				src = kzalloc(sizeof(*src), GFP_KERNEL);
+				if (!src)
+					return -ENOMEM;
+
+				src->addr   = ssrc->addr;
+				src->mask   = smux->mask;
+				src->shift  = smux->shift;
+				src->enable = smux->enable;
+
+				len = strlen(ssrc->name) +
+				      strlen(smux->name) + 2;
+				src->name = kzalloc(len, GFP_KERNEL);
+				if (!src->name)
+					return -ENOMEM;
+				snprintf(src->name, len, "%s_%s", ssrc->name,
+					 smux->name);
+
+				list_add_tail(&src->head, &ppm->sources);
+			}
+
+			sig->source[source_nr++] = source_id + 1;
+			smux++;
+		}
+		ssrc++;
+	}
+
+	return 0;
+}
+
+int
 nvkm_perfdom_new(struct nvkm_pm *ppm, const char *name, u32 mask,
 		 u32 base, u32 size_unit, u32 size_domain,
 		 const struct nvkm_specdom *spec)
@@ -441,7 +502,7 @@ nvkm_perfdom_new(struct nvkm_pm *ppm, const char *name, u32 mask,
 	const struct nvkm_specdom *sdom;
 	const struct nvkm_specsig *ssig;
 	struct nvkm_perfdom *dom;
-	int i;
+	int ret, i;
 
 	for (i = 0; i == 0 || mask; i++) {
 		u32 addr = base + (i * size_unit);
@@ -473,7 +534,12 @@ nvkm_perfdom_new(struct nvkm_pm *ppm, const char *name, u32 mask,
 
 			ssig = (sdom++)->signal;
 			while (ssig->name) {
-				dom->signal[ssig->signal].name = ssig->name;
+				struct nvkm_perfsig *sig =
+					&dom->signal[ssig->signal];
+				sig->name = ssig->name;
+				ret = nvkm_perfsrc_new(ppm, sig, ssig->source);
+				if (ret)
+					return ret;
 				ssig++;
 			}
 
@@ -504,11 +570,18 @@ void
 _nvkm_pm_dtor(struct nvkm_object *object)
 {
 	struct nvkm_pm *ppm = (void *)object;
-	struct nvkm_perfdom *dom, *tmp;
+	struct nvkm_perfdom *dom, *next_dom;
+	struct nvkm_perfsrc *src, *next_src;
 
-	list_for_each_entry_safe(dom, tmp, &ppm->domains, head) {
+	list_for_each_entry_safe(dom, next_dom, &ppm->domains, head) {
 		list_del(&dom->head);
 		kfree(dom);
+	}
+
+	list_for_each_entry_safe(src, next_src, &ppm->sources, head) {
+		list_del(&src->head);
+		kfree(src->name);
+		kfree(src);
 	}
 
 	nvkm_engine_destroy(&ppm->base);
@@ -528,5 +601,6 @@ nvkm_pm_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 
 	INIT_LIST_HEAD(&ppm->domains);
+	INIT_LIST_HEAD(&ppm->sources);
 	return 0;
 }
