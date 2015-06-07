@@ -73,11 +73,11 @@
 	</thead>
 	<tbody valign="top">
 	<row>
-	    <entry align="char">SEC_MINI_A</entry>
+	    <entry align="char" id="SEC-MINI-A"><constant>SEC_MINI_A</constant></entry>
 	    <entry align="char">Sends a mini-DiSEqC 22kHz '0' Tone Burst to
 		select satellite-A</entry>
 	</row><row>
-	    <entry align="char">SEC_MINI_B</entry>
+	    <entry align="char" id="SEC-MINI-B"><constant>SEC_MINI_B</constant></entry>
 	    <entry align="char">Sends a mini-DiSEqC 22kHz '1' Data Burst to
 		select satellite-B</entry>
 	</row>
