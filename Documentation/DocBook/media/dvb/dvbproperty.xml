@@ -417,13 +417,30 @@ get/set up to 64 properties. The actual meaning of each property is described on
 	<para>Sets DVB-S2 pilot</para>
 	<section id="fe-pilot-t">
 		<title>fe_pilot type</title>
-		<programlisting>
-typedef enum fe_pilot {
-	PILOT_ON,
-	PILOT_OFF,
-	PILOT_AUTO,
-} fe_pilot_t;
-		</programlisting>
+<table pgwide="1" frame="none" id="fe-pilot">
+    <title>enum fe_pilot</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry align="char" id="PILOT-ON"><constant>PILOT_ON</constant></entry>
+	    <entry align="char">Pilot tones enabled</entry>
+	</row><row>
+	    <entry align="char" id="PILOT-OFF"><constant>PILOT_OFF</constant></entry>
+	    <entry align="char">Pilot tones disabled</entry>
+	</row><row>
+	    <entry align="char" id="PILOT-AUTO"><constant>PILOT_AUTO</constant></entry>
+	    <entry align="char">Autodetect pilot tones</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
 		</section>
 	</section>
 	<section id="DTV-ROLLOFF">

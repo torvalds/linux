@@ -399,11 +399,13 @@ struct dvb_frontend_event {
 
 #define DTV_MAX_COMMAND		DTV_STAT_TOTAL_BLOCK_COUNT
 
-typedef enum fe_pilot {
+enum fe_pilot {
 	PILOT_ON,
 	PILOT_OFF,
 	PILOT_AUTO,
-} fe_pilot_t;
+};
+
+typedef enum fe_pilot fe_pilot_t;
 
 typedef enum fe_rolloff {
 	ROLLOFF_35, /* Implied value in DVB-S, default for DVB-S2 */
