@@ -6640,7 +6640,7 @@ error:
 }
 
 
-static int drxk_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int drxk_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct drxk_state *state = fe->demodulator_priv;
 	int rc;

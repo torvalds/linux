@@ -987,7 +987,8 @@ static struct tda10086_config sd1878_4m = {
  * special case: lnb supply is connected to the gated i2c
  */
 
-static int md8800_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+static int md8800_set_voltage(struct dvb_frontend *fe,
+			      enum fe_sec_voltage voltage)
 {
 	int res = -EIO;
 	struct saa7134_dev *dev = fe->dvb->priv;
@@ -1013,7 +1014,8 @@ static int md8800_set_high_voltage(struct dvb_frontend *fe, long arg)
 	return res;
 };
 
-static int md8800_set_voltage2(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+static int md8800_set_voltage2(struct dvb_frontend *fe,
+			       enum fe_sec_voltage voltage)
 {
 	struct saa7134_dev *dev = fe->dvb->priv;
 	u8 wbuf[2] = { 0x1f, 00 };

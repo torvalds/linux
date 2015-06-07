@@ -34,15 +34,15 @@ struct tda10071_priv {
 	u8 meas_count[2];
 	u32 ber;
 	u32 ucb;
-	fe_status_t fe_status;
-	fe_delivery_system_t delivery_system;
+	enum fe_status fe_status;
+	enum fe_delivery_system delivery_system;
 	bool warm; /* FW running */
 };
 
 static struct tda10071_modcod {
-	fe_delivery_system_t delivery_system;
-	fe_modulation_t modulation;
-	fe_code_rate_t fec;
+	enum fe_delivery_system delivery_system;
+	enum fe_modulation modulation;
+	enum fe_code_rate fec;
 	u8 val;
 } TDA10071_MODCOD[] = {
 	/* NBC-QPSK */

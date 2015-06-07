@@ -656,7 +656,8 @@ struct saa7134_dev {
 	/* SAA7134_MPEG_DVB only */
 	struct vb2_dvb_frontends frontends;
 	int (*original_demod_sleep)(struct dvb_frontend *fe);
-	int (*original_set_voltage)(struct dvb_frontend *fe, fe_sec_voltage_t voltage);
+	int (*original_set_voltage)(struct dvb_frontend *fe,
+				    enum fe_sec_voltage voltage);
 	int (*original_set_high_voltage)(struct dvb_frontend *fe, long arg);
 #endif
 	void (*gate_ctrl)(struct saa7134_dev *dev, int open);

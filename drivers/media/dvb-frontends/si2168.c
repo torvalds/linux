@@ -120,7 +120,7 @@ static int si2168_cmd_execute(struct i2c_client *client, struct si2168_cmd *cmd)
 	return ret;
 }
 
-static int si2168_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int si2168_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct i2c_client *client = fe->demodulator_priv;
 	struct si2168_dev *dev = i2c_get_clientdata(client);

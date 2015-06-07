@@ -38,8 +38,8 @@ struct m88ds3103_priv {
 	struct m88ds3103_config config;
 	const struct m88ds3103_config *cfg;
 	struct dvb_frontend fe;
-	fe_delivery_system_t delivery_system;
-	fe_status_t fe_status;
+	enum fe_delivery_system delivery_system;
+	enum fe_status fe_status;
 	u32 dvbv3_ber; /* for old DVBv3 API read_ber */
 	bool warm; /* FW running */
 	struct i2c_adapter *i2c_adapter;

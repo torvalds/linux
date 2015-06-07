@@ -39,7 +39,7 @@ struct af9013_state {
 	u32 ucblocks;
 	u16 snr;
 	u32 bandwidth_hz;
-	fe_status_t fe_status;
+	enum fe_status fe_status;
 	unsigned long set_frontend_jiffies;
 	unsigned long read_status_jiffies;
 	bool first_tune;
@@ -983,7 +983,7 @@ err:
 	return ret;
 }
 
-static int af9013_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int af9013_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct af9013_state *state = fe->demodulator_priv;
 	int ret;

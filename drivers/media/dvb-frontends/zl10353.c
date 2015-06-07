@@ -462,7 +462,7 @@ static int zl10353_get_parameters(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int zl10353_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int zl10353_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct zl10353_state *state = fe->demodulator_priv;
 	int s6, s7, s8;

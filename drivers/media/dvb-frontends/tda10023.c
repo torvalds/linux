@@ -376,7 +376,8 @@ static int tda10023_set_parameters(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int tda10023_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int tda10023_read_status(struct dvb_frontend *fe,
+				enum fe_status *status)
 {
 	struct tda10023_state* state = fe->demodulator_priv;
 	int sync;

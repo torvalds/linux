@@ -118,12 +118,12 @@ enum command_message_id {
 struct cx24120_tuning {
 	u32 frequency;
 	u32 symbol_rate;
-	fe_spectral_inversion_t inversion;
-	fe_code_rate_t fec;
+	enum fe_spectral_inversion inversion;
+	enum fe_code_rate fec;
 
-	fe_delivery_system_t delsys;
-	fe_modulation_t modulation;
-	fe_pilot_t pilot;
+	enum fe_delivery_system delsys;
+	enum fe_modulation modulation;
+	enum fe_pilot pilot;
 
 	/* Demod values */
 	u8 fec_val;
@@ -148,7 +148,7 @@ struct cx24120_state {
 	struct cx24120_tuning dcur;
 	struct cx24120_tuning dnxt;
 
-	fe_status_t fe_status;
+	enum fe_status fe_status;
 
 	/* dvbv5 stats calculations */
 	u32 bitrate;
@@ -491,7 +491,7 @@ static int cx24120_msg_mpeg_output_config(struct cx24120_state *state, u8 seq)
 }
 
 static int cx24120_diseqc_send_burst(struct dvb_frontend *fe,
-				     fe_sec_mini_cmd_t burst)
+				     enum fe_sec_mini_cmd burst)
 {
 	struct cx24120_state *state = fe->demodulator_priv;
 	struct cx24120_cmd cmd;
@@ -513,7 +513,7 @@ static int cx24120_diseqc_send_burst(struct dvb_frontend *fe,
 	return cx24120_message_send(state, &cmd);
 }
 
-static int cx24120_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
+static int cx24120_set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
 {
 	struct cx24120_state *state = fe->demodulator_priv;
 	struct cx24120_cmd cmd;
@@ -536,7 +536,7 @@ static int cx24120_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
 }
 
 static int cx24120_set_voltage(struct dvb_frontend *fe,
-			       fe_sec_voltage_t voltage)
+			       enum fe_sec_voltage voltage)
 {
 	struct cx24120_state *state = fe->demodulator_priv;
 	struct cx24120_cmd cmd;
@@ -713,7 +713,7 @@ static void cx24120_get_stats(struct cx24120_state *state)
 static void cx24120_set_clock_ratios(struct dvb_frontend *fe);
 
 /* Read current tuning status */
-static int cx24120_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int cx24120_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct cx24120_state *state = fe->demodulator_priv;
 	int lock;
@@ -765,9 +765,9 @@ static int cx24120_read_status(struct dvb_frontend *fe, fe_status_t *status)
  * once tuned in.
  */
 struct cx24120_modfec {
-	fe_delivery_system_t delsys;
-	fe_modulation_t mod;
-	fe_code_rate_t fec;
+	enum fe_delivery_system delsys;
+	enum fe_modulation mod;
+	enum fe_code_rate fec;
 	u8 val;
 };
 
@@ -871,10 +871,10 @@ static void cx24120_calculate_ber_window(struct cx24120_state *state, u32 rate)
  * can't determine the pattern
  */
 struct cx24120_clock_ratios_table {
-	fe_delivery_system_t delsys;
-	fe_pilot_t pilot;
-	fe_modulation_t mod;
-	fe_code_rate_t fec;
+	enum fe_delivery_system delsys;
+	enum fe_pilot pilot;
+	enum fe_modulation mod;
+	enum fe_code_rate fec;
 	u32 m_rat;
 	u32 n_rat;
 	u32 rate;
@@ -988,7 +988,7 @@ static void cx24120_set_clock_ratios(struct dvb_frontend *fe)
 
 /* Set inversion value */
 static int cx24120_set_inversion(struct cx24120_state *state,
-				 fe_spectral_inversion_t inversion)
+				 enum fe_spectral_inversion inversion)
 {
 	dev_dbg(&state->i2c->dev, "(%d)\n", inversion);
 
@@ -1013,9 +1013,9 @@ static int cx24120_set_inversion(struct cx24120_state *state,
 
 /* FEC lookup table for tuning */
 struct cx24120_modfec_table {
-	fe_delivery_system_t delsys;
-	fe_modulation_t mod;
-	fe_code_rate_t fec;
+	enum fe_delivery_system delsys;
+	enum fe_modulation mod;
+	enum fe_code_rate fec;
 	u8 val;
 };
 
@@ -1046,8 +1046,8 @@ static const struct cx24120_modfec_table modfec_table[] = {
 };
 
 /* Set fec_val & fec_mask values from delsys, modulation & fec */
-static int cx24120_set_fec(struct cx24120_state *state, fe_modulation_t mod,
-			   fe_code_rate_t fec)
+static int cx24120_set_fec(struct cx24120_state *state, enum fe_modulation mod,
+			   enum fe_code_rate fec)
 {
 	int idx;
 
@@ -1084,7 +1084,7 @@ static int cx24120_set_fec(struct cx24120_state *state, fe_modulation_t mod,
 }
 
 /* Set pilot */
-static int cx24120_set_pilot(struct cx24120_state *state, fe_pilot_t pilot)
+static int cx24120_set_pilot(struct cx24120_state *state, enum fe_pilot pilot)
 {
 	dev_dbg(&state->i2c->dev, "(%d)\n", pilot);
 
@@ -1474,7 +1474,7 @@ static int cx24120_init(struct dvb_frontend *fe)
 
 static int cx24120_tune(struct dvb_frontend *fe, bool re_tune,
 			unsigned int mode_flags, unsigned int *delay,
-			fe_status_t *status)
+			enum fe_status *status)
 {
 	struct cx24120_state *state = fe->demodulator_priv;
 	int ret;

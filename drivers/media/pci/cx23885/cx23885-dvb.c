@@ -572,7 +572,8 @@ static struct stb6100_config prof_8000_stb6100_config = {
 	.refclock = 27000000,
 };
 
-static int p8000_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+static int p8000_set_voltage(struct dvb_frontend *fe,
+			     enum fe_sec_voltage voltage)
 {
 	struct cx23885_tsport *port = fe->dvb->priv;
 	struct cx23885_dev *dev = port->dev;
@@ -587,7 +588,7 @@ static int p8000_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 }
 
 static int dvbsky_t9580_set_voltage(struct dvb_frontend *fe,
-					fe_sec_voltage_t voltage)
+					enum fe_sec_voltage voltage)
 {
 	struct cx23885_tsport *port = fe->dvb->priv;
 	struct cx23885_dev *dev = port->dev;
@@ -616,7 +617,7 @@ static int dvbsky_t9580_set_voltage(struct dvb_frontend *fe,
 }
 
 static int dvbsky_s952_portc_set_voltage(struct dvb_frontend *fe,
-					fe_sec_voltage_t voltage)
+					enum fe_sec_voltage voltage)
 {
 	struct cx23885_tsport *port = fe->dvb->priv;
 	struct cx23885_dev *dev = port->dev;
@@ -1186,7 +1187,8 @@ static int dvb_register(struct cx23885_tsport *port)
 	struct i2c_client *client_demod = NULL, *client_tuner = NULL;
 	struct i2c_client *client_sec = NULL;
 	const struct m88ds3103_config *p_m88ds3103_config = NULL;
-	int (*p_set_voltage)(struct dvb_frontend *fe, fe_sec_voltage_t voltage) = NULL;
+	int (*p_set_voltage)(struct dvb_frontend *fe,
+			     enum fe_sec_voltage voltage) = NULL;
 	int mfe_shared = 0; /* bus not shared by default */
 	int ret;
 

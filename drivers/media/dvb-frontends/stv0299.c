@@ -61,7 +61,7 @@ struct stv0299_state {
 	u8 initialised:1;
 	u32 tuner_frequency;
 	u32 symbol_rate;
-	fe_code_rate_t fec_inner;
+	enum fe_code_rate fec_inner;
 	int errmode;
 	u32 ucblocks;
 	u8 mcr_reg;
@@ -134,7 +134,7 @@ static int stv0299_readregs (struct stv0299_state* state, u8 reg1, u8 *b, u8 len
 	return ret == 2 ? 0 : ret;
 }
 
-static int stv0299_set_FEC (struct stv0299_state* state, fe_code_rate_t fec)
+static int stv0299_set_FEC(struct stv0299_state *state, enum fe_code_rate fec)
 {
 	dprintk ("%s\n", __func__);
 
@@ -170,10 +170,10 @@ static int stv0299_set_FEC (struct stv0299_state* state, fe_code_rate_t fec)
     }
 }
 
-static fe_code_rate_t stv0299_get_fec (struct stv0299_state* state)
+static enum fe_code_rate stv0299_get_fec(struct stv0299_state *state)
 {
-	static fe_code_rate_t fec_tab [] = { FEC_2_3, FEC_3_4, FEC_5_6,
-					     FEC_7_8, FEC_1_2 };
+	static enum fe_code_rate fec_tab[] = { FEC_2_3, FEC_3_4, FEC_5_6,
+					       FEC_7_8, FEC_1_2 };
 	u8 index;
 
 	dprintk ("%s\n", __func__);
@@ -302,7 +302,8 @@ static int stv0299_send_diseqc_msg (struct dvb_frontend* fe,
 	return 0;
 }
 
-static int stv0299_send_diseqc_burst (struct dvb_frontend* fe, fe_sec_mini_cmd_t burst)
+static int stv0299_send_diseqc_burst(struct dvb_frontend *fe,
+				     enum fe_sec_mini_cmd burst)
 {
 	struct stv0299_state* state = fe->demodulator_priv;
 	u8 val;
@@ -329,7 +330,8 @@ static int stv0299_send_diseqc_burst (struct dvb_frontend* fe, fe_sec_mini_cmd_t
 	return 0;
 }
 
-static int stv0299_set_tone (struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
+static int stv0299_set_tone(struct dvb_frontend *fe,
+			    enum fe_sec_tone_mode tone)
 {
 	struct stv0299_state* state = fe->demodulator_priv;
 	u8 val;
@@ -351,7 +353,8 @@ static int stv0299_set_tone (struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
 	}
 }
 
-static int stv0299_set_voltage (struct dvb_frontend* fe, fe_sec_voltage_t voltage)
+static int stv0299_set_voltage(struct dvb_frontend *fe,
+			       enum fe_sec_voltage voltage)
 {
 	struct stv0299_state* state = fe->demodulator_priv;
 	u8 reg0x08;
@@ -476,7 +479,8 @@ static int stv0299_init (struct dvb_frontend* fe)
 	return 0;
 }
 
-static int stv0299_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int stv0299_read_status(struct dvb_frontend *fe,
+			       enum fe_status *status)
 {
 	struct stv0299_state* state = fe->demodulator_priv;
 

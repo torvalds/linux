@@ -72,7 +72,7 @@ int mxl111sf_demod_program_regs(struct mxl111sf_demod_state *state,
 
 static
 int mxl1x1sf_demod_get_tps_code_rate(struct mxl111sf_demod_state *state,
-				     fe_code_rate_t *code_rate)
+				     enum fe_code_rate *code_rate)
 {
 	u8 val;
 	int ret = mxl111sf_demod_read_reg(state, V6_CODE_RATE_TPS_REG, &val);
@@ -103,7 +103,7 @@ fail:
 
 static
 int mxl1x1sf_demod_get_tps_modulation(struct mxl111sf_demod_state *state,
-					 fe_modulation_t *modulation)
+				      enum fe_modulation *modulation)
 {
 	u8 val;
 	int ret = mxl111sf_demod_read_reg(state, V6_MODORDER_TPS_REG, &val);
@@ -128,7 +128,7 @@ fail:
 
 static
 int mxl1x1sf_demod_get_tps_guard_fft_mode(struct mxl111sf_demod_state *state,
-					  fe_transmit_mode_t *fft_mode)
+					  enum fe_transmit_mode *fft_mode)
 {
 	u8 val;
 	int ret = mxl111sf_demod_read_reg(state, V6_MODE_TPS_REG, &val);
@@ -153,7 +153,7 @@ fail:
 
 static
 int mxl1x1sf_demod_get_tps_guard_interval(struct mxl111sf_demod_state *state,
-					  fe_guard_interval_t *guard)
+					  enum fe_guard_interval *guard)
 {
 	u8 val;
 	int ret = mxl111sf_demod_read_reg(state, V6_CP_TPS_REG, &val);
@@ -181,7 +181,7 @@ fail:
 
 static
 int mxl1x1sf_demod_get_tps_hierarchy(struct mxl111sf_demod_state *state,
-				     fe_hierarchy_t *hierarchy)
+				     enum fe_hierarchy *hierarchy)
 {
 	u8 val;
 	int ret = mxl111sf_demod_read_reg(state, V6_TPS_HIERACHY_REG, &val);
@@ -441,7 +441,7 @@ fail:
 }
 
 static int mxl111sf_demod_read_status(struct dvb_frontend *fe,
-				      fe_status_t *status)
+				      enum fe_status *status)
 {
 	struct mxl111sf_demod_state *state = fe->demodulator_priv;
 	int ret, locked, cr_lock, sync_lock, fec_lock;
@@ -480,7 +480,7 @@ static int mxl111sf_demod_read_signal_strength(struct dvb_frontend *fe,
 					       u16 *signal_strength)
 {
 	struct mxl111sf_demod_state *state = fe->demodulator_priv;
-	fe_modulation_t modulation;
+	enum fe_modulation modulation;
 	u16 snr;
 
 	mxl111sf_demod_calc_snr(state, &snr);

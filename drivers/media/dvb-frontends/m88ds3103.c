@@ -186,7 +186,8 @@ err:
 	return ret;
 }
 
-static int m88ds3103_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int m88ds3103_read_status(struct dvb_frontend *fe,
+				 enum fe_status *status)
 {
 	struct m88ds3103_priv *priv = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
@@ -1094,7 +1095,7 @@ static int m88ds3103_read_ber(struct dvb_frontend *fe, u32 *ber)
 }
 
 static int m88ds3103_set_tone(struct dvb_frontend *fe,
-	fe_sec_tone_mode_t fe_sec_tone_mode)
+	enum fe_sec_tone_mode fe_sec_tone_mode)
 {
 	struct m88ds3103_priv *priv = fe->demodulator_priv;
 	int ret;
@@ -1141,7 +1142,7 @@ err:
 }
 
 static int m88ds3103_set_voltage(struct dvb_frontend *fe,
-	fe_sec_voltage_t fe_sec_voltage)
+	enum fe_sec_voltage fe_sec_voltage)
 {
 	struct m88ds3103_priv *priv = fe->demodulator_priv;
 	int ret;
@@ -1268,7 +1269,7 @@ err:
 }
 
 static int m88ds3103_diseqc_send_burst(struct dvb_frontend *fe,
-	fe_sec_mini_cmd_t fe_sec_mini_cmd)
+	enum fe_sec_mini_cmd fe_sec_mini_cmd)
 {
 	struct m88ds3103_priv *priv = fe->demodulator_priv;
 	int ret;

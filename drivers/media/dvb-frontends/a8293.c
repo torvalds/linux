@@ -67,7 +67,7 @@ static int a8293_rd(struct a8293_priv *priv, u8 *val, int len)
 }
 
 static int a8293_set_voltage(struct dvb_frontend *fe,
-	fe_sec_voltage_t fe_sec_voltage)
+	enum fe_sec_voltage fe_sec_voltage)
 {
 	struct a8293_priv *priv = fe->sec_priv;
 	int ret;

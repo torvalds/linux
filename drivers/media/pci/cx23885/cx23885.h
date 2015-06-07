@@ -309,7 +309,7 @@ struct cx23885_tsport {
 
 	int (*set_frontend)(struct dvb_frontend *fe);
 	int (*fe_set_voltage)(struct dvb_frontend *fe,
-				fe_sec_voltage_t voltage);
+			      enum fe_sec_voltage voltage);
 };
 
 struct cx23885_kernel_ir {

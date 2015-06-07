@@ -144,7 +144,7 @@ static u8 f300_xfer(struct dvb_frontend *fe, u8 *buf)
 	return ret;
 }
 
-int f300_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+int f300_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage voltage)
 {
 	u8 buf[16];
 

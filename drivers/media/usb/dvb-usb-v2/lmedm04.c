@@ -126,7 +126,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 struct lme2510_state {
 	unsigned long int_urb_due;
-	fe_status_t lock_status;
+	enum fe_status lock_status;
 	u8 id;
 	u8 tuner_config;
 	u8 signal_level;
@@ -144,12 +144,12 @@ struct lme2510_state {
 	struct urb *lme_urb;
 	void *usb_buffer;
 	/* Frontend original calls */
-	int (*fe_read_status)(struct dvb_frontend *, fe_status_t *);
+	int (*fe_read_status)(struct dvb_frontend *, enum fe_status *);
 	int (*fe_read_signal_strength)(struct dvb_frontend *, u16 *);
 	int (*fe_read_snr)(struct dvb_frontend *, u16 *);
 	int (*fe_read_ber)(struct dvb_frontend *, u32 *);
 	int (*fe_read_ucblocks)(struct dvb_frontend *, u32 *);
-	int (*fe_set_voltage)(struct dvb_frontend *, fe_sec_voltage_t);
+	int (*fe_set_voltage)(struct dvb_frontend *, enum fe_sec_voltage);
 	u8 dvb_usb_lme2510_firmware;
 };
 
@@ -802,7 +802,7 @@ static struct ts2020_config ts2020_config = {
 };
 
 static int dm04_lme2510_set_voltage(struct dvb_frontend *fe,
-					fe_sec_voltage_t voltage)
+				    enum fe_sec_voltage voltage)
 {
 	struct dvb_usb_device *d = fe_to_d(fe);
 	struct lme2510_state *st = fe_to_priv(fe);
@@ -837,7 +837,7 @@ static int dm04_lme2510_set_voltage(struct dvb_frontend *fe,
 	return (ret < 0) ? -ENODEV : 0;
 }
 
-static int dm04_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int dm04_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct dvb_usb_device *d = fe_to_d(fe);
 	struct lme2510_state *st = d->priv;

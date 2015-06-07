@@ -129,8 +129,8 @@ static int unlock_tuner(struct tda10021_state* state)
 	return 0;
 }
 
-static int tda10021_setup_reg0 (struct tda10021_state* state, u8 reg0,
-				fe_spectral_inversion_t inversion)
+static int tda10021_setup_reg0(struct tda10021_state *state, u8 reg0,
+			       enum fe_spectral_inversion inversion)
 {
 	reg0 |= state->reg0 & 0x63;
 
@@ -308,7 +308,8 @@ static int tda10021_set_parameters(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int tda10021_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int tda10021_read_status(struct dvb_frontend *fe,
+				enum fe_status *status)
 {
 	struct tda10021_state* state = fe->demodulator_priv;
 	int sync;

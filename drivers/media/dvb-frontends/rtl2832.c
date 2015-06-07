@@ -688,7 +688,7 @@ err:
 	return ret;
 }
 
-static int rtl2832_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int rtl2832_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct rtl2832_dev *dev = fe->demodulator_priv;
 	struct i2c_client *client = dev->client;

@@ -736,7 +736,7 @@ static int dib3000mc_set_frontend(struct dvb_frontend *fe)
 	return ret;
 }
 
-static int dib3000mc_read_status(struct dvb_frontend *fe, fe_status_t *stat)
+static int dib3000mc_read_status(struct dvb_frontend *fe, enum fe_status *stat)
 {
 	struct dib3000mc_state *state = fe->demodulator_priv;
 	u16 lock = dib3000mc_read_word(state, 509);

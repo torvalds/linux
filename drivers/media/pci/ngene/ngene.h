@@ -682,7 +682,7 @@ struct ngene_channel {
 	int                   AudioDTOUpdated;
 	u32                   AudioDTOValue;
 
-	int (*set_tone)(struct dvb_frontend *, fe_sec_tone_mode_t);
+	int (*set_tone)(struct dvb_frontend *, enum fe_sec_tone_mode);
 	u8 lnbh;
 
 	/* stuff from analog driver */

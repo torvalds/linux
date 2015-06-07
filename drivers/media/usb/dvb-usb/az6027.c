@@ -778,7 +778,8 @@ static int az6027_read_mac_addr(struct dvb_usb_device *d, u8 mac[6])
 }
 */
 
-static int az6027_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+static int az6027_set_voltage(struct dvb_frontend *fe,
+			      enum fe_sec_voltage voltage)
 {
 
 	u8 buf;

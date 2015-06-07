@@ -77,7 +77,7 @@ typedef enum fe_caps fe_caps_t;
 
 struct dvb_frontend_info {
 	char       name[128];
-	fe_type_t  type;			/* DEPRECATED. Use DTV_ENUM_DELSYS instead */
+	enum fe_type type;	/* DEPRECATED. Use DTV_ENUM_DELSYS instead */
 	__u32      frequency_min;
 	__u32      frequency_max;
 	__u32      frequency_stepsize;
@@ -86,7 +86,7 @@ struct dvb_frontend_info {
 	__u32      symbol_rate_max;
 	__u32      symbol_rate_tolerance;	/* ppm */
 	__u32      notifier_delay;		/* DEPRECATED */
-	fe_caps_t  caps;
+	enum fe_caps caps;
 };
 
 

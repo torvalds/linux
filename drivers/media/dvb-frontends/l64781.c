@@ -359,7 +359,7 @@ static int get_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int l64781_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int l64781_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct l64781_state* state = fe->demodulator_priv;
 	int sync = l64781_readreg (state, 0x32);
