@@ -35,7 +35,8 @@
 #include <linux/module.h>
 #include "mlx5_core.h"
 
-int mlx5_cmd_query_adapter(struct mlx5_core_dev *dev, u32 *out, int outlen)
+static int mlx5_cmd_query_adapter(struct mlx5_core_dev *dev, u32 *out,
+				  int outlen)
 {
 	u32 in[MLX5_ST_SZ_DW(query_adapter_in)];
 

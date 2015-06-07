@@ -48,7 +48,7 @@ int mlx5_query_hca_vport_context(struct mlx5_core_dev *dev,
 				 u16 vf_num,
 				 struct mlx5_hca_vport_context *rep);
 int mlx5_query_hca_vport_system_image_guid(struct mlx5_core_dev *dev,
-					   __be64 *sys_image_guid);
+					   u64 *sys_image_guid);
 int mlx5_query_hca_vport_node_guid(struct mlx5_core_dev *dev,
 				   u64 *node_guid);
 

@@ -307,7 +307,7 @@ ex:
 EXPORT_SYMBOL_GPL(mlx5_query_hca_vport_context);
 
 int mlx5_query_hca_vport_system_image_guid(struct mlx5_core_dev *dev,
-					   __be64 *sys_image_guid)
+					   u64 *sys_image_guid)
 {
 	struct mlx5_hca_vport_context *rep;
 	int err;
