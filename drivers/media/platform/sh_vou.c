@@ -872,6 +872,30 @@ static int sh_vou_streamoff(struct file *file, void *priv,
 	return 0;
 }
 
+static int sh_vou_enum_output(struct file *file, void *fh,
+			      struct v4l2_output *a)
+{
+	struct sh_vou_device *vou_dev = video_drvdata(file);
+
+	if (a->index)
+		return -EINVAL;
+	strlcpy(a->name, "Video Out", sizeof(a->name));
+	a->type = V4L2_OUTPUT_TYPE_ANALOG;
+	a->std = vou_dev->vdev.tvnorms;
+	return 0;
+}
+
+int sh_vou_g_output(struct file *file, void *fh, unsigned int *i)
+{
+	*i = 0;
+	return 0;
+}
+
+int sh_vou_s_output(struct file *file, void *fh, unsigned int i)
+{
+	return i ? -EINVAL : 0;
+}
+
 static u32 sh_vou_ntsc_mode(enum sh_vou_bus_fmt bus_fmt)
 {
 	switch (bus_fmt) {
@@ -1276,6 +1300,9 @@ static const struct v4l2_ioctl_ops sh_vou_ioctl_ops = {
 	.vidioc_dqbuf			= sh_vou_dqbuf,
 	.vidioc_streamon		= sh_vou_streamon,
 	.vidioc_streamoff		= sh_vou_streamoff,
+	.vidioc_g_output		= sh_vou_g_output,
+	.vidioc_s_output		= sh_vou_s_output,
+	.vidioc_enum_output		= sh_vou_enum_output,
 	.vidioc_s_std			= sh_vou_s_std,
 	.vidioc_g_std			= sh_vou_g_std,
 	.vidioc_cropcap			= sh_vou_cropcap,
