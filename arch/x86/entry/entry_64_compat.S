@@ -413,9 +413,7 @@ END(entry_SYSCALL_compat)
 
 ia32_badarg:
 	ASM_CLAC
-	movq	$-EFAULT, %rax
-	jmp	ia32_sysret
-
+	movq	$-EFAULT, RAX(%rsp)
 ia32_ret_from_sys_call:
 	xorl	%eax, %eax		/* Do not leak kernel information */
 	movq	%rax, R11(%rsp)
@@ -486,9 +484,7 @@ ia32_do_call:
 	cmpq	$(IA32_NR_syscalls-1), %rax
 	ja	1f
 
-	call	*ia32_sys_call_table(, %rax, 8) /* RIP relative */
-
-ia32_sysret:
+	call	*ia32_sys_call_table(, %rax, 8)
 	movq	%rax, RAX(%rsp)
 1:
 	jmp	int_ret_from_sys_call
