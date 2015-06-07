@@ -78,25 +78,25 @@ pointer to an integer where the status will be written.
 	</thead>
 	<tbody valign="top">
 	<row>
-	    <entry align="char">FE_HAS_SIGNAL</entry>
+	    <entry align="char" id="FE-HAS-SIGNAL"><constant>FE_HAS_SIGNAL</constant></entry>
 	    <entry align="char">The frontend has found something above the noise level</entry>
 	</row><row>
-	    <entry align="char">FE_HAS_CARRIER</entry>
+	    <entry align="char" id="FE-HAS-CARRIER"><constant>FE_HAS_CARRIER</constant></entry>
 	    <entry align="char">The frontend has found a DVB signal</entry>
 	</row><row>
-	    <entry align="char">FE_HAS_VITERBI</entry>
+	    <entry align="char" id="FE-HAS-VITERBI"><constant>FE_HAS_VITERBI</constant></entry>
 	    <entry align="char">The frontend FEC inner coding (Viterbi, LDPC or other inner code) is stable</entry>
 	</row><row>
-	    <entry align="char">FE_HAS_SYNC</entry>
+	    <entry align="char" id="FE-HAS-SYNC"><constant>FE_HAS_SYNC</constant></entry>
 	    <entry align="char">Synchronization bytes was found</entry>
 	</row><row>
-	    <entry align="char">FE_HAS_LOCK</entry>
+	    <entry align="char" id="FE-HAS-LOCK"><constant>FE_HAS_LOCK</constant></entry>
 	    <entry align="char">The DVB were locked and everything is working</entry>
 	</row><row>
-	    <entry align="char">FE_TIMEDOUT</entry>
+	    <entry align="char" id="FE-TIMEDOUT"><constant>FE_TIMEDOUT</constant></entry>
 	    <entry align="char">no lock within the last about 2 seconds</entry>
 	</row><row>
-	    <entry align="char">FE_REINIT</entry>
+	    <entry align="char" id="FE-REINIT"><constant>FE_REINIT</constant></entry>
 	    <entry align="char">The frontend was reinitialized, application is
 	    recommended to reset DiSEqC, tone and parameters</entry>
 	</row>
