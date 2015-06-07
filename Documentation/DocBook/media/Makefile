@@ -88,12 +88,8 @@ ENUMS = \
 
 ENUM_DEFS = \
 	$(shell perl -e 'open IN,"cat @ARGV| cpp -fpreprocessed |"; while (<IN>) { if ($$enum) {print "$$1\n" if (/\s*([A-Z]\S+)\b/); } $$enum = 0 if ($$enum && /^\}/); $$enum = 1 if(/^\s*enum\s/); }; close IN;' \
-		$(srctree)/include/uapi/linux/dvb/audio.h \
-		$(srctree)/include/uapi/linux/dvb/ca.h \
 		$(srctree)/include/uapi/linux/dvb/dmx.h \
-		$(srctree)/include/uapi/linux/dvb/frontend.h \
-		$(srctree)/include/uapi/linux/dvb/net.h \
-		$(srctree)/include/uapi/linux/dvb/video.h)
+		$(srctree)/include/uapi/linux/dvb/frontend.h)
 
 STRUCTS = \
 	$(shell perl -ne 'print "$$1 " if /^struct\s+([^\s]+)\s+/' $(srctree)/include/uapi/linux/videodev2.h) \
@@ -251,9 +247,14 @@ $(MEDIA_OBJ_DIR)/dmx.h.xml: $(srctree)/include/uapi/linux/dvb/dmx.h $(MEDIA_OBJ_
 	@(					\
 	echo "<programlisting>") > $@
 	@(					\
+	for ident in $(ENUM_DEFS) ; do		\
+	  entity=`echo $$ident | tr _ -` ;	\
+	  r="$$r s/([^\w\-])$$ident([^\w\-])/\1\&$$entity\;\2/g;";\
+	done;					\
 	expand --tabs=8 < $< |			\
 	  sed $(ESCAPE) $(DVB_DOCUMENTED) |	\
-	  sed 's/i\.e\./&ie;/') >> $@
+	  sed 's/i\.e\./&ie;/' |		\
+	  perl -ne "$$r print $$_;") >> $@
 	@(					\
 	echo "</programlisting>") >> $@
 
