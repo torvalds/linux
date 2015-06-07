@@ -17,6 +17,9 @@
 #include <asm/processor.h>
 #include <asm/fpu/internal.h>
 
+#define CREATE_TRACE_POINTS
+#include <asm/trace/mpx.h>
+
 static const char *mpx_mapping_name(struct vm_area_struct *vma)
 {
 	return "[mpx]";
