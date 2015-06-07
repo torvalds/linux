@@ -1368,7 +1368,7 @@ static int sh_vou_probe(struct platform_device *pdev)
 	rect->height		= 480;
 	pix->width		= VOU_MAX_IMAGE_WIDTH;
 	pix->height		= 480;
-	pix->pixelformat	= V4L2_PIX_FMT_YVYU;
+	pix->pixelformat	= V4L2_PIX_FMT_NV16;
 	pix->field		= V4L2_FIELD_NONE;
 	pix->bytesperline	= VOU_MAX_IMAGE_WIDTH * 2;
 	pix->sizeimage		= VOU_MAX_IMAGE_WIDTH * 2 * 480;
