@@ -90,11 +90,9 @@ struct iwl_mvm_scan_params {
 	int n_match_sets;
 	struct iwl_scan_probe_req preq;
 	struct cfg80211_match_set *match_sets;
-	struct _dwell {
-		u16 passive;
-		u16 active;
-		u16 fragmented;
-	} dwell[IEEE80211_NUM_BANDS];
+	u16 passive_dwell;
+	u16 active_dwell;
+	u16 fragmented_dwell;
 	struct {
 		u8 iterations;
 		u8 full_scan_mul; /* not used for UMAC */
@@ -147,34 +145,6 @@ iwl_mvm_scan_rate_n_flags(struct iwl_mvm *mvm, enum ieee80211_band band,
 		return cpu_to_le32(IWL_RATE_6M_PLCP | tx_ant);
 }
 
-/*
- * If req->n_ssids > 0, it means we should do an active scan.
- * In case of active scan w/o directed scan, we receive a zero-length SSID
- * just to notify that this scan is active and not passive.
- * In order to notify the FW of the number of SSIDs we wish to scan (including
- * the zero-length one), we need to set the corresponding bits in chan->type,
- * one for each SSID, and set the active bit (first). If the first SSID is
- * already included in the probe template, so we need to set only
- * req->n_ssids - 1 bits in addition to the first bit.
- */
-static u16 iwl_mvm_get_active_dwell(struct iwl_mvm *mvm,
-				    enum ieee80211_band band, int n_ssids)
-{
-	if (fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_BASIC_DWELL))
-		return 10;
-	if (band == IEEE80211_BAND_2GHZ)
-		return 20  + 3 * (n_ssids + 1);
-	return 10  + 2 * (n_ssids + 1);
-}
-
-static u16 iwl_mvm_get_passive_dwell(struct iwl_mvm *mvm,
-				     enum ieee80211_band band)
-{
-	if (fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_BASIC_DWELL))
-			return 110;
-	return band == IEEE80211_BAND_2GHZ ? 100 + 20 : 100 + 10;
-}
-
 static void iwl_mvm_scan_condition_iterator(void *data, u8 *mac,
 					    struct ieee80211_vif *vif)
 {
@@ -191,7 +161,6 @@ static void iwl_mvm_scan_calc_dwell(struct iwl_mvm *mvm,
 				    struct iwl_mvm_scan_params *params)
 {
 	int global_cnt = 0;
-	enum ieee80211_band band;
 	u8 frag_passive_dwell = 0;
 
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
@@ -227,14 +196,10 @@ static void iwl_mvm_scan_calc_dwell(struct iwl_mvm *mvm,
 		/*
 		 * P2P device scan should not be fragmented to avoid negative
 		 * impact on P2P device discovery. Configure max_out_time to be
-		 * equal to dwell time on passive channel. Take a longest
-		 * possible value, one that corresponds to 2GHz band
+		 * equal to dwell time on passive channel.
 		 */
 		if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
-			u32 passive_dwell =
-				iwl_mvm_get_passive_dwell(mvm,
-							  IEEE80211_BAND_2GHZ);
-			params->max_out_time = passive_dwell;
+			params->max_out_time = 120;
 		} else {
 			params->passive_fragmented = true;
 		}
@@ -246,30 +211,21 @@ static void iwl_mvm_scan_calc_dwell(struct iwl_mvm *mvm,
 
 not_bound:
 
-	for (band = IEEE80211_BAND_2GHZ; band < IEEE80211_NUM_BANDS; band++) {
-		if (params->passive_fragmented)
-			params->dwell[band].fragmented = frag_passive_dwell;
+	if (params->passive_fragmented)
+		params->fragmented_dwell = frag_passive_dwell;
 
-		params->dwell[band].passive = iwl_mvm_get_passive_dwell(mvm,
-									band);
-		params->dwell[band].active =
-			iwl_mvm_get_active_dwell(mvm, band, params->n_ssids);
-	}
+	/*
+	 * use only basic dwell time in scan command, regardless of the band or
+	 * the number of the probes. FW will calculate the actual dwell time.
+	 */
+	params->passive_dwell = 110;
+	params->active_dwell = 10;
+
 
 	IWL_DEBUG_SCAN(mvm,
 		       "scan parameters: max_out_time %d, suspend_time %d, passive_fragmented %d\n",
 		       params->max_out_time, params->suspend_time,
 		       params->passive_fragmented);
-	IWL_DEBUG_SCAN(mvm,
-		       "dwell[IEEE80211_BAND_2GHZ]: passive %d, active %d, fragmented %d\n",
-		       params->dwell[IEEE80211_BAND_2GHZ].passive,
-		       params->dwell[IEEE80211_BAND_2GHZ].active,
-		       params->dwell[IEEE80211_BAND_2GHZ].fragmented);
-	IWL_DEBUG_SCAN(mvm,
-		       "dwell[IEEE80211_BAND_5GHZ]: passive %d, active %d, fragmented %d\n",
-		       params->dwell[IEEE80211_BAND_5GHZ].passive,
-		       params->dwell[IEEE80211_BAND_5GHZ].active,
-		       params->dwell[IEEE80211_BAND_5GHZ].fragmented);
 }
 
 static inline bool iwl_mvm_rrm_scan_needed(struct iwl_mvm *mvm)
@@ -743,11 +699,10 @@ static void iwl_mvm_scan_lmac_dwell(struct iwl_mvm *mvm,
 				    struct iwl_scan_req_lmac *cmd,
 				    struct iwl_mvm_scan_params *params)
 {
-	cmd->active_dwell = params->dwell[IEEE80211_BAND_2GHZ].active;
-	cmd->passive_dwell = params->dwell[IEEE80211_BAND_2GHZ].passive;
+	cmd->active_dwell = params->active_dwell;
+	cmd->passive_dwell = params->passive_dwell;
 	if (params->passive_fragmented)
-		cmd->fragmented_dwell =
-				params->dwell[IEEE80211_BAND_2GHZ].fragmented;
+		cmd->fragmented_dwell = params->fragmented_dwell;
 	cmd->max_out_time = cpu_to_le32(params->max_out_time);
 	cmd->suspend_time = cpu_to_le32(params->suspend_time);
 	cmd->scan_prio = iwl_mvm_scan_priority(mvm, IWL_SCAN_PRIORITY_EXT_6);
@@ -1005,11 +960,10 @@ static void iwl_mvm_scan_umac_dwell(struct iwl_mvm *mvm,
 				    struct iwl_scan_req_umac *cmd,
 				    struct iwl_mvm_scan_params *params)
 {
-	cmd->active_dwell = params->dwell[IEEE80211_BAND_2GHZ].active;
-	cmd->passive_dwell = params->dwell[IEEE80211_BAND_2GHZ].passive;
+	cmd->active_dwell = params->active_dwell;
+	cmd->passive_dwell = params->passive_dwell;
 	if (params->passive_fragmented)
-		cmd->fragmented_dwell =
-				params->dwell[IEEE80211_BAND_2GHZ].fragmented;
+		cmd->fragmented_dwell = params->fragmented_dwell;
 	cmd->max_out_time = cpu_to_le32(params->max_out_time);
 	cmd->suspend_time = cpu_to_le32(params->suspend_time);
 	cmd->scan_priority =
