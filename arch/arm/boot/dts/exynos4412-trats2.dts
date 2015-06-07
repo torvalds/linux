@@ -190,6 +190,9 @@
 			interrupt-parent = <&gpx2>;
 			interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
 			reg = <0x36>;
+
+			maxim,over-heat-temp = <700>;
+			maxim,over-volt = <4500>;
 		};
 	};
 
