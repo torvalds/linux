@@ -59,6 +59,7 @@
 #include <asm/fixmap.h>
 #include <asm/mach_traps.h>
 #include <asm/alternative.h>
+#include <asm/fpu/xstate.h>
 #include <asm/mpx.h>
 
 #ifdef CONFIG_X86_64
@@ -371,9 +372,8 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 {
 	struct task_struct *tsk = current;
-	struct xregs_state *xsave_buf;
 	enum ctx_state prev_state;
-	struct bndcsr *bndcsr;
+	const struct bndcsr *bndcsr;
 	siginfo_t *info;
 
 	prev_state = exception_enter();
@@ -392,12 +392,11 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 
 	/*
 	 * We need to look at BNDSTATUS to resolve this exception.
-	 * It is not directly accessible, though, so we need to
-	 * do an xsave and then pull it out of the xsave buffer.
+	 * A NULL here might mean that it is in its 'init state',
+	 * which is all zeros which indicates MPX was not
+	 * responsible for the exception.
 	 */
-	copy_fpregs_to_fpstate(&tsk->thread.fpu);
-	xsave_buf = &(tsk->thread.fpu.state.xsave);
-	bndcsr = get_xsave_addr(xsave_buf, XSTATE_BNDCSR);
+	bndcsr = get_xsave_field_ptr(XSTATE_BNDCSR);
 	if (!bndcsr)
 		goto exit_trap;
 
@@ -408,11 +407,11 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 	 */
 	switch (bndcsr->bndstatus & MPX_BNDSTA_ERROR_CODE) {
 	case 2:	/* Bound directory has invalid entry. */
-		if (mpx_handle_bd_fault(xsave_buf))
+		if (mpx_handle_bd_fault(tsk))
 			goto exit_trap;
 		break; /* Success, it was handled */
 	case 1: /* Bound violation. */
-		info = mpx_generate_siginfo(regs, xsave_buf);
+		info = mpx_generate_siginfo(regs, tsk);
 		if (IS_ERR(info)) {
 			/*
 			 * We failed to decode the MPX instruction.  Act as if
