@@ -576,29 +576,55 @@ static int mpx_resolve_fault(long __user *addr, int write)
 	return 0;
 }
 
+static unsigned long mpx_bd_entry_to_bt_addr(struct mm_struct *mm,
+					     unsigned long bd_entry)
+{
+	unsigned long bt_addr = bd_entry;
+	int align_to_bytes;
+	/*
+	 * Bit 0 in a bt_entry is always the valid bit.
+	 */
+	bt_addr &= ~MPX_BD_ENTRY_VALID_FLAG;
+	/*
+	 * Tables are naturally aligned at 8-byte boundaries
+	 * on 64-bit and 4-byte boundaries on 32-bit.  The
+	 * documentation makes it appear that the low bits
+	 * are ignored by the hardware, so we do the same.
+	 */
+	if (is_64bit_mm(mm))
+		align_to_bytes = 8;
+	else
+		align_to_bytes = 4;
+	bt_addr &= ~(align_to_bytes-1);
+	return bt_addr;
+}
+
 /*
  * Get the base of bounds tables pointed by specific bounds
  * directory entry.
  */
 static int get_bt_addr(struct mm_struct *mm,
-			long __user *bd_entry, unsigned long *bt_addr)
+			long __user *bd_entry_ptr,
+			unsigned long *bt_addr_result)
 {
 	int ret;
 	int valid_bit;
+	unsigned long bd_entry;
+	unsigned long bt_addr;
 
-	if (!access_ok(VERIFY_READ, (bd_entry), sizeof(*bd_entry)))
+	if (!access_ok(VERIFY_READ, (bd_entry_ptr), sizeof(*bd_entry_ptr)))
 		return -EFAULT;
 
 	while (1) {
 		int need_write = 0;
 
 		pagefault_disable();
-		ret = get_user(*bt_addr, bd_entry);
+		ret = get_user(bd_entry, bd_entry_ptr);
 		pagefault_enable();
 		if (!ret)
 			break;
 		if (ret == -EFAULT)
-			ret = mpx_resolve_fault(bd_entry, need_write);
+			ret = mpx_resolve_fault(bd_entry_ptr, need_write);
 		/*
 		 * If we could not resolve the fault, consider it
 		 * userspace's fault and error out.
@@ -607,8 +633,8 @@ static int get_bt_addr(struct mm_struct *mm,
 			return ret;
 	}
 
-	valid_bit = *bt_addr & MPX_BD_ENTRY_VALID_FLAG;
-	*bt_addr &= MPX_BT_ADDR_MASK;
+	valid_bit = bd_entry & MPX_BD_ENTRY_VALID_FLAG;
+	bt_addr = mpx_bd_entry_to_bt_addr(mm, bd_entry);
 
 	/*
 	 * When the kernel is managing bounds tables, a bounds directory
@@ -617,7 +643,7 @@ static int get_bt_addr(struct mm_struct *mm,
 	 * data in the address field, we know something is wrong. This
 	 * -EINVAL return will cause a SIGSEGV.
 	 */
-	if (!valid_bit && *bt_addr)
+	if (!valid_bit && bt_addr)
 		return -EINVAL;
 	/*
 	 * Do we have an completely zeroed bt entry?  That is OK.  It
@@ -628,6 +654,7 @@ static int get_bt_addr(struct mm_struct *mm,
 	if (!valid_bit)
 		return -ENOENT;
 
+	*bt_addr_result = bt_addr;
 	return 0;
 }
 
