@@ -435,13 +435,13 @@ enum fecap_scale_params {
  *
  * In other words, for ISDB, those values should be filled like:
  *	u.st.stat.svalue[0] = global statistics;
- *	u.st.stat.scale[0] = FE_SCALE_DECIBELS;
+ *	u.st.stat.scale[0] = FE_SCALE_DECIBEL;
  *	u.st.stat.value[1] = layer A statistics;
  *	u.st.stat.scale[1] = FE_SCALE_NOT_AVAILABLE (if not available);
  *	u.st.stat.svalue[2] = layer B statistics;
- *	u.st.stat.scale[2] = FE_SCALE_DECIBELS;
+ *	u.st.stat.scale[2] = FE_SCALE_DECIBEL;
  *	u.st.stat.svalue[3] = layer C statistics;
- *	u.st.stat.scale[3] = FE_SCALE_DECIBELS;
+ *	u.st.stat.scale[3] = FE_SCALE_DECIBEL;
  *	u.st.len = 4;
  */
 struct dtv_stats {
