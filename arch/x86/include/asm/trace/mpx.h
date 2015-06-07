@@ -8,6 +8,40 @@
 
 #ifdef CONFIG_X86_INTEL_MPX
 
+TRACE_EVENT(mpx_bounds_register_exception,
+
+	TP_PROTO(void *addr_referenced,
+		 const struct bndreg *bndreg),
+	TP_ARGS(addr_referenced, bndreg),
+
+	TP_STRUCT__entry(
+		__field(void *, addr_referenced)
+		__field(u64, lower_bound)
+		__field(u64, upper_bound)
+	),
+
+	TP_fast_assign(
+		__entry->addr_referenced = addr_referenced;
+		__entry->lower_bound = bndreg->lower_bound;
+		__entry->upper_bound = bndreg->upper_bound;
+	),
+	/*
+	 * Note that we are printing out the '~' of the upper
+	 * bounds register here.  It is actually stored in its
+	 * one's complement form so that its 'init' state
+	 * corresponds to all 0's.  But, that looks like
+	 * gibberish when printed out, so print out the 1's
+	 * complement instead of the actual value here.  Note
+	 * though that you still need to specify filters for the
+	 * actual value, not the displayed one.
+	 */
+	TP_printk("address referenced: 0x%p bounds: lower: 0x%llx ~upper: 0x%llx",
+		__entry->addr_referenced,
+		__entry->lower_bound,
+		~__entry->upper_bound
+	)
+);
+
 TRACE_EVENT(bounds_exception_mpx,
 
 	TP_PROTO(const struct bndcsr *bndcsr),
