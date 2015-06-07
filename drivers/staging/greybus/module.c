@@ -144,7 +144,7 @@ struct gb_module *gb_module_create(struct device *parent, u8 module_id)
 	module->dev.groups = module_groups;
 	module->dev.dma_mask = parent->dma_mask;
 	device_initialize(&module->dev);
-	dev_set_name(&module->dev, "%d", module_id);
+	dev_set_name(&module->dev, "%s:%hhu", dev_name(parent), module_id);
 
 	retval = device_add(&module->dev);
 	if (retval) {
