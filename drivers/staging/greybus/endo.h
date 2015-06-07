@@ -40,6 +40,7 @@ struct gb_endo {
 	struct device dev;
 	struct endo_layout layout;
 	struct gb_svc_info svc_info;
+	u16 dev_id;
 	u16 id;
 	u8 ap_intf_id;
 };

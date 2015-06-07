@@ -18,6 +18,8 @@
 
 #include "greybus.h"
 
+extern struct ida greybus_endo_id_map;
+
 /* Allow greybus to be disabled at boot if needed */
 static bool nogreybus;
 #ifdef MODULE
@@ -262,6 +264,8 @@ static int __init gb_init(void)
 		pr_err("bus_register failed\n");
 		goto error_bus;
 	}
+
+	ida_init(&greybus_endo_id_map);
 
 	retval = gb_ap_init();
 	if (retval) {

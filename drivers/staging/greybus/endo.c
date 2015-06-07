@@ -43,6 +43,8 @@
 #define max_endo_interface_id(endo_layout) \
 		(4 + ((endo_layout)->max_ribs + 1) * 2)
 
+struct ida greybus_endo_id_map;
+
 /* endo sysfs attributes */
 static ssize_t serial_number_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -432,18 +434,51 @@ static int create_modules(struct gb_endo *endo)
 	return 0;
 }
 
+/*
+ * Allocate an available Id to uniquely identify the endo device. The lowest
+ * available id is returned, so the first call is guaranteed to allocate endo Id
+ * 0.
+ *
+ * Assigns the endo's id and returns 0 if successful.
+ * Returns error otherwise.
+ */
+static int gb_endo_id_alloc(struct gb_endo *endo)
+{
+	int id;
+
+	id = ida_simple_get(&greybus_endo_id_map, 0, 0, GFP_ATOMIC);
+	if (id < 0)
+		return id;
+
+	endo->dev_id = (u16)id;
+
+	return 0;
+}
+
+/*
+ * Free a previously-allocated Endo Id.
+ */
+static void gb_endo_id_free(struct gb_endo *endo)
+{
+	ida_simple_remove(&greybus_endo_id_map, endo->dev_id);
+}
+
 static int gb_endo_register(struct greybus_host_device *hd,
 			    struct gb_endo *endo)
 {
 	int retval;
 
+	retval = gb_endo_id_alloc(endo);
+	if (retval)
+		return retval;
+
 	endo->dev.parent = hd->parent;
-	endo->dev.init_name = "endo";
 	endo->dev.bus = &greybus_bus_type;
 	endo->dev.type = &greybus_endo_type;
 	endo->dev.groups = endo_groups;
 	endo->dev.dma_mask = hd->parent->dma_mask;
 	device_initialize(&endo->dev);
+	dev_set_name(&endo->dev, "endo%hu", endo->dev_id);
 
 	// FIXME
 	// Get the version and serial number from the SVC, right now we are
@@ -456,6 +491,7 @@ static int gb_endo_register(struct greybus_host_device *hd,
 		dev_err(hd->parent, "failed to add endo device of id 0x%04x\n",
 			endo->id);
 		put_device(&endo->dev);
+		gb_endo_id_free(endo);
 	}
 
 	return retval;
@@ -511,6 +547,7 @@ void gb_endo_remove(struct gb_endo *endo)
 	/* remove all modules for this endo */
 	gb_module_remove_all(endo);
 
+	gb_endo_id_free(endo);
 	device_unregister(&endo->dev);
 }
 
