@@ -111,10 +111,6 @@ gf100_pm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nvkm_perfdom_new(&priv->base, "pwr", 0, 0, 0, 0, gf100_pm_pwr);
-	if (ret)
-		return ret;
-
 	/* HUB */
 	ret = nvkm_perfdom_new(&priv->base, "hub", 0, 0x1b0000, 0, 0x200,
 			       gf100_pm_hub);
@@ -143,7 +139,6 @@ gf100_pm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	nv_engine(priv)->cclass = &nvkm_pm_cclass;
 	nv_engine(priv)->sclass =  nvkm_pm_sclass;
-	priv->base.last = 7;
 	return 0;
 }
 

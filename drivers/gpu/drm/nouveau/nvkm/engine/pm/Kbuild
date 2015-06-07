@@ -1,5 +1,4 @@
 nvkm-y += nvkm/engine/pm/base.o
-nvkm-y += nvkm/engine/pm/daemon.o
 nvkm-y += nvkm/engine/pm/nv40.o
 nvkm-y += nvkm/engine/pm/nv50.o
 nvkm-y += nvkm/engine/pm/g84.o

@@ -12,10 +12,6 @@ struct nvkm_pm {
 
 	struct list_head domains;
 	u32 sequence;
-
-	/*XXX: temp for daemon backend */
-	u32 pwr[8];
-	u32 last;
 };
 
 static inline struct nvkm_pm *

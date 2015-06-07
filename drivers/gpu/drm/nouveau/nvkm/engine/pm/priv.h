@@ -41,10 +41,6 @@ struct nvkm_specdom {
 	const struct nvkm_funcdom *func;
 };
 
-extern const struct nvkm_specdom gt215_pm_pwr[];
-extern const struct nvkm_specdom gf100_pm_pwr[];
-extern const struct nvkm_specdom gk104_pm_pwr[];
-
 struct nvkm_perfdom {
 	struct list_head head;
 	struct list_head list;

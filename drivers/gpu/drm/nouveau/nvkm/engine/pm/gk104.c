@@ -99,11 +99,6 @@ gk104_pm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	/* PDAEMON */
-	ret = nvkm_perfdom_new(&priv->base, "pwr", 0, 0, 0, 0, gk104_pm_pwr);
-	if (ret)
-		return ret;
-
 	/* HUB */
 	ret = nvkm_perfdom_new(&priv->base, "hub", 0, 0x1b0000, 0, 0x200,
 			       gk104_pm_hub);
@@ -132,7 +127,6 @@ gk104_pm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	nv_engine(priv)->cclass = &nvkm_pm_cclass;
 	nv_engine(priv)->sclass =  nvkm_pm_sclass;
-	priv->base.last = 7;
 	return 0;
 }
 

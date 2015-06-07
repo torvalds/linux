@@ -36,10 +36,6 @@ gk110_pm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nvkm_perfdom_new(&priv->base, "pwr", 0, 0, 0, 0, gk104_pm_pwr);
-	if (ret)
-		return ret;
-
 	nv_engine(priv)->cclass = &nvkm_pm_cclass;
 	nv_engine(priv)->sclass =  nvkm_pm_sclass;
 	return 0;
