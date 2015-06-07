@@ -80,13 +80,13 @@
 	</thead>
 	<tbody valign="top">
 	<row>
-	    <entry align="char">SEC_VOLTAGE_13</entry>
+	    <entry align="char" id="SEC-VOLTAGE-13"><constant>SEC_VOLTAGE_13</constant></entry>
 	    <entry align="char">Set DC voltage level to 13V</entry>
 	</row><row>
-	    <entry align="char">SEC_VOLTAGE_18</entry>
+	    <entry align="char" id="SEC-VOLTAGE-18"><constant>SEC_VOLTAGE_18</constant></entry>
 	    <entry align="char">Set DC voltage level to 18V</entry>
 	</row><row>
-	    <entry align="char">SEC_VOLTAGE_OFF</entry>
+	    <entry align="char" id="SEC-VOLTAGE-OFF"><constant>SEC_VOLTAGE_OFF</constant></entry>
 	    <entry align="char">Don't send any voltage to the antenna</entry>
 	</row>
         </tbody>
