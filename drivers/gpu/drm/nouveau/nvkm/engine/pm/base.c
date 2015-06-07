@@ -73,49 +73,22 @@ nvkm_perfdom_find(struct nvkm_pm *ppm, int di)
 	return NULL;
 }
 
-static struct nvkm_perfsig *
-nvkm_perfsig_find_(struct nvkm_perfdom *dom, const char *name, u32 size)
-{
-	char path[64];
-	int i;
-
-	if (name[0] != '/') {
-		for (i = 0; i < dom->signal_nr; i++) {
-			if ( dom->signal[i].name &&
-			    !strncmp(name, dom->signal[i].name, size))
-				return &dom->signal[i];
-		}
-	} else {
-		for (i = 0; i < dom->signal_nr; i++) {
-			snprintf(path, sizeof(path), "/%s/%02x", dom->name, i);
-			if (!strncmp(name, path, size))
-				return &dom->signal[i];
-		}
-	}
-
-	return NULL;
-}
-
 struct nvkm_perfsig *
-nvkm_perfsig_find(struct nvkm_pm *ppm, const char *name, u32 size,
+nvkm_perfsig_find(struct nvkm_pm *ppm, uint8_t di, uint8_t si,
 		  struct nvkm_perfdom **pdom)
 {
 	struct nvkm_perfdom *dom = *pdom;
-	struct nvkm_perfsig *sig;
 
 	if (dom == NULL) {
-		list_for_each_entry(dom, &ppm->domains, head) {
-			sig = nvkm_perfsig_find_(dom, name, size);
-			if (sig) {
-				*pdom = dom;
-				return sig;
-			}
-		}
-
-		return NULL;
+		dom = nvkm_perfdom_find(ppm, di);
+		if (dom == NULL)
+			return NULL;
+		*pdom = dom;
 	}
 
-	return nvkm_perfsig_find_(dom, name, size);
+	if (!dom->signal[si].name)
+		return NULL;
+	return &dom->signal[si];
 }
 
 /*******************************************************************************
@@ -200,6 +173,7 @@ nvkm_perfmon_mthd_query_signal(struct nvkm_object *object, void *data, u32 size)
 		} else {
 			strncpy(args->v0.name, name, sizeof(args->v0.name));
 		}
+		args->v0.signal = si;
 	}
 
 	while (++si < dom->signal_nr) {
@@ -359,11 +333,9 @@ nvkm_perfctr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	} else
 		return ret;
 
-	for (i = 0; i < ARRAY_SIZE(args->v0.name) && args->v0.name[i][0]; i++) {
-		sig[i] = nvkm_perfsig_find(ppm, args->v0.name[i],
-					   strnlen(args->v0.name[i],
-						   sizeof(args->v0.name[i])),
-					   &dom);
+	for (i = 0; i < ARRAY_SIZE(args->v0.signal) && args->v0.signal[i]; i++) {
+		sig[i] = nvkm_perfsig_find(ppm, args->v0.domain,
+					   args->v0.signal[i], &dom);
 		if (!sig[i])
 			return -EINVAL;
 	}

@@ -267,7 +267,8 @@ struct nvif_perfmon_query_signal_v0 {
 	__u8  version;
 	__u8  domain;
 	__u16 iter;
-	__u8  pad03[4];
+	__u8  signal;
+	__u8  pad04[3];
 	char  name[64];
 };
 
@@ -278,10 +279,12 @@ struct nvif_perfmon_query_signal_v0 {
 
 struct nvif_perfctr_v0 {
 	__u8  version;
-	__u8  pad01[1];
+	__u8  domain;
+	__u8  pad02[2];
 	__u16 logic_op;
-	__u8  pad04[4];
-	char  name[4][64];
+	__u8  pad04[2];
+	__u8  signal[4];
+	__u8  pad06[4];
 };
 
 #define NVIF_PERFCTR_V0_SAMPLE                                             0x00
