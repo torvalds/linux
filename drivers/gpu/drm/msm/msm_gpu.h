@@ -119,6 +119,8 @@ struct msm_gpu {
 	struct timer_list hangcheck_timer;
 	uint32_t hangcheck_fence;
 	struct work_struct recover_work;
+
+	struct list_head submit_list;
 };
 
 static inline bool msm_gpu_active(struct msm_gpu *gpu)
