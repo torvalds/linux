@@ -719,6 +719,10 @@ struct signal_struct {
 	/* Earliest-expiration cache. */
 	struct task_cputime cputime_expires;
 
+#ifdef CONFIG_NO_HZ_FULL
+	unsigned long tick_dep_mask;
+#endif
+
 	struct list_head cpu_timers[3];
 
 	struct pid *tty_old_pgrp;
@@ -1541,6 +1545,10 @@ struct task_struct {
 		/* Task runs in kernelspace in a CPU with VTIME active */
 		VTIME_SYS,
 	} vtime_snap_whence;
+#endif
+
+#ifdef CONFIG_NO_HZ_FULL
+	unsigned long tick_dep_mask;
 #endif
 	unsigned long nvcsw, nivcsw; /* context switch counts */
 	u64 start_time;		/* monotonic time in nsec */
