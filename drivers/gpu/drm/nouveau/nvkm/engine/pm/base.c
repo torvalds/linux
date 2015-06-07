@@ -34,6 +34,45 @@
 #define QUAD_MASK 0x0f
 #define QUAD_FREE 0x01
 
+static u8
+nvkm_pm_count_perfdom(struct nvkm_pm *ppm)
+{
+	struct nvkm_perfdom *dom;
+	u8 domain_nr = 0;
+
+	list_for_each_entry(dom, &ppm->domains, head)
+		domain_nr++;
+	return domain_nr;
+}
+
+static u32
+nvkm_perfdom_count_perfsig(struct nvkm_perfdom *dom)
+{
+	u32 signal_nr = 0;
+	int i;
+
+	if (dom) {
+		for (i = 0; i < dom->signal_nr; i++) {
+			if (dom->signal[i].name)
+				signal_nr++;
+		}
+	}
+	return signal_nr;
+}
+
+static struct nvkm_perfdom *
+nvkm_perfdom_find(struct nvkm_pm *ppm, int di)
+{
+	struct nvkm_perfdom *dom;
+	int tmp = 0;
+
+	list_for_each_entry(dom, &ppm->domains, head) {
+		if (tmp++ == di)
+			return dom;
+	}
+	return NULL;
+}
+
 static struct nvkm_perfsig *
 nvkm_perfsig_find_(struct nvkm_perfdom *dom, const char *name, u32 size)
 {
@@ -82,6 +121,51 @@ nvkm_perfsig_find(struct nvkm_pm *ppm, const char *name, u32 size,
 /*******************************************************************************
  * Perfmon object classes
  ******************************************************************************/
+static int
+nvkm_perfmon_mthd_query_domain(struct nvkm_object *object, void *data, u32 size)
+{
+	union {
+		struct nvif_perfmon_query_domain_v0 v0;
+	} *args = data;
+	struct nvkm_pm *ppm = (void *)object->engine;
+	struct nvkm_perfdom *dom;
+	u8 domain_nr;
+	int di, ret;
+
+	nv_ioctl(object, "perfmon query domain size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(object, "perfmon domain vers %d iter %02x\n",
+			 args->v0.version, args->v0.iter);
+		di = (args->v0.iter & 0xff) - 1;
+	} else
+		return ret;
+
+	domain_nr = nvkm_pm_count_perfdom(ppm);
+	if (di >= (int)domain_nr)
+		return -EINVAL;
+
+	if (di >= 0) {
+		dom = nvkm_perfdom_find(ppm, di);
+		if (dom == NULL)
+			return -EINVAL;
+
+		args->v0.id         = di;
+		args->v0.signal_nr  = nvkm_perfdom_count_perfsig(dom);
+
+		/* Currently only global counters (PCOUNTER) are implemented
+		 * but this will be different for local counters (MP). */
+		args->v0.counter_nr = 4;
+	}
+
+	if (++di < domain_nr) {
+		args->v0.iter = ++di;
+		return 0;
+	}
+
+	args->v0.iter = 0xff;
+	return 0;
+}
+
 static int
 nvkm_perfmon_mthd_query_signal(struct nvkm_object *object, void *data, u32 size)
 {
@@ -145,6 +229,8 @@ static int
 nvkm_perfmon_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
 	switch (mthd) {
+	case NVIF_PERFMON_V0_QUERY_DOMAIN:
+		return nvkm_perfmon_mthd_query_domain(object, data, size);
 	case NVIF_PERFMON_V0_QUERY_SIGNAL:
 		return nvkm_perfmon_mthd_query_signal(object, data, size);
 	default:

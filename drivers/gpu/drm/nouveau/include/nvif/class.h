@@ -251,7 +251,16 @@ struct gf110_dma_v0 {
  * perfmon
  ******************************************************************************/
 
-#define NVIF_PERFMON_V0_QUERY_SIGNAL                                       0x00
+#define NVIF_PERFMON_V0_QUERY_DOMAIN                                       0x00
+#define NVIF_PERFMON_V0_QUERY_SIGNAL                                       0x01
+
+struct nvif_perfmon_query_domain_v0 {
+	__u8  version;
+	__u8  id;
+	__u8  counter_nr;
+	__u8  iter;
+	__u32 signal_nr;
+};
 
 struct nvif_perfmon_query_signal_v0 {
 	__u8  version;
