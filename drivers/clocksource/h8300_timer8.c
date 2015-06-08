@@ -286,7 +286,7 @@ static const struct of_device_id timer8_of_table[] __maybe_unused = {
 	{ }
 };
 
-MODULE_DEVICE_TABLE(of, sh_cmt_of_table);
+MODULE_DEVICE_TABLE(of, timer8_of_table);
 static struct platform_driver timer8_driver = {
 	.probe		= timer8_probe,
 	.remove		= timer8_remove,
