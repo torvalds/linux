@@ -95,11 +95,15 @@ enum vgic_type {
 #define LR_STATE_ACTIVE		(1 << 1)
 #define LR_STATE_MASK		(3 << 0)
 #define LR_EOI_INT		(1 << 2)
+#define LR_HW			(1 << 3)
 
 struct vgic_lr {
-	u16	irq;
-	u8	source;
-	u8	state;
+	unsigned irq:10;
+	union {
+		unsigned hwirq:10;
+		unsigned source:3;
+	};
+	unsigned state:4;
 };
 
 struct vgic_vmcr {
