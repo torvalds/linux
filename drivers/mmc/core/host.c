@@ -300,6 +300,53 @@ static inline void mmc_host_clk_sysfs_init(struct mmc_host *host)
 
 #endif
 
+void mmc_retune_enable(struct mmc_host *host)
+{
+	host->can_retune = 1;
+}
+
+void mmc_retune_disable(struct mmc_host *host)
+{
+	host->can_retune = 0;
+	host->need_retune = 0;
+}
+
+void mmc_retune_hold(struct mmc_host *host)
+{
+	if (!host->hold_retune)
+		host->retune_now = 1;
+	host->hold_retune += 1;
+}
+EXPORT_SYMBOL(mmc_retune_hold);
+
+void mmc_retune_release(struct mmc_host *host)
+{
+	if (host->hold_retune)
+		host->hold_retune -= 1;
+	else
+		WARN_ON(1);
+}
+EXPORT_SYMBOL(mmc_retune_release);
+
+int mmc_retune(struct mmc_host *host)
+{
+	int err;
+
+	if (!host->need_retune || host->doing_retune || !host->card)
+		return 0;
+
+	host->need_retune = 0;
+
+	host->doing_retune = 1;
+
+	err = mmc_execute_tuning(host->card);
+
+	host->doing_retune = 0;
+
+	return err;
+}
+EXPORT_SYMBOL(mmc_retune);
+
 /**
  *	mmc_of_parse() - parse host's device-tree node
  *	@host: host whose node should be parsed.

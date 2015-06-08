@@ -2914,6 +2914,9 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 			mci_writel(host, RINTSTS, DW_MCI_DATA_ERROR_FLAGS);
 			host->data_status = pending;
 			smp_wmb();
+			printk(KERN_ERR "[%s] Data transmission error !!!!  MINTSTS: [0x%08x]\n",
+			       mmc_hostname(host->mmc), pending);
+			mmc_retune_needed(host->mmc);
 			set_bit(EVENT_DATA_ERROR, &host->pending_events);
 
 			MMC_DBG_INFO_FUNC(host->mmc,

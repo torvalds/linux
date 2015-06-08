@@ -334,6 +334,13 @@ struct mmc_host {
 	int			rescan_disable;	/* disable card detection */
 	int			rescan_entered;	/* used with nonremovable devices */
 
+
+	unsigned int		can_retune:1;	/* re-tuning can be used */
+	unsigned int		doing_retune:1;	/* re-tuning in progress */
+	unsigned int		retune_now:1;	/* do re-tuning at next req */
+	int			need_retune;	/* re-tuning is needed */
+	int			hold_retune;	/* hold off re-tuning */
+
 	struct mmc_card		*card;		/* device attached to this host */
 
 	wait_queue_head_t	wq;
@@ -533,4 +540,36 @@ static inline unsigned int mmc_host_clk_rate(struct mmc_host *host)
 	return host->ios.clock;
 }
 #endif
+
+void mmc_retune_enable(struct mmc_host *host);
+void mmc_retune_disable(struct mmc_host *host);
+void mmc_retune_hold(struct mmc_host *host);
+void mmc_retune_release(struct mmc_host *host);
+int mmc_retune(struct mmc_host *host);
+
+static inline void mmc_retune_needed(struct mmc_host *host)
+{
+	if ((host->can_retune) && (host->doing_retune == 0)) {
+		host->need_retune = 1;
+		pr_err("[%s] Data transmission error, need to "
+		       "try retuning %d.\n", mmc_hostname(host),
+		       host->need_retune);
+	} else {
+		pr_err("[%s] host was already tuning, Don't"
+		       " need to retry tune again ignore %d.\n",
+		       mmc_hostname(host), host->need_retune);
+	}
+}
+
+static inline void mmc_retune_not_needed(struct mmc_host *host)
+{
+	host->need_retune = 0;
+}
+
+static inline void mmc_retune_recheck(struct mmc_host *host)
+{
+	if (host->hold_retune <= 1)
+		host->retune_now = 1;
+}
+
 #endif /* LINUX_MMC_HOST_H */
