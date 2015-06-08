@@ -584,6 +584,7 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 	nr_switches = p->nvcsw + p->nivcsw;
 
 #ifdef CONFIG_SCHEDSTATS
+	PN(se.statistics.sum_sleep_runtime);
 	PN(se.statistics.wait_start);
 	PN(se.statistics.sleep_start);
 	PN(se.statistics.block_start);
