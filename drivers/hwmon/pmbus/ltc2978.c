@@ -313,7 +313,7 @@ static int ltc2978_clear_peaks(struct i2c_client *client, int page,
 {
 	int ret;
 
-	if (id == ltc3880 || id == ltc3883)
+	if (id == ltc3880 || id == ltc3883 || id == ltm4676)
 		ret = pmbus_write_byte(client, 0, LTC3880_MFR_CLEAR_PEAKS);
 	else
 		ret = pmbus_write_byte(client, page, PMBUS_CLEAR_FAULTS);
