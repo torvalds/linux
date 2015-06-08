@@ -81,13 +81,14 @@ static int identify_descriptor(struct gb_interface *intf,
 	size_t expected_size;
 
 	if (size < sizeof(*desc_header)) {
-		pr_err("manifest too small\n");
+		pr_err("manifest too small (%zu < %zu)\n",
+				size, sizeof(*desc_header));
 		return -EINVAL;		/* Must at least have header */
 	}
 
 	desc_size = le16_to_cpu(desc_header->size);
 	if (desc_size > size) {
-		pr_err("descriptor too big\n");
+		pr_err("descriptor too big (%zu > %zu)\n", desc_size, size);
 		return -EINVAL;
 	}
 
@@ -374,7 +375,7 @@ bool gb_manifest_parse(struct gb_interface *intf, void *data, size_t size)
 	header = &manifest->header;
 	manifest_size = le16_to_cpu(header->size);
 	if (manifest_size != size) {
-		pr_err("manifest size mismatch %zu != %hu\n",
+		pr_err("manifest size mismatch (%zu != %hu)\n",
 			size, manifest_size);
 		return false;
 	}
