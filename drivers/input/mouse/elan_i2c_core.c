@@ -4,7 +4,7 @@
  * Copyright (c) 2013 ELAN Microelectronics Corp.
  *
  * Author: 林政維 (Duson Lin) <dusonlin@emc.com.tw>
- * Version: 1.5.8
+ * Version: 1.5.9
  *
  * Based on cyapa driver:
  * copyright (c) 2011-2012 Cypress Semiconductor, Inc.
@@ -40,7 +40,7 @@
 #include "elan_i2c.h"
 
 #define DRIVER_NAME		"elan_i2c"
-#define ELAN_DRIVER_VERSION	"1.5.8"
+#define ELAN_DRIVER_VERSION	"1.5.9"
 #define ETP_MAX_PRESSURE	255
 #define ETP_FWIDTH_REDUCE	90
 #define ETP_FINGER_WIDTH	15
@@ -438,7 +438,8 @@ static ssize_t elan_sysfs_read_product_id(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct elan_tp_data *data = i2c_get_clientdata(client);
 
-	return sprintf(buf, "%d.0\n", data->product_id);
+	return sprintf(buf, ETP_PRODUCT_ID_FORMAT_STRING "\n",
+		       data->product_id);
 }
 
 static ssize_t elan_sysfs_read_fw_ver(struct device *dev,
@@ -477,14 +478,23 @@ static ssize_t elan_sysfs_update_fw(struct device *dev,
 {
 	struct elan_tp_data *data = dev_get_drvdata(dev);
 	const struct firmware *fw;
+	char *fw_name;
 	int error;
 	const u8 *fw_signature;
 	static const u8 signature[] = {0xAA, 0x55, 0xCC, 0x33, 0xFF, 0xFF};
 
-	error = request_firmware(&fw, ETP_FW_NAME, dev);
+	/* Look for a firmware with the product id appended. */
+	fw_name = kasprintf(GFP_KERNEL, ETP_FW_NAME, data->product_id);
+	if (!fw_name) {
+		dev_err(dev, "failed to allocate memory for firmware name\n");
+		return -ENOMEM;
+	}
+
+	dev_info(dev, "requesting fw '%s'\n", fw_name);
+	error = request_firmware(&fw, fw_name, dev);
+	kfree(fw_name);
 	if (error) {
-		dev_err(dev, "cannot load firmware %s: %d\n",
-			ETP_FW_NAME, error);
+		dev_err(dev, "failed to request firmware: %d\n", error);
 		return error;
 	}
 
