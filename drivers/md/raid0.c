@@ -188,8 +188,9 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 		}
 		dev[j] = rdev1;
 
-		disk_stack_limits(mddev->gendisk, rdev1->bdev,
-				  rdev1->data_offset << 9);
+		if (mddev->queue)
+			disk_stack_limits(mddev->gendisk, rdev1->bdev,
+					  rdev1->data_offset << 9);
 
 		if (rdev1->bdev->bd_disk->queue->merge_bvec_fn)
 			conf->has_merge_bvec = 1;
@@ -523,6 +524,9 @@ static void raid0_make_request(struct mddev *mddev, struct bio *bio)
 			 ? (sector & (chunk_sects-1))
 			 : sector_div(sector, chunk_sects));
 
+		/* Restore due to sector_div */
+		sector = bio->bi_iter.bi_sector;
+
 		if (sectors < bio_sectors(bio)) {
 			split = bio_split(bio, sectors, GFP_NOIO, fs_bio_set);
 			bio_chain(split, bio);
@@ -530,7 +534,6 @@ static void raid0_make_request(struct mddev *mddev, struct bio *bio)
 			split = bio;
 		}
 
-		sector = bio->bi_iter.bi_sector;
 		zone = find_zone(mddev->private, &sector);
 		tmp_dev = map_sector(mddev, zone, sector, &sector);
 		split->bi_bdev = tmp_dev->bdev;

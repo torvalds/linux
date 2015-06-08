@@ -1946,21 +1946,17 @@ xfs_inactive(
 	/*
 	 * If there are attributes associated with the file then blow them away
 	 * now.  The code calls a routine that recursively deconstructs the
-	 * attribute fork.  We need to just commit the current transaction
-	 * because we can't use it for xfs_attr_inactive().
+	 * attribute fork. If also blows away the in-core attribute fork.
 	 */
-	if (ip->i_d.di_anextents > 0) {
-		ASSERT(ip->i_d.di_forkoff != 0);
-
+	if (XFS_IFORK_Q(ip)) {
 		error = xfs_attr_inactive(ip);
 		if (error)
 			return;
 	}
 
-	if (ip->i_afp)
-		xfs_idestroy_fork(ip, XFS_ATTR_FORK);
-
+	ASSERT(!ip->i_afp);
 	ASSERT(ip->i_d.di_anextents == 0);
+	ASSERT(ip->i_d.di_forkoff == 0);
 
 	/*
 	 * Free the inode.
@@ -2883,7 +2879,13 @@ xfs_rename_alloc_whiteout(
 	if (error)
 		return error;
 
-	/* Satisfy xfs_bumplink that this is a real tmpfile */
+	/*
+	 * Prepare the tmpfile inode as if it were created through the VFS.
+	 * Otherwise, the link increment paths will complain about nlink 0->1.
+	 * Drop the link count as done by d_tmpfile(), complete the inode setup
+	 * and flag it as linkable.
+	 */
+	drop_nlink(VFS_I(tmpfile));
 	xfs_finish_inode_setup(tmpfile);
 	VFS_I(tmpfile)->i_state |= I_LINKABLE;
 
@@ -3151,7 +3153,7 @@ xfs_rename(
 	 * intermediate state on disk.
 	 */
 	if (wip) {
-		ASSERT(wip->i_d.di_nlink == 0);
+		ASSERT(VFS_I(wip)->i_nlink == 0 && wip->i_d.di_nlink == 0);
 		error = xfs_bumplink(tp, wip);
 		if (error)
 			goto out_trans_abort;

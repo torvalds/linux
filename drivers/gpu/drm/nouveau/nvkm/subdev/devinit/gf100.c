@@ -90,12 +90,14 @@ gf100_devinit_disable(struct nvkm_devinit *devinit)
 	return disable;
 }
 
-static int
+int
 gf100_devinit_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		   struct nvkm_oclass *oclass, void *data, u32 size,
 		   struct nvkm_object **pobject)
 {
+	struct nvkm_devinit_impl *impl = (void *)oclass;
 	struct nv50_devinit_priv *priv;
+	u64 disable;
 	int ret;
 
 	ret = nvkm_devinit_create(parent, engine, oclass, &priv);
@@ -103,7 +105,8 @@ gf100_devinit_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	if (nv_rd32(priv, 0x022500) & 0x00000001)
+	disable = impl->disable(&priv->base);
+	if (disable & (1ULL << NVDEV_ENGINE_DISP))
 		priv->base.post = true;
 
 	return 0;

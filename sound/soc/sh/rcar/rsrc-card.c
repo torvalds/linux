@@ -232,6 +232,7 @@ rsrc_card_sub_parse_of(struct rsrc_card_priv *priv,
 	if (args_count) {
 		*args_count = args.args_count;
 		dai_link->dynamic = 1;
+		dai_link->dpcm_merged_format = 1;
 	} else {
 		dai_link->no_pcm = 1;
 		priv->codec_conf.of_node = (*p_node);

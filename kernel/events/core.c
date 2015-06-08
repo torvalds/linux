@@ -913,10 +913,30 @@ static void put_ctx(struct perf_event_context *ctx)
  * Those places that change perf_event::ctx will hold both
  * perf_event_ctx::mutex of the 'old' and 'new' ctx value.
  *
- * Lock ordering is by mutex address. There is one other site where
- * perf_event_context::mutex nests and that is put_event(). But remember that
- * that is a parent<->child context relation, and migration does not affect
- * children, therefore these two orderings should not interact.
+ * Lock ordering is by mutex address. There are two other sites where
+ * perf_event_context::mutex nests and those are:
+ *
+ *  - perf_event_exit_task_context()	[ child , 0 ]
+ *      __perf_event_exit_task()
+ *        sync_child_event()
+ *          put_event()			[ parent, 1 ]
+ *
+ *  - perf_event_init_context()		[ parent, 0 ]
+ *      inherit_task_group()
+ *        inherit_group()
+ *          inherit_event()
+ *            perf_event_alloc()
+ *              perf_init_event()
+ *                perf_try_init_event()	[ child , 1 ]
+ *
+ * While it appears there is an obvious deadlock here -- the parent and child
+ * nesting levels are inverted between the two. This is in fact safe because
+ * life-time rules separate them. That is an exiting task cannot fork, and a
+ * spawning task cannot (yet) exit.
+ *
+ * But remember that that these are parent<->child context relations, and
+ * migration does not affect children, therefore these two orderings should not
+ * interact.
  *
  * The change in perf_event::ctx does not affect children (as claimed above)
  * because the sys_perf_event_open() case will install a new event and break
@@ -3657,9 +3677,6 @@ static void perf_remove_from_owner(struct perf_event *event)
 	}
 }
 
-/*
- * Called when the last reference to the file is gone.
- */
 static void put_event(struct perf_event *event)
 {
 	struct perf_event_context *ctx;
@@ -3697,6 +3714,9 @@ int perf_event_release_kernel(struct perf_event *event)
 }
 EXPORT_SYMBOL_GPL(perf_event_release_kernel);
 
+/*
+ * Called when the last reference to the file is gone.
+ */
 static int perf_release(struct inode *inode, struct file *file)
 {
 	put_event(file->private_data);
@@ -7364,7 +7384,12 @@ static int perf_try_init_event(struct pmu *pmu, struct perf_event *event)
 		return -ENODEV;
 
 	if (event->group_leader != event) {
-		ctx = perf_event_ctx_lock(event->group_leader);
+		/*
+		 * This ctx->mutex can nest when we're called through
+		 * inheritance. See the perf_event_ctx_lock_nested() comment.
+		 */
+		ctx = perf_event_ctx_lock_nested(event->group_leader,
+						 SINGLE_DEPTH_NESTING);
 		BUG_ON(!ctx);
 	}
 

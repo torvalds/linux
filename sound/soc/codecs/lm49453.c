@@ -1271,7 +1271,7 @@ static int lm49453_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF)
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF)
 			regcache_sync(lm49453->regmap);
 
 		snd_soc_update_bits(codec, LM49453_P0_PMC_SETUP_REG,
@@ -1283,8 +1283,6 @@ static int lm49453_set_bias_level(struct snd_soc_codec *codec,
 				    LM49453_PMC_SETUP_CHIP_EN, 0);
 		break;
 	}
-
-	codec->dapm.bias_level = level;
 
 	return 0;
 }

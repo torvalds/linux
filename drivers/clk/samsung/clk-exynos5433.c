@@ -748,7 +748,7 @@ static struct samsung_pll_rate_table exynos5443_pll_rates[] = {
 	PLL_35XX_RATE(825000000U,  275, 4,  1),
 	PLL_35XX_RATE(800000000U,  400, 6,  1),
 	PLL_35XX_RATE(733000000U,  733, 12, 1),
-	PLL_35XX_RATE(700000000U,  360, 6,  1),
+	PLL_35XX_RATE(700000000U,  175, 3,  1),
 	PLL_35XX_RATE(667000000U,  222, 4,  1),
 	PLL_35XX_RATE(633000000U,  211, 4,  1),
 	PLL_35XX_RATE(600000000U,  500, 5,  2),
@@ -760,14 +760,14 @@ static struct samsung_pll_rate_table exynos5443_pll_rates[] = {
 	PLL_35XX_RATE(444000000U,  370, 5,  2),
 	PLL_35XX_RATE(420000000U,  350, 5,  2),
 	PLL_35XX_RATE(400000000U,  400, 6,  2),
-	PLL_35XX_RATE(350000000U,  360, 6,  2),
+	PLL_35XX_RATE(350000000U,  350, 6,  2),
 	PLL_35XX_RATE(333000000U,  222, 4,  2),
 	PLL_35XX_RATE(300000000U,  500, 5,  3),
 	PLL_35XX_RATE(266000000U,  532, 6,  3),
 	PLL_35XX_RATE(200000000U,  400, 6,  3),
 	PLL_35XX_RATE(166000000U,  332, 6,  3),
 	PLL_35XX_RATE(160000000U,  320, 6,  3),
-	PLL_35XX_RATE(133000000U,  552, 6,  4),
+	PLL_35XX_RATE(133000000U,  532, 6,  4),
 	PLL_35XX_RATE(100000000U,  400, 6,  4),
 	{ /* sentinel */ }
 };
@@ -1490,7 +1490,7 @@ static struct samsung_gate_clock mif_gate_clks[] __initdata = {
 
 	/* ENABLE_PCLK_MIF_SECURE_MONOTONIC_CNT */
 	GATE(CLK_PCLK_MONOTONIC_CNT, "pclk_monotonic_cnt", "div_aclk_mif_133",
-			ENABLE_PCLK_MIF_SECURE_RTC, 0, 0, 0),
+			ENABLE_PCLK_MIF_SECURE_MONOTONIC_CNT, 0, 0, 0),
 
 	/* ENABLE_PCLK_MIF_SECURE_RTC */
 	GATE(CLK_PCLK_RTC, "pclk_rtc", "div_aclk_mif_133",
@@ -3665,7 +3665,7 @@ static struct samsung_gate_clock apollo_gate_clks[] __initdata = {
 			ENABLE_SCLK_APOLLO, 3, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_SCLK_HPM_APOLLO, "sclk_hpm_apollo", "div_sclk_hpm_apollo",
 			ENABLE_SCLK_APOLLO, 1, CLK_IGNORE_UNUSED, 0),
-	GATE(CLK_SCLK_APOLLO, "sclk_apollo", "div_apollo_pll",
+	GATE(CLK_SCLK_APOLLO, "sclk_apollo", "div_apollo2",
 			ENABLE_SCLK_APOLLO, 0, CLK_IGNORE_UNUSED, 0),
 };
 
@@ -3927,7 +3927,7 @@ CLK_OF_DECLARE(exynos5433_cmu_atlas, "samsung,exynos5433-cmu-atlas",
 #define ENABLE_PCLK_MSCL				0x0900
 #define ENABLE_PCLK_MSCL_SECURE_SMMU_M2MSCALER0		0x0904
 #define ENABLE_PCLK_MSCL_SECURE_SMMU_M2MSCALER1		0x0908
-#define ENABLE_PCLK_MSCL_SECURE_SMMU_JPEG		0x000c
+#define ENABLE_PCLK_MSCL_SECURE_SMMU_JPEG		0x090c
 #define ENABLE_SCLK_MSCL				0x0a00
 #define ENABLE_IP_MSCL0					0x0b00
 #define ENABLE_IP_MSCL1					0x0b04

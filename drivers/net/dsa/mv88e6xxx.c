@@ -1469,6 +1469,9 @@ static void __exit mv88e6xxx_cleanup(void)
 #if IS_ENABLED(CONFIG_NET_DSA_MV88E6171)
 	unregister_switch_driver(&mv88e6171_switch_driver);
 #endif
+#if IS_ENABLED(CONFIG_NET_DSA_MV88E6352)
+	unregister_switch_driver(&mv88e6352_switch_driver);
+#endif
 #if IS_ENABLED(CONFIG_NET_DSA_MV88E6123_61_65)
 	unregister_switch_driver(&mv88e6123_61_65_switch_driver);
 #endif

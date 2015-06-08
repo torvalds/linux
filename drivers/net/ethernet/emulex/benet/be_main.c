@@ -2358,11 +2358,11 @@ static int be_evt_queues_create(struct be_adapter *adapter)
 				    adapter->cfg_num_qs);
 
 	for_all_evt_queues(adapter, eqo, i) {
+		int numa_node = dev_to_node(&adapter->pdev->dev);
 		if (!zalloc_cpumask_var(&eqo->affinity_mask, GFP_KERNEL))
 			return -ENOMEM;
-		cpumask_set_cpu_local_first(i, dev_to_node(&adapter->pdev->dev),
-					    eqo->affinity_mask);
-
+		cpumask_set_cpu(cpumask_local_spread(i, numa_node),
+				eqo->affinity_mask);
 		netif_napi_add(adapter->netdev, &eqo->napi, be_poll,
 			       BE_NAPI_WEIGHT);
 		napi_hash_add(&eqo->napi);

@@ -171,6 +171,12 @@
  */
 #define LINKS_PER_OCP_IF		2
 
+/*
+ * Address offset (in bytes) between the reset control and the reset
+ * status registers: 4 bytes on OMAP4
+ */
+#define OMAP4_RST_CTRL_ST_OFFSET	4
+
 /**
  * struct omap_hwmod_soc_ops - fn ptrs for some SoC-specific operations
  * @enable_module: function to enable a module (via MODULEMODE)
@@ -3016,10 +3022,12 @@ static int _omap4_deassert_hardreset(struct omap_hwmod *oh,
 	if (ohri->st_shift)
 		pr_err("omap_hwmod: %s: %s: hwmod data error: OMAP4 does not support st_shift\n",
 		       oh->name, ohri->name);
-	return omap_prm_deassert_hardreset(ohri->rst_shift, 0,
+	return omap_prm_deassert_hardreset(ohri->rst_shift, ohri->rst_shift,
 					   oh->clkdm->pwrdm.ptr->prcm_partition,
 					   oh->clkdm->pwrdm.ptr->prcm_offs,
-					   oh->prcm.omap4.rstctrl_offs, 0);
+					   oh->prcm.omap4.rstctrl_offs,
+					   oh->prcm.omap4.rstctrl_offs +
+					   OMAP4_RST_CTRL_ST_OFFSET);
 }
 
 /**
@@ -3048,27 +3056,6 @@ static int _omap4_is_hardreset_asserted(struct omap_hwmod *oh,
 }
 
 /**
- * _am33xx_assert_hardreset - call AM33XX PRM hardreset fn with hwmod args
- * @oh: struct omap_hwmod * to assert hardreset
- * @ohri: hardreset line data
- *
- * Call am33xx_prminst_assert_hardreset() with parameters extracted
- * from the hwmod @oh and the hardreset line data @ohri.  Only
- * intended for use as an soc_ops function pointer.  Passes along the
- * return value from am33xx_prminst_assert_hardreset().  XXX This
- * function is scheduled for removal when the PRM code is moved into
- * drivers/.
- */
-static int _am33xx_assert_hardreset(struct omap_hwmod *oh,
-				   struct omap_hwmod_rst_info *ohri)
-
-{
-	return omap_prm_assert_hardreset(ohri->rst_shift, 0,
-					 oh->clkdm->pwrdm.ptr->prcm_offs,
-					 oh->prcm.omap4.rstctrl_offs);
-}
-
-/**
  * _am33xx_deassert_hardreset - call AM33XX PRM hardreset fn with hwmod args
  * @oh: struct omap_hwmod * to deassert hardreset
  * @ohri: hardreset line data
@@ -3083,30 +3070,11 @@ static int _am33xx_assert_hardreset(struct omap_hwmod *oh,
 static int _am33xx_deassert_hardreset(struct omap_hwmod *oh,
 				     struct omap_hwmod_rst_info *ohri)
 {
-	return omap_prm_deassert_hardreset(ohri->rst_shift, ohri->st_shift, 0,
+	return omap_prm_deassert_hardreset(ohri->rst_shift, ohri->st_shift,
+					   oh->clkdm->pwrdm.ptr->prcm_partition,
 					   oh->clkdm->pwrdm.ptr->prcm_offs,
 					   oh->prcm.omap4.rstctrl_offs,
 					   oh->prcm.omap4.rstst_offs);
-}
-
-/**
- * _am33xx_is_hardreset_asserted - call AM33XX PRM hardreset fn with hwmod args
- * @oh: struct omap_hwmod * to test hardreset
- * @ohri: hardreset line data
- *
- * Call am33xx_prminst_is_hardreset_asserted() with parameters
- * extracted from the hwmod @oh and the hardreset line data @ohri.
- * Only intended for use as an soc_ops function pointer.  Passes along
- * the return value from am33xx_prminst_is_hardreset_asserted().  XXX
- * This function is scheduled for removal when the PRM code is moved
- * into drivers/.
- */
-static int _am33xx_is_hardreset_asserted(struct omap_hwmod *oh,
-					struct omap_hwmod_rst_info *ohri)
-{
-	return omap_prm_is_hardreset_asserted(ohri->rst_shift, 0,
-					      oh->clkdm->pwrdm.ptr->prcm_offs,
-					      oh->prcm.omap4.rstctrl_offs);
 }
 
 /* Public functions */
@@ -3908,21 +3876,13 @@ void __init omap_hwmod_init(void)
 		soc_ops.init_clkdm = _init_clkdm;
 		soc_ops.update_context_lost = _omap4_update_context_lost;
 		soc_ops.get_context_lost = _omap4_get_context_lost;
-	} else if (soc_is_am43xx()) {
+	} else if (cpu_is_ti816x() || soc_is_am33xx() || soc_is_am43xx()) {
 		soc_ops.enable_module = _omap4_enable_module;
 		soc_ops.disable_module = _omap4_disable_module;
 		soc_ops.wait_target_ready = _omap4_wait_target_ready;
 		soc_ops.assert_hardreset = _omap4_assert_hardreset;
-		soc_ops.deassert_hardreset = _omap4_deassert_hardreset;
-		soc_ops.is_hardreset_asserted = _omap4_is_hardreset_asserted;
-		soc_ops.init_clkdm = _init_clkdm;
-	} else if (cpu_is_ti816x() || soc_is_am33xx()) {
-		soc_ops.enable_module = _omap4_enable_module;
-		soc_ops.disable_module = _omap4_disable_module;
-		soc_ops.wait_target_ready = _omap4_wait_target_ready;
-		soc_ops.assert_hardreset = _am33xx_assert_hardreset;
 		soc_ops.deassert_hardreset = _am33xx_deassert_hardreset;
-		soc_ops.is_hardreset_asserted = _am33xx_is_hardreset_asserted;
+		soc_ops.is_hardreset_asserted = _omap4_is_hardreset_asserted;
 		soc_ops.init_clkdm = _init_clkdm;
 	} else {
 		WARN(1, "omap_hwmod: unknown SoC type\n");

@@ -1,7 +1,7 @@
 /*
  * Freescale ALSA SoC Digital Audio Interface (SAI) driver.
  *
- * Copyright 2012-2013 Freescale Semiconductor, Inc.
+ * Copyright 2012-2015 Freescale Semiconductor, Inc.
  *
  * This program is free software, you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -26,6 +26,17 @@
 
 #define FSL_SAI_FLAGS (FSL_SAI_CSR_SEIE |\
 		       FSL_SAI_CSR_FEIE)
+
+static u32 fsl_sai_rates[] = {
+	8000, 11025, 12000, 16000, 22050,
+	24000, 32000, 44100, 48000, 64000,
+	88200, 96000, 176400, 192000
+};
+
+static struct snd_pcm_hw_constraint_list fsl_sai_rate_constraints = {
+	.count = ARRAY_SIZE(fsl_sai_rates),
+	.list = fsl_sai_rates,
+};
 
 static irqreturn_t fsl_sai_isr(int irq, void *devid)
 {
@@ -251,12 +262,14 @@ static int fsl_sai_set_dai_fmt_tr(struct snd_soc_dai *cpu_dai,
 		val_cr4 |= FSL_SAI_CR4_FSD_MSTR;
 		break;
 	case SND_SOC_DAIFMT_CBM_CFM:
+		sai->is_slave_mode = true;
 		break;
 	case SND_SOC_DAIFMT_CBS_CFM:
 		val_cr2 |= FSL_SAI_CR2_BCD_MSTR;
 		break;
 	case SND_SOC_DAIFMT_CBM_CFS:
 		val_cr4 |= FSL_SAI_CR4_FSD_MSTR;
+		sai->is_slave_mode = true;
 		break;
 	default:
 		return -EINVAL;
@@ -288,6 +301,79 @@ static int fsl_sai_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 	return ret;
 }
 
+static int fsl_sai_set_bclk(struct snd_soc_dai *dai, bool tx, u32 freq)
+{
+	struct fsl_sai *sai = snd_soc_dai_get_drvdata(dai);
+	unsigned long clk_rate;
+	u32 savediv = 0, ratio, savesub = freq;
+	u32 id;
+	int ret = 0;
+
+	/* Don't apply to slave mode */
+	if (sai->is_slave_mode)
+		return 0;
+
+	for (id = 0; id < FSL_SAI_MCLK_MAX; id++) {
+		clk_rate = clk_get_rate(sai->mclk_clk[id]);
+		if (!clk_rate)
+			continue;
+
+		ratio = clk_rate / freq;
+
+		ret = clk_rate - ratio * freq;
+
+		/*
+		 * Drop the source that can not be
+		 * divided into the required rate.
+		 */
+		if (ret != 0 && clk_rate / ret < 1000)
+			continue;
+
+		dev_dbg(dai->dev,
+			"ratio %d for freq %dHz based on clock %ldHz\n",
+			ratio, freq, clk_rate);
+
+		if (ratio % 2 == 0 && ratio >= 2 && ratio <= 512)
+			ratio /= 2;
+		else
+			continue;
+
+		if (ret < savesub) {
+			savediv = ratio;
+			sai->mclk_id[tx] = id;
+			savesub = ret;
+		}
+
+		if (ret == 0)
+			break;
+	}
+
+	if (savediv == 0) {
+		dev_err(dai->dev, "failed to derive required %cx rate: %d\n",
+				tx ? 'T' : 'R', freq);
+		return -EINVAL;
+	}
+
+	if ((tx && sai->synchronous[TX]) || (!tx && !sai->synchronous[RX])) {
+		regmap_update_bits(sai->regmap, FSL_SAI_RCR2,
+				   FSL_SAI_CR2_MSEL_MASK,
+				   FSL_SAI_CR2_MSEL(sai->mclk_id[tx]));
+		regmap_update_bits(sai->regmap, FSL_SAI_RCR2,
+				   FSL_SAI_CR2_DIV_MASK, savediv - 1);
+	} else {
+		regmap_update_bits(sai->regmap, FSL_SAI_TCR2,
+				   FSL_SAI_CR2_MSEL_MASK,
+				   FSL_SAI_CR2_MSEL(sai->mclk_id[tx]));
+		regmap_update_bits(sai->regmap, FSL_SAI_TCR2,
+				   FSL_SAI_CR2_DIV_MASK, savediv - 1);
+	}
+
+	dev_dbg(dai->dev, "best fit: clock id=%d, div=%d, deviation =%d\n",
+			sai->mclk_id[tx], savediv, savesub);
+
+	return 0;
+}
+
 static int fsl_sai_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params,
 		struct snd_soc_dai *cpu_dai)
@@ -297,6 +383,24 @@ static int fsl_sai_hw_params(struct snd_pcm_substream *substream,
 	unsigned int channels = params_channels(params);
 	u32 word_width = snd_pcm_format_width(params_format(params));
 	u32 val_cr4 = 0, val_cr5 = 0;
+	int ret;
+
+	if (!sai->is_slave_mode) {
+		ret = fsl_sai_set_bclk(cpu_dai, tx,
+			2 * word_width * params_rate(params));
+		if (ret)
+			return ret;
+
+		/* Do not enable the clock if it is already enabled */
+		if (!(sai->mclk_streams & BIT(substream->stream))) {
+			ret = clk_prepare_enable(sai->mclk_clk[sai->mclk_id[tx]]);
+			if (ret)
+				return ret;
+
+			sai->mclk_streams |= BIT(substream->stream);
+		}
+
+	}
 
 	if (!sai->is_dsp_mode)
 		val_cr4 |= FSL_SAI_CR4_SYWD(word_width);
@@ -321,6 +425,22 @@ static int fsl_sai_hw_params(struct snd_pcm_substream *substream,
 
 	return 0;
 }
+
+static int fsl_sai_hw_free(struct snd_pcm_substream *substream,
+		struct snd_soc_dai *cpu_dai)
+{
+	struct fsl_sai *sai = snd_soc_dai_get_drvdata(cpu_dai);
+	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
+
+	if (!sai->is_slave_mode &&
+			sai->mclk_streams & BIT(substream->stream)) {
+		clk_disable_unprepare(sai->mclk_clk[sai->mclk_id[tx]]);
+		sai->mclk_streams &= ~BIT(substream->stream);
+	}
+
+	return 0;
+}
+
 
 static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 		struct snd_soc_dai *cpu_dai)
@@ -410,7 +530,10 @@ static int fsl_sai_startup(struct snd_pcm_substream *substream,
 	regmap_update_bits(sai->regmap, FSL_SAI_xCR3(tx), FSL_SAI_CR3_TRCE,
 			   FSL_SAI_CR3_TRCE);
 
-	return 0;
+	ret = snd_pcm_hw_constraint_list(substream->runtime, 0,
+			SNDRV_PCM_HW_PARAM_RATE, &fsl_sai_rate_constraints);
+
+	return ret;
 }
 
 static void fsl_sai_shutdown(struct snd_pcm_substream *substream,
@@ -428,6 +551,7 @@ static const struct snd_soc_dai_ops fsl_sai_pcm_dai_ops = {
 	.set_sysclk	= fsl_sai_set_dai_sysclk,
 	.set_fmt	= fsl_sai_set_dai_fmt,
 	.hw_params	= fsl_sai_hw_params,
+	.hw_free	= fsl_sai_hw_free,
 	.trigger	= fsl_sai_trigger,
 	.startup	= fsl_sai_startup,
 	.shutdown	= fsl_sai_shutdown,
@@ -463,14 +587,18 @@ static struct snd_soc_dai_driver fsl_sai_dai = {
 		.stream_name = "CPU-Playback",
 		.channels_min = 1,
 		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_8000_96000,
+		.rate_min = 8000,
+		.rate_max = 192000,
+		.rates = SNDRV_PCM_RATE_KNOT,
 		.formats = FSL_SAI_FORMATS,
 	},
 	.capture = {
 		.stream_name = "CPU-Capture",
 		.channels_min = 1,
 		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_8000_96000,
+		.rate_min = 8000,
+		.rate_max = 192000,
+		.rates = SNDRV_PCM_RATE_KNOT,
 		.formats = FSL_SAI_FORMATS,
 	},
 	.ops = &fsl_sai_pcm_dai_ops,
@@ -600,8 +728,9 @@ static int fsl_sai_probe(struct platform_device *pdev)
 		sai->bus_clk = NULL;
 	}
 
-	for (i = 0; i < FSL_SAI_MCLK_MAX; i++) {
-		sprintf(tmp, "mclk%d", i + 1);
+	sai->mclk_clk[0] = sai->bus_clk;
+	for (i = 1; i < FSL_SAI_MCLK_MAX; i++) {
+		sprintf(tmp, "mclk%d", i);
 		sai->mclk_clk[i] = devm_clk_get(&pdev->dev, tmp);
 		if (IS_ERR(sai->mclk_clk[i])) {
 			dev_err(&pdev->dev, "failed to get mclk%d clock: %ld\n",
@@ -664,8 +793,7 @@ static int fsl_sai_probe(struct platform_device *pdev)
 	if (sai->sai_on_imx)
 		return imx_pcm_dma_init(pdev);
 	else
-		return devm_snd_dmaengine_pcm_register(&pdev->dev, NULL,
-				SND_DMAENGINE_PCM_FLAG_NO_RESIDUE);
+		return devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 }
 
 static const struct of_device_id fsl_sai_ids[] = {

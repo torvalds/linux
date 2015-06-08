@@ -48,10 +48,6 @@ static inline void rockchip_suspend_init(void)
 #define RK3288_PMU_WAKEUP_RST_CLR_CNT	0x44
 #define RK3288_PMU_PWRMODE_CON1		0x90
 
-#define RK3288_GRF_SOC_CON0		0x244
-#define GRF_FORCE_JTAG			BIT(12)
-#define GRF_FORCE_JTAG_WRITE		BIT(28)
-
 #define RK3288_SGRF_SOC_CON0		(0x0000)
 #define RK3288_SGRF_FAST_BOOT_ADDR	(0x0120)
 #define SGRF_PCLK_WDT_GATE		BIT(6)

@@ -14,7 +14,7 @@
 
 #define FERMI_TWOD_A                                                 0x0000902d
 
-#define FERMI_MEMORY_TO_MEMORY_FORMAT_A                              0x0000903d
+#define FERMI_MEMORY_TO_MEMORY_FORMAT_A                              0x00009039
 
 #define KEPLER_INLINE_TO_MEMORY_A                                    0x0000a040
 #define KEPLER_INLINE_TO_MEMORY_B                                    0x0000a140

@@ -121,7 +121,7 @@ static struct usb_function *f_msg;
 /*
  * We _always_ have both ACM and mass storage functions.
  */
-static int __init acm_ms_do_config(struct usb_configuration *c)
+static int acm_ms_do_config(struct usb_configuration *c)
 {
 	struct fsg_opts *opts;
 	int	status;
@@ -174,7 +174,7 @@ static struct usb_configuration acm_ms_config_driver = {
 
 /*-------------------------------------------------------------------------*/
 
-static int __init acm_ms_bind(struct usb_composite_dev *cdev)
+static int acm_ms_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget	*gadget = cdev->gadget;
 	struct fsg_opts		*opts;
@@ -249,7 +249,7 @@ fail_get_msg:
 	return status;
 }
 
-static int __exit acm_ms_unbind(struct usb_composite_dev *cdev)
+static int acm_ms_unbind(struct usb_composite_dev *cdev)
 {
 	usb_put_function(f_msg);
 	usb_put_function_instance(fi_msg);
@@ -258,13 +258,13 @@ static int __exit acm_ms_unbind(struct usb_composite_dev *cdev)
 	return 0;
 }
 
-static __refdata struct usb_composite_driver acm_ms_driver = {
+static struct usb_composite_driver acm_ms_driver = {
 	.name		= "g_acm_ms",
 	.dev		= &device_desc,
 	.max_speed	= USB_SPEED_SUPER,
 	.strings	= dev_strings,
 	.bind		= acm_ms_bind,
-	.unbind		= __exit_p(acm_ms_unbind),
+	.unbind		= acm_ms_unbind,
 };
 
 module_usb_composite_driver(acm_ms_driver);
