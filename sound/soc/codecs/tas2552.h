@@ -128,12 +128,9 @@
 #define TAS2552_APT_THRESH_2_1_7	(0x11 << 2)
 
 /* PLL Control Register */
-#define TAS2552_245MHZ_CLK			24576000
-#define TAS2552_225MHZ_CLK			22579200
-#define TAS2552_PLL_J_MASK			0x7f
-#define TAS2552_PLL_D_UPPER_MASK	0x3f
-#define TAS2552_PLL_D_LOWER_MASK	0xff
-#define TAS2552_PLL_BYPASS_MASK		0x80
-#define TAS2552_PLL_BYPASS			0x80
+#define TAS2552_PLL_J_MASK		0x7f
+#define TAS2552_PLL_D_UPPER(x)		(((x) >> 8) & 0x3f)
+#define TAS2552_PLL_D_LOWER(x)		((x) & 0xff)
+#define TAS2552_PLL_BYPASS		(1 << 7)
 
 #endif
