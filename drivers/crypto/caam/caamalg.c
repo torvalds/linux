@@ -2713,10 +2713,8 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	sec4_sg_index = 0;
 	if (!all_contig) {
 		if (!is_gcm) {
-			sg_to_sec4_sg(req->assoc,
-				      assoc_nents,
-				      edesc->sec4_sg +
-				      sec4_sg_index, 0);
+			sg_to_sec4_sg_len(req->assoc, req->assoclen,
+					  edesc->sec4_sg + sec4_sg_index);
 			sec4_sg_index += assoc_nents;
 		}
 
@@ -2725,10 +2723,8 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 		sec4_sg_index += 1;
 
 		if (is_gcm) {
-			sg_to_sec4_sg(req->assoc,
-				      assoc_nents,
-				      edesc->sec4_sg +
-				      sec4_sg_index, 0);
+			sg_to_sec4_sg_len(req->assoc, req->assoclen,
+					  edesc->sec4_sg + sec4_sg_index);
 			sec4_sg_index += assoc_nents;
 		}
 
@@ -2953,8 +2949,8 @@ static struct aead_edesc *aead_giv_edesc_alloc(struct aead_givcrypt_request
 	sec4_sg_index = 0;
 	if (!(contig & GIV_SRC_CONTIG)) {
 		if (!is_gcm) {
-			sg_to_sec4_sg(req->assoc, assoc_nents,
-				      edesc->sec4_sg + sec4_sg_index, 0);
+			sg_to_sec4_sg_len(req->assoc, req->assoclen,
+					  edesc->sec4_sg + sec4_sg_index);
 			sec4_sg_index += assoc_nents;
 		}
 
@@ -2963,8 +2959,8 @@ static struct aead_edesc *aead_giv_edesc_alloc(struct aead_givcrypt_request
 		sec4_sg_index += 1;
 
 		if (is_gcm) {
-			sg_to_sec4_sg(req->assoc, assoc_nents,
-				      edesc->sec4_sg + sec4_sg_index, 0);
+			sg_to_sec4_sg_len(req->assoc, req->assoclen,
+					  edesc->sec4_sg + sec4_sg_index);
 			sec4_sg_index += assoc_nents;
 		}
 
