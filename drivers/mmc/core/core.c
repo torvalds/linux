@@ -474,6 +474,9 @@ static void mmc_get_req_timeout(struct mmc_request *mrq, u32 *timeout)
 	if ((mrq->cmd->opcode == SD_IO_RW_DIRECT) ||
 	    (mrq->cmd->opcode == SD_IO_RW_EXTENDED))
 		*timeout = 8000;
+	else if ((mrq->cmd->opcode == MMC_SEND_TUNING_BLOCK_HS200) ||
+		 (mrq->cmd->opcode == MMC_SEND_TUNING_BLOCK))
+		*timeout = 100;
 }
 
 static void mmc_wait_for_req_done(struct mmc_host *host,
