@@ -1029,6 +1029,9 @@ static void rk818_shutdown(void)
 	pr_info("%s\n", __func__);
 	ret = rk818_set_bits(rk818, RK818_INT_STS_MSK_REG1,(0x3<<5),(0x3<<5)); //close rtc int when power off
 	ret = rk818_clear_bits(rk818, RK818_RTC_INT_REG,(0x3<<2)); //close rtc int when power off
+	/*disable otg_en*/
+	ret = rk818_clear_bits(rk818, RK818_DCDC_EN_REG, (0x1<<7));
+
 	mutex_lock(&rk818->io_lock);
 	mdelay(100);
 }
@@ -1063,14 +1066,43 @@ __weak void  rk818_device_suspend(void) {}
 __weak void  rk818_device_resume(void) {}
 #ifdef CONFIG_PM
 static int rk818_suspend(struct i2c_client *i2c, pm_message_t mesg)
-{		
+{
+	int ret, val;
+	struct rk818 *rk818 = g_rk818;
+
 	rk818_device_suspend();
+	/************set vbat low 3v4 to irq**********/
+	val = rk818_reg_read(rk818, RK818_VB_MON_REG);
+	val &= (~(VBAT_LOW_VOL_MASK | VBAT_LOW_ACT_MASK));
+	val |= (RK818_VBAT_LOW_3V4 | EN_VBAT_LOW_IRQ);
+	ret = rk818_reg_write(rk818, RK818_VB_MON_REG, val);
+	if (ret < 0) {
+		pr_err("Unable to write RK818_VB_MON_REG reg\n");
+		return ret;
+	}
+	/*enable low irq*/
+	rk818_set_bits(rk818, 0x4d, (0x1 << 1), (0x0 << 1));
 	return 0;
 }
 
 static int rk818_resume(struct i2c_client *i2c)
 {
+	int ret, val;
+	struct rk818 *rk818 = g_rk818;
+
 	rk818_device_resume();
+	/********set vbat low 3v0 to shutdown**********/
+	val = rk818_reg_read(rk818, RK818_VB_MON_REG);
+	val &= (~(VBAT_LOW_VOL_MASK | VBAT_LOW_ACT_MASK));
+	val |= (RK818_VBAT_LOW_3V0 | EN_VABT_LOW_SHUT_DOWN);
+	ret = rk818_reg_write(rk818, RK818_VB_MON_REG, val);
+	if (ret < 0) {
+		pr_err("Unable to write RK818_VB_MON_REG reg\n");
+		return ret;
+	}
+	/*disable low irq*/
+	rk818_set_bits(rk818, 0x4d, (0x1 << 1), (0x1 << 1));
+
 	return 0;
 }
 #else
@@ -1105,11 +1137,10 @@ static int rk818_pre_init(struct rk818 *rk818)
 		return ret;
 	}
 	/****************************************/
-
 	/****************set vbat low **********/
 	val = rk818_reg_read(rk818,RK818_VB_MON_REG);
 	val &=(~(VBAT_LOW_VOL_MASK | VBAT_LOW_ACT_MASK));
-	val |= (RK818_VBAT_LOW_3V5 | EN_VBAT_LOW_IRQ);
+	val |= (RK818_VBAT_LOW_3V0 | EN_VABT_LOW_SHUT_DOWN);
 	ret = rk818_reg_write(rk818,RK818_VB_MON_REG,val);
 	if (ret <0) {
 		printk(KERN_ERR "Unable to write RK818_VB_MON_REG reg\n");
@@ -1118,6 +1149,7 @@ static int rk818_pre_init(struct rk818 *rk818)
 	/**************************************/
 
 	/**********mask int****************/
+
 	val = rk818_reg_read(rk818,RK818_INT_STS_MSK_REG1);
 	val |= (0x1<<0); //mask vout_lo_int
 	ret = rk818_reg_write(rk818,RK818_INT_STS_MSK_REG1,val);
@@ -1125,6 +1157,7 @@ static int rk818_pre_init(struct rk818 *rk818)
 		printk(KERN_ERR "Unable to write RK818_INT_STS_MSK_REG1 reg\n");
 		return ret;
 	}
+
 	/**********************************/
 	/**********enable clkout2****************/
 	ret = rk818_reg_write(rk818,RK818_CLK32OUT_REG,0x01);
