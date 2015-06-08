@@ -81,7 +81,6 @@ struct lov_request {
 	int		      rq_stripe;     /* stripe number */
 	int		      rq_complete;
 	int		      rq_rc;
-	int		      rq_buflen;     /* length of sub_md */
 
 	u32		      rq_oabufs;
 	u32		      rq_pgaidx;
