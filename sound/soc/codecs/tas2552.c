@@ -45,7 +45,7 @@ static struct reg_default tas2552_reg_defs[] = {
 	{TAS2552_OUTPUT_DATA, 0xc0},
 	{TAS2552_PDM_CFG, 0x01},
 	{TAS2552_PGA_GAIN, 0x00},
-	{TAS2552_BOOST_PT_CTRL, 0x0f},
+	{TAS2552_BOOST_APT_CTRL, 0x0f},
 	{TAS2552_RESERVED_0D, 0xbe},
 	{TAS2552_LIMIT_RATE_HYS, 0x08},
 	{TAS2552_CFG_2, 0xef},
@@ -601,8 +601,8 @@ static int tas2552_codec_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, TAS2552_OUTPUT_DATA,
 		      TAS2552_PDM_DATA_SEL_V_I |
 		      TAS2552_R_DATA_OUT(TAS2552_DATA_OUT_V_DATA));
-	snd_soc_write(codec, TAS2552_BOOST_PT_CTRL, TAS2552_APT_DELAY_200 |
-				TAS2552_APT_THRESH_2_1_7);
+	snd_soc_write(codec, TAS2552_BOOST_APT_CTRL, TAS2552_APT_DELAY_200 |
+						     TAS2552_APT_THRESH_20_17);
 
 	snd_soc_write(codec, TAS2552_CFG_2, TAS2552_BOOST_EN |
 				  TAS2552_APT_EN | TAS2552_LIM_EN);
