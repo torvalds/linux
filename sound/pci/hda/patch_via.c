@@ -449,6 +449,15 @@ static int via_suspend(struct hda_codec *codec)
 
 	return 0;
 }
+
+static int via_resume(struct hda_codec *codec)
+{
+	/* some delay here to make jack detection working (bko#98921) */
+	msleep(10);
+	codec->patch_ops.init(codec);
+	regcache_sync(codec->core.regmap);
+	return 0;
+}
 #endif
 
 #ifdef CONFIG_PM
@@ -475,6 +484,7 @@ static const struct hda_codec_ops via_patch_ops = {
 	.stream_pm = snd_hda_gen_stream_pm,
 #ifdef CONFIG_PM
 	.suspend = via_suspend,
+	.resume = via_resume,
 	.check_power_status = via_check_power_status,
 #endif
 };

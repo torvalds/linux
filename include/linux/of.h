@@ -121,6 +121,8 @@ extern struct device_node *of_stdout;
 extern raw_spinlock_t devtree_lock;
 
 #ifdef CONFIG_OF
+void of_core_init(void);
+
 static inline bool is_of_node(struct fwnode_handle *fwnode)
 {
 	return fwnode && fwnode->type == FWNODE_OF;
@@ -375,6 +377,10 @@ const char *of_prop_next_string(struct property *prop, const char *cur);
 bool of_console_check(struct device_node *dn, char *name, int index);
 
 #else /* CONFIG_OF */
+
+static inline void of_core_init(void)
+{
+}
 
 static inline bool is_of_node(struct fwnode_handle *fwnode)
 {

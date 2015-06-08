@@ -1020,8 +1020,7 @@ static void tcm_qla2xxx_depend_tpg(struct work_struct *work)
 	struct se_portal_group *se_tpg = &base_tpg->se_tpg;
 	struct scsi_qla_host *base_vha = base_tpg->lport->qla_vha;
 
-	if (!configfs_depend_item(se_tpg->se_tpg_tfo->tf_subsys,
-				  &se_tpg->tpg_group.cg_item)) {
+	if (!target_depend_item(&se_tpg->tpg_group.cg_item)) {
 		atomic_set(&base_tpg->lport_tpg_enabled, 1);
 		qlt_enable_vha(base_vha);
 	}
@@ -1037,8 +1036,7 @@ static void tcm_qla2xxx_undepend_tpg(struct work_struct *work)
 
 	if (!qlt_stop_phase1(base_vha->vha_tgt.qla_tgt)) {
 		atomic_set(&base_tpg->lport_tpg_enabled, 0);
-		configfs_undepend_item(se_tpg->se_tpg_tfo->tf_subsys,
-				       &se_tpg->tpg_group.cg_item);
+		target_undepend_item(&se_tpg->tpg_group.cg_item);
 	}
 	complete(&base_tpg->tpg_base_comp);
 }

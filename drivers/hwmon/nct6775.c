@@ -995,6 +995,7 @@ nct6775_create_attr_group(struct device *dev, struct sensor_template_group *tg,
 				 (*t)->dev_attr.attr.name, tg->base + i);
 			if ((*t)->s2) {
 				a2 = &su->u.a2;
+				sysfs_attr_init(&a2->dev_attr.attr);
 				a2->dev_attr.attr.name = su->name;
 				a2->nr = (*t)->u.s.nr + i;
 				a2->index = (*t)->u.s.index;
@@ -1005,6 +1006,7 @@ nct6775_create_attr_group(struct device *dev, struct sensor_template_group *tg,
 				*attrs = &a2->dev_attr.attr;
 			} else {
 				a = &su->u.a1;
+				sysfs_attr_init(&a->dev_attr.attr);
 				a->dev_attr.attr.name = su->name;
 				a->index = (*t)->u.index + i;
 				a->dev_attr.attr.mode =

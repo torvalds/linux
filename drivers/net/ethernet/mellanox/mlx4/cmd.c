@@ -714,8 +714,13 @@ static int mlx4_cmd_wait(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 					 msecs_to_jiffies(timeout))) {
 		mlx4_warn(dev, "command 0x%x timed out (go bit not cleared)\n",
 			  op);
-		err = -EIO;
-		goto out_reset;
+		if (op == MLX4_CMD_NOP) {
+			err = -EBUSY;
+			goto out;
+		} else {
+			err = -EIO;
+			goto out_reset;
+		}
 	}
 
 	err = context->result;

@@ -299,6 +299,9 @@ int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 	struct cred *override_cred;
 	char *link = NULL;
 
+	if (WARN_ON(!workdir))
+		return -EROFS;
+
 	ovl_path_upper(parent, &parentpath);
 	upperdir = parentpath.dentry;
 

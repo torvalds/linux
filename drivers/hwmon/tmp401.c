@@ -44,7 +44,7 @@
 #include <linux/sysfs.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x37, 0x48, 0x49, 0x4a, 0x4c, 0x4d,
+static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4c, 0x4d,
 	0x4e, 0x4f, I2C_CLIENT_END };
 
 enum chips { tmp401, tmp411, tmp431, tmp432, tmp435 };
