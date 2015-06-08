@@ -115,20 +115,17 @@ int rm_rf(char *path)
 	return rmdir(path);
 }
 
-static int slow_copyfile(const char *from, const char *to, mode_t mode)
+static int slow_copyfile(const char *from, const char *to)
 {
 	int err = -1;
 	char *line = NULL;
 	size_t n;
 	FILE *from_fp = fopen(from, "r"), *to_fp;
-	mode_t old_umask;
 
 	if (from_fp == NULL)
 		goto out;
 
-	old_umask = umask(mode ^ 0777);
 	to_fp = fopen(to, "w");
-	umask(old_umask);
 	if (to_fp == NULL)
 		goto out_fclose_from;
 
@@ -178,29 +175,48 @@ int copyfile_mode(const char *from, const char *to, mode_t mode)
 	int fromfd, tofd;
 	struct stat st;
 	int err = -1;
+	char *tmp = NULL, *ptr = NULL;
 
 	if (stat(from, &st))
 		goto out;
 
-	if (st.st_size == 0) /* /proc? do it slowly... */
-		return slow_copyfile(from, to, mode);
+	/* extra 'x' at the end is to reserve space for '.' */
+	if (asprintf(&tmp, "%s.XXXXXXx", to) < 0) {
+		tmp = NULL;
+		goto out;
+	}
+	ptr = strrchr(tmp, '/');
+	if (!ptr)
+		goto out;
+	ptr = memmove(ptr + 1, ptr, strlen(ptr) - 1);
+	*ptr = '.';
+
+	tofd = mkstemp(tmp);
+	if (tofd < 0)
+		goto out;
+
+	if (fchmod(tofd, mode))
+		goto out_close_to;
+
+	if (st.st_size == 0) { /* /proc? do it slowly... */
+		err = slow_copyfile(from, tmp);
+		goto out_close_to;
+	}
 
 	fromfd = open(from, O_RDONLY);
 	if (fromfd < 0)
-		goto out;
-
-	tofd = creat(to, mode);
-	if (tofd < 0)
-		goto out_close_from;
+		goto out_close_to;
 
 	err = copyfile_offset(fromfd, 0, tofd, 0, st.st_size);
 
-	close(tofd);
-	if (err)
-		unlink(to);
-out_close_from:
 	close(fromfd);
+out_close_to:
+	close(tofd);
+	if (!err)
+		err = link(tmp, to);
+	unlink(tmp);
 out:
+	free(tmp);
 	return err;
 }
 
