@@ -32,8 +32,8 @@ Example:
 		touchscreen-fuzz-x = <4>;
 		touchscreen-fuzz-y = <7>;
 		touchscreen-fuzz-pressure = <2>;
-		touchscreen-max-x = <4096>;
-		touchscreen-max-y = <4096>;
+		touchscreen-size-x = <4096>;
+		touchscreen-size-y = <4096>;
 		touchscreen-max-pressure = <2048>;
 
 		ti,x-plate-ohms = <280>;
