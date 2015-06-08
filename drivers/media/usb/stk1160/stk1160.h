@@ -151,8 +151,7 @@ struct stk1160 {
 	v4l2_std_id norm;	  /* current norm */
 	struct stk1160_fmt *fmt;  /* selected format */
 
-	unsigned int field_count; /* not sure ??? */
-	enum v4l2_field field;    /* also not sure :/ */
+	unsigned int sequence;
 
 	/* i2c i/o */
 	struct i2c_adapter i2c_adap;

@@ -194,6 +194,8 @@ static int stk1160_start_streaming(struct stk1160 *dev)
 	/* Start saa711x */
 	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_stream, 1);
 
+	dev->sequence = 0;
+
 	/* Start stk1160 */
 	stk1160_write_reg(dev, STK1160_DCTRL, 0xb3);
 	stk1160_write_reg(dev, STK1160_DCTRL+3, 0x00);
