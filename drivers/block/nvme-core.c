@@ -613,7 +613,10 @@ static void req_completion(struct nvme_queue *nvmeq, void *ctx,
 			return;
 		}
 		if (req->cmd_type == REQ_TYPE_DRV_PRIV) {
-			req->errors = status;
+			if (cmd_rq->ctx == CMD_CTX_CANCELLED)
+				req->errors = -EINTR;
+			else
+				req->errors = status;
 		} else {
 			req->errors = nvme_error_status(status);
 		}
