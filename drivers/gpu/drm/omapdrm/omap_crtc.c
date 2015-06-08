@@ -344,26 +344,6 @@ static void omap_crtc_vblank_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
 	complete(&omap_crtc->completion);
 }
 
-static int omap_crtc_flush(struct drm_crtc *crtc)
-{
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-
-	DBG("%s: GO", omap_crtc->name);
-
-	WARN_ON(omap_crtc->vblank_irq.registered);
-
-	if (dispc_mgr_is_enabled(omap_crtc->channel)) {
-		dispc_mgr_go(omap_crtc->channel);
-		omap_irq_register(crtc->dev, &omap_crtc->vblank_irq);
-
-		WARN_ON(!wait_for_completion_timeout(&omap_crtc->completion,
-						     msecs_to_jiffies(100)));
-		reinit_completion(&omap_crtc->completion);
-	}
-
-	return 0;
-}
-
 /* -----------------------------------------------------------------------------
  * CRTC Functions
  */
@@ -442,7 +422,20 @@ static void omap_crtc_atomic_begin(struct drm_crtc *crtc)
 
 static void omap_crtc_atomic_flush(struct drm_crtc *crtc)
 {
-	omap_crtc_flush(crtc);
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+
+	WARN_ON(omap_crtc->vblank_irq.registered);
+
+	if (dispc_mgr_is_enabled(omap_crtc->channel)) {
+		DBG("%s: GO", omap_crtc->name);
+
+		dispc_mgr_go(omap_crtc->channel);
+		omap_irq_register(crtc->dev, &omap_crtc->vblank_irq);
+
+		WARN_ON(!wait_for_completion_timeout(&omap_crtc->completion,
+						     msecs_to_jiffies(100)));
+		reinit_completion(&omap_crtc->completion);
+	}
 
 	crtc->invert_dimensions = !!(crtc->primary->state->rotation &
 				    (BIT(DRM_ROTATE_90) | BIT(DRM_ROTATE_270)));
