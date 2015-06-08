@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2014 Emulex
+ * Copyright (C) 2005 - 2015 Avago Technologies
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -7,12 +7,12 @@
  * as published by the Free Software Foundation.  The full GNU General
  * Public License is included in this distribution in the file called COPYING.
  *
- * Written by: Jayamohan Kallickal (jayamohan.kallickal@emulex.com)
+ * Written by: Jayamohan Kallickal (jayamohan.kallickal@avagotech.com)
  *
  * Contact Information:
- * linux-drivers@emulex.com
+ * linux-drivers@avagotech.com
  *
- * Emulex
+ * Avago Technologies
  * 3333 Susan Street
  * Costa Mesa, CA 92626
  */
@@ -37,7 +37,7 @@
 
 #define DRV_NAME		"be2iscsi"
 #define BUILD_STR		"10.4.114.0"
-#define BE_NAME			"Emulex OneConnect" \
+#define BE_NAME			"Avago Technologies OneConnect" \
 				"Open-iSCSI Driver version" BUILD_STR
 #define DRV_DESC		BE_NAME " " "Driver"
 

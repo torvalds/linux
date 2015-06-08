@@ -966,7 +966,12 @@ void bpf_int_jit_compile(struct bpf_prog *prog)
 	}
 	ctx.cleanup_addr = proglen;
 
-	for (pass = 0; pass < 10; pass++) {
+	/* JITed image shrinks with every pass and the loop iterates
+	 * until the image stops shrinking. Very large bpf programs
+	 * may converge on the last pass. In such case do one more
+	 * pass to emit the final image
+	 */
+	for (pass = 0; pass < 10 || image; pass++) {
 		proglen = do_jit(prog, addrs, image, oldproglen, &ctx);
 		if (proglen <= 0) {
 			image = NULL;

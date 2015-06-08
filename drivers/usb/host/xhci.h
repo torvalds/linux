@@ -1497,6 +1497,8 @@ struct xhci_hcd {
 	struct list_head	lpm_failed_devs;
 
 	/* slot enabling and address device helpers */
+	/* these are not thread safe so use mutex */
+	struct mutex mutex;
 	struct completion	addr_dev;
 	int slot_id;
 	/* For USB 3.0 LPM enable/disable. */

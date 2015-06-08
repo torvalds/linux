@@ -337,9 +337,12 @@ enum {
 	STRIPE_ON_RELEASE_LIST,
 	STRIPE_BATCH_READY,
 	STRIPE_BATCH_ERR,
+	STRIPE_BITMAP_PENDING,	/* Being added to bitmap, don't add
+				 * to batch yet.
+				 */
 };
 
-#define STRIPE_EXPAND_SYNC_FLAG \
+#define STRIPE_EXPAND_SYNC_FLAGS \
 	((1 << STRIPE_EXPAND_SOURCE) |\
 	(1 << STRIPE_EXPAND_READY) |\
 	(1 << STRIPE_EXPANDING) |\

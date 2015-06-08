@@ -1372,7 +1372,7 @@ static int probe_scache(void)
 	scache_size = addr;
 	c->scache.linesz = 16 << ((config & R4K_CONF_SB) >> 22);
 	c->scache.ways = 1;
-	c->dcache.waybit = 0;		/* does not matter */
+	c->scache.waybit = 0;		/* does not matter */
 
 	return 1;
 }

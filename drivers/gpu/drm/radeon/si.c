@@ -4303,7 +4303,7 @@ static int si_pcie_gart_enable(struct radeon_device *rdev)
 	       L2_CACHE_BIGK_FRAGMENT_SIZE(4));
 	/* setup context0 */
 	WREG32(VM_CONTEXT0_PAGE_TABLE_START_ADDR, rdev->mc.gtt_start >> 12);
-	WREG32(VM_CONTEXT0_PAGE_TABLE_END_ADDR, (rdev->mc.gtt_end >> 12) - 1);
+	WREG32(VM_CONTEXT0_PAGE_TABLE_END_ADDR, rdev->mc.gtt_end >> 12);
 	WREG32(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR, rdev->gart.table_addr >> 12);
 	WREG32(VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR,
 			(u32)(rdev->dummy_page.addr >> 12));
