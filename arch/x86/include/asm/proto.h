@@ -5,11 +5,12 @@
 
 /* misc architecture specific prototypes */
 
-void system_call(void);
 void syscall_init(void);
 
-void entry_INT80_compat(void);
+void entry_SYSCALL_64(void);
 void entry_SYSCALL_compat(void);
+void entry_INT80_32(void);
+void entry_INT80_compat(void);
 void entry_SYSENTER_32(void);
 void entry_SYSENTER_compat(void);
 

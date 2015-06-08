@@ -72,8 +72,7 @@ gate_desc debug_idt_table[NR_VECTORS] __page_aligned_bss;
 #else
 #include <asm/processor-flags.h>
 #include <asm/setup.h>
-
-asmlinkage int system_call(void);
+#include <asm/proto.h>
 #endif
 
 /* Must be page-aligned because the real IDT is used in a fixmap. */
@@ -997,7 +996,7 @@ void __init trap_init(void)
 #endif
 
 #ifdef CONFIG_X86_32
-	set_system_trap_gate(IA32_SYSCALL_VECTOR, &system_call);
+	set_system_trap_gate(IA32_SYSCALL_VECTOR, entry_INT80_32);
 	set_bit(IA32_SYSCALL_VECTOR, used_vectors);
 #endif
 

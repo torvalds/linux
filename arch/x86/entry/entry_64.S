@@ -137,7 +137,7 @@ ENDPROC(native_usergs_sysret64)
  * with them due to bugs in both AMD and Intel CPUs.
  */
 
-ENTRY(system_call)
+ENTRY(entry_SYSCALL_64)
 	/*
 	 * Interrupts are off on entry.
 	 * We do not frame this tiny irq-off block with TRACE_IRQS_OFF/ON,
@@ -149,7 +149,7 @@ ENTRY(system_call)
 	 * after the swapgs, so that it can do the swapgs
 	 * for the guest and jump here on syscall.
 	 */
-GLOBAL(system_call_after_swapgs)
+GLOBAL(entry_SYSCALL_64_after_swapgs)
 
 	movq	%rsp,PER_CPU_VAR(rsp_scratch)
 	movq	PER_CPU_VAR(cpu_current_top_of_stack),%rsp
@@ -182,7 +182,7 @@ GLOBAL(system_call_after_swapgs)
 
 	testl $_TIF_WORK_SYSCALL_ENTRY, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
 	jnz tracesys
-system_call_fastpath:
+entry_SYSCALL_64_fastpath:
 #if __SYSCALL_MASK == ~0
 	cmpq $__NR_syscall_max,%rax
 #else
@@ -246,7 +246,7 @@ tracesys:
 	jnz tracesys_phase2		/* if needed, run the slow path */
 	RESTORE_C_REGS_EXCEPT_RAX	/* else restore clobbered regs */
 	movq ORIG_RAX(%rsp), %rax
-	jmp system_call_fastpath	/*      and return to the fast path */
+	jmp entry_SYSCALL_64_fastpath	/*      and return to the fast path */
 
 tracesys_phase2:
 	SAVE_EXTRA_REGS
@@ -411,7 +411,7 @@ syscall_return_via_sysret:
 opportunistic_sysret_failed:
 	SWAPGS
 	jmp	restore_c_regs_and_iret
-END(system_call)
+END(entry_SYSCALL_64)
 
 
 	.macro FORK_LIKE func

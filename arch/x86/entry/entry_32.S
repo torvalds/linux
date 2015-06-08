@@ -415,7 +415,7 @@ sysexit_audit:
 ENDPROC(entry_SYSENTER_32)
 
 	# system call handler stub
-ENTRY(system_call)
+ENTRY(entry_INT80_32)
 	ASM_CLAC
 	pushl %eax			# save orig_eax
 	SAVE_ALL
@@ -508,7 +508,7 @@ ldt_ss:
 	lss (%esp), %esp		/* switch to espfix segment */
 	jmp restore_nocheck
 #endif
-ENDPROC(system_call)
+ENDPROC(entry_INT80_32)
 
 	# perform work that needs to be done immediately before resumption
 	ALIGN
