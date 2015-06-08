@@ -18,6 +18,7 @@ help:
 	@echo '  vm         - misc vm tools'
 	@echo '  x86_energy_perf_policy - Intel energy policy tool'
 	@echo '  tmon       - thermal monitoring and tuning tool'
+	@echo '  freefall   - laptop accelerometer program for disk protection'
 	@echo ''
 	@echo 'You can do:'
 	@echo ' $$ make -C tools/ <tool>_install'
@@ -62,6 +63,9 @@ turbostat x86_energy_perf_policy: FORCE
 tmon: FORCE
 	$(call descend,thermal/$@)
 
+freefall: FORCE
+	$(call descend,laptop/$@)
+
 acpi_install:
 	$(call descend,power/$(@:_install=),install)
 
@@ -80,10 +84,13 @@ turbostat_install x86_energy_perf_policy_install:
 tmon_install:
 	$(call descend,thermal/$(@:_install=),install)
 
+freefall_install:
+	$(call descend,laptop/$(@:_install=),install)
+
 install: acpi_install cgroup_install cpupower_install hv_install firewire_install lguest_install \
 		perf_install selftests_install turbostat_install usb_install \
 		virtio_install vm_install net_install x86_energy_perf_policy_install \
-	tmon
+		tmon freefall_install
 
 acpi_clean:
 	$(call descend,power/acpi,clean)
@@ -112,8 +119,11 @@ turbostat_clean x86_energy_perf_policy_clean:
 tmon_clean:
 	$(call descend,thermal/tmon,clean)
 
+freefall_clean:
+	$(call descend,laptop/freefall,clean)
+
 clean: acpi_clean cgroup_clean cpupower_clean hv_clean firewire_clean lguest_clean \
 		perf_clean selftests_clean turbostat_clean usb_clean virtio_clean \
-		vm_clean net_clean x86_energy_perf_policy_clean tmon_clean
+		vm_clean net_clean x86_energy_perf_policy_clean tmon_clean freefall_clean
 
 .PHONY: FORCE

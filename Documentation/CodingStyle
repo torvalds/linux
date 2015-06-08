@@ -670,7 +670,7 @@ functions:
 	typeof(x) ret;			\
 	ret = calc_ret(x);		\
 	(ret);				\
-)}
+})
 
 ret is a common name for a local variable - __foo_ret is less likely
 to collide with an existing variable.

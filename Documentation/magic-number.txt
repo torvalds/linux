@@ -116,7 +116,6 @@ COW_MAGIC             0x4f4f4f4d  cow_header_v1     arch/um/drivers/ubd_user.c
 I810_CARD_MAGIC       0x5072696E  i810_card         sound/oss/i810_audio.c
 TRIDENT_CARD_MAGIC    0x5072696E  trident_card      sound/oss/trident.c
 ROUTER_MAGIC          0x524d4157  wan_device        [in wanrouter.h pre 3.9]
-SCC_MAGIC             0x52696368  gs_port           drivers/char/scc.h
 SAVEKMSG_MAGIC1       0x53415645  savekmsg          arch/*/amiga/config.c
 GDA_MAGIC             0x58464552  gda               arch/mips/include/asm/sn/gda.h
 RED_MAGIC1            0x5a2cf071  (any)             mm/slab.c
@@ -138,7 +137,6 @@ KMALLOC_MAGIC         0x87654321  snd_alloc_track   sound/core/memory.c
 PWC_MAGIC             0x89DC10AB  pwc_device        drivers/usb/media/pwc.h
 NBD_REPLY_MAGIC       0x96744668  nbd_reply         include/linux/nbd.h
 ENI155_MAGIC          0xa54b872d  midway_eprom	    drivers/atm/eni.h
-SCI_MAGIC             0xbabeface  gs_port           drivers/char/sh-sci.h
 CODA_MAGIC            0xC0DAC0DA  coda_file_info    fs/coda/coda_fs_i.h
 DPMEM_MAGIC           0xc0ffee11  gdt_pci_sram      drivers/scsi/gdth.h
 YAM_MAGIC             0xF10A7654  yam_port          drivers/net/hamradio/yam.c

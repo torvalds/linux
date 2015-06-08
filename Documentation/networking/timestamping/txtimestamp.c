@@ -36,6 +36,7 @@
 #include <asm/types.h>
 #include <error.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <linux/errqueue.h>
 #include <linux/if_ether.h>
 #include <linux/net_tstamp.h>
@@ -49,7 +50,6 @@
 #include <poll.h>
 #include <stdarg.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -96,7 +96,7 @@ static void __print_timestamp(const char *name, struct timespec *cur,
 		prev_ms = (long) ts_prev.tv_sec * 1000 * 1000;
 		prev_ms += ts_prev.tv_nsec / 1000;
 
-		fprintf(stderr, "  (%+ld us)", cur_ms - prev_ms);
+		fprintf(stderr, "  (%+" PRId64 " us)", cur_ms - prev_ms);
 	}
 
 	ts_prev = *cur;

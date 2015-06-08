@@ -205,7 +205,7 @@ asynchronous manner and the value may not be very precise. To see a precise
 snapshot of a moment, you can see /proc/<pid>/smaps file and scan page table.
 It's slow but very precise.
 
-Table 1-2: Contents of the status files (as of 3.20.0)
+Table 1-2: Contents of the status files (as of 4.1)
 ..............................................................................
  Field                       Content
  Name                        filename of the executable
@@ -235,6 +235,7 @@ Table 1-2: Contents of the status files (as of 3.20.0)
  VmExe                       size of text segment
  VmLib                       size of shared library code
  VmPTE                       size of page table entries
+ VmPMD                       size of second level page tables
  VmSwap                      size of swap usage (the number of referred swapents)
  Threads                     number of threads
  SigQ                        number of signals queued/max. number for queue
