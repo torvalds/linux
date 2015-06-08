@@ -304,34 +304,26 @@ static int hdmi_edmi_parse_vsdb(unsigned char *buf, struct hdmi_edid *pedid,
 		break;
 	case 0xc45dd8:
 		pedid->sink_hdmi = 1;
-		if (count > 4)
-			pedid->hf_vsdb_version = buf[cur_offset + 4];
+		pedid->hf_vsdb_version = buf[cur_offset + 4];
 		switch (pedid->hf_vsdb_version) {
 		case 1:/*compliant with HDMI Specification 2.0*/
-			if (count > 5) {
-				pedid->maxtmdsclock =
-					buf[cur_offset + 5] * 5000000;
-				EDBG("[CEA] maxtmdsclock is %d.\n",
-				     pedid->maxtmdsclock);
-			}
-			if (count > 6) {
-				pedid->scdc_present = buf[cur_offset+6] >> 7;
-				pedid->rr_capable =
-					(buf[cur_offset+6]&0x40) >> 6;
-				pedid->lte_340mcsc_scramble =
-					(buf[cur_offset+6]&0x08) >> 3;
-				pedid->independent_view =
-					(buf[cur_offset+6]&0x04) >> 2;
-				pedid->dual_view =
-					(buf[cur_offset+6]&0x02) >> 1;
-				pedid->osd_disparity_3d =
-					buf[cur_offset+6] & 0x01;
-			}
-			if (count > 7) {
-				pedid->deepcolor = buf[cur_offset+7]&0x7;
-				EDBG("[CEA] deepcolor is %d.\n",
-				     pedid->deepcolor);
-			}
+			pedid->maxtmdsclock =
+				buf[cur_offset + 5] * 5000000;
+			EDBG("[CEA] maxtmdsclock is %d.\n",
+			     pedid->maxtmdsclock);
+			pedid->scdc_present = buf[cur_offset+6] >> 7;
+			pedid->rr_capable =
+				(buf[cur_offset+6]&0x40) >> 6;
+			pedid->lte_340mcsc_scramble =
+				(buf[cur_offset+6]&0x08) >> 3;
+			pedid->independent_view =
+				(buf[cur_offset+6]&0x04) >> 2;
+			pedid->dual_view =
+				(buf[cur_offset+6]&0x02) >> 1;
+			pedid->osd_disparity_3d =
+				buf[cur_offset+6] & 0x01;
+			pedid->deepcolor_420 =
+				(buf[cur_offset+7] & 0x7) << 1;
 			break;
 		default:
 			pr_info("hf_vsdb_version = %d\n",

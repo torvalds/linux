@@ -272,6 +272,7 @@ struct hdmi_edid {
 	unsigned char ycbcr420;		/*Display device support YCbCr420*/
 	unsigned char deepcolor;	/*bit3:DC_48bit; bit2:DC_36bit;
 					  bit1:DC_30bit; bit0:DC_Y444;*/
+	unsigned char deepcolor_420;
 	unsigned int  cecaddress;	/*CEC physical address*/
 	unsigned int  maxtmdsclock;	/*Max supported tmds clock*/
 	unsigned char fields_present;	/*bit7: latency

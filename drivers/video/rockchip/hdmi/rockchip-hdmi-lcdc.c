@@ -351,7 +351,14 @@ static void hdmi_show_sink_info(struct hdmi *hdmi)
 		pr_info("	36bit\n");
 	if (hdmi->edid.deepcolor & HDMI_DEEP_COLOR_48BITS)
 		pr_info("	48bit\n");
-
+	if (hdmi->edid.ycbcr420)
+		pr_info("	420_24bit\n");
+	if (hdmi->edid.deepcolor_420 & HDMI_DEEP_COLOR_30BITS)
+		pr_info("	420_30bit\n");
+	if (hdmi->edid.deepcolor_420 & HDMI_DEEP_COLOR_36BITS)
+		pr_info("	420_36bit\n");
+	if (hdmi->edid.deepcolor_420 & HDMI_DEEP_COLOR_48BITS)
+		pr_info("	420_48bit\n");
 	pr_info("Support audio type:\n");
 	for (i = 0; i < hdmi->edid.audio_num; i++) {
 		audio = &(hdmi->edid.audio[i]);

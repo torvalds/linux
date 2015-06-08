@@ -74,12 +74,14 @@ static inline void hdmi_wq_set_audio(struct hdmi *hdmi)
 static void hdmi_wq_set_video(struct hdmi *hdmi)
 {
 	struct hdmi_video	video;
+	int	deepcolor;
 
 	DBG("%s", __func__);
 
 	video.vic = hdmi->vic & HDMI_VIC_MASK;
 	video.sink_hdmi = hdmi->edid.sink_hdmi;
 	video.format_3d = hdmi->mode_3d;
+
 	/* For DVI, output RGB */
 	if (hdmi->edid.sink_hdmi == 0) {
 		video.color_output = HDMI_COLOR_RGB_0_255;
@@ -95,16 +97,21 @@ static void hdmi_wq_set_video(struct hdmi *hdmi)
 			video.color_output = hdmi->colormode;
 		}
 	}
+	if (hdmi->vic & HDMI_VIDEO_YUV420) {
+		video.color_output = HDMI_COLOR_YCBCR420;
+		deepcolor = hdmi->edid.deepcolor_420;
+	} else {
+		deepcolor = hdmi->edid.deepcolor;
+	}
 	if ((hdmi->property->feature & SUPPORT_DEEP_10BIT) &&
-	    (hdmi->edid.deepcolor & HDMI_DEEP_COLOR_30BITS)) {
+	    (deepcolor & HDMI_DEEP_COLOR_30BITS)) {
 		if (hdmi->colordepth == HDMI_DEPP_COLOR_AUTO ||
 		    hdmi->colordepth == 10)
 			video.color_output_depth = 10;
 	} else {
 		video.color_output_depth = 8;
 	}
-	if (hdmi->vic & HDMI_VIDEO_YUV420)
-		video.color_output = HDMI_COLOR_YCBCR420;
+
 	pr_info("hdmi output corlor mode is %d\n", video.color_output);
 	video.color_input = HDMI_COLOR_RGB_0_255;
 	if (hdmi->property->feature & SUPPORT_YCBCR_INPUT) {
