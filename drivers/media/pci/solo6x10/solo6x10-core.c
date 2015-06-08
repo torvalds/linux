@@ -164,9 +164,9 @@ static void free_solo_dev(struct solo_dev *solo_dev)
 
 		/* Now cleanup the PCI device */
 		solo_irq_off(solo_dev, ~0);
-		pci_iounmap(pdev, solo_dev->reg_base);
 		if (pdev->irq)
 			free_irq(pdev->irq, solo_dev);
+		pci_iounmap(pdev, solo_dev->reg_base);
 	}
 
 	pci_release_regions(pdev);
