@@ -1946,23 +1946,6 @@ static int dw_mci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		return -EINVAL;
 	}
 
-    
-	/* Recommend sample phase and delayline
-           Fixme: Mix-use these three controllers will cause
-           con_id mismatch.
-         */
-	if (mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
-	    tuning_data.con_id = 3;
-	else if(mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO)
-	    tuning_data.con_id = 1;
-	else
-	    tuning_data.con_id = 0;	
-
-	/* 0: driver, from host->devices
-	   1: sample, from devices->host
-	 */    
-	tuning_data.tuning_type = 1; 
-   
 	if (drv_data && drv_data->execute_tuning)
 		err = drv_data->execute_tuning(slot, opcode, &tuning_data);
 		

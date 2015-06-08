@@ -220,6 +220,7 @@ struct dw_mci {
 	struct regmap	*grf;
 	u32 *regs_buffer;
 	const struct dw_mci_rst_ops *rst_ops;
+	u32	tune_regsbase;
 };
 
 /* DMA ops for Internal/External DMAC interface */
