@@ -4,7 +4,7 @@
  * Copyright (c) 2013 ELAN Microelectronics Corp.
  *
  * Author: 林政維 (Duson Lin) <dusonlin@emc.com.tw>
- * Version: 1.5.7
+ * Version: 1.5.8
  *
  * Based on cyapa driver:
  * copyright (c) 2011-2012 Cypress Semiconductor, Inc.
@@ -40,7 +40,7 @@
 #include "elan_i2c.h"
 
 #define DRIVER_NAME		"elan_i2c"
-#define ELAN_DRIVER_VERSION	"1.5.7"
+#define ELAN_DRIVER_VERSION	"1.5.8"
 #define ETP_MAX_PRESSURE	255
 #define ETP_FWIDTH_REDUCE	90
 #define ETP_FINGER_WIDTH	15
@@ -83,6 +83,9 @@ struct elan_tp_data {
 	u16			fw_checksum;
 	int			pressure_adjustment;
 	u8			mode;
+	u8			ic_type;
+	u16			fw_vaildpage_count;
+	u16			fw_signature_address;
 
 	bool			irq_wake;
 
@@ -90,6 +93,29 @@ struct elan_tp_data {
 	u8			max_baseline;
 	bool			baseline_ready;
 };
+
+static int elan_get_fwinfo(u8 ic_type, u16 *vaildpage_count,
+			   u16 *signature_address)
+{
+	switch(ic_type) {
+	case 0x09:
+		*vaildpage_count = 768;
+		break;
+	case 0x0D:
+		*vaildpage_count = 896;
+		break;
+	default:
+		/* unknown ic type clear value */
+		*vaildpage_count = 0;
+		*signature_address = 0;
+		return -ENXIO;
+	}
+
+	*signature_address =
+		(*vaildpage_count * ETP_FW_PAGE_SIZE) - ETP_FW_SIGNATURE_SIZE;
+
+	return 0;
+}
 
 static int elan_enable_power(struct elan_tp_data *data)
 {
@@ -221,7 +247,8 @@ static int elan_query_device_info(struct elan_tp_data *data)
 	if (error)
 		return error;
 
-	error = data->ops->get_sm_version(data->client, &data->sm_version);
+	error = data->ops->get_sm_version(data->client, &data->ic_type,
+					  &data->sm_version);
 	if (error)
 		return error;
 
@@ -233,6 +260,14 @@ static int elan_query_device_info(struct elan_tp_data *data)
 						   &data->pressure_adjustment);
 	if (error)
 		return error;
+
+	error = elan_get_fwinfo(data->ic_type, &data->fw_vaildpage_count,
+				&data->fw_signature_address);
+	if (error) {
+		dev_err(&data->client->dev,
+			"unknown ic type %d\n", data->ic_type);
+		return error;
+	}
 
 	return 0;
 }
@@ -318,7 +353,7 @@ static int __elan_update_firmware(struct elan_tp_data *data,
 	iap_start_addr = get_unaligned_le16(&fw->data[ETP_IAP_START_ADDR * 2]);
 
 	boot_page_count = (iap_start_addr * 2) / ETP_FW_PAGE_SIZE;
-	for (i = boot_page_count; i < ETP_FW_VAILDPAGE_COUNT; i++) {
+	for (i = boot_page_count; i < data->fw_vaildpage_count; i++) {
 		u16 checksum = 0;
 		const u8 *page = &fw->data[i * ETP_FW_PAGE_SIZE];
 
@@ -454,7 +489,7 @@ static ssize_t elan_sysfs_update_fw(struct device *dev,
 	}
 
 	/* Firmware file must match signature data */
-	fw_signature = &fw->data[ETP_FW_SIGNATURE_ADDRESS];
+	fw_signature = &fw->data[data->fw_signature_address];
 	if (memcmp(fw_signature, signature, sizeof(signature)) != 0) {
 		dev_err(dev, "signature mismatch (expected %*ph, got %*ph)\n",
 			(int)sizeof(signature), signature,
