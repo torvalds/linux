@@ -397,6 +397,7 @@
 		num-slots = <1>;
 		fifo-depth = <0x100>;
 		bus-width = <8>;
+		tune_regsbase = <0x418>;
 	};
 
 	sdmmc: rksdmmc@ff0c0000 {
@@ -416,6 +417,7 @@
 		num-slots = <1>;
 		fifo-depth = <0x100>;
 		bus-width = <4>;
+		tune_regsbase = <0x400>;
 	};
 
 	sdio: rksdmmc@ff0d0000 {
@@ -433,6 +435,7 @@
 		num-slots = <1>;
 		fifo-depth = <0x100>;
 		bus-width = <4>;
+		tune_regsbase = <0x408>;
 	};
 
 	spi0: spi@ff110000 {
