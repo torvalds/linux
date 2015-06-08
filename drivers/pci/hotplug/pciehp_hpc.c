@@ -176,20 +176,17 @@ static void pcie_wait_cmd(struct controller *ctrl)
 			  jiffies_to_msecs(jiffies - ctrl->cmd_started));
 }
 
-/**
- * pcie_write_cmd - Issue controller command
- * @ctrl: controller to which the command is issued
- * @cmd:  command value written to slot control register
- * @mask: bitmask of slot control register to be modified
- */
-static void pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
+static void pcie_do_write_cmd(struct controller *ctrl, u16 cmd,
+			      u16 mask, bool wait)
 {
 	struct pci_dev *pdev = ctrl_dev(ctrl);
 	u16 slot_ctrl;
 
 	mutex_lock(&ctrl->ctrl_lock);
 
-	/* Wait for any previous command that might still be in progress */
+	/*
+	 * Always wait for any previous command that might still be in progress
+	 */
 	pcie_wait_cmd(ctrl);
 
 	pcie_capability_read_word(pdev, PCI_EXP_SLTCTL, &slot_ctrl);
@@ -201,7 +198,31 @@ static void pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 	ctrl->cmd_started = jiffies;
 	ctrl->slot_ctrl = slot_ctrl;
 
+	/*
+	 * Optionally wait for the hardware to be ready for a new command,
+	 * indicating completion of the above issued command.
+	 */
+	if (wait)
+		pcie_wait_cmd(ctrl);
+
 	mutex_unlock(&ctrl->ctrl_lock);
+}
+
+/**
+ * pcie_write_cmd - Issue controller command
+ * @ctrl: controller to which the command is issued
+ * @cmd:  command value written to slot control register
+ * @mask: bitmask of slot control register to be modified
+ */
+static void pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
+{
+	pcie_do_write_cmd(ctrl, cmd, mask, true);
+}
+
+/* Same as above without waiting for the hardware to latch */
+static void pcie_write_cmd_nowait(struct controller *ctrl, u16 cmd, u16 mask)
+{
+	pcie_do_write_cmd(ctrl, cmd, mask, false);
 }
 
 bool pciehp_check_link_active(struct controller *ctrl)
@@ -422,7 +443,7 @@ void pciehp_set_attention_status(struct slot *slot, u8 value)
 	default:
 		return;
 	}
-	pcie_write_cmd(ctrl, slot_cmd, PCI_EXP_SLTCTL_AIC);
+	pcie_write_cmd_nowait(ctrl, slot_cmd, PCI_EXP_SLTCTL_AIC);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, slot_cmd);
 }
@@ -434,7 +455,8 @@ void pciehp_green_led_on(struct slot *slot)
 	if (!PWR_LED(ctrl))
 		return;
 
-	pcie_write_cmd(ctrl, PCI_EXP_SLTCTL_PWR_IND_ON, PCI_EXP_SLTCTL_PIC);
+	pcie_write_cmd_nowait(ctrl, PCI_EXP_SLTCTL_PWR_IND_ON,
+			      PCI_EXP_SLTCTL_PIC);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL,
 		 PCI_EXP_SLTCTL_PWR_IND_ON);
@@ -447,7 +469,8 @@ void pciehp_green_led_off(struct slot *slot)
 	if (!PWR_LED(ctrl))
 		return;
 
-	pcie_write_cmd(ctrl, PCI_EXP_SLTCTL_PWR_IND_OFF, PCI_EXP_SLTCTL_PIC);
+	pcie_write_cmd_nowait(ctrl, PCI_EXP_SLTCTL_PWR_IND_OFF,
+			      PCI_EXP_SLTCTL_PIC);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL,
 		 PCI_EXP_SLTCTL_PWR_IND_OFF);
@@ -460,7 +483,8 @@ void pciehp_green_led_blink(struct slot *slot)
 	if (!PWR_LED(ctrl))
 		return;
 
-	pcie_write_cmd(ctrl, PCI_EXP_SLTCTL_PWR_IND_BLINK, PCI_EXP_SLTCTL_PIC);
+	pcie_write_cmd_nowait(ctrl, PCI_EXP_SLTCTL_PWR_IND_BLINK,
+			      PCI_EXP_SLTCTL_PIC);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL,
 		 PCI_EXP_SLTCTL_PWR_IND_BLINK);
@@ -613,7 +637,7 @@ void pcie_enable_notification(struct controller *ctrl)
 		PCI_EXP_SLTCTL_HPIE | PCI_EXP_SLTCTL_CCIE |
 		PCI_EXP_SLTCTL_DLLSCE);
 
-	pcie_write_cmd(ctrl, cmd, mask);
+	pcie_write_cmd_nowait(ctrl, cmd, mask);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, cmd);
 }
@@ -664,7 +688,7 @@ int pciehp_reset_slot(struct slot *slot, int probe)
 	pci_reset_bridge_secondary_bus(ctrl->pcie->port);
 
 	pcie_capability_write_word(pdev, PCI_EXP_SLTSTA, stat_mask);
-	pcie_write_cmd(ctrl, ctrl_mask, ctrl_mask);
+	pcie_write_cmd_nowait(ctrl, ctrl_mask, ctrl_mask);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, ctrl_mask);
 	if (pciehp_poll_mode)
