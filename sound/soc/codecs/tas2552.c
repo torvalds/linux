@@ -708,7 +708,7 @@ static int tas2552_probe(struct i2c_client *client,
 		if (PTR_ERR(data->enable_gpio) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 
-		data->enable_gpio = NULL;;
+		data->enable_gpio = NULL;
 	}
 
 	data->tas2552_client = client;
