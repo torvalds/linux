@@ -412,8 +412,8 @@
 		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	usb5: hsic@ff5c0000 {
-		compatible = "rockchip,rk3288_rk_hsic_host";
+	usb5: usb@ff5c0000 {
+		compatible = "rockchip,rk3288_rk_ehci1_host";
 		reg = <0xff5c0000 0x40000>;
 		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
 	};

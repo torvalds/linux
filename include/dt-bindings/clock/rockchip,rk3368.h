@@ -81,9 +81,9 @@
 #define RK3368_SRST_4RES6               70
 #define RK3368_SRST_4RES7               71
 #define RK3368_SRST_HOST0_H             72
-#define RK3368_SRST_HSIC                73
-#define RK3368_SRST_HSIC_AUX            74
-#define RK3368_SRST_HSICPHY             75
+#define RK3368_SRST_EHCI1                73
+#define RK3368_SRST_EHCI1_AUX            74
+#define RK3368_SRST_EHCI1PHY             75
 #define RK3368_SRST_HSADC_H             76
 #define RK3368_SRST_NANDC0              77
 #define RK3368_SRST_4RES14              78

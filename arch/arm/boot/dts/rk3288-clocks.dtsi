@@ -862,11 +862,11 @@
 						#clock-cells = <0>;
 					};
 
-					hsicphy_12m_div: hsicphy_12m_div {
+					ehci1phy_12m_div: ehci1phy_12m_div {
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <8 6>;
-						clocks = <&hsicphy_480m>;
-						clock-output-names = "hsicphy_12m_div";
+						clocks = <&ehci1phy_480m>;
+						clock-output-names = "ehci1phy_12m_div";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
 					};
@@ -1483,19 +1483,19 @@
 					#address-cells = <1>;
 					#size-cells = <1>;
 
-					hsicphy_480m: hsicphy_480m_mux {
+					ehci1phy_480m: ehci1phy_480m_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <0 2>;
 						clocks = <&dummy_cpll>, <&clk_gpll>, <&usbphy_480m>;
-						clock-output-names = "hsicphy_480m";
+						clock-output-names = "ehci1phy_480m";
 						#clock-cells = <0>;
 					};
 
-					hsicphy_12m: hsicphy_12m_mux {
+					ehci1phy_12m: ehci1phy_12m_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <2 1>;
-						clocks = <&clk_gates13 9>, <&hsicphy_12m_div>;
-						clock-output-names = "hsicphy_12m";
+						clocks = <&clk_gates13 9>, <&ehci1phy_12m_div>;
+						clock-output-names = "ehci1phy_12m";
 						#clock-cells = <0>;
 					};
 
@@ -2249,7 +2249,7 @@
 						<&aclk_vio1>,		<&dclk_lcdc1>,
 
 						<&clk_rga>,			<&aclk_rga>,
-						<&hsicphy_480m>,		<&clk_cif_pll>,
+						<&ehci1phy_480m>,		<&clk_cif_pll>,
 
 						<&dummy>,		<&clk_vepu>,
 						<&dummy>,		<&clk_vdpu>,
@@ -2262,7 +2262,7 @@
 						"aclk_vio1",		"dclk_lcdc1",
 
 						"clk_rga",		"aclk_rga",
-						"hsicphy_480m",		"clk_cif_pll",
+						"ehci1phy_480m",		"clk_cif_pll",
 
 						/*Not use hclk_vpu_gate tmp, fixme*/
 						"reserved",		"clk_vepu",
@@ -2398,7 +2398,7 @@
 						"g_hclk_otg0",		"g_pmu_hclk_otg0",
 						"g_hclk_host0",		"g_hclk_host1",
 
-						"g_hclk_hsic",		"g_hclk_usb_peri",
+						"g_hclk_ehci1",		"g_hclk_usb_peri",
 						"g_hp_ahb_arbi",		"g_aclk_peri_niu",
 
 						"g_h_emem_peri",		"g_hclk_mem_peri",
@@ -2598,7 +2598,7 @@
 						"clk_otgphy0",		"clk_otgphy1",
 						"clk_otgphy2",		"clk_otg_adp",
 
-						"g_clk_c2c_host",		"g_clk_hsic_12m",
+						"g_clk_c2c_host",		"g_clk_ehci1_12m",
 						"g_clk_lcdc_pwm0",		"g_clk_lcdc_pwm1",
 
 						"g_clk_wifi",		"aclk_hevc",

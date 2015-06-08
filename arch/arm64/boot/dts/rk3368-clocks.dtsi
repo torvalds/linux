@@ -1246,21 +1246,21 @@
 
 					/* 7:0 reserved */
 
-					hsic_usb_480m: hsic_usb_480m_mux {
+					ehci1_usb_480m: ehci1_usb_480m_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <8 1>;
 						clocks = <&usbotg_480m_out>, <&dummy>;
-						clock-output-names = "hsic_usb_480m";
+						clock-output-names = "ehci1_usb_480m";
 						#clock-cells = <0>;
 					};
 
 					/* 11:9 reserved */
 
-					hsicphy_480m: hsicphy_480m_mux {
+					ehci1phy_480m: ehci1phy_480m_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <12 2>;
-						clocks = <&clk_cpll>, <&clk_gpll>, <&hsic_usb_480m>, <&hsic_usb_480m>;
-						clock-output-names = "hsicphy_480m";
+						clocks = <&clk_cpll>, <&clk_gpll>, <&ehci1_usb_480m>, <&ehci1_usb_480m>;
+						clock-output-names = "ehci1phy_480m";
 						#clock-cells = <0>;
 					};
 				};
@@ -2285,11 +2285,11 @@
                                         compatible = "rockchip,rk3188-gate-clk";
                                         reg = <0x0220 0x4>;
                                         clocks =
-                                                <&hsic_usb_480m>,	<&xin24m>,
+                                                <&ehci1_usb_480m>,	<&xin24m>,
                                                 <&dummy>,	<&dummy>,
 
 						<&clk_32k_mux>,	<&dummy>,
-						<&xin12m>,	<&hsicphy_480m>,
+						<&xin12m>,	<&ehci1phy_480m>,
 
 						<&dummy>,	<&dummy>,
 						<&dummy>,	<&dummy>,
@@ -2298,11 +2298,11 @@
 						<&dummy>,	<&dummy>;
 
                                         clock-output-names =
-                                                "hsic_usb_480m",	"clk_otgphy0",
+                                                "ehci1_usb_480m",	"clk_otgphy0",
                                                 "reserved",	"reserved",
 
 						"g_clk_otg_adp",	"reserved",/* bit4: clk_otg_adp */
-						"hsicphy_12m",	"hsicphy_480m",
+						"ehci1phy_12m",	"ehci1phy_480m",
 
 						"reserved",	"reserved",
 						"reserved",	"reserved",
@@ -2685,7 +2685,7 @@
                                                 "g_pclk_tsadc",	"g_hclk_otg0",
                                                 "g_h_pmu_otg0",	"g_hclk_host0",
 
-						"reserved",	"g_hclk_hsic",
+						"reserved",	"g_hclk_ehci1",
 						"g_h_usb_peri",	"g_h_p_ahb_arbi",
 
 						"g_a_peri_niu",	"g_h_emem_peri",

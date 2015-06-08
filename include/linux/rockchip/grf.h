@@ -79,7 +79,7 @@
 
 #define RK3188_GRF_UOC3_CON0            0x0138
 #define RK3188_GRF_UOC3_CON1            0x013c
-#define RK3188_GRF_HSIC_STAT            0x0140
+#define RK3188_GRF_EHCI_STAT            0x0140
 #define RK3188_GRF_OS_REG0              0x0144
 #define RK3188_GRF_OS_REG1              0x0148
 #define RK3188_GRF_OS_REG2              0x014c

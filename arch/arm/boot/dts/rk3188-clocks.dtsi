@@ -479,11 +479,11 @@
 
 					/* reg[7:6]: reserved */
 
-					clk_hsicphy12m: hsic_phy_div {
+					clk_ehci1phy12m: ehci1_phy_div {
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <8 6>;
-						clocks = <&clk_hsicphy480m>;
-						clock-output-names = "clk_hsicphy12m";
+						clocks = <&clk_ehci1phy480m>;
+						clock-output-names = "clk_ehci1phy12m";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
 					};
@@ -1015,12 +1015,12 @@
 					#address-cells = <1>;
 					#size-cells = <1>;
 
-					clk_hsicphy480m: clk_hsicphy480m_mux {
+					clk_ehci1phy480m: clk_ehci1phy480m_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <0 2>;
 						clocks = <&otgphy0_480m>, <&otgphy1_480m>,
 							 <&clk_gpll>, <&clk_cpll>;
-						clock-output-names = "clk_hsicphy480m";
+						clock-output-names = "clk_ehci1phy480m";
 						#clock-cells = <0>;
 					};
 
@@ -1274,7 +1274,7 @@
 						 <&dclk_lcdc1>,		<&clk_cif_in>,
 
 						 <&xin24m>,			<&xin24m>,
-						 <&clk_hsicphy480m>,	<&clk_cif0>,
+						 <&clk_ehci1phy480m>,	<&clk_cif0>,
 
 						 <&xin24m>,		<&clk_vepu>,
 						 <&clk_vepu>,		<&clk_vdpu>,
@@ -1291,7 +1291,7 @@
 						 * clk_cif as virtual
 						 */
 						"timer2",		"timer4",
-						"clk_hsicphy480m",	"clk_cif0",
+						"clk_ehci1phy480m",	"clk_cif0",
 
 						"timer5",		"clk_vepu",
 						"g_h_vepu",		"clk_vdpu",
@@ -1420,7 +1420,7 @@
 						"g_h_emac",		"g_h_spdif",
 						"g_h_i2s0_2ch",		"g_h_otg1",
 
-						"g_h_hsic",		"g_h_hsadc",
+						"g_h_ehci1",		"g_h_hsadc",
 						"g_h_pidf",		"g_p_timer0",
 
 						"reserved",		"g_p_timer2",

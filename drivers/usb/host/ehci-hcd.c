@@ -1271,9 +1271,9 @@ MODULE_LICENSE ("GPL");
 #define	PLATFORM_DRIVER		ehci_hcd_tilegx_driver
 #endif
 
-#ifdef CONFIG_USB_EHCI_RKHSIC
-#include "ehci-rkhsic.c"
-#define ROCKCHIP_PLATFORM_DRIVER         ehci_rkhsic_driver
+#ifdef CONFIG_USB_EHCI1_RK
+#include "ehci1-rockchip.c"
+#define ROCKCHIP_PLATFORM_DRIVER	ehci1_rk_driver
 #endif
 
 #ifdef CONFIG_USB_EHCI_HCD_PMC_MSP

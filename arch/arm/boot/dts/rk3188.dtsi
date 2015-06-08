@@ -767,14 +767,14 @@
 		clock-names = "clk_usbphy1", "hclk_usb1";
 	};
 
-	hsic: hsic@10240000 {
-		compatible = "rockchip,rk3188_rk_hsic_host";
+	usb2: usb@10240000 {
+		compatible = "rockchip,rk3188_rk_ehci_host";
 		reg = <0x10240000 0x40000>;
 		interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clk_hsicphy480m>, <&clk_gates7 4>,
-                 <&clk_hsicphy12m>, <&otgphy1_480m>;
-		clock-names = "hsicphy_480m", "hclk_hsic",
-                      "hsicphy_12m", "hsic_usbphy1";
+		clocks = <&clk_ehci1phy480m>, <&clk_gates7 4>,
+                 <&clk_ehci1phy12m>, <&otgphy1_480m>;
+		clock-names = "ehci1phy_480m", "hclk_ehci1",
+                      "ehci1phy_12m", "ehci1_usbphy1";
 	};
 
 	vmac@10204000 {

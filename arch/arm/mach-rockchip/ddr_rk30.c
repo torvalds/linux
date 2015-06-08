@@ -282,7 +282,7 @@ typedef volatile struct tagREG_FILE_RK3066B
     uint32 GRF_UOC2_CON[2];
     uint32 reserved2;
     uint32 GRF_UOC3_CON[2];
-    uint32 GRF_HSIC_STAT;
+    uint32 GRF_EHCI_STAT;
     uint32 GRF_OS_REG[8];
 } REG_FILE_RK3066B, *pREG_FILE_RK3066B;
 

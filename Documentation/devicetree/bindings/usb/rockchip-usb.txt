@@ -102,10 +102,10 @@ Example:
 	};
 
 
-HSIC
+EHCI1
 Required properties:
- - compatible : Should be "rockchip,rk3188_rk_hsic_host" or
-   "rockchip,rk3288_rk_hsic_host" and so on, depending upon
+ - compatible : Should be "rockchip,rk3188_rk_ehci_host" or
+   "rockchip,rk3288_rk_ehci1_host" and so on, depending upon
    the SoC.
  - reg : Physical base address of the controller and
    length of memory mapped region.
@@ -117,16 +117,16 @@ Required properties:
 Example:
  - RK3288
 
-	hsic: hsic@ff5c0000 {
-		compatible = "rockchip,rk3288_rk_hsic_host";
+	usb4: usb@ff5c0000 {
+		compatible = "rockchip,rk3288_rk_ehci1_host";
 		reg = <0xff5c0000 0x40000>;
 		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&hsicphy_480m>, <&clk_gates7 8>,
-			 <&hsicphy_12m>, <&usbphy_480m>,
+		clocks = <&ehci1phy_480m>, <&clk_gates7 8>,
+			 <&ehci1phy_12m>, <&usbphy_480m>,
 			 <&otgphy1_480m>, <&otgphy2_480m>;
-		clock-names = "hsicphy_480m", "hclk_hsic",
-			      "hsicphy_12m", "usbphy_480m",
-			      "hsic_usbphy1", "hsic_usbphy2";
+		clock-names = "ehci1phy_480m", "hclk_ehci1",
+			      "ehci1phy_12m", "usbphy_480m",
+			      "ehci1_usbphy1", "ehci1_usbphy2";
 	};	
 
 ROCKCHIP USB-PHY CONTROL

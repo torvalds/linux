@@ -23,12 +23,12 @@ typedef volatile struct tag_grf_uoc1_reg {
 	u32 CON1;
 } GRF_UOC1_REG, *pGRF_UOC1_REG;
 
-typedef volatile struct tag_grf_hsic_reg {
+typedef volatile struct tag_grf_ehci_reg {
 	u32 PHY_CON0;
 	u32 PHY_CON1;
 	u32 CTRLER_CON0;
 	u32 CTRLER_CON1;
-} GRF_HSIC_REG, *pGRF_HSIC_REG;
+} GRF_EHCI_REG, *pGRF_EHCI_REG;
 
 typedef volatile struct tag_grf_usbphy_reg {
 	u32 CON0;

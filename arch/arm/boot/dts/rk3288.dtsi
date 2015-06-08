@@ -1139,19 +1139,19 @@
 		status = "disabled";
 	};
 
-	hsic: hsic@ff5c0000 {
-		compatible = "rockchip,rk3288_rk_hsic_host";
+	usb4: usb@ff5c0000 {
+		compatible = "rockchip,rk3288_rk_ehci1_host";
 		reg = <0xff5c0000 0x40000>;
 		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&hsicphy_480m>, <&clk_gates7 8>,
-			 <&hsicphy_12m>, <&usbphy_480m>,
+		clocks = <&ehci1phy_480m>, <&clk_gates7 8>,
+			 <&ehci1phy_12m>, <&usbphy_480m>,
 			 <&otgphy1_480m>, <&otgphy2_480m>;
-		clock-names = "hsicphy_480m", "hclk_hsic",
-			      "hsicphy_12m", "usbphy_480m",
-			      "hsic_usbphy1", "hsic_usbphy2";
-		resets = <&reset RK3288_SOFT_RST_HSIC>, <&reset RK3288_SOFT_RST_HSIC_AUX>,
-				<&reset RK3288_SOFT_RST_HSICPHY>;
-		reset-names = "hsic_ahb", "hsic_aux", "hsic_phy";
+		clock-names = "ehci1phy_480m", "hclk_ehci1",
+			      "ehci1phy_12m", "usbphy_480m",
+			      "ehci1_usbphy1", "ehci1_usbphy2";
+		resets = <&reset RK3288_SOFT_RST_EHCI1>, <&reset RK3288_SOFT_RST_EHCI1_AUX>,
+				<&reset RK3288_SOFT_RST_EHCI1PHY>;
+		reset-names = "ehci1_ahb", "ehci1_aux", "ehci1_phy";
 	};
 
 	gmac: eth@ff290000 {

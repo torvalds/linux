@@ -206,7 +206,7 @@ static void usb20host_hw_init(void)
 {
 	/* usb phy config init
 	 * set common_on = 0, in suspend mode, host1 PLL blocks remain powered.
-	 * for RK3288, hsic and other modules use host1 (DWC_OTG) 480M phy clk.
+	 * for RK3288, ehci1 and other modules use host1 (DWC_OTG) 480M phy clk.
 	 */
 	control_usb->grf_uoc2_base->CON0 = (1 << 16) | 0;
 
@@ -362,11 +362,11 @@ struct dwc_otg_platform_data usb20host_pdata_rk3288 = {
 
 #endif
 
-#ifdef CONFIG_USB_EHCI_RKHSIC
-static void rk_hsic_hw_init(void)
+#ifdef CONFIG_USB_EHCI1_RK
+static void rk_ehci1_hw_init(void)
 {
 	/* usb phy config init
-	 * hsic phy config init, set hsicphy_txsrtune */
+	 * ehci1 phy config init, set ehci1phy_txsrtune */
 	control_usb->grf_uoc3_base->CON0 = ((0xf << 6) << 16) | (0xf << 6);
 
 	/* other haredware init
@@ -382,91 +382,91 @@ static void rk_hsic_hw_init(void)
 	control_usb->grf_uoc4_base->CON0 = 0x00ff00bc;
 }
 
-static void rk_hsic_clock_init(void *pdata)
+static void rk_ehci1_clock_init(void *pdata)
 {
-	/* By default, hsicphy_480m's parent is otg phy 480MHz clk
+	/* By default, ehci1phy_480m's parent is otg phy 480MHz clk
 	 * rk3188 must use host phy 480MHz clk, because if otg bypass
 	 * to uart mode, otg phy 480MHz clk will be closed automatically
 	 */
 	struct rkehci_platform_data *usbpdata = pdata;
-	struct clk *ahbclk, *phyclk480m_hsic, *phyclk12m_hsic;
+	struct clk *ahbclk, *phyclk480m_ehci1, *phyclk12m_ehci1;
 
-	phyclk480m_hsic = devm_clk_get(usbpdata->dev, "hsicphy_480m");
-	if (IS_ERR(phyclk480m_hsic)) {
-		dev_err(usbpdata->dev, "Failed to get hsicphy_480m\n");
+	phyclk480m_ehci1 = devm_clk_get(usbpdata->dev, "ehci1phy_480m");
+	if (IS_ERR(phyclk480m_ehci1)) {
+		dev_err(usbpdata->dev, "Failed to get ehci1phy_480m\n");
 		return;
 	}
 
-	phyclk12m_hsic = devm_clk_get(usbpdata->dev, "hsicphy_12m");
-	if (IS_ERR(phyclk12m_hsic)) {
-		dev_err(usbpdata->dev, "Failed to get hsicphy_12m\n");
+	phyclk12m_ehci1 = devm_clk_get(usbpdata->dev, "ehci1phy_12m");
+	if (IS_ERR(phyclk12m_ehci1)) {
+		dev_err(usbpdata->dev, "Failed to get ehci1phy_12m\n");
 		return;
 	}
 
-	ahbclk = devm_clk_get(usbpdata->dev, "hclk_hsic");
+	ahbclk = devm_clk_get(usbpdata->dev, "hclk_ehci1");
 	if (IS_ERR(ahbclk)) {
-		dev_err(usbpdata->dev, "Failed to get hclk_hsic\n");
+		dev_err(usbpdata->dev, "Failed to get hclk_ehci1\n");
 		return;
 	}
 
-	usbpdata->hclk_hsic = ahbclk;
-	usbpdata->hsic_phy_480m = phyclk480m_hsic;
-	usbpdata->hsic_phy_12m = phyclk12m_hsic;
+	usbpdata->hclk_ehci = ahbclk;
+	usbpdata->ehci_phy_480m = phyclk480m_ehci1;
+	usbpdata->ehci_phy_12m = phyclk12m_ehci1;
 }
 
-static void rk_hsic_clock_enable(void *pdata, int enable)
+static void rk_ehci1_clock_enable(void *pdata, int enable)
 {
 	struct rkehci_platform_data *usbpdata = pdata;
 
 	if (enable == usbpdata->clk_status)
 		return;
 	if (enable) {
-		clk_prepare_enable(usbpdata->hclk_hsic);
-		clk_prepare_enable(usbpdata->hsic_phy_480m);
-		clk_prepare_enable(usbpdata->hsic_phy_12m);
+		clk_prepare_enable(usbpdata->hclk_ehci);
+		clk_prepare_enable(usbpdata->ehci_phy_480m);
+		clk_prepare_enable(usbpdata->ehci_phy_12m);
 		usbpdata->clk_status = 1;
 	} else {
-		clk_disable_unprepare(usbpdata->hclk_hsic);
-		clk_disable_unprepare(usbpdata->hsic_phy_480m);
-		clk_disable_unprepare(usbpdata->hsic_phy_12m);
+		clk_disable_unprepare(usbpdata->hclk_ehci);
+		clk_disable_unprepare(usbpdata->ehci_phy_480m);
+		clk_disable_unprepare(usbpdata->ehci_phy_12m);
 		usbpdata->clk_status = 0;
 	}
 }
 
-static void rk_hsic_soft_reset(void *pdata, enum rkusb_rst_flag rst_type)
+static void rk_ehci1_soft_reset(void *pdata, enum rkusb_rst_flag rst_type)
 {
 	struct rkehci_platform_data *usbpdata = pdata;
-	struct reset_control *rst_hsic_h, *rst_hsic_a, *rst_hsic_p;
+	struct reset_control *rst_ehci1_h, *rst_ehci1_a, *rst_ehci1_p;
 
-	rst_hsic_h = devm_reset_control_get(usbpdata->dev, "hsic_ahb");
-	rst_hsic_a = devm_reset_control_get(usbpdata->dev, "hsic_aux");
-	rst_hsic_p = devm_reset_control_get(usbpdata->dev, "hsic_phy");
+	rst_ehci1_h = devm_reset_control_get(usbpdata->dev, "ehci1_ahb");
+	rst_ehci1_a = devm_reset_control_get(usbpdata->dev, "ehci1_aux");
+	rst_ehci1_p = devm_reset_control_get(usbpdata->dev, "ehci1_phy");
 
-	reset_control_assert(rst_hsic_h);
-	reset_control_assert(rst_hsic_a);
-	reset_control_assert(rst_hsic_p);
+	reset_control_assert(rst_ehci1_h);
+	reset_control_assert(rst_ehci1_a);
+	reset_control_assert(rst_ehci1_p);
 	udelay(5);
-	reset_control_deassert(rst_hsic_h);
-	reset_control_deassert(rst_hsic_a);
-	reset_control_deassert(rst_hsic_p);
+	reset_control_deassert(rst_ehci1_h);
+	reset_control_deassert(rst_ehci1_a);
+	reset_control_deassert(rst_ehci1_p);
 	mdelay(2);
 
-	/* HSIC per-port reset */
+	/* EHCI1 per-port reset */
 	control_usb->grf_uoc3_base->CON0 = ((1 << 10) << 16) | (1 << 10);
 	udelay(2);
 	control_usb->grf_uoc3_base->CON0 = ((1 << 10) << 16) | (0 << 10);
 	udelay(2);
 }
 
-struct rkehci_platform_data rkhsic_pdata_rk3288 = {
-	.hclk_hsic = NULL,
-	.hsic_phy_12m = NULL,
-	.hsic_phy_480m = NULL,
+struct rkehci_platform_data rkehci1_pdata_rk3288 = {
+	.hclk_ehci = NULL,
+	.ehci_phy_12m = NULL,
+	.ehci_phy_480m = NULL,
 	.clk_status = -1,
-	.hw_init = rk_hsic_hw_init,
-	.clock_init = rk_hsic_clock_init,
-	.clock_enable = rk_hsic_clock_enable,
-	.soft_reset = rk_hsic_soft_reset,
+	.hw_init = rk_ehci1_hw_init,
+	.clock_init = rk_ehci1_clock_init,
+	.clock_enable = rk_ehci1_clock_enable,
+	.soft_reset = rk_ehci1_soft_reset,
 };
 #endif
 

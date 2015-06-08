@@ -25,7 +25,7 @@ typedef volatile struct tag_grf_uoc1_reg {
 } GRF_UOC1_REG, *pGRF_UOC1_REG;
 
 typedef volatile struct tag_grf_uoc2_reg {
-	/* RK3188: HISC PHY
+	/* RK3188: EHCI1 PHY
 	 * RK3288: HOST1 DWC_OTG
 	 */
 	u32 CON0;
@@ -35,8 +35,8 @@ typedef volatile struct tag_grf_uoc2_reg {
 } GRF_UOC2_REG, *pGRF_UOC2_REG;
 
 typedef volatile struct tag_grf_uoc3_reg {
-	/* RK3188: HSIC CTLR
-	 * RK3288: HSIC PHY
+	/* RK3188: EHCI1 CTLR
+	 * RK3288: EHCI1 PHY
 	 */
 	u32 CON0;
 	u32 CON1;
@@ -45,7 +45,7 @@ typedef volatile struct tag_grf_uoc3_reg {
 } GRF_UOC3_REG, *pGRF_UOC3_REG;
 
 typedef volatile struct tag_grf_uoc4_reg {
-	/* RK3288: HSIC CTLR */
+	/* RK3288: EHCI1 CTLR */
 	u32 CON0;
 	u32 CON1;
 	u32 CON2;
@@ -74,16 +74,16 @@ typedef volatile struct tag_grf_soc_status0_rk3188 {
 
 typedef volatile struct tag_grf_soc_status1_rk3288 {
 	unsigned reserved2:16;
-	unsigned hsic_ehci_usbsts:6;
-	unsigned hsic_ehci_lpsmc_state:4;
+	unsigned ehci1_usbsts:6;
+	unsigned ehci1_lpsmc_state:4;
 	unsigned reserved1:6;
 
 } GRF_SOC_STATUS1_RK3288, *pGRF_SOC_STATUS1_RK3288;
 
 typedef volatile struct tag_grf_soc_status2_rk3288 {
-	/* HSIC  */
-	unsigned hsic_ehci_xfer_cnt:11;
-	unsigned hsic_ehci_xfer_prdc:1;
+	/* EHCI1  */
+	unsigned ehci1_xfer_cnt:11;
+	unsigned ehci1_xfer_prdc:1;
 	unsigned reserved2:1;
 	/* OTG20  */
 	unsigned otg_vbusvalid:1;

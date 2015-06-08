@@ -61,11 +61,11 @@ extern void rk_send_wakeup_key(void);
 /* rk3188 platform data */
 extern struct dwc_otg_platform_data usb20otg_pdata_rk3188;
 extern struct dwc_otg_platform_data usb20host_pdata_rk3188;
-extern struct rkehci_platform_data rkhsic_pdata_rk3188;
+extern struct rkehci_platform_data rkehci_pdata_rk3188;
 /* rk3288 platform data */
 extern struct dwc_otg_platform_data usb20otg_pdata_rk3288;
 extern struct dwc_otg_platform_data usb20host_pdata_rk3288;
-extern struct rkehci_platform_data rkhsic_pdata_rk3288;
+extern struct rkehci_platform_data rkehci1_pdata_rk3288;
 extern struct rkehci_platform_data rkehci_pdata_rk3288;
 extern struct rkehci_platform_data rkohci_pdata_rk3288;
 /* rk3036 platform data */
@@ -103,9 +103,9 @@ struct dwc_otg_platform_data {
 
 struct rkehci_platform_data {
 	struct device *dev;
-	struct clk *hclk_hsic;
-	struct clk *hsic_phy_480m;
-	struct clk *hsic_phy_12m;
+	struct clk *hclk_ehci;
+	struct clk *ehci_phy_480m;
+	struct clk *ehci_phy_12m;
 	struct clk *phyclk;
 	struct clk *ahbclk;
 	void (*hw_init) (void);
