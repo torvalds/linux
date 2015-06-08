@@ -21,10 +21,6 @@
 # Note that the rpm-pkg target cannot be used with KBUILD_OUTPUT,
 # but the binrpm-pkg target can; for some reason O= gets ignored.
 
-# Do we have rpmbuild, otherwise fall back to the older rpm
-RPM := $(shell if [ -x "/usr/bin/rpmbuild" ]; then echo rpmbuild; \
-	           else echo rpm; fi)
-
 # Remove hyphens since they have special meaning in RPM filenames
 KERNELPATH := kernel-$(subst -,_,$(KERNELRELEASE))
 # Include only those top-level files that are needed by make, plus the GPL copy
@@ -51,7 +47,7 @@ rpm-pkg rpm: FORCE
 	rm -f $(objtree)/.scmversion
 	$(CONFIG_SHELL) $(srctree)/scripts/mkversion > $(objtree)/.tmp_version
 	mv -f $(objtree)/.tmp_version $(objtree)/.version
-	$(RPM) $(RPMOPTS) --target $(UTS_MACHINE) -ta $(KERNELPATH).tar.gz
+	rpmbuild --target $(UTS_MACHINE) -ta $(KERNELPATH).tar.gz
 	rm $(KERNELPATH).tar.gz kernel.spec
 
 # binrpm-pkg
@@ -62,7 +58,7 @@ binrpm-pkg: FORCE
 	$(CONFIG_SHELL) $(srctree)/scripts/mkversion > $(objtree)/.tmp_version
 	mv -f $(objtree)/.tmp_version $(objtree)/.version
 
-	$(RPM) $(RPMOPTS) --define "_builddir $(objtree)" --target \
+	rpmbuild --define "_builddir $(objtree)" --target \
 		$(UTS_MACHINE) -bb $(objtree)/binkernel.spec
 	rm binkernel.spec
 
