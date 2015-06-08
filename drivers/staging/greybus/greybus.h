@@ -132,11 +132,13 @@ struct greybus_driver {
 /* Don't call these directly, use the module_greybus_driver() macro instead */
 int greybus_register_driver(struct greybus_driver *driver,
 			    struct module *module, const char *mod_name);
-void greybus_deregister(struct greybus_driver *driver);
+void greybus_deregister_driver(struct greybus_driver *driver);
 
 /* define to get proper THIS_MODULE and KBUILD_MODNAME values */
 #define greybus_register(driver) \
 	greybus_register_driver(driver, THIS_MODULE, KBUILD_MODNAME)
+#define greybus_deregister(driver) \
+	greybus_deregister_driver(driver)
 
 /**
  * module_greybus_driver() - Helper macro for registering a Greybus driver

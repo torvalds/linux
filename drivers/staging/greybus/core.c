@@ -155,11 +155,11 @@ int greybus_register_driver(struct greybus_driver *driver, struct module *owner,
 }
 EXPORT_SYMBOL_GPL(greybus_register_driver);
 
-void greybus_deregister(struct greybus_driver *driver)
+void greybus_deregister_driver(struct greybus_driver *driver)
 {
 	driver_unregister(&driver->driver);
 }
-EXPORT_SYMBOL_GPL(greybus_deregister);
+EXPORT_SYMBOL_GPL(greybus_deregister_driver);
 
 
 static DEFINE_MUTEX(hd_mutex);
