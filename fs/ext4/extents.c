@@ -5542,7 +5542,7 @@ ext4_swap_extents(handle_t *handle, struct inode *inode1,
 	BUG_ON(!rwsem_is_locked(&EXT4_I(inode1)->i_data_sem));
 	BUG_ON(!rwsem_is_locked(&EXT4_I(inode2)->i_data_sem));
 	BUG_ON(!mutex_is_locked(&inode1->i_mutex));
-	BUG_ON(!mutex_is_locked(&inode1->i_mutex));
+	BUG_ON(!mutex_is_locked(&inode2->i_mutex));
 
 	*erp = ext4_es_remove_extent(inode1, lblk1, count);
 	if (unlikely(*erp))
