@@ -147,7 +147,6 @@ static int mac802154_slave_open(struct net_device *dev)
 
 	if (!local->open_count) {
 		res = drv_start(local);
-		WARN_ON(res);
 		if (res)
 			goto err;
 	}
