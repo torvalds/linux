@@ -58,6 +58,9 @@ struct svc_serv_ops {
 	/* function for service threads to run */
 	int		(*svo_function)(void *);
 
+	/* queue up a transport for servicing */
+	void		(*svo_enqueue_xprt)(struct svc_xprt *);
+
 	/* optional module to count when adding threads (pooled svcs only) */
 	struct module	*svo_module;
 };

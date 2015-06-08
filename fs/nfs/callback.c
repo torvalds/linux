@@ -309,6 +309,7 @@ err_bind:
 }
 
 static struct svc_serv_ops nfs_cb_sv_ops = {
+	.svo_enqueue_xprt	= svc_xprt_do_enqueue,
 };
 
 static struct svc_serv *nfs_callback_create_svc(int minorversion)

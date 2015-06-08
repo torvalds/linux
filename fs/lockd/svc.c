@@ -323,7 +323,8 @@ out_rqst:
 }
 
 static struct svc_serv_ops lockd_sv_ops = {
-	.svo_shutdown	= svc_rpcb_cleanup,
+	.svo_shutdown		= svc_rpcb_cleanup,
+	.svo_enqueue_xprt	= svc_xprt_do_enqueue,
 };
 
 static struct svc_serv *lockd_create_svc(void)
