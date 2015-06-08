@@ -598,8 +598,9 @@ static int tas2552_codec_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, TAS2552_CFG_1, TAS2552_MUTE, TAS2552_MUTE);
 	snd_soc_write(codec, TAS2552_CFG_3, TAS2552_I2S_OUT_SEL |
 					    TAS2552_DIN_SRC_SEL_AVG_L_R);
-	snd_soc_write(codec, TAS2552_DOUT, TAS2552_PDM_DATA_I);
-	snd_soc_write(codec, TAS2552_OUTPUT_DATA, TAS2552_PDM_DATA_V_I | 0x8);
+	snd_soc_write(codec, TAS2552_OUTPUT_DATA,
+		      TAS2552_PDM_DATA_SEL_V_I |
+		      TAS2552_R_DATA_OUT(TAS2552_DATA_OUT_V_DATA));
 	snd_soc_write(codec, TAS2552_BOOST_PT_CTRL, TAS2552_APT_DELAY_200 |
 				TAS2552_APT_THRESH_2_1_7);
 
