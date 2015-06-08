@@ -322,6 +322,10 @@ out_rqst:
 	return error;
 }
 
+static struct svc_serv_ops lockd_sv_ops = {
+	.svo_shutdown	= svc_rpcb_cleanup,
+};
+
 static struct svc_serv *lockd_create_svc(void)
 {
 	struct svc_serv *serv;
@@ -350,7 +354,7 @@ static struct svc_serv *lockd_create_svc(void)
 		nlm_timeout = LOCKD_DFLT_TIMEO;
 	nlmsvc_timeout = nlm_timeout * HZ;
 
-	serv = svc_create(&nlmsvc_program, LOCKD_BUFSIZE, svc_rpcb_cleanup);
+	serv = svc_create(&nlmsvc_program, LOCKD_BUFSIZE, &lockd_sv_ops);
 	if (!serv) {
 		printk(KERN_WARNING "lockd_up: create service failed\n");
 		return ERR_PTR(-ENOMEM);
