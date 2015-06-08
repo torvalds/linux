@@ -614,21 +614,24 @@ void drbd_al_shrink(struct drbd_device *device)
 	wake_up(&device->al_wait);
 }
 
-int drbd_initialize_al(struct drbd_device *device, void *buffer)
+int drbd_al_initialize(struct drbd_device *device, void *buffer)
 {
 	struct al_transaction_on_disk *al = buffer;
 	struct drbd_md *md = &device->ldev->md;
-	sector_t al_base = md->md_offset + md->al_offset;
 	int al_size_4k = md->al_stripes * md->al_stripe_size_4k;
 	int i;
 
-	memset(al, 0, 4096);
-	al->magic = cpu_to_be32(DRBD_AL_MAGIC);
-	al->transaction_type = cpu_to_be16(AL_TR_INITIALIZED);
-	al->crc32c = cpu_to_be32(crc32c(0, al, 4096));
+	__al_write_transaction(device, al);
+	/* There may or may not have been a pending transaction. */
+	spin_lock_irq(&device->al_lock);
+	lc_committed(device->act_log);
+	spin_unlock_irq(&device->al_lock);
 
-	for (i = 0; i < al_size_4k; i++) {
-		int err = drbd_md_sync_page_io(device, device->ldev, al_base + i * 8, WRITE);
+	/* The rest of the transactions will have an empty "updates" list, and
+	 * are written out only to provide the context, and to initialize the
+	 * on-disk ring buffer. */
+	for (i = 1; i < al_size_4k; i++) {
+		int err = __al_write_transaction(device, al);
 		if (err)
 			return err;
 	}

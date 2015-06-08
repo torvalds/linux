@@ -903,24 +903,20 @@ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct
 	int md_moved, la_size_changed;
 	enum determine_dev_size rv = DS_UNCHANGED;
 
-	/* race:
-	 * application request passes inc_ap_bio,
-	 * but then cannot get an AL-reference.
-	 * this function later may wait on ap_bio_cnt == 0. -> deadlock.
+	/* We may change the on-disk offsets of our meta data below.  Lock out
+	 * anything that may cause meta data IO, to avoid acting on incomplete
+	 * layout changes or scribbling over meta data that is in the process
+	 * of being moved.
 	 *
-	 * to avoid that:
-	 * Suspend IO right here.
-	 * still lock the act_log to not trigger ASSERTs there.
-	 */
+	 * Move is not exactly correct, btw, currently we have all our meta
+	 * data in core memory, to "move" it we just write it all out, there
+	 * are no reads. */
 	drbd_suspend_io(device);
 	buffer = drbd_md_get_buffer(device, __func__); /* Lock meta-data IO */
 	if (!buffer) {
 		drbd_resume_io(device);
 		return DS_ERROR;
 	}
-
-	/* no wait necessary anymore, actually we could assert that */
-	wait_event(device->al_wait, lc_try_lock(device->act_log));
 
 	prev_first_sect = drbd_md_first_sector(device->ldev);
 	prev_size = device->ldev->md.md_size_sect;
@@ -997,11 +993,19 @@ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct
 		 * Clear the timer, to avoid scary "timer expired!" messages,
 		 * "Superblock" is written out at least twice below, anyways. */
 		del_timer(&device->md_sync_timer);
-		drbd_al_shrink(device); /* All extents inactive. */
 
+		/* We won't change the "al-extents" setting, we just may need
+		 * to move the on-disk location of the activity log ringbuffer.
+		 * Lock for transaction is good enough, it may well be "dirty"
+		 * or even "starving". */
+		wait_event(device->al_wait, lc_try_lock_for_transaction(device->act_log));
+
+		/* mark current on-disk bitmap and activity log as unreliable */
 		prev_flags = md->flags;
-		md->flags &= ~MDF_PRIMARY_IND;
+		md->flags |= MDF_FULL_SYNC | MDF_AL_DISABLED;
 		drbd_md_write(device, buffer);
+
+		drbd_al_initialize(device, buffer);
 
 		drbd_info(device, "Writing the whole bitmap, %s\n",
 			 la_size_changed && md_moved ? "size changed and md moved" :
@@ -1009,8 +1013,9 @@ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct
 		/* next line implicitly does drbd_suspend_io()+drbd_resume_io() */
 		drbd_bitmap_io(device, md_moved ? &drbd_bm_write_all : &drbd_bm_write,
 			       "size changed", BM_LOCKED_MASK);
-		drbd_initialize_al(device, buffer);
 
+		/* on-disk bitmap and activity log is authoritative again
+		 * (unless there was an IO error meanwhile...) */
 		md->flags = prev_flags;
 		drbd_md_write(device, buffer);
 

@@ -1667,7 +1667,7 @@ extern int __drbd_change_sync(struct drbd_device *device, sector_t sector, int s
 #define drbd_rs_failed_io(device, sector, size) \
 	__drbd_change_sync(device, sector, size, RECORD_RS_FAILED)
 extern void drbd_al_shrink(struct drbd_device *device);
-extern int drbd_initialize_al(struct drbd_device *, void *);
+extern int drbd_al_initialize(struct drbd_device *, void *);
 
 /* drbd_nl.c */
 /* state info broadcast */
