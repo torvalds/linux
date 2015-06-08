@@ -78,6 +78,7 @@ static int gb_uart_request_recv(u8 type, struct gb_operation *op)
 	struct gb_uart_recv_data_request *receive_data;
 	struct gb_uart_serial_state_request *serial_state;
 	struct tty_port *port = &gb_tty->port;
+	u16 recv_data_size;
 	int count;
 	int ret = 0;
 
@@ -85,15 +86,16 @@ static int gb_uart_request_recv(u8 type, struct gb_operation *op)
 	case GB_UART_TYPE_RECEIVE_DATA:
 		receive_data = request->payload;
 		count = gb_tty->buffer_payload_max - sizeof(*receive_data);
-		if (!receive_data->size || receive_data->size > count)
+		recv_data_size = le16_to_cpu(receive_data->size);
+		if (!recv_data_size || recv_data_size > count)
 			return -EINVAL;
 
 		count = tty_insert_flip_string(port, receive_data->data,
-					       receive_data->size);
-		if (count != receive_data->size) {
+					       recv_data_size);
+		if (count != recv_data_size) {
 			dev_err(&connection->dev,
 				"UART: RX 0x%08x bytes only wrote 0x%08x\n",
-				receive_data->size, count);
+				recv_data_size, count);
 		}
 		if (count)
 			tty_flip_buffer_push(port);
