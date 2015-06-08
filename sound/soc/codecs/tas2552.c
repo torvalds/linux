@@ -145,17 +145,17 @@ static const struct snd_soc_dapm_route tas2552_audio_map[] = {
 };
 
 #ifdef CONFIG_PM
-static void tas2552_sw_shutdown(struct tas2552_data *tas_data, int sw_shutdown)
+static void tas2552_sw_shutdown(struct tas2552_data *tas2552, int sw_shutdown)
 {
 	u8 cfg1_reg = 0;
 
-	if (!tas_data->codec)
+	if (!tas2552->codec)
 		return;
 
 	if (sw_shutdown)
 		cfg1_reg = TAS2552_SWS;
 
-	snd_soc_update_bits(tas_data->codec, TAS2552_CFG_1, TAS2552_SWS,
+	snd_soc_update_bits(tas2552->codec, TAS2552_CFG_1, TAS2552_SWS,
 			    cfg1_reg);
 }
 #endif
