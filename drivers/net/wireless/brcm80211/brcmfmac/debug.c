@@ -41,15 +41,6 @@ void brcmf_debugfs_exit(void)
 	root_folder = NULL;
 }
 
-static int brcmf_debugfs_chipinfo_read(struct seq_file *seq, void *data)
-{
-	struct brcmf_bus *bus = dev_get_drvdata(seq->private);
-
-	seq_printf(seq, "chip: %x(%u) rev %u\n",
-		   bus->chip, bus->chip, bus->chiprev);
-	return 0;
-}
-
 int brcmf_debugfs_attach(struct brcmf_pub *drvr)
 {
 	struct device *dev = drvr->bus_if->dev;
@@ -58,7 +49,6 @@ int brcmf_debugfs_attach(struct brcmf_pub *drvr)
 		return -ENODEV;
 
 	drvr->dbgfs_dir = debugfs_create_dir(dev_name(dev), root_folder);
-	brcmf_debugfs_add_entry(drvr, "chipinfo", brcmf_debugfs_chipinfo_read);
 
 	return PTR_ERR_OR_ZERO(drvr->dbgfs_dir);
 }
