@@ -1084,14 +1084,18 @@ xfs_log_sbcount(xfs_mount_t *mp)
 	return xfs_sync_sb(mp, true);
 }
 
+/*
+ * Deltas for the inode count are +/-64, hence we use a large batch size
+ * of 128 so we don't need to take the counter lock on every update.
+ */
+#define XFS_ICOUNT_BATCH	128
 int
 xfs_mod_icount(
 	struct xfs_mount	*mp,
 	int64_t			delta)
 {
-	/* deltas are +/-64, hence the large batch size of 128. */
-	__percpu_counter_add(&mp->m_icount, delta, 128);
-	if (percpu_counter_compare(&mp->m_icount, 0) < 0) {
+	__percpu_counter_add(&mp->m_icount, delta, XFS_ICOUNT_BATCH);
+	if (__percpu_counter_compare(&mp->m_icount, 0, XFS_ICOUNT_BATCH) < 0) {
 		ASSERT(0);
 		percpu_counter_add(&mp->m_icount, -delta);
 		return -EINVAL;
@@ -1113,6 +1117,14 @@ xfs_mod_ifree(
 	return 0;
 }
 
+/*
+ * Deltas for the block count can vary from 1 to very large, but lock contention
+ * only occurs on frequent small block count updates such as in the delayed
+ * allocation path for buffered writes (page a time updates). Hence we set
+ * a large batch count (1024) to minimise global counter updates except when
+ * we get near to ENOSPC and we have to be very accurate with our updates.
+ */
+#define XFS_FDBLOCKS_BATCH	1024
 int
 xfs_mod_fdblocks(
 	struct xfs_mount	*mp,
@@ -1151,25 +1163,19 @@ xfs_mod_fdblocks(
 	 * Taking blocks away, need to be more accurate the closer we
 	 * are to zero.
 	 *
-	 * batch size is set to a maximum of 1024 blocks - if we are
-	 * allocating of freeing extents larger than this then we aren't
-	 * going to be hammering the counter lock so a lock per update
-	 * is not a problem.
-	 *
 	 * If the counter has a value of less than 2 * max batch size,
 	 * then make everything serialise as we are real close to
 	 * ENOSPC.
 	 */
-#define __BATCH	1024
-	if (percpu_counter_compare(&mp->m_fdblocks, 2 * __BATCH) < 0)
+	if (__percpu_counter_compare(&mp->m_fdblocks, 2 * XFS_FDBLOCKS_BATCH,
+				     XFS_FDBLOCKS_BATCH) < 0)
 		batch = 1;
 	else
-		batch = __BATCH;
-#undef __BATCH
+		batch = XFS_FDBLOCKS_BATCH;
 
 	__percpu_counter_add(&mp->m_fdblocks, delta, batch);
-	if (percpu_counter_compare(&mp->m_fdblocks,
-				   XFS_ALLOC_SET_ASIDE(mp)) >= 0) {
+	if (__percpu_counter_compare(&mp->m_fdblocks, XFS_ALLOC_SET_ASIDE(mp),
+				     XFS_FDBLOCKS_BATCH) >= 0) {
 		/* we had space! */
 		return 0;
 	}

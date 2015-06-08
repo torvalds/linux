@@ -45,29 +45,6 @@ static const struct snd_soc_dapm_route brownstone_audio_map[] = {
 	{"MICBIAS1", NULL, "Main Mic"},
 };
 
-static int brownstone_wm8994_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	/* set endpoints to not connected */
-	snd_soc_dapm_nc_pin(dapm, "HPOUT2P");
-	snd_soc_dapm_nc_pin(dapm, "HPOUT2N");
-	snd_soc_dapm_nc_pin(dapm, "LINEOUT1N");
-	snd_soc_dapm_nc_pin(dapm, "LINEOUT1P");
-	snd_soc_dapm_nc_pin(dapm, "LINEOUT2N");
-	snd_soc_dapm_nc_pin(dapm, "LINEOUT2P");
-	snd_soc_dapm_nc_pin(dapm, "IN1LN");
-	snd_soc_dapm_nc_pin(dapm, "IN1LP");
-	snd_soc_dapm_nc_pin(dapm, "IN1RP");
-	snd_soc_dapm_nc_pin(dapm, "IN2LP:VXRN");
-	snd_soc_dapm_nc_pin(dapm, "IN2RN");
-	snd_soc_dapm_nc_pin(dapm, "IN2RP:VXRP");
-	snd_soc_dapm_nc_pin(dapm, "IN2LN");
-
-	return 0;
-}
-
 static int brownstone_wm8994_hw_params(struct snd_pcm_substream *substream,
 				       struct snd_pcm_hw_params *params)
 {
@@ -115,7 +92,6 @@ static struct snd_soc_dai_link brownstone_wm8994_dai[] = {
 	.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 				SND_SOC_DAIFMT_CBS_CFS,
 	.ops		= &brownstone_ops,
-	.init		= brownstone_wm8994_init,
 },
 };
 
@@ -132,6 +108,7 @@ static struct snd_soc_card brownstone = {
 	.num_dapm_widgets = ARRAY_SIZE(brownstone_dapm_widgets),
 	.dapm_routes = brownstone_audio_map,
 	.num_dapm_routes = ARRAY_SIZE(brownstone_audio_map),
+	.fully_routed = true,
 };
 
 static int brownstone_probe(struct platform_device *pdev)

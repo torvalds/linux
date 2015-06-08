@@ -27,6 +27,7 @@
 #include <sound/compress_driver.h>
 #include <sound/control.h>
 #include <sound/ac97_codec.h>
+#include <sound/soc-topology.h>
 
 /*
  * Convenience kcontrol builders
@@ -190,8 +191,12 @@
 #define SOC_VALUE_ENUM_DOUBLE(xreg, xshift_l, xshift_r, xmask, xitems, xtexts, xvalues) \
 {	.reg = xreg, .shift_l = xshift_l, .shift_r = xshift_r, \
 	.mask = xmask, .items = xitems, .texts = xtexts, .values = xvalues}
-#define SOC_VALUE_ENUM_SINGLE(xreg, xshift, xmask, xnitmes, xtexts, xvalues) \
-	SOC_VALUE_ENUM_DOUBLE(xreg, xshift, xshift, xmask, xnitmes, xtexts, xvalues)
+#define SOC_VALUE_ENUM_SINGLE(xreg, xshift, xmask, xitems, xtexts, xvalues) \
+	SOC_VALUE_ENUM_DOUBLE(xreg, xshift, xshift, xmask, xitems, xtexts, xvalues)
+#define SOC_VALUE_ENUM_SINGLE_AUTODISABLE(xreg, xshift, xmask, xitems, xtexts, xvalues) \
+{	.reg = xreg, .shift_l = xshift, .shift_r = xshift, \
+	.mask = xmask, .items = xitems, .texts = xtexts, \
+	.values = xvalues, .autodisable = 1}
 #define SOC_ENUM_SINGLE_VIRT(xitems, xtexts) \
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, xitems, xtexts)
 #define SOC_ENUM(xname, xenum) \
@@ -312,6 +317,11 @@
 							ARRAY_SIZE(xtexts), xtexts, xvalues)
 #define SOC_VALUE_ENUM_SINGLE_DECL(name, xreg, xshift, xmask, xtexts, xvalues) \
 	SOC_VALUE_ENUM_DOUBLE_DECL(name, xreg, xshift, xshift, xmask, xtexts, xvalues)
+
+#define SOC_VALUE_ENUM_SINGLE_AUTODISABLE_DECL(name, xreg, xshift, xmask, xtexts, xvalues) \
+	const struct soc_enum name = SOC_VALUE_ENUM_SINGLE_AUTODISABLE(xreg, \
+		xshift, xmask, ARRAY_SIZE(xtexts), xtexts, xvalues)
+
 #define SOC_ENUM_SINGLE_VIRT_DECL(name, xtexts) \
 	const struct soc_enum name = SOC_ENUM_SINGLE_VIRT(ARRAY_SIZE(xtexts), xtexts)
 
@@ -767,6 +777,9 @@ struct snd_soc_component {
 
 	struct mutex io_mutex;
 
+	/* attached dynamic objects */
+	struct list_head dobj_list;
+
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_root;
 #endif
@@ -819,7 +832,7 @@ struct snd_soc_codec {
 	/* component */
 	struct snd_soc_component component;
 
-	/* dapm */
+	/* Don't access this directly, use snd_soc_codec_get_dapm() */
 	struct snd_soc_dapm_context dapm;
 
 #ifdef CONFIG_DEBUG_FS
@@ -961,30 +974,6 @@ struct snd_soc_dai_link {
 
 	enum snd_soc_dpcm_trigger trigger[2]; /* trigger type for DPCM */
 
-	/* Keep DAI active over suspend */
-	unsigned int ignore_suspend:1;
-
-	/* Symmetry requirements */
-	unsigned int symmetric_rates:1;
-	unsigned int symmetric_channels:1;
-	unsigned int symmetric_samplebits:1;
-
-	/* Mark this pcm with non atomic ops */
-	bool nonatomic;
-
-	/* Do not create a PCM for this DAI link (Backend link) */
-	unsigned int no_pcm:1;
-
-	/* This DAI link can route to other DAI links at runtime (Frontend)*/
-	unsigned int dynamic:1;
-
-	/* DPCM capture and Playback support */
-	unsigned int dpcm_capture:1;
-	unsigned int dpcm_playback:1;
-
-	/* pmdown_time is ignored at stop */
-	unsigned int ignore_pmdown_time:1;
-
 	/* codec/machine specific init - e.g. add machine controls */
 	int (*init)(struct snd_soc_pcm_runtime *rtd);
 
@@ -999,6 +988,33 @@ struct snd_soc_dai_link {
 	/* For unidirectional dai links */
 	bool playback_only;
 	bool capture_only;
+
+	/* Mark this pcm with non atomic ops */
+	bool nonatomic;
+
+	/* Keep DAI active over suspend */
+	unsigned int ignore_suspend:1;
+
+	/* Symmetry requirements */
+	unsigned int symmetric_rates:1;
+	unsigned int symmetric_channels:1;
+	unsigned int symmetric_samplebits:1;
+
+	/* Do not create a PCM for this DAI link (Backend link) */
+	unsigned int no_pcm:1;
+
+	/* This DAI link can route to other DAI links at runtime (Frontend)*/
+	unsigned int dynamic:1;
+
+	/* DPCM capture and Playback support */
+	unsigned int dpcm_capture:1;
+	unsigned int dpcm_playback:1;
+
+	/* DPCM used FE & BE merged format */
+	unsigned int dpcm_merged_format:1;
+
+	/* pmdown_time is ignored at stop */
+	unsigned int ignore_pmdown_time:1;
 };
 
 struct snd_soc_codec_conf {
@@ -1111,6 +1127,9 @@ struct snd_soc_card {
 	struct list_head dapm_list;
 	struct list_head dapm_dirty;
 
+	/* attached dynamic objects */
+	struct list_head dobj_list;
+
 	/* Generic DAPM context for the card */
 	struct snd_soc_dapm_context dapm;
 	struct snd_soc_dapm_stats dapm_stats;
@@ -1170,6 +1189,7 @@ struct soc_mixer_control {
 	unsigned int sign_bit;
 	unsigned int invert:1;
 	unsigned int autodisable:1;
+	struct snd_soc_dobj dobj;
 };
 
 struct soc_bytes {
@@ -1180,6 +1200,8 @@ struct soc_bytes {
 
 struct soc_bytes_ext {
 	int max;
+	struct snd_soc_dobj dobj;
+
 	/* used for TLV byte control */
 	int (*get)(unsigned int __user *bytes, unsigned int size);
 	int (*put)(const unsigned int __user *bytes, unsigned int size);
@@ -1200,6 +1222,8 @@ struct soc_enum {
 	unsigned int mask;
 	const char * const *texts;
 	const unsigned int *values;
+	unsigned int autodisable:1;
+	struct snd_soc_dobj dobj;
 };
 
 /**
@@ -1279,6 +1303,58 @@ static inline struct snd_soc_dapm_context *snd_soc_component_get_dapm(
 	struct snd_soc_component *component)
 {
 	return component->dapm_ptr;
+}
+
+/**
+ * snd_soc_codec_get_dapm() - Returns the DAPM context for the CODEC
+ * @codec: The CODEC for which to get the DAPM context
+ *
+ * Note: Use this function instead of directly accessing the CODEC's dapm field
+ */
+static inline struct snd_soc_dapm_context *snd_soc_codec_get_dapm(
+	struct snd_soc_codec *codec)
+{
+	return &codec->dapm;
+}
+
+/**
+ * snd_soc_dapm_init_bias_level() - Initialize CODEC DAPM bias level
+ * @dapm: The CODEC for which to initialize the DAPM bias level
+ * @level: The DAPM level to initialize to
+ *
+ * Initializes the CODEC DAPM bias level. See snd_soc_dapm_init_bias_level().
+ */
+static inline void snd_soc_codec_init_bias_level(struct snd_soc_codec *codec,
+	enum snd_soc_bias_level level)
+{
+	snd_soc_dapm_init_bias_level(snd_soc_codec_get_dapm(codec), level);
+}
+
+/**
+ * snd_soc_dapm_get_bias_level() - Get current CODEC DAPM bias level
+ * @codec: The CODEC for which to get the DAPM bias level
+ *
+ * Returns: The current DAPM bias level of the CODEC.
+ */
+static inline enum snd_soc_bias_level snd_soc_codec_get_bias_level(
+	struct snd_soc_codec *codec)
+{
+	return snd_soc_dapm_get_bias_level(snd_soc_codec_get_dapm(codec));
+}
+
+/**
+ * snd_soc_codec_force_bias_level() - Set the CODEC DAPM bias level
+ * @codec: The CODEC for which to set the level
+ * @level: The level to set to
+ *
+ * Forces the CODEC bias level to a specific state. See
+ * snd_soc_dapm_force_bias_level().
+ */
+static inline int snd_soc_codec_force_bias_level(struct snd_soc_codec *codec,
+	enum snd_soc_bias_level level)
+{
+	return snd_soc_dapm_force_bias_level(snd_soc_codec_get_dapm(codec),
+		level);
 }
 
 /**

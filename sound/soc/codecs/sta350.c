@@ -853,7 +853,7 @@ static int sta350_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			ret = regulator_bulk_enable(
 				ARRAY_SIZE(sta350->supplies),
 				sta350->supplies);
@@ -890,7 +890,6 @@ static int sta350_set_bias_level(struct snd_soc_codec *codec,
 				       sta350->supplies);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -1037,7 +1036,7 @@ static int sta350_probe(struct snd_soc_codec *codec)
 	sta350->coef_shadow[60] = 0x400000;
 	sta350->coef_shadow[61] = 0x400000;
 
-	sta350_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	/* Bias level configuration will have done an extra enable */
 	regulator_bulk_disable(ARRAY_SIZE(sta350->supplies), sta350->supplies);
 
@@ -1218,8 +1217,8 @@ static int sta350_i2c_probe(struct i2c_client *i2c,
 	if (IS_ERR(sta350->gpiod_nreset))
 		return PTR_ERR(sta350->gpiod_nreset);
 
-	sta350->gpiod_power_down = devm_gpiod_get(dev, "power-down",
-						  GPIOD_OUT_LOW);
+	sta350->gpiod_power_down = devm_gpiod_get_optional(dev, "power-down",
+							   GPIOD_OUT_LOW);
 	if (IS_ERR(sta350->gpiod_power_down))
 		return PTR_ERR(sta350->gpiod_power_down);
 

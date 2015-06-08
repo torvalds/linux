@@ -589,7 +589,7 @@ static int nl802154_new_interface(struct sk_buff *skb, struct genl_info *info)
 
 	return rdev_add_virtual_intf(rdev,
 				     nla_data(info->attrs[NL802154_ATTR_IFNAME]),
-				     type, extended_addr);
+				     NET_NAME_USER, type, extended_addr);
 }
 
 static int nl802154_del_interface(struct sk_buff *skb, struct genl_info *info)

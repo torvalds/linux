@@ -304,15 +304,16 @@ static int probe_current_pmu(struct arm_pmu *pmu)
 static int of_pmu_irq_cfg(struct platform_device *pdev)
 {
 	int i, irq;
-	int *irqs = kcalloc(pdev->num_resources, sizeof(*irqs), GFP_KERNEL);
-
-	if (!irqs)
-		return -ENOMEM;
+	int *irqs;
 
 	/* Don't bother with PPIs; they're already affine */
 	irq = platform_get_irq(pdev, 0);
 	if (irq >= 0 && irq_is_percpu(irq))
 		return 0;
+
+	irqs = kcalloc(pdev->num_resources, sizeof(*irqs), GFP_KERNEL);
+	if (!irqs)
+		return -ENOMEM;
 
 	for (i = 0; i < pdev->num_resources; ++i) {
 		struct device_node *dn;

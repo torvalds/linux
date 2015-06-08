@@ -266,7 +266,7 @@ static inline void __cache_line_loop(unsigned long paddr, unsigned long vaddr,
  * Machine specific helpers for Entire D-Cache or Per Line ops
  */
 
-static unsigned int __before_dc_op(const int op)
+static inline unsigned int __before_dc_op(const int op)
 {
 	unsigned int reg = reg;
 
@@ -284,7 +284,7 @@ static unsigned int __before_dc_op(const int op)
 	return reg;
 }
 
-static void __after_dc_op(const int op, unsigned int reg)
+static inline void __after_dc_op(const int op, unsigned int reg)
 {
 	if (op & OP_FLUSH)	/* flush / flush-n-inv both wait */
 		while (read_aux_reg(ARC_REG_DC_CTRL) & DC_CTRL_FLUSH_STATUS);
