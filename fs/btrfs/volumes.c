@@ -5715,7 +5715,6 @@ static inline void btrfs_end_bbio(struct btrfs_bio *bbio, struct bio *bio, int e
 static void btrfs_end_bio(struct bio *bio, int err)
 {
 	struct btrfs_bio *bbio = bio->bi_private;
-	struct btrfs_device *dev = bbio->stripes[0].dev;
 	int is_orig_bio = 0;
 
 	if (err) {
@@ -5723,6 +5722,7 @@ static void btrfs_end_bio(struct bio *bio, int err)
 		if (err == -EIO || err == -EREMOTEIO) {
 			unsigned int stripe_index =
 				btrfs_io_bio(bio)->stripe_index;
+			struct btrfs_device *dev;
 
 			BUG_ON(stripe_index >= bbio->num_stripes);
 			dev = bbio->stripes[stripe_index].dev;
