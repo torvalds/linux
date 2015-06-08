@@ -106,8 +106,8 @@ ENTRY(entry_SYSENTER_compat)
 	jnz	sysenter_fix_flags
 sysenter_flags_fixed:
 
-	orl     $TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
-	testl   $_TIF_WORK_SYSCALL_ENTRY, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
+	orl	$TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
+	testl	$_TIF_WORK_SYSCALL_ENTRY, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
 	jnz	sysenter_tracesys
 
 sysenter_do_call:
@@ -138,7 +138,7 @@ sysexit_from_sys_call:
 	 * This code path is still called 'sysexit' because it pairs
 	 * with 'sysenter' and it uses the SYSENTER calling convention.
 	 */
-	andl    $~TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
+	andl	$~TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
 	movl	RIP(%rsp), %ecx		/* User %eip */
 	RESTORE_RSI_RDI
 	xorl	%edx, %edx		/* Do not leak kernel information */
@@ -229,7 +229,7 @@ sysexit_audit:
 #endif
 
 sysenter_fix_flags:
-	pushq $(X86_EFLAGS_IF|X86_EFLAGS_FIXED)
+	pushq	$(X86_EFLAGS_IF|X86_EFLAGS_FIXED)
 	popfq
 	jmp	sysenter_flags_fixed
 
@@ -325,9 +325,9 @@ ENTRY(entry_SYSCALL_compat)
 1:	movl	(%r8), %ebp
 	_ASM_EXTABLE(1b, ia32_badarg)
 	ASM_CLAC
-	orl     $TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
-	testl   $_TIF_WORK_SYSCALL_ENTRY, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
-	jnz   cstar_tracesys
+	orl	$TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
+	testl	$_TIF_WORK_SYSCALL_ENTRY, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
+	jnz	cstar_tracesys
 
 cstar_do_call:
 	/* 32-bit syscall -> 64-bit C ABI argument conversion */

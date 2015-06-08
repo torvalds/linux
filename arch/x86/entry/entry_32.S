@@ -12,7 +12,7 @@
  *	 0(%esp) - %ebx
  *	 4(%esp) - %ecx
  *	 8(%esp) - %edx
- *       C(%esp) - %esi
+ *	 C(%esp) - %esi
  *	10(%esp) - %edi
  *	14(%esp) - %ebp
  *	18(%esp) - %eax
@@ -128,7 +128,7 @@
 .macro POP_GS pop=0
 98:	popl	%gs
   .if \pop <> 0
-	add $\pop, %esp
+	add	$\pop, %esp
   .endif
 .endm
 .macro POP_GS_EX
@@ -487,8 +487,8 @@ ldt_ss:
 	mov	%esp, %edx			/* load kernel esp */
 	mov	PT_OLDESP(%esp), %eax		/* load userspace esp */
 	mov	%dx, %ax			/* eax: new kernel esp */
-	sub %eax, %edx				/* offset (low word is 0) */
-	shr $16, %edx
+	sub	%eax, %edx			/* offset (low word is 0) */
+	shr	$16, %edx
 	mov	%dl, GDT_ESPFIX_SS + 4		/* bits 16..23 */
 	mov	%dh, GDT_ESPFIX_SS + 7		/* bits 24..31 */
 	pushl	$__ESPFIX_SS
@@ -507,7 +507,7 @@ ENDPROC(entry_INT80_32)
 	# perform work that needs to be done immediately before resumption
 	ALIGN
 work_pending:
-	testb $_TIF_NEED_RESCHED, %cl
+	testb	$_TIF_NEED_RESCHED, %cl
 	jz	work_notifysig
 work_resched:
 	call	schedule
@@ -520,7 +520,7 @@ work_resched:
 	andl	$_TIF_WORK_MASK, %ecx		# is there any work to be done other
 						# than syscall tracing?
 	jz	restore_all
-	testb $_TIF_NEED_RESCHED, %cl
+	testb	$_TIF_NEED_RESCHED, %cl
 	jnz	work_resched
 
 work_notifysig:					# deal with pending signals and
@@ -537,8 +537,8 @@ work_notifysig:					# deal with pending signals and
 	TRACE_IRQS_ON
 	ENABLE_INTERRUPTS(CLBR_NONE)
 	movb	PT_CS(%esp), %bl
-	andb $SEGMENT_RPL_MASK, %bl
-	cmpb $USER_RPL, %bl
+	andb	$SEGMENT_RPL_MASK, %bl
+	cmpb	$USER_RPL, %bl
 	jb	resume_kernel
 	xorl	%edx, %edx
 	call	do_notify_resume
@@ -609,7 +609,7 @@ END(sysenter_badsys)
 	/* fixup the stack */
 	mov	GDT_ESPFIX_SS + 4, %al /* bits 16..23 */
 	mov	GDT_ESPFIX_SS + 7, %ah /* bits 24..31 */
-	shl $16, %eax
+	shl	$16, %eax
 	addl	%esp, %eax			/* the adjusted stack pointer */
 	pushl	$__KERNEL_DS
 	pushl	%eax
