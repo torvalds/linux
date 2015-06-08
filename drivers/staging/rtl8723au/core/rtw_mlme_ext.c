@@ -3906,8 +3906,8 @@ void issue_action_BA23a(struct rtw_adapter *padapter,
 		put_unaligned_le16(BA_para_set,
 				   &mgmt->u.action.u.addba_resp.capab);
 
-		put_unaligned_le16(pmlmeinfo->ADDBA_req.BA_timeout_value,
-				   &mgmt->u.action.u.addba_resp.timeout);
+		mgmt->u.action.u.addba_resp.timeout
+			= pmlmeinfo->ADDBA_req.BA_timeout_value;
 
 		pattrib->pktlen += 8;
 		break;
