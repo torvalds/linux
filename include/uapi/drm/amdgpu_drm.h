@@ -55,7 +55,7 @@
 #define DRM_IOCTL_AMDGPU_INFO		DRM_IOW(DRM_COMMAND_BASE + DRM_AMDGPU_INFO, struct drm_amdgpu_info)
 #define DRM_IOCTL_AMDGPU_GEM_METADATA	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_METADATA, struct drm_amdgpu_gem_metadata)
 #define DRM_IOCTL_AMDGPU_GEM_WAIT_IDLE	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_WAIT_IDLE, union drm_amdgpu_gem_wait_idle)
-#define DRM_IOCTL_AMDGPU_GEM_VA		DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_VA, union drm_amdgpu_gem_va)
+#define DRM_IOCTL_AMDGPU_GEM_VA		DRM_IOW(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_VA, struct drm_amdgpu_gem_va)
 #define DRM_IOCTL_AMDGPU_WAIT_CS	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_WAIT_CS, union drm_amdgpu_wait_cs)
 #define DRM_IOCTL_AMDGPU_GEM_OP		DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_OP, struct drm_amdgpu_gem_op)
 #define DRM_IOCTL_AMDGPU_GEM_USERPTR	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_USERPTR, struct drm_amdgpu_gem_userptr)
@@ -290,10 +290,6 @@ struct drm_amdgpu_gem_op {
 #define AMDGPU_VA_OP_MAP			1
 #define AMDGPU_VA_OP_UNMAP			2
 
-#define AMDGPU_VA_RESULT_OK			0
-#define AMDGPU_VA_RESULT_ERROR			1
-#define AMDGPU_VA_RESULT_VA_INVALID_ALIGNMENT	2
-
 /* Mapping flags */
 /* readable mapping */
 #define AMDGPU_VM_PAGE_READABLE		(1 << 1)
@@ -302,7 +298,7 @@ struct drm_amdgpu_gem_op {
 /* executable mapping, new for VI */
 #define AMDGPU_VM_PAGE_EXECUTABLE	(1 << 3)
 
-struct drm_amdgpu_gem_va_in {
+struct drm_amdgpu_gem_va {
 	/* GEM object handle */
 	uint32_t handle;
 	uint32_t _pad;
@@ -317,16 +313,6 @@ struct drm_amdgpu_gem_va_in {
 	/* Specify mapping size. If 0 and offset is 0 then map the whole BO.*/
 	/* Must be correctly aligned. */
 	uint64_t map_size;
-};
-
-struct drm_amdgpu_gem_va_out {
-	uint32_t result;
-	uint32_t _pad;
-};
-
-union drm_amdgpu_gem_va {
-	struct drm_amdgpu_gem_va_in  in;
-	struct drm_amdgpu_gem_va_out out;
 };
 
 #define AMDGPU_HW_IP_GFX          0
