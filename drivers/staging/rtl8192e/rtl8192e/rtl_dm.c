@@ -158,9 +158,6 @@ const u8 dm_cck_tx_bb_gain_ch14[CCKTxBBGainTableLength][8] = {
 
 /*------------------------Define global variable-----------------------------*/
 struct dig_t dm_digtable;
-u8 dm_shadow[16][256] = {
-	{0}
-};
 
 struct drx_path_sel DM_RxPathSelTable;
 /*------------------------Define global variable-----------------------------*/
