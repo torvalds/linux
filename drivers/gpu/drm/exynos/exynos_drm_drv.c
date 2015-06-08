@@ -560,34 +560,9 @@ static inline void exynos_drm_unregister_non_kms_drivers(void)
 					ARRAY_SIZE(exynos_drm_non_kms_drivers));
 }
 
-static const char * const strings[] = {
-	"samsung,exynos3",
-	"samsung,exynos4",
-	"samsung,exynos5",
-	"samsung,exynos7",
-};
-
 static int exynos_drm_init(void)
 {
-	bool is_exynos = false;
-	int ret, i;
-
-	/*
-	 * Register device object only in case of Exynos SoC.
-	 *
-	 * Below codes resolves temporarily infinite loop issue incurred
-	 * by Exynos drm driver when using multi-platform kernel.
-	 * So these codes will be replaced with more generic way later.
-	 */
-	for (i = 0; i < ARRAY_SIZE(strings); i++) {
-		if (of_machine_is_compatible(strings[i])) {
-			is_exynos = true;
-			break;
-		}
-	}
-
-	if (!is_exynos)
-		return -ENODEV;
+	int ret;
 
 	ret = exynos_drm_register_devices();
 	if (ret)
