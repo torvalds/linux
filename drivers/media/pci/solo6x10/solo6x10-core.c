@@ -483,7 +483,6 @@ static int solo_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	solo_dev->type = id->driver_data;
 	solo_dev->pdev = pdev;
-	spin_lock_init(&solo_dev->reg_io_lock);
 	ret = v4l2_device_register(&pdev->dev, &solo_dev->v4l2_dev);
 	if (ret)
 		goto fail_probe;
