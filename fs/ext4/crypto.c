@@ -396,8 +396,8 @@ int ext4_decrypt_one(struct inode *inode, struct page *page)
 
 	struct ext4_crypto_ctx *ctx = ext4_get_crypto_ctx(inode);
 
-	if (!ctx)
-		return -ENOMEM;
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 	ret = ext4_decrypt(ctx, page);
 	ext4_release_crypto_ctx(ctx);
 	return ret;
