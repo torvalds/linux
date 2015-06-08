@@ -751,6 +751,7 @@ static int tas2552_probe(struct i2c_client *client,
 static int tas2552_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
+	pm_runtime_disable(&client->dev);
 	return 0;
 }
 
