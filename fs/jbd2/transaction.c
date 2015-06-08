@@ -947,8 +947,7 @@ repeat:
 					       __func__);
 					JBUFFER_TRACE(jh, "oom!");
 					error = -ENOMEM;
-					jbd_lock_bh_state(bh);
-					goto done;
+					goto out;
 				}
 				goto repeat;
 			}
