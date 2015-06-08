@@ -87,7 +87,6 @@
 struct dig_t {
 	u8		dig_enable_flag;
 	u8		dig_algorithm;
-	u8		dbg_mode;
 	u8		dig_algorithm_switch;
 
 	long		rssi_low_thresh;
@@ -130,23 +129,6 @@ enum dm_ratr_sta {
 	DM_RATR_STA_MAX
 };
 
-enum dm_dig_op_sta {
-	DIG_TYPE_THRESH_HIGH	= 0,
-	DIG_TYPE_THRESH_LOW	= 1,
-	DIG_TYPE_THRESH_HIGHPWR_HIGH	= 2,
-	DIG_TYPE_THRESH_HIGHPWR_LOW	= 3,
-	DIG_TYPE_DBG_MODE				= 4,
-	DIG_TYPE_RSSI						= 5,
-	DIG_TYPE_ALGORITHM				= 6,
-	DIG_TYPE_BACKOFF					= 7,
-	DIG_TYPE_PWDB_FACTOR			= 8,
-	DIG_TYPE_RX_GAIN_MIN				= 9,
-	DIG_TYPE_RX_GAIN_MAX				= 10,
-	DIG_TYPE_ENABLE			= 20,
-	DIG_TYPE_DISABLE		= 30,
-	DIG_OP_TYPE_MAX
-};
-
 enum dm_dig_alg {
 	DIG_ALGO_BY_FALSE_ALARM = 0,
 	DIG_ALGO_BY_RSSI	= 1,
@@ -180,7 +162,6 @@ enum dm_dig_cs_ratio {
 
 struct drx_path_sel {
 	u8		Enable;
-	u8		DbgMode;
 	u8		cck_method;
 	u8		cck_Rx_path;
 
@@ -200,12 +181,6 @@ enum dm_cck_rx_path_method {
 	CCK_Rx_Version_MAX
 };
 
-
-enum dm_dbg {
-	DM_DBG_OFF = 0,
-	DM_DBG_ON = 1,
-	DM_DBG_MAX
-};
 
 struct dcmd_txcmd {
 	u32	Op;
