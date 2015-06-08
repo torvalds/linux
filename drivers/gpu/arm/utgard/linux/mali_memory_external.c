@@ -53,10 +53,12 @@ _mali_osk_errcode_t mali_mem_bind_ext_buf(mali_mem_allocation *alloc,
 	/* size must be a multiple of the system page size */
 	if (size % _MALI_OSK_MALI_PAGE_SIZE) MALI_ERROR(_MALI_OSK_ERR_INVALID_ARGS);
 
+#if 0
 	/* Validate the mali physical range */
 	if (_MALI_OSK_ERR_OK != mali_mem_validation_check(phys_addr, size)) {
 		return _MALI_OSK_ERR_FAULT;
 	}
+#endif
 
 	if (flag & _MALI_MAP_EXTERNAL_MAP_GUARD_PAGE) {
 		alloc->flags |= MALI_MEM_FLAG_MALI_GUARD_PAGE;
