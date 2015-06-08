@@ -423,6 +423,7 @@ int vp_set_vq_affinity(struct virtqueue *vq, int cpu)
 		if (cpu == -1)
 			irq_set_affinity_hint(irq, NULL);
 		else {
+			cpumask_clear(mask);
 			cpumask_set_cpu(cpu, mask);
 			irq_set_affinity_hint(irq, mask);
 		}
