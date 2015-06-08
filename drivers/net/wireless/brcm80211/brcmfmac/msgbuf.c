@@ -75,6 +75,8 @@
 
 #define BRCMF_MSGBUF_DELAY_TXWORKER_THRS	96
 #define BRCMF_MSGBUF_TRICKLE_TXWORKER_THRS	32
+#define BRCMF_MSGBUF_UPDATE_RX_PTR_THRS		48
+
 
 struct msgbuf_common_hdr {
 	u8				msgtype;
@@ -1257,19 +1259,27 @@ static void brcmf_msgbuf_process_rx(struct brcmf_msgbuf *msgbuf,
 {
 	void *buf;
 	u16 count;
+	u16 processed;
 
 again:
 	buf = brcmf_commonring_get_read_ptr(commonring, &count);
 	if (buf == NULL)
 		return;
 
+	processed = 0;
 	while (count) {
 		brcmf_msgbuf_process_msgtype(msgbuf,
 					     buf + msgbuf->rx_dataoffset);
 		buf += brcmf_commonring_len_item(commonring);
+		processed++;
+		if (processed == BRCMF_MSGBUF_UPDATE_RX_PTR_THRS) {
+			brcmf_commonring_read_complete(commonring, processed);
+			processed = 0;
+		}
 		count--;
 	}
-	brcmf_commonring_read_complete(commonring);
+	if (processed)
+		brcmf_commonring_read_complete(commonring, processed);
 
 	if (commonring->r_ptr == 0)
 		goto again;
