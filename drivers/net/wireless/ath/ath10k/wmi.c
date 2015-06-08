@@ -3223,7 +3223,7 @@ static void ath10k_wmi_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	id = MS(__le32_to_cpu(cmd_hdr->cmd_id), WMI_CMD_HDR_CMD_ID);
 
 	if (skb_pull(skb, sizeof(struct wmi_cmd_hdr)) == NULL)
-		return;
+		goto out;
 
 	trace_ath10k_wmi_event(ar, id, skb->data, skb->len);
 
@@ -3327,6 +3327,7 @@ static void ath10k_wmi_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	}
 
+out:
 	dev_kfree_skb(skb);
 }
 
@@ -3340,7 +3341,7 @@ static void ath10k_wmi_10_1_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	id = MS(__le32_to_cpu(cmd_hdr->cmd_id), WMI_CMD_HDR_CMD_ID);
 
 	if (skb_pull(skb, sizeof(struct wmi_cmd_hdr)) == NULL)
-		return;
+		goto out;
 
 	trace_ath10k_wmi_event(ar, id, skb->data, skb->len);
 
@@ -3463,7 +3464,7 @@ static void ath10k_wmi_10_2_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	id = MS(__le32_to_cpu(cmd_hdr->cmd_id), WMI_CMD_HDR_CMD_ID);
 
 	if (skb_pull(skb, sizeof(struct wmi_cmd_hdr)) == NULL)
-		return;
+		goto out;
 
 	trace_ath10k_wmi_event(ar, id, skb->data, skb->len);
 
@@ -3571,6 +3572,7 @@ static void ath10k_wmi_10_2_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	}
 
+out:
 	dev_kfree_skb(skb);
 }
 
