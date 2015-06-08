@@ -4955,7 +4955,8 @@ static void hci_le_ltk_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			goto not_found;
 	}
 
-	memcpy(cp.ltk, ltk->val, sizeof(ltk->val));
+	memcpy(cp.ltk, ltk->val, ltk->enc_size);
+	memset(cp.ltk + ltk->enc_size, 0, sizeof(cp.ltk) - ltk->enc_size);
 	cp.handle = cpu_to_le16(conn->handle);
 
 	conn->pending_sec_level = smp_ltk_sec_level(ltk);

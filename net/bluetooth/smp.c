@@ -997,13 +997,10 @@ static u8 smp_random(struct smp_chan *smp)
 
 		smp_s1(smp->tfm_aes, smp->tk, smp->rrnd, smp->prnd, stk);
 
-		memset(stk + smp->enc_key_size, 0,
-		       SMP_MAX_ENC_KEY_SIZE - smp->enc_key_size);
-
 		if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, &hcon->flags))
 			return SMP_UNSPECIFIED;
 
-		hci_le_start_enc(hcon, ediv, rand, stk);
+		hci_le_start_enc(hcon, ediv, rand, stk, smp->enc_key_size);
 		hcon->enc_key_size = smp->enc_key_size;
 		set_bit(HCI_CONN_STK_ENCRYPT, &hcon->flags);
 	} else {
@@ -1015,9 +1012,6 @@ static u8 smp_random(struct smp_chan *smp)
 			     smp->prnd);
 
 		smp_s1(smp->tfm_aes, smp->tk, smp->prnd, smp->rrnd, stk);
-
-		memset(stk + smp->enc_key_size, 0,
-		       SMP_MAX_ENC_KEY_SIZE - smp->enc_key_size);
 
 		if (hcon->pending_sec_level == BT_SECURITY_HIGH)
 			auth = 1;
@@ -1155,9 +1149,6 @@ static void sc_add_ltk(struct smp_chan *smp)
 		auth = 1;
 	else
 		auth = 0;
-
-	memset(smp->tk + smp->enc_key_size, 0,
-	       SMP_MAX_ENC_KEY_SIZE - smp->enc_key_size);
 
 	smp->ltk = hci_add_ltk(hcon->hdev, &hcon->dst, hcon->dst_type,
 			       key_type, auth, smp->tk, smp->enc_key_size,
@@ -2202,7 +2193,7 @@ static bool smp_ltk_encrypt(struct l2cap_conn *conn, u8 sec_level)
 	if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, &hcon->flags))
 		return true;
 
-	hci_le_start_enc(hcon, key->ediv, key->rand, key->val);
+	hci_le_start_enc(hcon, key->ediv, key->rand, key->val, key->enc_size);
 	hcon->enc_key_size = key->enc_size;
 
 	/* We never store STKs for master role, so clear this flag */
@@ -2750,7 +2741,7 @@ static int smp_cmd_dhkey_check(struct l2cap_conn *conn, struct sk_buff *skb)
 	sc_add_ltk(smp);
 
 	if (hcon->out) {
-		hci_le_start_enc(hcon, 0, 0, smp->tk);
+		hci_le_start_enc(hcon, 0, 0, smp->tk, smp->enc_key_size);
 		hcon->enc_key_size = smp->enc_key_size;
 	}
 
