@@ -132,7 +132,7 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 		p->prio);
 #ifdef CONFIG_SCHEDSTATS
 	SEQ_printf(m, "%9Ld.%06ld %9Ld.%06ld %9Ld.%06ld",
-		SPLIT_NS(p->se.vruntime),
+		SPLIT_NS(p->se.statistics.wait_sum),
 		SPLIT_NS(p->se.sum_exec_runtime),
 		SPLIT_NS(p->se.statistics.sum_sleep_runtime));
 #else
@@ -158,7 +158,7 @@ static void print_rq(struct seq_file *m, struct rq *rq, int rq_cpu)
 	SEQ_printf(m,
 	"\nrunnable tasks:\n"
 	"            task   PID         tree-key  switches  prio"
-	"     exec-runtime         sum-exec        sum-sleep\n"
+	"     wait-time             sum-exec        sum-sleep\n"
 	"------------------------------------------------------"
 	"----------------------------------------------------\n");
 
