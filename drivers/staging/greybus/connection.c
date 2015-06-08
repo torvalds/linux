@@ -14,8 +14,8 @@
 
 static DEFINE_SPINLOCK(gb_connections_lock);
 
-struct gb_connection *gb_connection_hd_find(struct greybus_host_device *hd,
-						u16 cport_id)
+static struct gb_connection *
+gb_connection_hd_find(struct greybus_host_device *hd, u16 cport_id)
 {
 	struct gb_connection *connection = NULL;
 	unsigned long flags;

@@ -51,9 +51,6 @@ void gb_connection_destroy(struct gb_connection *connection);
 int gb_connection_init(struct gb_connection *connection);
 void gb_connection_exit(struct gb_connection *connection);
 
-struct gb_connection *gb_connection_hd_find(struct greybus_host_device *hd,
-				u16 cport_id);
-
 void greybus_data_rcvd(struct greybus_host_device *hd, u16 cport_id,
 			u8 *data, size_t length);
 
