@@ -1043,7 +1043,7 @@ out:
 	return 0;
 }
 
-int f2fs_commit_super(struct f2fs_sb_info *sbi)
+int f2fs_commit_super(struct f2fs_sb_info *sbi, bool recover)
 {
 	struct buffer_head *sbh = sbi->raw_super_buf;
 	sector_t block = sbh->b_blocknr;
@@ -1055,7 +1055,9 @@ int f2fs_commit_super(struct f2fs_sb_info *sbi)
 	err = sync_dirty_buffer(sbh);
 
 	sbh->b_blocknr = block;
-	if (err)
+
+	/* if we are in recovery path, skip writing valid superblock */
+	if (recover || err)
 		goto out;
 
 	/* write current valid superblock */
@@ -1289,7 +1291,7 @@ try_onemore:
 	/* recover broken superblock */
 	if (recovery && !f2fs_readonly(sb) && !bdev_read_only(sb->s_bdev)) {
 		f2fs_msg(sb, KERN_INFO, "Recover invalid superblock");
-		f2fs_commit_super(sbi);
+		f2fs_commit_super(sbi, true);
 	}
 
 	return 0;
