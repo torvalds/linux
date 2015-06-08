@@ -13,6 +13,7 @@
 #include <linux/list_sort.h>
 #include <linux/libnvdimm.h>
 #include <linux/module.h>
+#include <linux/ndctl.h>
 #include <linux/list.h>
 #include <linux/acpi.h>
 #include "nfit.h"
@@ -24,11 +25,153 @@ static const u8 *to_nfit_uuid(enum nfit_uuids id)
 	return nfit_uuid[id];
 }
 
+static struct acpi_nfit_desc *to_acpi_nfit_desc(
+		struct nvdimm_bus_descriptor *nd_desc)
+{
+	return container_of(nd_desc, struct acpi_nfit_desc, nd_desc);
+}
+
+static struct acpi_device *to_acpi_dev(struct acpi_nfit_desc *acpi_desc)
+{
+	struct nvdimm_bus_descriptor *nd_desc = &acpi_desc->nd_desc;
+
+	/*
+	 * If provider == 'ACPI.NFIT' we can assume 'dev' is a struct
+	 * acpi_device.
+	 */
+	if (!nd_desc->provider_name
+			|| strcmp(nd_desc->provider_name, "ACPI.NFIT") != 0)
+		return NULL;
+
+	return to_acpi_device(acpi_desc->dev);
+}
+
 static int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc,
 		struct nvdimm *nvdimm, unsigned int cmd, void *buf,
 		unsigned int buf_len)
 {
-	return -ENOTTY;
+	struct acpi_nfit_desc *acpi_desc = to_acpi_nfit_desc(nd_desc);
+	const struct nd_cmd_desc *desc = NULL;
+	union acpi_object in_obj, in_buf, *out_obj;
+	struct device *dev = acpi_desc->dev;
+	const char *cmd_name, *dimm_name;
+	unsigned long dsm_mask;
+	acpi_handle handle;
+	const u8 *uuid;
+	u32 offset;
+	int rc, i;
+
+	if (nvdimm) {
+		struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
+		struct acpi_device *adev = nfit_mem->adev;
+
+		if (!adev)
+			return -ENOTTY;
+		dimm_name = dev_name(&adev->dev);
+		cmd_name = nvdimm_cmd_name(cmd);
+		dsm_mask = nfit_mem->dsm_mask;
+		desc = nd_cmd_dimm_desc(cmd);
+		uuid = to_nfit_uuid(NFIT_DEV_DIMM);
+		handle = adev->handle;
+	} else {
+		struct acpi_device *adev = to_acpi_dev(acpi_desc);
+
+		cmd_name = nvdimm_bus_cmd_name(cmd);
+		dsm_mask = nd_desc->dsm_mask;
+		desc = nd_cmd_bus_desc(cmd);
+		uuid = to_nfit_uuid(NFIT_DEV_BUS);
+		handle = adev->handle;
+		dimm_name = "bus";
+	}
+
+	if (!desc || (cmd && (desc->out_num + desc->in_num == 0)))
+		return -ENOTTY;
+
+	if (!test_bit(cmd, &dsm_mask))
+		return -ENOTTY;
+
+	in_obj.type = ACPI_TYPE_PACKAGE;
+	in_obj.package.count = 1;
+	in_obj.package.elements = &in_buf;
+	in_buf.type = ACPI_TYPE_BUFFER;
+	in_buf.buffer.pointer = buf;
+	in_buf.buffer.length = 0;
+
+	/* libnvdimm has already validated the input envelope */
+	for (i = 0; i < desc->in_num; i++)
+		in_buf.buffer.length += nd_cmd_in_size(nvdimm, cmd, desc,
+				i, buf);
+
+	if (IS_ENABLED(CONFIG_ACPI_NFIT_DEBUG)) {
+		dev_dbg(dev, "%s:%s cmd: %s input length: %d\n", __func__,
+				dimm_name, cmd_name, in_buf.buffer.length);
+		print_hex_dump_debug(cmd_name, DUMP_PREFIX_OFFSET, 4,
+				4, in_buf.buffer.pointer, min_t(u32, 128,
+					in_buf.buffer.length), true);
+	}
+
+	out_obj = acpi_evaluate_dsm(handle, uuid, 1, cmd, &in_obj);
+	if (!out_obj) {
+		dev_dbg(dev, "%s:%s _DSM failed cmd: %s\n", __func__, dimm_name,
+				cmd_name);
+		return -EINVAL;
+	}
+
+	if (out_obj->package.type != ACPI_TYPE_BUFFER) {
+		dev_dbg(dev, "%s:%s unexpected output object type cmd: %s type: %d\n",
+				__func__, dimm_name, cmd_name, out_obj->type);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	if (IS_ENABLED(CONFIG_ACPI_NFIT_DEBUG)) {
+		dev_dbg(dev, "%s:%s cmd: %s output length: %d\n", __func__,
+				dimm_name, cmd_name, out_obj->buffer.length);
+		print_hex_dump_debug(cmd_name, DUMP_PREFIX_OFFSET, 4,
+				4, out_obj->buffer.pointer, min_t(u32, 128,
+					out_obj->buffer.length), true);
+	}
+
+	for (i = 0, offset = 0; i < desc->out_num; i++) {
+		u32 out_size = nd_cmd_out_size(nvdimm, cmd, desc, i, buf,
+				(u32 *) out_obj->buffer.pointer);
+
+		if (offset + out_size > out_obj->buffer.length) {
+			dev_dbg(dev, "%s:%s output object underflow cmd: %s field: %d\n",
+					__func__, dimm_name, cmd_name, i);
+			break;
+		}
+
+		if (in_buf.buffer.length + offset + out_size > buf_len) {
+			dev_dbg(dev, "%s:%s output overrun cmd: %s field: %d\n",
+					__func__, dimm_name, cmd_name, i);
+			rc = -ENXIO;
+			goto out;
+		}
+		memcpy(buf + in_buf.buffer.length + offset,
+				out_obj->buffer.pointer + offset, out_size);
+		offset += out_size;
+	}
+	if (offset + in_buf.buffer.length < buf_len) {
+		if (i >= 1) {
+			/*
+			 * status valid, return the number of bytes left
+			 * unfilled in the output buffer
+			 */
+			rc = buf_len - offset - in_buf.buffer.length;
+		} else {
+			dev_err(dev, "%s:%s underrun cmd: %s buf_len: %d out_len: %d\n",
+					__func__, dimm_name, cmd_name, buf_len,
+					offset);
+			rc = -ENXIO;
+		}
+	} else
+		rc = 0;
+
+ out:
+	ACPI_FREE(out_obj);
+
+	return rc;
 }
 
 static const char *spa_type_name(u16 type)
@@ -489,6 +632,7 @@ static struct attribute_group acpi_nfit_dimm_attribute_group = {
 };
 
 static const struct attribute_group *acpi_nfit_dimm_attribute_groups[] = {
+	&nvdimm_attribute_group,
 	&acpi_nfit_dimm_attribute_group,
 	NULL,
 };
@@ -505,6 +649,50 @@ static struct nvdimm *acpi_nfit_dimm_by_handle(struct acpi_nfit_desc *acpi_desc,
 	return NULL;
 }
 
+static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
+		struct nfit_mem *nfit_mem, u32 device_handle)
+{
+	struct acpi_device *adev, *adev_dimm;
+	struct device *dev = acpi_desc->dev;
+	const u8 *uuid = to_nfit_uuid(NFIT_DEV_DIMM);
+	unsigned long long sta;
+	int i, rc = -ENODEV;
+	acpi_status status;
+
+	nfit_mem->dsm_mask = acpi_desc->dimm_dsm_force_en;
+	adev = to_acpi_dev(acpi_desc);
+	if (!adev)
+		return 0;
+
+	adev_dimm = acpi_find_child_device(adev, device_handle, false);
+	nfit_mem->adev = adev_dimm;
+	if (!adev_dimm) {
+		dev_err(dev, "no ACPI.NFIT device with _ADR %#x, disabling...\n",
+				device_handle);
+		return -ENODEV;
+	}
+
+	status = acpi_evaluate_integer(adev_dimm->handle, "_STA", NULL, &sta);
+	if (status == AE_NOT_FOUND) {
+		dev_dbg(dev, "%s missing _STA, assuming enabled...\n",
+				dev_name(&adev_dimm->dev));
+		rc = 0;
+	} else if (ACPI_FAILURE(status))
+		dev_err(dev, "%s failed to retrieve_STA, disabling...\n",
+				dev_name(&adev_dimm->dev));
+	else if ((sta & ACPI_STA_DEVICE_ENABLED) == 0)
+		dev_info(dev, "%s disabled by firmware\n",
+				dev_name(&adev_dimm->dev));
+	else
+		rc = 0;
+
+	for (i = ND_CMD_SMART; i <= ND_CMD_VENDOR; i++)
+		if (acpi_check_dsm(adev_dimm->handle, uuid, 1, 1ULL << i))
+			set_bit(i, &nfit_mem->dsm_mask);
+
+	return rc;
+}
+
 static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 {
 	struct nfit_mem *nfit_mem;
@@ -513,6 +701,7 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 		struct nvdimm *nvdimm;
 		unsigned long flags = 0;
 		u32 device_handle;
+		int rc;
 
 		device_handle = __to_nfit_memdev(nfit_mem)->device_handle;
 		nvdimm = acpi_nfit_dimm_by_handle(acpi_desc, device_handle);
@@ -529,8 +718,13 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 		if (nfit_mem->bdw && nfit_mem->memdev_pmem)
 			flags |= NDD_ALIASING;
 
+		rc = acpi_nfit_add_dimm(acpi_desc, nfit_mem, device_handle);
+		if (rc)
+			continue;
+
 		nvdimm = nvdimm_create(acpi_desc->nvdimm_bus, nfit_mem,
-				acpi_nfit_dimm_attribute_groups, flags);
+				acpi_nfit_dimm_attribute_groups,
+				flags, &nfit_mem->dsm_mask);
 		if (!nvdimm)
 			return -ENOMEM;
 
@@ -538,6 +732,22 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 	}
 
 	return 0;
+}
+
+static void acpi_nfit_init_dsms(struct acpi_nfit_desc *acpi_desc)
+{
+	struct nvdimm_bus_descriptor *nd_desc = &acpi_desc->nd_desc;
+	const u8 *uuid = to_nfit_uuid(NFIT_DEV_BUS);
+	struct acpi_device *adev;
+	int i;
+
+	adev = to_acpi_dev(acpi_desc);
+	if (!adev)
+		return;
+
+	for (i = ND_CMD_ARS_CAP; i <= ND_CMD_ARS_STATUS; i++)
+		if (acpi_check_dsm(adev->handle, uuid, 1, 1ULL << i))
+			set_bit(i, &nd_desc->dsm_mask);
 }
 
 static int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, acpi_size sz)
@@ -566,6 +776,8 @@ static int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, acpi_size sz)
 
 	if (nfit_mem_init(acpi_desc) != 0)
 		return -ENOMEM;
+
+	acpi_nfit_init_dsms(acpi_desc);
 
 	return acpi_nfit_register_dimms(acpi_desc);
 }

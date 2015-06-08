@@ -67,6 +67,8 @@ struct nfit_mem {
 	struct acpi_nfit_system_address *spa_dcr;
 	struct acpi_nfit_system_address *spa_bdw;
 	struct list_head list;
+	struct acpi_device *adev;
+	unsigned long dsm_mask;
 };
 
 struct acpi_nfit_desc {
@@ -79,6 +81,7 @@ struct acpi_nfit_desc {
 	struct list_head bdws;
 	struct nvdimm_bus *nvdimm_bus;
 	struct device *dev;
+	unsigned long dimm_dsm_force_en;
 };
 
 static inline struct acpi_nfit_memory_map *__to_nfit_memdev(

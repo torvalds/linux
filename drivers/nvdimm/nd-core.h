@@ -18,6 +18,7 @@
 extern struct list_head nvdimm_bus_list;
 extern struct mutex nvdimm_bus_list_mutex;
 extern struct bus_type nvdimm_bus_type;
+extern int nvdimm_major;
 
 struct nvdimm_bus {
 	struct nvdimm_bus_descriptor *nd_desc;
@@ -29,10 +30,12 @@ struct nvdimm_bus {
 struct nvdimm {
 	unsigned long flags;
 	void *provider_data;
+	unsigned long *dsm_mask;
 	struct device dev;
 	int id;
 };
 
+bool is_nvdimm(struct device *dev);
 struct nvdimm_bus *walk_to_nvdimm_bus(struct device *nd_dev);
 int __init nvdimm_bus_init(void);
 void __exit nvdimm_bus_exit(void);
