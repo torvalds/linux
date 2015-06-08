@@ -71,13 +71,6 @@
 })
 #endif
 
-struct lov_lock_handles {
-	struct portals_handle   llh_handle;
-	atomic_t	    llh_refcount;
-	int		     llh_stripe_count;
-	struct lustre_handle    llh_handles[0];
-};
-
 struct lov_request {
 	struct obd_info	  rq_oi;
 	struct lov_request_set  *rq_rqset;
@@ -111,7 +104,6 @@ struct lov_request_set {
 	struct obd_trans_info		*set_oti;
 	u32				set_oabufs;
 	struct brw_page			*set_pga;
-	struct lov_lock_handles		*set_lockh;
 	struct list_head			set_list;
 	wait_queue_head_t			set_waitq;
 	spinlock_t			set_lock;
@@ -134,32 +126,6 @@ static inline void lov_put_reqset(struct lov_request_set *set)
 {
 	if (atomic_dec_and_test(&set->set_refcount))
 		lov_finish_set(set);
-}
-
-static inline struct lov_lock_handles *
-lov_handle2llh(struct lustre_handle *handle)
-{
-	LASSERT(handle != NULL);
-	return class_handle2object(handle->cookie);
-}
-
-static inline void lov_llh_put(struct lov_lock_handles *llh)
-{
-	CDEBUG(D_INFO, "PUTting llh %p : new refcount %d\n", llh,
-	       atomic_read(&llh->llh_refcount) - 1);
-	LASSERT(atomic_read(&llh->llh_refcount) > 0 &&
-		atomic_read(&llh->llh_refcount) < 0x5a5a);
-	if (atomic_dec_and_test(&llh->llh_refcount)) {
-		class_handle_unhash(&llh->llh_handle);
-		/* The structure may be held by other threads because RCU.
-		 *   -jxiong */
-		if (atomic_read(&llh->llh_refcount))
-			return;
-
-		OBD_FREE_RCU(llh, sizeof(*llh) +
-			     sizeof(*llh->llh_handles) * llh->llh_stripe_count,
-			     &llh->llh_handle);
-	}
 }
 
 #define lov_uuid2str(lv, index) \

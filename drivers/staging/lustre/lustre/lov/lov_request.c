@@ -78,9 +78,6 @@ void lov_finish_set(struct lov_request_set *set)
 		int len = set->set_oabufs * sizeof(*set->set_pga);
 		OBD_FREE_LARGE(set->set_pga, len);
 	}
-	if (set->set_lockh)
-		lov_llh_put(set->set_lockh);
-
 	kfree(set);
 }
 
