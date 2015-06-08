@@ -624,12 +624,12 @@ at_xdmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		       unsigned int sg_len, enum dma_transfer_direction direction,
 		       unsigned long flags, void *context)
 {
-	struct at_xdmac_chan	*atchan = to_at_xdmac_chan(chan);
-	struct at_xdmac_desc	*first = NULL, *prev = NULL;
-	struct scatterlist	*sg;
-	int			i;
-	unsigned int		xfer_size = 0;
-	unsigned long		irqflags;
+	struct at_xdmac_chan		*atchan = to_at_xdmac_chan(chan);
+	struct at_xdmac_desc		*first = NULL, *prev = NULL;
+	struct scatterlist		*sg;
+	int				i;
+	unsigned int			xfer_size = 0;
+	unsigned long			irqflags;
 	struct dma_async_tx_descriptor	*ret = NULL;
 
 	if (!sgl)
