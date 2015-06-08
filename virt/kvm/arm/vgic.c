@@ -1802,6 +1802,30 @@ static void vgic_free_phys_irq_map_rcu(struct rcu_head *rcu)
 }
 
 /**
+ * kvm_vgic_get_phys_irq_active - Return the active state of a mapped IRQ
+ *
+ * Return the logical active state of a mapped interrupt. This doesn't
+ * necessarily reflects the current HW state.
+ */
+bool kvm_vgic_get_phys_irq_active(struct irq_phys_map *map)
+{
+	BUG_ON(!map);
+	return map->active;
+}
+
+/**
+ * kvm_vgic_set_phys_irq_active - Set the active state of a mapped IRQ
+ *
+ * Set the logical active state of a mapped interrupt. This doesn't
+ * immediately affects the HW state.
+ */
+void kvm_vgic_set_phys_irq_active(struct irq_phys_map *map, bool active)
+{
+	BUG_ON(!map);
+	map->active = active;
+}
+
+/**
  * kvm_vgic_unmap_phys_irq - Remove a virtual to physical IRQ mapping
  * @vcpu: The VCPU pointer
  * @map: The pointer to a mapping obtained through kvm_vgic_map_phys_irq
