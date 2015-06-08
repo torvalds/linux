@@ -10,7 +10,8 @@ void syscall_init(void);
 
 void entry_INT80_compat(void);
 void entry_SYSCALL_compat(void);
-void ia32_sysenter_target(void);
+void entry_SYSENTER_32(void);
+void entry_SYSENTER_compat(void);
 
 void x86_configure_nx(void);
 void x86_report_nx(void);

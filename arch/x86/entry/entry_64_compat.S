@@ -57,7 +57,7 @@ ENDPROC(native_usergs_sysret32)
  * path below. We set up a complete hardware stack frame to share code
  * with the int 0x80 path.
  */
-ENTRY(ia32_sysenter_target)
+ENTRY(entry_SYSENTER_compat)
 	/*
 	 * Interrupts are off on entry.
 	 * We do not frame this tiny irq-off block with TRACE_IRQS_OFF/ON,
@@ -256,7 +256,7 @@ sysenter_tracesys:
 
 	RESTORE_EXTRA_REGS
 	jmp	sysenter_do_call
-ENDPROC(ia32_sysenter_target)
+ENDPROC(entry_SYSENTER_compat)
 
 /*
  * 32-bit SYSCALL instruction entry.

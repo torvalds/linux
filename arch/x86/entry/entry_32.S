@@ -307,7 +307,7 @@ END(resume_kernel)
    the vsyscall page.  See vsyscall-sysentry.S, which defines the symbol.  */
 
 	# sysenter call handler stub
-ENTRY(ia32_sysenter_target)
+ENTRY(entry_SYSENTER_32)
 	movl TSS_sysenter_sp0(%esp),%esp
 sysenter_past_esp:
 	/*
@@ -412,7 +412,7 @@ sysexit_audit:
 .popsection
 	_ASM_EXTABLE(1b,2b)
 	PTGS_TO_GS_EX
-ENDPROC(ia32_sysenter_target)
+ENDPROC(entry_SYSENTER_32)
 
 	# system call handler stub
 ENTRY(system_call)
@@ -1135,7 +1135,7 @@ END(page_fault)
 
 ENTRY(debug)
 	ASM_CLAC
-	cmpl $ia32_sysenter_target,(%esp)
+	cmpl $entry_SYSENTER_32,(%esp)
 	jne debug_stack_correct
 	FIX_STACK 12, debug_stack_correct, debug_esp_fix_insn
 debug_stack_correct:
@@ -1165,7 +1165,7 @@ ENTRY(nmi)
 	popl %eax
 	je nmi_espfix_stack
 #endif
-	cmpl $ia32_sysenter_target,(%esp)
+	cmpl $entry_SYSENTER_32,(%esp)
 	je nmi_stack_fixup
 	pushl %eax
 	movl %esp,%eax
@@ -1176,7 +1176,7 @@ ENTRY(nmi)
 	cmpl $(THREAD_SIZE-20),%eax
 	popl %eax
 	jae nmi_stack_correct
-	cmpl $ia32_sysenter_target,12(%esp)
+	cmpl $entry_SYSENTER_32,12(%esp)
 	je nmi_debug_stack_check
 nmi_stack_correct:
 	pushl %eax

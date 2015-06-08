@@ -128,7 +128,7 @@ ENDPROC(xen_syscall32_target)
 /* 32-bit compat sysenter target */
 ENTRY(xen_sysenter_target)
 	undo_xen_syscall
-	jmp ia32_sysenter_target
+	jmp entry_SYSENTER_compat
 ENDPROC(xen_sysenter_target)
 
 #else /* !CONFIG_IA32_EMULATION */
