@@ -522,7 +522,8 @@ long amdgpu_fence_wait_seq_timeout(struct amdgpu_device *adev, u64 *target_seq,
 {
 	uint64_t last_seq[AMDGPU_MAX_RINGS];
 	bool signaled;
-	int i, r;
+	int i;
+	long r;
 
 	if (timeout == 0) {
 		return amdgpu_fence_any_seq_signaled(adev, target_seq);
