@@ -1209,6 +1209,8 @@ err_clk_sec:
 	if (!IS_ERR(data->clk_sec))
 		clk_unprepare(data->clk_sec);
 err_sensor:
+	if (!IS_ERR_OR_NULL(data->regulator))
+		regulator_disable(data->regulator);
 	thermal_zone_of_sensor_unregister(&pdev->dev, data->tzd);
 
 	return ret;
