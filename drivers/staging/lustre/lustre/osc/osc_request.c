@@ -1007,8 +1007,8 @@ static int osc_should_shrink_grant(struct client_obd *client)
 		if (client->cl_import->imp_state == LUSTRE_IMP_FULL &&
 		    client->cl_avail_grant > brw_size)
 			return 1;
-		else
-			osc_update_next_shrink(client);
+
+		osc_update_next_shrink(client);
 	}
 	return 0;
 }
@@ -2299,7 +2299,9 @@ int osc_enqueue_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 			ldlm_lock_decref(lockh, mode);
 			LDLM_LOCK_PUT(matched);
 			return -ECANCELED;
-		} else if (osc_set_lock_data_with_check(matched, einfo)) {
+		}
+
+		if (osc_set_lock_data_with_check(matched, einfo)) {
 			*flags |= LDLM_FL_LVB_READY;
 			/* addref the lock only if not async requests and PW
 			 * lock is matched whereas we asked for PR. */
@@ -2324,10 +2326,10 @@ int osc_enqueue_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 				ldlm_lock_decref(lockh, einfo->ei_mode);
 			LDLM_LOCK_PUT(matched);
 			return ELDLM_OK;
-		} else {
-			ldlm_lock_decref(lockh, mode);
-			LDLM_LOCK_PUT(matched);
 		}
+
+		ldlm_lock_decref(lockh, mode);
+		LDLM_LOCK_PUT(matched);
 	}
 
  no_match:

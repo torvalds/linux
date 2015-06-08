@@ -203,10 +203,9 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 			CERROR("%s: Can't allocate new meta-sequence, rc %d\n",
 			       seq->lcs_name, rc);
 			return rc;
-		} else {
-			CDEBUG(D_INFO, "%s: New range - "DRANGE"\n",
-			       seq->lcs_name, PRANGE(&seq->lcs_space));
 		}
+		CDEBUG(D_INFO, "%s: New range - "DRANGE"\n",
+		       seq->lcs_name, PRANGE(&seq->lcs_space));
 	} else {
 		rc = 0;
 	}

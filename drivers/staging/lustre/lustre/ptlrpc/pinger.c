@@ -289,12 +289,10 @@ static int ptlrpc_pinger_main(void *arg)
 				     thread_is_stopping(thread) ||
 				     thread_is_event(thread),
 				     &lwi);
-			if (thread_test_and_clear_flags(thread, SVC_STOPPING)) {
+			if (thread_test_and_clear_flags(thread, SVC_STOPPING))
 				break;
-			} else {
-				/* woken after adding import to reset timer */
-				thread_test_and_clear_flags(thread, SVC_EVENT);
-			}
+			/* woken after adding import to reset timer */
+			thread_test_and_clear_flags(thread, SVC_EVENT);
 		}
 	}
 

@@ -75,11 +75,11 @@ static int mdc_unpack_capa(struct obd_export *exp, struct ptlrpc_request *req,
 	if (IS_ERR(c)) {
 		CDEBUG(D_INFO, "alloc capa failed!\n");
 		return PTR_ERR(c);
-	} else {
-		c->c_capa = *capa;
-		*oc = c;
-		return 0;
 	}
+
+	c->c_capa = *capa;
+	*oc = c;
+	return 0;
 }
 
 static inline int mdc_queue_wait(struct ptlrpc_request *req)

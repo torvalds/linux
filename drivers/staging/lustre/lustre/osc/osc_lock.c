@@ -1176,8 +1176,7 @@ static int osc_lock_wait(const struct lu_env *env,
 				/* It is from enqueue RPC reply upcall for
 				 * updating state. Do not re-enqueue. */
 				return -ENAVAIL;
-			else
-				olck->ols_state = OLS_NEW;
+			olck->ols_state = OLS_NEW;
 		} else {
 			LASSERT(lock->cll_error);
 			return lock->cll_error;

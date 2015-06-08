@@ -607,8 +607,7 @@ void lov_update_statfs(struct obd_statfs *osfs, struct obd_statfs *lov_sfs,
 				if (tmp & 1) {
 					if (quit)
 						break;
-					else
-						quit = 1;
+					quit = 1;
 					shift = 0;
 				}
 				tmp >>= 1;

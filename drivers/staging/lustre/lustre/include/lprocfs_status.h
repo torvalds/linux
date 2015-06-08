@@ -421,9 +421,8 @@ static inline int lprocfs_stats_lock(struct lprocfs_stats *stats, int opc,
 			else
 				spin_lock(&stats->ls_lock);
 			return 1;
-		} else {
-			return stats->ls_biggest_alloc_num;
 		}
+		return stats->ls_biggest_alloc_num;
 	}
 }
 
