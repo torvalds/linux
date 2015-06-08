@@ -369,7 +369,7 @@ static void ext4_validate_block_bitmap(struct super_block *sb,
 	struct ext4_group_info *grp = ext4_get_group_info(sb, block_group);
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
-	if (buffer_verified(bh))
+	if (buffer_verified(bh) || EXT4_MB_GRP_BBITMAP_CORRUPT(grp))
 		return;
 
 	ext4_lock_group(sb, block_group);
@@ -446,7 +446,7 @@ ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group)
 		unlock_buffer(bh);
 		if (err)
 			ext4_error(sb, "Checksum bad for grp %u", block_group);
-		return bh;
+		goto verify;
 	}
 	ext4_unlock_group(sb, block_group);
 	if (buffer_uptodate(bh)) {
