@@ -48,10 +48,8 @@
 /* The solo writes to 1k byte pages, 32 pages, in the dma. Each 1k page
  * is broken down to 20 * 48 byte regions (one for each channel possible)
  * with the rest of the page being dummy data. */
-#define G723_MAX_BUFFER		(G723_PERIOD_BYTES * PERIODS_MAX)
+#define PERIODS			G723_FDMA_PAGES
 #define G723_INTR_ORDER		4 /* 0 - 4 */
-#define PERIODS_MIN		(1 << G723_INTR_ORDER)
-#define PERIODS_MAX		G723_FDMA_PAGES
 
 struct solo_snd_pcm {
 	int				on;
@@ -130,11 +128,11 @@ static const struct snd_pcm_hardware snd_solo_pcm_hw = {
 	.rate_max		= SAMPLERATE,
 	.channels_min		= 1,
 	.channels_max		= 1,
-	.buffer_bytes_max	= G723_MAX_BUFFER,
+	.buffer_bytes_max	= G723_PERIOD_BYTES * PERIODS,
 	.period_bytes_min	= G723_PERIOD_BYTES,
 	.period_bytes_max	= G723_PERIOD_BYTES,
-	.periods_min		= PERIODS_MIN,
-	.periods_max		= PERIODS_MAX,
+	.periods_min		= PERIODS,
+	.periods_max		= PERIODS,
 };
 
 static int snd_solo_pcm_open(struct snd_pcm_substream *ss)
@@ -340,7 +338,8 @@ static int solo_snd_pcm_init(struct solo_dev *solo_dev)
 	ret = snd_pcm_lib_preallocate_pages_for_all(pcm,
 					SNDRV_DMA_TYPE_CONTINUOUS,
 					snd_dma_continuous_data(GFP_KERNEL),
-					G723_MAX_BUFFER, G723_MAX_BUFFER);
+					G723_PERIOD_BYTES * PERIODS,
+					G723_PERIOD_BYTES * PERIODS);
 	if (ret < 0)
 		return ret;
 
