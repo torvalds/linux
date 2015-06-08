@@ -604,8 +604,8 @@ static int tas2552_codec_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, TAS2552_BOOST_APT_CTRL, TAS2552_APT_DELAY_200 |
 						     TAS2552_APT_THRESH_20_17);
 
-	snd_soc_write(codec, TAS2552_CFG_2, TAS2552_BOOST_EN |
-				  TAS2552_APT_EN | TAS2552_LIM_EN);
+	snd_soc_write(codec, TAS2552_CFG_2, TAS2552_BOOST_EN | TAS2552_APT_EN |
+					    TAS2552_LIM_EN);
 
 	return 0;
 
