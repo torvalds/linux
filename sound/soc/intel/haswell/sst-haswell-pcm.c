@@ -1346,7 +1346,6 @@ static void hsw_pcm_complete(struct device *dev)
 static int hsw_pcm_prepare(struct device *dev)
 {
 	struct hsw_priv_data *pdata = dev_get_drvdata(dev);
-	struct sst_hsw *hsw = pdata->hsw;
 	struct hsw_pcm_data *pcm_data;
 	int i, err;
 
