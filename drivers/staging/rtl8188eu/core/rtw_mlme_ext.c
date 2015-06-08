@@ -804,7 +804,7 @@ unsigned int OnAuth(struct adapter *padapter, struct recv_frame *precv_frame)
 auth_fail:
 
 	if (pstat)
-		rtw_free_stainfo(padapter , pstat);
+		rtw_free_stainfo(padapter, pstat);
 
 	pstat = &stat;
 	memset((char *)pstat, '\0', sizeof(stat));
