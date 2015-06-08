@@ -3897,7 +3897,12 @@ static void rk81x_bat_irq_init(struct rk81x_battery *di)
 static void rk81x_bat_info_init(struct rk81x_battery *di,
 				struct rk818 *chip)
 {
+	u8 val;
 	unsigned long time_base = get_runtime_sec();
+
+	rk81x_bat_read(di, RK818_VB_MON_REG, &val, 1);
+	if (val & PLUG_IN_STS)
+		rk81x_bat_set_power_supply_state(di, USB_CHARGER);
 
 	di->cell.config = di->pdata->cell_cfg;
 	di->design_capacity = di->pdata->cell_cfg->design_capacity;
@@ -4295,6 +4300,7 @@ static int rk81x_battery_resume(struct platform_device *dev)
 	if ((!rk81x_chrg_online(di) && di->voltage <= pwroff_thresd) ||
 	    rk81x_chrg_online(di))
 		wake_lock_timeout(&di->resume_wake_lock, 5 * HZ);
+
 	/*
 	 * do not modify the g_base_sec
 	 */
