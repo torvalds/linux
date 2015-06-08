@@ -40,10 +40,8 @@ static int imx_mqs_startup(struct snd_pcm_substream *substream)
 
 	if (priv->mclk_freq == 24576000) {
 		support_rates[0] = 48000;
-		support_rates[1] = 96000;
-		support_rates[2] = 192000;
 		constraint_rates.list = support_rates;
-		constraint_rates.count = 3;
+		constraint_rates.count = 1;
 
 		ret = snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
 							&constraint_rates);
