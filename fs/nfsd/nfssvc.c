@@ -393,6 +393,7 @@ static int nfsd_get_default_max_blksize(void)
 
 static struct svc_serv_ops nfsd_sv_ops = {
 	.svo_shutdown = nfsd_last_thread,
+	.svo_function = nfsd,
 };
 
 int nfsd_create_serv(struct net *net)
@@ -409,7 +410,7 @@ int nfsd_create_serv(struct net *net)
 		nfsd_max_blksize = nfsd_get_default_max_blksize();
 	nfsd_reset_versions();
 	nn->nfsd_serv = svc_create_pooled(&nfsd_program, nfsd_max_blksize,
-				      &nfsd_sv_ops, nfsd, THIS_MODULE);
+				      &nfsd_sv_ops, THIS_MODULE);
 	if (nn->nfsd_serv == NULL)
 		return -ENOMEM;
 

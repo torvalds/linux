@@ -19,11 +19,6 @@
 #include <linux/wait.h>
 #include <linux/mm.h>
 
-/*
- * This is the RPC server thread function prototype
- */
-typedef int		(*svc_thread_fn)(void *);
-
 /* statistics for svc_pool structures */
 struct svc_pool_stats {
 	atomic_long_t	packets;
@@ -58,7 +53,8 @@ struct svc_serv;
 
 struct svc_serv_ops {
 	/* Callback to use when last thread exits. */
-	void	(*svo_shutdown)(struct svc_serv *serv, struct net *net);
+	void		(*svo_shutdown)(struct svc_serv *, struct net *);
+	int		(*svo_function)(void *);
 };
 
 /*
@@ -95,7 +91,6 @@ struct svc_serv {
 	struct svc_serv_ops	*sv_ops;	/* server operations */
 	struct module *		sv_module;	/* optional module to count when
 						 * adding threads */
-	svc_thread_fn		sv_function;	/* main function for threads */
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
 	struct list_head	sv_cb_list;	/* queue for callback requests
 						 * that arrive over the same
@@ -435,7 +430,7 @@ struct svc_rqst *svc_prepare_thread(struct svc_serv *serv,
 					struct svc_pool *pool, int node);
 void		   svc_exit_thread(struct svc_rqst *);
 struct svc_serv *  svc_create_pooled(struct svc_program *, unsigned int,
-			struct svc_serv_ops *, svc_thread_fn, struct module *);
+			struct svc_serv_ops *, struct module *);
 int		   svc_set_num_threads(struct svc_serv *, struct svc_pool *, int);
 int		   svc_pool_stats_open(struct svc_serv *serv, struct file *file);
 void		   svc_destroy(struct svc_serv *);
