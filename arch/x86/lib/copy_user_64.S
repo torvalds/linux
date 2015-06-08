@@ -7,7 +7,6 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/dwarf2.h>
 #include <asm/current.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
@@ -18,7 +17,6 @@
 
 /* Standard copy_to_user with segment limit checking */
 ENTRY(_copy_to_user)
-	CFI_STARTPROC
 	GET_THREAD_INFO(%rax)
 	movq %rdi,%rcx
 	addq %rdx,%rcx
@@ -30,12 +28,10 @@ ENTRY(_copy_to_user)
 		      X86_FEATURE_REP_GOOD,			\
 		      "jmp copy_user_enhanced_fast_string",	\
 		      X86_FEATURE_ERMS
-	CFI_ENDPROC
 ENDPROC(_copy_to_user)
 
 /* Standard copy_from_user with segment limit checking */
 ENTRY(_copy_from_user)
-	CFI_STARTPROC
 	GET_THREAD_INFO(%rax)
 	movq %rsi,%rcx
 	addq %rdx,%rcx
@@ -47,14 +43,12 @@ ENTRY(_copy_from_user)
 		      X86_FEATURE_REP_GOOD,			\
 		      "jmp copy_user_enhanced_fast_string",	\
 		      X86_FEATURE_ERMS
-	CFI_ENDPROC
 ENDPROC(_copy_from_user)
 
 	.section .fixup,"ax"
 	/* must zero dest */
 ENTRY(bad_from_user)
 bad_from_user:
-	CFI_STARTPROC
 	movl %edx,%ecx
 	xorl %eax,%eax
 	rep
@@ -62,7 +56,6 @@ bad_from_user:
 bad_to_user:
 	movl %edx,%eax
 	ret
-	CFI_ENDPROC
 ENDPROC(bad_from_user)
 	.previous
 
@@ -80,7 +73,6 @@ ENDPROC(bad_from_user)
  * eax uncopied bytes or 0 if successful.
  */
 ENTRY(copy_user_generic_unrolled)
-	CFI_STARTPROC
 	ASM_STAC
 	cmpl $8,%edx
 	jb 20f		/* less then 8 bytes, go to byte copy loop */
@@ -162,7 +154,6 @@ ENTRY(copy_user_generic_unrolled)
 	_ASM_EXTABLE(19b,40b)
 	_ASM_EXTABLE(21b,50b)
 	_ASM_EXTABLE(22b,50b)
-	CFI_ENDPROC
 ENDPROC(copy_user_generic_unrolled)
 
 /* Some CPUs run faster using the string copy instructions.
@@ -184,7 +175,6 @@ ENDPROC(copy_user_generic_unrolled)
  * eax uncopied bytes or 0 if successful.
  */
 ENTRY(copy_user_generic_string)
-	CFI_STARTPROC
 	ASM_STAC
 	cmpl $8,%edx
 	jb 2f		/* less than 8 bytes, go to byte copy loop */
@@ -209,7 +199,6 @@ ENTRY(copy_user_generic_string)
 
 	_ASM_EXTABLE(1b,11b)
 	_ASM_EXTABLE(3b,12b)
-	CFI_ENDPROC
 ENDPROC(copy_user_generic_string)
 
 /*
@@ -225,7 +214,6 @@ ENDPROC(copy_user_generic_string)
  * eax uncopied bytes or 0 if successful.
  */
 ENTRY(copy_user_enhanced_fast_string)
-	CFI_STARTPROC
 	ASM_STAC
 	movl %edx,%ecx
 1:	rep
@@ -240,7 +228,6 @@ ENTRY(copy_user_enhanced_fast_string)
 	.previous
 
 	_ASM_EXTABLE(1b,12b)
-	CFI_ENDPROC
 ENDPROC(copy_user_enhanced_fast_string)
 
 /*
@@ -248,7 +235,6 @@ ENDPROC(copy_user_enhanced_fast_string)
  * This will force destination/source out of cache for more performance.
  */
 ENTRY(__copy_user_nocache)
-	CFI_STARTPROC
 	ASM_STAC
 	cmpl $8,%edx
 	jb 20f		/* less then 8 bytes, go to byte copy loop */
@@ -332,5 +318,4 @@ ENTRY(__copy_user_nocache)
 	_ASM_EXTABLE(19b,40b)
 	_ASM_EXTABLE(21b,50b)
 	_ASM_EXTABLE(22b,50b)
-	CFI_ENDPROC
 ENDPROC(__copy_user_nocache)

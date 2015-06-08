@@ -18,10 +18,10 @@ Some of these entries are:
 
  - system_call: syscall instruction from 64-bit code.
 
- - ia32_syscall: int 0x80 from 32-bit or 64-bit code; compat syscall
+ - entry_INT80_compat: int 0x80 from 32-bit or 64-bit code; compat syscall
    either way.
 
- - ia32_syscall, ia32_sysenter: syscall and sysenter from 32-bit
+ - entry_INT80_compat, ia32_sysenter: syscall and sysenter from 32-bit
    code
 
  - interrupt: An array of entries.  Every IDT vector that doesn't

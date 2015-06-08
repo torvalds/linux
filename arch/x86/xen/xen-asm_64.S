@@ -114,7 +114,7 @@ RELOC(xen_sysret32, 1b+1)
 /* Normal 64-bit system call target */
 ENTRY(xen_syscall_target)
 	undo_xen_syscall
-	jmp system_call_after_swapgs
+	jmp entry_SYSCALL_64_after_swapgs
 ENDPROC(xen_syscall_target)
 
 #ifdef CONFIG_IA32_EMULATION
@@ -122,13 +122,13 @@ ENDPROC(xen_syscall_target)
 /* 32-bit compat syscall target */
 ENTRY(xen_syscall32_target)
 	undo_xen_syscall
-	jmp ia32_cstar_target
+	jmp entry_SYSCALL_compat
 ENDPROC(xen_syscall32_target)
 
 /* 32-bit compat sysenter target */
 ENTRY(xen_sysenter_target)
 	undo_xen_syscall
-	jmp ia32_sysenter_target
+	jmp entry_SYSENTER_compat
 ENDPROC(xen_sysenter_target)
 
 #else /* !CONFIG_IA32_EMULATION */
