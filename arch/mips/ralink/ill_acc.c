@@ -41,7 +41,7 @@ static irqreturn_t ill_acc_irq_handler(int irq, void *_priv)
 		addr, (type >> ILL_ACC_OFF_S) & ILL_ACC_OFF_M,
 		type & ILL_ACC_LEN_M);
 
-	rt_memc_w32(REG_ILL_ACC_TYPE, REG_ILL_ACC_TYPE);
+	rt_memc_w32(ILL_INT_STATUS, REG_ILL_ACC_TYPE);
 
 	return IRQ_HANDLED;
 }

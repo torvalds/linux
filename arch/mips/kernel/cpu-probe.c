@@ -74,12 +74,11 @@ static inline void cpu_set_fpu_fcsr_mask(struct cpuinfo_mips *c)
 {
 	unsigned long sr, mask, fcsr, fcsr0, fcsr1;
 
+	fcsr = c->fpu_csr31;
 	mask = FPU_CSR_ALL_X | FPU_CSR_ALL_E | FPU_CSR_ALL_S | FPU_CSR_RM;
 
 	sr = read_c0_status();
 	__enable_fpu(FPU_AS_IS);
-
-	fcsr = read_32bit_cp1_register(CP1_STATUS);
 
 	fcsr0 = fcsr & mask;
 	write_32bit_cp1_register(CP1_STATUS, fcsr0);

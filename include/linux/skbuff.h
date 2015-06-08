@@ -176,6 +176,7 @@ struct nf_bridge_info {
 	struct net_device	*physindev;
 	struct net_device	*physoutdev;
 	char			neigh_header[8];
+	__be32			ipv4_daddr;
 };
 #endif
 

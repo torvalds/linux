@@ -494,7 +494,7 @@ static inline int pmd_large(pmd_t pmd)
 	return (pmd_val(pmd) & _SEGMENT_ENTRY_LARGE) != 0;
 }
 
-static inline int pmd_pfn(pmd_t pmd)
+static inline unsigned long pmd_pfn(pmd_t pmd)
 {
 	unsigned long origin_mask;
 
