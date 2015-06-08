@@ -1923,7 +1923,6 @@ intel_start_scheduling(struct cpu_hw_events *cpuc)
 	xl = &excl_cntrs->states[tid];
 
 	xl->sched_started = true;
-	xl->num_alloc_cntrs = 0;
 	/*
 	 * lock shared state until we are done scheduling
 	 * in stop_event_scheduling()
@@ -2000,6 +1999,11 @@ intel_get_excl_constraints(struct cpu_hw_events *cpuc, struct perf_event *event,
 	 * across HT threads
 	 */
 	is_excl = c->flags & PERF_X86_EVENT_EXCL;
+	if (is_excl && !(event->hw.flags & PERF_X86_EVENT_EXCL_ACCT)) {
+		event->hw.flags |= PERF_X86_EVENT_EXCL_ACCT;
+		if (!cpuc->n_excl++)
+			WRITE_ONCE(excl_cntrs->has_exclusive[tid], 1);
+	}
 
 	/*
 	 * xl = state of current HT
@@ -2007,18 +2011,6 @@ intel_get_excl_constraints(struct cpu_hw_events *cpuc, struct perf_event *event,
 	 */
 	xl = &excl_cntrs->states[tid];
 	xlo = &excl_cntrs->states[o_tid];
-
-	/*
-	 * do not allow scheduling of more than max_alloc_cntrs
-	 * which is set to half the available generic counters.
-	 * this helps avoid counter starvation of sibling thread
-	 * by ensuring at most half the counters cannot be in
-	 * exclusive mode. There is not designated counters for the
-	 * limits. Any N/2 counters can be used. This helps with
-	 * events with specifix counter constraints
-	 */
-	if (xl->num_alloc_cntrs++ == xl->max_alloc_cntrs)
-		return &emptyconstraint;
 
 	cx = c;
 
@@ -2106,7 +2098,7 @@ static struct event_constraint *
 intel_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
 			    struct perf_event *event)
 {
-	struct event_constraint *c1 = event->hw.constraint;
+	struct event_constraint *c1 = cpuc->event_constraint[idx];
 	struct event_constraint *c2;
 
 	/*
@@ -2150,6 +2142,11 @@ static void intel_put_excl_constraints(struct cpu_hw_events *cpuc,
 
 	xl = &excl_cntrs->states[tid];
 	xlo = &excl_cntrs->states[o_tid];
+	if (hwc->flags & PERF_X86_EVENT_EXCL_ACCT) {
+		hwc->flags &= ~PERF_X86_EVENT_EXCL_ACCT;
+		if (!--cpuc->n_excl)
+			WRITE_ONCE(excl_cntrs->has_exclusive[tid], 0);
+	}
 
 	/*
 	 * put_constraint may be called from x86_schedule_events()
@@ -2188,8 +2185,6 @@ intel_put_shared_regs_event_constraints(struct cpu_hw_events *cpuc,
 static void intel_put_event_constraints(struct cpu_hw_events *cpuc,
 					struct perf_event *event)
 {
-	struct event_constraint *c = event->hw.constraint;
-
 	intel_put_shared_regs_event_constraints(cpuc, event);
 
 	/*
@@ -2197,19 +2192,14 @@ static void intel_put_event_constraints(struct cpu_hw_events *cpuc,
 	 * all events are subject to and must call the
 	 * put_excl_constraints() routine
 	 */
-	if (c && cpuc->excl_cntrs)
+	if (cpuc->excl_cntrs)
 		intel_put_excl_constraints(cpuc, event);
-
-	/* cleanup dynamic constraint */
-	if (c && (c->flags & PERF_X86_EVENT_DYNAMIC))
-		event->hw.constraint = NULL;
 }
 
-static void intel_commit_scheduling(struct cpu_hw_events *cpuc,
-				    struct perf_event *event, int cntr)
+static void intel_commit_scheduling(struct cpu_hw_events *cpuc, int idx, int cntr)
 {
 	struct intel_excl_cntrs *excl_cntrs = cpuc->excl_cntrs;
-	struct event_constraint *c = event->hw.constraint;
+	struct event_constraint *c = cpuc->event_constraint[idx];
 	struct intel_excl_states *xlo, *xl;
 	int tid = cpuc->excl_thread_id;
 	int o_tid = 1 - tid;
@@ -2639,8 +2629,6 @@ static void intel_pmu_cpu_starting(int cpu)
 		cpuc->lbr_sel = &cpuc->shared_regs->regs[EXTRA_REG_LBR];
 
 	if (x86_pmu.flags & PMU_FL_EXCL_CNTRS) {
-		int h = x86_pmu.num_counters >> 1;
-
 		for_each_cpu(i, topology_thread_cpumask(cpu)) {
 			struct intel_excl_cntrs *c;
 
@@ -2654,11 +2642,6 @@ static void intel_pmu_cpu_starting(int cpu)
 		}
 		cpuc->excl_cntrs->core_id = core_id;
 		cpuc->excl_cntrs->refcnt++;
-		/*
-		 * set hard limit to half the number of generic counters
-		 */
-		cpuc->excl_cntrs->states[0].max_alloc_cntrs = h;
-		cpuc->excl_cntrs->states[1].max_alloc_cntrs = h;
 	}
 }
 

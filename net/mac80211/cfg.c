@@ -2495,51 +2495,22 @@ static bool ieee80211_coalesce_started_roc(struct ieee80211_local *local,
 					   struct ieee80211_roc_work *new_roc,
 					   struct ieee80211_roc_work *cur_roc)
 {
-	unsigned long j = jiffies;
-	unsigned long cur_roc_end = cur_roc->hw_start_time +
-				    msecs_to_jiffies(cur_roc->duration);
-	struct ieee80211_roc_work *next_roc;
-	int new_dur;
+	unsigned long now = jiffies;
+	unsigned long remaining = cur_roc->hw_start_time +
+				  msecs_to_jiffies(cur_roc->duration) -
+				  now;
 
 	if (WARN_ON(!cur_roc->started || !cur_roc->hw_begun))
 		return false;
 
-	if (time_after(j + IEEE80211_ROC_MIN_LEFT, cur_roc_end))
+	/* if it doesn't fit entirely, schedule a new one */
+	if (new_roc->duration > jiffies_to_msecs(remaining))
 		return false;
 
 	ieee80211_handle_roc_started(new_roc);
 
-	new_dur = new_roc->duration - jiffies_to_msecs(cur_roc_end - j);
-
-	/* cur_roc is long enough - add new_roc to the dependents list. */
-	if (new_dur <= 0) {
-		list_add_tail(&new_roc->list, &cur_roc->dependents);
-		return true;
-	}
-
-	new_roc->duration = new_dur;
-
-	/*
-	 * if cur_roc was already coalesced before, we might
-	 * want to extend the next roc instead of adding
-	 * a new one.
-	 */
-	next_roc = list_entry(cur_roc->list.next,
-			      struct ieee80211_roc_work, list);
-	if (&next_roc->list != &local->roc_list &&
-	    next_roc->chan == new_roc->chan &&
-	    next_roc->sdata == new_roc->sdata &&
-	    !WARN_ON(next_roc->started)) {
-		list_add_tail(&new_roc->list, &next_roc->dependents);
-		next_roc->duration = max(next_roc->duration,
-					 new_roc->duration);
-		next_roc->type = max(next_roc->type, new_roc->type);
-		return true;
-	}
-
-	/* add right after cur_roc */
-	list_add(&new_roc->list, &cur_roc->list);
-
+	/* add to dependents so we send the expired event properly */
+	list_add_tail(&new_roc->list, &cur_roc->dependents);
 	return true;
 }
 
@@ -2652,17 +2623,9 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 			 * In the offloaded ROC case, if it hasn't begun, add
 			 * this new one to the dependent list to be handled
 			 * when the master one begins. If it has begun,
-			 * check that there's still a minimum time left and
-			 * if so, start this one, transmitting the frame, but
-			 * add it to the list directly after this one with
-			 * a reduced time so we'll ask the driver to execute
-			 * it right after finishing the previous one, in the
-			 * hope that it'll also be executed right afterwards,
-			 * effectively extending the old one.
-			 * If there's no minimum time left, just add it to the
-			 * normal list.
-			 * TODO: the ROC type is ignored here, assuming that it
-			 * is better to immediately use the current ROC.
+			 * check if it fits entirely within the existing one,
+			 * in which case it will just be dependent as well.
+			 * Otherwise, schedule it by itself.
 			 */
 			if (!tmp->hw_begun) {
 				list_add_tail(&roc->list, &tmp->dependents);

@@ -1379,10 +1379,8 @@ out:
 	/* updated in get modes as well since we need to know if it's analog or digital */
 	radeon_connector_update_scratch_regs(connector, ret);
 
-	if (radeon_audio != 0) {
-		radeon_connector_get_edid(connector);
+	if (radeon_audio != 0)
 		radeon_audio_detect(connector, ret);
-	}
 
 exit:
 	pm_runtime_mark_last_busy(connector->dev->dev);
@@ -1719,10 +1717,8 @@ radeon_dp_detect(struct drm_connector *connector, bool force)
 
 	radeon_connector_update_scratch_regs(connector, ret);
 
-	if (radeon_audio != 0) {
-		radeon_connector_get_edid(connector);
+	if (radeon_audio != 0)
 		radeon_audio_detect(connector, ret);
-	}
 
 out:
 	pm_runtime_mark_last_busy(connector->dev->dev);

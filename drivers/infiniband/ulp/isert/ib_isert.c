@@ -547,11 +547,11 @@ isert_create_pi_ctx(struct fast_reg_descriptor *desc,
 	return 0;
 
 err_prot_mr:
-	ib_dereg_mr(desc->pi_ctx->prot_mr);
+	ib_dereg_mr(pi_ctx->prot_mr);
 err_prot_frpl:
-	ib_free_fast_reg_page_list(desc->pi_ctx->prot_frpl);
+	ib_free_fast_reg_page_list(pi_ctx->prot_frpl);
 err_pi_ctx:
-	kfree(desc->pi_ctx);
+	kfree(pi_ctx);
 
 	return ret;
 }
