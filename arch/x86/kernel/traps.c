@@ -992,7 +992,7 @@ void __init trap_init(void)
 		set_bit(i, used_vectors);
 
 #ifdef CONFIG_IA32_EMULATION
-	set_system_intr_gate(IA32_SYSCALL_VECTOR, ia32_syscall);
+	set_system_intr_gate(IA32_SYSCALL_VECTOR, entry_INT80_compat);
 	set_bit(IA32_SYSCALL_VECTOR, used_vectors);
 #endif
 

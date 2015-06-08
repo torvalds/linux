@@ -8,8 +8,8 @@
 void system_call(void);
 void syscall_init(void);
 
-void ia32_syscall(void);
-void ia32_cstar_target(void);
+void entry_INT80_compat(void);
+void entry_SYSCALL_compat(void);
 void ia32_sysenter_target(void);
 
 void x86_configure_nx(void);

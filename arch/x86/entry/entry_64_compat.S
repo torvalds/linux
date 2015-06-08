@@ -288,7 +288,7 @@ ENDPROC(ia32_sysenter_target)
  * path below. We set up a complete hardware stack frame to share code
  * with the int 0x80 path.
  */
-ENTRY(ia32_cstar_target)
+ENTRY(entry_SYSCALL_compat)
 	/*
 	 * Interrupts are off on entry.
 	 * We do not frame this tiny irq-off block with TRACE_IRQS_OFF/ON,
@@ -409,7 +409,7 @@ cstar_tracesys:
 
 	RESTORE_EXTRA_REGS
 	jmp	cstar_do_call
-END(ia32_cstar_target)
+END(entry_SYSCALL_compat)
 
 ia32_badarg:
 	ASM_CLAC
@@ -445,7 +445,7 @@ ia32_ret_from_sys_call:
  * Assumes it is only called from user space and entered with interrupts off.
  */
 
-ENTRY(ia32_syscall)
+ENTRY(entry_INT80_compat)
 	/*
 	 * Interrupts are off on entry.
 	 * We do not frame this tiny irq-off block with TRACE_IRQS_OFF/ON,
@@ -511,7 +511,7 @@ ia32_tracesys:
 	movl	%eax, %eax		/* zero extension */
 	RESTORE_EXTRA_REGS
 	jmp	ia32_do_call
-END(ia32_syscall)
+END(entry_INT80_compat)
 
 	.macro PTREGSCALL label, func
 	ALIGN

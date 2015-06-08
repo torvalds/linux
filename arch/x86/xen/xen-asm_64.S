@@ -122,7 +122,7 @@ ENDPROC(xen_syscall_target)
 /* 32-bit compat syscall target */
 ENTRY(xen_syscall32_target)
 	undo_xen_syscall
-	jmp ia32_cstar_target
+	jmp entry_SYSCALL_compat
 ENDPROC(xen_syscall32_target)
 
 /* 32-bit compat sysenter target */
