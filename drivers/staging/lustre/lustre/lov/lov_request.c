@@ -73,11 +73,6 @@ void lov_finish_set(struct lov_request_set *set)
 		kfree(req->rq_oi.oi_osfs);
 		kfree(req);
 	}
-
-	if (set->set_pga) {
-		int len = set->set_oabufs * sizeof(*set->set_pga);
-		OBD_FREE_LARGE(set->set_pga, len);
-	}
 	kfree(set);
 }
 

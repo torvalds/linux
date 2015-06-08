@@ -102,8 +102,6 @@ struct lov_request_set {
 	struct llog_cookie		*set_cookies;
 	int				set_cookie_sent;
 	struct obd_trans_info		*set_oti;
-	u32				set_oabufs;
-	struct brw_page			*set_pga;
 	struct list_head			set_list;
 	wait_queue_head_t			set_waitq;
 	spinlock_t			set_lock;
