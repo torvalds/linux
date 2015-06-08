@@ -809,6 +809,15 @@ max17042_get_pdata(struct device *dev)
 		pdata->enable_current_sense = true;
 	}
 
+	if (of_property_read_s32(np, "maxim,cold-temp", &pdata->temp_min))
+		pdata->temp_min = INT_MIN;
+	if (of_property_read_s32(np, "maxim,over-heat-temp", &pdata->temp_max))
+		pdata->temp_max = INT_MAX;
+	if (of_property_read_s32(np, "maxim,dead-volt", &pdata->vmin))
+		pdata->vmin = INT_MIN;
+	if (of_property_read_s32(np, "maxim,over-volt", &pdata->vmax))
+		pdata->vmax = INT_MAX;
+
 	return pdata;
 }
 #else
