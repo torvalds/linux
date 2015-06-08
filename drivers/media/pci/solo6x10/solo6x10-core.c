@@ -134,22 +134,10 @@ static irqreturn_t solo_isr(int irq, void *data)
 
 static void free_solo_dev(struct solo_dev *solo_dev)
 {
-	struct pci_dev *pdev;
-
-	if (!solo_dev)
-		return;
+	struct pci_dev *pdev = solo_dev->pdev;
 
 	if (solo_dev->dev.parent)
 		device_unregister(&solo_dev->dev);
-
-	pdev = solo_dev->pdev;
-
-	/* If we never initialized the PCI device, then nothing else
-	 * below here needs cleanup */
-	if (!pdev) {
-		kfree(solo_dev);
-		return;
-	}
 
 	if (solo_dev->reg_base) {
 		/* Bring down the sub-devices first */
@@ -164,8 +152,7 @@ static void free_solo_dev(struct solo_dev *solo_dev)
 
 		/* Now cleanup the PCI device */
 		solo_irq_off(solo_dev, ~0);
-		if (pdev->irq)
-			free_irq(pdev->irq, solo_dev);
+		free_irq(pdev->irq, solo_dev);
 		pci_iounmap(pdev, solo_dev->reg_base);
 	}
 
