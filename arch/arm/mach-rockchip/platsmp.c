@@ -321,6 +321,13 @@ static void __init rockchip_smp_prepare_cpus(unsigned int max_cpus)
 #ifdef CONFIG_HOTPLUG_CPU
 static int rockchip_cpu_kill(unsigned int cpu)
 {
+	/*
+	 * We need a delay here to ensure that the dying CPU can finish
+	 * executing v7_coherency_exit() and reach the WFI/WFE state
+	 * prior to having the power domain disabled.
+	 */
+	mdelay(1);
+
 	pmu_set_power_domain(0 + cpu, false);
 	return 1;
 }
