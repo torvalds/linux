@@ -246,6 +246,7 @@ struct atmel_spi {
 
 	bool			use_dma;
 	bool			use_pdc;
+	bool			use_cs_gpios;
 	/* dmaengine data */
 	struct atmel_spi_dma	dma;
 
@@ -321,7 +322,8 @@ static void cs_activate(struct atmel_spi *as, struct spi_device *spi)
 		}
 
 		mr = spi_readl(as, MR);
-		gpio_set_value(asd->npcs_pin, active);
+		if (as->use_cs_gpios)
+			gpio_set_value(asd->npcs_pin, active);
 	} else {
 		u32 cpol = (spi->mode & SPI_CPOL) ? SPI_BIT(CPOL) : 0;
 		int i;
@@ -337,7 +339,7 @@ static void cs_activate(struct atmel_spi *as, struct spi_device *spi)
 
 		mr = spi_readl(as, MR);
 		mr = SPI_BFINS(PCS, ~(1 << spi->chip_select), mr);
-		if (spi->chip_select != 0)
+		if (as->use_cs_gpios && spi->chip_select != 0)
 			gpio_set_value(asd->npcs_pin, active);
 		spi_writel(as, MR, mr);
 	}
@@ -366,7 +368,9 @@ static void cs_deactivate(struct atmel_spi *as, struct spi_device *spi)
 			asd->npcs_pin, active ? " (low)" : "",
 			mr);
 
-	if (atmel_spi_is_v2(as) || spi->chip_select != 0)
+	if (!as->use_cs_gpios)
+		spi_writel(as, CR, SPI_BIT(LASTXFER));
+	else if (atmel_spi_is_v2(as) || spi->chip_select != 0)
 		gpio_set_value(asd->npcs_pin, !active);
 }
 
@@ -996,6 +1000,8 @@ static int atmel_spi_setup(struct spi_device *spi)
 		csr |= SPI_BIT(CPOL);
 	if (!(spi->mode & SPI_CPHA))
 		csr |= SPI_BIT(NCPHA);
+	if (!as->use_cs_gpios)
+		csr |= SPI_BIT(CSAAT);
 
 	/* DLYBS is mostly irrelevant since we manage chipselect using GPIOs.
 	 *
@@ -1009,7 +1015,9 @@ static int atmel_spi_setup(struct spi_device *spi)
 	/* chipselect must have been muxed as GPIO (e.g. in board setup) */
 	npcs_pin = (unsigned long)spi->controller_data;
 
-	if (gpio_is_valid(spi->cs_gpio))
+	if (!as->use_cs_gpios)
+		npcs_pin = spi->chip_select;
+	else if (gpio_is_valid(spi->cs_gpio))
 		npcs_pin = spi->cs_gpio;
 
 	asd = spi->controller_state;
@@ -1018,15 +1026,19 @@ static int atmel_spi_setup(struct spi_device *spi)
 		if (!asd)
 			return -ENOMEM;
 
-		ret = gpio_request(npcs_pin, dev_name(&spi->dev));
-		if (ret) {
-			kfree(asd);
-			return ret;
+		if (as->use_cs_gpios) {
+			ret = gpio_request(npcs_pin, dev_name(&spi->dev));
+			if (ret) {
+				kfree(asd);
+				return ret;
+			}
+
+			gpio_direction_output(npcs_pin,
+					      !(spi->mode & SPI_CS_HIGH));
 		}
 
 		asd->npcs_pin = npcs_pin;
 		spi->controller_state = asd;
-		gpio_direction_output(npcs_pin, !(spi->mode & SPI_CS_HIGH));
 	}
 
 	asd->csr = csr;
@@ -1337,6 +1349,13 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	init_completion(&as->xfer_completion);
 
 	atmel_get_caps(as);
+
+	as->use_cs_gpios = true;
+	if (atmel_spi_is_v2(as) &&
+	    !of_get_property(pdev->dev.of_node, "cs-gpios", NULL)) {
+		as->use_cs_gpios = false;
+		master->num_chipselect = 4;
+	}
 
 	as->use_dma = false;
 	as->use_pdc = false;
