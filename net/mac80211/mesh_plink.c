@@ -392,8 +392,9 @@ static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 	sta->last_rx = jiffies;
 
 	/* rates and capabilities don't change during peering */
-	if (sta->plink_state == NL80211_PLINK_ESTAB)
+	if (sta->plink_state == NL80211_PLINK_ESTAB && sta->processed_beacon)
 		goto out;
+	sta->processed_beacon = true;
 
 	if (sta->sta.supp_rates[band] != rates)
 		changed |= IEEE80211_RC_SUPP_RATES_CHANGED;

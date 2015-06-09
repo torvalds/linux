@@ -369,6 +369,8 @@ struct ieee80211_fast_tx {
  * @rx_msdu: MSDUs received from this station, using IEEE80211_NUM_TID
  *	entry for non-QoS frames
  * @fast_tx: TX fastpath information
+ * @processed_beacon: set to true after peer rates and capabilities are
+ *	processed
  */
 struct sta_info {
 	/* General information, mostly static */
@@ -473,6 +475,7 @@ struct sta_info {
 	enum nl80211_mesh_power_mode local_pm;
 	enum nl80211_mesh_power_mode peer_pm;
 	enum nl80211_mesh_power_mode nonpeer_pm;
+	bool processed_beacon;
 #endif
 
 #ifdef CONFIG_MAC80211_DEBUGFS
