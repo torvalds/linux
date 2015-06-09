@@ -1508,7 +1508,7 @@ static int rk312x_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 			rk312x_lcdc_set_dclk(dev_drv, 0);
 			rk312x_lcdc_enable_irq(dev_drv);
 		} else {
-			rk312x_lcdc_standby(dev_drv, true);
+			dev_drv->standby = 1;
 			rk312x_load_screen(dev_drv, 1);
 			rk312x_lcdc_standby(dev_drv, false);
 		}
