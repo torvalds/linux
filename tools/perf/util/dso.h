@@ -1,9 +1,11 @@
 #ifndef __PERF_DSO
 #define __PERF_DSO
 
+#include <linux/atomic.h>
 #include <linux/types.h>
 #include <linux/rbtree.h>
 #include <stdbool.h>
+#include <pthread.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include "map.h"
@@ -124,6 +126,7 @@ struct dso_cache {
 struct dsos {
 	struct list_head head;
 	struct rb_root	 root;	/* rbtree root sorted by long name */
+	pthread_rwlock_t lock;
 };
 
 struct auxtrace_cache;
@@ -177,7 +180,7 @@ struct dso {
 		void	 *priv;
 		u64	 db_id;
 	};
-
+	atomic_t	 refcnt;
 	char		 name[0];
 };
 
@@ -203,6 +206,17 @@ void dso__set_short_name(struct dso *dso, const char *name, bool name_allocated)
 void dso__set_long_name(struct dso *dso, const char *name, bool name_allocated);
 
 int dso__name_len(const struct dso *dso);
+
+struct dso *dso__get(struct dso *dso);
+void dso__put(struct dso *dso);
+
+static inline void __dso__zput(struct dso **dso)
+{
+	dso__put(*dso);
+	*dso = NULL;
+}
+
+#define dso__zput(dso) __dso__zput(&dso)
 
 bool dso__loaded(const struct dso *dso, enum map_type type);
 
@@ -297,11 +311,13 @@ struct map *dso__new_map(const char *name);
 struct dso *machine__findnew_kernel(struct machine *machine, const char *name,
 				    const char *short_name, int dso_type);
 
+void __dsos__add(struct dsos *dsos, struct dso *dso);
 void dsos__add(struct dsos *dsos, struct dso *dso);
-struct dso *dsos__addnew(struct dsos *dsos, const char *name);
-struct dso *dsos__find(const struct dsos *dsos, const char *name,
-		       bool cmp_short);
+struct dso *__dsos__addnew(struct dsos *dsos, const char *name);
+struct dso *__dsos__find(struct dsos *dsos, const char *name, bool cmp_short);
+struct dso *dsos__find(struct dsos *dsos, const char *name, bool cmp_short);
 struct dso *__dsos__findnew(struct dsos *dsos, const char *name);
+struct dso *dsos__findnew(struct dsos *dsos, const char *name);
 bool __dsos__read_build_ids(struct list_head *head, bool with_hits);
 
 size_t __dsos__fprintf_buildid(struct list_head *head, FILE *fp,

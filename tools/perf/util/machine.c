@@ -20,6 +20,7 @@ static void dsos__init(struct dsos *dsos)
 {
 	INIT_LIST_HEAD(&dsos->head);
 	dsos->root = RB_ROOT;
+	pthread_rwlock_init(&dsos->lock, NULL);
 }
 
 int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
@@ -81,15 +82,25 @@ out_delete:
 	return NULL;
 }
 
-static void dsos__delete(struct dsos *dsos)
+static void dsos__purge(struct dsos *dsos)
 {
 	struct dso *pos, *n;
 
+	pthread_rwlock_wrlock(&dsos->lock);
+
 	list_for_each_entry_safe(pos, n, &dsos->head, node) {
 		RB_CLEAR_NODE(&pos->rb_node);
-		list_del(&pos->node);
-		dso__delete(pos);
+		list_del_init(&pos->node);
+		dso__put(pos);
 	}
+
+	pthread_rwlock_unlock(&dsos->lock);
+}
+
+static void dsos__exit(struct dsos *dsos)
+{
+	dsos__purge(dsos);
+	pthread_rwlock_destroy(&dsos->lock);
 }
 
 void machine__delete_threads(struct machine *machine)
@@ -110,7 +121,7 @@ void machine__delete_threads(struct machine *machine)
 void machine__exit(struct machine *machine)
 {
 	map_groups__exit(&machine->kmaps);
-	dsos__delete(&machine->dsos);
+	dsos__exit(&machine->dsos);
 	machine__exit_vdso(machine);
 	zfree(&machine->root_dir);
 	zfree(&machine->current_tid);
@@ -490,17 +501,19 @@ int machine__process_lost_samples_event(struct machine *machine __maybe_unused,
 	return 0;
 }
 
-static struct dso*
-machine__module_dso(struct machine *machine, struct kmod_path *m,
-		    const char *filename)
+static struct dso *machine__findnew_module_dso(struct machine *machine,
+					       struct kmod_path *m,
+					       const char *filename)
 {
 	struct dso *dso;
 
-	dso = dsos__find(&machine->dsos, m->name, true);
+	pthread_rwlock_wrlock(&machine->dsos.lock);
+
+	dso = __dsos__find(&machine->dsos, m->name, true);
 	if (!dso) {
-		dso = dsos__addnew(&machine->dsos, m->name);
+		dso = __dsos__addnew(&machine->dsos, m->name);
 		if (dso == NULL)
-			return NULL;
+			goto out_unlock;
 
 		if (machine__is_host(machine))
 			dso->symtab_type = DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE;
@@ -515,6 +528,9 @@ machine__module_dso(struct machine *machine, struct kmod_path *m,
 		dso__set_long_name(dso, strdup(filename), true);
 	}
 
+	dso__get(dso);
+out_unlock:
+	pthread_rwlock_unlock(&machine->dsos.lock);
 	return dso;
 }
 
@@ -534,8 +550,8 @@ int machine__process_itrace_start_event(struct machine *machine __maybe_unused,
 	return 0;
 }
 
-struct map *machine__new_module(struct machine *machine, u64 start,
-				const char *filename)
+struct map *machine__findnew_module_map(struct machine *machine, u64 start,
+					const char *filename)
 {
 	struct map *map = NULL;
 	struct dso *dso;
@@ -549,7 +565,7 @@ struct map *machine__new_module(struct machine *machine, u64 start,
 	if (map)
 		goto out;
 
-	dso = machine__module_dso(machine, &m, filename);
+	dso = machine__findnew_module_dso(machine, &m, filename);
 	if (dso == NULL)
 		goto out;
 
@@ -1017,7 +1033,7 @@ static int machine__create_module(void *arg, const char *name, u64 start)
 	struct machine *machine = arg;
 	struct map *map;
 
-	map = machine__new_module(machine, start, name);
+	map = machine__findnew_module_map(machine, start, name);
 	if (map == NULL)
 		return -1;
 
@@ -1140,8 +1156,8 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 				strlen(kmmap_prefix) - 1) == 0;
 	if (event->mmap.filename[0] == '/' ||
 	    (!is_kernel_mmap && event->mmap.filename[0] == '[')) {
-		map = machine__new_module(machine, event->mmap.start,
-					  event->mmap.filename);
+		map = machine__findnew_module_map(machine, event->mmap.start,
+						  event->mmap.filename);
 		if (map == NULL)
 			goto out_problem;
 
@@ -1155,6 +1171,8 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		 */
 		struct dso *kernel = NULL;
 		struct dso *dso;
+
+		pthread_rwlock_rdlock(&machine->dsos.lock);
 
 		list_for_each_entry(dso, &machine->dsos.head, node) {
 
@@ -1184,14 +1202,18 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 			break;
 		}
 
+		pthread_rwlock_unlock(&machine->dsos.lock);
+
 		if (kernel == NULL)
 			kernel = machine__findnew_dso(machine, kmmap_prefix);
 		if (kernel == NULL)
 			goto out_problem;
 
 		kernel->kernel = kernel_type;
-		if (__machine__create_kernel_maps(machine, kernel) < 0)
+		if (__machine__create_kernel_maps(machine, kernel) < 0) {
+			dso__put(kernel);
 			goto out_problem;
+		}
 
 		if (strstr(kernel->long_name, "vmlinux"))
 			dso__set_short_name(kernel, "[kernel.vmlinux]", false);
@@ -1948,5 +1970,5 @@ int machine__get_kernel_start(struct machine *machine)
 
 struct dso *machine__findnew_dso(struct machine *machine, const char *filename)
 {
-	return __dsos__findnew(&machine->dsos, filename);
+	return dsos__findnew(&machine->dsos, filename);
 }

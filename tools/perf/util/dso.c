@@ -889,8 +889,8 @@ struct dso *machine__findnew_kernel(struct machine *machine, const char *name,
  * Either one of the dso or name parameter must be non-NULL or the
  * function will not work.
  */
-static struct dso *dso__findlink_by_longname(struct rb_root *root,
-					     struct dso *dso, const char *name)
+static struct dso *__dso__findlink_by_longname(struct rb_root *root,
+					       struct dso *dso, const char *name)
 {
 	struct rb_node **p = &root->rb_node;
 	struct rb_node  *parent = NULL;
@@ -937,10 +937,10 @@ static struct dso *dso__findlink_by_longname(struct rb_root *root,
 	return NULL;
 }
 
-static inline struct dso *
-dso__find_by_longname(const struct rb_root *root, const char *name)
+static inline struct dso *__dso__find_by_longname(struct rb_root *root,
+						  const char *name)
 {
-	return dso__findlink_by_longname((struct rb_root *)root, NULL, name);
+	return __dso__findlink_by_longname(root, NULL, name);
 }
 
 void dso__set_long_name(struct dso *dso, const char *name, bool name_allocated)
@@ -1049,6 +1049,7 @@ struct dso *dso__new(const char *name)
 		INIT_LIST_HEAD(&dso->node);
 		INIT_LIST_HEAD(&dso->data.open_entry);
 		pthread_mutex_init(&dso->lock, NULL);
+		atomic_set(&dso->refcnt, 1);
 	}
 
 	return dso;
@@ -1081,6 +1082,19 @@ void dso__delete(struct dso *dso)
 	zfree(&dso->symsrc_filename);
 	pthread_mutex_destroy(&dso->lock);
 	free(dso);
+}
+
+struct dso *dso__get(struct dso *dso)
+{
+	if (dso)
+		atomic_inc(&dso->refcnt);
+	return dso;
+}
+
+void dso__put(struct dso *dso)
+{
+	if (dso && atomic_dec_and_test(&dso->refcnt))
+		dso__delete(dso);
 }
 
 void dso__set_build_id(struct dso *dso, void *build_id)
@@ -1149,14 +1163,41 @@ bool __dsos__read_build_ids(struct list_head *head, bool with_hits)
 	return have_build_id;
 }
 
-void dsos__add(struct dsos *dsos, struct dso *dso)
+void __dsos__add(struct dsos *dsos, struct dso *dso)
 {
 	list_add_tail(&dso->node, &dsos->head);
-	dso__findlink_by_longname(&dsos->root, dso, NULL);
+	__dso__findlink_by_longname(&dsos->root, dso, NULL);
+	/*
+	 * It is now in the linked list, grab a reference, then garbage collect
+	 * this when needing memory, by looking at LRU dso instances in the
+	 * list with atomic_read(&dso->refcnt) == 1, i.e. no references
+	 * anywhere besides the one for the list, do, under a lock for the
+	 * list: remove it from the list, then a dso__put(), that probably will
+	 * be the last and will then call dso__delete(), end of life.
+	 *
+	 * That, or at the end of the 'struct machine' lifetime, when all
+	 * 'struct dso' instances will be removed from the list, in
+	 * dsos__exit(), if they have no other reference from some other data
+	 * structure.
+	 *
+	 * E.g.: after processing a 'perf.data' file and storing references
+	 * to objects instantiated while processing events, we will have
+	 * references to the 'thread', 'map', 'dso' structs all from 'struct
+	 * hist_entry' instances, but we may not need anything not referenced,
+	 * so we might as well call machines__exit()/machines__delete() and
+	 * garbage collect it.
+	 */
+	dso__get(dso);
 }
 
-struct dso *dsos__find(const struct dsos *dsos, const char *name,
-		       bool cmp_short)
+void dsos__add(struct dsos *dsos, struct dso *dso)
+{
+	pthread_rwlock_wrlock(&dsos->lock);
+	__dsos__add(dsos, dso);
+	pthread_rwlock_unlock(&dsos->lock);
+}
+
+struct dso *__dsos__find(struct dsos *dsos, const char *name, bool cmp_short)
 {
 	struct dso *pos;
 
@@ -1166,15 +1207,24 @@ struct dso *dsos__find(const struct dsos *dsos, const char *name,
 				return pos;
 		return NULL;
 	}
-	return dso__find_by_longname(&dsos->root, name);
+	return __dso__find_by_longname(&dsos->root, name);
 }
 
-struct dso *dsos__addnew(struct dsos *dsos, const char *name)
+struct dso *dsos__find(struct dsos *dsos, const char *name, bool cmp_short)
+{
+	struct dso *dso;
+	pthread_rwlock_rdlock(&dsos->lock);
+	dso = __dsos__find(dsos, name, cmp_short);
+	pthread_rwlock_unlock(&dsos->lock);
+	return dso;
+}
+
+struct dso *__dsos__addnew(struct dsos *dsos, const char *name)
 {
 	struct dso *dso = dso__new(name);
 
 	if (dso != NULL) {
-		dsos__add(dsos, dso);
+		__dsos__add(dsos, dso);
 		dso__set_basename(dso);
 	}
 	return dso;
@@ -1182,9 +1232,18 @@ struct dso *dsos__addnew(struct dsos *dsos, const char *name)
 
 struct dso *__dsos__findnew(struct dsos *dsos, const char *name)
 {
-	struct dso *dso = dsos__find(dsos, name, false);
+	struct dso *dso = __dsos__find(dsos, name, false);
 
-	return dso ? dso : dsos__addnew(dsos, name);
+	return dso ? dso : __dsos__addnew(dsos, name);
+}
+
+struct dso *dsos__findnew(struct dsos *dsos, const char *name)
+{
+	struct dso *dso;
+	pthread_rwlock_wrlock(&dsos->lock);
+	dso = dso__get(__dsos__findnew(dsos, name));
+	pthread_rwlock_unlock(&dsos->lock);
+	return dso;
 }
 
 size_t __dsos__fprintf_buildid(struct list_head *head, FILE *fp,

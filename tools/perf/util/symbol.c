@@ -786,7 +786,7 @@ static int dso__split_kallsyms(struct dso *dso, struct map *map, u64 delta,
 
 			curr_map = map__new2(pos->start, ndso, map->type);
 			if (curr_map == NULL) {
-				dso__delete(ndso);
+				dso__put(ndso);
 				return -1;
 			}
 
@@ -1364,7 +1364,7 @@ static bool dso__is_compatible_symtab_type(struct dso *dso, bool kmod,
 	case DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP:
 		/*
 		 * kernel modules know their symtab type - it's set when
-		 * creating a module dso in machine__new_module().
+		 * creating a module dso in machine__findnew_module_map().
 		 */
 		return kmod && dso->symtab_type == type;
 

@@ -23,6 +23,7 @@ endef
 # Allow setting CC and AR, or setting CROSS_COMPILE as a prefix.
 $(call allow-override,CC,$(CROSS_COMPILE)gcc)
 $(call allow-override,AR,$(CROSS_COMPILE)ar)
+$(call allow-override,NM,$(CROSS_COMPILE)nm)
 
 EXT = -std=gnu99
 INSTALL = install
@@ -157,8 +158,9 @@ PLUGINS_IN := $(PLUGINS:.so=-in.o)
 
 TE_IN    := $(OUTPUT)libtraceevent-in.o
 LIB_FILE := $(addprefix $(OUTPUT),$(LIB_FILE))
+DYNAMIC_LIST_FILE := $(OUTPUT)libtraceevent-dynamic-list
 
-CMD_TARGETS = $(LIB_FILE) $(PLUGINS)
+CMD_TARGETS = $(LIB_FILE) $(PLUGINS) $(DYNAMIC_LIST_FILE)
 
 TARGETS = $(CMD_TARGETS)
 
@@ -174,6 +176,9 @@ $(OUTPUT)libtraceevent.so: $(TE_IN)
 
 $(OUTPUT)libtraceevent.a: $(TE_IN)
 	$(QUIET_LINK)$(RM) $@; $(AR) rcs $@ $^
+
+$(OUTPUT)libtraceevent-dynamic-list: $(PLUGINS)
+	$(QUIET_GEN)$(call do_generate_dynamic_list_file, $(PLUGINS), $@)
 
 plugins: $(PLUGINS)
 
@@ -242,6 +247,13 @@ define do_install_plugins
 	for plugin in $1; do				\
 	  $(call do_install,$$plugin,$(plugin_dir_SQ));	\
 	done
+endef
+
+define do_generate_dynamic_list_file
+	(echo '{';							\
+	$(NM) -u -D $1 | awk 'NF>1 {print "\t"$$2";"}' | sort -u;	\
+	echo '};';							\
+	) > $2
 endef
 
 install_lib: all_cmd install_plugins

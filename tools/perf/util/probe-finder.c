@@ -130,7 +130,7 @@ struct debuginfo *debuginfo__new(const char *path)
 			continue;
 		dinfo = __debuginfo__new(buf);
 	}
-	dso__delete(dso);
+	dso__put(dso);
 
 out:
 	/* if failed to open all distro debuginfo, open given binary */
