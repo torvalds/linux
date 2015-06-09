@@ -932,7 +932,7 @@ int gb_operation_sync(struct gb_connection *connection, int type,
 }
 EXPORT_SYMBOL_GPL(gb_operation_sync);
 
-int gb_operation_init(void)
+int __init gb_operation_init(void)
 {
 	gb_message_cache = kmem_cache_create("gb_message_cache",
 				sizeof(struct gb_message), 0, 0, NULL);
@@ -959,7 +959,7 @@ err_destroy_message_cache:
 	return -ENOMEM;
 }
 
-void gb_operation_exit(void)
+void __exit gb_operation_exit(void)
 {
 	destroy_workqueue(gb_operation_workqueue);
 	gb_operation_workqueue = NULL;

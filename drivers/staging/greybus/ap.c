@@ -354,7 +354,7 @@ int greybus_svc_in(struct greybus_host_device *hd, u8 *data, int size)
 }
 EXPORT_SYMBOL_GPL(greybus_svc_in);
 
-int gb_ap_init(void)
+int __init gb_ap_init(void)
 {
 	ap_workqueue = alloc_ordered_workqueue("greybus_ap", 0);
 	if (!ap_workqueue)

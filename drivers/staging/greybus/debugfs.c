@@ -15,7 +15,7 @@
 
 static struct dentry *gb_debug_root;
 
-void gb_debugfs_init(void)
+void __init gb_debugfs_init(void)
 {
 	gb_debug_root = debugfs_create_dir("greybus", NULL);
 }
