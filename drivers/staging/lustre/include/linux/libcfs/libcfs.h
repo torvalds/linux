@@ -80,7 +80,6 @@ int libcfs_sock_getbuf(struct socket *socket, int *txbufsize, int *rxbufsize);
 int libcfs_sock_getaddr(struct socket *socket, int remote, __u32 *ip, int *port);
 int libcfs_sock_write(struct socket *sock, void *buffer, int nob, int timeout);
 int libcfs_sock_read(struct socket *sock, void *buffer, int nob, int timeout);
-void libcfs_sock_release(struct socket *sock);
 
 /* need both kernel and user-land acceptor */
 #define LNET_ACCEPTOR_MIN_RESERVED_PORT    512

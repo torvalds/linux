@@ -519,7 +519,7 @@ ksocknal_connsock_decref(ksock_conn_t *conn)
 	LASSERT(atomic_read(&conn->ksnc_sock_refcount) > 0);
 	if (atomic_dec_and_test(&conn->ksnc_sock_refcount)) {
 		LASSERT(conn->ksnc_closing);
-		libcfs_sock_release(conn->ksnc_sock);
+		sock_release(conn->ksnc_sock);
 		conn->ksnc_sock = NULL;
 		ksocknal_finalize_zcreq(conn);
 	}

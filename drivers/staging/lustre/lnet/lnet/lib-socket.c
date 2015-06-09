@@ -614,11 +614,3 @@ libcfs_sock_connect (struct socket **sockp, int *fatal,
 }
 
 EXPORT_SYMBOL(libcfs_sock_connect);
-
-void
-libcfs_sock_release (struct socket *sock)
-{
-	sock_release(sock);
-}
-
-EXPORT_SYMBOL(libcfs_sock_release);

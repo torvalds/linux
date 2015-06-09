@@ -197,7 +197,7 @@ lnet_connect(struct socket **sockp, lnet_nid_t peer_nid,
 	goto failed;
 
  failed_sock:
-	libcfs_sock_release(sock);
+	sock_release(sock);
  failed:
 	lnet_connect_console_error(rc, peer_nid, peer_ip, peer_port);
 	return rc;
@@ -379,7 +379,7 @@ lnet_acceptor(void *arg)
 
 		/* maybe we're waken up with libcfs_sock_abort_accept() */
 		if (lnet_acceptor_state.pta_shutdown) {
-			libcfs_sock_release(newsock);
+			sock_release(newsock);
 			break;
 		}
 
@@ -410,10 +410,10 @@ lnet_acceptor(void *arg)
 		continue;
 
 failed:
-		libcfs_sock_release(newsock);
+		sock_release(newsock);
 	}
 
-	libcfs_sock_release(lnet_acceptor_state.pta_sock);
+	sock_release(lnet_acceptor_state.pta_sock);
 	lnet_acceptor_state.pta_sock = NULL;
 
 	CDEBUG(D_NET, "Acceptor stopping\n");

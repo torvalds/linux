@@ -1386,7 +1386,7 @@ ksocknal_create_conn(lnet_ni_t *ni, ksock_route_t *route,
 	LIBCFS_FREE(conn, sizeof(*conn));
 
  failed_0:
-	libcfs_sock_release(sock);
+	sock_release(sock);
 	return rc;
 }
 
