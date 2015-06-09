@@ -94,6 +94,8 @@ config MFD_AXP20X
 config MFD_CROS_EC
 	tristate "ChromeOS Embedded Controller"
 	select MFD_CORE
+	select CHROME_PLATFORMS
+	select CROS_EC_PROTO
 	help
 	  If you say Y here you get support for the ChromeOS Embedded
 	  Controller (EC) providing keyboard, battery and power services.
@@ -102,7 +104,7 @@ config MFD_CROS_EC
 
 config MFD_CROS_EC_I2C
 	tristate "ChromeOS Embedded Controller (I2C)"
-	depends on MFD_CROS_EC && I2C
+	depends on MFD_CROS_EC && CROS_EC_PROTO && I2C
 
 	help
 	  If you say Y here, you get support for talking to the ChromeOS
@@ -112,7 +114,7 @@ config MFD_CROS_EC_I2C
 
 config MFD_CROS_EC_SPI
 	tristate "ChromeOS Embedded Controller (SPI)"
-	depends on MFD_CROS_EC && SPI && OF
+	depends on MFD_CROS_EC && CROS_EC_PROTO && SPI && OF
 
 	---help---
 	  If you say Y here, you get support for talking to the ChromeOS EC
