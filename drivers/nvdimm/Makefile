@@ -1,4 +1,7 @@
 obj-$(CONFIG_LIBNVDIMM) += libnvdimm.o
+obj-$(CONFIG_BLK_DEV_PMEM) += nd_pmem.o
+
+nd_pmem-y := pmem.o
 
 libnvdimm-y := core.o
 libnvdimm-y += bus.o
