@@ -1368,7 +1368,7 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 			ra_index = max(i, ra_index);
 			btrfs_force_ra(inode->i_mapping, ra, file, ra_index,
 				       cluster);
-			ra_index += max_cluster;
+			ra_index += cluster;
 		}
 
 		mutex_lock(&inode->i_mutex);
