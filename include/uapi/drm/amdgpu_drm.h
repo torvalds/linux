@@ -139,8 +139,6 @@ union drm_amdgpu_bo_list {
 #define AMDGPU_CTX_OP_FREE_CTX	2
 #define AMDGPU_CTX_OP_QUERY_STATE	3
 
-#define AMDGPU_CTX_OP_STATE_RUNNING	1
-
 /* GPU reset status */
 #define AMDGPU_CTX_NO_RESET		0
 #define AMDGPU_CTX_GUILTY_RESET		1 /* this the context caused it */
