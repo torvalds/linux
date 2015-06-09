@@ -1230,7 +1230,10 @@ static int cz_dpm_hw_init(void *handle)
 
 	mutex_lock(&adev->pm.mutex);
 
-	/* init smc in dpm hw init */
+	/* smu init only needs to be called at startup, not resume.
+	 * It should be in sw_init, but requires the fw info gathered
+	 * in sw_init from other IP modules.
+	 */
 	ret = cz_smu_init(adev);
 	if (ret) {
 		DRM_ERROR("amdgpu: smc initialization failed\n");
@@ -1297,6 +1300,10 @@ static int cz_dpm_hw_fini(void *handle)
 
 	mutex_lock(&adev->pm.mutex);
 
+	/* smu fini only needs to be called at teardown, not suspend.
+	 * It should be in sw_fini, but we put it here for symmetry
+	 * with smu init.
+	 */
 	cz_smu_fini(adev);
 
 	if (adev->pm.dpm_enabled) {
@@ -1340,12 +1347,6 @@ static int cz_dpm_resume(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	mutex_lock(&adev->pm.mutex);
-	ret = cz_smu_init(adev);
-	if (ret) {
-		DRM_ERROR("amdgpu: smc resume failed\n");
-		mutex_unlock(&adev->pm.mutex);
-		return ret;
-	}
 
 	/* do the actual fw loading */
 	ret = cz_smu_start(adev);
