@@ -1385,6 +1385,22 @@ static s32 ixgbe_setup_internal_phy_t_x550em(struct ixgbe_hw *hw)
 	return ixgbe_setup_ixfi_x550em(hw, &force_speed);
 }
 
+/** ixgbe_reset_phy_t_X550em - Performs X557 PHY reset and enables LASI
+ *  @hw: pointer to hardware structure
+ **/
+static s32 ixgbe_reset_phy_t_X550em(struct ixgbe_hw *hw)
+{
+	s32 status;
+
+	status = ixgbe_reset_phy_generic(hw);
+
+	if (status)
+		return status;
+
+	/* Configure Link Status Alarm and Temperature Threshold interrupts */
+	return ixgbe_enable_lasi_ext_t_x550em(hw);
+}
+
 /** ixgbe_init_phy_ops_X550em - PHY/SFP specific init
  *  @hw: pointer to hardware structure
  *
@@ -1454,6 +1470,7 @@ static s32 ixgbe_init_phy_ops_X550em(struct ixgbe_hw *hw)
 		}
 
 		phy->ops.handle_lasi = ixgbe_handle_lasi_ext_t_x550em;
+		phy->ops.reset = ixgbe_reset_phy_t_X550em;
 		break;
 	default:
 		break;
