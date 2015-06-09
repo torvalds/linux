@@ -1092,7 +1092,7 @@ static int fbtft_init_display_dt(struct fbtft_par *par)
 			}
 			/* make debug message */
 			fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
-				"init: write_register:%s\n", msg);
+				"init: write_register:\n");
 			for (j = 0; j < i; j++)
 				fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
 					      "buf[%d] = %02X\n", j, buf[j]);
