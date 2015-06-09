@@ -440,6 +440,7 @@ extern acpi_status acpi_pci_osc_control_set(acpi_handle handle,
 #define ACPI_OST_SC_INSERT_NOT_SUPPORTED	0x82
 
 extern void acpi_early_init(void);
+extern void acpi_subsystem_init(void);
 
 extern int acpi_nvs_register(__u64 start, __u64 size);
 
@@ -494,6 +495,7 @@ static inline const char *acpi_dev_name(struct acpi_device *adev)
 }
 
 static inline void acpi_early_init(void) { }
+static inline void acpi_subsystem_init(void) { }
 
 static inline int early_acpi_boot_init(void)
 {
