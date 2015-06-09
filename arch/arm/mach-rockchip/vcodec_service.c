@@ -540,10 +540,12 @@ struct vpu_request {
 	u32 size;
 };
 
+#ifdef CONFIG_COMPAT
 struct compat_vpu_request {
 	compat_uptr_t req;
 	u32 size;
 };
+#endif
 
 /* debugfs root directory for all device (vpu, hevc).*/
 static struct dentry *parent;
