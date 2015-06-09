@@ -350,29 +350,25 @@ static struct i2c_bus_recovery_info davinci_i2c_scl_recovery_info = {
 /*
  * Waiting for bus not busy
  */
-static int i2c_davinci_wait_bus_not_busy(struct davinci_i2c_dev *dev,
-					 char allow_sleep)
+static int i2c_davinci_wait_bus_not_busy(struct davinci_i2c_dev *dev)
 {
-	unsigned long timeout;
-	static u16 to_cnt;
+	unsigned long timeout = jiffies + dev->adapter.timeout;
 
-	timeout = jiffies + dev->adapter.timeout;
-	while (davinci_i2c_read_reg(dev, DAVINCI_I2C_STR_REG)
-	       & DAVINCI_I2C_STR_BB) {
-		if (to_cnt <= DAVINCI_I2C_MAX_TRIES) {
-			if (time_after(jiffies, timeout)) {
-				dev_warn(dev->dev,
-				"timeout waiting for bus ready\n");
-				to_cnt++;
-				return -ETIMEDOUT;
-			} else {
-				to_cnt = 0;
-				i2c_recover_bus(&dev->adapter);
-			}
-		}
-		if (allow_sleep)
-			schedule_timeout(1);
-	}
+	do {
+		if (!(davinci_i2c_read_reg(dev, DAVINCI_I2C_STR_REG) & DAVINCI_I2C_STR_BB))
+			return 0;
+		schedule_timeout_uninterruptible(1);
+	} while (time_before_eq(jiffies, timeout));
+
+	dev_warn(dev->dev, "timeout waiting for bus ready\n");
+	i2c_recover_bus(&dev->adapter);
+
+	/*
+	 * if bus is still "busy" here, it's most probably a HW problem like
+	 * short-circuit
+	 */
+	if (davinci_i2c_read_reg(dev, DAVINCI_I2C_STR_REG) & DAVINCI_I2C_STR_BB)
+		return -EIO;
 
 	return 0;
 }
@@ -505,7 +501,7 @@ i2c_davinci_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 
 	dev_dbg(dev->dev, "%s: msgs: %d\n", __func__, num);
 
-	ret = i2c_davinci_wait_bus_not_busy(dev, 1);
+	ret = i2c_davinci_wait_bus_not_busy(dev);
 	if (ret < 0) {
 		dev_warn(dev->dev, "timeout waiting for bus ready\n");
 		return ret;
