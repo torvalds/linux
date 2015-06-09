@@ -37,6 +37,55 @@ struct bcm_data {
 	struct sk_buff_head txq;
 };
 
+static int bcm_set_baudrate(struct hci_uart *hu, unsigned int speed)
+{
+	struct hci_dev *hdev = hu->hdev;
+	struct sk_buff *skb;
+	struct bcm_update_uart_baud_rate param;
+
+	if (speed > 3000000) {
+		struct bcm_write_uart_clock_setting clock;
+
+		clock.type = BCM_UART_CLOCK_48MHZ;
+
+		BT_DBG("%s: Set Controller clock (%d)", hdev->name, clock.type);
+
+		/* This Broadcom specific command changes the UART's controller
+		 * clock for baud rate > 3000000.
+		 */
+		skb = __hci_cmd_sync(hdev, 0xfc45, 1, &clock, HCI_INIT_TIMEOUT);
+		if (IS_ERR(skb)) {
+			int err = PTR_ERR(skb);
+			BT_ERR("%s: BCM: failed to write clock command (%d)",
+			       hdev->name, err);
+			return err;
+		}
+
+		kfree_skb(skb);
+	}
+
+	BT_DBG("%s: Set Controller UART speed to %d bit/s", hdev->name, speed);
+
+	param.zero = cpu_to_le16(0);
+	param.baud_rate = cpu_to_le32(speed);
+
+	/* This Broadcom specific command changes the UART's controller baud
+	 * rate.
+	 */
+	skb = __hci_cmd_sync(hdev, 0xfc18, sizeof(param), &param,
+			     HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		int err = PTR_ERR(skb);
+		BT_ERR("%s: BCM: failed to write update baudrate command (%d)",
+		       hdev->name, err);
+		return err;
+	}
+
+	kfree_skb(skb);
+
+	return 0;
+}
+
 static int bcm_open(struct hci_uart *hu)
 {
 	struct bcm_data *bcm;
@@ -107,6 +156,12 @@ static int bcm_setup(struct hci_uart *hu)
 	if (hu->proto->init_speed)
 		hci_uart_set_baudrate(hu, hu->proto->init_speed);
 
+	if (hu->proto->oper_speed) {
+		err = bcm_set_baudrate(hu, hu->proto->oper_speed);
+		if (!err)
+			hci_uart_set_baudrate(hu, hu->proto->oper_speed);
+	}
+
 finalize:
 	release_firmware(fw);
 
@@ -162,10 +217,13 @@ static struct sk_buff *bcm_dequeue(struct hci_uart *hu)
 static const struct hci_uart_proto bcm_proto = {
 	.id		= HCI_UART_BCM,
 	.name		= "BCM",
+	.init_speed	= 115200,
+	.oper_speed	= 4000000,
 	.open		= bcm_open,
 	.close		= bcm_close,
 	.flush		= bcm_flush,
 	.setup		= bcm_setup,
+	.set_baudrate	= bcm_set_baudrate,
 	.recv		= bcm_recv,
 	.enqueue	= bcm_enqueue,
 	.dequeue	= bcm_dequeue,

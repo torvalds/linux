@@ -21,6 +21,18 @@
  *
  */
 
+#define BCM_UART_CLOCK_48MHZ	0x01
+#define BCM_UART_CLOCK_24MHZ	0x02
+
+struct bcm_update_uart_baud_rate {
+	__le16 zero;
+	__le32 baud_rate;
+} __packed;
+
+struct bcm_write_uart_clock_setting {
+	__u8 type;
+} __packed;
+
 #if IS_ENABLED(CONFIG_BT_BCM)
 
 int btbcm_check_bdaddr(struct hci_dev *hdev);
