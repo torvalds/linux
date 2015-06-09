@@ -85,6 +85,8 @@
 #define	AT91_TWI_ACR_DATAL(len)	((len) & 0xff)
 #define	AT91_TWI_ACR_DIR	BIT(8)
 
+#define	AT91_TWI_VER		0x00fc	/* Version Register */
+
 struct at91_twi_pdata {
 	unsigned clk_max_div;
 	unsigned clk_offset;
@@ -908,7 +910,8 @@ static int at91_twi_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	dev_info(dev->dev, "AT91 i2c bus driver.\n");
+	dev_info(dev->dev, "AT91 i2c bus driver (hw version: %#x).\n",
+		 at91_twi_read(dev, AT91_TWI_VER));
 	return 0;
 }
 
