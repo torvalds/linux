@@ -1043,12 +1043,18 @@ rk818,support_dc_chg = <1>;/*1:dc chg; 0:usb chg*/
 			     3812 3839 3881 3907 3933
 			     3958 3978 4033 4087 4123
 			     4174 >;
-		design_capacity = <2100>;
-		design_qmax = <2200>;
-		max_overcharge = <100>;
-		max_charge_currentma = <1500>;
-		max_charge_voltagemv = <4260>;
-		max_bat_voltagemv = <4200>;
+                design_capacity = <8650>;
+                design_qmax = <8800>;
+                max_overcharge = <100>;
+                max_input_currentmA  = <2000>;
+                max_chrg_currentmA = <1800>;
+                max_charge_voltagemV = <4200>;
+                sleep_enter_current = <600>;
+                sleep_exit_current = <600>;
+                power_off_thresd = <3400>;
+                chrg_diff_voltagemV = <0>;
+                support_usb_adp = <1>;
+                support_dc_adp = <1>;
         };
 };
 
