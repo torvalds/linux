@@ -32,11 +32,11 @@ mpp13         13       gpio, ge0(rxd1), pcie0(clkreq), pcie1(clkreq) [1], spi0(c
 mpp14         14       gpio, ge0(rxd2), ptp(clk), dram(vttctrl), spi0(cs3), dev(we1), pcie3(clkreq)
 mpp15         15       gpio, ge0(rxd3), ge(mdc slave), pcie0(rstout), spi0(mosi)
 mpp16         16       gpio, ge0(rxctl), ge(mdio slave), dram(deccerr), spi0(miso), pcie0(clkreq), pcie1(clkreq) [1]
-mpp17         17       gpio, ge0(rxclk), ptp(clk), ua1(rxd), spi0(sck), sata1(prsnt)
+mpp17         17       gpio, ge0(rxclk), ptp(clk), ua1(rxd), spi0(sck), sata1(prsnt), sata0(prsnt)
 mpp18         18       gpio, ge0(rxerr), ptp(trig), ua1(txd), spi0(cs0)
 mpp19         19       gpio, ge0(col), ptp(evreq), ge0(txerr), sata1(prsnt), ua0(cts)
 mpp20         20       gpio, ge0(txclk), ptp(clk), sata0(prsnt), ua0(rts)
-mpp21         21       gpio, spi0(cs1), ge1(rxd0), sata0(prsnt), sd0(cmd), dev(bootcs)
+mpp21         21       gpio, spi0(cs1), ge1(rxd0), sata0(prsnt), sd0(cmd), dev(bootcs), sata1(prsnt)
 mpp22         22       gpio, spi0(mosi), dev(ad0)
 mpp23         23       gpio, spi0(sck), dev(ad2)
 mpp24         24       gpio, spi0(miso), ua0(cts), ua1(rxd), sd0(d4), dev(ready)
