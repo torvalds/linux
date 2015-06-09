@@ -165,6 +165,16 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
 	struct gb_bundle *bundle;
 	int retval;
 
+	/*
+	 * Reject any attempt to reuse a bundle id.  We initialize
+	 * these serially, so there's no need to worry about keeping
+	 * the interface bundle list locked here.
+	 */
+	if (gb_bundle_find(intf, bundle_id)) {
+		pr_err("duplicate bundle id 0x%02hhx\n", bundle_id);
+		return NULL;
+	}
+
 	bundle = kzalloc(sizeof(*bundle), GFP_KERNEL);
 	if (!bundle)
 		return NULL;
