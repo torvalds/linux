@@ -2356,6 +2356,10 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 		codec->dp_mst = true;
 	}
 
+	/* Enable runtime pm for HDMI audio codec of HSW/BDW/SKL/BYT/BSW */
+	if (is_haswell_plus(codec) || is_valleyview_plus(codec))
+		codec->auto_runtime_pm = 1;
+
 	generic_hdmi_init_per_pins(codec);
 
 	init_channel_allocations();

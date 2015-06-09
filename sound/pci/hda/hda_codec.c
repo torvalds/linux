@@ -3496,6 +3496,9 @@ static void codec_set_power_save(struct hda_codec *codec, int delay)
 {
 	struct device *dev = hda_codec_dev(codec);
 
+	if (delay == 0 && codec->auto_runtime_pm)
+		delay = 3000;
+
 	if (delay > 0) {
 		pm_runtime_set_autosuspend_delay(dev, delay);
 		pm_runtime_use_autosuspend(dev);
