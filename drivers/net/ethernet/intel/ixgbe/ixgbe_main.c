@@ -2388,6 +2388,8 @@ static void ixgbe_check_overtemp_subtask(struct ixgbe_adapter *adapter)
 
 		break;
 	default:
+		if (adapter->hw.mac.type >= ixgbe_mac_X540)
+			return;
 		if (!(eicr & IXGBE_EICR_GPI_SDP0(hw)))
 			return;
 		break;
@@ -2572,6 +2574,8 @@ static inline void ixgbe_irq_enable(struct ixgbe_adapter *adapter, bool queues,
 	case ixgbe_mac_X540:
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
+		if (adapter->hw.phy.type == ixgbe_phy_x550em_ext_t)
+			mask |= IXGBE_EICR_GPI_SDP0_X540;
 		mask |= IXGBE_EIMS_ECC;
 		mask |= IXGBE_EIMS_MAILBOX;
 		break;
@@ -2626,6 +2630,13 @@ static irqreturn_t ixgbe_msix_other(int irq, void *data)
 	case ixgbe_mac_X540:
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
+		if (hw->phy.type == ixgbe_phy_x550em_ext_t &&
+		    (eicr & IXGBE_EICR_GPI_SDP0_X540)) {
+			adapter->flags2 |= IXGBE_FLAG2_PHY_INTERRUPT;
+			ixgbe_service_event_schedule(adapter);
+			IXGBE_WRITE_REG(hw, IXGBE_EICR,
+					IXGBE_EICR_GPI_SDP0_X540);
+		}
 		if (eicr & IXGBE_EICR_ECC) {
 			e_info(link, "Received ECC Err, initiating reset\n");
 			adapter->flags2 |= IXGBE_FLAG2_RESET_REQUESTED;
@@ -6733,6 +6744,26 @@ static void ixgbe_service_timer(unsigned long data)
 	ixgbe_service_event_schedule(adapter);
 }
 
+static void ixgbe_phy_interrupt_subtask(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 status;
+
+	if (!(adapter->flags2 & IXGBE_FLAG2_PHY_INTERRUPT))
+		return;
+
+	adapter->flags2 &= ~IXGBE_FLAG2_PHY_INTERRUPT;
+
+	if (!hw->phy.ops.handle_lasi)
+		return;
+
+	status = hw->phy.ops.handle_lasi(&adapter->hw);
+	if (status != IXGBE_ERR_OVERTEMP)
+		return;
+
+	e_crit(drv, "%s\n", ixgbe_overheat_msg);
+}
+
 static void ixgbe_reset_subtask(struct ixgbe_adapter *adapter)
 {
 	if (!(adapter->flags2 & IXGBE_FLAG2_RESET_REQUESTED))
@@ -6774,6 +6805,7 @@ static void ixgbe_service_task(struct work_struct *work)
 		return;
 	}
 	ixgbe_reset_subtask(adapter);
+	ixgbe_phy_interrupt_subtask(adapter);
 	ixgbe_sfp_detection_subtask(adapter);
 	ixgbe_sfp_link_config_subtask(adapter);
 	ixgbe_check_overtemp_subtask(adapter);
