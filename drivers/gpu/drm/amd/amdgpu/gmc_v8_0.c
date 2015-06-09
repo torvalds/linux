@@ -71,7 +71,7 @@ static const u32 golden_settings_iceland_a11[] =
 
 static const u32 iceland_mgcg_cgcg_init[] =
 {
-	mmMC_MEM_POWER_LS, 0xffffffff,        0x00000104
+	mmMC_MEM_POWER_LS, 0xffffffff, 0x00000104
 };
 
 static const u32 cz_mgcg_cgcg_init[] =
