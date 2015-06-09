@@ -923,7 +923,7 @@ static int sirfsoc_uart_startup(struct uart_port *port)
 	struct sirfsoc_register *ureg = &sirfport->uart_reg->uart_reg;
 	unsigned int index			= port->line;
 	int ret;
-	set_irq_flags(port->irq, IRQF_VALID | IRQF_NOAUTOEN);
+	irq_modify_status(port->irq, IRQ_NOREQUEST, IRQ_NOAUTOEN);
 	ret = request_irq(port->irq,
 				sirfsoc_uart_isr,
 				0,
@@ -971,8 +971,8 @@ static int sirfsoc_uart_startup(struct uart_port *port)
 	sirfport->ms_enabled = false;
 	if (sirfport->uart_reg->uart_type == SIRF_USP_UART &&
 		sirfport->hw_flow_ctrl) {
-		set_irq_flags(gpio_to_irq(sirfport->cts_gpio),
-			IRQF_VALID | IRQF_NOAUTOEN);
+		irq_modify_status(gpio_to_irq(sirfport->cts_gpio),
+			IRQ_NOREQUEST, IRQ_NOAUTOEN);
 		ret = request_irq(gpio_to_irq(sirfport->cts_gpio),
 			sirfsoc_uart_usp_cts_handler, IRQF_TRIGGER_FALLING |
 			IRQF_TRIGGER_RISING, "usp_cts_irq", sirfport);
