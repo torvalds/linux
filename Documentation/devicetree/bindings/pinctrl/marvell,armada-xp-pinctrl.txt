@@ -18,7 +18,7 @@ only for more detailed description in this document.
 
 name          pins     functions
 ================================================================================
-mpp0          0        gpio, ge0(txclko), lcd(d0)
+mpp0          0        gpio, ge0(txclkout), lcd(d0)
 mpp1          1        gpio, ge0(txd0), lcd(d1)
 mpp2          2        gpio, ge0(txd1), lcd(d2)
 mpp3          3        gpio, ge0(txd2), lcd(d3)
@@ -30,7 +30,7 @@ mpp8          8        gpio, ge0(rxd2), lcd(d8)
 mpp9          9        gpio, ge0(rxd3), lcd(d9)
 mpp10         10       gpio, ge0(rxctl), lcd(d10)
 mpp11         11       gpio, ge0(rxclk), lcd(d11)
-mpp12         12       gpio, ge0(txd4), ge1(txd0), lcd(d12)
+mpp12         12       gpio, ge0(txd4), ge1(txclkout), lcd(d12)
 mpp13         13       gpio, ge0(txd5), ge1(txd1), lcd(d13)
 mpp14         14       gpio, ge0(txd6), ge1(txd2), lcd(d15)
 mpp15         15       gpio, ge0(txd7), ge1(txd3), lcd(d16)

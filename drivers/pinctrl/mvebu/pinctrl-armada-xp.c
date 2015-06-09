@@ -54,7 +54,7 @@ enum armada_xp_variant {
 static struct mvebu_mpp_mode armada_xp_mpp_modes[] = {
 	MPP_MODE(0,
 		 MPP_VAR_FUNCTION(0x0, "gpio", NULL,        V_MV78230_PLUS),
-		 MPP_VAR_FUNCTION(0x1, "ge0", "txclko",     V_MV78230_PLUS),
+		 MPP_VAR_FUNCTION(0x1, "ge0", "txclkout",   V_MV78230_PLUS),
 		 MPP_VAR_FUNCTION(0x4, "lcd", "d0",         V_MV78230_PLUS)),
 	MPP_MODE(1,
 		 MPP_VAR_FUNCTION(0x0, "gpio", NULL,        V_MV78230_PLUS),
@@ -103,7 +103,7 @@ static struct mvebu_mpp_mode armada_xp_mpp_modes[] = {
 	MPP_MODE(12,
 		 MPP_VAR_FUNCTION(0x0, "gpio", NULL,        V_MV78230_PLUS),
 		 MPP_VAR_FUNCTION(0x1, "ge0", "txd4",       V_MV78230_PLUS),
-		 MPP_VAR_FUNCTION(0x2, "ge1", "clkout",     V_MV78230_PLUS),
+		 MPP_VAR_FUNCTION(0x2, "ge1", "txclkout",   V_MV78230_PLUS),
 		 MPP_VAR_FUNCTION(0x4, "lcd", "d12",        V_MV78230_PLUS)),
 	MPP_MODE(13,
 		 MPP_VAR_FUNCTION(0x0, "gpio", NULL,        V_MV78230_PLUS),
