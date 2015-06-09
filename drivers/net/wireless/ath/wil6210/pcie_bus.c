@@ -291,7 +291,27 @@ static struct pci_driver wil6210_driver = {
 	.name		= WIL_NAME,
 };
 
-module_pci_driver(wil6210_driver);
+static int __init wil6210_driver_init(void)
+{
+	int rc;
+
+	rc = wil_platform_modinit();
+	if (rc)
+		return rc;
+
+	rc = pci_register_driver(&wil6210_driver);
+	if (rc)
+		wil_platform_modexit();
+	return rc;
+}
+module_init(wil6210_driver_init);
+
+static void __exit wil6210_driver_exit(void)
+{
+	pci_unregister_driver(&wil6210_driver);
+	wil_platform_modexit();
+}
+module_exit(wil6210_driver_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Qualcomm Atheros <wil6210@qca.qualcomm.com>");
