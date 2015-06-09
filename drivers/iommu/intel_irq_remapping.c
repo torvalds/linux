@@ -581,6 +581,26 @@ error:
 	return -ENODEV;
 }
 
+/*
+ * Set Posted-Interrupts capability.
+ */
+static inline void set_irq_posting_cap(void)
+{
+	struct dmar_drhd_unit *drhd;
+	struct intel_iommu *iommu;
+
+	if (!disable_irq_post) {
+		intel_irq_remap_ops.capability |= 1 << IRQ_POSTING_CAP;
+
+		for_each_iommu(iommu, drhd)
+			if (!cap_pi_support(iommu->cap)) {
+				intel_irq_remap_ops.capability &=
+						~(1 << IRQ_POSTING_CAP);
+				break;
+			}
+	}
+}
+
 static int __init intel_enable_irq_remapping(void)
 {
 	struct dmar_drhd_unit *drhd;
@@ -655,6 +675,8 @@ static int __init intel_enable_irq_remapping(void)
 		goto error;
 
 	irq_remapping_enabled = 1;
+
+	set_irq_posting_cap();
 
 	pr_info("Enabled IRQ remapping in %s mode\n", eim ? "x2apic" : "xapic");
 
@@ -856,6 +878,12 @@ static void disable_irq_remapping(void)
 
 		iommu_disable_irq_remapping(iommu);
 	}
+
+	/*
+	 * Clear Posted-Interrupts capability.
+	 */
+	if (!disable_irq_post)
+		intel_irq_remap_ops.capability &= ~(1 << IRQ_POSTING_CAP);
 }
 
 static int reenable_irq_remapping(int eim)
@@ -882,6 +910,8 @@ static int reenable_irq_remapping(int eim)
 
 	if (!setup)
 		goto error;
+
+	set_irq_posting_cap();
 
 	return 0;
 
