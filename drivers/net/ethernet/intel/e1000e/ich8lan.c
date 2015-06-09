@@ -237,17 +237,19 @@ static bool e1000_phy_is_accessible_pchlan(struct e1000_hw *hw)
 	if (ret_val)
 		return false;
 out:
-	if ((hw->mac.type == e1000_pch_lpt) ||
-	    (hw->mac.type == e1000_pch_spt)) {
-		/* Unforce SMBus mode in PHY */
-		e1e_rphy_locked(hw, CV_SMB_CTRL, &phy_reg);
-		phy_reg &= ~CV_SMB_CTRL_FORCE_SMBUS;
-		e1e_wphy_locked(hw, CV_SMB_CTRL, phy_reg);
+	if ((hw->mac.type == e1000_pch_lpt) || (hw->mac.type == e1000_pch_spt)) {
+		/* Only unforce SMBus if ME is not active */
+		if (!(er32(FWSM) & E1000_ICH_FWSM_FW_VALID)) {
+			/* Unforce SMBus mode in PHY */
+			e1e_rphy_locked(hw, CV_SMB_CTRL, &phy_reg);
+			phy_reg &= ~CV_SMB_CTRL_FORCE_SMBUS;
+			e1e_wphy_locked(hw, CV_SMB_CTRL, phy_reg);
 
-		/* Unforce SMBus mode in MAC */
-		mac_reg = er32(CTRL_EXT);
-		mac_reg &= ~E1000_CTRL_EXT_FORCE_SMBUS;
-		ew32(CTRL_EXT, mac_reg);
+			/* Unforce SMBus mode in MAC */
+			mac_reg = er32(CTRL_EXT);
+			mac_reg &= ~E1000_CTRL_EXT_FORCE_SMBUS;
+			ew32(CTRL_EXT, mac_reg);
+		}
 	}
 
 	return true;
