@@ -73,7 +73,7 @@ mpp46         46       gpio, uart3(rts), uart1(rts), spi0(cs6), sata0(prsnt),
                        spi1(cs6)
 mpp47         47       gpio, uart3(cts), uart1(cts), spi0(cs7), pcie(clkreq3),
                        ref(clkout), spi1(cs7)
-mpp48         48       gpio, dev(clkout), dev(burst/last)
+mpp48         48       gpio, dev(clkout), dev(burst/last), nand(rb)
 
 * Marvell Armada XP (mv78260 and mv78460 only)
 
