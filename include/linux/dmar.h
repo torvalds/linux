@@ -249,6 +249,18 @@ struct irte {
 	};
 };
 
+static inline void dmar_copy_shared_irte(struct irte *dst, struct irte *src)
+{
+	dst->present	= src->present;
+	dst->fpd	= src->fpd;
+	dst->avail	= src->avail;
+	dst->pst	= src->pst;
+	dst->vector	= src->vector;
+	dst->sid	= src->sid;
+	dst->sq		= src->sq;
+	dst->svt	= src->svt;
+}
+
 #define PDA_LOW_BIT    26
 #define PDA_HIGH_BIT   32
 
