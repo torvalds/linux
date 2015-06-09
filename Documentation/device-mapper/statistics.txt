@@ -13,9 +13,10 @@ the range specified.
 The I/O statistics counters for each step-sized area of a region are
 in the same format as /sys/block/*/stat or /proc/diskstats (see:
 Documentation/iostats.txt).  But two extra counters (12 and 13) are
-provided: total time spent reading and writing.  All these counters may
-be accessed by sending the @stats_print message to the appropriate DM
-device via dmsetup.
+provided: total time spent reading and writing.  When the histogram
+argument is used, the 14th parameter is reported that represents the
+histogram of latencies.  All these counters may be accessed by sending
+the @stats_print message to the appropriate DM device via dmsetup.
 
 The reported times are in milliseconds and the granularity depends on
 the kernel ticks.  When the option precise_timestamps is used, the
@@ -64,6 +65,18 @@ Messages
 		used, the resulting times are in nanoseconds instead of
 		milliseconds.  Precise timestamps are a little bit slower
 		to obtain than jiffies-based timestamps.
+	  histogram:n1,n2,n3,n4,... - collect histogram of latencies.  The
+		numbers n1, n2, etc are times that represent the boundaries
+		of the histogram.  If precise_timestamps is not used, the
+		times are in milliseconds, otherwise they are in
+		nanoseconds.  For each range, the kernel will report the
+		number of requests that completed within this range. For
+		example, if we use "histogram:10,20,30", the kernel will
+		report four numbers a:b:c:d. a is the number of requests
+		that took 0-10 ms to complete, b is the number of requests
+		that took 10-20 ms to complete, c is the number of requests
+		that took 20-30 ms to complete and d is the number of
+		requests that took more than 30 ms to complete.
 
 	<program_id>
 	  An optional parameter.  A name that uniquely identifies
