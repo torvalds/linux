@@ -23,7 +23,7 @@
 
 static int l2_line_sz;
 int ioc_exists;
-volatile int slc_enable = 1;
+volatile int slc_enable = 1, ioc_enable = 1;
 
 void (*_cache_line_loop_ic_fn)(unsigned long paddr, unsigned long vaddr,
 			       unsigned long sz, const int cacheop);
@@ -59,7 +59,8 @@ char *arc_cache_mumbojumbo(int c, char *buf, int len)
 			       p->sz_k, p->line_len, IS_USED_RUN(slc_enable));
 
 	if (ioc_exists)
-		n += scnprintf(buf + n, len - n, "IOC\t\t: exists\n");
+		n += scnprintf(buf + n, len - n, "IOC\t\t:%s\n",
+				IS_USED_RUN(ioc_enable));
 
 	return buf;
 }
@@ -154,7 +155,7 @@ slc_chk:
 	}
 
 	READ_BCR(ARC_REG_CLUSTER_BCR, cbcr);
-	if (cbcr.c)
+	if (cbcr.c && ioc_enable)
 		ioc_exists = 1;
 }
 
