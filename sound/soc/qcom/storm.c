@@ -122,15 +122,12 @@ static int storm_platform_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
-	if (ret == -EPROBE_DEFER) {
-		return ret;
-	} else if (ret) {
+	if (ret)
 		dev_err(&pdev->dev, "%s() error registering soundcard: %d\n",
 				__func__, ret);
-		return ret;
-	}
 
-	return 0;
+	return ret;
+
 }
 
 #ifdef CONFIG_OF
