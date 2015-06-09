@@ -81,7 +81,7 @@ static struct mvebu_mpp_mode mv88f6720_mpp_modes[] = {
 		 MPP_FUNCTION(0x0, "gpio", NULL),
 		 MPP_FUNCTION(0x1, "dev", "ad0"),
 		 MPP_FUNCTION(0x3, "led", "p1"),
-		 MPP_FUNCTION(0x4, "audio", "rclk"),
+		 MPP_FUNCTION(0x4, "audio", "lrclk"),
 		 MPP_FUNCTION(0x5, "nand", "io0")),
 	MPP_MODE(7,
 		 MPP_FUNCTION(0x0, "gpio", NULL),
