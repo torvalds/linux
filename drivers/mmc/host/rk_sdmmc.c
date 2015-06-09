@@ -4,7 +4,6 @@
  *
  * Copyright (C) 2009 NXP Semiconductors
  * Copyright (C) 2009, 2010 Imagination Technologies Ltd.
- *
  * Copyright (C) 2014 - 2015 Fuzhou Rockchip Electronics Co.Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -3913,12 +3912,14 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 
 	if (of_get_property(np, "cd-inverted", NULL))
 		pdata->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
+
 	if (of_get_property(np, "bootpart-no-access", NULL))
 		pdata->caps2 |= MMC_CAP2_BOOTPART_NOACC;
 
 	if (of_get_property(np, "controller-power-down", NULL)) {
-		host->regs_buffer = (u32 *)devm_kzalloc(host->dev,
-						DW_REGS_SIZE, GFP_KERNEL);
+		host->regs_buffer =
+			(u32 *)devm_kzalloc(host->dev,
+					    DW_REGS_SIZE, GFP_KERNEL);
 		if (!host->regs_buffer) {
 			dev_err(host->dev,
 				"could not allocate memory for regs_buffer\n");
@@ -3926,8 +3927,10 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 		}
 
 		host->rst_ops = &dw_mci_pdrst_ops;
-		mmc_assume_removable = 0;
 	}
+
+	if (of_get_property(np, "assume_removable", NULL))
+		mmc_assume_removable = 0;
 
 	return pdata;
 }
