@@ -72,7 +72,8 @@ static ssize_t store_ec_reboot(struct device *dev,
 	int got_cmd = 0, offset = 0;
 	int i;
 	int ret;
-	struct cros_ec_device *ec = dev_get_drvdata(dev);
+	struct cros_ec_dev *ec = container_of(dev,
+					      struct cros_ec_dev, class_dev);
 
 	msg = kmalloc(sizeof(*msg) + sizeof(*param), GFP_KERNEL);
 	if (!msg)
@@ -112,10 +113,10 @@ static ssize_t store_ec_reboot(struct device *dev,
 	}
 
 	msg->version = 0;
-	msg->command = EC_CMD_REBOOT_EC;
+	msg->command = EC_CMD_REBOOT_EC + ec->cmd_offset;
 	msg->outsize = sizeof(*param);
 	msg->insize = 0;
-	ret = cros_ec_cmd_xfer(ec, msg);
+	ret = cros_ec_cmd_xfer(ec->ec_dev, msg);
 	if (ret < 0) {
 		count = ret;
 		goto exit;
@@ -139,7 +140,8 @@ static ssize_t show_ec_version(struct device *dev,
 	struct cros_ec_command *msg;
 	int ret;
 	int count = 0;
-	struct cros_ec_device *ec = dev_get_drvdata(dev);
+	struct cros_ec_dev *ec = container_of(dev,
+					      struct cros_ec_dev, class_dev);
 
 	msg = kmalloc(sizeof(*msg) + EC_HOST_PARAM_SIZE, GFP_KERNEL);
 	if (!msg)
@@ -147,10 +149,10 @@ static ssize_t show_ec_version(struct device *dev,
 
 	/* Get versions. RW may change. */
 	msg->version = 0;
-	msg->command = EC_CMD_GET_VERSION;
+	msg->command = EC_CMD_GET_VERSION + ec->cmd_offset;
 	msg->insize = sizeof(*r_ver);
 	msg->outsize = 0;
-	ret = cros_ec_cmd_xfer(ec, msg);
+	ret = cros_ec_cmd_xfer(ec->ec_dev, msg);
 	if (ret < 0) {
 		count = ret;
 		goto exit;
@@ -175,9 +177,9 @@ static ssize_t show_ec_version(struct device *dev,
 			    image_names[r_ver->current_image] : "?"));
 
 	/* Get build info. */
-	msg->command = EC_CMD_GET_BUILD_INFO;
+	msg->command = EC_CMD_GET_BUILD_INFO + ec->cmd_offset;
 	msg->insize = EC_HOST_PARAM_SIZE;
-	ret = cros_ec_cmd_xfer(ec, msg);
+	ret = cros_ec_cmd_xfer(ec->ec_dev, msg);
 	if (ret < 0)
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 				   "Build info:    XFER ERROR %d\n", ret);
@@ -191,9 +193,9 @@ static ssize_t show_ec_version(struct device *dev,
 	}
 
 	/* Get chip info. */
-	msg->command = EC_CMD_GET_CHIP_INFO;
+	msg->command = EC_CMD_GET_CHIP_INFO + ec->cmd_offset;
 	msg->insize = sizeof(*r_chip);
-	ret = cros_ec_cmd_xfer(ec, msg);
+	ret = cros_ec_cmd_xfer(ec->ec_dev, msg);
 	if (ret < 0)
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 				   "Chip info:     XFER ERROR %d\n", ret);
@@ -215,9 +217,9 @@ static ssize_t show_ec_version(struct device *dev,
 	}
 
 	/* Get board version */
-	msg->command = EC_CMD_GET_BOARD_VERSION;
+	msg->command = EC_CMD_GET_BOARD_VERSION + ec->cmd_offset;
 	msg->insize = sizeof(*r_board);
-	ret = cros_ec_cmd_xfer(ec, msg);
+	ret = cros_ec_cmd_xfer(ec->ec_dev, msg);
 	if (ret < 0)
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 				   "Board version: XFER ERROR %d\n", ret);
@@ -243,7 +245,8 @@ static ssize_t show_ec_flashinfo(struct device *dev,
 	struct ec_response_flash_info *resp;
 	struct cros_ec_command *msg;
 	int ret;
-	struct cros_ec_device *ec = dev_get_drvdata(dev);
+	struct cros_ec_dev *ec = container_of(dev,
+					      struct cros_ec_dev, class_dev);
 
 	msg = kmalloc(sizeof(*msg) + sizeof(*resp), GFP_KERNEL);
 	if (!msg)
@@ -251,10 +254,10 @@ static ssize_t show_ec_flashinfo(struct device *dev,
 
 	/* The flash info shouldn't ever change, but ask each time anyway. */
 	msg->version = 0;
-	msg->command = EC_CMD_FLASH_INFO;
+	msg->command = EC_CMD_FLASH_INFO + ec->cmd_offset;
 	msg->insize = sizeof(*resp);
 	msg->outsize = 0;
-	ret = cros_ec_cmd_xfer(ec, msg);
+	ret = cros_ec_cmd_xfer(ec->ec_dev, msg);
 	if (ret < 0)
 		goto exit;
 	if (msg->result != EC_RES_SUCCESS) {
@@ -288,20 +291,7 @@ static struct attribute *__ec_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group ec_attr_group = {
+struct attribute_group cros_ec_attr_group = {
 	.attrs = __ec_attrs,
 };
 
-void ec_dev_sysfs_init(struct cros_ec_device *ec)
-{
-	int error;
-
-	error = sysfs_create_group(&ec->vdev->kobj, &ec_attr_group);
-	if (error)
-		pr_warn("failed to create group: %d\n", error);
-}
-
-void ec_dev_sysfs_remove(struct cros_ec_device *ec)
-{
-	sysfs_remove_group(&ec->vdev->kobj, &ec_attr_group);
-}

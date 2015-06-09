@@ -17,9 +17,13 @@
 #define __LINUX_MFD_CROS_EC_H
 
 #include <linux/cdev.h>
+#include <linux/device.h>
 #include <linux/notifier.h>
 #include <linux/mfd/cros_ec_commands.h>
 #include <linux/mutex.h>
+
+#define CROS_EC_DEV_NAME "cros_ec"
+#define CROS_EC_DEV_PD_NAME "cros_pd"
 
 /*
  * The EC is unresponsive for a time after a reboot command.  Add a
@@ -71,11 +75,8 @@ struct cros_ec_command {
 /**
  * struct cros_ec_device - Information about a ChromeOS EC device
  *
- * @ec_name: name of EC device (e.g. 'chromeos-ec')
  * @phys_name: name of physical comms layer (e.g. 'i2c-4')
  * @dev: Device pointer for physical comms device
- * @vdev: Device pointer for virtual comms device
- * @cdev: Character device structure for virtual comms device
  * @was_wake_device: true if this device was set to wake the system from
  * sleep at the last suspend
  * @cmd_readmem: direct read of the EC memory-mapped region, if supported
@@ -87,6 +88,7 @@ struct cros_ec_command {
  *
  * @priv: Private data
  * @irq: Interrupt to use
+ * @id: Device id
  * @din: input buffer (for data from EC)
  * @dout: output buffer (for data to EC)
  * \note
@@ -109,11 +111,8 @@ struct cros_ec_command {
 struct cros_ec_device {
 
 	/* These are used by other drivers that want to talk to the EC */
-	const char *ec_name;
 	const char *phys_name;
 	struct device *dev;
-	struct device *vdev;
-	struct cdev cdev;
 	bool was_wake_device;
 	struct class *cros_class;
 	int (*cmd_readmem)(struct cros_ec_device *ec, unsigned int offset,
@@ -136,6 +135,35 @@ struct cros_ec_device {
 	int (*pkt_xfer)(struct cros_ec_device *ec,
 			struct cros_ec_command *msg);
 	struct mutex lock;
+};
+
+/* struct cros_ec_platform - ChromeOS EC platform information
+ *
+ * @ec_name: name of EC device (e.g. 'cros-ec', 'cros-pd', ...)
+ * used in /dev/ and sysfs.
+ * @cmd_offset: offset to apply for each command. Set when
+ * registering a devicde behind another one.
+ */
+struct cros_ec_platform {
+	const char *ec_name;
+	u16 cmd_offset;
+};
+
+/*
+ * struct cros_ec_dev - ChromeOS EC device entry point
+ *
+ * @class_dev: Device structure used in sysfs
+ * @cdev: Character device structure in /dev
+ * @ec_dev: cros_ec_device structure to talk to the physical device
+ * @dev: pointer to the platform device
+ * @cmd_offset: offset to apply for each command.
+ */
+struct cros_ec_dev {
+	struct device class_dev;
+	struct cdev cdev;
+	struct cros_ec_device *ec_dev;
+	struct device *dev;
+	u16 cmd_offset;
 };
 
 /**
@@ -223,5 +251,9 @@ int cros_ec_register(struct cros_ec_device *ec_dev);
  * @return 0 if ok, -ve on error
  */
 int cros_ec_query_all(struct cros_ec_device *ec_dev);
+
+/* sysfs stuff */
+extern struct attribute_group cros_ec_attr_group;
+extern struct attribute_group cros_ec_lightbar_attr_group;
 
 #endif /* __LINUX_MFD_CROS_EC_H */
