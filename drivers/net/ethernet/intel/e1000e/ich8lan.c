@@ -1489,8 +1489,7 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 	if ((hw->adapter->pdev->device == E1000_DEV_ID_PCH_LPTLP_I218_LM) ||
 	    (hw->adapter->pdev->device == E1000_DEV_ID_PCH_LPTLP_I218_V) ||
 	    (hw->adapter->pdev->device == E1000_DEV_ID_PCH_I218_LM3) ||
-	    (hw->adapter->pdev->device == E1000_DEV_ID_PCH_I218_V3) ||
-	    (hw->mac.type == e1000_pch_spt)) {
+	    (hw->adapter->pdev->device == E1000_DEV_ID_PCH_I218_V3)) {
 		ret_val = e1000_k1_workaround_lpt_lp(hw, link);
 		if (ret_val)
 			return ret_val;
