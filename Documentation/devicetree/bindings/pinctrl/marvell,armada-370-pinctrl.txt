@@ -52,8 +52,8 @@ mpp30         30       gpio, ge0(rxd7), ge1(rxclk), i2c1(sck)
 mpp31         31       gpio, tclk, ge0(txerr)
 mpp32         32       gpio, spi0(cs0)
 mpp33         33       gpio, dev(bootcs), spi0(cs0)
-mpp34         34       gpo, dev(wen0), spi0(mosi)
-mpp35         35       gpo, dev(oen), spi0(sck)
+mpp34         34       gpo, dev(we0), spi0(mosi)
+mpp35         35       gpo, dev(oe), spi0(sck)
 mpp36         36       gpo, dev(a1), spi0(miso)
 mpp37         37       gpo, dev(a0), sata0(prsnt)
 mpp38         38       gpio, dev(ready), uart1(cts), uart0(cts)
@@ -88,7 +88,7 @@ mpp58         58       gpio, dev(cs0), uart1(rts), tdm(int), audio(extclk),
 mpp59         59       gpo, dev(ale0), uart1(rts), uart0(rts), audio(bclk)
 mpp60         60       gpio, dev(ale1), uart1(rxd), sata0(prsnt), pcie(rst-out),
                        audio(sdi)
-mpp61         61       gpo, dev(wen1), uart1(txd), audio(rclk)
+mpp61         61       gpo, dev(we1), uart1(txd), audio(rclk)
 mpp62         62       gpio, dev(a2), uart1(cts), tdm(drx), pcie(clkreq0),
                        audio(mclk), uart0(cts)
 mpp63         63       gpo, spi0(sck), tclk
