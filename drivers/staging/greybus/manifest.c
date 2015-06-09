@@ -198,9 +198,9 @@ static char *gb_string_get(struct gb_interface *intf, u8 string_id)
  * them.  Returns the number of cports set up for the bundle, or 0
  * if there is an error.
  */
-static u32 gb_manifest_parse_cports(struct gb_interface *intf,
-				    struct gb_bundle *bundle)
+static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 {
+	struct gb_interface *intf = bundle->intf;
 	u32 count = 0;
 
 	while (true) {
@@ -270,7 +270,7 @@ static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 			return 0;	/* Error */
 
 		/* Now go set up this bundle's functions and cports */
-		if (!gb_manifest_parse_cports(intf, bundle))
+		if (!gb_manifest_parse_cports(bundle))
 			return 0;	/* Error parsing cports */
 
 		count++;
