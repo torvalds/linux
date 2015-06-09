@@ -81,6 +81,10 @@ static int tonga_dpm_hw_init(void *handle)
 
 	mutex_lock(&adev->pm.mutex);
 
+	/* smu init only needs to be called at startup, not resume.
+	 * It should be in sw_init, but requires the fw info gathered
+	 * in sw_init from other IP modules.
+	 */
 	ret = tonga_smu_init(adev);
 	if (ret) {
 		DRM_ERROR("SMU initialization failed\n");
@@ -107,6 +111,10 @@ static int tonga_dpm_hw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	mutex_lock(&adev->pm.mutex);
+	/* smu fini only needs to be called at teardown, not suspend.
+	 * It should be in sw_fini, but we put it here for symmetry
+	 * with smu init.
+	 */
 	tonga_smu_fini(adev);
 	mutex_unlock(&adev->pm.mutex);
 	return 0;
@@ -114,20 +122,25 @@ static int tonga_dpm_hw_fini(void *handle)
 
 static int tonga_dpm_suspend(void *handle)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	tonga_dpm_hw_fini(adev);
-
 	return 0;
 }
 
 static int tonga_dpm_resume(void *handle)
 {
+	int ret;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	tonga_dpm_hw_init(adev);
+	mutex_lock(&adev->pm.mutex);
 
-	return 0;
+	ret = tonga_smu_start(adev);
+	if (ret) {
+		DRM_ERROR("SMU start failed\n");
+		goto fail;
+	}
+
+fail:
+	mutex_unlock(&adev->pm.mutex);
+	return ret;
 }
 
 static int tonga_dpm_set_clockgating_state(void *handle,
