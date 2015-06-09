@@ -348,7 +348,7 @@ static struct mvebu_mpp_mode mv88f6710_mpp_modes[] = {
 	   MPP_FUNCTION(0x1, "dev", "ale1"),
 	   MPP_FUNCTION(0x2, "uart1", "rxd"),
 	   MPP_FUNCTION(0x3, "sata0", "prsnt"),
-	   MPP_FUNCTION(0x4, "pcie", "rst-out"),
+	   MPP_FUNCTION(0x4, "pcie", "rstout"),
 	   MPP_FUNCTION(0x5, "audio", "sdi")),
 	MPP_MODE(61,
 	   MPP_FUNCTION(0x0, "gpo", NULL),

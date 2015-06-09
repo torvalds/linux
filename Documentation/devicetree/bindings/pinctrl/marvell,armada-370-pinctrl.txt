@@ -86,7 +86,7 @@ mpp57         57       gpio, dev(cs3), uart1(rxd), tdm(fsync), sata0(prsnt),
 mpp58         58       gpio, dev(cs0), uart1(rts), tdm(int), audio(extclk),
                        uart0(rts)
 mpp59         59       gpo, dev(ale0), uart1(rts), uart0(rts), audio(bclk)
-mpp60         60       gpio, dev(ale1), uart1(rxd), sata0(prsnt), pcie(rst-out),
+mpp60         60       gpio, dev(ale1), uart1(rxd), sata0(prsnt), pcie(rstout),
                        audio(sdi)
 mpp61         61       gpo, dev(we1), uart1(txd), audio(rclk)
 mpp62         62       gpio, dev(a2), uart1(cts), tdm(drx), pcie(clkreq0),
