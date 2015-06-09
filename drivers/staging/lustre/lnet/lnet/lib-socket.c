@@ -35,7 +35,8 @@
  */
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include "../../../include/linux/libcfs/libcfs.h"
+#include "../../include/linux/libcfs/libcfs.h"
+#include "../../include/linux/lnet/lib-lnet.h"
 
 #include <linux/if.h>
 #include <linux/in.h>
