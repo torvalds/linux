@@ -2142,11 +2142,17 @@ static void tipc_sk_timeout(unsigned long data)
 	peer_node = tsk_peer_node(tsk);
 
 	if (tsk->probing_state == TIPC_CONN_PROBING) {
-		/* Previous probe not answered -> self abort */
-		skb = tipc_msg_create(TIPC_CRITICAL_IMPORTANCE,
-				      TIPC_CONN_MSG, SHORT_H_SIZE, 0,
-				      own_node, peer_node, tsk->portid,
-				      peer_port, TIPC_ERR_NO_PORT);
+		if (!sock_owned_by_user(sk)) {
+			sk->sk_socket->state = SS_DISCONNECTING;
+			tsk->connected = 0;
+			tipc_node_remove_conn(sock_net(sk), tsk_peer_node(tsk),
+					      tsk_peer_port(tsk));
+			sk->sk_state_change(sk);
+		} else {
+			/* Try again later */
+			sk_reset_timer(sk, &sk->sk_timer, (HZ / 20));
+		}
+
 	} else {
 		skb = tipc_msg_create(CONN_MANAGER, CONN_PROBE,
 				      INT_H_SIZE, 0, peer_node, own_node,
