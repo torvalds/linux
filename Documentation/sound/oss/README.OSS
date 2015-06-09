@@ -1346,7 +1346,7 @@ implement nice real-time signal processing audio effect software and
 network telephones. The ACI mixer has to be switched into the "solo"
 mode for duplex operation in order to avoid feedback caused by the
 mixer (input hears output signal). You can de-/activate this mode
-through toggleing the record button for the wave controller with an
+through toggling the record button for the wave controller with an
 OSS-mixer.
 
 The PCM20 contains a radio tuner, which is also controlled by
