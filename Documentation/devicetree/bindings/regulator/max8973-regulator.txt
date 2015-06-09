@@ -2,7 +2,9 @@
 
 Required properties:
 
-- compatible:	must be "maxim,max8973"
+- compatible:	must be one of following:
+			"maxim,max8973"
+			"maxim,max77621".
 - reg:		the i2c slave address of the regulator. It should be 0x1b.
 
 Any standard regulator properties can be used to configure the single max8973
