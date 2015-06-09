@@ -1265,7 +1265,7 @@ inline struct sk_buff *rtllib_association_req(struct rtllib_network *beacon,
 		skb_put(skb, sizeof(struct rtllib_assoc_request_frame) + 2);
 
 
-	hdr->header.frame_ctl = RTLLIB_STYPE_ASSOC_REQ;
+	hdr->header.frame_ctl = cpu_to_le16(RTLLIB_STYPE_ASSOC_REQ);
 	hdr->header.duration_id = cpu_to_le16(37);
 	ether_addr_copy(hdr->header.addr1, beacon->bssid);
 	ether_addr_copy(hdr->header.addr2, ieee->dev->dev_addr);
@@ -2243,9 +2243,10 @@ inline int rtllib_rx_assoc_resp(struct rtllib_device *ieee, struct sk_buff *skb,
 	u8 *ies;
 	struct rtllib_assoc_response_frame *assoc_resp;
 	struct rtllib_hdr_3addr *header = (struct rtllib_hdr_3addr *) skb->data;
+	u16 frame_ctl = le16_to_cpu(header->frame_ctl);
 
 	netdev_dbg(ieee->dev, "received [RE]ASSOCIATION RESPONSE (%d)\n",
-		   WLAN_FC_GET_STYPE(header->frame_ctl));
+		   WLAN_FC_GET_STYPE(frame_ctl));
 
 	if ((ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) &&
 	     ieee->state == RTLLIB_ASSOCIATING_AUTHENTICATED &&
@@ -2389,6 +2390,7 @@ inline int rtllib_rx_auth(struct rtllib_device *ieee, struct sk_buff *skb,
 inline int rtllib_rx_deauth(struct rtllib_device *ieee, struct sk_buff *skb)
 {
 	struct rtllib_hdr_3addr *header = (struct rtllib_hdr_3addr *) skb->data;
+	u16 frame_ctl;
 
 	if (memcmp(header->addr3, ieee->current_network.bssid, ETH_ALEN) != 0)
 		return 0;
@@ -2399,9 +2401,10 @@ inline int rtllib_rx_deauth(struct rtllib_device *ieee, struct sk_buff *skb)
 	if ((ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) &&
 	    ieee->state == RTLLIB_LINKED &&
 	    (ieee->iw_mode == IW_MODE_INFRA)) {
+		frame_ctl = le16_to_cpu(header->frame_ctl);
 		netdev_info(ieee->dev,
 			    "==========>received disassoc/deauth(%x) frame, reason code:%x\n",
-			    WLAN_FC_GET_STYPE(header->frame_ctl),
+			    WLAN_FC_GET_STYPE(frame_ctl),
 			    ((struct rtllib_disassoc *)skb->data)->reason);
 		ieee->state = RTLLIB_ASSOCIATING;
 		ieee->softmac_stats.reassoc++;
@@ -2427,11 +2430,13 @@ inline int rtllib_rx_frame_softmac(struct rtllib_device *ieee,
 				   u16 stype)
 {
 	struct rtllib_hdr_3addr *header = (struct rtllib_hdr_3addr *) skb->data;
+	u16 frame_ctl;
 
 	if (!ieee->proto_started)
 		return 0;
 
-	switch (WLAN_FC_GET_STYPE(header->frame_ctl)) {
+	frame_ctl = le16_to_cpu(header->frame_ctl);
+	switch (WLAN_FC_GET_STYPE(frame_ctl)) {
 	case RTLLIB_STYPE_ASSOC_RESP:
 	case RTLLIB_STYPE_REASSOC_RESP:
 		if (rtllib_rx_assoc_resp(ieee, skb, rx_stats) == 1)
