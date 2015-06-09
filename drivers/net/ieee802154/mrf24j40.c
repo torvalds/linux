@@ -533,6 +533,7 @@ static int mrf24j40_handle_rx(struct mrf24j40 *devrec)
 	u8 lqi = 0;
 	u8 val;
 	int ret = 0;
+	int ret2;
 	struct sk_buff *skb;
 
 	/* Turn off reception of packets off the air. This prevents the
@@ -569,9 +570,9 @@ static int mrf24j40_handle_rx(struct mrf24j40 *devrec)
 
 out:
 	/* Turn back on reception of packets off the air. */
-	ret = read_short_reg(devrec, REG_BBREG1, &val);
-	if (ret)
-		return ret;
+	ret2 = read_short_reg(devrec, REG_BBREG1, &val);
+	if (ret2)
+		return ret2;
 	val &= ~0x4; /* Clear RXDECINV */
 	write_short_reg(devrec, REG_BBREG1, val);
 
