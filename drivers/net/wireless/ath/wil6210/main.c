@@ -100,6 +100,8 @@ module_param_cb(rx_ring_order, &ring_order_ops, &rx_ring_order, S_IRUGO);
 MODULE_PARM_DESC(rx_ring_order, " Rx ring order; size = 1 << order");
 module_param_cb(tx_ring_order, &ring_order_ops, &tx_ring_order, S_IRUGO);
 MODULE_PARM_DESC(tx_ring_order, " Tx ring order; size = 1 << order");
+module_param_cb(bcast_ring_order, &ring_order_ops, &bcast_ring_order, S_IRUGO);
+MODULE_PARM_DESC(bcast_ring_order, " Bcast ring order; size = 1 << order");
 
 #define RST_DELAY (20) /* msec, for loop in @wil_target_reset */
 #define RST_COUNT (1 + 1000/RST_DELAY) /* round up to be above 1 sec total */
