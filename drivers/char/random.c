@@ -1265,18 +1265,6 @@ void get_random_bytes(void *buf, int nbytes)
 EXPORT_SYMBOL(get_random_bytes);
 
 /*
- * Equivalent function to get_random_bytes with the difference that this
- * function blocks the request until the nonblocking_pool is initialized.
- */
-void get_blocking_random_bytes(void *buf, int nbytes)
-{
-	if (unlikely(nonblocking_pool.initialized == 0))
-		wait_event(urandom_init_wait, nonblocking_pool.initialized);
-	extract_entropy(&nonblocking_pool, buf, nbytes, 0, 0);
-}
-EXPORT_SYMBOL(get_blocking_random_bytes);
-
-/*
  * Add a callback function that will be invoked when the nonblocking
  * pool is initialised.
  *
