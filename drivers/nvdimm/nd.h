@@ -16,17 +16,52 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/ndctl.h>
+#include "label.h"
 
 struct nvdimm_drvdata {
 	struct device *dev;
+	int nsindex_size;
 	struct nd_cmd_get_config_size nsarea;
 	void *data;
+	int ns_current, ns_next;
+	struct resource dpa;
 };
 
 struct nd_region_namespaces {
 	int count;
 	int active;
 };
+
+static inline struct nd_namespace_index *to_namespace_index(
+		struct nvdimm_drvdata *ndd, int i)
+{
+	if (i < 0)
+		return NULL;
+
+	return ndd->data + sizeof_namespace_index(ndd) * i;
+}
+
+static inline struct nd_namespace_index *to_current_namespace_index(
+		struct nvdimm_drvdata *ndd)
+{
+	return to_namespace_index(ndd, ndd->ns_current);
+}
+
+static inline struct nd_namespace_index *to_next_namespace_index(
+		struct nvdimm_drvdata *ndd)
+{
+	return to_namespace_index(ndd, ndd->ns_next);
+}
+
+#define nd_dbg_dpa(r, d, res, fmt, arg...) \
+	dev_dbg((r) ? &(r)->dev : (d)->dev, "%s: %.13s: %#llx @ %#llx " fmt, \
+		(r) ? dev_name((d)->dev) : "", res ? res->name : "null", \
+		(unsigned long long) (res ? resource_size(res) : 0), \
+		(unsigned long long) (res ? res->start : 0), ##arg)
+
+#define for_each_dpa_resource_safe(ndd, res, next) \
+	for (res = (ndd)->dpa.child, next = res ? res->sibling : NULL; \
+			res; res = next, next = next ? next->sibling : NULL)
 
 struct nd_region {
 	struct device dev;
@@ -39,6 +74,15 @@ struct nd_region {
 	struct nd_mapping mapping[0];
 };
 
+/*
+ * Lookup next in the repeating sequence of 01, 10, and 11.
+ */
+static inline unsigned nd_inc_seq(unsigned seq)
+{
+	static const unsigned next[] = { 0, 2, 3, 1 };
+
+	return next[seq & 3];
+}
 enum nd_async_mode {
 	ND_SYNC,
 	ND_ASYNC,
@@ -58,4 +102,9 @@ int nd_region_register_namespaces(struct nd_region *nd_region, int *err);
 void nvdimm_bus_lock(struct device *dev);
 void nvdimm_bus_unlock(struct device *dev);
 bool is_nvdimm_bus_locked(struct device *dev);
+int nd_label_reserve_dpa(struct nvdimm_drvdata *ndd);
+void nvdimm_free_dpa(struct nvdimm_drvdata *ndd, struct resource *res);
+struct resource *nvdimm_allocate_dpa(struct nvdimm_drvdata *ndd,
+		struct nd_label_id *label_id, resource_size_t start,
+		resource_size_t n);
 #endif /* __ND_H__ */

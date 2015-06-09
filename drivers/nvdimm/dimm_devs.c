@@ -92,8 +92,12 @@ int nvdimm_init_config_data(struct nvdimm_drvdata *ndd)
 	if (ndd->data)
 		return 0;
 
-	if (ndd->nsarea.status || ndd->nsarea.max_xfer == 0)
+	if (ndd->nsarea.status || ndd->nsarea.max_xfer == 0
+			|| ndd->nsarea.config_size < ND_LABEL_MIN_SIZE) {
+		dev_dbg(ndd->dev, "failed to init config data area: (%d:%d)\n",
+				ndd->nsarea.max_xfer, ndd->nsarea.config_size);
 		return -ENXIO;
+	}
 
 	ndd->data = kmalloc(ndd->nsarea.config_size, GFP_KERNEL);
 	if (!ndd->data)
@@ -242,6 +246,30 @@ struct nvdimm *nvdimm_create(struct nvdimm_bus *nvdimm_bus, void *provider_data,
 	return nvdimm;
 }
 EXPORT_SYMBOL_GPL(nvdimm_create);
+
+void nvdimm_free_dpa(struct nvdimm_drvdata *ndd, struct resource *res)
+{
+	WARN_ON_ONCE(!is_nvdimm_bus_locked(ndd->dev));
+	kfree(res->name);
+	__release_region(&ndd->dpa, res->start, resource_size(res));
+}
+
+struct resource *nvdimm_allocate_dpa(struct nvdimm_drvdata *ndd,
+		struct nd_label_id *label_id, resource_size_t start,
+		resource_size_t n)
+{
+	char *name = kmemdup(label_id, sizeof(*label_id), GFP_KERNEL);
+	struct resource *res;
+
+	if (!name)
+		return NULL;
+
+	WARN_ON_ONCE(!is_nvdimm_bus_locked(ndd->dev));
+	res = __request_region(&ndd->dpa, start, n, name, 0);
+	if (!res)
+		kfree(name);
+	return res;
+}
 
 static int count_dimms(struct device *dev, void *c)
 {

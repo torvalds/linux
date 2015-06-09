@@ -10,3 +10,4 @@ libnvdimm-y += dimm.o
 libnvdimm-y += region_devs.o
 libnvdimm-y += region.o
 libnvdimm-y += namespace_devs.o
+libnvdimm-y += label.o

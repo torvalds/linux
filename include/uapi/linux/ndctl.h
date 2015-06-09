@@ -175,7 +175,6 @@ static inline const char *nvdimm_cmd_name(unsigned cmd)
 #define ND_IOCTL_ARS_STATUS		_IOWR(ND_IOCTL, ND_CMD_ARS_STATUS,\
 					struct nd_cmd_ars_status)
 
-
 #define ND_DEVICE_DIMM 1            /* nd_dimm: container for "config data" */
 #define ND_DEVICE_REGION_PMEM 2     /* nd_region: (parent of PMEM namespaces) */
 #define ND_DEVICE_REGION_BLK 3      /* nd_region: (parent of BLK namespaces) */
