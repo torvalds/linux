@@ -1360,7 +1360,7 @@ static int wil_sta_debugfs_show(struct seq_file *s, void *data)
 __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 {
 	struct wil6210_priv *wil = s->private;
-	int i, tid;
+	int i, tid, mcs;
 
 	for (i = 0; i < ARRAY_SIZE(wil->sta); i++) {
 		struct wil_sta_info *p = &wil->sta[i];
@@ -1390,6 +1390,12 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 				}
 			}
 			spin_unlock_bh(&p->tid_rx_lock);
+			seq_puts(s, "Rx/MCS:");
+			for (mcs = 0; mcs < ARRAY_SIZE(p->stats.rx_per_mcs);
+			     mcs++)
+				seq_printf(s, " %lld",
+					   p->stats.rx_per_mcs[mcs]);
+			seq_puts(s, "\n");
 		}
 	}
 
