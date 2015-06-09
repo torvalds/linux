@@ -380,7 +380,7 @@ static struct mvebu_mpp_ctrl armada_39x_mpp_controls[] = {
 
 static struct pinctrl_gpio_range armada_39x_mpp_gpio_ranges[] = {
 	MPP_GPIO_RANGE(0,   0,  0, 32),
-	MPP_GPIO_RANGE(1,  32, 32, 27),
+	MPP_GPIO_RANGE(1,  32, 32, 28),
 };
 
 static int armada_39x_pinctrl_probe(struct platform_device *pdev)
