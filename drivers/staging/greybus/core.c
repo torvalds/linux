@@ -256,8 +256,6 @@ static int __init gb_init(void)
 		goto error_bus;
 	}
 
-	ida_init(&greybus_endo_id_map);
-
 	retval = gb_ap_init();
 	if (retval) {
 		pr_err("gb_ap_init failed (%d)\n", retval);

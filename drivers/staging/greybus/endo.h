@@ -46,8 +46,6 @@ struct gb_endo {
 };
 #define to_gb_endo(d) container_of(d, struct gb_endo, dev)
 
-extern struct ida greybus_endo_id_map;
-
 /* Greybus "private" definitions */
 struct greybus_host_device;
 
