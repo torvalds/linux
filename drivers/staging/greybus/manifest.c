@@ -9,8 +9,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/err.h>
-
 #include "greybus.h"
 
 static const char *get_descriptor_type_string(u8 type)

@@ -9,13 +9,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/types.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/device.h>
-
 #include "greybus.h"
 
 /* Allow greybus to be disabled at boot if needed */

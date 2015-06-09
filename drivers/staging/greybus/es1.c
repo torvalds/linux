@@ -6,16 +6,11 @@
  *
  * Released under the GPLv2 only.
  */
-#include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/kthread.h>
-#include <linux/slab.h>
-#include <linux/errno.h>
 #include <linux/sizes.h>
 #include <linux/usb.h>
 #include <linux/kfifo.h>
 #include <linux/debugfs.h>
-#include <linux/uaccess.h>
 #include <asm/unaligned.h>
 
 #include "greybus.h"

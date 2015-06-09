@@ -7,9 +7,6 @@
  * Released under the GPLv2 only.
  */
 
-#include <linux/atomic.h>
-
-#include "kernel_ver.h"
 #include "greybus.h"
 
 static DEFINE_SPINLOCK(gb_connections_lock);

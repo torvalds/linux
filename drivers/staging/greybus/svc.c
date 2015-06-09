@@ -7,12 +7,7 @@
  * Released under the GPLv2 only.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-
 #include "greybus.h"
-#include "greybus_protocols.h"
 
 struct gb_svc {
 	struct gb_connection	*connection;
