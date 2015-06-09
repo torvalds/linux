@@ -1707,7 +1707,7 @@ ksocknal_recv_hello (lnet_ni_t *ni, ksock_conn_t *conn,
 	timeout = active ? *ksocknal_tunables.ksnd_timeout :
 			    lnet_acceptor_timeout();
 
-	rc = libcfs_sock_read(sock, &hello->kshm_magic, sizeof (hello->kshm_magic), timeout);
+	rc = lnet_sock_read(sock, &hello->kshm_magic, sizeof (hello->kshm_magic), timeout);
 	if (rc != 0) {
 		CERROR("Error %d reading HELLO from %pI4h\n",
 			rc, &conn->ksnc_ipaddr);
@@ -1726,8 +1726,8 @@ ksocknal_recv_hello (lnet_ni_t *ni, ksock_conn_t *conn,
 		return -EPROTO;
 	}
 
-	rc = libcfs_sock_read(sock, &hello->kshm_version,
-			      sizeof(hello->kshm_version), timeout);
+	rc = lnet_sock_read(sock, &hello->kshm_version,
+			    sizeof(hello->kshm_version), timeout);
 	if (rc != 0) {
 		CERROR("Error %d reading HELLO from %pI4h\n",
 			rc, &conn->ksnc_ipaddr);

@@ -65,21 +65,6 @@ static inline int __is_po2(unsigned long long val)
 int libcfs_arch_init(void);
 void libcfs_arch_cleanup(void);
 
-/* libcfs tcpip */
-int libcfs_ipif_query(char *name, int *up, __u32 *ip, __u32 *mask);
-int libcfs_ipif_enumerate(char ***names);
-void libcfs_ipif_free_enumeration(char **names, int n);
-int libcfs_sock_listen(struct socket **sockp, __u32 ip, int port, int backlog);
-int libcfs_sock_accept(struct socket **newsockp, struct socket *sock);
-int libcfs_sock_connect(struct socket **sockp, int *fatal,
-			__u32 local_ip, int local_port,
-			__u32 peer_ip, int peer_port);
-int libcfs_sock_setbuf(struct socket *socket, int txbufsize, int rxbufsize);
-int libcfs_sock_getbuf(struct socket *socket, int *txbufsize, int *rxbufsize);
-int libcfs_sock_getaddr(struct socket *socket, int remote, __u32 *ip, int *port);
-int libcfs_sock_write(struct socket *sock, void *buffer, int nob, int timeout);
-int libcfs_sock_read(struct socket *sock, void *buffer, int nob, int timeout);
-
 /* need both kernel and user-land acceptor */
 #define LNET_ACCEPTOR_MIN_RESERVED_PORT    512
 #define LNET_ACCEPTOR_MAX_RESERVED_PORT    1023

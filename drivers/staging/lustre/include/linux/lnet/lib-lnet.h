@@ -639,6 +639,22 @@ int lnet_acceptor_port(void);
 int lnet_acceptor_start(void);
 void lnet_acceptor_stop(void);
 
+int lnet_ipif_query(char *name, int *up, __u32 *ip, __u32 *mask);
+int lnet_ipif_enumerate(char ***names);
+void lnet_ipif_free_enumeration(char **names, int n);
+int lnet_sock_setbuf(struct socket *socket, int txbufsize, int rxbufsize);
+int lnet_sock_getbuf(struct socket *socket, int *txbufsize, int *rxbufsize);
+int lnet_sock_getaddr(struct socket *socket, bool remote, __u32 *ip, int *port);
+int lnet_sock_write(struct socket *sock, void *buffer, int nob, int timeout);
+int lnet_sock_read(struct socket *sock, void *buffer, int nob, int timeout);
+
+int lnet_sock_listen(struct socket **sockp, __u32 ip, int port, int backlog);
+int lnet_sock_accept(struct socket **newsockp, struct socket *sock);
+int lnet_sock_connect(struct socket **sockp, int *fatal,
+		      __u32 local_ip, int local_port,
+		      __u32 peer_ip, int peer_port);
+void libcfs_sock_release(struct socket *sock);
+
 void lnet_get_tunables(void);
 int lnet_peers_start_down(void);
 int lnet_peer_buffer_credits(lnet_ni_t *ni);

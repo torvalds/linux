@@ -39,9 +39,8 @@
 int
 ksocknal_lib_get_conn_addrs(ksock_conn_t *conn)
 {
-	int rc = libcfs_sock_getaddr(conn->ksnc_sock, 1,
-				     &conn->ksnc_ipaddr,
-				     &conn->ksnc_port);
+	int rc = lnet_sock_getaddr(conn->ksnc_sock, 1, &conn->ksnc_ipaddr,
+				   &conn->ksnc_port);
 
 	/* Didn't need the {get,put}connsock dance to deref ksnc_sock... */
 	LASSERT(!conn->ksnc_closing);
@@ -51,8 +50,7 @@ ksocknal_lib_get_conn_addrs(ksock_conn_t *conn)
 		return rc;
 	}
 
-	rc = libcfs_sock_getaddr(conn->ksnc_sock, 0,
-				 &conn->ksnc_myipaddr, NULL);
+	rc = lnet_sock_getaddr(conn->ksnc_sock, 0, &conn->ksnc_myipaddr, NULL);
 	if (rc != 0) {
 		CERROR("Error %d getting sock local IP\n", rc);
 		return rc;
@@ -436,7 +434,7 @@ ksocknal_lib_get_conn_tunables(ksock_conn_t *conn, int *txmem, int *rxmem, int *
 		return -ESHUTDOWN;
 	}
 
-	rc = libcfs_sock_getbuf(sock, txmem, rxmem);
+	rc = lnet_sock_getbuf(sock, txmem, rxmem);
 	if (rc == 0) {
 		len = sizeof(*nagle);
 		rc = kernel_getsockopt(sock, SOL_TCP, TCP_NODELAY,
@@ -498,9 +496,8 @@ ksocknal_lib_setup_sock(struct socket *sock)
 		}
 	}
 
-	rc = libcfs_sock_setbuf(sock,
-				*ksocknal_tunables.ksnd_tx_buffer_size,
-				*ksocknal_tunables.ksnd_rx_buffer_size);
+	rc = lnet_sock_setbuf(sock, *ksocknal_tunables.ksnd_tx_buffer_size,
+			      *ksocknal_tunables.ksnd_rx_buffer_size);
 	if (rc != 0) {
 		CERROR("Can't set buffer tx %d, rx %d buffers: %d\n",
 			*ksocknal_tunables.ksnd_tx_buffer_size,

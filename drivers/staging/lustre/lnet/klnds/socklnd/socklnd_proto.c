@@ -495,9 +495,7 @@ ksocknal_send_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello)
 	hdr->msg.hello.type = cpu_to_le32 (hello->kshm_ctype);
 	hdr->msg.hello.incarnation = cpu_to_le64 (hello->kshm_src_incarnation);
 
-	rc = libcfs_sock_write(sock, hdr, sizeof(*hdr),
-			       lnet_acceptor_timeout());
-
+	rc = lnet_sock_write(sock, hdr, sizeof(*hdr), lnet_acceptor_timeout());
 	if (rc != 0) {
 		CNETERR("Error %d sending HELLO hdr to %pI4h/%d\n",
 			rc, &conn->ksnc_ipaddr, conn->ksnc_port);
@@ -511,9 +509,9 @@ ksocknal_send_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello)
 		hello->kshm_ips[i] = __cpu_to_le32 (hello->kshm_ips[i]);
 	}
 
-	rc = libcfs_sock_write(sock, hello->kshm_ips,
-			       hello->kshm_nips * sizeof(__u32),
-			       lnet_acceptor_timeout());
+	rc = lnet_sock_write(sock, hello->kshm_ips,
+			     hello->kshm_nips * sizeof(__u32),
+			     lnet_acceptor_timeout());
 	if (rc != 0) {
 		CNETERR("Error %d sending HELLO payload (%d) to %pI4h/%d\n",
 			rc, hello->kshm_nips,
@@ -544,9 +542,8 @@ ksocknal_send_hello_v2(ksock_conn_t *conn, ksock_hello_msg_t *hello)
 		LNET_UNLOCK();
 	}
 
-	rc = libcfs_sock_write(sock, hello, offsetof(ksock_hello_msg_t, kshm_ips),
-			       lnet_acceptor_timeout());
-
+	rc = lnet_sock_write(sock, hello, offsetof(ksock_hello_msg_t, kshm_ips),
+			     lnet_acceptor_timeout());
 	if (rc != 0) {
 		CNETERR("Error %d sending HELLO hdr to %pI4h/%d\n",
 			rc, &conn->ksnc_ipaddr, conn->ksnc_port);
@@ -556,9 +553,9 @@ ksocknal_send_hello_v2(ksock_conn_t *conn, ksock_hello_msg_t *hello)
 	if (hello->kshm_nips == 0)
 		return 0;
 
-	rc = libcfs_sock_write(sock, hello->kshm_ips,
-			       hello->kshm_nips * sizeof(__u32),
-			       lnet_acceptor_timeout());
+	rc = lnet_sock_write(sock, hello->kshm_ips,
+			     hello->kshm_nips * sizeof(__u32),
+			     lnet_acceptor_timeout());
 	if (rc != 0) {
 		CNETERR("Error %d sending HELLO payload (%d) to %pI4h/%d\n",
 			rc, hello->kshm_nips,
@@ -583,9 +580,9 @@ ksocknal_recv_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello,
 		return -ENOMEM;
 	}
 
-	rc = libcfs_sock_read(sock, &hdr->src_nid,
-			      sizeof(*hdr) - offsetof(lnet_hdr_t, src_nid),
-			      timeout);
+	rc = lnet_sock_read(sock, &hdr->src_nid,
+			    sizeof(*hdr) - offsetof(lnet_hdr_t, src_nid),
+			    timeout);
 	if (rc != 0) {
 		CERROR("Error %d reading rest of HELLO hdr from %pI4h\n",
 			rc, &conn->ksnc_ipaddr);
@@ -619,8 +616,8 @@ ksocknal_recv_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello,
 	if (hello->kshm_nips == 0)
 		goto out;
 
-	rc = libcfs_sock_read(sock, hello->kshm_ips,
-			      hello->kshm_nips * sizeof(__u32), timeout);
+	rc = lnet_sock_read(sock, hello->kshm_ips,
+			    hello->kshm_nips * sizeof(__u32), timeout);
 	if (rc != 0) {
 		CERROR("Error %d reading IPs from ip %pI4h\n",
 			rc, &conn->ksnc_ipaddr);
@@ -656,10 +653,10 @@ ksocknal_recv_hello_v2(ksock_conn_t *conn, ksock_hello_msg_t *hello, int timeout
 	else
 		conn->ksnc_flip = 1;
 
-	rc = libcfs_sock_read(sock, &hello->kshm_src_nid,
-			      offsetof(ksock_hello_msg_t, kshm_ips) -
-				       offsetof(ksock_hello_msg_t, kshm_src_nid),
-			      timeout);
+	rc = lnet_sock_read(sock, &hello->kshm_src_nid,
+			    offsetof(ksock_hello_msg_t, kshm_ips) -
+				     offsetof(ksock_hello_msg_t, kshm_src_nid),
+			    timeout);
 	if (rc != 0) {
 		CERROR("Error %d reading HELLO from %pI4h\n",
 			rc, &conn->ksnc_ipaddr);
@@ -687,8 +684,8 @@ ksocknal_recv_hello_v2(ksock_conn_t *conn, ksock_hello_msg_t *hello, int timeout
 	if (hello->kshm_nips == 0)
 		return 0;
 
-	rc = libcfs_sock_read(sock, hello->kshm_ips,
-			      hello->kshm_nips * sizeof(__u32), timeout);
+	rc = lnet_sock_read(sock, hello->kshm_ips,
+			    hello->kshm_nips * sizeof(__u32), timeout);
 	if (rc != 0) {
 		CERROR("Error %d reading IPs from ip %pI4h\n",
 			rc, &conn->ksnc_ipaddr);

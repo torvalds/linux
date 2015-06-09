@@ -45,7 +45,7 @@
 #include <linux/syscalls.h>
 
 static int
-libcfs_sock_ioctl(int cmd, unsigned long arg)
+lnet_sock_ioctl(int cmd, unsigned long arg)
 {
 	mm_segment_t	oldmm = get_fs();
 	struct socket  *sock;
@@ -76,7 +76,7 @@ out:
 }
 
 int
-libcfs_ipif_query (char *name, int *up, __u32 *ip, __u32 *mask)
+lnet_ipif_query (char *name, int *up, __u32 *ip, __u32 *mask)
 {
 	struct ifreq   ifr;
 	int	    nob;
@@ -92,8 +92,7 @@ libcfs_ipif_query (char *name, int *up, __u32 *ip, __u32 *mask)
 	CLASSERT (sizeof(ifr.ifr_name) >= IFNAMSIZ);
 
 	strcpy(ifr.ifr_name, name);
-	rc = libcfs_sock_ioctl(SIOCGIFFLAGS, (unsigned long)&ifr);
-
+	rc = lnet_sock_ioctl(SIOCGIFFLAGS, (unsigned long)&ifr);
 	if (rc != 0) {
 		CERROR("Can't get flags for interface %s\n", name);
 		return rc;
@@ -110,8 +109,7 @@ libcfs_ipif_query (char *name, int *up, __u32 *ip, __u32 *mask)
 
 	strcpy(ifr.ifr_name, name);
 	ifr.ifr_addr.sa_family = AF_INET;
-	rc = libcfs_sock_ioctl(SIOCGIFADDR, (unsigned long)&ifr);
-
+	rc = lnet_sock_ioctl(SIOCGIFADDR, (unsigned long)&ifr);
 	if (rc != 0) {
 		CERROR("Can't get IP address for interface %s\n", name);
 		return rc;
@@ -122,8 +120,7 @@ libcfs_ipif_query (char *name, int *up, __u32 *ip, __u32 *mask)
 
 	strcpy(ifr.ifr_name, name);
 	ifr.ifr_addr.sa_family = AF_INET;
-	rc = libcfs_sock_ioctl(SIOCGIFNETMASK, (unsigned long)&ifr);
-
+	rc = lnet_sock_ioctl(SIOCGIFNETMASK, (unsigned long)&ifr);
 	if (rc != 0) {
 		CERROR("Can't get netmask for interface %s\n", name);
 		return rc;
@@ -135,10 +132,10 @@ libcfs_ipif_query (char *name, int *up, __u32 *ip, __u32 *mask)
 	return 0;
 }
 
-EXPORT_SYMBOL(libcfs_ipif_query);
+EXPORT_SYMBOL(lnet_ipif_query);
 
 int
-libcfs_ipif_enumerate (char ***namesp)
+lnet_ipif_enumerate (char ***namesp)
 {
 	/* Allocate and fill in 'names', returning # interfaces/error */
 	char	   **names;
@@ -172,8 +169,7 @@ libcfs_ipif_enumerate (char ***namesp)
 		ifc.ifc_buf = (char *)ifr;
 		ifc.ifc_len = nalloc * sizeof(*ifr);
 
-		rc = libcfs_sock_ioctl(SIOCGIFCONF, (unsigned long)&ifc);
-
+		rc = lnet_sock_ioctl(SIOCGIFCONF, (unsigned long)&ifc);
 		if (rc < 0) {
 			CERROR ("Error %d enumerating interfaces\n", rc);
 			goto out1;
@@ -226,17 +222,17 @@ libcfs_ipif_enumerate (char ***namesp)
 
  out2:
 	if (rc < 0)
-		libcfs_ipif_free_enumeration(names, nfound);
+		lnet_ipif_free_enumeration(names, nfound);
  out1:
 	LIBCFS_FREE(ifr, nalloc * sizeof(*ifr));
  out0:
 	return rc;
 }
 
-EXPORT_SYMBOL(libcfs_ipif_enumerate);
+EXPORT_SYMBOL(lnet_ipif_enumerate);
 
 void
-libcfs_ipif_free_enumeration (char **names, int n)
+lnet_ipif_free_enumeration (char **names, int n)
 {
 	int      i;
 
@@ -248,10 +244,10 @@ libcfs_ipif_free_enumeration (char **names, int n)
 	LIBCFS_FREE(names, n * sizeof(*names));
 }
 
-EXPORT_SYMBOL(libcfs_ipif_free_enumeration);
+EXPORT_SYMBOL(lnet_ipif_free_enumeration);
 
 int
-libcfs_sock_write (struct socket *sock, void *buffer, int nob, int timeout)
+lnet_sock_write (struct socket *sock, void *buffer, int nob, int timeout)
 {
 	int	    rc;
 	long	   ticks = timeout * HZ;
@@ -310,10 +306,10 @@ libcfs_sock_write (struct socket *sock, void *buffer, int nob, int timeout)
 
 	return 0;
 }
-EXPORT_SYMBOL(libcfs_sock_write);
+EXPORT_SYMBOL(lnet_sock_write);
 
 int
-libcfs_sock_read (struct socket *sock, void *buffer, int nob, int timeout)
+lnet_sock_read (struct socket *sock, void *buffer, int nob, int timeout)
 {
 	int	    rc;
 	long	   ticks = timeout * HZ;
@@ -366,10 +362,10 @@ libcfs_sock_read (struct socket *sock, void *buffer, int nob, int timeout)
 	}
 }
 
-EXPORT_SYMBOL(libcfs_sock_read);
+EXPORT_SYMBOL(lnet_sock_read);
 
 static int
-libcfs_sock_create (struct socket **sockp, int *fatal,
+lnet_sock_create (struct socket **sockp, int *fatal,
 		    __u32 local_ip, int local_port)
 {
 	struct sockaddr_in  locaddr;
@@ -424,7 +420,7 @@ libcfs_sock_create (struct socket **sockp, int *fatal,
 }
 
 int
-libcfs_sock_setbuf (struct socket *sock, int txbufsize, int rxbufsize)
+lnet_sock_setbuf (struct socket *sock, int txbufsize, int rxbufsize)
 {
 	int		 option;
 	int		 rc;
@@ -454,10 +450,10 @@ libcfs_sock_setbuf (struct socket *sock, int txbufsize, int rxbufsize)
 	return 0;
 }
 
-EXPORT_SYMBOL(libcfs_sock_setbuf);
+EXPORT_SYMBOL(lnet_sock_setbuf);
 
 int
-libcfs_sock_getaddr (struct socket *sock, int remote, __u32 *ip, int *port)
+lnet_sock_getaddr (struct socket *sock, bool remote, __u32 *ip, int *port)
 {
 	struct sockaddr_in sin;
 	int		len = sizeof (sin);
@@ -480,10 +476,10 @@ libcfs_sock_getaddr (struct socket *sock, int remote, __u32 *ip, int *port)
 	return 0;
 }
 
-EXPORT_SYMBOL(libcfs_sock_getaddr);
+EXPORT_SYMBOL(lnet_sock_getaddr);
 
 int
-libcfs_sock_getbuf (struct socket *sock, int *txbufsize, int *rxbufsize)
+lnet_sock_getbuf (struct socket *sock, int *txbufsize, int *rxbufsize)
 {
 
 	if (txbufsize != NULL) {
@@ -497,16 +493,16 @@ libcfs_sock_getbuf (struct socket *sock, int *txbufsize, int *rxbufsize)
 	return 0;
 }
 
-EXPORT_SYMBOL(libcfs_sock_getbuf);
+EXPORT_SYMBOL(lnet_sock_getbuf);
 
 int
-libcfs_sock_listen (struct socket **sockp,
+lnet_sock_listen (struct socket **sockp,
 		    __u32 local_ip, int local_port, int backlog)
 {
 	int      fatal;
 	int      rc;
 
-	rc = libcfs_sock_create(sockp, &fatal, local_ip, local_port);
+	rc = lnet_sock_create(sockp, &fatal, local_ip, local_port);
 	if (rc != 0) {
 		if (!fatal)
 			CERROR("Can't create socket: port %d already in use\n",
@@ -523,10 +519,10 @@ libcfs_sock_listen (struct socket **sockp,
 	return rc;
 }
 
-EXPORT_SYMBOL(libcfs_sock_listen);
+EXPORT_SYMBOL(lnet_sock_listen);
 
 int
-libcfs_sock_accept (struct socket **newsockp, struct socket *sock)
+lnet_sock_accept (struct socket **newsockp, struct socket *sock)
 {
 	wait_queue_t   wait;
 	struct socket *newsock;
@@ -566,17 +562,17 @@ libcfs_sock_accept (struct socket **newsockp, struct socket *sock)
 	return rc;
 }
 
-EXPORT_SYMBOL(libcfs_sock_accept);
+EXPORT_SYMBOL(lnet_sock_accept);
 
 int
-libcfs_sock_connect (struct socket **sockp, int *fatal,
+lnet_sock_connect (struct socket **sockp, int *fatal,
 		     __u32 local_ip, int local_port,
 		     __u32 peer_ip, int peer_port)
 {
 	struct sockaddr_in  srvaddr;
 	int		 rc;
 
-	rc = libcfs_sock_create(sockp, fatal, local_ip, local_port);
+	rc = lnet_sock_create(sockp, fatal, local_ip, local_port);
 	if (rc != 0)
 		return rc;
 
@@ -605,4 +601,4 @@ libcfs_sock_connect (struct socket **sockp, int *fatal,
 	return rc;
 }
 
-EXPORT_SYMBOL(libcfs_sock_connect);
+EXPORT_SYMBOL(lnet_sock_connect);

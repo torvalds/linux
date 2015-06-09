@@ -2617,7 +2617,7 @@ static kib_dev_t *kiblnd_create_dev(char *ifname)
 	int up;
 	int rc;
 
-	rc = libcfs_ipif_query(ifname, &up, &ip, &netmask);
+	rc = lnet_ipif_query(ifname, &up, &ip, &netmask);
 	if (rc != 0) {
 		CERROR("Can't query IPoIB interface %s: %d\n",
 		       ifname, rc);

@@ -968,7 +968,7 @@ ksocknal_accept(lnet_ni_t *ni, struct socket *sock)
 	__u32 peer_ip;
 	int peer_port;
 
-	rc = libcfs_sock_getaddr(sock, 1, &peer_ip, &peer_port);
+	rc = lnet_sock_getaddr(sock, 1, &peer_ip, &peer_port);
 	LASSERT(rc == 0);		      /* we succeeded before */
 
 	LIBCFS_ALLOC(cr, sizeof(*cr));
@@ -2594,7 +2594,7 @@ ksocknal_enumerate_interfaces(ksock_net_t *net)
 	int rc;
 	int n;
 
-	n = libcfs_ipif_enumerate(&names);
+	n = lnet_ipif_enumerate(&names);
 	if (n <= 0) {
 		CERROR("Can't enumerate interfaces: %d\n", n);
 		return n;
@@ -2608,7 +2608,7 @@ ksocknal_enumerate_interfaces(ksock_net_t *net)
 		if (!strcmp(names[i], "lo")) /* skip the loopback IF */
 			continue;
 
-		rc = libcfs_ipif_query(names[i], &up, &ip, &mask);
+		rc = lnet_ipif_query(names[i], &up, &ip, &mask);
 		if (rc != 0) {
 			CWARN("Can't get interface %s info: %d\n",
 			      names[i], rc);
@@ -2634,7 +2634,7 @@ ksocknal_enumerate_interfaces(ksock_net_t *net)
 		j++;
 	}
 
-	libcfs_ipif_free_enumeration(names, n);
+	lnet_ipif_free_enumeration(names, n);
 
 	if (j == 0)
 		CERROR("Can't find any usable interfaces\n");
@@ -2796,8 +2796,7 @@ ksocknal_startup(lnet_ni_t *ni)
 			if (ni->ni_interfaces[i] == NULL)
 				break;
 
-			rc = libcfs_ipif_query(
-				ni->ni_interfaces[i], &up,
+			rc = lnet_ipif_query(ni->ni_interfaces[i], &up,
 				&net->ksnn_interfaces[i].ksni_ipaddr,
 				&net->ksnn_interfaces[i].ksni_netmask);
 
