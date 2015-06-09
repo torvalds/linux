@@ -11,10 +11,22 @@
 
 static DEFINE_SPINLOCK(gb_connections_lock);
 
+/* This is only used at initialization time; no locking is required. */
+static struct gb_connection *
+gb_connection_intf_find(struct greybus_host_device *hd, u16 cport_id)
+{
+	struct gb_connection *connection;
+
+	list_for_each_entry(connection, &hd->connections, hd_links)
+		if (connection->intf_cport_id == cport_id)
+			return connection;
+	return NULL;
+}
+
 static struct gb_connection *
 gb_connection_hd_find(struct greybus_host_device *hd, u16 cport_id)
 {
-	struct gb_connection *connection = NULL;
+	struct gb_connection *connection;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gb_connections_lock, flags);
@@ -22,7 +34,7 @@ gb_connection_hd_find(struct greybus_host_device *hd, u16 cport_id)
 		if (connection->hd_cport_id == cport_id)
 			goto found;
 	connection = NULL;
- found:
+found:
 	spin_unlock_irqrestore(&gb_connections_lock, flags);
 
 	return connection;
@@ -159,21 +171,29 @@ struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 				u16 cport_id, u8 protocol_id)
 {
 	struct gb_connection *connection;
-	struct greybus_host_device *hd;
+	struct greybus_host_device *hd = bundle->intf->hd;
 	int retval;
 	u8 major = 0;
 	u8 minor = 1;
+
+	/*
+	 * If a manifest tries to reuse a cport, reject it.  We
+	 * initialize connections serially so we don't need to worry
+	 * about holding the connection lock.
+	 */
+	if (gb_connection_intf_find(hd, cport_id)) {
+		pr_err("duplicate interface cport id 0x%04hx\n", cport_id);
+		return NULL;
+	}
 
 	connection = kzalloc(sizeof(*connection), GFP_KERNEL);
 	if (!connection)
 		return NULL;
 
+	connection->hd = hd;
 	connection->protocol_id = protocol_id;
 	connection->major = major;
 	connection->minor = minor;
-
-	hd = bundle->intf->hd;
-	connection->hd = hd;
 	if (!gb_connection_hd_cport_id_alloc(connection)) {
 		gb_protocol_put(connection->protocol);
 		kfree(connection);
