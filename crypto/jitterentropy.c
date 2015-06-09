@@ -57,10 +57,6 @@
 #include <linux/crypto.h>
 #include <crypto/internal/rng.h>
 
-#ifdef __OPTIMIZE__
- #error "The CPU Jitter random number generator must not be compiled with optimizations. See documentation. Use the compiler switch -O0 for compiling jitterentropy.c."
-#endif
-
 /* The entropy pool */
 struct rand_data {
 	/* all data values that are vital to maintain the security
@@ -188,6 +184,20 @@ static __u64 jent_loop_shuffle(struct rand_data *ec,
  * Noise sources
  ***************************************************************************/
 
+/*
+ * The disabling of the optimizations is performed as documented and assessed
+ * thoroughly in http://www.chronox.de/jent.html. However, instead of disabling
+ * the optimization of the entire C file, only the main functions the jitter is
+ * measured for are not optimized. These functions include the noise sources as
+ * well as the main functions triggering the noise sources. As the time
+ * measurement is done from one invocation of the jitter noise source to the
+ * next, even the execution jitter of the code invoking the noise sources
+ * contribute to the overall randomness as well. The behavior of the RNG and the
+ * statistical characteristics when only the mentioned functions are not
+ * optimized is almost equal to the a completely non-optimized RNG compilation
+ * as tested with the test tools provided at the initially mentioned web site.
+ */
+
 /**
  * CPU Jitter noise source -- this is the noise source based on the CPU
  *			      execution time jitter
@@ -222,6 +232,8 @@ static __u64 jent_loop_shuffle(struct rand_data *ec,
  *
  * @return Number of loops the folding operation is performed
  */
+#pragma GCC push_options
+#pragma GCC optimize ("-O0")
 static __u64 jent_fold_time(struct rand_data *ec, __u64 time,
 			    __u64 *folded, __u64 loop_cnt)
 {
@@ -251,6 +263,7 @@ static __u64 jent_fold_time(struct rand_data *ec, __u64 time,
 	*folded = new;
 	return fold_loop_cnt;
 }
+#pragma GCC pop_options
 
 /**
  * Memory Access noise source -- this is a noise source based on variations in
@@ -279,6 +292,8 @@ static __u64 jent_fold_time(struct rand_data *ec, __u64 time,
  *
  * @return Number of memory access operations
  */
+#pragma GCC push_options
+#pragma GCC optimize ("-O0")
 static unsigned int jent_memaccess(struct rand_data *ec, __u64 loop_cnt)
 {
 	unsigned char *tmpval = NULL;
@@ -318,6 +333,7 @@ static unsigned int jent_memaccess(struct rand_data *ec, __u64 loop_cnt)
 	}
 	return i;
 }
+#pragma GCC pop_options
 
 /***************************************************************************
  * Start of entropy processing logic
@@ -366,6 +382,8 @@ static void jent_stuck(struct rand_data *ec, __u64 current_delta)
  *
  * @return One random bit
  */
+#pragma GCC push_options
+#pragma GCC optimize ("-O0")
 static __u64 jent_measure_jitter(struct rand_data *ec)
 {
 	__u64 time = 0;
@@ -395,6 +413,7 @@ static __u64 jent_measure_jitter(struct rand_data *ec)
 
 	return data;
 }
+#pragma GCC pop_options
 
 /**
  * Von Neuman unbias as explained in RFC 4086 section 4.2. As shown in the
@@ -495,6 +514,8 @@ static void jent_stir_pool(struct rand_data *entropy_collector)
  * Input:
  * @ec Reference to entropy collector
  */
+#pragma GCC push_options
+#pragma GCC optimize ("-O0")
 static void jent_gen_entropy(struct rand_data *ec)
 {
 	unsigned int k = 0;
@@ -556,6 +577,7 @@ static void jent_gen_entropy(struct rand_data *ec)
 	if (ec->stir)
 		jent_stir_pool(ec);
 }
+#pragma GCC pop_options
 
 /**
  * The continuous test required by FIPS 140-2 -- the function automatically
