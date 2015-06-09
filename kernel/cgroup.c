@@ -424,7 +424,7 @@ static int notify_on_release(const struct cgroup *cgrp)
  */
 #define for_each_subsys_which(ss, ssid, ss_maskp)			\
 	if (!CGROUP_SUBSYS_COUNT) /* to avoid spurious gcc warning */	\
-		;							\
+		(ssid) = 0;						\
 	else								\
 		for_each_set_bit(ssid, ss_maskp, CGROUP_SUBSYS_COUNT)	\
 			if (((ss) = cgroup_subsys[ssid]) && false)	\
