@@ -411,7 +411,8 @@ static int cik_sdma_gfx_resume(struct amdgpu_device *adev)
 		rb_bufsz = order_base_2(ring->ring_size / 4);
 		rb_cntl = rb_bufsz << 1;
 #ifdef __BIG_ENDIAN
-		rb_cntl |= SDMA_RB_SWAP_ENABLE | SDMA_RPTR_WRITEBACK_SWAP_ENABLE;
+		rb_cntl |= SDMA0_GFX_RB_CNTL__RB_SWAP_ENABLE_MASK |
+			SDMA0_GFX_RB_CNTL__RPTR_WRITEBACK_SWAP_ENABLE_MASK;
 #endif
 		WREG32(mmSDMA0_GFX_RB_CNTL + sdma_offsets[i], rb_cntl);
 

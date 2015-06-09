@@ -2881,7 +2881,7 @@ static int gfx_v7_0_cp_gfx_resume(struct amdgpu_device *adev)
 	rb_bufsz = order_base_2(ring->ring_size / 8);
 	tmp = (order_base_2(AMDGPU_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
 #ifdef __BIG_ENDIAN
-	tmp |= BUF_SWAP_32BIT;
+	tmp |= 2 << CP_RB0_CNTL__BUF_SWAP__SHIFT;
 #endif
 	WREG32(mmCP_RB0_CNTL, tmp);
 
@@ -3400,7 +3400,8 @@ static int gfx_v7_0_cp_compute_resume(struct amdgpu_device *adev)
 		mqd->queue_state.cp_hqd_pq_control |=
 			(order_base_2(AMDGPU_GPU_PAGE_SIZE/8) << 8);
 #ifdef __BIG_ENDIAN
-		mqd->queue_state.cp_hqd_pq_control |= BUF_SWAP_32BIT;
+		mqd->queue_state.cp_hqd_pq_control |=
+			2 << CP_HQD_PQ_CONTROL__ENDIAN_SWAP__SHIFT;
 #endif
 		mqd->queue_state.cp_hqd_pq_control &=
 			~(CP_HQD_PQ_CONTROL__UNORD_DISPATCH_MASK |
