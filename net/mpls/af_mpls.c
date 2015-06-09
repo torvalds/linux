@@ -541,7 +541,7 @@ static void mpls_ifdown(struct net_device *dev)
 
 	RCU_INIT_POINTER(dev->mpls_ptr, NULL);
 
-	kfree(mdev);
+	kfree_rcu(mdev, rcu);
 }
 
 static int mpls_dev_notify(struct notifier_block *this, unsigned long event,

@@ -125,6 +125,7 @@ static struct vport *netdev_create(const struct vport_parms *parms)
 	if (err)
 		goto error_master_upper_dev_unlink;
 
+	dev_disable_lro(netdev_vport->dev);
 	dev_set_promiscuity(netdev_vport->dev, 1);
 	netdev_vport->dev->priv_flags |= IFF_OVS_DATAPATH;
 	rtnl_unlock();

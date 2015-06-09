@@ -26,6 +26,7 @@
 #include <linux/random.h>
 #include <linux/rhashtable.h>
 #include <linux/err.h>
+#include <linux/export.h>
 
 #define HASH_DEFAULT_SIZE	64UL
 #define HASH_MIN_SIZE		4U

@@ -2127,6 +2127,7 @@ static int pl330_terminate_all(struct dma_chan *chan)
 	struct pl330_dmac *pl330 = pch->dmac;
 	LIST_HEAD(list);
 
+	pm_runtime_get_sync(pl330->ddma.dev);
 	spin_lock_irqsave(&pch->lock, flags);
 	spin_lock(&pl330->lock);
 	_stop(pch->thread);
@@ -2151,6 +2152,8 @@ static int pl330_terminate_all(struct dma_chan *chan)
 	list_splice_tail_init(&pch->work_list, &pl330->desc_pool);
 	list_splice_tail_init(&pch->completed_list, &pl330->desc_pool);
 	spin_unlock_irqrestore(&pch->lock, flags);
+	pm_runtime_mark_last_busy(pl330->ddma.dev);
+	pm_runtime_put_autosuspend(pl330->ddma.dev);
 
 	return 0;
 }

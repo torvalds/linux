@@ -1063,9 +1063,8 @@ static void alps_process_trackstick_packet_v7(struct psmouse *psmouse)
 	right = (packet[1] & 0x02) >> 1;
 	middle = (packet[1] & 0x04) >> 2;
 
-	/* Divide 2 since trackpoint's speed is too fast */
-	input_report_rel(dev2, REL_X, (char)x / 2);
-	input_report_rel(dev2, REL_Y, -((char)y / 2));
+	input_report_rel(dev2, REL_X, (char)x);
+	input_report_rel(dev2, REL_Y, -((char)y));
 
 	input_report_key(dev2, BTN_LEFT, left);
 	input_report_key(dev2, BTN_RIGHT, right);
