@@ -41,8 +41,8 @@
 
 #define DAVINCI_I2C_TIMEOUT	(1*HZ)
 #define DAVINCI_I2C_MAX_TRIES	2
-#define I2C_DAVINCI_INTR_ALL    (DAVINCI_I2C_IMR_AAS | \
-				 DAVINCI_I2C_IMR_SCD | \
+#define DAVINCI_I2C_OWN_ADDRESS	0x08
+#define I2C_DAVINCI_INTR_ALL    (DAVINCI_I2C_IMR_SCD | \
 				 DAVINCI_I2C_IMR_ARDY | \
 				 DAVINCI_I2C_IMR_NACK | \
 				 DAVINCI_I2C_IMR_AL)
@@ -233,7 +233,7 @@ static int i2c_davinci_init(struct davinci_i2c_dev *dev)
 	/* Respond at reserved "SMBus Host" slave address" (and zero);
 	 * we seem to have no option to not respond...
 	 */
-	davinci_i2c_write_reg(dev, DAVINCI_I2C_OAR_REG, 0x08);
+	davinci_i2c_write_reg(dev, DAVINCI_I2C_OAR_REG, DAVINCI_I2C_OWN_ADDRESS);
 
 	dev_dbg(dev->dev, "PSC  = %d\n",
 		davinci_i2c_read_reg(dev, DAVINCI_I2C_PSC_REG));
@@ -385,6 +385,11 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 	u32 flag;
 	u16 w;
 	unsigned long time_left;
+
+	if (msg->addr == DAVINCI_I2C_OWN_ADDRESS) {
+		dev_warn(dev->dev, "transfer to own address aborted\n");
+		return -EADDRNOTAVAIL;
+	}
 
 	/* Introduce a delay, required for some boards (e.g Davinci EVM) */
 	if (pdata->bus_delay)
