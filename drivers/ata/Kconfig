@@ -133,6 +133,15 @@ config AHCI_IMX
 
 	  If unsure, say N.
 
+config AHCI_CEVA
+	tristate "CEVA AHCI SATA support"
+	depends on OF
+	help
+	  This option enables support for the CEVA AHCI SATA.
+	  It can be found on the Xilinx Zynq UltraScale+ MPSoC.
+
+	  If unsure, say N.
+
 config AHCI_MVEBU
 	tristate "Marvell EBU AHCI SATA support"
 	depends on ARCH_MVEBU
