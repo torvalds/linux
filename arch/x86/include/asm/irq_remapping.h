@@ -29,6 +29,10 @@
 struct msi_msg;
 struct irq_alloc_info;
 
+enum irq_remap_cap {
+	IRQ_POSTING_CAP = 0,
+};
+
 #ifdef CONFIG_IRQ_REMAP
 
 extern void set_irq_remapping_broken(void);
