@@ -189,6 +189,7 @@ static inline void ceph_put_cap_snap(struct ceph_cap_snap *capsnap)
 struct ceph_cap_flush {
 	u64 tid;
 	int caps;
+	struct rb_node g_node;
 	union {
 		struct rb_node i_node;
 		struct list_head list;
@@ -304,7 +305,6 @@ struct ceph_inode_info {
 	struct ceph_cap *i_auth_cap;     /* authoritative cap, if any */
 	unsigned i_dirty_caps, i_flushing_caps;     /* mask of dirtied fields */
 	struct list_head i_dirty_item, i_flushing_item;
-	u64 i_cap_flush_seq;
 	/* we need to track cap writeback on a per-cap-bit basis, to allow
 	 * overlapping, pipelined cap flushes to the mds.  we can probably
 	 * reduce the tid to 8 bits if we're concerned about inode size. */
