@@ -274,7 +274,7 @@ static struct mvebu_mpp_mode armada_xp_mpp_modes[] = {
 		 MPP_VAR_FUNCTION(0x5, "pcie", "clkreq3",   V_MV78230_PLUS)),
 	MPP_MODE(48,
 		 MPP_VAR_FUNCTION(0x0, "gpio", NULL,        V_MV78230_PLUS),
-		 MPP_VAR_FUNCTION(0x1, "tclk", NULL,        V_MV78230_PLUS),
+		 MPP_VAR_FUNCTION(0x1, "dev", "clkout",     V_MV78230_PLUS),
 		 MPP_VAR_FUNCTION(0x2, "dev", "burst/last", V_MV78230_PLUS)),
 	MPP_MODE(49,
 		 MPP_VAR_FUNCTION(0x0, "gpio", NULL,        V_MV78260_PLUS),
