@@ -4191,6 +4191,52 @@ void t4_load_mtus(struct adapter *adap, const unsigned short *mtus,
 	}
 }
 
+/* Calculates a rate in bytes/s given the number of 256-byte units per 4K core
+ * clocks.  The formula is
+ *
+ * bytes/s = bytes256 * 256 * ClkFreq / 4096
+ *
+ * which is equivalent to
+ *
+ * bytes/s = 62.5 * bytes256 * ClkFreq_ms
+ */
+static u64 chan_rate(struct adapter *adap, unsigned int bytes256)
+{
+	u64 v = bytes256 * adap->params.vpd.cclk;
+
+	return v * 62 + v / 2;
+}
+
+/**
+ *	t4_get_chan_txrate - get the current per channel Tx rates
+ *	@adap: the adapter
+ *	@nic_rate: rates for NIC traffic
+ *	@ofld_rate: rates for offloaded traffic
+ *
+ *	Return the current Tx rates in bytes/s for NIC and offloaded traffic
+ *	for each channel.
+ */
+void t4_get_chan_txrate(struct adapter *adap, u64 *nic_rate, u64 *ofld_rate)
+{
+	u32 v;
+
+	v = t4_read_reg(adap, TP_TX_TRATE_A);
+	nic_rate[0] = chan_rate(adap, TNLRATE0_G(v));
+	nic_rate[1] = chan_rate(adap, TNLRATE1_G(v));
+	if (adap->params.arch.nchan == NCHAN) {
+		nic_rate[2] = chan_rate(adap, TNLRATE2_G(v));
+		nic_rate[3] = chan_rate(adap, TNLRATE3_G(v));
+	}
+
+	v = t4_read_reg(adap, TP_TX_ORATE_A);
+	ofld_rate[0] = chan_rate(adap, OFDRATE0_G(v));
+	ofld_rate[1] = chan_rate(adap, OFDRATE1_G(v));
+	if (adap->params.arch.nchan == NCHAN) {
+		ofld_rate[2] = chan_rate(adap, OFDRATE2_G(v));
+		ofld_rate[3] = chan_rate(adap, OFDRATE3_G(v));
+	}
+}
+
 /**
  *	t4_pmtx_get_stats - returns the HW stats from PMTX
  *	@adap: the adapter

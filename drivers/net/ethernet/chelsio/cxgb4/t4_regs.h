@@ -1361,6 +1361,42 @@
 #define FLMTXFLSTEMPTY_V(x) ((x) << FLMTXFLSTEMPTY_S)
 #define FLMTXFLSTEMPTY_F    FLMTXFLSTEMPTY_V(1U)
 
+#define TP_TX_ORATE_A 0x7ebc
+
+#define OFDRATE3_S    24
+#define OFDRATE3_M    0xffU
+#define OFDRATE3_G(x) (((x) >> OFDRATE3_S) & OFDRATE3_M)
+
+#define OFDRATE2_S    16
+#define OFDRATE2_M    0xffU
+#define OFDRATE2_G(x) (((x) >> OFDRATE2_S) & OFDRATE2_M)
+
+#define OFDRATE1_S    8
+#define OFDRATE1_M    0xffU
+#define OFDRATE1_G(x) (((x) >> OFDRATE1_S) & OFDRATE1_M)
+
+#define OFDRATE0_S    0
+#define OFDRATE0_M    0xffU
+#define OFDRATE0_G(x) (((x) >> OFDRATE0_S) & OFDRATE0_M)
+
+#define TP_TX_TRATE_A 0x7ed0
+
+#define TNLRATE3_S    24
+#define TNLRATE3_M    0xffU
+#define TNLRATE3_G(x) (((x) >> TNLRATE3_S) & TNLRATE3_M)
+
+#define TNLRATE2_S    16
+#define TNLRATE2_M    0xffU
+#define TNLRATE2_G(x) (((x) >> TNLRATE2_S) & TNLRATE2_M)
+
+#define TNLRATE1_S    8
+#define TNLRATE1_M    0xffU
+#define TNLRATE1_G(x) (((x) >> TNLRATE1_S) & TNLRATE1_M)
+
+#define TNLRATE0_S    0
+#define TNLRATE0_M    0xffU
+#define TNLRATE0_G(x) (((x) >> TNLRATE0_S) & TNLRATE0_M)
+
 #define TP_VLAN_PRI_MAP_A 0x140
 
 #define FRAGMENTATION_S    9

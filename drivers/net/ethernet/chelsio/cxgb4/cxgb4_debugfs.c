@@ -752,6 +752,39 @@ static const struct file_operations pm_stats_debugfs_fops = {
 	.write   = pm_stats_clear
 };
 
+static int tx_rate_show(struct seq_file *seq, void *v)
+{
+	u64 nrate[NCHAN], orate[NCHAN];
+	struct adapter *adap = seq->private;
+
+	t4_get_chan_txrate(adap, nrate, orate);
+	if (adap->params.arch.nchan == NCHAN) {
+		seq_puts(seq, "              channel 0   channel 1   "
+			 "channel 2   channel 3\n");
+		seq_printf(seq, "NIC B/s:     %10llu  %10llu  %10llu  %10llu\n",
+			   (unsigned long long)nrate[0],
+			   (unsigned long long)nrate[1],
+			   (unsigned long long)nrate[2],
+			   (unsigned long long)nrate[3]);
+		seq_printf(seq, "Offload B/s: %10llu  %10llu  %10llu  %10llu\n",
+			   (unsigned long long)orate[0],
+			   (unsigned long long)orate[1],
+			   (unsigned long long)orate[2],
+			   (unsigned long long)orate[3]);
+	} else {
+		seq_puts(seq, "              channel 0   channel 1\n");
+		seq_printf(seq, "NIC B/s:     %10llu  %10llu\n",
+			   (unsigned long long)nrate[0],
+			   (unsigned long long)nrate[1]);
+		seq_printf(seq, "Offload B/s: %10llu  %10llu\n",
+			   (unsigned long long)orate[0],
+			   (unsigned long long)orate[1]);
+	}
+	return 0;
+}
+
+DEFINE_SIMPLE_DEBUGFS_FILE(tx_rate);
+
 static int cctrl_tbl_show(struct seq_file *seq, void *v)
 {
 	static const char * const dec_fac[] = {
@@ -2254,6 +2287,7 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "ulprx_la", &ulprx_la_fops, S_IRUSR, 0 },
 		{ "sensors", &sensors_debugfs_fops, S_IRUSR, 0 },
 		{ "pm_stats", &pm_stats_debugfs_fops, S_IRUSR, 0 },
+		{ "tx_rate", &tx_rate_debugfs_fops, S_IRUSR, 0 },
 		{ "cctrl", &cctrl_tbl_debugfs_fops, S_IRUSR, 0 },
 #if IS_ENABLED(CONFIG_IPV6)
 		{ "clip_tbl", &clip_tbl_debugfs_fops, S_IRUSR, 0 },
