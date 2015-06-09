@@ -153,7 +153,8 @@ batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 	struct batadv_neigh_node *router;
 	struct batadv_neigh_ifinfo *router_ifinfo;
 	struct batadv_gw_node *gw_node, *curr_gw = NULL;
-	u64 max_gw_factor = 0, tmp_gw_factor = 0;
+	u64 max_gw_factor = 0;
+	u64 tmp_gw_factor = 0;
 	u8 max_tq = 0;
 	u8 tq_avg;
 	struct batadv_orig_node *orig_node;
@@ -263,7 +264,8 @@ void batadv_gw_check_client_stop(struct batadv_priv *bat_priv)
 
 void batadv_gw_election(struct batadv_priv *bat_priv)
 {
-	struct batadv_gw_node *curr_gw = NULL, *next_gw = NULL;
+	struct batadv_gw_node *curr_gw = NULL;
+	struct batadv_gw_node *next_gw = NULL;
 	struct batadv_neigh_node *router = NULL;
 	struct batadv_neigh_ifinfo *router_ifinfo = NULL;
 	char gw_addr[18] = { '\0' };
@@ -347,7 +349,8 @@ void batadv_gw_check_election(struct batadv_priv *bat_priv,
 	struct batadv_neigh_ifinfo *router_orig_tq = NULL;
 	struct batadv_neigh_ifinfo *router_gw_tq = NULL;
 	struct batadv_orig_node *curr_gw_orig;
-	struct batadv_neigh_node *router_gw = NULL, *router_orig = NULL;
+	struct batadv_neigh_node *router_gw = NULL;
+	struct batadv_neigh_node *router_orig = NULL;
 	u8 gw_tq_avg, orig_tq_avg;
 
 	curr_gw_orig = batadv_gw_get_selected_orig(bat_priv);
@@ -808,9 +811,11 @@ batadv_gw_dhcp_recipient_get(struct sk_buff *skb, unsigned int *header_len,
 bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 			    struct sk_buff *skb)
 {
-	struct batadv_neigh_node *neigh_curr = NULL, *neigh_old = NULL;
+	struct batadv_neigh_node *neigh_curr = NULL;
+	struct batadv_neigh_node *neigh_old = NULL;
 	struct batadv_orig_node *orig_dst_node = NULL;
-	struct batadv_gw_node *gw_node = NULL, *curr_gw = NULL;
+	struct batadv_gw_node *gw_node = NULL;
+	struct batadv_gw_node *curr_gw = NULL;
 	struct batadv_neigh_ifinfo *curr_ifinfo, *old_ifinfo;
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
 	bool out_of_range = false;

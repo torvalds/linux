@@ -462,7 +462,8 @@ static u16 batadv_tt_entries(u16 tt_len)
  */
 static int batadv_tt_local_table_transmit_size(struct batadv_priv *bat_priv)
 {
-	u16 num_vlan = 0, tt_local_entries = 0;
+	u16 num_vlan = 0;
+	u16 tt_local_entries = 0;
 	struct batadv_softif_vlan *vlan;
 	int hdr_size;
 
@@ -536,7 +537,8 @@ bool batadv_tt_local_add(struct net_device *soft_iface, const u8 *addr,
 	struct hlist_head *head;
 	struct batadv_tt_orig_list_entry *orig_entry;
 	int hash_added, table_size, packet_size_max;
-	bool ret = false, roamed_back = false;
+	bool ret = false;
+	bool roamed_back = false;
 	u8 remote_flags;
 	u32 match_mark;
 
@@ -730,7 +732,10 @@ batadv_tt_prepare_tvlv_global_data(struct batadv_orig_node *orig_node,
 				   struct batadv_tvlv_tt_change **tt_change,
 				   s32 *tt_len)
 {
-	u16 num_vlan = 0, num_entries = 0, change_offset, tvlv_len;
+	u16 num_vlan = 0;
+	u16 num_entries = 0;
+	u16 change_offset;
+	u16 tvlv_len;
 	struct batadv_tvlv_tt_vlan_data *tt_vlan;
 	struct batadv_orig_node_vlan *vlan;
 	u8 *tt_change_ptr;
@@ -803,7 +808,9 @@ batadv_tt_prepare_tvlv_local_data(struct batadv_priv *bat_priv,
 {
 	struct batadv_tvlv_tt_vlan_data *tt_vlan;
 	struct batadv_softif_vlan *vlan;
-	u16 num_vlan = 0, num_entries = 0, tvlv_len;
+	u16 num_vlan = 0;
+	u16 num_entries = 0;
+	u16 tvlv_len;
 	u8 *tt_change_ptr;
 	int change_offset;
 
@@ -860,7 +867,8 @@ static void batadv_tt_tvlv_container_update(struct batadv_priv *bat_priv)
 	struct batadv_tvlv_tt_data *tt_data;
 	struct batadv_tvlv_tt_change *tt_change;
 	int tt_diff_len, tt_change_len = 0;
-	int tt_diff_entries_num = 0, tt_diff_entries_count = 0;
+	int tt_diff_entries_num = 0;
+	int tt_diff_entries_count = 0;
 	u16 tvlv_len;
 
 	tt_diff_entries_num = atomic_read(&bat_priv->tt.local_changes);

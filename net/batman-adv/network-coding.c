@@ -887,7 +887,8 @@ void batadv_nc_update_nc_node(struct batadv_priv *bat_priv,
 			      struct batadv_ogm_packet *ogm_packet,
 			      int is_single_hop_neigh)
 {
-	struct batadv_nc_node *in_nc_node = NULL, *out_nc_node = NULL;
+	struct batadv_nc_node *in_nc_node = NULL;
+	struct batadv_nc_node *out_nc_node = NULL;
 
 	/* Check if network coding is enabled */
 	if (!atomic_read(&bat_priv->network_coding))

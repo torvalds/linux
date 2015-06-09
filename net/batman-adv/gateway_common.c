@@ -149,7 +149,10 @@ ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,
 				size_t count)
 {
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);
-	u32 down_curr, up_curr, down_new = 0, up_new = 0;
+	u32 down_curr;
+	u32 up_curr;
+	u32 down_new = 0;
+	u32 up_new = 0;
 	bool ret;
 
 	down_curr = (unsigned int)atomic_read(&bat_priv->gw.bandwidth_down);
