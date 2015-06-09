@@ -569,7 +569,11 @@
 				MX7D_PAD_SD2_WP__GPIO5_IO10       0x59
 				MX7D_PAD_SD2_RESET_B__GPIO5_IO11  0x59
 				MX7D_PAD_GPIO1_IO13__GPIO1_IO13   0x59
+			>;
+		};
 
+		pinctrl_hog_mipi: hoggrp_mipi {
+			fsl,pins = <
                                 MX7D_PAD_ECSPI1_SCLK__GPIO4_IO16  0x59
                                 MX7D_PAD_ECSPI1_MOSI__GPIO4_IO17  0x59
 			>;
