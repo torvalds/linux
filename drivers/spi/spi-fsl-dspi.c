@@ -47,6 +47,7 @@
 #define SPI_MCR_CLR_RXF	(1 << 10)
 
 #define SPI_TCR			0x08
+#define SPI_TCR_GET_TCNT(x)	(((x) & 0xffff0000) >> 16)
 
 #define SPI_CTAR(x)		(0x0c + (((x) & 0x3) * 4))
 #define SPI_CTAR_FMSZ(x)	(((x) & 0x0000000f) << 27)
@@ -104,6 +105,8 @@
 #define SPI_CS_ASSERT		0x02
 #define SPI_CS_DROP		0x04
 
+#define SPI_TCR_TCNT_MAX	0x10000
+
 struct chip_data {
 	u32 mcr_val;
 	u32 ctar_val;
@@ -155,6 +158,8 @@ struct fsl_dspi {
 
 	wait_queue_head_t	waitq;
 	u32			waitflags;
+
+	u32			spi_tcnt;
 };
 
 static inline int is_double_byte_mode(struct fsl_dspi *dspi)
@@ -274,7 +279,6 @@ static int dspi_eoq_write(struct fsl_dspi *dspi)
 	int tx_count = 0;
 	int tx_word;
 	u32 dspi_pushr = 0;
-	int first = 1;
 
 	tx_word = is_double_byte_mode(dspi);
 
@@ -299,11 +303,6 @@ static int dspi_eoq_write(struct fsl_dspi *dspi)
 				dspi_pushr &= ~SPI_PUSHR_CONT;
 		} else if (tx_word && (dspi->len == 1))
 			dspi_pushr |= SPI_PUSHR_EOQ;
-
-		if (first) {
-			first = 0;
-			dspi_pushr |= SPI_PUSHR_CTCNT; /* clear counter */
-		}
 
 		regmap_write(dspi->regmap, SPI_PUSHR, dspi_pushr);
 
@@ -372,6 +371,10 @@ static int dspi_transfer_one_message(struct spi_master *master,
 	struct spi_transfer *transfer;
 	int status = 0;
 	enum dspi_trans_mode trans_mode;
+	u32 spi_tcr;
+
+	regmap_read(dspi->regmap, SPI_TCR, &spi_tcr);
+	dspi->spi_tcnt = SPI_TCR_GET_TCNT(spi_tcr);
 
 	message->actual_length = 0;
 
@@ -413,11 +416,11 @@ static int dspi_transfer_one_message(struct spi_master *master,
 		switch (trans_mode) {
 		case DSPI_EOQ_MODE:
 			regmap_write(dspi->regmap, SPI_RSER, SPI_RSER_EOQFE);
-			message->actual_length += dspi_eoq_write(dspi);
+			dspi_eoq_write(dspi);
 			break;
 		case DSPI_TCFQ_MODE:
 			regmap_write(dspi->regmap, SPI_RSER, SPI_RSER_TCFQE);
-			message->actual_length += dspi_tcfq_write(dspi);
+			dspi_tcfq_write(dspi);
 			break;
 		default:
 			dev_err(&dspi->pdev->dev, "unsupported trans_mode %u\n",
@@ -516,47 +519,79 @@ static irqreturn_t dspi_interrupt(int irq, void *dev_id)
 	struct fsl_dspi *dspi = (struct fsl_dspi *)dev_id;
 	struct spi_message *msg = dspi->cur_msg;
 	enum dspi_trans_mode trans_mode;
-	u32 spi_sr;
+	u32 spi_sr, spi_tcr;
+	u32 spi_tcnt, tcnt_diff;
+	int tx_word;
 
 	regmap_read(dspi->regmap, SPI_SR, &spi_sr);
 	regmap_write(dspi->regmap, SPI_SR, spi_sr);
 
-	trans_mode = dspi->devtype_data->trans_mode;
-	switch (trans_mode) {
-	case DSPI_EOQ_MODE:
-		dspi_eoq_read(dspi);
-		break;
-	case DSPI_TCFQ_MODE:
-		dspi_tcfq_read(dspi);
-		break;
-	default:
-		dev_err(&dspi->pdev->dev, "unsupported trans_mode %u\n",
-			trans_mode);
-		return IRQ_HANDLED;
-	}
 
-	if (!dspi->len) {
-		if (dspi->dataflags & TRAN_STATE_WORD_ODD_NUM) {
-			regmap_update_bits(dspi->regmap, SPI_CTAR(dspi->cs),
-			SPI_FRAME_BITS_MASK, SPI_FRAME_BITS(16));
-			dspi->dataflags &= ~TRAN_STATE_WORD_ODD_NUM;
-		}
+	if (spi_sr & (SPI_SR_EOQF | SPI_SR_TCFQF)) {
+		tx_word = is_double_byte_mode(dspi);
 
-		dspi->waitflags = 1;
-		wake_up_interruptible(&dspi->waitq);
-	} else {
+		regmap_read(dspi->regmap, SPI_TCR, &spi_tcr);
+		spi_tcnt = SPI_TCR_GET_TCNT(spi_tcr);
+		/*
+		 * The width of SPI Transfer Counter in SPI_TCR is 16bits,
+		 * so the max couner is 65535. When the counter reach 65535,
+		 * it will wrap around, counter reset to zero.
+		 * spi_tcnt my be less than dspi->spi_tcnt, it means the
+		 * counter already wrapped around.
+		 * SPI Transfer Counter is a counter of transmitted frames.
+		 * The size of frame maybe two bytes.
+		 */
+		tcnt_diff = ((spi_tcnt + SPI_TCR_TCNT_MAX) - dspi->spi_tcnt)
+			% SPI_TCR_TCNT_MAX;
+		tcnt_diff *= (tx_word + 1);
+		if (dspi->dataflags & TRAN_STATE_WORD_ODD_NUM)
+			tcnt_diff--;
+
+		msg->actual_length += tcnt_diff;
+
+		dspi->spi_tcnt = spi_tcnt;
+
+		trans_mode = dspi->devtype_data->trans_mode;
 		switch (trans_mode) {
 		case DSPI_EOQ_MODE:
-			msg->actual_length += dspi_eoq_write(dspi);
+			dspi_eoq_read(dspi);
 			break;
 		case DSPI_TCFQ_MODE:
-			msg->actual_length += dspi_tcfq_write(dspi);
+			dspi_tcfq_read(dspi);
 			break;
 		default:
 			dev_err(&dspi->pdev->dev, "unsupported trans_mode %u\n",
 				trans_mode);
+				return IRQ_HANDLED;
+		}
+
+		if (!dspi->len) {
+			if (dspi->dataflags & TRAN_STATE_WORD_ODD_NUM) {
+				regmap_update_bits(dspi->regmap,
+						   SPI_CTAR(dspi->cs),
+						   SPI_FRAME_BITS_MASK,
+						   SPI_FRAME_BITS(16));
+				dspi->dataflags &= ~TRAN_STATE_WORD_ODD_NUM;
+			}
+
+			dspi->waitflags = 1;
+			wake_up_interruptible(&dspi->waitq);
+		} else {
+			switch (trans_mode) {
+			case DSPI_EOQ_MODE:
+				dspi_eoq_write(dspi);
+				break;
+			case DSPI_TCFQ_MODE:
+				dspi_tcfq_write(dspi);
+				break;
+			default:
+				dev_err(&dspi->pdev->dev,
+					"unsupported trans_mode %u\n",
+					trans_mode);
+			}
 		}
 	}
+
 	return IRQ_HANDLED;
 }
 
