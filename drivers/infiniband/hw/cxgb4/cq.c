@@ -156,19 +156,17 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 		goto err4;
 
 	cq->gen = 1;
+	cq->gts = rdev->lldi.gts_reg;
 	cq->rdev = rdev;
-	if (user) {
-		u32 off = (cq->cqid << rdev->cqshift) & PAGE_MASK;
 
-		cq->ugts = (u64)rdev->bar2_pa + off;
-	} else if (is_t4(rdev->lldi.adapter_type)) {
-		cq->gts = rdev->lldi.gts_reg;
-		cq->qid_mask = -1U;
-	} else {
-		u32 off = ((cq->cqid << rdev->cqshift) & PAGE_MASK) + 12;
-
-		cq->gts = rdev->bar2_kva + off;
-		cq->qid_mask = rdev->qpmask;
+	cq->bar2_va = c4iw_bar2_addrs(rdev, cq->cqid, T4_BAR2_QTYPE_INGRESS,
+				      &cq->bar2_qid,
+				      user ? &cq->bar2_pa : NULL);
+	if (user && !cq->bar2_va) {
+		pr_warn(MOD "%s: cqid %u not in BAR2 range.\n",
+			pci_name(rdev->lldi.pdev), cq->cqid);
+		ret = -EINVAL;
+		goto err4;
 	}
 	return 0;
 err4:
@@ -971,7 +969,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
 		insert_mmap(ucontext, mm);
 
 		mm2->key = uresp.gts_key;
-		mm2->addr = chp->cq.ugts;
+		mm2->addr = chp->cq.bar2_pa;
 		mm2->len = PAGE_SIZE;
 		insert_mmap(ucontext, mm2);
 	}

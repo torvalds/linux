@@ -165,9 +165,7 @@ struct wr_log_entry {
 
 struct c4iw_rdev {
 	struct c4iw_resource resource;
-	unsigned long qpshift;
 	u32 qpmask;
-	unsigned long cqshift;
 	u32 cqmask;
 	struct c4iw_dev_ucontext uctx;
 	struct gen_pool *pbl_pool;
@@ -1032,6 +1030,9 @@ void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe);
 
 extern struct cxgb4_client t4c_client;
 extern c4iw_handler_func c4iw_handlers[NUM_CPL_CMDS];
+void __iomem *c4iw_bar2_addrs(struct c4iw_rdev *rdev, unsigned int qid,
+			      enum cxgb4_bar2_qtype qtype,
+			      unsigned int *pbar2_qid, u64 *pbar2_pa);
 extern void c4iw_log_wr_stats(struct t4_wq *wq, struct t4_cqe *cqe);
 extern int c4iw_wr_log;
 extern int db_fc_threshold;
