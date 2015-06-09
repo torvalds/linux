@@ -135,6 +135,7 @@ static int x86_pmu_extra_regs(u64 config, struct perf_event *event)
 }
 
 static atomic_t active_events;
+static atomic_t pmc_refcount;
 static DEFINE_MUTEX(pmc_reserve_mutex);
 
 #ifdef CONFIG_X86_LOCAL_APIC
@@ -271,6 +272,7 @@ msr_fail:
 static void hw_perf_event_destroy(struct perf_event *event)
 {
 	x86_release_hardware();
+	atomic_dec(&active_events);
 }
 
 void hw_perf_lbr_event_destroy(struct perf_event *event)
@@ -324,16 +326,16 @@ int x86_reserve_hardware(void)
 {
 	int err = 0;
 
-	if (!atomic_inc_not_zero(&active_events)) {
+	if (!atomic_inc_not_zero(&pmc_refcount)) {
 		mutex_lock(&pmc_reserve_mutex);
-		if (atomic_read(&active_events) == 0) {
+		if (atomic_read(&pmc_refcount) == 0) {
 			if (!reserve_pmc_hardware())
 				err = -EBUSY;
 			else
 				reserve_ds_buffers();
 		}
 		if (!err)
-			atomic_inc(&active_events);
+			atomic_inc(&pmc_refcount);
 		mutex_unlock(&pmc_reserve_mutex);
 	}
 
@@ -342,7 +344,7 @@ int x86_reserve_hardware(void)
 
 void x86_release_hardware(void)
 {
-	if (atomic_dec_and_mutex_lock(&active_events, &pmc_reserve_mutex)) {
+	if (atomic_dec_and_mutex_lock(&pmc_refcount, &pmc_reserve_mutex)) {
 		release_pmc_hardware();
 		release_ds_buffers();
 		mutex_unlock(&pmc_reserve_mutex);
@@ -371,12 +373,24 @@ int x86_add_exclusive(unsigned int what)
 
 out:
 	mutex_unlock(&pmc_reserve_mutex);
+
+	/*
+	 * Assuming that all exclusive events will share the PMI handler
+	 * (which checks active_events for whether there is work to do),
+	 * we can bump active_events counter right here, except for
+	 * x86_lbr_exclusive_lbr events that go through x86_pmu_event_init()
+	 * path, which already bumps active_events for them.
+	 */
+	if (!ret && what != x86_lbr_exclusive_lbr)
+		atomic_inc(&active_events);
+
 	return ret;
 }
 
 void x86_del_exclusive(unsigned int what)
 {
 	atomic_dec(&x86_pmu.lbr_exclusive[what]);
+	atomic_dec(&active_events);
 }
 
 int x86_setup_perfctr(struct perf_event *event)
@@ -557,6 +571,7 @@ static int __x86_pmu_event_init(struct perf_event *event)
 	if (err)
 		return err;
 
+	atomic_inc(&active_events);
 	event->destroy = hw_perf_event_destroy;
 
 	event->hw.idx = -1;
@@ -1429,6 +1444,10 @@ perf_event_nmi_handler(unsigned int cmd, struct pt_regs *regs)
 	u64 finish_clock;
 	int ret;
 
+	/*
+	 * All PMUs/events that share this PMI handler should make sure to
+	 * increment active_events for their events.
+	 */
 	if (!atomic_read(&active_events))
 		return NMI_DONE;
 
