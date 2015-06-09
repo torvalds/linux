@@ -57,6 +57,7 @@ static void gb_pcm_work(struct work_struct *work)
 				pr_err("deactivate_cport failed: %d\n", ret);
 
 			snd_dev->cport_active = false;
+			snd_dev->send_data_sample_count = 0;
 		}
 
 		return;
