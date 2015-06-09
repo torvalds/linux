@@ -18,8 +18,6 @@
 
 #include "greybus.h"
 
-extern struct ida greybus_endo_id_map;
-
 /* Allow greybus to be disabled at boot if needed */
 static bool nogreybus;
 #ifdef MODULE
