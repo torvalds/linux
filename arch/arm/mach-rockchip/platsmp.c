@@ -72,29 +72,22 @@ static struct reset_control *rockchip_get_core_reset(int cpu)
 static int pmu_set_power_domain(int pd, bool on)
 {
 	u32 val = (on) ? 0 : BIT(pd);
+	struct reset_control *rstc = rockchip_get_core_reset(pd);
 	int ret;
+
+	if (IS_ERR(rstc) && read_cpuid_part() != ARM_CPU_PART_CORTEX_A9) {
+		pr_err("%s: could not get reset control for core %d\n",
+		       __func__, pd);
+		return PTR_ERR(rstc);
+	}
 
 	/*
 	 * We need to soft reset the cpu when we turn off the cpu power domain,
 	 * or else the active processors might be stalled when the individual
 	 * processor is powered down.
 	 */
-	if (read_cpuid_part() != ARM_CPU_PART_CORTEX_A9) {
-		struct reset_control *rstc = rockchip_get_core_reset(pd);
-
-		if (IS_ERR(rstc)) {
-			pr_err("%s: could not get reset control for core %d\n",
-			       __func__, pd);
-			return PTR_ERR(rstc);
-		}
-
-		if (on)
-			reset_control_deassert(rstc);
-		else
-			reset_control_assert(rstc);
-
-		reset_control_put(rstc);
-	}
+	if (!IS_ERR(rstc) && !on)
+		reset_control_assert(rstc);
 
 	ret = regmap_update_bits(pmu, PMU_PWRDN_CON, BIT(pd), val);
 	if (ret < 0) {
@@ -110,6 +103,12 @@ static int pmu_set_power_domain(int pd, bool on)
 				 __func__);
 			return ret;
 		}
+	}
+
+	if (!IS_ERR(rstc)) {
+		if (on)
+			reset_control_deassert(rstc);
+		reset_control_put(rstc);
 	}
 
 	return 0;
@@ -146,9 +145,14 @@ static int rockchip_boot_secondary(unsigned int cpu, struct task_struct *idle)
 		 * the mailbox:
 		 * sram_base_addr + 4: 0xdeadbeaf
 		 * sram_base_addr + 8: start address for pc
+		 * The cpu0 need to wait the other cpus other than cpu0 entering
+		 * the wfe state.The wait time is affected by many aspects.
+		 * (e.g: cpu frequency, bootrom frequency, sram frequency, ...)
 		 * */
-		udelay(10);
-		writel(virt_to_phys(secondary_startup), sram_base_addr + 8);
+		mdelay(1); /* ensure the cpus other than cpu0 to startup */
+
+		writel(virt_to_phys(rockchip_secondary_startup),
+			sram_base_addr + 8);
 		writel(0xDEADBEAF, sram_base_addr + 4);
 		dsb_sev();
 	}
