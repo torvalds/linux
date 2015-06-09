@@ -120,10 +120,19 @@ static const u32 golden_settings_tonga_a11[] =
 	mmHDMI_CONTROL, 0x31000111, 0x00000011,
 };
 
+static const u32 tonga_mgcg_cgcg_init[] =
+{
+	mmXDMA_CLOCK_GATING_CNTL, 0xffffffff, 0x00000100,
+	mmXDMA_MEM_POWER_CNTL, 0x00000101, 0x00000000,
+};
+
 static void dce_v10_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_TONGA:
+		amdgpu_program_register_sequence(adev,
+						 tonga_mgcg_cgcg_init,
+						 (const u32)ARRAY_SIZE(tonga_mgcg_cgcg_init));
 		amdgpu_program_register_sequence(adev,
 						 golden_settings_tonga_a11,
 						 (const u32)ARRAY_SIZE(golden_settings_tonga_a11));

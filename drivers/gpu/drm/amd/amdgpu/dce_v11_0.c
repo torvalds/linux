@@ -120,10 +120,19 @@ static const u32 cz_golden_settings_a11[] =
 	mmFBC_MISC, 0x1f311fff, 0x14300000,
 };
 
+static const u32 cz_mgcg_cgcg_init[] =
+{
+	mmXDMA_CLOCK_GATING_CNTL, 0xffffffff, 0x00000100,
+	mmXDMA_MEM_POWER_CNTL, 0x00000101, 0x00000000,
+};
+
 static void dce_v11_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_CARRIZO:
+		amdgpu_program_register_sequence(adev,
+						 cz_mgcg_cgcg_init,
+						 (const u32)ARRAY_SIZE(cz_mgcg_cgcg_init));
 		amdgpu_program_register_sequence(adev,
 						 cz_golden_settings_a11,
 						 (const u32)ARRAY_SIZE(cz_golden_settings_a11));
