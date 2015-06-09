@@ -182,6 +182,52 @@ static const struct file_operations cim_la_fops = {
 	.release = seq_release_private
 };
 
+static int cim_ma_la_show(struct seq_file *seq, void *v, int idx)
+{
+	const u32 *p = v;
+
+	if (v == SEQ_START_TOKEN) {
+		seq_puts(seq, "\n");
+	} else if (idx < CIM_MALA_SIZE) {
+		seq_printf(seq, "%02x%08x%08x%08x%08x\n",
+			   p[4], p[3], p[2], p[1], p[0]);
+	} else {
+		if (idx == CIM_MALA_SIZE)
+			seq_puts(seq,
+				 "\nCnt ID Tag UE       Data       RDY VLD\n");
+		seq_printf(seq, "%3u %2u  %x   %u %08x%08x  %u   %u\n",
+			   (p[2] >> 10) & 0xff, (p[2] >> 7) & 7,
+			   (p[2] >> 3) & 0xf, (p[2] >> 2) & 1,
+			   (p[1] >> 2) | ((p[2] & 3) << 30),
+			   (p[0] >> 2) | ((p[1] & 3) << 30), (p[0] >> 1) & 1,
+			   p[0] & 1);
+	}
+	return 0;
+}
+
+static int cim_ma_la_open(struct inode *inode, struct file *file)
+{
+	struct seq_tab *p;
+	struct adapter *adap = inode->i_private;
+
+	p = seq_open_tab(file, 2 * CIM_MALA_SIZE, 5 * sizeof(u32), 1,
+			 cim_ma_la_show);
+	if (!p)
+		return -ENOMEM;
+
+	t4_cim_read_ma_la(adap, (u32 *)p->data,
+			  (u32 *)p->data + 5 * CIM_MALA_SIZE);
+	return 0;
+}
+
+static const struct file_operations cim_ma_la_fops = {
+	.owner   = THIS_MODULE,
+	.open    = cim_ma_la_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release_private
+};
+
 static int cim_qcfg_show(struct seq_file *seq, void *v)
 {
 	static const char * const qname[] = {
@@ -2128,6 +2174,7 @@ int t4_setup_debugfs(struct adapter *adap)
 
 	static struct t4_debugfs_entry t4_debugfs_files[] = {
 		{ "cim_la", &cim_la_fops, S_IRUSR, 0 },
+		{ "cim_ma_la", &cim_ma_la_fops, S_IRUSR, 0 },
 		{ "cim_qcfg", &cim_qcfg_fops, S_IRUSR, 0 },
 		{ "clk", &clk_debugfs_fops, S_IRUSR, 0 },
 		{ "devlog", &devlog_fops, S_IRUSR, 0 },

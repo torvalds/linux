@@ -2759,6 +2759,20 @@
 
 #define CIM_IBQ_DBG_DATA_A 0x7b68
 #define CIM_OBQ_DBG_DATA_A 0x7b6c
+#define CIM_DEBUGCFG_A 0x7b70
+
+#define POLADBGRDPTR_S		23
+#define POLADBGRDPTR_V(x)	((x) << POLADBGRDPTR_S)
+
+#define PILADBGRDPTR_S		14
+#define PILADBGRDPTR_V(x)	((x) << PILADBGRDPTR_S)
+
+#define LADBGEN_S	12
+#define LADBGEN_V(x)	((x) << LADBGEN_S)
+#define LADBGEN_F	LADBGEN_V(1U)
+
+#define CIM_PO_LA_MADEBUGDATA_A	0x7b80
+#define CIM_PI_LA_MADEBUGDATA_A	0x7b84
 
 #define UPDBGLARDEN_S		1
 #define UPDBGLARDEN_V(x)	((x) << UPDBGLARDEN_S)

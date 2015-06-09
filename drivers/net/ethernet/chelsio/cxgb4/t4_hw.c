@@ -2586,6 +2586,27 @@ int t4_fwcache(struct adapter *adap, enum fw_params_param_dev_fwcache op)
 	return t4_wr_mbox(adap, adap->mbox, &c, sizeof(c), NULL);
 }
 
+void t4_cim_read_ma_la(struct adapter *adap, u32 *ma_req, u32 *ma_rsp)
+{
+	u32 cfg;
+	int i, j, idx;
+
+	cfg = t4_read_reg(adap, CIM_DEBUGCFG_A);
+	if (cfg & LADBGEN_F)
+		t4_write_reg(adap, CIM_DEBUGCFG_A, cfg ^ LADBGEN_F);
+
+	for (i = 0; i < CIM_MALA_SIZE; i++) {
+		for (j = 0; j < 5; j++) {
+			idx = 8 * i + j;
+			t4_write_reg(adap, CIM_DEBUGCFG_A, POLADBGRDPTR_V(idx) |
+				     PILADBGRDPTR_V(idx));
+			*ma_req++ = t4_read_reg(adap, CIM_PO_LA_MADEBUGDATA_A);
+			*ma_rsp++ = t4_read_reg(adap, CIM_PI_LA_MADEBUGDATA_A);
+		}
+	}
+	t4_write_reg(adap, CIM_DEBUGCFG_A, cfg);
+}
+
 void t4_ulprx_read_la(struct adapter *adap, u32 *la_buf)
 {
 	unsigned int i, j;
