@@ -23,6 +23,14 @@ config DRM_PANEL_SAMSUNG_LD9040
 	depends on OF && SPI
 	select VIDEOMODE_HELPERS
 
+config DRM_PANEL_LG_LG4573
+	tristate "LG4573 RGB/SPI panel"
+	depends on OF && SPI
+	select VIDEOMODE_HELPERS
+	help
+	  Say Y here if you want to enable support for LG4573 RGB panel.
+	  To compile this driver as a module, choose M here.
+
 config DRM_PANEL_SAMSUNG_S6E8AA0
 	tristate "Samsung S6E8AA0 DSI video mode panel"
 	depends on OF
