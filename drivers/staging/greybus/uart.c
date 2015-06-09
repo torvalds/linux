@@ -732,12 +732,8 @@ fail_unregister_dev:
 
 static void gb_tty_exit(void)
 {
-	int major = MAJOR(gb_tty_driver->major);
-	int minor = gb_tty_driver->minor_start;
-
 	tty_unregister_driver(gb_tty_driver);
 	put_tty_driver(gb_tty_driver);
-	unregister_chrdev_region(MKDEV(major, minor), GB_NUM_MINORS);
 }
 
 static struct gb_protocol uart_protocol = {
