@@ -54,20 +54,20 @@ mpp32         32       gpio, tdm(int3), sd0(d0)
 mpp33         33       gpio, tdm(int4), sd0(d1), dram(bat)
 mpp34         34       gpio, tdm(int5), sd0(d2), sata0(prsnt)
 mpp35         35       gpio, tdm(int6), sd0(d3), sata1(prsnt)
-mpp36         36       gpio, spi(mosi)
-mpp37         37       gpio, spi(miso)
-mpp38         38       gpio, spi(sck)
-mpp39         39       gpio, spi(cs0)
-mpp40         40       gpio, spi(cs1), uart2(cts), lcd(vga-hsync), pcie(clkreq0)
-mpp41         41       gpio, spi(cs2), uart2(rts), lcd(vga-vsync), sata1(prsnt),
+mpp36         36       gpio, spi0(mosi)
+mpp37         37       gpio, spi0(miso)
+mpp38         38       gpio, spi0(sck)
+mpp39         39       gpio, spi0(cs0)
+mpp40         40       gpio, spi0(cs1), uart2(cts), lcd(vga-hsync), pcie(clkreq0)
+mpp41         41       gpio, spi0(cs2), uart2(rts), lcd(vga-vsync), sata1(prsnt),
                        pcie(clkreq1)
 mpp42         42       gpio, uart2(rxd), uart0(cts), tdm(int7), tdm(timer)
-mpp43         43       gpio, uart2(txd), uart0(rts), spi(cs3), pcie(rstout)
-mpp44         44       gpio, uart2(cts), uart3(rxd), spi(cs4), pcie(clkreq2),
+mpp43         43       gpio, uart2(txd), uart0(rts), spi0(cs3), pcie(rstout)
+mpp44         44       gpio, uart2(cts), uart3(rxd), spi0(cs4), pcie(clkreq2),
                        dram(bat)
-mpp45         45       gpio, uart2(rts), uart3(txd), spi(cs5), sata1(prsnt)
-mpp46         46       gpio, uart3(rts), uart1(rts), spi(cs6), sata0(prsnt)
-mpp47         47       gpio, uart3(cts), uart1(cts), spi(cs7), pcie(clkreq3),
+mpp45         45       gpio, uart2(rts), uart3(txd), spi0(cs5), sata1(prsnt)
+mpp46         46       gpio, uart3(rts), uart1(rts), spi0(cs6), sata0(prsnt)
+mpp47         47       gpio, uart3(cts), uart1(cts), spi0(cs7), pcie(clkreq3),
                        ref(clkout)
 mpp48         48       gpio, dev(clkout), dev(burst/last)
 
