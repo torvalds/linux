@@ -1110,7 +1110,7 @@ static void sco_disconn_cfm(struct hci_conn *hcon, __u8 reason)
 	sco_conn_del(hcon, bt_to_errno(reason));
 }
 
-int sco_recv_scodata(struct hci_conn *hcon, struct sk_buff *skb)
+void sco_recv_scodata(struct hci_conn *hcon, struct sk_buff *skb)
 {
 	struct sco_conn *conn = hcon->sco_data;
 
@@ -1121,12 +1121,11 @@ int sco_recv_scodata(struct hci_conn *hcon, struct sk_buff *skb)
 
 	if (skb->len) {
 		sco_recv_frame(conn, skb);
-		return 0;
+		return;
 	}
 
 drop:
 	kfree_skb(skb);
-	return 0;
 }
 
 static struct hci_cb sco_cb = {
