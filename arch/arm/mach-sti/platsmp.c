@@ -39,8 +39,6 @@ static DEFINE_SPINLOCK(boot_lock);
 
 static void sti_secondary_init(unsigned int cpu)
 {
-	trace_hardirqs_off();
-
 	/*
 	 * let the primary processor know we're out of the
 	 * pen, then head off into the C entry point
