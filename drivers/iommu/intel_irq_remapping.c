@@ -1013,10 +1013,47 @@ static void intel_ir_compose_msi_msg(struct irq_data *irq_data,
 	*msg = ir_data->msi_entry;
 }
 
+static int intel_ir_set_vcpu_affinity(struct irq_data *data, void *info)
+{
+	struct intel_ir_data *ir_data = data->chip_data;
+	struct vcpu_data *vcpu_pi_info = info;
+
+	/* stop posting interrupts, back to remapping mode */
+	if (!vcpu_pi_info) {
+		modify_irte(&ir_data->irq_2_iommu, &ir_data->irte_entry);
+	} else {
+		struct irte irte_pi;
+
+		/*
+		 * We are not caching the posted interrupt entry. We
+		 * copy the data from the remapped entry and modify
+		 * the fields which are relevant for posted mode. The
+		 * cached remapped entry is used for switching back to
+		 * remapped mode.
+		 */
+		memset(&irte_pi, 0, sizeof(irte_pi));
+		dmar_copy_shared_irte(&irte_pi, &ir_data->irte_entry);
+
+		/* Update the posted mode fields */
+		irte_pi.p_pst = 1;
+		irte_pi.p_urgent = 0;
+		irte_pi.p_vector = vcpu_pi_info->vector;
+		irte_pi.pda_l = (vcpu_pi_info->pi_desc_addr >>
+				(32 - PDA_LOW_BIT)) & ~(-1UL << PDA_LOW_BIT);
+		irte_pi.pda_h = (vcpu_pi_info->pi_desc_addr >> 32) &
+				~(-1UL << PDA_HIGH_BIT);
+
+		modify_irte(&ir_data->irq_2_iommu, &irte_pi);
+	}
+
+	return 0;
+}
+
 static struct irq_chip intel_ir_chip = {
 	.irq_ack = ir_ack_apic_edge,
 	.irq_set_affinity = intel_ir_set_affinity,
 	.irq_compose_msi_msg = intel_ir_compose_msi_msg,
+	.irq_set_vcpu_affinity = intel_ir_set_vcpu_affinity,
 };
 
 static void intel_irq_remapping_prepare_irte(struct intel_ir_data *data,
