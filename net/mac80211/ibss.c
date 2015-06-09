@@ -146,6 +146,7 @@ ieee80211_ibss_build_presp(struct ieee80211_sub_if_data *sdata,
 				csa_settings->chandef.chan->center_freq);
 		presp->csa_counter_offsets[0] = (pos - presp->head);
 		*pos++ = csa_settings->count;
+		presp->csa_current_counter = csa_settings->count;
 	}
 
 	/* put the remaining rates in WLAN_EID_EXT_SUPP_RATES */
