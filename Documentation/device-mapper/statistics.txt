@@ -13,9 +13,13 @@ the range specified.
 The I/O statistics counters for each step-sized area of a region are
 in the same format as /sys/block/*/stat or /proc/diskstats (see:
 Documentation/iostats.txt).  But two extra counters (12 and 13) are
-provided: total time spent reading and writing in milliseconds.	 All
-these counters may be accessed by sending the @stats_print message to
-the appropriate DM device via dmsetup.
+provided: total time spent reading and writing.  All these counters may
+be accessed by sending the @stats_print message to the appropriate DM
+device via dmsetup.
+
+The reported times are in milliseconds and the granularity depends on
+the kernel ticks.  When the option precise_timestamps is used, the
+reported times are in nanoseconds.
 
 Each region has a corresponding unique identifier, which we call a
 region_id, that is assigned when the region is created.	 The region_id
@@ -33,7 +37,9 @@ memory is used by reading
 Messages
 ========
 
-    @stats_create <range> <step> [<program_id> [<aux_data>]]
+    @stats_create <range> <step>
+		[<number_of_optional_arguments> <optional_arguments>...]
+		[<program_id> [<aux_data>]]
 
 	Create a new region and return the region_id.
 
@@ -48,6 +54,17 @@ Messages
 	  "/<number_of_areas>" - the range is subdivided into the specified
 				 number of areas.
 
+	<number_of_optional_arguments>
+	  The number of optional arguments
+
+	<optional_arguments>
+	  The following optional arguments are supported
+	  precise_timestamps - use precise timer with nanosecond resolution
+		instead of the "jiffies" variable.  When this argument is
+		used, the resulting times are in nanoseconds instead of
+		milliseconds.  Precise timestamps are a little bit slower
+		to obtain than jiffies-based timestamps.
+
 	<program_id>
 	  An optional parameter.  A name that uniquely identifies
 	  the userspace owner of the range.  This groups ranges together
@@ -55,6 +72,9 @@ Messages
 	  created and ignore those created by others.
 	  The kernel returns this string back in the output of
 	  @stats_list message, but it doesn't use it for anything else.
+	  If we omit the number of optional arguments, program id must not
+	  be a number, otherwise it would be interpreted as the number of
+	  optional arguments.
 
 	<aux_data>
 	  An optional parameter.  A word that provides auxiliary data

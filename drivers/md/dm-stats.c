@@ -33,13 +33,14 @@ struct dm_stat_percpu {
 
 struct dm_stat_shared {
 	atomic_t in_flight[2];
-	unsigned long stamp;
+	unsigned long long stamp;
 	struct dm_stat_percpu tmp;
 };
 
 struct dm_stat {
 	struct list_head list_entry;
 	int id;
+	unsigned stat_flags;
 	size_t n_entries;
 	sector_t start;
 	sector_t end;
@@ -52,6 +53,8 @@ struct dm_stat {
 	struct dm_stat_percpu *stat_percpu[NR_CPUS];
 	struct dm_stat_shared stat_shared[0];
 };
+
+#define STAT_PRECISE_TIMESTAMPS		1
 
 struct dm_stats_last_position {
 	sector_t last_sector;
@@ -224,7 +227,8 @@ void dm_stats_cleanup(struct dm_stats *stats)
 }
 
 static int dm_stats_create(struct dm_stats *stats, sector_t start, sector_t end,
-			   sector_t step, const char *program_id, const char *aux_data,
+			   sector_t step, unsigned stat_flags,
+			   const char *program_id, const char *aux_data,
 			   void (*suspend_callback)(struct mapped_device *),
 			   void (*resume_callback)(struct mapped_device *),
 			   struct mapped_device *md)
@@ -265,6 +269,7 @@ static int dm_stats_create(struct dm_stats *stats, sector_t start, sector_t end,
 	if (!s)
 		return -ENOMEM;
 
+	s->stat_flags = stat_flags;
 	s->n_entries = n_entries;
 	s->start = start;
 	s->end = end;
@@ -414,18 +419,24 @@ static int dm_stats_list(struct dm_stats *stats, const char *program,
 	return 1;
 }
 
-static void dm_stat_round(struct dm_stat_shared *shared, struct dm_stat_percpu *p)
+static void dm_stat_round(struct dm_stat *s, struct dm_stat_shared *shared,
+			  struct dm_stat_percpu *p)
 {
 	/*
 	 * This is racy, but so is part_round_stats_single.
 	 */
-	unsigned long now = jiffies;
-	unsigned in_flight_read;
-	unsigned in_flight_write;
-	unsigned long difference = now - shared->stamp;
+	unsigned long long now, difference;
+	unsigned in_flight_read, in_flight_write;
 
+	if (likely(!(s->stat_flags & STAT_PRECISE_TIMESTAMPS)))
+		now = jiffies;
+	else
+		now = ktime_to_ns(ktime_get());
+
+	difference = now - shared->stamp;
 	if (!difference)
 		return;
+
 	in_flight_read = (unsigned)atomic_read(&shared->in_flight[READ]);
 	in_flight_write = (unsigned)atomic_read(&shared->in_flight[WRITE]);
 	if (in_flight_read)
@@ -440,8 +451,9 @@ static void dm_stat_round(struct dm_stat_shared *shared, struct dm_stat_percpu *
 }
 
 static void dm_stat_for_entry(struct dm_stat *s, size_t entry,
-			      unsigned long bi_rw, sector_t len, bool merged,
-			      bool end, unsigned long duration)
+			      unsigned long bi_rw, sector_t len,
+			      struct dm_stats_aux *stats_aux, bool end,
+			      unsigned long duration_jiffies)
 {
 	unsigned long idx = bi_rw & REQ_WRITE;
 	struct dm_stat_shared *shared = &s->stat_shared[entry];
@@ -471,15 +483,18 @@ static void dm_stat_for_entry(struct dm_stat *s, size_t entry,
 	p = &s->stat_percpu[smp_processor_id()][entry];
 
 	if (!end) {
-		dm_stat_round(shared, p);
+		dm_stat_round(s, shared, p);
 		atomic_inc(&shared->in_flight[idx]);
 	} else {
-		dm_stat_round(shared, p);
+		dm_stat_round(s, shared, p);
 		atomic_dec(&shared->in_flight[idx]);
 		p->sectors[idx] += len;
 		p->ios[idx] += 1;
-		p->merges[idx] += merged;
-		p->ticks[idx] += duration;
+		p->merges[idx] += stats_aux->merged;
+		if (!(s->stat_flags & STAT_PRECISE_TIMESTAMPS))
+			p->ticks[idx] += duration_jiffies;
+		else
+			p->ticks[idx] += stats_aux->duration_ns;
 	}
 
 #if BITS_PER_LONG == 32
@@ -491,7 +506,7 @@ static void dm_stat_for_entry(struct dm_stat *s, size_t entry,
 
 static void __dm_stat_bio(struct dm_stat *s, unsigned long bi_rw,
 			  sector_t bi_sector, sector_t end_sector,
-			  bool end, unsigned long duration,
+			  bool end, unsigned long duration_jiffies,
 			  struct dm_stats_aux *stats_aux)
 {
 	sector_t rel_sector, offset, todo, fragment_len;
@@ -520,7 +535,7 @@ static void __dm_stat_bio(struct dm_stat *s, unsigned long bi_rw,
 		if (fragment_len > s->step - offset)
 			fragment_len = s->step - offset;
 		dm_stat_for_entry(s, entry, bi_rw, fragment_len,
-				  stats_aux->merged, end, duration);
+				  stats_aux, end, duration_jiffies);
 		todo -= fragment_len;
 		entry++;
 		offset = 0;
@@ -529,11 +544,13 @@ static void __dm_stat_bio(struct dm_stat *s, unsigned long bi_rw,
 
 void dm_stats_account_io(struct dm_stats *stats, unsigned long bi_rw,
 			 sector_t bi_sector, unsigned bi_sectors, bool end,
-			 unsigned long duration, struct dm_stats_aux *stats_aux)
+			 unsigned long duration_jiffies,
+			 struct dm_stats_aux *stats_aux)
 {
 	struct dm_stat *s;
 	sector_t end_sector;
 	struct dm_stats_last_position *last;
+	bool got_precise_time;
 
 	if (unlikely(!bi_sectors))
 		return;
@@ -557,8 +574,17 @@ void dm_stats_account_io(struct dm_stats *stats, unsigned long bi_rw,
 
 	rcu_read_lock();
 
-	list_for_each_entry_rcu(s, &stats->list, list_entry)
-		__dm_stat_bio(s, bi_rw, bi_sector, end_sector, end, duration, stats_aux);
+	got_precise_time = false;
+	list_for_each_entry_rcu(s, &stats->list, list_entry) {
+		if (s->stat_flags & STAT_PRECISE_TIMESTAMPS && !got_precise_time) {
+			if (!end)
+				stats_aux->duration_ns = ktime_to_ns(ktime_get());
+			else
+				stats_aux->duration_ns = ktime_to_ns(ktime_get()) - stats_aux->duration_ns;
+			got_precise_time = true;
+		}
+		__dm_stat_bio(s, bi_rw, bi_sector, end_sector, end, duration_jiffies, stats_aux);
+	}
 
 	rcu_read_unlock();
 }
@@ -571,7 +597,7 @@ static void __dm_stat_init_temporary_percpu_totals(struct dm_stat_shared *shared
 
 	local_irq_disable();
 	p = &s->stat_percpu[smp_processor_id()][x];
-	dm_stat_round(shared, p);
+	dm_stat_round(s, shared, p);
 	local_irq_enable();
 
 	memset(&shared->tmp, 0, sizeof(shared->tmp));
@@ -643,11 +669,15 @@ static int dm_stats_clear(struct dm_stats *stats, int id)
 /*
  * This is like jiffies_to_msec, but works for 64-bit values.
  */
-static unsigned long long dm_jiffies_to_msec64(unsigned long long j)
+static unsigned long long dm_jiffies_to_msec64(struct dm_stat *s, unsigned long long j)
 {
-	unsigned long long result = 0;
+	unsigned long long result;
 	unsigned mult;
 
+	if (s->stat_flags & STAT_PRECISE_TIMESTAMPS)
+		return j;
+
+	result = 0;
 	if (j)
 		result = jiffies_to_msecs(j & 0x3fffff);
 	if (j >= 1 << 22) {
@@ -709,16 +739,16 @@ static int dm_stats_print(struct dm_stats *stats, int id,
 		       shared->tmp.ios[READ],
 		       shared->tmp.merges[READ],
 		       shared->tmp.sectors[READ],
-		       dm_jiffies_to_msec64(shared->tmp.ticks[READ]),
+		       dm_jiffies_to_msec64(s, shared->tmp.ticks[READ]),
 		       shared->tmp.ios[WRITE],
 		       shared->tmp.merges[WRITE],
 		       shared->tmp.sectors[WRITE],
-		       dm_jiffies_to_msec64(shared->tmp.ticks[WRITE]),
+		       dm_jiffies_to_msec64(s, shared->tmp.ticks[WRITE]),
 		       dm_stat_in_flight(shared),
-		       dm_jiffies_to_msec64(shared->tmp.io_ticks_total),
-		       dm_jiffies_to_msec64(shared->tmp.time_in_queue),
-		       dm_jiffies_to_msec64(shared->tmp.io_ticks[READ]),
-		       dm_jiffies_to_msec64(shared->tmp.io_ticks[WRITE]));
+		       dm_jiffies_to_msec64(s, shared->tmp.io_ticks_total),
+		       dm_jiffies_to_msec64(s, shared->tmp.time_in_queue),
+		       dm_jiffies_to_msec64(s, shared->tmp.io_ticks[READ]),
+		       dm_jiffies_to_msec64(s, shared->tmp.io_ticks[WRITE]));
 
 		if (unlikely(sz + 1 >= maxlen))
 			goto buffer_overflow;
@@ -769,21 +799,31 @@ static int message_stats_create(struct mapped_device *md,
 	unsigned long long start, end, len, step;
 	unsigned divisor;
 	const char *program_id, *aux_data;
+	unsigned stat_flags = 0;
+
+	struct dm_arg_set as, as_backup;
+	const char *a;
+	unsigned feature_args;
 
 	/*
 	 * Input format:
-	 *   <range> <step> [<program_id> [<aux_data>]]
+	 *   <range> <step> [<extra_parameters> <parameters>] [<program_id> [<aux_data>]]
 	 */
 
-	if (argc < 3 || argc > 5)
+	if (argc < 3)
 		return -EINVAL;
 
-	if (!strcmp(argv[1], "-")) {
+	as.argc = argc;
+	as.argv = argv;
+	dm_consume_args(&as, 1);
+
+	a = dm_shift_arg(&as);
+	if (!strcmp(a, "-")) {
 		start = 0;
 		len = dm_get_size(md);
 		if (!len)
 			len = 1;
-	} else if (sscanf(argv[1], "%llu+%llu%c", &start, &len, &dummy) != 2 ||
+	} else if (sscanf(a, "%llu+%llu%c", &start, &len, &dummy) != 2 ||
 		   start != (sector_t)start || len != (sector_t)len)
 		return -EINVAL;
 
@@ -791,7 +831,8 @@ static int message_stats_create(struct mapped_device *md,
 	if (start >= end)
 		return -EINVAL;
 
-	if (sscanf(argv[2], "/%u%c", &divisor, &dummy) == 1) {
+	a = dm_shift_arg(&as);
+	if (sscanf(a, "/%u%c", &divisor, &dummy) == 1) {
 		if (!divisor)
 			return -EINVAL;
 		step = end - start;
@@ -799,18 +840,39 @@ static int message_stats_create(struct mapped_device *md,
 			step++;
 		if (!step)
 			step = 1;
-	} else if (sscanf(argv[2], "%llu%c", &step, &dummy) != 1 ||
+	} else if (sscanf(a, "%llu%c", &step, &dummy) != 1 ||
 		   step != (sector_t)step || !step)
 		return -EINVAL;
+
+	as_backup = as;
+	a = dm_shift_arg(&as);
+	if (a && sscanf(a, "%u%c", &feature_args, &dummy) == 1) {
+		while (feature_args--) {
+			a = dm_shift_arg(&as);
+			if (!a)
+				return -EINVAL;
+			if (!strcasecmp(a, "precise_timestamps"))
+				stat_flags |= STAT_PRECISE_TIMESTAMPS;
+			else
+				return -EINVAL;
+		}
+	} else {
+		as = as_backup;
+	}
 
 	program_id = "-";
 	aux_data = "-";
 
-	if (argc > 3)
-		program_id = argv[3];
+	a = dm_shift_arg(&as);
+	if (a)
+		program_id = a;
 
-	if (argc > 4)
-		aux_data = argv[4];
+	a = dm_shift_arg(&as);
+	if (a)
+		aux_data = a;
+
+	if (as.argc)
+		return -EINVAL;
 
 	/*
 	 * If a buffer overflow happens after we created the region,
@@ -822,7 +884,7 @@ static int message_stats_create(struct mapped_device *md,
 	if (dm_message_test_buffer_overflow(result, maxlen))
 		return 1;
 
-	id = dm_stats_create(dm_get_stats(md), start, end, step, program_id, aux_data,
+	id = dm_stats_create(dm_get_stats(md), start, end, step, stat_flags, program_id, aux_data,
 			     dm_internal_suspend_fast, dm_internal_resume_fast, md);
 	if (id < 0)
 		return id;
