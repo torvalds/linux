@@ -307,6 +307,7 @@ struct ceph_mds_client {
 	spinlock_t       snap_flush_lock;
 
 	u64               cap_flush_seq;
+	u64               last_cap_flush_tid;
 	struct list_head  cap_dirty;        /* inodes with dirty caps */
 	struct list_head  cap_dirty_migrating; /* ...that are migration... */
 	int               num_cap_flushing; /* # caps we are flushing */

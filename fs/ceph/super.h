@@ -186,6 +186,15 @@ static inline void ceph_put_cap_snap(struct ceph_cap_snap *capsnap)
 	}
 }
 
+struct ceph_cap_flush {
+	u64 tid;
+	int caps;
+	union {
+		struct rb_node i_node;
+		struct list_head list;
+	};
+};
+
 /*
  * The frag tree describes how a directory is fragmented, potentially across
  * multiple metadata servers.  It is also used to indicate points where
@@ -299,7 +308,7 @@ struct ceph_inode_info {
 	/* we need to track cap writeback on a per-cap-bit basis, to allow
 	 * overlapping, pipelined cap flushes to the mds.  we can probably
 	 * reduce the tid to 8 bits if we're concerned about inode size. */
-	u16 i_cap_flush_last_tid, i_cap_flush_tid[CEPH_CAP_BITS];
+	struct rb_root i_cap_flush_tree;
 	wait_queue_head_t i_cap_wq;      /* threads waiting on a capability */
 	unsigned long i_hold_caps_min; /* jiffies */
 	unsigned long i_hold_caps_max; /* jiffies */

@@ -1142,6 +1142,7 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 				  void *arg)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
+	LIST_HEAD(to_remove);
 	int drop = 0;
 
 	dout("removing cap %p, ci is %p, inode is %p\n",
@@ -1149,8 +1150,18 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	spin_lock(&ci->i_ceph_lock);
 	__ceph_remove_cap(cap, false);
 	if (!ci->i_auth_cap) {
+		struct ceph_cap_flush *cf;
 		struct ceph_mds_client *mdsc =
 			ceph_sb_to_client(inode->i_sb)->mdsc;
+
+		while (true) {
+			struct rb_node *n = rb_first(&ci->i_cap_flush_tree);
+			if (!n)
+				break;
+			cf = rb_entry(n, struct ceph_cap_flush, i_node);
+			rb_erase(&cf->i_node, &ci->i_cap_flush_tree);
+			list_add(&cf->list, &to_remove);
+		}
 
 		spin_lock(&mdsc->cap_dirty_lock);
 		if (!list_empty(&ci->i_dirty_item)) {
@@ -1173,8 +1184,16 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 			drop = 1;
 		}
 		spin_unlock(&mdsc->cap_dirty_lock);
+
 	}
 	spin_unlock(&ci->i_ceph_lock);
+	while (!list_empty(&to_remove)) {
+		struct ceph_cap_flush *cf;
+		cf = list_first_entry(&to_remove,
+				      struct ceph_cap_flush, list);
+		list_del(&cf->list);
+		kfree(cf);
+	}
 	while (drop--)
 		iput(inode);
 	return 0;
@@ -3408,6 +3427,7 @@ int ceph_mdsc_init(struct ceph_fs_client *fsc)
 	INIT_LIST_HEAD(&mdsc->snap_flush_list);
 	spin_lock_init(&mdsc->snap_flush_lock);
 	mdsc->cap_flush_seq = 0;
+	mdsc->last_cap_flush_tid = 1;
 	INIT_LIST_HEAD(&mdsc->cap_dirty);
 	INIT_LIST_HEAD(&mdsc->cap_dirty_migrating);
 	mdsc->num_cap_flushing = 0;
