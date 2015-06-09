@@ -64,7 +64,6 @@
 #include <linux/dmi.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
-#include <linux/pnp.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
@@ -308,9 +307,6 @@ static int force_kipmid[SI_MAX_PARMS];
 static int num_force_kipmid;
 #ifdef CONFIG_PCI
 static bool pci_registered;
-#endif
-#ifdef CONFIG_ACPI
-static bool pnp_registered;
 #endif
 #ifdef CONFIG_PARISC
 static bool parisc_registered;
@@ -2233,134 +2229,6 @@ static void spmi_find_bmc(void)
 		try_init_spmi(spmi);
 	}
 }
-
-static int ipmi_pnp_probe(struct pnp_dev *dev,
-				    const struct pnp_device_id *dev_id)
-{
-	struct acpi_device *acpi_dev;
-	struct smi_info *info;
-	struct resource *res, *res_second;
-	acpi_handle handle;
-	acpi_status status;
-	unsigned long long tmp;
-	int rv = -EINVAL;
-
-	acpi_dev = pnp_acpi_device(dev);
-	if (!acpi_dev)
-		return -ENODEV;
-
-	info = smi_info_alloc();
-	if (!info)
-		return -ENOMEM;
-
-	info->addr_source = SI_ACPI;
-	printk(KERN_INFO PFX "probing via ACPI\n");
-
-	handle = acpi_dev->handle;
-	info->addr_info.acpi_info.acpi_handle = handle;
-
-	/* _IFT tells us the interface type: KCS, BT, etc */
-	status = acpi_evaluate_integer(handle, "_IFT", NULL, &tmp);
-	if (ACPI_FAILURE(status)) {
-		dev_err(&dev->dev, "Could not find ACPI IPMI interface type\n");
-		goto err_free;
-	}
-
-	switch (tmp) {
-	case 1:
-		info->si_type = SI_KCS;
-		break;
-	case 2:
-		info->si_type = SI_SMIC;
-		break;
-	case 3:
-		info->si_type = SI_BT;
-		break;
-	case 4: /* SSIF, just ignore */
-		rv = -ENODEV;
-		goto err_free;
-	default:
-		dev_info(&dev->dev, "unknown IPMI type %lld\n", tmp);
-		goto err_free;
-	}
-
-	res = pnp_get_resource(dev, IORESOURCE_IO, 0);
-	if (res) {
-		info->io_setup = port_setup;
-		info->io.addr_type = IPMI_IO_ADDR_SPACE;
-	} else {
-		res = pnp_get_resource(dev, IORESOURCE_MEM, 0);
-		if (res) {
-			info->io_setup = mem_setup;
-			info->io.addr_type = IPMI_MEM_ADDR_SPACE;
-		}
-	}
-	if (!res) {
-		dev_err(&dev->dev, "no I/O or memory address\n");
-		goto err_free;
-	}
-	info->io.addr_data = res->start;
-
-	info->io.regspacing = DEFAULT_REGSPACING;
-	res_second = pnp_get_resource(dev,
-			       (info->io.addr_type == IPMI_IO_ADDR_SPACE) ?
-					IORESOURCE_IO : IORESOURCE_MEM,
-			       1);
-	if (res_second) {
-		if (res_second->start > info->io.addr_data)
-			info->io.regspacing = res_second->start - info->io.addr_data;
-	}
-	info->io.regsize = DEFAULT_REGSPACING;
-	info->io.regshift = 0;
-
-	/* If _GPE exists, use it; otherwise use standard interrupts */
-	status = acpi_evaluate_integer(handle, "_GPE", NULL, &tmp);
-	if (ACPI_SUCCESS(status)) {
-		info->irq = tmp;
-		info->irq_setup = acpi_gpe_irq_setup;
-	} else if (pnp_irq_valid(dev, 0)) {
-		info->irq = pnp_irq(dev, 0);
-		info->irq_setup = std_irq_setup;
-	}
-
-	info->dev = &dev->dev;
-	pnp_set_drvdata(dev, info);
-
-	dev_info(info->dev, "%pR regsize %d spacing %d irq %d\n",
-		 res, info->io.regsize, info->io.regspacing,
-		 info->irq);
-
-	rv = add_smi(info);
-	if (rv)
-		kfree(info);
-
-	return rv;
-
-err_free:
-	kfree(info);
-	return rv;
-}
-
-static void ipmi_pnp_remove(struct pnp_dev *dev)
-{
-	struct smi_info *info = pnp_get_drvdata(dev);
-
-	cleanup_one_si(info);
-}
-
-static const struct pnp_device_id pnp_dev_table[] = {
-	{"IPI0001", 0},
-	{"", 0},
-};
-
-static struct pnp_driver ipmi_pnp_driver = {
-	.name		= DEVICE_NAME,
-	.probe		= ipmi_pnp_probe,
-	.remove		= ipmi_pnp_remove,
-	.id_table	= pnp_dev_table,
-};
-
-MODULE_DEVICE_TABLE(pnp, pnp_dev_table);
 #endif
 
 #ifdef CONFIG_DMI
@@ -2669,10 +2537,19 @@ static struct pci_driver ipmi_pci_driver = {
 };
 #endif /* CONFIG_PCI */
 
-static const struct of_device_id ipmi_match[];
-static int ipmi_probe(struct platform_device *dev)
-{
 #ifdef CONFIG_OF
+static const struct of_device_id of_ipmi_match[] = {
+	{ .type = "ipmi", .compatible = "ipmi-kcs",
+	  .data = (void *)(unsigned long) SI_KCS },
+	{ .type = "ipmi", .compatible = "ipmi-smic",
+	  .data = (void *)(unsigned long) SI_SMIC },
+	{ .type = "ipmi", .compatible = "ipmi-bt",
+	  .data = (void *)(unsigned long) SI_BT },
+	{},
+};
+
+static int of_ipmi_probe(struct platform_device *dev)
+{
 	const struct of_device_id *match;
 	struct smi_info *info;
 	struct resource resource;
@@ -2683,9 +2560,9 @@ static int ipmi_probe(struct platform_device *dev)
 
 	dev_info(&dev->dev, "probing via device tree\n");
 
-	match = of_match_device(ipmi_match, &dev->dev);
+	match = of_match_device(of_ipmi_match, &dev->dev);
 	if (!match)
-		return -EINVAL;
+		return -ENODEV;
 
 	if (!of_device_is_available(np))
 		return -EINVAL;
@@ -2754,33 +2631,161 @@ static int ipmi_probe(struct platform_device *dev)
 		kfree(info);
 		return ret;
 	}
-#endif
 	return 0;
+}
+#else
+#define of_ipmi_match NULL
+static int of_ipmi_probe(struct platform_device *dev)
+{
+	return -ENODEV;
+}
+#endif
+
+#ifdef CONFIG_ACPI
+static int acpi_ipmi_probe(struct platform_device *dev)
+{
+	struct smi_info *info;
+	struct resource *res, *res_second;
+	acpi_handle handle;
+	acpi_status status;
+	unsigned long long tmp;
+	int rv = -EINVAL;
+
+	handle = ACPI_HANDLE(&dev->dev);
+	if (!handle)
+		return -ENODEV;
+
+	info = smi_info_alloc();
+	if (!info)
+		return -ENOMEM;
+
+	info->addr_source = SI_ACPI;
+	dev_info(&dev->dev, PFX "probing via ACPI\n");
+
+	info->addr_info.acpi_info.acpi_handle = handle;
+
+	/* _IFT tells us the interface type: KCS, BT, etc */
+	status = acpi_evaluate_integer(handle, "_IFT", NULL, &tmp);
+	if (ACPI_FAILURE(status)) {
+		dev_err(&dev->dev, "Could not find ACPI IPMI interface type\n");
+		goto err_free;
+	}
+
+	switch (tmp) {
+	case 1:
+		info->si_type = SI_KCS;
+		break;
+	case 2:
+		info->si_type = SI_SMIC;
+		break;
+	case 3:
+		info->si_type = SI_BT;
+		break;
+	case 4: /* SSIF, just ignore */
+		rv = -ENODEV;
+		goto err_free;
+	default:
+		dev_info(&dev->dev, "unknown IPMI type %lld\n", tmp);
+		goto err_free;
+	}
+
+	res = platform_get_resource(dev, IORESOURCE_IO, 0);
+	if (res) {
+		info->io_setup = port_setup;
+		info->io.addr_type = IPMI_IO_ADDR_SPACE;
+	} else {
+		res = platform_get_resource(dev, IORESOURCE_MEM, 0);
+		if (res) {
+			info->io_setup = mem_setup;
+			info->io.addr_type = IPMI_MEM_ADDR_SPACE;
+		}
+	}
+	if (!res) {
+		dev_err(&dev->dev, "no I/O or memory address\n");
+		goto err_free;
+	}
+	info->io.addr_data = res->start;
+
+	info->io.regspacing = DEFAULT_REGSPACING;
+	res_second = platform_get_resource(dev,
+			       (info->io.addr_type == IPMI_IO_ADDR_SPACE) ?
+					IORESOURCE_IO : IORESOURCE_MEM,
+			       1);
+	if (res_second) {
+		if (res_second->start > info->io.addr_data)
+			info->io.regspacing =
+				res_second->start - info->io.addr_data;
+	}
+	info->io.regsize = DEFAULT_REGSPACING;
+	info->io.regshift = 0;
+
+	/* If _GPE exists, use it; otherwise use standard interrupts */
+	status = acpi_evaluate_integer(handle, "_GPE", NULL, &tmp);
+	if (ACPI_SUCCESS(status)) {
+		info->irq = tmp;
+		info->irq_setup = acpi_gpe_irq_setup;
+	} else {
+		int irq = platform_get_irq(dev, 0);
+
+		if (irq > 0) {
+			info->irq = irq;
+			info->irq_setup = std_irq_setup;
+		}
+	}
+
+	info->dev = &dev->dev;
+	platform_set_drvdata(dev, info);
+
+	dev_info(info->dev, "%pR regsize %d spacing %d irq %d\n",
+		 res, info->io.regsize, info->io.regspacing,
+		 info->irq);
+
+	rv = add_smi(info);
+	if (rv)
+		kfree(info);
+
+	return rv;
+
+err_free:
+	kfree(info);
+	return rv;
+}
+
+static struct acpi_device_id acpi_ipmi_match[] = {
+	{ "IPI0001", 0 },
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, acpi_ipmi_match);
+#else
+static int acpi_ipmi_probe(struct platform_device *dev)
+{
+	return -ENODEV;
+}
+#endif
+
+static int ipmi_probe(struct platform_device *dev)
+{
+	if (of_ipmi_probe(dev) == 0)
+		return 0;
+
+	return acpi_ipmi_probe(dev);
 }
 
 static int ipmi_remove(struct platform_device *dev)
 {
-#ifdef CONFIG_OF
-	cleanup_one_si(dev_get_drvdata(&dev->dev));
-#endif
+	struct smi_info *info = dev_get_drvdata(&dev->dev);
+
+	if (info)
+		cleanup_one_si(info);
+
 	return 0;
 }
-
-static const struct of_device_id ipmi_match[] =
-{
-	{ .type = "ipmi", .compatible = "ipmi-kcs",
-	  .data = (void *)(unsigned long) SI_KCS },
-	{ .type = "ipmi", .compatible = "ipmi-smic",
-	  .data = (void *)(unsigned long) SI_SMIC },
-	{ .type = "ipmi", .compatible = "ipmi-bt",
-	  .data = (void *)(unsigned long) SI_BT },
-	{},
-};
 
 static struct platform_driver ipmi_driver = {
 	.driver = {
 		.name = DEVICE_NAME,
-		.of_match_table = ipmi_match,
+		.of_match_table = of_ipmi_match,
+		.acpi_match_table = ACPI_PTR(acpi_ipmi_match),
 	},
 	.probe		= ipmi_probe,
 	.remove		= ipmi_remove,
@@ -3692,13 +3697,6 @@ static int init_ipmi_si(void)
 	}
 #endif
 
-#ifdef CONFIG_ACPI
-	if (si_tryacpi) {
-		pnp_register_driver(&ipmi_pnp_driver);
-		pnp_registered = true;
-	}
-#endif
-
 #ifdef CONFIG_DMI
 	if (si_trydmi)
 		dmi_find_bmc();
@@ -3849,10 +3847,6 @@ static void cleanup_ipmi_si(void)
 #ifdef CONFIG_PCI
 	if (pci_registered)
 		pci_unregister_driver(&ipmi_pci_driver);
-#endif
-#ifdef CONFIG_ACPI
-	if (pnp_registered)
-		pnp_unregister_driver(&ipmi_pnp_driver);
 #endif
 #ifdef CONFIG_PARISC
 	if (parisc_registered)
