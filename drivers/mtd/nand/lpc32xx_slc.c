@@ -840,12 +840,6 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	chip->ecc.strength = 1;
 	chip->ecc.hwctl = lpc32xx_nand_ecc_enable;
 
-	/* bitflip_threshold's default is defined as ecc_strength anyway.
-	 * Unfortunately, it is set only later at add_mtd_device(). Meanwhile
-	 * being 0, it causes bad block table scanning errors in
-	 * nand_scan_tail(), so preparing it here already. */
-	mtd->bitflip_threshold = chip->ecc.strength;
-
 	/*
 	 * Allocate a large enough buffer for a single huge page plus
 	 * extra space for the spare area and ECC storage area
@@ -1005,7 +999,6 @@ static struct platform_driver lpc32xx_nand_driver = {
 	.suspend	= lpc32xx_nand_suspend,
 	.driver		= {
 		.name	= LPC32XX_MODNAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = lpc32xx_nand_match,
 	},
 };

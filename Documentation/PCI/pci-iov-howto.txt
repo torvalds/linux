@@ -68,10 +68,6 @@ To disable SR-IOV capability:
 	echo  0 > \
         /sys/bus/pci/devices/<DOMAIN:BUS:DEVICE.FUNCTION>/sriov_numvfs
 
-To notify SR-IOV core of Virtual Function Migration:
-(a) In the driver:
-	irqreturn_t pci_sriov_migration(struct pci_dev *dev);
-
 3.2 Usage example
 
 Following piece of code illustrates the usage of the SR-IOV API.

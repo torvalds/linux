@@ -100,15 +100,19 @@ static int control_put(struct snd_kcontrol *kcontrol,
 	struct snd_usb_caiaqdev *cdev = caiaqdev(chip->card);
 	int pos = kcontrol->private_value;
 	int v = ucontrol->value.integer.value[0];
-	unsigned char cmd = EP1_CMD_WRITE_IO;
+	unsigned char cmd;
 
-	if (cdev->chip.usb_id ==
-		USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLX1))
+	switch (cdev->chip.usb_id) {
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_MASCHINECONTROLLER):
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLX1):
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_KORECONTROLLER2):
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_KORECONTROLLER):
 		cmd = EP1_CMD_DIMM_LEDS;
-
-	if (cdev->chip.usb_id ==
-		USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_MASCHINECONTROLLER))
-		cmd = EP1_CMD_DIMM_LEDS;
+		break;
+	default:
+		cmd = EP1_CMD_WRITE_IO;
+		break;
+	}
 
 	if (pos & CNT_INTVAL) {
 		int i = pos & ~CNT_INTVAL;

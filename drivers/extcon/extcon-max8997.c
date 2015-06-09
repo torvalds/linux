@@ -579,8 +579,6 @@ static void max8997_muic_irq_work(struct work_struct *work)
 		dev_err(info->dev, "failed to handle MUIC interrupt\n");
 
 	mutex_unlock(&info->mutex);
-
-	return;
 }
 
 static irqreturn_t max8997_muic_irq_handler(int irq, void *data)
@@ -661,10 +659,8 @@ static int max8997_muic_probe(struct platform_device *pdev)
 
 	info = devm_kzalloc(&pdev->dev, sizeof(struct max8997_muic_info),
 			    GFP_KERNEL);
-	if (!info) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (!info)
 		return -ENOMEM;
-	}
 
 	info->dev = &pdev->dev;
 	info->muic = max8997->muic;
@@ -691,31 +687,28 @@ static int max8997_muic_probe(struct platform_device *pdev)
 				muic_irq->name, info);
 		if (ret) {
 			dev_err(&pdev->dev,
-				"failed: irq request (IRQ: %d,"
-				" error :%d)\n",
+				"failed: irq request (IRQ: %d, error :%d)\n",
 				muic_irq->irq, ret);
 			goto err_irq;
 		}
 	}
 
 	/* External connector */
-	info->edev = devm_kzalloc(&pdev->dev, sizeof(struct extcon_dev),
-				  GFP_KERNEL);
-	if (!info->edev) {
+	info->edev = devm_extcon_dev_allocate(&pdev->dev, max8997_extcon_cable);
+	if (IS_ERR(info->edev)) {
 		dev_err(&pdev->dev, "failed to allocate memory for extcon\n");
 		ret = -ENOMEM;
 		goto err_irq;
 	}
 	info->edev->name = DEV_NAME;
-	info->edev->dev.parent = &pdev->dev;
-	info->edev->supported_cable = max8997_extcon_cable;
-	ret = extcon_dev_register(info->edev);
+
+	ret = devm_extcon_dev_register(&pdev->dev, info->edev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register extcon device\n");
 		goto err_irq;
 	}
 
-	if (pdata->muic_pdata) {
+	if (pdata && pdata->muic_pdata) {
 		struct max8997_muic_platform_data *muic_pdata
 			= pdata->muic_pdata;
 
@@ -770,7 +763,8 @@ static int max8997_muic_probe(struct platform_device *pdev)
 	 * driver should notify cable state to upper layer.
 	 */
 	INIT_DELAYED_WORK(&info->wq_detcable, max8997_muic_detect_cable_wq);
-	schedule_delayed_work(&info->wq_detcable, delay_jiffies);
+	queue_delayed_work(system_power_efficient_wq, &info->wq_detcable,
+			delay_jiffies);
 
 	return 0;
 
@@ -789,15 +783,12 @@ static int max8997_muic_remove(struct platform_device *pdev)
 		free_irq(muic_irqs[i].virq, info);
 	cancel_work_sync(&info->irq_work);
 
-	extcon_dev_unregister(info->edev);
-
 	return 0;
 }
 
 static struct platform_driver max8997_muic_driver = {
 	.driver		= {
 		.name	= DEV_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= max8997_muic_probe,
 	.remove		= max8997_muic_remove,

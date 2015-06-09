@@ -18,33 +18,33 @@
 			uart0 {
 				uart0_default_mode: uart0_default {
 					default_mux {
-						ste,function = "u0";
-						ste,pins = "u0_a_1";
+						function = "u0";
+						groups = "u0_a_1";
 					};
 					default_cfg1 {
-						ste,pins = "GPIO0_AJ5", "GPIO2_AH4"; /* CTS+RXD */
+						pins = "GPIO0_AJ5", "GPIO2_AH4"; /* CTS+RXD */
 						ste,config = <&in_pu>;
 					};
 
 					default_cfg2 {
-						ste,pins = "GPIO1_AJ3", "GPIO3_AH3"; /* RTS+TXD */
+						pins = "GPIO1_AJ3", "GPIO3_AH3"; /* RTS+TXD */
 						ste,config = <&out_hi>;
 					};
 				};
 
 				uart0_sleep_mode: uart0_sleep {
 					sleep_cfg1 {
-						ste,pins = "GPIO0_AJ5", "GPIO2_AH4"; /* CTS+RXD */
+						pins = "GPIO0_AJ5", "GPIO2_AH4"; /* CTS+RXD */
 						ste,config = <&slpm_in_wkup_pdis>;
 					};
 
 					sleep_cfg2 {
-						ste,pins = "GPIO1_AJ3"; /* RTS */
+						pins = "GPIO1_AJ3"; /* RTS */
 						ste,config = <&slpm_out_hi_wkup_pdis>;
 					};
 
 					sleep_cfg3 {
-						ste,pins = "GPIO3_AH3"; /* TXD */
+						pins = "GPIO3_AH3"; /* TXD */
 						ste,config = <&slpm_out_wkup_pdis>;
 					};
 				};
@@ -53,28 +53,28 @@
 			uart1 {
 				uart1_default_mode: uart1_default {
 					default_mux {
-						ste,function = "u1";
-						ste,pins = "u1rxtx_a_1";
+						function = "u1";
+						groups = "u1rxtx_a_1";
 					};
 					default_cfg1 {
-						ste,pins = "GPIO4_AH6"; /* RXD */
+						pins = "GPIO4_AH6"; /* RXD */
 						ste,config = <&in_pu>;
 					};
 
 					default_cfg2 {
-						ste,pins = "GPIO5_AG6"; /* TXD */
+						pins = "GPIO5_AG6"; /* TXD */
 						ste,config = <&out_hi>;
 					};
 				};
 
 				uart1_sleep_mode: uart1_sleep {
 					sleep_cfg1 {
-						ste,pins = "GPIO4_AH6"; /* RXD */
+						pins = "GPIO4_AH6"; /* RXD */
 						ste,config = <&slpm_in_wkup_pdis>;
 					};
 
 					sleep_cfg2 {
-						ste,pins = "GPIO5_AG6"; /* TXD */
+						pins = "GPIO5_AG6"; /* TXD */
 						ste,config = <&slpm_out_wkup_pdis>;
 					};
 				};
@@ -83,28 +83,28 @@
 			uart2 {
 				uart2_default_mode: uart2_default {
 					default_mux {
-						ste,function = "u2";
-						ste,pins = "u2rxtx_c_1";
+						function = "u2";
+						groups = "u2rxtx_c_1";
 					};
 					default_cfg1 {
-						ste,pins = "GPIO29_W2"; /* RXD */
+						pins = "GPIO29_W2"; /* RXD */
 						ste,config = <&in_pu>;
 					};
 
 					default_cfg2 {
-						ste,pins = "GPIO30_W3"; /* TXD */
+						pins = "GPIO30_W3"; /* TXD */
 						ste,config = <&out_hi>;
 					};
 				};
 
 				uart2_sleep_mode: uart2_sleep {
 					sleep_cfg1 {
-						ste,pins = "GPIO29_W2"; /* RXD */
+						pins = "GPIO29_W2"; /* RXD */
 						ste,config = <&in_wkup_pdis>;
 					};
 
 					sleep_cfg2 {
-						ste,pins = "GPIO30_W3"; /* TXD */
+						pins = "GPIO30_W3"; /* TXD */
 						ste,config = <&out_wkup_pdis>;
 					};
 				};
@@ -114,18 +114,18 @@
 			i2c0 {
 				i2c0_default_mode: i2c_default {
 					default_mux {
-						ste,function = "i2c0";
-						ste,pins = "i2c0_a_1";
+						function = "i2c0";
+						groups = "i2c0_a_1";
 					};
 					default_cfg1 {
-						ste,pins = "GPIO147_C15", "GPIO148_B16"; /* SDA/SCL */
+						pins = "GPIO147_C15", "GPIO148_B16"; /* SDA/SCL */
 						ste,config = <&in_pu>;
 					};
 				};
 
 				i2c0_sleep_mode: i2c_sleep {
 					sleep_cfg1 {
-						ste,pins = "GPIO147_C15", "GPIO148_B16"; /* SDA/SCL */
+						pins = "GPIO147_C15", "GPIO148_B16"; /* SDA/SCL */
 						ste,config = <&slpm_in_wkup_pdis>;
 					};
 				};
@@ -134,18 +134,18 @@
 			i2c1 {
 				i2c1_default_mode: i2c_default {
 					default_mux {
-						ste,function = "i2c1";
-						ste,pins = "i2c1_b_2";
+						function = "i2c1";
+						groups = "i2c1_b_2";
 					};
 					default_cfg1 {
-						ste,pins = "GPIO16_AD3", "GPIO17_AD4"; /* SDA/SCL */
+						pins = "GPIO16_AD3", "GPIO17_AD4"; /* SDA/SCL */
 						ste,config = <&in_pu>;
 					};
 				};
 
 				i2c1_sleep_mode: i2c_sleep {
 					sleep_cfg1 {
-						ste,pins = "GPIO16_AD3", "GPIO17_AD4"; /* SDA/SCL */
+						pins = "GPIO16_AD3", "GPIO17_AD4"; /* SDA/SCL */
 						ste,config = <&slpm_in_wkup_pdis>;
 					};
 				};
@@ -154,18 +154,18 @@
 			i2c2 {
 				i2c2_default_mode: i2c_default {
 					default_mux {
-						ste,function = "i2c2";
-						ste,pins = "i2c2_b_2";
+						function = "i2c2";
+						groups = "i2c2_b_2";
 					};
 					default_cfg1 {
-						ste,pins = "GPIO10_AF5", "GPIO11_AG4"; /* SDA/SCL */
+						pins = "GPIO10_AF5", "GPIO11_AG4"; /* SDA/SCL */
 						ste,config = <&in_pu>;
 					};
 				};
 
 				i2c2_sleep_mode: i2c_sleep {
 					sleep_cfg1 {
-						ste,pins = "GPIO10_AF5", "GPIO11_AG4"; /* SDA/SCL */
+						pins = "GPIO10_AF5", "GPIO11_AG4"; /* SDA/SCL */
 						ste,config = <&slpm_in_wkup_pdis>;
 					};
 				};
@@ -174,18 +174,18 @@
 			i2c3 {
 				i2c3_default_mode: i2c_default {
 					default_mux {
-						ste,function = "i2c3";
-						ste,pins = "i2c3_c_2";
+						function = "i2c3";
+						groups = "i2c3_c_2";
 					};
 					default_cfg1 {
-						ste,pins = "GPIO229_AG7", "GPIO230_AF7"; /* SDA/SCL */
+						pins = "GPIO229_AG7", "GPIO230_AF7"; /* SDA/SCL */
 						ste,config = <&in_pu>;
 					};
 				};
 
 				i2c3_sleep_mode: i2c_sleep {
 					sleep_cfg1 {
-						ste,pins = "GPIO229_AG7", "GPIO230_AF7"; /* SDA/SCL */
+						pins = "GPIO229_AG7", "GPIO230_AF7"; /* SDA/SCL */
 						ste,config = <&slpm_in_wkup_pdis>;
 					};
 				};
@@ -198,18 +198,18 @@
 			i2c4 {
 				i2c4_default_mode: i2c_default {
 					default_mux {
-						ste,function = "i2c4";
-						ste,pins = "i2c4_b_1";
+						function = "i2c4";
+						groups = "i2c4_b_1";
 					};
 					default_cfg1 {
-						ste,pins = "GPIO4_AH6", "GPIO5_AG6"; /* SDA/SCL */
+						pins = "GPIO4_AH6", "GPIO5_AG6"; /* SDA/SCL */
 						ste,config = <&in_pu>;
 					};
 				};
 
 				i2c4_sleep_mode: i2c_sleep {
 					sleep_cfg1 {
-						ste,pins = "GPIO4_AH6", "GPIO5_AG6"; /* SDA/SCL */
+						pins = "GPIO4_AH6", "GPIO5_AG6"; /* SDA/SCL */
 						ste,config = <&slpm_in_wkup_pdis>;
 					};
 				};
@@ -219,19 +219,19 @@
 			spi2 {
 				spi2_default_mode: spi_default {
 					default_mux {
-						ste,function = "spi2";
-						ste,pins = "spi2_oc1_2";
+						function = "spi2";
+						groups = "spi2_oc1_2";
 					};
 					default_cfg1 {
-						ste,pins = "GPIO216_AG12"; /* FRM */
+						pins = "GPIO216_AG12"; /* FRM */
 						ste,config = <&gpio_out_hi>;
 					};
 					default_cfg2 {
-						ste,pins = "GPIO218_AH11"; /* RXD */
+						pins = "GPIO218_AH11"; /* RXD */
 						ste,config = <&in_pd>;
 					};
 					default_cfg3 {
-						ste,pins =
+						pins =
 						"GPIO215_AH13", /* TXD */
 						"GPIO217_AH12"; /* CLK */
 						ste,config = <&out_lo>;
@@ -245,32 +245,32 @@
 					 * as we do not state any muxing.
 					 */
 					idle_cfg1 {
-						ste,pins = "GPIO218_AH11"; /* RXD */
+						pins = "GPIO218_AH11"; /* RXD */
 						ste,config = <&slpm_in_pdis>;
 					};
 					idle_cfg2 {
-						ste,pins = "GPIO215_AH13"; /* TXD */
+						pins = "GPIO215_AH13"; /* TXD */
 						ste,config = <&slpm_out_lo_pdis>;
 					};
 					idle_cfg3 {
-						ste,pins = "GPIO217_AH12"; /* CLK */
+						pins = "GPIO217_AH12"; /* CLK */
 						ste,config = <&slpm_pdis>;
 					};
 				};
 
 				spi2_sleep_mode: spi_sleep {
 					sleep_cfg1 {
-						ste,pins =
+						pins =
 						"GPIO216_AG12", /* FRM */
 						"GPIO218_AH11"; /* RXD */
 						ste,config = <&slpm_in_wkup_pdis>;
 					};
 					sleep_cfg2 {
-						ste,pins = "GPIO215_AH13"; /* TXD */
+						pins = "GPIO215_AH13"; /* TXD */
 						ste,config = <&slpm_out_lo_wkup_pdis>;
 					};
 					sleep_cfg3 {
-						ste,pins = "GPIO217_AH12"; /* CLK */
+						pins = "GPIO217_AH12"; /* CLK */
 						ste,config = <&slpm_wkup_pdis>;
 					};
 				};
@@ -281,26 +281,26 @@
 				/* This is the external SD card slot, 4 bits wide */
 				sdi0_default_mode: sdi0_default {
 					default_mux {
-						ste,function = "mc0";
-						ste,pins = "mc0_a_1";
+						function = "mc0";
+						groups = "mc0_a_1";
 					};
 					default_cfg1 {
-						ste,pins =
+						pins =
 						"GPIO18_AC2", /* CMDDIR */
 						"GPIO19_AC1", /* DAT0DIR */
 						"GPIO20_AB4"; /* DAT2DIR */
 						ste,config = <&out_hi>;
 					};
 					default_cfg2 {
-						ste,pins = "GPIO22_AA3"; /* FBCLK */
+						pins = "GPIO22_AA3"; /* FBCLK */
 						ste,config = <&in_nopull>;
 					};
 					default_cfg3 {
-						ste,pins = "GPIO23_AA4"; /* CLK */
+						pins = "GPIO23_AA4"; /* CLK */
 						ste,config = <&out_lo>;
 					};
 					default_cfg4 {
-						ste,pins =
+						pins =
 						"GPIO24_AB2", /* CMD */
 						"GPIO25_Y4", /* DAT0 */
 						"GPIO26_Y2", /* DAT1 */
@@ -312,14 +312,14 @@
 
 				sdi0_sleep_mode: sdi0_sleep {
 					sleep_cfg1 {
-						ste,pins =
+						pins =
 						"GPIO18_AC2", /* CMDDIR */
 						"GPIO19_AC1", /* DAT0DIR */
 						"GPIO20_AB4"; /* DAT2DIR */
 						ste,config = <&slpm_out_hi_wkup_pdis>;
 					};
 					sleep_cfg2 {
-						ste,pins =
+						pins =
 						"GPIO22_AA3", /* FBCLK */
 						"GPIO24_AB2", /* CMD */
 						"GPIO25_Y4", /* DAT0 */
@@ -329,7 +329,7 @@
 						ste,config = <&slpm_in_wkup_pdis>;
 					};
 					sleep_cfg3 {
-						ste,pins = "GPIO23_AA4"; /* CLK */
+						pins = "GPIO23_AA4"; /* CLK */
 						ste,config = <&slpm_out_lo_wkup_pdis>;
 					};
 				};
@@ -339,19 +339,19 @@
 				/* This is the WLAN SDIO 4 bits wide */
 				sdi1_default_mode: sdi1_default {
 					default_mux {
-						ste,function = "mc1";
-						ste,pins = "mc1_a_1";
+						function = "mc1";
+						groups = "mc1_a_1";
 					};
 					default_cfg1 {
-						ste,pins = "GPIO208_AH16"; /* CLK */
+						pins = "GPIO208_AH16"; /* CLK */
 						ste,config = <&out_lo>;
 					};
 					default_cfg2 {
-						ste,pins = "GPIO209_AG15"; /* FBCLK */
+						pins = "GPIO209_AG15"; /* FBCLK */
 						ste,config = <&in_nopull>;
 					};
 					default_cfg3 {
-						ste,pins =
+						pins =
 						"GPIO210_AJ15", /* CMD */
 						"GPIO211_AG14", /* DAT0 */
 						"GPIO212_AF13", /* DAT1 */
@@ -363,11 +363,11 @@
 
 				sdi1_sleep_mode: sdi1_sleep {
 					sleep_cfg1 {
-						ste,pins = "GPIO208_AH16"; /* CLK */
+						pins = "GPIO208_AH16"; /* CLK */
 						ste,config = <&slpm_out_lo_wkup_pdis>;
 					};
 					sleep_cfg2 {
-						ste,pins =
+						pins =
 						"GPIO209_AG15", /* FBCLK */
 						"GPIO210_AJ15", /* CMD */
 						"GPIO211_AG14", /* DAT0 */
@@ -383,19 +383,19 @@
 				/* This is the eMMC 8 bits wide, usually PoP eMMC */
 				sdi2_default_mode: sdi2_default {
 					default_mux {
-						ste,function = "mc2";
-						ste,pins = "mc2_a_1";
+						function = "mc2";
+						groups = "mc2_a_1";
 					};
 					default_cfg1 {
-						ste,pins = "GPIO128_A5"; /* CLK */
+						pins = "GPIO128_A5"; /* CLK */
 						ste,config = <&out_lo>;
 					};
 					default_cfg2 {
-						ste,pins = "GPIO130_C8"; /* FBCLK */
+						pins = "GPIO130_C8"; /* FBCLK */
 						ste,config = <&in_nopull>;
 					};
 					default_cfg3 {
-						ste,pins =
+						pins =
 						"GPIO129_B4", /* CMD */
 						"GPIO131_A12", /* DAT0 */
 						"GPIO132_C10", /* DAT1 */
@@ -411,17 +411,17 @@
 
 				sdi2_sleep_mode: sdi2_sleep {
 					sleep_cfg1 {
-						ste,pins = "GPIO128_A5"; /* CLK */
+						pins = "GPIO128_A5"; /* CLK */
 						ste,config = <&out_lo_wkup_pdis>;
 					};
 					sleep_cfg2 {
-						ste,pins =
+						pins =
 						"GPIO130_C8", /* FBCLK */
 						"GPIO129_B4"; /* CMD */
 						ste,config = <&in_wkup_pdis_en>;
 					};
 					sleep_cfg3 {
-						ste,pins =
+						pins =
 						"GPIO131_A12", /* DAT0 */
 						"GPIO132_C10", /* DAT1 */
 						"GPIO133_B10", /* DAT2 */
@@ -439,19 +439,19 @@
 				/* This is the eMMC 8 bits wide, usually PCB-mounted eMMC */
 				sdi4_default_mode: sdi4_default {
 					default_mux {
-						ste,function = "mc4";
-						ste,pins = "mc4_a_1";
+						function = "mc4";
+						groups = "mc4_a_1";
 					};
 					default_cfg1 {
-						ste,pins = "GPIO203_AE23"; /* CLK */
+						pins = "GPIO203_AE23"; /* CLK */
 						ste,config = <&out_lo>;
 					};
 					default_cfg2 {
-						ste,pins = "GPIO202_AF25"; /* FBCLK */
+						pins = "GPIO202_AF25"; /* FBCLK */
 						ste,config = <&in_nopull>;
 					};
 					default_cfg3 {
-						ste,pins =
+						pins =
 						"GPIO201_AF24", /* CMD */
 						"GPIO200_AH26", /* DAT0 */
 						"GPIO199_AH23", /* DAT1 */
@@ -467,11 +467,11 @@
 
 				sdi4_sleep_mode: sdi4_sleep {
 					sleep_cfg1 {
-						ste,pins = "GPIO203_AE23"; /* CLK */
+						pins = "GPIO203_AE23"; /* CLK */
 						ste,config = <&out_lo_wkup_pdis>;
 					};
 					sleep_cfg2 {
-						ste,pins =
+						pins =
 						"GPIO202_AF25", /* FBCLK */
 						"GPIO201_AF24", /* CMD */
 						"GPIO200_AH26", /* DAT0 */
@@ -494,11 +494,11 @@
 			msp0 {
 				msp0_default_mode: msp0_default {
 					default_msp0_mux {
-						ste,function = "msp0";
-						ste,pins = "msp0txrx_a_1", "msp0tfstck_a_1";
+						function = "msp0";
+						groups = "msp0txrx_a_1", "msp0tfstck_a_1";
 					};
 					default_msp0_cfg {
-						ste,pins =
+						pins =
 						"GPIO12_AC4", /* TXD */
 						"GPIO15_AC3", /* RXD */
 						"GPIO13_AF3", /* TFS */
@@ -511,15 +511,15 @@
 			msp1 {
 				msp1_default_mode: msp1_default {
 					default_mux {
-						ste,function = "msp1";
-						ste,pins = "msp1txrx_a_1", "msp1_a_1";
+						function = "msp1";
+						groups = "msp1txrx_a_1", "msp1_a_1";
 					};
 					default_cfg1 {
-						ste,pins = "GPIO33_AF2";
+						pins = "GPIO33_AF2";
 						ste,config = <&out_lo>;
 					};
 					default_cfg2 {
-						ste,pins =
+						pins =
 						"GPIO34_AE1",
 						"GPIO35_AE2",
 						"GPIO36_AG2";
@@ -533,18 +533,18 @@
 				msp2_default_mode: msp2_default {
 					/* MSP2 usually used for HDMI audio */
 					default_mux {
-						ste,function = "msp2";
-						ste,pins = "msp2_a_1";
+						function = "msp2";
+						groups = "msp2_a_1";
 					};
 					default_cfg1 {
-						ste,pins =
+						pins =
 						"GPIO193_AH27", /* TXD */
 						"GPIO194_AF27", /* TCK */
 						"GPIO195_AG28"; /* TFS */
 						ste,config = <&in_pd>;
 					};
 					default_cfg2 {
-						ste,pins = "GPIO196_AG26"; /* RXD */
+						pins = "GPIO196_AG26"; /* RXD */
 						ste,config = <&out_lo>;
 					};
 				};
@@ -554,11 +554,11 @@
 			musb {
 				musb_default_mode: musb_default {
 					default_mux {
-						ste,function = "usb";
-						ste,pins = "usb_a_1";
+						function = "usb";
+						groups = "usb_a_1";
 					};
 					default_cfg1 {
-						ste,pins =
+						pins =
 						"GPIO256_AF28", /* NXT */
 						"GPIO258_AD29", /* XCLK */
 						"GPIO259_AC29", /* DIR */
@@ -573,25 +573,25 @@
 						ste,config = <&in_nopull>;
 					};
 					default_cfg2 {
-						ste,pins = "GPIO257_AE29"; /* STP */
+						pins = "GPIO257_AE29"; /* STP */
 						ste,config = <&out_hi>;
 					};
 				};
 
 				musb_sleep_mode: musb_sleep {
 					sleep_cfg1 {
-						ste,pins =
+						pins =
 						"GPIO256_AF28", /* NXT */
 						"GPIO258_AD29", /* XCLK */
 						"GPIO259_AC29"; /* DIR */
 						ste,config = <&slpm_wkup_pdis_en>;
 					};
 					sleep_cfg2 {
-						ste,pins = "GPIO257_AE29"; /* STP */
+						pins = "GPIO257_AE29"; /* STP */
 						ste,config = <&slpm_out_hi_wkup_pdis>;
 					};
 					sleep_cfg3 {
-						ste,pins =
+						pins =
 						"GPIO260_AD28", /* DAT7 */
 						"GPIO261_AD26", /* DAT6 */
 						"GPIO262_AE26", /* DAT5 */
@@ -609,8 +609,8 @@
 				lcd_default_mode: lcd_default {
 					default_mux {
 						/* Mux in VSI0 and all the data lines */
-						ste,function = "lcd";
-						ste,pins =
+						function = "lcd";
+						groups =
 						"lcdvsi0_a_1", /* VSI0 for LCD */
 						"lcd_d0_d7_a_1", /* Data lines */
 						"lcd_d8_d11_a_1", /* TV-out */
@@ -618,7 +618,7 @@
 						"lcdvsi1_a_1"; /* VSI1 for HDMI */
 					};
 					default_cfg1 {
-						ste,pins =
+						pins =
 						"GPIO68_E1", /* VSI0 */
 						"GPIO69_E2"; /* VSI1 */
 						ste,config = <&in_pu>;
@@ -626,7 +626,7 @@
 				};
 				lcd_sleep_mode: lcd_sleep {
 					sleep_cfg1 {
-						ste,pins = "GPIO69_E2"; /* VSI1 */
+						pins = "GPIO69_E2"; /* VSI1 */
 						ste,config = <&slpm_in_wkup_pdis>;
 					};
 				};
@@ -636,11 +636,11 @@
 				/* SKE keys on position 2 in an 8x8 matrix */
 				ske_kpa2_default_mode: ske_kpa2_default {
 					default_mux {
-						ste,function = "kp";
-						ste,pins = "kp_a_2";
+						function = "kp";
+						groups = "kp_a_2";
 					};
 					default_cfg1 {
-						ste,pins =
+						pins =
 						"GPIO153_B17", /* I7 */
 						"GPIO154_C16", /* I6 */
 						"GPIO155_C19", /* I5 */
@@ -652,7 +652,7 @@
 						ste,config = <&in_pd>;
 					};
 					default_cfg2 {
-						ste,pins =
+						pins =
 						"GPIO157_A18", /* O7 */
 						"GPIO158_C18", /* O6 */
 						"GPIO159_B19", /* O5 */
@@ -666,7 +666,7 @@
 				};
 				ske_kpa2_sleep_mode: ske_kpa2_sleep {
 					sleep_cfg1 {
-						ste,pins =
+						pins =
 						"GPIO153_B17", /* I7 */
 						"GPIO154_C16", /* I6 */
 						"GPIO155_C19", /* I5 */
@@ -678,7 +678,7 @@
 						ste,config = <&slpm_in_pu_wkup_pdis_en>;
 					};
 					sleep_cfg2 {
-						ste,pins =
+						pins =
 						"GPIO157_A18", /* O7 */
 						"GPIO158_C18", /* O6 */
 						"GPIO159_B19", /* O5 */
@@ -696,11 +696,11 @@
 				 */
 				ske_kpaoc1_default_mode: ske_kpaoc1_default {
 					default_mux {
-						ste,function = "kp";
-						ste,pins = "kp_a_1", "kp_oc1_1";
+						function = "kp";
+						groups = "kp_a_1", "kp_oc1_1";
 					};
 					default_cfg1 {
-						ste,pins =
+						pins =
 						"GPIO91_B6", /* KP_O0 */
 						"GPIO90_A3", /* KP_O1 */
 						"GPIO87_B3", /* KP_O2 */
@@ -710,7 +710,7 @@
 						ste,config = <&out_lo>;
 					};
 					default_cfg2 {
-						ste,pins =
+						pins =
 						"GPIO93_B7", /* KP_I0 */
 						"GPIO92_D6", /* KP_I1 */
 						"GPIO89_E6", /* KP_I2 */
@@ -729,13 +729,13 @@
 					 * These are plain GPIO pins used by WLAN
 					 */
 					default_cfg1 {
-						ste,pins =
+						pins =
 						"GPIO226_AF8", /* WLAN_PMU_EN */
 						"GPIO85_D5"; /* WLAN_ENA */
 						ste,config = <&gpio_out_lo>;
 					};
 					default_cfg2 {
-						ste,pins = "GPIO4_AH6"; /* WLAN_IRQ on UART1 */
+						pins = "GPIO4_AH6"; /* WLAN_IRQ on UART1 */
 						ste,config = <&gpio_in_pu>;
 					};
 				};

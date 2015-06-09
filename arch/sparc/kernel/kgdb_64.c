@@ -13,6 +13,8 @@
 #include <asm/ptrace.h>
 #include <asm/irq.h>
 
+#include "kernel.h"
+
 void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 {
 	struct reg_window *win;

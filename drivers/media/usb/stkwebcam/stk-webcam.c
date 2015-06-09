@@ -556,10 +556,8 @@ static int stk_free_sio_buffers(struct stk_camera *dev)
 	nbufs = dev->n_sbufs;
 	dev->n_sbufs = 0;
 	spin_unlock_irqrestore(&dev->spinlock, flags);
-	for (i = 0; i < nbufs; i++) {
-		if (dev->sio_bufs[i].buffer != NULL)
-			vfree(dev->sio_bufs[i].buffer);
-	}
+	for (i = 0; i < nbufs; i++)
+		vfree(dev->sio_bufs[i].buffer);
 	kfree(dev->sio_bufs);
 	dev->sio_bufs = NULL;
 	return 0;
@@ -923,7 +921,6 @@ static int stk_vidioc_g_fmt_vid_cap(struct file *filp,
 		pix_format->bytesperline = 2 * pix_format->width;
 	pix_format->sizeimage = pix_format->bytesperline
 				* pix_format->height;
-	pix_format->priv = 0;
 	return 0;
 }
 
@@ -967,7 +964,6 @@ static int stk_try_fmt_vid_cap(struct file *filp,
 		fmtd->fmt.pix.bytesperline = 2 * fmtd->fmt.pix.width;
 	fmtd->fmt.pix.sizeimage = fmtd->fmt.pix.bytesperline
 		* fmtd->fmt.pix.height;
-	fmtd->fmt.pix.priv = 0;
 	return 0;
 }
 
@@ -1264,9 +1260,7 @@ static int stk_register_video_device(struct stk_camera *dev)
 
 	dev->vdev = stk_v4l_data;
 	dev->vdev.lock = &dev->lock;
-	dev->vdev.debug = debug;
 	dev->vdev.v4l2_dev = &dev->v4l2_dev;
-	set_bit(V4L2_FL_USE_FH_PRIO, &dev->vdev.flags);
 	video_set_drvdata(&dev->vdev, dev);
 	err = video_register_device(&dev->vdev, VFL_TYPE_GRABBER, -1);
 	if (err)

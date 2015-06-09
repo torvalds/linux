@@ -52,7 +52,6 @@
 #define PM800_BUCK1_3		(0x3F)
 #define PM800_BUCK2		(0x40)
 #define PM800_BUCK3		(0x41)
-#define PM800_BUCK3		(0x41)
 #define PM800_BUCK4		(0x42)
 #define PM800_BUCK4_1		(0x43)
 #define PM800_BUCK4_2		(0x44)
@@ -310,10 +309,8 @@ static int pm800_regulator_probe(struct platform_device *pdev)
 
 	pm800_data = devm_kzalloc(&pdev->dev, sizeof(*pm800_data),
 					GFP_KERNEL);
-	if (!pm800_data) {
-		dev_err(&pdev->dev, "Failed to allocate pm800_regualtors");
+	if (!pm800_data)
 		return -ENOMEM;
-	}
 
 	pm800_data->map = chip->subchip->regmap_power;
 	pm800_data->chip = chip;
@@ -365,7 +362,6 @@ static int pm800_regulator_remove(struct platform_device *pdev)
 static struct platform_driver pm800_regulator_driver = {
 	.driver		= {
 		.name	= "88pm80x-regulator",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= pm800_regulator_probe,
 	.remove		= pm800_regulator_remove,

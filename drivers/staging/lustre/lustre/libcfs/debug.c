@@ -41,7 +41,7 @@
 
 # define DEBUG_SUBSYSTEM S_LNET
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 #include "tracefile.h"
 
 static char debug_file_name[1024];
@@ -57,7 +57,7 @@ module_param(libcfs_debug, int, 0644);
 MODULE_PARM_DESC(libcfs_debug, "Lustre kernel debug mask");
 EXPORT_SYMBOL(libcfs_debug);
 
-unsigned int libcfs_debug_mb = 0;
+static unsigned int libcfs_debug_mb;
 module_param(libcfs_debug_mb, uint, 0644);
 MODULE_PARM_DESC(libcfs_debug_mb, "Total debug buffer size.");
 EXPORT_SYMBOL(libcfs_debug_mb);
@@ -93,7 +93,7 @@ EXPORT_SYMBOL(libcfs_debug_binary);
 unsigned int libcfs_stack = 3 * THREAD_SIZE / 4;
 EXPORT_SYMBOL(libcfs_stack);
 
-unsigned int portal_enter_debugger;
+static unsigned int portal_enter_debugger;
 EXPORT_SYMBOL(portal_enter_debugger);
 
 unsigned int libcfs_catastrophe;
@@ -115,7 +115,7 @@ static wait_queue_head_t debug_ctlwq;
 char libcfs_debug_file_path_arr[PATH_MAX] = LIBCFS_DEBUG_FILE_PATH_DEFAULT;
 
 /* We need to pass a pointer here, but elsewhere this must be a const */
-char *libcfs_debug_file_path;
+static char *libcfs_debug_file_path;
 module_param(libcfs_debug_file_path, charp, 0644);
 MODULE_PARM_DESC(libcfs_debug_file_path,
 		 "Path for dumping debug logs, set 'NONE' to prevent log dumping");
@@ -124,7 +124,7 @@ int libcfs_panic_in_progress;
 
 /* libcfs_debug_token2mask() expects the returned
  * string in lower-case */
-const char *
+static const char *
 libcfs_debug_subsys2str(int subsys)
 {
 	switch (1 << subsys) {
@@ -185,7 +185,7 @@ libcfs_debug_subsys2str(int subsys)
 
 /* libcfs_debug_token2mask() expects the returned
  * string in lower-case */
-const char *
+static const char *
 libcfs_debug_dbg2str(int debug)
 {
 	switch (1 << debug) {
@@ -314,14 +314,11 @@ libcfs_debug_str2mask(int *mask, const char *str, int is_subsys)
 		if (!isspace(str[n-1]))
 			break;
 	matched = n;
-
-	if ((t = sscanf(str, "%i%n", &m, &matched)) >= 1 &&
-	    matched == n) {
+	t = sscanf(str, "%i%n", &m, &matched);
+	if (t >= 1 && matched == n) {
 		/* don't print warning for lctl set_param debug=0 or -1 */
 		if (m != 0 && m != -1)
-			CWARN("You are trying to use a numerical value for the "
-			      "mask - this will be deprecated in a future "
-			      "release.\n");
+			CWARN("You are trying to use a numerical value for the mask - this will be deprecated in a future release.\n");
 		*mask = m;
 		return 0;
 	}
@@ -342,9 +339,9 @@ void libcfs_debug_dumplog_internal(void *arg)
 
 	if (strncmp(libcfs_debug_file_path_arr, "NONE", 4) != 0) {
 		snprintf(debug_file_name, sizeof(debug_file_name) - 1,
-			 "%s.%ld." LPLD, libcfs_debug_file_path_arr,
-			 cfs_time_current_sec(), (long_ptr_t)arg);
-		printk(KERN_ALERT "LustreError: dumping log to %s\n",
+			 "%s.%ld.%ld", libcfs_debug_file_path_arr,
+			 get_seconds(), (long_ptr_t)arg);
+		pr_alert("LustreError: dumping log to %s\n",
 		       debug_file_name);
 		cfs_tracefile_dump_all_pages(debug_file_name);
 		libcfs_run_debug_log_upcall(debug_file_name);
@@ -353,7 +350,7 @@ void libcfs_debug_dumplog_internal(void *arg)
 	current->journal_info = journal_info;
 }
 
-int libcfs_debug_dumplog_thread(void *arg)
+static int libcfs_debug_dumplog_thread(void *arg)
 {
 	libcfs_debug_dumplog_internal(arg);
 	wake_up(&debug_ctlwq);
@@ -368,7 +365,7 @@ void libcfs_debug_dumplog(void)
 	/* we're being careful to ensure that the kernel thread is
 	 * able to set our state to running as it exits before we
 	 * get to schedule() */
-	init_waitqueue_entry_current(&wait);
+	init_waitqueue_entry(&wait, current);
 	set_current_state(TASK_INTERRUPTIBLE);
 	add_wait_queue(&debug_ctlwq, &wait);
 
@@ -376,10 +373,10 @@ void libcfs_debug_dumplog(void)
 			     (void *)(long)current_pid(),
 			     "libcfs_debug_dumper");
 	if (IS_ERR(dumper))
-		printk(KERN_ERR "LustreError: cannot start log dump thread:"
-		       " %ld\n", PTR_ERR(dumper));
+		pr_err("LustreError: cannot start log dump thread: %ld\n",
+		       PTR_ERR(dumper));
 	else
-		waitq_wait(&wait, TASK_INTERRUPTIBLE);
+		schedule();
 
 	/* be sure to teardown if cfs_create_thread() failed */
 	remove_wait_queue(&debug_ctlwq, &wait);
@@ -402,9 +399,9 @@ int libcfs_debug_init(unsigned long bufsize)
 	}
 
 	if (libcfs_debug_file_path != NULL) {
-		memset(libcfs_debug_file_path_arr, 0, PATH_MAX);
 		strncpy(libcfs_debug_file_path_arr,
 			libcfs_debug_file_path, PATH_MAX-1);
+		libcfs_debug_file_path_arr[PATH_MAX - 1] = '\0';
 	}
 
 	/* If libcfs_debug_mb is set to an invalid value or uninitialized
@@ -412,8 +409,8 @@ int libcfs_debug_init(unsigned long bufsize)
 	if (max > cfs_trace_max_debug_mb() || max < num_possible_cpus()) {
 		max = TCD_MAX_PAGES;
 	} else {
-		max = (max / num_possible_cpus());
-		max = (max << (20 - PAGE_CACHE_SHIFT));
+		max = max / num_possible_cpus();
+		max <<= (20 - PAGE_CACHE_SHIFT);
 	}
 	rc = cfs_tracefile_init(max);
 
@@ -442,9 +439,11 @@ int libcfs_debug_clear_buffer(void)
 #define DEBUG_SUBSYSTEM S_UNDEFINED
 int libcfs_debug_mark_buffer(const char *text)
 {
-	CDEBUG(D_TRACE,"***************************************************\n");
+	CDEBUG(D_TRACE,
+	       "***************************************************\n");
 	LCONSOLE(D_WARNING, "DEBUG MARKER: %s\n", text);
-	CDEBUG(D_TRACE,"***************************************************\n");
+	CDEBUG(D_TRACE,
+	       "***************************************************\n");
 
 	return 0;
 }
@@ -453,17 +452,9 @@ int libcfs_debug_mark_buffer(const char *text)
 
 void libcfs_debug_set_level(unsigned int debug_level)
 {
-	printk(KERN_WARNING "Lustre: Setting portals debug level to %08x\n",
+	pr_warn("Lustre: Setting portals debug level to %08x\n",
 	       debug_level);
 	libcfs_debug = debug_level;
 }
 
 EXPORT_SYMBOL(libcfs_debug_set_level);
-
-void libcfs_log_goto(struct libcfs_debug_msg_data *msgdata, const char *label,
-		     long_ptr_t rc)
-{
-	libcfs_debug_msg(msgdata, "Process leaving via %s (rc=" LPLU " : " LPLD
-			 " : " LPLX ")\n", label, (ulong_ptr_t)rc, rc, rc);
-}
-EXPORT_SYMBOL(libcfs_log_goto);

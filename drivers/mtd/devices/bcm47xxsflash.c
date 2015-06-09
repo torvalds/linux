@@ -329,7 +329,6 @@ static struct platform_driver bcma_sflash_driver = {
 	.remove = bcm47xxsflash_bcma_remove,
 	.driver = {
 		.name = "bcma_sflash",
-		.owner = THIS_MODULE,
 	},
 };
 

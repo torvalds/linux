@@ -108,14 +108,15 @@ static struct pt_regs *valid_fault_handler(struct KBacktraceIterator* kbt)
 		   p->sp < PAGE_OFFSET && p->sp != 0) {
 		if (kbt->verbose)
 			pr_err("  <%s while in user mode>\n", fault);
-	} else if (kbt->verbose) {
-		pr_err("  (odd fault: pc %#lx, sp %#lx, ex1 %#lx?)\n",
-		       p->pc, p->sp, p->ex1);
-		p = NULL;
+	} else {
+		if (kbt->verbose)
+			pr_err("  (odd fault: pc %#lx, sp %#lx, ex1 %#lx?)\n",
+			       p->pc, p->sp, p->ex1);
+		return NULL;
 	}
-	if (!kbt->profile || ((1ULL << p->faultnum) & QUEUED_INTERRUPTS) == 0)
-		return p;
-	return NULL;
+	if (kbt->profile && ((1ULL << p->faultnum) & QUEUED_INTERRUPTS) != 0)
+		return NULL;
+	return p;
 }
 
 /* Is the pc pointing to a sigreturn trampoline? */
@@ -387,9 +388,7 @@ void tile_show_stack(struct KBacktraceIterator *kbt, int headers)
 		 * then bust_spinlocks() spit out a space in front of us
 		 * and it will mess up our KERN_ERR.
 		 */
-		pr_err("\n");
-		pr_err("Starting stack dump of tid %d, pid %d (%s)"
-		       " on cpu %d at cycle %lld\n",
+		pr_err("Starting stack dump of tid %d, pid %d (%s) on cpu %d at cycle %lld\n",
 		       kbt->task->pid, kbt->task->tgid, kbt->task->comm,
 		       raw_smp_processor_id(), get_cycles());
 	}
@@ -411,8 +410,7 @@ void tile_show_stack(struct KBacktraceIterator *kbt, int headers)
 		       i++, address, namebuf, (unsigned long)(kbt->it.sp));
 
 		if (i >= 100) {
-			pr_err("Stack dump truncated"
-			       " (%d frames)\n", i);
+			pr_err("Stack dump truncated (%d frames)\n", i);
 			break;
 		}
 	}

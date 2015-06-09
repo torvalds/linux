@@ -88,13 +88,13 @@ static void __init pcibios_allocate_bus_resources(struct list_head *bus_list)
 
 	/* Depth-First Search on bus tree */
 	for (ln=bus_list->next; ln != bus_list; ln=ln->next) {
-		bus = pci_bus_b(ln);
+		bus = list_entry(ln, struct pci_bus, node);
 		if ((dev = bus->self)) {
 			for (idx = PCI_BRIDGE_RESOURCES; idx < PCI_NUM_RESOURCES; idx++) {
 				r = &dev->resource[idx];
 				if (!r->start)
 					continue;
-				pci_claim_resource(dev, idx);
+				pci_claim_bridge_resource(dev, idx);
 			}
 		}
 		pcibios_allocate_bus_resources(&bus->children);

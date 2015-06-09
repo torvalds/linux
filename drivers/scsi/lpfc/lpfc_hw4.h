@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2009-2013 Emulex.  All rights reserved.                *
+ * Copyright (C) 2009-2015 Emulex.  All rights reserved.                *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -2616,6 +2616,9 @@ struct lpfc_sli4_parameters {
 #define cfg_phwq_SHIFT				15
 #define cfg_phwq_MASK				0x00000001
 #define cfg_phwq_WORD				word12
+#define cfg_oas_SHIFT				25
+#define cfg_oas_MASK				0x00000001
+#define cfg_oas_WORD				word12
 #define cfg_loopbk_scope_SHIFT			28
 #define cfg_loopbk_scope_MASK			0x0000000f
 #define cfg_loopbk_scope_WORD			word12
@@ -3082,6 +3085,9 @@ struct lpfc_acqe_link {
 #define LPFC_ASYNC_LINK_SPEED_100MBPS		0x2
 #define LPFC_ASYNC_LINK_SPEED_1GBPS		0x3
 #define LPFC_ASYNC_LINK_SPEED_10GBPS		0x4
+#define LPFC_ASYNC_LINK_SPEED_20GBPS		0x5
+#define LPFC_ASYNC_LINK_SPEED_25GBPS		0x6
+#define LPFC_ASYNC_LINK_SPEED_40GBPS		0x7
 #define lpfc_acqe_link_duplex_SHIFT		16
 #define lpfc_acqe_link_duplex_MASK		0x000000FF
 #define lpfc_acqe_link_duplex_WORD		word0
@@ -3163,7 +3169,7 @@ struct lpfc_acqe_fc_la {
 #define lpfc_acqe_fc_la_speed_SHIFT		24
 #define lpfc_acqe_fc_la_speed_MASK		0x000000FF
 #define lpfc_acqe_fc_la_speed_WORD		word0
-#define LPFC_FC_LA_SPEED_UNKOWN		0x0
+#define LPFC_FC_LA_SPEED_UNKNOWN		0x0
 #define LPFC_FC_LA_SPEED_1G		0x1
 #define LPFC_FC_LA_SPEED_2G		0x2
 #define LPFC_FC_LA_SPEED_4G		0x4
@@ -3241,6 +3247,7 @@ struct lpfc_acqe_sli {
 #define LPFC_SLI_EVENT_TYPE_NVLOG_POST		0x4
 #define LPFC_SLI_EVENT_TYPE_DIAG_DUMP		0x5
 #define LPFC_SLI_EVENT_TYPE_MISCONFIGURED	0x9
+#define LPFC_SLI_EVENT_TYPE_REMOTE_DPORT	0xA
 };
 
 /*
@@ -3322,6 +3329,9 @@ struct wqe_common {
 #define wqe_ebde_cnt_SHIFT    0
 #define wqe_ebde_cnt_MASK     0x0000000f
 #define wqe_ebde_cnt_WORD     word10
+#define wqe_oas_SHIFT         6
+#define wqe_oas_MASK          0x00000001
+#define wqe_oas_WORD          word10
 #define wqe_lenloc_SHIFT      7
 #define wqe_lenloc_MASK       0x00000003
 #define wqe_lenloc_WORD       word10

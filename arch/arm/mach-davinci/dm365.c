@@ -853,16 +853,6 @@ static u8 dm365_default_priorities[DAVINCI_N_AINTC_IRQ] = {
 
 /* Four Transfer Controllers on DM365 */
 static s8
-dm365_queue_tc_mapping[][2] = {
-	/* {event queue no, TC no} */
-	{0, 0},
-	{1, 1},
-	{2, 2},
-	{3, 3},
-	{-1, -1},
-};
-
-static s8
 dm365_queue_priority_mapping[][2] = {
 	/* {event queue no, Priority} */
 	{0, 7},
@@ -873,12 +863,6 @@ dm365_queue_priority_mapping[][2] = {
 };
 
 static struct edma_soc_info edma_cc0_info = {
-	.n_channel		= 64,
-	.n_region		= 4,
-	.n_slot			= 256,
-	.n_tc			= 4,
-	.n_cc			= 1,
-	.queue_tc_mapping	= dm365_queue_tc_mapping,
 	.queue_priority_mapping	= dm365_queue_priority_mapping,
 	.default_queue		= EVENTQ_3,
 };
@@ -1322,16 +1306,15 @@ static struct resource dm365_v4l2_disp_resources[] = {
 	},
 };
 
-static int dm365_vpbe_setup_pinmux(enum v4l2_mbus_pixelcode if_type,
-			    int field)
+static int dm365_vpbe_setup_pinmux(u32 if_type, int field)
 {
 	switch (if_type) {
-	case V4L2_MBUS_FMT_SGRBG8_1X8:
+	case MEDIA_BUS_FMT_SGRBG8_1X8:
 		davinci_cfg_reg(DM365_VOUT_FIELD_G81);
 		davinci_cfg_reg(DM365_VOUT_COUTL_EN);
 		davinci_cfg_reg(DM365_VOUT_COUTH_EN);
 		break;
-	case V4L2_MBUS_FMT_YUYV10_1X20:
+	case MEDIA_BUS_FMT_YUYV10_1X20:
 		if (field)
 			davinci_cfg_reg(DM365_VOUT_FIELD);
 		else
@@ -1436,6 +1419,8 @@ int __init dm365_init_video(struct vpfe_config *vpfe_cfg,
 
 static int __init dm365_init_devices(void)
 {
+	int ret = 0;
+
 	if (!cpu_is_davinci_dm365())
 		return 0;
 
@@ -1445,6 +1430,10 @@ static int __init dm365_init_devices(void)
 	platform_device_register(&dm365_mdio_device);
 	platform_device_register(&dm365_emac_device);
 
-	return 0;
+	ret = davinci_init_wdt();
+	if (ret)
+		pr_warn("%s: watchdog init failed: %d\n", __func__, ret);
+
+	return ret;
 }
 postcore_initcall(dm365_init_devices);

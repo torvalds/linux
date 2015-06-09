@@ -93,6 +93,7 @@
 #include <linux/bio.h>
 #endif
 #include <linux/log2.h>
+#include <linux/hash.h>
 
 static struct kmem_cache *revoke_record_cache;
 static struct kmem_cache *revoke_table_cache;
@@ -129,15 +130,11 @@ static void flush_descriptor(journal_t *, struct journal_head *, int, int);
 
 /* Utility functions to maintain the revoke table */
 
-/* Borrowed from buffer.c: this is a tried and tested block hash function */
 static inline int hash(journal_t *journal, unsigned int block)
 {
 	struct jbd_revoke_table_s *table = journal->j_revoke;
-	int hash_shift = table->hash_shift;
 
-	return ((block << (hash_shift - 6)) ^
-		(block >> 13) ^
-		(block << (hash_shift - 12))) & (table->hash_size - 1);
+	return hash_32(block, table->hash_shift);
 }
 
 static int insert_revoke_hash(journal_t *journal, unsigned int blocknr,
@@ -231,19 +228,15 @@ record_cache_failure:
 
 static struct jbd_revoke_table_s *journal_init_revoke_table(int hash_size)
 {
-	int shift = 0;
-	int tmp = hash_size;
+	int i;
 	struct jbd_revoke_table_s *table;
 
 	table = kmem_cache_alloc(revoke_table_cache, GFP_KERNEL);
 	if (!table)
 		goto out;
 
-	while((tmp >>= 1UL) != 0UL)
-		shift++;
-
 	table->hash_size = hash_size;
-	table->hash_shift = shift;
+	table->hash_shift = ilog2(hash_size);
 	table->hash_table =
 		kmalloc(hash_size * sizeof(struct list_head), GFP_KERNEL);
 	if (!table->hash_table) {
@@ -252,8 +245,8 @@ static struct jbd_revoke_table_s *journal_init_revoke_table(int hash_size)
 		goto out;
 	}
 
-	for (tmp = 0; tmp < hash_size; tmp++)
-		INIT_LIST_HEAD(&table->hash_table[tmp]);
+	for (i = 0; i < hash_size; i++)
+		INIT_LIST_HEAD(&table->hash_table[i]);
 
 out:
 	return table;

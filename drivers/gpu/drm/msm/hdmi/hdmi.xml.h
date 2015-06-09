@@ -8,18 +8,19 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/freedreno/envytools/rnndb/msm.xml                 (    647 bytes, from 2013-11-30 14:45:35)
+- /home/robclark/src/freedreno/envytools/rnndb/msm.xml                 (    676 bytes, from 2014-12-05 15:34:49)
 - /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml (   1453 bytes, from 2013-03-31 16:51:27)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp4.xml            (  17996 bytes, from 2013-12-01 19:10:31)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp_common.xml      (   1615 bytes, from 2013-11-30 15:00:52)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp5.xml            (  22517 bytes, from 2013-12-03 20:59:13)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp4.xml            (  20908 bytes, from 2014-12-08 16:13:00)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp_common.xml      (   2357 bytes, from 2014-12-08 16:13:00)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp5.xml            (  27208 bytes, from 2015-01-13 23:56:11)
 - /home/robclark/src/freedreno/envytools/rnndb/dsi/dsi.xml             (  11712 bytes, from 2013-08-17 17:13:43)
 - /home/robclark/src/freedreno/envytools/rnndb/dsi/sfpb.xml            (    344 bytes, from 2013-08-11 19:26:32)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/mmss_cc.xml         (   1544 bytes, from 2013-08-16 19:17:05)
+- /home/robclark/src/freedreno/envytools/rnndb/dsi/mmss_cc.xml         (   1686 bytes, from 2014-10-31 16:48:57)
 - /home/robclark/src/freedreno/envytools/rnndb/hdmi/qfprom.xml         (    600 bytes, from 2013-07-05 19:21:12)
-- /home/robclark/src/freedreno/envytools/rnndb/hdmi/hdmi.xml           (  20932 bytes, from 2013-12-01 15:13:04)
+- /home/robclark/src/freedreno/envytools/rnndb/hdmi/hdmi.xml           (  26848 bytes, from 2015-01-13 23:55:57)
+- /home/robclark/src/freedreno/envytools/rnndb/edp/edp.xml             (   8253 bytes, from 2014-12-08 16:13:00)
 
-Copyright (C) 2013 by the following authors:
+Copyright (C) 2013-2015 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 
 Permission is hereby granted, free of charge, to any person obtaining
@@ -45,12 +46,14 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 enum hdmi_hdcp_key_state {
-	NO_KEYS = 0,
-	NOT_CHECKED = 1,
-	CHECKING = 2,
-	KEYS_VALID = 3,
-	AKSV_INVALID = 4,
-	CHECKSUM_MISMATCH = 5,
+	HDCP_KEYS_STATE_NO_KEYS = 0,
+	HDCP_KEYS_STATE_NOT_CHECKED = 1,
+	HDCP_KEYS_STATE_CHECKING = 2,
+	HDCP_KEYS_STATE_VALID = 3,
+	HDCP_KEYS_STATE_AKSV_NOT_VALID = 4,
+	HDCP_KEYS_STATE_CHKSUM_MISMATCH = 5,
+	HDCP_KEYS_STATE_PROD_AKSV = 6,
+	HDCP_KEYS_STATE_RESERVED = 7,
 };
 
 enum hdmi_ddc_read_write {
@@ -148,9 +151,9 @@ static inline uint32_t REG_HDMI_GENERIC0(uint32_t i0) { return 0x00000088 + 0x4*
 
 static inline uint32_t REG_HDMI_GENERIC1(uint32_t i0) { return 0x000000a8 + 0x4*i0; }
 
-static inline uint32_t REG_HDMI_ACR(uint32_t i0) { return 0x000000c4 + 0x8*i0; }
+static inline uint32_t REG_HDMI_ACR(enum hdmi_acr_cts i0) { return 0x000000c4 + 0x8*i0; }
 
-static inline uint32_t REG_HDMI_ACR_0(uint32_t i0) { return 0x000000c4 + 0x8*i0; }
+static inline uint32_t REG_HDMI_ACR_0(enum hdmi_acr_cts i0) { return 0x000000c4 + 0x8*i0; }
 #define HDMI_ACR_0_CTS__MASK					0xfffff000
 #define HDMI_ACR_0_CTS__SHIFT					12
 static inline uint32_t HDMI_ACR_0_CTS(uint32_t val)
@@ -158,7 +161,7 @@ static inline uint32_t HDMI_ACR_0_CTS(uint32_t val)
 	return ((val) << HDMI_ACR_0_CTS__SHIFT) & HDMI_ACR_0_CTS__MASK;
 }
 
-static inline uint32_t REG_HDMI_ACR_1(uint32_t i0) { return 0x000000c8 + 0x8*i0; }
+static inline uint32_t REG_HDMI_ACR_1(enum hdmi_acr_cts i0) { return 0x000000c8 + 0x8*i0; }
 #define HDMI_ACR_1_N__MASK					0xffffffff
 #define HDMI_ACR_1_N__SHIFT					0
 static inline uint32_t HDMI_ACR_1_N(uint32_t val)
@@ -199,11 +202,29 @@ static inline uint32_t HDMI_AUDIO_INFO1_LSV(uint32_t val)
 #define HDMI_HDCP_CTRL_ENABLE					0x00000001
 #define HDMI_HDCP_CTRL_ENCRYPTION_ENABLE			0x00000100
 
+#define REG_HDMI_HDCP_DEBUG_CTRL				0x00000114
+#define HDMI_HDCP_DEBUG_CTRL_RNG_CIPHER				0x00000004
+
 #define REG_HDMI_HDCP_INT_CTRL					0x00000118
+#define HDMI_HDCP_INT_CTRL_AUTH_SUCCESS_INT			0x00000001
+#define HDMI_HDCP_INT_CTRL_AUTH_SUCCESS_ACK			0x00000002
+#define HDMI_HDCP_INT_CTRL_AUTH_SUCCESS_MASK			0x00000004
+#define HDMI_HDCP_INT_CTRL_AUTH_FAIL_INT			0x00000010
+#define HDMI_HDCP_INT_CTRL_AUTH_FAIL_ACK			0x00000020
+#define HDMI_HDCP_INT_CTRL_AUTH_FAIL_MASK			0x00000040
+#define HDMI_HDCP_INT_CTRL_AUTH_FAIL_INFO_ACK			0x00000080
+#define HDMI_HDCP_INT_CTRL_AUTH_XFER_REQ_INT			0x00000100
+#define HDMI_HDCP_INT_CTRL_AUTH_XFER_REQ_ACK			0x00000200
+#define HDMI_HDCP_INT_CTRL_AUTH_XFER_REQ_MASK			0x00000400
+#define HDMI_HDCP_INT_CTRL_AUTH_XFER_DONE_INT			0x00001000
+#define HDMI_HDCP_INT_CTRL_AUTH_XFER_DONE_ACK			0x00002000
+#define HDMI_HDCP_INT_CTRL_AUTH_XFER_DONE_MASK			0x00004000
 
 #define REG_HDMI_HDCP_LINK0_STATUS				0x0000011c
 #define HDMI_HDCP_LINK0_STATUS_AN_0_READY			0x00000100
 #define HDMI_HDCP_LINK0_STATUS_AN_1_READY			0x00000200
+#define HDMI_HDCP_LINK0_STATUS_RI_MATCHES			0x00001000
+#define HDMI_HDCP_LINK0_STATUS_V_MATCHES			0x00100000
 #define HDMI_HDCP_LINK0_STATUS_KEY_STATE__MASK			0x70000000
 #define HDMI_HDCP_LINK0_STATUS_KEY_STATE__SHIFT			28
 static inline uint32_t HDMI_HDCP_LINK0_STATUS_KEY_STATE(enum hdmi_hdcp_key_state val)
@@ -211,8 +232,55 @@ static inline uint32_t HDMI_HDCP_LINK0_STATUS_KEY_STATE(enum hdmi_hdcp_key_state
 	return ((val) << HDMI_HDCP_LINK0_STATUS_KEY_STATE__SHIFT) & HDMI_HDCP_LINK0_STATUS_KEY_STATE__MASK;
 }
 
+#define REG_HDMI_HDCP_DDC_CTRL_0				0x00000120
+#define HDMI_HDCP_DDC_CTRL_0_DISABLE				0x00000001
+
+#define REG_HDMI_HDCP_DDC_CTRL_1				0x00000124
+#define HDMI_HDCP_DDC_CTRL_1_FAILED_ACK				0x00000001
+
+#define REG_HDMI_HDCP_DDC_STATUS				0x00000128
+#define HDMI_HDCP_DDC_STATUS_XFER_REQ				0x00000010
+#define HDMI_HDCP_DDC_STATUS_XFER_DONE				0x00000400
+#define HDMI_HDCP_DDC_STATUS_ABORTED				0x00001000
+#define HDMI_HDCP_DDC_STATUS_TIMEOUT				0x00002000
+#define HDMI_HDCP_DDC_STATUS_NACK0				0x00004000
+#define HDMI_HDCP_DDC_STATUS_NACK1				0x00008000
+#define HDMI_HDCP_DDC_STATUS_FAILED				0x00010000
+
+#define REG_HDMI_HDCP_ENTROPY_CTRL0				0x0000012c
+
+#define REG_HDMI_HDCP_ENTROPY_CTRL1				0x0000025c
+
 #define REG_HDMI_HDCP_RESET					0x00000130
 #define HDMI_HDCP_RESET_LINK0_DEAUTHENTICATE			0x00000001
+
+#define REG_HDMI_HDCP_RCVPORT_DATA0				0x00000134
+
+#define REG_HDMI_HDCP_RCVPORT_DATA1				0x00000138
+
+#define REG_HDMI_HDCP_RCVPORT_DATA2_0				0x0000013c
+
+#define REG_HDMI_HDCP_RCVPORT_DATA2_1				0x00000140
+
+#define REG_HDMI_HDCP_RCVPORT_DATA3				0x00000144
+
+#define REG_HDMI_HDCP_RCVPORT_DATA4				0x00000148
+
+#define REG_HDMI_HDCP_RCVPORT_DATA5				0x0000014c
+
+#define REG_HDMI_HDCP_RCVPORT_DATA6				0x00000150
+
+#define REG_HDMI_HDCP_RCVPORT_DATA7				0x00000154
+
+#define REG_HDMI_HDCP_RCVPORT_DATA8				0x00000158
+
+#define REG_HDMI_HDCP_RCVPORT_DATA9				0x0000015c
+
+#define REG_HDMI_HDCP_RCVPORT_DATA10				0x00000160
+
+#define REG_HDMI_HDCP_RCVPORT_DATA11				0x00000164
+
+#define REG_HDMI_HDCP_RCVPORT_DATA12				0x00000168
 
 #define REG_HDMI_VENSPEC_INFO0					0x0000016c
 
@@ -266,6 +334,7 @@ static inline uint32_t HDMI_DDC_CTRL_TRANSACTION_CNT(uint32_t val)
 #define HDMI_DDC_SW_STATUS_NACK3				0x00008000
 
 #define REG_HDMI_DDC_HW_STATUS					0x0000021c
+#define HDMI_DDC_HW_STATUS_DONE					0x00000008
 
 #define REG_HDMI_DDC_SPEED					0x00000220
 #define HDMI_DDC_SPEED_THRESHOLD__MASK				0x00000003
@@ -329,6 +398,15 @@ static inline uint32_t HDMI_DDC_DATA_INDEX(uint32_t val)
 }
 #define HDMI_DDC_DATA_INDEX_WRITE				0x80000000
 
+#define REG_HDMI_HDCP_SHA_CTRL					0x0000023c
+
+#define REG_HDMI_HDCP_SHA_STATUS				0x00000240
+#define HDMI_HDCP_SHA_STATUS_BLOCK_DONE				0x00000001
+#define HDMI_HDCP_SHA_STATUS_COMP_DONE				0x00000010
+
+#define REG_HDMI_HDCP_SHA_DATA					0x00000244
+#define HDMI_HDCP_SHA_DATA_DONE					0x00000001
+
 #define REG_HDMI_HPD_INT_STATUS					0x00000250
 #define HDMI_HPD_INT_STATUS_INT					0x00000001
 #define HDMI_HPD_INT_STATUS_CABLE_DETECTED			0x00000002
@@ -358,6 +436,10 @@ static inline uint32_t HDMI_DDC_REF_REFTIMER(uint32_t val)
 {
 	return ((val) << HDMI_DDC_REF_REFTIMER__SHIFT) & HDMI_DDC_REF_REFTIMER__MASK;
 }
+
+#define REG_HDMI_HDCP_SW_UPPER_AKSV				0x00000284
+
+#define REG_HDMI_HDCP_SW_LOWER_AKSV				0x00000288
 
 #define REG_HDMI_CEC_STATUS					0x00000298
 
@@ -552,6 +634,103 @@ static inline uint32_t HDMI_8x60_PHY_REG1_OUTVOL_SWING_CTRL(uint32_t val)
 #define REG_HDMI_8960_PHY_REG11					0x0000042c
 
 #define REG_HDMI_8960_PHY_REG12					0x00000430
+#define HDMI_8960_PHY_REG12_SW_RESET				0x00000020
+#define HDMI_8960_PHY_REG12_PWRDN_B				0x00000080
+
+#define REG_HDMI_8960_PHY_REG_BIST_CFG				0x00000434
+
+#define REG_HDMI_8960_PHY_DEBUG_BUS_SEL				0x00000438
+
+#define REG_HDMI_8960_PHY_REG_MISC0				0x0000043c
+
+#define REG_HDMI_8960_PHY_REG13					0x00000440
+
+#define REG_HDMI_8960_PHY_REG14					0x00000444
+
+#define REG_HDMI_8960_PHY_REG15					0x00000448
+
+#define REG_HDMI_8960_PHY_PLL_REFCLK_CFG			0x00000500
+
+#define REG_HDMI_8960_PHY_PLL_CHRG_PUMP_CFG			0x00000504
+
+#define REG_HDMI_8960_PHY_PLL_LOOP_FLT_CFG0			0x00000508
+
+#define REG_HDMI_8960_PHY_PLL_LOOP_FLT_CFG1			0x0000050c
+
+#define REG_HDMI_8960_PHY_PLL_IDAC_ADJ_CFG			0x00000510
+
+#define REG_HDMI_8960_PHY_PLL_I_VI_KVCO_CFG			0x00000514
+
+#define REG_HDMI_8960_PHY_PLL_PWRDN_B				0x00000518
+#define HDMI_8960_PHY_PLL_PWRDN_B_PD_PLL			0x00000002
+#define HDMI_8960_PHY_PLL_PWRDN_B_PLL_PWRDN_B			0x00000008
+
+#define REG_HDMI_8960_PHY_PLL_SDM_CFG0				0x0000051c
+
+#define REG_HDMI_8960_PHY_PLL_SDM_CFG1				0x00000520
+
+#define REG_HDMI_8960_PHY_PLL_SDM_CFG2				0x00000524
+
+#define REG_HDMI_8960_PHY_PLL_SDM_CFG3				0x00000528
+
+#define REG_HDMI_8960_PHY_PLL_SDM_CFG4				0x0000052c
+
+#define REG_HDMI_8960_PHY_PLL_SSC_CFG0				0x00000530
+
+#define REG_HDMI_8960_PHY_PLL_SSC_CFG1				0x00000534
+
+#define REG_HDMI_8960_PHY_PLL_SSC_CFG2				0x00000538
+
+#define REG_HDMI_8960_PHY_PLL_SSC_CFG3				0x0000053c
+
+#define REG_HDMI_8960_PHY_PLL_LOCKDET_CFG0			0x00000540
+
+#define REG_HDMI_8960_PHY_PLL_LOCKDET_CFG1			0x00000544
+
+#define REG_HDMI_8960_PHY_PLL_LOCKDET_CFG2			0x00000548
+
+#define REG_HDMI_8960_PHY_PLL_VCOCAL_CFG0			0x0000054c
+
+#define REG_HDMI_8960_PHY_PLL_VCOCAL_CFG1			0x00000550
+
+#define REG_HDMI_8960_PHY_PLL_VCOCAL_CFG2			0x00000554
+
+#define REG_HDMI_8960_PHY_PLL_VCOCAL_CFG3			0x00000558
+
+#define REG_HDMI_8960_PHY_PLL_VCOCAL_CFG4			0x0000055c
+
+#define REG_HDMI_8960_PHY_PLL_VCOCAL_CFG5			0x00000560
+
+#define REG_HDMI_8960_PHY_PLL_VCOCAL_CFG6			0x00000564
+
+#define REG_HDMI_8960_PHY_PLL_VCOCAL_CFG7			0x00000568
+
+#define REG_HDMI_8960_PHY_PLL_DEBUG_SEL				0x0000056c
+
+#define REG_HDMI_8960_PHY_PLL_MISC0				0x00000570
+
+#define REG_HDMI_8960_PHY_PLL_MISC1				0x00000574
+
+#define REG_HDMI_8960_PHY_PLL_MISC2				0x00000578
+
+#define REG_HDMI_8960_PHY_PLL_MISC3				0x0000057c
+
+#define REG_HDMI_8960_PHY_PLL_MISC4				0x00000580
+
+#define REG_HDMI_8960_PHY_PLL_MISC5				0x00000584
+
+#define REG_HDMI_8960_PHY_PLL_MISC6				0x00000588
+
+#define REG_HDMI_8960_PHY_PLL_DEBUG_BUS0			0x0000058c
+
+#define REG_HDMI_8960_PHY_PLL_DEBUG_BUS1			0x00000590
+
+#define REG_HDMI_8960_PHY_PLL_DEBUG_BUS2			0x00000594
+
+#define REG_HDMI_8960_PHY_PLL_STATUS0				0x00000598
+#define HDMI_8960_PHY_PLL_STATUS0_PLL_LOCK			0x00000001
+
+#define REG_HDMI_8960_PHY_PLL_STATUS1				0x0000059c
 
 #define REG_HDMI_8x74_ANA_CFG0					0x00000000
 

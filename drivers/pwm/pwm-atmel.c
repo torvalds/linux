@@ -32,6 +32,7 @@
 /* Bit field in CMR */
 #define PWM_CMR_CPOL		(1 << 9)
 #define PWM_CMR_UPD_CDTY	(1 << 10)
+#define PWM_CMR_CPRE_MSK	0xF
 
 /* The following registers for PWM v1 */
 #define PWMV1_CDTY		0x04
@@ -101,9 +102,10 @@ static int atmel_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			    int duty_ns, int period_ns)
 {
 	struct atmel_pwm_chip *atmel_pwm = to_atmel_pwm_chip(chip);
-	unsigned long clk_rate, prd, dty;
+	unsigned long prd, dty;
 	unsigned long long div;
 	unsigned int pres = 0;
+	u32 val;
 	int ret;
 
 	if (test_bit(PWMF_ENABLED, &pwm->flags) && (period_ns != pwm->period)) {
@@ -111,27 +113,25 @@ static int atmel_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		return -EBUSY;
 	}
 
-	clk_rate = clk_get_rate(atmel_pwm->clk);
-	div = clk_rate;
+	/* Calculate the period cycles and prescale value */
+	div = (unsigned long long)clk_get_rate(atmel_pwm->clk) * period_ns;
+	do_div(div, NSEC_PER_SEC);
 
-	/* Calculate the period cycles */
 	while (div > PWM_MAX_PRD) {
-		div = clk_rate / (1 << pres);
-		div = div * period_ns;
-		/* 1/Hz = 100000000 ns */
-		do_div(div, 1000000000);
+		div >>= 1;
+		pres++;
+	}
 
-		if (pres++ > PRD_MAX_PRES) {
-			dev_err(chip->dev, "pres exceeds the maximum value\n");
-			return -EINVAL;
-		}
+	if (pres > PRD_MAX_PRES) {
+		dev_err(chip->dev, "pres exceeds the maximum value\n");
+		return -EINVAL;
 	}
 
 	/* Calculate the duty cycles */
 	prd = div;
 	div *= duty_ns;
 	do_div(div, period_ns);
-	dty = div;
+	dty = prd - div;
 
 	ret = clk_enable(atmel_pwm->clk);
 	if (ret) {
@@ -139,7 +139,10 @@ static int atmel_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		return ret;
 	}
 
-	atmel_pwm_ch_writel(atmel_pwm, pwm->hwpwm, PWM_CMR, pres);
+	/* It is necessary to preserve CPOL, inside CMR */
+	val = atmel_pwm_ch_readl(atmel_pwm, pwm->hwpwm, PWM_CMR);
+	val = (val & ~PWM_CMR_CPRE_MSK) | (pres & PWM_CMR_CPRE_MSK);
+	atmel_pwm_ch_writel(atmel_pwm, pwm->hwpwm, PWM_CMR, val);
 	atmel_pwm->config(chip, pwm, dty, prd);
 
 	clk_disable(atmel_pwm->clk);
@@ -352,6 +355,7 @@ static int atmel_pwm_probe(struct platform_device *pdev)
 
 	atmel_pwm->chip.base = -1;
 	atmel_pwm->chip.npwm = 4;
+	atmel_pwm->chip.can_sleep = true;
 	atmel_pwm->config = data->config;
 
 	ret = pwmchip_add(&atmel_pwm->chip);

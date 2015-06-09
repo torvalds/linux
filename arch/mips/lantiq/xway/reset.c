@@ -14,6 +14,7 @@
 #include <linux/delay.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/reset-controller.h>
 
 #include <asm/reboot.h>
 
@@ -113,10 +114,77 @@ void ltq_reset_once(unsigned int module, ulong u)
 	ltq_rcu_w32(ltq_rcu_r32(RCU_RST_REQ) & ~module, RCU_RST_REQ);
 }
 
+static int ltq_assert_device(struct reset_controller_dev *rcdev,
+				unsigned long id)
+{
+	u32 val;
+
+	if (id < 8)
+		return -1;
+
+	val = ltq_rcu_r32(RCU_RST_REQ);
+	val |= BIT(id);
+	ltq_rcu_w32(val, RCU_RST_REQ);
+
+	return 0;
+}
+
+static int ltq_deassert_device(struct reset_controller_dev *rcdev,
+				  unsigned long id)
+{
+	u32 val;
+
+	if (id < 8)
+		return -1;
+
+	val = ltq_rcu_r32(RCU_RST_REQ);
+	val &= ~BIT(id);
+	ltq_rcu_w32(val, RCU_RST_REQ);
+
+	return 0;
+}
+
+static int ltq_reset_device(struct reset_controller_dev *rcdev,
+			       unsigned long id)
+{
+	ltq_assert_device(rcdev, id);
+	return ltq_deassert_device(rcdev, id);
+}
+
+static struct reset_control_ops reset_ops = {
+	.reset = ltq_reset_device,
+	.assert = ltq_assert_device,
+	.deassert = ltq_deassert_device,
+};
+
+static struct reset_controller_dev reset_dev = {
+	.ops			= &reset_ops,
+	.owner			= THIS_MODULE,
+	.nr_resets		= 32,
+	.of_reset_n_cells	= 1,
+};
+
+void ltq_rst_init(void)
+{
+	reset_dev.of_node = of_find_compatible_node(NULL, NULL,
+						"lantiq,xway-reset");
+	if (!reset_dev.of_node)
+		pr_err("Failed to find reset controller node");
+	else
+		reset_controller_register(&reset_dev);
+}
+
 static void ltq_machine_restart(char *command)
 {
+	u32 val = ltq_rcu_r32(RCU_RST_REQ);
+
+	if (of_device_is_compatible(ltq_rcu_np, "lantiq,rcu-xrx200"))
+		val |= RCU_RD_GPHY1_XRX200 | RCU_RD_GPHY0_XRX200;
+
+	val |= RCU_RD_SRST;
+
 	local_irq_disable();
-	ltq_rcu_w32(ltq_rcu_r32(RCU_RST_REQ) | RCU_RD_SRST, RCU_RST_REQ);
+	ltq_rcu_w32(val, RCU_RST_REQ);
 	unreachable();
 }
 

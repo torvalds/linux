@@ -16,7 +16,6 @@
 #define _LINUX_HUGETLB_CGROUP_H
 
 #include <linux/mmdebug.h>
-#include <linux/res_counter.h>
 
 struct hugetlb_cgroup;
 /*
@@ -49,7 +48,7 @@ int set_hugetlb_cgroup(struct page *page, struct hugetlb_cgroup *h_cg)
 
 static inline bool hugetlb_cgroup_disabled(void)
 {
-	if (hugetlb_subsys.disabled)
+	if (hugetlb_cgrp_subsys.disabled)
 		return true;
 	return false;
 }

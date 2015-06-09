@@ -148,6 +148,9 @@ static int lov_io_sub_init(const struct lu_env *env, struct lov_io *lio,
 	LASSERT(sub->sub_env == NULL);
 	LASSERT(sub->sub_stripe < lio->lis_stripe_count);
 
+	if (unlikely(lov_r0(lov)->lo_sub[stripe] == NULL))
+		return -EIO;
+
 	result = 0;
 	sub->sub_io_initialized = 0;
 	sub->sub_borrowed = 0;
@@ -194,6 +197,7 @@ static int lov_io_sub_init(const struct lu_env *env, struct lov_io *lio,
 		sub_io->ci_lockreq = io->ci_lockreq;
 		sub_io->ci_type    = io->ci_type;
 		sub_io->ci_no_srvlock = io->ci_no_srvlock;
+		sub_io->ci_noatime = io->ci_noatime;
 
 		lov_sub_enter(sub);
 		result = cl_io_sub_init(sub->sub_env, sub_io,
@@ -365,7 +369,7 @@ static void lov_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
 		wake_up_all(&lov->lo_waitq);
 }
 
-static obd_off lov_offset_mod(obd_off val, int delta)
+static u64 lov_offset_mod(u64 val, int delta)
 {
 	if (val != OBD_OBJECT_EOF)
 		val += delta;
@@ -378,9 +382,9 @@ static int lov_io_iter_init(const struct lu_env *env,
 	struct lov_io	*lio = cl2lov_io(env, ios);
 	struct lov_stripe_md *lsm = lio->lis_object->lo_lsm;
 	struct lov_io_sub    *sub;
-	obd_off endpos;
-	obd_off start;
-	obd_off end;
+	u64 endpos;
+	u64 start;
+	u64 end;
 	int stripe;
 	int rc = 0;
 
@@ -390,14 +394,23 @@ static int lov_io_iter_init(const struct lu_env *env,
 					   endpos, &start, &end))
 			continue;
 
-		end = lov_offset_mod(end, +1);
+		if (unlikely(lov_r0(lio->lis_object)->lo_sub[stripe] == NULL)) {
+			if (ios->cis_io->ci_type == CIT_READ ||
+			    ios->cis_io->ci_type == CIT_WRITE ||
+			    ios->cis_io->ci_type == CIT_FAULT)
+				return -EIO;
+
+			continue;
+		}
+
+		end = lov_offset_mod(end, 1);
 		sub = lov_sub_get(env, lio, stripe);
 		if (!IS_ERR(sub)) {
 			lov_io_sub_inherit(sub->sub_io, lio, stripe,
 					   start, end);
 			rc = cl_io_iter_init(sub->sub_env, sub->sub_io);
 			lov_sub_put(sub);
-			CDEBUG(D_VFSTRACE, "shrink: %d ["LPU64", "LPU64")\n",
+			CDEBUG(D_VFSTRACE, "shrink: %d [%llu, %llu)\n",
 			       stripe, start, end);
 		} else
 			rc = PTR_ERR(sub);
@@ -435,8 +448,8 @@ static int lov_io_rw_iter_init(const struct lu_env *env,
 					      next) - io->u.ci_rw.crw_pos;
 		lio->lis_pos    = io->u.ci_rw.crw_pos;
 		lio->lis_endpos = io->u.ci_rw.crw_pos + io->u.ci_rw.crw_count;
-		CDEBUG(D_VFSTRACE, "stripe: "LPU64" chunk: ["LPU64", "LPU64") "
-		       LPU64"\n", (__u64)start, lio->lis_pos, lio->lis_endpos,
+		CDEBUG(D_VFSTRACE, "stripe: %llu chunk: [%llu, %llu) %llu\n",
+		       (__u64)start, lio->lis_pos, lio->lis_endpos,
 		       (__u64)lio->lis_io_endpos);
 	}
 	/*
@@ -912,7 +925,7 @@ int lov_io_init_empty(const struct lu_env *env, struct cl_object *obj,
 		break;
 	case CIT_FSYNC:
 	case CIT_SETATTR:
-		result = +1;
+		result = 1;
 		break;
 	case CIT_WRITE:
 		result = -EBADF;

@@ -5,7 +5,7 @@
  *
  * Author: Frank Haverkamp <haver@linux.vnet.ibm.com>
  * Author: Joerg-Stephan Vogt <jsvogt@de.ibm.com>
- * Author: Michael Jung <mijung@de.ibm.com>
+ * Author: Michael Jung <mijung@gmx.net>
  * Author: Michael Ruettger <michael@ibmra.de>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -26,7 +26,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
@@ -245,14 +244,16 @@ static int genwqe_ddcb_info_show(struct seq_file *s, void *unused)
 		   "  ddcbs_in_flight:     %u\n"
 		   "  ddcbs_max_in_flight: %u\n"
 		   "  ddcbs_completed:     %u\n"
-		   "  busy:                %u\n"
+		   "  return_on_busy:      %u\n"
+		   "  wait_on_busy:        %u\n"
 		   "  irqs_processed:      %u\n",
 		   queue->ddcb_max, (long long)queue->ddcb_daddr,
 		   (long long)queue->ddcb_daddr +
 		   (queue->ddcb_max * DDCB_LENGTH),
 		   (long long)queue->ddcb_vaddr, queue->ddcbs_in_flight,
 		   queue->ddcbs_max_in_flight, queue->ddcbs_completed,
-		   queue->busy, cd->irqs_processed);
+		   queue->return_on_busy, queue->wait_on_busy,
+		   cd->irqs_processed);
 
 	/* Hardware State */
 	seq_printf(s, "  0x%08x 0x%016llx IO_QUEUE_CONFIG\n"
@@ -324,7 +325,7 @@ static int genwqe_info_show(struct seq_file *s, void *unused)
 		   "    Base Clock      : %u MHz\n"
 		   "    Arch/SVN Release: %u/%llx\n"
 		   "    Bitstream       : %llx\n",
-		   GENWQE_DEVNAME, DRV_VERS_STRING, dev_name(&pci_dev->dev),
+		   GENWQE_DEVNAME, DRV_VERSION, dev_name(&pci_dev->dev),
 		   genwqe_is_privileged(cd) ?
 		   "Physical" : "Virtual or no SR-IOV",
 		   cd->card_idx, slu_id, app_id,
@@ -349,7 +350,7 @@ int genwqe_init_debugfs(struct genwqe_dev *cd)
 	char name[64];
 	unsigned int i;
 
-	sprintf(card_name, "%s%u_card", GENWQE_DEVNAME, cd->card_idx);
+	sprintf(card_name, "%s%d_card", GENWQE_DEVNAME, cd->card_idx);
 
 	root = debugfs_create_dir(card_name, cd->debugfs_genwqe);
 	if (!root) {
@@ -455,7 +456,7 @@ int genwqe_init_debugfs(struct genwqe_dev *cd)
 	}
 
 	for (i = 0; i <  GENWQE_MAX_VFS; i++) {
-		sprintf(name, "vf%d_jobtimeout_msec", i);
+		sprintf(name, "vf%u_jobtimeout_msec", i);
 
 		file = debugfs_create_u32(name, 0666, root,
 					  &cd->vf_jobtimeout_msec[i]);
@@ -481,6 +482,13 @@ int genwqe_init_debugfs(struct genwqe_dev *cd)
 
 	file = debugfs_create_u32("skip_recovery", 0666, root,
 				  &cd->skip_recovery);
+	if (!file) {
+		ret = -ENOMEM;
+		goto err1;
+	}
+
+	file = debugfs_create_u32("use_platform_recovery", 0666, root,
+				  &cd->use_platform_recovery);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;

@@ -73,10 +73,17 @@ struct nf_conn_help {
 
 struct nf_conn {
 	/* Usage count in here is 1 for hash table/destruct timer, 1 per skb,
-           plus 1 for any connection(s) we are `master' for */
+	 * plus 1 for any connection(s) we are `master' for
+	 *
+	 * Hint, SKB address this struct and refcnt via skb->nfct and
+	 * helpers nf_conntrack_get() and nf_conntrack_put().
+	 * Helper nf_ct_put() equals nf_conntrack_put() by dec refcnt,
+	 * beware nf_ct_get() is different and don't inc refcnt.
+	 */
 	struct nf_conntrack ct_general;
 
-	spinlock_t lock;
+	spinlock_t	lock;
+	u16		cpu;
 
 	/* XXX should I move this to the tail ? - Y.K */
 	/* These are my tuples; original and reply */
@@ -85,11 +92,16 @@ struct nf_conn {
 	/* Have we seen traffic both ways yet? (bitset) */
 	unsigned long status;
 
-	/* If we were expected by an expectation, this will be it */
-	struct nf_conn *master;
-
 	/* Timer function; drops refcnt when it goes off. */
 	struct timer_list timeout;
+
+	possible_net_t ct_net;
+
+	/* all members below initialized via memset */
+	u8 __nfct_init_offset[0];
+
+	/* If we were expected by an expectation, this will be it */
+	struct nf_conn *master;
 
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	u_int32_t mark;
@@ -101,9 +113,6 @@ struct nf_conn {
 
 	/* Extensions */
 	struct nf_ct_ext *ext;
-#ifdef CONFIG_NET_NS
-	struct net *ct_net;
-#endif
 
 	/* Storage reserved for other modules, must be the last member */
 	union nf_conntrack_proto proto;
@@ -181,8 +190,6 @@ __nf_conntrack_find(struct net *net, u16 zone,
 int nf_conntrack_hash_check_insert(struct nf_conn *ct);
 bool nf_ct_delete(struct nf_conn *ct, u32 pid, int report);
 
-void nf_conntrack_flush_report(struct net *net, u32 portid, int report);
-
 bool nf_ct_get_tuplepr(const struct sk_buff *skb, unsigned int nhoff,
 		       u_int16_t l3num, struct nf_conntrack_tuple *tuple);
 bool nf_ct_invert_tuplepr(struct nf_conntrack_tuple *inverse,
@@ -235,7 +242,7 @@ extern s32 (*nf_ct_nat_offset)(const struct nf_conn *ct,
 DECLARE_PER_CPU(struct nf_conn, nf_conntrack_untracked);
 static inline struct nf_conn *nf_ct_untracked_get(void)
 {
-	return &__raw_get_cpu_var(nf_conntrack_untracked);
+	return raw_cpu_ptr(&nf_conntrack_untracked);
 }
 void nf_ct_untracked_status_or(unsigned long bits);
 

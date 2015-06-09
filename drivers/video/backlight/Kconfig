@@ -29,7 +29,7 @@ if LCD_CLASS_DEVICE
 
 config LCD_CORGI
 	tristate "LCD Panel support for SHARP corgi/spitz model"
-	depends on SPI_MASTER && PXA_SHARPSL
+	depends on SPI_MASTER && PXA_SHARPSL && BACKLIGHT_CLASS_DEVICE
 	help
 	  Say y here to support the LCD panels usually found on SHARP
 	  corgi (C7x0) and spitz (Cxx00) models.
@@ -168,7 +168,6 @@ if BACKLIGHT_CLASS_DEVICE
 config BACKLIGHT_ATMEL_LCDC
 	bool "Atmel LCDC Contrast-as-Backlight control"
 	depends on FB_ATMEL
-	default y if MACH_AT91SAM9261EK || MACH_AT91SAM9G10EK || MACH_AT91SAM9263EK
 	help
 	  This provides a backlight control internal to the Atmel LCDC
 	  driver.  If the LCD "contrast control" on your board is wired
@@ -177,17 +176,6 @@ config BACKLIGHT_ATMEL_LCDC
 
 	  If in doubt, it's safe to enable this option; it doesn't kick
 	  in unless the board's description says it's wired that way.
-
-config BACKLIGHT_ATMEL_PWM
-	tristate "Atmel PWM backlight control"
-	depends on ATMEL_PWM
-	help
-	  Say Y here if you want to use the PWM peripheral in Atmel AT91 and
-	  AVR32 devices. This driver will need additional platform data to know
-	  which PWM instance to use and how to configure it.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called atmel-pwm-bl.
 
 config BACKLIGHT_EP93XX
 	tristate "Cirrus EP93xx Backlight Driver"
@@ -206,6 +194,15 @@ config BACKLIGHT_GENERIC
 	  Say y to enable the generic platform backlight driver previously
 	  known as the Corgi backlight driver. If you have a Sharp Zaurus
 	  SL-C7xx, SL-Cxx00 or SL-6000x say y.
+
+config BACKLIGHT_IPAQ_MICRO
+	tristate "iPAQ microcontroller backlight driver"
+	depends on MFD_IPAQ_MICRO
+	default y
+	help
+	  Say y to enable the backlight driver for Compaq iPAQ handheld
+	  computers. Say yes if you have one of the h3100/h3600/h3700
+	  machines.
 
 config BACKLIGHT_LM3533
 	tristate "Backlight Driver for LM3533"
@@ -370,7 +367,7 @@ config BACKLIGHT_AAT2870
 
 config BACKLIGHT_LM3630A
 	tristate "Backlight Driver for LM3630A"
-	depends on BACKLIGHT_CLASS_DEVICE && I2C
+	depends on BACKLIGHT_CLASS_DEVICE && I2C && PWM
 	select REGMAP_I2C
 	help
 	  This supports TI LM3630A Backlight Driver
@@ -386,14 +383,14 @@ config BACKLIGHT_LM3639
 
 config BACKLIGHT_LP855X
 	tristate "Backlight driver for TI LP855X"
-	depends on BACKLIGHT_CLASS_DEVICE && I2C
+	depends on BACKLIGHT_CLASS_DEVICE && I2C && PWM
 	help
 	  This supports TI LP8550, LP8551, LP8552, LP8553, LP8555, LP8556 and
 	  LP8557 backlight driver.
 
 config BACKLIGHT_LP8788
 	tristate "Backlight driver for TI LP8788 MFD"
-	depends on BACKLIGHT_CLASS_DEVICE && MFD_LP8788
+	depends on BACKLIGHT_CLASS_DEVICE && MFD_LP8788 && PWM
 	help
 	  This supports TI LP8788 backlight driver.
 
@@ -410,6 +407,16 @@ config BACKLIGHT_PANDORA
 	help
 	  If you have a Pandora console, say Y to enable the
 	  backlight driver.
+
+config BACKLIGHT_SKY81452
+	tristate "Backlight driver for SKY81452"
+	depends on BACKLIGHT_CLASS_DEVICE && MFD_SKY81452
+	help
+	  If you have a Skyworks SKY81452, say Y to enable the
+	  backlight driver.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called sky81452-backlight
 
 config BACKLIGHT_TPS65217
 	tristate "TPS65217 Backlight"

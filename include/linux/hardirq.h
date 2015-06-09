@@ -9,6 +9,7 @@
 
 
 extern void synchronize_irq(unsigned int irq);
+extern bool synchronize_hardirq(unsigned int irq);
 
 #if defined(CONFIG_TINY_RCU)
 

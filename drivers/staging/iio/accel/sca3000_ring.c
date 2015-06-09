@@ -117,7 +117,7 @@ static int sca3000_read_first_n_hw_rb(struct iio_buffer *r,
 		goto error_ret;
 
 	for (i = 0; i < num_read; i++)
-		*(((u16 *)rx) + i) = be16_to_cpup((u16 *)rx + i);
+		*(((u16 *)rx) + i) = be16_to_cpup((__be16 *)rx + i);
 
 	if (copy_to_user(buf, rx, num_read))
 		ret = -EFAULT;
@@ -129,20 +129,10 @@ error_ret:
 	return ret ? ret : num_read;
 }
 
-/* This is only valid with all 3 elements enabled */
-static int sca3000_ring_get_length(struct iio_buffer *r)
+static size_t sca3000_ring_buf_data_available(struct iio_buffer *r)
 {
-	return 64;
+	return r->stufftoread ? r->watermark : 0;
 }
-
-/* only valid if resolution is kept at 11bits */
-static int sca3000_ring_get_bytes_per_datum(struct iio_buffer *r)
-{
-	return 6;
-}
-
-static IIO_BUFFER_ENABLE_ATTR;
-static IIO_BUFFER_LENGTH_ATTR;
 
 /**
  * sca3000_query_ring_int() is the hardware ring status interrupt enabled
@@ -233,18 +223,11 @@ static IIO_DEVICE_ATTR(in_accel_scale,
  * only apply to the ring buffer.  At all times full rate and accuracy
  * is available via direct reading from registers.
  */
-static struct attribute *sca3000_ring_attributes[] = {
-	&dev_attr_length.attr,
-	&dev_attr_enable.attr,
+static const struct attribute *sca3000_ring_attributes[] = {
 	&iio_dev_attr_50_percent.dev_attr.attr,
 	&iio_dev_attr_75_percent.dev_attr.attr,
 	&iio_dev_attr_in_accel_scale.dev_attr.attr,
 	NULL,
-};
-
-static struct attribute_group sca3000_ring_attr = {
-	.attrs = sca3000_ring_attributes,
-	.name = "buffer",
 };
 
 static struct iio_buffer *sca3000_rb_allocate(struct iio_dev *indio_dev)
@@ -259,7 +242,8 @@ static struct iio_buffer *sca3000_rb_allocate(struct iio_dev *indio_dev)
 	ring->private = indio_dev;
 	buf = &ring->buf;
 	buf->stufftoread = 0;
-	buf->attrs = &sca3000_ring_attr;
+	buf->length = 64;
+	buf->attrs = sca3000_ring_attributes;
 	iio_buffer_init(buf);
 
 	return buf;
@@ -272,8 +256,7 @@ static void sca3000_ring_release(struct iio_buffer *r)
 
 static const struct iio_buffer_access_funcs sca3000_ring_access_funcs = {
 	.read_first_n = &sca3000_read_first_n_hw_rb,
-	.get_length = &sca3000_ring_get_length,
-	.get_bytes_per_datum = &sca3000_ring_get_bytes_per_datum,
+	.data_available = sca3000_ring_buf_data_available,
 	.release = sca3000_ring_release,
 };
 
@@ -309,7 +292,7 @@ int __sca3000_hw_ring_state_set(struct iio_dev *indio_dev, bool state)
 	if (ret)
 		goto error_ret;
 	if (state) {
-		printk(KERN_INFO "supposedly enabling ring buffer\n");
+		dev_info(&indio_dev->dev, "supposedly enabling ring buffer\n");
 		ret = sca3000_write_reg(st,
 					SCA3000_REG_ADDR_MODE,
 					(st->rx[0] | SCA3000_RING_BUF_ENABLE));

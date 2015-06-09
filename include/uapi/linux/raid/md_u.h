@@ -39,7 +39,6 @@
 #define RAID_VERSION		_IOR (MD_MAJOR, 0x10, mdu_version_t)
 #define GET_ARRAY_INFO		_IOR (MD_MAJOR, 0x11, mdu_array_info_t)
 #define GET_DISK_INFO		_IOR (MD_MAJOR, 0x12, mdu_disk_info_t)
-#define PRINT_RAID_DEBUG	_IO (MD_MAJOR, 0x13)
 #define RAID_AUTORUN		_IO (MD_MAJOR, 0x14)
 #define GET_BITMAP_FILE		_IOR (MD_MAJOR, 0x15, mdu_bitmap_file_t)
 
@@ -63,6 +62,7 @@
 #define STOP_ARRAY		_IO (MD_MAJOR, 0x32)
 #define STOP_ARRAY_RO		_IO (MD_MAJOR, 0x33)
 #define RESTART_ARRAY_RW	_IO (MD_MAJOR, 0x34)
+#define CLUSTERED_DISK_NACK	_IO (MD_MAJOR, 0x35)
 
 /* 63 partitions with the alternate major number (mdp) */
 #define MdpMinorShift 6

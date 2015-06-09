@@ -7,8 +7,8 @@
  *
  */
 
-#ifndef CAN_SKB_H
-#define CAN_SKB_H
+#ifndef _CAN_SKB_H
+#define _CAN_SKB_H
 
 #include <linux/types.h>
 #include <linux/skbuff.h>
@@ -44,16 +44,11 @@ static inline void can_skb_reserve(struct sk_buff *skb)
 	skb_reserve(skb, sizeof(struct can_skb_priv));
 }
 
-static inline void can_skb_destructor(struct sk_buff *skb)
-{
-	sock_put(skb->sk);
-}
-
 static inline void can_skb_set_owner(struct sk_buff *skb, struct sock *sk)
 {
 	if (sk) {
 		sock_hold(sk);
-		skb->destructor = can_skb_destructor;
+		skb->destructor = sock_efree;
 		skb->sk = sk;
 	}
 }
@@ -80,4 +75,4 @@ static inline struct sk_buff *can_create_echo_skb(struct sk_buff *skb)
 	return skb;
 }
 
-#endif /* CAN_SKB_H */
+#endif /* !_CAN_SKB_H */

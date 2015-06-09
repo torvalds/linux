@@ -26,7 +26,6 @@
 #include <mach/regs-clock.h>
 
 #include <plat/cpu.h>
-#include <plat/clock.h>
 #include <plat/cpu-freq-core.h>
 
 /* Note, 2410A has an extra mode for 1:4:4 ratio, bit 2 of CLKDIV */
@@ -104,7 +103,6 @@ static struct s3c_cpufreq_info s3c2410_cpufreq_info = {
 	.calc_iotiming	= s3c2410_iotiming_calc,
 	.set_iotiming	= s3c2410_iotiming_set,
 	.get_iotiming	= s3c2410_iotiming_get,
-	.resume_clocks	= s3c2410_setup_clocks,
 
 	.set_fvco	= s3c2410_set_fvco,
 	.set_refresh	= s3c2410_cpufreq_setrefresh,

@@ -113,7 +113,7 @@ kvp_register(int reg_value)
 		kvp_msg->kvp_hdr.operation = reg_value;
 		strcpy(version, HV_DRV_VERSION);
 		msg->len = sizeof(struct hv_kvp_msg);
-		cn_netlink_send(msg, 0, GFP_ATOMIC);
+		cn_netlink_send(msg, 0, 0, GFP_ATOMIC);
 		kfree(msg);
 	}
 }
@@ -126,6 +126,17 @@ kvp_work_func(struct work_struct *dummy)
 	 */
 	kvp_respond_to_host(NULL, HV_E_FAIL);
 }
+
+static void poll_channel(struct vmbus_channel *channel)
+{
+	if (channel->target_cpu != smp_processor_id())
+		smp_call_function_single(channel->target_cpu,
+					 hv_kvp_onchannelcallback,
+					 channel, true);
+	else
+		hv_kvp_onchannelcallback(channel);
+}
+
 
 static int kvp_handle_handshake(struct hv_kvp_msg *msg)
 {
@@ -155,7 +166,7 @@ static int kvp_handle_handshake(struct hv_kvp_msg *msg)
 		kvp_register(dm_reg_value);
 		kvp_transaction.active = false;
 		if (kvp_transaction.kvp_context)
-			hv_kvp_onchannelcallback(kvp_transaction.kvp_context);
+			poll_channel(kvp_transaction.kvp_context);
 	}
 	return ret;
 }
@@ -339,6 +350,7 @@ kvp_send_key(struct work_struct *dummy)
 	__u8 pool = kvp_transaction.kvp_msg->kvp_hdr.pool;
 	__u32 val32;
 	__u64 val64;
+	int rc;
 
 	msg = kzalloc(sizeof(*msg) + sizeof(struct hv_kvp_msg) , GFP_ATOMIC);
 	if (!msg)
@@ -435,7 +447,13 @@ kvp_send_key(struct work_struct *dummy)
 	}
 
 	msg->len = sizeof(struct hv_kvp_msg);
-	cn_netlink_send(msg, 0, GFP_ATOMIC);
+	rc = cn_netlink_send(msg, 0, 0, GFP_ATOMIC);
+	if (rc) {
+		pr_debug("KVP: failed to communicate to the daemon: %d\n", rc);
+		if (cancel_delayed_work_sync(&kvp_work))
+			kvp_respond_to_host(message, HV_E_FAIL);
+	}
+
 	kfree(msg);
 
 	return;
@@ -568,7 +586,7 @@ response_done:
 
 	vmbus_sendpacket(channel, recv_buffer, buf_len, req_id,
 				VM_PKT_DATA_INBAND, 0);
-
+	poll_channel(channel);
 }
 
 /*
@@ -603,7 +621,7 @@ void hv_kvp_onchannelcallback(void *context)
 		return;
 	}
 
-	vmbus_recvpacket(channel, recv_buffer, PAGE_SIZE * 2, &recvlen,
+	vmbus_recvpacket(channel, recv_buffer, PAGE_SIZE * 4, &recvlen,
 			 &requestid);
 
 	if (recvlen > 0) {

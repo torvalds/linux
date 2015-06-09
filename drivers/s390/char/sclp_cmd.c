@@ -37,6 +37,11 @@ static void sclp_sync_callback(struct sclp_req *req, void *data)
 
 int sclp_sync_request(sclp_cmdw_t cmd, void *sccb)
 {
+	return sclp_sync_request_timeout(cmd, sccb, 0);
+}
+
+int sclp_sync_request_timeout(sclp_cmdw_t cmd, void *sccb, int timeout)
+{
 	struct completion completion;
 	struct sclp_req *request;
 	int rc;
@@ -44,6 +49,8 @@ int sclp_sync_request(sclp_cmdw_t cmd, void *sccb)
 	request = kzalloc(sizeof(*request), GFP_KERNEL);
 	if (!request)
 		return -ENOMEM;
+	if (timeout)
+		request->queue_timeout = timeout;
 	request->command = cmd;
 	request->sccb = sccb;
 	request->status = SCLP_REQ_FILLED;
@@ -110,7 +117,8 @@ int sclp_get_cpu_info(struct sclp_cpu_info *info)
 	if (!sccb)
 		return -ENOMEM;
 	sccb->header.length = sizeof(*sccb);
-	rc = sclp_sync_request(SCLP_CMDW_READ_CPU_INFO, sccb);
+	rc = sclp_sync_request_timeout(SCLP_CMDW_READ_CPU_INFO, sccb,
+				       SCLP_QUEUE_INTERVAL);
 	if (rc)
 		goto out;
 	if (sccb->header.response_code != 0x0010) {
@@ -144,7 +152,7 @@ static int do_cpu_configure(sclp_cmdw_t cmd)
 	if (!sccb)
 		return -ENOMEM;
 	sccb->header.length = sizeof(*sccb);
-	rc = sclp_sync_request(cmd, sccb);
+	rc = sclp_sync_request_timeout(cmd, sccb, SCLP_QUEUE_INTERVAL);
 	if (rc)
 		goto out;
 	switch (sccb->header.response_code) {
@@ -214,7 +222,7 @@ static int do_assign_storage(sclp_cmdw_t cmd, u16 rn)
 		return -ENOMEM;
 	sccb->header.length = PAGE_SIZE;
 	sccb->rn = rn;
-	rc = sclp_sync_request(cmd, sccb);
+	rc = sclp_sync_request_timeout(cmd, sccb, SCLP_QUEUE_INTERVAL);
 	if (rc)
 		goto out;
 	switch (sccb->header.response_code) {
@@ -269,7 +277,8 @@ static int sclp_attach_storage(u8 id)
 	if (!sccb)
 		return -ENOMEM;
 	sccb->header.length = PAGE_SIZE;
-	rc = sclp_sync_request(0x00080001 | id << 8, sccb);
+	rc = sclp_sync_request_timeout(0x00080001 | id << 8, sccb,
+				       SCLP_QUEUE_INTERVAL);
 	if (rc)
 		goto out;
 	switch (sccb->header.response_code) {
@@ -306,8 +315,27 @@ static int sclp_mem_change_state(unsigned long start, unsigned long size,
 			rc |= sclp_assign_storage(incr->rn);
 		else
 			sclp_unassign_storage(incr->rn);
+		if (rc == 0)
+			incr->standby = online ? 0 : 1;
 	}
 	return rc ? -EIO : 0;
+}
+
+static bool contains_standby_increment(unsigned long start, unsigned long end)
+{
+	struct memory_increment *incr;
+	unsigned long istart;
+
+	list_for_each_entry(incr, &sclp_mem_list, list) {
+		istart = rn2addr(incr->rn);
+		if (end - 1 < istart)
+			continue;
+		if (start > istart + sclp_rzm - 1)
+			continue;
+		if (incr->standby)
+			return true;
+	}
+	return false;
 }
 
 static int sclp_mem_notifier(struct notifier_block *nb,
@@ -325,8 +353,16 @@ static int sclp_mem_notifier(struct notifier_block *nb,
 	for_each_clear_bit(id, sclp_storage_ids, sclp_max_storage_id + 1)
 		sclp_attach_storage(id);
 	switch (action) {
-	case MEM_ONLINE:
 	case MEM_GOING_OFFLINE:
+		/*
+		 * We do not allow to set memory blocks offline that contain
+		 * standby memory. This is done to simplify the "memory online"
+		 * case.
+		 */
+		if (contains_standby_increment(start, start + size))
+			rc = -EPERM;
+		break;
+	case MEM_ONLINE:
 	case MEM_CANCEL_OFFLINE:
 		break;
 	case MEM_GOING_ONLINE:
@@ -352,6 +388,21 @@ static struct notifier_block sclp_mem_nb = {
 	.notifier_call = sclp_mem_notifier,
 };
 
+static void __init align_to_block_size(unsigned long long *start,
+				       unsigned long long *size)
+{
+	unsigned long long start_align, size_align, alignment;
+
+	alignment = memory_block_size_bytes();
+	start_align = roundup(*start, alignment);
+	size_align = rounddown(*start + *size, alignment) - start_align;
+
+	pr_info("Standby memory at 0x%llx (%lluM of %lluM usable)\n",
+		*start, size_align >> 20, *size >> 20);
+	*start = start_align;
+	*size = size_align;
+}
+
 static void __init add_memory_merged(u16 rn)
 {
 	static u16 first_rn, num;
@@ -373,7 +424,9 @@ static void __init add_memory_merged(u16 rn)
 		goto skip_add;
 	if (memory_end_set && (start + size > memory_end))
 		size = memory_end - start;
-	add_memory(0, start, size);
+	align_to_block_size(&start, &size);
+	if (size)
+		add_memory(0, start, size);
 skip_add:
 	first_rn = rn;
 	num = 1;
@@ -506,7 +559,7 @@ static int __init sclp_detect_standby_memory(void)
 	if (rc)
 		goto out;
 	sclp_pdev = platform_device_register_simple("sclp_mem", -1, NULL, 0);
-	rc = PTR_RET(sclp_pdev);
+	rc = PTR_ERR_OR_ZERO(sclp_pdev);
 	if (rc)
 		goto out_driver;
 	sclp_add_standby_memory();

@@ -216,14 +216,10 @@ struct net_device * __init mac89x0_probe(int unit)
 	ioaddr = (unsigned long)
 		nubus_slot_addr(slot) | (((slot&0xf) << 20) + DEFAULTIOBASE);
 	{
-		unsigned long flags;
 		int card_present;
 
-		local_irq_save(flags);
-		card_present = (hwreg_present((void*) ioaddr+4) &&
-				hwreg_present((void*) ioaddr + DATA_PORT));
-		local_irq_restore(flags);
-
+		card_present = (hwreg_present((void *)ioaddr + 4) &&
+				hwreg_present((void *)ioaddr + DATA_PORT));
 		if (!card_present)
 			goto out;
 	}

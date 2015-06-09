@@ -305,7 +305,16 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 	/* Try to remap memory */
 	size = vma->vm_end - vma->vm_start;
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	retval = vm_iomap_memory(vma, vma->vm_start, size);
+
+	/* the "vm_pgoff" is just used in v4l2 to find the
+	 * corresponding buffer data structure which is allocated
+	 * earlier and it does not mean the offset from the physical
+	 * buffer start address as usual. So set it to 0 to pass
+	 * the sanity check in vm_iomap_memory().
+	 */
+	vma->vm_pgoff = 0;
+
+	retval = vm_iomap_memory(vma, mem->dma_handle, size);
 	if (retval) {
 		dev_err(q->dev, "mmap: remap failed with error %d. ",
 			retval);

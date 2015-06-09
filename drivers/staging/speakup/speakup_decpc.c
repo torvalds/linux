@@ -164,30 +164,30 @@ static struct var_t vars[] = {
  * These attributes will appear in /sys/accessibility/speakup/decpc.
  */
 static struct kobj_attribute caps_start_attribute =
-	__ATTR(caps_start, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(caps_start, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute caps_stop_attribute =
-	__ATTR(caps_stop, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(caps_stop, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute pitch_attribute =
-	__ATTR(pitch, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(pitch, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute punct_attribute =
-	__ATTR(punct, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(punct, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute rate_attribute =
-	__ATTR(rate, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(rate, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute voice_attribute =
-	__ATTR(voice, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(voice, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute vol_attribute =
-	__ATTR(vol, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(vol, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 
 static struct kobj_attribute delay_time_attribute =
-	__ATTR(delay_time, ROOT_W, spk_var_show, spk_var_store);
+	__ATTR(delay_time, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute direct_attribute =
-	__ATTR(direct, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(direct, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute full_time_attribute =
-	__ATTR(full_time, ROOT_W, spk_var_show, spk_var_store);
+	__ATTR(full_time, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute jiffy_delta_attribute =
-	__ATTR(jiffy_delta, ROOT_W, spk_var_show, spk_var_store);
+	__ATTR(jiffy_delta, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute trigger_time_attribute =
-	__ATTR(trigger_time, ROOT_W, spk_var_show, spk_var_store);
+	__ATTR(trigger_time, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 
 /*
  * Create a group of attributes so that we can create and destroy them all
@@ -260,6 +260,7 @@ static void dt_sendcmd(u_int cmd)
 static int dt_waitbit(int bit)
 {
 	int timeout = 100;
+
 	while (--timeout > 0) {
 		if ((dt_getstatus() & bit) == bit)
 			return 1;
@@ -271,6 +272,7 @@ static int dt_waitbit(int bit)
 static int dt_wait_dma(void)
 {
 	int timeout = 100, state = dma_state;
+
 	if (!dt_waitbit(STAT_dma_ready))
 		return 0;
 	while (--timeout > 0) {
@@ -285,6 +287,7 @@ static int dt_wait_dma(void)
 static int dt_ctrl(u_int cmd)
 {
 	int timeout = 10;
+
 	if (!dt_waitbit(STAT_cmd_ready))
 		return -1;
 	outb_p(0, speakup_info.port_tts+2);
@@ -304,6 +307,7 @@ static int dt_ctrl(u_int cmd)
 static void synth_flush(struct spk_synth *synth)
 {
 	int timeout = 10;
+
 	if (is_flushing)
 		return;
 	is_flushing = 4;
@@ -346,6 +350,7 @@ static int dt_sendchar(char ch)
 static int testkernel(void)
 {
 	int status = 0;
+
 	if (dt_getstatus() == 0xffff) {
 		status = -1;
 		goto oops;
@@ -415,13 +420,15 @@ static void do_catch_up(struct spk_synth *synth)
 		else if (ch <= SPACE) {
 			if (!in_escape && strchr(",.!?;:", last))
 				dt_sendchar(PROCSPEECH);
-			if (jiffies >= jiff_max) {
+			if (time_after_eq(jiffies, jiff_max)) {
 				if (!in_escape)
 					dt_sendchar(PROCSPEECH);
-				spin_lock_irqsave(&speakup_info.spinlock, flags);
+				spin_lock_irqsave(&speakup_info.spinlock,
+							flags);
 				jiffy_delta_val = jiffy_delta->u.n.value;
 				delay_time_val = delay_time->u.n.value;
-				spin_unlock_irqrestore(&speakup_info.spinlock, flags);
+				spin_unlock_irqrestore(&speakup_info.spinlock,
+							flags);
 				schedule_timeout(msecs_to_jiffies
 						 (delay_time_val));
 				jiff_max = jiffies + jiffy_delta_val;
@@ -437,6 +444,7 @@ static void do_catch_up(struct spk_synth *synth)
 static const char *synth_immediate(struct spk_synth *synth, const char *buf)
 {
 	u_char ch;
+
 	while ((ch = *buf)) {
 		if (ch == '\n')
 			ch = PROCSPEECH;
@@ -450,6 +458,7 @@ static const char *synth_immediate(struct spk_synth *synth, const char *buf)
 static int synth_probe(struct spk_synth *synth)
 {
 	int i = 0, failed = 0;
+
 	pr_info("Probing for %s.\n", synth->long_name);
 	for (i = 0; synth_portlist[i]; i++) {
 		if (synth_request_region(synth_portlist[i], SYNTH_IO_EXTENT)) {
@@ -484,18 +493,8 @@ module_param_named(start, synth_dec_pc.startup, short, S_IRUGO);
 
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
 
-static int __init decpc_init(void)
-{
-	return synth_add(&synth_dec_pc);
-}
+module_spk_synth(synth_dec_pc);
 
-static void __exit decpc_exit(void)
-{
-	synth_remove(&synth_dec_pc);
-}
-
-module_init(decpc_init);
-module_exit(decpc_exit);
 MODULE_AUTHOR("Kirk Reiser <kirk@braille.uwo.ca>");
 MODULE_AUTHOR("David Borowski");
 MODULE_DESCRIPTION("Speakup support for DECtalk PC synthesizers");

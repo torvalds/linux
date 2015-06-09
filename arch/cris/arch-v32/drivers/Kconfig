@@ -11,7 +11,6 @@ config ETRAX_ETHERNET
 config ETRAX_NO_PHY
 	bool "PHY not present"
 	depends on ETRAX_ETHERNET
-	default N
 	help
 	  This option disables all MDIO communication with an ethernet
 	  transceiver connected to the MII interface. This option shall
@@ -109,6 +108,7 @@ config ETRAX_AXISFLASHMAP
 	select MTD_JEDECPROBE
 	select MTD_BLOCK
 	select MTD_COMPLEX_MAPPINGS
+	select MTD_MTDRAM
 	help
 	  This option enables MTD mapping of flash devices.  Needed to use
 	  flash memories.  If unsure, say Y.
@@ -116,7 +116,6 @@ config ETRAX_AXISFLASHMAP
 config ETRAX_AXISFLASHMAP_MTD0WHOLE
 	bool "MTD0 is whole boot flash device"
 	depends on ETRAX_AXISFLASHMAP
-	default N
 	help
 	  When this option is not set, mtd0 refers to the first partition
 	  on the boot flash device. When set, mtd0 refers to the whole
@@ -360,13 +359,6 @@ config ETRAX_SPI_MMC
 	default MMC
 	select SPI
 	select MMC_SPI
-	select ETRAX_SPI_MMC_BOARD
-
-# For the parts that can't be a module (due to restrictions in
-# framework elsewhere).
-config ETRAX_SPI_MMC_BOARD
-       boolean
-       default n
 
 # While the board info is MMC_SPI only, the drivers are written to be
 # independent of MMC_SPI, so we'll keep SPI non-dependent on the

@@ -350,7 +350,7 @@ V.  Recent Changes
     incorrectly defined and corrected (as per Michel Mueller).
 
 02/23/1999 EPK Corrected the Tx full check to check that at least 4 slots
-    were available before reseting the tbusy and tx_full flags
+    were available before resetting the tbusy and tx_full flags
     (as per Michel Mueller).
 
 03/11/1999 EPK Added Pete Wyckoff's hardware checksumming support.
@@ -724,10 +724,8 @@ static int hamachi_init_one(struct pci_dev *pdev,
 
 	/* The Hamachi-specific entries in the device structure. */
 	dev->netdev_ops = &hamachi_netdev_ops;
-	if (chip_tbl[hmp->chip_id].flags & CanHaveMII)
-		SET_ETHTOOL_OPS(dev, &ethtool_ops);
-	else
-		SET_ETHTOOL_OPS(dev, &ethtool_ops_no_mii);
+	dev->ethtool_ops = (chip_tbl[hmp->chip_id].flags & CanHaveMII) ?
+		&ethtool_ops : &ethtool_ops_no_mii;
 	dev->watchdog_timeo = TX_TIMEOUT;
 	if (mtu)
 		dev->mtu = mtu;
@@ -1913,7 +1911,7 @@ static void hamachi_remove_one(struct pci_dev *pdev)
 	}
 }
 
-static DEFINE_PCI_DEVICE_TABLE(hamachi_pci_tbl) = {
+static const struct pci_device_id hamachi_pci_tbl[] = {
 	{ 0x1318, 0x0911, PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0, }
 };

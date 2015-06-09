@@ -11,5 +11,5 @@
 #include "stih41x-b2020.dtsi"
 / {
 	model = "STiH415 B2020 Board";
-	compatible = "st,stih415", "st,stih415-b2020";
+	compatible = "st,stih415-b2020", "st,stih415";
 };

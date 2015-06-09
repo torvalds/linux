@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/module.h>
+#include <linux/bitops.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -68,8 +69,9 @@ static int ad2s1200_read_raw(struct iio_dev *indio_dev,
 		break;
 	case IIO_ANGL_VEL:
 		vel = (((s16)(st->rx[0])) << 4) | ((st->rx[1] & 0xF0) >> 4);
-		vel = (vel << 4) >> 4;
+		vel = sign_extend32(vel, 11);
 		*val = vel;
+		break;
 	default:
 		mutex_unlock(&st->lock);
 		return -EINVAL;
@@ -106,7 +108,7 @@ static int ad2s1200_probe(struct spi_device *spi)
 	int pn, ret = 0;
 	unsigned short *pins = spi->dev.platform_data;
 
-	for (pn = 0; pn < AD2S1200_PN; pn++)
+	for (pn = 0; pn < AD2S1200_PN; pn++) {
 		ret = devm_gpio_request_one(&spi->dev, pins[pn], GPIOF_DIR_OUT,
 					    DRV_NAME);
 		if (ret) {
@@ -114,6 +116,7 @@ static int ad2s1200_probe(struct spi_device *spi)
 							pins[pn]);
 			return ret;
 		}
+	}
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
 		return -ENOMEM;

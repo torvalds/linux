@@ -501,7 +501,7 @@ static ssize_t picolcd_fb_update_rate_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(fb_update_rate, 0666, picolcd_fb_update_rate_show,
+static DEVICE_ATTR(fb_update_rate, 0664, picolcd_fb_update_rate_show,
 		picolcd_fb_update_rate_store);
 
 /* initialize Framebuffer device */

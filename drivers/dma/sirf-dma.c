@@ -18,6 +18,7 @@
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/clk.h>
+#include <linux/of_dma.h>
 #include <linux/sirfsoc_dma.h>
 
 #include "dmaengine.h"
@@ -280,9 +281,10 @@ static dma_cookie_t sirfsoc_dma_tx_submit(struct dma_async_tx_descriptor *txd)
 	return cookie;
 }
 
-static int sirfsoc_dma_slave_config(struct sirfsoc_dma_chan *schan,
-	struct dma_slave_config *config)
+static int sirfsoc_dma_slave_config(struct dma_chan *chan,
+				    struct dma_slave_config *config)
 {
+	struct sirfsoc_dma_chan *schan = dma_chan_to_sirfsoc_dma_chan(chan);
 	unsigned long flags;
 
 	if ((config->src_addr_width != DMA_SLAVE_BUSWIDTH_4_BYTES) ||
@@ -296,8 +298,9 @@ static int sirfsoc_dma_slave_config(struct sirfsoc_dma_chan *schan,
 	return 0;
 }
 
-static int sirfsoc_dma_terminate_all(struct sirfsoc_dma_chan *schan)
+static int sirfsoc_dma_terminate_all(struct dma_chan *chan)
 {
+	struct sirfsoc_dma_chan *schan = dma_chan_to_sirfsoc_dma_chan(chan);
 	struct sirfsoc_dma *sdma = dma_chan_to_sirfsoc_dma(&schan->chan);
 	int cid = schan->chan.chan_id;
 	unsigned long flags;
@@ -326,8 +329,9 @@ static int sirfsoc_dma_terminate_all(struct sirfsoc_dma_chan *schan)
 	return 0;
 }
 
-static int sirfsoc_dma_pause_chan(struct sirfsoc_dma_chan *schan)
+static int sirfsoc_dma_pause_chan(struct dma_chan *chan)
 {
+	struct sirfsoc_dma_chan *schan = dma_chan_to_sirfsoc_dma_chan(chan);
 	struct sirfsoc_dma *sdma = dma_chan_to_sirfsoc_dma(&schan->chan);
 	int cid = schan->chan.chan_id;
 	unsigned long flags;
@@ -347,8 +351,9 @@ static int sirfsoc_dma_pause_chan(struct sirfsoc_dma_chan *schan)
 	return 0;
 }
 
-static int sirfsoc_dma_resume_chan(struct sirfsoc_dma_chan *schan)
+static int sirfsoc_dma_resume_chan(struct dma_chan *chan)
 {
+	struct sirfsoc_dma_chan *schan = dma_chan_to_sirfsoc_dma_chan(chan);
 	struct sirfsoc_dma *sdma = dma_chan_to_sirfsoc_dma(&schan->chan);
 	int cid = schan->chan.chan_id;
 	unsigned long flags;
@@ -366,30 +371,6 @@ static int sirfsoc_dma_resume_chan(struct sirfsoc_dma_chan *schan)
 	spin_unlock_irqrestore(&schan->lock, flags);
 
 	return 0;
-}
-
-static int sirfsoc_dma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-	unsigned long arg)
-{
-	struct dma_slave_config *config;
-	struct sirfsoc_dma_chan *schan = dma_chan_to_sirfsoc_dma_chan(chan);
-
-	switch (cmd) {
-	case DMA_PAUSE:
-		return sirfsoc_dma_pause_chan(schan);
-	case DMA_RESUME:
-		return sirfsoc_dma_resume_chan(schan);
-	case DMA_TERMINATE_ALL:
-		return sirfsoc_dma_terminate_all(schan);
-	case DMA_SLAVE_CONFIG:
-		config = (struct dma_slave_config *)arg;
-		return sirfsoc_dma_slave_config(schan, config);
-
-	default:
-		break;
-	}
-
-	return -ENOSYS;
 }
 
 /* Alloc channel resources */
@@ -579,7 +560,7 @@ err_dir:
 static struct dma_async_tx_descriptor *
 sirfsoc_dma_prep_cyclic(struct dma_chan *chan, dma_addr_t addr,
 	size_t buf_len, size_t period_len,
-	enum dma_transfer_direction direction, unsigned long flags, void *context)
+	enum dma_transfer_direction direction, unsigned long flags)
 {
 	struct sirfsoc_dma_chan *schan = dma_chan_to_sirfsoc_dma_chan(chan);
 	struct sirfsoc_dma_desc *sdesc = NULL;
@@ -647,16 +628,16 @@ EXPORT_SYMBOL(sirfsoc_dma_filter_id);
 	BIT(DMA_SLAVE_BUSWIDTH_4_BYTES) | \
 	BIT(DMA_SLAVE_BUSWIDTH_8_BYTES))
 
-static int sirfsoc_dma_device_slave_caps(struct dma_chan *dchan,
-	struct dma_slave_caps *caps)
+static struct dma_chan *of_dma_sirfsoc_xlate(struct of_phandle_args *dma_spec,
+	struct of_dma *ofdma)
 {
-	caps->src_addr_widths = SIRFSOC_DMA_BUSWIDTHS;
-	caps->dstn_addr_widths = SIRFSOC_DMA_BUSWIDTHS;
-	caps->directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
-	caps->cmd_pause = true;
-	caps->cmd_terminate = true;
+	struct sirfsoc_dma *sdma = ofdma->of_dma_data;
+	unsigned int request = dma_spec->args[0];
 
-	return 0;
+	if (request >= SIRFSOC_DMA_CHANNELS)
+		return NULL;
+
+	return dma_get_slave_channel(&sdma->channels[request].chan);
 }
 
 static int sirfsoc_dma_probe(struct platform_device *op)
@@ -722,16 +703,20 @@ static int sirfsoc_dma_probe(struct platform_device *op)
 
 	dma = &sdma->dma;
 	dma->dev = dev;
-	dma->chancnt = SIRFSOC_DMA_CHANNELS;
 
 	dma->device_alloc_chan_resources = sirfsoc_dma_alloc_chan_resources;
 	dma->device_free_chan_resources = sirfsoc_dma_free_chan_resources;
 	dma->device_issue_pending = sirfsoc_dma_issue_pending;
-	dma->device_control = sirfsoc_dma_control;
+	dma->device_config = sirfsoc_dma_slave_config;
+	dma->device_pause = sirfsoc_dma_pause_chan;
+	dma->device_resume = sirfsoc_dma_resume_chan;
+	dma->device_terminate_all = sirfsoc_dma_terminate_all;
 	dma->device_tx_status = sirfsoc_dma_tx_status;
 	dma->device_prep_interleaved_dma = sirfsoc_dma_prep_interleaved;
 	dma->device_prep_dma_cyclic = sirfsoc_dma_prep_cyclic;
-	dma->device_slave_caps = sirfsoc_dma_device_slave_caps;
+	dma->src_addr_widths = SIRFSOC_DMA_BUSWIDTHS;
+	dma->dst_addr_widths = SIRFSOC_DMA_BUSWIDTHS;
+	dma->directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
 
 	INIT_LIST_HEAD(&dma->channels);
 	dma_cap_set(DMA_SLAVE, dma->cap_mask);
@@ -739,7 +724,7 @@ static int sirfsoc_dma_probe(struct platform_device *op)
 	dma_cap_set(DMA_INTERLEAVE, dma->cap_mask);
 	dma_cap_set(DMA_PRIVATE, dma->cap_mask);
 
-	for (i = 0; i < dma->chancnt; i++) {
+	for (i = 0; i < SIRFSOC_DMA_CHANNELS; i++) {
 		schan = &sdma->channels[i];
 
 		schan->chan.device = dma;
@@ -764,11 +749,20 @@ static int sirfsoc_dma_probe(struct platform_device *op)
 	if (ret)
 		goto free_irq;
 
+	/* Device-tree DMA controller registration */
+	ret = of_dma_controller_register(dn, of_dma_sirfsoc_xlate, sdma);
+	if (ret) {
+		dev_err(dev, "failed to register DMA controller\n");
+		goto unreg_dma_dev;
+	}
+
 	pm_runtime_enable(&op->dev);
 	dev_info(dev, "initialized SIRFSOC DMAC driver\n");
 
 	return 0;
 
+unreg_dma_dev:
+	dma_async_device_unregister(dma);
 free_irq:
 	free_irq(sdma->irq, sdma);
 irq_dispose:
@@ -781,6 +775,7 @@ static int sirfsoc_dma_remove(struct platform_device *op)
 	struct device *dev = &op->dev;
 	struct sirfsoc_dma *sdma = dev_get_drvdata(dev);
 
+	of_dma_controller_free(op->dev.of_node);
 	dma_async_device_unregister(&sdma->dma);
 	free_irq(sdma->irq, sdma);
 	irq_dispose_mapping(sdma->irq);
@@ -812,6 +807,7 @@ static int sirfsoc_dma_runtime_resume(struct device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int sirfsoc_dma_pm_suspend(struct device *dev)
 {
 	struct sirfsoc_dma *sdma = dev_get_drvdata(dev);
@@ -893,13 +889,14 @@ static int sirfsoc_dma_pm_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static const struct dev_pm_ops sirfsoc_dma_pm_ops = {
 	SET_RUNTIME_PM_OPS(sirfsoc_dma_runtime_suspend, sirfsoc_dma_runtime_resume, NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(sirfsoc_dma_pm_suspend, sirfsoc_dma_pm_resume)
 };
 
-static struct of_device_id sirfsoc_dma_match[] = {
+static const struct of_device_id sirfsoc_dma_match[] = {
 	{ .compatible = "sirf,prima2-dmac", },
 	{ .compatible = "sirf,marco-dmac", },
 	{},
@@ -910,7 +907,6 @@ static struct platform_driver sirfsoc_dma_driver = {
 	.remove		= sirfsoc_dma_remove,
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.pm = &sirfsoc_dma_pm_ops,
 		.of_match_table	= sirfsoc_dma_match,
 	},

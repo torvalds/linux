@@ -601,12 +601,12 @@ static struct platform_device sdhi0_power = {
 	},
 };
 
-static struct sh_mobile_sdhi_info sdhi0_info = {
-	.dma_slave_tx	= SHDMA_SLAVE_SDHI0_TX,
-	.dma_slave_rx	= SHDMA_SLAVE_SDHI0_RX,
-	.tmio_caps      = MMC_CAP_SDIO_IRQ | MMC_CAP_POWER_OFF_CARD |
+static struct tmio_mmc_data sdhi0_info = {
+	.chan_priv_tx	= (void *)SHDMA_SLAVE_SDHI0_TX,
+	.chan_priv_rx	= (void *)SHDMA_SLAVE_SDHI0_RX,
+	.capabilities	= MMC_CAP_SDIO_IRQ | MMC_CAP_POWER_OFF_CARD |
 			  MMC_CAP_NEEDS_POLL,
-	.tmio_flags	= TMIO_MMC_USE_GPIO_CD,
+	.flags		= TMIO_MMC_USE_GPIO_CD,
 	.cd_gpio	= GPIO_PTY7,
 };
 
@@ -635,12 +635,12 @@ static struct platform_device sdhi0_device = {
 
 #if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
 /* SDHI1 */
-static struct sh_mobile_sdhi_info sdhi1_info = {
-	.dma_slave_tx	= SHDMA_SLAVE_SDHI1_TX,
-	.dma_slave_rx	= SHDMA_SLAVE_SDHI1_RX,
-	.tmio_caps      = MMC_CAP_SDIO_IRQ | MMC_CAP_POWER_OFF_CARD |
+static struct tmio_mmc_data sdhi1_info = {
+	.chan_priv_tx	= (void *)SHDMA_SLAVE_SDHI1_TX,
+	.chan_priv_rx	= (void *)SHDMA_SLAVE_SDHI1_RX,
+	.capabilities	= MMC_CAP_SDIO_IRQ | MMC_CAP_POWER_OFF_CARD |
 			  MMC_CAP_NEEDS_POLL,
-	.tmio_flags	= TMIO_MMC_USE_GPIO_CD,
+	.flags		= TMIO_MMC_USE_GPIO_CD,
 	.cd_gpio	= GPIO_PTW7,
 };
 
@@ -861,14 +861,12 @@ static struct asoc_simple_card_info fsi_da7210_info = {
 	.card		= "FSIB-DA7210",
 	.codec		= "da7210.0-001a",
 	.platform	= "sh_fsi.0",
-	.daifmt		= SND_SOC_DAIFMT_I2S,
+	.daifmt		= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBM_CFM,
 	.cpu_dai = {
 		.name	= "fsib-dai",
-		.fmt	= SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_IB_NF,
 	},
 	.codec_dai = {
 		.name	= "da7210-hifi",
-		.fmt	= SND_SOC_DAIFMT_CBM_CFM,
 	},
 };
 
@@ -876,6 +874,8 @@ static struct platform_device fsi_da7210_device = {
 	.name	= "asoc-simple-card",
 	.dev	= {
 		.platform_data	= &fsi_da7210_info,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.dma_mask = &fsi_da7210_device.dev.coherent_dma_mask,
 	},
 };
 

@@ -28,7 +28,7 @@ static DEFINE_PER_CPU(HV_MsgState, msg_state);
 void init_messaging(void)
 {
 	/* Allocate storage for messages in kernel space */
-	HV_MsgState *state = &__get_cpu_var(msg_state);
+	HV_MsgState *state = this_cpu_ptr(&msg_state);
 	int rc = hv_register_message_state(state);
 	if (rc != HV_OK)
 		panic("hv_register_message_state: error %d", rc);
@@ -59,17 +59,16 @@ void hv_message_intr(struct pt_regs *regs, int intnum)
 	{
 		long sp = stack_pointer - (long) current_thread_info();
 		if (unlikely(sp < (sizeof(struct thread_info) + STACK_WARN))) {
-			pr_emerg("hv_message_intr: "
-			       "stack overflow: %ld\n",
-			       sp - sizeof(struct thread_info));
+			pr_emerg("%s: stack overflow: %ld\n",
+				 __func__, sp - sizeof(struct thread_info));
 			dump_stack();
 		}
 	}
 #endif
 
 	while (1) {
-		rmi = hv_receive_message(__get_cpu_var(msg_state),
-					 (HV_VirtAddr) message,
+		HV_MsgState *state = this_cpu_ptr(&msg_state);
+		rmi = hv_receive_message(*state, (HV_VirtAddr) message,
 					 sizeof(message));
 		if (rmi.msglen == 0)
 			break;
@@ -96,7 +95,7 @@ void hv_message_intr(struct pt_regs *regs, int intnum)
 			struct hv_driver_cb *cb =
 				(struct hv_driver_cb *)him->intarg;
 			cb->callback(cb, him->intdata);
-			__get_cpu_var(irq_stat).irq_hv_msg_count++;
+			__this_cpu_inc(irq_stat.irq_hv_msg_count);
 		}
 	}
 

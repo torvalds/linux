@@ -50,7 +50,6 @@
 #include <linux/list.h>
 #include <linux/radix-tree.h>
 #include <linux/mutex.h>
-#include <linux/bootmem.h>
 #include <linux/pci.h>
 #include <linux/debugfs.h>
 #include <linux/of.h>
@@ -114,7 +113,7 @@ static inline notrace void set_soft_enabled(unsigned long enable)
 static inline notrace int decrementer_check_overflow(void)
 {
  	u64 now = get_tb_or_rtc();
- 	u64 *next_tb = &__get_cpu_var(decrementers_next_tb);
+	u64 *next_tb = this_cpu_ptr(&decrementers_next_tb);
  
 	return now >= *next_tb;
 }
@@ -188,6 +187,11 @@ notrace unsigned int __check_irq_replay(void)
 		return 0xa00;
 	}
 #endif /* CONFIG_PPC_BOOK3E */
+
+	/* Check if an hypervisor Maintenance interrupt happened */
+	local_paca->irq_happened &= ~PACA_IRQ_HMI;
+	if (happened & PACA_IRQ_HMI)
+		return 0xe60;
 
 	/* There should be nothing left ! */
 	BUG_ON(local_paca->irq_happened != 0);
@@ -304,7 +308,7 @@ void notrace restore_interrupts(void)
  * being re-enabled and generally sanitized the lazy irq state,
  * and in the latter case it will leave with interrupts hard
  * disabled and marked as such, so the local_irq_enable() call
- * in cpu_idle() will properly re-enable everything.
+ * in arch_cpu_idle() will properly re-enable everything.
  */
 bool prep_irq_for_idle(void)
 {
@@ -377,6 +381,14 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 		seq_printf(p, "%10u ", per_cpu(irq_stat, j).mce_exceptions);
 	seq_printf(p, "  Machine check exceptions\n");
 
+	if (cpu_has_feature(CPU_FTR_HVMODE)) {
+		seq_printf(p, "%*s: ", prec, "HMI");
+		for_each_online_cpu(j)
+			seq_printf(p, "%10u ",
+					per_cpu(irq_stat, j).hmi_exceptions);
+		seq_printf(p, "  Hypervisor Maintenance Interrupts\n");
+	}
+
 #ifdef CONFIG_PPC_DOORBELL
 	if (cpu_has_feature(CPU_FTR_DBELL)) {
 		seq_printf(p, "%*s: ", prec, "DBL");
@@ -400,6 +412,7 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 	sum += per_cpu(irq_stat, cpu).mce_exceptions;
 	sum += per_cpu(irq_stat, cpu).spurious_irqs;
 	sum += per_cpu(irq_stat, cpu).timer_irqs_others;
+	sum += per_cpu(irq_stat, cpu).hmi_exceptions;
 #ifdef CONFIG_PPC_DOORBELL
 	sum += per_cpu(irq_stat, cpu).doorbell_irqs;
 #endif
@@ -430,13 +443,13 @@ void migrate_irqs(void)
 
 		cpumask_and(mask, data->affinity, map);
 		if (cpumask_any(mask) >= nr_cpu_ids) {
-			printk("Breaking affinity for irq %i\n", irq);
+			pr_warn("Breaking affinity for irq %i\n", irq);
 			cpumask_copy(mask, map);
 		}
 		if (chip->irq_set_affinity)
 			chip->irq_set_affinity(data, mask, true);
 		else if (desc->action && !(warned++))
-			printk("Cannot set affinity for irq %i\n", irq);
+			pr_err("Cannot set affinity for irq %i\n", irq);
 	}
 
 	free_cpumask_var(mask);
@@ -452,11 +465,11 @@ static inline void check_stack_overflow(void)
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 	long sp;
 
-	sp = __get_SP() & (THREAD_SIZE-1);
+	sp = current_stack_pointer() & (THREAD_SIZE-1);
 
 	/* check for stack overflow: is there less than 2KB free? */
 	if (unlikely(sp < (sizeof(struct thread_info) + 2048))) {
-		printk("do_IRQ: stack overflow: %ld\n",
+		pr_err("do_IRQ: stack overflow: %ld\n",
 			sp - sizeof(struct thread_info));
 		dump_stack();
 	}
@@ -465,7 +478,6 @@ static inline void check_stack_overflow(void)
 
 void __do_irq(struct pt_regs *regs)
 {
-	struct irq_desc *desc;
 	unsigned int irq;
 
 	irq_enter();
@@ -486,12 +498,9 @@ void __do_irq(struct pt_regs *regs)
 
 	/* And finally process it */
 	if (unlikely(irq == NO_IRQ))
-		__get_cpu_var(irq_stat).spurious_irqs++;
-	else {
-		desc = irq_to_desc(irq);
-		if (likely(desc))
-			desc->handle_irq(irq, desc);
-	}
+		__this_cpu_inc(irq_stat.spurious_irqs);
+	else
+		generic_handle_irq(irq);
 
 	trace_irq_exit(regs);
 

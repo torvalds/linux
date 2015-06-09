@@ -24,12 +24,6 @@
 #include <linux/skbuff.h>
 #include <uapi/linux/mqueue.h>
 
-/* 0 = no checking
-   1 = put_count checking
-   2 = verbose put_count checking
-*/
-#define AUDIT_DEBUG 0
-
 /* AUDIT_NAMES is the number of slots we reserve in the audit_context
  * for saving names from getname().  If we get more names we will allocate
  * a name dynamically and also add those to the list anchored by names_list. */
@@ -74,9 +68,8 @@ struct audit_cap_data {
 	};
 };
 
-/* When fs/namei.c:getname() is called, we store the pointer in name and
- * we don't let putname() free it (instead we free all of the saved
- * pointers at syscall exit time).
+/* When fs/namei.c:getname() is called, we store the pointer in name and bump
+ * the refcnt in the associated filename struct.
  *
  * Further, in fs/namei.c:path_lookup() we store the inode and device.
  */
@@ -86,7 +79,6 @@ struct audit_names {
 	struct filename		*name;
 	int			name_len;	/* number of chars to log */
 	bool			hidden;		/* don't log this record */
-	bool			name_put;	/* call __putname()? */
 
 	unsigned long		ino;
 	dev_t			dev;
@@ -104,6 +96,11 @@ struct audit_names {
 	 * should be freed on syscall exit.
 	 */
 	bool			should_free;
+};
+
+struct audit_proctitle {
+	int	len;	/* length of the cmdline field. */
+	char	*value;	/* the cmdline field */
 };
 
 /* The per-task audit context. */
@@ -202,11 +199,7 @@ struct audit_context {
 		} execve;
 	};
 	int fds[2];
-
-#if AUDIT_DEBUG
-	int		    put_count;
-	int		    ino_count;
-#endif
+	struct audit_proctitle proctitle;
 };
 
 extern u32 audit_ever_enabled;
@@ -216,7 +209,6 @@ extern void audit_copy_inode(struct audit_names *name,
 			     const struct inode *inode);
 extern void audit_log_cap(struct audit_buffer *ab, char *prefix,
 			  kernel_cap_t *cap);
-extern void audit_log_fcaps(struct audit_buffer *ab, struct audit_names *name);
 extern void audit_log_name(struct audit_context *context,
 			   struct audit_names *n, struct path *path,
 			   int record_num, int *call_panic);
@@ -264,6 +256,9 @@ extern void audit_free_rule_rcu(struct rcu_head *);
 extern struct list_head audit_filter_list[];
 
 extern struct audit_entry *audit_dupe_rule(struct audit_krule *old);
+
+extern void audit_log_d_path_exe(struct audit_buffer *ab,
+				 struct mm_struct *mm);
 
 /* audit watch functions */
 #ifdef CONFIG_AUDIT_WATCH

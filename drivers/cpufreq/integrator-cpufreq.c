@@ -92,7 +92,7 @@ static int integrator_set_target(struct cpufreq_policy *policy,
 	 * Bind to the specified CPU.  When this call returns,
 	 * we should be running on the right CPU.
 	 */
-	set_cpus_allowed(current, cpumask_of_cpu(cpu));
+	set_cpus_allowed_ptr(current, cpumask_of(cpu));
 	BUG_ON(cpu != smp_processor_id());
 
 	/* get current setting */
@@ -118,11 +118,11 @@ static int integrator_set_target(struct cpufreq_policy *policy,
 	freqs.new = icst_hz(&cclk_params, vco) / 1000;
 
 	if (freqs.old == freqs.new) {
-		set_cpus_allowed(current, cpus_allowed);
+		set_cpus_allowed_ptr(current, &cpus_allowed);
 		return 0;
 	}
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
+	cpufreq_freq_transition_begin(policy, &freqs);
 
 	cm_osc = __raw_readl(cm_base + INTEGRATOR_HDR_OSC_OFFSET);
 
@@ -141,9 +141,9 @@ static int integrator_set_target(struct cpufreq_policy *policy,
 	/*
 	 * Restore the CPUs allowed mask.
 	 */
-	set_cpus_allowed(current, cpus_allowed);
+	set_cpus_allowed_ptr(current, &cpus_allowed);
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_freq_transition_end(policy, &freqs, 0);
 
 	return 0;
 }
@@ -157,7 +157,7 @@ static unsigned int integrator_get(unsigned int cpu)
 
 	cpus_allowed = current->cpus_allowed;
 
-	set_cpus_allowed(current, cpumask_of_cpu(cpu));
+	set_cpus_allowed_ptr(current, cpumask_of(cpu));
 	BUG_ON(cpu != smp_processor_id());
 
 	/* detect memory etc. */
@@ -173,7 +173,7 @@ static unsigned int integrator_get(unsigned int cpu)
 
 	current_freq = icst_hz(&cclk_params, vco) / 1000; /* current freq */
 
-	set_cpus_allowed(current, cpus_allowed);
+	set_cpus_allowed_ptr(current, &cpus_allowed);
 
 	return current_freq;
 }
@@ -213,9 +213,9 @@ static int __init integrator_cpufreq_probe(struct platform_device *pdev)
 	return cpufreq_register_driver(&integrator_driver);
 }
 
-static void __exit integrator_cpufreq_remove(struct platform_device *pdev)
+static int __exit integrator_cpufreq_remove(struct platform_device *pdev)
 {
-	cpufreq_unregister_driver(&integrator_driver);
+	return cpufreq_unregister_driver(&integrator_driver);
 }
 
 static const struct of_device_id integrator_cpufreq_match[] = {
@@ -226,7 +226,6 @@ static const struct of_device_id integrator_cpufreq_match[] = {
 static struct platform_driver integrator_cpufreq_driver = {
 	.driver = {
 		.name = "integrator-cpufreq",
-		.owner = THIS_MODULE,
 		.of_match_table = integrator_cpufreq_match,
 	},
 	.remove = __exit_p(integrator_cpufreq_remove),

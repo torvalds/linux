@@ -28,6 +28,7 @@
 #include <linux/reboot.h>
 #include <linux/hyperv.h>
 
+#include "hyperv_vmbus.h"
 
 #define SD_MAJOR	3
 #define SD_MINOR	0
@@ -80,6 +81,12 @@ static struct hv_util_service util_vss = {
 	.util_cb = hv_vss_onchannelcallback,
 	.util_init = hv_vss_init,
 	.util_deinit = hv_vss_deinit,
+};
+
+static struct hv_util_service util_fcopy = {
+	.util_cb = hv_fcopy_onchannelcallback,
+	.util_init = hv_fcopy_init,
+	.util_deinit = hv_fcopy_deinit,
 };
 
 static void perform_shutdown(struct work_struct *dummy)
@@ -312,7 +319,7 @@ static int util_probe(struct hv_device *dev,
 		(struct hv_util_service *)dev_id->driver_data;
 	int ret;
 
-	srv->recv_buffer = kmalloc(PAGE_SIZE * 2, GFP_KERNEL);
+	srv->recv_buffer = kmalloc(PAGE_SIZE * 4, GFP_KERNEL);
 	if (!srv->recv_buffer)
 		return -ENOMEM;
 	if (srv->util_init) {
@@ -333,12 +340,8 @@ static int util_probe(struct hv_device *dev,
 
 	set_channel_read_state(dev->channel, false);
 
-	ret = vmbus_open(dev->channel, 4 * PAGE_SIZE, 4 * PAGE_SIZE, NULL, 0,
-			srv->util_cb, dev->channel);
-	if (ret)
-		goto error;
-
 	hv_set_drvdata(dev, srv);
+
 	/*
 	 * Based on the host; initialize the framework and
 	 * service version numbers we will negotiate.
@@ -358,6 +361,11 @@ static int util_probe(struct hv_device *dev,
 		hb_srv_version = HB_VERSION;
 	}
 
+	ret = vmbus_open(dev->channel, 4 * PAGE_SIZE, 4 * PAGE_SIZE, NULL, 0,
+			srv->util_cb, dev->channel);
+	if (ret)
+		goto error;
+
 	return 0;
 
 error:
@@ -372,9 +380,9 @@ static int util_remove(struct hv_device *dev)
 {
 	struct hv_util_service *srv = hv_get_drvdata(dev);
 
-	vmbus_close(dev->channel);
 	if (srv->util_deinit)
 		srv->util_deinit();
+	vmbus_close(dev->channel);
 	kfree(srv->recv_buffer);
 
 	return 0;
@@ -400,6 +408,10 @@ static const struct hv_vmbus_device_id id_table[] = {
 	/* VSS GUID */
 	{ HV_VSS_GUID,
 	  .driver_data = (unsigned long)&util_vss
+	},
+	/* File copy GUID */
+	{ HV_FCOPY_GUID,
+	  .driver_data = (unsigned long)&util_fcopy
 	},
 	{ },
 };

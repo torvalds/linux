@@ -215,9 +215,8 @@ static void __init print_ebda_hpc (void)
 			debug ("%s - cap of the slot: %x\n", __func__, hpc_ptr->slots[index].slot_cap);
 		}
 
-		for (index = 0; index < hpc_ptr->bus_count; index++) {
+		for (index = 0; index < hpc_ptr->bus_count; index++)
 			debug ("%s - bus# of each bus controlled by this ctlr: %x\n", __func__, hpc_ptr->buses[index].bus_num);
-		}
 
 		debug ("%s - type of hpc: %x\n", __func__, hpc_ptr->ctlr_type);
 		switch (hpc_ptr->ctlr_type) {
@@ -563,7 +562,7 @@ static int first_slot_num (u8 slot_num, u8 first_slot, u8 var)
 	return rc;
 }
 
-static struct opt_rio_lo * find_rxe_num (u8 slot_num)
+static struct opt_rio_lo *find_rxe_num (u8 slot_num)
 {
 	struct opt_rio_lo *opt_lo_ptr;
 
@@ -575,7 +574,7 @@ static struct opt_rio_lo * find_rxe_num (u8 slot_num)
 	return NULL;
 }
 
-static struct opt_rio * find_chassis_num (u8 slot_num)
+static struct opt_rio *find_chassis_num (u8 slot_num)
 {
 	struct opt_rio *opt_vg_ptr;
 
@@ -593,7 +592,7 @@ static struct opt_rio * find_chassis_num (u8 slot_num)
 static u8 calculate_first_slot (u8 slot_num)
 {
 	u8 first_slot = 1;
-	struct slot * slot_cur;
+	struct slot *slot_cur;
 
 	list_for_each_entry(slot_cur, &ibmphp_slot_head, ibm_slot_list) {
 		if (slot_cur->ctrl) {
@@ -607,7 +606,7 @@ static u8 calculate_first_slot (u8 slot_num)
 
 #define SLOT_NAME_SIZE 30
 
-static char *create_file_name (struct slot * slot_cur)
+static char *create_file_name (struct slot *slot_cur)
 {
 	struct opt_rio *opt_vg_ptr = NULL;
 	struct opt_rio_lo *opt_lo_ptr = NULL;
@@ -1192,7 +1191,7 @@ int ibmphp_register_pci (void)
 	}
 	return rc;
 }
-static int ibmphp_probe (struct pci_dev * dev, const struct pci_device_id *ids)
+static int ibmphp_probe (struct pci_dev *dev, const struct pci_device_id *ids)
 {
 	struct controller *ctrl;
 

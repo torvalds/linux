@@ -604,10 +604,11 @@ static int vidioc_querycap(struct file *file, void *priv,
 {
 	strcpy(cap->driver, "viu");
 	strcpy(cap->card, "viu");
-	cap->capabilities =	V4L2_CAP_VIDEO_CAPTURE |
+	cap->device_caps =	V4L2_CAP_VIDEO_CAPTURE |
 				V4L2_CAP_STREAMING     |
 				V4L2_CAP_VIDEO_OVERLAY |
 				V4L2_CAP_READWRITE;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -964,7 +965,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 	struct viu_fh *fh = priv;
 
 	fh->dev->std = id;
-	decoder_call(fh->dev, core, s_std, id);
+	decoder_call(fh->dev, video, s_std, id);
 	return 0;
 }
 
@@ -1680,7 +1681,6 @@ static struct platform_driver viu_of_platform_driver = {
 #endif
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = mpc512x_viu_of_match,
 	},
 };

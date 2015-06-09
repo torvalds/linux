@@ -60,8 +60,10 @@ static int xd_set_init_para(struct rtsx_chip *chip)
 		xd_card->xd_clock = CLK_50;
 
 	retval = switch_clock(chip, xd_card->xd_clock);
-	if (retval != STATUS_SUCCESS)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval != STATUS_SUCCESS) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	return STATUS_SUCCESS;
 }
@@ -72,12 +74,16 @@ static int xd_switch_clock(struct rtsx_chip *chip)
 	int retval;
 
 	retval = select_card(chip, XD_CARD);
-	if (retval != STATUS_SUCCESS)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval != STATUS_SUCCESS) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	retval = switch_clock(chip, xd_card->xd_clock);
-	if (retval != STATUS_SUCCESS)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval != STATUS_SUCCESS) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	return STATUS_SUCCESS;
 }
@@ -99,8 +105,10 @@ static int xd_read_id(struct rtsx_chip *chip, u8 id_cmd, u8 *id_buf, u8 buf_len)
 		rtsx_add_cmd(chip, READ_REG_CMD, (u16)(XD_ADDRESS1 + i), 0, 0);
 
 	retval = rtsx_send_cmd(chip, XD_CARD, 20);
-	if (retval < 0)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval < 0) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	ptr = rtsx_get_cmd_data(chip) + 1;
 	if (id_buf && buf_len) {
@@ -167,8 +175,10 @@ static int xd_read_redundant(struct rtsx_chip *chip, u32 page_addr,
 	rtsx_add_cmd(chip, READ_REG_CMD, XD_PARITY, 0, 0);
 
 	retval = rtsx_send_cmd(chip, XD_CARD, 500);
-	if (retval < 0)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval < 0) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	if (buf && buf_len) {
 		u8 *ptr = rtsx_get_cmd_data(chip) + 1;
@@ -186,8 +196,10 @@ static int xd_read_data_from_ppb(struct rtsx_chip *chip, int offset,
 {
 	int retval, i;
 
-	if (!buf || (buf_len < 0))
-		TRACE_RET(chip, STATUS_FAIL);
+	if (!buf || (buf_len < 0)) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	rtsx_init_cmd(chip);
 
@@ -198,7 +210,8 @@ static int xd_read_data_from_ppb(struct rtsx_chip *chip, int offset,
 	retval = rtsx_send_cmd(chip, 0, 250);
 	if (retval < 0) {
 		rtsx_clear_xd_error(chip);
-		TRACE_RET(chip, STATUS_FAIL);
+		rtsx_trace(chip);
+		return STATUS_FAIL;
 	}
 
 	memcpy(buf, rtsx_get_cmd_data(chip), buf_len);
@@ -212,8 +225,10 @@ static int xd_read_cis(struct rtsx_chip *chip, u32 page_addr, u8 *buf,
 	int retval;
 	u8 reg;
 
-	if (!buf || (buf_len < 10))
-		TRACE_RET(chip, STATUS_FAIL);
+	if (!buf || (buf_len < 10)) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	rtsx_init_cmd(chip);
 
@@ -233,33 +248,55 @@ static int xd_read_cis(struct rtsx_chip *chip, u32 page_addr, u8 *buf,
 	retval = rtsx_send_cmd(chip, XD_CARD, 250);
 	if (retval == -ETIMEDOUT) {
 		rtsx_clear_xd_error(chip);
-		TRACE_RET(chip, STATUS_FAIL);
+		rtsx_trace(chip);
+		return STATUS_FAIL;
 	}
 
-	RTSX_READ_REG(chip, XD_PAGE_STATUS, &reg);
+	retval = rtsx_read_register(chip, XD_PAGE_STATUS, &reg);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 	if (reg != XD_GPG) {
 		rtsx_clear_xd_error(chip);
-		TRACE_RET(chip, STATUS_FAIL);
+		rtsx_trace(chip);
+		return STATUS_FAIL;
 	}
 
-	RTSX_READ_REG(chip, XD_CTL, &reg);
+	retval = rtsx_read_register(chip, XD_CTL, &reg);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 	if (!(reg & XD_ECC1_ERROR) || !(reg & XD_ECC1_UNCORRECTABLE)) {
 		retval = xd_read_data_from_ppb(chip, 0, buf, buf_len);
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 		if (reg & XD_ECC1_ERROR) {
 			u8 ecc_bit, ecc_byte;
 
-			RTSX_READ_REG(chip, XD_ECC_BIT1, &ecc_bit);
-			RTSX_READ_REG(chip, XD_ECC_BYTE1, &ecc_byte);
+			retval = rtsx_read_register(chip, XD_ECC_BIT1,
+						    &ecc_bit);
+			if (retval) {
+				rtsx_trace(chip);
+				return retval;
+			}
+			retval = rtsx_read_register(chip, XD_ECC_BYTE1,
+						    &ecc_byte);
+			if (retval) {
+				rtsx_trace(chip);
+				return retval;
+			}
 
-			RTSX_DEBUGP("ECC_BIT1 = 0x%x, ECC_BYTE1 = 0x%x\n",
+			dev_dbg(rtsx_dev(chip), "ECC_BIT1 = 0x%x, ECC_BYTE1 = 0x%x\n",
 				ecc_bit, ecc_byte);
 			if (ecc_byte < buf_len) {
-				RTSX_DEBUGP("Before correct: 0x%x\n",
+				dev_dbg(rtsx_dev(chip), "Before correct: 0x%x\n",
 					buf[ecc_byte]);
 				buf[ecc_byte] ^= (1 << ecc_bit);
-				RTSX_DEBUGP("After correct: 0x%x\n",
+				dev_dbg(rtsx_dev(chip), "After correct: 0x%x\n",
 					buf[ecc_byte]);
 			}
 		}
@@ -267,27 +304,40 @@ static int xd_read_cis(struct rtsx_chip *chip, u32 page_addr, u8 *buf,
 		rtsx_clear_xd_error(chip);
 
 		retval = xd_read_data_from_ppb(chip, 256, buf, buf_len);
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 		if (reg & XD_ECC2_ERROR) {
 			u8 ecc_bit, ecc_byte;
 
-			RTSX_READ_REG(chip, XD_ECC_BIT2, &ecc_bit);
-			RTSX_READ_REG(chip, XD_ECC_BYTE2, &ecc_byte);
+			retval = rtsx_read_register(chip, XD_ECC_BIT2,
+						    &ecc_bit);
+			if (retval) {
+				rtsx_trace(chip);
+				return retval;
+			}
+			retval = rtsx_read_register(chip, XD_ECC_BYTE2,
+						    &ecc_byte);
+			if (retval) {
+				rtsx_trace(chip);
+				return retval;
+			}
 
-			RTSX_DEBUGP("ECC_BIT2 = 0x%x, ECC_BYTE2 = 0x%x\n",
+			dev_dbg(rtsx_dev(chip), "ECC_BIT2 = 0x%x, ECC_BYTE2 = 0x%x\n",
 				ecc_bit, ecc_byte);
 			if (ecc_byte < buf_len) {
-				RTSX_DEBUGP("Before correct: 0x%x\n",
+				dev_dbg(rtsx_dev(chip), "Before correct: 0x%x\n",
 					buf[ecc_byte]);
 				buf[ecc_byte] ^= (1 << ecc_bit);
-				RTSX_DEBUGP("After correct: 0x%x\n",
+				dev_dbg(rtsx_dev(chip), "After correct: 0x%x\n",
 					buf[ecc_byte]);
 			}
 		}
 	} else {
 		rtsx_clear_xd_error(chip);
-		TRACE_RET(chip, STATUS_FAIL);
+		rtsx_trace(chip);
+		return STATUS_FAIL;
 	}
 
 	return STATUS_SUCCESS;
@@ -363,24 +413,71 @@ static void xd_fill_pull_ctl_enable(struct rtsx_chip *chip)
 
 static int xd_pull_ctl_disable(struct rtsx_chip *chip)
 {
+	int retval;
+
 	if (CHECK_PID(chip, 0x5208)) {
-		RTSX_WRITE_REG(chip, CARD_PULL_CTL1, 0xFF,
-			XD_D3_PD | XD_D2_PD | XD_D1_PD | XD_D0_PD);
-		RTSX_WRITE_REG(chip, CARD_PULL_CTL2, 0xFF,
-			XD_D7_PD | XD_D6_PD | XD_D5_PD | XD_D4_PD);
-		RTSX_WRITE_REG(chip, CARD_PULL_CTL3, 0xFF,
-			XD_WP_PD | XD_CE_PD | XD_CLE_PD | XD_CD_PU);
-		RTSX_WRITE_REG(chip, CARD_PULL_CTL4, 0xFF,
-			XD_RDY_PD | XD_WE_PD | XD_RE_PD | XD_ALE_PD);
-		RTSX_WRITE_REG(chip, CARD_PULL_CTL5, 0xFF,
-			MS_INS_PU | SD_WP_PD | SD_CD_PU | SD_CMD_PD);
-		RTSX_WRITE_REG(chip, CARD_PULL_CTL6, 0xFF, MS_D5_PD | MS_D4_PD);
+		retval = rtsx_write_register(chip, CARD_PULL_CTL1, 0xFF,
+					     XD_D3_PD | XD_D2_PD | XD_D1_PD | XD_D0_PD);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
+		retval = rtsx_write_register(chip, CARD_PULL_CTL2, 0xFF,
+					     XD_D7_PD | XD_D6_PD | XD_D5_PD | XD_D4_PD);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
+		retval = rtsx_write_register(chip, CARD_PULL_CTL3, 0xFF,
+					     XD_WP_PD | XD_CE_PD | XD_CLE_PD | XD_CD_PU);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
+		retval = rtsx_write_register(chip, CARD_PULL_CTL4, 0xFF,
+					     XD_RDY_PD | XD_WE_PD | XD_RE_PD | XD_ALE_PD);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
+		retval = rtsx_write_register(chip, CARD_PULL_CTL5, 0xFF,
+					     MS_INS_PU | SD_WP_PD | SD_CD_PU | SD_CMD_PD);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
+		retval = rtsx_write_register(chip, CARD_PULL_CTL6, 0xFF,
+					     MS_D5_PD | MS_D4_PD);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
 	} else if (CHECK_PID(chip, 0x5288)) {
 		if (CHECK_BARO_PKG(chip, QFN)) {
-			RTSX_WRITE_REG(chip, CARD_PULL_CTL1, 0xFF, 0x55);
-			RTSX_WRITE_REG(chip, CARD_PULL_CTL2, 0xFF, 0x55);
-			RTSX_WRITE_REG(chip, CARD_PULL_CTL3, 0xFF, 0x4B);
-			RTSX_WRITE_REG(chip, CARD_PULL_CTL4, 0xFF, 0x69);
+			retval = rtsx_write_register(chip, CARD_PULL_CTL1,
+						     0xFF, 0x55);
+			if (retval) {
+				rtsx_trace(chip);
+				return retval;
+			}
+			retval = rtsx_write_register(chip, CARD_PULL_CTL2,
+						     0xFF, 0x55);
+			if (retval) {
+				rtsx_trace(chip);
+				return retval;
+			}
+			retval = rtsx_write_register(chip, CARD_PULL_CTL3,
+						     0xFF, 0x4B);
+			if (retval) {
+				rtsx_trace(chip);
+				return retval;
+			}
+			retval = rtsx_write_register(chip, CARD_PULL_CTL4,
+						     0xFF, 0x69);
+			if (retval) {
+				rtsx_trace(chip);
+				return retval;
+			}
 		}
 	}
 
@@ -394,8 +491,10 @@ static int reset_xd(struct rtsx_chip *chip)
 	u8 *ptr, id_buf[4], redunt[11];
 
 	retval = select_card(chip, XD_CARD);
-	if (retval != STATUS_SUCCESS)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval != STATUS_SUCCESS) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	rtsx_init_cmd(chip);
 
@@ -418,13 +517,17 @@ static int reset_xd(struct rtsx_chip *chip)
 	rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_OE, XD_OUTPUT_EN, 0);
 
 	retval = rtsx_send_cmd(chip, XD_CARD, 100);
-	if (retval < 0)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval < 0) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	if (!chip->ft2_fast_mode) {
 		retval = card_power_off(chip, XD_CARD);
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 
 		wait_timeout(250);
 
@@ -439,19 +542,24 @@ static int reset_xd(struct rtsx_chip *chip)
 		}
 
 		retval = rtsx_send_cmd(chip, XD_CARD, 100);
-		if (retval < 0)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval < 0) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 
 		retval = card_power_on(chip, XD_CARD);
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 
 #ifdef SUPPORT_OCP
 		wait_timeout(50);
 		if (chip->ocp_stat & (SD_OC_NOW | SD_OC_EVER)) {
-			RTSX_DEBUGP("Over current, OCPSTAT is 0x%x\n",
+			dev_dbg(rtsx_dev(chip), "Over current, OCPSTAT is 0x%x\n",
 				chip->ocp_stat);
-			TRACE_RET(chip, STATUS_FAIL);
+			rtsx_trace(chip);
+			return STATUS_FAIL;
 		}
 #endif
 	}
@@ -472,15 +580,19 @@ static int reset_xd(struct rtsx_chip *chip)
 	rtsx_add_cmd(chip, WRITE_REG_CMD, XD_CTL, XD_CE_DISEN, XD_CE_DISEN);
 
 	retval = rtsx_send_cmd(chip, XD_CARD, 100);
-	if (retval < 0)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval < 0) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	if (!chip->ft2_fast_mode)
 		wait_timeout(200);
 
 	retval = xd_set_init_para(chip);
-	if (retval != STATUS_SUCCESS)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval != STATUS_SUCCESS) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	/* Read ID to check if the timing setting is right */
 	for (i = 0; i < 4; i++) {
@@ -502,22 +614,27 @@ static int reset_xd(struct rtsx_chip *chip)
 		rtsx_add_cmd(chip, READ_REG_CMD, XD_CTL, 0, 0);
 
 		retval = rtsx_send_cmd(chip, XD_CARD, 100);
-		if (retval < 0)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval < 0) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 
 		ptr = rtsx_get_cmd_data(chip) + 1;
 
-		RTSX_DEBUGP("XD_DAT: 0x%x, XD_CTL: 0x%x\n", ptr[0], ptr[1]);
+		dev_dbg(rtsx_dev(chip), "XD_DAT: 0x%x, XD_CTL: 0x%x\n",
+			ptr[0], ptr[1]);
 
 		if (((ptr[0] & READY_FLAG) != READY_STATE) ||
 			!(ptr[1] & XD_RDY))
 			continue;
 
 		retval = xd_read_id(chip, READ_ID, id_buf, 4);
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 
-		RTSX_DEBUGP("READ_ID: 0x%x 0x%x 0x%x 0x%x\n",
+		dev_dbg(rtsx_dev(chip), "READ_ID: 0x%x 0x%x 0x%x 0x%x\n",
 			id_buf[0], id_buf[1], id_buf[2], id_buf[3]);
 
 		xd_card->device_code = id_buf[1];
@@ -595,8 +712,10 @@ static int reset_xd(struct rtsx_chip *chip)
 		/* Confirm timing setting */
 		for (j = 0; j < 10; j++) {
 			retval = xd_read_id(chip, READ_ID, id_buf, 4);
-			if (retval != STATUS_SUCCESS)
-				TRACE_RET(chip, STATUS_FAIL);
+			if (retval != STATUS_SUCCESS) {
+				rtsx_trace(chip);
+				return STATUS_FAIL;
+			}
 
 			if (id_buf[1] != xd_card->device_code)
 				break;
@@ -612,23 +731,30 @@ static int reset_xd(struct rtsx_chip *chip)
 		xd_card->addr_cycle = 0;
 		xd_card->capacity = 0;
 
-		TRACE_RET(chip, STATUS_FAIL);
+		rtsx_trace(chip);
+		return STATUS_FAIL;
 	}
 
 	retval = xd_read_id(chip, READ_xD_ID, id_buf, 4);
-	if (retval != STATUS_SUCCESS)
-		TRACE_RET(chip, STATUS_FAIL);
-	RTSX_DEBUGP("READ_xD_ID: 0x%x 0x%x 0x%x 0x%x\n",
-			id_buf[0], id_buf[1], id_buf[2], id_buf[3]);
-	if (id_buf[2] != XD_ID_CODE)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval != STATUS_SUCCESS) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
+	dev_dbg(rtsx_dev(chip), "READ_xD_ID: 0x%x 0x%x 0x%x 0x%x\n",
+		id_buf[0], id_buf[1], id_buf[2], id_buf[3]);
+	if (id_buf[2] != XD_ID_CODE) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	/* Search CIS block */
 	for (i = 0; i < 24; i++) {
 		u32 page_addr;
 
-		if (detect_card_cd(chip, XD_CARD) != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (detect_card_cd(chip, XD_CARD) != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 
 		page_addr = (u32)i << xd_card->block_shift;
 
@@ -666,8 +792,10 @@ static int reset_xd(struct rtsx_chip *chip)
 			page_addr += j;
 
 			retval = xd_read_cis(chip, page_addr, buf, 10);
-			if (retval != STATUS_SUCCESS)
-				TRACE_RET(chip, STATUS_FAIL);
+			if (retval != STATUS_SUCCESS) {
+				rtsx_trace(chip);
+				return STATUS_FAIL;
+			}
 
 			if ((buf[0] == 0x01) && (buf[1] == 0x03) &&
 				(buf[2] == 0xD9)
@@ -682,9 +810,11 @@ static int reset_xd(struct rtsx_chip *chip)
 		break;
 	}
 
-	RTSX_DEBUGP("CIS block: 0x%x\n", xd_card->cis_block);
-	if (xd_card->cis_block == 0xFFFF)
-		TRACE_RET(chip, STATUS_FAIL);
+	dev_dbg(rtsx_dev(chip), "CIS block: 0x%x\n", xd_card->cis_block);
+	if (xd_card->cis_block == 0xFFFF) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	chip->capacity[chip->card2lun[XD_CARD]] = xd_card->capacity;
 
@@ -735,17 +865,22 @@ static int xd_init_l2p_tbl(struct rtsx_chip *chip)
 	struct xd_info *xd_card = &(chip->xd_card);
 	int size, i;
 
-	RTSX_DEBUGP("xd_init_l2p_tbl: zone_cnt = %d\n", xd_card->zone_cnt);
+	dev_dbg(rtsx_dev(chip), "xd_init_l2p_tbl: zone_cnt = %d\n",
+		xd_card->zone_cnt);
 
-	if (xd_card->zone_cnt < 1)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (xd_card->zone_cnt < 1) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	size = xd_card->zone_cnt * sizeof(struct zone_entry);
-	RTSX_DEBUGP("Buffer size for l2p table is %d\n", size);
+	dev_dbg(rtsx_dev(chip), "Buffer size for l2p table is %d\n", size);
 
 	xd_card->zone = vmalloc(size);
-	if (!xd_card->zone)
-		TRACE_RET(chip, STATUS_ERROR);
+	if (!xd_card->zone) {
+		rtsx_trace(chip);
+		return STATUS_ERROR;
+	}
 
 	for (i = 0; i < xd_card->zone_cnt; i++) {
 		xd_card->zone[i].build_flag = 0;
@@ -761,8 +896,6 @@ static int xd_init_l2p_tbl(struct rtsx_chip *chip)
 
 static inline void free_zone(struct zone_entry *zone)
 {
-	RTSX_DEBUGP("free_zone\n");
-
 	if (!zone)
 		return;
 
@@ -788,7 +921,7 @@ static void xd_set_unused_block(struct rtsx_chip *chip, u32 phy_blk)
 
 	zone_no = (int)phy_blk >> 10;
 	if (zone_no >= xd_card->zone_cnt) {
-		RTSX_DEBUGP("Set unused block to invalid zone (zone_no = %d, zone_cnt = %d)\n",
+		dev_dbg(rtsx_dev(chip), "Set unused block to invalid zone (zone_no = %d, zone_cnt = %d)\n",
 			zone_no, xd_card->zone_cnt);
 		return;
 	}
@@ -802,11 +935,12 @@ static void xd_set_unused_block(struct rtsx_chip *chip, u32 phy_blk)
 	if ((zone->set_index >= XD_FREE_TABLE_CNT)
 			|| (zone->set_index < 0)) {
 		free_zone(zone);
-		RTSX_DEBUGP("Set unused block fail, invalid set_index\n");
+		dev_dbg(rtsx_dev(chip), "Set unused block fail, invalid set_index\n");
 		return;
 	}
 
-	RTSX_DEBUGP("Set unused block to index %d\n", zone->set_index);
+	dev_dbg(rtsx_dev(chip), "Set unused block to index %d\n",
+		zone->set_index);
 
 	zone->free_table[zone->set_index++] = (u16) (phy_blk & 0x3ff);
 	if (zone->set_index >= XD_FREE_TABLE_CNT)
@@ -821,7 +955,7 @@ static u32 xd_get_unused_block(struct rtsx_chip *chip, int zone_no)
 	u32 phy_blk;
 
 	if (zone_no >= xd_card->zone_cnt) {
-		RTSX_DEBUGP("Get unused block from invalid zone (zone_no = %d, zone_cnt = %d)\n",
+		dev_dbg(rtsx_dev(chip), "Get unused block from invalid zone (zone_no = %d, zone_cnt = %d)\n",
 			zone_no, xd_card->zone_cnt);
 		return BLK_NOT_FOUND;
 	}
@@ -830,16 +964,17 @@ static u32 xd_get_unused_block(struct rtsx_chip *chip, int zone_no)
 	if ((zone->unused_blk_cnt == 0) ||
 		(zone->set_index == zone->get_index)) {
 		free_zone(zone);
-		RTSX_DEBUGP("Get unused block fail, no unused block available\n");
+		dev_dbg(rtsx_dev(chip), "Get unused block fail, no unused block available\n");
 		return BLK_NOT_FOUND;
 	}
 	if ((zone->get_index >= XD_FREE_TABLE_CNT) || (zone->get_index < 0)) {
 		free_zone(zone);
-		RTSX_DEBUGP("Get unused block fail, invalid get_index\n");
+		dev_dbg(rtsx_dev(chip), "Get unused block fail, invalid get_index\n");
 		return BLK_NOT_FOUND;
 	}
 
-	RTSX_DEBUGP("Get unused block from index %d\n", zone->get_index);
+	dev_dbg(rtsx_dev(chip), "Get unused block from index %d\n",
+		zone->get_index);
 
 	phy_blk = zone->free_table[zone->get_index];
 	zone->free_table[zone->get_index++] = 0xFFFF;
@@ -875,20 +1010,20 @@ static u32 xd_get_l2p_tbl(struct rtsx_chip *chip, int zone_no, u16 log_off)
 #ifdef XD_DELAY_WRITE
 		retval = xd_delay_write(chip);
 		if (retval != STATUS_SUCCESS) {
-			RTSX_DEBUGP("In xd_get_l2p_tbl, delay write fail!\n");
+			dev_dbg(rtsx_dev(chip), "In xd_get_l2p_tbl, delay write fail!\n");
 			return BLK_NOT_FOUND;
 		}
 #endif
 
 		if (zone->unused_blk_cnt <= 0) {
-			RTSX_DEBUGP("No unused block!\n");
+			dev_dbg(rtsx_dev(chip), "No unused block!\n");
 			return BLK_NOT_FOUND;
 		}
 
 		for (i = 0; i < zone->unused_blk_cnt; i++) {
 			phy_blk = xd_get_unused_block(chip, zone_no);
 			if (phy_blk == BLK_NOT_FOUND) {
-				RTSX_DEBUGP("No unused block available!\n");
+				dev_dbg(rtsx_dev(chip), "No unused block available!\n");
 				return BLK_NOT_FOUND;
 			}
 
@@ -898,7 +1033,7 @@ static u32 xd_get_l2p_tbl(struct rtsx_chip *chip, int zone_no, u16 log_off)
 				break;
 		}
 		if (i >= zone->unused_blk_cnt) {
-			RTSX_DEBUGP("No good unused block available!\n");
+			dev_dbg(rtsx_dev(chip), "No good unused block available!\n");
 			return BLK_NOT_FOUND;
 		}
 
@@ -925,16 +1060,22 @@ int reset_xd_card(struct rtsx_chip *chip)
 	xd_card->delay_write.delay_write_flag = 0;
 
 	retval = enable_card_clock(chip, XD_CARD);
-	if (retval != STATUS_SUCCESS)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval != STATUS_SUCCESS) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	retval = reset_xd(chip);
-	if (retval != STATUS_SUCCESS)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval != STATUS_SUCCESS) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	retval = xd_init_l2p_tbl(chip);
-	if (retval != STATUS_SUCCESS)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval != STATUS_SUCCESS) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	return STATUS_SUCCESS;
 }
@@ -946,10 +1087,12 @@ static int xd_mark_bad_block(struct rtsx_chip *chip, u32 phy_blk)
 	u32 page_addr;
 	u8 reg = 0;
 
-	RTSX_DEBUGP("mark block 0x%x as bad block\n", phy_blk);
+	dev_dbg(rtsx_dev(chip), "mark block 0x%x as bad block\n", phy_blk);
 
-	if (phy_blk == BLK_NOT_FOUND)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (phy_blk == BLK_NOT_FOUND) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	rtsx_init_cmd(chip);
 
@@ -984,7 +1127,8 @@ static int xd_mark_bad_block(struct rtsx_chip *chip, u32 phy_blk)
 			xd_set_err_code(chip, XD_PRG_ERROR);
 		else
 			xd_set_err_code(chip, XD_TO_ERROR);
-		TRACE_RET(chip, STATUS_FAIL);
+		rtsx_trace(chip);
+		return STATUS_FAIL;
 	}
 
 	return STATUS_SUCCESS;
@@ -998,12 +1142,16 @@ static int xd_init_page(struct rtsx_chip *chip, u32 phy_blk,
 	u32 page_addr;
 	u8 reg = 0;
 
-	RTSX_DEBUGP("Init block 0x%x\n", phy_blk);
+	dev_dbg(rtsx_dev(chip), "Init block 0x%x\n", phy_blk);
 
-	if (start_page > end_page)
-		TRACE_RET(chip, STATUS_FAIL);
-	if (phy_blk == BLK_NOT_FOUND)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (start_page > end_page) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
+	if (phy_blk == BLK_NOT_FOUND) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	rtsx_init_cmd(chip);
 
@@ -1038,7 +1186,8 @@ static int xd_init_page(struct rtsx_chip *chip, u32 phy_blk,
 		} else {
 			xd_set_err_code(chip, XD_TO_ERROR);
 		}
-		TRACE_RET(chip, STATUS_FAIL);
+		rtsx_trace(chip);
+		return STATUS_FAIL;
 	}
 
 	return STATUS_SUCCESS;
@@ -1052,27 +1201,37 @@ static int xd_copy_page(struct rtsx_chip *chip, u32 old_blk, u32 new_blk,
 	u8 i, reg = 0;
 	int retval;
 
-	RTSX_DEBUGP("Copy page from block 0x%x to block 0x%x\n",
+	dev_dbg(rtsx_dev(chip), "Copy page from block 0x%x to block 0x%x\n",
 		old_blk, new_blk);
 
-	if (start_page > end_page)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (start_page > end_page) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
-	if ((old_blk == BLK_NOT_FOUND) || (new_blk == BLK_NOT_FOUND))
-		TRACE_RET(chip, STATUS_FAIL);
+	if ((old_blk == BLK_NOT_FOUND) || (new_blk == BLK_NOT_FOUND)) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	old_page = (old_blk << xd_card->block_shift) + start_page;
 	new_page = (new_blk << xd_card->block_shift) + start_page;
 
 	XD_CLR_BAD_NEWBLK(xd_card);
 
-	RTSX_WRITE_REG(chip, CARD_DATA_SOURCE, 0x01, PINGPONG_BUFFER);
+	retval = rtsx_write_register(chip, CARD_DATA_SOURCE, 0x01,
+				     PINGPONG_BUFFER);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	for (i = start_page; i < end_page; i++) {
 		if (detect_card_cd(chip, XD_CARD) != STATUS_SUCCESS) {
 			rtsx_clear_xd_error(chip);
 			xd_set_err_code(chip, XD_NO_CARD);
-			TRACE_RET(chip, STATUS_FAIL);
+			rtsx_trace(chip);
+			return STATUS_FAIL;
 		}
 
 		rtsx_init_cmd(chip);
@@ -1098,7 +1257,8 @@ static int xd_copy_page(struct rtsx_chip *chip, u32 old_blk, u32 new_blk,
 				if (detect_card_cd(chip,
 					XD_CARD) != STATUS_SUCCESS) {
 					xd_set_err_code(chip, XD_NO_CARD);
-					TRACE_RET(chip, STATUS_FAIL);
+					rtsx_trace(chip);
+					return STATUS_FAIL;
 				}
 
 				if (((reg & (XD_ECC1_ERROR | XD_ECC1_UNCORRECTABLE)) ==
@@ -1112,11 +1272,13 @@ static int xd_copy_page(struct rtsx_chip *chip, u32 old_blk, u32 new_blk,
 							XD_BLOCK_STATUS, 0xFF,
 							XD_GBLK);
 					XD_SET_BAD_OLDBLK(xd_card);
-					RTSX_DEBUGP("old block 0x%x ecc error\n", old_blk);
+					dev_dbg(rtsx_dev(chip), "old block 0x%x ecc error\n",
+						old_blk);
 				}
 			} else {
 				xd_set_err_code(chip, XD_TO_ERROR);
-				TRACE_RET(chip, STATUS_FAIL);
+				rtsx_trace(chip);
+				return STATUS_FAIL;
 			}
 		}
 
@@ -1144,7 +1306,8 @@ static int xd_copy_page(struct rtsx_chip *chip, u32 old_blk, u32 new_blk,
 			} else {
 				xd_set_err_code(chip, XD_TO_ERROR);
 			}
-			TRACE_RET(chip, STATUS_FAIL);
+			rtsx_trace(chip);
+			return STATUS_FAIL;
 		}
 
 		old_page++;
@@ -1169,14 +1332,17 @@ static int xd_reset_cmd(struct rtsx_chip *chip)
 	rtsx_add_cmd(chip, READ_REG_CMD, XD_CTL, 0, 0);
 
 	retval = rtsx_send_cmd(chip, XD_CARD, 100);
-	if (retval < 0)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval < 0) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	ptr = rtsx_get_cmd_data(chip) + 1;
 	if (((ptr[0] & READY_FLAG) == READY_STATE) && (ptr[1] & XD_RDY))
 		return STATUS_SUCCESS;
 
-	TRACE_RET(chip, STATUS_FAIL);
+	rtsx_trace(chip);
+	return STATUS_FAIL;
 }
 
 static int xd_erase_block(struct rtsx_chip *chip, u32 phy_blk)
@@ -1186,8 +1352,10 @@ static int xd_erase_block(struct rtsx_chip *chip, u32 phy_blk)
 	u8 reg = 0, *ptr;
 	int i, retval;
 
-	if (phy_blk == BLK_NOT_FOUND)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (phy_blk == BLK_NOT_FOUND) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	page_addr = phy_blk << xd_card->block_shift;
 
@@ -1209,13 +1377,16 @@ static int xd_erase_block(struct rtsx_chip *chip, u32 phy_blk)
 			if (reg & PROGRAM_ERROR) {
 				xd_mark_bad_block(chip, phy_blk);
 				xd_set_err_code(chip, XD_PRG_ERROR);
-				TRACE_RET(chip, STATUS_FAIL);
+				rtsx_trace(chip);
+				return STATUS_FAIL;
 			} else {
 				xd_set_err_code(chip, XD_ERASE_FAIL);
 			}
 			retval = xd_reset_cmd(chip);
-			if (retval != STATUS_SUCCESS)
-				TRACE_RET(chip, STATUS_FAIL);
+			if (retval != STATUS_SUCCESS) {
+				rtsx_trace(chip);
+				return STATUS_FAIL;
+			}
 			continue;
 		}
 
@@ -1223,7 +1394,8 @@ static int xd_erase_block(struct rtsx_chip *chip, u32 phy_blk)
 		if (*ptr & PROGRAM_ERROR) {
 			xd_mark_bad_block(chip, phy_blk);
 			xd_set_err_code(chip, XD_PRG_ERROR);
-			TRACE_RET(chip, STATUS_FAIL);
+			rtsx_trace(chip);
+			return STATUS_FAIL;
 		}
 
 		return STATUS_SUCCESS;
@@ -1231,7 +1403,8 @@ static int xd_erase_block(struct rtsx_chip *chip, u32 phy_blk)
 
 	xd_mark_bad_block(chip, phy_blk);
 	xd_set_err_code(chip, XD_ERASE_FAIL);
-	TRACE_RET(chip, STATUS_FAIL);
+	rtsx_trace(chip);
+	return STATUS_FAIL;
 }
 
 
@@ -1245,7 +1418,7 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 	u16 cur_lst_page_logoff, ent_lst_page_logoff;
 	u8 redunt[11];
 
-	RTSX_DEBUGP("xd_build_l2p_tbl: %d\n", zone_no);
+	dev_dbg(rtsx_dev(chip), "xd_build_l2p_tbl: %d\n", zone_no);
 
 	if (xd_card->zone == NULL) {
 		retval = xd_init_l2p_tbl(chip);
@@ -1254,7 +1427,8 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 	}
 
 	if (xd_card->zone[zone_no].build_flag) {
-		RTSX_DEBUGP("l2p table of zone %d has been built\n", zone_no);
+		dev_dbg(rtsx_dev(chip), "l2p table of zone %d has been built\n",
+			zone_no);
 		return STATUS_SUCCESS;
 	}
 
@@ -1262,15 +1436,19 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 
 	if (zone->l2p_table == NULL) {
 		zone->l2p_table = vmalloc(2000);
-		if (zone->l2p_table == NULL)
-			TRACE_GOTO(chip, Build_Fail);
+		if (zone->l2p_table == NULL) {
+			rtsx_trace(chip);
+			goto Build_Fail;
+		}
 	}
 	memset((u8 *)(zone->l2p_table), 0xff, 2000);
 
 	if (zone->free_table == NULL) {
 		zone->free_table = vmalloc(XD_FREE_TABLE_CNT * 2);
-		if (zone->free_table == NULL)
-			TRACE_GOTO(chip, Build_Fail);
+		if (zone->free_table == NULL) {
+			rtsx_trace(chip);
+			goto Build_Fail;
+		}
 	}
 	memset((u8 *)(zone->free_table), 0xff, XD_FREE_TABLE_CNT * 2);
 
@@ -1292,7 +1470,8 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 		max_logoff = 999;
 	}
 
-	RTSX_DEBUGP("start block 0x%x, end block 0x%x\n", start, end);
+	dev_dbg(rtsx_dev(chip), "start block 0x%x, end block 0x%x\n",
+		start, end);
 
 	zone->set_index = zone->get_index = 0;
 	zone->unused_blk_cnt = 0;
@@ -1306,12 +1485,12 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 			continue;
 
 		if (redunt[BLOCK_STATUS] != 0xFF) {
-			RTSX_DEBUGP("bad block\n");
+			dev_dbg(rtsx_dev(chip), "bad block\n");
 			continue;
 		}
 
 		if (xd_check_data_blank(redunt)) {
-			RTSX_DEBUGP("blank block\n");
+			dev_dbg(rtsx_dev(chip), "blank block\n");
 			xd_set_unused_block(chip, i);
 			continue;
 		}
@@ -1397,8 +1576,10 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 			i++;
 	}
 
-	RTSX_DEBUGP("Block count %d, invalid L2P entry %d\n", end, i);
-	RTSX_DEBUGP("Total unused block: %d\n", zone->unused_blk_cnt);
+	dev_dbg(rtsx_dev(chip), "Block count %d, invalid L2P entry %d\n",
+		end, i);
+	dev_dbg(rtsx_dev(chip), "Total unused block: %d\n",
+		zone->unused_blk_cnt);
 
 	if ((zone->unused_blk_cnt - i) < 1)
 		chip->card_wp |= XD_CARD;
@@ -1433,8 +1614,10 @@ static int xd_send_cmd(struct rtsx_chip *chip, u8 cmd)
 		XD_TRANSFER_END, XD_TRANSFER_END);
 
 	retval = rtsx_send_cmd(chip, XD_CARD, 200);
-	if (retval < 0)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval < 0) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	return STATUS_SUCCESS;
 }
@@ -1450,8 +1633,10 @@ static int xd_read_multiple_pages(struct rtsx_chip *chip, u32 phy_blk,
 	u8 reg_val, page_cnt;
 	int zone_no, retval, i;
 
-	if (start_page > end_page)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (start_page > end_page) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	page_cnt = end_page - start_page;
 	zone_no = (int)(log_blk / 1000);
@@ -1467,7 +1652,8 @@ static int xd_read_multiple_pages(struct rtsx_chip *chip, u32 phy_blk,
 
 			if (detect_card_cd(chip, XD_CARD) != STATUS_SUCCESS) {
 				xd_set_err_code(chip, XD_NO_CARD);
-				TRACE_RET(chip, STATUS_FAIL);
+				rtsx_trace(chip);
+				return STATUS_FAIL;
 			}
 		}
 	}
@@ -1502,21 +1688,31 @@ static int xd_read_multiple_pages(struct rtsx_chip *chip, u32 phy_blk,
 
 		if (retval == -ETIMEDOUT) {
 			xd_set_err_code(chip, XD_TO_ERROR);
-			TRACE_RET(chip, STATUS_FAIL);
+			rtsx_trace(chip);
+			return STATUS_FAIL;
 		} else {
-			TRACE_GOTO(chip, Fail);
+			rtsx_trace(chip);
+			goto Fail;
 		}
 	}
 
 	return STATUS_SUCCESS;
 
 Fail:
-	RTSX_READ_REG(chip, XD_PAGE_STATUS, &reg_val);
+	retval = rtsx_read_register(chip, XD_PAGE_STATUS, &reg_val);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	if (reg_val !=  XD_GPG)
 		xd_set_err_code(chip, XD_PRG_ERROR);
 
-	RTSX_READ_REG(chip, XD_CTL, &reg_val);
+	retval = rtsx_read_register(chip, XD_CTL, &reg_val);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	if (((reg_val & (XD_ECC1_ERROR | XD_ECC1_UNCORRECTABLE))
 				== (XD_ECC1_ERROR | XD_ECC1_UNCORRECTABLE))
@@ -1526,7 +1722,8 @@ Fail:
 
 		if (detect_card_cd(chip, XD_CARD) != STATUS_SUCCESS) {
 			xd_set_err_code(chip, XD_NO_CARD);
-			TRACE_RET(chip, STATUS_FAIL);
+			rtsx_trace(chip);
+			return STATUS_FAIL;
 		}
 
 		xd_set_err_code(chip, XD_ECC_ERROR);
@@ -1534,7 +1731,8 @@ Fail:
 		new_blk = xd_get_unused_block(chip, zone_no);
 		if (new_blk == NO_NEW_BLK) {
 			XD_CLR_BAD_OLDBLK(xd_card);
-			TRACE_RET(chip, STATUS_FAIL);
+			rtsx_trace(chip);
+			return STATUS_FAIL;
 		}
 
 		retval = xd_copy_page(chip, phy_blk, new_blk, 0,
@@ -1548,7 +1746,8 @@ Fail:
 				XD_CLR_BAD_NEWBLK(xd_card);
 			}
 			XD_CLR_BAD_OLDBLK(xd_card);
-			TRACE_RET(chip, STATUS_FAIL);
+			rtsx_trace(chip);
+			return STATUS_FAIL;
 		}
 		xd_set_l2p_tbl(chip, zone_no, log_off, (u16)(new_blk & 0x3FF));
 		xd_erase_block(chip, phy_blk);
@@ -1556,7 +1755,8 @@ Fail:
 		XD_CLR_BAD_OLDBLK(xd_card);
 	}
 
-	TRACE_RET(chip, STATUS_FAIL);
+	rtsx_trace(chip);
+	return STATUS_FAIL;
 }
 
 static int xd_finish_write(struct rtsx_chip *chip,
@@ -1566,11 +1766,13 @@ static int xd_finish_write(struct rtsx_chip *chip,
 	int retval, zone_no;
 	u16 log_off;
 
-	RTSX_DEBUGP("xd_finish_write, old_blk = 0x%x, new_blk = 0x%x, log_blk = 0x%x\n",
-				old_blk, new_blk, log_blk);
+	dev_dbg(rtsx_dev(chip), "xd_finish_write, old_blk = 0x%x, new_blk = 0x%x, log_blk = 0x%x\n",
+		old_blk, new_blk, log_blk);
 
-	if (page_off > xd_card->page_off)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (page_off > xd_card->page_off) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	zone_no = (int)(log_blk / 1000);
 	log_off = (u16)(log_blk % 1000);
@@ -1582,7 +1784,8 @@ static int xd_finish_write(struct rtsx_chip *chip,
 			retval = xd_erase_block(chip, new_blk);
 			if (retval == STATUS_SUCCESS)
 				xd_set_unused_block(chip, new_blk);
-			TRACE_RET(chip, STATUS_FAIL);
+			rtsx_trace(chip);
+			return STATUS_FAIL;
 		}
 	} else {
 		retval = xd_copy_page(chip, old_blk, new_blk,
@@ -1594,7 +1797,8 @@ static int xd_finish_write(struct rtsx_chip *chip,
 					xd_set_unused_block(chip, new_blk);
 			}
 			XD_CLR_BAD_NEWBLK(xd_card);
-			TRACE_RET(chip, STATUS_FAIL);
+			rtsx_trace(chip);
+			return STATUS_FAIL;
 		}
 
 		retval = xd_erase_block(chip, old_blk);
@@ -1621,13 +1825,15 @@ static int xd_prepare_write(struct rtsx_chip *chip,
 {
 	int retval;
 
-	RTSX_DEBUGP("%s, old_blk = 0x%x, new_blk = 0x%x, log_blk = 0x%x, page_off = %d\n",
+	dev_dbg(rtsx_dev(chip), "%s, old_blk = 0x%x, new_blk = 0x%x, log_blk = 0x%x, page_off = %d\n",
 		__func__, old_blk, new_blk, log_blk, (int)page_off);
 
 	if (page_off) {
 		retval = xd_copy_page(chip, old_blk, new_blk, 0, page_off);
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 	}
 
 	return STATUS_SUCCESS;
@@ -1645,11 +1851,13 @@ static int xd_write_multiple_pages(struct rtsx_chip *chip, u32 old_blk,
 	u16 log_off;
 	u8 page_cnt, reg_val;
 
-	RTSX_DEBUGP("%s, old_blk = 0x%x, new_blk = 0x%x, log_blk = 0x%x\n",
-				__func__, old_blk, new_blk, log_blk);
+	dev_dbg(rtsx_dev(chip), "%s, old_blk = 0x%x, new_blk = 0x%x, log_blk = 0x%x\n",
+		__func__, old_blk, new_blk, log_blk);
 
-	if (start_page > end_page)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (start_page > end_page) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	page_cnt = end_page - start_page;
 	zone_no = (int)(log_blk / 1000);
@@ -1658,8 +1866,10 @@ static int xd_write_multiple_pages(struct rtsx_chip *chip, u32 old_blk,
 	page_addr = (new_blk << xd_card->block_shift) + start_page;
 
 	retval = xd_send_cmd(chip, READ1_1);
-	if (retval != STATUS_SUCCESS)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval != STATUS_SUCCESS) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	rtsx_init_cmd(chip);
 
@@ -1694,9 +1904,11 @@ static int xd_write_multiple_pages(struct rtsx_chip *chip, u32 old_blk,
 
 		if (retval == -ETIMEDOUT) {
 			xd_set_err_code(chip, XD_TO_ERROR);
-			TRACE_RET(chip, STATUS_FAIL);
+			rtsx_trace(chip);
+			return STATUS_FAIL;
 		} else {
-			TRACE_GOTO(chip, Fail);
+			rtsx_trace(chip);
+			goto Fail;
 		}
 	}
 
@@ -1723,13 +1935,18 @@ static int xd_write_multiple_pages(struct rtsx_chip *chip, u32 old_blk,
 	return STATUS_SUCCESS;
 
 Fail:
-	RTSX_READ_REG(chip, XD_DAT, &reg_val);
+	retval = rtsx_read_register(chip, XD_DAT, &reg_val);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 	if (reg_val & PROGRAM_ERROR) {
 		xd_set_err_code(chip, XD_PRG_ERROR);
 		xd_mark_bad_block(chip, new_blk);
 	}
 
-	TRACE_RET(chip, STATUS_FAIL);
+	rtsx_trace(chip);
+	return STATUS_FAIL;
 }
 
 #ifdef XD_DELAY_WRITE
@@ -1740,18 +1957,22 @@ int xd_delay_write(struct rtsx_chip *chip)
 	int retval;
 
 	if (delay_write->delay_write_flag) {
-		RTSX_DEBUGP("xd_delay_write\n");
+		dev_dbg(rtsx_dev(chip), "xd_delay_write\n");
 		retval = xd_switch_clock(chip);
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 
 		delay_write->delay_write_flag = 0;
 		retval = xd_finish_write(chip,
 				delay_write->old_phyblock,
 					delay_write->new_phyblock,
 				delay_write->logblock, delay_write->pageoff);
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 	}
 
 	return STATUS_SUCCESS;
@@ -1777,19 +1998,23 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 
 	xd_card->cleanup_counter = 0;
 
-	RTSX_DEBUGP("xd_rw: scsi_sg_count = %d\n", scsi_sg_count(srb));
+	dev_dbg(rtsx_dev(chip), "xd_rw: scsi_sg_count = %d\n",
+		scsi_sg_count(srb));
 
 	ptr = (u8 *)scsi_sglist(srb);
 
 	retval = xd_switch_clock(chip);
-	if (retval != STATUS_SUCCESS)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval != STATUS_SUCCESS) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 
 	if (detect_card_cd(chip, XD_CARD) != STATUS_SUCCESS) {
 		chip->card_fail |= XD_CARD;
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
-		TRACE_RET(chip, STATUS_FAIL);
+		rtsx_trace(chip);
+		return STATUS_FAIL;
 	}
 
 	log_blk = start_sector >> xd_card->block_shift;
@@ -1802,7 +2027,8 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 		if (retval != STATUS_SUCCESS) {
 			chip->card_fail |= XD_CARD;
 			set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
-			TRACE_RET(chip, STATUS_FAIL);
+			rtsx_trace(chip);
+			return STATUS_FAIL;
 		}
 	}
 
@@ -1820,7 +2046,8 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 				if (retval != STATUS_SUCCESS) {
 					set_sense_type(chip, lun,
 						SENSE_TYPE_MEDIA_WRITE_ERR);
-					TRACE_RET(chip, STATUS_FAIL);
+					rtsx_trace(chip);
+					return STATUS_FAIL;
 				}
 			}
 			old_blk = delay_write->old_phyblock;
@@ -1836,7 +2063,8 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 			if (retval != STATUS_SUCCESS) {
 				set_sense_type(chip, lun,
 					SENSE_TYPE_MEDIA_WRITE_ERR);
-				TRACE_RET(chip, STATUS_FAIL);
+				rtsx_trace(chip);
+				return STATUS_FAIL;
 			}
 #endif
 			old_blk = xd_get_l2p_tbl(chip, zone_no, log_off);
@@ -1845,7 +2073,8 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 				(new_blk == BLK_NOT_FOUND)) {
 				set_sense_type(chip, lun,
 					SENSE_TYPE_MEDIA_WRITE_ERR);
-				TRACE_RET(chip, STATUS_FAIL);
+				rtsx_trace(chip);
+				return STATUS_FAIL;
 			}
 
 			retval = xd_prepare_write(chip, old_blk, new_blk,
@@ -1855,11 +2084,13 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 					STATUS_SUCCESS) {
 					set_sense_type(chip, lun,
 						SENSE_TYPE_MEDIA_NOT_PRESENT);
-					TRACE_RET(chip, STATUS_FAIL);
+					rtsx_trace(chip);
+					return STATUS_FAIL;
 				}
 				set_sense_type(chip, lun,
 					SENSE_TYPE_MEDIA_WRITE_ERR);
-				TRACE_RET(chip, STATUS_FAIL);
+				rtsx_trace(chip);
+				return STATUS_FAIL;
 			}
 #ifdef XD_DELAY_WRITE
 		}
@@ -1871,11 +2102,13 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 			if (detect_card_cd(chip, XD_CARD) != STATUS_SUCCESS) {
 				set_sense_type(chip, lun,
 					SENSE_TYPE_MEDIA_NOT_PRESENT);
-				TRACE_RET(chip, STATUS_FAIL);
+				rtsx_trace(chip);
+				return STATUS_FAIL;
 			}
 			set_sense_type(chip, lun,
 				SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
-			TRACE_RET(chip, STATUS_FAIL);
+			rtsx_trace(chip);
+			return STATUS_FAIL;
 		}
 #endif
 
@@ -1883,17 +2116,19 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 		if (old_blk == BLK_NOT_FOUND) {
 			set_sense_type(chip, lun,
 				SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
-			TRACE_RET(chip, STATUS_FAIL);
+			rtsx_trace(chip);
+			return STATUS_FAIL;
 		}
 	}
 
-	RTSX_DEBUGP("old_blk = 0x%x\n", old_blk);
+	dev_dbg(rtsx_dev(chip), "old_blk = 0x%x\n", old_blk);
 
 	while (total_sec_cnt) {
 		if (detect_card_cd(chip, XD_CARD) != STATUS_SUCCESS) {
 			chip->card_fail |= XD_CARD;
 			set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
-			TRACE_RET(chip, STATUS_FAIL);
+			rtsx_trace(chip);
+			return STATUS_FAIL;
 		}
 
 		if ((start_page + total_sec_cnt) > (xd_card->page_off + 1))
@@ -1909,7 +2144,8 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 			if (retval != STATUS_SUCCESS) {
 				set_sense_type(chip, lun,
 					SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
-				TRACE_RET(chip, STATUS_FAIL);
+				rtsx_trace(chip);
+				return STATUS_FAIL;
 			}
 		} else {
 			retval = xd_write_multiple_pages(chip, old_blk,
@@ -1919,7 +2155,8 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 			if (retval != STATUS_SUCCESS) {
 				set_sense_type(chip, lun,
 					SENSE_TYPE_MEDIA_WRITE_ERR);
-				TRACE_RET(chip, STATUS_FAIL);
+				rtsx_trace(chip);
+				return STATUS_FAIL;
 			}
 		}
 
@@ -1940,7 +2177,8 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 				chip->card_fail |= XD_CARD;
 				set_sense_type(chip, lun,
 					SENSE_TYPE_MEDIA_NOT_PRESENT);
-				TRACE_RET(chip, STATUS_FAIL);
+				rtsx_trace(chip);
+				return STATUS_FAIL;
 			}
 		}
 
@@ -1953,7 +2191,8 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 				set_sense_type(chip, lun,
 					SENSE_TYPE_MEDIA_WRITE_ERR);
 
-			TRACE_RET(chip, STATUS_FAIL);
+			rtsx_trace(chip);
+			return STATUS_FAIL;
 		}
 
 		if (srb->sc_data_direction == DMA_TO_DEVICE) {
@@ -1961,7 +2200,8 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 			if (new_blk == BLK_NOT_FOUND) {
 				set_sense_type(chip, lun,
 					SENSE_TYPE_MEDIA_WRITE_ERR);
-				TRACE_RET(chip, STATUS_FAIL);
+				rtsx_trace(chip);
+				return STATUS_FAIL;
 			}
 		}
 
@@ -1980,7 +2220,8 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 		if (detect_card_cd(chip, XD_CARD) != STATUS_SUCCESS) {
 			chip->card_fail |= XD_CARD;
 			set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
-			TRACE_RET(chip, STATUS_FAIL);
+			rtsx_trace(chip);
+			return STATUS_FAIL;
 		}
 
 		retval = xd_finish_write(chip, old_blk, new_blk,
@@ -1989,10 +2230,12 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 			if (detect_card_cd(chip, XD_CARD) != STATUS_SUCCESS) {
 				set_sense_type(chip, lun,
 					SENSE_TYPE_MEDIA_NOT_PRESENT);
-				TRACE_RET(chip, STATUS_FAIL);
+				rtsx_trace(chip);
+				return STATUS_FAIL;
 			}
 			set_sense_type(chip, lun, SENSE_TYPE_MEDIA_WRITE_ERR);
-			TRACE_RET(chip, STATUS_FAIL);
+			rtsx_trace(chip);
+			return STATUS_FAIL;
 		}
 #endif
 	}
@@ -2029,7 +2272,7 @@ void xd_cleanup_work(struct rtsx_chip *chip)
 	struct xd_info *xd_card = &(chip->xd_card);
 
 	if (xd_card->delay_write.delay_write_flag) {
-		RTSX_DEBUGP("xD: delay write\n");
+		dev_dbg(rtsx_dev(chip), "xD: delay write\n");
 		xd_delay_write(chip);
 		xd_card->cleanup_counter = 0;
 	}
@@ -2041,25 +2284,39 @@ int xd_power_off_card3v3(struct rtsx_chip *chip)
 	int retval;
 
 	retval = disable_card_clock(chip, XD_CARD);
-	if (retval != STATUS_SUCCESS)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval != STATUS_SUCCESS) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
-	RTSX_WRITE_REG(chip, CARD_OE, XD_OUTPUT_EN, 0);
+	retval = rtsx_write_register(chip, CARD_OE, XD_OUTPUT_EN, 0);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	if (!chip->ft2_fast_mode) {
 		retval = card_power_off(chip, XD_CARD);
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 
 		wait_timeout(50);
 	}
 
 	if (chip->asic_code) {
 		retval = xd_pull_ctl_disable(chip);
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 	} else {
-		RTSX_WRITE_REG(chip, FPGA_PULL_CTL, 0xFF, 0xDF);
+		retval = rtsx_write_register(chip, FPGA_PULL_CTL, 0xFF, 0xDF);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
 	}
 
 	return STATUS_SUCCESS;
@@ -2070,8 +2327,6 @@ int release_xd_card(struct rtsx_chip *chip)
 	struct xd_info *xd_card = &(chip->xd_card);
 	int retval;
 
-	RTSX_DEBUGP("release_xd_card\n");
-
 	chip->card_ready &= ~XD_CARD;
 	chip->card_fail &= ~XD_CARD;
 	chip->card_wp &= ~XD_CARD;
@@ -2081,8 +2336,10 @@ int release_xd_card(struct rtsx_chip *chip)
 	xd_free_l2p_tbl(chip);
 
 	retval = xd_power_off_card3v3(chip);
-	if (retval != STATUS_SUCCESS)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval != STATUS_SUCCESS) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	return STATUS_SUCCESS;
 }

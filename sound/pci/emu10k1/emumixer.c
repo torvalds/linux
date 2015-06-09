@@ -83,7 +83,7 @@ static int snd_emu10k1_spdif_get_mask(struct snd_kcontrol *kcontrol,
  * Items labels in enum mixer controls assigning source data to
  * each destination
  */
-static char *emu1010_src_texts[] = { 
+static const char * const emu1010_src_texts[] = {
 	"Silence",
 	"Dock Mic A",
 	"Dock Mic B",
@@ -141,7 +141,7 @@ static char *emu1010_src_texts[] = {
 
 /* 1616(m) cardbus */
 
-static char *emu1616_src_texts[] = {
+static const char * const emu1616_src_texts[] = {
 	"Silence",
 	"Dock Mic A",
 	"Dock Mic B",
@@ -393,23 +393,11 @@ static int snd_emu1010_input_output_source_info(struct snd_kcontrol *kcontrol,
 						struct snd_ctl_elem_info *uinfo)
 {
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
-	char **items;
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	if (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616) {
-		uinfo->value.enumerated.items = 49;
-		items = emu1616_src_texts;
-	} else {
-		uinfo->value.enumerated.items = 53;
-		items = emu1010_src_texts;
-	}
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item =
-			uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name,
-	       items[uinfo->value.enumerated.item]);
-	return 0;
+	if (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616)
+		return snd_ctl_enum_info(uinfo, 1, 49, emu1616_src_texts);
+	else
+		return snd_ctl_enum_info(uinfo, 1, 53, emu1010_src_texts);
 }
 
 static int snd_emu1010_output_source_get(struct snd_kcontrol *kcontrol,
@@ -699,19 +687,11 @@ static struct snd_kcontrol_new snd_emu1010_dac_pads[] = {
 static int snd_emu1010_internal_clock_info(struct snd_kcontrol *kcontrol,
 					  struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[4] = {
+	static const char * const texts[4] = {
 		"44100", "48000", "SPDIF", "ADAT"
 	};
 		
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 4;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
-	
-	
+	return snd_ctl_enum_info(uinfo, 1, 4, texts);
 }
 
 static int snd_emu1010_internal_clock_get(struct snd_kcontrol *kcontrol,
@@ -826,25 +806,121 @@ static struct snd_kcontrol_new snd_emu1010_internal_clock =
 	.put =          snd_emu1010_internal_clock_put
 };
 
+static int snd_emu1010_optical_out_info(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_info *uinfo)
+{
+	static const char * const texts[2] = {
+		"SPDIF", "ADAT"
+	};
+
+	return snd_ctl_enum_info(uinfo, 1, 2, texts);
+}
+
+static int snd_emu1010_optical_out_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.enumerated.item[0] = emu->emu1010.optical_out;
+	return 0;
+}
+
+static int snd_emu1010_optical_out_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+	unsigned int val;
+	u32 tmp;
+	int change = 0;
+
+	val = ucontrol->value.enumerated.item[0];
+	/* Limit: uinfo->value.enumerated.items = 2; */
+	if (val >= 2)
+		return -EINVAL;
+	change = (emu->emu1010.optical_out != val);
+	if (change) {
+		emu->emu1010.optical_out = val;
+		tmp = (emu->emu1010.optical_in ? EMU_HANA_OPTICAL_IN_ADAT : 0) |
+			(emu->emu1010.optical_out ? EMU_HANA_OPTICAL_OUT_ADAT : 0);
+		snd_emu1010_fpga_write(emu, EMU_HANA_OPTICAL_TYPE, tmp);
+	}
+	return change;
+}
+
+static struct snd_kcontrol_new snd_emu1010_optical_out = {
+	.access =	SNDRV_CTL_ELEM_ACCESS_READWRITE,
+	.iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name =         "Optical Output Mode",
+	.count =	1,
+	.info =         snd_emu1010_optical_out_info,
+	.get =          snd_emu1010_optical_out_get,
+	.put =          snd_emu1010_optical_out_put
+};
+
+static int snd_emu1010_optical_in_info(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_info *uinfo)
+{
+	static const char * const texts[2] = {
+		"SPDIF", "ADAT"
+	};
+
+	return snd_ctl_enum_info(uinfo, 1, 2, texts);
+}
+
+static int snd_emu1010_optical_in_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.enumerated.item[0] = emu->emu1010.optical_in;
+	return 0;
+}
+
+static int snd_emu1010_optical_in_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+	unsigned int val;
+	u32 tmp;
+	int change = 0;
+
+	val = ucontrol->value.enumerated.item[0];
+	/* Limit: uinfo->value.enumerated.items = 2; */
+	if (val >= 2)
+		return -EINVAL;
+	change = (emu->emu1010.optical_in != val);
+	if (change) {
+		emu->emu1010.optical_in = val;
+		tmp = (emu->emu1010.optical_in ? EMU_HANA_OPTICAL_IN_ADAT : 0) |
+			(emu->emu1010.optical_out ? EMU_HANA_OPTICAL_OUT_ADAT : 0);
+		snd_emu1010_fpga_write(emu, EMU_HANA_OPTICAL_TYPE, tmp);
+	}
+	return change;
+}
+
+static struct snd_kcontrol_new snd_emu1010_optical_in = {
+	.access =	SNDRV_CTL_ELEM_ACCESS_READWRITE,
+	.iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name =         "Optical Input Mode",
+	.count =	1,
+	.info =         snd_emu1010_optical_in_info,
+	.get =          snd_emu1010_optical_in_get,
+	.put =          snd_emu1010_optical_in_put
+};
+
 static int snd_audigy_i2c_capture_source_info(struct snd_kcontrol *kcontrol,
 					  struct snd_ctl_elem_info *uinfo)
 {
 #if 0
-	static char *texts[4] = {
+	static const char * const texts[4] = {
 		"Unknown1", "Unknown2", "Mic", "Line"
 	};
 #endif
-	static char *texts[2] = {
+	static const char * const texts[2] = {
 		"Mic", "Line"
 	};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-	if (uinfo->value.enumerated.item > 1)
-                uinfo->value.enumerated.item = 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 2, texts);
 }
 
 static int snd_audigy_i2c_capture_source_get(struct snd_kcontrol *kcontrol,
@@ -997,15 +1073,9 @@ static struct snd_kcontrol_new snd_audigy_i2c_volume_ctls[] = {
 #if 0
 static int snd_audigy_spdif_output_rate_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = {"44100", "48000", "96000"};
+	static const char * const texts[] = {"44100", "48000", "96000"};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 3;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 3, texts);
 }
 
 static int snd_audigy_spdif_output_rate_get(struct snd_kcontrol *kcontrol,
@@ -1853,8 +1923,10 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		if ((err = snd_ac97_mixer(pbus, &ac97, &emu->ac97)) < 0) {
 			if (emu->card_capabilities->ac97_chip == 1)
 				return err;
-			snd_printd(KERN_INFO "emu10k1: AC97 is optional on this board\n");
-			snd_printd(KERN_INFO"          Proceeding without ac97 mixers...\n");
+			dev_info(emu->card->dev,
+				 "AC97 is optional on this board\n");
+			dev_info(emu->card->dev,
+				 "Proceeding without ac97 mixers...\n");
 			snd_device_free(emu->card, pbus);
 			goto no_ac97; /* FIXME: get rid of ugly gotos.. */
 		}
@@ -2081,6 +2153,14 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 			snd_ctl_new1(&snd_emu1010_internal_clock, emu));
 		if (err < 0)
 			return err;
+		err = snd_ctl_add(card,
+			snd_ctl_new1(&snd_emu1010_optical_out, emu));
+		if (err < 0)
+			return err;
+		err = snd_ctl_add(card,
+			snd_ctl_new1(&snd_emu1010_optical_in, emu));
+		if (err < 0)
+			return err;
 
 	} else if (emu->card_capabilities->emu_model) {
 		/* all other e-mu cards for now */
@@ -2114,6 +2194,14 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		}
 		err = snd_ctl_add(card,
 			snd_ctl_new1(&snd_emu1010_internal_clock, emu));
+		if (err < 0)
+			return err;
+		err = snd_ctl_add(card,
+			snd_ctl_new1(&snd_emu1010_optical_out, emu));
+		if (err < 0)
+			return err;
+		err = snd_ctl_add(card,
+			snd_ctl_new1(&snd_emu1010_optical_in, emu));
 		if (err < 0)
 			return err;
 	}

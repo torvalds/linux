@@ -30,6 +30,7 @@
  *
  * See Documentation/fault-injection/provoke-crashes.txt for instructions
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
 #include <linux/fs.h>
@@ -45,6 +46,7 @@
 #include <linux/debugfs.h>
 #include <linux/vmalloc.h>
 #include <linux/mman.h>
+#include <asm/cacheflush.h>
 
 #ifdef CONFIG_IDE
 #include <linux/ide.h>
@@ -101,6 +103,7 @@ enum ctype {
 	CT_EXEC_USERSPACE,
 	CT_ACCESS_USERSPACE,
 	CT_WRITE_RO,
+	CT_WRITE_KERN,
 };
 
 static char* cp_name[] = {
@@ -137,6 +140,7 @@ static char* cp_type[] = {
 	"EXEC_USERSPACE",
 	"ACCESS_USERSPACE",
 	"WRITE_RO",
+	"WRITE_KERN",
 };
 
 static struct jprobe lkdtm;
@@ -316,6 +320,13 @@ static void do_nothing(void)
 	return;
 }
 
+/* Must immediately follow do_nothing for size calculuations to work out. */
+static void do_overwritten(void)
+{
+	pr_info("do_overwritten wasn't overwritten!\n");
+	return;
+}
+
 static noinline void corrupt_stack(void)
 {
 	/* Use default char array length that triggers stack protection. */
@@ -328,7 +339,12 @@ static void execute_location(void *dst)
 {
 	void (*func)(void) = dst;
 
+	pr_info("attempting ok execution at %p\n", do_nothing);
+	do_nothing();
+
 	memcpy(dst, do_nothing, EXEC_SIZE);
+	flush_icache_range((unsigned long)dst, (unsigned long)dst + EXEC_SIZE);
+	pr_info("attempting bad execution at %p\n", func);
 	func();
 }
 
@@ -337,8 +353,13 @@ static void execute_user_location(void *dst)
 	/* Intentionally crossing kernel/user memory boundary. */
 	void (*func)(void) = dst;
 
+	pr_info("attempting ok execution at %p\n", do_nothing);
+	do_nothing();
+
 	if (copy_to_user((void __user *)dst, do_nothing, EXEC_SIZE))
 		return;
+	flush_icache_range((unsigned long)dst, (unsigned long)dst + EXEC_SIZE);
+	pr_info("attempting bad execution at %p\n", func);
 	func();
 }
 
@@ -463,8 +484,12 @@ static void lkdtm_do_action(enum ctype which)
 		}
 
 		ptr = (unsigned long *)user_addr;
+
+		pr_info("attempting bad read at %p\n", ptr);
 		tmp = *ptr;
 		tmp += 0xc0dec0de;
+
+		pr_info("attempting bad write at %p\n", ptr);
 		*ptr = tmp;
 
 		vm_munmap(user_addr, PAGE_SIZE);
@@ -475,8 +500,26 @@ static void lkdtm_do_action(enum ctype which)
 		unsigned long *ptr;
 
 		ptr = (unsigned long *)&rodata;
+
+		pr_info("attempting bad write at %p\n", ptr);
 		*ptr ^= 0xabcd1234;
 
+		break;
+	}
+	case CT_WRITE_KERN: {
+		size_t size;
+		unsigned char *ptr;
+
+		size = (unsigned long)do_overwritten -
+		       (unsigned long)do_nothing;
+		ptr = (unsigned char *)do_overwritten;
+
+		pr_info("attempting bad %zu byte write at %p\n", size, ptr);
+		memcpy(ptr, (unsigned char *)do_nothing, size);
+		flush_icache_range((unsigned long)ptr,
+				   (unsigned long)(ptr + size));
+
+		do_overwritten();
 		break;
 	}
 	case CT_NONE:
@@ -493,8 +536,8 @@ static void lkdtm_handler(void)
 
 	spin_lock_irqsave(&count_lock, flags);
 	count--;
-	printk(KERN_INFO "lkdtm: Crash point %s of type %s hit, trigger in %d rounds\n",
-			cp_name_to_str(cpoint), cp_type_to_str(cptype), count);
+	pr_info("Crash point %s of type %s hit, trigger in %d rounds\n",
+		cp_name_to_str(cpoint), cp_type_to_str(cptype), count);
 
 	if (count == 0) {
 		do_it = true;
@@ -551,18 +594,18 @@ static int lkdtm_register_cpoint(enum cname which)
 		lkdtm.kp.symbol_name = "generic_ide_ioctl";
 		lkdtm.entry = (kprobe_opcode_t*) jp_generic_ide_ioctl;
 #else
-		printk(KERN_INFO "lkdtm: Crash point not available\n");
+		pr_info("Crash point not available\n");
 		return -EINVAL;
 #endif
 		break;
 	default:
-		printk(KERN_INFO "lkdtm: Invalid Crash Point\n");
+		pr_info("Invalid Crash Point\n");
 		return -EINVAL;
 	}
 
 	cpoint = which;
 	if ((ret = register_jprobe(&lkdtm)) < 0) {
-		printk(KERN_INFO "lkdtm: Couldn't register jprobe\n");
+		pr_info("Couldn't register jprobe\n");
 		cpoint = CN_INVALID;
 	}
 
@@ -709,8 +752,7 @@ static ssize_t direct_entry(struct file *f, const char __user *user_buf,
 	if (type == CT_NONE)
 		return -EINVAL;
 
-	printk(KERN_INFO "lkdtm: Performing direct entry %s\n",
-			cp_type_to_str(type));
+	pr_info("Performing direct entry %s\n", cp_type_to_str(type));
 	lkdtm_do_action(type);
 	*off += count;
 
@@ -772,7 +814,7 @@ static int __init lkdtm_module_init(void)
 	/* Register debugfs interface */
 	lkdtm_debugfs_root = debugfs_create_dir("provoke-crash", NULL);
 	if (!lkdtm_debugfs_root) {
-		printk(KERN_ERR "lkdtm: creating root dir failed\n");
+		pr_err("creating root dir failed\n");
 		return -ENODEV;
 	}
 
@@ -787,28 +829,26 @@ static int __init lkdtm_module_init(void)
 		de = debugfs_create_file(cur->name, 0644, lkdtm_debugfs_root,
 				NULL, &cur->fops);
 		if (de == NULL) {
-			printk(KERN_ERR "lkdtm: could not create %s\n",
-					cur->name);
+			pr_err("could not create %s\n", cur->name);
 			goto out_err;
 		}
 	}
 
 	if (lkdtm_parse_commandline() == -EINVAL) {
-		printk(KERN_INFO "lkdtm: Invalid command\n");
+		pr_info("Invalid command\n");
 		goto out_err;
 	}
 
 	if (cpoint != CN_INVALID && cptype != CT_NONE) {
 		ret = lkdtm_register_cpoint(cpoint);
 		if (ret < 0) {
-			printk(KERN_INFO "lkdtm: Invalid crash point %d\n",
-					cpoint);
+			pr_info("Invalid crash point %d\n", cpoint);
 			goto out_err;
 		}
-		printk(KERN_INFO "lkdtm: Crash point %s of type %s registered\n",
-				cpoint_name, cpoint_type);
+		pr_info("Crash point %s of type %s registered\n",
+			cpoint_name, cpoint_type);
 	} else {
-		printk(KERN_INFO "lkdtm: No crash points registered, enable through debugfs\n");
+		pr_info("No crash points registered, enable through debugfs\n");
 	}
 
 	return 0;
@@ -823,10 +863,11 @@ static void __exit lkdtm_module_exit(void)
 	debugfs_remove_recursive(lkdtm_debugfs_root);
 
 	unregister_jprobe(&lkdtm);
-	printk(KERN_INFO "lkdtm: Crash point unregistered\n");
+	pr_info("Crash point unregistered\n");
 }
 
 module_init(lkdtm_module_init);
 module_exit(lkdtm_module_exit);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Kprobe module for testing crash dumps");

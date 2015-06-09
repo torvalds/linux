@@ -578,13 +578,12 @@ static int dcdbas_remove(struct platform_device *dev)
 static struct platform_driver dcdbas_driver = {
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= dcdbas_probe,
 	.remove		= dcdbas_remove,
 };
 
-static const struct platform_device_info dcdbas_dev_info __initdata = {
+static const struct platform_device_info dcdbas_dev_info __initconst = {
 	.name		= DRIVER_NAME,
 	.id		= -1,
 	.dma_mask	= DMA_BIT_MASK(32),

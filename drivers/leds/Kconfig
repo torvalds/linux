@@ -22,6 +22,16 @@ config LEDS_CLASS
 	  This option enables the led sysfs class in /sys/class/leds.  You'll
 	  need this to do anything useful with LEDs.  If unsure, say N.
 
+config LEDS_CLASS_FLASH
+	tristate "LED Flash Class Support"
+	depends on LEDS_CLASS
+	help
+	  This option enables the flash led sysfs class in /sys/class/leds.
+	  It wrapps LED Class and adds flash LEDs specific sysfs attributes
+	  and kernel internal API to it. You'll need this to provide support
+	  for the flash related features of a LED device. It can be built
+	  as a module.
+
 comment "LED drivers"
 
 config LEDS_88PM860X
@@ -31,14 +41,6 @@ config LEDS_88PM860X
 	help
 	  This option enables support for on-chip LED drivers found on Marvell
 	  Semiconductor 88PM8606 PMIC.
-
-config LEDS_ATMEL_PWM
-	tristate "LED Support using Atmel PWM outputs"
-	depends on LEDS_CLASS
-	depends on ATMEL_PWM
-	help
-	  This option enables support for LEDs driven using outputs
-	  of the dedicated PWM controller found on newer Atmel SOCs.
 
 config LEDS_LM3530
 	tristate "LCD Backlight driver for LM3530"
@@ -142,6 +144,13 @@ config LEDS_SUNFIRE
 	help
 	  This option enables support for the Left, Middle, and Right
 	  LEDs on the I/O and CPU boards of SunFire UltraSPARC servers.
+
+config LEDS_IPAQ_MICRO
+	tristate "LED Support for the Compaq iPAQ h3xxx"
+	depends on MFD_IPAQ_MICRO
+	help
+	  Choose this option if you want to use the notification LED on
+	  Compaq/HP iPAQ h3100 and h3600.
 
 config LEDS_HP6XX
 	tristate "LED Support for the HP Jornada 6xx"
@@ -251,6 +260,17 @@ config LEDS_LP8788
 	help
 	  This option enables support for the Keyboard LEDs on the LP8788 PMIC.
 
+config LEDS_LP8860
+	tristate "LED support for the TI LP8860 4 channel LED driver"
+	depends on LEDS_CLASS && I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the TI LP8860 4 channel
+	  LED driver.
+	  This option enables support for the display cluster LEDs
+	  on the LP8860 4 channel LED driver using the I2C communication
+	  bus.
+
 config LEDS_CLEVO_MAIL
 	tristate "Mail LED on Clevo notebook"
 	depends on LEDS_CLASS
@@ -299,16 +319,6 @@ config LEDS_PCA963X
 	  This option enables support for LEDs connected to the PCA963x
 	  LED driver chip accessed via the I2C bus. Supported
 	  devices include PCA9633 and PCA9634
-
-config LEDS_PCA9685
-	tristate "LED support for PCA9685 I2C chip"
-	depends on LEDS_CLASS
-	depends on I2C
-	help
-	  This option enables support for LEDs connected to the PCA9685
-	  LED driver chip accessed via the I2C bus.
-	  The PCA9685 offers 12-bit PWM (4095 levels of brightness) on
-	  16 individual channels.
 
 config LEDS_WM831X_STATUS
 	tristate "LED support for status LEDs on WM831x PMICs"
@@ -416,12 +426,12 @@ config LEDS_MC13783
 	depends on MFD_MC13XXX
 	help
 	  This option enable support for on-chip LED drivers found
-	  on Freescale Semiconductor MC13783/MC13892 PMIC.
+	  on Freescale Semiconductor MC13783/MC13892/MC34708 PMIC.
 
 config LEDS_NS2
 	tristate "LED support for Network Space v2 GPIO LEDs"
 	depends on LEDS_CLASS
-	depends on ARCH_KIRKWOOD
+	depends on MACH_KIRKWOOD
 	default y
 	help
 	  This option enable support for the dual-GPIO LED found on the
@@ -431,7 +441,7 @@ config LEDS_NS2
 config LEDS_NETXBIG
 	tristate "LED support for Big Network series LEDs"
 	depends on LEDS_CLASS
-	depends on ARCH_KIRKWOOD
+	depends on MACH_KIRKWOOD
 	default y
 	help
 	  This option enable support for LEDs found on the LaCie 2Big
@@ -474,10 +484,21 @@ config LEDS_LM355x
 
 config LEDS_OT200
 	tristate "LED support for the Bachmann OT200"
-	depends on LEDS_CLASS && HAS_IOMEM
+	depends on LEDS_CLASS && HAS_IOMEM && (X86_32 || COMPILE_TEST)
 	help
 	  This option enables support for the LEDs on the Bachmann OT200.
 	  Say Y to enable LEDs on the Bachmann OT200.
+
+config LEDS_MENF21BMC
+	tristate "LED support for the MEN 14F021P00 BMC"
+	depends on LEDS_CLASS && MFD_MENF21BMC
+	help
+	  Say Y here to include support for the MEN 14F021P00 BMC LEDs.
+
+	  This driver can also be built as a module. If so the module
+	  will be called leds-menf21bmc.
+
+comment "LED driver for blink(1) USB RGB LED is under Special HID drivers (HID_THINGM)"
 
 config LEDS_BLINKM
 	tristate "LED support for the BlinkM I2C RGB LED"
@@ -486,6 +507,32 @@ config LEDS_BLINKM
 	help
 	  This option enables support for the BlinkM RGB LED connected
 	  through I2C. Say Y to enable support for the BlinkM LED.
+
+config LEDS_SYSCON
+	bool "LED support for LEDs on system controllers"
+	depends on LEDS_CLASS=y
+	depends on MFD_SYSCON
+	depends on OF
+	help
+	  This option enabled support for the LEDs on syscon type
+	  devices. This will only work with device tree enabled
+	  devices.
+
+config LEDS_VERSATILE
+	tristate "LED support for the ARM Versatile and RealView"
+	depends on ARCH_REALVIEW || ARCH_VERSATILE
+	depends on LEDS_CLASS
+	help
+	  This option enabled support for the LEDs on the ARM Versatile
+	  and RealView boards. Say Y to enabled these.
+
+config LEDS_PM8941_WLED
+	tristate "LED support for the Qualcomm PM8941 WLED block"
+	depends on LEDS_CLASS
+	select REGMAP
+	help
+	  This option enables support for the 'White' LED block
+	  on Qualcomm PM8941 PMICs.
 
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"

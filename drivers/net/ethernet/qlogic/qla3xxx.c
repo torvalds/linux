@@ -65,7 +65,7 @@ static int msi;
 module_param(msi, int, 0);
 MODULE_PARM_DESC(msi, "Turn on Message Signaled Interrupts.");
 
-static DEFINE_PCI_DEVICE_TABLE(ql3xxx_pci_tbl) = {
+static const struct pci_device_id ql3xxx_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, QL3022_DEVICE_ID)},
 	{PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, QL3032_DEVICE_ID)},
 	/* required last entry */
@@ -146,10 +146,7 @@ static int ql_wait_for_drvr_lock(struct ql3_adapter *qdev)
 {
 	int i = 0;
 
-	while (i < 10) {
-		if (i)
-			ssleep(1);
-
+	do {
 		if (ql_sem_lock(qdev,
 				QL_DRVR_SEM_MASK,
 				(QL_RESOURCE_BITS_BASE_CODE | (qdev->mac_index)
@@ -158,7 +155,8 @@ static int ql_wait_for_drvr_lock(struct ql3_adapter *qdev)
 				      "driver lock acquired\n");
 			return 1;
 		}
-	}
+		ssleep(1);
+	} while (++i < 10);
 
 	netdev_err(qdev->ndev, "Timed out waiting for driver lock...\n");
 	return 0;
@@ -3838,7 +3836,7 @@ static int ql3xxx_probe(struct pci_dev *pdev,
 
 	/* Set driver entry points */
 	ndev->netdev_ops = &ql3xxx_netdev_ops;
-	SET_ETHTOOL_OPS(ndev, &ql3xxx_ethtool_ops);
+	ndev->ethtool_ops = &ql3xxx_ethtool_ops;
 	ndev->watchdog_timeo = 5 * HZ;
 
 	netif_napi_add(ndev, &qdev->napi, ql_poll, 64);

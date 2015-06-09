@@ -601,6 +601,7 @@ static int rtsx_pci_ms_drv_remove(struct platform_device *pdev)
 	pcr->slots[RTSX_MS_CARD].card_event = NULL;
 	msh = host->msh;
 	host->eject = true;
+	cancel_work_sync(&host->handle_req);
 
 	mutex_lock(&host->host_mutex);
 	if (host->req) {
@@ -644,7 +645,6 @@ static struct platform_driver rtsx_pci_ms_driver = {
 	.suspend	= rtsx_pci_ms_suspend,
 	.resume		= rtsx_pci_ms_resume,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= DRV_NAME_RTSX_PCI_MS,
 	},
 };

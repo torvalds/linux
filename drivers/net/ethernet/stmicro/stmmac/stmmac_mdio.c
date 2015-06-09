@@ -205,10 +205,13 @@ int stmmac_mdio_register(struct net_device *ndev)
 	if (new_bus == NULL)
 		return -ENOMEM;
 
-	if (mdio_bus_data->irqs)
+	if (mdio_bus_data->irqs) {
 		irqlist = mdio_bus_data->irqs;
-	else
+	} else {
+		for (addr = 0; addr < PHY_MAX_ADDR; addr++)
+			priv->mii_irq[addr] = PHY_POLL;
 		irqlist = priv->mii_irq;
+	}
 
 #ifdef CONFIG_OF
 	if (priv->device->of_node)
@@ -250,7 +253,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 			}
 
 			/*
-			 * If we're  going to bind the MAC to this PHY bus,
+			 * If we're going to bind the MAC to this PHY bus,
 			 * and no PHY number was provided to the MAC,
 			 * use the one probed here.
 			 */
@@ -279,7 +282,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 	}
 
 	if (!found) {
-		pr_warning("%s: No PHY found\n", ndev->name);
+		pr_warn("%s: No PHY found\n", ndev->name);
 		mdiobus_unregister(new_bus);
 		mdiobus_free(new_bus);
 		return -ENODEV;

@@ -115,13 +115,14 @@ void ath_hw_pll_work(struct work_struct *work)
 	u32 pll_sqsum;
 	struct ath_softc *sc = container_of(work, struct ath_softc,
 					    hw_pll_work.work);
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	/*
 	 * ensure that the PLL WAR is executed only
 	 * after the STA is associated (or) if the
 	 * beaconing had started in interfaces that
 	 * uses beacons.
 	 */
-	if (!test_bit(SC_OP_BEACONS, &sc->sc_flags))
+	if (!test_bit(ATH_OP_BEACONS, &common->op_flags))
 		return;
 
 	if (sc->tx99_state)
@@ -177,7 +178,7 @@ static bool ath_paprd_send_frame(struct ath_softc *sc, struct sk_buff *skb, int 
 	txctl.txq = sc->tx.txq_map[IEEE80211_AC_BE];
 
 	memset(tx_info, 0, sizeof(*tx_info));
-	tx_info->band = hw->conf.chandef.chan->band;
+	tx_info->band = sc->cur_chandef.chan->band;
 	tx_info->flags |= IEEE80211_TX_CTL_NO_ACK;
 	tx_info->control.rates[0].idx = 0;
 	tx_info->control.rates[0].count = 1;
@@ -370,9 +371,15 @@ void ath_ani_calibrate(unsigned long data)
 
 	/* Perform calibration if necessary */
 	if (longcal || shortcal) {
-		common->ani.caldone =
-			ath9k_hw_calibrate(ah, ah->curchan,
-					   ah->rxchainmask, longcal);
+		int ret = ath9k_hw_calibrate(ah, ah->curchan, ah->rxchainmask,
+					     longcal);
+		if (ret < 0) {
+			common->ani.caldone = 0;
+			ath9k_queue_reset(sc, RESET_TYPE_CALIBRATION);
+			return;
+		}
+
+		common->ani.caldone = ret;
 	}
 
 	ath_dbg(common, ANI,
@@ -414,8 +421,8 @@ void ath_start_ani(struct ath_softc *sc)
 	unsigned long timestamp = jiffies_to_msecs(jiffies);
 
 	if (common->disable_ani ||
-	    !test_bit(SC_OP_ANI_RUN, &sc->sc_flags) ||
-	    (sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL))
+	    !test_bit(ATH_OP_ANI_RUN, &common->op_flags) ||
+	    sc->cur_chan->offchannel)
 		return;
 
 	common->ani.longcal_timer = timestamp;
@@ -438,7 +445,8 @@ void ath_stop_ani(struct ath_softc *sc)
 void ath_check_ani(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_beacon_config *cur_conf = &sc->cur_chan->beacon;
 
 	/*
 	 * Check for the various conditions in which ANI has to
@@ -453,23 +461,23 @@ void ath_check_ani(struct ath_softc *sc)
 			 * Disable ANI only when there are no
 			 * associated stations.
 			 */
-			if (!test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags))
+			if (!test_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags))
 				goto stop_ani;
 		}
 	} else if (ah->opmode == NL80211_IFTYPE_STATION) {
-		if (!test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags))
+		if (!test_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags))
 			goto stop_ani;
 	}
 
-	if (!test_bit(SC_OP_ANI_RUN, &sc->sc_flags)) {
-		set_bit(SC_OP_ANI_RUN, &sc->sc_flags);
+	if (!test_bit(ATH_OP_ANI_RUN, &common->op_flags)) {
+		set_bit(ATH_OP_ANI_RUN, &common->op_flags);
 		ath_start_ani(sc);
 	}
 
 	return;
 
 stop_ani:
-	clear_bit(SC_OP_ANI_RUN, &sc->sc_flags);
+	clear_bit(ATH_OP_ANI_RUN, &common->op_flags);
 	ath_stop_ani(sc);
 }
 
@@ -508,14 +516,14 @@ int ath_update_survey_stats(struct ath_softc *sc)
 		ath_hw_cycle_counters_update(common);
 
 	if (cc->cycles > 0) {
-		survey->filled |= SURVEY_INFO_CHANNEL_TIME |
-			SURVEY_INFO_CHANNEL_TIME_BUSY |
-			SURVEY_INFO_CHANNEL_TIME_RX |
-			SURVEY_INFO_CHANNEL_TIME_TX;
-		survey->channel_time += cc->cycles / div;
-		survey->channel_time_busy += cc->rx_busy / div;
-		survey->channel_time_rx += cc->rx_frame / div;
-		survey->channel_time_tx += cc->tx_frame / div;
+		survey->filled |= SURVEY_INFO_TIME |
+			SURVEY_INFO_TIME_BUSY |
+			SURVEY_INFO_TIME_RX |
+			SURVEY_INFO_TIME_TX;
+		survey->time += cc->cycles / div;
+		survey->time_busy += cc->rx_busy / div;
+		survey->time_rx += cc->rx_frame / div;
+		survey->time_tx += cc->tx_frame / div;
 	}
 
 	if (cc->cycles < div)

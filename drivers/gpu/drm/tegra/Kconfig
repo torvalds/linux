@@ -1,6 +1,7 @@
 config DRM_TEGRA
 	tristate "NVIDIA Tegra DRM"
 	depends on ARCH_TEGRA || (ARM && COMPILE_TEST)
+	depends on COMMON_CLK
 	depends on DRM
 	depends on RESET_CONTROLLER
 	select DRM_KMS_HELPER

@@ -34,7 +34,7 @@
 #include "../pci.h"
 #include "shpchp.h"
 
-int __ref shpchp_configure_device(struct slot *p_slot)
+int shpchp_configure_device(struct slot *p_slot)
 {
 	struct pci_dev *dev;
 	struct controller *ctrl = p_slot->ctrl;
@@ -46,9 +46,9 @@ int __ref shpchp_configure_device(struct slot *p_slot)
 
 	dev = pci_get_slot(parent, PCI_DEVFN(p_slot->device, 0));
 	if (dev) {
-		ctrl_err(ctrl, "Device %s already exists "
-			 "at %04x:%02x:%02x, cannot hot-add\n", pci_name(dev),
-			 pci_domain_nr(parent), p_slot->bus, p_slot->device);
+		ctrl_err(ctrl, "Device %s already exists at %04x:%02x:%02x, cannot hot-add\n",
+			 pci_name(dev), pci_domain_nr(parent),
+			 p_slot->bus, p_slot->device);
 		pci_dev_put(dev);
 		ret = -EINVAL;
 		goto out;
@@ -64,19 +64,12 @@ int __ref shpchp_configure_device(struct slot *p_slot)
 	list_for_each_entry(dev, &parent->devices, bus_list) {
 		if (PCI_SLOT(dev->devfn) != p_slot->device)
 			continue;
-		if ((dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) ||
-		    (dev->hdr_type == PCI_HEADER_TYPE_CARDBUS))
+		if (pci_is_bridge(dev))
 			pci_hp_add_bridge(dev);
 	}
 
 	pci_assign_unassigned_bridge_resources(bridge);
-
-	list_for_each_entry(dev, &parent->devices, bus_list) {
-		if (PCI_SLOT(dev->devfn) != p_slot->device)
-			continue;
-		pci_configure_slot(dev);
-	}
-
+	pcie_bus_configure_settings(parent);
 	pci_bus_add_devices(parent);
 
  out:

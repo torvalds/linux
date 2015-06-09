@@ -29,7 +29,7 @@
 int kgdb_early_setup;
 #endif
 
-static unsigned long irq_map[NR_IRQS / BITS_PER_LONG];
+static DECLARE_BITMAP(irq_map, NR_IRQS);
 
 int allocate_irqno(void)
 {
@@ -62,9 +62,9 @@ void __init alloc_legacy_irqno(void)
 
 void free_irqno(unsigned int irq)
 {
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit(irq, irq_map);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 }
 
 /*
@@ -73,7 +73,6 @@ void free_irqno(unsigned int irq)
  */
 void ack_bad_irq(unsigned int irq)
 {
-	smtc_im_ack_irq(irq);
 	printk("unexpected IRQ # %d\n", irq);
 }
 
@@ -110,7 +109,7 @@ void __init init_IRQ(void)
 #endif
 }
 
-#ifdef DEBUG_STACKOVERFLOW
+#ifdef CONFIG_DEBUG_STACKOVERFLOW
 static inline void check_stack_overflow(void)
 {
 	unsigned long sp;
@@ -142,23 +141,7 @@ void __irq_entry do_IRQ(unsigned int irq)
 {
 	irq_enter();
 	check_stack_overflow();
-	if (!smtc_handle_on_other_cpu(irq))
-		generic_handle_irq(irq);
-	irq_exit();
-}
-
-#ifdef CONFIG_MIPS_MT_SMTC_IRQAFF
-/*
- * To avoid inefficient and in some cases pathological re-checking of
- * IRQ affinity, we have this variant that skips the affinity check.
- */
-
-void __irq_entry do_IRQ_no_affinity(unsigned int irq)
-{
-	irq_enter();
-	smtc_im_backstop(irq);
 	generic_handle_irq(irq);
 	irq_exit();
 }
 
-#endif /* CONFIG_MIPS_MT_SMTC_IRQAFF */

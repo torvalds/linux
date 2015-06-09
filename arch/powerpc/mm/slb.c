@@ -46,9 +46,6 @@ static inline unsigned long mk_esid_data(unsigned long ea, int ssize,
 	return (ea & slb_esid_mask(ssize)) | SLB_ESID_V | slot;
 }
 
-#define slb_vsid_shift(ssize)	\
-	((ssize) == MMU_SEGSIZE_256M? SLB_VSID_SHIFT: SLB_VSID_SHIFT_1T)
-
 static inline unsigned long mk_vsid_data(unsigned long ea, int ssize,
 					 unsigned long flags)
 {
@@ -97,7 +94,7 @@ static inline void create_shadowed_slbe(unsigned long ea, int ssize,
 static void __slb_flush_and_rebolt(void)
 {
 	/* If you change this make sure you change SLB_NUM_BOLTED
-	 * appropriately too. */
+	 * and PR KVM appropriately too. */
 	unsigned long linear_llp, vmalloc_llp, lflags, vflags;
 	unsigned long ksp_esid_data, ksp_vsid_data;
 
@@ -256,10 +253,14 @@ static inline void patch_slb_encoding(unsigned int *insn_addr,
 	patch_instruction(insn_addr, insn);
 }
 
+extern u32 slb_compare_rr_to_size[];
+extern u32 slb_miss_kernel_load_linear[];
+extern u32 slb_miss_kernel_load_io[];
+extern u32 slb_compare_rr_to_size[];
+extern u32 slb_miss_kernel_load_vmemmap[];
+
 void slb_set_size(u16 size)
 {
-	extern unsigned int *slb_compare_rr_to_size;
-
 	if (mmu_slb_size == size)
 		return;
 
@@ -272,11 +273,7 @@ void slb_initialize(void)
 	unsigned long linear_llp, vmalloc_llp, io_llp;
 	unsigned long lflags, vflags;
 	static int slb_encoding_inited;
-	extern unsigned int *slb_miss_kernel_load_linear;
-	extern unsigned int *slb_miss_kernel_load_io;
-	extern unsigned int *slb_compare_rr_to_size;
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
-	extern unsigned int *slb_miss_kernel_load_vmemmap;
 	unsigned long vmemmap_llp;
 #endif
 

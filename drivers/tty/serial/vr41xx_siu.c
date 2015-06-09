@@ -559,7 +559,7 @@ static void siu_set_termios(struct uart_port *port, struct ktermios *new,
 	port->read_status_mask = UART_LSR_THRE | UART_LSR_OE | UART_LSR_DR;
 	if (c_iflag & INPCK)
 		port->read_status_mask |= UART_LSR_FE | UART_LSR_PE;
-	if (c_iflag & (BRKINT | PARMRK))
+	if (c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= UART_LSR_BI;
 
 	port->ignore_status_mask = 0;
@@ -847,7 +847,6 @@ void __init vr41xx_siu_early_setup(struct uart_port *port)
 	siu_uart_ports[port->line].type = port->type;
 	siu_uart_ports[port->line].uartclk = SIU_BAUD_BASE * 16;
 	siu_uart_ports[port->line].mapbase = port->mapbase;
-	siu_uart_ports[port->line].mapbase = port->mapbase;
 	siu_uart_ports[port->line].ops = &siu_uart_ops;
 }
 
@@ -955,7 +954,6 @@ static struct platform_driver siu_device_driver = {
 	.resume		= siu_resume,
 	.driver		= {
 		.name	= "SIU",
-		.owner	= THIS_MODULE,
 	},
 };
 

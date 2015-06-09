@@ -461,7 +461,6 @@ struct ab8500_fg;
 #ifdef CONFIG_AB8500_BM
 extern struct abx500_bm_data ab8500_bm_data;
 
-void ab8500_fg_reinit(void);
 void ab8500_charger_usb_state_changed(u8 bm_usb_state, u16 mA);
 struct ab8500_btemp *ab8500_btemp_get(void);
 int ab8500_btemp_get_batctrl_temp(struct ab8500_btemp *btemp);

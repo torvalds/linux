@@ -52,6 +52,7 @@
 
 struct tcs3472_data {
 	struct i2c_client *client;
+	struct mutex lock;
 	u8 enable;
 	u8 control;
 	u8 atime;
@@ -116,10 +117,17 @@ static int tcs3472_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
+		if (iio_buffer_enabled(indio_dev))
+			return -EBUSY;
+
+		mutex_lock(&data->lock);
 		ret = tcs3472_req_data(data);
-		if (ret < 0)
+		if (ret < 0) {
+			mutex_unlock(&data->lock);
 			return ret;
+		}
 		ret = i2c_smbus_read_word_data(data->client, chan->address);
+		mutex_unlock(&data->lock);
 		if (ret < 0)
 			return ret;
 		*val = ret;
@@ -179,7 +187,6 @@ static irqreturn_t tcs3472_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct tcs3472_data *data = iio_priv(indio_dev);
-	int len = 0;
 	int i, j = 0;
 
 	int ret = tcs3472_req_data(data);
@@ -194,7 +201,6 @@ static irqreturn_t tcs3472_trigger_handler(int irq, void *p)
 			goto done;
 
 		data->buffer[j++] = ret;
-		len += 2;
 	}
 
 	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
@@ -257,6 +263,7 @@ static int tcs3472_probe(struct i2c_client *client,
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
+	mutex_init(&data->lock);
 
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &tcs3472_info;

@@ -8,7 +8,7 @@
  *
  * Author: Frank Haverkamp <haver@linux.vnet.ibm.com>
  * Author: Joerg-Stephan Vogt <jsvogt@de.ibm.com>
- * Author: Michael Jung <mijung@de.ibm.com>
+ * Author: Michael Jung <mijung@gmx.net>
  * Author: Michael Ruettger <michael@ibmra.de>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -34,7 +34,6 @@
 #include <linux/semaphore.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
-#include <linux/version.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
 
@@ -201,7 +200,8 @@ static inline void genwqe_mapping_init(struct dma_mapping *m,
  * @ddcb_seq:          Sequence number of last DDCB
  * @ddcbs_in_flight:   Currently enqueued DDCBs
  * @ddcbs_completed:   Number of already completed DDCBs
- * @busy:              Number of -EBUSY returns
+ * @return_on_busy:    Number of -EBUSY returns on full queue
+ * @wait_on_busy:      Number of waits on full queue
  * @ddcb_daddr:        DMA address of first DDCB in the queue
  * @ddcb_vaddr:        Kernel virtual address of first DDCB in the queue
  * @ddcb_req:          Associated requests (one per DDCB)
@@ -218,7 +218,8 @@ struct ddcb_queue {
 	unsigned int ddcbs_in_flight;	/* number of ddcbs in processing */
 	unsigned int ddcbs_completed;
 	unsigned int ddcbs_max_in_flight;
-	unsigned int busy;		/* how many times -EBUSY? */
+	unsigned int return_on_busy;    /* how many times -EBUSY? */
+	unsigned int wait_on_busy;
 
 	dma_addr_t ddcb_daddr;		/* DMA address */
 	struct ddcb *ddcb_vaddr;	/* kernel virtual addr for DDCBs */
@@ -226,7 +227,7 @@ struct ddcb_queue {
 	wait_queue_head_t *ddcb_waitqs; /* waitqueue per ddcb */
 
 	spinlock_t ddcb_lock;		/* exclusive access to queue */
-	wait_queue_head_t ddcb_waitq;	/* wait for ddcb processing */
+	wait_queue_head_t busy_waitq;   /* wait for ddcb processing */
 
 	/* registers or the respective queue to be used */
 	u32 IO_QUEUE_CONFIG;
@@ -291,6 +292,8 @@ struct genwqe_dev {
 	struct task_struct *health_thread;
 	wait_queue_head_t health_waitq;
 
+	int use_platform_recovery;	/* use platform recovery mechanisms */
+
 	/* char device */
 	dev_t  devnum_genwqe;		/* major/minor num card */
 	struct class *class_genwqe;	/* reference to class object */
@@ -304,7 +307,7 @@ struct genwqe_dev {
 	struct pci_dev *pci_dev;	/* PCI device */
 	void __iomem *mmio;		/* BAR-0 MMIO start */
 	unsigned long mmio_len;
-	u16 num_vfs;
+	int num_vfs;
 	u32 vf_jobtimeout_msec[GENWQE_MAX_VFS];
 	int is_privileged;		/* access to all regs possible */
 
@@ -337,6 +340,44 @@ enum genwqe_requ_state {
 };
 
 /**
+ * struct genwqe_sgl - Scatter gather list describing user-space memory
+ * @sgl:            scatter gather list needs to be 128 byte aligned
+ * @sgl_dma_addr:   dma address of sgl
+ * @sgl_size:       size of area used for sgl
+ * @user_addr:      user-space address of memory area
+ * @user_size:      size of user-space memory area
+ * @page:           buffer for partial pages if needed
+ * @page_dma_addr:  dma address partial pages
+ */
+struct genwqe_sgl {
+	dma_addr_t sgl_dma_addr;
+	struct sg_entry *sgl;
+	size_t sgl_size;	/* size of sgl */
+
+	void __user *user_addr; /* user-space base-address */
+	size_t user_size;       /* size of memory area */
+
+	unsigned long nr_pages;
+	unsigned long fpage_offs;
+	size_t fpage_size;
+	size_t lpage_size;
+
+	void *fpage;
+	dma_addr_t fpage_dma_addr;
+
+	void *lpage;
+	dma_addr_t lpage_dma_addr;
+};
+
+int genwqe_alloc_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
+			  void __user *user_addr, size_t user_size);
+
+int genwqe_setup_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
+		     dma_addr_t *dma_list);
+
+int genwqe_free_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl);
+
+/**
  * struct ddcb_requ - Kernel internal representation of the DDCB request
  * @cmd:          User space representation of the DDCB execution request
  */
@@ -347,9 +388,7 @@ struct ddcb_requ {
 	struct ddcb_queue *queue;	  /* associated queue */
 
 	struct dma_mapping  dma_mappings[DDCB_FIXUPS];
-	struct sg_entry     *sgl[DDCB_FIXUPS];
-	dma_addr_t	    sgl_dma_addr[DDCB_FIXUPS];
-	size_t		    sgl_size[DDCB_FIXUPS];
+	struct genwqe_sgl sgls[DDCB_FIXUPS];
 
 	/* kernel/user shared content */
 	struct genwqe_ddcb_cmd cmd;	/* ddcb_no for this request */
@@ -453,22 +492,6 @@ int  genwqe_user_vmap(struct genwqe_dev *cd, struct dma_mapping *m,
 int  genwqe_user_vunmap(struct genwqe_dev *cd, struct dma_mapping *m,
 			struct ddcb_requ *req);
 
-struct sg_entry *genwqe_alloc_sgl(struct genwqe_dev *cd, int num_pages,
-				 dma_addr_t *dma_addr, size_t *sgl_size);
-
-void genwqe_free_sgl(struct genwqe_dev *cd, struct sg_entry *sg_list,
-		    dma_addr_t dma_addr, size_t size);
-
-int genwqe_setup_sgl(struct genwqe_dev *cd,
-		    unsigned long offs,
-		    unsigned long size,
-		    struct sg_entry *sgl, /* genwqe sgl */
-		    dma_addr_t dma_addr, size_t sgl_size,
-		    dma_addr_t *dma_list, int page_offs, int num_pages);
-
-int genwqe_check_sgl(struct genwqe_dev *cd, struct sg_entry *sg_list,
-		     int size);
-
 static inline bool dma_mapping_used(struct dma_mapping *m)
 {
 	if (!m)
@@ -486,7 +509,7 @@ static inline bool dma_mapping_used(struct dma_mapping *m)
  * buildup and teardown.
  */
 int  __genwqe_execute_ddcb(struct genwqe_dev *cd,
-			   struct genwqe_ddcb_cmd *cmd);
+			   struct genwqe_ddcb_cmd *cmd, unsigned int f_flags);
 
 /**
  * __genwqe_execute_raw_ddcb() - Execute DDCB request without addr translation
@@ -498,9 +521,12 @@ int  __genwqe_execute_ddcb(struct genwqe_dev *cd,
  * modification.
  */
 int  __genwqe_execute_raw_ddcb(struct genwqe_dev *cd,
-			       struct genwqe_ddcb_cmd *cmd);
+			       struct genwqe_ddcb_cmd *cmd,
+			       unsigned int f_flags);
+int  __genwqe_enqueue_ddcb(struct genwqe_dev *cd,
+			   struct ddcb_requ *req,
+			   unsigned int f_flags);
 
-int  __genwqe_enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req);
 int  __genwqe_wait_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req);
 int  __genwqe_purge_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req);
 

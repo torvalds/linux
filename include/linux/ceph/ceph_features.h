@@ -43,6 +43,26 @@
 #define CEPH_FEATURE_CRUSH_V2      (1ULL<<36)  /* new indep; SET_* steps */
 #define CEPH_FEATURE_EXPORT_PEER   (1ULL<<37)
 #define CEPH_FEATURE_OSD_ERASURE_CODES (1ULL<<38)
+#define CEPH_FEATURE_OSD_TMAP2OMAP (1ULL<<38)   /* overlap with EC */
+/* The process supports new-style OSDMap encoding. Monitors also use
+   this bit to determine if peers support NAK messages. */
+#define CEPH_FEATURE_OSDMAP_ENC    (1ULL<<39)
+#define CEPH_FEATURE_MDS_INLINE_DATA     (1ULL<<40)
+#define CEPH_FEATURE_CRUSH_TUNABLES3     (1ULL<<41)
+#define CEPH_FEATURE_OSD_PRIMARY_AFFINITY (1ULL<<41)  /* overlap w/ tunables3 */
+#define CEPH_FEATURE_MSGR_KEEPALIVE2   (1ULL<<42)
+#define CEPH_FEATURE_OSD_POOLRESEND    (1ULL<<43)
+#define CEPH_FEATURE_ERASURE_CODE_PLUGINS_V2 (1ULL<<44)
+#define CEPH_FEATURE_OSD_SET_ALLOC_HINT (1ULL<<45)
+#define CEPH_FEATURE_OSD_FADVISE_FLAGS (1ULL<<46)
+#define CEPH_FEATURE_OSD_REPOP         (1ULL<<46)   /* overlap with fadvise */
+#define CEPH_FEATURE_OSD_OBJECT_DIGEST  (1ULL<<46)  /* overlap with fadvise */
+#define CEPH_FEATURE_OSD_TRANSACTION_MAY_LAYOUT (1ULL<<46) /* overlap w/ fadvise */
+#define CEPH_FEATURE_MDS_QUOTA      (1ULL<<47)
+#define CEPH_FEATURE_CRUSH_V4      (1ULL<<48)  /* straw2 buckets */
+#define CEPH_FEATURE_OSD_MIN_SIZE_RECOVERY (1ULL<<49)
+// duplicated since it was introduced at the same time as MIN_SIZE_RECOVERY
+#define CEPH_FEATURE_OSD_PROXY_FEATURES (1ULL<<49)  /* overlap w/ above */
 
 /*
  * The introduction of CEPH_FEATURE_OSD_SNAPMAPPER caused the feature
@@ -77,12 +97,17 @@ static inline u64 ceph_sanitize_features(u64 features)
 	 CEPH_FEATURE_PGPOOL3 |			\
 	 CEPH_FEATURE_OSDENC |			\
 	 CEPH_FEATURE_CRUSH_TUNABLES |		\
+	 CEPH_FEATURE_MSG_AUTH |		\
 	 CEPH_FEATURE_CRUSH_TUNABLES2 |		\
 	 CEPH_FEATURE_REPLY_CREATE_INODE |	\
 	 CEPH_FEATURE_OSDHASHPSPOOL |		\
 	 CEPH_FEATURE_OSD_CACHEPOOL |		\
 	 CEPH_FEATURE_CRUSH_V2 |		\
-	 CEPH_FEATURE_EXPORT_PEER)
+	 CEPH_FEATURE_EXPORT_PEER |		\
+	 CEPH_FEATURE_OSDMAP_ENC |		\
+	 CEPH_FEATURE_CRUSH_TUNABLES3 |		\
+	 CEPH_FEATURE_OSD_PRIMARY_AFFINITY |	\
+	 CEPH_FEATURE_CRUSH_V4)
 
 #define CEPH_FEATURES_REQUIRED_DEFAULT   \
 	(CEPH_FEATURE_NOSRCADDR |	 \

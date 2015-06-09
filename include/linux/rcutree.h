@@ -12,8 +12,8 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
  *
  * Copyright IBM Corporation, 2008
  *
@@ -30,8 +30,10 @@
 #ifndef __LINUX_RCUTREE_H
 #define __LINUX_RCUTREE_H
 
-void rcu_note_context_switch(int cpu);
-int rcu_needs_cpu(int cpu, unsigned long *delta_jiffies);
+void rcu_note_context_switch(void);
+#ifndef CONFIG_RCU_NOCB_CPU_ALL
+int rcu_needs_cpu(unsigned long *delta_jiffies);
+#endif /* #ifndef CONFIG_RCU_NOCB_CPU_ALL */
 void rcu_cpu_stall_reset(void);
 
 /*
@@ -41,7 +43,7 @@ void rcu_cpu_stall_reset(void);
  */
 static inline void rcu_virt_note_context_switch(int cpu)
 {
-	rcu_note_context_switch(cpu);
+	rcu_note_context_switch();
 }
 
 void synchronize_rcu_bh(void);
@@ -74,12 +76,18 @@ static inline void synchronize_rcu_bh_expedited(void)
 void rcu_barrier(void);
 void rcu_barrier_bh(void);
 void rcu_barrier_sched(void);
+unsigned long get_state_synchronize_rcu(void);
+void cond_synchronize_rcu(unsigned long oldstate);
 
 extern unsigned long rcutorture_testseq;
 extern unsigned long rcutorture_vernum;
-long rcu_batches_completed(void);
-long rcu_batches_completed_bh(void);
-long rcu_batches_completed_sched(void);
+unsigned long rcu_batches_started(void);
+unsigned long rcu_batches_started_bh(void);
+unsigned long rcu_batches_started_sched(void);
+unsigned long rcu_batches_completed(void);
+unsigned long rcu_batches_completed_bh(void);
+unsigned long rcu_batches_completed_sched(void);
+void show_rcu_gp_kthreads(void);
 
 void rcu_force_quiescent_state(void);
 void rcu_bh_force_quiescent_state(void);
@@ -91,5 +99,7 @@ void rcu_scheduler_starting(void);
 extern int rcu_scheduler_active __read_mostly;
 
 bool rcu_is_watching(void);
+
+void rcu_all_qs(void);
 
 #endif /* __LINUX_RCUTREE_H */

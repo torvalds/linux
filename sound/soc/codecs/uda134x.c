@@ -203,8 +203,7 @@ static int uda134x_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params,
 	struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	struct uda134x_priv *uda134x = snd_soc_codec_get_drvdata(codec);
 	u8 hw_params;
 
@@ -244,14 +243,14 @@ static int uda134x_hw_params(struct snd_pcm_substream *substream,
 	case SND_SOC_DAIFMT_I2S:
 		break;
 	case SND_SOC_DAIFMT_RIGHT_J:
-		switch (params_format(params)) {
-		case SNDRV_PCM_FORMAT_S16_LE:
+		switch (params_width(params)) {
+		case 16:
 			hw_params |= (1<<1);
 			break;
-		case SNDRV_PCM_FORMAT_S18_3LE:
+		case 18:
 			hw_params |= (1<<2);
 			break;
-		case SNDRV_PCM_FORMAT_S20_3LE:
+		case 20:
 			hw_params |= ((1<<2) | (1<<1));
 			break;
 		default:
@@ -480,7 +479,7 @@ static struct snd_soc_dai_driver uda134x_dai = {
 static int uda134x_soc_probe(struct snd_soc_codec *codec)
 {
 	struct uda134x_priv *uda134x;
-	struct uda134x_platform_data *pd = codec->card->dev->platform_data;
+	struct uda134x_platform_data *pd = codec->component.card->dev->platform_data;
 	const struct snd_soc_dapm_widget *widgets;
 	unsigned num_widgets;
 
@@ -518,11 +517,6 @@ static int uda134x_soc_probe(struct snd_soc_codec *codec)
 		pd->power(1);
 
 	uda134x_reset(codec);
-
-	if (pd->is_powered_on_standby)
-		uda134x_set_bias_level(codec, SND_SOC_BIAS_ON);
-	else
-		uda134x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	if (pd->model == UDA134X_UDA1341) {
 		widgets = uda1341_dapm_widgets;
@@ -575,44 +569,21 @@ static int uda134x_soc_remove(struct snd_soc_codec *codec)
 {
 	struct uda134x_priv *uda134x = snd_soc_codec_get_drvdata(codec);
 
-	uda134x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	uda134x_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
 	kfree(uda134x);
 	return 0;
 }
 
-#if defined(CONFIG_PM)
-static int uda134x_soc_suspend(struct snd_soc_codec *codec)
-{
-	uda134x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	uda134x_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int uda134x_soc_resume(struct snd_soc_codec *codec)
-{
-	uda134x_set_bias_level(codec, SND_SOC_BIAS_PREPARE);
-	uda134x_set_bias_level(codec, SND_SOC_BIAS_ON);
-	return 0;
-}
-#else
-#define uda134x_soc_suspend NULL
-#define uda134x_soc_resume NULL
-#endif /* CONFIG_PM */
-
 static struct snd_soc_codec_driver soc_codec_dev_uda134x = {
 	.probe =        uda134x_soc_probe,
 	.remove =       uda134x_soc_remove,
-	.suspend =      uda134x_soc_suspend,
-	.resume =       uda134x_soc_resume,
 	.reg_cache_size = sizeof(uda134x_reg),
 	.reg_word_size = sizeof(u8),
 	.reg_cache_default = uda134x_reg,
 	.reg_cache_step = 1,
 	.read = uda134x_read_reg_cache,
-	.write = uda134x_write,
 	.set_bias_level = uda134x_set_bias_level,
+	.suspend_bias_off = true,
+
 	.dapm_widgets = uda134x_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(uda134x_dapm_widgets),
 	.dapm_routes = uda134x_dapm_routes,
@@ -634,7 +605,6 @@ static int uda134x_codec_remove(struct platform_device *pdev)
 static struct platform_driver uda134x_codec_driver = {
 	.driver = {
 		.name = "uda134x-codec",
-		.owner = THIS_MODULE,
 	},
 	.probe = uda134x_codec_probe,
 	.remove = uda134x_codec_remove,

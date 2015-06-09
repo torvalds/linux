@@ -166,7 +166,6 @@ static void evtchn_2l_handle_events(unsigned cpu)
 	int start_word_idx, start_bit_idx;
 	int word_idx, bit_idx;
 	int i;
-	struct irq_desc *desc;
 	struct shared_info *s = HYPERVISOR_shared_info;
 	struct vcpu_info *vcpu_info = __this_cpu_read(xen_vcpu);
 
@@ -176,11 +175,8 @@ static void evtchn_2l_handle_events(unsigned cpu)
 		unsigned int evtchn = evtchn_from_irq(irq);
 		word_idx = evtchn / BITS_PER_LONG;
 		bit_idx = evtchn % BITS_PER_LONG;
-		if (active_evtchns(cpu, s, word_idx) & (1ULL << bit_idx)) {
-			desc = irq_to_desc(irq);
-			if (desc)
-				generic_handle_irq_desc(irq, desc);
-		}
+		if (active_evtchns(cpu, s, word_idx) & (1ULL << bit_idx))
+			generic_handle_irq(irq);
 	}
 
 	/*
@@ -245,11 +241,8 @@ static void evtchn_2l_handle_events(unsigned cpu)
 			port = (word_idx * BITS_PER_EVTCHN_WORD) + bit_idx;
 			irq = get_evtchn_to_irq(port);
 
-			if (irq != -1) {
-				desc = irq_to_desc(irq);
-				if (desc)
-					generic_handle_irq_desc(irq, desc);
-			}
+			if (irq != -1)
+				generic_handle_irq(irq);
 
 			bit_idx = (bit_idx + 1) % BITS_PER_EVTCHN_WORD;
 
@@ -352,6 +345,15 @@ irqreturn_t xen_debug_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void evtchn_2l_resume(void)
+{
+	int i;
+
+	for_each_online_cpu(i)
+		memset(per_cpu(cpu_evtchn_mask, i), 0, sizeof(xen_ulong_t) *
+				EVTCHN_2L_NR_CHANNELS/BITS_PER_EVTCHN_WORD);
+}
+
 static const struct evtchn_ops evtchn_ops_2l = {
 	.max_channels      = evtchn_2l_max_channels,
 	.nr_channels       = evtchn_2l_max_channels,
@@ -363,6 +365,7 @@ static const struct evtchn_ops evtchn_ops_2l = {
 	.mask              = evtchn_2l_mask,
 	.unmask            = evtchn_2l_unmask,
 	.handle_events     = evtchn_2l_handle_events,
+	.resume	           = evtchn_2l_resume,
 };
 
 void __init xen_evtchn_2l_init(void)

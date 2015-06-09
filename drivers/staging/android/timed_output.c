@@ -41,8 +41,10 @@ static ssize_t enable_store(struct device *dev, struct device_attribute *attr,
 {
 	struct timed_output_dev *tdev = dev_get_drvdata(dev);
 	int value;
+	int rc;
 
-	if (sscanf(buf, "%d", &value) != 1)
+	rc = kstrtoint(buf, 0, &value);
+	if (rc != 0)
 		return -EINVAL;
 
 	tdev->enable(tdev, value);
@@ -97,7 +99,6 @@ void timed_output_dev_unregister(struct timed_output_dev *tdev)
 {
 	tdev->enable(tdev, 0);
 	device_destroy(timed_output_class, MKDEV(0, tdev->index));
-	dev_set_drvdata(tdev->dev, NULL);
 }
 EXPORT_SYMBOL_GPL(timed_output_dev_unregister);
 

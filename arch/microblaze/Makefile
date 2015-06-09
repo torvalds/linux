@@ -48,7 +48,6 @@ head-y := arch/microblaze/kernel/head.o
 libs-y += arch/microblaze/lib/
 core-y += arch/microblaze/kernel/
 core-y += arch/microblaze/mm/
-core-y += arch/microblaze/platform/
 core-$(CONFIG_PCI) += arch/microblaze/pci/
 
 drivers-$(CONFIG_OPROFILE) += arch/microblaze/oprofile/

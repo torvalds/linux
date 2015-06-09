@@ -82,14 +82,14 @@ static int ohci_jz4740_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	u16 wIndex, char *buf, u16 wLength)
 {
 	struct jz4740_ohci_hcd *jz4740_ohci = hcd_to_jz4740_hcd(hcd);
-	int ret;
+	int ret = 0;
 
 	switch (typeReq) {
-	case SetHubFeature:
+	case SetPortFeature:
 		if (wValue == USB_PORT_FEAT_POWER)
 			ret = ohci_jz4740_set_vbus_power(jz4740_ohci, true);
 		break;
-	case ClearHubFeature:
+	case ClearPortFeature:
 		if (wValue == USB_PORT_FEAT_POWER)
 			ret = ohci_jz4740_set_vbus_power(jz4740_ohci, false);
 		break;
@@ -153,13 +153,6 @@ static int jz4740_ohci_probe(struct platform_device *pdev)
 	struct resource *res;
 	int irq;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	if (!res) {
-		dev_err(&pdev->dev, "Failed to get platform resource\n");
-		return -ENOENT;
-	}
-
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "Failed to get platform irq\n");
@@ -174,14 +167,14 @@ static int jz4740_ohci_probe(struct platform_device *pdev)
 
 	jz4740_ohci = hcd_to_jz4740_hcd(hcd);
 
-	hcd->rsrc_start = res->start;
-	hcd->rsrc_len = resource_size(res);
-
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(hcd->regs)) {
 		ret = PTR_ERR(hcd->regs);
 		goto err_free;
 	}
+	hcd->rsrc_start = res->start;
+	hcd->rsrc_len = resource_size(res);
 
 	jz4740_ohci->clk = devm_clk_get(&pdev->dev, "uhc");
 	if (IS_ERR(jz4740_ohci->clk)) {
@@ -246,7 +239,6 @@ static struct platform_driver ohci_hcd_jz4740_driver = {
 	.remove = jz4740_ohci_remove,
 	.driver = {
 		.name = "jz4740-ohci",
-		.owner = THIS_MODULE,
 	},
 };
 

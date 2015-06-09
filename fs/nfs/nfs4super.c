@@ -3,12 +3,12 @@
  */
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/nfs_idmap.h>
 #include <linux/nfs4_mount.h>
 #include <linux/nfs_fs.h>
 #include "delegation.h"
 #include "internal.h"
 #include "nfs4_fs.h"
+#include "nfs4idmap.h"
 #include "dns_resolve.h"
 #include "pnfs.h"
 #include "nfs.h"
@@ -53,7 +53,6 @@ static const struct super_operations nfs4_sops = {
 	.destroy_inode	= nfs_destroy_inode,
 	.write_inode	= nfs4_write_inode,
 	.drop_inode	= nfs_drop_inode,
-	.put_super	= nfs_put_super,
 	.statfs		= nfs_statfs,
 	.evict_inode	= nfs4_evict_inode,
 	.umount_begin	= nfs_umount_begin,
@@ -90,12 +89,13 @@ static int nfs4_write_inode(struct inode *inode, struct writeback_control *wbc)
  */
 static void nfs4_evict_inode(struct inode *inode)
 {
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
-	pnfs_return_layout(inode);
-	pnfs_destroy_layout(NFS_I(inode));
 	/* If we are holding a delegation, return it! */
 	nfs_inode_return_delegation_noreclaim(inode);
+	/* Note that above delegreturn would trigger pnfs return-on-close */
+	pnfs_return_layout(inode);
+	pnfs_destroy_layout(NFS_I(inode));
 	/* First call standard NFS clear_inode() code */
 	nfs_clear_inode(inode);
 }
@@ -346,6 +346,9 @@ out:
 
 static void __exit exit_nfs_v4(void)
 {
+	/* Not called in the _init(), conditionally loaded */
+	nfs4_pnfs_v3_ds_connect_unload();
+
 	unregister_nfs_version(&nfs_v4);
 	nfs4_unregister_sysctl();
 	nfs_idmap_quit();

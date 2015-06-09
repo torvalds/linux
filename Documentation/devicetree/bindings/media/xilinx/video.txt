@@ -1,0 +1,35 @@
+DT bindings for Xilinx video IP cores
+-------------------------------------
+
+Xilinx video IP cores process video streams by acting as video sinks and/or
+sources. They are connected by links through their input and output ports,
+creating a video pipeline.
+
+Each video IP core is represented by an AMBA bus child node in the device
+tree using bindings documented in this directory. Connections between the IP
+cores are represented as defined in ../video-interfaces.txt.
+
+The whole  pipeline is represented by an AMBA bus child node in the device
+tree using bindings documented in ./xlnx,video.txt.
+
+Common properties
+-----------------
+
+The following properties are common to all Xilinx video IP cores.
+
+- xlnx,video-format: This property represents a video format transmitted on an
+  AXI bus between video IP cores, using its VF code as defined in "AXI4-Stream
+  Video IP and System Design Guide" [UG934]. How the format relates to the IP
+  core is decribed in the IP core bindings documentation.
+
+- xlnx,video-width: This property qualifies the video format with the sample
+  width expressed as a number of bits per pixel component. All components must
+  use the same width.
+
+- xlnx,cfa-pattern: When the video format is set to Mono/Sensor, this property
+  describes the sensor's color filter array pattern. Supported values are
+  "bggr", "gbrg", "grbg", "rggb" and "mono". If not specified, the pattern
+  defaults to "mono".
+
+
+[UG934] http://www.xilinx.com/support/documentation/ip_documentation/axi_videoip/v1_0/ug934_axi_videoIP.pdf

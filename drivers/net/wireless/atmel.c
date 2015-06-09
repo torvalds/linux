@@ -45,7 +45,6 @@
 #include <linux/ptrace.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/ctype.h>
 #include <linux/timer.h>
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -67,7 +66,7 @@
 #include <linux/moduleparam.h>
 #include <linux/firmware.h>
 #include <linux/jiffies.h>
-#include <linux/ieee80211.h>
+#include <net/cfg80211.h>
 #include "atmel.h"
 
 #define DRIVER_MAJOR 0
@@ -1005,7 +1004,7 @@ static void frag_rx_path(struct atmel_private *priv,
 			atmel_copy_to_host(priv->dev, (void *)&netcrc, rx_packet_loc + msdu_size, 4);
 			if ((crc ^ 0xffffffff) != netcrc) {
 				priv->dev->stats.rx_crc_errors++;
-				memset(priv->frag_source, 0xff, ETH_ALEN);
+				eth_broadcast_addr(priv->frag_source);
 			}
 		}
 
@@ -1023,7 +1022,7 @@ static void frag_rx_path(struct atmel_private *priv,
 			atmel_copy_to_host(priv->dev, (void *)&netcrc, rx_packet_loc + msdu_size, 4);
 			if ((crc ^ 0xffffffff) != netcrc) {
 				priv->dev->stats.rx_crc_errors++;
-				memset(priv->frag_source, 0xff, ETH_ALEN);
+				eth_broadcast_addr(priv->frag_source);
 				more_frags = 1; /* don't send broken assembly */
 			}
 		}
@@ -1032,7 +1031,7 @@ static void frag_rx_path(struct atmel_private *priv,
 		priv->frag_no++;
 
 		if (!more_frags) { /* last one */
-			memset(priv->frag_source, 0xff, ETH_ALEN);
+			eth_broadcast_addr(priv->frag_source);
 			if (!(skb = dev_alloc_skb(priv->frag_len + 14))) {
 				priv->dev->stats.rx_dropped++;
 			} else {
@@ -1128,7 +1127,7 @@ static void rx_done_irq(struct atmel_private *priv)
 			atmel_copy_to_host(priv->dev, (unsigned char *)&priv->rx_buf, rx_packet_loc + 24, msdu_size);
 
 			/* we use the same buffer for frag reassembly and control packets */
-			memset(priv->frag_source, 0xff, ETH_ALEN);
+			eth_broadcast_addr(priv->frag_source);
 
 			if (priv->do_rx_crc) {
 				/* last 4 octets is crc */
@@ -1380,7 +1379,7 @@ static int atmel_close(struct net_device *dev)
 		wrqu.data.length = 0;
 		wrqu.data.flags = 0;
 		wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-		memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
+		eth_zero_addr(wrqu.ap_addr.sa_data);
 		wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
 	}
 
@@ -1556,7 +1555,7 @@ struct net_device *init_atmel_card(unsigned short irq, unsigned long port,
 	priv->last_qual = jiffies;
 	priv->last_beacon_timestamp = 0;
 	memset(priv->frag_source, 0xff, sizeof(priv->frag_source));
-	memset(priv->BSSID, 0, ETH_ALEN);
+	eth_zero_addr(priv->BSSID);
 	priv->CurrentBSSID[0] = 0xFF; /* Initialize to something invalid.... */
 	priv->station_was_associated = 0;
 
@@ -2273,7 +2272,7 @@ static int atmel_set_freq(struct net_device *dev,
 
 		/* Hack to fall through... */
 		fwrq->e = 0;
-		fwrq->m = ieee80211_freq_to_dsss_chan(f);
+		fwrq->m = ieee80211_frequency_to_channel(f);
 	}
 	/* Setting by channel number */
 	if ((fwrq->m > 1000) || (fwrq->e > 0))
@@ -2434,8 +2433,8 @@ static int atmel_get_range(struct net_device *dev,
 			range->freq[k].i = i; /* List index */
 
 			/* Values in MHz -> * 10^5 * 10 */
-			range->freq[k].m = (ieee80211_dsss_chan_to_freq(i) *
-					    100000);
+			range->freq[k].m = 100000 *
+			 ieee80211_channel_to_frequency(i, IEEE80211_BAND_2GHZ);
 			range->freq[k++].e = 1;
 		}
 		range->num_frequency = k;
@@ -2598,11 +2597,11 @@ static const iw_handler atmel_private_handler[] =
 	NULL,				/* SIOCIWFIRSTPRIV */
 };
 
-typedef struct atmel_priv_ioctl {
+struct atmel_priv_ioctl {
 	char id[32];
 	unsigned char __user *data;
 	unsigned short len;
-} atmel_priv_ioctl;
+};
 
 #define ATMELFWL	SIOCIWFIRSTPRIV
 #define ATMELIDIFC	ATMELFWL + 1
@@ -2615,7 +2614,7 @@ static const struct iw_priv_args atmel_private_args[] = {
 		.cmd = ATMELFWL,
 		.set_args = IW_PRIV_TYPE_BYTE
 				| IW_PRIV_SIZE_FIXED
-				| sizeof (atmel_priv_ioctl),
+				| sizeof(struct atmel_priv_ioctl),
 		.get_args = IW_PRIV_TYPE_NONE,
 		.name = "atmelfwl"
 	}, {
@@ -2645,7 +2644,7 @@ static int atmel_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	int i, rc = 0;
 	struct atmel_private *priv = netdev_priv(dev);
-	atmel_priv_ioctl com;
+	struct atmel_priv_ioctl com;
 	struct iwreq *wrq = (struct iwreq *) rq;
 	unsigned char *new_firmware;
 	char domain[REGDOMAINSZ + 1];
@@ -2699,16 +2698,7 @@ static int atmel_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		domain[REGDOMAINSZ] = 0;
 		rc = -EINVAL;
 		for (i = 0; i < ARRAY_SIZE(channel_table); i++) {
-			/* strcasecmp doesn't exist in the library */
-			char *a = channel_table[i].name;
-			char *b = domain;
-			while (*a) {
-				char c1 = *a++;
-				char c2 = *b++;
-				if (tolower(c1) != tolower(c2))
-					break;
-			}
-			if (!*a && !*b) {
+			if (!strcasecmp(channel_table[i].name, domain)) {
 				priv->config_reg_domain = channel_table[i].reg_domain;
 				rc = 0;
 			}
@@ -2770,7 +2760,7 @@ static void atmel_scan(struct atmel_private *priv, int specific_ssid)
 		u8 SSID_size;
 	} cmd;
 
-	memset(cmd.BSSID, 0xff, ETH_ALEN);
+	eth_broadcast_addr(cmd.BSSID);
 
 	if (priv->fast_scan) {
 		cmd.SSID_size = priv->SSID_size;
@@ -4059,7 +4049,7 @@ static int reset_atmel_card(struct net_device *dev)
 		wrqu.data.length = 0;
 		wrqu.data.flags = 0;
 		wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-		memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
+		eth_zero_addr(wrqu.ap_addr.sa_data);
 		wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
 	}
 

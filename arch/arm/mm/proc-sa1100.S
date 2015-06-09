@@ -43,7 +43,7 @@ ENTRY(cpu_sa1100_proc_init)
 	mov	r0, #0
 	mcr	p15, 0, r0, c15, c1, 2		@ Enable clock switching
 	mcr	p15, 0, r0, c9, c0, 5		@ Allow read-buffer operations from userland
-	mov	pc, lr
+	ret	lr
 
 /*
  * cpu_sa1100_proc_fin()
@@ -58,7 +58,7 @@ ENTRY(cpu_sa1100_proc_fin)
 	bic	r0, r0, #0x1000			@ ...i............
 	bic	r0, r0, #0x000e			@ ............wca.
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
-	mov	pc, lr
+	ret	lr
 
 /*
  * cpu_sa1100_reset(loc)
@@ -82,7 +82,7 @@ ENTRY(cpu_sa1100_reset)
 	bic	ip, ip, #0x000f			@ ............wcam
 	bic	ip, ip, #0x1100			@ ...i...s........
 	mcr	p15, 0, ip, c1, c0, 0		@ ctrl register
-	mov	pc, r0
+	ret	r0
 ENDPROC(cpu_sa1100_reset)
 	.popsection
 
@@ -113,7 +113,7 @@ ENTRY(cpu_sa1100_do_idle)
 	mcr	p15, 0, r0, c15, c8, 2		@ wait for interrupt
 	mov	r0, r0				@ safety
 	mcr	p15, 0, r0, c15, c1, 2		@ enable clock switching
-	mov	pc, lr
+	ret	lr
 
 /* ================================= CACHE ================================ */
 
@@ -131,7 +131,7 @@ ENTRY(cpu_sa1100_dcache_clean_area)
 	add	r0, r0, #DCACHELINESIZE
 	subs	r1, r1, #DCACHELINESIZE
 	bhi	1b
-	mov	pc, lr
+	ret	lr
 
 /* =============================== PageTable ============================== */
 
@@ -152,7 +152,7 @@ ENTRY(cpu_sa1100_switch_mm)
 	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I & D TLBs
 	ldr	pc, [sp], #4
 #else
-	mov	pc, lr
+	ret	lr
 #endif
 
 /*
@@ -168,7 +168,7 @@ ENTRY(cpu_sa1100_set_pte_ext)
 	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 #endif
-	mov	pc, lr
+	ret	lr
 
 .globl	cpu_sa1100_suspend_size
 .equ	cpu_sa1100_suspend_size, 4 * 3
@@ -211,7 +211,7 @@ __sa1100_setup:
 	mrc	p15, 0, r0, c1, c0		@ get control register v4
 	bic	r0, r0, r5
 	orr	r0, r0, r6
-	mov	pc, lr
+	ret	lr
 	.size	__sa1100_setup, . - __sa1100_setup
 
 	/*
@@ -242,7 +242,7 @@ sa1100_crval:
 
 	.align
 
-	.section ".proc.info.init", #alloc, #execinstr
+	.section ".proc.info.init", #alloc
 
 .macro sa1100_proc_info name:req, cpu_val:req, cpu_mask:req, cpu_name:req
 	.type	__\name\()_proc_info,#object
@@ -257,7 +257,7 @@ __\name\()_proc_info:
 	.long   PMD_TYPE_SECT | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ
-	b	__sa1100_setup
+	initfn	__sa1100_setup, __\name\()_proc_info
 	.long	cpu_arch_name
 	.long	cpu_elf_name
 	.long	HWCAP_SWP | HWCAP_HALF | HWCAP_26BIT | HWCAP_FAST_MULT

@@ -1,7 +1,7 @@
 config VIDEO_SAA7134
 	tristate "Philips SAA7134 support"
 	depends on VIDEO_DEV && PCI && I2C
-	select VIDEOBUF_DMA_SG
+	select VIDEOBUF2_DMA_SG
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select CRC32
@@ -37,7 +37,7 @@ config VIDEO_SAA7134_RC
 config VIDEO_SAA7134_DVB
 	tristate "DVB/ATSC Support for saa7134 based TV cards"
 	depends on VIDEO_SAA7134 && DVB_CORE
-	select VIDEOBUF_DVB
+	select VIDEOBUF2_DVB
 	select DVB_PLL if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_MT352 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_TDA1004X if MEDIA_SUBDRV_AUTOSELECT
@@ -63,3 +63,11 @@ config VIDEO_SAA7134_DVB
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7134-dvb.
+
+config VIDEO_SAA7134_GO7007
+	tristate "go7007 support for saa7134 based TV cards"
+	depends on VIDEO_SAA7134
+	depends on VIDEO_GO7007
+	---help---
+	  Enables saa7134 driver support for boards with go7007
+	  MPEG encoder (WIS Voyager or compatible).

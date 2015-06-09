@@ -40,9 +40,9 @@ TRACE_EVENT(net_dev_start_xmit,
 		__assign_str(name, dev->name);
 		__entry->queue_mapping = skb->queue_mapping;
 		__entry->skbaddr = skb;
-		__entry->vlan_tagged = vlan_tx_tag_present(skb);
+		__entry->vlan_tagged = skb_vlan_tag_present(skb);
 		__entry->vlan_proto = ntohs(skb->vlan_proto);
-		__entry->vlan_tci = vlan_tx_tag_get(skb);
+		__entry->vlan_tci = skb_vlan_tag_get(skb);
 		__entry->protocol = ntohs(skb->protocol);
 		__entry->ip_summed = skb->ip_summed;
 		__entry->len = skb->len;
@@ -153,8 +153,8 @@ DECLARE_EVENT_CLASS(net_dev_rx_verbose_template,
 		__field(	u16,			vlan_tci	)
 		__field(	u16,			protocol	)
 		__field(	u8,			ip_summed	)
-		__field(	u32,			rxhash		)
-		__field(	bool,			l4_rxhash	)
+		__field(	u32,			hash		)
+		__field(	bool,			l4_hash		)
 		__field(	unsigned int,		len		)
 		__field(	unsigned int,		data_len	)
 		__field(	unsigned int,		truesize	)
@@ -174,13 +174,13 @@ DECLARE_EVENT_CLASS(net_dev_rx_verbose_template,
 #endif
 		__entry->queue_mapping = skb->queue_mapping;
 		__entry->skbaddr = skb;
-		__entry->vlan_tagged = vlan_tx_tag_present(skb);
+		__entry->vlan_tagged = skb_vlan_tag_present(skb);
 		__entry->vlan_proto = ntohs(skb->vlan_proto);
-		__entry->vlan_tci = vlan_tx_tag_get(skb);
+		__entry->vlan_tci = skb_vlan_tag_get(skb);
 		__entry->protocol = ntohs(skb->protocol);
 		__entry->ip_summed = skb->ip_summed;
-		__entry->rxhash = skb->rxhash;
-		__entry->l4_rxhash = skb->l4_rxhash;
+		__entry->hash = skb->hash;
+		__entry->l4_hash = skb->l4_hash;
 		__entry->len = skb->len;
 		__entry->data_len = skb->data_len;
 		__entry->truesize = skb->truesize;
@@ -191,11 +191,11 @@ DECLARE_EVENT_CLASS(net_dev_rx_verbose_template,
 		__entry->gso_type = skb_shinfo(skb)->gso_type;
 	),
 
-	TP_printk("dev=%s napi_id=%#x queue_mapping=%u skbaddr=%p vlan_tagged=%d vlan_proto=0x%04x vlan_tci=0x%04x protocol=0x%04x ip_summed=%d rxhash=0x%08x l4_rxhash=%d len=%u data_len=%u truesize=%u mac_header_valid=%d mac_header=%d nr_frags=%d gso_size=%d gso_type=%#x",
+	TP_printk("dev=%s napi_id=%#x queue_mapping=%u skbaddr=%p vlan_tagged=%d vlan_proto=0x%04x vlan_tci=0x%04x protocol=0x%04x ip_summed=%d hash=0x%08x l4_hash=%d len=%u data_len=%u truesize=%u mac_header_valid=%d mac_header=%d nr_frags=%d gso_size=%d gso_type=%#x",
 		  __get_str(name), __entry->napi_id, __entry->queue_mapping,
 		  __entry->skbaddr, __entry->vlan_tagged, __entry->vlan_proto,
 		  __entry->vlan_tci, __entry->protocol, __entry->ip_summed,
-		  __entry->rxhash, __entry->l4_rxhash, __entry->len,
+		  __entry->hash, __entry->l4_hash, __entry->len,
 		  __entry->data_len, __entry->truesize,
 		  __entry->mac_header_valid, __entry->mac_header,
 		  __entry->nr_frags, __entry->gso_size, __entry->gso_type)

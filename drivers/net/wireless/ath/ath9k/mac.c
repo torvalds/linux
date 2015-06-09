@@ -311,14 +311,7 @@ int ath9k_hw_setuptxqueue(struct ath_hw *ah, enum ath9k_tx_queue type,
 		q = ATH9K_NUM_TX_QUEUES - 3;
 		break;
 	case ATH9K_TX_QUEUE_DATA:
-		for (q = 0; q < ATH9K_NUM_TX_QUEUES; q++)
-			if (ah->txq[q].tqi_type ==
-			    ATH9K_TX_QUEUE_INACTIVE)
-				break;
-		if (q == ATH9K_NUM_TX_QUEUES) {
-			ath_err(common, "No available TX queue\n");
-			return -1;
-		}
+		q = qinfo->tqi_subtype;
 		break;
 	default:
 		ath_err(common, "Invalid TX queue type: %u\n", type);
@@ -827,7 +820,8 @@ void ath9k_hw_enable_interrupts(struct ath_hw *ah)
 		return;
 	}
 
-	if (AR_SREV_9340(ah) || AR_SREV_9550(ah))
+	if (AR_SREV_9340(ah) || AR_SREV_9550(ah) || AR_SREV_9531(ah) ||
+	    AR_SREV_9561(ah))
 		sync_default &= ~AR_INTR_SYNC_HOST1_FATAL;
 
 	async_mask = AR_INTR_MAC_IRQ;
@@ -958,3 +952,25 @@ void ath9k_hw_set_interrupts(struct ath_hw *ah)
 	return;
 }
 EXPORT_SYMBOL(ath9k_hw_set_interrupts);
+
+#define ATH9K_HW_MAX_DCU       10
+#define ATH9K_HW_SLICE_PER_DCU 16
+#define ATH9K_HW_BIT_IN_SLICE  16
+void ath9k_hw_set_tx_filter(struct ath_hw *ah, u8 destidx, bool set)
+{
+	int dcu_idx;
+	u32 filter;
+
+	for (dcu_idx = 0; dcu_idx < 10; dcu_idx++) {
+		filter = SM(set, AR_D_TXBLK_WRITE_COMMAND);
+		filter |= SM(dcu_idx, AR_D_TXBLK_WRITE_DCU);
+		filter |= SM((destidx / ATH9K_HW_SLICE_PER_DCU),
+			     AR_D_TXBLK_WRITE_SLICE);
+		filter |= BIT(destidx % ATH9K_HW_BIT_IN_SLICE);
+		ath_dbg(ath9k_hw_common(ah), PS,
+			"DCU%d staid %d set %d txfilter %08x\n",
+			dcu_idx, destidx, set, filter);
+		REG_WRITE(ah, AR_D_TXBLK_BASE, filter);
+	}
+}
+EXPORT_SYMBOL(ath9k_hw_set_tx_filter);

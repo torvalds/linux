@@ -6,8 +6,18 @@
 
 / {
 	core-module@10000000 {
-		compatible = "arm,core-module-integrator";
+		compatible = "arm,core-module-integrator", "syscon";
 		reg = <0x10000000 0x200>;
+
+		/* Use core module LED to indicate CPU load */
+		led@0c.0 {
+			compatible = "register-bit-led";
+			offset = <0x0c>;
+			mask = <0x01>;
+			label = "integrator:core_module";
+			linux,default-trigger = "cpu0";
+			default-state = "on";
+		};
 	};
 
 	ebi@12000000 {
@@ -81,6 +91,42 @@
 		kmi@19000000 {
 			reg = <0x19000000 0x1000>;
 			interrupts = <4>;
+		};
+
+		syscon {
+			/* Debug registers mapped as syscon */
+			compatible = "syscon";
+			reg = <0x1a000000 0x10>;
+
+			led@04.0 {
+				compatible = "register-bit-led";
+				offset = <0x04>;
+				mask = <0x01>;
+				label = "integrator:green0";
+				linux,default-trigger = "heartbeat";
+				default-state = "on";
+			};
+			led@04.1 {
+				compatible = "register-bit-led";
+				offset = <0x04>;
+				mask = <0x02>;
+				label = "integrator:yellow";
+				default-state = "off";
+			};
+			led@04.2 {
+				compatible = "register-bit-led";
+				offset = <0x04>;
+				mask = <0x04>;
+				label = "integrator:red";
+				default-state = "off";
+			};
+			led@04.3 {
+				compatible = "register-bit-led";
+				offset = <0x04>;
+				mask = <0x08>;
+				label = "integrator:green1";
+				default-state = "off";
+			};
 		};
 	};
 };

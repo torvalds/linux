@@ -64,7 +64,7 @@ struct fib6_node {
 
 	__u16			fn_bit;		/* bit key */
 	__u16			fn_flags;
-	__u32			fn_sernum;
+	int			fn_sernum;
 	struct rt6_info		*rr_ptr;
 };
 
@@ -73,6 +73,11 @@ struct fib6_node {
 #else
 #define FIB6_SUBTREE(fn)	((fn)->subtree)
 #endif
+
+struct mx6_config {
+	const u32 *mx;
+	DECLARE_BITMAP(mx_valid, RTAX_MAX);
+};
 
 /*
  *	routing information
@@ -114,16 +119,13 @@ struct rt6_info {
 	u32				rt6i_flags;
 	struct rt6key			rt6i_src;
 	struct rt6key			rt6i_prefsrc;
-	u32				rt6i_metric;
 
 	struct inet6_dev		*rt6i_idev;
 	unsigned long			_rt6i_peer;
 
-	u32				rt6i_genid;
-
+	u32				rt6i_metric;
 	/* more non-fragment space at head required */
 	unsigned short			rt6i_nfheader_len;
-
 	u8				rt6i_protocol;
 };
 
@@ -205,15 +207,25 @@ static inline void ip6_rt_put(struct rt6_info *rt)
 	dst_release(&rt->dst);
 }
 
-struct fib6_walker_t {
+enum fib6_walk_state {
+#ifdef CONFIG_IPV6_SUBTREES
+	FWS_S,
+#endif
+	FWS_L,
+	FWS_R,
+	FWS_C,
+	FWS_U
+};
+
+struct fib6_walker {
 	struct list_head lh;
 	struct fib6_node *root, *node;
 	struct rt6_info *leaf;
-	unsigned char state;
-	unsigned char prune;
+	enum fib6_walk_state state;
+	bool prune;
 	unsigned int skip;
 	unsigned int count;
-	int (*func)(struct fib6_walker_t *);
+	int (*func)(struct fib6_walker *);
 	void *args;
 };
 
@@ -284,8 +296,8 @@ struct fib6_node *fib6_locate(struct fib6_node *root,
 void fib6_clean_all(struct net *net, int (*func)(struct rt6_info *, void *arg),
 		    void *arg);
 
-int fib6_add(struct fib6_node *root, struct rt6_info *rt, struct nl_info *info);
-
+int fib6_add(struct fib6_node *root, struct rt6_info *rt,
+	     struct nl_info *info, struct mx6_config *mxc);
 int fib6_del(struct rt6_info *rt, struct nl_info *info);
 
 void inet6_rt_notify(int event, struct rt6_info *rt, struct nl_info *info);

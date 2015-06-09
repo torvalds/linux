@@ -39,24 +39,6 @@ struct ion_cma_buffer_info {
 	struct sg_table *table;
 };
 
-/*
- * Create scatter-list for the already allocated DMA buffer.
- * This function could be replaced by dma_common_get_sgtable
- * as soon as it will avalaible.
- */
-static int ion_cma_get_sgtable(struct device *dev, struct sg_table *sgt,
-			       void *cpu_addr, dma_addr_t handle, size_t size)
-{
-	struct page *page = virt_to_page(cpu_addr);
-	int ret;
-
-	ret = sg_alloc_table(sgt, 1, GFP_KERNEL);
-	if (unlikely(ret))
-		return ret;
-
-	sg_set_page(sgt->sgl, page, PAGE_ALIGN(size), 0);
-	return 0;
-}
 
 /* ION CMA heap operations functions */
 static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
@@ -76,10 +58,8 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 		return -EINVAL;
 
 	info = kzalloc(sizeof(struct ion_cma_buffer_info), GFP_KERNEL);
-	if (!info) {
-		dev_err(dev, "Can't allocate buffer info\n");
+	if (!info)
 		return ION_CMA_ALLOCATE_FAILED;
-	}
 
 	info->cpu_addr = dma_alloc_coherent(dev, len, &(info->handle),
 						GFP_HIGHUSER | __GFP_ZERO);
@@ -90,12 +70,10 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 	}
 
 	info->table = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
-	if (!info->table) {
-		dev_err(dev, "Fail to allocate sg table\n");
+	if (!info->table)
 		goto free_mem;
-	}
 
-	if (ion_cma_get_sgtable
+	if (dma_common_get_sgtable
 	    (dev, info->table, info->cpu_addr, info->handle, len))
 		goto free_table;
 	/* keep this for memory release */
@@ -135,7 +113,7 @@ static int ion_cma_phys(struct ion_heap *heap, struct ion_buffer *buffer,
 	struct device *dev = cma_heap->dev;
 	struct ion_cma_buffer_info *info = buffer->priv_virt;
 
-	dev_dbg(dev, "Return buffer %p physical address 0x%pa\n", buffer,
+	dev_dbg(dev, "Return buffer %p physical address %pa\n", buffer,
 		&info->handle);
 
 	*addr = info->handle;
@@ -155,7 +133,6 @@ static struct sg_table *ion_cma_heap_map_dma(struct ion_heap *heap,
 static void ion_cma_heap_unmap_dma(struct ion_heap *heap,
 				   struct ion_buffer *buffer)
 {
-	return;
 }
 
 static int ion_cma_mmap(struct ion_heap *mapper, struct ion_buffer *buffer,

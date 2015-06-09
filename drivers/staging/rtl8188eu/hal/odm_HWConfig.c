@@ -118,13 +118,13 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 
 		cck_highpwr = dm_odm->bCckHighPower;
 
-		cck_agc_rpt =  pPhyStaRpt->cck_agc_rpt_ofdm_cfosho_a ;
+		cck_agc_rpt =  pPhyStaRpt->cck_agc_rpt_ofdm_cfosho_a;
 
 		/* 2011.11.28 LukeLee: 88E use different LNA & VGA gain table */
 		/* The RSSI formula should be modified according to the gain table */
 		/* In 88E, cck_highpwr is always set to 1 */
-		LNA_idx = ((cck_agc_rpt & 0xE0) >> 5);
-		VGA_idx = (cck_agc_rpt & 0x1F);
+		LNA_idx = (cck_agc_rpt & 0xE0) >> 5;
+		VGA_idx = cck_agc_rpt & 0x1F;
 		switch (LNA_idx) {
 		case 7:
 			if (VGA_idx <= 27)
@@ -275,10 +275,6 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 	dm_odm->DM_FatTable.antsel_rx_keep_2 = pPhyStaRpt->antsel_rx_keep_2;
 }
 
-void odm_Init_RSSIForDM(struct odm_dm_struct *dm_odm)
-{
-}
-
 static void odm_Process_RSSIForDM(struct odm_dm_struct *dm_odm,
 				  struct odm_phy_status_info *pPhyInfo,
 				  struct odm_per_pkt_info *pPktinfo)
@@ -319,7 +315,7 @@ static void odm_Process_RSSIForDM(struct odm_dm_struct *dm_odm,
 		if (pPktinfo->bPacketToSelf || pPktinfo->bPacketBeacon) {
 			antsel_tr_mux = (pDM_FatTable->antsel_rx_keep_2<<2) |
 					(pDM_FatTable->antsel_rx_keep_1<<1) | pDM_FatTable->antsel_rx_keep_0;
-			ODM_AntselStatistics_88E(dm_odm, antsel_tr_mux, pPktinfo->StationID, pPhyInfo->RxPWDBAll);
+			rtl88eu_dm_ant_sel_statistics(dm_odm, antsel_tr_mux, pPktinfo->StationID, pPhyInfo->RxPWDBAll);
 		}
 	}
 	/* Smart Antenna Debug Message------------------ */
@@ -434,48 +430,4 @@ void ODM_PhyStatusQuery(struct odm_dm_struct *dm_odm,
 			u8 *pPhyStatus, struct odm_per_pkt_info *pPktinfo)
 {
 	ODM_PhyStatusQuery_92CSeries(dm_odm, pPhyInfo, pPhyStatus, pPktinfo);
-}
-
-/*  For future use. */
-void ODM_MacStatusQuery(struct odm_dm_struct *dm_odm, u8 *mac_stat,
-			u8 macid, bool pkt_match_bssid,
-			bool pkttoself, bool pkt_beacon)
-{
-	/*  2011/10/19 Driver team will handle in the future. */
-}
-
-enum HAL_STATUS ODM_ConfigRFWithHeaderFile(struct odm_dm_struct *dm_odm,
-					   enum rf_radio_path content,
-					   enum rf_radio_path rfpath)
-{
-	ODM_RT_TRACE(dm_odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("===>ODM_ConfigRFWithHeaderFile\n"));
-	if (rfpath == RF_PATH_A)
-		READ_AND_CONFIG(8188E, _RadioA_1T_);
-	ODM_RT_TRACE(dm_odm, ODM_COMP_INIT, ODM_DBG_LOUD, (" ===> ODM_ConfigRFWithHeaderFile() Radio_A:Rtl8188ERadioA_1TArray\n"));
-	ODM_RT_TRACE(dm_odm, ODM_COMP_INIT, ODM_DBG_LOUD, (" ===> ODM_ConfigRFWithHeaderFile() Radio_B:Rtl8188ERadioB_1TArray\n"));
-
-	ODM_RT_TRACE(dm_odm, ODM_COMP_INIT, ODM_DBG_TRACE, ("ODM_ConfigRFWithHeaderFile: Radio No %x\n", rfpath));
-	return HAL_STATUS_SUCCESS;
-}
-
-enum HAL_STATUS ODM_ConfigBBWithHeaderFile(struct odm_dm_struct *dm_odm,
-					   enum odm_bb_config_type config_tp)
-{
-	if (config_tp == CONFIG_BB_PHY_REG) {
-		READ_AND_CONFIG(8188E, _PHY_REG_1T_);
-	} else if (config_tp == CONFIG_BB_AGC_TAB) {
-		READ_AND_CONFIG(8188E, _AGC_TAB_1T_);
-	} else if (config_tp == CONFIG_BB_PHY_REG_PG) {
-		READ_AND_CONFIG(8188E, _PHY_REG_PG_);
-		ODM_RT_TRACE(dm_odm, ODM_COMP_INIT, ODM_DBG_LOUD,
-			     (" ===> phy_ConfigBBWithHeaderFile() agc:Rtl8188EPHY_REG_PGArray\n"));
-	}
-	return HAL_STATUS_SUCCESS;
-}
-
-enum HAL_STATUS ODM_ConfigMACWithHeaderFile(struct odm_dm_struct *dm_odm)
-{
-	u8 result = HAL_STATUS_SUCCESS;
-	result = READ_AND_CONFIG(8188E, _MAC_REG_);
-	return result;
 }

@@ -217,7 +217,7 @@ void ia64_mca_printk(const char *fmt, ...)
 	/* Copy the output into mlogbuf */
 	if (oops_in_progress) {
 		/* mlogbuf was abandoned, use printk directly instead. */
-		printk(temp_buf);
+		printk("%s", temp_buf);
 	} else {
 		spin_lock(&mlogbuf_wlock);
 		for (p = temp_buf; *p; p++) {
@@ -268,7 +268,7 @@ void ia64_mlogbuf_dump(void)
 		}
 		*p = '\0';
 		if (temp_buf[0])
-			printk(temp_buf);
+			printk("%s", temp_buf);
 		mlogbuf_start = index;
 
 		mlogbuf_timestamp = 0;
@@ -1293,7 +1293,7 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 		monarch_cpu = cpu;
 		sos->monarch = 1;
 	} else {
-		cpu_set(cpu, mca_cpu);
+		cpumask_set_cpu(cpu, &mca_cpu);
 		sos->monarch = 0;
 	}
 	mprintk(KERN_INFO "Entered OS MCA handler. PSP=%lx cpu=%d "
@@ -1316,7 +1316,7 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 		 */
 		ia64_mca_wakeup_all();
 	} else {
-		while (cpu_isset(cpu, mca_cpu))
+		while (cpumask_test_cpu(cpu, &mca_cpu))
 			cpu_relax();	/* spin until monarch wakes us */
 	}
 
@@ -1341,7 +1341,7 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 		ia64_mlogbuf_finish(1);
 	}
 
-	if (__get_cpu_var(ia64_mca_tr_reload)) {
+	if (__this_cpu_read(ia64_mca_tr_reload)) {
 		mca_insert_tr(0x1); /*Reload dynamic itrs*/
 		mca_insert_tr(0x2); /*Reload dynamic itrs*/
 	}
@@ -1355,9 +1355,9 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 		 * and put this cpu in the rendez loop.
 		 */
 		for_each_online_cpu(i) {
-			if (cpu_isset(i, mca_cpu)) {
+			if (cpumask_test_cpu(i, &mca_cpu)) {
 				monarch_cpu = i;
-				cpu_clear(i, mca_cpu);	/* wake next cpu */
+				cpumask_clear_cpu(i, &mca_cpu);	/* wake next cpu */
 				while (monarch_cpu != -1)
 					cpu_relax();	/* spin until last cpu leaves */
 				set_curr_task(cpu, previous_current);
@@ -1772,38 +1772,32 @@ __setup("disable_cpe_poll", ia64_mca_disable_cpe_polling);
 
 static struct irqaction cmci_irqaction = {
 	.handler =	ia64_mca_cmc_int_handler,
-	.flags =	IRQF_DISABLED,
 	.name =		"cmc_hndlr"
 };
 
 static struct irqaction cmcp_irqaction = {
 	.handler =	ia64_mca_cmc_int_caller,
-	.flags =	IRQF_DISABLED,
 	.name =		"cmc_poll"
 };
 
 static struct irqaction mca_rdzv_irqaction = {
 	.handler =	ia64_mca_rendez_int_handler,
-	.flags =	IRQF_DISABLED,
 	.name =		"mca_rdzv"
 };
 
 static struct irqaction mca_wkup_irqaction = {
 	.handler =	ia64_mca_wakeup_int_handler,
-	.flags =	IRQF_DISABLED,
 	.name =		"mca_wkup"
 };
 
 #ifdef CONFIG_ACPI
 static struct irqaction mca_cpe_irqaction = {
 	.handler =	ia64_mca_cpe_int_handler,
-	.flags =	IRQF_DISABLED,
 	.name =		"cpe_hndlr"
 };
 
 static struct irqaction mca_cpep_irqaction = {
 	.handler =	ia64_mca_cpe_int_caller,
-	.flags =	IRQF_DISABLED,
 	.name =		"cpe_poll"
 };
 #endif /* CONFIG_ACPI */
@@ -1828,7 +1822,7 @@ format_mca_init_stack(void *mca_data, unsigned long offset,
 	ti->cpu = cpu;
 	p->stack = ti;
 	p->state = TASK_UNINTERRUPTIBLE;
-	cpu_set(cpu, p->cpus_allowed);
+	cpumask_set_cpu(cpu, &p->cpus_allowed);
 	INIT_LIST_HEAD(&p->tasks);
 	p->parent = p->real_parent = p->group_leader = p;
 	INIT_LIST_HEAD(&p->children);
@@ -1874,14 +1868,14 @@ ia64_mca_cpu_init(void *cpu_data)
 		"MCA", cpu);
 	format_mca_init_stack(data, offsetof(struct ia64_mca_cpu, init_stack),
 		"INIT", cpu);
-	__get_cpu_var(ia64_mca_data) = __per_cpu_mca[cpu] = __pa(data);
+	__this_cpu_write(ia64_mca_data, (__per_cpu_mca[cpu] = __pa(data)));
 
 	/*
 	 * Stash away a copy of the PTE needed to map the per-CPU page.
 	 * We may need it during MCA recovery.
 	 */
-	__get_cpu_var(ia64_mca_per_cpu_pte) =
-		pte_val(mk_pte_phys(__pa(cpu_data), PAGE_KERNEL));
+	__this_cpu_write(ia64_mca_per_cpu_pte,
+		pte_val(mk_pte_phys(__pa(cpu_data), PAGE_KERNEL)));
 
 	/*
 	 * Also, stash away a copy of the PAL address and the PTE
@@ -1890,10 +1884,10 @@ ia64_mca_cpu_init(void *cpu_data)
 	pal_vaddr = efi_get_pal_addr();
 	if (!pal_vaddr)
 		return;
-	__get_cpu_var(ia64_mca_pal_base) =
-		GRANULEROUNDDOWN((unsigned long) pal_vaddr);
-	__get_cpu_var(ia64_mca_pal_pte) = pte_val(mk_pte_phys(__pa(pal_vaddr),
-							      PAGE_KERNEL));
+	__this_cpu_write(ia64_mca_pal_base,
+		GRANULEROUNDDOWN((unsigned long) pal_vaddr));
+	__this_cpu_write(ia64_mca_pal_pte, pte_val(mk_pte_phys(__pa(pal_vaddr),
+							      PAGE_KERNEL)));
 }
 
 static void ia64_mca_cmc_vector_adjust(void *dummy)

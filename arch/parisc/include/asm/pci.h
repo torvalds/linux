@@ -215,11 +215,6 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 }
 #endif
 
-static inline void pcibios_penalize_isa_irq(int irq, int active)
-{
-	/* We don't need to penalize isa irq's */
-}
-
 static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 {
 	return channel ? 15 : 14;

@@ -15,13 +15,12 @@
 
 #include <linux/i2c-omap.h>
 #include <linux/platform_data/asoc-ti-mcbsp.h>
+#include <linux/platform_data/hsmmc-omap.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include <linux/omap-dma.h>
-#include <linux/platform_data/mailbox-omap.h>
 #include <plat/dmtimer.h>
 
 #include "omap_hwmod.h"
-#include "mmc.h"
 #include "l3_2xxx.h"
 
 #include "soc.h"
@@ -161,17 +160,6 @@ static struct omap_hwmod omap2430_dma_system_hwmod = {
 };
 
 /* mailbox */
-static struct omap_mbox_dev_info omap2430_mailbox_info[] = {
-	{ .name = "dsp", .tx_id = 0, .rx_id = 1 },
-};
-
-static struct omap_mbox_pdata omap2430_mailbox_attrs = {
-	.num_users	= 4,
-	.num_fifos	= 6,
-	.info_cnt	= ARRAY_SIZE(omap2430_mailbox_info),
-	.info		= omap2430_mailbox_info,
-};
-
 static struct omap_hwmod omap2430_mailbox_hwmod = {
 	.name		= "mailbox",
 	.class		= &omap2xxx_mailbox_hwmod_class,
@@ -185,7 +173,6 @@ static struct omap_hwmod omap2430_mailbox_hwmod = {
 			.idlest_idle_bit = OMAP24XX_ST_MAILBOXES_SHIFT,
 		},
 	},
-	.dev_attr	= &omap2430_mailbox_attrs,
 };
 
 /* mcspi3 */
@@ -385,7 +372,7 @@ static struct omap_hwmod_opt_clk omap2430_mmc1_opt_clks[] = {
 	{ .role = "dbck", .clk = "mmchsdb1_fck" },
 };
 
-static struct omap_mmc_dev_attr mmc1_dev_attr = {
+static struct omap_hsmmc_dev_attr mmc1_dev_attr = {
 	.flags = OMAP_HSMMC_SUPPORTS_DUAL_VOLT,
 };
 

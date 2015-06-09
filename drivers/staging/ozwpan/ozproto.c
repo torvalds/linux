@@ -11,6 +11,7 @@
 #include <linux/etherdevice.h>
 #include <linux/errno.h>
 #include <linux/ieee80211.h>
+#include <linux/slab.h>
 #include "ozdbg.h"
 #include "ozprotocol.h"
 #include "ozeltbuf.h"
@@ -29,8 +30,6 @@
 #define OZ_DO_STOP		1
 #define OZ_DO_SLEEP		2
 
-#define OZ_MAX_TIMER_POOL_SIZE	16
-
 struct oz_binding {
 	struct packet_type ptype;
 	char name[OZ_MAX_BINDING_LEN];
@@ -38,9 +37,13 @@ struct oz_binding {
 };
 
 /*
+ * External variable
+ */
+
+DEFINE_SPINLOCK(g_polling_lock);
+/*
  * Static external variables.
  */
-static DEFINE_SPINLOCK(g_polling_lock);
 static LIST_HEAD(g_pd_list);
 static LIST_HEAD(g_binding);
 static DEFINE_SPINLOCK(g_binding_lock);
@@ -48,6 +51,9 @@ static struct sk_buff_head g_rx_queue;
 static u8 g_session_id;
 static u16 g_apps = 0x1;
 static int g_processing_rx;
+
+struct kmem_cache *oz_elt_info_cache;
+struct kmem_cache *oz_tx_frame_cache;
 
 /*
  * Context: softirq-serialized
@@ -92,7 +98,7 @@ static void oz_send_conn_rsp(struct oz_pd *pd, u8 status)
 		kfree_skb(skb);
 		return;
 	}
-	oz_hdr->control = (OZ_PROTOCOL_VERSION<<OZ_VERSION_SHIFT);
+	oz_hdr->control = OZ_PROTOCOL_VERSION<<OZ_VERSION_SHIFT;
 	oz_hdr->last_pkt_num = 0;
 	put_unaligned(0, &oz_hdr->pkt_num);
 	elt->type = OZ_ELT_CONNECT_RSP;
@@ -106,7 +112,6 @@ static void oz_send_conn_rsp(struct oz_pd *pd, u8 status)
 	}
 	oz_dbg(ON, "TX: OZ_ELT_CONNECT_RSP %d", status);
 	dev_queue_xmit(skb);
-	return;
 }
 
 /*
@@ -173,13 +178,14 @@ static struct oz_pd *oz_connect_req(struct oz_pd *cur_pd, struct oz_elt *elt,
 	} else {
 		struct oz_pd *pd2 = NULL;
 		struct list_head *e;
+
 		pd = oz_pd_alloc(pd_addr);
 		if (pd == NULL)
 			return NULL;
 		getnstimeofday(&pd->last_rx_timestamp);
 		spin_lock_bh(&g_polling_lock);
 		list_for_each(e, &g_pd_list) {
-			pd2 = container_of(e, struct oz_pd, link);
+			pd2 = list_entry(e, struct oz_pd, link);
 			if (ether_addr_equal(pd2->mac_addr, pd_addr)) {
 				free_pd = pd;
 				pd = pd2;
@@ -256,6 +262,7 @@ done:
 		u16 start_apps = new_apps & ~pd->total_apps & ~0x1;
 		u16 stop_apps = pd->total_apps & ~new_apps & ~0x1;
 		u16 resume_apps = new_apps & pd->paused_apps  & ~0x1;
+
 		spin_unlock_bh(&g_polling_lock);
 		oz_pd_set_state(pd, OZ_PD_S_CONNECTED);
 		oz_dbg(ON, "new_apps=0x%x total_apps=0x%x paused_apps=0x%x\n",
@@ -377,6 +384,7 @@ static void oz_rx_frame(struct sk_buff *skb)
 		if ((oz_hdr->control & OZ_F_ACK_REQUESTED) &&
 				(pd->state == OZ_PD_S_CONNECTED)) {
 			int backlog = pd->nb_queued_frames;
+
 			pd->trigger_pkt_num = pkt_num;
 			/* Send queued frames */
 			oz_send_queued_frames(pd, backlog);
@@ -477,6 +485,9 @@ void oz_protocol_term(void)
 	}
 	spin_unlock_bh(&g_polling_lock);
 	oz_dbg(ON, "Protocol stopped\n");
+
+	kmem_cache_destroy(oz_tx_frame_cache);
+	kmem_cache_destroy(oz_elt_info_cache);
 }
 
 /*
@@ -592,13 +603,11 @@ void oz_pd_request_heartbeat(struct oz_pd *pd)
 struct oz_pd *oz_pd_find(const u8 *mac_addr)
 {
 	struct oz_pd *pd;
-	struct list_head *e;
 
 	spin_lock_bh(&g_polling_lock);
-	list_for_each(e, &g_pd_list) {
-		pd = container_of(e, struct oz_pd, link);
+	list_for_each_entry(pd, &g_pd_list, link) {
 		if (ether_addr_equal(pd->mac_addr, mac_addr)) {
-			atomic_inc(&pd->ref_count);
+			oz_pd_get(pd);
 			spin_unlock_bh(&g_polling_lock);
 			return pd;
 		}
@@ -612,7 +621,7 @@ struct oz_pd *oz_pd_find(const u8 *mac_addr)
  */
 void oz_app_enable(int app_id, int enable)
 {
-	if (app_id <= OZ_APPID_MAX) {
+	if (app_id < OZ_NB_APPS) {
 		spin_lock_bh(&g_polling_lock);
 		if (enable)
 			g_apps |= (1<<app_id);
@@ -664,32 +673,26 @@ void oz_binding_add(const char *net_dev)
 {
 	struct oz_binding *binding;
 
-	binding = kmalloc(sizeof(struct oz_binding), GFP_KERNEL);
-	if (binding) {
-		binding->ptype.type = __constant_htons(OZ_ETHERTYPE);
-		binding->ptype.func = oz_pkt_recv;
-		if (net_dev && *net_dev) {
-			memcpy(binding->name, net_dev, OZ_MAX_BINDING_LEN);
-			oz_dbg(ON, "Adding binding: %s\n", net_dev);
-			binding->ptype.dev =
-				dev_get_by_name(&init_net, net_dev);
-			if (binding->ptype.dev == NULL) {
-				oz_dbg(ON, "Netdev %s not found\n", net_dev);
-				kfree(binding);
-				binding = NULL;
-			}
-		} else {
-			oz_dbg(ON, "Binding to all netcards\n");
-			memset(binding->name, 0, OZ_MAX_BINDING_LEN);
-			binding->ptype.dev = NULL;
-		}
-		if (binding) {
-			dev_add_pack(&binding->ptype);
-			spin_lock_bh(&g_binding_lock);
-			list_add_tail(&binding->link, &g_binding);
-			spin_unlock_bh(&g_binding_lock);
+	binding = kzalloc(sizeof(struct oz_binding), GFP_KERNEL);
+	if (!binding)
+		return;
+
+	binding->ptype.type = htons(OZ_ETHERTYPE);
+	binding->ptype.func = oz_pkt_recv;
+	if (net_dev && *net_dev) {
+		memcpy(binding->name, net_dev, OZ_MAX_BINDING_LEN);
+		oz_dbg(ON, "Adding binding: %s\n", net_dev);
+		binding->ptype.dev = dev_get_by_name(&init_net, net_dev);
+		if (binding->ptype.dev == NULL) {
+			oz_dbg(ON, "Netdev %s not found\n", net_dev);
+			kfree(binding);
+			return;
 		}
 	}
+	dev_add_pack(&binding->ptype);
+	spin_lock_bh(&g_binding_lock);
+	list_add_tail(&binding->link, &g_binding);
+	spin_unlock_bh(&g_binding_lock);
 }
 
 /*
@@ -697,11 +700,10 @@ void oz_binding_add(const char *net_dev)
  */
 static void pd_stop_all_for_device(struct net_device *net_dev)
 {
-	struct list_head h;
+	LIST_HEAD(h);
 	struct oz_pd *pd;
 	struct oz_pd *n;
 
-	INIT_LIST_HEAD(&h);
 	spin_lock_bh(&g_polling_lock);
 	list_for_each_entry_safe(pd, n, &g_pd_list, link) {
 		if (pd->net_dev == net_dev) {
@@ -766,11 +768,22 @@ static char *oz_get_next_device_name(char *s, char *dname, int max_size)
  */
 int oz_protocol_init(char *devs)
 {
+	oz_elt_info_cache = KMEM_CACHE(oz_elt_info, 0);
+	if (!oz_elt_info_cache)
+		return -ENOMEM;
+
+	oz_tx_frame_cache = KMEM_CACHE(oz_tx_frame, 0);
+	if (!oz_tx_frame_cache) {
+		kmem_cache_destroy(oz_elt_info_cache);
+		return -ENOMEM;
+	}
+
 	skb_queue_head_init(&g_rx_queue);
-	if (devs && (devs[0] == '*')) {
+	if (devs[0] == '*') {
 		oz_binding_add(NULL);
 	} else {
 		char d[32];
+
 		while (*devs) {
 			devs = oz_get_next_device_name(devs, d, sizeof(d));
 			if (d[0])
@@ -786,26 +799,15 @@ int oz_protocol_init(char *devs)
 int oz_get_pd_list(struct oz_mac_addr *addr, int max_count)
 {
 	struct oz_pd *pd;
-	struct list_head *e;
 	int count = 0;
 
 	spin_lock_bh(&g_polling_lock);
-	list_for_each(e, &g_pd_list) {
+	list_for_each_entry(pd, &g_pd_list, link) {
 		if (count >= max_count)
 			break;
-		pd = container_of(e, struct oz_pd, link);
-		memcpy(&addr[count++], pd->mac_addr, ETH_ALEN);
+		ether_addr_copy((u8 *)&addr[count++], pd->mac_addr);
 	}
 	spin_unlock_bh(&g_polling_lock);
 	return count;
 }
 
-void oz_polling_lock_bh(void)
-{
-	spin_lock_bh(&g_polling_lock);
-}
-
-void oz_polling_unlock_bh(void)
-{
-	spin_unlock_bh(&g_polling_lock);
-}

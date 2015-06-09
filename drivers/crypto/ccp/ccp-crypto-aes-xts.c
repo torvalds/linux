@@ -21,7 +21,6 @@
 
 #include "ccp-crypto.h"
 
-
 struct ccp_aes_xts_def {
 	const char *name;
 	const char *drv_name;
@@ -191,12 +190,12 @@ static int ccp_aes_xts_cra_init(struct crypto_tfm *tfm)
 	ctx->complete = ccp_aes_xts_complete;
 	ctx->u.aes.key_len = 0;
 
-	fallback_tfm = crypto_alloc_ablkcipher(tfm->__crt_alg->cra_name, 0,
+	fallback_tfm = crypto_alloc_ablkcipher(crypto_tfm_alg_name(tfm), 0,
 					       CRYPTO_ALG_ASYNC |
 					       CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(fallback_tfm)) {
 		pr_warn("could not load fallback driver %s\n",
-			tfm->__crt_alg->cra_name);
+			crypto_tfm_alg_name(tfm));
 		return PTR_ERR(fallback_tfm);
 	}
 	ctx->u.aes.tfm_ablkcipher = fallback_tfm;
@@ -215,7 +214,6 @@ static void ccp_aes_xts_cra_exit(struct crypto_tfm *tfm)
 		crypto_free_ablkcipher(ctx->u.aes.tfm_ablkcipher);
 	ctx->u.aes.tfm_ablkcipher = NULL;
 }
-
 
 static int ccp_register_aes_xts_alg(struct list_head *head,
 				    const struct ccp_aes_xts_def *def)
@@ -255,7 +253,7 @@ static int ccp_register_aes_xts_alg(struct list_head *head,
 	ret = crypto_register_alg(alg);
 	if (ret) {
 		pr_err("%s ablkcipher algorithm registration error (%d)\n",
-			alg->cra_name, ret);
+		       alg->cra_name, ret);
 		kfree(ccp_alg);
 		return ret;
 	}

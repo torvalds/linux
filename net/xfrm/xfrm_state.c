@@ -97,8 +97,6 @@ static unsigned long xfrm_hash_new_size(unsigned int state_hmask)
 	return ((state_hmask + 1) << 1) * sizeof(struct hlist_head);
 }
 
-static DEFINE_MUTEX(hash_resize_mutex);
-
 static void xfrm_hash_resize(struct work_struct *work)
 {
 	struct net *net = container_of(work, struct net, xfrm.state_hash_work);
@@ -107,22 +105,20 @@ static void xfrm_hash_resize(struct work_struct *work)
 	unsigned int nhashmask, ohashmask;
 	int i;
 
-	mutex_lock(&hash_resize_mutex);
-
 	nsize = xfrm_hash_new_size(net->xfrm.state_hmask);
 	ndst = xfrm_hash_alloc(nsize);
 	if (!ndst)
-		goto out_unlock;
+		return;
 	nsrc = xfrm_hash_alloc(nsize);
 	if (!nsrc) {
 		xfrm_hash_free(ndst, nsize);
-		goto out_unlock;
+		return;
 	}
 	nspi = xfrm_hash_alloc(nsize);
 	if (!nspi) {
 		xfrm_hash_free(ndst, nsize);
 		xfrm_hash_free(nsrc, nsize);
-		goto out_unlock;
+		return;
 	}
 
 	spin_lock_bh(&net->xfrm.xfrm_state_lock);
@@ -148,9 +144,6 @@ static void xfrm_hash_resize(struct work_struct *work)
 	xfrm_hash_free(odst, osize);
 	xfrm_hash_free(osrc, osize);
 	xfrm_hash_free(ospi, osize);
-
-out_unlock:
-	mutex_unlock(&hash_resize_mutex);
 }
 
 static DEFINE_SPINLOCK(xfrm_state_afinfo_lock);
@@ -161,6 +154,7 @@ static DEFINE_SPINLOCK(xfrm_state_gc_lock);
 int __xfrm_state_delete(struct xfrm_state *x);
 
 int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *pol);
+bool km_is_alive(const struct km_event *c);
 void km_state_expired(struct xfrm_state *x, int hard, u32 portid);
 
 static DEFINE_SPINLOCK(xfrm_type_lock);
@@ -462,9 +456,7 @@ expired:
 	if (!err)
 		km_state_expired(x, 1, 0);
 
-	xfrm_audit_state_delete(x, err ? 0 : 1,
-				audit_get_loginuid(current),
-				audit_get_sessionid(current), 0);
+	xfrm_audit_state_delete(x, err ? 0 : 1, true);
 
 out:
 	spin_unlock(&x->lock);
@@ -561,7 +553,7 @@ EXPORT_SYMBOL(xfrm_state_delete);
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 static inline int
-xfrm_state_flush_secctx_check(struct net *net, u8 proto, struct xfrm_audit *audit_info)
+xfrm_state_flush_secctx_check(struct net *net, u8 proto, bool task_valid)
 {
 	int i, err = 0;
 
@@ -571,10 +563,7 @@ xfrm_state_flush_secctx_check(struct net *net, u8 proto, struct xfrm_audit *audi
 		hlist_for_each_entry(x, net->xfrm.state_bydst+i, bydst) {
 			if (xfrm_id_proto_match(x->id.proto, proto) &&
 			   (err = security_xfrm_state_delete(x)) != 0) {
-				xfrm_audit_state_delete(x, 0,
-							audit_info->loginuid,
-							audit_info->sessionid,
-							audit_info->secid);
+				xfrm_audit_state_delete(x, 0, task_valid);
 				return err;
 			}
 		}
@@ -584,18 +573,18 @@ xfrm_state_flush_secctx_check(struct net *net, u8 proto, struct xfrm_audit *audi
 }
 #else
 static inline int
-xfrm_state_flush_secctx_check(struct net *net, u8 proto, struct xfrm_audit *audit_info)
+xfrm_state_flush_secctx_check(struct net *net, u8 proto, bool task_valid)
 {
 	return 0;
 }
 #endif
 
-int xfrm_state_flush(struct net *net, u8 proto, struct xfrm_audit *audit_info)
+int xfrm_state_flush(struct net *net, u8 proto, bool task_valid)
 {
 	int i, err = 0, cnt = 0;
 
 	spin_lock_bh(&net->xfrm.xfrm_state_lock);
-	err = xfrm_state_flush_secctx_check(net, proto, audit_info);
+	err = xfrm_state_flush_secctx_check(net, proto, task_valid);
 	if (err)
 		goto out;
 
@@ -611,9 +600,7 @@ restart:
 
 				err = xfrm_state_delete(x);
 				xfrm_audit_state_delete(x, err ? 0 : 1,
-							audit_info->loginuid,
-							audit_info->sessionid,
-							audit_info->secid);
+							task_valid);
 				xfrm_state_put(x);
 				if (!err)
 					cnt++;
@@ -788,6 +775,7 @@ xfrm_state_find(const xfrm_address_t *daddr, const xfrm_address_t *saddr,
 	struct xfrm_state *best = NULL;
 	u32 mark = pol->mark.v & pol->mark.m;
 	unsigned short encap_family = tmpl->encap_family;
+	struct km_event c;
 
 	to_put = NULL;
 
@@ -832,6 +820,17 @@ found:
 			error = -EEXIST;
 			goto out;
 		}
+
+		c.net = net;
+		/* If the KMs have no listeners (yet...), avoid allocating an SA
+		 * for each and every packet - garbage collection might not
+		 * handle the flood.
+		 */
+		if (!km_is_alive(&c)) {
+			error = -ESRCH;
+			goto out;
+		}
+
 		x = xfrm_state_alloc(net);
 		if (x == NULL) {
 			error = -ENOMEM;
@@ -928,8 +927,8 @@ struct xfrm_state *xfrm_state_lookup_byspi(struct net *net, __be32 spi,
 			x->id.spi != spi)
 			continue;
 
-		spin_unlock_bh(&net->xfrm.xfrm_state_lock);
 		xfrm_state_hold(x);
+		spin_unlock_bh(&net->xfrm.xfrm_state_lock);
 		return x;
 	}
 	spin_unlock_bh(&net->xfrm.xfrm_state_lock);
@@ -1044,12 +1043,12 @@ static struct xfrm_state *__find_acq_core(struct net *net,
 			break;
 
 		case AF_INET6:
-			*(struct in6_addr *)x->sel.daddr.a6 = *(struct in6_addr *)daddr;
-			*(struct in6_addr *)x->sel.saddr.a6 = *(struct in6_addr *)saddr;
+			x->sel.daddr.in6 = daddr->in6;
+			x->sel.saddr.in6 = saddr->in6;
 			x->sel.prefixlen_d = 128;
 			x->sel.prefixlen_s = 128;
-			*(struct in6_addr *)x->props.saddr.a6 = *(struct in6_addr *)saddr;
-			*(struct in6_addr *)x->id.daddr.a6 = *(struct in6_addr *)daddr;
+			x->props.saddr.in6 = saddr->in6;
+			x->id.daddr.in6 = daddr->in6;
 			break;
 		}
 
@@ -1135,10 +1134,9 @@ out:
 EXPORT_SYMBOL(xfrm_state_add);
 
 #ifdef CONFIG_XFRM_MIGRATE
-static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig, int *errp)
+static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig)
 {
 	struct net *net = xs_net(orig);
-	int err = -ENOMEM;
 	struct xfrm_state *x = xfrm_state_alloc(net);
 	if (!x)
 		goto out;
@@ -1192,15 +1190,13 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig, int *errp)
 	}
 
 	if (orig->replay_esn) {
-		err = xfrm_replay_clone(x, orig);
-		if (err)
+		if (xfrm_replay_clone(x, orig))
 			goto error;
 	}
 
 	memcpy(&x->mark, &orig->mark, sizeof(x->mark));
 
-	err = xfrm_init_state(x);
-	if (err)
+	if (xfrm_init_state(x) < 0)
 		goto error;
 
 	x->props.flags = orig->props.flags;
@@ -1218,8 +1214,6 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig, int *errp)
  error:
 	xfrm_state_put(x);
 out:
-	if (errp)
-		*errp = err;
 	return NULL;
 }
 
@@ -1274,9 +1268,8 @@ struct xfrm_state *xfrm_state_migrate(struct xfrm_state *x,
 				      struct xfrm_migrate *m)
 {
 	struct xfrm_state *xc;
-	int err;
 
-	xc = xfrm_state_clone(x, &err);
+	xc = xfrm_state_clone(x);
 	if (!xc)
 		return NULL;
 
@@ -1289,7 +1282,7 @@ struct xfrm_state *xfrm_state_migrate(struct xfrm_state *x,
 		   state is to be updated as it is a part of triplet */
 		xfrm_state_insert(xc);
 	} else {
-		if ((err = xfrm_state_add(xc)) < 0)
+		if (xfrm_state_add(xc) < 0)
 			goto error;
 	}
 
@@ -1601,6 +1594,23 @@ unlock:
 }
 EXPORT_SYMBOL(xfrm_alloc_spi);
 
+static bool __xfrm_state_filter_match(struct xfrm_state *x,
+				      struct xfrm_address_filter *filter)
+{
+	if (filter) {
+		if ((filter->family == AF_INET ||
+		     filter->family == AF_INET6) &&
+		    x->props.family != filter->family)
+			return false;
+
+		return addr_match(&x->props.saddr, &filter->saddr,
+				  filter->splen) &&
+		       addr_match(&x->id.daddr, &filter->daddr,
+				  filter->dplen);
+	}
+	return true;
+}
+
 int xfrm_state_walk(struct net *net, struct xfrm_state_walk *walk,
 		    int (*func)(struct xfrm_state *, int, void*),
 		    void *data)
@@ -1623,6 +1633,8 @@ int xfrm_state_walk(struct net *net, struct xfrm_state_walk *walk,
 		state = container_of(x, struct xfrm_state, km);
 		if (!xfrm_id_proto_match(state->id.proto, walk->proto))
 			continue;
+		if (!__xfrm_state_filter_match(state, walk->filter))
+			continue;
 		err = func(state, walk->seq, data);
 		if (err) {
 			list_move_tail(&walk->all, &x->all);
@@ -1641,17 +1653,21 @@ out:
 }
 EXPORT_SYMBOL(xfrm_state_walk);
 
-void xfrm_state_walk_init(struct xfrm_state_walk *walk, u8 proto)
+void xfrm_state_walk_init(struct xfrm_state_walk *walk, u8 proto,
+			  struct xfrm_address_filter *filter)
 {
 	INIT_LIST_HEAD(&walk->all);
 	walk->proto = proto;
 	walk->state = XFRM_STATE_DEAD;
 	walk->seq = 0;
+	walk->filter = filter;
 }
 EXPORT_SYMBOL(xfrm_state_walk_init);
 
 void xfrm_state_walk_done(struct xfrm_state_walk *walk, struct net *net)
 {
+	kfree(walk->filter);
+
 	if (list_empty(&walk->all))
 		return;
 
@@ -1803,6 +1819,24 @@ int km_report(struct net *net, u8 proto, struct xfrm_selector *sel, xfrm_address
 	return err;
 }
 EXPORT_SYMBOL(km_report);
+
+bool km_is_alive(const struct km_event *c)
+{
+	struct xfrm_mgr *km;
+	bool is_alive = false;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(km, &xfrm_km_list, list) {
+		if (km->is_alive && km->is_alive(c)) {
+			is_alive = true;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	return is_alive;
+}
+EXPORT_SYMBOL(km_is_alive);
 
 int xfrm_user_policy(struct sock *sk, int optname, u8 __user *optval, int optlen)
 {
@@ -2080,14 +2114,10 @@ out_bydst:
 
 void xfrm_state_fini(struct net *net)
 {
-	struct xfrm_audit audit_info;
 	unsigned int sz;
 
 	flush_work(&net->xfrm.state_hash_work);
-	audit_info.loginuid = INVALID_UID;
-	audit_info.sessionid = (unsigned int)-1;
-	audit_info.secid = 0;
-	xfrm_state_flush(net, IPSEC_PROTO_ANY, &audit_info);
+	xfrm_state_flush(net, IPSEC_PROTO_ANY, false);
 	flush_work(&net->xfrm.state_gc_work);
 
 	WARN_ON(!list_empty(&net->xfrm.state_all));
@@ -2150,30 +2180,28 @@ static void xfrm_audit_helper_pktinfo(struct sk_buff *skb, u16 family,
 	}
 }
 
-void xfrm_audit_state_add(struct xfrm_state *x, int result,
-			  kuid_t auid, unsigned int sessionid, u32 secid)
+void xfrm_audit_state_add(struct xfrm_state *x, int result, bool task_valid)
 {
 	struct audit_buffer *audit_buf;
 
 	audit_buf = xfrm_audit_start("SAD-add");
 	if (audit_buf == NULL)
 		return;
-	xfrm_audit_helper_usrinfo(auid, sessionid, secid, audit_buf);
+	xfrm_audit_helper_usrinfo(task_valid, audit_buf);
 	xfrm_audit_helper_sainfo(x, audit_buf);
 	audit_log_format(audit_buf, " res=%u", result);
 	audit_log_end(audit_buf);
 }
 EXPORT_SYMBOL_GPL(xfrm_audit_state_add);
 
-void xfrm_audit_state_delete(struct xfrm_state *x, int result,
-			     kuid_t auid, unsigned int sessionid, u32 secid)
+void xfrm_audit_state_delete(struct xfrm_state *x, int result, bool task_valid)
 {
 	struct audit_buffer *audit_buf;
 
 	audit_buf = xfrm_audit_start("SAD-delete");
 	if (audit_buf == NULL)
 		return;
-	xfrm_audit_helper_usrinfo(auid, sessionid, secid, audit_buf);
+	xfrm_audit_helper_usrinfo(task_valid, audit_buf);
 	xfrm_audit_helper_sainfo(x, audit_buf);
 	audit_log_format(audit_buf, " res=%u", result);
 	audit_log_end(audit_buf);

@@ -12,8 +12,6 @@
 /* proc permissions */
 #define USER_R (S_IFREG|S_IRUGO)
 #define USER_W (S_IFREG|S_IWUGO)
-#define USER_RW (S_IFREG|S_IRUGO|S_IWUGO)
-#define ROOT_W (S_IFREG|S_IRUGO|S_IWUSR)
 
 #define TOGGLE_0 .u.n = {NULL, 0, 0, 1, 0, 0, NULL }
 #define TOGGLE_1 .u.n = {NULL, 1, 0, 1, 0, 0, NULL }
@@ -63,10 +61,12 @@ extern struct st_var_header *spk_get_var_header(enum var_id_t var_id);
 extern struct st_var_header *spk_var_header_by_name(const char *name);
 extern struct punc_var_t *spk_get_punc_var(enum var_id_t var_id);
 extern int spk_set_num_var(int val, struct st_var_header *var, int how);
-extern int spk_set_string_var(const char *page, struct st_var_header *var, int len);
+extern int spk_set_string_var(const char *page, struct st_var_header *var,
+				int len);
 extern int spk_set_mask_bits(const char *input, const int which, const int how);
 extern special_func spk_special_handler;
-extern int spk_handle_help(struct vc_data *vc, u_char type, u_char ch, u_short key);
+extern int spk_handle_help(struct vc_data *vc, u_char type, u_char ch,
+				u_short key);
 extern int synth_init(char *name);
 extern void synth_release(void);
 
@@ -77,6 +77,7 @@ extern void synth_buffer_clear(void);
 extern void speakup_clear_selection(void);
 extern int speakup_set_selection(struct tty_struct *tty);
 extern int speakup_paste_selection(struct tty_struct *tty);
+extern void speakup_cancel_paste(void);
 extern void speakup_register_devsynth(void);
 extern void speakup_unregister_devsynth(void);
 extern void synth_write(const char *buf, size_t count);

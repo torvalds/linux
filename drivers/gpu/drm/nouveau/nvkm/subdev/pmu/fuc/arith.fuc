@@ -1,0 +1,94 @@
+/*
+ * Copyright 2014 Martin Peres <martin.peres@free.fr>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the folloing conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Authors: Martin Peres
+ */
+
+/******************************************************************************
+ * arith data segment
+ *****************************************************************************/
+#ifdef INCLUDE_PROC
+#endif
+
+#ifdef INCLUDE_DATA
+#endif
+
+/******************************************************************************
+ * arith code segment
+ *****************************************************************************/
+#ifdef INCLUDE_CODE
+
+// does a 32x32 -> 64 multiplication
+//
+// A * B = A_lo * B_lo
+//        + ( A_hi * B_lo ) << 16
+//        + ( A_lo * B_hi ) << 16
+//        + ( A_hi * B_hi ) << 32
+//
+// $r15 - current
+// $r14 - A
+// $r13 - B
+// $r12 - mul_lo (return)
+// $r11 - mul_hi (return)
+// $r0  - zero
+mulu32_32_64:
+	push $r1 // A_hi
+	push $r2 // B_hi
+	push $r3 // tmp0
+	push $r4 // tmp1
+
+	shr b32 $r1 $r14 16
+	shr b32 $r2 $r13 16
+
+	clear b32 $r12
+	clear b32 $r11
+
+	// A_lo * B_lo
+	mulu $r12 $r14 $r13
+
+	// ( A_hi * B_lo ) << 16
+	mulu $r3 $r1 $r13 // tmp0 = A_hi * B_lo
+	mov b32 $r4 $r3
+	and $r3 0xffff // tmp0 = tmp0_lo
+	shl b32 $r3 16
+	shr b32 $r4 16 // tmp1 = tmp0_hi
+	add b32 $r12 $r3
+	adc b32 $r11 $r4
+
+	// ( A_lo * B_hi ) << 16
+	mulu $r3 $r14 $r2 // tmp0 = A_lo * B_hi
+	mov b32 $r4 $r3
+	and $r3 0xffff // tmp0 = tmp0_lo
+	shl b32 $r3 16
+	shr b32 $r4 16 // tmp1 = tmp0_hi
+	add b32 $r12 $r3
+	adc b32 $r11 $r4
+
+	// ( A_hi * B_hi ) << 32
+	mulu $r3 $r1 $r2 // tmp0 = A_hi * B_hi
+	add b32 $r11 $r3
+
+	pop $r4
+	pop $r3
+	pop $r2
+	pop $r1
+	ret
+#endif

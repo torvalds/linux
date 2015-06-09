@@ -192,7 +192,7 @@ static void of_pwmchip_add(struct pwm_chip *chip)
 
 static void of_pwmchip_remove(struct pwm_chip *chip)
 {
-	if (chip->dev && chip->dev->of_node)
+	if (chip->dev)
 		of_node_put(chip->dev->of_node);
 }
 
@@ -236,7 +236,7 @@ int pwmchip_add(struct pwm_chip *chip)
 	int ret;
 
 	if (!chip || !chip->dev || !chip->ops || !chip->ops->config ||
-	    !chip->ops->enable || !chip->ops->disable)
+	    !chip->ops->enable || !chip->ops->disable || !chip->npwm)
 		return -EINVAL;
 
 	mutex_lock(&pwm_lock);
@@ -573,7 +573,7 @@ EXPORT_SYMBOL_GPL(of_pwm_get);
  * @table: array of consumers to register
  * @num: number of consumers in table
  */
-void __init pwm_add_table(struct pwm_lookup *table, size_t num)
+void pwm_add_table(struct pwm_lookup *table, size_t num)
 {
 	mutex_lock(&pwm_lookup_lock);
 
@@ -602,9 +602,8 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 	struct pwm_device *pwm = ERR_PTR(-EPROBE_DEFER);
 	const char *dev_id = dev ? dev_name(dev) : NULL;
 	struct pwm_chip *chip = NULL;
-	unsigned int index = 0;
 	unsigned int best = 0;
-	struct pwm_lookup *p;
+	struct pwm_lookup *p, *chosen = NULL;
 	unsigned int match;
 
 	/* look up via DT first */
@@ -651,8 +650,7 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 		}
 
 		if (match > best) {
-			chip = pwmchip_find_by_name(p->provider);
-			index = p->index;
+			chosen = p;
 
 			if (match != 3)
 				best = match;
@@ -661,11 +659,22 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 		}
 	}
 
-	if (chip)
-		pwm = pwm_request_from_chip(chip, index, con_id ?: dev_id);
+	if (!chosen)
+		goto out;
 
+	chip = pwmchip_find_by_name(chosen->provider);
+	if (!chip)
+		goto out;
+
+	pwm = pwm_request_from_chip(chip, chosen->index, con_id ?: dev_id);
+	if (IS_ERR(pwm))
+		goto out;
+
+	pwm_set_period(pwm, chosen->period);
+	pwm_set_polarity(pwm, chosen->polarity);
+
+out:
 	mutex_unlock(&pwm_lookup_lock);
-
 	return pwm;
 }
 EXPORT_SYMBOL_GPL(pwm_get);

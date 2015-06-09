@@ -495,7 +495,7 @@ void ath_mci_intr(struct ath_softc *sc)
 	ar9003_mci_get_interrupt(sc->sc_ah, &mci_int, &mci_int_rxmsg);
 
 	if (ar9003_mci_state(ah, MCI_STATE_ENABLE) == 0) {
-		ar9003_mci_get_next_gpm_offset(ah, true, NULL);
+		ar9003_mci_state(ah, MCI_STATE_INIT_GPM_OFFSET);
 		return;
 	}
 
@@ -555,12 +555,11 @@ void ath_mci_intr(struct ath_softc *sc)
 		mci_int_rxmsg &= ~AR_MCI_INTERRUPT_RX_MSG_GPM;
 
 		while (more_data == MCI_GPM_MORE) {
-			if (test_bit(SC_OP_HW_RESET, &sc->sc_flags))
+			if (test_bit(ATH_OP_HW_RESET, &common->op_flags))
 				return;
 
 			pgpm = mci->gpm_buf.bf_addr;
-			offset = ar9003_mci_get_next_gpm_offset(ah, false,
-								&more_data);
+			offset = ar9003_mci_get_next_gpm_offset(ah, &more_data);
 
 			if (offset == MCI_GPM_INVALID)
 				break;
@@ -706,7 +705,7 @@ void ath9k_mci_set_txpower(struct ath_softc *sc, bool setchannel,
 		return;
 
 	if (setchannel) {
-		struct ath9k_hw_cal_data *caldata = &sc->caldata;
+		struct ath9k_hw_cal_data *caldata = &sc->cur_chan->caldata;
 		if (IS_CHAN_HT40PLUS(ah->curchan) &&
 		    (ah->curchan->channel > caldata->channel) &&
 		    (ah->curchan->channel <= caldata->channel + 20))
@@ -720,7 +719,7 @@ void ath9k_mci_set_txpower(struct ath_softc *sc, bool setchannel,
 		mci_hw->concur_tx = concur_tx;
 
 	if (old_concur_tx != mci_hw->concur_tx)
-		ath9k_hw_set_txpowerlimit(ah, sc->config.txpowlimit, false);
+		ath9k_hw_set_txpowerlimit(ah, sc->cur_chan->txpower, false);
 }
 
 static void ath9k_mci_stomp_audio(struct ath_softc *sc)

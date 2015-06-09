@@ -10,39 +10,29 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- *
  */
 
-#include <linux/module.h>
-#include <linux/interrupt.h>
-#include <linux/platform_device.h>
 #include <linux/clk.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/jiffies.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 
 #include "../w1.h"
 #include "../w1_int.h"
-#include "../w1_log.h"
-
-/* According to the mx27 Datasheet the reset procedure should take up to about
- * 1350us. We set the timeout to 500*100us = 50ms for sure */
-#define MXC_W1_RESET_TIMEOUT 500
 
 /*
  * MXC W1 Register offsets
  */
-#define MXC_W1_CONTROL          0x00
-#define MXC_W1_TIME_DIVIDER     0x02
-#define MXC_W1_RESET            0x04
-#define MXC_W1_COMMAND          0x06
-#define MXC_W1_TXRX             0x08
-#define MXC_W1_INTERRUPT        0x0A
-#define MXC_W1_INTERRUPT_EN     0x0C
+#define MXC_W1_CONTROL		0x00
+# define MXC_W1_CONTROL_RDST	BIT(3)
+# define MXC_W1_CONTROL_WR(x)	BIT(5 - (x))
+# define MXC_W1_CONTROL_PST	BIT(6)
+# define MXC_W1_CONTROL_RPP	BIT(7)
+#define MXC_W1_TIME_DIVIDER	0x02
+#define MXC_W1_RESET		0x04
+# define MXC_W1_RESET_RST	BIT(0)
 
 struct mxc_w1_device {
 	void __iomem *regs;
@@ -57,24 +47,25 @@ struct mxc_w1_device {
  */
 static u8 mxc_w1_ds2_reset_bus(void *data)
 {
-	u8 reg_val;
-	unsigned int timeout_cnt = 0;
 	struct mxc_w1_device *dev = data;
+	unsigned long timeout;
 
-	__raw_writeb(0x80, (dev->regs + MXC_W1_CONTROL));
+	writeb(MXC_W1_CONTROL_RPP, dev->regs + MXC_W1_CONTROL);
 
-	while (1) {
-		reg_val = __raw_readb(dev->regs + MXC_W1_CONTROL);
+	/* Wait for reset sequence 511+512us, use 1500us for sure */
+	timeout = jiffies + usecs_to_jiffies(1500);
 
-		if (((reg_val >> 7) & 0x1) == 0 ||
-		    timeout_cnt > MXC_W1_RESET_TIMEOUT)
-			break;
-		else
-			timeout_cnt++;
+	udelay(511 + 512);
 
-		udelay(100);
-	}
-	return (reg_val >> 7) & 0x1;
+	do {
+		u8 ctrl = readb(dev->regs + MXC_W1_CONTROL);
+
+		/* PST bit is valid after the RPP bit is self-cleared */
+		if (!(ctrl & MXC_W1_CONTROL_RPP))
+			return !(ctrl & MXC_W1_CONTROL_PST);
+	} while (time_is_after_jiffies(timeout));
+
+	return 1;
 }
 
 /*
@@ -84,22 +75,25 @@ static u8 mxc_w1_ds2_reset_bus(void *data)
  */
 static u8 mxc_w1_ds2_touch_bit(void *data, u8 bit)
 {
-	struct mxc_w1_device *mdev = data;
-	void __iomem *ctrl_addr = mdev->regs + MXC_W1_CONTROL;
-	unsigned int timeout_cnt = 400; /* Takes max. 120us according to
-					 * datasheet.
-					 */
+	struct mxc_w1_device *dev = data;
+	unsigned long timeout;
 
-	__raw_writeb((1 << (5 - bit)), ctrl_addr);
+	writeb(MXC_W1_CONTROL_WR(bit), dev->regs + MXC_W1_CONTROL);
 
-	while (timeout_cnt--) {
-		if (!((__raw_readb(ctrl_addr) >> (5 - bit)) & 0x1))
-			break;
+	/* Wait for read/write bit (60us, Max 120us), use 200us for sure */
+	timeout = jiffies + usecs_to_jiffies(200);
 
-		udelay(1);
-	}
+	udelay(60);
 
-	return ((__raw_readb(ctrl_addr)) >> 3) & 0x1;
+	do {
+		u8 ctrl = readb(dev->regs + MXC_W1_CONTROL);
+
+		/* RDST bit is valid after the WR1/RD bit is self-cleared */
+		if (!(ctrl & MXC_W1_CONTROL_WR(bit)))
+			return !!(ctrl & MXC_W1_CONTROL_RDST);
+	} while (time_is_after_jiffies(timeout));
+
+	return 0;
 }
 
 static int mxc_w1_probe(struct platform_device *pdev)
@@ -139,7 +133,11 @@ static int mxc_w1_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	__raw_writeb(clkdiv - 1, mdev->regs + MXC_W1_TIME_DIVIDER);
+	/* Software reset 1-Wire module */
+	writeb(MXC_W1_RESET_RST, mdev->regs + MXC_W1_RESET);
+	writeb(0, mdev->regs + MXC_W1_RESET);
+
+	writeb(clkdiv - 1, mdev->regs + MXC_W1_TIME_DIVIDER);
 
 	mdev->bus_master.data = mdev;
 	mdev->bus_master.reset_bus = mxc_w1_ds2_reset_bus;
@@ -168,7 +166,7 @@ static int mxc_w1_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id mxc_w1_dt_ids[] = {
+static const struct of_device_id mxc_w1_dt_ids[] = {
 	{ .compatible = "fsl,imx21-owire" },
 	{ /* sentinel */ }
 };

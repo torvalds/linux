@@ -254,7 +254,7 @@ static int cc770_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id cc770_platform_table[] = {
+static const struct of_device_id cc770_platform_table[] = {
 	{.compatible = "bosch,cc770"}, /* CC770 from Bosch */
 	{.compatible = "intc,82527"},  /* AN82527 from Intel CP */
 	{},
@@ -264,7 +264,6 @@ MODULE_DEVICE_TABLE(of, cc770_platform_table);
 static struct platform_driver cc770_platform_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = cc770_platform_table,
 	},
 	.probe = cc770_platform_probe,

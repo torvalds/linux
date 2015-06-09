@@ -56,7 +56,6 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/ntb.h>
 #include "ntb_hw.h"
 
 #define NTB_TRANSPORT_VERSION	3
@@ -107,8 +106,8 @@ struct ntb_transport_qp {
 	struct ntb_rx_info __iomem *rx_info;
 	struct ntb_rx_info *remote_rx_info;
 
-	void (*tx_handler) (struct ntb_transport_qp *qp, void *qp_data,
-			    void *data, int len);
+	void (*tx_handler)(struct ntb_transport_qp *qp, void *qp_data,
+			   void *data, int len);
 	struct list_head tx_free_q;
 	spinlock_t ntb_tx_free_q_lock;
 	void __iomem *tx_mw;
@@ -117,8 +116,8 @@ struct ntb_transport_qp {
 	unsigned int tx_max_entry;
 	unsigned int tx_max_frame;
 
-	void (*rx_handler) (struct ntb_transport_qp *qp, void *qp_data,
-			    void *data, int len);
+	void (*rx_handler)(struct ntb_transport_qp *qp, void *qp_data,
+			   void *data, int len);
 	struct list_head rx_pend_q;
 	struct list_head rx_free_q;
 	spinlock_t ntb_rx_pend_q_lock;
@@ -129,7 +128,7 @@ struct ntb_transport_qp {
 	unsigned int rx_max_frame;
 	dma_cookie_t last_cookie;
 
-	void (*event_handler) (void *data, int status);
+	void (*event_handler)(void *data, int status);
 	struct delayed_work link_work;
 	struct work_struct link_cleanup;
 
@@ -480,7 +479,7 @@ static void ntb_list_add(spinlock_t *lock, struct list_head *entry,
 }
 
 static struct ntb_queue_entry *ntb_list_rm(spinlock_t *lock,
-						struct list_head *list)
+					   struct list_head *list)
 {
 	struct ntb_queue_entry *entry;
 	unsigned long flags;
@@ -511,7 +510,7 @@ static void ntb_transport_setup_qp_mw(struct ntb_transport *nt,
 
 	WARN_ON(nt->mw[mw_num].virt_addr == NULL);
 
-	if (nt->max_qps % mw_max && mw_num < nt->max_qps % mw_max)
+	if (nt->max_qps % mw_max && mw_num + 1 < nt->max_qps / mw_max)
 		num_qps_mw = nt->max_qps / mw_max + 1;
 	else
 		num_qps_mw = nt->max_qps / mw_max;
@@ -574,6 +573,19 @@ static int ntb_set_mw(struct ntb_transport *nt, int num_mw, unsigned int size)
 		mw->size = 0;
 		dev_err(&pdev->dev, "Unable to allocate MW buffer of size %d\n",
 		       (int) mw->size);
+		return -ENOMEM;
+	}
+
+	/*
+	 * we must ensure that the memory address allocated is BAR size
+	 * aligned in order for the XLAT register to take the value. This
+	 * is a requirement of the hardware. It is recommended to setup CMA
+	 * for BAR sizes equal or greater than 4MB.
+	 */
+	if (!IS_ALIGNED(mw->dma_addr, mw->size)) {
+		dev_err(&pdev->dev, "DMA memory %pad not aligned to BAR size\n",
+			&mw->dma_addr);
+		ntb_free_mw(nt, num_mw);
 		return -ENOMEM;
 	}
 
@@ -839,7 +851,7 @@ static void ntb_qp_link_work(struct work_struct *work)
 }
 
 static int ntb_transport_init_queue(struct ntb_transport *nt,
-				     unsigned int qp_num)
+				    unsigned int qp_num)
 {
 	struct ntb_transport_qp *qp;
 	unsigned int num_qps_mw, tx_size;
@@ -857,7 +869,7 @@ static int ntb_transport_init_queue(struct ntb_transport *nt,
 	qp->client_ready = NTB_LINK_DOWN;
 	qp->event_handler = NULL;
 
-	if (nt->max_qps % mw_max && mw_num < nt->max_qps % mw_max)
+	if (nt->max_qps % mw_max && mw_num + 1 < nt->max_qps / mw_max)
 		num_qps_mw = nt->max_qps / mw_max + 1;
 	else
 		num_qps_mw = nt->max_qps / mw_max;
@@ -1055,7 +1067,7 @@ static void ntb_async_rx(struct ntb_queue_entry *entry, void *offset,
 	if (!chan)
 		goto err;
 
-	if (len < copy_bytes) 
+	if (len < copy_bytes)
 		goto err_wait;
 
 	device = chan->device;
@@ -1190,8 +1202,7 @@ out:
 	return 0;
 
 err:
-	ntb_list_add(&qp->ntb_rx_pend_q_lock, &entry->entry,
-		     &qp->rx_pend_q);
+	ntb_list_add(&qp->ntb_rx_pend_q_lock, &entry->entry, &qp->rx_pend_q);
 	/* Ensure that the data is fully copied out before clearing the flag */
 	wmb();
 	hdr->flags = 0;

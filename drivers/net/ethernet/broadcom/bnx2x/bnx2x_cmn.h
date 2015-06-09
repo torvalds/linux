@@ -6,7 +6,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation.
  *
- * Maintained by: Eilon Greenstein <eilong@broadcom.com>
+ * Maintained by: Ariel Elior <ariel.elior@qlogic.com>
  * Written by: Eliezer Tamir
  * Based on code from Michael Chan's bnx2 driver
  * UDP CSUM errata workaround by Arik Gendelman
@@ -21,6 +21,7 @@
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/irq.h>
 
 #include "bnx2x.h"
 #include "bnx2x_sriov.h"
@@ -47,31 +48,26 @@ extern int bnx2x_num_queues;
 		} \
 	} while (0)
 
-#define BNX2X_PCI_ALLOC(x, y, size) \
-	do { \
-		x = dma_zalloc_coherent(&bp->pdev->dev, size, y, GFP_KERNEL); \
-		if (x == NULL) \
-			goto alloc_mem_err; \
-		DP(NETIF_MSG_HW, "BNX2X_PCI_ALLOC: Physical %Lx Virtual %p\n", \
-		   (unsigned long long)(*y), x); \
-	} while (0)
-
-#define BNX2X_PCI_FALLOC(x, y, size) \
-	do { \
-		x = dma_alloc_coherent(&bp->pdev->dev, size, y, GFP_KERNEL); \
-		if (x == NULL) \
-			goto alloc_mem_err; \
-		memset((void *)x, 0xFFFFFFFF, size); \
-		DP(NETIF_MSG_HW, "BNX2X_PCI_FALLOC: Physical %Lx Virtual %p\n",\
-		   (unsigned long long)(*y), x); \
-	} while (0)
-
-#define BNX2X_ALLOC(x, size) \
-	do { \
-		x = kzalloc(size, GFP_KERNEL); \
-		if (x == NULL) \
-			goto alloc_mem_err; \
-	} while (0)
+#define BNX2X_PCI_ALLOC(y, size)					\
+({									\
+	void *x = dma_zalloc_coherent(&bp->pdev->dev, size, y, GFP_KERNEL); \
+	if (x)								\
+		DP(NETIF_MSG_HW,					\
+		   "BNX2X_PCI_ALLOC: Physical %Lx Virtual %p\n",	\
+		   (unsigned long long)(*y), x);			\
+	x;								\
+})
+#define BNX2X_PCI_FALLOC(y, size)					\
+({									\
+	void *x = dma_alloc_coherent(&bp->pdev->dev, size, y, GFP_KERNEL); \
+	if (x) {							\
+		memset(x, 0xff, size);					\
+		DP(NETIF_MSG_HW,					\
+		   "BNX2X_PCI_FALLOC: Physical %Lx Virtual %p\n",	\
+		   (unsigned long long)(*y), x);			\
+	}								\
+	x;								\
+})
 
 /*********************** Interfaces ****************************
  *  Functions that need to be implemented by each driver version
@@ -936,8 +932,15 @@ static inline int bnx2x_func_start(struct bnx2x *bp)
 	else /* CHIP_IS_E1X */
 		start_params->network_cos_mode = FW_WRR;
 
-	start_params->gre_tunnel_mode = L2GRE_TUNNEL;
-	start_params->gre_tunnel_rss = GRE_INNER_HEADERS_RSS;
+	start_params->tunnel_mode	= TUNN_MODE_GRE;
+	start_params->gre_tunnel_type	= IPGRE_TUNNEL;
+	start_params->inner_gre_rss_en	= 1;
+
+	if (IS_MF_UFP(bp) && BNX2X_IS_MF_SD_PROTOCOL_FCOE(bp)) {
+		start_params->class_fail_ethtype = ETH_P_FIP;
+		start_params->class_fail = 1;
+		start_params->no_added_tags = 1;
+	}
 
 	return bnx2x_func_state_change(bp, &func_params);
 }
@@ -966,7 +969,7 @@ static inline void bnx2x_free_rx_sge_range(struct bnx2x *bp,
 {
 	int i;
 
-	if (fp->disable_tpa)
+	if (fp->mode == TPA_MODE_DISABLED)
 		return;
 
 	for (i = 0; i < last; i++)
@@ -1301,15 +1304,7 @@ static inline void bnx2x_update_drv_flags(struct bnx2x *bp, u32 flags, u32 set)
 	}
 }
 
-static inline bool bnx2x_is_valid_ether_addr(struct bnx2x *bp, u8 *addr)
-{
-	if (is_valid_ether_addr(addr) ||
-	    (is_zero_ether_addr(addr) &&
-	     (IS_MF_STORAGE_SD(bp) || IS_MF_FCOE_AFEX(bp))))
-		return true;
 
-	return false;
-}
 
 /**
  * bnx2x_fill_fw_str - Fill buffer with FW version string
@@ -1323,5 +1318,8 @@ void bnx2x_fill_fw_str(struct bnx2x *bp, char *buf, size_t buf_len);
 
 int bnx2x_drain_tx_queues(struct bnx2x *bp);
 void bnx2x_squeeze_objects(struct bnx2x *bp);
+
+void bnx2x_schedule_sp_rtnl(struct bnx2x*, enum sp_rtnl_flag,
+			    u32 verbose);
 
 #endif /* BNX2X_CMN_H */

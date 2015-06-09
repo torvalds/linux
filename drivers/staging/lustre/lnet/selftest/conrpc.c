@@ -41,8 +41,8 @@
  */
 
 
-#include <linux/libcfs/libcfs.h>
-#include <linux/lnet/lib-lnet.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "../../include/linux/lnet/lib-lnet.h"
 #include "timer.h"
 #include "conrpc.h"
 #include "console.h"
@@ -88,7 +88,7 @@ lstcon_rpc_done(srpc_client_rpc_t *rpc)
 	spin_unlock(&rpc->crpc_lock);
 }
 
-int
+static int
 lstcon_rpc_init(lstcon_node_t *nd, int service, unsigned feats,
 		int bulk_npg, int bulk_len, int embedded, lstcon_rpc_t *crpc)
 {
@@ -113,7 +113,7 @@ lstcon_rpc_init(lstcon_node_t *nd, int service, unsigned feats,
 	return 0;
 }
 
-int
+static int
 lstcon_rpc_prep(lstcon_node_t *nd, int service, unsigned feats,
 		int bulk_npg, int bulk_len, lstcon_rpc_t **crpcpp)
 {
@@ -182,7 +182,7 @@ lstcon_rpc_put(lstcon_rpc_t *crpc)
 	atomic_dec(&console_session.ses_rpc_counter);
 }
 
-void
+static void
 lstcon_rpc_post(lstcon_rpc_t *crpc)
 {
 	lstcon_rpc_trans_t *trans = crpc->crp_trans;
@@ -383,7 +383,7 @@ lstcon_rpc_trans_postwait(lstcon_rpc_trans_t *trans, int timeout)
 	return rc;
 }
 
-int
+static int
 lstcon_rpc_get_reply(lstcon_rpc_t *crpc, srpc_msg_t **msgpp)
 {
 	lstcon_node_t	*nd  = crpc->crp_node;
@@ -477,7 +477,7 @@ lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
 	lstcon_rpc_t	 *crpc;
 	srpc_msg_t	   *msg;
 	lstcon_node_t	*nd;
-	cfs_duration_t	dur;
+	long	dur;
 	struct timeval	tv;
 	int		   error;
 
@@ -503,8 +503,8 @@ lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
 
 		nd = crpc->crp_node;
 
-		dur = (cfs_duration_t)cfs_time_sub(crpc->crp_stamp,
-		      (cfs_time_t)console_session.ses_id.ses_stamp);
+		dur = (long)cfs_time_sub(crpc->crp_stamp,
+		      (unsigned long)console_session.ses_id.ses_stamp);
 		cfs_duration_usec(dur, &tv);
 
 		if (copy_to_user(&ent->rpe_peer,
@@ -703,7 +703,7 @@ lstcon_statrpc_prep(lstcon_node_t *nd, unsigned feats, lstcon_rpc_t **crpc)
 	return 0;
 }
 
-lnet_process_id_packed_t *
+static lnet_process_id_packed_t *
 lstcon_next_id(int idx, int nkiov, lnet_kiov_t *kiov)
 {
 	lnet_process_id_packed_t *pid;
@@ -718,7 +718,7 @@ lstcon_next_id(int idx, int nkiov, lnet_kiov_t *kiov)
 	return &pid[idx % SFW_ID_PER_PAGE];
 }
 
-int
+static int
 lstcon_dstnodes_prep(lstcon_group_t *grp, int idx,
 		     int dist, int span, int nkiov, lnet_kiov_t *kiov)
 {
@@ -772,7 +772,7 @@ lstcon_dstnodes_prep(lstcon_group_t *grp, int idx,
 	return 0;
 }
 
-int
+static int
 lstcon_pingrpc_prep(lst_test_ping_param_t *param, srpc_test_reqst_t *req)
 {
 	test_ping_req_t *prq = &req->tsr_u.ping;
@@ -783,7 +783,7 @@ lstcon_pingrpc_prep(lst_test_ping_param_t *param, srpc_test_reqst_t *req)
 	return 0;
 }
 
-int
+static int
 lstcon_bulkrpc_v0_prep(lst_test_bulk_param_t *param, srpc_test_reqst_t *req)
 {
 	test_bulk_req_t *brq = &req->tsr_u.bulk_v0;
@@ -795,7 +795,7 @@ lstcon_bulkrpc_v0_prep(lst_test_bulk_param_t *param, srpc_test_reqst_t *req)
 	return 0;
 }
 
-int
+static int
 lstcon_bulkrpc_v1_prep(lst_test_bulk_param_t *param, srpc_test_reqst_t *req)
 {
 	test_bulk_req_v1_t *brq = &req->tsr_u.bulk_v1;
@@ -915,7 +915,7 @@ lstcon_testrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 	return rc;
 }
 
-int
+static int
 lstcon_sesnew_stat_reply(lstcon_rpc_trans_t *trans,
 			 lstcon_node_t *nd, srpc_msg_t *reply)
 {
@@ -1162,7 +1162,7 @@ lstcon_rpc_trans_ndlist(struct list_head *ndlist,
 	return rc;
 }
 
-void
+static void
 lstcon_rpc_pinger(void *arg)
 {
 	stt_timer_t	*ptimer = (stt_timer_t *)arg;
@@ -1187,7 +1187,7 @@ lstcon_rpc_pinger(void *arg)
 	}
 
 	if (!console_session.ses_expired &&
-	    cfs_time_current_sec() - console_session.ses_laststamp >
+	    get_seconds() - console_session.ses_laststamp >
 	    (time_t)console_session.ses_timeout)
 		console_session.ses_expired = 1;
 
@@ -1274,7 +1274,7 @@ lstcon_rpc_pinger(void *arg)
 
 	CDEBUG(D_NET, "Ping %d nodes in session\n", count);
 
-	ptimer->stt_expires = (cfs_time_t)(cfs_time_current_sec() + LST_PING_INTERVAL);
+	ptimer->stt_expires = (unsigned long)(get_seconds() + LST_PING_INTERVAL);
 	stt_add_timer(ptimer);
 
 	mutex_unlock(&console_session.ses_mutex);
@@ -1297,7 +1297,7 @@ lstcon_rpc_pinger_start(void)
 	}
 
 	ptimer = &console_session.ses_ping_timer;
-	ptimer->stt_expires = (cfs_time_t)(cfs_time_current_sec() + LST_PING_INTERVAL);
+	ptimer->stt_expires = (unsigned long)(get_seconds() + LST_PING_INTERVAL);
 
 	stt_add_timer(ptimer);
 
@@ -1346,7 +1346,8 @@ lstcon_rpc_cleanup_wait(void)
 		mutex_unlock(&console_session.ses_mutex);
 
 		CWARN("Session is shutting down, waiting for termination of transactions\n");
-		cfs_pause(cfs_time_seconds(1));
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(cfs_time_seconds(1));
 
 		mutex_lock(&console_session.ses_mutex);
 	}

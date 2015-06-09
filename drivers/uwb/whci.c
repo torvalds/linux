@@ -133,8 +133,7 @@ static void whci_del_cap(struct whci_card *card, int n)
 {
 	struct umc_dev *umc = card->devs[n];
 
-	if (umc != NULL)
-		umc_device_unregister(umc);
+	umc_device_unregister(umc);
 }
 
 static int whci_n_caps(struct pci_dev *pci)
@@ -175,7 +174,7 @@ static int whci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 
 	err = -ENOMEM;
 	card = kzalloc(sizeof(struct whci_card)
-		       + sizeof(struct whci_dev *) * (n_caps + 1),
+		       + sizeof(struct umc_dev *) * (n_caps + 1),
 		       GFP_KERNEL);
 	if (card == NULL)
 		goto error_kzalloc;

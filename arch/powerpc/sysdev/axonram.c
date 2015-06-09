@@ -139,26 +139,17 @@ axon_ram_make_request(struct request_queue *queue, struct bio *bio)
  * axon_ram_direct_access - direct_access() method for block device
  * @device, @sector, @data: see block_device_operations method
  */
-static int
+static long
 axon_ram_direct_access(struct block_device *device, sector_t sector,
-		       void **kaddr, unsigned long *pfn)
+		       void **kaddr, unsigned long *pfn, long size)
 {
 	struct axon_ram_bank *bank = device->bd_disk->private_data;
-	loff_t offset;
-
-	offset = sector;
-	if (device->bd_part != NULL)
-		offset += device->bd_part->start_sect;
-	offset <<= AXON_RAM_SECTOR_SHIFT;
-	if (offset >= bank->size) {
-		dev_err(&bank->device->dev, "Access outside of address space\n");
-		return -ERANGE;
-	}
+	loff_t offset = (loff_t)sector << AXON_RAM_SECTOR_SHIFT;
 
 	*kaddr = (void *)(bank->ph_addr + offset);
-	*pfn = virt_to_phys(kaddr) >> PAGE_SHIFT;
+	*pfn = virt_to_phys(*kaddr) >> PAGE_SHIFT;
 
-	return 0;
+	return bank->size - offset;
 }
 
 static const struct block_device_operations axon_ram_devops = {
@@ -314,7 +305,7 @@ axon_ram_remove(struct platform_device *device)
 	return 0;
 }
 
-static struct of_device_id axon_ram_device_id[] = {
+static const struct of_device_id axon_ram_device_id[] = {
 	{
 		.type	= "dma-memory"
 	},
@@ -326,7 +317,6 @@ static struct platform_driver axon_ram_driver = {
 	.remove		= axon_ram_remove,
 	.driver = {
 		.name = AXON_RAM_MODULE_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = axon_ram_device_id,
 	},
 };

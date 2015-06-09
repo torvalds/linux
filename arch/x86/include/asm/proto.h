@@ -12,8 +12,6 @@ void ia32_syscall(void);
 void ia32_cstar_target(void);
 void ia32_sysenter_target(void);
 
-void syscall32_cpu_init(void);
-
 void x86_configure_nx(void);
 void x86_report_nx(void);
 

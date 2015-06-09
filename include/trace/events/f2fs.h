@@ -9,12 +9,46 @@
 #define show_dev(entry)		MAJOR(entry->dev), MINOR(entry->dev)
 #define show_dev_ino(entry)	show_dev(entry), (unsigned long)entry->ino
 
+TRACE_DEFINE_ENUM(NODE);
+TRACE_DEFINE_ENUM(DATA);
+TRACE_DEFINE_ENUM(META);
+TRACE_DEFINE_ENUM(META_FLUSH);
+TRACE_DEFINE_ENUM(CURSEG_HOT_DATA);
+TRACE_DEFINE_ENUM(CURSEG_WARM_DATA);
+TRACE_DEFINE_ENUM(CURSEG_COLD_DATA);
+TRACE_DEFINE_ENUM(CURSEG_HOT_NODE);
+TRACE_DEFINE_ENUM(CURSEG_WARM_NODE);
+TRACE_DEFINE_ENUM(CURSEG_COLD_NODE);
+TRACE_DEFINE_ENUM(NO_CHECK_TYPE);
+TRACE_DEFINE_ENUM(GC_GREEDY);
+TRACE_DEFINE_ENUM(GC_CB);
+TRACE_DEFINE_ENUM(FG_GC);
+TRACE_DEFINE_ENUM(BG_GC);
+TRACE_DEFINE_ENUM(LFS);
+TRACE_DEFINE_ENUM(SSR);
+TRACE_DEFINE_ENUM(__REQ_RAHEAD);
+TRACE_DEFINE_ENUM(__REQ_WRITE);
+TRACE_DEFINE_ENUM(__REQ_SYNC);
+TRACE_DEFINE_ENUM(__REQ_NOIDLE);
+TRACE_DEFINE_ENUM(__REQ_FLUSH);
+TRACE_DEFINE_ENUM(__REQ_FUA);
+TRACE_DEFINE_ENUM(__REQ_PRIO);
+TRACE_DEFINE_ENUM(__REQ_META);
+TRACE_DEFINE_ENUM(CP_UMOUNT);
+TRACE_DEFINE_ENUM(CP_FASTBOOT);
+TRACE_DEFINE_ENUM(CP_SYNC);
+TRACE_DEFINE_ENUM(CP_DISCARD);
+
 #define show_block_type(type)						\
 	__print_symbolic(type,						\
 		{ NODE,		"NODE" },				\
 		{ DATA,		"DATA" },				\
 		{ META,		"META" },				\
-		{ META_FLUSH,	"META_FLUSH" })
+		{ META_FLUSH,	"META_FLUSH" },				\
+		{ INMEM,	"INMEM" },				\
+		{ INMEM_DROP,	"INMEM_DROP" },				\
+		{ IPU,		"IN-PLACE" },				\
+		{ OPU,		"OUT-OF-PLACE" })
 
 #define F2FS_BIO_MASK(t)	(t & (READA | WRITE_FLUSH_FUA))
 #define F2FS_BIO_EXTRA_MASK(t)	(t & (REQ_META | REQ_PRIO))
@@ -68,6 +102,14 @@
 	__print_symbolic(type,						\
 		{ GC_GREEDY,	"Greedy" },				\
 		{ GC_CB,	"Cost-Benefit" })
+
+#define show_cpreason(type)						\
+	__print_symbolic(type,						\
+		{ CP_UMOUNT,	"Umount" },				\
+		{ CP_FASTBOOT,	"Fastboot" },				\
+		{ CP_SYNC,	"Sync" },				\
+		{ CP_RECOVERY,	"Recovery" },				\
+		{ CP_DISCARD,	"Discard" })
 
 struct victim_sel_policy;
 
@@ -142,14 +184,14 @@ DEFINE_EVENT(f2fs__inode, f2fs_sync_file_enter,
 
 TRACE_EVENT(f2fs_sync_file_exit,
 
-	TP_PROTO(struct inode *inode, bool need_cp, int datasync, int ret),
+	TP_PROTO(struct inode *inode, int need_cp, int datasync, int ret),
 
 	TP_ARGS(inode, need_cp, datasync, ret),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
 		__field(ino_t,	ino)
-		__field(bool,	need_cp)
+		__field(int,	need_cp)
 		__field(int,	datasync)
 		__field(int,	ret)
 	),
@@ -184,7 +226,7 @@ TRACE_EVENT(f2fs_sync_fs,
 
 	TP_fast_assign(
 		__entry->dev	= sb->s_dev;
-		__entry->dirty	= F2FS_SB(sb)->s_dirty;
+		__entry->dirty	= is_sbi_flag_set(F2FS_SB(sb), SBI_IS_DIRTY);
 		__entry->wait	= wait;
 	),
 
@@ -434,38 +476,6 @@ TRACE_EVENT(f2fs_truncate_partial_nodes,
 		__entry->err)
 );
 
-TRACE_EVENT_CONDITION(f2fs_submit_page_bio,
-
-	TP_PROTO(struct page *page, sector_t blkaddr, int type),
-
-	TP_ARGS(page, blkaddr, type),
-
-	TP_CONDITION(page->mapping),
-
-	TP_STRUCT__entry(
-		__field(dev_t,	dev)
-		__field(ino_t,	ino)
-		__field(pgoff_t,	index)
-		__field(sector_t,	blkaddr)
-		__field(int,	type)
-	),
-
-	TP_fast_assign(
-		__entry->dev		= page->mapping->host->i_sb->s_dev;
-		__entry->ino		= page->mapping->host->i_ino;
-		__entry->index		= page->index;
-		__entry->blkaddr	= blkaddr;
-		__entry->type		= type;
-	),
-
-	TP_printk("dev = (%d,%d), ino = %lu, page_index = 0x%lx, "
-		"blkaddr = 0x%llx, bio_type = %s%s",
-		show_dev_ino(__entry),
-		(unsigned long)__entry->index,
-		(unsigned long long)__entry->blkaddr,
-		show_bio_type(__entry->type))
-);
-
 TRACE_EVENT(f2fs_get_data_block,
 	TP_PROTO(struct inode *inode, sector_t iblock,
 				struct buffer_head *bh, int ret),
@@ -587,6 +597,69 @@ TRACE_EVENT(f2fs_fallocate,
 		__entry->ret)
 );
 
+TRACE_EVENT(f2fs_direct_IO_enter,
+
+	TP_PROTO(struct inode *inode, loff_t offset, unsigned long len, int rw),
+
+	TP_ARGS(inode, offset, len, rw),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(loff_t,	pos)
+		__field(unsigned long,	len)
+		__field(int,	rw)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= inode->i_sb->s_dev;
+		__entry->ino	= inode->i_ino;
+		__entry->pos	= offset;
+		__entry->len	= len;
+		__entry->rw	= rw;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu pos = %lld len = %lu rw = %d",
+		show_dev_ino(__entry),
+		__entry->pos,
+		__entry->len,
+		__entry->rw)
+);
+
+TRACE_EVENT(f2fs_direct_IO_exit,
+
+	TP_PROTO(struct inode *inode, loff_t offset, unsigned long len,
+		 int rw, int ret),
+
+	TP_ARGS(inode, offset, len, rw, ret),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(loff_t,	pos)
+		__field(unsigned long,	len)
+		__field(int,	rw)
+		__field(int,	ret)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= inode->i_sb->s_dev;
+		__entry->ino	= inode->i_ino;
+		__entry->pos	= offset;
+		__entry->len	= len;
+		__entry->rw	= rw;
+		__entry->ret	= ret;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu pos = %lld len = %lu "
+		"rw = %d ret = %d",
+		show_dev_ino(__entry),
+		__entry->pos,
+		__entry->len,
+		__entry->rw,
+		__entry->ret)
+);
+
 TRACE_EVENT(f2fs_reserve_new_block,
 
 	TP_PROTO(struct inode *inode, nid_t nid, unsigned int ofs_in_node),
@@ -611,11 +684,63 @@ TRACE_EVENT(f2fs_reserve_new_block,
 		__entry->ofs_in_node)
 );
 
+DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
+
+	TP_PROTO(struct page *page, struct f2fs_io_info *fio),
+
+	TP_ARGS(page, fio),
+
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(ino_t, ino)
+		__field(pgoff_t, index)
+		__field(block_t, blkaddr)
+		__field(int, rw)
+		__field(int, type)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= page->mapping->host->i_sb->s_dev;
+		__entry->ino		= page->mapping->host->i_ino;
+		__entry->index		= page->index;
+		__entry->blkaddr	= fio->blk_addr;
+		__entry->rw		= fio->rw;
+		__entry->type		= fio->type;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, page_index = 0x%lx, "
+		"blkaddr = 0x%llx, rw = %s%s, type = %s",
+		show_dev_ino(__entry),
+		(unsigned long)__entry->index,
+		(unsigned long long)__entry->blkaddr,
+		show_bio_type(__entry->rw),
+		show_block_type(__entry->type))
+);
+
+DEFINE_EVENT_CONDITION(f2fs__submit_page_bio, f2fs_submit_page_bio,
+
+	TP_PROTO(struct page *page, struct f2fs_io_info *fio),
+
+	TP_ARGS(page, fio),
+
+	TP_CONDITION(page->mapping)
+);
+
+DEFINE_EVENT_CONDITION(f2fs__submit_page_bio, f2fs_submit_page_mbio,
+
+	TP_PROTO(struct page *page, struct f2fs_io_info *fio),
+
+	TP_ARGS(page, fio),
+
+	TP_CONDITION(page->mapping)
+);
+
 DECLARE_EVENT_CLASS(f2fs__submit_bio,
 
-	TP_PROTO(struct super_block *sb, int rw, int type, struct bio *bio),
+	TP_PROTO(struct super_block *sb, struct f2fs_io_info *fio,
+						struct bio *bio),
 
-	TP_ARGS(sb, rw, type, bio),
+	TP_ARGS(sb, fio, bio),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
@@ -627,8 +752,8 @@ DECLARE_EVENT_CLASS(f2fs__submit_bio,
 
 	TP_fast_assign(
 		__entry->dev		= sb->s_dev;
-		__entry->rw		= rw;
-		__entry->type		= type;
+		__entry->rw		= fio->rw;
+		__entry->type		= fio->type;
 		__entry->sector		= bio->bi_iter.bi_sector;
 		__entry->size		= bio->bi_iter.bi_size;
 	),
@@ -643,20 +768,82 @@ DECLARE_EVENT_CLASS(f2fs__submit_bio,
 
 DEFINE_EVENT_CONDITION(f2fs__submit_bio, f2fs_submit_write_bio,
 
-	TP_PROTO(struct super_block *sb, int rw, int type, struct bio *bio),
+	TP_PROTO(struct super_block *sb, struct f2fs_io_info *fio,
+							struct bio *bio),
 
-	TP_ARGS(sb, rw, type, bio),
+	TP_ARGS(sb, fio, bio),
 
 	TP_CONDITION(bio)
 );
 
 DEFINE_EVENT_CONDITION(f2fs__submit_bio, f2fs_submit_read_bio,
 
-	TP_PROTO(struct super_block *sb, int rw, int type, struct bio *bio),
+	TP_PROTO(struct super_block *sb, struct f2fs_io_info *fio,
+							struct bio *bio),
 
-	TP_ARGS(sb, rw, type, bio),
+	TP_ARGS(sb, fio, bio),
 
 	TP_CONDITION(bio)
+);
+
+TRACE_EVENT(f2fs_write_begin,
+
+	TP_PROTO(struct inode *inode, loff_t pos, unsigned int len,
+				unsigned int flags),
+
+	TP_ARGS(inode, pos, len, flags),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(loff_t,	pos)
+		__field(unsigned int, len)
+		__field(unsigned int, flags)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= inode->i_sb->s_dev;
+		__entry->ino	= inode->i_ino;
+		__entry->pos	= pos;
+		__entry->len	= len;
+		__entry->flags	= flags;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, pos = %llu, len = %u, flags = %u",
+		show_dev_ino(__entry),
+		(unsigned long long)__entry->pos,
+		__entry->len,
+		__entry->flags)
+);
+
+TRACE_EVENT(f2fs_write_end,
+
+	TP_PROTO(struct inode *inode, loff_t pos, unsigned int len,
+				unsigned int copied),
+
+	TP_ARGS(inode, pos, len, copied),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(loff_t,	pos)
+		__field(unsigned int, len)
+		__field(unsigned int, copied)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= inode->i_sb->s_dev;
+		__entry->ino	= inode->i_ino;
+		__entry->pos	= pos;
+		__entry->len	= len;
+		__entry->copied	= copied;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, pos = %llu, len = %u, copied = %u",
+		show_dev_ino(__entry),
+		(unsigned long long)__entry->pos,
+		__entry->len,
+		__entry->copied)
 );
 
 DECLARE_EVENT_CLASS(f2fs__page,
@@ -672,6 +859,7 @@ DECLARE_EVENT_CLASS(f2fs__page,
 		__field(int, dir)
 		__field(pgoff_t, index)
 		__field(int, dirty)
+		__field(int, uptodate)
 	),
 
 	TP_fast_assign(
@@ -681,14 +869,38 @@ DECLARE_EVENT_CLASS(f2fs__page,
 		__entry->dir	= S_ISDIR(page->mapping->host->i_mode);
 		__entry->index	= page->index;
 		__entry->dirty	= PageDirty(page);
+		__entry->uptodate = PageUptodate(page);
 	),
 
-	TP_printk("dev = (%d,%d), ino = %lu, %s, %s, index = %lu, dirty = %d",
+	TP_printk("dev = (%d,%d), ino = %lu, %s, %s, index = %lu, "
+		"dirty = %d, uptodate = %d",
 		show_dev_ino(__entry),
 		show_block_type(__entry->type),
 		show_file_type(__entry->dir),
 		(unsigned long)__entry->index,
-		__entry->dirty)
+		__entry->dirty,
+		__entry->uptodate)
+);
+
+DEFINE_EVENT(f2fs__page, f2fs_writepage,
+
+	TP_PROTO(struct page *page, int type),
+
+	TP_ARGS(page, type)
+);
+
+DEFINE_EVENT(f2fs__page, f2fs_do_write_data_page,
+
+	TP_PROTO(struct page *page, int type),
+
+	TP_ARGS(page, type)
+);
+
+DEFINE_EVENT(f2fs__page, f2fs_readpage,
+
+	TP_PROTO(struct page *page, int type),
+
+	TP_ARGS(page, type)
 );
 
 DEFINE_EVENT(f2fs__page, f2fs_set_page_dirty,
@@ -705,59 +917,105 @@ DEFINE_EVENT(f2fs__page, f2fs_vm_page_mkwrite,
 	TP_ARGS(page, type)
 );
 
-TRACE_EVENT(f2fs_submit_page_mbio,
+DEFINE_EVENT(f2fs__page, f2fs_register_inmem_page,
 
-	TP_PROTO(struct page *page, int rw, int type, block_t blk_addr),
+	TP_PROTO(struct page *page, int type),
 
-	TP_ARGS(page, rw, type, blk_addr),
+	TP_ARGS(page, type)
+);
+
+DEFINE_EVENT(f2fs__page, f2fs_commit_inmem_page,
+
+	TP_PROTO(struct page *page, int type),
+
+	TP_ARGS(page, type)
+);
+
+TRACE_EVENT(f2fs_writepages,
+
+	TP_PROTO(struct inode *inode, struct writeback_control *wbc, int type),
+
+	TP_ARGS(inode, wbc, type),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
 		__field(ino_t,	ino)
-		__field(int, rw)
-		__field(int, type)
-		__field(pgoff_t, index)
-		__field(block_t, block)
+		__field(int,	type)
+		__field(int,	dir)
+		__field(long,	nr_to_write)
+		__field(long,	pages_skipped)
+		__field(loff_t,	range_start)
+		__field(loff_t,	range_end)
+		__field(pgoff_t, writeback_index)
+		__field(int,	sync_mode)
+		__field(char,	for_kupdate)
+		__field(char,	for_background)
+		__field(char,	tagged_writepages)
+		__field(char,	for_reclaim)
+		__field(char,	range_cyclic)
+		__field(char,	for_sync)
 	),
 
 	TP_fast_assign(
-		__entry->dev	= page->mapping->host->i_sb->s_dev;
-		__entry->ino	= page->mapping->host->i_ino;
-		__entry->rw	= rw;
-		__entry->type	= type;
-		__entry->index	= page->index;
-		__entry->block	= blk_addr;
+		__entry->dev		= inode->i_sb->s_dev;
+		__entry->ino		= inode->i_ino;
+		__entry->type		= type;
+		__entry->dir		= S_ISDIR(inode->i_mode);
+		__entry->nr_to_write	= wbc->nr_to_write;
+		__entry->pages_skipped	= wbc->pages_skipped;
+		__entry->range_start	= wbc->range_start;
+		__entry->range_end	= wbc->range_end;
+		__entry->writeback_index = inode->i_mapping->writeback_index;
+		__entry->sync_mode	= wbc->sync_mode;
+		__entry->for_kupdate	= wbc->for_kupdate;
+		__entry->for_background	= wbc->for_background;
+		__entry->tagged_writepages	= wbc->tagged_writepages;
+		__entry->for_reclaim	= wbc->for_reclaim;
+		__entry->range_cyclic	= wbc->range_cyclic;
+		__entry->for_sync	= wbc->for_sync;
 	),
 
-	TP_printk("dev = (%d,%d), ino = %lu, %s%s, %s, index = %lu, blkaddr = 0x%llx",
+	TP_printk("dev = (%d,%d), ino = %lu, %s, %s, nr_to_write %ld, "
+		"skipped %ld, start %lld, end %lld, wb_idx %lu, sync_mode %d, "
+		"kupdate %u background %u tagged %u reclaim %u cyclic %u sync %u",
 		show_dev_ino(__entry),
-		show_bio_type(__entry->rw),
 		show_block_type(__entry->type),
-		(unsigned long)__entry->index,
-		(unsigned long long)__entry->block)
+		show_file_type(__entry->dir),
+		__entry->nr_to_write,
+		__entry->pages_skipped,
+		__entry->range_start,
+		__entry->range_end,
+		(unsigned long)__entry->writeback_index,
+		__entry->sync_mode,
+		__entry->for_kupdate,
+		__entry->for_background,
+		__entry->tagged_writepages,
+		__entry->for_reclaim,
+		__entry->range_cyclic,
+		__entry->for_sync)
 );
 
 TRACE_EVENT(f2fs_write_checkpoint,
 
-	TP_PROTO(struct super_block *sb, bool is_umount, char *msg),
+	TP_PROTO(struct super_block *sb, int reason, char *msg),
 
-	TP_ARGS(sb, is_umount, msg),
+	TP_ARGS(sb, reason, msg),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
-		__field(bool,	is_umount)
+		__field(int,	reason)
 		__field(char *,	msg)
 	),
 
 	TP_fast_assign(
 		__entry->dev		= sb->s_dev;
-		__entry->is_umount	= is_umount;
+		__entry->reason		= reason;
 		__entry->msg		= msg;
 	),
 
 	TP_printk("dev = (%d,%d), checkpoint for %s, state = %s",
 		show_dev(__entry),
-		__entry->is_umount ? "clean umount" : "consistency",
+		show_cpreason(__entry->reason),
 		__entry->msg)
 );
 
@@ -784,6 +1042,165 @@ TRACE_EVENT(f2fs_issue_discard,
 		(unsigned long long)__entry->blkstart,
 		(unsigned long long)__entry->blklen)
 );
+
+TRACE_EVENT(f2fs_issue_flush,
+
+	TP_PROTO(struct super_block *sb, unsigned int nobarrier,
+					unsigned int flush_merge),
+
+	TP_ARGS(sb, nobarrier, flush_merge),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(unsigned int, nobarrier)
+		__field(unsigned int, flush_merge)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= sb->s_dev;
+		__entry->nobarrier = nobarrier;
+		__entry->flush_merge = flush_merge;
+	),
+
+	TP_printk("dev = (%d,%d), %s %s",
+		show_dev(__entry),
+		__entry->nobarrier ? "skip (nobarrier)" : "issue",
+		__entry->flush_merge ? " with flush_merge" : "")
+);
+
+TRACE_EVENT(f2fs_lookup_extent_tree_start,
+
+	TP_PROTO(struct inode *inode, unsigned int pgofs),
+
+	TP_ARGS(inode, pgofs),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(unsigned int, pgofs)
+	),
+
+	TP_fast_assign(
+		__entry->dev = inode->i_sb->s_dev;
+		__entry->ino = inode->i_ino;
+		__entry->pgofs = pgofs;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, pgofs = %u",
+		show_dev_ino(__entry),
+		__entry->pgofs)
+);
+
+TRACE_EVENT_CONDITION(f2fs_lookup_extent_tree_end,
+
+	TP_PROTO(struct inode *inode, unsigned int pgofs,
+						struct extent_node *en),
+
+	TP_ARGS(inode, pgofs, en),
+
+	TP_CONDITION(en),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(unsigned int, pgofs)
+		__field(unsigned int, fofs)
+		__field(u32, blk)
+		__field(unsigned int, len)
+	),
+
+	TP_fast_assign(
+		__entry->dev = inode->i_sb->s_dev;
+		__entry->ino = inode->i_ino;
+		__entry->pgofs = pgofs;
+		__entry->fofs = en->ei.fofs;
+		__entry->blk = en->ei.blk;
+		__entry->len = en->ei.len;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, pgofs = %u, "
+		"ext_info(fofs: %u, blk: %u, len: %u)",
+		show_dev_ino(__entry),
+		__entry->pgofs,
+		__entry->fofs,
+		__entry->blk,
+		__entry->len)
+);
+
+TRACE_EVENT(f2fs_update_extent_tree,
+
+	TP_PROTO(struct inode *inode, unsigned int pgofs, block_t blkaddr),
+
+	TP_ARGS(inode, pgofs, blkaddr),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(unsigned int, pgofs)
+		__field(u32, blk)
+	),
+
+	TP_fast_assign(
+		__entry->dev = inode->i_sb->s_dev;
+		__entry->ino = inode->i_ino;
+		__entry->pgofs = pgofs;
+		__entry->blk = blkaddr;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, pgofs = %u, blkaddr = %u",
+		show_dev_ino(__entry),
+		__entry->pgofs,
+		__entry->blk)
+);
+
+TRACE_EVENT(f2fs_shrink_extent_tree,
+
+	TP_PROTO(struct f2fs_sb_info *sbi, unsigned int node_cnt,
+						unsigned int tree_cnt),
+
+	TP_ARGS(sbi, node_cnt, tree_cnt),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(unsigned int, node_cnt)
+		__field(unsigned int, tree_cnt)
+	),
+
+	TP_fast_assign(
+		__entry->dev = sbi->sb->s_dev;
+		__entry->node_cnt = node_cnt;
+		__entry->tree_cnt = tree_cnt;
+	),
+
+	TP_printk("dev = (%d,%d), shrunk: node_cnt = %u, tree_cnt = %u",
+		show_dev(__entry),
+		__entry->node_cnt,
+		__entry->tree_cnt)
+);
+
+TRACE_EVENT(f2fs_destroy_extent_tree,
+
+	TP_PROTO(struct inode *inode, unsigned int node_cnt),
+
+	TP_ARGS(inode, node_cnt),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(unsigned int, node_cnt)
+	),
+
+	TP_fast_assign(
+		__entry->dev = inode->i_sb->s_dev;
+		__entry->ino = inode->i_ino;
+		__entry->node_cnt = node_cnt;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, destroyed: node_cnt = %u",
+		show_dev_ino(__entry),
+		__entry->node_cnt)
+);
+
 #endif /* _TRACE_F2FS_H */
 
  /* This part must be outside protection */

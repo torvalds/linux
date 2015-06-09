@@ -20,7 +20,7 @@
 #include <target/target_core_fabric.h>
 #include <target/target_core_configfs.h>
 
-#include "iscsi_target_core.h"
+#include <target/iscsi/iscsi_target_core.h>
 #include "iscsi_target_erl0.h"
 #include "iscsi_target_login.h"
 #include "iscsi_target_nodeattrib.h"
@@ -68,10 +68,8 @@ int iscsit_load_discovery_tpg(void)
 		return -1;
 	}
 
-	ret = core_tpg_register(
-			&lio_target_fabric_configfs->tf_ops,
-			NULL, &tpg->tpg_se_tpg, tpg,
-			TRANSPORT_TPG_TYPE_DISCOVERY);
+	ret = core_tpg_register(&iscsi_ops, NULL, &tpg->tpg_se_tpg,
+				tpg, TRANSPORT_TPG_TYPE_DISCOVERY);
 	if (ret < 0) {
 		kfree(tpg);
 		return -1;
@@ -163,10 +161,7 @@ struct iscsi_portal_group *iscsit_get_tpg_from_np(
 int iscsit_get_tpg(
 	struct iscsi_portal_group *tpg)
 {
-	int ret;
-
-	ret = mutex_lock_interruptible(&tpg->tpg_access_lock);
-	return ((ret != 0) || signal_pending(current)) ? -1 : 0;
+	return mutex_lock_interruptible(&tpg->tpg_access_lock);
 }
 
 void iscsit_put_tpg(struct iscsi_portal_group *tpg)
@@ -184,10 +179,12 @@ static void iscsit_clear_tpg_np_login_thread(
 		return;
 	}
 
+	if (shutdown)
+		tpg_np->tpg_np->enabled = false;
 	iscsit_reset_np_thread(tpg_np->tpg_np, tpg_np, tpg, shutdown);
 }
 
-void iscsit_clear_tpg_np_login_threads(
+static void iscsit_clear_tpg_np_login_threads(
 	struct iscsi_portal_group *tpg,
 	bool shutdown)
 {
@@ -225,6 +222,8 @@ static void iscsit_set_default_tpg_attribs(struct iscsi_portal_group *tpg)
 	a->prod_mode_write_protect = TA_PROD_MODE_WRITE_PROTECT;
 	a->demo_mode_discovery = TA_DEMO_MODE_DISCOVERY;
 	a->default_erl = TA_DEFAULT_ERL;
+	a->t10_pi = TA_DEFAULT_T10_PI;
+	a->fabric_prot_type = TA_DEFAULT_FABRIC_PROT_TYPE;
 }
 
 int iscsit_tpg_add_portal_group(struct iscsi_tiqn *tiqn, struct iscsi_portal_group *tpg)
@@ -272,8 +271,6 @@ int iscsit_tpg_del_portal_group(
 	spin_lock(&tpg->tpg_state_lock);
 	tpg->tpg_state = TPG_STATE_INACTIVE;
 	spin_unlock(&tpg->tpg_state_lock);
-
-	iscsit_clear_tpg_np_login_threads(tpg, true);
 
 	if (iscsit_release_sessions_for_tpg(tpg, force) < 0) {
 		pr_err("Unable to delete iSCSI Target Portal Group:"
@@ -450,7 +447,7 @@ static bool iscsit_tpg_check_network_portal(
 
 			match = iscsit_check_np_match(sockaddr, np,
 						network_transport);
-			if (match == true)
+			if (match)
 				break;
 		}
 		spin_unlock(&tpg->tpg_np_lock);
@@ -472,7 +469,7 @@ struct iscsi_tpg_np *iscsit_tpg_add_network_portal(
 
 	if (!tpg_np_parent) {
 		if (iscsit_tpg_check_network_portal(tpg->tpg_tiqn, sockaddr,
-				network_transport) == true) {
+				network_transport)) {
 			pr_err("Network Portal: %s already exists on a"
 				" different TPG on %s\n", ip_str,
 				tpg->tpg_tiqn->tiqn);
@@ -855,6 +852,43 @@ int iscsit_ta_default_erl(
 
 	a->default_erl = default_erl;
 	pr_debug("iSCSI_TPG[%hu] - DefaultERL: %u\n", tpg->tpgt, a->default_erl);
+
+	return 0;
+}
+
+int iscsit_ta_t10_pi(
+	struct iscsi_portal_group *tpg,
+	u32 flag)
+{
+	struct iscsi_tpg_attrib *a = &tpg->tpg_attrib;
+
+	if ((flag != 0) && (flag != 1)) {
+		pr_err("Illegal value %d\n", flag);
+		return -EINVAL;
+	}
+
+	a->t10_pi = flag;
+	pr_debug("iSCSI_TPG[%hu] - T10 Protection information bit:"
+		" %s\n", tpg->tpgt, (a->t10_pi) ?
+		"ON" : "OFF");
+
+	return 0;
+}
+
+int iscsit_ta_fabric_prot_type(
+	struct iscsi_portal_group *tpg,
+	u32 prot_type)
+{
+	struct iscsi_tpg_attrib *a = &tpg->tpg_attrib;
+
+	if ((prot_type != 0) && (prot_type != 1) && (prot_type != 3)) {
+		pr_err("Illegal value for fabric_prot_type: %u\n", prot_type);
+		return -EINVAL;
+	}
+
+	a->fabric_prot_type = prot_type;
+	pr_debug("iSCSI_TPG[%hu] - T10 Fabric Protection Type: %u\n",
+		 tpg->tpgt, prot_type);
 
 	return 0;
 }

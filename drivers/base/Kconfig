@@ -1,10 +1,10 @@
 menu "Generic Driver Options"
 
-config UEVENT_HELPER_PATH
-	string "path to uevent helper"
-	default ""
+config UEVENT_HELPER
+	bool "Support for uevent helper"
+	default y
 	help
-	  Path to uevent helper program forked by the kernel for
+	  The uevent helper program is forked by the kernel for
 	  every uevent.
 	  Before the switch to the netlink-based uevent source, this was
 	  used to hook hotplug scripts into kernel device events. It
@@ -15,8 +15,13 @@ config UEVENT_HELPER_PATH
 	  that it creates a high system load, or on smaller systems
 	  it is known to create out-of-memory situations during bootup.
 
-	  To disable user space helper program execution at early boot
-	  time specify an empty string here. This setting can be altered
+config UEVENT_HELPER_PATH
+	string "path to uevent helper"
+	depends on UEVENT_HELPER
+	default ""
+	help
+	  To disable user space helper program execution at by default
+	  specify an empty string here. This setting can still be altered
 	  via /proc/sys/kernel/hotplug or via /sys/kernel/uevent_helper
 	  later at runtime.
 
@@ -144,15 +149,45 @@ config EXTRA_FIRMWARE_DIR
 	  some other directory containing the firmware files.
 
 config FW_LOADER_USER_HELPER
+	bool
+
+config FW_LOADER_USER_HELPER_FALLBACK
 	bool "Fallback user-helper invocation for firmware loading"
 	depends on FW_LOADER
-	default y
+	select FW_LOADER_USER_HELPER
 	help
 	  This option enables / disables the invocation of user-helper
 	  (e.g. udev) for loading firmware files as a fallback after the
 	  direct file loading in kernel fails.  The user-mode helper is
 	  no longer required unless you have a special firmware file that
-	  resides in a non-standard path.
+	  resides in a non-standard path. Moreover, the udev support has
+	  been deprecated upstream.
+
+	  If you are unsure about this, say N here.
+
+config WANT_DEV_COREDUMP
+	bool
+	help
+	  Drivers should "select" this option if they desire to use the
+	  device coredump mechanism.
+
+config ALLOW_DEV_COREDUMP
+	bool "Allow device coredump" if EXPERT
+	default y
+	help
+	  This option controls if the device coredump mechanism is available or
+	  not; if disabled, the mechanism will be omitted even if drivers that
+	  can use it are enabled.
+	  Say 'N' for more sensitive systems or systems that don't want
+	  to ever access the information to not have the code, nor keep any
+	  data.
+
+	  If unsure, say Y.
+
+config DEV_COREDUMP
+	bool
+	default y if WANT_DEV_COREDUMP
+	depends on ALLOW_DEV_COREDUMP
 
 config DEBUG_DRIVER
 	bool "Driver Core verbose debug messages"
@@ -185,6 +220,9 @@ config GENERIC_CPU_DEVICES
 	bool
 	default n
 
+config GENERIC_CPU_AUTOPROBE
+	bool
+
 config SOC_BUS
 	bool
 
@@ -200,6 +238,15 @@ config DMA_SHARED_BUFFER
 	  APIs extension; the file's descriptor can then be passed on to other
 	  driver.
 
+config FENCE_TRACE
+	bool "Enable verbose FENCE_TRACE messages"
+	depends on DMA_SHARED_BUFFER
+	help
+	  Enable the FENCE_TRACE printks. This will add extra
+	  spam to the console log, but will make it easier to diagnose
+	  lockup related problems for dma-buffers shared across multiple
+	  devices.
+
 config DMA_CMA
 	bool "DMA Contiguous Memory Allocator"
 	depends on HAVE_DMA_CONTIGUOUS && CMA
@@ -207,6 +254,9 @@ config DMA_CMA
 	  This enables the Contiguous Memory Allocator which allows drivers
 	  to allocate big physically-contiguous blocks of memory for use with
 	  hardware components that do not support I/O map nor scatter-gather.
+
+	  You can disable CMA by specifying "cma=0" on the kernel's command
+	  line.
 
 	  For more information see <include/linux/dma-contiguous.h>.
 	  If unsure, say "n".
@@ -217,18 +267,24 @@ comment "Default contiguous memory area size:"
 config CMA_SIZE_MBYTES
 	int "Size in Mega Bytes"
 	depends on !CMA_SIZE_SEL_PERCENTAGE
+	default 0 if X86
 	default 16
 	help
 	  Defines the size (in MiB) of the default memory area for Contiguous
-	  Memory Allocator.
+	  Memory Allocator.  If the size of 0 is selected, CMA is disabled by
+	  default, but it can be enabled by passing cma=size[MG] to the kernel.
+
 
 config CMA_SIZE_PERCENTAGE
 	int "Percentage of total memory"
 	depends on !CMA_SIZE_SEL_MBYTES
+	default 0 if X86
 	default 10
 	help
 	  Defines the size of the default memory area for Contiguous Memory
 	  Allocator as a percentage of the total memory in the system.
+	  If 0 percent is selected, CMA is disabled by default, but it can be
+	  enabled by passing cma=size[MG] to the kernel.
 
 choice
 	prompt "Selected region size"
@@ -250,7 +306,7 @@ endchoice
 
 config CMA_ALIGNMENT
 	int "Maximum PAGE_SIZE order of alignment for contiguous buffers"
-	range 4 9
+	range 4 12
 	default 8
 	help
 	  DMA mapping framework by default aligns all buffers to the smallest
@@ -265,16 +321,6 @@ config CMA_ALIGNMENT
 	  of 8 means that the buffers will be aligned up to 1MiB only.
 
 	  If unsure, leave the default value "8".
-
-config CMA_AREAS
-	int "Maximum count of the CMA device-private areas"
-	default 7
-	help
-	  CMA allows to create CMA areas for particular devices. This parameter
-	  sets the maximum number of such device private CMA areas in the
-	  system.
-
-	  If unsure, leave the default value "7".
 
 endif
 

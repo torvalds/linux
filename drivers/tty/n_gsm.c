@@ -2088,9 +2088,7 @@ static int gsm_activate_mux(struct gsm_mux *gsm)
 	struct gsm_dlci *dlci;
 	int i = 0;
 
-	init_timer(&gsm->t2_timer);
-	gsm->t2_timer.function = gsm_control_retransmit;
-	gsm->t2_timer.data = (unsigned long)gsm;
+	setup_timer(&gsm->t2_timer, gsm_control_retransmit, (unsigned long)gsm);
 	init_waitqueue_head(&gsm->event);
 	spin_lock_init(&gsm->control_lock);
 	spin_lock_init(&gsm->tx_lock);
@@ -2230,8 +2228,7 @@ static int gsmld_output(struct gsm_mux *gsm, u8 *data, int len)
 
 static int gsmld_attach_gsm(struct tty_struct *tty, struct gsm_mux *gsm)
 {
-	int ret, i;
-	int base = gsm->num << 6; /* Base for this MUX */
+	int ret, i, base;
 
 	gsm->tty = tty_kref_get(tty);
 	gsm->output = gsmld_output;
@@ -2241,6 +2238,7 @@ static int gsmld_attach_gsm(struct tty_struct *tty, struct gsm_mux *gsm)
 	else {
 		/* Don't register device 0 - this is the control channel and not
 		   a usable tty interface */
+		base = gsm->num << 6; /* Base for this MUX */
 		for (i = 1; i < NUM_DLCI; i++)
 			tty_register_device(gsm_tty_driver, base + i, NULL);
 	}
@@ -2368,6 +2366,7 @@ static void gsmld_close(struct tty_struct *tty)
 static int gsmld_open(struct tty_struct *tty)
 {
 	struct gsm_mux *gsm;
+	int ret;
 
 	if (tty->ops->write == NULL)
 		return -EINVAL;
@@ -2382,7 +2381,13 @@ static int gsmld_open(struct tty_struct *tty)
 
 	/* Attach the initial passive connection */
 	gsm->encoding = 1;
-	return gsmld_attach_gsm(tty, gsm);
+
+	ret = gsmld_attach_gsm(tty, gsm);
+	if (ret != 0) {
+		gsm_cleanup_mux(gsm);
+		mux_put(gsm);
+	}
+	return ret;
 }
 
 /**
@@ -2664,7 +2669,7 @@ static inline void muxnet_put(struct gsm_mux_net *mux_net)
 static int gsm_mux_net_start_xmit(struct sk_buff *skb,
 				      struct net_device *net)
 {
-	struct gsm_mux_net *mux_net = (struct gsm_mux_net *)netdev_priv(net);
+	struct gsm_mux_net *mux_net = netdev_priv(net);
 	struct gsm_dlci *dlci = mux_net->dlci;
 	muxnet_get(mux_net);
 
@@ -2693,7 +2698,7 @@ static void gsm_mux_rx_netchar(struct gsm_dlci *dlci,
 {
 	struct net_device *net = dlci->net;
 	struct sk_buff *skb;
-	struct gsm_mux_net *mux_net = (struct gsm_mux_net *)netdev_priv(net);
+	struct gsm_mux_net *mux_net = netdev_priv(net);
 	muxnet_get(mux_net);
 
 	/* Allocate an sk_buff */
@@ -2722,7 +2727,7 @@ static void gsm_mux_rx_netchar(struct gsm_dlci *dlci,
 
 static int gsm_change_mtu(struct net_device *net, int new_mtu)
 {
-	struct gsm_mux_net *mux_net = (struct gsm_mux_net *)netdev_priv(net);
+	struct gsm_mux_net *mux_net = netdev_priv(net);
 	if ((new_mtu < 8) || (new_mtu > mux_net->dlci->gsm->mtu))
 		return -EINVAL;
 	net->mtu = new_mtu;
@@ -2758,7 +2763,7 @@ static void gsm_destroy_network(struct gsm_dlci *dlci)
 	pr_debug("destroy network interface");
 	if (!dlci->net)
 		return;
-	mux_net = (struct gsm_mux_net *)netdev_priv(dlci->net);
+	mux_net = netdev_priv(dlci->net);
 	muxnet_put(mux_net);
 }
 
@@ -2789,15 +2794,14 @@ static int gsm_create_network(struct gsm_dlci *dlci, struct gsm_netconfig *nc)
 	netname = "gsm%d";
 	if (nc->if_name[0] != '\0')
 		netname = nc->if_name;
-	net = alloc_netdev(sizeof(struct gsm_mux_net),
-			netname,
-			gsm_mux_net_init);
+	net = alloc_netdev(sizeof(struct gsm_mux_net), netname,
+			   NET_NAME_UNKNOWN, gsm_mux_net_init);
 	if (!net) {
 		pr_err("alloc_netdev failed");
 		return -ENOMEM;
 	}
 	net->mtu = dlci->gsm->mtu;
-	mux_net = (struct gsm_mux_net *)netdev_priv(net);
+	mux_net = netdev_priv(net);
 	mux_net->dlci = dlci;
 	kref_init(&mux_net->ref);
 	strncpy(nc->if_name, net->name, IFNAMSIZ); /* return net name */
@@ -2820,7 +2824,7 @@ static int gsm_create_network(struct gsm_dlci *dlci, struct gsm_netconfig *nc)
 }
 
 /* Line discipline for real tty */
-struct tty_ldisc_ops tty_ldisc_packet = {
+static struct tty_ldisc_ops tty_ldisc_packet = {
 	.owner		 = THIS_MODULE,
 	.magic           = TTY_LDISC_MAGIC,
 	.name            = "n_gsm",
@@ -3166,7 +3170,7 @@ static int gsmtty_break_ctl(struct tty_struct *tty, int state)
 	return gsmtty_modem_update(dlci, encode);
 }
 
-static void gsmtty_remove(struct tty_driver *driver, struct tty_struct *tty)
+static void gsmtty_cleanup(struct tty_struct *tty)
 {
 	struct gsm_dlci *dlci = tty->driver_data;
 	struct gsm_mux *gsm = dlci->gsm;
@@ -3174,7 +3178,6 @@ static void gsmtty_remove(struct tty_driver *driver, struct tty_struct *tty)
 	dlci_put(dlci);
 	dlci_put(gsm->dlci[0]);
 	mux_put(gsm);
-	driver->ttys[tty->index] = NULL;
 }
 
 /* Virtual ttys for the demux */
@@ -3195,7 +3198,7 @@ static const struct tty_operations gsmtty_ops = {
 	.tiocmget		= gsmtty_tiocmget,
 	.tiocmset		= gsmtty_tiocmset,
 	.break_ctl		= gsmtty_break_ctl,
-	.remove			= gsmtty_remove,
+	.cleanup		= gsmtty_cleanup,
 };
 
 

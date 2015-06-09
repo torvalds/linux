@@ -203,7 +203,7 @@ static struct typhoon_card_info typhoon_card_info[] = {
  * bit 8 indicates if this is a (0) copper or (1) fiber card
  * bits 12-16 indicate card type: (0) client and (1) server
  */
-static DEFINE_PCI_DEVICE_TABLE(typhoon_pci_tbl) = {
+static const struct pci_device_id typhoon_pci_tbl[] = {
 	{ PCI_VENDOR_ID_3COM, PCI_DEVICE_ID_3COM_3CR990,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0,TYPHOON_TX },
 	{ PCI_VENDOR_ID_3COM, PCI_DEVICE_ID_3COM_3CR990_TX_95,
@@ -769,11 +769,11 @@ typhoon_start_tx(struct sk_buff *skb, struct net_device *dev)
 		first_txd->processFlags |= TYPHOON_TX_PF_IP_CHKSUM;
 	}
 
-	if(vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		first_txd->processFlags |=
 		    TYPHOON_TX_PF_INSERT_VLAN | TYPHOON_TX_PF_VLAN_PRIORITY;
 		first_txd->processFlags |=
-		    cpu_to_le32(htons(vlan_tx_tag_get(skb)) <<
+		    cpu_to_le32(htons(skb_vlan_tag_get(skb)) <<
 				TYPHOON_TX_PF_VLAN_TAG_SHIFT);
 	}
 
@@ -1285,7 +1285,7 @@ typhoon_request_firmware(struct typhoon *tp)
 		return err;
 	}
 
-	image_data = (u8 *) typhoon_fw->data;
+	image_data = typhoon_fw->data;
 	remaining = typhoon_fw->size;
 	if (remaining < sizeof(struct typhoon_file_header))
 		goto invalid_fw;
@@ -1343,7 +1343,7 @@ typhoon_download_firmware(struct typhoon *tp)
 	int i;
 	int err;
 
-	image_data = (u8 *) typhoon_fw->data;
+	image_data = typhoon_fw->data;
 	fHdr = (struct typhoon_file_header *) image_data;
 
 	/* Cannot just map the firmware image using pci_map_single() as
@@ -2435,7 +2435,7 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netif_napi_add(dev, &tp->napi, typhoon_poll, 16);
 	dev->watchdog_timeo	= TX_TIMEOUT;
 
-	SET_ETHTOOL_OPS(dev, &typhoon_ethtool_ops);
+	dev->ethtool_ops = &typhoon_ethtool_ops;
 
 	/* We can handle scatter gather, up to 16 entries, and
 	 * we can do IP checksumming (only version 4, doh...)

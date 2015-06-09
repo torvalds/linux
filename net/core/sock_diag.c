@@ -13,22 +13,39 @@ static const struct sock_diag_handler *sock_diag_handlers[AF_MAX];
 static int (*inet_rcv_compat)(struct sk_buff *skb, struct nlmsghdr *nlh);
 static DEFINE_MUTEX(sock_diag_table_mutex);
 
-int sock_diag_check_cookie(void *sk, __u32 *cookie)
+static u64 sock_gen_cookie(struct sock *sk)
 {
-	if ((cookie[0] != INET_DIAG_NOCOOKIE ||
-	     cookie[1] != INET_DIAG_NOCOOKIE) &&
-	    ((u32)(unsigned long)sk != cookie[0] ||
-	     (u32)((((unsigned long)sk) >> 31) >> 1) != cookie[1]))
-		return -ESTALE;
-	else
+	while (1) {
+		u64 res = atomic64_read(&sk->sk_cookie);
+
+		if (res)
+			return res;
+		res = atomic64_inc_return(&sock_net(sk)->cookie_gen);
+		atomic64_cmpxchg(&sk->sk_cookie, 0, res);
+	}
+}
+
+int sock_diag_check_cookie(struct sock *sk, const __u32 *cookie)
+{
+	u64 res;
+
+	if (cookie[0] == INET_DIAG_NOCOOKIE && cookie[1] == INET_DIAG_NOCOOKIE)
 		return 0;
+
+	res = sock_gen_cookie(sk);
+	if ((u32)res != cookie[0] || (u32)(res >> 32) != cookie[1])
+		return -ESTALE;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(sock_diag_check_cookie);
 
-void sock_diag_save_cookie(void *sk, __u32 *cookie)
+void sock_diag_save_cookie(struct sock *sk, __u32 *cookie)
 {
-	cookie[0] = (u32)(unsigned long)sk;
-	cookie[1] = (u32)(((unsigned long)sk >> 31) >> 1);
+	u64 res = sock_gen_cookie(sk);
+
+	cookie[0] = (u32)res;
+	cookie[1] = (u32)(res >> 32);
 }
 EXPORT_SYMBOL_GPL(sock_diag_save_cookie);
 
@@ -49,38 +66,35 @@ int sock_diag_put_meminfo(struct sock *sk, struct sk_buff *skb, int attrtype)
 }
 EXPORT_SYMBOL_GPL(sock_diag_put_meminfo);
 
-int sock_diag_put_filterinfo(struct user_namespace *user_ns, struct sock *sk,
+int sock_diag_put_filterinfo(bool may_report_filterinfo, struct sock *sk,
 			     struct sk_buff *skb, int attrtype)
 {
-	struct nlattr *attr;
+	struct sock_fprog_kern *fprog;
 	struct sk_filter *filter;
-	unsigned int len;
+	struct nlattr *attr;
+	unsigned int flen;
 	int err = 0;
 
-	if (!ns_capable(user_ns, CAP_NET_ADMIN)) {
+	if (!may_report_filterinfo) {
 		nla_reserve(skb, attrtype, 0);
 		return 0;
 	}
 
 	rcu_read_lock();
-
 	filter = rcu_dereference(sk->sk_filter);
-	len = filter ? filter->len * sizeof(struct sock_filter) : 0;
+	if (!filter)
+		goto out;
 
-	attr = nla_reserve(skb, attrtype, len);
+	fprog = filter->prog->orig_prog;
+	flen = bpf_classic_proglen(fprog);
+
+	attr = nla_reserve(skb, attrtype, flen);
 	if (attr == NULL) {
 		err = -EMSGSIZE;
 		goto out;
 	}
 
-	if (filter) {
-		struct sock_filter *fb = (struct sock_filter *)nla_data(attr);
-		int i;
-
-		for (i = 0; i < filter->len; i++, fb++)
-			sk_decode_filter(&filter->insns[i], fb);
-	}
-
+	memcpy(nla_data(attr), fprog->filter, flen);
 out:
 	rcu_read_unlock();
 	return err;

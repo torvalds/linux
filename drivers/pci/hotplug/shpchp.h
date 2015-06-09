@@ -180,7 +180,7 @@ int shpchp_configure_device(struct slot *p_slot);
 int shpchp_unconfigure_device(struct slot *p_slot);
 void cleanup_slots(struct controller *ctrl);
 void shpchp_queue_pushbutton_work(struct work_struct *work);
-int shpc_init( struct controller *ctrl, struct pci_dev *pdev);
+int shpc_init(struct controller *ctrl, struct pci_dev *pdev);
 
 static inline const char *slot_name(struct slot *slot)
 {
@@ -295,7 +295,7 @@ static inline void amd_pogo_errata_restore_misc_reg(struct slot *p_slot)
 		pci_write_config_dword(p_slot->ctrl->pci_dev, PCIX_MEM_BASE_LIMIT_OFFSET, rse_set);
 	}
 	/* restore MiscII register */
-	pci_read_config_dword( p_slot->ctrl->pci_dev, PCIX_MISCII_OFFSET, &pcix_misc2_temp );
+	pci_read_config_dword(p_slot->ctrl->pci_dev, PCIX_MISCII_OFFSET, &pcix_misc2_temp );
 
 	if (p_slot->ctrl->pcix_misc2_reg & SERRFATALENABLE_MASK)
 		pcix_misc2_temp |= SERRFATALENABLE_MASK;

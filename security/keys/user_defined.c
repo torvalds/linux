@@ -26,10 +26,10 @@ static int logon_vet_description(const char *desc);
  */
 struct key_type key_type_user = {
 	.name			= "user",
-	.def_lookup_type	= KEYRING_SEARCH_LOOKUP_DIRECT,
-	.instantiate		= user_instantiate,
+	.preparse		= user_preparse,
+	.free_preparse		= user_free_preparse,
+	.instantiate		= generic_key_instantiate,
 	.update			= user_update,
-	.match			= user_match,
 	.revoke			= user_revoke,
 	.destroy		= user_destroy,
 	.describe		= user_describe,
@@ -46,10 +46,10 @@ EXPORT_SYMBOL_GPL(key_type_user);
  */
 struct key_type key_type_logon = {
 	.name			= "logon",
-	.def_lookup_type	= KEYRING_SEARCH_LOOKUP_DIRECT,
-	.instantiate		= user_instantiate,
+	.preparse		= user_preparse,
+	.free_preparse		= user_free_preparse,
+	.instantiate		= generic_key_instantiate,
 	.update			= user_update,
-	.match			= user_match,
 	.revoke			= user_revoke,
 	.destroy		= user_destroy,
 	.describe		= user_describe,
@@ -58,38 +58,37 @@ struct key_type key_type_logon = {
 EXPORT_SYMBOL_GPL(key_type_logon);
 
 /*
- * instantiate a user defined key
+ * Preparse a user defined key payload
  */
-int user_instantiate(struct key *key, struct key_preparsed_payload *prep)
+int user_preparse(struct key_preparsed_payload *prep)
 {
 	struct user_key_payload *upayload;
 	size_t datalen = prep->datalen;
-	int ret;
 
-	ret = -EINVAL;
 	if (datalen <= 0 || datalen > 32767 || !prep->data)
-		goto error;
+		return -EINVAL;
 
-	ret = key_payload_reserve(key, datalen);
-	if (ret < 0)
-		goto error;
-
-	ret = -ENOMEM;
 	upayload = kmalloc(sizeof(*upayload) + datalen, GFP_KERNEL);
 	if (!upayload)
-		goto error;
+		return -ENOMEM;
 
 	/* attach the data */
+	prep->quotalen = datalen;
+	prep->payload[0] = upayload;
 	upayload->datalen = datalen;
 	memcpy(upayload->data, prep->data, datalen);
-	rcu_assign_keypointer(key, upayload);
-	ret = 0;
-
-error:
-	return ret;
+	return 0;
 }
+EXPORT_SYMBOL_GPL(user_preparse);
 
-EXPORT_SYMBOL_GPL(user_instantiate);
+/*
+ * Free a preparse of a user defined key payload
+ */
+void user_free_preparse(struct key_preparsed_payload *prep)
+{
+	kfree(prep->payload[0]);
+}
+EXPORT_SYMBOL_GPL(user_free_preparse);
 
 /*
  * update a user defined key
@@ -134,16 +133,6 @@ error:
 }
 
 EXPORT_SYMBOL_GPL(user_update);
-
-/*
- * match users on their name
- */
-int user_match(const struct key *key, const void *description)
-{
-	return strcmp(key->description, description) == 0;
-}
-
-EXPORT_SYMBOL_GPL(user_match);
 
 /*
  * dispose of the links from a revoked keyring

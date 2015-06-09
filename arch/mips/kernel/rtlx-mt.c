@@ -36,7 +36,6 @@ static irqreturn_t rtlx_interrupt(int irq, void *dev_id)
 	unsigned long flags;
 	int i;
 
-	/* Ought not to be strictly necessary for SMTC builds */
 	local_irq_save(flags);
 	vpeflags = dvpe();
 	set_c0_status(0x100 << MIPS_CPU_RTLX_IRQ);
@@ -104,6 +103,9 @@ int __init rtlx_module_init(void)
 		dev = device_create(mt_class, NULL, MKDEV(major, i), NULL,
 				    "%s%d", RTLX_MODULE_NAME, i);
 		if (IS_ERR(dev)) {
+			while (i--)
+				device_destroy(mt_class, MKDEV(major, i));
+
 			err = PTR_ERR(dev);
 			goto out_chrdev;
 		}

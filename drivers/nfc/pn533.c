@@ -55,26 +55,14 @@
 				   NFC_PROTO_NFC_DEP_MASK)
 
 static const struct usb_device_id pn533_table[] = {
-	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE,
-	  .idVendor		= PN533_VENDOR_ID,
-	  .idProduct		= PN533_PRODUCT_ID,
-	  .driver_info		= PN533_DEVICE_STD,
-	},
-	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE,
-	  .idVendor		= SCM_VENDOR_ID,
-	  .idProduct		= SCL3711_PRODUCT_ID,
-	  .driver_info		= PN533_DEVICE_STD,
-	},
-	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE,
-	  .idVendor		= SONY_VENDOR_ID,
-	  .idProduct		= PASORI_PRODUCT_ID,
-	  .driver_info		= PN533_DEVICE_PASORI,
-	},
-	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE,
-	  .idVendor		= ACS_VENDOR_ID,
-	  .idProduct		= ACR122U_PRODUCT_ID,
-	  .driver_info		= PN533_DEVICE_ACR122U,
-	},
+	{ USB_DEVICE(PN533_VENDOR_ID, PN533_PRODUCT_ID),
+	  .driver_info = PN533_DEVICE_STD },
+	{ USB_DEVICE(SCM_VENDOR_ID, SCL3711_PRODUCT_ID),
+	  .driver_info = PN533_DEVICE_STD },
+	{ USB_DEVICE(SONY_VENDOR_ID, PASORI_PRODUCT_ID),
+	  .driver_info = PN533_DEVICE_PASORI },
+	{ USB_DEVICE(ACS_VENDOR_ID, ACR122U_PRODUCT_ID),
+	  .driver_info = PN533_DEVICE_ACR122U },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, pn533_table);
@@ -1832,7 +1820,7 @@ static int pn533_rf_complete(struct pn533 *dev, void *arg,
 	if (IS_ERR(resp)) {
 		rc = PTR_ERR(resp);
 
-		nfc_err(&dev->interface->dev, "RF setting error %d", rc);
+		nfc_err(&dev->interface->dev, "RF setting error %d\n", rc);
 
 		return rc;
 	}
@@ -2566,8 +2554,10 @@ static int pn533_data_exchange_complete(struct pn533 *dev, void *_arg,
 	}
 
 	skb = pn533_build_response(dev);
-	if (!skb)
+	if (!skb) {
+		rc = -ENOMEM;
 		goto error;
+	}
 
 	arg->cb(arg->cb_context, skb, 0);
 	kfree(arg);

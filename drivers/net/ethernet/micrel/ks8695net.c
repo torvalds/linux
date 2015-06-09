@@ -1504,15 +1504,15 @@ ks8695_probe(struct platform_device *pdev)
 	if (ksp->phyiface_regs && ksp->link_irq == -1) {
 		ks8695_init_switch(ksp);
 		ksp->dtype = KS8695_DTYPE_LAN;
-		SET_ETHTOOL_OPS(ndev, &ks8695_ethtool_ops);
+		ndev->ethtool_ops = &ks8695_ethtool_ops;
 	} else if (ksp->phyiface_regs && ksp->link_irq != -1) {
 		ks8695_init_wan_phy(ksp);
 		ksp->dtype = KS8695_DTYPE_WAN;
-		SET_ETHTOOL_OPS(ndev, &ks8695_wan_ethtool_ops);
+		ndev->ethtool_ops = &ks8695_wan_ethtool_ops;
 	} else {
 		/* No initialisation since HPNA does not have a PHY */
 		ksp->dtype = KS8695_DTYPE_HPNA;
-		SET_ETHTOOL_OPS(ndev, &ks8695_ethtool_ops);
+		ndev->ethtool_ops = &ks8695_ethtool_ops;
 	}
 
 	/* And bring up the net_device with the net core */
@@ -1612,7 +1612,6 @@ ks8695_drv_remove(struct platform_device *pdev)
 static struct platform_driver ks8695_driver = {
 	.driver = {
 		.name	= MODULENAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ks8695_probe,
 	.remove		= ks8695_drv_remove,

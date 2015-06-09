@@ -73,7 +73,7 @@ void __show_regs(struct pt_regs *regs, int all)
 	unsigned long sp;
 	unsigned short ss, gs;
 
-	if (user_mode_vm(regs)) {
+	if (user_mode(regs)) {
 		sp = regs->sp;
 		ss = regs->ss & 0xffff;
 		gs = get_user_gs(regs);
@@ -101,7 +101,7 @@ void __show_regs(struct pt_regs *regs, int all)
 	cr0 = read_cr0();
 	cr2 = read_cr2();
 	cr3 = read_cr3();
-	cr4 = read_cr4_safe();
+	cr4 = __read_cr4_safe();
 	printk(KERN_DEFAULT "CR0: %08lx CR2: %08lx CR3: %08lx CR4: %08lx\n",
 			cr0, cr2, cr3, cr4);
 
@@ -138,6 +138,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 
 	p->thread.sp = (unsigned long) childregs;
 	p->thread.sp0 = (unsigned long) (childregs+1);
+	memset(p->thread.ptrace_bps, 0, sizeof(p->thread.ptrace_bps));
 
 	if (unlikely(p->flags & PF_KTHREAD)) {
 		/* kernel thread */
@@ -152,9 +153,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 		childregs->orig_ax = -1;
 		childregs->cs = __KERNEL_CS | get_kernel_rpl();
 		childregs->flags = X86_EFLAGS_IF | X86_EFLAGS_FIXED;
-		p->thread.fpu_counter = 0;
 		p->thread.io_bitmap_ptr = NULL;
-		memset(p->thread.ptrace_bps, 0, sizeof(p->thread.ptrace_bps));
 		return 0;
 	}
 	*childregs = *current_pt_regs();
@@ -165,12 +164,9 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	p->thread.ip = (unsigned long) ret_from_fork;
 	task_user_gs(p) = get_user_gs(current_pt_regs());
 
-	p->thread.fpu_counter = 0;
 	p->thread.io_bitmap_ptr = NULL;
 	tsk = current;
 	err = -ENOMEM;
-
-	memset(p->thread.ptrace_bps, 0, sizeof(p->thread.ptrace_bps));
 
 	if (unlikely(test_tsk_thread_flag(tsk, TIF_IO_BITMAP))) {
 		p->thread.io_bitmap_ptr = kmemdup(tsk->thread.io_bitmap_ptr,
@@ -210,11 +206,7 @@ start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
 	regs->ip		= new_ip;
 	regs->sp		= new_sp;
 	regs->flags		= X86_EFLAGS_IF;
-	/*
-	 * force it to the iret return path by making it look as if there was
-	 * some work pending.
-	 */
-	set_thread_flag(TIF_NOTIFY_RESUME);
+	force_iret();
 }
 EXPORT_SYMBOL_GPL(start_thread);
 
@@ -252,17 +244,12 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	struct thread_struct *prev = &prev_p->thread,
 				 *next = &next_p->thread;
 	int cpu = smp_processor_id();
-	struct tss_struct *tss = &per_cpu(init_tss, cpu);
+	struct tss_struct *tss = &per_cpu(cpu_tss, cpu);
 	fpu_switch_t fpu;
 
 	/* never put a printk in __switch_to... printk() calls wake_up*() indirectly */
 
 	fpu = switch_fpu_prepare(prev_p, next_p, cpu);
-
-	/*
-	 * Reload esp0.
-	 */
-	load_sp0(tss, next);
 
 	/*
 	 * Save away %gs. No need to save %fs, as it was saved on the
@@ -313,6 +300,18 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 * to date.
 	 */
 	arch_end_context_switch(next_p);
+
+	/*
+	 * Reload esp0, kernel_stack, and current_top_of_stack.  This changes
+	 * current_thread_info().
+	 */
+	load_sp0(tss, next);
+	this_cpu_write(kernel_stack,
+		       (unsigned long)task_stack_page(next_p) +
+		       THREAD_SIZE);
+	this_cpu_write(cpu_current_top_of_stack,
+		       (unsigned long)task_stack_page(next_p) +
+		       THREAD_SIZE);
 
 	/*
 	 * Restore %gs if needed (which is common)

@@ -27,13 +27,6 @@
 #include <linux/kernel.h>
 
 #include "rtsx.h"
-#include "rtsx_transport.h"
-#include "rtsx_scsi.h"
-#include "rtsx_card.h"
-
-#include "rtsx_sys.h"
-#include "general.h"
-
 #include "sd.h"
 #include "xd.h"
 #include "ms.h"
@@ -102,11 +95,14 @@ void try_to_switch_sdio_ctrl(struct rtsx_chip *chip)
 
 	rtsx_read_register(chip, 0xFF34, &reg1);
 	rtsx_read_register(chip, 0xFF38, &reg2);
-	RTSX_DEBUGP("reg 0xFF34: 0x%x, reg 0xFF38: 0x%x\n", reg1, reg2);
+	dev_dbg(rtsx_dev(chip), "reg 0xFF34: 0x%x, reg 0xFF38: 0x%x\n",
+		reg1, reg2);
 	if ((reg1 & 0xC0) && (reg2 & 0xC0)) {
 		chip->sd_int = 1;
-		rtsx_write_register(chip, SDIO_CTRL, 0xFF, SDIO_BUS_CTRL | SDIO_CD_CTRL);
-		rtsx_write_register(chip, PWR_GATE_CTRL, LDO3318_PWR_MASK, LDO_ON);
+		rtsx_write_register(chip, SDIO_CTRL, 0xFF,
+				SDIO_BUS_CTRL | SDIO_CD_CTRL);
+		rtsx_write_register(chip, PWR_GATE_CTRL,
+				LDO3318_PWR_MASK, LDO_ON);
 	}
 }
 
@@ -135,14 +131,14 @@ void dynamic_configure_sdio_aspm(struct rtsx_chip *chip)
 
 	if (chip->sdio_idle) {
 		if (!chip->sdio_aspm) {
-			RTSX_DEBUGP("SDIO enter ASPM!\n");
+			dev_dbg(rtsx_dev(chip), "SDIO enter ASPM!\n");
 			rtsx_write_register(chip, ASPM_FORCE_CTL, 0xFC,
 					0x30 | (chip->aspm_level[1] << 2));
 			chip->sdio_aspm = 1;
 		}
 	} else {
 		if (chip->sdio_aspm) {
-			RTSX_DEBUGP("SDIO exit ASPM!\n");
+			dev_dbg(rtsx_dev(chip), "SDIO exit ASPM!\n");
 			rtsx_write_register(chip, ASPM_FORCE_CTL, 0xFC, 0x30);
 			chip->sdio_aspm = 0;
 		}
@@ -154,8 +150,8 @@ void do_reset_sd_card(struct rtsx_chip *chip)
 {
 	int retval;
 
-	RTSX_DEBUGP("%s: %d, card2lun = 0x%x\n", __func__,
-		     chip->sd_reset_counter, chip->card2lun[SD_CARD]);
+	dev_dbg(rtsx_dev(chip), "%s: %d, card2lun = 0x%x\n", __func__,
+		chip->sd_reset_counter, chip->card2lun[SD_CARD]);
 
 	if (chip->card2lun[SD_CARD] >= MAX_ALLOWED_LUN_CNT) {
 		clear_bit(SD_NR, &(chip->need_reset));
@@ -208,8 +204,8 @@ void do_reset_xd_card(struct rtsx_chip *chip)
 {
 	int retval;
 
-	RTSX_DEBUGP("%s: %d, card2lun = 0x%x\n", __func__,
-		     chip->xd_reset_counter, chip->card2lun[XD_CARD]);
+	dev_dbg(rtsx_dev(chip), "%s: %d, card2lun = 0x%x\n", __func__,
+		chip->xd_reset_counter, chip->card2lun[XD_CARD]);
 
 	if (chip->card2lun[XD_CARD] >= MAX_ALLOWED_LUN_CNT) {
 		clear_bit(XD_NR, &(chip->need_reset));
@@ -256,8 +252,8 @@ void do_reset_ms_card(struct rtsx_chip *chip)
 {
 	int retval;
 
-	RTSX_DEBUGP("%s: %d, card2lun = 0x%x\n", __func__,
-		     chip->ms_reset_counter, chip->card2lun[MS_CARD]);
+	dev_dbg(rtsx_dev(chip), "%s: %d, card2lun = 0x%x\n", __func__,
+		chip->ms_reset_counter, chip->card2lun[MS_CARD]);
 
 	if (chip->card2lun[MS_CARD] >= MAX_ALLOWED_LUN_CNT) {
 		clear_bit(MS_NR, &(chip->need_reset));
@@ -452,7 +448,8 @@ void rtsx_reinit_cards(struct rtsx_chip *chip, int reset_chip)
 }
 
 #ifdef DISABLE_CARD_INT
-void card_cd_debounce(struct rtsx_chip *chip, unsigned long *need_reset, unsigned long *need_release)
+void card_cd_debounce(struct rtsx_chip *chip, unsigned long *need_reset,
+		unsigned long *need_release)
 {
 	u8 release_map = 0, reset_map = 0;
 
@@ -504,11 +501,14 @@ void card_cd_debounce(struct rtsx_chip *chip, unsigned long *need_reset, unsigne
 		}
 
 		reset_map = 0;
-		if (!(chip->card_exist & XD_CARD) && (xd_cnt > (DEBOUNCE_CNT-1)))
+		if (!(chip->card_exist & XD_CARD) &&
+				(xd_cnt > (DEBOUNCE_CNT-1)))
 			reset_map |= XD_CARD;
-		if (!(chip->card_exist & SD_CARD) && (sd_cnt > (DEBOUNCE_CNT-1)))
+		if (!(chip->card_exist & SD_CARD) &&
+				(sd_cnt > (DEBOUNCE_CNT-1)))
 			reset_map |= SD_CARD;
-		if (!(chip->card_exist & MS_CARD) && (ms_cnt > (DEBOUNCE_CNT-1)))
+		if (!(chip->card_exist & MS_CARD) &&
+				(ms_cnt > (DEBOUNCE_CNT-1)))
 			reset_map |= MS_CARD;
 	}
 
@@ -525,7 +525,7 @@ void card_cd_debounce(struct rtsx_chip *chip, unsigned long *need_reset, unsigne
 void rtsx_init_cards(struct rtsx_chip *chip)
 {
 	if (RTSX_TST_DELINK(chip) && (rtsx_get_stat(chip) != RTSX_STAT_SS)) {
-		RTSX_DEBUGP("Reset chip in polling thread!\n");
+		dev_dbg(rtsx_dev(chip), "Reset chip in polling thread!\n");
 		rtsx_reset_chip(chip);
 		RTSX_CLR_DELINK(chip);
 	}
@@ -549,7 +549,8 @@ void rtsx_init_cards(struct rtsx_chip *chip)
 		if (!(chip->card_exist & MS_CARD))
 			clear_bit(MS_NR, &(chip->need_release));
 
-		RTSX_DEBUGP("chip->need_release = 0x%x\n", (unsigned int)(chip->need_release));
+		dev_dbg(rtsx_dev(chip), "chip->need_release = 0x%x\n",
+			(unsigned int)(chip->need_release));
 
 #ifdef SUPPORT_OCP
 		if (chip->need_release) {
@@ -588,8 +589,10 @@ void rtsx_init_cards(struct rtsx_chip *chip)
 
 			release_xd_card(chip);
 
-			if (CHECK_PID(chip, 0x5288) && CHECK_BARO_PKG(chip, QFN))
-				rtsx_write_register(chip, HOST_SLEEP_STATE, 0xC0, 0xC0);
+			if (CHECK_PID(chip, 0x5288) &&
+					CHECK_BARO_PKG(chip, QFN))
+				rtsx_write_register(chip, HOST_SLEEP_STATE,
+						0xC0, 0xC0);
 		}
 
 		if (chip->need_release & MS_CARD) {
@@ -603,20 +606,23 @@ void rtsx_init_cards(struct rtsx_chip *chip)
 			release_ms_card(chip);
 		}
 
-		RTSX_DEBUGP("chip->card_exist = 0x%x\n", chip->card_exist);
+		dev_dbg(rtsx_dev(chip), "chip->card_exist = 0x%x\n",
+			chip->card_exist);
 
 		if (!chip->card_exist)
 			turn_off_led(chip, LED_GPIO);
 	}
 
 	if (chip->need_reset) {
-		RTSX_DEBUGP("chip->need_reset = 0x%x\n", (unsigned int)(chip->need_reset));
+		dev_dbg(rtsx_dev(chip), "chip->need_reset = 0x%x\n",
+			(unsigned int)(chip->need_reset));
 
 		rtsx_reset_cards(chip);
 	}
 
 	if (chip->need_reinit) {
-		RTSX_DEBUGP("chip->need_reinit = 0x%x\n", (unsigned int)(chip->need_reinit));
+		dev_dbg(rtsx_dev(chip), "chip->need_reinit = 0x%x\n",
+			(unsigned int)(chip->need_reinit));
 
 		rtsx_reinit_cards(chip, 0);
 	}
@@ -624,7 +630,7 @@ void rtsx_init_cards(struct rtsx_chip *chip)
 
 static inline u8 double_depth(u8 depth)
 {
-	return ((depth > 1) ? (depth - 1) : depth);
+	return (depth > 1) ? (depth - 1) : depth;
 }
 
 int switch_ssc_clock(struct rtsx_chip *chip, int clk)
@@ -641,10 +647,13 @@ int switch_ssc_clock(struct rtsx_chip *chip, int clk)
 	max_N = 120;
 	max_div = CLK_DIV_4;
 
-	RTSX_DEBUGP("Switch SSC clock to %dMHz (cur_clk = %d)\n", clk, chip->cur_clk);
+	dev_dbg(rtsx_dev(chip), "Switch SSC clock to %dMHz (cur_clk = %d)\n",
+		clk, chip->cur_clk);
 
-	if ((clk <= 2) || (N > max_N))
-		TRACE_RET(chip, STATUS_FAIL);
+	if ((clk <= 2) || (N > max_N)) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	mcu_cnt = (u8)(125/clk + 3);
 	if (mcu_cnt > 7)
@@ -655,7 +664,7 @@ int switch_ssc_clock(struct rtsx_chip *chip, int clk)
 		N = (N + 2) * 2 - 2;
 		div++;
 	}
-	RTSX_DEBUGP("N = %d, div = %d\n", N, div);
+	dev_dbg(rtsx_dev(chip), "N = %d, div = %d\n", N, div);
 
 	if (chip->ssc_en) {
 		ssc_depth = 0x01;
@@ -666,7 +675,7 @@ int switch_ssc_clock(struct rtsx_chip *chip, int clk)
 
 	ssc_depth_mask = 0x03;
 
-	RTSX_DEBUGP("ssc_depth = %d\n", ssc_depth);
+	dev_dbg(rtsx_dev(chip), "ssc_depth = %d\n", ssc_depth);
 
 	rtsx_init_cmd(chip);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, CLK_CTL, CLK_LOW_FREQ, CLK_LOW_FREQ);
@@ -676,16 +685,24 @@ int switch_ssc_clock(struct rtsx_chip *chip, int clk)
 	rtsx_add_cmd(chip, WRITE_REG_CMD, SSC_DIV_N_0, 0xFF, N);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, SSC_CTL1, SSC_RSTB, SSC_RSTB);
 	if (sd_vpclk_phase_reset) {
-		rtsx_add_cmd(chip, WRITE_REG_CMD, SD_VPCLK0_CTL, PHASE_NOT_RESET, 0);
-		rtsx_add_cmd(chip, WRITE_REG_CMD, SD_VPCLK0_CTL, PHASE_NOT_RESET, PHASE_NOT_RESET);
+		rtsx_add_cmd(chip, WRITE_REG_CMD, SD_VPCLK0_CTL,
+			PHASE_NOT_RESET, 0);
+		rtsx_add_cmd(chip, WRITE_REG_CMD, SD_VPCLK0_CTL,
+			PHASE_NOT_RESET, PHASE_NOT_RESET);
 	}
 
 	retval = rtsx_send_cmd(chip, 0, WAIT_TIME);
-	if (retval < 0)
-		TRACE_RET(chip, STATUS_ERROR);
+	if (retval < 0) {
+		rtsx_trace(chip);
+		return STATUS_ERROR;
+	}
 
 	udelay(10);
-	RTSX_WRITE_REG(chip, CLK_CTL, CLK_LOW_FREQ, 0);
+	retval = rtsx_write_register(chip, CLK_CTL, CLK_LOW_FREQ, 0);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	chip->cur_clk = clk;
 
@@ -694,6 +711,7 @@ int switch_ssc_clock(struct rtsx_chip *chip, int clk)
 
 int switch_normal_clock(struct rtsx_chip *chip, int clk)
 {
+	int retval;
 	u8 sel, div, mcu_cnt;
 	int sd_vpclk_phase_reset = 0;
 
@@ -702,102 +720,142 @@ int switch_normal_clock(struct rtsx_chip *chip, int clk)
 
 	switch (clk) {
 	case CLK_20:
-		RTSX_DEBUGP("Switch clock to 20MHz\n");
+		dev_dbg(rtsx_dev(chip), "Switch clock to 20MHz\n");
 		sel = SSC_80;
 		div = CLK_DIV_4;
 		mcu_cnt = 7;
 		break;
 
 	case CLK_30:
-		RTSX_DEBUGP("Switch clock to 30MHz\n");
+		dev_dbg(rtsx_dev(chip), "Switch clock to 30MHz\n");
 		sel = SSC_120;
 		div = CLK_DIV_4;
 		mcu_cnt = 7;
 		break;
 
 	case CLK_40:
-		RTSX_DEBUGP("Switch clock to 40MHz\n");
+		dev_dbg(rtsx_dev(chip), "Switch clock to 40MHz\n");
 		sel = SSC_80;
 		div = CLK_DIV_2;
 		mcu_cnt = 7;
 		break;
 
 	case CLK_50:
-		RTSX_DEBUGP("Switch clock to 50MHz\n");
+		dev_dbg(rtsx_dev(chip), "Switch clock to 50MHz\n");
 		sel = SSC_100;
 		div = CLK_DIV_2;
 		mcu_cnt = 6;
 		break;
 
 	case CLK_60:
-		RTSX_DEBUGP("Switch clock to 60MHz\n");
+		dev_dbg(rtsx_dev(chip), "Switch clock to 60MHz\n");
 		sel = SSC_120;
 		div = CLK_DIV_2;
 		mcu_cnt = 6;
 		break;
 
 	case CLK_80:
-		RTSX_DEBUGP("Switch clock to 80MHz\n");
+		dev_dbg(rtsx_dev(chip), "Switch clock to 80MHz\n");
 		sel = SSC_80;
 		div = CLK_DIV_1;
 		mcu_cnt = 5;
 		break;
 
 	case CLK_100:
-		RTSX_DEBUGP("Switch clock to 100MHz\n");
+		dev_dbg(rtsx_dev(chip), "Switch clock to 100MHz\n");
 		sel = SSC_100;
 		div = CLK_DIV_1;
 		mcu_cnt = 5;
 		break;
 
 	case CLK_120:
-		RTSX_DEBUGP("Switch clock to 120MHz\n");
+		dev_dbg(rtsx_dev(chip), "Switch clock to 120MHz\n");
 		sel = SSC_120;
 		div = CLK_DIV_1;
 		mcu_cnt = 5;
 		break;
 
 	case CLK_150:
-		RTSX_DEBUGP("Switch clock to 150MHz\n");
+		dev_dbg(rtsx_dev(chip), "Switch clock to 150MHz\n");
 		sel = SSC_150;
 		div = CLK_DIV_1;
 		mcu_cnt = 4;
 		break;
 
 	case CLK_200:
-		RTSX_DEBUGP("Switch clock to 200MHz\n");
+		dev_dbg(rtsx_dev(chip), "Switch clock to 200MHz\n");
 		sel = SSC_200;
 		div = CLK_DIV_1;
 		mcu_cnt = 4;
 		break;
 
 	default:
-		RTSX_DEBUGP("Try to switch to an illegal clock (%d)\n", clk);
-		TRACE_RET(chip, STATUS_FAIL);
+		dev_dbg(rtsx_dev(chip), "Try to switch to an illegal clock (%d)\n",
+			clk);
+		rtsx_trace(chip);
+		return STATUS_FAIL;
 	}
 
-	RTSX_WRITE_REG(chip, CLK_CTL, 0xFF, CLK_LOW_FREQ);
-	if (sd_vpclk_phase_reset) {
-		RTSX_WRITE_REG(chip, SD_VPCLK0_CTL, PHASE_NOT_RESET, 0);
-		RTSX_WRITE_REG(chip, SD_VPCLK1_CTL, PHASE_NOT_RESET, 0);
+	retval = rtsx_write_register(chip, CLK_CTL, 0xFF, CLK_LOW_FREQ);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
 	}
-	RTSX_WRITE_REG(chip, CLK_DIV, 0xFF, (div << 4) | mcu_cnt);
-	RTSX_WRITE_REG(chip, CLK_SEL, 0xFF, sel);
+	if (sd_vpclk_phase_reset) {
+		retval = rtsx_write_register(chip, SD_VPCLK0_CTL,
+					     PHASE_NOT_RESET, 0);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
+		retval = rtsx_write_register(chip, SD_VPCLK1_CTL,
+					     PHASE_NOT_RESET, 0);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
+	}
+	retval = rtsx_write_register(chip, CLK_DIV, 0xFF,
+				     (div << 4) | mcu_cnt);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
+	retval = rtsx_write_register(chip, CLK_SEL, 0xFF, sel);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	if (sd_vpclk_phase_reset) {
 		udelay(200);
-		RTSX_WRITE_REG(chip, SD_VPCLK0_CTL, PHASE_NOT_RESET, PHASE_NOT_RESET);
-		RTSX_WRITE_REG(chip, SD_VPCLK1_CTL, PHASE_NOT_RESET, PHASE_NOT_RESET);
+		retval = rtsx_write_register(chip, SD_VPCLK0_CTL,
+					     PHASE_NOT_RESET, PHASE_NOT_RESET);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
+		retval = rtsx_write_register(chip, SD_VPCLK1_CTL,
+					     PHASE_NOT_RESET, PHASE_NOT_RESET);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
 		udelay(200);
 	}
-	RTSX_WRITE_REG(chip, CLK_CTL, 0xFF, 0);
+	retval = rtsx_write_register(chip, CLK_CTL, 0xFF, 0);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	chip->cur_clk = clk;
 
 	return STATUS_SUCCESS;
 }
 
-void trans_dma_enable(enum dma_data_direction dir, struct rtsx_chip *chip, u32 byte_cnt, u8 pack_size)
+void trans_dma_enable(enum dma_data_direction dir, struct rtsx_chip *chip,
+		u32 byte_cnt, u8 pack_size)
 {
 	if (pack_size > DMA_1024)
 		pack_size = DMA_512;
@@ -810,10 +868,12 @@ void trans_dma_enable(enum dma_data_direction dir, struct rtsx_chip *chip, u32 b
 	rtsx_add_cmd(chip, WRITE_REG_CMD, DMATC0, 0xFF, (u8)byte_cnt);
 
 	if (dir == DMA_FROM_DEVICE) {
-		rtsx_add_cmd(chip, WRITE_REG_CMD, DMACTL, 0x03 | DMA_PACK_SIZE_MASK,
+		rtsx_add_cmd(chip, WRITE_REG_CMD, DMACTL,
+			0x03 | DMA_PACK_SIZE_MASK,
 			     DMA_DIR_FROM_CARD | DMA_EN | pack_size);
 	} else {
-		rtsx_add_cmd(chip, WRITE_REG_CMD, DMACTL, 0x03 | DMA_PACK_SIZE_MASK,
+		rtsx_add_cmd(chip, WRITE_REG_CMD, DMACTL,
+			0x03 | DMA_PACK_SIZE_MASK,
 			     DMA_DIR_TO_CARD | DMA_EN | pack_size);
 	}
 
@@ -822,6 +882,7 @@ void trans_dma_enable(enum dma_data_direction dir, struct rtsx_chip *chip, u32 b
 
 int enable_card_clock(struct rtsx_chip *chip, u8 card)
 {
+	int retval;
 	u8 clk_en = 0;
 
 	if (card & XD_CARD)
@@ -831,13 +892,18 @@ int enable_card_clock(struct rtsx_chip *chip, u8 card)
 	if (card & MS_CARD)
 		clk_en |= MS_CLK_EN;
 
-	RTSX_WRITE_REG(chip, CARD_CLK_EN, clk_en, clk_en);
+	retval = rtsx_write_register(chip, CARD_CLK_EN, clk_en, clk_en);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	return STATUS_SUCCESS;
 }
 
 int disable_card_clock(struct rtsx_chip *chip, u8 card)
 {
+	int retval;
 	u8 clk_en = 0;
 
 	if (card & XD_CARD)
@@ -847,7 +913,11 @@ int disable_card_clock(struct rtsx_chip *chip, u8 card)
 	if (card & MS_CARD)
 		clk_en |= MS_CLK_EN;
 
-	RTSX_WRITE_REG(chip, CARD_CLK_EN, clk_en, 0);
+	retval = rtsx_write_register(chip, CARD_CLK_EN, clk_en, 0);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	return STATUS_SUCCESS;
 }
@@ -871,8 +941,10 @@ int card_power_on(struct rtsx_chip *chip, u8 card)
 	rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_PWR_CTL, mask, val1);
 
 	retval = rtsx_send_cmd(chip, 0, 100);
-	if (retval != STATUS_SUCCESS)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval != STATUS_SUCCESS) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	udelay(chip->pmos_pwr_on_interval);
 
@@ -880,14 +952,17 @@ int card_power_on(struct rtsx_chip *chip, u8 card)
 	rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_PWR_CTL, mask, val2);
 
 	retval = rtsx_send_cmd(chip, 0, 100);
-	if (retval != STATUS_SUCCESS)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval != STATUS_SUCCESS) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	return STATUS_SUCCESS;
 }
 
 int card_power_off(struct rtsx_chip *chip, u8 card)
 {
+	int retval;
 	u8 mask, val;
 
 	if (CHECK_LUN_MODE(chip, SD_MS_2LUN) && (card == MS_CARD)) {
@@ -898,19 +973,26 @@ int card_power_off(struct rtsx_chip *chip, u8 card)
 		val = SD_POWER_OFF;
 	}
 
-	RTSX_WRITE_REG(chip, CARD_PWR_CTL, mask, val);
+	retval = rtsx_write_register(chip, CARD_PWR_CTL, mask, val);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	return STATUS_SUCCESS;
 }
 
-int card_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip, u32 sec_addr, u16 sec_cnt)
+int card_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
+	u32 sec_addr, u16 sec_cnt)
 {
 	int retval;
 	unsigned int lun = SCSI_LUN(srb);
 	int i;
 
-	if (chip->rw_card[lun] == NULL)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (chip->rw_card[lun] == NULL) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	for (i = 0; i < 3; i++) {
 		chip->rw_need_retry = 0;
@@ -919,13 +1001,17 @@ int card_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip, u32 sec_addr, u16 sec
 		if (retval != STATUS_SUCCESS) {
 			if (rtsx_check_chip_exist(chip) != STATUS_SUCCESS) {
 				rtsx_release_chip(chip);
-				TRACE_RET(chip, STATUS_FAIL);
+				rtsx_trace(chip);
+				return STATUS_FAIL;
 			}
-			if (detect_card_cd(chip, chip->cur_card) != STATUS_SUCCESS)
-				TRACE_RET(chip, STATUS_FAIL);
+			if (detect_card_cd(chip, chip->cur_card) !=
+							STATUS_SUCCESS) {
+				rtsx_trace(chip);
+				return STATUS_FAIL;
+			}
 
 			if (!chip->rw_need_retry) {
-				RTSX_DEBUGP("RW fail, but no need to retry\n");
+				dev_dbg(rtsx_dev(chip), "RW fail, but no need to retry\n");
 				break;
 			}
 		} else {
@@ -933,7 +1019,7 @@ int card_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip, u32 sec_addr, u16 sec
 			break;
 		}
 
-		RTSX_DEBUGP("Retry RW, (i = %d)\n", i);
+		dev_dbg(rtsx_dev(chip), "Retry RW, (i = %d)\n", i);
 	}
 
 	return retval;
@@ -941,6 +1027,7 @@ int card_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip, u32 sec_addr, u16 sec
 
 int card_share_mode(struct rtsx_chip *chip, int card)
 {
+	int retval;
 	u8 mask, value;
 
 	if (CHECK_PID(chip, 0x5208)) {
@@ -951,8 +1038,10 @@ int card_share_mode(struct rtsx_chip *chip, int card)
 			value = CARD_SHARE_48_MS;
 		else if (card == XD_CARD)
 			value = CARD_SHARE_48_XD;
-		else
-			TRACE_RET(chip, STATUS_FAIL);
+		else {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 
 	} else if (CHECK_PID(chip, 0x5288)) {
 		mask = 0x03;
@@ -962,14 +1051,21 @@ int card_share_mode(struct rtsx_chip *chip, int card)
 			value = CARD_SHARE_BAROSSA_MS;
 		else if (card == XD_CARD)
 			value = CARD_SHARE_BAROSSA_XD;
-		else
-			TRACE_RET(chip, STATUS_FAIL);
+		else {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 
 	} else {
-		TRACE_RET(chip, STATUS_FAIL);
+		rtsx_trace(chip);
+		return STATUS_FAIL;
 	}
 
-	RTSX_WRITE_REG(chip, CARD_SHARE_MODE, mask, value);
+	retval = rtsx_write_register(chip, CARD_SHARE_MODE, mask, value);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	return STATUS_SUCCESS;
 }
@@ -990,15 +1086,23 @@ int select_card(struct rtsx_chip *chip, int card)
 			mod = XD_MOD_SEL;
 		else if (card == SPI_CARD)
 			mod = SPI_MOD_SEL;
-		else
-			TRACE_RET(chip, STATUS_FAIL);
+		else {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 
-		RTSX_WRITE_REG(chip, CARD_SELECT, 0x07, mod);
+		retval = rtsx_write_register(chip, CARD_SELECT, 0x07, mod);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
 		chip->cur_card = card;
 
 		retval =  card_share_mode(chip, card);
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 	}
 
 	return STATUS_SUCCESS;
@@ -1016,7 +1120,8 @@ void toggle_gpio(struct rtsx_chip *chip, u8 gpio)
 void turn_on_led(struct rtsx_chip *chip, u8 gpio)
 {
 	if (CHECK_PID(chip, 0x5288))
-		rtsx_write_register(chip, CARD_GPIO, (u8)(1 << gpio), (u8)(1 << gpio));
+		rtsx_write_register(chip, CARD_GPIO, (u8)(1 << gpio),
+				(u8)(1 << gpio));
 	else
 		rtsx_write_register(chip, CARD_GPIO, (u8)(1 << gpio), 0);
 }
@@ -1026,7 +1131,8 @@ void turn_off_led(struct rtsx_chip *chip, u8 gpio)
 	if (CHECK_PID(chip, 0x5288))
 		rtsx_write_register(chip, CARD_GPIO, (u8)(1 << gpio), 0);
 	else
-		rtsx_write_register(chip, CARD_GPIO, (u8)(1 << gpio), (u8)(1 << gpio));
+		rtsx_write_register(chip, CARD_GPIO, (u8)(1 << gpio),
+				(u8)(1 << gpio));
 }
 
 int detect_card_cd(struct rtsx_chip *chip, int card)
@@ -1040,13 +1146,16 @@ int detect_card_cd(struct rtsx_chip *chip, int card)
 	} else if (card == XD_CARD) {
 		card_cd = XD_EXIST;
 	} else {
-		RTSX_DEBUGP("Wrong card type: 0x%x\n", card);
-		TRACE_RET(chip, STATUS_FAIL);
+		dev_dbg(rtsx_dev(chip), "Wrong card type: 0x%x\n", card);
+		rtsx_trace(chip);
+		return STATUS_FAIL;
 	}
 
 	status = rtsx_readl(chip, RTSX_BIPR);
-	if (!(status & card_cd))
-		TRACE_RET(chip, STATUS_FAIL);
+	if (!(status & card_cd)) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	return STATUS_SUCCESS;
 }

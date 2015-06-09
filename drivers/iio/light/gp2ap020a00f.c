@@ -5,13 +5,13 @@
  * IIO features supported by the driver:
  *
  * Read-only raw channels:
- *   - illiminance_clear [lux]
- *   - illiminance_ir
+ *   - illuminance_clear [lux]
+ *   - illuminance_ir
  *   - proximity
  *
  * Triggered buffer:
- *   - illiminance_clear
- *   - illiminance_ir
+ *   - illuminance_clear
+ *   - illuminance_ir
  *   - proximity
  *
  * Events:
@@ -46,6 +46,7 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+#include <asm/unaligned.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/events.h>
 #include <linux/iio/iio.h>
@@ -827,7 +828,7 @@ static void gp2ap020a00f_iio_trigger_work(struct irq_work *work)
 	struct gp2ap020a00f_data *data =
 		container_of(work, struct gp2ap020a00f_data, work);
 
-	iio_trigger_poll(data->trig, 0);
+	iio_trigger_poll(data->trig);
 }
 
 static irqreturn_t gp2ap020a00f_prox_sensing_handler(int irq, void *data)
@@ -966,7 +967,6 @@ static irqreturn_t gp2ap020a00f_trigger_handler(int irq, void *data)
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct gp2ap020a00f_data *priv = iio_priv(indio_dev);
 	size_t d_size = 0;
-	__le32 light_lux;
 	int i, out_val, ret;
 
 	for_each_set_bit(i, indio_dev->active_scan_mask,
@@ -981,8 +981,8 @@ static irqreturn_t gp2ap020a00f_trigger_handler(int irq, void *data)
 		    i == GP2AP020A00F_SCAN_MODE_LIGHT_IR) {
 			out_val = le16_to_cpup((__le16 *)&priv->buffer[d_size]);
 			gp2ap020a00f_output_to_lux(priv, &out_val);
-			light_lux = cpu_to_le32(out_val);
-			memcpy(&priv->buffer[d_size], (u8 *)&light_lux, 4);
+
+			put_unaligned_le32(out_val, &priv->buffer[d_size]);
 			d_size += 4;
 		} else {
 			d_size += 2;

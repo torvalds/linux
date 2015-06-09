@@ -181,8 +181,6 @@ static void caam_jr_dequeue(unsigned long devarg)
 		for (i = 0; CIRC_CNT(head, tail + i, JOBR_DEPTH) >= 1; i++) {
 			sw_idx = (tail + i) & (JOBR_DEPTH - 1);
 
-			smp_read_barrier_depends();
-
 			if (jrp->outring[hw_idx].desc ==
 			    jrp->entinfo[sw_idx].desc_addr_dma)
 				break; /* found */
@@ -218,7 +216,6 @@ static void caam_jr_dequeue(unsigned long devarg)
 		if (sw_idx == tail) {
 			do {
 				tail = (tail + 1) & (JOBR_DEPTH - 1);
-				smp_read_barrier_depends();
 			} while (CIRC_CNT(head, tail, JOBR_DEPTH) >= 1 &&
 				 jrp->entinfo[tail].desc_addr_dma == 0);
 
@@ -387,30 +384,28 @@ static int caam_jr_init(struct device *dev)
 	if (error) {
 		dev_err(dev, "can't connect JobR %d interrupt (%d)\n",
 			jrp->ridx, jrp->irq);
-		irq_dispose_mapping(jrp->irq);
-		jrp->irq = 0;
-		return -EINVAL;
+		goto out_kill_deq;
 	}
 
 	error = caam_reset_hw_jr(dev);
 	if (error)
-		return error;
+		goto out_free_irq;
 
+	error = -ENOMEM;
 	jrp->inpring = dma_alloc_coherent(dev, sizeof(dma_addr_t) * JOBR_DEPTH,
 					  &inpbusaddr, GFP_KERNEL);
+	if (!jrp->inpring)
+		goto out_free_irq;
 
 	jrp->outring = dma_alloc_coherent(dev, sizeof(struct jr_outentry) *
 					  JOBR_DEPTH, &outbusaddr, GFP_KERNEL);
+	if (!jrp->outring)
+		goto out_free_inpring;
 
 	jrp->entinfo = kzalloc(sizeof(struct caam_jrentry_info) * JOBR_DEPTH,
 			       GFP_KERNEL);
-
-	if ((jrp->inpring == NULL) || (jrp->outring == NULL) ||
-	    (jrp->entinfo == NULL)) {
-		dev_err(dev, "can't allocate job rings for %d\n",
-			jrp->ridx);
-		return -ENOMEM;
-	}
+	if (!jrp->entinfo)
+		goto out_free_outring;
 
 	for (i = 0; i < JOBR_DEPTH; i++)
 		jrp->entinfo[i].desc_addr_dma = !0;
@@ -437,6 +432,19 @@ static int caam_jr_init(struct device *dev)
 		  (JOBR_INTC_TIME_THLD << JRCFG_ICTT_SHIFT));
 
 	return 0;
+
+out_free_outring:
+	dma_free_coherent(dev, sizeof(struct jr_outentry) * JOBR_DEPTH,
+			  jrp->outring, outbusaddr);
+out_free_inpring:
+	dma_free_coherent(dev, sizeof(dma_addr_t) * JOBR_DEPTH,
+			  jrp->inpring, inpbusaddr);
+	dev_err(dev, "can't allocate job rings for %d\n", jrp->ridx);
+out_free_irq:
+	free_irq(jrp->irq, dev);
+out_kill_deq:
+	tasklet_kill(&jrp->irqtask);
+	return error;
 }
 
 
@@ -453,8 +461,8 @@ static int caam_jr_probe(struct platform_device *pdev)
 	int error;
 
 	jrdev = &pdev->dev;
-	jrpriv = kmalloc(sizeof(struct caam_drv_private_jr),
-			 GFP_KERNEL);
+	jrpriv = devm_kmalloc(jrdev, sizeof(struct caam_drv_private_jr),
+			      GFP_KERNEL);
 	if (!jrpriv)
 		return -ENOMEM;
 
@@ -476,11 +484,11 @@ static int caam_jr_probe(struct platform_device *pdev)
 
 	if (sizeof(dma_addr_t) == sizeof(u64))
 		if (of_device_is_compatible(nprop, "fsl,sec-v5.0-job-ring"))
-			dma_set_mask(jrdev, DMA_BIT_MASK(40));
+			dma_set_mask_and_coherent(jrdev, DMA_BIT_MASK(40));
 		else
-			dma_set_mask(jrdev, DMA_BIT_MASK(36));
+			dma_set_mask_and_coherent(jrdev, DMA_BIT_MASK(36));
 	else
-		dma_set_mask(jrdev, DMA_BIT_MASK(32));
+		dma_set_mask_and_coherent(jrdev, DMA_BIT_MASK(32));
 
 	/* Identify the interrupt */
 	jrpriv->irq = irq_of_parse_and_map(nprop, 0);
@@ -488,7 +496,7 @@ static int caam_jr_probe(struct platform_device *pdev)
 	/* Now do the platform independent part */
 	error = caam_jr_init(jrdev); /* now turn on hardware */
 	if (error) {
-		kfree(jrpriv);
+		irq_dispose_mapping(jrpriv->irq);
 		return error;
 	}
 
@@ -516,7 +524,6 @@ MODULE_DEVICE_TABLE(of, caam_jr_match);
 static struct platform_driver caam_jr_driver = {
 	.driver = {
 		.name = "caam_jr",
-		.owner = THIS_MODULE,
 		.of_match_table = caam_jr_match,
 	},
 	.probe       = caam_jr_probe,

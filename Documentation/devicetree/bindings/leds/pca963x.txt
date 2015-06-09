@@ -1,18 +1,19 @@
 LEDs connected to pca9632, pca9633 or pca9634
 
 Required properties:
-- compatible : should be : "nxp,pca9632", "nxp,pca9633" or "nxp,pca9634"
+- compatible : should be : "nxp,pca9632", "nxp,pca9633", "nxp,pca9634" or "nxp,pca9635"
 
 Optional properties:
-- nxp,totem-pole : use totem pole (push-pull) instead of default open-drain
+- nxp,totem-pole : use totem pole (push-pull) instead of open-drain (pca9632 defaults
+  to open-drain, newer chips to totem pole)
 - nxp,hw-blink : use hardware blinking instead of software blinking
 
 Each led is represented as a sub-node of the nxp,pca963x device.
 
 LED sub-node properties:
 - label : (optional) see Documentation/devicetree/bindings/leds/common.txt
-- reg : number of LED line (could be from 0 to 3  in pca9632 or pca9633
-		or 0 to 7 in pca9634)
+- reg : number of LED line (could be from 0 to 3 in pca9632 or pca9633,
+		0 to 7 in pca9634, or 0 to 15 in pca9635)
 - linux,default-trigger : (optional)
    see Documentation/devicetree/bindings/leds/common.txt
 

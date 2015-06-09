@@ -215,23 +215,23 @@
 
 /* Interrupt Mask register */
 #define PERF_IRQMASK_3368_REG		0xc
-#define PERF_IRQMASK_6328_REG		0x20
+#define PERF_IRQMASK_6328_REG(x)	(0x20 + (x) * 0x10)
 #define PERF_IRQMASK_6338_REG		0xc
 #define PERF_IRQMASK_6345_REG		0xc
 #define PERF_IRQMASK_6348_REG		0xc
-#define PERF_IRQMASK_6358_REG		0xc
-#define PERF_IRQMASK_6362_REG		0x20
-#define PERF_IRQMASK_6368_REG		0x20
+#define PERF_IRQMASK_6358_REG(x)	(0xc + (x) * 0x2c)
+#define PERF_IRQMASK_6362_REG(x)	(0x20 + (x) * 0x10)
+#define PERF_IRQMASK_6368_REG(x)	(0x20 + (x) * 0x10)
 
 /* Interrupt Status register */
 #define PERF_IRQSTAT_3368_REG		0x10
-#define PERF_IRQSTAT_6328_REG		0x28
+#define PERF_IRQSTAT_6328_REG(x)	(0x28 + (x) * 0x10)
 #define PERF_IRQSTAT_6338_REG		0x10
 #define PERF_IRQSTAT_6345_REG		0x10
 #define PERF_IRQSTAT_6348_REG		0x10
-#define PERF_IRQSTAT_6358_REG		0x10
-#define PERF_IRQSTAT_6362_REG		0x28
-#define PERF_IRQSTAT_6368_REG		0x28
+#define PERF_IRQSTAT_6358_REG(x)	(0x10 + (x) * 0x2c)
+#define PERF_IRQSTAT_6362_REG(x)	(0x28 + (x) * 0x10)
+#define PERF_IRQSTAT_6368_REG(x)	(0x28 + (x) * 0x10)
 
 /* External Interrupt Configuration register */
 #define PERF_EXTIRQ_CFG_REG_3368	0x14
@@ -1257,20 +1257,6 @@
 
 #define M2M_SRCID_REG(x)		((x) * 0x40 + 0x14)
 #define M2M_DSTID_REG(x)		((x) * 0x40 + 0x18)
-
-/*************************************************************************
- * _REG relative to RSET_RNG
- *************************************************************************/
-
-#define RNG_CTRL			0x00
-#define RNG_EN				(1 << 0)
-
-#define RNG_STAT			0x04
-#define RNG_AVAIL_MASK			(0xff000000)
-
-#define RNG_DATA			0x08
-#define RNG_THRES			0x0c
-#define RNG_MASK			0x10
 
 /*************************************************************************
  * _REG relative to RSET_SPI

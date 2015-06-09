@@ -217,21 +217,17 @@ crc_init_out:
 static u32 sh_sir_find_sclk(struct clk *irda_clk)
 {
 	struct cpufreq_frequency_table *freq_table = irda_clk->freq_table;
+	struct cpufreq_frequency_table *pos;
 	struct clk *pclk = clk_get(NULL, "peripheral_clk");
 	u32 limit, min = 0xffffffff, tmp;
-	int i, index = 0;
+	int index = 0;
 
 	limit = clk_get_rate(pclk);
 	clk_put(pclk);
 
 	/* IrDA can not set over peripheral_clk */
-	for (i = 0;
-	     freq_table[i].frequency != CPUFREQ_TABLE_END;
-	     i++) {
-		u32 freq = freq_table[i].frequency;
-
-		if (freq == CPUFREQ_ENTRY_INVALID)
-			continue;
+	cpufreq_for_each_valid_entry(pos, freq_table) {
+		u32 freq = pos->frequency;
 
 		/* IrDA should not over peripheral_clk */
 		if (freq > limit)
@@ -240,7 +236,7 @@ static u32 sh_sir_find_sclk(struct clk *irda_clk)
 		tmp = freq % SCLK_BASE;
 		if (tmp < min) {
 			min = tmp;
-			index = i;
+			index = pos - freq_table;
 		}
 	}
 

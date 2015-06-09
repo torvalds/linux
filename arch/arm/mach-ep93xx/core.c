@@ -117,7 +117,7 @@ void __init ep93xx_map_io(void)
 #define EP93XX_TIMER4_CLOCK		983040
 
 #define TIMER1_RELOAD			((EP93XX_TIMER123_CLOCK / HZ) - 1)
-#define TIMER4_TICKS_PER_JIFFY		DIV_ROUND_CLOSEST(CLOCK_TICK_RATE, HZ)
+#define TIMER4_TICKS_PER_JIFFY		DIV_ROUND_CLOSEST(EP93XX_TIMER4_CLOCK, HZ)
 
 static unsigned int last_jiffy_time;
 
@@ -242,6 +242,7 @@ unsigned int ep93xx_chip_revision(void)
 	v >>= EP93XX_SYSCON_SYSCFG_REV_SHIFT;
 	return v;
 }
+EXPORT_SYMBOL_GPL(ep93xx_chip_revision);
 
 /*************************************************************************
  * EP93xx GPIO

@@ -293,22 +293,21 @@ static int snd_cmi8328_probe(struct device *pdev, unsigned int ndev)
 	}
 	outb(val, port);
 
-	err = snd_card_create(index[ndev], id[ndev], THIS_MODULE,
-				sizeof(struct snd_cmi8328), &card);
+	err = snd_card_new(pdev, index[ndev], id[ndev], THIS_MODULE,
+			   sizeof(struct snd_cmi8328), &card);
 	if (err < 0)
 		return err;
 	cmi = card->private_data;
 	cmi->card = card;
 	cmi->port = port;
 	cmi->wss_cfg = val;
-	snd_card_set_dev(card, pdev);
 
 	err = snd_wss_create(card, port + 4, -1, irq[ndev], dma1[ndev],
 			dma2[ndev], WSS_HW_DETECT, 0, &cmi->wss);
 	if (err < 0)
 		goto error;
 
-	err = snd_wss_pcm(cmi->wss, 0, NULL);
+	err = snd_wss_pcm(cmi->wss, 0);
 	if (err < 0)
 		goto error;
 
@@ -319,7 +318,7 @@ static int snd_cmi8328_probe(struct device *pdev, unsigned int ndev)
 	if (err < 0)
 		goto error;
 
-	if (snd_wss_timer(cmi->wss, 0, NULL) < 0)
+	if (snd_wss_timer(cmi->wss, 0) < 0)
 		snd_printk(KERN_WARNING "error initializing WSS timer\n");
 
 	if (mpuport[ndev] == SNDRV_AUTO_PORT) {

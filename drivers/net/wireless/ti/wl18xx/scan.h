@@ -122,6 +122,6 @@ int wl18xx_scan_stop(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 void wl18xx_scan_completed(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 int wl18xx_sched_scan_start(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			    struct cfg80211_sched_scan_request *req,
-			    struct ieee80211_sched_scan_ies *ies);
+			    struct ieee80211_scan_ies *ies);
 void wl18xx_scan_sched_scan_stop(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 #endif

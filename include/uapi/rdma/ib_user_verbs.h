@@ -90,8 +90,9 @@ enum {
 };
 
 enum {
+	IB_USER_VERBS_EX_CMD_QUERY_DEVICE = IB_USER_VERBS_CMD_QUERY_DEVICE,
 	IB_USER_VERBS_EX_CMD_CREATE_FLOW = IB_USER_VERBS_CMD_THRESHOLD,
-	IB_USER_VERBS_EX_CMD_DESTROY_FLOW
+	IB_USER_VERBS_EX_CMD_DESTROY_FLOW,
 };
 
 /*
@@ -201,6 +202,28 @@ struct ib_uverbs_query_device_resp {
 	__u8  reserved[4];
 };
 
+struct ib_uverbs_ex_query_device {
+	__u32 comp_mask;
+	__u32 reserved;
+};
+
+struct ib_uverbs_odp_caps {
+	__u64 general_caps;
+	struct {
+		__u32 rc_odp_caps;
+		__u32 uc_odp_caps;
+		__u32 ud_odp_caps;
+	} per_transport_caps;
+	__u32 reserved;
+};
+
+struct ib_uverbs_ex_query_device_resp {
+	struct ib_uverbs_query_device_resp base;
+	__u32 comp_mask;
+	__u32 response_length;
+	struct ib_uverbs_odp_caps odp_caps;
+};
+
 struct ib_uverbs_query_port {
 	__u64 response;
 	__u8  port_num;
@@ -272,6 +295,22 @@ struct ib_uverbs_reg_mr {
 
 struct ib_uverbs_reg_mr_resp {
 	__u32 mr_handle;
+	__u32 lkey;
+	__u32 rkey;
+};
+
+struct ib_uverbs_rereg_mr {
+	__u64 response;
+	__u32 mr_handle;
+	__u32 flags;
+	__u64 start;
+	__u64 length;
+	__u64 hca_va;
+	__u32 pd_handle;
+	__u32 access_flags;
+};
+
+struct ib_uverbs_rereg_mr_resp {
 	__u32 lkey;
 	__u32 rkey;
 };

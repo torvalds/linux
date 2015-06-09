@@ -5,6 +5,4 @@
 extern char __initrd_start, __initrd_end;
 #endif
 
-extern u32 __dtb_start[];
-
 #endif

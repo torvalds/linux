@@ -130,7 +130,7 @@ void HTDebugHTCapability(u8 *CapIE, u8 *TitleString )
 	if(!memcmp(CapIE, EWC11NHTCap, sizeof(EWC11NHTCap)))
 	{
 		//EWC IE
-		IEEE80211_DEBUG(IEEE80211_DL_HT, "EWC IE in %s()\n", __FUNCTION__);
+		IEEE80211_DEBUG(IEEE80211_DL_HT, "EWC IE in %s()\n", __func__);
 		pCapELE = (PHT_CAPABILITY_ELE)(&CapIE[4]);
 	}else
 		pCapELE = (PHT_CAPABILITY_ELE)(&CapIE[0]);
@@ -167,7 +167,7 @@ void HTDebugHTInfo(u8 *InfoIE, u8 *TitleString)
 	if(!memcmp(InfoIE, EWC11NHTInfo, sizeof(EWC11NHTInfo)))
 	{
 		// Not EWC IE
-		IEEE80211_DEBUG(IEEE80211_DL_HT, "EWC IE in %s()\n", __FUNCTION__);
+		IEEE80211_DEBUG(IEEE80211_DL_HT, "EWC IE in %s()\n", __func__);
 		pHTInfoEle = (PHT_INFORMATION_ELE)(&InfoIE[4]);
 	}else
 		pHTInfoEle = (PHT_INFORMATION_ELE)(&InfoIE[0]);
@@ -219,7 +219,7 @@ void HTDebugHTInfo(u8 *InfoIE, u8 *TitleString)
 /*
 *	Return:		true if station in half n mode and AP supports 40 bw
 */
-bool IsHTHalfNmode40Bandwidth(struct ieee80211_device *ieee)
+static bool IsHTHalfNmode40Bandwidth(struct ieee80211_device *ieee)
 {
 	bool			retValue = false;
 	PRT_HIGH_THROUGHPUT	 pHTInfo = ieee->pHTInfo;
@@ -238,7 +238,7 @@ bool IsHTHalfNmode40Bandwidth(struct ieee80211_device *ieee)
 	return retValue;
 }
 
-bool IsHTHalfNmodeSGI(struct ieee80211_device *ieee, bool is40MHz)
+static bool IsHTHalfNmodeSGI(struct ieee80211_device *ieee, bool is40MHz)
 {
 	bool			retValue = false;
 	PRT_HIGH_THROUGHPUT	 pHTInfo = ieee->pHTInfo;
@@ -278,7 +278,7 @@ u16 HTHalfMcsToDataRate(struct ieee80211_device *ieee,	u8	nMcsRate)
 }
 
 
-u16 HTMcsToDataRate( struct ieee80211_device *ieee, u8 nMcsRate)
+u16 HTMcsToDataRate(struct ieee80211_device *ieee, u8 nMcsRate)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 
@@ -297,7 +297,7 @@ u16 HTMcsToDataRate( struct ieee80211_device *ieee, u8 nMcsRate)
  *  return:  tx rate
  *  notice:  quite unsure about how to use this function //wb
  * *****************************************************************************************************************/
-u16  TxCountToDataRate( struct ieee80211_device *ieee, u8 nDataRate)
+u16  TxCountToDataRate(struct ieee80211_device *ieee, u8 nDataRate)
 {
 	//PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 	u16		CCKOFDMRate[12] = {0x02 , 0x04 , 0x0b , 0x16 , 0x0c , 0x12 , 0x18 , 0x24 , 0x30 , 0x48 , 0x60 , 0x6c};
@@ -376,7 +376,7 @@ bool IsHTHalfNmodeAPs(struct ieee80211_device *ieee)
  *  return:
  *  notice:
  * *****************************************************************************************************************/
-void HTIOTPeerDetermine(struct ieee80211_device *ieee)
+static void HTIOTPeerDetermine(struct ieee80211_device *ieee)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 	struct ieee80211_network *net = &ieee->current_network;
@@ -413,10 +413,9 @@ void HTIOTPeerDetermine(struct ieee80211_device *ieee)
  *  output:  none
  *  return:  return 1 if driver should declare MCS13 only(otherwise return 0)
   * *****************************************************************************************************************/
-u8 HTIOTActIsDisableMCS14(struct ieee80211_device *ieee, u8 *PeerMacAddr)
+static u8 HTIOTActIsDisableMCS14(struct ieee80211_device *ieee, u8 *PeerMacAddr)
 {
-	u8 ret = 0;
-	return ret;
+	return 0;
  }
 
 
@@ -432,7 +431,7 @@ u8 HTIOTActIsDisableMCS14(struct ieee80211_device *ieee, u8 *PeerMacAddr)
 * Return:	true if driver should disable MCS15
 * 2008.04.15	Emily
 */
-bool HTIOTActIsDisableMCS15(struct ieee80211_device *ieee)
+static bool HTIOTActIsDisableMCS15(struct ieee80211_device *ieee)
 {
 	bool retValue = false;
 
@@ -469,14 +468,13 @@ bool HTIOTActIsDisableMCS15(struct ieee80211_device *ieee)
 * Return:	true if driver should disable all two spatial stream packet
 * 2008.04.21	Emily
 */
-bool HTIOTActIsDisableMCSTwoSpatialStream(struct ieee80211_device *ieee, u8 *PeerMacAddr)
+static bool HTIOTActIsDisableMCSTwoSpatialStream(struct ieee80211_device *ieee,
+						 u8 *PeerMacAddr)
 {
-	bool retValue = false;
-
 #ifdef TODO
 	// Apply for 819u only
 #endif
-	return retValue;
+	return false;
 }
 
 /********************************************************************************************************************
@@ -486,12 +484,10 @@ bool HTIOTActIsDisableMCSTwoSpatialStream(struct ieee80211_device *ieee, u8 *Pee
  *  output:  none
  *  return:  return 1 if driver should disable EDCA turbo mode(otherwise return 0)
   * *****************************************************************************************************************/
-u8 HTIOTActIsDisableEDCATurbo(struct ieee80211_device *ieee, u8 *PeerMacAddr)
-{
-	u8	retValue = false;	// default enable EDCA Turbo mode.
-	// Set specific EDCA parameter for different AP in DM handler.
-
-	return retValue;
+static u8 HTIOTActIsDisableEDCATurbo(struct ieee80211_device *ieee,
+				     u8 *PeerMacAddr)
+{	/* default enable EDCA Turbo mode. */
+	return false;
 }
 
 /********************************************************************************************************************
@@ -500,14 +496,14 @@ u8 HTIOTActIsDisableEDCATurbo(struct ieee80211_device *ieee, u8 *PeerMacAddr)
  *  output:  none
  *  return:  return 1 if true
   * *****************************************************************************************************************/
-u8 HTIOTActIsMgntUseCCK6M(struct ieee80211_network *network)
+static u8 HTIOTActIsMgntUseCCK6M(struct ieee80211_network *network)
 {
 	u8	retValue = 0;
 
 	// 2008/01/25 MH Judeg if we need to use OFDM to sned MGNT frame for broadcom AP.
 	// 2008/01/28 MH We must prevent that we select null bssid to link.
 
-	if(network->broadcom_cap_exist)
+	if (network->broadcom_cap_exist)
 	{
 		retValue = 1;
 	}
@@ -515,7 +511,7 @@ u8 HTIOTActIsMgntUseCCK6M(struct ieee80211_network *network)
 	return retValue;
 }
 
-u8 HTIOTActIsCCDFsync(u8 *PeerMacAddr)
+static u8 HTIOTActIsCCDFsync(u8 *PeerMacAddr)
 {
 	u8	retValue = 0;
 	if(	(memcmp(PeerMacAddr, UNKNOWN_BORADCOM, 3)==0) ||
@@ -601,8 +597,7 @@ void HTConstructCapabilityElement(struct ieee80211_device *ieee, u8 *posHTCap, u
 	// TODO: Nedd to take care of this part
 	IEEE80211_DEBUG(IEEE80211_DL_HT, "TX HT cap/info ele BW=%d MaxAMSDUSize:%d DssCCk:%d\n", pCapELE->ChlWidth, pCapELE->MaxAMSDUSize, pCapELE->DssCCk);
 
-	if( IsEncrypt)
-	{
+	if (IsEncrypt) {
 		pCapELE->MPDUDensity	= 7; // 8us
 		pCapELE->MaxRxAMPDUFactor	= 2; // 2 is for 32 K and 3 is 64K
 	}
@@ -625,7 +620,7 @@ void HTConstructCapabilityElement(struct ieee80211_device *ieee, u8 *posHTCap, u
 
 	// 2008.06.12
 	// For RTL819X, if pairwisekey = wep/tkip, ap is ralink, we support only MCS0~7.
-	if(ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
+	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
 	{
 		int i;
 		for(i = 1; i< 16; i++)
@@ -752,7 +747,7 @@ void HTConstructRT2RTAggElement(struct ieee80211_device *ieee, u8 *posRT2RTAgg, 
 	*posRT2RTAgg++ = 0x01;
 	*posRT2RTAgg = 0x10;//*posRT2RTAgg = 0x02;
 
-	if(ieee->bSupportRemoteWakeUp) {
+	if (ieee->bSupportRemoteWakeUp) {
 		*posRT2RTAgg |= 0x08;//RT_HT_CAP_USE_WOW;
 	}
 
@@ -792,7 +787,7 @@ void HTConstructRT2RTAggElement(struct ieee80211_device *ieee, u8 *posRT2RTAgg, 
  *  return:  always we return true
  *  notice:
   * *****************************************************************************************************************/
-u8 HT_PickMCSRate(struct ieee80211_device *ieee, u8 *pOperateMCS)
+static u8 HT_PickMCSRate(struct ieee80211_device *ieee, u8 *pOperateMCS)
 {
 	u8					i;
 	if (pOperateMCS == NULL)
@@ -879,17 +874,17 @@ u8 HTGetHighestMCSRate(struct ieee80211_device *ieee, u8 *pMCSRateSet, u8 *pMCSF
 
 	for(i = 0; i < 16; i++)
 	{
-		if(availableMcsRate[i] != 0)
+		if (availableMcsRate[i] != 0)
 		{
 			bitMap = availableMcsRate[i];
 			for(j = 0; j < 8; j++)
 			{
-				if((bitMap%2) != 0)
+				if ((bitMap%2) != 0)
 				{
 					if(HTMcsToDataRate(ieee, (8*i+j)) > HTMcsToDataRate(ieee, mcsRate))
 						mcsRate = (8*i+j);
 				}
-				bitMap = bitMap>>1;
+				bitMap >>= 1;
 			}
 		}
 	}
@@ -907,7 +902,8 @@ u8 HTGetHighestMCSRate(struct ieee80211_device *ieee, u8 *pMCSRateSet, u8 *pMCSF
 **
 ** \pHTSupportedCap: the connected STA's supported rate Capability element
 */
-u8 HTFilterMCSRate( struct ieee80211_device *ieee, u8 *pSupportMCS, u8 *pOperateMCS)
+static u8 HTFilterMCSRate(struct ieee80211_device *ieee, u8 *pSupportMCS,
+			  u8 *pOperateMCS)
 {
 
 	u8 i=0;
@@ -949,8 +945,7 @@ void HTOnAssocRsp(struct ieee80211_device *ieee)
 	static u8				EWC11NHTCap[] = {0x00, 0x90, 0x4c, 0x33};		// For 11n EWC definition, 2007.07.17, by Emily
 	static u8				EWC11NHTInfo[] = {0x00, 0x90, 0x4c, 0x34};	// For 11n EWC definition, 2007.07.17, by Emily
 
-	if( pHTInfo->bCurrentHTSupport == false )
-	{
+	if (pHTInfo->bCurrentHTSupport == false) {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "<=== HTOnAssocRsp(): HT_DISABLE\n");
 		return;
 	}
@@ -1041,7 +1036,7 @@ void HTOnAssocRsp(struct ieee80211_device *ieee)
 		// Replace MPDU factor declared in original association response frame format. 2007.08.20 by Emily
 		if (ieee->current_network.bssht.bdRT2RTAggregation)
 		{
-			if( ieee->pairwise_key_type != KEY_TYPE_NA)
+			if (ieee->pairwise_key_type != KEY_TYPE_NA)
 				// Realtek may set 32k in security mode and 64k for others
 				pHTInfo->CurrentAMPDUFactor = pPeerHTCap->MaxRxAMPDUFactor;
 			else
@@ -1067,7 +1062,7 @@ void HTOnAssocRsp(struct ieee80211_device *ieee)
 
 	// Lanhsin: mark for tmp to avoid deauth by ap from  s3
 	//if(memcmp(pMgntInfo->Bssid, NETGEAR834Bv2_BROADCOM, 3)==0)
-	if(0)
+	if (0)
 		{
 
 			pHTInfo->bCurrentAMPDUEnable = false;
@@ -1131,7 +1126,7 @@ void HTInitializeHTInfo(struct ieee80211_device *ieee)
 	//
 	// These parameters will be reset when receiving deauthentication packet
 	//
-	IEEE80211_DEBUG(IEEE80211_DL_HT, "===========>%s()\n", __FUNCTION__);
+	IEEE80211_DEBUG(IEEE80211_DL_HT, "===========>%s()\n", __func__);
 	pHTInfo->bCurrentHTSupport = false;
 
 	// 40MHz channel support
@@ -1226,7 +1221,7 @@ void HTResetSelfAndSavePeerSetting(struct ieee80211_device *ieee,	struct ieee802
 	//
 	//  Save Peer Setting before Association
 	//
-	IEEE80211_DEBUG(IEEE80211_DL_HT, "==============>%s()\n", __FUNCTION__);
+	IEEE80211_DEBUG(IEEE80211_DL_HT, "==============>%s()\n", __func__);
 	/*unmark bEnableHT flag here is the same reason why unmarked in function ieee80211_softmac_new_net. WB 2008.09.10*/
 //	if( pHTInfo->bEnableHT &&  pNetwork->bssht.bdSupportHT)
 	if (pNetwork->bssht.bdSupportHT)
@@ -1303,7 +1298,7 @@ void HTUpdateSelfAndPeerSetting(struct ieee80211_device *ieee,	struct ieee80211_
 //	PHT_CAPABILITY_ELE		pPeerHTCap = (PHT_CAPABILITY_ELE)pNetwork->bssht.bdHTCapBuf;
 	PHT_INFORMATION_ELE		pPeerHTInfo = (PHT_INFORMATION_ELE)pNetwork->bssht.bdHTInfoBuf;
 
-	if(pHTInfo->bCurrentHTSupport)
+	if (pHTInfo->bCurrentHTSupport)
 	{
 		//
 		// Config current operation mode.
@@ -1316,52 +1311,8 @@ void HTUpdateSelfAndPeerSetting(struct ieee80211_device *ieee,	struct ieee80211_
 		//
 	}
 }
+EXPORT_SYMBOL(HTUpdateSelfAndPeerSetting);
 
-void HTUseDefaultSetting(struct ieee80211_device *ieee)
-{
-	PRT_HIGH_THROUGHPUT pHTInfo = ieee->pHTInfo;
-//	u8	regBwOpMode;
-
-	if(pHTInfo->bEnableHT)
-	{
-		pHTInfo->bCurrentHTSupport = true;
-
-		pHTInfo->bCurSuppCCK = pHTInfo->bRegSuppCCK;
-
-		pHTInfo->bCurBW40MHz = pHTInfo->bRegBW40MHz;
-
-		pHTInfo->bCurShortGI20MHz= pHTInfo->bRegShortGI20MHz;
-
-		pHTInfo->bCurShortGI40MHz= pHTInfo->bRegShortGI40MHz;
-
-		pHTInfo->bCurrent_AMSDU_Support = pHTInfo->bAMSDU_Support;
-
-		pHTInfo->nCurrent_AMSDU_MaxSize = pHTInfo->nAMSDU_MaxSize;
-
-		pHTInfo->bCurrentAMPDUEnable = pHTInfo->bAMPDUEnable;
-
-		pHTInfo->CurrentAMPDUFactor = pHTInfo->AMPDU_Factor;
-
-		pHTInfo->CurrentMPDUDensity = pHTInfo->MPDU_Density;
-
-		// Set BWOpMode register
-
-		//update RATR index0
-		HTFilterMCSRate(ieee, ieee->Regdot11HTOperationalRateSet, ieee->dot11HTOperationalRateSet);
-	//function below is not implemented at all. WB
-#ifdef TODO
-		Adapter->HalFunc.InitHalRATRTableHandler( Adapter, &pMgntInfo->dot11OperationalRateSet, pMgntInfo->dot11HTOperationalRateSet);
-#endif
-		ieee->HTHighestOperaRate = HTGetHighestMCSRate(ieee, ieee->dot11HTOperationalRateSet, MCS_FILTER_ALL);
-		ieee->HTCurrentOperaRate = ieee->HTHighestOperaRate;
-
-	}
-	else
-	{
-		pHTInfo->bCurrentHTSupport = false;
-	}
-	return;
-}
 /********************************************************************************************************************
  *function:  check whether HT control field exists
  *   input:  struct ieee80211_device	*ieee
@@ -1372,10 +1323,9 @@ void HTUseDefaultSetting(struct ieee80211_device *ieee)
 ********************************************************************************************************************/
 u8 HTCCheck(struct ieee80211_device *ieee, u8 *pFrame)
 {
-	if(ieee->pHTInfo->bCurrentHTSupport)
+	if (ieee->pHTInfo->bCurrentHTSupport)
 	{
-		if( (IsQoSDataFrame(pFrame) && Frame_Order(pFrame)) == 1)
-		{
+		if ((IsQoSDataFrame(pFrame) && Frame_Order(pFrame)) == 1) {
 			IEEE80211_DEBUG(IEEE80211_DL_HT, "HT CONTROL FILED EXIST!!\n");
 			return true;
 		}
@@ -1402,7 +1352,7 @@ void HTSetConnectBwMode(struct ieee80211_device *ieee, HT_CHANNEL_WIDTH	Bandwidt
 //		return;
 
 //	spin_lock_irqsave(&(ieee->bw_spinlock), flags);
-	if(pHTInfo->bSwBwInProgress) {
+	if (pHTInfo->bSwBwInProgress) {
 //		spin_unlock_irqrestore(&(ieee->bw_spinlock), flags);
 		return;
 	}
@@ -1439,7 +1389,7 @@ void HTSetConnectBwModeCallback(struct ieee80211_device *ieee)
 {
 	PRT_HIGH_THROUGHPUT pHTInfo = ieee->pHTInfo;
 
-	IEEE80211_DEBUG(IEEE80211_DL_HT, "======>%s()\n", __FUNCTION__);
+	IEEE80211_DEBUG(IEEE80211_DL_HT, "======>%s()\n", __func__);
 
 	if(pHTInfo->bCurBW40MHz)
 	{
@@ -1458,5 +1408,3 @@ void HTSetConnectBwModeCallback(struct ieee80211_device *ieee)
 
 	pHTInfo->bSwBwInProgress = false;
 }
-
-EXPORT_SYMBOL(HTUpdateSelfAndPeerSetting);

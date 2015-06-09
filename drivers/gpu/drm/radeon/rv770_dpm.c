@@ -24,6 +24,7 @@
 
 #include "drmP.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "rv770d.h"
 #include "r600_dpm.h"
 #include "rv770_dpm.h"
@@ -230,6 +231,7 @@ u8 rv770_get_seq_value(struct radeon_device *rdev,
 		MC_CG_SEQ_DRAMCONF_S0 : MC_CG_SEQ_DRAMCONF_S1;
 }
 
+#if 0
 int rv770_read_smc_soft_register(struct radeon_device *rdev,
 				 u16 reg_offset, u32 *value)
 {
@@ -239,6 +241,7 @@ int rv770_read_smc_soft_register(struct radeon_device *rdev,
 					 pi->soft_regs_start + reg_offset,
 					 value, pi->sram_end);
 }
+#endif
 
 int rv770_write_smc_soft_register(struct radeon_device *rdev,
 				  u16 reg_offset, u32 value)
@@ -2074,6 +2077,7 @@ int rv770_dpm_set_power_state(struct radeon_device *rdev)
 	return 0;
 }
 
+#if 0
 void rv770_dpm_reset_asic(struct radeon_device *rdev)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
@@ -2086,6 +2090,7 @@ void rv770_dpm_reset_asic(struct radeon_device *rdev)
 	if (pi->dcodt)
 		rv770_program_dcodt_after_state_switch(rdev, boot_ps, boot_ps);
 }
+#endif
 
 void rv770_dpm_setup_asic(struct radeon_device *rdev)
 {
@@ -2281,9 +2286,6 @@ int rv7xx_parse_power_table(struct radeon_device *rdev)
 				  power_info->pplib.ucNumStates, GFP_KERNEL);
 	if (!rdev->pm.dpm.ps)
 		return -ENOMEM;
-	rdev->pm.dpm.platform_caps = le32_to_cpu(power_info->pplib.ulPlatformCaps);
-	rdev->pm.dpm.backbias_response_time = le16_to_cpu(power_info->pplib.usBackbiasTime);
-	rdev->pm.dpm.voltage_response_time = le16_to_cpu(power_info->pplib.usVoltageTime);
 
 	for (i = 0; i < power_info->pplib.ucNumStates; i++) {
 		power_state = (union pplib_power_state *)
@@ -2332,12 +2334,6 @@ void rv770_get_engine_memory_ss(struct radeon_device *rdev)
 	pi->mclk_ss = radeon_atombios_get_asic_ss_info(rdev, &ss,
 						       ASIC_INTERNAL_MEMORY_SS, 0);
 
-	/* disable ss, causes hangs on some cayman boards */
-	if (rdev->family == CHIP_CAYMAN) {
-		pi->sclk_ss = false;
-		pi->mclk_ss = false;
-	}
-
 	if (pi->sclk_ss || pi->mclk_ss)
 		pi->dynamic_ss = true;
 	else
@@ -2360,6 +2356,10 @@ int rv770_dpm_init(struct radeon_device *rdev)
 	pi->acpi_vddc = 0;
 	pi->min_vddc_in_table = 0;
 	pi->max_vddc_in_table = 0;
+
+	ret = r600_get_platform_caps(rdev);
+	if (ret)
+		return ret;
 
 	ret = rv7xx_parse_power_table(rdev);
 	if (ret)
@@ -2489,6 +2489,50 @@ void rv770_dpm_debugfs_print_current_performance_level(struct radeon_device *rde
 			seq_printf(m, "power level %d    sclk: %u mclk: %u vddc: %u\n",
 				   current_index, pl->sclk, pl->mclk, pl->vddc);
 		}
+	}
+}
+
+u32 rv770_dpm_get_current_sclk(struct radeon_device *rdev)
+{
+	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct rv7xx_ps *ps = rv770_get_ps(rps);
+	struct rv7xx_pl *pl;
+	u32 current_index =
+		(RREG32(TARGET_AND_CURRENT_PROFILE_INDEX) & CURRENT_PROFILE_INDEX_MASK) >>
+		CURRENT_PROFILE_INDEX_SHIFT;
+
+	if (current_index > 2) {
+		return 0;
+	} else {
+		if (current_index == 0)
+			pl = &ps->low;
+		else if (current_index == 1)
+			pl = &ps->medium;
+		else /* current_index == 2 */
+			pl = &ps->high;
+		return  pl->sclk;
+	}
+}
+
+u32 rv770_dpm_get_current_mclk(struct radeon_device *rdev)
+{
+	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct rv7xx_ps *ps = rv770_get_ps(rps);
+	struct rv7xx_pl *pl;
+	u32 current_index =
+		(RREG32(TARGET_AND_CURRENT_PROFILE_INDEX) & CURRENT_PROFILE_INDEX_MASK) >>
+		CURRENT_PROFILE_INDEX_SHIFT;
+
+	if (current_index > 2) {
+		return 0;
+	} else {
+		if (current_index == 0)
+			pl = &ps->low;
+		else if (current_index == 1)
+			pl = &ps->medium;
+		else /* current_index == 2 */
+			pl = &ps->high;
+		return  pl->mclk;
 	}
 }
 

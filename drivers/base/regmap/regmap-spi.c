@@ -12,7 +12,6 @@
 
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
-#include <linux/init.h>
 #include <linux/module.h>
 
 #include "internal.h"
@@ -110,6 +109,8 @@ static struct regmap_bus regmap_spi = {
 	.async_alloc = regmap_spi_async_alloc,
 	.read = regmap_spi_read,
 	.read_flag_mask = 0x80,
+	.reg_format_endian_default = REGMAP_ENDIAN_BIG,
+	.val_format_endian_default = REGMAP_ENDIAN_BIG,
 };
 
 /**

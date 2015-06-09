@@ -10,19 +10,23 @@
 #include <net/ip.h>
 #include <linux/ipv6.h>
 #include <net/checksum.h>
+#include <linux/printk.h>
 
 #include "qlcnic.h"
 
-#define TX_ETHER_PKT	0x01
-#define TX_TCP_PKT	0x02
-#define TX_UDP_PKT	0x03
-#define TX_IP_PKT	0x04
-#define TX_TCP_LSO	0x05
-#define TX_TCP_LSO6	0x06
-#define TX_TCPV6_PKT	0x0b
-#define TX_UDPV6_PKT	0x0c
-#define FLAGS_VLAN_TAGGED	0x10
-#define FLAGS_VLAN_OOB		0x40
+#define QLCNIC_TX_ETHER_PKT		0x01
+#define QLCNIC_TX_TCP_PKT		0x02
+#define QLCNIC_TX_UDP_PKT		0x03
+#define QLCNIC_TX_IP_PKT		0x04
+#define QLCNIC_TX_TCP_LSO		0x05
+#define QLCNIC_TX_TCP_LSO6		0x06
+#define QLCNIC_TX_ENCAP_PKT		0x07
+#define QLCNIC_TX_ENCAP_LSO		0x08
+#define QLCNIC_TX_TCPV6_PKT		0x0b
+#define QLCNIC_TX_UDPV6_PKT		0x0c
+
+#define QLCNIC_FLAGS_VLAN_TAGGED	0x10
+#define QLCNIC_FLAGS_VLAN_OOB		0x40
 
 #define qlcnic_set_tx_vlan_tci(cmd_desc, v)	\
 	(cmd_desc)->vlan_TCI = cpu_to_le16(v);
@@ -302,7 +306,6 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 {
 	struct vlan_ethhdr *vh = (struct vlan_ethhdr *)(skb->data);
 	struct ethhdr *phdr = (struct ethhdr *)(skb->data);
-	struct net_device *netdev = adapter->netdev;
 	u16 protocol = ntohs(skb->protocol);
 	struct qlcnic_filter *fil, *tmp_fil;
 	struct hlist_head *head;
@@ -311,27 +314,16 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 	u16 vlan_id = 0;
 	u8 hindex, hval;
 
-	if (!qlcnic_sriov_pf_check(adapter)) {
-		if (ether_addr_equal(phdr->h_source, adapter->mac_addr))
-			return;
-	} else {
+	if (ether_addr_equal(phdr->h_source, adapter->mac_addr))
+		return;
+
+	if (adapter->flags & QLCNIC_VLAN_FILTERING) {
 		if (protocol == ETH_P_8021Q) {
 			vh = (struct vlan_ethhdr *)skb->data;
 			vlan_id = ntohs(vh->h_vlan_TCI);
-		} else if (vlan_tx_tag_present(skb)) {
-			vlan_id = vlan_tx_tag_get(skb);
+		} else if (skb_vlan_tag_present(skb)) {
+			vlan_id = skb_vlan_tag_get(skb);
 		}
-
-		if (ether_addr_equal(phdr->h_source, adapter->mac_addr) &&
-		    !vlan_id)
-			return;
-	}
-
-	if (adapter->fhash.fnum >= adapter->fhash.fmax) {
-		adapter->stats.mac_filter_limit_overrun++;
-		netdev_info(netdev, "Can not add more than %d mac-vlan filters, configured %d\n",
-			    adapter->fhash.fmax, adapter->fhash.fnum);
-		return;
 	}
 
 	memcpy(&src_addr, phdr->h_source, ETH_ALEN);
@@ -350,6 +342,11 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 		}
 	}
 
+	if (unlikely(adapter->fhash.fnum >= adapter->fhash.fmax)) {
+		adapter->stats.mac_filter_limit_overrun++;
+		return;
+	}
+
 	fil = kzalloc(sizeof(struct qlcnic_filter), GFP_ATOMIC);
 	if (!fil)
 		return;
@@ -362,6 +359,101 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 	hlist_add_head(&(fil->fnode), head);
 	adapter->fhash.fnum++;
 	spin_unlock(&adapter->mac_learn_lock);
+}
+
+#define QLCNIC_ENCAP_VXLAN_PKT		BIT_0
+#define QLCNIC_ENCAP_OUTER_L3_IP6	BIT_1
+#define QLCNIC_ENCAP_INNER_L3_IP6	BIT_2
+#define QLCNIC_ENCAP_INNER_L4_UDP	BIT_3
+#define QLCNIC_ENCAP_DO_L3_CSUM		BIT_4
+#define QLCNIC_ENCAP_DO_L4_CSUM		BIT_5
+
+static int qlcnic_tx_encap_pkt(struct qlcnic_adapter *adapter,
+			       struct cmd_desc_type0 *first_desc,
+			       struct sk_buff *skb,
+			       struct qlcnic_host_tx_ring *tx_ring)
+{
+	u8 opcode = 0, inner_hdr_len = 0, outer_hdr_len = 0, total_hdr_len = 0;
+	int copied, copy_len, descr_size;
+	u32 producer = tx_ring->producer;
+	struct cmd_desc_type0 *hwdesc;
+	u16 flags = 0, encap_descr = 0;
+
+	opcode = QLCNIC_TX_ETHER_PKT;
+	encap_descr = QLCNIC_ENCAP_VXLAN_PKT;
+
+	if (skb_is_gso(skb)) {
+		inner_hdr_len = skb_inner_transport_header(skb) +
+				inner_tcp_hdrlen(skb) -
+				skb_inner_mac_header(skb);
+
+		/* VXLAN header size = 8 */
+		outer_hdr_len = skb_transport_offset(skb) + 8 +
+				sizeof(struct udphdr);
+		first_desc->outer_hdr_length = outer_hdr_len;
+		total_hdr_len = inner_hdr_len + outer_hdr_len;
+		encap_descr |= QLCNIC_ENCAP_DO_L3_CSUM |
+			       QLCNIC_ENCAP_DO_L4_CSUM;
+		first_desc->mss = cpu_to_le16(skb_shinfo(skb)->gso_size);
+		first_desc->hdr_length = inner_hdr_len;
+
+		/* Copy inner and outer headers in Tx descriptor(s)
+		 * If total_hdr_len > cmd_desc_type0, use multiple
+		 * descriptors
+		 */
+		copied = 0;
+		descr_size = (int)sizeof(struct cmd_desc_type0);
+		while (copied < total_hdr_len) {
+			copy_len = min(descr_size, (total_hdr_len - copied));
+			hwdesc = &tx_ring->desc_head[producer];
+			tx_ring->cmd_buf_arr[producer].skb = NULL;
+			skb_copy_from_linear_data_offset(skb, copied,
+							 (char *)hwdesc,
+							 copy_len);
+			copied += copy_len;
+			producer = get_next_index(producer, tx_ring->num_desc);
+		}
+
+		tx_ring->producer = producer;
+
+		/* Make sure updated tx_ring->producer is visible
+		 * for qlcnic_tx_avail()
+		 */
+		smp_mb();
+		adapter->stats.encap_lso_frames++;
+
+		opcode = QLCNIC_TX_ENCAP_LSO;
+	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		if (inner_ip_hdr(skb)->version == 6) {
+			if (inner_ipv6_hdr(skb)->nexthdr == IPPROTO_UDP)
+				encap_descr |= QLCNIC_ENCAP_INNER_L4_UDP;
+		} else {
+			if (inner_ip_hdr(skb)->protocol == IPPROTO_UDP)
+				encap_descr |= QLCNIC_ENCAP_INNER_L4_UDP;
+		}
+
+		adapter->stats.encap_tx_csummed++;
+		opcode = QLCNIC_TX_ENCAP_PKT;
+	}
+
+	/* Prepare first 16 bits of byte offset 16 of Tx descriptor */
+	if (ip_hdr(skb)->version == 6)
+		encap_descr |= QLCNIC_ENCAP_OUTER_L3_IP6;
+
+	/* outer IP header's size in 32bit words size*/
+	encap_descr |= (skb_network_header_len(skb) >> 2) << 6;
+
+	/* outer IP header offset */
+	encap_descr |= skb_network_offset(skb) << 10;
+	first_desc->encap_descr = cpu_to_le16(encap_descr);
+
+	first_desc->tcp_hdr_offset = skb_inner_transport_header(skb) -
+				     skb->data;
+	first_desc->ip_hdr_offset = skb_inner_network_offset(skb);
+
+	qlcnic_set_tx_flags_opcode(first_desc, flags, opcode);
+
+	return 0;
 }
 
 static int qlcnic_tx_pkt(struct qlcnic_adapter *adapter,
@@ -378,12 +470,12 @@ static int qlcnic_tx_pkt(struct qlcnic_adapter *adapter,
 
 	if (protocol == ETH_P_8021Q) {
 		vh = (struct vlan_ethhdr *)skb->data;
-		flags = FLAGS_VLAN_TAGGED;
+		flags = QLCNIC_FLAGS_VLAN_TAGGED;
 		vlan_tci = ntohs(vh->h_vlan_TCI);
 		protocol = ntohs(vh->h_vlan_encapsulated_proto);
-	} else if (vlan_tx_tag_present(skb)) {
-		flags = FLAGS_VLAN_OOB;
-		vlan_tci = vlan_tx_tag_get(skb);
+	} else if (skb_vlan_tag_present(skb)) {
+		flags = QLCNIC_FLAGS_VLAN_OOB;
+		vlan_tci = skb_vlan_tag_get(skb);
 	}
 	if (unlikely(adapter->tx_pvid)) {
 		if (vlan_tci && !(adapter->flags & QLCNIC_TAGGING_ENABLED))
@@ -391,7 +483,7 @@ static int qlcnic_tx_pkt(struct qlcnic_adapter *adapter,
 		if (vlan_tci && (adapter->flags & QLCNIC_TAGGING_ENABLED))
 			goto set_flags;
 
-		flags = FLAGS_VLAN_OOB;
+		flags = QLCNIC_FLAGS_VLAN_OOB;
 		vlan_tci = adapter->tx_pvid;
 	}
 set_flags:
@@ -402,25 +494,26 @@ set_flags:
 		flags |= BIT_0;
 		memcpy(&first_desc->eth_addr, skb->data, ETH_ALEN);
 	}
-	opcode = TX_ETHER_PKT;
+	opcode = QLCNIC_TX_ETHER_PKT;
 	if (skb_is_gso(skb)) {
 		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
 		first_desc->mss = cpu_to_le16(skb_shinfo(skb)->gso_size);
-		first_desc->total_hdr_length = hdr_len;
-		opcode = (protocol == ETH_P_IPV6) ? TX_TCP_LSO6 : TX_TCP_LSO;
+		first_desc->hdr_length = hdr_len;
+		opcode = (protocol == ETH_P_IPV6) ? QLCNIC_TX_TCP_LSO6 :
+						    QLCNIC_TX_TCP_LSO;
 
 		/* For LSO, we need to copy the MAC/IP/TCP headers into
 		* the descriptor ring */
 		copied = 0;
 		offset = 2;
 
-		if (flags & FLAGS_VLAN_OOB) {
-			first_desc->total_hdr_length += VLAN_HLEN;
+		if (flags & QLCNIC_FLAGS_VLAN_OOB) {
+			first_desc->hdr_length += VLAN_HLEN;
 			first_desc->tcp_hdr_offset = VLAN_HLEN;
 			first_desc->ip_hdr_offset = VLAN_HLEN;
 
 			/* Only in case of TSO on vlan device */
-			flags |= FLAGS_VLAN_TAGGED;
+			flags |= QLCNIC_FLAGS_VLAN_TAGGED;
 
 			/* Create a TSO vlan header template for firmware */
 			hwdesc = &tx_ring->desc_head[producer];
@@ -464,16 +557,16 @@ set_flags:
 			l4proto = ip_hdr(skb)->protocol;
 
 			if (l4proto == IPPROTO_TCP)
-				opcode = TX_TCP_PKT;
+				opcode = QLCNIC_TX_TCP_PKT;
 			else if (l4proto == IPPROTO_UDP)
-				opcode = TX_UDP_PKT;
+				opcode = QLCNIC_TX_UDP_PKT;
 		} else if (protocol == ETH_P_IPV6) {
 			l4proto = ipv6_hdr(skb)->nexthdr;
 
 			if (l4proto == IPPROTO_TCP)
-				opcode = TX_TCPV6_PKT;
+				opcode = QLCNIC_TX_TCPV6_PKT;
 			else if (l4proto == IPPROTO_UDP)
-				opcode = TX_UDPV6_PKT;
+				opcode = QLCNIC_TX_UDPV6_PKT;
 		}
 	}
 	first_desc->tcp_hdr_offset += skb_transport_offset(skb);
@@ -563,6 +656,8 @@ netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	struct ethhdr *phdr;
 	int i, k, frag_count, delta = 0;
 	u32 producer, num_txd;
+	u16 protocol;
+	bool l4_is_udp = false;
 
 	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
 		netif_tx_stop_all_queues(netdev);
@@ -653,8 +748,23 @@ netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	tx_ring->producer = get_next_index(producer, num_txd);
 	smp_mb();
 
-	if (unlikely(qlcnic_tx_pkt(adapter, first_desc, skb, tx_ring)))
-		goto unwind_buff;
+	protocol = ntohs(skb->protocol);
+	if (protocol == ETH_P_IP)
+		l4_is_udp = ip_hdr(skb)->protocol == IPPROTO_UDP;
+	else if (protocol == ETH_P_IPV6)
+		l4_is_udp = ipv6_hdr(skb)->nexthdr == IPPROTO_UDP;
+
+	/* Check if it is a VXLAN packet */
+	if (!skb->encapsulation || !l4_is_udp ||
+	    !qlcnic_encap_tx_offload(adapter)) {
+		if (unlikely(qlcnic_tx_pkt(adapter, first_desc, skb,
+					   tx_ring)))
+			goto unwind_buff;
+	} else {
+		if (unlikely(qlcnic_tx_encap_pkt(adapter, first_desc,
+						 skb, tx_ring)))
+			goto unwind_buff;
+	}
 
 	if (adapter->drv_mac_learn)
 		qlcnic_send_filter(adapter, first_desc, skb);
@@ -858,7 +968,12 @@ static int qlcnic_poll(struct napi_struct *napi, int budget)
 	tx_complete = qlcnic_process_cmd_ring(adapter, tx_ring,
 					      budget);
 	work_done = qlcnic_process_rcv_ring(sds_ring, budget);
-	if ((work_done < budget) && tx_complete) {
+
+	/* Check if we need a repoll */
+	if (!tx_complete)
+		work_done = budget;
+
+	if (work_done < budget) {
 		napi_complete(&sds_ring->napi);
 		if (test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
 			qlcnic_enable_sds_intr(adapter, sds_ring);
@@ -883,6 +998,9 @@ static int qlcnic_tx_poll(struct napi_struct *napi, int budget)
 		napi_complete(&tx_ring->napi);
 		if (test_bit(__QLCNIC_DEV_UP, &adapter->state))
 			qlcnic_enable_tx_intr(adapter, tx_ring);
+	} else {
+		/* As qlcnic_process_cmd_ring() returned 0, we need a repoll*/
+		work_done = budget;
 	}
 
 	return work_done;
@@ -1100,8 +1218,7 @@ qlcnic_process_rcv(struct qlcnic_adapter *adapter,
 	if (!skb)
 		return buffer;
 
-	if (adapter->drv_mac_learn &&
-	    (adapter->flags & QLCNIC_ESWITCH_ENABLED)) {
+	if (adapter->rx_mac_learn) {
 		t_vid = 0;
 		is_lb_pkt = qlcnic_82xx_is_lb_pkt(sts_data0);
 		qlcnic_add_lb_filter(adapter, skb, is_lb_pkt, t_vid);
@@ -1177,8 +1294,7 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 	if (!skb)
 		return buffer;
 
-	if (adapter->drv_mac_learn &&
-	    (adapter->flags & QLCNIC_ESWITCH_ENABLED)) {
+	if (adapter->rx_mac_learn) {
 		t_vid = 0;
 		is_lb_pkt = qlcnic_82xx_is_lb_pkt(sts_data0);
 		qlcnic_add_lb_filter(adapter, skb, is_lb_pkt, t_vid);
@@ -1358,14 +1474,14 @@ void qlcnic_post_rx_buffers(struct qlcnic_adapter *adapter,
 
 static void dump_skb(struct sk_buff *skb, struct qlcnic_adapter *adapter)
 {
-	int i;
-	unsigned char *data = skb->data;
+	if (adapter->ahw->msg_enable & NETIF_MSG_DRV) {
+		char prefix[30];
 
-	pr_info(KERN_INFO "\n");
-	for (i = 0; i < skb->len; i++) {
-		QLCDB(adapter, DRV, "%02x ", data[i]);
-		if ((i & 0x0f) == 8)
-			pr_info(KERN_INFO "\n");
+		scnprintf(prefix, sizeof(prefix), "%s: %s: ",
+			  dev_name(&adapter->pdev->dev), __func__);
+
+		print_hex_dump_debug(prefix, DUMP_PREFIX_NONE, 16, 1,
+				     skb->data, skb->len, true);
 	}
 }
 
@@ -1587,6 +1703,13 @@ static inline int qlcnic_83xx_is_lb_pkt(u64 sts_data, int lro_pkt)
 		return (sts_data & QLC_83XX_NORMAL_LB_PKT) ? 1 : 0;
 }
 
+#define QLCNIC_ENCAP_LENGTH_MASK	0x7f
+
+static inline u8 qlcnic_encap_length(u64 sts_data)
+{
+	return sts_data & QLCNIC_ENCAP_LENGTH_MASK;
+}
+
 static struct qlcnic_rx_buffer *
 qlcnic_83xx_process_rcv(struct qlcnic_adapter *adapter,
 			struct qlcnic_host_sds_ring *sds_ring,
@@ -1636,6 +1759,12 @@ qlcnic_83xx_process_rcv(struct qlcnic_adapter *adapter,
 	}
 
 	skb->protocol = eth_type_trans(skb, netdev);
+
+	if (qlcnic_encap_length(sts_data[1]) &&
+	    skb->ip_summed == CHECKSUM_UNNECESSARY) {
+		skb->csum_level = 1;
+		adapter->stats.encap_rx_csummed++;
+	}
 
 	if (vid != 0xffff)
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vid);
@@ -1830,7 +1959,12 @@ static int qlcnic_83xx_msix_sriov_vf_poll(struct napi_struct *napi, int budget)
 
 	tx_complete = qlcnic_process_cmd_ring(adapter, tx_ring, budget);
 	work_done = qlcnic_83xx_process_rcv_ring(sds_ring, budget);
-	if ((work_done < budget) && tx_complete) {
+
+	/* Check if we need a repoll */
+	if (!tx_complete)
+		work_done = budget;
+
+	if (work_done < budget) {
 		napi_complete(&sds_ring->napi);
 		qlcnic_enable_sds_intr(adapter, sds_ring);
 	}
@@ -1853,7 +1987,12 @@ static int qlcnic_83xx_poll(struct napi_struct *napi, int budget)
 
 	tx_complete = qlcnic_process_cmd_ring(adapter, tx_ring, budget);
 	work_done = qlcnic_83xx_process_rcv_ring(sds_ring, budget);
-	if ((work_done < budget) && tx_complete) {
+
+	/* Check if we need a repoll */
+	if (!tx_complete)
+		work_done = budget;
+
+	if (work_done < budget) {
 		napi_complete(&sds_ring->napi);
 		qlcnic_enable_sds_intr(adapter, sds_ring);
 	}
@@ -1875,6 +2014,9 @@ static int qlcnic_83xx_msix_tx_poll(struct napi_struct *napi, int budget)
 		napi_complete(&tx_ring->napi);
 		if (test_bit(__QLCNIC_DEV_UP , &adapter->state))
 			qlcnic_enable_tx_intr(adapter, tx_ring);
+	} else {
+		/* need a repoll */
+		work_done = budget;
 	}
 
 	return work_done;

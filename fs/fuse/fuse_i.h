@@ -213,7 +213,7 @@ struct fuse_out {
 	unsigned numargs;
 
 	/** Array of arguments */
-	struct fuse_arg args[3];
+	struct fuse_arg args[2];
 };
 
 /** FUSE page descriptor */
@@ -221,6 +221,25 @@ struct fuse_page_desc {
 	unsigned int length;
 	unsigned int offset;
 };
+
+struct fuse_args {
+	struct {
+		struct {
+			uint32_t opcode;
+			uint64_t nodeid;
+		} h;
+		unsigned numargs;
+		struct fuse_in_arg args[3];
+
+	} in;
+	struct {
+		unsigned argvar:1;
+		unsigned numargs;
+		struct fuse_arg args[2];
+	} out;
+};
+
+#define FUSE_ARGS(args) struct fuse_args args = {}
 
 /** The request state */
 enum fuse_req_state {
@@ -244,6 +263,7 @@ struct fuse_io_priv {
 	int err;
 	struct kiocb *iocb;
 	struct file *file;
+	struct completion *done;
 };
 
 /**
@@ -305,11 +325,8 @@ struct fuse_req {
 	/** Data for asynchronous requests */
 	union {
 		struct {
-			union {
-				struct fuse_release_in in;
-				struct work_struct work;
-			};
-			struct path path;
+			struct fuse_release_in in;
+			struct inode *inode;
 		} release;
 		struct fuse_init_in init_in;
 		struct fuse_init_out init_out;
@@ -324,7 +341,6 @@ struct fuse_req {
 			struct fuse_req *next;
 		} write;
 		struct fuse_notify_retrieve_in retrieve_in;
-		struct fuse_lk_in lk_in;
 	} misc;
 
 	/** page vector */
@@ -480,6 +496,9 @@ struct fuse_conn {
 	/** Set if bdi is valid */
 	unsigned bdi_initialized:1;
 
+	/** write-back cache policy (default is write-through) */
+	unsigned writeback_cache:1;
+
 	/*
 	 * The following bitfields are only for optimization purposes
 	 * and hence races in setting them will not cause malfunction
@@ -538,6 +557,9 @@ struct fuse_conn {
 
 	/** Is fallocate not implemented by fs? */
 	unsigned no_fallocate:1;
+
+	/** Is rename with flags implemented by fs? */
+	unsigned no_rename2:1;
 
 	/** Use enhanced/automatic page cache invalidation. */
 	unsigned auto_inval_data:1;
@@ -720,7 +742,7 @@ int fuse_dev_init(void);
 void fuse_dev_cleanup(void);
 
 int fuse_ctl_init(void);
-void fuse_ctl_cleanup(void);
+void __exit fuse_ctl_cleanup(void);
 
 /**
  * Allocate a request
@@ -748,15 +770,6 @@ struct fuse_req *fuse_get_req_for_background(struct fuse_conn *fc,
 void __fuse_get_request(struct fuse_req *req);
 
 /**
- * Get a request, may fail with -ENOMEM,
- * useful for callers who doesn't use req->pages[]
- */
-static inline struct fuse_req *fuse_get_req_nopages(struct fuse_conn *fc)
-{
-	return fuse_get_req(fc, 0);
-}
-
-/**
  * Gets a requests for a file operation, always succeeds
  */
 struct fuse_req *fuse_get_req_nofail_nopages(struct fuse_conn *fc,
@@ -772,6 +785,11 @@ void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req);
  * Send a request (synchronous)
  */
 void fuse_request_send(struct fuse_conn *fc, struct fuse_req *req);
+
+/**
+ * Simple request sending that does request allocation and freeing
+ */
+ssize_t fuse_simple_request(struct fuse_conn *fc, struct fuse_args *args);
 
 /**
  * Send a request in the background
@@ -797,8 +815,6 @@ void fuse_invalidate_atime(struct inode *inode);
  * Acquire reference to fuse_conn
  */
 struct fuse_conn *fuse_conn_get(struct fuse_conn *fc);
-
-void fuse_conn_kill(struct fuse_conn *fc);
 
 /**
  * Initialize fuse_conn
@@ -863,9 +879,19 @@ int fuse_reverse_inval_entry(struct super_block *sb, u64 parent_nodeid,
 
 int fuse_do_open(struct fuse_conn *fc, u64 nodeid, struct file *file,
 		 bool isdir);
-ssize_t fuse_direct_io(struct fuse_io_priv *io, const struct iovec *iov,
-		       unsigned long nr_segs, size_t count, loff_t *ppos,
-		       int write);
+
+/**
+ * fuse_direct_io() flags
+ */
+
+/** If set, it is WRITE; otherwise - READ */
+#define FUSE_DIO_WRITE (1 << 0)
+
+/** CUSE pass fuse_direct_io() a file which f_mapping->host is not from FUSE */
+#define FUSE_DIO_CUSE  (1 << 1)
+
+ssize_t fuse_direct_io(struct fuse_io_priv *io, struct iov_iter *iter,
+		       loff_t *ppos, int flags);
 long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 		   unsigned int flags);
 long fuse_ioctl_common(struct file *file, unsigned int cmd,
@@ -873,9 +899,14 @@ long fuse_ioctl_common(struct file *file, unsigned int cmd,
 unsigned fuse_file_poll(struct file *file, poll_table *wait);
 int fuse_dev_release(struct inode *inode, struct file *file);
 
-void fuse_write_update_size(struct inode *inode, loff_t pos);
+bool fuse_write_update_size(struct inode *inode, loff_t pos);
+
+int fuse_flush_times(struct inode *inode, struct fuse_file *ff);
+int fuse_write_inode(struct inode *inode, struct writeback_control *wbc);
 
 int fuse_do_setattr(struct inode *inode, struct iattr *attr,
 		    struct file *file);
+
+void fuse_set_initialized(struct fuse_conn *fc);
 
 #endif /* _FS_FUSE_I_H */

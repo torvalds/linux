@@ -126,7 +126,6 @@ struct blkfront_info
 	unsigned int persistent_gnts_c;
 	unsigned long shadow_free;
 	unsigned int feature_flush;
-	unsigned int flush_op;
 	unsigned int feature_discard:1;
 	unsigned int feature_secdiscard:1;
 	unsigned int discard_granularity;
@@ -479,7 +478,19 @@ static int blkif_queue_request(struct request *req)
 				 * way.  (It's also a FLUSH+FUA, since it is
 				 * guaranteed ordered WRT previous writes.)
 				 */
-				ring_req->operation = info->flush_op;
+				switch (info->feature_flush &
+					((REQ_FLUSH|REQ_FUA))) {
+				case REQ_FLUSH|REQ_FUA:
+					ring_req->operation =
+						BLKIF_OP_WRITE_BARRIER;
+					break;
+				case REQ_FLUSH:
+					ring_req->operation =
+						BLKIF_OP_FLUSH_DISKCACHE;
+					break;
+				default:
+					ring_req->operation = 0;
+				}
 			}
 			ring_req->u.rw.nr_segments = nseg;
 		}
@@ -582,6 +593,16 @@ static inline void flush_requests(struct blkfront_info *info)
 		notify_remote_via_irq(info->irq);
 }
 
+static inline bool blkif_request_flush_invalid(struct request *req,
+					       struct blkfront_info *info)
+{
+	return ((req->cmd_type != REQ_TYPE_FS) ||
+		((req->cmd_flags & REQ_FLUSH) &&
+		 !(info->feature_flush & REQ_FLUSH)) ||
+		((req->cmd_flags & REQ_FUA) &&
+		 !(info->feature_flush & REQ_FUA)));
+}
+
 /*
  * do_blkif_request
  *  read a block; request is in a request queue
@@ -604,18 +625,16 @@ static void do_blkif_request(struct request_queue *rq)
 
 		blk_start_request(req);
 
-		if ((req->cmd_type != REQ_TYPE_FS) ||
-		    ((req->cmd_flags & (REQ_FLUSH | REQ_FUA)) &&
-		    !info->flush_op)) {
-			__blk_end_request_all(req, -EIO);
+		if (blkif_request_flush_invalid(req, info)) {
+			__blk_end_request_all(req, -EOPNOTSUPP);
 			continue;
 		}
 
 		pr_debug("do_blk_req %p: cmd %p, sec %lx, "
-			 "(%u/%u) buffer:%p [%s]\n",
+			 "(%u/%u) [%s]\n",
 			 req, req->cmd, (unsigned long)blk_rq_pos(req),
 			 blk_rq_cur_sectors(req), blk_rq_sectors(req),
-			 req->buffer, rq_data_dir(req) ? "write" : "read");
+			 rq_data_dir(req) ? "write" : "read");
 
 		if (blkif_queue_request(req)) {
 			blk_requeue_request(rq, req);
@@ -677,20 +696,26 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size,
 	return 0;
 }
 
+static const char *flush_info(unsigned int feature_flush)
+{
+	switch (feature_flush & ((REQ_FLUSH | REQ_FUA))) {
+	case REQ_FLUSH|REQ_FUA:
+		return "barrier: enabled;";
+	case REQ_FLUSH:
+		return "flush diskcache: enabled;";
+	default:
+		return "barrier or flush: disabled;";
+	}
+}
 
 static void xlvbd_flush(struct blkfront_info *info)
 {
 	blk_queue_flush(info->rq, info->feature_flush);
-	printk(KERN_INFO "blkfront: %s: %s: %s %s %s %s %s\n",
-	       info->gd->disk_name,
-	       info->flush_op == BLKIF_OP_WRITE_BARRIER ?
-		"barrier" : (info->flush_op == BLKIF_OP_FLUSH_DISKCACHE ?
-		"flush diskcache" : "barrier or flush"),
-	       info->feature_flush ? "enabled;" : "disabled;",
-	       "persistent grants:",
-	       info->feature_persistent ? "enabled;" : "disabled;",
-	       "indirect descriptors:",
-	       info->max_indirect_segments ? "enabled;" : "disabled;");
+	pr_info("blkfront: %s: %s %s %s %s %s\n",
+		info->gd->disk_name, flush_info(info->feature_flush),
+		"persistent grants:", info->feature_persistent ?
+		"enabled;" : "disabled;", "indirect descriptors:",
+		info->max_indirect_segments ? "enabled;" : "disabled;");
 }
 
 static int xen_translate_vdev(int vdevice, int *minor, unsigned int *offset)
@@ -1182,7 +1207,6 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 				if (error == -EOPNOTSUPP)
 					error = 0;
 				info->feature_flush = 0;
-				info->flush_op = 0;
 				xlvbd_flush(info);
 			}
 			/* fall through */
@@ -1221,6 +1245,7 @@ static int setup_blkring(struct xenbus_device *dev,
 			 struct blkfront_info *info)
 {
 	struct blkif_sring *sring;
+	grant_ref_t gref;
 	int err;
 
 	info->ring_ref = GRANT_INVALID_REF;
@@ -1233,13 +1258,13 @@ static int setup_blkring(struct xenbus_device *dev,
 	SHARED_RING_INIT(sring);
 	FRONT_RING_INIT(&info->ring, sring, PAGE_SIZE);
 
-	err = xenbus_grant_ring(dev, virt_to_mfn(info->ring.sring));
+	err = xenbus_grant_ring(dev, info->ring.sring, 1, &gref);
 	if (err < 0) {
 		free_page((unsigned long)sring);
 		info->ring.sring = NULL;
 		goto fail;
 	}
-	info->ring_ref = err;
+	info->ring_ref = gref;
 
 	err = xenbus_alloc_evtchn(dev, &info->evtchn);
 	if (err)
@@ -1367,7 +1392,7 @@ static int blkfront_probe(struct xenbus_device *dev,
 			if (major != XENVBD_MAJOR) {
 				printk(KERN_INFO
 						"%s: HVM does not support vbd %d as xen block device\n",
-						__FUNCTION__, vdevice);
+						__func__, vdevice);
 				return -ENODEV;
 			}
 		}
@@ -1487,7 +1512,7 @@ static int blkif_recover(struct blkfront_info *info)
 		merge_bio.tail = copy[i].request->biotail;
 		bio_list_merge(&bio_list, &merge_bio);
 		copy[i].request->bio = NULL;
-		blk_put_request(copy[i].request);
+		blk_end_request_all(copy[i].request, 0);
 	}
 
 	kfree(copy);
@@ -1510,7 +1535,7 @@ static int blkif_recover(struct blkfront_info *info)
 		req->bio = NULL;
 		if (req->cmd_flags & (REQ_FLUSH | REQ_FUA))
 			pr_alert("diskcache flush request found!\n");
-		__blk_put_request(info->rq, req);
+		__blk_end_request_all(req, 0);
 	}
 	spin_unlock_irq(&info->io_lock);
 
@@ -1635,36 +1660,24 @@ blkfront_closing(struct blkfront_info *info)
 static void blkfront_setup_discard(struct blkfront_info *info)
 {
 	int err;
-	char *type;
 	unsigned int discard_granularity;
 	unsigned int discard_alignment;
 	unsigned int discard_secure;
 
-	type = xenbus_read(XBT_NIL, info->xbdev->otherend, "type", NULL);
-	if (IS_ERR(type))
-		return;
-
-	info->feature_secdiscard = 0;
-	if (strncmp(type, "phy", 3) == 0) {
-		err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
-			"discard-granularity", "%u", &discard_granularity,
-			"discard-alignment", "%u", &discard_alignment,
-			NULL);
-		if (!err) {
-			info->feature_discard = 1;
-			info->discard_granularity = discard_granularity;
-			info->discard_alignment = discard_alignment;
-		}
-		err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
-			    "discard-secure", "%d", &discard_secure,
-			    NULL);
-		if (!err)
-			info->feature_secdiscard = discard_secure;
-
-	} else if (strncmp(type, "file", 4) == 0)
-		info->feature_discard = 1;
-
-	kfree(type);
+	info->feature_discard = 1;
+	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
+		"discard-granularity", "%u", &discard_granularity,
+		"discard-alignment", "%u", &discard_alignment,
+		NULL);
+	if (!err) {
+		info->discard_granularity = discard_granularity;
+		info->discard_alignment = discard_alignment;
+	}
+	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
+		    "discard-secure", "%d", &discard_secure,
+		    NULL);
+	if (!err)
+		info->feature_secdiscard = !!discard_secure;
 }
 
 static int blkfront_setup_indirect(struct blkfront_info *info)
@@ -1814,7 +1827,6 @@ static void blkfront_connect(struct blkfront_info *info)
 		physical_sector_size = sector_size;
 
 	info->feature_flush = 0;
-	info->flush_op = 0;
 
 	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
 			    "feature-barrier", "%d", &barrier,
@@ -1827,10 +1839,8 @@ static void blkfront_connect(struct blkfront_info *info)
 	 *
 	 * If there are barriers, then we use flush.
 	 */
-	if (!err && barrier) {
+	if (!err && barrier)
 		info->feature_flush = REQ_FLUSH | REQ_FUA;
-		info->flush_op = BLKIF_OP_WRITE_BARRIER;
-	}
 	/*
 	 * And if there is "feature-flush-cache" use that above
 	 * barriers.
@@ -1839,10 +1849,8 @@ static void blkfront_connect(struct blkfront_info *info)
 			    "feature-flush-cache", "%d", &flush,
 			    NULL);
 
-	if (!err && flush) {
+	if (!err && flush)
 		info->feature_flush = REQ_FLUSH;
-		info->flush_op = BLKIF_OP_FLUSH_DISKCACHE;
-	}
 
 	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
 			    "feature-discard", "%d", &discard,
@@ -2067,13 +2075,14 @@ static const struct xenbus_device_id blkfront_ids[] = {
 	{ "" }
 };
 
-static DEFINE_XENBUS_DRIVER(blkfront, ,
+static struct xenbus_driver blkfront_driver = {
+	.ids  = blkfront_ids,
 	.probe = blkfront_probe,
 	.remove = blkfront_remove,
 	.resume = blkfront_resume,
 	.otherend_changed = blkback_changed,
 	.is_ready = blkfront_is_ready,
-);
+};
 
 static int __init xlblk_init(void)
 {

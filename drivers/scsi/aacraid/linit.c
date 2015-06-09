@@ -56,7 +56,7 @@
 
 #include "aacraid.h"
 
-#define AAC_DRIVER_VERSION		"1.2-0"
+#define AAC_DRIVER_VERSION		"1.2-1"
 #ifndef AAC_DRIVER_BRANCH
 #define AAC_DRIVER_BRANCH		""
 #endif
@@ -251,26 +251,14 @@ static struct aac_driver_ident aac_drivers[] = {
  *	TODO: unify with aac_scsi_cmd().
  */
 
-static int aac_queuecommand_lck(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
+static int aac_queuecommand(struct Scsi_Host *shost,
+			    struct scsi_cmnd *cmd)
 {
-	struct Scsi_Host *host = cmd->device->host;
-	struct aac_dev *dev = (struct aac_dev *)host->hostdata;
-	u32 count = 0;
-	cmd->scsi_done = done;
-	for (; count < (host->can_queue + AAC_NUM_MGT_FIB); ++count) {
-		struct fib * fib = &dev->fibs[count];
-		struct scsi_cmnd * command;
-		if (fib->hw_fib_va->header.XferState &&
-		    ((command = fib->callback_data)) &&
-		    (command == cmd) &&
-		    (cmd->SCp.phase == AAC_OWNER_FIRMWARE))
-			return 0; /* Already owned by Adapter */
-	}
+	int r = 0;
 	cmd->SCp.phase = AAC_OWNER_LOWLEVEL;
-	return (aac_scsi_cmd(cmd) ? FAILED : 0);
+	r = (aac_scsi_cmd(cmd) ? FAILED : 0);
+	return r;
 }
-
-static DEF_SCSI_QCMD(aac_queuecommand)
 
 /**
  *	aac_info		-	Returns the host adapter name
@@ -462,9 +450,9 @@ static int aac_slave_configure(struct scsi_device *sdev)
 			depth = 256;
 		else if (depth < 2)
 			depth = 2;
-		scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG, depth);
+		scsi_change_queue_depth(sdev, depth);
 	} else
-		scsi_adjust_queue_depth(sdev, 0, 1);
+		scsi_change_queue_depth(sdev, 1);
 
 	return 0;
 }
@@ -478,12 +466,8 @@ static int aac_slave_configure(struct scsi_device *sdev)
  *	total capacity and the queue depth supported by the target device.
  */
 
-static int aac_change_queue_depth(struct scsi_device *sdev, int depth,
-				  int reason)
+static int aac_change_queue_depth(struct scsi_device *sdev, int depth)
 {
-	if (reason != SCSI_QDEPTH_DEFAULT)
-		return -EOPNOTSUPP;
-
 	if (sdev->tagged_supported && (sdev->type == TYPE_DISK) &&
 	    (sdev_channel(sdev) == CONTAINER_CHANNEL)) {
 		struct scsi_device * dev;
@@ -504,10 +488,10 @@ static int aac_change_queue_depth(struct scsi_device *sdev, int depth,
 			depth = 256;
 		else if (depth < 2)
 			depth = 2;
-		scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG, depth);
-	} else
-		scsi_adjust_queue_depth(sdev, 0, 1);
-	return sdev->queue_depth;
+		return scsi_change_queue_depth(sdev, depth);
+	}
+
+	return scsi_change_queue_depth(sdev, 1);
 }
 
 static ssize_t aac_show_raid_level(struct device *dev, struct device_attribute *attr, char *buf)
@@ -551,11 +535,11 @@ static int aac_eh_abort(struct scsi_cmnd* cmd)
 	int count;
 	int ret = FAILED;
 
-	printk(KERN_ERR "%s: Host adapter abort request (%d,%d,%d,%d)\n",
+	printk(KERN_ERR "%s: Host adapter abort request (%d,%d,%d,%llu)\n",
 		AAC_DRIVERNAME,
 		host->host_no, sdev_channel(dev), sdev_id(dev), dev->lun);
 	switch (cmd->cmnd[0]) {
-	case SERVICE_ACTION_IN:
+	case SERVICE_ACTION_IN_16:
 		if (!(aac->raw_io_interface) ||
 		    !(aac->raw_io_64) ||
 		    ((cmd->cmnd[1] & 0x1f) != SAI_READ_CAPACITY_16))
@@ -717,7 +701,9 @@ static long aac_cfg_ioctl(struct file *file,
 		unsigned int cmd, unsigned long arg)
 {
 	int ret;
-	if (!capable(CAP_SYS_RAWIO))
+	struct aac_dev *aac;
+	aac = (struct aac_dev *)file->private_data;
+	if (!capable(CAP_SYS_RAWIO) || aac->adapter_shutdown)
 		return -EPERM;
 	mutex_lock(&aac_mutex);
 	ret = aac_do_ioctl(file->private_data, cmd, (void __user *)arg);
@@ -1086,6 +1072,9 @@ static struct scsi_host_template aac_driver_template = {
 
 static void __aac_shutdown(struct aac_dev * aac)
 {
+	int i;
+	int cpu;
+
 	if (aac->aif_thread) {
 		int i;
 		/* Clear out events first */
@@ -1099,9 +1088,37 @@ static void __aac_shutdown(struct aac_dev * aac)
 	}
 	aac_send_shutdown(aac);
 	aac_adapter_disable_int(aac);
-	free_irq(aac->pdev->irq, aac);
+	cpu = cpumask_first(cpu_online_mask);
+	if (aac->pdev->device == PMC_DEVICE_S6 ||
+	    aac->pdev->device == PMC_DEVICE_S7 ||
+	    aac->pdev->device == PMC_DEVICE_S8 ||
+	    aac->pdev->device == PMC_DEVICE_S9) {
+		if (aac->max_msix > 1) {
+			for (i = 0; i < aac->max_msix; i++) {
+				if (irq_set_affinity_hint(
+				    aac->msixentry[i].vector,
+				    NULL)) {
+					printk(KERN_ERR "%s%d: Failed to reset IRQ affinity for cpu %d\n",
+						aac->name,
+						aac->id,
+						cpu);
+				}
+				cpu = cpumask_next(cpu,
+						cpu_online_mask);
+				free_irq(aac->msixentry[i].vector,
+					 &(aac->aac_msix[i]));
+			}
+		} else {
+			free_irq(aac->pdev->irq,
+				 &(aac->aac_msix[0]));
+		}
+	} else {
+		free_irq(aac->pdev->irq, aac);
+	}
 	if (aac->msi)
 		pci_disable_msi(aac->pdev);
+	else if (aac->max_msix > 1)
+		pci_disable_msix(aac->pdev);
 }
 
 static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -1152,6 +1169,7 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	shost->irq = pdev->irq;
 	shost->unique_id = unique_id;
 	shost->max_cmd_len = 16;
+	shost->use_cmd_list = 1;
 
 	aac = (struct aac_dev *)shost->hostdata;
 	aac->base_start = pci_resource_start(pdev, 0);

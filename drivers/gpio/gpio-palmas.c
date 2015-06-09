@@ -148,7 +148,7 @@ static const struct palmas_device_data tps80036_dev_data = {
 	.ngpio = 16,
 };
 
-static struct of_device_id of_palmas_gpio_match[] = {
+static const struct of_device_id of_palmas_gpio_match[] = {
 	{ .compatible = "ti,palmas-gpio", .data = &palmas_dev_data,},
 	{ .compatible = "ti,tps65913-gpio", .data = &palmas_dev_data,},
 	{ .compatible = "ti,tps65914-gpio", .data = &palmas_dev_data,},
@@ -173,10 +173,8 @@ static int palmas_gpio_probe(struct platform_device *pdev)
 
 	palmas_gpio = devm_kzalloc(&pdev->dev,
 				sizeof(*palmas_gpio), GFP_KERNEL);
-	if (!palmas_gpio) {
-		dev_err(&pdev->dev, "Could not allocate palmas_gpio\n");
+	if (!palmas_gpio)
 		return -ENOMEM;
-	}
 
 	palmas_gpio->palmas = palmas;
 	palmas_gpio->gpio_chip.owner = THIS_MODULE;
@@ -212,7 +210,8 @@ static int palmas_gpio_remove(struct platform_device *pdev)
 {
 	struct palmas_gpio *palmas_gpio = platform_get_drvdata(pdev);
 
-	return gpiochip_remove(&palmas_gpio->gpio_chip);
+	gpiochip_remove(&palmas_gpio->gpio_chip);
+	return 0;
 }
 
 static struct platform_driver palmas_gpio_driver = {

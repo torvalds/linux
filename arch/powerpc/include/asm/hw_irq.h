@@ -25,6 +25,7 @@
 #define PACA_IRQ_EE		0x04
 #define PACA_IRQ_DEC		0x08 /* Or FIT */
 #define PACA_IRQ_EE_EDGE	0x10 /* BookE only */
+#define PACA_IRQ_HMI		0x20
 
 #endif /* CONFIG_PPC64 */
 

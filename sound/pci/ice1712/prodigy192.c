@@ -98,7 +98,7 @@ static int stac9460_dac_mute(struct snd_ice1712 *ice, int idx,
 	new = (~mute << 7 & 0x80) | (old & ~0x80);
 	change = (new != old);
 	if (change)
-		/*printk ("Volume register 0x%02x: 0x%02x\n", idx, new);*/
+		/* dev_dbg(ice->card->dev, "Volume register 0x%02x: 0x%02x\n", idx, new);*/
 		stac9460_put(ice, idx, new);
 	return change;
 }
@@ -133,7 +133,7 @@ static int stac9460_dac_mute_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	/* due to possible conflicts with stac9460_set_rate_val, mutexing */
 	mutex_lock(&spec->mute_mutex);
 	/*
-	printk(KERN_DEBUG "Mute put: reg 0x%02x, ctrl value: 0x%02x\n", idx,
+	dev_dbg(ice->card->dev, "Mute put: reg 0x%02x, ctrl value: 0x%02x\n", idx,
 	       ucontrol->value.integer.value[0]);
 	*/
 	change = stac9460_dac_mute(ice, idx, ucontrol->value.integer.value[0]);
@@ -187,7 +187,7 @@ static int stac9460_dac_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 	if (change) {
 		ovol =  (0x7f - nvol) | (tmp & 0x80);
 		/*
-		printk(KERN_DEBUG "DAC Volume: reg 0x%02x: 0x%02x\n",
+		dev_dbg(ice->card->dev, "DAC Volume: reg 0x%02x: 0x%02x\n",
 		       idx, ovol);
 		*/
 		stac9460_put(ice, idx, (0x7f - nvol) | (tmp & 0x80));
@@ -284,15 +284,7 @@ static int stac9460_mic_sw_info(struct snd_kcontrol *kcontrol,
 {
 	static const char * const texts[2] = { "Line In", "Mic" };
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-
-        return 0;
+	return snd_ctl_enum_info(uinfo, 1, 2, texts);
 }
 
 
@@ -348,7 +340,7 @@ static void stac9460_set_rate_val(struct snd_ice1712 *ice, unsigned int rate)
 	for (idx = 0; idx < 7 ; ++idx)
 		changed[idx] = stac9460_dac_mute(ice,
 				STAC946X_MASTER_VOLUME + idx, 0);
-	/*printk(KERN_DEBUG "Rate change: %d, new MC: 0x%02x\n", rate, new);*/
+	/*dev_dbg(ice->card->dev, "Rate change: %d, new MC: 0x%02x\n", rate, new);*/
 	stac9460_put(ice, STAC946X_MASTER_CLOCKING, new);
 	udelay(10);
 	/* unmuting - only originally unmuted dacs -
@@ -563,13 +555,7 @@ static int ak4114_input_sw_info(struct snd_kcontrol *kcontrol,
 {
 	static const char * const texts[2] = { "Toslink", "Coax" };
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-        return 0;
+	return snd_ctl_enum_info(uinfo, 1, 2, texts);
 }
 
 
@@ -768,13 +754,12 @@ static int prodigy192_init(struct snd_ice1712 *ice)
 		/* from this moment if err = 0 then
 		 * spec->ak4114 should not be null
 		 */
-		snd_printdd("AK4114 initialized with status %d\n", err);
+		dev_dbg(ice->card->dev,
+			"AK4114 initialized with status %d\n", err);
 	} else
-		snd_printdd("AK4114 not found\n");
-	if (err < 0)
-		return err;
+		dev_dbg(ice->card->dev, "AK4114 not found\n");
 
-	return 0;
+	return err;
 }
 
 

@@ -12,6 +12,8 @@
 #ifndef _EXYNOS_DRM_GEM_H_
 #define _EXYNOS_DRM_GEM_H_
 
+#include <drm/drm_gem.h>
+
 #define to_exynos_gem_obj(x)	container_of(x,\
 			struct exynos_drm_gem_obj, base)
 
@@ -20,6 +22,7 @@
 /*
  * exynos drm gem buffer structure.
  *
+ * @cookie: cookie returned by dma_alloc_attrs
  * @kvaddr: kernel virtual address to allocated memory region.
  * *userptr: user space address.
  * @dma_addr: bus address(accessed by dma) to allocated memory region.
@@ -33,6 +36,7 @@
  *	VM_PFNMAP or not.
  */
 struct exynos_drm_gem_buf {
+	void 			*cookie;
 	void __iomem		*kvaddr;
 	unsigned long		userptr;
 	dma_addr_t		dma_addr;
@@ -110,20 +114,6 @@ dma_addr_t *exynos_drm_gem_get_dma_addr(struct drm_device *dev,
 void exynos_drm_gem_put_dma_addr(struct drm_device *dev,
 					unsigned int gem_handle,
 					struct drm_file *filp);
-
-/* get buffer offset to map to user space. */
-int exynos_drm_gem_map_offset_ioctl(struct drm_device *dev, void *data,
-				    struct drm_file *file_priv);
-
-/*
- * mmap the physically continuous memory that a gem object contains
- * to user space.
- */
-int exynos_drm_gem_mmap_ioctl(struct drm_device *dev, void *data,
-			      struct drm_file *file_priv);
-
-int exynos_drm_gem_mmap_buffer(struct file *filp,
-				      struct vm_area_struct *vma);
 
 /* map user space allocated by malloc to pages. */
 int exynos_drm_gem_userptr_ioctl(struct drm_device *dev, void *data,

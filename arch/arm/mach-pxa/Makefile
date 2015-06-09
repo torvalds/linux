@@ -4,7 +4,7 @@
 
 # Common support (must be linked before board specific support)
 obj-y				+= clock.o devices.o generic.o irq.o \
-				   time.o reset.o
+				   reset.o
 obj-$(CONFIG_PM)		+= pm.o sleep.o standby.o
 
 # Generic drivers that other drivers may depend upon
@@ -21,6 +21,7 @@ obj-$(CONFIG_CPU_PXA930)	+= pxa930.o
 
 # Device Tree support
 obj-$(CONFIG_MACH_PXA3XX_DT)	+= pxa-dt.o
+obj-$(CONFIG_MACH_PXA27X_DT)	+= pxa-dt.o
 
 # Intel/Marvell Dev Platforms
 obj-$(CONFIG_ARCH_LUBBOCK)	+= lubbock.o
@@ -89,4 +90,5 @@ obj-$(CONFIG_MACH_RAUMFELD_CONNECTOR)	+= raumfeld.o
 obj-$(CONFIG_MACH_RAUMFELD_SPEAKER)	+= raumfeld.o
 obj-$(CONFIG_MACH_ZIPIT2)	+= z2.o
 
+obj-$(CONFIG_PXA_SYSTEMS_CPLDS)	+= pxa_cplds_irqs.o
 obj-$(CONFIG_TOSA_BT)		+= tosa-bt.o

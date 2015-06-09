@@ -94,10 +94,8 @@ static int platform_lcd_probe(struct platform_device *pdev)
 
 	plcd = devm_kzalloc(&pdev->dev, sizeof(struct platform_lcd),
 			    GFP_KERNEL);
-	if (!plcd) {
-		dev_err(dev, "no memory for state\n");
+	if (!plcd)
 		return -ENOMEM;
-	}
 
 	plcd->us = dev;
 	plcd->pdata = pdata;
@@ -150,7 +148,6 @@ MODULE_DEVICE_TABLE(of, platform_lcd_of_match);
 static struct platform_driver platform_lcd_driver = {
 	.driver		= {
 		.name	= "platform-lcd",
-		.owner	= THIS_MODULE,
 		.pm	= &platform_lcd_pm_ops,
 		.of_match_table = of_match_ptr(platform_lcd_of_match),
 	},

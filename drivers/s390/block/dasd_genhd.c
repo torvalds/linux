@@ -99,15 +99,37 @@ void dasd_gendisk_free(struct dasd_block *block)
 int dasd_scan_partitions(struct dasd_block *block)
 {
 	struct block_device *bdev;
+	int retry, rc;
 
+	retry = 5;
 	bdev = bdget_disk(block->gdp, 0);
-	if (!bdev || blkdev_get(bdev, FMODE_READ, NULL) < 0)
+	if (!bdev) {
+		DBF_DEV_EVENT(DBF_ERR, block->base, "%s",
+			      "scan partitions error, bdget returned NULL");
 		return -ENODEV;
+	}
+
+	rc = blkdev_get(bdev, FMODE_READ, NULL);
+	if (rc < 0) {
+		DBF_DEV_EVENT(DBF_ERR, block->base,
+			      "scan partitions error, blkdev_get returned %d",
+			      rc);
+		return -ENODEV;
+	}
 	/*
 	 * See fs/partition/check.c:register_disk,rescan_partitions
 	 * Can't call rescan_partitions directly. Use ioctl.
 	 */
-	ioctl_by_bdev(bdev, BLKRRPART, 0);
+	rc = ioctl_by_bdev(bdev, BLKRRPART, 0);
+	while (rc == -EBUSY && retry > 0) {
+		schedule();
+		rc = ioctl_by_bdev(bdev, BLKRRPART, 0);
+		retry--;
+		DBF_DEV_EVENT(DBF_ERR, block->base,
+			      "scan partitions error, retry %d rc %d",
+			      retry, rc);
+	}
+
 	/*
 	 * Since the matching blkdev_put call to the blkdev_get in
 	 * this function is not called before dasd_destroy_partitions

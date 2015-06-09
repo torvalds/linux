@@ -41,10 +41,10 @@ static int jornada_bl_get_brightness(struct backlight_device *bd)
 		dev_err(&bd->dev, "get brightness timeout\n");
 		jornada_ssp_end();
 		return -ETIMEDOUT;
-	} else {
-		/* exchange txdummy for value */
-		ret = jornada_ssp_byte(TXDUMMY);
 	}
+
+	/* exchange txdummy for value */
+	ret = jornada_ssp_byte(TXDUMMY);
 
 	jornada_ssp_end();
 

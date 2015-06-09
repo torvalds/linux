@@ -12,4 +12,24 @@ config DHT11
 	  Other sensors should work as well as long as they speak the
 	  same protocol.
 
+config SI7005
+	tristate "SI7005 relative humidity and temperature sensor"
+	depends on I2C
+	help
+	  Say yes here to build support for the Silabs Si7005 relative
+	  humidity and temperature sensor.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called si7005.
+
+config SI7020
+	tristate "Si7013/20/21 Relative Humidity and Temperature Sensors"
+	depends on I2C
+	help
+	  Say yes here to build support for the Silicon Labs Si7013/20/21
+	  Relative Humidity and Temperature Sensors.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called si7020.
+
 endmenu

@@ -170,7 +170,7 @@ static int nlmsg_populate_mdb_fill(struct sk_buff *skb,
 	struct br_port_msg *bpm;
 	struct nlattr *nest, *nest2;
 
-	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*bpm), NLM_F_MULTI);
+	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*bpm), 0);
 	if (!nlh)
 		return -EMSGSIZE;
 
@@ -190,7 +190,8 @@ static int nlmsg_populate_mdb_fill(struct sk_buff *skb,
 
 	nla_nest_end(skb, nest2);
 	nla_nest_end(skb, nest);
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 end:
 	nla_nest_end(skb, nest);
@@ -276,7 +277,7 @@ static int br_mdb_parse(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct net_device *dev;
 	int err;
 
-	err = nlmsg_parse(nlh, sizeof(*bpm), tb, MDBA_SET_ENTRY, NULL);
+	err = nlmsg_parse(nlh, sizeof(*bpm), tb, MDBA_SET_ENTRY_MAX, NULL);
 	if (err < 0)
 		return err;
 
@@ -418,13 +419,13 @@ static int __br_mdb_del(struct net_bridge *br, struct br_mdb_entry *entry)
 
 	ip.proto = entry->addr.proto;
 	if (ip.proto == htons(ETH_P_IP)) {
-		if (timer_pending(&br->ip4_querier.timer))
+		if (timer_pending(&br->ip4_other_query.timer))
 			return -EBUSY;
 
 		ip.u.ip4 = entry->addr.u.ip4;
 #if IS_ENABLED(CONFIG_IPV6)
 	} else {
-		if (timer_pending(&br->ip6_querier.timer))
+		if (timer_pending(&br->ip6_other_query.timer))
 			return -EBUSY;
 
 		ip.u.ip6 = entry->addr.u.ip6;

@@ -257,6 +257,14 @@ static void dwc2_hcd_cleanup_channels(struct dwc2_hsotg *hsotg)
 		 */
 		channel->qh = NULL;
 	}
+	/* All channels have been freed, mark them available */
+	if (hsotg->core_params->uframe_sched > 0) {
+		hsotg->available_host_channels =
+			hsotg->core_params->host_channels;
+	} else {
+		hsotg->non_periodic_channels = 0;
+		hsotg->periodic_channels = 0;
+	}
 }
 
 /**
@@ -316,10 +324,12 @@ void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg)
  */
 static void dwc2_hcd_rem_wakeup(struct dwc2_hsotg *hsotg)
 {
-	if (hsotg->lx_state == DWC2_L2)
+	if (hsotg->lx_state == DWC2_L2) {
 		hsotg->flags.b.port_suspend_change = 1;
-	else
+		usb_hcd_resume_root_hub(hsotg->priv);
+	} else {
 		hsotg->flags.b.port_l1_change = 1;
+	}
 }
 
 /**
@@ -697,29 +707,45 @@ static void *dwc2_hc_init_xfer(struct dwc2_hsotg *hsotg,
 }
 
 static int dwc2_hc_setup_align_buf(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
-				   struct dwc2_host_chan *chan, void *bufptr)
+				   struct dwc2_host_chan *chan,
+				   struct dwc2_hcd_urb *urb, void *bufptr)
 {
 	u32 buf_size;
-
-	if (chan->ep_type != USB_ENDPOINT_XFER_ISOC)
-		buf_size = hsotg->core_params->max_transfer_size;
-	else
-		buf_size = 4096;
+	struct urb *usb_urb;
+	struct usb_hcd *hcd;
 
 	if (!qh->dw_align_buf) {
+		if (chan->ep_type != USB_ENDPOINT_XFER_ISOC)
+			buf_size = hsotg->core_params->max_transfer_size;
+		else
+			/* 3072 = 3 max-size Isoc packets */
+			buf_size = 3072;
+
 		qh->dw_align_buf = dma_alloc_coherent(hsotg->dev, buf_size,
 						      &qh->dw_align_buf_dma,
 						      GFP_ATOMIC);
 		if (!qh->dw_align_buf)
 			return -ENOMEM;
+		qh->dw_align_buf_size = buf_size;
 	}
 
-	if (!chan->ep_is_in && chan->xfer_len) {
-		dma_sync_single_for_cpu(hsotg->dev, chan->xfer_dma, buf_size,
-					DMA_TO_DEVICE);
-		memcpy(qh->dw_align_buf, bufptr, chan->xfer_len);
-		dma_sync_single_for_device(hsotg->dev, chan->xfer_dma, buf_size,
-					   DMA_TO_DEVICE);
+	if (chan->xfer_len) {
+		dev_vdbg(hsotg->dev, "%s(): non-aligned buffer\n", __func__);
+		usb_urb = urb->priv;
+
+		if (usb_urb) {
+			if (usb_urb->transfer_flags &
+			    (URB_SETUP_MAP_SINGLE | URB_DMA_MAP_SG |
+			     URB_DMA_MAP_PAGE | URB_DMA_MAP_SINGLE)) {
+				hcd = dwc2_hsotg_to_hcd(hsotg);
+				usb_hcd_unmap_urb_for_dma(hcd, usb_urb);
+			}
+			if (!chan->ep_is_in)
+				memcpy(qh->dw_align_buf, bufptr,
+				       chan->xfer_len);
+		} else {
+			dev_warn(hsotg->dev, "no URB in dwc2_urb\n");
+		}
 	}
 
 	chan->align_buf = qh->dw_align_buf_dma;
@@ -828,7 +854,7 @@ static int dwc2_assign_and_init_hc(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	/* Non DWORD-aligned buffer case */
 	if (bufptr) {
 		dev_vdbg(hsotg->dev, "Non-aligned buffer\n");
-		if (dwc2_hc_setup_align_buf(hsotg, qh, chan, bufptr)) {
+		if (dwc2_hc_setup_align_buf(hsotg, qh, chan, urb, bufptr)) {
 			dev_err(hsotg->dev,
 				"%s: Failed to allocate memory to handle non-dword aligned buffer\n",
 				__func__);
@@ -1355,6 +1381,8 @@ static void dwc2_conn_id_status_change(struct work_struct *work)
 		hsotg->op_state = OTG_STATE_B_PERIPHERAL;
 		dwc2_core_init(hsotg, false, -1);
 		dwc2_enable_global_interrupts(hsotg);
+		s3c_hsotg_core_init_disconnected(hsotg, false);
+		s3c_hsotg_core_connect(hsotg);
 	} else {
 		/* A-Device connector (Host Mode) */
 		dev_dbg(hsotg->dev, "connId A\n");
@@ -1507,7 +1535,7 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 			hprt0 |= HPRT0_RES;
 			writel(hprt0, hsotg->regs + HPRT0);
 			hprt0 &= ~HPRT0_SUSP;
-			usleep_range(100000, 150000);
+			msleep(USB_RESUME_TIMEOUT);
 
 			hprt0 &= ~HPRT0_RES;
 			writel(hprt0, hsotg->regs + HPRT0);
@@ -1588,9 +1616,11 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 		dev_dbg(hsotg->dev, "GetHubDescriptor\n");
 		hub_desc = (struct usb_hub_descriptor *)buf;
 		hub_desc->bDescLength = 9;
-		hub_desc->bDescriptorType = 0x29;
+		hub_desc->bDescriptorType = USB_DT_HUB;
 		hub_desc->bNbrPorts = 1;
-		hub_desc->wHubCharacteristics = cpu_to_le16(0x08);
+		hub_desc->wHubCharacteristics =
+			cpu_to_le16(HUB_CHAR_COMMON_LPSM |
+				    HUB_CHAR_INDV_PORT_OCPM);
 		hub_desc->bPwrOn2PwrGood = 1;
 		hub_desc->bHubContrCurrent = 0;
 		hub_desc->u.hs.DeviceRemovable[0] = 0;
@@ -2762,6 +2792,9 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 	int i, num_channels;
 	int retval;
 
+	if (usb_disabled())
+		return -ENODEV;
+
 	dev_dbg(hsotg->dev, "DWC OTG HCD INIT\n");
 
 	/* Detect config values from hardware */
@@ -2823,7 +2856,6 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 
 	hcd->has_tt = 1;
 
-	spin_lock_init(&hsotg->lock);
 	((struct wrapper_priv_data *) &hcd->hcd_priv)->hsotg = hsotg;
 	hsotg->priv = hcd;
 

@@ -12,8 +12,8 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
  *
  * Copyright IBM Corporation, 2008
  *
@@ -45,6 +45,8 @@
 
 #define RCU_TREE_NONCORE
 #include "tree.h"
+
+DECLARE_PER_CPU_SHARED_ALIGNED(unsigned long, rcu_qs_ctr);
 
 static int r_open(struct inode *inode, struct file *file,
 					const struct seq_operations *op)
@@ -115,11 +117,13 @@ static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 
 	if (!rdp->beenonline)
 		return;
-	seq_printf(m, "%3d%cc=%ld g=%ld pq=%d qp=%d",
+	seq_printf(m, "%3d%cc=%ld g=%ld pq=%d/%d qp=%d",
 		   rdp->cpu,
 		   cpu_is_offline(rdp->cpu) ? '!' : ' ',
 		   ulong2long(rdp->completed), ulong2long(rdp->gpnum),
-		   rdp->passed_quiesce, rdp->qs_pending);
+		   rdp->passed_quiesce,
+		   rdp->rcu_qs_ctr_snap == per_cpu(rcu_qs_ctr, rdp->cpu),
+		   rdp->qs_pending);
 	seq_printf(m, " dt=%d/%llx/%d df=%lu",
 		   atomic_read(&rdp->dynticks->dynticks),
 		   rdp->dynticks->dynticks_nesting,
@@ -273,14 +277,14 @@ static void print_one_rcu_state(struct seq_file *m, struct rcu_state *rsp)
 	seq_printf(m, "nfqs=%lu/nfqsng=%lu(%lu) fqlh=%lu oqlen=%ld/%ld\n",
 		   rsp->n_force_qs, rsp->n_force_qs_ngp,
 		   rsp->n_force_qs - rsp->n_force_qs_ngp,
-		   rsp->n_force_qs_lh, rsp->qlen_lazy, rsp->qlen);
+		   ACCESS_ONCE(rsp->n_force_qs_lh), rsp->qlen_lazy, rsp->qlen);
 	for (rnp = &rsp->node[0]; rnp - &rsp->node[0] < rcu_num_nodes; rnp++) {
 		if (rnp->level != level) {
 			seq_puts(m, "\n");
 			level = rnp->level;
 		}
-		seq_printf(m, "%lx/%lx %c%c>%c %d:%d ^%d    ",
-			   rnp->qsmask, rnp->qsmaskinit,
+		seq_printf(m, "%lx/%lx->%lx %c%c>%c %d:%d ^%d    ",
+			   rnp->qsmask, rnp->qsmaskinit, rnp->qsmaskinitnext,
 			   ".G"[rnp->gp_tasks != NULL],
 			   ".E"[rnp->exp_tasks != NULL],
 			   ".T"[!list_empty(&rnp->blkd_tasks)],

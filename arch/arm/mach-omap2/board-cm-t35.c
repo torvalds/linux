@@ -16,6 +16,8 @@
  *
  */
 
+#include <linux/clk-provider.h>
+#include <linux/clkdev.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -23,6 +25,7 @@
 #include <linux/input/matrix_keypad.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/omap-gpmc.h>
 #include <linux/platform_data/gpio-omap.h>
 
 #include <linux/platform_data/at24.h>
@@ -49,8 +52,6 @@
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "hsmmc.h"
 #include "common-board-devices.h"
-#include "gpmc.h"
-#include "gpmc-nand.h"
 
 #define CM_T35_GPIO_PENDOWN		57
 #define SB_T35_USB_HUB_RESET_GPIO	167
@@ -491,59 +492,58 @@ static struct twl4030_platform_data cm_t35_twldata = {
 #include <media/omap3isp.h>
 #include "devices.h"
 
-static struct i2c_board_info cm_t35_isp_i2c_boardinfo[] = {
+static struct isp_platform_subdev cm_t35_isp_subdevs[] = {
 	{
-		I2C_BOARD_INFO("mt9t001", 0x5d),
-	},
-	{
-		I2C_BOARD_INFO("tvp5150", 0x5c),
-	},
-};
-
-static struct isp_subdev_i2c_board_info cm_t35_isp_primary_subdevs[] = {
-	{
-		.board_info = &cm_t35_isp_i2c_boardinfo[0],
+		.board_info = &(struct i2c_board_info){
+			I2C_BOARD_INFO("mt9t001", 0x5d)
+		},
 		.i2c_adapter_id = 3,
-	},
-	{ NULL, 0, },
-};
-
-static struct isp_subdev_i2c_board_info cm_t35_isp_secondary_subdevs[] = {
-	{
-		.board_info = &cm_t35_isp_i2c_boardinfo[1],
-		.i2c_adapter_id = 3,
-	},
-	{ NULL, 0, },
-};
-
-static struct isp_v4l2_subdevs_group cm_t35_isp_subdevs[] = {
-	{
-		.subdevs = cm_t35_isp_primary_subdevs,
-		.interface = ISP_INTERFACE_PARALLEL,
-		.bus = {
-			.parallel = {
-				.clk_pol = 1,
+		.bus = &(struct isp_bus_cfg){
+			.interface = ISP_INTERFACE_PARALLEL,
+			.bus = {
+				.parallel = {
+					.clk_pol = 1,
+				},
 			},
 		},
 	},
 	{
-		.subdevs = cm_t35_isp_secondary_subdevs,
-		.interface = ISP_INTERFACE_PARALLEL,
-		.bus = {
-			.parallel = {
-				.clk_pol = 0,
+		.board_info = &(struct i2c_board_info){
+			I2C_BOARD_INFO("tvp5150", 0x5c),
+		},
+		.i2c_adapter_id = 3,
+		.bus = &(struct isp_bus_cfg){
+			.interface = ISP_INTERFACE_PARALLEL,
+			.bus = {
+				.parallel = {
+					.clk_pol = 0,
+				},
 			},
 		},
 	},
-	{ NULL, 0, },
+	{ 0 },
 };
 
 static struct isp_platform_data cm_t35_isp_pdata = {
 	.subdevs = cm_t35_isp_subdevs,
 };
 
+static struct regulator_consumer_supply cm_t35_camera_supplies[] = {
+	REGULATOR_SUPPLY("vaa", "3-005d"),
+	REGULATOR_SUPPLY("vdd", "3-005d"),
+};
+
 static void __init cm_t35_init_camera(void)
 {
+	struct clk *clk;
+
+	clk = clk_register_fixed_rate(NULL, "mt9t001-clkin", NULL, CLK_IS_ROOT,
+				      48000000);
+	clk_register_clkdev(clk, NULL, "3-005d");
+
+	regulator_register_fixed(2, cm_t35_camera_supplies,
+				 ARRAY_SIZE(cm_t35_camera_supplies));
+
 	if (omap3_init_camera(&cm_t35_isp_pdata) < 0)
 		pr_warn("CM-T3x: Failed registering camera device!\n");
 }
@@ -750,7 +750,6 @@ MACHINE_START(CM_T35, "Compulab CM-T35")
 	.map_io		= omap3_map_io,
 	.init_early	= omap35xx_init_early,
 	.init_irq	= omap3_init_irq,
-	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= cm_t35_init,
 	.init_late	= omap35xx_init_late,
 	.init_time	= omap3_sync32k_timer_init,
@@ -763,7 +762,6 @@ MACHINE_START(CM_T3730, "Compulab CM-T3730")
 	.map_io		= omap3_map_io,
 	.init_early	= omap3630_init_early,
 	.init_irq	= omap3_init_irq,
-	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= cm_t3730_init,
 	.init_late     = omap3630_init_late,
 	.init_time	= omap3_sync32k_timer_init,

@@ -4,10 +4,10 @@
 #include <linux/perf_event.h>
 #include <sys/types.h>
 #include <stdbool.h>
-#include "types.h"
+#include <linux/bitmap.h>
+#include <linux/types.h>
 #include "event.h"
 
-#include <linux/bitmap.h>
 
 enum {
 	HEADER_RESERVED		= 0,	/* always cleared */
@@ -122,10 +122,6 @@ int perf_header__process_sections(struct perf_header *header, int fd,
 
 int perf_header__fprintf_info(struct perf_session *s, FILE *fp, bool full);
 
-int build_id_cache__add_s(const char *sbuild_id, const char *debugdir,
-			  const char *name, bool is_kallsyms, bool is_vdso);
-int build_id_cache__remove_s(const char *sbuild_id, const char *debugdir);
-
 int perf_event__synthesize_attr(struct perf_tool *tool,
 				struct perf_event_attr *attr, u32 ids, u64 *id,
 				perf_event__handler_t process);
@@ -150,6 +146,10 @@ int perf_event__process_build_id(struct perf_tool *tool,
 				 union perf_event *event,
 				 struct perf_session *session);
 bool is_perf_magic(u64 magic);
+
+#define NAME_ALIGN 64
+
+int write_padded(int fd, const void *bf, size_t count, size_t count_aligned);
 
 /*
  * arch specific callback

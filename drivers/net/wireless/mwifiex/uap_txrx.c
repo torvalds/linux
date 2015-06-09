@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: AP TX and RX data handling
  *
- * Copyright (C) 2012, Marvell International Ltd.
+ * Copyright (C) 2012-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -96,7 +96,6 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 	struct sk_buff *new_skb;
 	struct mwifiex_txinfo *tx_info;
 	int hdr_chop;
-	struct timeval tv;
 	struct ethhdr *p_ethhdr;
 
 	uap_rx_pd = (struct uap_rxpd *)(skb->data);
@@ -175,6 +174,7 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 	}
 
 	tx_info = MWIFIEX_SKB_TXCB(skb);
+	memset(tx_info, 0, sizeof(*tx_info));
 	tx_info->bss_num = priv->bss_num;
 	tx_info->bss_type = priv->bss_type;
 	tx_info->flags |= MWIFIEX_BUF_FLAG_BRIDGED_PKT;
@@ -192,8 +192,7 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 		tx_info->pkt_len = skb->len;
 	}
 
-	do_gettimeofday(&tv);
-	skb->tstamp = timeval_to_ktime(tv);
+	__net_timestamp(skb);
 	mwifiex_wmm_add_buf_txqueue(priv, skb);
 	atomic_inc(&adapter->tx_pending);
 	atomic_inc(&adapter->pending_bridged_pkts);
@@ -267,6 +266,7 @@ int mwifiex_process_uap_rx_packet(struct mwifiex_private *priv,
 	struct rx_packet_hdr *rx_pkt_hdr;
 	u16 rx_pkt_type;
 	u8 ta[ETH_ALEN], pkt_type;
+	unsigned long flags;
 	struct mwifiex_sta_node *node;
 
 	uap_rx_pd = (struct uap_rxpd *)(skb->data);
@@ -284,27 +284,7 @@ int mwifiex_process_uap_rx_packet(struct mwifiex_private *priv,
 		return 0;
 	}
 
-	if (le16_to_cpu(uap_rx_pd->rx_pkt_type) == PKT_TYPE_AMSDU) {
-		struct sk_buff_head list;
-		struct sk_buff *rx_skb;
-
-		__skb_queue_head_init(&list);
-		skb_pull(skb, le16_to_cpu(uap_rx_pd->rx_pkt_offset));
-		skb_trim(skb, le16_to_cpu(uap_rx_pd->rx_pkt_length));
-
-		ieee80211_amsdu_to_8023s(skb, &list, priv->curr_addr,
-					 priv->wdev->iftype, 0, false);
-
-		while (!skb_queue_empty(&list)) {
-			rx_skb = __skb_dequeue(&list);
-			ret = mwifiex_recv_packet(priv, rx_skb);
-			if (ret)
-				dev_err(adapter->dev,
-					"AP:Rx A-MSDU failed");
-		}
-
-		return 0;
-	} else if (rx_pkt_type == PKT_TYPE_MGMT) {
+	if (rx_pkt_type == PKT_TYPE_MGMT) {
 		ret = mwifiex_process_mgmt_packet(priv, skb);
 		if (ret)
 			dev_err(adapter->dev, "Rx of mgmt packet failed");
@@ -315,10 +295,12 @@ int mwifiex_process_uap_rx_packet(struct mwifiex_private *priv,
 	memcpy(ta, rx_pkt_hdr->eth803_hdr.h_source, ETH_ALEN);
 
 	if (rx_pkt_type != PKT_TYPE_BAR && uap_rx_pd->priority < MAX_NUM_TID) {
+		spin_lock_irqsave(&priv->sta_list_spinlock, flags);
 		node = mwifiex_get_sta_entry(priv, ta);
 		if (node)
 			node->rx_seq[uap_rx_pd->priority] =
 						le16_to_cpu(uap_rx_pd->seq_num);
+		spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
 	}
 
 	if (!priv->ap_11n_enabled ||
@@ -366,8 +348,10 @@ void *mwifiex_process_uap_txpd(struct mwifiex_private *priv,
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct uap_txpd *txpd;
 	struct mwifiex_txinfo *tx_info = MWIFIEX_SKB_TXCB(skb);
-	int pad, len;
-	u16 pkt_type;
+	int pad;
+	u16 pkt_type, pkt_offset;
+	int hroom = (priv->adapter->iface_type == MWIFIEX_USB) ? 0 :
+		       INTF_HEADER_LEN;
 
 	if (!skb->len) {
 		dev_err(adapter->dev, "Tx: bad packet length: %d\n", skb->len);
@@ -375,25 +359,30 @@ void *mwifiex_process_uap_txpd(struct mwifiex_private *priv,
 		return skb->data;
 	}
 
+	BUG_ON(skb_headroom(skb) < MWIFIEX_MIN_DATA_HEADER_LEN);
+
 	pkt_type = mwifiex_is_skb_mgmt_frame(skb) ? PKT_TYPE_MGMT : 0;
 
-	/* If skb->data is not aligned, add padding */
-	pad = (4 - (((void *)skb->data - NULL) & 0x3)) % 4;
+	pad = ((void *)skb->data - (sizeof(*txpd) + hroom) - NULL) &
+			(MWIFIEX_DMA_ALIGN_SZ - 1);
 
-	len = sizeof(*txpd) + pad;
-
-	BUG_ON(skb_headroom(skb) < len + INTF_HEADER_LEN);
-
-	skb_push(skb, len);
+	skb_push(skb, sizeof(*txpd) + pad);
 
 	txpd = (struct uap_txpd *)skb->data;
 	memset(txpd, 0, sizeof(*txpd));
 	txpd->bss_num = priv->bss_num;
 	txpd->bss_type = priv->bss_type;
-	txpd->tx_pkt_length = cpu_to_le16((u16)(skb->len - len));
-
+	txpd->tx_pkt_length = cpu_to_le16((u16)(skb->len - (sizeof(*txpd) +
+						pad)));
 	txpd->priority = (u8)skb->priority;
+
 	txpd->pkt_delay_2ms = mwifiex_wmm_compute_drv_pkt_delay(priv, skb);
+
+	if (tx_info->flags & MWIFIEX_BUF_FLAG_EAPOL_TX_STATUS ||
+	    tx_info->flags & MWIFIEX_BUF_FLAG_ACTION_TX_STATUS) {
+		txpd->tx_token_id = tx_info->ack_frame_id;
+		txpd->flags |= MWIFIEX_TXPD_FLAGS_REQ_TX_STATUS;
+	}
 
 	if (txpd->priority < ARRAY_SIZE(priv->wmm.user_pri_pkt_tx_ctrl))
 		/*
@@ -404,16 +393,17 @@ void *mwifiex_process_uap_txpd(struct mwifiex_private *priv,
 		    cpu_to_le32(priv->wmm.user_pri_pkt_tx_ctrl[txpd->priority]);
 
 	/* Offset of actual data */
+	pkt_offset = sizeof(*txpd) + pad;
 	if (pkt_type == PKT_TYPE_MGMT) {
 		/* Set the packet type and add header for management frame */
 		txpd->tx_pkt_type = cpu_to_le16(pkt_type);
-		len += MWIFIEX_MGMT_FRAME_HEADER_SIZE;
+		pkt_offset += MWIFIEX_MGMT_FRAME_HEADER_SIZE;
 	}
 
-	txpd->tx_pkt_offset = cpu_to_le16(len);
+	txpd->tx_pkt_offset = cpu_to_le16(pkt_offset);
 
 	/* make space for INTF_HEADER_LEN */
-	skb_push(skb, INTF_HEADER_LEN);
+	skb_push(skb, hroom);
 
 	if (!txpd->tx_control)
 		/* TxCtrl set by user or default */

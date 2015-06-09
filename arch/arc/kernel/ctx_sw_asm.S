@@ -10,9 +10,9 @@
  *  -This is the more "natural" hand written assembler
  */
 
+#include <linux/linkage.h>
 #include <asm/entry.h>       /* For the SAVE_* macros */
 #include <asm/asm-offsets.h>
-#include <asm/linkage.h>
 
 #define KSP_WORD_OFF 	((TASK_THREAD + THREAD_KSP) / 4)
 
@@ -62,4 +62,4 @@ __switch_to:
 	ld.ab   blink, [sp, 4]
 	j       [blink]
 
-ARC_EXIT __switch_to
+END(__switch_to)

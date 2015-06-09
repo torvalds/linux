@@ -498,7 +498,7 @@ static int if_sdio_prog_helper(struct if_sdio_card *card,
 		 */
 		mdelay(2);
 
-		chunk_size = min(size, (size_t)60);
+		chunk_size = min_t(size_t, size, 60);
 
 		*((__le32*)chunk_buffer) = cpu_to_le32(chunk_size);
 		memcpy(chunk_buffer + 4, firmware, chunk_size);
@@ -639,7 +639,7 @@ static int if_sdio_prog_real(struct if_sdio_card *card,
 			req_size = size;
 
 		while (req_size) {
-			chunk_size = min(req_size, (size_t)512);
+			chunk_size = min_t(size_t, req_size, 512);
 
 			memcpy(chunk_buffer, firmware, chunk_size);
 /*

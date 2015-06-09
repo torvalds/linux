@@ -3,7 +3,7 @@
 #include <linux/module.h>
 
 #define for_each_test(i, test)	\
-	for (i = 0; i < sizeof(test) / sizeof(test[0]); i++)
+	for (i = 0; i < ARRAY_SIZE(test); i++)
 
 struct test_fail {
 	const char *str;

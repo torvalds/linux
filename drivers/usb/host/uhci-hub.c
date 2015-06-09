@@ -15,10 +15,11 @@
 static const __u8 root_hub_hub_des[] =
 {
 	0x09,			/*  __u8  bLength; */
-	0x29,			/*  __u8  bDescriptorType; Hub-descriptor */
+	USB_DT_HUB,		/*  __u8  bDescriptorType; Hub-descriptor */
 	0x02,			/*  __u8  bNbrPorts; */
-	0x0a,			/* __u16  wHubCharacteristics; */
-	0x00,			/*   (per-port OC, no power switching) */
+	HUB_CHAR_NO_LPSM |	/* __u16  wHubCharacteristics; */
+		HUB_CHAR_INDV_PORT_OCPM, /* (per-port OC, no power switching) */
+	0x00,
 	0x01,			/*  __u8  bPwrOn2pwrGood; 2ms */
 	0x00,			/*  __u8  bHubContrCurrent; 0 mA */
 	0x00,			/*  __u8  DeviceRemovable; *** 7 Ports max */
@@ -165,7 +166,7 @@ static void uhci_check_ports(struct uhci_hcd *uhci)
 				/* Port received a wakeup request */
 				set_bit(port, &uhci->resuming_ports);
 				uhci->ports_timeout = jiffies +
-						msecs_to_jiffies(25);
+					msecs_to_jiffies(USB_RESUME_TIMEOUT);
 				usb_hcd_start_port_resume(
 						&uhci_to_hcd(uhci)->self, port);
 
@@ -337,7 +338,8 @@ static int uhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			uhci_finish_suspend(uhci, port, port_addr);
 
 			/* USB v2.0 7.1.7.5 */
-			uhci->ports_timeout = jiffies + msecs_to_jiffies(50);
+			uhci->ports_timeout = jiffies +
+				msecs_to_jiffies(USB_RESUME_TIMEOUT);
 			break;
 		case USB_PORT_FEAT_POWER:
 			/* UHCI has no power switching */

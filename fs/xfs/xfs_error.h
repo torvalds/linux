@@ -18,15 +18,6 @@
 #ifndef	__XFS_ERROR_H__
 #define	__XFS_ERROR_H__
 
-#ifdef DEBUG
-#define	XFS_ERROR_NTRAP	10
-extern int	xfs_etrap[XFS_ERROR_NTRAP];
-extern int	xfs_error_trap(int);
-#define	XFS_ERROR(e)	xfs_error_trap(e)
-#else
-#define	XFS_ERROR(e)	(e)
-#endif
-
 struct xfs_mount;
 
 extern void xfs_error_report(const char *tag, int level, struct xfs_mount *mp,
@@ -34,6 +25,7 @@ extern void xfs_error_report(const char *tag, int level, struct xfs_mount *mp,
 extern void xfs_corruption_error(const char *tag, int level,
 			struct xfs_mount *mp, void *p, const char *filename,
 			int linenum, inst_t *ra);
+extern void xfs_verifier_error(struct xfs_buf *bp);
 
 #define	XFS_ERROR_REPORT(e, lvl, mp)	\
 	xfs_error_report(e, lvl, mp, __FILE__, __LINE__, __return_address)
@@ -48,26 +40,26 @@ extern void xfs_corruption_error(const char *tag, int level,
 /*
  * Macros to set EFSCORRUPTED & return/branch.
  */
-#define	XFS_WANT_CORRUPTED_GOTO(x,l)	\
+#define	XFS_WANT_CORRUPTED_GOTO(mp, x, l)	\
 	{ \
 		int fs_is_ok = (x); \
 		ASSERT(fs_is_ok); \
 		if (unlikely(!fs_is_ok)) { \
 			XFS_ERROR_REPORT("XFS_WANT_CORRUPTED_GOTO", \
-					 XFS_ERRLEVEL_LOW, NULL); \
-			error = XFS_ERROR(EFSCORRUPTED); \
+					 XFS_ERRLEVEL_LOW, mp); \
+			error = -EFSCORRUPTED; \
 			goto l; \
 		} \
 	}
 
-#define	XFS_WANT_CORRUPTED_RETURN(x)	\
+#define	XFS_WANT_CORRUPTED_RETURN(mp, x)	\
 	{ \
 		int fs_is_ok = (x); \
 		ASSERT(fs_is_ok); \
 		if (unlikely(!fs_is_ok)) { \
 			XFS_ERROR_REPORT("XFS_WANT_CORRUPTED_RETURN", \
-					 XFS_ERRLEVEL_LOW, NULL); \
-			return XFS_ERROR(EFSCORRUPTED); \
+					 XFS_ERRLEVEL_LOW, mp); \
+			return -EFSCORRUPTED; \
 		} \
 	}
 

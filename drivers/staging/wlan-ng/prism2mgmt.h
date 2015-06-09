@@ -45,7 +45,7 @@
 * --------------------------------------------------------------------
 *
 * This file contains the constants and data structures for interaction
-* with the hfa384x Wireless LAN (WLAN) Media Access Contoller (MAC).
+* with the hfa384x Wireless LAN (WLAN) Media Access Controller (MAC).
 * The hfa384x is a portion of the Harris PRISM(tm) WLAN chipset.
 *
 * [Implementation and usage notes]
@@ -108,5 +108,10 @@ void prism2sta_processing_defer(struct work_struct *data);
 
 void prism2sta_commsqual_defer(struct work_struct *data);
 void prism2sta_commsqual_timer(unsigned long data);
+
+/* Interface callback functions, passing data back up to the cfg80211 layer */
+void prism2_connect_result(wlandevice_t *wlandev, u8 failed);
+void prism2_disconnected(wlandevice_t *wlandev);
+void prism2_roamed(wlandevice_t *wlandev);
 
 #endif

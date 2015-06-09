@@ -548,7 +548,7 @@ void dm_stats_account_io(struct dm_stats *stats, unsigned long bi_rw,
 		 * A race condition can at worst result in the merged flag being
 		 * misrepresented, so we don't have to disable preemption here.
 		 */
-		last = __this_cpu_ptr(stats->last);
+		last = raw_cpu_ptr(stats->last);
 		stats_aux->merged =
 			(bi_sector == (ACCESS_ONCE(last->last_sector) &&
 				       ((bi_rw & (REQ_WRITE | REQ_DISCARD)) ==
@@ -824,7 +824,7 @@ static int message_stats_create(struct mapped_device *md,
 		return 1;
 
 	id = dm_stats_create(dm_get_stats(md), start, end, step, program_id, aux_data,
-			     dm_internal_suspend, dm_internal_resume, md);
+			     dm_internal_suspend_fast, dm_internal_resume_fast, md);
 	if (id < 0)
 		return id;
 

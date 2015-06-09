@@ -404,7 +404,7 @@ static netdev_tx_t __ei_start_xmit(struct sk_buff *skb,
 	spin_unlock(&ei_local->page_lock);
 	enable_irq_lockdep_irqrestore(dev->irq, &flags);
 	skb_tx_timestamp(skb);
-	dev_kfree_skb(skb);
+	dev_consume_skb_any(skb);
 	dev->stats.tx_bytes += send_length;
 
 	return NETDEV_TX_OK;
@@ -986,7 +986,7 @@ static void ethdev_setup(struct net_device *dev)
 static struct net_device *____alloc_ei_netdev(int size)
 {
 	return alloc_netdev(sizeof(struct ei_device) + size, "eth%d",
-				ethdev_setup);
+			    NET_NAME_UNKNOWN, ethdev_setup);
 }
 
 

@@ -104,11 +104,9 @@ static int raw_release(struct inode *inode, struct file *filp)
 
 	mutex_lock(&raw_mutex);
 	bdev = raw_devices[minor].binding;
-	if (--raw_devices[minor].inuse == 0) {
+	if (--raw_devices[minor].inuse == 0)
 		/* Here  inode->i_mapping == bdev->bd_inode->i_mapping  */
 		inode->i_mapping = &inode->i_data;
-		inode->i_mapping->backing_dev_info = &default_backing_dev_info;
-	}
 	mutex_unlock(&raw_mutex);
 
 	blkdev_put(bdev, filp->f_mode | FMODE_EXCL);
@@ -284,10 +282,8 @@ static long raw_ctl_compat_ioctl(struct file *file, unsigned int cmd,
 #endif
 
 static const struct file_operations raw_fops = {
-	.read		= do_sync_read,
-	.aio_read	= generic_file_aio_read,
-	.write		= do_sync_write,
-	.aio_write	= blkdev_aio_write,
+	.read_iter	= blkdev_read_iter,
+	.write_iter	= blkdev_write_iter,
 	.fsync		= blkdev_fsync,
 	.open		= raw_open,
 	.release	= raw_release,

@@ -653,6 +653,8 @@ static void pmz_start_tx(struct uart_port *port)
 	} else {
 		struct circ_buf *xmit = &port->state->xmit;
 
+		if (uart_circ_empty(xmit))
+			goto out;
 		write_zsdata(uap, xmit->buf[xmit->tail]);
 		zssync(uap);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
@@ -661,6 +663,7 @@ static void pmz_start_tx(struct uart_port *port)
 		if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 			uart_write_wakeup(&uap->port);
 	}
+ out:
 	pmz_debug("pmz: start_tx() done.\n");
 }
 
@@ -1092,7 +1095,7 @@ static void pmz_convert_to_zs(struct uart_pmac_port *uap, unsigned int cflag,
 	uap->port.read_status_mask = Rx_OVR;
 	if (iflag & INPCK)
 		uap->port.read_status_mask |= CRC_ERR | PAR_ERR;
-	if (iflag & (BRKINT | PARMRK))
+	if (iflag & (IGNBRK | BRKINT | PARMRK))
 		uap->port.read_status_mask |= BRK_ABRT;
 
 	uap->port.ignore_status_mask = 0;
@@ -1349,7 +1352,8 @@ static int pmz_verify_port(struct uart_port *port, struct serial_struct *ser)
 
 static int pmz_poll_get_char(struct uart_port *port)
 {
-	struct uart_pmac_port *uap = (struct uart_pmac_port *)port;
+	struct uart_pmac_port *uap =
+		container_of(port, struct uart_pmac_port, port);
 	int tries = 2;
 
 	while (tries) {
@@ -1364,7 +1368,8 @@ static int pmz_poll_get_char(struct uart_port *port)
 
 static void pmz_poll_put_char(struct uart_port *port, unsigned char c)
 {
-	struct uart_pmac_port *uap = (struct uart_pmac_port *)port;
+	struct uart_pmac_port *uap =
+		container_of(port, struct uart_pmac_port, port);
 
 	/* Wait for the transmit buffer to empty. */
 	while ((read_zsreg(uap, R0) & Tx_BUF_EMP) == 0)
@@ -1650,8 +1655,7 @@ static int __init pmz_probe(void)
 	/*
 	 * Find all escc chips in the system
 	 */
-	node_p = of_find_node_by_name(NULL, "escc");
-	while (node_p) {
+	for_each_node_by_name(node_p, "escc") {
 		/*
 		 * First get channel A/B node pointers
 		 * 
@@ -1669,7 +1673,7 @@ static int __init pmz_probe(void)
 			of_node_put(node_b);
 			printk(KERN_ERR "pmac_zilog: missing node %c for escc %s\n",
 				(!node_a) ? 'a' : 'b', node_p->full_name);
-			goto next;
+			continue;
 		}
 
 		/*
@@ -1696,11 +1700,9 @@ static int __init pmz_probe(void)
 			of_node_put(node_b);
 			memset(&pmz_ports[count], 0, sizeof(struct uart_pmac_port));
 			memset(&pmz_ports[count+1], 0, sizeof(struct uart_pmac_port));
-			goto next;
+			continue;
 		}
 		count += 2;
-next:
-		node_p = of_find_node_by_name(node_p, "escc");
 	}
 	pmz_ports_count = count;
 
@@ -1844,7 +1846,7 @@ static int __init pmz_register(void)
 
 #ifdef CONFIG_PPC_PMAC
 
-static struct of_device_id pmz_match[] = 
+static const struct of_device_id pmz_match[] =
 {
 	{
 	.name		= "ch-a",
@@ -1874,7 +1876,6 @@ static struct platform_driver pmz_driver = {
 	.remove		= __exit_p(pmz_detach),
 	.driver		= {
 		.name		= "scc",
-		.owner		= THIS_MODULE,
 	},
 };
 
@@ -1954,7 +1955,8 @@ static void __exit exit_pmz(void)
 
 static void pmz_console_putchar(struct uart_port *port, int ch)
 {
-	struct uart_pmac_port *uap = (struct uart_pmac_port *)port;
+	struct uart_pmac_port *uap =
+		container_of(port, struct uart_pmac_port, port);
 
 	/* Wait for the transmit buffer to empty. */
 	while ((read_zsreg(uap, R0) & Tx_BUF_EMP) == 0)

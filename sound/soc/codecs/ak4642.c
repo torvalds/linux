@@ -97,8 +97,11 @@
 #define PMMP		(1 << 2) /* MPWR pin Power Management */
 #define MGAIN0		(1 << 0) /* MIC amp gain*/
 
+/* SG_SL2 */
+#define LOPS		(1 << 6) /* Stero Line-out Power Save Mode */
+
 /* TIMER */
-#define ZTM(param)	((param & 0x3) << 4) /* ALC Zoro Crossing TimeOut */
+#define ZTM(param)	((param & 0x3) << 4) /* ALC Zero Crossing TimeOut */
 #define WTM(param)	(((param & 0x4) << 4) | ((param & 0x3) << 2))
 
 /* ALC_CTL1 */
@@ -134,6 +137,15 @@
 /* MD_CTL4 */
 #define DACH		(1 << 0)
 
+struct ak4642_drvdata {
+	const struct regmap_config *regmap_config;
+	int extended_frequencies;
+};
+
+struct ak4642_priv {
+	const struct ak4642_drvdata *drvdata;
+};
+
 /*
  * Playback Volume (table 39)
  *
@@ -148,6 +160,8 @@ static const struct snd_kcontrol_new ak4642_snd_controls[] = {
 
 	SOC_DOUBLE_R_TLV("Digital Playback Volume", L_DVC, R_DVC,
 			 0, 0xFF, 1, out_tlv),
+	SOC_SINGLE("ALC Capture Switch", ALC_CTL1, 5, 1, 0),
+	SOC_SINGLE("ALC Capture ZC Switch", ALC_CTL1, 4, 1, 1),
 };
 
 static const struct snd_kcontrol_new ak4642_headphone_control =
@@ -156,6 +170,29 @@ static const struct snd_kcontrol_new ak4642_headphone_control =
 static const struct snd_kcontrol_new ak4642_lout_mixer_controls[] = {
 	SOC_DAPM_SINGLE("DACL", SG_SL1, 4, 1, 0),
 };
+
+/* event handlers */
+static int ak4642_lout_event(struct snd_soc_dapm_widget *w,
+			     struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMD:
+	case SND_SOC_DAPM_PRE_PMU:
+		/* Power save mode ON */
+		snd_soc_update_bits(codec, SG_SL2, LOPS, LOPS);
+		break;
+	case SND_SOC_DAPM_POST_PMU:
+	case SND_SOC_DAPM_POST_PMD:
+		/* Power save mode OFF */
+		mdelay(300);
+		snd_soc_update_bits(codec, SG_SL2, LOPS, 0);
+		break;
+	}
+
+	return 0;
+}
 
 static const struct snd_soc_dapm_widget ak4642_dapm_widgets[] = {
 
@@ -171,12 +208,15 @@ static const struct snd_soc_dapm_widget ak4642_dapm_widgets[] = {
 
 	SND_SOC_DAPM_PGA("DACH", MD_CTL4, 0, 0, NULL, 0),
 
-	SND_SOC_DAPM_MIXER("LINEOUT Mixer", PW_MGMT1, 3, 0,
+	SND_SOC_DAPM_MIXER_E("LINEOUT Mixer", PW_MGMT1, 3, 0,
 			   &ak4642_lout_mixer_controls[0],
-			   ARRAY_SIZE(ak4642_lout_mixer_controls)),
+			   ARRAY_SIZE(ak4642_lout_mixer_controls),
+			   ak4642_lout_event,
+			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
 
 	/* DAC */
-	SND_SOC_DAPM_DAC("DAC", "HiFi Playback", PW_MGMT1, 2, 0),
+	SND_SOC_DAPM_DAC("DAC", NULL, PW_MGMT1, 2, 0),
 };
 
 static const struct snd_soc_dapm_route ak4642_intercon[] = {
@@ -194,6 +234,8 @@ static const struct snd_soc_dapm_route ak4642_intercon[] = {
 	{"DACH", NULL, "DAC"},
 
 	{"LINEOUT Mixer", "DACL", "DAC"},
+
+	{ "DAC", NULL, "Playback" },
 };
 
 /*
@@ -287,7 +329,9 @@ static int ak4642_dai_set_sysclk(struct snd_soc_dai *codec_dai,
 	int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
+	struct ak4642_priv *priv = snd_soc_codec_get_drvdata(codec);
 	u8 pll;
+	int extended_freq = 0;
 
 	switch (freq) {
 	case 11289600:
@@ -308,9 +352,25 @@ static int ak4642_dai_set_sysclk(struct snd_soc_dai *codec_dai,
 	case 27000000:
 		pll = PLL3 | PLL2 | PLL0;
 		break;
+	case 19200000:
+		pll = PLL3;
+		extended_freq = 1;
+		break;
+	case 13000000:
+		pll = PLL3 | PLL2 | PLL1;
+		extended_freq = 1;
+		break;
+	case 26000000:
+		pll = PLL3 | PLL2 | PLL1 | PLL0;
+		extended_freq = 1;
+		break;
 	default:
 		return -EINVAL;
 	}
+
+	if (extended_freq && !priv->drvdata->extended_frequencies)
+		return -EINVAL;
+
 	snd_soc_update_bits(codec, MD_CTL1, PLL_MASK, pll);
 
 	return 0;
@@ -439,13 +499,13 @@ static struct snd_soc_dai_driver ak4642_dai = {
 	.name = "ak4642-hifi",
 	.playback = {
 		.stream_name = "Playback",
-		.channels_min = 1,
+		.channels_min = 2,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_8000_48000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE },
 	.capture = {
 		.stream_name = "Capture",
-		.channels_min = 1,
+		.channels_min = 2,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_8000_48000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE },
@@ -462,31 +522,7 @@ static int ak4642_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
-
-static int ak4642_probe(struct snd_soc_codec *codec)
-{
-	int ret;
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
-	ak4642_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-
-static int ak4642_remove(struct snd_soc_codec *codec)
-{
-	ak4642_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_ak4642 = {
-	.probe			= ak4642_probe,
-	.remove			= ak4642_remove,
 	.resume			= ak4642_resume,
 	.set_bias_level		= ak4642_set_bias_level,
 	.controls		= ak4642_snd_controls,
@@ -513,30 +549,52 @@ static const struct regmap_config ak4648_regmap = {
 	.num_reg_defaults	= ARRAY_SIZE(ak4648_reg),
 };
 
-static struct of_device_id ak4642_of_match[];
+static const struct ak4642_drvdata ak4642_drvdata = {
+	.regmap_config = &ak4642_regmap,
+};
+
+static const struct ak4642_drvdata ak4643_drvdata = {
+	.regmap_config = &ak4642_regmap,
+};
+
+static const struct ak4642_drvdata ak4648_drvdata = {
+	.regmap_config = &ak4648_regmap,
+	.extended_frequencies = 1,
+};
+
+static const struct of_device_id ak4642_of_match[];
 static int ak4642_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct device_node *np = i2c->dev.of_node;
-	const struct regmap_config *regmap_config = NULL;
+	const struct ak4642_drvdata *drvdata = NULL;
 	struct regmap *regmap;
+	struct ak4642_priv *priv;
 
 	if (np) {
 		const struct of_device_id *of_id;
 
 		of_id = of_match_device(ak4642_of_match, &i2c->dev);
 		if (of_id)
-			regmap_config = of_id->data;
+			drvdata = of_id->data;
 	} else {
-		regmap_config = (const struct regmap_config *)id->driver_data;
+		drvdata = (const struct ak4642_drvdata *)id->driver_data;
 	}
 
-	if (!regmap_config) {
+	if (!drvdata) {
 		dev_err(&i2c->dev, "Unknown device type\n");
 		return -EINVAL;
 	}
 
-	regmap = devm_regmap_init_i2c(i2c, regmap_config);
+	priv = devm_kzalloc(&i2c->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	priv->drvdata = drvdata;
+
+	i2c_set_clientdata(i2c, priv);
+
+	regmap = devm_regmap_init_i2c(i2c, drvdata->regmap_config);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
@@ -550,18 +608,18 @@ static int ak4642_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct of_device_id ak4642_of_match[] = {
-	{ .compatible = "asahi-kasei,ak4642",	.data = &ak4642_regmap},
-	{ .compatible = "asahi-kasei,ak4643",	.data = &ak4642_regmap},
-	{ .compatible = "asahi-kasei,ak4648",	.data = &ak4648_regmap},
+static const struct of_device_id ak4642_of_match[] = {
+	{ .compatible = "asahi-kasei,ak4642",	.data = &ak4642_drvdata},
+	{ .compatible = "asahi-kasei,ak4643",	.data = &ak4643_drvdata},
+	{ .compatible = "asahi-kasei,ak4648",	.data = &ak4648_drvdata},
 	{},
 };
 MODULE_DEVICE_TABLE(of, ak4642_of_match);
 
 static const struct i2c_device_id ak4642_i2c_id[] = {
-	{ "ak4642", (kernel_ulong_t)&ak4642_regmap },
-	{ "ak4643", (kernel_ulong_t)&ak4642_regmap },
-	{ "ak4648", (kernel_ulong_t)&ak4648_regmap },
+	{ "ak4642", (kernel_ulong_t)&ak4642_drvdata },
+	{ "ak4643", (kernel_ulong_t)&ak4643_drvdata },
+	{ "ak4648", (kernel_ulong_t)&ak4648_drvdata },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ak4642_i2c_id);

@@ -13,10 +13,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -40,24 +36,26 @@
 #include <linux/usb/ehci_pdriver.h>
 #include <linux/usb/ohci_pdriver.h>
 #include <linux/pm_runtime.h>
-#include <mach/irqs.h>
-#include <mach/r8a7779.h>
-#include <mach/common.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 #include <asm/hardware/cache-l2x0.h>
 
+#include "common.h"
+#include "irqs.h"
+#include "r8a7779.h"
+
 static struct map_desc r8a7779_io_desc[] __initdata = {
-	/* 2M entity map for 0xf0000000 (MPCORE) */
+	/* 2M identity mapping for 0xf0000000 (MPCORE) */
 	{
 		.virtual	= 0xf0000000,
 		.pfn		= __phys_to_pfn(0xf0000000),
 		.length		= SZ_2M,
 		.type		= MT_DEVICE_NONSHARED
 	},
-	/* 16M entity map for 0xfexxxxxx (DMAC-S/HPBREG/INTC2/LRAM/DBSC) */
+	/* 16M identity mapping for 0xfexxxxxx (DMAC-S/HPBREG/INTC2/LRAM/DBSC) */
 	{
 		.virtual	= 0xfe000000,
 		.pfn		= __phys_to_pfn(0xfe000000),
@@ -68,6 +66,7 @@ static struct map_desc r8a7779_io_desc[] __initdata = {
 
 void __init r8a7779_map_io(void)
 {
+	debug_ll_io_init();
 	iotable_init(r8a7779_io_desc, ARRAY_SIZE(r8a7779_io_desc));
 }
 
@@ -123,7 +122,7 @@ void __init r8a7779_init_irq_extpin(int irlm)
 	r8a7779_init_irq_extpin_dt(irlm);
 	if (irlm)
 		platform_device_register_resndata(
-			&platform_bus, "renesas_intc_irqpin", -1,
+			NULL, "renesas_intc_irqpin", -1,
 			irqpin0_resources, ARRAY_SIZE(irqpin0_resources),
 			&irqpin0_platform_data, sizeof(irqpin0_platform_data));
 }
@@ -219,64 +218,25 @@ R8A7779_SCIF(4, 0xffe44000, gic_iid(0x7c));
 R8A7779_SCIF(5, 0xffe45000, gic_iid(0x7d));
 
 /* TMU */
-static struct sh_timer_config tmu00_platform_data = {
-	.name = "TMU00",
-	.channel_offset = 0x4,
-	.timer_bit = 0,
-	.clockevent_rating = 200,
+static struct sh_timer_config tmu0_platform_data = {
+	.channels_mask = 7,
 };
 
-static struct resource tmu00_resources[] = {
-	[0] = {
-		.name	= "TMU00",
-		.start	= 0xffd80008,
-		.end	= 0xffd80013,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= gic_iid(0x40),
-		.flags	= IORESOURCE_IRQ,
-	},
+static struct resource tmu0_resources[] = {
+	DEFINE_RES_MEM(0xffd80000, 0x30),
+	DEFINE_RES_IRQ(gic_iid(0x40)),
+	DEFINE_RES_IRQ(gic_iid(0x41)),
+	DEFINE_RES_IRQ(gic_iid(0x42)),
 };
 
-static struct platform_device tmu00_device = {
-	.name		= "sh_tmu",
+static struct platform_device tmu0_device = {
+	.name		= "sh-tmu",
 	.id		= 0,
 	.dev = {
-		.platform_data	= &tmu00_platform_data,
+		.platform_data	= &tmu0_platform_data,
 	},
-	.resource	= tmu00_resources,
-	.num_resources	= ARRAY_SIZE(tmu00_resources),
-};
-
-static struct sh_timer_config tmu01_platform_data = {
-	.name = "TMU01",
-	.channel_offset = 0x10,
-	.timer_bit = 1,
-	.clocksource_rating = 200,
-};
-
-static struct resource tmu01_resources[] = {
-	[0] = {
-		.name	= "TMU01",
-		.start	= 0xffd80014,
-		.end	= 0xffd8001f,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= gic_iid(0x41),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device tmu01_device = {
-	.name		= "sh_tmu",
-	.id		= 1,
-	.dev = {
-		.platform_data	= &tmu01_platform_data,
-	},
-	.resource	= tmu01_resources,
-	.num_resources	= ARRAY_SIZE(tmu01_resources),
+	.resource	= tmu0_resources,
+	.num_resources	= ARRAY_SIZE(tmu0_resources),
 };
 
 /* I2C */
@@ -671,25 +631,24 @@ static struct resource hpb_dmae_resources[] __initdata = {
 
 static void __init r8a7779_register_hpb_dmae(void)
 {
-	platform_device_register_resndata(&platform_bus, "hpb-dma-engine", -1,
-					  hpb_dmae_resources,
+	platform_device_register_resndata(NULL, "hpb-dma-engine",
+					  -1, hpb_dmae_resources,
 					  ARRAY_SIZE(hpb_dmae_resources),
 					  &dma_platform_data,
 					  sizeof(dma_platform_data));
 }
 
-static struct platform_device *r8a7779_devices_dt[] __initdata = {
+static struct platform_device *r8a7779_early_devices[] __initdata = {
+	&tmu0_device,
+};
+
+static struct platform_device *r8a7779_standard_devices[] __initdata = {
 	&scif0_device,
 	&scif1_device,
 	&scif2_device,
 	&scif3_device,
 	&scif4_device,
 	&scif5_device,
-	&tmu00_device,
-	&tmu01_device,
-};
-
-static struct platform_device *r8a7779_standard_devices[] __initdata = {
 	&i2c0_device,
 	&i2c1_device,
 	&i2c2_device,
@@ -700,38 +659,28 @@ static struct platform_device *r8a7779_standard_devices[] __initdata = {
 void __init r8a7779_add_standard_devices(void)
 {
 #ifdef CONFIG_CACHE_L2X0
-	/* Early BRESP enable, Shared attribute override enable, 64K*16way */
-	l2x0_init(IOMEM(0xf0100000), 0x40470000, 0x82000fff);
+	/* Shared attribute override enable, 64K*16way */
+	l2x0_init(IOMEM(0xf0100000), 0x00400000, 0xc20f0fff);
 #endif
 	r8a7779_pm_init();
 
 	r8a7779_init_pm_domains();
 
-	platform_add_devices(r8a7779_devices_dt,
-			    ARRAY_SIZE(r8a7779_devices_dt));
+	platform_add_devices(r8a7779_early_devices,
+			    ARRAY_SIZE(r8a7779_early_devices));
 	platform_add_devices(r8a7779_standard_devices,
 			    ARRAY_SIZE(r8a7779_standard_devices));
 	r8a7779_register_hpb_dmae();
 }
 
-/* do nothing for !CONFIG_SMP or !CONFIG_HAVE_TWD */
-void __init __weak r8a7779_register_twd(void) { }
-
-void __init r8a7779_earlytimer_init(void)
-{
-	r8a7779_clock_init();
-	r8a7779_register_twd();
-	shmobile_earlytimer_init();
-}
-
 void __init r8a7779_add_early_devices(void)
 {
-	early_platform_add_devices(r8a7779_devices_dt,
-				   ARRAY_SIZE(r8a7779_devices_dt));
+	early_platform_add_devices(r8a7779_early_devices,
+				   ARRAY_SIZE(r8a7779_early_devices));
 
 	/* Early serial console setup is not included here due to
 	 * memory map collisions. The SCIF serial ports in r8a7779
-	 * are difficult to entity map 1:1 due to collision with the
+	 * are difficult to identity map 1:1 due to collision with the
 	 * virtual memory range used by the coherent DMA code on ARM.
 	 *
 	 * Anyone wanting to debug early can remove UPF_IOREMAP from
@@ -764,17 +713,19 @@ void __init r8a7779_init_late(void)
 }
 
 #ifdef CONFIG_USE_OF
-static int r8a7779_set_wake(struct irq_data *data, unsigned int on)
-{
-	return 0; /* always allow wakeup */
-}
-
 void __init r8a7779_init_irq_dt(void)
 {
-	gic_arch_extn.irq_set_wake = r8a7779_set_wake;
+#ifdef CONFIG_ARCH_SHMOBILE_LEGACY
+	void __iomem *gic_dist_base = ioremap_nocache(0xf0001000, 0x1000);
+	void __iomem *gic_cpu_base = ioremap_nocache(0xf0000100, 0x1000);
+#endif
+	gic_set_irqchip_flags(IRQCHIP_SKIP_SET_WAKE);
 
+#ifdef CONFIG_ARCH_SHMOBILE_LEGACY
+	gic_init(0, 29, gic_dist_base, gic_cpu_base);
+#else
 	irqchip_init();
-
+#endif
 	/* route all interrupts to ARM */
 	__raw_writel(0xffffffff, INT2NTSR0);
 	__raw_writel(0x3fffffff, INT2NTSR1);
@@ -787,19 +738,22 @@ void __init r8a7779_init_irq_dt(void)
 	__raw_writel(0x003fee3f, INT2SMSKCR4);
 }
 
-void __init r8a7779_init_delay(void)
-{
-	shmobile_setup_delay(1000, 2, 4); /* Cortex-A9 @ 1000MHz */
-}
+#define MODEMR		0xffcc0020
 
-void __init r8a7779_add_standard_devices_dt(void)
+u32 __init r8a7779_read_mode_pins(void)
 {
-	/* clocks are setup late during boot in the case of DT */
-	r8a7779_clock_init();
+	static u32 mode;
+	static bool mode_valid;
 
-	platform_add_devices(r8a7779_devices_dt,
-			     ARRAY_SIZE(r8a7779_devices_dt));
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+	if (!mode_valid) {
+		void __iomem *modemr = ioremap_nocache(MODEMR, PAGE_SIZE);
+		BUG_ON(!modemr);
+		mode = ioread32(modemr);
+		iounmap(modemr);
+		mode_valid = true;
+	}
+
+	return mode;
 }
 
 static const char *r8a7779_compat_dt[] __initdata = {
@@ -809,11 +763,9 @@ static const char *r8a7779_compat_dt[] __initdata = {
 
 DT_MACHINE_START(R8A7779_DT, "Generic R8A7779 (Flattened Device Tree)")
 	.map_io		= r8a7779_map_io,
-	.init_early	= r8a7779_init_delay,
-	.nr_irqs	= NR_IRQS_LEGACY,
+	.init_early	= shmobile_init_delay,
 	.init_irq	= r8a7779_init_irq_dt,
-	.init_machine	= r8a7779_add_standard_devices_dt,
-	.init_late	= r8a7779_init_late,
+	.init_late	= shmobile_init_late,
 	.dt_compat	= r8a7779_compat_dt,
 MACHINE_END
 #endif /* CONFIG_USE_OF */

@@ -55,8 +55,8 @@ ksocknal_next_tx_carrier(ksock_conn_t *conn)
 	ksock_tx_t     *tx = conn->ksnc_tx_carrier;
 
 	/* Called holding BH lock: conn->ksnc_scheduler->kss_lock */
-	LASSERT (!list_empty(&conn->ksnc_tx_queue));
-	LASSERT (tx != NULL);
+	LASSERT(!list_empty(&conn->ksnc_tx_queue));
+	LASSERT(tx != NULL);
 
 	/* Next TX that can carry ZC-ACK or LNet message */
 	if (tx->tx_list.next == &conn->ksnc_tx_queue) {
@@ -65,7 +65,7 @@ ksocknal_next_tx_carrier(ksock_conn_t *conn)
 	} else {
 		conn->ksnc_tx_carrier = list_entry(tx->tx_list.next,
 						       ksock_tx_t, tx_list);
-		LASSERT (conn->ksnc_tx_carrier->tx_msg.ksm_type == tx->tx_msg.ksm_type);
+		LASSERT(conn->ksnc_tx_carrier->tx_msg.ksm_type == tx->tx_msg.ksm_type);
 	}
 }
 
@@ -75,7 +75,7 @@ ksocknal_queue_tx_zcack_v2(ksock_conn_t *conn,
 {
 	ksock_tx_t *tx = conn->ksnc_tx_carrier;
 
-	LASSERT (tx_ack == NULL ||
+	LASSERT(tx_ack == NULL ||
 		 tx_ack->tx_msg.ksm_type == KSOCK_MSG_NOOP);
 
 	/*
@@ -139,7 +139,7 @@ ksocknal_queue_tx_msg_v2(ksock_conn_t *conn, ksock_tx_t *tx_msg)
 		return NULL;
 	}
 
-	LASSERT (tx->tx_msg.ksm_type == KSOCK_MSG_NOOP);
+	LASSERT(tx->tx_msg.ksm_type == KSOCK_MSG_NOOP);
 
 	/* There is a noop zc-ack can be piggybacked */
 	tx_msg->tx_msg.ksm_zc_cookies[1] = tx->tx_msg.ksm_zc_cookies[1];
@@ -162,10 +162,11 @@ ksocknal_queue_tx_zcack_v3(ksock_conn_t *conn,
 		return ksocknal_queue_tx_zcack_v2(conn, tx_ack, cookie);
 
 	/* non-blocking ZC-ACK (to router) */
-	LASSERT (tx_ack == NULL ||
+	LASSERT(tx_ack == NULL ||
 		 tx_ack->tx_msg.ksm_type == KSOCK_MSG_NOOP);
 
-	if ((tx = conn->ksnc_tx_carrier) == NULL) {
+	tx = conn->ksnc_tx_carrier;
+	if (tx == NULL) {
 		if (tx_ack != NULL) {
 			list_add_tail(&tx_ack->tx_list,
 					  &conn->ksnc_tx_queue);
@@ -184,14 +185,14 @@ ksocknal_queue_tx_zcack_v3(ksock_conn_t *conn,
 
 	if (tx->tx_msg.ksm_zc_cookies[1] == SOCKNAL_KEEPALIVE_PING) {
 		/* replace the keepalive PING with a real ACK */
-		LASSERT (tx->tx_msg.ksm_zc_cookies[0] == 0);
+		LASSERT(tx->tx_msg.ksm_zc_cookies[0] == 0);
 		tx->tx_msg.ksm_zc_cookies[1] = cookie;
 		return 1;
 	}
 
 	if (cookie == tx->tx_msg.ksm_zc_cookies[0] ||
 	    cookie == tx->tx_msg.ksm_zc_cookies[1]) {
-		CWARN("%s: duplicated ZC cookie: "LPU64"\n",
+		CWARN("%s: duplicated ZC cookie: %llu\n",
 		      libcfs_id2str(conn->ksnc_peer->ksnp_id), cookie);
 		return 1; /* XXX return error in the future */
 	}
@@ -219,7 +220,7 @@ ksocknal_queue_tx_zcack_v3(ksock_conn_t *conn,
 		__u64   tmp = 0;
 
 		/* two separated cookies: (a+2, a) or (a+1, a) */
-		LASSERT (tx->tx_msg.ksm_zc_cookies[0] -
+		LASSERT(tx->tx_msg.ksm_zc_cookies[0] -
 			 tx->tx_msg.ksm_zc_cookies[1] <= 2);
 
 		if (tx->tx_msg.ksm_zc_cookies[0] -
@@ -243,7 +244,7 @@ ksocknal_queue_tx_zcack_v3(ksock_conn_t *conn,
 		/* ksm_zc_cookies[0] < ksm_zc_cookies[1], it is range of cookies */
 		if (cookie >= tx->tx_msg.ksm_zc_cookies[0] &&
 		    cookie <= tx->tx_msg.ksm_zc_cookies[1]) {
-			CWARN("%s: duplicated ZC cookie: "LPU64"\n",
+			CWARN("%s: duplicated ZC cookie: %llu\n",
 			      libcfs_id2str(conn->ksnc_peer->ksnp_id), cookie);
 			return 1; /* XXX: return error in the future */
 		}
@@ -392,7 +393,8 @@ ksocknal_handle_zcreq(ksock_conn_t *c, __u64 cookie, int remote)
 	if (tx == NULL)
 		return -ENOMEM;
 
-	if ((rc = ksocknal_launch_packet(peer->ksnp_ni, tx, peer->ksnp_id)) == 0)
+	rc = ksocknal_launch_packet(peer->ksnp_ni, tx, peer->ksnp_id);
+	if (rc == 0)
 		return 0;
 
 	ksocknal_free_tx(tx);
@@ -406,7 +408,7 @@ ksocknal_handle_zcack(ksock_conn_t *conn, __u64 cookie1, __u64 cookie2)
 	ksock_peer_t      *peer = conn->ksnc_peer;
 	ksock_tx_t	*tx;
 	ksock_tx_t	*tmp;
-	LIST_HEAD     (zlist);
+	LIST_HEAD(zlist);
 	int		count;
 
 	if (cookie1 == 0)
@@ -448,9 +450,9 @@ ksocknal_handle_zcack(ksock_conn_t *conn, __u64 cookie1, __u64 cookie2)
 }
 
 static int
-ksocknal_send_hello_v1 (ksock_conn_t *conn, ksock_hello_msg_t *hello)
+ksocknal_send_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello)
 {
-	socket_t	*sock = conn->ksnc_sock;
+	struct socket	*sock = conn->ksnc_sock;
 	lnet_hdr_t	  *hdr;
 	lnet_magicversion_t *hmv;
 	int		  rc;
@@ -493,7 +495,8 @@ ksocknal_send_hello_v1 (ksock_conn_t *conn, ksock_hello_msg_t *hello)
 	hdr->msg.hello.type = cpu_to_le32 (hello->kshm_ctype);
 	hdr->msg.hello.incarnation = cpu_to_le64 (hello->kshm_src_incarnation);
 
-	rc = libcfs_sock_write(sock, hdr, sizeof(*hdr),lnet_acceptor_timeout());
+	rc = libcfs_sock_write(sock, hdr, sizeof(*hdr),
+			       lnet_acceptor_timeout());
 
 	if (rc != 0) {
 		CNETERR("Error %d sending HELLO hdr to %pI4h/%d\n",
@@ -512,8 +515,8 @@ ksocknal_send_hello_v1 (ksock_conn_t *conn, ksock_hello_msg_t *hello)
 			       hello->kshm_nips * sizeof(__u32),
 			       lnet_acceptor_timeout());
 	if (rc != 0) {
-		CNETERR("Error %d sending HELLO payload (%d)"
-			" to %pI4h/%d\n", rc, hello->kshm_nips,
+		CNETERR("Error %d sending HELLO payload (%d) to %pI4h/%d\n",
+			rc, hello->kshm_nips,
 			&conn->ksnc_ipaddr, conn->ksnc_port);
 	}
 out:
@@ -523,9 +526,9 @@ out:
 }
 
 static int
-ksocknal_send_hello_v2 (ksock_conn_t *conn, ksock_hello_msg_t *hello)
+ksocknal_send_hello_v2(ksock_conn_t *conn, ksock_hello_msg_t *hello)
 {
-	socket_t   *sock = conn->ksnc_sock;
+	struct socket *sock = conn->ksnc_sock;
 	int	     rc;
 
 	hello->kshm_magic   = LNET_PROTO_MAGIC;
@@ -557,8 +560,8 @@ ksocknal_send_hello_v2 (ksock_conn_t *conn, ksock_hello_msg_t *hello)
 			       hello->kshm_nips * sizeof(__u32),
 			       lnet_acceptor_timeout());
 	if (rc != 0) {
-		CNETERR("Error %d sending HELLO payload (%d)"
-			" to %pI4h/%d\n", rc, hello->kshm_nips,
+		CNETERR("Error %d sending HELLO payload (%d) to %pI4h/%d\n",
+			rc, hello->kshm_nips,
 			&conn->ksnc_ipaddr, conn->ksnc_port);
 	}
 
@@ -566,9 +569,10 @@ ksocknal_send_hello_v2 (ksock_conn_t *conn, ksock_hello_msg_t *hello)
 }
 
 static int
-ksocknal_recv_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello,int timeout)
+ksocknal_recv_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello,
+		       int timeout)
 {
-	socket_t	*sock = conn->ksnc_sock;
+	struct socket	*sock = conn->ksnc_sock;
 	lnet_hdr_t	  *hdr;
 	int		  rc;
 	int		  i;
@@ -580,31 +584,30 @@ ksocknal_recv_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello,int timeout)
 	}
 
 	rc = libcfs_sock_read(sock, &hdr->src_nid,
-			      sizeof (*hdr) - offsetof (lnet_hdr_t, src_nid),
+			      sizeof(*hdr) - offsetof(lnet_hdr_t, src_nid),
 			      timeout);
 	if (rc != 0) {
 		CERROR("Error %d reading rest of HELLO hdr from %pI4h\n",
 			rc, &conn->ksnc_ipaddr);
-		LASSERT (rc < 0 && rc != -EALREADY);
+		LASSERT(rc < 0 && rc != -EALREADY);
 		goto out;
 	}
 
 	/* ...and check we got what we expected */
 	if (hdr->type != cpu_to_le32 (LNET_MSG_HELLO)) {
-		CERROR("Expecting a HELLO hdr,"
-			" but got type %d from %pI4h\n",
-			le32_to_cpu (hdr->type),
-			&conn->ksnc_ipaddr);
+		CERROR("Expecting a HELLO hdr, but got type %d from %pI4h\n",
+		       le32_to_cpu(hdr->type),
+		       &conn->ksnc_ipaddr);
 		rc = -EPROTO;
 		goto out;
 	}
 
-	hello->kshm_src_nid	 = le64_to_cpu (hdr->src_nid);
-	hello->kshm_src_pid	 = le32_to_cpu (hdr->src_pid);
-	hello->kshm_src_incarnation = le64_to_cpu (hdr->msg.hello.incarnation);
-	hello->kshm_ctype	   = le32_to_cpu (hdr->msg.hello.type);
-	hello->kshm_nips	    = le32_to_cpu (hdr->payload_length) /
-					 sizeof (__u32);
+	hello->kshm_src_nid	 = le64_to_cpu(hdr->src_nid);
+	hello->kshm_src_pid	 = le32_to_cpu(hdr->src_pid);
+	hello->kshm_src_incarnation = le64_to_cpu(hdr->msg.hello.incarnation);
+	hello->kshm_ctype	   = le32_to_cpu(hdr->msg.hello.type);
+	hello->kshm_nips	    = le32_to_cpu(hdr->payload_length) /
+					 sizeof(__u32);
 
 	if (hello->kshm_nips > LNET_MAX_INTERFACES) {
 		CERROR("Bad nips %d from ip %pI4h\n",
@@ -642,9 +645,9 @@ out:
 }
 
 static int
-ksocknal_recv_hello_v2 (ksock_conn_t *conn, ksock_hello_msg_t *hello, int timeout)
+ksocknal_recv_hello_v2(ksock_conn_t *conn, ksock_hello_msg_t *hello, int timeout)
 {
-	socket_t      *sock = conn->ksnc_sock;
+	struct socket   *sock = conn->ksnc_sock;
 	int		rc;
 	int		i;
 
@@ -714,7 +717,7 @@ ksocknal_pack_msg_v1(ksock_tx_t *tx)
 	LASSERT(tx->tx_msg.ksm_type != KSOCK_MSG_NOOP);
 	LASSERT(tx->tx_lnetmsg != NULL);
 
-	tx->tx_iov[0].iov_base = (void *)&tx->tx_lnetmsg->msg_hdr;
+	tx->tx_iov[0].iov_base = &tx->tx_lnetmsg->msg_hdr;
 	tx->tx_iov[0].iov_len  = sizeof(lnet_hdr_t);
 
 	tx->tx_resid = tx->tx_nob = tx->tx_lnetmsg->msg_len + sizeof(lnet_hdr_t);
@@ -723,7 +726,7 @@ ksocknal_pack_msg_v1(ksock_tx_t *tx)
 static void
 ksocknal_pack_msg_v2(ksock_tx_t *tx)
 {
-	tx->tx_iov[0].iov_base = (void *)&tx->tx_msg;
+	tx->tx_iov[0].iov_base = &tx->tx_msg;
 
 	if (tx->tx_lnetmsg != NULL) {
 		LASSERT(tx->tx_msg.ksm_type != KSOCK_MSG_NOOP);
@@ -754,8 +757,7 @@ ksocknal_unpack_msg_v2(ksock_msg_t *msg)
 	return;  /* Do nothing */
 }
 
-ksock_proto_t  ksocknal_protocol_v1x =
-{
+ksock_proto_t  ksocknal_protocol_v1x = {
 	.pro_version	    = KSOCK_PROTO_V1,
 	.pro_send_hello	 = ksocknal_send_hello_v1,
 	.pro_recv_hello	 = ksocknal_recv_hello_v1,
@@ -768,8 +770,7 @@ ksock_proto_t  ksocknal_protocol_v1x =
 	.pro_match_tx	   = ksocknal_match_tx
 };
 
-ksock_proto_t  ksocknal_protocol_v2x =
-{
+ksock_proto_t  ksocknal_protocol_v2x = {
 	.pro_version	    = KSOCK_PROTO_V2,
 	.pro_send_hello	 = ksocknal_send_hello_v2,
 	.pro_recv_hello	 = ksocknal_recv_hello_v2,
@@ -782,8 +783,7 @@ ksock_proto_t  ksocknal_protocol_v2x =
 	.pro_match_tx	   = ksocknal_match_tx
 };
 
-ksock_proto_t  ksocknal_protocol_v3x =
-{
+ksock_proto_t  ksocknal_protocol_v3x = {
 	.pro_version	    = KSOCK_PROTO_V3,
 	.pro_send_hello	 = ksocknal_send_hello_v2,
 	.pro_recv_hello	 = ksocknal_recv_hello_v2,

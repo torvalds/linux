@@ -41,6 +41,8 @@ static const char * const cw1200_debug_link_id[] = {
 	"REQ",
 	"SOFT",
 	"HARD",
+	"RESET",
+	"RESET_REMAP",
 };
 
 static const char *cw1200_debug_mode(int mode)

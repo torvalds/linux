@@ -85,7 +85,7 @@ static int start_streaming(struct vb2_queue *q, unsigned int count)
 	return ret > 0 ? 0 : ret;
 }
 
-static int stop_streaming(struct vb2_queue *q)
+static void stop_streaming(struct vb2_queue *q)
 {
 	struct fimc_ctx *ctx = q->drv_priv;
 	int ret;
@@ -95,7 +95,6 @@ static int stop_streaming(struct vb2_queue *q)
 		fimc_m2m_job_finish(ctx, VB2_BUF_STATE_ERROR);
 
 	pm_runtime_put(&ctx->fimc_dev->pdev->dev);
-	return 0;
 }
 
 static void fimc_device_run(void *priv)
@@ -134,6 +133,9 @@ static void fimc_device_run(void *priv)
 		goto dma_unlock;
 
 	dst_vb->v4l2_buf.timestamp = src_vb->v4l2_buf.timestamp;
+	dst_vb->v4l2_buf.flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+	dst_vb->v4l2_buf.flags |=
+		src_vb->v4l2_buf.flags & V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 
 	/* Reconfigure hardware if the context has changed. */
 	if (fimc->m2m.ctx != ctx) {
@@ -194,7 +196,7 @@ static int fimc_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 
 	*num_planes = f->fmt->memplanes;
 	for (i = 0; i < f->fmt->memplanes; i++) {
-		sizes[i] = (f->f_width * f->f_height * f->fmt->depth[i]) / 8;
+		sizes[i] = f->payload[i];
 		allocators[i] = ctx->fimc_dev->alloc_ctx;
 	}
 	return 0;
@@ -339,7 +341,7 @@ static void __set_frame_format(struct fimc_frame *frame, struct fimc_fmt *fmt,
 {
 	int i;
 
-	for (i = 0; i < fmt->colplanes; i++) {
+	for (i = 0; i < fmt->memplanes; i++) {
 		frame->bytesperline[i] = pixm->plane_fmt[i].bytesperline;
 		frame->payload[i] = pixm->plane_fmt[i].sizeimage;
 	}
@@ -458,7 +460,7 @@ static int fimc_m2m_try_crop(struct fimc_ctx *ctx, struct v4l2_crop *cr)
 	else
 		halign = ffs(fimc->variant->min_vsize_align) - 1;
 
-	for (i = 0; i < f->fmt->colplanes; i++)
+	for (i = 0; i < f->fmt->memplanes; i++)
 		depth += f->fmt->depth[i];
 
 	v4l_bound_align_image(&cr->c.width, min_size, f->o_width,
@@ -557,7 +559,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->ops = &fimc_qops;
 	src_vq->mem_ops = &vb2_dma_contig_memops;
 	src_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
-	src_vq->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	src_vq->lock = &ctx->fimc_dev->lock;
 
 	ret = vb2_queue_init(src_vq);
@@ -570,7 +572,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->ops = &fimc_qops;
 	dst_vq->mem_ops = &vb2_dma_contig_memops;
 	dst_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
-	dst_vq->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	dst_vq->lock = &ctx->fimc_dev->lock;
 
 	return vb2_queue_init(dst_vq);

@@ -172,7 +172,7 @@ ways.
 
  - eh_strategy_handler() callback
 	This is one big callback which should perform whole error
-	handling.  As such, it should do all choirs SCSI midlayer
+	handling.  As such, it should do all chores the SCSI midlayer
 	performs during recovery.  This will be discussed in [2-2].
 
  Once recovery is complete, SCSI EH resumes normal operation by
@@ -428,7 +428,7 @@ scmd->allowed.
 scsi_unjam_host() and it is responsible for whole recovery process.
 On completion, the handler should have made lower layers forget about
 all failed scmds and either ready for new commands or offline.  Also,
-it should perform SCSI EH maintenance choirs to maintain integrity of
+it should perform SCSI EH maintenance chores to maintain integrity of
 SCSI midlayer.  IOW, of the steps described in [2-1-2], all steps
 except for #1 must be implemented by eh_strategy_handler().
 

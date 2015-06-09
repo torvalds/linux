@@ -254,9 +254,6 @@
 #define                   USB_APHY_CALIB  0xffc03de4   /* Register used to set some calibration values */
 #define                  USB_APHY_CNTRL2  0xffc03de8   /* Register used to prevent re-enumeration once Moab goes into hibernate mode */
 
-/* (PHY_TEST is for ADI usage only) */
-
-#define                     USB_PHY_TEST  0xffc03dec   /* Used for reducing simulation time and simplifies FIFO testability */
 #define                  USB_PLLOSC_CTRL  0xffc03df0   /* Used to program different parameters for USB PLL and Oscillator */
 #define                   USB_SRP_CLKDIV  0xffc03df4   /* Used to program clock divide value for the clock fed to the SRP detection logic */
 
@@ -580,36 +577,6 @@
 #define                  RY_TRANS  0xff       /* Transparent Color - R/Y Component */
 #define                  GU_TRANS  0xff00     /* Transparent Color - G/U Component */
 #define                  BV_TRANS  0xff0000   /* Transparent Color - B/V Component */
-
-/* Bit masks for HOST_CONTROL */
-
-#define                   HOST_EN  0x1        /* Host Enable */
-#define                  HOST_END  0x2        /* Host Endianess */
-#define                 DATA_SIZE  0x4        /* Data Size */
-#define                  HOST_RST  0x8        /* Host Reset */
-#define                  HRDY_OVR  0x20       /* Host Ready Override */
-#define                  INT_MODE  0x40       /* Interrupt Mode */
-#define                     BT_EN  0x80       /* Bus Timeout Enable */
-#define                       EHW  0x100      /* Enable Host Write */
-#define                       EHR  0x200      /* Enable Host Read */
-#define                       BDR  0x400      /* Burst DMA Requests */
-
-/* Bit masks for HOST_STATUS */
-
-#define                 DMA_READY  0x1        /* DMA Ready */
-#define                  FIFOFULL  0x2        /* FIFO Full */
-#define                 FIFOEMPTY  0x4        /* FIFO Empty */
-#define              DMA_COMPLETE  0x8        /* DMA Complete */
-#define                      HSHK  0x10       /* Host Handshake */
-#define                 HSTIMEOUT  0x20       /* Host Timeout */
-#define                      HIRQ  0x40       /* Host Interrupt Request */
-#define                ALLOW_CNFG  0x80       /* Allow New Configuration */
-#define                   DMA_DIR  0x100      /* DMA Direction */
-#define                       BTE  0x200      /* Bus Timeout Enabled */
-
-/* Bit masks for HOST_TIMEOUT */
-
-#define             COUNT_TIMEOUT  0x7ff      /* Host Timeout count */
 
 /* Bit masks for KPAD_CTL */
 

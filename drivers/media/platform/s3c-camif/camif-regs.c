@@ -96,10 +96,10 @@ void camif_hw_set_effect(struct camif_dev *camif, unsigned int effect,
 }
 
 static const u32 src_pixfmt_map[8][2] = {
-	{ V4L2_MBUS_FMT_YUYV8_2X8, CISRCFMT_ORDER422_YCBYCR },
-	{ V4L2_MBUS_FMT_YVYU8_2X8, CISRCFMT_ORDER422_YCRYCB },
-	{ V4L2_MBUS_FMT_UYVY8_2X8, CISRCFMT_ORDER422_CBYCRY },
-	{ V4L2_MBUS_FMT_VYUY8_2X8, CISRCFMT_ORDER422_CRYCBY },
+	{ MEDIA_BUS_FMT_YUYV8_2X8, CISRCFMT_ORDER422_YCBYCR },
+	{ MEDIA_BUS_FMT_YVYU8_2X8, CISRCFMT_ORDER422_YCRYCB },
+	{ MEDIA_BUS_FMT_UYVY8_2X8, CISRCFMT_ORDER422_CBYCRY },
+	{ MEDIA_BUS_FMT_VYUY8_2X8, CISRCFMT_ORDER422_CRYCBY },
 };
 
 /* Set camera input pixel format and resolution */
@@ -214,8 +214,8 @@ void camif_hw_set_output_addr(struct camif_vp *vp,
 								paddr->cr);
 	}
 
-	pr_debug("dst_buf[%d]: %#X, cb: %#X, cr: %#X\n",
-		 i, paddr->y, paddr->cb, paddr->cr);
+	pr_debug("dst_buf[%d]: %pad, cb: %pad, cr: %pad\n",
+		 i, &paddr->y, &paddr->cb, &paddr->cr);
 }
 
 static void camif_hw_set_out_dma_size(struct camif_vp *vp)

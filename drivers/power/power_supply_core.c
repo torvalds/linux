@@ -40,16 +40,16 @@ static bool __power_supply_is_supplied_by(struct power_supply *supplier,
 
 	/* Support both supplied_to and supplied_from modes */
 	if (supply->supplied_from) {
-		if (!supplier->name)
+		if (!supplier->desc->name)
 			return false;
 		for (i = 0; i < supply->num_supplies; i++)
-			if (!strcmp(supplier->name, supply->supplied_from[i]))
+			if (!strcmp(supplier->desc->name, supply->supplied_from[i]))
 				return true;
 	} else {
-		if (!supply->name)
+		if (!supply->desc->name)
 			return false;
 		for (i = 0; i < supplier->num_supplicants; i++)
-			if (!strcmp(supplier->supplied_to[i], supply->name))
+			if (!strcmp(supplier->supplied_to[i], supply->desc->name))
 				return true;
 	}
 
@@ -58,12 +58,12 @@ static bool __power_supply_is_supplied_by(struct power_supply *supplier,
 
 static int __power_supply_changed_work(struct device *dev, void *data)
 {
-	struct power_supply *psy = (struct power_supply *)data;
+	struct power_supply *psy = data;
 	struct power_supply *pst = dev_get_drvdata(dev);
 
 	if (__power_supply_is_supplied_by(psy, pst)) {
-		if (pst->external_power_changed)
-			pst->external_power_changed(pst);
+		if (pst->desc->external_power_changed)
+			pst->desc->external_power_changed(pst);
 	}
 
 	return 0;
@@ -75,10 +75,17 @@ static void power_supply_changed_work(struct work_struct *work)
 	struct power_supply *psy = container_of(work, struct power_supply,
 						changed_work);
 
-	dev_dbg(psy->dev, "%s\n", __func__);
+	dev_dbg(&psy->dev, "%s\n", __func__);
 
 	spin_lock_irqsave(&psy->changed_lock, flags);
-	if (psy->changed) {
+	/*
+	 * Check 'changed' here to avoid issues due to race between
+	 * power_supply_changed() and this routine. In worst case
+	 * power_supply_changed() can be called again just before we take above
+	 * lock. During the first call of this routine we will mark 'changed' as
+	 * false and it will stay false for the next call as well.
+	 */
+	if (likely(psy->changed)) {
 		psy->changed = false;
 		spin_unlock_irqrestore(&psy->changed_lock, flags);
 		class_for_each_device(power_supply_class, NULL, psy,
@@ -86,16 +93,17 @@ static void power_supply_changed_work(struct work_struct *work)
 		power_supply_update_leds(psy);
 		atomic_notifier_call_chain(&power_supply_notifier,
 				PSY_EVENT_PROP_CHANGED, psy);
-		kobject_uevent(&psy->dev->kobj, KOBJ_CHANGE);
+		kobject_uevent(&psy->dev.kobj, KOBJ_CHANGE);
 		spin_lock_irqsave(&psy->changed_lock, flags);
 	}
+
 	/*
-	 * Dependent power supplies (e.g. battery) may have changed state
-	 * as a result of this event, so poll again and hold the
-	 * wakeup_source until all events are processed.
+	 * Hold the wakeup_source until all events are processed.
+	 * power_supply_changed() might have called again and have set 'changed'
+	 * to true.
 	 */
-	if (!psy->changed)
-		pm_relax(psy->dev);
+	if (likely(!psy->changed))
+		pm_relax(&psy->dev);
 	spin_unlock_irqrestore(&psy->changed_lock, flags);
 }
 
@@ -103,11 +111,11 @@ void power_supply_changed(struct power_supply *psy)
 {
 	unsigned long flags;
 
-	dev_dbg(psy->dev, "%s\n", __func__);
+	dev_dbg(&psy->dev, "%s\n", __func__);
 
 	spin_lock_irqsave(&psy->changed_lock, flags);
 	psy->changed = true;
-	pm_stay_awake(psy->dev);
+	pm_stay_awake(&psy->dev);
 	spin_unlock_irqrestore(&psy->changed_lock, flags);
 	schedule_work(&psy->changed_work);
 }
@@ -119,7 +127,7 @@ EXPORT_SYMBOL_GPL(power_supply_changed);
 static int __power_supply_populate_supplied_from(struct device *dev,
 						 void *data)
 {
-	struct power_supply *psy = (struct power_supply *)data;
+	struct power_supply *psy = data;
 	struct power_supply *epsy = dev_get_drvdata(dev);
 	struct device_node *np;
 	int i = 0;
@@ -127,12 +135,12 @@ static int __power_supply_populate_supplied_from(struct device *dev,
 	do {
 		np = of_parse_phandle(psy->of_node, "power-supplies", i++);
 		if (!np)
-			continue;
+			break;
 
 		if (np == epsy->of_node) {
-			dev_info(psy->dev, "%s: Found supply : %s\n",
-				psy->name, epsy->name);
-			psy->supplied_from[i-1] = (char *)epsy->name;
+			dev_info(&psy->dev, "%s: Found supply : %s\n",
+				psy->desc->name, epsy->desc->name);
+			psy->supplied_from[i-1] = (char *)epsy->desc->name;
 			psy->num_supplies++;
 			of_node_put(np);
 			break;
@@ -150,7 +158,7 @@ static int power_supply_populate_supplied_from(struct power_supply *psy)
 	error = class_for_each_device(power_supply_class, NULL, psy,
 				      __power_supply_populate_supplied_from);
 
-	dev_dbg(psy->dev, "%s %d\n", __func__, error);
+	dev_dbg(&psy->dev, "%s %d\n", __func__, error);
 
 	return error;
 }
@@ -158,12 +166,12 @@ static int power_supply_populate_supplied_from(struct power_supply *psy)
 static int  __power_supply_find_supply_from_node(struct device *dev,
 						 void *data)
 {
-	struct device_node *np = (struct device_node *)data;
+	struct device_node *np = data;
 	struct power_supply *epsy = dev_get_drvdata(dev);
 
-	/* return error breaks out of class_for_each_device loop */
+	/* returning non-zero breaks out of class_for_each_device loop */
 	if (epsy->of_node == np)
-		return -EINVAL;
+		return 1;
 
 	return 0;
 }
@@ -171,30 +179,21 @@ static int  __power_supply_find_supply_from_node(struct device *dev,
 static int power_supply_find_supply_from_node(struct device_node *supply_node)
 {
 	int error;
-	struct device *dev;
-	struct class_dev_iter iter;
 
 	/*
-	 * Use iterator to see if any other device is registered.
-	 * This is required since class_for_each_device returns 0
-	 * if there are no devices registered.
-	 */
-	class_dev_iter_init(&iter, power_supply_class, NULL, NULL);
-	dev = class_dev_iter_next(&iter);
-
-	if (!dev)
-		return -EPROBE_DEFER;
-
-	/*
-	 * We have to treat the return value as inverted, because if
-	 * we return error on not found, then it won't continue looking.
-	 * So we trick it by returning error on success to stop looking
-	 * once the matching device is found.
+	 * class_for_each_device() either returns its own errors or values
+	 * returned by __power_supply_find_supply_from_node().
+	 *
+	 * __power_supply_find_supply_from_node() will return 0 (no match)
+	 * or 1 (match).
+	 *
+	 * We return 0 if class_for_each_device() returned 1, -EPROBE_DEFER if
+	 * it returned 0, or error as returned by it.
 	 */
 	error = class_for_each_device(power_supply_class, NULL, supply_node,
 				       __power_supply_find_supply_from_node);
 
-	return error ? 0 : -EPROBE_DEFER;
+	return error ? (error == 1 ? 0 : error) : -EPROBE_DEFER;
 }
 
 static int power_supply_check_supplies(struct power_supply *psy)
@@ -215,29 +214,34 @@ static int power_supply_check_supplies(struct power_supply *psy)
 
 		np = of_parse_phandle(psy->of_node, "power-supplies", cnt++);
 		if (!np)
-			continue;
+			break;
 
 		ret = power_supply_find_supply_from_node(np);
-		if (ret) {
-			dev_dbg(psy->dev, "Failed to find supply, defer!\n");
-			of_node_put(np);
-			return -EPROBE_DEFER;
-		}
 		of_node_put(np);
+
+		if (ret) {
+			dev_dbg(&psy->dev, "Failed to find supply!\n");
+			return ret;
+		}
 	} while (np);
 
+	/* Missing valid "power-supplies" entries */
+	if (cnt == 1)
+		return 0;
+
 	/* All supplies found, allocate char ** array for filling */
-	psy->supplied_from = devm_kzalloc(psy->dev, sizeof(psy->supplied_from),
+	psy->supplied_from = devm_kzalloc(&psy->dev, sizeof(psy->supplied_from),
 					  GFP_KERNEL);
 	if (!psy->supplied_from) {
-		dev_err(psy->dev, "Couldn't allocate memory for supply list\n");
+		dev_err(&psy->dev, "Couldn't allocate memory for supply list\n");
 		return -ENOMEM;
 	}
 
-	*psy->supplied_from = devm_kzalloc(psy->dev, sizeof(char *) * cnt,
+	*psy->supplied_from = devm_kzalloc(&psy->dev,
+					   sizeof(char *) * (cnt - 1),
 					   GFP_KERNEL);
 	if (!*psy->supplied_from) {
-		dev_err(psy->dev, "Couldn't allocate memory for supply list\n");
+		dev_err(&psy->dev, "Couldn't allocate memory for supply list\n");
 		return -ENOMEM;
 	}
 
@@ -253,14 +257,13 @@ static inline int power_supply_check_supplies(struct power_supply *psy)
 static int __power_supply_am_i_supplied(struct device *dev, void *data)
 {
 	union power_supply_propval ret = {0,};
-	struct power_supply *psy = (struct power_supply *)data;
+	struct power_supply *psy = data;
 	struct power_supply *epsy = dev_get_drvdata(dev);
 
 	if (__power_supply_is_supplied_by(epsy, psy))
-		if (!epsy->get_property(epsy, POWER_SUPPLY_PROP_ONLINE, &ret)) {
-			if (ret.intval)
-				return ret.intval;
-		}
+		if (!epsy->desc->get_property(epsy, POWER_SUPPLY_PROP_ONLINE,
+					&ret))
+			return ret.intval;
 
 	return 0;
 }
@@ -272,7 +275,7 @@ int power_supply_am_i_supplied(struct power_supply *psy)
 	error = class_for_each_device(power_supply_class, NULL, psy,
 				      __power_supply_am_i_supplied);
 
-	dev_dbg(psy->dev, "%s %d\n", __func__, error);
+	dev_dbg(&psy->dev, "%s %d\n", __func__, error);
 
 	return error;
 }
@@ -285,12 +288,11 @@ static int __power_supply_is_system_supplied(struct device *dev, void *data)
 	unsigned int *count = data;
 
 	(*count)++;
-	if (psy->type != POWER_SUPPLY_TYPE_BATTERY) {
-		if (psy->get_property(psy, POWER_SUPPLY_PROP_ONLINE, &ret))
-			return 0;
-		if (ret.intval)
+	if (psy->desc->type != POWER_SUPPLY_TYPE_BATTERY)
+		if (!psy->desc->get_property(psy, POWER_SUPPLY_PROP_ONLINE,
+					&ret))
 			return ret.intval;
-	}
+
 	return 0;
 }
 
@@ -315,8 +317,10 @@ EXPORT_SYMBOL_GPL(power_supply_is_system_supplied);
 
 int power_supply_set_battery_charged(struct power_supply *psy)
 {
-	if (psy->type == POWER_SUPPLY_TYPE_BATTERY && psy->set_charged) {
-		psy->set_charged(psy);
+	if (atomic_read(&psy->use_cnt) >= 0 &&
+			psy->desc->type == POWER_SUPPLY_TYPE_BATTERY &&
+			psy->desc->set_charged) {
+		psy->desc->set_charged(psy);
 		return 0;
 	}
 
@@ -329,17 +333,50 @@ static int power_supply_match_device_by_name(struct device *dev, const void *dat
 	const char *name = data;
 	struct power_supply *psy = dev_get_drvdata(dev);
 
-	return strcmp(psy->name, name) == 0;
+	return strcmp(psy->desc->name, name) == 0;
 }
 
+/**
+ * power_supply_get_by_name() - Search for a power supply and returns its ref
+ * @name: Power supply name to fetch
+ *
+ * If power supply was found, it increases reference count for the
+ * internal power supply's device. The user should power_supply_put()
+ * after usage.
+ *
+ * Return: On success returns a reference to a power supply with
+ * matching name equals to @name, a NULL otherwise.
+ */
 struct power_supply *power_supply_get_by_name(const char *name)
 {
+	struct power_supply *psy = NULL;
 	struct device *dev = class_find_device(power_supply_class, NULL, name,
 					power_supply_match_device_by_name);
 
-	return dev ? dev_get_drvdata(dev) : NULL;
+	if (dev) {
+		psy = dev_get_drvdata(dev);
+		atomic_inc(&psy->use_cnt);
+	}
+
+	return psy;
 }
 EXPORT_SYMBOL_GPL(power_supply_get_by_name);
+
+/**
+ * power_supply_put() - Drop reference obtained with power_supply_get_by_name
+ * @psy: Reference to put
+ *
+ * The reference to power supply should be put before unregistering
+ * the power supply.
+ */
+void power_supply_put(struct power_supply *psy)
+{
+	might_sleep();
+
+	atomic_dec(&psy->use_cnt);
+	put_device(&psy->dev);
+}
+EXPORT_SYMBOL_GPL(power_supply_put);
 
 #ifdef CONFIG_OF
 static int power_supply_match_device_node(struct device *dev, const void *data)
@@ -347,10 +384,23 @@ static int power_supply_match_device_node(struct device *dev, const void *data)
 	return dev->parent && dev->parent->of_node == data;
 }
 
+/**
+ * power_supply_get_by_phandle() - Search for a power supply and returns its ref
+ * @np: Pointer to device node holding phandle property
+ * @phandle_name: Name of property holding a power supply name
+ *
+ * If power supply was found, it increases reference count for the
+ * internal power supply's device. The user should power_supply_put()
+ * after usage.
+ *
+ * Return: On success returns a reference to a power supply with
+ * matching name equals to value under @property, NULL or ERR_PTR otherwise.
+ */
 struct power_supply *power_supply_get_by_phandle(struct device_node *np,
 							const char *property)
 {
 	struct device_node *power_supply_np;
+	struct power_supply *psy = NULL;
 	struct device *dev;
 
 	power_supply_np = of_parse_phandle(np, property, 0);
@@ -362,21 +412,70 @@ struct power_supply *power_supply_get_by_phandle(struct device_node *np,
 
 	of_node_put(power_supply_np);
 
-	return dev ? dev_get_drvdata(dev) : NULL;
+	if (dev) {
+		psy = dev_get_drvdata(dev);
+		atomic_inc(&psy->use_cnt);
+	}
+
+	return psy;
 }
 EXPORT_SYMBOL_GPL(power_supply_get_by_phandle);
 #endif /* CONFIG_OF */
 
+int power_supply_get_property(struct power_supply *psy,
+			    enum power_supply_property psp,
+			    union power_supply_propval *val)
+{
+	if (atomic_read(&psy->use_cnt) <= 0)
+		return -ENODEV;
+
+	return psy->desc->get_property(psy, psp, val);
+}
+EXPORT_SYMBOL_GPL(power_supply_get_property);
+
+int power_supply_set_property(struct power_supply *psy,
+			    enum power_supply_property psp,
+			    const union power_supply_propval *val)
+{
+	if (atomic_read(&psy->use_cnt) <= 0 || !psy->desc->set_property)
+		return -ENODEV;
+
+	return psy->desc->set_property(psy, psp, val);
+}
+EXPORT_SYMBOL_GPL(power_supply_set_property);
+
+int power_supply_property_is_writeable(struct power_supply *psy,
+					enum power_supply_property psp)
+{
+	if (atomic_read(&psy->use_cnt) <= 0 ||
+			!psy->desc->property_is_writeable)
+		return -ENODEV;
+
+	return psy->desc->property_is_writeable(psy, psp);
+}
+EXPORT_SYMBOL_GPL(power_supply_property_is_writeable);
+
+void power_supply_external_power_changed(struct power_supply *psy)
+{
+	if (atomic_read(&psy->use_cnt) <= 0 ||
+			!psy->desc->external_power_changed)
+		return;
+
+	psy->desc->external_power_changed(psy);
+}
+EXPORT_SYMBOL_GPL(power_supply_external_power_changed);
+
 int power_supply_powers(struct power_supply *psy, struct device *dev)
 {
-	return sysfs_create_link(&psy->dev->kobj, &dev->kobj, "powers");
+	return sysfs_create_link(&psy->dev.kobj, &dev->kobj, "powers");
 }
 EXPORT_SYMBOL_GPL(power_supply_powers);
 
 static void power_supply_dev_release(struct device *dev)
 {
+	struct power_supply *psy = container_of(dev, struct power_supply, dev);
 	pr_debug("device: '%s': %s\n", dev_name(dev), __func__);
-	kfree(dev);
+	kfree(psy);
 }
 
 int power_supply_reg_notifier(struct notifier_block *nb)
@@ -401,7 +500,7 @@ static int power_supply_read_temp(struct thermal_zone_device *tzd,
 
 	WARN_ON(tzd == NULL);
 	psy = tzd->devdata;
-	ret = psy->get_property(psy, POWER_SUPPLY_PROP_TEMP, &val);
+	ret = psy->desc->get_property(psy, POWER_SUPPLY_PROP_TEMP, &val);
 
 	/* Convert tenths of degree Celsius to milli degree Celsius. */
 	if (!ret)
@@ -418,14 +517,15 @@ static int psy_register_thermal(struct power_supply *psy)
 {
 	int i;
 
+	if (psy->desc->no_thermal)
+		return 0;
+
 	/* Register battery zone device psy reports temperature */
-	for (i = 0; i < psy->num_properties; i++) {
-		if (psy->properties[i] == POWER_SUPPLY_PROP_TEMP) {
-			psy->tzd = thermal_zone_device_register(psy->name, 0, 0,
-					psy, &psy_tzd_ops, NULL, 0, 0);
-			if (IS_ERR(psy->tzd))
-				return PTR_ERR(psy->tzd);
-			break;
+	for (i = 0; i < psy->desc->num_properties; i++) {
+		if (psy->desc->properties[i] == POWER_SUPPLY_PROP_TEMP) {
+			psy->tzd = thermal_zone_device_register(psy->desc->name,
+					0, 0, psy, &psy_tzd_ops, NULL, 0, 0);
+			return PTR_ERR_OR_ZERO(psy->tzd);
 		}
 	}
 	return 0;
@@ -447,7 +547,7 @@ static int ps_get_max_charge_cntl_limit(struct thermal_cooling_device *tcd,
 	int ret;
 
 	psy = tcd->devdata;
-	ret = psy->get_property(psy,
+	ret = psy->desc->get_property(psy,
 		POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT_MAX, &val);
 	if (!ret)
 		*state = val.intval;
@@ -463,7 +563,7 @@ static int ps_get_cur_chrage_cntl_limit(struct thermal_cooling_device *tcd,
 	int ret;
 
 	psy = tcd->devdata;
-	ret = psy->get_property(psy,
+	ret = psy->desc->get_property(psy,
 		POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT, &val);
 	if (!ret)
 		*state = val.intval;
@@ -480,7 +580,7 @@ static int ps_set_cur_charge_cntl_limit(struct thermal_cooling_device *tcd,
 
 	psy = tcd->devdata;
 	val.intval = state;
-	ret = psy->set_property(psy,
+	ret = psy->desc->set_property(psy,
 		POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT, &val);
 
 	return ret;
@@ -497,15 +597,13 @@ static int psy_register_cooler(struct power_supply *psy)
 	int i;
 
 	/* Register for cooling device if psy can control charging */
-	for (i = 0; i < psy->num_properties; i++) {
-		if (psy->properties[i] ==
+	for (i = 0; i < psy->desc->num_properties; i++) {
+		if (psy->desc->properties[i] ==
 				POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT) {
 			psy->tcd = thermal_cooling_device_register(
-							(char *)psy->name,
+							(char *)psy->desc->name,
 							psy, &psy_tcd_ops);
-			if (IS_ERR(psy->tcd))
-				return PTR_ERR(psy->tcd);
-			break;
+			return PTR_ERR_OR_ZERO(psy->tcd);
 		}
 	}
 	return 0;
@@ -537,14 +635,21 @@ static void psy_unregister_cooler(struct power_supply *psy)
 }
 #endif
 
-int power_supply_register(struct device *parent, struct power_supply *psy)
+static struct power_supply *__must_check
+__power_supply_register(struct device *parent,
+				   const struct power_supply_desc *desc,
+				   const struct power_supply_config *cfg,
+				   bool ws)
 {
 	struct device *dev;
+	struct power_supply *psy;
 	int rc;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev)
-		return -ENOMEM;
+	psy = kzalloc(sizeof(*psy), GFP_KERNEL);
+	if (!psy)
+		return ERR_PTR(-ENOMEM);
+
+	dev = &psy->dev;
 
 	device_initialize(dev);
 
@@ -553,9 +658,16 @@ int power_supply_register(struct device *parent, struct power_supply *psy)
 	dev->parent = parent;
 	dev->release = power_supply_dev_release;
 	dev_set_drvdata(dev, psy);
-	psy->dev = dev;
+	psy->desc = desc;
+	atomic_inc(&psy->use_cnt);
+	if (cfg) {
+		psy->drv_data = cfg->drv_data;
+		psy->of_node = cfg->of_node;
+		psy->supplied_to = cfg->supplied_to;
+		psy->num_supplicants = cfg->num_supplicants;
+	}
 
-	rc = dev_set_name(dev, "%s", psy->name);
+	rc = dev_set_name(dev, "%s", desc->name);
 	if (rc)
 		goto dev_set_name_failed;
 
@@ -568,7 +680,7 @@ int power_supply_register(struct device *parent, struct power_supply *psy)
 	}
 
 	spin_lock_init(&psy->changed_lock);
-	rc = device_init_wakeup(dev, true);
+	rc = device_init_wakeup(dev, ws);
 	if (rc)
 		goto wakeup_init_failed;
 
@@ -590,7 +702,7 @@ int power_supply_register(struct device *parent, struct power_supply *psy)
 
 	power_supply_changed(psy);
 
-	goto success;
+	return psy;
 
 create_triggers_failed:
 	psy_unregister_cooler(psy);
@@ -603,22 +715,154 @@ wakeup_init_failed:
 check_supplies_failed:
 dev_set_name_failed:
 	put_device(dev);
-success:
-	return rc;
+	return ERR_PTR(rc);
+}
+
+/**
+ * power_supply_register() - Register new power supply
+ * @parent:	Device to be a parent of power supply's device
+ * @desc:	Description of power supply, must be valid through whole
+ *		lifetime of this power supply
+ * @cfg:	Run-time specific configuration accessed during registering,
+ *		may be NULL
+ *
+ * Return: A pointer to newly allocated power_supply on success
+ * or ERR_PTR otherwise.
+ * Use power_supply_unregister() on returned power_supply pointer to release
+ * resources.
+ */
+struct power_supply *__must_check power_supply_register(struct device *parent,
+		const struct power_supply_desc *desc,
+		const struct power_supply_config *cfg)
+{
+	return __power_supply_register(parent, desc, cfg, true);
 }
 EXPORT_SYMBOL_GPL(power_supply_register);
 
+/**
+ * power_supply_register() - Register new non-waking-source power supply
+ * @parent:	Device to be a parent of power supply's device
+ * @desc:	Description of power supply, must be valid through whole
+ *		lifetime of this power supply
+ * @cfg:	Run-time specific configuration accessed during registering,
+ *		may be NULL
+ *
+ * Return: A pointer to newly allocated power_supply on success
+ * or ERR_PTR otherwise.
+ * Use power_supply_unregister() on returned power_supply pointer to release
+ * resources.
+ */
+struct power_supply *__must_check
+power_supply_register_no_ws(struct device *parent,
+		const struct power_supply_desc *desc,
+		const struct power_supply_config *cfg)
+{
+	return __power_supply_register(parent, desc, cfg, false);
+}
+EXPORT_SYMBOL_GPL(power_supply_register_no_ws);
+
+static void devm_power_supply_release(struct device *dev, void *res)
+{
+	struct power_supply **psy = res;
+
+	power_supply_unregister(*psy);
+}
+
+/**
+ * power_supply_register() - Register managed power supply
+ * @parent:	Device to be a parent of power supply's device
+ * @desc:	Description of power supply, must be valid through whole
+ *		lifetime of this power supply
+ * @cfg:	Run-time specific configuration accessed during registering,
+ *		may be NULL
+ *
+ * Return: A pointer to newly allocated power_supply on success
+ * or ERR_PTR otherwise.
+ * The returned power_supply pointer will be automatically unregistered
+ * on driver detach.
+ */
+struct power_supply *__must_check
+devm_power_supply_register(struct device *parent,
+		const struct power_supply_desc *desc,
+		const struct power_supply_config *cfg)
+{
+	struct power_supply **ptr, *psy;
+
+	ptr = devres_alloc(devm_power_supply_release, sizeof(*ptr), GFP_KERNEL);
+
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+	psy = __power_supply_register(parent, desc, cfg, true);
+	if (IS_ERR(psy)) {
+		devres_free(ptr);
+	} else {
+		*ptr = psy;
+		devres_add(parent, ptr);
+	}
+	return psy;
+}
+EXPORT_SYMBOL_GPL(devm_power_supply_register);
+
+/**
+ * power_supply_register() - Register managed non-waking-source power supply
+ * @parent:	Device to be a parent of power supply's device
+ * @desc:	Description of power supply, must be valid through whole
+ *		lifetime of this power supply
+ * @cfg:	Run-time specific configuration accessed during registering,
+ *		may be NULL
+ *
+ * Return: A pointer to newly allocated power_supply on success
+ * or ERR_PTR otherwise.
+ * The returned power_supply pointer will be automatically unregistered
+ * on driver detach.
+ */
+struct power_supply *__must_check
+devm_power_supply_register_no_ws(struct device *parent,
+		const struct power_supply_desc *desc,
+		const struct power_supply_config *cfg)
+{
+	struct power_supply **ptr, *psy;
+
+	ptr = devres_alloc(devm_power_supply_release, sizeof(*ptr), GFP_KERNEL);
+
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+	psy = __power_supply_register(parent, desc, cfg, false);
+	if (IS_ERR(psy)) {
+		devres_free(ptr);
+	} else {
+		*ptr = psy;
+		devres_add(parent, ptr);
+	}
+	return psy;
+}
+EXPORT_SYMBOL_GPL(devm_power_supply_register_no_ws);
+
+/**
+ * power_supply_unregister() - Remove this power supply from system
+ * @psy:	Pointer to power supply to unregister
+ *
+ * Remove this power supply from the system. The resources of power supply
+ * will be freed here or on last power_supply_put() call.
+ */
 void power_supply_unregister(struct power_supply *psy)
 {
+	WARN_ON(atomic_dec_return(&psy->use_cnt));
 	cancel_work_sync(&psy->changed_work);
-	sysfs_remove_link(&psy->dev->kobj, "powers");
+	sysfs_remove_link(&psy->dev.kobj, "powers");
 	power_supply_remove_triggers(psy);
 	psy_unregister_cooler(psy);
 	psy_unregister_thermal(psy);
-	device_init_wakeup(psy->dev, false);
-	device_unregister(psy->dev);
+	device_init_wakeup(&psy->dev, false);
+	device_unregister(&psy->dev);
 }
 EXPORT_SYMBOL_GPL(power_supply_unregister);
+
+void *power_supply_get_drvdata(struct power_supply *psy)
+{
+	return psy->drv_data;
+}
+EXPORT_SYMBOL_GPL(power_supply_get_drvdata);
 
 static int __init power_supply_class_init(void)
 {

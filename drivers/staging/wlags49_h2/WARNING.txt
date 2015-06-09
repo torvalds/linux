@@ -1,3 +1,0 @@
-These sources are shared with the wlags49_h25 driver. Some files are even
-exclusively used by that driver. Do not delete them here without looking
-at that other driver.

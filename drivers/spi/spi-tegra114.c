@@ -23,7 +23,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
 #include <linux/err.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -172,7 +171,6 @@ struct tegra_spi_data {
 	void __iomem				*base;
 	phys_addr_t				phys;
 	unsigned				irq;
-	u32					spi_max_frequency;
 	u32					cur_speed;
 
 	struct spi_device			*cur_spi;
@@ -304,6 +302,7 @@ static unsigned tegra_spi_fill_tx_fifo_from_client_txbuf(
 		max_n_32bit = DIV_ROUND_UP(nbytes, 4);
 		for (count = 0; count < max_n_32bit; count++) {
 			u32 x = 0;
+
 			for (i = 0; (i < 4) && nbytes; i++, nbytes--)
 				x |= (u32)(*tx_buf++) << (i * 8);
 			tegra_spi_writel(tspi, x, SPI_TX_FIFO);
@@ -314,6 +313,7 @@ static unsigned tegra_spi_fill_tx_fifo_from_client_txbuf(
 		nbytes = written_words * tspi->bytes_per_word;
 		for (count = 0; count < max_n_32bit; count++) {
 			u32 x = 0;
+
 			for (i = 0; nbytes && (i < tspi->bytes_per_word);
 							i++, nbytes--)
 				x |= (u32)(*tx_buf++) << (i * 8);
@@ -340,6 +340,7 @@ static unsigned int tegra_spi_read_rx_fifo_to_client_rxbuf(
 		len = tspi->curr_dma_words * tspi->bytes_per_word;
 		for (count = 0; count < rx_full_count; count++) {
 			u32 x = tegra_spi_readl(tspi, SPI_RX_FIFO);
+
 			for (i = 0; len && (i < 4); i++, len--)
 				*rx_buf++ = (x >> i*8) & 0xFF;
 		}
@@ -347,8 +348,10 @@ static unsigned int tegra_spi_read_rx_fifo_to_client_rxbuf(
 		read_words += tspi->curr_dma_words;
 	} else {
 		u32 rx_mask = ((u32)1 << t->bits_per_word) - 1;
+
 		for (count = 0; count < rx_full_count; count++) {
 			u32 x = tegra_spi_readl(tspi, SPI_RX_FIFO) & rx_mask;
+
 			for (i = 0; (i < tspi->bytes_per_word); i++)
 				*rx_buf++ = (x >> (i*8)) & 0xFF;
 		}
@@ -367,6 +370,7 @@ static void tegra_spi_copy_client_txbuf_to_spi_txbuf(
 
 	if (tspi->is_packed) {
 		unsigned len = tspi->curr_dma_words * tspi->bytes_per_word;
+
 		memcpy(tspi->tx_dma_buf, t->tx_buf + tspi->cur_pos, len);
 	} else {
 		unsigned int i;
@@ -376,6 +380,7 @@ static void tegra_spi_copy_client_txbuf_to_spi_txbuf(
 
 		for (count = 0; count < tspi->curr_dma_words; count++) {
 			u32 x = 0;
+
 			for (i = 0; consume && (i < tspi->bytes_per_word);
 							i++, consume--)
 				x |= (u32)(*tx_buf++) << (i * 8);
@@ -398,6 +403,7 @@ static void tegra_spi_copy_spi_rxbuf_to_client_rxbuf(
 
 	if (tspi->is_packed) {
 		unsigned len = tspi->curr_dma_words * tspi->bytes_per_word;
+
 		memcpy(t->rx_buf + tspi->cur_rx_pos, tspi->rx_dma_buf, len);
 	} else {
 		unsigned int i;
@@ -407,6 +413,7 @@ static void tegra_spi_copy_spi_rxbuf_to_client_rxbuf(
 
 		for (count = 0; count < tspi->curr_dma_words; count++) {
 			u32 x = tspi->rx_dma_buf[count] & rx_mask;
+
 			for (i = 0; (i < tspi->bytes_per_word); i++)
 				*rx_buf++ = (x >> (i*8)) & 0xFF;
 		}
@@ -761,11 +768,6 @@ static int tegra_spi_setup(struct spi_device *spi)
 		spi->mode & SPI_CPHA ? "" : "~",
 		spi->max_speed_hz);
 
-	BUG_ON(spi->chip_select >= MAX_CHIP_SELECT);
-
-	/* Set speed to the spi max fequency if spi device has not set */
-	spi->max_speed_hz = spi->max_speed_hz ? : tspi->spi_max_frequency;
-
 	ret = pm_runtime_get_sync(tspi->dev);
 	if (ret < 0) {
 		dev_err(tspi->dev, "pm runtime failed, e = %d\n", ret);
@@ -853,8 +855,8 @@ complete_xfer:
 					SPI_COMMAND1);
 			tegra_spi_transfer_delay(xfer->delay_usecs);
 			goto exit;
-		} else if (msg->transfers.prev == &xfer->transfer_list) {
-			/* This is the last transfer in message */
+		} else if (list_is_last(&xfer->transfer_list,
+					&msg->transfers)) {
 			if (xfer->cs_change)
 				tspi->cs_control = spi;
 			else {
@@ -1019,17 +1021,7 @@ static irqreturn_t tegra_spi_isr(int irq, void *context_data)
 	return IRQ_WAKE_THREAD;
 }
 
-static void tegra_spi_parse_dt(struct platform_device *pdev,
-	struct tegra_spi_data *tspi)
-{
-	struct device_node *np = pdev->dev.of_node;
-
-	if (of_property_read_u32(np, "spi-max-frequency",
-				&tspi->spi_max_frequency))
-		tspi->spi_max_frequency = 25000000; /* 25MHz */
-}
-
-static struct of_device_id tegra_spi_of_match[] = {
+static const struct of_device_id tegra_spi_of_match[] = {
 	{ .compatible = "nvidia,tegra114-spi", },
 	{}
 };
@@ -1050,15 +1042,15 @@ static int tegra_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, master);
 	tspi = spi_master_get_devdata(master);
 
-	/* Parse DT */
-	tegra_spi_parse_dt(pdev, tspi);
+	if (of_property_read_u32(pdev->dev.of_node, "spi-max-frequency",
+				 &master->max_speed_hz))
+		master->max_speed_hz = 25000000; /* 25MHz */
 
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	master->setup = tegra_spi_setup;
 	master->transfer_one_message = tegra_spi_transfer_one_message;
 	master->num_chipselect = MAX_CHIP_SELECT;
-	master->bus_num = -1;
 	master->auto_runtime_pm = true;
 
 	tspi->master = master;
@@ -1231,7 +1223,6 @@ static const struct dev_pm_ops tegra_spi_pm_ops = {
 static struct platform_driver tegra_spi_driver = {
 	.driver = {
 		.name		= "spi-tegra114",
-		.owner		= THIS_MODULE,
 		.pm		= &tegra_spi_pm_ops,
 		.of_match_table	= tegra_spi_of_match,
 	},

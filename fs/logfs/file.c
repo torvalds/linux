@@ -241,7 +241,7 @@ int logfs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 
 static int logfs_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int err = 0;
 
 	err = inode_change_ok(inode, attr);
@@ -264,15 +264,13 @@ const struct inode_operations logfs_reg_iops = {
 };
 
 const struct file_operations logfs_reg_fops = {
-	.aio_read	= generic_file_aio_read,
-	.aio_write	= generic_file_aio_write,
+	.read_iter	= generic_file_read_iter,
+	.write_iter	= generic_file_write_iter,
 	.fsync		= logfs_fsync,
 	.unlocked_ioctl	= logfs_ioctl,
 	.llseek		= generic_file_llseek,
 	.mmap		= generic_file_readonly_mmap,
 	.open		= generic_file_open,
-	.read		= do_sync_read,
-	.write		= do_sync_write,
 };
 
 const struct address_space_operations logfs_reg_aops = {

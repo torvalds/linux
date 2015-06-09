@@ -27,29 +27,32 @@ struct da9052_onkey {
 
 static void da9052_onkey_query(struct da9052_onkey *onkey)
 {
-	int key_stat;
+	int ret;
 
-	key_stat = da9052_reg_read(onkey->da9052, DA9052_EVENT_B_REG);
-	if (key_stat < 0) {
+	ret = da9052_reg_read(onkey->da9052, DA9052_STATUS_A_REG);
+	if (ret < 0) {
 		dev_err(onkey->da9052->dev,
-			"Failed to read onkey event %d\n", key_stat);
+			"Failed to read onkey event err=%d\n", ret);
 	} else {
 		/*
 		 * Since interrupt for deassertion of ONKEY pin is not
 		 * generated, onkey event state determines the onkey
 		 * button state.
 		 */
-		key_stat &= DA9052_EVENTB_ENONKEY;
-		input_report_key(onkey->input, KEY_POWER, key_stat);
-		input_sync(onkey->input);
-	}
+		bool pressed = !(ret & DA9052_STATUSA_NONKEY);
 
-	/*
-	 * Interrupt is generated only when the ONKEY pin is asserted.
-	 * Hence the deassertion of the pin is simulated through work queue.
-	 */
-	if (key_stat)
-		schedule_delayed_work(&onkey->work, msecs_to_jiffies(50));
+		input_report_key(onkey->input, KEY_POWER, pressed);
+		input_sync(onkey->input);
+
+		/*
+		 * Interrupt is generated only when the ONKEY pin
+		 * is asserted.  Hence the deassertion of the pin
+		 * is simulated through work queue.
+		 */
+		if (pressed)
+			schedule_delayed_work(&onkey->work,
+						msecs_to_jiffies(50));
+	}
 }
 
 static void da9052_onkey_work(struct work_struct *work)
@@ -146,7 +149,6 @@ static struct platform_driver da9052_onkey_driver = {
 	.remove	= da9052_onkey_remove,
 	.driver = {
 		.name	= "da9052-onkey",
-		.owner	= THIS_MODULE,
 	},
 };
 module_platform_driver(da9052_onkey_driver);

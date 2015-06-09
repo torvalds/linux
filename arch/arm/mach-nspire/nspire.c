@@ -27,7 +27,7 @@
 #include "mmio.h"
 #include "clcd.h"
 
-static const char *nspire_dt_match[] __initconst = {
+static const char *const nspire_dt_match[] __initconst = {
 	"ti,nspire",
 	"ti,nspire-cx",
 	"ti,nspire-tp",
@@ -63,7 +63,7 @@ static void __init nspire_init(void)
 			nspire_auxdata, NULL);
 }
 
-static void nspire_restart(char mode, const char *cmd)
+static void nspire_restart(enum reboot_mode mode, const char *cmd)
 {
 	void __iomem *base = ioremap(NSPIRE_MISC_PHYS_BASE, SZ_4K);
 	if (!base)

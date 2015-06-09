@@ -41,8 +41,8 @@
  * DAMAGE.
  */
 
-#ifndef CAN_ERROR_H
-#define CAN_ERROR_H
+#ifndef _UAPI_CAN_ERROR_H
+#define _UAPI_CAN_ERROR_H
 
 #define CAN_ERR_DLC 8 /* dlc for error message frames */
 
@@ -71,6 +71,7 @@
 #define CAN_ERR_CRTL_TX_PASSIVE  0x20 /* reached error passive status TX */
 				      /* (at least one error counter exceeds */
 				      /* the protocol-defined level of 127)  */
+#define CAN_ERR_CRTL_ACTIVE      0x40 /* recovered to error active state */
 
 /* error in CAN protocol (type) / data[2] */
 #define CAN_ERR_PROT_UNSPEC      0x00 /* unspecified */
@@ -120,4 +121,4 @@
 
 /* controller specific additional information / data[5..7] */
 
-#endif /* CAN_ERROR_H */
+#endif /* _UAPI_CAN_ERROR_H */

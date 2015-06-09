@@ -133,7 +133,6 @@ extern struct request *elv_latter_request(struct request_queue *, struct request
 extern int elv_register_queue(struct request_queue *q);
 extern void elv_unregister_queue(struct request_queue *q);
 extern int elv_may_queue(struct request_queue *, int);
-extern void elv_abort_queue(struct request_queue *);
 extern void elv_completed_request(struct request_queue *, struct request *);
 extern int elv_set_request(struct request_queue *q, struct request *rq,
 			   struct bio *bio, gfp_t gfp_mask);
@@ -202,17 +201,8 @@ enum {
 #define rq_end_sector(rq)	(blk_rq_pos(rq) + blk_rq_sectors(rq))
 #define rb_entry_rq(node)	rb_entry((node), struct request, rb_node)
 
-/*
- * Hack to reuse the csd.list list_head as the fifo time holder while
- * the request is in the io scheduler. Saves an unsigned long in rq.
- */
-#define rq_fifo_time(rq)	((unsigned long) (rq)->csd.list.next)
-#define rq_set_fifo_time(rq,exp)	((rq)->csd.list.next = (void *) (exp))
 #define rq_entry_fifo(ptr)	list_entry((ptr), struct request, queuelist)
-#define rq_fifo_clear(rq)	do {		\
-	list_del_init(&(rq)->queuelist);	\
-	INIT_LIST_HEAD(&(rq)->csd.list);	\
-	} while (0)
+#define rq_fifo_clear(rq)	list_del_init(&(rq)->queuelist)
 
 #else /* CONFIG_BLOCK */
 

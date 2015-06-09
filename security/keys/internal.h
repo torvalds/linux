@@ -107,20 +107,17 @@ extern int iterate_over_keyring(const struct key *keyring,
 				int (*func)(const struct key *key, void *data),
 				void *data);
 
-typedef int (*key_match_func_t)(const struct key *, const void *);
-
 struct keyring_search_context {
 	struct keyring_index_key index_key;
 	const struct cred	*cred;
-	key_match_func_t	match;
-	const void		*match_data;
+	struct key_match_data	match_data;
 	unsigned		flags;
-#define KEYRING_SEARCH_LOOKUP_TYPE	0x0001	/* [as type->def_lookup_type] */
-#define KEYRING_SEARCH_NO_STATE_CHECK	0x0002	/* Skip state checks */
-#define KEYRING_SEARCH_DO_STATE_CHECK	0x0004	/* Override NO_STATE_CHECK */
-#define KEYRING_SEARCH_NO_UPDATE_TIME	0x0008	/* Don't update times */
-#define KEYRING_SEARCH_NO_CHECK_PERM	0x0010	/* Don't check permissions */
-#define KEYRING_SEARCH_DETECT_TOO_DEEP	0x0020	/* Give an error on excessive depth */
+#define KEYRING_SEARCH_NO_STATE_CHECK	0x0001	/* Skip state checks */
+#define KEYRING_SEARCH_DO_STATE_CHECK	0x0002	/* Override NO_STATE_CHECK */
+#define KEYRING_SEARCH_NO_UPDATE_TIME	0x0004	/* Don't update times */
+#define KEYRING_SEARCH_NO_CHECK_PERM	0x0008	/* Don't check permissions */
+#define KEYRING_SEARCH_DETECT_TOO_DEEP	0x0010	/* Give an error on excessive depth */
+#define KEYRING_SEARCH_SKIP_EXPIRED	0x0020	/* Ignore expired keys (intention to replace) */
 
 	int (*iterator)(const void *object, void *iterator_data);
 
@@ -131,6 +128,8 @@ struct keyring_search_context {
 	struct timespec		now;
 };
 
+extern bool key_default_cmp(const struct key *key,
+			    const struct key_match_data *match_data);
 extern key_ref_t keyring_search_aux(key_ref_t keyring_ref,
 				    struct keyring_search_context *ctx);
 
@@ -152,7 +151,8 @@ extern struct key *request_key_and_link(struct key_type *type,
 					struct key *dest_keyring,
 					unsigned long flags);
 
-extern int lookup_user_key_possessed(const struct key *key, const void *target);
+extern bool lookup_user_key_possessed(const struct key *key,
+				      const struct key_match_data *match_data);
 extern key_ref_t lookup_user_key(key_serial_t id, unsigned long flags,
 				 key_perm_t perm);
 #define KEY_LOOKUP_CREATE	0x01
@@ -176,19 +176,10 @@ extern int key_task_permission(const key_ref_t key_ref,
 /*
  * Check to see whether permission is granted to use a key in the desired way.
  */
-static inline int key_permission(const key_ref_t key_ref, key_perm_t perm)
+static inline int key_permission(const key_ref_t key_ref, unsigned perm)
 {
 	return key_task_permission(key_ref, current_cred(), perm);
 }
-
-/* required permissions */
-#define	KEY_VIEW	0x01	/* require permission to view attributes */
-#define	KEY_READ	0x02	/* require permission to read content */
-#define	KEY_WRITE	0x04	/* require permission to update / modify */
-#define	KEY_SEARCH	0x08	/* require permission to search (keyring) or find (key) */
-#define	KEY_LINK	0x10	/* require permission to link */
-#define	KEY_SETATTR	0x20	/* require permission to change attributes */
-#define	KEY_ALL		0x3f	/* all the above permissions */
 
 /*
  * Authorisation record for request_key().
@@ -252,9 +243,10 @@ extern long keyctl_instantiate_key_iov(key_serial_t,
 				       unsigned, key_serial_t);
 extern long keyctl_invalidate_key(key_serial_t);
 
+struct iov_iter;
 extern long keyctl_instantiate_key_common(key_serial_t,
-					  const struct iovec *,
-					  unsigned, size_t, key_serial_t);
+					  struct iov_iter *,
+					  key_serial_t);
 #ifdef CONFIG_PERSISTENT_KEYRINGS
 extern long keyctl_get_persistent(uid_t, key_serial_t);
 extern unsigned persistent_keyring_expiry;

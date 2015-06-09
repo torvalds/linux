@@ -36,6 +36,7 @@
 #define PCM1792A_DAC_VOL_LEFT	0x10
 #define PCM1792A_DAC_VOL_RIGHT	0x11
 #define PCM1792A_FMT_CONTROL	0x12
+#define PCM1792A_MODE_CONTROL	0x13
 #define PCM1792A_SOFT_MUTE	PCM1792A_FMT_CONTROL
 
 #define PCM1792A_FMT_MASK	0x70
@@ -107,24 +108,35 @@ static int pcm1792a_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 	struct pcm1792a_private *priv = snd_soc_codec_get_drvdata(codec);
 	int val = 0, ret;
-	int pcm_format = params_format(params);
 
 	priv->rate = params_rate(params);
 
 	switch (priv->format & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_RIGHT_J:
-		if (pcm_format == SNDRV_PCM_FORMAT_S24_LE ||
-		    pcm_format == SNDRV_PCM_FORMAT_S32_LE)
-			val = 0x02;
-		else if (pcm_format == SNDRV_PCM_FORMAT_S16_LE)
-			val = 0x00;
+		switch (params_width(params)) {
+		case 24:
+		case 32:
+			val = 2;
+			break;
+		case 16:
+			val = 0;
+			break;
+		default:
+			return -EINVAL;
+		}
 		break;
 	case SND_SOC_DAIFMT_I2S:
-		if (pcm_format == SNDRV_PCM_FORMAT_S24_LE ||
-		    pcm_format == SNDRV_PCM_FORMAT_S32_LE)
-			val = 0x05;
-		else if (pcm_format == SNDRV_PCM_FORMAT_S16_LE)
-			val = 0x04;
+		switch (params_width(params)) {
+		case 24:
+		case 32:
+			val = 5;
+			break;
+		case 16:
+			val = 4;
+			break;
+		default:
+			return -EINVAL;
+		}
 		break;
 	default:
 		dev_err(codec->dev, "Invalid DAI format\n");
@@ -153,6 +165,8 @@ static const struct snd_kcontrol_new pcm1792a_controls[] = {
 	SOC_DOUBLE_R_RANGE_TLV("DAC Playback Volume", PCM1792A_DAC_VOL_LEFT,
 			 PCM1792A_DAC_VOL_RIGHT, 0, 0xf, 0xff, 0,
 			 pcm1792a_dac_tlv),
+	SOC_SINGLE("DAC Invert Output Switch", PCM1792A_MODE_CONTROL, 7, 1, 0),
+	SOC_SINGLE("DAC Rolloff Filter Switch", PCM1792A_MODE_CONTROL, 1, 1, 0),
 };
 
 static const struct snd_soc_dapm_widget pcm1792a_dapm_widgets[] = {

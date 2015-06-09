@@ -193,6 +193,7 @@ static void *_qp_stats_seq_start(struct seq_file *s, loff_t *pos)
 	struct qib_qp_iter *iter;
 	loff_t n = *pos;
 
+	rcu_read_lock();
 	iter = qib_qp_iter_init(s->private);
 	if (!iter)
 		return NULL;
@@ -224,7 +225,7 @@ static void *_qp_stats_seq_next(struct seq_file *s, void *iter_ptr,
 
 static void _qp_stats_seq_stop(struct seq_file *s, void *iter_ptr)
 {
-	/* nothing for now */
+	rcu_read_unlock();
 }
 
 static int _qp_stats_seq_show(struct seq_file *s, void *iter_ptr)
@@ -254,7 +255,6 @@ void qib_dbg_ibdev_init(struct qib_ibdev *ibd)
 	DEBUGFS_FILE_CREATE(opcode_stats);
 	DEBUGFS_FILE_CREATE(ctx_stats);
 	DEBUGFS_FILE_CREATE(qp_stats);
-	return;
 }
 
 void qib_dbg_ibdev_exit(struct qib_ibdev *ibd)

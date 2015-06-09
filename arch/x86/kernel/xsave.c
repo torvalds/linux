@@ -8,9 +8,11 @@
 
 #include <linux/bootmem.h>
 #include <linux/compat.h>
+#include <linux/cpu.h>
 #include <asm/i387.h>
 #include <asm/fpu-internal.h>
 #include <asm/sigframe.h>
+#include <asm/tlbflush.h>
 #include <asm/xcr.h>
 
 /*
@@ -24,7 +26,9 @@ u64 pcntxt_mask;
 struct xsave_struct *init_xstate_buf;
 
 static struct _fpx_sw_bytes fx_sw_reserved, fx_sw_reserved_ia32;
-static unsigned int *xstate_offsets, *xstate_sizes, xstate_features;
+static unsigned int *xstate_offsets, *xstate_sizes;
+static unsigned int xstate_comp_offsets[sizeof(pcntxt_mask)*8];
+static unsigned int xstate_features;
 
 /*
  * If a processor implementation discern that a processor state component is
@@ -268,8 +272,6 @@ int save_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 	if (use_fxsr() && save_xstate_epilog(buf_fx, ia32_fxstate))
 		return -1;
 
-	drop_init_fpu(tsk);	/* trigger finit */
-
 	return 0;
 }
 
@@ -283,7 +285,7 @@ sanitize_restored_xstate(struct task_struct *tsk,
 
 	if (use_xsave()) {
 		/* These bits must be zero. */
-		xsave_hdr->reserved1[0] = xsave_hdr->reserved1[1] = 0;
+		memset(xsave_hdr->reserved, 0, 48);
 
 		/*
 		 * Init the state that is not present in the memory
@@ -340,7 +342,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 			 config_enabled(CONFIG_IA32_EMULATION));
 
 	if (!buf) {
-		drop_init_fpu(tsk);
+		fpu_reset_state(tsk);
 		return 0;
 	}
 
@@ -377,7 +379,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 		 * thread's fpu state, reconstruct fxstate from the fsave
 		 * header. Sanitize the copied state etc.
 		 */
-		struct xsave_struct *xsave = &tsk->thread.fpu.state->xsave;
+		struct fpu *fpu = &tsk->thread.fpu;
 		struct user_i387_ia32_struct env;
 		int err = 0;
 
@@ -391,16 +393,20 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 		 */
 		drop_fpu(tsk);
 
-		if (__copy_from_user(xsave, buf_fx, state_size) ||
+		if (__copy_from_user(&fpu->state->xsave, buf_fx, state_size) ||
 		    __copy_from_user(&env, buf, sizeof(env))) {
+			fpu_finit(fpu);
 			err = -1;
 		} else {
 			sanitize_restored_xstate(tsk, &env, xstate_bv, fx_only);
-			set_used_math();
 		}
 
-		if (use_eager_fpu())
+		set_used_math();
+		if (use_eager_fpu()) {
+			preempt_disable();
 			math_state_restore();
+			preempt_enable();
+		}
 
 		return err;
 	} else {
@@ -410,7 +416,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 		 */
 		user_fpu_begin();
 		if (restore_user_xstate(buf_fx, xstate_bv, fx_only)) {
-			drop_init_fpu(tsk);
+			fpu_reset_state(tsk);
 			return -1;
 		}
 	}
@@ -449,7 +455,7 @@ static void prepare_fx_sw_frame(void)
  */
 static inline void xstate_enable(void)
 {
-	set_in_cr4(X86_CR4_OSXSAVE);
+	cr4_set_bits(X86_CR4_OSXSAVE);
 	xsetbv(XCR_XFEATURE_ENABLED_MASK, pcntxt_mask);
 }
 
@@ -479,6 +485,52 @@ static void __init setup_xstate_features(void)
 }
 
 /*
+ * This function sets up offsets and sizes of all extended states in
+ * xsave area. This supports both standard format and compacted format
+ * of the xsave aread.
+ *
+ * Input: void
+ * Output: void
+ */
+void setup_xstate_comp(void)
+{
+	unsigned int xstate_comp_sizes[sizeof(pcntxt_mask)*8];
+	int i;
+
+	/*
+	 * The FP xstates and SSE xstates are legacy states. They are always
+	 * in the fixed offsets in the xsave area in either compacted form
+	 * or standard form.
+	 */
+	xstate_comp_offsets[0] = 0;
+	xstate_comp_offsets[1] = offsetof(struct i387_fxsave_struct, xmm_space);
+
+	if (!cpu_has_xsaves) {
+		for (i = 2; i < xstate_features; i++) {
+			if (test_bit(i, (unsigned long *)&pcntxt_mask)) {
+				xstate_comp_offsets[i] = xstate_offsets[i];
+				xstate_comp_sizes[i] = xstate_sizes[i];
+			}
+		}
+		return;
+	}
+
+	xstate_comp_offsets[2] = FXSAVE_SIZE + XSAVE_HDR_SIZE;
+
+	for (i = 2; i < xstate_features; i++) {
+		if (test_bit(i, (unsigned long *)&pcntxt_mask))
+			xstate_comp_sizes[i] = xstate_sizes[i];
+		else
+			xstate_comp_sizes[i] = 0;
+
+		if (i > 2)
+			xstate_comp_offsets[i] = xstate_comp_offsets[i-1]
+					+ xstate_comp_sizes[i-1];
+
+	}
+}
+
+/*
  * setup the xstate image representing the init state
  */
 static void __init setup_init_fpu_buf(void)
@@ -496,15 +548,21 @@ static void __init setup_init_fpu_buf(void)
 
 	setup_xstate_features();
 
+	if (cpu_has_xsaves) {
+		init_xstate_buf->xsave_hdr.xcomp_bv =
+						(u64)1 << 63 | pcntxt_mask;
+		init_xstate_buf->xsave_hdr.xstate_bv = pcntxt_mask;
+	}
+
 	/*
 	 * Init all the features state with header_bv being 0x0
 	 */
-	xrstor_state(init_xstate_buf, -1);
+	xrstor_state_booting(init_xstate_buf, -1);
 	/*
 	 * Dump the init state again. This is to identify the init state
 	 * of any feature which is not represented by all zero's.
 	 */
-	xsave_state(init_xstate_buf, -1);
+	xsave_state_booting(init_xstate_buf, -1);
 }
 
 static enum { AUTO, ENABLE, DISABLE } eagerfpu = AUTO;
@@ -519,6 +577,30 @@ static int __init eager_fpu_setup(char *s)
 	return 1;
 }
 __setup("eagerfpu=", eager_fpu_setup);
+
+
+/*
+ * Calculate total size of enabled xstates in XCR0/pcntxt_mask.
+ */
+static void __init init_xstate_size(void)
+{
+	unsigned int eax, ebx, ecx, edx;
+	int i;
+
+	if (!cpu_has_xsaves) {
+		cpuid_count(XSTATE_CPUID, 0, &eax, &ebx, &ecx, &edx);
+		xstate_size = ebx;
+		return;
+	}
+
+	xstate_size = FXSAVE_SIZE + XSAVE_HDR_SIZE;
+	for (i = 2; i < 64; i++) {
+		if (test_bit(i, (unsigned long *)&pcntxt_mask)) {
+			cpuid_count(XSTATE_CPUID, i, &eax, &ebx, &ecx, &edx);
+			xstate_size += eax;
+		}
+	}
+}
 
 /*
  * Enable and initialize the xsave feature.
@@ -551,8 +633,7 @@ static void __init xstate_enable_boot_cpu(void)
 	/*
 	 * Recompute the context size for enabled features
 	 */
-	cpuid_count(XSTATE_CPUID, 0, &eax, &ebx, &ecx, &edx);
-	xstate_size = ebx;
+	init_xstate_size();
 
 	update_regset_xstate_info(xstate_size, pcntxt_mask);
 	prepare_fx_sw_frame();
@@ -572,8 +653,9 @@ static void __init xstate_enable_boot_cpu(void)
 		}
 	}
 
-	pr_info("enabled xstate_bv 0x%llx, cntxt size 0x%x\n",
-		pcntxt_mask, xstate_size);
+	pr_info("enabled xstate_bv 0x%llx, cntxt size 0x%x using %s\n",
+		pcntxt_mask, xstate_size,
+		cpu_has_xsaves ? "compacted form" : "standard form");
 }
 
 /*
@@ -596,19 +678,13 @@ void xsave_init(void)
 	this_func();
 }
 
-static inline void __init eager_fpu_init_bp(void)
+/*
+ * setup_init_fpu_buf() is __init and it is OK to call it here because
+ * init_xstate_buf will be unset only once during boot.
+ */
+void __init_refok eager_fpu_init(void)
 {
-	current->thread.fpu.state =
-	    alloc_bootmem_align(xstate_size, __alignof__(struct xsave_struct));
-	if (!init_xstate_buf)
-		setup_init_fpu_buf();
-}
-
-void eager_fpu_init(void)
-{
-	static __refdata void (*boot_func)(void) = eager_fpu_init_bp;
-
-	clear_used_math();
+	WARN_ON(used_math());
 	current_thread_info()->status = 0;
 
 	if (eagerfpu == ENABLE)
@@ -619,19 +695,30 @@ void eager_fpu_init(void)
 		return;
 	}
 
-	if (boot_func) {
-		boot_func();
-		boot_func = NULL;
-	}
-
-	/*
-	 * This is same as math_state_restore(). But use_xsave() is
-	 * not yet patched to use math_state_restore().
-	 */
-	init_fpu(current);
-	__thread_fpu_begin(current);
-	if (cpu_has_xsave)
-		xrstor_state(init_xstate_buf, -1);
-	else
-		fxrstor_checking(&init_xstate_buf->i387);
+	if (!init_xstate_buf)
+		setup_init_fpu_buf();
 }
+
+/*
+ * Given the xsave area and a state inside, this function returns the
+ * address of the state.
+ *
+ * This is the API that is called to get xstate address in either
+ * standard format or compacted format of xsave area.
+ *
+ * Inputs:
+ *	xsave: base address of the xsave area;
+ *	xstate: state which is defined in xsave.h (e.g. XSTATE_FP, XSTATE_SSE,
+ *	etc.)
+ * Output:
+ *	address of the state in the xsave area.
+ */
+void *get_xsave_addr(struct xsave_struct *xsave, int xstate)
+{
+	int feature = fls64(xstate) - 1;
+	if (!test_bit(feature, (unsigned long *)&pcntxt_mask))
+		return NULL;
+
+	return (void *)xsave + xstate_comp_offsets[feature];
+}
+EXPORT_SYMBOL_GPL(get_xsave_addr);

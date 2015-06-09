@@ -39,6 +39,9 @@ struct device_node;
  * 		from the cpu to be killed.
  * @cpu_die:	Makes a cpu leave the kernel. Must not fail. Called from the
  *		cpu being killed.
+ * @cpu_kill:  Ensures a cpu has left the kernel. Called from another cpu.
+ * @cpu_init_idle: Reads any data necessary to initialize CPU idle states from
+ *		devicetree, for a given cpu node and proposed logical id.
  * @cpu_suspend: Suspends a cpu and saves the required context. May fail owing
  *               to wrong parameters or error conditions. Called from the
  *               CPU being suspended. Must be called with IRQs disabled.
@@ -52,14 +55,17 @@ struct cpu_operations {
 #ifdef CONFIG_HOTPLUG_CPU
 	int		(*cpu_disable)(unsigned int cpu);
 	void		(*cpu_die)(unsigned int cpu);
+	int		(*cpu_kill)(unsigned int cpu);
 #endif
-#ifdef CONFIG_ARM64_CPU_SUSPEND
+#ifdef CONFIG_CPU_IDLE
+	int		(*cpu_init_idle)(struct device_node *, unsigned int);
 	int		(*cpu_suspend)(unsigned long);
 #endif
 };
 
 extern const struct cpu_operations *cpu_ops[NR_CPUS];
-extern int __init cpu_read_ops(struct device_node *dn, int cpu);
-extern void __init cpu_read_bootcpu_ops(void);
+int __init cpu_read_ops(struct device_node *dn, int cpu);
+void __init cpu_read_bootcpu_ops(void);
+const struct cpu_operations *cpu_get_ops(const char *name);
 
 #endif /* ifndef __ASM_CPU_OPS_H */

@@ -29,13 +29,20 @@
 
 #include "core.h"
 #include "host.h"
+#include "slot-gpio.h"
+#include "pwrseq.h"
 
 #define cls_dev_to_mmc_host(d)	container_of(d, struct mmc_host, class_dev)
+
+static DEFINE_IDR(mmc_host_idr);
+static DEFINE_SPINLOCK(mmc_host_lock);
 
 static void mmc_host_classdev_release(struct device *dev)
 {
 	struct mmc_host *host = cls_dev_to_mmc_host(dev);
-	mutex_destroy(&host->slot.lock);
+	spin_lock(&mmc_host_lock);
+	idr_remove(&mmc_host_idr, host->index);
+	spin_unlock(&mmc_host_lock);
 	kfree(host);
 }
 
@@ -53,9 +60,6 @@ void mmc_unregister_host_class(void)
 {
 	class_unregister(&mmc_host_class);
 }
-
-static DEFINE_IDR(mmc_host_idr);
-static DEFINE_SPINLOCK(mmc_host_lock);
 
 #ifdef CONFIG_MMC_CLKGATE
 static ssize_t clkgate_delay_show(struct device *dev,
@@ -310,9 +314,9 @@ int mmc_of_parse(struct mmc_host *host)
 {
 	struct device_node *np;
 	u32 bus_width;
-	bool explicit_inv_wp, gpio_inv_wp = false;
-	enum of_gpio_flags flags;
-	int len, ret, gpio;
+	int len, ret;
+	bool cd_cap_invert, cd_gpio_invert = false;
+	bool ro_cap_invert, ro_gpio_invert = false;
 
 	if (!host->parent || !host->parent->of_node)
 		return 0;
@@ -337,7 +341,7 @@ int mmc_of_parse(struct mmc_host *host)
 		break;
 	default:
 		dev_err(host->parent,
-			"Invalid \"bus-width\" value %ud!\n", bus_width);
+			"Invalid \"bus-width\" value %u!\n", bus_width);
 		return -EINVAL;
 	}
 
@@ -360,65 +364,60 @@ int mmc_of_parse(struct mmc_host *host)
 	if (of_find_property(np, "non-removable", &len)) {
 		host->caps |= MMC_CAP_NONREMOVABLE;
 	} else {
-		bool explicit_inv_cd, gpio_inv_cd = false;
-
-		explicit_inv_cd = of_property_read_bool(np, "cd-inverted");
+		cd_cap_invert = of_property_read_bool(np, "cd-inverted");
 
 		if (of_find_property(np, "broken-cd", &len))
 			host->caps |= MMC_CAP_NEEDS_POLL;
 
-		gpio = of_get_named_gpio_flags(np, "cd-gpios", 0, &flags);
-		if (gpio == -EPROBE_DEFER)
-			return gpio;
-		if (gpio_is_valid(gpio)) {
-			if (!(flags & OF_GPIO_ACTIVE_LOW))
-				gpio_inv_cd = true;
+		ret = mmc_gpiod_request_cd(host, "cd", 0, true,
+					   0, &cd_gpio_invert);
+		if (!ret)
+			dev_info(host->parent, "Got CD GPIO\n");
+		else if (ret != -ENOENT)
+			return ret;
 
-			ret = mmc_gpio_request_cd(host, gpio, 0);
-			if (ret < 0) {
-				dev_err(host->parent,
-					"Failed to request CD GPIO #%d: %d!\n",
-					gpio, ret);
-				return ret;
-			} else {
-				dev_info(host->parent, "Got CD GPIO #%d.\n",
-					 gpio);
-			}
-		}
-
-		if (explicit_inv_cd ^ gpio_inv_cd)
+		/*
+		 * There are two ways to flag that the CD line is inverted:
+		 * through the cd-inverted flag and by the GPIO line itself
+		 * being inverted from the GPIO subsystem. This is a leftover
+		 * from the times when the GPIO subsystem did not make it
+		 * possible to flag a line as inverted.
+		 *
+		 * If the capability on the host AND the GPIO line are
+		 * both inverted, the end result is that the CD line is
+		 * not inverted.
+		 */
+		if (cd_cap_invert ^ cd_gpio_invert)
 			host->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
 	}
 
 	/* Parse Write Protection */
-	explicit_inv_wp = of_property_read_bool(np, "wp-inverted");
+	ro_cap_invert = of_property_read_bool(np, "wp-inverted");
 
-	gpio = of_get_named_gpio_flags(np, "wp-gpios", 0, &flags);
-	if (gpio == -EPROBE_DEFER) {
-		ret = -EPROBE_DEFER;
-		goto out;
-	}
-	if (gpio_is_valid(gpio)) {
-		if (!(flags & OF_GPIO_ACTIVE_LOW))
-			gpio_inv_wp = true;
+	ret = mmc_gpiod_request_ro(host, "wp", 0, false, 0, &ro_gpio_invert);
+	if (!ret)
+		dev_info(host->parent, "Got WP GPIO\n");
+	else if (ret != -ENOENT)
+		return ret;
 
-		ret = mmc_gpio_request_ro(host, gpio);
-		if (ret < 0) {
-			dev_err(host->parent,
-				"Failed to request WP GPIO: %d!\n", ret);
-			goto out;
-		} else {
-				dev_info(host->parent, "Got WP GPIO #%d.\n",
-					 gpio);
-		}
-	}
-	if (explicit_inv_wp ^ gpio_inv_wp)
+	/* See the comment on CD inversion above */
+	if (ro_cap_invert ^ ro_gpio_invert)
 		host->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
 
 	if (of_find_property(np, "cap-sd-highspeed", &len))
 		host->caps |= MMC_CAP_SD_HIGHSPEED;
 	if (of_find_property(np, "cap-mmc-highspeed", &len))
 		host->caps |= MMC_CAP_MMC_HIGHSPEED;
+	if (of_find_property(np, "sd-uhs-sdr12", &len))
+		host->caps |= MMC_CAP_UHS_SDR12;
+	if (of_find_property(np, "sd-uhs-sdr25", &len))
+		host->caps |= MMC_CAP_UHS_SDR25;
+	if (of_find_property(np, "sd-uhs-sdr50", &len))
+		host->caps |= MMC_CAP_UHS_SDR50;
+	if (of_find_property(np, "sd-uhs-sdr104", &len))
+		host->caps |= MMC_CAP_UHS_SDR104;
+	if (of_find_property(np, "sd-uhs-ddr50", &len))
+		host->caps |= MMC_CAP_UHS_DDR50;
 	if (of_find_property(np, "cap-power-off-card", &len))
 		host->caps |= MMC_CAP_POWER_OFF_CARD;
 	if (of_find_property(np, "cap-sdio-irq", &len))
@@ -429,12 +428,28 @@ int mmc_of_parse(struct mmc_host *host)
 		host->pm_caps |= MMC_PM_KEEP_POWER;
 	if (of_find_property(np, "enable-sdio-wakeup", &len))
 		host->pm_caps |= MMC_PM_WAKE_SDIO_IRQ;
+	if (of_find_property(np, "mmc-ddr-1_8v", &len))
+		host->caps |= MMC_CAP_1_8V_DDR;
+	if (of_find_property(np, "mmc-ddr-1_2v", &len))
+		host->caps |= MMC_CAP_1_2V_DDR;
+	if (of_find_property(np, "mmc-hs200-1_8v", &len))
+		host->caps2 |= MMC_CAP2_HS200_1_8V_SDR;
+	if (of_find_property(np, "mmc-hs200-1_2v", &len))
+		host->caps2 |= MMC_CAP2_HS200_1_2V_SDR;
+	if (of_find_property(np, "mmc-hs400-1_8v", &len))
+		host->caps2 |= MMC_CAP2_HS400_1_8V | MMC_CAP2_HS200_1_8V_SDR;
+	if (of_find_property(np, "mmc-hs400-1_2v", &len))
+		host->caps2 |= MMC_CAP2_HS400_1_2V | MMC_CAP2_HS200_1_2V_SDR;
 
-	return 0;
+	host->dsr_req = !of_property_read_u32(np, "dsr", &host->dsr);
+	if (host->dsr_req && (host->dsr & ~0xffff)) {
+		dev_err(host->parent,
+			"device tree specified broken value for DSR: 0x%x, ignoring\n",
+			host->dsr);
+		host->dsr_req = 0;
+	}
 
-out:
-	mmc_gpio_free_cd(host);
-	return ret;
+	return mmc_pwrseq_alloc(host);
 }
 
 EXPORT_SYMBOL(mmc_of_parse);
@@ -464,8 +479,10 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 		host->index = err;
 	spin_unlock(&mmc_host_lock);
 	idr_preload_end();
-	if (err < 0)
-		goto free;
+	if (err < 0) {
+		kfree(host);
+		return NULL;
+	}
 
 	dev_set_name(&host->class_dev, "mmc%d", host->index);
 
@@ -474,10 +491,12 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	host->class_dev.class = &mmc_host_class;
 	device_initialize(&host->class_dev);
 
-	mmc_host_clk_init(host);
+	if (mmc_gpio_alloc(host)) {
+		put_device(&host->class_dev);
+		return NULL;
+	}
 
-	mutex_init(&host->slot.lock);
-	host->slot.cd_irq = -EINVAL;
+	mmc_host_clk_init(host);
 
 	spin_lock_init(&host->lock);
 	init_waitqueue_head(&host->wq);
@@ -498,10 +517,6 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	host->max_blk_count = PAGE_CACHE_SIZE / 512;
 
 	return host;
-
-free:
-	kfree(host);
-	return NULL;
 }
 
 EXPORT_SYMBOL(mmc_alloc_host);
@@ -574,10 +589,7 @@ EXPORT_SYMBOL(mmc_remove_host);
  */
 void mmc_free_host(struct mmc_host *host)
 {
-	spin_lock(&mmc_host_lock);
-	idr_remove(&mmc_host_idr, host->index);
-	spin_unlock(&mmc_host_lock);
-
+	mmc_pwrseq_free(host);
 	put_device(&host->class_dev);
 }
 

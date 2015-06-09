@@ -11,11 +11,11 @@ config PPC_POWERNV
 	select PPC_UDBG_16550
 	select PPC_SCOM
 	select ARCH_RANDOM
+	select CPU_FREQ
+	select CPU_FREQ_GOV_PERFORMANCE
+	select CPU_FREQ_GOV_POWERSAVE
+	select CPU_FREQ_GOV_USERSPACE
+	select CPU_FREQ_GOV_ONDEMAND
+	select CPU_FREQ_GOV_CONSERVATIVE
+	select PPC_DOORBELL
 	default y
-
-config PPC_POWERNV_RTAS
-	depends on PPC_POWERNV
-	bool "Support for RTAS based PowerNV platforms such as BML"
-	default y
-	select PPC_ICS_RTAS
-	select PPC_RTAS

@@ -573,7 +573,8 @@ modem_l2l1(struct PStack *st, int pr, void *arg)
 		test_and_clear_bit(BC_FLG_ACTIV, &bcs->Flag);
 		bcs->cs->dc.isac.arcofi_bc = st->l1.bc;
 		arcofi_fsm(bcs->cs, ARCOFI_START, &ARCOFI_XOP_0);
-		interruptible_sleep_on(&bcs->cs->dc.isac.arcofi_wait);
+		wait_event_interruptible(bcs->cs->dc.isac.arcofi_wait,
+				 bcs->cs->dc.isac.arcofi_state == ARCOFI_NOP);
 		bcs->cs->hw.elsa.MFlag = 1;
 	} else {
 		printk(KERN_WARNING "ElsaSer: unknown pr %x\n", pr);

@@ -22,12 +22,10 @@
 /*
  * Driver: cb_pcidda
  * Description: MeasurementComputing PCI-DDA series
- * Devices: (Measurement Computing) PCI-DDA08/12 [pci-dda08/12]
- *	    (Measurement Computing) PCI-DDA04/12 [pci-dda04/12]
- *	    (Measurement Computing) PCI-DDA02/12 [pci-dda02/12]
- *	    (Measurement Computing) PCI-DDA08/16 [pci-dda08/16]
- *	    (Measurement Computing) PCI-DDA04/16 [pci-dda04/16]
- *	    (Measurement Computing) PCI-DDA02/16 [pci-dda02/16]
+ * Devices: [Measurement Computing] PCI-DDA08/12 (pci-dda08/12),
+ *   PCI-DDA04/12 (pci-dda04/12), PCI-DDA02/12 (pci-dda02/12),
+ *   PCI-DDA08/16 (pci-dda08/16), PCI-DDA04/16 (pci-dda04/16),
+ *   PCI-DDA02/16 (pci-dda02/16)
  * Author: Ivan Martinez <ivanmr@altavista.com>
  *	   Frank Mori Hess <fmhess@users.sourceforge.net>
  * Status: works
@@ -38,11 +36,9 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
-#include "comedi_fc.h"
 #include "8255.h"
 
 #define EEPROM_SIZE	128	/*  number of entries in eeprom */
@@ -154,6 +150,7 @@ static const struct cb_pcidda_board cb_pcidda_boards[] = {
 };
 
 struct cb_pcidda_private {
+	unsigned long daqio;
 	/* bits last written to da calibration register 1 */
 	unsigned int dac_cal1_bits;
 	/* current range settings for output channels */
@@ -164,13 +161,14 @@ struct cb_pcidda_private {
 /* lowlevel read from eeprom */
 static unsigned int cb_pcidda_serial_in(struct comedi_device *dev)
 {
+	struct cb_pcidda_private *devpriv = dev->private;
 	unsigned int value = 0;
 	int i;
 	const int value_width = 16;	/*  number of bits wide values are */
 
 	for (i = 1; i <= value_width; i++) {
 		/*  read bits most significant bit first */
-		if (inw_p(dev->iobase + DACALIBRATION1) & SERIAL_OUT_BIT)
+		if (inw_p(devpriv->daqio + DACALIBRATION1) & SERIAL_OUT_BIT)
 			value |= 1 << (value_width - i);
 	}
 
@@ -190,7 +188,7 @@ static void cb_pcidda_serial_out(struct comedi_device *dev, unsigned int value,
 			devpriv->dac_cal1_bits |= SERIAL_IN_BIT;
 		else
 			devpriv->dac_cal1_bits &= ~SERIAL_IN_BIT;
-		outw_p(devpriv->dac_cal1_bits, dev->iobase + DACALIBRATION1);
+		outw_p(devpriv->dac_cal1_bits, devpriv->daqio + DACALIBRATION1);
 	}
 }
 
@@ -198,6 +196,7 @@ static void cb_pcidda_serial_out(struct comedi_device *dev, unsigned int value,
 static unsigned int cb_pcidda_read_eeprom(struct comedi_device *dev,
 					  unsigned int address)
 {
+	struct cb_pcidda_private *devpriv = dev->private;
 	unsigned int i;
 	unsigned int cal2_bits;
 	unsigned int value;
@@ -213,7 +212,7 @@ static unsigned int cb_pcidda_read_eeprom(struct comedi_device *dev,
 	/*  deactivate caldacs (one caldac for every two channels) */
 	for (i = 0; i < max_num_caldacs; i++)
 		cal2_bits |= DESELECT_CALDAC_BIT(i);
-	outw_p(cal2_bits, dev->iobase + DACALIBRATION2);
+	outw_p(cal2_bits, devpriv->daqio + DACALIBRATION2);
 
 	/*  tell eeprom we want to read */
 	cb_pcidda_serial_out(dev, read_instruction, instruction_length);
@@ -224,7 +223,7 @@ static unsigned int cb_pcidda_read_eeprom(struct comedi_device *dev,
 
 	/*  deactivate eeprom */
 	cal2_bits &= ~SELECT_EEPROM_BIT;
-	outw_p(cal2_bits, dev->iobase + DACALIBRATION2);
+	outw_p(cal2_bits, devpriv->daqio + DACALIBRATION2);
 
 	return value;
 }
@@ -234,6 +233,7 @@ static void cb_pcidda_write_caldac(struct comedi_device *dev,
 				   unsigned int caldac, unsigned int channel,
 				   unsigned int value)
 {
+	struct cb_pcidda_private *devpriv = dev->private;
 	unsigned int cal2_bits;
 	unsigned int i;
 	/* caldacs use 3 bit channel specification */
@@ -256,10 +256,10 @@ static void cb_pcidda_write_caldac(struct comedi_device *dev,
 		cal2_bits |= DESELECT_CALDAC_BIT(i);
 	/*  activate the caldac we want */
 	cal2_bits &= ~DESELECT_CALDAC_BIT(caldac);
-	outw_p(cal2_bits, dev->iobase + DACALIBRATION2);
+	outw_p(cal2_bits, devpriv->daqio + DACALIBRATION2);
 	/*  deactivate caldac */
 	cal2_bits |= DESELECT_CALDAC_BIT(caldac);
-	outw_p(cal2_bits, dev->iobase + DACALIBRATION2);
+	outw_p(cal2_bits, devpriv->daqio + DACALIBRATION2);
 }
 
 /* set caldacs to eeprom values for given channel and range */
@@ -324,9 +324,9 @@ static int cb_pcidda_ao_insn_write(struct comedi_device *dev,
 	if (range > 2)
 		ctrl |= CB_DDA_DA_CTRL_UNIP;
 
-	outw(ctrl, dev->iobase + CB_DDA_DA_CTRL_REG);
+	outw(ctrl, devpriv->daqio + CB_DDA_DA_CTRL_REG);
 
-	outw(data[0], dev->iobase + CB_DDA_DA_DATA_REG(channel));
+	outw(data[0], devpriv->daqio + CB_DDA_DA_DATA_REG(channel));
 
 	return insn->n;
 }
@@ -338,7 +338,6 @@ static int cb_pcidda_auto_attach(struct comedi_device *dev,
 	const struct cb_pcidda_board *thisboard = NULL;
 	struct cb_pcidda_private *devpriv;
 	struct comedi_subdevice *s;
-	unsigned long iobase_8255;
 	int i;
 	int ret;
 
@@ -356,8 +355,8 @@ static int cb_pcidda_auto_attach(struct comedi_device *dev,
 	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
-	dev->iobase = pci_resource_start(pcidev, 3);
-	iobase_8255 = pci_resource_start(pcidev, 2);
+	dev->iobase = pci_resource_start(pcidev, 2);
+	devpriv->daqio = pci_resource_start(pcidev, 3);
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
@@ -375,7 +374,7 @@ static int cb_pcidda_auto_attach(struct comedi_device *dev,
 	/* two 8255 digital io subdevices */
 	for (i = 0; i < 2; i++) {
 		s = &dev->subdevices[1 + i];
-		ret = subdev_8255_init(dev, s, NULL, iobase_8255 + (i * 4));
+		ret = subdev_8255_init(dev, s, NULL, i * I8255_SIZE);
 		if (ret)
 			return ret;
 	}
@@ -388,8 +387,6 @@ static int cb_pcidda_auto_attach(struct comedi_device *dev,
 	for (i = 0; i < thisboard->ao_chans; i++)
 		cb_pcidda_calibrate(dev, i, devpriv->ao_range[i]);
 
-	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
-
 	return 0;
 }
 
@@ -397,7 +394,7 @@ static struct comedi_driver cb_pcidda_driver = {
 	.driver_name	= "cb_pcidda",
 	.module		= THIS_MODULE,
 	.auto_attach	= cb_pcidda_auto_attach,
-	.detach		= comedi_pci_disable,
+	.detach		= comedi_pci_detach,
 };
 
 static int cb_pcidda_pci_probe(struct pci_dev *dev,

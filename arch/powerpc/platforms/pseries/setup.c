@@ -39,7 +39,6 @@
 #include <linux/irq.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
-#include <linux/cpuidle.h>
 #include <linux/of.h>
 #include <linux/kexec.h>
 
@@ -233,8 +232,7 @@ static void __init pseries_discover_pic(void)
 	struct device_node *np;
 	const char *typep;
 
-	for (np = NULL; (np = of_find_node_by_name(np,
-						   "interrupt-controller"));) {
+	for_each_node_by_name(np, "interrupt-controller") {
 		typep = of_get_property(np, "compatible", NULL);
 		if (strstr(typep, "open-pic")) {
 			pSeries_mpic_node = of_node_get(np);
@@ -253,9 +251,10 @@ static void __init pseries_discover_pic(void)
 	       " interrupt-controller\n");
 }
 
-static int pci_dn_reconfig_notifier(struct notifier_block *nb, unsigned long action, void *node)
+static int pci_dn_reconfig_notifier(struct notifier_block *nb, unsigned long action, void *data)
 {
-	struct device_node *np = node;
+	struct of_reconfig_data *rd = data;
+	struct device_node *np = rd->dn;
 	struct pci_dn *pci = NULL;
 	int err = NOTIFY_OK;
 
@@ -266,7 +265,7 @@ static int pci_dn_reconfig_notifier(struct notifier_block *nb, unsigned long act
 			update_dn_pci_info(np, pci->phb);
 
 			/* Create EEH device for the OF node */
-			eeh_dev_init(np, pci->phb);
+			eeh_dev_init(PCI_DN(np), pci->phb);
 		}
 		break;
 	default:
@@ -352,33 +351,28 @@ static int alloc_dispatch_log_kmem_cache(void)
 
 	return alloc_dispatch_logs();
 }
-early_initcall(alloc_dispatch_log_kmem_cache);
+machine_early_initcall(pseries, alloc_dispatch_log_kmem_cache);
 
 static void pseries_lpar_idle(void)
 {
-	/* This would call on the cpuidle framework, and the back-end pseries
-	 * driver to  go to idle states
+	/*
+	 * Default handler to go into low thread priority and possibly
+	 * low power mode by cedeing processor to hypervisor
 	 */
-	if (cpuidle_idle_call()) {
-		/* On error, execute default handler
-		 * to go into low thread priority and possibly
-		 * low power mode by cedeing processor to hypervisor
-		 */
 
-		/* Indicate to hypervisor that we are idle. */
-		get_lppaca()->idle = 1;
+	/* Indicate to hypervisor that we are idle. */
+	get_lppaca()->idle = 1;
 
-		/*
-		 * Yield the processor to the hypervisor.  We return if
-		 * an external interrupt occurs (which are driven prior
-		 * to returning here) or if a prod occurs from another
-		 * processor. When returning here, external interrupts
-		 * are enabled.
-		 */
-		cede_processor();
+	/*
+	 * Yield the processor to the hypervisor.  We return if
+	 * an external interrupt occurs (which are driven prior
+	 * to returning here) or if a prod occurs from another
+	 * processor. When returning here, external interrupts
+	 * are enabled.
+	 */
+	cede_processor();
 
-		get_lppaca()->idle = 0;
-	}
+	get_lppaca()->idle = 0;
 }
 
 /*
@@ -467,6 +461,47 @@ static long pseries_little_endian_exceptions(void)
 }
 #endif
 
+static void __init find_and_init_phbs(void)
+{
+	struct device_node *node;
+	struct pci_controller *phb;
+	struct device_node *root = of_find_node_by_path("/");
+
+	for_each_child_of_node(root, node) {
+		if (node->type == NULL || (strcmp(node->type, "pci") != 0 &&
+					   strcmp(node->type, "pciex") != 0))
+			continue;
+
+		phb = pcibios_alloc_controller(node);
+		if (!phb)
+			continue;
+		rtas_setup_phb(phb);
+		pci_process_bridge_OF_ranges(phb, node, 0);
+		isa_bridge_find_early(phb);
+		phb->controller_ops = pseries_pci_controller_ops;
+	}
+
+	of_node_put(root);
+	pci_devs_phb_init();
+
+	/*
+	 * PCI_PROBE_ONLY and PCI_REASSIGN_ALL_BUS can be set via properties
+	 * in chosen.
+	 */
+	if (of_chosen) {
+		const int *prop;
+
+		prop = of_get_property(of_chosen,
+				"linux,pci-probe-only", NULL);
+		if (prop) {
+			if (*prop)
+				pci_add_flags(PCI_PROBE_ONLY);
+			else
+				pci_clear_flags(PCI_PROBE_ONLY);
+		}
+	}
+}
+
 static void __init pSeries_setup_arch(void)
 {
 	set_arch_panic_timeout(10, ARCH_PANIC_TIMEOUT);
@@ -506,7 +541,11 @@ static void __init pSeries_setup_arch(void)
 
 	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
 		long rc;
-		if ((rc = pSeries_enable_reloc_on_exc()) != H_SUCCESS) {
+
+		rc = pSeries_enable_reloc_on_exc();
+		if (rc == H_P2) {
+			pr_info("Relocation on exceptions not supported\n");
+		} else if (rc != H_SUCCESS) {
 			pr_warn("Unable to enable relocation on exceptions: "
 				"%ld\n", rc);
 		}
@@ -516,7 +555,11 @@ static void __init pSeries_setup_arch(void)
 static int __init pSeries_init_panel(void)
 {
 	/* Manually leave the kernel version on the panel. */
+#ifdef __BIG_ENDIAN__
 	ppc_md.progress("Linux ppc64\n", 0);
+#else
+	ppc_md.progress("Linux ppc64le\n", 0);
+#endif
 	ppc_md.progress(init_utsname()->version, 0);
 
 	return 0;
@@ -564,7 +607,7 @@ void pSeries_coalesce_init(void)
  * fw_cmo_feature_init - FW_FEATURE_CMO is not stored in ibm,hypertas-functions,
  * handle that here. (Stolen from parse_system_parameter_string)
  */
-void pSeries_cmo_feature_init(void)
+static void pSeries_cmo_feature_init(void)
 {
 	char *ptr, *key, *value, *end;
 	int call_status;
@@ -662,6 +705,34 @@ static void __init pSeries_init_early(void)
 	pr_debug(" <- pSeries_init_early()\n");
 }
 
+/**
+ * pseries_power_off - tell firmware about how to power off the system.
+ *
+ * This function calls either the power-off rtas token in normal cases
+ * or the ibm,power-off-ups token (if present & requested) in case of
+ * a power failure. If power-off token is used, power on will only be
+ * possible with power button press. If ibm,power-off-ups token is used
+ * it will allow auto poweron after power is restored.
+ */
+static void pseries_power_off(void)
+{
+	int rc;
+	int rtas_poweroff_ups_token = rtas_token("ibm,power-off-ups");
+
+	if (rtas_flash_term_hook)
+		rtas_flash_term_hook(SYS_POWER_OFF);
+
+	if (rtas_poweron_auto == 0 ||
+		rtas_poweroff_ups_token == RTAS_UNKNOWN_SERVICE) {
+		rc = rtas_call(rtas_token("power-off"), 2, 1, NULL, -1, -1);
+		printk(KERN_INFO "RTAS power-off returned %d\n", rc);
+	} else {
+		rc = rtas_call(rtas_poweroff_ups_token, 0, 1, NULL);
+		printk(KERN_INFO "RTAS ibm,power-off-ups returned %d\n", rc);
+	}
+	for (;;);
+}
+
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
  */
@@ -671,7 +742,7 @@ static int __init pseries_probe_fw_features(unsigned long node,
 					    void *data)
 {
 	const char *prop;
-	unsigned long len;
+	int len;
 	static int hypertas_found;
 	static int vec5_found;
 
@@ -704,7 +775,7 @@ static int __init pseries_probe_fw_features(unsigned long node,
 static int __init pSeries_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
- 	char *dtype = of_get_flat_dt_prop(root, "device_type", NULL);
+	const char *dtype = of_get_flat_dt_prop(root, "device_type", NULL);
 
  	if (dtype == NULL)
  		return 0;
@@ -744,6 +815,8 @@ static int __init pSeries_probe(void)
 	else
 		hpte_init_native();
 
+	pm_power_off = pseries_power_off;
+
 	pr_debug("Machine is%s LPAR !\n",
 	         (powerpc_firmware_features & FW_FEATURE_LPAR) ? "" : " not");
 
@@ -757,37 +830,13 @@ static int pSeries_pci_probe_mode(struct pci_bus *bus)
 	return PCI_PROBE_NORMAL;
 }
 
-/**
- * pSeries_power_off - tell firmware about how to power off the system.
- *
- * This function calls either the power-off rtas token in normal cases
- * or the ibm,power-off-ups token (if present & requested) in case of
- * a power failure. If power-off token is used, power on will only be
- * possible with power button press. If ibm,power-off-ups token is used
- * it will allow auto poweron after power is restored.
- */
-static void pSeries_power_off(void)
-{
-	int rc;
-	int rtas_poweroff_ups_token = rtas_token("ibm,power-off-ups");
-
-	if (rtas_flash_term_hook)
-		rtas_flash_term_hook(SYS_POWER_OFF);
-
-	if (rtas_poweron_auto == 0 ||
-		rtas_poweroff_ups_token == RTAS_UNKNOWN_SERVICE) {
-		rc = rtas_call(rtas_token("power-off"), 2, 1, NULL, -1, -1);
-		printk(KERN_INFO "RTAS power-off returned %d\n", rc);
-	} else {
-		rc = rtas_call(rtas_poweroff_ups_token, 0, 1, NULL);
-		printk(KERN_INFO "RTAS ibm,power-off-ups returned %d\n", rc);
-	}
-	for (;;);
-}
-
 #ifndef CONFIG_PCI
 void pSeries_final_fixup(void) { }
 #endif
+
+struct pci_controller_ops pseries_pci_controller_ops = {
+	.probe_mode		= pSeries_pci_probe_mode,
+};
 
 define_machine(pseries) {
 	.name			= "pSeries",
@@ -797,9 +846,7 @@ define_machine(pseries) {
 	.show_cpuinfo		= pSeries_show_cpuinfo,
 	.log_error		= pSeries_log_error,
 	.pcibios_fixup		= pSeries_final_fixup,
-	.pci_probe_mode		= pSeries_pci_probe_mode,
 	.restart		= rtas_restart,
-	.power_off		= pSeries_power_off,
 	.halt			= rtas_halt,
 	.panic			= rtas_os_term,
 	.get_boot_time		= rtas_get_boot_time,
@@ -811,5 +858,8 @@ define_machine(pseries) {
 	.machine_check_exception = pSeries_machine_check_exception,
 #ifdef CONFIG_KEXEC
 	.machine_kexec          = pSeries_machine_kexec,
+#endif
+#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+	.memory_block_size	= pseries_memory_block_size,
 #endif
 };

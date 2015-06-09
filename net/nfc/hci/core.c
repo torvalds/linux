@@ -46,6 +46,32 @@ int nfc_hci_result_to_errno(u8 result)
 }
 EXPORT_SYMBOL(nfc_hci_result_to_errno);
 
+void nfc_hci_reset_pipes(struct nfc_hci_dev *hdev)
+{
+	int i = 0;
+
+	for (i = 0; i < NFC_HCI_MAX_PIPES; i++) {
+		hdev->pipes[i].gate = NFC_HCI_INVALID_GATE;
+		hdev->pipes[i].dest_host = NFC_HCI_INVALID_HOST;
+	}
+	memset(hdev->gate2pipe, NFC_HCI_INVALID_PIPE, sizeof(hdev->gate2pipe));
+}
+EXPORT_SYMBOL(nfc_hci_reset_pipes);
+
+void nfc_hci_reset_pipes_per_host(struct nfc_hci_dev *hdev, u8 host)
+{
+	int i = 0;
+
+	for (i = 0; i < NFC_HCI_MAX_PIPES; i++) {
+		if (hdev->pipes[i].dest_host != host)
+			continue;
+
+		hdev->pipes[i].gate = NFC_HCI_INVALID_GATE;
+		hdev->pipes[i].dest_host = NFC_HCI_INVALID_HOST;
+	}
+}
+EXPORT_SYMBOL(nfc_hci_reset_pipes_per_host);
+
 static void nfc_hci_msg_tx_work(struct work_struct *work)
 {
 	struct nfc_hci_dev *hdev = container_of(work, struct nfc_hci_dev,
@@ -167,6 +193,69 @@ exit:
 void nfc_hci_cmd_received(struct nfc_hci_dev *hdev, u8 pipe, u8 cmd,
 			  struct sk_buff *skb)
 {
+	u8 gate = hdev->pipes[pipe].gate;
+	u8 status = NFC_HCI_ANY_OK;
+	struct hci_create_pipe_resp *create_info;
+	struct hci_delete_pipe_noti *delete_info;
+	struct hci_all_pipe_cleared_noti *cleared_info;
+
+	pr_debug("from gate %x pipe %x cmd %x\n", gate, pipe, cmd);
+
+	switch (cmd) {
+	case NFC_HCI_ADM_NOTIFY_PIPE_CREATED:
+		if (skb->len != 5) {
+			status = NFC_HCI_ANY_E_NOK;
+			goto exit;
+		}
+		create_info = (struct hci_create_pipe_resp *)skb->data;
+
+		/* Save the new created pipe and bind with local gate,
+		 * the description for skb->data[3] is destination gate id
+		 * but since we received this cmd from host controller, we
+		 * are the destination and it is our local gate
+		 */
+		hdev->gate2pipe[create_info->dest_gate] = create_info->pipe;
+		hdev->pipes[create_info->pipe].gate = create_info->dest_gate;
+		hdev->pipes[create_info->pipe].dest_host =
+							create_info->src_host;
+		break;
+	case NFC_HCI_ANY_OPEN_PIPE:
+		if (gate == NFC_HCI_INVALID_GATE) {
+			status = NFC_HCI_ANY_E_NOK;
+			goto exit;
+		}
+		break;
+	case NFC_HCI_ADM_NOTIFY_PIPE_DELETED:
+		if (skb->len != 1) {
+			status = NFC_HCI_ANY_E_NOK;
+			goto exit;
+		}
+		delete_info = (struct hci_delete_pipe_noti *)skb->data;
+
+		hdev->pipes[delete_info->pipe].gate = NFC_HCI_INVALID_GATE;
+		hdev->pipes[delete_info->pipe].dest_host = NFC_HCI_INVALID_HOST;
+		break;
+	case NFC_HCI_ADM_NOTIFY_ALL_PIPE_CLEARED:
+		if (skb->len != 1) {
+			status = NFC_HCI_ANY_E_NOK;
+			goto exit;
+		}
+		cleared_info = (struct hci_all_pipe_cleared_noti *)skb->data;
+
+		nfc_hci_reset_pipes_per_host(hdev, cleared_info->host);
+		break;
+	default:
+		pr_info("Discarded unknown cmd %x to gate %x\n", cmd, gate);
+		break;
+	}
+
+	if (hdev->ops->cmd_received)
+		hdev->ops->cmd_received(hdev, pipe, cmd, skb);
+
+exit:
+	nfc_hci_hcp_message_tx(hdev, pipe, NFC_HCI_HCP_RESPONSE,
+			       status, NULL, 0, NULL, NULL, 0);
+
 	kfree_skb(skb);
 }
 
@@ -225,7 +314,7 @@ int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate)
 			goto exit;
 		}
 
-		targets->sens_res = be16_to_cpu(*(u16 *)atqa_skb->data);
+		targets->sens_res = be16_to_cpu(*(__be16 *)atqa_skb->data);
 		targets->sel_res = sak_skb->data[0];
 
 		r = nfc_hci_get_param(hdev, NFC_HCI_RF_READER_A_GATE,
@@ -288,15 +377,15 @@ void nfc_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 			    struct sk_buff *skb)
 {
 	int r = 0;
-	u8 gate = nfc_hci_pipe2gate(hdev, pipe);
+	u8 gate = hdev->pipes[pipe].gate;
 
-	if (gate == 0xff) {
+	if (gate == NFC_HCI_INVALID_GATE) {
 		pr_err("Discarded event %x to unopened pipe %x\n", event, pipe);
 		goto exit;
 	}
 
 	if (hdev->ops->event_received) {
-		r = hdev->ops->event_received(hdev, gate, event, skb);
+		r = hdev->ops->event_received(hdev, pipe, event, skb);
 		if (r <= 0)
 			goto exit_noskb;
 	}
@@ -380,34 +469,31 @@ static int hci_dev_session_init(struct nfc_hci_dev *hdev)
 	if (r < 0)
 		goto disconnect_all;
 
-	if (skb->len && skb->len == strlen(hdev->init_data.session_id))
-		if (memcmp(hdev->init_data.session_id, skb->data,
-			   skb->len) == 0) {
-			/* TODO ELa: restore gate<->pipe table from
-			 * some TBD location.
-			 * note: it doesn't seem possible to get the chip
-			 * currently open gate/pipe table.
-			 * It is only possible to obtain the supported
-			 * gate list.
-			 */
+	if (skb->len && skb->len == strlen(hdev->init_data.session_id) &&
+		(memcmp(hdev->init_data.session_id, skb->data,
+			   skb->len) == 0) && hdev->ops->load_session) {
+		/* Restore gate<->pipe table from some proprietary location. */
 
-			/* goto exit
-			 * For now, always do a full initialization */
-		}
+		r = hdev->ops->load_session(hdev);
 
-	r = nfc_hci_disconnect_all_gates(hdev);
-	if (r < 0)
-		goto exit;
+		if (r < 0)
+			goto disconnect_all;
+	} else {
 
-	r = hci_dev_connect_gates(hdev, hdev->init_data.gate_count,
-				  hdev->init_data.gates);
-	if (r < 0)
-		goto disconnect_all;
+		r = nfc_hci_disconnect_all_gates(hdev);
+		if (r < 0)
+			goto exit;
 
-	r = nfc_hci_set_param(hdev, NFC_HCI_ADMIN_GATE,
-			      NFC_HCI_ADMIN_SESSION_IDENTITY,
-			      hdev->init_data.session_id,
-			      strlen(hdev->init_data.session_id));
+		r = hci_dev_connect_gates(hdev, hdev->init_data.gate_count,
+					  hdev->init_data.gates);
+		if (r < 0)
+			goto disconnect_all;
+
+		r = nfc_hci_set_param(hdev, NFC_HCI_ADMIN_GATE,
+				NFC_HCI_ADMIN_SESSION_IDENTITY,
+				hdev->init_data.session_id,
+				strlen(hdev->init_data.session_id));
+	}
 	if (r == 0)
 		goto exit;
 
@@ -534,7 +620,7 @@ static int hci_dev_down(struct nfc_dev *nfc_dev)
 	if (hdev->ops->close)
 		hdev->ops->close(hdev);
 
-	memset(hdev->gate2pipe, NFC_HCI_INVALID_PIPE, sizeof(hdev->gate2pipe));
+	nfc_hci_reset_pipes(hdev);
 
 	return 0;
 }
@@ -556,8 +642,11 @@ static void hci_stop_poll(struct nfc_dev *nfc_dev)
 {
 	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
 
-	nfc_hci_send_event(hdev, NFC_HCI_RF_READER_A_GATE,
-			   NFC_HCI_EVT_END_OPERATION, NULL, 0);
+	if (hdev->ops->stop_poll)
+		hdev->ops->stop_poll(hdev);
+	else
+		nfc_hci_send_event(hdev, NFC_HCI_RF_READER_A_GATE,
+				   NFC_HCI_EVT_END_OPERATION, NULL, 0);
 }
 
 static int hci_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
@@ -717,6 +806,19 @@ static int hci_disable_se(struct nfc_dev *nfc_dev, u32 se_idx)
 	return 0;
 }
 
+static int hci_se_io(struct nfc_dev *nfc_dev, u32 se_idx,
+		     u8 *apdu, size_t apdu_length,
+		     se_io_cb_t cb, void *cb_context)
+{
+	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
+
+	if (hdev->ops->se_io)
+		return hdev->ops->se_io(hdev, se_idx, apdu,
+					apdu_length, cb, cb_context);
+
+	return 0;
+}
+
 static void nfc_hci_failure(struct nfc_hci_dev *hdev, int err)
 {
 	mutex_lock(&hdev->msg_tx_mutex);
@@ -830,6 +932,7 @@ static struct nfc_ops hci_nfc_ops = {
 	.discover_se = hci_discover_se,
 	.enable_se = hci_enable_se,
 	.disable_se = hci_disable_se,
+	.se_io = hci_se_io,
 };
 
 struct nfc_hci_dev *nfc_hci_allocate_device(struct nfc_hci_ops *ops,
@@ -876,7 +979,7 @@ struct nfc_hci_dev *nfc_hci_allocate_device(struct nfc_hci_ops *ops,
 
 	nfc_set_drvdata(hdev->ndev, hdev);
 
-	memset(hdev->gate2pipe, NFC_HCI_INVALID_PIPE, sizeof(hdev->gate2pipe));
+	nfc_hci_reset_pipes(hdev);
 
 	hdev->quirks = quirks;
 

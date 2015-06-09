@@ -18,7 +18,7 @@
 #endif
 
 	.align	7
-_GLOBAL(__copy_tofrom_user)
+_GLOBAL_TOC(__copy_tofrom_user)
 BEGIN_FTR_SECTION
 	nop
 FTR_SECTION_ELSE
@@ -461,8 +461,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_UNALIGNED_LD_STD)
 /*
  * Routine to copy a whole page of data, optimized for POWER4.
  * On POWER4 it is more than 50% faster than the simple loop
- * above (following the .Ldst_aligned label) but it runs slightly
- * slower on POWER3.
+ * above (following the .Ldst_aligned label).
  */
 .Lcopy_page_4K:
 	std	r31,-32(1)

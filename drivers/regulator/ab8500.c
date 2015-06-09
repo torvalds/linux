@@ -3037,28 +3037,12 @@ static int ab8500_regulator_register(struct platform_device *pdev,
 	return 0;
 }
 
-static int
-ab8500_regulator_of_probe(struct platform_device *pdev,
-			  struct device_node *np)
-{
-	struct of_regulator_match *match = abx500_regulator.match;
-	int err, i;
-
-	for (i = 0; i < abx500_regulator.info_size; i++) {
-		err = ab8500_regulator_register(
-			pdev, match[i].init_data, i, match[i].of_node);
-		if (err)
-			return err;
-	}
-
-	return 0;
-}
-
 static int ab8500_regulator_probe(struct platform_device *pdev)
 {
 	struct ab8500 *ab8500 = dev_get_drvdata(pdev->dev.parent);
 	struct device_node *np = pdev->dev.of_node;
-	int err;
+	struct of_regulator_match *match;
+	int err, i;
 
 	if (!ab8500) {
 		dev_err(&pdev->dev, "null mfd parent\n");
@@ -3075,27 +3059,22 @@ static int ab8500_regulator_probe(struct platform_device *pdev)
 			"Error parsing regulator init data: %d\n", err);
 		return err;
 	}
-	return ab8500_regulator_of_probe(pdev, np);
-}
 
-static int ab8500_regulator_remove(struct platform_device *pdev)
-{
-	int err;
-
-	/* remove regulator debug */
-	err = ab8500_regulator_debug_exit(pdev);
-	if (err)
-		return err;
+	match = abx500_regulator.match;
+	for (i = 0; i < abx500_regulator.info_size; i++) {
+		err = ab8500_regulator_register(pdev, match[i].init_data, i,
+						match[i].of_node);
+		if (err)
+			return err;
+	}
 
 	return 0;
 }
 
 static struct platform_driver ab8500_regulator_driver = {
 	.probe = ab8500_regulator_probe,
-	.remove = ab8500_regulator_remove,
 	.driver         = {
 		.name   = "ab8500-regulator",
-		.owner  = THIS_MODULE,
 	},
 };
 

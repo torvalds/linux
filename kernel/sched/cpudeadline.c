@@ -13,6 +13,7 @@
 
 #include <linux/gfp.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include "cpudeadline.h"
 
 static inline int parent(int i)
@@ -39,8 +40,10 @@ static void cpudl_exchange(struct cpudl *cp, int a, int b)
 {
 	int cpu_a = cp->elements[a].cpu, cpu_b = cp->elements[b].cpu;
 
-	swap(cp->elements[a], cp->elements[b]);
-	swap(cp->cpu_to_idx[cpu_a], cp->cpu_to_idx[cpu_b]);
+	swap(cp->elements[a].cpu, cp->elements[b].cpu);
+	swap(cp->elements[a].dl , cp->elements[b].dl );
+
+	swap(cp->elements[cpu_a].idx, cp->elements[cpu_b].idx);
 }
 
 static void cpudl_heapify(struct cpudl *cp, int idx)
@@ -104,9 +107,8 @@ int cpudl_find(struct cpudl *cp, struct task_struct *p,
 	int best_cpu = -1;
 	const struct sched_dl_entity *dl_se = &p->dl;
 
-	if (later_mask && cpumask_and(later_mask, cp->free_cpus,
-			&p->cpus_allowed) && cpumask_and(later_mask,
-			later_mask, cpu_active_mask)) {
+	if (later_mask &&
+	    cpumask_and(later_mask, cp->free_cpus, &p->cpus_allowed)) {
 		best_cpu = cpumask_any(later_mask);
 		goto out;
 	} else if (cpumask_test_cpu(cpudl_maximum(cp), &p->cpus_allowed) &&
@@ -140,7 +142,7 @@ void cpudl_set(struct cpudl *cp, int cpu, u64 dl, int is_valid)
 	WARN_ON(!cpu_present(cpu));
 
 	raw_spin_lock_irqsave(&cp->lock, flags);
-	old_idx = cp->cpu_to_idx[cpu];
+	old_idx = cp->elements[cpu].idx;
 	if (!is_valid) {
 		/* remove item */
 		if (old_idx == IDX_INVALID) {
@@ -155,8 +157,8 @@ void cpudl_set(struct cpudl *cp, int cpu, u64 dl, int is_valid)
 		cp->elements[old_idx].dl = cp->elements[cp->size - 1].dl;
 		cp->elements[old_idx].cpu = new_cpu;
 		cp->size--;
-		cp->cpu_to_idx[new_cpu] = old_idx;
-		cp->cpu_to_idx[cpu] = IDX_INVALID;
+		cp->elements[new_cpu].idx = old_idx;
+		cp->elements[cpu].idx = IDX_INVALID;
 		while (old_idx > 0 && dl_time_before(
 				cp->elements[parent(old_idx)].dl,
 				cp->elements[old_idx].dl)) {
@@ -173,7 +175,7 @@ void cpudl_set(struct cpudl *cp, int cpu, u64 dl, int is_valid)
 		cp->size++;
 		cp->elements[cp->size - 1].dl = 0;
 		cp->elements[cp->size - 1].cpu = cpu;
-		cp->cpu_to_idx[cpu] = cp->size - 1;
+		cp->elements[cpu].idx = cp->size - 1;
 		cpudl_change_key(cp, cp->size - 1, dl);
 		cpumask_clear_cpu(cpu, cp->free_cpus);
 	} else {
@@ -182,6 +184,26 @@ void cpudl_set(struct cpudl *cp, int cpu, u64 dl, int is_valid)
 
 out:
 	raw_spin_unlock_irqrestore(&cp->lock, flags);
+}
+
+/*
+ * cpudl_set_freecpu - Set the cpudl.free_cpus
+ * @cp: the cpudl max-heap context
+ * @cpu: rd attached cpu
+ */
+void cpudl_set_freecpu(struct cpudl *cp, int cpu)
+{
+	cpumask_set_cpu(cpu, cp->free_cpus);
+}
+
+/*
+ * cpudl_clear_freecpu - Clear the cpudl.free_cpus
+ * @cp: the cpudl max-heap context
+ * @cpu: rd attached cpu
+ */
+void cpudl_clear_freecpu(struct cpudl *cp, int cpu)
+{
+	cpumask_clear_cpu(cpu, cp->free_cpus);
 }
 
 /*
@@ -195,11 +217,20 @@ int cpudl_init(struct cpudl *cp)
 	memset(cp, 0, sizeof(*cp));
 	raw_spin_lock_init(&cp->lock);
 	cp->size = 0;
-	for (i = 0; i < NR_CPUS; i++)
-		cp->cpu_to_idx[i] = IDX_INVALID;
-	if (!alloc_cpumask_var(&cp->free_cpus, GFP_KERNEL))
+
+	cp->elements = kcalloc(nr_cpu_ids,
+			       sizeof(struct cpudl_item),
+			       GFP_KERNEL);
+	if (!cp->elements)
 		return -ENOMEM;
-	cpumask_setall(cp->free_cpus);
+
+	if (!zalloc_cpumask_var(&cp->free_cpus, GFP_KERNEL)) {
+		kfree(cp->elements);
+		return -ENOMEM;
+	}
+
+	for_each_possible_cpu(i)
+		cp->elements[i].idx = IDX_INVALID;
 
 	return 0;
 }
@@ -210,7 +241,6 @@ int cpudl_init(struct cpudl *cp)
  */
 void cpudl_cleanup(struct cpudl *cp)
 {
-	/*
-	 * nothing to do for the moment
-	 */
+	free_cpumask_var(cp->free_cpus);
+	kfree(cp->elements);
 }

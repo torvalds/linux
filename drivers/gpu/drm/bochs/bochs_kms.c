@@ -6,6 +6,7 @@
  */
 
 #include "bochs.h"
+#include <drm/drm_plane_helper.h>
 
 static int defx = 1024;
 static int defy = 768;
@@ -16,10 +17,6 @@ MODULE_PARM_DESC(defx, "default x resolution");
 MODULE_PARM_DESC(defy, "default y resolution");
 
 /* ---------------------------------------------------------------------- */
-
-static void bochs_crtc_load_lut(struct drm_crtc *crtc)
-{
-}
 
 static void bochs_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
@@ -53,7 +50,7 @@ static int bochs_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	if (old_fb) {
 		bochs_fb = to_bochs_framebuffer(old_fb);
 		bo = gem_to_bochs_bo(bochs_fb->obj);
-		ret = ttm_bo_reserve(&bo->bo, true, false, false, 0);
+		ret = ttm_bo_reserve(&bo->bo, true, false, false, NULL);
 		if (ret) {
 			DRM_ERROR("failed to reserve old_fb bo\n");
 		} else {
@@ -62,12 +59,12 @@ static int bochs_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 		}
 	}
 
-	if (WARN_ON(crtc->fb == NULL))
+	if (WARN_ON(crtc->primary->fb == NULL))
 		return -EINVAL;
 
-	bochs_fb = to_bochs_framebuffer(crtc->fb);
+	bochs_fb = to_bochs_framebuffer(crtc->primary->fb);
 	bo = gem_to_bochs_bo(bochs_fb->obj);
-	ret = ttm_bo_reserve(&bo->bo, true, false, false, 0);
+	ret = ttm_bo_reserve(&bo->bo, true, false, false, NULL);
 	if (ret)
 		return ret;
 
@@ -108,11 +105,32 @@ static void bochs_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
 {
 }
 
+static int bochs_crtc_page_flip(struct drm_crtc *crtc,
+				struct drm_framebuffer *fb,
+				struct drm_pending_vblank_event *event,
+				uint32_t page_flip_flags)
+{
+	struct bochs_device *bochs =
+		container_of(crtc, struct bochs_device, crtc);
+	struct drm_framebuffer *old_fb = crtc->primary->fb;
+	unsigned long irqflags;
+
+	crtc->primary->fb = fb;
+	bochs_crtc_mode_set_base(crtc, 0, 0, old_fb);
+	if (event) {
+		spin_lock_irqsave(&bochs->dev->event_lock, irqflags);
+		drm_send_vblank_event(bochs->dev, -1, event);
+		spin_unlock_irqrestore(&bochs->dev->event_lock, irqflags);
+	}
+	return 0;
+}
+
 /* These provide the minimum set of functions required to handle a CRTC */
 static const struct drm_crtc_funcs bochs_crtc_funcs = {
 	.gamma_set = bochs_crtc_gamma_set,
 	.set_config = drm_crtc_helper_set_config,
 	.destroy = drm_crtc_cleanup,
+	.page_flip = bochs_crtc_page_flip,
 };
 
 static const struct drm_crtc_helper_funcs bochs_helper_funcs = {
@@ -122,7 +140,6 @@ static const struct drm_crtc_helper_funcs bochs_helper_funcs = {
 	.mode_set_base = bochs_crtc_mode_set_base,
 	.prepare = bochs_crtc_prepare,
 	.commit = bochs_crtc_commit,
-	.load_lut = bochs_crtc_load_lut,
 };
 
 static void bochs_crtc_init(struct drm_device *dev)
@@ -216,18 +233,9 @@ static struct drm_encoder *
 bochs_connector_best_encoder(struct drm_connector *connector)
 {
 	int enc_id = connector->encoder_ids[0];
-	struct drm_mode_object *obj;
-	struct drm_encoder *encoder;
-
 	/* pick the encoder ids */
-	if (enc_id) {
-		obj = drm_mode_object_find(connector->dev, enc_id,
-					   DRM_MODE_OBJECT_ENCODER);
-		if (!obj)
-			return NULL;
-		encoder = obj_to_encoder(obj);
-		return encoder;
-	}
+	if (enc_id)
+		return drm_encoder_find(connector->dev, enc_id);
 	return NULL;
 }
 
@@ -259,6 +267,7 @@ static void bochs_connector_init(struct drm_device *dev)
 			   DRM_MODE_CONNECTOR_VIRTUAL);
 	drm_connector_helper_add(connector,
 				 &bochs_connector_connector_helper_funcs);
+	drm_connector_register(connector);
 }
 
 

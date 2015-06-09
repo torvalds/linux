@@ -138,7 +138,6 @@ static struct platform_driver wm831x_on_driver = {
 	.remove		= wm831x_on_remove,
 	.driver		= {
 		.name	= "wm831x-on",
-		.owner	= THIS_MODULE,
 	},
 };
 module_platform_driver(wm831x_on_driver);

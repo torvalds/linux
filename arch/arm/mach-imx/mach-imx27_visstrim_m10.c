@@ -43,6 +43,7 @@
 
 #include "common.h"
 #include "devices-imx27.h"
+#include "ehci.h"
 #include "hardware.h"
 #include "iomux-mx27.h"
 
@@ -604,7 +605,6 @@ MACHINE_START(IMX27_VISSTRIM_M10, "Vista Silicon Visstrim_M10")
 	.map_io = mx27_map_io,
 	.init_early = imx27_init_early,
 	.init_irq = mx27_init_irq,
-	.handle_irq = imx27_handle_irq,
 	.init_time	= visstrim_m10_timer_init,
 	.init_machine = visstrim_m10_board_init,
 	.restart	= mxc_restart,

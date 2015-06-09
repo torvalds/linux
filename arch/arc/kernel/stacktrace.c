@@ -43,6 +43,10 @@ static void seed_unwind_frame_info(struct task_struct *tsk,
 				   struct pt_regs *regs,
 				   struct unwind_frame_info *frame_info)
 {
+	/*
+	 * synchronous unwinding (e.g. dump_stack)
+	 *  - uses current values of SP and friends
+	 */
 	if (tsk == NULL && regs == NULL) {
 		unsigned long fp, sp, blink, ret;
 		frame_info->task = current;
@@ -61,12 +65,17 @@ static void seed_unwind_frame_info(struct task_struct *tsk,
 		frame_info->regs.r63 = ret;
 		frame_info->call_frame = 0;
 	} else if (regs == NULL) {
+		/*
+		 * Asynchronous unwinding of sleeping task
+		 *  - Gets SP etc from task's pt_regs (saved bottom of kernel
+		 *    mode stack of task)
+		 */
 
 		frame_info->task = tsk;
 
-		frame_info->regs.r27 = KSTK_FP(tsk);
-		frame_info->regs.r28 = KSTK_ESP(tsk);
-		frame_info->regs.r31 = KSTK_BLINK(tsk);
+		frame_info->regs.r27 = TSK_K_FP(tsk);
+		frame_info->regs.r28 = TSK_K_ESP(tsk);
+		frame_info->regs.r31 = TSK_K_BLINK(tsk);
 		frame_info->regs.r63 = (unsigned int)__switch_to;
 
 		/* In the prologue of __switch_to, first FP is saved on stack
@@ -83,6 +92,10 @@ static void seed_unwind_frame_info(struct task_struct *tsk,
 		frame_info->call_frame = 0;
 
 	} else {
+		/*
+		 * Asynchronous unwinding of intr/exception
+		 *  - Just uses the pt_regs passed
+		 */
 		frame_info->task = tsk;
 
 		frame_info->regs.r27 = regs->fp;
@@ -95,7 +108,7 @@ static void seed_unwind_frame_info(struct task_struct *tsk,
 
 #endif
 
-static noinline unsigned int
+notrace noinline unsigned int
 arc_unwind_core(struct task_struct *tsk, struct pt_regs *regs,
 		int (*consumer_fn) (unsigned int, void *), void *arg)
 {

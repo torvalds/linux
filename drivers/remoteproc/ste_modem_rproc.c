@@ -164,7 +164,7 @@ sproc_find_loaded_rsc_table(struct rproc *rproc, const struct firmware *fw)
 }
 
 /* STE modem firmware handler operations */
-const struct rproc_fw_ops sproc_fw_ops = {
+static const struct rproc_fw_ops sproc_fw_ops = {
 	.load = sproc_load_segments,
 	.find_rsc_table = sproc_find_rsc_table,
 	.find_loaded_rsc_table = sproc_find_loaded_rsc_table,
@@ -193,7 +193,7 @@ static void sproc_kick_callback(struct ste_modem_device *mdev, int vqid)
 		sproc_dbg(sproc, "no message was found in vqid %d\n", vqid);
 }
 
-struct ste_modem_dev_cb sproc_dev_cb = {
+static struct ste_modem_dev_cb sproc_dev_cb = {
 	.kick = sproc_kick_callback,
 };
 
@@ -289,6 +289,7 @@ static int sproc_probe(struct platform_device *pdev)
 	sproc = rproc->priv;
 	sproc->mdev = mdev;
 	sproc->rproc = rproc;
+	rproc->has_iommu = false;
 	mdev->drv_data = sproc;
 
 	/* Provide callback functions to modem device */
@@ -331,7 +332,6 @@ free_rproc:
 static struct platform_driver sproc_driver = {
 	.driver	= {
 		.name	= SPROC_MODEM_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe	= sproc_probe,
 	.remove	= sproc_drv_remove,

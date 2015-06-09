@@ -50,20 +50,24 @@ zero volts).
 
 #include <asm/div64.h>
 
-#include "comedi_fc.h"
 #include <linux/timer.h>
+#include <linux/ktime.h>
 
 #define N_CHANS 8
+
+enum waveform_state_bits {
+	WAVEFORM_AI_RUNNING = 0
+};
 
 /* Data unique to this driver */
 struct waveform_private {
 	struct timer_list timer;
-	struct timeval last;		/* time last timer interrupt occurred */
+	ktime_t last;	/* time last timer interrupt occurred */
 	unsigned int uvolt_amplitude;	/* waveform amplitude in microvolts */
 	unsigned long usec_period;	/* waveform period in microseconds */
 	unsigned long usec_current;	/* current time (mod waveform period) */
 	unsigned long usec_remainder;	/* usec since last scan */
-	unsigned long ai_count;		/* number of conversions remaining */
+	unsigned long state_bits;
 	unsigned int scan_period;	/* scan period in usec */
 	unsigned int convert_period;	/* conversion period in usec */
 	unsigned int ao_loopbacks[N_CHANS];
@@ -146,10 +150,8 @@ static unsigned short fake_waveform(struct comedi_device *dev,
 	switch (channel) {
 	case SAWTOOTH_CHAN:
 		return fake_sawtooth(dev, range, current_time);
-		break;
 	case SQUARE_CHAN:
 		return fake_squarewave(dev, range, current_time);
-		break;
 	default:
 		break;
 	}
@@ -166,58 +168,51 @@ static void waveform_ai_interrupt(unsigned long arg)
 {
 	struct comedi_device *dev = (struct comedi_device *)arg;
 	struct waveform_private *devpriv = dev->private;
-	struct comedi_async *async = dev->read_subdev->async;
+	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int i, j;
 	/* all times in microsec */
 	unsigned long elapsed_time;
 	unsigned int num_scans;
-	struct timeval now;
-	bool stopping = false;
+	ktime_t now;
 
-	do_gettimeofday(&now);
+	/* check command is still active */
+	if (!test_bit(WAVEFORM_AI_RUNNING, &devpriv->state_bits))
+		return;
 
-	elapsed_time =
-	    1000000 * (now.tv_sec - devpriv->last.tv_sec) + now.tv_usec -
-	    devpriv->last.tv_usec;
+	now = ktime_get();
+
+	elapsed_time = ktime_to_us(ktime_sub(now, devpriv->last));
 	devpriv->last = now;
 	num_scans =
 	    (devpriv->usec_remainder + elapsed_time) / devpriv->scan_period;
 	devpriv->usec_remainder =
 	    (devpriv->usec_remainder + elapsed_time) % devpriv->scan_period;
-	async->events = 0;
 
-	if (cmd->stop_src == TRIG_COUNT) {
-		unsigned int remaining = cmd->stop_arg - devpriv->ai_count;
-		if (num_scans >= remaining) {
-			/* about to finish */
-			num_scans = remaining;
-			stopping = true;
-		}
-	}
-
+	num_scans = comedi_nscans_left(s, num_scans);
 	for (i = 0; i < num_scans; i++) {
 		for (j = 0; j < cmd->chanlist_len; j++) {
 			unsigned short sample;
+
 			sample = fake_waveform(dev, CR_CHAN(cmd->chanlist[j]),
 					       CR_RANGE(cmd->chanlist[j]),
 					       devpriv->usec_current +
 						   i * devpriv->scan_period +
 						   j * devpriv->convert_period);
-			cfc_write_to_buffer(dev->read_subdev, sample);
+			comedi_buf_write_samples(s, &sample, 1);
 		}
 	}
 
-	devpriv->ai_count += i;
 	devpriv->usec_current += elapsed_time;
 	devpriv->usec_current %= devpriv->usec_period;
 
-	if (stopping)
+	if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg)
 		async->events |= COMEDI_CB_EOA;
 	else
 		mod_timer(&devpriv->timer, jiffies + 1);
 
-	comedi_event(dev, dev->read_subdev);
+	comedi_handle_events(dev, s);
 }
 
 static int waveform_ai_cmdtest(struct comedi_device *dev,
@@ -225,23 +220,24 @@ static int waveform_ai_cmdtest(struct comedi_device *dev,
 			       struct comedi_cmd *cmd)
 {
 	int err = 0;
-	int tmp;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW | TRIG_TIMER);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
+	err |= comedi_check_trigger_src(&cmd->convert_src,
+					TRIG_NOW | TRIG_TIMER);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->convert_src);
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= comedi_check_trigger_is_unique(cmd->convert_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
@@ -250,26 +246,30 @@ static int waveform_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->convert_src == TRIG_NOW)
-		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-						 nano_per_micro);
-		if (cmd->convert_src == TRIG_TIMER)
-			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-					cmd->convert_arg * cmd->chanlist_len);
+		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+						    nano_per_micro);
+		if (cmd->convert_src == TRIG_TIMER) {
+			err |= comedi_check_trigger_arg_min(&cmd->
+							    scan_begin_arg,
+							    cmd->convert_arg *
+							    cmd->chanlist_len);
+		}
 	}
 
-	err |= cfc_check_trigger_arg_min(&cmd->chanlist_len, 1);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_min(&cmd->chanlist_len, 1);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
 	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -277,22 +277,18 @@ static int waveform_ai_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		tmp = cmd->scan_begin_arg;
+		arg = cmd->scan_begin_arg;
 		/* round to nearest microsec */
-		cmd->scan_begin_arg =
-		    nano_per_micro * ((tmp +
-				       (nano_per_micro / 2)) / nano_per_micro);
-		if (tmp != cmd->scan_begin_arg)
-			err++;
+		arg = nano_per_micro *
+		      ((arg + (nano_per_micro / 2)) / nano_per_micro);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
-		tmp = cmd->convert_arg;
+		arg = cmd->convert_arg;
 		/* round to nearest microsec */
-		cmd->convert_arg =
-		    nano_per_micro * ((tmp +
-				       (nano_per_micro / 2)) / nano_per_micro);
-		if (tmp != cmd->convert_arg)
-			err++;
+		arg = nano_per_micro *
+		      ((arg + (nano_per_micro / 2)) / nano_per_micro);
+		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, arg);
 	}
 
 	if (err)
@@ -307,29 +303,29 @@ static int waveform_ai_cmd(struct comedi_device *dev,
 	struct waveform_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	if (cmd->flags & TRIG_RT) {
-		comedi_error(dev,
-			     "commands at RT priority not supported in this driver");
+	if (cmd->flags & CMDF_PRIORITY) {
+		dev_err(dev->class_dev,
+			"commands at RT priority not supported in this driver\n");
 		return -1;
 	}
 
-	devpriv->ai_count = 0;
 	devpriv->scan_period = cmd->scan_begin_arg / nano_per_micro;
 
 	if (cmd->convert_src == TRIG_NOW)
 		devpriv->convert_period = 0;
-	else if (cmd->convert_src == TRIG_TIMER)
+	else	/* TRIG_TIMER */
 		devpriv->convert_period = cmd->convert_arg / nano_per_micro;
-	else {
-		comedi_error(dev, "bug setting conversion period");
-		return -1;
-	}
 
-	do_gettimeofday(&devpriv->last);
-	devpriv->usec_current = devpriv->last.tv_usec % devpriv->usec_period;
+	devpriv->last = ktime_get();
+	devpriv->usec_current =
+		((u32)ktime_to_us(devpriv->last)) % devpriv->usec_period;
 	devpriv->usec_remainder = 0;
 
 	devpriv->timer.expires = jiffies + 1;
+	/* mark command as active */
+	smp_mb__before_atomic();
+	set_bit(WAVEFORM_AI_RUNNING, &devpriv->state_bits);
+	smp_mb__after_atomic();
 	add_timer(&devpriv->timer);
 	return 0;
 }
@@ -339,7 +335,11 @@ static int waveform_ai_cancel(struct comedi_device *dev,
 {
 	struct waveform_private *devpriv = dev->private;
 
-	del_timer_sync(&devpriv->timer);
+	/* mark command as no longer active */
+	clear_bit(WAVEFORM_AI_RUNNING, &devpriv->state_bits);
+	smp_mb__after_atomic();
+	/* cannot call del_timer_sync() as may be called from timer routine */
+	del_timer(&devpriv->timer);
 	return 0;
 }
 
@@ -414,28 +414,23 @@ static int waveform_attach(struct comedi_device *dev,
 	dev->write_subdev = s;
 	/* analog output subdevice (loopback) */
 	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND;
+	s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
 	s->n_chan = N_CHANS;
 	s->maxdata = 0xffff;
 	s->range_table = &waveform_ai_ranges;
-	s->len_chanlist = s->n_chan * 2;
 	s->insn_write = waveform_ao_insn_write;
-	s->do_cmd = NULL;
-	s->do_cmdtest = NULL;
-	s->cancel = NULL;
 
 	/* Our default loopback value is just a 0V flatline */
 	for (i = 0; i < s->n_chan; i++)
 		devpriv->ao_loopbacks[i] = s->maxdata / 2;
 
-	init_timer(&(devpriv->timer));
-	devpriv->timer.function = waveform_ai_interrupt;
-	devpriv->timer.data = (unsigned long)dev;
+	setup_timer(&devpriv->timer, waveform_ai_interrupt,
+		    (unsigned long)dev);
 
 	dev_info(dev->class_dev,
-		"%s: %i microvolt, %li microsecond waveform attached\n",
-		dev->board_name,
-		devpriv->uvolt_amplitude, devpriv->usec_period);
+		 "%s: %i microvolt, %li microsecond waveform attached\n",
+		 dev->board_name,
+		 devpriv->uvolt_amplitude, devpriv->usec_period);
 
 	return 0;
 }
@@ -445,7 +440,7 @@ static void waveform_detach(struct comedi_device *dev)
 	struct waveform_private *devpriv = dev->private;
 
 	if (devpriv)
-		waveform_ai_cancel(dev, dev->read_subdev);
+		del_timer_sync(&devpriv->timer);
 }
 
 static struct comedi_driver waveform_driver = {

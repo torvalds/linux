@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2000-2013 LSI Corporation.
+ * Copyright (c) 2000-2014 LSI Corporation.
  *
  *
  *          Name:  mpi2_init.h
  *         Title:  MPI SCSI initiator mode messages and structures
  * Creation Date:  June 23, 2006
  *
- * mpi2_init.h Version:  02.00.14
+ * mpi2_init.h Version:  02.00.15
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -44,6 +44,8 @@
  *                     Priority to match SAM-4.
  *                     Added EEDPErrorOffset to MPI2_SCSI_IO_REPLY.
  * 07-10-12  02.00.14  Added MPI2_SCSIIO_CONTROL_SHIFT_DATADIRECTION.
+ * 04-09-13  02.00.15  Added SCSIStatusQualifier field to MPI2_SCSI_IO_REPLY,
+ *                     replacing the Reserved4 field.
  * --------------------------------------------------------------------------
  */
 
@@ -347,7 +349,7 @@ typedef struct _MPI2_SCSI_IO_REPLY {
 	U32 SenseCount;		/*0x18 */
 	U32 ResponseInfo;	/*0x1C */
 	U16 TaskTag;		/*0x20 */
-	U16 Reserved4;		/*0x22 */
+	U16 SCSIStatusQualifier; /* 0x22 */
 	U32 BidirectionalTransferCount;	/*0x24 */
 	U32 EEDPErrorOffset;	/*0x28 *//*MPI 2.5 only; Reserved in MPI 2.0*/
 	U32 Reserved6;		/*0x2C */

@@ -209,7 +209,7 @@ static int gred_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		break;
 
 	case RED_PROB_MARK:
-		sch->qstats.overlimits++;
+		qdisc_qstats_overlimit(sch);
 		if (!gred_use_ecn(t) || !INET_ECN_set_ce(skb)) {
 			q->stats.prob_drop++;
 			goto congestion_drop;
@@ -219,7 +219,7 @@ static int gred_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		break;
 
 	case RED_HARD_MARK:
-		sch->qstats.overlimits++;
+		qdisc_qstats_overlimit(sch);
 		if (gred_use_harddrop(t) || !gred_use_ecn(t) ||
 		    !INET_ECN_set_ce(skb)) {
 			q->stats.forced_drop++;
@@ -229,7 +229,7 @@ static int gred_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		break;
 	}
 
-	if (q->backlog + qdisc_pkt_len(skb) <= q->limit) {
+	if (gred_backlog(t, q, sch) + qdisc_pkt_len(skb) <= q->limit) {
 		q->backlog += qdisc_pkt_len(skb);
 		return qdisc_enqueue_tail(skb, sch);
 	}
@@ -553,7 +553,7 @@ static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
 
 		opt.limit	= q->limit;
 		opt.DP		= q->DP;
-		opt.backlog	= q->backlog;
+		opt.backlog	= gred_backlog(table, q, sch);
 		opt.prio	= q->prio;
 		opt.qth_min	= q->parms.qth_min >> q->parms.Wlog;
 		opt.qth_max	= q->parms.qth_max >> q->parms.Wlog;

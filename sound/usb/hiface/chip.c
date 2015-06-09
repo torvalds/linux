@@ -64,7 +64,8 @@ struct hiface_vendor_quirk {
 	u8 extra_freq;
 };
 
-static int hiface_chip_create(struct usb_device *device, int idx,
+static int hiface_chip_create(struct usb_interface *intf,
+			      struct usb_device *device, int idx,
 			      const struct hiface_vendor_quirk *quirk,
 			      struct hiface_chip **rchip)
 {
@@ -76,7 +77,8 @@ static int hiface_chip_create(struct usb_device *device, int idx,
 	*rchip = NULL;
 
 	/* if we are here, card can be registered in alsa. */
-	ret = snd_card_create(index[idx], id[idx], THIS_MODULE, sizeof(*chip), &card);
+	ret = snd_card_new(&intf->dev, index[idx], id[idx], THIS_MODULE,
+			   sizeof(*chip), &card);
 	if (ret < 0) {
 		dev_err(&device->dev, "cannot create alsa card.\n");
 		return ret;
@@ -132,11 +134,9 @@ static int hiface_chip_probe(struct usb_interface *intf,
 		goto err;
 	}
 
-	ret = hiface_chip_create(device, i, quirk, &chip);
+	ret = hiface_chip_create(intf, device, i, quirk, &chip);
 	if (ret < 0)
 		goto err;
-
-	snd_card_set_dev(chip->card, &intf->dev);
 
 	ret = hiface_pcm_init(chip, quirk ? quirk->extra_freq : 0);
 	if (ret < 0)

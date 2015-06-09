@@ -31,7 +31,7 @@ static int cgroup_mt_check(const struct xt_mtchk_param *par)
 	if (info->invert & ~1)
 		return -EINVAL;
 
-	return info->id ? 0 : -EINVAL;
+	return 0;
 }
 
 static bool
@@ -39,7 +39,7 @@ cgroup_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_cgroup_info *info = par->matchinfo;
 
-	if (skb->sk == NULL)
+	if (skb->sk == NULL || !sk_fullsock(skb->sk))
 		return false;
 
 	return (info->id == skb->sk->sk_classid) ^ info->invert;
@@ -54,7 +54,8 @@ static struct xt_match cgroup_mt_reg __read_mostly = {
 	.matchsize  = sizeof(struct xt_cgroup_info),
 	.me         = THIS_MODULE,
 	.hooks      = (1 << NF_INET_LOCAL_OUT) |
-		      (1 << NF_INET_POST_ROUTING),
+		      (1 << NF_INET_POST_ROUTING) |
+		      (1 << NF_INET_LOCAL_IN),
 };
 
 static int __init cgroup_mt_init(void)

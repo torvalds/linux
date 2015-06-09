@@ -29,6 +29,7 @@ struct tpacket_kbdq_core {
 	char		*pkblk_start;
 	char		*pkblk_end;
 	int		kblk_size;
+	unsigned int	max_frame_len;
 	unsigned int	knum_blocks;
 	uint64_t	knxt_seq_num;
 	char		*prev;
@@ -73,9 +74,7 @@ extern struct mutex fanout_mutex;
 #define PACKET_FANOUT_MAX	256
 
 struct packet_fanout {
-#ifdef CONFIG_NET_NS
-	struct net		*net;
-#endif
+	possible_net_t		net;
 	unsigned int		num_members;
 	u16			id;
 	u8			type;

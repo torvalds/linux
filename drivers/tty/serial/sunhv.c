@@ -268,6 +268,9 @@ static void sunhv_send_xchar(struct uart_port *port, char ch)
 	unsigned long flags;
 	int limit = 10000;
 
+	if (ch == __DISABLED_CHAR)
+		return;
+
 	spin_lock_irqsave(&port->lock, flags);
 
 	while (limit-- > 0) {
@@ -282,11 +285,6 @@ static void sunhv_send_xchar(struct uart_port *port, char ch)
 
 /* port->lock held by caller.  */
 static void sunhv_stop_rx(struct uart_port *port)
-{
-}
-
-/* port->lock held by caller.  */
-static void sunhv_enable_ms(struct uart_port *port)
 {
 }
 
@@ -379,7 +377,6 @@ static struct uart_ops sunhv_pops = {
 	.start_tx	= sunhv_start_tx,
 	.send_xchar	= sunhv_send_xchar,
 	.stop_rx	= sunhv_stop_rx,
-	.enable_ms	= sunhv_enable_ms,
 	.break_ctl	= sunhv_break_ctl,
 	.startup	= sunhv_startup,
 	.shutdown	= sunhv_shutdown,
@@ -629,7 +626,6 @@ MODULE_DEVICE_TABLE(of, hv_match);
 static struct platform_driver hv_driver = {
 	.driver = {
 		.name = "hv",
-		.owner = THIS_MODULE,
 		.of_match_table = hv_match,
 	},
 	.probe		= hv_probe,

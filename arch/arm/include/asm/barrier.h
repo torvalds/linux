@@ -43,10 +43,14 @@
 #define mb()		do { dsb(); outer_sync(); } while (0)
 #define rmb()		dsb()
 #define wmb()		do { dsb(st); outer_sync(); } while (0)
+#define dma_rmb()	dmb(osh)
+#define dma_wmb()	dmb(oshst)
 #else
 #define mb()		barrier()
 #define rmb()		barrier()
 #define wmb()		barrier()
+#define dma_rmb()	barrier()
+#define dma_wmb()	barrier()
 #endif
 
 #ifndef CONFIG_SMP
@@ -78,6 +82,9 @@ do {									\
 #define smp_read_barrier_depends()	do { } while(0)
 
 #define set_mb(var, value)	do { var = value; smp_mb(); } while (0)
+
+#define smp_mb__before_atomic()	smp_mb()
+#define smp_mb__after_atomic()	smp_mb()
 
 #endif /* !__ASSEMBLY__ */
 #endif /* __ASM_BARRIER_H */

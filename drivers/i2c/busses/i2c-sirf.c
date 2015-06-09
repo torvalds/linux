@@ -307,12 +307,11 @@ static int i2c_sirfsoc_probe(struct platform_device *pdev)
 
 	siic = devm_kzalloc(&pdev->dev, sizeof(*siic), GFP_KERNEL);
 	if (!siic) {
-		dev_err(&pdev->dev, "Can't allocate driver data\n");
 		err = -ENOMEM;
 		goto out;
 	}
 	adap = &siic->adapter;
-	adap->class = I2C_CLASS_HWMON;
+	adap->class = I2C_CLASS_DEPRECATED;
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	siic->base = devm_ioremap_resource(&pdev->dev, mem_res);
@@ -452,7 +451,6 @@ MODULE_DEVICE_TABLE(of, sirfsoc_i2c_of_match);
 static struct platform_driver i2c_sirfsoc_driver = {
 	.driver = {
 		.name = "sirfsoc_i2c",
-		.owner = THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm = &i2c_sirfsoc_pm_ops,
 #endif

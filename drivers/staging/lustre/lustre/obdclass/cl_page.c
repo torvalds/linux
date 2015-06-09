@@ -40,12 +40,12 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include <linux/libcfs/libcfs.h>
-#include <obd_class.h>
-#include <obd_support.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
 #include <linux/list.h>
 
-#include <cl_object.h>
+#include "../include/cl_object.h"
 #include "cl_internal.h"
 
 static void cl_page_delete0(const struct lu_env *env, struct cl_page *pg,
@@ -130,7 +130,7 @@ struct cl_page *cl_page_lookup(struct cl_object_header *hdr, pgoff_t index)
 {
 	struct cl_page *page;
 
-	LASSERT(spin_is_locked(&hdr->coh_page_guard));
+	assert_spin_locked(&hdr->coh_page_guard);
 
 	page = radix_tree_lookup(&hdr->coh_tree, index);
 	if (page != NULL)
@@ -292,7 +292,7 @@ static struct cl_page *cl_page_alloc(const struct lu_env *env,
 	struct lu_object_header *head;
 
 	OBD_ALLOC_GFP(page, cl_object_header(o)->coh_page_bufsize,
-			__GFP_IO);
+			GFP_NOFS);
 	if (page != NULL) {
 		int result = 0;
 		atomic_set(&page->cp_ref, 1);

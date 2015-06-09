@@ -13,12 +13,11 @@
 #error only <linux/bitops.h> can be included directly
 #endif
 
-#ifdef __KERNEL__
-
 #ifndef __ASSEMBLY__
 
 #include <linux/types.h>
 #include <linux/compiler.h>
+#include <asm/barrier.h>
 
 /*
  * Hardware assisted read-modify-write using ARC700 LLOCK/SCOND insns.
@@ -33,6 +32,20 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *m)
 
 	m += nr >> 5;
 
+	/*
+	 * ARC ISA micro-optimization:
+	 *
+	 * Instructions dealing with bitpos only consider lower 5 bits (0-31)
+	 * e.g (x << 33) is handled like (x << 1) by ASL instruction
+	 *  (mem pointer still needs adjustment to point to next word)
+	 *
+	 * Hence the masking to clamp @nr arg can be elided in general.
+	 *
+	 * However if @nr is a constant (above assumed it in a register),
+	 * and greater than 31, gcc can optimize away (x << 33) to 0,
+	 * as overflow, given the 32-bit ISA. Thus masking needs to be done
+	 * for constant @nr, but no code is generated due to const prop.
+	 */
 	if (__builtin_constant_p(nr))
 		nr &= 0x1f;
 
@@ -375,28 +388,19 @@ __test_and_change_bit(unsigned long nr, volatile unsigned long *m)
  * This routine doesn't need to be atomic.
  */
 static inline int
-__constant_test_bit(unsigned int nr, const volatile unsigned long *addr)
-{
-	return ((1UL << (nr & 31)) &
-		(((const volatile unsigned int *)addr)[nr >> 5])) != 0;
-}
-
-static inline int
-__test_bit(unsigned int nr, const volatile unsigned long *addr)
+test_bit(unsigned int nr, const volatile unsigned long *addr)
 {
 	unsigned long mask;
 
 	addr += nr >> 5;
 
-	/* ARC700 only considers 5 bits in bit-fiddling insn */
+	if (__builtin_constant_p(nr))
+		nr &= 0x1f;
+
 	mask = 1 << nr;
 
 	return ((mask & *addr) != 0);
 }
-
-#define test_bit(nr, addr)	(__builtin_constant_p(nr) ? \
-					__constant_test_bit((nr), (addr)) : \
-					__test_bit((nr), (addr)))
 
 /*
  * Count the number of zeros, starting from MSB
@@ -496,10 +500,6 @@ static inline __attribute__ ((const)) int __ffs(unsigned long word)
  */
 #define ffz(x)	__ffs(~(x))
 
-/* TODO does this affect uni-processor code */
-#define smp_mb__before_clear_bit()  barrier()
-#define smp_mb__after_clear_bit()   barrier()
-
 #include <asm-generic/bitops/hweight.h>
 #include <asm-generic/bitops/fls64.h>
 #include <asm-generic/bitops/sched.h>
@@ -510,7 +510,5 @@ static inline __attribute__ ((const)) int __ffs(unsigned long word)
 #include <asm-generic/bitops/ext2-atomic-setbit.h>
 
 #endif /* !__ASSEMBLY__ */
-
-#endif /* __KERNEL__ */
 
 #endif

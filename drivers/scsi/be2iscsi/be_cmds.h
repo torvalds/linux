@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2013 Emulex
+ * Copyright (C) 2005 - 2015 Avago Technologies
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -8,9 +8,9 @@
  * Public License is included in this distribution in the file called COPYING.
  *
  * Contact Information:
- * linux-drivers@emulex.com
+ * linux-drivers@avagotech.com
  *
- * Emulex
+ * Avago Technologies
  * 3333 Susan Street
  * Costa Mesa, CA 92626
  */
@@ -26,9 +26,9 @@
  * The commands are serviced by the ARM processor in the OneConnect's MPU.
  */
 struct be_sge {
-	u32 pa_lo;
-	u32 pa_hi;
-	u32 len;
+	__le32 pa_lo;
+	__le32 pa_hi;
+	__le32 len;
 };
 
 #define MCC_WRB_SGE_CNT_SHIFT 3	/* bits 3 - 7 of dword 0 */
@@ -71,6 +71,7 @@ struct be_mcc_wrb {
 #define BEISCSI_FW_MBX_TIMEOUT	100
 
 /* MBOX Command VER */
+#define MBX_CMD_VER1	0x01
 #define MBX_CMD_VER2	0x02
 
 struct be_mcc_compl {
@@ -103,7 +104,7 @@ struct be_mcc_compl {
 
 /********** MCC door bell ************/
 #define DB_MCCQ_OFFSET 0x140
-#define DB_MCCQ_RING_ID_MASK 0x7FF		/* bits 0 - 10 */
+#define DB_MCCQ_RING_ID_MASK 0xFFFF		/* bits 0 - 15 */
 /* Number of entries posted */
 #define DB_MCCQ_NUM_POSTED_SHIFT 16		/* bits 16 - 29 */
 
@@ -117,6 +118,14 @@ struct be_mcc_compl {
 #define ASYNC_TRAILER_EVENT_CODE_SHIFT	8	/* bits 8 - 15 */
 #define ASYNC_TRAILER_EVENT_CODE_MASK	0xFF
 #define ASYNC_EVENT_CODE_LINK_STATE	0x1
+#define ASYNC_EVENT_CODE_ISCSI		0x4
+
+#define ASYNC_TRAILER_EVENT_TYPE_SHIFT	16	/* bits 16 - 23 */
+#define ASYNC_TRAILER_EVENT_TYPE_MASK	0xF
+#define ASYNC_EVENT_NEW_ISCSI_TGT_DISC	0x4
+#define ASYNC_EVENT_NEW_ISCSI_CONN	0x5
+#define ASYNC_EVENT_NEW_TCP_CONN	0x7
+
 struct be_async_event_trailer {
 	u32 code;
 };
@@ -269,6 +278,12 @@ struct be_cmd_resp_eq_create {
 	struct be_cmd_resp_hdr resp_hdr;
 	u16 eq_id;		/* sword */
 	u16 rsvd0;		/* sword */
+} __packed;
+
+struct be_set_eqd {
+	u32 eq_id;
+	u32 phase;
+	u32 delay_multiplier;
 } __packed;
 
 struct mgmt_chap_format {
@@ -617,12 +632,12 @@ static inline struct be_sge *nonembedded_sgl(struct be_mcc_wrb *wrb)
 /******************** Modify EQ Delay *******************/
 struct be_cmd_req_modify_eq_delay {
 	struct be_cmd_req_hdr hdr;
-	u32 num_eq;
+	__le32 num_eq;
 	struct {
-		u32 eq_id;
-		u32 phase;
-		u32 delay_multiplier;
-	} delay[8];
+		__le32 eq_id;
+		__le32 phase;
+		__le32 delay_multiplier;
+	} delay[MAX_CPUS];
 } __packed;
 
 /******************** Get MAC ADDR *******************/
@@ -708,8 +723,11 @@ unsigned int be_cmd_get_port_speed(struct beiscsi_hba *phba);
 
 void free_mcc_tag(struct be_ctrl_info *ctrl, unsigned int tag);
 
+int be_cmd_modify_eq_delay(struct beiscsi_hba *phba, struct be_set_eqd *,
+			    int num);
 int beiscsi_mccq_compl(struct beiscsi_hba *phba,
-			uint32_t tag, struct be_mcc_wrb **wrb, void *cmd_va);
+			uint32_t tag, struct be_mcc_wrb **wrb,
+			struct be_dma_mem *mbx_cmd_mem);
 /*ISCSI Functuions */
 int be_cmd_fw_initialize(struct be_ctrl_info *ctrl);
 int be_cmd_fw_uninit(struct be_ctrl_info *ctrl);
@@ -1004,6 +1022,26 @@ struct tcp_connect_and_offload_in {
 	u8 rsvd0[3];
 } __packed;
 
+struct tcp_connect_and_offload_in_v1 {
+	struct be_cmd_req_hdr hdr;
+	struct ip_addr_format ip_address;
+	u16 tcp_port;
+	u16 cid;
+	u16 cq_id;
+	u16 defq_id;
+	struct phys_addr dataout_template_pa;
+	u16 hdr_ring_id;
+	u16 data_ring_id;
+	u8 do_offload;
+	u8 ifd_state;
+	u8 rsvd0[2];
+	u16 tcp_window_size;
+	u8 tcp_window_scale_count;
+	u8 rsvd1;
+	u32 tcp_mss:24;
+	u8 rsvd2;
+} __packed;
+
 struct tcp_connect_and_offload_out {
 	struct be_cmd_resp_hdr hdr;
 	u32 connection_handle;
@@ -1017,8 +1055,8 @@ struct be_mcc_wrb_context {
 	int *users_final_status;
 } __packed;
 
-#define DB_DEF_PDU_RING_ID_MASK		0x3FF	/* bits 0 - 9 */
-#define DB_DEF_PDU_CQPROC_MASK		0x3FFF	/* bits 0 - 9 */
+#define DB_DEF_PDU_RING_ID_MASK	0x3FFF	/* bits 0 - 13 */
+#define DB_DEF_PDU_CQPROC_MASK		0x3FFF	/* bits 16 - 29 */
 #define DB_DEF_PDU_REARM_SHIFT		14
 #define DB_DEF_PDU_EVENT_SHIFT		15
 #define DB_DEF_PDU_CQPROC_SHIFT		16
@@ -1317,4 +1355,5 @@ void be_wrb_hdr_prepare(struct be_mcc_wrb *wrb, int payload_len,
 void be_cmd_hdr_prepare(struct be_cmd_req_hdr *req_hdr,
 			u8 subsystem, u8 opcode, int cmd_len);
 
+void be2iscsi_fail_session(struct iscsi_cls_session *cls_session);
 #endif /* !BEISCSI_CMDS_H */

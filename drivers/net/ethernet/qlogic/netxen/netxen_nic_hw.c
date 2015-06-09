@@ -537,7 +537,7 @@ static void netxen_p2_nic_set_multi(struct net_device *netdev)
 	u8 null_addr[ETH_ALEN];
 	int i;
 
-	memset(null_addr, 0, ETH_ALEN);
+	eth_zero_addr(null_addr);
 
 	if (netdev->flags & IFF_PROMISC) {
 
@@ -922,7 +922,7 @@ int netxen_config_ipaddr(struct netxen_adapter *adapter, __be32 ip, int cmd)
 
 	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0) {
-		printk(KERN_ERR "%s: could not notify %s IP 0x%x reuqest\n",
+		printk(KERN_ERR "%s: could not notify %s IP 0x%x request\n",
 				adapter->netdev->name,
 				(cmd == NX_IP_UP) ? "Add" : "Remove", ip);
 	}

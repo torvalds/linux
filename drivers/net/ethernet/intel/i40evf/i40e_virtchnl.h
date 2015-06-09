@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 Intel Corporation.
+ * Copyright(c) 2013 - 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -11,6 +11,9 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * The full GNU General Public License is included in this distribution in
  * the file called "COPYING".
@@ -56,30 +59,29 @@
  * of the virtchnl_msg structure.
  */
 enum i40e_virtchnl_ops {
-/* VF sends req. to pf for the following
- * ops.
+/* The PF sends status change events to VFs using
+ * the I40E_VIRTCHNL_OP_EVENT opcode.
+ * VFs send requests to the PF using the other ops.
  */
 	I40E_VIRTCHNL_OP_UNKNOWN = 0,
 	I40E_VIRTCHNL_OP_VERSION = 1, /* must ALWAYS be 1 */
-	I40E_VIRTCHNL_OP_RESET_VF,
-	I40E_VIRTCHNL_OP_GET_VF_RESOURCES,
-	I40E_VIRTCHNL_OP_CONFIG_TX_QUEUE,
-	I40E_VIRTCHNL_OP_CONFIG_RX_QUEUE,
-	I40E_VIRTCHNL_OP_CONFIG_VSI_QUEUES,
-	I40E_VIRTCHNL_OP_CONFIG_IRQ_MAP,
-	I40E_VIRTCHNL_OP_ENABLE_QUEUES,
-	I40E_VIRTCHNL_OP_DISABLE_QUEUES,
-	I40E_VIRTCHNL_OP_ADD_ETHER_ADDRESS,
-	I40E_VIRTCHNL_OP_DEL_ETHER_ADDRESS,
-	I40E_VIRTCHNL_OP_ADD_VLAN,
-	I40E_VIRTCHNL_OP_DEL_VLAN,
-	I40E_VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE,
-	I40E_VIRTCHNL_OP_GET_STATS,
-	I40E_VIRTCHNL_OP_FCOE,
-/* PF sends status change events to vfs using
- * the following op.
- */
-	I40E_VIRTCHNL_OP_EVENT,
+	I40E_VIRTCHNL_OP_RESET_VF = 2,
+	I40E_VIRTCHNL_OP_GET_VF_RESOURCES = 3,
+	I40E_VIRTCHNL_OP_CONFIG_TX_QUEUE = 4,
+	I40E_VIRTCHNL_OP_CONFIG_RX_QUEUE = 5,
+	I40E_VIRTCHNL_OP_CONFIG_VSI_QUEUES = 6,
+	I40E_VIRTCHNL_OP_CONFIG_IRQ_MAP = 7,
+	I40E_VIRTCHNL_OP_ENABLE_QUEUES = 8,
+	I40E_VIRTCHNL_OP_DISABLE_QUEUES = 9,
+	I40E_VIRTCHNL_OP_ADD_ETHER_ADDRESS = 10,
+	I40E_VIRTCHNL_OP_DEL_ETHER_ADDRESS = 11,
+	I40E_VIRTCHNL_OP_ADD_VLAN = 12,
+	I40E_VIRTCHNL_OP_DEL_VLAN = 13,
+	I40E_VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE = 14,
+	I40E_VIRTCHNL_OP_GET_STATS = 15,
+	I40E_VIRTCHNL_OP_FCOE = 16,
+	I40E_VIRTCHNL_OP_EVENT = 17,
+	I40E_VIRTCHNL_OP_CONFIG_RSS = 18,
 };
 
 /* Virtual channel message descriptor. This overlays the admin queue
@@ -337,10 +339,6 @@ struct i40e_virtchnl_pf_event {
 
 	int severity;
 };
-
-/* The following are TBD, not necessary for LAN functionality.
- * I40E_VIRTCHNL_OP_FCOE
- */
 
 /* VF reset states - these are written into the RSTAT register:
  * I40E_VFGEN_RSTAT1 on the PF

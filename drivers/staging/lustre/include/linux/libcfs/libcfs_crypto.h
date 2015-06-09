@@ -31,7 +31,7 @@
 struct cfs_crypto_hash_type {
 	char		*cht_name;      /**< hash algorithm name, equal to
 					 * format name for crypto api */
-	unsigned int    cht_key;	/**< init key by default (vaild for
+	unsigned int    cht_key;	/**< init key by default (valid for
 					 * 4 bytes context like crc32, adler */
 	unsigned int    cht_size;       /**< hash digest size */
 };
@@ -83,8 +83,7 @@ static inline const char *cfs_crypto_hash_name(unsigned char hash_alg)
 	ht = cfs_crypto_hash_type(hash_alg);
 	if (ht)
 		return ht->cht_name;
-	else
-		return "unknown";
+	return "unknown";
 }
 
 /**     Return digest size for valid algorithm identifier or 0 */
@@ -95,8 +94,7 @@ static inline int cfs_crypto_hash_digestsize(unsigned char hash_alg)
 	ht = cfs_crypto_hash_type(hash_alg);
 	if (ht)
 		return ht->cht_size;
-	else
-		return 0;
+	return 0;
 }
 
 /**     Return hash identifier for valid hash algorithm name or 0xFF */

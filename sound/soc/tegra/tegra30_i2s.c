@@ -357,7 +357,7 @@ static const struct regmap_config tegra30_i2s_regmap_config = {
 	.writeable_reg = tegra30_i2s_wr_rd_reg,
 	.readable_reg = tegra30_i2s_wr_rd_reg,
 	.volatile_reg = tegra30_i2s_volatile_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_FLAT,
 };
 
 static const struct tegra30_i2s_soc_data tegra30_i2s_config = {
@@ -585,7 +585,6 @@ static const struct dev_pm_ops tegra30_i2s_pm_ops = {
 static struct platform_driver tegra30_i2s_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = tegra30_i2s_of_match,
 		.pm = &tegra30_i2s_pm_ops,
 	},

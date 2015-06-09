@@ -1,6 +1,6 @@
 /*
  *  comedi/drivers/das08.c
- *  comedi driver for common DAS08 support (used by ISA/PCI/PCMCIA drivers)
+ *  comedi module for common DAS08 support (used by ISA/PCI/PCMCIA drivers)
  *
  *  COMEDI - Linux Control and Measurement Device Interface
  *  Copyright (C) 2000 David A. Schleef <ds@schleef.org>
@@ -18,27 +18,12 @@
  *  GNU General Public License for more details.
  */
 
-/*
- * Driver: das08
- * Description: DAS-08 compatible boards
- * Devices: various, see das08_isa, das08_cs, and das08_pci drivers
- * Author: Warren Jasper, ds, Frank Hess
- * Updated: Fri, 31 Aug 2012 19:19:06 +0100
- * Status: works
- *
- * This driver is used by the das08_isa, das08_cs, and das08_pci
- * drivers to provide the common support for the DAS-08 hardware.
- *
- * The driver doesn't support asynchronous commands, since the
- * cheap das08 hardware doesn't really support them.
- */
-
 #include <linux/module.h>
 
 #include "../comedidev.h"
 
 #include "8255.h"
-#include "8253.h"
+#include "comedi_8254.h"
 #include "das08.h"
 
 /*
@@ -201,17 +186,29 @@ static const int *const das08_gainlists[] = {
 	das08_pgm_gainlist,
 };
 
-#define TIMEOUT 100000
+static int das08_ai_eoc(struct comedi_device *dev,
+			struct comedi_subdevice *s,
+			struct comedi_insn *insn,
+			unsigned long context)
+{
+	unsigned int status;
+
+	status = inb(dev->iobase + DAS08_STATUS);
+	if ((status & DAS08_EOC) == 0)
+		return 0;
+	return -EBUSY;
+}
 
 static int das08_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
-	const struct das08_board_struct *thisboard = comedi_board(dev);
+	const struct das08_board_struct *thisboard = dev->board_ptr;
 	struct das08_private_struct *devpriv = dev->private;
-	int i, n;
+	int n;
 	int chan;
 	int range;
 	int lsb, msb;
+	int ret;
 
 	chan = CR_CHAN(insn->chanspec);
 	range = CR_RANGE(insn->chanspec);
@@ -244,14 +241,10 @@ static int das08_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		/* trigger conversion */
 		outb_p(0, dev->iobase + DAS08_TRIG_12BIT);
 
-		for (i = 0; i < TIMEOUT; i++) {
-			if (!(inb(dev->iobase + DAS08_STATUS) & DAS08_EOC))
-				break;
-		}
-		if (i == TIMEOUT) {
-			dev_err(dev->class_dev, "timeout\n");
-			return -ETIME;
-		}
+		ret = comedi_timeout(dev, s, insn, das08_ai_eoc, 0);
+		if (ret)
+			return ret;
+
 		msb = inb(dev->iobase + DAS08_MSB);
 		lsb = inb(dev->iobase + DAS08_LSB);
 		if (thisboard->ai_encoding == das08_encode12) {
@@ -265,7 +258,7 @@ static int das08_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			else
 				data[n] = (1 << 15) - (lsb | (msb & 0x7f) << 8);
 		} else {
-			comedi_error(dev, "bug! unknown ai encoding");
+			dev_err(dev->class_dev, "bug! unknown ai encoding\n");
 			return -1;
 		}
 	}
@@ -329,8 +322,7 @@ static int das08jr_do_wbits(struct comedi_device *dev,
 static void das08_ao_set_data(struct comedi_device *dev,
 			      unsigned int chan, unsigned int data)
 {
-	const struct das08_board_struct *thisboard = comedi_board(dev);
-	struct das08_private_struct *devpriv = dev->private;
+	const struct das08_board_struct *thisboard = dev->board_ptr;
 	unsigned char lsb;
 	unsigned char msb;
 
@@ -347,114 +339,33 @@ static void das08_ao_set_data(struct comedi_device *dev,
 		/* load DACs */
 		inb(dev->iobase + DAS08AO_AO_UPDATE);
 	}
-	devpriv->ao_readback[chan] = data;
 }
 
-static void das08_ao_initialize(struct comedi_device *dev,
-				struct comedi_subdevice *s)
+static int das08_ao_insn_write(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
-	int n;
-	unsigned int data;
-
-	data = s->maxdata / 2;	/* should be about 0 volts */
-	for (n = 0; n < s->n_chan; n++)
-		das08_ao_set_data(dev, n, data);
-}
-
-static int das08_ao_winsn(struct comedi_device *dev,
-			  struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
-{
-	unsigned int n;
-	unsigned int chan;
-
-	chan = CR_CHAN(insn->chanspec);
-
-	for (n = 0; n < insn->n; n++)
-		das08_ao_set_data(dev, chan, *data);
-
-	return n;
-}
-
-static int das08_ao_rinsn(struct comedi_device *dev,
-			  struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
-{
-	struct das08_private_struct *devpriv = dev->private;
-	unsigned int n;
-	unsigned int chan;
-
-	chan = CR_CHAN(insn->chanspec);
-
-	for (n = 0; n < insn->n; n++)
-		data[n] = devpriv->ao_readback[chan];
-
-	return n;
-}
-
-static void i8254_initialize(struct comedi_device *dev)
-{
-	const struct das08_board_struct *thisboard = comedi_board(dev);
-	unsigned long i8254_iobase = dev->iobase + thisboard->i8254_offset;
-	unsigned int mode = I8254_MODE0 | I8254_BINARY;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = s->readback[chan];
 	int i;
 
-	for (i = 0; i < 3; ++i)
-		i8254_set_mode(i8254_iobase, 0, i, mode);
-}
-
-static int das08_counter_read(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
-{
-	const struct das08_board_struct *thisboard = comedi_board(dev);
-	unsigned long i8254_iobase = dev->iobase + thisboard->i8254_offset;
-	int chan = insn->chanspec;
-
-	data[0] = i8254_read(i8254_iobase, 0, chan);
-	return 1;
-}
-
-static int das08_counter_write(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	const struct das08_board_struct *thisboard = comedi_board(dev);
-	unsigned long i8254_iobase = dev->iobase + thisboard->i8254_offset;
-	int chan = insn->chanspec;
-
-	i8254_write(i8254_iobase, 0, chan, data[0]);
-	return 1;
-}
-
-static int das08_counter_config(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
-{
-	const struct das08_board_struct *thisboard = comedi_board(dev);
-	unsigned long i8254_iobase = dev->iobase + thisboard->i8254_offset;
-	int chan = insn->chanspec;
-
-	switch (data[0]) {
-	case INSN_CONFIG_SET_COUNTER_MODE:
-		i8254_set_mode(i8254_iobase, 0, chan, data[1]);
-		break;
-	case INSN_CONFIG_8254_READ_STATUS:
-		data[1] = i8254_status(i8254_iobase, 0, chan);
-		break;
-	default:
-		return -EINVAL;
-		break;
+	for (i = 0; i < insn->n; i++) {
+		val = data[i];
+		das08_ao_set_data(dev, chan, val);
 	}
-	return 2;
+	s->readback[chan] = val;
+
+	return insn->n;
 }
 
 int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 {
-	const struct das08_board_struct *thisboard = comedi_board(dev);
+	const struct das08_board_struct *thisboard = dev->board_ptr;
 	struct das08_private_struct *devpriv = dev->private;
 	struct comedi_subdevice *s;
 	int ret;
+	int i;
 
 	dev->iobase = iobase;
 
@@ -491,9 +402,17 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 		s->n_chan = 2;
 		s->maxdata = (1 << thisboard->ao_nbits) - 1;
 		s->range_table = &range_bipolar5;
-		s->insn_write = das08_ao_winsn;
-		s->insn_read = das08_ao_rinsn;
-		das08_ao_initialize(dev, s);
+		s->insn_write = das08_ao_insn_write;
+
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
+
+		/* initialize all channels to 0V */
+		for (i = 0; i < s->n_chan; i++) {
+			s->readback[i] = s->maxdata / 2;
+			das08_ao_set_data(dev, i, s->readback[i]);
+		}
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
@@ -516,7 +435,7 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 	/* do */
 	if (thisboard->do_nchan) {
 		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
+		s->subdev_flags = SDF_WRITABLE;
 		s->n_chan = thisboard->do_nchan;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
@@ -529,24 +448,23 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 	s = &dev->subdevices[4];
 	/* 8255 */
 	if (thisboard->i8255_offset != 0) {
-		subdev_8255_init(dev, s, NULL, (unsigned long)(dev->iobase +
-							       thisboard->
-							       i8255_offset));
+		ret = subdev_8255_init(dev, s, NULL, thisboard->i8255_offset);
+		if (ret)
+			return ret;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
+	/* Counter subdevice (8254) */
 	s = &dev->subdevices[5];
-	/* 8254 */
-	if (thisboard->i8254_offset != 0) {
-		s->type = COMEDI_SUBD_COUNTER;
-		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
-		s->n_chan = 3;
-		s->maxdata = 0xFFFF;
-		s->insn_read = das08_counter_read;
-		s->insn_write = das08_counter_write;
-		s->insn_config = das08_counter_config;
-		i8254_initialize(dev);
+	if (thisboard->i8254_offset) {
+		dev->pacer = comedi_8254_init(dev->iobase +
+					      thisboard->i8254_offset,
+					      0, I8254_IO8, 0);
+		if (!dev->pacer)
+			return -ENOMEM;
+
+		comedi_8254_subdevice_init(s, dev->pacer);
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}

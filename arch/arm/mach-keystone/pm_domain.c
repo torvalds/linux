@@ -19,7 +19,7 @@
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int keystone_pm_runtime_suspend(struct device *dev)
 {
 	int ret;
@@ -61,7 +61,7 @@ static struct pm_clk_notifier_block platform_domain_notifier = {
 	.pm_domain = &keystone_pm_domain,
 };
 
-static struct of_device_id of_keystone_table[] = {
+static const struct of_device_id of_keystone_table[] = {
 	{.compatible = "ti,keystone"},
 	{ /* end of list */ },
 };

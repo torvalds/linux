@@ -178,7 +178,7 @@ static int bt8xxgpio_probe(struct pci_dev *dev,
 	struct bt8xxgpio *bg;
 	int err;
 
-	bg = kzalloc(sizeof(*bg), GFP_KERNEL);
+	bg = devm_kzalloc(&dev->dev, sizeof(struct bt8xxgpio), GFP_KERNEL);
 	if (!bg)
 		return -ENOMEM;
 
@@ -188,9 +188,9 @@ static int bt8xxgpio_probe(struct pci_dev *dev,
 	err = pci_enable_device(dev);
 	if (err) {
 		printk(KERN_ERR "bt8xxgpio: Can't enable device.\n");
-		goto err_freebg;
+		return err;
 	}
-	if (!request_mem_region(pci_resource_start(dev, 0),
+	if (!devm_request_mem_region(&dev->dev, pci_resource_start(dev, 0),
 				pci_resource_len(dev, 0),
 				"bt8xxgpio")) {
 		printk(KERN_WARNING "bt8xxgpio: Can't request iomem (0x%llx).\n",
@@ -201,11 +201,11 @@ static int bt8xxgpio_probe(struct pci_dev *dev,
 	pci_set_master(dev);
 	pci_set_drvdata(dev, bg);
 
-	bg->mmio = ioremap(pci_resource_start(dev, 0), 0x1000);
+	bg->mmio = devm_ioremap(&dev->dev, pci_resource_start(dev, 0), 0x1000);
 	if (!bg->mmio) {
 		printk(KERN_ERR "bt8xxgpio: ioremap() failed\n");
 		err = -EIO;
-		goto err_release_mem;
+		goto err_disable;
 	}
 
 	/* Disable interrupts */
@@ -220,18 +220,13 @@ static int bt8xxgpio_probe(struct pci_dev *dev,
 	err = gpiochip_add(&bg->gpio);
 	if (err) {
 		printk(KERN_ERR "bt8xxgpio: Failed to register GPIOs\n");
-		goto err_release_mem;
+		goto err_disable;
 	}
 
 	return 0;
 
-err_release_mem:
-	release_mem_region(pci_resource_start(dev, 0),
-			   pci_resource_len(dev, 0));
 err_disable:
 	pci_disable_device(dev);
-err_freebg:
-	kfree(bg);
 
 	return err;
 }
@@ -246,12 +241,7 @@ static void bt8xxgpio_remove(struct pci_dev *pdev)
 	bgwrite(~0x0, BT848_INT_STAT);
 	bgwrite(0x0, BT848_GPIO_OUT_EN);
 
-	iounmap(bg->mmio);
-	release_mem_region(pci_resource_start(pdev, 0),
-			   pci_resource_len(pdev, 0));
 	pci_disable_device(pdev);
-
-	kfree(bg);
 }
 
 #ifdef CONFIG_PM

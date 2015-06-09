@@ -98,7 +98,11 @@
 #define TWL4030_BASEADD_BACKUP		0x0014
 #define TWL4030_BASEADD_INT		0x002E
 #define TWL4030_BASEADD_PM_MASTER	0x0036
+
 #define TWL4030_BASEADD_PM_RECEIVER	0x005B
+#define TWL4030_DCDC_GLOBAL_CFG		0x06
+#define SMARTREFLEX_ENABLE		BIT(3)
+
 #define TWL4030_BASEADD_RTC		0x001C
 #define TWL4030_BASEADD_SECURED_REG	0x0000
 
@@ -203,7 +207,7 @@ static struct twl_mapping twl4030_map[] = {
 	{ 2, TWL5031_BASEADD_INTERRUPTS },
 };
 
-static struct reg_default twl4030_49_defaults[] = {
+static const struct reg_default twl4030_49_defaults[] = {
 	/* Audio Registers */
 	{ 0x01, 0x00}, /* CODEC_MODE	*/
 	{ 0x02, 0x00}, /* OPTION	*/
@@ -282,11 +286,11 @@ static struct reg_default twl4030_49_defaults[] = {
 static bool twl4030_49_nop_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case 0:
-	case 3:
-	case 40:
-	case 41:
-	case 42:
+	case 0x00:
+	case 0x03:
+	case 0x40:
+	case 0x41:
+	case 0x42:
 		return false;
 	default:
 		return true;
@@ -302,7 +306,7 @@ static const struct regmap_access_table twl4030_49_volatile_table = {
 	.n_yes_ranges = ARRAY_SIZE(twl4030_49_volatile_ranges),
 };
 
-static struct regmap_config twl4030_regmap_config[4] = {
+static const struct regmap_config twl4030_regmap_config[4] = {
 	{
 		/* Address 0x48 */
 		.reg_bits = 8,
@@ -365,7 +369,7 @@ static struct twl_mapping twl6030_map[] = {
 	{ 1, TWL6030_BASEADD_GASGAUGE },
 };
 
-static struct regmap_config twl6030_regmap_config[3] = {
+static const struct regmap_config twl6030_regmap_config[3] = {
 	{
 		/* Address 0x48 */
 		.reg_bits = 8,
@@ -1083,7 +1087,7 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct twl4030_platform_data	*pdata = dev_get_platdata(&client->dev);
 	struct device_node		*node = client->dev.of_node;
 	struct platform_device		*pdev;
-	struct regmap_config		*twl_regmap_config;
+	const struct regmap_config	*twl_regmap_config;
 	int				irq_base = 0;
 	int				status;
 	unsigned			i, num_slaves;
@@ -1204,6 +1208,11 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	 * Disable TWL4030/TWL5030 I2C Pull-up on I2C1 and I2C4(SR) interface.
 	 * Program I2C_SCL_CTRL_PU(bit 0)=0, I2C_SDA_CTRL_PU (bit 2)=0,
 	 * SR_I2C_SCL_CTRL_PU(bit 4)=0 and SR_I2C_SDA_CTRL_PU(bit 6)=0.
+	 *
+	 * Also, always enable SmartReflex bit as that's needed for omaps to
+	 * to do anything over I2C4 for voltage scaling even if SmartReflex
+	 * is disabled. Without the SmartReflex bit omap sys_clkreq idle
+	 * signal will never trigger for retention idle.
 	 */
 	if (twl_class_is_4030()) {
 		u8 temp;
@@ -1212,6 +1221,12 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		temp &= ~(SR_I2C_SDA_CTRL_PU | SR_I2C_SCL_CTRL_PU | \
 			I2C_SDA_CTRL_PU | I2C_SCL_CTRL_PU);
 		twl_i2c_write_u8(TWL4030_MODULE_INTBR, temp, REG_GPPUPDCTR1);
+
+		twl_i2c_read_u8(TWL_MODULE_PM_RECEIVER, &temp,
+				TWL4030_DCDC_GLOBAL_CFG);
+		temp |= SMARTREFLEX_ENABLE;
+		twl_i2c_write_u8(TWL_MODULE_PM_RECEIVER, temp,
+				 TWL4030_DCDC_GLOBAL_CFG);
 	}
 
 	if (node) {

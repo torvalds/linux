@@ -30,12 +30,12 @@ const struct cpu_operations *cpu_ops[NR_CPUS];
 static const struct cpu_operations *supported_cpu_ops[] __initconst = {
 #ifdef CONFIG_SMP
 	&smp_spin_table_ops,
-	&cpu_psci_ops,
 #endif
+	&cpu_psci_ops,
 	NULL,
 };
 
-static const struct cpu_operations * __init cpu_get_ops(const char *name)
+const struct cpu_operations * __init cpu_get_ops(const char *name)
 {
 	const struct cpu_operations **ops = supported_cpu_ops;
 

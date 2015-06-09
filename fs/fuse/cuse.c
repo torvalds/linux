@@ -38,7 +38,6 @@
 #include <linux/device.h>
 #include <linux/file.h>
 #include <linux/fs.h>
-#include <linux/aio.h>
 #include <linux/kdev_t.h>
 #include <linux/kthread.h>
 #include <linux/list.h>
@@ -48,6 +47,7 @@
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/module.h>
+#include <linux/uio.h>
 
 #include "fuse_i.h"
 
@@ -88,28 +88,24 @@ static struct list_head *cuse_conntbl_head(dev_t devt)
  * FUSE file.
  */
 
-static ssize_t cuse_read(struct file *file, char __user *buf, size_t count,
-			 loff_t *ppos)
+static ssize_t cuse_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 {
+	struct fuse_io_priv io = { .async = 0, .file = kiocb->ki_filp };
 	loff_t pos = 0;
-	struct iovec iov = { .iov_base = buf, .iov_len = count };
-	struct fuse_io_priv io = { .async = 0, .file = file };
 
-	return fuse_direct_io(&io, &iov, 1, count, &pos, 0);
+	return fuse_direct_io(&io, to, &pos, FUSE_DIO_CUSE);
 }
 
-static ssize_t cuse_write(struct file *file, const char __user *buf,
-			  size_t count, loff_t *ppos)
+static ssize_t cuse_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 {
+	struct fuse_io_priv io = { .async = 0, .file = kiocb->ki_filp };
 	loff_t pos = 0;
-	struct iovec iov = { .iov_base = (void __user *)buf, .iov_len = count };
-	struct fuse_io_priv io = { .async = 0, .file = file };
-
 	/*
 	 * No locking or generic_write_checks(), the server is
 	 * responsible for locking and sanity checks.
 	 */
-	return fuse_direct_io(&io, &iov, 1, count, &pos, 1);
+	return fuse_direct_io(&io, from, &pos,
+			      FUSE_DIO_WRITE | FUSE_DIO_CUSE);
 }
 
 static int cuse_open(struct inode *inode, struct file *file)
@@ -181,8 +177,8 @@ static long cuse_file_compat_ioctl(struct file *file, unsigned int cmd,
 
 static const struct file_operations cuse_frontend_fops = {
 	.owner			= THIS_MODULE,
-	.read			= cuse_read,
-	.write			= cuse_write,
+	.read_iter		= cuse_read_iter,
+	.write_iter		= cuse_write_iter,
 	.open			= cuse_open,
 	.release		= cuse_release,
 	.unlocked_ioctl		= cuse_file_ioctl,
@@ -410,7 +406,7 @@ err_unlock:
 err_region:
 	unregister_chrdev_region(devt, 1);
 err:
-	fuse_conn_kill(fc);
+	fuse_abort_conn(fc);
 	goto out;
 }
 
@@ -568,7 +564,7 @@ static ssize_t cuse_class_waiting_show(struct device *dev,
 
 	return sprintf(buf, "%d\n", atomic_read(&cc->fc.num_waiting));
 }
-static DEVICE_ATTR(waiting, S_IFREG | 0400, cuse_class_waiting_show, NULL);
+static DEVICE_ATTR(waiting, 0400, cuse_class_waiting_show, NULL);
 
 static ssize_t cuse_class_abort_store(struct device *dev,
 				      struct device_attribute *attr,
@@ -579,7 +575,7 @@ static ssize_t cuse_class_abort_store(struct device *dev,
 	fuse_abort_conn(&cc->fc);
 	return count;
 }
-static DEVICE_ATTR(abort, S_IFREG | 0200, NULL, cuse_class_abort_store);
+static DEVICE_ATTR(abort, 0200, NULL, cuse_class_abort_store);
 
 static struct attribute *cuse_class_dev_attrs[] = {
 	&dev_attr_waiting.attr,

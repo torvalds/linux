@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/err.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
@@ -1011,13 +1012,10 @@ static struct tps65910_board *tps65910_parse_dt_reg_data(
 
 	pmic_plat_data = devm_kzalloc(&pdev->dev, sizeof(*pmic_plat_data),
 					GFP_KERNEL);
-
-	if (!pmic_plat_data) {
-		dev_err(&pdev->dev, "Failure to alloc pdata for regulators.\n");
+	if (!pmic_plat_data)
 		return NULL;
-	}
 
-	np = of_node_get(pdev->dev.parent->of_node);
+	np = pdev->dev.parent->of_node;
 	regulators = of_get_child_by_name(np, "regulators");
 	if (!regulators) {
 		dev_err(&pdev->dev, "regulator node not found\n");
@@ -1050,7 +1048,7 @@ static struct tps65910_board *tps65910_parse_dt_reg_data(
 	*tps65910_reg_matches = matches;
 
 	for (idx = 0; idx < count; idx++) {
-		if (!matches[idx].init_data || !matches[idx].of_node)
+		if (!matches[idx].of_node)
 			continue;
 
 		pmic_plat_data->tps65910_pmic_init_data[idx] =
@@ -1080,7 +1078,6 @@ static int tps65910_probe(struct platform_device *pdev)
 	struct tps65910 *tps65910 = dev_get_drvdata(pdev->dev.parent);
 	struct regulator_config config = { };
 	struct tps_info *info;
-	struct regulator_init_data *reg_data;
 	struct regulator_dev *rdev;
 	struct tps65910_reg *pmic;
 	struct tps65910_board *pmic_plat_data;
@@ -1098,10 +1095,8 @@ static int tps65910_probe(struct platform_device *pdev)
 	}
 
 	pmic = devm_kzalloc(&pdev->dev, sizeof(*pmic), GFP_KERNEL);
-	if (!pmic) {
-		dev_err(&pdev->dev, "Memory allocation failed for pmic\n");
+	if (!pmic)
 		return -ENOMEM;
-	}
 
 	pmic->mfd = tps65910;
 	platform_set_drvdata(pdev, pmic);
@@ -1130,35 +1125,21 @@ static int tps65910_probe(struct platform_device *pdev)
 
 	pmic->desc = devm_kzalloc(&pdev->dev, pmic->num_regulators *
 			sizeof(struct regulator_desc), GFP_KERNEL);
-	if (!pmic->desc) {
-		dev_err(&pdev->dev, "Memory alloc fails for desc\n");
+	if (!pmic->desc)
 		return -ENOMEM;
-	}
 
 	pmic->info = devm_kzalloc(&pdev->dev, pmic->num_regulators *
 			sizeof(struct tps_info *), GFP_KERNEL);
-	if (!pmic->info) {
-		dev_err(&pdev->dev, "Memory alloc fails for info\n");
+	if (!pmic->info)
 		return -ENOMEM;
-	}
 
 	pmic->rdev = devm_kzalloc(&pdev->dev, pmic->num_regulators *
 			sizeof(struct regulator_dev *), GFP_KERNEL);
-	if (!pmic->rdev) {
-		dev_err(&pdev->dev, "Memory alloc fails for rdev\n");
+	if (!pmic->rdev)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < pmic->num_regulators && i < TPS65910_NUM_REGS;
 			i++, info++) {
-
-		reg_data = pmic_plat_data->tps65910_pmic_init_data[i];
-
-		/* Regulator API handles empty constraints but not NULL
-		 * constraints */
-		if (!reg_data)
-			continue;
-
 		/* Register the regulators */
 		pmic->info[i] = info;
 
@@ -1210,7 +1191,7 @@ static int tps65910_probe(struct platform_device *pdev)
 		pmic->desc[i].enable_mask = TPS65910_SUPPLY_STATE_ENABLED;
 
 		config.dev = tps65910->dev;
-		config.init_data = reg_data;
+		config.init_data = pmic_plat_data->tps65910_pmic_init_data[i];
 		config.driver_data = pmic;
 		config.regmap = tps65910->regmap;
 
@@ -1265,7 +1246,6 @@ static void tps65910_shutdown(struct platform_device *pdev)
 static struct platform_driver tps65910_driver = {
 	.driver = {
 		.name = "tps65910-pmic",
-		.owner = THIS_MODULE,
 	},
 	.probe = tps65910_probe,
 	.shutdown = tps65910_shutdown,

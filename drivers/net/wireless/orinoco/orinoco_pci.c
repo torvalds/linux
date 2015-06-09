@@ -94,7 +94,7 @@ static int orinoco_pci_cor_reset(struct orinoco_private *priv)
 	mdelay(HERMES_PCI_COR_OFFT);
 
 	/* The card is ready when it's no longer busy */
-	timeout = jiffies + (HERMES_PCI_COR_BUSYT * HZ / 1000);
+	timeout = jiffies + msecs_to_jiffies(HERMES_PCI_COR_BUSYT);
 	reg = hermes_read_regn(hw, CMD);
 	while (time_before(jiffies, timeout) && (reg & HERMES_CMD_BUSY)) {
 		mdelay(1);
@@ -210,7 +210,7 @@ static void orinoco_pci_remove_one(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(orinoco_pci_id_table) = {
+static const struct pci_device_id orinoco_pci_id_table[] = {
 	/* Intersil Prism 3 */
 	{0x1260, 0x3872, PCI_ANY_ID, PCI_ANY_ID,},
 	/* Intersil Prism 2.5 */

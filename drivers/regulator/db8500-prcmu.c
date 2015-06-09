@@ -263,6 +263,8 @@ dbx500_regulator_info[DB8500_NUM_REGULATORS] = {
 			.ops	= &db8500_regulator_ops,
 			.type	= REGULATOR_VOLTAGE,
 			.owner	= THIS_MODULE,
+			.fixed_uV = 1800000,
+			.n_voltages = 1,
 		},
 		.exclude_from_power_state = true,
 	},
@@ -532,7 +534,6 @@ static int db8500_regulator_remove(struct platform_device *pdev)
 static struct platform_driver db8500_regulator_driver = {
 	.driver = {
 		.name = "db8500-prcmu-regulators",
-		.owner = THIS_MODULE,
 	},
 	.probe = db8500_regulator_probe,
 	.remove = db8500_regulator_remove,

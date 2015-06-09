@@ -69,7 +69,7 @@ static int ivtv_s_video_encoding(struct cx2341x_handler *cxhdl, u32 val)
 	/* fix videodecoder resolution */
 	fmt.width = cxhdl->width / (is_mpeg1 ? 2 : 1);
 	fmt.height = cxhdl->height;
-	fmt.code = V4L2_MBUS_FMT_FIXED;
+	fmt.code = MEDIA_BUS_FMT_FIXED;
 	v4l2_subdev_call(itv->sd_video, video, s_mbus_fmt, &fmt);
 	return 0;
 }
@@ -135,8 +135,8 @@ static int ivtv_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	/* V4L2_CID_MPEG_VIDEO_DEC_PTS and V4L2_CID_MPEG_VIDEO_DEC_FRAME
 	   control cluster */
 	case V4L2_CID_MPEG_VIDEO_DEC_PTS:
-		return ivtv_g_pts_frame(itv, &itv->ctrl_pts->val64,
-					     &itv->ctrl_frame->val64);
+		return ivtv_g_pts_frame(itv, itv->ctrl_pts->p_new.p_s64,
+					     itv->ctrl_frame->p_new.p_s64);
 	}
 	return 0;
 }

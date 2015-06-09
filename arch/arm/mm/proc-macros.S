@@ -98,7 +98,7 @@
 #endif
 #if !defined (CONFIG_ARM_LPAE) && \
 	(L_PTE_XN+L_PTE_USER+L_PTE_RDONLY+L_PTE_DIRTY+L_PTE_YOUNG+\
-	 L_PTE_FILE+L_PTE_PRESENT) > L_PTE_SHARED
+	 L_PTE_PRESENT) > L_PTE_SHARED
 #error Invalid Linux PTE bit settings
 #endif
 #endif	/* CONFIG_MMU */
@@ -112,13 +112,9 @@
  *  100x   1   0   1	r/o	no acc
  *  10x0   1   0   1	r/o	no acc
  *  1011   0   0   1	r/w	no acc
- *  110x   0   1   0	r/w	r/o
- *  11x0   0   1   0	r/w	r/o
- *  1111   0   1   1	r/w	r/w
- *
- * If !CONFIG_CPU_USE_DOMAINS, the following permissions are changed:
  *  110x   1   1   1	r/o	r/o
  *  11x0   1   1   1	r/o	r/o
+ *  1111   0   1   1	r/w	r/w
  */
 	.macro	armv6_mt_table pfx
 \pfx\()_mt_table:
@@ -137,7 +133,7 @@
 	.long	PTE_EXT_TEX(2)					@ L_PTE_MT_DEV_NONSHARED
 	.long	0x00						@ unused
 	.long	0x00						@ unused
-	.long	0x00						@ unused
+	.long	PTE_CACHEABLE | PTE_BUFFERABLE | PTE_EXT_APX	@ L_PTE_MT_VECTORS
 	.endm
 
 	.macro	armv6_set_pte_ext pfx
@@ -158,24 +154,21 @@
 
 	tst	r1, #L_PTE_USER
 	orrne	r3, r3, #PTE_EXT_AP1
-#ifdef CONFIG_CPU_USE_DOMAINS
-	@ allow kernel read/write access to read-only user pages
 	tstne	r3, #PTE_EXT_APX
-	bicne	r3, r3, #PTE_EXT_APX | PTE_EXT_AP0
-#endif
+
+	@ user read-only -> kernel read-only
+	bicne	r3, r3, #PTE_EXT_AP0
 
 	tst	r1, #L_PTE_XN
 	orrne	r3, r3, #PTE_EXT_XN
 
-	orr	r3, r3, r2
+	eor	r3, r3, r2
 
 	tst	r1, #L_PTE_YOUNG
 	tstne	r1, #L_PTE_PRESENT
 	moveq	r3, #0
-#ifndef CONFIG_CPU_USE_DOMAINS
 	tstne	r1, #L_PTE_NONE
 	movne	r3, #0
-#endif
 
 	str	r3, [r0]
 	mcr	p15, 0, r0, c7, c10, 1		@ flush_pte
@@ -286,7 +279,7 @@ ENTRY(\name\()_processor_functions)
 
 	.if \suspend
 	.word	cpu_\name\()_suspend_size
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_ARM_CPU_SUSPEND
 	.word	cpu_\name\()_do_suspend
 	.word	cpu_\name\()_do_resume
 #else
@@ -337,4 +330,32 @@ ENTRY(\name\()_tlb_fns)
 .macro globl_equ x, y
 	.globl	\x
 	.equ	\x, \y
+.endm
+
+.macro	initfn, func, base
+	.long	\func - \base
+.endm
+
+	/*
+	 * Macro to calculate the log2 size for the protection region
+	 * registers. This calculates rd = log2(size) - 1.  tmp must
+	 * not be the same register as rd.
+	 */
+.macro	pr_sz, rd, size, tmp
+	mov	\tmp, \size, lsr #12
+	mov	\rd, #11
+1:	movs	\tmp, \tmp, lsr #1
+	addne	\rd, \rd, #1
+	bne	1b
+.endm
+
+	/*
+	 * Macro to generate a protection region register value
+	 * given a pre-masked address, size, and enable bit.
+	 * Corrupts size.
+	 */
+.macro	pr_val, dest, addr, size, enable
+	pr_sz	\dest, \size, \size		@ calculate log2(size) - 1
+	orr	\dest, \addr, \dest, lsl #1	@ mask in the region size
+	orr	\dest, \dest, \enable
 .endm

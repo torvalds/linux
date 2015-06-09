@@ -47,20 +47,26 @@ Message and constructor argument pairs are:
 	'discard_promote_adjustment <value>'
 
 The sequential threshold indicates the number of contiguous I/Os
-required before a stream is treated as sequential.  The random threshold
+required before a stream is treated as sequential.  Once a stream is
+considered sequential it will bypass the cache.  The random threshold
 is the number of intervening non-contiguous I/Os that must be seen
 before the stream is treated as random again.
 
 The sequential and random thresholds default to 512 and 4 respectively.
 
-Large, sequential ios are probably better left on the origin device
-since spindles tend to have good bandwidth. The io_tracker counts
-contiguous I/Os to try to spot when the io is in one of these sequential
-modes.
+Large, sequential I/Os are probably better left on the origin device
+since spindles tend to have good sequential I/O bandwidth.  The
+io_tracker counts contiguous I/Os to try to spot when the I/O is in one
+of these sequential modes.  But there are use-cases for wanting to
+promote sequential blocks to the cache (e.g. fast application startup).
+If sequential threshold is set to 0 the sequential I/O detection is
+disabled and sequential I/O will no longer implicitly bypass the cache.
+Setting the random threshold to 0 does _not_ disable the random I/O
+stream detection.
 
-Internally the mq policy maintains a promotion threshold variable.  If
-the hit count of a block not in the cache goes above this threshold it
-gets promoted to the cache.  The read, write and discard promote adjustment
+Internally the mq policy determines a promotion threshold.  If the hit
+count of a block not in the cache goes above this threshold it gets
+promoted to the cache.  The read, write and discard promote adjustment
 tunables allow you to tweak the promotion threshold by adding a small
 value based on the io type.  They default to 4, 8 and 1 respectively.
 If you're trying to quickly warm a new cache device you may wish to

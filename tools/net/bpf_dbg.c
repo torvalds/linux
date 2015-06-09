@@ -87,9 +87,6 @@
 	__attribute__ ((format (printf, (pos_fmtstr), (pos_fmtargs))))
 #endif
 
-#define CMD(_name, _func) { .name = _name, .func = _func, }
-#define OP(_op, _name)      [_op] = _name
-
 enum {
 	CMD_OK,
 	CMD_ERR,
@@ -145,32 +142,32 @@ static size_t pcap_map_size = 0;
 static char *pcap_ptr_va_start, *pcap_ptr_va_curr;
 
 static const char * const op_table[] = {
-	OP(BPF_ST, "st"),
-	OP(BPF_STX, "stx"),
-	OP(BPF_LD_B, "ldb"),
-	OP(BPF_LD_H, "ldh"),
-	OP(BPF_LD_W, "ld"),
-	OP(BPF_LDX, "ldx"),
-	OP(BPF_LDX_B, "ldxb"),
-	OP(BPF_JMP_JA, "ja"),
-	OP(BPF_JMP_JEQ, "jeq"),
-	OP(BPF_JMP_JGT, "jgt"),
-	OP(BPF_JMP_JGE, "jge"),
-	OP(BPF_JMP_JSET, "jset"),
-	OP(BPF_ALU_ADD, "add"),
-	OP(BPF_ALU_SUB, "sub"),
-	OP(BPF_ALU_MUL, "mul"),
-	OP(BPF_ALU_DIV, "div"),
-	OP(BPF_ALU_MOD, "mod"),
-	OP(BPF_ALU_NEG, "neg"),
-	OP(BPF_ALU_AND, "and"),
-	OP(BPF_ALU_OR, "or"),
-	OP(BPF_ALU_XOR, "xor"),
-	OP(BPF_ALU_LSH, "lsh"),
-	OP(BPF_ALU_RSH, "rsh"),
-	OP(BPF_MISC_TAX, "tax"),
-	OP(BPF_MISC_TXA, "txa"),
-	OP(BPF_RET, "ret"),
+	[BPF_ST]	= "st",
+	[BPF_STX]	= "stx",
+	[BPF_LD_B]	= "ldb",
+	[BPF_LD_H]	= "ldh",
+	[BPF_LD_W]	= "ld",
+	[BPF_LDX]	= "ldx",
+	[BPF_LDX_B]	= "ldxb",
+	[BPF_JMP_JA]	= "ja",
+	[BPF_JMP_JEQ]	= "jeq",
+	[BPF_JMP_JGT]	= "jgt",
+	[BPF_JMP_JGE]	= "jge",
+	[BPF_JMP_JSET]	= "jset",
+	[BPF_ALU_ADD]	= "add",
+	[BPF_ALU_SUB]	= "sub",
+	[BPF_ALU_MUL]	= "mul",
+	[BPF_ALU_DIV]	= "div",
+	[BPF_ALU_MOD]	= "mod",
+	[BPF_ALU_NEG]	= "neg",
+	[BPF_ALU_AND]	= "and",
+	[BPF_ALU_OR]	= "or",
+	[BPF_ALU_XOR]	= "xor",
+	[BPF_ALU_LSH]	= "lsh",
+	[BPF_ALU_RSH]	= "rsh",
+	[BPF_MISC_TAX]	= "tax",
+	[BPF_MISC_TXA]	= "txa",
+	[BPF_RET]	= "ret",
 };
 
 static __check_format_printf(1, 2) int rl_printf(const char *fmt, ...)
@@ -823,7 +820,7 @@ do_div:
 		r->A &= r->X;
 		break;
 	case BPF_ALU_AND | BPF_K:
-		r->A &= r->X;
+		r->A &= K;
 		break;
 	case BPF_ALU_OR | BPF_X:
 		r->A |= r->X;
@@ -1127,7 +1124,6 @@ static int cmd_step(char *num)
 static int cmd_select(char *num)
 {
 	unsigned int which, i;
-	struct pcap_pkthdr *hdr;
 	bool have_next = true;
 
 	if (!pcap_loaded() || strlen(num) == 0)
@@ -1144,7 +1140,7 @@ static int cmd_select(char *num)
 
 	for (i = 0; i < which && (have_next = pcap_next_pkt()); i++)
 		/* noop */;
-	if (!have_next || (hdr = pcap_curr_pkt()) == NULL) {
+	if (!have_next || pcap_curr_pkt() == NULL) {
 		rl_printf("no packet #%u available!\n", which);
 		pcap_reset_pkt();
 		return CMD_ERR;
@@ -1177,9 +1173,8 @@ static int cmd_breakpoint(char *subcmd)
 static int cmd_run(char *num)
 {
 	static uint32_t pass = 0, fail = 0;
-	struct pcap_pkthdr *hdr;
 	bool has_limit = true;
-	int ret, pkts = 0, i = 0;
+	int pkts = 0, i = 0;
 
 	if (!bpf_prog_loaded() || !pcap_loaded())
 		return CMD_ERR;
@@ -1189,10 +1184,10 @@ static int cmd_run(char *num)
 		has_limit = false;
 
 	do {
-		hdr = pcap_curr_pkt();
-		ret = bpf_run_all(bpf_image, bpf_prog_len,
-				  (uint8_t *) hdr + sizeof(*hdr),
-				  hdr->caplen, hdr->len);
+		struct pcap_pkthdr *hdr = pcap_curr_pkt();
+		int ret = bpf_run_all(bpf_image, bpf_prog_len,
+				      (uint8_t *) hdr + sizeof(*hdr),
+				      hdr->caplen, hdr->len);
 		if (ret > 0)
 			pass++;
 		else if (ret == 0)
@@ -1245,14 +1240,14 @@ static int cmd_quit(char *dontcare)
 }
 
 static const struct shell_cmd cmds[] = {
-	CMD("load",		cmd_load),
-	CMD("select",		cmd_select),
-	CMD("step",		cmd_step),
-	CMD("run",		cmd_run),
-	CMD("breakpoint",	cmd_breakpoint),
-	CMD("disassemble",	cmd_disassemble),
-	CMD("dump",		cmd_dump),
-	CMD("quit",		cmd_quit),
+	{ .name = "load", .func = cmd_load },
+	{ .name = "select", .func = cmd_select },
+	{ .name = "step", .func = cmd_step },
+	{ .name = "run", .func = cmd_run },
+	{ .name = "breakpoint", .func = cmd_breakpoint },
+	{ .name = "disassemble", .func = cmd_disassemble },
+	{ .name = "dump", .func = cmd_dump },
+	{ .name = "quit", .func = cmd_quit },
 };
 
 static int execf(char *arg)
@@ -1280,7 +1275,6 @@ out:
 static char *shell_comp_gen(const char *buf, int state)
 {
 	static int list_index, len;
-	const char *name;
 
 	if (!state) {
 		list_index = 0;
@@ -1288,9 +1282,9 @@ static char *shell_comp_gen(const char *buf, int state)
 	}
 
 	for (; list_index < array_size(cmds); ) {
-		name = cmds[list_index].name;
-		list_index++;
+		const char *name = cmds[list_index].name;
 
+		list_index++;
 		if (strncmp(name, buf, len) == 0)
 			return strdup(name);
 	}
@@ -1322,15 +1316,8 @@ static void init_shell(FILE *fin, FILE *fout)
 {
 	char file[128];
 
-	memset(file, 0, sizeof(file));
-	snprintf(file, sizeof(file) - 1,
-		 "%s/.bpf_dbg_history", getenv("HOME"));
-
+	snprintf(file, sizeof(file), "%s/.bpf_dbg_history", getenv("HOME"));
 	read_history(file);
-
-	memset(file, 0, sizeof(file));
-	snprintf(file, sizeof(file) - 1,
-		 "%s/.bpf_dbg_init", getenv("HOME"));
 
 	rl_instream = fin;
 	rl_outstream = fout;
@@ -1348,37 +1335,41 @@ static void init_shell(FILE *fin, FILE *fout)
 	rl_bind_key_in_map('\t', rl_complete, emacs_meta_keymap);
 	rl_bind_key_in_map('\033', rl_complete, emacs_meta_keymap);
 
+	snprintf(file, sizeof(file), "%s/.bpf_dbg_init", getenv("HOME"));
 	rl_read_init_file(file);
+
 	rl_prep_terminal(0);
 	rl_set_signals();
 
 	signal(SIGINT, intr_shell);
 }
 
-static void exit_shell(void)
+static void exit_shell(FILE *fin, FILE *fout)
 {
 	char file[128];
 
-	memset(file, 0, sizeof(file));
-	snprintf(file, sizeof(file) - 1,
-		 "%s/.bpf_dbg_history", getenv("HOME"));
-
+	snprintf(file, sizeof(file), "%s/.bpf_dbg_history", getenv("HOME"));
 	write_history(file);
+
 	clear_history();
 	rl_deprep_terminal();
 
 	try_close_pcap();
+
+	if (fin != stdin)
+		fclose(fin);
+	if (fout != stdout)
+		fclose(fout);
 }
 
 static int run_shell_loop(FILE *fin, FILE *fout)
 {
 	char *buf;
-	int ret;
 
 	init_shell(fin, fout);
 
 	while ((buf = readline("> ")) != NULL) {
-		ret = execf(buf);
+		int ret = execf(buf);
 		if (ret == CMD_EX)
 			break;
 		if (ret == CMD_OK && strlen(buf) > 0)
@@ -1387,7 +1378,7 @@ static int run_shell_loop(FILE *fin, FILE *fout)
 		free(buf);
 	}
 
-	exit_shell();
+	exit_shell(fin, fout);
 	return 0;
 }
 

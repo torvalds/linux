@@ -613,34 +613,36 @@ END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
 	mfspr	r10, SPRN_SPRG_RSCRATCH0
 	b	InstructionStorage
 
+/* Define SPE handlers for e200 and e500v2 */
 #ifdef CONFIG_SPE
 	/* SPE Unavailable */
 	START_EXCEPTION(SPEUnavailable)
-	NORMAL_EXCEPTION_PROLOG(SPE_ALTIVEC_UNAVAIL)
+	NORMAL_EXCEPTION_PROLOG(SPE_UNAVAIL)
 	beq	1f
 	bl	load_up_spe
 	b	fast_exception_return
 1:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_EE_LITE(0x2010, KernelSPE)
-#else
-	EXCEPTION(0x2020, SPE_ALTIVEC_UNAVAIL, SPEUnavailable, \
+#elif defined(CONFIG_SPE_POSSIBLE)
+	EXCEPTION(0x2020, SPE_UNAVAIL, SPEUnavailable, \
 		  unknown_exception, EXC_XFER_EE)
-#endif /* CONFIG_SPE */
+#endif /* CONFIG_SPE_POSSIBLE */
 
 	/* SPE Floating Point Data */
 #ifdef CONFIG_SPE
-	EXCEPTION(0x2030, SPE_FP_DATA_ALTIVEC_ASSIST, SPEFloatingPointData,
+	EXCEPTION(0x2030, SPE_FP_DATA, SPEFloatingPointData,
 		  SPEFloatingPointException, EXC_XFER_EE)
 
 	/* SPE Floating Point Round */
 	EXCEPTION(0x2050, SPE_FP_ROUND, SPEFloatingPointRound, \
 		  SPEFloatingPointRoundException, EXC_XFER_EE)
-#else
-	EXCEPTION(0x2040, SPE_FP_DATA_ALTIVEC_ASSIST, SPEFloatingPointData,
+#elif defined(CONFIG_SPE_POSSIBLE)
+	EXCEPTION(0x2040, SPE_FP_DATA, SPEFloatingPointData,
 		  unknown_exception, EXC_XFER_EE)
 	EXCEPTION(0x2050, SPE_FP_ROUND, SPEFloatingPointRound, \
 		  unknown_exception, EXC_XFER_EE)
-#endif /* CONFIG_SPE */
+#endif /* CONFIG_SPE_POSSIBLE */
+
 
 	/* Performance Monitor */
 	EXCEPTION(0x2060, PERFORMANCE_MONITOR, PerformanceMonitor, \
@@ -947,6 +949,7 @@ get_phys_addr:
  * Global functions
  */
 
+#ifdef CONFIG_E200
 /* Adjust or setup IVORs for e200 */
 _GLOBAL(__setup_e200_ivors)
 	li	r3,DebugDebug@l
@@ -959,7 +962,10 @@ _GLOBAL(__setup_e200_ivors)
 	mtspr	SPRN_IVOR34,r3
 	sync
 	blr
+#endif
 
+#ifdef CONFIG_E500
+#ifndef CONFIG_PPC_E500MC
 /* Adjust or setup IVORs for e500v1/v2 */
 _GLOBAL(__setup_e500_ivors)
 	li	r3,DebugCrit@l
@@ -974,7 +980,7 @@ _GLOBAL(__setup_e500_ivors)
 	mtspr	SPRN_IVOR35,r3
 	sync
 	blr
-
+#else
 /* Adjust or setup IVORs for e500mc */
 _GLOBAL(__setup_e500mc_ivors)
 	li	r3,DebugDebug@l
@@ -1000,6 +1006,8 @@ _GLOBAL(__setup_ehv_ivors)
 	mtspr	SPRN_IVOR41,r3
 	sync
 	blr
+#endif /* CONFIG_PPC_E500MC */
+#endif /* CONFIG_E500 */
 
 #ifdef CONFIG_SPE
 /*

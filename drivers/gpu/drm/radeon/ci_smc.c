@@ -129,7 +129,7 @@ void ci_reset_smc(struct radeon_device *rdev)
 
 int ci_program_jump_on_start(struct radeon_device *rdev)
 {
-	static u8 data[] = { 0xE0, 0x00, 0x80, 0x40 };
+	static const u8 data[] = { 0xE0, 0x00, 0x80, 0x40 };
 
 	return ci_copy_bytes_to_smc(rdev, 0x0, data, 4, sizeof(data)+1);
 }
@@ -184,6 +184,7 @@ PPSMC_Result ci_send_msg_to_smc(struct radeon_device *rdev, PPSMC_Msg msg)
 	return (PPSMC_Result)tmp;
 }
 
+#if 0
 PPSMC_Result ci_wait_for_smc_inactive(struct radeon_device *rdev)
 {
 	u32 tmp;
@@ -201,6 +202,7 @@ PPSMC_Result ci_wait_for_smc_inactive(struct radeon_device *rdev)
 
 	return PPSMC_Result_OK;
 }
+#endif
 
 int ci_load_smc_ucode(struct radeon_device *rdev, u32 limit)
 {
@@ -213,24 +215,37 @@ int ci_load_smc_ucode(struct radeon_device *rdev, u32 limit)
 	if (!rdev->smc_fw)
 		return -EINVAL;
 
-	switch (rdev->family) {
-	case CHIP_BONAIRE:
-		ucode_start_address = BONAIRE_SMC_UCODE_START;
-		ucode_size = BONAIRE_SMC_UCODE_SIZE;
-		break;
-	case CHIP_HAWAII:
-		ucode_start_address = HAWAII_SMC_UCODE_START;
-		ucode_size = HAWAII_SMC_UCODE_SIZE;
-		break;
-	default:
-		DRM_ERROR("unknown asic in smc ucode loader\n");
-		BUG();
+	if (rdev->new_fw) {
+		const struct smc_firmware_header_v1_0 *hdr =
+			(const struct smc_firmware_header_v1_0 *)rdev->smc_fw->data;
+
+		radeon_ucode_print_smc_hdr(&hdr->header);
+
+		ucode_start_address = le32_to_cpu(hdr->ucode_start_addr);
+		ucode_size = le32_to_cpu(hdr->header.ucode_size_bytes);
+		src = (const u8 *)
+			(rdev->smc_fw->data + le32_to_cpu(hdr->header.ucode_array_offset_bytes));
+	} else {
+		switch (rdev->family) {
+		case CHIP_BONAIRE:
+			ucode_start_address = BONAIRE_SMC_UCODE_START;
+			ucode_size = BONAIRE_SMC_UCODE_SIZE;
+			break;
+		case CHIP_HAWAII:
+			ucode_start_address = HAWAII_SMC_UCODE_START;
+			ucode_size = HAWAII_SMC_UCODE_SIZE;
+			break;
+		default:
+			DRM_ERROR("unknown asic in smc ucode loader\n");
+			BUG();
+		}
+
+		src = (const u8 *)rdev->smc_fw->data;
 	}
 
 	if (ucode_size & 3)
 		return -EINVAL;
 
-	src = (const u8 *)rdev->smc_fw->data;
 	spin_lock_irqsave(&rdev->smc_idx_lock, flags);
 	WREG32(SMC_IND_INDEX_0, ucode_start_address);
 	WREG32_P(SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, ~AUTO_INCREMENT_IND_0);

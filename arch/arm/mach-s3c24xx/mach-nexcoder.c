@@ -21,6 +21,7 @@
 #include <linux/gpio.h>
 #include <linux/string.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
@@ -38,11 +39,9 @@
 //#include <asm/debug-ll.h>
 #include <mach/regs-gpio.h>
 #include <mach/gpio-samsung.h>
-#include <plat/regs-serial.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 
 #include <plat/gpio-cfg.h>
-#include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/samsung-time.h>
@@ -135,11 +134,16 @@ static void __init nexcoder_sensorboard_init(void)
 static void __init nexcoder_map_io(void)
 {
 	s3c24xx_init_io(nexcoder_iodesc, ARRAY_SIZE(nexcoder_iodesc));
-	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(nexcoder_uartcfgs, ARRAY_SIZE(nexcoder_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 
 	nexcoder_sensorboard_init();
+}
+
+static void __init nexcoder_init_time(void)
+{
+	s3c2440_init_clocks(12000000);
+	samsung_timer_init();
 }
 
 static void __init nexcoder_init(void)
@@ -154,6 +158,5 @@ MACHINE_START(NEXCODER_2440, "NexVision - Nexcoder 2440")
 	.map_io		= nexcoder_map_io,
 	.init_machine	= nexcoder_init,
 	.init_irq	= s3c2440_init_irq,
-	.init_time	= samsung_timer_init,
-	.restart	= s3c244x_restart,
+	.init_time	= nexcoder_init_time,
 MACHINE_END

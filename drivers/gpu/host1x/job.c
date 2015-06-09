@@ -185,16 +185,16 @@ static unsigned int pin_job(struct host1x_job *job)
 		struct sg_table *sgt;
 		dma_addr_t phys_addr;
 
-		reloc->target = host1x_bo_get(reloc->target);
-		if (!reloc->target)
+		reloc->target.bo = host1x_bo_get(reloc->target.bo);
+		if (!reloc->target.bo)
 			goto unpin;
 
-		phys_addr = host1x_bo_pin(reloc->target, &sgt);
+		phys_addr = host1x_bo_pin(reloc->target.bo, &sgt);
 		if (!phys_addr)
 			goto unpin;
 
 		job->addr_phys[job->num_unpins] = phys_addr;
-		job->unpins[job->num_unpins].bo = reloc->target;
+		job->unpins[job->num_unpins].bo = reloc->target.bo;
 		job->unpins[job->num_unpins].sgt = sgt;
 		job->num_unpins++;
 	}
@@ -235,21 +235,21 @@ static unsigned int do_relocs(struct host1x_job *job, struct host1x_bo *cmdbuf)
 	for (i = 0; i < job->num_relocs; i++) {
 		struct host1x_reloc *reloc = &job->relocarray[i];
 		u32 reloc_addr = (job->reloc_addr_phys[i] +
-			reloc->target_offset) >> reloc->shift;
+				  reloc->target.offset) >> reloc->shift;
 		u32 *target;
 
 		/* skip all other gathers */
-		if (cmdbuf != reloc->cmdbuf)
+		if (cmdbuf != reloc->cmdbuf.bo)
 			continue;
 
-		if (last_page != reloc->cmdbuf_offset >> PAGE_SHIFT) {
+		if (last_page != reloc->cmdbuf.offset >> PAGE_SHIFT) {
 			if (cmdbuf_page_addr)
 				host1x_bo_kunmap(cmdbuf, last_page,
 						 cmdbuf_page_addr);
 
 			cmdbuf_page_addr = host1x_bo_kmap(cmdbuf,
-					reloc->cmdbuf_offset >> PAGE_SHIFT);
-			last_page = reloc->cmdbuf_offset >> PAGE_SHIFT;
+					reloc->cmdbuf.offset >> PAGE_SHIFT);
+			last_page = reloc->cmdbuf.offset >> PAGE_SHIFT;
 
 			if (unlikely(!cmdbuf_page_addr)) {
 				pr_err("Could not map cmdbuf for relocation\n");
@@ -257,7 +257,7 @@ static unsigned int do_relocs(struct host1x_job *job, struct host1x_bo *cmdbuf)
 			}
 		}
 
-		target = cmdbuf_page_addr + (reloc->cmdbuf_offset & ~PAGE_MASK);
+		target = cmdbuf_page_addr + (reloc->cmdbuf.offset & ~PAGE_MASK);
 		*target = reloc_addr;
 	}
 
@@ -272,7 +272,7 @@ static bool check_reloc(struct host1x_reloc *reloc, struct host1x_bo *cmdbuf,
 {
 	offset *= sizeof(u32);
 
-	if (reloc->cmdbuf != cmdbuf || reloc->cmdbuf_offset != offset)
+	if (reloc->cmdbuf.bo != cmdbuf || reloc->cmdbuf.offset != offset)
 		return false;
 
 	return true;

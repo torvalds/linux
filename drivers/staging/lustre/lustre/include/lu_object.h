@@ -38,9 +38,9 @@
 #define __LUSTRE_LU_OBJECT_H
 
 #include <stdarg.h>
-#include <linux/libcfs/libcfs.h>
-#include <lustre/lustre_idl.h>
-#include <lu_ref.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "lustre/lustre_idl.h"
+#include "lu_ref.h"
 
 struct seq_file;
 struct proc_dir_entry;
@@ -192,7 +192,7 @@ struct lu_object_conf {
  */
 typedef int (*lu_printer_t)(const struct lu_env *env,
 			    void *cookie, const char *format, ...)
-	__attribute__ ((format (printf, 3, 4)));
+	__printf(3, 4);
 
 /**
  * Operations specific for particular lu_object.
@@ -404,11 +404,11 @@ struct lu_attr {
 	/** size in bytes */
 	__u64	  la_size;
 	/** modification time in seconds since Epoch */
-	obd_time       la_mtime;
+	s64	  la_mtime;
 	/** access time in seconds since Epoch */
-	obd_time       la_atime;
+	s64	  la_atime;
 	/** change time in seconds since Epoch */
-	obd_time       la_ctime;
+	s64	  la_ctime;
 	/** 512-byte blocks allocated to object */
 	__u64	  la_blocks;
 	/** permission bits and file type */
@@ -516,6 +516,10 @@ enum lu_object_header_attr {
  */
 struct lu_object_header {
 	/**
+	 * Fid, uniquely identifying this object.
+	 */
+	struct lu_fid		loh_fid;
+	/**
 	 * Object flags from enum lu_object_header_flags. Set and checked
 	 * atomically.
 	 */
@@ -524,10 +528,6 @@ struct lu_object_header {
 	 * Object reference count. Protected by lu_site::ls_guard.
 	 */
 	atomic_t	   loh_ref;
-	/**
-	 * Fid, uniquely identifying this object.
-	 */
-	struct lu_fid	  loh_fid;
 	/**
 	 * Common object attributes, cached for efficiency. From enum
 	 * lu_object_header_attr.
@@ -1120,7 +1120,7 @@ struct lu_context_key {
 };
 
 #define LU_KEY_INIT(mod, type)				    \
-	static void* mod##_key_init(const struct lu_context *ctx, \
+	static void *mod##_key_init(const struct lu_context *ctx, \
 				    struct lu_context_key *key)   \
 	{							 \
 		type *value;				      \
@@ -1137,7 +1137,7 @@ struct lu_context_key {
 
 #define LU_KEY_FINI(mod, type)					      \
 	static void mod##_key_fini(const struct lu_context *ctx,	    \
-				    struct lu_context_key *key, void* data) \
+				    struct lu_context_key *key, void *data) \
 	{								   \
 		type *info = data;					  \
 									    \
@@ -1146,8 +1146,8 @@ struct lu_context_key {
 	struct __##mod##__dummy_fini {;} /* semicolon catcher */
 
 #define LU_KEY_INIT_FINI(mod, type)   \
-	LU_KEY_INIT(mod,type);	\
-	LU_KEY_FINI(mod,type)
+	LU_KEY_INIT(mod, type);	\
+	LU_KEY_FINI(mod, type)
 
 #define LU_CONTEXT_KEY_DEFINE(mod, tags)		\
 	struct lu_context_key mod##_thread_key = {      \

@@ -47,6 +47,7 @@ struct sirfsoc_rtc_drv {
 	unsigned		irq_wake;
 	/* Overflow for every 8 years extra time */
 	u32			overflow_rtc;
+	spinlock_t		lock;
 #ifdef CONFIG_PM
 	u32		saved_counter;
 	u32		saved_overflow_rtc;
@@ -61,7 +62,7 @@ static int sirfsoc_rtc_read_alarm(struct device *dev,
 
 	rtcdrv = dev_get_drvdata(dev);
 
-	local_irq_disable();
+	spin_lock_irq(&rtcdrv->lock);
 
 	rtc_count = sirfsoc_rtc_iobrg_readl(rtcdrv->rtc_base + RTC_CN);
 
@@ -84,7 +85,8 @@ static int sirfsoc_rtc_read_alarm(struct device *dev,
 	if (sirfsoc_rtc_iobrg_readl(
 			rtcdrv->rtc_base + RTC_STATUS) & SIRFSOC_RTC_AL0E)
 		alrm->enabled = 1;
-	local_irq_enable();
+
+	spin_unlock_irq(&rtcdrv->lock);
 
 	return 0;
 }
@@ -99,7 +101,7 @@ static int sirfsoc_rtc_set_alarm(struct device *dev,
 	if (alrm->enabled) {
 		rtc_tm_to_time(&(alrm->time), &rtc_alarm);
 
-		local_irq_disable();
+		spin_lock_irq(&rtcdrv->lock);
 
 		rtc_status_reg = sirfsoc_rtc_iobrg_readl(
 				rtcdrv->rtc_base + RTC_STATUS);
@@ -123,14 +125,15 @@ static int sirfsoc_rtc_set_alarm(struct device *dev,
 		rtc_status_reg |= SIRFSOC_RTC_AL0E;
 		sirfsoc_rtc_iobrg_writel(
 			rtc_status_reg, rtcdrv->rtc_base + RTC_STATUS);
-		local_irq_enable();
+
+		spin_unlock_irq(&rtcdrv->lock);
 	} else {
 		/*
 		 * if this function was called with enabled=0
 		 * then it could mean that the application is
 		 * trying to cancel an ongoing alarm
 		 */
-		local_irq_disable();
+		spin_lock_irq(&rtcdrv->lock);
 
 		rtc_status_reg = sirfsoc_rtc_iobrg_readl(
 				rtcdrv->rtc_base + RTC_STATUS);
@@ -146,7 +149,7 @@ static int sirfsoc_rtc_set_alarm(struct device *dev,
 					rtcdrv->rtc_base + RTC_STATUS);
 		}
 
-		local_irq_enable();
+		spin_unlock_irq(&rtcdrv->lock);
 	}
 
 	return 0;
@@ -209,12 +212,38 @@ static int sirfsoc_rtc_ioctl(struct device *dev, unsigned int cmd,
 	}
 }
 
+static int sirfsoc_rtc_alarm_irq_enable(struct device *dev,
+		unsigned int enabled)
+{
+	unsigned long rtc_status_reg = 0x0;
+	struct sirfsoc_rtc_drv *rtcdrv;
+
+	rtcdrv = dev_get_drvdata(dev);
+
+	spin_lock_irq(&rtcdrv->lock);
+
+	rtc_status_reg = sirfsoc_rtc_iobrg_readl(
+				rtcdrv->rtc_base + RTC_STATUS);
+	if (enabled)
+		rtc_status_reg |= SIRFSOC_RTC_AL0E;
+	else
+		rtc_status_reg &= ~SIRFSOC_RTC_AL0E;
+
+	sirfsoc_rtc_iobrg_writel(rtc_status_reg, rtcdrv->rtc_base + RTC_STATUS);
+
+	spin_unlock_irq(&rtcdrv->lock);
+
+	return 0;
+
+}
+
 static const struct rtc_class_ops sirfsoc_rtc_ops = {
 	.read_time = sirfsoc_rtc_read_time,
 	.set_time = sirfsoc_rtc_set_time,
 	.read_alarm = sirfsoc_rtc_read_alarm,
 	.set_alarm = sirfsoc_rtc_set_alarm,
-	.ioctl = sirfsoc_rtc_ioctl
+	.ioctl = sirfsoc_rtc_ioctl,
+	.alarm_irq_enable = sirfsoc_rtc_alarm_irq_enable
 };
 
 static irqreturn_t sirfsoc_rtc_irq_handler(int irq, void *pdata)
@@ -222,6 +251,8 @@ static irqreturn_t sirfsoc_rtc_irq_handler(int irq, void *pdata)
 	struct sirfsoc_rtc_drv *rtcdrv = pdata;
 	unsigned long rtc_status_reg = 0x0;
 	unsigned long events = 0x0;
+
+	spin_lock(&rtcdrv->lock);
 
 	rtc_status_reg = sirfsoc_rtc_iobrg_readl(rtcdrv->rtc_base + RTC_STATUS);
 	/* this bit will be set ONLY if an alarm was active
@@ -240,6 +271,9 @@ static irqreturn_t sirfsoc_rtc_irq_handler(int irq, void *pdata)
 		rtc_status_reg &= ~(SIRFSOC_RTC_AL0E);
 	}
 	sirfsoc_rtc_iobrg_writel(rtc_status_reg, rtcdrv->rtc_base + RTC_STATUS);
+
+	spin_unlock(&rtcdrv->lock);
+
 	/* this should wake up any apps polling/waiting on the read
 	 * after setting the alarm
 	 */
@@ -264,12 +298,10 @@ static int sirfsoc_rtc_probe(struct platform_device *pdev)
 
 	rtcdrv = devm_kzalloc(&pdev->dev,
 		sizeof(struct sirfsoc_rtc_drv), GFP_KERNEL);
-	if (rtcdrv == NULL) {
-		dev_err(&pdev->dev,
-			"%s: can't alloc mem for drv struct\n",
-			pdev->name);
+	if (rtcdrv == NULL)
 		return -ENOMEM;
-	}
+
+	spin_lock_init(&rtcdrv->lock);
 
 	err = of_property_read_u32(np, "reg", &rtcdrv->rtc_base);
 	if (err) {
@@ -290,14 +322,6 @@ static int sirfsoc_rtc_probe(struct platform_device *pdev)
 	rtc_div = ((32768 / RTC_HZ) / 2) - 1;
 	sirfsoc_rtc_iobrg_writel(rtc_div, rtcdrv->rtc_base + RTC_DIV);
 
-	rtcdrv->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-			&sirfsoc_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtcdrv->rtc)) {
-		err = PTR_ERR(rtcdrv->rtc);
-		dev_err(&pdev->dev, "can't register RTC device\n");
-		return err;
-	}
-
 	/* 0x3 -> RTC_CLK */
 	sirfsoc_rtc_iobrg_writel(SIRFSOC_RTC_CLK,
 			rtcdrv->rtc_base + RTC_CLOCK_SWITCH);
@@ -311,6 +335,14 @@ static int sirfsoc_rtc_probe(struct platform_device *pdev)
 	/* Restore RTC Overflow From Register After Command Reboot */
 	rtcdrv->overflow_rtc =
 		sirfsoc_rtc_iobrg_readl(rtcdrv->rtc_base + RTC_SW_VALUE);
+
+	rtcdrv->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
+			&sirfsoc_rtc_ops, THIS_MODULE);
+	if (IS_ERR(rtcdrv->rtc)) {
+		err = PTR_ERR(rtcdrv->rtc);
+		dev_err(&pdev->dev, "can't register RTC device\n");
+		return err;
+	}
 
 	rtcdrv->irq = platform_get_irq(pdev, 0);
 	err = devm_request_irq(
@@ -335,39 +367,29 @@ static int sirfsoc_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-
+#ifdef CONFIG_PM_SLEEP
 static int sirfsoc_rtc_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct sirfsoc_rtc_drv *rtcdrv = platform_get_drvdata(pdev);
+	struct sirfsoc_rtc_drv *rtcdrv = dev_get_drvdata(dev);
 	rtcdrv->overflow_rtc =
 		sirfsoc_rtc_iobrg_readl(rtcdrv->rtc_base + RTC_SW_VALUE);
 
 	rtcdrv->saved_counter =
 		sirfsoc_rtc_iobrg_readl(rtcdrv->rtc_base + RTC_CN);
 	rtcdrv->saved_overflow_rtc = rtcdrv->overflow_rtc;
-	if (device_may_wakeup(&pdev->dev) && !enable_irq_wake(rtcdrv->irq))
+	if (device_may_wakeup(dev) && !enable_irq_wake(rtcdrv->irq))
 		rtcdrv->irq_wake = 1;
 
 	return 0;
 }
 
-static int sirfsoc_rtc_freeze(struct device *dev)
-{
-	sirfsoc_rtc_suspend(dev);
-
-	return 0;
-}
-
-static int sirfsoc_rtc_thaw(struct device *dev)
+static int sirfsoc_rtc_resume(struct device *dev)
 {
 	u32 tmp;
-	struct sirfsoc_rtc_drv *rtcdrv;
-	rtcdrv = dev_get_drvdata(dev);
+	struct sirfsoc_rtc_drv *rtcdrv = dev_get_drvdata(dev);
 
 	/*
-	 * if resume from snapshot and the rtc power is losed,
+	 * if resume from snapshot and the rtc power is lost,
 	 * restroe the rtc settings
 	 */
 	if (SIRFSOC_RTC_CLK != sirfsoc_rtc_iobrg_readl(
@@ -407,57 +429,22 @@ static int sirfsoc_rtc_thaw(struct device *dev)
 	sirfsoc_rtc_iobrg_writel(rtcdrv->overflow_rtc,
 			rtcdrv->rtc_base + RTC_SW_VALUE);
 
-	return 0;
-}
-
-static int sirfsoc_rtc_resume(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct sirfsoc_rtc_drv *rtcdrv = platform_get_drvdata(pdev);
-	sirfsoc_rtc_thaw(dev);
-	if (device_may_wakeup(&pdev->dev) && rtcdrv->irq_wake) {
+	if (device_may_wakeup(dev) && rtcdrv->irq_wake) {
 		disable_irq_wake(rtcdrv->irq);
 		rtcdrv->irq_wake = 0;
 	}
 
 	return 0;
 }
-
-static int sirfsoc_rtc_restore(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct sirfsoc_rtc_drv *rtcdrv = platform_get_drvdata(pdev);
-
-	if (device_may_wakeup(&pdev->dev) && rtcdrv->irq_wake) {
-		disable_irq_wake(rtcdrv->irq);
-		rtcdrv->irq_wake = 0;
-	}
-	return 0;
-}
-
-#else
-#define sirfsoc_rtc_suspend	NULL
-#define sirfsoc_rtc_resume	NULL
-#define sirfsoc_rtc_freeze	NULL
-#define sirfsoc_rtc_thaw	NULL
-#define sirfsoc_rtc_restore	NULL
 #endif
 
-static const struct dev_pm_ops sirfsoc_rtc_pm_ops = {
-	.suspend = sirfsoc_rtc_suspend,
-	.resume = sirfsoc_rtc_resume,
-	.freeze = sirfsoc_rtc_freeze,
-	.thaw = sirfsoc_rtc_thaw,
-	.restore = sirfsoc_rtc_restore,
-};
+static SIMPLE_DEV_PM_OPS(sirfsoc_rtc_pm_ops,
+		sirfsoc_rtc_suspend, sirfsoc_rtc_resume);
 
 static struct platform_driver sirfsoc_rtc_driver = {
 	.driver = {
 		.name = "sirfsoc-rtc",
-		.owner = THIS_MODULE,
-#ifdef CONFIG_PM
 		.pm = &sirfsoc_rtc_pm_ops,
-#endif
 		.of_match_table = sirfsoc_rtc_of_match,
 	},
 	.probe = sirfsoc_rtc_probe,

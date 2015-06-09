@@ -55,6 +55,8 @@ static struct {
 	bool show_funcs;
 	bool mod_events;
 	bool uprobes;
+	bool quiet;
+	bool target_used;
 	int nevents;
 	struct perf_probe_event events[MAX_PROBES];
 	struct strlist *dellist;
@@ -77,6 +79,12 @@ static int parse_probe_event(const char *str)
 	}
 
 	pev->uprobes = params.uprobes;
+	if (params.target) {
+		pev->target = strdup(params.target);
+		if (!pev->target)
+			return -ENOMEM;
+		params.target_used = true;
+	}
 
 	/* Parse a perf-probe command into event */
 	ret = parse_perf_probe_command(str, pev);
@@ -101,6 +109,7 @@ static int set_target(const char *ptr)
 		params.target = strdup(ptr);
 		if (!params.target)
 			return -ENOMEM;
+		params.target_used = false;
 
 		found = 1;
 		buf = ptr + (strlen(ptr) - 3);
@@ -177,7 +186,7 @@ static int opt_set_target(const struct option *opt, const char *str,
 	int ret = -ENOENT;
 	char *tmp;
 
-	if  (str && !params.target) {
+	if  (str) {
 		if (!strcmp(opt->long_name, "exec"))
 			params.uprobes = true;
 #ifdef HAVE_DWARF_SUPPORT
@@ -199,7 +208,9 @@ static int opt_set_target(const struct option *opt, const char *str,
 			if (!tmp)
 				return -ENOMEM;
 		}
+		free(params.target);
 		params.target = tmp;
+		params.target_used = false;
 		ret = 0;
 	}
 
@@ -268,9 +279,9 @@ static int opt_set_filter(const struct option *opt __maybe_unused,
 	return 0;
 }
 
-static void init_params(void)
+static int init_params(void)
 {
-	line_range__init(&params.line_range);
+	return line_range__init(&params.line_range);
 }
 
 static void cleanup_params(void)
@@ -288,6 +299,16 @@ static void cleanup_params(void)
 	memset(&params, 0, sizeof(params));
 }
 
+static void pr_err_with_code(const char *msg, int err)
+{
+	char sbuf[STRERR_BUFSIZE];
+
+	pr_err("%s", msg);
+	pr_debug(" Reason: %s (Code: %d)",
+		 strerror_r(-err, sbuf, sizeof(sbuf)), err);
+	pr_err("\n");
+}
+
 static int
 __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 {
@@ -302,9 +323,11 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 #endif
 		NULL
 };
-	const struct option options[] = {
+	struct option options[] = {
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show parsed arguments, etc)"),
+	OPT_BOOLEAN('q', "quiet", &params.quiet,
+		    "be quiet (do not show any mesages)"),
 	OPT_BOOLEAN('l', "list", &params.list_events,
 		    "list up current probe events"),
 	OPT_CALLBACK('d', "del", NULL, "[GROUP:]EVENT", "delete a probe event.",
@@ -365,10 +388,20 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_CALLBACK('x', "exec", NULL, "executable|path",
 			"target executable name or path", opt_set_target),
 	OPT_BOOLEAN(0, "demangle", &symbol_conf.demangle,
-		    "Disable symbol demangling"),
+		    "Enable symbol demangling"),
+	OPT_BOOLEAN(0, "demangle-kernel", &symbol_conf.demangle_kernel,
+		    "Enable kernel symbol demangling"),
 	OPT_END()
 	};
 	int ret;
+
+	set_option_flag(options, 'a', "add", PARSE_OPT_EXCLUSIVE);
+	set_option_flag(options, 'd', "del", PARSE_OPT_EXCLUSIVE);
+	set_option_flag(options, 'l', "list", PARSE_OPT_EXCLUSIVE);
+#ifdef HAVE_DWARF_SUPPORT
+	set_option_flag(options, 'L', "line", PARSE_OPT_EXCLUSIVE);
+	set_option_flag(options, 'V', "vars", PARSE_OPT_EXCLUSIVE);
+#endif
 
 	argc = parse_options(argc, argv, options, probe_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
@@ -379,9 +412,17 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 		}
 		ret = parse_probe_event_argv(argc, argv);
 		if (ret < 0) {
-			pr_err("  Error: Parse Error.  (%d)\n", ret);
+			pr_err_with_code("  Error: Command Parse Error.", ret);
 			return ret;
 		}
+	}
+
+	if (params.quiet) {
+		if (verbose != 0) {
+			pr_err("  Error: -v and -q are exclusive.\n");
+			return -EINVAL;
+		}
+		verbose = -1;
 	}
 
 	if (params.max_probe_points == 0)
@@ -397,46 +438,16 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	symbol_conf.try_vmlinux_path = (symbol_conf.vmlinux_name == NULL);
 
 	if (params.list_events) {
-		if (params.mod_events) {
-			pr_err("  Error: Don't use --list with --add/--del.\n");
-			usage_with_options(probe_usage, options);
-		}
-		if (params.show_lines) {
-			pr_err("  Error: Don't use --list with --line.\n");
-			usage_with_options(probe_usage, options);
-		}
-		if (params.show_vars) {
-			pr_err(" Error: Don't use --list with --vars.\n");
-			usage_with_options(probe_usage, options);
-		}
-		if (params.show_funcs) {
-			pr_err("  Error: Don't use --list with --funcs.\n");
-			usage_with_options(probe_usage, options);
-		}
 		if (params.uprobes) {
 			pr_warning("  Error: Don't use --list with --exec.\n");
 			usage_with_options(probe_usage, options);
 		}
 		ret = show_perf_probe_events();
 		if (ret < 0)
-			pr_err("  Error: Failed to show event list. (%d)\n",
-			       ret);
+			pr_err_with_code("  Error: Failed to show event list.", ret);
 		return ret;
 	}
 	if (params.show_funcs) {
-		if (params.nevents != 0 || params.dellist) {
-			pr_err("  Error: Don't use --funcs with"
-			       " --add/--del.\n");
-			usage_with_options(probe_usage, options);
-		}
-		if (params.show_lines) {
-			pr_err("  Error: Don't use --funcs with --line.\n");
-			usage_with_options(probe_usage, options);
-		}
-		if (params.show_vars) {
-			pr_err("  Error: Don't use --funcs with --vars.\n");
-			usage_with_options(probe_usage, options);
-		}
 		if (!params.filter)
 			params.filter = strfilter__new(DEFAULT_FUNC_FILTER,
 						       NULL);
@@ -445,34 +456,19 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 		strfilter__delete(params.filter);
 		params.filter = NULL;
 		if (ret < 0)
-			pr_err("  Error: Failed to show functions."
-			       " (%d)\n", ret);
+			pr_err_with_code("  Error: Failed to show functions.", ret);
 		return ret;
 	}
 
 #ifdef HAVE_DWARF_SUPPORT
 	if (params.show_lines) {
-		if (params.mod_events) {
-			pr_err("  Error: Don't use --line with"
-			       " --add/--del.\n");
-			usage_with_options(probe_usage, options);
-		}
-		if (params.show_vars) {
-			pr_err(" Error: Don't use --line with --vars.\n");
-			usage_with_options(probe_usage, options);
-		}
-
-		ret = show_line_range(&params.line_range, params.target);
+		ret = show_line_range(&params.line_range, params.target,
+				      params.uprobes);
 		if (ret < 0)
-			pr_err("  Error: Failed to show lines. (%d)\n", ret);
+			pr_err_with_code("  Error: Failed to show lines.", ret);
 		return ret;
 	}
 	if (params.show_vars) {
-		if (params.mod_events) {
-			pr_err("  Error: Don't use --vars with"
-			       " --add/--del.\n");
-			usage_with_options(probe_usage, options);
-		}
 		if (!params.filter)
 			params.filter = strfilter__new(DEFAULT_VAR_FILTER,
 						       NULL);
@@ -485,7 +481,7 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 		strfilter__delete(params.filter);
 		params.filter = NULL;
 		if (ret < 0)
-			pr_err("  Error: Failed to show vars. (%d)\n", ret);
+			pr_err_with_code("  Error: Failed to show vars.", ret);
 		return ret;
 	}
 #endif
@@ -493,18 +489,23 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (params.dellist) {
 		ret = del_perf_probe_events(params.dellist);
 		if (ret < 0) {
-			pr_err("  Error: Failed to delete events. (%d)\n", ret);
+			pr_err_with_code("  Error: Failed to delete events.", ret);
 			return ret;
 		}
 	}
 
 	if (params.nevents) {
+		/* Ensure the last given target is used */
+		if (params.target && !params.target_used) {
+			pr_warning("  Error: -x/-m must follow the probe definitions.\n");
+			usage_with_options(probe_usage, options);
+		}
+
 		ret = add_perf_probe_events(params.events, params.nevents,
 					    params.max_probe_points,
-					    params.target,
 					    params.force_add);
 		if (ret < 0) {
-			pr_err("  Error: Failed to add events. (%d)\n", ret);
+			pr_err_with_code("  Error: Failed to add events.", ret);
 			return ret;
 		}
 	}
@@ -515,9 +516,11 @@ int cmd_probe(int argc, const char **argv, const char *prefix)
 {
 	int ret;
 
-	init_params();
-	ret = __cmd_probe(argc, argv, prefix);
-	cleanup_params();
+	ret = init_params();
+	if (!ret) {
+		ret = __cmd_probe(argc, argv, prefix);
+		cleanup_params();
+	}
 
 	return ret;
 }

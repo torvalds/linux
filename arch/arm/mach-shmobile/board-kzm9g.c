@@ -11,10 +11,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 #include <linux/delay.h>
@@ -41,15 +37,18 @@
 #include <linux/usb/r8a66597.h>
 #include <linux/usb/renesas_usbhs.h>
 #include <linux/videodev2.h>
+
 #include <sound/sh_fsi.h>
 #include <sound/simple_card.h>
-#include <mach/irqs.h>
-#include <mach/sh73a0.h>
-#include <mach/common.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <video/sh_mobile_lcdc.h>
+
+#include "common.h"
+#include "intc.h"
+#include "irqs.h"
+#include "sh73a0.h"
 
 /*
  * external GPIO
@@ -443,11 +442,11 @@ static struct platform_device vcc_sdhi2 = {
 };
 
 /* SDHI */
-static struct sh_mobile_sdhi_info sdhi0_info = {
-	.dma_slave_tx	= SHDMA_SLAVE_SDHI0_TX,
-	.dma_slave_rx	= SHDMA_SLAVE_SDHI0_RX,
-	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
-	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
+static struct tmio_mmc_data sdhi0_info = {
+	.chan_priv_tx	= (void *)SHDMA_SLAVE_SDHI0_TX,
+	.chan_priv_rx	= (void *)SHDMA_SLAVE_SDHI0_RX,
+	.flags		= TMIO_MMC_HAS_IDLE_WAIT,
+	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_POWER_OFF_CARD,
 };
 
@@ -485,13 +484,13 @@ static struct platform_device sdhi0_device = {
 };
 
 /* Micro SD */
-static struct sh_mobile_sdhi_info sdhi2_info = {
-	.dma_slave_tx	= SHDMA_SLAVE_SDHI2_TX,
-	.dma_slave_rx	= SHDMA_SLAVE_SDHI2_RX,
-	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT |
+static struct tmio_mmc_data sdhi2_info = {
+	.chan_priv_tx	= (void *)SHDMA_SLAVE_SDHI2_TX,
+	.chan_priv_rx	= (void *)SHDMA_SLAVE_SDHI2_RX,
+	.flags		= TMIO_MMC_HAS_IDLE_WAIT |
 			  TMIO_MMC_USE_GPIO_CD |
 			  TMIO_MMC_WRPROTECT_DISABLE,
-	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_POWER_OFF_CARD,
+	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_POWER_OFF_CARD,
 	.cd_gpio	= 13,
 };
 
@@ -589,14 +588,12 @@ static struct asoc_simple_card_info fsi2_ak4648_info = {
 	.card		= "FSI2A-AK4648",
 	.codec		= "ak4642-codec.0-0012",
 	.platform	= "sh_fsi2",
-	.daifmt		= SND_SOC_DAIFMT_LEFT_J,
+	.daifmt		= SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_CBM_CFM,
 	.cpu_dai = {
 		.name	= "fsia-dai",
-		.fmt	= SND_SOC_DAIFMT_CBS_CFS,
 	},
 	.codec_dai = {
 		.name	= "ak4642-hifi",
-		.fmt	= SND_SOC_DAIFMT_CBM_CFM,
 		.sysclk	= 11289600,
 	},
 };
@@ -605,6 +602,8 @@ static struct platform_device fsi_ak4648_device = {
 	.name	= "asoc-simple-card",
 	.dev	= {
 		.platform_data	= &fsi2_ak4648_info,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.dma_mask = &fsi_ak4648_device.dev.coherent_dma_mask,
 	},
 };
 
@@ -878,8 +877,8 @@ static void __init kzm_init(void)
 	gpio_request_one(223, GPIOF_IN, NULL); /* IRQ8 */
 
 #ifdef CONFIG_CACHE_L2X0
-	/* Early BRESP enable, Shared attribute override enable, 64K*8way */
-	l2x0_init(IOMEM(0xf0100000), 0x40460000, 0x82000fff);
+	/* Shared attribute override enable, 64K*8way */
+	l2x0_init(IOMEM(0xf0100000), 0x00400000, 0xc20f0fff);
 #endif
 
 	i2c_register_board_info(0, i2c0_devices, ARRAY_SIZE(i2c0_devices));
@@ -908,7 +907,6 @@ DT_MACHINE_START(KZM9G_DT, "kzm9g")
 	.smp		= smp_ops(sh73a0_smp_ops),
 	.map_io		= sh73a0_map_io,
 	.init_early	= sh73a0_add_early_devices,
-	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= sh73a0_init_irq,
 	.init_machine	= kzm_init,
 	.init_late	= shmobile_init_late,

@@ -211,11 +211,6 @@ struct qdio_buffer_element {
 	u8 scount;
 	u8 sflags;
 	u32 length;
-#ifdef CONFIG_32BIT
-	/* private: */
-	void *res2;
-	/* public: */
-#endif
 	void *addr;
 } __attribute__ ((packed, aligned(16)));
 
@@ -232,11 +227,6 @@ struct qdio_buffer {
  * @sbal: absolute SBAL address
  */
 struct sl_element {
-#ifdef CONFIG_32BIT
-	/* private: */
-	unsigned long reserved;
-	/* public: */
-#endif
 	unsigned long sbal;
 } __attribute__ ((packed));
 
@@ -414,6 +404,10 @@ struct qdio_brinfo_entry_l2 {
 #define QDIO_FLAG_SYNC_INPUT		0x01
 #define QDIO_FLAG_SYNC_OUTPUT		0x02
 #define QDIO_FLAG_PCI_OUT		0x10
+
+int qdio_alloc_buffers(struct qdio_buffer **buf, unsigned int count);
+void qdio_free_buffers(struct qdio_buffer **buf, unsigned int count);
+void qdio_reset_buffers(struct qdio_buffer **buf, unsigned int count);
 
 extern int qdio_allocate(struct qdio_initialize *);
 extern int qdio_establish(struct qdio_initialize *);

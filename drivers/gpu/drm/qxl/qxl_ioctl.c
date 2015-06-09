@@ -451,4 +451,4 @@ const struct drm_ioctl_desc qxl_ioctls[] = {
 			  DRM_AUTH|DRM_UNLOCKED),
 };
 
-int qxl_max_ioctls = DRM_ARRAY_SIZE(qxl_ioctls);
+int qxl_max_ioctls = ARRAY_SIZE(qxl_ioctls);

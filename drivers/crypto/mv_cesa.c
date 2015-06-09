@@ -402,26 +402,23 @@ static int mv_hash_final_fallback(struct ahash_request *req)
 {
 	const struct mv_tfm_hash_ctx *tfm_ctx = crypto_tfm_ctx(req->base.tfm);
 	struct mv_req_hash_ctx *req_ctx = ahash_request_ctx(req);
-	struct {
-		struct shash_desc shash;
-		char ctx[crypto_shash_descsize(tfm_ctx->fallback)];
-	} desc;
+	SHASH_DESC_ON_STACK(shash, tfm_ctx->fallback);
 	int rc;
 
-	desc.shash.tfm = tfm_ctx->fallback;
-	desc.shash.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+	shash->tfm = tfm_ctx->fallback;
+	shash->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 	if (unlikely(req_ctx->first_hash)) {
-		crypto_shash_init(&desc.shash);
-		crypto_shash_update(&desc.shash, req_ctx->buffer,
+		crypto_shash_init(shash);
+		crypto_shash_update(shash, req_ctx->buffer,
 				    req_ctx->extra_bytes);
 	} else {
 		/* only SHA1 for now....
 		 */
-		rc = mv_hash_import_sha1_ctx(req_ctx, &desc.shash);
+		rc = mv_hash_import_sha1_ctx(req_ctx, shash);
 		if (rc)
 			goto out;
 	}
-	rc = crypto_shash_final(&desc.shash, req->result);
+	rc = crypto_shash_final(shash, req->result);
 out:
 	return rc;
 }
@@ -622,8 +619,8 @@ static int queue_manag(void *data)
 		}
 
 		if (async_req) {
-			if (async_req->tfm->__crt_alg->cra_type !=
-			    &crypto_ahash_type) {
+			if (crypto_tfm_alg_type(async_req->tfm) !=
+			    CRYPTO_ALG_TYPE_AHASH) {
 				struct ablkcipher_request *req =
 				    ablkcipher_request_cast(async_req);
 				mv_start_new_crypt_req(req);
@@ -794,23 +791,21 @@ static int mv_hash_setkey(struct crypto_ahash *tfm, const u8 * key,
 	ss = crypto_shash_statesize(ctx->base_hash);
 
 	{
-		struct {
-			struct shash_desc shash;
-			char ctx[crypto_shash_descsize(ctx->base_hash)];
-		} desc;
+		SHASH_DESC_ON_STACK(shash, ctx->base_hash);
+
 		unsigned int i;
 		char ipad[ss];
 		char opad[ss];
 
-		desc.shash.tfm = ctx->base_hash;
-		desc.shash.flags = crypto_shash_get_flags(ctx->base_hash) &
+		shash->tfm = ctx->base_hash;
+		shash->flags = crypto_shash_get_flags(ctx->base_hash) &
 		    CRYPTO_TFM_REQ_MAY_SLEEP;
 
 		if (keylen > bs) {
 			int err;
 
 			err =
-			    crypto_shash_digest(&desc.shash, key, keylen, ipad);
+			    crypto_shash_digest(shash, key, keylen, ipad);
 			if (err)
 				return err;
 
@@ -826,12 +821,12 @@ static int mv_hash_setkey(struct crypto_ahash *tfm, const u8 * key,
 			opad[i] ^= 0x5c;
 		}
 
-		rc = crypto_shash_init(&desc.shash) ? :
-		    crypto_shash_update(&desc.shash, ipad, bs) ? :
-		    crypto_shash_export(&desc.shash, ipad) ? :
-		    crypto_shash_init(&desc.shash) ? :
-		    crypto_shash_update(&desc.shash, opad, bs) ? :
-		    crypto_shash_export(&desc.shash, opad);
+		rc = crypto_shash_init(shash) ? :
+		    crypto_shash_update(shash, ipad, bs) ? :
+		    crypto_shash_export(shash, ipad) ? :
+		    crypto_shash_init(shash) ? :
+		    crypto_shash_update(shash, opad, bs) ? :
+		    crypto_shash_export(shash, opad);
 
 		if (rc == 0)
 			mv_hash_init_ivs(ctx, ipad, opad);
@@ -843,7 +838,7 @@ static int mv_hash_setkey(struct crypto_ahash *tfm, const u8 * key,
 static int mv_cra_hash_init(struct crypto_tfm *tfm, const char *base_hash_name,
 			    enum hash_op op, int count_add)
 {
-	const char *fallback_driver_name = tfm->__crt_alg->cra_name;
+	const char *fallback_driver_name = crypto_tfm_alg_name(tfm);
 	struct mv_tfm_hash_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct crypto_shash *fallback_tfm = NULL;
 	struct crypto_shash *base_hash = NULL;
@@ -1185,7 +1180,6 @@ static struct platform_driver marvell_crypto = {
 	.probe		= mv_probe,
 	.remove		= mv_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "mv_crypto",
 		.of_match_table = mv_cesa_of_match_table,
 	},

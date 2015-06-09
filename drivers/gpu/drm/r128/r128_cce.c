@@ -452,7 +452,7 @@ static int r128_do_init_cce(struct drm_device *dev, drm_r128_init_t *init)
 	dev_priv->span_pitch_offset_c = (((dev_priv->depth_pitch / 8) << 21) |
 					 (dev_priv->span_offset >> 5));
 
-	dev_priv->sarea = drm_getsarea(dev);
+	dev_priv->sarea = drm_legacy_getsarea(dev);
 	if (!dev_priv->sarea) {
 		DRM_ERROR("could not find sarea!\n");
 		dev->dev_private = (void *)dev_priv;
@@ -460,21 +460,21 @@ static int r128_do_init_cce(struct drm_device *dev, drm_r128_init_t *init)
 		return -EINVAL;
 	}
 
-	dev_priv->mmio = drm_core_findmap(dev, init->mmio_offset);
+	dev_priv->mmio = drm_legacy_findmap(dev, init->mmio_offset);
 	if (!dev_priv->mmio) {
 		DRM_ERROR("could not find mmio region!\n");
 		dev->dev_private = (void *)dev_priv;
 		r128_do_cleanup_cce(dev);
 		return -EINVAL;
 	}
-	dev_priv->cce_ring = drm_core_findmap(dev, init->ring_offset);
+	dev_priv->cce_ring = drm_legacy_findmap(dev, init->ring_offset);
 	if (!dev_priv->cce_ring) {
 		DRM_ERROR("could not find cce ring region!\n");
 		dev->dev_private = (void *)dev_priv;
 		r128_do_cleanup_cce(dev);
 		return -EINVAL;
 	}
-	dev_priv->ring_rptr = drm_core_findmap(dev, init->ring_rptr_offset);
+	dev_priv->ring_rptr = drm_legacy_findmap(dev, init->ring_rptr_offset);
 	if (!dev_priv->ring_rptr) {
 		DRM_ERROR("could not find ring read pointer!\n");
 		dev->dev_private = (void *)dev_priv;
@@ -482,7 +482,7 @@ static int r128_do_init_cce(struct drm_device *dev, drm_r128_init_t *init)
 		return -EINVAL;
 	}
 	dev->agp_buffer_token = init->buffers_offset;
-	dev->agp_buffer_map = drm_core_findmap(dev, init->buffers_offset);
+	dev->agp_buffer_map = drm_legacy_findmap(dev, init->buffers_offset);
 	if (!dev->agp_buffer_map) {
 		DRM_ERROR("could not find dma buffer region!\n");
 		dev->dev_private = (void *)dev_priv;
@@ -492,7 +492,7 @@ static int r128_do_init_cce(struct drm_device *dev, drm_r128_init_t *init)
 
 	if (!dev_priv->is_pci) {
 		dev_priv->agp_textures =
-		    drm_core_findmap(dev, init->agp_textures_offset);
+		    drm_legacy_findmap(dev, init->agp_textures_offset);
 		if (!dev_priv->agp_textures) {
 			DRM_ERROR("could not find agp texture region!\n");
 			dev->dev_private = (void *)dev_priv;
@@ -507,9 +507,9 @@ static int r128_do_init_cce(struct drm_device *dev, drm_r128_init_t *init)
 
 #if __OS_HAS_AGP
 	if (!dev_priv->is_pci) {
-		drm_core_ioremap_wc(dev_priv->cce_ring, dev);
-		drm_core_ioremap_wc(dev_priv->ring_rptr, dev);
-		drm_core_ioremap_wc(dev->agp_buffer_map, dev);
+		drm_legacy_ioremap_wc(dev_priv->cce_ring, dev);
+		drm_legacy_ioremap_wc(dev_priv->ring_rptr, dev);
+		drm_legacy_ioremap_wc(dev->agp_buffer_map, dev);
 		if (!dev_priv->cce_ring->handle ||
 		    !dev_priv->ring_rptr->handle ||
 		    !dev->agp_buffer_map->handle) {
@@ -603,11 +603,11 @@ int r128_do_cleanup_cce(struct drm_device *dev)
 #if __OS_HAS_AGP
 		if (!dev_priv->is_pci) {
 			if (dev_priv->cce_ring != NULL)
-				drm_core_ioremapfree(dev_priv->cce_ring, dev);
+				drm_legacy_ioremapfree(dev_priv->cce_ring, dev);
 			if (dev_priv->ring_rptr != NULL)
-				drm_core_ioremapfree(dev_priv->ring_rptr, dev);
+				drm_legacy_ioremapfree(dev_priv->ring_rptr, dev);
 			if (dev->agp_buffer_map != NULL) {
-				drm_core_ioremapfree(dev->agp_buffer_map, dev);
+				drm_legacy_ioremapfree(dev->agp_buffer_map, dev);
 				dev->agp_buffer_map = NULL;
 			}
 		} else

@@ -45,6 +45,8 @@
 #include <asm/xen/hypervisor.h>
 
 #include <xen/features.h>
+#include <linux/mm_types.h>
+#include <linux/page-flags.h>
 
 #define GNTTAB_RESERVED_XENSTORE 1
 
@@ -58,30 +60,28 @@ struct gnttab_free_callback {
 	u16 count;
 };
 
+struct gntab_unmap_queue_data;
+
+typedef void (*gnttab_unmap_refs_done)(int result, struct gntab_unmap_queue_data *data);
+
+struct gntab_unmap_queue_data
+{
+	struct delayed_work	gnttab_work;
+	void *data;
+	gnttab_unmap_refs_done	done;
+	struct gnttab_unmap_grant_ref *unmap_ops;
+	struct gnttab_unmap_grant_ref *kunmap_ops;
+	struct page **pages;
+	unsigned int count;
+	unsigned int age;
+};
+
 int gnttab_init(void);
 int gnttab_suspend(void);
 int gnttab_resume(void);
 
 int gnttab_grant_foreign_access(domid_t domid, unsigned long frame,
 				int readonly);
-int gnttab_grant_foreign_access_subpage(domid_t domid, unsigned long frame,
-					int flags, unsigned page_off,
-					unsigned length);
-int gnttab_grant_foreign_access_trans(domid_t domid, int flags,
-				      domid_t trans_domid,
-				      grant_ref_t trans_gref);
-
-/*
- * Are sub-page grants available on this version of Xen?  Returns true if they
- * are, and false if they're not.
- */
-bool gnttab_subpage_grants_available(void);
-
-/*
- * Are transitive grants available on this version of Xen?  Returns true if they
- * are, and false if they're not.
- */
-bool gnttab_trans_grants_available(void);
 
 /*
  * End access through the given grant reference, iff the grant entry is no
@@ -128,13 +128,6 @@ void gnttab_cancel_free_callback(struct gnttab_free_callback *callback);
 
 void gnttab_grant_foreign_access_ref(grant_ref_t ref, domid_t domid,
 				     unsigned long frame, int readonly);
-int gnttab_grant_foreign_access_subpage_ref(grant_ref_t ref, domid_t domid,
-					    unsigned long frame, int flags,
-					    unsigned page_off,
-					    unsigned length);
-int gnttab_grant_foreign_access_trans_ref(grant_ref_t ref, domid_t domid,
-					  int flags, domid_t trans_domid,
-					  grant_ref_t trans_gref);
 
 void gnttab_grant_foreign_transfer_ref(grant_ref_t, domid_t domid,
 				       unsigned long pfn);
@@ -170,12 +163,10 @@ gnttab_set_unmap_op(struct gnttab_unmap_grant_ref *unmap, phys_addr_t addr,
 	unmap->dev_bus_addr = 0;
 }
 
+int arch_gnttab_init(unsigned long nr_shared);
 int arch_gnttab_map_shared(xen_pfn_t *frames, unsigned long nr_gframes,
 			   unsigned long max_nr_gframes,
 			   void **__shared);
-int arch_gnttab_map_status(uint64_t *frames, unsigned long nr_gframes,
-			   unsigned long max_nr_gframes,
-			   grant_status_t **__shared);
 void arch_gnttab_unmap(void *shared, unsigned long nr_gframes);
 
 struct grant_frames {
@@ -190,12 +181,18 @@ void gnttab_free_auto_xlat_frames(void);
 
 #define gnttab_map_vaddr(map) ((void *)(map.host_virt_addr))
 
+int gnttab_alloc_pages(int nr_pages, struct page **pages);
+void gnttab_free_pages(int nr_pages, struct page **pages);
+
 int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 		    struct gnttab_map_grant_ref *kmap_ops,
 		    struct page **pages, unsigned int count);
 int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
-		      struct gnttab_map_grant_ref *kunmap_ops,
+		      struct gnttab_unmap_grant_ref *kunmap_ops,
 		      struct page **pages, unsigned int count);
+void gnttab_unmap_refs_async(struct gntab_unmap_queue_data* item);
+int gnttab_unmap_refs_sync(struct gntab_unmap_queue_data *item);
+
 
 /* Perform a batch of grant map/copy operations. Retry every batch slot
  * for which the hypervisor returns GNTST_eagain. This is typically due
@@ -208,5 +205,23 @@ int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
  */
 void gnttab_batch_map(struct gnttab_map_grant_ref *batch, unsigned count);
 void gnttab_batch_copy(struct gnttab_copy *batch, unsigned count);
+
+
+struct xen_page_foreign {
+	domid_t domid;
+	grant_ref_t gref;
+};
+
+static inline struct xen_page_foreign *xen_page_foreign(struct page *page)
+{
+	if (!PageForeign(page))
+		return NULL;
+#if BITS_PER_LONG < 64
+	return (struct xen_page_foreign *)page->private;
+#else
+	BUILD_BUG_ON(sizeof(struct xen_page_foreign) > BITS_PER_LONG);
+	return (struct xen_page_foreign *)&page->private;
+#endif
+}
 
 #endif /* __ASM_GNTTAB_H__ */

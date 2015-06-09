@@ -15,6 +15,8 @@
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/notifier.h>
+#include <linux/reboot.h>
 
 #include "clk.h"
 #include "clk-pll.h"
@@ -22,6 +24,8 @@
 #define CLKEN_OV_VAL		0xf8
 #define CPU_CLK_STATUS		0xfc
 #define MISC_DOUT1		0x558
+
+static void __iomem *reg_base;
 
 /* parent clock name list */
 PNAME(mout_armclk_p)	= { "cplla", "cpllb" };
@@ -84,15 +88,36 @@ static struct samsung_gate_clock exynos5440_gate_clks[] __initdata = {
 	GATE(CLK_CS250_O, "cs250_o", "cs250", CLKEN_OV_VAL, 19, 0, 0),
 };
 
-static struct of_device_id ext_clk_match[] __initdata = {
+static const struct of_device_id ext_clk_match[] __initconst = {
 	{ .compatible = "samsung,clock-xtal", .data = (void *)0, },
 	{},
+};
+
+static int exynos5440_clk_restart_notify(struct notifier_block *this,
+		unsigned long code, void *unused)
+{
+	u32 val, status;
+
+	status = readl_relaxed(reg_base + 0xbc);
+	val = readl_relaxed(reg_base + 0xcc);
+	val = (val & 0xffff0000) | (status & 0xffff);
+	writel_relaxed(val, reg_base + 0xcc);
+
+	return NOTIFY_DONE;
+}
+
+/*
+ * Exynos5440 Clock restart notifier, handles restart functionality
+ */
+static struct notifier_block exynos5440_clk_restart_handler = {
+	.notifier_call = exynos5440_clk_restart_notify,
+	.priority = 128,
 };
 
 /* register exynos5440 clocks */
 static void __init exynos5440_clk_init(struct device_node *np)
 {
-	void __iomem *reg_base;
+	struct samsung_clk_provider *ctx;
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
@@ -101,23 +126,31 @@ static void __init exynos5440_clk_init(struct device_node *np)
 		return;
 	}
 
-	samsung_clk_init(np, reg_base, CLK_NR_CLKS, NULL, 0, NULL, 0);
-	samsung_clk_of_register_fixed_ext(exynos5440_fixed_rate_ext_clks,
+	ctx = samsung_clk_init(np, reg_base, CLK_NR_CLKS);
+	if (!ctx)
+		panic("%s: unable to allocate context.\n", __func__);
+
+	samsung_clk_of_register_fixed_ext(ctx, exynos5440_fixed_rate_ext_clks,
 		ARRAY_SIZE(exynos5440_fixed_rate_ext_clks), ext_clk_match);
 
 	samsung_clk_register_pll2550x("cplla", "xtal", reg_base + 0x1c, 0x10);
 	samsung_clk_register_pll2550x("cpllb", "xtal", reg_base + 0x20, 0x10);
 
-	samsung_clk_register_fixed_rate(exynos5440_fixed_rate_clks,
+	samsung_clk_register_fixed_rate(ctx, exynos5440_fixed_rate_clks,
 			ARRAY_SIZE(exynos5440_fixed_rate_clks));
-	samsung_clk_register_fixed_factor(exynos5440_fixed_factor_clks,
+	samsung_clk_register_fixed_factor(ctx, exynos5440_fixed_factor_clks,
 			ARRAY_SIZE(exynos5440_fixed_factor_clks));
-	samsung_clk_register_mux(exynos5440_mux_clks,
+	samsung_clk_register_mux(ctx, exynos5440_mux_clks,
 			ARRAY_SIZE(exynos5440_mux_clks));
-	samsung_clk_register_div(exynos5440_div_clks,
+	samsung_clk_register_div(ctx, exynos5440_div_clks,
 			ARRAY_SIZE(exynos5440_div_clks));
-	samsung_clk_register_gate(exynos5440_gate_clks,
+	samsung_clk_register_gate(ctx, exynos5440_gate_clks,
 			ARRAY_SIZE(exynos5440_gate_clks));
+
+	samsung_clk_of_add_provider(np, ctx);
+
+	if (register_restart_handler(&exynos5440_clk_restart_handler))
+		pr_warn("exynos5440 clock can't register restart handler\n");
 
 	pr_info("Exynos5440: arm_clk = %ldHz\n", _get_rate("arm_clk"));
 	pr_info("exynos5440 clock initialization complete\n");

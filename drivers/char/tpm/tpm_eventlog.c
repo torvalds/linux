@@ -235,7 +235,6 @@ static int tpm_bios_measurements_release(struct inode *inode,
 static int tpm_ascii_bios_measurements_show(struct seq_file *m, void *v)
 {
 	int len = 0;
-	int i;
 	char *eventname;
 	struct tcpa_event *event = v;
 	unsigned char *event_entry =
@@ -251,8 +250,7 @@ static int tpm_ascii_bios_measurements_show(struct seq_file *m, void *v)
 	seq_printf(m, "%2d ", event->pcr_index);
 
 	/* 2nd: SHA1 */
-	for (i = 0; i < 20; i++)
-		seq_printf(m, "%02x", event->pcr_value[i]);
+	seq_printf(m, "%20phN", event->pcr_value);
 
 	/* 3rd: event type identifier */
 	seq_printf(m, " %02x", event->event_type);

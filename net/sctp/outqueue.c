@@ -629,7 +629,7 @@ redo:
 			done = 1;
 			break;
 
-		case SCTP_XMIT_NAGLE_DELAY:
+		case SCTP_XMIT_DELAY:
 			/* Send this packet. */
 			error = sctp_packet_transmit(pkt);
 
@@ -1015,7 +1015,7 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 			switch (status) {
 			case SCTP_XMIT_PMTU_FULL:
 			case SCTP_XMIT_RWND_FULL:
-			case SCTP_XMIT_NAGLE_DELAY:
+			case SCTP_XMIT_DELAY:
 				/* We could not append this chunk, so put
 				 * the chunk back on the output queue.
 				 */
@@ -1025,7 +1025,6 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 
 				sctp_outq_head_data(q, chunk);
 				goto sctp_flush_out;
-				break;
 
 			case SCTP_XMIT_OK:
 				/* The sender is in the SHUTDOWN-PENDING state,

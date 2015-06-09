@@ -45,25 +45,31 @@ int rtc_hctosys_ret = -ENODEV;
  * system's wall clock; restore it on resume().
  */
 
-static struct timespec old_rtc, old_system, old_delta;
+static struct timespec64 old_rtc, old_system, old_delta;
 
 
 static int rtc_suspend(struct device *dev)
 {
 	struct rtc_device	*rtc = to_rtc_device(dev);
 	struct rtc_time		tm;
-	struct timespec		delta, delta_delta;
+	struct timespec64	delta, delta_delta;
+	int err;
 
-	if (has_persistent_clock())
+	if (timekeeping_rtc_skipsuspend())
 		return 0;
 
 	if (strcmp(dev_name(&rtc->dev), CONFIG_RTC_HCTOSYS_DEVICE) != 0)
 		return 0;
 
 	/* snapshot the current RTC and system time at suspend*/
-	rtc_read_time(rtc, &tm);
-	getnstimeofday(&old_system);
-	rtc_tm_to_time(&tm, &old_rtc.tv_sec);
+	err = rtc_read_time(rtc, &tm);
+	if (err < 0) {
+		pr_debug("%s:  fail to read rtc time\n", dev_name(&rtc->dev));
+		return 0;
+	}
+
+	getnstimeofday64(&old_system);
+	old_rtc.tv_sec = rtc_tm_to_time64(&tm);
 
 
 	/*
@@ -72,8 +78,8 @@ static int rtc_suspend(struct device *dev)
 	 * try to compensate so the difference in system time
 	 * and rtc time stays close to constant.
 	 */
-	delta = timespec_sub(old_system, old_rtc);
-	delta_delta = timespec_sub(delta, old_delta);
+	delta = timespec64_sub(old_system, old_rtc);
+	delta_delta = timespec64_sub(delta, old_delta);
 	if (delta_delta.tv_sec < -2 || delta_delta.tv_sec >= 2) {
 		/*
 		 * if delta_delta is too large, assume time correction
@@ -82,7 +88,7 @@ static int rtc_suspend(struct device *dev)
 		old_delta = delta;
 	} else {
 		/* Otherwise try to adjust old_system to compensate */
-		old_system = timespec_sub(old_system, delta_delta);
+		old_system = timespec64_sub(old_system, delta_delta);
 	}
 
 	return 0;
@@ -92,10 +98,11 @@ static int rtc_resume(struct device *dev)
 {
 	struct rtc_device	*rtc = to_rtc_device(dev);
 	struct rtc_time		tm;
-	struct timespec		new_system, new_rtc;
-	struct timespec		sleep_time;
+	struct timespec64	new_system, new_rtc;
+	struct timespec64	sleep_time;
+	int err;
 
-	if (has_persistent_clock())
+	if (timekeeping_rtc_skipresume())
 		return 0;
 
 	rtc_hctosys_ret = -ENODEV;
@@ -103,13 +110,14 @@ static int rtc_resume(struct device *dev)
 		return 0;
 
 	/* snapshot the current rtc and system time at resume */
-	getnstimeofday(&new_system);
-	rtc_read_time(rtc, &tm);
-	if (rtc_valid_tm(&tm) != 0) {
-		pr_debug("%s:  bogus resume time\n", dev_name(&rtc->dev));
+	getnstimeofday64(&new_system);
+	err = rtc_read_time(rtc, &tm);
+	if (err < 0) {
+		pr_debug("%s:  fail to read rtc time\n", dev_name(&rtc->dev));
 		return 0;
 	}
-	rtc_tm_to_time(&tm, &new_rtc.tv_sec);
+
+	new_rtc.tv_sec = rtc_tm_to_time64(&tm);
 	new_rtc.tv_nsec = 0;
 
 	if (new_rtc.tv_sec < old_rtc.tv_sec) {
@@ -118,7 +126,7 @@ static int rtc_resume(struct device *dev)
 	}
 
 	/* calculate the RTC time delta (sleep time)*/
-	sleep_time = timespec_sub(new_rtc, old_rtc);
+	sleep_time = timespec64_sub(new_rtc, old_rtc);
 
 	/*
 	 * Since these RTC suspend/resume handlers are not called
@@ -127,11 +135,11 @@ static int rtc_resume(struct device *dev)
 	 * so subtract kernel run-time between rtc_suspend to rtc_resume
 	 * to keep things accurate.
 	 */
-	sleep_time = timespec_sub(sleep_time,
-			timespec_sub(new_system, old_system));
+	sleep_time = timespec64_sub(sleep_time,
+			timespec64_sub(new_system, old_system));
 
 	if (sleep_time.tv_sec >= 0)
-		timekeeping_inject_sleeptime(&sleep_time);
+		timekeeping_inject_sleeptime64(&sleep_time);
 	rtc_hctosys_ret = 0;
 	return 0;
 }
@@ -213,14 +221,14 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	rtc->pie_timer.function = rtc_pie_update_irq;
 	rtc->pie_enabled = 0;
 
+	strlcpy(rtc->name, name, RTC_DEVICE_NAME_SIZE);
+	dev_set_name(&rtc->dev, "rtc%d", id);
+
 	/* Check to see if there is an ALARM already set in hw */
 	err = __rtc_read_alarm(rtc, &alrm);
 
 	if (!err && !rtc_valid_tm(&alrm.time))
 		rtc_initialize_alarm(rtc, &alrm);
-
-	strlcpy(rtc->name, name, RTC_DEVICE_NAME_SIZE);
-	dev_set_name(&rtc->dev, "rtc%d", id);
 
 	rtc_dev_prepare(rtc);
 

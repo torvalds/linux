@@ -170,11 +170,8 @@ static inline u8 *recvframe_put(union recv_frame *precvframe, sint sz)
 	/* used for append sz bytes from ptr to rx_tail, update rx_tail and
 	 * return the updated rx_tail to the caller
 	 * after putting, rx_tail must be still larger than rx_end. */
-	unsigned char *prev_rx_tail;
-
 	if (precvframe == NULL)
 		return NULL;
-	prev_rx_tail = precvframe->u.hdr.rx_tail;
 	precvframe->u.hdr.rx_tail += sz;
 	if (precvframe->u.hdr.rx_tail > precvframe->u.hdr.rx_end) {
 		precvframe->u.hdr.rx_tail -= sz;

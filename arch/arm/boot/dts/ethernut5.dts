@@ -6,7 +6,7 @@
  * Licensed under GPLv2.
  */
 /dts-v1/;
-#include "at91sam9260.dtsi"
+#include "at91sam9xe.dtsi"
 
 / {
 	model = "Ethernut 5";
@@ -18,6 +18,16 @@
 
 	memory {
 		reg = <0x20000000 0x08000000>;
+	};
+
+	clocks {
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+
+		main_xtal {
+			clock-frequency = <18432000>;
+		};
 	};
 
 	ahb {

@@ -191,19 +191,6 @@ static ssize_t twl_show_stats(struct device *dev,
 	return len;
 } /* End twl_show_stats() */
 
-/* This function will set a devices queue depth */
-static int twl_change_queue_depth(struct scsi_device *sdev, int queue_depth,
-				  int reason)
-{
-	if (reason != SCSI_QDEPTH_DEFAULT)
-		return -EOPNOTSUPP;
-
-	if (queue_depth > TW_Q_LENGTH-2)
-		queue_depth = TW_Q_LENGTH-2;
-	scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG, queue_depth);
-	return queue_depth;
-} /* End twl_change_queue_depth() */
-
 /* stats sysfs attribute initializer */
 static struct device_attribute twl_host_stats_attr = {
 	.attr = {
@@ -303,26 +290,6 @@ static int twl_post_command_packet(TW_Device_Extension *tw_dev, int request_id)
 	return 0;
 } /* End twl_post_command_packet() */
 
-/* This function will perform a pci-dma mapping for a scatter gather list */
-static int twl_map_scsi_sg_data(TW_Device_Extension *tw_dev, int request_id)
-{
-	int use_sg;
-	struct scsi_cmnd *cmd = tw_dev->srb[request_id];
-
-	use_sg = scsi_dma_map(cmd);
-	if (!use_sg)
-		return 0;
-	else if (use_sg < 0) {
-		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x1, "Failed to map scatter gather list");
-		return 0;
-	}
-
-	cmd->SCp.phase = TW_PHASE_SGLIST;
-	cmd->SCp.have_data_in = use_sg;
-
-	return use_sg;
-} /* End twl_map_scsi_sg_data() */
-
 /* This function hands scsi cdb's to the firmware */
 static int twl_scsiop_execute_scsi(TW_Device_Extension *tw_dev, int request_id, char *cdb, int use_sg, TW_SG_Entry_ISO *sglistarg)
 {
@@ -370,8 +337,8 @@ static int twl_scsiop_execute_scsi(TW_Device_Extension *tw_dev, int request_id, 
 	if (!sglistarg) {
 		/* Map sglist from scsi layer to cmd packet */
 		if (scsi_sg_count(srb)) {
-			sg_count = twl_map_scsi_sg_data(tw_dev, request_id);
-			if (sg_count == 0)
+			sg_count = scsi_dma_map(srb);
+			if (sg_count <= 0)
 				goto out;
 
 			scsi_for_each_sg(srb, sg, sg_count, i) {
@@ -683,13 +650,12 @@ static int twl_allocate_memory(TW_Device_Extension *tw_dev, int size, int which)
 	unsigned long *cpu_addr;
 	int retval = 1;
 
-	cpu_addr = pci_alloc_consistent(tw_dev->tw_pci_dev, size*TW_Q_LENGTH, &dma_handle);
+	cpu_addr = pci_zalloc_consistent(tw_dev->tw_pci_dev, size * TW_Q_LENGTH,
+					 &dma_handle);
 	if (!cpu_addr) {
 		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x5, "Memory allocation failed");
 		goto out;
 	}
-
-	memset(cpu_addr, 0, size*TW_Q_LENGTH);
 
 	for (i = 0; i < TW_Q_LENGTH; i++) {
 		switch(which) {
@@ -1116,15 +1082,6 @@ out:
 	return retval;
 } /* End twl_initialize_device_extension() */
 
-/* This function will perform a pci-dma unmap */
-static void twl_unmap_scsi_data(TW_Device_Extension *tw_dev, int request_id)
-{
-	struct scsi_cmnd *cmd = tw_dev->srb[request_id];
-
-	if (cmd->SCp.phase == TW_PHASE_SGLIST)
-		scsi_dma_unmap(cmd);
-} /* End twl_unmap_scsi_data() */
-
 /* This function will handle attention interrupts */
 static int twl_handle_attention_interrupt(TW_Device_Extension *tw_dev)
 {
@@ -1265,11 +1222,11 @@ static irqreturn_t twl_interrupt(int irq, void *dev_instance)
 			}
 
 			/* Now complete the io */
+			scsi_dma_unmap(cmd);
+			cmd->scsi_done(cmd);
 			tw_dev->state[request_id] = TW_S_COMPLETED;
 			twl_free_request_id(tw_dev, request_id);
 			tw_dev->posted_request_count--;
-			tw_dev->srb[request_id]->scsi_done(tw_dev->srb[request_id]);
-			twl_unmap_scsi_data(tw_dev, request_id);
 		}
 
 		/* Check for another response interrupt */
@@ -1414,10 +1371,12 @@ static int twl_reset_device_extension(TW_Device_Extension *tw_dev, int ioctl_res
 		if ((tw_dev->state[i] != TW_S_FINISHED) &&
 		    (tw_dev->state[i] != TW_S_INITIAL) &&
 		    (tw_dev->state[i] != TW_S_COMPLETED)) {
-			if (tw_dev->srb[i]) {
-				tw_dev->srb[i]->result = (DID_RESET << 16);
-				tw_dev->srb[i]->scsi_done(tw_dev->srb[i]);
-				twl_unmap_scsi_data(tw_dev, i);
+			struct scsi_cmnd *cmd = tw_dev->srb[i];
+
+			if (cmd) {
+				cmd->result = (DID_RESET << 16);
+				scsi_dma_unmap(cmd);
+				cmd->scsi_done(cmd);
 			}
 		}
 	}
@@ -1521,9 +1480,6 @@ static int twl_scsi_queue_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_
 	/* Save the scsi command for use by the ISR */
 	tw_dev->srb[request_id] = SCpnt;
 
-	/* Initialize phase to zero */
-	SCpnt->SCp.phase = TW_PHASE_INITIAL;
-
 	retval = twl_scsiop_execute_scsi(tw_dev, request_id, NULL, 0, NULL);
 	if (retval) {
 		tw_dev->state[request_id] = TW_S_COMPLETED;
@@ -1591,7 +1547,7 @@ static struct scsi_host_template driver_template = {
 	.queuecommand		= twl_scsi_queue,
 	.eh_host_reset_handler	= twl_scsi_eh_reset,
 	.bios_param		= twl_scsi_biosparam,
-	.change_queue_depth	= twl_change_queue_depth,
+	.change_queue_depth	= scsi_change_queue_depth,
 	.can_queue		= TW_Q_LENGTH-2,
 	.slave_configure	= twl_slave_configure,
 	.this_id		= -1,

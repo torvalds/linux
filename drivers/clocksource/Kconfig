@@ -1,3 +1,5 @@
+menu "Clock Source drivers"
+
 config CLKSRC_OF
 	bool
 
@@ -16,6 +18,9 @@ config CLKBLD_I8253
 config CLKSRC_MMIO
 	bool
 
+config DIGICOLOR_TIMER
+	bool
+
 config DW_APB_TIMER
 	bool
 
@@ -24,9 +29,17 @@ config DW_APB_TIMER_OF
 	select DW_APB_TIMER
 	select CLKSRC_OF
 
+config ROCKCHIP_TIMER
+	bool
+	select CLKSRC_OF
+
 config ARMADA_370_XP_TIMER
 	bool
 	select CLKSRC_OF
+
+config MESON6_TIMER
+	bool
+	select CLKSRC_MMIO
 
 config ORION_TIMER
 	select CLKSRC_OF
@@ -41,11 +54,19 @@ config SUN5I_HSTIMER
 	select CLKSRC_MMIO
 	bool
 
+config TEGRA_TIMER
+	bool
+
 config VT8500_TIMER
 	bool
 
 config CADENCE_TTC_TIMER
 	bool
+
+config ASM9260_TIMER
+	bool
+	select CLKSRC_MMIO
+	select CLKSRC_OF
 
 config CLKSRC_NOMADIK_MTU
 	bool
@@ -118,6 +139,15 @@ config CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
 	help
 	 Use ARM global timer clock source as sched_clock
 
+config ATMEL_PIT
+	select CLKSRC_OF if OF
+	def_bool SOC_AT91SAM9 || SOC_SAMA5
+
+config ATMEL_ST
+	bool
+	select CLKSRC_OF
+	select MFD_SYSCON
+
 config CLKSRC_METAG_GENERIC
 	def_bool y if METAG
 	help
@@ -125,6 +155,7 @@ config CLKSRC_METAG_GENERIC
 
 config CLKSRC_EXYNOS_MCT
 	def_bool y if ARCH_EXYNOS
+	depends on !ARM64
 	help
 	  Support for Multi Core Timer controller on Exynos SoCs.
 
@@ -136,7 +167,95 @@ config CLKSRC_SAMSUNG_PWM
 	  for all devicetree enabled platforms. This driver will be
 	  needed only on systems that do not have the Exynos MCT available.
 
+config FSL_FTM_TIMER
+	bool
+	help
+	  Support for Freescale FlexTimer Module (FTM) timer.
+
 config VF_PIT_TIMER
 	bool
 	help
 	  Support for Period Interrupt Timer on Freescale Vybrid Family SoCs.
+
+config SYS_SUPPORTS_SH_CMT
+        bool
+
+config MTK_TIMER
+	select CLKSRC_OF
+	select CLKSRC_MMIO
+	bool
+
+config SYS_SUPPORTS_SH_MTU2
+        bool
+
+config SYS_SUPPORTS_SH_TMU
+        bool
+
+config SYS_SUPPORTS_EM_STI
+        bool
+
+config SH_TIMER_CMT
+	bool "Renesas CMT timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
+	default SYS_SUPPORTS_SH_CMT
+	help
+	  This enables build of a clocksource and clockevent driver for
+	  the Compare Match Timer (CMT) hardware available in 16/32/48-bit
+	  variants on a wide range of Mobile and Automotive SoCs from Renesas.
+
+config SH_TIMER_MTU2
+	bool "Renesas MTU2 timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
+	default SYS_SUPPORTS_SH_MTU2
+	help
+	  This enables build of a clockevent driver for the Multi-Function
+	  Timer Pulse Unit 2 (MTU2) hardware available on SoCs from Renesas.
+	  This hardware comes with 16 bit-timer registers.
+
+config SH_TIMER_TMU
+	bool "Renesas TMU timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
+	default SYS_SUPPORTS_SH_TMU
+	help
+	  This enables build of a clocksource and clockevent driver for
+	  the 32-bit Timer Unit (TMU) hardware available on a wide range
+	  SoCs from Renesas.
+
+config EM_TIMER_STI
+	bool "Renesas STI timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS && HAS_IOMEM
+	default SYS_SUPPORTS_EM_STI
+	help
+	  This enables build of a clocksource and clockevent driver for
+	  the 48-bit System Timer (STI) hardware available on a SoCs
+	  such as EMEV2 from former NEC Electronics.
+
+config CLKSRC_QCOM
+	bool
+
+config CLKSRC_VERSATILE
+	bool "ARM Versatile (Express) reference platforms clock source"
+	depends on PLAT_VERSATILE && GENERIC_SCHED_CLOCK && !ARCH_USES_GETTIMEOFFSET
+	select CLKSRC_OF
+	default y if MFD_VEXPRESS_SYSREG
+	help
+	  This option enables clock source based on free running
+	  counter available in the "System Registers" block of
+	  ARM Versatile, RealView and Versatile Express reference
+	  platforms.
+
+config CLKSRC_MIPS_GIC
+	bool
+	depends on MIPS_GIC
+	select CLKSRC_OF
+
+config CLKSRC_PXA
+	def_bool y if ARCH_PXA || ARCH_SA1100
+	select CLKSRC_OF if USE_OF
+	help
+	  This enables OST0 support available on PXA and SA-11x0
+	  platforms.
+endmenu

@@ -107,12 +107,12 @@ struct o2net_node {
 	struct list_head		nn_status_list;
 
 	/* connects are attempted from when heartbeat comes up until either hb
-	 * goes down, the node is unconfigured, no connect attempts succeed
-	 * before O2NET_CONN_IDLE_DELAY, or a connect succeeds.  connect_work
-	 * is queued from set_nn_state both from hb up and from itself if a
-	 * connect attempt fails and so can be self-arming.  shutdown is
-	 * careful to first mark the nn such that no connects will be attempted
-	 * before canceling delayed connect work and flushing the queue. */
+	 * goes down, the node is unconfigured, or a connect succeeds.
+	 * connect_work is queued from set_nn_state both from hb up and from
+	 * itself if a connect attempt fails and so can be self-arming.
+	 * shutdown is careful to first mark the nn such that no connects will
+	 * be attempted before canceling delayed connect work and flushing the
+	 * queue. */
 	struct delayed_work		nn_connect_work;
 	unsigned long			nn_last_connect_attempt;
 
@@ -165,7 +165,7 @@ struct o2net_sock_container {
 
 	/* original handlers for the sockets */
 	void			(*sc_state_change)(struct sock *sk);
-	void			(*sc_data_ready)(struct sock *sk, int bytes);
+	void			(*sc_data_ready)(struct sock *sk);
 
 	u32			sc_msg_key;
 	u16			sc_msg_type;

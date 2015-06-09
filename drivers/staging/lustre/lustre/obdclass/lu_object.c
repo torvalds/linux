@@ -44,18 +44,18 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
 # include <linux/module.h>
 
 /* hash_long() */
-#include <linux/libcfs/libcfs_hash.h>
-#include <obd_class.h>
-#include <obd_support.h>
-#include <lustre_disk.h>
-#include <lustre_fid.h>
-#include <lu_object.h>
-#include <lu_ref.h>
+#include "../../include/linux/libcfs/libcfs_hash.h"
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_disk.h"
+#include "../include/lustre_fid.h"
+#include "../include/lu_object.h"
+#include "../include/lu_ref.h"
 #include <linux/list.h>
 
 static void lu_object_free(const struct lu_env *env, struct lu_object *o);
@@ -571,7 +571,7 @@ static struct lu_object *htable_lookup(struct lu_site *s,
 	 * drained), and moreover, lookup has to wait until object is freed.
 	 */
 
-	init_waitqueue_entry_current(waiter);
+	init_waitqueue_entry(waiter, current);
 	add_wait_queue(&bkt->lsb_marche_funebre, waiter);
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	lprocfs_counter_incr(s->ls_stats, LU_SS_CACHE_DEATH_RACE);
@@ -712,7 +712,7 @@ struct lu_object *lu_object_find_at(const struct lu_env *env,
 		 * lu_object_find_try() already added waiter into the
 		 * wait queue.
 		 */
-		waitq_wait(&wait, TASK_UNINTERRUPTIBLE);
+		schedule();
 		bkt = lu_site_bkt_from_fid(dev->ld_site, (void *)f);
 		remove_wait_queue(&bkt->lsb_marche_funebre, &wait);
 	}
@@ -866,8 +866,7 @@ static int lu_htable_order(void)
 
 	/* clear off unreasonable cache setting. */
 	if (lu_cache_percent == 0 || lu_cache_percent > LU_CACHE_PERCENT_MAX) {
-		CWARN("obdclass: invalid lu_cache_percent: %u, it must be in"
-		      " the range of (0, %u]. Will use default value: %u.\n",
+		CWARN("obdclass: invalid lu_cache_percent: %u, it must be in the range of (0, %u]. Will use default value: %u.\n",
 		      lu_cache_percent, LU_CACHE_PERCENT_MAX,
 		      LU_CACHE_PERCENT_DEFAULT);
 
@@ -890,10 +889,10 @@ static unsigned lu_obj_hop_hash(struct cfs_hash *hs,
 
 	hash = fid_flatten32(fid);
 	hash += (hash >> 4) + (hash << 12); /* mixing oid and seq */
-	hash = cfs_hash_long(hash, hs->hs_bkt_bits);
+	hash = hash_long(hash, hs->hs_bkt_bits);
 
 	/* give me another random factor */
-	hash -= cfs_hash_long((unsigned long)hs, fid_oid(fid) % 11 + 3);
+	hash -= hash_long((unsigned long)hs, fid_oid(fid) % 11 + 3);
 
 	hash <<= hs->hs_cur_bits - hs->hs_bkt_bits;
 	hash |= (fid_seq(fid) + fid_oid(fid)) & (CFS_HASH_NBKT(hs) - 1);
@@ -1309,7 +1308,7 @@ static DEFINE_SPINLOCK(lu_keys_guard);
  * lu_context_refill(). No locking is provided, as initialization and shutdown
  * are supposed to be externally serialized.
  */
-static unsigned key_set_version = 0;
+static unsigned key_set_version;
 
 /**
  * Register new key.
@@ -1770,8 +1769,6 @@ EXPORT_SYMBOL(lu_env_refill);
 int lu_env_refill_by_tags(struct lu_env *env, __u32 ctags,
 			  __u32 stags)
 {
-	int    result;
-
 	if ((env->le_ctx.lc_tags & ctags) != ctags) {
 		env->le_ctx.lc_version = 0;
 		env->le_ctx.lc_tags |= ctags;
@@ -1782,9 +1779,7 @@ int lu_env_refill_by_tags(struct lu_env *env, __u32 ctags,
 		env->le_ses->lc_tags |= stags;
 	}
 
-	result = lu_env_refill(env);
-
-	return result;
+	return lu_env_refill(env);
 }
 EXPORT_SYMBOL(lu_env_refill_by_tags);
 
@@ -1994,7 +1989,7 @@ void lu_global_fini(void)
 
 static __u32 ls_stats_read(struct lprocfs_stats *stats, int idx)
 {
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 	struct lprocfs_counter ret;
 
 	lprocfs_stats_collect(stats, idx, &ret);
@@ -2015,18 +2010,19 @@ int lu_site_stats_print(const struct lu_site *s, struct seq_file *m)
 	memset(&stats, 0, sizeof(stats));
 	lu_site_stats_get(s->ls_obj_hash, &stats, 1);
 
-	return seq_printf(m, "%d/%d %d/%d %d %d %d %d %d %d %d\n",
-			stats.lss_busy,
-			stats.lss_total,
-			stats.lss_populated,
-			CFS_HASH_NHLIST(s->ls_obj_hash),
-			stats.lss_max_search,
-			ls_stats_read(s->ls_stats, LU_SS_CREATED),
-			ls_stats_read(s->ls_stats, LU_SS_CACHE_HIT),
-			ls_stats_read(s->ls_stats, LU_SS_CACHE_MISS),
-			ls_stats_read(s->ls_stats, LU_SS_CACHE_RACE),
-			ls_stats_read(s->ls_stats, LU_SS_CACHE_DEATH_RACE),
-			ls_stats_read(s->ls_stats, LU_SS_LRU_PURGED));
+	seq_printf(m, "%d/%d %d/%d %d %d %d %d %d %d %d\n",
+		   stats.lss_busy,
+		   stats.lss_total,
+		   stats.lss_populated,
+		   CFS_HASH_NHLIST(s->ls_obj_hash),
+		   stats.lss_max_search,
+		   ls_stats_read(s->ls_stats, LU_SS_CREATED),
+		   ls_stats_read(s->ls_stats, LU_SS_CACHE_HIT),
+		   ls_stats_read(s->ls_stats, LU_SS_CACHE_MISS),
+		   ls_stats_read(s->ls_stats, LU_SS_CACHE_RACE),
+		   ls_stats_read(s->ls_stats, LU_SS_CACHE_DEATH_RACE),
+		   ls_stats_read(s->ls_stats, LU_SS_LRU_PURGED));
+	return 0;
 }
 EXPORT_SYMBOL(lu_site_stats_print);
 
@@ -2100,7 +2096,7 @@ void lu_object_assign_fid(const struct lu_env *env, struct lu_object *o,
 EXPORT_SYMBOL(lu_object_assign_fid);
 
 /**
- * allocates object with 0 (non-assiged) fid
+ * allocates object with 0 (non-assigned) fid
  * XXX: temporary solution to be able to assign fid in ->do_create()
  *      till we have fully-functional OST fids
  */

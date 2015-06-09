@@ -37,6 +37,7 @@
 #include <asm/pgtable.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/smp_twd.h>
+#include <asm/system_info.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -233,7 +234,7 @@ static struct resource realview_eb_eth_resources[] = {
 	[1] = {
 		.start		= IRQ_EB_ETH,
 		.end		= IRQ_EB_ETH,
-		.flags		= IORESOURCE_IRQ,
+		.flags		= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	},
 };
 
@@ -296,7 +297,6 @@ static struct resource pmu_resources[] = {
 };
 
 static struct platform_device pmu_device = {
-	.name			= "arm-pmu",
 	.id			= -1,
 	.num_resources		= ARRAY_SIZE(pmu_resources),
 	.resource		= pmu_resources,
@@ -442,16 +442,23 @@ static void __init realview_eb_init(void)
 		realview_eb11mp_fixup();
 
 #ifdef CONFIG_CACHE_L2X0
-		/* 1MB (128KB/way), 8-way associativity, evmon/parity/share enabled
-		 * Bits:  .... ...0 0111 1001 0000 .... .... .... */
+		/*
+		 * The PL220 needs to be manually configured as the hardware
+		 * doesn't report the correct sizes.
+		 * 1MB (128KB/way), 8-way associativity, event monitor and
+		 * parity enabled, ignore share bit, no force write allocate
+		 * Bits:  .... ...0 0111 1001 0000 .... .... ....
+		 */
 		l2x0_init(__io_address(REALVIEW_EB11MP_L220_BASE), 0x00790000, 0xfe000fff);
 #endif
+		pmu_device.name = core_tile_a9mp() ? "armv7-pmu" : "armv6-pmu";
 		platform_device_register(&pmu_device);
 	}
 
 	realview_flash_register(&realview_eb_flash_resource, 1);
 	platform_device_register(&realview_i2c_device);
 	platform_device_register(&char_lcd_device);
+	platform_device_register(&realview_leds_device);
 	eth_device_register();
 	realview_usb_register(realview_eb_isp1761_resources);
 

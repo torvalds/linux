@@ -229,7 +229,7 @@ such device to feedback.
 EV_PWR:
 ----------
 EV_PWR events are a special type of event used specifically for power
-mangement. Its usage is not well defined. To be addressed later.
+management. Its usage is not well defined. To be addressed later.
 
 Device properties:
 =================
@@ -280,6 +280,25 @@ gestures can normally be extracted from it.
 
 If INPUT_PROP_SEMI_MT is not set, the device is assumed to be a true MT
 device.
+
+INPUT_PROP_TOPBUTTONPAD:
+-----------------------
+Some laptops, most notably the Lenovo *40 series provide a trackstick
+device but do not have physical buttons associated with the trackstick
+device. Instead, the top area of the touchpad is marked to show
+visual/haptic areas for left, middle, right buttons intended to be used
+with the trackstick.
+
+If INPUT_PROP_TOPBUTTONPAD is set, userspace should emulate buttons
+accordingly. This property does not affect kernel behavior.
+The kernel does not provide button emulation for such devices but treats
+them as any other INPUT_PROP_BUTTONPAD device.
+
+INPUT_PROP_ACCELEROMETER
+-------------------------
+Directional axes on this device (absolute and/or relative x, y, z) represent
+accelerometer data. All other axes retain their meaning. A device must not mix
+regular directional axes and accelerometer axes on the same event node.
 
 Guidelines:
 ==========

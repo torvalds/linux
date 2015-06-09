@@ -63,6 +63,7 @@ static struct osc_io *cl2osc_io(const struct lu_env *env,
 				const struct cl_io_slice *slice)
 {
 	struct osc_io *oio = container_of0(slice, struct osc_io, oi_cl);
+
 	LINVRNT(oio == osc_env_io(env));
 	return oio;
 }
@@ -204,7 +205,7 @@ static void osc_page_touch_at(const struct lu_env *env,
 	 *
 	 * here
 	 */
-	CDEBUG(D_INODE, "stripe KMS %sincreasing "LPU64"->"LPU64" "LPU64"\n",
+	CDEBUG(D_INODE, "stripe KMS %sincreasing %llu->%llu %llu\n",
 	       kms > loi->loi_kms ? "" : "not ", loi->loi_kms, kms,
 	       loi->loi_lvb.lvb_size);
 
@@ -297,7 +298,7 @@ static int osc_io_commit_write(const struct lu_env *env,
 	 */
 	osc_page_touch(env, cl2osc_page(slice), to);
 	if (!client_is_remote(osc_export(obj)) &&
-	    cfs_capable(CFS_CAP_SYS_RESOURCE))
+	    capable(CFS_CAP_SYS_RESOURCE))
 		oap->oap_brw_flags |= OBD_BRW_NOQUOTA;
 
 	if (oio->oi_lockless)
@@ -355,11 +356,12 @@ static int trunc_check_cb(const struct lu_env *env, struct cl_io *io,
 
 	if (oap->oap_cmd & OBD_BRW_WRITE &&
 	    !list_empty(&oap->oap_pending_item))
-		CL_PAGE_DEBUG(D_ERROR, env, page, "exists " LPU64 "/%s.\n",
+		CL_PAGE_DEBUG(D_ERROR, env, page, "exists %llu/%s.\n",
 				start, current->comm);
 
 	{
 		struct page *vmpage = cl_page_vmpage(env, page);
+
 		if (PageLocked(vmpage))
 			CDEBUG(D_CACHE, "page %p index %lu locked for %d.\n",
 			       ops, page->cp_index,
@@ -415,7 +417,7 @@ static int osc_io_setattr_start(const struct lu_env *env,
 
 			if (ia_valid & ATTR_SIZE) {
 				attr->cat_size = attr->cat_kms = size;
-				cl_valid = (CAT_SIZE | CAT_KMS);
+				cl_valid = CAT_SIZE | CAT_KMS;
 			}
 			if (ia_valid & ATTR_MTIME_SET) {
 				attr->cat_mtime = lvb->lvb_mtime;
@@ -498,6 +500,7 @@ static void osc_io_setattr_end(const struct lu_env *env,
 
 	if (cl_io_is_trunc(io)) {
 		__u64 size = io->u.ci_setattr.sa_attr.lvb_size;
+
 		osc_trunc_check(env, io, oio, size);
 		if (oio->oi_trunc != NULL) {
 			osc_cache_truncate_end(env, oio, cl2osc(obj));
@@ -509,45 +512,33 @@ static void osc_io_setattr_end(const struct lu_env *env,
 static int osc_io_read_start(const struct lu_env *env,
 			     const struct cl_io_slice *slice)
 {
-	struct osc_io    *oio   = cl2osc_io(env, slice);
 	struct cl_object *obj   = slice->cis_obj;
 	struct cl_attr   *attr  = &osc_env_info(env)->oti_attr;
-	int	      result = 0;
+	int rc = 0;
 
-	if (oio->oi_lockless == 0) {
+	if (!slice->cis_io->ci_noatime) {
 		cl_object_attr_lock(obj);
-		result = cl_object_attr_get(env, obj, attr);
-		if (result == 0) {
-			attr->cat_atime = LTIME_S(CURRENT_TIME);
-			result = cl_object_attr_set(env, obj, attr,
-						    CAT_ATIME);
-		}
+		attr->cat_atime = LTIME_S(CURRENT_TIME);
+		rc = cl_object_attr_set(env, obj, attr, CAT_ATIME);
 		cl_object_attr_unlock(obj);
 	}
-	return result;
+	return rc;
 }
 
 static int osc_io_write_start(const struct lu_env *env,
 			      const struct cl_io_slice *slice)
 {
-	struct osc_io    *oio   = cl2osc_io(env, slice);
 	struct cl_object *obj   = slice->cis_obj;
 	struct cl_attr   *attr  = &osc_env_info(env)->oti_attr;
-	int	      result = 0;
+	int rc = 0;
 
-	if (oio->oi_lockless == 0) {
-		OBD_FAIL_TIMEOUT(OBD_FAIL_OSC_DELAY_SETTIME, 1);
-		cl_object_attr_lock(obj);
-		result = cl_object_attr_get(env, obj, attr);
-		if (result == 0) {
-			attr->cat_mtime = attr->cat_ctime =
-				LTIME_S(CURRENT_TIME);
-			result = cl_object_attr_set(env, obj, attr,
-						    CAT_MTIME | CAT_CTIME);
-		}
-		cl_object_attr_unlock(obj);
-	}
-	return result;
+	OBD_FAIL_TIMEOUT(OBD_FAIL_OSC_DELAY_SETTIME, 1);
+	cl_object_attr_lock(obj);
+	attr->cat_mtime = attr->cat_ctime = LTIME_S(CURRENT_TIME);
+	rc = cl_object_attr_set(env, obj, attr, CAT_MTIME | CAT_CTIME);
+	cl_object_attr_unlock(obj);
+
+	return rc;
 }
 
 static int osc_fsync_ost(const struct lu_env *env, struct osc_object *obj,
@@ -723,7 +714,7 @@ static void osc_req_completion(const struct lu_env *env,
 static void osc_req_attr_set(const struct lu_env *env,
 			     const struct cl_req_slice *slice,
 			     const struct cl_object *obj,
-			     struct cl_req_attr *attr, obd_valid flags)
+			     struct cl_req_attr *attr, u64 flags)
 {
 	struct lov_oinfo *oinfo;
 	struct cl_req    *clerq;
@@ -816,7 +807,7 @@ int osc_req_init(const struct lu_env *env, struct cl_device *dev,
 	struct osc_req *or;
 	int result;
 
-	OBD_SLAB_ALLOC_PTR_GFP(or, osc_req_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(or, osc_req_kmem, GFP_NOFS);
 	if (or != NULL) {
 		cl_req_slice_add(req, &or->or_cl, dev, &osc_req_ops);
 		result = 0;

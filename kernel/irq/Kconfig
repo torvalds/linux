@@ -5,6 +5,10 @@ menu "IRQ subsystem"
 config MAY_HAVE_SPARSE_IRQ
        bool
 
+# Legacy support, required for itanic
+config GENERIC_IRQ_LEGACY
+       bool
+
 # Enable the generic irq autoprobe mechanism
 config GENERIC_IRQ_PROBE
 	bool
@@ -15,6 +19,11 @@ config GENERIC_IRQ_SHOW
 
 # Print level/edge extra information
 config GENERIC_IRQ_SHOW_LEVEL
+       bool
+
+# Facility to allocate a hardware interrupt. This is legacy support
+# and should not be used in new code. Use irq domains instead.
+config GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
        bool
 
 # Support for delayed migration from interrupt context
@@ -44,6 +53,24 @@ config GENERIC_IRQ_CHIP
 
 # Generic irq_domain hw <--> linux irq number translation
 config IRQ_DOMAIN
+	bool
+
+# Support for hierarchical irq domains
+config IRQ_DOMAIN_HIERARCHY
+	bool
+	select IRQ_DOMAIN
+
+# Generic MSI interrupt support
+config GENERIC_MSI_IRQ
+	bool
+
+# Generic MSI hierarchical interrupt domain support
+config GENERIC_MSI_IRQ_DOMAIN
+	bool
+	select IRQ_DOMAIN_HIERARCHY
+	select GENERIC_MSI_IRQ
+
+config HANDLE_DOMAIN_IRQ
 	bool
 
 config IRQ_DOMAIN_DEBUG

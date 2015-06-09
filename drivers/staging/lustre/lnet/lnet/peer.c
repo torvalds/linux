@@ -38,7 +38,7 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include <linux/lnet/lib-lnet.h>
+#include "../../include/linux/lnet/lib-lnet.h"
 
 int
 lnet_peer_tables_create(void)
@@ -87,7 +87,7 @@ lnet_peer_tables_destroy(void)
 
 	cfs_percpt_for_each(ptable, i, the_lnet.ln_peer_tables) {
 		hash = ptable->pt_hash;
-		if (hash == NULL) /* not intialized */
+		if (hash == NULL) /* not initialized */
 			break;
 
 		LASSERT(list_empty(&ptable->pt_deathrow));
@@ -132,7 +132,7 @@ lnet_peer_tables_cleanup(void)
 	}
 
 	cfs_percpt_for_each(ptable, i, the_lnet.ln_peer_tables) {
-		LIST_HEAD	(deathrow);
+		LIST_HEAD(deathrow);
 		lnet_peer_t	*lp;
 
 		lnet_net_lock(i);
@@ -145,7 +145,8 @@ lnet_peer_tables_cleanup(void)
 				       "Waiting for %d peers on peer table\n",
 				       ptable->pt_number);
 			}
-			cfs_pause(cfs_time_seconds(1) / 2);
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			schedule_timeout(cfs_time_seconds(1) / 2);
 			lnet_net_lock(i);
 		}
 		list_splice_init(&ptable->pt_deathrow, &deathrow);

@@ -429,6 +429,9 @@ static int ctr_desall_crypt(struct blkcipher_desc *desc, long func,
 		else
 			memcpy(walk->iv, ctrptr, DES_BLOCK_SIZE);
 		spin_unlock(&ctrblk_lock);
+	} else {
+		if (!nbytes)
+			memcpy(walk->iv, ctrptr, DES_BLOCK_SIZE);
 	}
 	/* final block may be < DES_BLOCK_SIZE, copy only nbytes */
 	if (nbytes) {
@@ -616,8 +619,8 @@ static void __exit des_s390_exit(void)
 module_init(des_s390_init);
 module_exit(des_s390_exit);
 
-MODULE_ALIAS("des");
-MODULE_ALIAS("des3_ede");
+MODULE_ALIAS_CRYPTO("des");
+MODULE_ALIAS_CRYPTO("des3_ede");
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("DES & Triple DES EDE Cipher Algorithms");

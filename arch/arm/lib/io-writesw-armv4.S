@@ -31,7 +31,7 @@
 
 ENTRY(__raw_writesw)
 		teq	r2, #0
-		moveq	pc, lr
+		reteq	lr
 		ands	r3, r1, #3
 		bne	.Loutsw_align
 
@@ -96,5 +96,5 @@ ENTRY(__raw_writesw)
 		tst	r2, #1
 3:		movne	ip, r3, lsr #8
 		strneh	ip, [r0]
-		mov	pc, lr
+		ret	lr
 ENDPROC(__raw_writesw)

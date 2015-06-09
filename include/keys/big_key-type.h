@@ -16,7 +16,8 @@
 
 extern struct key_type key_type_big_key;
 
-extern int big_key_instantiate(struct key *key, struct key_preparsed_payload *prep);
+extern int big_key_preparse(struct key_preparsed_payload *prep);
+extern void big_key_free_preparse(struct key_preparsed_payload *prep);
 extern void big_key_revoke(struct key *key);
 extern void big_key_destroy(struct key *key);
 extern void big_key_describe(const struct key *big_key, struct seq_file *m);

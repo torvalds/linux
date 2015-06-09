@@ -2534,12 +2534,10 @@ static int snd_dbri_create(struct snd_card *card,
 	dbri->op = op;
 	dbri->irq = irq;
 
-	dbri->dma = dma_alloc_coherent(&op->dev,
-				       sizeof(struct dbri_dma),
-				       &dbri->dma_dvma, GFP_ATOMIC);
+	dbri->dma = dma_zalloc_coherent(&op->dev, sizeof(struct dbri_dma),
+					&dbri->dma_dvma, GFP_ATOMIC);
 	if (!dbri->dma)
 		return -ENOMEM;
-	memset((void *)dbri->dma, 0, sizeof(struct dbri_dma));
 
 	dprintk(D_GEN, "DMA Cmd Block 0x%p (0x%08x)\n",
 		dbri->dma, dbri->dma_dvma);
@@ -2615,8 +2613,8 @@ static int dbri_probe(struct platform_device *op)
 		return -ENODEV;
 	}
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
-			      sizeof(struct snd_dbri), &card);
+	err = snd_card_new(&op->dev, index[dev], id[dev], THIS_MODULE,
+			   sizeof(struct snd_dbri), &card);
 	if (err < 0)
 		return err;
 
@@ -2688,7 +2686,6 @@ MODULE_DEVICE_TABLE(of, dbri_match);
 static struct platform_driver dbri_sbus_driver = {
 	.driver = {
 		.name = "dbri",
-		.owner = THIS_MODULE,
 		.of_match_table = dbri_match,
 	},
 	.probe		= dbri_probe,

@@ -315,10 +315,6 @@ ENTRY(ret_from_kernel_thread)
 ENDPROC(ret_from_kernel_thread)
 
 /*
- * Interrupt exit functions should be protected against kprobes
- */
-	.pushsection .kprobes.text, "ax"
-/*
  * Return to user mode is not as complex as all this looks,
  * but we want the default path for a system call return to
  * go as quickly as possible which is why some of this is
@@ -372,10 +368,6 @@ need_resched:
 END(resume_kernel)
 #endif
 	CFI_ENDPROC
-/*
- * End of kprobes section
- */
-	.popsection
 
 /* SYSENTER_RETURN points to after the "sysenter" instruction in
    the vsyscall page.  See vsyscall-sysentry.S, which defines the symbol.  */
@@ -403,10 +395,13 @@ sysenter_past_esp:
 	/*CFI_REL_OFFSET cs, 0*/
 	/*
 	 * Push current_thread_info()->sysenter_return to the stack.
-	 * A tiny bit of offset fixup is necessary - 4*4 means the 4 words
-	 * pushed above; +8 corresponds to copy_thread's esp0 setting.
+	 * A tiny bit of offset fixup is necessary: TI_sysenter_return
+	 * is relative to thread_info, which is at the bottom of the
+	 * kernel stack page.  4*4 means the 4 words pushed above;
+	 * TOP_OF_KERNEL_STACK_PADDING takes us to the top of the stack;
+	 * and THREAD_SIZE takes us to the bottom.
 	 */
-	pushl_cfi ((TI_sysenter_return)-THREAD_SIZE+8+4*4)(%esp)
+	pushl_cfi ((TI_sysenter_return) - THREAD_SIZE + TOP_OF_KERNEL_STACK_PADDING + 4*4)(%esp)
 	CFI_REL_OFFSET eip, 0
 
 	pushl_cfi %eax
@@ -431,15 +426,16 @@ sysenter_past_esp:
 	jnz sysenter_audit
 sysenter_do_call:
 	cmpl $(NR_syscalls), %eax
-	jae syscall_badsys
+	jae sysenter_badsys
 	call *sys_call_table(,%eax,4)
+sysenter_after_call:
 	movl %eax,PT_EAX(%esp)
 	LOCKDEP_SYS_EXIT
 	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_OFF
 	movl TI_flags(%ebp), %ecx
 	testl $_TIF_ALLWORK_MASK, %ecx
-	jne sysexit_audit
+	jnz sysexit_audit
 sysenter_exit:
 /* if something modifies registers it must also disable sysexit */
 	movl PT_EIP(%esp), %edx
@@ -454,22 +450,20 @@ sysenter_exit:
 sysenter_audit:
 	testl $(_TIF_WORK_SYSCALL_ENTRY & ~_TIF_SYSCALL_AUDIT),TI_flags(%ebp)
 	jnz syscall_trace_entry
-	addl $4,%esp
-	CFI_ADJUST_CFA_OFFSET -4
-	/* %esi already in 8(%esp)	   6th arg: 4th syscall arg */
-	/* %edx already in 4(%esp)	   5th arg: 3rd syscall arg */
-	/* %ecx already in 0(%esp)	   4th arg: 2nd syscall arg */
-	movl %ebx,%ecx			/* 3rd arg: 1st syscall arg */
-	movl %eax,%edx			/* 2nd arg: syscall number */
-	movl $AUDIT_ARCH_I386,%eax	/* 1st arg: audit arch */
+	/* movl PT_EAX(%esp), %eax	already set, syscall number: 1st arg to audit */
+	movl PT_EBX(%esp), %edx		/* ebx/a0: 2nd arg to audit */
+	/* movl PT_ECX(%esp), %ecx	already set, a1: 3nd arg to audit */
+	pushl_cfi PT_ESI(%esp)		/* a3: 5th arg */
+	pushl_cfi PT_EDX+4(%esp)	/* a2: 4th arg */
 	call __audit_syscall_entry
-	pushl_cfi %ebx
+	popl_cfi %ecx /* get that remapped edx off the stack */
+	popl_cfi %ecx /* get that remapped esi off the stack */
 	movl PT_EAX(%esp),%eax		/* reload syscall number */
 	jmp sysenter_do_call
 
 sysexit_audit:
 	testl $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), %ecx
-	jne syscall_exit_work
+	jnz syscall_exit_work
 	TRACE_IRQS_ON
 	ENABLE_INTERRUPTS(CLBR_ANY)
 	movl %eax,%edx		/* second arg, syscall return value */
@@ -481,7 +475,7 @@ sysexit_audit:
 	TRACE_IRQS_OFF
 	movl TI_flags(%ebp), %ecx
 	testl $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), %ecx
-	jne syscall_exit_work
+	jnz syscall_exit_work
 	movl PT_EAX(%esp),%eax	/* reload syscall return value */
 	jmp sysenter_exit
 #endif
@@ -495,10 +489,6 @@ sysexit_audit:
 	PTGS_TO_GS_EX
 ENDPROC(ia32_sysenter_target)
 
-/*
- * syscall stub including irq exit should be protected against kprobes
- */
-	.pushsection .kprobes.text, "ax"
 	# system call handler stub
 ENTRY(system_call)
 	RING0_INT_FRAME			# can't unwind into user space anyway
@@ -513,6 +503,7 @@ ENTRY(system_call)
 	jae syscall_badsys
 syscall_call:
 	call *sys_call_table(,%eax,4)
+syscall_after_call:
 	movl %eax,PT_EAX(%esp)		# store the return value
 syscall_exit:
 	LOCKDEP_SYS_EXIT
@@ -522,11 +513,12 @@ syscall_exit:
 	TRACE_IRQS_OFF
 	movl TI_flags(%ebp), %ecx
 	testl $_TIF_ALLWORK_MASK, %ecx	# current->work
-	jne syscall_exit_work
+	jnz syscall_exit_work
 
 restore_all:
 	TRACE_IRQS_IRET
 restore_all_notrace:
+#ifdef CONFIG_X86_ESPFIX32
 	movl PT_EFLAGS(%esp), %eax	# mix EFLAGS, SS and CS
 	# Warning: PT_OLDSS(%esp) contains the wrong/random values if we
 	# are returning to the kernel.
@@ -537,6 +529,7 @@ restore_all_notrace:
 	cmpl $((SEGMENT_LDT << 8) | USER_RPL), %eax
 	CFI_REMEMBER_STATE
 	je ldt_ss			# returning to user-space with LDT SS
+#endif
 restore_nocheck:
 	RESTORE_REGS 4			# skip orig_eax/error_code
 irq_return:
@@ -549,13 +542,9 @@ ENTRY(iret_exc)
 .previous
 	_ASM_EXTABLE(irq_return,iret_exc)
 
+#ifdef CONFIG_X86_ESPFIX32
 	CFI_RESTORE_STATE
 ldt_ss:
-	larl PT_OLDSS(%esp), %eax
-	jnz restore_nocheck
-	testl $0x00400000, %eax		# returning to 32bit stack?
-	jnz restore_nocheck		# allright, normal return
-
 #ifdef CONFIG_PARAVIRT
 	/*
 	 * The kernel can't run on a non-flat stack if paravirt mode
@@ -597,6 +586,7 @@ ldt_ss:
 	lss (%esp), %esp		/* switch to espfix segment */
 	CFI_ADJUST_CFA_OFFSET -8
 	jmp restore_nocheck
+#endif
 	CFI_ENDPROC
 ENDPROC(system_call)
 
@@ -625,7 +615,7 @@ work_notifysig:				# deal with pending signals and
 #ifdef CONFIG_VM86
 	testl $X86_EFLAGS_VM, PT_EFLAGS(%esp)
 	movl %esp, %eax
-	jne work_notifysig_v86		# returning to kernel-space or
+	jnz work_notifysig_v86		# returning to kernel-space or
 					# vm86-space
 1:
 #else
@@ -687,14 +677,15 @@ syscall_fault:
 END(syscall_fault)
 
 syscall_badsys:
-	movl $-ENOSYS,PT_EAX(%esp)
-	jmp resume_userspace
+	movl $-ENOSYS,%eax
+	jmp syscall_after_call
 END(syscall_badsys)
+
+sysenter_badsys:
+	movl $-ENOSYS,%eax
+	jmp sysenter_after_call
+END(sysenter_badsys)
 	CFI_ENDPROC
-/*
- * End of kprobes section
- */
-	.popsection
 
 .macro FIXUP_ESPFIX_STACK
 /*
@@ -704,6 +695,7 @@ END(syscall_badsys)
  * the high word of the segment base from the GDT and swiches to the
  * normal stack and adjusts ESP with the matching offset.
  */
+#ifdef CONFIG_X86_ESPFIX32
 	/* fixup the stack */
 	mov GDT_ESPFIX_SS + 4, %al /* bits 16..23 */
 	mov GDT_ESPFIX_SS + 7, %ah /* bits 24..31 */
@@ -713,8 +705,10 @@ END(syscall_badsys)
 	pushl_cfi %eax
 	lss (%esp), %esp		/* switch to the normal stack segment */
 	CFI_ADJUST_CFA_OFFSET -8
+#endif
 .endm
 .macro UNWIND_ESPFIX_STACK
+#ifdef CONFIG_X86_ESPFIX32
 	movl %ss, %eax
 	/* see if on espfix stack */
 	cmpw $__ESPFIX_SS, %ax
@@ -725,45 +719,25 @@ END(syscall_badsys)
 	/* switch to normal stack */
 	FIXUP_ESPFIX_STACK
 27:
+#endif
 .endm
 
 /*
- * Build the entry stubs and pointer table with some assembler magic.
- * We pack 7 stubs into a single 32-byte chunk, which will fit in a
- * single cache line on all modern x86 implementations.
+ * Build the entry stubs with some assembler magic.
+ * We pack 1 stub into every 8-byte block.
  */
-.section .init.rodata,"a"
-ENTRY(interrupt)
-.section .entry.text, "ax"
-	.p2align 5
-	.p2align CONFIG_X86_L1_CACHE_SHIFT
+	.align 8
 ENTRY(irq_entries_start)
 	RING0_INT_FRAME
-vector=FIRST_EXTERNAL_VECTOR
-.rept (NR_VECTORS-FIRST_EXTERNAL_VECTOR+6)/7
-	.balign 32
-  .rept	7
-    .if vector < NR_VECTORS
-      .if vector <> FIRST_EXTERNAL_VECTOR
+    vector=FIRST_EXTERNAL_VECTOR
+    .rept (FIRST_SYSTEM_VECTOR - FIRST_EXTERNAL_VECTOR)
+	pushl_cfi $(~vector+0x80)	/* Note: always in signed byte range */
+    vector=vector+1
+	jmp	common_interrupt
 	CFI_ADJUST_CFA_OFFSET -4
-      .endif
-1:	pushl_cfi $(~vector+0x80)	/* Note: always in signed byte range */
-      .if ((vector-FIRST_EXTERNAL_VECTOR)%7) <> 6
-	jmp 2f
-      .endif
-      .previous
-	.long 1b
-      .section .entry.text, "ax"
-vector=vector+1
-    .endif
-  .endr
-2:	jmp common_interrupt
-.endr
+	.align	8
+    .endr
 END(irq_entries_start)
-
-.previous
-END(interrupt)
-.previous
 
 /*
  * the CPU automatically disables interrupts when executing an IRQ vector,
@@ -781,10 +755,6 @@ common_interrupt:
 ENDPROC(common_interrupt)
 	CFI_ENDPROC
 
-/*
- *  Irq entries should be protected against kprobes
- */
-	.pushsection .kprobes.text, "ax"
 #define BUILD_INTERRUPT3(name, nr, fn)	\
 ENTRY(name)				\
 	RING0_INT_FRAME;		\
@@ -828,15 +798,9 @@ ENTRY(simd_coprocessor_error)
 	pushl_cfi $0
 #ifdef CONFIG_X86_INVD_BUG
 	/* AMD 486 bug: invd from userspace calls exception 19 instead of #GP */
-661:	pushl_cfi $do_general_protection
-662:
-.section .altinstructions,"a"
-	altinstruction_entry 661b, 663f, X86_FEATURE_XMM, 662b-661b, 664f-663f
-.previous
-.section .altinstr_replacement,"ax"
-663:	pushl $do_simd_coprocessor_error
-664:
-.previous
+	ALTERNATIVE "pushl_cfi $do_general_protection",	\
+		    "pushl $do_simd_coprocessor_error", \
+		    X86_FEATURE_XMM
 #else
 	pushl_cfi $do_simd_coprocessor_error
 #endif
@@ -961,10 +925,6 @@ ENTRY(spurious_interrupt_bug)
 	jmp error_code
 	CFI_ENDPROC
 END(spurious_interrupt_bug)
-/*
- * End of kprobes section
- */
-	.popsection
 
 #ifdef CONFIG_XEN
 /* Xen doesn't set %esp to be precisely what the normal sysenter
@@ -998,6 +958,9 @@ ENTRY(xen_hypervisor_callback)
 ENTRY(xen_do_upcall)
 1:	mov %esp, %eax
 	call xen_evtchn_do_upcall
+#ifndef CONFIG_PREEMPT
+	call xen_maybe_preempt_hcall
+#endif
 	jmp  ret_from_intr
 	CFI_ENDPROC
 ENDPROC(xen_hypervisor_callback)
@@ -1073,9 +1036,6 @@ ENTRY(mcount)
 END(mcount)
 
 ENTRY(ftrace_caller)
-	cmpl $0, function_trace_stop
-	jne  ftrace_stub
-
 	pushl %eax
 	pushl %ecx
 	pushl %edx
@@ -1107,8 +1067,6 @@ END(ftrace_caller)
 
 ENTRY(ftrace_regs_caller)
 	pushf	/* push flags before compare (in cs location) */
-	cmpl $0, function_trace_stop
-	jne ftrace_restore_flags
 
 	/*
 	 * i386 does not save SS and ESP when coming from kernel.
@@ -1167,7 +1125,6 @@ GLOBAL(ftrace_regs_call)
 	popf			/* Pop flags at end (no addl to corrupt flags) */
 	jmp ftrace_ret
 
-ftrace_restore_flags:
 	popf
 	jmp  ftrace_stub
 #else /* ! CONFIG_DYNAMIC_FTRACE */
@@ -1175,9 +1132,6 @@ ftrace_restore_flags:
 ENTRY(mcount)
 	cmpl $__PAGE_OFFSET, %esp
 	jb ftrace_stub		/* Paging not enabled yet? */
-
-	cmpl $0, function_trace_stop
-	jne  ftrace_stub
 
 	cmpl $ftrace_stub, ftrace_trace_function
 	jnz trace
@@ -1216,10 +1170,10 @@ ENTRY(ftrace_graph_caller)
 	pushl %eax
 	pushl %ecx
 	pushl %edx
-	movl 0xc(%esp), %edx
-	lea 0x4(%ebp), %eax
+	movl 0xc(%esp), %eax
+	lea 0x4(%ebp), %edx
 	movl (%ebp), %ecx
-	subl $MCOUNT_INSN_SIZE, %edx
+	subl $MCOUNT_INSN_SIZE, %eax
 	call prepare_ftrace_return
 	popl %edx
 	popl %ecx
@@ -1238,11 +1192,6 @@ return_to_handler:
 	popl %eax
 	jmp *%ecx
 #endif
-
-/*
- * Some functions should be protected against kprobes
- */
-	.pushsection .kprobes.text, "ax"
 
 #ifdef CONFIG_TRACING
 ENTRY(trace_page_fault)
@@ -1267,20 +1216,13 @@ error_code:
 	/*CFI_REL_OFFSET es, 0*/
 	pushl_cfi %ds
 	/*CFI_REL_OFFSET ds, 0*/
-	pushl_cfi %eax
-	CFI_REL_OFFSET eax, 0
-	pushl_cfi %ebp
-	CFI_REL_OFFSET ebp, 0
-	pushl_cfi %edi
-	CFI_REL_OFFSET edi, 0
-	pushl_cfi %esi
-	CFI_REL_OFFSET esi, 0
-	pushl_cfi %edx
-	CFI_REL_OFFSET edx, 0
-	pushl_cfi %ecx
-	CFI_REL_OFFSET ecx, 0
-	pushl_cfi %ebx
-	CFI_REL_OFFSET ebx, 0
+	pushl_cfi_reg eax
+	pushl_cfi_reg ebp
+	pushl_cfi_reg edi
+	pushl_cfi_reg esi
+	pushl_cfi_reg edx
+	pushl_cfi_reg ecx
+	pushl_cfi_reg ebx
 	cld
 	movl $(__KERNEL_PERCPU), %ecx
 	movl %ecx, %fs
@@ -1355,11 +1297,13 @@ END(debug)
 ENTRY(nmi)
 	RING0_INT_FRAME
 	ASM_CLAC
+#ifdef CONFIG_X86_ESPFIX32
 	pushl_cfi %eax
 	movl %ss, %eax
 	cmpw $__ESPFIX_SS, %ax
 	popl_cfi %eax
 	je nmi_espfix_stack
+#endif
 	cmpl $ia32_sysenter_target,(%esp)
 	je nmi_stack_fixup
 	pushl_cfi %eax
@@ -1399,6 +1343,7 @@ nmi_debug_stack_check:
 	FIX_STACK 24, nmi_stack_correct, 1
 	jmp nmi_stack_correct
 
+#ifdef CONFIG_X86_ESPFIX32
 nmi_espfix_stack:
 	/* We have a RING0_INT_FRAME here.
 	 *
@@ -1420,6 +1365,7 @@ nmi_espfix_stack:
 	lss 12+4(%esp), %esp		# back to espfix stack
 	CFI_ADJUST_CFA_OFFSET -24
 	jmp irq_return
+#endif
 	CFI_ENDPROC
 END(nmi)
 
@@ -1453,7 +1399,3 @@ ENTRY(async_page_fault)
 END(async_page_fault)
 #endif
 
-/*
- * End of kprobes section
- */
-	.popsection

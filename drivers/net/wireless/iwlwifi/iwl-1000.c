@@ -62,6 +62,7 @@ static const struct iwl_base_params iwl1000_base_params = {
 	.led_compensation = 51,
 	.wd_timeout = IWL_WATCHDOG_DISABLED,
 	.max_event_log_size = 128,
+	.scd_chain_ext_wa = true,
 };
 
 static const struct iwl_ht_params iwl1000_ht_params = {
@@ -94,7 +95,8 @@ static const struct iwl_eeprom_params iwl1000_eeprom_params = {
 	.nvm_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
 	.base_params = &iwl1000_base_params,			\
 	.eeprom_params = &iwl1000_eeprom_params,		\
-	.led_mode = IWL_LED_BLINK
+	.led_mode = IWL_LED_BLINK,				\
+	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K
 
 const struct iwl_cfg iwl1000_bgn_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 1000 BGN",
@@ -120,7 +122,8 @@ const struct iwl_cfg iwl1000_bg_cfg = {
 	.base_params = &iwl1000_base_params,			\
 	.eeprom_params = &iwl1000_eeprom_params,		\
 	.led_mode = IWL_LED_RF_STATE,				\
-	.rx_with_siso_diversity = true
+	.rx_with_siso_diversity = true,				\
+	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K
 
 const struct iwl_cfg iwl100_bgn_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 100 BGN",

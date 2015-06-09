@@ -42,9 +42,9 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include <obd_support.h>
-#include <lustre_lite.h>
-#include <lustre_dlm.h>
+#include "../include/obd_support.h"
+#include "../include/lustre_lite.h"
+#include "../include/lustre_dlm.h"
 #include "llite_internal.h"
 
 #define SA_OMITTED_ENTRY_MAX 8ULL
@@ -84,7 +84,7 @@ struct ll_sa_entry {
 	struct qstr	     se_qstr;
 };
 
-static unsigned int sai_generation = 0;
+static unsigned int sai_generation;
 static DEFINE_SPINLOCK(sai_generation_lock);
 
 static inline int ll_sa_entry_unhashed(struct ll_sa_entry *entry)
@@ -202,11 +202,11 @@ ll_sa_entry_alloc(struct ll_statahead_info *sai, __u64 index,
 	char		 *dname;
 
 	entry_size = sizeof(struct ll_sa_entry) + (len & ~3) + 4;
-	OBD_ALLOC(entry, entry_size);
-	if (unlikely(entry == NULL))
+	entry = kzalloc(entry_size, GFP_NOFS);
+	if (unlikely(!entry))
 		return ERR_PTR(-ENOMEM);
 
-	CDEBUG(D_READA, "alloc sa entry %.*s(%p) index "LPU64"\n",
+	CDEBUG(D_READA, "alloc sa entry %.*s(%p) index %llu\n",
 	       len, name, entry, index);
 
 	entry->se_index = index;
@@ -325,7 +325,7 @@ static void ll_sa_entry_put(struct ll_statahead_info *sai,
 			     struct ll_sa_entry *entry)
 {
 	if (atomic_dec_and_test(&entry->se_refcount)) {
-		CDEBUG(D_READA, "free sa entry %.*s(%p) index "LPU64"\n",
+		CDEBUG(D_READA, "free sa entry %.*s(%p) index %llu\n",
 		       entry->se_qstr.len, entry->se_qstr.name, entry,
 		       entry->se_index);
 
@@ -334,8 +334,7 @@ static void ll_sa_entry_put(struct ll_statahead_info *sai,
 		LASSERT(ll_sa_entry_unhashed(entry));
 
 		ll_sa_entry_cleanup(sai, entry);
-		if (entry->se_inode)
-			iput(entry->se_inode);
+		iput(entry->se_inode);
 
 		OBD_FREE(entry, entry->se_size);
 		atomic_dec(&sai->sai_cache_count);
@@ -465,7 +464,7 @@ static struct ll_statahead_info *ll_sai_alloc(void)
 	struct ll_statahead_info *sai;
 	int		       i;
 
-	OBD_ALLOC_PTR(sai);
+	sai = kzalloc(sizeof(*sai), GFP_NOFS);
 	if (!sai)
 		return NULL;
 
@@ -528,8 +527,8 @@ static void ll_sai_put(struct ll_statahead_info *sai)
 		spin_unlock(&lli->lli_sa_lock);
 
 		if (sai->sai_sent > sai->sai_replied)
-			CDEBUG(D_READA,"statahead for dir "DFID" does not "
-			      "finish: [sent:"LPU64"] [replied:"LPU64"]\n",
+			CDEBUG(D_READA, "statahead for dir "DFID
+			      " does not finish: [sent:%llu] [replied:%llu]\n",
 			      PFID(&lli->lli_fid),
 			      sai->sai_sent, sai->sai_replied);
 
@@ -577,7 +576,7 @@ static void ll_agl_trigger(struct inode *inode, struct ll_statahead_info *sai)
 	 * Someone triggered glimpse within 1 sec before.
 	 * 1) The former glimpse succeeded with glimpse lock granted by OST, and
 	 *    if the lock is still cached on client, AGL needs to do nothing. If
-	 *    it is cancelled by other client, AGL maybe cannot obtaion new lock
+	 *    it is cancelled by other client, AGL maybe cannot obtain new lock
 	 *    for no glimpse callback triggered by AGL.
 	 * 2) The former glimpse succeeded, but OST did not grant glimpse lock.
 	 *    Under such case, it is quite possible that the OST will not grant
@@ -587,7 +586,7 @@ static void ll_agl_trigger(struct inode *inode, struct ll_statahead_info *sai)
 	 *    affect the performance.
 	 */
 	if (lli->lli_glimpse_time != 0 &&
-	    cfs_time_before(cfs_time_shift(-1), lli->lli_glimpse_time)) {
+	    time_before(cfs_time_shift(-1), lli->lli_glimpse_time)) {
 		up_write(&lli->lli_glimpse_sem);
 		lli->lli_agl_index = 0;
 		iput(inode);
@@ -595,7 +594,7 @@ static void ll_agl_trigger(struct inode *inode, struct ll_statahead_info *sai)
 	}
 
 	CDEBUG(D_READA, "Handling (init) async glimpse: inode = "
-	       DFID", idx = "LPU64"\n", PFID(&lli->lli_fid), index);
+	       DFID", idx = %llu\n", PFID(&lli->lli_fid), index);
 
 	cl_agl(inode);
 	lli->lli_agl_index = 0;
@@ -603,7 +602,7 @@ static void ll_agl_trigger(struct inode *inode, struct ll_statahead_info *sai)
 	up_write(&lli->lli_glimpse_sem);
 
 	CDEBUG(D_READA, "Handled (init) async glimpse: inode= "
-	       DFID", idx = "LPU64", rc = %d\n",
+	       DFID", idx = %llu, rc = %d\n",
 	       PFID(&lli->lli_fid), index, rc);
 
 	iput(inode);
@@ -637,8 +636,10 @@ static void ll_post_statahead(struct ll_statahead_info *sai)
 	it = &minfo->mi_it;
 	req = entry->se_req;
 	body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
-	if (body == NULL)
-		GOTO(out, rc = -EFAULT);
+	if (body == NULL) {
+		rc = -EFAULT;
+		goto out;
+	}
 
 	child = entry->se_inode;
 	if (child == NULL) {
@@ -649,8 +650,10 @@ static void ll_post_statahead(struct ll_statahead_info *sai)
 
 		/* XXX: No fid in reply, this is probably cross-ref case.
 		 * SA can't handle it yet. */
-		if (body->valid & OBD_MD_MDS)
-			GOTO(out, rc = -EAGAIN);
+		if (body->valid & OBD_MD_MDS) {
+			rc = -EAGAIN;
+			goto out;
+		}
 	} else {
 		/*
 		 * revalidate.
@@ -665,12 +668,14 @@ static void ll_post_statahead(struct ll_statahead_info *sai)
 
 	it->d.lustre.it_lock_handle = entry->se_handle;
 	rc = md_revalidate_lock(ll_i2mdexp(dir), it, ll_inode2fid(dir), NULL);
-	if (rc != 1)
-		GOTO(out, rc = -EAGAIN);
+	if (rc != 1) {
+		rc = -EAGAIN;
+		goto out;
+	}
 
 	rc = ll_prep_inode(&child, req, dir->i_sb, it);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	CDEBUG(D_DLMTRACE, "setting l_data to inode %p (%lu/%u)\n",
 	       child, child->i_ino, child->i_generation);
@@ -701,30 +706,43 @@ static int ll_statahead_interpret(struct ptlrpc_request *req,
 	struct ll_inode_info     *lli = ll_i2info(dir);
 	struct ll_statahead_info *sai = NULL;
 	struct ll_sa_entry       *entry;
+	__u64			  handle = 0;
 	int		       wakeup;
 
 	if (it_disposition(it, DISP_LOOKUP_NEG))
 		rc = -ENOENT;
+
+	if (rc == 0) {
+		/* release ibits lock ASAP to avoid deadlock when statahead
+		 * thread enqueues lock on parent in readdir and another
+		 * process enqueues lock on child with parent lock held, eg.
+		 * unlink. */
+		handle = it->d.lustre.it_lock_handle;
+		ll_intent_drop_lock(it);
+	}
 
 	spin_lock(&lli->lli_sa_lock);
 	/* stale entry */
 	if (unlikely(lli->lli_sai == NULL ||
 		     lli->lli_sai->sai_generation != minfo->mi_generation)) {
 		spin_unlock(&lli->lli_sa_lock);
-		GOTO(out, rc = -ESTALE);
+		rc = -ESTALE;
+		goto out;
 	} else {
 		sai = ll_sai_get(lli->lli_sai);
 		if (unlikely(!thread_is_running(&sai->sai_thread))) {
 			sai->sai_replied++;
 			spin_unlock(&lli->lli_sa_lock);
-			GOTO(out, rc = -EBADFD);
+			rc = -EBADFD;
+			goto out;
 		}
 
 		entry = ll_sa_entry_get_byindex(sai, minfo->mi_cbdata);
 		if (entry == NULL) {
 			sai->sai_replied++;
 			spin_unlock(&lli->lli_sa_lock);
-			GOTO(out, rc = -EIDRM);
+			rc = -EIDRM;
+			goto out;
 		}
 
 		if (rc != 0) {
@@ -737,8 +755,7 @@ static int ll_statahead_interpret(struct ptlrpc_request *req,
 			 * when statahead thread tries to enqueue lock on parent
 			 * for readpage and other tries to enqueue lock on child
 			 * with parent's lock held, for example: unlink. */
-			entry->se_handle = it->d.lustre.it_lock_handle;
-			ll_intent_drop_lock(it);
+			entry->se_handle = handle;
 			wakeup = sa_received_empty(sai);
 			list_add_tail(&entry->se_list,
 					  &sai->sai_entries_received);
@@ -793,12 +810,12 @@ static int sa_args_init(struct inode *dir, struct inode *child,
 	struct ldlm_enqueue_info *einfo;
 	struct md_op_data	*op_data;
 
-	OBD_ALLOC_PTR(einfo);
-	if (einfo == NULL)
+	einfo = kzalloc(sizeof(*einfo), GFP_NOFS);
+	if (!einfo)
 		return -ENOMEM;
 
-	OBD_ALLOC_PTR(minfo);
-	if (minfo == NULL) {
+	minfo = kzalloc(sizeof(*minfo), GFP_NOFS);
+	if (!minfo) {
 		OBD_FREE_PTR(einfo);
 		return -ENOMEM;
 	}
@@ -863,7 +880,7 @@ static int do_sa_lookup(struct inode *dir, struct ll_sa_entry *entry)
 static int do_sa_revalidate(struct inode *dir, struct ll_sa_entry *entry,
 			    struct dentry *dentry)
 {
-	struct inode	     *inode = dentry->d_inode;
+	struct inode	     *inode = d_inode(dentry);
 	struct lookup_intent      it = { .it_op = IT_GETATTR,
 					 .d.lustre.it_lock_handle = 0 };
 	struct md_enqueue_info   *minfo;
@@ -877,11 +894,9 @@ static int do_sa_revalidate(struct inode *dir, struct ll_sa_entry *entry,
 	if (d_mountpoint(dentry))
 		return 1;
 
-	if (unlikely(dentry == dentry->d_sb->s_root))
-		return 1;
-
 	entry->se_inode = igrab(inode);
-	rc = md_revalidate_lock(ll_i2mdexp(dir), &it, ll_inode2fid(inode),NULL);
+	rc = md_revalidate_lock(ll_i2mdexp(dir), &it, ll_inode2fid(inode),
+				NULL);
 	if (rc == 1) {
 		entry->se_handle = it.d.lustre.it_lock_handle;
 		ll_intent_release(&it);
@@ -908,10 +923,10 @@ static int do_sa_revalidate(struct inode *dir, struct ll_sa_entry *entry,
 	return rc;
 }
 
-static void ll_statahead_one(struct dentry *parent, const char* entry_name,
+static void ll_statahead_one(struct dentry *parent, const char *entry_name,
 			     int entry_name_len)
 {
-	struct inode	     *dir    = parent->d_inode;
+	struct inode	     *dir    = d_inode(parent);
 	struct ll_inode_info     *lli    = ll_i2info(dir);
 	struct ll_statahead_info *sai    = lli->lli_sai;
 	struct dentry	    *dentry = NULL;
@@ -929,8 +944,8 @@ static void ll_statahead_one(struct dentry *parent, const char* entry_name,
 		rc = do_sa_lookup(dir, entry);
 	} else {
 		rc = do_sa_revalidate(dir, entry, dentry);
-		if (rc == 1 && agl_should_run(sai, dentry->d_inode))
-			ll_agl_add(sai, dentry->d_inode, entry->se_index);
+		if (rc == 1 && agl_should_run(sai, d_inode(dentry)))
+			ll_agl_add(sai, d_inode(dentry), entry->se_index);
 	}
 
 	if (dentry != NULL)
@@ -953,7 +968,7 @@ static void ll_statahead_one(struct dentry *parent, const char* entry_name,
 static int ll_agl_thread(void *arg)
 {
 	struct dentry	    *parent = (struct dentry *)arg;
-	struct inode	     *dir    = parent->d_inode;
+	struct inode	     *dir    = d_inode(parent);
 	struct ll_inode_info     *plli   = ll_i2info(dir);
 	struct ll_inode_info     *clli;
 	struct ll_sb_info	*sbi    = ll_i2sbi(dir);
@@ -961,13 +976,18 @@ static int ll_agl_thread(void *arg)
 	struct ptlrpc_thread     *thread = &sai->sai_agl_thread;
 	struct l_wait_info	lwi    = { 0 };
 
-	CDEBUG(D_READA, "agl thread started: [pid %d] [parent %.*s]\n",
-	       current_pid(), parent->d_name.len, parent->d_name.name);
+	thread->t_pid = current_pid();
+	CDEBUG(D_READA, "agl thread started: sai %p, parent %pd\n",
+	       sai, parent);
 
 	atomic_inc(&sbi->ll_agl_total);
 	spin_lock(&plli->lli_agl_lock);
 	sai->sai_agl_valid = 1;
-	thread_set_flags(thread, SVC_RUNNING);
+	if (thread_is_init(thread))
+		/* If someone else has changed the thread state
+		 * (e.g. already changed to SVC_STOPPING), we can't just
+		 * blindly overwrite that setting. */
+		thread_set_flags(thread, SVC_RUNNING);
 	spin_unlock(&plli->lli_agl_lock);
 	wake_up(&thread->t_ctl_waitq);
 
@@ -1007,8 +1027,8 @@ static int ll_agl_thread(void *arg)
 	spin_unlock(&plli->lli_agl_lock);
 	wake_up(&thread->t_ctl_waitq);
 	ll_sai_put(sai);
-	CDEBUG(D_READA, "agl thread stopped: [pid %d] [parent %.*s]\n",
-	       current_pid(), parent->d_name.len, parent->d_name.name);
+	CDEBUG(D_READA, "agl thread stopped: sai %p, parent %pd\n",
+	       sai, parent);
 	return 0;
 }
 
@@ -1019,10 +1039,10 @@ static void ll_start_agl(struct dentry *parent, struct ll_statahead_info *sai)
 	struct ll_inode_info  *plli;
 	struct task_struct *task;
 
-	CDEBUG(D_READA, "start agl thread: [pid %d] [parent %.*s]\n",
-	       current_pid(), parent->d_name.len, parent->d_name.name);
+	CDEBUG(D_READA, "start agl thread: sai %p, parent %pd\n",
+	       sai, parent);
 
-	plli = ll_i2info(parent->d_inode);
+	plli = ll_i2info(d_inode(parent));
 	task = kthread_run(ll_agl_thread, parent,
 			       "ll_agl_%u", plli->lli_opendir_pid);
 	if (IS_ERR(task)) {
@@ -1039,7 +1059,7 @@ static void ll_start_agl(struct dentry *parent, struct ll_statahead_info *sai)
 static int ll_statahead_thread(void *arg)
 {
 	struct dentry	    *parent = (struct dentry *)arg;
-	struct inode	     *dir    = parent->d_inode;
+	struct inode	     *dir    = d_inode(parent);
 	struct ll_inode_info     *plli   = ll_i2info(dir);
 	struct ll_inode_info     *clli;
 	struct ll_sb_info	*sbi    = ll_i2sbi(dir);
@@ -1053,15 +1073,20 @@ static int ll_statahead_thread(void *arg)
 	struct ll_dir_chain       chain;
 	struct l_wait_info	lwi    = { 0 };
 
-	CDEBUG(D_READA, "statahead thread started: [pid %d] [parent %.*s]\n",
-	       current_pid(), parent->d_name.len, parent->d_name.name);
+	thread->t_pid = current_pid();
+	CDEBUG(D_READA, "statahead thread starting: sai %p, parent %pd\n",
+	       sai, parent);
 
 	if (sbi->ll_flags & LL_SBI_AGL_ENABLED)
 		ll_start_agl(parent, sai);
 
 	atomic_inc(&sbi->ll_sa_total);
 	spin_lock(&plli->lli_sa_lock);
-	thread_set_flags(thread, SVC_RUNNING);
+	if (thread_is_init(thread))
+		/* If someone else has changed the thread state
+		 * (e.g. already changed to SVC_STOPPING), we can't just
+		 * blindly overwrite that setting. */
+		thread_set_flags(thread, SVC_RUNNING);
 	spin_unlock(&plli->lli_sa_lock);
 	wake_up(&thread->t_ctl_waitq);
 
@@ -1074,11 +1099,10 @@ static int ll_statahead_thread(void *arg)
 
 		if (IS_ERR(page)) {
 			rc = PTR_ERR(page);
-			CDEBUG(D_READA, "error reading dir "DFID" at "LPU64
-			       "/"LPU64": [rc %d] [parent %u]\n",
+			CDEBUG(D_READA, "error reading dir "DFID" at %llu/%llu: [rc %d] [parent %u]\n",
 			       PFID(ll_inode2fid(dir)), pos, sai->sai_index,
 			       rc, plli->lli_opendir_pid);
-			GOTO(out, rc);
+			goto out;
 		}
 
 		dp = page_address(page);
@@ -1143,7 +1167,8 @@ interpret_it:
 
 			if (unlikely(!thread_is_running(thread))) {
 				ll_release_page(page, 0);
-				GOTO(out, rc = 0);
+				rc = 0;
+				goto out;
 			}
 
 			/* If no window for metadata statahead, but there are
@@ -1164,7 +1189,8 @@ interpret_it:
 					if (unlikely(
 						!thread_is_running(thread))) {
 						ll_release_page(page, 0);
-						GOTO(out, rc = 0);
+						rc = 0;
+						goto out;
 					}
 
 					if (!sa_sent_full(sai))
@@ -1196,8 +1222,10 @@ do_it:
 				while (!sa_received_empty(sai))
 					ll_post_statahead(sai);
 
-				if (unlikely(!thread_is_running(thread)))
-					GOTO(out, rc = 0);
+				if (unlikely(!thread_is_running(thread))) {
+					rc = 0;
+					goto out;
+				}
 
 				if (sai->sai_sent == sai->sai_replied &&
 				    sa_received_empty(sai))
@@ -1215,7 +1243,8 @@ do_it:
 			}
 			spin_unlock(&plli->lli_agl_lock);
 
-			GOTO(out, rc = 0);
+			rc = 0;
+			goto out;
 		} else if (1) {
 			/*
 			 * chain is exhausted.
@@ -1223,9 +1252,7 @@ do_it:
 			 */
 			ll_release_page(page, le32_to_cpu(dp->ldp_flags) &
 					      LDF_COLLIDE);
-			sai->sai_in_readpage = 1;
 			page = ll_get_dir_page(dir, pos, &chain);
-			sai->sai_in_readpage = 0;
 		} else {
 			LASSERT(le32_to_cpu(dp->ldp_flags) & LDF_COLLIDE);
 			ll_release_page(page, 1);
@@ -1242,8 +1269,8 @@ out:
 		spin_unlock(&plli->lli_agl_lock);
 		wake_up(&agl_thread->t_ctl_waitq);
 
-		CDEBUG(D_READA, "stop agl thread: [pid %d]\n",
-		       current_pid());
+		CDEBUG(D_READA, "stop agl thread: sai %p pid %u\n",
+		       sai, (unsigned int)agl_thread->t_pid);
 		l_wait_event(agl_thread->t_ctl_waitq,
 			     thread_is_stopped(agl_thread),
 			     &lwi);
@@ -1269,8 +1296,8 @@ out:
 	wake_up(&thread->t_ctl_waitq);
 	ll_sai_put(sai);
 	dput(parent);
-	CDEBUG(D_READA, "statahead thread stopped: [pid %d] [parent %.*s]\n",
-	       current_pid(), parent->d_name.len, parent->d_name.name);
+	CDEBUG(D_READA, "statahead thread stopped: sai %p, parent %pd\n",
+	       sai, parent);
 	return rc;
 }
 
@@ -1301,8 +1328,8 @@ void ll_stop_statahead(struct inode *dir, void *key)
 			spin_unlock(&lli->lli_sa_lock);
 			wake_up(&thread->t_ctl_waitq);
 
-			CDEBUG(D_READA, "stop statahead thread: [pid %d]\n",
-			       current_pid());
+			CDEBUG(D_READA, "stop statahead thread: sai %p pid %u\n",
+			       lli->lli_sai, (unsigned int)thread->t_pid);
 			l_wait_event(thread->t_ctl_waitq,
 				     thread_is_stopped(thread),
 				     &lwi);
@@ -1357,8 +1384,7 @@ static int is_first_dirent(struct inode *dir, struct dentry *dentry)
 			struct ll_inode_info *lli = ll_i2info(dir);
 
 			rc = PTR_ERR(page);
-			CERROR("error reading dir "DFID" at "LPU64": "
-			       "[rc %d] [parent %u]\n",
+			CERROR("error reading dir "DFID" at %llu: [rc %d] [parent %u]\n",
 			       PFID(ll_inode2fid(dir)), pos,
 			       rc, lli->lli_opendir_pid);
 			break;
@@ -1418,7 +1444,7 @@ static int is_first_dirent(struct inode *dir, struct dentry *dentry)
 				rc = LS_FIRST_DOT_DE;
 
 			ll_release_page(page, 0);
-			GOTO(out, rc);
+			goto out;
 		}
 		pos = le64_to_cpu(dp->ldp_hash_end);
 		if (pos == MDS_DIR_END_OFF) {
@@ -1473,13 +1499,10 @@ ll_sai_unplug(struct ll_statahead_info *sai, struct ll_sa_entry *entry)
 		sai->sai_consecutive_miss++;
 		if (sa_low_hit(sai) && thread_is_running(thread)) {
 			atomic_inc(&sbi->ll_sa_wrong);
-			CDEBUG(D_READA, "Statahead for dir "DFID" hit "
-			       "ratio too low: hit/miss "LPU64"/"LPU64
-			       ", sent/replied "LPU64"/"LPU64", stopping "
-			       "statahead thread: pid %d\n",
+			CDEBUG(D_READA, "Statahead for dir " DFID " hit ratio too low: hit/miss %llu/%llu, sent/replied %llu/%llu, stopping statahead thread\n",
 			       PFID(&lli->lli_fid), sai->sai_hit,
 			       sai->sai_miss, sai->sai_sent,
-			       sai->sai_replied, current_pid());
+			       sai->sai_replied);
 			spin_lock(&lli->lli_sa_lock);
 			if (!thread_is_stopped(thread))
 				thread_set_flags(thread, SVC_STOPPING);
@@ -1556,12 +1579,6 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 			return entry ? 1 : -EAGAIN;
 		}
 
-		/* if statahead is busy in readdir, help it do post-work */
-		while (!ll_sa_entry_stated(entry) &&
-		       sai->sai_in_readpage &&
-		       !sa_received_empty(sai))
-			ll_post_statahead(sai);
-
 		if (!ll_sa_entry_stated(entry)) {
 			sai->sai_index_wait = entry->se_index;
 			lwi = LWI_TIMEOUT_INTR(cfs_time_seconds(30), NULL,
@@ -1587,18 +1604,23 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 			rc = md_revalidate_lock(ll_i2mdexp(dir), &it,
 						ll_inode2fid(inode), &bits);
 			if (rc == 1) {
-				if ((*dentryp)->d_inode == NULL) {
-					*dentryp = ll_splice_alias(inode,
+				if (d_inode(*dentryp) == NULL) {
+					struct dentry *alias;
+
+					alias = ll_splice_alias(inode,
 								   *dentryp);
-				} else if ((*dentryp)->d_inode != inode) {
+					if (IS_ERR(alias)) {
+						ll_sai_unplug(sai, entry);
+						return PTR_ERR(alias);
+					}
+					*dentryp = alias;
+				} else if (d_inode(*dentryp) != inode) {
 					/* revalidate, but inode is recreated */
 					CDEBUG(D_READA,
-					      "stale dentry %.*s inode %lu/%u, "
-					      "statahead inode %lu/%u\n",
-					      (*dentryp)->d_name.len,
-					      (*dentryp)->d_name.name,
-					      (*dentryp)->d_inode->i_ino,
-					      (*dentryp)->d_inode->i_generation,
+					      "stale dentry %pd inode %lu/%u, statahead inode %lu/%u\n",
+					      *dentryp,
+					      d_inode(*dentryp)->i_ino,
+					      d_inode(*dentryp)->i_generation,
 					      inode->i_ino,
 					      inode->i_generation);
 					ll_sai_unplug(sai, entry);
@@ -1621,42 +1643,53 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 
 	/* I am the "lli_opendir_pid" owner, only me can set "lli_sai". */
 	rc = is_first_dirent(dir, *dentryp);
-	if (rc == LS_NONE_FIRST_DE)
+	if (rc == LS_NONE_FIRST_DE) {
 		/* It is not "ls -{a}l" operation, no need statahead for it. */
-		GOTO(out, rc = -EAGAIN);
+		rc = -EAGAIN;
+		goto out;
+	}
 
 	sai = ll_sai_alloc();
-	if (sai == NULL)
-		GOTO(out, rc = -ENOMEM);
+	if (sai == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	sai->sai_ls_all = (rc == LS_FIRST_DOT_DE);
 	sai->sai_inode = igrab(dir);
 	if (unlikely(sai->sai_inode == NULL)) {
 		CWARN("Do not start stat ahead on dying inode "DFID"\n",
 		      PFID(&lli->lli_fid));
-		GOTO(out, rc = -ESTALE);
+		rc = -ESTALE;
+		goto out;
 	}
 
 	/* get parent reference count here, and put it in ll_statahead_thread */
 	parent = dget((*dentryp)->d_parent);
-	if (unlikely(sai->sai_inode != parent->d_inode)) {
-		struct ll_inode_info *nlli = ll_i2info(parent->d_inode);
+	if (unlikely(sai->sai_inode != d_inode(parent))) {
+		struct ll_inode_info *nlli = ll_i2info(d_inode(parent));
 
-		CWARN("Race condition, someone changed %.*s just now: "
-		      "old parent "DFID", new parent "DFID"\n",
-		      (*dentryp)->d_name.len, (*dentryp)->d_name.name,
+		CWARN("Race condition, someone changed %pd just now: old parent "DFID", new parent "DFID"\n",
+		      *dentryp,
 		      PFID(&lli->lli_fid), PFID(&nlli->lli_fid));
 		dput(parent);
 		iput(sai->sai_inode);
-		GOTO(out, rc = -EAGAIN);
+		rc = -EAGAIN;
+		goto out;
 	}
 
-	CDEBUG(D_READA, "start statahead thread: [pid %d] [parent %.*s]\n",
-	       current_pid(), parent->d_name.len, parent->d_name.name);
+	CDEBUG(D_READA, "start statahead thread: sai %p, parent %pd\n",
+	       sai, parent);
 
+	/* The sai buffer already has one reference taken at allocation time,
+	 * but as soon as we expose the sai by attaching it to the lli that
+	 * default reference can be dropped by another thread calling
+	 * ll_stop_statahead. We need to take a local reference to protect
+	 * the sai buffer while we intend to access it. */
+	ll_sai_get(sai);
 	lli->lli_sai = sai;
 
-	plli = ll_i2info(parent->d_inode);
+	plli = ll_i2info(d_inode(parent));
 	rc = PTR_ERR(kthread_run(ll_statahead_thread, parent,
 				 "ll_sa_%u", plli->lli_opendir_pid));
 	thread = &sai->sai_thread;
@@ -1666,6 +1699,9 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 		lli->lli_opendir_key = NULL;
 		thread_set_flags(thread, SVC_STOPPED);
 		thread_set_flags(&sai->sai_agl_thread, SVC_STOPPED);
+		/* Drop both our own local reference and the default
+		 * reference from allocation time. */
+		ll_sai_put(sai);
 		ll_sai_put(sai);
 		LASSERT(lli->lli_sai == NULL);
 		return -EAGAIN;
@@ -1674,6 +1710,7 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 	l_wait_event(thread->t_ctl_waitq,
 		     thread_is_running(thread) || thread_is_stopped(thread),
 		     &lwi);
+	ll_sai_put(sai);
 
 	/*
 	 * We don't stat-ahead for the first dirent since we are already in

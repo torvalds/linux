@@ -9,6 +9,10 @@
 			Linus
 ----------
 
+M: Matt Mackal
+E: mpm@selenic.com
+D: SLOB slab allocator
+
 N: Matti Aarnio
 E: mea@nic.funet.fi
 D: Alpha systems hacking, IPv6 and other network related stuff
@@ -182,6 +186,10 @@ S: Germany
 N: Krishna Balasubramanian
 E: balasub@cis.ohio-state.edu
 D: Wrote SYS V IPC (part of standard kernel since 0.99.10)
+
+N: Chris Ball
+E: chris@printf.net
+D: Former maintainer of the MMC/SD/SDIO subsystem.
 
 N: Dario Ballabio
 E: ballabio_dario@emc.com
@@ -500,6 +508,10 @@ E: paul@paulbristow.net
 W: http://paulbristow.net/linux/idefloppy.html
 D: Maintainer of IDE/ATAPI floppy driver
 
+N: Stefano Brivio
+E: stefano.brivio@polimi.it
+D: Broadcom B43 driver
+
 N: Dominik Brodowski
 E: linux@brodo.de
 W: http://www.brodo.de/
@@ -629,6 +641,13 @@ D: UWB stack bits and pieces
 N: Michael Elizabeth Chastain
 E: mec@shout.net
 D: Configure, Menuconfig, xconfig
+
+N: Mauro Carvalho Chehab
+E: m.chehab@samsung.org
+E: mchehab@infradead.org
+D: Media subsystem (V4L/DVB) drivers and core
+D: EDAC drivers and EDAC 3.0 core rework
+S: Brazil
 
 N: Raymond Chen
 E: raymondc@microsoft.com
@@ -1186,6 +1205,13 @@ S: R. Tocantins, 89 - Cristo Rei
 S: 80050-430 - Curitiba - Paraná
 S: Brazil
 
+N: Oded Gabbay
+E: oded.gabbay@gmail.com
+D: AMD KFD maintainer
+S: 12 Shraga Raphaeli
+S: Petah-Tikva, 4906418
+S: Israel
+
 N: Kumar Gala
 E: galak@kernel.crashing.org
 D: Embedded PowerPC 6xx/7xx/74xx/82xx/83xx/85xx support
@@ -1229,7 +1255,7 @@ E: philip@gladstonefamily.net
 D: Kernel / timekeeping stuff
 S: Carlisle, MA 01741
 S: USA
-  
+
 N: Jan-Benedict Glaw
 E: jbglaw@lug-owl.de
 D: SRM environment driver (for Alpha systems)
@@ -1369,6 +1395,9 @@ D: SysV FS, shm swapping, memory management fixes
 S: 17 rue Danton
 S: F - 94270 Le Kremlin-Bicêtre
 S: France
+
+N: Jack Hammer
+D: IBM ServeRAID RAID (ips) driver maintenance
 
 N: Greg Hankins
 E: gregh@cc.gatech.edu
@@ -1680,6 +1709,10 @@ S: Reading
 S: RG6 2NU
 S: United Kingdom
 
+N: Dave Jeffery
+E: dhjeffery@gmail.com
+D: SCSI hacks and IBM ServeRAID RAID driver maintenance
+
 N: Jakub Jelinek
 E: jakub@redhat.com
 W: http://sunsite.mff.cuni.cz/~jj
@@ -1709,14 +1742,14 @@ S: Chapel Hill, North Carolina 27514-4818
 S: USA
 
 N: Dave Jones
-E: davej@redhat.com
+E: davej@codemonkey.org.uk
 W: http://www.codemonkey.org.uk
 D: Assorted VIA x86 support.
 D: 2.5 AGPGART overhaul.
 D: CPUFREQ maintenance.
-D: Fedora kernel maintenance.
+D: Fedora kernel maintenance (2003-2014).
+D: 'Trinity' and similar fuzz testing work.
 D: Misc/Other.
-S: 314 Littleton Rd, Westford, MA 01886, USA
 
 N: Martin Josfsson
 E: gandalf@wlug.westbo.se
@@ -2015,6 +2048,10 @@ D: Arc monochrome LCD framebuffer driver, x86 reboot fixups
 D: pirq addr, CS5535 alsa audio driver
 S: Gurgaon, India
 S: Kuala Lumpur, Malaysia
+
+N: Mohit Kumar
+D: ST Microelectronics SPEAr13xx PCI host bridge driver
+D: Synopsys Designware PCI host bridge driver
 
 N: Gabor Kuti
 M: seasons@falcon.sch.bme.hu
@@ -2560,9 +2597,13 @@ S: 22 Seaview St
 S: Fullarton 5063
 S: South Australia
 
-N. Wolfgang Muees
+N: Wolfgang Muees
 E: wolfgang@iksw-muees.de
 D: Auerswald USB driver
+
+N: Paul Mundt
+E: paul.mundt@gmail.com
+D: SuperH maintainer
 
 N: Ian A. Murdock
 E: imurdock@gnu.ai.mit.edu
@@ -2706,6 +2747,9 @@ D: Original author and maintainer of IDE/ATAPI floppy/tape drivers
 N: Greg Page
 E: gpage@sovereign.org
 D: IPX development and support
+
+N: Venkatesh Pallipadi (Venki)
+D: x86/HPET
 
 N: David Parsons
 E: orc@pell.chi.il.us
@@ -2971,6 +3015,19 @@ W: http://yaina.de/jreuter/
 W: http://www.qsl.net/dl1bke/
 D: Generic Z8530 driver, AX.25 DAMA slave implementation
 D: Several AX.25 hacks
+
+N: Ricardo Ribalda Delgado
+E: ricardo.ribalda@gmail.com
+W: http://ribalda.com
+D: PLX USB338x driver
+D: PCA9634 driver
+D: Option GTM671WFS
+D: Fintek F81216A
+D: Various kernel hacks
+S: Qtechnology A/S
+S: Valby Langgade 142
+S: 2500 Valby
+S: Denmark
 
 N: Francois-Rene Rideau
 E: fare@tunes.org
@@ -3493,10 +3550,11 @@ S: MacGregor A.C.T 2615
 S: Australia
 
 N: Josh Triplett
-E: josh@freedesktop.org
-P: 1024D/D0FE7AFB B24A 65C9 1D71 2AC2 DE87  CA26 189B 9946 D0FE 7AFB
-D: rcutorture maintainer
+E: josh@joshtriplett.org
+P: 4096R/8AFF873D 758E 5042 E397 4BA3 3A9C  1E67 0ED9 A3DF 8AFF 873D
+D: RCU and rcutorture
 D: lock annotations, finding and fixing lock bugs
+D: kernel tinification
 
 N: Winfried Trümper
 E: winni@xpilot.org
@@ -3650,6 +3708,13 @@ S: USA
 N: Dirk Verworner
 D: Co-author of German book ``Linux-Kernel-Programmierung''
 D: Co-founder of Berlin Linux User Group
+
+N: Andrew Victor
+E: linux@maxim.org.za
+W: http://maxim.org.za/at91_26.html
+D: First maintainer of Atmel ARM-based SoC, aka AT91
+D: Introduced support for at91rm9200, the first chip of AT91 family
+S: South Africa
 
 N: Riku Voipio
 E: riku.voipio@iki.fi

@@ -48,11 +48,10 @@ struct drm_exynos_ipp_cmd_work {
 /*
  * A structure of command node.
  *
- * @priv: IPP private information.
  * @list: list head to command queue information.
  * @event_list: list head of event.
  * @mem_list: list head to source,destination memory queue information.
- * @cmd_lock: lock for synchronization of access to ioctl.
+ * @lock: lock for synchronization of access to ioctl.
  * @mem_lock: lock for synchronization of access to memory nodes.
  * @event_lock: lock for synchronization of access to scheduled event.
  * @start_complete: completion of start of command.
@@ -62,13 +61,13 @@ struct drm_exynos_ipp_cmd_work {
  * @stop_work: stop command work structure.
  * @event_work: event work structure.
  * @state: state of command node.
+ * @filp: associated file pointer.
  */
 struct drm_exynos_ipp_cmd_node {
-	struct exynos_drm_ipp_private *priv;
 	struct list_head	list;
 	struct list_head	event_list;
 	struct list_head	mem_list[EXYNOS_DRM_OPS_MAX];
-	struct mutex	cmd_lock;
+	struct mutex	lock;
 	struct mutex	mem_lock;
 	struct mutex	event_lock;
 	struct completion	start_complete;
@@ -78,12 +77,13 @@ struct drm_exynos_ipp_cmd_node {
 	struct drm_exynos_ipp_cmd_work *stop_work;
 	struct drm_exynos_ipp_event_work *event_work;
 	enum drm_exynos_ipp_state	state;
+	struct drm_file	*filp;
 };
 
 /*
  * A structure of buffer information.
  *
- * @gem_objs: Y, Cb, Cr each gem object.
+ * @handles: Y, Cb, Cr each gem object handle.
  * @base: Y, Cb, Cr each planar address.
  */
 struct drm_exynos_ipp_buf_info {
@@ -142,12 +142,12 @@ struct exynos_drm_ipp_ops {
  * @parent_dev: parent device information.
  * @dev: platform device.
  * @drm_dev: drm device.
- * @ipp_id: id of ipp driver.
  * @dedicated: dedicated ipp device.
  * @ops: source, destination operations.
  * @event_workq: event work queue.
  * @c_node: current command information.
  * @cmd_list: list head for command information.
+ * @cmd_lock: lock for synchronization of access to cmd_list.
  * @prop_list: property informations of current ipp driver.
  * @check_property: check property about format, size, buffer.
  * @reset: reset ipp block.
@@ -160,13 +160,13 @@ struct exynos_drm_ippdrv {
 	struct device	*parent_dev;
 	struct device	*dev;
 	struct drm_device	*drm_dev;
-	u32	ipp_id;
 	bool	dedicated;
 	struct exynos_drm_ipp_ops	*ops[EXYNOS_DRM_OPS_MAX];
 	struct workqueue_struct	*event_workq;
 	struct drm_exynos_ipp_cmd_node *c_node;
 	struct list_head	cmd_list;
-	struct drm_exynos_ipp_prop_list *prop_list;
+	struct mutex	cmd_lock;
+	struct drm_exynos_ipp_prop_list prop_list;
 
 	int (*check_property)(struct device *dev,
 		struct drm_exynos_ipp_property *property);

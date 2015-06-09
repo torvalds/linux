@@ -159,7 +159,6 @@ static void flctl_setup_dma(struct sh_flctl *flctl)
 		return;
 
 	memset(&cfg, 0, sizeof(cfg));
-	cfg.slave_id = pdata->slave_id_fifo0_tx;
 	cfg.direction = DMA_MEM_TO_DEV;
 	cfg.dst_addr = (dma_addr_t)FLDTFIFO(flctl);
 	cfg.src_addr = 0;
@@ -175,7 +174,6 @@ static void flctl_setup_dma(struct sh_flctl *flctl)
 	if (!flctl->chan_fifo0_rx)
 		goto err;
 
-	cfg.slave_id = pdata->slave_id_fifo0_rx;
 	cfg.direction = DMA_DEV_TO_MEM;
 	cfg.dst_addr = 0;
 	cfg.src_addr = (dma_addr_t)FLDTFIFO(flctl);
@@ -395,7 +393,7 @@ static int flctl_dma_fifo0_transfer(struct sh_flctl *flctl, unsigned long *buf,
 				msecs_to_jiffies(3000));
 
 	if (ret <= 0) {
-		chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
+		dmaengine_terminate_all(chan);
 		dev_err(&flctl->pdev->dev, "wait_for_completion_timeout\n");
 	}
 
@@ -897,7 +895,7 @@ static void flctl_select_chip(struct mtd_info *mtd, int chipnr)
 		if (!flctl->qos_request) {
 			ret = dev_pm_qos_add_request(&flctl->pdev->dev,
 							&flctl->pm_qos,
-							DEV_PM_QOS_LATENCY,
+							DEV_PM_QOS_RESUME_LATENCY,
 							100);
 			if (ret < 0)
 				dev_err(&flctl->pdev->dev,
@@ -1190,7 +1188,6 @@ static struct platform_driver flctl_driver = {
 	.remove		= flctl_remove,
 	.driver = {
 		.name	= "sh_flctl",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(of_flctl_match),
 	},
 };

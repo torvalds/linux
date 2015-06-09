@@ -102,6 +102,7 @@ u32 host1x_syncpt_incr_max(struct host1x_syncpt *sp, u32 incrs)
 {
 	return (u32)atomic_add_return(incrs, &sp->max_val);
 }
+EXPORT_SYMBOL(host1x_syncpt_incr_max);
 
  /*
  * Write cached syncpoint and waitbase values to hardware.
@@ -423,6 +424,12 @@ u32 host1x_syncpt_read_min(struct host1x_syncpt *sp)
 	return (u32)atomic_read(&sp->min_val);
 }
 EXPORT_SYMBOL(host1x_syncpt_read_min);
+
+u32 host1x_syncpt_read(struct host1x_syncpt *sp)
+{
+	return host1x_syncpt_load(sp);
+}
+EXPORT_SYMBOL(host1x_syncpt_read);
 
 int host1x_syncpt_nb_pts(struct host1x *host)
 {

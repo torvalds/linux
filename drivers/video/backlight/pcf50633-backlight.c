@@ -90,6 +90,7 @@ static int pcf50633_bl_update_status(struct backlight_device *bl)
 static int pcf50633_bl_get_brightness(struct backlight_device *bl)
 {
 	struct pcf50633_bl *pcf_bl = bl_get_data(bl);
+
 	return pcf_bl->brightness;
 }
 

@@ -64,7 +64,7 @@ MODULE_PARM_DESC(thinkpad, "Force to enable Thinkpad's CLKRUN control.");
 module_param_array(mmap_valid, bool, NULL, 0444);
 MODULE_PARM_DESC(mmap_valid, "Support OSS mmap.");
 
-static DEFINE_PCI_DEVICE_TABLE(snd_cs46xx_ids) = {
+static const struct pci_device_id snd_cs46xx_ids[] = {
 	{ PCI_VDEVICE(CIRRUS, 0x6001), 0, },   /* CS4280 */
 	{ PCI_VDEVICE(CIRRUS, 0x6003), 0, },   /* CS4612 */
 	{ PCI_VDEVICE(CIRRUS, 0x6004), 0, },   /* CS4615 */
@@ -88,7 +88,8 @@ static int snd_card_cs46xx_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+			   0, &card);
 	if (err < 0)
 		return err;
 	if ((err = snd_cs46xx_create(card, pci,
@@ -99,16 +100,16 @@ static int snd_card_cs46xx_probe(struct pci_dev *pci,
 	}
 	card->private_data = chip;
 	chip->accept_valid = mmap_valid[dev];
-	if ((err = snd_cs46xx_pcm(chip, 0, NULL)) < 0) {
+	if ((err = snd_cs46xx_pcm(chip, 0)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
-	if ((err = snd_cs46xx_pcm_rear(chip,1, NULL)) < 0) {
+	if ((err = snd_cs46xx_pcm_rear(chip, 1)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
-	if ((err = snd_cs46xx_pcm_iec958(chip,2,NULL)) < 0) {
+	if ((err = snd_cs46xx_pcm_iec958(chip, 2)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -119,13 +120,13 @@ static int snd_card_cs46xx_probe(struct pci_dev *pci,
 	}
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
 	if (chip->nr_ac97_codecs ==2) {
-		if ((err = snd_cs46xx_pcm_center_lfe(chip,3,NULL)) < 0) {
+		if ((err = snd_cs46xx_pcm_center_lfe(chip, 3)) < 0) {
 			snd_card_free(card);
 			return err;
 		}
 	}
 #endif
-	if ((err = snd_cs46xx_midi(chip, 0, NULL)) < 0) {
+	if ((err = snd_cs46xx_midi(chip, 0)) < 0) {
 		snd_card_free(card);
 		return err;
 	}

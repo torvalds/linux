@@ -33,13 +33,13 @@
 #include <linux/pci.h>
 #include <linux/pci-acpi.h>
 #include <linux/pci-aspm.h>
+#include <linux/dmar.h>
 #include <linux/acpi.h>
 #include <linux/slab.h>
+#include <linux/dmi.h>
 #include <acpi/apei.h>	/* for acpi_hest_init() */
 
 #include "internal.h"
-
-#define PREFIX "ACPI: "
 
 #define _COMPONENT		ACPI_PCI_COMPONENT
 ACPI_MODULE_NAME("pci_root");
@@ -51,7 +51,7 @@ static void acpi_pci_root_remove(struct acpi_device *device);
 
 static int acpi_pci_root_scan_dependent(struct acpi_device *adev)
 {
-	acpiphp_check_host_bridge(adev->handle);
+	acpiphp_check_host_bridge(adev);
 	return 0;
 }
 
@@ -112,10 +112,10 @@ get_root_bridge_busnr_callback(struct acpi_resource *resource, void *data)
 	if (ACPI_FAILURE(status))
 		return AE_OK;
 
-	if ((address.address_length > 0) &&
+	if ((address.address.address_length > 0) &&
 	    (address.resource_type == ACPI_BUS_NUMBER_RANGE)) {
-		res->start = address.minimum;
-		res->end = address.minimum + address.address_length - 1;
+		res->start = address.address.minimum;
+		res->end = address.address.minimum + address.address.address_length - 1;
 	}
 
 	return AE_OK;
@@ -423,13 +423,25 @@ out:
 }
 EXPORT_SYMBOL(acpi_pci_osc_control_set);
 
-static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm,
-				 int *clear_aspm)
+static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm)
 {
 	u32 support, control, requested;
 	acpi_status status;
 	struct acpi_device *device = root->device;
 	acpi_handle handle = device->handle;
+
+	/*
+	 * Apple always return failure on _OSC calls when _OSI("Darwin") has
+	 * been called successfully. We know the feature set supported by the
+	 * platform, so avoid calling _OSC at all
+	 */
+
+	if (dmi_match(DMI_SYS_VENDOR, "Apple Inc.")) {
+		root->osc_control_set = ~OSC_PCI_EXPRESS_PME_CONTROL;
+		decode_osc_control(root, "OS assumes control of",
+				   root->osc_control_set);
+		return;
+	}
 
 	/*
 	 * All supported architectures that use ACPI have support for
@@ -482,10 +494,12 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm,
 		decode_osc_control(root, "OS now controls", control);
 		if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_ASPM) {
 			/*
-			 * We have ASPM control, but the FADT indicates
-			 * that it's unsupported. Clear it.
+			 * We have ASPM control, but the FADT indicates that
+			 * it's unsupported. Leave existing configuration
+			 * intact and prevent the OS from touching it.
 			 */
-			*clear_aspm = 1;
+			dev_info(&device->dev, "FADT indicates ASPM is unsupported, using BIOS configuration\n");
+			*no_aspm = 1;
 		}
 	} else {
 		decode_osc_control(root, "OS requested", requested);
@@ -512,7 +526,8 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	int result;
 	struct acpi_pci_root *root;
 	acpi_handle handle = device->handle;
-	int no_aspm = 0, clear_aspm = 0;
+	int no_aspm = 0;
+	bool hotadd = system_state != SYSTEM_BOOTING;
 
 	root = kzalloc(sizeof(struct acpi_pci_root), GFP_KERNEL);
 	if (!root)
@@ -559,13 +574,18 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	strcpy(acpi_device_class(device), ACPI_PCI_ROOT_CLASS);
 	device->driver_data = root;
 
+	if (hotadd && dmar_device_add(handle)) {
+		result = -ENXIO;
+		goto end;
+	}
+
 	pr_info(PREFIX "%s [%s] (domain %04x %pR)\n",
 	       acpi_device_name(device), acpi_device_bid(device),
 	       root->segment, &root->secondary);
 
 	root->mcfg_addr = acpi_pci_root_get_mcfg_addr(handle);
 
-	negotiate_os_control(root, &no_aspm, &clear_aspm);
+	negotiate_os_control(root, &no_aspm);
 
 	/*
 	 * TBD: Need PCI interface for enumeration/configuration of roots.
@@ -585,23 +605,20 @@ static int acpi_pci_root_add(struct acpi_device *device,
 			root->segment, (unsigned int)root->secondary.start);
 		device->driver_data = NULL;
 		result = -ENODEV;
-		goto end;
+		goto remove_dmar;
 	}
 
-	if (clear_aspm) {
-		dev_info(&device->dev, "Disabling ASPM (FADT indicates it is unsupported)\n");
-		pcie_clear_aspm(root->bus);
-	}
 	if (no_aspm)
 		pcie_no_aspm();
 
-	pci_acpi_add_bus_pm_notifier(device, root->bus);
+	pci_acpi_add_bus_pm_notifier(device);
 	if (device->wakeup.flags.run_wake)
 		device_set_run_wake(root->bus->bridge, true);
 
-	if (system_state != SYSTEM_BOOTING) {
+	if (hotadd) {
 		pcibios_resource_survey_bus(root->bus);
 		pci_assign_unassigned_root_bus_resources(root->bus);
+		acpi_ioapic_add(root);
 	}
 
 	pci_lock_rescan_remove();
@@ -609,6 +626,9 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	pci_unlock_rescan_remove();
 	return 1;
 
+remove_dmar:
+	if (hotadd)
+		dmar_device_remove(handle);
 end:
 	kfree(root);
 	return result;
@@ -622,10 +642,14 @@ static void acpi_pci_root_remove(struct acpi_device *device)
 
 	pci_stop_root_bus(root->bus);
 
+	WARN_ON(acpi_ioapic_remove(root));
+
 	device_set_run_wake(root->bus->bridge, false);
 	pci_acpi_remove_bus_pm_notifier(device);
 
 	pci_remove_root_bus(root->bus);
+
+	dmar_device_remove(device->handle);
 
 	pci_unlock_rescan_remove();
 

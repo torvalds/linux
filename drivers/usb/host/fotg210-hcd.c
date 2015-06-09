@@ -1483,7 +1483,7 @@ fotg210_hub_status_data(struct usb_hcd *hcd, char *buf)
 
 	/*
 	 * Return status information even for ports with OWNER set.
-	 * Otherwise khubd wouldn't see the disconnect event when a
+	 * Otherwise hub_wq wouldn't see the disconnect event when a
 	 * high-speed device is switched over to the companion
 	 * controller by the user.
 	 */
@@ -1509,7 +1509,7 @@ fotg210_hub_descriptor(
 	int		ports = HCS_N_PORTS(fotg210->hcs_params);
 	u16		temp;
 
-	desc->bDescriptorType = 0x29;
+	desc->bDescriptorType = USB_DT_HUB;
 	desc->bPwrOn2PwrGood = 10;	/* fotg210 1.0, 2.3.9 says 20ms max */
 	desc->bHubContrCurrent = 0;
 
@@ -1521,8 +1521,8 @@ fotg210_hub_descriptor(
 	memset(&desc->u.hs.DeviceRemovable[0], 0, temp);
 	memset(&desc->u.hs.DeviceRemovable[temp], 0xff, temp);
 
-	temp = 0x0008;		/* per-port overcurrent reporting */
-	temp |= 0x0002;		/* no power switching */
+	temp = HUB_CHAR_INDV_PORT_OCPM;	/* per-port overcurrent reporting */
+	temp |= HUB_CHAR_NO_LPSM;	/* no power switching */
 	desc->wHubCharacteristics = cpu_to_le16(temp);
 }
 
@@ -1572,7 +1572,7 @@ static int fotg210_hub_control(
 
 		/*
 		 * Even if OWNER is set, so the port is owned by the
-		 * companion controller, khubd needs to be able to clear
+		 * companion controller, hub_wq needs to be able to clear
 		 * the port-change status bits (especially
 		 * USB_PORT_STAT_C_CONNECTION).
 		 */
@@ -1595,7 +1595,7 @@ static int fotg210_hub_control(
 			/* resume signaling for 20 msec */
 			fotg210_writel(fotg210, temp | PORT_RESUME, status_reg);
 			fotg210->reset_done[wIndex] = jiffies
-					+ msecs_to_jiffies(20);
+					+ msecs_to_jiffies(USB_RESUME_TIMEOUT);
 			break;
 		case USB_PORT_FEAT_C_SUSPEND:
 			clear_bit(wIndex, &fotg210->port_c_suspend);
@@ -1723,7 +1723,7 @@ static int fotg210_hub_control(
 		}
 
 		/*
-		 * Even if OWNER is set, there's no harm letting khubd
+		 * Even if OWNER is set, there's no harm letting hub_wq
 		 * see the wPortStatus values (they should all be 0 except
 		 * for PORT_POWER anyway).
 		 */
@@ -4958,7 +4958,7 @@ static ssize_t store_uframe_periodic_max(struct device *dev,
 
 		if (allocated_max > uframe_periodic_max) {
 			fotg210_info(fotg210,
-				"cannot decrease uframe_periodic_max becase "
+				"cannot decrease uframe_periodic_max because "
 				"periodic bandwidth is already allocated "
 				"(%u > %u)\n",
 				allocated_max, uframe_periodic_max);
@@ -5445,7 +5445,7 @@ static irqreturn_t fotg210_irq(struct usb_hcd *hcd)
 				fotg210->reset_done[0] == 0) {
 
 			/* start 20 msec resume signaling from this port,
-			 * and make khubd collect PORT_STAT_C_SUSPEND to
+			 * and make hub_wq collect PORT_STAT_C_SUSPEND to
 			 * stop that signaling.  Use 5 ms extra for safety,
 			 * like usb_port_resume() does.
 			 */
@@ -5838,41 +5838,17 @@ static int fotg210_hcd_probe(struct platform_device *pdev)
 		goto fail_create_hcd;
 	}
 
+	hcd->has_tt = 1;
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev,
-			"Found HC with no register addr. Check %s setup!\n",
-			dev_name(dev));
-		retval = -ENODEV;
-		goto fail_request_resource;
+	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hcd->regs)) {
+		retval = PTR_ERR(hcd->regs);
+		goto failed;
 	}
 
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
-	hcd->has_tt = 1;
-
-	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len,
-				fotg210_fotg210_hc_driver.description)) {
-		dev_dbg(dev, "controller already in use\n");
-		retval = -EBUSY;
-		goto fail_request_resource;
-	}
-
-	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	if (!res) {
-		dev_err(dev,
-			"Found HC with no register addr. Check %s setup!\n",
-			dev_name(dev));
-		retval = -ENODEV;
-		goto fail_request_resource;
-	}
-
-	hcd->regs = ioremap_nocache(res->start, resource_size(res));
-	if (hcd->regs == NULL) {
-		dev_dbg(dev, "error mapping memory\n");
-		retval = -EFAULT;
-		goto fail_ioremap;
-	}
 
 	fotg210 = hcd_to_fotg210(hcd);
 
@@ -5880,24 +5856,20 @@ static int fotg210_hcd_probe(struct platform_device *pdev)
 
 	retval = fotg210_setup(hcd);
 	if (retval)
-		goto fail_add_hcd;
+		goto failed;
 
 	fotg210_init(fotg210);
 
 	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval) {
 		dev_err(dev, "failed to add hcd with err %d\n", retval);
-		goto fail_add_hcd;
+		goto failed;
 	}
 	device_wakeup_enable(hcd->self.controller);
 
 	return retval;
 
-fail_add_hcd:
-	iounmap(hcd->regs);
-fail_ioremap:
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
-fail_request_resource:
+failed:
 	usb_put_hcd(hcd);
 fail_create_hcd:
 	dev_err(dev, "init %s fail, %d\n", dev_name(dev), retval);
@@ -5918,8 +5890,6 @@ static int fotg210_hcd_remove(struct platform_device *pdev)
 		return 0;
 
 	usb_remove_hcd(hcd);
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
 
 	return 0;

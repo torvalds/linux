@@ -44,10 +44,10 @@
 #define __LST_CONSOLE_H__
 
 
-#include <linux/libcfs/libcfs.h>
-#include <linux/lnet/lnet.h>
-#include <linux/lnet/lib-types.h>
-#include <linux/lnet/lnetst.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "../../include/linux/lnet/lnet.h"
+#include "../../include/linux/lnet/lib-types.h"
+#include "../../include/linux/lnet/lnetst.h"
 #include "selftest.h"
 #include "conrpc.h"
 
@@ -56,7 +56,7 @@ typedef struct lstcon_node {
 	int		  nd_ref;	 /* reference count */
 	int		  nd_state;       /* state of the node */
 	int		  nd_timeout;     /* session timeout */
-	cfs_time_t	   nd_stamp;       /* timestamp of last replied RPC */
+	unsigned long	   nd_stamp;       /* timestamp of last replied RPC */
 	struct lstcon_rpc    nd_ping;	/* ping rpc */
 } lstcon_node_t;				/*** node descriptor */
 
@@ -182,6 +182,9 @@ lstcon_id2hash (lnet_process_id_t id, struct list_head *hash)
 	return &hash[idx];
 }
 
+int lstcon_console_init(void);
+int lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_data *data);
+int lstcon_console_fini(void);
 extern int lstcon_session_match(lst_sid_t sid);
 extern int lstcon_session_new(char *name, int key, unsigned version,
 			      int timeout, int flags, lst_sid_t *sid_up);

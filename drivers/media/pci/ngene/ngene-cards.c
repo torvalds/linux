@@ -696,7 +696,7 @@ static struct ngene_info ngene_info_m780 = {
 	.demod_attach   = { NULL, demod_attach_lg330x },
 
 	/* Ensure these are NULL else the frame will call them (as funcs) */
-	.tuner_attach   = { 0, 0, 0, 0 },
+	.tuner_attach   = { NULL, NULL, NULL, NULL },
 	.fe_config      = { NULL, &aver_m780 },
 	.avf            = { 0 },
 

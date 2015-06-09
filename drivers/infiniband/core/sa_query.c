@@ -618,7 +618,7 @@ static void init_mad(struct ib_sa_mad *mad, struct ib_mad_agent *agent)
 
 static int send_mad(struct ib_sa_query *query, int timeout_ms, gfp_t gfp_mask)
 {
-	bool preload = gfp_mask & __GFP_WAIT;
+	bool preload = !!(gfp_mask & __GFP_WAIT);
 	unsigned long flags;
 	int ret, id;
 
@@ -1184,7 +1184,7 @@ static void ib_sa_add_one(struct ib_device *device)
 		sa_dev->port[i].agent =
 			ib_register_mad_agent(device, i + s, IB_QPT_GSI,
 					      NULL, 0, send_handler,
-					      recv_handler, sa_dev);
+					      recv_handler, sa_dev, 0);
 		if (IS_ERR(sa_dev->port[i].agent))
 			goto err;
 

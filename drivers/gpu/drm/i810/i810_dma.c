@@ -213,7 +213,7 @@ static int i810_dma_cleanup(struct drm_device *dev)
 		    (drm_i810_private_t *) dev->dev_private;
 
 		if (dev_priv->ring.virtual_start)
-			drm_core_ioremapfree(&dev_priv->ring.map, dev);
+			drm_legacy_ioremapfree(&dev_priv->ring.map, dev);
 		if (dev_priv->hw_status_page) {
 			pci_free_consistent(dev->pdev, PAGE_SIZE,
 					    dev_priv->hw_status_page,
@@ -227,7 +227,7 @@ static int i810_dma_cleanup(struct drm_device *dev)
 			drm_i810_buf_priv_t *buf_priv = buf->dev_private;
 
 			if (buf_priv->kernel_virtual && buf->total)
-				drm_core_ioremapfree(&buf_priv->map, dev);
+				drm_legacy_ioremapfree(&buf_priv->map, dev);
 		}
 	}
 	return 0;
@@ -306,7 +306,7 @@ static int i810_freelist_init(struct drm_device *dev, drm_i810_private_t *dev_pr
 		buf_priv->map.flags = 0;
 		buf_priv->map.mtrr = 0;
 
-		drm_core_ioremap(&buf_priv->map, dev);
+		drm_legacy_ioremap(&buf_priv->map, dev);
 		buf_priv->kernel_virtual = buf_priv->map.handle;
 
 	}
@@ -334,7 +334,7 @@ static int i810_dma_initialize(struct drm_device *dev,
 		DRM_ERROR("can not find sarea!\n");
 		return -EINVAL;
 	}
-	dev_priv->mmio_map = drm_core_findmap(dev, init->mmio_offset);
+	dev_priv->mmio_map = drm_legacy_findmap(dev, init->mmio_offset);
 	if (!dev_priv->mmio_map) {
 		dev->dev_private = (void *)dev_priv;
 		i810_dma_cleanup(dev);
@@ -342,7 +342,7 @@ static int i810_dma_initialize(struct drm_device *dev,
 		return -EINVAL;
 	}
 	dev->agp_buffer_token = init->buffers_offset;
-	dev->agp_buffer_map = drm_core_findmap(dev, init->buffers_offset);
+	dev->agp_buffer_map = drm_legacy_findmap(dev, init->buffers_offset);
 	if (!dev->agp_buffer_map) {
 		dev->dev_private = (void *)dev_priv;
 		i810_dma_cleanup(dev);
@@ -363,7 +363,7 @@ static int i810_dma_initialize(struct drm_device *dev,
 	dev_priv->ring.map.flags = 0;
 	dev_priv->ring.map.mtrr = 0;
 
-	drm_core_ioremap(&dev_priv->ring.map, dev);
+	drm_legacy_ioremap(&dev_priv->ring.map, dev);
 
 	if (dev_priv->ring.map.handle == NULL) {
 		dev->dev_private = (void *)dev_priv;
@@ -393,15 +393,14 @@ static int i810_dma_initialize(struct drm_device *dev,
 
 	/* Program Hardware Status Page */
 	dev_priv->hw_status_page =
-	    pci_alloc_consistent(dev->pdev, PAGE_SIZE,
-				 &dev_priv->dma_status_page);
+		pci_zalloc_consistent(dev->pdev, PAGE_SIZE,
+				      &dev_priv->dma_status_page);
 	if (!dev_priv->hw_status_page) {
 		dev->dev_private = (void *)dev_priv;
 		i810_dma_cleanup(dev);
 		DRM_ERROR("Can not allocate hardware status page\n");
 		return -ENOMEM;
 	}
-	memset(dev_priv->hw_status_page, 0, PAGE_SIZE);
 	DRM_DEBUG("hw status page @ %p\n", dev_priv->hw_status_page);
 
 	I810_WRITE(0x02080, dev_priv->dma_status_page);
@@ -1216,9 +1215,9 @@ void i810_driver_preclose(struct drm_device *dev, struct drm_file *file_priv)
 	}
 
 	if (file_priv->master && file_priv->master->lock.hw_lock) {
-		drm_idlelock_take(&file_priv->master->lock);
+		drm_legacy_idlelock_take(&file_priv->master->lock);
 		i810_driver_reclaim_buffers(dev, file_priv);
-		drm_idlelock_release(&file_priv->master->lock);
+		drm_legacy_idlelock_release(&file_priv->master->lock);
 	} else {
 		/* master disappeared, clean up stuff anyway and hope nothing
 		 * goes wrong */
@@ -1251,7 +1250,7 @@ const struct drm_ioctl_desc i810_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I810_FLIP, i810_flip_bufs, DRM_AUTH|DRM_UNLOCKED),
 };
 
-int i810_max_ioctl = DRM_ARRAY_SIZE(i810_ioctls);
+int i810_max_ioctl = ARRAY_SIZE(i810_ioctls);
 
 /**
  * Determine if the device really is AGP or not.

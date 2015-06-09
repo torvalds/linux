@@ -19,8 +19,8 @@ struct pci_bus;
 struct device;
 
 struct hw_pci {
-#ifdef CONFIG_PCI_DOMAINS
-	int		domain;
+#ifdef CONFIG_PCI_MSI
+	struct msi_controller *msi_ctrl;
 #endif
 	struct pci_ops	*ops;
 	int		nr_controllers;
@@ -36,16 +36,14 @@ struct hw_pci {
 					  resource_size_t start,
 					  resource_size_t size,
 					  resource_size_t align);
-	void		(*add_bus)(struct pci_bus *bus);
-	void		(*remove_bus)(struct pci_bus *bus);
 };
 
 /*
  * Per-controller structure
  */
 struct pci_sys_data {
-#ifdef CONFIG_PCI_DOMAINS
-	int		domain;
+#ifdef CONFIG_PCI_MSI
+	struct msi_controller *msi_ctrl;
 #endif
 	struct list_head node;
 	int		busnr;		/* primary bus number			*/
@@ -65,8 +63,6 @@ struct pci_sys_data {
 					  resource_size_t start,
 					  resource_size_t size,
 					  resource_size_t align);
-	void		(*add_bus)(struct pci_bus *bus);
-	void		(*remove_bus)(struct pci_bus *bus);
 	void		*private_data;	/* platform controller private data	*/
 };
 

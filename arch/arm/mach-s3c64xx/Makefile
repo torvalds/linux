@@ -5,11 +5,6 @@
 #
 # Licensed under GPLv2
 
-obj-y				:=
-obj-m				:=
-obj-n				:=
-obj-				:=
-
 # Core
 
 obj-y				+= common.o
@@ -21,7 +16,8 @@ obj-$(CONFIG_CPU_S3C6410)	+= s3c6410.o
 
 # PM
 
-obj-$(CONFIG_PM)		+= pm.o irq-pm.o sleep.o
+obj-$(CONFIG_PM)		+= pm.o
+obj-$(CONFIG_PM_SLEEP)		+= irq-pm.o sleep.o
 obj-$(CONFIG_CPU_IDLE)		+= cpuidle.o
 
 # DMA support

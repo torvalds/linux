@@ -255,10 +255,10 @@ static void remove_qp(struct qib_ibdev *dev, struct qib_qp *qp)
 
 	if (rcu_dereference_protected(ibp->qp0,
 			lockdep_is_held(&dev->qpt_lock)) == qp) {
-		rcu_assign_pointer(ibp->qp0, NULL);
+		RCU_INIT_POINTER(ibp->qp0, NULL);
 	} else if (rcu_dereference_protected(ibp->qp1,
 			lockdep_is_held(&dev->qpt_lock)) == qp) {
-		rcu_assign_pointer(ibp->qp1, NULL);
+		RCU_INIT_POINTER(ibp->qp1, NULL);
 	} else {
 		struct qib_qp *q;
 		struct qib_qp __rcu **qpp;
@@ -269,7 +269,7 @@ static void remove_qp(struct qib_ibdev *dev, struct qib_qp *qp)
 				lockdep_is_held(&dev->qpt_lock))) != NULL;
 				qpp = &q->next)
 			if (q == qp) {
-				rcu_assign_pointer(*qpp,
+				RCU_INIT_POINTER(*qpp,
 					rcu_dereference_protected(qp->next,
 					 lockdep_is_held(&dev->qpt_lock)));
 				removed = 1;
@@ -315,7 +315,7 @@ unsigned qib_free_all_qps(struct qib_devdata *dd)
 	for (n = 0; n < dev->qp_table_size; n++) {
 		qp = rcu_dereference_protected(dev->qp_table[n],
 			lockdep_is_held(&dev->qpt_lock));
-		rcu_assign_pointer(dev->qp_table[n], NULL);
+		RCU_INIT_POINTER(dev->qp_table[n], NULL);
 
 		for (; qp; qp = rcu_dereference_protected(qp->next,
 					lockdep_is_held(&dev->qpt_lock)))
@@ -985,7 +985,8 @@ struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 	struct ib_qp *ret;
 
 	if (init_attr->cap.max_send_sge > ib_qib_max_sges ||
-	    init_attr->cap.max_send_wr > ib_qib_max_qp_wrs) {
+	    init_attr->cap.max_send_wr > ib_qib_max_qp_wrs ||
+	    init_attr->create_flags) {
 		ret = ERR_PTR(-EINVAL);
 		goto bail;
 	}
@@ -1324,7 +1325,6 @@ int qib_qp_iter_next(struct qib_qp_iter *iter)
 	struct qib_qp *pqp = iter->qp;
 	struct qib_qp *qp;
 
-	rcu_read_lock();
 	for (; n < dev->qp_table_size; n++) {
 		if (pqp)
 			qp = rcu_dereference(pqp->next);
@@ -1332,18 +1332,11 @@ int qib_qp_iter_next(struct qib_qp_iter *iter)
 			qp = rcu_dereference(dev->qp_table[n]);
 		pqp = qp;
 		if (qp) {
-			if (iter->qp)
-				atomic_dec(&iter->qp->refcount);
-			atomic_inc(&qp->refcount);
-			rcu_read_unlock();
 			iter->qp = qp;
 			iter->n = n;
 			return 0;
 		}
 	}
-	rcu_read_unlock();
-	if (iter->qp)
-		atomic_dec(&iter->qp->refcount);
 	return ret;
 }
 

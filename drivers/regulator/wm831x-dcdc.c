@@ -469,10 +469,8 @@ static int wm831x_buckv_probe(struct platform_device *pdev)
 
 	dcdc = devm_kzalloc(&pdev->dev,  sizeof(struct wm831x_dcdc),
 			    GFP_KERNEL);
-	if (dcdc == NULL) {
-		dev_err(&pdev->dev, "Unable to allocate private data\n");
+	if (!dcdc)
 		return -ENOMEM;
-	}
 
 	dcdc->wm831x = wm831x;
 
@@ -564,7 +562,6 @@ static struct platform_driver wm831x_buckv_driver = {
 	.probe = wm831x_buckv_probe,
 	.driver		= {
 		.name	= "wm831x-buckv",
-		.owner	= THIS_MODULE,
 	},
 };
 
@@ -622,10 +619,8 @@ static int wm831x_buckp_probe(struct platform_device *pdev)
 
 	dcdc = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_dcdc),
 			    GFP_KERNEL);
-	if (dcdc == NULL) {
-		dev_err(&pdev->dev, "Unable to allocate private data\n");
+	if (!dcdc)
 		return -ENOMEM;
-	}
 
 	dcdc->wm831x = wm831x;
 
@@ -693,7 +688,6 @@ static struct platform_driver wm831x_buckp_driver = {
 	.probe = wm831x_buckp_probe,
 	.driver		= {
 		.name	= "wm831x-buckp",
-		.owner	= THIS_MODULE,
 	},
 };
 
@@ -752,10 +746,8 @@ static int wm831x_boostp_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	dcdc = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_dcdc), GFP_KERNEL);
-	if (dcdc == NULL) {
-		dev_err(&pdev->dev, "Unable to allocate private data\n");
+	if (!dcdc)
 		return -ENOMEM;
-	}
 
 	dcdc->wm831x = wm831x;
 
@@ -810,7 +802,6 @@ static struct platform_driver wm831x_boostp_driver = {
 	.probe = wm831x_boostp_probe,
 	.driver		= {
 		.name	= "wm831x-boostp",
-		.owner	= THIS_MODULE,
 	},
 };
 
@@ -842,10 +833,8 @@ static int wm831x_epe_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "Probing EPE%d\n", id + 1);
 
 	dcdc = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_dcdc), GFP_KERNEL);
-	if (dcdc == NULL) {
-		dev_err(&pdev->dev, "Unable to allocate private data\n");
+	if (!dcdc)
 		return -ENOMEM;
-	}
 
 	dcdc->wm831x = wm831x;
 
@@ -888,7 +877,6 @@ static struct platform_driver wm831x_epe_driver = {
 	.probe = wm831x_epe_probe,
 	.driver		= {
 		.name	= "wm831x-epe",
-		.owner	= THIS_MODULE,
 	},
 };
 

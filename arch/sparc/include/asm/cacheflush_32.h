@@ -36,7 +36,7 @@
 #define flush_page_for_dma(addr) \
 	sparc32_cachetlb_ops->page_for_dma(addr)
 
-extern void sparc_flush_page_to_ram(struct page *page);
+void sparc_flush_page_to_ram(struct page *page);
 
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 #define flush_dcache_page(page)			sparc_flush_page_to_ram(page)
@@ -51,8 +51,8 @@ extern void sparc_flush_page_to_ram(struct page *page);
  * way the windows are all clean for the next process and the stack
  * frames are up to date.
  */
-extern void flush_user_windows(void);
-extern void kill_user_windows(void);
-extern void flushw_all(void);
+void flush_user_windows(void);
+void kill_user_windows(void);
+void flushw_all(void);
 
 #endif /* _SPARC_CACHEFLUSH_H */

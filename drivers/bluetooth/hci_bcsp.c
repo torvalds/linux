@@ -47,8 +47,6 @@
 
 #include "hci_uart.h"
 
-#define VERSION "0.3"
-
 static bool txcrc = 1;
 static bool hciextn = 1;
 
@@ -291,7 +289,8 @@ static struct sk_buff *bcsp_dequeue(struct hci_uart *hu)
 	/* First of all, check for unreliable messages in the queue,
 	   since they have priority */
 
-	if ((skb = skb_dequeue(&bcsp->unrel)) != NULL) {
+	skb = skb_dequeue(&bcsp->unrel);
+	if (skb != NULL) {
 		struct sk_buff *nskb = bcsp_prepare_pkt(bcsp, skb->data, skb->len, bt_cb(skb)->pkt_type);
 		if (nskb) {
 			kfree_skb(skb);
@@ -308,16 +307,20 @@ static struct sk_buff *bcsp_dequeue(struct hci_uart *hu)
 
 	spin_lock_irqsave_nested(&bcsp->unack.lock, flags, SINGLE_DEPTH_NESTING);
 
-	if (bcsp->unack.qlen < BCSP_TXWINSIZE && (skb = skb_dequeue(&bcsp->rel)) != NULL) {
-		struct sk_buff *nskb = bcsp_prepare_pkt(bcsp, skb->data, skb->len, bt_cb(skb)->pkt_type);
-		if (nskb) {
-			__skb_queue_tail(&bcsp->unack, skb);
-			mod_timer(&bcsp->tbcsp, jiffies + HZ / 4);
-			spin_unlock_irqrestore(&bcsp->unack.lock, flags);
-			return nskb;
-		} else {
-			skb_queue_head(&bcsp->rel, skb);
-			BT_ERR("Could not dequeue pkt because alloc_skb failed");
+	if (bcsp->unack.qlen < BCSP_TXWINSIZE) {
+		skb = skb_dequeue(&bcsp->rel);
+		if (skb != NULL) {
+			struct sk_buff *nskb = bcsp_prepare_pkt(bcsp, skb->data, skb->len,
+								bt_cb(skb)->pkt_type);
+			if (nskb) {
+				__skb_queue_tail(&bcsp->unack, skb);
+				mod_timer(&bcsp->tbcsp, jiffies + HZ / 4);
+				spin_unlock_irqrestore(&bcsp->unack.lock, flags);
+				return nskb;
+			} else {
+				skb_queue_head(&bcsp->rel, skb);
+				BT_ERR("Could not dequeue pkt because alloc_skb failed");
+			}
 		}
 	}
 
@@ -549,10 +552,10 @@ static u16 bscp_get_crc(struct bcsp_struct *bcsp)
 }
 
 /* Recv data */
-static int bcsp_recv(struct hci_uart *hu, void *data, int count)
+static int bcsp_recv(struct hci_uart *hu, const void *data, int count)
 {
 	struct bcsp_struct *bcsp = hu->priv;
-	unsigned char *ptr;
+	const unsigned char *ptr;
 
 	BT_DBG("hu %p count %d rx_state %d rx_count %ld", 
 		hu, count, bcsp->rx_state, bcsp->rx_count);
@@ -715,6 +718,9 @@ static int bcsp_open(struct hci_uart *hu)
 static int bcsp_close(struct hci_uart *hu)
 {
 	struct bcsp_struct *bcsp = hu->priv;
+
+	del_timer_sync(&bcsp->tbcsp);
+
 	hu->priv = NULL;
 
 	BT_DBG("hu %p", hu);
@@ -722,14 +728,14 @@ static int bcsp_close(struct hci_uart *hu)
 	skb_queue_purge(&bcsp->unack);
 	skb_queue_purge(&bcsp->rel);
 	skb_queue_purge(&bcsp->unrel);
-	del_timer(&bcsp->tbcsp);
 
 	kfree(bcsp);
 	return 0;
 }
 
-static struct hci_uart_proto bcsp = {
+static const struct hci_uart_proto bcsp = {
 	.id		= HCI_UART_BCSP,
+	.name		= "BCSP",
 	.open		= bcsp_open,
 	.close		= bcsp_close,
 	.enqueue	= bcsp_enqueue,
@@ -740,14 +746,7 @@ static struct hci_uart_proto bcsp = {
 
 int __init bcsp_init(void)
 {
-	int err = hci_uart_register_proto(&bcsp);
-
-	if (!err)
-		BT_INFO("HCI BCSP protocol initialized");
-	else
-		BT_ERR("HCI BCSP protocol registration failed");
-
-	return err;
+	return hci_uart_register_proto(&bcsp);
 }
 
 int __exit bcsp_deinit(void)

@@ -40,10 +40,10 @@
 #include <drm/ttm/ttm_module.h>
 #include "vmwgfx_fence.h"
 
-#define VMWGFX_DRIVER_DATE "20140228"
+#define VMWGFX_DRIVER_DATE "20140704"
 #define VMWGFX_DRIVER_MAJOR 2
-#define VMWGFX_DRIVER_MINOR 5
-#define VMWGFX_DRIVER_PATCHLEVEL 0
+#define VMWGFX_DRIVER_MINOR 6
+#define VMWGFX_DRIVER_PATCHLEVEL 1
 #define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
 #define VMWGFX_MAX_RELOCATIONS 2048
@@ -75,14 +75,11 @@
 #define VMW_RES_FENCE ttm_driver_type3
 #define VMW_RES_SHADER ttm_driver_type4
 
-struct vmw_compat_shader_manager;
-
 struct vmw_fpriv {
 	struct drm_master *locked_master;
 	struct ttm_object_file *tfile;
 	struct list_head fence_events;
 	bool gb_aware;
-	struct vmw_compat_shader_manager *shman;
 };
 
 struct vmw_dma_buffer {
@@ -124,6 +121,10 @@ struct vmw_resource {
 	void (*hw_destroy) (struct vmw_resource *res);
 };
 
+
+/*
+ * Resources that are managed using ioctls.
+ */
 enum vmw_res_type {
 	vmw_res_context,
 	vmw_res_surface,
@@ -131,6 +132,15 @@ enum vmw_res_type {
 	vmw_res_shader,
 	vmw_res_max
 };
+
+/*
+ * Resources that are managed using command streams.
+ */
+enum vmw_cmdbuf_res_type {
+	vmw_cmdbuf_res_compat_shader
+};
+
+struct vmw_cmdbuf_res_manager;
 
 struct vmw_cursor_snooper {
 	struct drm_crtc *crtc;
@@ -159,8 +169,8 @@ struct vmw_surface {
 
 struct vmw_marker_queue {
 	struct list_head head;
-	struct timespec lag;
-	struct timespec lag_time;
+	u64 lag;
+	u64 lag_time;
 	spinlock_t lock;
 };
 
@@ -332,7 +342,6 @@ struct vmw_sw_context{
 	uint32_t *cmd_bounce;
 	uint32_t cmd_bounce_size;
 	struct list_head resource_list;
-	uint32_t fence_flags;
 	struct ttm_buffer_object *cur_query_bo;
 	struct list_head res_relocations;
 	uint32_t *buf_start;
@@ -341,7 +350,7 @@ struct vmw_sw_context{
 	bool needs_post_query_barrier;
 	struct vmw_resource *error_resource;
 	struct vmw_ctx_binding_state staged_bindings;
-	struct list_head staged_shaders;
+	struct list_head staged_cmd_res;
 };
 
 struct vmw_legacy_display;
@@ -390,7 +399,8 @@ struct vmw_private {
 	uint32_t memory_size;
 	bool has_gmr;
 	bool has_mob;
-	struct mutex hw_mutex;
+	spinlock_t hw_lock;
+	spinlock_t cap_lock;
 
 	/*
 	 * VGA registers.
@@ -440,8 +450,9 @@ struct vmw_private {
 	atomic_t marker_seq;
 	wait_queue_head_t fence_queue;
 	wait_queue_head_t fifo_queue;
-	int fence_queue_waiters; /* Protected by hw_mutex */
-	int goal_queue_waiters; /* Protected by hw_mutex */
+	spinlock_t waiter_lock;
+	int fence_queue_waiters; /* Protected by waiter_lock */
+	int goal_queue_waiters; /* Protected by waiter_lock */
 	atomic_t fifo_queue_waiters;
 	uint32_t last_read_seqno;
 	spinlock_t irq_lock;
@@ -485,6 +496,11 @@ struct vmw_private {
 
 	struct mutex release_mutex;
 	uint32_t num_3d_resources;
+
+	/*
+	 * Replace this with an rwsem as soon as we have down_xx_interruptible()
+	 */
+	struct ttm_lock reservation_sem;
 
 	/*
 	 * Query processing. These members
@@ -539,20 +555,35 @@ static inline struct vmw_master *vmw_master(struct drm_master *master)
 	return (struct vmw_master *) master->driver_priv;
 }
 
+/*
+ * The locking here is fine-grained, so that it is performed once
+ * for every read- and write operation. This is of course costly, but we
+ * don't perform much register access in the timing critical paths anyway.
+ * Instead we have the extra benefit of being sure that we don't forget
+ * the hw lock around register accesses.
+ */
 static inline void vmw_write(struct vmw_private *dev_priv,
 			     unsigned int offset, uint32_t value)
 {
+	unsigned long irq_flags;
+
+	spin_lock_irqsave(&dev_priv->hw_lock, irq_flags);
 	outl(offset, dev_priv->io_start + VMWGFX_INDEX_PORT);
 	outl(value, dev_priv->io_start + VMWGFX_VALUE_PORT);
+	spin_unlock_irqrestore(&dev_priv->hw_lock, irq_flags);
 }
 
 static inline uint32_t vmw_read(struct vmw_private *dev_priv,
 				unsigned int offset)
 {
-	uint32_t val;
+	unsigned long irq_flags;
+	u32 val;
 
+	spin_lock_irqsave(&dev_priv->hw_lock, irq_flags);
 	outl(offset, dev_priv->io_start + VMWGFX_INDEX_PORT);
 	val = inl(dev_priv->io_start + VMWGFX_VALUE_PORT);
+	spin_unlock_irqrestore(&dev_priv->hw_lock, irq_flags);
+
 	return val;
 }
 
@@ -689,6 +720,7 @@ extern void *vmw_fifo_reserve(struct vmw_private *dev_priv, uint32_t bytes);
 extern void vmw_fifo_commit(struct vmw_private *dev_priv, uint32_t bytes);
 extern int vmw_fifo_send_fence(struct vmw_private *dev_priv,
 			       uint32_t *seqno);
+extern void vmw_fifo_ping_host_locked(struct vmw_private *, uint32_t reason);
 extern void vmw_fifo_ping_host(struct vmw_private *dev_priv, uint32_t reason);
 extern bool vmw_fifo_have_3d(struct vmw_private *dev_priv);
 extern bool vmw_fifo_have_pitchlock(struct vmw_private *dev_priv);
@@ -969,7 +1001,8 @@ extern void vmw_context_binding_res_list_kill(struct list_head *head);
 extern void vmw_context_binding_res_list_scrub(struct list_head *head);
 extern int vmw_context_rebind_all(struct vmw_resource *ctx);
 extern struct list_head *vmw_context_binding_list(struct vmw_resource *ctx);
-
+extern struct vmw_cmdbuf_res_manager *
+vmw_context_res_man(struct vmw_resource *ctx);
 /*
  * Surface management - vmwgfx_surface.c
  */
@@ -1003,27 +1036,42 @@ extern int vmw_shader_define_ioctl(struct drm_device *dev, void *data,
 				   struct drm_file *file_priv);
 extern int vmw_shader_destroy_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_priv);
-extern int vmw_compat_shader_lookup(struct vmw_compat_shader_manager *man,
-				    SVGA3dShaderType shader_type,
-				    u32 *user_key);
-extern void vmw_compat_shaders_commit(struct vmw_compat_shader_manager *man,
-				      struct list_head *list);
-extern void vmw_compat_shaders_revert(struct vmw_compat_shader_manager *man,
-				      struct list_head *list);
-extern int vmw_compat_shader_remove(struct vmw_compat_shader_manager *man,
-				    u32 user_key,
-				    SVGA3dShaderType shader_type,
-				    struct list_head *list);
-extern int vmw_compat_shader_add(struct vmw_compat_shader_manager *man,
+extern int vmw_compat_shader_add(struct vmw_private *dev_priv,
+				 struct vmw_cmdbuf_res_manager *man,
 				 u32 user_key, const void *bytecode,
 				 SVGA3dShaderType shader_type,
 				 size_t size,
-				 struct ttm_object_file *tfile,
 				 struct list_head *list);
-extern struct vmw_compat_shader_manager *
-vmw_compat_shader_man_create(struct vmw_private *dev_priv);
-extern void
-vmw_compat_shader_man_destroy(struct vmw_compat_shader_manager *man);
+extern int vmw_compat_shader_remove(struct vmw_cmdbuf_res_manager *man,
+				    u32 user_key, SVGA3dShaderType shader_type,
+				    struct list_head *list);
+extern struct vmw_resource *
+vmw_compat_shader_lookup(struct vmw_cmdbuf_res_manager *man,
+			 u32 user_key, SVGA3dShaderType shader_type);
+
+/*
+ * Command buffer managed resources - vmwgfx_cmdbuf_res.c
+ */
+
+extern struct vmw_cmdbuf_res_manager *
+vmw_cmdbuf_res_man_create(struct vmw_private *dev_priv);
+extern void vmw_cmdbuf_res_man_destroy(struct vmw_cmdbuf_res_manager *man);
+extern size_t vmw_cmdbuf_res_man_size(void);
+extern struct vmw_resource *
+vmw_cmdbuf_res_lookup(struct vmw_cmdbuf_res_manager *man,
+		      enum vmw_cmdbuf_res_type res_type,
+		      u32 user_key);
+extern void vmw_cmdbuf_res_revert(struct list_head *list);
+extern void vmw_cmdbuf_res_commit(struct list_head *list);
+extern int vmw_cmdbuf_res_add(struct vmw_cmdbuf_res_manager *man,
+			      enum vmw_cmdbuf_res_type res_type,
+			      u32 user_key,
+			      struct vmw_resource *res,
+			      struct list_head *list);
+extern int vmw_cmdbuf_res_remove(struct vmw_cmdbuf_res_manager *man,
+				 enum vmw_cmdbuf_res_type res_type,
+				 u32 user_key,
+				 struct list_head *list);
 
 
 /**

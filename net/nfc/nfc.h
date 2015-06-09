@@ -40,6 +40,12 @@ struct nfc_rawsock {
 	struct work_struct tx_work;
 	bool tx_work_scheduled;
 };
+
+struct nfc_sock_list {
+	struct hlist_head head;
+	rwlock_t          lock;
+};
+
 #define nfc_rawsock(sk) ((struct nfc_rawsock *) sk)
 #define to_rawsock_sk(_tx_work) \
 	((struct sock *) container_of(_tx_work, struct nfc_rawsock, tx_work))
@@ -94,6 +100,8 @@ int nfc_genl_llc_send_sdres(struct nfc_dev *dev, struct hlist_head *sdres_list);
 
 int nfc_genl_se_added(struct nfc_dev *dev, u32 se_idx, u16 type);
 int nfc_genl_se_removed(struct nfc_dev *dev, u32 se_idx);
+int nfc_genl_se_transaction(struct nfc_dev *dev, u8 se_idx,
+			    struct nfc_evt_transaction *evt_transaction);
 
 struct nfc_dev *nfc_get_device(unsigned int idx);
 

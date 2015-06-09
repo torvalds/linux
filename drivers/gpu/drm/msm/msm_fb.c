@@ -24,7 +24,7 @@
 struct msm_framebuffer {
 	struct drm_framebuffer base;
 	const struct msm_format *format;
-	struct drm_gem_object *planes[2];
+	struct drm_gem_object *planes[MAX_PLANE];
 };
 #define to_msm_framebuffer(x) container_of(x, struct msm_framebuffer, base)
 
@@ -87,6 +87,44 @@ void msm_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m)
 }
 #endif
 
+/* prepare/pin all the fb's bo's for scanout.  Note that it is not valid
+ * to prepare an fb more multiple different initiator 'id's.  But that
+ * should be fine, since only the scanout (mdpN) side of things needs
+ * this, the gpu doesn't care about fb's.
+ */
+int msm_framebuffer_prepare(struct drm_framebuffer *fb, int id)
+{
+	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
+	int ret, i, n = drm_format_num_planes(fb->pixel_format);
+	uint32_t iova;
+
+	for (i = 0; i < n; i++) {
+		ret = msm_gem_get_iova(msm_fb->planes[i], id, &iova);
+		DBG("FB[%u]: iova[%d]: %08x (%d)", fb->base.id, i, iova, ret);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+void msm_framebuffer_cleanup(struct drm_framebuffer *fb, int id)
+{
+	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
+	int i, n = drm_format_num_planes(fb->pixel_format);
+
+	for (i = 0; i < n; i++)
+		msm_gem_put_iova(msm_fb->planes[i], id);
+}
+
+uint32_t msm_framebuffer_iova(struct drm_framebuffer *fb, int id, int plane)
+{
+	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
+	if (!msm_fb->planes[plane])
+		return 0;
+	return msm_gem_iova(msm_fb->planes[plane], id) + fb->offsets[plane];
+}
+
 struct drm_gem_object *msm_framebuffer_bo(struct drm_framebuffer *fb, int plane)
 {
 	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
@@ -134,8 +172,8 @@ struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_kms *kms = priv->kms;
-	struct msm_framebuffer *msm_fb;
-	struct drm_framebuffer *fb = NULL;
+	struct msm_framebuffer *msm_fb = NULL;
+	struct drm_framebuffer *fb;
 	const struct msm_format *format;
 	int ret, i, n;
 	unsigned int hsub, vsub;
@@ -165,6 +203,11 @@ struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 	fb = &msm_fb->base;
 
 	msm_fb->format = format;
+
+	if (n > ARRAY_SIZE(msm_fb->planes)) {
+		ret = -EINVAL;
+		goto fail;
+	}
 
 	for (i = 0; i < n; i++) {
 		unsigned int width = mode_cmd->width / (i ? hsub : 1);
@@ -196,8 +239,7 @@ struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 	return fb;
 
 fail:
-	if (fb)
-		msm_framebuffer_destroy(fb);
+	kfree(msm_fb);
 
 	return ERR_PTR(ret);
 }

@@ -34,11 +34,6 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
-enum disp_clk {
-	CDCLK,
-	CZCLK
-};
-
 struct gmbus_port {
 	const char *name;
 	int reg;
@@ -63,59 +58,10 @@ to_intel_gmbus(struct i2c_adapter *i2c)
 	return container_of(i2c, struct intel_gmbus, adapter);
 }
 
-static int get_disp_clk_div(struct drm_i915_private *dev_priv,
-			    enum disp_clk clk)
-{
-	u32 reg_val;
-	int clk_ratio;
-
-	reg_val = I915_READ(CZCLK_CDCLK_FREQ_RATIO);
-
-	if (clk == CDCLK)
-		clk_ratio =
-			((reg_val & CDCLK_FREQ_MASK) >> CDCLK_FREQ_SHIFT) + 1;
-	else
-		clk_ratio = (reg_val & CZCLK_FREQ_MASK) + 1;
-
-	return clk_ratio;
-}
-
-static void gmbus_set_freq(struct drm_i915_private *dev_priv)
-{
-	int vco, gmbus_freq = 0, cdclk_div;
-
-	BUG_ON(!IS_VALLEYVIEW(dev_priv->dev));
-
-	vco = valleyview_get_vco(dev_priv);
-
-	/* Get the CDCLK divide ratio */
-	cdclk_div = get_disp_clk_div(dev_priv, CDCLK);
-
-	/*
-	 * Program the gmbus_freq based on the cdclk frequency.
-	 * BSpec erroneously claims we should aim for 4MHz, but
-	 * in fact 1MHz is the correct frequency.
-	 */
-	if (cdclk_div)
-		gmbus_freq = (vco << 1) / cdclk_div;
-
-	if (WARN_ON(gmbus_freq == 0))
-		return;
-
-	I915_WRITE(GMBUSFREQ_VLV, gmbus_freq);
-}
-
 void
 intel_i2c_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	/*
-	 * In BIOS-less system, program the correct gmbus frequency
-	 * before reading edid.
-	 */
-	if (IS_VALLEYVIEW(dev))
-		gmbus_set_freq(dev_priv);
 
 	I915_WRITE(dev_priv->gpio_mmio_base + GMBUS0, 0);
 	I915_WRITE(dev_priv->gpio_mmio_base + GMBUS4, 0);
@@ -324,18 +270,17 @@ gmbus_wait_idle(struct drm_i915_private *dev_priv)
 }
 
 static int
-gmbus_xfer_read(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
-		u32 gmbus1_index)
+gmbus_xfer_read_chunk(struct drm_i915_private *dev_priv,
+		      unsigned short addr, u8 *buf, unsigned int len,
+		      u32 gmbus1_index)
 {
 	int reg_offset = dev_priv->gpio_mmio_base;
-	u16 len = msg->len;
-	u8 *buf = msg->buf;
 
 	I915_WRITE(GMBUS1 + reg_offset,
 		   gmbus1_index |
 		   GMBUS_CYCLE_WAIT |
 		   (len << GMBUS_BYTE_COUNT_SHIFT) |
-		   (msg->addr << GMBUS_SLAVE_ADDR_SHIFT) |
+		   (addr << GMBUS_SLAVE_ADDR_SHIFT) |
 		   GMBUS_SLAVE_READ | GMBUS_SW_RDY);
 	while (len) {
 		int ret;
@@ -357,11 +302,35 @@ gmbus_xfer_read(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
 }
 
 static int
-gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg)
+gmbus_xfer_read(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
+		u32 gmbus1_index)
+{
+	u8 *buf = msg->buf;
+	unsigned int rx_size = msg->len;
+	unsigned int len;
+	int ret;
+
+	do {
+		len = min(rx_size, GMBUS_BYTE_COUNT_MAX);
+
+		ret = gmbus_xfer_read_chunk(dev_priv, msg->addr,
+					    buf, len, gmbus1_index);
+		if (ret)
+			return ret;
+
+		rx_size -= len;
+		buf += len;
+	} while (rx_size != 0);
+
+	return 0;
+}
+
+static int
+gmbus_xfer_write_chunk(struct drm_i915_private *dev_priv,
+		       unsigned short addr, u8 *buf, unsigned int len)
 {
 	int reg_offset = dev_priv->gpio_mmio_base;
-	u16 len = msg->len;
-	u8 *buf = msg->buf;
+	unsigned int chunk_size = len;
 	u32 val, loop;
 
 	val = loop = 0;
@@ -373,8 +342,8 @@ gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg)
 	I915_WRITE(GMBUS3 + reg_offset, val);
 	I915_WRITE(GMBUS1 + reg_offset,
 		   GMBUS_CYCLE_WAIT |
-		   (msg->len << GMBUS_BYTE_COUNT_SHIFT) |
-		   (msg->addr << GMBUS_SLAVE_ADDR_SHIFT) |
+		   (chunk_size << GMBUS_BYTE_COUNT_SHIFT) |
+		   (addr << GMBUS_SLAVE_ADDR_SHIFT) |
 		   GMBUS_SLAVE_WRITE | GMBUS_SW_RDY);
 	while (len) {
 		int ret;
@@ -391,6 +360,29 @@ gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg)
 		if (ret)
 			return ret;
 	}
+
+	return 0;
+}
+
+static int
+gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg)
+{
+	u8 *buf = msg->buf;
+	unsigned int tx_size = msg->len;
+	unsigned int len;
+	int ret;
+
+	do {
+		len = min(tx_size, GMBUS_BYTE_COUNT_MAX);
+
+		ret = gmbus_xfer_write_chunk(dev_priv, msg->addr, buf, len);
+		if (ret)
+			return ret;
+
+		buf += len;
+		tx_size -= len;
+	} while (tx_size != 0);
+
 	return 0;
 }
 

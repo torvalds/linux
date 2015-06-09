@@ -24,8 +24,8 @@ struct hfsplus_wd {
 	u16 embed_count;
 };
 
-/*
- * hfsplus_submit_bio - Perfrom block I/O
+/**
+ * hfsplus_submit_bio - Perform block I/O
  * @sb: super block of volume for I/O
  * @sector: block to read or write, for blocks of HFSPLUS_SECTOR_SIZE bytes
  * @buf: buffer for I/O
@@ -231,10 +231,8 @@ reread:
 	if (blocksize < HFSPLUS_SECTOR_SIZE || ((blocksize - 1) & blocksize))
 		goto out_free_backup_vhdr;
 	sbi->alloc_blksz = blocksize;
-	sbi->alloc_blksz_shift = 0;
-	while ((blocksize >>= 1) != 0)
-		sbi->alloc_blksz_shift++;
-	blocksize = min(sbi->alloc_blksz, (u32)PAGE_SIZE);
+	sbi->alloc_blksz_shift = ilog2(blocksize);
+	blocksize = min_t(u32, sbi->alloc_blksz, PAGE_SIZE);
 
 	/*
 	 * Align block size to block offset.

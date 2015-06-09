@@ -37,6 +37,8 @@
 #define ISL_ALS_I2C_ADDR	0x44
 #define TAOS_ALS_I2C_ADDR	0x29
 
+#define MAX_I2C_DEVICE_DEFERRALS	5
+
 static struct i2c_client *als;
 static struct i2c_client *tp;
 static struct i2c_client *ts;
@@ -45,6 +47,8 @@ static const char *i2c_adapter_names[] = {
 	"SMBus I801 adapter",
 	"i915 gmbus vga",
 	"i915 gmbus panel",
+	"i2c-designware-pci",
+	"i2c-designware-pci",
 };
 
 /* Keep this enum consistent with i2c_adapter_names */
@@ -52,11 +56,21 @@ enum i2c_adapter_type {
 	I2C_ADAPTER_SMBUS = 0,
 	I2C_ADAPTER_VGADDC,
 	I2C_ADAPTER_PANEL,
+	I2C_ADAPTER_DESIGNWARE_0,
+	I2C_ADAPTER_DESIGNWARE_1,
+};
+
+enum i2c_peripheral_state {
+	UNPROBED = 0,
+	PROBED,
+	TIMEDOUT,
 };
 
 struct i2c_peripheral {
 	int (*add)(enum i2c_adapter_type type);
 	enum i2c_adapter_type type;
+	enum i2c_peripheral_state state;
+	int tries;
 };
 
 #define MAX_I2C_PERIPHERALS 3
@@ -84,23 +98,19 @@ static struct i2c_board_info tsl2563_als_device = {
 	I2C_BOARD_INFO("tsl2563", TAOS_ALS_I2C_ADDR),
 };
 
+static int mxt_t19_keys[] = {
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	BTN_LEFT
+};
+
 static struct mxt_platform_data atmel_224s_tp_platform_data = {
-	.x_line			= 18,
-	.y_line			= 12,
-	.x_size			= 102*20,
-	.y_size			= 68*20,
-	.blen			= 0x80,	/* Gain setting is in upper 4 bits */
-	.threshold		= 0x32,
-	.voltage		= 0,	/* 3.3V */
-	.orient			= MXT_VERTICAL_FLIP,
 	.irqflags		= IRQF_TRIGGER_FALLING,
-	.is_tp			= true,
-	.key_map		= { KEY_RESERVED,
-				    KEY_RESERVED,
-				    KEY_RESERVED,
-				    BTN_LEFT },
-	.config			= NULL,
-	.config_length		= 0,
+	.t19_num_keys		= ARRAY_SIZE(mxt_t19_keys),
+	.t19_keymap		= mxt_t19_keys,
 };
 
 static struct i2c_board_info atmel_224s_tp_device = {
@@ -110,18 +120,7 @@ static struct i2c_board_info atmel_224s_tp_device = {
 };
 
 static struct mxt_platform_data atmel_1664s_platform_data = {
-	.x_line			= 32,
-	.y_line			= 50,
-	.x_size			= 1700,
-	.y_size			= 2560,
-	.blen			= 0x89,	/* Gain setting is in upper 4 bits */
-	.threshold		= 0x28,
-	.voltage		= 0,	/* 3.3V */
-	.orient			= MXT_ROTATED_90_COUNTER,
 	.irqflags		= IRQF_TRIGGER_FALLING,
-	.is_tp			= false,
-	.config			= NULL,
-	.config_length		= 0,
 };
 
 static struct i2c_board_info atmel_1664s_device = {
@@ -134,12 +133,13 @@ static struct i2c_client *__add_probed_i2c_device(
 		const char *name,
 		int bus,
 		struct i2c_board_info *info,
-		const unsigned short *addrs)
+		const unsigned short *alt_addr_list)
 {
 	const struct dmi_device *dmi_dev;
 	const struct dmi_dev_onboard *dev_data;
 	struct i2c_adapter *adapter;
-	struct i2c_client *client;
+	struct i2c_client *client = NULL;
+	const unsigned short addr_list[] = { info->addr, I2C_CLIENT_END };
 
 	if (bus < 0)
 		return NULL;
@@ -170,11 +170,31 @@ static struct i2c_client *__add_probed_i2c_device(
 		return NULL;
 	}
 
-	/* add the i2c device */
-	client = i2c_new_probed_device(adapter, info, addrs, NULL);
+	/*
+	 * Add the i2c device. If we can't detect it at the primary
+	 * address we scan secondary addresses. In any case the client
+	 * structure gets assigned primary address.
+	 */
+	client = i2c_new_probed_device(adapter, info, addr_list, NULL);
+	if (!client && alt_addr_list) {
+		struct i2c_board_info dummy_info = {
+			I2C_BOARD_INFO("dummy", info->addr),
+		};
+		struct i2c_client *dummy;
+
+		dummy = i2c_new_probed_device(adapter, &dummy_info,
+					      alt_addr_list, NULL);
+		if (dummy) {
+			pr_debug("%s %d-%02x is probed at %02x\n",
+				  __func__, bus, info->addr, dummy->addr);
+			i2c_unregister_device(dummy);
+			client = i2c_new_device(adapter, info);
+		}
+	}
+
 	if (!client)
-		pr_err("%s failed to register device %d-%02x\n",
-		       __func__, bus, info->addr);
+		pr_notice("%s failed to register device %d-%02x\n",
+			  __func__, bus, info->addr);
 	else
 		pr_debug("%s added i2c device %d-%02x\n",
 			 __func__, bus, info->addr);
@@ -183,29 +203,43 @@ static struct i2c_client *__add_probed_i2c_device(
 	return client;
 }
 
+struct i2c_lookup {
+	const char *name;
+	int instance;
+	int n;
+};
+
 static int __find_i2c_adap(struct device *dev, void *data)
 {
-	const char *name = data;
+	struct i2c_lookup *lookup = data;
 	static const char *prefix = "i2c-";
 	struct i2c_adapter *adapter;
+
 	if (strncmp(dev_name(dev), prefix, strlen(prefix)) != 0)
 		return 0;
 	adapter = to_i2c_adapter(dev);
-	return (strncmp(adapter->name, name, strlen(name)) == 0);
+	if (strncmp(adapter->name, lookup->name, strlen(lookup->name)) == 0 &&
+	    lookup->n++ == lookup->instance)
+		return 1;
+	return 0;
 }
 
 static int find_i2c_adapter_num(enum i2c_adapter_type type)
 {
 	struct device *dev = NULL;
 	struct i2c_adapter *adapter;
-	const char *name = i2c_adapter_names[type];
+	struct i2c_lookup lookup;
+
+	memset(&lookup, 0, sizeof(lookup));
+	lookup.name = i2c_adapter_names[type];
+	lookup.instance = (type == I2C_ADAPTER_DESIGNWARE_1) ? 1 : 0;
+
 	/* find the adapter by name */
-	dev = bus_find_device(&i2c_bus_type, NULL, (void *)name,
-			      __find_i2c_adap);
+	dev = bus_find_device(&i2c_bus_type, NULL, &lookup, __find_i2c_adap);
 	if (!dev) {
 		/* Adapters may appear later. Deferred probing will retry */
 		pr_notice("%s: i2c adapter %s not found on system.\n", __func__,
-			  name);
+			  lookup.name);
 		return -ENODEV;
 	}
 	adapter = to_i2c_adapter(dev);
@@ -241,11 +275,10 @@ static struct i2c_client *add_i2c_device(const char *name,
 						enum i2c_adapter_type type,
 						struct i2c_board_info *info)
 {
-	const unsigned short addr_list[] = { info->addr, I2C_CLIENT_END };
 	return __add_probed_i2c_device(name,
 				       find_i2c_adapter_num(type),
 				       info,
-				       addr_list);
+				       NULL);
 }
 
 static int setup_cyapa_tp(enum i2c_adapter_type type)
@@ -261,7 +294,6 @@ static int setup_cyapa_tp(enum i2c_adapter_type type)
 static int setup_atmel_224s_tp(enum i2c_adapter_type type)
 {
 	const unsigned short addr_list[] = { ATMEL_TP_I2C_BL_ADDR,
-					     ATMEL_TP_I2C_ADDR,
 					     I2C_CLIENT_END };
 	if (tp)
 		return 0;
@@ -275,7 +307,6 @@ static int setup_atmel_224s_tp(enum i2c_adapter_type type)
 static int setup_atmel_1664s_ts(enum i2c_adapter_type type)
 {
 	const unsigned short addr_list[] = { ATMEL_TS_I2C_BL_ADDR,
-					     ATMEL_TS_I2C_ADDR,
 					     I2C_CLIENT_END };
 	if (ts)
 		return 0;
@@ -339,9 +370,36 @@ static int chromeos_laptop_probe(struct platform_device *pdev)
 		if (i2c_dev->add == NULL)
 			break;
 
-		/* Add the device. Set -EPROBE_DEFER on any failure */
-		if (i2c_dev->add(i2c_dev->type))
+		if (i2c_dev->state == TIMEDOUT || i2c_dev->state == PROBED)
+			continue;
+
+		/*
+		 * Check that the i2c adapter is present.
+		 * -EPROBE_DEFER if missing as the adapter may appear much
+		 * later.
+		 */
+		if (find_i2c_adapter_num(i2c_dev->type) == -ENODEV) {
 			ret = -EPROBE_DEFER;
+			continue;
+		}
+
+		/* Add the device. */
+		if (i2c_dev->add(i2c_dev->type) == -EAGAIN) {
+			/*
+			 * Set -EPROBE_DEFER a limited num of times
+			 * if device is not successfully added.
+			 */
+			if (++i2c_dev->tries < MAX_I2C_DEVICE_DEFERRALS) {
+				ret = -EPROBE_DEFER;
+			} else {
+				/* Ran out of tries. */
+				pr_notice("%s: Ran out of tries for device.\n",
+					  __func__);
+				i2c_dev->state = TIMEDOUT;
+			}
+		} else {
+			i2c_dev->state = PROBED;
+		}
 	}
 
 	return ret;
@@ -374,6 +432,27 @@ static struct chromeos_laptop chromebook_pixel = {
 	},
 };
 
+static struct chromeos_laptop hp_chromebook_14 = {
+	.i2c_peripherals = {
+		/* Touchpad. */
+		{ .add = setup_cyapa_tp, I2C_ADAPTER_DESIGNWARE_0 },
+	},
+};
+
+static struct chromeos_laptop dell_chromebook_11 = {
+	.i2c_peripherals = {
+		/* Touchpad. */
+		{ .add = setup_cyapa_tp, I2C_ADAPTER_DESIGNWARE_0 },
+	},
+};
+
+static struct chromeos_laptop toshiba_cb35 = {
+	.i2c_peripherals = {
+		/* Touchpad. */
+		{ .add = setup_cyapa_tp, I2C_ADAPTER_DESIGNWARE_0 },
+	},
+};
+
 static struct chromeos_laptop acer_c7_chromebook = {
 	.i2c_peripherals = {
 		/* Touchpad. */
@@ -385,6 +464,17 @@ static struct chromeos_laptop acer_ac700 = {
 	.i2c_peripherals = {
 		/* Light Sensor. */
 		{ .add = setup_tsl2563_als, I2C_ADAPTER_SMBUS },
+	},
+};
+
+static struct chromeos_laptop acer_c720 = {
+	.i2c_peripherals = {
+		/* Touchscreen. */
+		{ .add = setup_atmel_1664s_ts, I2C_ADAPTER_DESIGNWARE_1 },
+		/* Touchpad. */
+		{ .add = setup_cyapa_tp, I2C_ADAPTER_DESIGNWARE_0 },
+		/* Light Sensor. */
+		{ .add = setup_isl29018_als, I2C_ADAPTER_DESIGNWARE_1 },
 	},
 };
 
@@ -431,6 +521,30 @@ static struct dmi_system_id chromeos_laptop_dmi_table[] __initdata = {
 		_CBDD(chromebook_pixel),
 	},
 	{
+		.ident = "Wolf",
+		.matches = {
+			DMI_MATCH(DMI_BIOS_VENDOR, "coreboot"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Wolf"),
+		},
+		_CBDD(dell_chromebook_11),
+	},
+	{
+		.ident = "HP Chromebook 14",
+		.matches = {
+			DMI_MATCH(DMI_BIOS_VENDOR, "coreboot"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Falco"),
+		},
+		_CBDD(hp_chromebook_14),
+	},
+	{
+		.ident = "Toshiba CB35",
+		.matches = {
+			DMI_MATCH(DMI_BIOS_VENDOR, "coreboot"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Leon"),
+		},
+		_CBDD(toshiba_cb35),
+	},
+	{
 		.ident = "Acer C7 Chromebook",
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Parrot"),
@@ -443,6 +557,13 @@ static struct dmi_system_id chromeos_laptop_dmi_table[] __initdata = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "ZGB"),
 		},
 		_CBDD(acer_ac700),
+	},
+	{
+		.ident = "Acer C720",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Peppy"),
+		},
+		_CBDD(acer_c720),
 	},
 	{
 		.ident = "HP Pavilion 14 Chromebook",
@@ -467,7 +588,6 @@ static struct platform_device *cros_platform_device;
 static struct platform_driver cros_platform_driver = {
 	.driver = {
 		.name = "chromeos_laptop",
-		.owner = THIS_MODULE,
 	},
 	.probe = chromeos_laptop_probe,
 };
@@ -475,6 +595,7 @@ static struct platform_driver cros_platform_driver = {
 static int __init chromeos_laptop_init(void)
 {
 	int ret;
+
 	if (!dmi_check_system(chromeos_laptop_dmi_table)) {
 		pr_debug("%s unsupported system.\n", __func__);
 		return -ENODEV;

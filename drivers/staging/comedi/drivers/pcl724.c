@@ -8,13 +8,10 @@
 /*
  * Driver: pcl724
  * Description: Comedi driver for 8255 based ISA DIO boards
- * Devices: (Advantech) PCL-724 [pcl724]
- *	    (Advantech) PCL-722 [pcl722]
- *	    (Advantech) PCL-731 [pcl731]
- *	    (ADLink) ACL-7122 [acl7122]
- *	    (ADLink) ACL-7124 [acl7124]
- *	    (ADLink) PET-48DIO [pet48dio]
- *	    (WinSystems) PCM-IO48 [pcmio48]
+ * Devices: [Advantech] PCL-724 (pcl724), PCL-722 (pcl722), PCL-731 (pcl731),
+ *  [ADLink] ACL-7122 (acl7122), ACL-7124 (acl7124), PET-48DIO (pet48dio),
+ *  [WinSystems] PCM-IO48 (pcmio48),
+ *  [Diamond Systems] ONYX-MM-DIO (onyx-mm-dio)
  * Author: Michal Dobes <dobes@tesnet.cz>
  * Status: untested
  *
@@ -30,8 +27,6 @@
 #include "../comedidev.h"
 
 #include "8255.h"
-
-#define SIZE_8255	4
 
 struct pcl724_board {
 	const char *name;
@@ -73,30 +68,33 @@ static const struct pcl724_board boardtypes[] = {
 		.name		= "pcmio48",
 		.io_range	= 0x08,
 		.numofports	= 2,	/* 48 DIO channels */
+	}, {
+		.name		= "onyx-mm-dio",
+		.io_range	= 0x10,
+		.numofports	= 2,	/* 48 DIO channels */
 	},
 };
 
-static int pcl724_8255mapped_io(int dir, int port, int data,
+static int pcl724_8255mapped_io(struct comedi_device *dev,
+				int dir, int port, int data,
 				unsigned long iobase)
 {
-	int movport = SIZE_8255 * (iobase >> 12);
+	int movport = I8255_SIZE * (iobase >> 12);
 
 	iobase &= 0x0fff;
 
+	outb(port + movport, iobase);
 	if (dir) {
-		outb(port + movport, iobase);
 		outb(data, iobase + 1);
 		return 0;
-	} else {
-		outb(port + movport, iobase);
-		return inb(iobase + 1);
 	}
+	return inb(iobase + 1);
 }
 
 static int pcl724_attach(struct comedi_device *dev,
 			 struct comedi_devconfig *it)
 {
-	const struct pcl724_board *board = comedi_board(dev);
+	const struct pcl724_board *board = dev->board_ptr;
 	struct comedi_subdevice *s;
 	unsigned long iobase;
 	unsigned int iorange;
@@ -129,8 +127,7 @@ static int pcl724_attach(struct comedi_device *dev,
 			ret = subdev_8255_init(dev, s, pcl724_8255mapped_io,
 					       iobase);
 		} else {
-			iobase = dev->iobase + (i * SIZE_8255);
-			ret = subdev_8255_init(dev, s, NULL, iobase);
+			ret = subdev_8255_init(dev, s, NULL, i * I8255_SIZE);
 		}
 		if (ret)
 			return ret;

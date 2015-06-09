@@ -99,6 +99,7 @@ struct tpacket_auxdata {
 #define TP_STATUS_VLAN_VALID		(1 << 4) /* auxdata has valid tp_vlan_tci */
 #define TP_STATUS_BLK_TMO		(1 << 5)
 #define TP_STATUS_VLAN_TPID_VALID	(1 << 6) /* auxdata has valid tp_vlan_tpid */
+#define TP_STATUS_CSUM_VALID		(1 << 7)
 
 /* Tx ring - header status */
 #define TP_STATUS_AVAILABLE	      0
@@ -108,7 +109,7 @@ struct tpacket_auxdata {
 
 /* Rx and Tx ring - header status */
 #define TP_STATUS_TS_SOFTWARE		(1 << 29)
-#define TP_STATUS_TS_SYS_HARDWARE	(1 << 30)
+#define TP_STATUS_TS_SYS_HARDWARE	(1 << 30) /* deprecated, never set */
 #define TP_STATUS_TS_RAW_HARDWARE	(1 << 31)
 
 /* Rx ring - feature request bits */

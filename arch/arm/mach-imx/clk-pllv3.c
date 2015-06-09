@@ -23,8 +23,6 @@
 #define PLL_DENOM_OFFSET	0x20
 
 #define BM_PLL_POWER		(0x1 << 12)
-#define BM_PLL_ENABLE		(0x1 << 13)
-#define BM_PLL_BYPASS		(0x1 << 16)
 #define BM_PLL_LOCK		(0x1 << 31)
 
 /**
@@ -33,6 +31,7 @@
  * @base:	 base address of PLL registers
  * @powerup_set: set POWER bit to power up the PLL
  * @div_mask:	 mask of divider bits
+ * @div_shift:	 shift of divider bits
  *
  * IMX PLL clock version 3, found on i.MX6 series.  Divider for pllv3
  * is actually a multiplier, and always sits at bit 0.
@@ -42,6 +41,7 @@ struct clk_pllv3 {
 	void __iomem	*base;
 	bool		powerup_set;
 	u32		div_mask;
+	u32		div_shift;
 };
 
 #define to_clk_pllv3(_hw) container_of(_hw, struct clk_pllv3, hw)
@@ -71,7 +71,6 @@ static int clk_pllv3_prepare(struct clk_hw *hw)
 {
 	struct clk_pllv3 *pll = to_clk_pllv3(hw);
 	u32 val;
-	int ret;
 
 	val = readl_relaxed(pll->base);
 	if (pll->powerup_set)
@@ -80,15 +79,7 @@ static int clk_pllv3_prepare(struct clk_hw *hw)
 		val &= ~BM_PLL_POWER;
 	writel_relaxed(val, pll->base);
 
-	ret = clk_pllv3_wait_lock(pll);
-	if (ret)
-		return ret;
-
-	val = readl_relaxed(pll->base);
-	val &= ~BM_PLL_BYPASS;
-	writel_relaxed(val, pll->base);
-
-	return 0;
+	return clk_pllv3_wait_lock(pll);
 }
 
 static void clk_pllv3_unprepare(struct clk_hw *hw)
@@ -97,7 +88,6 @@ static void clk_pllv3_unprepare(struct clk_hw *hw)
 	u32 val;
 
 	val = readl_relaxed(pll->base);
-	val |= BM_PLL_BYPASS;
 	if (pll->powerup_set)
 		val &= ~BM_PLL_POWER;
 	else
@@ -105,33 +95,11 @@ static void clk_pllv3_unprepare(struct clk_hw *hw)
 	writel_relaxed(val, pll->base);
 }
 
-static int clk_pllv3_enable(struct clk_hw *hw)
-{
-	struct clk_pllv3 *pll = to_clk_pllv3(hw);
-	u32 val;
-
-	val = readl_relaxed(pll->base);
-	val |= BM_PLL_ENABLE;
-	writel_relaxed(val, pll->base);
-
-	return 0;
-}
-
-static void clk_pllv3_disable(struct clk_hw *hw)
-{
-	struct clk_pllv3 *pll = to_clk_pllv3(hw);
-	u32 val;
-
-	val = readl_relaxed(pll->base);
-	val &= ~BM_PLL_ENABLE;
-	writel_relaxed(val, pll->base);
-}
-
 static unsigned long clk_pllv3_recalc_rate(struct clk_hw *hw,
 					   unsigned long parent_rate)
 {
 	struct clk_pllv3 *pll = to_clk_pllv3(hw);
-	u32 div = readl_relaxed(pll->base)  & pll->div_mask;
+	u32 div = (readl_relaxed(pll->base) >> pll->div_shift)  & pll->div_mask;
 
 	return (div == 1) ? parent_rate * 22 : parent_rate * 20;
 }
@@ -159,8 +127,8 @@ static int clk_pllv3_set_rate(struct clk_hw *hw, unsigned long rate,
 		return -EINVAL;
 
 	val = readl_relaxed(pll->base);
-	val &= ~pll->div_mask;
-	val |= div;
+	val &= ~(pll->div_mask << pll->div_shift);
+	val |= (div << pll->div_shift);
 	writel_relaxed(val, pll->base);
 
 	return clk_pllv3_wait_lock(pll);
@@ -169,8 +137,6 @@ static int clk_pllv3_set_rate(struct clk_hw *hw, unsigned long rate,
 static const struct clk_ops clk_pllv3_ops = {
 	.prepare	= clk_pllv3_prepare,
 	.unprepare	= clk_pllv3_unprepare,
-	.enable		= clk_pllv3_enable,
-	.disable	= clk_pllv3_disable,
 	.recalc_rate	= clk_pllv3_recalc_rate,
 	.round_rate	= clk_pllv3_round_rate,
 	.set_rate	= clk_pllv3_set_rate,
@@ -225,8 +191,6 @@ static int clk_pllv3_sys_set_rate(struct clk_hw *hw, unsigned long rate,
 static const struct clk_ops clk_pllv3_sys_ops = {
 	.prepare	= clk_pllv3_prepare,
 	.unprepare	= clk_pllv3_unprepare,
-	.enable		= clk_pllv3_enable,
-	.disable	= clk_pllv3_disable,
 	.recalc_rate	= clk_pllv3_sys_recalc_rate,
 	.round_rate	= clk_pllv3_sys_round_rate,
 	.set_rate	= clk_pllv3_sys_set_rate,
@@ -299,8 +263,6 @@ static int clk_pllv3_av_set_rate(struct clk_hw *hw, unsigned long rate,
 static const struct clk_ops clk_pllv3_av_ops = {
 	.prepare	= clk_pllv3_prepare,
 	.unprepare	= clk_pllv3_unprepare,
-	.enable		= clk_pllv3_enable,
-	.disable	= clk_pllv3_disable,
 	.recalc_rate	= clk_pllv3_av_recalc_rate,
 	.round_rate	= clk_pllv3_av_round_rate,
 	.set_rate	= clk_pllv3_av_set_rate,
@@ -315,8 +277,6 @@ static unsigned long clk_pllv3_enet_recalc_rate(struct clk_hw *hw,
 static const struct clk_ops clk_pllv3_enet_ops = {
 	.prepare	= clk_pllv3_prepare,
 	.unprepare	= clk_pllv3_unprepare,
-	.enable		= clk_pllv3_enable,
-	.disable	= clk_pllv3_disable,
 	.recalc_rate	= clk_pllv3_enet_recalc_rate,
 };
 
@@ -337,6 +297,8 @@ struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 	case IMX_PLLV3_SYS:
 		ops = &clk_pllv3_sys_ops;
 		break;
+	case IMX_PLLV3_USB_VF610:
+		pll->div_shift = 1;
 	case IMX_PLLV3_USB:
 		ops = &clk_pllv3_ops;
 		pll->powerup_set = true;

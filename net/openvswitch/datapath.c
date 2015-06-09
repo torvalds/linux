@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007-2013 Nicira, Inc.
+ * Copyright (c) 2007-2014 Nicira, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -44,11 +44,9 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/inetdevice.h>
 #include <linux/list.h>
-#include <linux/lockdep.h>
 #include <linux/openvswitch.h>
 #include <linux/rculist.h>
 #include <linux/dmi.h>
-#include <linux/workqueue.h>
 #include <net/genetlink.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
@@ -61,6 +59,34 @@
 #include "vport-netdev.h"
 
 int ovs_net_id __read_mostly;
+EXPORT_SYMBOL_GPL(ovs_net_id);
+
+static struct genl_family dp_packet_genl_family;
+static struct genl_family dp_flow_genl_family;
+static struct genl_family dp_datapath_genl_family;
+
+static const struct nla_policy flow_policy[];
+
+static const struct genl_multicast_group ovs_dp_flow_multicast_group = {
+	.name = OVS_FLOW_MCGROUP,
+};
+
+static const struct genl_multicast_group ovs_dp_datapath_multicast_group = {
+	.name = OVS_DATAPATH_MCGROUP,
+};
+
+static const struct genl_multicast_group ovs_dp_vport_multicast_group = {
+	.name = OVS_VPORT_MCGROUP,
+};
+
+/* Check if need to build a reply message.
+ * OVS userspace sets the NLM_F_ECHO flag if it needs the reply. */
+static bool ovs_must_notify(struct genl_family *family, struct genl_info *info,
+			    unsigned int group)
+{
+	return info->nlhdr->nlmsg_flags & NLM_F_ECHO ||
+	       genl_has_listeners(family, genl_info_net(info), group);
+}
 
 static void ovs_notify(struct genl_family *family,
 		       struct sk_buff *skb, struct genl_info *info)
@@ -106,40 +132,54 @@ int lockdep_ovsl_is_held(void)
 	else
 		return 1;
 }
+EXPORT_SYMBOL_GPL(lockdep_ovsl_is_held);
 #endif
 
 static struct vport *new_vport(const struct vport_parms *);
 static int queue_gso_packets(struct datapath *dp, struct sk_buff *,
+			     const struct sw_flow_key *,
 			     const struct dp_upcall_info *);
 static int queue_userspace_packet(struct datapath *dp, struct sk_buff *,
+				  const struct sw_flow_key *,
 				  const struct dp_upcall_info *);
 
-/* Must be called with rcu_read_lock or ovs_mutex. */
-static struct datapath *get_dp(struct net *net, int dp_ifindex)
+/* Must be called with rcu_read_lock. */
+static struct datapath *get_dp_rcu(struct net *net, int dp_ifindex)
 {
-	struct datapath *dp = NULL;
-	struct net_device *dev;
+	struct net_device *dev = dev_get_by_index_rcu(net, dp_ifindex);
 
-	rcu_read_lock();
-	dev = dev_get_by_index_rcu(net, dp_ifindex);
 	if (dev) {
 		struct vport *vport = ovs_internal_dev_get_vport(dev);
 		if (vport)
-			dp = vport->dp;
+			return vport->dp;
 	}
+
+	return NULL;
+}
+
+/* The caller must hold either ovs_mutex or rcu_read_lock to keep the
+ * returned dp pointer valid.
+ */
+static inline struct datapath *get_dp(struct net *net, int dp_ifindex)
+{
+	struct datapath *dp;
+
+	WARN_ON_ONCE(!rcu_read_lock_held() && !lockdep_ovsl_is_held());
+	rcu_read_lock();
+	dp = get_dp_rcu(net, dp_ifindex);
 	rcu_read_unlock();
 
 	return dp;
 }
 
 /* Must be called with rcu_read_lock or ovs_mutex. */
-static const char *ovs_dp_name(const struct datapath *dp)
+const char *ovs_dp_name(const struct datapath *dp)
 {
 	struct vport *vport = ovs_vport_ovsl_rcu(dp, OVSP_LOCAL);
 	return vport->ops->get_name(vport);
 }
 
-static int get_dpifindex(struct datapath *dp)
+static int get_dpifindex(const struct datapath *dp)
 {
 	struct vport *local;
 	int ifindex;
@@ -161,8 +201,8 @@ static void destroy_dp_rcu(struct rcu_head *rcu)
 {
 	struct datapath *dp = container_of(rcu, struct datapath, rcu);
 
+	ovs_flow_tbl_destroy(&dp->table);
 	free_percpu(dp->stats_percpu);
-	release_net(ovs_dp_get_net(dp));
 	kfree(dp->ports);
 	kfree(dp);
 }
@@ -173,6 +213,7 @@ static struct hlist_head *vport_hash_bucket(const struct datapath *dp,
 	return &dp->ports[port_no & (DP_VPORT_HASH_BUCKETS - 1)];
 }
 
+/* Called with ovs_mutex or RCU read lock. */
 struct vport *ovs_lookup_vport(const struct datapath *dp, u16 port_no)
 {
 	struct vport *vport;
@@ -213,66 +254,53 @@ void ovs_dp_detach_port(struct vport *p)
 }
 
 /* Must be called with rcu_read_lock. */
-void ovs_dp_process_received_packet(struct vport *p, struct sk_buff *skb)
+void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 {
+	const struct vport *p = OVS_CB(skb)->input_vport;
 	struct datapath *dp = p->dp;
 	struct sw_flow *flow;
+	struct sw_flow_actions *sf_acts;
 	struct dp_stats_percpu *stats;
-	struct sw_flow_key key;
 	u64 *stats_counter;
 	u32 n_mask_hit;
-	int error;
 
 	stats = this_cpu_ptr(dp->stats_percpu);
 
-	/* Extract flow from 'skb' into 'key'. */
-	error = ovs_flow_extract(skb, p->port_no, &key);
-	if (unlikely(error)) {
-		kfree_skb(skb);
-		return;
-	}
-
 	/* Look up flow. */
-	flow = ovs_flow_tbl_lookup_stats(&dp->table, &key, &n_mask_hit);
+	flow = ovs_flow_tbl_lookup_stats(&dp->table, key, &n_mask_hit);
 	if (unlikely(!flow)) {
 		struct dp_upcall_info upcall;
+		int error;
 
 		upcall.cmd = OVS_PACKET_CMD_MISS;
-		upcall.key = &key;
 		upcall.userdata = NULL;
-		upcall.portid = p->upcall_portid;
-		ovs_dp_upcall(dp, skb, &upcall);
-		consume_skb(skb);
+		upcall.portid = ovs_vport_find_upcall_portid(p, skb);
+		upcall.egress_tun_info = NULL;
+		error = ovs_dp_upcall(dp, skb, key, &upcall);
+		if (unlikely(error))
+			kfree_skb(skb);
+		else
+			consume_skb(skb);
 		stats_counter = &stats->n_missed;
 		goto out;
 	}
 
-	OVS_CB(skb)->flow = flow;
-	OVS_CB(skb)->pkt_key = &key;
+	ovs_flow_stats_update(flow, key->tp.flags, skb);
+	sf_acts = rcu_dereference(flow->sf_acts);
+	ovs_execute_actions(dp, skb, sf_acts, key);
 
-	ovs_flow_stats_update(OVS_CB(skb)->flow, skb);
-	ovs_execute_actions(dp, skb);
 	stats_counter = &stats->n_hit;
 
 out:
 	/* Update datapath statistics. */
-	u64_stats_update_begin(&stats->sync);
+	u64_stats_update_begin(&stats->syncp);
 	(*stats_counter)++;
 	stats->n_mask_hit += n_mask_hit;
-	u64_stats_update_end(&stats->sync);
+	u64_stats_update_end(&stats->syncp);
 }
 
-static struct genl_family dp_packet_genl_family = {
-	.id = GENL_ID_GENERATE,
-	.hdrsize = sizeof(struct ovs_header),
-	.name = OVS_PACKET_FAMILY,
-	.version = OVS_PACKET_VERSION,
-	.maxattr = OVS_PACKET_ATTR_MAX,
-	.netnsok = true,
-	.parallel_ops = true,
-};
-
 int ovs_dp_upcall(struct datapath *dp, struct sk_buff *skb,
+		  const struct sw_flow_key *key,
 		  const struct dp_upcall_info *upcall_info)
 {
 	struct dp_stats_percpu *stats;
@@ -284,9 +312,9 @@ int ovs_dp_upcall(struct datapath *dp, struct sk_buff *skb,
 	}
 
 	if (!skb_is_gso(skb))
-		err = queue_userspace_packet(dp, skb, upcall_info);
+		err = queue_userspace_packet(dp, skb, key, upcall_info);
 	else
-		err = queue_gso_packets(dp, skb, upcall_info);
+		err = queue_gso_packets(dp, skb, key, upcall_info);
 	if (err)
 		goto err;
 
@@ -295,45 +323,51 @@ int ovs_dp_upcall(struct datapath *dp, struct sk_buff *skb,
 err:
 	stats = this_cpu_ptr(dp->stats_percpu);
 
-	u64_stats_update_begin(&stats->sync);
+	u64_stats_update_begin(&stats->syncp);
 	stats->n_lost++;
-	u64_stats_update_end(&stats->sync);
+	u64_stats_update_end(&stats->syncp);
 
 	return err;
 }
 
 static int queue_gso_packets(struct datapath *dp, struct sk_buff *skb,
+			     const struct sw_flow_key *key,
 			     const struct dp_upcall_info *upcall_info)
 {
 	unsigned short gso_type = skb_shinfo(skb)->gso_type;
-	struct dp_upcall_info later_info;
 	struct sw_flow_key later_key;
 	struct sk_buff *segs, *nskb;
+	struct ovs_skb_cb ovs_cb;
 	int err;
 
+	ovs_cb = *OVS_CB(skb);
 	segs = __skb_gso_segment(skb, NETIF_F_SG, false);
+	*OVS_CB(skb) = ovs_cb;
 	if (IS_ERR(segs))
 		return PTR_ERR(segs);
+	if (segs == NULL)
+		return -EINVAL;
+
+	if (gso_type & SKB_GSO_UDP) {
+		/* The initial flow key extracted by ovs_flow_key_extract()
+		 * in this case is for a first fragment, so we need to
+		 * properly mark later fragments.
+		 */
+		later_key = *key;
+		later_key.ip.frag = OVS_FRAG_TYPE_LATER;
+	}
 
 	/* Queue all of the segments. */
 	skb = segs;
 	do {
-		err = queue_userspace_packet(dp, skb, upcall_info);
+		*OVS_CB(skb) = ovs_cb;
+		if (gso_type & SKB_GSO_UDP && skb != segs)
+			key = &later_key;
+
+		err = queue_userspace_packet(dp, skb, key, upcall_info);
 		if (err)
 			break;
 
-		if (skb == segs && gso_type & SKB_GSO_UDP) {
-			/* The initial flow key extracted by ovs_flow_extract()
-			 * in this case is for a first fragment, so we need to
-			 * properly mark later fragments.
-			 */
-			later_key = *upcall_info->key;
-			later_key.ip.frag = OVS_FRAG_TYPE_LATER;
-
-			later_info = *upcall_info;
-			later_info.key = &later_key;
-			upcall_info = &later_info;
-		}
 	} while ((skb = skb->next));
 
 	/* Free all of the segments. */
@@ -348,49 +382,31 @@ static int queue_gso_packets(struct datapath *dp, struct sk_buff *skb,
 	return err;
 }
 
-static size_t key_attr_size(void)
-{
-	return    nla_total_size(4)   /* OVS_KEY_ATTR_PRIORITY */
-		+ nla_total_size(0)   /* OVS_KEY_ATTR_TUNNEL */
-		  + nla_total_size(8)   /* OVS_TUNNEL_KEY_ATTR_ID */
-		  + nla_total_size(4)   /* OVS_TUNNEL_KEY_ATTR_IPV4_SRC */
-		  + nla_total_size(4)   /* OVS_TUNNEL_KEY_ATTR_IPV4_DST */
-		  + nla_total_size(1)   /* OVS_TUNNEL_KEY_ATTR_TOS */
-		  + nla_total_size(1)   /* OVS_TUNNEL_KEY_ATTR_TTL */
-		  + nla_total_size(0)   /* OVS_TUNNEL_KEY_ATTR_DONT_FRAGMENT */
-		  + nla_total_size(0)   /* OVS_TUNNEL_KEY_ATTR_CSUM */
-		+ nla_total_size(4)   /* OVS_KEY_ATTR_IN_PORT */
-		+ nla_total_size(4)   /* OVS_KEY_ATTR_SKB_MARK */
-		+ nla_total_size(12)  /* OVS_KEY_ATTR_ETHERNET */
-		+ nla_total_size(2)   /* OVS_KEY_ATTR_ETHERTYPE */
-		+ nla_total_size(4)   /* OVS_KEY_ATTR_8021Q */
-		+ nla_total_size(0)   /* OVS_KEY_ATTR_ENCAP */
-		+ nla_total_size(2)   /* OVS_KEY_ATTR_ETHERTYPE */
-		+ nla_total_size(40)  /* OVS_KEY_ATTR_IPV6 */
-		+ nla_total_size(2)   /* OVS_KEY_ATTR_ICMPV6 */
-		+ nla_total_size(28); /* OVS_KEY_ATTR_ND */
-}
-
-static size_t upcall_msg_size(const struct nlattr *userdata,
+static size_t upcall_msg_size(const struct dp_upcall_info *upcall_info,
 			      unsigned int hdrlen)
 {
 	size_t size = NLMSG_ALIGN(sizeof(struct ovs_header))
 		+ nla_total_size(hdrlen) /* OVS_PACKET_ATTR_PACKET */
-		+ nla_total_size(key_attr_size()); /* OVS_PACKET_ATTR_KEY */
+		+ nla_total_size(ovs_key_attr_size()); /* OVS_PACKET_ATTR_KEY */
 
 	/* OVS_PACKET_ATTR_USERDATA */
-	if (userdata)
-		size += NLA_ALIGN(userdata->nla_len);
+	if (upcall_info->userdata)
+		size += NLA_ALIGN(upcall_info->userdata->nla_len);
+
+	/* OVS_PACKET_ATTR_EGRESS_TUN_KEY */
+	if (upcall_info->egress_tun_info)
+		size += nla_total_size(ovs_tun_key_attr_size());
 
 	return size;
 }
 
 static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
+				  const struct sw_flow_key *key,
 				  const struct dp_upcall_info *upcall_info)
 {
 	struct ovs_header *upcall;
 	struct sk_buff *nskb = NULL;
-	struct sk_buff *user_skb; /* to be queued to userspace */
+	struct sk_buff *user_skb = NULL; /* to be queued to userspace */
 	struct nlattr *nla;
 	struct genl_info info = {
 		.dst_sk = ovs_dp_get_net(dp)->genl_sock,
@@ -404,16 +420,15 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 	if (!dp_ifindex)
 		return -ENODEV;
 
-	if (vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		nskb = skb_clone(skb, GFP_ATOMIC);
 		if (!nskb)
 			return -ENOMEM;
 
-		nskb = __vlan_put_tag(nskb, nskb->vlan_proto, vlan_tx_tag_get(nskb));
+		nskb = __vlan_hwaccel_push_inside(nskb);
 		if (!nskb)
 			return -ENOMEM;
 
-		nskb->vlan_tci = 0;
 		skb = nskb;
 	}
 
@@ -436,7 +451,7 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 	else
 		hlen = skb->len;
 
-	len = upcall_msg_size(upcall_info->userdata, hlen);
+	len = upcall_msg_size(upcall_info, hlen);
 	user_skb = genlmsg_new_unicast(len, &info, GFP_ATOMIC);
 	if (!user_skb) {
 		err = -ENOMEM;
@@ -447,14 +462,21 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 			     0, upcall_info->cmd);
 	upcall->dp_ifindex = dp_ifindex;
 
-	nla = nla_nest_start(user_skb, OVS_PACKET_ATTR_KEY);
-	ovs_nla_put_flow(upcall_info->key, upcall_info->key, user_skb);
-	nla_nest_end(user_skb, nla);
+	err = ovs_nla_put_key(key, key, OVS_PACKET_ATTR_KEY, false, user_skb);
+	BUG_ON(err);
 
 	if (upcall_info->userdata)
 		__nla_put(user_skb, OVS_PACKET_ATTR_USERDATA,
 			  nla_len(upcall_info->userdata),
 			  nla_data(upcall_info->userdata));
+
+	if (upcall_info->egress_tun_info) {
+		nla = nla_nest_start(user_skb, OVS_PACKET_ATTR_EGRESS_TUN_KEY);
+		err = ovs_nla_put_egress_tunnel_key(user_skb,
+						    upcall_info->egress_tun_info);
+		BUG_ON(err);
+		nla_nest_end(user_skb, nla);
+	}
 
 	/* Only reserve room for attribute header, packet data is added
 	 * in skb_zerocopy() */
@@ -464,7 +486,9 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 	}
 	nla->nla_len = nla_attr_size(skb->len);
 
-	skb_zerocopy(user_skb, skb, skb->len, hlen);
+	err = skb_zerocopy(user_skb, skb, skb->len, hlen);
+	if (err)
+		goto out;
 
 	/* Pad OVS_PACKET_ATTR_PACKET if linear copy was performed */
 	if (!(dp->user_features & OVS_DP_F_UNALIGNED)) {
@@ -477,7 +501,11 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 	((struct nlmsghdr *) user_skb->data)->nlmsg_len = user_skb->len;
 
 	err = genlmsg_unicast(ovs_dp_get_net(dp), user_skb, upcall_info->portid);
+	user_skb = NULL;
 out:
+	if (err)
+		skb_tx_error(skb);
+	kfree_skb(user_skb);
 	kfree_skb(nskb);
 	return err;
 }
@@ -489,10 +517,13 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 	struct sw_flow_actions *acts;
 	struct sk_buff *packet;
 	struct sw_flow *flow;
+	struct sw_flow_actions *sf_acts;
 	struct datapath *dp;
 	struct ethhdr *eth;
+	struct vport *input_vport;
 	int len;
 	int err;
+	bool log = !a[OVS_PACKET_ATTR_PROBE];
 
 	err = -EINVAL;
 	if (!a[OVS_PACKET_ATTR_PACKET] || !a[OVS_PACKET_ATTR_KEY] ||
@@ -520,42 +551,44 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 		packet->protocol = htons(ETH_P_802_2);
 
 	/* Build an sw_flow for sending this packet. */
-	flow = ovs_flow_alloc(false);
+	flow = ovs_flow_alloc();
 	err = PTR_ERR(flow);
 	if (IS_ERR(flow))
 		goto err_kfree_skb;
 
-	err = ovs_flow_extract(packet, -1, &flow->key);
+	err = ovs_flow_key_extract_userspace(a[OVS_PACKET_ATTR_KEY], packet,
+					     &flow->key, log);
 	if (err)
-		goto err_flow_free;
-
-	err = ovs_nla_get_flow_metadata(flow, a[OVS_PACKET_ATTR_KEY]);
-	if (err)
-		goto err_flow_free;
-	acts = ovs_nla_alloc_flow_actions(nla_len(a[OVS_PACKET_ATTR_ACTIONS]));
-	err = PTR_ERR(acts);
-	if (IS_ERR(acts))
 		goto err_flow_free;
 
 	err = ovs_nla_copy_actions(a[OVS_PACKET_ATTR_ACTIONS],
-				   &flow->key, 0, &acts);
-	rcu_assign_pointer(flow->sf_acts, acts);
+				   &flow->key, &acts, log);
 	if (err)
 		goto err_flow_free;
 
-	OVS_CB(packet)->flow = flow;
-	OVS_CB(packet)->pkt_key = &flow->key;
+	rcu_assign_pointer(flow->sf_acts, acts);
+	OVS_CB(packet)->egress_tun_info = NULL;
 	packet->priority = flow->key.phy.priority;
 	packet->mark = flow->key.phy.skb_mark;
 
 	rcu_read_lock();
-	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
+	dp = get_dp_rcu(sock_net(skb->sk), ovs_header->dp_ifindex);
 	err = -ENODEV;
 	if (!dp)
 		goto err_unlock;
 
+	input_vport = ovs_vport_rcu(dp, flow->key.phy.in_port);
+	if (!input_vport)
+		input_vport = ovs_vport_rcu(dp, OVSP_LOCAL);
+
+	if (!input_vport)
+		goto err_unlock;
+
+	OVS_CB(packet)->input_vport = input_vport;
+	sf_acts = rcu_dereference(flow->sf_acts);
+
 	local_bh_disable();
-	err = ovs_execute_actions(dp, packet);
+	err = ovs_execute_actions(dp, packet, sf_acts, &flow->key);
 	local_bh_enable();
 	rcu_read_unlock();
 
@@ -576,6 +609,7 @@ static const struct nla_policy packet_policy[OVS_PACKET_ATTR_MAX + 1] = {
 	[OVS_PACKET_ATTR_PACKET] = { .len = ETH_HLEN },
 	[OVS_PACKET_ATTR_KEY] = { .type = NLA_NESTED },
 	[OVS_PACKET_ATTR_ACTIONS] = { .type = NLA_NESTED },
+	[OVS_PACKET_ATTR_PROBE] = { .type = NLA_FLAG },
 };
 
 static const struct genl_ops dp_packet_genl_ops[] = {
@@ -586,7 +620,19 @@ static const struct genl_ops dp_packet_genl_ops[] = {
 	}
 };
 
-static void get_dp_stats(struct datapath *dp, struct ovs_dp_stats *stats,
+static struct genl_family dp_packet_genl_family = {
+	.id = GENL_ID_GENERATE,
+	.hdrsize = sizeof(struct ovs_header),
+	.name = OVS_PACKET_FAMILY,
+	.version = OVS_PACKET_VERSION,
+	.maxattr = OVS_PACKET_ATTR_MAX,
+	.netnsok = true,
+	.parallel_ops = true,
+	.ops = dp_packet_genl_ops,
+	.n_ops = ARRAY_SIZE(dp_packet_genl_ops),
+};
+
+static void get_dp_stats(const struct datapath *dp, struct ovs_dp_stats *stats,
 			 struct ovs_dp_megaflow_stats *mega_stats)
 {
 	int i;
@@ -606,9 +652,9 @@ static void get_dp_stats(struct datapath *dp, struct ovs_dp_stats *stats,
 		percpu_stats = per_cpu_ptr(dp->stats_percpu, i);
 
 		do {
-			start = u64_stats_fetch_begin_bh(&percpu_stats->sync);
+			start = u64_stats_fetch_begin_irq(&percpu_stats->syncp);
 			local_stats = *percpu_stats;
-		} while (u64_stats_fetch_retry_bh(&percpu_stats->sync, start));
+		} while (u64_stats_fetch_retry_irq(&percpu_stats->syncp, start));
 
 		stats->n_hit += local_stats.n_hit;
 		stats->n_missed += local_stats.n_missed;
@@ -617,89 +663,81 @@ static void get_dp_stats(struct datapath *dp, struct ovs_dp_stats *stats,
 	}
 }
 
-static const struct nla_policy flow_policy[OVS_FLOW_ATTR_MAX + 1] = {
-	[OVS_FLOW_ATTR_KEY] = { .type = NLA_NESTED },
-	[OVS_FLOW_ATTR_ACTIONS] = { .type = NLA_NESTED },
-	[OVS_FLOW_ATTR_CLEAR] = { .type = NLA_FLAG },
-};
-
-static struct genl_family dp_flow_genl_family = {
-	.id = GENL_ID_GENERATE,
-	.hdrsize = sizeof(struct ovs_header),
-	.name = OVS_FLOW_FAMILY,
-	.version = OVS_FLOW_VERSION,
-	.maxattr = OVS_FLOW_ATTR_MAX,
-	.netnsok = true,
-	.parallel_ops = true,
-};
-
-static struct genl_multicast_group ovs_dp_flow_multicast_group = {
-	.name = OVS_FLOW_MCGROUP
-};
-
-static size_t ovs_flow_cmd_msg_size(const struct sw_flow_actions *acts)
+static bool should_fill_key(const struct sw_flow_id *sfid, uint32_t ufid_flags)
 {
-	return NLMSG_ALIGN(sizeof(struct ovs_header))
-		+ nla_total_size(key_attr_size()) /* OVS_FLOW_ATTR_KEY */
-		+ nla_total_size(key_attr_size()) /* OVS_FLOW_ATTR_MASK */
-		+ nla_total_size(sizeof(struct ovs_flow_stats)) /* OVS_FLOW_ATTR_STATS */
-		+ nla_total_size(1) /* OVS_FLOW_ATTR_TCP_FLAGS */
-		+ nla_total_size(8) /* OVS_FLOW_ATTR_USED */
-		+ nla_total_size(acts->actions_len); /* OVS_FLOW_ATTR_ACTIONS */
+	return ovs_identifier_is_ufid(sfid) &&
+	       !(ufid_flags & OVS_UFID_F_OMIT_KEY);
 }
 
-/* Called with ovs_mutex. */
-static int ovs_flow_cmd_fill_info(struct sw_flow *flow, struct datapath *dp,
-				  struct sk_buff *skb, u32 portid,
-				  u32 seq, u32 flags, u8 cmd)
+static bool should_fill_mask(uint32_t ufid_flags)
 {
-	const int skb_orig_len = skb->len;
-	struct nlattr *start;
+	return !(ufid_flags & OVS_UFID_F_OMIT_MASK);
+}
+
+static bool should_fill_actions(uint32_t ufid_flags)
+{
+	return !(ufid_flags & OVS_UFID_F_OMIT_ACTIONS);
+}
+
+static size_t ovs_flow_cmd_msg_size(const struct sw_flow_actions *acts,
+				    const struct sw_flow_id *sfid,
+				    uint32_t ufid_flags)
+{
+	size_t len = NLMSG_ALIGN(sizeof(struct ovs_header));
+
+	/* OVS_FLOW_ATTR_UFID */
+	if (sfid && ovs_identifier_is_ufid(sfid))
+		len += nla_total_size(sfid->ufid_len);
+
+	/* OVS_FLOW_ATTR_KEY */
+	if (!sfid || should_fill_key(sfid, ufid_flags))
+		len += nla_total_size(ovs_key_attr_size());
+
+	/* OVS_FLOW_ATTR_MASK */
+	if (should_fill_mask(ufid_flags))
+		len += nla_total_size(ovs_key_attr_size());
+
+	/* OVS_FLOW_ATTR_ACTIONS */
+	if (should_fill_actions(ufid_flags))
+		len += nla_total_size(acts->actions_len);
+
+	return len
+		+ nla_total_size(sizeof(struct ovs_flow_stats)) /* OVS_FLOW_ATTR_STATS */
+		+ nla_total_size(1) /* OVS_FLOW_ATTR_TCP_FLAGS */
+		+ nla_total_size(8); /* OVS_FLOW_ATTR_USED */
+}
+
+/* Called with ovs_mutex or RCU read lock. */
+static int ovs_flow_cmd_fill_stats(const struct sw_flow *flow,
+				   struct sk_buff *skb)
+{
 	struct ovs_flow_stats stats;
 	__be16 tcp_flags;
 	unsigned long used;
-	struct ovs_header *ovs_header;
-	struct nlattr *nla;
-	int err;
-
-	ovs_header = genlmsg_put(skb, portid, seq, &dp_flow_genl_family, flags, cmd);
-	if (!ovs_header)
-		return -EMSGSIZE;
-
-	ovs_header->dp_ifindex = get_dpifindex(dp);
-
-	/* Fill flow key. */
-	nla = nla_nest_start(skb, OVS_FLOW_ATTR_KEY);
-	if (!nla)
-		goto nla_put_failure;
-
-	err = ovs_nla_put_flow(&flow->unmasked_key, &flow->unmasked_key, skb);
-	if (err)
-		goto error;
-	nla_nest_end(skb, nla);
-
-	nla = nla_nest_start(skb, OVS_FLOW_ATTR_MASK);
-	if (!nla)
-		goto nla_put_failure;
-
-	err = ovs_nla_put_flow(&flow->key, &flow->mask->key, skb);
-	if (err)
-		goto error;
-
-	nla_nest_end(skb, nla);
 
 	ovs_flow_stats_get(flow, &stats, &used, &tcp_flags);
+
 	if (used &&
 	    nla_put_u64(skb, OVS_FLOW_ATTR_USED, ovs_flow_used_time(used)))
-		goto nla_put_failure;
+		return -EMSGSIZE;
 
 	if (stats.n_packets &&
 	    nla_put(skb, OVS_FLOW_ATTR_STATS, sizeof(struct ovs_flow_stats), &stats))
-		goto nla_put_failure;
+		return -EMSGSIZE;
 
 	if ((u8)ntohs(tcp_flags) &&
 	     nla_put_u8(skb, OVS_FLOW_ATTR_TCP_FLAGS, (u8)ntohs(tcp_flags)))
-		goto nla_put_failure;
+		return -EMSGSIZE;
+
+	return 0;
+}
+
+/* Called with ovs_mutex or RCU read lock. */
+static int ovs_flow_cmd_fill_actions(const struct sw_flow *flow,
+				     struct sk_buff *skb, int skb_orig_len)
+{
+	struct nlattr *start;
+	int err;
 
 	/* If OVS_FLOW_ATTR_ACTIONS doesn't fit, skip dumping the actions if
 	 * this is the first flow to be dumped into 'skb'.  This is unusual for
@@ -716,136 +754,214 @@ static int ovs_flow_cmd_fill_info(struct sw_flow *flow, struct datapath *dp,
 		const struct sw_flow_actions *sf_acts;
 
 		sf_acts = rcu_dereference_ovsl(flow->sf_acts);
-
 		err = ovs_nla_put_actions(sf_acts->actions,
 					  sf_acts->actions_len, skb);
+
 		if (!err)
 			nla_nest_end(skb, start);
 		else {
 			if (skb_orig_len)
-				goto error;
+				return err;
 
 			nla_nest_cancel(skb, start);
 		}
-	} else if (skb_orig_len)
-		goto nla_put_failure;
+	} else if (skb_orig_len) {
+		return -EMSGSIZE;
+	}
 
-	return genlmsg_end(skb, ovs_header);
+	return 0;
+}
 
-nla_put_failure:
-	err = -EMSGSIZE;
+/* Called with ovs_mutex or RCU read lock. */
+static int ovs_flow_cmd_fill_info(const struct sw_flow *flow, int dp_ifindex,
+				  struct sk_buff *skb, u32 portid,
+				  u32 seq, u32 flags, u8 cmd, u32 ufid_flags)
+{
+	const int skb_orig_len = skb->len;
+	struct ovs_header *ovs_header;
+	int err;
+
+	ovs_header = genlmsg_put(skb, portid, seq, &dp_flow_genl_family,
+				 flags, cmd);
+	if (!ovs_header)
+		return -EMSGSIZE;
+
+	ovs_header->dp_ifindex = dp_ifindex;
+
+	err = ovs_nla_put_identifier(flow, skb);
+	if (err)
+		goto error;
+
+	if (should_fill_key(&flow->id, ufid_flags)) {
+		err = ovs_nla_put_masked_key(flow, skb);
+		if (err)
+			goto error;
+	}
+
+	if (should_fill_mask(ufid_flags)) {
+		err = ovs_nla_put_mask(flow, skb);
+		if (err)
+			goto error;
+	}
+
+	err = ovs_flow_cmd_fill_stats(flow, skb);
+	if (err)
+		goto error;
+
+	if (should_fill_actions(ufid_flags)) {
+		err = ovs_flow_cmd_fill_actions(flow, skb, skb_orig_len);
+		if (err)
+			goto error;
+	}
+
+	genlmsg_end(skb, ovs_header);
+	return 0;
+
 error:
 	genlmsg_cancel(skb, ovs_header);
 	return err;
 }
 
-static struct sk_buff *ovs_flow_cmd_alloc_info(struct sw_flow *flow,
-					       struct genl_info *info)
+/* May not be called with RCU read lock. */
+static struct sk_buff *ovs_flow_cmd_alloc_info(const struct sw_flow_actions *acts,
+					       const struct sw_flow_id *sfid,
+					       struct genl_info *info,
+					       bool always,
+					       uint32_t ufid_flags)
 {
+	struct sk_buff *skb;
 	size_t len;
 
-	len = ovs_flow_cmd_msg_size(ovsl_dereference(flow->sf_acts));
+	if (!always && !ovs_must_notify(&dp_flow_genl_family, info, 0))
+		return NULL;
 
-	return genlmsg_new_unicast(len, info, GFP_KERNEL);
+	len = ovs_flow_cmd_msg_size(acts, sfid, ufid_flags);
+	skb = genlmsg_new_unicast(len, info, GFP_KERNEL);
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	return skb;
 }
 
-static struct sk_buff *ovs_flow_cmd_build_info(struct sw_flow *flow,
-					       struct datapath *dp,
-					       struct genl_info *info,
-					       u8 cmd)
+/* Called with ovs_mutex. */
+static struct sk_buff *ovs_flow_cmd_build_info(const struct sw_flow *flow,
+					       int dp_ifindex,
+					       struct genl_info *info, u8 cmd,
+					       bool always, u32 ufid_flags)
 {
 	struct sk_buff *skb;
 	int retval;
 
-	skb = ovs_flow_cmd_alloc_info(flow, info);
-	if (!skb)
-		return ERR_PTR(-ENOMEM);
+	skb = ovs_flow_cmd_alloc_info(ovsl_dereference(flow->sf_acts),
+				      &flow->id, info, always, ufid_flags);
+	if (IS_ERR_OR_NULL(skb))
+		return skb;
 
-	retval = ovs_flow_cmd_fill_info(flow, dp, skb, info->snd_portid,
-					info->snd_seq, 0, cmd);
+	retval = ovs_flow_cmd_fill_info(flow, dp_ifindex, skb,
+					info->snd_portid, info->snd_seq, 0,
+					cmd, ufid_flags);
 	BUG_ON(retval < 0);
 	return skb;
 }
 
-static int ovs_flow_cmd_new_or_set(struct sk_buff *skb, struct genl_info *info)
+static int ovs_flow_cmd_new(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr **a = info->attrs;
 	struct ovs_header *ovs_header = info->userhdr;
-	struct sw_flow_key key, masked_key;
-	struct sw_flow *flow = NULL;
+	struct sw_flow *flow = NULL, *new_flow;
 	struct sw_flow_mask mask;
 	struct sk_buff *reply;
 	struct datapath *dp;
-	struct sw_flow_actions *acts = NULL;
+	struct sw_flow_key key;
+	struct sw_flow_actions *acts;
 	struct sw_flow_match match;
-	bool exact_5tuple;
+	u32 ufid_flags = ovs_nla_get_ufid_flags(a[OVS_FLOW_ATTR_UFID_FLAGS]);
 	int error;
+	bool log = !a[OVS_FLOW_ATTR_PROBE];
+
+	/* Must have key and actions. */
+	error = -EINVAL;
+	if (!a[OVS_FLOW_ATTR_KEY]) {
+		OVS_NLERR(log, "Flow key attr not present in new flow.");
+		goto error;
+	}
+	if (!a[OVS_FLOW_ATTR_ACTIONS]) {
+		OVS_NLERR(log, "Flow actions attr not present in new flow.");
+		goto error;
+	}
+
+	/* Most of the time we need to allocate a new flow, do it before
+	 * locking.
+	 */
+	new_flow = ovs_flow_alloc();
+	if (IS_ERR(new_flow)) {
+		error = PTR_ERR(new_flow);
+		goto error;
+	}
 
 	/* Extract key. */
-	error = -EINVAL;
-	if (!a[OVS_FLOW_ATTR_KEY])
-		goto error;
-
 	ovs_match_init(&match, &key, &mask);
-	error = ovs_nla_get_match(&match, &exact_5tuple,
-				  a[OVS_FLOW_ATTR_KEY], a[OVS_FLOW_ATTR_MASK]);
+	error = ovs_nla_get_match(&match, a[OVS_FLOW_ATTR_KEY],
+				  a[OVS_FLOW_ATTR_MASK], log);
 	if (error)
-		goto error;
+		goto err_kfree_flow;
+
+	ovs_flow_mask_key(&new_flow->key, &key, &mask);
+
+	/* Extract flow identifier. */
+	error = ovs_nla_get_identifier(&new_flow->id, a[OVS_FLOW_ATTR_UFID],
+				       &key, log);
+	if (error)
+		goto err_kfree_flow;
 
 	/* Validate actions. */
-	if (a[OVS_FLOW_ATTR_ACTIONS]) {
-		acts = ovs_nla_alloc_flow_actions(nla_len(a[OVS_FLOW_ATTR_ACTIONS]));
-		error = PTR_ERR(acts);
-		if (IS_ERR(acts))
-			goto error;
+	error = ovs_nla_copy_actions(a[OVS_FLOW_ATTR_ACTIONS], &new_flow->key,
+				     &acts, log);
+	if (error) {
+		OVS_NLERR(log, "Flow actions may not be safe on all matching packets.");
+		goto err_kfree_flow;
+	}
 
-		ovs_flow_mask_key(&masked_key, &key, &mask);
-		error = ovs_nla_copy_actions(a[OVS_FLOW_ATTR_ACTIONS],
-					     &masked_key, 0, &acts);
-		if (error) {
-			OVS_NLERR("Flow actions may not be safe on all matching packets.\n");
-			goto err_kfree;
-		}
-	} else if (info->genlhdr->cmd == OVS_FLOW_CMD_NEW) {
-		error = -EINVAL;
-		goto error;
+	reply = ovs_flow_cmd_alloc_info(acts, &new_flow->id, info, false,
+					ufid_flags);
+	if (IS_ERR(reply)) {
+		error = PTR_ERR(reply);
+		goto err_kfree_acts;
 	}
 
 	ovs_lock();
 	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
-	error = -ENODEV;
-	if (!dp)
+	if (unlikely(!dp)) {
+		error = -ENODEV;
 		goto err_unlock_ovs;
+	}
 
 	/* Check if this is a duplicate flow */
-	flow = ovs_flow_tbl_lookup(&dp->table, &key);
-	if (!flow) {
-		/* Bail out if we're not allowed to create a new flow. */
-		error = -ENOENT;
-		if (info->genlhdr->cmd == OVS_FLOW_CMD_SET)
-			goto err_unlock_ovs;
-
-		/* Allocate flow. */
-		flow = ovs_flow_alloc(!exact_5tuple);
-		if (IS_ERR(flow)) {
-			error = PTR_ERR(flow);
-			goto err_unlock_ovs;
-		}
-
-		flow->key = masked_key;
-		flow->unmasked_key = key;
-		rcu_assign_pointer(flow->sf_acts, acts);
+	if (ovs_identifier_is_ufid(&new_flow->id))
+		flow = ovs_flow_tbl_lookup_ufid(&dp->table, &new_flow->id);
+	if (!flow)
+		flow = ovs_flow_tbl_lookup(&dp->table, &key);
+	if (likely(!flow)) {
+		rcu_assign_pointer(new_flow->sf_acts, acts);
 
 		/* Put flow in bucket. */
-		error = ovs_flow_tbl_insert(&dp->table, flow, &mask);
-		if (error) {
+		error = ovs_flow_tbl_insert(&dp->table, new_flow, &mask);
+		if (unlikely(error)) {
 			acts = NULL;
-			goto err_flow_free;
+			goto err_unlock_ovs;
 		}
 
-		reply = ovs_flow_cmd_build_info(flow, dp, info, OVS_FLOW_CMD_NEW);
+		if (unlikely(reply)) {
+			error = ovs_flow_cmd_fill_info(new_flow,
+						       ovs_header->dp_ifindex,
+						       reply, info->snd_portid,
+						       info->snd_seq, 0,
+						       OVS_FLOW_CMD_NEW,
+						       ufid_flags);
+			BUG_ON(error < 0);
+		}
+		ovs_unlock();
 	} else {
-		/* We found a matching flow. */
 		struct sw_flow_actions *old_acts;
 
 		/* Bail out if we're not allowed to modify an existing flow.
@@ -854,40 +970,187 @@ static int ovs_flow_cmd_new_or_set(struct sk_buff *skb, struct genl_info *info)
 		 * request.  We also accept NLM_F_EXCL in case that bug ever
 		 * gets fixed.
 		 */
-		error = -EEXIST;
-		if (info->genlhdr->cmd == OVS_FLOW_CMD_NEW &&
-		    info->nlhdr->nlmsg_flags & (NLM_F_CREATE | NLM_F_EXCL))
+		if (unlikely(info->nlhdr->nlmsg_flags & (NLM_F_CREATE
+							 | NLM_F_EXCL))) {
+			error = -EEXIST;
 			goto err_unlock_ovs;
-
-		/* The unmasked key has to be the same for flow updates. */
-		if (!ovs_flow_cmp_unmasked_key(flow, &match))
-			goto err_unlock_ovs;
-
+		}
+		/* The flow identifier has to be the same for flow updates.
+		 * Look for any overlapping flow.
+		 */
+		if (unlikely(!ovs_flow_cmp(flow, &match))) {
+			if (ovs_identifier_is_key(&flow->id))
+				flow = ovs_flow_tbl_lookup_exact(&dp->table,
+								 &match);
+			else /* UFID matches but key is different */
+				flow = NULL;
+			if (!flow) {
+				error = -ENOENT;
+				goto err_unlock_ovs;
+			}
+		}
 		/* Update actions. */
 		old_acts = ovsl_dereference(flow->sf_acts);
 		rcu_assign_pointer(flow->sf_acts, acts);
+
+		if (unlikely(reply)) {
+			error = ovs_flow_cmd_fill_info(flow,
+						       ovs_header->dp_ifindex,
+						       reply, info->snd_portid,
+						       info->snd_seq, 0,
+						       OVS_FLOW_CMD_NEW,
+						       ufid_flags);
+			BUG_ON(error < 0);
+		}
+		ovs_unlock();
+
 		ovs_nla_free_flow_actions(old_acts);
-
-		reply = ovs_flow_cmd_build_info(flow, dp, info, OVS_FLOW_CMD_NEW);
-
-		/* Clear stats. */
-		if (a[OVS_FLOW_ATTR_CLEAR])
-			ovs_flow_stats_clear(flow);
+		ovs_flow_free(new_flow, false);
 	}
-	ovs_unlock();
 
-	if (!IS_ERR(reply))
+	if (reply)
 		ovs_notify(&dp_flow_genl_family, reply, info);
-	else
-		genl_set_err(&dp_flow_genl_family, sock_net(skb->sk), 0,
-			     0, PTR_ERR(reply));
 	return 0;
 
-err_flow_free:
-	ovs_flow_free(flow, false);
 err_unlock_ovs:
 	ovs_unlock();
-err_kfree:
+	kfree_skb(reply);
+err_kfree_acts:
+	kfree(acts);
+err_kfree_flow:
+	ovs_flow_free(new_flow, false);
+error:
+	return error;
+}
+
+/* Factor out action copy to avoid "Wframe-larger-than=1024" warning. */
+static struct sw_flow_actions *get_flow_actions(const struct nlattr *a,
+						const struct sw_flow_key *key,
+						const struct sw_flow_mask *mask,
+						bool log)
+{
+	struct sw_flow_actions *acts;
+	struct sw_flow_key masked_key;
+	int error;
+
+	ovs_flow_mask_key(&masked_key, key, mask);
+	error = ovs_nla_copy_actions(a, &masked_key, &acts, log);
+	if (error) {
+		OVS_NLERR(log,
+			  "Actions may not be safe on all matching packets");
+		return ERR_PTR(error);
+	}
+
+	return acts;
+}
+
+static int ovs_flow_cmd_set(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nlattr **a = info->attrs;
+	struct ovs_header *ovs_header = info->userhdr;
+	struct sw_flow_key key;
+	struct sw_flow *flow;
+	struct sw_flow_mask mask;
+	struct sk_buff *reply = NULL;
+	struct datapath *dp;
+	struct sw_flow_actions *old_acts = NULL, *acts = NULL;
+	struct sw_flow_match match;
+	struct sw_flow_id sfid;
+	u32 ufid_flags = ovs_nla_get_ufid_flags(a[OVS_FLOW_ATTR_UFID_FLAGS]);
+	int error;
+	bool log = !a[OVS_FLOW_ATTR_PROBE];
+	bool ufid_present;
+
+	/* Extract key. */
+	error = -EINVAL;
+	if (!a[OVS_FLOW_ATTR_KEY]) {
+		OVS_NLERR(log, "Flow key attribute not present in set flow.");
+		goto error;
+	}
+
+	ufid_present = ovs_nla_get_ufid(&sfid, a[OVS_FLOW_ATTR_UFID], log);
+	ovs_match_init(&match, &key, &mask);
+	error = ovs_nla_get_match(&match, a[OVS_FLOW_ATTR_KEY],
+				  a[OVS_FLOW_ATTR_MASK], log);
+	if (error)
+		goto error;
+
+	/* Validate actions. */
+	if (a[OVS_FLOW_ATTR_ACTIONS]) {
+		acts = get_flow_actions(a[OVS_FLOW_ATTR_ACTIONS], &key, &mask,
+					log);
+		if (IS_ERR(acts)) {
+			error = PTR_ERR(acts);
+			goto error;
+		}
+
+		/* Can allocate before locking if have acts. */
+		reply = ovs_flow_cmd_alloc_info(acts, &sfid, info, false,
+						ufid_flags);
+		if (IS_ERR(reply)) {
+			error = PTR_ERR(reply);
+			goto err_kfree_acts;
+		}
+	}
+
+	ovs_lock();
+	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
+	if (unlikely(!dp)) {
+		error = -ENODEV;
+		goto err_unlock_ovs;
+	}
+	/* Check that the flow exists. */
+	if (ufid_present)
+		flow = ovs_flow_tbl_lookup_ufid(&dp->table, &sfid);
+	else
+		flow = ovs_flow_tbl_lookup_exact(&dp->table, &match);
+	if (unlikely(!flow)) {
+		error = -ENOENT;
+		goto err_unlock_ovs;
+	}
+
+	/* Update actions, if present. */
+	if (likely(acts)) {
+		old_acts = ovsl_dereference(flow->sf_acts);
+		rcu_assign_pointer(flow->sf_acts, acts);
+
+		if (unlikely(reply)) {
+			error = ovs_flow_cmd_fill_info(flow,
+						       ovs_header->dp_ifindex,
+						       reply, info->snd_portid,
+						       info->snd_seq, 0,
+						       OVS_FLOW_CMD_NEW,
+						       ufid_flags);
+			BUG_ON(error < 0);
+		}
+	} else {
+		/* Could not alloc without acts before locking. */
+		reply = ovs_flow_cmd_build_info(flow, ovs_header->dp_ifindex,
+						info, OVS_FLOW_CMD_NEW, false,
+						ufid_flags);
+
+		if (unlikely(IS_ERR(reply))) {
+			error = PTR_ERR(reply);
+			goto err_unlock_ovs;
+		}
+	}
+
+	/* Clear stats. */
+	if (a[OVS_FLOW_ATTR_CLEAR])
+		ovs_flow_stats_clear(flow);
+	ovs_unlock();
+
+	if (reply)
+		ovs_notify(&dp_flow_genl_family, reply, info);
+	if (old_acts)
+		ovs_nla_free_flow_actions(old_acts);
+
+	return 0;
+
+err_unlock_ovs:
+	ovs_unlock();
+	kfree_skb(reply);
+err_kfree_acts:
 	kfree(acts);
 error:
 	return error;
@@ -902,15 +1165,22 @@ static int ovs_flow_cmd_get(struct sk_buff *skb, struct genl_info *info)
 	struct sw_flow *flow;
 	struct datapath *dp;
 	struct sw_flow_match match;
-	int err;
+	struct sw_flow_id ufid;
+	u32 ufid_flags = ovs_nla_get_ufid_flags(a[OVS_FLOW_ATTR_UFID_FLAGS]);
+	int err = 0;
+	bool log = !a[OVS_FLOW_ATTR_PROBE];
+	bool ufid_present;
 
-	if (!a[OVS_FLOW_ATTR_KEY]) {
-		OVS_NLERR("Flow get message rejected, Key attribute missing.\n");
-		return -EINVAL;
+	ufid_present = ovs_nla_get_ufid(&ufid, a[OVS_FLOW_ATTR_UFID], log);
+	if (a[OVS_FLOW_ATTR_KEY]) {
+		ovs_match_init(&match, &key, NULL);
+		err = ovs_nla_get_match(&match, a[OVS_FLOW_ATTR_KEY], NULL,
+					log);
+	} else if (!ufid_present) {
+		OVS_NLERR(log,
+			  "Flow get message rejected, Key attribute missing.");
+		err = -EINVAL;
 	}
-
-	ovs_match_init(&match, &key, NULL);
-	err = ovs_nla_get_match(&match, NULL, a[OVS_FLOW_ATTR_KEY], NULL);
 	if (err)
 		return err;
 
@@ -921,13 +1191,17 @@ static int ovs_flow_cmd_get(struct sk_buff *skb, struct genl_info *info)
 		goto unlock;
 	}
 
-	flow = ovs_flow_tbl_lookup(&dp->table, &key);
-	if (!flow || !ovs_flow_cmp_unmasked_key(flow, &match)) {
+	if (ufid_present)
+		flow = ovs_flow_tbl_lookup_ufid(&dp->table, &ufid);
+	else
+		flow = ovs_flow_tbl_lookup_exact(&dp->table, &match);
+	if (!flow) {
 		err = -ENOENT;
 		goto unlock;
 	}
 
-	reply = ovs_flow_cmd_build_info(flow, dp, info, OVS_FLOW_CMD_NEW);
+	reply = ovs_flow_cmd_build_info(flow, ovs_header->dp_ifindex, info,
+					OVS_FLOW_CMD_NEW, true, ufid_flags);
 	if (IS_ERR(reply)) {
 		err = PTR_ERR(reply);
 		goto unlock;
@@ -946,50 +1220,68 @@ static int ovs_flow_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	struct ovs_header *ovs_header = info->userhdr;
 	struct sw_flow_key key;
 	struct sk_buff *reply;
-	struct sw_flow *flow;
+	struct sw_flow *flow = NULL;
 	struct datapath *dp;
 	struct sw_flow_match match;
+	struct sw_flow_id ufid;
+	u32 ufid_flags = ovs_nla_get_ufid_flags(a[OVS_FLOW_ATTR_UFID_FLAGS]);
 	int err;
+	bool log = !a[OVS_FLOW_ATTR_PROBE];
+	bool ufid_present;
+
+	ufid_present = ovs_nla_get_ufid(&ufid, a[OVS_FLOW_ATTR_UFID], log);
+	if (a[OVS_FLOW_ATTR_KEY]) {
+		ovs_match_init(&match, &key, NULL);
+		err = ovs_nla_get_match(&match, a[OVS_FLOW_ATTR_KEY], NULL,
+					log);
+		if (unlikely(err))
+			return err;
+	}
 
 	ovs_lock();
 	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
-	if (!dp) {
+	if (unlikely(!dp)) {
 		err = -ENODEV;
 		goto unlock;
 	}
 
-	if (!a[OVS_FLOW_ATTR_KEY]) {
+	if (unlikely(!a[OVS_FLOW_ATTR_KEY] && !ufid_present)) {
 		err = ovs_flow_tbl_flush(&dp->table);
 		goto unlock;
 	}
 
-	ovs_match_init(&match, &key, NULL);
-	err = ovs_nla_get_match(&match, NULL, a[OVS_FLOW_ATTR_KEY], NULL);
-	if (err)
-		goto unlock;
-
-	flow = ovs_flow_tbl_lookup(&dp->table, &key);
-	if (!flow || !ovs_flow_cmp_unmasked_key(flow, &match)) {
+	if (ufid_present)
+		flow = ovs_flow_tbl_lookup_ufid(&dp->table, &ufid);
+	else
+		flow = ovs_flow_tbl_lookup_exact(&dp->table, &match);
+	if (unlikely(!flow)) {
 		err = -ENOENT;
 		goto unlock;
 	}
 
-	reply = ovs_flow_cmd_alloc_info(flow, info);
-	if (!reply) {
-		err = -ENOMEM;
-		goto unlock;
-	}
-
 	ovs_flow_tbl_remove(&dp->table, flow);
-
-	err = ovs_flow_cmd_fill_info(flow, dp, reply, info->snd_portid,
-				     info->snd_seq, 0, OVS_FLOW_CMD_DEL);
-	BUG_ON(err < 0);
-
-	ovs_flow_free(flow, true);
 	ovs_unlock();
 
-	ovs_notify(&dp_flow_genl_family, reply, info);
+	reply = ovs_flow_cmd_alloc_info((const struct sw_flow_actions __force *) flow->sf_acts,
+					&flow->id, info, false, ufid_flags);
+	if (likely(reply)) {
+		if (likely(!IS_ERR(reply))) {
+			rcu_read_lock();	/*To keep RCU checker happy. */
+			err = ovs_flow_cmd_fill_info(flow, ovs_header->dp_ifindex,
+						     reply, info->snd_portid,
+						     info->snd_seq, 0,
+						     OVS_FLOW_CMD_DEL,
+						     ufid_flags);
+			rcu_read_unlock();
+			BUG_ON(err < 0);
+
+			ovs_notify(&dp_flow_genl_family, reply, info);
+		} else {
+			netlink_set_err(sock_net(skb->sk)->genl_sock, 0, 0, PTR_ERR(reply));
+		}
+	}
+
+	ovs_flow_free(flow, true);
 	return 0;
 unlock:
 	ovs_unlock();
@@ -998,12 +1290,21 @@ unlock:
 
 static int ovs_flow_cmd_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct nlattr *a[__OVS_FLOW_ATTR_MAX];
 	struct ovs_header *ovs_header = genlmsg_data(nlmsg_data(cb->nlh));
 	struct table_instance *ti;
 	struct datapath *dp;
+	u32 ufid_flags;
+	int err;
+
+	err = genlmsg_parse(cb->nlh, &dp_flow_genl_family, a,
+			    OVS_FLOW_ATTR_MAX, flow_policy);
+	if (err)
+		return err;
+	ufid_flags = ovs_nla_get_ufid_flags(a[OVS_FLOW_ATTR_UFID_FLAGS]);
 
 	rcu_read_lock();
-	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
+	dp = get_dp_rcu(sock_net(skb->sk), ovs_header->dp_ifindex);
 	if (!dp) {
 		rcu_read_unlock();
 		return -ENODEV;
@@ -1020,10 +1321,10 @@ static int ovs_flow_cmd_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		if (!flow)
 			break;
 
-		if (ovs_flow_cmd_fill_info(flow, dp, skb,
+		if (ovs_flow_cmd_fill_info(flow, ovs_header->dp_ifindex, skb,
 					   NETLINK_CB(cb->skb).portid,
 					   cb->nlh->nlmsg_seq, NLM_F_MULTI,
-					   OVS_FLOW_CMD_NEW) < 0)
+					   OVS_FLOW_CMD_NEW, ufid_flags) < 0)
 			break;
 
 		cb->args[0] = bucket;
@@ -1033,11 +1334,21 @@ static int ovs_flow_cmd_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	return skb->len;
 }
 
+static const struct nla_policy flow_policy[OVS_FLOW_ATTR_MAX + 1] = {
+	[OVS_FLOW_ATTR_KEY] = { .type = NLA_NESTED },
+	[OVS_FLOW_ATTR_MASK] = { .type = NLA_NESTED },
+	[OVS_FLOW_ATTR_ACTIONS] = { .type = NLA_NESTED },
+	[OVS_FLOW_ATTR_CLEAR] = { .type = NLA_FLAG },
+	[OVS_FLOW_ATTR_PROBE] = { .type = NLA_FLAG },
+	[OVS_FLOW_ATTR_UFID] = { .type = NLA_UNSPEC, .len = 1 },
+	[OVS_FLOW_ATTR_UFID_FLAGS] = { .type = NLA_U32 },
+};
+
 static const struct genl_ops dp_flow_genl_ops[] = {
 	{ .cmd = OVS_FLOW_CMD_NEW,
 	  .flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN privilege. */
 	  .policy = flow_policy,
-	  .doit = ovs_flow_cmd_new_or_set
+	  .doit = ovs_flow_cmd_new
 	},
 	{ .cmd = OVS_FLOW_CMD_DEL,
 	  .flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN privilege. */
@@ -1053,28 +1364,22 @@ static const struct genl_ops dp_flow_genl_ops[] = {
 	{ .cmd = OVS_FLOW_CMD_SET,
 	  .flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN privilege. */
 	  .policy = flow_policy,
-	  .doit = ovs_flow_cmd_new_or_set,
+	  .doit = ovs_flow_cmd_set,
 	},
 };
 
-static const struct nla_policy datapath_policy[OVS_DP_ATTR_MAX + 1] = {
-	[OVS_DP_ATTR_NAME] = { .type = NLA_NUL_STRING, .len = IFNAMSIZ - 1 },
-	[OVS_DP_ATTR_UPCALL_PID] = { .type = NLA_U32 },
-	[OVS_DP_ATTR_USER_FEATURES] = { .type = NLA_U32 },
-};
-
-static struct genl_family dp_datapath_genl_family = {
+static struct genl_family dp_flow_genl_family = {
 	.id = GENL_ID_GENERATE,
 	.hdrsize = sizeof(struct ovs_header),
-	.name = OVS_DATAPATH_FAMILY,
-	.version = OVS_DATAPATH_VERSION,
-	.maxattr = OVS_DP_ATTR_MAX,
+	.name = OVS_FLOW_FAMILY,
+	.version = OVS_FLOW_VERSION,
+	.maxattr = OVS_FLOW_ATTR_MAX,
 	.netnsok = true,
 	.parallel_ops = true,
-};
-
-static struct genl_multicast_group ovs_dp_datapath_multicast_group = {
-	.name = OVS_DATAPATH_MCGROUP
+	.ops = dp_flow_genl_ops,
+	.n_ops = ARRAY_SIZE(dp_flow_genl_ops),
+	.mcgrps = &ovs_dp_flow_multicast_group,
+	.n_mcgrps = 1,
 };
 
 static size_t ovs_dp_cmd_msg_size(void)
@@ -1089,6 +1394,7 @@ static size_t ovs_dp_cmd_msg_size(void)
 	return msgsize;
 }
 
+/* Called with ovs_mutex. */
 static int ovs_dp_cmd_fill_info(struct datapath *dp, struct sk_buff *skb,
 				u32 portid, u32 seq, u32 flags, u8 cmd)
 {
@@ -1104,9 +1410,7 @@ static int ovs_dp_cmd_fill_info(struct datapath *dp, struct sk_buff *skb,
 
 	ovs_header->dp_ifindex = get_dpifindex(dp);
 
-	rcu_read_lock();
 	err = nla_put_string(skb, OVS_DP_ATTR_NAME, ovs_dp_name(dp));
-	rcu_read_unlock();
 	if (err)
 		goto nla_put_failure;
 
@@ -1123,7 +1427,8 @@ static int ovs_dp_cmd_fill_info(struct datapath *dp, struct sk_buff *skb,
 	if (nla_put_u32(skb, OVS_DP_ATTR_USER_FEATURES, dp->user_features))
 		goto nla_put_failure;
 
-	return genlmsg_end(skb, ovs_header);
+	genlmsg_end(skb, ovs_header);
+	return 0;
 
 nla_put_failure:
 	genlmsg_cancel(skb, ovs_header);
@@ -1131,27 +1436,14 @@ error:
 	return -EMSGSIZE;
 }
 
-static struct sk_buff *ovs_dp_cmd_build_info(struct datapath *dp,
-					     struct genl_info *info, u8 cmd)
+static struct sk_buff *ovs_dp_cmd_alloc_info(struct genl_info *info)
 {
-	struct sk_buff *skb;
-	int retval;
-
-	skb = genlmsg_new_unicast(ovs_dp_cmd_msg_size(), info, GFP_KERNEL);
-	if (!skb)
-		return ERR_PTR(-ENOMEM);
-
-	retval = ovs_dp_cmd_fill_info(dp, skb, info->snd_portid, info->snd_seq, 0, cmd);
-	if (retval < 0) {
-		kfree_skb(skb);
-		return ERR_PTR(retval);
-	}
-	return skb;
+	return genlmsg_new_unicast(ovs_dp_cmd_msg_size(), info, GFP_KERNEL);
 }
 
-/* Called with ovs_mutex. */
+/* Called with rcu_read_lock or ovs_mutex. */
 static struct datapath *lookup_datapath(struct net *net,
-					struct ovs_header *ovs_header,
+					const struct ovs_header *ovs_header,
 					struct nlattr *a[OVS_DP_ATTR_MAX + 1])
 {
 	struct datapath *dp;
@@ -1161,10 +1453,8 @@ static struct datapath *lookup_datapath(struct net *net,
 	else {
 		struct vport *vport;
 
-		rcu_read_lock();
 		vport = ovs_vport_locate(net, nla_data(a[OVS_DP_ATTR_NAME]));
 		dp = vport && vport->port_no == OVSP_LOCAL ? vport->dp : NULL;
-		rcu_read_unlock();
 	}
 	return dp ? dp : ERR_PTR(-ENODEV);
 }
@@ -1181,7 +1471,7 @@ static void ovs_dp_reset_user_features(struct sk_buff *skb, struct genl_info *in
 	dp->user_features = 0;
 }
 
-static void ovs_dp_change(struct datapath *dp, struct nlattr **a)
+static void ovs_dp_change(struct datapath *dp, struct nlattr *a[])
 {
 	if (a[OVS_DP_ATTR_USER_FEATURES])
 		dp->user_features = nla_get_u32(a[OVS_DP_ATTR_USER_FEATURES]);
@@ -1201,30 +1491,26 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	if (!a[OVS_DP_ATTR_NAME] || !a[OVS_DP_ATTR_UPCALL_PID])
 		goto err;
 
-	ovs_lock();
+	reply = ovs_dp_cmd_alloc_info(info);
+	if (!reply)
+		return -ENOMEM;
 
 	err = -ENOMEM;
 	dp = kzalloc(sizeof(*dp), GFP_KERNEL);
 	if (dp == NULL)
-		goto err_unlock_ovs;
+		goto err_free_reply;
 
-	ovs_dp_set_net(dp, hold_net(sock_net(skb->sk)));
+	ovs_dp_set_net(dp, sock_net(skb->sk));
 
 	/* Allocate table. */
 	err = ovs_flow_tbl_init(&dp->table);
 	if (err)
 		goto err_free_dp;
 
-	dp->stats_percpu = alloc_percpu(struct dp_stats_percpu);
+	dp->stats_percpu = netdev_alloc_pcpu_stats(struct dp_stats_percpu);
 	if (!dp->stats_percpu) {
 		err = -ENOMEM;
 		goto err_destroy_table;
-	}
-
-	for_each_possible_cpu(i) {
-		struct dp_stats_percpu *dpath_stats;
-		dpath_stats = per_cpu_ptr(dp->stats_percpu, i);
-		u64_stats_init(&dpath_stats->sync);
 	}
 
 	dp->ports = kmalloc(DP_VPORT_HASH_BUCKETS * sizeof(struct hlist_head),
@@ -1243,9 +1529,12 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	parms.options = NULL;
 	parms.dp = dp;
 	parms.port_no = OVSP_LOCAL;
-	parms.upcall_portid = nla_get_u32(a[OVS_DP_ATTR_UPCALL_PID]);
+	parms.upcall_portids = a[OVS_DP_ATTR_UPCALL_PID];
 
 	ovs_dp_change(dp, a);
+
+	/* So far only local changes have been made, now need the lock. */
+	ovs_lock();
 
 	vport = new_vport(&parms);
 	if (IS_ERR(vport)) {
@@ -1265,10 +1554,9 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 		goto err_destroy_ports_array;
 	}
 
-	reply = ovs_dp_cmd_build_info(dp, info, OVS_DP_CMD_NEW);
-	err = PTR_ERR(reply);
-	if (IS_ERR(reply))
-		goto err_destroy_local_port;
+	err = ovs_dp_cmd_fill_info(dp, reply, info->snd_portid,
+				   info->snd_seq, 0, OVS_DP_CMD_NEW);
+	BUG_ON(err < 0);
 
 	ovs_net = net_generic(ovs_dp_get_net(dp), ovs_net_id);
 	list_add_tail_rcu(&dp->list_node, &ovs_net->dps);
@@ -1278,19 +1566,17 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	ovs_notify(&dp_datapath_genl_family, reply, info);
 	return 0;
 
-err_destroy_local_port:
-	ovs_dp_detach_port(ovs_vport_ovsl(dp, OVSP_LOCAL));
 err_destroy_ports_array:
+	ovs_unlock();
 	kfree(dp->ports);
 err_destroy_percpu:
 	free_percpu(dp->stats_percpu);
 err_destroy_table:
-	ovs_flow_tbl_destroy(&dp->table, false);
+	ovs_flow_tbl_destroy(&dp->table);
 err_free_dp:
-	release_net(ovs_dp_get_net(dp));
 	kfree(dp);
-err_unlock_ovs:
-	ovs_unlock();
+err_free_reply:
+	kfree_skb(reply);
 err:
 	return err;
 }
@@ -1317,8 +1603,6 @@ static void __dp_destroy(struct datapath *dp)
 	ovs_dp_detach_port(ovs_vport_ovsl(dp, OVSP_LOCAL));
 
 	/* RCU destroy the flow table */
-	ovs_flow_tbl_destroy(&dp->table, true);
-
 	call_rcu(&dp->rcu, destroy_dp_rcu);
 }
 
@@ -1328,16 +1612,19 @@ static int ovs_dp_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	struct datapath *dp;
 	int err;
 
+	reply = ovs_dp_cmd_alloc_info(info);
+	if (!reply)
+		return -ENOMEM;
+
 	ovs_lock();
 	dp = lookup_datapath(sock_net(skb->sk), info->userhdr, info->attrs);
 	err = PTR_ERR(dp);
 	if (IS_ERR(dp))
-		goto unlock;
+		goto err_unlock_free;
 
-	reply = ovs_dp_cmd_build_info(dp, info, OVS_DP_CMD_DEL);
-	err = PTR_ERR(reply);
-	if (IS_ERR(reply))
-		goto unlock;
+	err = ovs_dp_cmd_fill_info(dp, reply, info->snd_portid,
+				   info->snd_seq, 0, OVS_DP_CMD_DEL);
+	BUG_ON(err < 0);
 
 	__dp_destroy(dp);
 	ovs_unlock();
@@ -1345,8 +1632,10 @@ static int ovs_dp_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	ovs_notify(&dp_datapath_genl_family, reply, info);
 
 	return 0;
-unlock:
+
+err_unlock_free:
 	ovs_unlock();
+	kfree_skb(reply);
 	return err;
 }
 
@@ -1356,29 +1645,30 @@ static int ovs_dp_cmd_set(struct sk_buff *skb, struct genl_info *info)
 	struct datapath *dp;
 	int err;
 
+	reply = ovs_dp_cmd_alloc_info(info);
+	if (!reply)
+		return -ENOMEM;
+
 	ovs_lock();
 	dp = lookup_datapath(sock_net(skb->sk), info->userhdr, info->attrs);
 	err = PTR_ERR(dp);
 	if (IS_ERR(dp))
-		goto unlock;
+		goto err_unlock_free;
 
 	ovs_dp_change(dp, info->attrs);
 
-	reply = ovs_dp_cmd_build_info(dp, info, OVS_DP_CMD_NEW);
-	if (IS_ERR(reply)) {
-		err = PTR_ERR(reply);
-		genl_set_err(&dp_datapath_genl_family, sock_net(skb->sk), 0,
-			     0, err);
-		err = 0;
-		goto unlock;
-	}
+	err = ovs_dp_cmd_fill_info(dp, reply, info->snd_portid,
+				   info->snd_seq, 0, OVS_DP_CMD_NEW);
+	BUG_ON(err < 0);
 
 	ovs_unlock();
 	ovs_notify(&dp_datapath_genl_family, reply, info);
 
 	return 0;
-unlock:
+
+err_unlock_free:
 	ovs_unlock();
+	kfree_skb(reply);
 	return err;
 }
 
@@ -1388,24 +1678,26 @@ static int ovs_dp_cmd_get(struct sk_buff *skb, struct genl_info *info)
 	struct datapath *dp;
 	int err;
 
+	reply = ovs_dp_cmd_alloc_info(info);
+	if (!reply)
+		return -ENOMEM;
+
 	ovs_lock();
 	dp = lookup_datapath(sock_net(skb->sk), info->userhdr, info->attrs);
 	if (IS_ERR(dp)) {
 		err = PTR_ERR(dp);
-		goto unlock;
+		goto err_unlock_free;
 	}
-
-	reply = ovs_dp_cmd_build_info(dp, info, OVS_DP_CMD_NEW);
-	if (IS_ERR(reply)) {
-		err = PTR_ERR(reply);
-		goto unlock;
-	}
-
+	err = ovs_dp_cmd_fill_info(dp, reply, info->snd_portid,
+				   info->snd_seq, 0, OVS_DP_CMD_NEW);
+	BUG_ON(err < 0);
 	ovs_unlock();
+
 	return genlmsg_reply(reply, info);
 
-unlock:
+err_unlock_free:
 	ovs_unlock();
+	kfree_skb(reply);
 	return err;
 }
 
@@ -1416,8 +1708,8 @@ static int ovs_dp_cmd_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	int skip = cb->args[0];
 	int i = 0;
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(dp, &ovs_net->dps, list_node) {
+	ovs_lock();
+	list_for_each_entry(dp, &ovs_net->dps, list_node) {
 		if (i >= skip &&
 		    ovs_dp_cmd_fill_info(dp, skb, NETLINK_CB(cb->skb).portid,
 					 cb->nlh->nlmsg_seq, NLM_F_MULTI,
@@ -1425,12 +1717,18 @@ static int ovs_dp_cmd_dump(struct sk_buff *skb, struct netlink_callback *cb)
 			break;
 		i++;
 	}
-	rcu_read_unlock();
+	ovs_unlock();
 
 	cb->args[0] = i;
 
 	return skb->len;
 }
+
+static const struct nla_policy datapath_policy[OVS_DP_ATTR_MAX + 1] = {
+	[OVS_DP_ATTR_NAME] = { .type = NLA_NUL_STRING, .len = IFNAMSIZ - 1 },
+	[OVS_DP_ATTR_UPCALL_PID] = { .type = NLA_U32 },
+	[OVS_DP_ATTR_USER_FEATURES] = { .type = NLA_U32 },
+};
 
 static const struct genl_ops dp_datapath_genl_ops[] = {
 	{ .cmd = OVS_DP_CMD_NEW,
@@ -1456,27 +1754,18 @@ static const struct genl_ops dp_datapath_genl_ops[] = {
 	},
 };
 
-static const struct nla_policy vport_policy[OVS_VPORT_ATTR_MAX + 1] = {
-	[OVS_VPORT_ATTR_NAME] = { .type = NLA_NUL_STRING, .len = IFNAMSIZ - 1 },
-	[OVS_VPORT_ATTR_STATS] = { .len = sizeof(struct ovs_vport_stats) },
-	[OVS_VPORT_ATTR_PORT_NO] = { .type = NLA_U32 },
-	[OVS_VPORT_ATTR_TYPE] = { .type = NLA_U32 },
-	[OVS_VPORT_ATTR_UPCALL_PID] = { .type = NLA_U32 },
-	[OVS_VPORT_ATTR_OPTIONS] = { .type = NLA_NESTED },
-};
-
-struct genl_family dp_vport_genl_family = {
+static struct genl_family dp_datapath_genl_family = {
 	.id = GENL_ID_GENERATE,
 	.hdrsize = sizeof(struct ovs_header),
-	.name = OVS_VPORT_FAMILY,
-	.version = OVS_VPORT_VERSION,
-	.maxattr = OVS_VPORT_ATTR_MAX,
+	.name = OVS_DATAPATH_FAMILY,
+	.version = OVS_DATAPATH_VERSION,
+	.maxattr = OVS_DP_ATTR_MAX,
 	.netnsok = true,
 	.parallel_ops = true,
-};
-
-static struct genl_multicast_group ovs_dp_vport_multicast_group = {
-	.name = OVS_VPORT_MCGROUP
+	.ops = dp_datapath_genl_ops,
+	.n_ops = ARRAY_SIZE(dp_datapath_genl_ops),
+	.mcgrps = &ovs_dp_datapath_multicast_group,
+	.n_mcgrps = 1,
 };
 
 /* Called with ovs_mutex or RCU read lock. */
@@ -1496,8 +1785,8 @@ static int ovs_vport_cmd_fill_info(struct vport *vport, struct sk_buff *skb,
 
 	if (nla_put_u32(skb, OVS_VPORT_ATTR_PORT_NO, vport->port_no) ||
 	    nla_put_u32(skb, OVS_VPORT_ATTR_TYPE, vport->ops->type) ||
-	    nla_put_string(skb, OVS_VPORT_ATTR_NAME, vport->ops->get_name(vport)) ||
-	    nla_put_u32(skb, OVS_VPORT_ATTR_UPCALL_PID, vport->upcall_portid))
+	    nla_put_string(skb, OVS_VPORT_ATTR_NAME,
+			   vport->ops->get_name(vport)))
 		goto nla_put_failure;
 
 	ovs_vport_get_stats(vport, &vport_stats);
@@ -1505,11 +1794,15 @@ static int ovs_vport_cmd_fill_info(struct vport *vport, struct sk_buff *skb,
 		    &vport_stats))
 		goto nla_put_failure;
 
+	if (ovs_vport_get_upcall_portids(vport, skb))
+		goto nla_put_failure;
+
 	err = ovs_vport_get_options(vport, skb);
 	if (err == -EMSGSIZE)
 		goto error;
 
-	return genlmsg_end(skb, ovs_header);
+	genlmsg_end(skb, ovs_header);
+	return 0;
 
 nla_put_failure:
 	err = -EMSGSIZE;
@@ -1518,7 +1811,12 @@ error:
 	return err;
 }
 
-/* Called with ovs_mutex or RCU read lock. */
+static struct sk_buff *ovs_vport_cmd_alloc_info(void)
+{
+	return nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+}
+
+/* Called with ovs_mutex, only via ovs_dp_notify_wq(). */
 struct sk_buff *ovs_vport_cmd_build_info(struct vport *vport, u32 portid,
 					 u32 seq, u8 cmd)
 {
@@ -1537,7 +1835,7 @@ struct sk_buff *ovs_vport_cmd_build_info(struct vport *vport, u32 portid,
 
 /* Called with ovs_mutex or RCU read lock. */
 static struct vport *lookup_vport(struct net *net,
-				  struct ovs_header *ovs_header,
+				  const struct ovs_header *ovs_header,
 				  struct nlattr *a[OVS_VPORT_ATTR_MAX + 1])
 {
 	struct datapath *dp;
@@ -1580,33 +1878,36 @@ static int ovs_vport_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	u32 port_no;
 	int err;
 
-	err = -EINVAL;
 	if (!a[OVS_VPORT_ATTR_NAME] || !a[OVS_VPORT_ATTR_TYPE] ||
 	    !a[OVS_VPORT_ATTR_UPCALL_PID])
-		goto exit;
+		return -EINVAL;
+
+	port_no = a[OVS_VPORT_ATTR_PORT_NO]
+		? nla_get_u32(a[OVS_VPORT_ATTR_PORT_NO]) : 0;
+	if (port_no >= DP_MAX_PORTS)
+		return -EFBIG;
+
+	reply = ovs_vport_cmd_alloc_info();
+	if (!reply)
+		return -ENOMEM;
 
 	ovs_lock();
+restart:
 	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
 	err = -ENODEV;
 	if (!dp)
-		goto exit_unlock;
+		goto exit_unlock_free;
 
-	if (a[OVS_VPORT_ATTR_PORT_NO]) {
-		port_no = nla_get_u32(a[OVS_VPORT_ATTR_PORT_NO]);
-
-		err = -EFBIG;
-		if (port_no >= DP_MAX_PORTS)
-			goto exit_unlock;
-
+	if (port_no) {
 		vport = ovs_vport_ovsl(dp, port_no);
 		err = -EBUSY;
 		if (vport)
-			goto exit_unlock;
+			goto exit_unlock_free;
 	} else {
 		for (port_no = 1; ; port_no++) {
 			if (port_no >= DP_MAX_PORTS) {
 				err = -EFBIG;
-				goto exit_unlock;
+				goto exit_unlock_free;
 			}
 			vport = ovs_vport_ovsl(dp, port_no);
 			if (!vport)
@@ -1619,27 +1920,27 @@ static int ovs_vport_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	parms.options = a[OVS_VPORT_ATTR_OPTIONS];
 	parms.dp = dp;
 	parms.port_no = port_no;
-	parms.upcall_portid = nla_get_u32(a[OVS_VPORT_ATTR_UPCALL_PID]);
+	parms.upcall_portids = a[OVS_VPORT_ATTR_UPCALL_PID];
 
 	vport = new_vport(&parms);
 	err = PTR_ERR(vport);
-	if (IS_ERR(vport))
-		goto exit_unlock;
-
-	err = 0;
-	reply = ovs_vport_cmd_build_info(vport, info->snd_portid, info->snd_seq,
-					 OVS_VPORT_CMD_NEW);
-	if (IS_ERR(reply)) {
-		err = PTR_ERR(reply);
-		ovs_dp_detach_port(vport);
-		goto exit_unlock;
+	if (IS_ERR(vport)) {
+		if (err == -EAGAIN)
+			goto restart;
+		goto exit_unlock_free;
 	}
 
-	ovs_notify(&dp_vport_genl_family, reply, info);
-
-exit_unlock:
+	err = ovs_vport_cmd_fill_info(vport, reply, info->snd_portid,
+				      info->snd_seq, 0, OVS_VPORT_CMD_NEW);
+	BUG_ON(err < 0);
 	ovs_unlock();
-exit:
+
+	ovs_notify(&dp_vport_genl_family, reply, info);
+	return 0;
+
+exit_unlock_free:
+	ovs_unlock();
+	kfree_skb(reply);
 	return err;
 }
 
@@ -1650,32 +1951,36 @@ static int ovs_vport_cmd_set(struct sk_buff *skb, struct genl_info *info)
 	struct vport *vport;
 	int err;
 
+	reply = ovs_vport_cmd_alloc_info();
+	if (!reply)
+		return -ENOMEM;
+
 	ovs_lock();
 	vport = lookup_vport(sock_net(skb->sk), info->userhdr, a);
 	err = PTR_ERR(vport);
 	if (IS_ERR(vport))
-		goto exit_unlock;
+		goto exit_unlock_free;
 
 	if (a[OVS_VPORT_ATTR_TYPE] &&
 	    nla_get_u32(a[OVS_VPORT_ATTR_TYPE]) != vport->ops->type) {
 		err = -EINVAL;
-		goto exit_unlock;
-	}
-
-	reply = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (!reply) {
-		err = -ENOMEM;
-		goto exit_unlock;
+		goto exit_unlock_free;
 	}
 
 	if (a[OVS_VPORT_ATTR_OPTIONS]) {
 		err = ovs_vport_set_options(vport, a[OVS_VPORT_ATTR_OPTIONS]);
 		if (err)
-			goto exit_free;
+			goto exit_unlock_free;
 	}
 
-	if (a[OVS_VPORT_ATTR_UPCALL_PID])
-		vport->upcall_portid = nla_get_u32(a[OVS_VPORT_ATTR_UPCALL_PID]);
+
+	if (a[OVS_VPORT_ATTR_UPCALL_PID]) {
+		struct nlattr *ids = a[OVS_VPORT_ATTR_UPCALL_PID];
+
+		err = ovs_vport_set_upcall_portids(vport, ids);
+		if (err)
+			goto exit_unlock_free;
+	}
 
 	err = ovs_vport_cmd_fill_info(vport, reply, info->snd_portid,
 				      info->snd_seq, 0, OVS_VPORT_CMD_NEW);
@@ -1685,10 +1990,9 @@ static int ovs_vport_cmd_set(struct sk_buff *skb, struct genl_info *info)
 	ovs_notify(&dp_vport_genl_family, reply, info);
 	return 0;
 
-exit_free:
-	kfree_skb(reply);
-exit_unlock:
+exit_unlock_free:
 	ovs_unlock();
+	kfree_skb(reply);
 	return err;
 }
 
@@ -1699,30 +2003,33 @@ static int ovs_vport_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	struct vport *vport;
 	int err;
 
+	reply = ovs_vport_cmd_alloc_info();
+	if (!reply)
+		return -ENOMEM;
+
 	ovs_lock();
 	vport = lookup_vport(sock_net(skb->sk), info->userhdr, a);
 	err = PTR_ERR(vport);
 	if (IS_ERR(vport))
-		goto exit_unlock;
+		goto exit_unlock_free;
 
 	if (vport->port_no == OVSP_LOCAL) {
 		err = -EINVAL;
-		goto exit_unlock;
+		goto exit_unlock_free;
 	}
 
-	reply = ovs_vport_cmd_build_info(vport, info->snd_portid,
-					 info->snd_seq, OVS_VPORT_CMD_DEL);
-	err = PTR_ERR(reply);
-	if (IS_ERR(reply))
-		goto exit_unlock;
-
-	err = 0;
+	err = ovs_vport_cmd_fill_info(vport, reply, info->snd_portid,
+				      info->snd_seq, 0, OVS_VPORT_CMD_DEL);
+	BUG_ON(err < 0);
 	ovs_dp_detach_port(vport);
+	ovs_unlock();
 
 	ovs_notify(&dp_vport_genl_family, reply, info);
+	return 0;
 
-exit_unlock:
+exit_unlock_free:
 	ovs_unlock();
+	kfree_skb(reply);
 	return err;
 }
 
@@ -1734,24 +2041,25 @@ static int ovs_vport_cmd_get(struct sk_buff *skb, struct genl_info *info)
 	struct vport *vport;
 	int err;
 
+	reply = ovs_vport_cmd_alloc_info();
+	if (!reply)
+		return -ENOMEM;
+
 	rcu_read_lock();
 	vport = lookup_vport(sock_net(skb->sk), ovs_header, a);
 	err = PTR_ERR(vport);
 	if (IS_ERR(vport))
-		goto exit_unlock;
-
-	reply = ovs_vport_cmd_build_info(vport, info->snd_portid,
-					 info->snd_seq, OVS_VPORT_CMD_NEW);
-	err = PTR_ERR(reply);
-	if (IS_ERR(reply))
-		goto exit_unlock;
-
+		goto exit_unlock_free;
+	err = ovs_vport_cmd_fill_info(vport, reply, info->snd_portid,
+				      info->snd_seq, 0, OVS_VPORT_CMD_NEW);
+	BUG_ON(err < 0);
 	rcu_read_unlock();
 
 	return genlmsg_reply(reply, info);
 
-exit_unlock:
+exit_unlock_free:
 	rcu_read_unlock();
+	kfree_skb(reply);
 	return err;
 }
 
@@ -1763,7 +2071,7 @@ static int ovs_vport_cmd_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	int i, j = 0;
 
 	rcu_read_lock();
-	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
+	dp = get_dp_rcu(sock_net(skb->sk), ovs_header->dp_ifindex);
 	if (!dp) {
 		rcu_read_unlock();
 		return -ENODEV;
@@ -1794,6 +2102,15 @@ out:
 	return skb->len;
 }
 
+static const struct nla_policy vport_policy[OVS_VPORT_ATTR_MAX + 1] = {
+	[OVS_VPORT_ATTR_NAME] = { .type = NLA_NUL_STRING, .len = IFNAMSIZ - 1 },
+	[OVS_VPORT_ATTR_STATS] = { .len = sizeof(struct ovs_vport_stats) },
+	[OVS_VPORT_ATTR_PORT_NO] = { .type = NLA_U32 },
+	[OVS_VPORT_ATTR_TYPE] = { .type = NLA_U32 },
+	[OVS_VPORT_ATTR_UPCALL_PID] = { .type = NLA_U32 },
+	[OVS_VPORT_ATTR_OPTIONS] = { .type = NLA_NESTED },
+};
+
 static const struct genl_ops dp_vport_genl_ops[] = {
 	{ .cmd = OVS_VPORT_CMD_NEW,
 	  .flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN privilege. */
@@ -1818,26 +2135,25 @@ static const struct genl_ops dp_vport_genl_ops[] = {
 	},
 };
 
-struct genl_family_and_ops {
-	struct genl_family *family;
-	const struct genl_ops *ops;
-	int n_ops;
-	const struct genl_multicast_group *group;
+struct genl_family dp_vport_genl_family = {
+	.id = GENL_ID_GENERATE,
+	.hdrsize = sizeof(struct ovs_header),
+	.name = OVS_VPORT_FAMILY,
+	.version = OVS_VPORT_VERSION,
+	.maxattr = OVS_VPORT_ATTR_MAX,
+	.netnsok = true,
+	.parallel_ops = true,
+	.ops = dp_vport_genl_ops,
+	.n_ops = ARRAY_SIZE(dp_vport_genl_ops),
+	.mcgrps = &ovs_dp_vport_multicast_group,
+	.n_mcgrps = 1,
 };
 
-static const struct genl_family_and_ops dp_genl_families[] = {
-	{ &dp_datapath_genl_family,
-	  dp_datapath_genl_ops, ARRAY_SIZE(dp_datapath_genl_ops),
-	  &ovs_dp_datapath_multicast_group },
-	{ &dp_vport_genl_family,
-	  dp_vport_genl_ops, ARRAY_SIZE(dp_vport_genl_ops),
-	  &ovs_dp_vport_multicast_group },
-	{ &dp_flow_genl_family,
-	  dp_flow_genl_ops, ARRAY_SIZE(dp_flow_genl_ops),
-	  &ovs_dp_flow_multicast_group },
-	{ &dp_packet_genl_family,
-	  dp_packet_genl_ops, ARRAY_SIZE(dp_packet_genl_ops),
-	  NULL },
+static struct genl_family * const dp_genl_families[] = {
+	&dp_datapath_genl_family,
+	&dp_vport_genl_family,
+	&dp_flow_genl_family,
+	&dp_packet_genl_family,
 };
 
 static void dp_unregister_genl(int n_families)
@@ -1845,33 +2161,25 @@ static void dp_unregister_genl(int n_families)
 	int i;
 
 	for (i = 0; i < n_families; i++)
-		genl_unregister_family(dp_genl_families[i].family);
+		genl_unregister_family(dp_genl_families[i]);
 }
 
 static int dp_register_genl(void)
 {
-	int n_registered;
 	int err;
 	int i;
 
-	n_registered = 0;
 	for (i = 0; i < ARRAY_SIZE(dp_genl_families); i++) {
-		const struct genl_family_and_ops *f = &dp_genl_families[i];
 
-		f->family->ops = f->ops;
-		f->family->n_ops = f->n_ops;
-		f->family->mcgrps = f->group;
-		f->family->n_mcgrps = f->group ? 1 : 0;
-		err = genl_register_family(f->family);
+		err = genl_register_family(dp_genl_families[i]);
 		if (err)
 			goto error;
-		n_registered++;
 	}
 
 	return 0;
 
 error:
-	dp_unregister_genl(n_registered);
+	dp_unregister_genl(i);
 	return err;
 }
 
@@ -1884,14 +2192,55 @@ static int __net_init ovs_init_net(struct net *net)
 	return 0;
 }
 
-static void __net_exit ovs_exit_net(struct net *net)
+static void __net_exit list_vports_from_net(struct net *net, struct net *dnet,
+					    struct list_head *head)
+{
+	struct ovs_net *ovs_net = net_generic(net, ovs_net_id);
+	struct datapath *dp;
+
+	list_for_each_entry(dp, &ovs_net->dps, list_node) {
+		int i;
+
+		for (i = 0; i < DP_VPORT_HASH_BUCKETS; i++) {
+			struct vport *vport;
+
+			hlist_for_each_entry(vport, &dp->ports[i], dp_hash_node) {
+				struct netdev_vport *netdev_vport;
+
+				if (vport->ops->type != OVS_VPORT_TYPE_INTERNAL)
+					continue;
+
+				netdev_vport = netdev_vport_priv(vport);
+				if (dev_net(netdev_vport->dev) == dnet)
+					list_add(&vport->detach_list, head);
+			}
+		}
+	}
+}
+
+static void __net_exit ovs_exit_net(struct net *dnet)
 {
 	struct datapath *dp, *dp_next;
-	struct ovs_net *ovs_net = net_generic(net, ovs_net_id);
+	struct ovs_net *ovs_net = net_generic(dnet, ovs_net_id);
+	struct vport *vport, *vport_next;
+	struct net *net;
+	LIST_HEAD(head);
 
 	ovs_lock();
 	list_for_each_entry_safe(dp, dp_next, &ovs_net->dps, list_node)
 		__dp_destroy(dp);
+
+	rtnl_lock();
+	for_each_net(net)
+		list_vports_from_net(net, dnet, &head);
+	rtnl_unlock();
+
+	/* Detach all vports from given namespace. */
+	list_for_each_entry_safe(vport, vport_next, &head, detach_list) {
+		list_del(&vport->detach_list);
+		ovs_dp_detach_port(vport);
+	}
+
 	ovs_unlock();
 
 	cancel_work_sync(&ovs_net->dp_notify_work);
@@ -1912,9 +2261,17 @@ static int __init dp_init(void)
 
 	pr_info("Open vSwitch switching datapath\n");
 
-	err = ovs_flow_init();
+	err = action_fifos_init();
 	if (err)
 		goto error;
+
+	err = ovs_internal_dev_rtnl_link_register();
+	if (err)
+		goto error_action_fifos_exit;
+
+	err = ovs_flow_init();
+	if (err)
+		goto error_unreg_rtnl_link;
 
 	err = ovs_vport_init();
 	if (err)
@@ -1928,12 +2285,18 @@ static int __init dp_init(void)
 	if (err)
 		goto error_netns_exit;
 
+	err = ovs_netdev_init();
+	if (err)
+		goto error_unreg_notifier;
+
 	err = dp_register_genl();
 	if (err < 0)
-		goto error_unreg_notifier;
+		goto error_unreg_netdev;
 
 	return 0;
 
+error_unreg_netdev:
+	ovs_netdev_exit();
 error_unreg_notifier:
 	unregister_netdevice_notifier(&ovs_dp_device_notifier);
 error_netns_exit:
@@ -1942,6 +2305,10 @@ error_vport_exit:
 	ovs_vport_exit();
 error_flow_exit:
 	ovs_flow_exit();
+error_unreg_rtnl_link:
+	ovs_internal_dev_rtnl_link_unregister();
+error_action_fifos_exit:
+	action_fifos_exit();
 error:
 	return err;
 }
@@ -1949,11 +2316,14 @@ error:
 static void dp_cleanup(void)
 {
 	dp_unregister_genl(ARRAY_SIZE(dp_genl_families));
+	ovs_netdev_exit();
 	unregister_netdevice_notifier(&ovs_dp_device_notifier);
 	unregister_pernet_device(&ovs_net_ops);
 	rcu_barrier();
 	ovs_vport_exit();
 	ovs_flow_exit();
+	ovs_internal_dev_rtnl_link_unregister();
+	action_fifos_exit();
 }
 
 module_init(dp_init);

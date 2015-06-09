@@ -39,7 +39,7 @@
 
 #define IWL_CMD_ENTRY(x) [x] = #x
 
-const char *iwl_dvm_cmd_strings[REPLY_MAX] = {
+const char *const iwl_dvm_cmd_strings[REPLY_MAX] = {
 	IWL_CMD_ENTRY(REPLY_ALIVE),
 	IWL_CMD_ENTRY(REPLY_ERROR),
 	IWL_CMD_ENTRY(REPLY_ECHO),
@@ -786,7 +786,7 @@ static void iwlagn_pass_packet_to_mac80211(struct iwl_priv *priv,
 
 	memcpy(IEEE80211_SKB_RXCB(skb), stats, sizeof(*stats));
 
-	ieee80211_rx_ni(priv->hw, skb);
+	ieee80211_rx(priv->hw, skb);
 }
 
 static u32 iwlagn_translate_rx_status(struct iwl_priv *priv, u32 decrypt_in)

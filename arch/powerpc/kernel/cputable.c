@@ -71,8 +71,8 @@ extern void __restore_cpu_power7(void);
 extern void __setup_cpu_power8(unsigned long offset, struct cpu_spec* spec);
 extern void __restore_cpu_power8(void);
 extern void __restore_cpu_a2(void);
-extern void __flush_tlb_power7(unsigned long inval_selector);
-extern void __flush_tlb_power8(unsigned long inval_selector);
+extern void __flush_tlb_power7(unsigned int action);
+extern void __flush_tlb_power8(unsigned int action);
 extern long __machine_check_early_realmode_p7(struct pt_regs *regs);
 extern long __machine_check_early_realmode_p8(struct pt_regs *regs);
 #endif /* CONFIG_PPC64 */
@@ -109,7 +109,8 @@ extern void __restore_cpu_e6500(void);
 				 PPC_FEATURE_PSERIES_PERFMON_COMPAT)
 #define COMMON_USER2_POWER8	(PPC_FEATURE2_ARCH_2_07 | \
 				 PPC_FEATURE2_HTM_COMP | PPC_FEATURE2_DSCR | \
-				 PPC_FEATURE2_ISEL | PPC_FEATURE2_TAR)
+				 PPC_FEATURE2_ISEL | PPC_FEATURE2_TAR | \
+				 PPC_FEATURE2_VEC_CRYPTO)
 #define COMMON_USER_PA6T	(COMMON_USER_PPC64 | PPC_FEATURE_PA6T |\
 				 PPC_FEATURE_TRUE_LE | \
 				 PPC_FEATURE_HAS_ALTIVEC_COMP)
@@ -122,96 +123,6 @@ extern void __restore_cpu_e6500(void);
 
 static struct cpu_spec __initdata cpu_specs[] = {
 #ifdef CONFIG_PPC_BOOK3S_64
-	{	/* Power3 */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x00400000,
-		.cpu_name		= "POWER3 (630)",
-		.cpu_features		= CPU_FTRS_POWER3,
-		.cpu_user_features	= COMMON_USER_PPC64|PPC_FEATURE_PPC_LE,
-		.mmu_features		= MMU_FTR_HPTE_TABLE,
-		.icache_bsize		= 128,
-		.dcache_bsize		= 128,
-		.num_pmcs		= 8,
-		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/power3",
-		.oprofile_type		= PPC_OPROFILE_RS64,
-		.platform		= "power3",
-	},
-	{	/* Power3+ */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x00410000,
-		.cpu_name		= "POWER3 (630+)",
-		.cpu_features		= CPU_FTRS_POWER3,
-		.cpu_user_features	= COMMON_USER_PPC64|PPC_FEATURE_PPC_LE,
-		.mmu_features		= MMU_FTR_HPTE_TABLE,
-		.icache_bsize		= 128,
-		.dcache_bsize		= 128,
-		.num_pmcs		= 8,
-		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/power3",
-		.oprofile_type		= PPC_OPROFILE_RS64,
-		.platform		= "power3",
-	},
-	{	/* Northstar */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x00330000,
-		.cpu_name		= "RS64-II (northstar)",
-		.cpu_features		= CPU_FTRS_RS64,
-		.cpu_user_features	= COMMON_USER_PPC64,
-		.mmu_features		= MMU_FTR_HPTE_TABLE,
-		.icache_bsize		= 128,
-		.dcache_bsize		= 128,
-		.num_pmcs		= 8,
-		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/rs64",
-		.oprofile_type		= PPC_OPROFILE_RS64,
-		.platform		= "rs64",
-	},
-	{	/* Pulsar */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x00340000,
-		.cpu_name		= "RS64-III (pulsar)",
-		.cpu_features		= CPU_FTRS_RS64,
-		.cpu_user_features	= COMMON_USER_PPC64,
-		.mmu_features		= MMU_FTR_HPTE_TABLE,
-		.icache_bsize		= 128,
-		.dcache_bsize		= 128,
-		.num_pmcs		= 8,
-		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/rs64",
-		.oprofile_type		= PPC_OPROFILE_RS64,
-		.platform		= "rs64",
-	},
-	{	/* I-star */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x00360000,
-		.cpu_name		= "RS64-III (icestar)",
-		.cpu_features		= CPU_FTRS_RS64,
-		.cpu_user_features	= COMMON_USER_PPC64,
-		.mmu_features		= MMU_FTR_HPTE_TABLE,
-		.icache_bsize		= 128,
-		.dcache_bsize		= 128,
-		.num_pmcs		= 8,
-		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/rs64",
-		.oprofile_type		= PPC_OPROFILE_RS64,
-		.platform		= "rs64",
-	},
-	{	/* S-star */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x00370000,
-		.cpu_name		= "RS64-IV (sstar)",
-		.cpu_features		= CPU_FTRS_RS64,
-		.cpu_user_features	= COMMON_USER_PPC64,
-		.mmu_features		= MMU_FTR_HPTE_TABLE,
-		.icache_bsize		= 128,
-		.dcache_bsize		= 128,
-		.num_pmcs		= 8,
-		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/rs64",
-		.oprofile_type		= PPC_OPROFILE_RS64,
-		.platform		= "rs64",
-	},
 	{	/* Power4 */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x00350000,
@@ -510,7 +421,47 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x004b0000,
 		.cpu_name		= "POWER8E (raw)",
+		.cpu_features		= CPU_FTRS_POWER8E,
+		.cpu_user_features	= COMMON_USER_POWER8,
+		.cpu_user_features2	= COMMON_USER2_POWER8,
+		.mmu_features		= MMU_FTRS_POWER8,
+		.icache_bsize		= 128,
+		.dcache_bsize		= 128,
+		.num_pmcs		= 6,
+		.pmc_type		= PPC_PMC_IBM,
+		.oprofile_cpu_type	= "ppc64/power8",
+		.oprofile_type		= PPC_OPROFILE_INVALID,
+		.cpu_setup		= __setup_cpu_power8,
+		.cpu_restore		= __restore_cpu_power8,
+		.flush_tlb		= __flush_tlb_power8,
+		.machine_check_early	= __machine_check_early_realmode_p8,
+		.platform		= "power8",
+	},
+	{	/* Power8NVL */
+		.pvr_mask		= 0xffff0000,
+		.pvr_value		= 0x004c0000,
+		.cpu_name		= "POWER8NVL (raw)",
 		.cpu_features		= CPU_FTRS_POWER8,
+		.cpu_user_features	= COMMON_USER_POWER8,
+		.cpu_user_features2	= COMMON_USER2_POWER8,
+		.mmu_features		= MMU_FTRS_POWER8,
+		.icache_bsize		= 128,
+		.dcache_bsize		= 128,
+		.num_pmcs		= 6,
+		.pmc_type		= PPC_PMC_IBM,
+		.oprofile_cpu_type	= "ppc64/power8",
+		.oprofile_type		= PPC_OPROFILE_INVALID,
+		.cpu_setup		= __setup_cpu_power8,
+		.cpu_restore		= __restore_cpu_power8,
+		.flush_tlb		= __flush_tlb_power8,
+		.machine_check_early	= __machine_check_early_realmode_p8,
+		.platform		= "power8",
+	},
+	{	/* Power8 DD1: Does not support doorbell IPIs */
+		.pvr_mask		= 0xffffff00,
+		.pvr_value		= 0x004d0100,
+		.cpu_name		= "POWER8 (raw)",
+		.cpu_features		= CPU_FTRS_POWER8_DD1,
 		.cpu_user_features	= COMMON_USER_POWER8,
 		.cpu_user_features2	= COMMON_USER2_POWER8,
 		.mmu_features		= MMU_FTRS_POWER8,
@@ -596,7 +547,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 #endif	/* CONFIG_PPC_BOOK3S_64 */
 
 #ifdef CONFIG_PPC32
-#if CLASSIC_PPC
+#ifdef CONFIG_PPC_BOOK3S_32
 	{	/* 601 */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x00010000,
@@ -1202,6 +1153,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.cpu_setup		= __setup_cpu_603,
+		.machine_check		= machine_check_generic,
 		.num_pmcs		= 4,
 		.oprofile_cpu_type	= "ppc/e300",
 		.oprofile_type		= PPC_OPROFILE_FSL_EMB,
@@ -1236,7 +1188,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc603",
 	},
-#endif /* CLASSIC_PPC */
+#endif /* CONFIG_PPC_BOOK3S_32 */
 #ifdef CONFIG_8xx
 	{	/* 8xx */
 		.pvr_mask		= 0xffff0000,
@@ -2030,6 +1982,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 #endif /* CONFIG_PPC32 */
 #ifdef CONFIG_E500
 #ifdef CONFIG_PPC32
+#ifndef CONFIG_PPC_E500MC
 	{	/* e500 */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x80200000,
@@ -2069,6 +2022,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_e500,
 		.platform		= "ppc8548",
 	},
+#else
 	{	/* e500mc */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x80230000,
@@ -2087,7 +2041,9 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_e500mc,
 		.platform		= "ppce500mc",
 	},
+#endif /* CONFIG_PPC_E500MC */
 #endif /* CONFIG_PPC32 */
+#ifdef CONFIG_PPC_E500MC
 	{	/* e5500 */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x80240000,
@@ -2131,6 +2087,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_e500mc,
 		.platform		= "ppce6500",
 	},
+#endif /* CONFIG_PPC_E500MC */
 #ifdef CONFIG_PPC32
 	{	/* default match */
 		.pvr_mask		= 0x00000000,
@@ -2148,44 +2105,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 	}
 #endif /* CONFIG_PPC32 */
 #endif /* CONFIG_E500 */
-
-#ifdef CONFIG_PPC_A2
-	{	/* Standard A2 (>= DD2) + FPU core */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x00480000,
-		.cpu_name		= "A2 (>= DD2)",
-		.cpu_features		= CPU_FTRS_A2,
-		.cpu_user_features	= COMMON_USER_PPC64,
-		.mmu_features		= MMU_FTRS_A2,
-		.icache_bsize		= 64,
-		.dcache_bsize		= 64,
-		.num_pmcs		= 0,
-		.cpu_setup		= __setup_cpu_a2,
-		.cpu_restore		= __restore_cpu_a2,
-		.machine_check		= machine_check_generic,
-		.platform		= "ppca2",
-	},
-	{	/* This is a default entry to get going, to be replaced by
-		 * a real one at some stage
-		 */
-#define CPU_FTRS_BASE_BOOK3E	(CPU_FTR_USE_TB | \
-	    CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_SMT | \
-	    CPU_FTR_NODSISRALIGN | CPU_FTR_NOEXECUTE)
-		.pvr_mask		= 0x00000000,
-		.pvr_value		= 0x00000000,
-		.cpu_name		= "Book3E",
-		.cpu_features		= CPU_FTRS_BASE_BOOK3E,
-		.cpu_user_features	= COMMON_USER_PPC64,
-		.mmu_features		= MMU_FTR_TYPE_3E | MMU_FTR_USE_TLBILX |
-					  MMU_FTR_USE_TLBIVAX_BCAST |
-					  MMU_FTR_LOCK_BCAST_INVAL,
-		.icache_bsize		= 64,
-		.dcache_bsize		= 64,
-		.num_pmcs		= 0,
-		.machine_check		= machine_check_generic,
-		.platform		= "power6",
-	},
-#endif /* CONFIG_PPC_A2 */
 };
 
 static struct cpu_spec the_cpu_spec;

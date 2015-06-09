@@ -1,4 +1,4 @@
-# Copyright (C) 2011, Marvell International Ltd.
+# Copyright (C) 2011-2014, Marvell International Ltd.
 #
 # This software file (the "File") is distributed by Marvell International
 # Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -131,7 +131,7 @@ info
 	hs_configured = <0/1, host sleep not configured/configured>
 	hs_activated = <0/1, extended host sleep not activated/activated>
 	num_tx_timeout = <number of Tx timeout>
-	num_cmd_timeout = <number of timeout commands>
+	is_cmd_timedout = <0/1 command timeout not occurred/occurred>
 	timeout_cmd_id = <command id of the last timeout command>
 	timeout_cmd_act = <command action of the last timeout command>
 	last_cmd_id = <command id of the last several commands sent to device>
@@ -194,10 +194,47 @@ rdeeprom
 	Example:
 		echo "0 20" > rdeeprom      : Read 20 bytes of EEPROM data from offset 0
 
+hscfg
+	This command is used to debug/simulate host sleep feature using
+	different configuration parameters.
+
+	Usage:
+		echo "<condition> [GPIO# [gap]]]" > hscfg
+		cat hscfg
+
+	where the parameters are,
+		<condition>: bit 0 = 1   -- broadcast data
+			     bit 1 = 1   -- unicast data
+			     bit 2 = 1   -- mac event
+			     bit 3 = 1   -- multicast data
+		[GPIO#]: pin number of GPIO used to wakeup the host.
+			 GPIO pin# (e.g. 0-7) or 0xff (interface, e.g. SDIO
+			 will be used instead).
+		[gap]:   the gap in milliseconds between wakeup signal and
+			 wakeup event or 0xff for special setting (host
+			 acknowledge required) when GPIO is used to wakeup host.
+
+	Examples:
+		echo "-1" > hscfg        : Cancel host sleep mode
+		echo "3" > hscfg         : Broadcast and unicast data;
+					   Use GPIO and gap set previously
+		echo "2 3" > hscfg       : Unicast data and GPIO 3;
+					   Use gap set previously
+		echo "2 1 160" > hscfg   : Unicast data, GPIO 1 and gap 160 ms
+		echo "2 1 0xff" > hscfg  : Unicast data, GPIO 1; Wait for host
+					   to ack before sending wakeup event
+
 getlog
         This command is used to get the statistics available in the station.
 	Usage:
 
 	cat getlog
+
+fw_dump
+	This command is used to dump firmware memory into files.
+	Separate file will be created for each memory segment.
+	Usage:
+
+	cat fw_dump
 
 ===============================================================================

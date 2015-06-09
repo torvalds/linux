@@ -207,7 +207,7 @@ struct tulip_chip_table tulip_tbl[] = {
 };
 
 
-static DEFINE_PCI_DEVICE_TABLE(tulip_pci_tbl) = {
+static const struct pci_device_id tulip_pci_tbl[] = {
 	{ 0x1011, 0x0009, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DC21140 },
 	{ 0x1011, 0x0019, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DC21143 },
 	{ 0x11AD, 0x0002, PCI_ANY_ID, PCI_ANY_ID, 0, 0, LC82C168 },
@@ -589,7 +589,7 @@ static void tulip_tx_timeout(struct net_device *dev)
 			       (unsigned int)tp->rx_ring[i].buffer1,
 			       (unsigned int)tp->rx_ring[i].buffer2,
 			       buf[0], buf[1], buf[2]);
-			for (j = 0; buf[j] != 0xee && j < 1600; j++)
+			for (j = 0; ((j < 1600) && buf[j] != 0xee); j++)
 				if (j < 100)
 					pr_cont(" %02x", buf[j]);
 			pr_cont(" j=%d\n", j);
@@ -1294,7 +1294,7 @@ static const struct net_device_ops tulip_netdev_ops = {
 #endif
 };
 
-DEFINE_PCI_DEVICE_TABLE(early_486_chipsets) = {
+const struct pci_device_id early_486_chipsets[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82424) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_496) },
 	{ },
@@ -1703,7 +1703,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifdef CONFIG_TULIP_NAPI
 	netif_napi_add(dev, &tp->napi, tulip_poll, 16);
 #endif
-	SET_ETHTOOL_OPS(dev, &ops);
+	dev->ethtool_ops = &ops;
 
 	if (register_netdev(dev))
 		goto err_out_free_ring;

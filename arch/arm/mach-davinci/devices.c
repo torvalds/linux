@@ -313,9 +313,9 @@ void davinci_restart(enum reboot_mode mode, const char *cmd)
 	davinci_watchdog_reset(&davinci_wdt_device);
 }
 
-static void davinci_init_wdt(void)
+int davinci_init_wdt(void)
 {
-	platform_device_register(&davinci_wdt_device);
+	return platform_device_register(&davinci_wdt_device);
 }
 
 static struct platform_device davinci_gpio_device = {
@@ -347,17 +347,4 @@ struct davinci_timer_instance davinci_timer_instance[2] = {
 		.top_irq	= IRQ_TINT1_TINT34,
 	},
 };
-
-/*-------------------------------------------------------------------------*/
-
-static int __init davinci_init_devices(void)
-{
-	/* please keep these calls, and their implementations above,
-	 * in alphabetical order so they're easier to sort through.
-	 */
-	davinci_init_wdt();
-
-	return 0;
-}
-arch_initcall(davinci_init_devices);
 

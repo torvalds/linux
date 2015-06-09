@@ -317,21 +317,11 @@ struct omap_hwmod_ocp_if am33xx_l4_per__i2c3 = {
 	.user		= OCP_USER_MPU,
 };
 
-static struct omap_hwmod_addr_space am33xx_mailbox_addrs[] = {
-	{
-		.pa_start	= 0x480C8000,
-		.pa_end		= 0x480C8000 + (SZ_4K - 1),
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
-};
-
 /* l4 ls -> mailbox */
 struct omap_hwmod_ocp_if am33xx_l4_per__mailbox = {
 	.master		= &am33xx_l4_ls_hwmod,
 	.slave		= &am33xx_mailbox_hwmod,
 	.clk		= "l4ls_gclk",
-	.addr		= am33xx_mailbox_addrs,
 	.user		= OCP_USER_MPU,
 };
 

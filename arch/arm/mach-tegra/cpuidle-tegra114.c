@@ -14,15 +14,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
+#include <asm/firmware.h>
+#include <linux/tick.h>
 #include <linux/cpuidle.h>
 #include <linux/cpu_pm.h>
-#include <linux/clockchips.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 
 #include <asm/cpuidle.h>
-#include <asm/suspend.h>
 #include <asm/smp_plat.h>
+#include <asm/suspend.h>
 
 #include "pm.h"
 #include "sleep.h"
@@ -43,11 +44,15 @@ static int tegra114_idle_power_down(struct cpuidle_device *dev,
 	tegra_set_cpu_in_lp2();
 	cpu_pm_enter();
 
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &dev->cpu);
+	tick_broadcast_enter();
 
-	cpu_suspend(0, tegra30_sleep_cpu_secondary_finish);
+	call_firmware_op(prepare_idle);
 
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &dev->cpu);
+	/* Do suspend by ourselves if the firmware does not implement it */
+	if (call_firmware_op(do_idle, 0) == -ENOSYS)
+		cpu_suspend(0, tegra30_sleep_cpu_secondary_finish);
+
+	tick_broadcast_exit();
 
 	cpu_pm_exit();
 	tegra_clear_cpu_in_lp2();
@@ -70,7 +75,6 @@ static struct cpuidle_driver tegra_idle_driver = {
 			.exit_latency		= 500,
 			.target_residency	= 1000,
 			.power_usage		= 0,
-			.flags			= CPUIDLE_FLAG_TIME_VALID,
 			.name			= "powered-down",
 			.desc			= "CPU power gated",
 		},

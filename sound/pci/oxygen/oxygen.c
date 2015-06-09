@@ -97,7 +97,7 @@ enum {
 	MODEL_XONAR_DGX,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(oxygen_ids) = {
+static const struct pci_device_id oxygen_ids[] = {
 	/* C-Media's reference design */
 	{ OXYGEN_PCI_SUBID(0x10b0, 0x0216), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x10b0, 0x0217), .driver_data = MODEL_CMEDIA_REF },

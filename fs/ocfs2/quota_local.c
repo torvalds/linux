@@ -73,12 +73,6 @@ static loff_t ol_dqblk_off(struct super_block *sb, int c, int off)
 	       ol_dqblk_block_off(sb, c, off);
 }
 
-/* Compute block number from given offset */
-static inline unsigned int ol_dqblk_file_block(struct super_block *sb, loff_t off)
-{
-	return off >> sb->s_blocksize_bits;
-}
-
 static inline unsigned int ol_dqblk_block_offset(struct super_block *sb, loff_t off)
 {
 	return off & ((1 << sb->s_blocksize_bits) - 1);
@@ -166,12 +160,12 @@ static int ocfs2_read_quota_block(struct inode *inode, u64 v_block,
 /* Check whether we understand format of quota files */
 static int ocfs2_local_check_quota_file(struct super_block *sb, int type)
 {
-	unsigned int lmagics[MAXQUOTAS] = OCFS2_LOCAL_QMAGICS;
-	unsigned int lversions[MAXQUOTAS] = OCFS2_LOCAL_QVERSIONS;
-	unsigned int gmagics[MAXQUOTAS] = OCFS2_GLOBAL_QMAGICS;
-	unsigned int gversions[MAXQUOTAS] = OCFS2_GLOBAL_QVERSIONS;
-	unsigned int ino[MAXQUOTAS] = { USER_QUOTA_SYSTEM_INODE,
-					GROUP_QUOTA_SYSTEM_INODE };
+	unsigned int lmagics[OCFS2_MAXQUOTAS] = OCFS2_LOCAL_QMAGICS;
+	unsigned int lversions[OCFS2_MAXQUOTAS] = OCFS2_LOCAL_QVERSIONS;
+	unsigned int gmagics[OCFS2_MAXQUOTAS] = OCFS2_GLOBAL_QMAGICS;
+	unsigned int gversions[OCFS2_MAXQUOTAS] = OCFS2_GLOBAL_QVERSIONS;
+	unsigned int ino[OCFS2_MAXQUOTAS] = { USER_QUOTA_SYSTEM_INODE,
+					      GROUP_QUOTA_SYSTEM_INODE };
 	struct buffer_head *bh = NULL;
 	struct inode *linode = sb_dqopt(sb)->files[type];
 	struct inode *ginode = NULL;
@@ -292,7 +286,7 @@ static void olq_update_info(struct buffer_head *bh, void *private)
 	ldinfo = (struct ocfs2_local_disk_dqinfo *)(bh->b_data +
 						OCFS2_LOCAL_INFO_OFF);
 	spin_lock(&dq_data_lock);
-	ldinfo->dqi_flags = cpu_to_le32(info->dqi_flags & DQF_MASK);
+	ldinfo->dqi_flags = cpu_to_le32(oinfo->dqi_flags);
 	ldinfo->dqi_chunks = cpu_to_le32(oinfo->dqi_chunks);
 	ldinfo->dqi_blocks = cpu_to_le32(oinfo->dqi_blocks);
 	spin_unlock(&dq_data_lock);
@@ -336,7 +330,7 @@ void ocfs2_free_quota_recovery(struct ocfs2_quota_recovery *rec)
 {
 	int type;
 
-	for (type = 0; type < MAXQUOTAS; type++)
+	for (type = 0; type < OCFS2_MAXQUOTAS; type++)
 		free_recovery_list(&(rec->r_list[type]));
 	kfree(rec);
 }
@@ -382,7 +376,7 @@ static struct ocfs2_quota_recovery *ocfs2_alloc_quota_recovery(void)
 	rec = kmalloc(sizeof(struct ocfs2_quota_recovery), GFP_NOFS);
 	if (!rec)
 		return NULL;
-	for (type = 0; type < MAXQUOTAS; type++)
+	for (type = 0; type < OCFS2_MAXQUOTAS; type++)
 		INIT_LIST_HEAD(&(rec->r_list[type]));
 	return rec;
 }
@@ -392,10 +386,11 @@ struct ocfs2_quota_recovery *ocfs2_begin_quota_recovery(
 						struct ocfs2_super *osb,
 						int slot_num)
 {
-	unsigned int feature[MAXQUOTAS] = { OCFS2_FEATURE_RO_COMPAT_USRQUOTA,
-					    OCFS2_FEATURE_RO_COMPAT_GRPQUOTA};
-	unsigned int ino[MAXQUOTAS] = { LOCAL_USER_QUOTA_SYSTEM_INODE,
-					LOCAL_GROUP_QUOTA_SYSTEM_INODE };
+	unsigned int feature[OCFS2_MAXQUOTAS] = {
+					OCFS2_FEATURE_RO_COMPAT_USRQUOTA,
+					OCFS2_FEATURE_RO_COMPAT_GRPQUOTA};
+	unsigned int ino[OCFS2_MAXQUOTAS] = { LOCAL_USER_QUOTA_SYSTEM_INODE,
+					      LOCAL_GROUP_QUOTA_SYSTEM_INODE };
 	struct super_block *sb = osb->sb;
 	struct ocfs2_local_disk_dqinfo *ldinfo;
 	struct inode *lqinode;
@@ -412,7 +407,7 @@ struct ocfs2_quota_recovery *ocfs2_begin_quota_recovery(
 		return ERR_PTR(-ENOMEM);
 	/* First init... */
 
-	for (type = 0; type < MAXQUOTAS; type++) {
+	for (type = 0; type < OCFS2_MAXQUOTAS; type++) {
 		if (!OCFS2_HAS_RO_COMPAT_FEATURE(sb, feature[type]))
 			continue;
 		/* At this point, journal of the slot is already replayed so
@@ -589,8 +584,8 @@ int ocfs2_finish_quota_recovery(struct ocfs2_super *osb,
 				struct ocfs2_quota_recovery *rec,
 				int slot_num)
 {
-	unsigned int ino[MAXQUOTAS] = { LOCAL_USER_QUOTA_SYSTEM_INODE,
-					LOCAL_GROUP_QUOTA_SYSTEM_INODE };
+	unsigned int ino[OCFS2_MAXQUOTAS] = { LOCAL_USER_QUOTA_SYSTEM_INODE,
+					      LOCAL_GROUP_QUOTA_SYSTEM_INODE };
 	struct super_block *sb = osb->sb;
 	struct ocfs2_local_disk_dqinfo *ldinfo;
 	struct buffer_head *bh;
@@ -604,7 +599,7 @@ int ocfs2_finish_quota_recovery(struct ocfs2_super *osb,
 	       "slot %u\n", osb->dev_str, slot_num);
 
 	mutex_lock(&sb_dqopt(sb)->dqonoff_mutex);
-	for (type = 0; type < MAXQUOTAS; type++) {
+	for (type = 0; type < OCFS2_MAXQUOTAS; type++) {
 		if (list_empty(&(rec->r_list[type])))
 			continue;
 		trace_ocfs2_finish_quota_recovery(slot_num);
@@ -700,8 +695,8 @@ static int ocfs2_local_read_info(struct super_block *sb, int type)
 	/* We don't need the lock and we have to acquire quota file locks
 	 * which will later depend on this lock */
 	mutex_unlock(&sb_dqopt(sb)->dqio_mutex);
-	info->dqi_maxblimit = 0x7fffffffffffffffLL;
-	info->dqi_maxilimit = 0x7fffffffffffffffLL;
+	info->dqi_max_spc_limit = 0x7fffffffffffffffLL;
+	info->dqi_max_ino_limit = 0x7fffffffffffffffLL;
 	oinfo = kmalloc(sizeof(struct ocfs2_mem_dqinfo), GFP_NOFS);
 	if (!oinfo) {
 		mlog(ML_ERROR, "failed to allocate memory for ocfs2 quota"
@@ -736,13 +731,13 @@ static int ocfs2_local_read_info(struct super_block *sb, int type)
 	}
 	ldinfo = (struct ocfs2_local_disk_dqinfo *)(bh->b_data +
 						OCFS2_LOCAL_INFO_OFF);
-	info->dqi_flags = le32_to_cpu(ldinfo->dqi_flags);
+	oinfo->dqi_flags = le32_to_cpu(ldinfo->dqi_flags);
 	oinfo->dqi_chunks = le32_to_cpu(ldinfo->dqi_chunks);
 	oinfo->dqi_blocks = le32_to_cpu(ldinfo->dqi_blocks);
 	oinfo->dqi_libh = bh;
 
 	/* We crashed when using local quota file? */
-	if (!(info->dqi_flags & OLQF_CLEAN)) {
+	if (!(oinfo->dqi_flags & OLQF_CLEAN)) {
 		rec = OCFS2_SB(sb)->quota_rec;
 		if (!rec) {
 			rec = ocfs2_alloc_quota_recovery();
@@ -771,7 +766,7 @@ static int ocfs2_local_read_info(struct super_block *sb, int type)
 	}
 
 	/* Now mark quota file as used */
-	info->dqi_flags &= ~OLQF_CLEAN;
+	oinfo->dqi_flags &= ~OLQF_CLEAN;
 	status = ocfs2_modify_bh(lqinode, bh, olq_update_info, info);
 	if (status < 0) {
 		mlog_errno(status);
@@ -856,7 +851,7 @@ static int ocfs2_local_free_info(struct super_block *sb, int type)
 		goto out;
 
 	/* Mark local file as clean */
-	info->dqi_flags |= OLQF_CLEAN;
+	oinfo->dqi_flags |= OLQF_CLEAN;
 	status = ocfs2_modify_bh(sb_dqopt(sb)->files[type],
 				 oinfo->dqi_libh,
 				 olq_update_info,

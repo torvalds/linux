@@ -63,7 +63,6 @@ int inet6_csk_bind_conflict(const struct sock *sk,
 
 	return sk2 != NULL;
 }
-
 EXPORT_SYMBOL_GPL(inet6_csk_bind_conflict);
 
 struct dst_entry *inet6_csk_route_req(struct sock *sk,
@@ -81,7 +80,7 @@ struct dst_entry *inet6_csk_route_req(struct sock *sk,
 	final_p = fl6_update_dst(fl6, np->opt, &final);
 	fl6->saddr = ireq->ir_v6_loc_addr;
 	fl6->flowi6_oif = ireq->ir_iif;
-	fl6->flowi6_mark = sk->sk_mark;
+	fl6->flowi6_mark = ireq->ir_mark;
 	fl6->fl6_dport = ireq->ir_rmt_port;
 	fl6->fl6_sport = htons(ireq->ir_num);
 	security_req_classify_flow(req, flowi6_to_flowi(fl6));
@@ -113,22 +112,20 @@ static u32 inet6_synq_hash(const struct in6_addr *raddr, const __be16 rport,
 	return c & (synq_hsize - 1);
 }
 
-struct request_sock *inet6_csk_search_req(const struct sock *sk,
-					  struct request_sock ***prevp,
+struct request_sock *inet6_csk_search_req(struct sock *sk,
 					  const __be16 rport,
 					  const struct in6_addr *raddr,
 					  const struct in6_addr *laddr,
 					  const int iif)
 {
-	const struct inet_connection_sock *icsk = inet_csk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct listen_sock *lopt = icsk->icsk_accept_queue.listen_opt;
-	struct request_sock *req, **prev;
+	struct request_sock *req;
+	u32 hash = inet6_synq_hash(raddr, rport, lopt->hash_rnd,
+				   lopt->nr_table_entries);
 
-	for (prev = &lopt->syn_table[inet6_synq_hash(raddr, rport,
-						     lopt->hash_rnd,
-						     lopt->nr_table_entries)];
-	     (req = *prev) != NULL;
-	     prev = &req->dl_next) {
+	spin_lock(&icsk->icsk_accept_queue.syn_wait_lock);
+	for (req = lopt->syn_table[hash]; req != NULL; req = req->dl_next) {
 		const struct inet_request_sock *ireq = inet_rsk(req);
 
 		if (ireq->ir_rmt_port == rport &&
@@ -136,15 +133,15 @@ struct request_sock *inet6_csk_search_req(const struct sock *sk,
 		    ipv6_addr_equal(&ireq->ir_v6_rmt_addr, raddr) &&
 		    ipv6_addr_equal(&ireq->ir_v6_loc_addr, laddr) &&
 		    (!ireq->ir_iif || ireq->ir_iif == iif)) {
+			atomic_inc(&req->rsk_refcnt);
 			WARN_ON(req->sk != NULL);
-			*prevp = prev;
-			return req;
+			break;
 		}
 	}
+	spin_unlock(&icsk->icsk_accept_queue.syn_wait_lock);
 
-	return NULL;
+	return req;
 }
-
 EXPORT_SYMBOL_GPL(inet6_csk_search_req);
 
 void inet6_csk_reqsk_queue_hash_add(struct sock *sk,
@@ -160,10 +157,9 @@ void inet6_csk_reqsk_queue_hash_add(struct sock *sk,
 	reqsk_queue_hash_req(&icsk->icsk_accept_queue, h, req, timeout);
 	inet_csk_reqsk_queue_added(sk, timeout);
 }
-
 EXPORT_SYMBOL_GPL(inet6_csk_reqsk_queue_hash_add);
 
-void inet6_csk_addr2sockaddr(struct sock *sk, struct sockaddr * uaddr)
+void inet6_csk_addr2sockaddr(struct sock *sk, struct sockaddr *uaddr)
 {
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) uaddr;
 
@@ -175,7 +171,6 @@ void inet6_csk_addr2sockaddr(struct sock *sk, struct sockaddr * uaddr)
 	sin6->sin6_scope_id = ipv6_iface_scope_id(&sin6->sin6_addr,
 						  sk->sk_bound_dev_if);
 }
-
 EXPORT_SYMBOL_GPL(inet6_csk_addr2sockaddr);
 
 static inline
@@ -224,9 +219,8 @@ static struct dst_entry *inet6_csk_route_socket(struct sock *sk,
 	return dst;
 }
 
-int inet6_csk_xmit(struct sk_buff *skb, struct flowi *fl_unused)
+int inet6_csk_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl_unused)
 {
-	struct sock *sk = skb->sk;
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct flowi6 fl6;
 	struct dst_entry *dst;

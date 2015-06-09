@@ -152,8 +152,8 @@
  *  Even so, the MDT and OST resources are also in different LDLM namespaces.
  */
 
-#include <linux/libcfs/libcfs.h>
-#include <lustre/lustre_idl.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "lustre/lustre_idl.h"
 
 struct lu_env;
 struct lu_site;
@@ -312,7 +312,7 @@ static inline void lu_last_id_fid(struct lu_fid *fid, __u64 seq)
 		fid->f_seq = fid_idif_seq(0, 0);
 	} else {
 		LASSERTF(fid_seq_is_norm(seq) || fid_seq_is_echo(seq) ||
-			 fid_seq_is_idif(seq), LPX64"\n", seq);
+			 fid_seq_is_idif(seq), "%#llx\n", seq);
 		fid->f_seq = seq;
 	}
 	fid->f_oid = 0;
@@ -339,7 +339,7 @@ struct lu_client_seq {
 	struct mutex		lcs_mutex;
 
 	/*
-	 * Range of allowed for allocation sequeces. When using lu_client_seq on
+	 * Range of allowed for allocation sequences. When using lu_client_seq on
 	 * clients, this contains meta-sequence range. And for servers this
 	 * contains super-sequence range.
 	 */
@@ -358,7 +358,7 @@ struct lu_client_seq {
 	 * Service uuid, passed from MDT + seq name to form unique seq name to
 	 * use it with procfs.
 	 */
-	char		    lcs_name[80];
+	char		    lcs_name[LUSTRE_MDT_MAXNAMELEN];
 
 	/*
 	 * Sequence width, that is how many objects may be allocated in one
@@ -398,7 +398,7 @@ struct lu_server_seq {
 	/* LUSTRE_SEQ_SERVER or LUSTRE_SEQ_CONTROLLER */
 	enum lu_mgr_type       lss_type;
 
-	/* Client interafce to request controller */
+	/* Client interface to request controller */
 	struct lu_client_seq   *lss_cli;
 
 	/* Mutex for protecting allocation */
@@ -408,7 +408,7 @@ struct lu_server_seq {
 	 * Service uuid, passed from MDT + seq name to form unique seq name to
 	 * use it with procfs.
 	 */
-	char		    lss_name[80];
+	char		    lss_name[LUSTRE_MDT_MAXNAMELEN];
 
 	/*
 	 * Allocation chunks for super and meta sequences. Default values are
@@ -469,7 +469,7 @@ void seq_client_flush(struct lu_client_seq *seq);
 int seq_client_alloc_fid(const struct lu_env *env, struct lu_client_seq *seq,
 			 struct lu_fid *fid);
 int seq_client_get_seq(const struct lu_env *env, struct lu_client_seq *seq,
-		       seqno_t *seqnr);
+		       u64 *seqnr);
 int seq_site_fini(const struct lu_env *env, struct seq_server_site *ss);
 /* Fids common stuff */
 int fid_is_local(const struct lu_env *env,
@@ -568,14 +568,14 @@ fid_build_pdo_res_name(const struct lu_fid *fid, unsigned int hash,
  * finally, when we replace ost_id with FID in data stack.
  *
  * Currently, resid from the old client, whose res[0] = object_id,
- * res[1] = object_seq, is just oposite with Metatdata
+ * res[1] = object_seq, is just opposite with Metatdata
  * resid, where, res[0] = fid->f_seq, res[1] = fid->f_oid.
- * To unifiy the resid identification, we will reverse the data
+ * To unify the resid identification, we will reverse the data
  * resid to keep it same with Metadata resid, i.e.
  *
  * For resid from the old client,
  *    res[0] = objid,  res[1] = 0, still keep the original order,
- *    for compatiblity.
+ *    for compatibility.
  *
  * For new resid
  *    res will be built from normal FID directly, i.e. res[0] = f_seq,
@@ -685,7 +685,7 @@ static inline __u32 fid_hash(const struct lu_fid *f, int bits)
 {
 	/* all objects with same id and different versions will belong to same
 	 * collisions list. */
-	return cfs_hash_long(fid_flatten(f), bits);
+	return hash_long(fid_flatten(f), bits);
 }
 
 /**

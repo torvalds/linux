@@ -28,6 +28,7 @@
 
 static DEFINE_MUTEX(ac97_mutex);
 struct nuc900_audio *nuc900_ac97_data;
+EXPORT_SYMBOL_GPL(nuc900_ac97_data);
 
 static int nuc900_checkready(void)
 {
@@ -297,7 +298,7 @@ static const struct snd_soc_dai_ops nuc900_ac97_dai_ops = {
 static struct snd_soc_dai_driver nuc900_ac97_dai = {
 	.probe			= nuc900_ac97_probe,
 	.remove			= nuc900_ac97_remove,
-	.ac97_control		= 1,
+	.bus_control		= true,
 	.playback = {
 		.rates		= SNDRV_PCM_RATE_8000_48000,
 		.formats	= SNDRV_PCM_FMTBIT_S16_LE,
@@ -384,7 +385,6 @@ static int nuc900_ac97_drvremove(struct platform_device *pdev)
 static struct platform_driver nuc900_ac97_driver = {
 	.driver	= {
 		.name	= "nuc900-ac97",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= nuc900_ac97_drvprobe,
 	.remove		= nuc900_ac97_drvremove,

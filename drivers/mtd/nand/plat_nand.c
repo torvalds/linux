@@ -138,7 +138,6 @@ static struct platform_driver plat_nand_driver = {
 	.remove	= plat_nand_remove,
 	.driver	= {
 		.name		= "gen_nand",
-		.owner		= THIS_MODULE,
 		.of_match_table = plat_nand_match,
 	},
 };

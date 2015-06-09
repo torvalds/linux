@@ -22,7 +22,9 @@
 #include <linux/kernel.h>
 #include <linux/pinctrl/pinconf-generic.h>
 
+#ifndef CONFIG_ARCH_MULTIPLATFORM
 #include <mach/irqs.h>
+#endif
 
 #include "core.h"
 #include "sh_pfc.h"
@@ -3750,14 +3752,14 @@ static void r8a7740_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
 	iowrite8(value, addr);
 }
 
-static const struct sh_pfc_soc_operations r8a7740_pinmux_ops = {
+static const struct sh_pfc_soc_operations r8a7740_pfc_ops = {
 	.get_bias = r8a7740_pinmux_get_bias,
 	.set_bias = r8a7740_pinmux_set_bias,
 };
 
 const struct sh_pfc_soc_info r8a7740_pinmux_info = {
 	.name		= "r8a7740_pfc",
-	.ops		= &r8a7740_pinmux_ops,
+	.ops		= &r8a7740_pfc_ops,
 
 	.input		= { PINMUX_INPUT_BEGIN,
 			    PINMUX_INPUT_END },

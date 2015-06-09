@@ -96,6 +96,9 @@
 #define R600_TEMP_RANGE_MIN (90 * 1000)
 #define R600_TEMP_RANGE_MAX (120 * 1000)
 
+#define FDO_PWM_MODE_STATIC  1
+#define FDO_PWM_MODE_STATIC_RPM 5
+
 enum r600_power_level {
 	R600_POWER_LEVEL_LOW = 0,
 	R600_POWER_LEVEL_MEDIUM = 1,
@@ -214,6 +217,8 @@ void r600_start_dpm(struct radeon_device *rdev);
 void r600_stop_dpm(struct radeon_device *rdev);
 
 bool r600_is_internal_thermal_sensor(enum radeon_int_thermal_type sensor);
+
+int r600_get_platform_caps(struct radeon_device *rdev);
 
 int r600_parse_extended_power_table(struct radeon_device *rdev);
 void r600_free_extended_power_table(struct radeon_device *rdev);

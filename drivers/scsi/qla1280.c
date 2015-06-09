@@ -379,14 +379,7 @@
 #define  DEBUG_PRINT_NVRAM	0
 #define  DEBUG_QLA1280		0
 
-/*
- * The SGI VISWS is broken and doesn't support MMIO ;-(
- */
-#ifdef CONFIG_X86_VISWS
-#define	MEMORY_MAPPED_IO	0
-#else
 #define	MEMORY_MAPPED_IO	1
-#endif
 
 #include "qla1280.h"
 
@@ -1231,10 +1224,9 @@ qla1280_slave_configure(struct scsi_device *device)
 
 	if (device->tagged_supported &&
 	    (ha->bus_settings[bus].qtag_enables & (BIT_0 << target))) {
-		scsi_adjust_queue_depth(device, MSG_ORDERED_TAG,
-					ha->bus_settings[bus].hiwat);
+		scsi_change_queue_depth(device, ha->bus_settings[bus].hiwat);
 	} else {
-		scsi_adjust_queue_depth(device, 0, default_depth);
+		scsi_change_queue_depth(device, default_depth);
 	}
 
 	nv->bus[bus].target[target].parameter.enable_sync = device->sdtr;

@@ -3,7 +3,10 @@
  *
  * Builtin regression testing command: ever growing number of sanity tests
  */
+#include <unistd.h>
+#include <string.h>
 #include "builtin.h"
+#include "hist.h"
 #include "intlist.h"
 #include "tests.h"
 #include "debug.h"
@@ -50,8 +53,16 @@ static struct test {
 		.func = test__pmu,
 	},
 	{
-		.desc = "Test dso data interface",
+		.desc = "Test dso data read",
 		.func = test__dso_data,
+	},
+	{
+		.desc = "Test dso data cache",
+		.func = test__dso_data_cache,
+	},
+	{
+		.desc = "Test dso data reopen",
+		.func = test__dso_data_reopen,
 	},
 	{
 		.desc = "roundtrip evsel->name check",
@@ -74,7 +85,7 @@ static struct test {
 		.func = test__hists_link,
 	},
 	{
-		.desc = "Try 'use perf' in python, checking link problems",
+		.desc = "Try 'import perf' in python, checking link problems",
 		.func = test__python_use,
 	},
 	{
@@ -115,6 +126,50 @@ static struct test {
 		.desc = "Test parsing with no sample_id_all bit set",
 		.func = test__parse_no_sample_id_all,
 	},
+#if defined(__x86_64__) || defined(__i386__) || defined(__arm__)
+#ifdef HAVE_DWARF_UNWIND_SUPPORT
+	{
+		.desc = "Test dwarf unwind",
+		.func = test__dwarf_unwind,
+	},
+#endif
+#endif
+	{
+		.desc = "Test filtering hist entries",
+		.func = test__hists_filter,
+	},
+	{
+		.desc = "Test mmap thread lookup",
+		.func = test__mmap_thread_lookup,
+	},
+	{
+		.desc = "Test thread mg sharing",
+		.func = test__thread_mg_share,
+	},
+	{
+		.desc = "Test output sorting of hist entries",
+		.func = test__hists_output,
+	},
+	{
+		.desc = "Test cumulation of child hist entries",
+		.func = test__hists_cumulate,
+	},
+	{
+		.desc = "Test tracking with sched_switch",
+		.func = test__switch_tracking,
+	},
+	{
+		.desc = "Filter fds with revents mask in a fdarray",
+		.func = test__fdarray__filter,
+	},
+	{
+		.desc = "Add fd to a fdarray, making it autogrow",
+		.func = test__fdarray__add,
+	},
+	{
+		.desc = "Test kmod_path__parse function",
+		.func = test__kmod_path__parse,
+	},
 	{
 		.func = NULL,
 	},
@@ -142,6 +197,36 @@ static bool perf_test__matches(int curr, int argc, const char *argv[])
 	}
 
 	return false;
+}
+
+static int run_test(struct test *test)
+{
+	int status, err = -1, child = fork();
+	char sbuf[STRERR_BUFSIZE];
+
+	if (child < 0) {
+		pr_err("failed to fork test: %s\n",
+			strerror_r(errno, sbuf, sizeof(sbuf)));
+		return -1;
+	}
+
+	if (!child) {
+		pr_debug("test child forked, pid %d\n", getpid());
+		err = test->func();
+		exit(err);
+	}
+
+	wait(&status);
+
+	if (WIFEXITED(status)) {
+		err = WEXITSTATUS(status);
+		pr_debug("test child finished with %d\n", err);
+	} else if (WIFSIGNALED(status)) {
+		err = -1;
+		pr_debug("test child interrupted\n");
+	}
+
+	return err;
 }
 
 static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
@@ -172,7 +257,7 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 		}
 
 		pr_debug("\n--- start ---\n");
-		err = tests[curr].func();
+		err = run_test(&tests[curr]);
 		pr_debug("---- end ----\n%s:", tests[curr].desc);
 
 		switch (err) {
@@ -210,7 +295,7 @@ static int perf_test__list(int argc, const char **argv)
 
 int cmd_test(int argc, const char **argv, const char *prefix __maybe_unused)
 {
-	const char * const test_usage[] = {
+	const char *test_usage[] = {
 	"perf test [<options>] [{list <test-name-fragment>|[<test-name-fragments>|<test-numbers>]}]",
 	NULL,
 	};
@@ -221,9 +306,14 @@ int cmd_test(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "be more verbose (show symbol address, etc)"),
 	OPT_END()
 	};
+	const char * const test_subcommands[] = { "list", NULL };
 	struct intlist *skiplist = NULL;
+        int ret = hists__init();
 
-	argc = parse_options(argc, argv, test_options, test_usage, 0);
+        if (ret < 0)
+                return ret;
+
+	argc = parse_options_subcommand(argc, argv, test_options, test_subcommands, test_usage, 0);
 	if (argc >= 1 && !strcmp(argv[0], "list"))
 		return perf_test__list(argc, argv);
 
@@ -231,7 +321,7 @@ int cmd_test(int argc, const char **argv, const char *prefix __maybe_unused)
 	symbol_conf.sort_by_name = true;
 	symbol_conf.try_vmlinux_path = true;
 
-	if (symbol__init() < 0)
+	if (symbol__init(NULL) < 0)
 		return -1;
 
 	if (skip != NULL)

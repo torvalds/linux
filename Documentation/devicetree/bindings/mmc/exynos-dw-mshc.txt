@@ -18,6 +18,10 @@ Required Properties:
 	  specific extensions.
 	- "samsung,exynos5420-dw-mshc": for controllers with Samsung Exynos5420
 	  specific extensions.
+	- "samsung,exynos7-dw-mshc": for controllers with Samsung Exynos7
+	  specific extensions.
+	- "samsung,exynos7-dw-mshc-smu": for controllers with Samsung Exynos7
+	  specific extensions having an SMU.
 
 * samsung,dw-mshc-ciu-div: Specifies the divider value for the card interface
   unit (ciu) clock. This property is applicable only for Exynos5 SoC's and
@@ -32,6 +36,8 @@ Required Properties:
   in transmit mode and CIU clock phase shift value in receive mode for double
   data rate mode operation. Refer notes below for the order of the cells and the
   valid values.
+* samsung,dw-mshc-hs400-timing: Specifies the value of CIU TX and RX clock phase
+  shift value for hs400 mode operation.
 
   Notes for the sdr-timing and ddr-timing values:
 
@@ -46,13 +52,17 @@ Required Properties:
       - if CIU clock divider value is 0 (that is divide by 1), both tx and rx
         phase shift clocks should be 0.
 
-Required properties for a slot:
+* samsung,read-strobe-delay: RCLK (Data strobe) delay to control HS400 mode
+  (Latency value for delay line in Read path)
+
+Required properties for a slot (Deprecated - Recommend to use one slot per host):
 
 * gpios: specifies a list of gpios used for command, clock and data bus. The
   first gpio is the command line and the second gpio is the clock line. The
   rest of the gpios (depending on the bus-width property) are the data lines in
   no particular order. The format of the gpio specifier depends on the gpio
   controller.
+(Deprecated - Refer to Documentation/devicetree/binding/pinctrl/samsung-pinctrl.txt)
 
 Example:
 
@@ -69,21 +79,15 @@ Example:
 
 	dwmmc0@12200000 {
 		num-slots = <1>;
-		supports-highspeed;
+		cap-mmc-highspeed;
+		cap-sd-highspeed;
 		broken-cd;
 		fifo-depth = <0x80>;
 		card-detect-delay = <200>;
 		samsung,dw-mshc-ciu-div = <3>;
 		samsung,dw-mshc-sdr-timing = <2 3>;
 		samsung,dw-mshc-ddr-timing = <1 2>;
-
-		slot@0 {
-			reg = <0>;
-			bus-width = <8>;
-			gpios = <&gpc0 0 2 0 3>, <&gpc0 1 2 0 3>,
-				<&gpc1 0 2 3 3>, <&gpc1 1 2 3 3>,
-				<&gpc1 2 2 3 3>, <&gpc1 3 2 3 3>,
-				<&gpc0 3 2 3 3>, <&gpc0 4 2 3 3>,
-				<&gpc0 5 2 3 3>, <&gpc0 6 2 3 3>;
-		};
+		samsung,dw-mshc-hs400-timing = <0 2>;
+		samsung,read-strobe-delay = <90>;
+		bus-width = <8>;
 	};

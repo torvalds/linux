@@ -104,35 +104,33 @@ void evergreen_dma_ring_ib_execute(struct radeon_device *rdev,
  * Used by the radeon ttm implementation to move pages if
  * registered as the asic copy callback.
  */
-int evergreen_copy_dma(struct radeon_device *rdev,
-		       uint64_t src_offset, uint64_t dst_offset,
-		       unsigned num_gpu_pages,
-		       struct radeon_fence **fence)
+struct radeon_fence *evergreen_copy_dma(struct radeon_device *rdev,
+					uint64_t src_offset,
+					uint64_t dst_offset,
+					unsigned num_gpu_pages,
+					struct reservation_object *resv)
 {
-	struct radeon_semaphore *sem = NULL;
+	struct radeon_fence *fence;
+	struct radeon_sync sync;
 	int ring_index = rdev->asic->copy.dma_ring_index;
 	struct radeon_ring *ring = &rdev->ring[ring_index];
 	u32 size_in_dw, cur_size_in_dw;
 	int i, num_loops;
 	int r = 0;
 
-	r = radeon_semaphore_create(rdev, &sem);
-	if (r) {
-		DRM_ERROR("radeon: moving bo (%d).\n", r);
-		return r;
-	}
+	radeon_sync_create(&sync);
 
 	size_in_dw = (num_gpu_pages << RADEON_GPU_PAGE_SHIFT) / 4;
 	num_loops = DIV_ROUND_UP(size_in_dw, 0xfffff);
 	r = radeon_ring_lock(rdev, ring, num_loops * 5 + 11);
 	if (r) {
 		DRM_ERROR("radeon: moving bo (%d).\n", r);
-		radeon_semaphore_free(rdev, &sem, NULL);
-		return r;
+		radeon_sync_free(rdev, &sync, NULL);
+		return ERR_PTR(r);
 	}
 
-	radeon_semaphore_sync_to(sem, *fence);
-	radeon_semaphore_sync_rings(rdev, sem, ring->idx);
+	radeon_sync_resv(rdev, &sync, resv, false);
+	radeon_sync_rings(rdev, &sync, ring->idx);
 
 	for (i = 0; i < num_loops; i++) {
 		cur_size_in_dw = size_in_dw;
@@ -148,16 +146,17 @@ int evergreen_copy_dma(struct radeon_device *rdev,
 		dst_offset += cur_size_in_dw * 4;
 	}
 
-	r = radeon_fence_emit(rdev, fence, ring->idx);
+	r = radeon_fence_emit(rdev, &fence, ring->idx);
 	if (r) {
 		radeon_ring_unlock_undo(rdev, ring);
-		return r;
+		radeon_sync_free(rdev, &sync, NULL);
+		return ERR_PTR(r);
 	}
 
-	radeon_ring_unlock_commit(rdev, ring);
-	radeon_semaphore_free(rdev, &sem, *fence);
+	radeon_ring_unlock_commit(rdev, ring, false);
+	radeon_sync_free(rdev, &sync, fence);
 
-	return r;
+	return fence;
 }
 
 /**
@@ -174,11 +173,9 @@ bool evergreen_dma_is_lockup(struct radeon_device *rdev, struct radeon_ring *rin
 	u32 reset_mask = evergreen_gpu_check_soft_reset(rdev);
 
 	if (!(reset_mask & RADEON_RESET_DMA)) {
-		radeon_ring_lockup_update(ring);
+		radeon_ring_lockup_update(rdev, ring);
 		return false;
 	}
-	/* force ring activities */
-	radeon_ring_force_activity(rdev, ring);
 	return radeon_ring_test_lockup(rdev, ring);
 }
 

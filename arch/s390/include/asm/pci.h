@@ -7,6 +7,7 @@
 #define PCI_BAR_COUNT	6
 
 #include <linux/pci.h>
+#include <linux/mutex.h>
 #include <asm-generic/pci.h>
 #include <asm-generic/pci-dma-compat.h>
 #include <asm/pci_clp.h>
@@ -44,15 +45,7 @@ struct zpci_fmb {
 	u64 rpcit_ops;
 	u64 dma_rbytes;
 	u64 dma_wbytes;
-	/* software counters */
-	atomic64_t allocated_pages;
-	atomic64_t mapped_pages;
-	atomic64_t unmapped_pages;
 } __packed __aligned(16);
-
-#define ZPCI_MSI_VEC_BITS	11
-#define ZPCI_MSI_VEC_MAX	(1 << ZPCI_MSI_VEC_BITS)
-#define ZPCI_MSI_VEC_MASK	(ZPCI_MSI_VEC_MAX - 1)
 
 enum zpci_state {
 	ZPCI_FN_STATE_RESERVED,
@@ -78,12 +71,20 @@ struct zpci_dev {
 	enum zpci_state state;
 	u32		fid;		/* function ID, used by sclp */
 	u32		fh;		/* function handle, used by insn's */
+	u16		vfn;		/* virtual function number */
 	u16		pchid;		/* physical channel ID */
 	u8		pfgid;		/* function group ID */
+	u8		pft;		/* pci function type */
 	u16		domain;
+
+	struct mutex lock;
+	u8 pfip[CLP_PFIP_NR_SEGMENTS];	/* pci function internal path */
+	u32 uid;			/* user defined id */
+	u8 util_str[CLP_UTIL_STR_LEN];	/* utility string */
 
 	/* IRQ stuff */
 	u64		msi_addr;	/* MSI address */
+	unsigned int	max_msi;	/* maximum number of MSI's */
 	struct airq_iv *aibv;		/* adapter interrupt bit vector */
 	unsigned int	aisb;		/* number of the summary bit */
 
@@ -108,6 +109,10 @@ struct zpci_dev {
 	/* Function measurement block */
 	struct zpci_fmb *fmb;
 	u16		fmb_update;	/* update interval */
+	/* software counters */
+	atomic64_t allocated_pages;
+	atomic64_t mapped_pages;
+	atomic64_t unmapped_pages;
 
 	enum pci_bus_speed max_bus_speed;
 
@@ -119,6 +124,8 @@ static inline bool zdev_enabled(struct zpci_dev *zdev)
 {
 	return (zdev->fh & (1UL << 31)) ? true : false;
 }
+
+extern const struct attribute_group *zpci_attr_groups[];
 
 /* -----------------------------------------------------------------------------
   Prototypes
@@ -165,10 +172,6 @@ static inline void zpci_exit_slot(struct zpci_dev *zdev) {}
 /* Helpers */
 struct zpci_dev *get_zdev(struct pci_dev *);
 struct zpci_dev *get_zdev_by_fid(u32);
-
-/* sysfs */
-int zpci_sysfs_add_device(struct device *);
-void zpci_sysfs_remove_device(struct device *);
 
 /* DMA */
 int zpci_dma_init(void);

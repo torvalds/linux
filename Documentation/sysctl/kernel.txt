@@ -54,8 +54,9 @@ show up in /proc/sys/kernel:
 - overflowuid
 - panic
 - panic_on_oops
-- panic_on_unrecovered_nmi
 - panic_on_stackoverflow
+- panic_on_unrecovered_nmi
+- panic_on_warn
 - pid_max
 - powersave-nap               [ PPC only ]
 - printk
@@ -75,11 +76,15 @@ show up in /proc/sys/kernel:
 - shmall
 - shmmax                      [ sysv ipc ]
 - shmmni
+- softlockup_all_cpu_backtrace
+- soft_watchdog
 - stop-a                      [ SPARC only ]
 - sysrq                       ==> Documentation/sysrq.txt
+- sysctl_writes_strict
 - tainted
 - threads-max
 - unknown_nmi_panic
+- watchdog
 - watchdog_thresh
 - version
 
@@ -113,10 +118,12 @@ set during run time.
 
 auto_msgmni:
 
-Enables/Disables automatic recomputing of msgmni upon memory add/remove
-or upon ipc namespace creation/removal (see the msgmni description
-above). Echoing "1" into this file enables msgmni automatic recomputing.
-Echoing "0" turns it off. auto_msgmni default value is 1.
+This variable has no effect and may be removed in future kernel
+releases. Reading it always returns 0.
+Up to Linux 3.17, it enabled/disabled automatic recomputing of msgmni
+upon memory add/remove or upon ipc namespace creation/removal.
+Echoing "1" into this file enabled msgmni automatic recomputing.
+Echoing "0" turned it off. auto_msgmni default value was 1.
 
 
 ==============================================================
@@ -188,6 +195,8 @@ core_pattern is used to specify a core dumpfile pattern name.
 	%%	output one '%'
 	%p	pid
 	%P	global pid (init PID namespace)
+	%i	tid
+	%I	global tid (init PID namespace)
 	%u	uid
 	%g	gid
 	%d	dump mode, matches PR_SET_DUMPABLE and
@@ -317,13 +326,15 @@ for more than this value report a warning.
 This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
 
 0: means infinite timeout - no checking done.
+Possible values to set are in range {0..LONG_MAX/HZ}.
 
 ==============================================================
 
-hung_task_warning:
+hung_task_warnings:
 
 The maximum number of warnings to report. During a check interval
-When this value is reached, no more the warnings will be reported.
+if a hung task is detected, this value is decreased by 1.
+When this value reaches 0, no more warnings will be reported.
 This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
 
 -1: report an infinite number of warnings.
@@ -408,16 +419,23 @@ successful IPC object allocation.
 
 nmi_watchdog:
 
-Enables/Disables the NMI watchdog on x86 systems. When the value is
-non-zero the NMI watchdog is enabled and will continuously test all
-online cpus to determine whether or not they are still functioning
-properly. Currently, passing "nmi_watchdog=" parameter at boot time is
-required for this function to work.
+This parameter can be used to control the NMI watchdog
+(i.e. the hard lockup detector) on x86 systems.
 
-If LAPIC NMI watchdog method is in use (nmi_watchdog=2 kernel
-parameter), the NMI watchdog shares registers with oprofile. By
-disabling the NMI watchdog, oprofile may have more registers to
-utilize.
+   0 - disable the hard lockup detector
+   1 - enable the hard lockup detector
+
+The hard lockup detector monitors each CPU for its ability to respond to
+timer interrupts. The mechanism utilizes CPU performance counter registers
+that are programmed to generate Non-Maskable Interrupts (NMIs) periodically
+while a CPU is busy. Hence, the alternative name 'NMI watchdog'.
+
+The NMI watchdog is disabled by default if the kernel is running as a guest
+in a KVM virtual machine. This default can be overridden by adding
+
+   nmi_watchdog=1
+
+to the guest kernel command line (see Documentation/kernel-parameters.txt).
 
 ==============================================================
 
@@ -441,8 +459,7 @@ feature should be disabled. Otherwise, if the system overhead from the
 feature is too high then the rate the kernel samples for NUMA hinting
 faults may be controlled by the numa_balancing_scan_period_min_ms,
 numa_balancing_scan_delay_ms, numa_balancing_scan_period_max_ms,
-numa_balancing_scan_size_mb, numa_balancing_settle_count sysctls and
-numa_balancing_migrate_deferred.
+numa_balancing_scan_size_mb, and numa_balancing_settle_count sysctls.
 
 ==============================================================
 
@@ -483,13 +500,6 @@ rate for each task.
 numa_balancing_scan_size_mb is how many megabytes worth of pages are
 scanned for a given scan.
 
-numa_balancing_migrate_deferred is how many page migrations get skipped
-unconditionally, after a page migration is skipped because a page is shared
-with other tasks. This reduces page migration overhead, and determines
-how much stronger the "move task near its memory" policy scheduler becomes,
-versus the "move memory near its task" memory management policy, for workloads
-with shared memory.
-
 ==============================================================
 
 osrelease, ostype & version:
@@ -529,19 +539,6 @@ the recommended setting is 60.
 
 ==============================================================
 
-panic_on_unrecovered_nmi:
-
-The default Linux behaviour on an NMI of either memory or unknown is
-to continue operation. For many environments such as scientific
-computing it is preferable that the box is taken out and the error
-dealt with than an uncorrected parity/ECC error get propagated.
-
-A small number of systems do generate NMI's for bizarre random reasons
-such as power management so the default is off. That sysctl works like
-the existing panic controls already in that directory.
-
-==============================================================
-
 panic_on_oops:
 
 Controls the kernel's behaviour when an oops or BUG is encountered.
@@ -562,6 +559,30 @@ This file shows up if CONFIG_DEBUG_STACKOVERFLOW is enabled.
 0: try to continue operation.
 
 1: panic immediately.
+
+==============================================================
+
+panic_on_unrecovered_nmi:
+
+The default Linux behaviour on an NMI of either memory or unknown is
+to continue operation. For many environments such as scientific
+computing it is preferable that the box is taken out and the error
+dealt with than an uncorrected parity/ECC error get propagated.
+
+A small number of systems do generate NMI's for bizarre random reasons
+such as power management so the default is off. That sysctl works like
+the existing panic controls already in that directory.
+
+==============================================================
+
+panic_on_warn:
+
+Calls panic() in the WARN() path when set to 1.  This is useful to avoid
+a kernel rebuild when attempting to kdump at the location of a WARN().
+
+0: only WARN(), default behaviour.
+
+1: call panic() after printing out WARN() location.
 
 ==============================================================
 
@@ -768,6 +789,58 @@ without users and with a dead originative process will be destroyed.
 
 ==============================================================
 
+sysctl_writes_strict:
+
+Control how file position affects the behavior of updating sysctl values
+via the /proc/sys interface:
+
+  -1 - Legacy per-write sysctl value handling, with no printk warnings.
+       Each write syscall must fully contain the sysctl value to be
+       written, and multiple writes on the same sysctl file descriptor
+       will rewrite the sysctl value, regardless of file position.
+   0 - (default) Same behavior as above, but warn about processes that
+       perform writes to a sysctl file descriptor when the file position
+       is not 0.
+   1 - Respect file position when writing sysctl strings. Multiple writes
+       will append to the sysctl value buffer. Anything past the max length
+       of the sysctl value buffer will be ignored. Writes to numeric sysctl
+       entries must always be at file position 0 and the value must be
+       fully contained in the buffer sent in the write syscall.
+
+==============================================================
+
+softlockup_all_cpu_backtrace:
+
+This value controls the soft lockup detector thread's behavior
+when a soft lockup condition is detected as to whether or not
+to gather further debug information. If enabled, each cpu will
+be issued an NMI and instructed to capture stack trace.
+
+This feature is only applicable for architectures which support
+NMI.
+
+0: do nothing. This is the default behavior.
+
+1: on detection capture more debug information.
+
+==============================================================
+
+soft_watchdog
+
+This parameter can be used to control the soft lockup detector.
+
+   0 - disable the soft lockup detector
+   1 - enable the soft lockup detector
+
+The soft lockup detector monitors CPUs for threads that are hogging the CPUs
+without rescheduling voluntarily, and thus prevent the 'watchdog/N' threads
+from running. The mechanism depends on the CPUs ability to respond to timer
+interrupts which are needed for the 'watchdog/N' threads to be woken up by
+the watchdog timer function, otherwise the NMI watchdog - if enabled - can
+detect a hard lockup condition.
+
+==============================================================
+
 tainted:
 
 Non-zero if the kernel has been tainted.  Numeric values, which
@@ -792,6 +865,31 @@ can be ORed together:
 1024 - A module from drivers/staging was loaded.
 2048 - The system is working around a severe firmware bug.
 4096 - An out-of-tree module has been loaded.
+8192 - An unsigned module has been loaded in a kernel supporting module
+       signature.
+16384 - A soft lockup has previously occurred on the system.
+32768 - The kernel has been live patched.
+
+==============================================================
+
+threads-max
+
+This value controls the maximum number of threads that can be created
+using fork().
+
+During initialization the kernel sets this value such that even if the
+maximum number of threads is created, the thread structures occupy only
+a part (1/8th) of the available RAM pages.
+
+The minimum value that can be written to threads-max is 20.
+The maximum value that can be written to threads-max is given by the
+constant FUTEX_TID_MASK (0x3fffffff).
+If a value outside of this range is written to threads-max an error
+EINVAL occurs.
+
+The value written is checked against the available RAM pages. If the
+thread structures would occupy too much (more than 1/8th) of the
+available RAM pages threads-max is reduced accordingly.
 
 ==============================================================
 
@@ -803,6 +901,25 @@ that time, kernel debugging information is displayed on console.
 
 NMI switch that most IA32 servers have fires unknown NMI up, for
 example.  If a system hangs up, try pressing the NMI switch.
+
+==============================================================
+
+watchdog:
+
+This parameter can be used to disable or enable the soft lockup detector
+_and_ the NMI watchdog (i.e. the hard lockup detector) at the same time.
+
+   0 - disable both lockup detectors
+   1 - enable both lockup detectors
+
+The soft lockup detector and the NMI watchdog can also be disabled or
+enabled individually, using the soft_watchdog and nmi_watchdog parameters.
+If the watchdog parameter is read, for example by executing
+
+   cat /proc/sys/kernel/watchdog
+
+the output of this command (0 or 1) shows the logical OR of soft_watchdog
+and nmi_watchdog.
 
 ==============================================================
 

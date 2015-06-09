@@ -637,7 +637,7 @@ static bool pio_rx_frame(struct b43_pio_rxqueue *q)
 
 		ctl = b43_piorx_read32(q, B43_PIO8_RXCTL);
 		if (!(ctl & B43_PIO8_RXCTL_FRAMERDY))
-			return 0;
+			return false;
 		b43_piorx_write32(q, B43_PIO8_RXCTL,
 				  B43_PIO8_RXCTL_FRAMERDY);
 		for (i = 0; i < 10; i++) {
@@ -651,7 +651,7 @@ static bool pio_rx_frame(struct b43_pio_rxqueue *q)
 
 		ctl = b43_piorx_read16(q, B43_PIO_RXCTL);
 		if (!(ctl & B43_PIO_RXCTL_FRAMERDY))
-			return 0;
+			return false;
 		b43_piorx_write16(q, B43_PIO_RXCTL,
 				  B43_PIO_RXCTL_FRAMERDY);
 		for (i = 0; i < 10; i++) {
@@ -662,7 +662,7 @@ static bool pio_rx_frame(struct b43_pio_rxqueue *q)
 		}
 	}
 	b43dbg(q->dev->wl, "PIO RX timed out\n");
-	return 1;
+	return true;
 data_ready:
 
 	/* Get the preamble (RX header) */
@@ -759,7 +759,7 @@ data_ready:
 
 	b43_rx(q->dev, skb, rxhdr);
 
-	return 1;
+	return true;
 
 rx_error:
 	if (err_msg)
@@ -769,7 +769,7 @@ rx_error:
 	else
 		b43_piorx_write16(q, B43_PIO_RXCTL, B43_PIO_RXCTL_DATARDY);
 
-	return 1;
+	return true;
 }
 
 void b43_pio_rx(struct b43_pio_rxqueue *q)

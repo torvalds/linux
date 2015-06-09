@@ -21,7 +21,7 @@ static acpi_status acpi_check_cb(acpi_handle handle, u32 lvl, void *context,
 static bool is_thinkpad(struct hda_codec *codec)
 {
 	bool found = false;
-	if (codec->subsystem_id >> 16 != 0x17aa)
+	if (codec->core.subsystem_id >> 16 != 0x17aa)
 		return false;
 	if (ACPI_SUCCESS(acpi_get_devices("LEN0068", acpi_check_cb, &found, NULL)) && found)
 		return true;
@@ -63,7 +63,8 @@ static void hda_fixup_thinkpad_acpi(struct hda_codec *codec,
 		if (!led_set_func)
 			led_set_func = symbol_request(tpacpi_led_set);
 		if (!led_set_func) {
-			snd_printk(KERN_WARNING "Failed to find thinkpad-acpi symbol tpacpi_led_set\n");
+			codec_warn(codec,
+				   "Failed to find thinkpad-acpi symbol tpacpi_led_set\n");
 			return;
 		}
 
@@ -75,7 +76,8 @@ static void hda_fixup_thinkpad_acpi(struct hda_codec *codec,
 		}
 		if (led_set_func(TPACPI_LED_MICMUTE, false) >= 0) {
 			if (spec->num_adc_nids > 1)
-				snd_printdd("Skipping micmute LED control due to several ADCs");
+				codec_dbg(codec,
+					  "Skipping micmute LED control due to several ADCs");
 			else {
 				spec->cap_sync_hook = update_tpacpi_micmute_led;
 				removefunc = false;

@@ -1,0 +1,192 @@
+Note: Attributes that are shared between devices are stored in the directory
+pointed to by the symlink device/.
+Example: The real path of the attribute /sys/class/cxl/afu0.0s/irqs_max is
+/sys/class/cxl/afu0.0s/device/irqs_max, i.e. /sys/class/cxl/afu0.0/irqs_max.
+
+
+Slave contexts (eg. /sys/class/cxl/afu0.0s):
+
+What:           /sys/class/cxl/<afu>/irqs_max
+Date:           September 2014
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read/write
+                Decimal value of maximum number of interrupts that can be
+                requested by userspace.  The default on probe is the maximum
+                that hardware can support (eg. 2037). Write values will limit
+                userspace applications to that many userspace interrupts. Must
+                be >= irqs_min.
+
+What:           /sys/class/cxl/<afu>/irqs_min
+Date:           September 2014
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+                Decimal value of the minimum number of interrupts that
+                userspace must request on a CXL_START_WORK ioctl. Userspace may
+                omit the num_interrupts field in the START_WORK IOCTL to get
+                this minimum automatically.
+
+What:           /sys/class/cxl/<afu>/mmio_size
+Date:           September 2014
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+                Decimal value of the size of the MMIO space that may be mmaped
+                by userspace.
+
+What:           /sys/class/cxl/<afu>/modes_supported
+Date:           September 2014
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+                List of the modes this AFU supports. One per line.
+                Valid entries are: "dedicated_process" and "afu_directed"
+
+What:           /sys/class/cxl/<afu>/mode
+Date:           September 2014
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read/write
+                The current mode the AFU is using. Will be one of the modes
+                given in modes_supported. Writing will change the mode
+                provided that no user contexts are attached.
+
+
+What:           /sys/class/cxl/<afu>/prefault_mode
+Date:           September 2014
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read/write
+                Set the mode for prefaulting in segments into the segment table
+                when performing the START_WORK ioctl. Possible values:
+                        none: No prefaulting (default)
+                        work_element_descriptor: Treat the work element
+                                 descriptor as an effective address and
+                                 prefault what it points to.
+                        all: all segments process calling START_WORK maps.
+
+What:           /sys/class/cxl/<afu>/reset
+Date:           September 2014
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    write only
+                Writing 1 here will reset the AFU provided there are not
+                contexts active on the AFU.
+
+What:           /sys/class/cxl/<afu>/api_version
+Date:           September 2014
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+                Decimal value of the current version of the kernel/user API.
+
+What:           /sys/class/cxl/<afu>/api_version_compatible
+Date:           September 2014
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+                Decimal value of the the lowest version of the userspace API
+                this this kernel supports.
+
+
+AFU configuration records (eg. /sys/class/cxl/afu0.0/cr0):
+
+An AFU may optionally export one or more PCIe like configuration records, known
+as AFU configuration records, which will show up here (if present).
+
+What:           /sys/class/cxl/<afu>/cr<config num>/vendor
+Date:           February 2015
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+		Hexadecimal value of the vendor ID found in this AFU
+		configuration record.
+
+What:           /sys/class/cxl/<afu>/cr<config num>/device
+Date:           February 2015
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+		Hexadecimal value of the device ID found in this AFU
+		configuration record.
+
+What:           /sys/class/cxl/<afu>/cr<config num>/class
+Date:           February 2015
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+		Hexadecimal value of the class code found in this AFU
+		configuration record.
+
+What:           /sys/class/cxl/<afu>/cr<config num>/config
+Date:           February 2015
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+		This binary file provides raw access to the AFU configuration
+		record. The format is expected to match the either the standard
+		or extended configuration space defined by the PCIe
+		specification.
+
+
+
+Master contexts (eg. /sys/class/cxl/afu0.0m)
+
+What:           /sys/class/cxl/<afu>m/mmio_size
+Date:           September 2014
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+                Decimal value of the size of the MMIO space that may be mmaped
+                by userspace. This includes all slave contexts space also.
+
+What:           /sys/class/cxl/<afu>m/pp_mmio_len
+Date:           September 2014
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+                Decimal value of the Per Process MMIO space length.
+
+What:           /sys/class/cxl/<afu>m/pp_mmio_off
+Date:           September 2014
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+                Decimal value of the Per Process MMIO space offset.
+
+
+Card info (eg. /sys/class/cxl/card0)
+
+What:           /sys/class/cxl/<card>/caia_version
+Date:           September 2014
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+                Identifies the CAIA Version the card implements.
+
+What:           /sys/class/cxl/<card>/psl_revision
+Date:           September 2014
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+                Identifies the revision level of the PSL.
+
+What:           /sys/class/cxl/<card>/base_image
+Date:           September 2014
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+                Identifies the revision level of the base image for devices
+                that support loadable PSLs. For FPGAs this field identifies
+                the image contained in the on-adapter flash which is loaded
+                during the initial program load.
+
+What:           /sys/class/cxl/<card>/image_loaded
+Date:           September 2014
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+                Will return "user" or "factory" depending on the image loaded
+                onto the card.
+
+What:           /sys/class/cxl/<card>/load_image_on_perst
+Date:           December 2014
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read/write
+                Valid entries are "none", "user", and "factory".
+                "none" means PERST will not cause image to be loaded to the
+                card.  A power cycle is required to load the image.
+                "none" could be useful for debugging because the trace arrays
+                are preserved.
+                "user" and "factory" means PERST will cause either the user or
+                user or factory image to be loaded.
+                Default is to reload on PERST whichever image the card has
+                loaded.
+
+What:           /sys/class/cxl/<card>/reset
+Date:           October 2014
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    write only
+                Writing 1 will issue a PERST to card which may cause the card
+                to reload the FPGA depending on load_image_on_perst.

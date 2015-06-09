@@ -37,9 +37,39 @@
 #ifndef LOV_INTERNAL_H
 #define LOV_INTERNAL_H
 
-#include <obd_class.h>
-#include <obd_lov.h>
-#include <lustre/lustre_user.h>
+#include "../include/obd_class.h"
+#include "../include/lustre/lustre_user.h"
+
+/* lov_do_div64(a, b) returns a % b, and a = a / b.
+ * The 32-bit code is LOV-specific due to knowing about stripe limits in
+ * order to reduce the divisor to a 32-bit number.  If the divisor is
+ * already a 32-bit value the compiler handles this directly. */
+#if BITS_PER_LONG == 64
+# define lov_do_div64(n, base) ({					\
+	uint64_t __base = (base);					\
+	uint64_t __rem;							\
+	__rem = ((uint64_t)(n)) % __base;				\
+	(n) = ((uint64_t)(n)) / __base;					\
+	__rem;								\
+})
+#elif BITS_PER_LONG == 32
+# define lov_do_div64(n, base) ({					\
+	uint64_t __rem;							\
+	if ((sizeof(base) > 4) && (((base) & 0xffffffff00000000ULL) != 0)) {  \
+		int __remainder;					      \
+		LASSERTF(!((base) & (LOV_MIN_STRIPE_SIZE - 1)), "64 bit lov " \
+			 "division %llu / %llu\n", (n), (uint64_t)(base));    \
+		__remainder = (n) & (LOV_MIN_STRIPE_SIZE - 1);		\
+		(n) >>= LOV_MIN_STRIPE_BITS;				\
+		__rem = do_div(n, (base) >> LOV_MIN_STRIPE_BITS);	\
+		__rem <<= LOV_MIN_STRIPE_BITS;				\
+		__rem += __remainder;					\
+	} else {							\
+		__rem = do_div(n, base);				\
+	}								\
+	__rem;								\
+})
+#endif
 
 struct lov_lock_handles {
 	struct portals_handle   llh_handle;
@@ -60,8 +90,8 @@ struct lov_request {
 	int		      rq_rc;
 	int		      rq_buflen;     /* length of sub_md */
 
-	obd_count		rq_oabufs;
-	obd_count		rq_pgaidx;
+	u32		      rq_oabufs;
+	u32		      rq_pgaidx;
 };
 
 struct lov_request_set {
@@ -79,7 +109,7 @@ struct lov_request_set {
 	struct llog_cookie		*set_cookies;
 	int				set_cookie_sent;
 	struct obd_trans_info		*set_oti;
-	obd_count			set_oabufs;
+	u32				set_oabufs;
 	struct brw_page			*set_pga;
 	struct lov_lock_handles		*set_lockh;
 	struct list_head			set_list;
@@ -110,7 +140,7 @@ static inline struct lov_lock_handles *
 lov_handle2llh(struct lustre_handle *handle)
 {
 	LASSERT(handle != NULL);
-	return(class_handle2object(handle->cookie));
+	return class_handle2object(handle->cookie);
 }
 
 static inline void lov_llh_put(struct lov_lock_handles *llh)
@@ -136,26 +166,24 @@ static inline void lov_llh_put(struct lov_lock_handles *llh)
 	(char *)((lv)->lov_tgts[index]->ltd_uuid.uuid)
 
 /* lov_merge.c */
-void lov_merge_attrs(struct obdo *tgt, struct obdo *src, obd_valid valid,
+void lov_merge_attrs(struct obdo *tgt, struct obdo *src, u64 valid,
 		     struct lov_stripe_md *lsm, int stripeno, int *set);
-int lov_merge_lvb(struct obd_export *exp, struct lov_stripe_md *lsm,
-		  struct ost_lvb *lvb, int kms_only);
 int lov_adjust_kms(struct obd_export *exp, struct lov_stripe_md *lsm,
-		   obd_off size, int shrink);
+		   u64 size, int shrink);
 int lov_merge_lvb_kms(struct lov_stripe_md *lsm,
 		      struct ost_lvb *lvb, __u64 *kms_place);
 
 /* lov_offset.c */
-obd_size lov_stripe_size(struct lov_stripe_md *lsm, obd_size ost_size,
+u64 lov_stripe_size(struct lov_stripe_md *lsm, u64 ost_size,
 			 int stripeno);
-int lov_stripe_offset(struct lov_stripe_md *lsm, obd_off lov_off,
-		      int stripeno, obd_off *obd_off);
-obd_off lov_size_to_stripe(struct lov_stripe_md *lsm, obd_off file_size,
+int lov_stripe_offset(struct lov_stripe_md *lsm, u64 lov_off,
+		      int stripeno, u64 *u64);
+u64 lov_size_to_stripe(struct lov_stripe_md *lsm, u64 file_size,
 			   int stripeno);
 int lov_stripe_intersects(struct lov_stripe_md *lsm, int stripeno,
-			  obd_off start, obd_off end,
-			  obd_off *obd_start, obd_off *obd_end);
-int lov_stripe_number(struct lov_stripe_md *lsm, obd_off lov_off);
+			  u64 start, u64 end,
+			  u64 *obd_start, u64 *obd_end);
+int lov_stripe_number(struct lov_stripe_md *lsm, u64 lov_off);
 
 /* lov_qos.c */
 #define LOV_USES_ASSIGNED_STRIPE	0
@@ -177,17 +205,6 @@ void lov_update_set(struct lov_request_set *set,
 int lov_update_common_set(struct lov_request_set *set,
 			  struct lov_request *req, int rc);
 int lov_check_and_wait_active(struct lov_obd *lov, int ost_idx);
-int lov_prep_create_set(struct obd_export *exp, struct obd_info *oifo,
-			struct lov_stripe_md **ea, struct obdo *src_oa,
-			struct obd_trans_info *oti,
-			struct lov_request_set **reqset);
-int cb_create_update(void *cookie, int rc);
-int lov_fini_create_set(struct lov_request_set *set, struct lov_stripe_md **ea);
-int lov_prep_brw_set(struct obd_export *exp, struct obd_info *oinfo,
-		     obd_count oa_bufs, struct brw_page *pga,
-		     struct obd_trans_info *oti,
-		     struct lov_request_set **reqset);
-int lov_fini_brw_set(struct lov_request_set *set);
 int lov_prep_getattr_set(struct obd_export *exp, struct obd_info *oinfo,
 			 struct lov_request_set **reqset);
 int lov_fini_getattr_set(struct lov_request_set *set);
@@ -195,8 +212,6 @@ int lov_prep_destroy_set(struct obd_export *exp, struct obd_info *oinfo,
 			 struct obdo *src_oa, struct lov_stripe_md *lsm,
 			 struct obd_trans_info *oti,
 			 struct lov_request_set **reqset);
-int lov_update_destroy_set(struct lov_request_set *set,
-			   struct lov_request *req, int rc);
 int lov_fini_destroy_set(struct lov_request_set *set);
 int lov_prep_setattr_set(struct obd_export *exp, struct obd_info *oinfo,
 			 struct obd_trans_info *oti,
@@ -204,30 +219,6 @@ int lov_prep_setattr_set(struct obd_export *exp, struct obd_info *oinfo,
 int lov_update_setattr_set(struct lov_request_set *set,
 			   struct lov_request *req, int rc);
 int lov_fini_setattr_set(struct lov_request_set *set);
-int lov_prep_punch_set(struct obd_export *exp, struct obd_info *oinfo,
-		       struct obd_trans_info *oti,
-		       struct lov_request_set **reqset);
-int lov_fini_punch_set(struct lov_request_set *set);
-int lov_prep_sync_set(struct obd_export *exp, struct obd_info *obd_info,
-		      obd_off start, obd_off end,
-		      struct lov_request_set **reqset);
-int lov_fini_sync_set(struct lov_request_set *set);
-int lov_prep_enqueue_set(struct obd_export *exp, struct obd_info *oinfo,
-			 struct ldlm_enqueue_info *einfo,
-			 struct lov_request_set **reqset);
-int lov_fini_enqueue_set(struct lov_request_set *set, __u32 mode, int rc,
-			 struct ptlrpc_request_set *rqset);
-int lov_prep_match_set(struct obd_export *exp, struct obd_info *oinfo,
-		       struct lov_stripe_md *lsm,
-		       ldlm_policy_data_t *policy, __u32 mode,
-		       struct lustre_handle *lockh,
-		       struct lov_request_set **reqset);
-int lov_fini_match_set(struct lov_request_set *set, __u32 mode, int flags);
-int lov_prep_cancel_set(struct obd_export *exp, struct obd_info *oinfo,
-			struct lov_stripe_md *lsm,
-			__u32 mode, struct lustre_handle *lockh,
-			struct lov_request_set **reqset);
-int lov_fini_cancel_set(struct lov_request_set *set);
 int lov_prep_statfs_set(struct obd_device *obd, struct obd_info *oinfo,
 			struct lov_request_set **reqset);
 void lov_update_statfs(struct obd_statfs *osfs, struct obd_statfs *lov_sfs,
@@ -251,20 +242,12 @@ int lov_process_config_base(struct obd_device *obd, struct lustre_cfg *lcfg,
 			    __u32 *indexp, int *genp);
 int lov_del_target(struct obd_device *obd, __u32 index,
 		   struct obd_uuid *uuidp, int gen);
-/* lov_log.c */
-int lov_llog_init(struct obd_device *obd, struct obd_llog_group *olg,
-		  struct obd_device *tgt, int *idx);
-int lov_llog_finish(struct obd_device *obd, int count);
 
 /* lov_pack.c */
 int lov_packmd(struct obd_export *exp, struct lov_mds_md **lmm,
 	       struct lov_stripe_md *lsm);
 int lov_unpackmd(struct obd_export *exp, struct lov_stripe_md **lsmp,
 		 struct lov_mds_md *lmm, int lmm_bytes);
-int lov_setstripe(struct obd_export *exp, int max_lmm_size,
-		  struct lov_stripe_md **lsmp, struct lov_user_md *lump);
-int lov_setea(struct obd_export *exp, struct lov_stripe_md **lsmp,
-	      struct lov_user_md *lump);
 int lov_getstripe(struct obd_export *exp,
 		  struct lov_stripe_md *lsm, struct lov_user_md *lump);
 int lov_alloc_memmd(struct lov_stripe_md **lsmp, __u16 stripe_count,
@@ -279,11 +262,10 @@ void lov_dump_lmm(int level, void *lmm);
 /* lov_ea.c */
 struct lov_stripe_md *lsm_alloc_plain(__u16 stripe_count, int *size);
 void lsm_free_plain(struct lov_stripe_md *lsm);
+void dump_lsm(unsigned int level, const struct lov_stripe_md *lsm);
 
-int lovea_destroy_object(struct lov_obd *lov, struct lov_stripe_md *lsm,
-			 struct obdo *oa, void *data);
 /* lproc_lov.c */
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 extern const struct file_operations lov_proc_target_fops;
 void lprocfs_lov_init_vars(struct lprocfs_static_vars *lvars);
 #else
@@ -321,5 +303,17 @@ static inline struct lov_stripe_md *lsm_addref(struct lov_stripe_md *lsm)
 	atomic_inc(&lsm->lsm_refc);
 	return lsm;
 }
+
+static inline bool lov_oinfo_is_dummy(const struct lov_oinfo *loi)
+{
+	if (unlikely(loi->loi_oi.oi.oi_id == 0 &&
+		     loi->loi_oi.oi.oi_seq == 0 &&
+		     loi->loi_ost_idx == 0 &&
+		     loi->loi_ost_gen == 0))
+		return true;
+
+	return false;
+}
+
 
 #endif

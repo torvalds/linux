@@ -26,11 +26,6 @@ extern int pci_routeirq;
 extern int noioapicquirk;
 extern int noioapicreroute;
 
-/* scan a bus after allocating a pci_sysdata for it */
-extern struct pci_bus *pci_scan_bus_on_node(int busno, struct pci_ops *ops,
-					    int node);
-extern struct pci_bus *pci_scan_bus_with_sysdata(int busno);
-
 #ifdef CONFIG_PCI
 
 #ifdef CONFIG_PCI_DOMAINS
@@ -70,10 +65,9 @@ extern unsigned long pci_mem_start;
 
 extern int pcibios_enabled;
 void pcibios_config_init(void);
-struct pci_bus *pcibios_scan_root(int bus);
+void pcibios_scan_root(int bus);
 
 void pcibios_set_master(struct pci_dev *dev);
-void pcibios_penalize_isa_irq(int irq, int active);
 struct irq_routing_table *pcibios_get_irq_routing_table(void);
 int pcibios_set_irq_routing(struct pci_dev *dev, int pin, int irq);
 
@@ -102,12 +96,15 @@ extern void pci_iommu_alloc(void);
 #ifdef CONFIG_PCI_MSI
 /* implemented in arch/x86/kernel/apic/io_apic. */
 struct msi_desc;
+void native_compose_msi_msg(struct pci_dev *pdev, unsigned int irq,
+			    unsigned int dest, struct msi_msg *msg, u8 hpet_id);
 int native_setup_msi_irqs(struct pci_dev *dev, int nvec, int type);
 void native_teardown_msi_irq(unsigned int irq);
 void native_restore_msi_irqs(struct pci_dev *dev);
 int setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 		  unsigned int irq_base, unsigned int irq_offset);
 #else
+#define native_compose_msi_msg		NULL
 #define native_setup_msi_irqs		NULL
 #define native_teardown_msi_irq		NULL
 #endif

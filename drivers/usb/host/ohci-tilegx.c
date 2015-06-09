@@ -129,8 +129,8 @@ static int ohci_hcd_tilegx_drv_probe(struct platform_device *pdev)
 	tilegx_start_ohc();
 
 	/* Create our IRQs and register them. */
-	pdata->irq = create_irq();
-	if (pdata->irq < 0) {
+	pdata->irq = irq_alloc_hwirq(-1);
+	if (!pdata->irq) {
 		ret = -ENXIO;
 		goto err_no_irq;
 	}
@@ -164,7 +164,7 @@ static int ohci_hcd_tilegx_drv_probe(struct platform_device *pdev)
 	}
 
 err_have_irq:
-	destroy_irq(pdata->irq);
+	irq_free_hwirq(pdata->irq);
 err_no_irq:
 	tilegx_stop_ohc();
 	usb_put_hcd(hcd);
@@ -182,7 +182,7 @@ static int ohci_hcd_tilegx_drv_remove(struct platform_device *pdev)
 	usb_put_hcd(hcd);
 	tilegx_stop_ohc();
 	gxio_usb_host_destroy(&pdata->usb_ctx);
-	destroy_irq(pdata->irq);
+	irq_free_hwirq(pdata->irq);
 
 	return 0;
 }
@@ -199,7 +199,6 @@ static struct platform_driver ohci_hcd_tilegx_driver = {
 	.shutdown	= ohci_hcd_tilegx_drv_shutdown,
 	.driver = {
 		.name	= "tilegx-ohci",
-		.owner	= THIS_MODULE,
 	}
 };
 

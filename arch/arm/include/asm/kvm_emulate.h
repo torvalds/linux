@@ -23,6 +23,7 @@
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmio.h>
 #include <asm/kvm_arm.h>
+#include <asm/cputype.h>
 
 unsigned long *vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num);
 unsigned long *vcpu_spsr(struct kvm_vcpu *vcpu);
@@ -32,6 +33,21 @@ void kvm_skip_instr(struct kvm_vcpu *vcpu, bool is_wide_instr);
 void kvm_inject_undefined(struct kvm_vcpu *vcpu);
 void kvm_inject_dabt(struct kvm_vcpu *vcpu, unsigned long addr);
 void kvm_inject_pabt(struct kvm_vcpu *vcpu, unsigned long addr);
+
+static inline void vcpu_reset_hcr(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.hcr = HCR_GUEST_MASK;
+}
+
+static inline unsigned long vcpu_get_hcr(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.hcr;
+}
+
+static inline void vcpu_set_hcr(struct kvm_vcpu *vcpu, unsigned long hcr)
+{
+	vcpu->arch.hcr = hcr;
+}
 
 static inline bool vcpu_mode_is_32bit(struct kvm_vcpu *vcpu)
 {
@@ -149,6 +165,11 @@ static inline bool kvm_vcpu_trap_is_iabt(struct kvm_vcpu *vcpu)
 
 static inline u8 kvm_vcpu_trap_get_fault(struct kvm_vcpu *vcpu)
 {
+	return kvm_vcpu_get_hsr(vcpu) & HSR_FSC;
+}
+
+static inline u8 kvm_vcpu_trap_get_fault_type(struct kvm_vcpu *vcpu)
+{
 	return kvm_vcpu_get_hsr(vcpu) & HSR_FSC_TYPE;
 }
 
@@ -157,9 +178,9 @@ static inline u32 kvm_vcpu_hvc_get_imm(struct kvm_vcpu *vcpu)
 	return kvm_vcpu_get_hsr(vcpu) & HSR_HVC_IMM_MASK;
 }
 
-static inline unsigned long kvm_vcpu_get_mpidr(struct kvm_vcpu *vcpu)
+static inline unsigned long kvm_vcpu_get_mpidr_aff(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.cp15[c0_MPIDR];
+	return vcpu->arch.cp15[c0_MPIDR] & MPIDR_HWID_BITMASK;
 }
 
 static inline void kvm_vcpu_set_be(struct kvm_vcpu *vcpu)
@@ -185,9 +206,16 @@ static inline unsigned long vcpu_data_guest_to_host(struct kvm_vcpu *vcpu,
 		default:
 			return be32_to_cpu(data);
 		}
+	} else {
+		switch (len) {
+		case 1:
+			return data & 0xff;
+		case 2:
+			return le16_to_cpu(data & 0xffff);
+		default:
+			return le32_to_cpu(data);
+		}
 	}
-
-	return data;		/* Leave LE untouched */
 }
 
 static inline unsigned long vcpu_data_host_to_guest(struct kvm_vcpu *vcpu,
@@ -203,9 +231,16 @@ static inline unsigned long vcpu_data_host_to_guest(struct kvm_vcpu *vcpu,
 		default:
 			return cpu_to_be32(data);
 		}
+	} else {
+		switch (len) {
+		case 1:
+			return data & 0xff;
+		case 2:
+			return cpu_to_le16(data & 0xffff);
+		default:
+			return cpu_to_le32(data);
+		}
 	}
-
-	return data;		/* Leave LE untouched */
 }
 
 #endif /* __ARM_KVM_EMULATE_H__ */

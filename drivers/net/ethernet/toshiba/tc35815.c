@@ -65,7 +65,7 @@ static const struct {
 	{ "TOSHIBA TC35815/TX4939" },
 };
 
-static DEFINE_PCI_DEVICE_TABLE(tc35815_pci_tbl) = {
+static const struct pci_device_id tc35815_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_TC35815CF), .driver_data = TC35815CF },
 	{PCI_DEVICE(PCI_VENDOR_ID_TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_TC35815_NWU), .driver_data = TC35815_NWU },
 	{PCI_DEVICE(PCI_VENDOR_ID_TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_TC35815_TX4939), .driver_data = TC35815_TX4939 },
@@ -1644,6 +1644,9 @@ static int tc35815_poll(struct napi_struct *napi, int budget)
 		(struct tc35815_regs __iomem *)dev->base_addr;
 	int received = 0, handled;
 	u32 status;
+
+	if (budget <= 0)
+		return received;
 
 	spin_lock(&lp->rx_lock);
 	status = tc_readl(&tr->Int_Src);

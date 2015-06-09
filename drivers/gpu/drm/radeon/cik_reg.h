@@ -147,4 +147,41 @@
 
 #define CIK_LB_DESKTOP_HEIGHT                     0x6b0c
 
+#define KFD_CIK_SDMA_QUEUE_OFFSET		0x200
+
+#define CP_HQD_IQ_RPTR					0xC970u
+#define AQL_ENABLE					(1U << 0)
+#define SDMA0_RLC0_RB_CNTL				0xD400u
+#define	SDMA_RB_VMID(x)					(x << 24)
+#define	SDMA0_RLC0_RB_BASE				0xD404u
+#define	SDMA0_RLC0_RB_BASE_HI				0xD408u
+#define	SDMA0_RLC0_RB_RPTR				0xD40Cu
+#define	SDMA0_RLC0_RB_WPTR				0xD410u
+#define	SDMA0_RLC0_RB_WPTR_POLL_CNTL			0xD414u
+#define	SDMA0_RLC0_RB_WPTR_POLL_ADDR_HI			0xD418u
+#define	SDMA0_RLC0_RB_WPTR_POLL_ADDR_LO			0xD41Cu
+#define	SDMA0_RLC0_RB_RPTR_ADDR_HI			0xD420u
+#define	SDMA0_RLC0_RB_RPTR_ADDR_LO			0xD424u
+#define	SDMA0_RLC0_IB_CNTL				0xD428u
+#define	SDMA0_RLC0_IB_RPTR				0xD42Cu
+#define	SDMA0_RLC0_IB_OFFSET				0xD430u
+#define	SDMA0_RLC0_IB_BASE_LO				0xD434u
+#define	SDMA0_RLC0_IB_BASE_HI				0xD438u
+#define	SDMA0_RLC0_IB_SIZE				0xD43Cu
+#define	SDMA0_RLC0_SKIP_CNTL				0xD440u
+#define	SDMA0_RLC0_CONTEXT_STATUS			0xD444u
+#define	SDMA_RLC_IDLE					(1 << 2)
+#define	SDMA0_RLC0_DOORBELL				0xD448u
+#define	SDMA_OFFSET(x)					(x << 0)
+#define	SDMA_DB_ENABLE					(1 << 28)
+#define	SDMA0_RLC0_VIRTUAL_ADDR				0xD49Cu
+#define	SDMA_ATC					(1 << 0)
+#define	SDMA_VA_PTR32					(1 << 4)
+#define	SDMA_VA_SHARED_BASE(x)				(x << 8)
+#define	SDMA0_RLC0_APE1_CNTL				0xD4A0u
+#define	SDMA0_RLC0_DOORBELL_LOG				0xD4A4u
+#define	SDMA0_RLC0_WATERMARK				0xD4A8u
+#define	SDMA0_CNTL					0xD010
+#define	SDMA1_CNTL					0xD810
+
 #endif

@@ -12,11 +12,11 @@ config EFI_VARS
 
 	  Note that using this driver in concert with efibootmgr requires
 	  at least test release version 0.5.0-test3 or later, which is
-	  available from Matt Domsch's website located at:
+	  available from:
 	  <http://linux.dell.com/efibootmgr/testing/efibootmgr-0.5.0-test3.tar.gz>
 
 	  Subsequent efibootmgr releases may be found at:
-	  <http://linux.dell.com/efibootmgr>
+	  <http://github.com/vathpela/efibootmgr>
 
 config EFI_VARS_PSTORE
 	tristate "Register efivars backend for pstore"
@@ -46,6 +46,19 @@ config EFI_RUNTIME_MAP
 	  mapping the 2nd kernel, but can also be used for debugging purposes.
 
 	  See also Documentation/ABI/testing/sysfs-firmware-efi-runtime-map.
+
+config EFI_PARAMS_FROM_FDT
+	bool
+	help
+	  Select this config option from the architecture Kconfig if
+	  the EFI runtime support gets system table address, memory
+          map address, and other parameters from the device tree.
+
+config EFI_RUNTIME_WRAPPERS
+	bool
+
+config EFI_ARMSTUB
+	bool
 
 endmenu
 

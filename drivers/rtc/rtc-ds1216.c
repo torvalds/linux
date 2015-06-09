@@ -170,7 +170,6 @@ static int __init ds1216_rtc_probe(struct platform_device *pdev)
 static struct platform_driver ds1216_rtc_platform_driver = {
 	.driver		= {
 		.name	= "rtc-ds1216",
-		.owner	= THIS_MODULE,
 	},
 };
 

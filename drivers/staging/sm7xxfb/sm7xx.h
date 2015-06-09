@@ -29,14 +29,14 @@
 #define dac_reg	(0x3c8)
 #define dac_val	(0x3c9)
 
-extern void __iomem *smtc_RegBaseAddress;
-#define smtc_mmiowb(dat, reg)	writeb(dat, smtc_RegBaseAddress + reg)
-#define smtc_mmioww(dat, reg)	writew(dat, smtc_RegBaseAddress + reg)
-#define smtc_mmiowl(dat, reg)	writel(dat, smtc_RegBaseAddress + reg)
+extern void __iomem *smtc_regbaseaddress;
+#define smtc_mmiowb(dat, reg)	writeb(dat, smtc_regbaseaddress + reg)
+#define smtc_mmioww(dat, reg)	writew(dat, smtc_regbaseaddress + reg)
+#define smtc_mmiowl(dat, reg)	writel(dat, smtc_regbaseaddress + reg)
 
-#define smtc_mmiorb(reg)	readb(smtc_RegBaseAddress + reg)
-#define smtc_mmiorw(reg)	readw(smtc_RegBaseAddress + reg)
-#define smtc_mmiorl(reg)	readl(smtc_RegBaseAddress + reg)
+#define smtc_mmiorb(reg)	readb(smtc_regbaseaddress + reg)
+#define smtc_mmiorw(reg)	readw(smtc_regbaseaddress + reg)
+#define smtc_mmiorl(reg)	readl(smtc_regbaseaddress + reg)
 
 #define SIZE_SR00_SR04      (0x04 - 0x00 + 1)
 #define SIZE_SR10_SR24      (0x24 - 0x10 + 1)
@@ -99,27 +99,27 @@ static inline unsigned int smtc_seqr(int reg)
  */
 
 struct ModeInit {
-	int mmSizeX;
-	int mmSizeY;
+	int mmsizex;
+	int mmsizey;
 	int bpp;
 	int hz;
-	unsigned char Init_MISC;
-	unsigned char Init_SR00_SR04[SIZE_SR00_SR04];
-	unsigned char Init_SR10_SR24[SIZE_SR10_SR24];
-	unsigned char Init_SR30_SR75[SIZE_SR30_SR75];
-	unsigned char Init_SR80_SR93[SIZE_SR80_SR93];
-	unsigned char Init_SRA0_SRAF[SIZE_SRA0_SRAF];
-	unsigned char Init_GR00_GR08[SIZE_GR00_GR08];
-	unsigned char Init_AR00_AR14[SIZE_AR00_AR14];
-	unsigned char Init_CR00_CR18[SIZE_CR00_CR18];
-	unsigned char Init_CR30_CR4D[SIZE_CR30_CR4D];
-	unsigned char Init_CR90_CRA7[SIZE_CR90_CRA7];
+	unsigned char init_misc;
+	unsigned char init_sr00_sr04[SIZE_SR00_SR04];
+	unsigned char init_sr10_sr24[SIZE_SR10_SR24];
+	unsigned char init_sr30_sr75[SIZE_SR30_SR75];
+	unsigned char init_sr80_sr93[SIZE_SR80_SR93];
+	unsigned char init_sra0_sraf[SIZE_SRA0_SRAF];
+	unsigned char init_gr00_gr08[SIZE_GR00_GR08];
+	unsigned char init_ar00_ar14[SIZE_AR00_AR14];
+	unsigned char init_cr00_cr18[SIZE_CR00_CR18];
+	unsigned char init_cr30_cr4d[SIZE_CR30_CR4D];
+	unsigned char init_cr90_cra7[SIZE_CR90_CRA7];
 };
 
 /**********************************************************************
 			 SM712 Mode table.
  **********************************************************************/
-struct ModeInit VGAMode[] = {
+static struct ModeInit vgamode[] = {
 	{
 	 /*  mode#0: 640 x 480  16Bpp  60Hz */
 	 640, 480, 16, 60,
@@ -776,4 +776,4 @@ struct ModeInit VGAMode[] = {
 	 },
 };
 
-#define numVGAModes		ARRAY_SIZE(VGAMode)
+#define numvgamodes		ARRAY_SIZE(vgamode)

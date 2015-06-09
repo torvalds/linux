@@ -31,7 +31,6 @@
 #include <linux/module.h>
 #include <linux/mman.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/agp_backend.h>
 #include <linux/agpgart.h>
@@ -711,19 +710,6 @@ static int agp_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-
-static ssize_t agp_read(struct file *file, char __user *buf,
-			size_t count, loff_t * ppos)
-{
-	return -EINVAL;
-}
-
-static ssize_t agp_write(struct file *file, const char __user *buf,
-			 size_t count, loff_t * ppos)
-{
-	return -EINVAL;
-}
-
 static int agpioc_info_wrap(struct agp_file_private *priv, void __user *arg)
 {
 	struct agp_info userinfo;
@@ -731,6 +717,7 @@ static int agpioc_info_wrap(struct agp_file_private *priv, void __user *arg)
 
 	agp_copy_info(agp_bridge, &kerninfo);
 
+	memset(&userinfo, 0, sizeof(userinfo));
 	userinfo.version.major = kerninfo.version.major;
 	userinfo.version.minor = kerninfo.version.minor;
 	userinfo.bridge_id = kerninfo.device->vendor |
@@ -1047,8 +1034,6 @@ static const struct file_operations agp_fops =
 {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
-	.read		= agp_read,
-	.write		= agp_write,
 	.unlocked_ioctl	= agp_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= compat_agp_ioctl,

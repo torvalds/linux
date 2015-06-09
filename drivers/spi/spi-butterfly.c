@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -309,7 +305,6 @@ done:
 static void butterfly_detach(struct parport *p)
 {
 	struct butterfly	*pp;
-	int			status;
 
 	/* FIXME this global is ugly ... but, how to quickly get from
 	 * the parport to the "struct butterfly" associated with it?
@@ -321,7 +316,7 @@ static void butterfly_detach(struct parport *p)
 	butterfly = NULL;
 
 	/* stop() unregisters child devices too */
-	status = spi_bitbang_stop(&pp->bitbang);
+	spi_bitbang_stop(&pp->bitbang);
 
 	/* turn off VCC */
 	parport_write_data(pp->port, 0);

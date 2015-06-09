@@ -30,6 +30,8 @@
 #define IMA_ACTION_FLAGS	0xff000000
 #define IMA_DIGSIG		0x01000000
 #define IMA_DIGSIG_REQUIRED	0x02000000
+#define IMA_PERMIT_DIRECTIO	0x04000000
+#define IMA_NEW_FILE		0x08000000
 
 #define IMA_DO_MASK		(IMA_MEASURE | IMA_APPRAISE | IMA_AUDIT | \
 				 IMA_APPRAISE_SUBMASK)
@@ -45,16 +47,21 @@
 #define IMA_BPRM_APPRAISED	0x00002000
 #define IMA_MODULE_APPRAISE	0x00004000
 #define IMA_MODULE_APPRAISED	0x00008000
+#define IMA_FIRMWARE_APPRAISE	0x00010000
+#define IMA_FIRMWARE_APPRAISED	0x00020000
 #define IMA_APPRAISE_SUBMASK	(IMA_FILE_APPRAISE | IMA_MMAP_APPRAISE | \
-				 IMA_BPRM_APPRAISE | IMA_MODULE_APPRAISE)
+				 IMA_BPRM_APPRAISE | IMA_MODULE_APPRAISE | \
+				 IMA_FIRMWARE_APPRAISE)
 #define IMA_APPRAISED_SUBMASK	(IMA_FILE_APPRAISED | IMA_MMAP_APPRAISED | \
-				 IMA_BPRM_APPRAISED | IMA_MODULE_APPRAISED)
+				 IMA_BPRM_APPRAISED | IMA_MODULE_APPRAISED | \
+				 IMA_FIRMWARE_APPRAISED)
 
 enum evm_ima_xattr_type {
 	IMA_XATTR_DIGEST = 0x01,
 	EVM_XATTR_HMAC,
 	EVM_IMA_XATTR_DIGSIG,
 	IMA_XATTR_DIGEST_NG,
+	IMA_XATTR_LAST
 };
 
 struct evm_ima_xattr_data {
@@ -103,6 +110,7 @@ struct integrity_iint_cache {
 	enum integrity_status ima_mmap_status:4;
 	enum integrity_status ima_bprm_status:4;
 	enum integrity_status ima_module_status:4;
+	enum integrity_status ima_firmware_status:4;
 	enum integrity_status evm_status:4;
 	struct ima_digest_data *ima_hash;
 };
@@ -110,8 +118,11 @@ struct integrity_iint_cache {
 /* rbtree tree calls to lookup, insert, delete
  * integrity data associated with an inode.
  */
-struct integrity_iint_cache *integrity_iint_insert(struct inode *inode);
 struct integrity_iint_cache *integrity_iint_find(struct inode *inode);
+
+int integrity_kernel_read(struct file *file, loff_t offset,
+			  char *addr, unsigned long count);
+int __init integrity_read_file(const char *path, char **data);
 
 #define INTEGRITY_KEYRING_EVM		0
 #define INTEGRITY_KEYRING_MODULE	1
@@ -123,6 +134,8 @@ struct integrity_iint_cache *integrity_iint_find(struct inode *inode);
 int integrity_digsig_verify(const unsigned int id, const char *sig, int siglen,
 			    const char *digest, int digestlen);
 
+int __init integrity_init_keyring(const unsigned int id);
+int __init integrity_load_x509(const unsigned int id, char *path);
 #else
 
 static inline int integrity_digsig_verify(const unsigned int id,
@@ -130,6 +143,11 @@ static inline int integrity_digsig_verify(const unsigned int id,
 					  const char *digest, int digestlen)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline int integrity_init_keyring(const unsigned int id)
+{
+	return 0;
 }
 
 #endif /* CONFIG_INTEGRITY_SIGNATURE */
@@ -142,6 +160,14 @@ static inline int asymmetric_verify(struct key *keyring, const char *sig,
 				    int siglen, const char *data, int datalen)
 {
 	return -EOPNOTSUPP;
+}
+#endif
+
+#ifdef CONFIG_IMA_LOAD_X509
+void __init ima_load_x509(void);
+#else
+static inline void ima_load_x509(void)
+{
 }
 #endif
 
@@ -158,6 +184,3 @@ static inline void integrity_audit_msg(int audit_msgno, struct inode *inode,
 {
 }
 #endif
-
-/* set during initialization */
-extern int iint_initialized;

@@ -8,6 +8,7 @@ menuconfig DRM
 	tristate "Direct Rendering Manager (XFree86 4.1.0 and higher DRI support)"
 	depends on (AGP || AGP=n) && !EMULATED_CMPXCHG && MMU && HAS_DMA
 	select HDMI
+	select FB_CMDLINE
 	select I2C
 	select I2C_ALGOBIT
 	select DMA_SHARED_BUFFER
@@ -23,12 +24,6 @@ menuconfig DRM
 config DRM_MIPI_DSI
 	bool
 	depends on DRM
-
-config DRM_USB
-	tristate
-	depends on DRM
-	depends on USB_SUPPORT && USB_ARCH_HAS_HCD
-	select USB
 
 config DRM_KMS_HELPER
 	tristate
@@ -67,12 +62,13 @@ config DRM_TTM
 
 config DRM_GEM_CMA_HELPER
 	bool
-	depends on DRM
+	depends on DRM && HAVE_DMA_ATTRS
 	help
 	  Choose this if you need the GEM CMA helper functions
 
 config DRM_KMS_CMA_HELPER
 	bool
+	depends on DRM && HAVE_DMA_ATTRS
 	select DRM_GEM_CMA_HELPER
 	select DRM_KMS_FB_HELPER
 	select FB_SYS_FILLRECT
@@ -82,6 +78,8 @@ config DRM_KMS_CMA_HELPER
 	  Choose this if you need the KMS CMA helper functions
 
 source "drivers/gpu/drm/i2c/Kconfig"
+
+source "drivers/gpu/drm/bridge/Kconfig"
 
 config DRM_TDFX
 	tristate "3dfx Banshee/Voodoo3+"
@@ -112,6 +110,7 @@ config DRM_RADEON
 	select POWER_SUPPLY
 	select HWMON
 	select BACKLIGHT_CLASS_DEVICE
+	select INTERVAL_TREE
 	help
 	  Choose this option if you have an ATI Radeon graphics card.  There
 	  are both PCI and AGP versions.  You don't need to choose this to
@@ -166,7 +165,18 @@ config DRM_SAVAGE
 	  Choose this option if you have a Savage3D/4/SuperSavage/Pro/Twister
 	  chipset. If M is selected the module will be called savage.
 
+config DRM_VGEM
+	tristate "Virtual GEM provider"
+	depends on DRM
+	help
+	  Choose this option to get a virtual graphics memory manager,
+	  as used by Mesa's software renderer for enhanced performance.
+	  If M is selected the module will be called vgem.
+
+
 source "drivers/gpu/drm/exynos/Kconfig"
+
+source "drivers/gpu/drm/rockchip/Kconfig"
 
 source "drivers/gpu/drm/vmwgfx/Kconfig"
 
@@ -181,6 +191,8 @@ source "drivers/gpu/drm/mgag200/Kconfig"
 source "drivers/gpu/drm/cirrus/Kconfig"
 
 source "drivers/gpu/drm/armada/Kconfig"
+
+source "drivers/gpu/drm/atmel-hlcdc/Kconfig"
 
 source "drivers/gpu/drm/rcar-du/Kconfig"
 
@@ -199,3 +211,9 @@ source "drivers/gpu/drm/msm/Kconfig"
 source "drivers/gpu/drm/tegra/Kconfig"
 
 source "drivers/gpu/drm/panel/Kconfig"
+
+source "drivers/gpu/drm/sti/Kconfig"
+
+source "drivers/gpu/drm/amd/amdkfd/Kconfig"
+
+source "drivers/gpu/drm/imx/Kconfig"

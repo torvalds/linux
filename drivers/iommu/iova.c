@@ -18,13 +18,58 @@
  */
 
 #include <linux/iova.h>
+#include <linux/slab.h>
+
+static struct kmem_cache *iommu_iova_cache;
+
+int iommu_iova_cache_init(void)
+{
+	int ret = 0;
+
+	iommu_iova_cache = kmem_cache_create("iommu_iova",
+					 sizeof(struct iova),
+					 0,
+					 SLAB_HWCACHE_ALIGN,
+					 NULL);
+	if (!iommu_iova_cache) {
+		pr_err("Couldn't create iova cache\n");
+		ret = -ENOMEM;
+	}
+
+	return ret;
+}
+
+void iommu_iova_cache_destroy(void)
+{
+	kmem_cache_destroy(iommu_iova_cache);
+}
+
+struct iova *alloc_iova_mem(void)
+{
+	return kmem_cache_alloc(iommu_iova_cache, GFP_ATOMIC);
+}
+
+void free_iova_mem(struct iova *iova)
+{
+	kmem_cache_free(iommu_iova_cache, iova);
+}
 
 void
-init_iova_domain(struct iova_domain *iovad, unsigned long pfn_32bit)
+init_iova_domain(struct iova_domain *iovad, unsigned long granule,
+	unsigned long start_pfn, unsigned long pfn_32bit)
 {
+	/*
+	 * IOVA granularity will normally be equal to the smallest
+	 * supported IOMMU page size; both *must* be capable of
+	 * representing individual CPU pages exactly.
+	 */
+	BUG_ON((granule > PAGE_SIZE) || !is_power_of_2(granule));
+
 	spin_lock_init(&iovad->iova_rbtree_lock);
 	iovad->rbroot = RB_ROOT;
 	iovad->cached32_node = NULL;
+	iovad->granule = granule;
+	iovad->start_pfn = start_pfn;
 	iovad->dma_32bit_pfn = pfn_32bit;
 }
 
@@ -127,7 +172,7 @@ move_left:
 	if (!curr) {
 		if (size_aligned)
 			pad_size = iova_get_pad_size(size, limit_pfn);
-		if ((IOVA_START_PFN + size + pad_size) > limit_pfn) {
+		if ((iovad->start_pfn + size + pad_size) > limit_pfn) {
 			spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
 			return -ENOMEM;
 		}
@@ -202,8 +247,8 @@ iova_insert_rbtree(struct rb_root *root, struct iova *iova)
  * @size: - size of page frames to allocate
  * @limit_pfn: - max limit address
  * @size_aligned: - set if size_aligned address range is required
- * This function allocates an iova in the range limit_pfn to IOVA_START_PFN
- * looking from limit_pfn instead from IOVA_START_PFN. If the size_aligned
+ * This function allocates an iova in the range iovad->start_pfn to limit_pfn,
+ * searching top-down from limit_pfn to iovad->start_pfn. If the size_aligned
  * flag is set then the allocated address iova->pfn_lo will be naturally
  * aligned on roundup_power_of_two(size).
  */
@@ -342,19 +387,30 @@ __is_range_overlap(struct rb_node *node,
 	return 0;
 }
 
+static inline struct iova *
+alloc_and_init_iova(unsigned long pfn_lo, unsigned long pfn_hi)
+{
+	struct iova *iova;
+
+	iova = alloc_iova_mem();
+	if (iova) {
+		iova->pfn_lo = pfn_lo;
+		iova->pfn_hi = pfn_hi;
+	}
+
+	return iova;
+}
+
 static struct iova *
 __insert_new_range(struct iova_domain *iovad,
 	unsigned long pfn_lo, unsigned long pfn_hi)
 {
 	struct iova *iova;
 
-	iova = alloc_iova_mem();
-	if (!iova)
-		return iova;
+	iova = alloc_and_init_iova(pfn_lo, pfn_hi);
+	if (iova)
+		iova_insert_rbtree(&iovad->rbroot, iova);
 
-	iova->pfn_hi = pfn_hi;
-	iova->pfn_lo = pfn_lo;
-	iova_insert_rbtree(&iovad->rbroot, iova);
 	return iova;
 }
 
@@ -432,4 +488,45 @@ copy_reserved_iova(struct iova_domain *from, struct iova_domain *to)
 				iova->pfn_lo, iova->pfn_lo);
 	}
 	spin_unlock_irqrestore(&from->iova_rbtree_lock, flags);
+}
+
+struct iova *
+split_and_remove_iova(struct iova_domain *iovad, struct iova *iova,
+		      unsigned long pfn_lo, unsigned long pfn_hi)
+{
+	unsigned long flags;
+	struct iova *prev = NULL, *next = NULL;
+
+	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
+	if (iova->pfn_lo < pfn_lo) {
+		prev = alloc_and_init_iova(iova->pfn_lo, pfn_lo - 1);
+		if (prev == NULL)
+			goto error;
+	}
+	if (iova->pfn_hi > pfn_hi) {
+		next = alloc_and_init_iova(pfn_hi + 1, iova->pfn_hi);
+		if (next == NULL)
+			goto error;
+	}
+
+	__cached_rbnode_delete_update(iovad, iova);
+	rb_erase(&iova->node, &iovad->rbroot);
+
+	if (prev) {
+		iova_insert_rbtree(&iovad->rbroot, prev);
+		iova->pfn_lo = pfn_lo;
+	}
+	if (next) {
+		iova_insert_rbtree(&iovad->rbroot, next);
+		iova->pfn_hi = pfn_hi;
+	}
+	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
+
+	return iova;
+
+error:
+	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
+	if (prev)
+		free_iova_mem(prev);
+	return NULL;
 }

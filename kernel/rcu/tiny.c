@@ -12,8 +12,8 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
  *
  * Copyright IBM Corporation, 2008
  *
@@ -37,10 +37,6 @@
 #include <linux/prefetch.h>
 #include <linux/ftrace_event.h>
 
-#ifdef CONFIG_RCU_TRACE
-#include <trace/events/rcu.h>
-#endif /* #else #ifdef CONFIG_RCU_TRACE */
-
 #include "rcu.h"
 
 /* Forward declarations for tiny_plugin.h. */
@@ -51,54 +47,14 @@ static void __call_rcu(struct rcu_head *head,
 		       void (*func)(struct rcu_head *rcu),
 		       struct rcu_ctrlblk *rcp);
 
-static long long rcu_dynticks_nesting = DYNTICK_TASK_EXIT_IDLE;
-
 #include "tiny_plugin.h"
-
-/* Common code for rcu_idle_enter() and rcu_irq_exit(), see kernel/rcutree.c. */
-static void rcu_idle_enter_common(long long newval)
-{
-	if (newval) {
-		RCU_TRACE(trace_rcu_dyntick(TPS("--="),
-					    rcu_dynticks_nesting, newval));
-		rcu_dynticks_nesting = newval;
-		return;
-	}
-	RCU_TRACE(trace_rcu_dyntick(TPS("Start"),
-				    rcu_dynticks_nesting, newval));
-	if (!is_idle_task(current)) {
-		struct task_struct *idle __maybe_unused = idle_task(smp_processor_id());
-
-		RCU_TRACE(trace_rcu_dyntick(TPS("Entry error: not idle task"),
-					    rcu_dynticks_nesting, newval));
-		ftrace_dump(DUMP_ALL);
-		WARN_ONCE(1, "Current pid: %d comm: %s / Idle pid: %d comm: %s",
-			  current->pid, current->comm,
-			  idle->pid, idle->comm); /* must be idle task! */
-	}
-	rcu_sched_qs(0); /* implies rcu_bh_qsctr_inc(0) */
-	barrier();
-	rcu_dynticks_nesting = newval;
-}
 
 /*
  * Enter idle, which is an extended quiescent state if we have fully
- * entered that mode (i.e., if the new value of dynticks_nesting is zero).
+ * entered that mode.
  */
 void rcu_idle_enter(void)
 {
-	unsigned long flags;
-	long long newval;
-
-	local_irq_save(flags);
-	WARN_ON_ONCE((rcu_dynticks_nesting & DYNTICK_TASK_NEST_MASK) == 0);
-	if ((rcu_dynticks_nesting & DYNTICK_TASK_NEST_MASK) ==
-	    DYNTICK_TASK_NEST_VALUE)
-		newval = 0;
-	else
-		newval = rcu_dynticks_nesting - DYNTICK_TASK_NEST_VALUE;
-	rcu_idle_enter_common(newval);
-	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(rcu_idle_enter);
 
@@ -107,55 +63,14 @@ EXPORT_SYMBOL_GPL(rcu_idle_enter);
  */
 void rcu_irq_exit(void)
 {
-	unsigned long flags;
-	long long newval;
-
-	local_irq_save(flags);
-	newval = rcu_dynticks_nesting - 1;
-	WARN_ON_ONCE(newval < 0);
-	rcu_idle_enter_common(newval);
-	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(rcu_irq_exit);
-
-/* Common code for rcu_idle_exit() and rcu_irq_enter(), see kernel/rcutree.c. */
-static void rcu_idle_exit_common(long long oldval)
-{
-	if (oldval) {
-		RCU_TRACE(trace_rcu_dyntick(TPS("++="),
-					    oldval, rcu_dynticks_nesting));
-		return;
-	}
-	RCU_TRACE(trace_rcu_dyntick(TPS("End"), oldval, rcu_dynticks_nesting));
-	if (!is_idle_task(current)) {
-		struct task_struct *idle __maybe_unused = idle_task(smp_processor_id());
-
-		RCU_TRACE(trace_rcu_dyntick(TPS("Exit error: not idle task"),
-			  oldval, rcu_dynticks_nesting));
-		ftrace_dump(DUMP_ALL);
-		WARN_ONCE(1, "Current pid: %d comm: %s / Idle pid: %d comm: %s",
-			  current->pid, current->comm,
-			  idle->pid, idle->comm); /* must be idle task! */
-	}
-}
 
 /*
  * Exit idle, so that we are no longer in an extended quiescent state.
  */
 void rcu_idle_exit(void)
 {
-	unsigned long flags;
-	long long oldval;
-
-	local_irq_save(flags);
-	oldval = rcu_dynticks_nesting;
-	WARN_ON_ONCE(rcu_dynticks_nesting < 0);
-	if (rcu_dynticks_nesting & DYNTICK_TASK_NEST_MASK)
-		rcu_dynticks_nesting += DYNTICK_TASK_NEST_VALUE;
-	else
-		rcu_dynticks_nesting = DYNTICK_TASK_EXIT_IDLE;
-	rcu_idle_exit_common(oldval);
-	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(rcu_idle_exit);
 
@@ -164,15 +79,6 @@ EXPORT_SYMBOL_GPL(rcu_idle_exit);
  */
 void rcu_irq_enter(void)
 {
-	unsigned long flags;
-	long long oldval;
-
-	local_irq_save(flags);
-	oldval = rcu_dynticks_nesting;
-	rcu_dynticks_nesting++;
-	WARN_ON_ONCE(rcu_dynticks_nesting == 0);
-	rcu_idle_exit_common(oldval);
-	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(rcu_irq_enter);
 
@@ -183,21 +89,11 @@ EXPORT_SYMBOL_GPL(rcu_irq_enter);
  */
 bool notrace __rcu_is_watching(void)
 {
-	return rcu_dynticks_nesting;
+	return true;
 }
 EXPORT_SYMBOL(__rcu_is_watching);
 
 #endif /* defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE) */
-
-/*
- * Test whether the current CPU was interrupted from idle.  Nested
- * interrupts don't count, we must be running at the first interrupt
- * level.
- */
-static int rcu_is_cpu_rrupt_from_idle(void)
-{
-	return rcu_dynticks_nesting <= 1;
-}
 
 /*
  * Helper function for rcu_sched_qs() and rcu_bh_qs().
@@ -207,8 +103,7 @@ static int rcu_is_cpu_rrupt_from_idle(void)
 static int rcu_qsctr_help(struct rcu_ctrlblk *rcp)
 {
 	RCU_TRACE(reset_cpu_stall_ticks(rcp));
-	if (rcp->rcucblist != NULL &&
-	    rcp->donetail != rcp->curtail) {
+	if (rcp->donetail != rcp->curtail) {
 		rcp->donetail = rcp->curtail;
 		return 1;
 	}
@@ -221,7 +116,7 @@ static int rcu_qsctr_help(struct rcu_ctrlblk *rcp)
  * are at it, given that any rcu quiescent state is also an rcu_bh
  * quiescent state.  Use "+" instead of "||" to defeat short circuiting.
  */
-void rcu_sched_qs(int cpu)
+void rcu_sched_qs(void)
 {
 	unsigned long flags;
 
@@ -235,7 +130,7 @@ void rcu_sched_qs(int cpu)
 /*
  * Record an rcu_bh quiescent state.
  */
-void rcu_bh_qs(int cpu)
+void rcu_bh_qs(void)
 {
 	unsigned long flags;
 
@@ -251,13 +146,15 @@ void rcu_bh_qs(int cpu)
  * be called from hardirq context.  It is normally called from the
  * scheduling-clock interrupt.
  */
-void rcu_check_callbacks(int cpu, int user)
+void rcu_check_callbacks(int user)
 {
 	RCU_TRACE(check_cpu_stalls());
-	if (user || rcu_is_cpu_rrupt_from_idle())
-		rcu_sched_qs(cpu);
+	if (user)
+		rcu_sched_qs();
 	else if (!in_softirq())
-		rcu_bh_qs(cpu);
+		rcu_bh_qs();
+	if (user)
+		rcu_note_voluntary_context_switch(current);
 }
 
 /*
@@ -270,17 +167,6 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 	struct rcu_head *next, *list;
 	unsigned long flags;
 	RCU_TRACE(int cb_count = 0);
-
-	/* If no RCU callbacks ready to invoke, just return. */
-	if (&rcp->rcucblist == rcp->donetail) {
-		RCU_TRACE(trace_rcu_batch_start(rcp->name, 0, 0, -1));
-		RCU_TRACE(trace_rcu_batch_end(rcp->name, 0,
-					      !!ACCESS_ONCE(rcp->rcucblist),
-					      need_resched(),
-					      is_idle_task(current),
-					      false));
-		return;
-	}
 
 	/* Move the ready-to-invoke callbacks to a local list. */
 	local_irq_save(flags);
@@ -359,6 +245,11 @@ static void __call_rcu(struct rcu_head *head,
 	rcp->curtail = &head->next;
 	RCU_TRACE(rcp->qlen++);
 	local_irq_restore(flags);
+
+	if (unlikely(is_idle_task(current))) {
+		/* force scheduling for rcu_sched_qs() */
+		resched_cpu(0);
+	}
 }
 
 /*
@@ -382,7 +273,11 @@ void call_rcu_bh(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
 }
 EXPORT_SYMBOL_GPL(call_rcu_bh);
 
-void rcu_init(void)
+void __init rcu_init(void)
 {
 	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
+	RCU_TRACE(reset_cpu_stall_ticks(&rcu_sched_ctrlblk));
+	RCU_TRACE(reset_cpu_stall_ticks(&rcu_bh_ctrlblk));
+
+	rcu_early_boot_tests();
 }

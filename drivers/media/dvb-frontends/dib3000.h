@@ -41,7 +41,7 @@ struct dib_fe_xfer_ops
 	int (*tuner_pass_ctrl)(struct dvb_frontend *fe, int onoff, u8 pll_ctrl);
 };
 
-#if IS_ENABLED(CONFIG_DVB_DIB3000MB)
+#if IS_REACHABLE(CONFIG_DVB_DIB3000MB)
 extern struct dvb_frontend* dib3000mb_attach(const struct dib3000_config* config,
 					     struct i2c_adapter* i2c, struct dib_fe_xfer_ops *xfer_ops);
 #else

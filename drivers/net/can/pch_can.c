@@ -194,7 +194,7 @@ static const struct can_bittiming_const pch_can_bittiming_const = {
 	.brp_inc = 1,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(pch_pci_tbl) = {
+static const struct pci_device_id pch_pci_tbl[] = {
 	{PCI_VENDOR_ID_INTEL, 0x8818, PCI_ANY_ID, PCI_ANY_ID,},
 	{0,}
 };
@@ -505,6 +505,7 @@ static void pch_can_error(struct net_device *ndev, u32 status)
 		pch_can_set_rx_all(priv, 0);
 		state = CAN_STATE_BUS_OFF;
 		cf->can_id |= CAN_ERR_BUSOFF;
+		priv->can.can_stats.bus_off++;
 		can_bus_off(ndev);
 	}
 
@@ -950,6 +951,7 @@ static const struct net_device_ops pch_can_netdev_ops = {
 	.ndo_open		= pch_can_open,
 	.ndo_stop		= pch_close,
 	.ndo_start_xmit		= pch_xmit,
+	.ndo_change_mtu		= can_change_mtu,
 };
 
 static void pch_can_remove(struct pci_dev *pdev)

@@ -28,6 +28,7 @@
 #include <linux/vmalloc.h>
 #include <linux/i2c.h>
 #include <linux/mtd/mtd.h>
+#include <net/busy_poll.h>
 
 #include "enum.h"
 #include "bitfield.h"
@@ -249,6 +250,8 @@ struct efx_tx_queue {
 	unsigned int tso_packets;
 	unsigned int pushes;
 	unsigned int pio_packets;
+	/* Statistics to supplement MAC stats */
+	unsigned long tx_packets;
 
 	/* Members shared between paths and sometimes updated */
 	unsigned int empty_read_count ____cacheline_aligned_in_smp;
@@ -358,6 +361,8 @@ struct efx_rx_queue {
 	unsigned int recycle_count;
 	struct timer_list slow_fill;
 	unsigned int slow_fill_count;
+	/* Statistics to supplement MAC stats */
+	unsigned long rx_packets;
 };
 
 enum efx_sync_events_state {
@@ -383,6 +388,8 @@ enum efx_sync_events_state {
  * @irq_moderation: IRQ moderation value (in hardware ticks)
  * @napi_dev: Net device used with NAPI
  * @napi_str: NAPI control structure
+ * @state: state for NAPI vs busy polling
+ * @state_lock: lock protecting @state
  * @eventq: Event queue buffer
  * @eventq_mask: Event queue pointer mask
  * @eventq_read_ptr: Event queue read pointer
@@ -420,6 +427,22 @@ struct efx_channel {
 	unsigned int irq_moderation;
 	struct net_device *napi_dev;
 	struct napi_struct napi_str;
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	unsigned int state;
+	spinlock_t state_lock;
+#define EFX_CHANNEL_STATE_IDLE		0
+#define EFX_CHANNEL_STATE_NAPI		(1 << 0)  /* NAPI owns this channel */
+#define EFX_CHANNEL_STATE_POLL		(1 << 1)  /* poll owns this channel */
+#define EFX_CHANNEL_STATE_DISABLED	(1 << 2)  /* channel is disabled */
+#define EFX_CHANNEL_STATE_NAPI_YIELD	(1 << 3)  /* NAPI yielded this channel */
+#define EFX_CHANNEL_STATE_POLL_YIELD	(1 << 4)  /* poll yielded this channel */
+#define EFX_CHANNEL_OWNED \
+	(EFX_CHANNEL_STATE_NAPI | EFX_CHANNEL_STATE_POLL)
+#define EFX_CHANNEL_LOCKED \
+	(EFX_CHANNEL_OWNED | EFX_CHANNEL_STATE_DISABLED)
+#define EFX_CHANNEL_USER_PEND \
+	(EFX_CHANNEL_STATE_POLL | EFX_CHANNEL_STATE_POLL_YIELD)
+#endif /* CONFIG_NET_RX_BUSY_POLL */
 	struct efx_special_buffer eventq;
 	unsigned int eventq_mask;
 	unsigned int eventq_read_ptr;
@@ -452,6 +475,135 @@ struct efx_channel {
 	u32 sync_timestamp_major;
 	u32 sync_timestamp_minor;
 };
+
+#ifdef CONFIG_NET_RX_BUSY_POLL
+static inline void efx_channel_init_lock(struct efx_channel *channel)
+{
+	spin_lock_init(&channel->state_lock);
+}
+
+/* Called from the device poll routine to get ownership of a channel. */
+static inline bool efx_channel_lock_napi(struct efx_channel *channel)
+{
+	bool rc = true;
+
+	spin_lock_bh(&channel->state_lock);
+	if (channel->state & EFX_CHANNEL_LOCKED) {
+		WARN_ON(channel->state & EFX_CHANNEL_STATE_NAPI);
+		channel->state |= EFX_CHANNEL_STATE_NAPI_YIELD;
+		rc = false;
+	} else {
+		/* we don't care if someone yielded */
+		channel->state = EFX_CHANNEL_STATE_NAPI;
+	}
+	spin_unlock_bh(&channel->state_lock);
+	return rc;
+}
+
+static inline void efx_channel_unlock_napi(struct efx_channel *channel)
+{
+	spin_lock_bh(&channel->state_lock);
+	WARN_ON(channel->state &
+		(EFX_CHANNEL_STATE_POLL | EFX_CHANNEL_STATE_NAPI_YIELD));
+
+	channel->state &= EFX_CHANNEL_STATE_DISABLED;
+	spin_unlock_bh(&channel->state_lock);
+}
+
+/* Called from efx_busy_poll(). */
+static inline bool efx_channel_lock_poll(struct efx_channel *channel)
+{
+	bool rc = true;
+
+	spin_lock_bh(&channel->state_lock);
+	if ((channel->state & EFX_CHANNEL_LOCKED)) {
+		channel->state |= EFX_CHANNEL_STATE_POLL_YIELD;
+		rc = false;
+	} else {
+		/* preserve yield marks */
+		channel->state |= EFX_CHANNEL_STATE_POLL;
+	}
+	spin_unlock_bh(&channel->state_lock);
+	return rc;
+}
+
+/* Returns true if NAPI tried to get the channel while it was locked. */
+static inline void efx_channel_unlock_poll(struct efx_channel *channel)
+{
+	spin_lock_bh(&channel->state_lock);
+	WARN_ON(channel->state & EFX_CHANNEL_STATE_NAPI);
+
+	/* will reset state to idle, unless channel is disabled */
+	channel->state &= EFX_CHANNEL_STATE_DISABLED;
+	spin_unlock_bh(&channel->state_lock);
+}
+
+/* True if a socket is polling, even if it did not get the lock. */
+static inline bool efx_channel_busy_polling(struct efx_channel *channel)
+{
+	WARN_ON(!(channel->state & EFX_CHANNEL_OWNED));
+	return channel->state & EFX_CHANNEL_USER_PEND;
+}
+
+static inline void efx_channel_enable(struct efx_channel *channel)
+{
+	spin_lock_bh(&channel->state_lock);
+	channel->state = EFX_CHANNEL_STATE_IDLE;
+	spin_unlock_bh(&channel->state_lock);
+}
+
+/* False if the channel is currently owned. */
+static inline bool efx_channel_disable(struct efx_channel *channel)
+{
+	bool rc = true;
+
+	spin_lock_bh(&channel->state_lock);
+	if (channel->state & EFX_CHANNEL_OWNED)
+		rc = false;
+	channel->state |= EFX_CHANNEL_STATE_DISABLED;
+	spin_unlock_bh(&channel->state_lock);
+
+	return rc;
+}
+
+#else /* CONFIG_NET_RX_BUSY_POLL */
+
+static inline void efx_channel_init_lock(struct efx_channel *channel)
+{
+}
+
+static inline bool efx_channel_lock_napi(struct efx_channel *channel)
+{
+	return true;
+}
+
+static inline void efx_channel_unlock_napi(struct efx_channel *channel)
+{
+}
+
+static inline bool efx_channel_lock_poll(struct efx_channel *channel)
+{
+	return false;
+}
+
+static inline void efx_channel_unlock_poll(struct efx_channel *channel)
+{
+}
+
+static inline bool efx_channel_busy_polling(struct efx_channel *channel)
+{
+	return false;
+}
+
+static inline void efx_channel_enable(struct efx_channel *channel)
+{
+}
+
+static inline bool efx_channel_disable(struct efx_channel *channel)
+{
+	return true;
+}
+#endif /* CONFIG_NET_RX_BUSY_POLL */
 
 /**
  * struct efx_msi_context - Context for each MSI
@@ -761,13 +913,6 @@ struct vfdi_status;
  * @vf_count: Number of VFs intended to be enabled.
  * @vf_init_count: Number of VFs that have been fully initialised.
  * @vi_scale: log2 number of vnics per VF.
- * @vf_buftbl_base: The zeroth buffer table index used to back VF queues.
- * @vfdi_status: Common VFDI status page to be dmad to VF address space.
- * @local_addr_list: List of local addresses. Protected by %local_lock.
- * @local_page_list: List of DMA addressable pages used to broadcast
- *	%local_addr_list. Protected by %local_lock.
- * @local_lock: Mutex protecting %local_addr_list and %local_page_list.
- * @peer_work: Work item to broadcast peer addresses to VMs.
  * @ptp_data: PTP state data
  * @vpd_sn: Serial number read from VPD
  * @monitor_work: Hardware monitor workitem
@@ -777,6 +922,7 @@ struct vfdi_status;
  *	interrupt has occurred.
  * @stats_lock: Statistics update lock. Must be held when calling
  *	efx_nic_type::{update,start,stop}_stats.
+ * @n_rx_noskb_drops: Count of RX packets dropped due to failure to allocate an skb
  *
  * This is stored in the private area of the &struct net_device.
  */
@@ -907,17 +1053,10 @@ struct efx_nic {
 	wait_queue_head_t flush_wq;
 
 #ifdef CONFIG_SFC_SRIOV
-	struct efx_channel *vfdi_channel;
 	struct efx_vf *vf;
 	unsigned vf_count;
 	unsigned vf_init_count;
 	unsigned vi_scale;
-	unsigned vf_buftbl_base;
-	struct efx_buffer vfdi_status;
-	struct list_head local_addr_list;
-	struct list_head local_page_list;
-	struct mutex local_lock;
-	struct work_struct peer_work;
 #endif
 
 	struct efx_ptp_data *ptp_data;
@@ -930,6 +1069,7 @@ struct efx_nic {
 	spinlock_t biu_lock;
 	int last_irq_cpu;
 	spinlock_t stats_lock;
+	atomic_t n_rx_noskb_drops;
 };
 
 static inline int efx_dev_registered(struct efx_nic *efx)
@@ -972,6 +1112,8 @@ struct efx_mtd_partition {
  *	(for Falcon architecture)
  * @finish_flush: Clean up after flushing the DMA queues (for Falcon
  *	architecture)
+ * @prepare_flr: Prepare for an FLR
+ * @finish_flr: Clean up after an FLR
  * @describe_stats: Describe statistics for ethtool
  * @update_stats: Update statistics not provided by event handling.
  *	Either argument may be %NULL.
@@ -1100,6 +1242,8 @@ struct efx_nic_type {
 	int (*fini_dmaq)(struct efx_nic *efx);
 	void (*prepare_flush)(struct efx_nic *efx);
 	void (*finish_flush)(struct efx_nic *efx);
+	void (*prepare_flr)(struct efx_nic *efx);
+	void (*finish_flr)(struct efx_nic *efx);
 	size_t (*describe_stats)(struct efx_nic *efx, u8 *names);
 	size_t (*update_stats)(struct efx_nic *efx, u64 *full_stats,
 			       struct rtnl_link_stats64 *core_stats);
@@ -1186,6 +1330,11 @@ struct efx_nic_type {
 	int (*ptp_set_ts_sync_events)(struct efx_nic *efx, bool en, bool temp);
 	int (*ptp_set_ts_config)(struct efx_nic *efx,
 				 struct hwtstamp_config *init);
+	int (*sriov_init)(struct efx_nic *efx);
+	void (*sriov_fini)(struct efx_nic *efx);
+	void (*sriov_mac_address_changed)(struct efx_nic *efx);
+	bool (*sriov_wanted)(struct efx_nic *efx);
+	void (*sriov_reset)(struct efx_nic *efx);
 
 	int revision;
 	unsigned int txd_ptr_tbl_base;
@@ -1322,7 +1471,6 @@ static inline struct efx_rx_buffer *efx_rx_buffer(struct efx_rx_queue *rx_queue,
 {
 	return &rx_queue->buffer[index];
 }
-
 
 /**
  * EFX_MAX_FRAME_LEN - calculate maximum frame length

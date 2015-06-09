@@ -81,7 +81,7 @@ int iwlagn_send_tx_power(struct iwl_priv *priv)
 	else
 		tx_ant_cfg_cmd = REPLY_TX_POWER_DBM_CMD;
 
-	return iwl_dvm_send_cmd_pdu(priv, tx_ant_cfg_cmd, CMD_SYNC,
+	return iwl_dvm_send_cmd_pdu(priv, tx_ant_cfg_cmd, 0,
 			sizeof(tx_power_cmd), &tx_power_cmd);
 }
 
@@ -137,38 +137,38 @@ int iwlagn_manage_ibss_station(struct iwl_priv *priv,
  */
 int iwlagn_txfifo_flush(struct iwl_priv *priv, u32 scd_q_msk)
 {
-	struct iwl_txfifo_flush_cmd flush_cmd;
-	struct iwl_host_cmd cmd = {
-		.id = REPLY_TXFIFO_FLUSH,
-		.len = { sizeof(struct iwl_txfifo_flush_cmd), },
-		.flags = CMD_SYNC,
-		.data = { &flush_cmd, },
+	struct iwl_txfifo_flush_cmd_v3 flush_cmd_v3 = {
+		.flush_control = cpu_to_le16(IWL_DROP_ALL),
+	};
+	struct iwl_txfifo_flush_cmd_v2 flush_cmd_v2 = {
+		.flush_control = cpu_to_le16(IWL_DROP_ALL),
 	};
 
-	memset(&flush_cmd, 0, sizeof(flush_cmd));
+	u32 queue_control = IWL_SCD_VO_MSK | IWL_SCD_VI_MSK |
+			    IWL_SCD_BE_MSK | IWL_SCD_BK_MSK | IWL_SCD_MGMT_MSK;
 
-	flush_cmd.queue_control = IWL_SCD_VO_MSK | IWL_SCD_VI_MSK |
-				  IWL_SCD_BE_MSK | IWL_SCD_BK_MSK |
-				  IWL_SCD_MGMT_MSK;
 	if ((priv->valid_contexts != BIT(IWL_RXON_CTX_BSS)))
-		flush_cmd.queue_control |= IWL_PAN_SCD_VO_MSK |
-					   IWL_PAN_SCD_VI_MSK |
-					   IWL_PAN_SCD_BE_MSK |
-					   IWL_PAN_SCD_BK_MSK |
-					   IWL_PAN_SCD_MGMT_MSK |
-					   IWL_PAN_SCD_MULTICAST_MSK;
+		queue_control |= IWL_PAN_SCD_VO_MSK | IWL_PAN_SCD_VI_MSK |
+				 IWL_PAN_SCD_BE_MSK | IWL_PAN_SCD_BK_MSK |
+				 IWL_PAN_SCD_MGMT_MSK |
+				 IWL_PAN_SCD_MULTICAST_MSK;
 
 	if (priv->nvm_data->sku_cap_11n_enable)
-		flush_cmd.queue_control |= IWL_AGG_TX_QUEUE_MSK;
+		queue_control |= IWL_AGG_TX_QUEUE_MSK;
 
 	if (scd_q_msk)
-		flush_cmd.queue_control = cpu_to_le32(scd_q_msk);
+		queue_control = scd_q_msk;
 
-	IWL_DEBUG_INFO(priv, "queue control: 0x%x\n",
-		       flush_cmd.queue_control);
-	flush_cmd.flush_control = cpu_to_le16(IWL_DROP_ALL);
+	IWL_DEBUG_INFO(priv, "queue control: 0x%x\n", queue_control);
+	flush_cmd_v3.queue_control = cpu_to_le32(queue_control);
+	flush_cmd_v2.queue_control = cpu_to_le16((u16)queue_control);
 
-	return iwl_dvm_send_cmd(priv, &cmd);
+	if (IWL_UCODE_API(priv->fw->ucode_ver) > 2)
+		return iwl_dvm_send_cmd_pdu(priv, REPLY_TXFIFO_FLUSH, 0,
+					    sizeof(flush_cmd_v3),
+					    &flush_cmd_v3);
+	return iwl_dvm_send_cmd_pdu(priv, REPLY_TXFIFO_FLUSH, 0,
+				    sizeof(flush_cmd_v2), &flush_cmd_v2);
 }
 
 void iwlagn_dev_txfifo_flush(struct iwl_priv *priv)
@@ -180,7 +180,7 @@ void iwlagn_dev_txfifo_flush(struct iwl_priv *priv)
 		goto done;
 	}
 	IWL_DEBUG_INFO(priv, "wait transmit/flush all frames\n");
-	iwl_trans_wait_tx_queue_empty(priv->trans);
+	iwl_trans_wait_tx_queue_empty(priv->trans, 0xffffffff);
 done:
 	ieee80211_wake_queues(priv->hw);
 	mutex_unlock(&priv->mutex);
@@ -333,12 +333,12 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 		memcpy(&bt_cmd_v2.basic, &basic,
 			sizeof(basic));
 		ret = iwl_dvm_send_cmd_pdu(priv, REPLY_BT_CONFIG,
-			CMD_SYNC, sizeof(bt_cmd_v2), &bt_cmd_v2);
+			0, sizeof(bt_cmd_v2), &bt_cmd_v2);
 	} else {
 		memcpy(&bt_cmd_v1.basic, &basic,
 			sizeof(basic));
 		ret = iwl_dvm_send_cmd_pdu(priv, REPLY_BT_CONFIG,
-			CMD_SYNC, sizeof(bt_cmd_v1), &bt_cmd_v1);
+			0, sizeof(bt_cmd_v1), &bt_cmd_v1);
 	}
 	if (ret)
 		IWL_ERR(priv, "failed to send BT Coex Config\n");
@@ -419,8 +419,8 @@ void iwlagn_bt_adjust_rssi_monitor(struct iwl_priv *priv, bool rssi_ena)
 
 static bool iwlagn_bt_traffic_is_sco(struct iwl_bt_uart_msg *uart_msg)
 {
-	return BT_UART_MSG_FRAME3SCOESCO_MSK & uart_msg->frame3 >>
-			BT_UART_MSG_FRAME3SCOESCO_POS;
+	return (BT_UART_MSG_FRAME3SCOESCO_MSK & uart_msg->frame3) >>
+		BT_UART_MSG_FRAME3SCOESCO_POS;
 }
 
 static void iwlagn_bt_traffic_change_work(struct work_struct *work)
@@ -1044,7 +1044,6 @@ int iwlagn_send_patterns(struct iwl_priv *priv,
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_WOWLAN_PATTERNS,
 		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
-		.flags = CMD_SYNC,
 	};
 	int i, err;
 
@@ -1201,7 +1200,6 @@ int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan)
 		if (key_data.use_rsc_tsc) {
 			struct iwl_host_cmd rsc_tsc_cmd = {
 				.id = REPLY_WOWLAN_TSC_RSC_PARAMS,
-				.flags = CMD_SYNC,
 				.data[0] = key_data.rsc_tsc,
 				.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
 				.len[0] = sizeof(*key_data.rsc_tsc),
@@ -1215,7 +1213,7 @@ int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan)
 		if (key_data.use_tkip) {
 			ret = iwl_dvm_send_cmd_pdu(priv,
 						 REPLY_WOWLAN_TKIP_PARAMS,
-						 CMD_SYNC, sizeof(tkip_cmd),
+						 0, sizeof(tkip_cmd),
 						 &tkip_cmd);
 			if (ret)
 				goto out;
@@ -1231,20 +1229,20 @@ int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan)
 
 			ret = iwl_dvm_send_cmd_pdu(priv,
 						 REPLY_WOWLAN_KEK_KCK_MATERIAL,
-						 CMD_SYNC, sizeof(kek_kck_cmd),
+						 0, sizeof(kek_kck_cmd),
 						 &kek_kck_cmd);
 			if (ret)
 				goto out;
 		}
 	}
 
-	ret = iwl_dvm_send_cmd_pdu(priv, REPLY_D3_CONFIG, CMD_SYNC,
+	ret = iwl_dvm_send_cmd_pdu(priv, REPLY_D3_CONFIG, 0,
 				     sizeof(d3_cfg_cmd), &d3_cfg_cmd);
 	if (ret)
 		goto out;
 
 	ret = iwl_dvm_send_cmd_pdu(priv, REPLY_WOWLAN_WAKEUP_FILTER,
-				 CMD_SYNC, sizeof(wakeup_filter_cmd),
+				 0, sizeof(wakeup_filter_cmd),
 				 &wakeup_filter_cmd);
 	if (ret)
 		goto out;

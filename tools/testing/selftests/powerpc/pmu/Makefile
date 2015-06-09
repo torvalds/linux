@@ -1,23 +1,42 @@
 noarg:
 	$(MAKE) -C ../
 
-PROGS := count_instructions
-EXTRA_SOURCES := ../harness.c event.c
+TEST_PROGS := count_instructions l3_bank_test per_event_excludes
+EXTRA_SOURCES := ../harness.c event.c lib.c
 
-all: $(PROGS)
+all: $(TEST_PROGS) ebb
 
-$(PROGS): $(EXTRA_SOURCES)
+$(TEST_PROGS): $(EXTRA_SOURCES)
 
 # loop.S can only be built 64-bit
 count_instructions: loop.S count_instructions.c $(EXTRA_SOURCES)
 	$(CC) $(CFLAGS) -m64 -o $@ $^
 
-run_tests: all
-	@-for PROG in $(PROGS); do \
-		./$$PROG; \
-	done;
+include ../../lib.mk
+
+DEFAULT_RUN_TESTS := $(RUN_TESTS)
+override define RUN_TESTS
+	$(DEFAULT_RUN_TESTS)
+	$(MAKE) -C ebb run_tests
+endef
+
+DEFAULT_EMIT_TESTS := $(EMIT_TESTS)
+override define EMIT_TESTS
+	$(DEFAULT_EMIT_TESTS)
+	$(MAKE) -s -C ebb emit_tests
+endef
+
+DEFAULT_INSTALL_RULE := $(INSTALL_RULE)
+override define INSTALL_RULE
+	$(DEFAULT_INSTALL_RULE)
+	$(MAKE) -C ebb install
+endef
 
 clean:
-	rm -f $(PROGS) loop.o
+	rm -f $(TEST_PROGS) loop.o
+	$(MAKE) -C ebb clean
 
-.PHONY: all run_tests clean
+ebb:
+	$(MAKE) -k -C $@ all
+
+.PHONY: all run_tests clean ebb

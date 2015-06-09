@@ -20,10 +20,10 @@
 extern void __iomem *at91_pmc_base;
 
 #define at91_pmc_read(field) \
-	__raw_readl(at91_pmc_base + field)
+	readl_relaxed(at91_pmc_base + field)
 
 #define at91_pmc_write(field, value) \
-	__raw_writel(value, at91_pmc_base + field)
+	writel_relaxed(value, at91_pmc_base + field)
 #else
 .extern at91_pmc_base
 #endif
@@ -125,6 +125,7 @@ extern void __iomem *at91_pmc_base;
 #define		AT91_PMC_PLLADIV2	(1 << 12)		/* PLLA divisor by 2 [some SAM9 only] */
 #define			AT91_PMC_PLLADIV2_OFF		(0 << 12)
 #define			AT91_PMC_PLLADIV2_ON		(1 << 12)
+#define		AT91_PMC_H32MXDIV	BIT(24)
 
 #define	AT91_PMC_USB		0x38			/* USB Clock Register [some SAM9 only] */
 #define		AT91_PMC_USBS		(0x1 <<  0)		/* USB OHCI Input clock selection */
@@ -155,6 +156,7 @@ extern void __iomem *at91_pmc_base;
 #define		AT91_PMC_LOCKB		(1 <<  2)		/* PLLB Lock */
 #define		AT91_PMC_MCKRDY		(1 <<  3)		/* Master Clock */
 #define		AT91_PMC_LOCKU		(1 <<  6)		/* UPLL Lock [some SAM9] */
+#define		AT91_PMC_OSCSEL		(1 <<  7)		/* Slow Oscillator Selection [some SAM9] */
 #define		AT91_PMC_PCK0RDY	(1 <<  8)		/* Programmable Clock 0 */
 #define		AT91_PMC_PCK1RDY	(1 <<  9)		/* Programmable Clock 1 */
 #define		AT91_PMC_PCK2RDY	(1 << 10)		/* Programmable Clock 2 */

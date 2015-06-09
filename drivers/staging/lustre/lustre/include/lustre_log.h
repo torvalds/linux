@@ -56,12 +56,9 @@
  * @{
  */
 
-#include <linux/lustre_log.h>
-
-#include <obd_class.h>
-#include <obd_ost.h>
-#include <lustre/lustre_idl.h>
-#include <dt_object.h>
+#include "obd_class.h"
+#include "lustre/lustre_idl.h"
+#include "dt_object.h"
 
 #define LOG_NAME_LIMIT(logname, name)		   \
 	snprintf(logname, sizeof(logname), "LOGS/%s", name)
@@ -206,21 +203,8 @@ int llog_setup(const struct lu_env *env, struct obd_device *obd,
 int __llog_ctxt_put(const struct lu_env *env, struct llog_ctxt *ctxt);
 int llog_cleanup(const struct lu_env *env, struct llog_ctxt *);
 int llog_sync(struct llog_ctxt *ctxt, struct obd_export *exp, int flags);
-int llog_obd_add(const struct lu_env *env, struct llog_ctxt *ctxt,
-		 struct llog_rec_hdr *rec, struct lov_stripe_md *lsm,
-		 struct llog_cookie *logcookies, int numcookies);
 int llog_cancel(const struct lu_env *env, struct llog_ctxt *ctxt,
-		struct lov_stripe_md *lsm, int count,
 		struct llog_cookie *cookies, int flags);
-
-int obd_llog_init(struct obd_device *obd, struct obd_llog_group *olg,
-		  struct obd_device *disk_obd, int *idx);
-
-int obd_llog_finish(struct obd_device *obd, int count);
-
-/* llog_ioctl.c */
-int llog_ioctl(const struct lu_env *env, struct llog_ctxt *ctxt, int cmd,
-	       struct obd_ioctl_data *data);
 
 /* llog_net.c */
 int llog_initiator_connect(struct llog_ctxt *ctxt);
@@ -242,7 +226,6 @@ struct llog_operations {
 			int flags);
 	int (*lop_cleanup)(const struct lu_env *env, struct llog_ctxt *ctxt);
 	int (*lop_cancel)(const struct lu_env *env, struct llog_ctxt *ctxt,
-			  struct lov_stripe_md *lsm, int count,
 			  struct llog_cookie *cookies, int flags);
 	int (*lop_connect)(struct llog_ctxt *ctxt, struct llog_logid *logid,
 			   struct llog_gen *gen, struct obd_uuid *uuid);
@@ -296,11 +279,6 @@ struct llog_operations {
 	int (*lop_add)(const struct lu_env *env, struct llog_handle *lgh,
 		       struct llog_rec_hdr *rec, struct llog_cookie *cookie,
 		       void *buf, struct thandle *th);
-	/* Old llog_add version, used in MDS-LOV-OSC now and will gone with
-	 * LOD/OSP replacement */
-	int (*lop_obd_add)(const struct lu_env *env, struct llog_ctxt *ctxt,
-			   struct llog_rec_hdr *rec, struct lov_stripe_md *lsm,
-			   struct llog_cookie *logcookies, int numcookies);
 };
 
 /* In-memory descriptor for a log object or log catalog */
@@ -324,18 +302,6 @@ struct llog_handle {
 	struct llog_operations	*lgh_logops;
 	atomic_t		 lgh_refcount;
 };
-
-/* llog_lvfs.c */
-extern struct llog_operations llog_lvfs_ops;
-
-/* llog_osd.c */
-extern struct llog_operations llog_osd_ops;
-int llog_osd_get_cat_list(const struct lu_env *env, struct dt_device *d,
-			  int idx, int count,
-			  struct llog_catid *idarray);
-int llog_osd_put_cat_list(const struct lu_env *env, struct dt_device *d,
-			  int idx, int count,
-			  struct llog_catid *idarray);
 
 #define LLOG_CTXT_FLAG_UNINITIALIZED     0x00000001
 #define LLOG_CTXT_FLAG_STOP		 0x00000002
@@ -471,7 +437,7 @@ static inline int llog_group_ctxt_null(struct obd_llog_group *olg, int index)
 
 static inline int llog_ctxt_null(struct obd_device *obd, int index)
 {
-	return (llog_group_ctxt_null(&obd->obd_olg, index));
+	return llog_group_ctxt_null(&obd->obd_olg, index);
 }
 
 static inline int llog_destroy(const struct lu_env *env,

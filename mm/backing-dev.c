@@ -14,19 +14,10 @@
 
 static atomic_long_t bdi_seq = ATOMIC_LONG_INIT(0);
 
-struct backing_dev_info default_backing_dev_info = {
-	.name		= "default",
-	.ra_pages	= VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE,
-	.state		= 0,
-	.capabilities	= BDI_CAP_MAP_COPY,
-};
-EXPORT_SYMBOL_GPL(default_backing_dev_info);
-
 struct backing_dev_info noop_backing_dev_info = {
 	.name		= "noop",
 	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
 };
-EXPORT_SYMBOL_GPL(noop_backing_dev_info);
 
 static struct class *bdi_class;
 
@@ -39,17 +30,6 @@ LIST_HEAD(bdi_list);
 
 /* bdi_wq serves all asynchronous writeback tasks */
 struct workqueue_struct *bdi_wq;
-
-void bdi_lock_two(struct bdi_writeback *wb1, struct bdi_writeback *wb2)
-{
-	if (wb1 < wb2) {
-		spin_lock(&wb1->list_lock);
-		spin_lock_nested(&wb2->list_lock, 1);
-	} else {
-		spin_lock(&wb2->list_lock);
-		spin_lock_nested(&wb1->list_lock, 1);
-	}
-}
 
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
@@ -69,10 +49,10 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
 	unsigned long background_thresh;
 	unsigned long dirty_thresh;
 	unsigned long bdi_thresh;
-	unsigned long nr_dirty, nr_io, nr_more_io;
+	unsigned long nr_dirty, nr_io, nr_more_io, nr_dirty_time;
 	struct inode *inode;
 
-	nr_dirty = nr_io = nr_more_io = 0;
+	nr_dirty = nr_io = nr_more_io = nr_dirty_time = 0;
 	spin_lock(&wb->list_lock);
 	list_for_each_entry(inode, &wb->b_dirty, i_wb_list)
 		nr_dirty++;
@@ -80,6 +60,9 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
 		nr_io++;
 	list_for_each_entry(inode, &wb->b_more_io, i_wb_list)
 		nr_more_io++;
+	list_for_each_entry(inode, &wb->b_dirty_time, i_wb_list)
+		if (inode->i_state & I_DIRTY_TIME)
+			nr_dirty_time++;
 	spin_unlock(&wb->list_lock);
 
 	global_dirty_limits(&background_thresh, &dirty_thresh);
@@ -98,6 +81,7 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
 		   "b_dirty:            %10lu\n"
 		   "b_io:               %10lu\n"
 		   "b_more_io:          %10lu\n"
+		   "b_dirty_time:       %10lu\n"
 		   "bdi_list:           %10u\n"
 		   "state:              %10lx\n",
 		   (unsigned long) K(bdi_stat(bdi, BDI_WRITEBACK)),
@@ -111,6 +95,7 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
 		   nr_dirty,
 		   nr_io,
 		   nr_more_io,
+		   nr_dirty_time,
 		   !list_empty(&bdi->bdi_list), bdi->state);
 #undef K
 
@@ -264,9 +249,6 @@ static int __init default_bdi_init(void)
 	if (!bdi_wq)
 		return -ENOMEM;
 
-	err = bdi_init(&default_backing_dev_info);
-	if (!err)
-		bdi_register(&default_backing_dev_info, NULL, "default");
 	err = bdi_init(&noop_backing_dev_info);
 
 	return err;
@@ -288,13 +270,19 @@ int bdi_has_dirty_io(struct backing_dev_info *bdi)
  * Note, we wouldn't bother setting up the timer, but this function is on the
  * fast-path (used by '__mark_inode_dirty()'), so we save few context switches
  * by delaying the wake-up.
+ *
+ * We have to be careful not to postpone flush work if it is scheduled for
+ * earlier. Thus we use queue_delayed_work().
  */
 void bdi_wakeup_thread_delayed(struct backing_dev_info *bdi)
 {
 	unsigned long timeout;
 
 	timeout = msecs_to_jiffies(dirty_writeback_interval * 10);
-	mod_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
+	spin_lock_bh(&bdi->wb_lock);
+	if (test_bit(BDI_registered, &bdi->state))
+		queue_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
+	spin_unlock_bh(&bdi->wb_lock);
 }
 
 /*
@@ -307,9 +295,6 @@ static void bdi_remove_from_list(struct backing_dev_info *bdi)
 	spin_unlock_bh(&bdi_lock);
 
 	synchronize_rcu_expedited();
-
-	/* bdi_list is now unused, clear it to mark @bdi dying */
-	INIT_LIST_HEAD(&bdi->bdi_list);
 }
 
 int bdi_register(struct backing_dev_info *bdi, struct device *parent,
@@ -352,8 +337,13 @@ EXPORT_SYMBOL(bdi_register_dev);
  */
 static void bdi_wb_shutdown(struct backing_dev_info *bdi)
 {
-	if (!bdi_cap_writeback_dirty(bdi))
+	/* Make sure nobody queues further work */
+	spin_lock_bh(&bdi->wb_lock);
+	if (!test_and_clear_bit(BDI_registered, &bdi->state)) {
+		spin_unlock_bh(&bdi->wb_lock);
 		return;
+	}
+	spin_unlock_bh(&bdi->wb_lock);
 
 	/*
 	 * Make sure nobody finds us on the bdi_list anymore
@@ -367,51 +357,7 @@ static void bdi_wb_shutdown(struct backing_dev_info *bdi)
 	 */
 	mod_delayed_work(bdi_wq, &bdi->wb.dwork, 0);
 	flush_delayed_work(&bdi->wb.dwork);
-	WARN_ON(!list_empty(&bdi->work_list));
-
-	/*
-	 * This shouldn't be necessary unless @bdi for some reason has
-	 * unflushed dirty IO after work_list is drained.  Do it anyway
-	 * just in case.
-	 */
-	cancel_delayed_work_sync(&bdi->wb.dwork);
 }
-
-/*
- * This bdi is going away now, make sure that no super_blocks point to it
- */
-static void bdi_prune_sb(struct backing_dev_info *bdi)
-{
-	struct super_block *sb;
-
-	spin_lock(&sb_lock);
-	list_for_each_entry(sb, &super_blocks, s_list) {
-		if (sb->s_bdi == bdi)
-			sb->s_bdi = &default_backing_dev_info;
-	}
-	spin_unlock(&sb_lock);
-}
-
-void bdi_unregister(struct backing_dev_info *bdi)
-{
-	struct device *dev = bdi->dev;
-
-	if (dev) {
-		bdi_set_min_ratio(bdi, 0);
-		trace_writeback_bdi_unregister(bdi);
-		bdi_prune_sb(bdi);
-
-		bdi_wb_shutdown(bdi);
-		bdi_debug_unregister(bdi);
-
-		spin_lock_bh(&bdi->wb_lock);
-		bdi->dev = NULL;
-		spin_unlock_bh(&bdi->wb_lock);
-
-		device_unregister(dev);
-	}
-}
-EXPORT_SYMBOL(bdi_unregister);
 
 static void bdi_wb_init(struct bdi_writeback *wb, struct backing_dev_info *bdi)
 {
@@ -422,6 +368,7 @@ static void bdi_wb_init(struct bdi_writeback *wb, struct backing_dev_info *bdi)
 	INIT_LIST_HEAD(&wb->b_dirty);
 	INIT_LIST_HEAD(&wb->b_io);
 	INIT_LIST_HEAD(&wb->b_more_io);
+	INIT_LIST_HEAD(&wb->b_dirty_time);
 	spin_lock_init(&wb->list_lock);
 	INIT_DELAYED_WORK(&wb->dwork, bdi_writeback_workfn);
 }
@@ -447,7 +394,7 @@ int bdi_init(struct backing_dev_info *bdi)
 	bdi_wb_init(&bdi->wb, bdi);
 
 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++) {
-		err = percpu_counter_init(&bdi->bdi_stat[i], 0);
+		err = percpu_counter_init(&bdi->bdi_stat[i], 0, GFP_KERNEL);
 		if (err)
 			goto err;
 	}
@@ -462,7 +409,7 @@ int bdi_init(struct backing_dev_info *bdi)
 	bdi->write_bandwidth = INIT_BW;
 	bdi->avg_write_bandwidth = INIT_BW;
 
-	err = fprop_local_init_percpu(&bdi->completions);
+	err = fprop_local_init_percpu(&bdi->completions, GFP_KERNEL);
 
 	if (err) {
 err:
@@ -478,33 +425,20 @@ void bdi_destroy(struct backing_dev_info *bdi)
 {
 	int i;
 
-	/*
-	 * Splice our entries to the default_backing_dev_info, if this
-	 * bdi disappears
-	 */
-	if (bdi_has_dirty_io(bdi)) {
-		struct bdi_writeback *dst = &default_backing_dev_info.wb;
+	bdi_wb_shutdown(bdi);
+	bdi_set_min_ratio(bdi, 0);
 
-		bdi_lock_two(&bdi->wb, dst);
-		list_splice(&bdi->wb.b_dirty, &dst->b_dirty);
-		list_splice(&bdi->wb.b_io, &dst->b_io);
-		list_splice(&bdi->wb.b_more_io, &dst->b_more_io);
-		spin_unlock(&bdi->wb.list_lock);
-		spin_unlock(&dst->list_lock);
+	WARN_ON(!list_empty(&bdi->work_list));
+	WARN_ON(delayed_work_pending(&bdi->wb.dwork));
+
+	if (bdi->dev) {
+		bdi_debug_unregister(bdi);
+		device_unregister(bdi->dev);
+		bdi->dev = NULL;
 	}
-
-	bdi_unregister(bdi);
-
-	/*
-	 * If bdi_unregister() had already been called earlier, the dwork
-	 * could still be pending because bdi_prune_sb() can race with the
-	 * bdi_wakeup_thread_delayed() calls from __mark_inode_dirty().
-	 */
-	cancel_delayed_work_sync(&bdi->wb.dwork);
 
 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
 		percpu_counter_destroy(&bdi->bdi_stat[i]);
-
 	fprop_local_destroy_percpu(&bdi->completions);
 }
 EXPORT_SYMBOL(bdi_destroy);
@@ -513,13 +447,12 @@ EXPORT_SYMBOL(bdi_destroy);
  * For use from filesystems to quickly init and register a bdi associated
  * with dirty writeback
  */
-int bdi_setup_and_register(struct backing_dev_info *bdi, char *name,
-			   unsigned int cap)
+int bdi_setup_and_register(struct backing_dev_info *bdi, char *name)
 {
 	int err;
 
 	bdi->name = name;
-	bdi->capabilities = cap;
+	bdi->capabilities = 0;
 	err = bdi_init(bdi);
 	if (err)
 		return err;
@@ -549,7 +482,7 @@ void clear_bdi_congested(struct backing_dev_info *bdi, int sync)
 	bit = sync ? BDI_sync_congested : BDI_async_congested;
 	if (test_and_clear_bit(bit, &bdi->state))
 		atomic_dec(&nr_bdi_congested[sync]);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	if (waitqueue_active(wqh))
 		wake_up(wqh);
 }
@@ -623,7 +556,7 @@ long wait_iff_congested(struct zone *zone, int sync, long timeout)
 	 * of sleeping on the congestion queue
 	 */
 	if (atomic_read(&nr_bdi_congested[sync]) == 0 ||
-			!zone_is_reclaim_congested(zone)) {
+	    !test_bit(ZONE_CONGESTED, &zone->flags)) {
 		cond_resched();
 
 		/* In case we scheduled, work out time remaining */

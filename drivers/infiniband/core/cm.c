@@ -349,23 +349,6 @@ static void cm_init_av_for_response(struct cm_port *port, struct ib_wc *wc,
 			   grh, &av->ah_attr);
 }
 
-int ib_update_cm_av(struct ib_cm_id *id, const u8 *smac, const u8 *alt_smac)
-{
-	struct cm_id_private *cm_id_priv;
-
-	cm_id_priv = container_of(id, struct cm_id_private, id);
-
-	if (smac != NULL)
-		memcpy(cm_id_priv->av.smac, smac, sizeof(cm_id_priv->av.smac));
-
-	if (alt_smac != NULL)
-		memcpy(cm_id_priv->alt_av.smac, alt_smac,
-		       sizeof(cm_id_priv->alt_av.smac));
-
-	return 0;
-}
-EXPORT_SYMBOL(ib_update_cm_av);
-
 static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av)
 {
 	struct cm_device *cm_dev;
@@ -454,39 +437,38 @@ static struct cm_id_private * cm_acquire_id(__be32 local_id, __be32 remote_id)
 	return cm_id_priv;
 }
 
-static void cm_mask_copy(u8 *dst, u8 *src, u8 *mask)
+static void cm_mask_copy(u32 *dst, const u32 *src, const u32 *mask)
 {
 	int i;
 
-	for (i = 0; i < IB_CM_COMPARE_SIZE / sizeof(unsigned long); i++)
-		((unsigned long *) dst)[i] = ((unsigned long *) src)[i] &
-					     ((unsigned long *) mask)[i];
+	for (i = 0; i < IB_CM_COMPARE_SIZE; i++)
+		dst[i] = src[i] & mask[i];
 }
 
 static int cm_compare_data(struct ib_cm_compare_data *src_data,
 			   struct ib_cm_compare_data *dst_data)
 {
-	u8 src[IB_CM_COMPARE_SIZE];
-	u8 dst[IB_CM_COMPARE_SIZE];
+	u32 src[IB_CM_COMPARE_SIZE];
+	u32 dst[IB_CM_COMPARE_SIZE];
 
 	if (!src_data || !dst_data)
 		return 0;
 
 	cm_mask_copy(src, src_data->data, dst_data->mask);
 	cm_mask_copy(dst, dst_data->data, src_data->mask);
-	return memcmp(src, dst, IB_CM_COMPARE_SIZE);
+	return memcmp(src, dst, sizeof(src));
 }
 
-static int cm_compare_private_data(u8 *private_data,
+static int cm_compare_private_data(u32 *private_data,
 				   struct ib_cm_compare_data *dst_data)
 {
-	u8 src[IB_CM_COMPARE_SIZE];
+	u32 src[IB_CM_COMPARE_SIZE];
 
 	if (!dst_data)
 		return 0;
 
 	cm_mask_copy(src, private_data, dst_data->mask);
-	return memcmp(src, dst_data->data, IB_CM_COMPARE_SIZE);
+	return memcmp(src, dst_data->data, sizeof(src));
 }
 
 /*
@@ -555,7 +537,7 @@ static struct cm_id_private * cm_insert_listen(struct cm_id_private *cm_id_priv)
 
 static struct cm_id_private * cm_find_listen(struct ib_device *device,
 					     __be64 service_id,
-					     u8 *private_data)
+					     u32 *private_data)
 {
 	struct rb_node *node = cm.listen_service_table.rb_node;
 	struct cm_id_private *cm_id_priv;
@@ -879,6 +861,7 @@ retest:
 		cm_reject_sidr_req(cm_id_priv, IB_SIDR_REJECT);
 		break;
 	case IB_CM_REQ_SENT:
+	case IB_CM_MRA_REQ_RCVD:
 		ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
 		spin_unlock_irq(&cm_id_priv->lock);
 		ib_send_cm_rej(cm_id, IB_CM_REJ_TIMEOUT,
@@ -897,7 +880,6 @@ retest:
 				       NULL, 0, NULL, 0);
 		}
 		break;
-	case IB_CM_MRA_REQ_RCVD:
 	case IB_CM_REP_SENT:
 	case IB_CM_MRA_REP_RCVD:
 		ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
@@ -970,7 +952,7 @@ int ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id, __be64 service_mask,
 		cm_mask_copy(cm_id_priv->compare_data->data,
 			     compare_data->data, compare_data->mask);
 		memcpy(cm_id_priv->compare_data->mask, compare_data->mask,
-		       IB_CM_COMPARE_SIZE);
+		       sizeof(compare_data->mask));
 	}
 
 	cm_id->state = IB_CM_LISTEN;
@@ -3770,7 +3752,7 @@ static void cm_add_one(struct ib_device *ib_device)
 	struct cm_port *port;
 	struct ib_mad_reg_req reg_req = {
 		.mgmt_class = IB_MGMT_CLASS_CM,
-		.mgmt_class_version = IB_CM_CLASS_VERSION
+		.mgmt_class_version = IB_CM_CLASS_VERSION,
 	};
 	struct ib_port_modify port_modify = {
 		.set_port_cap_mask = IB_PORT_CM_SUP
@@ -3818,7 +3800,8 @@ static void cm_add_one(struct ib_device *ib_device)
 							0,
 							cm_send_handler,
 							cm_recv_handler,
-							port);
+							port,
+							0);
 		if (IS_ERR(port->mad_agent))
 			goto error2;
 

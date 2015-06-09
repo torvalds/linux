@@ -82,9 +82,18 @@ static int sg_set_timeout(struct request_queue *q, int __user *p)
 	return err;
 }
 
+static int max_sectors_bytes(struct request_queue *q)
+{
+	unsigned int max_sectors = queue_max_sectors(q);
+
+	max_sectors = min_t(unsigned int, max_sectors, INT_MAX >> 9);
+
+	return max_sectors << 9;
+}
+
 static int sg_get_reserved_size(struct request_queue *q, int __user *p)
 {
-	unsigned val = min(q->sg_reserved_size, queue_max_sectors(q) << 9);
+	int val = min_t(int, q->sg_reserved_size, max_sectors_bytes(q));
 
 	return put_user(val, p);
 }
@@ -98,10 +107,8 @@ static int sg_set_reserved_size(struct request_queue *q, int __user *p)
 
 	if (size < 0)
 		return -EINVAL;
-	if (size > (queue_max_sectors(q) << 9))
-		size = queue_max_sectors(q) << 9;
 
-	q->sg_reserved_size = size;
+	q->sg_reserved_size = min(size, max_sectors_bytes(q));
 	return 0;
 }
 
@@ -135,7 +142,7 @@ static void blk_set_cmd_filter_defaults(struct blk_cmd_filter *filter)
 	__set_bit(GPCMD_VERIFY_10, filter->read_ok);
 	__set_bit(VERIFY_16, filter->read_ok);
 	__set_bit(REPORT_LUNS, filter->read_ok);
-	__set_bit(SERVICE_ACTION_IN, filter->read_ok);
+	__set_bit(SERVICE_ACTION_IN_16, filter->read_ok);
 	__set_bit(RECEIVE_DIAGNOSTIC, filter->read_ok);
 	__set_bit(MAINTENANCE_IN, filter->read_ok);
 	__set_bit(GPCMD_READ_BUFFER_CAPACITY, filter->read_ok);
@@ -205,10 +212,6 @@ int blk_verify_command(unsigned char *cmd, fmode_t has_write_perm)
 	if (capable(CAP_SYS_RAWIO))
 		return 0;
 
-	/* if there's no filter set, assume we're filtering everything out */
-	if (!filter)
-		return -EPERM;
-
 	/* Anybody who can open the device can do a read-safe command */
 	if (test_bit(cmd[0], filter->read_ok))
 		return 0;
@@ -233,7 +236,6 @@ static int blk_fill_sghdr_rq(struct request_queue *q, struct request *rq,
 	 * fill in request structure
 	 */
 	rq->cmd_len = hdr->cmd_len;
-	rq->cmd_type = REQ_TYPE_BLOCK_PC;
 
 	rq->timeout = msecs_to_jiffies(hdr->timeout);
 	if (!rq->timeout)
@@ -277,7 +279,6 @@ static int blk_complete_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr,
 	r = blk_rq_unmap_user(bio);
 	if (!ret)
 		ret = r;
-	blk_put_request(rq);
 
 	return ret;
 }
@@ -288,13 +289,12 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 	unsigned long start_time;
 	ssize_t ret = 0;
 	int writing = 0;
+	int at_head = 0;
 	struct request *rq;
 	char sense[SCSI_SENSE_BUFFERSIZE];
 	struct bio *bio;
 
 	if (hdr->interface_id != 'S')
-		return -EINVAL;
-	if (hdr->cmd_len > BLK_MAX_CDB)
 		return -EINVAL;
 
 	if (hdr->dxfer_len > (queue_max_hw_sectors(q) << 9))
@@ -311,48 +311,47 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 		case SG_DXFER_FROM_DEV:
 			break;
 		}
+	if (hdr->flags & SG_FLAG_Q_AT_HEAD)
+		at_head = 1;
 
+	ret = -ENOMEM;
 	rq = blk_get_request(q, writing ? WRITE : READ, GFP_KERNEL);
-	if (!rq)
-		return -ENOMEM;
+	if (IS_ERR(rq))
+		return PTR_ERR(rq);
+	blk_rq_set_block_pc(rq);
 
-	if (blk_fill_sghdr_rq(q, rq, hdr, mode)) {
-		blk_put_request(rq);
-		return -EFAULT;
+	if (hdr->cmd_len > BLK_MAX_CDB) {
+		rq->cmd = kzalloc(hdr->cmd_len, GFP_KERNEL);
+		if (!rq->cmd)
+			goto out_put_request;
 	}
 
+	ret = -EFAULT;
+	if (blk_fill_sghdr_rq(q, rq, hdr, mode))
+		goto out_free_cdb;
+
+	ret = 0;
 	if (hdr->iovec_count) {
-		size_t iov_data_len;
+		struct iov_iter i;
 		struct iovec *iov = NULL;
 
-		ret = rw_copy_check_uvector(-1, hdr->dxferp, hdr->iovec_count,
-					    0, NULL, &iov);
-		if (ret < 0) {
-			kfree(iov);
-			goto out;
-		}
-
-		iov_data_len = ret;
-		ret = 0;
+		ret = import_iovec(rq_data_dir(rq),
+				   hdr->dxferp, hdr->iovec_count,
+				   0, &iov, &i);
+		if (ret < 0)
+			goto out_free_cdb;
 
 		/* SG_IO howto says that the shorter of the two wins */
-		if (hdr->dxfer_len < iov_data_len) {
-			hdr->iovec_count = iov_shorten(iov,
-						       hdr->iovec_count,
-						       hdr->dxfer_len);
-			iov_data_len = hdr->dxfer_len;
-		}
+		iov_iter_truncate(&i, hdr->dxfer_len);
 
-		ret = blk_rq_map_user_iov(q, rq, NULL, (struct sg_iovec *) iov,
-					  hdr->iovec_count,
-					  iov_data_len, GFP_KERNEL);
+		ret = blk_rq_map_user_iov(q, rq, NULL, &i, GFP_KERNEL);
 		kfree(iov);
 	} else if (hdr->dxfer_len)
 		ret = blk_rq_map_user(q, rq, NULL, hdr->dxferp, hdr->dxfer_len,
 				      GFP_KERNEL);
 
 	if (ret)
-		goto out;
+		goto out_free_cdb;
 
 	bio = rq->bio;
 	memset(sense, 0, sizeof(sense));
@@ -366,12 +365,16 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 	 * (if he doesn't check that is his problem).
 	 * N.B. a non-zero SCSI status is _not_ necessarily an error.
 	 */
-	blk_execute_rq(q, bd_disk, rq, 0);
+	blk_execute_rq(q, bd_disk, rq, at_head);
 
 	hdr->duration = jiffies_to_msecs(jiffies - start_time);
 
-	return blk_complete_sghdr_rq(rq, hdr, bio);
-out:
+	ret = blk_complete_sghdr_rq(rq, hdr, bio);
+
+out_free_cdb:
+	if (rq->cmd != rq->__cmd)
+		kfree(rq->cmd);
+out_put_request:
 	blk_put_request(rq);
 	return ret;
 }
@@ -442,6 +445,11 @@ int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
 	}
 
 	rq = blk_get_request(q, in_len ? WRITE : READ, __GFP_WAIT);
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		goto error_free_buffer;
+	}
+	blk_rq_set_block_pc(rq);
 
 	cmdlen = COMMAND_SIZE(opcode);
 
@@ -489,17 +497,15 @@ int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
 
 	if (bytes && blk_rq_map_kern(q, rq, buffer, bytes, __GFP_WAIT)) {
 		err = DRIVER_ERROR << 24;
-		goto out;
+		goto error;
 	}
 
 	memset(sense, 0, sizeof(sense));
 	rq->sense = sense;
 	rq->sense_len = 0;
-	rq->cmd_type = REQ_TYPE_BLOCK_PC;
 
 	blk_execute_rq(q, disk, rq, 0);
 
-out:
 	err = rq->errors & 0xff;	/* only 8 bit SCSI status */
 	if (err) {
 		if (rq->sense_len && rq->sense) {
@@ -514,8 +520,11 @@ out:
 	}
 	
 error:
-	kfree(buffer);
 	blk_put_request(rq);
+
+error_free_buffer:
+	kfree(buffer);
+
 	return err;
 }
 EXPORT_SYMBOL_GPL(sg_scsi_ioctl);
@@ -528,7 +537,9 @@ static int __blk_send_generic(struct request_queue *q, struct gendisk *bd_disk,
 	int err;
 
 	rq = blk_get_request(q, WRITE, __GFP_WAIT);
-	rq->cmd_type = REQ_TYPE_BLOCK_PC;
+	if (IS_ERR(rq))
+		return PTR_ERR(rq);
+	blk_rq_set_block_pc(rq);
 	rq->timeout = BLK_DEFAULT_SG_TIMEOUT;
 	rq->cmd[0] = cmd;
 	rq->cmd[4] = data;

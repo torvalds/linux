@@ -152,7 +152,7 @@ static int lbtf_setup_firmware(struct lbtf_private *priv)
 	/*
 	 * Read priv address from HW
 	 */
-	memset(priv->current_addr, 0xff, ETH_ALEN);
+	eth_broadcast_addr(priv->current_addr);
 	ret = lbtf_update_hw_spec(priv);
 	if (ret) {
 		ret = -1;
@@ -199,7 +199,7 @@ out:
 static int lbtf_init_adapter(struct lbtf_private *priv)
 {
 	lbtf_deb_enter(LBTF_DEB_MAIN);
-	memset(priv->current_addr, 0xff, ETH_ALEN);
+	eth_broadcast_addr(priv->current_addr);
 	mutex_init(&priv->lock);
 
 	priv->vif = NULL;
@@ -332,7 +332,7 @@ static int lbtf_op_start(struct ieee80211_hw *hw)
 
 err_prog_firmware:
 	priv->hw_reset_device(card);
-	lbtf_deb_leave_args(LBTF_DEB_MACOPS, "error programing fw; ret=%d", ret);
+	lbtf_deb_leave_args(LBTF_DEB_MACOPS, "error programming fw; ret=%d", ret);
 	return ret;
 }
 

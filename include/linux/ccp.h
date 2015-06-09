@@ -27,6 +27,13 @@ struct ccp_cmd;
 	defined(CONFIG_CRYPTO_DEV_CCP_DD_MODULE)
 
 /**
+ * ccp_present - check if a CCP device is present
+ *
+ * Returns zero if a CCP device is present, -ENODEV otherwise.
+ */
+int ccp_present(void);
+
+/**
  * ccp_enqueue_cmd - queue an operation for processing by the CCP
  *
  * @cmd: ccp_cmd struct to be processed
@@ -52,6 +59,11 @@ struct ccp_cmd;
 int ccp_enqueue_cmd(struct ccp_cmd *cmd);
 
 #else /* CONFIG_CRYPTO_DEV_CCP_DD is not enabled */
+
+static inline int ccp_present(void)
+{
+	return -ENODEV;
+}
 
 static inline int ccp_enqueue_cmd(struct ccp_cmd *cmd)
 {
@@ -232,6 +244,9 @@ enum ccp_sha_type {
  * @ctx_len: length in bytes of hash value
  * @src: data to be used for this operation
  * @src_len: length in bytes of data used for this operation
+ * @opad: data to be used for final HMAC operation
+ * @opad_len: length in bytes of data used for final HMAC operation
+ * @first: indicates first SHA operation
  * @final: indicates final SHA operation
  * @msg_bits: total length of the message in bits used in final SHA operation
  *
@@ -251,6 +266,10 @@ struct ccp_sha_engine {
 	struct scatterlist *src;
 	u64 src_len;		/* In bytes */
 
+	struct scatterlist *opad;
+	u32 opad_len;		/* In bytes */
+
+	u32 first;		/* Indicates first sha cmd */
 	u32 final;		/* Indicates final sha cmd */
 	u64 msg_bits;		/* Message length in bits required for
 				 * final sha cmd */

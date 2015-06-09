@@ -32,6 +32,10 @@ static int dump_coef = -1;
 module_param(dump_coef, int, 0644);
 MODULE_PARM_DESC(dump_coef, "Dump processing coefficients in codec proc file (-1=auto, 0=disable, 1=enable)");
 
+/* always use noncached version */
+#define param_read(codec, nid, parm) \
+	snd_hdac_read_parm_uncached(&(codec)->core, nid, parm)
+
 static char *bits_names(unsigned int bits, char *names[], int size)
 {
 	int i, n;
@@ -99,10 +103,10 @@ static void print_nid_array(struct snd_info_buffer *buffer,
 static void print_nid_pcms(struct snd_info_buffer *buffer,
 			   struct hda_codec *codec, hda_nid_t nid)
 {
-	int pcm, type;
+	int type;
 	struct hda_pcm *cpcm;
-	for (pcm = 0; pcm < codec->num_pcms; pcm++) {
-		cpcm = &codec->pcm_info[pcm];
+
+	list_for_each_entry(cpcm, &codec->pcm_list_head, list) {
 		for (type = 0; type < 2; type++) {
 			if (cpcm->stream[type].nid != nid || cpcm->pcm == NULL)
 				continue;
@@ -119,9 +123,8 @@ static void print_amp_caps(struct snd_info_buffer *buffer,
 			   struct hda_codec *codec, hda_nid_t nid, int dir)
 {
 	unsigned int caps;
-	caps = snd_hda_param_read(codec, nid,
-				  dir == HDA_OUTPUT ?
-				    AC_PAR_AMP_OUT_CAP : AC_PAR_AMP_IN_CAP);
+	caps = param_read(codec, nid, dir == HDA_OUTPUT ?
+			  AC_PAR_AMP_OUT_CAP : AC_PAR_AMP_IN_CAP);
 	if (caps == -1 || caps == 0) {
 		snd_iprintf(buffer, "N/A\n");
 		return;
@@ -134,12 +137,37 @@ static void print_amp_caps(struct snd_info_buffer *buffer,
 		    (caps & AC_AMPCAP_MUTE) >> AC_AMPCAP_MUTE_SHIFT);
 }
 
+/* is this a stereo widget or a stereo-to-mono mix? */
+static bool is_stereo_amps(struct hda_codec *codec, hda_nid_t nid,
+			   int dir, unsigned int wcaps, int indices)
+{
+	hda_nid_t conn;
+
+	if (wcaps & AC_WCAP_STEREO)
+		return true;
+	/* check for a stereo-to-mono mix; it must be:
+	 * only a single connection, only for input, and only a mixer widget
+	 */
+	if (indices != 1 || dir != HDA_INPUT ||
+	    get_wcaps_type(wcaps) != AC_WID_AUD_MIX)
+		return false;
+
+	if (snd_hda_get_raw_connections(codec, nid, &conn, 1) < 0)
+		return false;
+	/* the connection source is a stereo? */
+	wcaps = snd_hda_param_read(codec, conn, AC_PAR_AUDIO_WIDGET_CAP);
+	return !!(wcaps & AC_WCAP_STEREO);
+}
+
 static void print_amp_vals(struct snd_info_buffer *buffer,
 			   struct hda_codec *codec, hda_nid_t nid,
-			   int dir, int stereo, int indices)
+			   int dir, unsigned int wcaps, int indices)
 {
 	unsigned int val;
+	bool stereo;
 	int i;
+
+	stereo = is_stereo_amps(codec, nid, dir, wcaps, indices);
 
 	dir = dir == HDA_OUTPUT ? AC_AMP_GET_OUTPUT : AC_AMP_GET_INPUT;
 	for (i = 0; i < indices; i++) {
@@ -200,8 +228,8 @@ static void print_pcm_formats(struct snd_info_buffer *buffer,
 static void print_pcm_caps(struct snd_info_buffer *buffer,
 			   struct hda_codec *codec, hda_nid_t nid)
 {
-	unsigned int pcm = snd_hda_param_read(codec, nid, AC_PAR_PCM);
-	unsigned int stream = snd_hda_param_read(codec, nid, AC_PAR_STREAM);
+	unsigned int pcm = param_read(codec, nid, AC_PAR_PCM);
+	unsigned int stream = param_read(codec, nid, AC_PAR_STREAM);
 	if (pcm == -1 || stream == -1) {
 		snd_iprintf(buffer, "N/A\n");
 		return;
@@ -248,7 +276,7 @@ static void print_pin_caps(struct snd_info_buffer *buffer,
 	static char *jack_conns[4] = { "Jack", "N/A", "Fixed", "Both" };
 	unsigned int caps, val;
 
-	caps = snd_hda_param_read(codec, nid, AC_PAR_PIN_CAP);
+	caps = param_read(codec, nid, AC_PAR_PIN_CAP);
 	snd_iprintf(buffer, "  Pincap 0x%08x:", caps);
 	if (caps & AC_PINCAP_IN)
 		snd_iprintf(buffer, " IN");
@@ -264,7 +292,7 @@ static void print_pin_caps(struct snd_info_buffer *buffer,
 		snd_iprintf(buffer, " Balanced");
 	if (caps & AC_PINCAP_HDMI) {
 		/* Realtek uses this bit as a different meaning */
-		if ((codec->vendor_id >> 16) == 0x10ec)
+		if ((codec->core.vendor_id >> 16) == 0x10ec)
 			snd_iprintf(buffer, " R/L");
 		else {
 			if (caps & AC_PINCAP_HBR)
@@ -376,8 +404,7 @@ static void print_pin_ctls(struct snd_info_buffer *buffer,
 static void print_vol_knob(struct snd_info_buffer *buffer,
 			   struct hda_codec *codec, hda_nid_t nid)
 {
-	unsigned int cap = snd_hda_param_read(codec, nid,
-					      AC_PAR_VOL_KNB_CAP);
+	unsigned int cap = param_read(codec, nid, AC_PAR_VOL_KNB_CAP);
 	snd_iprintf(buffer, "  Volume-Knob: delta=%d, steps=%d, ",
 		    (cap >> 7) & 1, cap & 0x7f);
 	cap = snd_hda_codec_read(codec, nid, 0,
@@ -462,7 +489,7 @@ static void print_power_state(struct snd_info_buffer *buffer,
 		[ilog2(AC_PWRST_EPSS)]		= "EPSS",
 	};
 
-	int sup = snd_hda_param_read(codec, nid, AC_PAR_POWER_STATE);
+	int sup = param_read(codec, nid, AC_PAR_POWER_STATE);
 	int pwr = snd_hda_codec_read(codec, nid, 0,
 				     AC_VERB_GET_POWER_STATE, 0);
 	if (sup != -1)
@@ -506,8 +533,7 @@ static void print_proc_caps(struct snd_info_buffer *buffer,
 			    struct hda_codec *codec, hda_nid_t nid)
 {
 	unsigned int i, ncoeff, oldindex;
-	unsigned int proc_caps = snd_hda_param_read(codec, nid,
-						    AC_PAR_PROC_CAP);
+	unsigned int proc_caps = param_read(codec, nid, AC_PAR_PROC_CAP);
 	ncoeff = (proc_caps & AC_PCAP_NUM_COEF) >> AC_PCAP_NUM_COEF_SHIFT;
 	snd_iprintf(buffer, "  Processing caps: benign=%d, ncoeff=%d\n",
 		    proc_caps & AC_PCAP_BENIGN, ncoeff);
@@ -556,8 +582,8 @@ static void print_conn_list(struct snd_info_buffer *buffer,
 
 	/* Get Cache connections info */
 	cache_len = snd_hda_get_conn_list(codec, nid, &list);
-	if (cache_len != conn_len
-			|| memcmp(list, conn, conn_len)) {
+	if (cache_len >= 0 && (cache_len != conn_len ||
+			      memcmp(list, conn, conn_len) != 0)) {
 		snd_iprintf(buffer, "  In-driver Connection: %d\n", cache_len);
 		if (cache_len > 0) {
 			snd_iprintf(buffer, "    ");
@@ -572,7 +598,7 @@ static void print_gpio(struct snd_info_buffer *buffer,
 		       struct hda_codec *codec, hda_nid_t nid)
 {
 	unsigned int gpio =
-		snd_hda_param_read(codec, codec->afg, AC_PAR_GPIO_CAP);
+		param_read(codec, codec->core.afg, AC_PAR_GPIO_CAP);
 	unsigned int enable, direction, wake, unsol, sticky, data;
 	int i, max;
 	snd_iprintf(buffer, "GPIO: io=%d, o=%d, i=%d, "
@@ -642,13 +668,9 @@ static void print_device_list(struct snd_info_buffer *buffer,
 	}
 }
 
-static void print_codec_info(struct snd_info_entry *entry,
-			     struct snd_info_buffer *buffer)
+static void print_codec_core_info(struct hdac_device *codec,
+				  struct snd_info_buffer *buffer)
 {
-	struct hda_codec *codec = entry->private_data;
-	hda_nid_t nid;
-	int i, nodes;
-
 	snd_iprintf(buffer, "Codec: ");
 	if (codec->vendor_name && codec->chip_name)
 		snd_iprintf(buffer, "%s %s\n",
@@ -670,34 +692,43 @@ static void print_codec_info(struct snd_info_entry *entry,
 		snd_iprintf(buffer, "Modem Function Group: 0x%x\n", codec->mfg);
 	else
 		snd_iprintf(buffer, "No Modem Function Group found\n");
+}
 
-	if (! codec->afg)
+static void print_codec_info(struct snd_info_entry *entry,
+			     struct snd_info_buffer *buffer)
+{
+	struct hda_codec *codec = entry->private_data;
+	hda_nid_t nid, fg;
+	int i, nodes;
+
+	print_codec_core_info(&codec->core, buffer);
+	fg = codec->core.afg;
+	if (!fg)
 		return;
 	snd_hda_power_up(codec);
 	snd_iprintf(buffer, "Default PCM:\n");
-	print_pcm_caps(buffer, codec, codec->afg);
+	print_pcm_caps(buffer, codec, fg);
 	snd_iprintf(buffer, "Default Amp-In caps: ");
-	print_amp_caps(buffer, codec, codec->afg, HDA_INPUT);
+	print_amp_caps(buffer, codec, fg, HDA_INPUT);
 	snd_iprintf(buffer, "Default Amp-Out caps: ");
-	print_amp_caps(buffer, codec, codec->afg, HDA_OUTPUT);
-	snd_iprintf(buffer, "State of AFG node 0x%02x:\n", codec->afg);
-	print_power_state(buffer, codec, codec->afg);
+	print_amp_caps(buffer, codec, fg, HDA_OUTPUT);
+	snd_iprintf(buffer, "State of AFG node 0x%02x:\n", fg);
+	print_power_state(buffer, codec, fg);
 
-	nodes = snd_hda_get_sub_nodes(codec, codec->afg, &nid);
+	nodes = snd_hda_get_sub_nodes(codec, fg, &nid);
 	if (! nid || nodes < 0) {
 		snd_iprintf(buffer, "Invalid AFG subtree\n");
 		snd_hda_power_down(codec);
 		return;
 	}
 
-	print_gpio(buffer, codec, codec->afg);
+	print_gpio(buffer, codec, fg);
 	if (codec->proc_widget_hook)
-		codec->proc_widget_hook(buffer, codec, codec->afg);
+		codec->proc_widget_hook(buffer, codec, fg);
 
 	for (i = 0; i < nodes; i++, nid++) {
 		unsigned int wid_caps =
-			snd_hda_param_read(codec, nid,
-					   AC_PAR_AUDIO_WIDGET_CAP);
+			param_read(codec, nid, AC_PAR_AUDIO_WIDGET_CAP);
 		unsigned int wid_type = get_wcaps_type(wid_caps);
 		hda_nid_t *conn = NULL;
 		int conn_len = 0;
@@ -757,12 +788,10 @@ static void print_codec_info(struct snd_info_entry *entry,
 			    (codec->single_adc_amp &&
 			     wid_type == AC_WID_AUD_IN))
 				print_amp_vals(buffer, codec, nid, HDA_INPUT,
-					       wid_caps & AC_WCAP_STEREO,
-					       1);
+					       wid_caps, 1);
 			else
 				print_amp_vals(buffer, codec, nid, HDA_INPUT,
-					       wid_caps & AC_WCAP_STEREO,
-					       conn_len);
+					       wid_caps, conn_len);
 		}
 		if (wid_caps & AC_WCAP_OUT_AMP) {
 			snd_iprintf(buffer, "  Amp-Out caps: ");
@@ -771,11 +800,10 @@ static void print_codec_info(struct snd_info_entry *entry,
 			if (wid_type == AC_WID_PIN &&
 			    codec->pin_amp_workaround)
 				print_amp_vals(buffer, codec, nid, HDA_OUTPUT,
-					       wid_caps & AC_WCAP_STEREO,
-					       conn_len);
+					       wid_caps, conn_len);
 			else
 				print_amp_vals(buffer, codec, nid, HDA_OUTPUT,
-					       wid_caps & AC_WCAP_STEREO, 1);
+					       wid_caps, 1);
 		}
 
 		switch (wid_type) {
@@ -838,8 +866,8 @@ int snd_hda_codec_proc_new(struct hda_codec *codec)
 	struct snd_info_entry *entry;
 	int err;
 
-	snprintf(name, sizeof(name), "codec#%d", codec->addr);
-	err = snd_card_proc_new(codec->bus->card, name, &entry);
+	snprintf(name, sizeof(name), "codec#%d", codec->core.addr);
+	err = snd_card_proc_new(codec->card, name, &entry);
 	if (err < 0)
 		return err;
 

@@ -31,34 +31,35 @@
 #define IF_PREFIX_AUTOCONF	0x02
 
 enum {
+	INET6_IFADDR_STATE_PREDAD,
 	INET6_IFADDR_STATE_DAD,
 	INET6_IFADDR_STATE_POSTDAD,
-	INET6_IFADDR_STATE_UP,
+	INET6_IFADDR_STATE_ERRDAD,
 	INET6_IFADDR_STATE_DEAD,
 };
 
 struct inet6_ifaddr {
 	struct in6_addr		addr;
 	__u32			prefix_len;
-	
+
 	/* In seconds, relative to tstamp. Expiry is at tstamp + HZ * lft. */
 	__u32			valid_lft;
 	__u32			prefered_lft;
 	atomic_t		refcnt;
 	spinlock_t		lock;
-	spinlock_t		state_lock;
 
 	int			state;
 
 	__u32			flags;
 	__u8			dad_probes;
+	__u8			stable_privacy_retry;
 
 	__u16			scope;
 
 	unsigned long		cstamp;	/* created timestamp */
 	unsigned long		tstamp; /* updated timestamp */
 
-	struct timer_list	dad_timer;
+	struct delayed_work	dad_work;
 
 	struct inet6_dev	*idev;
 	struct rt6_info		*rt;
@@ -145,7 +146,6 @@ struct ifacaddr6 {
 	struct ifacaddr6	*aca_next;
 	int			aca_users;
 	atomic_t		aca_refcnt;
-	spinlock_t		aca_lock;
 	unsigned long		aca_cstamp;
 	unsigned long		aca_tstamp;
 };
@@ -203,6 +203,7 @@ struct inet6_dev {
 	struct timer_list	rs_timer;
 	__u8			rs_probes;
 
+	__u8			addr_gen_mode;
 	unsigned long		tstamp; /* ipv6InterfaceTable update timestamp */
 	struct rcu_head		rcu;
 };

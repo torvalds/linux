@@ -33,9 +33,9 @@ static __u8 __iomem *cpuctl;
 #define PFX "sc520_freq: "
 
 static struct cpufreq_frequency_table sc520_freq_table[] = {
-	{0x01,	100000},
-	{0x02,	133000},
-	{0,	CPUFREQ_TABLE_END},
+	{0, 0x01,	100000},
+	{0, 0x02,	133000},
+	{0, 0,	CPUFREQ_TABLE_END},
 };
 
 static unsigned int sc520_freq_get_cpu_frequency(unsigned int cpu)
@@ -93,7 +93,6 @@ static struct cpufreq_driver sc520_freq_driver = {
 	.verify	= cpufreq_generic_frequency_table_verify,
 	.target_index = sc520_freq_target,
 	.init	= sc520_freq_cpu_init,
-	.exit	= cpufreq_generic_exit,
 	.name	= "sc520_freq",
 	.attr	= cpufreq_generic_attr,
 };

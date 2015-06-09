@@ -239,8 +239,8 @@ static void ad9389b_set_IT_content_AVI_InfoFrame(struct v4l2_subdev *sd)
 {
 	struct ad9389b_state *state = get_ad9389b_state(sd);
 
-	if (state->dv_timings.bt.standards & V4L2_DV_BT_STD_CEA861) {
-		/* CEA format, not IT  */
+	if (state->dv_timings.bt.flags & V4L2_DV_FL_IS_CE_VIDEO) {
+		/* CE format, not IT  */
 		ad9389b_wr_and_or(sd, 0xcd, 0xbf, 0x00);
 	} else {
 		/* IT format */
@@ -255,11 +255,11 @@ static int ad9389b_set_rgb_quantization_mode(struct v4l2_subdev *sd, struct v4l2
 	switch (ctrl->val) {
 	case V4L2_DV_RGB_RANGE_AUTO:
 		/* automatic */
-		if (state->dv_timings.bt.standards & V4L2_DV_BT_STD_CEA861) {
-			/* cea format, RGB limited range (16-235) */
+		if (state->dv_timings.bt.flags & V4L2_DV_FL_IS_CE_VIDEO) {
+			/* CE format, RGB limited range (16-235) */
 			ad9389b_csc_rgb_full2limit(sd, true);
 		} else {
-			/* not cea format, RGB full range (0-255) */
+			/* not CE format, RGB full range (0-255) */
 			ad9389b_csc_rgb_full2limit(sd, false);
 		}
 		break;
@@ -571,35 +571,6 @@ static const struct v4l2_subdev_core_ops ad9389b_core_ops = {
 	.interrupt_service_routine = ad9389b_isr,
 };
 
-/* ------------------------------ PAD OPS ------------------------------ */
-
-static int ad9389b_get_edid(struct v4l2_subdev *sd, struct v4l2_subdev_edid *edid)
-{
-	struct ad9389b_state *state = get_ad9389b_state(sd);
-
-	if (edid->pad != 0)
-		return -EINVAL;
-	if (edid->blocks == 0 || edid->blocks > 256)
-		return -EINVAL;
-	if (!edid->edid)
-		return -EINVAL;
-	if (!state->edid.segments) {
-		v4l2_dbg(1, debug, sd, "EDID segment 0 not found\n");
-		return -ENODATA;
-	}
-	if (edid->start_block >= state->edid.segments * 2)
-		return -E2BIG;
-	if (edid->blocks + edid->start_block >= state->edid.segments * 2)
-		edid->blocks = state->edid.segments * 2 - edid->start_block;
-	memcpy(edid->edid, &state->edid.data[edid->start_block * 128],
-	       128 * edid->blocks);
-	return 0;
-}
-
-static const struct v4l2_subdev_pad_ops ad9389b_pad_ops = {
-	.get_edid = ad9389b_get_edid,
-};
-
 /* ------------------------------ VIDEO OPS ------------------------------ */
 
 /* Enable/disable ad9389b output */
@@ -678,6 +649,9 @@ static int ad9389b_g_dv_timings(struct v4l2_subdev *sd,
 static int ad9389b_enum_dv_timings(struct v4l2_subdev *sd,
 				   struct v4l2_enum_dv_timings *timings)
 {
+	if (timings->pad != 0)
+		return -EINVAL;
+
 	return v4l2_enum_dv_timings_cap(timings, &ad9389b_timings_cap,
 			NULL, NULL);
 }
@@ -685,6 +659,9 @@ static int ad9389b_enum_dv_timings(struct v4l2_subdev *sd,
 static int ad9389b_dv_timings_cap(struct v4l2_subdev *sd,
 				  struct v4l2_dv_timings_cap *cap)
 {
+	if (cap->pad != 0)
+		return -EINVAL;
+
 	*cap = ad9389b_timings_cap;
 	return 0;
 }
@@ -693,9 +670,38 @@ static const struct v4l2_subdev_video_ops ad9389b_video_ops = {
 	.s_stream = ad9389b_s_stream,
 	.s_dv_timings = ad9389b_s_dv_timings,
 	.g_dv_timings = ad9389b_g_dv_timings,
+};
+
+/* ------------------------------ PAD OPS ------------------------------ */
+
+static int ad9389b_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
+{
+	struct ad9389b_state *state = get_ad9389b_state(sd);
+
+	if (edid->pad != 0)
+		return -EINVAL;
+	if (edid->blocks == 0 || edid->blocks > 256)
+		return -EINVAL;
+	if (!state->edid.segments) {
+		v4l2_dbg(1, debug, sd, "EDID segment 0 not found\n");
+		return -ENODATA;
+	}
+	if (edid->start_block >= state->edid.segments * 2)
+		return -E2BIG;
+	if (edid->blocks + edid->start_block >= state->edid.segments * 2)
+		edid->blocks = state->edid.segments * 2 - edid->start_block;
+	memcpy(edid->edid, &state->edid.data[edid->start_block * 128],
+	       128 * edid->blocks);
+	return 0;
+}
+
+static const struct v4l2_subdev_pad_ops ad9389b_pad_ops = {
+	.get_edid = ad9389b_get_edid,
 	.enum_dv_timings = ad9389b_enum_dv_timings,
 	.dv_timings_cap = ad9389b_dv_timings_cap,
 };
+
+/* ------------------------------ AUDIO OPS ------------------------------ */
 
 static int ad9389b_s_audio_stream(struct v4l2_subdev *sd, int enable)
 {

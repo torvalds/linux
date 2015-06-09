@@ -38,7 +38,7 @@ static u32 get_int_prop(struct device_node *np, const char *name, u32 def)
  * @addr0: value of 1st cell of a device tree PCI address.
  * @bridge: Set this flag if the address is from a bridge 'ranges' property
  */
-unsigned int pci_parse_of_flags(u32 addr0, int bridge)
+static unsigned int pci_parse_of_flags(u32 addr0, int bridge)
 {
 	unsigned int flags = 0;
 
@@ -207,6 +207,7 @@ void of_scan_pci_bridge(struct pci_dev *dev)
 {
 	struct device_node *node = dev->dev.of_node;
 	struct pci_bus *bus;
+	struct pci_controller *phb;
 	const __be32 *busrange, *ranges;
 	int len, i, mode;
 	struct pci_bus_region region;
@@ -286,9 +287,11 @@ void of_scan_pci_bridge(struct pci_dev *dev)
 		bus->number);
 	pr_debug("    bus name: %s\n", bus->name);
 
+	phb = pci_bus_to_host(bus);
+
 	mode = PCI_PROBE_NORMAL;
-	if (ppc_md.pci_probe_mode)
-		mode = ppc_md.pci_probe_mode(bus);
+	if (phb->controller_ops.probe_mode)
+		mode = phb->controller_ops.probe_mode(bus);
 	pr_debug("    probe mode: %d\n", mode);
 
 	if (mode == PCI_PROBE_DEVTREE)
@@ -304,6 +307,9 @@ static struct pci_dev *of_scan_pci_dev(struct pci_bus *bus,
 	struct pci_dev *dev = NULL;
 	const __be32 *reg;
 	int reglen, devfn;
+#ifdef CONFIG_EEH
+	struct eeh_dev *edev = pdn_to_eeh_dev(PCI_DN(dn));
+#endif
 
 	pr_debug("  * %s\n", dn->full_name);
 	if (!of_device_is_available(dn))
@@ -320,6 +326,12 @@ static struct pci_dev *of_scan_pci_dev(struct pci_bus *bus,
 		pci_dev_put(dev);
 		return dev;
 	}
+
+	/* Device removed permanently ? */
+#ifdef CONFIG_EEH
+	if (edev && (edev->mode & EEH_DEV_REMOVED))
+		return NULL;
+#endif
 
 	/* create a new pci_dev for this device */
 	dev = of_create_pci_dev(dn, bus, devfn);
@@ -362,8 +374,7 @@ static void __of_scan_bus(struct device_node *node, struct pci_bus *bus,
 
 	/* Now scan child busses */
 	list_for_each_entry(dev, &bus->devices, bus_list) {
-		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE ||
-		    dev->hdr_type == PCI_HEADER_TYPE_CARDBUS) {
+		if (pci_is_bridge(dev)) {
 			of_scan_pci_bridge(dev);
 		}
 	}

@@ -33,9 +33,6 @@
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>
 
-int net_msg_warn __read_mostly = 1;
-EXPORT_SYMBOL(net_msg_warn);
-
 DEFINE_RATELIMIT_STATE(net_ratelimit_state, 5 * HZ, 10);
 /*
  * All net warning printk()s should be guarded by this function.
@@ -306,16 +303,14 @@ EXPORT_SYMBOL(in6_pton);
 void inet_proto_csum_replace4(__sum16 *sum, struct sk_buff *skb,
 			      __be32 from, __be32 to, int pseudohdr)
 {
-	__be32 diff[] = { ~from, to };
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
-		*sum = csum_fold(csum_partial(diff, sizeof(diff),
-				~csum_unfold(*sum)));
+		*sum = csum_fold(csum_add(csum_sub(~csum_unfold(*sum), from),
+				 to));
 		if (skb->ip_summed == CHECKSUM_COMPLETE && pseudohdr)
-			skb->csum = ~csum_partial(diff, sizeof(diff),
-						~skb->csum);
+			skb->csum = ~csum_add(csum_sub(~(skb->csum), from), to);
 	} else if (pseudohdr)
-		*sum = ~csum_fold(csum_partial(diff, sizeof(diff),
-				csum_unfold(*sum)));
+		*sum = ~csum_fold(csum_add(csum_sub(csum_unfold(*sum), from),
+				  to));
 }
 EXPORT_SYMBOL(inet_proto_csum_replace4);
 
@@ -348,8 +343,8 @@ static void __net_random_once_deferred(struct work_struct *w)
 {
 	struct __net_random_once_work *work =
 		container_of(w, struct __net_random_once_work, work);
-	if (!static_key_enabled(work->key))
-		static_key_slow_inc(work->key);
+	BUG_ON(!static_key_enabled(work->key));
+	static_key_slow_dec(work->key);
 	kfree(work);
 }
 
@@ -367,7 +362,7 @@ static void __net_random_once_disable_jump(struct static_key *key)
 }
 
 bool __net_get_random_once(void *buf, int nbytes, bool *done,
-			   struct static_key *done_key)
+			   struct static_key *once_key)
 {
 	static DEFINE_SPINLOCK(lock);
 	unsigned long flags;
@@ -382,7 +377,7 @@ bool __net_get_random_once(void *buf, int nbytes, bool *done,
 	*done = true;
 	spin_unlock_irqrestore(&lock, flags);
 
-	__net_random_once_disable_jump(done_key);
+	__net_random_once_disable_jump(once_key);
 
 	return true;
 }

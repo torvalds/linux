@@ -74,9 +74,9 @@ static int ak4641_set_deemph(struct snd_soc_codec *codec)
 static int ak4641_put_deemph(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct ak4641_priv *ak4641 = snd_soc_codec_get_drvdata(codec);
-	int deemph = ucontrol->value.enumerated.item[0];
+	int deemph = ucontrol->value.integer.value[0];
 
 	if (deemph > 1)
 		return -EINVAL;
@@ -89,10 +89,10 @@ static int ak4641_put_deemph(struct snd_kcontrol *kcontrol,
 static int ak4641_get_deemph(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct ak4641_priv *ak4641 = snd_soc_codec_get_drvdata(codec);
 
-	ucontrol->value.enumerated.item[0] = ak4641->deemph;
+	ucontrol->value.integer.value[0] = ak4641->deemph;
 	return 0;
 };
 
@@ -113,14 +113,14 @@ static const DECLARE_TLV_DB_SCALE(alc_tlv, -800, 50, 0);
 static const DECLARE_TLV_DB_SCALE(aux_in_tlv, -2100, 300, 0);
 
 
-static const struct soc_enum ak4641_mono_out_enum =
-	SOC_ENUM_SINGLE(AK4641_SIG1, 6, 2, ak4641_mono_out);
-static const struct soc_enum ak4641_hp_out_enum =
-	SOC_ENUM_SINGLE(AK4641_MODE2, 2, 2, ak4641_hp_out);
-static const struct soc_enum ak4641_mic_select_enum =
-	SOC_ENUM_SINGLE(AK4641_MIC, 1, 2, ak4641_mic_select);
-static const struct soc_enum ak4641_mic_or_dac_enum =
-	SOC_ENUM_SINGLE(AK4641_BTIF, 4, 2, ak4641_mic_or_dac);
+static SOC_ENUM_SINGLE_DECL(ak4641_mono_out_enum,
+			    AK4641_SIG1, 6, ak4641_mono_out);
+static SOC_ENUM_SINGLE_DECL(ak4641_hp_out_enum,
+			    AK4641_MODE2, 2, ak4641_hp_out);
+static SOC_ENUM_SINGLE_DECL(ak4641_mic_select_enum,
+			    AK4641_MIC, 1, ak4641_mic_select);
+static SOC_ENUM_SINGLE_DECL(ak4641_mic_or_dac_enum,
+			    AK4641_BTIF, 4, ak4641_mic_or_dac);
 
 static const struct snd_kcontrol_new ak4641_snd_controls[] = {
 	SOC_ENUM("Mono 1 Output", ak4641_mono_out_enum),
@@ -505,47 +505,7 @@ static struct snd_soc_dai_driver ak4641_dai[] = {
 },
 };
 
-static int ak4641_suspend(struct snd_soc_codec *codec)
-{
-	ak4641_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int ak4641_resume(struct snd_soc_codec *codec)
-{
-	ak4641_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-
-static int ak4641_probe(struct snd_soc_codec *codec)
-{
-	int ret;
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
-	/* power on device */
-	ak4641_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-
-static int ak4641_remove(struct snd_soc_codec *codec)
-{
-	ak4641_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-
 static struct snd_soc_codec_driver soc_codec_dev_ak4641 = {
-	.probe			= ak4641_probe,
-	.remove			= ak4641_remove,
-	.suspend		= ak4641_suspend,
-	.resume			= ak4641_resume,
 	.controls		= ak4641_snd_controls,
 	.num_controls		= ARRAY_SIZE(ak4641_snd_controls),
 	.dapm_widgets		= ak4641_dapm_widgets,
@@ -553,6 +513,7 @@ static struct snd_soc_codec_driver soc_codec_dev_ak4641 = {
 	.dapm_routes		= ak4641_audio_map,
 	.num_dapm_routes	= ARRAY_SIZE(ak4641_audio_map),
 	.set_bias_level		= ak4641_set_bias_level,
+	.suspend_bias_off	= true,
 };
 
 static const struct regmap_config ak4641_regmap = {

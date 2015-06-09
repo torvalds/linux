@@ -41,11 +41,11 @@
 #define DEBUG_SUBSYSTEM S_SEC
 
 
-#include <obd_support.h>
-#include <obd_cksum.h>
-#include <obd_class.h>
-#include <lustre_net.h>
-#include <lustre_sec.h>
+#include "../include/obd_support.h"
+#include "../include/obd_cksum.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre_sec.h"
 
 struct plain_sec {
 	struct ptlrpc_sec       pls_base;
@@ -669,6 +669,15 @@ int plain_enlarge_reqbuf(struct ptlrpc_sec *sec,
 		if (newbuf == NULL)
 			return -ENOMEM;
 
+		/* Must lock this, so that otherwise unprotected change of
+		 * rq_reqmsg is not racing with parallel processing of
+		 * imp_replay_list traversing threads. See LU-3333
+		 * This is a bandaid at best, we really need to deal with this
+		 * in request enlarging code before unpacking that's already
+		 * there */
+		if (req->rq_import)
+			spin_lock(&req->rq_import->imp_lock);
+
 		memcpy(newbuf, req->rq_reqbuf, req->rq_reqbuf_len);
 
 		OBD_FREE_LARGE(req->rq_reqbuf, req->rq_reqbuf_len);
@@ -676,6 +685,9 @@ int plain_enlarge_reqbuf(struct ptlrpc_sec *sec,
 		req->rq_reqbuf_len = newbuf_size;
 		req->rq_reqmsg = lustre_msg_buf(req->rq_reqbuf,
 						PLAIN_PACK_MSG_OFF, 0);
+
+		if (req->rq_import)
+			spin_unlock(&req->rq_import->imp_lock);
 	}
 
 	_sptlrpc_enlarge_msg_inplace(req->rq_reqbuf, PLAIN_PACK_MSG_OFF,
@@ -926,8 +938,8 @@ int plain_svc_wrap_bulk(struct ptlrpc_request *req,
 	rc = plain_generate_bulk_csum(desc, req->rq_flvr.u_bulk.hash.hash_alg,
 				      tokenv);
 	if (rc) {
-		CERROR("bulk read: server failed to compute "
-		       "checksum: %d\n", rc);
+		CERROR("bulk read: server failed to compute checksum: %d\n",
+		       rc);
 	} else {
 		if (OBD_FAIL_CHECK(OBD_FAIL_OSC_CHECKSUM_RECEIVE))
 			corrupt_bulk_data(desc);

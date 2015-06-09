@@ -36,6 +36,7 @@ struct xc5000_config {
 	u32  if_khz;
 	u8   radio_input;
 	u16  xtal_khz;
+	u16  output_amp;
 
 	int chip_id;
 };
@@ -57,7 +58,7 @@ struct xc5000_config {
  * it's passed back to a bridge during tuner_callback().
  */
 
-#if IS_ENABLED(CONFIG_MEDIA_TUNER_XC5000)
+#if IS_REACHABLE(CONFIG_MEDIA_TUNER_XC5000)
 extern struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 					  struct i2c_adapter *i2c,
 					  const struct xc5000_config *cfg);

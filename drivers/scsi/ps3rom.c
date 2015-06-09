@@ -78,7 +78,7 @@ static int ps3rom_slave_configure(struct scsi_device *scsi_dev)
 	struct ps3rom_private *priv = shost_priv(scsi_dev->host);
 	struct ps3_storage_device *dev = priv->dev;
 
-	dev_dbg(&dev->sbd.core, "%s:%u: id %u, lun %u, channel %u\n", __func__,
+	dev_dbg(&dev->sbd.core, "%s:%u: id %u, lun %llu, channel %u\n", __func__,
 		__LINE__, scsi_dev->id, scsi_dev->lun, scsi_dev->channel);
 
 	/*
@@ -219,10 +219,6 @@ static int ps3rom_queuecommand_lck(struct scsi_cmnd *cmd,
 	struct ps3_storage_device *dev = priv->dev;
 	unsigned char opcode;
 	int res;
-
-#ifdef DEBUG
-	scsi_print_command(cmd);
-#endif
 
 	priv->curr_cmd = cmd;
 	cmd->scsi_done = done;
@@ -387,6 +383,7 @@ static int ps3rom_probe(struct ps3_system_bus_device *_dev)
 	if (!host) {
 		dev_err(&dev->sbd.core, "%s:%u: scsi_host_alloc failed\n",
 			__func__, __LINE__);
+		error = -ENOMEM;
 		goto fail_teardown;
 	}
 

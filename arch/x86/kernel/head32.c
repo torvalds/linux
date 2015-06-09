@@ -29,8 +29,9 @@ static void __init i386_default_early_setup(void)
 	reserve_ebda_region();
 }
 
-asmlinkage void __init i386_start_kernel(void)
+asmlinkage __visible void __init i386_start_kernel(void)
 {
+	cr4_init_shadow();
 	sanitize_boot_params(&boot_params);
 
 	/* Call the subarch specific early setup function */

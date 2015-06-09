@@ -43,8 +43,8 @@
 #define DEBUG_SUBSYSTEM S_CLASS
 
 #include <linux/module.h>
-#include <obd_class.h>
-#include <lustre/lustre_idl.h>
+#include "../../include/obd_class.h"
+#include "../../include/lustre/lustre_idl.h"
 
 #include <linux/fs.h>
 #include <linux/pagemap.h> /* for PAGE_CACHE_SIZE */
@@ -52,7 +52,7 @@
 /*FIXME: Just copy from obdo_from_inode*/
 void obdo_from_la(struct obdo *dst, struct lu_attr *la, __u64 valid)
 {
-	obd_flag newvalid = 0;
+	u32 newvalid = 0;
 
 	if (valid & LA_ATIME) {
 		dst->o_atime = la->la_atime;
@@ -97,7 +97,7 @@ void obdo_from_la(struct obdo *dst, struct lu_attr *la, __u64 valid)
 EXPORT_SYMBOL(obdo_from_la);
 
 /*FIXME: Just copy from obdo_from_inode*/
-void la_from_obdo(struct lu_attr *dst, struct obdo *obdo, obd_flag valid)
+void la_from_obdo(struct lu_attr *dst, struct obdo *obdo, u32 valid)
 {
 	__u64 newvalid = 0;
 
@@ -145,13 +145,13 @@ void la_from_obdo(struct lu_attr *dst, struct obdo *obdo, obd_flag valid)
 }
 EXPORT_SYMBOL(la_from_obdo);
 
-void obdo_refresh_inode(struct inode *dst, struct obdo *src, obd_flag valid)
+void obdo_refresh_inode(struct inode *dst, struct obdo *src, u32 valid)
 {
 	valid &= src->o_valid;
 
 	if (valid & (OBD_MD_FLCTIME | OBD_MD_FLMTIME))
 		CDEBUG(D_INODE,
-		       "valid "LPX64", cur time %lu/%lu, new "LPU64"/"LPU64"\n",
+		       "valid %#llx, cur time %lu/%lu, new %llu/%llu\n",
 		       src->o_valid, LTIME_S(dst->i_mtime),
 		       LTIME_S(dst->i_ctime), src->o_mtime, src->o_ctime);
 
@@ -180,7 +180,7 @@ void obdo_refresh_inode(struct inode *dst, struct obdo *src, obd_flag valid)
 }
 EXPORT_SYMBOL(obdo_refresh_inode);
 
-void obdo_to_inode(struct inode *dst, struct obdo *src, obd_flag valid)
+void obdo_to_inode(struct inode *dst, struct obdo *src, u32 valid)
 {
 	valid &= src->o_valid;
 
@@ -190,7 +190,7 @@ void obdo_to_inode(struct inode *dst, struct obdo *src, obd_flag valid)
 
 	if (valid & (OBD_MD_FLCTIME | OBD_MD_FLMTIME))
 		CDEBUG(D_INODE,
-		       "valid "LPX64", cur time %lu/%lu, new "LPU64"/"LPU64"\n",
+		       "valid %#llx, cur time %lu/%lu, new %llu/%llu\n",
 		       src->o_valid, LTIME_S(dst->i_mtime),
 		       LTIME_S(dst->i_ctime), src->o_mtime, src->o_ctime);
 

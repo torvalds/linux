@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/tracehook.h>
 #include <linux/signal.h>
+#include <linux/context_tracking.h>
 #include <asm/stack.h>
 #include <asm/switch_to.h>
 #include <asm/homecache.h>
@@ -52,7 +53,7 @@ static int __init idle_setup(char *str)
 		return -EINVAL;
 
 	if (!strcmp(str, "poll")) {
-		pr_info("using polling idle threads.\n");
+		pr_info("using polling idle threads\n");
 		cpu_idle_poll_ctrl(true);
 		return 0;
 	} else if (!strcmp(str, "halt")) {
@@ -64,7 +65,7 @@ early_param("idle", idle_setup);
 
 void arch_cpu_idle(void)
 {
-	__get_cpu_var(irq_stat).idle_timestamp = jiffies;
+	__this_cpu_write(irq_stat.idle_timestamp, jiffies);
 	_cpu_idle();
 }
 
@@ -474,6 +475,8 @@ int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 	if (!user_mode(regs))
 		return 0;
 
+	user_exit();
+
 	/* Enable interrupts; they are disabled again on return to caller. */
 	local_irq_enable();
 
@@ -496,11 +499,12 @@ int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 		tracehook_notify_resume(regs);
 		return 1;
 	}
-	if (thread_info_flags & _TIF_SINGLESTEP) {
+	if (thread_info_flags & _TIF_SINGLESTEP)
 		single_step_once(regs);
-		return 0;
-	}
-	panic("work_pending: bad flags %#x\n", thread_info_flags);
+
+	user_enter();
+
+	return 0;
 }
 
 unsigned long get_wchan(struct task_struct *p)
@@ -547,27 +551,25 @@ void show_regs(struct pt_regs *regs)
 	struct task_struct *tsk = validate_current();
 	int i;
 
-	pr_err("\n");
 	if (tsk != &corrupt_current)
 		show_regs_print_info(KERN_ERR);
 #ifdef __tilegx__
 	for (i = 0; i < 17; i++)
-		pr_err(" r%-2d: "REGFMT" r%-2d: "REGFMT" r%-2d: "REGFMT"\n",
+		pr_err(" r%-2d: " REGFMT " r%-2d: " REGFMT " r%-2d: " REGFMT "\n",
 		       i, regs->regs[i], i+18, regs->regs[i+18],
 		       i+36, regs->regs[i+36]);
-	pr_err(" r17: "REGFMT" r35: "REGFMT" tp : "REGFMT"\n",
+	pr_err(" r17: " REGFMT " r35: " REGFMT " tp : " REGFMT "\n",
 	       regs->regs[17], regs->regs[35], regs->tp);
-	pr_err(" sp : "REGFMT" lr : "REGFMT"\n", regs->sp, regs->lr);
+	pr_err(" sp : " REGFMT " lr : " REGFMT "\n", regs->sp, regs->lr);
 #else
 	for (i = 0; i < 13; i++)
-		pr_err(" r%-2d: "REGFMT" r%-2d: "REGFMT
-		       " r%-2d: "REGFMT" r%-2d: "REGFMT"\n",
+		pr_err(" r%-2d: " REGFMT " r%-2d: " REGFMT " r%-2d: " REGFMT " r%-2d: " REGFMT "\n",
 		       i, regs->regs[i], i+14, regs->regs[i+14],
 		       i+27, regs->regs[i+27], i+40, regs->regs[i+40]);
-	pr_err(" r13: "REGFMT" tp : "REGFMT" sp : "REGFMT" lr : "REGFMT"\n",
+	pr_err(" r13: " REGFMT " tp : " REGFMT " sp : " REGFMT " lr : " REGFMT "\n",
 	       regs->regs[13], regs->tp, regs->sp, regs->lr);
 #endif
-	pr_err(" pc : "REGFMT" ex1: %ld     faultnum: %ld\n",
+	pr_err(" pc : " REGFMT " ex1: %ld     faultnum: %ld\n",
 	       regs->pc, regs->ex1, regs->faultnum);
 
 	dump_stack_regs(regs);

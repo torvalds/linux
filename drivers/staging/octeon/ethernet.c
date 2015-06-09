@@ -55,17 +55,11 @@
 #include <asm/octeon/cvmx-gmxx-defs.h>
 #include <asm/octeon/cvmx-smix-defs.h>
 
-#if defined(CONFIG_CAVIUM_OCTEON_NUM_PACKET_BUFFERS) \
-	&& CONFIG_CAVIUM_OCTEON_NUM_PACKET_BUFFERS
-int num_packet_buffers = CONFIG_CAVIUM_OCTEON_NUM_PACKET_BUFFERS;
-#else
-int num_packet_buffers = 1024;
-#endif
+static int num_packet_buffers = 1024;
 module_param(num_packet_buffers, int, 0444);
 MODULE_PARM_DESC(num_packet_buffers, "\n"
 	"\tNumber of packet buffers to allocate and store in the\n"
-	"\tFPA. By default, 1024 packet buffers are used unless\n"
-	"\tCONFIG_CAVIUM_OCTEON_NUM_PACKET_BUFFERS is defined.");
+	"\tFPA. By default, 1024 packet buffers are used.\n");
 
 int pow_receive_group = 15;
 module_param(pow_receive_group, int, 0444);
@@ -103,12 +97,6 @@ MODULE_PARM_DESC(pow_send_list, "\n"
 	"\tprecedence over this list. For example, setting this to\n"
 	"\t\"eth2,spi3,spi7\" would cause these three devices to transmit\n"
 	"\tusing the pow_send_group.");
-
-int max_rx_cpus = -1;
-module_param(max_rx_cpus, int, 0444);
-MODULE_PARM_DESC(max_rx_cpus, "\n"
-	"\t\tThe maximum number of CPUs to use for packet reception.\n"
-	"\t\tUse -1 to use all available CPUs.");
 
 int rx_napi_weight = 32;
 module_param(rx_napi_weight, int, 0444);
@@ -181,6 +169,16 @@ static void cvm_oct_configure_common_hw(void)
 	if (CVMX_FPA_OUTPUT_BUFFER_POOL != CVMX_FPA_PACKET_POOL)
 		cvm_oct_mem_fill_fpa(CVMX_FPA_OUTPUT_BUFFER_POOL,
 				     CVMX_FPA_OUTPUT_BUFFER_POOL_SIZE, 128);
+
+#ifdef __LITTLE_ENDIAN
+	{
+		union cvmx_ipd_ctl_status ipd_ctl_status;
+		ipd_ctl_status.u64 = cvmx_read_csr(CVMX_IPD_CTL_STATUS);
+		ipd_ctl_status.s.pkt_lend = 1;
+		ipd_ctl_status.s.wqe_lend = 1;
+		cvmx_write_csr(CVMX_IPD_CTL_STATUS, ipd_ctl_status.u64);
+	}
+#endif
 
 	if (USE_RED)
 		cvmx_helper_setup_red(num_packet_buffers / 4,
@@ -311,6 +309,7 @@ static int cvm_oct_common_change_mtu(struct net_device *dev, int new_mtu)
 			 * than the MTU and smaller the 64 bytes.
 			 */
 			union cvmx_pip_frm_len_chkx frm_len_chk;
+
 			frm_len_chk.u64 = 0;
 			frm_len_chk.s.minlen = 64;
 			frm_len_chk.s.maxlen = max_packet;
@@ -343,6 +342,7 @@ static void cvm_oct_common_set_multicast_list(struct net_device *dev)
 	    && (cvmx_helper_interface_get_mode(interface) !=
 		CVMX_HELPER_INTERFACE_MODE_SPI)) {
 		union cvmx_gmxx_rxx_adr_ctl control;
+
 		control.u64 = 0;
 		control.s.bcst = 1;	/* Allow broadcast MAC addresses */
 
@@ -403,6 +403,7 @@ static int cvm_oct_set_mac_filter(struct net_device *dev)
 		int i;
 		uint8_t *ptr = dev->dev_addr;
 		uint64_t mac = 0;
+
 		for (i = 0; i < 6; i++)
 			mac = (mac << 8) | (uint64_t)ptr[i];
 
@@ -455,7 +456,7 @@ int cvm_oct_common_init(struct net_device *dev)
 		mac = of_get_mac_address(priv->of_node);
 
 	if (mac)
-		memcpy(dev->dev_addr, mac, ETH_ALEN);
+		ether_addr_copy(dev->dev_addr, mac);
 	else
 		eth_hw_addr_random(dev);
 
@@ -475,9 +476,8 @@ int cvm_oct_common_init(struct net_device *dev)
 
 	/* We do our own locking, Linux doesn't need to */
 	dev->features |= NETIF_F_LLTX;
-	SET_ETHTOOL_OPS(dev, &cvm_oct_ethtool_ops);
+	dev->ethtool_ops = &cvm_oct_ethtool_ops;
 
-	cvm_oct_phy_setup_device(dev);
 	cvm_oct_set_mac_filter(dev);
 	dev->netdev_ops->ndo_change_mtu(dev, dev->mtu);
 
@@ -583,8 +583,6 @@ static const struct net_device_ops cvm_oct_pow_netdev_ops = {
 #endif
 };
 
-extern void octeon_mdiobus_force_mod_depencency(void);
-
 static struct device_node *cvm_oct_of_get_child(
 				const struct device_node *parent, int reg_val)
 {
@@ -655,6 +653,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 		     port < cvmx_helper_get_ipd_port(interface, num_ports);
 		     port++) {
 			union cvmx_pip_prt_tagx pip_prt_tagx;
+
 			pip_prt_tagx.u64 =
 			    cvmx_read_csr(CVMX_PIP_PRT_TAGX(port));
 			pip_prt_tagx.s.grp = pow_receive_group;
@@ -678,6 +677,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 
 	if ((pow_send_group != -1)) {
 		struct net_device *dev;
+
 		pr_info("\tConfiguring device for POW only access\n");
 		dev = alloc_etherdev(sizeof(struct octeon_ethernet));
 		if (dev) {
@@ -722,12 +722,14 @@ static int cvm_oct_probe(struct platform_device *pdev)
 			struct net_device *dev =
 			    alloc_etherdev(sizeof(struct octeon_ethernet));
 			if (!dev) {
-				pr_err("Failed to allocate ethernet device for port %d\n", port);
+				pr_err("Failed to allocate ethernet device for port %d\n",
+				       port);
 				continue;
 			}
 
 			/* Initialize the device private structure. */
 			priv = netdev_priv(dev);
+			priv->netdev = dev;
 			priv->of_node = cvm_oct_node_for_port(pip, interface,
 								port_index);
 
@@ -786,8 +788,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 			if (!dev->netdev_ops) {
 				free_netdev(dev);
 			} else if (register_netdev(dev) < 0) {
-				pr_err("Failed to register ethernet device "
-					 "for interface %d, port %d\n",
+				pr_err("Failed to register ethernet device for interface %d, port %d\n",
 					 interface, priv->port);
 				free_netdev(dev);
 			} else {
@@ -805,7 +806,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 	cvm_oct_rx_initialize();
 
 	/*
-	 * 150 uS: about 10 1500-byte packtes at 1GE.
+	 * 150 uS: about 10 1500-byte packets at 1GE.
 	 */
 	cvm_oct_tx_poll_interval = 150 * (octeon_get_clock_rate() / 1000000);
 
@@ -839,6 +840,7 @@ static int cvm_oct_remove(struct platform_device *pdev)
 		if (cvm_oct_device[port]) {
 			struct net_device *dev = cvm_oct_device[port];
 			struct octeon_ethernet *priv = netdev_priv(dev);
+
 			cancel_delayed_work_sync(&priv->port_periodic_work);
 
 			cvm_oct_tx_shutdown_dev(dev);
@@ -865,7 +867,7 @@ static int cvm_oct_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id cvm_oct_match[] = {
+static const struct of_device_id cvm_oct_match[] = {
 	{
 		.compatible = "cavium,octeon-3860-pip",
 	},
@@ -877,7 +879,6 @@ static struct platform_driver cvm_oct_driver = {
 	.probe		= cvm_oct_probe,
 	.remove		= cvm_oct_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= KBUILD_MODNAME,
 		.of_match_table = cvm_oct_match,
 	},

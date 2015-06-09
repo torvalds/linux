@@ -304,7 +304,7 @@ static int drm_fbdev_cma_create(struct drm_fb_helper *helper,
 	}
 
 	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->depth);
-	drm_fb_helper_fill_var(fbi, helper, fb->width, fb->height);
+	drm_fb_helper_fill_var(fbi, helper, sizes->fb_width, sizes->fb_height);
 
 	offset = fbi->var.xoffset * bytes_per_pixel;
 	offset += fbi->var.yoffset * fb->pitches[0];
@@ -327,7 +327,7 @@ err_drm_gem_cma_free_object:
 	return ret;
 }
 
-static struct drm_fb_helper_funcs drm_fb_cma_helper_funcs = {
+static const struct drm_fb_helper_funcs drm_fb_cma_helper_funcs = {
 	.fb_probe = drm_fbdev_cma_create,
 };
 
@@ -354,8 +354,9 @@ struct drm_fbdev_cma *drm_fbdev_cma_init(struct drm_device *dev,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	fbdev_cma->fb_helper.funcs = &drm_fb_cma_helper_funcs;
 	helper = &fbdev_cma->fb_helper;
+
+	drm_fb_helper_prepare(dev, helper, &drm_fb_cma_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, helper, num_crtc, max_conn_count);
 	if (ret < 0) {
@@ -429,13 +430,8 @@ EXPORT_SYMBOL_GPL(drm_fbdev_cma_fini);
  */
 void drm_fbdev_cma_restore_mode(struct drm_fbdev_cma *fbdev_cma)
 {
-	if (fbdev_cma) {
-		struct drm_device *dev = fbdev_cma->fb_helper.dev;
-
-		drm_modeset_lock_all(dev);
-		drm_fb_helper_restore_fbdev_mode(&fbdev_cma->fb_helper);
-		drm_modeset_unlock_all(dev);
-	}
+	if (fbdev_cma)
+		drm_fb_helper_restore_fbdev_mode_unlocked(&fbdev_cma->fb_helper);
 }
 EXPORT_SYMBOL_GPL(drm_fbdev_cma_restore_mode);
 

@@ -37,15 +37,15 @@
 
 /* ipipe input format's */
 static const unsigned int ipipe_input_fmts[] = {
-	V4L2_MBUS_FMT_UYVY8_2X8,
-	V4L2_MBUS_FMT_SGRBG12_1X12,
-	V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8,
-	V4L2_MBUS_FMT_SGRBG10_ALAW8_1X8,
+	MEDIA_BUS_FMT_UYVY8_2X8,
+	MEDIA_BUS_FMT_SGRBG12_1X12,
+	MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8,
+	MEDIA_BUS_FMT_SGRBG10_ALAW8_1X8,
 };
 
 /* ipipe output format's */
 static const unsigned int ipipe_output_fmts[] = {
-	V4L2_MBUS_FMT_UYVY8_2X8,
+	MEDIA_BUS_FMT_UYVY8_2X8,
 };
 
 static int ipipe_validate_lutdpc_params(struct vpfe_ipipe_lutdpc *lutdpc)
@@ -901,7 +901,7 @@ static int ipipe_set_gbce_params(struct vpfe_ipipe_device *ipipe, void *param)
 	struct device *dev = ipipe->subdev.v4l2_dev->dev;
 
 	if (!gbce_param) {
-		memset(gbce, 0 , sizeof(struct vpfe_ipipe_gbce));
+		memset(gbce, 0, sizeof(struct vpfe_ipipe_gbce));
 	} else {
 		memcpy(gbce, gbce_param, sizeof(struct vpfe_ipipe_gbce));
 		if (ipipe_validate_gbce_params(gbce) < 0) {
@@ -1086,7 +1086,7 @@ static int ipipe_set_car_params(struct vpfe_ipipe_device *ipipe, void *param)
 	struct vpfe_ipipe_car *car = &ipipe->config.car;
 
 	if (!car_param) {
-		memset(car , 0, sizeof(struct vpfe_ipipe_car));
+		memset(car, 0, sizeof(struct vpfe_ipipe_car));
 	} else {
 		memcpy(car, car_param, sizeof(struct vpfe_ipipe_car));
 		if (ipipe_validate_car_params(car) < 0) {
@@ -1268,6 +1268,7 @@ static int ipipe_s_config(struct v4l2_subdev *sd, struct vpfe_ipipe_config *cfg)
 
 	for (i = 0; i < ARRAY_SIZE(ipipe_modules); i++) {
 		unsigned int bit = 1 << i;
+
 		if (cfg->flag & bit) {
 			const struct ipipe_module_if *module_if =
 						&ipipe_modules[i];
@@ -1310,6 +1311,7 @@ static int ipipe_g_config(struct v4l2_subdev *sd, struct vpfe_ipipe_config *cfg)
 
 	for (i = 1; i < ARRAY_SIZE(ipipe_modules); i++) {
 		unsigned int bit = 1 << i;
+
 		if (cfg->flag & bit) {
 			const struct ipipe_module_if *module_if =
 						&ipipe_modules[i];
@@ -1412,17 +1414,17 @@ static int ipipe_set_stream(struct v4l2_subdev *sd, int enable)
  * __ipipe_get_format() - helper function for getting ipipe format
  * @ipipe: pointer to ipipe private structure.
  * @pad: pad number.
- * @fh: V4L2 subdev file handle.
+ * @cfg: V4L2 subdev pad config
  * @which: wanted subdev format.
  *
  */
 static struct v4l2_mbus_framefmt *
 __ipipe_get_format(struct vpfe_ipipe_device *ipipe,
-		       struct v4l2_subdev_fh *fh, unsigned int pad,
+		       struct v4l2_subdev_pad_config *cfg, unsigned int pad,
 		       enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(fh, pad);
+		return v4l2_subdev_get_try_format(&ipipe->subdev, cfg, pad);
 
 	return &ipipe->formats[pad];
 }
@@ -1430,14 +1432,14 @@ __ipipe_get_format(struct vpfe_ipipe_device *ipipe,
 /*
  * ipipe_try_format() - Handle try format by pad subdev method
  * @ipipe: VPFE ipipe device.
- * @fh: V4L2 subdev file handle.
+ * @cfg: V4L2 subdev pad config
  * @pad: pad num.
  * @fmt: pointer to v4l2 format structure.
  * @which : wanted subdev format
  */
 static void
 ipipe_try_format(struct vpfe_ipipe_device *ipipe,
-		   struct v4l2_subdev_fh *fh, unsigned int pad,
+		   struct v4l2_subdev_pad_config *cfg, unsigned int pad,
 		   struct v4l2_mbus_framefmt *fmt,
 		   enum v4l2_subdev_format_whence which)
 {
@@ -1455,7 +1457,7 @@ ipipe_try_format(struct vpfe_ipipe_device *ipipe,
 
 		/* If not found, use SBGGR10 as default */
 		if (i >= ARRAY_SIZE(ipipe_input_fmts))
-			fmt->code = V4L2_MBUS_FMT_SGRBG12_1X12;
+			fmt->code = MEDIA_BUS_FMT_SGRBG12_1X12;
 	} else if (pad == IPIPE_PAD_SOURCE) {
 		for (i = 0; i < ARRAY_SIZE(ipipe_output_fmts); i++)
 			if (fmt->code == ipipe_output_fmts[i])
@@ -1463,7 +1465,7 @@ ipipe_try_format(struct vpfe_ipipe_device *ipipe,
 
 		/* If not found, use UYVY as default */
 		if (i >= ARRAY_SIZE(ipipe_output_fmts))
-			fmt->code = V4L2_MBUS_FMT_UYVY8_2X8;
+			fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
 	}
 
 	fmt->width = clamp_t(u32, fmt->width, MIN_OUT_HEIGHT, max_out_width);
@@ -1473,22 +1475,22 @@ ipipe_try_format(struct vpfe_ipipe_device *ipipe,
 /*
  * ipipe_set_format() - Handle set format by pads subdev method
  * @sd: pointer to v4l2 subdev structure
- * @fh: V4L2 subdev file handle
+ * @cfg: V4L2 subdev pad config
  * @fmt: pointer to v4l2 subdev format structure
  * return -EINVAL or zero on success
  */
 static int
-ipipe_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+ipipe_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 		     struct v4l2_subdev_format *fmt)
 {
 	struct vpfe_ipipe_device *ipipe = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	format = __ipipe_get_format(ipipe, fh, fmt->pad, fmt->which);
+	format = __ipipe_get_format(ipipe, cfg, fmt->pad, fmt->which);
 	if (format == NULL)
 		return -EINVAL;
 
-	ipipe_try_format(ipipe, fh, fmt->pad, &fmt->format, fmt->which);
+	ipipe_try_format(ipipe, cfg, fmt->pad, &fmt->format, fmt->which);
 	*format = fmt->format;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
@@ -1510,11 +1512,11 @@ ipipe_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 /*
  * ipipe_get_format() - Handle get format by pads subdev method.
  * @sd: pointer to v4l2 subdev structure.
- * @fh: V4L2 subdev file handle.
+ * @cfg: V4L2 subdev pad config
  * @fmt: pointer to v4l2 subdev format structure.
  */
 static int
-ipipe_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+ipipe_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 		     struct v4l2_subdev_format *fmt)
 {
 	struct vpfe_ipipe_device *ipipe = v4l2_get_subdevdata(sd);
@@ -1522,7 +1524,7 @@ ipipe_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		fmt->format = ipipe->formats[fmt->pad];
 	else
-		fmt->format = *(v4l2_subdev_get_try_format(fh, fmt->pad));
+		fmt->format = *(v4l2_subdev_get_try_format(sd, cfg, fmt->pad));
 
 	return 0;
 }
@@ -1530,11 +1532,11 @@ ipipe_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 /*
  * ipipe_enum_frame_size() - enum frame sizes on pads
  * @sd: pointer to v4l2 subdev structure.
- * @fh: V4L2 subdev file handle.
+ * @cfg: V4L2 subdev pad config
  * @fse: pointer to v4l2_subdev_frame_size_enum structure.
  */
 static int
-ipipe_enum_frame_size(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+ipipe_enum_frame_size(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct vpfe_ipipe_device *ipipe = v4l2_get_subdevdata(sd);
@@ -1546,8 +1548,7 @@ ipipe_enum_frame_size(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	format.code = fse->code;
 	format.width = 1;
 	format.height = 1;
-	ipipe_try_format(ipipe, fh, fse->pad, &format,
-			   V4L2_SUBDEV_FORMAT_TRY);
+	ipipe_try_format(ipipe, cfg, fse->pad, &format, fse->which);
 	fse->min_width = format.width;
 	fse->min_height = format.height;
 
@@ -1557,8 +1558,7 @@ ipipe_enum_frame_size(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	format.code = fse->code;
 	format.width = -1;
 	format.height = -1;
-	ipipe_try_format(ipipe, fh, fse->pad, &format,
-			   V4L2_SUBDEV_FORMAT_TRY);
+	ipipe_try_format(ipipe, cfg, fse->pad, &format, fse->which);
 	fse->max_width = format.width;
 	fse->max_height = format.height;
 
@@ -1568,11 +1568,11 @@ ipipe_enum_frame_size(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 /*
  * ipipe_enum_mbus_code() - enum mbus codes for pads
  * @sd: pointer to v4l2 subdev structure.
- * @fh: V4L2 subdev file handle
+ * @cfg: V4L2 subdev pad config
  * @code: pointer to v4l2_subdev_mbus_code_enum structure
  */
 static int
-ipipe_enum_mbus_code(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+ipipe_enum_mbus_code(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 		     struct v4l2_subdev_mbus_code_enum *code)
 {
 	switch (code->pad) {
@@ -1628,9 +1628,8 @@ static int ipipe_s_ctrl(struct v4l2_ctrl *ctrl)
  * @sd: pointer to v4l2 subdev structure.
  * @fh: V4L2 subdev file handle
  *
- * Initialize all pad formats with default values. If fh is not NULL, try
- * formats are initialized on the file handle. Otherwise active formats are
- * initialized on the device.
+ * Initialize all pad formats with default values. Try formats are initialized
+ * on the file handle.
  */
 static int
 ipipe_init_formats(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
@@ -1639,19 +1638,19 @@ ipipe_init_formats(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	memset(&format, 0, sizeof(format));
 	format.pad = IPIPE_PAD_SINK;
-	format.which = fh ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
-	format.format.code = V4L2_MBUS_FMT_SGRBG12_1X12;
+	format.which = V4L2_SUBDEV_FORMAT_TRY;
+	format.format.code = MEDIA_BUS_FMT_SGRBG12_1X12;
 	format.format.width = IPIPE_MAX_OUTPUT_WIDTH_A;
 	format.format.height = IPIPE_MAX_OUTPUT_HEIGHT_A;
-	ipipe_set_format(sd, fh, &format);
+	ipipe_set_format(sd, fh->pad, &format);
 
 	memset(&format, 0, sizeof(format));
 	format.pad = IPIPE_PAD_SOURCE;
-	format.which = fh ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
-	format.format.code = V4L2_MBUS_FMT_UYVY8_2X8;
+	format.which = V4L2_SUBDEV_FORMAT_TRY;
+	format.format.code = MEDIA_BUS_FMT_UYVY8_2X8;
 	format.format.width = IPIPE_MAX_OUTPUT_WIDTH_A;
 	format.format.height = IPIPE_MAX_OUTPUT_HEIGHT_A;
-	ipipe_set_format(sd, fh, &format);
+	ipipe_set_format(sd, fh->pad, &format);
 
 	return 0;
 }

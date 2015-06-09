@@ -127,7 +127,7 @@ static void qib_ud_loopback(struct qib_qp *sqp, struct qib_swqe *swqe)
 	 * present on the wire.
 	 */
 	length = swqe->length;
-	memset(&wc, 0, sizeof wc);
+	memset(&wc, 0, sizeof(wc));
 	wc.byte_len = length + sizeof(struct ib_grh);
 
 	if (swqe->wr.opcode == IB_WR_SEND_WITH_IMM) {
@@ -280,11 +280,11 @@ int qib_make_ud_req(struct qib_qp *qp)
 	ah_attr = &to_iah(wqe->wr.wr.ud.ah)->attr;
 	if (ah_attr->dlid >= QIB_MULTICAST_LID_BASE) {
 		if (ah_attr->dlid != QIB_PERMISSIVE_LID)
-			ibp->n_multicast_xmit++;
+			this_cpu_inc(ibp->pmastats->n_multicast_xmit);
 		else
-			ibp->n_unicast_xmit++;
+			this_cpu_inc(ibp->pmastats->n_unicast_xmit);
 	} else {
-		ibp->n_unicast_xmit++;
+		this_cpu_inc(ibp->pmastats->n_unicast_xmit);
 		lid = ah_attr->dlid & ~((1 << ppd->lmc) - 1);
 		if (unlikely(lid == ppd->lid)) {
 			/*

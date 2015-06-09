@@ -428,7 +428,7 @@ static const struct rtc_class_ops sunxi_rtc_ops = {
 };
 
 static const struct of_device_id sunxi_rtc_dt_ids[] = {
-	{ .compatible = "allwinner,sun4i-rtc", .data = &data_year_param[0] },
+	{ .compatible = "allwinner,sun4i-a10-rtc", .data = &data_year_param[0] },
 	{ .compatible = "allwinner,sun7i-a20-rtc", .data = &data_year_param[1] },
 	{ /* sentinel */ },
 };
@@ -511,7 +511,6 @@ static struct platform_driver sunxi_rtc_driver = {
 	.remove		= sunxi_rtc_remove,
 	.driver		= {
 		.name		= "sunxi-rtc",
-		.owner		= THIS_MODULE,
 		.of_match_table = sunxi_rtc_dt_ids,
 	},
 };

@@ -232,7 +232,7 @@ void rds_iw_send_cq_comp_handler(struct ib_cq *cq, void *context)
 		}
 
 		if (wc.wr_id == RDS_IW_ACK_WR_ID) {
-			if (ic->i_ack_queued + HZ/2 < jiffies)
+			if (time_after(jiffies, ic->i_ack_queued + HZ/2))
 				rds_iw_stats_inc(s_iw_tx_stalled);
 			rds_iw_ack_send_complete(ic);
 			continue;
@@ -267,7 +267,7 @@ void rds_iw_send_cq_comp_handler(struct ib_cq *cq, void *context)
 
 			send->s_wr.opcode = 0xdead;
 			send->s_wr.num_sge = 1;
-			if (send->s_queued + HZ/2 < jiffies)
+			if (time_after(jiffies, send->s_queued + HZ/2))
 				rds_iw_stats_inc(s_iw_tx_stalled);
 
 			/* If a RDMA operation produced an error, signal this right
@@ -361,7 +361,7 @@ try_again:
 	posted = IB_GET_POST_CREDITS(oldval);
 	avail = IB_GET_SEND_CREDITS(oldval);
 
-	rdsdebug("rds_iw_send_grab_credits(%u): credits=%u posted=%u\n",
+	rdsdebug("wanted=%u credits=%u posted=%u\n",
 			wanted, avail, posted);
 
 	/* The last credit must be used to send a credit update. */
@@ -405,7 +405,7 @@ void rds_iw_send_add_credits(struct rds_connection *conn, unsigned int credits)
 	if (credits == 0)
 		return;
 
-	rdsdebug("rds_iw_send_add_credits(%u): current=%u%s\n",
+	rdsdebug("credits=%u current=%u%s\n",
 			credits,
 			IB_GET_SEND_CREDITS(atomic_read(&ic->i_credits)),
 			test_bit(RDS_LL_SEND_FULL, &conn->c_flags) ? ", ll_send_full" : "");

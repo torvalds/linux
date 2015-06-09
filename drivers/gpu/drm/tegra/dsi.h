@@ -1,23 +1,9 @@
 /*
  * Copyright (C) 2013 NVIDIA Corporation
  *
- * Permission to use, copy, modify, distribute, and sell this software and its
- * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
- * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
- * about the suitability of this software for any purpose.  It is provided "as
- * is" without express or implied warranty.
- *
- * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
- * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
- * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
- * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
- * OF THIS SOFTWARE.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  */
 
 #ifndef DRM_TEGRA_DSI_H
@@ -35,9 +21,16 @@
 #define DSI_INT_STATUS			0x0d
 #define DSI_INT_MASK			0x0e
 #define DSI_HOST_CONTROL		0x0f
+#define DSI_HOST_CONTROL_FIFO_RESET	(1 << 21)
+#define DSI_HOST_CONTROL_CRC_RESET	(1 << 20)
+#define DSI_HOST_CONTROL_TX_TRIG_SOL	(0 << 12)
+#define DSI_HOST_CONTROL_TX_TRIG_FIFO	(1 << 12)
+#define DSI_HOST_CONTROL_TX_TRIG_HOST	(2 << 12)
 #define DSI_HOST_CONTROL_RAW		(1 << 6)
 #define DSI_HOST_CONTROL_HS		(1 << 5)
-#define DSI_HOST_CONTROL_BTA		(1 << 2)
+#define DSI_HOST_CONTROL_FIFO_SEL	(1 << 4)
+#define DSI_HOST_CONTROL_IMM_BTA	(1 << 3)
+#define DSI_HOST_CONTROL_PKT_BTA	(1 << 2)
 #define DSI_HOST_CONTROL_CS		(1 << 1)
 #define DSI_HOST_CONTROL_ECC		(1 << 0)
 #define DSI_CONTROL			0x10
@@ -53,9 +46,13 @@
 #define DSI_SOL_DELAY			0x11
 #define DSI_MAX_THRESHOLD		0x12
 #define DSI_TRIGGER			0x13
+#define DSI_TRIGGER_HOST		(1 << 1)
+#define DSI_TRIGGER_VIDEO		(1 << 0)
 #define DSI_TX_CRC			0x14
 #define DSI_STATUS			0x15
 #define DSI_STATUS_IDLE			(1 << 10)
+#define DSI_STATUS_UNDERFLOW		(1 <<  9)
+#define DSI_STATUS_OVERFLOW		(1 <<  8)
 #define DSI_INIT_SEQ_CONTROL		0x1a
 #define DSI_INIT_SEQ_DATA_0		0x1b
 #define DSI_INIT_SEQ_DATA_1		0x1c
@@ -118,6 +115,7 @@
 #define DSI_PAD_CONTROL_3		0x51
 #define DSI_PAD_CONTROL_4		0x52
 #define DSI_GANGED_MODE_CONTROL		0x53
+#define DSI_GANGED_MODE_CONTROL_ENABLE	(1 << 0)
 #define DSI_GANGED_MODE_START		0x54
 #define DSI_GANGED_MODE_SIZE		0x55
 #define DSI_RAW_DATA_BYTE_COUNT		0x56
@@ -130,5 +128,15 @@
 #define DSI_INIT_SEQ_DATA_13		0x5d
 #define DSI_INIT_SEQ_DATA_14		0x5e
 #define DSI_INIT_SEQ_DATA_15		0x5f
+
+/*
+ * pixel format as used in the DSI_CONTROL_FORMAT field
+ */
+enum tegra_dsi_format {
+	TEGRA_DSI_FORMAT_16P,
+	TEGRA_DSI_FORMAT_18NP,
+	TEGRA_DSI_FORMAT_18P,
+	TEGRA_DSI_FORMAT_24P,
+};
 
 #endif

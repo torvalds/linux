@@ -42,6 +42,14 @@
 #define wmb()	mb()
 #endif
 
+#ifndef dma_rmb
+#define dma_rmb()	rmb()
+#endif
+
+#ifndef dma_wmb
+#define dma_wmb()	wmb()
+#endif
+
 #ifndef read_barrier_depends
 #define read_barrier_depends()		do { } while (0)
 #endif
@@ -60,6 +68,14 @@
 
 #ifndef set_mb
 #define set_mb(var, value)  do { (var) = (value); mb(); } while (0)
+#endif
+
+#ifndef smp_mb__before_atomic
+#define smp_mb__before_atomic()	smp_mb()
+#endif
+
+#ifndef smp_mb__after_atomic
+#define smp_mb__after_atomic()	smp_mb()
 #endif
 
 #define smp_store_release(p, v)						\

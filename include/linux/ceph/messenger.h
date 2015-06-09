@@ -42,6 +42,10 @@ struct ceph_connection_operations {
 	struct ceph_msg * (*alloc_msg) (struct ceph_connection *con,
 					struct ceph_msg_header *hdr,
 					int *skip);
+	int (*sign_message) (struct ceph_connection *con, struct ceph_msg *msg);
+
+	int (*check_message_signature) (struct ceph_connection *con,
+					struct ceph_msg *msg);
 };
 
 /* use format string %s%d */
@@ -53,6 +57,7 @@ struct ceph_messenger {
 
 	atomic_t stopping;
 	bool nocrc;
+	bool tcp_nodelay;
 
 	/*
 	 * the global_seq counts connections i (attempt to) initiate
@@ -142,7 +147,10 @@ struct ceph_msg_data_cursor {
  */
 struct ceph_msg {
 	struct ceph_msg_header hdr;	/* header */
-	struct ceph_msg_footer footer;	/* footer */
+	union {
+		struct ceph_msg_footer footer;		/* footer */
+		struct ceph_msg_footer_old old_footer;	/* old format footer */
+	};
 	struct kvec front;              /* unaligned blobs of message */
 	struct ceph_buffer *middle;
 
@@ -257,7 +265,8 @@ extern void ceph_messenger_init(struct ceph_messenger *msgr,
 			struct ceph_entity_addr *myaddr,
 			u64 supported_features,
 			u64 required_features,
-			bool nocrc);
+			bool nocrc,
+			bool tcp_nodelay);
 
 extern void ceph_con_init(struct ceph_connection *con, void *private,
 			const struct ceph_connection_operations *ops,
@@ -285,19 +294,9 @@ extern void ceph_msg_data_add_bio(struct ceph_msg *msg, struct bio *bio,
 
 extern struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
 				     bool can_fail);
-extern void ceph_msg_kfree(struct ceph_msg *m);
 
-
-static inline struct ceph_msg *ceph_msg_get(struct ceph_msg *msg)
-{
-	kref_get(&msg->kref);
-	return msg;
-}
-extern void ceph_msg_last_put(struct kref *kref);
-static inline void ceph_msg_put(struct ceph_msg *msg)
-{
-	kref_put(&msg->kref, ceph_msg_last_put);
-}
+extern struct ceph_msg *ceph_msg_get(struct ceph_msg *msg);
+extern void ceph_msg_put(struct ceph_msg *msg);
 
 extern void ceph_msg_dump(struct ceph_msg *msg);
 

@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
 #include <linux/io.h>
@@ -50,7 +51,6 @@
 #include <plat/irq-uart.h>
 #include <plat/pwm-core.h>
 #include <plat/regs-irqtype.h>
-#include <plat/regs-serial.h>
 #include <plat/watchdog-reset.h>
 
 #include "common.h"
@@ -439,9 +439,4 @@ void s3c64xx_restart(enum reboot_mode mode, const char *cmd)
 
 	/* if all else fails, or mode was for soft, jump to 0 */
 	soft_restart(0);
-}
-
-void __init s3c64xx_init_late(void)
-{
-	s3c64xx_pm_late_initcall();
 }

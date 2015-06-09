@@ -29,6 +29,8 @@
 #include "iss_ipipe.h"
 #include "iss_resizer.h"
 
+struct regmap;
+
 #define to_iss_device(ptr_module)				\
 	container_of(ptr_module, struct iss_device, ptr_module)
 #define to_device(ptr_module)						\
@@ -79,6 +81,7 @@ struct iss_reg {
 
 /*
  * struct iss_device - ISS device structure.
+ * @syscon: Regmap for the syscon register space
  * @crashed: Bitmask of crashed entities (indexed by entity ID)
  */
 struct iss_device {
@@ -93,11 +96,12 @@ struct iss_device {
 
 	struct resource *res[OMAP4_ISS_MEM_LAST];
 	void __iomem *regs[OMAP4_ISS_MEM_LAST];
+	struct regmap *syscon;
 
 	u64 raw_dmamask;
 
 	struct mutex iss_mutex;	/* For handling ref_count field */
-	bool crashed;
+	unsigned int crashed;
 	int has_context;
 	int ref_count;
 
@@ -232,5 +236,19 @@ void iss_reg_update(struct iss_device *iss, enum iss_mem_resources res,
 
 	iss_reg_write(iss, res, offset, (v & ~clr) | set);
 }
+
+#define iss_poll_condition_timeout(cond, timeout, min_ival, max_ival)	\
+({									\
+	unsigned long __timeout = jiffies + usecs_to_jiffies(timeout);	\
+	unsigned int __min_ival = (min_ival);				\
+	unsigned int __max_ival = (max_ival);				\
+	bool __cond;							\
+	while (!(__cond = (cond))) {					\
+		if (time_after(jiffies, __timeout))			\
+			break;						\
+		usleep_range(__min_ival, __max_ival);			\
+	}								\
+	!__cond;							\
+})
 
 #endif /* _OMAP4_ISS_H_ */

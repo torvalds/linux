@@ -12,14 +12,9 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/of.h>
@@ -49,7 +44,7 @@ struct spi_gpio {
 	struct spi_bitbang		bitbang;
 	struct spi_gpio_platform_data	pdata;
 	struct platform_device		*pdev;
-	int				cs_gpios[0];
+	unsigned long			cs_gpios[0];
 };
 
 /*----------------------------------------------------------------------*/
@@ -93,7 +88,7 @@ struct spi_gpio {
 
 /*----------------------------------------------------------------------*/
 
-static inline struct spi_gpio * __pure
+static inline struct spi_gpio *__pure
 spi_to_spi_gpio(const struct spi_device *spi)
 {
 	const struct spi_bitbang	*bang;
@@ -104,7 +99,7 @@ spi_to_spi_gpio(const struct spi_device *spi)
 	return spi_gpio;
 }
 
-static inline struct spi_gpio_platform_data * __pure
+static inline struct spi_gpio_platform_data *__pure
 spi_to_pdata(const struct spi_device *spi)
 {
 	return &spi_to_spi_gpio(spi)->pdata;
@@ -221,7 +216,7 @@ static u32 spi_gpio_spec_txrx_word_mode3(struct spi_device *spi,
 static void spi_gpio_chipselect(struct spi_device *spi, int is_active)
 {
 	struct spi_gpio *spi_gpio = spi_to_spi_gpio(spi);
-	unsigned int cs = spi_gpio->cs_gpios[spi->chip_select];
+	unsigned long cs = spi_gpio->cs_gpios[spi->chip_select];
 
 	/* set initial clock polarity */
 	if (is_active)
@@ -235,7 +230,7 @@ static void spi_gpio_chipselect(struct spi_device *spi, int is_active)
 
 static int spi_gpio_setup(struct spi_device *spi)
 {
-	unsigned int		cs;
+	unsigned long		cs;
 	int			status = 0;
 	struct spi_gpio		*spi_gpio = spi_to_spi_gpio(spi);
 	struct device_node	*np = spi->master->dev.of_node;
@@ -250,7 +245,7 @@ static int spi_gpio_setup(struct spi_device *spi)
 		/*
 		 * ... otherwise, take it from spi->controller_data
 		 */
-		cs = (unsigned int) spi->controller_data;
+		cs = (uintptr_t) spi->controller_data;
 	}
 
 	if (!spi->controller_state) {
@@ -278,7 +273,7 @@ static int spi_gpio_setup(struct spi_device *spi)
 static void spi_gpio_cleanup(struct spi_device *spi)
 {
 	struct spi_gpio *spi_gpio = spi_to_spi_gpio(spi);
-	unsigned int cs = spi_gpio->cs_gpios[spi->chip_select];
+	unsigned long cs = spi_gpio->cs_gpios[spi->chip_select];
 
 	if (cs != SPI_GPIO_NO_CHIPSELECT)
 		gpio_free(cs);
@@ -341,7 +336,7 @@ done:
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id spi_gpio_dt_ids[] = {
+static const struct of_device_id spi_gpio_dt_ids[] = {
 	{ .compatible = "spi-gpio" },
 	{}
 };
@@ -414,6 +409,7 @@ static int spi_gpio_probe(struct platform_device *pdev)
 	struct spi_gpio_platform_data	*pdata;
 	u16 master_flags = 0;
 	bool use_of = 0;
+	int num_devices;
 
 	status = spi_gpio_probe_dt(pdev);
 	if (status < 0)
@@ -423,16 +419,21 @@ static int spi_gpio_probe(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(&pdev->dev);
 #ifdef GENERIC_BITBANG
-	if (!pdata || !pdata->num_chipselect)
+	if (!pdata || (!use_of && !pdata->num_chipselect))
 		return -ENODEV;
 #endif
+
+	if (use_of && !SPI_N_CHIPSEL)
+		num_devices = 1;
+	else
+		num_devices = SPI_N_CHIPSEL;
 
 	status = spi_gpio_request(pdata, dev_name(&pdev->dev), &master_flags);
 	if (status < 0)
 		return status;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*spi_gpio) +
-					(sizeof(int) * SPI_N_CHIPSEL));
+					(sizeof(unsigned long) * num_devices));
 	if (!master) {
 		status = -ENOMEM;
 		goto gpio_free;
@@ -447,7 +448,7 @@ static int spi_gpio_probe(struct platform_device *pdev)
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
 	master->flags = master_flags;
 	master->bus_num = pdev->id;
-	master->num_chipselect = SPI_N_CHIPSEL;
+	master->num_chipselect = num_devices;
 	master->setup = spi_gpio_setup;
 	master->cleanup = spi_gpio_cleanup;
 #ifdef CONFIG_OF
@@ -462,9 +463,18 @@ static int spi_gpio_probe(struct platform_device *pdev)
 		 * property of the node.
 		 */
 
-		for (i = 0; i < SPI_N_CHIPSEL; i++)
-			spi_gpio->cs_gpios[i] =
-				of_get_named_gpio(np, "cs-gpios", i);
+		if (!SPI_N_CHIPSEL)
+			spi_gpio->cs_gpios[0] = SPI_GPIO_NO_CHIPSELECT;
+		else
+			for (i = 0; i < SPI_N_CHIPSEL; i++) {
+				status = of_get_named_gpio(np, "cs-gpios", i);
+				if (status < 0) {
+					dev_err(&pdev->dev,
+						"invalid cs-gpios property\n");
+					goto gpio_free;
+				}
+				spi_gpio->cs_gpios[i] = status;
+			}
 	}
 #endif
 
@@ -503,13 +513,12 @@ static int spi_gpio_remove(struct platform_device *pdev)
 {
 	struct spi_gpio			*spi_gpio;
 	struct spi_gpio_platform_data	*pdata;
-	int				status;
 
 	spi_gpio = platform_get_drvdata(pdev);
 	pdata = dev_get_platdata(&pdev->dev);
 
 	/* stop() unregisters child devices too */
-	status = spi_bitbang_stop(&spi_gpio->bitbang);
+	spi_bitbang_stop(&spi_gpio->bitbang);
 
 	if (SPI_MISO_GPIO != SPI_GPIO_NO_MISO)
 		gpio_free(SPI_MISO_GPIO);
@@ -518,7 +527,7 @@ static int spi_gpio_remove(struct platform_device *pdev)
 	gpio_free(SPI_SCK_GPIO);
 	spi_master_put(spi_gpio->bitbang.master);
 
-	return status;
+	return 0;
 }
 
 MODULE_ALIAS("platform:" DRIVER_NAME);
@@ -526,7 +535,6 @@ MODULE_ALIAS("platform:" DRIVER_NAME);
 static struct platform_driver spi_gpio_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(spi_gpio_dt_ids),
 	},
 	.probe		= spi_gpio_probe,

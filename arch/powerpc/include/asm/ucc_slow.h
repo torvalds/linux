@@ -251,19 +251,6 @@ void ucc_slow_enable(struct ucc_slow_private * uccs, enum comm_dir mode);
  */
 void ucc_slow_disable(struct ucc_slow_private * uccs, enum comm_dir mode);
 
-/* ucc_slow_poll_transmitter_now
- * Immediately forces a poll of the transmitter for data to be sent.
- * Typically, the hardware performs a periodic poll for data that the
- * transmit routine has set up to be transmitted. In cases where
- * this polling cycle is not soon enough, this optional routine can
- * be invoked to force a poll right away, instead. Proper use for
- * each transmission for which this functionality is desired is to
- * call the transmit routine and then this routine right after.
- *
- * uccs - (In) pointer to the slow UCC structure.
- */
-void ucc_slow_poll_transmitter_now(struct ucc_slow_private * uccs);
-
 /* ucc_slow_graceful_stop_tx
  * Smoothly stops transmission on a specified slow UCC.
  *

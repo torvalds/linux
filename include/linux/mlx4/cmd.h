@@ -67,8 +67,13 @@ enum {
 	MLX4_CMD_MAP_ICM_AUX	 = 0xffc,
 	MLX4_CMD_UNMAP_ICM_AUX	 = 0xffb,
 	MLX4_CMD_SET_ICM_SIZE	 = 0xffd,
+	MLX4_CMD_ACCESS_REG	 = 0x3b,
+	MLX4_CMD_ALLOCATE_VPP	 = 0x80,
+	MLX4_CMD_SET_VPORT_QOS	 = 0x81,
+
 	/*master notify fw on finish for slave's flr*/
 	MLX4_CMD_INFORM_FLR_DONE = 0x5b,
+	MLX4_CMD_VIRT_PORT_MAP   = 0x5c,
 	MLX4_CMD_GET_OP_REQ      = 0x59,
 
 	/* TPT commands */
@@ -116,6 +121,7 @@ enum {
 	/* special QP and management commands */
 	MLX4_CMD_CONF_SPECIAL_QP = 0x23,
 	MLX4_CMD_MAD_IFC	 = 0x24,
+	MLX4_CMD_MAD_DEMUX	 = 0x203,
 
 	/* multicast commands */
 	MLX4_CMD_READ_MCG	 = 0x25,
@@ -125,6 +131,7 @@ enum {
 	/* miscellaneous commands */
 	MLX4_CMD_DIAG_RPRT	 = 0x30,
 	MLX4_CMD_NOP		 = 0x31,
+	MLX4_CMD_CONFIG_DEV	 = 0x3a,
 	MLX4_CMD_ACCESS_MEM	 = 0x2e,
 	MLX4_CMD_SET_VEP	 = 0x52,
 
@@ -158,12 +165,21 @@ enum {
 	MLX4_QP_FLOW_STEERING_ATTACH = 0x65,
 	MLX4_QP_FLOW_STEERING_DETACH = 0x66,
 	MLX4_FLOW_STEERING_IB_UC_QP_RANGE = 0x64,
+
+	/* Update and read QCN parameters */
+	MLX4_CMD_CONGESTION_CTRL_OPCODE = 0x68,
 };
 
 enum {
-	MLX4_CMD_TIME_CLASS_A	= 10000,
-	MLX4_CMD_TIME_CLASS_B	= 10000,
-	MLX4_CMD_TIME_CLASS_C	= 10000,
+	MLX4_CMD_TIME_CLASS_A	= 60000,
+	MLX4_CMD_TIME_CLASS_B	= 60000,
+	MLX4_CMD_TIME_CLASS_C	= 60000,
+};
+
+enum {
+	/* virtual to physical port mapping opcode modifiers */
+	MLX4_GET_PORT_VIRT2PHY = 0x0,
+	MLX4_SET_PORT_VIRT2PHY = 0x1,
 };
 
 enum {
@@ -172,7 +188,14 @@ enum {
 };
 
 enum {
-	/* set port opcode modifiers */
+	/* Set port opcode modifiers */
+	MLX4_SET_PORT_IB_OPCODE		= 0x0,
+	MLX4_SET_PORT_ETH_OPCODE	= 0x1,
+	MLX4_SET_PORT_BEACON_OPCODE	= 0x4,
+};
+
+enum {
+	/* Set port Ethernet input modifiers */
 	MLX4_SET_PORT_GENERAL   = 0x0,
 	MLX4_SET_PORT_RQP_CALC  = 0x1,
 	MLX4_SET_PORT_MAC_TABLE = 0x2,
@@ -185,8 +208,51 @@ enum {
 };
 
 enum {
+	MLX4_CMD_MAD_DEMUX_CONFIG	= 0,
+	MLX4_CMD_MAD_DEMUX_QUERY_STATE	= 1,
+	MLX4_CMD_MAD_DEMUX_QUERY_RESTR	= 2, /* Query mad demux restrictions */
+};
+
+enum {
 	MLX4_CMD_WRAPPED,
 	MLX4_CMD_NATIVE
+};
+
+/*
+ * MLX4_RX_CSUM_MODE_VAL_NON_TCP_UDP -
+ * Receive checksum value is reported in CQE also for non TCP/UDP packets.
+ *
+ * MLX4_RX_CSUM_MODE_L4 -
+ * L4_CSUM bit in CQE, which indicates whether or not L4 checksum
+ * was validated correctly, is supported.
+ *
+ * MLX4_RX_CSUM_MODE_IP_OK_IP_NON_TCP_UDP -
+ * IP_OK CQE's field is supported also for non TCP/UDP IP packets.
+ *
+ * MLX4_RX_CSUM_MODE_MULTI_VLAN -
+ * Receive Checksum offload is supported for packets with more than 2 vlan headers.
+ */
+enum mlx4_rx_csum_mode {
+	MLX4_RX_CSUM_MODE_VAL_NON_TCP_UDP		= 1UL << 0,
+	MLX4_RX_CSUM_MODE_L4				= 1UL << 1,
+	MLX4_RX_CSUM_MODE_IP_OK_IP_NON_TCP_UDP		= 1UL << 2,
+	MLX4_RX_CSUM_MODE_MULTI_VLAN			= 1UL << 3
+};
+
+struct mlx4_config_dev_params {
+	u16	vxlan_udp_dport;
+	u8	rx_csum_flags_port_1;
+	u8	rx_csum_flags_port_2;
+};
+
+enum mlx4_en_congestion_control_algorithm {
+	MLX4_CTRL_ALGO_802_1_QAU_REACTION_POINT = 0,
+};
+
+enum mlx4_en_congestion_control_opmod {
+	MLX4_CONGESTION_CONTROL_GET_PARAMS,
+	MLX4_CONGESTION_CONTROL_GET_STATISTICS,
+	MLX4_CONGESTION_CONTROL_SET_PARAMS = 4,
 };
 
 struct mlx4_dev;
@@ -237,10 +303,24 @@ void mlx4_free_cmd_mailbox(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbo
 u32 mlx4_comm_get_version(void);
 int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u64 mac);
 int mlx4_set_vf_vlan(struct mlx4_dev *dev, int port, int vf, u16 vlan, u8 qos);
+int mlx4_set_vf_rate(struct mlx4_dev *dev, int port, int vf, int min_tx_rate,
+		     int max_tx_rate);
 int mlx4_set_vf_spoofchk(struct mlx4_dev *dev, int port, int vf, bool setting);
 int mlx4_get_vf_config(struct mlx4_dev *dev, int port, int vf, struct ifla_vf_info *ivf);
 int mlx4_set_vf_link_state(struct mlx4_dev *dev, int port, int vf, int link_state);
+int mlx4_config_dev_retrieval(struct mlx4_dev *dev,
+			      struct mlx4_config_dev_params *params);
+void mlx4_cmd_wake_completions(struct mlx4_dev *dev);
+void mlx4_report_internal_err_comm_event(struct mlx4_dev *dev);
+/*
+ * mlx4_get_slave_default_vlan -
+ * return true if VST ( default vlan)
+ * if VST, will return vlan & qos (if not NULL)
+ */
+bool mlx4_get_slave_default_vlan(struct mlx4_dev *dev, int port, int slave,
+				 u16 *vlan, u8 *qos);
 
 #define MLX4_COMM_GET_IF_REV(cmd_chan_ver) (u8)((cmd_chan_ver) >> 8)
+#define COMM_CHAN_EVENT_INTERNAL_ERR (1 << 17)
 
 #endif /* MLX4_CMD_H */

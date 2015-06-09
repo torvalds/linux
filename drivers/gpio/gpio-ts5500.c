@@ -427,8 +427,7 @@ static int ts5500_dio_probe(struct platform_device *pdev)
 
 	return 0;
 cleanup:
-	if (gpiochip_remove(&priv->gpio_chip))
-		dev_err(dev, "failed to remove gpio chip\n");
+	gpiochip_remove(&priv->gpio_chip);
 	return ret;
 }
 
@@ -437,7 +436,8 @@ static int ts5500_dio_remove(struct platform_device *pdev)
 	struct ts5500_priv *priv = platform_get_drvdata(pdev);
 
 	ts5500_disable_irq(priv);
-	return gpiochip_remove(&priv->gpio_chip);
+	gpiochip_remove(&priv->gpio_chip);
+	return 0;
 }
 
 static struct platform_device_id ts5500_dio_ids[] = {
@@ -452,7 +452,6 @@ MODULE_DEVICE_TABLE(platform, ts5500_dio_ids);
 static struct platform_driver ts5500_dio_driver = {
 	.driver = {
 		.name = "ts5500-dio",
-		.owner = THIS_MODULE,
 	},
 	.probe = ts5500_dio_probe,
 	.remove = ts5500_dio_remove,

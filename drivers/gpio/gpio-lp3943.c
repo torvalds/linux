@@ -216,7 +216,8 @@ static int lp3943_gpio_remove(struct platform_device *pdev)
 {
 	struct lp3943_gpio *lp3943_gpio = platform_get_drvdata(pdev);
 
-	return gpiochip_remove(&lp3943_gpio->chip);
+	gpiochip_remove(&lp3943_gpio->chip);
+	return 0;
 }
 
 static const struct of_device_id lp3943_gpio_of_match[] = {
@@ -230,7 +231,6 @@ static struct platform_driver lp3943_gpio_driver = {
 	.remove = lp3943_gpio_remove,
 	.driver = {
 		.name = "lp3943-gpio",
-		.owner = THIS_MODULE,
 		.of_match_table = lp3943_gpio_of_match,
 	},
 };

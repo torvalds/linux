@@ -165,6 +165,7 @@ static struct platform_device_id da9052_wled_ids[] = {
 		.name		= "da9052-wled3",
 		.driver_data	= DA9052_TYPE_WLED3,
 	},
+	{ },
 };
 
 static struct platform_driver da9052_wled_driver = {
@@ -173,7 +174,6 @@ static struct platform_driver da9052_wled_driver = {
 	.id_table	= da9052_wled_ids,
 	.driver	= {
 		.name	= "da9052-wled",
-		.owner	= THIS_MODULE,
 	},
 };
 

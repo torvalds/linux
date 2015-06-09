@@ -2,6 +2,9 @@
 #define _XEN_EVENTS_H
 
 #include <linux/interrupt.h>
+#ifdef CONFIG_PCI_MSI
+#include <linux/msi.h>
+#endif
 
 #include <xen/interface/event_channel.h>
 #include <asm/xen/hypercall.h>
@@ -14,7 +17,7 @@ int bind_evtchn_to_irqhandler(unsigned int evtchn,
 			      irq_handler_t handler,
 			      unsigned long irqflags, const char *devname,
 			      void *dev_id);
-int bind_virq_to_irq(unsigned int virq, unsigned int cpu);
+int bind_virq_to_irq(unsigned int virq, unsigned int cpu, bool percpu);
 int bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
 			    irq_handler_t handler,
 			    unsigned long irqflags, const char *devname,
@@ -25,6 +28,8 @@ int bind_ipi_to_irqhandler(enum ipi_vector ipi,
 			   unsigned long irqflags,
 			   const char *devname,
 			   void *dev_id);
+int bind_interdomain_evtchn_to_irq(unsigned int remote_domain,
+				   unsigned int remote_port);
 int bind_interdomain_evtchn_to_irqhandler(unsigned int remote_domain,
 					  unsigned int remote_port,
 					  irq_handler_t handler,
@@ -52,7 +57,6 @@ int evtchn_get(unsigned int evtchn);
 void evtchn_put(unsigned int evtchn);
 
 void xen_send_IPI_one(unsigned int cpu, enum ipi_vector vector);
-int resend_irq_on_evtchn(unsigned int irq);
 void rebind_evtchn_irq(int evtchn, int irq);
 
 static inline void notify_remote_via_evtchn(int port)
@@ -102,7 +106,7 @@ int xen_bind_pirq_gsi_to_irq(unsigned gsi,
 int xen_allocate_pirq_msi(struct pci_dev *dev, struct msi_desc *msidesc);
 /* Bind an PSI pirq to an irq. */
 int xen_bind_pirq_msi_to_irq(struct pci_dev *dev, struct msi_desc *msidesc,
-			     int pirq, const char *name, domid_t domid);
+			     int pirq, int nvec, const char *name, domid_t domid);
 #endif
 
 /* De-allocates the above mentioned physical interrupt. */

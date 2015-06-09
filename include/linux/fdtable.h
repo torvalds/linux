@@ -63,8 +63,6 @@ struct file_operations;
 struct vfsmount;
 struct dentry;
 
-extern void __init files_defer_init(void);
-
 #define rcu_dereference_check_fdtable(files, fdtfd) \
 	rcu_dereference_check((fdtfd), lockdep_is_held(&(files)->file_lock))
 

@@ -7,6 +7,27 @@ menuconfig MEMORY
 
 if MEMORY
 
+config ATMEL_SDRAMC
+	bool "Atmel (Multi-port DDR-)SDRAM Controller"
+	default y
+	depends on ARCH_AT91 && OF
+	help
+	  This driver is for Atmel SDRAM Controller or Atmel Multi-port
+	  DDR-SDRAM Controller available on Atmel AT91SAM9 and SAMA5 SoCs.
+	  Starting with the at91sam9g45, this controller supports SDR, DDR and
+	  LP-DDR memories.
+
+config TI_AEMIF
+	tristate "Texas Instruments AEMIF driver"
+	depends on (ARCH_DAVINCI || ARCH_KEYSTONE) && OF
+	help
+	  This driver is for the AEMIF module available in Texas Instruments
+	  SoCs. AEMIF stands for Asynchronous External Memory Interface and
+	  is intended to provide a glue-less interface to a variety of
+	  asynchronuous memory devices like ASRAM, NOR and NAND memory. A total
+	  of 256M bytes of any of these memories can be accessed at a given
+	  time via four chip selects with 64M byte access per chip select.
+
 config TI_EMIF
 	tristate "Texas Instruments EMIF driver"
 	depends on ARCH_OMAP2PLUS
@@ -19,6 +40,14 @@ config TI_EMIF
 	  functions of the driver includes re-configuring AC timing
 	  parameters and other settings during frequency, voltage and
 	  temperature changes
+
+config OMAP_GPMC
+	bool
+	help
+	  This driver is for the General Purpose Memory Controller (GPMC)
+	  present on Texas Instruments SoCs (e.g. OMAP2+). GPMC allows
+	  interfacing to a variety of asynchronous as well as synchronous
+	  memory drives like NOR, NAND, OneNAND, SRAM.
 
 config MVEBU_DEVBUS
 	bool "Marvell EBU Device Bus Controller"
@@ -40,14 +69,29 @@ config TEGRA20_MC
 	  analysis, especially for IOMMU/GART(Graphics Address
 	  Relocation Table) module.
 
-config TEGRA30_MC
-	bool "Tegra30 Memory Controller(MC) driver"
-	default y
-	depends on ARCH_TEGRA_3x_SOC
+config FSL_CORENET_CF
+	tristate "Freescale CoreNet Error Reporting"
+	depends on FSL_SOC_BOOKE
 	help
-	  This driver is for the Memory Controller(MC) module available
-	  in Tegra30 SoCs, mainly for a address translation fault
-	  analysis, especially for IOMMU/SMMU(System Memory Management
-	  Unit) module.
+	  Say Y for reporting of errors from the Freescale CoreNet
+	  Coherency Fabric.  Errors reported include accesses to
+	  physical addresses that mapped by no local access window
+	  (LAW) or an invalid LAW, as well as bad cache state that
+	  represents a coherency violation.
+
+config FSL_IFC
+	bool
+	depends on FSL_SOC
+
+config JZ4780_NEMC
+	bool "Ingenic JZ4780 SoC NEMC driver"
+	default y
+	depends on MACH_JZ4780
+	help
+	  This driver is for the NAND/External Memory Controller (NEMC) in
+	  the Ingenic JZ4780. This controller is used to handle external
+	  memory devices such as NAND and SRAM.
+
+source "drivers/memory/tegra/Kconfig"
 
 endif

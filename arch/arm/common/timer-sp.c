@@ -233,13 +233,13 @@ static void __init sp804_of_init(struct device_node *np)
 	if (IS_ERR(clk1))
 		clk1 = NULL;
 
-	/* Get the 2nd clock if the timer has 2 timer clocks */
+	/* Get the 2nd clock if the timer has 3 timer clocks */
 	if (of_count_phandle_with_args(np, "clocks", "#clock-cells") == 3) {
 		clk2 = of_clk_get(np, 1);
 		if (IS_ERR(clk2)) {
 			pr_err("sp804: %s clock not found: %d\n", np->name,
 				(int)PTR_ERR(clk2));
-			goto err;
+			clk2 = NULL;
 		}
 	} else
 		clk2 = clk1;
@@ -271,9 +271,13 @@ static void __init integrator_cp_of_init(struct device_node *np)
 	void __iomem *base;
 	int irq;
 	const char *name = of_get_property(np, "compatible", NULL);
+	struct clk *clk;
 
 	base = of_iomap(np, 0);
 	if (WARN_ON(!base))
+		return;
+	clk = of_clk_get(np, 0);
+	if (WARN_ON(IS_ERR(clk)))
 		return;
 
 	/* Ensure timer is disabled */
@@ -283,13 +287,13 @@ static void __init integrator_cp_of_init(struct device_node *np)
 		goto err;
 
 	if (!init_count)
-		sp804_clocksource_init(base, name);
+		__sp804_clocksource_and_sched_clock_init(base, name, clk, 0);
 	else {
 		irq = irq_of_parse_and_map(np, 0);
 		if (irq <= 0)
 			goto err;
 
-		sp804_clockevents_init(base, irq, name);
+		__sp804_clockevents_init(base, irq, clk, name);
 	}
 
 	init_count++;

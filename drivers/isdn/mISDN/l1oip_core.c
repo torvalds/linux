@@ -287,11 +287,9 @@ l1oip_socket_send(struct l1oip *hc, u8 localcodec, u8 channel, u32 chanmask,
 	p = frame;
 
 	/* restart timer */
-	if ((int)(hc->keep_tl.expires-jiffies) < 5 * HZ) {
-		del_timer(&hc->keep_tl);
-		hc->keep_tl.expires = jiffies + L1OIP_KEEPALIVE * HZ;
-		add_timer(&hc->keep_tl);
-	} else
+	if (time_before(hc->keep_tl.expires, jiffies + 5 * HZ))
+		mod_timer(&hc->keep_tl, jiffies + L1OIP_KEEPALIVE * HZ);
+	else
 		hc->keep_tl.expires = jiffies + L1OIP_KEEPALIVE * HZ;
 
 	if (debug & DEBUG_L1OIP_MSG)
@@ -621,11 +619,9 @@ multiframe:
 		goto multiframe;
 
 	/* restart timer */
-	if ((int)(hc->timeout_tl.expires-jiffies) < 5 * HZ || !hc->timeout_on) {
+	if (time_before(hc->timeout_tl.expires, jiffies + 5 * HZ) || !hc->timeout_on) {
 		hc->timeout_on = 1;
-		del_timer(&hc->timeout_tl);
-		hc->timeout_tl.expires = jiffies + L1OIP_TIMEOUT * HZ;
-		add_timer(&hc->timeout_tl);
+		mod_timer(&hc->timeout_tl, jiffies + L1OIP_TIMEOUT * HZ);
 	} else /* only adjust timer */
 		hc->timeout_tl.expires = jiffies + L1OIP_TIMEOUT * HZ;
 
@@ -1338,7 +1334,7 @@ init_card(struct l1oip *hc, int pri, int bundle)
 	if (id[l1oip_cnt] == 0) {
 		printk(KERN_WARNING "Warning: No 'id' value given or "
 		       "0, this is highly unsecure. Please use 32 "
-		       "bit randmom number 0x...\n");
+		       "bit random number 0x...\n");
 	}
 	hc->id = id[l1oip_cnt];
 	if (debug & DEBUG_L1OIP_INIT)

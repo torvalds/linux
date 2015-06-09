@@ -23,7 +23,6 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/ioport.h>
@@ -138,7 +137,6 @@ static int platram_probe(struct platform_device *pdev)
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (info == NULL) {
-		dev_err(&pdev->dev, "no memory for flash info\n");
 		err = -ENOMEM;
 		goto exit_error;
 	}
@@ -253,7 +251,6 @@ static struct platform_driver platram_driver = {
 	.remove		= platram_remove,
 	.driver		= {
 		.name	= "mtd-ram",
-		.owner	= THIS_MODULE,
 	},
 };
 

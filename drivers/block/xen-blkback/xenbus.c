@@ -14,12 +14,17 @@
 
 */
 
+#define pr_fmt(fmt) "xen-blkback: " fmt
+
 #include <stdarg.h>
 #include <linux/module.h>
 #include <linux/kthread.h>
 #include <xen/events.h>
 #include <xen/grant_table.h>
 #include "common.h"
+
+/* Enlarge the array size in order to fully show blkback name. */
+#define BLKBACK_NAME_LEN (20)
 
 struct backend_info {
 	struct xenbus_device	*dev;
@@ -35,10 +40,24 @@ static void connect(struct backend_info *);
 static int connect_ring(struct backend_info *);
 static void backend_changed(struct xenbus_watch *, const char **,
 			    unsigned int);
+static void xen_blkif_free(struct xen_blkif *blkif);
+static void xen_vbd_free(struct xen_vbd *vbd);
 
 struct xenbus_device *xen_blkbk_xenbus(struct backend_info *be)
 {
 	return be->dev;
+}
+
+/*
+ * The last request could free the device from softirq context and
+ * xen_blkif_free() can sleep.
+ */
+static void xen_blkif_deferred_free(struct work_struct *work)
+{
+	struct xen_blkif *blkif;
+
+	blkif = container_of(work, struct xen_blkif, free_work);
+	xen_blkif_free(blkif);
 }
 
 static int blkback_name(struct xen_blkif *blkif, char *buf)
@@ -56,7 +75,7 @@ static int blkback_name(struct xen_blkif *blkif, char *buf)
 	else
 		devname  = devpath;
 
-	snprintf(buf, TASK_COMM_LEN, "blkback.%d.%s", blkif->domid, devname);
+	snprintf(buf, BLKBACK_NAME_LEN, "blkback.%d.%s", blkif->domid, devname);
 	kfree(devpath);
 
 	return 0;
@@ -65,7 +84,7 @@ static int blkback_name(struct xen_blkif *blkif, char *buf)
 static void xen_update_blkif_status(struct xen_blkif *blkif)
 {
 	int err;
-	char name[TASK_COMM_LEN];
+	char name[BLKBACK_NAME_LEN];
 
 	/* Not ready to connect? */
 	if (!blkif->irq || !blkif->vbd.bdev)
@@ -121,7 +140,6 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 	init_completion(&blkif->drain_complete);
 	atomic_set(&blkif->drain, 0);
 	blkif->st_print = jiffies;
-	init_waitqueue_head(&blkif->waiting_to_free);
 	blkif->persistent_gnts.rb_node = NULL;
 	spin_lock_init(&blkif->free_pages_lock);
 	INIT_LIST_HEAD(&blkif->free_pages);
@@ -132,6 +150,7 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 	INIT_WORK(&blkif->persistent_purge_work, xen_blkbk_unmap_purged_grants);
 
 	INIT_LIST_HEAD(&blkif->pending_free);
+	INIT_WORK(&blkif->free_work, xen_blkif_deferred_free);
 
 	for (i = 0; i < XEN_BLKIF_REQS; i++) {
 		req = kzalloc(sizeof(*req), GFP_KERNEL);
@@ -179,7 +198,7 @@ fail:
 	return ERR_PTR(-ENOMEM);
 }
 
-static int xen_blkif_map(struct xen_blkif *blkif, unsigned long shared_page,
+static int xen_blkif_map(struct xen_blkif *blkif, grant_ref_t gref,
 			 unsigned int evtchn)
 {
 	int err;
@@ -188,7 +207,8 @@ static int xen_blkif_map(struct xen_blkif *blkif, unsigned long shared_page,
 	if (blkif->irq)
 		return 0;
 
-	err = xenbus_map_ring_valloc(blkif->be->dev, shared_page, &blkif->blk_ring);
+	err = xenbus_map_ring_valloc(blkif->be->dev, &gref, 1,
+				     &blkif->blk_ring);
 	if (err < 0)
 		return err;
 
@@ -231,7 +251,7 @@ static int xen_blkif_map(struct xen_blkif *blkif, unsigned long shared_page,
 	return 0;
 }
 
-static void xen_blkif_disconnect(struct xen_blkif *blkif)
+static int xen_blkif_disconnect(struct xen_blkif *blkif)
 {
 	if (blkif->xenblkd) {
 		kthread_stop(blkif->xenblkd);
@@ -239,9 +259,12 @@ static void xen_blkif_disconnect(struct xen_blkif *blkif)
 		blkif->xenblkd = NULL;
 	}
 
-	atomic_dec(&blkif->refcnt);
-	wait_event(blkif->waiting_to_free, atomic_read(&blkif->refcnt) == 0);
-	atomic_inc(&blkif->refcnt);
+	/* The above kthread_stop() guarantees that at this point we
+	 * don't have any discard_io or other_io requests. So, checking
+	 * for inflight IO is enough.
+	 */
+	if (atomic_read(&blkif->inflight) > 0)
+		return -EBUSY;
 
 	if (blkif->irq) {
 		unbind_from_irqhandler(blkif->irq, blkif);
@@ -252,6 +275,11 @@ static void xen_blkif_disconnect(struct xen_blkif *blkif)
 		xenbus_unmap_ring_vfree(blkif->be->dev, blkif->blk_ring);
 		blkif->blk_rings.common.sring = NULL;
 	}
+
+	/* Remove all persistent grants and the cache of ballooned pages. */
+	xen_blkbk_free_caches(blkif);
+
+	return 0;
 }
 
 static void xen_blkif_free(struct xen_blkif *blkif)
@@ -259,11 +287,8 @@ static void xen_blkif_free(struct xen_blkif *blkif)
 	struct pending_req *req, *n;
 	int i = 0, j;
 
-	if (!atomic_dec_and_test(&blkif->refcnt))
-		BUG();
-
-	/* Remove all persistent grants and the cache of ballooned pages. */
-	xen_blkbk_free_caches(blkif);
+	xen_blkif_disconnect(blkif);
+	xen_vbd_free(&blkif->vbd);
 
 	/* Make sure everything is drained before shutting down */
 	BUG_ON(blkif->persistent_gnt_c != 0);
@@ -404,14 +429,14 @@ static int xen_vbd_create(struct xen_blkif *blkif, blkif_vdev_t handle,
 				 FMODE_READ : FMODE_WRITE, NULL);
 
 	if (IS_ERR(bdev)) {
-		DPRINTK("xen_vbd_create: device %08x could not be opened.\n",
+		pr_warn("xen_vbd_create: device %08x could not be opened\n",
 			vbd->pdevice);
 		return -ENOENT;
 	}
 
 	vbd->bdev = bdev;
 	if (vbd->bdev->bd_disk == NULL) {
-		DPRINTK("xen_vbd_create: device %08x doesn't exist.\n",
+		pr_warn("xen_vbd_create: device %08x doesn't exist\n",
 			vbd->pdevice);
 		xen_vbd_free(vbd);
 		return -ENOENT;
@@ -430,7 +455,7 @@ static int xen_vbd_create(struct xen_blkif *blkif, blkif_vdev_t handle,
 	if (q && blk_queue_secdiscard(q))
 		vbd->discard_secure = true;
 
-	DPRINTK("Successful creation of handle=%04x (dom=%u)\n",
+	pr_debug("Successful creation of handle=%04x (dom=%u)\n",
 		handle, blkif->domid);
 	return 0;
 }
@@ -438,7 +463,7 @@ static int xen_blkbk_remove(struct xenbus_device *dev)
 {
 	struct backend_info *be = dev_get_drvdata(&dev->dev);
 
-	DPRINTK("");
+	pr_debug("%s %p %d\n", __func__, dev, dev->otherend_id);
 
 	if (be->major || be->minor)
 		xenvbd_sysfs_delif(dev);
@@ -449,16 +474,15 @@ static int xen_blkbk_remove(struct xenbus_device *dev)
 		be->backend_watch.node = NULL;
 	}
 
+	dev_set_drvdata(&dev->dev, NULL);
+
 	if (be->blkif) {
 		xen_blkif_disconnect(be->blkif);
-		xen_vbd_free(&be->blkif->vbd);
-		xen_blkif_free(be->blkif);
-		be->blkif = NULL;
+		xen_blkif_put(be->blkif);
 	}
 
 	kfree(be->mode);
 	kfree(be);
-	dev_set_drvdata(&dev->dev, NULL);
 	return 0;
 }
 
@@ -481,9 +505,14 @@ static void xen_blkbk_discard(struct xenbus_transaction xbt, struct backend_info
 	struct xenbus_device *dev = be->dev;
 	struct xen_blkif *blkif = be->blkif;
 	int err;
-	int state = 0;
+	int state = 0, discard_enable;
 	struct block_device *bdev = be->blkif->vbd.bdev;
 	struct request_queue *q = bdev_get_queue(bdev);
+
+	err = xenbus_scanf(XBT_NIL, dev->nodename, "discard-enable", "%d",
+			   &discard_enable);
+	if (err == 1 && !discard_enable)
+		return;
 
 	if (blk_queue_discard(q)) {
 		err = xenbus_printf(xbt, dev->nodename,
@@ -540,6 +569,10 @@ static int xen_blkbk_probe(struct xenbus_device *dev,
 	int err;
 	struct backend_info *be = kzalloc(sizeof(struct backend_info),
 					  GFP_KERNEL);
+
+	/* match the pr_debug in xen_blkbk_remove */
+	pr_debug("%s %p %d\n", __func__, dev, dev->otherend_id);
+
 	if (!be) {
 		xenbus_dev_fatal(dev, -ENOMEM,
 				 "allocating backend structure");
@@ -571,7 +604,7 @@ static int xen_blkbk_probe(struct xenbus_device *dev,
 	return 0;
 
 fail:
-	DPRINTK("failed");
+	pr_warn("%s failed\n", __func__);
 	xen_blkbk_remove(dev);
 	return err;
 }
@@ -595,7 +628,7 @@ static void backend_changed(struct xenbus_watch *watch,
 	unsigned long handle;
 	char *device_type;
 
-	DPRINTK("");
+	pr_debug("%s %p %d\n", __func__, dev, dev->otherend_id);
 
 	err = xenbus_scanf(XBT_NIL, dev->nodename, "physical-device", "%x:%x",
 			   &major, &minor);
@@ -614,7 +647,7 @@ static void backend_changed(struct xenbus_watch *watch,
 
 	if (be->major | be->minor) {
 		if (be->major != major || be->minor != minor)
-			pr_warn(DRV_PFX "changing physical device (from %x:%x to %x:%x) not supported.\n",
+			pr_warn("changing physical device (from %x:%x to %x:%x) not supported.\n",
 				be->major, be->minor, major, minor);
 		return;
 	}
@@ -675,13 +708,12 @@ static void frontend_changed(struct xenbus_device *dev,
 	struct backend_info *be = dev_get_drvdata(&dev->dev);
 	int err;
 
-	DPRINTK("%s", xenbus_strstate(frontend_state));
+	pr_debug("%s %p %s\n", __func__, dev, xenbus_strstate(frontend_state));
 
 	switch (frontend_state) {
 	case XenbusStateInitialising:
 		if (dev->state == XenbusStateClosed) {
-			pr_info(DRV_PFX "%s: prepare for reconnect\n",
-				dev->nodename);
+			pr_info("%s: prepare for reconnect\n", dev->nodename);
 			xenbus_switch_state(dev, XenbusStateInitWait);
 		}
 		break;
@@ -700,7 +732,11 @@ static void frontend_changed(struct xenbus_device *dev,
 		 * Enforce precondition before potential leak point.
 		 * xen_blkif_disconnect() is idempotent.
 		 */
-		xen_blkif_disconnect(be->blkif);
+		err = xen_blkif_disconnect(be->blkif);
+		if (err) {
+			xenbus_dev_fatal(dev, err, "pending I/O");
+			break;
+		}
 
 		err = connect_ring(be);
 		if (err)
@@ -744,7 +780,7 @@ static void connect(struct backend_info *be)
 	int err;
 	struct xenbus_device *dev = be->dev;
 
-	DPRINTK("%s", dev->otherend);
+	pr_debug("%s %s\n", __func__, dev->otherend);
 
 	/* Supply the information about the device the frontend needs */
 again:
@@ -830,7 +866,7 @@ static int connect_ring(struct backend_info *be)
 	char protocol[64] = "";
 	int err;
 
-	DPRINTK("%s", dev->otherend);
+	pr_debug("%s %s\n", __func__, dev->otherend);
 
 	err = xenbus_gather(XBT_NIL, dev->otherend, "ring-ref", "%lu",
 			    &ring_ref, "event-channel", "%u", &evtchn, NULL);
@@ -841,11 +877,11 @@ static int connect_ring(struct backend_info *be)
 		return err;
 	}
 
-	be->blkif->blk_protocol = BLKIF_PROTOCOL_NATIVE;
+	be->blkif->blk_protocol = BLKIF_PROTOCOL_DEFAULT;
 	err = xenbus_gather(XBT_NIL, dev->otherend, "protocol",
 			    "%63s", protocol, NULL);
 	if (err)
-		strcpy(protocol, "unspecified, assuming native");
+		strcpy(protocol, "unspecified, assuming default");
 	else if (0 == strcmp(protocol, XEN_IO_PROTO_ABI_NATIVE))
 		be->blkif->blk_protocol = BLKIF_PROTOCOL_NATIVE;
 	else if (0 == strcmp(protocol, XEN_IO_PROTO_ABI_X86_32))
@@ -865,7 +901,7 @@ static int connect_ring(struct backend_info *be)
 	be->blkif->vbd.feature_gnt_persistent = pers_grants;
 	be->blkif->vbd.overflow_max_grants = 0;
 
-	pr_info(DRV_PFX "ring-ref %ld, event-channel %d, protocol %d (%s) %s\n",
+	pr_info("ring-ref %ld, event-channel %d, protocol %d (%s) %s\n",
 		ring_ref, evtchn, be->blkif->blk_protocol, protocol,
 		pers_grants ? "persistent grants" : "");
 
@@ -880,22 +916,17 @@ static int connect_ring(struct backend_info *be)
 	return 0;
 }
 
-
-/* ** Driver Registration ** */
-
-
 static const struct xenbus_device_id xen_blkbk_ids[] = {
 	{ "vbd" },
 	{ "" }
 };
 
-
-static DEFINE_XENBUS_DRIVER(xen_blkbk, ,
+static struct xenbus_driver xen_blkbk_driver = {
+	.ids  = xen_blkbk_ids,
 	.probe = xen_blkbk_probe,
 	.remove = xen_blkbk_remove,
 	.otherend_changed = frontend_changed
-);
-
+};
 
 int xen_blkif_xenbus_init(void)
 {

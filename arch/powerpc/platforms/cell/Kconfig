@@ -33,17 +33,6 @@ config PPC_IBM_CELL_BLADE
 	select PPC_UDBG_16550
 	select UDBG_RTAS_CONSOLE
 
-config PPC_CELLEB
-	bool "Toshiba's Cell Reference Set 'Celleb' Architecture"
-	depends on PPC64 && PPC_BOOK3S
-	select PPC_CELL_NATIVE
-	select PPC_OF_PLATFORM_PCI
-	select PCI
-	select HAS_TXX9_SERIAL
-	select PPC_UDBG_BEAT
-	select USB_OHCI_BIG_ENDIAN_MMIO
-	select USB_EHCI_BIG_ENDIAN_MMIO
-
 config PPC_CELL_QPACE
 	bool "IBM Cell - QPACE"
 	depends on PPC64 && PPC_BOOK3S
@@ -86,6 +75,7 @@ config SPU_FS_64K_LS
 config SPU_BASE
 	bool
 	default n
+	select PPC_COPRO_BASE
 
 config CBE_RAS
 	bool "RAS features for bare metal Cell BE"

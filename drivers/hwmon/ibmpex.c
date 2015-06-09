@@ -56,15 +56,10 @@ static u8 const temp_sensor_sig[]  = {0x74, 0x65, 0x6D};
 static u8 const watt_sensor_sig[]  = {0x41, 0x43};
 
 #define PEX_NUM_SENSOR_FUNCS	3
-static char const * const power_sensor_name_templates[] = {
-	"%s%d_average",
-	"%s%d_average_lowest",
-	"%s%d_average_highest"
-};
-static char const * const temp_sensor_name_templates[] = {
-	"%s%d_input",
-	"%s%d_input_lowest",
-	"%s%d_input_highest"
+static const char * const sensor_name_suffixes[] = {
+	"",
+	"_lowest",
+	"_highest"
 };
 
 static void ibmpex_msg_handler(struct ipmi_recv_msg *msg, void *user_msg_data);
@@ -355,9 +350,11 @@ static int create_sensor(struct ibmpex_bmc_data *data, int type,
 		return -ENOMEM;
 
 	if (type == TEMP_SENSOR)
-		sprintf(n, temp_sensor_name_templates[func], "temp", counter);
+		sprintf(n, "temp%d_input%s",
+			counter, sensor_name_suffixes[func]);
 	else if (type == POWER_SENSOR)
-		sprintf(n, power_sensor_name_templates[func], "power", counter);
+		sprintf(n, "power%d_average%s",
+			counter, sensor_name_suffixes[func]);
 
 	sysfs_attr_init(&data->sensors[sensor].attr[func].dev_attr.attr);
 	data->sensors[sensor].attr[func].dev_attr.attr.name = n;
@@ -463,10 +460,8 @@ static void ibmpex_register_bmc(int iface, struct device *dev)
 	int err;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		dev_err(dev, "Insufficient memory for BMC interface.\n");
+	if (!data)
 		return;
-	}
 
 	data->address.addr_type = IPMI_SYSTEM_INTERFACE_ADDR_TYPE;
 	data->address.channel = IPMI_BMC_CHANNEL;

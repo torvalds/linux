@@ -707,11 +707,9 @@ static int pd6729_pci_probe(struct pci_dev *dev,
 		}
 	} else {
 		/* poll Card status change */
-		init_timer(&socket->poll_timer);
-		socket->poll_timer.function = pd6729_interrupt_wrapper;
-		socket->poll_timer.data = (unsigned long)socket;
-		socket->poll_timer.expires = jiffies + HZ;
-		add_timer(&socket->poll_timer);
+		setup_timer(&socket->poll_timer, pd6729_interrupt_wrapper,
+			    (unsigned long)socket);
+		mod_timer(&socket->poll_timer, jiffies + HZ);
 	}
 
 	for (i = 0; i < MAX_SOCKETS; i++) {
@@ -764,7 +762,7 @@ static void pd6729_pci_remove(struct pci_dev *dev)
 	kfree(socket);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(pd6729_pci_ids) = {
+static const struct pci_device_id pd6729_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CIRRUS, PCI_DEVICE_ID_CIRRUS_6729) },
 	{ }
 };

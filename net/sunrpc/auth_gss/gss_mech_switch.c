@@ -46,7 +46,7 @@
 #include <linux/sunrpc/gss_api.h>
 #include <linux/sunrpc/clnt.h>
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY        RPCDBG_AUTH
 #endif
 
@@ -218,10 +218,8 @@ static struct gss_api_mech *_gss_mech_get_by_pseudoflavor(u32 pseudoflavor)
 
 	spin_lock(&registered_mechs_lock);
 	list_for_each_entry(pos, &registered_mechs, gm_list) {
-		if (!mech_supports_pseudoflavor(pos, pseudoflavor)) {
-			module_put(pos->gm_owner);
+		if (!mech_supports_pseudoflavor(pos, pseudoflavor))
 			continue;
-		}
 		if (try_module_get(pos->gm_owner))
 			gm = pos;
 		break;

@@ -1,6 +1,6 @@
 /*
  * Definitions for the NVM Express interface
- * Copyright (c) 2011-2013, Intel Corporation.
+ * Copyright (c) 2011-2014, Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -10,10 +10,6 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #ifndef _UAPI_LINUX_NVME_H
@@ -31,7 +27,12 @@ struct nvme_id_power_state {
 	__u8			read_lat;
 	__u8			write_tput;
 	__u8			write_lat;
-	__u8			rsvd16[16];
+	__le16			idle_power;
+	__u8			idle_scale;
+	__u8			rsvd19;
+	__le16			active_power;
+	__u8			active_work_scale;
+	__u8			rsvd23[9];
 };
 
 enum {
@@ -49,7 +50,9 @@ struct nvme_id_ctrl {
 	__u8			ieee[3];
 	__u8			mic;
 	__u8			mdts;
-	__u8			rsvd78[178];
+	__u16			cntlid;
+	__u32			ver;
+	__u8			rsvd84[172];
 	__le16			oacs;
 	__u8			acl;
 	__u8			aerl;
@@ -57,7 +60,11 @@ struct nvme_id_ctrl {
 	__u8			lpa;
 	__u8			elpe;
 	__u8			npss;
-	__u8			rsvd264[248];
+	__u8			avscc;
+	__u8			apsta;
+	__le16			wctemp;
+	__le16			cctemp;
+	__u8			rsvd270[242];
 	__u8			sqes;
 	__u8			cqes;
 	__u8			rsvd514[2];
@@ -68,7 +75,12 @@ struct nvme_id_ctrl {
 	__u8			vwc;
 	__le16			awun;
 	__le16			awupf;
-	__u8			rsvd530[1518];
+	__u8			nvscc;
+	__u8			rsvd531;
+	__le16			acwu;
+	__u8			rsvd534[2];
+	__le32			sgls;
+	__u8			rsvd540[1508];
 	struct nvme_id_power_state	psd[32];
 	__u8			vs[1024];
 };
@@ -77,6 +89,7 @@ enum {
 	NVME_CTRL_ONCS_COMPARE			= 1 << 0,
 	NVME_CTRL_ONCS_WRITE_UNCORRECTABLE	= 1 << 1,
 	NVME_CTRL_ONCS_DSM			= 1 << 2,
+	NVME_CTRL_VWC_PRESENT			= 1 << 0,
 };
 
 struct nvme_lbaf {
@@ -95,7 +108,21 @@ struct nvme_id_ns {
 	__u8			mc;
 	__u8			dpc;
 	__u8			dps;
-	__u8			rsvd30[98];
+	__u8			nmic;
+	__u8			rescap;
+	__u8			fpi;
+	__u8			rsvd33;
+	__le16			nawun;
+	__le16			nawupf;
+	__le16			nacwu;
+	__le16			nabsn;
+	__le16			nabo;
+	__le16			nabspf;
+	__u16			rsvd46;
+	__le64			nvmcap[2];
+	__u8			rsvd64[40];
+	__u8			nguid[16];
+	__u8			eui64[8];
 	struct nvme_lbaf	lbaf[16];
 	__u8			rsvd192[192];
 	__u8			vs[3712];
@@ -103,10 +130,22 @@ struct nvme_id_ns {
 
 enum {
 	NVME_NS_FEAT_THIN	= 1 << 0,
+	NVME_NS_FLBAS_LBA_MASK	= 0xf,
+	NVME_NS_FLBAS_META_EXT	= 0x10,
 	NVME_LBAF_RP_BEST	= 0,
 	NVME_LBAF_RP_BETTER	= 1,
 	NVME_LBAF_RP_GOOD	= 2,
 	NVME_LBAF_RP_DEGRADED	= 3,
+	NVME_NS_DPC_PI_LAST	= 1 << 4,
+	NVME_NS_DPC_PI_FIRST	= 1 << 3,
+	NVME_NS_DPC_PI_TYPE3	= 1 << 2,
+	NVME_NS_DPC_PI_TYPE2	= 1 << 1,
+	NVME_NS_DPC_PI_TYPE1	= 1 << 0,
+	NVME_NS_DPS_PI_FIRST	= 1 << 3,
+	NVME_NS_DPS_PI_MASK	= 0x7,
+	NVME_NS_DPS_PI_TYPE1	= 1,
+	NVME_NS_DPS_PI_TYPE2	= 2,
+	NVME_NS_DPS_PI_TYPE3	= 3,
 };
 
 struct nvme_smart_log {
@@ -126,7 +165,10 @@ struct nvme_smart_log {
 	__u8			unsafe_shutdowns[16];
 	__u8			media_errors[16];
 	__u8			num_err_log_entries[16];
-	__u8			rsvd192[320];
+	__le32			warning_temp_time;
+	__le32			critical_comp_time;
+	__le16			temp_sensor[8];
+	__u8			rsvd216[296];
 };
 
 enum {
@@ -157,6 +199,22 @@ enum {
 	NVME_LBART_ATTRIB_HIDE	= 1 << 1,
 };
 
+struct nvme_reservation_status {
+	__le32	gen;
+	__u8	rtype;
+	__u8	regctl[2];
+	__u8	resv5[2];
+	__u8	ptpls;
+	__u8	resv10[13];
+	struct {
+		__le16	cntlid;
+		__u8	rcsts;
+		__u8	resv3[5];
+		__le64	hostid;
+		__le64	rkey;
+	} regctl_ds[];
+};
+
 /* I/O commands */
 
 enum nvme_opcode {
@@ -165,7 +223,12 @@ enum nvme_opcode {
 	nvme_cmd_read		= 0x02,
 	nvme_cmd_write_uncor	= 0x04,
 	nvme_cmd_compare	= 0x05,
+	nvme_cmd_write_zeroes	= 0x08,
 	nvme_cmd_dsm		= 0x09,
+	nvme_cmd_resv_register	= 0x0d,
+	nvme_cmd_resv_report	= 0x0e,
+	nvme_cmd_resv_acquire	= 0x11,
+	nvme_cmd_resv_release	= 0x15,
 };
 
 struct nvme_common_command {
@@ -216,6 +279,10 @@ enum {
 	NVME_RW_DSM_LATENCY_LOW		= 3 << 4,
 	NVME_RW_DSM_SEQ_REQ		= 1 << 6,
 	NVME_RW_DSM_COMPRESSED		= 1 << 7,
+	NVME_RW_PRINFO_PRCHK_REF	= 1 << 10,
+	NVME_RW_PRINFO_PRCHK_APP	= 1 << 11,
+	NVME_RW_PRINFO_PRCHK_GUARD	= 1 << 12,
+	NVME_RW_PRINFO_PRACT		= 1 << 13,
 };
 
 struct nvme_dsm_cmd {
@@ -281,7 +348,15 @@ enum {
 	NVME_FEAT_IRQ_CONFIG	= 0x09,
 	NVME_FEAT_WRITE_ATOMIC	= 0x0a,
 	NVME_FEAT_ASYNC_EVENT	= 0x0b,
-	NVME_FEAT_SW_PROGRESS	= 0x0c,
+	NVME_FEAT_AUTO_PST	= 0x0c,
+	NVME_FEAT_SW_PROGRESS	= 0x80,
+	NVME_FEAT_HOST_ID	= 0x81,
+	NVME_FEAT_RESV_MASK	= 0x82,
+	NVME_FEAT_RESV_PERSIST	= 0x83,
+	NVME_LOG_ERROR		= 0x01,
+	NVME_LOG_SMART		= 0x02,
+	NVME_LOG_FW_SLOT	= 0x03,
+	NVME_LOG_RESERVATION	= 0x80,
 	NVME_FWACT_REPL		= (0 << 3),
 	NVME_FWACT_REPL_ACTV	= (1 << 3),
 	NVME_FWACT_ACTV		= (2 << 3),
@@ -412,9 +487,15 @@ enum {
 	NVME_SC_FUSED_MISSING		= 0xa,
 	NVME_SC_INVALID_NS		= 0xb,
 	NVME_SC_CMD_SEQ_ERROR		= 0xc,
+	NVME_SC_SGL_INVALID_LAST	= 0xd,
+	NVME_SC_SGL_INVALID_COUNT	= 0xe,
+	NVME_SC_SGL_INVALID_DATA	= 0xf,
+	NVME_SC_SGL_INVALID_METADATA	= 0x10,
+	NVME_SC_SGL_INVALID_TYPE	= 0x11,
 	NVME_SC_LBA_RANGE		= 0x80,
 	NVME_SC_CAP_EXCEEDED		= 0x81,
 	NVME_SC_NS_NOT_READY		= 0x82,
+	NVME_SC_RESERVATION_CONFLICT	= 0x83,
 	NVME_SC_CQ_INVALID		= 0x100,
 	NVME_SC_QID_INVALID		= 0x101,
 	NVME_SC_QUEUE_SIZE		= 0x102,
@@ -426,7 +507,15 @@ enum {
 	NVME_SC_INVALID_VECTOR		= 0x108,
 	NVME_SC_INVALID_LOG_PAGE	= 0x109,
 	NVME_SC_INVALID_FORMAT		= 0x10a,
+	NVME_SC_FIRMWARE_NEEDS_RESET	= 0x10b,
+	NVME_SC_INVALID_QUEUE		= 0x10c,
+	NVME_SC_FEATURE_NOT_SAVEABLE	= 0x10d,
+	NVME_SC_FEATURE_NOT_CHANGEABLE	= 0x10e,
+	NVME_SC_FEATURE_NOT_PER_NS	= 0x10f,
+	NVME_SC_FW_NEEDS_RESET_SUBSYS	= 0x110,
 	NVME_SC_BAD_ATTRIBUTES		= 0x180,
+	NVME_SC_INVALID_PI		= 0x181,
+	NVME_SC_READ_ONLY		= 0x182,
 	NVME_SC_WRITE_FAULT		= 0x280,
 	NVME_SC_READ_ERROR		= 0x281,
 	NVME_SC_GUARD_CHECK		= 0x282,
@@ -434,6 +523,7 @@ enum {
 	NVME_SC_REFTAG_CHECK		= 0x284,
 	NVME_SC_COMPARE_FAILED		= 0x285,
 	NVME_SC_ACCESS_DENIED		= 0x286,
+	NVME_SC_DNR			= 0x4000,
 };
 
 struct nvme_completion {
@@ -460,7 +550,7 @@ struct nvme_user_io {
 	__u16	appmask;
 };
 
-struct nvme_admin_cmd {
+struct nvme_passthru_cmd {
 	__u8	opcode;
 	__u8	flags;
 	__u16	rsvd1;
@@ -481,8 +571,13 @@ struct nvme_admin_cmd {
 	__u32	result;
 };
 
+#define NVME_VS(major, minor) (((major) << 16) | ((minor) << 8))
+
+#define nvme_admin_cmd nvme_passthru_cmd
+
 #define NVME_IOCTL_ID		_IO('N', 0x40)
 #define NVME_IOCTL_ADMIN_CMD	_IOWR('N', 0x41, struct nvme_admin_cmd)
 #define NVME_IOCTL_SUBMIT_IO	_IOW('N', 0x42, struct nvme_user_io)
+#define NVME_IOCTL_IO_CMD	_IOWR('N', 0x43, struct nvme_passthru_cmd)
 
 #endif /* _UAPI_LINUX_NVME_H */

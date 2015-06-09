@@ -22,7 +22,8 @@
 	/* on edac_mc_sysfs.c */
 int edac_mc_sysfs_init(void);
 void edac_mc_sysfs_exit(void);
-extern int edac_create_sysfs_mci_device(struct mem_ctl_info *mci);
+extern int edac_create_sysfs_mci_device(struct mem_ctl_info *mci,
+					const struct attribute_group **groups);
 extern void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci);
 void edac_unregister_sysfs(struct mem_ctl_info *mci);
 extern int edac_get_log_ue(void);

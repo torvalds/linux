@@ -694,7 +694,7 @@ sci_io_request_construct_sata(struct isci_request *ireq,
 	}
 
 	/* ATAPI */
-	if (dev->sata_dev.command_set == ATAPI_COMMAND_SET &&
+	if (dev->sata_dev.class == ATA_DEV_ATAPI &&
 	    task->ata_task.fis.command == ATA_CMD_PACKET) {
 		sci_atapi_construct(ireq);
 		return SCI_SUCCESS;
@@ -2723,13 +2723,9 @@ static void isci_process_stp_response(struct sas_task *task, struct dev_to_host_
 	memcpy(resp->ending_fis, fis, sizeof(*fis));
 	ts->buf_valid_size = sizeof(*resp);
 
-	/* If the device fault bit is set in the status register, then
-	 * set the sense data and return.
-	 */
-	if (fis->status & ATA_DF)
+	/* If an error is flagged let libata decode the fis */
+	if (ac_err_mask(fis->status))
 		ts->stat = SAS_PROTO_RESPONSE;
-	else if (fis->status & ATA_ERR)
-		ts->stat = SAM_STAT_CHECK_CONDITION;
 	else
 		ts->stat = SAM_STAT_GOOD;
 
@@ -2984,7 +2980,7 @@ static void sci_request_started_state_enter(struct sci_base_state_machine *sm)
 		state = SCI_REQ_SMP_WAIT_RESP;
 	} else if (task && sas_protocol_ata(task->task_proto) &&
 		   !task->ata_task.use_ncq) {
-		if (dev->sata_dev.command_set == ATAPI_COMMAND_SET &&
+		if (dev->sata_dev.class == ATA_DEV_ATAPI &&
 			task->ata_task.fis.command == ATA_CMD_PACKET) {
 			state = SCI_REQ_ATAPI_WAIT_H2D;
 		} else if (task->data_dir == DMA_NONE) {

@@ -68,9 +68,6 @@ static void usb_hcd_tdi_set_mode(struct ehci_hcd *ehci)
 
 	/* set TWI GPIO USB_HOST_DEV pin high */
 	gpio_direction_output(MSP_PIN_USB0_HOST_DEV, 1);
-#ifdef CONFIG_MSP_HAS_DUAL_USB
-	gpio_direction_output(MSP_PIN_USB1_HOST_DEV, 1);
-#endif
 }
 
 /* called during probe() after chip reset completes */
@@ -248,33 +245,6 @@ void usb_hcd_msp_remove(struct usb_hcd *hcd, struct platform_device *dev)
 	usb_put_hcd(hcd);
 }
 
-#ifdef CONFIG_MSP_HAS_DUAL_USB
-/*
- * Wrapper around the main ehci_irq.  Since both USB host controllers are
- * sharing the same IRQ, need to first determine whether we're the intended
- * recipient of this interrupt.
- */
-static irqreturn_t ehci_msp_irq(struct usb_hcd *hcd)
-{
-	u32 int_src;
-	struct device *dev = hcd->self.controller;
-	struct platform_device *pdev;
-	struct mspusb_device *mdev;
-	struct ehci_hcd	*ehci = hcd_to_ehci(hcd);
-	/* need to reverse-map a couple of containers to get our device */
-	pdev = to_platform_device(dev);
-	mdev = to_mspusb_device(pdev);
-
-	/* Check to see if this interrupt is for this host controller */
-	int_src = ehci_readl(ehci, &mdev->mab_regs->int_stat);
-	if (int_src & (1 << pdev->id))
-		return ehci_irq(hcd);
-
-	/* Not for this device */
-	return IRQ_NONE;
-}
-#endif /* DUAL_USB */
-
 static const struct hc_driver ehci_msp_hc_driver = {
 	.description =		hcd_name,
 	.product_desc =		"PMC MSP EHCI",
@@ -283,11 +253,7 @@ static const struct hc_driver ehci_msp_hc_driver = {
 	/*
 	 * generic hardware linkage
 	 */
-#ifdef CONFIG_MSP_HAS_DUAL_USB
-	.irq =			ehci_msp_irq,
-#else
 	.irq =			ehci_irq,
-#endif
 	.flags =		HCD_MEMORY | HCD_USB2 | HCD_BH,
 
 	/*
@@ -334,9 +300,6 @@ static int ehci_hcd_msp_drv_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	gpio_request(MSP_PIN_USB0_HOST_DEV, "USB0_HOST_DEV_GPIO");
-#ifdef CONFIG_MSP_HAS_DUAL_USB
-	gpio_request(MSP_PIN_USB1_HOST_DEV, "USB1_HOST_DEV_GPIO");
-#endif
 
 	ret = usb_hcd_msp_probe(&ehci_msp_hc_driver, pdev);
 
@@ -351,9 +314,6 @@ static int ehci_hcd_msp_drv_remove(struct platform_device *pdev)
 
 	/* free TWI GPIO USB_HOST_DEV pin */
 	gpio_free(MSP_PIN_USB0_HOST_DEV);
-#ifdef CONFIG_MSP_HAS_DUAL_USB
-	gpio_free(MSP_PIN_USB1_HOST_DEV);
-#endif
 
 	return 0;
 }
@@ -365,6 +325,5 @@ static struct platform_driver ehci_hcd_msp_driver = {
 	.remove		= ehci_hcd_msp_drv_remove,
 	.driver		= {
 		.name	= "pmcmsp-ehci",
-		.owner	= THIS_MODULE,
 	},
 };

@@ -111,7 +111,7 @@ static irqreturn_t efm32_clock_event_handler(int irq, void *dev_id)
 static struct efm32_clock_event_ddata clock_event_ddata = {
 	.evtdev = {
 		.name = "efm32 clockevent",
-		.features = CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_MODE_PERIODIC,
+		.features = CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC,
 		.set_mode = efm32_clock_event_set_mode,
 		.set_next_event = efm32_clock_event_set_next_event,
 		.rating = 200,
@@ -225,11 +225,11 @@ static int __init efm32_clockevent_init(struct device_node *np)
 	clock_event_ddata.base = base;
 	clock_event_ddata.periodic_top = DIV_ROUND_CLOSEST(rate, 1024 * HZ);
 
-	setup_irq(irq, &efm32_clock_event_irq);
-
 	clockevents_config_and_register(&clock_event_ddata.evtdev,
 					DIV_ROUND_CLOSEST(rate, 1024),
 					0xf, 0xffff);
+
+	setup_irq(irq, &efm32_clock_event_irq);
 
 	return 0;
 
@@ -272,4 +272,5 @@ static void __init efm32_timer_init(struct device_node *np)
 		}
 	}
 }
-CLOCKSOURCE_OF_DECLARE(efm32, "efm32,timer", efm32_timer_init);
+CLOCKSOURCE_OF_DECLARE(efm32compat, "efm32,timer", efm32_timer_init);
+CLOCKSOURCE_OF_DECLARE(efm32, "energymicro,efm32-timer", efm32_timer_init);

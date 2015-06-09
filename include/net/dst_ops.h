@@ -12,7 +12,6 @@ struct sock;
 
 struct dst_ops {
 	unsigned short		family;
-	__be16			protocol;
 	unsigned int		gc_thresh;
 
 	int			(*gc)(struct dst_ops *ops);
@@ -63,7 +62,7 @@ static inline void dst_entries_add(struct dst_ops *dst, int val)
 
 static inline int dst_entries_init(struct dst_ops *dst)
 {
-	return percpu_counter_init(&dst->pcpuc_entries, 0);
+	return percpu_counter_init(&dst->pcpuc_entries, 0, GFP_KERNEL);
 }
 
 static inline void dst_entries_destroy(struct dst_ops *dst)

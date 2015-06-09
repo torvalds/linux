@@ -48,8 +48,8 @@
  * @{
  */
 
-#include <linux/libcfs/libcfs.h>
-#include <linux/lnet/types.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "../../include/linux/lnet/types.h"
 #include <linux/backing-dev.h>
 
 /****************** on-disk files *********************/
@@ -99,6 +99,8 @@
 #define LDD_F_IR_CAPABLE    0x2000
 /** the MGS refused to register the target. */
 #define LDD_F_ERROR	 0x4000
+/** process at lctl conf_param */
+#define LDD_F_PARAM2		0x8000
 
 /* opc for target register */
 #define LDD_F_OPC_REG   0x10000000
@@ -366,8 +368,7 @@ static inline void check_lcd(char *obd_name, int index,
 	if (strnlen((char*)lcd->lcd_uuid, length) == length) {
 		lcd->lcd_uuid[length - 1] = '\0';
 
-		LCONSOLE_ERROR("the client UUID (%s) on %s for exports"
-			       "stored in last_rcvd(index = %d) is bad!\n",
+		LCONSOLE_ERROR("the client UUID (%s) on %s for exports stored in last_rcvd(index = %d) is bad!\n",
 			       lcd->lcd_uuid, obd_name, index);
 	}
 }
@@ -543,4 +544,4 @@ int mgc_fsname2resid(char *fsname, struct ldlm_res_id *res_id, int type);
 
 /** @} disk */
 
-#endif // _LUSTRE_DISK_H
+#endif /* _LUSTRE_DISK_H */

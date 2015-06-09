@@ -21,18 +21,6 @@
 #include <linux/types.h>
 
 /*
- * XFS_BIG_BLKNOS needs block layer disk addresses to be 64 bits.
- * XFS_BIG_INUMS requires XFS_BIG_BLKNOS to be set.
- */
-#if defined(CONFIG_LBDAF) || (BITS_PER_LONG == 64)
-# define XFS_BIG_BLKNOS	1
-# define XFS_BIG_INUMS	1
-#else
-# define XFS_BIG_BLKNOS	0
-# define XFS_BIG_INUMS	0
-#endif
-
-/*
  * Kernel specific type declarations for XFS
  */
 typedef signed char		__int8_t;
@@ -68,7 +56,6 @@ typedef __uint64_t __psunsigned_t;
 
 #include "kmem.h"
 #include "mrlock.h"
-#include "time.h"
 #include "uuid.h"
 
 #include <linux/semaphore.h>
@@ -113,12 +100,13 @@ typedef __uint64_t __psunsigned_t;
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 
-#include "xfs_vnode.h"
+#include "xfs_fs.h"
 #include "xfs_stats.h"
 #include "xfs_sysctl.h"
 #include "xfs_iops.h"
 #include "xfs_aops.h"
 #include "xfs_super.h"
+#include "xfs_cksum.h"
 #include "xfs_buf.h"
 #include "xfs_message.h"
 
@@ -126,15 +114,6 @@ typedef __uint64_t __psunsigned_t;
 #define XFS_NATIVE_HOST 1
 #else
 #undef XFS_NATIVE_HOST
-#endif
-
-/*
- * Feature macros (disable/enable)
- */
-#ifdef CONFIG_SMP
-#define HAVE_PERCPU_SB	/* per cpu superblock counters are a 2.6 feature */
-#else
-#undef  HAVE_PERCPU_SB	/* per cpu superblock counters are a 2.6 feature */
 #endif
 
 #define irix_sgid_inherit	xfs_params.sgid_inherit.val
@@ -178,6 +157,7 @@ typedef __uint64_t __psunsigned_t;
 #define ENOATTR		ENODATA		/* Attribute not found */
 #define EWRONGFS	EINVAL		/* Mount with wrong filesystem type */
 #define EFSCORRUPTED	EUCLEAN		/* Filesystem is corrupted */
+#define EFSBADCRC	EBADMSG		/* Bad CRC detected */
 
 #define SYNCHRONIZE()	barrier()
 #define __return_address __builtin_return_address(0)
@@ -188,6 +168,22 @@ typedef __uint64_t __psunsigned_t;
 #define MIN(a,b)	(min(a,b))
 #define MAX(a,b)	(max(a,b))
 #define howmany(x, y)	(((x)+((y)-1))/(y))
+
+static inline void delay(long ticks)
+{
+	schedule_timeout_uninterruptible(ticks);
+}
+
+/*
+ * XFS wrapper structure for sysfs support. It depends on external data
+ * structures and is embedded in various internal data structures to implement
+ * the XFS sysfs object heirarchy. Define it here for broad access throughout
+ * the codebase.
+ */
+struct xfs_kobj {
+	struct kobject		kobject;
+	struct completion	complete;
+};
 
 /* Kernel uid/gid conversion. These are used to convert to/from the on disk
  * uid_t/gid_t types to the kuid_t/kgid_t types that the kernel uses internally.
@@ -329,7 +325,7 @@ static inline __uint64_t roundup_64(__uint64_t x, __uint32_t y)
 {
 	x += y - 1;
 	do_div(x, y);
-	return(x * y);
+	return x * y;
 }
 
 static inline __uint64_t howmany_64(__uint64_t x, __uint32_t y)
@@ -378,5 +374,11 @@ static inline __uint64_t howmany_64(__uint64_t x, __uint32_t y)
 
 #endif /* XFS_WARN */
 #endif /* DEBUG */
+
+#ifdef CONFIG_XFS_RT
+#define XFS_IS_REALTIME_INODE(ip) ((ip)->i_d.di_flags & XFS_DIFLAG_REALTIME)
+#else
+#define XFS_IS_REALTIME_INODE(ip) (0)
+#endif
 
 #endif /* __XFS_LINUX__ */

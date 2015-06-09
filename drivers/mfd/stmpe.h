@@ -97,7 +97,7 @@ struct stmpe_client_info {
 	void (*init)(struct stmpe *stmpe);
 };
 
-int stmpe_probe(struct stmpe_client_info *ci, int partnum);
+int stmpe_probe(struct stmpe_client_info *ci, enum stmpe_partnum partnum);
 int stmpe_remove(struct stmpe *stmpe);
 
 #define STMPE_ICR_LSB_HIGH	(1 << 2)
@@ -188,11 +188,12 @@ int stmpe_remove(struct stmpe *stmpe);
 #define STMPE1601_REG_GPIO_ED_MSB		0x8A
 #define STMPE1601_REG_GPIO_RE_LSB		0x8D
 #define STMPE1601_REG_GPIO_FE_LSB		0x8F
+#define STMPE1601_REG_GPIO_PU_LSB		0x91
 #define STMPE1601_REG_GPIO_AF_U_MSB		0x92
 
 #define STMPE1601_SYS_CTRL_ENABLE_GPIO		(1 << 3)
 #define STMPE1601_SYS_CTRL_ENABLE_KPC		(1 << 1)
-#define STMPE1601_SYSCON_ENABLE_SPWM		(1 << 0)
+#define STMPE1601_SYS_CTRL_ENABLE_SPWM		(1 << 0)
 
 /* The 1601/2403 share the same masks */
 #define STMPE1601_AUTOSLEEP_TIMEOUT_MASK	(0x7)
@@ -269,13 +270,15 @@ int stmpe_remove(struct stmpe *stmpe);
 #define STMPE24XX_REG_CHIP_ID		0x80
 #define STMPE24XX_REG_IEGPIOR_LSB	0x18
 #define STMPE24XX_REG_ISGPIOR_MSB	0x19
-#define STMPE24XX_REG_GPMR_LSB		0xA5
+#define STMPE24XX_REG_GPMR_LSB		0xA4
 #define STMPE24XX_REG_GPSR_LSB		0x85
 #define STMPE24XX_REG_GPCR_LSB		0x88
 #define STMPE24XX_REG_GPDR_LSB		0x8B
 #define STMPE24XX_REG_GPEDR_MSB		0x8C
 #define STMPE24XX_REG_GPRER_LSB		0x91
 #define STMPE24XX_REG_GPFER_LSB		0x94
+#define STMPE24XX_REG_GPPUR_LSB		0x97
+#define STMPE24XX_REG_GPPDR_LSB		0x9a
 #define STMPE24XX_REG_GPAFR_U_MSB	0x9B
 
 #define STMPE24XX_SYS_CTRL_ENABLE_GPIO		(1 << 3)

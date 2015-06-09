@@ -26,6 +26,10 @@
 
 #define CEX4A_SPEED_RATING	900	 /* TODO new card, new speed rating */
 #define CEX4C_SPEED_RATING	6500	 /* TODO new card, new speed rating */
+#define CEX4P_SPEED_RATING	7000	 /* TODO new card, new speed rating */
+#define CEX5A_SPEED_RATING	450	 /* TODO new card, new speed rating */
+#define CEX5C_SPEED_RATING	3250	 /* TODO new card, new speed rating */
+#define CEX5P_SPEED_RATING	3500	 /* TODO new card, new speed rating */
 
 #define CEX4A_MAX_MESSAGE_SIZE	MSGTYPE50_CRB3_MAX_MSG_SIZE
 #define CEX4C_MAX_MESSAGE_SIZE	MSGTYPE06_MAX_MSG_SIZE
@@ -39,6 +43,7 @@
 
 static struct ap_device_id zcrypt_cex4_ids[] = {
 	{ AP_DEVICE(AP_DEVICE_TYPE_CEX4)  },
+	{ AP_DEVICE(AP_DEVICE_TYPE_CEX5)  },
 	{ /* end of list */ },
 };
 
@@ -70,11 +75,18 @@ static int zcrypt_cex4_probe(struct ap_device *ap_dev)
 
 	switch (ap_dev->device_type) {
 	case AP_DEVICE_TYPE_CEX4:
+	case AP_DEVICE_TYPE_CEX5:
 		if (ap_test_bit(&ap_dev->functions, AP_FUNC_ACCEL)) {
 			zdev = zcrypt_device_alloc(CEX4A_MAX_MESSAGE_SIZE);
 			if (!zdev)
 				return -ENOMEM;
-			zdev->type_string = "CEX4A";
+			if (ap_dev->device_type == AP_DEVICE_TYPE_CEX4) {
+				zdev->type_string = "CEX4A";
+				zdev->speed_rating = CEX4A_SPEED_RATING;
+			} else {
+				zdev->type_string = "CEX5A";
+				zdev->speed_rating = CEX5A_SPEED_RATING;
+			}
 			zdev->user_space_type = ZCRYPT_CEX3A;
 			zdev->min_mod_size = CEX4A_MIN_MOD_SIZE;
 			if (ap_test_bit(&ap_dev->functions, AP_FUNC_MEX4K) &&
@@ -90,33 +102,42 @@ static int zcrypt_cex4_probe(struct ap_device *ap_dev)
 					CEX4A_MAX_MOD_SIZE_2K;
 			}
 			zdev->short_crt = 1;
-			zdev->speed_rating = CEX4A_SPEED_RATING;
 			zdev->ops = zcrypt_msgtype_request(MSGTYPE50_NAME,
 							   MSGTYPE50_VARIANT_DEFAULT);
 		} else if (ap_test_bit(&ap_dev->functions, AP_FUNC_COPRO)) {
 			zdev = zcrypt_device_alloc(CEX4C_MAX_MESSAGE_SIZE);
 			if (!zdev)
 				return -ENOMEM;
-			zdev->type_string = "CEX4C";
+			if (ap_dev->device_type == AP_DEVICE_TYPE_CEX4) {
+				zdev->type_string = "CEX4C";
+				zdev->speed_rating = CEX4C_SPEED_RATING;
+			} else {
+				zdev->type_string = "CEX5C";
+				zdev->speed_rating = CEX5C_SPEED_RATING;
+			}
 			zdev->user_space_type = ZCRYPT_CEX3C;
 			zdev->min_mod_size = CEX4C_MIN_MOD_SIZE;
 			zdev->max_mod_size = CEX4C_MAX_MOD_SIZE;
 			zdev->max_exp_bit_length = CEX4C_MAX_MOD_SIZE;
 			zdev->short_crt = 0;
-			zdev->speed_rating = CEX4C_SPEED_RATING;
 			zdev->ops = zcrypt_msgtype_request(MSGTYPE06_NAME,
 							   MSGTYPE06_VARIANT_DEFAULT);
 		} else if (ap_test_bit(&ap_dev->functions, AP_FUNC_EP11)) {
 			zdev = zcrypt_device_alloc(CEX4C_MAX_MESSAGE_SIZE);
 			if (!zdev)
 				return -ENOMEM;
-			zdev->type_string = "CEX4P";
+			if (ap_dev->device_type == AP_DEVICE_TYPE_CEX4) {
+				zdev->type_string = "CEX4P";
+				zdev->speed_rating = CEX4P_SPEED_RATING;
+			} else {
+				zdev->type_string = "CEX5P";
+				zdev->speed_rating = CEX5P_SPEED_RATING;
+			}
 			zdev->user_space_type = ZCRYPT_CEX4;
 			zdev->min_mod_size = CEX4C_MIN_MOD_SIZE;
 			zdev->max_mod_size = CEX4C_MAX_MOD_SIZE;
 			zdev->max_exp_bit_length = CEX4C_MAX_MOD_SIZE;
 			zdev->short_crt = 0;
-			zdev->speed_rating = CEX4C_SPEED_RATING;
 			zdev->ops = zcrypt_msgtype_request(MSGTYPE06_NAME,
 							MSGTYPE06_VARIANT_EP11);
 		}

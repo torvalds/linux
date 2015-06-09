@@ -6,10 +6,10 @@ Required properties:
 
 - compatible - "string" - One of:
     "ti,tlv320aic3x" - Generic TLV320AIC3x device
-    "ti,tlv320aic32x4" - TLV320AIC32x4
     "ti,tlv320aic33" - TLV320AIC33
     "ti,tlv320aic3007" - TLV320AIC3007
     "ti,tlv320aic3106" - TLV320AIC3106
+    "ti,tlv320aic3104" - TLV320AIC3104
 
 
 - reg - <int> -  I2C slave address
@@ -19,6 +19,7 @@ Optional properties:
 
 - gpio-reset - gpio pin number used for codec reset
 - ai3x-gpio-func - <array of 2 int> - AIC3X_GPIO1 & AIC3X_GPIO2 Functionality
+				    - Not supported on tlv320aic3104
 - ai3x-micbias-vg - MicBias Voltage required.
 	1 - MICBIAS output is powered to 2.0V,
 	2 - MICBIAS output is powered to 2.5V,
@@ -37,7 +38,13 @@ CODEC output pins:
   * HPLCOM
   * HPRCOM
 
-CODEC input pins:
+CODEC input pins for TLV320AIC3104:
+  * MIC2L
+  * MIC2R
+  * LINE1L
+  * LINE1R
+
+CODEC input pins for other compatible codecs:
   * MIC3L
   * MIC3R
   * LINE1L

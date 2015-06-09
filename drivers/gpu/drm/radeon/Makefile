@@ -2,7 +2,7 @@
 # Makefile for the drm device driver.  This driver provides support for the
 # Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
 
-ccflags-y := -Iinclude/drm
+ccflags-y := -Iinclude/drm -Idrivers/gpu/drm/amd/include
 
 hostprogs-y := mkregtable
 clean-files := rn50_reg_safe.h r100_reg_safe.h r200_reg_safe.h rv515_reg_safe.h r300_reg_safe.h r420_reg_safe.h rs600_reg_safe.h r600_reg_safe.h evergreen_reg_safe.h cayman_reg_safe.h
@@ -60,7 +60,7 @@ radeon-y := radeon_drv.o
 
 # add UMS driver
 radeon-$(CONFIG_DRM_RADEON_UMS)+= radeon_cp.o radeon_state.o radeon_mem.o \
-	radeon_irq.o r300_cmdbuf.o r600_cp.o r600_blit.o
+	radeon_irq.o r300_cmdbuf.o r600_cp.o r600_blit.o drm_buffer.o
 
 # add KMS driver
 radeon-y += radeon_device.o radeon_asic.o radeon_kms.o \
@@ -72,15 +72,18 @@ radeon-y += radeon_device.o radeon_asic.o radeon_kms.o \
 	radeon_cs.o radeon_bios.o radeon_benchmark.o r100.o r300.o r420.o \
 	rs400.o rs600.o rs690.o rv515.o r520.o r600.o rv770.o radeon_test.o \
 	r200.o radeon_legacy_tv.o r600_cs.o r600_blit_shaders.o \
-	radeon_pm.o atombios_dp.o r600_audio.o r600_hdmi.o \
+	radeon_pm.o atombios_dp.o r600_hdmi.o dce3_1_afmt.o \
 	evergreen.o evergreen_cs.o evergreen_blit_shaders.o \
 	evergreen_hdmi.o radeon_trace_points.o ni.o cayman_blit_shaders.o \
 	atombios_encoders.o radeon_semaphore.o radeon_sa.o atombios_i2c.o si.o \
-	si_blit_shaders.o radeon_prime.o radeon_uvd.o cik.o cik_blit_shaders.o \
+	si_blit_shaders.o radeon_prime.o cik.o cik_blit_shaders.o \
 	r600_dpm.o rs780_dpm.o rv6xx_dpm.o rv770_dpm.o rv730_dpm.o rv740_dpm.o \
 	rv770_smc.o cypress_dpm.o btc_dpm.o sumo_dpm.o sumo_smc.o trinity_dpm.o \
 	trinity_smc.o ni_dpm.o si_smc.o si_dpm.o kv_smc.o kv_dpm.o ci_smc.o \
-	ci_dpm.o dce6_afmt.o
+	ci_dpm.o dce6_afmt.o radeon_vm.o radeon_ucode.o radeon_ib.o \
+	radeon_sync.o radeon_audio.o radeon_dp_auxch.o radeon_dp_mst.o
+
+radeon-$(CONFIG_MMU_NOTIFIER) += radeon_mn.o
 
 # add async DMA block
 radeon-y += \
@@ -98,6 +101,13 @@ radeon-y += \
 	uvd_v2_2.o \
 	uvd_v3_1.o \
 	uvd_v4_2.o
+
+# add VCE block
+radeon-y += \
+	radeon_vce.o \
+	vce_v1_0.o \
+	vce_v2_0.o \
+	radeon_kfd.o
 
 radeon-$(CONFIG_COMPAT) += radeon_ioc32.o
 radeon-$(CONFIG_VGA_SWITCHEROO) += radeon_atpx_handler.o

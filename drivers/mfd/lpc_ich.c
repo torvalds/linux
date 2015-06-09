@@ -54,11 +54,11 @@
  *	document number TBD : Avoton SoC
  *	document number TBD : Coleto Creek
  *	document number TBD : Wildcat Point-LP
+ *	document number TBD : 9 Series
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -72,9 +72,11 @@
 #define ACPIBASE_GPE_END	0x2f
 #define ACPIBASE_SMI_OFF	0x30
 #define ACPIBASE_SMI_END	0x33
+#define ACPIBASE_PMC_OFF	0x08
+#define ACPIBASE_PMC_END	0x0c
 #define ACPIBASE_TCO_OFF	0x60
 #define ACPIBASE_TCO_END	0x7f
-#define ACPICTRL		0x44
+#define ACPICTRL_PMCBASE	0x44
 
 #define ACPIBASE_GCS_OFF	0x3410
 #define ACPIBASE_GCS_END	0x3414
@@ -90,16 +92,17 @@
 #define wdt_mem_res(i) wdt_res(ICH_RES_MEM_OFF, i)
 #define wdt_res(b, i) (&wdt_ich_res[(b) + (i)])
 
-struct lpc_ich_cfg {
-	int base;
-	int ctrl;
-	int save;
-};
-
 struct lpc_ich_priv {
 	int chipset;
-	struct lpc_ich_cfg acpi;
-	struct lpc_ich_cfg gpio;
+
+	int abase;		/* ACPI base */
+	int actrl_pbase;	/* ACPI control or PMC base */
+	int gbase;		/* GPIO base */
+	int gctrl;		/* GPIO control */
+
+	int abase_save;		/* Cached ACPI base value */
+	int actrl_pbase_save;		/* Cached ACPI control or PMC base value */
+	int gctrl_save;		/* Cached GPIO control value */
 };
 
 static struct resource wdt_ich_res[] = {
@@ -111,7 +114,7 @@ static struct resource wdt_ich_res[] = {
 	{
 		.flags = IORESOURCE_IO,
 	},
-	/* GCS */
+	/* GCS or PMC */
 	{
 		.flags = IORESOURCE_MEM,
 	},
@@ -211,8 +214,11 @@ enum lpc_chipsets {
 	LPC_LPT_LP,	/* Lynx Point-LP */
 	LPC_WBG,	/* Wellsburg */
 	LPC_AVN,	/* Avoton SoC */
+	LPC_BAYTRAIL,   /* Bay Trail SoC */
 	LPC_COLETO,	/* Coleto Creek */
 	LPC_WPT_LP,	/* Wildcat Point-LP */
+	LPC_BRASWELL,	/* Braswell SoC */
+	LPC_9S,		/* 9 Series */
 };
 
 static struct lpc_ich_info lpc_chipset_info[] = {
@@ -303,6 +309,7 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 	[LPC_NM10] = {
 		.name = "NM10",
 		.iTCO_version = 2,
+		.gpio_version = ICH_V7_GPIO,
 	},
 	[LPC_ICH8] = {
 		.name = "ICH8 or ICH8R",
@@ -484,6 +491,7 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 	[LPC_PPT] = {
 		.name = "Panther Point",
 		.iTCO_version = 2,
+		.gpio_version = ICH_V5_GPIO,
 	},
 	[LPC_LPT] = {
 		.name = "Lynx Point",
@@ -499,7 +507,12 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 	},
 	[LPC_AVN] = {
 		.name = "Avoton SoC",
-		.iTCO_version = 1,
+		.iTCO_version = 3,
+		.gpio_version = AVOTON_GPIO,
+	},
+	[LPC_BAYTRAIL] = {
+		.name = "Bay Trail SoC",
+		.iTCO_version = 3,
 	},
 	[LPC_COLETO] = {
 		.name = "Coleto Creek",
@@ -507,6 +520,14 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 	},
 	[LPC_WPT_LP] = {
 		.name = "Wildcat Point_LP",
+		.iTCO_version = 2,
+	},
+	[LPC_BRASWELL] = {
+		.name = "Braswell SoC",
+		.iTCO_version = 3,
+	},
+	[LPC_9S] = {
+		.name = "9 Series",
 		.iTCO_version = 2,
 	},
 };
@@ -518,72 +539,7 @@ static struct lpc_ich_info lpc_chipset_info[] = {
  * functions that probably will be registered by other drivers.
  */
 static const struct pci_device_id lpc_ich_ids[] = {
-	{ PCI_VDEVICE(INTEL, 0x2410), LPC_ICH},
-	{ PCI_VDEVICE(INTEL, 0x2420), LPC_ICH0},
-	{ PCI_VDEVICE(INTEL, 0x2440), LPC_ICH2},
-	{ PCI_VDEVICE(INTEL, 0x244c), LPC_ICH2M},
-	{ PCI_VDEVICE(INTEL, 0x2480), LPC_ICH3},
-	{ PCI_VDEVICE(INTEL, 0x248c), LPC_ICH3M},
-	{ PCI_VDEVICE(INTEL, 0x24c0), LPC_ICH4},
-	{ PCI_VDEVICE(INTEL, 0x24cc), LPC_ICH4M},
-	{ PCI_VDEVICE(INTEL, 0x2450), LPC_CICH},
-	{ PCI_VDEVICE(INTEL, 0x24d0), LPC_ICH5},
-	{ PCI_VDEVICE(INTEL, 0x25a1), LPC_6300ESB},
-	{ PCI_VDEVICE(INTEL, 0x2640), LPC_ICH6},
-	{ PCI_VDEVICE(INTEL, 0x2641), LPC_ICH6M},
-	{ PCI_VDEVICE(INTEL, 0x2642), LPC_ICH6W},
-	{ PCI_VDEVICE(INTEL, 0x2670), LPC_631XESB},
-	{ PCI_VDEVICE(INTEL, 0x2671), LPC_631XESB},
-	{ PCI_VDEVICE(INTEL, 0x2672), LPC_631XESB},
-	{ PCI_VDEVICE(INTEL, 0x2673), LPC_631XESB},
-	{ PCI_VDEVICE(INTEL, 0x2674), LPC_631XESB},
-	{ PCI_VDEVICE(INTEL, 0x2675), LPC_631XESB},
-	{ PCI_VDEVICE(INTEL, 0x2676), LPC_631XESB},
-	{ PCI_VDEVICE(INTEL, 0x2677), LPC_631XESB},
-	{ PCI_VDEVICE(INTEL, 0x2678), LPC_631XESB},
-	{ PCI_VDEVICE(INTEL, 0x2679), LPC_631XESB},
-	{ PCI_VDEVICE(INTEL, 0x267a), LPC_631XESB},
-	{ PCI_VDEVICE(INTEL, 0x267b), LPC_631XESB},
-	{ PCI_VDEVICE(INTEL, 0x267c), LPC_631XESB},
-	{ PCI_VDEVICE(INTEL, 0x267d), LPC_631XESB},
-	{ PCI_VDEVICE(INTEL, 0x267e), LPC_631XESB},
-	{ PCI_VDEVICE(INTEL, 0x267f), LPC_631XESB},
-	{ PCI_VDEVICE(INTEL, 0x27b8), LPC_ICH7},
-	{ PCI_VDEVICE(INTEL, 0x27b0), LPC_ICH7DH},
-	{ PCI_VDEVICE(INTEL, 0x27b9), LPC_ICH7M},
-	{ PCI_VDEVICE(INTEL, 0x27bd), LPC_ICH7MDH},
-	{ PCI_VDEVICE(INTEL, 0x27bc), LPC_NM10},
-	{ PCI_VDEVICE(INTEL, 0x2810), LPC_ICH8},
-	{ PCI_VDEVICE(INTEL, 0x2812), LPC_ICH8DH},
-	{ PCI_VDEVICE(INTEL, 0x2814), LPC_ICH8DO},
-	{ PCI_VDEVICE(INTEL, 0x2815), LPC_ICH8M},
-	{ PCI_VDEVICE(INTEL, 0x2811), LPC_ICH8ME},
-	{ PCI_VDEVICE(INTEL, 0x2918), LPC_ICH9},
-	{ PCI_VDEVICE(INTEL, 0x2916), LPC_ICH9R},
-	{ PCI_VDEVICE(INTEL, 0x2912), LPC_ICH9DH},
-	{ PCI_VDEVICE(INTEL, 0x2914), LPC_ICH9DO},
-	{ PCI_VDEVICE(INTEL, 0x2919), LPC_ICH9M},
-	{ PCI_VDEVICE(INTEL, 0x2917), LPC_ICH9ME},
-	{ PCI_VDEVICE(INTEL, 0x3a18), LPC_ICH10},
-	{ PCI_VDEVICE(INTEL, 0x3a16), LPC_ICH10R},
-	{ PCI_VDEVICE(INTEL, 0x3a1a), LPC_ICH10D},
-	{ PCI_VDEVICE(INTEL, 0x3a14), LPC_ICH10DO},
-	{ PCI_VDEVICE(INTEL, 0x3b00), LPC_PCH},
-	{ PCI_VDEVICE(INTEL, 0x3b01), LPC_PCHM},
-	{ PCI_VDEVICE(INTEL, 0x3b02), LPC_P55},
-	{ PCI_VDEVICE(INTEL, 0x3b03), LPC_PM55},
-	{ PCI_VDEVICE(INTEL, 0x3b06), LPC_H55},
-	{ PCI_VDEVICE(INTEL, 0x3b07), LPC_QM57},
-	{ PCI_VDEVICE(INTEL, 0x3b08), LPC_H57},
-	{ PCI_VDEVICE(INTEL, 0x3b09), LPC_HM55},
-	{ PCI_VDEVICE(INTEL, 0x3b0a), LPC_Q57},
-	{ PCI_VDEVICE(INTEL, 0x3b0b), LPC_HM57},
-	{ PCI_VDEVICE(INTEL, 0x3b0d), LPC_PCHMSFF},
-	{ PCI_VDEVICE(INTEL, 0x3b0f), LPC_QS57},
-	{ PCI_VDEVICE(INTEL, 0x3b12), LPC_3400},
-	{ PCI_VDEVICE(INTEL, 0x3b14), LPC_3420},
-	{ PCI_VDEVICE(INTEL, 0x3b16), LPC_3450},
-	{ PCI_VDEVICE(INTEL, 0x5031), LPC_EP80579},
+	{ PCI_VDEVICE(INTEL, 0x0f1c), LPC_BAYTRAIL},
 	{ PCI_VDEVICE(INTEL, 0x1c41), LPC_CPT},
 	{ PCI_VDEVICE(INTEL, 0x1c42), LPC_CPTD},
 	{ PCI_VDEVICE(INTEL, 0x1c43), LPC_CPTM},
@@ -617,7 +573,6 @@ static const struct pci_device_id lpc_ich_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x1c5f), LPC_CPT},
 	{ PCI_VDEVICE(INTEL, 0x1d40), LPC_PBG},
 	{ PCI_VDEVICE(INTEL, 0x1d41), LPC_PBG},
-	{ PCI_VDEVICE(INTEL, 0x2310), LPC_DH89XXCC},
 	{ PCI_VDEVICE(INTEL, 0x1e40), LPC_PPT},
 	{ PCI_VDEVICE(INTEL, 0x1e41), LPC_PPT},
 	{ PCI_VDEVICE(INTEL, 0x1e42), LPC_PPT},
@@ -650,6 +605,79 @@ static const struct pci_device_id lpc_ich_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x1e5d), LPC_PPT},
 	{ PCI_VDEVICE(INTEL, 0x1e5e), LPC_PPT},
 	{ PCI_VDEVICE(INTEL, 0x1e5f), LPC_PPT},
+	{ PCI_VDEVICE(INTEL, 0x1f38), LPC_AVN},
+	{ PCI_VDEVICE(INTEL, 0x1f39), LPC_AVN},
+	{ PCI_VDEVICE(INTEL, 0x1f3a), LPC_AVN},
+	{ PCI_VDEVICE(INTEL, 0x1f3b), LPC_AVN},
+	{ PCI_VDEVICE(INTEL, 0x229c), LPC_BRASWELL},
+	{ PCI_VDEVICE(INTEL, 0x2310), LPC_DH89XXCC},
+	{ PCI_VDEVICE(INTEL, 0x2390), LPC_COLETO},
+	{ PCI_VDEVICE(INTEL, 0x2410), LPC_ICH},
+	{ PCI_VDEVICE(INTEL, 0x2420), LPC_ICH0},
+	{ PCI_VDEVICE(INTEL, 0x2440), LPC_ICH2},
+	{ PCI_VDEVICE(INTEL, 0x244c), LPC_ICH2M},
+	{ PCI_VDEVICE(INTEL, 0x2450), LPC_CICH},
+	{ PCI_VDEVICE(INTEL, 0x2480), LPC_ICH3},
+	{ PCI_VDEVICE(INTEL, 0x248c), LPC_ICH3M},
+	{ PCI_VDEVICE(INTEL, 0x24c0), LPC_ICH4},
+	{ PCI_VDEVICE(INTEL, 0x24cc), LPC_ICH4M},
+	{ PCI_VDEVICE(INTEL, 0x24d0), LPC_ICH5},
+	{ PCI_VDEVICE(INTEL, 0x25a1), LPC_6300ESB},
+	{ PCI_VDEVICE(INTEL, 0x2640), LPC_ICH6},
+	{ PCI_VDEVICE(INTEL, 0x2641), LPC_ICH6M},
+	{ PCI_VDEVICE(INTEL, 0x2642), LPC_ICH6W},
+	{ PCI_VDEVICE(INTEL, 0x2670), LPC_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x2671), LPC_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x2672), LPC_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x2673), LPC_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x2674), LPC_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x2675), LPC_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x2676), LPC_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x2677), LPC_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x2678), LPC_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x2679), LPC_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x267a), LPC_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x267b), LPC_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x267c), LPC_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x267d), LPC_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x267e), LPC_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x267f), LPC_631XESB},
+	{ PCI_VDEVICE(INTEL, 0x27b0), LPC_ICH7DH},
+	{ PCI_VDEVICE(INTEL, 0x27b8), LPC_ICH7},
+	{ PCI_VDEVICE(INTEL, 0x27b9), LPC_ICH7M},
+	{ PCI_VDEVICE(INTEL, 0x27bc), LPC_NM10},
+	{ PCI_VDEVICE(INTEL, 0x27bd), LPC_ICH7MDH},
+	{ PCI_VDEVICE(INTEL, 0x2810), LPC_ICH8},
+	{ PCI_VDEVICE(INTEL, 0x2811), LPC_ICH8ME},
+	{ PCI_VDEVICE(INTEL, 0x2812), LPC_ICH8DH},
+	{ PCI_VDEVICE(INTEL, 0x2814), LPC_ICH8DO},
+	{ PCI_VDEVICE(INTEL, 0x2815), LPC_ICH8M},
+	{ PCI_VDEVICE(INTEL, 0x2912), LPC_ICH9DH},
+	{ PCI_VDEVICE(INTEL, 0x2914), LPC_ICH9DO},
+	{ PCI_VDEVICE(INTEL, 0x2916), LPC_ICH9R},
+	{ PCI_VDEVICE(INTEL, 0x2917), LPC_ICH9ME},
+	{ PCI_VDEVICE(INTEL, 0x2918), LPC_ICH9},
+	{ PCI_VDEVICE(INTEL, 0x2919), LPC_ICH9M},
+	{ PCI_VDEVICE(INTEL, 0x3a14), LPC_ICH10DO},
+	{ PCI_VDEVICE(INTEL, 0x3a16), LPC_ICH10R},
+	{ PCI_VDEVICE(INTEL, 0x3a18), LPC_ICH10},
+	{ PCI_VDEVICE(INTEL, 0x3a1a), LPC_ICH10D},
+	{ PCI_VDEVICE(INTEL, 0x3b00), LPC_PCH},
+	{ PCI_VDEVICE(INTEL, 0x3b01), LPC_PCHM},
+	{ PCI_VDEVICE(INTEL, 0x3b02), LPC_P55},
+	{ PCI_VDEVICE(INTEL, 0x3b03), LPC_PM55},
+	{ PCI_VDEVICE(INTEL, 0x3b06), LPC_H55},
+	{ PCI_VDEVICE(INTEL, 0x3b07), LPC_QM57},
+	{ PCI_VDEVICE(INTEL, 0x3b08), LPC_H57},
+	{ PCI_VDEVICE(INTEL, 0x3b09), LPC_HM55},
+	{ PCI_VDEVICE(INTEL, 0x3b0a), LPC_Q57},
+	{ PCI_VDEVICE(INTEL, 0x3b0b), LPC_HM57},
+	{ PCI_VDEVICE(INTEL, 0x3b0d), LPC_PCHMSFF},
+	{ PCI_VDEVICE(INTEL, 0x3b0f), LPC_QS57},
+	{ PCI_VDEVICE(INTEL, 0x3b12), LPC_3400},
+	{ PCI_VDEVICE(INTEL, 0x3b14), LPC_3420},
+	{ PCI_VDEVICE(INTEL, 0x3b16), LPC_3450},
+	{ PCI_VDEVICE(INTEL, 0x5031), LPC_EP80579},
 	{ PCI_VDEVICE(INTEL, 0x8c40), LPC_LPT},
 	{ PCI_VDEVICE(INTEL, 0x8c41), LPC_LPT},
 	{ PCI_VDEVICE(INTEL, 0x8c42), LPC_LPT},
@@ -682,14 +710,11 @@ static const struct pci_device_id lpc_ich_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x8c5d), LPC_LPT},
 	{ PCI_VDEVICE(INTEL, 0x8c5e), LPC_LPT},
 	{ PCI_VDEVICE(INTEL, 0x8c5f), LPC_LPT},
-	{ PCI_VDEVICE(INTEL, 0x9c40), LPC_LPT_LP},
-	{ PCI_VDEVICE(INTEL, 0x9c41), LPC_LPT_LP},
-	{ PCI_VDEVICE(INTEL, 0x9c42), LPC_LPT_LP},
-	{ PCI_VDEVICE(INTEL, 0x9c43), LPC_LPT_LP},
-	{ PCI_VDEVICE(INTEL, 0x9c44), LPC_LPT_LP},
-	{ PCI_VDEVICE(INTEL, 0x9c45), LPC_LPT_LP},
-	{ PCI_VDEVICE(INTEL, 0x9c46), LPC_LPT_LP},
-	{ PCI_VDEVICE(INTEL, 0x9c47), LPC_LPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x8cc1), LPC_9S},
+	{ PCI_VDEVICE(INTEL, 0x8cc2), LPC_9S},
+	{ PCI_VDEVICE(INTEL, 0x8cc3), LPC_9S},
+	{ PCI_VDEVICE(INTEL, 0x8cc4), LPC_9S},
+	{ PCI_VDEVICE(INTEL, 0x8cc6), LPC_9S},
 	{ PCI_VDEVICE(INTEL, 0x8d40), LPC_WBG},
 	{ PCI_VDEVICE(INTEL, 0x8d41), LPC_WBG},
 	{ PCI_VDEVICE(INTEL, 0x8d42), LPC_WBG},
@@ -722,11 +747,14 @@ static const struct pci_device_id lpc_ich_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x8d5d), LPC_WBG},
 	{ PCI_VDEVICE(INTEL, 0x8d5e), LPC_WBG},
 	{ PCI_VDEVICE(INTEL, 0x8d5f), LPC_WBG},
-	{ PCI_VDEVICE(INTEL, 0x1f38), LPC_AVN},
-	{ PCI_VDEVICE(INTEL, 0x1f39), LPC_AVN},
-	{ PCI_VDEVICE(INTEL, 0x1f3a), LPC_AVN},
-	{ PCI_VDEVICE(INTEL, 0x1f3b), LPC_AVN},
-	{ PCI_VDEVICE(INTEL, 0x2390), LPC_COLETO},
+	{ PCI_VDEVICE(INTEL, 0x9c40), LPC_LPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x9c41), LPC_LPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x9c42), LPC_LPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x9c43), LPC_LPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x9c44), LPC_LPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x9c45), LPC_LPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x9c46), LPC_LPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x9c47), LPC_LPT_LP},
 	{ PCI_VDEVICE(INTEL, 0x9cc1), LPC_WPT_LP},
 	{ PCI_VDEVICE(INTEL, 0x9cc2), LPC_WPT_LP},
 	{ PCI_VDEVICE(INTEL, 0x9cc3), LPC_WPT_LP},
@@ -742,14 +770,20 @@ static void lpc_ich_restore_config_space(struct pci_dev *dev)
 {
 	struct lpc_ich_priv *priv = pci_get_drvdata(dev);
 
-	if (priv->acpi.save >= 0) {
-		pci_write_config_byte(dev, priv->acpi.ctrl, priv->acpi.save);
-		priv->acpi.save = -1;
+	if (priv->abase_save >= 0) {
+		pci_write_config_byte(dev, priv->abase, priv->abase_save);
+		priv->abase_save = -1;
 	}
 
-	if (priv->gpio.save >= 0) {
-		pci_write_config_byte(dev, priv->gpio.ctrl, priv->gpio.save);
-		priv->gpio.save = -1;
+	if (priv->actrl_pbase_save >= 0) {
+		pci_write_config_byte(dev, priv->actrl_pbase,
+			priv->actrl_pbase_save);
+		priv->actrl_pbase_save = -1;
+	}
+
+	if (priv->gctrl_save >= 0) {
+		pci_write_config_byte(dev, priv->gctrl, priv->gctrl_save);
+		priv->gctrl_save = -1;
 	}
 }
 
@@ -758,9 +792,26 @@ static void lpc_ich_enable_acpi_space(struct pci_dev *dev)
 	struct lpc_ich_priv *priv = pci_get_drvdata(dev);
 	u8 reg_save;
 
-	pci_read_config_byte(dev, priv->acpi.ctrl, &reg_save);
-	pci_write_config_byte(dev, priv->acpi.ctrl, reg_save | 0x10);
-	priv->acpi.save = reg_save;
+	switch (lpc_chipset_info[priv->chipset].iTCO_version) {
+	case 3:
+		/*
+		 * Some chipsets (eg Avoton) enable the ACPI space in the
+		 * ACPI BASE register.
+		 */
+		pci_read_config_byte(dev, priv->abase, &reg_save);
+		pci_write_config_byte(dev, priv->abase, reg_save | 0x2);
+		priv->abase_save = reg_save;
+		break;
+	default:
+		/*
+		 * Most chipsets enable the ACPI space in the ACPI control
+		 * register.
+		 */
+		pci_read_config_byte(dev, priv->actrl_pbase, &reg_save);
+		pci_write_config_byte(dev, priv->actrl_pbase, reg_save | 0x80);
+		priv->actrl_pbase_save = reg_save;
+		break;
+	}
 }
 
 static void lpc_ich_enable_gpio_space(struct pci_dev *dev)
@@ -768,9 +819,20 @@ static void lpc_ich_enable_gpio_space(struct pci_dev *dev)
 	struct lpc_ich_priv *priv = pci_get_drvdata(dev);
 	u8 reg_save;
 
-	pci_read_config_byte(dev, priv->gpio.ctrl, &reg_save);
-	pci_write_config_byte(dev, priv->gpio.ctrl, reg_save | 0x10);
-	priv->gpio.save = reg_save;
+	pci_read_config_byte(dev, priv->gctrl, &reg_save);
+	pci_write_config_byte(dev, priv->gctrl, reg_save | 0x10);
+	priv->gctrl_save = reg_save;
+}
+
+static void lpc_ich_enable_pmc_space(struct pci_dev *dev)
+{
+	struct lpc_ich_priv *priv = pci_get_drvdata(dev);
+	u8 reg_save;
+
+	pci_read_config_byte(dev, priv->actrl_pbase, &reg_save);
+	pci_write_config_byte(dev, priv->actrl_pbase, reg_save | 0x2);
+
+	priv->actrl_pbase_save = reg_save;
 }
 
 static void lpc_ich_finalize_cell(struct pci_dev *dev, struct mfd_cell *cell)
@@ -815,7 +877,7 @@ static int lpc_ich_init_gpio(struct pci_dev *dev)
 	struct resource *res;
 
 	/* Setup power management base register */
-	pci_read_config_dword(dev, priv->acpi.base, &base_addr_cfg);
+	pci_read_config_dword(dev, priv->abase, &base_addr_cfg);
 	base_addr = base_addr_cfg & 0x0000ff80;
 	if (!base_addr) {
 		dev_notice(&dev->dev, "I/O space for ACPI uninitialized\n");
@@ -841,7 +903,7 @@ static int lpc_ich_init_gpio(struct pci_dev *dev)
 
 gpe0_done:
 	/* Setup GPIO base register */
-	pci_read_config_dword(dev, priv->gpio.base, &base_addr_cfg);
+	pci_read_config_dword(dev, priv->gbase, &base_addr_cfg);
 	base_addr = base_addr_cfg & 0x0000ff80;
 	if (!base_addr) {
 		dev_notice(&dev->dev, "I/O space for GPIO uninitialized\n");
@@ -891,7 +953,7 @@ static int lpc_ich_init_wdt(struct pci_dev *dev)
 	struct resource *res;
 
 	/* Setup power management base register */
-	pci_read_config_dword(dev, priv->acpi.base, &base_addr_cfg);
+	pci_read_config_dword(dev, priv->abase, &base_addr_cfg);
 	base_addr = base_addr_cfg & 0x0000ff80;
 	if (!base_addr) {
 		dev_notice(&dev->dev, "I/O space for ACPI uninitialized\n");
@@ -910,14 +972,20 @@ static int lpc_ich_init_wdt(struct pci_dev *dev)
 	lpc_ich_enable_acpi_space(dev);
 
 	/*
+	 * iTCO v2:
 	 * Get the Memory-Mapped GCS register. To get access to it
 	 * we have to read RCBA from PCI Config space 0xf0 and use
 	 * it as base. GCS = RCBA + ICH6_GCS(0x3410).
+	 *
+	 * iTCO v3:
+	 * Get the Power Management Configuration register.  To get access
+	 * to it we have to read the PMC BASE from config space and address
+	 * the register at offset 0x8.
 	 */
 	if (lpc_chipset_info[priv->chipset].iTCO_version == 1) {
 		/* Don't register iomem for TCO ver 1 */
 		lpc_ich_cells[LPC_WDT].num_resources--;
-	} else {
+	} else if (lpc_chipset_info[priv->chipset].iTCO_version == 2) {
 		pci_read_config_dword(dev, RCBABASE, &base_addr_cfg);
 		base_addr = base_addr_cfg & 0xffffc000;
 		if (!(base_addr_cfg & 1)) {
@@ -926,9 +994,17 @@ static int lpc_ich_init_wdt(struct pci_dev *dev)
 			ret = -ENODEV;
 			goto wdt_done;
 		}
-		res = wdt_mem_res(ICH_RES_MEM_GCS);
+		res = wdt_mem_res(ICH_RES_MEM_GCS_PMC);
 		res->start = base_addr + ACPIBASE_GCS_OFF;
 		res->end = base_addr + ACPIBASE_GCS_END;
+	} else if (lpc_chipset_info[priv->chipset].iTCO_version == 3) {
+		lpc_ich_enable_pmc_space(dev);
+		pci_read_config_dword(dev, ACPICTRL_PMCBASE, &base_addr_cfg);
+		base_addr = base_addr_cfg & 0xfffffe00;
+
+		res = wdt_mem_res(ICH_RES_MEM_GCS_PMC);
+		res->start = base_addr + ACPIBASE_PMC_OFF;
+		res->end = base_addr + ACPIBASE_PMC_END;
 	}
 
 	lpc_ich_finalize_cell(dev, &lpc_ich_cells[LPC_WDT]);
@@ -952,28 +1028,35 @@ static int lpc_ich_probe(struct pci_dev *dev,
 		return -ENOMEM;
 
 	priv->chipset = id->driver_data;
-	priv->acpi.save = -1;
-	priv->acpi.base = ACPIBASE;
-	priv->acpi.ctrl = ACPICTRL;
 
-	priv->gpio.save = -1;
+	priv->actrl_pbase_save = -1;
+	priv->abase_save = -1;
+
+	priv->abase = ACPIBASE;
+	priv->actrl_pbase = ACPICTRL_PMCBASE;
+
+	priv->gctrl_save = -1;
 	if (priv->chipset <= LPC_ICH5) {
-		priv->gpio.base = GPIOBASE_ICH0;
-		priv->gpio.ctrl = GPIOCTRL_ICH0;
+		priv->gbase = GPIOBASE_ICH0;
+		priv->gctrl = GPIOCTRL_ICH0;
 	} else {
-		priv->gpio.base = GPIOBASE_ICH6;
-		priv->gpio.ctrl = GPIOCTRL_ICH6;
+		priv->gbase = GPIOBASE_ICH6;
+		priv->gctrl = GPIOCTRL_ICH6;
 	}
 
 	pci_set_drvdata(dev, priv);
 
-	ret = lpc_ich_init_wdt(dev);
-	if (!ret)
-		cell_added = true;
+	if (lpc_chipset_info[priv->chipset].iTCO_version) {
+		ret = lpc_ich_init_wdt(dev);
+		if (!ret)
+			cell_added = true;
+	}
 
-	ret = lpc_ich_init_gpio(dev);
-	if (!ret)
-		cell_added = true;
+	if (lpc_chipset_info[priv->chipset].gpio_version) {
+		ret = lpc_ich_init_gpio(dev);
+		if (!ret)
+			cell_added = true;
+	}
 
 	/*
 	 * We only care if at least one or none of the cells registered

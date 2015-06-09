@@ -312,10 +312,19 @@ static ssize_t group_addr_store(struct device *d,
 	    new_addr[5] == 3)		/* 802.1X PAE address */
 		return -EINVAL;
 
+	if (!rtnl_trylock())
+		return restart_syscall();
+
 	spin_lock_bh(&br->lock);
 	for (i = 0; i < 6; i++)
 		br->group_addr[i] = new_addr[i];
 	spin_unlock_bh(&br->lock);
+
+	br->group_addr_set = true;
+	br_recalculate_fwd_mask(br);
+
+	rtnl_unlock();
+
 	return len;
 }
 
@@ -620,7 +629,7 @@ static ssize_t multicast_startup_query_interval_store(
 }
 static DEVICE_ATTR_RW(multicast_startup_query_interval);
 #endif
-#ifdef CONFIG_BRIDGE_NETFILTER
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 static ssize_t nf_call_iptables_show(
 	struct device *d, struct device_attribute *attr, char *buf)
 {
@@ -700,6 +709,38 @@ static ssize_t vlan_filtering_store(struct device *d,
 	return store_bridge_parm(d, buf, len, br_vlan_filter_toggle);
 }
 static DEVICE_ATTR_RW(vlan_filtering);
+
+static ssize_t vlan_protocol_show(struct device *d,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	struct net_bridge *br = to_bridge(d);
+	return sprintf(buf, "%#06x\n", ntohs(br->vlan_proto));
+}
+
+static ssize_t vlan_protocol_store(struct device *d,
+				   struct device_attribute *attr,
+				   const char *buf, size_t len)
+{
+	return store_bridge_parm(d, buf, len, br_vlan_set_proto);
+}
+static DEVICE_ATTR_RW(vlan_protocol);
+
+static ssize_t default_pvid_show(struct device *d,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	struct net_bridge *br = to_bridge(d);
+	return sprintf(buf, "%d\n", br->default_pvid);
+}
+
+static ssize_t default_pvid_store(struct device *d,
+				  struct device_attribute *attr,
+				  const char *buf, size_t len)
+{
+	return store_bridge_parm(d, buf, len, br_vlan_set_default_pvid);
+}
+static DEVICE_ATTR_RW(default_pvid);
 #endif
 
 static struct attribute *bridge_attrs[] = {
@@ -738,13 +779,15 @@ static struct attribute *bridge_attrs[] = {
 	&dev_attr_multicast_query_response_interval.attr,
 	&dev_attr_multicast_startup_query_interval.attr,
 #endif
-#ifdef CONFIG_BRIDGE_NETFILTER
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	&dev_attr_nf_call_iptables.attr,
 	&dev_attr_nf_call_ip6tables.attr,
 	&dev_attr_nf_call_arptables.attr,
 #endif
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	&dev_attr_vlan_filtering.attr,
+	&dev_attr_vlan_protocol.attr,
+	&dev_attr_default_pvid.attr,
 #endif
 	NULL
 };

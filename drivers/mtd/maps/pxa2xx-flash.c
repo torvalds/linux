@@ -13,7 +13,6 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
@@ -132,7 +131,6 @@ static void pxa2xx_flash_shutdown(struct platform_device *dev)
 static struct platform_driver pxa2xx_flash_driver = {
 	.driver = {
 		.name		= "pxa2xx-flash",
-		.owner		= THIS_MODULE,
 	},
 	.probe		= pxa2xx_flash_probe,
 	.remove		= pxa2xx_flash_remove,

@@ -38,9 +38,8 @@
 
 #include <linux/platform_data/mtd-nand-pxa3xx.h>
 
-#define NAND_DEV_READY_TIMEOUT  50
-#define	CHIP_DELAY_TIMEOUT	(2 * HZ/10)
-#define NAND_STOP_DELAY		(2 * HZ/50)
+#define	CHIP_DELAY_TIMEOUT	msecs_to_jiffies(200)
+#define NAND_STOP_DELAY		msecs_to_jiffies(40)
 #define PAGE_CHUNK_SIZE		(2048)
 
 /*
@@ -128,10 +127,10 @@
 
 /* macros for registers read/write */
 #define nand_writel(info, off, val)	\
-	__raw_writel((val), (info)->mmio_base + (off))
+	writel_relaxed((val), (info)->mmio_base + (off))
 
 #define nand_readl(info, off)		\
-	__raw_readl((info)->mmio_base + (off))
+	readl_relaxed((info)->mmio_base + (off))
 
 /* error code and state */
 enum {
@@ -338,7 +337,7 @@ static struct nand_ecclayout ecc_layout_4KB_bch8bit = {
 /* convert nano-seconds to nand flash controller clock cycles */
 #define ns2cycle(ns, clk)	(int)((ns) * (clk / 1000000) / 1000)
 
-static struct of_device_id pxa3xx_nand_dt_ids[] = {
+static const struct of_device_id pxa3xx_nand_dt_ids[] = {
 	{
 		.compatible = "marvell,pxa3xx-nand",
 		.data       = (void *)PXA3XX_NAND_VARIANT_PXA,
@@ -481,6 +480,42 @@ static void disable_int(struct pxa3xx_nand_info *info, uint32_t int_mask)
 	nand_writel(info, NDCR, ndcr | int_mask);
 }
 
+static void drain_fifo(struct pxa3xx_nand_info *info, void *data, int len)
+{
+	if (info->ecc_bch) {
+		int timeout;
+
+		/*
+		 * According to the datasheet, when reading from NDDB
+		 * with BCH enabled, after each 32 bytes reads, we
+		 * have to make sure that the NDSR.RDDREQ bit is set.
+		 *
+		 * Drain the FIFO 8 32 bits reads at a time, and skip
+		 * the polling on the last read.
+		 */
+		while (len > 8) {
+			__raw_readsl(info->mmio_base + NDDB, data, 8);
+
+			for (timeout = 0;
+			     !(nand_readl(info, NDSR) & NDSR_RDDREQ);
+			     timeout++) {
+				if (timeout >= 5) {
+					dev_err(&info->pdev->dev,
+						"Timeout on RDDREQ while draining the FIFO\n");
+					return;
+				}
+
+				mdelay(1);
+			}
+
+			data += 32;
+			len -= 8;
+		}
+	}
+
+	__raw_readsl(info->mmio_base + NDDB, data, len);
+}
+
 static void handle_data_pio(struct pxa3xx_nand_info *info)
 {
 	unsigned int do_bytes = min(info->data_size, info->chunk_size);
@@ -497,14 +532,14 @@ static void handle_data_pio(struct pxa3xx_nand_info *info)
 				      DIV_ROUND_UP(info->oob_size, 4));
 		break;
 	case STATE_PIO_READING:
-		__raw_readsl(info->mmio_base + NDDB,
-			     info->data_buff + info->data_buff_pos,
-			     DIV_ROUND_UP(do_bytes, 4));
+		drain_fifo(info,
+			   info->data_buff + info->data_buff_pos,
+			   DIV_ROUND_UP(do_bytes, 4));
 
 		if (info->oob_size > 0)
-			__raw_readsl(info->mmio_base + NDDB,
-				     info->oob_buff + info->oob_buff_pos,
-				     DIV_ROUND_UP(info->oob_size, 4));
+			drain_fifo(info,
+				   info->oob_buff + info->oob_buff_pos,
+				   DIV_ROUND_UP(info->oob_size, 4));
 		break;
 	default:
 		dev_err(&info->pdev->dev, "%s: invalid state %d\n", __func__,
@@ -570,11 +605,24 @@ static void start_data_dma(struct pxa3xx_nand_info *info)
 {}
 #endif
 
+static irqreturn_t pxa3xx_nand_irq_thread(int irq, void *data)
+{
+	struct pxa3xx_nand_info *info = data;
+
+	handle_data_pio(info);
+
+	info->state = STATE_CMD_DONE;
+	nand_writel(info, NDSR, NDSR_WRDREQ | NDSR_RDDREQ);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
 {
 	struct pxa3xx_nand_info *info = devid;
 	unsigned int status, is_completed = 0, is_ready = 0;
 	unsigned int ready, cmd_done;
+	irqreturn_t ret = IRQ_HANDLED;
 
 	if (info->cs == 0) {
 		ready           = NDSR_FLASH_RDY;
@@ -616,7 +664,8 @@ static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
 		} else {
 			info->state = (status & NDSR_RDDREQ) ?
 				      STATE_PIO_READING : STATE_PIO_WRITING;
-			handle_data_pio(info);
+			ret = IRQ_WAKE_THREAD;
+			goto NORMAL_IRQ_EXIT;
 		}
 	}
 	if (status & cmd_done) {
@@ -657,7 +706,7 @@ static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
 	if (is_ready)
 		complete(&info->dev_ready);
 NORMAL_IRQ_EXIT:
-	return IRQ_HANDLED;
+	return ret;
 }
 
 static inline int is_buf_blank(uint8_t *buf, size_t len)
@@ -916,7 +965,7 @@ static void nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 {
 	struct pxa3xx_nand_host *host = mtd->priv;
 	struct pxa3xx_nand_info *info = host->info_data;
-	int ret, exec_cmd;
+	int exec_cmd;
 
 	/*
 	 * if this is a x16 device ,then convert the input
@@ -948,9 +997,8 @@ static void nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		info->need_wait = 1;
 		pxa3xx_nand_start(info);
 
-		ret = wait_for_completion_timeout(&info->cmd_complete,
-				CHIP_DELAY_TIMEOUT);
-		if (!ret) {
+		if (!wait_for_completion_timeout(&info->cmd_complete,
+		    CHIP_DELAY_TIMEOUT)) {
 			dev_err(&info->pdev->dev, "Wait time out!!!\n");
 			/* Stop State Machine for next command cycle */
 			pxa3xx_nand_stop(info);
@@ -965,7 +1013,7 @@ static void nand_cmdfunc_extended(struct mtd_info *mtd,
 {
 	struct pxa3xx_nand_host *host = mtd->priv;
 	struct pxa3xx_nand_info *info = host->info_data;
-	int ret, exec_cmd, ext_cmd_type;
+	int exec_cmd, ext_cmd_type;
 
 	/*
 	 * if this is a x16 device then convert the input
@@ -1028,9 +1076,8 @@ static void nand_cmdfunc_extended(struct mtd_info *mtd,
 		init_completion(&info->cmd_complete);
 		pxa3xx_nand_start(info);
 
-		ret = wait_for_completion_timeout(&info->cmd_complete,
-				CHIP_DELAY_TIMEOUT);
-		if (!ret) {
+		if (!wait_for_completion_timeout(&info->cmd_complete,
+		    CHIP_DELAY_TIMEOUT)) {
 			dev_err(&info->pdev->dev, "Wait time out!!!\n");
 			/* Stop State Machine for next command cycle */
 			pxa3xx_nand_stop(info);
@@ -1163,13 +1210,11 @@ static int pxa3xx_nand_waitfunc(struct mtd_info *mtd, struct nand_chip *this)
 {
 	struct pxa3xx_nand_host *host = mtd->priv;
 	struct pxa3xx_nand_info *info = host->info_data;
-	int ret;
 
 	if (info->need_wait) {
-		ret = wait_for_completion_timeout(&info->dev_ready,
-				CHIP_DELAY_TIMEOUT);
 		info->need_wait = 0;
-		if (!ret) {
+		if (!wait_for_completion_timeout(&info->dev_ready,
+		    CHIP_DELAY_TIMEOUT)) {
 			dev_err(&info->pdev->dev, "Ready time out!!!\n");
 			return NAND_STATUS_FAIL;
 		}
@@ -1355,7 +1400,6 @@ static int pxa_ecc_init(struct pxa3xx_nand_info *info,
 		ecc->mode = NAND_ECC_HW;
 		ecc->size = 512;
 		ecc->strength = 1;
-		return 1;
 
 	} else if (strength == 1 && ecc_stepsize == 512 && page_size == 512) {
 		info->chunk_size = 512;
@@ -1364,7 +1408,6 @@ static int pxa_ecc_init(struct pxa3xx_nand_info *info,
 		ecc->mode = NAND_ECC_HW;
 		ecc->size = 512;
 		ecc->strength = 1;
-		return 1;
 
 	/*
 	 * Required ECC: 4-bit correction per 512 bytes
@@ -1379,7 +1422,6 @@ static int pxa_ecc_init(struct pxa3xx_nand_info *info,
 		ecc->size = info->chunk_size;
 		ecc->layout = &ecc_layout_2KB_bch4bit;
 		ecc->strength = 16;
-		return 1;
 
 	} else if (strength == 4 && ecc_stepsize == 512 && page_size == 4096) {
 		info->ecc_bch = 1;
@@ -1390,7 +1432,6 @@ static int pxa_ecc_init(struct pxa3xx_nand_info *info,
 		ecc->size = info->chunk_size;
 		ecc->layout = &ecc_layout_4KB_bch4bit;
 		ecc->strength = 16;
-		return 1;
 
 	/*
 	 * Required ECC: 8-bit correction per 512 bytes
@@ -1405,8 +1446,15 @@ static int pxa_ecc_init(struct pxa3xx_nand_info *info,
 		ecc->size = info->chunk_size;
 		ecc->layout = &ecc_layout_4KB_bch8bit;
 		ecc->strength = 16;
-		return 1;
+	} else {
+		dev_err(&info->pdev->dev,
+			"ECC strength %d at page size %d is not supported\n",
+			strength, page_size);
+		return -ENODEV;
 	}
+
+	dev_info(&info->pdev->dev, "ECC strength %d, ECC step size %d\n",
+		 ecc->strength, ecc->size);
 	return 0;
 }
 
@@ -1470,6 +1518,8 @@ static int pxa3xx_nand_scan(struct mtd_info *mtd)
 		return ret;
 	}
 
+	memset(pxa3xx_flash_ids, 0, sizeof(pxa3xx_flash_ids));
+
 	pxa3xx_flash_ids[0].name = f->name;
 	pxa3xx_flash_ids[0].dev_id = (f->chip_id >> 8) & 0xffff;
 	pxa3xx_flash_ids[0].pagesize = f->page_size;
@@ -1517,8 +1567,13 @@ KEEP_CONFIG:
 		}
 	}
 
-	ecc_strength = chip->ecc_strength_ds;
-	ecc_step = chip->ecc_step_ds;
+	if (pdata->ecc_strength && pdata->ecc_step_size) {
+		ecc_strength = pdata->ecc_strength;
+		ecc_step = pdata->ecc_step_size;
+	} else {
+		ecc_strength = chip->ecc_strength_ds;
+		ecc_step = chip->ecc_step_ds;
+	}
 
 	/* Set default ECC strength requirements on non-ONFI devices */
 	if (ecc_strength < 1 && ecc_step < 1) {
@@ -1528,12 +1583,8 @@ KEEP_CONFIG:
 
 	ret = pxa_ecc_init(info, &chip->ecc, ecc_strength,
 			   ecc_step, mtd->writesize);
-	if (!ret) {
-		dev_err(&info->pdev->dev,
-			"ECC strength %d at page size %d is not supported\n",
-			chip->ecc_strength_ds, mtd->writesize);
-		return -ENODEV;
-	}
+	if (ret)
+		return ret;
 
 	/* calculate addressing information */
 	if (mtd->writesize >= 2048)
@@ -1569,6 +1620,8 @@ static int alloc_nand_resource(struct platform_device *pdev)
 	int ret, irq, cs;
 
 	pdata = dev_get_platdata(&pdev->dev);
+	if (pdata->num_cs <= 0)
+		return -ENODEV;
 	info = devm_kzalloc(&pdev->dev, sizeof(*info) + (sizeof(*mtd) +
 			    sizeof(*host)) * pdata->num_cs, GFP_KERNEL);
 	if (!info)
@@ -1669,7 +1722,9 @@ static int alloc_nand_resource(struct platform_device *pdev)
 	/* initialize all interrupts to be disabled */
 	disable_int(info, NDSR_MASK);
 
-	ret = request_irq(irq, pxa3xx_nand_irq, 0, pdev->name, info);
+	ret = request_threaded_irq(irq, pxa3xx_nand_irq,
+				   pxa3xx_nand_irq_thread, IRQF_ONESHOT,
+				   pdev->name, info);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to request IRQ\n");
 		goto fail_free_buf;
@@ -1730,6 +1785,14 @@ static int pxa3xx_nand_probe_dt(struct platform_device *pdev)
 		pdata->keep_config = 1;
 	of_property_read_u32(np, "num-cs", &pdata->num_cs);
 	pdata->flash_bbt = of_get_nand_on_flash_bbt(np);
+
+	pdata->ecc_strength = of_get_nand_ecc_strength(np);
+	if (pdata->ecc_strength < 0)
+		pdata->ecc_strength = 0;
+
+	pdata->ecc_step_size = of_get_nand_ecc_step_size(np);
+	if (pdata->ecc_step_size < 0)
+		pdata->ecc_step_size = 0;
 
 	pdev->dev.platform_data = pdata;
 

@@ -10,30 +10,7 @@
 
 #define OMAP_MMC_MAX_SLOTS	2
 
-/*
- * struct omap_mmc_dev_attr.flags possibilities
- *
- * OMAP_HSMMC_SUPPORTS_DUAL_VOLT: Some HSMMC controller instances can
- *    operate with either 1.8Vdc or 3.0Vdc card voltages; this flag
- *    should be set if this is the case.  See for example Section 22.5.3
- *    "MMC/SD/SDIO1 Bus Voltage Selection" of the OMAP34xx Multimedia
- *    Device Silicon Revision 3.1.x Revision ZR (July 2011) (SWPU223R).
- *
- * OMAP_HSMMC_BROKEN_MULTIBLOCK_READ: Multiple-block read transfers
- *    don't work correctly on some MMC controller instances on some
- *    OMAP3 SoCs; this flag should be set if this is the case.  See
- *    for example Advisory 2.1.1.128 "MMC: Multiple Block Read
- *    Operation Issue" in _OMAP3530/3525/3515/3503 Silicon Errata_
- *    Revision F (October 2010) (SPRZ278F).
- */
-#define OMAP_HSMMC_SUPPORTS_DUAL_VOLT		BIT(0)
-#define OMAP_HSMMC_BROKEN_MULTIBLOCK_READ	BIT(1)
-
 struct mmc_card;
-
-struct omap_mmc_dev_attr {
-	u8 flags;
-};
 
 struct omap_mmc_platform_data {
 	/* back-link to device */
@@ -53,10 +30,6 @@ struct omap_mmc_platform_data {
 	int (*init)(struct device *dev);
 	void (*cleanup)(struct device *dev);
 	void (*shutdown)(struct device *dev);
-
-	/* To handle board related suspend/resume functionality for MMC */
-	int (*suspend)(struct device *dev, int slot);
-	int (*resume)(struct device *dev, int slot);
 
 	/* Return context loss count due to PM states changing */
 	int (*get_context_loss_count)(struct device *dev);
@@ -105,9 +78,6 @@ struct omap_mmc_platform_data {
 		unsigned vcc_aux_disable_is_sleep:1;
 
 		/* we can put the features above into this variable */
-#define HSMMC_HAS_PBIAS		(1 << 0)
-#define HSMMC_HAS_UPDATED_RESET	(1 << 1)
-#define HSMMC_HAS_HSPE_SUPPORT	(1 << 2)
 #define MMC_OMAP7XX		(1 << 3)
 #define MMC_OMAP15XX		(1 << 4)
 #define MMC_OMAP16XX		(1 << 5)

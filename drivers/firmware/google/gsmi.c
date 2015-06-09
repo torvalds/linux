@@ -892,13 +892,6 @@ static __init int gsmi_init(void)
 		goto out_remove_sysfs_files;
 	}
 
-	ret = efivars_sysfs_init();
-	if (ret) {
-		printk(KERN_INFO "gsmi: Failed to create efivars files\n");
-		efivars_unregister(&efivars);
-		goto out_remove_sysfs_files;
-	}
-
 	register_reboot_notifier(&gsmi_reboot_notifier);
 	register_die_notifier(&gsmi_die_notifier);
 	atomic_notifier_chain_register(&panic_notifier_list,

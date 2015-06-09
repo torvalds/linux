@@ -1,7 +1,7 @@
 /*
  * shmob_drm_drv.c  --  SH Mobile DRM driver
  *
- * Copyright (C) 2012 Renesas Corporation
+ * Copyright (C) 2012 Renesas Electronics Corporation
  *
  * Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -185,7 +185,7 @@ static int shmob_drm_load(struct drm_device *dev, unsigned long flags)
 		goto done;
 	}
 
-	ret = drm_irq_install(dev);
+	ret = drm_irq_install(dev, platform_get_irq(dev->platformdev, 0));
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to install IRQ handler\n");
 		goto done;
@@ -267,6 +267,7 @@ static struct drm_driver shmob_drm_driver = {
 	.load			= shmob_drm_load,
 	.unload			= shmob_drm_unload,
 	.preclose		= shmob_drm_preclose,
+	.set_busid		= drm_platform_set_busid,
 	.irq_handler		= shmob_drm_irq,
 	.get_vblank_counter	= drm_vblank_count,
 	.enable_vblank		= shmob_drm_enable_vblank,
@@ -297,7 +298,7 @@ static struct drm_driver shmob_drm_driver = {
  * Power management
  */
 
-#if CONFIG_PM_SLEEP
+#ifdef CONFIG_PM_SLEEP
 static int shmob_drm_pm_suspend(struct device *dev)
 {
 	struct shmob_drm_device *sdev = dev_get_drvdata(dev);
@@ -347,7 +348,6 @@ static struct platform_driver shmob_drm_platform_driver = {
 	.probe		= shmob_drm_probe,
 	.remove		= shmob_drm_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "shmob-drm",
 		.pm	= &shmob_drm_pm_ops,
 	},

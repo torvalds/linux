@@ -12,7 +12,8 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
-#include <linux/tegra-powergate.h>
+
+#include <soc/tegra/pmc.h>
 
 #include "drm.h"
 #include "gem.h"
@@ -37,7 +38,7 @@ static inline struct gr3d *to_gr3d(struct tegra_drm_client *client)
 static int gr3d_init(struct host1x_client *client)
 {
 	struct tegra_drm_client *drm = host1x_to_drm_client(client);
-	struct tegra_drm *tegra = dev_get_drvdata(client->parent);
+	struct drm_device *dev = dev_get_drvdata(client->parent);
 	unsigned long flags = HOST1X_SYNCPT_HAS_BASE;
 	struct gr3d *gr3d = to_gr3d(drm);
 
@@ -51,17 +52,17 @@ static int gr3d_init(struct host1x_client *client)
 		return -ENOMEM;
 	}
 
-	return tegra_drm_register_client(tegra, drm);
+	return tegra_drm_register_client(dev->dev_private, drm);
 }
 
 static int gr3d_exit(struct host1x_client *client)
 {
 	struct tegra_drm_client *drm = host1x_to_drm_client(client);
-	struct tegra_drm *tegra = dev_get_drvdata(client->parent);
+	struct drm_device *dev = dev_get_drvdata(client->parent);
 	struct gr3d *gr3d = to_gr3d(drm);
 	int err;
 
-	err = tegra_drm_unregister_client(tegra, drm);
+	err = tegra_drm_unregister_client(dev->dev_private, drm);
 	if (err < 0)
 		return err;
 
@@ -130,6 +131,7 @@ static const struct of_device_id tegra_gr3d_match[] = {
 	{ .compatible = "nvidia,tegra20-gr3d" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, tegra_gr3d_match);
 
 static const u32 gr3d_addr_regs[] = {
 	GR3D_IDX_ATTRIBUTE( 0),

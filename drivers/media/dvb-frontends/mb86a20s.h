@@ -1,7 +1,7 @@
 /*
  *   Fujitsu mb86a20s driver
  *
- *   Copyright (C) 2010 Mauro Carvalho Chehab <mchehab@redhat.com>
+ *   Copyright (C) 2010 Mauro Carvalho Chehab
  *
  *   This program is free software; you can redistribute it and/or
  *   modify it under the terms of the GNU General Public License as
@@ -34,7 +34,7 @@ struct mb86a20s_config {
 	bool	is_serial;
 };
 
-#if IS_ENABLED(CONFIG_DVB_MB86A20S)
+#if IS_REACHABLE(CONFIG_DVB_MB86A20S)
 extern struct dvb_frontend *mb86a20s_attach(const struct mb86a20s_config *config,
 					   struct i2c_adapter *i2c);
 extern struct i2c_adapter *mb86a20s_get_tuner_i2c_adapter(struct dvb_frontend *);

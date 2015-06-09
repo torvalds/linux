@@ -96,20 +96,21 @@ enum iwl_disable_11n {
  *	use IWL_[DIS,EN]ABLE_HT_* constants
  * @amsdu_size_8K: enable 8K amsdu size, default = 0
  * @restart_fw: restart firmware, default = 1
- * @wd_disable: enable stuck queue check, default = 0
  * @bt_coex_active: enable bt coex, default = true
  * @led_mode: system default, default = 0
- * @power_save: disable power save, default = false
+ * @power_save: enable power save, default = false
  * @power_level: power level, default = 1
  * @debug_level: levels are IWL_DL_*
  * @ant_coupling: antenna coupling in dB, default = 0
+ * @d0i3_disable: disable d0i3, default = 1,
+ * @lar_disable: disable LAR (regulatory), default = 0
+ * @fw_monitor: allow to use firmware monitor
  */
 struct iwl_mod_params {
 	int sw_crypto;
 	unsigned int disable_11n;
 	int amsdu_size_8K;
 	bool restart_fw;
-	int  wd_disable;
 	bool bt_coex_active;
 	int led_mode;
 	bool power_save;
@@ -119,6 +120,10 @@ struct iwl_mod_params {
 #endif
 	int ant_coupling;
 	char *nvm_file;
+	bool uapsd_disable;
+	bool d0i3_disable;
+	bool lar_disable;
+	bool fw_monitor;
 };
 
 #endif /* #__iwl_modparams_h__ */

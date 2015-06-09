@@ -60,8 +60,8 @@ static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
 }
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
-static int fanotify_get_response_from_access(struct fsnotify_group *group,
-					     struct fanotify_event_info *event)
+static int fanotify_get_response(struct fsnotify_group *group,
+				 struct fanotify_perm_event_info *event)
 {
 	int ret;
 
@@ -70,8 +70,15 @@ static int fanotify_get_response_from_access(struct fsnotify_group *group,
 	wait_event(group->fanotify_data.access_waitq, event->response ||
 				atomic_read(&group->fanotify_data.bypass_perm));
 
-	if (!event->response) /* bypass_perm set */
+	if (!event->response) {	/* bypass_perm set */
+		/*
+		 * Event was canceled because group is being destroyed. Remove
+		 * it from group's event list because we are responsible for
+		 * freeing the permission event.
+		 */
+		fsnotify_remove_event(group, &event->fae.fse);
 		return 0;
+	}
 
 	/* userspace responded, convert to something usable */
 	switch (event->response) {
@@ -108,8 +115,8 @@ static bool fanotify_should_send_event(struct fsnotify_mark *inode_mark,
 		return false;
 
 	/* sorry, fanotify only gives a damn about files and dirs */
-	if (!S_ISREG(path->dentry->d_inode->i_mode) &&
-	    !S_ISDIR(path->dentry->d_inode->i_mode))
+	if (!d_is_reg(path->dentry) &&
+	    !d_can_lookup(path->dentry))
 		return false;
 
 	if (inode_mark && vfsmnt_mark) {
@@ -132,14 +139,49 @@ static bool fanotify_should_send_event(struct fsnotify_mark *inode_mark,
 		BUG();
 	}
 
-	if (S_ISDIR(path->dentry->d_inode->i_mode) &&
-	    (marks_ignored_mask & FS_ISDIR))
+	if (d_is_dir(path->dentry) &&
+	    !(marks_mask & FS_ISDIR & ~marks_ignored_mask))
 		return false;
 
-	if (event_mask & marks_mask & ~marks_ignored_mask)
+	if (event_mask & FAN_ALL_OUTGOING_EVENTS & marks_mask &
+				 ~marks_ignored_mask)
 		return true;
 
 	return false;
+}
+
+struct fanotify_event_info *fanotify_alloc_event(struct inode *inode, u32 mask,
+						 struct path *path)
+{
+	struct fanotify_event_info *event;
+
+#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+	if (mask & FAN_ALL_PERM_EVENTS) {
+		struct fanotify_perm_event_info *pevent;
+
+		pevent = kmem_cache_alloc(fanotify_perm_event_cachep,
+					  GFP_KERNEL);
+		if (!pevent)
+			return NULL;
+		event = &pevent->fae;
+		pevent->response = 0;
+		goto init;
+	}
+#endif
+	event = kmem_cache_alloc(fanotify_event_cachep, GFP_KERNEL);
+	if (!event)
+		return NULL;
+init: __maybe_unused
+	fsnotify_init_event(&event->fse, inode, mask);
+	event->tgid = get_pid(task_tgid(current));
+	if (path) {
+		event->path = *path;
+		path_get(&event->path);
+	} else {
+		event->path.mnt = NULL;
+		event->path.dentry = NULL;
+	}
+	return event;
 }
 
 static int fanotify_handle_event(struct fsnotify_group *group,
@@ -171,26 +213,12 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	pr_debug("%s: group=%p inode=%p mask=%x\n", __func__, group, inode,
 		 mask);
 
-	event = kmem_cache_alloc(fanotify_event_cachep, GFP_KERNEL);
+	event = fanotify_alloc_event(inode, mask, data);
 	if (unlikely(!event))
 		return -ENOMEM;
 
 	fsn_event = &event->fse;
-	fsnotify_init_event(fsn_event, inode, mask);
-	event->tgid = get_pid(task_tgid(current));
-	if (data_type == FSNOTIFY_EVENT_PATH) {
-		struct path *path = data;
-		event->path = *path;
-		path_get(&event->path);
-	} else {
-		event->path.mnt = NULL;
-		event->path.dentry = NULL;
-	}
-#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
-	event->response = 0;
-#endif
-
-	ret = fsnotify_add_notify_event(group, fsn_event, fanotify_merge);
+	ret = fsnotify_add_event(group, fsn_event, fanotify_merge);
 	if (ret) {
 		/* Permission events shouldn't be merged */
 		BUG_ON(ret == 1 && mask & FAN_ALL_PERM_EVENTS);
@@ -202,7 +230,7 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 	if (mask & FAN_ALL_PERM_EVENTS) {
-		ret = fanotify_get_response_from_access(group, event);
+		ret = fanotify_get_response(group, FANOTIFY_PE(fsn_event));
 		fsnotify_destroy_event(group, fsn_event);
 	}
 #endif
@@ -225,6 +253,13 @@ static void fanotify_free_event(struct fsnotify_event *fsn_event)
 	event = FANOTIFY_E(fsn_event);
 	path_put(&event->path);
 	put_pid(event->tgid);
+#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+	if (fsn_event->mask & FAN_ALL_PERM_EVENTS) {
+		kmem_cache_free(fanotify_perm_event_cachep,
+				FANOTIFY_PE(fsn_event));
+		return;
+	}
+#endif
 	kmem_cache_free(fanotify_event_cachep, event);
 }
 

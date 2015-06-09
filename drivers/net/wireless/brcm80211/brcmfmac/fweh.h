@@ -102,6 +102,7 @@ struct brcmf_event;
 	BRCMF_ENUM_DEF(DCS_REQUEST, 73) \
 	BRCMF_ENUM_DEF(FIFO_CREDIT_MAP, 74) \
 	BRCMF_ENUM_DEF(ACTION_FRAME_RX, 75) \
+	BRCMF_ENUM_DEF(TDLS_PEER_EVENT, 92) \
 	BRCMF_ENUM_DEF(BCMC_CREDIT_SUPPORT, 127) \
 	BRCMF_ENUM_DEF(PSTA_PRIMARY_INTF_IND, 128)
 
@@ -155,6 +156,10 @@ enum brcmf_fweh_event_code {
 #define BRCMF_E_REASON_TSPEC_REJECTED		7
 #define BRCMF_E_REASON_BETTER_AP		8
 
+#define BRCMF_E_REASON_TDLS_PEER_DISCOVERED	0
+#define BRCMF_E_REASON_TDLS_PEER_CONNECTED	1
+#define BRCMF_E_REASON_TDLS_PEER_DISCONNECTED	2
+
 /* action field values for brcmf_ifevent */
 #define BRCMF_E_IF_ADD				1
 #define BRCMF_E_IF_DEL				2
@@ -167,6 +172,8 @@ enum brcmf_fweh_event_code {
 #define BRCMF_E_IF_ROLE_STA			0
 #define BRCMF_E_IF_ROLE_AP			1
 #define BRCMF_E_IF_ROLE_WDS			2
+#define BRCMF_E_IF_ROLE_P2P_GO			3
+#define BRCMF_E_IF_ROLE_P2P_CLIENT		4
 
 /**
  * definitions for event packet validation.

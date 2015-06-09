@@ -99,7 +99,7 @@ static struct bcma_device_id brcms_coreid_table[] = {
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_80211, 17, BCMA_ANY_CLASS),
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_80211, 23, BCMA_ANY_CLASS),
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_80211, 24, BCMA_ANY_CLASS),
-	BCMA_CORETABLE_END
+	{},
 };
 MODULE_DEVICE_TABLE(bcma, brcms_coreid_table);
 
@@ -426,20 +426,18 @@ static int brcms_ops_start(struct ieee80211_hw *hw)
 	bool blocked;
 	int err;
 
+	if (!wl->ucode.bcm43xx_bomminor) {
+		err = brcms_request_fw(wl, wl->wlc->hw->d11core);
+		if (err)
+			return -ENOENT;
+	}
+
 	ieee80211_wake_queues(hw);
 	spin_lock_bh(&wl->lock);
 	blocked = brcms_rfkill_set_hw_state(wl);
 	spin_unlock_bh(&wl->lock);
 	if (!blocked)
 		wiphy_rfkill_stop_polling(wl->pub->ieee_hw->wiphy);
-
-	if (!wl->ucode.bcm43xx_bomminor) {
-		err = brcms_request_fw(wl, wl->wlc->hw->d11core);
-		if (err) {
-			brcms_remove(wl->wlc->hw->d11core);
-			return -ENOENT;
-		}
-	}
 
 	spin_lock_bh(&wl->lock);
 	/* avoid acknowledging frames before a non-monitor device is added */
@@ -766,7 +764,9 @@ brcms_ops_configure_filter(struct ieee80211_hw *hw,
 	return;
 }
 
-static void brcms_ops_sw_scan_start(struct ieee80211_hw *hw)
+static void brcms_ops_sw_scan_start(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    const u8 *mac_addr)
 {
 	struct brcms_info *wl = hw->priv;
 	spin_lock_bh(&wl->lock);
@@ -775,7 +775,8 @@ static void brcms_ops_sw_scan_start(struct ieee80211_hw *hw)
 	return;
 }
 
-static void brcms_ops_sw_scan_complete(struct ieee80211_hw *hw)
+static void brcms_ops_sw_scan_complete(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif)
 {
 	struct brcms_info *wl = hw->priv;
 	spin_lock_bh(&wl->lock);
@@ -899,7 +900,8 @@ static bool brcms_tx_flush_completed(struct brcms_info *wl)
 	return result;
 }
 
-static void brcms_ops_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
+static void brcms_ops_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			    u32 queues, bool drop)
 {
 	struct brcms_info *wl = hw->priv;
 	int ret;
@@ -1093,12 +1095,6 @@ static int ieee_hw_init(struct ieee80211_hw *hw)
  *
  * Attach to the WL device identified by vendor and device parameters.
  * regs is a host accessible memory address pointing to WL device registers.
- *
- * brcms_attach is not defined as static because in the case where no bus
- * is defined, wl_attach will never be called, and thus, gcc will issue
- * a warning that this function is defined but not used if we declare
- * it as static.
- *
  *
  * is called in brcms_bcma_probe() context, therefore no locking required.
  */

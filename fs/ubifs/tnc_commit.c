@@ -53,7 +53,7 @@ static int make_idx_node(struct ubifs_info *c, struct ubifs_idx_node *idx,
 		br->offs = cpu_to_le32(zbr->offs);
 		br->len = cpu_to_le32(zbr->len);
 		if (!zbr->lnum || !zbr->len) {
-			ubifs_err("bad ref in znode");
+			ubifs_err(c, "bad ref in znode");
 			ubifs_dump_znode(c, znode);
 			if (zbr->znode)
 				ubifs_dump_znode(c, zbr->znode);
@@ -384,12 +384,11 @@ static int layout_in_gaps(struct ubifs_info *c, int cnt)
 				 * Do not print scary warnings if the debugging
 				 * option which forces in-the-gaps is enabled.
 				 */
-				ubifs_warn("out of space");
+				ubifs_warn(c, "out of space");
 				ubifs_dump_budg(c, &c->bi);
 				ubifs_dump_lprops(c);
 			}
 			/* Try to commit anyway */
-			err = 0;
 			break;
 		}
 		p++;
@@ -442,7 +441,7 @@ static int layout_in_empty_space(struct ubifs_info *c)
 		/* Determine the index node position */
 		if (lnum == -1) {
 			if (c->ileb_nxt >= c->ileb_cnt) {
-				ubifs_err("out of space");
+				ubifs_err(c, "out of space");
 				return -ENOSPC;
 			}
 			lnum = c->ilebs[c->ileb_nxt++];
@@ -856,7 +855,7 @@ static int write_index(struct ubifs_info *c)
 			br->offs = cpu_to_le32(zbr->offs);
 			br->len = cpu_to_le32(zbr->len);
 			if (!zbr->lnum || !zbr->len) {
-				ubifs_err("bad ref in znode");
+				ubifs_err(c, "bad ref in znode");
 				ubifs_dump_znode(c, znode);
 				if (zbr->znode)
 					ubifs_dump_znode(c, zbr->znode);
@@ -876,7 +875,7 @@ static int write_index(struct ubifs_info *c)
 
 		if (lnum != znode->lnum || offs != znode->offs ||
 		    len != znode->len) {
-			ubifs_err("inconsistent znode posn");
+			ubifs_err(c, "inconsistent znode posn");
 			return -EINVAL;
 		}
 
@@ -895,9 +894,9 @@ static int write_index(struct ubifs_info *c)
 		 * the reason for the second barrier.
 		 */
 		clear_bit(DIRTY_ZNODE, &znode->flags);
-		smp_mb__before_clear_bit();
+		smp_mb__before_atomic();
 		clear_bit(COW_ZNODE, &znode->flags);
-		smp_mb__after_clear_bit();
+		smp_mb__after_atomic();
 
 		/*
 		 * We have marked the znode as clean but have not updated the
@@ -974,7 +973,7 @@ static int write_index(struct ubifs_info *c)
 
 	if (lnum != c->dbg->new_ihead_lnum ||
 	    buf_offs != c->dbg->new_ihead_offs) {
-		ubifs_err("inconsistent ihead");
+		ubifs_err(c, "inconsistent ihead");
 		return -EINVAL;
 	}
 

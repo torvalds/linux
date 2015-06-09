@@ -74,12 +74,12 @@ static int cachefiles_read_waiter(wait_queue_t *wait, unsigned mode,
 static int cachefiles_read_reissue(struct cachefiles_object *object,
 				   struct cachefiles_one_read *monitor)
 {
-	struct address_space *bmapping = object->backer->d_inode->i_mapping;
+	struct address_space *bmapping = d_backing_inode(object->backer)->i_mapping;
 	struct page *backpage = monitor->back_page, *backpage2;
 	int ret;
 
 	_enter("{ino=%lx},{%lx,%lx}",
-	       object->backer->d_inode->i_ino,
+	       d_backing_inode(object->backer)->i_ino,
 	       backpage->index, backpage->flags);
 
 	/* skip if the page was truncated away completely */
@@ -151,16 +151,13 @@ static void cachefiles_read_copier(struct fscache_operation *_op)
 	struct cachefiles_one_read *monitor;
 	struct cachefiles_object *object;
 	struct fscache_retrieval *op;
-	struct pagevec pagevec;
 	int error, max;
 
 	op = container_of(_op, struct fscache_retrieval, op);
 	object = container_of(op->op.object,
 			      struct cachefiles_object, fscache);
 
-	_enter("{ino=%lu}", object->backer->d_inode->i_ino);
-
-	pagevec_init(&pagevec, 0);
+	_enter("{ino=%lu}", d_backing_inode(object->backer)->i_ino);
 
 	max = 8;
 	spin_lock_irq(&object->work_lock);
@@ -250,7 +247,7 @@ static int cachefiles_read_backing_file_one(struct cachefiles_object *object,
 	init_waitqueue_func_entry(&monitor->monitor, cachefiles_read_waiter);
 
 	/* attempt to get hold of the backing page */
-	bmapping = object->backer->d_inode->i_mapping;
+	bmapping = d_backing_inode(object->backer)->i_mapping;
 	newpage = NULL;
 
 	for (;;) {
@@ -265,23 +262,21 @@ static int cachefiles_read_backing_file_one(struct cachefiles_object *object,
 				goto nomem_monitor;
 		}
 
-		ret = add_to_page_cache(newpage, bmapping,
-					netpage->index, cachefiles_gfp);
+		ret = add_to_page_cache_lru(newpage, bmapping,
+					    netpage->index, cachefiles_gfp);
 		if (ret == 0)
 			goto installed_new_backing_page;
 		if (ret != -EEXIST)
 			goto nomem_page;
 	}
 
-	/* we've installed a new backing page, so now we need to add it
-	 * to the LRU list and start it reading */
+	/* we've installed a new backing page, so now we need to start
+	 * it reading */
 installed_new_backing_page:
 	_debug("- new %p", newpage);
 
 	backpage = newpage;
 	newpage = NULL;
-
-	lru_cache_add_file(backpage);
 
 read_backing_page:
 	ret = bmapping->a_ops->readpage(NULL, backpage);
@@ -398,7 +393,6 @@ int cachefiles_read_or_alloc_page(struct fscache_retrieval *op,
 {
 	struct cachefiles_object *object;
 	struct cachefiles_cache *cache;
-	struct pagevec pagevec;
 	struct inode *inode;
 	sector_t block0, block;
 	unsigned shift;
@@ -414,7 +408,7 @@ int cachefiles_read_or_alloc_page(struct fscache_retrieval *op,
 	if (!object->backer)
 		goto enobufs;
 
-	inode = object->backer->d_inode;
+	inode = d_backing_inode(object->backer);
 	ASSERT(S_ISREG(inode->i_mode));
 	ASSERT(inode->i_mapping->a_ops->bmap);
 	ASSERT(inode->i_mapping->a_ops->readpages);
@@ -428,8 +422,6 @@ int cachefiles_read_or_alloc_page(struct fscache_retrieval *op,
 	op->op.flags &= FSCACHE_OP_KEEP_FLAGS;
 	op->op.flags |= FSCACHE_OP_ASYNC;
 	op->op.processor = cachefiles_read_copier;
-
-	pagevec_init(&pagevec, 0);
 
 	/* we assume the absence or presence of the first block is a good
 	 * enough indication for the page as a whole
@@ -476,7 +468,7 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 					struct list_head *list)
 {
 	struct cachefiles_one_read *monitor = NULL;
-	struct address_space *bmapping = object->backer->d_inode->i_mapping;
+	struct address_space *bmapping = d_backing_inode(object->backer)->i_mapping;
 	struct page *newpage = NULL, *netpage, *_n, *backpage = NULL;
 	int ret = 0;
 
@@ -510,23 +502,22 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 					goto nomem;
 			}
 
-			ret = add_to_page_cache(newpage, bmapping,
-						netpage->index, cachefiles_gfp);
+			ret = add_to_page_cache_lru(newpage, bmapping,
+						    netpage->index,
+						    cachefiles_gfp);
 			if (ret == 0)
 				goto installed_new_backing_page;
 			if (ret != -EEXIST)
 				goto nomem;
 		}
 
-		/* we've installed a new backing page, so now we need to add it
-		 * to the LRU list and start it reading */
+		/* we've installed a new backing page, so now we need
+		 * to start it reading */
 	installed_new_backing_page:
 		_debug("- new %p", newpage);
 
 		backpage = newpage;
 		newpage = NULL;
-
-		lru_cache_add_file(backpage);
 
 	reread_backing_page:
 		ret = bmapping->a_ops->readpage(NULL, backpage);
@@ -538,8 +529,8 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 	monitor_backing_page:
 		_debug("- monitor add");
 
-		ret = add_to_page_cache(netpage, op->mapping, netpage->index,
-					cachefiles_gfp);
+		ret = add_to_page_cache_lru(netpage, op->mapping,
+					    netpage->index, cachefiles_gfp);
 		if (ret < 0) {
 			if (ret == -EEXIST) {
 				page_cache_release(netpage);
@@ -548,8 +539,6 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 			}
 			goto nomem;
 		}
-
-		lru_cache_add_file(netpage);
 
 		/* install a monitor */
 		page_cache_get(netpage);
@@ -613,8 +602,8 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 	backing_page_already_uptodate:
 		_debug("- uptodate");
 
-		ret = add_to_page_cache(netpage, op->mapping, netpage->index,
-					cachefiles_gfp);
+		ret = add_to_page_cache_lru(netpage, op->mapping,
+					    netpage->index, cachefiles_gfp);
 		if (ret < 0) {
 			if (ret == -EEXIST) {
 				page_cache_release(netpage);
@@ -630,8 +619,6 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 		backpage = NULL;
 
 		fscache_mark_page_cached(op, netpage);
-
-		lru_cache_add_file(netpage);
 
 		/* the netpage is unlocked and marked up to date here */
 		fscache_end_io(op, netpage, 0);
@@ -718,7 +705,7 @@ int cachefiles_read_or_alloc_pages(struct fscache_retrieval *op,
 	if (cachefiles_has_space(cache, 0, *nr_pages) < 0)
 		space = 0;
 
-	inode = object->backer->d_inode;
+	inode = d_backing_inode(object->backer);
 	ASSERT(S_ISREG(inode->i_mode));
 	ASSERT(inode->i_mapping->a_ops->bmap);
 	ASSERT(inode->i_mapping->a_ops->readpages);
@@ -893,7 +880,6 @@ int cachefiles_write_page(struct fscache_storage *op, struct page *page)
 {
 	struct cachefiles_object *object;
 	struct cachefiles_cache *cache;
-	mm_segment_t old_fs;
 	struct file *file;
 	struct path path;
 	loff_t pos, eof;
@@ -914,7 +900,7 @@ int cachefiles_write_page(struct fscache_storage *op, struct page *page)
 		return -ENOBUFS;
 	}
 
-	ASSERT(S_ISREG(object->backer->d_inode->i_mode));
+	ASSERT(d_is_reg(object->backer));
 
 	cache = container_of(object->fscache.cache,
 			     struct cachefiles_cache, cache);
@@ -927,36 +913,27 @@ int cachefiles_write_page(struct fscache_storage *op, struct page *page)
 	if (IS_ERR(file)) {
 		ret = PTR_ERR(file);
 	} else {
-		ret = -EIO;
-		if (file->f_op->write) {
-			pos = (loff_t) page->index << PAGE_SHIFT;
+		pos = (loff_t) page->index << PAGE_SHIFT;
 
-			/* we mustn't write more data than we have, so we have
-			 * to beware of a partial page at EOF */
-			eof = object->fscache.store_limit_l;
-			len = PAGE_SIZE;
-			if (eof & ~PAGE_MASK) {
-				ASSERTCMP(pos, <, eof);
-				if (eof - pos < PAGE_SIZE) {
-					_debug("cut short %llx to %llx",
-					       pos, eof);
-					len = eof - pos;
-					ASSERTCMP(pos + len, ==, eof);
-				}
+		/* we mustn't write more data than we have, so we have
+		 * to beware of a partial page at EOF */
+		eof = object->fscache.store_limit_l;
+		len = PAGE_SIZE;
+		if (eof & ~PAGE_MASK) {
+			ASSERTCMP(pos, <, eof);
+			if (eof - pos < PAGE_SIZE) {
+				_debug("cut short %llx to %llx",
+				       pos, eof);
+				len = eof - pos;
+				ASSERTCMP(pos + len, ==, eof);
 			}
-
-			data = kmap(page);
-			file_start_write(file);
-			old_fs = get_fs();
-			set_fs(KERNEL_DS);
-			ret = file->f_op->write(
-				file, (const void __user *) data, len, &pos);
-			set_fs(old_fs);
-			kunmap(page);
-			file_end_write(file);
-			if (ret != len)
-				ret = -EIO;
 		}
+
+		data = kmap(page);
+		ret = __kernel_write(file, data, len, &pos);
+		kunmap(page);
+		if (ret != len)
+			ret = -EIO;
 		fput(file);
 	}
 

@@ -12,6 +12,8 @@
  * PS3 Eye camera enhanced by Richard Kaswy http://kaswy.free.fr
  * PS3 Eye camera - brightness, contrast, awb, agc, aec controls
  *                  added by Max Thrun <bear24rw@gmail.com>
+ * PS3 Eye camera - FPS range extended by Joseph Howse
+ *                  <josephhowse@nummist.com> http://nummist.com
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -116,7 +118,7 @@ static const struct v4l2_pix_format ov767x_mode[] = {
 		.colorspace = V4L2_COLORSPACE_JPEG},
 };
 
-static const u8 qvga_rates[] = {125, 100, 75, 60, 50, 40, 30};
+static const u8 qvga_rates[] = {187, 150, 137, 125, 100, 75, 60, 50, 37, 30};
 static const u8 vga_rates[] = {60, 50, 40, 30, 15};
 
 static const struct framerates ov772x_framerates[] = {
@@ -769,12 +771,16 @@ static void set_frame_rate(struct gspca_dev *gspca_dev)
 		{15, 0x03, 0x41, 0x04},
 	};
 	static const struct rate_s rate_1[] = {	/* 320x240 */
+/*		{205, 0x01, 0xc1, 0x02},  * 205 FPS: video is partly corrupt */
+		{187, 0x01, 0x81, 0x02}, /* 187 FPS or below: video is valid */
+		{150, 0x01, 0xc1, 0x04},
+		{137, 0x02, 0xc1, 0x02},
 		{125, 0x02, 0x81, 0x02},
 		{100, 0x02, 0xc1, 0x04},
 		{75, 0x03, 0xc1, 0x04},
 		{60, 0x04, 0xc1, 0x04},
 		{50, 0x02, 0x41, 0x04},
-		{40, 0x03, 0x41, 0x04},
+		{37, 0x03, 0x41, 0x04},
 		{30, 0x04, 0x41, 0x04},
 	};
 
@@ -810,21 +816,16 @@ static void sethue(struct gspca_dev *gspca_dev, s32 val)
 		s16 huesin;
 		s16 huecos;
 
-		/* fixp_sin and fixp_cos accept only positive values, while
-		 * our val is between -90 and 90
-		 */
-		val += 360;
-
 		/* According to the datasheet the registers expect HUESIN and
 		 * HUECOS to be the result of the trigonometric functions,
 		 * scaled by 0x80.
 		 *
-		 * The 0x100 here represents the maximun absolute value
+		 * The 0x7fff here represents the maximum absolute value
 		 * returned byt fixp_sin and fixp_cos, so the scaling will
 		 * consider the result like in the interval [-1.0, 1.0].
 		 */
-		huesin = fixp_sin(val) * 0x80 / 0x100;
-		huecos = fixp_cos(val) * 0x80 / 0x100;
+		huesin = fixp_sin16(val) * 0x80 / 0x7fff;
+		huecos = fixp_cos16(val) * 0x80 / 0x7fff;
 
 		if (huesin < 0) {
 			sccb_reg_write(gspca_dev, 0xab,

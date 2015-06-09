@@ -78,6 +78,70 @@ struct ieee_maxrate {
 	__u64	tc_maxrate[IEEE_8021QAZ_MAX_TCS];
 };
 
+enum dcbnl_cndd_states {
+	DCB_CNDD_RESET = 0,
+	DCB_CNDD_EDGE,
+	DCB_CNDD_INTERIOR,
+	DCB_CNDD_INTERIOR_READY,
+};
+
+/* This structure contains the IEEE 802.1Qau QCN managed object.
+ *
+ *@rpg_enable: enable QCN RP
+ *@rppp_max_rps: maximum number of RPs allowed for this CNPV on this port
+ *@rpg_time_reset: time between rate increases if no CNMs received.
+ *		   given in u-seconds
+ *@rpg_byte_reset: transmitted data between rate increases if no CNMs received.
+ *		   given in Bytes
+ *@rpg_threshold: The number of times rpByteStage or rpTimeStage can count
+ *		   before RP rate control state machine advances states
+ *@rpg_max_rate: the maxinun rate, in Mbits per second,
+ *		 at which an RP can transmit
+ *@rpg_ai_rate: The rate, in Mbits per second,
+ *		used to increase rpTargetRate in the RPR_ACTIVE_INCREASE
+ *@rpg_hai_rate: The rate, in Mbits per second,
+ *		 used to increase rpTargetRate in the RPR_HYPER_INCREASE state
+ *@rpg_gd: Upon CNM receive, flow rate is limited to (Fb/Gd)*CurrentRate.
+ *	   rpgGd is given as log2(Gd), where Gd may only be powers of 2
+ *@rpg_min_dec_fac: The minimum factor by which the current transmit rate
+ *		    can be changed by reception of a CNM.
+ *		    value is given as percentage (1-100)
+ *@rpg_min_rate: The minimum value, in bits per second, for rate to limit
+ *@cndd_state_machine: The state of the congestion notification domain
+ *		       defense state machine, as defined by IEEE 802.3Qau
+ *		       section 32.1.1. In the interior ready state,
+ *		       the QCN capable hardware may add CN-TAG TLV to the
+ *		       outgoing traffic, to specifically identify outgoing
+ *		       flows.
+ */
+
+struct ieee_qcn {
+	__u8 rpg_enable[IEEE_8021QAZ_MAX_TCS];
+	__u32 rppp_max_rps[IEEE_8021QAZ_MAX_TCS];
+	__u32 rpg_time_reset[IEEE_8021QAZ_MAX_TCS];
+	__u32 rpg_byte_reset[IEEE_8021QAZ_MAX_TCS];
+	__u32 rpg_threshold[IEEE_8021QAZ_MAX_TCS];
+	__u32 rpg_max_rate[IEEE_8021QAZ_MAX_TCS];
+	__u32 rpg_ai_rate[IEEE_8021QAZ_MAX_TCS];
+	__u32 rpg_hai_rate[IEEE_8021QAZ_MAX_TCS];
+	__u32 rpg_gd[IEEE_8021QAZ_MAX_TCS];
+	__u32 rpg_min_dec_fac[IEEE_8021QAZ_MAX_TCS];
+	__u32 rpg_min_rate[IEEE_8021QAZ_MAX_TCS];
+	__u32 cndd_state_machine[IEEE_8021QAZ_MAX_TCS];
+};
+
+/* This structure contains the IEEE 802.1Qau QCN statistics.
+ *
+ *@rppp_rp_centiseconds: the number of RP-centiseconds accumulated
+ *			 by RPs at this priority level on this Port
+ *@rppp_created_rps: number of active RPs(flows) that react to CNMs
+ */
+
+struct ieee_qcn_stats {
+	__u64 rppp_rp_centiseconds[IEEE_8021QAZ_MAX_TCS];
+	__u32 rppp_created_rps[IEEE_8021QAZ_MAX_TCS];
+};
+
 /* This structure contains the IEEE 802.1Qaz PFC managed object
  *
  * @pfc_cap: Indicates the number of traffic classes on the local device
@@ -148,7 +212,8 @@ struct cee_pfc {
  *
  * @selector: protocol identifier type
  * @protocol: protocol of type indicated
- * @priority: 3-bit unsigned integer indicating priority
+ * @priority: 3-bit unsigned integer indicating priority for IEEE
+ *            8-bit 802.1p user priority bitmap for CEE
  *
  * ----
  *  Selector field values
@@ -333,6 +398,8 @@ enum ieee_attrs {
 	DCB_ATTR_IEEE_PEER_PFC,
 	DCB_ATTR_IEEE_PEER_APP,
 	DCB_ATTR_IEEE_MAXRATE,
+	DCB_ATTR_IEEE_QCN,
+	DCB_ATTR_IEEE_QCN_STATS,
 	__DCB_ATTR_IEEE_MAX
 };
 #define DCB_ATTR_IEEE_MAX (__DCB_ATTR_IEEE_MAX - 1)

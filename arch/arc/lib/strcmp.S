@@ -13,9 +13,9 @@
    source 1; however, that would increase the overhead for loop setup / finish,
    and strcmp might often terminate early.  */
 
-#include <asm/linkage.h>
+#include <linux/linkage.h>
 
-ARC_ENTRY strcmp
+ENTRY(strcmp)
 	or	r2,r0,r1
 	bmsk_s	r2,r2,1
 	brne	r2,0,.Lcharloop
@@ -93,4 +93,4 @@ ARC_ENTRY strcmp
 .Lcmpend:
 	j_s.d	[blink]
 	sub	r0,r2,r3
-ARC_EXIT strcmp
+END(strcmp)

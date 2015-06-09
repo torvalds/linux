@@ -16,19 +16,53 @@
 #ifndef __ASM_PGTABLE_HWDEF_H
 #define __ASM_PGTABLE_HWDEF_H
 
-#ifdef CONFIG_ARM64_64K_PAGES
-#include <asm/pgtable-2level-hwdef.h>
-#else
-#include <asm/pgtable-3level-hwdef.h>
+#define PTRS_PER_PTE		(1 << (PAGE_SHIFT - 3))
+
+/*
+ * PMD_SHIFT determines the size a level 2 page table entry can map.
+ */
+#if CONFIG_PGTABLE_LEVELS > 2
+#define PMD_SHIFT		((PAGE_SHIFT - 3) * 2 + 3)
+#define PMD_SIZE		(_AC(1, UL) << PMD_SHIFT)
+#define PMD_MASK		(~(PMD_SIZE-1))
+#define PTRS_PER_PMD		PTRS_PER_PTE
 #endif
+
+/*
+ * PUD_SHIFT determines the size a level 1 page table entry can map.
+ */
+#if CONFIG_PGTABLE_LEVELS > 3
+#define PUD_SHIFT		((PAGE_SHIFT - 3) * 3 + 3)
+#define PUD_SIZE		(_AC(1, UL) << PUD_SHIFT)
+#define PUD_MASK		(~(PUD_SIZE-1))
+#define PTRS_PER_PUD		PTRS_PER_PTE
+#endif
+
+/*
+ * PGDIR_SHIFT determines the size a top-level page table entry can map
+ * (depending on the configuration, this level can be 0, 1 or 2).
+ */
+#define PGDIR_SHIFT		((PAGE_SHIFT - 3) * CONFIG_PGTABLE_LEVELS + 3)
+#define PGDIR_SIZE		(_AC(1, UL) << PGDIR_SHIFT)
+#define PGDIR_MASK		(~(PGDIR_SIZE-1))
+#define PTRS_PER_PGD		(1 << (VA_BITS - PGDIR_SHIFT))
+
+/*
+ * Section address mask and size definitions.
+ */
+#define SECTION_SHIFT		PMD_SHIFT
+#define SECTION_SIZE		(_AC(1, UL) << SECTION_SHIFT)
+#define SECTION_MASK		(~(SECTION_SIZE-1))
 
 /*
  * Hardware page table definitions.
  *
  * Level 1 descriptor (PUD).
  */
-
+#define PUD_TYPE_TABLE		(_AT(pudval_t, 3) << 0)
 #define PUD_TABLE_BIT		(_AT(pgdval_t, 1) << 1)
+#define PUD_TYPE_MASK		(_AT(pgdval_t, 3) << 0)
+#define PUD_TYPE_SECT		(_AT(pgdval_t, 1) << 0)
 
 /*
  * Level 2 descriptor (PMD).
@@ -85,6 +119,7 @@
 #define PTE_S2_RDONLY		(_AT(pteval_t, 1) << 6)   /* HAP[2:1] */
 #define PTE_S2_RDWR		(_AT(pteval_t, 3) << 6)   /* HAP[2:1] */
 
+#define PMD_S2_RDONLY		(_AT(pmdval_t, 1) << 6)   /* HAP[2:1] */
 #define PMD_S2_RDWR		(_AT(pmdval_t, 3) << 6)   /* HAP[2:1] */
 
 /*
@@ -100,15 +135,20 @@
 #define PTE_HYP			PTE_USER
 
 /*
- * 40-bit physical address supported.
+ * Highest possible physical address supported.
  */
-#define PHYS_MASK_SHIFT		(40)
+#define PHYS_MASK_SHIFT		(48)
 #define PHYS_MASK		((UL(1) << PHYS_MASK_SHIFT) - 1)
 
 /*
  * TCR flags.
  */
-#define TCR_TxSZ(x)		(((UL(64) - (x)) << 16) | ((UL(64) - (x)) << 0))
+#define TCR_T0SZ_OFFSET		0
+#define TCR_T1SZ_OFFSET		16
+#define TCR_T0SZ(x)		((UL(64) - (x)) << TCR_T0SZ_OFFSET)
+#define TCR_T1SZ(x)		((UL(64) - (x)) << TCR_T1SZ_OFFSET)
+#define TCR_TxSZ(x)		(TCR_T0SZ(x) | TCR_T1SZ(x))
+#define TCR_TxSZ_WIDTH		6
 #define TCR_IRGN_NC		((UL(0) << 8) | (UL(0) << 24))
 #define TCR_IRGN_WBWA		((UL(1) << 8) | (UL(1) << 24))
 #define TCR_IRGN_WT		((UL(2) << 8) | (UL(2) << 24))
@@ -120,9 +160,12 @@
 #define TCR_ORGN_WBnWA		((UL(3) << 10) | (UL(3) << 26))
 #define TCR_ORGN_MASK		((UL(3) << 10) | (UL(3) << 26))
 #define TCR_SHARED		((UL(3) << 12) | (UL(3) << 28))
+#define TCR_TG0_4K		(UL(0) << 14)
 #define TCR_TG0_64K		(UL(1) << 14)
-#define TCR_TG1_64K		(UL(1) << 30)
-#define TCR_IPS_40BIT		(UL(2) << 32)
+#define TCR_TG0_16K		(UL(2) << 14)
+#define TCR_TG1_16K		(UL(1) << 30)
+#define TCR_TG1_4K		(UL(2) << 30)
+#define TCR_TG1_64K		(UL(3) << 30)
 #define TCR_ASID16		(UL(1) << 36)
 #define TCR_TBI0		(UL(1) << 37)
 

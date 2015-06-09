@@ -34,8 +34,6 @@ struct ctl_table_root;
 struct ctl_table_header;
 struct ctl_dir;
 
-typedef struct ctl_table ctl_table;
-
 typedef int proc_handler (struct ctl_table *ctl, int write,
 			  void __user *buffer, size_t *lenp, loff_t *ppos);
 
@@ -213,5 +211,8 @@ static inline void setup_sysctl_set(struct ctl_table_set *p,
 }
 
 #endif /* CONFIG_SYSCTL */
+
+int sysctl_max_threads(struct ctl_table *table, int write,
+		       void __user *buffer, size_t *lenp, loff_t *ppos);
 
 #endif /* _LINUX_SYSCTL_H */

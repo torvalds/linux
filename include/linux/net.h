@@ -120,7 +120,6 @@ struct socket {
 
 struct vm_area_struct;
 struct page;
-struct kiocb;
 struct sockaddr;
 struct msghdr;
 struct module;
@@ -162,8 +161,8 @@ struct proto_ops {
 	int		(*compat_getsockopt)(struct socket *sock, int level,
 				      int optname, char __user *optval, int __user *optlen);
 #endif
-	int		(*sendmsg)   (struct kiocb *iocb, struct socket *sock,
-				      struct msghdr *m, size_t total_len);
+	int		(*sendmsg)   (struct socket *sock, struct msghdr *m,
+				      size_t total_len);
 	/* Notes for implementing recvmsg:
 	 * ===============================
 	 * msg->msg_namelen should get updated by the recvmsg handlers
@@ -172,9 +171,8 @@ struct proto_ops {
 	 * handlers can assume that msg.msg_name is either NULL or has
 	 * a minimum size of sizeof(struct sockaddr_storage).
 	 */
-	int		(*recvmsg)   (struct kiocb *iocb, struct socket *sock,
-				      struct msghdr *m, size_t total_len,
-				      int flags);
+	int		(*recvmsg)   (struct socket *sock, struct msghdr *m,
+				      size_t total_len, int flags);
 	int		(*mmap)	     (struct file *file, struct socket *sock,
 				      struct vm_area_struct * vma);
 	ssize_t		(*sendpage)  (struct socket *sock, struct page *page,
@@ -213,7 +211,7 @@ int sock_create(int family, int type, int proto, struct socket **res);
 int sock_create_kern(int family, int type, int proto, struct socket **res);
 int sock_create_lite(int family, int type, int proto, struct socket **res);
 void sock_release(struct socket *sock);
-int sock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len);
+int sock_sendmsg(struct socket *sock, struct msghdr *msg);
 int sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 		 int flags);
 struct file *sock_alloc_file(struct socket *sock, int flags, const char *dname);
@@ -248,24 +246,17 @@ do {								\
 bool __net_get_random_once(void *buf, int nbytes, bool *done,
 			   struct static_key *done_key);
 
-#ifdef HAVE_JUMP_LABEL
-#define ___NET_RANDOM_STATIC_KEY_INIT ((struct static_key) \
-		{ .enabled = ATOMIC_INIT(0), .entries = (void *)1 })
-#else /* !HAVE_JUMP_LABEL */
-#define ___NET_RANDOM_STATIC_KEY_INIT STATIC_KEY_INIT_FALSE
-#endif /* HAVE_JUMP_LABEL */
-
 #define net_get_random_once(buf, nbytes)				\
 	({								\
 		bool ___ret = false;					\
 		static bool ___done = false;				\
-		static struct static_key ___done_key =			\
-			___NET_RANDOM_STATIC_KEY_INIT;			\
-		if (!static_key_true(&___done_key))			\
+		static struct static_key ___once_key =			\
+			STATIC_KEY_INIT_TRUE;				\
+		if (static_key_true(&___once_key))			\
 			___ret = __net_get_random_once(buf,		\
 						       nbytes,		\
 						       &___done,	\
-						       &___done_key);	\
+						       &___once_key);	\
 		___ret;							\
 	})
 

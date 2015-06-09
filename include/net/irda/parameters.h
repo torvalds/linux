@@ -71,17 +71,17 @@ typedef int (*PV_HANDLER)(void *self, __u8 *buf, int len, __u8 pi,
 			  PV_TYPE type, PI_HANDLER func);
 
 typedef struct {
-	PI_HANDLER func;  /* Handler for this parameter identifier */
+	const PI_HANDLER func;  /* Handler for this parameter identifier */
 	PV_TYPE    type;  /* Data type for this parameter */
 } pi_minor_info_t;
 
 typedef struct {
-	pi_minor_info_t *pi_minor_call_table;
+	const pi_minor_info_t *pi_minor_call_table;
 	int len;
 } pi_major_info_t;
 
 typedef struct {
-	pi_major_info_t *tables;
+	const pi_major_info_t *tables;
 	int              len;
 	__u8             pi_mask;
 	int              pi_major_offset;

@@ -128,7 +128,7 @@ static int sock_fanout_read_ring(int fd, void *ring)
 	struct tpacket2_hdr *header = ring;
 	int count = 0;
 
-	while (header->tp_status & TP_STATUS_USER && count < RING_NUM_FRAMES) {
+	while (count < RING_NUM_FRAMES && header->tp_status & TP_STATUS_USER) {
 		count++;
 		header = ring + (count * getpagesize());
 	}

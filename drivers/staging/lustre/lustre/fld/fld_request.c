@@ -42,21 +42,20 @@
 
 #define DEBUG_SUBSYSTEM S_FLD
 
-# include <linux/libcfs/libcfs.h>
-# include <linux/module.h>
-# include <asm/div64.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/module.h>
+#include <asm/div64.h>
 
-#include <obd.h>
-#include <obd_class.h>
-#include <lustre_ver.h>
-#include <obd_support.h>
-#include <lprocfs_status.h>
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_ver.h"
+#include "../include/obd_support.h"
+#include "../include/lprocfs_status.h"
 
-#include <dt_object.h>
-#include <md_object.h>
-#include <lustre_req_layout.h>
-#include <lustre_fld.h>
-#include <lustre_mdc.h>
+#include "../include/dt_object.h"
+#include "../include/lustre_req_layout.h"
+#include "../include/lustre_fld.h"
+#include "../include/lustre_mdc.h"
 #include "fld_internal.h"
 
 /* TODO: these 3 functions are copies of flow-control code from mdc_lib.c
@@ -110,15 +109,14 @@ static void fld_exit_request(struct client_obd *cli)
 	client_obd_list_unlock(&cli->cl_loi_list_lock);
 }
 
-static int fld_rrb_hash(struct lu_client_fld *fld,
-			seqno_t seq)
+static int fld_rrb_hash(struct lu_client_fld *fld, u64 seq)
 {
 	LASSERT(fld->lcf_count > 0);
 	return do_div(seq, fld->lcf_count);
 }
 
 static struct lu_fld_target *
-fld_rrb_scan(struct lu_client_fld *fld, seqno_t seq)
+fld_rrb_scan(struct lu_client_fld *fld, u64 seq)
 {
 	struct lu_fld_target *target;
 	int hash;
@@ -133,14 +131,22 @@ fld_rrb_scan(struct lu_client_fld *fld, seqno_t seq)
 	else
 		hash = 0;
 
+again:
 	list_for_each_entry(target, &fld->lcf_targets, ft_chain) {
 		if (target->ft_idx == hash)
 			return target;
 	}
 
-	CERROR("%s: Can't find target by hash %d (seq "LPX64"). "
-	       "Targets (%d):\n", fld->lcf_name, hash, seq,
-	       fld->lcf_count);
+	if (hash != 0) {
+		/* It is possible the remote target(MDT) are not connected to
+		 * with client yet, so we will refer this to MDT0, which should
+		 * be connected during mount */
+		hash = 0;
+		goto again;
+	}
+
+	CERROR("%s: Can't find target by hash %d (seq %#llx). Targets (%d):\n",
+		fld->lcf_name, hash, seq, fld->lcf_count);
 
 	list_for_each_entry(target, &fld->lcf_targets, ft_chain) {
 		const char *srv_name = target->ft_srv != NULL  ?
@@ -149,7 +155,7 @@ fld_rrb_scan(struct lu_client_fld *fld, seqno_t seq)
 			(char *)target->ft_exp->exp_obd->obd_uuid.uuid :
 			"<null>";
 
-		CERROR("  exp: 0x%p (%s), srv: 0x%p (%s), idx: "LPU64"\n",
+		CERROR("  exp: 0x%p (%s), srv: 0x%p (%s), idx: %llu\n",
 		       target->ft_exp, exp_name, target->ft_srv,
 		       srv_name, target->ft_idx);
 	}
@@ -169,12 +175,12 @@ struct lu_fld_hash fld_hash[] = {
 		.fh_scan_func = fld_rrb_scan
 	},
 	{
-		0,
+		NULL,
 	}
 };
 
 static struct lu_fld_target *
-fld_client_get_target(struct lu_client_fld *fld, seqno_t seq)
+fld_client_get_target(struct lu_client_fld *fld, u64 seq)
 {
 	struct lu_fld_target *target;
 
@@ -185,9 +191,8 @@ fld_client_get_target(struct lu_client_fld *fld, seqno_t seq)
 	spin_unlock(&fld->lcf_lock);
 
 	if (target != NULL) {
-		CDEBUG(D_INFO, "%s: Found target (idx "LPU64
-		       ") by seq "LPX64"\n", fld->lcf_name,
-		       target->ft_idx, seq);
+		CDEBUG(D_INFO, "%s: Found target (idx %llu) by seq %#llx\n",
+		       fld->lcf_name, target->ft_idx, seq);
 	}
 
 	return target;
@@ -209,14 +214,12 @@ int fld_client_add_target(struct lu_client_fld *fld,
 	LASSERT(tar->ft_srv != NULL || tar->ft_exp != NULL);
 
 	if (fld->lcf_flags != LUSTRE_FLD_INIT) {
-		CERROR("%s: Attempt to add target %s (idx "LPU64") "
-		       "on fly - skip it\n", fld->lcf_name, name,
-		       tar->ft_idx);
+		CERROR("%s: Attempt to add target %s (idx %llu) on fly - skip it\n",
+			fld->lcf_name, name, tar->ft_idx);
 		return 0;
-	} else {
-		CDEBUG(D_INFO, "%s: Adding target %s (idx "
-		       LPU64")\n", fld->lcf_name, name, tar->ft_idx);
 	}
+	CDEBUG(D_INFO, "%s: Adding target %s (idx %llu)\n",
+			fld->lcf_name, name, tar->ft_idx);
 
 	OBD_ALLOC_PTR(target);
 	if (target == NULL)
@@ -227,7 +230,7 @@ int fld_client_add_target(struct lu_client_fld *fld,
 		if (tmp->ft_idx == tar->ft_idx) {
 			spin_unlock(&fld->lcf_lock);
 			OBD_FREE_PTR(target);
-			CERROR("Target %s exists in FLD and known as %s:#"LPU64"\n",
+			CERROR("Target %s exists in FLD and known as %s:#%llu\n",
 			       name, fld_target_name(tmp), tmp->ft_idx);
 			return -EEXIST;
 		}
@@ -274,9 +277,9 @@ int fld_client_del_target(struct lu_client_fld *fld, __u64 idx)
 }
 EXPORT_SYMBOL(fld_client_del_target);
 
-struct proc_dir_entry *fld_type_proc_dir = NULL;
+static struct proc_dir_entry *fld_type_proc_dir;
 
-#ifdef LPROCFS
+#if defined(CONFIG_PROC_FS)
 static int fld_client_proc_init(struct lu_client_fld *fld)
 {
 	int rc;
@@ -297,7 +300,7 @@ static int fld_client_proc_init(struct lu_client_fld *fld)
 	if (rc) {
 		CERROR("%s: Can't init FLD proc, rc %d\n",
 		       fld->lcf_name, rc);
-		GOTO(out_cleanup, rc);
+		goto out_cleanup;
 	}
 
 	return 0;
@@ -323,10 +326,8 @@ static int fld_client_proc_init(struct lu_client_fld *fld)
 
 void fld_client_proc_fini(struct lu_client_fld *fld)
 {
-	return;
 }
 #endif
-
 EXPORT_SYMBOL(fld_client_proc_fini);
 
 static inline int hash_is_sane(int hash)
@@ -368,12 +369,12 @@ int fld_client_init(struct lu_client_fld *fld,
 	if (IS_ERR(fld->lcf_cache)) {
 		rc = PTR_ERR(fld->lcf_cache);
 		fld->lcf_cache = NULL;
-		GOTO(out, rc);
+		goto out;
 	}
 
 	rc = fld_client_proc_init(fld);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 out:
 	if (rc)
 		fld_client_fini(fld);
@@ -432,6 +433,7 @@ int fld_client_rpc(struct obd_export *exp,
 
 	ptlrpc_request_set_replen(req);
 	req->rq_request_portal = FLD_REQUEST_PORTAL;
+	req->rq_reply_portal = MDC_REPLY_PORTAL;
 	ptlrpc_at_set_req_timeout(req);
 
 	if (fld_op == FLD_LOOKUP &&
@@ -446,18 +448,20 @@ int fld_client_rpc(struct obd_export *exp,
 	if (fld_op != FLD_LOOKUP)
 		mdc_put_rpc_lock(exp->exp_obd->u.cli.cl_rpc_lock, NULL);
 	if (rc)
-		GOTO(out_req, rc);
+		goto out_req;
 
 	prange = req_capsule_server_get(&req->rq_pill, &RMF_FLD_MDFLD);
-	if (prange == NULL)
-		GOTO(out_req, rc = -EFAULT);
+	if (prange == NULL) {
+		rc = -EFAULT;
+		goto out_req;
+	}
 	*range = *prange;
 out_req:
 	ptlrpc_req_finished(req);
 	return rc;
 }
 
-int fld_client_lookup(struct lu_client_fld *fld, seqno_t seq, mdsno_t *mds,
+int fld_client_lookup(struct lu_client_fld *fld, u64 seq, u32 *mds,
 		      __u32 flags, const struct lu_env *env)
 {
 	struct lu_seq_range res = { 0 };
@@ -476,9 +480,8 @@ int fld_client_lookup(struct lu_client_fld *fld, seqno_t seq, mdsno_t *mds,
 	target = fld_client_get_target(fld, seq);
 	LASSERT(target != NULL);
 
-	CDEBUG(D_INFO, "%s: Lookup fld entry (seq: "LPX64") on "
-	       "target %s (idx "LPU64")\n", fld->lcf_name, seq,
-	       fld_target_name(target), target->ft_idx);
+	CDEBUG(D_INFO, "%s: Lookup fld entry (seq: %#llx) on target %s (idx %llu)\n",
+			fld->lcf_name, seq, fld_target_name(target), target->ft_idx);
 
 	res.lsr_start = seq;
 	fld_range_set_type(&res, flags);

@@ -146,7 +146,7 @@ static irqreturn_t ipi_handler_int1(int irq, void *dev_instance)
 	platform_clear_ipi(cpu, IRQ_SUPPLE_1);
 
 	smp_rmb();
-	bfin_ipi_data = &__get_cpu_var(bfin_ipi);
+	bfin_ipi_data = this_cpu_ptr(&bfin_ipi);
 	while ((pending = atomic_xchg(&bfin_ipi_data->bits, 0)) != 0) {
 		msg = 0;
 		do {
@@ -413,16 +413,14 @@ int __cpu_disable(void)
 	return 0;
 }
 
-static DECLARE_COMPLETION(cpu_killed);
-
 int __cpu_die(unsigned int cpu)
 {
-	return wait_for_completion_timeout(&cpu_killed, 5000);
+	return cpu_wait_death(cpu, 5);
 }
 
 void cpu_die(void)
 {
-	complete(&cpu_killed);
+	(void)cpu_report_death();
 
 	atomic_dec(&init_mm.mm_users);
 	atomic_dec(&init_mm.mm_count);

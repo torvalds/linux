@@ -156,10 +156,10 @@ static irqreturn_t rotator_irq_handler(int irq, void *arg)
 		event_work->ippdrv = ippdrv;
 		event_work->buf_id[EXYNOS_DRM_OPS_DST] =
 			rot->cur_buf_id[EXYNOS_DRM_OPS_DST];
-		queue_work(ippdrv->event_workq,
-			(struct work_struct *)event_work);
-	} else
+		queue_work(ippdrv->event_workq, &event_work->work);
+	} else {
 		DRM_ERROR("the SFR is set illegally\n");
+	}
 
 	return IRQ_HANDLED;
 }
@@ -469,11 +469,7 @@ static struct exynos_drm_ipp_ops rot_dst_ops = {
 
 static int rotator_init_prop_list(struct exynos_drm_ippdrv *ippdrv)
 {
-	struct drm_exynos_ipp_prop_list *prop_list;
-
-	prop_list = devm_kzalloc(ippdrv->dev, sizeof(*prop_list), GFP_KERNEL);
-	if (!prop_list)
-		return -ENOMEM;
+	struct drm_exynos_ipp_prop_list *prop_list = &ippdrv->prop_list;
 
 	prop_list->version = 1;
 	prop_list->flip = (1 << EXYNOS_DRM_FLIP_VERTICAL) |
@@ -485,8 +481,6 @@ static int rotator_init_prop_list(struct exynos_drm_ippdrv *ippdrv)
 	prop_list->csc = 0;
 	prop_list->crop = 0;
 	prop_list->scale = 0;
-
-	ippdrv->prop_list = prop_list;
 
 	return 0;
 }
@@ -696,6 +690,7 @@ static const struct of_device_id exynos_rotator_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, exynos_rotator_match);
 
 static int rotator_probe(struct platform_device *pdev)
 {
@@ -827,7 +822,7 @@ static int rotator_resume(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int rotator_runtime_suspend(struct device *dev)
 {
 	struct rot_context *rot = dev_get_drvdata(dev);

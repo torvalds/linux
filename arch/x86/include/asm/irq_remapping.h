@@ -33,8 +33,6 @@ struct irq_cfg;
 
 #ifdef CONFIG_IRQ_REMAP
 
-extern void setup_irq_remapping_ops(void);
-extern int irq_remapping_supported(void);
 extern void set_irq_remapping_broken(void);
 extern int irq_remapping_prepare(void);
 extern int irq_remapping_enable(void);
@@ -60,8 +58,6 @@ void irq_remap_modify_chip_defaults(struct irq_chip *chip);
 
 #else  /* CONFIG_IRQ_REMAP */
 
-static inline void setup_irq_remapping_ops(void) { }
-static inline int irq_remapping_supported(void) { return 0; }
 static inline void set_irq_remapping_broken(void) { }
 static inline int irq_remapping_prepare(void) { return -ENODEV; }
 static inline int irq_remapping_enable(void) { return -ENODEV; }
@@ -102,5 +98,8 @@ static inline bool setup_remapped_irq(int irq,
 	return false;
 }
 #endif /* CONFIG_IRQ_REMAP */
+
+#define dmar_alloc_hwirq()	irq_alloc_hwirq(-1)
+#define dmar_free_hwirq		irq_free_hwirq
 
 #endif /* __X86_IRQ_REMAPPING_H */

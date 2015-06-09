@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: AP specific command handling
  *
- * Copyright (C) 2012, Marvell International Ltd.
+ * Copyright (C) 2012-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -159,6 +159,7 @@ mwifiex_set_ht_params(struct mwifiex_private *priv,
 		      struct cfg80211_ap_settings *params)
 {
 	const u8 *ht_ie;
+	u16 cap_info;
 
 	if (!ISSUPP_11NENABLED(priv->adapter->fw_cap_info))
 		return;
@@ -166,8 +167,29 @@ mwifiex_set_ht_params(struct mwifiex_private *priv,
 	ht_ie = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, params->beacon.tail,
 				 params->beacon.tail_len);
 	if (ht_ie) {
-		memcpy(&bss_cfg->ht_cap, ht_ie + 2,
+		memcpy(&bss_cfg->ht_cap, ht_ie,
 		       sizeof(struct ieee80211_ht_cap));
+		cap_info = le16_to_cpu(bss_cfg->ht_cap.cap_info);
+		memset(&bss_cfg->ht_cap.mcs, 0,
+		       priv->adapter->number_of_antenna);
+		switch (GET_RXSTBC(cap_info)) {
+		case MWIFIEX_RX_STBC1:
+			/* HT_CAP 1X1 mode */
+			bss_cfg->ht_cap.mcs.rx_mask[0] = 0xff;
+			break;
+		case MWIFIEX_RX_STBC12:	/* fall through */
+		case MWIFIEX_RX_STBC123:
+			/* HT_CAP 2X2 mode */
+			bss_cfg->ht_cap.mcs.rx_mask[0] = 0xff;
+			bss_cfg->ht_cap.mcs.rx_mask[1] = 0xff;
+			break;
+		default:
+			dev_warn(priv->adapter->dev,
+				 "Unsupported RX-STBC, default to 2x2\n");
+			bss_cfg->ht_cap.mcs.rx_mask[0] = 0xff;
+			bss_cfg->ht_cap.mcs.rx_mask[1] = 0xff;
+			break;
+		}
 		priv->ap_11n_enabled = 1;
 	} else {
 		memset(&bss_cfg->ht_cap , 0, sizeof(struct ieee80211_ht_cap));
@@ -226,8 +248,8 @@ void mwifiex_set_vht_width(struct mwifiex_private *priv,
 	if (ap_11ac_enable && width >= NL80211_CHAN_WIDTH_80)
 		vht_cfg.misc_config |= VHT_BW_80_160_80P80;
 
-	mwifiex_send_cmd_sync(priv, HostCmd_CMD_11AC_CFG,
-			      HostCmd_ACT_GEN_SET, 0, &vht_cfg);
+	mwifiex_send_cmd(priv, HostCmd_CMD_11AC_CFG,
+			 HostCmd_ACT_GEN_SET, 0, &vht_cfg, true);
 
 	return;
 }
@@ -739,11 +761,81 @@ int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, u16 cmd_no,
 		if (mwifiex_cmd_uap_sta_deauth(priv, cmd, data_buf))
 			return -1;
 		break;
+	case HostCmd_CMD_CHAN_REPORT_REQUEST:
+		if (mwifiex_cmd_issue_chan_report_request(priv, cmd_buf,
+							  data_buf))
+			return -1;
+		break;
 	default:
 		dev_err(priv->adapter->dev,
 			"PREP_CMD: unknown cmd %#x\n", cmd_no);
 		return -1;
 	}
+
+	return 0;
+}
+
+void mwifiex_uap_set_channel(struct mwifiex_uap_bss_param *bss_cfg,
+			     struct cfg80211_chan_def chandef)
+{
+	u8 config_bands = 0;
+
+	bss_cfg->channel = ieee80211_frequency_to_channel(
+						     chandef.chan->center_freq);
+
+	/* Set appropriate bands */
+	if (chandef.chan->band == IEEE80211_BAND_2GHZ) {
+		bss_cfg->band_cfg = BAND_CONFIG_BG;
+		config_bands = BAND_B | BAND_G;
+
+		if (chandef.width > NL80211_CHAN_WIDTH_20_NOHT)
+			config_bands |= BAND_GN;
+	} else {
+		bss_cfg->band_cfg = BAND_CONFIG_A;
+		config_bands = BAND_A;
+
+		if (chandef.width > NL80211_CHAN_WIDTH_20_NOHT)
+			config_bands |= BAND_AN;
+
+		if (chandef.width > NL80211_CHAN_WIDTH_40)
+			config_bands |= BAND_AAC;
+	}
+}
+
+int mwifiex_config_start_uap(struct mwifiex_private *priv,
+			     struct mwifiex_uap_bss_param *bss_cfg)
+{
+	if (mwifiex_del_mgmt_ies(priv))
+		dev_err(priv->adapter->dev, "Failed to delete mgmt IEs!\n");
+
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_BSS_STOP,
+			     HostCmd_ACT_GEN_SET, 0, NULL, true)) {
+		dev_err(priv->adapter->dev, "Failed to stop the BSS\n");
+		return -1;
+	}
+
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_SYS_CONFIG,
+			     HostCmd_ACT_GEN_SET,
+			     UAP_BSS_PARAMS_I, bss_cfg, false)) {
+		dev_err(priv->adapter->dev, "Failed to set the SSID\n");
+		return -1;
+	}
+
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_BSS_START,
+			     HostCmd_ACT_GEN_SET, 0, NULL, false)) {
+		dev_err(priv->adapter->dev, "Failed to start the BSS\n");
+		return -1;
+	}
+
+	if (priv->sec_info.wep_enabled)
+		priv->curr_pkt_filter |= HostCmd_ACT_MAC_WEP_ENABLE;
+	else
+		priv->curr_pkt_filter &= ~HostCmd_ACT_MAC_WEP_ENABLE;
+
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_MAC_CONTROL,
+			     HostCmd_ACT_GEN_SET, 0,
+			     &priv->curr_pkt_filter, true))
+		return -1;
 
 	return 0;
 }

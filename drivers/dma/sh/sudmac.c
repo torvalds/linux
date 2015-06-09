@@ -14,12 +14,13 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/interrupt.h>
 #include <linux/dmaengine.h>
+#include <linux/err.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/sudmac.h>
 
 struct sudmac_chan {
@@ -178,8 +179,8 @@ static int sudmac_desc_setup(struct shdma_chan *schan,
 	struct sudmac_chan *sc = to_chan(schan);
 	struct sudmac_desc *sd = to_desc(sdesc);
 
-	dev_dbg(sc->shdma_chan.dev, "%s: src=%x, dst=%x, len=%d\n",
-		__func__, src, dst, *len);
+	dev_dbg(sc->shdma_chan.dev, "%s: src=%pad, dst=%pad, len=%zu\n",
+		__func__, &src, &dst, *len);
 
 	if (*len > schan->max_xfer_len)
 		*len = schan->max_xfer_len;
@@ -294,7 +295,6 @@ err_no_irq:
 
 static void sudmac_chan_remove(struct sudmac_device *su_dev)
 {
-	struct dma_device *dma_dev = &su_dev->shdma_dev.dma_dev;
 	struct shdma_chan *schan;
 	int i;
 
@@ -303,7 +303,6 @@ static void sudmac_chan_remove(struct sudmac_device *su_dev)
 
 		shdma_chan_remove(schan);
 	}
-	dma_dev->chancnt = 0;
 }
 
 static dma_addr_t sudmac_slave_addr(struct shdma_chan *schan)
@@ -410,7 +409,6 @@ static int sudmac_remove(struct platform_device *pdev)
 
 static struct platform_driver sudmac_driver = {
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= SUDMAC_DRV_NAME,
 	},
 	.probe		= sudmac_probe,

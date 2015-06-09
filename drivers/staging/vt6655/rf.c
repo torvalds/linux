@@ -29,6 +29,8 @@
  *      IFRFbWriteEmbedded      - Embedded write RF register via MAC
  *
  * Revision History:
+ *	RobertYu 2005
+ *	chester 2008
  *
  */
 
@@ -36,10 +38,6 @@
 #include "srom.h"
 #include "rf.h"
 #include "baseband.h"
-
-/*---------------------  Static Definitions -------------------------*/
-
-//static int          msglevel                =MSG_LEVEL_INFO;
 
 #define BY_AL2230_REG_LEN     23 //24bit
 #define CB_AL2230_INIT_SEQ    15
@@ -50,10 +48,6 @@
 #define CB_AL7230_INIT_SEQ    16
 #define SWITCH_CHANNEL_DELAY_AL7230 200 //us
 #define AL7230_PWR_IDX_LEN    64
-
-/*---------------------  Static Classes  ----------------------------*/
-
-/*---------------------  Static Variables  --------------------------*/
 
 static const unsigned long dwAL2230InitTable[CB_AL2230_INIT_SEQ] = {
 	0x03F79000+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW, //
@@ -174,7 +168,6 @@ static unsigned long dwAL2230PowerTable[AL2230_PWR_IDX_LEN] = {
 	0x0407F900+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW
 };
 
-//{{ RobertYu:20050104
 // 40MHz reference frequency
 // Need to Pull PLLON(PE3) low when writing channel registers through 3-wire.
 static const unsigned long dwAL7230InitTable[CB_AL7230_INIT_SEQ] = {
@@ -183,7 +176,6 @@ static const unsigned long dwAL7230InitTable[CB_AL7230_INIT_SEQ] = {
 	0x841FF200+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // Need modify for 11a: 451FE2
 	0x3FDFA300+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // Need modify for 11a: 5FDFA3
 	0x7FD78400+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // 11b/g    // Need modify for 11a
-	//0x802B4500+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // Need modify for 11a: 8D1B45
 	// RoberYu:20050113, Rev0.47 Regsiter Setting Guide
 	0x802B5500+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // Need modify for 11a: 8D1B55
 	0x56AF3600+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW,
@@ -192,7 +184,6 @@ static const unsigned long dwAL7230InitTable[CB_AL7230_INIT_SEQ] = {
 	0x221BB900+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW,
 	0xE0000A00+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // Need modify for 11a: E0600A
 	0x08031B00+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // init 0x080B1B00 => 0x080F1B00 for 3 wire control TxGain(D10)
-	//0x00093C00+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // Need modify for 11a: 00143C
 	// RoberYu:20050113, Rev0.47 Regsiter Setting Guide
 	0x000A3C00+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // Need modify for 11a: 00143C
 	0xFFFFFD00+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW,
@@ -412,9 +403,6 @@ static const unsigned long dwAL7230ChannelTable2[CB_MAX_CHANNEL] = {
 	0x77D78400+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // channel = 161, Tf = 5805MHz (55)
 	0x77D78400+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW  // channel = 165, Tf = 5825MHz (56)
 };
-//}} RobertYu
-
-/*---------------------  Static Functions  --------------------------*/
 
 /*
  * Description: AIROHA IFRF chip init function
@@ -428,135 +416,79 @@ static const unsigned long dwAL7230ChannelTable2[CB_MAX_CHANNEL] = {
  * Return Value: true if succeeded; false if failed.
  *
  */
-static bool s_bAL7230Init(unsigned long dwIoBase)
+static bool s_bAL7230Init(struct vnt_private *priv)
 {
+	void __iomem *dwIoBase = priv->PortOffset;
 	int     ii;
 	bool bResult;
 
 	bResult = true;
 
-	//3-wire control for normal mode
+	/* 3-wire control for normal mode */
 	VNSvOutPortB(dwIoBase + MAC_REG_SOFTPWRCTL, 0);
 
 	MACvWordRegBitsOn(dwIoBase, MAC_REG_SOFTPWRCTL, (SOFTPWRCTL_SWPECTI  |
 							 SOFTPWRCTL_TXPEINV));
-	BBvPowerSaveModeOFF(dwIoBase); //RobertYu:20050106, have DC value for Calibration
+	BBvPowerSaveModeOFF(priv); /* RobertYu:20050106, have DC value for Calibration */
 
 	for (ii = 0; ii < CB_AL7230_INIT_SEQ; ii++)
-		bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230InitTable[ii]);
+		bResult &= IFRFbWriteEmbedded(priv, dwAL7230InitTable[ii]);
 
-	// PLL On
+	/* PLL On */
 	MACvWordRegBitsOn(dwIoBase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
 
-	//Calibration
+	/* Calibration */
 	MACvTimer0MicroSDelay(dwIoBase, 150);//150us
-	bResult &= IFRFbWriteEmbedded(dwIoBase, (0x9ABA8F00+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW)); //TXDCOC:active, RCK:disable
+	/* TXDCOC:active, RCK:disable */
+	bResult &= IFRFbWriteEmbedded(priv, (0x9ABA8F00+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW));
 	MACvTimer0MicroSDelay(dwIoBase, 30);//30us
-	bResult &= IFRFbWriteEmbedded(dwIoBase, (0x3ABA8F00+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW)); //TXDCOC:disable, RCK:active
+	/* TXDCOC:disable, RCK:active */
+	bResult &= IFRFbWriteEmbedded(priv, (0x3ABA8F00+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW));
 	MACvTimer0MicroSDelay(dwIoBase, 30);//30us
-	bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230InitTable[CB_AL7230_INIT_SEQ-1]); //TXDCOC:disable, RCK:disable
+	/* TXDCOC:disable, RCK:disable */
+	bResult &= IFRFbWriteEmbedded(priv, dwAL7230InitTable[CB_AL7230_INIT_SEQ-1]);
 
 	MACvWordRegBitsOn(dwIoBase, MAC_REG_SOFTPWRCTL, (SOFTPWRCTL_SWPE3    |
 							 SOFTPWRCTL_SWPE2    |
 							 SOFTPWRCTL_SWPECTI  |
 							 SOFTPWRCTL_TXPEINV));
 
-	BBvPowerSaveModeON(dwIoBase); // RobertYu:20050106
+	BBvPowerSaveModeON(priv); /* RobertYu:20050106 */
 
-	// PE1: TX_ON, PE2: RX_ON, PE3: PLLON
-	//3-wire control for power saving mode
+	/* PE1: TX_ON, PE2: RX_ON, PE3: PLLON */
+	/* 3-wire control for power saving mode */
 	VNSvOutPortB(dwIoBase + MAC_REG_PSPWRSIG, (PSSIG_WPE3 | PSSIG_WPE2)); //1100 0000
 
 	return bResult;
 }
 
-// Need to Pull PLLON low when writing channel registers through 3-wire interface
-static bool s_bAL7230SelectChannel(unsigned long dwIoBase, unsigned char byChannel)
+/* Need to Pull PLLON low when writing channel registers through
+ * 3-wire interface */
+static bool s_bAL7230SelectChannel(struct vnt_private *priv, unsigned char byChannel)
 {
+	void __iomem *dwIoBase = priv->PortOffset;
 	bool bResult;
 
 	bResult = true;
 
-	// PLLON Off
+	/* PLLON Off */
 	MACvWordRegBitsOff(dwIoBase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
 
-	bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230ChannelTable0[byChannel - 1]); //Reg0
-	bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230ChannelTable1[byChannel - 1]); //Reg1
-	bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230ChannelTable2[byChannel - 1]); //Reg4
+	bResult &= IFRFbWriteEmbedded(priv, dwAL7230ChannelTable0[byChannel - 1]);
+	bResult &= IFRFbWriteEmbedded(priv, dwAL7230ChannelTable1[byChannel - 1]);
+	bResult &= IFRFbWriteEmbedded(priv, dwAL7230ChannelTable2[byChannel - 1]);
 
-	// PLLOn On
+	/* PLLOn On */
 	MACvWordRegBitsOn(dwIoBase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
 
-	// Set Channel[7] = 0 to tell H/W channel is changing now.
+	/* Set Channel[7] = 0 to tell H/W channel is changing now. */
 	VNSvOutPortB(dwIoBase + MAC_REG_CHANNEL, (byChannel & 0x7F));
 	MACvTimer0MicroSDelay(dwIoBase, SWITCH_CHANNEL_DELAY_AL7230);
-	// Set Channel[7] = 1 to tell H/W channel change is done.
+	/* Set Channel[7] = 1 to tell H/W channel change is done. */
 	VNSvOutPortB(dwIoBase + MAC_REG_CHANNEL, (byChannel | 0x80));
 
 	return bResult;
 }
-
-/*
- * Description: Select channel with UW2452 chip
- *
- * Parameters:
- *  In:
- *      dwIoBase    - I/O base address
- *      uChannel    - Channel number
- *  Out:
- *      none
- *
- * Return Value: true if succeeded; false if failed.
- *
- */
-
-//{{ RobertYu: 20041210
-/*
- * Description: UW2452 IFRF chip init function
- *
- * Parameters:
- *  In:
- *      dwIoBase    - I/O base address
- *  Out:
- *      none
- *
- * Return Value: true if succeeded; false if failed.
- *
- */
-
-//}} RobertYu
-////////////////////////////////////////////////////////////////////////////////
-
-/*
- * Description: VT3226 IFRF chip init function
- *
- * Parameters:
- *  In:
- *      dwIoBase    - I/O base address
- *  Out:
- *      none
- *
- * Return Value: true if succeeded; false if failed.
- *
- */
-
-/*
- * Description: Select channel with VT3226 chip
- *
- * Parameters:
- *  In:
- *      dwIoBase    - I/O base address
- *      uChannel    - Channel number
- *  Out:
- *      none
- *
- * Return Value: true if succeeded; false if failed.
- *
- */
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
 
 /*
  * Description: Write to IF/RF, by embedded programming
@@ -571,53 +503,26 @@ static bool s_bAL7230SelectChannel(unsigned long dwIoBase, unsigned char byChann
  * Return Value: true if succeeded; false if failed.
  *
  */
-bool IFRFbWriteEmbedded(unsigned long dwIoBase, unsigned long dwData)
+bool IFRFbWriteEmbedded(struct vnt_private *priv, unsigned long dwData)
 {
+	void __iomem *dwIoBase = priv->PortOffset;
 	unsigned short ww;
 	unsigned long dwValue;
 
 	VNSvOutPortD(dwIoBase + MAC_REG_IFREGCTL, dwData);
 
-	// W_MAX_TIMEOUT is the timeout period
+	/* W_MAX_TIMEOUT is the timeout period */
 	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
 		VNSvInPortD(dwIoBase + MAC_REG_IFREGCTL, &dwValue);
 		if (dwValue & IFREGCTL_DONE)
 			break;
 	}
 
-	if (ww == W_MAX_TIMEOUT) {
-//        DBG_PORT80_ALWAYS(0x32);
+	if (ww == W_MAX_TIMEOUT)
 		return false;
-	}
+
 	return true;
 }
-
-/*
- * Description: RFMD RF2959 IFRF chip init function
- *
- * Parameters:
- *  In:
- *      dwIoBase    - I/O base address
- *  Out:
- *      none
- *
- * Return Value: true if succeeded; false if failed.
- *
- */
-
-/*
- * Description: Select channel with RFMD 2959 chip
- *
- * Parameters:
- *  In:
- *      dwIoBase    - I/O base address
- *      uChannel    - Channel number
- *  Out:
- *      none
- *
- * Return Value: true if succeeded; false if failed.
- *
- */
 
 /*
  * Description: AIROHA IFRF chip init function
@@ -631,111 +536,68 @@ bool IFRFbWriteEmbedded(unsigned long dwIoBase, unsigned long dwData)
  * Return Value: true if succeeded; false if failed.
  *
  */
-static bool RFbAL2230Init(unsigned long dwIoBase)
+static bool RFbAL2230Init(struct vnt_private *priv)
 {
+	void __iomem *dwIoBase = priv->PortOffset;
 	int     ii;
 	bool bResult;
 
 	bResult = true;
 
-	//3-wire control for normal mode
+	/* 3-wire control for normal mode */
 	VNSvOutPortB(dwIoBase + MAC_REG_SOFTPWRCTL, 0);
 
 	MACvWordRegBitsOn(dwIoBase, MAC_REG_SOFTPWRCTL, (SOFTPWRCTL_SWPECTI  |
 							 SOFTPWRCTL_TXPEINV));
-//2008-8-21 chester <add>
-	// PLL  Off
-
+	/* PLL  Off */
 	MACvWordRegBitsOff(dwIoBase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
 
-	//patch abnormal AL2230 frequency output
-//2008-8-21 chester <add>
-	IFRFbWriteEmbedded(dwIoBase, (0x07168700+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW));
+	/* patch abnormal AL2230 frequency output */
+	IFRFbWriteEmbedded(priv, (0x07168700+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW));
 
 	for (ii = 0; ii < CB_AL2230_INIT_SEQ; ii++)
-		bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL2230InitTable[ii]);
-//2008-8-21 chester <add>
+		bResult &= IFRFbWriteEmbedded(priv, dwAL2230InitTable[ii]);
 	MACvTimer0MicroSDelay(dwIoBase, 30); //delay 30 us
 
-	// PLL On
+	/* PLL On */
 	MACvWordRegBitsOn(dwIoBase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
 
 	MACvTimer0MicroSDelay(dwIoBase, 150);//150us
-	bResult &= IFRFbWriteEmbedded(dwIoBase, (0x00d80f00+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW));
+	bResult &= IFRFbWriteEmbedded(priv, (0x00d80f00+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW));
 	MACvTimer0MicroSDelay(dwIoBase, 30);//30us
-	bResult &= IFRFbWriteEmbedded(dwIoBase, (0x00780f00+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW));
+	bResult &= IFRFbWriteEmbedded(priv, (0x00780f00+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW));
 	MACvTimer0MicroSDelay(dwIoBase, 30);//30us
-	bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL2230InitTable[CB_AL2230_INIT_SEQ-1]);
+	bResult &= IFRFbWriteEmbedded(priv, dwAL2230InitTable[CB_AL2230_INIT_SEQ-1]);
 
 	MACvWordRegBitsOn(dwIoBase, MAC_REG_SOFTPWRCTL, (SOFTPWRCTL_SWPE3    |
 							 SOFTPWRCTL_SWPE2    |
 							 SOFTPWRCTL_SWPECTI  |
 							 SOFTPWRCTL_TXPEINV));
 
-	//3-wire control for power saving mode
+	/* 3-wire control for power saving mode */
 	VNSvOutPortB(dwIoBase + MAC_REG_PSPWRSIG, (PSSIG_WPE3 | PSSIG_WPE2)); //1100 0000
 
 	return bResult;
 }
 
-static bool RFbAL2230SelectChannel(unsigned long dwIoBase, unsigned char byChannel)
+static bool RFbAL2230SelectChannel(struct vnt_private *priv, unsigned char byChannel)
 {
+	void __iomem *dwIoBase = priv->PortOffset;
 	bool bResult;
 
 	bResult = true;
 
-	bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL2230ChannelTable0[byChannel - 1]);
-	bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL2230ChannelTable1[byChannel - 1]);
+	bResult &= IFRFbWriteEmbedded(priv, dwAL2230ChannelTable0[byChannel - 1]);
+	bResult &= IFRFbWriteEmbedded(priv, dwAL2230ChannelTable1[byChannel - 1]);
 
-	// Set Channel[7] = 0 to tell H/W channel is changing now.
+	/* Set Channel[7] = 0 to tell H/W channel is changing now. */
 	VNSvOutPortB(dwIoBase + MAC_REG_CHANNEL, (byChannel & 0x7F));
 	MACvTimer0MicroSDelay(dwIoBase, SWITCH_CHANNEL_DELAY_AL2230);
-	// Set Channel[7] = 1 to tell H/W channel change is done.
+	/* Set Channel[7] = 1 to tell H/W channel change is done. */
 	VNSvOutPortB(dwIoBase + MAC_REG_CHANNEL, (byChannel | 0x80));
 
 	return bResult;
 }
-
-/*
- * Description: UW2451 IFRF chip init function
- *
- * Parameters:
- *  In:
- *      dwIoBase    - I/O base address
- *  Out:
- *      none
- *
- * Return Value: true if succeeded; false if failed.
- *
- */
-
-/*
- * Description: Select channel with UW2451 chip
- *
- * Parameters:
- *  In:
- *      dwIoBase    - I/O base address
- *      uChannel    - Channel number
- *  Out:
- *      none
- *
- * Return Value: true if succeeded; false if failed.
- *
- */
-
-/*
- * Description: Set sleep mode to UW2451 chip
- *
- * Parameters:
- *  In:
- *      dwIoBase    - I/O base address
- *      uChannel    - Channel number
- *  Out:
- *      none
- *
- * Return Value: true if succeeded; false if failed.
- *
- */
 
 /*
  * Description: RF init function
@@ -751,19 +613,20 @@ static bool RFbAL2230SelectChannel(unsigned long dwIoBase, unsigned char byChann
  *
  */
 bool RFbInit(
-	PSDevice  pDevice
+	struct vnt_private *priv
 )
 {
 	bool bResult = true;
-	switch (pDevice->byRFType) {
+
+	switch (priv->byRFType) {
 	case RF_AIROHA:
 	case RF_AL2230S:
-		pDevice->byMaxPwrLevel = AL2230_PWR_IDX_LEN;
-		bResult = RFbAL2230Init(pDevice->PortOffset);
+		priv->byMaxPwrLevel = AL2230_PWR_IDX_LEN;
+		bResult = RFbAL2230Init(priv);
 		break;
 	case RF_AIROHA7230:
-		pDevice->byMaxPwrLevel = AL7230_PWR_IDX_LEN;
-		bResult = s_bAL7230Init(pDevice->PortOffset);
+		priv->byMaxPwrLevel = AL7230_PWR_IDX_LEN;
+		bResult = s_bAL7230Init(priv);
 		break;
 	case RF_NOTHING:
 		bResult = true;
@@ -788,17 +651,19 @@ bool RFbInit(
  * Return Value: true if succeeded; false if failed.
  *
  */
-bool RFbSelectChannel(unsigned long dwIoBase, unsigned char byRFType, unsigned char byChannel)
+bool RFbSelectChannel(struct vnt_private *priv, unsigned char byRFType,
+		      u16 byChannel)
 {
 	bool bResult = true;
+
 	switch (byRFType) {
 	case RF_AIROHA:
 	case RF_AL2230S:
-		bResult = RFbAL2230SelectChannel(dwIoBase, byChannel);
+		bResult = RFbAL2230SelectChannel(priv, byChannel);
 		break;
 		//{{ RobertYu: 20050104
 	case RF_AIROHA7230:
-		bResult = s_bAL7230SelectChannel(dwIoBase, byChannel);
+		bResult = s_bAL7230SelectChannel(priv, byChannel);
 		break;
 		//}} RobertYu
 	case RF_NOTHING:
@@ -823,8 +688,10 @@ bool RFbSelectChannel(unsigned long dwIoBase, unsigned char byRFType, unsigned c
  * Return Value: None.
  *
  */
-bool RFvWriteWakeProgSyn(unsigned long dwIoBase, unsigned char byRFType, unsigned int uChannel)
+bool RFvWriteWakeProgSyn(struct vnt_private *priv, unsigned char byRFType,
+			 u16 uChannel)
 {
+	void __iomem *dwIoBase = priv->PortOffset;
 	int   ii;
 	unsigned char byInitCount = 0;
 	unsigned char bySleepCount = 0;
@@ -837,37 +704,34 @@ bool RFvWriteWakeProgSyn(unsigned long dwIoBase, unsigned char byRFType, unsigne
 		if (uChannel > CB_MAX_CHANNEL_24G)
 			return false;
 
-		byInitCount = CB_AL2230_INIT_SEQ + 2; // Init Reg + Channel Reg (2)
+		 /* Init Reg + Channel Reg (2) */
+		byInitCount = CB_AL2230_INIT_SEQ + 2;
 		bySleepCount = 0;
-		if (byInitCount > (MISCFIFO_SYNDATASIZE - bySleepCount)) {
+		if (byInitCount > (MISCFIFO_SYNDATASIZE - bySleepCount))
 			return false;
-		}
 
-		for (ii = 0; ii < CB_AL2230_INIT_SEQ; ii++) {
+		for (ii = 0; ii < CB_AL2230_INIT_SEQ; ii++)
 			MACvSetMISCFifo(dwIoBase, (unsigned short)(MISCFIFO_SYNDATA_IDX + ii), dwAL2230InitTable[ii]);
-		}
+
 		MACvSetMISCFifo(dwIoBase, (unsigned short)(MISCFIFO_SYNDATA_IDX + ii), dwAL2230ChannelTable0[uChannel-1]);
 		ii++;
 		MACvSetMISCFifo(dwIoBase, (unsigned short)(MISCFIFO_SYNDATA_IDX + ii), dwAL2230ChannelTable1[uChannel-1]);
 		break;
 
-		//{{ RobertYu: 20050104
-		// Need to check, PLLON need to be low for channel setting
+		/* Need to check, PLLON need to be low for channel setting */
 	case RF_AIROHA7230:
-		byInitCount = CB_AL7230_INIT_SEQ + 3; // Init Reg + Channel Reg (3)
+		 /* Init Reg + Channel Reg (3) */
+		byInitCount = CB_AL7230_INIT_SEQ + 3;
 		bySleepCount = 0;
-		if (byInitCount > (MISCFIFO_SYNDATASIZE - bySleepCount)) {
+		if (byInitCount > (MISCFIFO_SYNDATASIZE - bySleepCount))
 			return false;
-		}
 
 		if (uChannel <= CB_MAX_CHANNEL_24G) {
-			for (ii = 0; ii < CB_AL7230_INIT_SEQ; ii++) {
+			for (ii = 0; ii < CB_AL7230_INIT_SEQ; ii++)
 				MACvSetMISCFifo(dwIoBase, (unsigned short)(MISCFIFO_SYNDATA_IDX + ii), dwAL7230InitTable[ii]);
-			}
 		} else {
-			for (ii = 0; ii < CB_AL7230_INIT_SEQ; ii++) {
+			for (ii = 0; ii < CB_AL7230_INIT_SEQ; ii++)
 				MACvSetMISCFifo(dwIoBase, (unsigned short)(MISCFIFO_SYNDATA_IDX + ii), dwAL7230InitTableAMode[ii]);
-			}
 		}
 
 		MACvSetMISCFifo(dwIoBase, (unsigned short)(MISCFIFO_SYNDATA_IDX + ii), dwAL7230ChannelTable0[uChannel-1]);
@@ -876,15 +740,12 @@ bool RFvWriteWakeProgSyn(unsigned long dwIoBase, unsigned char byRFType, unsigne
 		ii++;
 		MACvSetMISCFifo(dwIoBase, (unsigned short)(MISCFIFO_SYNDATA_IDX + ii), dwAL7230ChannelTable2[uChannel-1]);
 		break;
-		//}} RobertYu
 
 	case RF_NOTHING:
 		return true;
-		break;
 
 	default:
 		return false;
-		break;
 	}
 
 	MACvSetMISCFifo(dwIoBase, MISCFIFO_SYNINFO_IDX, (unsigned long)MAKEWORD(bySleepCount, byInitCount));
@@ -906,79 +767,61 @@ bool RFvWriteWakeProgSyn(unsigned long dwIoBase, unsigned char byRFType, unsigne
  *
  */
 bool RFbSetPower(
-	PSDevice  pDevice,
+	struct vnt_private *priv,
 	unsigned int uRATE,
-	unsigned int uCH
+	u16 uCH
 )
 {
 	bool bResult = true;
 	unsigned char byPwr = 0;
 	unsigned char byDec = 0;
-	unsigned char byPwrdBm = 0;
 
-	if (pDevice->dwDiagRefCount != 0) {
+	if (priv->dwDiagRefCount != 0)
 		return true;
-	}
-	if ((uCH < 1) || (uCH > CB_MAX_CHANNEL)) {
+
+	if ((uCH < 1) || (uCH > CB_MAX_CHANNEL))
 		return false;
-	}
 
 	switch (uRATE) {
 	case RATE_1M:
 	case RATE_2M:
 	case RATE_5M:
 	case RATE_11M:
-		byPwr = pDevice->abyCCKPwrTbl[uCH];
-		byPwrdBm = pDevice->abyCCKDefaultPwr[uCH];
-//PLICE_DEBUG->
-		//byPwr+=5;
-//PLICE_DEBUG <-
+		if (uCH > CB_MAX_CHANNEL_24G)
+			return false;
+
+		byPwr = priv->abyCCKPwrTbl[uCH];
 		break;
 	case RATE_6M:
 	case RATE_9M:
+	case RATE_12M:
 	case RATE_18M:
-		byPwr = pDevice->abyOFDMPwrTbl[uCH];
-		if (pDevice->byRFType == RF_UW2452) {
+		byPwr = priv->abyOFDMPwrTbl[uCH];
+		if (priv->byRFType == RF_UW2452)
 			byDec = byPwr + 14;
-		} else {
+		else
 			byDec = byPwr + 10;
-		}
-		if (byDec >= pDevice->byMaxPwrLevel) {
-			byDec = pDevice->byMaxPwrLevel-1;
-		}
-		if (pDevice->byRFType == RF_UW2452) {
-			byPwrdBm = byDec - byPwr;
-			byPwrdBm /= 3;
-		} else {
-			byPwrdBm = byDec - byPwr;
-			byPwrdBm >>= 1;
-		}
-		byPwrdBm += pDevice->abyOFDMDefaultPwr[uCH];
+
+		if (byDec >= priv->byMaxPwrLevel)
+			byDec = priv->byMaxPwrLevel-1;
+
 		byPwr = byDec;
-//PLICE_DEBUG->
-		//byPwr+=5;
-//PLICE_DEBUG<-
 		break;
 	case RATE_24M:
 	case RATE_36M:
 	case RATE_48M:
 	case RATE_54M:
-		byPwr = pDevice->abyOFDMPwrTbl[uCH];
-		byPwrdBm = pDevice->abyOFDMDefaultPwr[uCH];
-//PLICE_DEBUG->
-		//byPwr+=5;
-//PLICE_DEBUG<-
+		byPwr = priv->abyOFDMPwrTbl[uCH];
 		break;
 	}
 
-	if (pDevice->byCurPwr == byPwr) {
+	if (priv->byCurPwr == byPwr)
 		return true;
-	}
 
-	bResult = RFbRawSetPower(pDevice, byPwr, uRATE);
-	if (bResult) {
-		pDevice->byCurPwr = byPwr;
-	}
+	bResult = RFbRawSetPower(priv, byPwr, uRATE);
+	if (bResult)
+		priv->byCurPwr = byPwr;
+
 	return bResult;
 }
 
@@ -997,7 +840,7 @@ bool RFbSetPower(
  */
 
 bool RFbRawSetPower(
-	PSDevice  pDevice,
+	struct vnt_private *priv,
 	unsigned char byPwr,
 	unsigned int uRATE
 )
@@ -1005,37 +848,38 @@ bool RFbRawSetPower(
 	bool bResult = true;
 	unsigned long dwMax7230Pwr = 0;
 
-	if (byPwr >=  pDevice->byMaxPwrLevel) {
+	if (byPwr >=  priv->byMaxPwrLevel)
 		return false;
-	}
-	switch (pDevice->byRFType) {
+
+	switch (priv->byRFType) {
 	case RF_AIROHA:
-		bResult &= IFRFbWriteEmbedded(pDevice->PortOffset, dwAL2230PowerTable[byPwr]);
-		if (uRATE <= RATE_11M) {
-			bResult &= IFRFbWriteEmbedded(pDevice->PortOffset, 0x0001B400+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW);
-		} else {
-			bResult &= IFRFbWriteEmbedded(pDevice->PortOffset, 0x0005A400+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW);
-		}
+		bResult &= IFRFbWriteEmbedded(priv, dwAL2230PowerTable[byPwr]);
+		if (uRATE <= RATE_11M)
+			bResult &= IFRFbWriteEmbedded(priv, 0x0001B400+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW);
+		else
+			bResult &= IFRFbWriteEmbedded(priv, 0x0005A400+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW);
+
 		break;
 
 	case RF_AL2230S:
-		bResult &= IFRFbWriteEmbedded(pDevice->PortOffset, dwAL2230PowerTable[byPwr]);
+		bResult &= IFRFbWriteEmbedded(priv, dwAL2230PowerTable[byPwr]);
 		if (uRATE <= RATE_11M) {
-			bResult &= IFRFbWriteEmbedded(pDevice->PortOffset, 0x040C1400+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW);
-			bResult &= IFRFbWriteEmbedded(pDevice->PortOffset, 0x00299B00+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW);
+			bResult &= IFRFbWriteEmbedded(priv, 0x040C1400+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW);
+			bResult &= IFRFbWriteEmbedded(priv, 0x00299B00+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW);
 		} else {
-			bResult &= IFRFbWriteEmbedded(pDevice->PortOffset, 0x0005A400+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW);
-			bResult &= IFRFbWriteEmbedded(pDevice->PortOffset, 0x00099B00+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW);
+			bResult &= IFRFbWriteEmbedded(priv, 0x0005A400+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW);
+			bResult &= IFRFbWriteEmbedded(priv, 0x00099B00+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW);
 		}
 
 		break;
 
 	case RF_AIROHA7230:
-		//  0x080F1B00 for 3 wire control TxGain(D10) and 0x31 as TX Gain value
+		/* 0x080F1B00 for 3 wire control TxGain(D10)
+		 * and 0x31 as TX Gain value */
 		dwMax7230Pwr = 0x080C0B00 | ((byPwr) << 12) |
 			(BY_AL7230_REG_LEN << 3)  | IFREGCTL_REGW;
 
-		bResult &= IFRFbWriteEmbedded(pDevice->PortOffset, dwMax7230Pwr);
+		bResult &= IFRFbWriteEmbedded(priv, dwMax7230Pwr);
 		break;
 
 	default:
@@ -1051,7 +895,7 @@ bool RFbRawSetPower(
  *
  * Parameters:
  *  In:
- *      pDevice         - The adapter to be translated
+ *      priv         - The adapter to be translated
  *      byCurrRSSI      - RSSI to be translated
  *  Out:
  *      pdwdbm          - Translated dbm number
@@ -1061,7 +905,7 @@ bool RFbRawSetPower(
  -*/
 void
 RFvRSSITodBm(
-	PSDevice pDevice,
+	struct vnt_private *priv,
 	unsigned char byCurrRSSI,
 	long *pldBm
 	)
@@ -1071,10 +915,10 @@ RFvRSSITodBm(
 	long a = 0;
 	unsigned char abyAIROHARF[4] = {0, 18, 0, 40};
 
-	switch (pDevice->byRFType) {
+	switch (priv->byRFType) {
 	case RF_AIROHA:
 	case RF_AL2230S:
-	case RF_AIROHA7230: //RobertYu: 20040104
+	case RF_AIROHA7230:
 		a = abyAIROHARF[byIdx];
 		break;
 	default:
@@ -1084,42 +928,38 @@ RFvRSSITodBm(
 	*pldBm = -1 * (a + b * 2);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//{{ RobertYu: 20050104
-
-// Post processing for the 11b/g and 11a.
-// for save time on changing Reg2,3,5,7,10,12,15
-bool RFbAL7230SelectChannelPostProcess(unsigned long dwIoBase, unsigned char byOldChannel, unsigned char byNewChannel)
+/* Post processing for the 11b/g and 11a.
+ * for save time on changing Reg2,3,5,7,10,12,15 */
+bool RFbAL7230SelectChannelPostProcess(struct vnt_private *priv,
+				       u16 byOldChannel,
+				       u16 byNewChannel)
 {
 	bool bResult;
 
 	bResult = true;
 
-	// if change between 11 b/g and 11a need to update the following register
-	// Channel Index 1~14
-
+	/* if change between 11 b/g and 11a need to update the following
+	 * register
+	 * Channel Index 1~14 */
 	if ((byOldChannel <= CB_MAX_CHANNEL_24G) && (byNewChannel > CB_MAX_CHANNEL_24G)) {
-		// Change from 2.4G to 5G
-		bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230InitTableAMode[2]); //Reg2
-		bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230InitTableAMode[3]); //Reg3
-		bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230InitTableAMode[5]); //Reg5
-		bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230InitTableAMode[7]); //Reg7
-		bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230InitTableAMode[10]);//Reg10
-		bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230InitTableAMode[12]);//Reg12
-		bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230InitTableAMode[15]);//Reg15
+		/* Change from 2.4G to 5G [Reg] */
+		bResult &= IFRFbWriteEmbedded(priv, dwAL7230InitTableAMode[2]);
+		bResult &= IFRFbWriteEmbedded(priv, dwAL7230InitTableAMode[3]);
+		bResult &= IFRFbWriteEmbedded(priv, dwAL7230InitTableAMode[5]);
+		bResult &= IFRFbWriteEmbedded(priv, dwAL7230InitTableAMode[7]);
+		bResult &= IFRFbWriteEmbedded(priv, dwAL7230InitTableAMode[10]);
+		bResult &= IFRFbWriteEmbedded(priv, dwAL7230InitTableAMode[12]);
+		bResult &= IFRFbWriteEmbedded(priv, dwAL7230InitTableAMode[15]);
 	} else if ((byOldChannel > CB_MAX_CHANNEL_24G) && (byNewChannel <= CB_MAX_CHANNEL_24G)) {
-		// change from 5G to 2.4G
-		bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230InitTable[2]); //Reg2
-		bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230InitTable[3]); //Reg3
-		bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230InitTable[5]); //Reg5
-		bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230InitTable[7]); //Reg7
-		bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230InitTable[10]);//Reg10
-		bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230InitTable[12]);//Reg12
-		bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230InitTable[15]);//Reg15
+		/* Change from 5G to 2.4G [Reg] */
+		bResult &= IFRFbWriteEmbedded(priv, dwAL7230InitTable[2]);
+		bResult &= IFRFbWriteEmbedded(priv, dwAL7230InitTable[3]);
+		bResult &= IFRFbWriteEmbedded(priv, dwAL7230InitTable[5]);
+		bResult &= IFRFbWriteEmbedded(priv, dwAL7230InitTable[7]);
+		bResult &= IFRFbWriteEmbedded(priv, dwAL7230InitTable[10]);
+		bResult &= IFRFbWriteEmbedded(priv, dwAL7230InitTable[12]);
+		bResult &= IFRFbWriteEmbedded(priv, dwAL7230InitTable[15]);
 	}
 
 	return bResult;
 }
-
-//}} RobertYu
-////////////////////////////////////////////////////////////////////////////////

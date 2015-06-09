@@ -172,7 +172,7 @@ static int iwl_send_wimax_coex(struct iwl_priv *priv)
 	memset(&coex_cmd, 0, sizeof(coex_cmd));
 
 	return iwl_dvm_send_cmd_pdu(priv,
-				COEX_PRIORITY_TABLE_CMD, CMD_SYNC,
+				COEX_PRIORITY_TABLE_CMD, 0,
 				sizeof(coex_cmd), &coex_cmd);
 }
 
@@ -205,7 +205,7 @@ void iwl_send_prio_tbl(struct iwl_priv *priv)
 	memcpy(prio_tbl_cmd.prio_tbl, iwl_bt_prio_tbl,
 		sizeof(iwl_bt_prio_tbl));
 	if (iwl_dvm_send_cmd_pdu(priv,
-				REPLY_BT_COEX_PRIO_TABLE, CMD_SYNC,
+				REPLY_BT_COEX_PRIO_TABLE, 0,
 				sizeof(prio_tbl_cmd), &prio_tbl_cmd))
 		IWL_ERR(priv, "failed to send BT prio tbl command\n");
 }
@@ -218,7 +218,7 @@ int iwl_send_bt_env(struct iwl_priv *priv, u8 action, u8 type)
 	env_cmd.action = action;
 	env_cmd.type = type;
 	ret = iwl_dvm_send_cmd_pdu(priv,
-			       REPLY_BT_COEX_PROT_ENV, CMD_SYNC,
+			       REPLY_BT_COEX_PROT_ENV, 0,
 			       sizeof(env_cmd), &env_cmd);
 	if (ret)
 		IWL_ERR(priv, "failed to send BT env command\n");
@@ -267,7 +267,7 @@ static int iwl_alive_notify(struct iwl_priv *priv)
 	for (i = 0; i < n_queues; i++)
 		if (queue_to_txf[i] != IWL_TX_FIFO_UNUSED)
 			iwl_trans_ac_txq_enable(priv->trans, i,
-						queue_to_txf[i]);
+						queue_to_txf[i], 0);
 
 	priv->passive_no_rx = false;
 	priv->transport_queue_stop = 0;
@@ -418,9 +418,6 @@ int iwl_run_init_ucode(struct iwl_priv *priv)
 	if (!priv->fw->img[IWL_UCODE_INIT].sec[0].len)
 		return 0;
 
-	if (priv->init_ucode_run)
-		return 0;
-
 	iwl_init_notification_wait(&priv->notif_wait, &calib_wait,
 				   calib_complete, ARRAY_SIZE(calib_complete),
 				   iwlagn_wait_calib, priv);
@@ -440,8 +437,6 @@ int iwl_run_init_ucode(struct iwl_priv *priv)
 	 */
 	ret = iwl_wait_notification(&priv->notif_wait, &calib_wait,
 					UCODE_CALIB_TIMEOUT);
-	if (!ret)
-		priv->init_ucode_run = true;
 
 	goto out;
 

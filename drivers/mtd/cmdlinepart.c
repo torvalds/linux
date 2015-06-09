@@ -26,7 +26,7 @@
  * <mtd-id>  := unique name used in mapping driver/device (mtd->name)
  * <size>    := standard linux memsize OR "-" to denote all remaining space
  *              size is automatically truncated at end of device
- *              if specified or trucated size is 0 the part is skipped
+ *              if specified or truncated size is 0 the part is skipped
  * <offset>  := standard linux memsize
  *              if omitted the part will immediately follow the previous part
  *              or 0 if the first part

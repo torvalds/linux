@@ -312,10 +312,10 @@ the "cpuset" cgroup subsystem, the steps are something like:
  2) mkdir /sys/fs/cgroup/cpuset
  3) mount -t cgroup -ocpuset cpuset /sys/fs/cgroup/cpuset
  4) Create the new cgroup by doing mkdir's and write's (or echo's) in
-    the /sys/fs/cgroup virtual file system.
+    the /sys/fs/cgroup/cpuset virtual file system.
  5) Start a task that will be the "founding father" of the new job.
  6) Attach that task to the new cgroup by writing its PID to the
-    /sys/fs/cgroup/cpuset/tasks file for that cgroup.
+    /sys/fs/cgroup/cpuset tasks file for that cgroup.
  7) fork, exec or clone the job tasks from this founding father task.
 
 For example, the following sequence of commands will setup a cgroup
@@ -598,6 +598,20 @@ cgroup_taskset_for_each() iterator. Note that this isn't called on a
 fork. If this method returns 0 (success) then this should remain valid
 while the caller holds cgroup_mutex and it is ensured that either
 attach() or cancel_attach() will be called in future.
+
+void css_reset(struct cgroup_subsys_state *css)
+(cgroup_mutex held by caller)
+
+An optional operation which should restore @css's configuration to the
+initial state.  This is currently only used on the unified hierarchy
+when a subsystem is disabled on a cgroup through
+"cgroup.subtree_control" but should remain enabled because other
+subsystems depend on it.  cgroup core makes such a css invisible by
+removing the associated interface files and invokes this callback so
+that the hidden subsystem can return to the initial neutral state.
+This prevents unexpected resource control from a hidden css and
+ensures that the configuration is in the initial state when it is made
+visible again later.
 
 void cancel_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
 (cgroup_mutex held by caller)

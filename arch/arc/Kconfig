@@ -9,6 +9,7 @@
 config ARC
 	def_bool y
 	select BUILDTIME_EXTABLE_SORT
+	select COMMON_CLK
 	select CLONE_BACKWARDS
 	# ARC Busybox based initramfs absolutely relies on DEVTMPFS for /dev
 	select DEVTMPFS if !INITRAMFS_SOURCE=""
@@ -57,7 +58,7 @@ config ARCH_FLATMEM_ENABLE
 config MMU
 	def_bool y
 
-config NO_IOPORT
+config NO_IOPORT_MAP
 	def_bool y
 
 config GENERIC_CALIBRATE_DELAY
@@ -72,9 +73,6 @@ config STACKTRACE_SUPPORT
 
 config HAVE_LATENCYTOP_SUPPORT
 	def_bool y
-
-config NO_DMA
-	def_bool n
 
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"
@@ -354,9 +352,8 @@ config ARC_CURR_IN_REG
 	  kernel mode. This saves memory access for each such access
 
 
-config ARC_MISALIGN_ACCESS
+config ARC_EMUL_UNALIGNED
 	bool "Emulate unaligned memory access (userspace only)"
-	default N
 	select SYSCTL_ARCH_UNALIGN_NO_WARN
 	select SYSCTL_ARCH_UNALIGN_ALLOW
 	help
@@ -431,3 +428,4 @@ source "arch/arc/Kconfig.debug"
 source "security/Kconfig"
 source "crypto/Kconfig"
 source "lib/Kconfig"
+source "kernel/power/Kconfig"

@@ -27,13 +27,10 @@
 #ifndef _I40E_TXRX_H_
 #define _I40E_TXRX_H_
 
-/* Interrupt Throttling and Rate Limiting (storm control) Goodies */
+/* Interrupt Throttling and Rate Limiting Goodies */
 
 #define I40E_MAX_ITR               0x0FF0  /* reg uses 2 usec resolution */
-#define I40E_MIN_ITR               0x0004  /* reg uses 2 usec resolution */
-#define I40E_MAX_IRATE             0x03F
-#define I40E_MIN_IRATE             0x001
-#define I40E_IRATE_USEC_RESOLUTION 4
+#define I40E_MIN_ITR               0x0001  /* reg uses 2 usec resolution */
 #define I40E_ITR_100K              0x0005
 #define I40E_ITR_20K               0x0019
 #define I40E_ITR_8K                0x003E
@@ -69,18 +66,12 @@ enum i40e_dyn_idx_t {
 
 /* Supported RSS offloads */
 #define I40E_DEFAULT_RSS_HENA ( \
-	((u64)1 << I40E_FILTER_PCTYPE_NONF_UNICAST_IPV4_UDP) | \
-	((u64)1 << I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV4_UDP) | \
 	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP) | \
 	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_SCTP) | \
-	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_TCP_SYN) | \
 	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_TCP) | \
 	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_OTHER) | \
 	((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV4) | \
-	((u64)1 << I40E_FILTER_PCTYPE_NONF_UNICAST_IPV6_UDP) | \
-	((u64)1 << I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV6_UDP) | \
 	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_UDP) | \
-	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_TCP_SYN) | \
 	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_TCP) | \
 	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_SCTP) | \
 	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_OTHER) | \
@@ -105,6 +96,14 @@ enum i40e_dyn_idx_t {
 
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
 #define I40E_RX_BUFFER_WRITE	16	/* Must be power of 2 */
+#define I40E_RX_INCREMENT(r, i) \
+	do {					\
+		(i)++;				\
+		if ((i) == (r)->count)		\
+			i = 0;			\
+		r->next_to_clean = i;		\
+	} while (0)
+
 #define I40E_RX_NEXT_DESC(r, i, n)		\
 	do {					\
 		(i)++;				\
@@ -121,12 +120,14 @@ enum i40e_dyn_idx_t {
 
 #define i40e_rx_desc i40e_32byte_rx_desc
 
+#define I40E_MAX_BUFFER_TXD	8
 #define I40E_MIN_TX_LEN		17
-#define I40E_MAX_DATA_PER_TXD	16383	/* aka 16kB - 1 */
+#define I40E_MAX_DATA_PER_TXD	8192
 
 /* Tx Descriptors needed, worst case */
 #define TXD_USE_COUNT(S) DIV_ROUND_UP((S), I40E_MAX_DATA_PER_TXD)
-#define DESC_NEEDED ((MAX_SKB_FRAGS * TXD_USE_COUNT(PAGE_SIZE)) + 4)
+#define DESC_NEEDED (MAX_SKB_FRAGS + 4)
+#define I40E_MIN_DESC_PENDING	4
 
 #define I40E_TX_FLAGS_CSUM		(u32)(1)
 #define I40E_TX_FLAGS_HW_VLAN		(u32)(1 << 1)
@@ -137,6 +138,7 @@ enum i40e_dyn_idx_t {
 #define I40E_TX_FLAGS_FCCRC		(u32)(1 << 6)
 #define I40E_TX_FLAGS_FSO		(u32)(1 << 7)
 #define I40E_TX_FLAGS_TSYN		(u32)(1 << 8)
+#define I40E_TX_FLAGS_FD_SB		(u32)(1 << 9)
 #define I40E_TX_FLAGS_VLAN_MASK		0xffff0000
 #define I40E_TX_FLAGS_VLAN_PRIO_MASK	0xe0000000
 #define I40E_TX_FLAGS_VLAN_PRIO_SHIFT	29
@@ -145,7 +147,10 @@ enum i40e_dyn_idx_t {
 struct i40e_tx_buffer {
 	struct i40e_tx_desc *next_to_watch;
 	unsigned long time_stamp;
-	struct sk_buff *skb;
+	union {
+		struct sk_buff *skb;
+		void *raw_buf;
+	};
 	unsigned int bytecount;
 	unsigned short gso_segs;
 	DEFINE_DMA_UNMAP_ADDR(dma);
@@ -155,6 +160,7 @@ struct i40e_tx_buffer {
 
 struct i40e_rx_buffer {
 	struct sk_buff *skb;
+	void *hdr_buf;
 	dma_addr_t dma;
 	struct page *page;
 	dma_addr_t page_dma;
@@ -184,7 +190,6 @@ enum i40e_ring_state_t {
 	__I40E_TX_DETECT_HANG,
 	__I40E_HANG_CHECK_ARMED,
 	__I40E_RX_PS_ENABLED,
-	__I40E_RX_LRO_ENABLED,
 	__I40E_RX_16BYTE_DESC_ENABLED,
 };
 
@@ -200,12 +205,6 @@ enum i40e_ring_state_t {
 	set_bit(__I40E_TX_DETECT_HANG, &(ring)->state)
 #define clear_check_for_tx_hang(ring) \
 	clear_bit(__I40E_TX_DETECT_HANG, &(ring)->state)
-#define ring_is_lro_enabled(ring) \
-	test_bit(__I40E_RX_LRO_ENABLED, &(ring)->state)
-#define set_ring_lro_enabled(ring) \
-	set_bit(__I40E_RX_LRO_ENABLED, &(ring)->state)
-#define clear_ring_lro_enabled(ring) \
-	clear_bit(__I40E_RX_LRO_ENABLED, &(ring)->state)
 #define ring_is_16byte_desc_enabled(ring) \
 	test_bit(__I40E_RX_16BYTE_DESC_ENABLED, &(ring)->state)
 #define set_ring_16byte_desc_enabled(ring) \
@@ -234,8 +233,8 @@ struct i40e_ring {
 	u16 rx_buf_len;
 	u8  dtype;
 #define I40E_RX_DTYPE_NO_SPLIT      0
-#define I40E_RX_DTYPE_SPLIT_ALWAYS  1
-#define I40E_RX_DTYPE_HEADER_SPLIT  2
+#define I40E_RX_DTYPE_HEADER_SPLIT  1
+#define I40E_RX_DTYPE_SPLIT_ALWAYS  2
 	u8  hsplit;
 #define I40E_RX_SPLIT_L2      0x1
 #define I40E_RX_SPLIT_IP      0x2
@@ -252,6 +251,7 @@ struct i40e_ring {
 	unsigned long last_rx_timestamp;
 
 	bool ring_active;		/* is ring online or not */
+	bool arm_wb;		/* do something to arm write back */
 
 	/* stats structs */
 	struct i40e_queue_stats	stats;
@@ -290,7 +290,9 @@ struct i40e_ring_container {
 #define i40e_for_each_ring(pos, head) \
 	for (pos = (head).ring; pos != NULL; pos = pos->next)
 
-void i40e_alloc_rx_buffers(struct i40e_ring *rxr, u16 cleaned_count);
+void i40e_alloc_rx_buffers_ps(struct i40e_ring *rxr, u16 cleaned_count);
+void i40e_alloc_rx_buffers_1buf(struct i40e_ring *rxr, u16 cleaned_count);
+void i40e_alloc_rx_headers(struct i40e_ring *rxr);
 netdev_tx_t i40e_lan_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
 void i40e_clean_tx_ring(struct i40e_ring *tx_ring);
 void i40e_clean_rx_ring(struct i40e_ring *rx_ring);
@@ -299,4 +301,13 @@ int i40e_setup_rx_descriptors(struct i40e_ring *rx_ring);
 void i40e_free_tx_resources(struct i40e_ring *tx_ring);
 void i40e_free_rx_resources(struct i40e_ring *rx_ring);
 int i40e_napi_poll(struct napi_struct *napi, int budget);
+#ifdef I40E_FCOE
+void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
+		 struct i40e_tx_buffer *first, u32 tx_flags,
+		 const u8 hdr_len, u32 td_cmd, u32 td_offset);
+int i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size);
+int i40e_xmit_descriptor_count(struct sk_buff *skb, struct i40e_ring *tx_ring);
+int i40e_tx_prepare_vlan_flags(struct sk_buff *skb,
+			       struct i40e_ring *tx_ring, u32 *flags);
+#endif
 #endif /* _I40E_TXRX_H_ */

@@ -1,5 +1,5 @@
 ifdef CONFIG_FUNCTION_TRACER
-CFLAGS_REMOVE_clock.o = -pg
+CFLAGS_REMOVE_clock.o = $(CC_FLAGS_FTRACE)
 endif
 
 ifneq ($(CONFIG_SCHED_OMIT_FRAME_POINTER),y)
@@ -13,7 +13,7 @@ endif
 
 obj-y += core.o proc.o clock.o cputime.o
 obj-y += idle_task.o fair.o rt.o deadline.o stop_task.o
-obj-y += wait.o completion.o
+obj-y += wait.o completion.o idle.o
 obj-$(CONFIG_SMP) += cpupri.o cpudeadline.o
 obj-$(CONFIG_SCHED_AUTOGROUP) += auto_group.o
 obj-$(CONFIG_SCHEDSTATS) += stats.o

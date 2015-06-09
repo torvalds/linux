@@ -24,70 +24,17 @@
 #ifndef __REALTEK_RTSX_TRACE_H
 #define __REALTEK_RTSX_TRACE_H
 
-#define _MSG_TRACE
+struct rtsx_chip;
 
 #ifdef _MSG_TRACE
-static inline char *filename(char *path)
+void _rtsx_trace(struct rtsx_chip *chip, const char *file, const char *func,
+		 int line);
+#define rtsx_trace(chip)						\
+	_rtsx_trace(chip, __FILE__, __func__, __LINE__)
+#else
+static inline void rtsx_trace(struct rtsx_chip *chip)
 {
-	char *ptr;
-
-	if (path == NULL)
-		return NULL;
-
-	ptr = path;
-
-	while (*ptr != '\0') {
-		if ((*ptr == '\\') || (*ptr == '/'))
-			path = ptr + 1;
-
-		ptr++;
-	}
-
-	return path;
 }
-
-#define TRACE_RET(chip, ret)						\
-	do {								\
-		char *_file = filename(__FILE__);			\
-		RTSX_DEBUGP("[%s][%s]:[%d]\n", _file, __func__, __LINE__); \
-		(chip)->trace_msg[(chip)->msg_idx].line = (u16)(__LINE__); \
-		strncpy((chip)->trace_msg[(chip)->msg_idx].func, __func__, MSG_FUNC_LEN-1); \
-		strncpy((chip)->trace_msg[(chip)->msg_idx].file, _file, MSG_FILE_LEN-1); \
-		get_current_time((chip)->trace_msg[(chip)->msg_idx].timeval_buf, TIME_VAL_LEN);	\
-		(chip)->trace_msg[(chip)->msg_idx].valid = 1;		\
-		(chip)->msg_idx++;					\
-		if ((chip)->msg_idx >= TRACE_ITEM_CNT) {		\
-			(chip)->msg_idx = 0;				\
-		}							\
-		return ret;						\
-	} while (0)
-
-#define TRACE_GOTO(chip, label)						\
-	do {								\
-		char *_file = filename(__FILE__);			\
-		RTSX_DEBUGP("[%s][%s]:[%d]\n", _file, __func__, __LINE__); \
-		(chip)->trace_msg[(chip)->msg_idx].line = (u16)(__LINE__); \
-		strncpy((chip)->trace_msg[(chip)->msg_idx].func, __func__, MSG_FUNC_LEN-1); \
-		strncpy((chip)->trace_msg[(chip)->msg_idx].file, _file, MSG_FILE_LEN-1); \
-		get_current_time((chip)->trace_msg[(chip)->msg_idx].timeval_buf, TIME_VAL_LEN);	\
-		(chip)->trace_msg[(chip)->msg_idx].valid = 1;		\
-		(chip)->msg_idx++;					\
-		if ((chip)->msg_idx >= TRACE_ITEM_CNT) {		\
-			(chip)->msg_idx = 0;				\
-		}							\
-		goto label;						\
-	} while (0)
-#else
-#define TRACE_RET(chip, ret)	return ret
-#define TRACE_GOTO(chip, label)	goto label
-#endif
-
-#ifdef CONFIG_RTS5208_DEBUG
-#define RTSX_DUMP(buf, buf_len)					\
-	print_hex_dump(KERN_DEBUG, RTSX_STOR, DUMP_PREFIX_NONE,	\
-				16, 1, (buf), (buf_len), false)
-#else
-#define RTSX_DUMP(buf, buf_len)
 #endif
 
 #endif  /* __REALTEK_RTSX_TRACE_H */

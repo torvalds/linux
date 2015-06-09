@@ -221,7 +221,7 @@ static ssize_t show_min(struct device *dev,
 	struct abx500_temp *data = dev_get_drvdata(dev);
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 
-	return sprintf(buf, "%ld\n", data->min[attr->index]);
+	return sprintf(buf, "%lu\n", data->min[attr->index]);
 }
 
 static ssize_t show_max(struct device *dev,
@@ -230,7 +230,7 @@ static ssize_t show_max(struct device *dev,
 	struct abx500_temp *data = dev_get_drvdata(dev);
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 
-	return sprintf(buf, "%ld\n", data->max[attr->index]);
+	return sprintf(buf, "%lu\n", data->max[attr->index]);
 }
 
 static ssize_t show_max_hyst(struct device *dev,
@@ -239,7 +239,7 @@ static ssize_t show_max_hyst(struct device *dev,
 	struct abx500_temp *data = dev_get_drvdata(dev);
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 
-	return sprintf(buf, "%ld\n", data->max_hyst[attr->index]);
+	return sprintf(buf, "%lu\n", data->max_hyst[attr->index]);
 }
 
 static ssize_t show_min_alarm(struct device *dev,
@@ -474,7 +474,6 @@ static const struct of_device_id abx500_temp_match[] = {
 
 static struct platform_driver abx500_temp_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "abx500-temp",
 		.of_match_table = of_match_ptr(abx500_temp_match),
 	},

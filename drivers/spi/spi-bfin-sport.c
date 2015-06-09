@@ -8,7 +8,6 @@
  * Licensed under the GPL-2 or later.
  */
 
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -922,7 +921,6 @@ static SIMPLE_DEV_PM_OPS(bfin_sport_spi_pm_ops, bfin_sport_spi_suspend,
 static struct platform_driver bfin_sport_spi_driver = {
 	.driver	= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= BFIN_SPORT_SPI_PM_OPS,
 	},
 	.probe   = bfin_sport_spi_probe,

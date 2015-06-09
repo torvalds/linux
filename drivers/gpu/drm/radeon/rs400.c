@@ -109,7 +109,6 @@ int rs400_gart_enable(struct radeon_device *rdev)
 	uint32_t size_reg;
 	uint32_t tmp;
 
-	radeon_gart_restore(rdev);
 	tmp = RREG32_MC(RS690_AIC_CTRL_SCRATCH);
 	tmp |= RS690_DIS_OUT_OF_PCI_GART_ACCESS;
 	WREG32_MC(RS690_AIC_CTRL_SCRATCH, tmp);
@@ -209,24 +208,30 @@ void rs400_gart_fini(struct radeon_device *rdev)
 	radeon_gart_table_ram_free(rdev);
 }
 
+#define RS400_PTE_UNSNOOPED (1 << 0)
 #define RS400_PTE_WRITEABLE (1 << 2)
 #define RS400_PTE_READABLE  (1 << 3)
 
-int rs400_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
+uint64_t rs400_gart_get_page_entry(uint64_t addr, uint32_t flags)
 {
 	uint32_t entry;
-	u32 *gtt = rdev->gart.ptr;
-
-	if (i < 0 || i > rdev->gart.num_gpu_pages) {
-		return -EINVAL;
-	}
 
 	entry = (lower_32_bits(addr) & PAGE_MASK) |
-		((upper_32_bits(addr) & 0xff) << 4) |
-		RS400_PTE_WRITEABLE | RS400_PTE_READABLE;
-	entry = cpu_to_le32(entry);
-	gtt[i] = entry;
-	return 0;
+		((upper_32_bits(addr) & 0xff) << 4);
+	if (flags & RADEON_GART_PAGE_READ)
+		entry |= RS400_PTE_READABLE;
+	if (flags & RADEON_GART_PAGE_WRITE)
+		entry |= RS400_PTE_WRITEABLE;
+	if (!(flags & RADEON_GART_PAGE_SNOOP))
+		entry |= RS400_PTE_UNSNOOPED;
+	return entry;
+}
+
+void rs400_gart_set_page(struct radeon_device *rdev, unsigned i,
+			 uint64_t entry)
+{
+	u32 *gtt = rdev->gart.ptr;
+	gtt[i] = cpu_to_le32(lower_32_bits(entry));
 }
 
 int rs400_mc_wait_for_idle(struct radeon_device *rdev)

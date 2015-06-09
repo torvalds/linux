@@ -28,18 +28,6 @@
 
 #define UIO_MAX_DEVICES		(1U << MINORBITS)
 
-struct uio_device {
-	struct module		*owner;
-	struct device		*dev;
-	int			minor;
-	atomic_t		event;
-	struct fasync_struct	*async_queue;
-	wait_queue_head_t	wait;
-	struct uio_info		*info;
-	struct kobject		*map_dir;
-	struct kobject		*portio_dir;
-};
-
 static int uio_major;
 static struct cdev *uio_cdev;
 static DEFINE_IDR(uio_idr);
@@ -68,12 +56,12 @@ static ssize_t map_name_show(struct uio_mem *mem, char *buf)
 
 static ssize_t map_addr_show(struct uio_mem *mem, char *buf)
 {
-	return sprintf(buf, "0x%llx\n", (unsigned long long)mem->addr);
+	return sprintf(buf, "%pa\n", &mem->addr);
 }
 
 static ssize_t map_size_show(struct uio_mem *mem, char *buf)
 {
-	return sprintf(buf, "0x%lx\n", mem->size);
+	return sprintf(buf, "%pa\n", &mem->size);
 }
 
 static ssize_t map_offset_show(struct uio_mem *mem, char *buf)
@@ -847,7 +835,15 @@ int __uio_register_device(struct module *owner,
 	info->uio_dev = idev;
 
 	if (info->irq && (info->irq != UIO_IRQ_CUSTOM)) {
-		ret = devm_request_irq(idev->dev, info->irq, uio_interrupt,
+		/*
+		 * Note that we deliberately don't use devm_request_irq
+		 * here. The parent module can unregister the UIO device
+		 * and call pci_disable_msi, which requires that this
+		 * irq has been freed. However, the device may have open
+		 * FDs at the time of unregister and therefore may not be
+		 * freed until they are released.
+		 */
+		ret = request_irq(info->irq, uio_interrupt,
 				  info->irq_flags, info->name, idev);
 		if (ret)
 			goto err_request_irq;
@@ -882,6 +878,8 @@ void uio_unregister_device(struct uio_info *info)
 	uio_free_minor(idev);
 
 	uio_dev_del_attributes(idev);
+
+	free_irq(idev->info->irq, idev);
 
 	device_destroy(&uio_class, MKDEV(uio_major, idev->minor));
 

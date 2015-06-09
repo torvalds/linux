@@ -27,10 +27,17 @@ config BRCMFMAC
 	  one of the bus interface support. If you choose to build a module,
 	  it'll be called brcmfmac.ko.
 
+config BRCMFMAC_PROTO_BCDC
+	bool
+
+config BRCMFMAC_PROTO_MSGBUF
+	bool
+
 config BRCMFMAC_SDIO
 	bool "SDIO bus interface support for FullMAC driver"
 	depends on (MMC = y || MMC = BRCMFMAC)
 	depends on BRCMFMAC
+	select BRCMFMAC_PROTO_BCDC
 	select FW_LOADER
 	default y
 	---help---
@@ -42,11 +49,24 @@ config BRCMFMAC_USB
 	bool "USB bus interface support for FullMAC driver"
 	depends on (USB = y || USB = BRCMFMAC)
 	depends on BRCMFMAC
+	select BRCMFMAC_PROTO_BCDC
 	select FW_LOADER
 	---help---
 	  This option enables the USB bus interface support for Broadcom
 	  IEEE802.11n embedded FullMAC WLAN driver. Say Y if you want to
 	  use the driver for an USB wireless card.
+
+config BRCMFMAC_PCIE
+	bool "PCIE bus interface support for FullMAC driver"
+	depends on BRCMFMAC
+	depends on PCI
+	depends on HAS_DMA
+	select BRCMFMAC_PROTO_MSGBUF
+	select FW_LOADER
+	---help---
+	  This option enables the PCIE bus interface support for Broadcom
+	  IEEE802.11ac embedded FullMAC WLAN driver. Say Y if you want to
+	  use the driver for an PCIE wireless card.
 
 config BRCM_TRACING
 	bool "Broadcom device tracing"

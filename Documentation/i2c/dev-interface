@@ -57,12 +57,12 @@ Well, you are all set up now. You can now use SMBus commands or plain
 I2C to communicate with your device. SMBus commands are preferred if
 the device supports them. Both are illustrated below.
 
-  __u8 register = 0x10; /* Device register to access */
+  __u8 reg = 0x10; /* Device register to access */
   __s32 res;
   char buf[10];
 
   /* Using SMBus commands */
-  res = i2c_smbus_read_word_data(file, register);
+  res = i2c_smbus_read_word_data(file, reg);
   if (res < 0) {
     /* ERROR HANDLING: i2c transaction failed */
   } else {
@@ -70,11 +70,11 @@ the device supports them. Both are illustrated below.
   }
 
   /* Using I2C Write, equivalent of 
-     i2c_smbus_write_word_data(file, register, 0x6543) */
-  buf[0] = register;
+     i2c_smbus_write_word_data(file, reg, 0x6543) */
+  buf[0] = reg;
   buf[1] = 0x43;
   buf[2] = 0x65;
-  if (write(file, buf, 3) ! =3) {
+  if (write(file, buf, 3) != 3) {
     /* ERROR HANDLING: i2c transaction failed */
   }
 

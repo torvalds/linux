@@ -1031,9 +1031,6 @@ static int vidioc_querycap(struct file *file, void *fh,
 	strcpy(cap->card, "meye");
 	sprintf(cap->bus_info, "PCI:%s", pci_name(meye.mchip_dev));
 
-	cap->version = (MEYE_DRIVER_MAJORVERSION << 8) +
-		       MEYE_DRIVER_MINORVERSION;
-
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
 			    V4L2_CAP_STREAMING;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
@@ -1166,7 +1163,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *fh,
 	f->fmt.pix.sizeimage = f->fmt.pix.height *
 			       f->fmt.pix.bytesperline;
 	f->fmt.pix.colorspace = 0;
-	f->fmt.pix.priv = 0;
 
 	return 0;
 }
@@ -1232,7 +1228,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *fh,
 	f->fmt.pix.sizeimage = f->fmt.pix.height *
 			       f->fmt.pix.bytesperline;
 	f->fmt.pix.colorspace = 0;
-	f->fmt.pix.priv = 0;
 
 	return 0;
 }
@@ -1551,7 +1546,7 @@ static struct video_device meye_template = {
 	.name		= "meye",
 	.fops		= &meye_fops,
 	.ioctl_ops 	= &meye_ioctl_ops,
-	.release	= video_device_release,
+	.release	= video_device_release_empty,
 };
 
 static const struct v4l2_ctrl_ops meye_ctrl_ops = {
@@ -1628,7 +1623,7 @@ static int meye_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 
 	if (meye.mchip_dev != NULL) {
 		printk(KERN_ERR "meye: only one device allowed!\n");
-		goto outnotdev;
+		return ret;
 	}
 
 	ret = v4l2_device_register(&pcidev->dev, v4l2_dev);
@@ -1638,11 +1633,6 @@ static int meye_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 	}
 	ret = -ENOMEM;
 	meye.mchip_dev = pcidev;
-	meye.vdev = video_device_alloc();
-	if (!meye.vdev) {
-		v4l2_err(v4l2_dev, "video_device_alloc() failed!\n");
-		goto outnotdev;
-	}
 
 	meye.grab_temp = vmalloc(MCHIP_NB_PAGES_MJPEG * PAGE_SIZE);
 	if (!meye.grab_temp) {
@@ -1663,8 +1653,8 @@ static int meye_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 		goto outkfifoalloc2;
 	}
 
-	memcpy(meye.vdev, &meye_template, sizeof(meye_template));
-	meye.vdev->v4l2_dev = &meye.v4l2_dev;
+	meye.vdev = meye_template;
+	meye.vdev.v4l2_dev = &meye.v4l2_dev;
 
 	ret = -EIO;
 	if ((ret = sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERA, 1))) {
@@ -1748,10 +1738,9 @@ static int meye_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 	}
 
 	v4l2_ctrl_handler_setup(&meye.hdl);
-	meye.vdev->ctrl_handler = &meye.hdl;
-	set_bit(V4L2_FL_USE_FH_PRIO, &meye.vdev->flags);
+	meye.vdev.ctrl_handler = &meye.hdl;
 
-	if (video_register_device(meye.vdev, VFL_TYPE_GRABBER,
+	if (video_register_device(&meye.vdev, VFL_TYPE_GRABBER,
 				  video_nr) < 0) {
 		v4l2_err(v4l2_dev, "video_register_device failed\n");
 		goto outvideoreg;
@@ -1783,14 +1772,12 @@ outkfifoalloc2:
 outkfifoalloc1:
 	vfree(meye.grab_temp);
 outvmalloc:
-	video_device_release(meye.vdev);
-outnotdev:
 	return ret;
 }
 
 static void meye_remove(struct pci_dev *pcidev)
 {
-	video_unregister_device(meye.vdev);
+	video_unregister_device(&meye.vdev);
 
 	mchip_hic_stop();
 

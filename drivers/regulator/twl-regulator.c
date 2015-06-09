@@ -1104,7 +1104,8 @@ static int twlreg_probe(struct platform_device *pdev)
 		template = match->data;
 		id = template->desc.id;
 		initdata = of_get_regulator_init_data(&pdev->dev,
-						      pdev->dev.of_node);
+						      pdev->dev.of_node,
+						      &template->desc);
 		drvdata = NULL;
 	} else {
 		id = pdev->id;
@@ -1128,7 +1129,7 @@ static int twlreg_probe(struct platform_device *pdev)
 	if (!initdata)
 		return -EINVAL;
 
-	info = kmemdup(template, sizeof(*info), GFP_KERNEL);
+	info = devm_kmemdup(&pdev->dev, template, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
@@ -1192,7 +1193,6 @@ static int twlreg_probe(struct platform_device *pdev)
 	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "can't register %s, %ld\n",
 				info->desc.name, PTR_ERR(rdev));
-		kfree(info);
 		return PTR_ERR(rdev);
 	}
 	platform_set_drvdata(pdev, rdev);
@@ -1212,26 +1212,15 @@ static int twlreg_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int twlreg_remove(struct platform_device *pdev)
-{
-	struct regulator_dev *rdev = platform_get_drvdata(pdev);
-	struct twlreg_info *info = rdev->reg_data;
-
-	kfree(info);
-	return 0;
-}
-
 MODULE_ALIAS("platform:twl_reg");
 
 static struct platform_driver twlreg_driver = {
 	.probe		= twlreg_probe,
-	.remove		= twlreg_remove,
 	/* NOTE: short name, to work around driver model truncation of
 	 * "twl_regulator.12" (and friends) to "twl_regulator.1".
 	 */
 	.driver  = {
 		.name  = "twl_reg",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(twl_of_match),
 	},
 };

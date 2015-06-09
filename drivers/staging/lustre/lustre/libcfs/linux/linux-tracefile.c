@@ -37,8 +37,8 @@
 #define DEBUG_SUBSYSTEM S_LNET
 #define LUSTRE_TRACEFILE_PRIVATE
 
-#include <linux/libcfs/libcfs.h>
-#include "tracefile.h"
+#include "../../../include/linux/libcfs/libcfs.h"
+#include "../tracefile.h"
 
 /* percents to share the total debug memory for each type */
 static unsigned int pages_factor[CFS_TCD_TYPE_MAX] = {
@@ -112,8 +112,6 @@ void cfs_tracefile_fini_arch(void)
 		kfree(cfs_trace_data[i]);
 		cfs_trace_data[i] = NULL;
 	}
-
-	fini_rwsem(&cfs_tracefile_sem);
 }
 
 void cfs_tracefile_read_lock(void)
@@ -153,6 +151,7 @@ cfs_trace_buf_type_t cfs_trace_buf_idx_get(void)
  * for details.
  */
 int cfs_trace_lock_tcd(struct cfs_trace_cpu_data *tcd, int walking)
+	__acquires(&tcd->tc_lock)
 {
 	__LASSERT(tcd->tcd_type < CFS_TCD_TYPE_MAX);
 	if (tcd->tcd_type == CFS_TCD_TYPE_IRQ)
@@ -167,6 +166,7 @@ int cfs_trace_lock_tcd(struct cfs_trace_cpu_data *tcd, int walking)
 }
 
 void cfs_trace_unlock_tcd(struct cfs_trace_cpu_data *tcd, int walking)
+	__releases(&tcd->tcd_lock)
 {
 	__LASSERT(tcd->tcd_type < CFS_TCD_TYPE_MAX);
 	if (tcd->tcd_type == CFS_TCD_TYPE_IRQ)
@@ -271,5 +271,5 @@ int cfs_trace_max_debug_mb(void)
 {
 	int  total_mb = (totalram_pages >> (20 - PAGE_SHIFT));
 
-	return MAX(512, (total_mb * 80)/100);
+	return max(512, (total_mb * 80)/100);
 }

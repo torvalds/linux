@@ -32,7 +32,7 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS("prism54pci");
 MODULE_FIRMWARE("isl3886pci");
 
-static DEFINE_PCI_DEVICE_TABLE(p54p_table) = {
+static const struct pci_device_id p54p_table[] = {
 	/* Intersil PRISM Duette/Prism GT Wireless LAN adapter */
 	{ PCI_DEVICE(0x1260, 0x3890) },
 	/* 3COM 3CRWE154G72 Wireless LAN adapter */
@@ -431,6 +431,7 @@ static int p54p_open(struct ieee80211_hw *dev)
 {
 	struct p54p_priv *priv = dev->priv;
 	int err;
+	long timeout;
 
 	init_completion(&priv->boot_comp);
 	err = request_irq(priv->pdev->irq, p54p_interrupt,
@@ -468,10 +469,12 @@ static int p54p_open(struct ieee80211_hw *dev)
 	P54P_WRITE(dev_int, cpu_to_le32(ISL38XX_DEV_INT_RESET));
 	P54P_READ(dev_int);
 
-	if (!wait_for_completion_interruptible_timeout(&priv->boot_comp, HZ)) {
+	timeout = wait_for_completion_interruptible_timeout(
+			&priv->boot_comp, HZ);
+	if (timeout <= 0) {
 		wiphy_err(dev->wiphy, "Cannot boot firmware!\n");
 		p54p_stop(dev);
-		return -ETIMEDOUT;
+		return timeout ? -ERESTARTSYS : -ETIMEDOUT;
 	}
 
 	P54P_WRITE(int_enable, cpu_to_le32(ISL38XX_INT_IDENT_UPDATE));

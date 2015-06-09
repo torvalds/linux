@@ -24,12 +24,14 @@ Required properties:
 		"ti,omap4-dpll-core-clock",
 		"ti,omap4-dpll-m4xen-clock",
 		"ti,omap4-dpll-j-type-clock",
+		"ti,omap5-mpu-dpll-clock",
 		"ti,am3-dpll-no-gate-clock",
 		"ti,am3-dpll-j-type-clock",
 		"ti,am3-dpll-no-gate-j-type-clock",
 		"ti,am3-dpll-clock",
 		"ti,am3-dpll-core-clock",
 		"ti,am3-dpll-x2-clock",
+		"ti,omap2-dpll-core-clock",
 
 - #clock-cells : from common clock binding; shall be set to 0.
 - clocks : link phandles of parent clocks, first entry lists reference clock
@@ -41,6 +43,7 @@ Required properties:
 	"mult-div1" - contains the multiplier / divider register base address
 	"autoidle" - contains the autoidle register base address (optional)
   ti,am3-* dpll types do not have autoidle register
+  ti,omap2-* dpll type does not support idlest / autoidle registers
 
 Optional properties:
 - DPLL mode setting - defining any one or more of the following overrides
@@ -72,4 +75,11 @@ Examples:
 		compatible = "ti,am3-dpll-core-clock";
 		clocks = <&sys_clkin_ck>, <&sys_clkin_ck>;
 		reg = <0x90>, <0x5c>, <0x68>;
+	};
+
+	dpll_ck: dpll_ck {
+		#clock-cells = <0>;
+		compatible = "ti,omap2-dpll-core-clock";
+		clocks = <&sys_ck>, <&sys_ck>;
+		reg = <0x0500>, <0x0540>;
 	};

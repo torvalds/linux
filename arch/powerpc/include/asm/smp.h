@@ -42,7 +42,7 @@ struct smp_ops_t {
 #ifdef CONFIG_PPC_SMP_MUXED_IPI
 	void  (*cause_ipi)(int cpu, unsigned long data);
 #endif
-	int   (*probe)(void);
+	void  (*probe)(void);
 	int   (*kick_cpu)(int nr);
 	void  (*setup_cpu)(int nr);
 	void  (*bringup_done)(void);
@@ -64,18 +64,9 @@ DECLARE_PER_CPU(unsigned int, cpu_pvr);
 extern void migrate_irqs(void);
 int generic_cpu_disable(void);
 void generic_cpu_die(unsigned int cpu);
-void generic_mach_cpu_die(void);
 void generic_set_cpu_dead(unsigned int cpu);
 void generic_set_cpu_up(unsigned int cpu);
 int generic_check_cpu_restart(unsigned int cpu);
-
-extern void inhibit_secondary_onlining(void);
-extern void uninhibit_secondary_onlining(void);
-
-#else /* HOTPLUG_CPU */
-static inline void inhibit_secondary_onlining(void) {}
-static inline void uninhibit_secondary_onlining(void) {}
-
 #endif
 
 #ifdef CONFIG_PPC64
@@ -120,7 +111,7 @@ extern int cpu_to_core_id(int cpu);
  * in /proc/interrupts will be wrong!!! --Troy */
 #define PPC_MSG_CALL_FUNCTION   0
 #define PPC_MSG_RESCHEDULE      1
-#define PPC_MSG_CALL_FUNC_SINGLE	2
+#define PPC_MSG_TICK_BROADCAST	2
 #define PPC_MSG_DEBUGGER_BREAK  3
 
 /* for irq controllers that have dedicated ipis per message (4) */
@@ -134,7 +125,6 @@ extern irqreturn_t smp_ipi_demux(void);
 
 void smp_init_pSeries(void);
 void smp_init_cell(void);
-void smp_init_celleb(void);
 void smp_setup_cpu_maps(void);
 
 extern int __cpu_disable(void);
@@ -184,7 +174,7 @@ static inline void set_hard_smp_processor_id(int cpu, int phys)
 
 extern int smt_enabled_at_boot;
 
-extern int smp_mpic_probe(void);
+extern void smp_mpic_probe(void);
 extern void smp_mpic_setup_cpu(int cpu);
 extern int smp_generic_kick_cpu(int nr);
 extern int smp_generic_cpu_bootable(unsigned int nr);

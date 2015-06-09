@@ -54,6 +54,7 @@ struct shdma_desc {
 	dma_cookie_t cookie;
 	int chunks;
 	int mark;
+	bool cyclic;			/* used as cyclic transfer */
 };
 
 struct shdma_chan {
@@ -68,6 +69,7 @@ struct shdma_chan {
 	int id;				/* Raw id of this channel */
 	int irq;			/* Channel IRQ */
 	int slave_id;			/* Client ID for slave DMA */
+	int real_slave_id;		/* argument passed to filter function */
 	int hw_req;			/* DMA request line for slave DMA - same
 					 * as MID/RID, used with DT */
 	enum shdma_pm_state pm_state;

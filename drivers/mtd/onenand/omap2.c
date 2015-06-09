@@ -25,7 +25,6 @@
 
 #include <linux/device.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/onenand.h>
 #include <linux/mtd/partitions.h>
@@ -805,7 +804,6 @@ static struct platform_driver omap2_onenand_driver = {
 	.shutdown	= omap2_onenand_shutdown,
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.owner  = THIS_MODULE,
 	},
 };
 

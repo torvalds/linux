@@ -181,6 +181,7 @@ static int adp8860_clr_bits(struct i2c_client *client, int reg, uint8_t bit_mask
 static void adp8860_led_work(struct work_struct *work)
 {
 	struct adp8860_led *led = container_of(work, struct adp8860_led, work);
+
 	adp8860_write(led->client, ADP8860_ISC1 - led->id + 1,
 			 led->new_brightness >> 1);
 }
@@ -224,10 +225,8 @@ static int adp8860_led_probe(struct i2c_client *client)
 
 	led = devm_kzalloc(&client->dev, sizeof(*led) * pdata->num_leds,
 				GFP_KERNEL);
-	if (led == NULL) {
-		dev_err(&client->dev, "failed to alloc memory\n");
+	if (led == NULL)
 		return -ENOMEM;
-	}
 
 	ret = adp8860_write(client, ADP8860_ISCFR, pdata->led_fade_law);
 	ret = adp8860_write(client, ADP8860_ISCT1,
@@ -364,6 +363,7 @@ static int adp8860_bl_set(struct backlight_device *bl, int brightness)
 static int adp8860_bl_update_status(struct backlight_device *bl)
 {
 	int brightness = bl->props.brightness;
+
 	if (bl->props.power != FB_BLANK_UNBLANK)
 		brightness = 0;
 
@@ -501,6 +501,7 @@ static ssize_t adp8860_bl_l1_daylight_max_store(struct device *dev,
 {
 	struct adp8860_bl *data = dev_get_drvdata(dev);
 	int ret = kstrtoul(buf, 10, &data->cached_daylight_max);
+
 	if (ret)
 		return ret;
 

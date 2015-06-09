@@ -10,8 +10,6 @@
  *  Copyright (C) 2004 Nadia Yvette Chambers
  */
 #include <linux/module.h>
-#include <linux/fs.h>
-#include <linux/debugfs.h>
 #include <linux/kallsyms.h>
 #include <linux/uaccess.h>
 #include <linux/ftrace.h>
@@ -130,15 +128,9 @@ wakeup_tracer_call(unsigned long ip, unsigned long parent_ip,
 	atomic_dec(&data->disabled);
 	preempt_enable_notrace();
 }
-
-static struct ftrace_ops trace_ops __read_mostly =
-{
-	.func = wakeup_tracer_call,
-	.flags = FTRACE_OPS_FL_GLOBAL | FTRACE_OPS_FL_RECURSION_SAFE,
-};
 #endif /* CONFIG_FUNCTION_TRACER */
 
-static int register_wakeup_function(int graph, int set)
+static int register_wakeup_function(struct trace_array *tr, int graph, int set)
 {
 	int ret;
 
@@ -150,7 +142,7 @@ static int register_wakeup_function(int graph, int set)
 		ret = register_ftrace_graph(&wakeup_graph_return,
 					    &wakeup_graph_entry);
 	else
-		ret = register_ftrace_function(&trace_ops);
+		ret = register_ftrace_function(tr->ops);
 
 	if (!ret)
 		function_enabled = true;
@@ -158,7 +150,7 @@ static int register_wakeup_function(int graph, int set)
 	return ret;
 }
 
-static void unregister_wakeup_function(int graph)
+static void unregister_wakeup_function(struct trace_array *tr, int graph)
 {
 	if (!function_enabled)
 		return;
@@ -166,32 +158,34 @@ static void unregister_wakeup_function(int graph)
 	if (graph)
 		unregister_ftrace_graph();
 	else
-		unregister_ftrace_function(&trace_ops);
+		unregister_ftrace_function(tr->ops);
 
 	function_enabled = false;
 }
 
-static void wakeup_function_set(int set)
+static void wakeup_function_set(struct trace_array *tr, int set)
 {
 	if (set)
-		register_wakeup_function(is_graph(), 1);
+		register_wakeup_function(tr, is_graph(), 1);
 	else
-		unregister_wakeup_function(is_graph());
+		unregister_wakeup_function(tr, is_graph());
 }
 
-static int wakeup_flag_changed(struct tracer *tracer, u32 mask, int set)
+static int wakeup_flag_changed(struct trace_array *tr, u32 mask, int set)
 {
+	struct tracer *tracer = tr->current_trace;
+
 	if (mask & TRACE_ITER_FUNCTION)
-		wakeup_function_set(set);
+		wakeup_function_set(tr, set);
 
 	return trace_keep_overwrite(tracer, mask, set);
 }
 
-static int start_func_tracer(int graph)
+static int start_func_tracer(struct trace_array *tr, int graph)
 {
 	int ret;
 
-	ret = register_wakeup_function(graph, 0);
+	ret = register_wakeup_function(tr, graph, 0);
 
 	if (!ret && tracing_is_enabled())
 		tracer_enabled = 1;
@@ -201,15 +195,16 @@ static int start_func_tracer(int graph)
 	return ret;
 }
 
-static void stop_func_tracer(int graph)
+static void stop_func_tracer(struct trace_array *tr, int graph)
 {
 	tracer_enabled = 0;
 
-	unregister_wakeup_function(graph);
+	unregister_wakeup_function(tr, graph);
 }
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-static int wakeup_set_flag(u32 old_flags, u32 bit, int set)
+static int
+wakeup_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 {
 
 	if (!(bit & TRACE_DISPLAY_GRAPH))
@@ -218,12 +213,12 @@ static int wakeup_set_flag(u32 old_flags, u32 bit, int set)
 	if (!(is_graph() ^ set))
 		return 0;
 
-	stop_func_tracer(!set);
+	stop_func_tracer(tr, !set);
 
 	wakeup_reset(wakeup_trace);
-	tracing_max_latency = 0;
+	tr->max_latency = 0;
 
-	return start_func_tracer(set);
+	return start_func_tracer(tr, set);
 }
 
 static int wakeup_graph_entry(struct ftrace_graph_ent *trace)
@@ -311,7 +306,8 @@ __trace_function(struct trace_array *tr,
 #else
 #define __trace_function trace_function
 
-static int wakeup_set_flag(u32 old_flags, u32 bit, int set)
+static int
+wakeup_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 {
 	return -EINVAL;
 }
@@ -346,13 +342,13 @@ static void wakeup_print_header(struct seq_file *s)
 /*
  * Should this new latency be reported/recorded?
  */
-static int report_latency(cycle_t delta)
+static int report_latency(struct trace_array *tr, cycle_t delta)
 {
 	if (tracing_thresh) {
 		if (delta < tracing_thresh)
 			return 0;
 	} else {
-		if (delta <= tracing_max_latency)
+		if (delta <= tr->max_latency)
 			return 0;
 	}
 	return 1;
@@ -365,6 +361,62 @@ probe_wakeup_migrate_task(void *ignore, struct task_struct *task, int cpu)
 		return;
 
 	wakeup_current_cpu = cpu;
+}
+
+static void
+tracing_sched_switch_trace(struct trace_array *tr,
+			   struct task_struct *prev,
+			   struct task_struct *next,
+			   unsigned long flags, int pc)
+{
+	struct ftrace_event_call *call = &event_context_switch;
+	struct ring_buffer *buffer = tr->trace_buffer.buffer;
+	struct ring_buffer_event *event;
+	struct ctx_switch_entry *entry;
+
+	event = trace_buffer_lock_reserve(buffer, TRACE_CTX,
+					  sizeof(*entry), flags, pc);
+	if (!event)
+		return;
+	entry	= ring_buffer_event_data(event);
+	entry->prev_pid			= prev->pid;
+	entry->prev_prio		= prev->prio;
+	entry->prev_state		= prev->state;
+	entry->next_pid			= next->pid;
+	entry->next_prio		= next->prio;
+	entry->next_state		= next->state;
+	entry->next_cpu	= task_cpu(next);
+
+	if (!call_filter_check_discard(call, entry, buffer, event))
+		trace_buffer_unlock_commit(buffer, event, flags, pc);
+}
+
+static void
+tracing_sched_wakeup_trace(struct trace_array *tr,
+			   struct task_struct *wakee,
+			   struct task_struct *curr,
+			   unsigned long flags, int pc)
+{
+	struct ftrace_event_call *call = &event_wakeup;
+	struct ring_buffer_event *event;
+	struct ctx_switch_entry *entry;
+	struct ring_buffer *buffer = tr->trace_buffer.buffer;
+
+	event = trace_buffer_lock_reserve(buffer, TRACE_WAKE,
+					  sizeof(*entry), flags, pc);
+	if (!event)
+		return;
+	entry	= ring_buffer_event_data(event);
+	entry->prev_pid			= curr->pid;
+	entry->prev_prio		= curr->prio;
+	entry->prev_state		= curr->state;
+	entry->next_pid			= wakee->pid;
+	entry->next_prio		= wakee->prio;
+	entry->next_state		= wakee->state;
+	entry->next_cpu			= task_cpu(wakee);
+
+	if (!call_filter_check_discard(call, entry, buffer, event))
+		trace_buffer_unlock_commit(buffer, event, flags, pc);
 }
 
 static void notrace
@@ -420,11 +472,11 @@ probe_wakeup_sched_switch(void *ignore,
 	T1 = ftrace_now(cpu);
 	delta = T1-T0;
 
-	if (!report_latency(delta))
+	if (!report_latency(wakeup_trace, delta))
 		goto out_unlock;
 
 	if (likely(!is_tracing_stopped())) {
-		tracing_max_latency = delta;
+		wakeup_trace->max_latency = delta;
 		update_max_tr(wakeup_trace, wakeup_task, wakeup_cpu);
 	}
 
@@ -583,7 +635,7 @@ static void start_wakeup_tracer(struct trace_array *tr)
 	 */
 	smp_wmb();
 
-	if (start_func_tracer(is_graph()))
+	if (start_func_tracer(tr, is_graph()))
 		printk(KERN_ERR "failed to start wakeup tracer\n");
 
 	return;
@@ -596,12 +648,14 @@ fail_deprobe:
 static void stop_wakeup_tracer(struct trace_array *tr)
 {
 	tracer_enabled = 0;
-	stop_func_tracer(is_graph());
+	stop_func_tracer(tr, is_graph());
 	unregister_trace_sched_switch(probe_wakeup_sched_switch, NULL);
 	unregister_trace_sched_wakeup_new(probe_wakeup, NULL);
 	unregister_trace_sched_wakeup(probe_wakeup, NULL);
 	unregister_trace_sched_migrate_task(probe_wakeup_migrate_task, NULL);
 }
+
+static bool wakeup_busy;
 
 static int __wakeup_tracer_init(struct trace_array *tr)
 {
@@ -611,14 +665,20 @@ static int __wakeup_tracer_init(struct trace_array *tr)
 	set_tracer_flag(tr, TRACE_ITER_OVERWRITE, 1);
 	set_tracer_flag(tr, TRACE_ITER_LATENCY_FMT, 1);
 
-	tracing_max_latency = 0;
+	tr->max_latency = 0;
 	wakeup_trace = tr;
+	ftrace_init_array_ops(tr, wakeup_tracer_call);
 	start_wakeup_tracer(tr);
+
+	wakeup_busy = true;
 	return 0;
 }
 
 static int wakeup_tracer_init(struct trace_array *tr)
 {
+	if (wakeup_busy)
+		return -EBUSY;
+
 	wakeup_dl = 0;
 	wakeup_rt = 0;
 	return __wakeup_tracer_init(tr);
@@ -626,6 +686,9 @@ static int wakeup_tracer_init(struct trace_array *tr)
 
 static int wakeup_rt_tracer_init(struct trace_array *tr)
 {
+	if (wakeup_busy)
+		return -EBUSY;
+
 	wakeup_dl = 0;
 	wakeup_rt = 1;
 	return __wakeup_tracer_init(tr);
@@ -633,6 +696,9 @@ static int wakeup_rt_tracer_init(struct trace_array *tr)
 
 static int wakeup_dl_tracer_init(struct trace_array *tr)
 {
+	if (wakeup_busy)
+		return -EBUSY;
+
 	wakeup_dl = 1;
 	wakeup_rt = 0;
 	return __wakeup_tracer_init(tr);
@@ -649,6 +715,8 @@ static void wakeup_tracer_reset(struct trace_array *tr)
 
 	set_tracer_flag(tr, TRACE_ITER_LATENCY_FMT, lat_flag);
 	set_tracer_flag(tr, TRACE_ITER_OVERWRITE, overwrite_flag);
+	ftrace_reset_array_ops(tr);
+	wakeup_busy = false;
 }
 
 static void wakeup_tracer_start(struct trace_array *tr)
@@ -680,6 +748,7 @@ static struct tracer wakeup_tracer __read_mostly =
 #endif
 	.open		= wakeup_trace_open,
 	.close		= wakeup_trace_close,
+	.allow_instances = true,
 	.use_max_tr	= true,
 };
 
@@ -690,7 +759,6 @@ static struct tracer wakeup_rt_tracer __read_mostly =
 	.reset		= wakeup_tracer_reset,
 	.start		= wakeup_tracer_start,
 	.stop		= wakeup_tracer_stop,
-	.wait_pipe	= poll_wait_pipe,
 	.print_max	= true,
 	.print_header	= wakeup_print_header,
 	.print_line	= wakeup_print_line,
@@ -702,6 +770,7 @@ static struct tracer wakeup_rt_tracer __read_mostly =
 #endif
 	.open		= wakeup_trace_open,
 	.close		= wakeup_trace_close,
+	.allow_instances = true,
 	.use_max_tr	= true,
 };
 
@@ -712,7 +781,6 @@ static struct tracer wakeup_dl_tracer __read_mostly =
 	.reset		= wakeup_tracer_reset,
 	.start		= wakeup_tracer_start,
 	.stop		= wakeup_tracer_stop,
-	.wait_pipe	= poll_wait_pipe,
 	.print_max	= true,
 	.print_header	= wakeup_print_header,
 	.print_line	= wakeup_print_line,

@@ -170,6 +170,8 @@ struct si_power_info {
 	bool vddc_phase_shed_control;
 	bool pspp_notify_required;
 	bool sclk_deep_sleep_above_low;
+	bool voltage_control_svi2;
+	bool vddci_control_svi2;
 	/* smc offsets */
 	u32 sram_end;
 	u32 state_table_start;
@@ -180,6 +182,7 @@ struct si_power_info {
 	u32 dte_table_start;
 	u32 spll_table_start;
 	u32 papm_cfg_table_start;
+	u32 fan_table_start;
 	/* CAC stuff */
 	const struct si_cac_config_reg *cac_weights;
 	const struct si_cac_config_reg *lcac_config;
@@ -192,6 +195,14 @@ struct si_power_info {
 	SMC_SIslands_MCRegisters smc_mc_reg_table;
 	SISLANDS_SMC_STATETABLE smc_statetable;
 	PP_SIslands_PAPMParameters papm_parm;
+	/* SVI2 */
+	u8 svd_gpio_id;
+	u8 svc_gpio_id;
+	/* fan control */
+	bool fan_ctrl_is_in_default_mode;
+	u32 t_min;
+	u32 fan_ctrl_default_mode;
+	bool fan_is_controlled_by_smc;
 };
 
 #define SISLANDS_INITIAL_STATE_ARB_INDEX    0

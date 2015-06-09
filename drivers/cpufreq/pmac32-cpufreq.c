@@ -81,9 +81,9 @@ static int is_pmu_based;
 #define CPUFREQ_LOW                   1
 
 static struct cpufreq_frequency_table pmac_cpu_freqs[] = {
-	{CPUFREQ_HIGH, 		0},
-	{CPUFREQ_LOW,		0},
-	{0,			CPUFREQ_TABLE_END},
+	{0, CPUFREQ_HIGH,	0},
+	{0, CPUFREQ_LOW,	0},
+	{0, 0,			CPUFREQ_TABLE_END},
 };
 
 static inline void local_delay(unsigned long ms)
@@ -611,7 +611,7 @@ static int __init pmac_cpufreq_setup(void)
 	struct device_node	*cpunode;
 	const u32		*value;
 
-	if (strstr(cmd_line, "nocpufreq"))
+	if (strstr(boot_command_line, "nocpufreq"))
 		return 0;
 
 	/* Get first CPU node */

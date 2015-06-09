@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/console.h>
 #include <linux/bug.h>
+#include <linux/ratelimit.h>
 
 #include <asm/assembly.h>
 #include <asm/uaccess.h>
@@ -41,9 +42,6 @@
 #include <asm/cacheflush.h>
 
 #include "../math-emu/math-emu.h"	/* for handle_fpe() */
-
-#define PRINT_USER_FAULTS /* (turn this on if you want user faults to be */
-			  /*  dumped to the console via printk)          */
 
 #if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
 DEFINE_SPINLOCK(pa_dbit_lock);
@@ -160,6 +158,17 @@ void show_regs(struct pt_regs *regs)
 	}
 }
 
+static DEFINE_RATELIMIT_STATE(_hppa_rs,
+	DEFAULT_RATELIMIT_INTERVAL, DEFAULT_RATELIMIT_BURST);
+
+#define parisc_printk_ratelimited(critical, regs, fmt, ...)	{	      \
+	if ((critical || show_unhandled_signals) && __ratelimit(&_hppa_rs)) { \
+		printk(fmt, ##__VA_ARGS__);				      \
+		show_regs(regs);					      \
+	}								      \
+}
+
+
 static void do_show_stack(struct unwind_frame_info *info)
 {
 	int i = 1;
@@ -229,12 +238,10 @@ void die_if_kernel(char *str, struct pt_regs *regs, long err)
 		if (err == 0)
 			return; /* STFU */
 
-		printk(KERN_CRIT "%s (pid %d): %s (code %ld) at " RFMT "\n",
+		parisc_printk_ratelimited(1, regs,
+			KERN_CRIT "%s (pid %d): %s (code %ld) at " RFMT "\n",
 			current->comm, task_pid_nr(current), str, err, regs->iaoq[0]);
-#ifdef PRINT_USER_FAULTS
-		/* XXX for debugging only */
-		show_regs(regs);
-#endif
+
 		return;
 	}
 
@@ -321,14 +328,11 @@ static void handle_break(struct pt_regs *regs)
 			(tt == BUG_TRAP_TYPE_NONE) ? 9 : 0);
 	}
 
-#ifdef PRINT_USER_FAULTS
-	if (unlikely(iir != GDB_BREAK_INSN)) {
-		printk(KERN_DEBUG "break %d,%d: pid=%d command='%s'\n",
+	if (unlikely(iir != GDB_BREAK_INSN))
+		parisc_printk_ratelimited(0, regs,
+			KERN_DEBUG "break %d,%d: pid=%d command='%s'\n",
 			iir & 31, (iir>>13) & ((1<<13)-1),
 			task_pid_nr(current), current->comm);
-		show_regs(regs);
-	}
-#endif
 
 	/* send standard GDB signal */
 	handle_gdb_break(regs, TRAP_BRKPT);
@@ -758,11 +762,9 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 
 	default:
 		if (user_mode(regs)) {
-#ifdef PRINT_USER_FAULTS
-			printk(KERN_DEBUG "\nhandle_interruption() pid=%d command='%s'\n",
-			    task_pid_nr(current), current->comm);
-			show_regs(regs);
-#endif
+			parisc_printk_ratelimited(0, regs, KERN_DEBUG
+				"handle_interruption() pid=%d command='%s'\n",
+				task_pid_nr(current), current->comm);
 			/* SIGBUS, for lack of a better one. */
 			si.si_signo = SIGBUS;
 			si.si_code = BUS_OBJERR;
@@ -779,16 +781,10 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 
 	if (user_mode(regs)) {
 	    if ((fault_space >> SPACEID_SHIFT) != (regs->sr[7] >> SPACEID_SHIFT)) {
-#ifdef PRINT_USER_FAULTS
-		if (fault_space == 0)
-			printk(KERN_DEBUG "User Fault on Kernel Space ");
-		else
-			printk(KERN_DEBUG "User Fault (long pointer) (fault %d) ",
-			       code);
-		printk(KERN_CONT "pid=%d command='%s'\n",
-		       task_pid_nr(current), current->comm);
-		show_regs(regs);
-#endif
+		parisc_printk_ratelimited(0, regs, KERN_DEBUG
+				"User fault %d on space 0x%08lx, pid=%d command='%s'\n",
+				code, fault_space,
+				task_pid_nr(current), current->comm);
 		si.si_signo = SIGSEGV;
 		si.si_errno = 0;
 		si.si_code = SEGV_MAPERR;

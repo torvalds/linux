@@ -26,7 +26,6 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/suspend.h>
 
 static struct cpufreq_frequency_table freq_table[] = {
 	{ .frequency = 216000 },
@@ -46,49 +45,54 @@ static struct clk *cpu_clk;
 static struct clk *pll_x_clk;
 static struct clk *pll_p_clk;
 static struct clk *emc_clk;
+static bool pll_x_prepared;
 
-static DEFINE_MUTEX(tegra_cpu_lock);
-static bool is_suspended;
+static unsigned int tegra_get_intermediate(struct cpufreq_policy *policy,
+					   unsigned int index)
+{
+	unsigned int ifreq = clk_get_rate(pll_p_clk) / 1000;
 
-static int tegra_cpu_clk_set_rate(unsigned long rate)
+	/*
+	 * Don't switch to intermediate freq if:
+	 * - we are already at it, i.e. policy->cur == ifreq
+	 * - index corresponds to ifreq
+	 */
+	if ((freq_table[index].frequency == ifreq) || (policy->cur == ifreq))
+		return 0;
+
+	return ifreq;
+}
+
+static int tegra_target_intermediate(struct cpufreq_policy *policy,
+				     unsigned int index)
 {
 	int ret;
 
 	/*
 	 * Take an extra reference to the main pll so it doesn't turn
-	 * off when we move the cpu off of it
+	 * off when we move the cpu off of it as enabling it again while we
+	 * switch to it from tegra_target() would take additional time.
+	 *
+	 * When target-freq is equal to intermediate freq we don't need to
+	 * switch to an intermediate freq and so this routine isn't called.
+	 * Also, we wouldn't be using pll_x anymore and must not take extra
+	 * reference to it, as it can be disabled now to save some power.
 	 */
 	clk_prepare_enable(pll_x_clk);
 
 	ret = clk_set_parent(cpu_clk, pll_p_clk);
-	if (ret) {
-		pr_err("Failed to switch cpu to clock pll_p\n");
-		goto out;
-	}
+	if (ret)
+		clk_disable_unprepare(pll_x_clk);
+	else
+		pll_x_prepared = true;
 
-	if (rate == clk_get_rate(pll_p_clk))
-		goto out;
-
-	ret = clk_set_rate(pll_x_clk, rate);
-	if (ret) {
-		pr_err("Failed to change pll_x to %lu\n", rate);
-		goto out;
-	}
-
-	ret = clk_set_parent(cpu_clk, pll_x_clk);
-	if (ret) {
-		pr_err("Failed to switch cpu to clock pll_x\n");
-		goto out;
-	}
-
-out:
-	clk_disable_unprepare(pll_x_clk);
 	return ret;
 }
 
-static int tegra_update_cpu_speed(struct cpufreq_policy *policy,
-		unsigned long rate)
+static int tegra_target(struct cpufreq_policy *policy, unsigned int index)
 {
+	unsigned long rate = freq_table[index].frequency;
+	unsigned int ifreq = clk_get_rate(pll_p_clk) / 1000;
 	int ret = 0;
 
 	/*
@@ -102,51 +106,33 @@ static int tegra_update_cpu_speed(struct cpufreq_policy *policy,
 	else
 		clk_set_rate(emc_clk, 100000000);  /* emc 50Mhz */
 
-	ret = tegra_cpu_clk_set_rate(rate * 1000);
+	/*
+	 * target freq == pll_p, don't need to take extra reference to pll_x_clk
+	 * as it isn't used anymore.
+	 */
+	if (rate == ifreq)
+		return clk_set_parent(cpu_clk, pll_p_clk);
+
+	ret = clk_set_rate(pll_x_clk, rate * 1000);
+	/* Restore to earlier frequency on error, i.e. pll_x */
 	if (ret)
-		pr_err("cpu-tegra: Failed to set cpu frequency to %lu kHz\n",
-			rate);
+		pr_err("Failed to change pll_x to %lu\n", rate);
 
-	return ret;
-}
+	ret = clk_set_parent(cpu_clk, pll_x_clk);
+	/* This shouldn't fail while changing or restoring */
+	WARN_ON(ret);
 
-static int tegra_target(struct cpufreq_policy *policy, unsigned int index)
-{
-	int ret = -EBUSY;
-
-	mutex_lock(&tegra_cpu_lock);
-
-	if (!is_suspended)
-		ret = tegra_update_cpu_speed(policy,
-				freq_table[index].frequency);
-
-	mutex_unlock(&tegra_cpu_lock);
-	return ret;
-}
-
-static int tegra_pm_notify(struct notifier_block *nb, unsigned long event,
-	void *dummy)
-{
-	mutex_lock(&tegra_cpu_lock);
-	if (event == PM_SUSPEND_PREPARE) {
-		struct cpufreq_policy *policy = cpufreq_cpu_get(0);
-		is_suspended = true;
-		pr_info("Tegra cpufreq suspend: setting frequency to %d kHz\n",
-			freq_table[0].frequency);
-		if (clk_get_rate(cpu_clk) / 1000 != freq_table[0].frequency)
-			tegra_update_cpu_speed(policy, freq_table[0].frequency);
-		cpufreq_cpu_put(policy);
-	} else if (event == PM_POST_SUSPEND) {
-		is_suspended = false;
+	/*
+	 * Drop count to pll_x clock only if we switched to intermediate freq
+	 * earlier while transitioning to a target frequency.
+	 */
+	if (pll_x_prepared) {
+		clk_disable_unprepare(pll_x_clk);
+		pll_x_prepared = false;
 	}
-	mutex_unlock(&tegra_cpu_lock);
 
-	return NOTIFY_OK;
+	return ret;
 }
-
-static struct notifier_block tegra_cpu_pm_notifier = {
-	.notifier_call = tegra_pm_notify,
-};
 
 static int tegra_cpu_init(struct cpufreq_policy *policy)
 {
@@ -166,30 +152,32 @@ static int tegra_cpu_init(struct cpufreq_policy *policy)
 		return ret;
 	}
 
-	if (policy->cpu == 0)
-		register_pm_notifier(&tegra_cpu_pm_notifier);
-
 	policy->clk = cpu_clk;
+	policy->suspend_freq = freq_table[0].frequency;
 	return 0;
 }
 
 static int tegra_cpu_exit(struct cpufreq_policy *policy)
 {
-	cpufreq_frequency_table_put_attr(policy->cpu);
 	clk_disable_unprepare(cpu_clk);
 	clk_disable_unprepare(emc_clk);
 	return 0;
 }
 
 static struct cpufreq_driver tegra_cpufreq_driver = {
-	.flags		= CPUFREQ_NEED_INITIAL_FREQ_CHECK,
-	.verify		= cpufreq_generic_frequency_table_verify,
-	.target_index	= tegra_target,
-	.get		= cpufreq_generic_get,
-	.init		= tegra_cpu_init,
-	.exit		= tegra_cpu_exit,
-	.name		= "tegra",
-	.attr		= cpufreq_generic_attr,
+	.flags			= CPUFREQ_NEED_INITIAL_FREQ_CHECK,
+	.verify			= cpufreq_generic_frequency_table_verify,
+	.get_intermediate	= tegra_get_intermediate,
+	.target_intermediate	= tegra_target_intermediate,
+	.target_index		= tegra_target,
+	.get			= cpufreq_generic_get,
+	.init			= tegra_cpu_init,
+	.exit			= tegra_cpu_exit,
+	.name			= "tegra",
+	.attr			= cpufreq_generic_attr,
+#ifdef CONFIG_PM
+	.suspend		= cpufreq_generic_suspend,
+#endif
 };
 
 static int __init tegra_cpufreq_init(void)

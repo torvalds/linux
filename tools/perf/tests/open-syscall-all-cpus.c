@@ -12,6 +12,7 @@ int test__open_syscall_event_on_all_cpus(void)
 	unsigned int nr_open_calls = 111, i;
 	cpu_set_t cpu_set;
 	struct thread_map *threads = thread_map__new(-1, getpid(), UINT_MAX);
+	char sbuf[STRERR_BUFSIZE];
 
 	if (threads == NULL) {
 		pr_debug("thread_map__new\n");
@@ -28,14 +29,19 @@ int test__open_syscall_event_on_all_cpus(void)
 
 	evsel = perf_evsel__newtp("syscalls", "sys_enter_open");
 	if (evsel == NULL) {
-		pr_debug("is debugfs mounted on /sys/kernel/debug?\n");
+		if (tracefs_configured())
+			pr_debug("is tracefs mounted on /sys/kernel/tracing?\n");
+		else if (debugfs_configured())
+			pr_debug("is debugfs mounted on /sys/kernel/debug?\n");
+		else
+			pr_debug("Neither tracefs or debugfs is enabled in this kernel\n");
 		goto out_thread_map_delete;
 	}
 
 	if (perf_evsel__open(evsel, cpus, threads) < 0) {
 		pr_debug("failed to open counter: %s, "
 			 "tweak /proc/sys/kernel/perf_event_paranoid?\n",
-			 strerror(errno));
+			 strerror_r(errno, sbuf, sizeof(sbuf)));
 		goto out_evsel_delete;
 	}
 
@@ -56,7 +62,7 @@ int test__open_syscall_event_on_all_cpus(void)
 		if (sched_setaffinity(0, sizeof(cpu_set), &cpu_set) < 0) {
 			pr_debug("sched_setaffinity() failed on CPU %d: %s ",
 				 cpus->map[cpu],
-				 strerror(errno));
+				 strerror_r(errno, sbuf, sizeof(sbuf)));
 			goto out_close_fd;
 		}
 		for (i = 0; i < ncalls; ++i) {

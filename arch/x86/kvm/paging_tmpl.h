@@ -298,8 +298,7 @@ retry_walk:
 	}
 #endif
 	walker->max_level = walker->level;
-	ASSERT((!is_long_mode(vcpu) && is_pae(vcpu)) ||
-	       (mmu->get_cr3(vcpu) & CR3_NONPAE_RESERVED_BITS) == 0);
+	ASSERT(!(is_long_mode(vcpu) && !is_pae(vcpu)));
 
 	accessed_dirty = PT_GUEST_ACCESSED_MASK;
 	pt_access = pte_access = ACC_ALL;
@@ -321,9 +320,22 @@ retry_walk:
 		walker->pte_gpa[walker->level - 1] = pte_gpa;
 
 		real_gfn = mmu->translate_gpa(vcpu, gfn_to_gpa(table_gfn),
-					      PFERR_USER_MASK|PFERR_WRITE_MASK);
+					      PFERR_USER_MASK|PFERR_WRITE_MASK,
+					      &walker->fault);
+
+		/*
+		 * FIXME: This can happen if emulation (for of an INS/OUTS
+		 * instruction) triggers a nested page fault.  The exit
+		 * qualification / exit info field will incorrectly have
+		 * "guest page access" as the nested page fault's cause,
+		 * instead of "guest page structure access".  To fix this,
+		 * the x86_exception struct should be augmented with enough
+		 * information to fix the exit_qualification or exit_info_1
+		 * fields.
+		 */
 		if (unlikely(real_gfn == UNMAPPED_GVA))
-			goto error;
+			return 0;
+
 		real_gfn = gpa_to_gfn(real_gfn);
 
 		host_addr = gfn_to_hva_prot(vcpu->kvm, real_gfn,
@@ -353,7 +365,7 @@ retry_walk:
 		walker->ptes[walker->level - 1] = pte;
 	} while (!is_last_gpte(mmu, walker->level, pte));
 
-	if (unlikely(permission_fault(mmu, pte_access, access))) {
+	if (unlikely(permission_fault(vcpu, mmu, pte_access, access))) {
 		errcode |= PFERR_PRESENT_MASK;
 		goto error;
 	}
@@ -364,7 +376,7 @@ retry_walk:
 	if (PTTYPE == 32 && walker->level == PT_DIRECTORY_LEVEL && is_cpuid_PSE36())
 		gfn += pse36_gfn_delta(pte);
 
-	real_gpa = mmu->translate_gpa(vcpu, gfn_to_gpa(gfn), access);
+	real_gpa = mmu->translate_gpa(vcpu, gfn_to_gpa(gfn), access, &walker->fault);
 	if (real_gpa == UNMAPPED_GVA)
 		return 0;
 
@@ -706,6 +718,13 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 					      mmu_is_nested(vcpu));
 		if (likely(r != RET_MMIO_PF_INVALID))
 			return r;
+
+		/*
+		 * page fault with PFEC.RSVD  = 1 is caused by shadow
+		 * page fault, should not be used to walk guest page
+		 * table.
+		 */
+		error_code &= ~PFERR_RSVD_MASK;
 	};
 
 	r = mmu_topup_memory_caches(vcpu);

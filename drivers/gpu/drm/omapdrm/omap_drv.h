@@ -26,6 +26,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/omap_drm.h>
+#include <drm/drm_gem.h>
 #include <linux/platform_data/omap_drm.h>
 
 
@@ -104,6 +105,9 @@ struct omap_drm_private {
 
 	struct workqueue_struct *wq;
 
+	/* lock for obj_list below */
+	spinlock_t list_lock;
+
 	/* list of GEM objects: */
 	struct list_head obj_list;
 
@@ -119,13 +123,6 @@ struct omap_drm_private {
 	struct omap_drm_irq error_handler;
 };
 
-/* this should probably be in drm-core to standardize amongst drivers */
-#define DRM_ROTATE_0	0
-#define DRM_ROTATE_90	1
-#define DRM_ROTATE_180	2
-#define DRM_ROTATE_270	3
-#define DRM_REFLECT_X	4
-#define DRM_REFLECT_Y	5
 
 #ifdef CONFIG_DEBUG_FS
 int omap_debugfs_init(struct drm_minor *minor);
@@ -163,17 +160,18 @@ void omap_crtc_pre_init(void);
 void omap_crtc_pre_uninit(void);
 struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 		struct drm_plane *plane, enum omap_channel channel, int id);
+void omap_crtc_flush(struct drm_crtc *crtc);
 
 struct drm_plane *omap_plane_init(struct drm_device *dev,
-		int plane_id, bool private_plane);
-int omap_plane_dpms(struct drm_plane *plane, int mode);
+		int id, enum drm_plane_type type);
+int omap_plane_set_enable(struct drm_plane *plane, bool enable);
 int omap_plane_mode_set(struct drm_plane *plane,
-		struct drm_crtc *crtc, struct drm_framebuffer *fb,
-		int crtc_x, int crtc_y,
-		unsigned int crtc_w, unsigned int crtc_h,
-		uint32_t src_x, uint32_t src_y,
-		uint32_t src_w, uint32_t src_h,
-		void (*fxn)(void *), void *arg);
+			struct drm_crtc *crtc, struct drm_framebuffer *fb,
+			int crtc_x, int crtc_y,
+			unsigned int crtc_w, unsigned int crtc_h,
+			unsigned int src_x, unsigned int src_y,
+			unsigned int src_w, unsigned int src_h,
+			void (*fxn)(void *), void *arg);
 void omap_plane_install_properties(struct drm_plane *plane,
 		struct drm_mode_object *obj);
 int omap_plane_set_property(struct drm_plane *plane,
@@ -191,8 +189,7 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 		struct drm_encoder *encoder);
 struct drm_encoder *omap_connector_attached_encoder(
 		struct drm_connector *connector);
-void omap_connector_flush(struct drm_connector *connector,
-		int x, int y, int w, int h);
+bool omap_connector_get_hdmi_mode(struct drm_connector *connector);
 
 void copy_timings_omap_to_drm(struct drm_display_mode *mode,
 		struct omap_video_timings *timings);
@@ -212,8 +209,6 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 		struct omap_drm_window *win, struct omap_overlay_info *info);
 struct drm_connector *omap_framebuffer_get_next_connector(
 		struct drm_framebuffer *fb, struct drm_connector *from);
-void omap_framebuffer_flush(struct drm_framebuffer *fb,
-		int x, int y, int w, int h);
 
 void omap_gem_init(struct drm_device *dev);
 void omap_gem_deinit(struct drm_device *dev);

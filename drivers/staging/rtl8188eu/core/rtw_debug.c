@@ -20,7 +20,7 @@
 #define _RTW_DEBUG_C_
 
 #include <rtw_debug.h>
-#include <rtw_version.h>
+#include <usb_ops_linux.h>
 
 int proc_get_drv_version(char *page, char **start,
 			  off_t offset, int count,
@@ -45,7 +45,7 @@ int proc_get_write_reg(char *page, char **start,
 int proc_set_write_reg(struct file *file, const char __user *buffer,
 		unsigned long count, void *data)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	char tmp[32];
 	u32 addr, val, len;
@@ -64,13 +64,13 @@ int proc_set_write_reg(struct file *file, const char __user *buffer,
 		}
 		switch (len) {
 		case 1:
-			rtw_write8(padapter, addr, (u8)val);
+			usb_write8(padapter, addr, (u8)val);
 			break;
 		case 2:
-			rtw_write16(padapter, addr, (u16)val);
+			usb_write16(padapter, addr, (u16)val);
 			break;
 		case 4:
-			rtw_write32(padapter, addr, val);
+			usb_write32(padapter, addr, val);
 			break;
 		default:
 			DBG_88E("error write length =%d", len);
@@ -99,13 +99,13 @@ int proc_get_read_reg(char *page, char **start,
 
 	switch (proc_get_read_len) {
 	case 1:
-		len += snprintf(page + len, count - len, "rtw_read8(0x%x)=0x%x\n", proc_get_read_addr, rtw_read8(padapter, proc_get_read_addr));
+		len += snprintf(page + len, count - len, "usb_read8(0x%x)=0x%x\n", proc_get_read_addr, usb_read8(padapter, proc_get_read_addr));
 		break;
 	case 2:
-		len += snprintf(page + len, count - len, "rtw_read16(0x%x)=0x%x\n", proc_get_read_addr, rtw_read16(padapter, proc_get_read_addr));
+		len += snprintf(page + len, count - len, "usb_read16(0x%x)=0x%x\n", proc_get_read_addr, usb_read16(padapter, proc_get_read_addr));
 		break;
 	case 4:
-		len += snprintf(page + len, count - len, "rtw_read32(0x%x)=0x%x\n", proc_get_read_addr, rtw_read32(padapter, proc_get_read_addr));
+		len += snprintf(page + len, count - len, "usb_read32(0x%x)=0x%x\n", proc_get_read_addr, usb_read32(padapter, proc_get_read_addr));
 		break;
 	default:
 		len += snprintf(page + len, count - len, "error read length=%d\n", proc_get_read_len);
@@ -233,7 +233,7 @@ int proc_get_rf_info(char *page, char **start,
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	int len = 0;
 
-	len += snprintf(page + len, count - len, "cur_ch=%d, cur_bw=%d, cur_ch_offet=%d\n",
+	len += snprintf(page + len, count - len, "cur_ch=%d, cur_bw=%d, cur_ch_offset=%d\n",
 					pmlmeext->cur_channel, pmlmeext->cur_bwmode, pmlmeext->cur_ch_offset);
 	*eof = 1;
 	return len;
@@ -327,7 +327,7 @@ int proc_get_mac_reg_dump1(char *page, char **start,
 	for (i = 0x0; i < 0x300; i += 4) {
 		if (j%4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x", i);
-		len += snprintf(page + len, count - len, " 0x%08x ", rtw_read32(padapter, i));
+		len += snprintf(page + len, count - len, " 0x%08x ", usb_read32(padapter, i));
 		if ((j++)%4 == 0)
 			len += snprintf(page + len, count - len, "\n");
 	}
@@ -350,7 +350,7 @@ int proc_get_mac_reg_dump2(char *page, char **start,
 	for (i = 0x300; i < 0x600; i += 4) {
 		if (j%4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x", i);
-		len += snprintf(page + len, count - len, " 0x%08x ", rtw_read32(padapter, i));
+		len += snprintf(page + len, count - len, " 0x%08x ", usb_read32(padapter, i));
 		if ((j++)%4 == 0)
 			len += snprintf(page + len, count - len, "\n");
 	}
@@ -373,7 +373,7 @@ int proc_get_mac_reg_dump3(char *page, char **start,
 	for (i = 0x600; i < 0x800; i += 4) {
 		if (j%4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x", i);
-		len += snprintf(page + len, count - len, " 0x%08x ", rtw_read32(padapter, i));
+		len += snprintf(page + len, count - len, " 0x%08x ", usb_read32(padapter, i));
 		if ((j++)%4 == 0)
 			len += snprintf(page + len, count - len, "\n");
 	}
@@ -395,7 +395,7 @@ int proc_get_bb_reg_dump1(char *page, char **start,
 	for (i = 0x800; i < 0xB00; i += 4) {
 		if (j%4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x", i);
-		len += snprintf(page + len, count - len, " 0x%08x ", rtw_read32(padapter, i));
+		len += snprintf(page + len, count - len, " 0x%08x ", usb_read32(padapter, i));
 		if ((j++)%4 == 0)
 			len += snprintf(page + len, count - len, "\n");
 	}
@@ -416,7 +416,7 @@ int proc_get_bb_reg_dump2(char *page, char **start,
 	for (i = 0xB00; i < 0xE00; i += 4) {
 		if (j%4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x", i);
-		len += snprintf(page + len, count - len, " 0x%08x ", rtw_read32(padapter, i));
+		len += snprintf(page + len, count - len, " 0x%08x ", usb_read32(padapter, i));
 		if ((j++)%4 == 0)
 			len += snprintf(page + len, count - len, "\n");
 	}
@@ -437,7 +437,7 @@ int proc_get_bb_reg_dump3(char *page, char **start,
 	for (i = 0xE00; i < 0x1000; i += 4) {
 		if (j%4 == 1)
 			len += snprintf(page + len, count - len, "0x%02x", i);
-		len += snprintf(page + len, count - len, " 0x%08x ", rtw_read32(padapter, i));
+		len += snprintf(page + len, count - len, " 0x%08x ", usb_read32(padapter, i));
 		if ((j++)%4 == 0)
 			len += snprintf(page + len, count - len, "\n");
 	}
@@ -577,7 +577,7 @@ int proc_get_rx_signal(char *page, char **start,
 int proc_set_rx_signal(struct file *file, const char __user *buffer,
 		unsigned long count, void *data)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	char tmp[32];
 	u32 is_signal_dbg;
@@ -627,7 +627,7 @@ int proc_get_ht_enable(char *page, char **start,
 int proc_set_ht_enable(struct file *file, const char __user *buffer,
 		unsigned long count, void *data)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct registry_priv	*pregpriv = &padapter->registrypriv;
 	char tmp[32];
@@ -669,7 +669,7 @@ int proc_get_cbw40_enable(char *page, char **start,
 int proc_set_cbw40_enable(struct file *file, const char __user *buffer,
 		unsigned long count, void *data)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct registry_priv	*pregpriv = &padapter->registrypriv;
 	char tmp[32];
@@ -710,7 +710,7 @@ int proc_get_ampdu_enable(char *page, char **start,
 int proc_set_ampdu_enable(struct file *file, const char __user *buffer,
 		unsigned long count, void *data)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct registry_priv	*pregpriv = &padapter->registrypriv;
 	char tmp[32];
@@ -771,7 +771,7 @@ int proc_get_rx_stbc(char *page, char **start,
 int proc_set_rx_stbc(struct file *file, const char __user *buffer,
 		unsigned long count, void *data)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct registry_priv	*pregpriv = &padapter->registrypriv;
 	char tmp[32];
@@ -783,7 +783,7 @@ int proc_set_rx_stbc(struct file *file, const char __user *buffer,
 	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {
 		if (pregpriv) {
 			pregpriv->rx_stbc = mode;
-			printk("rx_stbc=%d\n", mode);
+			netdev_info(dev, "rx_stbc=%d\n", mode);
 		}
 	}
 	return count;
@@ -800,7 +800,7 @@ int proc_get_rssi_disp(char *page, char **start,
 int proc_set_rssi_disp(struct file *file, const char __user *buffer,
 		unsigned long count, void *data)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	char tmp[32];
 	u32 enable = 0;
@@ -820,7 +820,7 @@ int proc_set_rssi_disp(struct file *file, const char __user *buffer,
 
 		if (enable) {
 			DBG_88E("Turn On Rx RSSI Display Function\n");
-			padapter->bRxRSSIDisplay = enable ;
+			padapter->bRxRSSIDisplay = enable;
 		} else {
 			DBG_88E("Turn Off Rx RSSI Display Function\n");
 			padapter->bRxRSSIDisplay = 0;
@@ -851,12 +851,12 @@ int proc_get_all_sta_info(char *page, char **start,
 
 	for (i = 0; i < NUM_STA; i++) {
 		phead = &(pstapriv->sta_hash[i]);
-		plist = get_next(phead);
+		plist = phead->next;
 
-		while ((rtw_end_of_queue_search(phead, plist)) == false) {
-			psta = LIST_CONTAINOR(plist, struct sta_info, hash_list);
+		while (phead != plist) {
+			psta = container_of(plist, struct sta_info, hash_list);
 
-			plist = get_next(plist);
+			plist = plist->next;
 
 			len += snprintf(page + len, count - len, "sta's macaddr: %pM\n", psta->hwaddr);
 			len += snprintf(page + len, count - len, "rtsen=%d, cts2slef=%d\n", psta->rtsen, psta->cts2self);

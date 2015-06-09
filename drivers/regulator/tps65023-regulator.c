@@ -173,7 +173,7 @@ static int tps65023_dcdc_set_voltage_sel(struct regulator_dev *dev,
 }
 
 /* Operations permitted on VDCDCx */
-static struct regulator_ops tps65023_dcdc_ops = {
+static const struct regulator_ops tps65023_dcdc_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -184,7 +184,7 @@ static struct regulator_ops tps65023_dcdc_ops = {
 };
 
 /* Operations permitted on LDOx */
-static struct regulator_ops tps65023_ldo_ops = {
+static const struct regulator_ops tps65023_ldo_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -194,7 +194,7 @@ static struct regulator_ops tps65023_ldo_ops = {
 	.map_voltage = regulator_map_voltage_ascend,
 };
 
-static struct regmap_config tps65023_regmap_config = {
+static const struct regmap_config tps65023_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 };
@@ -210,9 +210,6 @@ static int tps_65023_probe(struct i2c_client *client,
 	struct tps_pmic *tps;
 	int i;
 	int error;
-
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -EIO;
 
 	/**
 	 * init_data points to array of regulator_init structures

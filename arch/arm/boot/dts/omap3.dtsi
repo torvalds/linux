@@ -35,6 +35,11 @@
 			compatible = "arm,cortex-a8";
 			device_type = "cpu";
 			reg = <0x0>;
+
+			clocks = <&dpll1_ck>;
+			clock-names = "cpu";
+
+			clock-latency = <300000>; /* From omap-cpufreq driver */
 		};
 	};
 
@@ -56,7 +61,7 @@
 			ti,hwmods = "mpu";
 		};
 
-		iva {
+		iva: iva {
 			compatible = "ti,iva2.2";
 			ti,hwmods = "iva";
 
@@ -69,12 +74,12 @@
 	/*
 	 * XXX: Use a flat representation of the OMAP3 interconnect.
 	 * The real OMAP interconnect network is quite complex.
-	 * Since that will not bring real advantage to represent that in DT for
+	 * Since it will not bring real advantage to represent that in DT for
 	 * the moment, just use a fake OCP bus entry to represent the whole bus
 	 * hierarchy.
 	 */
 	ocp {
-		compatible = "simple-bus";
+		compatible = "ti,omap3-l3-smx", "simple-bus";
 		reg = <0x68000000 0x10000>;
 		interrupts = <9 10>;
 		#address-cells = <1>;
@@ -82,16 +87,73 @@
 		ranges;
 		ti,hwmods = "l3_main";
 
+		l4_core: l4@48000000 {
+			compatible = "ti,omap3-l4-core", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x48000000 0x1000000>;
+
+			scm: scm@2000 {
+				compatible = "ti,omap3-scm", "simple-bus";
+				reg = <0x2000 0x2000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x2000 0x2000>;
+
+				omap3_pmx_core: pinmux@30 {
+					compatible = "ti,omap3-padconf",
+						     "pinctrl-single";
+					reg = <0x30 0x238>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					#interrupt-cells = <1>;
+					interrupt-controller;
+					pinctrl-single,register-width = <16>;
+					pinctrl-single,function-mask = <0xff1f>;
+				};
+
+				scm_conf: scm_conf@270 {
+					compatible = "syscon";
+					reg = <0x270 0x330>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+
+					scm_clocks: clocks {
+						#address-cells = <1>;
+						#size-cells = <0>;
+					};
+				};
+
+				scm_clockdomains: clockdomains {
+				};
+
+				omap3_pmx_wkup: pinmux@a00 {
+					compatible = "ti,omap3-padconf",
+						     "pinctrl-single";
+					reg = <0xa00 0x5c>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					#interrupt-cells = <1>;
+					interrupt-controller;
+					pinctrl-single,register-width = <16>;
+					pinctrl-single,function-mask = <0xff1f>;
+				};
+			};
+		};
+
 		aes: aes@480c5000 {
 			compatible = "ti,omap3-aes";
 			ti,hwmods = "aes";
 			reg = <0x480c5000 0x50>;
 			interrupts = <0>;
+			dmas = <&sdma 65 &sdma 66>;
+			dma-names = "tx", "rx";
 		};
 
 		prm: prm@48306000 {
 			compatible = "ti,omap3-prm";
 			reg = <0x48306000 0x4000>;
+			interrupts = <11>;
 
 			prm_clocks: clocks {
 				#address-cells = <1>;
@@ -115,19 +177,6 @@
 			};
 		};
 
-		scrm: scrm@48002000 {
-			compatible = "ti,omap3-scrm";
-			reg = <0x48002000 0x2000>;
-
-			scrm_clocks: clocks {
-				#address-cells = <1>;
-				#size-cells = <0>;
-			};
-
-			scrm_clockdomains: clockdomains {
-			};
-		};
-
 		counter32k: counter@48320000 {
 			compatible = "ti,omap-counter32k";
 			reg = <0x48320000 0x20>;
@@ -135,10 +184,9 @@
 		};
 
 		intc: interrupt-controller@48200000 {
-			compatible = "ti,omap2-intc";
+			compatible = "ti,omap3-intc";
 			interrupt-controller;
 			#interrupt-cells = <1>;
-			ti,intc-size = <96>;
 			reg = <0x48200000 0x1000>;
 		};
 
@@ -150,30 +198,19 @@
 				     <14>,
 				     <15>;
 			#dma-cells = <1>;
-			#dma-channels = <32>;
-			#dma-requests = <96>;
+			dma-channels = <32>;
+			dma-requests = <96>;
 		};
 
-		omap3_pmx_core: pinmux@48002030 {
-			compatible = "ti,omap3-padconf", "pinctrl-single";
-			reg = <0x48002030 0x0238>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			#interrupt-cells = <1>;
-			interrupt-controller;
-			pinctrl-single,register-width = <16>;
-			pinctrl-single,function-mask = <0xff1f>;
-		};
-
-		omap3_pmx_wkup: pinmux@48002a00 {
-			compatible = "ti,omap3-padconf", "pinctrl-single";
-			reg = <0x48002a00 0x5c>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			#interrupt-cells = <1>;
-			interrupt-controller;
-			pinctrl-single,register-width = <16>;
-			pinctrl-single,function-mask = <0xff1f>;
+		pbias_regulator: pbias_regulator {
+			compatible = "ti,pbias-omap";
+			reg = <0x2b0 0x4>;
+			syscon = <&scm_conf>;
+			pbias_mmc_reg: pbias_mmc_omap2430 {
+				regulator-name = "pbias_mmc_omap2430";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3000000>;
+			};
 		};
 
 		gpio1: gpio@48310000 {
@@ -246,7 +283,7 @@
 		uart1: serial@4806a000 {
 			compatible = "ti,omap3-uart";
 			reg = <0x4806a000 0x2000>;
-			interrupts = <72>;
+			interrupts-extended = <&intc 72>;
 			dmas = <&sdma 49 &sdma 50>;
 			dma-names = "tx", "rx";
 			ti,hwmods = "uart1";
@@ -256,7 +293,7 @@
 		uart2: serial@4806c000 {
 			compatible = "ti,omap3-uart";
 			reg = <0x4806c000 0x400>;
-			interrupts = <73>;
+			interrupts-extended = <&intc 73>;
 			dmas = <&sdma 51 &sdma 52>;
 			dma-names = "tx", "rx";
 			ti,hwmods = "uart2";
@@ -266,7 +303,7 @@
 		uart3: serial@49020000 {
 			compatible = "ti,omap3-uart";
 			reg = <0x49020000 0x400>;
-			interrupts = <74>;
+			interrupts-extended = <&intc 74>;
 			dmas = <&sdma 53 &sdma 54>;
 			dma-names = "tx", "rx";
 			ti,hwmods = "uart3";
@@ -311,6 +348,13 @@
 			ti,hwmods = "mailbox";
 			reg = <0x48094000 0x200>;
 			interrupts = <26>;
+			#mbox-cells = <1>;
+			ti,mbox-num-users = <2>;
+			ti,mbox-num-fifos = <2>;
+			mbox_dsp: dsp {
+				ti,mbox-tx = <0 0 0>;
+				ti,mbox-rx = <1 0 0>;
+			};
 		};
 
 		mcspi1: spi@48098000 {
@@ -390,6 +434,7 @@
 			ti,dual-volt;
 			dmas = <&sdma 61>, <&sdma 62>;
 			dma-names = "tx", "rx";
+			pbias-supply = <&pbias_mmc_reg>;
 		};
 
 		mmc2: mmc@480b4000 {
@@ -411,10 +456,21 @@
 		};
 
 		mmu_isp: mmu@480bd400 {
-			compatible = "ti,omap3-mmu-isp";
-			ti,hwmods = "mmu_isp";
+			#iommu-cells = <0>;
+			compatible = "ti,omap2-iommu";
 			reg = <0x480bd400 0x80>;
-			interrupts = <8>;
+			interrupts = <24>;
+			ti,hwmods = "mmu_isp";
+			ti,#tlb-entries = <8>;
+		};
+
+		mmu_iva: mmu@5d000000 {
+			#iommu-cells = <0>;
+			compatible = "ti,omap2-iommu";
+			reg = <0x5d000000 0x80>;
+			interrupts = <28>;
+			ti,hwmods = "mmu_iva";
+			status = "disabled";
 		};
 
 		wdt2: wdt@48314000 {
@@ -436,6 +492,7 @@
 			dmas = <&sdma 31>,
 			       <&sdma 32>;
 			dma-names = "tx", "rx";
+			status = "disabled";
 		};
 
 		mcbsp2: mcbsp@49022000 {
@@ -453,6 +510,7 @@
 			dmas = <&sdma 33>,
 			       <&sdma 34>;
 			dma-names = "tx", "rx";
+			status = "disabled";
 		};
 
 		mcbsp3: mcbsp@49024000 {
@@ -470,6 +528,7 @@
 			dmas = <&sdma 17>,
 			       <&sdma 18>;
 			dma-names = "tx", "rx";
+			status = "disabled";
 		};
 
 		mcbsp4: mcbsp@49026000 {
@@ -485,6 +544,7 @@
 			dmas = <&sdma 19>,
 			       <&sdma 20>;
 			dma-names = "tx", "rx";
+			status = "disabled";
 		};
 
 		mcbsp5: mcbsp@48096000 {
@@ -500,6 +560,7 @@
 			dmas = <&sdma 21>,
 			       <&sdma 22>;
 			dma-names = "tx", "rx";
+			status = "disabled";
 		};
 
 		sham: sham@480c3000 {
@@ -507,6 +568,8 @@
 			ti,hwmods = "sham";
 			reg = <0x480c3000 0x64>;
 			interrupts = <49>;
+			dmas = <&sdma 69>;
+			dma-names = "rx";
 		};
 
 		smartreflex_core: smartreflex@480cb000 {
@@ -634,14 +697,14 @@
 			ranges;
 
 			usbhsohci: ohci@48064400 {
-				compatible = "ti,ohci-omap3", "usb-ohci";
+				compatible = "ti,ohci-omap3";
 				reg = <0x48064400 0x400>;
 				interrupt-parent = <&intc>;
 				interrupts = <76>;
 			};
 
 			usbhsehci: ehci@48064800 {
-				compatible = "ti,ehci-omap", "usb-ehci";
+				compatible = "ti,ehci-omap";
 				reg = <0x48064800 0x400>;
 				interrupt-parent = <&intc>;
 				interrupts = <77>;
@@ -668,6 +731,103 @@
 			multipoint = <1>;
 			num-eps = <16>;
 			ram-bits = <12>;
+		};
+
+		dss: dss@48050000 {
+			compatible = "ti,omap3-dss";
+			reg = <0x48050000 0x200>;
+			status = "disabled";
+			ti,hwmods = "dss_core";
+			clocks = <&dss1_alwon_fck>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			dispc@48050400 {
+				compatible = "ti,omap3-dispc";
+				reg = <0x48050400 0x400>;
+				interrupts = <25>;
+				ti,hwmods = "dss_dispc";
+				clocks = <&dss1_alwon_fck>;
+				clock-names = "fck";
+			};
+
+			dsi: encoder@4804fc00 {
+				compatible = "ti,omap3-dsi";
+				reg = <0x4804fc00 0x200>,
+				      <0x4804fe00 0x40>,
+				      <0x4804ff00 0x20>;
+				reg-names = "proto", "phy", "pll";
+				interrupts = <25>;
+				status = "disabled";
+				ti,hwmods = "dss_dsi1";
+				clocks = <&dss1_alwon_fck>, <&dss2_alwon_fck>;
+				clock-names = "fck", "sys_clk";
+			};
+
+			rfbi: encoder@48050800 {
+				compatible = "ti,omap3-rfbi";
+				reg = <0x48050800 0x100>;
+				status = "disabled";
+				ti,hwmods = "dss_rfbi";
+				clocks = <&dss1_alwon_fck>, <&dss_ick>;
+				clock-names = "fck", "ick";
+			};
+
+			venc: encoder@48050c00 {
+				compatible = "ti,omap3-venc";
+				reg = <0x48050c00 0x100>;
+				status = "disabled";
+				ti,hwmods = "dss_venc";
+				clocks = <&dss_tv_fck>;
+				clock-names = "fck";
+			};
+		};
+
+		ssi: ssi-controller@48058000 {
+			compatible = "ti,omap3-ssi";
+			ti,hwmods = "ssi";
+
+			status = "disabled";
+
+			reg = <0x48058000 0x1000>,
+			      <0x48059000 0x1000>;
+			reg-names = "sys",
+				    "gdd";
+
+			interrupts = <71>;
+			interrupt-names = "gdd_mpu";
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			ssi_port1: ssi-port@4805a000 {
+				compatible = "ti,omap3-ssi-port";
+
+				reg = <0x4805a000 0x800>,
+				      <0x4805a800 0x800>;
+				reg-names = "tx",
+					    "rx";
+
+				interrupt-parent = <&intc>;
+				interrupts = <67>,
+					     <68>;
+			};
+
+			ssi_port2: ssi-port@4805b000 {
+				compatible = "ti,omap3-ssi-port";
+
+				reg = <0x4805b000 0x800>,
+				      <0x4805b800 0x800>;
+				reg-names = "tx",
+					    "rx";
+
+				interrupt-parent = <&intc>;
+				interrupts = <69>,
+					     <70>;
+			};
 		};
 	};
 };

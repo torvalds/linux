@@ -4,7 +4,7 @@ config PICVUE
 
 config PICVUE_PROC
 	tristate "PICVUE LCD display driver /proc interface"
-	depends on PICVUE
+	depends on PICVUE && PROC_FS
 
 config DS1603
 	bool "DS1603 RTC driver"

@@ -48,7 +48,7 @@ static const struct of_device_id mc13xxx_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, mc13xxx_dt_ids);
 
-static struct regmap_config mc13xxx_regmap_spi_config = {
+static const struct regmap_config mc13xxx_regmap_spi_config = {
 	.reg_bits = 7,
 	.pad_bits = 1,
 	.val_bits = 24,
@@ -139,6 +139,11 @@ static int mc13xxx_spi_probe(struct spi_device *spi)
 	spi->mode = SPI_MODE_0 | SPI_CS_HIGH;
 
 	mc13xxx->irq = spi->irq;
+
+	spi->max_speed_hz = spi->max_speed_hz ? : 26000000;
+	ret = spi_setup(spi);
+	if (ret)
+		return ret;
 
 	mc13xxx->regmap = devm_regmap_init(&spi->dev, &regmap_mc13xxx_bus,
 					   &spi->dev,

@@ -199,14 +199,6 @@ out_error:
 	return msic;
 }
 
-static int axon_msi_check_device(struct pci_dev *dev, int nvec, int type)
-{
-	if (!find_msi_translator(dev))
-		return -ENODEV;
-
-	return 0;
-}
-
 static int setup_msi_msg_address(struct pci_dev *dev, struct msi_msg *msg)
 {
 	struct device_node *dn;
@@ -287,7 +279,7 @@ static int axon_msi_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 
 		irq_set_msi_desc(virq, entry);
 		msg.data = virq;
-		write_msi_msg(virq, &msg);
+		pci_write_msi_msg(virq, &msg);
 	}
 
 	return 0;
@@ -309,9 +301,9 @@ static void axon_msi_teardown_msi_irqs(struct pci_dev *dev)
 }
 
 static struct irq_chip msic_irq_chip = {
-	.irq_mask	= mask_msi_irq,
-	.irq_unmask	= unmask_msi_irq,
-	.irq_shutdown	= mask_msi_irq,
+	.irq_mask	= pci_msi_mask_irq,
+	.irq_unmask	= pci_msi_unmask_irq,
+	.irq_shutdown	= pci_msi_mask_irq,
 	.name		= "AXON-MSI",
 };
 
@@ -416,7 +408,6 @@ static int axon_msi_probe(struct platform_device *device)
 
 	ppc_md.setup_msi_irqs = axon_msi_setup_msi_irqs;
 	ppc_md.teardown_msi_irqs = axon_msi_teardown_msi_irqs;
-	ppc_md.msi_check_device = axon_msi_check_device;
 
 	axon_msi_debug_setup(dn, msic);
 
@@ -446,7 +437,6 @@ static struct platform_driver axon_msi_driver = {
 	.shutdown	= axon_msi_shutdown,
 	.driver = {
 		.name = "axon-msi",
-		.owner = THIS_MODULE,
 		.of_match_table = axon_msi_device_id,
 	},
 };

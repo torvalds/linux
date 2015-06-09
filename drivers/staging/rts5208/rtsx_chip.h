@@ -920,6 +920,11 @@ struct rtsx_chip {
 	u32 sd_ctl;
 };
 
+static inline struct device *rtsx_dev(const struct rtsx_chip *chip)
+{
+	return &chip->rtsx->pci->dev;
+}
+
 #define rtsx_set_stat(chip, stat)				\
 do {								\
 	if ((stat) != RTSX_STAT_IDLE) {				\
@@ -982,21 +987,5 @@ void rtsx_disable_aspm(struct rtsx_chip *chip);
 int rtsx_read_ppbuf(struct rtsx_chip *chip, u8 *buf, int buf_len);
 int rtsx_write_ppbuf(struct rtsx_chip *chip, u8 *buf, int buf_len);
 int rtsx_check_chip_exist(struct rtsx_chip *chip);
-
-#define RTSX_WRITE_REG(chip, addr, mask, data)				\
-	do {								\
-		int retval = rtsx_write_register((chip), (addr), (mask), (data)); \
-		if (retval != STATUS_SUCCESS) {				\
-			TRACE_RET((chip), retval);			\
-		}							\
-	} while (0)
-
-#define RTSX_READ_REG(chip, addr, data)					\
-	do {								\
-		int retval = rtsx_read_register((chip), (addr), (data)); \
-		if (retval != STATUS_SUCCESS) {				\
-			TRACE_RET((chip), retval);			\
-		}							\
-	} while (0)
 
 #endif  /* __REALTEK_RTSX_CHIP_H */

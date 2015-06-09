@@ -43,6 +43,22 @@ static int smsc_phy_ack_interrupt(struct phy_device *phydev)
 
 static int smsc_phy_config_init(struct phy_device *phydev)
 {
+	int rc = phy_read(phydev, MII_LAN83C185_CTRL_STATUS);
+
+	if (rc < 0)
+		return rc;
+
+	/* Enable energy detect mode for this SMSC Transceivers */
+	rc = phy_write(phydev, MII_LAN83C185_CTRL_STATUS,
+		       rc | MII_LAN83C185_EDPWRDOWN);
+	if (rc < 0)
+		return rc;
+
+	return smsc_phy_ack_interrupt(phydev);
+}
+
+static int smsc_phy_reset(struct phy_device *phydev)
+{
 	int rc = phy_read(phydev, MII_LAN83C185_SPECIAL_MODES);
 	if (rc < 0)
 		return rc;
@@ -66,18 +82,7 @@ static int smsc_phy_config_init(struct phy_device *phydev)
 			rc = phy_read(phydev, MII_BMCR);
 		} while (rc & BMCR_RESET);
 	}
-
-	rc = phy_read(phydev, MII_LAN83C185_CTRL_STATUS);
-	if (rc < 0)
-		return rc;
-
-	/* Enable energy detect mode for this SMSC Transceivers */
-	rc = phy_write(phydev, MII_LAN83C185_CTRL_STATUS,
-		       rc | MII_LAN83C185_EDPWRDOWN);
-	if (rc < 0)
-		return rc;
-
-	return smsc_phy_ack_interrupt (phydev);
+	return 0;
 }
 
 static int lan911x_config_init(struct phy_device *phydev)
@@ -142,6 +147,7 @@ static struct phy_driver smsc_phy_driver[] = {
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.config_init	= smsc_phy_config_init,
+	.soft_reset	= smsc_phy_reset,
 
 	/* IRQ related */
 	.ack_interrupt	= smsc_phy_ack_interrupt,
@@ -164,6 +170,7 @@ static struct phy_driver smsc_phy_driver[] = {
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.config_init	= smsc_phy_config_init,
+	.soft_reset	= smsc_phy_reset,
 
 	/* IRQ related */
 	.ack_interrupt	= smsc_phy_ack_interrupt,
@@ -186,6 +193,7 @@ static struct phy_driver smsc_phy_driver[] = {
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.config_init	= smsc_phy_config_init,
+	.soft_reset	= smsc_phy_reset,
 
 	/* IRQ related */
 	.ack_interrupt	= smsc_phy_ack_interrupt,
@@ -230,6 +238,7 @@ static struct phy_driver smsc_phy_driver[] = {
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= lan87xx_read_status,
 	.config_init	= smsc_phy_config_init,
+	.soft_reset	= smsc_phy_reset,
 
 	/* IRQ related */
 	.ack_interrupt	= smsc_phy_ack_interrupt,
@@ -241,24 +250,11 @@ static struct phy_driver smsc_phy_driver[] = {
 	.driver		= { .owner = THIS_MODULE, }
 } };
 
-static int __init smsc_init(void)
-{
-	return phy_drivers_register(smsc_phy_driver,
-		ARRAY_SIZE(smsc_phy_driver));
-}
-
-static void __exit smsc_exit(void)
-{
-	return phy_drivers_unregister(smsc_phy_driver,
-		ARRAY_SIZE(smsc_phy_driver));
-}
+module_phy_driver(smsc_phy_driver);
 
 MODULE_DESCRIPTION("SMSC PHY driver");
 MODULE_AUTHOR("Herbert Valerio Riedel");
 MODULE_LICENSE("GPL");
-
-module_init(smsc_init);
-module_exit(smsc_exit);
 
 static struct mdio_device_id __maybe_unused smsc_tbl[] = {
 	{ 0x0007c0a0, 0xfffffff0 },

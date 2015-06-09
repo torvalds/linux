@@ -10,10 +10,13 @@
  * Kevin D. Kissell, kevink@mips.com and Carsten Langgaard, carstenl@mips.com
  * Copyright (C) 2002, 2003, 2004, 2005, 2007  Maciej W. Rozycki
  * Copyright (C) 2000, 2001, 2012 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2014, Imagination Technologies Ltd.
  */
+#include <linux/bitops.h>
 #include <linux/bug.h>
 #include <linux/compiler.h>
 #include <linux/context_tracking.h>
+#include <linux/cpu_pm.h>
 #include <linux/kexec.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -44,9 +47,11 @@
 #include <asm/fpu.h>
 #include <asm/fpu_emulator.h>
 #include <asm/idle.h>
+#include <asm/mips-r2-to-r6-emul.h>
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
 #include <asm/module.h>
+#include <asm/msa.h>
 #include <asm/pgtable.h>
 #include <asm/ptrace.h>
 #include <asm/sections.h>
@@ -77,14 +82,17 @@ extern asmlinkage void handle_ri_rdhwr(void);
 extern asmlinkage void handle_cpu(void);
 extern asmlinkage void handle_ov(void);
 extern asmlinkage void handle_tr(void);
+extern asmlinkage void handle_msa_fpe(void);
 extern asmlinkage void handle_fpe(void);
 extern asmlinkage void handle_ftlb(void);
+extern asmlinkage void handle_msa(void);
 extern asmlinkage void handle_mdmx(void);
 extern asmlinkage void handle_watch(void);
 extern asmlinkage void handle_mt(void);
 extern asmlinkage void handle_dsp(void);
 extern asmlinkage void handle_mcheck(void);
 extern asmlinkage void handle_reserved(void);
+extern void tlb_do_page_fault_0(void);
 
 void (*board_be_init)(void);
 int (*board_be_handler)(struct pt_regs *regs, int is_fixup);
@@ -261,7 +269,6 @@ static void __show_regs(const struct pt_regs *regs)
 	 */
 	printk("epc   : %0*lx %pS\n", field, regs->cp0_epc,
 	       (void *) regs->cp0_epc);
-	printk("    %s\n", print_tainted());
 	printk("ra    : %0*lx %pS\n", field, regs->regs[31],
 	       (void *) regs->regs[31]);
 
@@ -366,9 +373,6 @@ void __noreturn die(const char *str, struct pt_regs *regs)
 {
 	static int die_counter;
 	int sig = SIGSEGV;
-#ifdef CONFIG_MIPS_MT_SMTC
-	unsigned long dvpret;
-#endif /* CONFIG_MIPS_MT_SMTC */
 
 	oops_enter();
 
@@ -378,13 +382,7 @@ void __noreturn die(const char *str, struct pt_regs *regs)
 
 	console_verbose();
 	raw_spin_lock_irq(&die_lock);
-#ifdef CONFIG_MIPS_MT_SMTC
-	dvpret = dvpe();
-#endif /* CONFIG_MIPS_MT_SMTC */
 	bust_spinlocks(1);
-#ifdef CONFIG_MIPS_MT_SMTC
-	mips_mt_regdump(dvpret);
-#endif /* CONFIG_MIPS_MT_SMTC */
 
 	printk("%s[#%d]:\n", str, ++die_counter);
 	show_registers(regs);
@@ -701,28 +699,113 @@ asmlinkage void do_ov(struct pt_regs *regs)
 	exception_exit(prev_state);
 }
 
-int process_fpemu_return(int sig, void __user *fault_addr)
+int process_fpemu_return(int sig, void __user *fault_addr, unsigned long fcr31)
 {
-	if (sig == SIGSEGV || sig == SIGBUS) {
-		struct siginfo si = {0};
+	struct siginfo si = { 0 };
+
+	switch (sig) {
+	case 0:
+		return 0;
+
+	case SIGFPE:
 		si.si_addr = fault_addr;
 		si.si_signo = sig;
-		if (sig == SIGSEGV) {
-			if (find_vma(current->mm, (unsigned long)fault_addr))
-				si.si_code = SEGV_ACCERR;
-			else
-				si.si_code = SEGV_MAPERR;
-		} else {
-			si.si_code = BUS_ADRERR;
-		}
+		/*
+		 * Inexact can happen together with Overflow or Underflow.
+		 * Respect the mask to deliver the correct exception.
+		 */
+		fcr31 &= (fcr31 & FPU_CSR_ALL_E) <<
+			 (ffs(FPU_CSR_ALL_X) - ffs(FPU_CSR_ALL_E));
+		if (fcr31 & FPU_CSR_INV_X)
+			si.si_code = FPE_FLTINV;
+		else if (fcr31 & FPU_CSR_DIV_X)
+			si.si_code = FPE_FLTDIV;
+		else if (fcr31 & FPU_CSR_OVF_X)
+			si.si_code = FPE_FLTOVF;
+		else if (fcr31 & FPU_CSR_UDF_X)
+			si.si_code = FPE_FLTUND;
+		else if (fcr31 & FPU_CSR_INE_X)
+			si.si_code = FPE_FLTRES;
+		else
+			si.si_code = __SI_FAULT;
 		force_sig_info(sig, &si, current);
 		return 1;
-	} else if (sig) {
+
+	case SIGBUS:
+		si.si_addr = fault_addr;
+		si.si_signo = sig;
+		si.si_code = BUS_ADRERR;
+		force_sig_info(sig, &si, current);
+		return 1;
+
+	case SIGSEGV:
+		si.si_addr = fault_addr;
+		si.si_signo = sig;
+		down_read(&current->mm->mmap_sem);
+		if (find_vma(current->mm, (unsigned long)fault_addr))
+			si.si_code = SEGV_ACCERR;
+		else
+			si.si_code = SEGV_MAPERR;
+		up_read(&current->mm->mmap_sem);
+		force_sig_info(sig, &si, current);
+		return 1;
+
+	default:
 		force_sig(sig, current);
 		return 1;
-	} else {
-		return 0;
 	}
+}
+
+static int simulate_fp(struct pt_regs *regs, unsigned int opcode,
+		       unsigned long old_epc, unsigned long old_ra)
+{
+	union mips_instruction inst = { .word = opcode };
+	void __user *fault_addr;
+	unsigned long fcr31;
+	int sig;
+
+	/* If it's obviously not an FP instruction, skip it */
+	switch (inst.i_format.opcode) {
+	case cop1_op:
+	case cop1x_op:
+	case lwc1_op:
+	case ldc1_op:
+	case swc1_op:
+	case sdc1_op:
+		break;
+
+	default:
+		return -1;
+	}
+
+	/*
+	 * do_ri skipped over the instruction via compute_return_epc, undo
+	 * that for the FPU emulator.
+	 */
+	regs->cp0_epc = old_epc;
+	regs->regs[31] = old_ra;
+
+	/* Save the FP context to struct thread_struct */
+	lose_fpu(1);
+
+	/* Run the emulator */
+	sig = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 1,
+				       &fault_addr);
+	fcr31 = current->thread.fpu.fcr31;
+
+	/*
+	 * We can't allow the emulated instruction to leave any of
+	 * the cause bits set in $fcr31.
+	 */
+	current->thread.fpu.fcr31 &= ~FPU_CSR_ALL_X;
+
+	/* Restore the hardware register state */
+	own_fpu(1);
+
+	/* Send a signal if required.  */
+	process_fpemu_return(sig, fault_addr, fcr31);
+
+	return 0;
 }
 
 /*
@@ -731,18 +814,21 @@ int process_fpemu_return(int sig, void __user *fault_addr)
 asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 {
 	enum ctx_state prev_state;
-	siginfo_t info = {0};
+	void __user *fault_addr;
+	int sig;
 
 	prev_state = exception_enter();
 	if (notify_die(DIE_FP, "FP exception", regs, 0, regs_to_trapnr(regs),
 		       SIGFPE) == NOTIFY_STOP)
 		goto out;
+
+	/* Clear FCSR.Cause before enabling interrupts */
+	write_32bit_cp1_register(CP1_STATUS, fcr31 & ~FPU_CSR_ALL_X);
+	local_irq_enable();
+
 	die_if_kernel("FP exception in kernel code", regs);
 
 	if (fcr31 & FPU_CSR_UNI_X) {
-		int sig;
-		void __user *fault_addr = NULL;
-
 		/*
 		 * Unimplemented operation exception.  If we've got the full
 		 * software emulator on-board, let's use it...
@@ -759,42 +845,29 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 		/* Run the emulator */
 		sig = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 1,
 					       &fault_addr);
+		fcr31 = current->thread.fpu.fcr31;
 
 		/*
 		 * We can't allow the emulated instruction to leave any of
-		 * the cause bit set in $fcr31.
+		 * the cause bits set in $fcr31.
 		 */
 		current->thread.fpu.fcr31 &= ~FPU_CSR_ALL_X;
 
 		/* Restore the hardware register state */
 		own_fpu(1);	/* Using the FPU again.	 */
+	} else {
+		sig = SIGFPE;
+		fault_addr = (void __user *) regs->cp0_epc;
+	}
 
-		/* If something went wrong, signal */
-		process_fpemu_return(sig, fault_addr);
-
-		goto out;
-	} else if (fcr31 & FPU_CSR_INV_X)
-		info.si_code = FPE_FLTINV;
-	else if (fcr31 & FPU_CSR_DIV_X)
-		info.si_code = FPE_FLTDIV;
-	else if (fcr31 & FPU_CSR_OVF_X)
-		info.si_code = FPE_FLTOVF;
-	else if (fcr31 & FPU_CSR_UDF_X)
-		info.si_code = FPE_FLTUND;
-	else if (fcr31 & FPU_CSR_INE_X)
-		info.si_code = FPE_FLTRES;
-	else
-		info.si_code = __SI_FAULT;
-	info.si_signo = SIGFPE;
-	info.si_errno = 0;
-	info.si_addr = (void __user *) regs->cp0_epc;
-	force_sig_info(SIGFPE, &info, current);
+	/* Send a signal if required.  */
+	process_fpemu_return(sig, fault_addr, fcr31);
 
 out:
 	exception_exit(prev_state);
 }
 
-static void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
+void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
 	const char *str)
 {
 	siginfo_t info;
@@ -835,9 +908,9 @@ static void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
 		break;
 	case BRK_MEMU:
 		/*
-		 * Address errors may be deliberately induced by the FPU
-		 * emulator to retake control of the CPU after executing the
-		 * instruction in the delay slot of an emulated branch.
+		 * This breakpoint code is used by the FPU emulator to retake
+		 * control of the CPU after executing the instruction from the
+		 * delay slot of an emulated branch.
 		 *
 		 * Terminate if exception was recognized as a delay slot return
 		 * otherwise handle as normal.
@@ -857,31 +930,39 @@ static void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
 
 asmlinkage void do_bp(struct pt_regs *regs)
 {
+	unsigned long epc = msk_isa16_mode(exception_epc(regs));
 	unsigned int opcode, bcode;
 	enum ctx_state prev_state;
-	unsigned long epc;
-	u16 instr[2];
+	mm_segment_t seg;
+
+	seg = get_fs();
+	if (!user_mode(regs))
+		set_fs(KERNEL_DS);
 
 	prev_state = exception_enter();
 	if (get_isa16_mode(regs->cp0_epc)) {
-		/* Calculate EPC. */
-		epc = exception_epc(regs);
-		if (cpu_has_mmips) {
-			if ((__get_user(instr[0], (u16 __user *)msk_isa16_mode(epc)) ||
-			    (__get_user(instr[1], (u16 __user *)msk_isa16_mode(epc + 2)))))
-				goto out_sigsegv;
-		    opcode = (instr[0] << 16) | instr[1];
+		u16 instr[2];
+
+		if (__get_user(instr[0], (u16 __user *)epc))
+			goto out_sigsegv;
+
+		if (!cpu_has_mmips) {
+			/* MIPS16e mode */
+			bcode = (instr[0] >> 5) & 0x3f;
+		} else if (mm_insn_16bit(instr[0])) {
+			/* 16-bit microMIPS BREAK */
+			bcode = instr[0] & 0xf;
 		} else {
-		    /* MIPS16e mode */
-		    if (__get_user(instr[0], (u16 __user *)msk_isa16_mode(epc)))
+			/* 32-bit microMIPS BREAK */
+			if (__get_user(instr[1], (u16 __user *)(epc + 2)))
 				goto out_sigsegv;
-		    bcode = (instr[0] >> 6) & 0x3f;
-		    do_trap_or_bp(regs, bcode, "Break");
-		    goto out;
+			opcode = (instr[0] << 16) | instr[1];
+			bcode = (opcode >> 6) & ((1 << 20) - 1);
 		}
 	} else {
-		if (__get_user(opcode, (unsigned int __user *) exception_epc(regs)))
+		if (__get_user(opcode, (unsigned int __user *)epc))
 			goto out_sigsegv;
+		bcode = (opcode >> 6) & ((1 << 20) - 1);
 	}
 
 	/*
@@ -890,9 +971,8 @@ asmlinkage void do_bp(struct pt_regs *regs)
 	 * Gas is bug-compatible, but not always, grrr...
 	 * We handle both cases with a simple heuristics.  --macro
 	 */
-	bcode = ((opcode >> 6) & ((1 << 20) - 1));
 	if (bcode >= (1 << 10))
-		bcode >>= 10;
+		bcode = ((bcode & ((1 << 10) - 1)) << 10) | (bcode >> 10);
 
 	/*
 	 * notify the kprobe handlers, if instruction is likely to
@@ -918,6 +998,7 @@ asmlinkage void do_bp(struct pt_regs *regs)
 	do_trap_or_bp(regs, bcode, "Break");
 
 out:
+	set_fs(seg);
 	exception_exit(prev_state);
 	return;
 
@@ -931,7 +1012,12 @@ asmlinkage void do_tr(struct pt_regs *regs)
 	u32 opcode, tcode = 0;
 	enum ctx_state prev_state;
 	u16 instr[2];
+	mm_segment_t seg;
 	unsigned long epc = msk_isa16_mode(exception_epc(regs));
+
+	seg = get_fs();
+	if (!user_mode(regs))
+		set_fs(get_ds());
 
 	prev_state = exception_enter();
 	if (get_isa16_mode(regs->cp0_epc)) {
@@ -953,6 +1039,7 @@ asmlinkage void do_tr(struct pt_regs *regs)
 	do_trap_or_bp(regs, tcode, "Trap");
 
 out:
+	set_fs(seg);
 	exception_exit(prev_state);
 	return;
 
@@ -970,7 +1057,36 @@ asmlinkage void do_ri(struct pt_regs *regs)
 	unsigned int opcode = 0;
 	int status = -1;
 
+	/*
+	 * Avoid any kernel code. Just emulate the R2 instruction
+	 * as quickly as possible.
+	 */
+	if (mipsr2_emulation && cpu_has_mips_r6 &&
+	    likely(user_mode(regs)) &&
+	    likely(get_user(opcode, epc) >= 0)) {
+		unsigned long fcr31 = 0;
+
+		status = mipsr2_decoder(regs, opcode, &fcr31);
+		switch (status) {
+		case 0:
+		case SIGEMT:
+			task_thread_info(current)->r2_emul_return = 1;
+			return;
+		case SIGILL:
+			goto no_r2_instr;
+		default:
+			process_fpemu_return(status,
+					     &current->thread.cp0_baduaddr,
+					     fcr31);
+			task_thread_info(current)->r2_emul_return = 1;
+			return;
+		}
+	}
+
+no_r2_instr:
+
 	prev_state = exception_enter();
+
 	if (notify_die(DIE_RI, "RI Fault", regs, 0, regs_to_trapnr(regs),
 		       SIGILL) == NOTIFY_STOP)
 		goto out;
@@ -1003,6 +1119,9 @@ asmlinkage void do_ri(struct pt_regs *regs)
 
 		if (status < 0)
 			status = simulate_sync(regs, opcode);
+
+		if (status < 0)
+			status = simulate_fp(regs, opcode, old_epc, old31);
 	}
 
 	if (status < 0)
@@ -1033,13 +1152,13 @@ static void mt_ase_fp_affinity(void)
 		 * restricted the allowed set to exclude any CPUs with FPUs,
 		 * we'll skip the procedure.
 		 */
-		if (cpus_intersects(current->cpus_allowed, mt_fpu_cpumask)) {
+		if (cpumask_intersects(&current->cpus_allowed, &mt_fpu_cpumask)) {
 			cpumask_t tmask;
 
 			current->thread.user_cpus_allowed
 				= current->cpus_allowed;
-			cpus_and(tmask, current->cpus_allowed,
-				mt_fpu_cpumask);
+			cpumask_and(&tmask, &current->cpus_allowed,
+				    &mt_fpu_cpumask);
 			set_cpus_allowed_ptr(current, &tmask);
 			set_thread_flag(TIF_FPUBOUND);
 		}
@@ -1074,15 +1193,144 @@ static int default_cu2_call(struct notifier_block *nfb, unsigned long action,
 	return NOTIFY_OK;
 }
 
+static int wait_on_fp_mode_switch(atomic_t *p)
+{
+	/*
+	 * The FP mode for this task is currently being switched. That may
+	 * involve modifications to the format of this tasks FP context which
+	 * make it unsafe to proceed with execution for the moment. Instead,
+	 * schedule some other task.
+	 */
+	schedule();
+	return 0;
+}
+
+static int enable_restore_fp_context(int msa)
+{
+	int err, was_fpu_owner, prior_msa;
+
+	/*
+	 * If an FP mode switch is currently underway, wait for it to
+	 * complete before proceeding.
+	 */
+	wait_on_atomic_t(&current->mm->context.fp_mode_switching,
+			 wait_on_fp_mode_switch, TASK_KILLABLE);
+
+	if (!used_math()) {
+		/* First time FP context user. */
+		preempt_disable();
+		err = init_fpu();
+		if (msa && !err) {
+			enable_msa();
+			_init_msa_upper();
+			set_thread_flag(TIF_USEDMSA);
+			set_thread_flag(TIF_MSA_CTX_LIVE);
+		}
+		preempt_enable();
+		if (!err)
+			set_used_math();
+		return err;
+	}
+
+	/*
+	 * This task has formerly used the FP context.
+	 *
+	 * If this thread has no live MSA vector context then we can simply
+	 * restore the scalar FP context. If it has live MSA vector context
+	 * (that is, it has or may have used MSA since last performing a
+	 * function call) then we'll need to restore the vector context. This
+	 * applies even if we're currently only executing a scalar FP
+	 * instruction. This is because if we were to later execute an MSA
+	 * instruction then we'd either have to:
+	 *
+	 *  - Restore the vector context & clobber any registers modified by
+	 *    scalar FP instructions between now & then.
+	 *
+	 * or
+	 *
+	 *  - Not restore the vector context & lose the most significant bits
+	 *    of all vector registers.
+	 *
+	 * Neither of those options is acceptable. We cannot restore the least
+	 * significant bits of the registers now & only restore the most
+	 * significant bits later because the most significant bits of any
+	 * vector registers whose aliased FP register is modified now will have
+	 * been zeroed. We'd have no way to know that when restoring the vector
+	 * context & thus may load an outdated value for the most significant
+	 * bits of a vector register.
+	 */
+	if (!msa && !thread_msa_context_live())
+		return own_fpu(1);
+
+	/*
+	 * This task is using or has previously used MSA. Thus we require
+	 * that Status.FR == 1.
+	 */
+	preempt_disable();
+	was_fpu_owner = is_fpu_owner();
+	err = own_fpu_inatomic(0);
+	if (err)
+		goto out;
+
+	enable_msa();
+	write_msa_csr(current->thread.fpu.msacsr);
+	set_thread_flag(TIF_USEDMSA);
+
+	/*
+	 * If this is the first time that the task is using MSA and it has
+	 * previously used scalar FP in this time slice then we already nave
+	 * FP context which we shouldn't clobber. We do however need to clear
+	 * the upper 64b of each vector register so that this task has no
+	 * opportunity to see data left behind by another.
+	 */
+	prior_msa = test_and_set_thread_flag(TIF_MSA_CTX_LIVE);
+	if (!prior_msa && was_fpu_owner) {
+		_init_msa_upper();
+
+		goto out;
+	}
+
+	if (!prior_msa) {
+		/*
+		 * Restore the least significant 64b of each vector register
+		 * from the existing scalar FP context.
+		 */
+		_restore_fp(current);
+
+		/*
+		 * The task has not formerly used MSA, so clear the upper 64b
+		 * of each vector register such that it cannot see data left
+		 * behind by another task.
+		 */
+		_init_msa_upper();
+	} else {
+		/* We need to restore the vector context. */
+		restore_msa(current);
+
+		/* Restore the scalar FP control & status register */
+		if (!was_fpu_owner)
+			write_32bit_cp1_register(CP1_STATUS,
+						 current->thread.fpu.fcr31);
+	}
+
+out:
+	preempt_enable();
+
+	return 0;
+}
+
 asmlinkage void do_cpu(struct pt_regs *regs)
 {
 	enum ctx_state prev_state;
 	unsigned int __user *epc;
 	unsigned long old_epc, old31;
+	void __user *fault_addr;
 	unsigned int opcode;
+	unsigned long fcr31;
 	unsigned int cpid;
 	int status, err;
 	unsigned long __maybe_unused flags;
+	int sig;
 
 	prev_state = exception_enter();
 	cpid = (regs->cp0_cause >> CAUSEB_CE) & 3;
@@ -1099,7 +1347,7 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 		status = -1;
 
 		if (unlikely(compute_return_epc(regs) < 0))
-			goto out;
+			break;
 
 		if (get_isa16_mode(regs->cp0_epc)) {
 			unsigned short mmop[2] = { 0 };
@@ -1132,53 +1380,93 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 			force_sig(status, current);
 		}
 
-		goto out;
+		break;
 
 	case 3:
 		/*
-		 * Old (MIPS I and MIPS II) processors will set this code
-		 * for COP1X opcode instructions that replaced the original
-		 * COP3 space.	We don't limit COP1 space instructions in
-		 * the emulator according to the CPU ISA, so we want to
-		 * treat COP1X instructions consistently regardless of which
-		 * code the CPU chose.	Therefore we redirect this trap to
-		 * the FP emulator too.
-		 *
-		 * Then some newer FPU-less processors use this code
-		 * erroneously too, so they are covered by this choice
-		 * as well.
+		 * The COP3 opcode space and consequently the CP0.Status.CU3
+		 * bit and the CP0.Cause.CE=3 encoding have been removed as
+		 * of the MIPS III ISA.  From the MIPS IV and MIPS32r2 ISAs
+		 * up the space has been reused for COP1X instructions, that
+		 * are enabled by the CP0.Status.CU1 bit and consequently
+		 * use the CP0.Cause.CE=1 encoding for Coprocessor Unusable
+		 * exceptions.  Some FPU-less processors that implement one
+		 * of these ISAs however use this code erroneously for COP1X
+		 * instructions.  Therefore we redirect this trap to the FP
+		 * emulator too.
 		 */
-		if (raw_cpu_has_fpu)
+		if (raw_cpu_has_fpu || !cpu_has_mips_4_5_64_r2_r6) {
+			force_sig(SIGILL, current);
 			break;
+		}
 		/* Fall through.  */
 
 	case 1:
-		if (used_math())	/* Using the FPU again.	 */
-			err = own_fpu(1);
-		else {			/* First time FPU user.	 */
-			err = init_fpu();
-			set_used_math();
-		}
+		err = enable_restore_fp_context(0);
 
-		if (!raw_cpu_has_fpu || err) {
-			int sig;
-			void __user *fault_addr = NULL;
-			sig = fpu_emulator_cop1Handler(regs,
-						       &current->thread.fpu,
-						       0, &fault_addr);
-			if (!process_fpemu_return(sig, fault_addr) && !err)
-				mt_ase_fp_affinity();
-		}
+		if (raw_cpu_has_fpu && !err)
+			break;
 
-		goto out;
+		sig = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 0,
+					       &fault_addr);
+		fcr31 = current->thread.fpu.fcr31;
+
+		/*
+		 * We can't allow the emulated instruction to leave
+		 * any of the cause bits set in $fcr31.
+		 */
+		current->thread.fpu.fcr31 &= ~FPU_CSR_ALL_X;
+
+		/* Send a signal if required.  */
+		if (!process_fpemu_return(sig, fault_addr, fcr31) && !err)
+			mt_ase_fp_affinity();
+
+		break;
 
 	case 2:
 		raw_notifier_call_chain(&cu2_chain, CU2_EXCEPTION, regs);
+		break;
+	}
+
+	exception_exit(prev_state);
+}
+
+asmlinkage void do_msa_fpe(struct pt_regs *regs, unsigned int msacsr)
+{
+	enum ctx_state prev_state;
+
+	prev_state = exception_enter();
+	if (notify_die(DIE_MSAFP, "MSA FP exception", regs, 0,
+		       regs_to_trapnr(regs), SIGFPE) == NOTIFY_STOP)
+		goto out;
+
+	/* Clear MSACSR.Cause before enabling interrupts */
+	write_msa_csr(msacsr & ~MSA_CSR_CAUSEF);
+	local_irq_enable();
+
+	die_if_kernel("do_msa_fpe invoked from kernel context!", regs);
+	force_sig(SIGFPE, current);
+out:
+	exception_exit(prev_state);
+}
+
+asmlinkage void do_msa(struct pt_regs *regs)
+{
+	enum ctx_state prev_state;
+	int err;
+
+	prev_state = exception_enter();
+
+	if (!cpu_has_msa || test_thread_flag(TIF_32BIT_FPREGS)) {
+		force_sig(SIGILL, current);
 		goto out;
 	}
 
-	force_sig(SIGILL, current);
+	die_if_kernel("do_msa invoked from kernel context!", regs);
 
+	err = enable_restore_fp_context(1);
+	if (err)
+		force_sig(SIGILL, current);
 out:
 	exception_exit(prev_state);
 }
@@ -1235,12 +1523,19 @@ asmlinkage void do_mcheck(struct pt_regs *regs)
 	show_regs(regs);
 
 	if (multi_match) {
-		printk("Index	: %0x\n", read_c0_index());
-		printk("Pagemask: %0x\n", read_c0_pagemask());
-		printk("EntryHi : %0*lx\n", field, read_c0_entryhi());
-		printk("EntryLo0: %0*lx\n", field, read_c0_entrylo0());
-		printk("EntryLo1: %0*lx\n", field, read_c0_entrylo1());
-		printk("\n");
+		pr_err("Index	: %0x\n", read_c0_index());
+		pr_err("Pagemask: %0x\n", read_c0_pagemask());
+		pr_err("EntryHi : %0*lx\n", field, read_c0_entryhi());
+		pr_err("EntryLo0: %0*lx\n", field, read_c0_entrylo0());
+		pr_err("EntryLo1: %0*lx\n", field, read_c0_entrylo1());
+		pr_err("Wired   : %0x\n", read_c0_wired());
+		pr_err("Pagegrain: %0x\n", read_c0_pagegrain());
+		if (cpu_has_htw) {
+			pr_err("PWField : %0*lx\n", field, read_c0_pwfield());
+			pr_err("PWSize  : %0*lx\n", field, read_c0_pwsize());
+			pr_err("PWCtl   : %0x\n", read_c0_pwctl());
+		}
+		pr_err("\n");
 		dump_tlb_all();
 	}
 
@@ -1337,8 +1632,11 @@ static inline void parity_protection_init(void)
 	case CPU_34K:
 	case CPU_74K:
 	case CPU_1004K:
+	case CPU_1074K:
 	case CPU_INTERAPTIV:
 	case CPU_PROAPTIV:
+	case CPU_P5600:
+	case CPU_QEMU_GENERIC:
 		{
 #define ERRCTL_PE	0x80000000
 #define ERRCTL_L2P	0x00800000
@@ -1428,8 +1726,8 @@ asmlinkage void cache_parity_error(void)
 	printk("Decoded c0_cacheerr: %s cache fault in %s reference.\n",
 	       reg_val & (1<<30) ? "secondary" : "primary",
 	       reg_val & (1<<31) ? "data" : "insn");
-	if (cpu_has_mips_r2 &&
-	    ((current_cpu_data.processor_id && 0xff0000) == PRID_COMP_MIPS)) {
+	if ((cpu_has_mips_r2_r6) &&
+	    ((current_cpu_data.processor_id & 0xff0000) == PRID_COMP_MIPS)) {
 		pr_err("Error bits: %s%s%s%s%s%s%s%s\n",
 			reg_val & (1<<29) ? "ED " : "",
 			reg_val & (1<<28) ? "ET " : "",
@@ -1468,8 +1766,8 @@ asmlinkage void do_ftlb(void)
 	unsigned int reg_val;
 
 	/* For the moment, report the problem and hang. */
-	if (cpu_has_mips_r2 &&
-	    ((current_cpu_data.processor_id && 0xff0000) == PRID_COMP_MIPS)) {
+	if ((cpu_has_mips_r2_r6) &&
+	    ((current_cpu_data.processor_id & 0xff0000) == PRID_COMP_MIPS)) {
 		pr_err("FTLB error exception, cp0_ecc=0x%08x:\n",
 		       read_c0_ecc());
 		pr_err("cp0_errorepc == %0*lx\n", field, read_c0_errorepc());
@@ -1643,19 +1941,6 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 		extern char rollback_except_vec_vi;
 		char *vec_start = using_rollback_handler() ?
 			&rollback_except_vec_vi : &except_vec_vi;
-#ifdef CONFIG_MIPS_MT_SMTC
-		/*
-		 * We need to provide the SMTC vectored interrupt handler
-		 * not only with the address of the handler, but with the
-		 * Status.IM bit to be masked before going there.
-		 */
-		extern char except_vec_vi_mori;
-#if defined(CONFIG_CPU_MICROMIPS) || defined(CONFIG_CPU_BIG_ENDIAN)
-		const int mori_offset = &except_vec_vi_mori - vec_start + 2;
-#else
-		const int mori_offset = &except_vec_vi_mori - vec_start;
-#endif
-#endif /* CONFIG_MIPS_MT_SMTC */
 #if defined(CONFIG_CPU_MICROMIPS) || defined(CONFIG_CPU_BIG_ENDIAN)
 		const int lui_offset = &except_vec_vi_lui - vec_start + 2;
 		const int ori_offset = &except_vec_vi_ori - vec_start + 2;
@@ -1679,12 +1964,6 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 #else
 				handler_len);
 #endif
-#ifdef CONFIG_MIPS_MT_SMTC
-		BUG_ON(n > 7);	/* Vector index %d exceeds SMTC maximum. */
-
-		h = (u16 *)(b + mori_offset);
-		*h = (0x100 << n);
-#endif /* CONFIG_MIPS_MT_SMTC */
 		h = (u16 *)(b + lui_offset);
 		*h = (handler >> 16) & 0xffff;
 		h = (u16 *)(b + ori_offset);
@@ -1738,6 +2017,12 @@ int cp0_compare_irq_shift;
 int cp0_perfcount_irq;
 EXPORT_SYMBOL_GPL(cp0_perfcount_irq);
 
+/*
+ * Fast debug channel IRQ or -1 if not present
+ */
+int cp0_fdc_irq;
+EXPORT_SYMBOL_GPL(cp0_fdc_irq);
+
 static int noulri;
 
 static int __init ulri_disable(char *s)
@@ -1749,32 +2034,16 @@ static int __init ulri_disable(char *s)
 }
 __setup("noulri", ulri_disable);
 
-void per_cpu_trap_init(bool is_boot_cpu)
+/* configure STATUS register */
+static void configure_status(void)
 {
-	unsigned int cpu = smp_processor_id();
-	unsigned int status_set = ST0_CU0;
-	unsigned int hwrena = cpu_hwrena_impl_bits;
-#ifdef CONFIG_MIPS_MT_SMTC
-	int secondaryTC = 0;
-	int bootTC = (cpu == 0);
-
-	/*
-	 * Only do per_cpu_trap_init() for first TC of Each VPE.
-	 * Note that this hack assumes that the SMTC init code
-	 * assigns TCs consecutively and in ascending order.
-	 */
-
-	if (((read_c0_tcbind() & TCBIND_CURTC) != 0) &&
-	    ((read_c0_tcbind() & TCBIND_CURVPE) == cpu_data[cpu - 1].vpe_id))
-		secondaryTC = 1;
-#endif /* CONFIG_MIPS_MT_SMTC */
-
 	/*
 	 * Disable coprocessors and select 32-bit or 64-bit addressing
 	 * and the 16/32 or 32/32 FPR register model.  Reset the BEV
 	 * flag that some firmware may have left set and the TS bit (for
 	 * IP27).  Set XX for ISA IV code to work.
 	 */
+	unsigned int status_set = ST0_CU0;
 #ifdef CONFIG_64BIT
 	status_set |= ST0_FR|ST0_KX|ST0_SX|ST0_UX;
 #endif
@@ -1785,8 +2054,14 @@ void per_cpu_trap_init(bool is_boot_cpu)
 
 	change_c0_status(ST0_CU|ST0_MX|ST0_RE|ST0_FR|ST0_BEV|ST0_TS|ST0_KX|ST0_SX|ST0_UX,
 			 status_set);
+}
 
-	if (cpu_has_mips_r2)
+/* configure HWRENA register */
+static void configure_hwrena(void)
+{
+	unsigned int hwrena = cpu_hwrena_impl_bits;
+
+	if (cpu_has_mips_r2_r6)
 		hwrena |= 0x0000000f;
 
 	if (!noulri && cpu_has_userlocal)
@@ -1794,11 +2069,10 @@ void per_cpu_trap_init(bool is_boot_cpu)
 
 	if (hwrena)
 		write_c0_hwrena(hwrena);
+}
 
-#ifdef CONFIG_MIPS_MT_SMTC
-	if (!secondaryTC) {
-#endif /* CONFIG_MIPS_MT_SMTC */
-
+static void configure_exception_vector(void)
+{
 	if (cpu_has_veic || cpu_has_vint) {
 		unsigned long sr = set_c0_status(ST0_BEV);
 		write_c0_ebase(ebase);
@@ -1814,28 +2088,38 @@ void per_cpu_trap_init(bool is_boot_cpu)
 		} else
 			set_c0_cause(CAUSEF_IV);
 	}
+}
+
+void per_cpu_trap_init(bool is_boot_cpu)
+{
+	unsigned int cpu = smp_processor_id();
+
+	configure_status();
+	configure_hwrena();
+
+	configure_exception_vector();
 
 	/*
 	 * Before R2 both interrupt numbers were fixed to 7, so on R2 only:
 	 *
 	 *  o read IntCtl.IPTI to determine the timer interrupt
 	 *  o read IntCtl.IPPCI to determine the performance counter interrupt
+	 *  o read IntCtl.IPFDC to determine the fast debug channel interrupt
 	 */
-	if (cpu_has_mips_r2) {
+	if (cpu_has_mips_r2_r6) {
 		cp0_compare_irq_shift = CAUSEB_TI - CAUSEB_IP;
 		cp0_compare_irq = (read_c0_intctl() >> INTCTLB_IPTI) & 7;
 		cp0_perfcount_irq = (read_c0_intctl() >> INTCTLB_IPPCI) & 7;
-		if (cp0_perfcount_irq == cp0_compare_irq)
-			cp0_perfcount_irq = -1;
+		cp0_fdc_irq = (read_c0_intctl() >> INTCTLB_IPFDC) & 7;
+		if (!cp0_fdc_irq)
+			cp0_fdc_irq = -1;
+
 	} else {
 		cp0_compare_irq = CP0_LEGACY_COMPARE_IRQ;
 		cp0_compare_irq_shift = CP0_LEGACY_PERFCNT_IRQ;
 		cp0_perfcount_irq = -1;
+		cp0_fdc_irq = -1;
 	}
-
-#ifdef CONFIG_MIPS_MT_SMTC
-	}
-#endif /* CONFIG_MIPS_MT_SMTC */
 
 	if (!cpu_data[cpu].asid_cache)
 		cpu_data[cpu].asid_cache = ASID_FIRST_VERSION;
@@ -1845,23 +2129,10 @@ void per_cpu_trap_init(bool is_boot_cpu)
 	BUG_ON(current->mm);
 	enter_lazy_tlb(&init_mm, current);
 
-#ifdef CONFIG_MIPS_MT_SMTC
-	if (bootTC) {
-#endif /* CONFIG_MIPS_MT_SMTC */
 		/* Boot CPU's cache setup in setup_arch(). */
 		if (!is_boot_cpu)
 			cpu_cache_init();
 		tlb_init();
-#ifdef CONFIG_MIPS_MT_SMTC
-	} else if (!secondaryTC) {
-		/*
-		 * First TC in non-boot VPE must do subset of tlb_init()
-		 * for MMU countrol registers.
-		 */
-		write_c0_pagemask(PM_DEFAULT_MASK);
-		write_c0_wired(0);
-	}
-#endif /* CONFIG_MIPS_MT_SMTC */
 	TLBMISS_HANDLER_SETUP();
 }
 
@@ -1929,7 +2200,7 @@ void __init trap_init(void)
 #else
         ebase = CKSEG0;
 #endif
-		if (cpu_has_mips_r2)
+		if (cpu_has_mips_r2_r6)
 			ebase += (read_c0_ebase() & 0x3ffff000);
 	}
 
@@ -2017,6 +2288,7 @@ void __init trap_init(void)
 	set_except_vector(11, handle_cpu);
 	set_except_vector(12, handle_ov);
 	set_except_vector(13, handle_tr);
+	set_except_vector(14, handle_msa_fpe);
 
 	if (current_cpu_type() == CPU_R6000 ||
 	    current_cpu_type() == CPU_R6000A) {
@@ -2040,6 +2312,13 @@ void __init trap_init(void)
 		set_except_vector(15, handle_fpe);
 
 	set_except_vector(16, handle_ftlb);
+
+	if (cpu_has_rixiex) {
+		set_except_vector(19, tlb_do_page_fault_0);
+		set_except_vector(20, tlb_do_page_fault_0);
+	}
+
+	set_except_vector(21, handle_msa);
 	set_except_vector(22, handle_mdmx);
 
 	if (cpu_has_mcheck)
@@ -2067,3 +2346,32 @@ void __init trap_init(void)
 
 	cu2_notifier(default_cu2_call, 0x80000000);	/* Run last  */
 }
+
+static int trap_pm_notifier(struct notifier_block *self, unsigned long cmd,
+			    void *v)
+{
+	switch (cmd) {
+	case CPU_PM_ENTER_FAILED:
+	case CPU_PM_EXIT:
+		configure_status();
+		configure_hwrena();
+		configure_exception_vector();
+
+		/* Restore register with CPU number for TLB handlers */
+		TLBMISS_HANDLER_RESTORE();
+
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block trap_pm_notifier_block = {
+	.notifier_call = trap_pm_notifier,
+};
+
+static int __init trap_pm_init(void)
+{
+	return cpu_pm_register_notifier(&trap_pm_notifier_block);
+}
+arch_initcall(trap_pm_init);

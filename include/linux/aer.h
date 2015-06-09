@@ -7,9 +7,13 @@
 #ifndef _AER_H_
 #define _AER_H_
 
+#include <linux/types.h>
+
 #define AER_NONFATAL			0
 #define AER_FATAL			1
 #define AER_CORRECTABLE			2
+
+struct pci_dev;
 
 struct aer_header_log_regs {
 	unsigned int dw0;

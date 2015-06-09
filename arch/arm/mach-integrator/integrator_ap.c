@@ -27,39 +27,31 @@
 #include <linux/syscore_ops.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/kmi.h>
-#include <linux/clocksource.h>
-#include <linux/clockchips.h>
-#include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/irqchip/versatile-fpga.h>
+#include <linux/irqchip.h>
 #include <linux/mtd/physmap.h>
-#include <linux/clk.h>
 #include <linux/platform_data/clk-integrator.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/stat.h>
-#include <linux/sys_soc.h>
 #include <linux/termios.h>
-#include <linux/sched_clock.h>
 
-#include <mach/hardware.h>
-#include <mach/platform.h>
 #include <asm/hardware/arm_timer.h>
 #include <asm/setup.h>
 #include <asm/param.h>		/* HZ */
 #include <asm/mach-types.h>
-
-#include <mach/lm.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
+#include "hardware.h"
 #include "cm.h"
 #include "common.h"
 #include "pci_v3.h"
+#include "lm.h"
 
 /* Base address to the AP system controller */
 void __iomem *ap_syscon_base;
@@ -90,11 +82,6 @@ static void __iomem *ebi_base;
 
 static struct map_desc ap_io_desc[] __initdata __maybe_unused = {
 	{
-		.virtual	= IO_ADDRESS(INTEGRATOR_CT_BASE),
-		.pfn		= __phys_to_pfn(INTEGRATOR_CT_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	}, {
 		.virtual	= IO_ADDRESS(INTEGRATOR_IC_BASE),
 		.pfn		= __phys_to_pfn(INTEGRATOR_IC_BASE),
 		.length		= SZ_4K,
@@ -258,189 +245,14 @@ struct amba_pl010_data ap_uart_data = {
 	.set_mctrl = integrator_uart_set_mctrl,
 };
 
-/*
- * Where is the timer (VA)?
- */
-#define TIMER0_VA_BASE __io_address(INTEGRATOR_TIMER0_BASE)
-#define TIMER1_VA_BASE __io_address(INTEGRATOR_TIMER1_BASE)
-#define TIMER2_VA_BASE __io_address(INTEGRATOR_TIMER2_BASE)
-
-static unsigned long timer_reload;
-
-static u64 notrace integrator_read_sched_clock(void)
-{
-	return -readl((void __iomem *) TIMER2_VA_BASE + TIMER_VALUE);
-}
-
-static void integrator_clocksource_init(unsigned long inrate,
-					void __iomem *base)
-{
-	u32 ctrl = TIMER_CTRL_ENABLE | TIMER_CTRL_PERIODIC;
-	unsigned long rate = inrate;
-
-	if (rate >= 1500000) {
-		rate /= 16;
-		ctrl |= TIMER_CTRL_DIV16;
-	}
-
-	writel(0xffff, base + TIMER_LOAD);
-	writel(ctrl, base + TIMER_CTRL);
-
-	clocksource_mmio_init(base + TIMER_VALUE, "timer2",
-			rate, 200, 16, clocksource_mmio_readl_down);
-	sched_clock_register(integrator_read_sched_clock, 16, rate);
-}
-
-static void __iomem * clkevt_base;
-
-/*
- * IRQ handler for the timer
- */
-static irqreturn_t integrator_timer_interrupt(int irq, void *dev_id)
-{
-	struct clock_event_device *evt = dev_id;
-
-	/* clear the interrupt */
-	writel(1, clkevt_base + TIMER_INTCLR);
-
-	evt->event_handler(evt);
-
-	return IRQ_HANDLED;
-}
-
-static void clkevt_set_mode(enum clock_event_mode mode, struct clock_event_device *evt)
-{
-	u32 ctrl = readl(clkevt_base + TIMER_CTRL) & ~TIMER_CTRL_ENABLE;
-
-	/* Disable timer */
-	writel(ctrl, clkevt_base + TIMER_CTRL);
-
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		/* Enable the timer and start the periodic tick */
-		writel(timer_reload, clkevt_base + TIMER_LOAD);
-		ctrl |= TIMER_CTRL_PERIODIC | TIMER_CTRL_ENABLE;
-		writel(ctrl, clkevt_base + TIMER_CTRL);
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-		/* Leave the timer disabled, .set_next_event will enable it */
-		ctrl &= ~TIMER_CTRL_PERIODIC;
-		writel(ctrl, clkevt_base + TIMER_CTRL);
-		break;
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	case CLOCK_EVT_MODE_RESUME:
-	default:
-		/* Just leave in disabled state */
-		break;
-	}
-
-}
-
-static int clkevt_set_next_event(unsigned long next, struct clock_event_device *evt)
-{
-	unsigned long ctrl = readl(clkevt_base + TIMER_CTRL);
-
-	writel(ctrl & ~TIMER_CTRL_ENABLE, clkevt_base + TIMER_CTRL);
-	writel(next, clkevt_base + TIMER_LOAD);
-	writel(ctrl | TIMER_CTRL_ENABLE, clkevt_base + TIMER_CTRL);
-
-	return 0;
-}
-
-static struct clock_event_device integrator_clockevent = {
-	.name		= "timer1",
-	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.set_mode	= clkevt_set_mode,
-	.set_next_event	= clkevt_set_next_event,
-	.rating		= 300,
-};
-
-static struct irqaction integrator_timer_irq = {
-	.name		= "timer",
-	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
-	.handler	= integrator_timer_interrupt,
-	.dev_id		= &integrator_clockevent,
-};
-
-static void integrator_clockevent_init(unsigned long inrate,
-				void __iomem *base, int irq)
-{
-	unsigned long rate = inrate;
-	unsigned int ctrl = 0;
-
-	clkevt_base = base;
-	/* Calculate and program a divisor */
-	if (rate > 0x100000 * HZ) {
-		rate /= 256;
-		ctrl |= TIMER_CTRL_DIV256;
-	} else if (rate > 0x10000 * HZ) {
-		rate /= 16;
-		ctrl |= TIMER_CTRL_DIV16;
-	}
-	timer_reload = rate / HZ;
-	writel(ctrl, clkevt_base + TIMER_CTRL);
-
-	setup_irq(irq, &integrator_timer_irq);
-	clockevents_config_and_register(&integrator_clockevent,
-					rate,
-					1,
-					0xffffU);
-}
-
 void __init ap_init_early(void)
 {
 }
 
-static void __init ap_of_timer_init(void)
-{
-	struct device_node *node;
-	const char *path;
-	void __iomem *base;
-	int err;
-	int irq;
-	struct clk *clk;
-	unsigned long rate;
-
-	clk = clk_get_sys("ap_timer", NULL);
-	BUG_ON(IS_ERR(clk));
-	clk_prepare_enable(clk);
-	rate = clk_get_rate(clk);
-
-	err = of_property_read_string(of_aliases,
-				"arm,timer-primary", &path);
-	if (WARN_ON(err))
-		return;
-	node = of_find_node_by_path(path);
-	base = of_iomap(node, 0);
-	if (WARN_ON(!base))
-		return;
-	writel(0, base + TIMER_CTRL);
-	integrator_clocksource_init(rate, base);
-
-	err = of_property_read_string(of_aliases,
-				"arm,timer-secondary", &path);
-	if (WARN_ON(err))
-		return;
-	node = of_find_node_by_path(path);
-	base = of_iomap(node, 0);
-	if (WARN_ON(!base))
-		return;
-	irq = irq_of_parse_and_map(node, 0);
-	writel(0, base + TIMER_CTRL);
-	integrator_clockevent_init(rate, base, irq);
-}
-
-static const struct of_device_id fpga_irq_of_match[] __initconst = {
-	{ .compatible = "arm,versatile-fpga-irq", .data = fpga_irq_of_init, },
-	{ /* Sentinel */ }
-};
-
 static void __init ap_init_irq_of(void)
 {
 	cm_init();
-	of_irq_init(fpga_irq_of_match);
-	integrator_clk_init(false);
+	irqchip_init();
 }
 
 /* For the Device Tree, add in the UART callbacks as AUXDATA */
@@ -473,25 +285,14 @@ static const struct of_device_id ebi_match[] = {
 static void __init ap_init_of(void)
 {
 	unsigned long sc_dec;
-	struct device_node *root;
 	struct device_node *syscon;
 	struct device_node *ebi;
-	struct device *parent;
-	struct soc_device *soc_dev;
-	struct soc_device_attribute *soc_dev_attr;
-	u32 ap_sc_id;
-	int err;
 	int i;
 
-	/* Here we create an SoC device for the root node */
-	root = of_find_node_by_path("/");
-	if (!root)
-		return;
-
-	syscon = of_find_matching_node(root, ap_syscon_match);
+	syscon = of_find_matching_node(NULL, ap_syscon_match);
 	if (!syscon)
 		return;
-	ebi = of_find_matching_node(root, ebi_match);
+	ebi = of_find_matching_node(NULL, ebi_match);
 	if (!ebi)
 		return;
 
@@ -502,35 +303,8 @@ static void __init ap_init_of(void)
 	if (!ebi_base)
 		return;
 
-	ap_sc_id = readl(ap_syscon_base);
-
-	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
-	if (!soc_dev_attr)
-		return;
-
-	err = of_property_read_string(root, "compatible",
-				      &soc_dev_attr->soc_id);
-	if (err)
-		return;
-	err = of_property_read_string(root, "model", &soc_dev_attr->machine);
-	if (err)
-		return;
-	soc_dev_attr->family = "Integrator";
-	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%c",
-					   'A' + (ap_sc_id & 0x0f));
-
-	soc_dev = soc_device_register(soc_dev_attr);
-	if (IS_ERR(soc_dev)) {
-		kfree(soc_dev_attr->revision);
-		kfree(soc_dev_attr);
-		return;
-	}
-
-	parent = soc_device_to_device(soc_dev);
-	integrator_init_sysfs(parent, ap_sc_id);
-
-	of_platform_populate(root, of_default_bus_match_table,
-			ap_auxdata_lookup, parent);
+	of_platform_populate(NULL, of_default_bus_match_table,
+			ap_auxdata_lookup, NULL);
 
 	sc_dec = readl(ap_syscon_base + INTEGRATOR_SC_DEC_OFFSET);
 	for (i = 0; i < 4; i++) {
@@ -563,9 +337,6 @@ DT_MACHINE_START(INTEGRATOR_AP_DT, "ARM Integrator/AP (Device Tree)")
 	.map_io		= ap_map_io,
 	.init_early	= ap_init_early,
 	.init_irq	= ap_init_irq_of,
-	.handle_irq	= fpga_handle_irq,
-	.init_time	= ap_of_timer_init,
 	.init_machine	= ap_init_of,
-	.restart	= integrator_restart,
 	.dt_compat      = ap_dt_board_compat,
 MACHINE_END

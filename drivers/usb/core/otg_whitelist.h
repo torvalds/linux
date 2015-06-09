@@ -10,8 +10,8 @@
  */
 
 /*
- * This OTG Whitelist is the OTG "Targeted Peripheral List".  It should
- * mostly use of USB_DEVICE() or USB_DEVICE_VER() entries..
+ * This OTG and Embedded Host Whitelist is "Targeted Peripheral List".
+ * It should mostly use of USB_DEVICE() or USB_DEVICE_VER() entries..
  *
  * YOU _SHOULD_ CHANGE THIS LIST TO MATCH YOUR PRODUCT AND ITS TESTING!
  */
@@ -50,14 +50,15 @@ static int is_targeted(struct usb_device *dev)
 {
 	struct usb_device_id	*id = whitelist_table;
 
-	/* possible in developer configs only! */
-	if (!dev->bus->otg_port)
-		return 1;
-
 	/* HNP test device is _never_ targeted (see OTG spec 6.6.6) */
 	if ((le16_to_cpu(dev->descriptor.idVendor) == 0x1a0a &&
 	     le16_to_cpu(dev->descriptor.idProduct) == 0xbadd))
 		return 0;
+
+	/* OTG PET device is always targeted (see OTG 2.0 ECN 6.4.2) */
+	if ((le16_to_cpu(dev->descriptor.idVendor) == 0x1a0a &&
+	     le16_to_cpu(dev->descriptor.idProduct) == 0x0200))
+		return 1;
 
 	/* NOTE: can't use usb_match_id() since interface caches
 	 * aren't set up yet. this is cut/paste from that code.
@@ -103,10 +104,7 @@ static int is_targeted(struct usb_device *dev)
 	dev_err(&dev->dev, "device v%04x p%04x is not supported\n",
 		le16_to_cpu(dev->descriptor.idVendor),
 		le16_to_cpu(dev->descriptor.idProduct));
-#ifdef	CONFIG_USB_OTG_WHITELIST
+
 	return 0;
-#else
-	return 1;
-#endif
 }
 

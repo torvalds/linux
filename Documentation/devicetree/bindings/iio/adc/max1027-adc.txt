@@ -1,0 +1,22 @@
+* Maxim 1027/1029/1031 Analog to Digital Converter (ADC)
+
+Required properties:
+  - compatible: Should be "maxim,max1027" or "maxim,max1029" or "maxim,max1031"
+  - reg: SPI chip select number for the device
+  - interrupt-parent: phandle to the parent interrupt controller
+  see: Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
+  - interrupts: IRQ line for the ADC
+  see: Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
+
+Recommended properties:
+- spi-max-frequency: Definition as per
+                     Documentation/devicetree/bindings/spi/spi-bus.txt
+
+Example:
+adc@0 {
+	compatible = "maxim,max1027";
+	reg = <0>;
+	interrupt-parent = <&gpio5>;
+	interrupts = <15 IRQ_TYPE_EDGE_RISING>;
+	spi-max-frequency = <1000000>;
+};

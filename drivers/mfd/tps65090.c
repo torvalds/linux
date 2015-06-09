@@ -32,14 +32,6 @@
 #define NUM_INT_REG 2
 #define TOTAL_NUM_REG 0x18
 
-/* interrupt status registers */
-#define TPS65090_INT_STS	0x0
-#define TPS65090_INT_STS2	0x1
-
-/* interrupt mask registers */
-#define TPS65090_INT_MSK	0x2
-#define TPS65090_INT_MSK2	0x3
-
 #define TPS65090_INT1_MASK_VAC_STATUS_CHANGE		1
 #define TPS65090_INT1_MASK_VSYS_STATUS_CHANGE		2
 #define TPS65090_INT1_MASK_BAT_STATUS_CHANGE		3
@@ -64,11 +56,16 @@ static struct resource charger_resources[] = {
 	}
 };
 
-static const struct mfd_cell tps65090s[] = {
-	{
+enum tps65090_cells {
+	PMIC = 0,
+	CHARGER = 1,
+};
+
+static struct mfd_cell tps65090s[] = {
+	[PMIC] = {
 		.name = "tps65090-pmic",
 	},
-	{
+	[CHARGER] = {
 		.name = "tps65090-charger",
 		.num_resources = ARRAY_SIZE(charger_resources),
 		.resources = &charger_resources[0],
@@ -79,58 +76,58 @@ static const struct mfd_cell tps65090s[] = {
 static const struct regmap_irq tps65090_irqs[] = {
 	/* INT1 IRQs*/
 	[TPS65090_IRQ_VAC_STATUS_CHANGE] = {
-			.mask = TPS65090_INT1_MASK_VAC_STATUS_CHANGE,
+		.mask = TPS65090_INT1_MASK_VAC_STATUS_CHANGE,
 	},
 	[TPS65090_IRQ_VSYS_STATUS_CHANGE] = {
-			.mask = TPS65090_INT1_MASK_VSYS_STATUS_CHANGE,
+		.mask = TPS65090_INT1_MASK_VSYS_STATUS_CHANGE,
 	},
 	[TPS65090_IRQ_BAT_STATUS_CHANGE] = {
-			.mask = TPS65090_INT1_MASK_BAT_STATUS_CHANGE,
+		.mask = TPS65090_INT1_MASK_BAT_STATUS_CHANGE,
 	},
 	[TPS65090_IRQ_CHARGING_STATUS_CHANGE] = {
-			.mask = TPS65090_INT1_MASK_CHARGING_STATUS_CHANGE,
+		.mask = TPS65090_INT1_MASK_CHARGING_STATUS_CHANGE,
 	},
 	[TPS65090_IRQ_CHARGING_COMPLETE] = {
-			.mask = TPS65090_INT1_MASK_CHARGING_COMPLETE,
+		.mask = TPS65090_INT1_MASK_CHARGING_COMPLETE,
 	},
 	[TPS65090_IRQ_OVERLOAD_DCDC1] = {
-			.mask = TPS65090_INT1_MASK_OVERLOAD_DCDC1,
+		.mask = TPS65090_INT1_MASK_OVERLOAD_DCDC1,
 	},
 	[TPS65090_IRQ_OVERLOAD_DCDC2] = {
-			.mask = TPS65090_INT1_MASK_OVERLOAD_DCDC2,
+		.mask = TPS65090_INT1_MASK_OVERLOAD_DCDC2,
 	},
 	/* INT2 IRQs*/
 	[TPS65090_IRQ_OVERLOAD_DCDC3] = {
-			.reg_offset = 1,
-			.mask = TPS65090_INT2_MASK_OVERLOAD_DCDC3,
+		.reg_offset = 1,
+		.mask = TPS65090_INT2_MASK_OVERLOAD_DCDC3,
 	},
 	[TPS65090_IRQ_OVERLOAD_FET1] = {
-			.reg_offset = 1,
-			.mask = TPS65090_INT2_MASK_OVERLOAD_FET1,
+		.reg_offset = 1,
+		.mask = TPS65090_INT2_MASK_OVERLOAD_FET1,
 	},
 	[TPS65090_IRQ_OVERLOAD_FET2] = {
-			.reg_offset = 1,
-			.mask = TPS65090_INT2_MASK_OVERLOAD_FET2,
+		.reg_offset = 1,
+		.mask = TPS65090_INT2_MASK_OVERLOAD_FET2,
 	},
 	[TPS65090_IRQ_OVERLOAD_FET3] = {
-			.reg_offset = 1,
-			.mask = TPS65090_INT2_MASK_OVERLOAD_FET3,
+		.reg_offset = 1,
+		.mask = TPS65090_INT2_MASK_OVERLOAD_FET3,
 	},
 	[TPS65090_IRQ_OVERLOAD_FET4] = {
-			.reg_offset = 1,
-			.mask = TPS65090_INT2_MASK_OVERLOAD_FET4,
+		.reg_offset = 1,
+		.mask = TPS65090_INT2_MASK_OVERLOAD_FET4,
 	},
 	[TPS65090_IRQ_OVERLOAD_FET5] = {
-			.reg_offset = 1,
-			.mask = TPS65090_INT2_MASK_OVERLOAD_FET5,
+		.reg_offset = 1,
+		.mask = TPS65090_INT2_MASK_OVERLOAD_FET5,
 	},
 	[TPS65090_IRQ_OVERLOAD_FET6] = {
-			.reg_offset = 1,
-			.mask = TPS65090_INT2_MASK_OVERLOAD_FET6,
+		.reg_offset = 1,
+		.mask = TPS65090_INT2_MASK_OVERLOAD_FET6,
 	},
 	[TPS65090_IRQ_OVERLOAD_FET7] = {
-			.reg_offset = 1,
-			.mask = TPS65090_INT2_MASK_OVERLOAD_FET7,
+		.reg_offset = 1,
+		.mask = TPS65090_INT2_MASK_OVERLOAD_FET7,
 	},
 };
 
@@ -139,17 +136,26 @@ static struct regmap_irq_chip tps65090_irq_chip = {
 	.irqs = tps65090_irqs,
 	.num_irqs = ARRAY_SIZE(tps65090_irqs),
 	.num_regs = NUM_INT_REG,
-	.status_base = TPS65090_INT_STS,
-	.mask_base = TPS65090_INT_MSK,
+	.status_base = TPS65090_REG_INTR_STS,
+	.mask_base = TPS65090_REG_INTR_MASK,
 	.mask_invert = true,
 };
 
 static bool is_volatile_reg(struct device *dev, unsigned int reg)
 {
-	if ((reg == TPS65090_INT_STS) || (reg == TPS65090_INT_STS2))
-		return true;
-	else
+	/* Nearly all registers have status bits mixed in, except a few */
+	switch (reg) {
+	case TPS65090_REG_INTR_MASK:
+	case TPS65090_REG_INTR_MASK2:
+	case TPS65090_REG_CG_CTRL0:
+	case TPS65090_REG_CG_CTRL1:
+	case TPS65090_REG_CG_CTRL2:
+	case TPS65090_REG_CG_CTRL3:
+	case TPS65090_REG_CG_CTRL4:
+	case TPS65090_REG_CG_CTRL5:
 		return false;
+	}
+	return true;
 }
 
 static const struct regmap_config tps65090_regmap_config = {
@@ -170,7 +176,7 @@ MODULE_DEVICE_TABLE(of, tps65090_of_match);
 #endif
 
 static int tps65090_i2c_probe(struct i2c_client *client,
-					const struct i2c_device_id *id)
+			      const struct i2c_device_id *id)
 {
 	struct tps65090_platform_data *pdata = dev_get_platdata(&client->dev);
 	int irq_base = 0;
@@ -204,18 +210,21 @@ static int tps65090_i2c_probe(struct i2c_client *client,
 
 	if (client->irq) {
 		ret = regmap_add_irq_chip(tps65090->rmap, client->irq,
-			IRQF_ONESHOT | IRQF_TRIGGER_LOW, irq_base,
-			&tps65090_irq_chip, &tps65090->irq_data);
-			if (ret) {
-				dev_err(&client->dev,
-					"IRQ init failed with err: %d\n", ret);
+					  IRQF_ONESHOT | IRQF_TRIGGER_LOW, irq_base,
+					  &tps65090_irq_chip, &tps65090->irq_data);
+		if (ret) {
+			dev_err(&client->dev,
+				"IRQ init failed with err: %d\n", ret);
 			return ret;
 		}
+	} else {
+		/* Don't tell children they have an IRQ that'll never fire */
+		tps65090s[CHARGER].num_resources = 0;
 	}
 
 	ret = mfd_add_devices(tps65090->dev, -1, tps65090s,
-		ARRAY_SIZE(tps65090s), NULL,
-		0, regmap_irq_get_domain(tps65090->irq_data));
+			      ARRAY_SIZE(tps65090s), NULL,
+			      0, regmap_irq_get_domain(tps65090->irq_data));
 	if (ret) {
 		dev_err(&client->dev, "add mfd devices failed with err: %d\n",
 			ret);

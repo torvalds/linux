@@ -23,11 +23,9 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 #include "addi_watchdog.h"
-#include "comedi_fc.h"
 
 /*
  * PCI bar 1 I/O Register map - Digital input/output
@@ -102,7 +100,7 @@ static int apci1516_do_insn_bits(struct comedi_device *dev,
 
 static int apci1516_reset(struct comedi_device *dev)
 {
-	const struct apci1516_boardinfo *this_board = comedi_board(dev);
+	const struct apci1516_boardinfo *this_board = dev->board_ptr;
 	struct apci1516_private *devpriv = dev->private;
 
 	if (!this_board->has_wdog)
@@ -163,7 +161,7 @@ static int apci1516_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[1];
 	if (this_board->do_nchan) {
 		s->type		= COMEDI_SUBD_DO;
-		s->subdev_flags	= SDF_WRITEABLE;
+		s->subdev_flags	= SDF_WRITABLE;
 		s->n_chan	= this_board->do_nchan;
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
@@ -190,7 +188,7 @@ static void apci1516_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
 		apci1516_reset(dev);
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver apci1516_driver = {

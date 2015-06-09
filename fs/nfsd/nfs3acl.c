@@ -39,7 +39,7 @@ static __be32 nfsd3_proc_getacl(struct svc_rqst * rqstp,
 	if (nfserr)
 		RETURN_STATUS(nfserr);
 
-	inode = fh->fh_dentry->d_inode;
+	inode = d_inode(fh->fh_dentry);
 
 	if (argp->mask & ~(NFS_ACL|NFS_ACLCNT|NFS_DFACL|NFS_DFACLCNT))
 		RETURN_STATUS(nfserr_inval);
@@ -47,13 +47,13 @@ static __be32 nfsd3_proc_getacl(struct svc_rqst * rqstp,
 
 	if (resp->mask & (NFS_ACL|NFS_ACLCNT)) {
 		acl = get_acl(inode, ACL_TYPE_ACCESS);
-		if (IS_ERR(acl)) {
-			nfserr = nfserrno(PTR_ERR(acl));
-			goto fail;
-		}
 		if (acl == NULL) {
 			/* Solaris returns the inode's minimum ACL. */
 			acl = posix_acl_from_mode(inode->i_mode, GFP_KERNEL);
+		}
+		if (IS_ERR(acl)) {
+			nfserr = nfserrno(PTR_ERR(acl));
+			goto fail;
 		}
 		resp->acl_access = acl;
 	}
@@ -94,7 +94,7 @@ static __be32 nfsd3_proc_setacl(struct svc_rqst * rqstp,
 	if (nfserr)
 		goto out;
 
-	inode = fh->fh_dentry->d_inode;
+	inode = d_inode(fh->fh_dentry);
 	if (!IS_POSIXACL(inode) || !inode->i_op->set_acl) {
 		error = -EOPNOTSUPP;
 		goto out_errno;
@@ -128,7 +128,8 @@ out:
 static int nfs3svc_decode_getaclargs(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd3_getaclargs *args)
 {
-	if (!(p = nfs3svc_decode_fh(p, &args->fh)))
+	p = nfs3svc_decode_fh(p, &args->fh);
+	if (!p)
 		return 0;
 	args->mask = ntohl(*p); p++;
 
@@ -143,7 +144,8 @@ static int nfs3svc_decode_setaclargs(struct svc_rqst *rqstp, __be32 *p,
 	unsigned int base;
 	int n;
 
-	if (!(p = nfs3svc_decode_fh(p, &args->fh)))
+	p = nfs3svc_decode_fh(p, &args->fh);
+	if (!p)
 		return 0;
 	args->mask = ntohl(*p++);
 	if (args->mask & ~(NFS_ACL|NFS_ACLCNT|NFS_DFACL|NFS_DFACLCNT) ||
@@ -172,8 +174,8 @@ static int nfs3svc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p,
 	struct dentry *dentry = resp->fh.fh_dentry;
 
 	p = nfs3svc_encode_post_op_attr(rqstp, p, &resp->fh);
-	if (resp->status == 0 && dentry && dentry->d_inode) {
-		struct inode *inode = dentry->d_inode;
+	if (resp->status == 0 && dentry && d_really_is_positive(dentry)) {
+		struct inode *inode = d_inode(dentry);
 		struct kvec *head = rqstp->rq_res.head;
 		unsigned int base;
 		int n;

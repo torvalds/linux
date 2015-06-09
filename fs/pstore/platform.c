@@ -18,6 +18,8 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#define pr_fmt(fmt) "pstore: " fmt
+
 #include <linux/atomic.h>
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -224,14 +226,12 @@ static void allocate_buf_for_compression(void)
 			zlib_inflate_workspacesize());
 		stream.workspace = kmalloc(size, GFP_KERNEL);
 		if (!stream.workspace) {
-			pr_err("pstore: No memory for compression workspace; "
-				"skipping compression\n");
+			pr_err("No memory for compression workspace; skipping compression\n");
 			kfree(big_oops_buf);
 			big_oops_buf = NULL;
 		}
 	} else {
-		pr_err("No memory for uncompressed data; "
-			"skipping compression\n");
+		pr_err("No memory for uncompressed data; skipping compression\n");
 		stream.workspace = NULL;
 	}
 
@@ -301,7 +301,7 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 
 		if (big_oops_buf) {
 			dst = big_oops_buf;
-			hsize = sprintf(dst, "%s#%d Part%d\n", why,
+			hsize = sprintf(dst, "%s#%d Part%u\n", why,
 							oopscount, part);
 			size = big_oops_buf_sz - hsize;
 
@@ -321,7 +321,7 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 			}
 		} else {
 			dst = psinfo->buf;
-			hsize = sprintf(dst, "%s#%d Part%d\n", why, oopscount,
+			hsize = sprintf(dst, "%s#%d Part%u\n", why, oopscount,
 									part);
 			size = psinfo->bufsize - hsize;
 			dst += hsize;
@@ -447,6 +447,7 @@ int pstore_register(struct pstore_info *psi)
 	if ((psi->flags & PSTORE_FLAGS_FRAGILE) == 0) {
 		pstore_register_console();
 		pstore_register_ftrace();
+		pstore_register_pmsg();
 	}
 
 	if (pstore_update_ms >= 0) {
@@ -455,8 +456,7 @@ int pstore_register(struct pstore_info *psi)
 		add_timer(&pstore_timer);
 	}
 
-	pr_info("pstore: Registered %s as persistent store backend\n",
-		psi->name);
+	pr_info("Registered %s as persistent store backend\n", psi->name);
 
 	return 0;
 }
@@ -497,12 +497,13 @@ void pstore_get_records(int quiet)
 							big_oops_buf_sz);
 
 			if (unzipped_len > 0) {
+				kfree(buf);
 				buf = big_oops_buf;
 				size = unzipped_len;
 				compressed = false;
 			} else {
-				pr_err("pstore: decompression failed;"
-					"returned %d\n", unzipped_len);
+				pr_err("decompression failed;returned %d\n",
+				       unzipped_len);
 				compressed = true;
 			}
 		}
@@ -523,8 +524,8 @@ out:
 	mutex_unlock(&psi->read_mutex);
 
 	if (failed)
-		printk(KERN_WARNING "pstore: failed to load %d record(s) from '%s'\n",
-		       failed, psi->name);
+		pr_warn("failed to load %d record(s) from '%s'\n",
+			failed, psi->name);
 }
 
 static void pstore_dowork(struct work_struct *work)

@@ -205,8 +205,7 @@ static int siena_map_reset_flags(u32 *flags)
  */
 static void siena_monitor(struct efx_nic *efx)
 {
-	struct eeh_dev *eehdev =
-		of_node_to_eeh_dev(pci_device_to_OF_node(efx->pci_dev));
+	struct eeh_dev *eehdev = pci_dev_to_eeh_dev(efx->pci_dev);
 
 	eeh_dev_check_failure(eehdev);
 }
@@ -251,6 +250,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 	nic_data = kzalloc(sizeof(struct siena_nic_data), GFP_KERNEL);
 	if (!nic_data)
 		return -ENOMEM;
+	nic_data->efx = efx;
 	efx->nic_data = nic_data;
 
 	if (efx_farch_fpga_ver(efx) != 0) {
@@ -306,7 +306,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 	if (rc)
 		goto fail5;
 
-	efx_sriov_probe(efx);
+	efx_siena_sriov_probe(efx);
 	efx_ptp_defer_probe_with_channel(efx);
 
 	return 0;
@@ -424,6 +424,8 @@ static void siena_remove_nic(struct efx_nic *efx)
 	{ #ext_name, 64, 8 * MC_CMD_MAC_ ## mcdi_name }
 #define SIENA_OTHER_STAT(ext_name)				\
 	[SIENA_STAT_ ## ext_name] = { #ext_name, 0, 0 }
+#define GENERIC_SW_STAT(ext_name)				\
+	[GENERIC_STAT_ ## ext_name] = { #ext_name, 0, 0 }
 
 static const struct efx_hw_stat_desc siena_stat_desc[SIENA_STAT_COUNT] = {
 	SIENA_DMA_STAT(tx_bytes, TX_BYTES),
@@ -483,6 +485,8 @@ static const struct efx_hw_stat_desc siena_stat_desc[SIENA_STAT_COUNT] = {
 	SIENA_DMA_STAT(rx_length_error, RX_LENGTH_ERROR_PKTS),
 	SIENA_DMA_STAT(rx_internal_error, RX_INTERNAL_ERROR_PKTS),
 	SIENA_DMA_STAT(rx_nodesc_drop_cnt, RX_NODESC_DROPS),
+	GENERIC_SW_STAT(rx_nodesc_trunc),
+	GENERIC_SW_STAT(rx_noskb_drops),
 };
 static const unsigned long siena_stat_mask[] = {
 	[0 ... BITS_TO_LONGS(SIENA_STAT_COUNT) - 1] = ~0UL,
@@ -528,6 +532,7 @@ static int siena_try_update_nic_stats(struct efx_nic *efx)
 	efx_update_diff_stat(&stats[SIENA_STAT_rx_good_bytes],
 			     stats[SIENA_STAT_rx_bytes] -
 			     stats[SIENA_STAT_rx_bad_bytes]);
+	efx_update_sw_stats(efx, stats);
 	return 0;
 }
 
@@ -554,7 +559,9 @@ static size_t siena_update_nic_stats(struct efx_nic *efx, u64 *full_stats,
 		core_stats->tx_packets = stats[SIENA_STAT_tx_packets];
 		core_stats->rx_bytes = stats[SIENA_STAT_rx_bytes];
 		core_stats->tx_bytes = stats[SIENA_STAT_tx_bytes];
-		core_stats->rx_dropped = stats[SIENA_STAT_rx_nodesc_drop_cnt];
+		core_stats->rx_dropped = stats[SIENA_STAT_rx_nodesc_drop_cnt] +
+					 stats[GENERIC_STAT_rx_nodesc_trunc] +
+					 stats[GENERIC_STAT_rx_noskb_drops];
 		core_stats->multicast = stats[SIENA_STAT_rx_multicast];
 		core_stats->collisions = stats[SIENA_STAT_tx_collision];
 		core_stats->rx_length_errors =
@@ -921,6 +928,8 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.fini_dmaq = efx_farch_fini_dmaq,
 	.prepare_flush = siena_prepare_flush,
 	.finish_flush = siena_finish_flush,
+	.prepare_flr = efx_port_dummy_op_void,
+	.finish_flr = efx_farch_finish_flr,
 	.describe_stats = siena_describe_nic_stats,
 	.update_stats = siena_update_nic_stats,
 	.start_stats = efx_mcdi_mac_start_stats,
@@ -987,6 +996,11 @@ const struct efx_nic_type siena_a0_nic_type = {
 #endif
 	.ptp_write_host_time = siena_ptp_write_host_time,
 	.ptp_set_ts_config = siena_ptp_set_ts_config,
+	.sriov_init = efx_siena_sriov_init,
+	.sriov_fini = efx_siena_sriov_fini,
+	.sriov_mac_address_changed = efx_siena_sriov_mac_address_changed,
+	.sriov_wanted = efx_siena_sriov_wanted,
+	.sriov_reset = efx_siena_sriov_reset,
 
 	.revision = EFX_REV_SIENA_A0,
 	.txd_ptr_tbl_base = FR_BZ_TX_DESC_PTR_TBL,

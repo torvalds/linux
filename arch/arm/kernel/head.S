@@ -138,9 +138,9 @@ ENTRY(stext)
 						@ mmu has been enabled
 	adr	lr, BSYM(1f)			@ return (PIC) address
 	mov	r8, r4				@ set TTBR1 to swapper_pg_dir
- ARM(	add	pc, r10, #PROCINFO_INITFUNC	)
- THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
- THUMB(	mov	pc, r12				)
+	ldr	r12, [r10, #PROCINFO_INITFUNC]
+	add	r12, r12, r10
+	ret	r12
 1:	b	__enable_mmu
 ENDPROC(stext)
 	.ltorg
@@ -335,7 +335,7 @@ __create_page_tables:
 	sub	r4, r4, #0x1000		@ point to the PGD table
 	mov	r4, r4, lsr #ARCH_PGD_SHIFT
 #endif
-	mov	pc, lr
+	ret	lr
 ENDPROC(__create_page_tables)
 	.ltorg
 	.align
@@ -346,6 +346,12 @@ __turn_mmu_on_loc:
 
 #if defined(CONFIG_SMP)
 	.text
+ENTRY(secondary_startup_arm)
+	.arm
+ THUMB(	adr	r9, BSYM(1f)	)	@ Kernel is entered in ARM.
+ THUMB(	bx	r9		)	@ If this is a Thumb-2 kernel,
+ THUMB(	.thumb			)	@ switch to Thumb now.
+ THUMB(1:			)
 ENTRY(secondary_startup)
 	/*
 	 * Common entry point for secondary CPUs.
@@ -380,11 +386,12 @@ ENTRY(secondary_startup)
 	ldr	r8, [r7, lr]			@ get secondary_data.swapper_pg_dir
 	adr	lr, BSYM(__enable_mmu)		@ return address
 	mov	r13, r12			@ __secondary_switched address
- ARM(	add	pc, r10, #PROCINFO_INITFUNC	) @ initialise processor
-						  @ (return control reg)
- THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
- THUMB(	mov	pc, r12				)
+	ldr	r12, [r10, #PROCINFO_INITFUNC]
+	add	r12, r12, r10			@ initialise processor
+						@ (return control reg)
+	ret	r12
 ENDPROC(secondary_startup)
+ENDPROC(secondary_startup_arm)
 
 	/*
 	 * r6  = &secondary_data
@@ -468,14 +475,14 @@ ENTRY(__turn_mmu_on)
 	instr_sync
 	mov	r3, r3
 	mov	r3, r13
-	mov	pc, r3
+	ret	r3
 __turn_mmu_on_end:
 ENDPROC(__turn_mmu_on)
 	.popsection
 
 
 #ifdef CONFIG_SMP_ON_UP
-	__INIT
+	__HEAD
 __fixup_smp:
 	and	r3, r9, #0x000f0000	@ architecture version
 	teq	r3, #0x000f0000		@ CPU ID supported?
@@ -487,7 +494,7 @@ __fixup_smp:
 	orr	r4, r4, #0x0000b000
 	orr	r4, r4, #0x00000020	@ val 0x4100b020
 	teq	r3, r4			@ ARM 11MPCore?
-	moveq	pc, lr			@ yes, assume SMP
+	reteq	lr			@ yes, assume SMP
 
 	mrc	p15, 0, r0, c0, c0, 5	@ read MPIDR
 	and	r0, r0, #0xc0000000	@ multiprocessing extensions and
@@ -500,7 +507,7 @@ __fixup_smp:
 	orr	r4, r4, #0x0000c000
 	orr	r4, r4, #0x00000090
 	teq	r3, r4			@ Check for ARM Cortex-A9
-	movne	pc, lr			@ Not ARM Cortex-A9,
+	retne	lr			@ Not ARM Cortex-A9,
 
 	@ If a future SoC *does* use 0x0 as the PERIPH_BASE, then the
 	@ below address check will need to be #ifdef'd or equivalent
@@ -512,7 +519,7 @@ __fixup_smp:
 ARM_BE8(rev	r0, r0)			@ byteswap if big endian
 	and	r0, r0, #0x3		@ number of CPUs
 	teq	r0, #0x0		@ is 1?
-	movne	pc, lr
+	retne	lr
 
 __fixup_smp_on_up:
 	adr	r0, 1f
@@ -539,7 +546,7 @@ smp_on_up:
 	.text
 __do_fixup_smp_on_up:
 	cmp	r4, r5
-	movhs	pc, lr
+	reths	lr
 	ldmia	r4!, {r0, r6}
  ARM(	str	r6, [r0, r3]	)
  THUMB(	add	r0, r0, r3	)
@@ -584,9 +591,10 @@ __fixup_pv_table:
 	subs	r3, r0, r3	@ PHYS_OFFSET - PAGE_OFFSET
 	add	r4, r4, r3	@ adjust table start address
 	add	r5, r5, r3	@ adjust table end address
-	add	r6, r6, r3	@ adjust __pv_phys_offset address
+	add	r6, r6, r3	@ adjust __pv_phys_pfn_offset address
 	add	r7, r7, r3	@ adjust __pv_offset address
-	str	r8, [r6, #LOW_OFFSET]	@ save computed PHYS_OFFSET to __pv_phys_offset
+	mov	r0, r8, lsr #PAGE_SHIFT	@ convert to PFN
+	str	r0, [r6]	@ save computed PHYS_OFFSET to __pv_phys_pfn_offset
 	strcc	ip, [r7, #HIGH_OFFSET]	@ save to __pv_offset high bits
 	mov	r6, r3, lsr #24	@ constant for add/sub instructions
 	teq	r3, r6, lsl #24 @ must be 16MiB aligned
@@ -600,7 +608,7 @@ ENDPROC(__fixup_pv_table)
 1:	.long	.
 	.long	__pv_table_begin
 	.long	__pv_table_end
-2:	.long	__pv_phys_offset
+2:	.long	__pv_phys_pfn_offset
 	.long	__pv_offset
 
 	.text
@@ -671,7 +679,7 @@ ARM_BE8(rev16	ip, ip)
 2:	cmp	r4, r5
 	ldrcc	r7, [r4], #4	@ use branch for delay slot
 	bcc	1b
-	mov	pc, lr
+	ret	lr
 #endif
 ENDPROC(__fixup_a_pv_table)
 
@@ -688,11 +696,11 @@ ENTRY(fixup_pv_table)
 ENDPROC(fixup_pv_table)
 
 	.data
-	.globl	__pv_phys_offset
-	.type	__pv_phys_offset, %object
-__pv_phys_offset:
-	.quad	0
-	.size	__pv_phys_offset, . -__pv_phys_offset
+	.globl	__pv_phys_pfn_offset
+	.type	__pv_phys_pfn_offset, %object
+__pv_phys_pfn_offset:
+	.word	0
+	.size	__pv_phys_pfn_offset, . -__pv_phys_pfn_offset
 
 	.globl	__pv_offset
 	.type	__pv_offset, %object

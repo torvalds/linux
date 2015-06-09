@@ -47,6 +47,85 @@
 #include "atmel-pcm.h"
 
 
+static int atmel_pcm_preallocate_dma_buffer(struct snd_pcm *pcm,
+	int stream)
+{
+	struct snd_pcm_substream *substream = pcm->streams[stream].substream;
+	struct snd_dma_buffer *buf = &substream->dma_buffer;
+	size_t size = ATMEL_SSC_DMABUF_SIZE;
+
+	buf->dev.type = SNDRV_DMA_TYPE_DEV;
+	buf->dev.dev = pcm->card->dev;
+	buf->private_data = NULL;
+	buf->area = dma_alloc_coherent(pcm->card->dev, size,
+			&buf->addr, GFP_KERNEL);
+	pr_debug("atmel-pcm: alloc dma buffer: area=%p, addr=%p, size=%zu\n",
+			(void *)buf->area, (void *)(long)buf->addr, size);
+
+	if (!buf->area)
+		return -ENOMEM;
+
+	buf->bytes = size;
+	return 0;
+}
+
+static int atmel_pcm_mmap(struct snd_pcm_substream *substream,
+	struct vm_area_struct *vma)
+{
+	return remap_pfn_range(vma, vma->vm_start,
+		       substream->dma_buffer.addr >> PAGE_SHIFT,
+		       vma->vm_end - vma->vm_start, vma->vm_page_prot);
+}
+
+static int atmel_pcm_new(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_card *card = rtd->card->snd_card;
+	struct snd_pcm *pcm = rtd->pcm;
+	int ret;
+
+	ret = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
+
+	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
+		pr_debug("atmel-pcm: allocating PCM playback DMA buffer\n");
+		ret = atmel_pcm_preallocate_dma_buffer(pcm,
+			SNDRV_PCM_STREAM_PLAYBACK);
+		if (ret)
+			goto out;
+	}
+
+	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
+		pr_debug("atmel-pcm: allocating PCM capture DMA buffer\n");
+		ret = atmel_pcm_preallocate_dma_buffer(pcm,
+			SNDRV_PCM_STREAM_CAPTURE);
+		if (ret)
+			goto out;
+	}
+ out:
+	return ret;
+}
+
+static void atmel_pcm_free(struct snd_pcm *pcm)
+{
+	struct snd_pcm_substream *substream;
+	struct snd_dma_buffer *buf;
+	int stream;
+
+	for (stream = 0; stream < 2; stream++) {
+		substream = pcm->streams[stream].substream;
+		if (!substream)
+			continue;
+
+		buf = &substream->dma_buffer;
+		if (!buf->area)
+			continue;
+		dma_free_coherent(pcm->card->dev, buf->bytes,
+				  buf->area, buf->addr);
+		buf->area = NULL;
+	}
+}
+
 /*--------------------------------------------------------------------------*\
  * Hardware definition
 \*--------------------------------------------------------------------------*/
@@ -76,12 +155,6 @@ struct atmel_runtime_data {
 	size_t period_size;
 
 	dma_addr_t period_ptr;		/* physical address of next period */
-
-	/* PDC register save */
-	u32 pdc_xpr_save;
-	u32 pdc_xcr_save;
-	u32 pdc_xnpr_save;
-	u32 pdc_xncr_save;
 };
 
 /*--------------------------------------------------------------------------*\
@@ -320,67 +393,10 @@ static struct snd_pcm_ops atmel_pcm_ops = {
 	.mmap		= atmel_pcm_mmap,
 };
 
-
-/*--------------------------------------------------------------------------*\
- * ASoC platform driver
-\*--------------------------------------------------------------------------*/
-#ifdef CONFIG_PM
-static int atmel_pcm_suspend(struct snd_soc_dai *dai)
-{
-	struct snd_pcm_runtime *runtime = dai->runtime;
-	struct atmel_runtime_data *prtd;
-	struct atmel_pcm_dma_params *params;
-
-	if (!runtime)
-		return 0;
-
-	prtd = runtime->private_data;
-	params = prtd->params;
-
-	/* disable the PDC and save the PDC registers */
-
-	ssc_writel(params->ssc->regs, PDC_PTCR, params->mask->pdc_disable);
-
-	prtd->pdc_xpr_save = ssc_readx(params->ssc->regs, params->pdc->xpr);
-	prtd->pdc_xcr_save = ssc_readx(params->ssc->regs, params->pdc->xcr);
-	prtd->pdc_xnpr_save = ssc_readx(params->ssc->regs, params->pdc->xnpr);
-	prtd->pdc_xncr_save = ssc_readx(params->ssc->regs, params->pdc->xncr);
-
-	return 0;
-}
-
-static int atmel_pcm_resume(struct snd_soc_dai *dai)
-{
-	struct snd_pcm_runtime *runtime = dai->runtime;
-	struct atmel_runtime_data *prtd;
-	struct atmel_pcm_dma_params *params;
-
-	if (!runtime)
-		return 0;
-
-	prtd = runtime->private_data;
-	params = prtd->params;
-
-	/* restore the PDC registers and enable the PDC */
-	ssc_writex(params->ssc->regs, params->pdc->xpr, prtd->pdc_xpr_save);
-	ssc_writex(params->ssc->regs, params->pdc->xcr, prtd->pdc_xcr_save);
-	ssc_writex(params->ssc->regs, params->pdc->xnpr, prtd->pdc_xnpr_save);
-	ssc_writex(params->ssc->regs, params->pdc->xncr, prtd->pdc_xncr_save);
-
-	ssc_writel(params->ssc->regs, PDC_PTCR, params->mask->pdc_enable);
-	return 0;
-}
-#else
-#define atmel_pcm_suspend	NULL
-#define atmel_pcm_resume	NULL
-#endif
-
 static struct snd_soc_platform_driver atmel_soc_platform = {
 	.ops		= &atmel_pcm_ops,
 	.pcm_new	= atmel_pcm_new,
 	.pcm_free	= atmel_pcm_free,
-	.suspend	= atmel_pcm_suspend,
-	.resume		= atmel_pcm_resume,
 };
 
 int atmel_pcm_pdc_platform_register(struct device *dev)

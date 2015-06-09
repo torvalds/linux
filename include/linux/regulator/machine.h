@@ -85,6 +85,7 @@ struct regulator_state {
  *           bootloader then it will be enabled when the constraints are
  *           applied.
  * @apply_uV: Apply the voltage constraint when initialising.
+ * @ramp_disable: Disable ramp delay when initialising or when setting voltage.
  *
  * @input_uV: Input voltage for regulator when supplied by another regulator.
  *
@@ -190,14 +191,21 @@ struct regulator_init_data {
 	void *driver_data;	/* core does not touch this */
 };
 
-int regulator_suspend_prepare(suspend_state_t state);
-int regulator_suspend_finish(void);
-
 #ifdef CONFIG_REGULATOR
 void regulator_has_full_constraints(void);
+int regulator_suspend_prepare(suspend_state_t state);
+int regulator_suspend_finish(void);
 #else
 static inline void regulator_has_full_constraints(void)
 {
+}
+static inline int regulator_suspend_prepare(suspend_state_t state)
+{
+	return 0;
+}
+static inline int regulator_suspend_finish(void)
+{
+	return 0;
 }
 #endif
 

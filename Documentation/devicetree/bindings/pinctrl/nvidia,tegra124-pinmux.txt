@@ -6,10 +6,12 @@ nvidia,tegra30-pinmux.txt. In fact, this document assumes that binding as
 a baseline, and only documents the differences between the two bindings.
 
 Required properties:
-- compatible: "nvidia,tegra124-pinmux"
+- compatible: For Tegra124, must contain "nvidia,tegra124-pinmux".  For
+  Tegra132, must contain '"nvidia,tegra132-pinmux", "nvidia-tegra124-pinmux"'.
 - reg: Should contain a list of base address and size pairs for:
     -- first entry - the drive strength and pad control registers.
     -- second entry - the pinmux registers
+    -- third entry - the MIPI_PAD_CTRL register
 
 Tegra124 adds the following optional properties for pin configuration subnodes.
 The macros for options are defined in the
@@ -91,6 +93,12 @@ Valid values for pin and group names are:
     dbg, sdio3, spi, uaa, uab, uart2, uart3, sdio1, ddc, gma, gme, gmf, gmg,
     gmh, owr, uda, gpv, dev3, cec, usb_vbus_en, ao3, ao0, hv0, sdio4, ao4.
 
+  MIPI pad control groups:
+
+    These support only the nvidia,function property.
+
+    dsi_b
+
 Valid values for nvidia,functions are:
 
   blink, cec, cldvfs, clk12, cpu, dap, dap1, dap2, dev3, displaya,
@@ -101,14 +109,15 @@ Valid values for nvidia,functions are:
   sdmmc4, soc, spdif, spi1, spi2, spi3, spi4, spi5, spi6, trace, uarta,
   uartb, uartc, uartd, ulpi, usb, vgp1, vgp2, vgp3, vgp4, vgp5, vgp6,
   vi, vi_alt1, vi_alt3, vimclk2, vimclk2_alt, sata, ccla, pe0, pe, pe1,
-  dp, rtck, sys, clk tmds.
+  dp, rtck, sys, clk tmds, csi, dsi_b
 
 Example:
 
 	pinmux: pinmux {
 		compatible = "nvidia,tegra124-pinmux";
-		reg = <0x70000868 0x164		/* Pad control registers */
-		       0x70003000 0x434>;	/* PinMux registers */
+		reg = <0x0 0x70000868 0x0 0x164>, /* Pad control registers */
+		      <0x0 0x70003000 0x0 0x434>, /* Mux registers */
+		      <0x0 0x70000820 0x0 0x8>;   /* MIPI pad control */
 	};
 
 Example pinmux entries:

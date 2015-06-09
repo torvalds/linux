@@ -86,7 +86,7 @@ MODULE_PARM_DESC(fwpostfix, "Postfix for the firmware files to load.");
 static const struct ssb_device_id b43legacy_ssb_tbl[] = {
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_80211, 2),
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_80211, 4),
-	SSB_DEVTABLE_END
+	{},
 };
 MODULE_DEVICE_TABLE(ssb, b43legacy_ssb_tbl);
 
@@ -978,7 +978,7 @@ static void b43legacy_write_beacon_template(struct b43legacy_wldev *dev,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(dev->wl->current_beacon);
 
 	bcn = (const struct ieee80211_mgmt *)(dev->wl->current_beacon->data);
-	len = min((size_t)dev->wl->current_beacon->len,
+	len = min_t(size_t, dev->wl->current_beacon->len,
 		  0x200 - sizeof(struct b43legacy_plcp_hdr6));
 	rate = ieee80211_get_tx_rate(dev->wl->hw, info)->hw_value;
 
@@ -1155,7 +1155,7 @@ static void b43legacy_write_probe_resp_template(struct b43legacy_wldev *dev,
 	b43legacy_write_probe_resp_plcp(dev, 0x350, size,
 					&b43legacy_b_ratetable[3]);
 
-	size = min((size_t)size,
+	size = min_t(size_t, size,
 		   0x200 - sizeof(struct b43legacy_plcp_hdr6));
 	b43legacy_write_template_common(dev, probe_resp_data,
 					size, ram_offset,
@@ -2866,7 +2866,7 @@ static void b43legacy_op_bss_info_changed(struct ieee80211_hw *hw,
 		if (conf->bssid)
 			memcpy(wl->bssid, conf->bssid, ETH_ALEN);
 		else
-			memset(wl->bssid, 0, ETH_ALEN);
+			eth_zero_addr(wl->bssid);
 	}
 
 	if (b43legacy_status(dev) >= B43legacy_STAT_INITIALIZED) {
@@ -3470,7 +3470,7 @@ static void b43legacy_op_remove_interface(struct ieee80211_hw *hw,
 
 	spin_lock_irqsave(&wl->irq_lock, flags);
 	b43legacy_adjust_opmode(dev);
-	memset(wl->mac_addr, 0, ETH_ALEN);
+	eth_zero_addr(wl->mac_addr);
 	b43legacy_upload_card_macaddress(dev);
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
 
@@ -3487,8 +3487,8 @@ static int b43legacy_op_start(struct ieee80211_hw *hw)
 	/* Kill all old instance specific information to make sure
 	 * the card won't use it in the short timeframe between start
 	 * and mac80211 reconfiguring it. */
-	memset(wl->bssid, 0, ETH_ALEN);
-	memset(wl->mac_addr, 0, ETH_ALEN);
+	eth_zero_addr(wl->bssid);
+	eth_zero_addr(wl->mac_addr);
 	wl->filter_flags = 0;
 	wl->beacon0_uploaded = false;
 	wl->beacon1_uploaded = false;

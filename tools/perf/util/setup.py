@@ -25,7 +25,7 @@ cflags += ['-fno-strict-aliasing', '-Wno-write-strings', '-Wno-unused-parameter'
 build_lib = getenv('PYTHON_EXTBUILD_LIB')
 build_tmp = getenv('PYTHON_EXTBUILD_TMP')
 libtraceevent = getenv('LIBTRACEEVENT')
-libapikfs = getenv('LIBAPIKFS')
+libapikfs = getenv('LIBAPI')
 
 ext_sources = [f.strip() for f in file('util/python-ext-sources')
 				if len(f.strip()) > 0 and f[0] != '#']

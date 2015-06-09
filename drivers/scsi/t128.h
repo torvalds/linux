@@ -8,8 +8,6 @@
  *	drew@colorado.edu
  *      +1 (303) 440-4894
  *
- * DISTRIBUTION RELEASE 3.
- *
  * For more information, please consult
  *
  * Trantor Systems, Ltd.
@@ -20,28 +18,10 @@
  * 5415 Randall Place
  * Fremont, CA 94538
  * 1+ (415) 770-1400, FAX 1+ (415) 770-9910
- *
- * and
- *
- * NCR 5380 Family
- * SCSI Protocol Controller
- * Databook
- *
- * NCR Microelectronics
- * 1635 Aeroplaza Drive
- * Colorado Springs, CO 80916
- * 1+ (719) 578-3400
- * 1+ (800) 334-5454
- */
-
-/*
- * $Log: t128.h,v $
  */
 
 #ifndef T128_H
 #define T128_H
-
-#define T128_PUBLIC_RELEASE 3
 
 #define TDEBUG		0
 #define TDEBUG_INIT	0x1
@@ -92,12 +72,6 @@
 #define T_DATA_REG_OFFSET	0x1e00	/* rw 512 bytes long */
 
 #ifndef ASM
-static int t128_abort(struct scsi_cmnd *);
-static int t128_biosparam(struct scsi_device *, struct block_device *,
-			  sector_t, int*);
-static int t128_detect(struct scsi_host_template *);
-static int t128_queue_command(struct Scsi_Host *, struct scsi_cmnd *);
-static int t128_bus_reset(struct scsi_cmnd *);
 
 #ifndef CMD_PER_LUN
 #define CMD_PER_LUN 2
@@ -106,8 +80,6 @@ static int t128_bus_reset(struct scsi_cmnd *);
 #ifndef CAN_QUEUE
 #define CAN_QUEUE 32
 #endif
-
-#ifndef HOSTS_C
 
 #define NCR5380_implementation_fields \
     void __iomem *base
@@ -140,6 +112,7 @@ static int t128_bus_reset(struct scsi_cmnd *);
 #define NCR5380_queue_command t128_queue_command
 #define NCR5380_abort t128_abort
 #define NCR5380_bus_reset t128_bus_reset
+#define NCR5380_info t128_info
 #define NCR5380_show_info t128_show_info
 #define NCR5380_write_info t128_write_info
 
@@ -148,6 +121,5 @@ static int t128_bus_reset(struct scsi_cmnd *);
 
 #define T128_IRQS 0xc4a8
 
-#endif /* else def HOSTS_C */
 #endif /* ndef ASM */
 #endif /* T128_H */

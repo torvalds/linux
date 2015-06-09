@@ -125,7 +125,6 @@ static struct cpufreq_driver davinci_driver = {
 	.target_index	= davinci_target,
 	.get		= cpufreq_generic_get,
 	.init		= davinci_cpu_init,
-	.exit		= cpufreq_generic_exit,
 	.name		= "davinci",
 	.attr		= cpufreq_generic_attr,
 };
@@ -170,7 +169,6 @@ static int __exit davinci_cpufreq_remove(struct platform_device *pdev)
 static struct platform_driver davinci_cpufreq_driver = {
 	.driver = {
 		.name	 = "cpufreq-davinci",
-		.owner	 = THIS_MODULE,
 	},
 	.remove = __exit_p(davinci_cpufreq_remove),
 };

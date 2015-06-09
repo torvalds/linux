@@ -1,48 +1,38 @@
-config ARCH_OMAP
-	bool
+menu "TI OMAP/AM/DM/DRA Family"
+	depends on ARCH_MULTI_V6 || ARCH_MULTI_V7
 
 config ARCH_OMAP2
 	bool "TI OMAP2"
 	depends on ARCH_MULTI_V6
 	select ARCH_OMAP2PLUS
 	select CPU_V6
-	select MULTI_IRQ_HANDLER
 	select SOC_HAS_OMAP2_SDRC
 
 config ARCH_OMAP3
 	bool "TI OMAP3"
 	depends on ARCH_MULTI_V7
 	select ARCH_OMAP2PLUS
-	select ARCH_HAS_OPP
 	select ARM_CPU_SUSPEND if PM
-	select CPU_V7
-	select MULTI_IRQ_HANDLER
 	select OMAP_INTERCONNECT
 	select PM_OPP if PM
-	select PM_RUNTIME if CPU_IDLE
+	select PM if CPU_IDLE
 	select SOC_HAS_OMAP2_SDRC
-	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 
 config ARCH_OMAP4
 	bool "TI OMAP4"
 	depends on ARCH_MULTI_V7
 	select ARCH_OMAP2PLUS
-	select ARCH_HAS_OPP
 	select ARCH_NEEDS_CPU_IDLE_COUPLED if SMP
 	select ARM_CPU_SUSPEND if PM
 	select ARM_ERRATA_720789
 	select ARM_GIC
-	select CACHE_L2X0
-	select CPU_V7
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
-	select HAVE_SMP
 	select OMAP_INTERCONNECT
-	select PL310_ERRATA_588369
-	select PL310_ERRATA_727915
+	select PL310_ERRATA_588369 if CACHE_L2X0
+	select PL310_ERRATA_727915 if CACHE_L2X0
 	select PM_OPP if PM
-	select PM_RUNTIME if CPU_IDLE
-	select USB_ARCH_HAS_EHCI if USB_SUPPORT
+	select PM if CPU_IDLE
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
 
@@ -50,13 +40,10 @@ config SOC_OMAP5
 	bool "TI OMAP5"
 	depends on ARCH_MULTI_V7
 	select ARCH_OMAP2PLUS
-	select ARCH_HAS_OPP
 	select ARM_CPU_SUSPEND if PM
 	select ARM_GIC
-	select CPU_V7
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
-	select HAVE_SMP
 	select HAVE_ARM_ARCH_TIMER
 	select ARM_ERRATA_798181 if SMP
 
@@ -64,51 +51,43 @@ config SOC_AM33XX
 	bool "TI AM33XX"
 	depends on ARCH_MULTI_V7
 	select ARCH_OMAP2PLUS
-	select ARCH_HAS_OPP
 	select ARM_CPU_SUSPEND if PM
-	select CPU_V7
-	select MULTI_IRQ_HANDLER
 
 config SOC_AM43XX
 	bool "TI AM43x"
 	depends on ARCH_MULTI_V7
-	select CPU_V7
 	select ARCH_OMAP2PLUS
-	select ARCH_HAS_OPP
-	select MULTI_IRQ_HANDLER
 	select ARM_GIC
 	select MACH_OMAP_GENERIC
+	select MIGHT_HAVE_CACHE_L2X0
 
 config SOC_DRA7XX
 	bool "TI DRA7XX"
 	depends on ARCH_MULTI_V7
 	select ARCH_OMAP2PLUS
-	select ARCH_HAS_OPP
 	select ARM_CPU_SUSPEND if PM
 	select ARM_GIC
-	select CPU_V7
-	select HAVE_SMP
 	select HAVE_ARM_ARCH_TIMER
+	select IRQ_CROSSBAR
+	select ARM_ERRATA_798181 if SMP
 
 config ARCH_OMAP2PLUS
 	bool
 	select ARCH_HAS_BANDGAP
-	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_OMAP
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKSRC_MMIO
-	select COMMON_CLK
-	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
 	select MACH_OMAP_GENERIC
+	select MEMORY
+	select MFD_SYSCON
 	select OMAP_DM_TIMER
+	select OMAP_GPMC
 	select PINCTRL
-	select PROC_DEVICETREE if PROC_FS
 	select SOC_BUS
-	select SPARSE_IRQ
 	select TI_PRIV_EDMA
-	select USE_OF
+	select OMAP_IRQCHIP
 	help
 	  Systems based on OMAP2, OMAP3, OMAP4 or OMAP5
 
@@ -126,7 +105,7 @@ config ARCH_OMAP2PLUS_TYPICAL
 	select I2C_OMAP
 	select MENELAUS if ARCH_OMAP2
 	select NEON if CPU_V7
-	select PM_RUNTIME
+	select PM
 	select REGULATOR
 	select TWL4030_CORE if ARCH_OMAP3 || ARCH_OMAP4
 	select TWL4030_POWER if ARCH_OMAP3 || ARCH_OMAP4
@@ -169,12 +148,6 @@ config SOC_TI81XX
 	depends on ARCH_OMAP3
 	default y
 
-config OMAP_PACKAGE_ZAF
-       bool
-
-config OMAP_PACKAGE_ZAC
-       bool
-
 config OMAP_PACKAGE_CBC
        bool
 
@@ -203,12 +176,6 @@ config MACH_OMAP3_BEAGLE
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBB
-
-config MACH_DEVKIT8000
-	bool "DEVKIT8000 board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CUS
 
 config MACH_OMAP_LDP
 	bool "OMAP3 LDP board"
@@ -246,12 +213,6 @@ config MACH_OMAP3517EVM
 	bool "OMAP3517/ AM3517 EVM board"
 	depends on ARCH_OMAP3
 	default y
-	select OMAP_PACKAGE_CBB
-
-config MACH_CRANEBOARD
-	bool "AM3517/05 CRANE board"
-	depends on ARCH_OMAP3
-	select OMAP_PACKAGE_CBB
 
 config MACH_OMAP3_PANDORA
 	bool "OMAP3 Pandora"
@@ -259,18 +220,6 @@ config MACH_OMAP3_PANDORA
 	default y
 	select OMAP_PACKAGE_CBB
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-
-config MACH_TOUCHBOOK
-	bool "OMAP3 Touch Book"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
-
-config MACH_OMAP_3430SDP
-	bool "OMAP 3430 SDP board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
 
 config MACH_NOKIA_N810
        bool
@@ -284,7 +233,6 @@ config MACH_NOKIA_N8X0
 	default y
 	select MACH_NOKIA_N810
 	select MACH_NOKIA_N810_WIMAX
-	select OMAP_PACKAGE_ZAC
 
 config MACH_NOKIA_RX51
 	bool "Nokia N900 (RX-51) phone"
@@ -299,38 +247,8 @@ config MACH_CM_T35
 	select MACH_CM_T3730
 	select OMAP_PACKAGE_CUS
 
-config MACH_CM_T3517
-	bool "CompuLab CM-T3517 module"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
-
 config MACH_CM_T3730
        bool
-
-config MACH_SBC3530
-	bool "OMAP3 SBC STALKER board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CUS
-
-config MACH_TI8168EVM
-	bool "TI8168 Evaluation Module"
-	depends on SOC_TI81XX
-	default y
-
-config MACH_TI8148EVM
-	bool "TI8148 Evaluation Module"
-	depends on SOC_TI81XX
-	default y
-
-config OMAP3_EMU
-	bool "OMAP3 debugging peripherals"
-	depends on ARCH_OMAP3
-	select ARM_AMBA
-	select OC_ETM
-	help
-	  Say Y here to enable debugging hardware of omap3
 
 config OMAP3_SDRC_AC_TIMING
 	bool "Enable SDRC AC timing register changes"
@@ -344,27 +262,8 @@ config OMAP3_SDRC_AC_TIMING
 	  wish to say no.  Selecting yes without understanding what is
 	  going on could result in system crashes;
 
-config OMAP4_ERRATA_I688
-	bool "OMAP4 errata: Async Bridge Corruption"
-	depends on (ARCH_OMAP4 || SOC_OMAP5) && !ARCH_MULTIPLATFORM
-	select ARCH_HAS_BARRIERS
-	help
-	  If a data is stalled inside asynchronous bridge because of back
-	  pressure, it may be accepted multiple times, creating pointer
-	  misalignment that will corrupt next transfers on that data path
-	  until next reset of the system (No recovery procedure once the
-	  issue is hit, the path remains consistently broken). Async bridge
-	  can be found on path between MPU to EMIF and MPU to L3 interconnect.
-	  This situation can happen only when the idle is initiated by a
-	  Master Request Disconnection (which is trigged by software when
-	  executing WFI on CPU).
-	  The work-around for this errata needs all the initiators connected
-	  through async bridge must ensure that data path is properly drained
-	  before issuing WFI. This condition will be met if one Strongly ordered
-	  access is performed to the target right before executing the WFI.
-	  In MPU case, L3 T2ASYNC FIFO and DDR T2ASYNC FIFO needs to be drained.
-	  IO barrier ensure that there is no synchronisation loss on initiators
-	  operating on both interconnect port simultaneously.
 endmenu
 
 endif
+
+endmenu

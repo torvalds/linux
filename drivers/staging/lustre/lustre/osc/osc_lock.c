@@ -40,9 +40,9 @@
 
 #define DEBUG_SUBSYSTEM S_OSC
 
-# include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 /* fid_build_reg_res_name() */
-#include <lustre_fid.h>
+#include "../include/lustre_fid.h"
 
 #include "osc_cl_internal.h"
 
@@ -100,14 +100,14 @@ static int osc_lock_invariant(struct osc_lock *ols)
 	/*
 	 * If all the following "ergo"s are true, return 1, otherwise 0
 	 */
-	if (! ergo(olock != NULL, handle_used))
+	if (!ergo(olock != NULL, handle_used))
 		return 0;
 
-	if (! ergo(olock != NULL,
+	if (!ergo(olock != NULL,
 		   olock->l_handle.h_cookie == ols->ols_handle.cookie))
 		return 0;
 
-	if (! ergo(handle_used,
+	if (!ergo(handle_used,
 		   ergo(lock != NULL && olock != NULL, lock == olock) &&
 		   ergo(lock == NULL, olock == NULL)))
 		return 0;
@@ -115,18 +115,18 @@ static int osc_lock_invariant(struct osc_lock *ols)
 	 * Check that ->ols_handle and ->ols_lock are consistent, but
 	 * take into account that they are set at the different time.
 	 */
-	if (! ergo(ols->ols_state == OLS_CANCELLED,
+	if (!ergo(ols->ols_state == OLS_CANCELLED,
 		   olock == NULL && !handle_used))
 		return 0;
 	/*
 	 * DLM lock is destroyed only after we have seen cancellation
 	 * ast.
 	 */
-	if (! ergo(olock != NULL && ols->ols_state < OLS_CANCELLED,
+	if (!ergo(olock != NULL && ols->ols_state < OLS_CANCELLED,
 		   ((olock->l_flags & LDLM_FL_DESTROYED) == 0)))
 		return 0;
 
-	if (! ergo(ols->ols_state == OLS_GRANTED,
+	if (!ergo(ols->ols_state == OLS_GRANTED,
 		   olock != NULL &&
 		   olock->l_req_mode == olock->l_granted_mode &&
 		   ols->ols_hold))
@@ -369,20 +369,19 @@ static void osc_lock_lvb_update(const struct lu_env *env, struct osc_lock *olck,
 		if (size > dlmlock->l_policy_data.l_extent.end)
 			size = dlmlock->l_policy_data.l_extent.end + 1;
 		if (size >= oinfo->loi_kms) {
-			LDLM_DEBUG(dlmlock, "lock acquired, setting rss="LPU64
-				   ", kms="LPU64, lvb->lvb_size, size);
+			LDLM_DEBUG(dlmlock, "lock acquired, setting rss=%llu, kms=%llu",
+				   lvb->lvb_size, size);
 			valid |= CAT_KMS;
 			attr->cat_kms = size;
 		} else {
-			LDLM_DEBUG(dlmlock, "lock acquired, setting rss="
-				   LPU64"; leaving kms="LPU64", end="LPU64,
+			LDLM_DEBUG(dlmlock, "lock acquired, setting rss=%llu; leaving kms=%llu, end=%llu",
 				   lvb->lvb_size, oinfo->loi_kms,
 				   dlmlock->l_policy_data.l_extent.end);
 		}
 		ldlm_lock_allow_match_locked(dlmlock);
 	} else if (rc == -ENAVAIL && olck->ols_glimpse) {
-		CDEBUG(D_INODE, "glimpsed, setting rss="LPU64"; leaving"
-		       " kms="LPU64"\n", lvb->lvb_size, oinfo->loi_kms);
+		CDEBUG(D_INODE, "glimpsed, setting rss=%llu; leaving kms=%llu\n",
+		       lvb->lvb_size, oinfo->loi_kms);
 	} else
 		valid = 0;
 
@@ -1011,7 +1010,7 @@ static int osc_lock_enqueue_wait(const struct lu_env *env,
 	struct cl_lock_descr    *descr   = &lock->cll_descr;
 	struct cl_object_header *hdr     = cl_object_header(descr->cld_obj);
 	struct cl_lock	  *scan;
-	struct cl_lock	  *conflict= NULL;
+	struct cl_lock	  *conflict = NULL;
 	int lockless		     = osc_lock_is_lockless(olck);
 	int rc			   = 0;
 
@@ -1068,14 +1067,12 @@ static int osc_lock_enqueue_wait(const struct lu_env *env,
 			 * conflicts, we do not wait but return 0 so the
 			 * request is send to the server
 			 */
-			CDEBUG(D_DLMTRACE, "group lock %p is conflicted "
-					   "with %p, no wait, send to server\n",
+			CDEBUG(D_DLMTRACE, "group lock %p is conflicted with %p, no wait, send to server\n",
 			       lock, conflict);
 			cl_lock_put(env, conflict);
 			rc = 0;
 		} else {
-			CDEBUG(D_DLMTRACE, "lock %p is conflicted with %p, "
-					   "will wait\n",
+			CDEBUG(D_DLMTRACE, "lock %p is conflicted with %p, will wait\n",
 			       lock, conflict);
 			LASSERT(lock->cll_conflict == NULL);
 			lu_ref_add(&conflict->cll_reference, "cancel-wait",
@@ -1192,6 +1189,7 @@ static int osc_lock_wait(const struct lu_env *env,
 
 		LASSERT(olck->ols_agl);
 		olck->ols_agl = 0;
+		olck->ols_flags &= ~LDLM_FL_BLOCK_NOWAIT;
 		rc = osc_lock_enqueue(env, slice, NULL, CEF_ASYNC | CEF_MUST);
 		if (rc != 0)
 			return rc;
@@ -1399,7 +1397,7 @@ static int osc_lock_print(const struct lu_env *env, void *cookie,
 	/*
 	 * XXX print ldlm lock and einfo properly.
 	 */
-	(*p)(env, cookie, "%p %#16llx "LPX64" %d %p ",
+	(*p)(env, cookie, "%p %#16llx %#llx %d %p ",
 	     lock->ols_lock, lock->ols_flags, lock->ols_handle.cookie,
 	     lock->ols_state, lock->ols_owner);
 	osc_lvb_print(env, cookie, p, &lock->ols_lvb);
@@ -1558,7 +1556,7 @@ int osc_lock_init(const struct lu_env *env,
 	struct osc_lock *clk;
 	int result;
 
-	OBD_SLAB_ALLOC_PTR_GFP(clk, osc_lock_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(clk, osc_lock_kmem, GFP_NOFS);
 	if (clk != NULL) {
 		__u32 enqflags = lock->cll_descr.cld_enq_flags;
 

@@ -27,6 +27,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 
+#include <asm/machdep.h>
 #include <asm/opal.h>
 #include <asm/cputable.h>
 
@@ -47,12 +48,12 @@ static void handle_memory_error_event(struct OpalMemoryErrorData *merr_evt)
 		  __func__, merr_evt->type);
 	switch (merr_evt->type) {
 	case OPAL_MEM_ERR_TYPE_RESILIENCE:
-		paddr_start = merr_evt->u.resilience.physical_address_start;
-		paddr_end = merr_evt->u.resilience.physical_address_end;
+		paddr_start = be64_to_cpu(merr_evt->u.resilience.physical_address_start);
+		paddr_end = be64_to_cpu(merr_evt->u.resilience.physical_address_end);
 		break;
 	case OPAL_MEM_ERR_TYPE_DYN_DALLOC:
-		paddr_start = merr_evt->u.dyn_dealloc.physical_address_start;
-		paddr_end = merr_evt->u.dyn_dealloc.physical_address_end;
+		paddr_start = be64_to_cpu(merr_evt->u.dyn_dealloc.physical_address_start);
+		paddr_end = be64_to_cpu(merr_evt->u.dyn_dealloc.physical_address_end);
 		break;
 	default:
 		return;
@@ -143,4 +144,4 @@ static int __init opal_mem_err_init(void)
 	}
 	return 0;
 }
-subsys_initcall(opal_mem_err_init);
+machine_subsys_initcall(powernv, opal_mem_err_init);

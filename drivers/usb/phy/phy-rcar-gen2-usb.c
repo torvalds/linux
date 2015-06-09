@@ -47,7 +47,7 @@ struct rcar_gen2_usb_phy_priv {
 
 /* USB General status register */
 #define USBHS_UGSTS_REG			0x88
-#define USBHS_UGSTS_LOCK		(3 << 8)
+#define USBHS_UGSTS_LOCK		(1 << 8)
 
 /* Enable USBHS internal phy */
 static int __rcar_gen2_usbhs_phy_enable(void __iomem *base)
@@ -177,15 +177,15 @@ static int rcar_gen2_usb_phy_probe(struct platform_device *pdev)
 	struct clk *clk;
 	int retval;
 
-	pdata = dev_get_platdata(&pdev->dev);
+	pdata = dev_get_platdata(dev);
 	if (!pdata) {
 		dev_err(dev, "No platform data\n");
 		return -EINVAL;
 	}
 
-	clk = devm_clk_get(&pdev->dev, "usbhs");
+	clk = devm_clk_get(dev, "usbhs");
 	if (IS_ERR(clk)) {
-		dev_err(&pdev->dev, "Can't get the clock\n");
+		dev_err(dev, "Can't get the clock\n");
 		return PTR_ERR(clk);
 	}
 
@@ -195,10 +195,8 @@ static int rcar_gen2_usb_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(base);
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(dev, "Memory allocation failed\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	spin_lock_init(&priv->lock);
 	priv->clk = clk;

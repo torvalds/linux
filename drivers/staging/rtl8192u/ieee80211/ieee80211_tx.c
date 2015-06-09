@@ -32,7 +32,6 @@
 ******************************************************************************/
 
 #include <linux/compiler.h>
-//#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
@@ -188,23 +187,23 @@ int ieee80211_encrypt_fragment(
 
 	if (!(crypt && crypt->ops))
 	{
-		printk("=========>%s(), crypt is null\n", __FUNCTION__);
+		printk("=========>%s(), crypt is null\n", __func__);
 		return -1;
 	}
-#ifdef CONFIG_IEEE80211_CRYPT_TKIP
-	struct ieee80211_hdr *header;
 
 	if (ieee->tkip_countermeasures &&
 	    crypt && crypt->ops && strcmp(crypt->ops->name, "TKIP") == 0) {
-		header = (struct ieee80211_hdr *) frag->data;
 		if (net_ratelimit()) {
+			struct ieee80211_hdr_3addrqos *header;
+
+			header = (struct ieee80211_hdr_3addrqos *)frag->data;
 			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
 			       "TX packet to %pM\n",
 			       ieee->dev->name, header->addr1);
 		}
 		return -1;
 	}
-#endif
+
 	/* To encrypt, frame format is:
 	 * IV (4 bytes), clear payload (including SNAP), ICV (4 bytes) */
 
@@ -236,6 +235,7 @@ void ieee80211_txb_free(struct ieee80211_txb *txb) {
 		return;
 	kfree(txb);
 }
+EXPORT_SYMBOL(ieee80211_txb_free);
 
 static struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
 						 gfp_t gfp_mask)
@@ -378,7 +378,8 @@ FORCED_AGG_SETTING:
 		return;
 }
 
-extern void ieee80211_qurey_ShortPreambleMode(struct ieee80211_device *ieee, cb_desc *tcb_desc)
+static void ieee80211_qurey_ShortPreambleMode(struct ieee80211_device *ieee,
+					      cb_desc *tcb_desc)
 {
 	tcb_desc->bUseShortPreamble = false;
 	if (tcb_desc->data_rate == 2)
@@ -391,7 +392,7 @@ extern void ieee80211_qurey_ShortPreambleMode(struct ieee80211_device *ieee, cb_
 	}
 	return;
 }
-extern	void
+static void
 ieee80211_query_HTCapShortGI(struct ieee80211_device *ieee, cb_desc *tcb_desc)
 {
 	PRT_HIGH_THROUGHPUT		pHTInfo = ieee->pHTInfo;
@@ -527,8 +528,7 @@ static void ieee80211_query_protectionmode(struct ieee80211_device *ieee,
 		}
 		}
 	// For test , CTS replace with RTS
-	if( 0 )
-	{
+	if (0) {
 		tcb_desc->bCTSEnable	= true;
 		tcb_desc->rts_rate = MGN_24M;
 		tcb_desc->bRTSEnable	= true;
@@ -553,16 +553,16 @@ static void ieee80211_txrate_selectmode(struct ieee80211_device *ieee,
 #ifdef TO_DO_LIST
 	if(!IsDataFrame(pFrame))
 	{
-		pTcb->bTxDisableRateFallBack = TRUE;
-		pTcb->bTxUseDriverAssingedRate = TRUE;
+		pTcb->bTxDisableRateFallBack = true;
+		pTcb->bTxUseDriverAssingedRate = true;
 		pTcb->RATRIndex = 7;
 		return;
 	}
 
 	if(pMgntInfo->ForcedDataRate!= 0)
 	{
-		pTcb->bTxDisableRateFallBack = TRUE;
-		pTcb->bTxUseDriverAssingedRate = TRUE;
+		pTcb->bTxDisableRateFallBack = true;
+		pTcb->bTxUseDriverAssingedRate = true;
 		return;
 	}
 #endif
@@ -874,7 +874,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (is_broadcast_ether_addr(header.addr1))
 			tcb_desc->bBroadcast = 1;
 		ieee80211_txrate_selectmode(ieee, tcb_desc);
-		if ( tcb_desc->bMulticast ||  tcb_desc->bBroadcast)
+		if (tcb_desc->bMulticast ||  tcb_desc->bBroadcast)
 			tcb_desc->data_rate = ieee->basic_rate;
 		else
 			//tcb_desc->data_rate = CURRENT_RATE(ieee->current_network.mode, ieee->rate, ieee->HTCurrentOperaRate);
@@ -912,5 +912,3 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 1;
 
 }
-
-EXPORT_SYMBOL(ieee80211_txb_free);

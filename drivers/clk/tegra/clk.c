@@ -19,7 +19,8 @@
 #include <linux/of.h>
 #include <linux/clk/tegra.h>
 #include <linux/reset-controller.h>
-#include <linux/tegra-soc.h>
+
+#include <soc/tegra/fuse.h>
 
 #include "clk.h"
 
@@ -29,6 +30,7 @@
 #define CLK_OUT_ENB_V			0x360
 #define CLK_OUT_ENB_W			0x364
 #define CLK_OUT_ENB_X			0x280
+#define CLK_OUT_ENB_Y			0x298
 #define CLK_OUT_ENB_SET_L		0x320
 #define CLK_OUT_ENB_CLR_L		0x324
 #define CLK_OUT_ENB_SET_H		0x328
@@ -41,6 +43,8 @@
 #define CLK_OUT_ENB_CLR_W		0x44c
 #define CLK_OUT_ENB_SET_X		0x284
 #define CLK_OUT_ENB_CLR_X		0x288
+#define CLK_OUT_ENB_SET_Y		0x29c
+#define CLK_OUT_ENB_CLR_Y		0x2a0
 
 #define RST_DEVICES_L			0x004
 #define RST_DEVICES_H			0x008
@@ -49,6 +53,7 @@
 #define RST_DEVICES_V			0x358
 #define RST_DEVICES_W			0x35C
 #define RST_DEVICES_X			0x28C
+#define RST_DEVICES_Y			0x2a4
 #define RST_DEVICES_SET_L		0x300
 #define RST_DEVICES_CLR_L		0x304
 #define RST_DEVICES_SET_H		0x308
@@ -61,6 +66,8 @@
 #define RST_DEVICES_CLR_W		0x43c
 #define RST_DEVICES_SET_X		0x290
 #define RST_DEVICES_CLR_X		0x294
+#define RST_DEVICES_SET_Y		0x2a8
+#define RST_DEVICES_CLR_Y		0x2ac
 
 /* Global data of Tegra CPU CAR ops */
 static struct tegra_cpu_car_ops dummy_car_ops;
@@ -120,6 +127,14 @@ static struct tegra_clk_periph_regs periph_regs[] = {
 		.rst_reg = RST_DEVICES_X,
 		.rst_set_reg = RST_DEVICES_SET_X,
 		.rst_clr_reg = RST_DEVICES_CLR_X,
+	},
+	[6] = {
+		.enb_reg = CLK_OUT_ENB_Y,
+		.enb_set_reg = CLK_OUT_ENB_SET_Y,
+		.enb_clr_reg = CLK_OUT_ENB_CLR_Y,
+		.rst_reg = RST_DEVICES_Y,
+		.rst_set_reg = RST_DEVICES_SET_Y,
+		.rst_clr_reg = RST_DEVICES_CLR_Y,
 	},
 };
 
@@ -206,8 +221,13 @@ void __init tegra_init_from_table(struct tegra_clk_init_table *tbl,
 
 	for (; tbl->clk_id < clk_max; tbl++) {
 		clk = clks[tbl->clk_id];
-		if (IS_ERR_OR_NULL(clk))
-			return;
+		if (IS_ERR_OR_NULL(clk)) {
+			pr_err("%s: invalid entry %ld in clks array for id %d\n",
+			       __func__, PTR_ERR(clk), tbl->clk_id);
+			WARN_ON(1);
+
+			continue;
+		}
 
 		if (tbl->parent_id < clk_max) {
 			struct clk *parent = clks[tbl->parent_id];
@@ -266,7 +286,7 @@ void __init tegra_add_of_provider(struct device_node *np)
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 
 	rst_ctlr.of_node = np;
-	rst_ctlr.nr_resets = clk_num * 32;
+	rst_ctlr.nr_resets = periph_banks * 32;
 	reset_controller_register(&rst_ctlr);
 }
 
@@ -277,6 +297,12 @@ void __init tegra_register_devclks(struct tegra_devclk *dev_clks, int num)
 	for (i = 0; i < num; i++, dev_clks++)
 		clk_register_clkdev(clks[dev_clks->dt_id], dev_clks->con_id,
 				dev_clks->dev_id);
+
+	for (i = 0; i < clk_num; i++) {
+		if (!IS_ERR_OR_NULL(clks[i]))
+			clk_register_clkdev(clks[i], __clk_get_name(clks[i]),
+				"tegra-clk-debug");
+	}
 }
 
 struct clk ** __init tegra_lookup_dt_id(int clk_id,
@@ -290,10 +316,13 @@ struct clk ** __init tegra_lookup_dt_id(int clk_id,
 
 tegra_clk_apply_init_table_func tegra_clk_apply_init_table;
 
-void __init tegra_clocks_apply_init_table(void)
+static int __init tegra_clocks_apply_init_table(void)
 {
 	if (!tegra_clk_apply_init_table)
-		return;
+		return 0;
 
 	tegra_clk_apply_init_table();
+
+	return 0;
 }
+arch_initcall(tegra_clocks_apply_init_table);

@@ -19,20 +19,15 @@
 
 /*
  * Early Hardware specific Interrupt setup
+ * -Platform independent, needed for each CPU (not foldable into init_IRQ)
  * -Called very early (start_kernel -> setup_arch -> setup_processor)
- * -Platform Independent (must for any ARC700)
- * -Needed for each CPU (hence not foldable into init_IRQ)
  *
  * what it does ?
- * -Disable all IRQs (on CPU side)
  * -Optionally, setup the High priority Interrupts as Level 2 IRQs
  */
 void arc_init_IRQ(void)
 {
 	int level_mask = 0;
-
-	/* Disable all IRQs: enable them as devices request */
-	write_aux_reg(AUX_IENABLE, 0);
 
        /* setup any high priority Interrupts (Level2 in ARCompact jargon) */
 	level_mask |= IS_ENABLED(CONFIG_ARC_IRQ3_LV2) << 3;
@@ -60,20 +55,28 @@ void arc_init_IRQ(void)
  * below, per IRQ.
  */
 
-static void arc_mask_irq(struct irq_data *data)
+static void arc_irq_mask(struct irq_data *data)
 {
-	arch_mask_irq(data->irq);
+	unsigned int ienb;
+
+	ienb = read_aux_reg(AUX_IENABLE);
+	ienb &= ~(1 << data->irq);
+	write_aux_reg(AUX_IENABLE, ienb);
 }
 
-static void arc_unmask_irq(struct irq_data *data)
+static void arc_irq_unmask(struct irq_data *data)
 {
-	arch_unmask_irq(data->irq);
+	unsigned int ienb;
+
+	ienb = read_aux_reg(AUX_IENABLE);
+	ienb |= (1 << data->irq);
+	write_aux_reg(AUX_IENABLE, ienb);
 }
 
 static struct irq_chip onchip_intc = {
 	.name           = "ARC In-core Intc",
-	.irq_mask	= arc_mask_irq,
-	.irq_unmask	= arc_unmask_irq,
+	.irq_mask	= arc_irq_mask,
+	.irq_unmask	= arc_irq_unmask,
 };
 
 static int arc_intc_domain_map(struct irq_domain *d, unsigned int irq,
@@ -150,22 +153,30 @@ void arch_do_IRQ(unsigned int irq, struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
-int get_hw_config_num_irq(void)
+void arc_request_percpu_irq(int irq, int cpu,
+                            irqreturn_t (*isr)(int irq, void *dev),
+                            const char *irq_nm,
+                            void *percpu_dev)
 {
-	uint32_t val = read_aux_reg(ARC_REG_VECBASE_BCR);
+	/* Boot cpu calls request, all call enable */
+	if (!cpu) {
+		int rc;
 
-	switch (val & 0x03) {
-	case 0:
-		return 16;
-	case 1:
-		return 32;
-	case 2:
-		return 8;
-	default:
-		return 0;
+		/*
+		 * These 2 calls are essential to making percpu IRQ APIs work
+		 * Ideally these details could be hidden in irq chip map function
+		 * but the issue is IPIs IRQs being static (non-DT) and platform
+		 * specific, so we can't identify them there.
+		 */
+		irq_set_percpu_devid(irq);
+		irq_modify_status(irq, IRQ_NOAUTOEN, 0);  /* @irq, @clr, @set */
+
+		rc = request_percpu_irq(irq, isr, irq_nm, percpu_dev);
+		if (rc)
+			panic("Percpu IRQ request failed for %d\n", irq);
 	}
 
-	return 0;
+	enable_percpu_irq(irq, 0);
 }
 
 /*

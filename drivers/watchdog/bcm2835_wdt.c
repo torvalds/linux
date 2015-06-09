@@ -114,10 +114,8 @@ static int bcm2835_wdt_probe(struct platform_device *pdev)
 	int err;
 
 	wdt = devm_kzalloc(dev, sizeof(struct bcm2835_wdt), GFP_KERNEL);
-	if (!wdt) {
-		dev_err(dev, "Failed to allocate memory for watchdog device");
+	if (!wdt)
 		return -ENOMEM;
-	}
 	platform_set_drvdata(pdev, wdt);
 
 	spin_lock_init(&wdt->lock);
@@ -169,7 +167,6 @@ static struct platform_driver bcm2835_wdt_driver = {
 	.shutdown	= bcm2835_wdt_shutdown,
 	.driver = {
 		.name =		"bcm2835-wdt",
-		.owner =	THIS_MODULE,
 		.of_match_table = bcm2835_wdt_of_match,
 	},
 };

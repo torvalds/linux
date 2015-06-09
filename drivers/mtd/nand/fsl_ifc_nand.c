@@ -22,7 +22,6 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/of_address.h>
 #include <linux/slab.h>
@@ -30,9 +29,8 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand_ecc.h>
-#include <asm/fsl_ifc.h>
+#include <linux/fsl_ifc.h>
 
-#define FSL_IFC_V1_1_0	0x01010000
 #define ERR_BYTE		0xFF /* Value returned for read
 					bytes when read failed	*/
 #define IFC_TIMEOUT_MSECS	500  /* Maximum number of mSecs to wait
@@ -57,7 +55,7 @@ struct fsl_ifc_nand_ctrl {
 	struct nand_hw_control controller;
 	struct fsl_ifc_mtd *chips[FSL_IFC_BANK_COUNT];
 
-	u8 __iomem *addr;	/* Address of assigned IFC buffer	*/
+	void __iomem *addr;	/* Address of assigned IFC buffer	*/
 	unsigned int page;	/* Last page written to / read from	*/
 	unsigned int read_bytes;/* Number of bytes read during command	*/
 	unsigned int column;	/* Saved column from SEQIN		*/
@@ -319,7 +317,7 @@ static void fsl_ifc_run_command(struct mtd_info *mtd)
 
 	/* wait for command complete flag or timeout */
 	wait_event_timeout(ctrl->nand_wait, ctrl->nand_stat,
-			   IFC_TIMEOUT_MSECS * HZ/1000);
+			   msecs_to_jiffies(IFC_TIMEOUT_MSECS));
 
 	/* ctrl->nand_stat will be updated from IRQ context */
 	if (!ctrl->nand_stat)
@@ -592,7 +590,10 @@ static void fsl_ifc_cmdfunc(struct mtd_info *mtd, unsigned int command,
 		 * The chip always seems to report that it is
 		 * write-protected, even when it is not.
 		 */
-		setbits8(ifc_nand_ctrl->addr, NAND_STATUS_WP);
+		if (chip->options & NAND_BUSWIDTH_16)
+			setbits16(ifc_nand_ctrl->addr, NAND_STATUS_WP);
+		else
+			setbits8(ifc_nand_ctrl->addr, NAND_STATUS_WP);
 		return;
 
 	case NAND_CMD_RESET:
@@ -637,7 +638,7 @@ static void fsl_ifc_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
 		len = bufsize - ifc_nand_ctrl->index;
 	}
 
-	memcpy_toio(&ifc_nand_ctrl->addr[ifc_nand_ctrl->index], buf, len);
+	memcpy_toio(ifc_nand_ctrl->addr + ifc_nand_ctrl->index, buf, len);
 	ifc_nand_ctrl->index += len;
 }
 
@@ -649,13 +650,16 @@ static uint8_t fsl_ifc_read_byte(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd->priv;
 	struct fsl_ifc_mtd *priv = chip->priv;
+	unsigned int offset;
 
 	/*
 	 * If there are still bytes in the IFC buffer, then use the
 	 * next byte.
 	 */
-	if (ifc_nand_ctrl->index < ifc_nand_ctrl->read_bytes)
-		return in_8(&ifc_nand_ctrl->addr[ifc_nand_ctrl->index++]);
+	if (ifc_nand_ctrl->index < ifc_nand_ctrl->read_bytes) {
+		offset = ifc_nand_ctrl->index++;
+		return in_8(ifc_nand_ctrl->addr + offset);
+	}
 
 	dev_err(priv->dev, "%s: beyond end of buffer\n", __func__);
 	return ERR_BYTE;
@@ -676,8 +680,7 @@ static uint8_t fsl_ifc_read_byte16(struct mtd_info *mtd)
 	 * next byte.
 	 */
 	if (ifc_nand_ctrl->index < ifc_nand_ctrl->read_bytes) {
-		data = in_be16((uint16_t __iomem *)&ifc_nand_ctrl->
-			       addr[ifc_nand_ctrl->index]);
+		data = in_be16(ifc_nand_ctrl->addr + ifc_nand_ctrl->index);
 		ifc_nand_ctrl->index += 2;
 		return (uint8_t) data;
 	}
@@ -702,7 +705,7 @@ static void fsl_ifc_read_buf(struct mtd_info *mtd, u8 *buf, int len)
 
 	avail = min((unsigned int)len,
 			ifc_nand_ctrl->read_bytes - ifc_nand_ctrl->index);
-	memcpy_fromio(buf, &ifc_nand_ctrl->addr[ifc_nand_ctrl->index], avail);
+	memcpy_fromio(buf, ifc_nand_ctrl->addr + ifc_nand_ctrl->index, avail);
 	ifc_nand_ctrl->index += avail;
 
 	if (len > avail)
@@ -857,7 +860,7 @@ static void fsl_ifc_sram_init(struct fsl_ifc_mtd *priv)
 
 	/* wait for command complete flag or timeout */
 	wait_event_timeout(ctrl->nand_wait, ctrl->nand_stat,
-			   IFC_TIMEOUT_MSECS * HZ/1000);
+			   msecs_to_jiffies(IFC_TIMEOUT_MSECS));
 
 	if (ctrl->nand_stat != IFC_NAND_EVTER_STAT_OPC)
 		printk(KERN_ERR "fsl-ifc: Failed to Initialise SRAM\n");
@@ -873,7 +876,7 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 	struct fsl_ifc_regs __iomem *ifc = ctrl->regs;
 	struct nand_chip *chip = &priv->chip;
 	struct nand_ecclayout *layout;
-	u32 csor, ver;
+	u32 csor;
 
 	/* Fill in fsl_ifc_mtd structure */
 	priv->mtd.priv = chip;
@@ -980,8 +983,7 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 		chip->ecc.mode = NAND_ECC_SOFT;
 	}
 
-	ver = ioread32be(&ifc->ifc_rev);
-	if (ver == FSL_IFC_V1_1_0)
+	if (ctrl->version == FSL_IFC_VERSION_1_1_0)
 		fsl_ifc_sram_init(priv);
 
 	return 0;
@@ -1041,12 +1043,12 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 	}
 
 	/* find which chip select it is connected to */
-	for (bank = 0; bank < FSL_IFC_BANK_COUNT; bank++) {
+	for (bank = 0; bank < fsl_ifc_ctrl_dev->banks; bank++) {
 		if (match_bank(ifc, bank, res.start))
 			break;
 	}
 
-	if (bank >= FSL_IFC_BANK_COUNT) {
+	if (bank >= fsl_ifc_ctrl_dev->banks) {
 		dev_err(&dev->dev, "%s: address did not match any chip selects\n",
 			__func__);
 		return -ENODEV;
@@ -1163,7 +1165,6 @@ static const struct of_device_id fsl_ifc_nand_match[] = {
 static struct platform_driver fsl_ifc_nand_driver = {
 	.driver = {
 		.name	= "fsl,ifc-nand",
-		.owner = THIS_MODULE,
 		.of_match_table = fsl_ifc_nand_match,
 	},
 	.probe       = fsl_ifc_nand_probe,

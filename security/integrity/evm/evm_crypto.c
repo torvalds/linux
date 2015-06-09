@@ -13,6 +13,8 @@
  *	 Using root's kernel master key (kmk), calculate the HMAC
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/crypto.h>
 #include <linux/xattr.h>
@@ -103,14 +105,14 @@ static void hmac_add_misc(struct shash_desc *desc, struct inode *inode,
 		umode_t mode;
 	} hmac_misc;
 
-	memset(&hmac_misc, 0, sizeof hmac_misc);
+	memset(&hmac_misc, 0, sizeof(hmac_misc));
 	hmac_misc.ino = inode->i_ino;
 	hmac_misc.generation = inode->i_generation;
 	hmac_misc.uid = from_kuid(&init_user_ns, inode->i_uid);
 	hmac_misc.gid = from_kgid(&init_user_ns, inode->i_gid);
 	hmac_misc.mode = inode->i_mode;
-	crypto_shash_update(desc, (const u8 *)&hmac_misc, sizeof hmac_misc);
-	if (evm_hmac_version > 1)
+	crypto_shash_update(desc, (const u8 *)&hmac_misc, sizeof(hmac_misc));
+	if (evm_hmac_attrs & EVM_ATTR_FSUUID)
 		crypto_shash_update(desc, inode->i_sb->s_uuid,
 				    sizeof(inode->i_sb->s_uuid));
 	crypto_shash_final(desc, digest);
@@ -129,7 +131,7 @@ static int evm_calc_hmac_or_hash(struct dentry *dentry,
 				size_t req_xattr_value_len,
 				char type, char *digest)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_backing_inode(dentry);
 	struct shash_desc *desc;
 	char **xattrname;
 	size_t xattr_size = 0;
@@ -137,7 +139,7 @@ static int evm_calc_hmac_or_hash(struct dentry *dentry,
 	int error;
 	int size;
 
-	if (!inode->i_op || !inode->i_op->getxattr)
+	if (!inode->i_op->getxattr)
 		return -EOPNOTSUPP;
 	desc = init_desc(type);
 	if (IS_ERR(desc))
@@ -197,7 +199,7 @@ int evm_calc_hash(struct dentry *dentry, const char *req_xattr_name,
 int evm_update_evmxattr(struct dentry *dentry, const char *xattr_name,
 			const char *xattr_value, size_t xattr_value_len)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_backing_inode(dentry);
 	struct evm_ima_xattr_data xattr_data;
 	int rc = 0;
 
@@ -221,7 +223,7 @@ int evm_init_hmac(struct inode *inode, const struct xattr *lsm_xattr,
 
 	desc = init_desc(EVM_XATTR_HMAC);
 	if (IS_ERR(desc)) {
-		printk(KERN_INFO "init_desc failed\n");
+		pr_info("init_desc failed\n");
 		return PTR_ERR(desc);
 	}
 

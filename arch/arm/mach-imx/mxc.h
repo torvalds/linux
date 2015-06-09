@@ -36,12 +36,15 @@
 #define MXC_CPU_MX53		53
 #define MXC_CPU_IMX6SL		0x60
 #define MXC_CPU_IMX6DL		0x61
+#define MXC_CPU_IMX6SX		0x62
 #define MXC_CPU_IMX6Q		0x63
 
 #define IMX_CHIP_REVISION_1_0		0x10
 #define IMX_CHIP_REVISION_1_1		0x11
 #define IMX_CHIP_REVISION_1_2		0x12
 #define IMX_CHIP_REVISION_1_3		0x13
+#define IMX_CHIP_REVISION_1_4		0x14
+#define IMX_CHIP_REVISION_1_5		0x15
 #define IMX_CHIP_REVISION_2_0		0x20
 #define IMX_CHIP_REVISION_2_1		0x21
 #define IMX_CHIP_REVISION_2_2		0x22
@@ -51,6 +54,8 @@
 #define IMX_CHIP_REVISION_3_2		0x32
 #define IMX_CHIP_REVISION_3_3		0x33
 #define IMX_CHIP_REVISION_UNKNOWN	0xff
+
+#define IMX_DDR_TYPE_LPDDR2		1
 
 #ifndef __ASSEMBLY__
 extern unsigned int __mxc_cpu_type;
@@ -153,14 +158,26 @@ extern unsigned int __mxc_cpu_type;
 #endif
 
 #ifndef __ASSEMBLY__
+#ifdef CONFIG_SOC_IMX6SL
 static inline bool cpu_is_imx6sl(void)
 {
 	return __mxc_cpu_type == MXC_CPU_IMX6SL;
 }
+#else
+static inline bool cpu_is_imx6sl(void)
+{
+	return false;
+}
+#endif
 
 static inline bool cpu_is_imx6dl(void)
 {
 	return __mxc_cpu_type == MXC_CPU_IMX6DL;
+}
+
+static inline bool cpu_is_imx6sx(void)
+{
+	return __mxc_cpu_type == MXC_CPU_IMX6SX;
 }
 
 static inline bool cpu_is_imx6q(void)

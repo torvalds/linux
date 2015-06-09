@@ -23,6 +23,18 @@
 
 #define VFIO_TYPE1_IOMMU		1
 #define VFIO_SPAPR_TCE_IOMMU		2
+#define VFIO_TYPE1v2_IOMMU		3
+/*
+ * IOMMU enforces DMA cache coherence (ex. PCIe NoSnoop stripping).  This
+ * capability is subject to change as groups are added or removed.
+ */
+#define VFIO_DMA_CC_IOMMU		4
+
+/* Check if EEH is supported */
+#define VFIO_EEH			5
+
+/* Two-stage IOMMU */
+#define VFIO_TYPE1_NESTING_IOMMU	6	/* Implies v2 */
 
 /*
  * The IOCTL interface is designed for extensibility by embedding the
@@ -148,6 +160,8 @@ struct vfio_device_info {
 	__u32	flags;
 #define VFIO_DEVICE_FLAGS_RESET	(1 << 0)	/* Device supports reset */
 #define VFIO_DEVICE_FLAGS_PCI	(1 << 1)	/* vfio-pci device */
+#define VFIO_DEVICE_FLAGS_PLATFORM (1 << 2)	/* vfio-platform device */
+#define VFIO_DEVICE_FLAGS_AMBA  (1 << 3)	/* vfio-amba device */
 	__u32	num_regions;	/* Max region index + 1 */
 	__u32	num_irqs;	/* Max IRQ index + 1 */
 };
@@ -321,6 +335,7 @@ enum {
 	VFIO_PCI_MSI_IRQ_INDEX,
 	VFIO_PCI_MSIX_IRQ_INDEX,
 	VFIO_PCI_ERR_IRQ_INDEX,
+	VFIO_PCI_REQ_IRQ_INDEX,
 	VFIO_PCI_NUM_IRQS
 };
 
@@ -448,6 +463,37 @@ struct vfio_iommu_spapr_tce_info {
 };
 
 #define VFIO_IOMMU_SPAPR_TCE_GET_INFO	_IO(VFIO_TYPE, VFIO_BASE + 12)
+
+/*
+ * EEH PE operation struct provides ways to:
+ * - enable/disable EEH functionality;
+ * - unfreeze IO/DMA for frozen PE;
+ * - read PE state;
+ * - reset PE;
+ * - configure PE.
+ */
+struct vfio_eeh_pe_op {
+	__u32 argsz;
+	__u32 flags;
+	__u32 op;
+};
+
+#define VFIO_EEH_PE_DISABLE		0	/* Disable EEH functionality */
+#define VFIO_EEH_PE_ENABLE		1	/* Enable EEH functionality  */
+#define VFIO_EEH_PE_UNFREEZE_IO		2	/* Enable IO for frozen PE   */
+#define VFIO_EEH_PE_UNFREEZE_DMA	3	/* Enable DMA for frozen PE  */
+#define VFIO_EEH_PE_GET_STATE		4	/* PE state retrieval        */
+#define  VFIO_EEH_PE_STATE_NORMAL	0	/* PE in functional state    */
+#define  VFIO_EEH_PE_STATE_RESET	1	/* PE reset in progress      */
+#define  VFIO_EEH_PE_STATE_STOPPED	2	/* Stopped DMA and IO        */
+#define  VFIO_EEH_PE_STATE_STOPPED_DMA	4	/* Stopped DMA only          */
+#define  VFIO_EEH_PE_STATE_UNAVAIL	5	/* State unavailable         */
+#define VFIO_EEH_PE_RESET_DEACTIVATE	5	/* Deassert PE reset         */
+#define VFIO_EEH_PE_RESET_HOT		6	/* Assert hot reset          */
+#define VFIO_EEH_PE_RESET_FUNDAMENTAL	7	/* Assert fundamental reset  */
+#define VFIO_EEH_PE_CONFIGURE		8	/* PE configuration          */
+
+#define VFIO_EEH_PE_OP			_IO(VFIO_TYPE, VFIO_BASE + 21)
 
 /* ***************************************************************** */
 

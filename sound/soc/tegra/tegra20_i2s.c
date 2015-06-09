@@ -333,7 +333,7 @@ static const struct regmap_config tegra20_i2s_regmap_config = {
 	.readable_reg = tegra20_i2s_wr_rd_reg,
 	.volatile_reg = tegra20_i2s_volatile_reg,
 	.precious_reg = tegra20_i2s_precious_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_FLAT,
 };
 
 static int tegra20_i2s_platform_probe(struct platform_device *pdev)
@@ -464,7 +464,6 @@ static const struct dev_pm_ops tegra20_i2s_pm_ops = {
 static struct platform_driver tegra20_i2s_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = tegra20_i2s_of_match,
 		.pm = &tegra20_i2s_pm_ops,
 	},

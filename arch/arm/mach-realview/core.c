@@ -25,12 +25,15 @@
 #include <linux/interrupt.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
+#include <linux/platform_data/video-clcd-versatile.h>
 #include <linux/io.h>
 #include <linux/smsc911x.h>
+#include <linux/smc91x.h>
 #include <linux/ata_platform.h>
 #include <linux/amba/mmci.h>
 #include <linux/gfp.h>
 #include <linux/mtd/physmap.h>
+#include <linux/memblock.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
@@ -47,7 +50,6 @@
 #include <mach/irqs.h>
 #include <asm/hardware/timer-sp.h>
 
-#include <plat/clcd.h>
 #include <plat/sched_clock.h>
 
 #include "core.h"
@@ -93,6 +95,10 @@ static struct smsc911x_platform_config smsc911x_config = {
 	.phy_interface	= PHY_INTERFACE_MODE_MII,
 };
 
+static struct smc91x_platdata smc91x_platdata = {
+	.flags = SMC91X_USE_32BIT | SMC91X_NOWAIT,
+};
+
 static struct platform_device realview_eth_device = {
 	.name		= "smsc911x",
 	.id		= 0,
@@ -106,6 +112,8 @@ int realview_eth_register(const char *name, struct resource *res)
 	realview_eth_device.resource = res;
 	if (strcmp(realview_eth_device.name, "smsc911x") == 0)
 		realview_eth_device.dev.platform_data = &smsc911x_config;
+	else
+		realview_eth_device.dev.platform_data = &smc91x_platdata;
 
 	return platform_device_register(&realview_eth_device);
 }
@@ -146,6 +154,21 @@ struct platform_device realview_cf_device = {
 	.dev			= {
 		.platform_data	= &pata_platform_data,
 	},
+};
+
+static struct resource realview_leds_resources[] = {
+	{
+		.start	= REALVIEW_SYS_BASE + REALVIEW_SYS_LED_OFFSET,
+		.end	= REALVIEW_SYS_BASE + REALVIEW_SYS_LED_OFFSET + 4,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device realview_leds_device = {
+	.name		= "versatile-leds",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(realview_leds_resources),
+	.resource	= realview_leds_resources,
 };
 
 static struct resource realview_i2c_resource = {
@@ -370,19 +393,15 @@ void __init realview_timer_init(unsigned int timer_irq)
 /*
  * Setup the memory banks.
  */
-void realview_fixup(struct tag *tags, char **from, struct meminfo *meminfo)
+void realview_fixup(struct tag *tags, char **from)
 {
 	/*
 	 * Most RealView platforms have 512MB contiguous RAM at 0x70000000.
 	 * Half of this is mirrored at 0.
 	 */
 #ifdef CONFIG_REALVIEW_HIGH_PHYS_OFFSET
-	meminfo->bank[0].start = 0x70000000;
-	meminfo->bank[0].size = SZ_512M;
-	meminfo->nr_banks = 1;
+	memblock_add(0x70000000, SZ_512M);
 #else
-	meminfo->bank[0].start = 0;
-	meminfo->bank[0].size = SZ_256M;
-	meminfo->nr_banks = 1;
+	memblock_add(0, SZ_256M);
 #endif
 }

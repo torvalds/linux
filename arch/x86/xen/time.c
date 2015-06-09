@@ -80,7 +80,7 @@ static void get_runstate_snapshot(struct vcpu_runstate_info *res)
 
 	BUG_ON(preemptible());
 
-	state = &__get_cpu_var(xen_runstate);
+	state = this_cpu_ptr(&xen_runstate);
 
 	/*
 	 * The runstate info is always updated by the hypervisor on
@@ -123,7 +123,7 @@ static void do_stolen_accounting(void)
 
 	WARN_ON(state.state != RUNSTATE_running);
 
-	snap = &__get_cpu_var(xen_runstate_snapshot);
+	snap = this_cpu_ptr(&xen_runstate_snapshot);
 
 	/* work out how much time the VCPU has not been runn*ing*  */
 	runnable = state.time[RUNSTATE_runnable] - snap->time[RUNSTATE_runnable];
@@ -158,7 +158,7 @@ cycle_t xen_clocksource_read(void)
 	cycle_t ret;
 
 	preempt_disable_notrace();
-	src = &__get_cpu_var(xen_vcpu)->time;
+	src = &__this_cpu_read(xen_vcpu)->time;
 	ret = pvclock_clocksource_read(src);
 	preempt_enable_notrace();
 	return ret;
@@ -391,13 +391,13 @@ static const struct clock_event_device *xen_clockevent =
 
 struct xen_clock_event_device {
 	struct clock_event_device evt;
-	char *name;
+	char name[16];
 };
 static DEFINE_PER_CPU(struct xen_clock_event_device, xen_clock_events) = { .evt.irq = -1 };
 
 static irqreturn_t xen_timer_interrupt(int irq, void *dev_id)
 {
-	struct clock_event_device *evt = &__get_cpu_var(xen_clock_events).evt;
+	struct clock_event_device *evt = this_cpu_ptr(&xen_clock_events.evt);
 	irqreturn_t ret;
 
 	ret = IRQ_NONE;
@@ -420,47 +420,39 @@ void xen_teardown_timer(int cpu)
 	if (evt->irq >= 0) {
 		unbind_from_irqhandler(evt->irq, NULL);
 		evt->irq = -1;
-		kfree(per_cpu(xen_clock_events, cpu).name);
-		per_cpu(xen_clock_events, cpu).name = NULL;
 	}
 }
 
 void xen_setup_timer(int cpu)
 {
-	char *name;
-	struct clock_event_device *evt;
+	struct xen_clock_event_device *xevt = &per_cpu(xen_clock_events, cpu);
+	struct clock_event_device *evt = &xevt->evt;
 	int irq;
 
-	evt = &per_cpu(xen_clock_events, cpu).evt;
 	WARN(evt->irq >= 0, "IRQ%d for CPU%d is already allocated\n", evt->irq, cpu);
 	if (evt->irq >= 0)
 		xen_teardown_timer(cpu);
 
 	printk(KERN_INFO "installing Xen timer for CPU %d\n", cpu);
 
-	name = kasprintf(GFP_KERNEL, "timer%d", cpu);
-	if (!name)
-		name = "<timer kasprintf failed>";
+	snprintf(xevt->name, sizeof(xevt->name), "timer%d", cpu);
 
 	irq = bind_virq_to_irqhandler(VIRQ_TIMER, cpu, xen_timer_interrupt,
 				      IRQF_PERCPU|IRQF_NOBALANCING|IRQF_TIMER|
-				      IRQF_FORCE_RESUME,
-				      name, NULL);
+				      IRQF_FORCE_RESUME|IRQF_EARLY_RESUME,
+				      xevt->name, NULL);
 	(void)xen_set_irq_priority(irq, XEN_IRQ_PRIORITY_MAX);
 
 	memcpy(evt, xen_clockevent, sizeof(*evt));
 
 	evt->cpumask = cpumask_of(cpu);
 	evt->irq = irq;
-	per_cpu(xen_clock_events, cpu).name = name;
 }
 
 
 void xen_setup_cpu_clockevents(void)
 {
-	BUG_ON(preemptible());
-
-	clockevents_register_device(&__get_cpu_var(xen_clock_events).evt);
+	clockevents_register_device(this_cpu_ptr(&xen_clock_events.evt));
 }
 
 void xen_timer_resume(void)
@@ -486,6 +478,10 @@ static void __init xen_time_init(void)
 {
 	int cpu = smp_processor_id();
 	struct timespec tp;
+
+	/* As Dom0 is never moved, no penalty on using TSC there */
+	if (xen_initial_domain())
+		xen_clocksource.rating = 275;
 
 	clocksource_register_hz(&xen_clocksource, NSEC_PER_SEC);
 

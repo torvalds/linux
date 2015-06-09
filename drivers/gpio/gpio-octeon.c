@@ -129,7 +129,8 @@ out:
 static int octeon_gpio_remove(struct platform_device *pdev)
 {
 	struct gpio_chip *chip = pdev->dev.platform_data;
-	return gpiochip_remove(chip);
+	gpiochip_remove(chip);
+	return 0;
 }
 
 static struct of_device_id octeon_gpio_match[] = {
@@ -143,7 +144,6 @@ MODULE_DEVICE_TABLE(of, octeon_gpio_match);
 static struct platform_driver octeon_gpio_driver = {
 	.driver = {
 		.name		= "octeon_gpio",
-		.owner		= THIS_MODULE,
 		.of_match_table = octeon_gpio_match,
 	},
 	.probe		= octeon_gpio_probe,

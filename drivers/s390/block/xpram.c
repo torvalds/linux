@@ -346,6 +346,7 @@ static int __init xpram_setup_blkdev(void)
 			goto out;
 		}
 		queue_flag_set_unlocked(QUEUE_FLAG_NONROT, xpram_queues[i]);
+		queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, xpram_queues[i]);
 		blk_queue_make_request(xpram_queues[i], xpram_make_request);
 		blk_queue_logical_block_size(xpram_queues[i], 4096);
 	}
@@ -416,7 +417,6 @@ static const struct dev_pm_ops xpram_pm_ops = {
 static struct platform_driver xpram_pdrv = {
 	.driver = {
 		.name	= XPRAM_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &xpram_pm_ops,
 	},
 };

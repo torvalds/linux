@@ -408,41 +408,15 @@ static struct snd_soc_dai_driver wm8776_dai[] = {
 	},
 };
 
-#ifdef CONFIG_PM
-static int wm8776_suspend(struct snd_soc_codec *codec)
-{
-	wm8776_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-static int wm8776_resume(struct snd_soc_codec *codec)
-{
-	wm8776_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-#else
-#define wm8776_suspend NULL
-#define wm8776_resume NULL
-#endif
-
 static int wm8776_probe(struct snd_soc_codec *codec)
 {
 	int ret = 0;
-
-	ret = snd_soc_codec_set_cache_io(codec, 7, 9, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	ret = wm8776_reset(codec);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to issue reset: %d\n", ret);
 		return ret;
 	}
-
-	wm8776_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* Latch the update bits; right channel only since we always
 	 * update both. */
@@ -452,19 +426,10 @@ static int wm8776_probe(struct snd_soc_codec *codec)
 	return ret;
 }
 
-/* power down chip */
-static int wm8776_remove(struct snd_soc_codec *codec)
-{
-	wm8776_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_wm8776 = {
 	.probe = 	wm8776_probe,
-	.remove = 	wm8776_remove,
-	.suspend = 	wm8776_suspend,
-	.resume =	wm8776_resume,
 	.set_bias_level = wm8776_set_bias_level,
+	.suspend_bias_off = true,
 
 	.controls = wm8776_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8776_snd_controls),

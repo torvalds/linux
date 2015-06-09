@@ -118,6 +118,7 @@ static int dwc2_core_reset(struct dwc2_hsotg *hsotg)
 {
 	u32 greset;
 	int count = 0;
+	u32 gusbcfg;
 
 	dev_vdbg(hsotg->dev, "%s()\n", __func__);
 
@@ -147,6 +148,23 @@ static int dwc2_core_reset(struct dwc2_hsotg *hsotg)
 			return -EBUSY;
 		}
 	} while (greset & GRSTCTL_CSFTRST);
+
+	if (hsotg->dr_mode == USB_DR_MODE_HOST) {
+		gusbcfg = readl(hsotg->regs + GUSBCFG);
+		gusbcfg &= ~GUSBCFG_FORCEDEVMODE;
+		gusbcfg |= GUSBCFG_FORCEHOSTMODE;
+		writel(gusbcfg, hsotg->regs + GUSBCFG);
+	} else if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL) {
+		gusbcfg = readl(hsotg->regs + GUSBCFG);
+		gusbcfg &= ~GUSBCFG_FORCEHOSTMODE;
+		gusbcfg |= GUSBCFG_FORCEDEVMODE;
+		writel(gusbcfg, hsotg->regs + GUSBCFG);
+	} else if (hsotg->dr_mode == USB_DR_MODE_OTG) {
+		gusbcfg = readl(hsotg->regs + GUSBCFG);
+		gusbcfg &= ~GUSBCFG_FORCEHOSTMODE;
+		gusbcfg &= ~GUSBCFG_FORCEDEVMODE;
+		writel(gusbcfg, hsotg->regs + GUSBCFG);
+	}
 
 	/*
 	 * NOTE: This long sleep is _very_ important, otherwise the core will
@@ -440,21 +458,11 @@ int dwc2_core_init(struct dwc2_hsotg *hsotg, bool select_phy, int irq)
 	/* Clear the SRP success bit for FS-I2c */
 	hsotg->srp_success = 0;
 
-	if (irq >= 0) {
-		dev_dbg(hsotg->dev, "registering common handler for irq%d\n",
-			irq);
-		retval = devm_request_irq(hsotg->dev, irq,
-					  dwc2_handle_common_intr, IRQF_SHARED,
-					  dev_name(hsotg->dev), hsotg);
-		if (retval)
-			return retval;
-	}
-
 	/* Enable common interrupts */
 	dwc2_enable_common_interrupts(hsotg);
 
 	/*
-	 * Do device or host intialization based on mode during PCD and
+	 * Do device or host initialization based on mode during PCD and
 	 * HCD initialization
 	 */
 	if (dwc2_is_host_mode(hsotg)) {
@@ -507,6 +515,72 @@ void dwc2_disable_host_interrupts(struct dwc2_hsotg *hsotg)
 	writel(intmsk, hsotg->regs + GINTMSK);
 }
 
+/*
+ * dwc2_calculate_dynamic_fifo() - Calculates the default fifo size
+ * For system that have a total fifo depth that is smaller than the default
+ * RX + TX fifo size.
+ *
+ * @hsotg: Programming view of DWC_otg controller
+ */
+static void dwc2_calculate_dynamic_fifo(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_core_params *params = hsotg->core_params;
+	struct dwc2_hw_params *hw = &hsotg->hw_params;
+	u32 rxfsiz, nptxfsiz, ptxfsiz, total_fifo_size;
+
+	total_fifo_size = hw->total_fifo_size;
+	rxfsiz = params->host_rx_fifo_size;
+	nptxfsiz = params->host_nperio_tx_fifo_size;
+	ptxfsiz = params->host_perio_tx_fifo_size;
+
+	/*
+	 * Will use Method 2 defined in the DWC2 spec: minimum FIFO depth
+	 * allocation with support for high bandwidth endpoints. Synopsys
+	 * defines MPS(Max Packet size) for a periodic EP=1024, and for
+	 * non-periodic as 512.
+	 */
+	if (total_fifo_size < (rxfsiz + nptxfsiz + ptxfsiz)) {
+		/*
+		 * For Buffer DMA mode/Scatter Gather DMA mode
+		 * 2 * ((Largest Packet size / 4) + 1 + 1) + n
+		 * with n = number of host channel.
+		 * 2 * ((1024/4) + 2) = 516
+		 */
+		rxfsiz = 516 + hw->host_channels;
+
+		/*
+		 * min non-periodic tx fifo depth
+		 * 2 * (largest non-periodic USB packet used / 4)
+		 * 2 * (512/4) = 256
+		 */
+		nptxfsiz = 256;
+
+		/*
+		 * min periodic tx fifo depth
+		 * (largest packet size*MC)/4
+		 * (1024 * 3)/4 = 768
+		 */
+		ptxfsiz = 768;
+
+		params->host_rx_fifo_size = rxfsiz;
+		params->host_nperio_tx_fifo_size = nptxfsiz;
+		params->host_perio_tx_fifo_size = ptxfsiz;
+	}
+
+	/*
+	 * If the summation of RX, NPTX and PTX fifo sizes is still
+	 * bigger than the total_fifo_size, then we have a problem.
+	 *
+	 * We won't be able to allocate as many endpoints. Right now,
+	 * we're just printing an error message, but ideally this FIFO
+	 * allocation algorithm would be improved in the future.
+	 *
+	 * FIXME improve this FIFO allocation algorithm.
+	 */
+	if (unlikely(total_fifo_size < (rxfsiz + nptxfsiz + ptxfsiz)))
+		dev_err(hsotg->dev, "invalid fifo sizes\n");
+}
+
 static void dwc2_config_fifos(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_core_params *params = hsotg->core_params;
@@ -514,6 +588,8 @@ static void dwc2_config_fifos(struct dwc2_hsotg *hsotg)
 
 	if (!params->enable_dynamic_fifo)
 		return;
+
+	dwc2_calculate_dynamic_fifo(hsotg);
 
 	/* Rx FIFO */
 	grxfsiz = readl(hsotg->regs + GRXFSIZ);
@@ -2606,23 +2682,23 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	hwcfg2 = readl(hsotg->regs + GHWCFG2);
 	hwcfg3 = readl(hsotg->regs + GHWCFG3);
 	hwcfg4 = readl(hsotg->regs + GHWCFG4);
-	gnptxfsiz = readl(hsotg->regs + GNPTXFSIZ);
 	grxfsiz = readl(hsotg->regs + GRXFSIZ);
 
 	dev_dbg(hsotg->dev, "hwcfg1=%08x\n", hwcfg1);
 	dev_dbg(hsotg->dev, "hwcfg2=%08x\n", hwcfg2);
 	dev_dbg(hsotg->dev, "hwcfg3=%08x\n", hwcfg3);
 	dev_dbg(hsotg->dev, "hwcfg4=%08x\n", hwcfg4);
-	dev_dbg(hsotg->dev, "gnptxfsiz=%08x\n", gnptxfsiz);
 	dev_dbg(hsotg->dev, "grxfsiz=%08x\n", grxfsiz);
 
-	/* Force host mode to get HPTXFSIZ exact power on value */
+	/* Force host mode to get HPTXFSIZ / GNPTXFSIZ exact power on value */
 	gusbcfg = readl(hsotg->regs + GUSBCFG);
 	gusbcfg |= GUSBCFG_FORCEHOSTMODE;
 	writel(gusbcfg, hsotg->regs + GUSBCFG);
 	usleep_range(100000, 150000);
 
+	gnptxfsiz = readl(hsotg->regs + GNPTXFSIZ);
 	hptxfsiz = readl(hsotg->regs + HPTXFSIZ);
+	dev_dbg(hsotg->dev, "gnptxfsiz=%08x\n", gnptxfsiz);
 	dev_dbg(hsotg->dev, "hptxfsiz=%08x\n", hptxfsiz);
 	gusbcfg = readl(hsotg->regs + GUSBCFG);
 	gusbcfg &= ~GUSBCFG_FORCEHOSTMODE;
@@ -2657,6 +2733,13 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	width = (hwcfg3 & GHWCFG3_XFER_SIZE_CNTR_WIDTH_MASK) >>
 		GHWCFG3_XFER_SIZE_CNTR_WIDTH_SHIFT;
 	hw->max_transfer_size = (1 << (width + 11)) - 1;
+	/*
+	 * Clip max_transfer_size to 65535. dwc2_hc_setup_align_buf() allocates
+	 * coherent buffers with this size, and if it's too large we can
+	 * exhaust the coherent DMA pool.
+	 */
+	if (hw->max_transfer_size > 65535)
+		hw->max_transfer_size = 65535;
 	width = (hwcfg3 & GHWCFG3_PACKET_SIZE_CNTR_WIDTH_MASK) >>
 		GHWCFG3_PACKET_SIZE_CNTR_WIDTH_SHIFT;
 	hw->max_packet_count = (1 << (width + 4)) - 1;

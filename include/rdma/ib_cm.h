@@ -105,7 +105,8 @@ enum ib_cm_data_size {
 	IB_CM_SIDR_REQ_PRIVATE_DATA_SIZE = 216,
 	IB_CM_SIDR_REP_PRIVATE_DATA_SIZE = 136,
 	IB_CM_SIDR_REP_INFO_LENGTH	 = 72,
-	IB_CM_COMPARE_SIZE		 = 64
+	/* compare done u32 at a time */
+	IB_CM_COMPARE_SIZE		 = (64 / sizeof(u32))
 };
 
 struct ib_cm_id;
@@ -337,8 +338,8 @@ void ib_destroy_cm_id(struct ib_cm_id *cm_id);
 #define IB_SDP_SERVICE_ID_MASK	cpu_to_be64(0xFFFFFFFFFFFF0000ULL)
 
 struct ib_cm_compare_data {
-	u8  data[IB_CM_COMPARE_SIZE];
-	u8  mask[IB_CM_COMPARE_SIZE];
+	u32  data[IB_CM_COMPARE_SIZE];
+	u32  mask[IB_CM_COMPARE_SIZE];
 };
 
 /**
@@ -601,5 +602,4 @@ struct ib_cm_sidr_rep_param {
 int ib_send_cm_sidr_rep(struct ib_cm_id *cm_id,
 			struct ib_cm_sidr_rep_param *param);
 
-int ib_update_cm_av(struct ib_cm_id *id, const u8 *smac, const u8 *alt_smac);
 #endif /* IB_CM_H */

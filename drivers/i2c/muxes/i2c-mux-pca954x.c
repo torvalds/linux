@@ -36,12 +36,13 @@
  */
 
 #include <linux/device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
 #include <linux/i2c/pca954x.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
+#include <linux/of.h>
+#include <linux/pm.h>
 #include <linux/slab.h>
 
 #define PCA954X_MAX_NCHANS 8
@@ -186,7 +187,9 @@ static int pca954x_probe(struct i2c_client *client,
 {
 	struct i2c_adapter *adap = to_i2c_adapter(client->dev.parent);
 	struct pca954x_platform_data *pdata = dev_get_platdata(&client->dev);
-	struct device_node *np = client->dev.of_node;
+	struct device_node *of_node = client->dev.of_node;
+	bool idle_disconnect_dt;
+	struct gpio_desc *gpio;
 	int num, force, class;
 	struct pca954x *data;
 	int ret;
@@ -200,21 +203,10 @@ static int pca954x_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, data);
 
-	if (IS_ENABLED(CONFIG_OF) && np) {
-		enum of_gpio_flags flags;
-		int gpio;
-
-		/* Get the mux out of reset if a reset GPIO is specified. */
-		gpio = of_get_named_gpio_flags(np, "reset-gpio", 0, &flags);
-		if (gpio_is_valid(gpio)) {
-			ret = devm_gpio_request_one(&client->dev, gpio,
-					flags & OF_GPIO_ACTIVE_LOW ?
-					GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW,
-					"pca954x reset");
-			if (ret < 0)
-				return ret;
-		}
-	}
+	/* Get the mux out of reset if a reset GPIO is specified. */
+	gpio = devm_gpiod_get_optional(&client->dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(gpio))
+		return PTR_ERR(gpio);
 
 	/* Write the mux register at addr to verify
 	 * that the mux is in fact present. This also
@@ -228,8 +220,13 @@ static int pca954x_probe(struct i2c_client *client,
 	data->type = id->driver_data;
 	data->last_chan = 0;		   /* force the first selection */
 
+	idle_disconnect_dt = of_node &&
+		of_property_read_bool(of_node, "i2c-mux-idle-disconnect");
+
 	/* Now create an adapter for each channel */
 	for (num = 0; num < chips[data->type].nchans; num++) {
+		bool idle_disconnect_pd = false;
+
 		force = 0;			  /* dynamic adap number */
 		class = 0;			  /* no class by default */
 		if (pdata) {
@@ -240,12 +237,13 @@ static int pca954x_probe(struct i2c_client *client,
 			} else
 				/* discard unconfigured channels */
 				break;
+			idle_disconnect_pd = pdata->modes[num].deselect_on_exit;
 		}
 
 		data->virt_adaps[num] =
 			i2c_add_mux_adapter(adap, &client->dev, client,
 				force, num, class, pca954x_select_chan,
-				(pdata && pdata->modes[num].deselect_on_exit)
+				(idle_disconnect_pd || idle_disconnect_dt)
 					? pca954x_deselect_mux : NULL);
 
 		if (data->virt_adaps[num] == NULL) {
@@ -285,9 +283,23 @@ static int pca954x_remove(struct i2c_client *client)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int pca954x_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct pca954x *data = i2c_get_clientdata(client);
+
+	data->last_chan = 0;
+	return i2c_smbus_write_byte(client, 0);
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(pca954x_pm, NULL, pca954x_resume);
+
 static struct i2c_driver pca954x_driver = {
 	.driver		= {
 		.name	= "pca954x",
+		.pm	= &pca954x_pm,
 		.owner	= THIS_MODULE,
 	},
 	.probe		= pca954x_probe,

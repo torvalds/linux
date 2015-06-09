@@ -101,7 +101,7 @@ struct ems_pci_card {
 
 #define EMS_PCI_BASE_SIZE  4096 /* size of controller area */
 
-static DEFINE_PCI_DEVICE_TABLE(ems_pci_tbl) = {
+static const struct pci_device_id ems_pci_tbl[] = {
 	/* CPC-PCI v1 */
 	{PCI_VENDOR_ID_SIEMENS, 0x2104, PCI_ANY_ID, PCI_ANY_ID,},
 	/* CPC-PCI v2 */
@@ -323,6 +323,7 @@ static int ems_pci_add_card(struct pci_dev *pdev,
 			priv->cdr = EMS_PCI_CDR;
 
 			SET_NETDEV_DEV(dev, &pdev->dev);
+			dev->dev_id = i;
 
 			if (card->version == 1)
 				/* reset int flag of pita */

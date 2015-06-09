@@ -39,7 +39,7 @@
 #include <linux/stat.h>
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include <lustre_lite.h>
+#include "../include/lustre_lite.h"
 #include "llite_internal.h"
 
 static int ll_readlink_internal(struct inode *inode,
@@ -77,33 +77,36 @@ static int ll_readlink_internal(struct inode *inode,
 	if (rc) {
 		if (rc != -ENOENT)
 			CERROR("inode %lu: rc = %d\n", inode->i_ino, rc);
-		GOTO (failed, rc);
+		goto failed;
 	}
 
 	body = req_capsule_server_get(&(*request)->rq_pill, &RMF_MDT_BODY);
 	LASSERT(body != NULL);
 	if ((body->valid & OBD_MD_LINKNAME) == 0) {
 		CERROR("OBD_MD_LINKNAME not set on reply\n");
-		GOTO(failed, rc = -EPROTO);
+		rc = -EPROTO;
+		goto failed;
 	}
 
 	LASSERT(symlen != 0);
 	if (body->eadatasize != symlen) {
 		CERROR("inode %lu: symlink length %d not expected %d\n",
 			inode->i_ino, body->eadatasize - 1, symlen - 1);
-		GOTO(failed, rc = -EPROTO);
+		rc = -EPROTO;
+		goto failed;
 	}
 
 	*symname = req_capsule_server_get(&(*request)->rq_pill, &RMF_MDT_MD);
 	if (*symname == NULL ||
 	    strnlen(*symname, symlen) != symlen - 1) {
 		/* not full/NULL terminated */
-		CERROR("inode %lu: symlink not NULL terminated string"
-			"of length %d\n", inode->i_ino, symlen - 1);
-		GOTO(failed, rc = -EPROTO);
+		CERROR("inode %lu: symlink not NULL terminated string of length %d\n",
+		       inode->i_ino, symlen - 1);
+		rc = -EPROTO;
+		goto failed;
 	}
 
-	OBD_ALLOC(lli->lli_symlink_name, symlen);
+	lli->lli_symlink_name = kzalloc(symlen, GFP_NOFS);
 	/* do not return an error if we cannot cache the symlink locally */
 	if (lli->lli_symlink_name) {
 		memcpy(lli->lli_symlink_name, *symname, symlen);
@@ -115,33 +118,12 @@ failed:
 	return rc;
 }
 
-static int ll_readlink(struct dentry *dentry, char *buffer, int buflen)
-{
-	struct inode *inode = dentry->d_inode;
-	struct ptlrpc_request *request;
-	char *symname;
-	int rc;
-
-	CDEBUG(D_VFSTRACE, "VFS Op\n");
-
-	ll_inode_size_lock(inode);
-	rc = ll_readlink_internal(inode, &request, &symname);
-	if (rc)
-		GOTO(out, rc);
-
-	rc = vfs_readlink(dentry, buffer, buflen, symname);
- out:
-	ptlrpc_req_finished(request);
-	ll_inode_size_unlock(inode);
-	return rc;
-}
-
 static void *ll_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct ptlrpc_request *request = NULL;
 	int rc;
-	char *symname;
+	char *symname = NULL;
 
 	CDEBUG(D_VFSTRACE, "VFS Op\n");
 	/* Limit the recursive symlink depth to 5 instead of default
@@ -175,7 +157,7 @@ static void ll_put_link(struct dentry *dentry, struct nameidata *nd, void *cooki
 }
 
 struct inode_operations ll_fast_symlink_inode_operations = {
-	.readlink	= ll_readlink,
+	.readlink	= generic_readlink,
 	.setattr	= ll_setattr,
 	.follow_link	= ll_follow_link,
 	.put_link	= ll_put_link,

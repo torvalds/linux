@@ -71,11 +71,6 @@ static void apbuart_stop_rx(struct uart_port *port)
 	UART_PUT_CTRL(port, cr);
 }
 
-static void apbuart_enable_ms(struct uart_port *port)
-{
-	/* No modem status change interrupts for APBUART */
-}
-
 static void apbuart_rx_chars(struct uart_port *port)
 {
 	unsigned int status, ch, rsr, flag;
@@ -337,7 +332,6 @@ static struct uart_ops grlib_apbuart_ops = {
 	.stop_tx = apbuart_stop_tx,
 	.start_tx = apbuart_start_tx,
 	.stop_rx = apbuart_stop_rx,
-	.enable_ms = apbuart_enable_ms,
 	.break_ctl = apbuart_break_ctl,
 	.startup = apbuart_startup,
 	.shutdown = apbuart_shutdown,
@@ -578,7 +572,7 @@ static int apbuart_probe(struct platform_device *op)
 	return 0;
 }
 
-static struct of_device_id apbuart_match[] = {
+static const struct of_device_id apbuart_match[] = {
 	{
 	 .name = "GAISLER_APBUART",
 	 },
@@ -591,7 +585,6 @@ static struct of_device_id apbuart_match[] = {
 static struct platform_driver grlib_apbuart_of_driver = {
 	.probe = apbuart_probe,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "grlib-apbuart",
 		.of_match_table = apbuart_match,
 	},

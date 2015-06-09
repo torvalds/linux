@@ -7,6 +7,7 @@
 
 #include "data.h"
 #include "util.h"
+#include "debug.h"
 
 static bool check_pipe(struct perf_data_file *file)
 {
@@ -49,12 +50,14 @@ static int open_file_read(struct perf_data_file *file)
 {
 	struct stat st;
 	int fd;
+	char sbuf[STRERR_BUFSIZE];
 
 	fd = open(file->path, O_RDONLY);
 	if (fd < 0) {
 		int err = errno;
 
-		pr_err("failed to open %s: %s", file->path, strerror(err));
+		pr_err("failed to open %s: %s", file->path,
+			strerror_r(err, sbuf, sizeof(sbuf)));
 		if (err == ENOENT && !strcmp(file->path, "perf.data"))
 			pr_err("  (try 'perf record' first)");
 		pr_err("\n");
@@ -65,7 +68,7 @@ static int open_file_read(struct perf_data_file *file)
 		goto out_close;
 
 	if (!file->force && st.st_uid && (st.st_uid != geteuid())) {
-		pr_err("file %s not owned by current user or root\n",
+		pr_err("File %s not owned by current user or root (use -f to override)\n",
 		       file->path);
 		goto out_close;
 	}
@@ -86,10 +89,19 @@ static int open_file_read(struct perf_data_file *file)
 
 static int open_file_write(struct perf_data_file *file)
 {
+	int fd;
+	char sbuf[STRERR_BUFSIZE];
+
 	if (check_backup(file))
 		return -1;
 
-	return open(file->path, O_CREAT|O_RDWR|O_TRUNC, S_IRUSR|S_IWUSR);
+	fd = open(file->path, O_CREAT|O_RDWR|O_TRUNC, S_IRUSR|S_IWUSR);
+
+	if (fd < 0)
+		pr_err("failed to open %s : %s\n", file->path,
+			strerror_r(errno, sbuf, sizeof(sbuf)));
+
+	return fd;
 }
 
 static int open_file(struct perf_data_file *file)

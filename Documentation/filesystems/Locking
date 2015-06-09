@@ -47,6 +47,8 @@ prototypes:
 	int (*mknod) (struct inode *,struct dentry *,umode_t,dev_t);
 	int (*rename) (struct inode *, struct dentry *,
 			struct inode *, struct dentry *);
+	int (*rename2) (struct inode *, struct dentry *,
+			struct inode *, struct dentry *, unsigned int);
 	int (*readlink) (struct dentry *, char __user *,int);
 	void * (*follow_link) (struct dentry *, struct nameidata *);
 	void (*put_link) (struct dentry *, struct nameidata *, void *);
@@ -65,6 +67,7 @@ prototypes:
 				struct file *, unsigned open_flag,
 				umode_t create_mode, int *opened);
 	int (*tmpfile) (struct inode *, struct dentry *, umode_t);
+	int (*dentry_open)(struct dentry *, struct file *, const struct cred *);
 
 locking rules:
 	all may block
@@ -78,6 +81,7 @@ mkdir:		yes
 unlink:		yes (both)
 rmdir:		yes (both)	(see below)
 rename:		yes (all)	(see below)
+rename2:	yes (all)	(see below)
 readlink:	no
 follow_link:	no
 put_link:	no
@@ -93,10 +97,12 @@ fiemap:		no
 update_time:	no
 atomic_open:	yes
 tmpfile:	no
+dentry_open:	no
 
 	Additionally, ->rmdir(), ->unlink() and ->rename() have ->i_mutex on
 victim.
-	cross-directory ->rename() has (per-superblock) ->s_vfs_rename_sem.
+	cross-directory ->rename() and rename2() has (per-superblock)
+->s_vfs_rename_sem.
 
 See Documentation/filesystems/directory-locking for more detailed discussion
 of the locking scheme for directory operations.
@@ -158,8 +164,6 @@ the block device inode.  See there for more details.
 
 --------------------------- file_system_type ---------------------------
 prototypes:
-	int (*get_sb) (struct file_system_type *, int,
-		       const char *, void *, struct vfsmount *);
 	struct dentry *(*mount) (struct file_system_type *, int,
 		       const char *, void *);
 	void (*kill_sb) (struct super_block *);
@@ -192,13 +196,10 @@ prototypes:
 	void (*invalidatepage) (struct page *, unsigned int, unsigned int);
 	int (*releasepage) (struct page *, int);
 	void (*freepage)(struct page *);
-	int (*direct_IO)(int, struct kiocb *, const struct iovec *iov,
-			loff_t offset, unsigned long nr_segs);
-	int (*get_xip_mem)(struct address_space *, pgoff_t, int, void **,
-				unsigned long *);
+	int (*direct_IO)(struct kiocb *, struct iov_iter *iter, loff_t offset);
 	int (*migratepage)(struct address_space *, struct page *, struct page *);
 	int (*launder_page)(struct page *);
-	int (*is_partially_uptodate)(struct page *, read_descriptor_t *, unsigned long);
+	int (*is_partially_uptodate)(struct page *, unsigned long, unsigned long);
 	int (*error_remove_page)(struct address_space *, struct page *);
 	int (*swap_activate)(struct file *);
 	int (*swap_deactivate)(struct file *);
@@ -220,7 +221,6 @@ invalidatepage:		yes
 releasepage:		yes
 freepage:		yes
 direct_IO:
-get_xip_mem:					maybe
 migratepage:		yes (both)
 launder_page:		yes
 is_partially_uptodate:	yes
@@ -346,7 +346,11 @@ prototypes:
 locking rules:
 			inode->i_lock	may block
 fl_copy_lock:		yes		no
-fl_release_private:	maybe		no
+fl_release_private:	maybe		maybe[1]
+
+[1]:	->fl_release_private for flock or POSIX locks is currently allowed
+to block. Leases however can still be freed while the i_lock is held and
+so fl_release_private called on a lease should not block.
 
 ----------------------- lock_manager_operations ---------------------------
 prototypes:
@@ -425,8 +429,8 @@ prototypes:
 	loff_t (*llseek) (struct file *, loff_t, int);
 	ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
 	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
-	ssize_t (*aio_read) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
-	ssize_t (*aio_write) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
+	ssize_t (*read_iter) (struct kiocb *, struct iov_iter *);
+	ssize_t (*write_iter) (struct kiocb *, struct iov_iter *);
 	int (*iterate) (struct file *, struct dir_context *);
 	unsigned int (*poll) (struct file *, struct poll_table_struct *);
 	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
@@ -455,15 +459,12 @@ prototypes:
 			size_t, unsigned int);
 	ssize_t (*splice_read)(struct file *, loff_t *, struct pipe_inode_info *,
 			size_t, unsigned int);
-	int (*setlease)(struct file *, long, struct file_lock **);
+	int (*setlease)(struct file *, long, struct file_lock **, void **);
 	long (*fallocate)(struct file *, int, loff_t, loff_t);
 };
 
 locking rules:
-	All may block except for ->setlease.
-	No VFS locks held on entry except for ->setlease.
-
-->setlease has the file_list_lock held and must not sleep.
+	All may block.
 
 ->llseek() locking has moved from llseek to the individual llseek
 implementations.  If your fs is not using generic_file_llseek, you
@@ -486,6 +487,10 @@ components. And there are other reasons why the current interface is a mess...
 
 ->read on directories probably must go away - we should just enforce -EISDIR
 in sys_read() and friends.
+
+->setlease operations should call generic_setlease() before or after setting
+the lease within the individual filesystem to record the result of the
+operation
 
 --------------------------- dquot_operations -------------------------------
 prototypes:
@@ -518,6 +523,7 @@ prototypes:
 	void (*close)(struct vm_area_struct*);
 	int (*fault)(struct vm_area_struct*, struct vm_fault *);
 	int (*page_mkwrite)(struct vm_area_struct *, struct vm_fault *);
+	int (*pfn_mkwrite)(struct vm_area_struct *, struct vm_fault *);
 	int (*access)(struct vm_area_struct *, unsigned long, void*, int, int);
 
 locking rules:
@@ -525,7 +531,9 @@ locking rules:
 open:		yes
 close:		yes
 fault:		yes		can return with page locked
+map_pages:	yes
 page_mkwrite:	yes		can return with page locked
+pfn_mkwrite:	yes
 access:		yes
 
 	->fault() is called when a previously not present pte is about
@@ -536,12 +544,27 @@ the page, then ensure it is not already truncated (the page lock will block
 subsequent truncate), and then return with VM_FAULT_LOCKED, and the page
 locked. The VM will unlock the page.
 
+	->map_pages() is called when VM asks to map easy accessible pages.
+Filesystem should find and map pages associated with offsets from "pgoff"
+till "max_pgoff". ->map_pages() is called with page table locked and must
+not block.  If it's not possible to reach a page without blocking,
+filesystem should skip it. Filesystem should use do_set_pte() to setup
+page table entry. Pointer to entry associated with offset "pgoff" is
+passed in "pte" field in vm_fault structure. Pointers to entries for other
+offsets should be calculated relative to "pte".
+
 	->page_mkwrite() is called when a previously read-only pte is
 about to become writeable. The filesystem again must ensure that there are
 no truncate/invalidate races, and then return with the page locked. If
 the page has been truncated, the filesystem should not look up a new page
 like the ->fault() handler, but simply return with VM_FAULT_NOPAGE, which
 will cause the VM to retry the fault.
+
+	->pfn_mkwrite() is the same as page_mkwrite but when the pte is
+VM_PFNMAP or VM_MIXEDMAP with a page-less entry. Expected return is
+VM_FAULT_NOPAGE. Or one of the VM_FAULT_ERROR types. The default behavior
+after this call is to make the pte read-write, unless pfn_mkwrite returns
+an error.
 
 	->access() is called when get_user_pages() fails in
 access_process_vm(), typically used to debug a process through

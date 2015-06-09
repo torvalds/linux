@@ -157,6 +157,10 @@ applicable everywhere (see syntax).
     to the build environment (if this is desired, it can be done via
     another symbol).
 
+  - "allnoconfig_y"
+    This declares the symbol as one that should have the value y when
+    using "allnoconfig". Used for symbols that hide other symbols.
+
 Menu dependencies
 -----------------
 

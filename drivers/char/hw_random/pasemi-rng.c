@@ -113,7 +113,7 @@ static int rng_probe(struct platform_device *ofdev)
 
 	pasemi_rng.priv = (unsigned long)rng_regs;
 
-	printk(KERN_INFO "Registering PA Semi RNG\n");
+	pr_info("Registering PA Semi RNG\n");
 
 	err = hwrng_register(&pasemi_rng);
 
@@ -133,7 +133,7 @@ static int rng_remove(struct platform_device *dev)
 	return 0;
 }
 
-static struct of_device_id rng_match[] = {
+static const struct of_device_id rng_match[] = {
 	{ .compatible      = "1682m-rng", },
 	{ .compatible      = "pasemi,pwrficient-rng", },
 	{ },
@@ -142,7 +142,6 @@ static struct of_device_id rng_match[] = {
 static struct platform_driver rng_driver = {
 	.driver = {
 		.name = "pasemi-rng",
-		.owner = THIS_MODULE,
 		.of_match_table = rng_match,
 	},
 	.probe		= rng_probe,

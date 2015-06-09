@@ -526,6 +526,7 @@ static unsigned int mc13892_vcam_get_mode(struct regulator_dev *rdev)
 	return REGULATOR_MODE_NORMAL;
 }
 
+static struct regulator_ops mc13892_vcam_ops;
 
 static int mc13892_regulator_probe(struct platform_device *pdev)
 {
@@ -582,10 +583,12 @@ static int mc13892_regulator_probe(struct platform_device *pdev)
 	}
 	mc13xxx_unlock(mc13892);
 
-	mc13892_regulators[MC13892_VCAM].desc.ops->set_mode
-		= mc13892_vcam_set_mode;
-	mc13892_regulators[MC13892_VCAM].desc.ops->get_mode
-		= mc13892_vcam_get_mode;
+	/* update mc13892_vcam ops */
+	memcpy(&mc13892_vcam_ops, mc13892_regulators[MC13892_VCAM].desc.ops,
+						sizeof(struct regulator_ops));
+	mc13892_vcam_ops.set_mode = mc13892_vcam_set_mode,
+	mc13892_vcam_ops.get_mode = mc13892_vcam_get_mode,
+	mc13892_regulators[MC13892_VCAM].desc.ops = &mc13892_vcam_ops;
 
 	mc13xxx_data = mc13xxx_parse_regulators_dt(pdev, mc13892_regulators,
 					ARRAY_SIZE(mc13892_regulators));
@@ -630,7 +633,6 @@ err_unlock:
 static struct platform_driver mc13892_regulator_driver = {
 	.driver	= {
 		.name	= "mc13892-regulator",
-		.owner	= THIS_MODULE,
 	},
 	.probe	= mc13892_regulator_probe,
 };

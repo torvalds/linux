@@ -30,6 +30,8 @@ struct sys_reg_params {
 	u8	Op2;
 	u8	Rt;
 	bool	is_write;
+	bool	is_aarch32;
+	bool	is_32bit;	/* Only valid if is_aarch32 is true */
 };
 
 struct sys_reg_desc {

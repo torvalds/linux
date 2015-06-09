@@ -26,7 +26,6 @@
 
 #include <linux/i2c.h>
 
-#define MAX77693_NUM_IRQ_MUIC_REGS	3
 #define MAX77693_REG_INVALID		(0xff)
 
 /* Slave addr = 0xCC: PMIC, Charger, Flash LED */
@@ -46,7 +45,7 @@ enum max77693_pmic_reg {
 	MAX77693_LED_REG_VOUT_FLASH2			= 0x0C,
 	MAX77693_LED_REG_FLASH_INT			= 0x0E,
 	MAX77693_LED_REG_FLASH_INT_MASK			= 0x0F,
-	MAX77693_LED_REG_FLASH_INT_STATUS		= 0x10,
+	MAX77693_LED_REG_FLASH_STATUS			= 0x10,
 
 	MAX77693_PMIC_REG_PMIC_ID1			= 0x20,
 	MAX77693_PMIC_REG_PMIC_ID2			= 0x21,
@@ -85,9 +84,177 @@ enum max77693_pmic_reg {
 	MAX77693_PMIC_REG_END,
 };
 
+/* MAX77693 ITORCH register */
+#define TORCH_IOUT1_SHIFT	0
+#define TORCH_IOUT2_SHIFT	4
+#define TORCH_IOUT_MASK(x)	(0xf << (x))
+#define TORCH_IOUT_MIN		15625
+#define TORCH_IOUT_MAX		250000
+#define TORCH_IOUT_STEP		15625
+
+/* MAX77693 IFLASH1 and IFLASH2 registers */
+#define FLASH_IOUT_MIN		15625
+#define FLASH_IOUT_MAX_1LED	1000000
+#define FLASH_IOUT_MAX_2LEDS	625000
+#define FLASH_IOUT_STEP		15625
+
+/* MAX77693 TORCH_TIMER register */
+#define TORCH_TMR_NO_TIMER	0x40
+#define TORCH_TIMEOUT_MIN	262000
+#define TORCH_TIMEOUT_MAX	15728000
+
+/* MAX77693 FLASH_TIMER register */
+#define FLASH_TMR_LEVEL		0x80
+#define FLASH_TIMEOUT_MIN	62500
+#define FLASH_TIMEOUT_MAX	1000000
+#define FLASH_TIMEOUT_STEP	62500
+
+/* MAX77693 FLASH_EN register */
+#define FLASH_EN_OFF		0x0
+#define FLASH_EN_FLASH		0x1
+#define FLASH_EN_TORCH		0x2
+#define FLASH_EN_ON		0x3
+#define FLASH_EN_SHIFT(x)	(6 - (x) * 2)
+#define TORCH_EN_SHIFT(x)	(2 - (x) * 2)
+
+/* MAX77693 MAX_FLASH1 register */
+#define MAX_FLASH1_MAX_FL_EN	0x80
+#define MAX_FLASH1_VSYS_MIN	2400
+#define MAX_FLASH1_VSYS_MAX	3400
+#define MAX_FLASH1_VSYS_STEP	33
+
+/* MAX77693 VOUT_CNTL register */
+#define FLASH_BOOST_FIXED	0x04
+#define FLASH_BOOST_LEDNUM_2	0x80
+
+/* MAX77693 VOUT_FLASH1 register */
+#define FLASH_VOUT_MIN		3300
+#define FLASH_VOUT_MAX		5500
+#define FLASH_VOUT_STEP		25
+#define FLASH_VOUT_RMIN		0x0c
+
+/* MAX77693 FLASH_STATUS register */
+#define FLASH_STATUS_FLASH_ON	BIT(3)
+#define FLASH_STATUS_TORCH_ON	BIT(2)
+
+/* MAX77693 FLASH_INT register */
+#define FLASH_INT_FLED2_OPEN	BIT(0)
+#define FLASH_INT_FLED2_SHORT	BIT(1)
+#define FLASH_INT_FLED1_OPEN	BIT(2)
+#define FLASH_INT_FLED1_SHORT	BIT(3)
+#define FLASH_INT_OVER_CURRENT	BIT(4)
+
+/* Fast charge timer in in hours */
+#define DEFAULT_FAST_CHARGE_TIMER		4
+/* microamps */
+#define DEFAULT_TOP_OFF_THRESHOLD_CURRENT	150000
+/* minutes */
+#define DEFAULT_TOP_OFF_TIMER			30
+/* microvolts */
+#define DEFAULT_CONSTANT_VOLT			4200000
+/* microvolts */
+#define DEFAULT_MIN_SYSTEM_VOLT			3600000
+/* celsius */
+#define DEFAULT_THERMAL_REGULATION_TEMP		100
+/* microamps */
+#define DEFAULT_BATTERY_OVERCURRENT		3500000
+/* microvolts */
+#define DEFAULT_CHARGER_INPUT_THRESHOLD_VOLT	4300000
+
+/* MAX77693_CHG_REG_CHG_INT_OK register */
+#define CHG_INT_OK_BYP_SHIFT		0
+#define CHG_INT_OK_BAT_SHIFT		3
+#define CHG_INT_OK_CHG_SHIFT		4
+#define CHG_INT_OK_CHGIN_SHIFT		6
+#define CHG_INT_OK_DETBAT_SHIFT		7
+#define CHG_INT_OK_BYP_MASK		BIT(CHG_INT_OK_BYP_SHIFT)
+#define CHG_INT_OK_BAT_MASK		BIT(CHG_INT_OK_BAT_SHIFT)
+#define CHG_INT_OK_CHG_MASK		BIT(CHG_INT_OK_CHG_SHIFT)
+#define CHG_INT_OK_CHGIN_MASK		BIT(CHG_INT_OK_CHGIN_SHIFT)
+#define CHG_INT_OK_DETBAT_MASK		BIT(CHG_INT_OK_DETBAT_SHIFT)
+
+/* MAX77693_CHG_REG_CHG_DETAILS_00 register */
+#define CHG_DETAILS_00_CHGIN_SHIFT	5
+#define CHG_DETAILS_00_CHGIN_MASK	(0x3 << CHG_DETAILS_00_CHGIN_SHIFT)
+
+/* MAX77693_CHG_REG_CHG_DETAILS_01 register */
+#define CHG_DETAILS_01_CHG_SHIFT	0
+#define CHG_DETAILS_01_BAT_SHIFT	4
+#define CHG_DETAILS_01_TREG_SHIFT	7
+#define CHG_DETAILS_01_CHG_MASK		(0xf << CHG_DETAILS_01_CHG_SHIFT)
+#define CHG_DETAILS_01_BAT_MASK		(0x7 << CHG_DETAILS_01_BAT_SHIFT)
+#define CHG_DETAILS_01_TREG_MASK	BIT(7)
+
+/* MAX77693_CHG_REG_CHG_DETAILS_01/CHG field */
+enum max77693_charger_charging_state {
+	MAX77693_CHARGING_PREQUALIFICATION	= 0x0,
+	MAX77693_CHARGING_FAST_CONST_CURRENT,
+	MAX77693_CHARGING_FAST_CONST_VOLTAGE,
+	MAX77693_CHARGING_TOP_OFF,
+	MAX77693_CHARGING_DONE,
+	MAX77693_CHARGING_HIGH_TEMP,
+	MAX77693_CHARGING_TIMER_EXPIRED,
+	MAX77693_CHARGING_THERMISTOR_SUSPEND,
+	MAX77693_CHARGING_OFF,
+	MAX77693_CHARGING_RESERVED,
+	MAX77693_CHARGING_OVER_TEMP,
+	MAX77693_CHARGING_WATCHDOG_EXPIRED,
+};
+
+/* MAX77693_CHG_REG_CHG_DETAILS_01/BAT field */
+enum max77693_charger_battery_state {
+	MAX77693_BATTERY_NOBAT			= 0x0,
+	/* Dead-battery or low-battery prequalification */
+	MAX77693_BATTERY_PREQUALIFICATION,
+	MAX77693_BATTERY_TIMER_EXPIRED,
+	MAX77693_BATTERY_GOOD,
+	MAX77693_BATTERY_LOWVOLTAGE,
+	MAX77693_BATTERY_OVERVOLTAGE,
+	MAX77693_BATTERY_OVERCURRENT,
+	MAX77693_BATTERY_RESERVED,
+};
+
+/* MAX77693_CHG_REG_CHG_DETAILS_02 register */
+#define CHG_DETAILS_02_BYP_SHIFT	0
+#define CHG_DETAILS_02_BYP_MASK		(0xf << CHG_DETAILS_02_BYP_SHIFT)
+
 /* MAX77693 CHG_CNFG_00 register */
 #define CHG_CNFG_00_CHG_MASK		0x1
 #define CHG_CNFG_00_BUCK_MASK		0x4
+
+/* MAX77693_CHG_REG_CHG_CNFG_01 register */
+#define CHG_CNFG_01_FCHGTIME_SHIFT	0
+#define CHG_CNFG_01_CHGRSTRT_SHIFT	4
+#define CHG_CNFG_01_PQEN_SHIFT		7
+#define CHG_CNFG_01_FCHGTIME_MASK	(0x7 << CHG_CNFG_01_FCHGTIME_SHIFT)
+#define CHG_CNFG_01_CHGRSTRT_MASK	(0x3 << CHG_CNFG_01_CHGRSTRT_SHIFT)
+#define CHG_CNFG_01_PQEN_MAKS		BIT(CHG_CNFG_01_PQEN_SHIFT)
+
+/* MAX77693_CHG_REG_CHG_CNFG_03 register */
+#define CHG_CNFG_03_TOITH_SHIFT		0
+#define CHG_CNFG_03_TOTIME_SHIFT	3
+#define CHG_CNFG_03_TOITH_MASK		(0x7 << CHG_CNFG_03_TOITH_SHIFT)
+#define CHG_CNFG_03_TOTIME_MASK		(0x7 << CHG_CNFG_03_TOTIME_SHIFT)
+
+/* MAX77693_CHG_REG_CHG_CNFG_04 register */
+#define CHG_CNFG_04_CHGCVPRM_SHIFT	0
+#define CHG_CNFG_04_MINVSYS_SHIFT	5
+#define CHG_CNFG_04_CHGCVPRM_MASK	(0x1f << CHG_CNFG_04_CHGCVPRM_SHIFT)
+#define CHG_CNFG_04_MINVSYS_MASK	(0x7 << CHG_CNFG_04_MINVSYS_SHIFT)
+
+/* MAX77693_CHG_REG_CHG_CNFG_06 register */
+#define CHG_CNFG_06_CHGPROT_SHIFT	2
+#define CHG_CNFG_06_CHGPROT_MASK	(0x3 << CHG_CNFG_06_CHGPROT_SHIFT)
+
+/* MAX77693_CHG_REG_CHG_CNFG_07 register */
+#define CHG_CNFG_07_REGTEMP_SHIFT	5
+#define CHG_CNFG_07_REGTEMP_MASK	(0x3 << CHG_CNFG_07_REGTEMP_SHIFT)
+
+/* MAX77693_CHG_REG_CHG_CNFG_12 register */
+#define CHG_CNFG_12_B2SOVRC_SHIFT	0
+#define CHG_CNFG_12_VCHGINREG_SHIFT	3
+#define CHG_CNFG_12_B2SOVRC_MASK	(0x7 << CHG_CNFG_12_B2SOVRC_SHIFT)
+#define CHG_CNFG_12_VCHGINREG_MASK	(0x3 << CHG_CNFG_12_VCHGINREG_SHIFT)
 
 /* MAX77693 CHG_CNFG_09 Register */
 #define CHG_CNFG_09_CHGIN_ILIM_MASK	0x7F
@@ -251,6 +418,15 @@ enum max77693_haptic_reg {
 	MAX77693_HAPTIC_REG_END,
 };
 
+/* max77693-pmic LSCNFG configuraton register */
+#define MAX77693_PMIC_LOW_SYS_MASK      0x80
+#define MAX77693_PMIC_LOW_SYS_SHIFT     7
+
+/* max77693-haptic configuration register */
+#define MAX77693_CONFIG2_MODE           7
+#define MAX77693_CONFIG2_MEN            6
+#define MAX77693_CONFIG2_HTYP           5
+
 enum max77693_irq_source {
 	LED_INT = 0,
 	TOPSYS_INT,
@@ -261,6 +437,48 @@ enum max77693_irq_source {
 
 	MAX77693_IRQ_GROUP_NR,
 };
+
+#define SRC_IRQ_CHARGER			BIT(0)
+#define SRC_IRQ_TOP			BIT(1)
+#define SRC_IRQ_FLASH			BIT(2)
+#define SRC_IRQ_MUIC			BIT(3)
+#define SRC_IRQ_ALL			(SRC_IRQ_CHARGER | SRC_IRQ_TOP \
+						| SRC_IRQ_FLASH | SRC_IRQ_MUIC)
+
+#define LED_IRQ_FLED2_OPEN		BIT(0)
+#define LED_IRQ_FLED2_SHORT		BIT(1)
+#define LED_IRQ_FLED1_OPEN		BIT(2)
+#define LED_IRQ_FLED1_SHORT		BIT(3)
+#define LED_IRQ_MAX_FLASH		BIT(4)
+
+#define TOPSYS_IRQ_T120C_INT		BIT(0)
+#define TOPSYS_IRQ_T140C_INT		BIT(1)
+#define TOPSYS_IRQ_LOWSYS_INT		BIT(3)
+
+#define CHG_IRQ_BYP_I			BIT(0)
+#define CHG_IRQ_THM_I			BIT(2)
+#define CHG_IRQ_BAT_I			BIT(3)
+#define CHG_IRQ_CHG_I			BIT(4)
+#define CHG_IRQ_CHGIN_I			BIT(6)
+
+#define MUIC_IRQ_INT1_ADC		BIT(0)
+#define MUIC_IRQ_INT1_ADC_LOW		BIT(1)
+#define MUIC_IRQ_INT1_ADC_ERR		BIT(2)
+#define MUIC_IRQ_INT1_ADC1K		BIT(3)
+
+#define MUIC_IRQ_INT2_CHGTYP		BIT(0)
+#define MUIC_IRQ_INT2_CHGDETREUN	BIT(1)
+#define MUIC_IRQ_INT2_DCDTMR		BIT(2)
+#define MUIC_IRQ_INT2_DXOVP		BIT(3)
+#define MUIC_IRQ_INT2_VBVOLT		BIT(4)
+#define MUIC_IRQ_INT2_VIDRM		BIT(5)
+
+#define MUIC_IRQ_INT3_EOC		BIT(0)
+#define MUIC_IRQ_INT3_CGMBC		BIT(1)
+#define MUIC_IRQ_INT3_OVP		BIT(2)
+#define MUIC_IRQ_INT3_MBCCHG_ERR	BIT(3)
+#define MUIC_IRQ_INT3_CHG_ENABLED	BIT(4)
+#define MUIC_IRQ_INT3_BAT_DET		BIT(5)
 
 enum max77693_irq {
 	/* PMIC - FLASH */
@@ -282,6 +500,10 @@ enum max77693_irq {
 	MAX77693_CHG_IRQ_CHG_I,
 	MAX77693_CHG_IRQ_CHGIN_I,
 
+	MAX77693_IRQ_NR,
+};
+
+enum max77693_irq_muic {
 	/* MUIC INT1 */
 	MAX77693_MUIC_IRQ_INT1_ADC,
 	MAX77693_MUIC_IRQ_INT1_ADC_LOW,
@@ -304,7 +526,7 @@ enum max77693_irq {
 	MAX77693_MUIC_IRQ_INT3_CHG_ENABLED,
 	MAX77693_MUIC_IRQ_INT3_BAT_DET,
 
-	MAX77693_IRQ_NR,
+	MAX77693_MUIC_IRQ_NR,
 };
 
 struct max77693_dev {
@@ -319,7 +541,10 @@ struct max77693_dev {
 	struct regmap *regmap_muic;
 	struct regmap *regmap_haptic;
 
-	struct irq_domain *irq_domain;
+	struct regmap_irq_chip_data *irq_data_led;
+	struct regmap_irq_chip_data *irq_data_topsys;
+	struct regmap_irq_chip_data *irq_data_charger;
+	struct regmap_irq_chip_data *irq_data_muic;
 
 	int irq;
 	int irq_gpio;
@@ -331,14 +556,6 @@ struct max77693_dev {
 enum max77693_types {
 	TYPE_MAX77693,
 };
-
-extern int max77693_read_reg(struct regmap *map, u8 reg, u8 *dest);
-extern int max77693_bulk_read(struct regmap *map, u8 reg, int count,
-				u8 *buf);
-extern int max77693_write_reg(struct regmap *map, u8 reg, u8 value);
-extern int max77693_bulk_write(struct regmap *map, u8 reg, int count,
-				u8 *buf);
-extern int max77693_update_reg(struct regmap *map, u8 reg, u8 val, u8 mask);
 
 extern int max77693_irq_init(struct max77693_dev *max77686);
 extern void max77693_irq_exit(struct max77693_dev *max77686);

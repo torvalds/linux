@@ -159,6 +159,7 @@ struct hid_item {
 #define HID_UP_LED		0x00080000
 #define HID_UP_BUTTON		0x00090000
 #define HID_UP_ORDINAL		0x000a0000
+#define HID_UP_TELEPHONY	0x000b0000
 #define HID_UP_CONSUMER		0x000c0000
 #define HID_UP_DIGITIZER	0x000d0000
 #define HID_UP_PID		0x000f0000
@@ -167,6 +168,7 @@ struct hid_item {
 #define HID_UP_MSVENDOR		0xff000000
 #define HID_UP_CUSTOM		0x00ff0000
 #define HID_UP_LOGIVENDOR	0xffbc0000
+#define HID_UP_LNVENDOR		0xffa00000
 #define HID_UP_SENSOR		0x00200000
 
 #define HID_USAGE		0x0000ffff
@@ -201,12 +203,15 @@ struct hid_item {
 #define HID_GD_VBRZ		0x00010045
 #define HID_GD_VNO		0x00010046
 #define HID_GD_FEATURE		0x00010047
+#define HID_GD_SYSTEM_CONTROL	0x00010080
 #define HID_GD_UP		0x00010090
 #define HID_GD_DOWN		0x00010091
 #define HID_GD_RIGHT		0x00010092
 #define HID_GD_LEFT		0x00010093
 
 #define HID_DC_BATTERYSTRENGTH	0x00060020
+
+#define HID_CP_CONSUMER_CONTROL	0x000c0001
 
 #define HID_DG_DIGITIZER	0x000d0001
 #define HID_DG_PEN		0x000d0002
@@ -230,11 +235,33 @@ struct hid_item {
 #define HID_DG_BARRELSWITCH	0x000d0044
 #define HID_DG_ERASER		0x000d0045
 #define HID_DG_TABLETPICK	0x000d0046
-/*
- * as of May 20, 2009 the usages below are not yet in the official USB spec
- * but are being pushed by Microsft as described in their paper "Digitizer
- * Drivers for Windows Touch and Pen-Based Computers"
- */
+
+#define HID_CP_CONSUMERCONTROL	0x000c0001
+#define HID_CP_NUMERICKEYPAD	0x000c0002
+#define HID_CP_PROGRAMMABLEBUTTONS	0x000c0003
+#define HID_CP_MICROPHONE	0x000c0004
+#define HID_CP_HEADPHONE	0x000c0005
+#define HID_CP_GRAPHICEQUALIZER	0x000c0006
+#define HID_CP_FUNCTIONBUTTONS	0x000c0036
+#define HID_CP_SELECTION	0x000c0080
+#define HID_CP_MEDIASELECTION	0x000c0087
+#define HID_CP_SELECTDISC	0x000c00ba
+#define HID_CP_PLAYBACKSPEED	0x000c00f1
+#define HID_CP_PROXIMITY	0x000c0109
+#define HID_CP_SPEAKERSYSTEM	0x000c0160
+#define HID_CP_CHANNELLEFT	0x000c0161
+#define HID_CP_CHANNELRIGHT	0x000c0162
+#define HID_CP_CHANNELCENTER	0x000c0163
+#define HID_CP_CHANNELFRONT	0x000c0164
+#define HID_CP_CHANNELCENTERFRONT	0x000c0165
+#define HID_CP_CHANNELSIDE	0x000c0166
+#define HID_CP_CHANNELSURROUND	0x000c0167
+#define HID_CP_CHANNELLOWFREQUENCYENHANCEMENT	0x000c0168
+#define HID_CP_CHANNELTOP	0x000c0169
+#define HID_CP_CHANNELUNKNOWN	0x000c016a
+#define HID_CP_APPLICATIONLAUNCHBUTTONS	0x000c0180
+#define HID_CP_GENERICGUIAPPLICATIONCONTROLS	0x000c0200
+
 #define HID_DG_CONFIDENCE	0x000d0047
 #define HID_DG_WIDTH		0x000d0048
 #define HID_DG_HEIGHT		0x000d0049
@@ -243,6 +270,9 @@ struct hid_item {
 #define HID_DG_DEVICEINDEX	0x000d0053
 #define HID_DG_CONTACTCOUNT	0x000d0054
 #define HID_DG_CONTACTMAX	0x000d0055
+#define HID_DG_BUTTONTYPE	0x000d0059
+#define HID_DG_BARRELSWITCH2	0x000d005a
+#define HID_DG_TOOLSERIALNUMBER	0x000d005b
 
 /*
  * HID report types --- Ouch! HID spec says 1 2 3!
@@ -264,6 +294,7 @@ struct hid_item {
 #define HID_CONNECT_HIDDEV		0x08
 #define HID_CONNECT_HIDDEV_FORCE	0x10
 #define HID_CONNECT_FF			0x20
+#define HID_CONNECT_DRIVER		0x40
 #define HID_CONNECT_DEFAULT	(HID_CONNECT_HIDINPUT|HID_CONNECT_HIDRAW| \
 		HID_CONNECT_HIDDEV|HID_CONNECT_FF)
 
@@ -286,7 +317,10 @@ struct hid_item {
 #define HID_QUIRK_HIDINPUT_FORCE		0x00000080
 #define HID_QUIRK_NO_EMPTY_INPUT		0x00000100
 #define HID_QUIRK_NO_INIT_INPUT_REPORTS		0x00000200
+#define HID_QUIRK_ALWAYS_POLL			0x00000400
 #define HID_QUIRK_SKIP_OUTPUT_REPORTS		0x00010000
+#define HID_QUIRK_SKIP_OUTPUT_REPORT_ID		0x00020000
+#define HID_QUIRK_NO_OUTPUT_REPORTS_ON_INTR_EP	0x00040000
 #define HID_QUIRK_FULLSPEED_INTERVAL		0x10000000
 #define HID_QUIRK_NO_INIT_REPORTS		0x20000000
 #define HID_QUIRK_NO_IGNORE			0x40000000
@@ -294,11 +328,21 @@ struct hid_item {
 
 /*
  * HID device groups
+ *
+ * Note: HID_GROUP_ANY is declared in linux/mod_devicetable.h
+ * and has a value of 0x0000
  */
 #define HID_GROUP_GENERIC			0x0001
 #define HID_GROUP_MULTITOUCH			0x0002
 #define HID_GROUP_SENSOR_HUB			0x0003
 #define HID_GROUP_MULTITOUCH_WIN_8		0x0004
+
+/*
+ * Vendor specific HID device groups
+ */
+#define HID_GROUP_RMI				0x0100
+#define HID_GROUP_WACOM				0x0101
+#define HID_GROUP_LOGITECH_DJ_DEVICE		0x0102
 
 /*
  * This is the global environment of the parser. This information is
@@ -424,6 +468,7 @@ struct hid_output_fifo {
 #define HID_CLAIMED_INPUT	1
 #define HID_CLAIMED_HIDDEV	2
 #define HID_CLAIMED_HIDRAW	4
+#define HID_CLAIMED_DRIVER	8
 
 #define HID_STAT_ADDED		1
 #define HID_STAT_PARSED		2
@@ -471,10 +516,10 @@ struct hid_device {							/* device report descriptor */
 #ifdef CONFIG_HID_BATTERY_STRENGTH
 	/*
 	 * Power supply information for HID devices which report
-	 * battery strength. power_supply is registered iff
-	 * battery.name is non-NULL.
+	 * battery strength. power_supply was successfully registered if
+	 * battery is non-NULL.
 	 */
-	struct power_supply battery;
+	struct power_supply *battery;
 	__s32 battery_min;
 	__s32 battery_max;
 	__s32 battery_report_type;
@@ -508,12 +553,6 @@ struct hid_device {							/* device report descriptor */
 				  struct hid_usage *, __s32);
 	void (*hiddev_report_event) (struct hid_device *, struct hid_report *);
 
-	/* handler for raw input (Get_Report) data, used by hidraw */
-	int (*hid_get_raw_report) (struct hid_device *, unsigned char, __u8 *, size_t, unsigned char);
-
-	/* handler for raw output data, used by hidraw */
-	int (*hid_output_raw_report) (struct hid_device *, __u8 *, size_t, unsigned char);
-
 	/* debugging support via debugfs */
 	unsigned short debug;
 	struct dentry *debug_dir;
@@ -537,7 +576,9 @@ static inline void hid_set_drvdata(struct hid_device *hdev, void *data)
 #define HID_GLOBAL_STACK_SIZE 4
 #define HID_COLLECTION_STACK_SIZE 4
 
-#define HID_SCAN_FLAG_MT_WIN_8			0x00000001
+#define HID_SCAN_FLAG_MT_WIN_8			BIT(0)
+#define HID_SCAN_FLAG_VENDOR_SPECIFIC		BIT(1)
+#define HID_SCAN_FLAG_GD_POINTER		BIT(2)
 
 struct hid_parser {
 	struct hid_global     global;
@@ -571,6 +612,8 @@ struct hid_descriptor {
 	.bus = BUS_USB, .vendor = (ven), .product = (prod)
 #define HID_BLUETOOTH_DEVICE(ven, prod)					\
 	.bus = BUS_BLUETOOTH, .vendor = (ven), .product = (prod)
+#define HID_I2C_DEVICE(ven, prod)				\
+	.bus = BUS_I2C, .vendor = (ven), .product = (prod)
 
 #define HID_REPORT_ID(rep) \
 	.report_type = (rep)
@@ -675,11 +718,12 @@ struct hid_driver {
  * @stop: called on remove
  * @open: called by input layer on open
  * @close: called by input layer on close
- * @hidinput_input_event: event input event (e.g. ff or leds)
  * @parse: this method is called only once to parse the device data,
  *	   shouldn't allocate anything to not leak memory
  * @request: send report request to device (e.g. feature report)
  * @wait: wait for buffered io to complete (send/recv reports)
+ * @raw_request: send raw report request to device (e.g. feature report)
+ * @output_report: send output report to device
  * @idle: send idle request to device
  */
 struct hid_ll_driver {
@@ -691,17 +735,20 @@ struct hid_ll_driver {
 
 	int (*power)(struct hid_device *hdev, int level);
 
-	int (*hidinput_input_event) (struct input_dev *idev, unsigned int type,
-			unsigned int code, int value);
-
 	int (*parse)(struct hid_device *hdev);
 
 	void (*request)(struct hid_device *hdev,
 			struct hid_report *report, int reqtype);
 
 	int (*wait)(struct hid_device *hdev);
-	int (*idle)(struct hid_device *hdev, int report, int idle, int reqtype);
 
+	int (*raw_request) (struct hid_device *hdev, unsigned char reportnum,
+			    __u8 *buf, size_t len, unsigned char rtype,
+			    int reqtype);
+
+	int (*output_report) (struct hid_device *hdev, __u8 *buf, size_t len);
+
+	int (*idle)(struct hid_device *hdev, int report, int idle, int reqtype);
 };
 
 #define	PM_HINT_FULLON	1<<5
@@ -752,6 +799,7 @@ struct hid_field *hidinput_get_led_field(struct hid_device *hid);
 unsigned int hidinput_count_leds(struct hid_device *hid);
 __s32 hidinput_calc_abs_res(const struct hid_field *field, __u16 code);
 void hid_output_report(struct hid_report *report, __u8 *data);
+void __hid_request(struct hid_device *hid, struct hid_report *rep, int reqtype);
 u8 *hid_alloc_report_buf(struct hid_report *report, gfp_t flags);
 struct hid_device *hid_allocate_device(void);
 struct hid_report *hid_register_report(struct hid_device *device, unsigned type, unsigned id);
@@ -964,7 +1012,55 @@ static inline void hid_hw_request(struct hid_device *hdev,
 				  struct hid_report *report, int reqtype)
 {
 	if (hdev->ll_driver->request)
-		hdev->ll_driver->request(hdev, report, reqtype);
+		return hdev->ll_driver->request(hdev, report, reqtype);
+
+	__hid_request(hdev, report, reqtype);
+}
+
+/**
+ * hid_hw_raw_request - send report request to device
+ *
+ * @hdev: hid device
+ * @reportnum: report ID
+ * @buf: in/out data to transfer
+ * @len: length of buf
+ * @rtype: HID report type
+ * @reqtype: HID_REQ_GET_REPORT or HID_REQ_SET_REPORT
+ *
+ * @return: count of data transfered, negative if error
+ *
+ * Same behavior as hid_hw_request, but with raw buffers instead.
+ */
+static inline int hid_hw_raw_request(struct hid_device *hdev,
+				  unsigned char reportnum, __u8 *buf,
+				  size_t len, unsigned char rtype, int reqtype)
+{
+	if (len < 1 || len > HID_MAX_BUFFER_SIZE || !buf)
+		return -EINVAL;
+
+	return hdev->ll_driver->raw_request(hdev, reportnum, buf, len,
+						    rtype, reqtype);
+}
+
+/**
+ * hid_hw_output_report - send output report to device
+ *
+ * @hdev: hid device
+ * @buf: raw data to transfer
+ * @len: length of buf
+ *
+ * @return: count of data transfered, negative if error
+ */
+static inline int hid_hw_output_report(struct hid_device *hdev, __u8 *buf,
+					size_t len)
+{
+	if (len < 1 || len > HID_MAX_BUFFER_SIZE || !buf)
+		return -EINVAL;
+
+	if (hdev->ll_driver->output_report)
+		return hdev->ll_driver->output_report(hdev, buf, len);
+
+	return -ENOSYS;
 }
 
 /**
@@ -993,6 +1089,17 @@ static inline void hid_hw_wait(struct hid_device *hdev)
 {
 	if (hdev->ll_driver->wait)
 		hdev->ll_driver->wait(hdev);
+}
+
+/**
+ * hid_report_len - calculate the report length
+ *
+ * @report: the report we want to know the length
+ */
+static inline int hid_report_len(struct hid_report *report)
+{
+	/* equivalent to DIV_ROUND_UP(report->size, 8) + !!(report->id > 0) */
+	return ((report->size - 1) >> 3) + 1 + (report->id > 0);
 }
 
 int hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,

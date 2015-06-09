@@ -32,13 +32,13 @@ static inline unsigned int timer_value(unsigned int value)
 	return (value + 1) << TIMER_VALUE_SHIFT;
 }
 
-extern __volatile__ unsigned int *master_l10_counter;
+extern volatile u32 __iomem *master_l10_counter;
 
-extern irqreturn_t notrace timer_interrupt(int dummy, void *dev_id);
+irqreturn_t notrace timer_interrupt(int dummy, void *dev_id);
 
 #ifdef CONFIG_SMP
 DECLARE_PER_CPU(struct clock_event_device, sparc32_clockevent);
-extern void register_percpu_ce(int cpu);
+void register_percpu_ce(int cpu);
 #endif
 
 #endif /* !(_SPARC_TIMER_H) */

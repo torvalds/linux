@@ -208,7 +208,7 @@ static unsigned long iommu_range_alloc(struct device *dev,
 	 * We don't need to disable preemption here because any CPU can
 	 * safely use any IOMMU pool.
 	 */
-	pool_nr = __raw_get_cpu_var(iommu_pool_hash) & (tbl->nr_pools - 1);
+	pool_nr = __this_cpu_read(iommu_pool_hash) & (tbl->nr_pools - 1);
 
 	if (largealloc)
 		pool = &(tbl->large_pool);
@@ -428,10 +428,10 @@ static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 		ppc_md.tce_flush(tbl);
 }
 
-int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
-		 struct scatterlist *sglist, int nelems,
-		 unsigned long mask, enum dma_data_direction direction,
-		 struct dma_attrs *attrs)
+int ppc_iommu_map_sg(struct device *dev, struct iommu_table *tbl,
+		     struct scatterlist *sglist, int nelems,
+		     unsigned long mask, enum dma_data_direction direction,
+		     struct dma_attrs *attrs)
 {
 	dma_addr_t dma_next = 0, dma_addr;
 	struct scatterlist *s, *outs, *segstart;
@@ -539,7 +539,7 @@ int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 
 	DBG("mapped %d elements:\n", outcount);
 
-	/* For the sake of iommu_unmap_sg, we clear out the length in the
+	/* For the sake of ppc_iommu_unmap_sg, we clear out the length in the
 	 * next entry of the sglist if we didn't fill the list completely
 	 */
 	if (outcount < incount) {
@@ -572,9 +572,9 @@ int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 }
 
 
-void iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
-		int nelems, enum dma_data_direction direction,
-		struct dma_attrs *attrs)
+void ppc_iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
+			int nelems, enum dma_data_direction direction,
+			struct dma_attrs *attrs)
 {
 	struct scatterlist *sg;
 
@@ -1037,7 +1037,7 @@ int iommu_tce_build(struct iommu_table *tbl, unsigned long entry,
 
 	/* if (unlikely(ret))
 		pr_err("iommu_tce: %s failed on hwaddr=%lx ioba=%lx kva=%lx ret=%d\n",
-			__func__, hwaddr, entry << IOMMU_PAGE_SHIFT(tbl),
+			__func__, hwaddr, entry << tbl->it_page_shift,
 				hwaddr, ret); */
 
 	return ret;
@@ -1056,7 +1056,7 @@ int iommu_put_tce_user_mode(struct iommu_table *tbl, unsigned long entry,
 			direction != DMA_TO_DEVICE, &page);
 	if (unlikely(ret != 1)) {
 		/* pr_err("iommu_tce: get_user_pages_fast failed tce=%lx ioba=%lx ret=%d\n",
-				tce, entry << IOMMU_PAGE_SHIFT(tbl), ret); */
+				tce, entry << tbl->it_page_shift, ret); */
 		return -EFAULT;
 	}
 	hwaddr = (unsigned long) page_address(page) + offset;
@@ -1120,37 +1120,41 @@ EXPORT_SYMBOL_GPL(iommu_release_ownership);
 int iommu_add_device(struct device *dev)
 {
 	struct iommu_table *tbl;
-	int ret = 0;
 
-	if (WARN_ON(dev->iommu_group)) {
-		pr_warn("iommu_tce: device %s is already in iommu group %d, skipping\n",
-				dev_name(dev),
-				iommu_group_id(dev->iommu_group));
+	/*
+	 * The sysfs entries should be populated before
+	 * binding IOMMU group. If sysfs entries isn't
+	 * ready, we simply bail.
+	 */
+	if (!device_is_registered(dev))
+		return -ENOENT;
+
+	if (dev->iommu_group) {
+		pr_debug("%s: Skipping device %s with iommu group %d\n",
+			 __func__, dev_name(dev),
+			 iommu_group_id(dev->iommu_group));
 		return -EBUSY;
 	}
 
 	tbl = get_iommu_table_base(dev);
 	if (!tbl || !tbl->it_group) {
-		pr_debug("iommu_tce: skipping device %s with no tbl\n",
-				dev_name(dev));
+		pr_debug("%s: Skipping device %s with no tbl\n",
+			 __func__, dev_name(dev));
 		return 0;
 	}
 
-	pr_debug("iommu_tce: adding %s to iommu group %d\n",
-			dev_name(dev), iommu_group_id(tbl->it_group));
+	pr_debug("%s: Adding %s to iommu group %d\n",
+		 __func__, dev_name(dev),
+		 iommu_group_id(tbl->it_group));
 
 	if (PAGE_SIZE < IOMMU_PAGE_SIZE(tbl)) {
-		pr_err("iommu_tce: unsupported iommu page size.");
-		pr_err("%s has not been added\n", dev_name(dev));
+		pr_err("%s: Invalid IOMMU page size %lx (%lx) on %s\n",
+		       __func__, IOMMU_PAGE_SIZE(tbl),
+		       PAGE_SIZE, dev_name(dev));
 		return -EINVAL;
 	}
 
-	ret = iommu_group_add_device(tbl->it_group, dev);
-	if (ret < 0)
-		pr_err("iommu_tce: %s has not been added, ret=%d\n",
-				dev_name(dev), ret);
-
-	return ret;
+	return iommu_group_add_device(tbl->it_group, dev);
 }
 EXPORT_SYMBOL_GPL(iommu_add_device);
 
@@ -1171,4 +1175,30 @@ void iommu_del_device(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(iommu_del_device);
 
+static int tce_iommu_bus_notifier(struct notifier_block *nb,
+                unsigned long action, void *data)
+{
+        struct device *dev = data;
+
+        switch (action) {
+        case BUS_NOTIFY_ADD_DEVICE:
+                return iommu_add_device(dev);
+        case BUS_NOTIFY_DEL_DEVICE:
+                if (dev->iommu_group)
+                        iommu_del_device(dev);
+                return 0;
+        default:
+                return 0;
+        }
+}
+
+static struct notifier_block tce_iommu_bus_nb = {
+        .notifier_call = tce_iommu_bus_notifier,
+};
+
+int __init tce_iommu_bus_notifier_init(void)
+{
+        bus_register_notifier(&pci_bus_type, &tce_iommu_bus_nb);
+        return 0;
+}
 #endif /* CONFIG_IOMMU_API */

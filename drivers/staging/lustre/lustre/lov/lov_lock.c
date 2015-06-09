@@ -144,7 +144,7 @@ static struct cl_lock *lov_sublock_alloc(const struct lu_env *env,
 
 	LASSERT(idx < lck->lls_nr);
 
-	OBD_SLAB_ALLOC_PTR_GFP(link, lov_lock_link_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(link, lov_lock_link_kmem, GFP_NOFS);
 	if (link != NULL) {
 		struct lov_sublock_env *subenv;
 		struct lov_lock_sub  *lls;
@@ -290,10 +290,10 @@ static int lov_lock_sub_init(const struct lu_env *env,
 	int result = 0;
 	int i;
 	int nr;
-	obd_off start;
-	obd_off end;
-	obd_off file_start;
-	obd_off file_end;
+	u64 start;
+	u64 end;
+	u64 file_start;
+	u64 file_end;
 
 	struct lov_object       *loo    = cl2lov(lck->lls_cl.cls_obj);
 	struct lov_layout_raid0 *r0     = lov_r0(loo);
@@ -308,7 +308,8 @@ static int lov_lock_sub_init(const struct lu_env *env,
 		 * XXX for wide striping smarter algorithm is desirable,
 		 * breaking out of the loop, early.
 		 */
-		if (lov_stripe_intersects(loo->lo_lsm, i,
+		if (likely(r0->lo_sub[i] != NULL) &&
+		    lov_stripe_intersects(loo->lo_lsm, i,
 					  file_start, file_end, &start, &end))
 			nr++;
 	}
@@ -326,7 +327,8 @@ static int lov_lock_sub_init(const struct lu_env *env,
 	 * top-lock.
 	 */
 	for (i = 0, nr = 0; i < r0->lo_nr; ++i) {
-		if (lov_stripe_intersects(loo->lo_lsm, i,
+		if (likely(r0->lo_sub[i] != NULL) &&
+		    lov_stripe_intersects(loo->lo_lsm, i,
 					  file_start, file_end, &start, &end)) {
 			struct cl_lock_descr *descr;
 
@@ -346,41 +348,7 @@ static int lov_lock_sub_init(const struct lu_env *env,
 		}
 	}
 	LASSERT(nr == lck->lls_nr);
-	/*
-	 * Then, create sub-locks. Once at least one sub-lock was created,
-	 * top-lock can be reached by other threads.
-	 */
-	for (i = 0; i < lck->lls_nr; ++i) {
-		struct cl_lock       *sublock;
-		struct lov_lock_link *link;
 
-		if (lck->lls_sub[i].sub_lock == NULL) {
-			sublock = lov_sublock_alloc(env, io, lck, i, &link);
-			if (IS_ERR(sublock)) {
-				result = PTR_ERR(sublock);
-				break;
-			}
-			cl_lock_get_trust(sublock);
-			cl_lock_mutex_get(env, sublock);
-			cl_lock_mutex_get(env, parent);
-			/*
-			 * recheck under mutex that sub-lock wasn't created
-			 * concurrently, and that top-lock is still alive.
-			 */
-			if (lck->lls_sub[i].sub_lock == NULL &&
-			    parent->cll_state < CLS_FREEING) {
-				lov_sublock_adopt(env, lck, sublock, i, link);
-				cl_lock_mutex_put(env, parent);
-			} else {
-				OBD_SLAB_FREE_PTR(link, lov_lock_link_kmem);
-				cl_lock_mutex_put(env, parent);
-				cl_lock_unhold(env, sublock,
-					       "lov-parent", parent);
-			}
-			cl_lock_mutex_put(env, sublock);
-			cl_lock_put(env, sublock);
-		}
-	}
 	/*
 	 * Some sub-locks can be missing at this point. This is not a problem,
 	 * because enqueue will create them anyway. Main duty of this function
@@ -533,7 +501,7 @@ static int lov_lock_enqueue_one(const struct lu_env *env, struct lov_lock *lck,
 static int lov_sublock_fill(const struct lu_env *env, struct cl_lock *parent,
 			    struct cl_io *io, struct lov_lock *lck, int idx)
 {
-	struct lov_lock_link *link;
+	struct lov_lock_link *link = NULL;
 	struct cl_lock       *sublock;
 	int		   result;
 
@@ -894,10 +862,10 @@ static int lock_lock_multi_match()
 	struct lov_layout_raid0 *r0      = lov_r0(loo);
 	struct lov_lock_sub     *sub;
 	struct cl_object	*subobj;
-	obd_off  fstart;
-	obd_off  fend;
-	obd_off  start;
-	obd_off  end;
+	u64  fstart;
+	u64  fend;
+	u64  start;
+	u64  end;
 	int i;
 
 	fstart = cl_offset(need->cld_obj, need->cld_start);
@@ -934,8 +902,8 @@ static int lov_lock_stripe_is_matching(const struct lu_env *env,
 				       const struct cl_lock_descr *descr)
 {
 	struct lov_stripe_md *lsm = lov->lo_lsm;
-	obd_off start;
-	obd_off end;
+	u64 start;
+	u64 end;
 	int result;
 
 	if (lov_r0(lov)->lo_nr == 1)
@@ -948,13 +916,25 @@ static int lov_lock_stripe_is_matching(const struct lu_env *env,
 	 */
 	start = cl_offset(&lov->lo_cl, descr->cld_start);
 	end   = cl_offset(&lov->lo_cl, descr->cld_end + 1) - 1;
-	result = end - start <= lsm->lsm_stripe_size &&
-		 stripe == lov_stripe_number(lsm, start) &&
-		 stripe == lov_stripe_number(lsm, end);
-	if (result) {
+	result = 0;
+	/* glimpse should work on the object with LOV EA hole. */
+	if (end - start <= lsm->lsm_stripe_size) {
+		int idx;
+
+		idx = lov_stripe_number(lsm, start);
+		if (idx == stripe ||
+		    unlikely(lov_r0(lov)->lo_sub[idx] == NULL)) {
+			idx = lov_stripe_number(lsm, end);
+			if (idx == stripe ||
+			    unlikely(lov_r0(lov)->lo_sub[idx] == NULL))
+				result = 1;
+		}
+	}
+
+	if (result != 0) {
 		struct cl_lock_descr *subd = &lov_env_info(env)->lti_ldescr;
-		obd_off sub_start;
-		obd_off sub_end;
+		u64 sub_start;
+		u64 sub_end;
 
 		subd->cld_obj  = NULL;   /* don't need sub object at all */
 		subd->cld_mode = descr->cld_mode;
@@ -1159,7 +1139,7 @@ int lov_lock_init_raid0(const struct lu_env *env, struct cl_object *obj,
 	struct lov_lock *lck;
 	int result;
 
-	OBD_SLAB_ALLOC_PTR_GFP(lck, lov_lock_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(lck, lov_lock_kmem, GFP_NOFS);
 	if (lck != NULL) {
 		cl_lock_slice_add(lock, &lck->lls_cl, obj, &lov_lock_ops);
 		result = lov_lock_sub_init(env, lck, io);
@@ -1194,7 +1174,7 @@ int lov_lock_init_empty(const struct lu_env *env, struct cl_object *obj,
 	struct lov_lock *lck;
 	int result = -ENOMEM;
 
-	OBD_SLAB_ALLOC_PTR_GFP(lck, lov_lock_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(lck, lov_lock_kmem, GFP_NOFS);
 	if (lck != NULL) {
 		cl_lock_slice_add(lock, &lck->lls_cl, obj, &lov_empty_lock_ops);
 		lck->lls_orig = lock->cll_descr;

@@ -590,8 +590,8 @@ void rds_iw_conn_shutdown(struct rds_connection *conn)
 			/* Actually this may happen quite frequently, when
 			 * an outgoing connect raced with an incoming connect.
 			 */
-			rdsdebug("rds_iw_conn_shutdown: failed to disconnect,"
-				   " cm: %p err %d\n", ic->i_cm_id, err);
+			rdsdebug("failed to disconnect, cm: %p err %d\n",
+				 ic->i_cm_id, err);
 		}
 
 		if (ic->i_cm_id->qp) {

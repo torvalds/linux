@@ -1,5 +1,5 @@
 /*
- * net/sched/police.c	Input police filter.
+ * net/sched/act_police.c	Input police filter
  *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License
@@ -41,7 +41,6 @@ struct tcf_police {
 	container_of(pc, struct tcf_police, common)
 
 #define POL_TAB_MASK     15
-static struct tcf_hashinfo police_hash_info;
 
 /* old policer structure from before tc actions */
 struct tc_police_compat {
@@ -179,7 +178,7 @@ override:
 
 	spin_lock_bh(&police->tcf_lock);
 	if (est) {
-		err = gen_replace_estimator(&police->tcf_bstats,
+		err = gen_replace_estimator(&police->tcf_bstats, NULL,
 					    &police->tcf_rate_est,
 					    &police->tcf_lock, est);
 		if (err)
@@ -232,9 +231,9 @@ override:
 	if (ret != ACT_P_CREATED)
 		return ret;
 
-	police->tcfp_t_c = ktime_to_ns(ktime_get());
+	police->tcfp_t_c = ktime_get_ns();
 	police->tcf_index = parm->index ? parm->index :
-		tcf_hash_new_index(a->ops->hinfo);
+		tcf_hash_new_index(hinfo);
 	h = tcf_hash(police->tcf_index, POL_TAB_MASK);
 	spin_lock_bh(&hinfo->lock);
 	hlist_add_head(&police->tcf_head, &hinfo->htab[h]);
@@ -251,14 +250,6 @@ failure:
 	if (ret == ACT_P_CREATED)
 		kfree(police);
 	return err;
-}
-
-static int tcf_act_police_cleanup(struct tc_action *a, int bind)
-{
-	struct tcf_police *p = a->priv;
-	if (p)
-		return tcf_hash_release(&p->common, bind, &police_hash_info);
-	return 0;
 }
 
 static int tcf_act_police(struct sk_buff *skb, const struct tc_action *a,
@@ -288,7 +279,7 @@ static int tcf_act_police(struct sk_buff *skb, const struct tc_action *a,
 			return police->tcfp_result;
 		}
 
-		now = ktime_to_ns(ktime_get());
+		now = ktime_get_ns();
 		toks = min_t(s64, now - police->tcfp_t_c,
 			     police->tcfp_burst);
 		if (police->peak_present) {
@@ -357,12 +348,10 @@ MODULE_LICENSE("GPL");
 
 static struct tc_action_ops act_police_ops = {
 	.kind		=	"police",
-	.hinfo		=	&police_hash_info,
 	.type		=	TCA_ID_POLICE,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_act_police,
 	.dump		=	tcf_act_police_dump,
-	.cleanup	=	tcf_act_police_cleanup,
 	.init		=	tcf_act_police_locate,
 	.walk		=	tcf_act_police_walker
 };
@@ -370,19 +359,12 @@ static struct tc_action_ops act_police_ops = {
 static int __init
 police_init_module(void)
 {
-	int err = tcf_hashinfo_init(&police_hash_info, POL_TAB_MASK);
-	if (err)
-		return err;
-	err = tcf_register_action(&act_police_ops);
-	if (err)
-		tcf_hashinfo_destroy(&police_hash_info);
-	return err;
+	return tcf_register_action(&act_police_ops, POL_TAB_MASK);
 }
 
 static void __exit
 police_cleanup_module(void)
 {
-	tcf_hashinfo_destroy(&police_hash_info);
 	tcf_unregister_action(&act_police_ops);
 }
 

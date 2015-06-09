@@ -17,78 +17,52 @@
  *	2 of the License, or (at your option) any later version.
  */
 #include <linux/module.h>
+#include <asm/microcode.h>
 #include <asm/microcode_intel.h>
 #include <asm/microcode_amd.h>
 #include <asm/processor.h>
+#include <asm/cmdline.h>
 
-#define QCHAR(a, b, c, d) ((a) + ((b) << 8) + ((c) << 16) + ((d) << 24))
-#define CPUID_INTEL1 QCHAR('G', 'e', 'n', 'u')
-#define CPUID_INTEL2 QCHAR('i', 'n', 'e', 'I')
-#define CPUID_INTEL3 QCHAR('n', 't', 'e', 'l')
-#define CPUID_AMD1 QCHAR('A', 'u', 't', 'h')
-#define CPUID_AMD2 QCHAR('e', 'n', 't', 'i')
-#define CPUID_AMD3 QCHAR('c', 'A', 'M', 'D')
-
-#define CPUID_IS(a, b, c, ebx, ecx, edx)	\
-		(!((ebx ^ (a))|(edx ^ (b))|(ecx ^ (c))))
-
-/*
- * In early loading microcode phase on BSP, boot_cpu_data is not set up yet.
- * x86_vendor() gets vendor id for BSP.
- *
- * In 32 bit AP case, accessing boot_cpu_data needs linear address. To simplify
- * coding, we still use x86_vendor() to get vendor id for AP.
- *
- * x86_vendor() gets vendor information directly through cpuid.
- */
-static int x86_vendor(void)
+static bool __init check_loader_disabled_bsp(void)
 {
-	u32 eax = 0x00000000;
-	u32 ebx, ecx = 0, edx;
+#ifdef CONFIG_X86_32
+	const char *cmdline = (const char *)__pa_nodebug(boot_command_line);
+	const char *opt	    = "dis_ucode_ldr";
+	const char *option  = (const char *)__pa_nodebug(opt);
+	bool *res = (bool *)__pa_nodebug(&dis_ucode_ldr);
 
-	native_cpuid(&eax, &ebx, &ecx, &edx);
+#else /* CONFIG_X86_64 */
+	const char *cmdline = boot_command_line;
+	const char *option  = "dis_ucode_ldr";
+	bool *res = &dis_ucode_ldr;
+#endif
 
-	if (CPUID_IS(CPUID_INTEL1, CPUID_INTEL2, CPUID_INTEL3, ebx, ecx, edx))
-		return X86_VENDOR_INTEL;
+	if (cmdline_find_option_bool(cmdline, option))
+		*res = true;
 
-	if (CPUID_IS(CPUID_AMD1, CPUID_AMD2, CPUID_AMD3, ebx, ecx, edx))
-		return X86_VENDOR_AMD;
-
-	return X86_VENDOR_UNKNOWN;
-}
-
-static int x86_family(void)
-{
-	u32 eax = 0x00000001;
-	u32 ebx, ecx = 0, edx;
-	int x86;
-
-	native_cpuid(&eax, &ebx, &ecx, &edx);
-
-	x86 = (eax >> 8) & 0xf;
-	if (x86 == 15)
-		x86 += (eax >> 20) & 0xff;
-
-	return x86;
+	return *res;
 }
 
 void __init load_ucode_bsp(void)
 {
-	int vendor, x86;
+	int vendor, family;
+
+	if (check_loader_disabled_bsp())
+		return;
 
 	if (!have_cpuid_p())
 		return;
 
 	vendor = x86_vendor();
-	x86 = x86_family();
+	family = x86_family();
 
 	switch (vendor) {
 	case X86_VENDOR_INTEL:
-		if (x86 >= 6)
+		if (family >= 6)
 			load_ucode_intel_bsp();
 		break;
 	case X86_VENDOR_AMD:
-		if (x86 >= 0x10)
+		if (family >= 0x10)
 			load_ucode_amd_bsp();
 		break;
 	default:
@@ -96,23 +70,35 @@ void __init load_ucode_bsp(void)
 	}
 }
 
+static bool check_loader_disabled_ap(void)
+{
+#ifdef CONFIG_X86_32
+	return *((bool *)__pa_nodebug(&dis_ucode_ldr));
+#else
+	return dis_ucode_ldr;
+#endif
+}
+
 void load_ucode_ap(void)
 {
-	int vendor, x86;
+	int vendor, family;
+
+	if (check_loader_disabled_ap())
+		return;
 
 	if (!have_cpuid_p())
 		return;
 
 	vendor = x86_vendor();
-	x86 = x86_family();
+	family = x86_family();
 
 	switch (vendor) {
 	case X86_VENDOR_INTEL:
-		if (x86 >= 6)
+		if (family >= 6)
 			load_ucode_intel_ap();
 		break;
 	case X86_VENDOR_AMD:
-		if (x86 >= 0x10)
+		if (family >= 0x10)
 			load_ucode_amd_ap();
 		break;
 	default:
@@ -138,4 +124,25 @@ int __init save_microcode_in_initrd(void)
 	}
 
 	return 0;
+}
+
+void reload_early_microcode(void)
+{
+	int vendor, family;
+
+	vendor = x86_vendor();
+	family = x86_family();
+
+	switch (vendor) {
+	case X86_VENDOR_INTEL:
+		if (family >= 6)
+			reload_ucode_intel();
+		break;
+	case X86_VENDOR_AMD:
+		if (family >= 0x10)
+			reload_ucode_amd();
+		break;
+	default:
+		break;
+	}
 }

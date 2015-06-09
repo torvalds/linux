@@ -104,7 +104,7 @@ static int iwlagn_disable_bss(struct iwl_priv *priv,
 
 	send->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	ret = iwl_dvm_send_cmd_pdu(priv, ctx->rxon_cmd,
-				CMD_SYNC, sizeof(*send), send);
+				0, sizeof(*send), send);
 
 	send->filter_flags = old_filter;
 
@@ -134,7 +134,7 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 	send->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	send->dev_type = RXON_DEV_TYPE_P2P;
 	ret = iwl_dvm_send_cmd_pdu(priv, ctx->rxon_cmd,
-				CMD_SYNC, sizeof(*send), send);
+				0, sizeof(*send), send);
 
 	send->filter_flags = old_filter;
 	send->dev_type = old_dev_type;
@@ -160,7 +160,7 @@ static int iwlagn_disconn_pan(struct iwl_priv *priv,
 	int ret;
 
 	send->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-	ret = iwl_dvm_send_cmd_pdu(priv, ctx->rxon_cmd, CMD_SYNC,
+	ret = iwl_dvm_send_cmd_pdu(priv, ctx->rxon_cmd, 0,
 				sizeof(*send), send);
 
 	send->filter_flags = old_filter;
@@ -189,7 +189,7 @@ static void iwlagn_update_qos(struct iwl_priv *priv,
 		      ctx->qos_data.qos_active,
 		      ctx->qos_data.def_qos_parm.qos_flags);
 
-	ret = iwl_dvm_send_cmd_pdu(priv, ctx->qos_cmd, CMD_SYNC,
+	ret = iwl_dvm_send_cmd_pdu(priv, ctx->qos_cmd, 0,
 			       sizeof(struct iwl_qosparam_cmd),
 			       &ctx->qos_data.def_qos_parm);
 	if (ret)
@@ -353,7 +353,7 @@ static int iwl_send_rxon_timing(struct iwl_priv *priv,
 			le16_to_cpu(ctx->timing.atim_window));
 
 	return iwl_dvm_send_cmd_pdu(priv, ctx->rxon_timing_cmd,
-				CMD_SYNC, sizeof(ctx->timing), &ctx->timing);
+				0, sizeof(ctx->timing), &ctx->timing);
 }
 
 static int iwlagn_rxon_disconn(struct iwl_priv *priv,
@@ -495,7 +495,7 @@ static int iwlagn_rxon_connect(struct iwl_priv *priv,
 	 * Associated RXON doesn't clear the station table in uCode,
 	 * so we don't need to restore stations etc. after this.
 	 */
-	ret = iwl_dvm_send_cmd_pdu(priv, ctx->rxon_cmd, CMD_SYNC,
+	ret = iwl_dvm_send_cmd_pdu(priv, ctx->rxon_cmd, 0,
 		      sizeof(struct iwl_rxon_cmd), &ctx->staging);
 	if (ret) {
 		IWL_ERR(priv, "Error setting new RXON (%d)\n", ret);
@@ -610,7 +610,7 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 	cmd.slots[0].width = cpu_to_le16(slot0);
 	cmd.slots[1].width = cpu_to_le16(slot1);
 
-	ret = iwl_dvm_send_cmd_pdu(priv, REPLY_WIPAN_PARAMS, CMD_SYNC,
+	ret = iwl_dvm_send_cmd_pdu(priv, REPLY_WIPAN_PARAMS, 0,
 			sizeof(cmd), &cmd);
 	if (ret)
 		IWL_ERR(priv, "Error setting PAN parameters (%d)\n", ret);
@@ -823,7 +823,7 @@ static int iwl_check_rxon_cmd(struct iwl_priv *priv,
 
 	if ((rxon->flags & (RXON_FLG_CCK_MSK | RXON_FLG_AUTO_DETECT_MSK))
 			== (RXON_FLG_CCK_MSK | RXON_FLG_AUTO_DETECT_MSK)) {
-		IWL_WARN(priv, "CCK and auto detect");
+		IWL_WARN(priv, "CCK and auto detect\n");
 		errors |= BIT(8);
 	}
 
@@ -1395,7 +1395,7 @@ static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
 			priv->phy_calib_chain_noise_reset_cmd);
 		ret = iwl_dvm_send_cmd_pdu(priv,
 					REPLY_PHY_CALIBRATION_CMD,
-					CMD_SYNC, sizeof(cmd), &cmd);
+					0, sizeof(cmd), &cmd);
 		if (ret)
 			IWL_ERR(priv,
 				"Could not send REPLY_PHY_CALIBRATION_CMD\n");

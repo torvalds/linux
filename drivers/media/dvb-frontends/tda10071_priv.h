@@ -55,6 +55,7 @@ static struct tda10071_modcod {
 	{ SYS_DVBS2, QPSK,  FEC_8_9,  0x0a },
 	{ SYS_DVBS2, QPSK,  FEC_9_10, 0x0b },
 	/* 8PSK */
+	{ SYS_DVBS2, PSK_8, FEC_AUTO, 0x00 },
 	{ SYS_DVBS2, PSK_8, FEC_3_5,  0x0c },
 	{ SYS_DVBS2, PSK_8, FEC_2_3,  0x0d },
 	{ SYS_DVBS2, PSK_8, FEC_3_4,  0x0e },
@@ -98,7 +99,7 @@ struct tda10071_reg_val_mask {
 #define CMD_BER_CONTROL         0x3e
 #define CMD_BER_UPDATE_COUNTERS 0x3f
 
-/* firmare command struct */
+/* firmware command struct */
 #define TDA10071_ARGLEN      30
 struct tda10071_cmd {
 	u8 args[TDA10071_ARGLEN];

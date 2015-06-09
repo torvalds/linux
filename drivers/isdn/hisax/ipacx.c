@@ -580,7 +580,7 @@ bch_fill_fifo(struct BCState *bcs)
 	if (cs->debug & L1_DEB_HSCX_FIFO) {
 		char *t = bcs->blog;
 
-		t += sprintf(t, "chb_fill_fifo() B-%d cnt %d", hscx, count);
+		t += sprintf(t, "%s() B-%d cnt %d", __func__, hscx, count);
 		QuickHex(t, ptr, count);
 		debugl1(cs, "%s", bcs->blog);
 	}

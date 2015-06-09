@@ -317,13 +317,14 @@ static int at91_cf_probe(struct platform_device *pdev)
 	} else
 		cf->socket.pci_irq = nr_irqs + 1;
 
-	/* pcmcia layer only remaps "real" memory not iospace */
-	cf->socket.io_offset = (unsigned long) devm_ioremap(&pdev->dev,
-					cf->phys_baseaddr + CF_IO_PHYS, SZ_2K);
-	if (!cf->socket.io_offset) {
-		status = -ENXIO;
+	/*
+	 * pcmcia layer only remaps "real" memory not iospace
+	 * io_offset is set to 0x10000 to avoid the check in static_find_io().
+	 * */
+	cf->socket.io_offset = 0x10000;
+	status = pci_ioremap_io(0x10000, cf->phys_baseaddr + CF_IO_PHYS);
+	if (status)
 		goto fail0a;
-	}
 
 	/* reserve chip-select regions */
 	if (!devm_request_mem_region(&pdev->dev, io->start, resource_size(io), "at91_cf")) {
@@ -401,7 +402,6 @@ static int at91_cf_resume(struct platform_device *pdev)
 static struct platform_driver at91_cf_driver = {
 	.driver = {
 		.name		= "at91_cf",
-		.owner		= THIS_MODULE,
 		.of_match_table = of_match_ptr(at91_cf_dt_ids),
 	},
 	.probe		= at91_cf_probe,

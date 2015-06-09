@@ -15,6 +15,8 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
+#include <linux/clk.h>
+#include <linux/mutex.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -42,6 +44,7 @@ struct max98095_priv {
 	struct regmap *regmap;
 	enum max98095_type devtype;
 	struct max98095_pdata *pdata;
+	struct clk *mclk;
 	unsigned int sysclk;
 	struct max98095_cdata dai[3];
 	const char **eq_texts;
@@ -55,6 +58,7 @@ struct max98095_priv {
 	unsigned int mic2pre;
 	struct snd_soc_jack *headphone_jack;
 	struct snd_soc_jack *mic_jack;
+	struct mutex lock;
 };
 
 static const struct reg_default max98095_reg_def[] = {
@@ -560,25 +564,27 @@ static void m98095_biquad_band(struct snd_soc_codec *codec, unsigned int dai,
 }
 
 static const char * const max98095_fltr_mode[] = { "Voice", "Music" };
-static const struct soc_enum max98095_dai1_filter_mode_enum[] = {
-	SOC_ENUM_SINGLE(M98095_02E_DAI1_FILTERS, 7, 2, max98095_fltr_mode),
-};
-static const struct soc_enum max98095_dai2_filter_mode_enum[] = {
-	SOC_ENUM_SINGLE(M98095_038_DAI2_FILTERS, 7, 2, max98095_fltr_mode),
-};
+static SOC_ENUM_SINGLE_DECL(max98095_dai1_filter_mode_enum,
+			    M98095_02E_DAI1_FILTERS, 7,
+			    max98095_fltr_mode);
+static SOC_ENUM_SINGLE_DECL(max98095_dai2_filter_mode_enum,
+			    M98095_038_DAI2_FILTERS, 7,
+			    max98095_fltr_mode);
 
 static const char * const max98095_extmic_text[] = { "None", "MIC1", "MIC2" };
 
-static const struct soc_enum max98095_extmic_enum =
-	SOC_ENUM_SINGLE(M98095_087_CFG_MIC, 0, 3, max98095_extmic_text);
+static SOC_ENUM_SINGLE_DECL(max98095_extmic_enum,
+			    M98095_087_CFG_MIC, 0,
+			    max98095_extmic_text);
 
 static const struct snd_kcontrol_new max98095_extmic_mux =
 	SOC_DAPM_ENUM("External MIC Mux", max98095_extmic_enum);
 
 static const char * const max98095_linein_text[] = { "INA", "INB" };
 
-static const struct soc_enum max98095_linein_enum =
-	SOC_ENUM_SINGLE(M98095_086_CFG_LINE, 6, 2, max98095_linein_text);
+static SOC_ENUM_SINGLE_DECL(max98095_linein_enum,
+			    M98095_086_CFG_LINE, 6,
+			    max98095_linein_text);
 
 static const struct snd_kcontrol_new max98095_linein_mux =
 	SOC_DAPM_ENUM("Linein Input Mux", max98095_linein_enum);
@@ -586,29 +592,31 @@ static const struct snd_kcontrol_new max98095_linein_mux =
 static const char * const max98095_line_mode_text[] = {
 	"Stereo", "Differential"};
 
-static const struct soc_enum max98095_linein_mode_enum =
-	SOC_ENUM_SINGLE(M98095_086_CFG_LINE, 7, 2, max98095_line_mode_text);
+static SOC_ENUM_SINGLE_DECL(max98095_linein_mode_enum,
+			    M98095_086_CFG_LINE, 7,
+			    max98095_line_mode_text);
 
-static const struct soc_enum max98095_lineout_mode_enum =
-	SOC_ENUM_SINGLE(M98095_086_CFG_LINE, 4, 2, max98095_line_mode_text);
+static SOC_ENUM_SINGLE_DECL(max98095_lineout_mode_enum,
+			    M98095_086_CFG_LINE, 4,
+			    max98095_line_mode_text);
 
 static const char * const max98095_dai_fltr[] = {
 	"Off", "Elliptical-HPF-16k", "Butterworth-HPF-16k",
 	"Elliptical-HPF-8k", "Butterworth-HPF-8k", "Butterworth-HPF-Fs/240"};
-static const struct soc_enum max98095_dai1_dac_filter_enum[] = {
-	SOC_ENUM_SINGLE(M98095_02E_DAI1_FILTERS, 0, 6, max98095_dai_fltr),
-};
-static const struct soc_enum max98095_dai2_dac_filter_enum[] = {
-	SOC_ENUM_SINGLE(M98095_038_DAI2_FILTERS, 0, 6, max98095_dai_fltr),
-};
-static const struct soc_enum max98095_dai3_dac_filter_enum[] = {
-	SOC_ENUM_SINGLE(M98095_042_DAI3_FILTERS, 0, 6, max98095_dai_fltr),
-};
+static SOC_ENUM_SINGLE_DECL(max98095_dai1_dac_filter_enum,
+			    M98095_02E_DAI1_FILTERS, 0,
+			    max98095_dai_fltr);
+static SOC_ENUM_SINGLE_DECL(max98095_dai2_dac_filter_enum,
+			    M98095_038_DAI2_FILTERS, 0,
+			    max98095_dai_fltr);
+static SOC_ENUM_SINGLE_DECL(max98095_dai3_dac_filter_enum,
+			    M98095_042_DAI3_FILTERS, 0,
+			    max98095_dai_fltr);
 
 static int max98095_mic1pre_set(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 	unsigned int sel = ucontrol->value.integer.value[0];
 
@@ -622,7 +630,7 @@ static int max98095_mic1pre_set(struct snd_kcontrol *kcontrol,
 static int max98095_mic1pre_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 
 	ucontrol->value.integer.value[0] = max98095->mic1pre;
@@ -632,7 +640,7 @@ static int max98095_mic1pre_get(struct snd_kcontrol *kcontrol,
 static int max98095_mic2pre_set(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 	unsigned int sel = ucontrol->value.integer.value[0];
 
@@ -646,7 +654,7 @@ static int max98095_mic2pre_set(struct snd_kcontrol *kcontrol,
 static int max98095_mic2pre_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 
 	ucontrol->value.integer.value[0] = max98095->mic2pre;
@@ -858,7 +866,7 @@ static const struct snd_kcontrol_new max98095_right_ADC_mixer_controls[] = {
 static int max98095_mic_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
@@ -888,7 +896,7 @@ static int max98095_mic_event(struct snd_soc_dapm_widget *w,
 static int max98095_line_pga(struct snd_soc_dapm_widget *w,
 			     int event, u8 channel)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 	u8 *state;
 
@@ -936,7 +944,7 @@ static int max98095_pga_in2_event(struct snd_soc_dapm_widget *w,
 static int max98095_lineout_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -1274,12 +1282,12 @@ static int max98095_dai2_hw_params(struct snd_pcm_substream *substream,
 
 	rate = params_rate(params);
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		snd_soc_update_bits(codec, M98095_034_DAI2_FORMAT,
 			M98095_DAI_WS, 0);
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		snd_soc_update_bits(codec, M98095_034_DAI2_FORMAT,
 			M98095_DAI_WS, M98095_DAI_WS);
 		break;
@@ -1335,12 +1343,12 @@ static int max98095_dai3_hw_params(struct snd_pcm_substream *substream,
 
 	rate = params_rate(params);
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		snd_soc_update_bits(codec, M98095_03E_DAI3_FORMAT,
 			M98095_DAI_WS, 0);
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		snd_soc_update_bits(codec, M98095_03E_DAI3_FORMAT,
 			M98095_DAI_WS, M98095_DAI_WS);
 		break;
@@ -1390,6 +1398,11 @@ static int max98095_dai_set_sysclk(struct snd_soc_dai *dai,
 	/* Requested clock frequency is already setup */
 	if (freq == max98095->sysclk)
 		return 0;
+
+	if (!IS_ERR(max98095->mclk)) {
+		freq = clk_round_rate(max98095->mclk, freq);
+		clk_set_rate(max98095->mclk, freq);
+	}
 
 	/* Setup clocks for slave mode, and using the PLL
 	 * PSCLK = 0x01 (when master clk is 10MHz to 20MHz)
@@ -1630,6 +1643,19 @@ static int max98095_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
+		/*
+		 * SND_SOC_BIAS_PREPARE is called while preparing for a
+		 * transition to ON or away from ON. If current bias_level
+		 * is SND_SOC_BIAS_ON, then it is preparing for a transition
+		 * away from ON. Disable the clock in that case, otherwise
+		 * enable it.
+		 */
+		if (!IS_ERR(max98095->mclk)) {
+			if (codec->dapm.bias_level == SND_SOC_BIAS_ON)
+				clk_disable_unprepare(max98095->mclk);
+			else
+				clk_prepare_enable(max98095->mclk);
+		}
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
@@ -1733,7 +1759,7 @@ static int max98095_get_eq_channel(const char *name)
 static int max98095_put_eq_enum(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 	struct max98095_pdata *pdata = max98095->pdata;
 	int channel = max98095_get_eq_channel(kcontrol->id.name);
@@ -1779,7 +1805,7 @@ static int max98095_put_eq_enum(struct snd_kcontrol *kcontrol,
 	regsave = snd_soc_read(codec, M98095_088_CFG_LEVEL);
 	snd_soc_update_bits(codec, M98095_088_CFG_LEVEL, regmask, 0);
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&max98095->lock);
 	snd_soc_update_bits(codec, M98095_00F_HOST_CFG, M98095_SEG, M98095_SEG);
 	m98095_eq_band(codec, channel, 0, coef_set->band1);
 	m98095_eq_band(codec, channel, 1, coef_set->band2);
@@ -1787,7 +1813,7 @@ static int max98095_put_eq_enum(struct snd_kcontrol *kcontrol,
 	m98095_eq_band(codec, channel, 3, coef_set->band4);
 	m98095_eq_band(codec, channel, 4, coef_set->band5);
 	snd_soc_update_bits(codec, M98095_00F_HOST_CFG, M98095_SEG, 0);
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&max98095->lock);
 
 	/* Restore the original on/off state */
 	snd_soc_update_bits(codec, M98095_088_CFG_LEVEL, regmask, regsave);
@@ -1797,7 +1823,7 @@ static int max98095_put_eq_enum(struct snd_kcontrol *kcontrol,
 static int max98095_get_eq_enum(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 	int channel = max98095_get_eq_channel(kcontrol->id.name);
 	struct max98095_cdata *cdata;
@@ -1861,7 +1887,7 @@ static void max98095_handle_eq_pdata(struct snd_soc_codec *codec)
 
 	/* Now point the soc_enum to .texts array items */
 	max98095->eq_enum.texts = max98095->eq_texts;
-	max98095->eq_enum.max = max98095->eq_textcnt;
+	max98095->eq_enum.items = max98095->eq_textcnt;
 
 	ret = snd_soc_add_codec_controls(codec, controls, ARRAY_SIZE(controls));
 	if (ret != 0)
@@ -1887,7 +1913,7 @@ static int max98095_get_bq_channel(struct snd_soc_codec *codec,
 static int max98095_put_bq_enum(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 	struct max98095_pdata *pdata = max98095->pdata;
 	int channel = max98095_get_bq_channel(codec, kcontrol->id.name);
@@ -1933,12 +1959,12 @@ static int max98095_put_bq_enum(struct snd_kcontrol *kcontrol,
 	regsave = snd_soc_read(codec, M98095_088_CFG_LEVEL);
 	snd_soc_update_bits(codec, M98095_088_CFG_LEVEL, regmask, 0);
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&max98095->lock);
 	snd_soc_update_bits(codec, M98095_00F_HOST_CFG, M98095_SEG, M98095_SEG);
 	m98095_biquad_band(codec, channel, 0, coef_set->band1);
 	m98095_biquad_band(codec, channel, 1, coef_set->band2);
 	snd_soc_update_bits(codec, M98095_00F_HOST_CFG, M98095_SEG, 0);
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&max98095->lock);
 
 	/* Restore the original on/off state */
 	snd_soc_update_bits(codec, M98095_088_CFG_LEVEL, regmask, regsave);
@@ -1948,7 +1974,7 @@ static int max98095_put_bq_enum(struct snd_kcontrol *kcontrol,
 static int max98095_get_bq_enum(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 	int channel = max98095_get_bq_channel(codec, kcontrol->id.name);
 	struct max98095_cdata *cdata;
@@ -2016,7 +2042,7 @@ static void max98095_handle_bq_pdata(struct snd_soc_codec *codec)
 
 	/* Now point the soc_enum to .texts array items */
 	max98095->bq_enum.texts = max98095->bq_texts;
-	max98095->bq_enum.max = max98095->bq_textcnt;
+	max98095->bq_enum.items = max98095->bq_textcnt;
 
 	ret = snd_soc_add_codec_controls(codec, controls, ARRAY_SIZE(controls));
 	if (ret != 0)
@@ -2234,11 +2260,9 @@ static int max98095_probe(struct snd_soc_codec *codec)
 	struct i2c_client *client;
 	int ret = 0;
 
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
+	max98095->mclk = devm_clk_get(codec->dev, "mclk");
+	if (PTR_ERR(max98095->mclk) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
 
 	/* reset the codec, the DSP core, and disable all interrupts */
 	max98095_reset(codec);
@@ -2295,9 +2319,6 @@ static int max98095_probe(struct snd_soc_codec *codec)
 
 	snd_soc_write(codec, M98095_097_PWR_SYS, M98095_PWRSV);
 
-	/* initialize registers cache to hardware default */
-	max98095_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	snd_soc_write(codec, M98095_048_MIX_DAC_LR,
 		M98095_DAI1L_TO_DACL|M98095_DAI1R_TO_DACR);
 
@@ -2337,8 +2358,6 @@ static int max98095_remove(struct snd_soc_codec *codec)
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 	struct i2c_client *client = to_i2c_client(codec->dev);
 
-	max98095_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
 	if (max98095->headphone_jack || max98095->mic_jack)
 		max98095_jack_detect_disable(codec);
 
@@ -2373,6 +2392,8 @@ static int max98095_i2c_probe(struct i2c_client *i2c,
 	if (max98095 == NULL)
 		return -ENOMEM;
 
+	mutex_init(&max98095->lock);
+
 	max98095->regmap = devm_regmap_init_i2c(i2c, &max98095_regmap);
 	if (IS_ERR(max98095->regmap)) {
 		ret = PTR_ERR(max98095->regmap);
@@ -2401,10 +2422,17 @@ static const struct i2c_device_id max98095_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, max98095_i2c_id);
 
+static const struct of_device_id max98095_of_match[] = {
+	{ .compatible = "maxim,max98095", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, max98095_of_match);
+
 static struct i2c_driver max98095_i2c_driver = {
 	.driver = {
 		.name = "max98095",
 		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(max98095_of_match),
 	},
 	.probe  = max98095_i2c_probe,
 	.remove = max98095_i2c_remove,

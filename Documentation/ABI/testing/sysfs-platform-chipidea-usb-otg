@@ -1,0 +1,56 @@
+What:		/sys/bus/platform/devices/ci_hdrc.0/inputs/a_bus_req
+Date:		Feb 2014
+Contact:	Li Jun <b47624@freescale.com>
+Description:
+		Can be set and read.
+		Set a_bus_req(A-device bus request) input to be 1 if
+		the application running on the A-device wants to use the bus,
+		and to be 0 when the application no longer wants to use
+		the bus(or wants to work as peripheral). a_bus_req can also
+		be set to 1 by kernel in response to remote wakeup signaling
+		from the B-device, the A-device should decide to resume the bus.
+
+		Valid values are "1" and "0".
+
+		Reading: returns 1 if the application running on the A-device
+		is using the bus as host role, otherwise 0.
+
+What:		/sys/bus/platform/devices/ci_hdrc.0/inputs/a_bus_drop
+Date:		Feb 2014
+Contact:	Li Jun <b47624@freescale.com>
+Description:
+		Can be set and read
+		The a_bus_drop(A-device bus drop) input is 1 when the
+		application running on the A-device wants to power down
+		the bus, and is 0 otherwise, When a_bus_drop is 1, then
+		the a_bus_req shall be 0.
+
+		Valid values are "1" and "0".
+
+		Reading: returns 1 if the bus is off(vbus is turned off) by
+			 A-device, otherwise 0.
+
+What:		/sys/bus/platform/devices/ci_hdrc.0/inputs/b_bus_req
+Date:		Feb 2014
+Contact:	Li Jun <b47624@freescale.com>
+Description:
+		Can be set and read.
+		The b_bus_req(B-device bus request) input is 1 during the time
+		that the application running on the B-device wants to use the
+		bus as host, and is 0 when the application no longer wants to
+		work as host and decides to switch back to be peripheral.
+
+		Valid values are "1" and "0".
+
+		Reading: returns if the application running on the B device
+		is using the bus as host role, otherwise 0.
+
+What:		/sys/bus/platform/devices/ci_hdrc.0/inputs/a_clr_err
+Date:		Feb 2014
+Contact:	Li Jun <b47624@freescale.com>
+Description:
+		Only can be set.
+		The a_clr_err(A-device Vbus error clear) input is used to clear
+		vbus error, then A-device will power down the bus.
+
+		Valid value is "1"

@@ -474,7 +474,6 @@ static const struct dev_pm_ops w83627hf_dev_pm_ops = {
 
 static struct platform_driver w83627hf_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= DRVNAME,
 		.pm	= W83627HF_DEV_PM_OPS,
 	},
@@ -820,6 +819,9 @@ store_vrm_reg(struct device *dev, struct device_attribute *attr, const char *buf
 	err = kstrtoul(buf, 10, &val);
 	if (err)
 		return err;
+
+	if (val > 255)
+		return -EINVAL;
 	data->vrm = val;
 
 	return count;

@@ -11,6 +11,7 @@
 
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/mfd/dbx500-prcmu.h>
+#include <dt-bindings/arm/ux500_pm_domains.h>
 #include "skeleton.dtsi"
 
 / {
@@ -43,6 +44,10 @@
 			interrupts = <0 7 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+		pm_domains: pm_domains0 {
+			compatible = "stericsson,ux500-pm-domains";
+			#power-domain-cells = <1>;
+		};
 
 		clocks {
 			compatible = "stericsson,u8500-clks";
@@ -636,6 +641,7 @@
 			clock-frequency = <400000>;
 			clocks = <&prcc_kclk 3 3>, <&prcc_pclk 3 3>;
 			clock-names = "i2cclk", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		i2c@80122000 {
@@ -651,6 +657,7 @@
 
 			clocks = <&prcc_kclk 1 2>, <&prcc_pclk 1 2>;
 			clock-names = "i2cclk", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		i2c@80128000 {
@@ -666,6 +673,7 @@
 
 			clocks = <&prcc_kclk 1 6>, <&prcc_pclk 1 6>;
 			clock-names = "i2cclk", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		i2c@80110000 {
@@ -681,6 +689,7 @@
 
 			clocks = <&prcc_kclk 2 0>, <&prcc_pclk 2 0>;
 			clock-names = "i2cclk", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		i2c@8012a000 {
@@ -696,6 +705,7 @@
 
 			clocks = <&prcc_kclk 1 9>, <&prcc_pclk 1 10>;
 			clock-names = "i2cclk", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		ssp@80002000 {
@@ -705,10 +715,11 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			clocks = <&prcc_kclk 3 1>, <&prcc_pclk 3 1>;
-			clock-names = "ssp0clk", "apb_pclk";
+			clock-names = "SSPCLK", "apb_pclk";
 			dmas = <&dma 8 0 0x2>, /* Logical - DevToMem */
 			       <&dma 8 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		ssp@80003000 {
@@ -718,10 +729,11 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			clocks = <&prcc_kclk 3 2>, <&prcc_pclk 3 2>;
-			clock-names = "ssp1clk", "apb_pclk";
+			clock-names = "SSPCLK", "apb_pclk";
 			dmas = <&dma 9 0 0x2>, /* Logical - DevToMem */
 			       <&dma 9 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		spi@8011a000 {
@@ -732,10 +744,11 @@
 			#size-cells = <0>;
 			/* Same clock wired to kernel and pclk */
 			clocks = <&prcc_pclk 2 8>, <&prcc_pclk 2 8>;
-			clock-names = "spi0clk", "apb_pclk";
+			clock-names = "SSPCLK", "apb_pclk";
 			dmas = <&dma 0 0 0x2>, /* Logical - DevToMem */
 			       <&dma 0 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		spi@80112000 {
@@ -746,10 +759,11 @@
 			#size-cells = <0>;
 			/* Same clock wired to kernel and pclk */
 			clocks = <&prcc_pclk 2 2>, <&prcc_pclk 2 2>;
-			clock-names = "spi1clk", "apb_pclk";
+			clock-names = "SSPCLK", "apb_pclk";
 			dmas = <&dma 35 0 0x2>, /* Logical - DevToMem */
 			       <&dma 35 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		spi@80111000 {
@@ -760,10 +774,11 @@
 			#size-cells = <0>;
 			/* Same clock wired to kernel and pclk */
 			clocks = <&prcc_pclk 2 1>, <&prcc_pclk 2 1>;
-			clock-names = "spi2clk", "apb_pclk";
+			clock-names = "SSPCLK", "apb_pclk";
 			dmas = <&dma 33 0 0x2>, /* Logical - DevToMem */
 			       <&dma 33 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		spi@80129000 {
@@ -774,10 +789,11 @@
 			#size-cells = <0>;
 			/* Same clock wired to kernel and pclk */
 			clocks = <&prcc_pclk 1 7>, <&prcc_pclk 1 7>;
-			clock-names = "spi3clk", "apb_pclk";
+			clock-names = "SSPCLK", "apb_pclk";
 			dmas = <&dma 40 0 0x2>, /* Logical - DevToMem */
 			       <&dma 40 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		uart@80120000 {
@@ -836,6 +852,7 @@
 
 			clocks = <&prcc_kclk 1 5>, <&prcc_pclk 1 5>;
 			clock-names = "sdi", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 
 			status = "disabled";
 		};
@@ -851,6 +868,7 @@
 
 			clocks = <&prcc_kclk 2 4>, <&prcc_pclk 2 6>;
 			clock-names = "sdi", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 
 			status = "disabled";
 		};
@@ -866,6 +884,7 @@
 
 			clocks = <&prcc_kclk 3 4>, <&prcc_pclk 3 4>;
 			clock-names = "sdi", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 
 			status = "disabled";
 		};
@@ -875,8 +894,13 @@
 			reg = <0x80119000 0x1000>;
 			interrupts = <0 59 IRQ_TYPE_LEVEL_HIGH>;
 
+			dmas = <&dma 41 0 0x2>, /* Logical - DevToMem */
+			       <&dma 41 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+
 			clocks = <&prcc_kclk 2 5>, <&prcc_pclk 2 7>;
 			clock-names = "sdi", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 
 			status = "disabled";
 		};
@@ -892,6 +916,7 @@
 
 			clocks = <&prcc_kclk 2 2>, <&prcc_pclk 2 4>;
 			clock-names = "sdi", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 
 			status = "disabled";
 		};
@@ -901,8 +926,13 @@
 			reg = <0x80008000 0x1000>;
 			interrupts = <0 100 IRQ_TYPE_LEVEL_HIGH>;
 
+			dmas = <&dma 43 0 0x2>, /* Logical - DevToMem */
+			       <&dma 43 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+
 			clocks = <&prcc_kclk 3 7>, <&prcc_pclk 3 7>;
 			clock-names = "sdi", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 
 			status = "disabled";
 		};
@@ -929,6 +959,7 @@
 			interrupts = <0 62 IRQ_TYPE_LEVEL_HIGH>;
 			v-ape-supply = <&db8500_vape_reg>;
 
+			/* This DMA channel only exist on DB8500 v1 */
 			dmas = <&dma 30 0 0x10>; /* Logical - MemToDev - HighPrio */
 			dma-names = "tx";
 
@@ -962,6 +993,7 @@
 			interrupts = <0 62 IRQ_TYPE_LEVEL_HIGH>;
 			v-ape-supply = <&db8500_vape_reg>;
 
+			/* This DMA channel only exist on DB8500 v2 */
 			dmas = <&dma 30 0 0x12>; /* Logical - DevToMem - HighPrio */
 			dma-names = "rx";
 
@@ -982,23 +1014,6 @@
 
 		cpufreq-cooling {
 			compatible = "stericsson,db8500-cpufreq-cooling";
-			status = "disabled";
-		};
-
-		vmmci: regulator-gpio {
-			compatible = "regulator-gpio";
-
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <2900000>;
-			regulator-name = "mmci-reg";
-			regulator-type = "voltage";
-
-			startup-delay-us = <100>;
-			enable-active-high;
-
-			states = <1800000 0x1
-				  2900000 0x0>;
-
 			status = "disabled";
 		};
 

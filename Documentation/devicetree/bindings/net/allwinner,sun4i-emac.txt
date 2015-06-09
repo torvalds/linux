@@ -5,12 +5,8 @@ Required properties:
               "allwinner,sun4i-emac")
 - reg: address and length of the register set for the device.
 - interrupts: interrupt for the device
-- phy: A phandle to a phy node defining the PHY address (as the reg
-  property, a single integer).
+- phy: see ethernet.txt file in the same directory.
 - clocks: A phandle to the reference clock for this device
-
-Optional properties:
-- (local-)mac-address: mac address to be used by this driver
 
 Example:
 

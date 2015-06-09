@@ -5,7 +5,7 @@
  *
  * Author: Frank Haverkamp <haver@linux.vnet.ibm.com>
  * Author: Joerg-Stephan Vogt <jsvogt@de.ibm.com>
- * Author: Michael Jung <mijung@de.ibm.com>
+ * Author: Michael Jung <mijung@gmx.net>
  * Author: Michael Ruettger <michael@ibmra.de>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -24,7 +24,6 @@
  * debugging, please also see the debugfs interfaces of this driver.
  */
 
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/module.h>
@@ -90,13 +89,6 @@ static ssize_t type_show(struct device *dev, struct device_attribute *attr,
 		       "invalid" : genwqe_types[card_type]);
 }
 static DEVICE_ATTR_RO(type);
-
-static ssize_t driver_show(struct device *dev, struct device_attribute *attr,
-			   char *buf)
-{
-	return sprintf(buf, "%s\n", DRV_VERS_STRING);
-}
-static DEVICE_ATTR_RO(driver);
 
 static ssize_t tempsens_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
@@ -223,6 +215,30 @@ static ssize_t next_bitstream_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(next_bitstream);
 
+static ssize_t reload_bitstream_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	int reload;
+	struct genwqe_dev *cd = dev_get_drvdata(dev);
+
+	if (kstrtoint(buf, 0, &reload) < 0)
+		return -EINVAL;
+
+	if (reload == 0x1) {
+		if (cd->card_state == GENWQE_CARD_UNUSED ||
+		    cd->card_state == GENWQE_CARD_USED)
+			cd->card_state = GENWQE_CARD_RELOAD_BITSTREAM;
+		else
+			return -EIO;
+	} else {
+		return -EINVAL;
+	}
+
+	return count;
+}
+static DEVICE_ATTR_WO(reload_bitstream);
+
 /*
  * Create device_attribute structures / params: name, mode, show, store
  * additional flag if valid in VF
@@ -232,18 +248,17 @@ static struct attribute *genwqe_attributes[] = {
 	&dev_attr_next_bitstream.attr,
 	&dev_attr_curr_bitstream.attr,
 	&dev_attr_base_clock.attr,
-	&dev_attr_driver.attr,
 	&dev_attr_type.attr,
 	&dev_attr_version.attr,
 	&dev_attr_appid.attr,
 	&dev_attr_status.attr,
 	&dev_attr_freerunning_timer.attr,
 	&dev_attr_queue_working_time.attr,
+	&dev_attr_reload_bitstream.attr,
 	NULL,
 };
 
 static struct attribute *genwqe_normal_attributes[] = {
-	&dev_attr_driver.attr,
 	&dev_attr_type.attr,
 	&dev_attr_version.attr,
 	&dev_attr_appid.attr,

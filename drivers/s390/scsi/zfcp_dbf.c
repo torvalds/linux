@@ -418,7 +418,8 @@ void zfcp_dbf_scsi(char *tag, struct scsi_cmnd *sc, struct zfcp_fsf_req *fsf)
 	rec->scsi_retries = sc->retries;
 	rec->scsi_allowed = sc->allowed;
 	rec->scsi_id = sc->device->id;
-	rec->scsi_lun = sc->device->lun;
+	/* struct zfcp_dbf_scsi needs to be updated to handle 64bit LUNs */
+	rec->scsi_lun = (u32)sc->device->lun;
 	rec->host_scribble = (unsigned long)sc->host_scribble;
 
 	memcpy(rec->scsi_opcode, sc->cmnd,

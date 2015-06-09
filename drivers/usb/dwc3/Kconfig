@@ -44,7 +44,8 @@ comment "Platform Glue Driver Support"
 
 config USB_DWC3_OMAP
 	tristate "Texas Instruments OMAP5 and similar Platforms"
-	depends on EXTCON
+	depends on EXTCON && (ARCH_OMAP2PLUS || COMPILE_TEST)
+	depends on OF
 	default USB_DWC3
 	help
 	  Some platforms from Texas Instruments like OMAP5, DRA7xxx and
@@ -54,6 +55,7 @@ config USB_DWC3_OMAP
 
 config USB_DWC3_EXYNOS
 	tristate "Samsung Exynos Platform"
+	depends on ARCH_EXYNOS && OF || COMPILE_TEST
 	default USB_DWC3
 	help
 	  Recent Exynos5 SoCs ship with one DesignWare Core USB3 IP inside,
@@ -72,10 +74,28 @@ config USB_DWC3_PCI
 
 config USB_DWC3_KEYSTONE
 	tristate "Texas Instruments Keystone2 Platforms"
+	depends on ARCH_KEYSTONE || COMPILE_TEST
 	default USB_DWC3
 	help
 	  Support of USB2/3 functionality in TI Keystone2 platforms.
 	  Say 'Y' or 'M' here if you have one such device
+
+config USB_DWC3_ST
+	tristate "STMicroelectronics Platforms"
+	depends on ARCH_STI && OF
+	default USB_DWC3
+	help
+	  STMicroelectronics SoCs with one DesignWare Core USB3 IP
+	  inside (i.e. STiH407).
+	  Say 'Y' or 'M' if you have one such device.
+
+config USB_DWC3_QCOM
+	tristate "Qualcomm Platforms"
+	depends on ARCH_QCOM || COMPILE_TEST
+	default USB_DWC3
+	help
+	  Recent Qualcomm SoCs ship with one DesignWare Core USB3 IP inside,
+	  say 'Y' or 'M' if you have one such device.
 
 comment "Debugging features"
 
@@ -83,11 +103,5 @@ config USB_DWC3_DEBUG
 	bool "Enable Debugging Messages"
 	help
 	  Say Y here to enable debugging messages on DWC3 Driver.
-
-config USB_DWC3_VERBOSE
-	bool "Enable Verbose Debugging Messages"
-	depends on USB_DWC3_DEBUG
-	help
-	  Say Y here to enable verbose debugging messages on DWC3 Driver.
 
 endif

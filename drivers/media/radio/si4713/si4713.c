@@ -23,6 +23,7 @@
 
 #include <linux/completion.h>
 #include <linux/delay.h>
+#include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
@@ -366,16 +367,25 @@ static int si4713_powerup(struct si4713_device *sdev)
 	if (sdev->power_state)
 		return 0;
 
-	if (sdev->supplies) {
-		err = regulator_bulk_enable(sdev->supplies, sdev->supply_data);
+	if (sdev->vdd) {
+		err = regulator_enable(sdev->vdd);
 		if (err) {
-			v4l2_err(&sdev->sd, "Failed to enable supplies: %d\n", err);
+			v4l2_err(&sdev->sd, "Failed to enable vdd: %d\n", err);
 			return err;
 		}
 	}
-	if (gpio_is_valid(sdev->gpio_reset)) {
+
+	if (sdev->vio) {
+		err = regulator_enable(sdev->vio);
+		if (err) {
+			v4l2_err(&sdev->sd, "Failed to enable vio: %d\n", err);
+			return err;
+		}
+	}
+
+	if (sdev->gpio_reset) {
 		udelay(50);
-		gpio_set_value(sdev->gpio_reset, 1);
+		gpiod_set_value(sdev->gpio_reset, 1);
 	}
 
 	if (client->irq)
@@ -397,13 +407,19 @@ static int si4713_powerup(struct si4713_device *sdev)
 						SI4713_STC_INT | SI4713_CTS);
 		return err;
 	}
-	if (gpio_is_valid(sdev->gpio_reset))
-		gpio_set_value(sdev->gpio_reset, 0);
-	if (sdev->supplies) {
-		err = regulator_bulk_disable(sdev->supplies, sdev->supply_data);
+	gpiod_set_value(sdev->gpio_reset, 0);
+
+
+	if (sdev->vdd) {
+		err = regulator_disable(sdev->vdd);
 		if (err)
-			v4l2_err(&sdev->sd,
-				 "Failed to disable supplies: %d\n", err);
+			v4l2_err(&sdev->sd, "Failed to disable vdd: %d\n", err);
+	}
+
+	if (sdev->vio) {
+		err = regulator_disable(sdev->vio);
+		if (err)
+			v4l2_err(&sdev->sd, "Failed to disable vio: %d\n", err);
 	}
 
 	return err;
@@ -430,14 +446,23 @@ static int si4713_powerdown(struct si4713_device *sdev)
 		v4l2_dbg(1, debug, &sdev->sd, "Power down response: 0x%02x\n",
 				resp[0]);
 		v4l2_dbg(1, debug, &sdev->sd, "Device in reset mode\n");
-		if (gpio_is_valid(sdev->gpio_reset))
-			gpio_set_value(sdev->gpio_reset, 0);
-		if (sdev->supplies) {
-			err = regulator_bulk_disable(sdev->supplies,
-						     sdev->supply_data);
-			if (err)
+		if (sdev->gpio_reset)
+			gpiod_set_value(sdev->gpio_reset, 0);
+
+		if (sdev->vdd) {
+			err = regulator_disable(sdev->vdd);
+			if (err) {
 				v4l2_err(&sdev->sd,
-					 "Failed to disable supplies: %d\n", err);
+					"Failed to disable vdd: %d\n", err);
+			}
+		}
+
+		if (sdev->vio) {
+			err = regulator_disable(sdev->vio);
+			if (err) {
+				v4l2_err(&sdev->sd,
+					"Failed to disable vio: %d\n", err);
+			}
 		}
 		sdev->power_state = POWER_OFF;
 	}
@@ -957,6 +982,41 @@ static int si4713_choose_econtrol_action(struct si4713_device *sdev, u32 id,
 		*bit = 5;
 		*mask = 0x1F << 5;
 		break;
+	case V4L2_CID_RDS_TX_DYNAMIC_PTY:
+		*property = SI4713_TX_RDS_PS_MISC;
+		*bit = 15;
+		*mask = 1 << 15;
+		break;
+	case V4L2_CID_RDS_TX_COMPRESSED:
+		*property = SI4713_TX_RDS_PS_MISC;
+		*bit = 14;
+		*mask = 1 << 14;
+		break;
+	case V4L2_CID_RDS_TX_ARTIFICIAL_HEAD:
+		*property = SI4713_TX_RDS_PS_MISC;
+		*bit = 13;
+		*mask = 1 << 13;
+		break;
+	case V4L2_CID_RDS_TX_MONO_STEREO:
+		*property = SI4713_TX_RDS_PS_MISC;
+		*bit = 12;
+		*mask = 1 << 12;
+		break;
+	case V4L2_CID_RDS_TX_TRAFFIC_PROGRAM:
+		*property = SI4713_TX_RDS_PS_MISC;
+		*bit = 10;
+		*mask = 1 << 10;
+		break;
+	case V4L2_CID_RDS_TX_TRAFFIC_ANNOUNCEMENT:
+		*property = SI4713_TX_RDS_PS_MISC;
+		*bit = 4;
+		*mask = 1 << 4;
+		break;
+	case V4L2_CID_RDS_TX_MUSIC_SPEECH:
+		*property = SI4713_TX_RDS_PS_MISC;
+		*bit = 3;
+		*mask = 1 << 3;
+		break;
 	case V4L2_CID_AUDIO_LIMITER_ENABLED:
 		*property = SI4713_TX_ACOMP_ENABLE;
 		*bit = 1;
@@ -1098,11 +1158,11 @@ static int si4713_s_ctrl(struct v4l2_ctrl *ctrl)
 
 		switch (ctrl->id) {
 		case V4L2_CID_RDS_TX_PS_NAME:
-			ret = si4713_set_rds_ps_name(sdev, ctrl->string);
+			ret = si4713_set_rds_ps_name(sdev, ctrl->p_new.p_char);
 			break;
 
 		case V4L2_CID_RDS_TX_RADIO_TEXT:
-			ret = si4713_set_rds_radio_text(sdev, ctrl->string);
+			ret = si4713_set_rds_radio_text(sdev, ctrl->p_new.p_char);
 			break;
 
 		case V4L2_CID_TUNE_ANTENNA_CAPACITOR:
@@ -1120,6 +1180,17 @@ static int si4713_s_ctrl(struct v4l2_ctrl *ctrl)
 				sdev->tune_ant_cap->is_new = false;
 				sdev->tune_pwr_level->is_new = false;
 			}
+			break;
+
+		case V4L2_CID_RDS_TX_ALT_FREQS_ENABLE:
+		case V4L2_CID_RDS_TX_ALT_FREQS:
+			if (sdev->rds_alt_freqs_enable->val) {
+				val = sdev->rds_alt_freqs->p_new.p_u32[0];
+				val = val / 100 - 876 + 0xe101;
+			} else {
+				val = 0xe0e0;
+			}
+			ret = si4713_write_property(sdev, SI4713_TX_RDS_PS_AF, val);
 			break;
 
 		default:
@@ -1355,6 +1426,17 @@ static const struct v4l2_subdev_ops si4713_subdev_ops = {
 	.tuner		= &si4713_subdev_tuner_ops,
 };
 
+static const struct v4l2_ctrl_config si4713_alt_freqs_ctrl = {
+	.id = V4L2_CID_RDS_TX_ALT_FREQS,
+	.type = V4L2_CTRL_TYPE_U32,
+	.min = 87600,
+	.max = 107900,
+	.step = 100,
+	.def = 87600,
+	.dims = { 1 },
+	.elem_size = sizeof(u32),
+};
+
 /*
  * I2C driver interface
  */
@@ -1363,38 +1445,46 @@ static int si4713_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct si4713_device *sdev;
-	struct si4713_platform_data *pdata = client->dev.platform_data;
 	struct v4l2_ctrl_handler *hdl;
-	int rval, i;
+	struct si4713_platform_data *pdata = client->dev.platform_data;
+	struct device_node *np = client->dev.of_node;
+	struct radio_si4713_platform_data si4713_pdev_pdata;
+	struct platform_device *si4713_pdev;
+	int rval;
 
-	sdev = kzalloc(sizeof(*sdev), GFP_KERNEL);
+	sdev = devm_kzalloc(&client->dev, sizeof(*sdev), GFP_KERNEL);
 	if (!sdev) {
 		dev_err(&client->dev, "Failed to alloc video device.\n");
 		rval = -ENOMEM;
 		goto exit;
 	}
 
-	sdev->gpio_reset = -1;
-	if (pdata && gpio_is_valid(pdata->gpio_reset)) {
-		rval = gpio_request(pdata->gpio_reset, "si4713 reset");
-		if (rval) {
-			dev_err(&client->dev,
-				"Failed to request gpio: %d\n", rval);
-			goto free_sdev;
-		}
-		sdev->gpio_reset = pdata->gpio_reset;
-		gpio_direction_output(sdev->gpio_reset, 0);
-		sdev->supplies = pdata->supplies;
+	sdev->gpio_reset = devm_gpiod_get_optional(&client->dev, "reset",
+						   GPIOD_OUT_LOW);
+	if (IS_ERR(sdev->gpio_reset)) {
+		rval = PTR_ERR(sdev->gpio_reset);
+		dev_err(&client->dev, "Failed to request gpio: %d\n", rval);
+		goto exit;
 	}
 
-	for (i = 0; i < sdev->supplies; i++)
-		sdev->supply_data[i].supply = pdata->supply_names[i];
+	sdev->vdd = devm_regulator_get_optional(&client->dev, "vdd");
+	if (IS_ERR(sdev->vdd)) {
+		rval = PTR_ERR(sdev->vdd);
+		if (rval == -EPROBE_DEFER)
+			goto exit;
 
-	rval = regulator_bulk_get(&client->dev, sdev->supplies,
-				  sdev->supply_data);
-	if (rval) {
-		dev_err(&client->dev, "Cannot get regulators: %d\n", rval);
-		goto free_gpio;
+		dev_dbg(&client->dev, "no vdd regulator found: %d\n", rval);
+		sdev->vdd = NULL;
+	}
+
+	sdev->vio = devm_regulator_get_optional(&client->dev, "vio");
+	if (IS_ERR(sdev->vio)) {
+		rval = PTR_ERR(sdev->vio);
+		if (rval == -EPROBE_DEFER)
+			goto exit;
+
+		dev_dbg(&client->dev, "no vio regulator found: %d\n", rval);
+		sdev->vio = NULL;
 	}
 
 	v4l2_i2c_subdev_init(&sdev->sd, client, &si4713_subdev_ops);
@@ -1410,6 +1500,23 @@ static int si4713_probe(struct i2c_client *client,
 			V4L2_CID_RDS_TX_PI, 0, 0xffff, 1, DEFAULT_RDS_PI);
 	sdev->rds_pty = v4l2_ctrl_new_std(hdl, &si4713_ctrl_ops,
 			V4L2_CID_RDS_TX_PTY, 0, 31, 1, DEFAULT_RDS_PTY);
+	sdev->rds_compressed = v4l2_ctrl_new_std(hdl, &si4713_ctrl_ops,
+			V4L2_CID_RDS_TX_COMPRESSED, 0, 1, 1, 0);
+	sdev->rds_art_head = v4l2_ctrl_new_std(hdl, &si4713_ctrl_ops,
+			V4L2_CID_RDS_TX_ARTIFICIAL_HEAD, 0, 1, 1, 0);
+	sdev->rds_stereo = v4l2_ctrl_new_std(hdl, &si4713_ctrl_ops,
+			V4L2_CID_RDS_TX_MONO_STEREO, 0, 1, 1, 1);
+	sdev->rds_tp = v4l2_ctrl_new_std(hdl, &si4713_ctrl_ops,
+			V4L2_CID_RDS_TX_TRAFFIC_PROGRAM, 0, 1, 1, 0);
+	sdev->rds_ta = v4l2_ctrl_new_std(hdl, &si4713_ctrl_ops,
+			V4L2_CID_RDS_TX_TRAFFIC_ANNOUNCEMENT, 0, 1, 1, 0);
+	sdev->rds_ms = v4l2_ctrl_new_std(hdl, &si4713_ctrl_ops,
+			V4L2_CID_RDS_TX_MUSIC_SPEECH, 0, 1, 1, 1);
+	sdev->rds_dyn_pty = v4l2_ctrl_new_std(hdl, &si4713_ctrl_ops,
+			V4L2_CID_RDS_TX_DYNAMIC_PTY, 0, 1, 1, 0);
+	sdev->rds_alt_freqs_enable = v4l2_ctrl_new_std(hdl, &si4713_ctrl_ops,
+			V4L2_CID_RDS_TX_ALT_FREQS_ENABLE, 0, 1, 1, 0);
+	sdev->rds_alt_freqs = v4l2_ctrl_new_custom(hdl, &si4713_alt_freqs_ctrl, NULL);
 	sdev->rds_deviation = v4l2_ctrl_new_std(hdl, &si4713_ctrl_ops,
 			V4L2_CID_RDS_TX_DEVIATION, 0, MAX_RDS_DEVIATION,
 			10, DEFAULT_RDS_DEVIATION);
@@ -1476,16 +1583,16 @@ static int si4713_probe(struct i2c_client *client,
 		rval = hdl->error;
 		goto free_ctrls;
 	}
-	v4l2_ctrl_cluster(20, &sdev->mute);
+	v4l2_ctrl_cluster(29, &sdev->mute);
 	sdev->sd.ctrl_handler = hdl;
 
 	if (client->irq) {
-		rval = request_irq(client->irq,
+		rval = devm_request_irq(&client->dev, client->irq,
 			si4713_handler, IRQF_TRIGGER_FALLING,
 			client->name, sdev);
 		if (rval < 0) {
 			v4l2_err(&sdev->sd, "Could not request IRQ\n");
-			goto put_reg;
+			goto free_ctrls;
 		}
 		v4l2_dbg(1, debug, &sdev->sd, "IRQ requested.\n");
 	} else {
@@ -1495,23 +1602,35 @@ static int si4713_probe(struct i2c_client *client,
 	rval = si4713_initialize(sdev);
 	if (rval < 0) {
 		v4l2_err(&sdev->sd, "Failed to probe device information.\n");
-		goto free_irq;
+		goto free_ctrls;
 	}
+
+	if (!np && (!pdata || !pdata->is_platform_device))
+		return 0;
+
+	si4713_pdev = platform_device_alloc("radio-si4713", -1);
+	if (!si4713_pdev)
+		goto put_main_pdev;
+
+	si4713_pdev_pdata.subdev = client;
+	rval = platform_device_add_data(si4713_pdev, &si4713_pdev_pdata,
+					sizeof(si4713_pdev_pdata));
+	if (rval)
+		goto put_main_pdev;
+
+	rval = platform_device_add(si4713_pdev);
+	if (rval)
+		goto put_main_pdev;
+
+	sdev->pd = si4713_pdev;
 
 	return 0;
 
-free_irq:
-	if (client->irq)
-		free_irq(client->irq, sdev);
+put_main_pdev:
+	platform_device_put(si4713_pdev);
+	v4l2_device_unregister_subdev(&sdev->sd);
 free_ctrls:
 	v4l2_ctrl_handler_free(hdl);
-put_reg:
-	regulator_bulk_free(sdev->supplies, sdev->supply_data);
-free_gpio:
-	if (gpio_is_valid(sdev->gpio_reset))
-		gpio_free(sdev->gpio_reset);
-free_sdev:
-	kfree(sdev);
 exit:
 	return rval;
 }
@@ -1522,18 +1641,13 @@ static int si4713_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct si4713_device *sdev = to_si4713_device(sd);
 
+	platform_device_unregister(sdev->pd);
+
 	if (sdev->power_state)
 		si4713_set_power_state(sdev, POWER_DOWN);
 
-	if (client->irq > 0)
-		free_irq(client->irq, sdev);
-
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	regulator_bulk_free(sdev->supplies, sdev->supply_data);
-	if (gpio_is_valid(sdev->gpio_reset))
-		gpio_free(sdev->gpio_reset);
-	kfree(sdev);
 
 	return 0;
 }

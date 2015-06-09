@@ -42,7 +42,7 @@ DECLARE_WORK(efivar_work, NULL);
 EXPORT_SYMBOL_GPL(efivar_work);
 
 static bool
-validate_device_path(struct efi_variable *var, int match, u8 *buffer,
+validate_device_path(efi_char16_t *var_name, int match, u8 *buffer,
 		     unsigned long len)
 {
 	struct efi_generic_dev_path *node;
@@ -75,7 +75,7 @@ validate_device_path(struct efi_variable *var, int match, u8 *buffer,
 }
 
 static bool
-validate_boot_order(struct efi_variable *var, int match, u8 *buffer,
+validate_boot_order(efi_char16_t *var_name, int match, u8 *buffer,
 		    unsigned long len)
 {
 	/* An array of 16-bit integers */
@@ -86,18 +86,18 @@ validate_boot_order(struct efi_variable *var, int match, u8 *buffer,
 }
 
 static bool
-validate_load_option(struct efi_variable *var, int match, u8 *buffer,
+validate_load_option(efi_char16_t *var_name, int match, u8 *buffer,
 		     unsigned long len)
 {
 	u16 filepathlength;
 	int i, desclength = 0, namelen;
 
-	namelen = ucs2_strnlen(var->VariableName, sizeof(var->VariableName));
+	namelen = ucs2_strnlen(var_name, EFI_VAR_NAME_LEN);
 
 	/* Either "Boot" or "Driver" followed by four digits of hex */
 	for (i = match; i < match+4; i++) {
-		if (var->VariableName[i] > 127 ||
-		    hex_to_bin(var->VariableName[i] & 0xff) < 0)
+		if (var_name[i] > 127 ||
+		    hex_to_bin(var_name[i] & 0xff) < 0)
 			return true;
 	}
 
@@ -132,12 +132,12 @@ validate_load_option(struct efi_variable *var, int match, u8 *buffer,
 	/*
 	 * And, finally, check the filepath
 	 */
-	return validate_device_path(var, match, buffer + desclength + 6,
+	return validate_device_path(var_name, match, buffer + desclength + 6,
 				    filepathlength);
 }
 
 static bool
-validate_uint16(struct efi_variable *var, int match, u8 *buffer,
+validate_uint16(efi_char16_t *var_name, int match, u8 *buffer,
 		unsigned long len)
 {
 	/* A single 16-bit integer */
@@ -148,7 +148,7 @@ validate_uint16(struct efi_variable *var, int match, u8 *buffer,
 }
 
 static bool
-validate_ascii_string(struct efi_variable *var, int match, u8 *buffer,
+validate_ascii_string(efi_char16_t *var_name, int match, u8 *buffer,
 		      unsigned long len)
 {
 	int i;
@@ -166,7 +166,7 @@ validate_ascii_string(struct efi_variable *var, int match, u8 *buffer,
 
 struct variable_validate {
 	char *name;
-	bool (*validate)(struct efi_variable *var, int match, u8 *data,
+	bool (*validate)(efi_char16_t *var_name, int match, u8 *data,
 			 unsigned long len);
 };
 
@@ -189,10 +189,10 @@ static const struct variable_validate variable_validate[] = {
 };
 
 bool
-efivar_validate(struct efi_variable *var, u8 *data, unsigned long len)
+efivar_validate(efi_char16_t *var_name, u8 *data, unsigned long len)
 {
 	int i;
-	u16 *unicode_name = var->VariableName;
+	u16 *unicode_name = var_name;
 
 	for (i = 0; variable_validate[i].validate != NULL; i++) {
 		const char *name = variable_validate[i].name;
@@ -208,7 +208,7 @@ efivar_validate(struct efi_variable *var, u8 *data, unsigned long len)
 
 			/* Wildcard in the matching name means we've matched */
 			if (c == '*')
-				return variable_validate[i].validate(var,
+				return variable_validate[i].validate(var_name,
 							     match, data, len);
 
 			/* Case sensitive match */
@@ -217,7 +217,7 @@ efivar_validate(struct efi_variable *var, u8 *data, unsigned long len)
 
 			/* Reached the end of the string while matching */
 			if (!c)
-				return variable_validate[i].validate(var,
+				return variable_validate[i].validate(var_name,
 							     match, data, len);
 		}
 	}
@@ -321,11 +321,11 @@ static unsigned long var_name_strnsize(efi_char16_t *variable_name,
  * Print a warning when duplicate EFI variables are encountered and
  * disable the sysfs workqueue since the firmware is buggy.
  */
-static void dup_variable_bug(efi_char16_t *s16, efi_guid_t *vendor_guid,
+static void dup_variable_bug(efi_char16_t *str16, efi_guid_t *vendor_guid,
 			     unsigned long len16)
 {
 	size_t i, len8 = len16 / sizeof(efi_char16_t);
-	char *s8;
+	char *str8;
 
 	/*
 	 * Disable the workqueue since the algorithm it uses for
@@ -334,16 +334,16 @@ static void dup_variable_bug(efi_char16_t *s16, efi_guid_t *vendor_guid,
 	 */
 	efivar_wq_enabled = false;
 
-	s8 = kzalloc(len8, GFP_KERNEL);
-	if (!s8)
+	str8 = kzalloc(len8, GFP_KERNEL);
+	if (!str8)
 		return;
 
 	for (i = 0; i < len8; i++)
-		s8[i] = s16[i];
+		str8[i] = str16[i];
 
 	printk(KERN_WARNING "efivars: duplicate variable: %s-%pUl\n",
-	       s8, vendor_guid);
-	kfree(s8);
+	       str8, vendor_guid);
+	kfree(str8);
 }
 
 /**
@@ -481,7 +481,7 @@ EXPORT_SYMBOL_GPL(efivar_entry_remove);
  */
 static void efivar_entry_list_del_unlock(struct efivar_entry *entry)
 {
-	WARN_ON(!spin_is_locked(&__efivars->lock));
+	lockdep_assert_held(&__efivars->lock);
 
 	list_del(&entry->list);
 	spin_unlock_irq(&__efivars->lock);
@@ -507,7 +507,7 @@ int __efivar_entry_delete(struct efivar_entry *entry)
 	const struct efivar_operations *ops = __efivars->ops;
 	efi_status_t status;
 
-	WARN_ON(!spin_is_locked(&__efivars->lock));
+	lockdep_assert_held(&__efivars->lock);
 
 	status = ops->set_variable(entry->var.VariableName,
 				   &entry->var.VendorGuid,
@@ -595,6 +595,39 @@ int efivar_entry_set(struct efivar_entry *entry, u32 attributes,
 }
 EXPORT_SYMBOL_GPL(efivar_entry_set);
 
+/*
+ * efivar_entry_set_nonblocking - call set_variable_nonblocking()
+ *
+ * This function is guaranteed to not block and is suitable for calling
+ * from crash/panic handlers.
+ *
+ * Crucially, this function will not block if it cannot acquire
+ * __efivars->lock. Instead, it returns -EBUSY.
+ */
+static int
+efivar_entry_set_nonblocking(efi_char16_t *name, efi_guid_t vendor,
+			     u32 attributes, unsigned long size, void *data)
+{
+	const struct efivar_operations *ops = __efivars->ops;
+	unsigned long flags;
+	efi_status_t status;
+
+	if (!spin_trylock_irqsave(&__efivars->lock, flags))
+		return -EBUSY;
+
+	status = check_var_size(attributes, size + ucs2_strsize(name, 1024));
+	if (status != EFI_SUCCESS) {
+		spin_unlock_irqrestore(&__efivars->lock, flags);
+		return -ENOSPC;
+	}
+
+	status = ops->set_variable_nonblocking(name, &vendor, attributes,
+					       size, data);
+
+	spin_unlock_irqrestore(&__efivars->lock, flags);
+	return efi_status_to_err(status);
+}
+
 /**
  * efivar_entry_set_safe - call set_variable() if enough space in firmware
  * @name: buffer containing the variable name
@@ -621,6 +654,20 @@ int efivar_entry_set_safe(efi_char16_t *name, efi_guid_t vendor, u32 attributes,
 
 	if (!ops->query_variable_store)
 		return -ENOSYS;
+
+	/*
+	 * If the EFI variable backend provides a non-blocking
+	 * ->set_variable() operation and we're in a context where we
+	 * cannot block, then we need to use it to avoid live-locks,
+	 * since the implication is that the regular ->set_variable()
+	 * will block.
+	 *
+	 * If no ->set_variable_nonblocking() is provided then
+	 * ->set_variable() is assumed to be non-blocking.
+	 */
+	if (!block && ops->set_variable_nonblocking)
+		return efivar_entry_set_nonblocking(name, vendor, attributes,
+						    size, data);
 
 	if (!block) {
 		if (!spin_trylock_irqsave(&__efivars->lock, flags))
@@ -667,7 +714,7 @@ struct efivar_entry *efivar_entry_find(efi_char16_t *name, efi_guid_t guid,
 	int strsize1, strsize2;
 	bool found = false;
 
-	WARN_ON(!spin_is_locked(&__efivars->lock));
+	lockdep_assert_held(&__efivars->lock);
 
 	list_for_each_entry_safe(entry, n, head, list) {
 		strsize1 = ucs2_strsize(name, 1024);
@@ -739,7 +786,7 @@ int __efivar_entry_get(struct efivar_entry *entry, u32 *attributes,
 	const struct efivar_operations *ops = __efivars->ops;
 	efi_status_t status;
 
-	WARN_ON(!spin_is_locked(&__efivars->lock));
+	lockdep_assert_held(&__efivars->lock);
 
 	status = ops->get_variable(entry->var.VariableName,
 				   &entry->var.VendorGuid,
@@ -805,7 +852,7 @@ int efivar_entry_set_get_size(struct efivar_entry *entry, u32 attributes,
 
 	*set = false;
 
-	if (efivar_validate(&entry->var, data, *size) == false)
+	if (efivar_validate(name, data, *size) == false)
 		return -EINVAL;
 
 	/*

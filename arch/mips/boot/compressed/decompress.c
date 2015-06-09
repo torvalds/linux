@@ -13,6 +13,7 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/string.h>
 
 #include <asm/addrspace.h>
 
@@ -27,8 +28,13 @@ unsigned long free_mem_end_ptr;
 extern unsigned char __image_begin, __image_end;
 
 /* debug interfaces  */
+#ifdef CONFIG_DEBUG_ZBOOT
 extern void puts(const char *s);
 extern void puthex(unsigned long long val);
+#else
+#define puts(s) do {} while (0)
+#define puthex(val) do {} while (0)
+#endif
 
 void error(char *x)
 {
@@ -67,9 +73,23 @@ void error(char *x)
 #include "../../../../lib/decompress_unxz.c"
 #endif
 
+unsigned long __stack_chk_guard;
+
+void __stack_chk_guard_setup(void)
+{
+	__stack_chk_guard = 0x000a0dff;
+}
+
+void __stack_chk_fail(void)
+{
+	error("stack-protector: Kernel stack is corrupted\n");
+}
+
 void decompress_kernel(unsigned long boot_heap_start)
 {
 	unsigned long zimage_start, zimage_size;
+
+	__stack_chk_guard_setup();
 
 	zimage_start = (unsigned long)(&__image_begin);
 	zimage_size = (unsigned long)(&__image_end) -

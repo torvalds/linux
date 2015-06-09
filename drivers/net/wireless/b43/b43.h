@@ -45,6 +45,7 @@
 #define B43_MMIO_RAM_DATA		0x134
 #define B43_MMIO_PS_STATUS		0x140
 #define B43_MMIO_RADIO_HWENABLED_HI	0x158
+#define B43_MMIO_MAC_HW_CAP		0x15C	/* MAC capabilities (corerev >= 13) */
 #define B43_MMIO_SHM_CONTROL		0x160
 #define B43_MMIO_SHM_DATA		0x164
 #define B43_MMIO_SHM_DATA_UNALIGNED	0x166
@@ -253,6 +254,8 @@ enum {
 #define B43_SHM_SH_CHAN			0x00A0	/* Current channel (low 8bit only) */
 #define  B43_SHM_SH_CHAN_5GHZ		0x0100	/* Bit set, if 5 Ghz channel */
 #define  B43_SHM_SH_CHAN_40MHZ		0x0200	/* Bit set, if 40 Mhz channel width */
+#define B43_SHM_SH_MACHW_L		0x00C0	/* Location where the ucode expects the MAC capabilities */
+#define B43_SHM_SH_MACHW_H		0x00C2	/* Location where the ucode expects the MAC capabilities */
 #define B43_SHM_SH_HOSTF5		0x00D4	/* Hostflags 5 for ucode options */
 #define B43_SHM_SH_BCMCFIFOID		0x0108	/* Last posted cookie to the bcast/mcast FIFO */
 /* TSSI information */
@@ -297,6 +300,7 @@ enum {
 #define B43_SHM_SH_LFFBLIM		0x0046	/* Long frame fallback retry limit */
 #define B43_SHM_SH_BEACPHYCTL		0x0054	/* Beacon PHY TX control word (see PHY TX control) */
 #define B43_SHM_SH_EXTNPHYCTL		0x00B0	/* Extended bytes for beacon PHY control (N) */
+#define B43_SHM_SH_BCN_LI		0x00B6	/* beacon listen interval */
 /* SHM_SHARED ACK/CTS control */
 #define B43_SHM_SH_ACKCTSPHYCTL		0x0022	/* ACK/CTS PHY control word (see PHY TX control) */
 /* SHM_SHARED probe response variables */
@@ -457,6 +461,7 @@ enum {
 #define B43_MACCTL_RADIOLOCK		0x00080000	/* Radio lock */
 #define B43_MACCTL_BEACPROMISC		0x00100000	/* Beacon Promiscuous */
 #define B43_MACCTL_KEEP_BADPLCP		0x00200000	/* Keep frames with bad PLCP */
+#define B43_MACCTL_PHY_LOCK		0x00200000
 #define B43_MACCTL_KEEP_CTL		0x00400000	/* Keep control frames */
 #define B43_MACCTL_KEEP_BAD		0x00800000	/* Keep bad frames (FCS) */
 #define B43_MACCTL_PROMISC		0x01000000	/* Promiscuous mode */
@@ -475,6 +480,11 @@ enum {
 #define B43_MACCMD_CCA			0x00000008	/* Clear channel assessment */
 #define B43_MACCMD_BGNOISE		0x00000010	/* Background noise */
 
+/* B43_MMIO_PSM_PHY_HDR bits */
+#define B43_PSM_HDR_MAC_PHY_RESET	0x00000001
+#define B43_PSM_HDR_MAC_PHY_CLOCK_EN	0x00000002
+#define B43_PSM_HDR_MAC_PHY_FORCE_CLK	0x00000004
+
 /* See BCMA_CLKCTLST_EXTRESREQ and BCMA_CLKCTLST_EXTRESST */
 #define B43_BCMA_CLKCTLST_80211_PLL_REQ	0x00000100
 #define B43_BCMA_CLKCTLST_PHY_PLL_REQ	0x00000200
@@ -490,6 +500,8 @@ enum {
 #define  B43_BCMA_IOCTL_PHY_BW_10MHZ	0x00000000	/* 10 MHz bandwidth, 40 MHz PHY */
 #define  B43_BCMA_IOCTL_PHY_BW_20MHZ	0x00000040	/* 20 MHz bandwidth, 80 MHz PHY */
 #define  B43_BCMA_IOCTL_PHY_BW_40MHZ	0x00000080	/* 40 MHz bandwidth, 160 MHz PHY */
+#define  B43_BCMA_IOCTL_PHY_BW_80MHZ	0x000000C0	/* 80 MHz bandwidth */
+#define B43_BCMA_IOCTL_DAC		0x00000300	/* Highspeed DAC mode control field */
 #define B43_BCMA_IOCTL_GMODE		0x00002000	/* G Mode Enable */
 
 /* BCMA 802.11 core specific IO status (BCMA_IOST) flags */
@@ -791,6 +803,13 @@ struct b43_firmware {
 	bool pcm_request_failed;
 };
 
+enum b43_band {
+	B43_BAND_2G = 0,
+	B43_BAND_5G_LO = 1,
+	B43_BAND_5G_MI = 2,
+	B43_BAND_5G_HI = 3,
+};
+
 /* Device (802.11 core) initialization status. */
 enum {
 	B43_STAT_UNINIT = 0,	/* Uninitialized. */
@@ -915,10 +934,6 @@ struct b43_wl {
 	char rng_name[30 + 1];
 #endif /* CONFIG_B43_HWRNG */
 
-	/* List of all wireless devices on this chip */
-	struct list_head devlist;
-	u8 nr_devs;
-
 	bool radiotap_enabled;
 	bool radio_enabled;
 
@@ -928,6 +943,7 @@ struct b43_wl {
 	bool beacon1_uploaded;
 	bool beacon_templates_virgin; /* Never wrote the templates? */
 	struct work_struct beacon_update_trigger;
+	spinlock_t beacon_lock;
 
 	/* The current QOS parameters for the 4 queues. */
 	struct b43_qos_params qos_params[B43_QOS_QUEUE_NUM];
@@ -1014,6 +1030,16 @@ static inline u16 b43_read16(struct b43_wldev *dev, u16 offset)
 static inline void b43_write16(struct b43_wldev *dev, u16 offset, u16 value)
 {
 	dev->dev->write16(dev->dev, offset, value);
+}
+
+/* To optimize this check for flush_writes on BCM47XX_BCMA only. */
+static inline void b43_write16f(struct b43_wldev *dev, u16 offset, u16 value)
+{
+	b43_write16(dev, offset, value);
+#if defined(CONFIG_BCM47XX_BCMA)
+	if (dev->dev->flush_writes)
+		b43_read16(dev, offset);
+#endif
 }
 
 static inline void b43_maskset16(struct b43_wldev *dev, u16 offset, u16 mask,

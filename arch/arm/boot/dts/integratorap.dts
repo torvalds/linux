@@ -8,6 +8,7 @@
 / {
 	model = "ARM Integrator/AP";
 	compatible = "arm,integrator-ap";
+	dma-ranges = <0x80000000 0x0 0x80000000>;
 
 	aliases {
 		arm,timer-primary = &timer2;
@@ -16,6 +17,28 @@
 
 	chosen {
 		bootargs = "root=/dev/ram0 console=ttyAM0,38400n8 earlyprintk";
+	};
+
+	/* 24 MHz chrystal on the core module */
+	xtal24mhz: xtal24mhz@24M {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+	};
+
+	pclk: pclk@0 {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clock-div = <1>;
+		clock-mult = <1>;
+		clocks = <&xtal24mhz>;
+	};
+
+	/* The UART clock is 14.74 MHz divided by an ICS525 */
+	uartclk: uartclk@14.74M {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <14745600>;
 	};
 
 	syscon {
@@ -28,14 +51,17 @@
 
 	timer0: timer@13000000 {
 		compatible = "arm,integrator-timer";
+		clocks = <&xtal24mhz>;
 	};
 
 	timer1: timer@13000100 {
 		compatible = "arm,integrator-timer";
+		clocks = <&xtal24mhz>;
 	};
 
 	timer2: timer@13000200 {
 		compatible = "arm,integrator-timer";
+		clocks = <&xtal24mhz>;
 	};
 
 	pic: pic@14000000 {
@@ -92,26 +118,36 @@
 		rtc: rtc@15000000 {
 			compatible = "arm,pl030", "arm,primecell";
 			arm,primecell-periphid = <0x00041030>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
 		};
 
 		uart0: uart@16000000 {
 			compatible = "arm,pl010", "arm,primecell";
 			arm,primecell-periphid = <0x00041010>;
+			clocks = <&uartclk>, <&pclk>;
+			clock-names = "uartclk", "apb_pclk";
 		};
 
 		uart1: uart@17000000 {
 			compatible = "arm,pl010", "arm,primecell";
 			arm,primecell-periphid = <0x00041010>;
+			clocks = <&uartclk>, <&pclk>;
+			clock-names = "uartclk", "apb_pclk";
 		};
 
 		kmi0: kmi@18000000 {
 			compatible = "arm,pl050", "arm,primecell";
 			arm,primecell-periphid = <0x00041050>;
+			clocks = <&xtal24mhz>, <&pclk>;
+			clock-names = "KMIREFCLK", "apb_pclk";
 		};
 
 		kmi1: kmi@19000000 {
 			compatible = "arm,pl050", "arm,primecell";
 			arm,primecell-periphid = <0x00041050>;
+			clocks = <&xtal24mhz>, <&pclk>;
+			clock-names = "KMIREFCLK", "apb_pclk";
 		};
 	};
 };

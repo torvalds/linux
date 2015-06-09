@@ -84,15 +84,18 @@ static const char * vendor_labels[CH_TYPES-4] = {
 };
 // module_param_string_array(vendor_labels, NULL, 0444);
 
+#define ch_printk(prefix, ch, fmt, a...) \
+	sdev_prefix_printk(prefix, (ch)->device, (ch)->name, fmt, ##a)
+
 #define DPRINTK(fmt, arg...)						\
 do {									\
 	if (debug)							\
-		printk(KERN_DEBUG "%s: " fmt, ch->name, ##arg);		\
+		ch_printk(KERN_DEBUG, ch, fmt, ##arg);			\
 } while (0)
 #define VPRINTK(level, fmt, arg...)					\
 do {									\
 	if (verbose)							\
-		printk(level "%s: " fmt, ch->name, ##arg);		\
+		ch_printk(level, ch, fmt, ##arg);			\
 } while (0)
 
 /* ------------------------------------------------------------------- */
@@ -179,7 +182,7 @@ static int ch_find_errno(struct scsi_sense_hdr *sshdr)
 }
 
 static int
-ch_do_scsi(scsi_changer *ch, unsigned char *cmd,
+ch_do_scsi(scsi_changer *ch, unsigned char *cmd, int cmd_len,
 	   void *buffer, unsigned buflength,
 	   enum dma_data_direction direction)
 {
@@ -191,19 +194,13 @@ ch_do_scsi(scsi_changer *ch, unsigned char *cmd,
 
  retry:
 	errno = 0;
-	if (debug) {
-		DPRINTK("command: ");
-		__scsi_print_command(cmd);
-	}
-
-        result = scsi_execute_req(ch->device, cmd, direction, buffer,
+	result = scsi_execute_req(ch->device, cmd, direction, buffer,
 				  buflength, &sshdr, timeout * HZ,
 				  MAX_RETRIES, NULL);
 
-	DPRINTK("result: 0x%x\n",result);
 	if (driver_byte(result) & DRIVER_SENSE) {
 		if (debug)
-			scsi_print_sense_hdr(ch->name, &sshdr);
+			scsi_print_sense_hdr(ch->device, ch->name, &sshdr);
 		errno = ch_find_errno(&sshdr);
 
 		switch(sshdr.sense_key) {
@@ -247,14 +244,15 @@ ch_read_element_status(scsi_changer *ch, u_int elem, char *data)
  retry:
 	memset(cmd,0,sizeof(cmd));
 	cmd[0] = READ_ELEMENT_STATUS;
-	cmd[1] = (ch->device->lun << 5) |
+	cmd[1] = ((ch->device->lun & 0x7) << 5) |
 		(ch->voltags ? 0x10 : 0) |
 		ch_elem_to_typecode(ch,elem);
 	cmd[2] = (elem >> 8) & 0xff;
 	cmd[3] = elem        & 0xff;
 	cmd[5] = 1;
 	cmd[9] = 255;
-	if (0 == (result = ch_do_scsi(ch, cmd, buffer, 256, DMA_FROM_DEVICE))) {
+	if (0 == (result = ch_do_scsi(ch, cmd, 12,
+				      buffer, 256, DMA_FROM_DEVICE))) {
 		if (((buffer[16] << 8) | buffer[17]) != elem) {
 			DPRINTK("asked for element 0x%02x, got 0x%02x\n",
 				elem,(buffer[16] << 8) | buffer[17]);
@@ -283,8 +281,8 @@ ch_init_elem(scsi_changer *ch)
 	VPRINTK(KERN_INFO, "INITIALIZE ELEMENT STATUS, may take some time ...\n");
 	memset(cmd,0,sizeof(cmd));
 	cmd[0] = INITIALIZE_ELEMENT_STATUS;
-	cmd[1] = ch->device->lun << 5;
-	err = ch_do_scsi(ch, cmd, NULL, 0, DMA_NONE);
+	cmd[1] = (ch->device->lun & 0x7) << 5;
+	err = ch_do_scsi(ch, cmd, 6, NULL, 0, DMA_NONE);
 	VPRINTK(KERN_INFO, "... finished\n");
 	return err;
 }
@@ -303,13 +301,13 @@ ch_readconfig(scsi_changer *ch)
 
 	memset(cmd,0,sizeof(cmd));
 	cmd[0] = MODE_SENSE;
-	cmd[1] = ch->device->lun << 5;
+	cmd[1] = (ch->device->lun & 0x7) << 5;
 	cmd[2] = 0x1d;
 	cmd[4] = 255;
-	result = ch_do_scsi(ch, cmd, buffer, 255, DMA_FROM_DEVICE);
+	result = ch_do_scsi(ch, cmd, 10, buffer, 255, DMA_FROM_DEVICE);
 	if (0 != result) {
 		cmd[1] |= (1<<3);
-		result  = ch_do_scsi(ch, cmd, buffer, 255, DMA_FROM_DEVICE);
+		result  = ch_do_scsi(ch, cmd, 10, buffer, 255, DMA_FROM_DEVICE);
 	}
 	if (0 == result) {
 		ch->firsts[CHET_MT] =
@@ -341,7 +339,7 @@ ch_readconfig(scsi_changer *ch)
 			ch->firsts[CHET_DT],
 			ch->counts[CHET_DT]);
 	} else {
-		VPRINTK(KERN_INFO, "reading element address assigment page failed!\n");
+		VPRINTK(KERN_INFO, "reading element address assignment page failed!\n");
 	}
 
 	/* vendor specific element types */
@@ -428,13 +426,13 @@ ch_position(scsi_changer *ch, u_int trans, u_int elem, int rotate)
 		trans = ch->firsts[CHET_MT];
 	memset(cmd,0,sizeof(cmd));
 	cmd[0]  = POSITION_TO_ELEMENT;
-	cmd[1]  = ch->device->lun << 5;
+	cmd[1]  = (ch->device->lun & 0x7) << 5;
 	cmd[2]  = (trans >> 8) & 0xff;
 	cmd[3]  =  trans       & 0xff;
 	cmd[4]  = (elem  >> 8) & 0xff;
 	cmd[5]  =  elem        & 0xff;
 	cmd[8]  = rotate ? 1 : 0;
-	return ch_do_scsi(ch, cmd, NULL, 0, DMA_NONE);
+	return ch_do_scsi(ch, cmd, 10, NULL, 0, DMA_NONE);
 }
 
 static int
@@ -447,7 +445,7 @@ ch_move(scsi_changer *ch, u_int trans, u_int src, u_int dest, int rotate)
 		trans = ch->firsts[CHET_MT];
 	memset(cmd,0,sizeof(cmd));
 	cmd[0]  = MOVE_MEDIUM;
-	cmd[1]  = ch->device->lun << 5;
+	cmd[1]  = (ch->device->lun & 0x7) << 5;
 	cmd[2]  = (trans >> 8) & 0xff;
 	cmd[3]  =  trans       & 0xff;
 	cmd[4]  = (src   >> 8) & 0xff;
@@ -455,7 +453,7 @@ ch_move(scsi_changer *ch, u_int trans, u_int src, u_int dest, int rotate)
 	cmd[6]  = (dest  >> 8) & 0xff;
 	cmd[7]  =  dest        & 0xff;
 	cmd[10] = rotate ? 1 : 0;
-	return ch_do_scsi(ch, cmd, NULL,0, DMA_NONE);
+	return ch_do_scsi(ch, cmd, 12, NULL,0, DMA_NONE);
 }
 
 static int
@@ -470,7 +468,7 @@ ch_exchange(scsi_changer *ch, u_int trans, u_int src,
 		trans = ch->firsts[CHET_MT];
 	memset(cmd,0,sizeof(cmd));
 	cmd[0]  = EXCHANGE_MEDIUM;
-	cmd[1]  = ch->device->lun << 5;
+	cmd[1]  = (ch->device->lun & 0x7) << 5;
 	cmd[2]  = (trans >> 8) & 0xff;
 	cmd[3]  =  trans       & 0xff;
 	cmd[4]  = (src   >> 8) & 0xff;
@@ -481,7 +479,7 @@ ch_exchange(scsi_changer *ch, u_int trans, u_int src,
 	cmd[9]  =  dest2       & 0xff;
 	cmd[10] = (rotate1 ? 1 : 0) | (rotate2 ? 2 : 0);
 
-	return ch_do_scsi(ch, cmd, NULL,0, DMA_NONE);
+	return ch_do_scsi(ch, cmd, 12, NULL, 0, DMA_NONE);
 }
 
 static void
@@ -518,7 +516,7 @@ ch_set_voltag(scsi_changer *ch, u_int elem,
 		elem, tag);
 	memset(cmd,0,sizeof(cmd));
 	cmd[0]  = SEND_VOLUME_TAG;
-	cmd[1] = (ch->device->lun << 5) |
+	cmd[1] = ((ch->device->lun & 0x7) << 5) |
 		ch_elem_to_typecode(ch,elem);
 	cmd[2] = (elem >> 8) & 0xff;
 	cmd[3] = elem        & 0xff;
@@ -531,7 +529,7 @@ ch_set_voltag(scsi_changer *ch, u_int elem,
 	memcpy(buffer,tag,32);
 	ch_check_voltag(buffer);
 
-	result = ch_do_scsi(ch, cmd, buffer, 256, DMA_TO_DEVICE);
+	result = ch_do_scsi(ch, cmd, 12, buffer, 256, DMA_TO_DEVICE);
 	kfree(buffer);
 	return result;
 }
@@ -611,6 +609,11 @@ static long ch_ioctl(struct file *file,
 	scsi_changer *ch = file->private_data;
 	int retval;
 	void __user *argp = (void __user *)arg;
+
+	retval = scsi_ioctl_block_when_processing_errors(ch->device, cmd,
+			file->f_flags & O_NDELAY);
+	if (retval)
+		return retval;
 
 	switch (cmd) {
 	case CHIOGPARAMS:
@@ -754,7 +757,7 @@ static long ch_ioctl(struct file *file,
 	voltag_retry:
 		memset(ch_cmd, 0, sizeof(ch_cmd));
 		ch_cmd[0] = READ_ELEMENT_STATUS;
-		ch_cmd[1] = (ch->device->lun << 5) |
+		ch_cmd[1] = ((ch->device->lun & 0x7) << 5) |
 			(ch->voltags ? 0x10 : 0) |
 			ch_elem_to_typecode(ch,elem);
 		ch_cmd[2] = (elem >> 8) & 0xff;
@@ -762,7 +765,8 @@ static long ch_ioctl(struct file *file,
 		ch_cmd[5] = 1;
 		ch_cmd[9] = 255;
 
-		result = ch_do_scsi(ch, ch_cmd, buffer, 256, DMA_FROM_DEVICE);
+		result = ch_do_scsi(ch, ch_cmd, 12,
+				    buffer, 256, DMA_FROM_DEVICE);
 		if (!result) {
 			cge.cge_status = buffer[18];
 			cge.cge_flags = 0;
@@ -924,8 +928,8 @@ static int ch_probe(struct device *dev)
 				  MKDEV(SCSI_CHANGER_MAJOR, ch->minor), ch,
 				  "s%s", ch->name);
 	if (IS_ERR(class_dev)) {
-		printk(KERN_WARNING "ch%d: device_create failed\n",
-		       ch->minor);
+		sdev_printk(KERN_WARNING, sd, "ch%d: device_create failed\n",
+			    ch->minor);
 		ret = PTR_ERR(class_dev);
 		goto remove_idr;
 	}
@@ -962,9 +966,9 @@ static int ch_remove(struct device *dev)
 }
 
 static struct scsi_driver ch_template = {
-	.owner     	= THIS_MODULE,
 	.gendrv     	= {
 		.name	= "ch",
+		.owner	= THIS_MODULE,
 		.probe  = ch_probe,
 		.remove = ch_remove,
 	},

@@ -72,7 +72,7 @@ static ssize_t read_file_node_aggr(struct file *file, char __user *user_buf,
 		ath_txq_lock(sc, txq);
 		if (tid->active) {
 			len += scnprintf(buf + len, size - len,
-					 "%3d%11d%10d%10d%10d%10d%9d%6d%8d\n",
+					 "%3d%11d%10d%10d%10d%10d%9d%6d\n",
 					 tid->tidno,
 					 tid->seq_start,
 					 tid->seq_next,
@@ -80,8 +80,7 @@ static ssize_t read_file_node_aggr(struct file *file, char __user *user_buf,
 					 tid->baw_head,
 					 tid->baw_tail,
 					 tid->bar_index,
-					 tid->sched,
-					 tid->paused);
+					 tid->sched);
 		}
 		ath_txq_unlock(sc, txq);
 	}

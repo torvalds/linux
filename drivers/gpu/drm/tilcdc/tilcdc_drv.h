@@ -98,7 +98,6 @@ struct tilcdc_module;
 struct tilcdc_module_ops {
 	/* create appropriate encoders/connectors: */
 	int (*modeset_init)(struct tilcdc_module *mod, struct drm_device *dev);
-	void (*destroy)(struct tilcdc_module *mod);
 #ifdef CONFIG_DEBUG_FS
 	/* create debugfs nodes (can be NULL): */
 	int (*debugfs_init)(struct tilcdc_module *mod, struct drm_minor *minor);

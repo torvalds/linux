@@ -10,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef __LINUX_SPI_H
@@ -24,6 +20,9 @@
 #include <linux/slab.h>
 #include <linux/kthread.h>
 #include <linux/completion.h>
+#include <linux/scatterlist.h>
+
+struct dma_chan;
 
 /*
  * INTERFACES between SPI master-side drivers and SPI infrastructure.
@@ -163,8 +162,6 @@ struct spi_transfer;
  * @remove: Unbinds this driver from the spi device
  * @shutdown: Standard shutdown callback used during system state
  *	transitions such as powerdown/halt and kexec
- * @suspend: Standard suspend callback used during system state transitions
- * @resume: Standard resume callback used during system state transitions
  * @driver: SPI device drivers should initialize the name and owner
  *	field of this structure.
  *
@@ -185,8 +182,6 @@ struct spi_driver {
 	int			(*probe)(struct spi_device *spi);
 	int			(*remove)(struct spi_device *spi);
 	void			(*shutdown)(struct spi_device *spi);
-	int			(*suspend)(struct spi_device *spi, pm_message_t mesg);
-	int			(*resume)(struct spi_device *spi);
 	struct device_driver	driver;
 };
 
@@ -234,7 +229,7 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * @mode_bits: flags understood by this controller driver
  * @bits_per_word_mask: A mask indicating which values of bits_per_word are
  *	supported by the driver. Bit n indicates that a bits_per_word n+1 is
- *	suported. If set, the SPI core will reject any transfer with an
+ *	supported. If set, the SPI core will reject any transfer with an
  *	unsupported bits_per_word. If not set, this value is simply ignored,
  *	and it's up to the individual driver to perform any validation.
  * @min_speed_hz: Lowest supported transfer speed
@@ -250,22 +245,26 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  *	the device whose settings are being modified.
  * @transfer: adds a message to the controller's transfer queue.
  * @cleanup: frees controller-specific state
+ * @can_dma: determine whether this master supports DMA
  * @queued: whether this master is providing an internal message queue
  * @kworker: thread struct for message pump
  * @kworker_task: pointer to task for message pump kworker thread
  * @pump_messages: work struct for scheduling work to the message pump
  * @queue_lock: spinlock to syncronise access to message queue
  * @queue: message queue
+ * @idling: the device is entering idle state
  * @cur_msg: the currently in-flight message
  * @cur_msg_prepared: spi_prepare_message was called for the currently
  *                    in-flight message
- * @xfer_completion: used by core tranfer_one_message()
+ * @cur_msg_mapped: message has been mapped for DMA
+ * @xfer_completion: used by core transfer_one_message()
  * @busy: message pump is busy
  * @running: message pump is running
  * @rt: whether this queue is set to run as a realtime task
  * @auto_runtime_pm: the core should ensure a runtime PM reference is held
  *                   while the hardware is prepared, using the parent
  *                   device for the spidev
+ * @max_dma_len: Maximum length of a DMA transfer for the device.
  * @prepare_transfer_hardware: a message will soon arrive from the queue
  *	so the subsystem requests the driver to prepare the transfer hardware
  *	by issuing this call
@@ -291,10 +290,16 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  *                    transfer_one_message are mutually exclusive; when both
  *                    are set, the generic subsystem does not call your
  *                    transfer_one callback.
+ * @handle_err: the subsystem calls the driver to handle an error that occurs
+ *		in the generic implementation of transfer_one_message().
  * @unprepare_message: undo any work done by prepare_message().
  * @cs_gpios: Array of GPIOs to use as chip select lines; one per CS
  *	number. Any individual value may be -ENOENT for CS lines that
  *	are not GPIOs (driven by the SPI controller itself).
+ * @dma_tx: DMA transmit channel
+ * @dma_rx: DMA receive channel
+ * @dummy_rx: dummy receive buffer for full-duplex devices
+ * @dummy_tx: dummy transmit buffer for full-duplex devices
  *
  * Each SPI master controller can communicate with one or more @spi_device
  * children.  These make a small bus, sharing MOSI, MISO and SCK signals
@@ -348,6 +353,8 @@ struct spi_master {
 #define SPI_MASTER_HALF_DUPLEX	BIT(0)		/* can't do full duplex */
 #define SPI_MASTER_NO_RX	BIT(1)		/* can't do buffer read */
 #define SPI_MASTER_NO_TX	BIT(2)		/* can't do buffer write */
+#define SPI_MASTER_MUST_RX      BIT(3)		/* requires rx */
+#define SPI_MASTER_MUST_TX      BIT(4)		/* requires tx */
 
 	/* lock and mutex for SPI bus locking */
 	spinlock_t		bus_lock_spinlock;
@@ -390,6 +397,17 @@ struct spi_master {
 	void			(*cleanup)(struct spi_device *spi);
 
 	/*
+	 * Used to enable core support for DMA handling, if can_dma()
+	 * exists and returns true then the transfer will be mapped
+	 * prior to transfer_one() being called.  The driver should
+	 * not modify or store xfer and dma_tx and dma_rx must be set
+	 * while the device is prepared.
+	 */
+	bool			(*can_dma)(struct spi_master *master,
+					   struct spi_device *spi,
+					   struct spi_transfer *xfer);
+
+	/*
 	 * These hooks are for drivers that want to use the generic
 	 * master transfer queueing mechanism. If these are used, the
 	 * transfer() function above must NOT be specified by the driver.
@@ -402,12 +420,15 @@ struct spi_master {
 	spinlock_t			queue_lock;
 	struct list_head		queue;
 	struct spi_message		*cur_msg;
+	bool				idling;
 	bool				busy;
 	bool				running;
 	bool				rt;
 	bool				auto_runtime_pm;
 	bool                            cur_msg_prepared;
+	bool				cur_msg_mapped;
 	struct completion               xfer_completion;
+	size_t				max_dma_len;
 
 	int (*prepare_transfer_hardware)(struct spi_master *master);
 	int (*transfer_one_message)(struct spi_master *master,
@@ -425,9 +446,19 @@ struct spi_master {
 	void (*set_cs)(struct spi_device *spi, bool enable);
 	int (*transfer_one)(struct spi_master *master, struct spi_device *spi,
 			    struct spi_transfer *transfer);
+	void (*handle_err)(struct spi_master *master,
+			   struct spi_message *message);
 
 	/* gpio chip select */
 	int			*cs_gpios;
+
+	/* DMA channels for use with core dmaengine helpers */
+	struct dma_chan		*dma_tx;
+	struct dma_chan		*dma_rx;
+
+	/* dummy data for full duplex devices */
+	void			*dummy_rx;
+	void			*dummy_tx;
 };
 
 static inline void *spi_master_get_devdata(struct spi_master *master)
@@ -498,7 +529,7 @@ extern struct spi_master *spi_busnum_to_master(u16 busnum);
  * @rx_buf: data to be read (dma-safe memory), or NULL
  * @tx_dma: DMA address of tx_buf, if @spi_message.is_dma_mapped
  * @rx_dma: DMA address of rx_buf, if @spi_message.is_dma_mapped
- * @tx_nbits: number of bits used for writting. If 0 the default
+ * @tx_nbits: number of bits used for writing. If 0 the default
  *      (SPI_NBITS_SINGLE) is used.
  * @rx_nbits: number of bits used for reading. If 0 the default
  *      (SPI_NBITS_SINGLE) is used.
@@ -512,6 +543,8 @@ extern struct spi_master *spi_busnum_to_master(u16 busnum);
  *	(optionally) changing the chipselect status, then starting
  *	the next transfer or completing this @spi_message.
  * @transfer_list: transfers are sequenced through @spi_message.transfers
+ * @tx_sg: Scatterlist for transmit, currently not for client use
+ * @rx_sg: Scatterlist for receive, currently not for client use
  *
  * SPI transfers always write the same number of bytes as they read.
  * Protocol drivers should always provide @rx_buf and/or @tx_buf.
@@ -556,7 +589,7 @@ extern struct spi_master *spi_busnum_to_master(u16 busnum);
  * by the results of previous messages and where the whole transaction
  * ends when the chipselect goes intactive.
  *
- * When SPI can transfer in 1x,2x or 4x. It can get this tranfer information
+ * When SPI can transfer in 1x,2x or 4x. It can get this transfer information
  * from device through @tx_nbits and @rx_nbits. In Bi-direction, these
  * two should both be set. User can set transfer mode with SPI_NBITS_SINGLE(1x)
  * SPI_NBITS_DUAL(2x) and SPI_NBITS_QUAD(4x) to support these three transfer.
@@ -579,6 +612,8 @@ struct spi_transfer {
 
 	dma_addr_t	tx_dma;
 	dma_addr_t	rx_dma;
+	struct sg_table tx_sg;
+	struct sg_table rx_sg;
 
 	unsigned	cs_change:1;
 	unsigned	tx_nbits:3;
@@ -601,6 +636,7 @@ struct spi_transfer {
  *	addresses for each transfer buffer
  * @complete: called to report transaction completions
  * @context: the argument to complete() when it's called
+ * @frame_length: the total number of bytes in the message
  * @actual_length: the total number of bytes that were transferred in all
  *	successful segments
  * @status: zero for success, else negative errno
@@ -613,7 +649,7 @@ struct spi_transfer {
  * sequence completes.  On some systems, many such sequences can execute as
  * as single programmed DMA transfer.  On all systems, these messages are
  * queued, and might complete after transactions to other devices.  Messages
- * sent to a given spi_device are alway executed in FIFO order.
+ * sent to a given spi_device are always executed in FIFO order.
  *
  * The code that submits an spi_message (and its spi_transfers)
  * to the lower layers is responsible for managing its memory.
@@ -1010,5 +1046,11 @@ spi_unregister_device(struct spi_device *spi)
 
 extern const struct spi_device_id *
 spi_get_device_id(const struct spi_device *sdev);
+
+static inline bool
+spi_transfer_is_last(struct spi_master *master, struct spi_transfer *xfer)
+{
+	return list_is_last(&xfer->transfer_list, &master->cur_msg->transfers);
+}
 
 #endif /* __LINUX_SPI_H */

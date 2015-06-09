@@ -168,7 +168,7 @@ int acpi_bind_one(struct device *dev, struct acpi_device *acpi_dev)
 	unsigned int node_id;
 	int retval = -EINVAL;
 
-	if (ACPI_COMPANION(dev)) {
+	if (has_acpi_companion(dev)) {
 		if (acpi_dev) {
 			dev_warn(dev, "ACPI companion already set\n");
 			return -EINVAL;
@@ -220,7 +220,7 @@ int acpi_bind_one(struct device *dev, struct acpi_device *acpi_dev)
 	list_add(&physical_node->node, physnode_list);
 	acpi_dev->physical_node_count++;
 
-	if (!ACPI_COMPANION(dev))
+	if (!has_acpi_companion(dev))
 		ACPI_COMPANION_SET(dev, acpi_dev);
 
 	acpi_physnode_link_name(physical_node_name, node_id);
@@ -287,6 +287,7 @@ EXPORT_SYMBOL_GPL(acpi_unbind_one);
 static int acpi_platform_notify(struct device *dev)
 {
 	struct acpi_bus_type *type = acpi_get_bus_type(dev);
+	struct acpi_device *adev;
 	int ret;
 
 	ret = acpi_bind_one(dev, NULL);
@@ -303,9 +304,14 @@ static int acpi_platform_notify(struct device *dev)
 		if (ret)
 			goto out;
 	}
+	adev = ACPI_COMPANION(dev);
+	if (!adev)
+		goto out;
 
 	if (type && type->setup)
 		type->setup(dev);
+	else if (adev->handler && adev->handler->bind)
+		adev->handler->bind(dev);
 
  out:
 #if ACPI_GLUE_DEBUG
@@ -324,11 +330,17 @@ static int acpi_platform_notify(struct device *dev)
 
 static int acpi_platform_notify_remove(struct device *dev)
 {
+	struct acpi_device *adev = ACPI_COMPANION(dev);
 	struct acpi_bus_type *type;
+
+	if (!adev)
+		return 0;
 
 	type = acpi_get_bus_type(dev);
 	if (type && type->cleanup)
 		type->cleanup(dev);
+	else if (adev->handler && adev->handler->unbind)
+		adev->handler->unbind(dev);
 
 	acpi_unbind_one(dev);
 	return 0;

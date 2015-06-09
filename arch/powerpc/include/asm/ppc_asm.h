@@ -57,7 +57,7 @@ BEGIN_FW_FTR_SECTION;							\
 	LDX_BE	r10,0,r10;		/* get log write index */	\
 	cmpd	cr1,r11,r10;						\
 	beq+	cr1,33f;						\
-	bl	.accumulate_stolen_time;				\
+	bl	accumulate_stolen_time;				\
 	ld	r12,_MSR(r1);						\
 	andi.	r10,r12,MSR_PR;		/* Restore cr0 (coming from user) */ \
 33:									\
@@ -189,8 +189,44 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 #define __STK_REG(i)   (112 + ((i)-14)*8)
 #define STK_REG(i)     __STK_REG(__REG_##i)
 
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+#define STK_GOT		24
+#define __STK_PARAM(i)	(32 + ((i)-3)*8)
+#else
+#define STK_GOT		40
 #define __STK_PARAM(i)	(48 + ((i)-3)*8)
+#endif
 #define STK_PARAM(i)	__STK_PARAM(__REG_##i)
+
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+
+#define _GLOBAL(name) \
+	.section ".text"; \
+	.align 2 ; \
+	.type name,@function; \
+	.globl name; \
+name:
+
+#define _GLOBAL_TOC(name) \
+	.section ".text"; \
+	.align 2 ; \
+	.type name,@function; \
+	.globl name; \
+name: \
+0:	addis r2,r12,(.TOC.-0b)@ha; \
+	addi r2,r2,(.TOC.-0b)@l; \
+	.localentry name,.-name
+
+#define _KPROBE(name) \
+	.section ".kprobes.text","a"; \
+	.align 2 ; \
+	.type name,@function; \
+	.globl name; \
+name:
+
+#define DOTSYM(a)	a
+
+#else
 
 #define XGLUE(a,b) a##b
 #define GLUE(a,b) XGLUE(a,b)
@@ -209,19 +245,7 @@ name: \
 	.type GLUE(.,name),@function; \
 GLUE(.,name):
 
-#define _INIT_GLOBAL(name) \
-	__REF; \
-	.align 2 ; \
-	.globl name; \
-	.globl GLUE(.,name); \
-	.section ".opd","aw"; \
-name: \
-	.quad GLUE(.,name); \
-	.quad .TOC.@tocbase; \
-	.quad 0; \
-	.previous; \
-	.type GLUE(.,name),@function; \
-GLUE(.,name):
+#define _GLOBAL_TOC(name) _GLOBAL(name)
 
 #define _KPROBE(name) \
 	.section ".kprobes.text","a"; \
@@ -237,29 +261,9 @@ name: \
 	.type GLUE(.,name),@function; \
 GLUE(.,name):
 
-#define _STATIC(name) \
-	.section ".text"; \
-	.align 2 ; \
-	.section ".opd","aw"; \
-name: \
-	.quad GLUE(.,name); \
-	.quad .TOC.@tocbase; \
-	.quad 0; \
-	.previous; \
-	.type GLUE(.,name),@function; \
-GLUE(.,name):
+#define DOTSYM(a)	GLUE(.,a)
 
-#define _INIT_STATIC(name) \
-	__REF; \
-	.align 2 ; \
-	.section ".opd","aw"; \
-name: \
-	.quad GLUE(.,name); \
-	.quad .TOC.@tocbase; \
-	.quad 0; \
-	.previous; \
-	.type GLUE(.,name),@function; \
-GLUE(.,name):
+#endif
 
 #else /* 32-bit */
 
@@ -272,6 +276,8 @@ n:
 	.stabs __stringify(n:F-1),N_FUN,0,0,n;\
 	.globl n;	\
 n:
+
+#define _GLOBAL_TOC(name) _GLOBAL(name)
 
 #define _KPROBE(n)	\
 	.section ".kprobes.text","a";	\
@@ -318,11 +324,16 @@ n:
 	addi	reg,reg,(name - 0b)@l;
 
 #ifdef __powerpc64__
+#ifdef HAVE_AS_ATHIGH
+#define __AS_ATHIGH high
+#else
+#define __AS_ATHIGH h
+#endif
 #define LOAD_REG_IMMEDIATE(reg,expr)		\
 	lis     reg,(expr)@highest;		\
 	ori     reg,reg,(expr)@higher;	\
 	rldicr  reg,reg,32,31;		\
-	oris    reg,reg,(expr)@h;		\
+	oris    reg,reg,(expr)@__AS_ATHIGH;	\
 	ori     reg,reg,(expr)@l;
 
 #define LOAD_REG_ADDR(reg,name)			\
@@ -626,105 +637,105 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,945)
 
 /* AltiVec Registers (VPRs) */
 
-#define	vr0	0
-#define	vr1	1
-#define	vr2	2
-#define	vr3	3
-#define	vr4	4
-#define	vr5	5
-#define	vr6	6
-#define	vr7	7
-#define	vr8	8
-#define	vr9	9
-#define	vr10	10
-#define	vr11	11
-#define	vr12	12
-#define	vr13	13
-#define	vr14	14
-#define	vr15	15
-#define	vr16	16
-#define	vr17	17
-#define	vr18	18
-#define	vr19	19
-#define	vr20	20
-#define	vr21	21
-#define	vr22	22
-#define	vr23	23
-#define	vr24	24
-#define	vr25	25
-#define	vr26	26
-#define	vr27	27
-#define	vr28	28
-#define	vr29	29
-#define	vr30	30
-#define	vr31	31
+#define	v0	0
+#define	v1	1
+#define	v2	2
+#define	v3	3
+#define	v4	4
+#define	v5	5
+#define	v6	6
+#define	v7	7
+#define	v8	8
+#define	v9	9
+#define	v10	10
+#define	v11	11
+#define	v12	12
+#define	v13	13
+#define	v14	14
+#define	v15	15
+#define	v16	16
+#define	v17	17
+#define	v18	18
+#define	v19	19
+#define	v20	20
+#define	v21	21
+#define	v22	22
+#define	v23	23
+#define	v24	24
+#define	v25	25
+#define	v26	26
+#define	v27	27
+#define	v28	28
+#define	v29	29
+#define	v30	30
+#define	v31	31
 
 /* VSX Registers (VSRs) */
 
-#define	vsr0	0
-#define	vsr1	1
-#define	vsr2	2
-#define	vsr3	3
-#define	vsr4	4
-#define	vsr5	5
-#define	vsr6	6
-#define	vsr7	7
-#define	vsr8	8
-#define	vsr9	9
-#define	vsr10	10
-#define	vsr11	11
-#define	vsr12	12
-#define	vsr13	13
-#define	vsr14	14
-#define	vsr15	15
-#define	vsr16	16
-#define	vsr17	17
-#define	vsr18	18
-#define	vsr19	19
-#define	vsr20	20
-#define	vsr21	21
-#define	vsr22	22
-#define	vsr23	23
-#define	vsr24	24
-#define	vsr25	25
-#define	vsr26	26
-#define	vsr27	27
-#define	vsr28	28
-#define	vsr29	29
-#define	vsr30	30
-#define	vsr31	31
-#define	vsr32	32
-#define	vsr33	33
-#define	vsr34	34
-#define	vsr35	35
-#define	vsr36	36
-#define	vsr37	37
-#define	vsr38	38
-#define	vsr39	39
-#define	vsr40	40
-#define	vsr41	41
-#define	vsr42	42
-#define	vsr43	43
-#define	vsr44	44
-#define	vsr45	45
-#define	vsr46	46
-#define	vsr47	47
-#define	vsr48	48
-#define	vsr49	49
-#define	vsr50	50
-#define	vsr51	51
-#define	vsr52	52
-#define	vsr53	53
-#define	vsr54	54
-#define	vsr55	55
-#define	vsr56	56
-#define	vsr57	57
-#define	vsr58	58
-#define	vsr59	59
-#define	vsr60	60
-#define	vsr61	61
-#define	vsr62	62
-#define	vsr63	63
+#define	vs0	0
+#define	vs1	1
+#define	vs2	2
+#define	vs3	3
+#define	vs4	4
+#define	vs5	5
+#define	vs6	6
+#define	vs7	7
+#define	vs8	8
+#define	vs9	9
+#define	vs10	10
+#define	vs11	11
+#define	vs12	12
+#define	vs13	13
+#define	vs14	14
+#define	vs15	15
+#define	vs16	16
+#define	vs17	17
+#define	vs18	18
+#define	vs19	19
+#define	vs20	20
+#define	vs21	21
+#define	vs22	22
+#define	vs23	23
+#define	vs24	24
+#define	vs25	25
+#define	vs26	26
+#define	vs27	27
+#define	vs28	28
+#define	vs29	29
+#define	vs30	30
+#define	vs31	31
+#define	vs32	32
+#define	vs33	33
+#define	vs34	34
+#define	vs35	35
+#define	vs36	36
+#define	vs37	37
+#define	vs38	38
+#define	vs39	39
+#define	vs40	40
+#define	vs41	41
+#define	vs42	42
+#define	vs43	43
+#define	vs44	44
+#define	vs45	45
+#define	vs46	46
+#define	vs47	47
+#define	vs48	48
+#define	vs49	49
+#define	vs50	50
+#define	vs51	51
+#define	vs52	52
+#define	vs53	53
+#define	vs54	54
+#define	vs55	55
+#define	vs56	56
+#define	vs57	57
+#define	vs58	58
+#define	vs59	59
+#define	vs60	60
+#define	vs61	61
+#define	vs62	62
+#define	vs63	63
 
 /* SPE Registers (EVPRs) */
 

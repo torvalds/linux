@@ -37,25 +37,37 @@
 
 #include "flow.h"
 
+size_t ovs_tun_key_attr_size(void);
+size_t ovs_key_attr_size(void);
+
 void ovs_match_init(struct sw_flow_match *match,
 		    struct sw_flow_key *key, struct sw_flow_mask *mask);
 
-int ovs_nla_put_flow(const struct sw_flow_key *,
-		     const struct sw_flow_key *, struct sk_buff *);
-int ovs_nla_get_flow_metadata(struct sw_flow *flow,
-			      const struct nlattr *attr);
-int ovs_nla_get_match(struct sw_flow_match *match,
-		      bool *exact_5tuple,
-		      const struct nlattr *,
-		      const struct nlattr *);
+int ovs_nla_put_key(const struct sw_flow_key *, const struct sw_flow_key *,
+		    int attr, bool is_mask, struct sk_buff *);
+int ovs_nla_get_flow_metadata(const struct nlattr *, struct sw_flow_key *,
+			      bool log);
+
+int ovs_nla_put_identifier(const struct sw_flow *flow, struct sk_buff *skb);
+int ovs_nla_put_masked_key(const struct sw_flow *flow, struct sk_buff *skb);
+int ovs_nla_put_mask(const struct sw_flow *flow, struct sk_buff *skb);
+
+int ovs_nla_get_match(struct sw_flow_match *, const struct nlattr *key,
+		      const struct nlattr *mask, bool log);
+int ovs_nla_put_egress_tunnel_key(struct sk_buff *,
+				  const struct ovs_tunnel_info *);
+
+bool ovs_nla_get_ufid(struct sw_flow_id *, const struct nlattr *, bool log);
+int ovs_nla_get_identifier(struct sw_flow_id *sfid, const struct nlattr *ufid,
+			   const struct sw_flow_key *key, bool log);
+u32 ovs_nla_get_ufid_flags(const struct nlattr *attr);
 
 int ovs_nla_copy_actions(const struct nlattr *attr,
-			 const struct sw_flow_key *key, int depth,
-			 struct sw_flow_actions **sfa);
+			 const struct sw_flow_key *key,
+			 struct sw_flow_actions **sfa, bool log);
 int ovs_nla_put_actions(const struct nlattr *attr,
 			int len, struct sk_buff *skb);
 
-struct sw_flow_actions *ovs_nla_alloc_flow_actions(int actions_len);
 void ovs_nla_free_flow_actions(struct sw_flow_actions *);
 
 #endif /* flow_netlink.h */

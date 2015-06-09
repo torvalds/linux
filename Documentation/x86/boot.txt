@@ -182,7 +182,7 @@ Offset	Proto	Name		Meaning
 0226/1	2.02+(3 ext_loader_ver	Extended boot loader version
 0227/1	2.02+(3	ext_loader_type	Extended boot loader ID
 0228/4	2.02+	cmd_line_ptr	32-bit pointer to the kernel command line
-022C/4	2.03+	ramdisk_max	Highest legal initrd address
+022C/4	2.03+	initrd_addr_max	Highest legal initrd address
 0230/4	2.05+	kernel_alignment Physical addr alignment required for kernel
 0234/1	2.05+	relocatable_kernel Whether kernel is relocatable or not
 0235/1	2.10+	min_alignment	Minimum alignment, as a power of two
@@ -406,6 +406,12 @@ Protocol:	2.00+
 	- If 0, the protected-mode code is loaded at 0x10000.
 	- If 1, the protected-mode code is loaded at 0x100000.
 
+  Bit 1 (kernel internal): ALSR_FLAG
+	- Used internally by the compressed kernel to communicate
+	  KASLR status to kernel proper.
+	  If 1, KASLR enabled.
+	  If 0, KASLR disabled.
+
   Bit 5 (write): QUIET_FLAG
 	- If 0, print early messages.
 	- If 1, suppress early messages.
@@ -534,7 +540,7 @@ Protocol:	2.02+
   zero, the kernel will assume that your boot loader does not support
   the 2.02+ protocol.
 
-Field name:	ramdisk_max
+Field name:	initrd_addr_max
 Type:		read
 Offset/size:	0x22c/4
 Protocol:	2.03+

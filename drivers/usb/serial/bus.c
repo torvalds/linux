@@ -38,56 +38,51 @@ static int usb_serial_device_match(struct device *dev,
 	return 0;
 }
 
-static ssize_t port_number_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct usb_serial_port *port = to_usb_serial_port(dev);
-
-	return sprintf(buf, "%d\n", port->port_number);
-}
-static DEVICE_ATTR_RO(port_number);
-
 static int usb_serial_device_probe(struct device *dev)
 {
 	struct usb_serial_driver *driver;
 	struct usb_serial_port *port;
+	struct device *tty_dev;
 	int retval = 0;
 	int minor;
 
 	port = to_usb_serial_port(dev);
-	if (!port) {
-		retval = -ENODEV;
-		goto exit;
-	}
+	if (!port)
+		return -ENODEV;
 
 	/* make sure suspend/resume doesn't race against port_probe */
 	retval = usb_autopm_get_interface(port->serial->interface);
 	if (retval)
-		goto exit;
+		return retval;
 
 	driver = port->serial->type;
 	if (driver->port_probe) {
 		retval = driver->port_probe(port);
 		if (retval)
-			goto exit_with_autopm;
-	}
-
-	retval = device_create_file(dev, &dev_attr_port_number);
-	if (retval) {
-		if (driver->port_remove)
-			retval = driver->port_remove(port);
-		goto exit_with_autopm;
+			goto err_autopm_put;
 	}
 
 	minor = port->minor;
-	tty_register_device(usb_serial_tty_driver, minor, dev);
+	tty_dev = tty_register_device(usb_serial_tty_driver, minor, dev);
+	if (IS_ERR(tty_dev)) {
+		retval = PTR_ERR(tty_dev);
+		goto err_port_remove;
+	}
+
+	usb_autopm_put_interface(port->serial->interface);
+
 	dev_info(&port->serial->dev->dev,
 		 "%s converter now attached to ttyUSB%d\n",
 		 driver->description, minor);
 
-exit_with_autopm:
+	return 0;
+
+err_port_remove:
+	if (driver->port_remove)
+		driver->port_remove(port);
+err_autopm_put:
 	usb_autopm_put_interface(port->serial->interface);
-exit:
+
 	return retval;
 }
 
@@ -97,18 +92,22 @@ static int usb_serial_device_remove(struct device *dev)
 	struct usb_serial_port *port;
 	int retval = 0;
 	int minor;
+	int autopm_err;
 
 	port = to_usb_serial_port(dev);
 	if (!port)
 		return -ENODEV;
 
-	/* make sure suspend/resume doesn't race against port_remove */
-	usb_autopm_get_interface(port->serial->interface);
+	/*
+	 * Make sure suspend/resume doesn't race against port_remove.
+	 *
+	 * Note that no further runtime PM callbacks will be made if
+	 * autopm_get fails.
+	 */
+	autopm_err = usb_autopm_get_interface(port->serial->interface);
 
 	minor = port->minor;
 	tty_unregister_device(usb_serial_tty_driver, minor);
-
-	device_remove_file(&port->dev, &dev_attr_port_number);
 
 	driver = port->serial->type;
 	if (driver->port_remove)
@@ -117,7 +116,9 @@ static int usb_serial_device_remove(struct device *dev)
 	dev_info(dev, "%s converter now disconnected from ttyUSB%d\n",
 		 driver->description, minor);
 
-	usb_autopm_put_interface(port->serial->interface);
+	if (!autopm_err)
+		usb_autopm_put_interface(port->serial->interface);
+
 	return retval;
 }
 

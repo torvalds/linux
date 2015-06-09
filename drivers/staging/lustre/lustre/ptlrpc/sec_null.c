@@ -41,11 +41,11 @@
 #define DEBUG_SUBSYSTEM S_SEC
 
 
-#include <obd_support.h>
-#include <obd_cksum.h>
-#include <obd_class.h>
-#include <lustre_net.h>
-#include <lustre_sec.h>
+#include "../include/obd_support.h"
+#include "../include/obd_cksum.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre_sec.h"
 
 static struct ptlrpc_sec_policy null_policy;
 static struct ptlrpc_sec	null_sec;
@@ -101,16 +101,7 @@ int null_ctx_verify(struct ptlrpc_cli_ctx *ctx, struct ptlrpc_request *req)
 
 	if (req->rq_early) {
 		cksums = lustre_msg_get_cksum(req->rq_repdata);
-#if LUSTRE_VERSION_CODE < OBD_OCD_VERSION(2, 7, 50, 0)
-		if (lustre_msghdr_get_flags(req->rq_reqmsg) &
-		    MSGHDR_CKSUM_INCOMPAT18)
-			cksumc = lustre_msg_calc_cksum(req->rq_repmsg, 0);
-		else
-			cksumc = lustre_msg_calc_cksum(req->rq_repmsg, 1);
-#else
-# warning "remove checksum compatibility support for b1_8"
 		cksumc = lustre_msg_calc_cksum(req->rq_repmsg);
-#endif
 		if (cksumc != cksums) {
 			CDEBUG(D_SEC,
 			       "early reply checksum mismatch: %08x != %08x\n",
@@ -260,11 +251,22 @@ int null_enlarge_reqbuf(struct ptlrpc_sec *sec,
 		if (newbuf == NULL)
 			return -ENOMEM;
 
+		/* Must lock this, so that otherwise unprotected change of
+		 * rq_reqmsg is not racing with parallel processing of
+		 * imp_replay_list traversing threads. See LU-3333
+		 * This is a bandaid at best, we really need to deal with this
+		 * in request enlarging code before unpacking that's already
+		 * there */
+		if (req->rq_import)
+			spin_lock(&req->rq_import->imp_lock);
 		memcpy(newbuf, req->rq_reqbuf, req->rq_reqlen);
 
 		OBD_FREE_LARGE(req->rq_reqbuf, req->rq_reqbuf_len);
 		req->rq_reqbuf = req->rq_reqmsg = newbuf;
 		req->rq_reqbuf_len = alloc_size;
+
+		if (req->rq_import)
+			spin_unlock(&req->rq_import->imp_lock);
 	}
 
 	_sptlrpc_enlarge_msg_inplace(req->rq_reqmsg, segment, newsize);
@@ -360,16 +362,7 @@ int null_authorize(struct ptlrpc_request *req)
 	} else {
 		__u32 cksum;
 
-#if LUSTRE_VERSION_CODE < OBD_OCD_VERSION(2, 7, 50, 0)
-		if (lustre_msghdr_get_flags(req->rq_reqmsg) &
-		    MSGHDR_CKSUM_INCOMPAT18)
-			cksum = lustre_msg_calc_cksum(rs->rs_repbuf, 0);
-		else
-			cksum = lustre_msg_calc_cksum(rs->rs_repbuf, 1);
-#else
-# warning "remove checksum compatibility support for b1_8"
 		cksum = lustre_msg_calc_cksum(rs->rs_repbuf);
-#endif
 		lustre_msg_set_cksum(rs->rs_repbuf, cksum);
 		req->rq_reply_off = 0;
 	}
@@ -460,5 +453,6 @@ void sptlrpc_null_fini(void)
 
 	rc = sptlrpc_unregister_policy(&null_policy);
 	if (rc)
-		CERROR("failed to unregister %s: %d\n", null_policy.sp_name,rc);
+		CERROR("failed to unregister %s: %d\n",
+		       null_policy.sp_name, rc);
 }

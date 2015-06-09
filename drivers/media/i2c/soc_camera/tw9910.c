@@ -705,7 +705,7 @@ static int tw9910_g_fmt(struct v4l2_subdev *sd,
 
 	mf->width	= priv->scale->width;
 	mf->height	= priv->scale->height;
-	mf->code	= V4L2_MBUS_FMT_UYVY8_2X8;
+	mf->code	= MEDIA_BUS_FMT_UYVY8_2X8;
 	mf->colorspace	= V4L2_COLORSPACE_JPEG;
 	mf->field	= V4L2_FIELD_INTERLACED_BT;
 
@@ -724,7 +724,7 @@ static int tw9910_s_fmt(struct v4l2_subdev *sd,
 	/*
 	 * check color format
 	 */
-	if (mf->code != V4L2_MBUS_FMT_UYVY8_2X8)
+	if (mf->code != MEDIA_BUS_FMT_UYVY8_2X8)
 		return -EINVAL;
 
 	mf->colorspace = V4L2_COLORSPACE_JPEG;
@@ -751,7 +751,7 @@ static int tw9910_try_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 	}
 
-	mf->code = V4L2_MBUS_FMT_UYVY8_2X8;
+	mf->code = MEDIA_BUS_FMT_UYVY8_2X8;
 	mf->colorspace = V4L2_COLORSPACE_JPEG;
 
 	/*
@@ -814,8 +814,6 @@ done:
 }
 
 static struct v4l2_subdev_core_ops tw9910_subdev_core_ops = {
-	.s_std		= tw9910_s_std,
-	.g_std		= tw9910_g_std,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= tw9910_g_register,
 	.s_register	= tw9910_s_register,
@@ -824,12 +822,12 @@ static struct v4l2_subdev_core_ops tw9910_subdev_core_ops = {
 };
 
 static int tw9910_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			   enum v4l2_mbus_pixelcode *code)
+			   u32 *code)
 {
 	if (index)
 		return -EINVAL;
 
-	*code = V4L2_MBUS_FMT_UYVY8_2X8;
+	*code = MEDIA_BUS_FMT_UYVY8_2X8;
 	return 0;
 }
 
@@ -872,7 +870,15 @@ static int tw9910_s_mbus_config(struct v4l2_subdev *sd,
 	return i2c_smbus_write_byte_data(client, OUTCTR1, val);
 }
 
+static int tw9910_g_tvnorms(struct v4l2_subdev *sd, v4l2_std_id *norm)
+{
+	*norm = V4L2_STD_NTSC | V4L2_STD_PAL;
+	return 0;
+}
+
 static struct v4l2_subdev_video_ops tw9910_subdev_video_ops = {
+	.s_std		= tw9910_s_std,
+	.g_std		= tw9910_g_std,
 	.s_stream	= tw9910_s_stream,
 	.g_mbus_fmt	= tw9910_g_fmt,
 	.s_mbus_fmt	= tw9910_s_fmt,
@@ -882,6 +888,7 @@ static struct v4l2_subdev_video_ops tw9910_subdev_video_ops = {
 	.enum_mbus_fmt	= tw9910_enum_fmt,
 	.g_mbus_config	= tw9910_g_mbus_config,
 	.s_mbus_config	= tw9910_s_mbus_config,
+	.g_tvnorms	= tw9910_g_tvnorms,
 };
 
 static struct v4l2_subdev_ops tw9910_subdev_ops = {

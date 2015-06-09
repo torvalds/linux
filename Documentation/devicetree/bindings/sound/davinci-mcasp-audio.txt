@@ -32,7 +32,7 @@ Optional properties:
 - rx-num-evt : FIFO levels.
 - sram-size-playback : size of sram to be allocated during playback
 - sram-size-capture  : size of sram to be allocated during capture
-- interrupts : Interrupt numbers for McASP, currently not used by the driver
+- interrupts : Interrupt numbers for McASP
 - interrupt-names : Known interrupt names are "tx" and "rx"
 - pinctrl-0: Should specify pin control group used for this controller.
 - pinctrl-names: Should contain only one value - "default", for more details
@@ -47,7 +47,7 @@ mcasp0: mcasp0@1d00000 {
 	reg = <0x100000 0x3000>;
 	reg-names "mpu";
 	interrupts = <82>, <83>;
-	interrupts-names = "tx", "rx";
+	interrupt-names = "tx", "rx";
 	op-mode = <0>;		/* MCASP_IIS_MODE */
 	tdm-slots = <2>;
 	serial-dir = <

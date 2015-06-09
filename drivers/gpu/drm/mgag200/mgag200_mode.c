@@ -15,6 +15,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_plane_helper.h>
 
 #include "mgag200_drv.h"
 
@@ -29,7 +30,7 @@ static void mga_crtc_load_lut(struct drm_crtc *crtc)
 	struct mga_crtc *mga_crtc = to_mga_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct mga_device *mdev = dev->dev_private;
-	struct drm_framebuffer *fb = crtc->fb;
+	struct drm_framebuffer *fb = crtc->primary->fb;
 	int i;
 
 	if (!crtc->enabled)
@@ -742,7 +743,7 @@ static int mga_crtc_do_set_base(struct drm_crtc *crtc,
 		mgag200_bo_unreserve(bo);
 	}
 
-	mga_fb = to_mga_framebuffer(crtc->fb);
+	mga_fb = to_mga_framebuffer(crtc->primary->fb);
 	obj = mga_fb->obj;
 	bo = gem_to_mga_bo(obj);
 
@@ -805,7 +806,7 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 		/* 0x48: */        0,    0,    0,    0,    0,    0,    0,    0
 	};
 
-	bppshift = mdev->bpp_shifts[(crtc->fb->bits_per_pixel >> 3) - 1];
+	bppshift = mdev->bpp_shifts[(crtc->primary->fb->bits_per_pixel >> 3) - 1];
 
 	switch (mdev->type) {
 	case G200_SE_A:
@@ -843,12 +844,12 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 		break;
 	}
 
-	switch (crtc->fb->bits_per_pixel) {
+	switch (crtc->primary->fb->bits_per_pixel) {
 	case 8:
 		dacvalue[MGA1064_MUL_CTL] = MGA1064_MUL_CTL_8bits;
 		break;
 	case 16:
-		if (crtc->fb->depth == 15)
+		if (crtc->primary->fb->depth == 15)
 			dacvalue[MGA1064_MUL_CTL] = MGA1064_MUL_CTL_15bits;
 		else
 			dacvalue[MGA1064_MUL_CTL] = MGA1064_MUL_CTL_16bits;
@@ -896,8 +897,8 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	WREG_SEQ(3, 0);
 	WREG_SEQ(4, 0xe);
 
-	pitch = crtc->fb->pitches[0] / (crtc->fb->bits_per_pixel / 8);
-	if (crtc->fb->bits_per_pixel == 24)
+	pitch = crtc->primary->fb->pitches[0] / (crtc->primary->fb->bits_per_pixel / 8);
+	if (crtc->primary->fb->bits_per_pixel == 24)
 		pitch = (pitch * 3) >> (4 - bppshift);
 	else
 		pitch = pitch >> (4 - bppshift);
@@ -974,7 +975,7 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 		((vdisplay & 0xc00) >> 7) |
 		((vsyncstart & 0xc00) >> 5) |
 		((vdisplay & 0x400) >> 3);
-	if (crtc->fb->bits_per_pixel == 24)
+	if (crtc->primary->fb->bits_per_pixel == 24)
 		ext_vga[3] = (((1 << bppshift) * 3) - 1) | 0x80;
 	else
 		ext_vga[3] = ((1 << bppshift) - 1) | 0x80;
@@ -1034,9 +1035,9 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 			u32 bpp;
 			u32 mb;
 
-			if (crtc->fb->bits_per_pixel > 16)
+			if (crtc->primary->fb->bits_per_pixel > 16)
 				bpp = 32;
-			else if (crtc->fb->bits_per_pixel > 8)
+			else if (crtc->primary->fb->bits_per_pixel > 8)
 				bpp = 16;
 			else
 				bpp = 8;
@@ -1221,7 +1222,7 @@ static void mga_crtc_commit(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct mga_device *mdev = dev->dev_private;
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+	const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 	u8 tmp;
 
 	if (mdev->type == G200_WB)
@@ -1277,8 +1278,8 @@ static void mga_crtc_disable(struct drm_crtc *crtc)
 	int ret;
 	DRM_DEBUG_KMS("\n");
 	mga_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
-	if (crtc->fb) {
-		struct mga_framebuffer *mga_fb = to_mga_framebuffer(crtc->fb);
+	if (crtc->primary->fb) {
+		struct mga_framebuffer *mga_fb = to_mga_framebuffer(crtc->primary->fb);
 		struct drm_gem_object *obj = mga_fb->obj;
 		struct mgag200_bo *bo = gem_to_mga_bo(obj);
 		ret = mgag200_bo_reserve(bo, false);
@@ -1287,7 +1288,7 @@ static void mga_crtc_disable(struct drm_crtc *crtc)
 		mgag200_bo_push_sysram(bo);
 		mgag200_bo_unreserve(bo);
 	}
-	crtc->fb = NULL;
+	crtc->primary->fb = NULL;
 }
 
 /* These provide the minimum set of functions required to handle a CRTC */
@@ -1483,11 +1484,7 @@ static int mga_vga_mode_valid(struct drm_connector *connector,
 {
 	struct drm_device *dev = connector->dev;
 	struct mga_device *mdev = (struct mga_device*)dev->dev_private;
-	struct mga_fbdev *mfbdev = mdev->mfbdev;
-	struct drm_fb_helper *fb_helper = &mfbdev->helper;
-	struct drm_fb_helper_connector *fb_helper_conn = NULL;
 	int bpp = 32;
-	int i = 0;
 
 	if (IS_G200_SE(mdev)) {
 		if (mdev->unique_rev_id == 0x01) {
@@ -1537,21 +1534,14 @@ static int mga_vga_mode_valid(struct drm_connector *connector,
 	}
 
 	/* Validate the mode input by the user */
-	for (i = 0; i < fb_helper->connector_count; i++) {
-		if (fb_helper->connector_info[i]->connector == connector) {
-			/* Found the helper for this connector */
-			fb_helper_conn = fb_helper->connector_info[i];
-			if (fb_helper_conn->cmdline_mode.specified) {
-				if (fb_helper_conn->cmdline_mode.bpp_specified) {
-					bpp = fb_helper_conn->cmdline_mode.bpp;
-				}
-			}
-		}
+	if (connector->cmdline_mode.specified) {
+		if (connector->cmdline_mode.bpp_specified)
+			bpp = connector->cmdline_mode.bpp;
 	}
 
 	if ((mode->hdisplay * mode->vdisplay * (bpp/8)) > mdev->mc.vram_size) {
-		if (fb_helper_conn)
-			fb_helper_conn->cmdline_mode.specified = false;
+		if (connector->cmdline_mode.specified)
+			connector->cmdline_mode.specified = false;
 		return MODE_BAD;
 	}
 
@@ -1562,19 +1552,9 @@ static struct drm_encoder *mga_connector_best_encoder(struct drm_connector
 						  *connector)
 {
 	int enc_id = connector->encoder_ids[0];
-	struct drm_mode_object *obj;
-	struct drm_encoder *encoder;
-
 	/* pick the encoder ids */
-	if (enc_id) {
-		obj =
-		    drm_mode_object_find(connector->dev, enc_id,
-					 DRM_MODE_OBJECT_ENCODER);
-		if (!obj)
-			return NULL;
-		encoder = obj_to_encoder(obj);
-		return encoder;
-	}
+	if (enc_id)
+		return drm_encoder_find(connector->dev, enc_id);
 	return NULL;
 }
 
@@ -1621,7 +1601,7 @@ static struct drm_connector *mga_vga_init(struct drm_device *dev)
 
 	drm_connector_helper_add(connector, &mga_vga_connector_helper_funcs);
 
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 
 	mga_connector->i2c = mgag200_i2c_create(dev);
 	if (!mga_connector->i2c)

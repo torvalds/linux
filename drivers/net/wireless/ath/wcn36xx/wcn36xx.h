@@ -32,6 +32,9 @@
 #define WLAN_NV_FILE               "wlan/prima/WCNSS_qcom_wlan_nv.bin"
 #define WCN36XX_AGGR_BUFFER_SIZE 64
 
+/* How many frames until we start a-mpdu TX session */
+#define WCN36XX_AMPDU_START_THRESH	20
+
 extern unsigned int wcn36xx_dbg_mask;
 
 enum wcn36xx_debug_mask {
@@ -73,6 +76,13 @@ enum wcn36xx_debug_mask {
 			       DUMP_PREFIX_OFFSET, 32, 1,	\
 			       buf, len, false);		\
 } while (0)
+
+enum wcn36xx_ampdu_state {
+	WCN36XX_AMPDU_NONE,
+	WCN36XX_AMPDU_INIT,
+	WCN36XX_AMPDU_START,
+	WCN36XX_AMPDU_OPERATIONAL,
+};
 
 #define WCN36XX_HW_CHANNEL(__wcn) (__wcn->hw->conf.chandef.chan->hw_value)
 #define WCN36XX_BAND(__wcn) (__wcn->hw->conf.chandef.chan->band)
@@ -125,10 +135,10 @@ struct wcn36xx_vif {
 	enum wcn36xx_power_state pw_state;
 
 	u8 bss_index;
-	u8 ucast_dpu_signature;
 	/* Returned from WCN36XX_HAL_ADD_STA_SELF_RSP */
 	u8 self_sta_index;
 	u8 self_dpu_desc_index;
+	u8 self_ucast_dpu_sign;
 };
 
 /**
@@ -159,11 +169,16 @@ struct wcn36xx_sta {
 	u16 tid;
 	u8 sta_index;
 	u8 dpu_desc_index;
+	u8 ucast_dpu_sign;
 	u8 bss_sta_index;
 	u8 bss_dpu_desc_index;
 	bool is_data_encrypted;
 	/* Rates */
 	struct wcn36xx_hal_supported_rates supported_rates;
+
+	spinlock_t ampdu_lock;		/* protects next two fields */
+	enum wcn36xx_ampdu_state ampdu_state[16];
+	int non_agg_frame_ct;
 };
 struct wcn36xx_dxe_ch;
 struct wcn36xx {
@@ -171,10 +186,14 @@ struct wcn36xx {
 	struct device		*dev;
 	struct list_head	vif_list;
 
+	const struct firmware	*nv;
+
 	u8			fw_revision;
 	u8			fw_version;
 	u8			fw_minor;
 	u8			fw_major;
+	u32			fw_feat_caps[WCN36XX_HAL_CAPS_SIZE];
+	u32			chip_version;
 
 	/* extra byte for the NULL termination */
 	u8			crm_version[WCN36XX_HAL_VERSION_LENGTH + 1];
@@ -222,6 +241,9 @@ struct wcn36xx {
 
 };
 
+#define WCN36XX_CHIP_3660	0
+#define WCN36XX_CHIP_3680	1
+
 static inline bool wcn36xx_is_fw_version(struct wcn36xx *wcn,
 					 u8 major,
 					 u8 minor,
@@ -234,5 +256,11 @@ static inline bool wcn36xx_is_fw_version(struct wcn36xx *wcn,
 		wcn->fw_revision == revision);
 }
 void wcn36xx_set_default_rates(struct wcn36xx_hal_supported_rates *rates);
+
+static inline
+struct ieee80211_sta *wcn36xx_priv_to_sta(struct wcn36xx_sta *sta_priv)
+{
+	return container_of((void *)sta_priv, struct ieee80211_sta, drv_priv);
+}
 
 #endif	/* _WCN36XX_H_ */

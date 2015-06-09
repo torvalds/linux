@@ -5,7 +5,7 @@ enum HF_S {
 	HF_DVBC_8MHZ, HF_DVBC
 };
 
-struct SStandardParam m_StandardTable[] = {
+static struct SStandardParam m_StandardTable[] = {
 	{       0,        0, 0x00, 0x00 },    /* HF_None */
 	{ 6000000,  7000000, 0x1D, 0x2C },    /* HF_B, */
 	{ 6900000,  8000000, 0x1E, 0x2C },    /* HF_DK, */
@@ -27,7 +27,7 @@ struct SStandardParam m_StandardTable[] = {
 	{       0,        0, 0x00, 0x00 },    /* HF_DVBC (Unused) */
 };
 
-struct SMap  m_BP_Filter_Map[] = {
+static struct SMap  m_BP_Filter_Map[] = {
 	{   62000000,  0x00 },
 	{   84000000,  0x01 },
 	{  100000000,  0x02 },
@@ -799,14 +799,14 @@ static struct SRFBandMap  m_RF_Band_Map[7] = {
 	{  865000000,  489500000,   697500000,  842000000},
 };
 
-u8 m_Thermometer_Map_1[16] = {
+static u8 m_Thermometer_Map_1[16] = {
 	60, 62, 66, 64,
 	74, 72, 68, 70,
 	90, 88, 84, 86,
 	76, 78, 82, 80,
 };
 
-u8 m_Thermometer_Map_2[16] = {
+static u8 m_Thermometer_Map_2[16] = {
 	92, 94, 98, 96,
 	106, 104, 100, 102,
 	122, 120, 116, 118,

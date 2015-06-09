@@ -37,7 +37,7 @@
 struct gprs_dev {
 	struct sock		*sk;
 	void			(*old_state_change)(struct sock *);
-	void			(*old_data_ready)(struct sock *, int);
+	void			(*old_data_ready)(struct sock *);
 	void			(*old_write_space)(struct sock *);
 
 	struct net_device	*dev;
@@ -146,7 +146,7 @@ drop:
 	return err;
 }
 
-static void gprs_data_ready(struct sock *sk, int len)
+static void gprs_data_ready(struct sock *sk)
 {
 	struct gprs_dev *gp = sk->sk_user_data;
 	struct sk_buff *skb;
@@ -203,8 +203,7 @@ static netdev_tx_t gprs_xmit(struct sk_buff *skb, struct net_device *dev)
 	len = skb->len;
 	err = pep_write(sk, skb);
 	if (err) {
-		LIMIT_NETDEBUG(KERN_WARNING"%s: TX error (%d)\n",
-				dev->name, err);
+		net_dbg_ratelimited("%s: TX error (%d)\n", dev->name, err);
 		dev->stats.tx_aborted_errors++;
 		dev->stats.tx_errors++;
 	} else {
@@ -267,7 +266,7 @@ int gprs_attach(struct sock *sk)
 		return -EINVAL; /* need packet boundaries */
 
 	/* Create net device */
-	dev = alloc_netdev(sizeof(*gp), ifname, gprs_setup);
+	dev = alloc_netdev(sizeof(*gp), ifname, NET_NAME_UNKNOWN, gprs_setup);
 	if (!dev)
 		return -ENOMEM;
 	gp = netdev_priv(dev);

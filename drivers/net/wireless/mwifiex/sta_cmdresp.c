@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: station command response handling
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -69,6 +69,7 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 
 		break;
 	case HostCmd_CMD_802_11_SCAN:
+	case HostCmd_CMD_802_11_SCAN_EXT:
 		/* Cancel all pending scan command */
 		spin_lock_irqsave(&adapter->scan_pending_q_lock, flags);
 		list_for_each_entry_safe(cmd_node, tmp_node,
@@ -84,11 +85,13 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
 		adapter->scan_processing = false;
 		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
-		if (priv->report_scan_result)
-			priv->report_scan_result = false;
 		break;
 
 	case HostCmd_CMD_MAC_CONTROL:
+		break;
+
+	case HostCmd_CMD_SDIO_SP_RX_AGGR_CFG:
+		dev_err(priv->adapter->dev, "SDIO RX single-port aggregation Not support\n");
 		break;
 
 	default:
@@ -157,8 +160,8 @@ static int mwifiex_ret_802_11_rssi_info(struct mwifiex_private *priv,
 
 	priv->subsc_evt_rssi_state = EVENT_HANDLED;
 
-	mwifiex_send_cmd_async(priv, HostCmd_CMD_802_11_SUBSCRIBE_EVENT,
-			       0, 0, subsc_evt);
+	mwifiex_send_cmd(priv, HostCmd_CMD_802_11_SUBSCRIBE_EVENT,
+			 0, 0, subsc_evt, false);
 
 	return 0;
 }
@@ -249,6 +252,8 @@ static int mwifiex_ret_get_log(struct mwifiex_private *priv,
 			le32_to_cpu(get_log->wep_icv_err_cnt[2]);
 		stats->wep_icv_error[3] =
 			le32_to_cpu(get_log->wep_icv_err_cnt[3]);
+		stats->bcn_rcv_cnt = le32_to_cpu(get_log->bcn_rcv_cnt);
+		stats->bcn_miss_cnt = le32_to_cpu(get_log->bcn_miss_cnt);
 	}
 
 	return 0;
@@ -303,6 +308,15 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 				priv->bitmap_rates[2 + i] =
 					le16_to_cpu(rate_scope->
 						    ht_mcs_rate_bitmap[i]);
+
+			if (priv->adapter->fw_api_ver == MWIFIEX_FW_V15) {
+				for (i = 0; i < ARRAY_SIZE(rate_scope->
+							   vht_mcs_rate_bitmap);
+				     i++)
+					priv->bitmap_rates[10 + i] =
+					    le16_to_cpu(rate_scope->
+							vht_mcs_rate_bitmap[i]);
+			}
 			break;
 			/* Add RATE_DROP tlv here */
 		}
@@ -316,9 +330,8 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 	if (priv->is_data_rate_auto)
 		priv->data_rate = 0;
 	else
-		return mwifiex_send_cmd_async(priv,
-					      HostCmd_CMD_802_11_TX_RATE_QUERY,
-					      HostCmd_ACT_GEN_GET, 0, NULL);
+		return mwifiex_send_cmd(priv, HostCmd_CMD_802_11_TX_RATE_QUERY,
+					HostCmd_ACT_GEN_GET, 0, NULL, false);
 
 	return 0;
 }
@@ -561,13 +574,13 @@ static int mwifiex_ret_802_11_ad_hoc_stop(struct mwifiex_private *priv,
 }
 
 /*
- * This function handles the command response of set/get key material.
+ * This function handles the command response of set/get v1 key material.
  *
  * Handling includes updating the driver parameters to reflect the
  * changes.
  */
-static int mwifiex_ret_802_11_key_material(struct mwifiex_private *priv,
-					   struct host_cmd_ds_command *resp)
+static int mwifiex_ret_802_11_key_material_v1(struct mwifiex_private *priv,
+					      struct host_cmd_ds_command *resp)
 {
 	struct host_cmd_ds_802_11_key_material *key =
 						&resp->params.key_material;
@@ -587,6 +600,51 @@ static int mwifiex_ret_802_11_key_material(struct mwifiex_private *priv,
 	       le16_to_cpu(priv->aes_key.key_param_set.key_len));
 
 	return 0;
+}
+
+/*
+ * This function handles the command response of set/get v2 key material.
+ *
+ * Handling includes updating the driver parameters to reflect the
+ * changes.
+ */
+static int mwifiex_ret_802_11_key_material_v2(struct mwifiex_private *priv,
+					      struct host_cmd_ds_command *resp)
+{
+	struct host_cmd_ds_802_11_key_material_v2 *key_v2;
+	__le16 len;
+
+	key_v2 = &resp->params.key_material_v2;
+	if (le16_to_cpu(key_v2->action) == HostCmd_ACT_GEN_SET) {
+		if ((le16_to_cpu(key_v2->key_param_set.key_info) & KEY_MCAST)) {
+			dev_dbg(priv->adapter->dev, "info: key: GTK is set\n");
+			priv->wpa_is_gtk_set = true;
+			priv->scan_block = false;
+		}
+	}
+
+	if (key_v2->key_param_set.key_type != KEY_TYPE_ID_AES)
+		return 0;
+
+	memset(priv->aes_key_v2.key_param_set.key_params.aes.key, 0,
+	       WLAN_KEY_LEN_CCMP);
+	priv->aes_key_v2.key_param_set.key_params.aes.key_len =
+				key_v2->key_param_set.key_params.aes.key_len;
+	len = priv->aes_key_v2.key_param_set.key_params.aes.key_len;
+	memcpy(priv->aes_key_v2.key_param_set.key_params.aes.key,
+	       key_v2->key_param_set.key_params.aes.key, le16_to_cpu(len));
+
+	return 0;
+}
+
+/* Wrapper function for processing response of key material command */
+static int mwifiex_ret_802_11_key_material(struct mwifiex_private *priv,
+					   struct host_cmd_ds_command *resp)
+{
+	if (priv->adapter->key_api_major_ver == KEY_API_VER_MAJOR_V2)
+		return mwifiex_ret_802_11_key_material_v2(priv, resp);
+	else
+		return mwifiex_ret_802_11_key_material_v1(priv, resp);
 }
 
 /*
@@ -800,7 +858,66 @@ static int mwifiex_ret_ibss_coalescing_status(struct mwifiex_private *priv,
 
 	return 0;
 }
+static int mwifiex_ret_tdls_oper(struct mwifiex_private *priv,
+				 struct host_cmd_ds_command *resp)
+{
+	struct host_cmd_ds_tdls_oper *cmd_tdls_oper = &resp->params.tdls_oper;
+	u16 reason = le16_to_cpu(cmd_tdls_oper->reason);
+	u16 action = le16_to_cpu(cmd_tdls_oper->tdls_action);
+	struct mwifiex_sta_node *node =
+			   mwifiex_get_sta_entry(priv, cmd_tdls_oper->peer_mac);
 
+	switch (action) {
+	case ACT_TDLS_DELETE:
+		if (reason) {
+			if (!node || reason == TDLS_ERR_LINK_NONEXISTENT)
+				dev_dbg(priv->adapter->dev,
+					"TDLS link delete for %pM failed: reason %d\n",
+					cmd_tdls_oper->peer_mac, reason);
+			else
+				dev_err(priv->adapter->dev,
+					"TDLS link delete for %pM failed: reason %d\n",
+					cmd_tdls_oper->peer_mac, reason);
+		} else {
+			dev_dbg(priv->adapter->dev,
+				"TDLS link delete for %pM successful\n",
+				cmd_tdls_oper->peer_mac);
+		}
+		break;
+	case ACT_TDLS_CREATE:
+		if (reason) {
+			dev_err(priv->adapter->dev,
+				"TDLS link creation for %pM failed: reason %d",
+				cmd_tdls_oper->peer_mac, reason);
+			if (node && reason != TDLS_ERR_LINK_EXISTS)
+				node->tdls_status = TDLS_SETUP_FAILURE;
+		} else {
+			dev_dbg(priv->adapter->dev,
+				"TDLS link creation for %pM successful",
+				cmd_tdls_oper->peer_mac);
+		}
+		break;
+	case ACT_TDLS_CONFIG:
+		if (reason) {
+			dev_err(priv->adapter->dev,
+				"TDLS link config for %pM failed, reason %d\n",
+				cmd_tdls_oper->peer_mac, reason);
+			if (node)
+				node->tdls_status = TDLS_SETUP_FAILURE;
+		} else {
+			dev_dbg(priv->adapter->dev,
+				"TDLS link config for %pM successful\n",
+				cmd_tdls_oper->peer_mac);
+		}
+		break;
+	default:
+		dev_err(priv->adapter->dev,
+			"Unknown TDLS command action response %d", action);
+		return -1;
+	}
+
+	return 0;
+}
 /*
  * This function handles the command response for subscribe event command.
  */
@@ -826,6 +943,20 @@ static int mwifiex_ret_cfg_data(struct mwifiex_private *priv,
 		dev_err(priv->adapter->dev, "Cal data cmd resp failed\n");
 		return -1;
 	}
+
+	return 0;
+}
+
+/** This Function handles the command response of sdio rx aggr */
+static int mwifiex_ret_sdio_rx_aggr_cfg(struct mwifiex_private *priv,
+					struct host_cmd_ds_command *resp)
+{
+	struct mwifiex_adapter *adapter = priv->adapter;
+	struct host_cmd_sdio_sp_rx_aggr_cfg *cfg =
+				&resp->params.sdio_rx_aggr_cfg;
+
+	adapter->sdio_rx_aggr_enable = cfg->enable;
+	adapter->sdio_rx_block_size = le16_to_cpu(cfg->block_size);
 
 	return 0;
 }
@@ -869,6 +1000,10 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_802_11_SCAN:
 		ret = mwifiex_ret_802_11_scan(priv, resp);
+		adapter->curr_cmd->wait_q_enabled = false;
+		break;
+	case HostCmd_CMD_802_11_SCAN_EXT:
+		ret = mwifiex_ret_802_11_scan_ext(priv, resp);
 		adapter->curr_cmd->wait_q_enabled = false;
 		break;
 	case HostCmd_CMD_802_11_BG_SCAN_QUERY:
@@ -988,6 +1123,9 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 	case HostCmd_CMD_UAP_SYS_CONFIG:
 		break;
 	case HostCmd_CMD_UAP_BSS_START:
+		adapter->tx_lock_flag = false;
+		adapter->pps_uapsd_mode = false;
+		adapter->delay_null_pkt = false;
 		priv->bss_started = 1;
 		break;
 	case HostCmd_CMD_UAP_BSS_STOP:
@@ -998,6 +1136,14 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 	case HostCmd_CMD_MEF_CFG:
 		break;
 	case HostCmd_CMD_COALESCE_CFG:
+		break;
+	case HostCmd_CMD_TDLS_OPER:
+		ret = mwifiex_ret_tdls_oper(priv, resp);
+		break;
+	case HostCmd_CMD_CHAN_REPORT_REQUEST:
+		break;
+	case HostCmd_CMD_SDIO_SP_RX_AGGR_CFG:
+		ret = mwifiex_ret_sdio_rx_aggr_cfg(priv, resp);
 		break;
 	default:
 		dev_err(adapter->dev, "CMD_RESP: unknown cmd response %#x\n",

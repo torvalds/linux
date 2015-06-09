@@ -33,7 +33,6 @@
 #ifndef __BASEBAND_H__
 #define __BASEBAND_H__
 
-#include "tether.h"
 #include "device.h"
 
 #define PREAMBLE_LONG   0
@@ -88,30 +87,18 @@ struct vnt_phy_field {
 	__le16 len;
 } __packed;
 
-unsigned int
-BBuGetFrameTime(
-     u8 byPreambleType,
-     u8 byFreqType,
-     unsigned int cbFrameLength,
-     u16 wRate
-    );
+unsigned int vnt_get_frame_time(u8 preamble_type, u8 pkt_type,
+	unsigned int frame_length, u16 tx_rate);
 
-void BBvCalculateParameter(struct vnt_private *, u32 cbFrameLength,
-	u16 wRate, u8 byPacketType, struct vnt_phy_field *);
+void vnt_get_phy_field(struct vnt_private *, u32 frame_length,
+	u16 tx_rate, u8 pkt_type, struct vnt_phy_field *);
 
-/* timer for antenna diversity */
-
-void TimerSQ3CallBack(struct vnt_private *);
-void TimerSQ3Tmax3CallBack(struct vnt_private *);
-
-void BBvAntennaDiversity(struct vnt_private *, u8 byRxRate, u8 bySQ3);
-
-void BBvSetShortSlotTime(struct vnt_private *);
-void BBvSetVGAGainOffset(struct vnt_private *, u8 byData);
-void BBvSetAntennaMode(struct vnt_private *, u8 byAntennaMode);
-int BBbVT3184Init(struct vnt_private *);
-void BBvSetDeepSleep(struct vnt_private *);
-void BBvExitDeepSleep(struct vnt_private *);
-void BBvUpdatePreEDThreshold(struct vnt_private *, int bScanning);
+void vnt_set_short_slot_time(struct vnt_private *);
+void vnt_set_vga_gain_offset(struct vnt_private *, u8);
+void vnt_set_antenna_mode(struct vnt_private *, u8);
+int vnt_vt3184_init(struct vnt_private *);
+void vnt_set_deep_sleep(struct vnt_private *);
+void vnt_exit_deep_sleep(struct vnt_private *);
+void vnt_update_pre_ed_threshold(struct vnt_private *, int scanning);
 
 #endif /* __BASEBAND_H__ */

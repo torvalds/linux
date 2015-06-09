@@ -29,16 +29,55 @@
 
 		osc26m {
 			compatible = "fsl,imx-osc26m", "fixed-clock";
+			#clock-cells = <0>;
 			clock-frequency = <0>;
 		};
 	};
 };
 
+&iomuxc {
+	imx27-apf27 {
+		pinctrl_fec1: fec1grp {
+			fsl,pins = <
+				MX27_PAD_SD3_CMD__FEC_TXD0 0x0
+				MX27_PAD_SD3_CLK__FEC_TXD1 0x0
+				MX27_PAD_ATA_DATA0__FEC_TXD2 0x0
+				MX27_PAD_ATA_DATA1__FEC_TXD3 0x0
+				MX27_PAD_ATA_DATA2__FEC_RX_ER 0x0
+				MX27_PAD_ATA_DATA3__FEC_RXD1 0x0
+				MX27_PAD_ATA_DATA4__FEC_RXD2 0x0
+				MX27_PAD_ATA_DATA5__FEC_RXD3 0x0
+				MX27_PAD_ATA_DATA6__FEC_MDIO 0x0
+				MX27_PAD_ATA_DATA7__FEC_MDC 0x0
+				MX27_PAD_ATA_DATA8__FEC_CRS 0x0
+				MX27_PAD_ATA_DATA9__FEC_TX_CLK 0x0
+				MX27_PAD_ATA_DATA10__FEC_RXD0 0x0
+				MX27_PAD_ATA_DATA11__FEC_RX_DV 0x0
+				MX27_PAD_ATA_DATA12__FEC_RX_CLK 0x0
+				MX27_PAD_ATA_DATA13__FEC_COL 0x0
+				MX27_PAD_ATA_DATA14__FEC_TX_ER 0x0
+				MX27_PAD_ATA_DATA15__FEC_TX_EN 0x0
+			>;
+		};
+
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				MX27_PAD_UART1_TXD__UART1_TXD 0x0
+				MX27_PAD_UART1_RXD__UART1_RXD 0x0
+			>;
+		};
+	};
+};
+
 &uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
 	status = "okay";
 };
 
 &fec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec1>;
 	status = "okay";
 };
 

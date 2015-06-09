@@ -52,13 +52,13 @@ static BLOCKING_NOTIFIER_HEAD(memory_chain);
 
 int register_memory_notifier(struct notifier_block *nb)
 {
-        return blocking_notifier_chain_register(&memory_chain, nb);
+	return blocking_notifier_chain_register(&memory_chain, nb);
 }
 EXPORT_SYMBOL(register_memory_notifier);
 
 void unregister_memory_notifier(struct notifier_block *nb)
 {
-        blocking_notifier_chain_unregister(&memory_chain, nb);
+	blocking_notifier_chain_unregister(&memory_chain, nb);
 }
 EXPORT_SYMBOL(unregister_memory_notifier);
 
@@ -118,16 +118,6 @@ static ssize_t show_mem_start_phys_index(struct device *dev,
 	return sprintf(buf, "%08lx\n", phys_index);
 }
 
-static ssize_t show_mem_end_phys_index(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	struct memory_block *mem = to_memory_block(dev);
-	unsigned long phys_index;
-
-	phys_index = mem->end_section_nr / sections_per_block;
-	return sprintf(buf, "%08lx\n", phys_index);
-}
-
 /*
  * Show whether the section of memory is likely to be hot-removable
  */
@@ -162,20 +152,20 @@ static ssize_t show_mem_state(struct device *dev,
 	 * so that they're not open-coded
 	 */
 	switch (mem->state) {
-		case MEM_ONLINE:
-			len = sprintf(buf, "online\n");
-			break;
-		case MEM_OFFLINE:
-			len = sprintf(buf, "offline\n");
-			break;
-		case MEM_GOING_OFFLINE:
-			len = sprintf(buf, "going-offline\n");
-			break;
-		default:
-			len = sprintf(buf, "ERROR-UNKNOWN-%ld\n",
-					mem->state);
-			WARN_ON(1);
-			break;
+	case MEM_ONLINE:
+		len = sprintf(buf, "online\n");
+		break;
+	case MEM_OFFLINE:
+		len = sprintf(buf, "offline\n");
+		break;
+	case MEM_GOING_OFFLINE:
+		len = sprintf(buf, "going-offline\n");
+		break;
+	default:
+		len = sprintf(buf, "ERROR-UNKNOWN-%ld\n",
+				mem->state);
+		WARN_ON(1);
+		break;
 	}
 
 	return len;
@@ -229,6 +219,7 @@ static bool pages_correctly_reserved(unsigned long start_pfn)
 /*
  * MEMORY_HOTPLUG depends on SPARSEMEM in mm/Kconfig, so it is
  * OK to have direct references to sparsemem variables in here.
+ * Must already be protected by mem_hotplug_begin().
  */
 static int
 memory_block_action(unsigned long phys_index, unsigned long action, int online_type)
@@ -238,23 +229,23 @@ memory_block_action(unsigned long phys_index, unsigned long action, int online_t
 	struct page *first_page;
 	int ret;
 
-	first_page = pfn_to_page(phys_index << PFN_SECTION_SHIFT);
-	start_pfn = page_to_pfn(first_page);
+	start_pfn = section_nr_to_pfn(phys_index);
+	first_page = pfn_to_page(start_pfn);
 
 	switch (action) {
-		case MEM_ONLINE:
-			if (!pages_correctly_reserved(start_pfn))
-				return -EBUSY;
+	case MEM_ONLINE:
+		if (!pages_correctly_reserved(start_pfn))
+			return -EBUSY;
 
-			ret = online_pages(start_pfn, nr_pages, online_type);
-			break;
-		case MEM_OFFLINE:
-			ret = offline_pages(start_pfn, nr_pages);
-			break;
-		default:
-			WARN(1, KERN_WARNING "%s(%ld, %ld) unknown action: "
-			     "%ld\n", __func__, phys_index, action, action);
-			ret = -EINVAL;
+		ret = online_pages(start_pfn, nr_pages, online_type);
+		break;
+	case MEM_OFFLINE:
+		ret = offline_pages(start_pfn, nr_pages);
+		break;
+	default:
+		WARN(1, KERN_WARNING "%s(%ld, %ld) unknown action: "
+		     "%ld\n", __func__, phys_index, action, action);
+		ret = -EINVAL;
 	}
 
 	return ret;
@@ -294,8 +285,9 @@ static int memory_subsys_online(struct device *dev)
 	 * attribute and need to set the online_type.
 	 */
 	if (mem->online_type < 0)
-		mem->online_type = ONLINE_KEEP;
+		mem->online_type = MMOP_ONLINE_KEEP;
 
+	/* Already under protection of mem_hotplug_begin() */
 	ret = memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE);
 
 	/* clear online_type */
@@ -325,40 +317,43 @@ store_mem_state(struct device *dev,
 	if (ret)
 		return ret;
 
-	if (!strncmp(buf, "online_kernel", min_t(int, count, 13)))
-		online_type = ONLINE_KERNEL;
-	else if (!strncmp(buf, "online_movable", min_t(int, count, 14)))
-		online_type = ONLINE_MOVABLE;
-	else if (!strncmp(buf, "online", min_t(int, count, 6)))
-		online_type = ONLINE_KEEP;
-	else if (!strncmp(buf, "offline", min_t(int, count, 7)))
-		online_type = -1;
+	if (sysfs_streq(buf, "online_kernel"))
+		online_type = MMOP_ONLINE_KERNEL;
+	else if (sysfs_streq(buf, "online_movable"))
+		online_type = MMOP_ONLINE_MOVABLE;
+	else if (sysfs_streq(buf, "online"))
+		online_type = MMOP_ONLINE_KEEP;
+	else if (sysfs_streq(buf, "offline"))
+		online_type = MMOP_OFFLINE;
 	else {
 		ret = -EINVAL;
 		goto err;
 	}
 
+	/*
+	 * Memory hotplug needs to hold mem_hotplug_begin() for probe to find
+	 * the correct memory block to online before doing device_online(dev),
+	 * which will take dev->mutex.  Take the lock early to prevent an
+	 * inversion, memory_subsys_online() callbacks will be implemented by
+	 * assuming it's already protected.
+	 */
+	mem_hotplug_begin();
+
 	switch (online_type) {
-	case ONLINE_KERNEL:
-	case ONLINE_MOVABLE:
-	case ONLINE_KEEP:
-		/*
-		 * mem->online_type is not protected so there can be a
-		 * race here.  However, when racing online, the first
-		 * will succeed and the second will just return as the
-		 * block will already be online.  The online type
-		 * could be either one, but that is expected.
-		 */
+	case MMOP_ONLINE_KERNEL:
+	case MMOP_ONLINE_MOVABLE:
+	case MMOP_ONLINE_KEEP:
 		mem->online_type = online_type;
 		ret = device_online(&mem->dev);
 		break;
-	case -1:
+	case MMOP_OFFLINE:
 		ret = device_offline(&mem->dev);
 		break;
 	default:
 		ret = -EINVAL; /* should never happen */
 	}
 
+	mem_hotplug_done();
 err:
 	unlock_device_hotplug();
 
@@ -383,8 +378,46 @@ static ssize_t show_phys_device(struct device *dev,
 	return sprintf(buf, "%d\n", mem->phys_device);
 }
 
+#ifdef CONFIG_MEMORY_HOTREMOVE
+static ssize_t show_valid_zones(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct memory_block *mem = to_memory_block(dev);
+	unsigned long start_pfn, end_pfn;
+	unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
+	struct page *first_page;
+	struct zone *zone;
+
+	start_pfn = section_nr_to_pfn(mem->start_section_nr);
+	end_pfn = start_pfn + nr_pages;
+	first_page = pfn_to_page(start_pfn);
+
+	/* The block contains more than one zone can not be offlined. */
+	if (!test_pages_in_a_zone(start_pfn, end_pfn))
+		return sprintf(buf, "none\n");
+
+	zone = page_zone(first_page);
+
+	if (zone_idx(zone) == ZONE_MOVABLE - 1) {
+		/*The mem block is the last memoryblock of this zone.*/
+		if (end_pfn == zone_end_pfn(zone))
+			return sprintf(buf, "%s %s\n",
+					zone->name, (zone + 1)->name);
+	}
+
+	if (zone_idx(zone) == ZONE_MOVABLE) {
+		/*The mem block is the first memoryblock of ZONE_MOVABLE.*/
+		if (start_pfn == zone->zone_start_pfn)
+			return sprintf(buf, "%s %s\n",
+					zone->name, (zone - 1)->name);
+	}
+
+	return sprintf(buf, "%s\n", zone->name);
+}
+static DEVICE_ATTR(valid_zones, 0444, show_valid_zones, NULL);
+#endif
+
 static DEVICE_ATTR(phys_index, 0444, show_mem_start_phys_index, NULL);
-static DEVICE_ATTR(end_phys_index, 0444, show_mem_end_phys_index, NULL);
 static DEVICE_ATTR(state, 0644, show_mem_state, store_mem_state);
 static DEVICE_ATTR(phys_device, 0444, show_phys_device, NULL);
 static DEVICE_ATTR(removable, 0444, show_mem_removable, NULL);
@@ -417,7 +450,9 @@ memory_probe_store(struct device *dev, struct device_attribute *attr,
 	int i, ret;
 	unsigned long pages_per_block = PAGES_PER_SECTION * sections_per_block;
 
-	phys_addr = simple_strtoull(buf, NULL, 0);
+	ret = kstrtoull(buf, 0, &phys_addr);
+	if (ret)
+		return ret;
 
 	if (phys_addr & ((pages_per_block << PAGE_SHIFT) - 1))
 		return -EINVAL;
@@ -529,10 +564,12 @@ struct memory_block *find_memory_block(struct mem_section *section)
 
 static struct attribute *memory_memblk_attrs[] = {
 	&dev_attr_phys_index.attr,
-	&dev_attr_end_phys_index.attr,
 	&dev_attr_state.attr,
 	&dev_attr_phys_device.attr,
 	&dev_attr_removable.attr,
+#ifdef CONFIG_MEMORY_HOTREMOVE
+	&dev_attr_valid_zones.attr,
+#endif
 	NULL
 };
 

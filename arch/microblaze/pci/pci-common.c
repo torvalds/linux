@@ -47,23 +47,8 @@ static int global_phb_number;		/* Global phb counter */
 /* ISA Memory physical address */
 resource_size_t isa_mem_base;
 
-static struct dma_map_ops *pci_dma_ops = &dma_direct_ops;
-
 unsigned long isa_io_base;
-unsigned long pci_dram_offset;
 static int pci_bus_count;
-
-
-void set_pci_dma_ops(struct dma_map_ops *dma_ops)
-{
-	pci_dma_ops = dma_ops;
-}
-
-struct dma_map_ops *get_pci_dma_ops(void)
-{
-	return pci_dma_ops;
-}
-EXPORT_SYMBOL(get_pci_dma_ops);
 
 struct pci_controller *pcibios_alloc_controller(struct device_node *dev)
 {
@@ -166,26 +151,6 @@ struct pci_controller *pci_find_hose_for_OF_device(struct device_node *node)
 		node = node->parent;
 	}
 	return NULL;
-}
-
-static ssize_t pci_show_devspec(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct pci_dev *pdev;
-	struct device_node *np;
-
-	pdev = to_pci_dev(dev);
-	np = pci_device_to_OF_node(pdev);
-	if (np == NULL || np->full_name == NULL)
-		return 0;
-	return sprintf(buf, "%s", np->full_name);
-}
-static DEVICE_ATTR(devspec, S_IRUGO, pci_show_devspec, NULL);
-
-/* Add sysfs properties */
-int pcibios_add_platform_entries(struct pci_dev *pdev)
-{
-	return device_create_file(&pdev->dev, &dev_attr_devspec);
 }
 
 void pcibios_set_master(struct pci_dev *dev)
@@ -695,8 +660,13 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 			res = &hose->mem_resources[memno++];
 			break;
 		}
-		if (res != NULL)
-			of_pci_range_to_resource(&range, dev, res);
+		if (res != NULL) {
+			res->name = dev->full_name;
+			res->flags = range.flags;
+			res->start = range.cpu_addr;
+			res->end = range.cpu_addr + range.size - 1;
+			res->parent = res->child = res->sibling = NULL;
+		}
 	}
 
 	/* If there's an ISA hole and the pci_mem_offset is -not- matching
@@ -886,10 +856,6 @@ void pcibios_setup_bus_devices(struct pci_bus *bus)
 		 */
 		set_dev_node(&dev->dev, pcibus_to_node(dev->bus));
 
-		/* Hook up default DMA ops */
-		set_dma_ops(&dev->dev, pci_dma_ops);
-		dev->dev.archdata.dma_data = (void *)PCI_DRAM_OFFSET;
-
 		/* Read default IRQs and fixup if necessary */
 		dev->irq = of_irq_parse_and_map_pci(dev, 0, 0);
 	}
@@ -1060,6 +1026,8 @@ static void pcibios_allocate_bus_resources(struct pci_bus *bus)
 			 pr, (pr && pr->name) ? pr->name : "nil");
 
 		if (pr && !(pr->flags & IORESOURCE_UNSET)) {
+			struct pci_dev *dev = bus->self;
+
 			if (request_resource(pr, res) == 0)
 				continue;
 			/*
@@ -1069,6 +1037,12 @@ static void pcibios_allocate_bus_resources(struct pci_bus *bus)
 			 */
 			if (reparent_resources(pr, res) == 0)
 				continue;
+
+			if (dev && i < PCI_BRIDGE_RESOURCE_NUM &&
+			    pci_claim_bridge_resource(dev,
+						 i + PCI_BRIDGE_RESOURCES) == 0)
+				continue;
+
 		}
 		pr_warn("PCI: Cannot allocate resource region ");
 		pr_cont("%d of PCI bridge %d, will remap\n", i, bus->number);
@@ -1261,7 +1235,10 @@ void pcibios_claim_one_bus(struct pci_bus *bus)
 				 (unsigned long long)r->end,
 				 (unsigned int)r->flags);
 
-			pci_claim_resource(dev, i);
+			if (pci_claim_resource(dev, i) == 0)
+				continue;
+
+			pci_claim_bridge_resource(dev, i);
 		}
 	}
 
@@ -1293,11 +1270,6 @@ void pcibios_finish_adding_to_bus(struct pci_bus *bus)
 	/* eeh_add_device_tree_late(bus); */
 }
 EXPORT_SYMBOL_GPL(pcibios_finish_adding_to_bus);
-
-int pcibios_enable_device(struct pci_dev *dev, int mask)
-{
-	return pci_enable_resources(dev, mask);
-}
 
 static void pcibios_setup_phb_resources(struct pci_controller *hose,
 					struct list_head *resources)
@@ -1410,6 +1382,10 @@ static int __init pcibios_init(void)
 
 	/* Call common code to handle resource allocation */
 	pcibios_resource_survey();
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
+		if (hose->bus)
+			pci_bus_add_devices(hose->bus);
+	}
 
 	return 0;
 }

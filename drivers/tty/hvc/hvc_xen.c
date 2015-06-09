@@ -289,7 +289,7 @@ static int xen_initial_domain_console_init(void)
 			return -ENOMEM;
 	}
 
-	info->irq = bind_virq_to_irq(VIRQ_CONSOLE, 0);
+	info->irq = bind_virq_to_irq(VIRQ_CONSOLE, 0, false);
 	info->vtermno = HVC_COOKIE;
 
 	spin_lock(&xencons_lock);
@@ -299,11 +299,27 @@ static int xen_initial_domain_console_init(void)
 	return 0;
 }
 
+static void xen_console_update_evtchn(struct xencons_info *info)
+{
+	if (xen_hvm_domain()) {
+		uint64_t v;
+		int err;
+
+		err = hvm_get_parameter(HVM_PARAM_CONSOLE_EVTCHN, &v);
+		if (!err && v)
+			info->evtchn = v;
+	} else
+		info->evtchn = xen_start_info->console.domU.evtchn;
+}
+
 void xen_console_resume(void)
 {
 	struct xencons_info *info = vtermno_to_xencons(HVC_COOKIE);
-	if (info != NULL && info->irq)
+	if (info != NULL && info->irq) {
+		if (!xen_initial_domain())
+			xen_console_update_evtchn(info);
 		rebind_evtchn_irq(info->evtchn, info->irq);
+	}
 }
 
 static void xencons_disconnect_backend(struct xencons_info *info)
@@ -347,8 +363,6 @@ static int xen_console_remove(struct xencons_info *info)
 }
 
 #ifdef CONFIG_HVC_XEN_FRONTEND
-static struct xenbus_driver xencons_driver;
-
 static int xencons_remove(struct xenbus_device *dev)
 {
 	return xen_console_remove(dev_get_drvdata(&dev->dev));
@@ -400,9 +414,6 @@ static int xencons_connect_backend(struct xenbus_device *dev,
 		goto error_xenbus;
 	ret = xenbus_printf(xbt, dev->nodename, "port", "%u",
 			    evtchn);
-	if (ret)
-		goto error_xenbus;
-	ret = xenbus_printf(xbt, dev->nodename, "type", "ioemu");
 	if (ret)
 		goto error_xenbus;
 	ret = xenbus_transaction_end(xbt, 0);
@@ -502,13 +513,14 @@ static const struct xenbus_device_id xencons_ids[] = {
 	{ "" }
 };
 
-
-static DEFINE_XENBUS_DRIVER(xencons, "xenconsole",
+static struct xenbus_driver xencons_driver = {
+	.name = "xenconsole",
+	.ids = xencons_ids,
 	.probe = xencons_probe,
 	.remove = xencons_remove,
 	.resume = xencons_resume,
 	.otherend_changed = xencons_backend_changed,
-);
+};
 #endif /* CONFIG_HVC_XEN_FRONTEND */
 
 static int __init xen_hvc_init(void)

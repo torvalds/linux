@@ -312,10 +312,8 @@ l1oip_ulaw_to_alaw(u8 *data, int len, u8 *result)
 void
 l1oip_4bit_free(void)
 {
-	if (table_dec)
-		vfree(table_dec);
-	if (table_com)
-		vfree(table_com);
+	vfree(table_dec);
+	vfree(table_com);
 	table_com = NULL;
 	table_dec = NULL;
 }

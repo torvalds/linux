@@ -22,10 +22,17 @@ typedef struct {
 	void *vdso;
 } mm_context_t;
 
+#define INIT_MM_CONTEXT(name) \
+	.context.id_lock = __RAW_SPIN_LOCK_UNLOCKED(name.context.id_lock),
+
 #define ASID(mm)	((mm)->context.id & 0xffff)
 
 extern void paging_init(void);
 extern void setup_mm_for_reboot(void);
 extern void __iomem *early_io_map(phys_addr_t phys, unsigned long virt);
+extern void init_mem_pgprot(void);
+extern void create_pgd_mapping(struct mm_struct *mm, phys_addr_t phys,
+			       unsigned long virt, phys_addr_t size,
+			       pgprot_t prot);
 
 #endif

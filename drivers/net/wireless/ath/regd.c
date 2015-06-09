@@ -222,7 +222,7 @@ static const struct ieee80211_regdomain *ath_default_world_regdomain(void)
 static const struct
 ieee80211_regdomain *ath_world_regdomain(struct ath_regulatory *reg)
 {
-	switch (reg->regpair->regDmnEnum) {
+	switch (reg->regpair->reg_domain) {
 	case 0x60:
 	case 0x61:
 	case 0x62:
@@ -431,7 +431,7 @@ static void ath_reg_apply_world_flags(struct wiphy *wiphy,
 				      enum nl80211_reg_initiator initiator,
 				      struct ath_regulatory *reg)
 {
-	switch (reg->regpair->regDmnEnum) {
+	switch (reg->regpair->reg_domain) {
 	case 0x60:
 	case 0x63:
 	case 0x66:
@@ -515,6 +515,7 @@ void ath_reg_notifier_apply(struct wiphy *wiphy,
 	if (!request)
 		return;
 
+	reg->region = request->dfs_region;
 	switch (request->initiator) {
 	case NL80211_REGDOM_SET_BY_CORE:
 		/*
@@ -560,7 +561,7 @@ static bool ath_regd_is_eeprom_valid(struct ath_regulatory *reg)
 			printk(KERN_DEBUG "ath: EEPROM indicates we "
 			       "should expect a direct regpair map\n");
 		for (i = 0; i < ARRAY_SIZE(regDomainPairs); i++)
-			if (regDomainPairs[i].regDmnEnum == rd)
+			if (regDomainPairs[i].reg_domain == rd)
 				return true;
 	}
 	printk(KERN_DEBUG
@@ -617,7 +618,7 @@ ath_get_regpair(int regdmn)
 	if (regdmn == NO_ENUMRD)
 		return NULL;
 	for (i = 0; i < ARRAY_SIZE(regDomainPairs); i++) {
-		if (regDomainPairs[i].regDmnEnum == regdmn)
+		if (regDomainPairs[i].reg_domain == regdmn)
 			return &regDomainPairs[i];
 	}
 	return NULL;
@@ -741,7 +742,7 @@ static int __ath_regd_init(struct ath_regulatory *reg)
 	printk(KERN_DEBUG "ath: Country alpha2 being used: %c%c\n",
 		reg->alpha2[0], reg->alpha2[1]);
 	printk(KERN_DEBUG "ath: Regpair used: 0x%0x\n",
-		reg->regpair->regDmnEnum);
+		reg->regpair->reg_domain);
 
 	return 0;
 }
@@ -777,6 +778,19 @@ u32 ath_regd_get_band_ctl(struct ath_regulatory *reg,
 	    (reg->country_code == CTRY_DEFAULT &&
 	     is_wwr_sku(ath_regd_get_eepromRD(reg)))) {
 		return SD_NO_CTL;
+	}
+
+	if (ath_regd_get_eepromRD(reg) == CTRY_DEFAULT) {
+		switch (reg->region) {
+		case NL80211_DFS_FCC:
+			return CTL_FCC;
+		case NL80211_DFS_ETSI:
+			return CTL_ETSI;
+		case NL80211_DFS_JP:
+			return CTL_MKK;
+		default:
+			break;
+		}
 	}
 
 	switch (band) {

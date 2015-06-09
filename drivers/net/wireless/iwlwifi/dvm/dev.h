@@ -708,7 +708,6 @@ struct iwl_priv {
 	unsigned long reload_jiffies;
 	int reload_count;
 	bool ucode_loaded;
-	bool init_ucode_run;		/* Don't run init uCode again */
 
 	u8 plcp_delta_threshold;
 
@@ -888,9 +887,11 @@ struct iwl_priv {
 
 	struct iwl_event_log event_log;
 
+#ifdef CONFIG_IWLWIFI_LEDS
 	struct led_classdev led;
 	unsigned long blink_on, blink_off;
 	bool led_registered;
+#endif
 
 	/* WoWLAN GTK rekey data */
 	u8 kck[NL80211_KCK_LEN], kek[NL80211_KEK_LEN];

@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/vfio.h>
+#include "vfio.h"
 
 struct kvm_vfio_group {
 	struct list_head node;
@@ -59,6 +60,22 @@ static void kvm_vfio_group_put_external_user(struct vfio_group *vfio_group)
 	symbol_put(vfio_group_put_external_user);
 }
 
+static bool kvm_vfio_group_is_coherent(struct vfio_group *vfio_group)
+{
+	long (*fn)(struct vfio_group *, unsigned long);
+	long ret;
+
+	fn = symbol_get(vfio_external_check_extension);
+	if (!fn)
+		return false;
+
+	ret = fn(vfio_group, VFIO_DMA_CC_IOMMU);
+
+	symbol_put(vfio_external_check_extension);
+
+	return ret > 0;
+}
+
 /*
  * Groups can use the same or different IOMMU domains.  If the same then
  * adding a new group may change the coherency of groups we've previously
@@ -75,13 +92,10 @@ static void kvm_vfio_update_coherency(struct kvm_device *dev)
 	mutex_lock(&kv->lock);
 
 	list_for_each_entry(kvg, &kv->group_list, node) {
-		/*
-		 * TODO: We need an interface to check the coherency of
-		 * the IOMMU domain this group is using.  For now, assume
-		 * it's always noncoherent.
-		 */
-		noncoherent = true;
-		break;
+		if (!kvm_vfio_group_is_coherent(kvg->vfio_group)) {
+			noncoherent = true;
+			break;
+		}
 	}
 
 	if (noncoherent != kv->noncoherent) {
@@ -233,6 +247,16 @@ static void kvm_vfio_destroy(struct kvm_device *dev)
 	kfree(dev); /* alloc by kvm_ioctl_create_device, free by .destroy */
 }
 
+static int kvm_vfio_create(struct kvm_device *dev, u32 type);
+
+static struct kvm_device_ops kvm_vfio_ops = {
+	.name = "kvm-vfio",
+	.create = kvm_vfio_create,
+	.destroy = kvm_vfio_destroy,
+	.set_attr = kvm_vfio_set_attr,
+	.has_attr = kvm_vfio_has_attr,
+};
+
 static int kvm_vfio_create(struct kvm_device *dev, u32 type)
 {
 	struct kvm_device *tmp;
@@ -255,10 +279,12 @@ static int kvm_vfio_create(struct kvm_device *dev, u32 type)
 	return 0;
 }
 
-struct kvm_device_ops kvm_vfio_ops = {
-	.name = "kvm-vfio",
-	.create = kvm_vfio_create,
-	.destroy = kvm_vfio_destroy,
-	.set_attr = kvm_vfio_set_attr,
-	.has_attr = kvm_vfio_has_attr,
-};
+int kvm_vfio_ops_init(void)
+{
+	return kvm_register_device_ops(&kvm_vfio_ops, KVM_DEV_TYPE_VFIO);
+}
+
+void kvm_vfio_ops_exit(void)
+{
+	kvm_unregister_device_ops(KVM_DEV_TYPE_VFIO);
+}

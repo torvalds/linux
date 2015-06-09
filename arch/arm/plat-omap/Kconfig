@@ -1,3 +1,6 @@
+config ARCH_OMAP
+	bool
+
 if ARCH_OMAP
 
 menu "TI OMAP Common Features"
@@ -85,9 +88,6 @@ config OMAP_MUX_WARNINGS
 	  Choose Y here to warn whenever driver initialization logic needs
 	  to change the pin multiplexing setup.	 When there are no warnings
 	  printed, it's safe to deselect OMAP_MUX for your product.
-
-config OMAP_IOMMU_IVA2
-	bool
 
 config OMAP_MPU_TIMER
 	bool "Use mpu timer"

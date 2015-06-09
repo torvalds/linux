@@ -15,10 +15,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- *
  * The full GNU General Public License is in this distribution in the file
  * called COPYING.
  *
@@ -96,6 +92,12 @@
 #include "virt-dma.h"
 
 #define DRIVER_NAME	"pl08xdmac"
+
+#define PL80X_DMA_BUSWIDTHS \
+	BIT(DMA_SLAVE_BUSWIDTH_UNDEFINED) | \
+	BIT(DMA_SLAVE_BUSWIDTH_1_BYTE) | \
+	BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) | \
+	BIT(DMA_SLAVE_BUSWIDTH_4_BYTES)
 
 static struct amba_driver pl08x_amba_driver;
 struct pl08x_driver_data;
@@ -1040,7 +1042,7 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 
 		if (early_bytes) {
 			dev_vdbg(&pl08x->adev->dev,
-				"%s byte width LLIs (remain 0x%08x)\n",
+				"%s byte width LLIs (remain 0x%08zx)\n",
 				__func__, bd.remainder);
 			prep_byte_width_lli(pl08x, &bd, &cctl, early_bytes,
 				num_llis++, &total_bytes);
@@ -1189,11 +1191,6 @@ static void pl08x_free_txd_list(struct pl08x_driver_data *pl08x,
 /*
  * The DMA ENGINE API
  */
-static int pl08x_alloc_chan_resources(struct dma_chan *chan)
-{
-	return 0;
-}
-
 static void pl08x_free_chan_resources(struct dma_chan *chan)
 {
 	/* Ensure all queued descriptors are freed */
@@ -1384,32 +1381,6 @@ static u32 pl08x_get_cctl(struct pl08x_dma_chan *plchan,
 	cctl |= burst << PL080_CONTROL_DB_SIZE_SHIFT;
 
 	return pl08x_cctl(cctl);
-}
-
-static int dma_set_runtime_config(struct dma_chan *chan,
-				  struct dma_slave_config *config)
-{
-	struct pl08x_dma_chan *plchan = to_pl08x_chan(chan);
-	struct pl08x_driver_data *pl08x = plchan->host;
-
-	if (!plchan->slave)
-		return -EINVAL;
-
-	/* Reject definitely invalid configurations */
-	if (config->src_addr_width == DMA_SLAVE_BUSWIDTH_8_BYTES ||
-	    config->dst_addr_width == DMA_SLAVE_BUSWIDTH_8_BYTES)
-		return -EINVAL;
-
-	if (config->device_fc && pl08x->vd->pl080s) {
-		dev_err(&pl08x->adev->dev,
-			"%s: PL080S does not support peripheral flow control\n",
-			__func__);
-		return -EINVAL;
-	}
-
-	plchan->cfg = *config;
-
-	return 0;
 }
 
 /*
@@ -1653,7 +1624,7 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 static struct dma_async_tx_descriptor *pl08x_prep_dma_cyclic(
 		struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
 		size_t period_len, enum dma_transfer_direction direction,
-		unsigned long flags, void *context)
+		unsigned long flags)
 {
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(chan);
 	struct pl08x_driver_data *pl08x = plchan->host;
@@ -1662,7 +1633,7 @@ static struct dma_async_tx_descriptor *pl08x_prep_dma_cyclic(
 	dma_addr_t slave_addr;
 
 	dev_dbg(&pl08x->adev->dev,
-		"%s prepare cyclic transaction of %d/%d bytes %s %s\n",
+		"%s prepare cyclic transaction of %zd/%zd bytes %s %s\n",
 		__func__, period_len, buf_len,
 		direction == DMA_MEM_TO_DEV ? "to" : "from",
 		plchan->name);
@@ -1693,19 +1664,70 @@ static struct dma_async_tx_descriptor *pl08x_prep_dma_cyclic(
 	return vchan_tx_prep(&plchan->vc, &txd->vd, flags);
 }
 
-static int pl08x_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-			 unsigned long arg)
+static int pl08x_config(struct dma_chan *chan,
+			struct dma_slave_config *config)
+{
+	struct pl08x_dma_chan *plchan = to_pl08x_chan(chan);
+	struct pl08x_driver_data *pl08x = plchan->host;
+
+	if (!plchan->slave)
+		return -EINVAL;
+
+	/* Reject definitely invalid configurations */
+	if (config->src_addr_width == DMA_SLAVE_BUSWIDTH_8_BYTES ||
+	    config->dst_addr_width == DMA_SLAVE_BUSWIDTH_8_BYTES)
+		return -EINVAL;
+
+	if (config->device_fc && pl08x->vd->pl080s) {
+		dev_err(&pl08x->adev->dev,
+			"%s: PL080S does not support peripheral flow control\n",
+			__func__);
+		return -EINVAL;
+	}
+
+	plchan->cfg = *config;
+
+	return 0;
+}
+
+static int pl08x_terminate_all(struct dma_chan *chan)
 {
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(chan);
 	struct pl08x_driver_data *pl08x = plchan->host;
 	unsigned long flags;
-	int ret = 0;
 
-	/* Controls applicable to inactive channels */
-	if (cmd == DMA_SLAVE_CONFIG) {
-		return dma_set_runtime_config(chan,
-					      (struct dma_slave_config *)arg);
+	spin_lock_irqsave(&plchan->vc.lock, flags);
+	if (!plchan->phychan && !plchan->at) {
+		spin_unlock_irqrestore(&plchan->vc.lock, flags);
+		return 0;
 	}
+
+	plchan->state = PL08X_CHAN_IDLE;
+
+	if (plchan->phychan) {
+		/*
+		 * Mark physical channel as free and free any slave
+		 * signal
+		 */
+		pl08x_phy_free(plchan);
+	}
+	/* Dequeue jobs and free LLIs */
+	if (plchan->at) {
+		pl08x_desc_free(&plchan->at->vd);
+		plchan->at = NULL;
+	}
+	/* Dequeue jobs not yet fired as well */
+	pl08x_free_txd_list(pl08x, plchan);
+
+	spin_unlock_irqrestore(&plchan->vc.lock, flags);
+
+	return 0;
+}
+
+static int pl08x_pause(struct dma_chan *chan)
+{
+	struct pl08x_dma_chan *plchan = to_pl08x_chan(chan);
+	unsigned long flags;
 
 	/*
 	 * Anything succeeds on channels with no physical allocation and
@@ -1717,42 +1739,35 @@ static int pl08x_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 		return 0;
 	}
 
-	switch (cmd) {
-	case DMA_TERMINATE_ALL:
-		plchan->state = PL08X_CHAN_IDLE;
-
-		if (plchan->phychan) {
-			/*
-			 * Mark physical channel as free and free any slave
-			 * signal
-			 */
-			pl08x_phy_free(plchan);
-		}
-		/* Dequeue jobs and free LLIs */
-		if (plchan->at) {
-			pl08x_desc_free(&plchan->at->vd);
-			plchan->at = NULL;
-		}
-		/* Dequeue jobs not yet fired as well */
-		pl08x_free_txd_list(pl08x, plchan);
-		break;
-	case DMA_PAUSE:
-		pl08x_pause_phy_chan(plchan->phychan);
-		plchan->state = PL08X_CHAN_PAUSED;
-		break;
-	case DMA_RESUME:
-		pl08x_resume_phy_chan(plchan->phychan);
-		plchan->state = PL08X_CHAN_RUNNING;
-		break;
-	default:
-		/* Unknown command */
-		ret = -ENXIO;
-		break;
-	}
+	pl08x_pause_phy_chan(plchan->phychan);
+	plchan->state = PL08X_CHAN_PAUSED;
 
 	spin_unlock_irqrestore(&plchan->vc.lock, flags);
 
-	return ret;
+	return 0;
+}
+
+static int pl08x_resume(struct dma_chan *chan)
+{
+	struct pl08x_dma_chan *plchan = to_pl08x_chan(chan);
+	unsigned long flags;
+
+	/*
+	 * Anything succeeds on channels with no physical allocation and
+	 * no queued transfers.
+	 */
+	spin_lock_irqsave(&plchan->vc.lock, flags);
+	if (!plchan->phychan && !plchan->at) {
+		spin_unlock_irqrestore(&plchan->vc.lock, flags);
+		return 0;
+	}
+
+	pl08x_resume_phy_chan(plchan->phychan);
+	plchan->state = PL08X_CHAN_RUNNING;
+
+	spin_unlock_irqrestore(&plchan->vc.lock, flags);
+
+	return 0;
 }
 
 bool pl08x_filter_id(struct dma_chan *chan, void *chan_id)
@@ -2042,26 +2057,38 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	/* Initialize memcpy engine */
 	dma_cap_set(DMA_MEMCPY, pl08x->memcpy.cap_mask);
 	pl08x->memcpy.dev = &adev->dev;
-	pl08x->memcpy.device_alloc_chan_resources = pl08x_alloc_chan_resources;
 	pl08x->memcpy.device_free_chan_resources = pl08x_free_chan_resources;
 	pl08x->memcpy.device_prep_dma_memcpy = pl08x_prep_dma_memcpy;
 	pl08x->memcpy.device_prep_dma_interrupt = pl08x_prep_dma_interrupt;
 	pl08x->memcpy.device_tx_status = pl08x_dma_tx_status;
 	pl08x->memcpy.device_issue_pending = pl08x_issue_pending;
-	pl08x->memcpy.device_control = pl08x_control;
+	pl08x->memcpy.device_config = pl08x_config;
+	pl08x->memcpy.device_pause = pl08x_pause;
+	pl08x->memcpy.device_resume = pl08x_resume;
+	pl08x->memcpy.device_terminate_all = pl08x_terminate_all;
+	pl08x->memcpy.src_addr_widths = PL80X_DMA_BUSWIDTHS;
+	pl08x->memcpy.dst_addr_widths = PL80X_DMA_BUSWIDTHS;
+	pl08x->memcpy.directions = BIT(DMA_MEM_TO_MEM);
+	pl08x->memcpy.residue_granularity = DMA_RESIDUE_GRANULARITY_SEGMENT;
 
 	/* Initialize slave engine */
 	dma_cap_set(DMA_SLAVE, pl08x->slave.cap_mask);
 	dma_cap_set(DMA_CYCLIC, pl08x->slave.cap_mask);
 	pl08x->slave.dev = &adev->dev;
-	pl08x->slave.device_alloc_chan_resources = pl08x_alloc_chan_resources;
 	pl08x->slave.device_free_chan_resources = pl08x_free_chan_resources;
 	pl08x->slave.device_prep_dma_interrupt = pl08x_prep_dma_interrupt;
 	pl08x->slave.device_tx_status = pl08x_dma_tx_status;
 	pl08x->slave.device_issue_pending = pl08x_issue_pending;
 	pl08x->slave.device_prep_slave_sg = pl08x_prep_slave_sg;
 	pl08x->slave.device_prep_dma_cyclic = pl08x_prep_dma_cyclic;
-	pl08x->slave.device_control = pl08x_control;
+	pl08x->slave.device_config = pl08x_config;
+	pl08x->slave.device_pause = pl08x_pause;
+	pl08x->slave.device_resume = pl08x_resume;
+	pl08x->slave.device_terminate_all = pl08x_terminate_all;
+	pl08x->slave.src_addr_widths = PL80X_DMA_BUSWIDTHS;
+	pl08x->slave.dst_addr_widths = PL80X_DMA_BUSWIDTHS;
+	pl08x->slave.directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
+	pl08x->slave.residue_granularity = DMA_RESIDUE_GRANULARITY_SEGMENT;
 
 	/* Get the platform data */
 	pl08x->pd = dev_get_platdata(&adev->dev);
@@ -2164,7 +2191,6 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 			 __func__, ret);
 		goto out_no_memcpy;
 	}
-	pl08x->memcpy.chancnt = ret;
 
 	/* Register slave channels */
 	ret = pl08x_dma_init_virtual_channels(pl08x, &pl08x->slave,
@@ -2175,7 +2201,6 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 				__func__, ret);
 		goto out_no_slave;
 	}
-	pl08x->slave.chancnt = ret;
 
 	ret = dma_async_device_register(&pl08x->memcpy);
 	if (ret) {

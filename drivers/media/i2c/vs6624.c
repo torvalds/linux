@@ -30,21 +30,9 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mediabus.h>
+#include <media/v4l2-image-sizes.h>
 
 #include "vs6624_regs.h"
-
-#define VGA_WIDTH       640
-#define VGA_HEIGHT      480
-#define QVGA_WIDTH      320
-#define QVGA_HEIGHT     240
-#define QQVGA_WIDTH     160
-#define QQVGA_HEIGHT    120
-#define CIF_WIDTH       352
-#define CIF_HEIGHT      288
-#define QCIF_WIDTH      176
-#define QCIF_HEIGHT     144
-#define QQCIF_WIDTH     88
-#define QQCIF_HEIGHT    72
 
 #define MAX_FRAME_RATE  30
 
@@ -57,19 +45,19 @@ struct vs6624 {
 };
 
 static const struct vs6624_format {
-	enum v4l2_mbus_pixelcode mbus_code;
+	u32 mbus_code;
 	enum v4l2_colorspace colorspace;
 } vs6624_formats[] = {
 	{
-		.mbus_code      = V4L2_MBUS_FMT_UYVY8_2X8,
+		.mbus_code      = MEDIA_BUS_FMT_UYVY8_2X8,
 		.colorspace     = V4L2_COLORSPACE_JPEG,
 	},
 	{
-		.mbus_code      = V4L2_MBUS_FMT_YUYV8_2X8,
+		.mbus_code      = MEDIA_BUS_FMT_YUYV8_2X8,
 		.colorspace     = V4L2_COLORSPACE_JPEG,
 	},
 	{
-		.mbus_code      = V4L2_MBUS_FMT_RGB565_2X8_LE,
+		.mbus_code      = MEDIA_BUS_FMT_RGB565_2X8_LE,
 		.colorspace     = V4L2_COLORSPACE_SRGB,
 	},
 };
@@ -77,7 +65,7 @@ static const struct vs6624_format {
 static struct v4l2_mbus_framefmt vs6624_default_fmt = {
 	.width = VGA_WIDTH,
 	.height = VGA_HEIGHT,
-	.code = V4L2_MBUS_FMT_UYVY8_2X8,
+	.code = MEDIA_BUS_FMT_UYVY8_2X8,
 	.field = V4L2_FIELD_NONE,
 	.colorspace = V4L2_COLORSPACE_JPEG,
 };
@@ -570,7 +558,7 @@ static int vs6624_s_ctrl(struct v4l2_ctrl *ctrl)
 }
 
 static int vs6624_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned index,
-				enum v4l2_mbus_pixelcode *code)
+				u32 *code)
 {
 	if (index >= ARRAY_SIZE(vs6624_formats))
 		return -EINVAL;
@@ -617,15 +605,15 @@ static int vs6624_s_mbus_fmt(struct v4l2_subdev *sd,
 
 	/* set image format */
 	switch (fmt->code) {
-	case V4L2_MBUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
 		vs6624_write(sd, VS6624_IMG_FMT0, 0x0);
 		vs6624_write(sd, VS6624_YUV_SETUP, 0x1);
 		break;
-	case V4L2_MBUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
 		vs6624_write(sd, VS6624_IMG_FMT0, 0x0);
 		vs6624_write(sd, VS6624_YUV_SETUP, 0x3);
 		break;
-	case V4L2_MBUS_FMT_RGB565_2X8_LE:
+	case MEDIA_BUS_FMT_RGB565_2X8_LE:
 		vs6624_write(sd, VS6624_IMG_FMT0, 0x4);
 		vs6624_write(sd, VS6624_RGB_SETUP, 0x0);
 		break;

@@ -27,6 +27,15 @@
 void __iomem *at91_pmc_base;
 EXPORT_SYMBOL_GPL(at91_pmc_base);
 
+void at91rm9200_idle(void)
+{
+	/*
+	 * Disable the processor clock.  The processor will be automatically
+	 * re-enabled by an interrupt or by a reset.
+	 */
+	at91_pmc_write(AT91_PMC_SCDR, AT91_PMC_PCK);
+}
+
 void at91sam9_idle(void)
 {
 	at91_pmc_write(AT91_PMC_SCDR, AT91_PMC_PCK);
@@ -80,12 +89,29 @@ static int pmc_irq_set_type(struct irq_data *d, unsigned type)
 	return 0;
 }
 
+static void pmc_irq_suspend(struct irq_data *d)
+{
+	struct at91_pmc *pmc = irq_data_get_irq_chip_data(d);
+
+	pmc->imr = pmc_read(pmc, AT91_PMC_IMR);
+	pmc_write(pmc, AT91_PMC_IDR, pmc->imr);
+}
+
+static void pmc_irq_resume(struct irq_data *d)
+{
+	struct at91_pmc *pmc = irq_data_get_irq_chip_data(d);
+
+	pmc_write(pmc, AT91_PMC_IER, pmc->imr);
+}
+
 static struct irq_chip pmc_irq = {
 	.name = "PMC",
 	.irq_disable = pmc_irq_mask,
 	.irq_mask = pmc_irq_mask,
 	.irq_unmask = pmc_irq_unmask,
 	.irq_set_type = pmc_irq_set_type,
+	.irq_suspend = pmc_irq_suspend,
+	.irq_resume = pmc_irq_resume,
 };
 
 static struct lock_class_key pmc_lock_class;
@@ -215,7 +241,8 @@ static struct at91_pmc *__init at91_pmc_init(struct device_node *np,
 		goto out_free_pmc;
 
 	pmc_write(pmc, AT91_PMC_IDR, 0xffffffff);
-	if (request_irq(pmc->virq, pmc_irq_handler, IRQF_SHARED, "pmc", pmc))
+	if (request_irq(pmc->virq, pmc_irq_handler,
+			IRQF_SHARED | IRQF_COND_SUSPEND, "pmc", pmc))
 		goto out_remove_irqdomain;
 
 	return pmc;
@@ -229,10 +256,27 @@ out_free_pmc:
 }
 
 static const struct of_device_id pmc_clk_ids[] __initconst = {
+	/* Slow oscillator */
+	{
+		.compatible = "atmel,at91sam9260-clk-slow",
+		.data = of_at91sam9260_clk_slow_setup,
+	},
 	/* Main clock */
+	{
+		.compatible = "atmel,at91rm9200-clk-main-osc",
+		.data = of_at91rm9200_clk_main_osc_setup,
+	},
+	{
+		.compatible = "atmel,at91sam9x5-clk-main-rc-osc",
+		.data = of_at91sam9x5_clk_main_rc_osc_setup,
+	},
 	{
 		.compatible = "atmel,at91rm9200-clk-main",
 		.data = of_at91rm9200_clk_main_setup,
+	},
+	{
+		.compatible = "atmel,at91sam9x5-clk-main",
+		.data = of_at91sam9x5_clk_main_setup,
 	},
 	/* PLL clocks */
 	{
@@ -318,6 +362,12 @@ static const struct of_device_id pmc_clk_ids[] __initconst = {
 	{
 		.compatible = "atmel,at91sam9x5-clk-smd",
 		.data = of_at91sam9x5_clk_smd_setup,
+	},
+#endif
+#if defined(CONFIG_HAVE_AT91_H32MX)
+	{
+		.compatible = "atmel,sama5d4-clk-h32mx",
+		.data = of_sama5d4_clk_h32mx_setup,
 	},
 #endif
 	{ /*sentinel*/ }

@@ -365,7 +365,7 @@ static int da9063_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 
 	sel = regulator_map_voltage_linear(rdev, uV, uV);
 	if (sel < 0)
-		return -EINVAL;
+		return sel;
 
 	sel <<= ffs(rdev->desc->vsel_mask) - 1;
 
@@ -666,7 +666,7 @@ static struct da9063_regulators_pdata *da9063_parse_regulators_dt(
 	struct device_node *node;
 	int i, n, num;
 
-	node = of_find_node_by_name(pdev->dev.parent->of_node, "regulators");
+	node = of_get_child_by_name(pdev->dev.parent->of_node, "regulators");
 	if (!node) {
 		dev_err(&pdev->dev, "Regulators device node not found\n");
 		return ERR_PTR(-ENODEV);
@@ -674,6 +674,7 @@ static struct da9063_regulators_pdata *da9063_parse_regulators_dt(
 
 	num = of_regulator_match(&pdev->dev, node, da9063_matches,
 				 ARRAY_SIZE(da9063_matches));
+	of_node_put(node);
 	if (num < 0) {
 		dev_err(&pdev->dev, "Failed to match regulators\n");
 		return ERR_PTR(-EINVAL);
@@ -710,7 +711,7 @@ static struct da9063_regulators_pdata *da9063_parse_regulators_dt(
 		struct platform_device *pdev,
 		struct of_regulator_match **da9063_reg_matches)
 {
-	da9063_reg_matches = NULL;
+	*da9063_reg_matches = NULL;
 	return ERR_PTR(-ENODEV);
 }
 #endif
@@ -756,7 +757,7 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(&pdev->dev,
 			"Error while reading BUCKs configuration\n");
-		return -EIO;
+		return ret;
 	}
 	bcores_merged = val & DA9063_BCORE_MERGE;
 	bmem_bio_merged = val & DA9063_BUCK_MERGE;
@@ -775,10 +776,8 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 	size = sizeof(struct da9063_regulators) +
 		n_regulators * sizeof(struct da9063_regulator);
 	regulators = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
-	if (!regulators) {
-		dev_err(&pdev->dev, "No memory for regulators\n");
+	if (!regulators)
 		return -ENOMEM;
-	}
 
 	regulators->n_regulators = n_regulators;
 	platform_set_drvdata(pdev, regulators);
@@ -868,17 +867,14 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	regulators->irq_ldo_lim = regmap_irq_get_virq(da9063->regmap_irq, irq);
-	if (regulators->irq_ldo_lim >= 0) {
-		ret = request_threaded_irq(regulators->irq_ldo_lim,
-					   NULL, da9063_ldo_lim_event,
-					   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-					   "LDO_LIM", regulators);
-		if (ret) {
-			dev_err(&pdev->dev,
-					"Failed to request LDO_LIM IRQ.\n");
-			regulators->irq_ldo_lim = -ENXIO;
-		}
+	ret = request_threaded_irq(irq,
+				NULL, da9063_ldo_lim_event,
+				IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+				"LDO_LIM", regulators);
+	if (ret) {
+		dev_err(&pdev->dev,
+				"Failed to request LDO_LIM IRQ.\n");
+		regulators->irq_ldo_lim = -ENXIO;
 	}
 
 	return 0;
@@ -897,7 +893,6 @@ static int da9063_regulator_remove(struct platform_device *pdev)
 static struct platform_driver da9063_regulator_driver = {
 	.driver = {
 		.name = DA9063_DRVNAME_REGULATORS,
-		.owner = THIS_MODULE,
 	},
 	.probe = da9063_regulator_probe,
 	.remove = da9063_regulator_remove,

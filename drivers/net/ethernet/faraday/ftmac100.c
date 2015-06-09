@@ -1085,7 +1085,7 @@ static int ftmac100_probe(struct platform_device *pdev)
 	}
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
-	SET_ETHTOOL_OPS(netdev, &ftmac100_ethtool_ops);
+	netdev->ethtool_ops = &ftmac100_ethtool_ops;
 	netdev->netdev_ops = &ftmac100_netdev_ops;
 
 	platform_set_drvdata(pdev, netdev);
@@ -1177,7 +1177,6 @@ static struct platform_driver ftmac100_driver = {
 	.remove		= __exit_p(ftmac100_remove),
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 

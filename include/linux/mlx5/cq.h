@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -80,6 +80,7 @@ enum {
 	MLX5_CQE_RESP_SEND_IMM	= 3,
 	MLX5_CQE_RESP_SEND_INV	= 4,
 	MLX5_CQE_RESIZE_CQ	= 5,
+	MLX5_CQE_SIG_ERR	= 12,
 	MLX5_CQE_REQ_ERR	= 13,
 	MLX5_CQE_RESP_ERR	= 14,
 	MLX5_CQE_INVALID	= 15,
@@ -136,14 +137,15 @@ enum {
 
 static inline void mlx5_cq_arm(struct mlx5_core_cq *cq, u32 cmd,
 			       void __iomem *uar_page,
-			       spinlock_t *doorbell_lock)
+			       spinlock_t *doorbell_lock,
+			       u32 cons_index)
 {
 	__be32 doorbell[2];
 	u32 sn;
 	u32 ci;
 
 	sn = cq->arm_sn & 3;
-	ci = cq->cons_index & 0xffffff;
+	ci = cons_index & 0xffffff;
 
 	*cq->arm_db = cpu_to_be32(sn << 28 | cmd | ci);
 

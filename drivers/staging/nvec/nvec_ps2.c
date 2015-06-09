@@ -53,12 +53,14 @@ static struct nvec_ps2 ps2_dev;
 static int ps2_startstreaming(struct serio *ser_dev)
 {
 	unsigned char buf[] = { NVEC_PS2, AUTO_RECEIVE_N, PACKET_SIZE };
+
 	return nvec_write_async(ps2_dev.nvec, buf, sizeof(buf));
 }
 
 static void ps2_stopstreaming(struct serio *ser_dev)
 {
 	unsigned char buf[] = { NVEC_PS2, CANCEL_AUTO_RECEIVE };
+
 	nvec_write_async(ps2_dev.nvec, buf, sizeof(buf));
 }
 
@@ -106,8 +108,8 @@ static int nvec_mouse_probe(struct platform_device *pdev)
 	struct serio *ser_dev;
 	char mouse_reset[] = { NVEC_PS2, SEND_COMMAND, PSMOUSE_RST, 3 };
 
-	ser_dev = kzalloc(sizeof(struct serio), GFP_KERNEL);
-	if (ser_dev == NULL)
+	ser_dev = devm_kzalloc(&pdev->dev, sizeof(struct serio), GFP_KERNEL);
+	if (!ser_dev)
 		return -ENOMEM;
 
 	ser_dev->id.type = SERIO_PS_PSTHRU;
@@ -175,7 +177,6 @@ static struct platform_driver nvec_mouse_driver = {
 	.remove = nvec_mouse_remove,
 	.driver = {
 		.name = "nvec-mouse",
-		.owner = THIS_MODULE,
 		.pm = &nvec_mouse_pm_ops,
 	},
 };

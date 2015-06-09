@@ -29,7 +29,7 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
-config NO_IOPORT
+config NO_IOPORT_MAP
 	def_bool y
 
 config FORCE_MAX_ZONEORDER
@@ -46,16 +46,30 @@ config CRIS
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select GENERIC_IRQ_SHOW
 	select GENERIC_IOMAP
-	select GENERIC_SMP_IDLE_THREAD if ETRAX_ARCH_V32
 	select GENERIC_CMOS_UPDATE
 	select MODULES_USE_ELF_RELA
 	select CLONE_BACKWARDS2
 	select OLD_SIGSUSPEND
 	select OLD_SIGACTION
+	select ARCH_REQUIRE_GPIOLIB
+	select IRQ_DOMAIN if ETRAX_ARCH_V32
+	select OF if ETRAX_ARCH_V32
+	select OF_EARLY_FLATTREE if ETRAX_ARCH_V32
+	select CLKSRC_MMIO if ETRAX_ARCH_V32
+	select GENERIC_CLOCKEVENTS if ETRAX_ARCH_V32
+	select GENERIC_SCHED_CLOCK if ETRAX_ARCH_V32
 
 config HZ
 	int
 	default 100
+
+config NR_CPUS
+	int
+	default "1"
+
+config BUILTIN_DTB
+	string "DTB to build into the kernel image"
+	depends on OF
 
 source "init/Kconfig"
 
@@ -138,6 +152,7 @@ config ETRAX_ARCH_V10
        bool
        default y if ETRAX100LX || ETRAX100LX_V2
        default n if !(ETRAX100LX || ETRAX100LX_V2)
+       select TTY
 
 config ETRAX_ARCH_V32
        bool

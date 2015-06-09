@@ -80,7 +80,6 @@ struct txx9spi {
 	void __iomem *membase;
 	int baseclk;
 	struct clk *clk;
-	u32 max_speed_hz, min_speed_hz;
 	int last_chipselect;
 	int last_chipselect_val;
 };
@@ -98,6 +97,7 @@ static void txx9spi_cs_func(struct spi_device *spi, struct txx9spi *c,
 		int on, unsigned int cs_delay)
 {
 	int val = (spi->mode & SPI_CS_HIGH) ? on : !on;
+
 	if (on) {
 		/* deselect the chip with cs_change hint in last transfer */
 		if (c->last_chipselect >= 0)
@@ -117,9 +117,7 @@ static int txx9spi_setup(struct spi_device *spi)
 {
 	struct txx9spi *c = spi_master_get_devdata(spi->master);
 
-	if (!spi->max_speed_hz
-			|| spi->max_speed_hz > c->max_speed_hz
-			|| spi->max_speed_hz < c->min_speed_hz)
+	if (!spi->max_speed_hz)
 		return -EINVAL;
 
 	if (gpio_direction_output(spi->chip_select,
@@ -191,6 +189,7 @@ static void txx9spi_work_one(struct txx9spi *c, struct spi_message *m)
 		if (prev_speed_hz != speed_hz
 				|| prev_bits_per_word != bits_per_word) {
 			int n = DIV_ROUND_UP(c->baseclk, speed_hz) - 1;
+
 			n = clamp(n, SPI_MIN_DIVIDER, SPI_MAX_DIVIDER);
 			/* enter config mode */
 			txx9spi_wr(c, mcr | TXx9_SPMCR_CONFIG | TXx9_SPMCR_BCLR,
@@ -265,7 +264,8 @@ static void txx9spi_work_one(struct txx9spi *c, struct spi_message *m)
 
 exit:
 	m->status = status;
-	m->complete(m->context);
+	if (m->complete)
+		m->complete(m->context);
 
 	/* normally deactivate chipselect ... unless no error and
 	 * cs_change has hinted that the next message will probably
@@ -309,14 +309,7 @@ static int txx9spi_transfer(struct spi_device *spi, struct spi_message *m)
 
 	/* check each transfer's parameters */
 	list_for_each_entry(t, &m->transfers, transfer_list) {
-		u32 speed_hz = t->speed_hz ? : spi->max_speed_hz;
-		u8 bits_per_word = t->bits_per_word;
-
 		if (!t->tx_buf && !t->rx_buf && t->len)
-			return -EINVAL;
-		if (t->len & ((bits_per_word >> 3) - 1))
-			return -EINVAL;
-		if (speed_hz < c->min_speed_hz || speed_hz > c->max_speed_hz)
 			return -EINVAL;
 	}
 
@@ -360,17 +353,12 @@ static int txx9spi_probe(struct platform_device *dev)
 		goto exit;
 	}
 	c->baseclk = clk_get_rate(c->clk);
-	c->min_speed_hz = DIV_ROUND_UP(c->baseclk, SPI_MAX_DIVIDER + 1);
-	c->max_speed_hz = c->baseclk / (SPI_MIN_DIVIDER + 1);
+	master->min_speed_hz = DIV_ROUND_UP(c->baseclk, SPI_MAX_DIVIDER + 1);
+	master->max_speed_hz = c->baseclk / (SPI_MIN_DIVIDER + 1);
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	if (!res)
-		goto exit_busy;
-	if (!devm_request_mem_region(&dev->dev, res->start, resource_size(res),
-				     "spi_txx9"))
-		goto exit_busy;
-	c->membase = devm_ioremap(&dev->dev, res->start, resource_size(res));
-	if (!c->membase)
+	c->membase = devm_ioremap_resource(&dev->dev, res);
+	if (IS_ERR(c->membase))
 		goto exit_busy;
 
 	/* enter config mode */
@@ -414,8 +402,7 @@ exit_busy:
 exit:
 	if (c->workqueue)
 		destroy_workqueue(c->workqueue);
-	if (c->clk)
-		clk_disable(c->clk);
+	clk_disable(c->clk);
 	spi_master_put(master);
 	return ret;
 }
@@ -438,7 +425,6 @@ static struct platform_driver txx9spi_driver = {
 	.remove = txx9spi_remove,
 	.driver = {
 		.name = "spi_txx9",
-		.owner = THIS_MODULE,
 	},
 };
 

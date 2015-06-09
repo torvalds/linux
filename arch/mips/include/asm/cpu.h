@@ -67,7 +67,7 @@
 #define PRID_IMP_R4300		0x0b00
 #define PRID_IMP_VR41XX		0x0c00
 #define PRID_IMP_R12000		0x0e00
-#define PRID_IMP_R14000		0x0f00
+#define PRID_IMP_R14000		0x0f00		/* R14K && R16K */
 #define PRID_IMP_R8000		0x1000
 #define PRID_IMP_PR4450		0x1200
 #define PRID_IMP_R4600		0x2000
@@ -82,10 +82,10 @@
 #define PRID_IMP_RM7000		0x2700
 #define PRID_IMP_NEVADA		0x2800		/* RM5260 ??? */
 #define PRID_IMP_RM9000		0x3400
-#define PRID_IMP_LOONGSON1	0x4200
+#define PRID_IMP_LOONGSON_32	0x4200  /* Loongson-1 */
 #define PRID_IMP_R5432		0x5400
 #define PRID_IMP_R5500		0x5500
-#define PRID_IMP_LOONGSON2	0x6300
+#define PRID_IMP_LOONGSON_64	0x6300  /* Loongson-2/3 */
 
 #define PRID_IMP_UNKNOWN	0xff00
 
@@ -93,6 +93,7 @@
  * These are the PRID's for when 23:16 == PRID_COMP_MIPS
  */
 
+#define PRID_IMP_QEMU_GENERIC	0x0000
 #define PRID_IMP_4KC		0x8000
 #define PRID_IMP_5KC		0x8100
 #define PRID_IMP_20KC		0x8200
@@ -115,6 +116,8 @@
 #define PRID_IMP_INTERAPTIV_MP	0xa100
 #define PRID_IMP_PROAPTIV_UP	0xa200
 #define PRID_IMP_PROAPTIV_MP	0xa300
+#define PRID_IMP_M5150		0xa700
+#define PRID_IMP_P5600		0xa800
 
 /*
  * These are the PRID's for when 23:16 == PRID_COMP_SIBYTE
@@ -140,6 +143,7 @@
 #define PRID_IMP_BMIPS3300_BUG	0x0000
 #define PRID_IMP_BMIPS43XX	0xa000
 #define PRID_IMP_BMIPS5000	0x5a00
+#define PRID_IMP_BMIPS5200	0x5b00
 
 #define PRID_REV_BMIPS4380_LO	0x0040
 #define PRID_REV_BMIPS4380_HI	0x006f
@@ -199,6 +203,7 @@
 #define PRID_IMP_NETLOGIC_XLP3XX	0x1100
 #define PRID_IMP_NETLOGIC_XLP2XX	0x1200
 #define PRID_IMP_NETLOGIC_XLP9XX	0x1500
+#define PRID_IMP_NETLOGIC_XLP5XX	0x1300
 
 /*
  * Particular Revision values for bits 7:0 of the PRId register.
@@ -229,6 +234,9 @@
 #define PRID_REV_LOONGSON1B	0x0020
 #define PRID_REV_LOONGSON2E	0x0002
 #define PRID_REV_LOONGSON2F	0x0003
+#define PRID_REV_LOONGSON3A	0x0005
+#define PRID_REV_LOONGSON3B_R1	0x0006
+#define PRID_REV_LOONGSON3B_R2	0x0007
 
 /*
  * Older processors used to encode processor version and revision in two
@@ -276,9 +284,9 @@ enum cpu_type_enum {
 	CPU_R4000PC, CPU_R4000SC, CPU_R4000MC, CPU_R4200, CPU_R4300, CPU_R4310,
 	CPU_R4400PC, CPU_R4400SC, CPU_R4400MC, CPU_R4600, CPU_R4640, CPU_R4650,
 	CPU_R4700, CPU_R5000, CPU_R5500, CPU_NEVADA, CPU_R5432, CPU_R10000,
-	CPU_R12000, CPU_R14000, CPU_VR41XX, CPU_VR4111, CPU_VR4121, CPU_VR4122,
-	CPU_VR4131, CPU_VR4133, CPU_VR4181, CPU_VR4181A, CPU_RM7000,
-	CPU_SR71000, CPU_RM9000, CPU_TX49XX,
+	CPU_R12000, CPU_R14000, CPU_R16000, CPU_VR41XX, CPU_VR4111, CPU_VR4121,
+	CPU_VR4122, CPU_VR4131, CPU_VR4133, CPU_VR4181, CPU_VR4181A, CPU_RM7000,
+	CPU_SR71000, CPU_TX49XX,
 
 	/*
 	 * R8000 class processors
@@ -296,14 +304,16 @@ enum cpu_type_enum {
 	CPU_4KC, CPU_4KEC, CPU_4KSC, CPU_24K, CPU_34K, CPU_1004K, CPU_74K,
 	CPU_ALCHEMY, CPU_PR4450, CPU_BMIPS32, CPU_BMIPS3300, CPU_BMIPS4350,
 	CPU_BMIPS4380, CPU_BMIPS5000, CPU_JZRISC, CPU_LOONGSON1, CPU_M14KC,
-	CPU_M14KEC, CPU_INTERAPTIV, CPU_PROAPTIV,
+	CPU_M14KEC, CPU_INTERAPTIV, CPU_P5600, CPU_PROAPTIV, CPU_1074K, CPU_M5150,
 
 	/*
 	 * MIPS64 class processors
 	 */
 	CPU_5KC, CPU_5KE, CPU_20KC, CPU_25KF, CPU_SB1, CPU_SB1A, CPU_LOONGSON2,
-	CPU_CAVIUM_OCTEON, CPU_CAVIUM_OCTEON_PLUS, CPU_CAVIUM_OCTEON2,
-	CPU_CAVIUM_OCTEON3, CPU_XLR, CPU_XLP,
+	CPU_LOONGSON3, CPU_CAVIUM_OCTEON, CPU_CAVIUM_OCTEON_PLUS,
+	CPU_CAVIUM_OCTEON2, CPU_CAVIUM_OCTEON3, CPU_XLR, CPU_XLP,
+
+	CPU_QEMU_GENERIC,
 
 	CPU_LAST
 };
@@ -322,42 +332,53 @@ enum cpu_type_enum {
 #define MIPS_CPU_ISA_M32R2	0x00000020
 #define MIPS_CPU_ISA_M64R1	0x00000040
 #define MIPS_CPU_ISA_M64R2	0x00000080
+#define MIPS_CPU_ISA_M32R6	0x00000100
+#define MIPS_CPU_ISA_M64R6	0x00000200
 
 #define MIPS_CPU_ISA_32BIT (MIPS_CPU_ISA_II | MIPS_CPU_ISA_M32R1 | \
-	MIPS_CPU_ISA_M32R2)
+	MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M32R6)
 #define MIPS_CPU_ISA_64BIT (MIPS_CPU_ISA_III | MIPS_CPU_ISA_IV | \
-	MIPS_CPU_ISA_V | MIPS_CPU_ISA_M64R1 | MIPS_CPU_ISA_M64R2)
+	MIPS_CPU_ISA_V | MIPS_CPU_ISA_M64R1 | MIPS_CPU_ISA_M64R2 | \
+	MIPS_CPU_ISA_M64R6)
 
 /*
  * CPU Option encodings
  */
-#define MIPS_CPU_TLB		0x00000001 /* CPU has TLB */
-#define MIPS_CPU_4KEX		0x00000002 /* "R4K" exception model */
-#define MIPS_CPU_3K_CACHE	0x00000004 /* R3000-style caches */
-#define MIPS_CPU_4K_CACHE	0x00000008 /* R4000-style caches */
-#define MIPS_CPU_TX39_CACHE	0x00000010 /* TX3900-style caches */
-#define MIPS_CPU_FPU		0x00000020 /* CPU has FPU */
-#define MIPS_CPU_32FPR		0x00000040 /* 32 dbl. prec. FP registers */
-#define MIPS_CPU_COUNTER	0x00000080 /* Cycle count/compare */
-#define MIPS_CPU_WATCH		0x00000100 /* watchpoint registers */
-#define MIPS_CPU_DIVEC		0x00000200 /* dedicated interrupt vector */
-#define MIPS_CPU_VCE		0x00000400 /* virt. coherence conflict possible */
-#define MIPS_CPU_CACHE_CDEX_P	0x00000800 /* Create_Dirty_Exclusive CACHE op */
-#define MIPS_CPU_CACHE_CDEX_S	0x00001000 /* ... same for seconary cache ... */
-#define MIPS_CPU_MCHECK		0x00002000 /* Machine check exception */
-#define MIPS_CPU_EJTAG		0x00004000 /* EJTAG exception */
-#define MIPS_CPU_NOFPUEX	0x00008000 /* no FPU exception */
-#define MIPS_CPU_LLSC		0x00010000 /* CPU has ll/sc instructions */
-#define MIPS_CPU_INCLUSIVE_CACHES	0x00020000 /* P-cache subset enforced */
-#define MIPS_CPU_PREFETCH	0x00040000 /* CPU has usable prefetch */
-#define MIPS_CPU_VINT		0x00080000 /* CPU supports MIPSR2 vectored interrupts */
-#define MIPS_CPU_VEIC		0x00100000 /* CPU supports MIPSR2 external interrupt controller mode */
-#define MIPS_CPU_ULRI		0x00200000 /* CPU has ULRI feature */
-#define MIPS_CPU_PCI		0x00400000 /* CPU has Perf Ctr Int indicator */
-#define MIPS_CPU_RIXI		0x00800000 /* CPU has TLB Read/eXec Inhibit */
-#define MIPS_CPU_MICROMIPS	0x01000000 /* CPU has microMIPS capability */
-#define MIPS_CPU_TLBINV		0x02000000 /* CPU supports TLBINV/F */
-#define MIPS_CPU_SEGMENTS	0x04000000 /* CPU supports Segmentation Control registers */
+#define MIPS_CPU_TLB		0x00000001ull /* CPU has TLB */
+#define MIPS_CPU_4KEX		0x00000002ull /* "R4K" exception model */
+#define MIPS_CPU_3K_CACHE	0x00000004ull /* R3000-style caches */
+#define MIPS_CPU_4K_CACHE	0x00000008ull /* R4000-style caches */
+#define MIPS_CPU_TX39_CACHE	0x00000010ull /* TX3900-style caches */
+#define MIPS_CPU_FPU		0x00000020ull /* CPU has FPU */
+#define MIPS_CPU_32FPR		0x00000040ull /* 32 dbl. prec. FP registers */
+#define MIPS_CPU_COUNTER	0x00000080ull /* Cycle count/compare */
+#define MIPS_CPU_WATCH		0x00000100ull /* watchpoint registers */
+#define MIPS_CPU_DIVEC		0x00000200ull /* dedicated interrupt vector */
+#define MIPS_CPU_VCE		0x00000400ull /* virt. coherence conflict possible */
+#define MIPS_CPU_CACHE_CDEX_P	0x00000800ull /* Create_Dirty_Exclusive CACHE op */
+#define MIPS_CPU_CACHE_CDEX_S	0x00001000ull /* ... same for seconary cache ... */
+#define MIPS_CPU_MCHECK		0x00002000ull /* Machine check exception */
+#define MIPS_CPU_EJTAG		0x00004000ull /* EJTAG exception */
+#define MIPS_CPU_NOFPUEX	0x00008000ull /* no FPU exception */
+#define MIPS_CPU_LLSC		0x00010000ull /* CPU has ll/sc instructions */
+#define MIPS_CPU_INCLUSIVE_CACHES	0x00020000ull /* P-cache subset enforced */
+#define MIPS_CPU_PREFETCH	0x00040000ull /* CPU has usable prefetch */
+#define MIPS_CPU_VINT		0x00080000ull /* CPU supports MIPSR2 vectored interrupts */
+#define MIPS_CPU_VEIC		0x00100000ull /* CPU supports MIPSR2 external interrupt controller mode */
+#define MIPS_CPU_ULRI		0x00200000ull /* CPU has ULRI feature */
+#define MIPS_CPU_PCI		0x00400000ull /* CPU has Perf Ctr Int indicator */
+#define MIPS_CPU_RIXI		0x00800000ull /* CPU has TLB Read/eXec Inhibit */
+#define MIPS_CPU_MICROMIPS	0x01000000ull /* CPU has microMIPS capability */
+#define MIPS_CPU_TLBINV		0x02000000ull /* CPU supports TLBINV/F */
+#define MIPS_CPU_SEGMENTS	0x04000000ull /* CPU supports Segmentation Control registers */
+#define MIPS_CPU_EVA		0x80000000ull /* CPU supports Enhanced Virtual Addressing */
+#define MIPS_CPU_HTW		0x100000000ull /* CPU support Hardware Page Table Walker */
+#define MIPS_CPU_RIXIEX		0x200000000ull /* CPU has unique exception codes for {Read, Execute}-Inhibit exceptions */
+#define MIPS_CPU_MAAR		0x400000000ull /* MAAR(I) registers are present */
+#define MIPS_CPU_FRE		0x800000000ull /* FRE & UFE bits implemented */
+#define MIPS_CPU_RW_LLB		0x1000000000ull /* LLADDR/LLB writes are allowed */
+#define MIPS_CPU_XPA		0x2000000000ull /* CPU supports Extended Physical Addressing */
+#define MIPS_CPU_CDMM		0x4000000000ull	/* CPU has Common Device Memory Map */
 
 /*
  * CPU ASE encodings
@@ -370,5 +391,6 @@ enum cpu_type_enum {
 #define MIPS_ASE_MIPSMT		0x00000020 /* CPU supports MIPS MT */
 #define MIPS_ASE_DSP2P		0x00000040 /* Signal Processing ASE Rev 2 */
 #define MIPS_ASE_VZ		0x00000080 /* Virtualization ASE */
+#define MIPS_ASE_MSA		0x00000100 /* MIPS SIMD Architecture */
 
 #endif /* _ASM_CPU_H */

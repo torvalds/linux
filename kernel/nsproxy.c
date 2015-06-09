@@ -204,20 +204,13 @@ void switch_task_namespaces(struct task_struct *p, struct nsproxy *new)
 
 	might_sleep();
 
+	task_lock(p);
 	ns = p->nsproxy;
+	p->nsproxy = new;
+	task_unlock(p);
 
-	rcu_assign_pointer(p->nsproxy, new);
-
-	if (ns && atomic_dec_and_test(&ns->count)) {
-		/*
-		 * wait for others to get what they want from this nsproxy.
-		 *
-		 * cannot release this nsproxy via the call_rcu() since
-		 * put_mnt_ns() will want to sleep
-		 */
-		synchronize_rcu();
+	if (ns && atomic_dec_and_test(&ns->count))
 		free_nsproxy(ns);
-	}
 }
 
 void exit_task_namespaces(struct task_struct *p)
@@ -227,11 +220,10 @@ void exit_task_namespaces(struct task_struct *p)
 
 SYSCALL_DEFINE2(setns, int, fd, int, nstype)
 {
-	const struct proc_ns_operations *ops;
 	struct task_struct *tsk = current;
 	struct nsproxy *new_nsproxy;
-	struct proc_ns *ei;
 	struct file *file;
+	struct ns_common *ns;
 	int err;
 
 	file = proc_ns_fget(fd);
@@ -239,9 +231,8 @@ SYSCALL_DEFINE2(setns, int, fd, int, nstype)
 		return PTR_ERR(file);
 
 	err = -EINVAL;
-	ei = get_proc_ns(file_inode(file));
-	ops = ei->ns_ops;
-	if (nstype && (ops->type != nstype))
+	ns = get_proc_ns(file_inode(file));
+	if (nstype && (ns->ops->type != nstype))
 		goto out;
 
 	new_nsproxy = create_new_namespaces(0, tsk, current_user_ns(), tsk->fs);
@@ -250,7 +241,7 @@ SYSCALL_DEFINE2(setns, int, fd, int, nstype)
 		goto out;
 	}
 
-	err = ops->install(new_nsproxy, ei->ns);
+	err = ns->ops->install(new_nsproxy, ns);
 	if (err) {
 		free_nsproxy(new_nsproxy);
 		goto out;

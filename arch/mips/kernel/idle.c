@@ -64,13 +64,10 @@ void r4k_wait_irqoff(void)
 	if (!need_resched())
 		__asm__(
 		"	.set	push		\n"
-		"	.set	mips3		\n"
+		"	.set	arch=r4000	\n"
 		"	wait			\n"
 		"	.set	pop		\n");
 	local_irq_enable();
-	__asm__(
-	"	.globl __pastwait	\n"
-	"__pastwait:			\n");
 }
 
 /*
@@ -82,7 +79,7 @@ static void rm7k_wait_irqoff(void)
 	if (!need_resched())
 		__asm__(
 		"	.set	push					\n"
-		"	.set	mips3					\n"
+		"	.set	arch=r4000				\n"
 		"	.set	noat					\n"
 		"	mfc0	$1, $12					\n"
 		"	sync						\n"
@@ -103,7 +100,7 @@ static void au1k_wait(void)
 	unsigned long c0status = read_c0_status() | 1;	/* irqs on */
 
 	__asm__(
-	"	.set	mips3			\n"
+	"	.set	arch=r4000			\n"
 	"	cache	0x14, 0(%0)		\n"
 	"	cache	0x14, 32(%0)		\n"
 	"	sync				\n"
@@ -179,13 +176,26 @@ void __init check_wait(void)
 		cpu_wait = rm7k_wait_irqoff;
 		break;
 
+	case CPU_PROAPTIV:
+	case CPU_P5600:
+		/*
+		 * Incoming Fast Debug Channel (FDC) data during a wait
+		 * instruction causes the wait never to resume, even if an
+		 * interrupt is received. Avoid using wait at all if FDC data is
+		 * likely to be received.
+		 */
+		if (IS_ENABLED(CONFIG_MIPS_EJTAG_FDC_TTY))
+			break;
+		/* fall through */
 	case CPU_M14KC:
 	case CPU_M14KEC:
 	case CPU_24K:
 	case CPU_34K:
 	case CPU_1004K:
+	case CPU_1074K:
 	case CPU_INTERAPTIV:
-	case CPU_PROAPTIV:
+	case CPU_M5150:
+	case CPU_QEMU_GENERIC:
 		cpu_wait = r4k_wait;
 		if (read_c0_config7() & MIPS_CONF7_WII)
 			cpu_wait = r4k_wait_irqoff;
@@ -221,29 +231,26 @@ void __init check_wait(void)
 		   cpu_wait = r4k_wait;
 		 */
 		break;
-	case CPU_RM9000:
-		if ((c->processor_id & 0x00ff) >= 0x40)
-			cpu_wait = r4k_wait;
-		break;
 	default:
 		break;
 	}
 }
 
-static void smtc_idle_hook(void)
-{
-#ifdef CONFIG_MIPS_MT_SMTC
-	void smtc_idle_loop_hook(void);
-
-	smtc_idle_loop_hook();
-#endif
-}
-
 void arch_cpu_idle(void)
 {
-	smtc_idle_hook();
 	if (cpu_wait)
 		cpu_wait();
 	else
 		local_irq_enable();
 }
+
+#ifdef CONFIG_CPU_IDLE
+
+int mips_cpuidle_wait_enter(struct cpuidle_device *dev,
+			    struct cpuidle_driver *drv, int index)
+{
+	arch_cpu_idle();
+	return index;
+}
+
+#endif

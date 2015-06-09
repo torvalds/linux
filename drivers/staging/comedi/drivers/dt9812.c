@@ -42,9 +42,8 @@ for my needs.
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/uaccess.h>
-#include <linux/usb.h>
 
-#include "../comedidev.h"
+#include "../comedi_usb.h"
 
 #define DT9812_DIAGS_BOARD_INFO_ADDR	0xFBFF
 #define DT9812_MAX_WRITE_CMD_PIPE_SIZE	32
@@ -240,7 +239,6 @@ struct dt9812_private {
 		size_t size;
 	} cmd_wr, cmd_rd;
 	u16 device;
-	u16 ao_shadow[2];
 };
 
 static int dt9812_read_info(struct comedi_device *dev,
@@ -546,7 +544,6 @@ static int dt9812_analog_out(struct comedi_device *dev, int channel, u16 value)
 		break;
 	}
 	ret = dt9812_rmw_multiple_registers(dev, 3, rmw);
-	devpriv->ao_shadow[channel] = value;
 
 	up(&devpriv->sem);
 
@@ -609,15 +606,13 @@ static int dt9812_ao_insn_read(struct comedi_device *dev,
 			       unsigned int *data)
 {
 	struct dt9812_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
+	int ret;
 
 	down(&devpriv->sem);
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_shadow[chan];
+	ret = comedi_readback_insn_read(dev, s, insn, data);
 	up(&devpriv->sem);
 
-	return insn->n;
+	return ret;
 }
 
 static int dt9812_ao_insn_write(struct comedi_device *dev,
@@ -626,13 +621,17 @@ static int dt9812_ao_insn_write(struct comedi_device *dev,
 				unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	int ret;
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		ret = dt9812_analog_out(dev, chan, data[i]);
+		unsigned int val = data[i];
+		int ret;
+
+		ret = dt9812_analog_out(dev, chan, val);
 		if (ret)
 			return ret;
+
+		s->readback[chan] = val;
 	}
 
 	return insn->n;
@@ -653,6 +652,7 @@ static int dt9812_find_endpoints(struct comedi_device *dev)
 
 	for (i = 0; i < host->desc.bNumEndpoints; ++i) {
 		int dir = -1;
+
 		ep = &host->endpoint[i].desc;
 		switch (i) {
 		case 0:
@@ -768,6 +768,7 @@ static int dt9812_auto_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	bool is_unipolar;
 	int ret;
+	int i;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
@@ -802,7 +803,7 @@ static int dt9812_auto_attach(struct comedi_device *dev,
 	/* Digital Output subdevice */
 	s = &dev->subdevices[1];
 	s->type		= COMEDI_SUBD_DO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 8;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
@@ -820,15 +821,19 @@ static int dt9812_auto_attach(struct comedi_device *dev,
 	/* Analog Output subdevice */
 	s = &dev->subdevices[3];
 	s->type		= COMEDI_SUBD_AO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 2;
 	s->maxdata	= 0x0fff;
 	s->range_table	= is_unipolar ? &range_unipolar2_5 : &range_bipolar10;
 	s->insn_write	= dt9812_ao_insn_write;
 	s->insn_read	= dt9812_ao_insn_read;
 
-	devpriv->ao_shadow[0] = is_unipolar ? 0x0000 : 0x0800;
-	devpriv->ao_shadow[1] = is_unipolar ? 0x0000 : 0x0800;
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < s->n_chan; i++)
+		s->readback[i] = is_unipolar ? 0x0000 : 0x0800;
 
 	return 0;
 }

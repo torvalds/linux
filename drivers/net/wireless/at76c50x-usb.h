@@ -219,18 +219,6 @@ struct at76_req_join {
 	u8 reserved;
 } __packed;
 
-struct set_mib_buffer {
-	u8 type;
-	u8 size;
-	u8 index;
-	u8 reserved;
-	union {
-		u8 byte;
-		__le16 word;
-		u8 addr[ETH_ALEN];
-	} data;
-} __packed;
-
 struct mib_local {
 	u16 reserved0;
 	u8 beacon_enable;
@@ -334,6 +322,19 @@ struct mib_mdomain {
 	u8 channel_list[14];	/* 0 for invalid channels */
 } __packed;
 
+struct set_mib_buffer {
+	u8 type;
+	u8 size;
+	u8 index;
+	u8 reserved;
+	union {
+		u8 byte;
+		__le16 word;
+		u8 addr[ETH_ALEN];
+		struct mib_mac_wep wep_mib;
+	} data;
+} __packed;
+
 struct at76_fw_header {
 	__le32 crc;		/* CRC32 of the whole image */
 	__le32 board_type;	/* firmware compatibility code */
@@ -417,6 +418,7 @@ struct at76_priv {
 	int scan_max_time;	/* scan max channel time */
 	int scan_mode;		/* SCAN_TYPE_ACTIVE, SCAN_TYPE_PASSIVE */
 	int scan_need_any;	/* if set, need to scan for any ESSID */
+	bool scanning;		/* if set, the scan is running */
 
 	u16 assoc_id;		/* current association ID, if associated */
 

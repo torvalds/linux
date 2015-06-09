@@ -9,6 +9,9 @@ Required properties:
 - interrupts: rtc alarm/event interrupt
 - #clock-cells: the value should be 0
 
+Optional properties:
+- clock-output-names: From common clock binding
+
 Example:
 
 hym8563: hym8563@51 {

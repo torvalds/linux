@@ -110,6 +110,9 @@ struct mlx4_ib_cq {
 	struct mutex		resize_mutex;
 	struct ib_umem	       *umem;
 	struct ib_umem	       *resize_umem;
+	/* List of qps that it serves.*/
+	struct list_head		send_qp_list;
+	struct list_head		recv_qp_list;
 };
 
 struct mlx4_ib_mr {
@@ -134,10 +137,17 @@ struct mlx4_ib_fmr {
 	struct mlx4_fmr         mfmr;
 };
 
+#define MAX_REGS_PER_FLOW 2
+
+struct mlx4_flow_reg_id {
+	u64 id;
+	u64 mirror;
+};
+
 struct mlx4_ib_flow {
 	struct ib_flow ibflow;
 	/* translating DMFS verbs sniffer rule to FW API requires two reg IDs */
-	u64 reg_id[2];
+	struct mlx4_flow_reg_id reg_id[MAX_REGS_PER_FLOW];
 };
 
 struct mlx4_ib_wq {
@@ -156,6 +166,7 @@ enum mlx4_ib_qp_flags {
 	MLX4_IB_QP_LSO = IB_QP_CREATE_IPOIB_UD_LSO,
 	MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK = IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK,
 	MLX4_IB_QP_NETIF = IB_QP_CREATE_NETIF_QP,
+	MLX4_IB_QP_CREATE_USE_GFP_NOIO = IB_QP_CREATE_USE_GFP_NOIO,
 	MLX4_IB_SRIOV_TUNNEL_QP = 1 << 30,
 	MLX4_IB_SRIOV_SQP = 1 << 31,
 };
@@ -241,6 +252,22 @@ struct mlx4_ib_proxy_sqp_hdr {
 	struct mlx4_rcv_tunnel_hdr tun;
 }  __packed;
 
+struct mlx4_roce_smac_vlan_info {
+	u64 smac;
+	int smac_index;
+	int smac_port;
+	u64 candidate_smac;
+	int candidate_smac_index;
+	int candidate_smac_port;
+	u16 vid;
+	int vlan_index;
+	int vlan_port;
+	u16 candidate_vid;
+	int candidate_vlan_index;
+	int candidate_vlan_port;
+	int update_vid;
+};
+
 struct mlx4_ib_qp {
 	struct ib_qp		ibqp;
 	struct mlx4_qp		mqp;
@@ -273,8 +300,12 @@ struct mlx4_ib_qp {
 	struct list_head	gid_list;
 	struct list_head	steering_rules;
 	struct mlx4_ib_buf	*sqp_proxy_rcv;
+	struct mlx4_roce_smac_vlan_info pri;
+	struct mlx4_roce_smac_vlan_info alt;
 	u64			reg_id;
-
+	struct list_head	qps_list;
+	struct list_head	cq_recv_list;
+	struct list_head	cq_send_list;
 };
 
 struct mlx4_ib_srq {
@@ -311,14 +342,9 @@ struct mlx4_ib_ah {
 enum mlx4_guid_alias_rec_status {
 	MLX4_GUID_INFO_STATUS_IDLE,
 	MLX4_GUID_INFO_STATUS_SET,
-	MLX4_GUID_INFO_STATUS_PENDING,
 };
 
-enum mlx4_guid_alias_rec_ownership {
-	MLX4_GUID_DRIVER_ASSIGN,
-	MLX4_GUID_SYSADMIN_ASSIGN,
-	MLX4_GUID_NONE_ASSIGN, /*init state of each record*/
-};
+#define GUID_STATE_NEED_PORT_INIT 0x01
 
 enum mlx4_guid_alias_rec_method {
 	MLX4_GUID_INFO_RECORD_SET	= IB_MGMT_METHOD_SET,
@@ -329,8 +355,8 @@ struct mlx4_sriov_alias_guid_info_rec_det {
 	u8 all_recs[GUID_REC_SIZE * NUM_ALIAS_GUID_IN_REC];
 	ib_sa_comp_mask guid_indexes; /*indicates what from the 8 records are valid*/
 	enum mlx4_guid_alias_rec_status status; /*indicates the administraively status of the record.*/
-	u8 method; /*set or delete*/
-	enum mlx4_guid_alias_rec_ownership ownership; /*indicates who assign that alias_guid record*/
+	unsigned int guids_retry_schedule[NUM_ALIAS_GUID_IN_REC];
+	u64 time_to_run;
 };
 
 struct mlx4_sriov_alias_guid_port_rec_det {
@@ -338,6 +364,7 @@ struct mlx4_sriov_alias_guid_port_rec_det {
 	struct workqueue_struct *wq;
 	struct delayed_work alias_guid_work;
 	u8 port;
+	u32 state_flags;
 	struct mlx4_sriov_alias_guid *parent;
 	struct list_head cb_list;
 };
@@ -433,6 +460,7 @@ struct mlx4_ib_iboe {
 	spinlock_t		lock;
 	struct net_device      *netdevs[MLX4_MAX_PORTS];
 	struct net_device      *masters[MLX4_MAX_PORTS];
+	atomic64_t		mac[MLX4_MAX_PORTS];
 	struct notifier_block 	nb;
 	struct notifier_block	nb_inet;
 	struct notifier_block	nb_inet6;
@@ -505,6 +533,13 @@ struct mlx4_ib_dev {
 	int steer_qpn_count;
 	int steer_qpn_base;
 	int steering_support;
+	struct mlx4_ib_qp      *qp1_proxy[MLX4_MAX_PORTS];
+	/* lock when destroying qp1_proxy and getting netdev events */
+	struct mutex		qp1_proxy_lock[MLX4_MAX_PORTS];
+	u8			bond_next_port;
+	/* protect resources needed as part of reset flow */
+	spinlock_t		reset_flow_resource_lock;
+	struct list_head		qp_list;
 };
 
 struct ib_event_work {
@@ -598,6 +633,13 @@ static inline struct mlx4_ib_srq *to_mibsrq(struct mlx4_srq *msrq)
 static inline struct mlx4_ib_ah *to_mah(struct ib_ah *ibah)
 {
 	return container_of(ibah, struct mlx4_ib_ah, ibah);
+}
+
+static inline u8 mlx4_ib_bond_next_port(struct mlx4_ib_dev *dev)
+{
+	dev->bond_next_port = (dev->bond_next_port + 1) % dev->num_ports;
+
+	return dev->bond_next_port + 1;
 }
 
 int mlx4_ib_init_sriov(struct mlx4_ib_dev *dev);
@@ -720,9 +762,12 @@ void mlx4_ib_tunnels_update_work(struct work_struct *work);
 int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 			  enum ib_qp_type qpt, struct ib_wc *wc,
 			  struct ib_grh *grh, struct ib_mad *mad);
+
 int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u8 port,
 			 enum ib_qp_type dest_qpt, u16 pkey_index, u32 remote_qpn,
-			 u32 qkey, struct ib_ah_attr *attr, struct ib_mad *mad);
+			 u32 qkey, struct ib_ah_attr *attr, u8 *s_mac,
+			 struct ib_mad *mad);
+
 __be64 mlx4_ib_get_new_demux_tid(struct mlx4_ib_demux_ctx *ctx);
 
 int mlx4_ib_demux_cm_handler(struct ib_device *ibdev, int port, int *slave,
@@ -753,6 +798,8 @@ int add_sysfs_port_mcg_attr(struct mlx4_ib_dev *device, int port_num,
 void del_sysfs_port_mcg_attr(struct mlx4_ib_dev *device, int port_num,
 			     struct attribute *attr);
 ib_sa_comp_mask mlx4_ib_get_aguid_comp_mask_from_ix(int index);
+void mlx4_ib_slave_alias_guid_event(struct mlx4_ib_dev *dev, int slave,
+				    int port, int slave_init);
 
 int mlx4_ib_device_register_sysfs(struct mlx4_ib_dev *device) ;
 
@@ -764,5 +811,9 @@ int mlx4_ib_steer_qp_alloc(struct mlx4_ib_dev *dev, int count, int *qpn);
 void mlx4_ib_steer_qp_free(struct mlx4_ib_dev *dev, u32 qpn, int count);
 int mlx4_ib_steer_qp_reg(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 			 int is_attach);
+int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
+			  u64 start, u64 length, u64 virt_addr,
+			  int mr_access_flags, struct ib_pd *pd,
+			  struct ib_udata *udata);
 
 #endif /* MLX4_IB_H */

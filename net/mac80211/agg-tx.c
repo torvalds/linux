@@ -107,7 +107,7 @@ static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,
 	mgmt->u.action.u.addba_req.start_seq_num =
 					cpu_to_le16(start_seq_num << 4);
 
-	ieee80211_tx_skb_tid(sdata, skb, tid);
+	ieee80211_tx_skb(sdata, skb);
 }
 
 void ieee80211_send_bar(struct ieee80211_vif *vif, u8 *ra, u16 tid, u16 ssn)
@@ -149,11 +149,6 @@ void ieee80211_assign_tid_tx(struct sta_info *sta, int tid,
 	rcu_assign_pointer(sta->ampdu_mlme.tid_tx[tid], tid_tx);
 }
 
-static inline int ieee80211_ac_from_tid(int tid)
-{
-	return ieee802_1d_to_ac[tid & 7];
-}
-
 /*
  * When multiple aggregation sessions on multiple stations
  * are being created/destroyed simultaneously, we need to
@@ -170,10 +165,13 @@ ieee80211_stop_queue_agg(struct ieee80211_sub_if_data *sdata, int tid)
 {
 	int queue = sdata->vif.hw_queue[ieee80211_ac_from_tid(tid)];
 
+	/* we do refcounting here, so don't use the queue reason refcounting */
+
 	if (atomic_inc_return(&sdata->local->agg_queue_stop[queue]) == 1)
 		ieee80211_stop_queue_by_reason(
 			&sdata->local->hw, queue,
-			IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
+			IEEE80211_QUEUE_STOP_REASON_AGGREGATION,
+			false);
 	__acquire(agg_queue);
 }
 
@@ -185,8 +183,46 @@ ieee80211_wake_queue_agg(struct ieee80211_sub_if_data *sdata, int tid)
 	if (atomic_dec_return(&sdata->local->agg_queue_stop[queue]) == 0)
 		ieee80211_wake_queue_by_reason(
 			&sdata->local->hw, queue,
-			IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
+			IEEE80211_QUEUE_STOP_REASON_AGGREGATION,
+			false);
 	__release(agg_queue);
+}
+
+static void
+ieee80211_agg_stop_txq(struct sta_info *sta, int tid)
+{
+	struct ieee80211_txq *txq = sta->sta.txq[tid];
+	struct txq_info *txqi;
+
+	if (!txq)
+		return;
+
+	txqi = to_txq_info(txq);
+
+	/* Lock here to protect against further seqno updates on dequeue */
+	spin_lock_bh(&txqi->queue.lock);
+	set_bit(IEEE80211_TXQ_STOP, &txqi->flags);
+	spin_unlock_bh(&txqi->queue.lock);
+}
+
+static void
+ieee80211_agg_start_txq(struct sta_info *sta, int tid, bool enable)
+{
+	struct ieee80211_txq *txq = sta->sta.txq[tid];
+	struct txq_info *txqi;
+
+	if (!txq)
+		return;
+
+	txqi = to_txq_info(txq);
+
+	if (enable)
+		set_bit(IEEE80211_TXQ_AMPDU, &txqi->flags);
+	else
+		clear_bit(IEEE80211_TXQ_AMPDU, &txqi->flags);
+
+	clear_bit(IEEE80211_TXQ_STOP, &txqi->flags);
+	drv_wake_tx_queue(sta->sdata->local, txqi);
 }
 
 /*
@@ -248,6 +284,7 @@ static void ieee80211_remove_tid_tx(struct sta_info *sta, int tid)
 	ieee80211_assign_tid_tx(sta, tid, NULL);
 
 	ieee80211_agg_splice_finish(sta->sdata, tid);
+	ieee80211_agg_start_txq(sta, tid, false);
 
 	kfree_rcu(tid_tx, rcu_head);
 }
@@ -419,6 +456,8 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 	 */
 	clear_bit(HT_AGG_STATE_WANT_START, &tid_tx->state);
 
+	ieee80211_agg_stop_txq(sta, tid);
+
 	/*
 	 * Make sure no packets are being processed. This ensures that
 	 * we have a valid starting sequence number and that in-flight
@@ -440,6 +479,8 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 		ieee80211_assign_tid_tx(sta, tid, NULL);
 		ieee80211_agg_splice_finish(sdata, tid);
 		spin_unlock_bh(&sta->lock);
+
+		ieee80211_agg_start_txq(sta, tid, false);
 
 		kfree_rcu(tid_tx, rcu_head);
 		return;
@@ -511,6 +552,13 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	int ret = 0;
 
 	trace_api_start_tx_ba_session(pubsta, tid);
+
+	if (WARN(sta->reserved_tid == tid,
+		 "Requested to start BA session on reserved tid=%d", tid))
+		return -EINVAL;
+
+	if (!pubsta->ht_cap.ht_supported)
+		return -EINVAL;
 
 	if (WARN_ON_ONCE(!local->ops->ampdu_action))
 		return -EINVAL;
@@ -663,6 +711,8 @@ static void ieee80211_agg_tx_operational(struct ieee80211_local *local,
 	ieee80211_agg_splice_finish(sta->sdata, tid);
 
 	spin_unlock_bh(&sta->lock);
+
+	ieee80211_agg_start_txq(sta, tid, true);
 }
 
 void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid)
@@ -766,6 +816,9 @@ int ieee80211_stop_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)
 		goto unlock;
 	}
 
+	WARN(sta->reserved_tid == tid,
+	     "Requested to stop BA session on reserved tid=%d", tid);
+
 	if (test_bit(HT_AGG_STATE_STOPPING, &tid_tx->state)) {
 		/* already in progress stopping it */
 		ret = 0;
@@ -787,6 +840,7 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid)
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 	struct tid_ampdu_tx *tid_tx;
+	bool send_delba = false;
 
 	trace_api_stop_tx_ba_cb(sdata, ra, tid);
 
@@ -818,13 +872,17 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid)
 	}
 
 	if (tid_tx->stop_initiator == WLAN_BACK_INITIATOR && tid_tx->tx_stop)
-		ieee80211_send_delba(sta->sdata, ra, tid,
-			WLAN_BACK_INITIATOR, WLAN_REASON_QSTA_NOT_USE);
+		send_delba = true;
 
 	ieee80211_remove_tid_tx(sta, tid);
 
  unlock_sta:
 	spin_unlock_bh(&sta->lock);
+
+	if (send_delba)
+		ieee80211_send_delba(sdata, ra, tid,
+			WLAN_BACK_INITIATOR, WLAN_REASON_QSTA_NOT_USE);
+
 	mutex_unlock(&sta->ampdu_mlme.mtx);
  unlock:
 	mutex_unlock(&local->sta_mtx);

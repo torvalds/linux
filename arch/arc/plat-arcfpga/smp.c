@@ -13,8 +13,9 @@
 
 #include <linux/smp.h>
 #include <linux/irq.h>
-#include <plat/irq.h>
 #include <plat/smp.h>
+
+#define IDU_INTERRUPT_0 16
 
 static char smp_cpuinfo_buf[128];
 
@@ -40,6 +41,24 @@ static void iss_model_smp_wakeup_cpu(int cpu, unsigned long pc)
 	write_aux_reg(ARC_AUX_XTL_REG_CMD,
 			(ARC_XTL_CMD_CLEAR_HALT | (cpu << 8)));
 
+}
+
+static inline int get_hw_config_num_irq(void)
+{
+	uint32_t val = read_aux_reg(ARC_REG_VECBASE_BCR);
+
+	switch (val & 0x03) {
+	case 0:
+		return 16;
+	case 1:
+		return 32;
+	case 2:
+		return 8;
+	default:
+		return 0;
+	}
+
+	return 0;
 }
 
 /*

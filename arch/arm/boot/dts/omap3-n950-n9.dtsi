@@ -8,7 +8,7 @@
  * published by the Free Software Foundation.
  */
 
-#include "omap36xx-hs.dtsi"
+#include "omap36xx.dtsi"
 
 / {
 	cpus {
@@ -60,11 +60,30 @@
 
 &twl {
 	compatible = "ti,twl5031";
+
+	twl_power: power {
+		compatible = "ti,twl4030-power";
+		ti,use_poweroff;
+	};
 };
 
 &twl_gpio {
 	ti,pullups	= <0x000001>; /* BIT(0) */
 	ti,pulldowns	= <0x008106>; /* BIT(1) | BIT(2) | BIT(8) | BIT(15) */
+};
+
+/* CSI-2 receiver */
+&vaux2 {
+	regulator-name = "vaux2";
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+};
+
+/* Cameras */
+&vaux3 {
+	regulator-name = "vaux3";
+	regulator-min-microvolt = <2800000>;
+	regulator-max-microvolt = <2800000>;
 };
 
 &i2c2 {
@@ -101,12 +120,12 @@
 };
 
 &gpmc {
-	ranges = <0 0 0x04000000 0x20000000>;
+	ranges = <0 0 0x04000000 0x1000000>;	/* CS0: 16MB for OneNAND */
 
 	onenand@0,0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		reg = <0 0 0x20000000>;
+		reg = <0 0 0x20000>;	/* CS0, offset 0, IO size 128K */
 
 		gpmc,sync-read;
 		gpmc,sync-write;

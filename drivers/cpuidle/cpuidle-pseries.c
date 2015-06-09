@@ -17,6 +17,7 @@
 #include <asm/reg.h>
 #include <asm/machdep.h>
 #include <asm/firmware.h>
+#include <asm/runlatch.h>
 #include <asm/plpar_wrappers.h>
 
 struct cpuidle_driver pseries_idle_driver = {
@@ -29,6 +30,7 @@ static struct cpuidle_state *cpuidle_state_table;
 
 static inline void idle_loop_prolog(unsigned long *in_purr)
 {
+	ppc64_runlatch_off();
 	*in_purr = mfspr(SPRN_PURR);
 	/*
 	 * Indicate to the HV that we are idle. Now would be
@@ -45,6 +47,10 @@ static inline void idle_loop_epilog(unsigned long in_purr)
 	wait_cycles += mfspr(SPRN_PURR) - in_purr;
 	get_lppaca()->wait_state_cycles = cpu_to_be64(wait_cycles);
 	get_lppaca()->idle = 0;
+
+	if (irqs_disabled())
+		local_irq_enable();
+	ppc64_runlatch_on();
 }
 
 static int snooze_loop(struct cpuidle_device *dev,
@@ -136,14 +142,12 @@ static struct cpuidle_state dedicated_states[] = {
 	{ /* Snooze */
 		.name = "snooze",
 		.desc = "snooze",
-		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 0,
 		.target_residency = 0,
 		.enter = &snooze_loop },
 	{ /* CEDE */
 		.name = "CEDE",
 		.desc = "CEDE",
-		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 10,
 		.target_residency = 100,
 		.enter = &dedicated_cede_loop },
@@ -156,7 +160,6 @@ static struct cpuidle_state shared_states[] = {
 	{ /* Shared Cede */
 		.name = "Shared Cede",
 		.desc = "Shared Cede",
-		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 0,
 		.target_residency = 0,
 		.enter = &shared_cede_loop },

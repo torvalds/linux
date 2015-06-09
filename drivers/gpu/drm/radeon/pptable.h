@@ -96,6 +96,14 @@ typedef struct _ATOM_PPLIB_FANTABLE2
     USHORT  usTMax;                          // The max temperature
 } ATOM_PPLIB_FANTABLE2;
 
+typedef struct _ATOM_PPLIB_FANTABLE3
+{
+	ATOM_PPLIB_FANTABLE2 basicTable2;
+	UCHAR ucFanControlMode;
+	USHORT usFanPWMMax;
+	USHORT usFanOutputSensitivity;
+} ATOM_PPLIB_FANTABLE3;
+
 typedef struct _ATOM_PPLIB_EXTENDEDHEADER
 {
     USHORT  usSize;

@@ -22,6 +22,7 @@
 
 #include <stdbool.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <regex.h>
 #include <string.h>
 
@@ -91,6 +92,7 @@ extern int trace_seq_putc(struct trace_seq *s, unsigned char c);
 
 extern void trace_seq_terminate(struct trace_seq *s);
 
+extern int trace_seq_do_fprintf(struct trace_seq *s, FILE *fp);
 extern int trace_seq_do_printf(struct trace_seq *s);
 
 
@@ -107,14 +109,14 @@ typedef int (*pevent_event_handler_func)(struct trace_seq *s,
 typedef int (*pevent_plugin_load_func)(struct pevent *pevent);
 typedef int (*pevent_plugin_unload_func)(struct pevent *pevent);
 
-struct plugin_option {
-	struct plugin_option		*next;
+struct pevent_plugin_option {
+	struct pevent_plugin_option	*next;
 	void				*handle;
 	char				*file;
 	char				*name;
 	char				*plugin_alias;
 	char				*description;
-	char				*value;
+	const char			*value;
 	void				*priv;
 	int				set;
 };
@@ -135,7 +137,7 @@ struct plugin_option {
  * PEVENT_PLUGIN_OPTIONS:  (optional)
  *   Plugin options that can be set before loading
  *
- *   struct plugin_option PEVENT_PLUGIN_OPTIONS[] = {
+ *   struct pevent_plugin_option PEVENT_PLUGIN_OPTIONS[] = {
  *	{
  *		.name = "option-name",
  *		.plugin_alias = "overide-file-name", (optional)
@@ -151,6 +153,10 @@ struct plugin_option {
  *
  *   .plugin_alias is used to give a shorter name to access
  *   the vairable. Useful if a plugin handles more than one event.
+ *
+ *   If .value is not set, then it is considered a boolean and only
+ *   .set will be processed. If .value is defined, then it is considered
+ *   a string option and .set will be ignored.
  *
  * PEVENT_PLUGIN_ALIAS: (optional)
  *   The name to use for finding options (uses filename if not defined)
@@ -208,6 +214,11 @@ struct print_arg_string {
 	int			offset;
 };
 
+struct print_arg_bitmask {
+	char			*bitmask;
+	int			offset;
+};
+
 struct print_arg_field {
 	char			*name;
 	struct format_field	*field;
@@ -240,6 +251,12 @@ struct print_arg_hex {
 	struct print_arg	*size;
 };
 
+struct print_arg_int_array {
+	struct print_arg	*field;
+	struct print_arg	*count;
+	struct print_arg	*el_size;
+};
+
 struct print_arg_dynarray {
 	struct format_field	*field;
 	struct print_arg	*index;
@@ -268,12 +285,14 @@ enum print_arg_type {
 	PRINT_FLAGS,
 	PRINT_SYMBOL,
 	PRINT_HEX,
+	PRINT_INT_ARRAY,
 	PRINT_TYPE,
 	PRINT_STRING,
 	PRINT_BSTRING,
 	PRINT_DYNAMIC_ARRAY,
 	PRINT_OP,
 	PRINT_FUNC,
+	PRINT_BITMASK,
 };
 
 struct print_arg {
@@ -286,8 +305,10 @@ struct print_arg {
 		struct print_arg_flags		flags;
 		struct print_arg_symbol		symbol;
 		struct print_arg_hex		hex;
+		struct print_arg_int_array	int_array;
 		struct print_arg_func		func;
 		struct print_arg_string		string;
+		struct print_arg_bitmask	bitmask;
 		struct print_arg_op		op;
 		struct print_arg_dynarray	dynarray;
 	};
@@ -354,6 +375,8 @@ enum pevent_func_arg_type {
 
 enum pevent_flag {
 	PEVENT_NSEC_OUTPUT		= 1,	/* output in NSECS */
+	PEVENT_DISABLE_SYS_PLUGINS	= 1 << 1,
+	PEVENT_DISABLE_PLUGINS		= 1 << 2,
 };
 
 #define PEVENT_ERRORS 							      \
@@ -410,9 +433,19 @@ enum pevent_errno {
 
 struct plugin_list;
 
+#define INVALID_PLUGIN_LIST_OPTION	((char **)((unsigned long)-1))
+
 struct plugin_list *traceevent_load_plugins(struct pevent *pevent);
 void traceevent_unload_plugins(struct plugin_list *plugin_list,
 			       struct pevent *pevent);
+char **traceevent_plugin_list_options(void);
+void traceevent_plugin_free_options_list(char **list);
+int traceevent_plugin_add_options(const char *name,
+				  struct pevent_plugin_option *options);
+void traceevent_plugin_remove_options(struct pevent_plugin_option *options);
+void traceevent_print_plugins(struct trace_seq *s,
+			      const char *prefix, const char *suffix,
+			      const struct plugin_list *list);
 
 struct cmdline;
 struct cmdline_list;
@@ -578,7 +611,7 @@ enum trace_flag_type {
 };
 
 int pevent_register_comm(struct pevent *pevent, const char *comm, int pid);
-void pevent_register_trace_clock(struct pevent *pevent, char *trace_clock);
+int pevent_register_trace_clock(struct pevent *pevent, const char *trace_clock);
 int pevent_register_function(struct pevent *pevent, char *name,
 			     unsigned long long addr, char *mod);
 int pevent_register_print_string(struct pevent *pevent, const char *fmt,
@@ -598,6 +631,7 @@ enum pevent_errno pevent_parse_format(struct pevent *pevent,
 				      const char *buf,
 				      unsigned long size, const char *sys);
 void pevent_free_format(struct event_format *event);
+void pevent_free_format_field(struct format_field *field);
 
 void *pevent_get_field_raw(struct trace_seq *s, struct event_format *event,
 			   const char *name, struct pevent_record *record,
@@ -656,6 +690,11 @@ int pevent_data_type(struct pevent *pevent, struct pevent_record *rec);
 struct event_format *pevent_data_event_from_type(struct pevent *pevent, int type);
 int pevent_data_pid(struct pevent *pevent, struct pevent_record *rec);
 const char *pevent_data_comm_from_pid(struct pevent *pevent, int pid);
+struct cmdline;
+struct cmdline *pevent_data_pid_from_comm(struct pevent *pevent, const char *comm,
+					  struct cmdline *next);
+int pevent_cmdline_pid(struct pevent *pevent, struct cmdline *cmdline);
+
 void pevent_event_info(struct trace_seq *s, struct event_format *event,
 		       struct pevent_record *record);
 int pevent_strerror(struct pevent *pevent, enum pevent_errno errnum,
@@ -876,8 +915,8 @@ struct event_filter {
 struct event_filter *pevent_filter_alloc(struct pevent *pevent);
 
 /* for backward compatibility */
-#define FILTER_NONE		PEVENT_ERRNO__FILTER_NOT_FOUND
-#define FILTER_NOEXIST		PEVENT_ERRNO__NO_FILTER
+#define FILTER_NONE		PEVENT_ERRNO__NO_FILTER
+#define FILTER_NOEXIST		PEVENT_ERRNO__FILTER_NOT_FOUND
 #define FILTER_MISS		PEVENT_ERRNO__FILTER_MISS
 #define FILTER_MATCH		PEVENT_ERRNO__FILTER_MATCH
 

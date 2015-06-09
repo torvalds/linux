@@ -34,7 +34,6 @@ config MPC7448HPC2
 	select TSI108_BRIDGE
 	select DEFAULT_UIMAGE
 	select PPC_UDBG_16550
-	select TSI108_BRIDGE
 	help
 	  Select MPC7448HPC2 if configuring for Freescale MPC7448HPC2 (Taiga)
 	  platform
@@ -44,18 +43,9 @@ config PPC_HOLLY
 	depends on EMBEDDED6xx
 	select TSI108_BRIDGE
 	select PPC_UDBG_16550
-	select TSI108_BRIDGE
 	help
 	  Select PPC_HOLLY if configuring for an IBM 750GX/CL Eval
 	  Board with TSI108/9 bridge (Hickory/Holly)
-
-config PPC_PRPMC2800
-	bool "Motorola-PrPMC2800"
-	depends on EMBEDDED6xx
-	select MV64X60
-	select NOT_COHERENT_CACHE
-	help
-	  This option enables support for the Motorola PrPMC2800 board
 
 config PPC_C2K
 	bool "SBS/GEFanuc C2K board"
@@ -75,6 +65,7 @@ config MVME5100
 	select PPC_INDIRECT_PCI
 	select PPC_I8259
 	select PPC_NATIVE
+	select PPC_UDBG_16550
 	help
 	  This option enables support for the Motorola (now Emerson) MVME5100
 	  board.

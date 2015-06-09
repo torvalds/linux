@@ -106,6 +106,15 @@ wlcore_hw_init_vif(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	return 0;
 }
 
+static inline void
+wlcore_hw_convert_fw_status(struct wl1271 *wl, void *raw_fw_status,
+			    struct wl_fw_status *fw_status)
+{
+	BUG_ON(!wl->ops->convert_fw_status);
+
+	wl->ops->convert_fw_status(wl, raw_fw_status, fw_status);
+}
+
 static inline u32
 wlcore_hw_sta_get_ap_rate_mask(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
@@ -202,11 +211,35 @@ wlcore_hw_pre_pkt_send(struct wl1271 *wl, u32 buf_offset, u32 last_len)
 }
 
 static inline void
-wlcore_hw_sta_rc_update(struct wl1271 *wl, struct wl12xx_vif *wlvif,
-			struct ieee80211_sta *sta, u32 changed)
+wlcore_hw_sta_rc_update(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	if (wl->ops->sta_rc_update)
-		wl->ops->sta_rc_update(wl, wlvif, sta, changed);
+		wl->ops->sta_rc_update(wl, wlvif);
+}
+
+static inline int
+wlcore_hw_interrupt_notify(struct wl1271 *wl, bool action)
+{
+	if (wl->ops->interrupt_notify)
+		return wl->ops->interrupt_notify(wl, action);
+	return 0;
+}
+
+static inline int
+wlcore_hw_rx_ba_filter(struct wl1271 *wl, bool action)
+{
+	if (wl->ops->rx_ba_filter)
+		return wl->ops->rx_ba_filter(wl, action);
+	return 0;
+}
+
+static inline int
+wlcore_hw_ap_sleep(struct wl1271 *wl)
+{
+	if (wl->ops->ap_sleep)
+		return wl->ops->ap_sleep(wl);
+
+	return 0;
 }
 
 static inline int
@@ -251,4 +284,49 @@ wlcore_hw_lnk_low_prio(struct wl1271 *wl, u8 hlid,
 	return wl->ops->lnk_low_prio(wl, hlid, lnk);
 }
 
+static inline int
+wlcore_smart_config_start(struct wl1271 *wl, u32 group_bitmap)
+{
+	if (!wl->ops->smart_config_start)
+		return -EINVAL;
+
+	return wl->ops->smart_config_start(wl, group_bitmap);
+}
+
+static inline int
+wlcore_smart_config_stop(struct wl1271 *wl)
+{
+	if (!wl->ops->smart_config_stop)
+		return -EINVAL;
+
+	return wl->ops->smart_config_stop(wl);
+}
+
+static inline int
+wlcore_smart_config_set_group_key(struct wl1271 *wl, u16 group_id,
+				  u8 key_len, u8 *key)
+{
+	if (!wl->ops->smart_config_set_group_key)
+		return -EINVAL;
+
+	return wl->ops->smart_config_set_group_key(wl, group_id, key_len, key);
+}
+
+static inline int
+wlcore_hw_set_cac(struct wl1271 *wl, struct wl12xx_vif *wlvif, bool start)
+{
+	if (!wl->ops->set_cac)
+		return -EINVAL;
+
+	return wl->ops->set_cac(wl, wlvif, start);
+}
+
+static inline int
+wlcore_hw_dfs_master_restart(struct wl1271 *wl, struct wl12xx_vif *wlvif)
+{
+	if (!wl->ops->dfs_master_restart)
+		return -EINVAL;
+
+	return wl->ops->dfs_master_restart(wl, wlvif);
+}
 #endif

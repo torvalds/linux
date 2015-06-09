@@ -85,7 +85,7 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry, gfp_t gfp)
 	memset(skbdesc, 0, sizeof(*skbdesc));
 	skbdesc->entry = entry;
 
-	if (test_bit(REQUIRE_DMA, &rt2x00dev->cap_flags)) {
+	if (rt2x00_has_cap_flag(rt2x00dev, REQUIRE_DMA)) {
 		dma_addr_t skb_dma;
 
 		skb_dma = dma_map_single(rt2x00dev->dev, skb->data, skb->len,
@@ -158,55 +158,29 @@ void rt2x00queue_align_frame(struct sk_buff *skb)
 	skb_trim(skb, frame_length);
 }
 
-void rt2x00queue_insert_l2pad(struct sk_buff *skb, unsigned int header_length)
+/*
+ * H/W needs L2 padding between the header and the paylod if header size
+ * is not 4 bytes aligned.
+ */
+void rt2x00queue_insert_l2pad(struct sk_buff *skb, unsigned int hdr_len)
 {
-	unsigned int payload_length = skb->len - header_length;
-	unsigned int header_align = ALIGN_SIZE(skb, 0);
-	unsigned int payload_align = ALIGN_SIZE(skb, header_length);
-	unsigned int l2pad = payload_length ? L2PAD_SIZE(header_length) : 0;
-
-	/*
-	 * Adjust the header alignment if the payload needs to be moved more
-	 * than the header.
-	 */
-	if (payload_align > header_align)
-		header_align += 4;
-
-	/* There is nothing to do if no alignment is needed */
-	if (!header_align)
-		return;
-
-	/* Reserve the amount of space needed in front of the frame */
-	skb_push(skb, header_align);
-
-	/*
-	 * Move the header.
-	 */
-	memmove(skb->data, skb->data + header_align, header_length);
-
-	/* Move the payload, if present and if required */
-	if (payload_length && payload_align)
-		memmove(skb->data + header_length + l2pad,
-			skb->data + header_length + l2pad + payload_align,
-			payload_length);
-
-	/* Trim the skb to the correct size */
-	skb_trim(skb, header_length + l2pad + payload_length);
-}
-
-void rt2x00queue_remove_l2pad(struct sk_buff *skb, unsigned int header_length)
-{
-	/*
-	 * L2 padding is only present if the skb contains more than just the
-	 * IEEE 802.11 header.
-	 */
-	unsigned int l2pad = (skb->len > header_length) ?
-				L2PAD_SIZE(header_length) : 0;
+	unsigned int l2pad = (skb->len > hdr_len) ? L2PAD_SIZE(hdr_len) : 0;
 
 	if (!l2pad)
 		return;
 
-	memmove(skb->data + l2pad, skb->data, header_length);
+	skb_push(skb, l2pad);
+	memmove(skb->data, skb->data + l2pad, hdr_len);
+}
+
+void rt2x00queue_remove_l2pad(struct sk_buff *skb, unsigned int hdr_len)
+{
+	unsigned int l2pad = (skb->len > hdr_len) ? L2PAD_SIZE(hdr_len) : 0;
+
+	if (!l2pad)
+		return;
+
+	memmove(skb->data + l2pad, skb->data, hdr_len);
 	skb_pull(skb, l2pad);
 }
 
@@ -224,7 +198,7 @@ static void rt2x00queue_create_tx_descriptor_seq(struct rt2x00_dev *rt2x00dev,
 
 	__set_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags);
 
-	if (!test_bit(REQUIRE_SW_SEQNO, &rt2x00dev->cap_flags)) {
+	if (!rt2x00_has_cap_flag(rt2x00dev, REQUIRE_SW_SEQNO)) {
 		/*
 		 * rt2800 has a H/W (or F/W) bug, device incorrectly increase
 		 * seqno on retransmited data (non-QOS) frames. To workaround
@@ -510,7 +484,7 @@ static void rt2x00queue_create_tx_descriptor(struct rt2x00_dev *rt2x00dev,
 	rt2x00crypto_create_tx_descriptor(rt2x00dev, skb, txdesc);
 	rt2x00queue_create_tx_descriptor_seq(rt2x00dev, skb, txdesc);
 
-	if (test_bit(REQUIRE_HT_TX_DESC, &rt2x00dev->cap_flags))
+	if (rt2x00_has_cap_flag(rt2x00dev, REQUIRE_HT_TX_DESC))
 		rt2x00queue_create_tx_descriptor_ht(rt2x00dev, skb, txdesc,
 						   sta, hwrate);
 	else
@@ -552,7 +526,7 @@ static int rt2x00queue_write_tx_data(struct queue_entry *entry,
 	/*
 	 * Map the skb to DMA.
 	 */
-	if (test_bit(REQUIRE_DMA, &rt2x00dev->cap_flags) &&
+	if (rt2x00_has_cap_flag(rt2x00dev, REQUIRE_DMA) &&
 	    rt2x00queue_map_txskb(entry))
 		return -ENOMEM;
 
@@ -672,7 +646,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	 */
 	if (test_bit(ENTRY_TXD_ENCRYPT, &txdesc.flags) &&
 	    !test_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc.flags)) {
-		if (test_bit(REQUIRE_COPY_IV, &queue->rt2x00dev->cap_flags))
+		if (rt2x00_has_cap_flag(queue->rt2x00dev, REQUIRE_COPY_IV))
 			rt2x00crypto_tx_copy_iv(skb, &txdesc);
 		else
 			rt2x00crypto_tx_remove_iv(skb, &txdesc);
@@ -686,9 +660,9 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	 * PCI and USB devices, while header alignment only is valid
 	 * for PCI devices.
 	 */
-	if (test_bit(REQUIRE_L2PAD, &queue->rt2x00dev->cap_flags))
+	if (rt2x00_has_cap_flag(queue->rt2x00dev, REQUIRE_L2PAD))
 		rt2x00queue_insert_l2pad(skb, txdesc.header_length);
-	else if (test_bit(REQUIRE_DMA, &queue->rt2x00dev->cap_flags))
+	else if (rt2x00_has_cap_flag(queue->rt2x00dev, REQUIRE_DMA))
 		rt2x00queue_align_frame(skb);
 
 	/*
@@ -754,8 +728,6 @@ int rt2x00queue_clear_beacon(struct rt2x00_dev *rt2x00dev,
 	if (unlikely(!intf->beacon))
 		return -ENOBUFS;
 
-	mutex_lock(&intf->beacon_skb_mutex);
-
 	/*
 	 * Clean up the beacon skb.
 	 */
@@ -768,13 +740,11 @@ int rt2x00queue_clear_beacon(struct rt2x00_dev *rt2x00dev,
 	if (rt2x00dev->ops->lib->clear_beacon)
 		rt2x00dev->ops->lib->clear_beacon(intf->beacon);
 
-	mutex_unlock(&intf->beacon_skb_mutex);
-
 	return 0;
 }
 
-int rt2x00queue_update_beacon_locked(struct rt2x00_dev *rt2x00dev,
-				     struct ieee80211_vif *vif)
+int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
+			      struct ieee80211_vif *vif)
 {
 	struct rt2x00_intf *intf = vif_to_intf(vif);
 	struct skb_frame_desc *skbdesc;
@@ -813,19 +783,6 @@ int rt2x00queue_update_beacon_locked(struct rt2x00_dev *rt2x00dev,
 
 	return 0;
 
-}
-
-int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
-			      struct ieee80211_vif *vif)
-{
-	struct rt2x00_intf *intf = vif_to_intf(vif);
-	int ret;
-
-	mutex_lock(&intf->beacon_skb_mutex);
-	ret = rt2x00queue_update_beacon_locked(rt2x00dev, vif);
-	mutex_unlock(&intf->beacon_skb_mutex);
-
-	return ret;
 }
 
 bool rt2x00queue_for_each_entry(struct data_queue *queue,
@@ -1221,7 +1178,7 @@ int rt2x00queue_initialize(struct rt2x00_dev *rt2x00dev)
 	if (status)
 		goto exit;
 
-	if (test_bit(REQUIRE_ATIM_QUEUE, &rt2x00dev->cap_flags)) {
+	if (rt2x00_has_cap_flag(rt2x00dev, REQUIRE_ATIM_QUEUE)) {
 		status = rt2x00queue_alloc_entries(rt2x00dev->atim);
 		if (status)
 			goto exit;
@@ -1277,7 +1234,7 @@ int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
 	struct data_queue *queue;
 	enum data_queue_qid qid;
 	unsigned int req_atim =
-	    !!test_bit(REQUIRE_ATIM_QUEUE, &rt2x00dev->cap_flags);
+	    rt2x00_has_cap_flag(rt2x00dev, REQUIRE_ATIM_QUEUE);
 
 	/*
 	 * We need the following queues:

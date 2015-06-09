@@ -403,6 +403,12 @@ typedef struct
 #define PTRACE_TE_ABORT_RAND	      0x5011
 
 /*
+ * The numbers chosen here are somewhat arbitrary but absolutely MUST
+ * not overlap with any of the number assigned in <linux/ptrace.h>.
+ */
+#define PTRACE_SINGLEBLOCK	12	/* resume execution until next branch */
+
+/*
  * PT_PROT definition is loosely based on hppa bsd definition in
  * gdb/hppab-nat.c
  */

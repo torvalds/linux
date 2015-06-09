@@ -73,12 +73,12 @@ int oz_usb_start(struct oz_pd *pd, int resume)
 	 * If it does already have one then destroy the one we have just
 	 * created.
 	 */
-	spin_lock_bh(&pd->app_lock[OZ_APPID_USB-1]);
-	old_ctx = pd->app_ctx[OZ_APPID_USB-1];
+	spin_lock_bh(&pd->app_lock[OZ_APPID_USB]);
+	old_ctx = pd->app_ctx[OZ_APPID_USB];
 	if (old_ctx == NULL)
-		pd->app_ctx[OZ_APPID_USB-1] = usb_ctx;
-	oz_usb_get(pd->app_ctx[OZ_APPID_USB-1]);
-	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB-1]);
+		pd->app_ctx[OZ_APPID_USB] = usb_ctx;
+	oz_usb_get(pd->app_ctx[OZ_APPID_USB]);
+	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB]);
 	if (old_ctx) {
 		oz_dbg(ON, "Already have USB context\n");
 		kfree(usb_ctx);
@@ -99,9 +99,9 @@ int oz_usb_start(struct oz_pd *pd, int resume)
 		usb_ctx->hport = oz_hcd_pd_arrived(usb_ctx);
 		if (usb_ctx->hport == NULL) {
 			oz_dbg(ON, "USB hub returned null port\n");
-			spin_lock_bh(&pd->app_lock[OZ_APPID_USB-1]);
-			pd->app_ctx[OZ_APPID_USB-1] = NULL;
-			spin_unlock_bh(&pd->app_lock[OZ_APPID_USB-1]);
+			spin_lock_bh(&pd->app_lock[OZ_APPID_USB]);
+			pd->app_ctx[OZ_APPID_USB] = NULL;
+			spin_unlock_bh(&pd->app_lock[OZ_APPID_USB]);
 			oz_usb_put(usb_ctx);
 			rc = -1;
 		}
@@ -122,12 +122,13 @@ void oz_usb_stop(struct oz_pd *pd, int pause)
 		oz_dbg(ON, "USB service paused\n");
 		return;
 	}
-	spin_lock_bh(&pd->app_lock[OZ_APPID_USB-1]);
-	usb_ctx = (struct oz_usb_ctx *)pd->app_ctx[OZ_APPID_USB-1];
-	pd->app_ctx[OZ_APPID_USB-1] = NULL;
-	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB-1]);
+	spin_lock_bh(&pd->app_lock[OZ_APPID_USB]);
+	usb_ctx = (struct oz_usb_ctx *) pd->app_ctx[OZ_APPID_USB];
+	pd->app_ctx[OZ_APPID_USB] = NULL;
+	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB]);
 	if (usb_ctx) {
 		struct timespec ts, now;
+
 		getnstimeofday(&ts);
 		oz_dbg(ON, "USB service stopping...\n");
 		usb_ctx->stopped = 1;
@@ -187,11 +188,11 @@ int oz_usb_heartbeat(struct oz_pd *pd)
 	struct oz_usb_ctx *usb_ctx;
 	int rc = 0;
 
-	spin_lock_bh(&pd->app_lock[OZ_APPID_USB-1]);
-	usb_ctx = (struct oz_usb_ctx *)pd->app_ctx[OZ_APPID_USB-1];
+	spin_lock_bh(&pd->app_lock[OZ_APPID_USB]);
+	usb_ctx = (struct oz_usb_ctx *) pd->app_ctx[OZ_APPID_USB];
 	if (usb_ctx)
 		oz_usb_get(usb_ctx);
-	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB-1]);
+	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB]);
 	if (usb_ctx == NULL)
 		return rc;
 	if (usb_ctx->stopped)
@@ -235,6 +236,7 @@ int oz_usb_stream_delete(void *hpd, u8 ep_num)
 
 	if (usb_ctx) {
 		struct oz_pd *pd = usb_ctx->pd;
+
 		if (pd) {
 			oz_dbg(ON, "%s: (0x%x)\n", __func__, ep_num);
 			if (pd->mode & OZ_F_ISOC_NO_ELTS) {

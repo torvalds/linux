@@ -99,7 +99,7 @@ static int wait_for_cpus(int cpu, int bootcpu)
 	do {
 		notready = nlm_threads_per_core;
 		for (i = 0; i < nlm_threads_per_core; i++)
-			if (cpu_ready[cpu + i] || cpu == bootcpu)
+			if (cpu_ready[cpu + i] || (cpu + i) == bootcpu)
 				--notready;
 	} while (notready != 0 && --count > 0);
 
@@ -111,7 +111,7 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 	struct nlm_soc_info *nodep;
 	uint64_t syspcibase, fusebase;
 	uint32_t syscoremask, mask, fusemask;
-	int core, n, cpu;
+	int core, n, cpu, ncores;
 
 	for (n = 0; n < NLM_NR_NODES; n++) {
 		if (n != 0) {
@@ -135,11 +135,19 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 		if (cpu_is_xlp9xx()) {
 			fusebase = nlm_get_fuse_regbase(n);
 			fusemask = nlm_read_reg(fusebase, FUSE_9XX_DEVCFG6);
-			mask = 0xfffff;
+			switch (read_c0_prid() & PRID_IMP_MASK) {
+			case PRID_IMP_NETLOGIC_XLP5XX:
+				mask = 0xff;
+				break;
+			case PRID_IMP_NETLOGIC_XLP9XX:
+			default:
+				mask = 0xfffff;
+				break;
+			}
 		} else {
 			fusemask = nlm_read_sys_reg(nodep->sysbase,
 						SYS_EFUSE_DEVICE_CFG_STATUS0);
-			switch (read_c0_prid() & 0xff00) {
+			switch (read_c0_prid() & PRID_IMP_MASK) {
 			case PRID_IMP_NETLOGIC_XLP3XX:
 				mask = 0xf;
 				break;
@@ -159,12 +167,9 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 		 */
 		syscoremask = (1 << hweight32(~fusemask & mask)) - 1;
 
-		/* The boot cpu */
-		if (n == 0)
-			nodep->coremask = 1;
-
 		pr_info("Node %d - SYS/FUSE coremask %x\n", n, syscoremask);
-		for (core = 0; core < nlm_cores_per_node(); core++) {
+		ncores = nlm_cores_per_node();
+		for (core = 0; core < ncores; core++) {
 			/* we will be on node 0 core 0 */
 			if (n == 0 && core == 0)
 				continue;
@@ -174,8 +179,7 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 				continue;
 
 			/* see if at least the first hw thread is enabled */
-			cpu = (n * nlm_cores_per_node() + core)
-						* NLM_THREADS_PER_CORE;
+			cpu = (n * ncores + core) * NLM_THREADS_PER_CORE;
 			if (!cpumask_test_cpu(cpu, wakeup_mask))
 				continue;
 

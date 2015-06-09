@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
-#include <mach/common.h>
+#include "common.h"
 
 extern unsigned long shmobile_smp_fn[];
 extern unsigned long shmobile_smp_arg[];

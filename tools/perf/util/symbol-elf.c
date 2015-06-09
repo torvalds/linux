@@ -6,8 +6,36 @@
 #include <inttypes.h>
 
 #include "symbol.h"
+#include "machine.h"
+#include "vdso.h"
 #include <symbol/kallsyms.h>
 #include "debug.h"
+
+#ifndef EM_AARCH64
+#define EM_AARCH64	183  /* ARM 64 bit */
+#endif
+
+
+#ifdef HAVE_CPLUS_DEMANGLE_SUPPORT
+extern char *cplus_demangle(const char *, int);
+
+static inline char *bfd_demangle(void __maybe_unused *v, const char *c, int i)
+{
+	return cplus_demangle(c, i);
+}
+#else
+#ifdef NO_DEMANGLE
+static inline char *bfd_demangle(void __maybe_unused *v,
+				 const char __maybe_unused *c,
+				 int __maybe_unused i)
+{
+	return NULL;
+}
+#else
+#define PACKAGE 'perf'
+#include <bfd.h>
+#endif
+#endif
 
 #ifndef HAVE_ELF_GETPHDRNUM_SUPPORT
 static int elf_getphdrnum(Elf *elf, size_t *dst)
@@ -46,9 +74,14 @@ static inline uint8_t elf_sym__type(const GElf_Sym *sym)
 	return GELF_ST_TYPE(sym->st_info);
 }
 
+#ifndef STT_GNU_IFUNC
+#define STT_GNU_IFUNC 10
+#endif
+
 static inline int elf_sym__is_function(const GElf_Sym *sym)
 {
-	return elf_sym__type(sym) == STT_FUNC &&
+	return (elf_sym__type(sym) == STT_FUNC ||
+		elf_sym__type(sym) == STT_GNU_IFUNC) &&
 	       sym->st_name != 0 &&
 	       sym->st_shndx != SHN_UNDEF;
 }
@@ -506,6 +539,8 @@ int filename__read_debuglink(const char *filename, char *debuglink,
 	/* the start of this section is a zero-terminated string */
 	strncpy(debuglink, data->d_buf, size);
 
+	err = 0;
+
 out_elf_end:
 	elf_end(elf);
 out_close:
@@ -541,6 +576,43 @@ static int dso__swap_init(struct dso *dso, unsigned char eidata)
 	return 0;
 }
 
+static int decompress_kmodule(struct dso *dso, const char *name,
+			      enum dso_binary_type type)
+{
+	int fd = -1;
+	char tmpbuf[] = "/tmp/perf-kmod-XXXXXX";
+	struct kmod_path m;
+
+	if (type != DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP &&
+	    type != DSO_BINARY_TYPE__GUEST_KMODULE_COMP &&
+	    type != DSO_BINARY_TYPE__BUILD_ID_CACHE)
+		return -1;
+
+	if (type == DSO_BINARY_TYPE__BUILD_ID_CACHE)
+		name = dso->long_name;
+
+	if (kmod_path__parse_ext(&m, name) || !m.comp)
+		return -1;
+
+	fd = mkstemp(tmpbuf);
+	if (fd < 0) {
+		dso->load_errno = errno;
+		goto out;
+	}
+
+	if (!decompress_to_file(m.ext, name, fd)) {
+		dso->load_errno = DSO_LOAD_ERRNO__DECOMPRESSION_FAILURE;
+		close(fd);
+		fd = -1;
+	}
+
+	unlink(tmpbuf);
+
+out:
+	free(m.ext);
+	return fd;
+}
+
 bool symsrc__possibly_runtime(struct symsrc *ss)
 {
 	return ss->dynsym || ss->opdsec;
@@ -566,34 +638,52 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 	Elf *elf;
 	int fd;
 
-	fd = open(name, O_RDONLY);
-	if (fd < 0)
-		return -1;
+	if (dso__needs_decompress(dso)) {
+		fd = decompress_kmodule(dso, name, type);
+		if (fd < 0)
+			return -1;
+	} else {
+		fd = open(name, O_RDONLY);
+		if (fd < 0) {
+			dso->load_errno = errno;
+			return -1;
+		}
+	}
 
 	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
 	if (elf == NULL) {
 		pr_debug("%s: cannot read %s ELF file.\n", __func__, name);
+		dso->load_errno = DSO_LOAD_ERRNO__INVALID_ELF;
 		goto out_close;
 	}
 
 	if (gelf_getehdr(elf, &ehdr) == NULL) {
+		dso->load_errno = DSO_LOAD_ERRNO__INVALID_ELF;
 		pr_debug("%s: cannot get elf header.\n", __func__);
 		goto out_elf_end;
 	}
 
-	if (dso__swap_init(dso, ehdr.e_ident[EI_DATA]))
+	if (dso__swap_init(dso, ehdr.e_ident[EI_DATA])) {
+		dso->load_errno = DSO_LOAD_ERRNO__INTERNAL_ERROR;
 		goto out_elf_end;
+	}
 
 	/* Always reject images with a mismatched build-id: */
 	if (dso->has_build_id) {
 		u8 build_id[BUILD_ID_SIZE];
 
-		if (elf_read_build_id(elf, build_id, BUILD_ID_SIZE) < 0)
+		if (elf_read_build_id(elf, build_id, BUILD_ID_SIZE) < 0) {
+			dso->load_errno = DSO_LOAD_ERRNO__CANNOT_READ_BUILDID;
 			goto out_elf_end;
+		}
 
-		if (!dso__build_id_equal(dso, build_id))
+		if (!dso__build_id_equal(dso, build_id)) {
+			dso->load_errno = DSO_LOAD_ERRNO__MISMATCHING_BUILDID;
 			goto out_elf_end;
+		}
 	}
+
+	ss->is_64_bit = (gelf_getclass(elf) == ELFCLASS64);
 
 	ss->symtab = elf_section_by_name(elf, &ehdr, &ss->symshdr, ".symtab",
 			NULL);
@@ -616,6 +706,7 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 		GElf_Shdr shdr;
 		ss->adjust_symbols = (ehdr.e_type == ET_EXEC ||
 				ehdr.e_type == ET_REL ||
+				dso__is_vdso(dso) ||
 				elf_section_by_name(elf, &ehdr, &shdr,
 						     ".gnu.prelink_undo",
 						     NULL) != NULL);
@@ -625,8 +716,10 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 	}
 
 	ss->name   = strdup(name);
-	if (!ss->name)
+	if (!ss->name) {
+		dso->load_errno = errno;
 		goto out_elf_end;
+	}
 
 	ss->elf    = elf;
 	ss->fd     = fd;
@@ -673,11 +766,17 @@ static u64 ref_reloc(struct kmap *kmap)
 	return 0;
 }
 
+static bool want_demangle(bool is_kernel_sym)
+{
+	return is_kernel_sym ? symbol_conf.demangle_kernel : symbol_conf.demangle;
+}
+
 int dso__load_sym(struct dso *dso, struct map *map,
 		  struct symsrc *syms_ss, struct symsrc *runtime_ss,
 		  symbol_filter_t filter, int kmodule)
 {
 	struct kmap *kmap = dso->kernel ? map__kmap(map) : NULL;
+	struct map_groups *kmaps = kmap ? map__kmaps(map) : NULL;
 	struct map *curr_map = map;
 	struct dso *curr_dso = dso;
 	Elf_Data *symstrs, *secstrs;
@@ -693,7 +792,11 @@ int dso__load_sym(struct dso *dso, struct map *map,
 	int nr = 0;
 	bool remap_kernel = false, adjust_kernel_syms = false;
 
+	if (kmap && !kmaps)
+		return -1;
+
 	dso->symtab_type = syms_ss->type;
+	dso->is_64_bit = syms_ss->is_64_bit;
 	dso->rel = syms_ss->ehdr.e_type == ET_REL;
 
 	/*
@@ -704,6 +807,14 @@ int dso__load_sym(struct dso *dso, struct map *map,
 		symbols__delete(&dso->symbols[map->type]);
 
 	if (!syms_ss->symtab) {
+		/*
+		 * If the vmlinux is stripped, fail so we will fall back
+		 * to using kallsyms. The vmlinux runtime symbols aren't
+		 * of much use.
+		 */
+		if (dso->kernel)
+			goto out_elf_end;
+
 		syms_ss->symtab  = syms_ss->dynsym;
 		syms_ss->symshdr = syms_ss->dynshdr;
 	}
@@ -728,7 +839,7 @@ int dso__load_sym(struct dso *dso, struct map *map,
 	if (symstrs == NULL)
 		goto out_elf_end;
 
-	sec_strndx = elf_getscn(elf, ehdr.e_shstrndx);
+	sec_strndx = elf_getscn(runtime_ss->elf, runtime_ss->ehdr.e_shstrndx);
 	if (sec_strndx == NULL)
 		goto out_elf_end;
 
@@ -780,10 +891,9 @@ int dso__load_sym(struct dso *dso, struct map *map,
 		/* Reject ARM ELF "mapping symbols": these aren't unique and
 		 * don't identify functions, so will confuse the profile
 		 * output: */
-		if (ehdr.e_machine == EM_ARM) {
-			if (!strcmp(elf_name, "$a") ||
-			    !strcmp(elf_name, "$d") ||
-			    !strcmp(elf_name, "$t"))
+		if (ehdr.e_machine == EM_ARM || ehdr.e_machine == EM_AARCH64) {
+			if (elf_name[0] == '$' && strchr("adtx", elf_name[1])
+			    && (elf_name[2] == '\0' || elf_name[2] == '.'))
 				continue;
 		}
 
@@ -852,8 +962,10 @@ int dso__load_sym(struct dso *dso, struct map *map,
 					map->map_ip = map__map_ip;
 					map->unmap_ip = map__unmap_ip;
 					/* Ensure maps are correctly ordered */
-					map_groups__remove(kmap->kmaps, map);
-					map_groups__insert(kmap->kmaps, map);
+					if (kmaps) {
+						map_groups__remove(kmaps, map);
+						map_groups__insert(kmaps, map);
+					}
 				}
 
 				/*
@@ -877,7 +989,7 @@ int dso__load_sym(struct dso *dso, struct map *map,
 			snprintf(dso_name, sizeof(dso_name),
 				 "%s%s", dso->short_name, section_name);
 
-			curr_map = map_groups__find_by_name(kmap->kmaps, map->type, dso_name);
+			curr_map = map_groups__find_by_name(kmaps, map->type, dso_name);
 			if (curr_map == NULL) {
 				u64 start = sym.st_value;
 
@@ -907,8 +1019,12 @@ int dso__load_sym(struct dso *dso, struct map *map,
 					curr_map->unmap_ip = identity__map_ip;
 				}
 				curr_dso->symtab_type = dso->symtab_type;
-				map_groups__insert(kmap->kmaps, curr_map);
-				dsos__add(&dso->node, curr_dso);
+				map_groups__insert(kmaps, curr_map);
+				/*
+				 * The new DSO should go to the kernel DSOS
+				 */
+				dsos__add(&map->groups->machine->kernel_dsos,
+					  curr_dso);
 				dso__set_loaded(curr_dso, map->type);
 			} else
 				curr_dso = curr_map->dso;
@@ -930,9 +1046,12 @@ new_symbol:
 		 * DWARF DW_compile_unit has this, but we don't always have access
 		 * to it...
 		 */
-		if (symbol_conf.demangle) {
-			demangled = bfd_demangle(NULL, elf_name,
-						 DMGL_PARAMS | DMGL_ANSI);
+		if (want_demangle(dso->kernel || kmodule)) {
+			int demangle_flags = DMGL_NO_OPTS;
+			if (verbose)
+				demangle_flags = DMGL_PARAMS | DMGL_ANSI;
+
+			demangled = bfd_demangle(NULL, elf_name, demangle_flags);
 			if (demangled != NULL)
 				elf_name = demangled;
 		}
@@ -954,14 +1073,15 @@ new_symbol:
 	 * For misannotated, zeroed, ASM function sizes.
 	 */
 	if (nr > 0) {
-		symbols__fixup_duplicate(&dso->symbols[map->type]);
+		if (!symbol_conf.allow_aliases)
+			symbols__fixup_duplicate(&dso->symbols[map->type]);
 		symbols__fixup_end(&dso->symbols[map->type]);
 		if (kmap) {
 			/*
 			 * We need to fixup this here too because we create new
 			 * maps here, for things like vsyscall sections.
 			 */
-			__map_groups__fixup_end(kmap->kmaps, map->type);
+			__map_groups__fixup_end(kmaps, map->type);
 		}
 	}
 	err = nr;
@@ -1018,6 +1138,39 @@ int file__read_maps(int fd, bool exe, mapfn_t mapfn, void *data,
 
 	elf_end(elf);
 	return err;
+}
+
+enum dso_type dso__type_fd(int fd)
+{
+	enum dso_type dso_type = DSO__TYPE_UNKNOWN;
+	GElf_Ehdr ehdr;
+	Elf_Kind ek;
+	Elf *elf;
+
+	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
+	if (elf == NULL)
+		goto out;
+
+	ek = elf_kind(elf);
+	if (ek != ELF_K_ELF)
+		goto out_end;
+
+	if (gelf_getclass(elf) == ELFCLASS64) {
+		dso_type = DSO__TYPE_64BIT;
+		goto out_end;
+	}
+
+	if (gelf_getehdr(elf, &ehdr) == NULL)
+		goto out_end;
+
+	if (ehdr.e_machine == EM_X86_64)
+		dso_type = DSO__TYPE_X32BIT;
+	else
+		dso_type = DSO__TYPE_32BIT;
+out_end:
+	elf_end(elf);
+out:
+	return dso_type;
 }
 
 static int copy_bytes(int from, off_t from_offs, int to, off_t to_offs, u64 len)

@@ -59,6 +59,7 @@ int test__PERF_RECORD(void)
 	int err = -1, errs = 0, i, wakeups = 0;
 	u32 cpu;
 	int total_events = 0, nr_events[PERF_RECORD_MAX] = { 0, };
+	char sbuf[STRERR_BUFSIZE];
 
 	if (evlist == NULL || argv == NULL) {
 		pr_debug("Not enough memory to create evlist\n");
@@ -100,7 +101,8 @@ int test__PERF_RECORD(void)
 
 	err = sched__get_first_possible_cpu(evlist->workload.pid, &cpu_mask);
 	if (err < 0) {
-		pr_debug("sched__get_first_possible_cpu: %s\n", strerror(errno));
+		pr_debug("sched__get_first_possible_cpu: %s\n",
+			 strerror_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
@@ -110,7 +112,8 @@ int test__PERF_RECORD(void)
 	 * So that we can check perf_sample.cpu on all the samples.
 	 */
 	if (sched_setaffinity(evlist->workload.pid, cpu_mask_size, &cpu_mask) < 0) {
-		pr_debug("sched_setaffinity: %s\n", strerror(errno));
+		pr_debug("sched_setaffinity: %s\n",
+			 strerror_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
@@ -120,7 +123,8 @@ int test__PERF_RECORD(void)
 	 */
 	err = perf_evlist__open(evlist);
 	if (err < 0) {
-		pr_debug("perf_evlist__open: %s\n", strerror(errno));
+		pr_debug("perf_evlist__open: %s\n",
+			 strerror_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
@@ -131,7 +135,8 @@ int test__PERF_RECORD(void)
 	 */
 	err = perf_evlist__mmap(evlist, opts.mmap_pages, false);
 	if (err < 0) {
-		pr_debug("perf_evlist__mmap: %s\n", strerror(errno));
+		pr_debug("perf_evlist__mmap: %s\n",
+			 strerror_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
@@ -263,7 +268,7 @@ int test__PERF_RECORD(void)
 		 * perf_event_attr.wakeup_events, just PERF_EVENT_SAMPLE does.
 		 */
 		if (total_events == before && false)
-			poll(evlist->pollfd, evlist->nr_fds, -1);
+			perf_evlist__poll(evlist, -1);
 
 		sleep(1);
 		if (++wakeups > 5) {

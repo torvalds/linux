@@ -13,7 +13,7 @@
 #include <linux/fs.h>
 #include <linux/stat.h>
 #include <linux/errno.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/string.h>
 #include <linux/list.h>
 #include <linux/sched.h>
@@ -92,10 +92,10 @@ static void coda_flag_children(struct dentry *parent, int flag)
 	struct dentry *de;
 
 	spin_lock(&parent->d_lock);
-	list_for_each_entry(de, &parent->d_subdirs, d_u.d_child) {
+	list_for_each_entry(de, &parent->d_subdirs, d_child) {
 		/* don't know what to do with negative dentries */
-		if (de->d_inode ) 
-			coda_flag_inode(de->d_inode, flag);
+		if (d_inode(de) ) 
+			coda_flag_inode(d_inode(de), flag);
 	}
 	spin_unlock(&parent->d_lock);
 	return; 

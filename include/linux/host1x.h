@@ -135,7 +135,9 @@ struct host1x_syncpt *host1x_syncpt_get(struct host1x *host, u32 id);
 u32 host1x_syncpt_id(struct host1x_syncpt *sp);
 u32 host1x_syncpt_read_min(struct host1x_syncpt *sp);
 u32 host1x_syncpt_read_max(struct host1x_syncpt *sp);
+u32 host1x_syncpt_read(struct host1x_syncpt *sp);
 int host1x_syncpt_incr(struct host1x_syncpt *sp);
+u32 host1x_syncpt_incr_max(struct host1x_syncpt *sp, u32 incrs);
 int host1x_syncpt_wait(struct host1x_syncpt *sp, u32 thresh, long timeout,
 		       u32 *value);
 struct host1x_syncpt *host1x_syncpt_request(struct device *dev,
@@ -163,12 +165,15 @@ int host1x_job_submit(struct host1x_job *job);
  */
 
 struct host1x_reloc {
-	struct host1x_bo *cmdbuf;
-	u32 cmdbuf_offset;
-	struct host1x_bo *target;
-	u32 target_offset;
-	u32 shift;
-	u32 pad;
+	struct {
+		struct host1x_bo *bo;
+		unsigned long offset;
+	} cmdbuf;
+	struct {
+		struct host1x_bo *bo;
+		unsigned long offset;
+	} target;
+	unsigned long shift;
 };
 
 struct host1x_job {
@@ -246,16 +251,28 @@ void host1x_job_unpin(struct host1x_job *job);
 struct host1x_device;
 
 struct host1x_driver {
+	struct device_driver driver;
+
 	const struct of_device_id *subdevs;
 	struct list_head list;
-	const char *name;
 
 	int (*probe)(struct host1x_device *device);
 	int (*remove)(struct host1x_device *device);
+	void (*shutdown)(struct host1x_device *device);
 };
 
-int host1x_driver_register(struct host1x_driver *driver);
+static inline struct host1x_driver *
+to_host1x_driver(struct device_driver *driver)
+{
+	return container_of(driver, struct host1x_driver, driver);
+}
+
+int host1x_driver_register_full(struct host1x_driver *driver,
+				struct module *owner);
 void host1x_driver_unregister(struct host1x_driver *driver);
+
+#define host1x_driver_register(driver) \
+	host1x_driver_register_full(driver, THIS_MODULE)
 
 struct host1x_device {
 	struct host1x_driver *driver;
@@ -268,6 +285,8 @@ struct host1x_device {
 
 	struct mutex clients_lock;
 	struct list_head clients;
+
+	bool registered;
 };
 
 static inline struct host1x_device *to_host1x_device(struct device *dev)

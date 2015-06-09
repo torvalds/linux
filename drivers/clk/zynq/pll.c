@@ -90,7 +90,7 @@ static unsigned long zynq_pll_recalc_rate(struct clk_hw *hw,
 	 * makes probably sense to redundantly save fbdiv in the struct
 	 * zynq_pll to save the IO access.
 	 */
-	fbdiv = (readl(clk->pll_ctrl) & PLLCTRL_FBDIV_MASK) >>
+	fbdiv = (clk_readl(clk->pll_ctrl) & PLLCTRL_FBDIV_MASK) >>
 			PLLCTRL_FBDIV_SHIFT;
 
 	return parent_rate * fbdiv;
@@ -112,7 +112,7 @@ static int zynq_pll_is_enabled(struct clk_hw *hw)
 
 	spin_lock_irqsave(clk->lock, flags);
 
-	reg = readl(clk->pll_ctrl);
+	reg = clk_readl(clk->pll_ctrl);
 
 	spin_unlock_irqrestore(clk->lock, flags);
 
@@ -138,10 +138,10 @@ static int zynq_pll_enable(struct clk_hw *hw)
 	/* Power up PLL and wait for lock */
 	spin_lock_irqsave(clk->lock, flags);
 
-	reg = readl(clk->pll_ctrl);
+	reg = clk_readl(clk->pll_ctrl);
 	reg &= ~(PLLCTRL_RESET_MASK | PLLCTRL_PWRDWN_MASK);
-	writel(reg, clk->pll_ctrl);
-	while (!(readl(clk->pll_status) & (1 << clk->lockbit)))
+	clk_writel(reg, clk->pll_ctrl);
+	while (!(clk_readl(clk->pll_status) & (1 << clk->lockbit)))
 		;
 
 	spin_unlock_irqrestore(clk->lock, flags);
@@ -168,9 +168,9 @@ static void zynq_pll_disable(struct clk_hw *hw)
 	/* shut down PLL */
 	spin_lock_irqsave(clk->lock, flags);
 
-	reg = readl(clk->pll_ctrl);
+	reg = clk_readl(clk->pll_ctrl);
 	reg |= PLLCTRL_RESET_MASK | PLLCTRL_PWRDWN_MASK;
-	writel(reg, clk->pll_ctrl);
+	clk_writel(reg, clk->pll_ctrl);
 
 	spin_unlock_irqrestore(clk->lock, flags);
 }
@@ -211,10 +211,8 @@ struct clk *clk_register_zynq_pll(const char *name, const char *parent,
 	};
 
 	pll = kmalloc(sizeof(*pll), GFP_KERNEL);
-	if (!pll) {
-		pr_err("%s: Could not allocate Zynq PLL clk.\n", __func__);
+	if (!pll)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	/* Populate the struct */
 	pll->hw.init = &initd;
@@ -225,9 +223,9 @@ struct clk *clk_register_zynq_pll(const char *name, const char *parent,
 
 	spin_lock_irqsave(pll->lock, flags);
 
-	reg = readl(pll->pll_ctrl);
+	reg = clk_readl(pll->pll_ctrl);
 	reg &= ~PLLCTRL_BPQUAL_MASK;
-	writel(reg, pll->pll_ctrl);
+	clk_writel(reg, pll->pll_ctrl);
 
 	spin_unlock_irqrestore(pll->lock, flags);
 

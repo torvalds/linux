@@ -40,7 +40,7 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include <linux/lnet/lib-lnet.h>
+#include "../../include/linux/lnet/lib-lnet.h"
 
 /**
  * Create and attach a match entry to the match list of \a portal. The new
@@ -246,11 +246,12 @@ LNetMEUnlink(lnet_handle_me_t meh)
 	}
 
 	md = me->me_md;
-	if (md != NULL &&
-	    md->md_eq != NULL &&
-	    md->md_refcount == 0) {
-		lnet_build_unlink_event(md, &ev);
-		lnet_eq_enqueue_event(md->md_eq, &ev);
+	if (md != NULL) {
+		md->md_flags |= LNET_MD_FLAG_ABORTED;
+		if (md->md_eq != NULL && md->md_refcount == 0) {
+			lnet_build_unlink_event(md, &ev);
+			lnet_eq_enqueue_event(md->md_eq, &ev);
+		}
 	}
 
 	lnet_me_unlink(me);
@@ -282,7 +283,7 @@ lnet_me_unlink(lnet_me_t *me)
 static void
 lib_me_dump(lnet_me_t *me)
 {
-	CWARN("Match Entry %p ("LPX64")\n", me,
+	CWARN("Match Entry %p (%#llx)\n", me,
 	      me->me_lh.lh_cookie);
 
 	CWARN("\tMatch/Ignore\t= %016lx / %016lx\n",

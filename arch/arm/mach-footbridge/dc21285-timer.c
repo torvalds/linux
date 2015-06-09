@@ -105,7 +105,7 @@ static irqreturn_t timer1_interrupt(int irq, void *dev_id)
 static struct irqaction footbridge_timer_irq = {
 	.name		= "dc21285_timer1",
 	.handler	= timer1_interrupt,
-	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
+	.flags		= IRQF_TIMER | IRQF_IRQPOLL,
 	.dev_id		= &ckevt_dc21285,
 };
 
@@ -125,7 +125,7 @@ void __init footbridge_timer_init(void)
 	clockevents_config_and_register(ce, rate, 0x4, 0xffffff);
 }
 
-static u32 notrace footbridge_read_sched_clock(void)
+static u64 notrace footbridge_read_sched_clock(void)
 {
 	return ~*CSR_TIMER3_VALUE;
 }
@@ -138,5 +138,5 @@ void __init footbridge_sched_clock(void)
 	*CSR_TIMER3_CLR = 0;
 	*CSR_TIMER3_CNTL = TIMER_CNTL_ENABLE | TIMER_CNTL_DIV16;
 
-	setup_sched_clock(footbridge_read_sched_clock, 24, rate);
+	sched_clock_register(footbridge_read_sched_clock, 24, rate);
 }

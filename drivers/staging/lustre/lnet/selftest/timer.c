@@ -57,10 +57,10 @@
 #define STTIMER_SLOT(t)	       (&stt_data.stt_hash[(((t) >> STTIMER_MINPOLL) & \
 						    (STTIMER_NSLOTS - 1))])
 
-struct st_timer_data {
+static struct st_timer_data {
 	spinlock_t	 stt_lock;
 	/* start time of the slot processed previously */
-	cfs_time_t       stt_prev_slot;
+	unsigned long       stt_prev_slot;
 	struct list_head       stt_hash[STTIMER_NSLOTS];
 	int	      stt_shuttingdown;
 	wait_queue_head_t      stt_waitq;
@@ -78,7 +78,7 @@ stt_add_timer(stt_timer_t *timer)
 	LASSERT(!stt_data.stt_shuttingdown);
 	LASSERT(timer->stt_func != NULL);
 	LASSERT(list_empty(&timer->stt_list));
-	LASSERT(cfs_time_after(timer->stt_expires, cfs_time_current_sec()));
+	LASSERT(cfs_time_after(timer->stt_expires, get_seconds()));
 
 	/* a simple insertion sort */
 	list_for_each_prev(pos, STTIMER_SLOT(timer->stt_expires)) {
@@ -121,8 +121,8 @@ stt_del_timer(stt_timer_t *timer)
 }
 
 /* called with stt_data.stt_lock held */
-int
-stt_expire_list(struct list_head *slot, cfs_time_t now)
+static int
+stt_expire_list(struct list_head *slot, unsigned long now)
 {
 	int	  expired = 0;
 	stt_timer_t *timer;
@@ -145,14 +145,14 @@ stt_expire_list(struct list_head *slot, cfs_time_t now)
 	return expired;
 }
 
-int
-stt_check_timers(cfs_time_t *last)
+static int
+stt_check_timers(unsigned long *last)
 {
 	int	expired = 0;
-	cfs_time_t now;
-	cfs_time_t this_slot;
+	unsigned long now;
+	unsigned long this_slot;
 
-	now = cfs_time_current_sec();
+	now = get_seconds();
 	this_slot = now & STTIMER_SLOTTIMEMASK;
 
 	spin_lock(&stt_data.stt_lock);
@@ -168,7 +168,7 @@ stt_check_timers(cfs_time_t *last)
 }
 
 
-int
+static int
 stt_timer_main(void *arg)
 {
 	cfs_block_allsigs();
@@ -187,7 +187,7 @@ stt_timer_main(void *arg)
 	return 0;
 }
 
-int
+static int
 stt_start_timer_thread(void)
 {
 	struct task_struct *task;
@@ -212,7 +212,7 @@ stt_startup(void)
 	int i;
 
 	stt_data.stt_shuttingdown = 0;
-	stt_data.stt_prev_slot = cfs_time_current_sec() & STTIMER_SLOTTIMEMASK;
+	stt_data.stt_prev_slot = get_seconds() & STTIMER_SLOTTIMEMASK;
 
 	spin_lock_init(&stt_data.stt_lock);
 	for (i = 0; i < STTIMER_NSLOTS; i++)

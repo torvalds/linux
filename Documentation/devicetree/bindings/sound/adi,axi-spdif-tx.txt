@@ -1,7 +1,7 @@
 ADI AXI-SPDIF controller
 
 Required properties:
- - compatible : Must be "adi,axi-spdif-1.00.a"
+ - compatible : Must be "adi,axi-spdif-tx-1.00.a"
  - reg : Must contain SPDIF core's registers location and length
  - clocks : Pairs of phandle and specifier referencing the controller's clocks.
    The controller expects two clocks, the clock used for the AXI interface and

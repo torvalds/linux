@@ -159,7 +159,7 @@ static inline int TEMP_FROM_REG(s8 val)
 {
 	return val * 830 + 52120;
 }
-static inline s8 TEMP_TO_REG(int val)
+static inline s8 TEMP_TO_REG(long val)
 {
 	int nval = clamp_val(val, -54120, 157530) ;
 	return nval < 0 ? (nval - 5212 - 415) / 830 : (nval - 5212 + 415) / 830;
@@ -215,7 +215,6 @@ static void sis5595_init_device(struct sis5595_data *data);
 
 static struct platform_driver sis5595_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "sis5595",
 	},
 	.probe		= sis5595_probe,

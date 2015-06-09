@@ -25,10 +25,13 @@
 #include "prminst44xx.h"
 #include "prm-regbits-44xx.h"
 #include "prcm44xx.h"
+#include "prcm43xx.h"
 #include "prcm_mpu44xx.h"
 #include "soc.h"
 
 static void __iomem *_prm_bases[OMAP4_MAX_PRCM_PARTITIONS];
+
+static s32 prm_dev_inst = PRM_INSTANCE_UNKNOWN;
 
 /**
  * omap_prm_base_init - Populates the prm partitions
@@ -42,13 +45,23 @@ void omap_prm_base_init(void)
 	_prm_bases[OMAP4430_PRCM_MPU_PARTITION] = prcm_mpu_base;
 }
 
+s32 omap4_prmst_get_prm_dev_inst(void)
+{
+	return prm_dev_inst;
+}
+
+void omap4_prminst_set_prm_dev_inst(s32 dev_inst)
+{
+	prm_dev_inst = dev_inst;
+}
+
 /* Read a register in a PRM instance */
 u32 omap4_prminst_read_inst_reg(u8 part, s16 inst, u16 idx)
 {
 	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
 	       !_prm_bases[part]);
-	return __raw_readl(_prm_bases[part] + inst + idx);
+	return readl_relaxed(_prm_bases[part] + inst + idx);
 }
 
 /* Write into a register in a PRM instance */
@@ -57,7 +70,7 @@ void omap4_prminst_write_inst_reg(u32 val, u8 part, s16 inst, u16 idx)
 	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
 	       !_prm_bases[part]);
-	__raw_writel(val, _prm_bases[part] + inst + idx);
+	writel_relaxed(val, _prm_bases[part] + inst + idx);
 }
 
 /* Read-modify-write a register in PRM. Caller must lock */
@@ -73,12 +86,6 @@ u32 omap4_prminst_rmw_inst_reg_bits(u32 mask, u32 bits, u8 part, s16 inst,
 
 	return v;
 }
-
-/*
- * Address offset (in bytes) between the reset control and the reset
- * status registers: 4 bytes on OMAP4
- */
-#define OMAP4_RST_CTRL_ST_OFFSET		4
 
 /**
  * omap4_prminst_is_hardreset_asserted - read the HW reset line state of
@@ -127,8 +134,12 @@ int omap4_prminst_assert_hardreset(u8 shift, u8 part, s16 inst,
 /**
  * omap4_prminst_deassert_hardreset - deassert a submodule hardreset line and
  * wait
- * @rstctrl_reg: RM_RSTCTRL register address for this module
  * @shift: register bit shift corresponding to the reset line to deassert
+ * @st_shift: status bit offset corresponding to the reset line
+ * @part: PRM partition
+ * @inst: PRM instance offset
+ * @rstctrl_offs: reset register offset
+ * @rstst_offs: reset status register offset
  *
  * Some IPs like dsp, ipu or iva contain processors that require an HW
  * reset line to be asserted / deasserted in order to fully enable the
@@ -139,12 +150,12 @@ int omap4_prminst_assert_hardreset(u8 shift, u8 part, s16 inst,
  * -EINVAL upon an argument error, -EEXIST if the submodule was already out
  * of reset, or -EBUSY if the submodule did not exit reset promptly.
  */
-int omap4_prminst_deassert_hardreset(u8 shift, u8 part, s16 inst,
-				     u16 rstctrl_offs)
+int omap4_prminst_deassert_hardreset(u8 shift, u8 st_shift, u8 part, s16 inst,
+				     u16 rstctrl_offs, u16 rstst_offs)
 {
 	int c;
 	u32 mask = 1 << shift;
-	u16 rstst_offs = rstctrl_offs + OMAP4_RST_CTRL_ST_OFFSET;
+	u32 st_mask = 1 << st_shift;
 
 	/* Check the current status to avoid de-asserting the line twice */
 	if (omap4_prminst_is_hardreset_asserted(shift, part, inst,
@@ -152,13 +163,13 @@ int omap4_prminst_deassert_hardreset(u8 shift, u8 part, s16 inst,
 		return -EEXIST;
 
 	/* Clear the reset status by writing 1 to the status bit */
-	omap4_prminst_rmw_inst_reg_bits(0xffffffff, mask, part, inst,
+	omap4_prminst_rmw_inst_reg_bits(0xffffffff, st_mask, part, inst,
 					rstst_offs);
 	/* de-assert the reset control line */
 	omap4_prminst_rmw_inst_reg_bits(mask, 0, part, inst, rstctrl_offs);
 	/* wait the status to be set */
-	omap_test_timeout(omap4_prminst_is_hardreset_asserted(shift, part, inst,
-							      rstst_offs),
+	omap_test_timeout(omap4_prminst_is_hardreset_asserted(st_shift, part,
+							      inst, rstst_offs),
 			  MAX_MODULE_HARDRESET_WAIT, c);
 
 	return (c == MAX_MODULE_HARDRESET_WAIT) ? -EBUSY : 0;
@@ -168,26 +179,18 @@ int omap4_prminst_deassert_hardreset(u8 shift, u8 part, s16 inst,
 void omap4_prminst_global_warm_sw_reset(void)
 {
 	u32 v;
-	s16 dev_inst;
+	s32 inst = omap4_prmst_get_prm_dev_inst();
 
-	if (cpu_is_omap44xx())
-		dev_inst = OMAP4430_PRM_DEVICE_INST;
-	else if (soc_is_omap54xx())
-		dev_inst = OMAP54XX_PRM_DEVICE_INST;
-	else if (soc_is_dra7xx())
-		dev_inst = DRA7XX_PRM_DEVICE_INST;
-	else
+	if (inst == PRM_INSTANCE_UNKNOWN)
 		return;
 
-	v = omap4_prminst_read_inst_reg(OMAP4430_PRM_PARTITION, dev_inst,
+	v = omap4_prminst_read_inst_reg(OMAP4430_PRM_PARTITION, inst,
 					OMAP4_PRM_RSTCTRL_OFFSET);
 	v |= OMAP4430_RST_GLOBAL_WARM_SW_MASK;
 	omap4_prminst_write_inst_reg(v, OMAP4430_PRM_PARTITION,
-				 dev_inst,
-				 OMAP4_PRM_RSTCTRL_OFFSET);
+				 inst, OMAP4_PRM_RSTCTRL_OFFSET);
 
 	/* OCP barrier */
 	v = omap4_prminst_read_inst_reg(OMAP4430_PRM_PARTITION,
-				    dev_inst,
-				    OMAP4_PRM_RSTCTRL_OFFSET);
+				    inst, OMAP4_PRM_RSTCTRL_OFFSET);
 }

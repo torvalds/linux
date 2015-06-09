@@ -135,6 +135,7 @@ static inline int dma_supported(struct device *dev, u64 mask)
 
 extern int dma_set_mask(struct device *dev, u64 dma_mask);
 extern int __dma_set_mask(struct device *dev, u64 dma_mask);
+extern u64 __dma_get_required_mask(struct device *dev);
 
 #define dma_alloc_coherent(d,s,h,f)	dma_alloc_attrs(d,s,h,f,NULL)
 
@@ -190,11 +191,11 @@ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 	struct dev_archdata *sd = &dev->archdata;
 
 	if (sd->max_direct_dma_addr && addr + size > sd->max_direct_dma_addr)
-		return 0;
+		return false;
 #endif
 
 	if (!dev->dma_mask)
-		return 0;
+		return false;
 
 	return addr + size - 1 <= *dev->dma_mask;
 }

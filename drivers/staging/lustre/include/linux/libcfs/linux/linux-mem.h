@@ -45,13 +45,17 @@
 #error Do not #include this file directly. #include <linux/libcfs/libcfs.h> instead
 #endif
 
-
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
 #include <linux/slab.h>
 #include <linux/memcontrol.h>
 #include <linux/mm_inline.h>
+
+#ifndef HAVE_LIBCFS_CPT
+/* Need this for cfs_cpt_table */
+#include "../libcfs_cpu.h"
+#endif
 
 #define CFS_PAGE_MASK		   (~((__u64)PAGE_CACHE_SIZE-1))
 #define page_index(p)       ((p)->index)
@@ -68,15 +72,9 @@
 #define NUM_CACHEPAGES totalram_pages
 #endif
 
-/*
- * In Linux there is no way to determine whether current execution context is
- * blockable.
- */
-#define ALLOC_ATOMIC_TRY   GFP_ATOMIC
-
 #define DECL_MMSPACE		mm_segment_t __oldfs
 #define MMSPACE_OPEN \
-	do { __oldfs = get_fs(); set_fs(get_ds());} while(0)
+	do { __oldfs = get_fs(); set_fs(get_ds()); } while (0)
 #define MMSPACE_CLOSE	       set_fs(__oldfs)
 
 #endif /* __LINUX_CFS_MEM_H__ */

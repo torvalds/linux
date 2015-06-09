@@ -11,8 +11,8 @@ Supported chips:
   Socket S1G2: Athlon (X2), Sempron (X2), Turion X2 (Ultra)
 * AMD Family 12h processors: "Llano" (E2/A4/A6/A8-Series)
 * AMD Family 14h processors: "Brazos" (C/E/G/Z-Series)
-* AMD Family 15h processors: "Bulldozer" (FX-Series), "Trinity"
-* AMD Family 16h processors: "Kabini"
+* AMD Family 15h processors: "Bulldozer" (FX-Series), "Trinity", "Kaveri", "Carrizo"
+* AMD Family 16h processors: "Kabini", "Mullins"
 
   Prefix: 'k10temp'
   Addresses scanned: PCI space
@@ -46,7 +46,7 @@ Description
 -----------
 
 This driver permits reading of the internal temperature sensor of AMD
-Family 10h/11h/12h/14h/15h processors.
+Family 10h/11h/12h/14h/15h/16h processors.
 
 All these processors have a sensor, but on those for Socket F or AM2+,
 the sensor may return inconsistent values (erratum 319).  The driver

@@ -97,7 +97,7 @@ fail:
 static void host1x_pushbuffer_push(struct push_buffer *pb, u32 op1, u32 op2)
 {
 	u32 pos = pb->pos;
-	u32 *p = (u32 *)((u32)pb->mapped + pos);
+	u32 *p = (u32 *)((void *)pb->mapped + pos);
 	WARN_ON(pos == pb->fence);
 	*(p++) = op1;
 	*(p++) = op2;

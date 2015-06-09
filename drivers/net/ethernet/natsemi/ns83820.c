@@ -1122,12 +1122,12 @@ again:
 	}
 
 #ifdef NS83820_VLAN_ACCEL_SUPPORT
-	if(vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		/* fetch the vlan tag info out of the
 		 * ancillary data if the vlan code
 		 * is using hw vlan acceleration
 		 */
-		short tag = vlan_tx_tag_get(skb);
+		short tag = skb_vlan_tag_get(skb);
 		extsts |= (EXTSTS_VPKT | htons(tag));
 	}
 #endif
@@ -2030,7 +2030,7 @@ static int ns83820_init_one(struct pci_dev *pci_dev,
 		pci_dev->subsystem_vendor, pci_dev->subsystem_device);
 
 	ndev->netdev_ops = &netdev_ops;
-	SET_ETHTOOL_OPS(ndev, &ops);
+	ndev->ethtool_ops = &ops;
 	ndev->watchdog_timeo = 5 * HZ;
 	pci_set_drvdata(pci_dev, ndev);
 
@@ -2260,7 +2260,7 @@ static void ns83820_remove_one(struct pci_dev *pci_dev)
 	free_netdev(ndev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(ns83820_pci_tbl) = {
+static const struct pci_device_id ns83820_pci_tbl[] = {
 	{ 0x100b, 0x0022, PCI_ANY_ID, PCI_ANY_ID, 0, .driver_data = 0, },
 	{ 0, },
 };

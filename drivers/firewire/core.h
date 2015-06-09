@@ -118,7 +118,6 @@ int fw_card_add(struct fw_card *card,
 		u32 max_receive, u32 link_speed, u64 guid);
 void fw_core_remove_card(struct fw_card *card);
 int fw_compute_block_crc(__be32 *block);
-void fw_schedule_bus_reset(struct fw_card *card, bool delayed, bool short_reset);
 void fw_schedule_bm_work(struct fw_card *card, unsigned long delay);
 
 /* -cdev */
@@ -237,8 +236,8 @@ static inline bool is_next_generation(int new_generation, int old_generation)
 
 #define LOCAL_BUS 0xffc0
 
-/* arbitrarily chosen maximum range for physical DMA: 128 TB */
-#define FW_MAX_PHYSICAL_RANGE		(128ULL << 40)
+/* OHCI-1394's default upper bound for physical DMA: 4 GB */
+#define FW_MAX_PHYSICAL_RANGE		(1ULL << 32)
 
 void fw_core_handle_request(struct fw_card *card, struct fw_packet *request);
 void fw_core_handle_response(struct fw_card *card, struct fw_packet *packet);

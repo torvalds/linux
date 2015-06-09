@@ -49,9 +49,13 @@ struct regmap_async {
 };
 
 struct regmap {
-	struct mutex mutex;
-	spinlock_t spinlock;
-	unsigned long spinlock_flags;
+	union {
+		struct mutex mutex;
+		struct {
+			spinlock_t spinlock;
+			unsigned long spinlock_flags;
+		};
+	};
 	regmap_lock lock;
 	regmap_unlock unlock;
 	void *lock_arg; /* This is passed to lock/unlock functions */
@@ -134,6 +138,8 @@ struct regmap {
 
 	/* if set, converts bulk rw to single rw */
 	bool use_single_rw;
+	/* if set, the device supports multi write mode */
+	bool can_multi_write;
 
 	struct rb_root range_tree;
 	void *selector_work_buf;	/* Scratch buffer used for selector */
@@ -144,6 +150,9 @@ struct regcache_ops {
 	enum regcache_type type;
 	int (*init)(struct regmap *map);
 	int (*exit)(struct regmap *map);
+#ifdef CONFIG_DEBUG_FS
+	void (*debugfs_init)(struct regmap *map);
+#endif
 	int (*read)(struct regmap *map, unsigned int reg, unsigned int *value);
 	int (*write)(struct regmap *map, unsigned int reg, unsigned int value);
 	int (*sync)(struct regmap *map, unsigned int min, unsigned int max);
@@ -226,8 +235,20 @@ int _regmap_raw_write(struct regmap *map, unsigned int reg,
 
 void regmap_async_complete_cb(struct regmap_async *async, int ret);
 
+enum regmap_endian regmap_get_val_endian(struct device *dev,
+					 const struct regmap_bus *bus,
+					 const struct regmap_config *config);
+
 extern struct regcache_ops regcache_rbtree_ops;
 extern struct regcache_ops regcache_lzo_ops;
 extern struct regcache_ops regcache_flat_ops;
+
+static inline const char *regmap_name(const struct regmap *map)
+{
+	if (map->dev)
+		return dev_name(map->dev);
+
+	return map->name;
+}
 
 #endif

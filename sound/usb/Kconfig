@@ -147,5 +147,20 @@ config SND_USB_HIFACE
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-usb-hiface.
 
+config SND_BCD2000
+	tristate "Behringer BCD2000 MIDI driver"
+	select SND_RAWMIDI
+	help
+	  Say Y here to include MIDI support for the Behringer BCD2000 DJ
+	  controller.
+
+	  Audio support is still work-in-progress at
+	  https://github.com/anyc/snd-usb-bcd2000
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-bcd2000.
+
+source "sound/usb/line6/Kconfig"
+
 endif	# SND_USB
 

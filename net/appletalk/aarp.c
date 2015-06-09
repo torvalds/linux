@@ -141,7 +141,7 @@ static void __aarp_send_query(struct aarp_entry *a)
 	eah->pa_src_net	 = sat->s_net;
 	eah->pa_src_node = sat->s_node;
 
-	memset(eah->hw_dst, '\0', ETH_ALEN);
+	eth_zero_addr(eah->hw_dst);
 
 	eah->pa_dst_zero = 0;
 	eah->pa_dst_net	 = a->target_addr.s_net;
@@ -189,7 +189,7 @@ static void aarp_send_reply(struct net_device *dev, struct atalk_addr *us,
 	eah->pa_src_node = us->s_node;
 
 	if (!sha)
-		memset(eah->hw_dst, '\0', ETH_ALEN);
+		eth_zero_addr(eah->hw_dst);
 	else
 		ether_addr_copy(eah->hw_dst, sha);
 
@@ -239,7 +239,7 @@ static void aarp_send_probe(struct net_device *dev, struct atalk_addr *us)
 	eah->pa_src_net	 = us->s_net;
 	eah->pa_src_node = us->s_node;
 
-	memset(eah->hw_dst, '\0', ETH_ALEN);
+	eth_zero_addr(eah->hw_dst);
 
 	eah->pa_dst_zero = 0;
 	eah->pa_dst_net	 = us->s_net;
@@ -926,7 +926,7 @@ static struct aarp_entry *iter_next(struct aarp_iter_state *iter, loff_t *pos)
 	struct aarp_entry *entry;
 
  rescan:
-	while(ct < AARP_HASH_SIZE) {
+	while (ct < AARP_HASH_SIZE) {
 		for (entry = table[ct]; entry; entry = entry->next) {
 			if (!pos || ++off == *pos) {
 				iter->table = table;
@@ -995,7 +995,7 @@ static const char *dt2str(unsigned long ticks)
 {
 	static char buf[32];
 
-	sprintf(buf, "%ld.%02ld", ticks / HZ, ((ticks % HZ) * 100 ) / HZ);
+	sprintf(buf, "%ld.%02ld", ticks / HZ, ((ticks % HZ) * 100) / HZ);
 
 	return buf;
 }

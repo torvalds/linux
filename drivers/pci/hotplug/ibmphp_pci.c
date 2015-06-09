@@ -47,7 +47,7 @@ static u8 find_sec_number (u8 primary_busno, u8 slotno);
  * We also assign the same irq numbers for multi function devices.
  * These are PIC mode, so shouldn't matter n.e.ways (hopefully)
  */
-static void assign_alt_irq (struct pci_func * cur_func, u8 class_code)
+static void assign_alt_irq (struct pci_func *cur_func, u8 class_code)
 {
 	int j;
 	for (j = 0; j < 4; j++) {
@@ -137,15 +137,16 @@ int ibmphp_configure_card (struct pci_func *func, u8 slotno)
 				     "Please choose another device.\n", cur_func->device);
 				return -ENODEV;
 			} else if (class == PCI_CLASS_DISPLAY_VGA) {
-				err ("The device %x is not supported for hot plugging. "
-				     "Please choose another device.\n", cur_func->device);
+				err ("The device %x is not supported for hot plugging. Please choose another device.\n",
+				     cur_func->device);
 				return -ENODEV;
 			}
 			switch (hdr_type) {
 				case PCI_HEADER_TYPE_NORMAL:
 					debug ("single device case.... vendor id = %x, hdr_type = %x, class = %x\n", vendor_id, hdr_type, class);
 					assign_alt_irq (cur_func, class_code);
-					if ((rc = configure_device (cur_func)) < 0) {
+					rc = configure_device(cur_func);
+					if (rc < 0) {
 						/* We need to do this in case some other BARs were properly inserted */
 						err ("was not able to configure devfunc %x on bus %x.\n",
 						     cur_func->device, cur_func->busno);
@@ -157,7 +158,8 @@ int ibmphp_configure_card (struct pci_func *func, u8 slotno)
 					break;
 				case PCI_HEADER_TYPE_MULTIDEVICE:
 					assign_alt_irq (cur_func, class_code);
-					if ((rc = configure_device (cur_func)) < 0) {
+					rc = configure_device(cur_func);
+					if (rc < 0) {
 						/* We need to do this in case some other BARs were properly inserted */
 						err ("was not able to configure devfunc %x on bus %x...bailing out\n",
 						     cur_func->device, cur_func->busno);
@@ -179,8 +181,8 @@ int ibmphp_configure_card (struct pci_func *func, u8 slotno)
 				case PCI_HEADER_TYPE_MULTIBRIDGE:
 					class >>= 8;
 					if (class != PCI_CLASS_BRIDGE_PCI) {
-						err ("This %x is not PCI-to-PCI bridge, and as is not supported for hot-plugging. "
-						     "Please insert another card.\n", cur_func->device);
+						err ("This %x is not PCI-to-PCI bridge, and as is not supported for hot-plugging.  Please insert another card.\n",
+						     cur_func->device);
 						return -ENODEV;
 					}
 					assign_alt_irq (cur_func, class_code);
@@ -247,8 +249,8 @@ int ibmphp_configure_card (struct pci_func *func, u8 slotno)
 					class >>= 8;
 					debug ("class now is %x\n", class);
 					if (class != PCI_CLASS_BRIDGE_PCI) {
-						err ("This %x is not PCI-to-PCI bridge, and as is not supported for hot-plugging. "
-						     "Please insert another card.\n", cur_func->device);
+						err ("This %x is not PCI-to-PCI bridge, and as is not supported for hot-plugging.  Please insert another card.\n",
+						     cur_func->device);
 						return -ENODEV;
 					}
 
@@ -1073,7 +1075,7 @@ error:
  * Input: bridge function
  * Output: amount of resources needed
  *****************************************************************************/
-static struct res_needed *scan_behind_bridge (struct pci_func * func, u8 busno)
+static struct res_needed *scan_behind_bridge (struct pci_func *func, u8 busno)
 {
 	int count, len[6];
 	u16 vendor_id;
@@ -1125,13 +1127,11 @@ static struct res_needed *scan_behind_bridge (struct pci_func * func, u8 busno)
 
 				class >>= 8;	/* to take revision out, class = class.subclass.prog i/f */
 				if (class == PCI_CLASS_NOT_DEFINED_VGA) {
-					err ("The device %x is VGA compatible and as is not supported for hot plugging. "
-					     "Please choose another device.\n", device);
+					err ("The device %x is VGA compatible and as is not supported for hot plugging.  Please choose another device.\n", device);
 					amount->not_correct = 1;
 					return amount;
 				} else if (class == PCI_CLASS_DISPLAY_VGA) {
-					err ("The device %x is not supported for hot plugging. "
-					     "Please choose another device.\n", device);
+					err ("The device %x is not supported for hot plugging.  Please choose another device.\n", device);
 					amount->not_correct = 1;
 					return amount;
 				}
@@ -1483,12 +1483,10 @@ static int unconfigure_boot_card (struct slot *slot_cur)
 			debug ("hdr_type %x, class %x\n", hdr_type, class);
 			class >>= 8;	/* to take revision out, class = class.subclass.prog i/f */
 			if (class == PCI_CLASS_NOT_DEFINED_VGA) {
-				err ("The device %x function %x is VGA compatible and is not supported for hot removing. "
-				     "Please choose another device.\n", device, function);
+				err ("The device %x function %x is VGA compatible and is not supported for hot removing.  Please choose another device.\n", device, function);
 				return -ENODEV;
 			} else if (class == PCI_CLASS_DISPLAY_VGA) {
-				err ("The device %x function %x is not supported for hot removing. "
-				     "Please choose another device.\n", device, function);
+				err ("The device %x function %x is not supported for hot removing.  Please choose another device.\n", device, function);
 				return -ENODEV;
 			}
 
@@ -1513,9 +1511,7 @@ static int unconfigure_boot_card (struct slot *slot_cur)
 				case PCI_HEADER_TYPE_BRIDGE:
 					class >>= 8;
 					if (class != PCI_CLASS_BRIDGE_PCI) {
-						err ("This device %x function %x is not PCI-to-PCI bridge, "
-						     "and is not supported for hot-removing. "
-						     "Please try another card.\n", device, function);
+						err ("This device %x function %x is not PCI-to-PCI bridge, and is not supported for hot-removing.  Please try another card.\n", device, function);
 						return -ENODEV;
 					}
 					rc = unconfigure_boot_bridge (busno, device, function);
@@ -1529,9 +1525,7 @@ static int unconfigure_boot_card (struct slot *slot_cur)
 				case PCI_HEADER_TYPE_MULTIBRIDGE:
 					class >>= 8;
 					if (class != PCI_CLASS_BRIDGE_PCI) {
-						err ("This device %x function %x is not PCI-to-PCI bridge, "
-						     "and is not supported for hot-removing. "
-						     "Please try another card.\n", device, function);
+						err ("This device %x function %x is not PCI-to-PCI bridge,  and is not supported for hot-removing.  Please try another card.\n", device, function);
 						return -ENODEV;
 					}
 					rc = unconfigure_boot_bridge (busno, device, function);

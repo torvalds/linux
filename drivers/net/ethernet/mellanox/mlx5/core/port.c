@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -68,9 +68,9 @@ int mlx5_core_access_reg(struct mlx5_core_dev *dev, void *data_in,
 		memcpy(data_out, out->data, size_out);
 
 ex2:
-	mlx5_vfree(out);
+	kvfree(out);
 ex1:
-	mlx5_vfree(in);
+	kvfree(in);
 	return err;
 }
 EXPORT_SYMBOL_GPL(mlx5_core_access_reg);
@@ -86,7 +86,7 @@ struct mlx5_reg_pcap {
 	__be32			caps_31_0;
 };
 
-int mlx5_set_port_caps(struct mlx5_core_dev *dev, int port_num, u32 caps)
+int mlx5_set_port_caps(struct mlx5_core_dev *dev, u8 port_num, u32 caps)
 {
 	struct mlx5_reg_pcap in;
 	struct mlx5_reg_pcap out;

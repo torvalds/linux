@@ -40,23 +40,29 @@ struct omap_clk {
 struct clockdomain;
 
 #define DEFINE_STRUCT_CLK(_name, _parent_array_name, _clkops_name)	\
-	static struct clk _name = {				\
+	static struct clk_core _name##_core = {			\
 		.name = #_name,					\
 		.hw = &_name##_hw.hw,				\
 		.parent_names = _parent_array_name,		\
 		.num_parents = ARRAY_SIZE(_parent_array_name),	\
 		.ops = &_clkops_name,				\
+	};							\
+	static struct clk _name = {				\
+		.core = &_name##_core,				\
 	};
 
 #define DEFINE_STRUCT_CLK_FLAGS(_name, _parent_array_name,	\
 				_clkops_name, _flags)		\
-	static struct clk _name = {				\
+	static struct clk_core _name##_core = {			\
 		.name = #_name,					\
 		.hw = &_name##_hw.hw,				\
 		.parent_names = _parent_array_name,		\
 		.num_parents = ARRAY_SIZE(_parent_array_name),	\
 		.ops = &_clkops_name,				\
 		.flags = _flags,				\
+	};							\
+	static struct clk _name = {				\
+		.core = &_name##_core,				\
 	};
 
 #define DEFINE_STRUCT_CLK_HW_OMAP(_name, _clkdm_name)		\
@@ -100,31 +106,6 @@ struct clockdomain;
 		.clkdm_name	= _clkdm_name,			\
 	};							\
 	DEFINE_STRUCT_CLK(_name, _parent_names, _ops);
-
-#define DEFINE_CLK_OMAP_HSDIVIDER(_name, _parent_name,		\
-				_parent_ptr, _flags,		\
-				_clksel_reg, _clksel_mask)	\
-	static const struct clksel _name##_div[] = {		\
-		{						\
-			.parent = _parent_ptr,			\
-			.rates = div31_1to31_rates		\
-		},						\
-		{ .parent = NULL },				\
-	};							\
-	static struct clk _name;				\
-	static const char *_name##_parent_names[] = {		\
-		_parent_name,					\
-	};							\
-	static struct clk_hw_omap _name##_hw = {		\
-		.hw = {						\
-			.clk = &_name,				\
-		},						\
-		.clksel		= _name##_div,			\
-		.clksel_reg	= _clksel_reg,			\
-		.clksel_mask	= _clksel_mask,			\
-		.ops		= &clkhwops_omap4_dpllmx,	\
-	};							\
-	DEFINE_STRUCT_CLK(_name, _name##_parent_names, omap_hsdivider_ops);
 
 /* struct clksel_rate.flags possibilities */
 #define RATE_IN_242X		(1 << 0)
@@ -178,20 +159,6 @@ struct clksel {
 	const struct clksel_rate *rates;
 };
 
-struct clk_hw_omap_ops {
-	void			(*find_idlest)(struct clk_hw_omap *oclk,
-					void __iomem **idlest_reg,
-					u8 *idlest_bit, u8 *idlest_val);
-	void			(*find_companion)(struct clk_hw_omap *oclk,
-					void __iomem **other_reg,
-					u8 *other_bit);
-	void			(*allow_idle)(struct clk_hw_omap *oclk);
-	void			(*deny_idle)(struct clk_hw_omap *oclk);
-};
-
-unsigned long omap_fixed_divisor_recalc(struct clk_hw *hw,
-					unsigned long parent_rate);
-
 /* CM_CLKSEL2_PLL.CORE_CLK_SRC bits (2XXX) */
 #define CORE_CLK_SRC_32K		0x0
 #define CORE_CLK_SRC_DPLL		0x1
@@ -216,7 +183,6 @@ unsigned long omap_fixed_divisor_recalc(struct clk_hw *hw,
 u32 omap3_dpll_autoidle_read(struct clk_hw_omap *clk);
 void omap3_dpll_allow_idle(struct clk_hw_omap *clk);
 void omap3_dpll_deny_idle(struct clk_hw_omap *clk);
-int omap4_dpllmx_gatectrl_read(struct clk_hw_omap *clk);
 void omap4_dpllmx_allow_gatectrl(struct clk_hw_omap *clk);
 void omap4_dpllmx_deny_gatectrl(struct clk_hw_omap *clk);
 
@@ -259,8 +225,25 @@ void omap2_clk_writel(u32 val, struct clk_hw_omap *clk, void __iomem *reg);
 
 extern u16 cpu_mask;
 
+/*
+ * Clock features setup. Used instead of CPU type checks.
+ */
+struct ti_clk_features {
+	u32 flags;
+	long fint_min;
+	long fint_max;
+	long fint_band1_max;
+	long fint_band2_min;
+	u8 dpll_bypass_vals;
+	u8 cm_idlest_val;
+};
+
+#define TI_CLK_DPLL_HAS_FREQSEL		(1 << 0)
+#define TI_CLK_DPLL4_DENY_REPROGRAM	(1 << 1)
+
+extern struct ti_clk_features ti_clk_features;
+
 extern const struct clkops clkops_omap2_dflt_wait;
-extern const struct clkops clkops_dummy;
 extern const struct clkops clkops_omap2_dflt;
 
 extern struct clk_functions omap2_clk_functions;
@@ -269,7 +252,6 @@ extern const struct clksel_rate gpt_32k_rates[];
 extern const struct clksel_rate gpt_sys_rates[];
 extern const struct clksel_rate gfx_l3_rates[];
 extern const struct clksel_rate dsp_ick_rates[];
-extern struct clk dummy_ck;
 
 extern const struct clk_hw_omap_ops clkhwops_iclk_wait;
 extern const struct clk_hw_omap_ops clkhwops_wait;
@@ -279,8 +261,6 @@ extern const struct clk_hw_omap_ops clkhwops_omap3430es2_hsotgusb_wait;
 extern const struct clk_hw_omap_ops clkhwops_am35xx_ipss_module_wait;
 extern const struct clk_hw_omap_ops clkhwops_apll54;
 extern const struct clk_hw_omap_ops clkhwops_apll96;
-extern const struct clk_hw_omap_ops clkhwops_omap2xxx_dpll;
-extern const struct clk_hw_omap_ops clkhwops_omap2430_i2chs_wait;
 
 /* clksel_rate blocks shared between OMAP44xx and AM33xx */
 extern const struct clksel_rate div_1_0_rates[];
@@ -291,12 +271,14 @@ extern const struct clksel_rate div_1_3_rates[];
 extern const struct clksel_rate div_1_4_rates[];
 extern const struct clksel_rate div31_1to31_rates[];
 
-extern void __iomem *clk_memmaps[];
-
-extern int am33xx_clk_init(void);
-
 extern int omap2_clkops_enable_clkdm(struct clk_hw *hw);
 extern void omap2_clkops_disable_clkdm(struct clk_hw *hw);
 
-extern void omap_clocks_register(struct omap_clk *oclks, int cnt);
+struct regmap;
+
+int __init omap2_clk_provider_init(struct device_node *np, int index,
+				   struct regmap *syscon, void __iomem *mem);
+void __init omap2_clk_legacy_provider_init(int index, void __iomem *mem);
+
+void __init ti_clk_init_features(void);
 #endif

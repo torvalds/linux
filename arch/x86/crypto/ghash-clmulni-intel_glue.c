@@ -25,19 +25,17 @@
 #define GHASH_BLOCK_SIZE	16
 #define GHASH_DIGEST_SIZE	16
 
-void clmul_ghash_mul(char *dst, const be128 *shash);
+void clmul_ghash_mul(char *dst, const u128 *shash);
 
 void clmul_ghash_update(char *dst, const char *src, unsigned int srclen,
-			const be128 *shash);
-
-void clmul_ghash_setkey(be128 *shash, const u8 *key);
+			const u128 *shash);
 
 struct ghash_async_ctx {
 	struct cryptd_ahash *cryptd_tfm;
 };
 
 struct ghash_ctx {
-	be128 shash;
+	u128 shash;
 };
 
 struct ghash_desc_ctx {
@@ -58,13 +56,23 @@ static int ghash_setkey(struct crypto_shash *tfm,
 			const u8 *key, unsigned int keylen)
 {
 	struct ghash_ctx *ctx = crypto_shash_ctx(tfm);
+	be128 *x = (be128 *)key;
+	u64 a, b;
 
 	if (keylen != GHASH_BLOCK_SIZE) {
 		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 
-	clmul_ghash_setkey(&ctx->shash, key);
+	/* perform multiplication by 'x' in GF(2^128) */
+	a = be64_to_cpu(x->a);
+	b = be64_to_cpu(x->b);
+
+	ctx->shash.a = (b << 1) | (a >> 63);
+	ctx->shash.b = (a << 1) | (b >> 63);
+
+	if (a >> 63)
+		ctx->shash.b ^= ((u64)0xc2) << 56;
 
 	return 0;
 }
@@ -146,7 +154,8 @@ static struct shash_alg ghash_alg = {
 		.cra_name		= "__ghash",
 		.cra_driver_name	= "__ghash-pclmulqdqni",
 		.cra_priority		= 0,
-		.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
+		.cra_flags		= CRYPTO_ALG_TYPE_SHASH |
+					  CRYPTO_ALG_INTERNAL,
 		.cra_blocksize		= GHASH_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct ghash_ctx),
 		.cra_module		= THIS_MODULE,
@@ -253,7 +262,9 @@ static int ghash_async_init_tfm(struct crypto_tfm *tfm)
 	struct cryptd_ahash *cryptd_tfm;
 	struct ghash_async_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	cryptd_tfm = cryptd_alloc_ahash("__ghash-pclmulqdqni", 0, 0);
+	cryptd_tfm = cryptd_alloc_ahash("__ghash-pclmulqdqni",
+					CRYPTO_ALG_INTERNAL,
+					CRYPTO_ALG_INTERNAL);
 	if (IS_ERR(cryptd_tfm))
 		return PTR_ERR(cryptd_tfm);
 	ctx->cryptd_tfm = cryptd_tfm;
@@ -333,4 +344,4 @@ module_exit(ghash_pclmulqdqni_mod_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("GHASH Message Digest Algorithm, "
 		   "acclerated by PCLMULQDQ-NI");
-MODULE_ALIAS("ghash");
+MODULE_ALIAS_CRYPTO("ghash");

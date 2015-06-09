@@ -23,17 +23,37 @@
 
 #define DEBUG_PASSUP
 
-static inline void rm_writeb(unsigned long paddr, u8 val)
+static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
+			    u32 new_irq);
+
+/* -- ICS routines -- */
+static void ics_rm_check_resend(struct kvmppc_xics *xics,
+				struct kvmppc_ics *ics, struct kvmppc_icp *icp)
 {
-	__asm__ __volatile__("sync; stbcix %0,0,%1"
-		: : "r" (val), "r" (paddr) : "memory");
+	int i;
+
+	arch_spin_lock(&ics->lock);
+
+	for (i = 0; i < KVMPPC_XICS_IRQ_PER_ICS; i++) {
+		struct ics_irq_state *state = &ics->irq_state[i];
+
+		if (!state->resend)
+			continue;
+
+		arch_spin_unlock(&ics->lock);
+		icp_rm_deliver_irq(xics, icp, state->number);
+		arch_spin_lock(&ics->lock);
+	}
+
+	arch_spin_unlock(&ics->lock);
 }
+
+/* -- ICP routines -- */
 
 static void icp_rm_set_vcpu_irq(struct kvm_vcpu *vcpu,
 				struct kvm_vcpu *this_vcpu)
 {
 	struct kvmppc_icp *this_icp = this_vcpu->arch.icp;
-	unsigned long xics_phys;
 	int cpu;
 
 	/* Mark the target VCPU as having an interrupt pending */
@@ -56,9 +76,8 @@ static void icp_rm_set_vcpu_irq(struct kvm_vcpu *vcpu,
 	/* In SMT cpu will always point to thread 0, we adjust it */
 	cpu += vcpu->arch.ptid;
 
-	/* Not too hard, then poke the target */
-	xics_phys = paca[cpu].kvm_hstate.xics_phys;
-	rm_writeb(xics_phys + XICS_MFRR, IPI_PRIORITY);
+	smp_mb();
+	kvmhv_rm_send_ipi(cpu);
 }
 
 static void icp_rm_clr_vcpu_irq(struct kvm_vcpu *vcpu)
@@ -116,6 +135,180 @@ static inline int check_too_hard(struct kvmppc_xics *xics,
 	return (xics->real_mode_dbg || icp->rm_action) ? H_TOO_HARD : H_SUCCESS;
 }
 
+static void icp_rm_check_resend(struct kvmppc_xics *xics,
+			     struct kvmppc_icp *icp)
+{
+	u32 icsid;
+
+	/* Order this load with the test for need_resend in the caller */
+	smp_rmb();
+	for_each_set_bit(icsid, icp->resend_map, xics->max_icsid + 1) {
+		struct kvmppc_ics *ics = xics->ics[icsid];
+
+		if (!test_and_clear_bit(icsid, icp->resend_map))
+			continue;
+		if (!ics)
+			continue;
+		ics_rm_check_resend(xics, ics, icp);
+	}
+}
+
+static bool icp_rm_try_to_deliver(struct kvmppc_icp *icp, u32 irq, u8 priority,
+			       u32 *reject)
+{
+	union kvmppc_icp_state old_state, new_state;
+	bool success;
+
+	do {
+		old_state = new_state = READ_ONCE(icp->state);
+
+		*reject = 0;
+
+		/* See if we can deliver */
+		success = new_state.cppr > priority &&
+			new_state.mfrr > priority &&
+			new_state.pending_pri > priority;
+
+		/*
+		 * If we can, check for a rejection and perform the
+		 * delivery
+		 */
+		if (success) {
+			*reject = new_state.xisr;
+			new_state.xisr = irq;
+			new_state.pending_pri = priority;
+		} else {
+			/*
+			 * If we failed to deliver we set need_resend
+			 * so a subsequent CPPR state change causes us
+			 * to try a new delivery.
+			 */
+			new_state.need_resend = true;
+		}
+
+	} while (!icp_rm_try_update(icp, old_state, new_state));
+
+	return success;
+}
+
+static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
+			    u32 new_irq)
+{
+	struct ics_irq_state *state;
+	struct kvmppc_ics *ics;
+	u32 reject;
+	u16 src;
+
+	/*
+	 * This is used both for initial delivery of an interrupt and
+	 * for subsequent rejection.
+	 *
+	 * Rejection can be racy vs. resends. We have evaluated the
+	 * rejection in an atomic ICP transaction which is now complete,
+	 * so potentially the ICP can already accept the interrupt again.
+	 *
+	 * So we need to retry the delivery. Essentially the reject path
+	 * boils down to a failed delivery. Always.
+	 *
+	 * Now the interrupt could also have moved to a different target,
+	 * thus we may need to re-do the ICP lookup as well
+	 */
+
+ again:
+	/* Get the ICS state and lock it */
+	ics = kvmppc_xics_find_ics(xics, new_irq, &src);
+	if (!ics) {
+		/* Unsafe increment, but this does not need to be accurate */
+		xics->err_noics++;
+		return;
+	}
+	state = &ics->irq_state[src];
+
+	/* Get a lock on the ICS */
+	arch_spin_lock(&ics->lock);
+
+	/* Get our server */
+	if (!icp || state->server != icp->server_num) {
+		icp = kvmppc_xics_find_server(xics->kvm, state->server);
+		if (!icp) {
+			/* Unsafe increment again*/
+			xics->err_noicp++;
+			goto out;
+		}
+	}
+
+	/* Clear the resend bit of that interrupt */
+	state->resend = 0;
+
+	/*
+	 * If masked, bail out
+	 *
+	 * Note: PAPR doesn't mention anything about masked pending
+	 * when doing a resend, only when doing a delivery.
+	 *
+	 * However that would have the effect of losing a masked
+	 * interrupt that was rejected and isn't consistent with
+	 * the whole masked_pending business which is about not
+	 * losing interrupts that occur while masked.
+	 *
+	 * I don't differentiate normal deliveries and resends, this
+	 * implementation will differ from PAPR and not lose such
+	 * interrupts.
+	 */
+	if (state->priority == MASKED) {
+		state->masked_pending = 1;
+		goto out;
+	}
+
+	/*
+	 * Try the delivery, this will set the need_resend flag
+	 * in the ICP as part of the atomic transaction if the
+	 * delivery is not possible.
+	 *
+	 * Note that if successful, the new delivery might have itself
+	 * rejected an interrupt that was "delivered" before we took the
+	 * ics spin lock.
+	 *
+	 * In this case we do the whole sequence all over again for the
+	 * new guy. We cannot assume that the rejected interrupt is less
+	 * favored than the new one, and thus doesn't need to be delivered,
+	 * because by the time we exit icp_rm_try_to_deliver() the target
+	 * processor may well have already consumed & completed it, and thus
+	 * the rejected interrupt might actually be already acceptable.
+	 */
+	if (icp_rm_try_to_deliver(icp, new_irq, state->priority, &reject)) {
+		/*
+		 * Delivery was successful, did we reject somebody else ?
+		 */
+		if (reject && reject != XICS_IPI) {
+			arch_spin_unlock(&ics->lock);
+			new_irq = reject;
+			goto again;
+		}
+	} else {
+		/*
+		 * We failed to deliver the interrupt we need to set the
+		 * resend map bit and mark the ICS state as needing a resend
+		 */
+		set_bit(ics->icsid, icp->resend_map);
+		state->resend = 1;
+
+		/*
+		 * If the need_resend flag got cleared in the ICP some time
+		 * between icp_rm_try_to_deliver() atomic update and now, then
+		 * we know it might have missed the resend_map bit. So we
+		 * retry
+		 */
+		smp_mb();
+		if (!icp->state.need_resend) {
+			arch_spin_unlock(&ics->lock);
+			goto again;
+		}
+	}
+ out:
+	arch_spin_unlock(&ics->lock);
+}
+
 static void icp_rm_down_cppr(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 			     u8 new_cppr)
 {
@@ -152,7 +345,7 @@ static void icp_rm_down_cppr(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	 * in virtual mode.
 	 */
 	do {
-		old_state = new_state = ACCESS_ONCE(icp->state);
+		old_state = new_state = READ_ONCE(icp->state);
 
 		/* Down_CPPR */
 		new_state.cppr = new_cppr;
@@ -183,8 +376,10 @@ static void icp_rm_down_cppr(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	 * state update in HW (ie bus transactions) so we can handle them
 	 * separately here as well.
 	 */
-	if (resend)
-		icp->rm_action |= XICS_RM_CHECK_RESEND;
+	if (resend) {
+		icp->n_check_resend++;
+		icp_rm_check_resend(xics, icp);
+	}
 }
 
 
@@ -209,7 +404,7 @@ unsigned long kvmppc_rm_h_xirr(struct kvm_vcpu *vcpu)
 	 * pending priority
 	 */
 	do {
-		old_state = new_state = ACCESS_ONCE(icp->state);
+		old_state = new_state = READ_ONCE(icp->state);
 
 		xirr = old_state.xisr | (((u32)old_state.cppr) << 24);
 		if (!old_state.xisr)
@@ -254,13 +449,28 @@ int kvmppc_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 	 * nothing needs to be done as there can be no XISR to
 	 * reject.
 	 *
-	 * If the CPPR is less favored, then we might be replacing
-	 * an interrupt, and thus need to possibly reject it as in
-	 *
 	 * ICP state: Check_IPI
+	 *
+	 * If the CPPR is less favored, then we might be replacing
+	 * an interrupt, and thus need to possibly reject it.
+	 *
+	 * ICP State: IPI
+	 *
+	 * Besides rejecting any pending interrupts, we also
+	 * update XISR and pending_pri to mark IPI as pending.
+	 *
+	 * PAPR does not describe this state, but if the MFRR is being
+	 * made less favored than its earlier value, there might be
+	 * a previously-rejected interrupt needing to be resent.
+	 * Ideally, we would want to resend only if
+	 *	prio(pending_interrupt) < mfrr &&
+	 *	prio(pending_interrupt) < cppr
+	 * where pending interrupt is the one that was rejected. But
+	 * we don't have that state, so we simply trigger a resend
+	 * whenever the MFRR is made less favored.
 	 */
 	do {
-		old_state = new_state = ACCESS_ONCE(icp->state);
+		old_state = new_state = READ_ONCE(icp->state);
 
 		/* Set_MFRR */
 		new_state.mfrr = mfrr;
@@ -270,27 +480,30 @@ int kvmppc_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 		resend = false;
 		if (mfrr < new_state.cppr) {
 			/* Reject a pending interrupt if not an IPI */
-			if (mfrr <= new_state.pending_pri)
+			if (mfrr <= new_state.pending_pri) {
 				reject = new_state.xisr;
-			new_state.pending_pri = mfrr;
-			new_state.xisr = XICS_IPI;
+				new_state.pending_pri = mfrr;
+				new_state.xisr = XICS_IPI;
+			}
 		}
 
-		if (mfrr > old_state.mfrr && mfrr > new_state.cppr) {
+		if (mfrr > old_state.mfrr) {
 			resend = new_state.need_resend;
 			new_state.need_resend = 0;
 		}
 	} while (!icp_rm_try_update(icp, old_state, new_state));
 
-	/* Pass rejects to virtual mode */
+	/* Handle reject in real mode */
 	if (reject && reject != XICS_IPI) {
-		this_icp->rm_action |= XICS_RM_REJECT;
-		this_icp->rm_reject = reject;
+		this_icp->n_reject++;
+		icp_rm_deliver_irq(xics, icp, reject);
 	}
 
-	/* Pass resends to virtual mode */
-	if (resend)
-		this_icp->rm_action |= XICS_RM_CHECK_RESEND;
+	/* Handle resends in real mode */
+	if (resend) {
+		this_icp->n_check_resend++;
+		icp_rm_check_resend(xics, icp);
+	}
 
 	return check_too_hard(xics, this_icp);
 }
@@ -332,7 +545,7 @@ int kvmppc_rm_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
 	icp_rm_clr_vcpu_irq(icp->vcpu);
 
 	do {
-		old_state = new_state = ACCESS_ONCE(icp->state);
+		old_state = new_state = READ_ONCE(icp->state);
 
 		reject = 0;
 		new_state.cppr = cppr;
@@ -345,10 +558,13 @@ int kvmppc_rm_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
 
 	} while (!icp_rm_try_update(icp, old_state, new_state));
 
-	/* Pass rejects to virtual mode */
+	/*
+	 * Check for rejects. They are handled by doing a new delivery
+	 * attempt (see comments in icp_rm_deliver_irq).
+	 */
 	if (reject && reject != XICS_IPI) {
-		icp->rm_action |= XICS_RM_REJECT;
-		icp->rm_reject = reject;
+		icp->n_reject++;
+		icp_rm_deliver_irq(xics, icp, reject);
 	}
  bail:
 	return check_too_hard(xics, icp);
@@ -396,10 +612,15 @@ int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 		goto bail;
 	state = &ics->irq_state[src];
 
-	/* Still asserted, resend it, we make it look like a reject */
+	/* Still asserted, resend it */
 	if (state->asserted) {
-		icp->rm_action |= XICS_RM_REJECT;
-		icp->rm_reject = irq;
+		icp->n_reject++;
+		icp_rm_deliver_irq(xics, icp, irq);
+	}
+
+	if (!hlist_empty(&vcpu->kvm->irq_ack_notifier_list)) {
+		icp->rm_action |= XICS_RM_NOTIFY_EOI;
+		icp->rm_eoied_irq = irq;
 	}
  bail:
 	return check_too_hard(xics, icp);

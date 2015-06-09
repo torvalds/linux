@@ -53,21 +53,20 @@
 #include <linux/module.h>
 
 /* LUSTRE_VERSION_CODE */
-#include <lustre_ver.h>
+#include "../include/lustre_ver.h"
 
-#include <obd_support.h>
+#include "../include/obd_support.h"
 /* lustre_swab_mdt_body */
-#include <lustre/lustre_idl.h>
+#include "../include/lustre/lustre_idl.h"
 /* obd2cli_tgt() (required by DEBUG_REQ()) */
-#include <obd.h>
+#include "../include/obd.h"
 
 /* __REQ_LAYOUT_USER__ */
 #endif
 /* struct ptlrpc_request, lustre_msg* */
-#include <lustre_req_layout.h>
-#include <lustre_update.h>
-#include <lustre_acl.h>
-#include <lustre_debug.h>
+#include "../include/lustre_req_layout.h"
+#include "../include/lustre_acl.h"
+#include "../include/lustre_debug.h"
 
 /*
  * RQFs (see below) refer to two struct req_msg_field arrays describing the
@@ -295,7 +294,8 @@ static const struct req_msg_field *mds_reint_setxattr_client[] = {
 	&RMF_REC_REINT,
 	&RMF_CAPA1,
 	&RMF_NAME,
-	&RMF_EADATA
+	&RMF_EADATA,
+	&RMF_DLM_REQ
 };
 
 static const struct req_msg_field *mdt_swap_layouts[] = {
@@ -811,8 +811,8 @@ struct req_capsule;
 	.rmf_name    = (name),				  \
 	.rmf_flags   = (flags),				 \
 	.rmf_size    = (size),				  \
-	.rmf_swabber = (void (*)(void*))(swabber),	      \
-	.rmf_dumper  = (void (*)(void*))(dumper)		\
+	.rmf_swabber = (void (*)(void *))(swabber),	      \
+	.rmf_dumper  = (void (*)(void *))(dumper)		\
 }
 
 struct req_msg_field RMF_GENERIC_DATA =
@@ -979,18 +979,7 @@ EXPORT_SYMBOL(RMF_CONN);
 struct req_msg_field RMF_CONNECT_DATA =
 	DEFINE_MSGF("cdata",
 		    RMF_F_NO_SIZE_CHECK /* we allow extra space for interop */,
-#if LUSTRE_VERSION_CODE > OBD_OCD_VERSION(2, 7, 50, 0)
 		    sizeof(struct obd_connect_data),
-#else
-/* For interoperability with 1.8 and 2.0 clients/servers.
- * The RPC verification code allows larger RPC buffers, but not
- * smaller buffers.  Until we no longer need to keep compatibility
- * with older servers/clients we can only check that the buffer
- * size is at least as large as obd_connect_data_v1.  That is not
- * not in itself harmful, since the chance of just corrupting this
- * field is low.  See JIRA LU-16 for details. */
-		    sizeof(struct obd_connect_data_v1),
-#endif
 		    lustre_swab_connect, NULL);
 EXPORT_SYMBOL(RMF_CONNECT_DATA);
 
@@ -1093,8 +1082,8 @@ struct req_msg_field RMF_EAVALS_LENS =
 EXPORT_SYMBOL(RMF_EAVALS_LENS);
 
 struct req_msg_field RMF_OBD_ID =
-	DEFINE_MSGF("obd_id", 0,
-		    sizeof(obd_id), lustre_swab_ost_last_id, NULL);
+	DEFINE_MSGF("u64", 0,
+		    sizeof(u64), lustre_swab_ost_last_id, NULL);
 EXPORT_SYMBOL(RMF_OBD_ID);
 
 struct req_msg_field RMF_FID =
@@ -1850,7 +1839,7 @@ static int __req_capsule_offset(const struct req_capsule *pill,
 	LASSERTF(offset > 0, "%s:%s, off=%d, loc=%d\n",
 			    pill->rc_fmt->rf_name,
 			    field->rmf_name, offset, loc);
-	offset --;
+	offset--;
 
 	LASSERT(0 <= offset && offset < REQ_MAX_FIELD_NR);
 	return offset;
@@ -1896,8 +1885,8 @@ swabber_dumper_helper(struct req_capsule *pill,
 		swabber(value);
 		ptlrpc_buf_set_swabbed(pill->rc_req, inout, offset);
 		if (dump) {
-			CDEBUG(D_RPCTRACE, "Dump of swabbed field %s "
-			       "follows\n", field->rmf_name);
+			CDEBUG(D_RPCTRACE, "Dump of swabbed field %s follows\n",
+			       field->rmf_name);
 			field->rmf_dumper(value);
 		}
 
@@ -1913,8 +1902,7 @@ swabber_dumper_helper(struct req_capsule *pill,
 	     i < n;
 	     i++, p += field->rmf_size) {
 		if (dump) {
-			CDEBUG(D_RPCTRACE, "Dump of %sarray field %s, "
-			       "element %d follows\n",
+			CDEBUG(D_RPCTRACE, "Dump of %sarray field %s, element %d follows\n",
 			       do_swab ? "unswabbed " : "", field->rmf_name, i);
 			field->rmf_dumper(p);
 		}
@@ -1922,8 +1910,8 @@ swabber_dumper_helper(struct req_capsule *pill,
 			continue;
 		swabber(p);
 		if (dump) {
-			CDEBUG(D_RPCTRACE, "Dump of swabbed array field %s, "
-			       "element %d follows\n", field->rmf_name, i);
+			CDEBUG(D_RPCTRACE, "Dump of swabbed array field %s, element %d follows\n",
+			       field->rmf_name, i);
 			field->rmf_dumper(value);
 		}
 	}
@@ -1982,8 +1970,7 @@ static void *__req_capsule_get(struct req_capsule *pill,
 		 */
 		len = lustre_msg_buflen(msg, offset);
 		if ((len % field->rmf_size) != 0) {
-			CERROR("%s: array field size mismatch "
-			       "%d modulo %d != 0 (%d)\n",
+			CERROR("%s: array field size mismatch %d modulo %d != 0 (%d)\n",
 			       field->rmf_name, len, field->rmf_size, loc);
 			return NULL;
 		}
@@ -1996,8 +1983,7 @@ static void *__req_capsule_get(struct req_capsule *pill,
 
 	if (value == NULL) {
 		DEBUG_REQ(D_ERROR, pill->rc_req,
-			  "Wrong buffer for field `%s' (%d of %d) "
-			  "in format `%s': %d vs. %d (%s)\n",
+			  "Wrong buffer for field `%s' (%d of %d) in format `%s': %d vs. %d (%s)\n",
 			  field->rmf_name, offset, lustre_msg_bufcount(msg),
 			  fmt->rf_name, lustre_msg_buflen(msg, offset), len,
 			  rcl_names[loc]);
@@ -2012,7 +1998,7 @@ static void *__req_capsule_get(struct req_capsule *pill,
 /**
  * Dump a request and/or reply
  */
-void __req_capsule_dump(struct req_capsule *pill, enum req_location loc)
+static void __req_capsule_dump(struct req_capsule *pill, enum req_location loc)
 {
 	const struct    req_format *fmt;
 	const struct    req_msg_field *field;
@@ -2030,8 +2016,8 @@ void __req_capsule_dump(struct req_capsule *pill, enum req_location loc)
 			 * have a specific dumper
 			 */
 			len = req_capsule_get_size(pill, field, loc);
-			CDEBUG(D_RPCTRACE, "Field %s has no dumper function;"
-			       "field size is %d\n", field->rmf_name, len);
+			CDEBUG(D_RPCTRACE, "Field %s has no dumper function; field size is %d\n",
+			       field->rmf_name, len);
 		} else {
 			/* It's the dumping side-effect that we're interested in */
 			(void) __req_capsule_get(pill, field, loc, NULL, 1);
@@ -2154,7 +2140,7 @@ EXPORT_SYMBOL(req_capsule_server_sized_swab_get);
  * request (if the caller is executing on the server-side) or reply (if the
  * caller is executing on the client-side).
  *
- * This function convienient for use is code that could be executed on the
+ * This function convenient for use is code that could be executed on the
  * client and server alike.
  */
 const void *req_capsule_other_get(struct req_capsule *pill,
@@ -2183,8 +2169,7 @@ void req_capsule_set_size(struct req_capsule *pill,
 	    (size > 0)) {
 		if ((field->rmf_flags & RMF_F_STRUCT_ARRAY) &&
 		    (size % field->rmf_size != 0)) {
-			CERROR("%s: array field size mismatch "
-			       "%d %% %d != 0 (%d)\n",
+			CERROR("%s: array field size mismatch %d %% %d != 0 (%d)\n",
 			       field->rmf_name, size, field->rmf_size, loc);
 			LBUG();
 		} else if (!(field->rmf_flags & RMF_F_STRUCT_ARRAY) &&

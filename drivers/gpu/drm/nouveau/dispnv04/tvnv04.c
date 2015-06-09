@@ -35,9 +35,7 @@
 
 #include <drm/i2c/ch7006.h>
 
-#include <subdev/i2c.h>
-
-static struct nouveau_i2c_board_info nv04_tv_encoder_info[] = {
+static struct nvkm_i2c_board_info nv04_tv_encoder_info[] = {
 	{
 		{
 			I2C_BOARD_INFO("ch7006", 0x75),
@@ -56,7 +54,7 @@ static struct nouveau_i2c_board_info nv04_tv_encoder_info[] = {
 int nv04_tv_identify(struct drm_device *dev, int i2c_index)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
+	struct nvkm_i2c *i2c = nvxx_i2c(&drm->device);
 
 	return i2c->identify(i2c, i2c_index, "TV encoder",
 			     nv04_tv_encoder_info, NULL, NULL);
@@ -124,7 +122,7 @@ static void nv04_tv_prepare(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	int head = nouveau_crtc(encoder->crtc)->index;
-	struct drm_encoder_helper_funcs *helper = encoder->helper_private;
+	const struct drm_encoder_helper_funcs *helper = encoder->helper_private;
 
 	helper->dpms(encoder, DRM_MODE_DPMS_OFF);
 
@@ -166,12 +164,13 @@ static void nv04_tv_commit(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
-	struct drm_encoder_helper_funcs *helper = encoder->helper_private;
+	const struct drm_encoder_helper_funcs *helper = encoder->helper_private;
 
 	helper->dpms(encoder, DRM_MODE_DPMS_ON);
 
 	NV_DEBUG(drm, "Output %s is running on CRTC %d using output %c\n",
-		 drm_get_connector_name(&nouveau_encoder_connector_get(nv_encoder)->base), nv_crtc->index, '@' + ffs(nv_encoder->dcb->or));
+		 nouveau_encoder_connector_get(nv_encoder)->base.name,
+		 nv_crtc->index, '@' + ffs(nv_encoder->dcb->or));
 }
 
 static void nv04_tv_destroy(struct drm_encoder *encoder)
@@ -205,8 +204,8 @@ nv04_tv_create(struct drm_connector *connector, struct dcb_output *entry)
 	struct drm_encoder *encoder;
 	struct drm_device *dev = connector->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
-	struct nouveau_i2c_port *port = i2c->find(i2c, entry->i2c_index);
+	struct nvkm_i2c *i2c = nvxx_i2c(&drm->device);
+	struct nvkm_i2c_port *port = i2c->find(i2c, entry->i2c_index);
 	int type, ret;
 
 	/* Ensure that we can talk to this encoder */

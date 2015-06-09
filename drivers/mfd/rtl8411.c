@@ -53,7 +53,7 @@ static void rtl8411_fetch_vendor_settings(struct rtsx_pcr *pcr)
 	u8 reg3 = 0;
 
 	rtsx_pci_read_config_dword(pcr, PCR_SETTING_REG1, &reg1);
-	dev_dbg(&(pcr->pci->dev), "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG1, reg1);
+	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG1, reg1);
 
 	if (!rtsx_vendor_setting_valid(reg1))
 		return;
@@ -65,7 +65,7 @@ static void rtl8411_fetch_vendor_settings(struct rtsx_pcr *pcr)
 	pcr->card_drive_sel |= rtsx_reg_to_card_drive_sel(reg1);
 
 	rtsx_pci_read_config_byte(pcr, PCR_SETTING_REG3, &reg3);
-	dev_dbg(&(pcr->pci->dev), "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG3, reg3);
+	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG3, reg3);
 	pcr->sd30_drive_sel_3v3 = rtl8411_reg_to_sd30_drive_sel_3v3(reg3);
 }
 
@@ -74,7 +74,7 @@ static void rtl8411b_fetch_vendor_settings(struct rtsx_pcr *pcr)
 	u32 reg = 0;
 
 	rtsx_pci_read_config_dword(pcr, PCR_SETTING_REG1, &reg);
-	dev_dbg(&(pcr->pci->dev), "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG1, reg);
+	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG1, reg);
 
 	if (!rtsx_vendor_setting_valid(reg))
 		return;
@@ -260,9 +260,8 @@ static unsigned int rtl8411_cd_deglitch(struct rtsx_pcr *pcr)
 		rtsx_pci_write_register(pcr, CARD_PWR_CTL,
 				BPP_POWER_MASK, BPP_POWER_OFF);
 
-		dev_dbg(&(pcr->pci->dev),
-				"After CD deglitch, card_exist = 0x%x\n",
-				card_exist);
+		pcr_dbg(pcr, "After CD deglitch, card_exist = 0x%x\n",
+			card_exist);
 	}
 
 	if (card_exist & MS_EXIST) {

@@ -34,7 +34,7 @@
 #include <asm/kvm_para.h>
 #include <asm/kvm_host.h>
 #include <asm/kvm_ppc.h>
-#include "iodev.h"
+#include <kvm/iodev.h>
 
 #define MAX_CPU     32
 #define MAX_SRC     256
@@ -126,6 +126,8 @@ static int openpic_cpu_write_internal(void *opaque, gpa_t addr,
 				      u32 val, int idx);
 static int openpic_cpu_read_internal(void *opaque, gpa_t addr,
 				     u32 *ptr, int idx);
+static inline void write_IRQreg_idr(struct openpic *opp, int n_IRQ,
+				    uint32_t val);
 
 enum irq_type {
 	IRQ_TYPE_NORMAL = 0,
@@ -285,11 +287,6 @@ static inline void IRQ_setbit(struct irq_queue *q, int n_IRQ)
 static inline void IRQ_resetbit(struct irq_queue *q, int n_IRQ)
 {
 	clear_bit(n_IRQ, q->queue);
-}
-
-static inline int IRQ_testbit(struct irq_queue *q, int n_IRQ)
-{
-	return test_bit(n_IRQ, q->queue);
 }
 
 static void IRQ_check(struct openpic *opp, struct irq_queue *q)
@@ -528,7 +525,6 @@ static void openpic_reset(struct openpic *opp)
 	/* Initialise IRQ sources */
 	for (i = 0; i < opp->max_irq; i++) {
 		opp->src[i].ivpr = opp->ivpr_reset;
-		opp->src[i].idr = opp->idr_reset;
 
 		switch (opp->src[i].type) {
 		case IRQ_TYPE_NORMAL:
@@ -543,6 +539,8 @@ static void openpic_reset(struct openpic *opp)
 		case IRQ_TYPE_FSLSPECIAL:
 			break;
 		}
+
+		write_IRQreg_idr(opp, i, opp->idr_reset);
 	}
 	/* Initialise IRQ destinations */
 	for (i = 0; i < MAX_CPU; i++) {
@@ -1371,8 +1369,9 @@ static int kvm_mpic_write_internal(struct openpic *opp, gpa_t addr, u32 val)
 	return -ENXIO;
 }
 
-static int kvm_mpic_read(struct kvm_io_device *this, gpa_t addr,
-			 int len, void *ptr)
+static int kvm_mpic_read(struct kvm_vcpu *vcpu,
+			 struct kvm_io_device *this,
+			 gpa_t addr, int len, void *ptr)
 {
 	struct openpic *opp = container_of(this, struct openpic, mmio);
 	int ret;
@@ -1412,8 +1411,9 @@ static int kvm_mpic_read(struct kvm_io_device *this, gpa_t addr,
 	return ret;
 }
 
-static int kvm_mpic_write(struct kvm_io_device *this, gpa_t addr,
-			  int len, const void *ptr)
+static int kvm_mpic_write(struct kvm_vcpu *vcpu,
+			  struct kvm_io_device *this,
+			  gpa_t addr, int len, const void *ptr)
 {
 	struct openpic *opp = container_of(this, struct openpic, mmio);
 	int ret;
@@ -1823,8 +1823,7 @@ int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 	return 0;
 }
 
-int kvm_set_routing_entry(struct kvm_irq_routing_table *rt,
-			  struct kvm_kernel_irq_routing_entry *e,
+int kvm_set_routing_entry(struct kvm_kernel_irq_routing_entry *e,
 			  const struct kvm_irq_routing_entry *ue)
 {
 	int r = -EINVAL;
@@ -1836,7 +1835,6 @@ int kvm_set_routing_entry(struct kvm_irq_routing_table *rt,
 		e->irqchip.pin = ue->u.irqchip.pin;
 		if (e->irqchip.pin >= KVM_IRQCHIP_NUM_PINS)
 			goto out;
-		rt->chip[ue->u.irqchip.irqchip][e->irqchip.pin] = ue->gsi;
 		break;
 	case KVM_IRQ_ROUTING_MSI:
 		e->set = kvm_set_msi;

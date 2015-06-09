@@ -58,6 +58,10 @@
 				275000  1125000
 			>;
 			voltage-tolerance = <2>; /* 2 percentage */
+
+			clocks = <&dpll_mpu_ck>;
+			clock-names = "cpu";
+
 			clock-latency = <300000>; /* From omap-cpufreq driver */
 		};
 	};
@@ -68,7 +72,7 @@
 	};
 
 	/*
-	 * The soc node represents the soc top level view. It is uses for IPs
+	 * The soc node represents the soc top level view. It is used for IPs
 	 * that are not memory mapped in the MPU view or for the MPU itself.
 	 */
 	soc {
@@ -79,19 +83,10 @@
 		};
 	};
 
-	am33xx_pinmux: pinmux@44e10800 {
-		compatible = "pinctrl-single";
-		reg = <0x44e10800 0x0238>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		pinctrl-single,register-width = <32>;
-		pinctrl-single,function-mask = <0x7f>;
-	};
-
 	/*
 	 * XXX: Use a flat representation of the AM33XX interconnect.
-	 * The real AM33XX interconnect network is quite complex.Since
-	 * that will not bring real advantage to represent that in DT
+	 * The real AM33XX interconnect network is quite complex. Since
+	 * it will not bring real advantage to represent that in DT
 	 * for the moment, just use a fake OCP bus entry to represent
 	 * the whole bus hierarchy.
 	 */
@@ -102,37 +97,62 @@
 		ranges;
 		ti,hwmods = "l3_main";
 
-		prcm: prcm@44e00000 {
-			compatible = "ti,am3-prcm";
-			reg = <0x44e00000 0x4000>;
+		l4_wkup: l4_wkup@44c00000 {
+			compatible = "ti,am3-l4-wkup", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x44c00000 0x280000>;
 
-			prcm_clocks: clocks {
+			prcm: prcm@200000 {
+				compatible = "ti,am3-prcm";
+				reg = <0x200000 0x4000>;
+
+				prcm_clocks: clocks {
+					#address-cells = <1>;
+					#size-cells = <0>;
+				};
+
+				prcm_clockdomains: clockdomains {
+				};
+			};
+
+			scm: scm@210000 {
+				compatible = "ti,am3-scm", "simple-bus";
+				reg = <0x210000 0x2000>;
 				#address-cells = <1>;
-				#size-cells = <0>;
-			};
+				#size-cells = <1>;
+				ranges = <0 0x210000 0x2000>;
 
-			prcm_clockdomains: clockdomains {
-			};
-		};
+				am33xx_pinmux: pinmux@800 {
+					compatible = "pinctrl-single";
+					reg = <0x800 0x238>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					pinctrl-single,register-width = <32>;
+					pinctrl-single,function-mask = <0x7f>;
+				};
 
-		scrm: scrm@44e10000 {
-			compatible = "ti,am3-scrm";
-			reg = <0x44e10000 0x2000>;
+				scm_conf: scm_conf@0 {
+					compatible = "syscon";
+					reg = <0x0 0x800>;
+					#address-cells = <1>;
+					#size-cells = <1>;
 
-			scrm_clocks: clocks {
-				#address-cells = <1>;
-				#size-cells = <0>;
-			};
+					scm_clocks: clocks {
+						#address-cells = <1>;
+						#size-cells = <0>;
+					};
+				};
 
-			scrm_clockdomains: clockdomains {
+				scm_clockdomains: clockdomains {
+				};
 			};
 		};
 
 		intc: interrupt-controller@48200000 {
-			compatible = "ti,omap2-intc";
+			compatible = "ti,am33xx-intc";
 			interrupt-controller;
 			#interrupt-cells = <1>;
-			ti,intc-size = <128>;
 			reg = <0x48200000 0x1000>;
 		};
 
@@ -140,12 +160,9 @@
 			compatible = "ti,edma3";
 			ti,hwmods = "tpcc", "tptc0", "tptc1", "tptc2";
 			reg =	<0x49000000 0x10000>,
-				<0x44e10f90 0x10>;
+				<0x44e10f90 0x40>;
 			interrupts = <12 13 14>;
 			#dma-cells = <1>;
-			dma-channels = <64>;
-			ti,edma-regions = <4>;
-			ti,edma-slots = <256>;
 		};
 
 		gpio0: gpio@44e07000 {
@@ -199,6 +216,8 @@
 			reg = <0x44e09000 0x2000>;
 			interrupts = <72>;
 			status = "disabled";
+			dmas = <&edma 26>, <&edma 27>;
+			dma-names = "tx", "rx";
 		};
 
 		uart1: serial@48022000 {
@@ -208,6 +227,8 @@
 			reg = <0x48022000 0x2000>;
 			interrupts = <73>;
 			status = "disabled";
+			dmas = <&edma 28>, <&edma 29>;
+			dma-names = "tx", "rx";
 		};
 
 		uart2: serial@48024000 {
@@ -217,6 +238,8 @@
 			reg = <0x48024000 0x2000>;
 			interrupts = <74>;
 			status = "disabled";
+			dmas = <&edma 30>, <&edma 31>;
+			dma-names = "tx", "rx";
 		};
 
 		uart3: serial@481a6000 {
@@ -318,6 +341,7 @@
 			compatible = "ti,omap4-hwspinlock";
 			reg = <0x480ca000 0x1000>;
 			ti,hwmods = "spinlock";
+			#hwlock-cells = <1>;
 		};
 
 		wdt2: wdt@44e35000 {
@@ -327,22 +351,40 @@
 			interrupts = <91>;
 		};
 
-		dcan0: d_can@481cc000 {
-			compatible = "bosch,d_can";
+		dcan0: can@481cc000 {
+			compatible = "ti,am3352-d_can";
 			ti,hwmods = "d_can0";
-			reg = <0x481cc000 0x2000
-				0x44e10644 0x4>;
+			reg = <0x481cc000 0x2000>;
+			clocks = <&dcan0_fck>;
+			clock-names = "fck";
+			syscon-raminit = <&scm_conf 0x644 0>;
 			interrupts = <52>;
 			status = "disabled";
 		};
 
-		dcan1: d_can@481d0000 {
-			compatible = "bosch,d_can";
+		dcan1: can@481d0000 {
+			compatible = "ti,am3352-d_can";
 			ti,hwmods = "d_can1";
-			reg = <0x481d0000 0x2000
-				0x44e10644 0x4>;
+			reg = <0x481d0000 0x2000>;
+			clocks = <&dcan1_fck>;
+			clock-names = "fck";
+			syscon-raminit = <&scm_conf 0x644 1>;
 			interrupts = <55>;
 			status = "disabled";
+		};
+
+		mailbox: mailbox@480C8000 {
+			compatible = "ti,omap4-mailbox";
+			reg = <0x480C8000 0x200>;
+			interrupts = <77>;
+			ti,hwmods = "mailbox";
+			#mbox-cells = <1>;
+			ti,mbox-num-users = <4>;
+			ti,mbox-num-fifos = <8>;
+			mbox_wkupm3: wkup_m3 {
+				ti,mbox-tx = <0 0 0>;
+				ti,mbox-rx = <0 0 3>;
+			};
 		};
 
 		timer1: timer@44e31000 {
@@ -399,8 +441,8 @@
 			ti,timer-pwm;
 		};
 
-		rtc@44e3e000 {
-			compatible = "ti,da830-rtc";
+		rtc: rtc@44e3e000 {
+			compatible = "ti,am3352-rtc", "ti,da830-rtc";
 			reg = <0x44e3e000 0x1000>;
 			interrupts = <75
 				      76>;
@@ -448,7 +490,7 @@
 			ti,hwmods = "usb_otg_hs";
 			status = "disabled";
 
-			usb_ctrl_mod: control@44e10000 {
+			usb_ctrl_mod: control@44e10620 {
 				compatible = "ti,am335x-usb-ctrl-module";
 				reg = <0x44e10620 0x10
 					0x44e10648 0x4>;
@@ -551,7 +593,7 @@
 					"tx14", "tx15";
 			};
 
-			cppi41dma: dma-controller@07402000 {
+			cppi41dma: dma-controller@47402000 {
 				compatible = "ti,am3359-cppi41";
 				reg =  <0x47400000 0x1000
 					0x47402000 0x1000
@@ -582,6 +624,8 @@
 				compatible = "ti,am33xx-ecap";
 				#pwm-cells = <3>;
 				reg = <0x48300100 0x80>;
+				interrupts = <31>;
+				interrupt-names = "ecap0";
 				ti,hwmods = "ecap0";
 				status = "disabled";
 			};
@@ -610,6 +654,8 @@
 				compatible = "ti,am33xx-ecap";
 				#pwm-cells = <3>;
 				reg = <0x48302100 0x80>;
+				interrupts = <47>;
+				interrupt-names = "ecap1";
 				ti,hwmods = "ecap1";
 				status = "disabled";
 			};
@@ -638,6 +684,8 @@
 				compatible = "ti,am33xx-ecap";
 				#pwm-cells = <3>;
 				reg = <0x48304100 0x80>;
+				interrupts = <61>;
+				interrupt-names = "ecap2";
 				ti,hwmods = "ecap2";
 				status = "disabled";
 			};
@@ -654,6 +702,8 @@
 		mac: ethernet@4a100000 {
 			compatible = "ti,cpsw";
 			ti,hwmods = "cpgmac0";
+			clocks = <&cpsw_125mhz_gclk>, <&cpsw_cpts_rft_clk>;
+			clock-names = "fck", "cpts";
 			cpdma_channels = <8>;
 			ale_entries = <1024>;
 			bd_ram_size = <0x2000>;
@@ -677,6 +727,8 @@
 			 */
 			interrupts = <40 41 42 43>;
 			ranges;
+			syscon = <&scm_conf>;
+			status = "disabled";
 
 			davinci_mdio: mdio@4a101000 {
 				compatible = "ti,davinci_mdio";
@@ -685,6 +737,7 @@
 				ti,hwmods = "davinci_mdio";
 				bus_freq = <1000000>;
 				reg = <0x4a101000 0x100>;
+				status = "disabled";
 			};
 
 			cpsw_emac0: slave@4a100200 {
@@ -705,9 +758,8 @@
 		};
 
 		ocmcram: ocmcram@40300000 {
-			compatible = "ti,am3352-ocmcram";
-			reg = <0x40300000 0x10000>;
-			ti,hwmods = "ocmcram";
+			compatible = "mmio-sram";
+			reg = <0x40300000 0x10000>; /* 64k */
 		};
 
 		wkup_m3: wkup_m3@44d00000 {
@@ -791,7 +843,7 @@
 			      <0x46000000 0x400000>;
 			reg-names = "mpu", "dat";
 			interrupts = <80>, <81>;
-			interrupts-names = "tx", "rx";
+			interrupt-names = "tx", "rx";
 			status = "disabled";
 			dmas = <&edma 8>,
 				<&edma 9>;
@@ -805,7 +857,7 @@
 			      <0x46400000 0x400000>;
 			reg-names = "mpu", "dat";
 			interrupts = <82>, <83>;
-			interrupts-names = "tx", "rx";
+			interrupt-names = "tx", "rx";
 			status = "disabled";
 			dmas = <&edma 10>,
 				<&edma 11>;

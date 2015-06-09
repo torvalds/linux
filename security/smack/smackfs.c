@@ -53,6 +53,10 @@ enum smk_inos {
 	SMK_REVOKE_SUBJ	= 18,	/* set rules with subject label to '-' */
 	SMK_CHANGE_RULE	= 19,	/* change or add rules (long labels) */
 	SMK_SYSLOG	= 20,	/* change syslog label) */
+	SMK_PTRACE	= 21,	/* set ptrace rule */
+#ifdef CONFIG_SECURITY_SMACK_BRINGUP
+	SMK_UNCONFINED	= 22,	/* define an unconfined label */
+#endif
 };
 
 /*
@@ -60,7 +64,6 @@ enum smk_inos {
  */
 static DEFINE_MUTEX(smack_cipso_lock);
 static DEFINE_MUTEX(smack_ambient_lock);
-static DEFINE_MUTEX(smack_syslog_lock);
 static DEFINE_MUTEX(smk_netlbladdr_lock);
 
 /*
@@ -94,11 +97,30 @@ int smack_cipso_mapped = SMACK_CIPSO_MAPPED_DEFAULT;
  */
 struct smack_known *smack_onlycap;
 
+#ifdef CONFIG_SECURITY_SMACK_BRINGUP
+/*
+ * Allow one label to be unconfined. This is for
+ * debugging and application bring-up purposes only.
+ * It is bad and wrong, but everyone seems to expect
+ * to have it.
+ */
+struct smack_known *smack_unconfined;
+#endif
+
 /*
  * If this value is set restrict syslog use to the label specified.
  * It can be reset via smackfs/syslog
  */
 struct smack_known *smack_syslog_label;
+
+/*
+ * Ptrace current rule
+ * SMACK_PTRACE_DEFAULT    regular smack ptrace rules (/proc based)
+ * SMACK_PTRACE_EXACT      labels must match, but can be overriden with
+ *			   CAP_SYS_PTRACE
+ * SMACK_PTRACE_DRACONIAN  lables must match, CAP_SYS_PTRACE has no effect
+ */
+int smack_ptrace_rule = SMACK_PTRACE_DEFAULT;
 
 /*
  * Certain IP addresses may be designated as single label hosts.
@@ -121,14 +143,17 @@ LIST_HEAD(smack_rule_list);
 
 struct smack_parsed_rule {
 	struct smack_known	*smk_subject;
-	char			*smk_object;
+	struct smack_known	*smk_object;
 	int			smk_access1;
 	int			smk_access2;
 };
 
 static int smk_cipso_doi_value = SMACK_CIPSO_DOI_DEFAULT;
 
-const char *smack_cipso_option = SMACK_CIPSO_OPTION;
+struct smack_known smack_cipso_option = {
+	.smk_known	= SMACK_CIPSO_OPTION,
+	.smk_secid	= 0,
+};
 
 /*
  * Values for parsing cipso rules
@@ -294,6 +319,10 @@ static int smk_perm_from_str(const char *string)
 		case 'L':
 			perm |= MAY_LOCK;
 			break;
+		case 'b':
+		case 'B':
+			perm |= MAY_BRINGUP;
+			break;
 		default:
 			return perm;
 		}
@@ -325,7 +354,7 @@ static int smk_fill_rule(const char *subject, const char *object,
 		if (rule->smk_subject == NULL)
 			return -EINVAL;
 
-		rule->smk_object = smk_import(object, len);
+		rule->smk_object = smk_import_entry(object, len);
 		if (rule->smk_object == NULL)
 			return -EINVAL;
 	} else {
@@ -345,7 +374,7 @@ static int smk_fill_rule(const char *subject, const char *object,
 		kfree(cp);
 		if (skp == NULL)
 			return -ENOENT;
-		rule->smk_object = skp->smk_known;
+		rule->smk_object = skp;
 	}
 
 	rule->smk_access1 = smk_perm_from_str(access1);
@@ -584,13 +613,15 @@ static void smk_rule_show(struct seq_file *s, struct smack_rule *srp, int max)
 	 * anything you read back.
 	 */
 	if (strlen(srp->smk_subject->smk_known) >= max ||
-	    strlen(srp->smk_object) >= max)
+	    strlen(srp->smk_object->smk_known) >= max)
 		return;
 
 	if (srp->smk_access == 0)
 		return;
 
-	seq_printf(s, "%s %s", srp->smk_subject->smk_known, srp->smk_object);
+	seq_printf(s, "%s %s",
+		   srp->smk_subject->smk_known,
+		   srp->smk_object->smk_known);
 
 	seq_putc(s, ' ');
 
@@ -606,6 +637,8 @@ static void smk_rule_show(struct seq_file *s, struct smack_rule *srp, int max)
 		seq_putc(s, 't');
 	if (srp->smk_access & MAY_LOCK)
 		seq_putc(s, 'l');
+	if (srp->smk_access & MAY_BRINGUP)
+		seq_putc(s, 'b');
 
 	seq_putc(s, '\n');
 }
@@ -777,7 +810,7 @@ static int cipso_seq_show(struct seq_file *s, void *v)
 	struct list_head  *list = v;
 	struct smack_known *skp =
 		 list_entry(list, struct smack_known, list);
-	struct netlbl_lsm_secattr_catmap *cmp = skp->smk_netlabel.attr.mls.cat;
+	struct netlbl_lsm_catmap *cmp = skp->smk_netlabel.attr.mls.cat;
 	char sep = '/';
 	int i;
 
@@ -794,8 +827,8 @@ static int cipso_seq_show(struct seq_file *s, void *v)
 
 	seq_printf(s, "%s %3d", skp->smk_known, skp->smk_netlabel.attr.mls.lvl);
 
-	for (i = netlbl_secattr_catmap_walk(cmp, 0); i >= 0;
-	     i = netlbl_secattr_catmap_walk(cmp, i + 1)) {
+	for (i = netlbl_catmap_walk(cmp, 0); i >= 0;
+	     i = netlbl_catmap_walk(cmp, i + 1)) {
 		seq_printf(s, "%c%d", sep, i);
 		sep = ',';
 	}
@@ -916,7 +949,7 @@ static ssize_t smk_set_cipso(struct file *file, const char __user *buf,
 
 	rc = smk_netlbl_mls(maplevel, mapcatset, &ncats, SMK_CIPSOLEN);
 	if (rc >= 0) {
-		netlbl_secattr_catmap_free(skp->smk_netlabel.attr.mls.cat);
+		netlbl_catmap_free(skp->smk_netlabel.attr.mls.cat);
 		skp->smk_netlabel.attr.mls.cat = ncats.attr.mls.cat;
 		skp->smk_netlabel.attr.mls.lvl = ncats.attr.mls.lvl;
 		rc = count;
@@ -966,14 +999,14 @@ static int cipso2_seq_show(struct seq_file *s, void *v)
 	struct list_head  *list = v;
 	struct smack_known *skp =
 		 list_entry(list, struct smack_known, list);
-	struct netlbl_lsm_secattr_catmap *cmp = skp->smk_netlabel.attr.mls.cat;
+	struct netlbl_lsm_catmap *cmp = skp->smk_netlabel.attr.mls.cat;
 	char sep = '/';
 	int i;
 
 	seq_printf(s, "%s %3d", skp->smk_known, skp->smk_netlabel.attr.mls.lvl);
 
-	for (i = netlbl_secattr_catmap_walk(cmp, 0); i >= 0;
-	     i = netlbl_secattr_catmap_walk(cmp, i + 1)) {
+	for (i = netlbl_catmap_walk(cmp, 0); i >= 0;
+	     i = netlbl_catmap_walk(cmp, i + 1)) {
 		seq_printf(s, "%c%d", sep, i);
 		sep = ',';
 	}
@@ -1057,7 +1090,7 @@ static int netlbladdr_seq_show(struct seq_file *s, void *v)
 	for (maskn = 0; temp_mask; temp_mask <<= 1, maskn++);
 
 	seq_printf(s, "%u.%u.%u.%u/%d %s\n",
-		hp[0], hp[1], hp[2], hp[3], maskn, skp->smk_label);
+		hp[0], hp[1], hp[2], hp[3], maskn, skp->smk_label->smk_known);
 
 	return 0;
 }
@@ -1137,10 +1170,10 @@ static void smk_netlbladdr_insert(struct smk_netlbladdr *new)
 static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
-	struct smk_netlbladdr *skp;
+	struct smk_netlbladdr *snp;
 	struct sockaddr_in newname;
 	char *smack;
-	char *sp;
+	struct smack_known *skp;
 	char *data;
 	char *host = (char *)&newname.sin_addr.s_addr;
 	int rc;
@@ -1183,7 +1216,7 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 
 	data[count] = '\0';
 
-	rc = sscanf(data, "%hhd.%hhd.%hhd.%hhd/%d %s",
+	rc = sscanf(data, "%hhd.%hhd.%hhd.%hhd/%u %s",
 		&host[0], &host[1], &host[2], &host[3], &m, smack);
 	if (rc != 6) {
 		rc = sscanf(data, "%hhd.%hhd.%hhd.%hhd %s",
@@ -1203,15 +1236,15 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 	 * If smack begins with '-', it is an option, don't import it
 	 */
 	if (smack[0] != '-') {
-		sp = smk_import(smack, 0);
-		if (sp == NULL) {
+		skp = smk_import_entry(smack, 0);
+		if (skp == NULL) {
 			rc = -EINVAL;
 			goto free_out;
 		}
 	} else {
 		/* check known options */
-		if (strcmp(smack, smack_cipso_option) == 0)
-			sp = (char *)smack_cipso_option;
+		if (strcmp(smack, smack_cipso_option.smk_known) == 0)
+			skp = &smack_cipso_option;
 		else {
 			rc = -EINVAL;
 			goto free_out;
@@ -1234,9 +1267,9 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 	nsa = newname.sin_addr.s_addr;
 	/* try to find if the prefix is already in the list */
 	found = 0;
-	list_for_each_entry_rcu(skp, &smk_netlbladdr_list, list) {
-		if (skp->smk_host.sin_addr.s_addr == nsa &&
-		    skp->smk_mask.s_addr == mask.s_addr) {
+	list_for_each_entry_rcu(snp, &smk_netlbladdr_list, list) {
+		if (snp->smk_host.sin_addr.s_addr == nsa &&
+		    snp->smk_mask.s_addr == mask.s_addr) {
 			found = 1;
 			break;
 		}
@@ -1244,26 +1277,26 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 	smk_netlabel_audit_set(&audit_info);
 
 	if (found == 0) {
-		skp = kzalloc(sizeof(*skp), GFP_KERNEL);
-		if (skp == NULL)
+		snp = kzalloc(sizeof(*snp), GFP_KERNEL);
+		if (snp == NULL)
 			rc = -ENOMEM;
 		else {
 			rc = 0;
-			skp->smk_host.sin_addr.s_addr = newname.sin_addr.s_addr;
-			skp->smk_mask.s_addr = mask.s_addr;
-			skp->smk_label = sp;
-			smk_netlbladdr_insert(skp);
+			snp->smk_host.sin_addr.s_addr = newname.sin_addr.s_addr;
+			snp->smk_mask.s_addr = mask.s_addr;
+			snp->smk_label = skp;
+			smk_netlbladdr_insert(snp);
 		}
 	} else {
 		/* we delete the unlabeled entry, only if the previous label
 		 * wasn't the special CIPSO option */
-		if (skp->smk_label != smack_cipso_option)
+		if (snp->smk_label != &smack_cipso_option)
 			rc = netlbl_cfg_unlbl_static_del(&init_net, NULL,
-					&skp->smk_host.sin_addr, &skp->smk_mask,
+					&snp->smk_host.sin_addr, &snp->smk_mask,
 					PF_INET, &audit_info);
 		else
 			rc = 0;
-		skp->smk_label = sp;
+		snp->smk_label = skp;
 	}
 
 	/*
@@ -1271,10 +1304,10 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 	 * this host so that incoming packets get labeled.
 	 * but only if we didn't get the special CIPSO option
 	 */
-	if (rc == 0 && sp != smack_cipso_option)
+	if (rc == 0 && skp != &smack_cipso_option)
 		rc = netlbl_cfg_unlbl_static_add(&init_net, NULL,
-			&skp->smk_host.sin_addr, &skp->smk_mask, PF_INET,
-			smack_to_secid(skp->smk_label), &audit_info);
+			&snp->smk_host.sin_addr, &snp->smk_mask, PF_INET,
+			snp->smk_label->smk_secid, &audit_info);
 
 	if (rc == 0)
 		rc = count;
@@ -1667,7 +1700,7 @@ static ssize_t smk_write_onlycap(struct file *file, const char __user *buf,
 	if (smack_onlycap != NULL && smack_onlycap != skp)
 		return -EPERM;
 
-	data = kzalloc(count, GFP_KERNEL);
+	data = kzalloc(count + 1, GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
 
@@ -1695,6 +1728,85 @@ static const struct file_operations smk_onlycap_ops = {
 	.write		= smk_write_onlycap,
 	.llseek		= default_llseek,
 };
+
+#ifdef CONFIG_SECURITY_SMACK_BRINGUP
+/**
+ * smk_read_unconfined - read() for smackfs/unconfined
+ * @filp: file pointer, not actually used
+ * @buf: where to put the result
+ * @cn: maximum to send along
+ * @ppos: where to start
+ *
+ * Returns number of bytes read or error code, as appropriate
+ */
+static ssize_t smk_read_unconfined(struct file *filp, char __user *buf,
+					size_t cn, loff_t *ppos)
+{
+	char *smack = "";
+	ssize_t rc = -EINVAL;
+	int asize;
+
+	if (*ppos != 0)
+		return 0;
+
+	if (smack_unconfined != NULL)
+		smack = smack_unconfined->smk_known;
+
+	asize = strlen(smack) + 1;
+
+	if (cn >= asize)
+		rc = simple_read_from_buffer(buf, cn, ppos, smack, asize);
+
+	return rc;
+}
+
+/**
+ * smk_write_unconfined - write() for smackfs/unconfined
+ * @file: file pointer, not actually used
+ * @buf: where to get the data from
+ * @count: bytes sent
+ * @ppos: where to start
+ *
+ * Returns number of bytes written or error code, as appropriate
+ */
+static ssize_t smk_write_unconfined(struct file *file, const char __user *buf,
+					size_t count, loff_t *ppos)
+{
+	char *data;
+	int rc = count;
+
+	if (!smack_privileged(CAP_MAC_ADMIN))
+		return -EPERM;
+
+	data = kzalloc(count + 1, GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
+
+	/*
+	 * Should the null string be passed in unset the unconfined value.
+	 * This seems like something to be careful with as usually
+	 * smk_import only expects to return NULL for errors. It
+	 * is usually the case that a nullstring or "\n" would be
+	 * bad to pass to smk_import but in fact this is useful here.
+	 *
+	 * smk_import will also reject a label beginning with '-',
+	 * so "-confine" will also work.
+	 */
+	if (copy_from_user(data, buf, count) != 0)
+		rc = -EFAULT;
+	else
+		smack_unconfined = smk_import_entry(data, count);
+
+	kfree(data);
+	return rc;
+}
+
+static const struct file_operations smk_unconfined_ops = {
+	.read		= smk_read_unconfined,
+	.write		= smk_write_unconfined,
+	.llseek		= default_llseek,
+};
+#endif /* CONFIG_SECURITY_SMACK_BRINGUP */
 
 /**
  * smk_read_logging - read() for /smack/logging
@@ -1870,7 +1982,10 @@ static ssize_t smk_user_access(struct file *file, const char __user *buf,
 	else if (res != -ENOENT)
 		return -EINVAL;
 
-	data[0] = res == 0 ? '1' : '0';
+	/*
+	 * smk_access() can return a value > 0 in the "bringup" case.
+	 */
+	data[0] = res >= 0 ? '1' : '0';
 	data[1] = '\0';
 
 	simple_transaction_set(file, 2);
@@ -2218,7 +2333,7 @@ static ssize_t smk_write_syslog(struct file *file, const char __user *buf,
 	if (!smack_privileged(CAP_MAC_ADMIN))
 		return -EPERM;
 
-	data = kzalloc(count, GFP_KERNEL);
+	data = kzalloc(count + 1, GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
 
@@ -2242,6 +2357,68 @@ static const struct file_operations smk_syslog_ops = {
 	.llseek		= default_llseek,
 };
 
+
+/**
+ * smk_read_ptrace - read() for /smack/ptrace
+ * @filp: file pointer, not actually used
+ * @buf: where to put the result
+ * @count: maximum to send along
+ * @ppos: where to start
+ *
+ * Returns number of bytes read or error code, as appropriate
+ */
+static ssize_t smk_read_ptrace(struct file *filp, char __user *buf,
+			       size_t count, loff_t *ppos)
+{
+	char temp[32];
+	ssize_t rc;
+
+	if (*ppos != 0)
+		return 0;
+
+	sprintf(temp, "%d\n", smack_ptrace_rule);
+	rc = simple_read_from_buffer(buf, count, ppos, temp, strlen(temp));
+	return rc;
+}
+
+/**
+ * smk_write_ptrace - write() for /smack/ptrace
+ * @file: file pointer
+ * @buf: data from user space
+ * @count: bytes sent
+ * @ppos: where to start - must be 0
+ */
+static ssize_t smk_write_ptrace(struct file *file, const char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	char temp[32];
+	int i;
+
+	if (!smack_privileged(CAP_MAC_ADMIN))
+		return -EPERM;
+
+	if (*ppos != 0 || count >= sizeof(temp) || count == 0)
+		return -EINVAL;
+
+	if (copy_from_user(temp, buf, count) != 0)
+		return -EFAULT;
+
+	temp[count] = '\0';
+
+	if (sscanf(temp, "%d", &i) != 1)
+		return -EINVAL;
+	if (i < SMACK_PTRACE_DEFAULT || i > SMACK_PTRACE_MAX)
+		return -EINVAL;
+	smack_ptrace_rule = i;
+
+	return count;
+}
+
+static const struct file_operations smk_ptrace_ops = {
+	.write		= smk_write_ptrace,
+	.read		= smk_read_ptrace,
+	.llseek		= default_llseek,
+};
 
 /**
  * smk_fill_super - fill the smackfs superblock
@@ -2296,6 +2473,12 @@ static int smk_fill_super(struct super_block *sb, void *data, int silent)
 			"change-rule", &smk_change_rule_ops, S_IRUGO|S_IWUSR},
 		[SMK_SYSLOG] = {
 			"syslog", &smk_syslog_ops, S_IRUGO|S_IWUSR},
+		[SMK_PTRACE] = {
+			"ptrace", &smk_ptrace_ops, S_IRUGO|S_IWUSR},
+#ifdef CONFIG_SECURITY_SMACK_BRINGUP
+		[SMK_UNCONFINED] = {
+			"unconfined", &smk_unconfined_ops, S_IRUGO|S_IWUSR},
+#endif
 		/* last one */
 			{""}
 	};
@@ -2307,7 +2490,7 @@ static int smk_fill_super(struct super_block *sb, void *data, int silent)
 		return rc;
 	}
 
-	root_inode = sb->s_root->d_inode;
+	root_inode = d_inode(sb->s_root);
 
 	return 0;
 }

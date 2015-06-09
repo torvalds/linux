@@ -15,10 +15,7 @@
 #include <linux/io.h>
 #include <linux/bitops.h>
 
-#include "soc.h"
 #include "clock.h"
-#include "clock44xx.h"
-#include "cm-regbits-44xx.h"
 
 /*
  * Maximum DPLL input frequency (FINT) and output frequency (FOUT) that
@@ -29,32 +26,22 @@
 #define OMAP4_DPLL_LP_FINT_MAX	1000000
 #define OMAP4_DPLL_LP_FOUT_MAX	100000000
 
-/* Supported only on OMAP4 */
-int omap4_dpllmx_gatectrl_read(struct clk_hw_omap *clk)
-{
-	u32 v;
-	u32 mask;
+/*
+ * Bitfield declarations
+ */
+#define OMAP4430_DPLL_CLKOUT_GATE_CTRL_MASK		(1 << 8)
+#define OMAP4430_DPLL_CLKOUTX2_GATE_CTRL_MASK		(1 << 10)
+#define OMAP4430_DPLL_REGM4XEN_MASK			(1 << 11)
 
-	if (!clk || !clk->clksel_reg || !cpu_is_omap44xx())
-		return -EINVAL;
-
-	mask = clk->flags & CLOCK_CLKOUTX2 ?
-			OMAP4430_DPLL_CLKOUTX2_GATE_CTRL_MASK :
-			OMAP4430_DPLL_CLKOUT_GATE_CTRL_MASK;
-
-	v = omap2_clk_readl(clk, clk->clksel_reg);
-	v &= mask;
-	v >>= __ffs(mask);
-
-	return v;
-}
+/* Static rate multiplier for OMAP4 REGM4XEN clocks */
+#define OMAP4430_REGM4XEN_MULT				4
 
 void omap4_dpllmx_allow_gatectrl(struct clk_hw_omap *clk)
 {
 	u32 v;
 	u32 mask;
 
-	if (!clk || !clk->clksel_reg || !cpu_is_omap44xx())
+	if (!clk || !clk->clksel_reg)
 		return;
 
 	mask = clk->flags & CLOCK_CLKOUTX2 ?
@@ -72,7 +59,7 @@ void omap4_dpllmx_deny_gatectrl(struct clk_hw_omap *clk)
 	u32 v;
 	u32 mask;
 
-	if (!clk || !clk->clksel_reg || !cpu_is_omap44xx())
+	if (!clk || !clk->clksel_reg)
 		return;
 
 	mask = clk->flags & CLOCK_CLKOUTX2 ?
@@ -199,4 +186,47 @@ out:
 	omap4_dpll_lpmode_recalc(dd);
 
 	return dd->last_rounded_rate;
+}
+
+/**
+ * omap4_dpll_regm4xen_determine_rate - determine rate for a DPLL
+ * @hw: pointer to the clock to determine rate for
+ * @rate: target rate for the DPLL
+ * @best_parent_rate: pointer for returning best parent rate
+ * @best_parent_clk: pointer for returning best parent clock
+ *
+ * Determines which DPLL mode to use for reaching a desired rate.
+ * Checks whether the DPLL shall be in bypass or locked mode, and if
+ * locked, calculates the M,N values for the DPLL via round-rate.
+ * Returns a positive clock rate with success, negative error value
+ * in failure.
+ */
+long omap4_dpll_regm4xen_determine_rate(struct clk_hw *hw, unsigned long rate,
+					unsigned long min_rate,
+					unsigned long max_rate,
+					unsigned long *best_parent_rate,
+					struct clk_hw **best_parent_clk)
+{
+	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
+	struct dpll_data *dd;
+
+	if (!hw || !rate)
+		return -EINVAL;
+
+	dd = clk->dpll_data;
+	if (!dd)
+		return -EINVAL;
+
+	if (__clk_get_rate(dd->clk_bypass) == rate &&
+	    (dd->modes & (1 << DPLL_LOW_POWER_BYPASS))) {
+		*best_parent_clk = __clk_get_hw(dd->clk_bypass);
+	} else {
+		rate = omap4_dpll_regm4xen_round_rate(hw, rate,
+						      best_parent_rate);
+		*best_parent_clk = __clk_get_hw(dd->clk_ref);
+	}
+
+	*best_parent_rate = rate;
+
+	return rate;
 }

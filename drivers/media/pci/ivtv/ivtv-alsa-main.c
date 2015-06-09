@@ -145,11 +145,12 @@ static int snd_ivtv_init(struct v4l2_device *v4l2_dev)
 	/* This is a no-op for us.  We'll use the itv->instance */
 
 	/* (2) Create a card instance */
-	ret = snd_card_create(SNDRV_DEFAULT_IDX1, /* use first available id */
-			      SNDRV_DEFAULT_STR1, /* xid from end of shortname*/
-			      THIS_MODULE, 0, &sc);
+	ret = snd_card_new(&itv->pdev->dev,
+			   SNDRV_DEFAULT_IDX1, /* use first available id */
+			   SNDRV_DEFAULT_STR1, /* xid from end of shortname*/
+			   THIS_MODULE, 0, &sc);
 	if (ret) {
-		IVTV_ALSA_ERR("%s: snd_card_create() failed with err %d\n",
+		IVTV_ALSA_ERR("%s: snd_card_new() failed with err %d\n",
 			      __func__, ret);
 		goto err_exit;
 	}
@@ -223,7 +224,7 @@ static int ivtv_alsa_load(struct ivtv *itv)
 	}
 
 	s = &itv->streams[IVTV_ENC_STREAM_TYPE_PCM];
-	if (s->vdev == NULL) {
+	if (s->vdev.v4l2_dev == NULL) {
 		IVTV_DEBUG_ALSA_INFO("%s: PCM stream for card is disabled - "
 				     "skipping\n", __func__);
 		return 0;

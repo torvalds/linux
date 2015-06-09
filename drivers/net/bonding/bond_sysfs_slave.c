@@ -12,7 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 
-#include "bonding.h"
+#include <net/bonding.h>
 
 struct slave_attribute {
 	struct attribute attr;
@@ -36,7 +36,7 @@ static ssize_t state_show(struct slave *slave, char *buf)
 	case BOND_STATE_BACKUP:
 		return sprintf(buf, "backup\n");
 	default:
-		return sprintf(buf, "UNKONWN\n");
+		return sprintf(buf, "UNKNOWN\n");
 	}
 }
 static SLAVE_ATTR_RO(state);
@@ -69,8 +69,8 @@ static ssize_t ad_aggregator_id_show(struct slave *slave, char *buf)
 {
 	const struct aggregator *agg;
 
-	if (slave->bond->params.mode == BOND_MODE_8023AD) {
-		agg = SLAVE_AD_INFO(slave).port.aggregator;
+	if (BOND_MODE(slave->bond) == BOND_MODE_8023AD) {
+		agg = SLAVE_AD_INFO(slave)->port.aggregator;
 		if (agg)
 			return sprintf(buf, "%d\n",
 				       agg->aggregator_identifier);
@@ -125,7 +125,7 @@ int bond_sysfs_slave_add(struct slave *slave)
 	for (a = slave_attrs; *a; ++a) {
 		err = sysfs_create_file(&slave->kobj, &((*a)->attr));
 		if (err) {
-			kobject_del(&slave->kobj);
+			kobject_put(&slave->kobj);
 			return err;
 		}
 	}
@@ -140,5 +140,5 @@ void bond_sysfs_slave_del(struct slave *slave)
 	for (a = slave_attrs; *a; ++a)
 		sysfs_remove_file(&slave->kobj, &((*a)->attr));
 
-	kobject_del(&slave->kobj);
+	kobject_put(&slave->kobj);
 }

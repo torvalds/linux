@@ -59,6 +59,10 @@
 #define		ISI_CFG1_FRATE_DIV_MASK		(7 << 8)
 #define ISI_CFG1_DISCR				(1 << 11)
 #define ISI_CFG1_FULL_MODE			(1 << 12)
+/* Definition for THMASK(ISI_V2) */
+#define		ISI_CFG1_THMASK_BEATS_4		(0 << 13)
+#define		ISI_CFG1_THMASK_BEATS_8		(1 << 13)
+#define		ISI_CFG1_THMASK_BEATS_16	(2 << 13)
 
 /* Bitfields in CFG2 */
 #define ISI_CFG2_GRAYSCALE			(1 << 13)
@@ -106,6 +110,8 @@
 #define ISI_DATAWIDTH_8				0x01
 #define ISI_DATAWIDTH_10			0x02
 
+struct v4l2_async_subdev;
+
 struct isi_platform_data {
 	u8 has_emb_sync;
 	u8 emb_crc_sync;
@@ -118,6 +124,8 @@ struct isi_platform_data {
 	u32 frate;
 	/* Using for ISI_MCK */
 	u32 mck_hz;
+	struct v4l2_async_subdev **asd;	/* Flat array, arranged in groups */
+	int *asd_sizes;		/* 0-terminated array of asd group sizes */
 };
 
 #endif /* __ATMEL_ISI_H__ */

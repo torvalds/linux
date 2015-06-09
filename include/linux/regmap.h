@@ -27,6 +27,7 @@ struct spmi_device;
 struct regmap;
 struct regmap_range_cfg;
 struct regmap_field;
+struct snd_ac97;
 
 /* An enum of all the supported cache types */
 enum regcache_type {
@@ -164,6 +165,9 @@ typedef void (*regmap_unlock)(void *);
  * @use_single_rw: If set, converts the bulk read and write operations into
  *		    a series of single read and write operations. This is useful
  *		    for device that does not support bulk read and write.
+ * @can_multi_write: If set, the device supports the multi write mode of bulk
+ *                   write operations, if clear multi write requests will be
+ *                   split into individual write operations
  *
  * @cache_type: The actual cache type.
  * @reg_defaults_raw: Power on reset values for registers (for use with
@@ -215,6 +219,7 @@ struct regmap_config {
 	u8 write_flag_mask;
 
 	bool use_single_rw;
+	bool can_multi_write;
 
 	enum regmap_endian reg_format_endian;
 	enum regmap_endian val_format_endian;
@@ -272,6 +277,10 @@ typedef int (*regmap_hw_async_write)(void *context,
 typedef int (*regmap_hw_read)(void *context,
 			      const void *reg_buf, size_t reg_size,
 			      void *val_buf, size_t val_size);
+typedef int (*regmap_hw_reg_read)(void *context, unsigned int reg,
+				  unsigned int *val);
+typedef int (*regmap_hw_reg_write)(void *context, unsigned int reg,
+				   unsigned int val);
 typedef struct regmap_async *(*regmap_hw_async_alloc)(void);
 typedef void (*regmap_hw_free_context)(void *context);
 
@@ -305,7 +314,9 @@ struct regmap_bus {
 	regmap_hw_write write;
 	regmap_hw_gather_write gather_write;
 	regmap_hw_async_write async_write;
+	regmap_hw_reg_write reg_write;
 	regmap_hw_read read;
+	regmap_hw_reg_read reg_read;
 	regmap_hw_free_context free_context;
 	regmap_hw_async_alloc async_alloc;
 	u8 read_flag_mask;
@@ -317,15 +328,21 @@ struct regmap *regmap_init(struct device *dev,
 			   const struct regmap_bus *bus,
 			   void *bus_context,
 			   const struct regmap_config *config);
+int regmap_attach_dev(struct device *dev, struct regmap *map,
+				 const struct regmap_config *config);
 struct regmap *regmap_init_i2c(struct i2c_client *i2c,
 			       const struct regmap_config *config);
 struct regmap *regmap_init_spi(struct spi_device *dev,
 			       const struct regmap_config *config);
-struct regmap *regmap_init_spmi(struct spmi_device *dev,
-			       const struct regmap_config *config);
+struct regmap *regmap_init_spmi_base(struct spmi_device *dev,
+				     const struct regmap_config *config);
+struct regmap *regmap_init_spmi_ext(struct spmi_device *dev,
+				    const struct regmap_config *config);
 struct regmap *regmap_init_mmio_clk(struct device *dev, const char *clk_id,
 				    void __iomem *regs,
 				    const struct regmap_config *config);
+struct regmap *regmap_init_ac97(struct snd_ac97 *ac97,
+				const struct regmap_config *config);
 
 struct regmap *devm_regmap_init(struct device *dev,
 				const struct regmap_bus *bus,
@@ -335,11 +352,17 @@ struct regmap *devm_regmap_init_i2c(struct i2c_client *i2c,
 				    const struct regmap_config *config);
 struct regmap *devm_regmap_init_spi(struct spi_device *dev,
 				    const struct regmap_config *config);
-struct regmap *devm_regmap_init_spmi(struct spmi_device *dev,
-				     const struct regmap_config *config);
+struct regmap *devm_regmap_init_spmi_base(struct spmi_device *dev,
+					  const struct regmap_config *config);
+struct regmap *devm_regmap_init_spmi_ext(struct spmi_device *dev,
+					 const struct regmap_config *config);
 struct regmap *devm_regmap_init_mmio_clk(struct device *dev, const char *clk_id,
 					 void __iomem *regs,
 					 const struct regmap_config *config);
+struct regmap *devm_regmap_init_ac97(struct snd_ac97 *ac97,
+				     const struct regmap_config *config);
+
+bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
 
 /**
  * regmap_init_mmio(): Initialise register map
@@ -380,14 +403,18 @@ void regmap_exit(struct regmap *map);
 int regmap_reinit_cache(struct regmap *map,
 			const struct regmap_config *config);
 struct regmap *dev_get_regmap(struct device *dev, const char *name);
+struct device *regmap_get_device(struct regmap *map);
 int regmap_write(struct regmap *map, unsigned int reg, unsigned int val);
 int regmap_write_async(struct regmap *map, unsigned int reg, unsigned int val);
 int regmap_raw_write(struct regmap *map, unsigned int reg,
 		     const void *val, size_t val_len);
 int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 			size_t val_count);
-int regmap_multi_reg_write(struct regmap *map, struct reg_default *regs,
+int regmap_multi_reg_write(struct regmap *map, const struct reg_default *regs,
 			int num_regs);
+int regmap_multi_reg_write_bypassed(struct regmap *map,
+				    const struct reg_default *regs,
+				    int num_regs);
 int regmap_raw_write_async(struct regmap *map, unsigned int reg,
 			   const void *val, size_t val_len);
 int regmap_read(struct regmap *map, unsigned int reg, unsigned int *val);
@@ -423,6 +450,8 @@ bool regmap_check_range_table(struct regmap *map, unsigned int reg,
 
 int regmap_register_patch(struct regmap *map, const struct reg_default *regs,
 			  int num_regs);
+int regmap_parse_val(struct regmap *map, const void *buf,
+				unsigned int *val);
 
 static inline bool regmap_reg_in_range(unsigned int reg,
 				       const struct regmap_range *range)
@@ -439,7 +468,7 @@ bool regmap_reg_in_ranges(unsigned int reg,
  *
  * @reg: Offset of the register within the regmap bank
  * @lsb: lsb of the register field.
- * @reg: msb of the register field.
+ * @msb: msb of the register field.
  * @id_size: port size if it has some ports
  * @id_offset: address offset for each ports
  */
@@ -695,9 +724,22 @@ static inline int regmap_register_patch(struct regmap *map,
 	return -EINVAL;
 }
 
+static inline int regmap_parse_val(struct regmap *map, const void *buf,
+				unsigned int *val)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
 static inline struct regmap *dev_get_regmap(struct device *dev,
 					    const char *name)
 {
+	return NULL;
+}
+
+static inline struct device *regmap_get_device(struct regmap *map)
+{
+	WARN_ONCE(1, "regmap API is disabled");
 	return NULL;
 }
 

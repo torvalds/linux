@@ -69,8 +69,11 @@ Additional Configurations
 
   FCoE
   ----
-  Fiber Channel over Ethernet (FCoE) hardware offload is not currently
-  supported.
+  The driver supports Fiber Channel over Ethernet (FCoE) and Data Center
+  Bridging (DCB) functionality. Configuring DCB and FCoE is outside the scope
+  of this driver doc. Refer to http://www.open-fcoe.org/ for FCoE project
+  information and http://www.open-lldp.org/ or email list
+  e1000-eedc@lists.sourceforge.net for DCB information.
 
   MAC and VLAN anti-spoofing feature
   ----------------------------------

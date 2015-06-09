@@ -870,7 +870,6 @@ static struct platform_driver meth_driver = {
 	.remove	= __exit_p(meth_remove),
 	.driver = {
 		.name	= "meth",
-		.owner	= THIS_MODULE,
 	}
 };
 

@@ -72,11 +72,18 @@ static inline int nf_conntrack_confirm(struct sk_buff *skb)
 	return ret;
 }
 
-int
+void
 print_tuple(struct seq_file *s, const struct nf_conntrack_tuple *tuple,
             const struct nf_conntrack_l3proto *l3proto,
             const struct nf_conntrack_l4proto *proto);
 
-extern spinlock_t nf_conntrack_lock ;
+#ifdef CONFIG_LOCKDEP
+# define CONNTRACK_LOCKS 8
+#else
+# define CONNTRACK_LOCKS 1024
+#endif
+extern spinlock_t nf_conntrack_locks[CONNTRACK_LOCKS];
+
+extern spinlock_t nf_conntrack_expect_lock;
 
 #endif /* _NF_CONNTRACK_CORE_H */

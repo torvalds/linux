@@ -103,7 +103,7 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 
 	arizona_gpio = devm_kzalloc(&pdev->dev, sizeof(*arizona_gpio),
 				    GFP_KERNEL);
-	if (arizona_gpio == NULL)
+	if (!arizona_gpio)
 		return -ENOMEM;
 
 	arizona_gpio->arizona = arizona;
@@ -116,6 +116,7 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 	switch (arizona->type) {
 	case WM5102:
 	case WM5110:
+	case WM8280:
 	case WM8997:
 		arizona_gpio->gpio_chip.ngpio = 5;
 		break;
@@ -149,12 +150,12 @@ static int arizona_gpio_remove(struct platform_device *pdev)
 {
 	struct arizona_gpio *arizona_gpio = platform_get_drvdata(pdev);
 
-	return gpiochip_remove(&arizona_gpio->gpio_chip);
+	gpiochip_remove(&arizona_gpio->gpio_chip);
+	return 0;
 }
 
 static struct platform_driver arizona_gpio_driver = {
 	.driver.name	= "arizona-gpio",
-	.driver.owner	= THIS_MODULE,
 	.probe		= arizona_gpio_probe,
 	.remove		= arizona_gpio_remove,
 };

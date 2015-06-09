@@ -35,7 +35,6 @@
 #include "vmci_driver.h"
 #include "vmci_event.h"
 
-#define PCI_VENDOR_ID_VMWARE		0x15AD
 #define PCI_DEVICE_ID_VMWARE_VMCI	0x0740
 
 #define VMCI_UTIL_NUM_RESOURCES 1
@@ -383,11 +382,12 @@ static int vmci_enable_msix(struct pci_dev *pdev,
 		vmci_dev->msix_entries[i].vector = i;
 	}
 
-	result = pci_enable_msix(pdev, vmci_dev->msix_entries, VMCI_MAX_INTRS);
+	result = pci_enable_msix_exact(pdev,
+				       vmci_dev->msix_entries, VMCI_MAX_INTRS);
 	if (result == 0)
 		vmci_dev->exclusive_vectors = true;
-	else if (result > 0)
-		result = pci_enable_msix(pdev, vmci_dev->msix_entries, 1);
+	else if (result == -ENOSPC)
+		result = pci_enable_msix_exact(pdev, vmci_dev->msix_entries, 1);
 
 	return result;
 }
@@ -747,7 +747,7 @@ static void vmci_guest_remove_device(struct pci_dev *pdev)
 	/* The rest are managed resources and will be freed by PCI core */
 }
 
-static DEFINE_PCI_DEVICE_TABLE(vmci_ids) = {
+static const struct pci_device_id vmci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VMWARE, PCI_DEVICE_ID_VMWARE_VMCI), },
 	{ 0 },
 };

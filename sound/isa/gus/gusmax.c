@@ -214,8 +214,8 @@ static int snd_gusmax_probe(struct device *pdev, unsigned int dev)
 	struct snd_wss *wss;
 	struct snd_gusmax *maxcard;
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
-			      sizeof(struct snd_gusmax), &card);
+	err = snd_card_new(pdev, index[dev], id[dev], THIS_MODULE,
+			   sizeof(struct snd_gusmax), &card);
 	if (err < 0)
 		return err;
 	card->private_free = snd_gusmax_free;
@@ -309,7 +309,7 @@ static int snd_gusmax_probe(struct device *pdev, unsigned int dev)
 	if (err < 0)
 		goto _err;
 
-	err = snd_wss_pcm(wss, 0, NULL);
+	err = snd_wss_pcm(wss, 0);
 	if (err < 0)
 		goto _err;
 
@@ -317,27 +317,25 @@ static int snd_gusmax_probe(struct device *pdev, unsigned int dev)
 	if (err < 0)
 		goto _err;
 
-	err = snd_wss_timer(wss, 2, NULL);
+	err = snd_wss_timer(wss, 2);
 	if (err < 0)
 		goto _err;
 
 	if (pcm_channels[dev] > 0) {
-		if ((err = snd_gf1_pcm_new(gus, 1, 1, NULL)) < 0)
+		if ((err = snd_gf1_pcm_new(gus, 1, 1)) < 0)
 			goto _err;
 	}
 	err = snd_gusmax_mixer(wss);
 	if (err < 0)
 		goto _err;
 
-	err = snd_gf1_rawmidi_new(gus, 0, NULL);
+	err = snd_gf1_rawmidi_new(gus, 0);
 	if (err < 0)
 		goto _err;
 
 	sprintf(card->longname + strlen(card->longname), " at 0x%lx, irq %i, dma %i", gus->gf1.port, xirq, xdma1);
 	if (xdma2 >= 0)
 		sprintf(card->longname + strlen(card->longname), "&%i", xdma2);
-
-	snd_card_set_dev(card, pdev);
 
 	err = snd_card_register(card);
 	if (err < 0)

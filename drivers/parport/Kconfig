@@ -5,6 +5,12 @@
 # Parport configuration.
 #
 
+config ARCH_MIGHT_HAVE_PC_PARPORT
+	bool
+	help
+	  Select this config option from the architecture Kconfig if
+	  the architecture might have PC parallel port hardware.
+
 menuconfig PARPORT
 	tristate "Parallel port support"
 	depends on HAS_IOMEM
@@ -30,12 +36,6 @@ menuconfig PARPORT
 	  look at <file:Documentation/parport.txt>.
 
 	  If unsure, say Y.
-
-config ARCH_MIGHT_HAVE_PC_PARPORT
-	bool
-	help
-	  Select this config option from the architecture Kconfig if
-	  the architecture might have PC parallel port hardware.
 
 if PARPORT
 

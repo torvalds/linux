@@ -151,9 +151,21 @@ debug_text_event(debug_info_t* id, int level, const char* txt)
  * stored in the s390dbf. See Documentation/s390/s390dbf.txt for more details!
  */
 extern debug_entry_t *
-debug_sprintf_event(debug_info_t* id,int level,char *string,...)
+__debug_sprintf_event(debug_info_t *id, int level, char *string, ...)
 	__attribute__ ((format(printf, 3, 4)));
 
+#define debug_sprintf_event(_id, _level, _fmt, ...)			\
+({									\
+	debug_entry_t *__ret;						\
+	debug_info_t *__id = _id;					\
+	int __level = _level;						\
+	if ((!__id) || (__level > __id->level))				\
+		__ret = NULL;						\
+	else								\
+		__ret = __debug_sprintf_event(__id, __level,		\
+					      _fmt, ## __VA_ARGS__);	\
+	__ret;								\
+})
 
 static inline debug_entry_t*
 debug_exception(debug_info_t* id, int level, void* data, int length)
@@ -194,8 +206,21 @@ debug_text_exception(debug_info_t* id, int level, const char* txt)
  * stored in the s390dbf. See Documentation/s390/s390dbf.txt for more details!
  */
 extern debug_entry_t *
-debug_sprintf_exception(debug_info_t* id,int level,char *string,...)
+__debug_sprintf_exception(debug_info_t *id, int level, char *string, ...)
 	__attribute__ ((format(printf, 3, 4)));
+
+#define debug_sprintf_exception(_id, _level, _fmt, ...)			\
+({									\
+	debug_entry_t *__ret;						\
+	debug_info_t *__id = _id;					\
+	int __level = _level;						\
+	if ((!__id) || (__level > __id->level))				\
+		__ret = NULL;						\
+	else								\
+		__ret = __debug_sprintf_exception(__id, __level,	\
+						  _fmt, ## __VA_ARGS__);\
+	__ret;								\
+})
 
 int debug_register_view(debug_info_t* id, struct debug_view* view);
 int debug_unregister_view(debug_info_t* id, struct debug_view* view);

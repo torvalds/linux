@@ -26,11 +26,8 @@ Configuration Options: not applicable, uses comedi PCI auto config
 */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 
-#include "../comedidev.h"
-
-#define PCI_DEVICE_ID_PIO1616L 0x8172
+#include "../comedi_pci.h"
 
 /*
  * Register map
@@ -61,7 +58,7 @@ static int contec_di_insn_bits(struct comedi_device *dev,
 }
 
 static int contec_auto_attach(struct comedi_device *dev,
-					unsigned long context_unused)
+			      unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct comedi_subdevice *s;
@@ -92,8 +89,6 @@ static int contec_auto_attach(struct comedi_device *dev,
 	s->range_table	= &range_digital;
 	s->insn_bits	= contec_do_insn_bits;
 
-	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
-
 	return 0;
 }
 
@@ -101,7 +96,7 @@ static struct comedi_driver contec_pci_dio_driver = {
 	.driver_name	= "contec_pci_dio",
 	.module		= THIS_MODULE,
 	.auto_attach	= contec_auto_attach,
-	.detach		= comedi_pci_disable,
+	.detach		= comedi_pci_detach,
 };
 
 static int contec_pci_dio_pci_probe(struct pci_dev *dev,
@@ -112,7 +107,7 @@ static int contec_pci_dio_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id contec_pci_dio_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_CONTEC, PCI_DEVICE_ID_PIO1616L) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CONTEC, 0x8172) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, contec_pci_dio_pci_table);

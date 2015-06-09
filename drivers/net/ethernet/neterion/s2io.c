@@ -471,7 +471,7 @@ module_param_array(rts_frm_len, uint, NULL, 0);
  * S2IO device table.
  * This table lists all the devices that this driver supports.
  */
-static DEFINE_PCI_DEVICE_TABLE(s2io_tbl) = {
+static const struct pci_device_id s2io_tbl[] = {
 	{PCI_VENDOR_ID_S2IO, PCI_DEVICE_ID_S2IO_WIN,
 	 PCI_ANY_ID, PCI_ANY_ID},
 	{PCI_VENDOR_ID_S2IO, PCI_DEVICE_ID_S2IO_UNI,
@@ -531,15 +531,6 @@ static inline void s2io_start_all_tx_queue(struct s2io_nic *sp)
 		for (i = 0; i < sp->config.tx_fifo_num; i++)
 			sp->mac_control.fifos[i].queue_state = FIFO_QUEUE_START;
 	}
-	netif_tx_start_all_queues(sp->dev);
-}
-
-static inline void s2io_start_tx_queue(struct s2io_nic *sp, int fifo_no)
-{
-	if (!sp->config.multiq)
-		sp->mac_control.fifos[fifo_no].queue_state =
-			FIFO_QUEUE_START;
-
 	netif_tx_start_all_queues(sp->dev);
 }
 
@@ -1352,7 +1343,7 @@ static int init_nic(struct s2io_nic *nic)
 		TX_PA_CFG_IGNORE_L2_ERR;
 	writeq(val64, &bar0->tx_pa_cfg);
 
-	/* Rx DMA intialization. */
+	/* Rx DMA initialization. */
 	val64 = 0;
 	for (i = 0; i < config->rx_ring_num; i++) {
 		struct rx_ring_config *rx_cfg = &config->rx_cfg[i];
@@ -2529,7 +2520,7 @@ static int fill_rx_buffers(struct s2io_nic *nic, struct ring_info *ring,
 			DBG_PRINT(INFO_DBG, "%s: Could not allocate skb\n",
 				  ring->dev->name);
 			if (first_rxdp) {
-				wmb();
+				dma_wmb();
 				first_rxdp->Control_1 |= RXD_OWN_XENA;
 			}
 			swstats->mem_alloc_fail_cnt++;
@@ -2643,7 +2634,7 @@ static int fill_rx_buffers(struct s2io_nic *nic, struct ring_info *ring,
 		rxdp->Control_2 |= SET_RXD_MARKER;
 		if (!(alloc_tab & ((1 << rxsync_frequency) - 1))) {
 			if (first_rxdp) {
-				wmb();
+				dma_wmb();
 				first_rxdp->Control_1 |= RXD_OWN_XENA;
 			}
 			first_rxdp = rxdp;
@@ -2658,7 +2649,7 @@ end:
 	 * and other fields are seen by adapter correctly.
 	 */
 	if (first_rxdp) {
-		wmb();
+		dma_wmb();
 		first_rxdp->Control_1 |= RXD_OWN_XENA;
 	}
 
@@ -2913,6 +2904,9 @@ static int rx_intr_handler(struct ring_info *ring_data, int budget)
 	int i;
 	struct RxD1 *rxdp1;
 	struct RxD3 *rxdp3;
+
+	if (budget <= 0)
+		return napi_pkts;
 
 	get_info = ring_data->rx_curr_get_info;
 	get_block = get_info.block_index;
@@ -3792,9 +3786,10 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 	writeq(rx_mat, &bar0->rx_mat);
 	readq(&bar0->rx_mat);
 
-	ret = pci_enable_msix(nic->pdev, nic->entries, nic->num_entries);
+	ret = pci_enable_msix_range(nic->pdev, nic->entries,
+				    nic->num_entries, nic->num_entries);
 	/* We fail init if error or we get less vectors than min required */
-	if (ret) {
+	if (ret < 0) {
 		DBG_PRINT(ERR_DBG, "Enabling MSI-X failed\n");
 		kfree(nic->entries);
 		swstats->mem_freed += nic->num_entries *
@@ -4045,13 +4040,13 @@ static netdev_tx_t s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!is_s2io_card_up(sp)) {
 		DBG_PRINT(TX_DBG, "%s: Card going down for reset\n",
 			  dev->name);
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 
 	queue = 0;
-	if (vlan_tx_tag_present(skb))
-		vlan_tag = vlan_tx_tag_get(skb);
+	if (skb_vlan_tag_present(skb))
+		vlan_tag = skb_vlan_tag_get(skb);
 	if (sp->config.tx_steering_type == TX_DEFAULT_STEERING) {
 		if (skb->protocol == htons(ETH_P_IP)) {
 			struct iphdr *ip;
@@ -4118,7 +4113,7 @@ static netdev_tx_t s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	    ((put_off+1) == queue_len ? 0 : (put_off+1)) == get_off) {
 		DBG_PRINT(TX_DBG, "Error in xmit, No free TXDs.\n");
 		s2io_stop_tx_queue(sp, fifo->fifo_no);
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		spin_unlock_irqrestore(&fifo->tx_lock, flags);
 		return NETDEV_TX_OK;
 	}
@@ -4240,7 +4235,7 @@ pci_map_failed:
 	swstats->pci_map_fail_cnt++;
 	s2io_stop_tx_queue(sp, fifo->fifo_no);
 	swstats->mem_freed += skb->truesize;
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	spin_unlock_irqrestore(&fifo->tx_lock, flags);
 	return NETDEV_TX_OK;
 }
@@ -5365,8 +5360,8 @@ static int s2io_ethtool_gset(struct net_device *dev, struct ethtool_cmd *info)
 		ethtool_cmd_speed_set(info, SPEED_10000);
 		info->duplex = DUPLEX_FULL;
 	} else {
-		ethtool_cmd_speed_set(info, -1);
-		info->duplex = -1;
+		ethtool_cmd_speed_set(info, SPEED_UNKNOWN);
+		info->duplex = DUPLEX_UNKNOWN;
 	}
 
 	info->autoneg = AUTONEG_DISABLE;
@@ -6955,7 +6950,7 @@ static  int rxd_owner_bit_reset(struct s2io_nic *sp)
 				}
 
 				set_rxd_buffer_size(sp, rxdp, size);
-				wmb();
+				dma_wmb();
 				/* flip the Ownership bit to Hardware */
 				rxdp->Control_1 |= RXD_OWN_XENA;
 			}
@@ -6992,7 +6987,9 @@ static int s2io_add_isr(struct s2io_nic *sp)
 			if (sp->s2io_entries[i].in_use == MSIX_FLG) {
 				if (sp->s2io_entries[i].type ==
 				    MSIX_RING_TYPE) {
-					sprintf(sp->desc[i], "%s:MSI-X-%d-RX",
+					snprintf(sp->desc[i],
+						sizeof(sp->desc[i]),
+						"%s:MSI-X-%d-RX",
 						dev->name, i);
 					err = request_irq(sp->entries[i].vector,
 							  s2io_msix_ring_handle,
@@ -7001,7 +6998,9 @@ static int s2io_add_isr(struct s2io_nic *sp)
 							  sp->s2io_entries[i].arg);
 				} else if (sp->s2io_entries[i].type ==
 					   MSIX_ALARM_TYPE) {
-					sprintf(sp->desc[i], "%s:MSI-X-%d-TX",
+					snprintf(sp->desc[i],
+						sizeof(sp->desc[i]),
+						"%s:MSI-X-%d-TX",
 						dev->name, i);
 					err = request_irq(sp->entries[i].vector,
 							  s2io_msix_fifo_handle,
@@ -7915,7 +7914,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 
 	/*  Driver entry points */
 	dev->netdev_ops = &s2io_netdev_ops;
-	SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
+	dev->ethtool_ops = &netdev_ethtool_ops;
 	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM |
 		NETIF_F_TSO | NETIF_F_TSO6 |
 		NETIF_F_RXCSUM | NETIF_F_LRO;
@@ -8159,7 +8158,8 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 			  "%s: UDP Fragmentation Offload(UFO) enabled\n",
 			  dev->name);
 	/* Initialize device name */
-	sprintf(sp->name, "%s Neterion %s", dev->name, sp->product_name);
+	snprintf(sp->name, sizeof(sp->name), "%s Neterion %s", dev->name,
+		 sp->product_name);
 
 	if (vlan_tag_strip)
 		sp->vlan_strip_flag = 1;

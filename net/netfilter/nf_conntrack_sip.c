@@ -247,7 +247,7 @@ int ct_sip_parse_request(const struct nf_conn *ct,
 	for (; dptr < limit - strlen("sip:"); dptr++) {
 		if (*dptr == '\r' || *dptr == '\n')
 			return -1;
-		if (strnicmp(dptr, "sip:", strlen("sip:")) == 0) {
+		if (strncasecmp(dptr, "sip:", strlen("sip:")) == 0) {
 			dptr += strlen("sip:");
 			break;
 		}
@@ -350,7 +350,7 @@ static const char *ct_sip_header_search(const char *dptr, const char *limit,
 			continue;
 		}
 
-		if (strnicmp(dptr, needle, len) == 0)
+		if (strncasecmp(dptr, needle, len) == 0)
 			return dptr;
 	}
 	return NULL;
@@ -383,10 +383,10 @@ int ct_sip_get_header(const struct nf_conn *ct, const char *dptr,
 		/* Find header. Compact headers must be followed by a
 		 * non-alphabetic character to avoid mismatches. */
 		if (limit - dptr >= hdr->len &&
-		    strnicmp(dptr, hdr->name, hdr->len) == 0)
+		    strncasecmp(dptr, hdr->name, hdr->len) == 0)
 			dptr += hdr->len;
 		else if (hdr->cname && limit - dptr >= hdr->clen + 1 &&
-			 strnicmp(dptr, hdr->cname, hdr->clen) == 0 &&
+			 strncasecmp(dptr, hdr->cname, hdr->clen) == 0 &&
 			 !isalpha(*(dptr + hdr->clen)))
 			dptr += hdr->clen;
 		else
@@ -620,9 +620,9 @@ static int ct_sip_parse_transport(struct nf_conn *ct, const char *dptr,
 
 	if (ct_sip_parse_param(ct, dptr, dataoff, datalen, "transport=",
 			       &matchoff, &matchlen)) {
-		if (!strnicmp(dptr + matchoff, "TCP", strlen("TCP")))
+		if (!strncasecmp(dptr + matchoff, "TCP", strlen("TCP")))
 			*proto = IPPROTO_TCP;
-		else if (!strnicmp(dptr + matchoff, "UDP", strlen("UDP")))
+		else if (!strncasecmp(dptr + matchoff, "UDP", strlen("UDP")))
 			*proto = IPPROTO_UDP;
 		else
 			return 0;
@@ -743,10 +743,10 @@ int ct_sip_get_sdp_header(const struct nf_conn *ct, const char *dptr,
 
 		if (term != SDP_HDR_UNSPEC &&
 		    limit - dptr >= thdr->len &&
-		    strnicmp(dptr, thdr->name, thdr->len) == 0)
+		    strncasecmp(dptr, thdr->name, thdr->len) == 0)
 			break;
 		else if (limit - dptr >= hdr->len &&
-			 strnicmp(dptr, hdr->name, hdr->len) == 0)
+			 strncasecmp(dptr, hdr->name, hdr->len) == 0)
 			dptr += hdr->len;
 		else
 			continue;
@@ -800,7 +800,7 @@ static int refresh_signalling_expectation(struct nf_conn *ct,
 	struct hlist_node *next;
 	int found = 0;
 
-	spin_lock_bh(&nf_conntrack_lock);
+	spin_lock_bh(&nf_conntrack_expect_lock);
 	hlist_for_each_entry_safe(exp, next, &help->expectations, lnode) {
 		if (exp->class != SIP_EXPECT_SIGNALLING ||
 		    !nf_inet_addr_cmp(&exp->tuple.dst.u3, addr) ||
@@ -815,7 +815,7 @@ static int refresh_signalling_expectation(struct nf_conn *ct,
 		found = 1;
 		break;
 	}
-	spin_unlock_bh(&nf_conntrack_lock);
+	spin_unlock_bh(&nf_conntrack_expect_lock);
 	return found;
 }
 
@@ -825,7 +825,7 @@ static void flush_expectations(struct nf_conn *ct, bool media)
 	struct nf_conntrack_expect *exp;
 	struct hlist_node *next;
 
-	spin_lock_bh(&nf_conntrack_lock);
+	spin_lock_bh(&nf_conntrack_expect_lock);
 	hlist_for_each_entry_safe(exp, next, &help->expectations, lnode) {
 		if ((exp->class != SIP_EXPECT_SIGNALLING) ^ media)
 			continue;
@@ -836,7 +836,7 @@ static void flush_expectations(struct nf_conn *ct, bool media)
 		if (!media)
 			break;
 	}
-	spin_unlock_bh(&nf_conntrack_lock);
+	spin_unlock_bh(&nf_conntrack_expect_lock);
 }
 
 static int set_expected_rtp_rtcp(struct sk_buff *skb, unsigned int protoff,
@@ -1394,7 +1394,7 @@ static int process_sip_response(struct sk_buff *skb, unsigned int protoff,
 		if (handler->response == NULL)
 			continue;
 		if (*datalen < matchend + handler->len ||
-		    strnicmp(*dptr + matchend, handler->method, handler->len))
+		    strncasecmp(*dptr + matchend, handler->method, handler->len))
 			continue;
 		return handler->response(skb, protoff, dataoff, dptr, datalen,
 					 cseq, code);
@@ -1435,7 +1435,7 @@ static int process_sip_request(struct sk_buff *skb, unsigned int protoff,
 		if (handler->request == NULL)
 			continue;
 		if (*datalen < handler->len ||
-		    strnicmp(*dptr, handler->method, handler->len))
+		    strncasecmp(*dptr, handler->method, handler->len))
 			continue;
 
 		if (ct_sip_get_header(ct, *dptr, 0, *datalen, SIP_HDR_CSEQ,
@@ -1462,7 +1462,7 @@ static int process_sip_msg(struct sk_buff *skb, struct nf_conn *ct,
 	const struct nf_nat_sip_hooks *hooks;
 	int ret;
 
-	if (strnicmp(*dptr, "SIP/2.0 ", strlen("SIP/2.0 ")) != 0)
+	if (strncasecmp(*dptr, "SIP/2.0 ", strlen("SIP/2.0 ")) != 0)
 		ret = process_sip_request(skb, protoff, dataoff, dptr, datalen);
 	else
 		ret = process_sip_response(skb, protoff, dataoff, dptr, datalen);

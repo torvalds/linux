@@ -212,6 +212,7 @@ static int lis3l02dq_write_thresh(struct iio_dev *indio_dev,
 				  int val, int val2)
 {
 	u16 value = val;
+
 	return lis3l02dq_spi_write_reg_s16(indio_dev,
 					   LIS3L02DQ_REG_THS_L_ADDR,
 					   value);
@@ -226,6 +227,7 @@ static int lis3l02dq_write_raw(struct iio_dev *indio_dev,
 	int ret = -EINVAL, reg;
 	u8 uval;
 	s8 sval;
+
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBBIAS:
 		if (val > 255 || val < -256)
@@ -302,6 +304,7 @@ static ssize_t lis3l02dq_read_frequency(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	int ret, len = 0;
 	s8 t;
+
 	ret = lis3l02dq_spi_read_reg_8(indio_dev,
 				       LIS3L02DQ_REG_CTRL_1_ADDR,
 				       (u8 *)&t);
@@ -555,16 +558,15 @@ static const struct iio_chan_spec lis3l02dq_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(3)
 };
 
-
 static int lis3l02dq_read_event_config(struct iio_dev *indio_dev,
 				       const struct iio_chan_spec *chan,
 				       enum iio_event_type type,
 				       enum iio_event_direction dir)
 {
-
 	u8 val;
 	int ret;
 	u8 mask = (1 << (chan->channel2*2 + (dir == IIO_EV_DIR_RISING)));
+
 	ret = lis3l02dq_spi_read_reg_8(indio_dev,
 				       LIS3L02DQ_REG_WAKE_UP_CFG_ADDR,
 				       &val);
@@ -652,8 +654,8 @@ static int lis3l02dq_write_event_config(struct iio_dev *indio_dev,
 			(control | LIS3L02DQ_REG_CTRL_2_ENABLE_INTERRUPT) :
 			(control & ~LIS3L02DQ_REG_CTRL_2_ENABLE_INTERRUPT);
 		ret = lis3l02dq_spi_write_reg_8(indio_dev,
-					       LIS3L02DQ_REG_CTRL_2_ADDR,
-					       control);
+						LIS3L02DQ_REG_CTRL_2_ADDR,
+						control);
 		if (ret)
 			goto error_ret;
 	}
@@ -712,14 +714,6 @@ static int lis3l02dq_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = iio_buffer_register(indio_dev,
-				  lis3l02dq_channels,
-				  ARRAY_SIZE(lis3l02dq_channels));
-	if (ret) {
-		dev_err(&spi->dev, "failed to initialize the buffer\n");
-		goto error_unreg_buffer_funcs;
-	}
-
 	if (spi->irq) {
 		ret = request_threaded_irq(st->us->irq,
 					   &lis3l02dq_th,
@@ -728,7 +722,7 @@ static int lis3l02dq_probe(struct spi_device *spi)
 					   "lis3l02dq",
 					   indio_dev);
 		if (ret)
-			goto error_uninitialize_buffer;
+			goto error_unreg_buffer_funcs;
 
 		ret = lis3l02dq_probe_trigger(indio_dev);
 		if (ret)
@@ -752,8 +746,6 @@ error_remove_trigger:
 error_free_interrupt:
 	if (spi->irq)
 		free_irq(st->us->irq, indio_dev);
-error_uninitialize_buffer:
-	iio_buffer_unregister(indio_dev);
 error_unreg_buffer_funcs:
 	lis3l02dq_unconfigure_buffer(indio_dev);
 	return ret;
@@ -800,7 +792,6 @@ static int lis3l02dq_remove(struct spi_device *spi)
 		free_irq(st->us->irq, indio_dev);
 
 	lis3l02dq_remove_trigger(indio_dev);
-	iio_buffer_unregister(indio_dev);
 	lis3l02dq_unconfigure_buffer(indio_dev);
 
 	return 0;

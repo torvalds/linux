@@ -158,6 +158,7 @@ static void pch_phub_read_modify_write_reg(struct pch_phub_reg *chip,
 	iowrite32(((ioread32(reg_addr) & ~mask)) | data, reg_addr);
 }
 
+#ifdef CONFIG_PM
 /* pch_phub_save_reg_conf - saves register configuration */
 static void pch_phub_save_reg_conf(struct pci_dev *pdev)
 {
@@ -280,6 +281,7 @@ static void pch_phub_restore_reg_conf(struct pci_dev *pdev)
 	if ((chip->ioh_type == 2) || (chip->ioh_type == 4))
 		iowrite32(chip->funcsel_reg, p + FUNCSEL_REG_OFFSET);
 }
+#endif
 
 /**
  * pch_phub_read_serial_rom() - Reading Serial ROM
@@ -636,6 +638,7 @@ static ssize_t store_pch_mac(struct device *dev, struct device_attribute *attr,
 	u8 mac[ETH_ALEN];
 	ssize_t rom_size;
 	struct pch_phub_reg *chip = dev_get_drvdata(dev);
+	int ret;
 
 	if (!mac_pton(buf, mac))
 		return -EINVAL;
@@ -644,8 +647,10 @@ static ssize_t store_pch_mac(struct device *dev, struct device_attribute *attr,
 	if (!chip->pch_phub_extrom_base_address)
 		return -ENOMEM;
 
-	pch_phub_write_gbe_mac_addr(chip, mac);
+	ret = pch_phub_write_gbe_mac_addr(chip, mac);
 	pci_unmap_rom(chip->pdev, chip->pch_phub_extrom_base_address);
+	if (ret)
+		return ret;
 
 	return count;
 }

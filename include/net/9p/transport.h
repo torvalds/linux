@@ -34,12 +34,13 @@
  * @list: used to maintain a list of currently available transports
  * @name: the human-readable name of the transport
  * @maxsize: transport provided maximum packet size
- * @pref: Preferences of this transport
  * @def: set if this transport should be considered the default
  * @create: member function to create a new connection on this transport
  * @close: member function to discard a connection on this transport
  * @request: member function to issue a request to the transport
  * @cancel: member function to cancel a request (if it hasn't been sent)
+ * @cancelled: member function to notify that a cancelled request will not
+ *             not receive a reply
  *
  * This is the basic API for a transport module which is registered by the
  * transport module with the 9P core network module and used by the client
@@ -58,8 +59,9 @@ struct p9_trans_module {
 	void (*close) (struct p9_client *);
 	int (*request) (struct p9_client *, struct p9_req_t *req);
 	int (*cancel) (struct p9_client *, struct p9_req_t *req);
+	int (*cancelled)(struct p9_client *, struct p9_req_t *req);
 	int (*zc_request)(struct p9_client *, struct p9_req_t *,
-			  char *, char *, int , int, int, int);
+			  struct iov_iter *, struct iov_iter *, int , int, int);
 };
 
 void v9fs_register_trans(struct p9_trans_module *m);

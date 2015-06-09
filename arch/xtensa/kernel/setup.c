@@ -50,6 +50,7 @@
 #include <asm/param.h>
 #include <asm/traps.h>
 #include <asm/smp.h>
+#include <asm/sysmem.h>
 
 #include <platform/hardware.h>
 
@@ -73,7 +74,6 @@ extern int initrd_below_start_ok;
 #endif
 
 #ifdef CONFIG_OF
-extern u32 __dtb_start[];
 void *dtb_start = __dtb_start;
 #endif
 
@@ -87,12 +87,6 @@ static char __initdata command_line[COMMAND_LINE_SIZE];
 #ifdef CONFIG_CMDLINE_BOOL
 static char default_command_line[COMMAND_LINE_SIZE] __initdata = CONFIG_CMDLINE;
 #endif
-
-sysmem_info_t __initdata sysmem;
-
-extern int mem_reserve(unsigned long, unsigned long, int);
-extern void bootmem_init(void);
-extern void zones_init(void);
 
 /*
  * Boot parameter parsing.
@@ -113,31 +107,14 @@ typedef struct tagtable {
 
 /* parse current tag */
 
-static int __init add_sysmem_bank(unsigned long type, unsigned long start,
-		unsigned long end)
-{
-	if (sysmem.nr_banks >= SYSMEM_BANKS_MAX) {
-		printk(KERN_WARNING
-				"Ignoring memory bank 0x%08lx size %ldKB\n",
-				start, end - start);
-		return -EINVAL;
-	}
-	sysmem.bank[sysmem.nr_banks].type  = type;
-	sysmem.bank[sysmem.nr_banks].start = PAGE_ALIGN(start);
-	sysmem.bank[sysmem.nr_banks].end   = end & PAGE_MASK;
-	sysmem.nr_banks++;
-
-	return 0;
-}
-
 static int __init parse_tag_mem(const bp_tag_t *tag)
 {
-	meminfo_t *mi = (meminfo_t *)(tag->data);
+	struct bp_meminfo *mi = (struct bp_meminfo *)(tag->data);
 
 	if (mi->type != MEMORY_TYPE_CONVENTIONAL)
 		return -1;
 
-	return add_sysmem_bank(mi->type, mi->start, mi->end);
+	return add_sysmem_bank(mi->start, mi->end);
 }
 
 __tagtable(BP_TAG_MEMORY, parse_tag_mem);
@@ -146,8 +123,8 @@ __tagtable(BP_TAG_MEMORY, parse_tag_mem);
 
 static int __init parse_tag_initrd(const bp_tag_t* tag)
 {
-	meminfo_t* mi;
-	mi = (meminfo_t*)(tag->data);
+	struct bp_meminfo *mi = (struct bp_meminfo *)(tag->data);
+
 	initrd_start = (unsigned long)__va(mi->start);
 	initrd_end = (unsigned long)__va(mi->end);
 
@@ -221,7 +198,7 @@ static int __init xtensa_dt_io_area(unsigned long node, const char *uname,
 		int depth, void *data)
 {
 	const __be32 *ranges;
-	unsigned long len;
+	int len;
 
 	if (depth > 1)
 		return 0;
@@ -255,7 +232,7 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 		return;
 
 	size &= PAGE_MASK;
-	add_sysmem_bank(MEMORY_TYPE_CONVENTIONAL, base, base + size);
+	add_sysmem_bank(base, base + size);
 }
 
 void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
@@ -292,8 +269,6 @@ device_initcall(xtensa_device_probe);
 
 void __init init_arch(bp_tag_t *bp_start)
 {
-	sysmem.nr_banks = 0;
-
 	/* Parse boot parameters */
 
 	if (bp_start)
@@ -304,10 +279,9 @@ void __init init_arch(bp_tag_t *bp_start)
 #endif
 
 	if (sysmem.nr_banks == 0) {
-		sysmem.nr_banks = 1;
-		sysmem.bank[0].start = PLATFORM_DEFAULT_MEM_START;
-		sysmem.bank[0].end = PLATFORM_DEFAULT_MEM_START
-				     + PLATFORM_DEFAULT_MEM_SIZE;
+		add_sysmem_bank(PLATFORM_DEFAULT_MEM_START,
+				PLATFORM_DEFAULT_MEM_START +
+				PLATFORM_DEFAULT_MEM_SIZE);
 	}
 
 #ifdef CONFIG_CMDLINE_BOOL
@@ -487,7 +461,7 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start < initrd_end) {
 		initrd_is_mapped = mem_reserve(__pa(initrd_start),
-					       __pa(initrd_end), 0);
+					       __pa(initrd_end), 0) == 0;
 		initrd_below_start_ok = 1;
 	} else {
 		initrd_start = 0;
@@ -532,6 +506,7 @@ void __init setup_arch(char **cmdline_p)
 		    __pa(&_Level6InterruptVector_text_end), 0);
 #endif
 
+	parse_early_param();
 	bootmem_init();
 
 	unflatten_and_copy_device_tree();
@@ -599,12 +574,9 @@ void machine_power_off(void)
 static int
 c_show(struct seq_file *f, void *slot)
 {
-	char buf[NR_CPUS * 5];
-
-	cpulist_scnprintf(buf, sizeof(buf), cpu_online_mask);
 	/* high-level stuff */
 	seq_printf(f, "CPU count\t: %u\n"
-		      "CPU list\t: %s\n"
+		      "CPU list\t: %*pbl\n"
 		      "vendor_id\t: Tensilica\n"
 		      "model\t\t: Xtensa " XCHAL_HW_VERSION_NAME "\n"
 		      "core ID\t\t: " XCHAL_CORE_ID "\n"
@@ -613,7 +585,7 @@ c_show(struct seq_file *f, void *slot)
 		      "cpu MHz\t\t: %lu.%02lu\n"
 		      "bogomips\t: %lu.%02lu\n",
 		      num_online_cpus(),
-		      buf,
+		      cpumask_pr_args(cpu_online_mask),
 		      XCHAL_BUILD_UNIQUE_ID,
 		      XCHAL_HAVE_BE ?  "big" : "little",
 		      ccount_freq/1000000,

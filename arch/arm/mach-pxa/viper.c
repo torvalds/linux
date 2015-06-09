@@ -769,7 +769,7 @@ static unsigned long viper_tpm;
 
 static int __init viper_tpm_setup(char *str)
 {
-	return strict_strtoul(str, 10, &viper_tpm) >= 0;
+	return kstrtoul(str, 10, &viper_tpm) >= 0;
 }
 
 __setup("tpm=", viper_tpm_setup);
@@ -884,9 +884,6 @@ static int viper_cpufreq_notifier(struct notifier_block *nb,
 			 * after we change freq */
 			viper_set_core_cpu_voltage(freq->new, 0);
 		}
-		break;
-	case CPUFREQ_RESUMECHANGE:
-		viper_set_core_cpu_voltage(freq->new, 0);
 		break;
 	default:
 		/* ignore */

@@ -456,7 +456,7 @@ static int mms114_probe(struct i2c_client *client,
 	data->input_dev = input_dev;
 	data->pdata = pdata;
 
-	input_dev->name = "MELPAS MMS114 Touchscreen";
+	input_dev->name = "MELFAS MMS114 Touchscreen";
 	input_dev->id.bustype = BUS_I2C;
 	input_dev->dev.parent = &client->dev;
 	input_dev->open = mms114_input_open;
@@ -515,8 +515,7 @@ static int mms114_probe(struct i2c_client *client,
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int mms114_suspend(struct device *dev)
+static int __maybe_unused mms114_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mms114_data *data = i2c_get_clientdata(client);
@@ -540,7 +539,7 @@ static int mms114_suspend(struct device *dev)
 	return 0;
 }
 
-static int mms114_resume(struct device *dev)
+static int __maybe_unused mms114_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mms114_data *data = i2c_get_clientdata(client);
@@ -559,7 +558,6 @@ static int mms114_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(mms114_pm_ops, mms114_suspend, mms114_resume);
 
@@ -570,7 +568,7 @@ static const struct i2c_device_id mms114_id[] = {
 MODULE_DEVICE_TABLE(i2c, mms114_id);
 
 #ifdef CONFIG_OF
-static struct of_device_id mms114_dt_match[] = {
+static const struct of_device_id mms114_dt_match[] = {
 	{ .compatible = "melfas,mms114" },
 	{ }
 };

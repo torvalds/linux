@@ -10,7 +10,7 @@
  * published by the Free Software Foundation.
  *
  * Implementation:
- *	S3C64XX and S5PC100: emulate the pseudo BufferRAM
+ *	S3C64XX: emulate the pseudo BufferRAM
  *	S5PC110: use DMA
  */
 
@@ -32,7 +32,6 @@
 enum soc_type {
 	TYPE_S3C6400,
 	TYPE_S3C6410,
-	TYPE_S5PC100,
 	TYPE_S5PC110,
 };
 
@@ -59,7 +58,6 @@ enum soc_type {
 #define MAP_11				(0x3)
 
 #define S3C64XX_CMD_MAP_SHIFT		24
-#define S5PC100_CMD_MAP_SHIFT		26
 
 #define S3C6400_FBA_SHIFT		10
 #define S3C6400_FPA_SHIFT		4
@@ -68,10 +66,6 @@ enum soc_type {
 #define S3C6410_FBA_SHIFT		12
 #define S3C6410_FPA_SHIFT		6
 #define S3C6410_FSA_SHIFT		4
-
-#define S5PC100_FBA_SHIFT		13
-#define S5PC100_FPA_SHIFT		7
-#define S5PC100_FSA_SHIFT		5
 
 /* S5PC110 specific definitions */
 #define S5PC110_DMA_SRC_ADDR		0x400
@@ -195,11 +189,6 @@ static unsigned int s3c64xx_cmd_map(unsigned type, unsigned val)
 	return (type << S3C64XX_CMD_MAP_SHIFT) | val;
 }
 
-static unsigned int s5pc1xx_cmd_map(unsigned type, unsigned val)
-{
-	return (type << S5PC100_CMD_MAP_SHIFT) | val;
-}
-
 static unsigned int s3c6400_mem_addr(int fba, int fpa, int fsa)
 {
 	return (fba << S3C6400_FBA_SHIFT) | (fpa << S3C6400_FPA_SHIFT) |
@@ -210,12 +199,6 @@ static unsigned int s3c6410_mem_addr(int fba, int fpa, int fsa)
 {
 	return (fba << S3C6410_FBA_SHIFT) | (fpa << S3C6410_FPA_SHIFT) |
 		(fsa << S3C6410_FSA_SHIFT);
-}
-
-static unsigned int s5pc100_mem_addr(int fba, int fpa, int fsa)
-{
-	return (fba << S5PC100_FBA_SHIFT) | (fpa << S5PC100_FPA_SHIFT) |
-		(fsa << S5PC100_FSA_SHIFT);
 }
 
 static void s3c_onenand_reset(void)
@@ -537,9 +520,9 @@ static int onenand_write_bufferram(struct mtd_info *mtd, int area,
 	return 0;
 }
 
-static int (*s5pc110_dma_ops)(void *dst, void *src, size_t count, int direction);
+static int (*s5pc110_dma_ops)(dma_addr_t dst, dma_addr_t src, size_t count, int direction);
 
-static int s5pc110_dma_poll(void *dst, void *src, size_t count, int direction)
+static int s5pc110_dma_poll(dma_addr_t dst, dma_addr_t src, size_t count, int direction)
 {
 	void __iomem *base = onenand->dma_addr;
 	int status;
@@ -605,7 +588,7 @@ static irqreturn_t s5pc110_onenand_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int s5pc110_dma_irq(void *dst, void *src, size_t count, int direction)
+static int s5pc110_dma_irq(dma_addr_t dst, dma_addr_t src, size_t count, int direction)
 {
 	void __iomem *base = onenand->dma_addr;
 	int status;
@@ -686,7 +669,7 @@ static int s5pc110_read_bufferram(struct mtd_info *mtd, int area,
 		dev_err(dev, "Couldn't map a %d byte buffer for DMA\n", count);
 		goto normal;
 	}
-	err = s5pc110_dma_ops((void *) dma_dst, (void *) dma_src,
+	err = s5pc110_dma_ops(dma_dst, dma_src,
 			count, S5PC110_DMA_DIR_READ);
 
 	if (page_dma)
@@ -835,9 +818,6 @@ static void s3c_onenand_setup(struct mtd_info *mtd)
 	} else if (onenand->type == TYPE_S3C6410) {
 		onenand->mem_addr = s3c6410_mem_addr;
 		onenand->cmd_map = s3c64xx_cmd_map;
-	} else if (onenand->type == TYPE_S5PC100) {
-		onenand->mem_addr = s5pc100_mem_addr;
-		onenand->cmd_map = s5pc1xx_cmd_map;
 	} else if (onenand->type == TYPE_S5PC110) {
 		/* Use generic onenand functions */
 		this->read_bufferram = s5pc110_read_bufferram;
@@ -872,10 +852,8 @@ static int s3c_onenand_probe(struct platform_device *pdev)
 
 	size = sizeof(struct mtd_info) + sizeof(struct onenand_chip);
 	mtd = kzalloc(size, GFP_KERNEL);
-	if (!mtd) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (!mtd)
 		return -ENOMEM;
-	}
 
 	onenand = kzalloc(sizeof(struct s3c_onenand), GFP_KERNEL);
 	if (!onenand) {
@@ -1112,9 +1090,6 @@ static struct platform_device_id s3c_onenand_driver_ids[] = {
 	}, {
 		.name		= "s3c6410-onenand",
 		.driver_data	= TYPE_S3C6410,
-	}, {
-		.name		= "s5pc100-onenand",
-		.driver_data	= TYPE_S5PC100,
 	}, {
 		.name		= "s5pc110-onenand",
 		.driver_data	= TYPE_S5PC110,

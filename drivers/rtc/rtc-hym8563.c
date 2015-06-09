@@ -66,7 +66,7 @@
 #define HYM8563_ALM_BIT_DISABLE	BIT(7)
 
 #define HYM8563_CLKOUT		0x0d
-#define HYM8563_CLKOUT_DISABLE	BIT(7)
+#define HYM8563_CLKOUT_ENABLE	BIT(7)
 #define HYM8563_CLKOUT_32768	0
 #define HYM8563_CLKOUT_1024	1
 #define HYM8563_CLKOUT_32	2
@@ -309,7 +309,7 @@ static unsigned long hym8563_clkout_recalc_rate(struct clk_hw *hw,
 	struct i2c_client *client = hym8563->client;
 	int ret = i2c_smbus_read_byte_data(client, HYM8563_CLKOUT);
 
-	if (ret < 0 || ret & HYM8563_CLKOUT_DISABLE)
+	if (ret < 0)
 		return 0;
 
 	ret &= HYM8563_CLKOUT_MASK;
@@ -360,9 +360,9 @@ static int hym8563_clkout_control(struct clk_hw *hw, bool enable)
 		return ret;
 
 	if (enable)
-		ret &= ~HYM8563_CLKOUT_DISABLE;
+		ret |= HYM8563_CLKOUT_ENABLE;
 	else
-		ret |= HYM8563_CLKOUT_DISABLE;
+		ret &= ~HYM8563_CLKOUT_ENABLE;
 
 	return i2c_smbus_write_byte_data(client, HYM8563_CLKOUT, ret);
 }
@@ -386,7 +386,7 @@ static int hym8563_clkout_is_prepared(struct clk_hw *hw)
 	if (ret < 0)
 		return ret;
 
-	return !(ret & HYM8563_CLKOUT_DISABLE);
+	return !!(ret & HYM8563_CLKOUT_ENABLE);
 }
 
 static const struct clk_ops hym8563_clkout_ops = {
@@ -407,7 +407,7 @@ static struct clk *hym8563_clkout_register_clk(struct hym8563 *hym8563)
 	int ret;
 
 	ret = i2c_smbus_write_byte_data(client, HYM8563_CLKOUT,
-						HYM8563_CLKOUT_DISABLE);
+						0);
 	if (ret < 0)
 		return ERR_PTR(ret);
 
@@ -417,6 +417,9 @@ static struct clk *hym8563_clkout_register_clk(struct hym8563 *hym8563)
 	init.parent_names = NULL;
 	init.num_parents = 0;
 	hym8563->clkout_hw.init = &init;
+
+	/* optional override of the clockname */
+	of_property_read_string(node, "clock-output-names", &init.name);
 
 	/* register the clock */
 	clk = clk_register(&client->dev, &hym8563->clkout_hw);
@@ -569,6 +572,9 @@ static int hym8563_probe(struct i2c_client *client,
 	if (IS_ERR(hym8563->rtc))
 		return PTR_ERR(hym8563->rtc);
 
+	/* the hym8563 alarm only supports a minute accuracy */
+	hym8563->rtc->uie_unsupported = 1;
+
 #ifdef CONFIG_COMMON_CLK
 	hym8563_clkout_register_clk(hym8563);
 #endif
@@ -582,7 +588,7 @@ static const struct i2c_device_id hym8563_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, hym8563_id);
 
-static struct of_device_id hym8563_dt_idtable[] = {
+static const struct of_device_id hym8563_dt_idtable[] = {
 	{ .compatible = "haoyu,hym8563" },
 	{},
 };

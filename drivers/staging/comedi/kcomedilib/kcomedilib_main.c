@@ -41,7 +41,8 @@ struct comedi_device *comedi_open(const char *filename)
 	if (strncmp(filename, "/dev/comedi", 11) != 0)
 		return NULL;
 
-	minor = simple_strtoul(filename + 11, NULL, 0);
+	if (kstrtouint(filename + 11, 0, &minor))
+		return NULL;
 
 	if (minor >= COMEDI_NUM_BOARD_MINORS)
 		return NULL;
@@ -57,7 +58,7 @@ struct comedi_device *comedi_open(const char *filename)
 		retval = NULL;
 	up_read(&dev->attach_lock);
 
-	if (retval == NULL)
+	if (!retval)
 		comedi_dev_put(dev);
 
 	return retval;
@@ -94,7 +95,7 @@ static int comedi_do_insn(struct comedi_device *dev,
 
 	if (s->type == COMEDI_SUBD_UNUSED) {
 		dev_err(dev->class_dev,
-			"%d not useable subdevice\n", insn->subdev);
+			"%d not usable subdevice\n", insn->subdev);
 		ret = -EIO;
 		goto error;
 	}

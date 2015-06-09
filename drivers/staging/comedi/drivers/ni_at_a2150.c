@@ -62,16 +62,13 @@ TRIG_WAKE_EOS
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
-#include "../comedidev.h"
-
 #include <linux/io.h>
 
-#include <asm/dma.h>
+#include "../comedidev.h"
 
-#include "8253.h"
-#include "comedi_fc.h"
+#include "comedi_isadma.h"
+#include "comedi_8254.h"
 
-#define A2150_SIZE           28
 #define A2150_DMA_BUFFER_SIZE	0xff00	/*  size in bytes of dma buffer */
 
 /* Registers and bits */
@@ -112,8 +109,6 @@ TRIG_WAKE_EOS
 #define   DMA_INTR_EN_BIT 		0x800	/*  enable interrupt on dma terminal count */
 #define   DMA_DEM_EN_BIT	0x1000	/*  enables demand mode dma */
 #define I8253_BASE_REG		0x14
-#define I8253_MODE_REG		0x17
-#define   HW_COUNT_DISABLE		0x30	/*  disable hardware counting of conversions */
 
 struct a2150_board {
 	const char *name;
@@ -147,88 +142,63 @@ static const struct a2150_board a2150_boards[] = {
 };
 
 struct a2150_private {
-
-	volatile unsigned int count;	/* number of data points left to be taken */
-	unsigned int dma;	/*  dma channel */
-	uint16_t *dma_buffer;	/*  dma buffer */
-	unsigned int dma_transfer_size;	/*  size in bytes of dma transfers */
+	struct comedi_isadma *dma;
+	unsigned int count;	/* number of data points left to be taken */
 	int irq_dma_bits;	/*  irq/dma register bits */
 	int config_bits;	/*  config register bits */
 };
 
-static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
-
-static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
-			    int flags);
-static int a2150_set_chanlist(struct comedi_device *dev,
-			      unsigned int start_channel,
-			      unsigned int num_channels);
 /* interrupt service routine */
 static irqreturn_t a2150_interrupt(int irq, void *d)
 {
-	int i;
-	int status;
-	unsigned long flags;
 	struct comedi_device *dev = d;
 	struct a2150_private *devpriv = dev->private;
+	struct comedi_isadma *dma = devpriv->dma;
+	struct comedi_isadma_desc *desc = &dma->desc[0];
 	struct comedi_subdevice *s = dev->read_subdev;
-	struct comedi_async *async;
-	struct comedi_cmd *cmd;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+	unsigned short *buf = desc->virt_addr;
 	unsigned int max_points, num_points, residue, leftover;
 	unsigned short dpnt;
-	static const int sample_size = sizeof(devpriv->dma_buffer[0]);
+	int status;
+	int i;
 
-	if (!dev->attached) {
-		comedi_error(dev, "premature interrupt");
+	if (!dev->attached)
 		return IRQ_HANDLED;
-	}
-	/*  initialize async here to make sure s is not NULL */
-	async = s->async;
-	async->events = 0;
-	cmd = &async->cmd;
 
 	status = inw(dev->iobase + STATUS_REG);
-
-	if ((status & INTR_BIT) == 0) {
-		comedi_error(dev, "spurious interrupt");
+	if ((status & INTR_BIT) == 0)
 		return IRQ_NONE;
-	}
 
 	if (status & OVFL_BIT) {
-		comedi_error(dev, "fifo overflow");
-		a2150_cancel(dev, s);
-		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		async->events |= COMEDI_CB_ERROR;
+		comedi_handle_events(dev, s);
 	}
 
 	if ((status & DMA_TC_BIT) == 0) {
-		comedi_error(dev, "caught non-dma interrupt?  Aborting.");
-		a2150_cancel(dev, s);
-		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		comedi_event(dev, s);
+		async->events |= COMEDI_CB_ERROR;
+		comedi_handle_events(dev, s);
 		return IRQ_HANDLED;
 	}
 
-	flags = claim_dma_lock();
-	disable_dma(devpriv->dma);
-	/* clear flip-flop to make sure 2-byte registers for
-	 * count and address get set correctly */
-	clear_dma_ff(devpriv->dma);
-
-	/*  figure out how many points to read */
-	max_points = devpriv->dma_transfer_size / sample_size;
-	/* residue is the number of points left to be done on the dma
+	/*
+	 * residue is the number of bytes left to be done on the dma
 	 * transfer.  It should always be zero at this point unless
 	 * the stop_src is set to external triggering.
 	 */
-	residue = get_dma_residue(devpriv->dma) / sample_size;
-	num_points = max_points - residue;
+	residue = comedi_isadma_disable(desc->chan);
+
+	/*  figure out how many points to read */
+	max_points = comedi_bytes_to_samples(s, desc->size);
+	num_points = max_points - comedi_bytes_to_samples(s, residue);
 	if (devpriv->count < num_points && cmd->stop_src == TRIG_COUNT)
 		num_points = devpriv->count;
 
 	/*  figure out how many points will be stored next time */
 	leftover = 0;
 	if (cmd->stop_src == TRIG_NONE) {
-		leftover = devpriv->dma_transfer_size / sample_size;
+		leftover = comedi_bytes_to_samples(s, desc->size);
 	} else if (devpriv->count > max_points) {
 		leftover = devpriv->count - max_points;
 		if (leftover > max_points)
@@ -243,29 +213,24 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 
 	for (i = 0; i < num_points; i++) {
 		/* write data point to comedi buffer */
-		dpnt = devpriv->dma_buffer[i];
+		dpnt = buf[i];
 		/*  convert from 2's complement to unsigned coding */
 		dpnt ^= 0x8000;
-		cfc_write_to_buffer(s, dpnt);
+		comedi_buf_write_samples(s, &dpnt, 1);
 		if (cmd->stop_src == TRIG_COUNT) {
 			if (--devpriv->count == 0) {	/* end of acquisition */
-				a2150_cancel(dev, s);
 				async->events |= COMEDI_CB_EOA;
 				break;
 			}
 		}
 	}
-	/*  re-enable  dma */
+	/* re-enable dma */
 	if (leftover) {
-		set_dma_addr(devpriv->dma, virt_to_bus(devpriv->dma_buffer));
-		set_dma_count(devpriv->dma, leftover * sample_size);
-		enable_dma(devpriv->dma);
+		desc->size = comedi_samples_to_bytes(s, leftover);
+		comedi_isadma_program(desc);
 	}
-	release_dma_lock(flags);
 
-	async->events |= COMEDI_CB_BLOCK;
-
-	comedi_event(dev, s);
+	comedi_handle_events(dev, s);
 
 	/* clear interrupt */
 	outw(0x00, dev->iobase + DMA_TC_CLEAR_REG);
@@ -276,286 +241,20 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct a2150_private *devpriv = dev->private;
+	struct comedi_isadma *dma = devpriv->dma;
+	struct comedi_isadma_desc *desc = &dma->desc[0];
 
 	/*  disable dma on card */
 	devpriv->irq_dma_bits &= ~DMA_INTR_EN_BIT & ~DMA_EN_BIT;
 	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
 
 	/*  disable computer's dma */
-	disable_dma(devpriv->dma);
+	comedi_isadma_disable(desc->chan);
 
 	/*  clear fifo and reset triggering circuitry */
 	outw(0, dev->iobase + FIFO_RESET_REG);
 
 	return 0;
-}
-
-static int a2150_ai_cmdtest(struct comedi_device *dev,
-			    struct comedi_subdevice *s, struct comedi_cmd *cmd)
-{
-	const struct a2150_board *thisboard = comedi_board(dev);
-	int err = 0;
-	int tmp;
-	int startChan;
-	int i;
-
-	/* Step 1 : check if triggers are trivially valid */
-
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
-
-	if (err)
-		return 1;
-
-	/* Step 2a : make sure trigger sources are unique */
-
-	err |= cfc_check_trigger_is_unique(cmd->start_src);
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
-
-	/* Step 2b : and mutually compatible */
-
-	if (err)
-		return 2;
-
-	/* Step 3: check if arguments are trivially valid */
-
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
-
-	if (cmd->convert_src == TRIG_TIMER)
-		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
-						 thisboard->ai_speed);
-
-	err |= cfc_check_trigger_arg_min(&cmd->chanlist_len, 1);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
-
-	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
-
-	if (err)
-		return 3;
-
-	/* step 4: fix up any arguments */
-
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		tmp = cmd->scan_begin_arg;
-		a2150_get_timing(dev, &cmd->scan_begin_arg, cmd->flags);
-		if (tmp != cmd->scan_begin_arg)
-			err++;
-	}
-
-	if (err)
-		return 4;
-
-	/*  check channel/gain list against card's limitations */
-	if (cmd->chanlist) {
-		startChan = CR_CHAN(cmd->chanlist[0]);
-		for (i = 1; i < cmd->chanlist_len; i++) {
-			if (CR_CHAN(cmd->chanlist[i]) != (startChan + i)) {
-				comedi_error(dev,
-					     "entries in chanlist must be consecutive channels, counting upwards\n");
-				err++;
-			}
-		}
-		if (cmd->chanlist_len == 2 && CR_CHAN(cmd->chanlist[0]) == 1) {
-			comedi_error(dev,
-				     "length 2 chanlist must be channels 0,1 or channels 2,3");
-			err++;
-		}
-		if (cmd->chanlist_len == 3) {
-			comedi_error(dev,
-				     "chanlist must have 1,2 or 4 channels");
-			err++;
-		}
-		if (CR_AREF(cmd->chanlist[0]) != CR_AREF(cmd->chanlist[1]) ||
-		    CR_AREF(cmd->chanlist[2]) != CR_AREF(cmd->chanlist[3])) {
-			comedi_error(dev,
-				     "channels 0/1 and 2/3 must have the same analog reference");
-			err++;
-		}
-	}
-
-	if (err)
-		return 5;
-
-	return 0;
-}
-
-static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	struct a2150_private *devpriv = dev->private;
-	struct comedi_async *async = s->async;
-	struct comedi_cmd *cmd = &async->cmd;
-	unsigned long lock_flags;
-	unsigned int old_config_bits = devpriv->config_bits;
-	unsigned int trigger_bits;
-
-	if (cmd->flags & TRIG_RT) {
-		comedi_error(dev,
-			     " dma incompatible with hard real-time interrupt (TRIG_RT), aborting");
-		return -1;
-	}
-	/*  clear fifo and reset triggering circuitry */
-	outw(0, dev->iobase + FIFO_RESET_REG);
-
-	/* setup chanlist */
-	if (a2150_set_chanlist(dev, CR_CHAN(cmd->chanlist[0]),
-			       cmd->chanlist_len) < 0)
-		return -1;
-
-	/*  setup ac/dc coupling */
-	if (CR_AREF(cmd->chanlist[0]) == AREF_OTHER)
-		devpriv->config_bits |= AC0_BIT;
-	else
-		devpriv->config_bits &= ~AC0_BIT;
-	if (CR_AREF(cmd->chanlist[2]) == AREF_OTHER)
-		devpriv->config_bits |= AC1_BIT;
-	else
-		devpriv->config_bits &= ~AC1_BIT;
-
-	/*  setup timing */
-	a2150_get_timing(dev, &cmd->scan_begin_arg, cmd->flags);
-
-	/*  send timing, channel, config bits */
-	outw(devpriv->config_bits, dev->iobase + CONFIG_REG);
-
-	/*  initialize number of samples remaining */
-	devpriv->count = cmd->stop_arg * cmd->chanlist_len;
-
-	/*  enable computer's dma */
-	lock_flags = claim_dma_lock();
-	disable_dma(devpriv->dma);
-	/* clear flip-flop to make sure 2-byte registers for
-	 * count and address get set correctly */
-	clear_dma_ff(devpriv->dma);
-	set_dma_addr(devpriv->dma, virt_to_bus(devpriv->dma_buffer));
-	/*  set size of transfer to fill in 1/3 second */
-#define ONE_THIRD_SECOND 333333333
-	devpriv->dma_transfer_size =
-	    sizeof(devpriv->dma_buffer[0]) * cmd->chanlist_len *
-	    ONE_THIRD_SECOND / cmd->scan_begin_arg;
-	if (devpriv->dma_transfer_size > A2150_DMA_BUFFER_SIZE)
-		devpriv->dma_transfer_size = A2150_DMA_BUFFER_SIZE;
-	if (devpriv->dma_transfer_size < sizeof(devpriv->dma_buffer[0]))
-		devpriv->dma_transfer_size = sizeof(devpriv->dma_buffer[0]);
-	devpriv->dma_transfer_size -=
-	    devpriv->dma_transfer_size % sizeof(devpriv->dma_buffer[0]);
-	set_dma_count(devpriv->dma, devpriv->dma_transfer_size);
-	enable_dma(devpriv->dma);
-	release_dma_lock(lock_flags);
-
-	/* clear dma interrupt before enabling it, to try and get rid of that
-	 * one spurious interrupt that has been happening */
-	outw(0x00, dev->iobase + DMA_TC_CLEAR_REG);
-
-	/*  enable dma on card */
-	devpriv->irq_dma_bits |= DMA_INTR_EN_BIT | DMA_EN_BIT;
-	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
-
-	/*  may need to wait 72 sampling periods if timing was changed */
-	i8254_load(dev->iobase + I8253_BASE_REG, 0, 2, 72, 0);
-
-	/*  setup start triggering */
-	trigger_bits = 0;
-	/*  decide if we need to wait 72 periods for valid data */
-	if (cmd->start_src == TRIG_NOW &&
-	    (old_config_bits & CLOCK_MASK) !=
-	    (devpriv->config_bits & CLOCK_MASK)) {
-		/*  set trigger source to delay trigger */
-		trigger_bits |= DELAY_TRIGGER_BITS;
-	} else {
-		/*  otherwise no delay */
-		trigger_bits |= POST_TRIGGER_BITS;
-	}
-	/*  enable external hardware trigger */
-	if (cmd->start_src == TRIG_EXT) {
-		trigger_bits |= HW_TRIG_EN;
-	} else if (cmd->start_src == TRIG_OTHER) {
-		/*  XXX add support for level/slope start trigger using TRIG_OTHER */
-		comedi_error(dev, "you shouldn't see this?");
-	}
-	/*  send trigger config bits */
-	outw(trigger_bits, dev->iobase + TRIGGER_REG);
-
-	/*  start acquisition for soft trigger */
-	if (cmd->start_src == TRIG_NOW)
-		outw(0, dev->iobase + FIFO_START_REG);
-
-	return 0;
-}
-
-static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
-{
-	struct a2150_private *devpriv = dev->private;
-	unsigned int i, n;
-	static const int timeout = 100000;
-	static const int filter_delay = 36;
-
-	/*  clear fifo and reset triggering circuitry */
-	outw(0, dev->iobase + FIFO_RESET_REG);
-
-	/* setup chanlist */
-	if (a2150_set_chanlist(dev, CR_CHAN(insn->chanspec), 1) < 0)
-		return -1;
-
-	/*  set dc coupling */
-	devpriv->config_bits &= ~AC0_BIT;
-	devpriv->config_bits &= ~AC1_BIT;
-
-	/*  send timing, channel, config bits */
-	outw(devpriv->config_bits, dev->iobase + CONFIG_REG);
-
-	/*  disable dma on card */
-	devpriv->irq_dma_bits &= ~DMA_INTR_EN_BIT & ~DMA_EN_BIT;
-	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
-
-	/*  setup start triggering */
-	outw(0, dev->iobase + TRIGGER_REG);
-
-	/*  start acquisition for soft trigger */
-	outw(0, dev->iobase + FIFO_START_REG);
-
-	/*
-	 * there is a 35.6 sample delay for data to get through the
-	 * antialias filter
-	 */
-	for (n = 0; n < filter_delay; n++) {
-		for (i = 0; i < timeout; i++) {
-			if (inw(dev->iobase + STATUS_REG) & FNE_BIT)
-				break;
-			udelay(1);
-		}
-		if (i == timeout) {
-			comedi_error(dev, "timeout");
-			return -ETIME;
-		}
-		inw(dev->iobase + FIFO_DATA_REG);
-	}
-
-	/*  read data */
-	for (n = 0; n < insn->n; n++) {
-		for (i = 0; i < timeout; i++) {
-			if (inw(dev->iobase + STATUS_REG) & FNE_BIT)
-				break;
-			udelay(1);
-		}
-		if (i == timeout) {
-			comedi_error(dev, "timeout");
-			return -ETIME;
-		}
-		data[n] = inw(dev->iobase + FIFO_DATA_REG);
-		data[n] ^= 0x8000;
-	}
-
-	/*  clear fifo and reset triggering circuitry */
-	outw(0, dev->iobase + FIFO_RESET_REG);
-
-	return n;
 }
 
 /*
@@ -563,9 +262,9 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
  * period, adjusts requested period to actual timing.
  */
 static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
-			    int flags)
+			    unsigned int flags)
 {
-	const struct a2150_board *thisboard = comedi_board(dev);
+	const struct a2150_board *thisboard = dev->board_ptr;
 	struct a2150_private *devpriv = dev->private;
 	int lub, glb, temp;
 	int lub_divisor_shift, lub_index, glb_divisor_shift, glb_index;
@@ -604,9 +303,8 @@ static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 			}
 		}
 	}
-	flags &= TRIG_ROUND_MASK;
-	switch (flags) {
-	case TRIG_ROUND_NEAREST:
+	switch (flags & CMDF_ROUND_MASK) {
+	case CMDF_ROUND_NEAREST:
 	default:
 		/*  if least upper bound is better approximation */
 		if (lub - *period < *period - glb)
@@ -614,10 +312,10 @@ static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 		else
 			*period = glb;
 		break;
-	case TRIG_ROUND_UP:
+	case CMDF_ROUND_UP:
 		*period = lub;
 		break;
-	case TRIG_ROUND_DOWN:
+	case CMDF_ROUND_DOWN:
 		*period = glb;
 		break;
 	}
@@ -665,26 +363,343 @@ static int a2150_set_chanlist(struct comedi_device *dev,
 		break;
 	default:
 		return -1;
-		break;
 	}
 
 	return 0;
+}
+
+static int a2150_ai_check_chanlist(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_cmd *cmd)
+{
+	unsigned int chan0 = CR_CHAN(cmd->chanlist[0]);
+	unsigned int aref0 = CR_AREF(cmd->chanlist[0]);
+	int i;
+
+	if (cmd->chanlist_len == 2 && (chan0 == 1 || chan0 == 3)) {
+		dev_dbg(dev->class_dev,
+			"length 2 chanlist must be channels 0,1 or channels 2,3\n");
+		return -EINVAL;
+	}
+
+	if (cmd->chanlist_len == 3) {
+		dev_dbg(dev->class_dev,
+			"chanlist must have 1,2 or 4 channels\n");
+		return -EINVAL;
+	}
+
+	for (i = 1; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+		unsigned int aref = CR_AREF(cmd->chanlist[i]);
+
+		if (chan != (chan0 + i)) {
+			dev_dbg(dev->class_dev,
+				"entries in chanlist must be consecutive channels, counting upwards\n");
+			return -EINVAL;
+		}
+
+		if (chan == 2)
+			aref0 = aref;
+		if (aref != aref0) {
+			dev_dbg(dev->class_dev,
+				"channels 0/1 and 2/3 must have the same analog reference\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int a2150_ai_cmdtest(struct comedi_device *dev,
+			    struct comedi_subdevice *s, struct comedi_cmd *cmd)
+{
+	const struct a2150_board *thisboard = dev->board_ptr;
+	int err = 0;
+	unsigned int arg;
+
+	/* Step 1 : check if triggers are trivially valid */
+
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+
+	if (err)
+		return 1;
+
+	/* Step 2a : make sure trigger sources are unique */
+
+	err |= comedi_check_trigger_is_unique(cmd->start_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
+
+	if (err)
+		return 2;
+
+	/* Step 3: check if arguments are trivially valid */
+
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
+
+	if (cmd->convert_src == TRIG_TIMER) {
+		err |= comedi_check_trigger_arg_min(&cmd->convert_arg,
+						    thisboard->ai_speed);
+	}
+
+	err |= comedi_check_trigger_arg_min(&cmd->chanlist_len, 1);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
+
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
+
+	if (err)
+		return 3;
+
+	/* step 4: fix up any arguments */
+
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		arg = cmd->scan_begin_arg;
+		a2150_get_timing(dev, &arg, cmd->flags);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
+	}
+
+	if (err)
+		return 4;
+
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= a2150_ai_check_chanlist(dev, s, cmd);
+
+	if (err)
+		return 5;
+
+	return 0;
+}
+
+static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
+{
+	struct a2150_private *devpriv = dev->private;
+	struct comedi_isadma *dma = devpriv->dma;
+	struct comedi_isadma_desc *desc = &dma->desc[0];
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+	unsigned int old_config_bits = devpriv->config_bits;
+	unsigned int trigger_bits;
+
+	if (cmd->flags & CMDF_PRIORITY) {
+		dev_err(dev->class_dev,
+			"dma incompatible with hard real-time interrupt (CMDF_PRIORITY), aborting\n");
+		return -1;
+	}
+	/*  clear fifo and reset triggering circuitry */
+	outw(0, dev->iobase + FIFO_RESET_REG);
+
+	/* setup chanlist */
+	if (a2150_set_chanlist(dev, CR_CHAN(cmd->chanlist[0]),
+			       cmd->chanlist_len) < 0)
+		return -1;
+
+	/*  setup ac/dc coupling */
+	if (CR_AREF(cmd->chanlist[0]) == AREF_OTHER)
+		devpriv->config_bits |= AC0_BIT;
+	else
+		devpriv->config_bits &= ~AC0_BIT;
+	if (CR_AREF(cmd->chanlist[2]) == AREF_OTHER)
+		devpriv->config_bits |= AC1_BIT;
+	else
+		devpriv->config_bits &= ~AC1_BIT;
+
+	/*  setup timing */
+	a2150_get_timing(dev, &cmd->scan_begin_arg, cmd->flags);
+
+	/*  send timing, channel, config bits */
+	outw(devpriv->config_bits, dev->iobase + CONFIG_REG);
+
+	/*  initialize number of samples remaining */
+	devpriv->count = cmd->stop_arg * cmd->chanlist_len;
+
+	comedi_isadma_disable(desc->chan);
+
+	/*  set size of transfer to fill in 1/3 second */
+#define ONE_THIRD_SECOND 333333333
+	desc->size = comedi_bytes_per_sample(s) * cmd->chanlist_len *
+		    ONE_THIRD_SECOND / cmd->scan_begin_arg;
+	if (desc->size > desc->maxsize)
+		desc->size = desc->maxsize;
+	if (desc->size < comedi_bytes_per_sample(s))
+		desc->size = comedi_bytes_per_sample(s);
+	desc->size -= desc->size % comedi_bytes_per_sample(s);
+
+	comedi_isadma_program(desc);
+
+	/* clear dma interrupt before enabling it, to try and get rid of that
+	 * one spurious interrupt that has been happening */
+	outw(0x00, dev->iobase + DMA_TC_CLEAR_REG);
+
+	/*  enable dma on card */
+	devpriv->irq_dma_bits |= DMA_INTR_EN_BIT | DMA_EN_BIT;
+	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
+
+	/*  may need to wait 72 sampling periods if timing was changed */
+	comedi_8254_load(dev->pacer, 2, 72, I8254_MODE0 | I8254_BINARY);
+
+	/*  setup start triggering */
+	trigger_bits = 0;
+	/*  decide if we need to wait 72 periods for valid data */
+	if (cmd->start_src == TRIG_NOW &&
+	    (old_config_bits & CLOCK_MASK) !=
+	    (devpriv->config_bits & CLOCK_MASK)) {
+		/*  set trigger source to delay trigger */
+		trigger_bits |= DELAY_TRIGGER_BITS;
+	} else {
+		/*  otherwise no delay */
+		trigger_bits |= POST_TRIGGER_BITS;
+	}
+	/*  enable external hardware trigger */
+	if (cmd->start_src == TRIG_EXT) {
+		trigger_bits |= HW_TRIG_EN;
+	} else if (cmd->start_src == TRIG_OTHER) {
+		/*  XXX add support for level/slope start trigger using TRIG_OTHER */
+		dev_err(dev->class_dev, "you shouldn't see this?\n");
+	}
+	/*  send trigger config bits */
+	outw(trigger_bits, dev->iobase + TRIGGER_REG);
+
+	/*  start acquisition for soft trigger */
+	if (cmd->start_src == TRIG_NOW)
+		outw(0, dev->iobase + FIFO_START_REG);
+
+	return 0;
+}
+
+static int a2150_ai_eoc(struct comedi_device *dev,
+			struct comedi_subdevice *s,
+			struct comedi_insn *insn,
+			unsigned long context)
+{
+	unsigned int status;
+
+	status = inw(dev->iobase + STATUS_REG);
+	if (status & FNE_BIT)
+		return 0;
+	return -EBUSY;
+}
+
+static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+			  struct comedi_insn *insn, unsigned int *data)
+{
+	struct a2150_private *devpriv = dev->private;
+	unsigned int n;
+	int ret;
+
+	/*  clear fifo and reset triggering circuitry */
+	outw(0, dev->iobase + FIFO_RESET_REG);
+
+	/* setup chanlist */
+	if (a2150_set_chanlist(dev, CR_CHAN(insn->chanspec), 1) < 0)
+		return -1;
+
+	/*  set dc coupling */
+	devpriv->config_bits &= ~AC0_BIT;
+	devpriv->config_bits &= ~AC1_BIT;
+
+	/*  send timing, channel, config bits */
+	outw(devpriv->config_bits, dev->iobase + CONFIG_REG);
+
+	/*  disable dma on card */
+	devpriv->irq_dma_bits &= ~DMA_INTR_EN_BIT & ~DMA_EN_BIT;
+	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
+
+	/*  setup start triggering */
+	outw(0, dev->iobase + TRIGGER_REG);
+
+	/*  start acquisition for soft trigger */
+	outw(0, dev->iobase + FIFO_START_REG);
+
+	/*
+	 * there is a 35.6 sample delay for data to get through the
+	 * antialias filter
+	 */
+	for (n = 0; n < 36; n++) {
+		ret = comedi_timeout(dev, s, insn, a2150_ai_eoc, 0);
+		if (ret)
+			return ret;
+
+		inw(dev->iobase + FIFO_DATA_REG);
+	}
+
+	/*  read data */
+	for (n = 0; n < insn->n; n++) {
+		ret = comedi_timeout(dev, s, insn, a2150_ai_eoc, 0);
+		if (ret)
+			return ret;
+
+		data[n] = inw(dev->iobase + FIFO_DATA_REG);
+		data[n] ^= 0x8000;
+	}
+
+	/*  clear fifo and reset triggering circuitry */
+	outw(0, dev->iobase + FIFO_RESET_REG);
+
+	return n;
+}
+
+static void a2150_alloc_irq_and_dma(struct comedi_device *dev,
+				    struct comedi_devconfig *it)
+{
+	struct a2150_private *devpriv = dev->private;
+	unsigned int irq_num = it->options[1];
+	unsigned int dma_chan = it->options[2];
+
+	/*
+	 * Only IRQs 15, 14, 12-9, and 7-3 are valid.
+	 * Only DMA channels 7-5 and 3-0 are valid.
+	 */
+	if (irq_num > 15 || dma_chan > 7 ||
+	    !((1 << irq_num) & 0xdef8) || !((1 << dma_chan) & 0xef))
+		return;
+
+	if (request_irq(irq_num, a2150_interrupt, 0, dev->board_name, dev))
+		return;
+
+	/* DMA uses 1 buffer */
+	devpriv->dma = comedi_isadma_alloc(dev, 1, dma_chan, dma_chan,
+					   A2150_DMA_BUFFER_SIZE,
+					   COMEDI_ISADMA_READ);
+	if (!devpriv->dma) {
+		free_irq(irq_num, dev);
+	} else {
+		dev->irq = irq_num;
+		devpriv->irq_dma_bits = IRQ_LVL_BITS(irq_num) |
+					DMA_CHAN_BITS(dma_chan);
+	}
+}
+
+static void a2150_free_dma(struct comedi_device *dev)
+{
+	struct a2150_private *devpriv = dev->private;
+
+	if (devpriv)
+		comedi_isadma_free(devpriv->dma);
 }
 
 /* probes board type, returns offset */
 static int a2150_probe(struct comedi_device *dev)
 {
 	int status = inw(dev->iobase + STATUS_REG);
+
 	return ID_BITS(status);
 }
 
 static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct a2150_board *thisboard = comedi_board(dev);
+	const struct a2150_board *thisboard;
 	struct a2150_private *devpriv;
 	struct comedi_subdevice *s;
-	unsigned int irq = it->options[1];
-	unsigned int dma = it->options[2];
 	static const int timeout = 2000;
 	int i;
 	int ret;
@@ -693,39 +708,25 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv)
 		return -ENOMEM;
 
-	ret = comedi_request_region(dev, it->options[0], A2150_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x1c);
 	if (ret)
 		return ret;
 
-	dev->board_ptr = a2150_boards + a2150_probe(dev);
-	thisboard = comedi_board(dev);
+	i = a2150_probe(dev);
+	if (i >= ARRAY_SIZE(a2150_boards))
+		return -ENODEV;
+
+	dev->board_ptr = a2150_boards + i;
+	thisboard = dev->board_ptr;
 	dev->board_name = thisboard->name;
 
-	if ((irq >= 3 && irq <= 7) || (irq >= 9 && irq <= 12) ||
-	    irq == 14 || irq == 15) {
-		ret = request_irq(irq, a2150_interrupt, 0,
-				  dev->board_name, dev);
-		if (ret == 0) {
-			devpriv->irq_dma_bits |= IRQ_LVL_BITS(irq);
-			dev->irq = irq;
-		}
-	}
+	/* an IRQ and DMA are required to support async commands */
+	a2150_alloc_irq_and_dma(dev, it);
 
-	if (dev->irq && dma <= 7 && dma != 4) {
-		ret = request_dma(dma, dev->board_name);
-		if (ret == 0) {
-			devpriv->dma = dma;
-			devpriv->dma_buffer = kmalloc(A2150_DMA_BUFFER_SIZE,
-						      GFP_KERNEL | GFP_DMA);
-			if (!devpriv->dma_buffer)
-				return -ENOMEM;
-
-			disable_dma(dma);
-			set_dma_mode(dma, DMA_MODE_READ);
-
-			devpriv->irq_dma_bits |= DMA_CHAN_BITS(dma);
-		}
-	}
+	dev->pacer = comedi_8254_init(dev->iobase + I8253_BASE_REG,
+				      0, I8254_IO8, 0);
+	if (!dev->pacer)
+		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)
@@ -739,7 +740,7 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata = 0xffff;
 	s->range_table = &range_a2150;
 	s->insn_read = a2150_ai_rinsn;
-	if (dev->irq && devpriv->dma) {
+	if (dev->irq) {
 		dev->read_subdev = s;
 		s->subdev_flags |= SDF_CMD_READ;
 		s->len_chanlist = s->n_chan;
@@ -747,10 +748,6 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->do_cmdtest = a2150_ai_cmdtest;
 		s->cancel = a2150_cancel;
 	}
-
-	/* need to do this for software counting of completed conversions, to
-	 * prevent hardware count from stopping acquisition */
-	outw(HW_COUNT_DISABLE, dev->iobase + I8253_MODE_REG);
 
 	/*  set card's irq and dma levels */
 	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
@@ -768,8 +765,8 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		udelay(1000);
 	}
 	if (i == timeout) {
-		printk
-		    (" timed out waiting for offset calibration to complete\n");
+		dev_err(dev->class_dev,
+			"timed out waiting for offset calibration to complete\n");
 		return -ETIME;
 	}
 	devpriv->config_bits |= ENABLE0_BIT | ENABLE1_BIT;
@@ -780,15 +777,9 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void a2150_detach(struct comedi_device *dev)
 {
-	struct a2150_private *devpriv = dev->private;
-
 	if (dev->iobase)
 		outw(APD_BIT | DPD_BIT, dev->iobase + CONFIG_REG);
-	if (devpriv) {
-		if (devpriv->dma)
-			free_dma(devpriv->dma);
-		kfree(devpriv->dma_buffer);
-	}
+	a2150_free_dma(dev);
 	comedi_legacy_detach(dev);
 };
 

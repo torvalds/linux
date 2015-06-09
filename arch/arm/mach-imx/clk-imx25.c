@@ -30,9 +30,6 @@
 #include "clk.h"
 #include "common.h"
 #include "hardware.h"
-#include "mx25.h"
-
-#define CRM_BASE	MX25_IO_ADDRESS(MX25_CRM_BASE_ADDR)
 
 #define CCM_MPCTL	0x00
 #define CCM_UPCTL	0x04
@@ -56,12 +53,16 @@
 #define CCM_LTR3	0x4c
 #define CCM_MCR		0x64
 
-#define ccm(x)	(CRM_BASE + (x))
+#define ccm(x)	(ccm_base + (x))
 
 static struct clk_onecell_data clk_data;
 
 static const char *cpu_sel_clks[] = { "mpll", "mpll_cpu_3_4", };
 static const char *per_sel_clks[] = { "ahb", "upll", };
+static const char *cko_sel_clks[] = { "dummy", "osc", "cpu", "ahb",
+				      "ipg", "dummy", "dummy", "dummy",
+				      "dummy", "dummy", "per0", "per2",
+				      "per13", "per14", "usbotg_ahb", "dummy",};
 
 enum mx25_clks {
 	dummy, osc, mpll, upll, mpll_cpu_3_4, cpu_sel, cpu, ahb, usb_div, ipg,
@@ -82,14 +83,15 @@ enum mx25_clks {
 	pwm2_ipg, pwm3_ipg, pwm4_ipg, rngb_ipg, reserved16, scc_ipg, sdma_ipg,
 	sim1_ipg, sim2_ipg, slcdc_ipg, spba_ipg, ssi1_ipg, ssi2_ipg, tsc_ipg,
 	uart1_ipg, uart2_ipg, uart3_ipg, uart4_ipg, uart5_ipg, reserved17,
-	wdt_ipg, clk_max
+	wdt_ipg, cko_div, cko_sel, cko, clk_max
 };
 
 static struct clk *clk[clk_max];
 
-static int __init __mx25_clocks_init(unsigned long osc_rate)
+static int __init __mx25_clocks_init(unsigned long osc_rate,
+				     void __iomem *ccm_base)
 {
-	int i;
+	BUG_ON(!ccm_base);
 
 	clk[dummy] = imx_clk_fixed("dummy", 0);
 	clk[osc] = imx_clk_fixed("osc", osc_rate);
@@ -117,6 +119,9 @@ static int __init __mx25_clocks_init(unsigned long osc_rate)
 	clk[per13_sel] = imx_clk_mux("per13_sel", ccm(CCM_MCR), 13, 1, per_sel_clks, ARRAY_SIZE(per_sel_clks));
 	clk[per14_sel] = imx_clk_mux("per14_sel", ccm(CCM_MCR), 14, 1, per_sel_clks, ARRAY_SIZE(per_sel_clks));
 	clk[per15_sel] = imx_clk_mux("per15_sel", ccm(CCM_MCR), 15, 1, per_sel_clks, ARRAY_SIZE(per_sel_clks));
+	clk[cko_div] = imx_clk_divider("cko_div", "cko_sel", ccm(CCM_MCR), 24, 6);
+	clk[cko_sel] = imx_clk_mux("cko_sel", ccm(CCM_MCR), 20, 4, cko_sel_clks, ARRAY_SIZE(cko_sel_clks));
+	clk[cko] = imx_clk_gate("cko", "cko_div", ccm(CCM_MCR),  30);
 	clk[per0] = imx_clk_divider("per0", "per0_sel", ccm(CCM_PCDR0), 0, 6);
 	clk[per1] = imx_clk_divider("per1", "per1_sel", ccm(CCM_PCDR0), 8, 6);
 	clk[per2] = imx_clk_divider("per2", "per2_sel", ccm(CCM_PCDR0), 16, 6);
@@ -217,128 +222,43 @@ static int __init __mx25_clocks_init(unsigned long osc_rate)
 	/* CCM_CGCR2(19): reserved in datasheet, but used as wdt in FSL kernel */
 	clk[wdt_ipg] = imx_clk_gate("wdt_ipg", "ipg", ccm(CCM_CGCR2), 19);
 
-	for (i = 0; i < ARRAY_SIZE(clk); i++)
-		if (IS_ERR(clk[i]))
-			pr_err("i.MX25 clk %d: register failed with %ld\n",
-				i, PTR_ERR(clk[i]));
+	imx_check_clocks(clk, ARRAY_SIZE(clk));
 
 	clk_prepare_enable(clk[emi_ahb]);
 
 	/* Clock source for gpt must be derived from AHB */
 	clk_set_parent(clk[per5_sel], clk[ahb]);
 
-	clk_register_clkdev(clk[ipg], "ipg", "imx-gpt.0");
-	clk_register_clkdev(clk[gpt_ipg_per], "per", "imx-gpt.0");
+	/*
+	 * Let's initially set up CLKO parent as ipg, since this configuration
+	 * is used on some imx25 board designs to clock the audio codec.
+	 */
+	clk_set_parent(clk[cko_sel], clk[ipg]);
 
 	return 0;
 }
 
-int __init mx25_clocks_init(void)
+static void __init mx25_clocks_init_dt(struct device_node *np)
 {
-	__mx25_clocks_init(24000000);
-
-	/* i.mx25 has the i.mx21 type uart */
-	clk_register_clkdev(clk[uart1_ipg], "ipg", "imx21-uart.0");
-	clk_register_clkdev(clk[uart_ipg_per], "per", "imx21-uart.0");
-	clk_register_clkdev(clk[uart2_ipg], "ipg", "imx21-uart.1");
-	clk_register_clkdev(clk[uart_ipg_per], "per", "imx21-uart.1");
-	clk_register_clkdev(clk[uart3_ipg], "ipg", "imx21-uart.2");
-	clk_register_clkdev(clk[uart_ipg_per], "per", "imx21-uart.2");
-	clk_register_clkdev(clk[uart4_ipg], "ipg", "imx21-uart.3");
-	clk_register_clkdev(clk[uart_ipg_per], "per", "imx21-uart.3");
-	clk_register_clkdev(clk[uart5_ipg], "ipg", "imx21-uart.4");
-	clk_register_clkdev(clk[uart_ipg_per], "per", "imx21-uart.4");
-	clk_register_clkdev(clk[ipg], "ipg", "mxc-ehci.0");
-	clk_register_clkdev(clk[usbotg_ahb], "ahb", "mxc-ehci.0");
-	clk_register_clkdev(clk[usb_div], "per", "mxc-ehci.0");
-	clk_register_clkdev(clk[ipg], "ipg", "mxc-ehci.1");
-	clk_register_clkdev(clk[usbotg_ahb], "ahb", "mxc-ehci.1");
-	clk_register_clkdev(clk[usb_div], "per", "mxc-ehci.1");
-	clk_register_clkdev(clk[ipg], "ipg", "mxc-ehci.2");
-	clk_register_clkdev(clk[usbotg_ahb], "ahb", "mxc-ehci.2");
-	clk_register_clkdev(clk[usb_div], "per", "mxc-ehci.2");
-	clk_register_clkdev(clk[ipg], "ipg", "imx-udc-mx27");
-	clk_register_clkdev(clk[usbotg_ahb], "ahb", "imx-udc-mx27");
-	clk_register_clkdev(clk[usb_div], "per", "imx-udc-mx27");
-	clk_register_clkdev(clk[nfc_ipg_per], NULL, "imx25-nand.0");
-	/* i.mx25 has the i.mx35 type cspi */
-	clk_register_clkdev(clk[cspi1_ipg], NULL, "imx35-cspi.0");
-	clk_register_clkdev(clk[cspi2_ipg], NULL, "imx35-cspi.1");
-	clk_register_clkdev(clk[cspi3_ipg], NULL, "imx35-cspi.2");
-	clk_register_clkdev(clk[pwm1_ipg], "ipg", "mxc_pwm.0");
-	clk_register_clkdev(clk[per10], "per", "mxc_pwm.0");
-	clk_register_clkdev(clk[pwm1_ipg], "ipg", "mxc_pwm.1");
-	clk_register_clkdev(clk[per10], "per", "mxc_pwm.1");
-	clk_register_clkdev(clk[pwm1_ipg], "ipg", "mxc_pwm.2");
-	clk_register_clkdev(clk[per10], "per", "mxc_pwm.2");
-	clk_register_clkdev(clk[pwm1_ipg], "ipg", "mxc_pwm.3");
-	clk_register_clkdev(clk[per10], "per", "mxc_pwm.3");
-	clk_register_clkdev(clk[kpp_ipg], NULL, "imx-keypad");
-	clk_register_clkdev(clk[tsc_ipg], NULL, "mx25-adc");
-	clk_register_clkdev(clk[i2c_ipg_per], NULL, "imx21-i2c.0");
-	clk_register_clkdev(clk[i2c_ipg_per], NULL, "imx21-i2c.1");
-	clk_register_clkdev(clk[i2c_ipg_per], NULL, "imx21-i2c.2");
-	clk_register_clkdev(clk[fec_ipg], "ipg", "imx25-fec.0");
-	clk_register_clkdev(clk[fec_ahb], "ahb", "imx25-fec.0");
-	clk_register_clkdev(clk[dryice_ipg], NULL, "imxdi_rtc.0");
-	clk_register_clkdev(clk[lcdc_ipg_per], "per", "imx21-fb.0");
-	clk_register_clkdev(clk[lcdc_ipg], "ipg", "imx21-fb.0");
-	clk_register_clkdev(clk[lcdc_ahb], "ahb", "imx21-fb.0");
-	clk_register_clkdev(clk[wdt_ipg], NULL, "imx2-wdt.0");
-	clk_register_clkdev(clk[ssi1_ipg], NULL, "imx-ssi.0");
-	clk_register_clkdev(clk[ssi2_ipg], NULL, "imx-ssi.1");
-	clk_register_clkdev(clk[esdhc1_ipg_per], "per", "sdhci-esdhc-imx25.0");
-	clk_register_clkdev(clk[esdhc1_ipg], "ipg", "sdhci-esdhc-imx25.0");
-	clk_register_clkdev(clk[esdhc1_ahb], "ahb", "sdhci-esdhc-imx25.0");
-	clk_register_clkdev(clk[esdhc2_ipg_per], "per", "sdhci-esdhc-imx25.1");
-	clk_register_clkdev(clk[esdhc2_ipg], "ipg", "sdhci-esdhc-imx25.1");
-	clk_register_clkdev(clk[esdhc2_ahb], "ahb", "sdhci-esdhc-imx25.1");
-	clk_register_clkdev(clk[csi_ipg_per], "per", "imx25-camera.0");
-	clk_register_clkdev(clk[csi_ipg], "ipg", "imx25-camera.0");
-	clk_register_clkdev(clk[csi_ahb], "ahb", "imx25-camera.0");
-	clk_register_clkdev(clk[dummy], "audmux", NULL);
-	clk_register_clkdev(clk[can1_ipg], NULL, "flexcan.0");
-	clk_register_clkdev(clk[can2_ipg], NULL, "flexcan.1");
-	/* i.mx25 has the i.mx35 type sdma */
-	clk_register_clkdev(clk[sdma_ipg], "ipg", "imx35-sdma");
-	clk_register_clkdev(clk[sdma_ahb], "ahb", "imx35-sdma");
-	clk_register_clkdev(clk[iim_ipg], "iim", NULL);
-
-	mxc_timer_init(MX25_IO_ADDRESS(MX25_GPT1_BASE_ADDR), MX25_INT_GPT1);
-
-	return 0;
-}
-
-int __init mx25_clocks_init_dt(void)
-{
-	struct device_node *np;
-	void __iomem *base;
-	int irq;
+	struct device_node *refnp;
 	unsigned long osc_rate = 24000000;
+	void __iomem *ccm;
 
 	/* retrieve the freqency of fixed clocks from device tree */
-	for_each_compatible_node(np, NULL, "fixed-clock") {
+	for_each_compatible_node(refnp, NULL, "fixed-clock") {
 		u32 rate;
-		if (of_property_read_u32(np, "clock-frequency", &rate))
+		if (of_property_read_u32(refnp, "clock-frequency", &rate))
 			continue;
 
-		if (of_device_is_compatible(np, "fsl,imx-osc"))
+		if (of_device_is_compatible(refnp, "fsl,imx-osc"))
 			osc_rate = rate;
 	}
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx25-ccm");
+	ccm = of_iomap(np, 0);
+	__mx25_clocks_init(osc_rate, ccm);
+
 	clk_data.clks = clk;
 	clk_data.clk_num = ARRAY_SIZE(clk);
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
-
-	__mx25_clocks_init(osc_rate);
-
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx25-gpt");
-	base = of_iomap(np, 0);
-	WARN_ON(!base);
-	irq = irq_of_parse_and_map(np, 0);
-
-	mxc_timer_init(base, irq);
-
-	return 0;
 }
+CLK_OF_DECLARE(imx25_ccm, "fsl,imx25-ccm", mx25_clocks_init_dt);

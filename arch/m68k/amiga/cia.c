@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 
 #include <asm/irq.h>
 #include <asm/amigahw.h>

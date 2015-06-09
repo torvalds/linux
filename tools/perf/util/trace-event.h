@@ -23,6 +23,9 @@ trace_event__tp_format(const char *sys, const char *name);
 
 int bigendian(void);
 
+void event_format__fprintf(struct event_format *event,
+			   int cpu, void *data, int size, FILE *fp);
+
 void event_format__print(struct event_format *event,
 			 int cpu, void *data, int size);
 
@@ -64,12 +67,12 @@ struct perf_session;
 struct scripting_ops {
 	const char *name;
 	int (*start_script) (const char *script, int argc, const char **argv);
+	int (*flush_script) (void);
 	int (*stop_script) (void);
 	void (*process_event) (union perf_event *event,
 			       struct perf_sample *sample,
 			       struct perf_evsel *evsel,
-			       struct thread *thread,
-				   struct addr_location *al);
+			       struct addr_location *al);
 	int (*generate_script) (struct pevent *pevent, const char *outfile);
 };
 

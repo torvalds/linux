@@ -1,0 +1,61 @@
+* Marvell Armada 375 Ethernet Controller (PPv2)
+
+Required properties:
+
+- compatible: should be "marvell,armada-375-pp2"
+- reg: addresses and length of the register sets for the device.
+  Must contain the following register sets:
+	- common controller registers
+	- LMS registers
+  In addition, at least one port register set is required.
+- clocks: a pointer to the reference clocks for this device, consequently:
+	- main controller clock
+	- GOP clock
+- clock-names: names of used clocks, must be "pp_clk" and "gop_clk".
+
+The ethernet ports are represented by subnodes. At least one port is
+required.
+
+Required properties (port):
+
+- interrupts: interrupt for the port
+- port-id: should be '0' or '1' for ethernet ports, and '2' for the
+           loopback port
+- phy-mode: See ethernet.txt file in the same directory
+
+Optional properties (port):
+
+- marvell,loopback: port is loopback mode
+- phy: a phandle to a phy node defining the PHY address (as the reg
+  property, a single integer). Note: if this property isn't present,
+  then fixed link is assumed, and the 'fixed-link' property is
+  mandatory.
+
+Example:
+
+ethernet@f0000 {
+	compatible = "marvell,armada-375-pp2";
+	reg = <0xf0000 0xa000>,
+	      <0xc0000 0x3060>,
+	      <0xc4000 0x100>,
+	      <0xc5000 0x100>;
+	clocks = <&gateclk 3>, <&gateclk 19>;
+	clock-names = "pp_clk", "gop_clk";
+	status = "okay";
+
+	eth0: eth0@c4000 {
+		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+		port-id = <0>;
+		status = "okay";
+		phy = <&phy0>;
+		phy-mode = "gmii";
+	};
+
+	eth1: eth1@c5000 {
+		interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
+		port-id = <1>;
+		status = "okay";
+		phy = <&phy3>;
+		phy-mode = "gmii";
+	};
+};

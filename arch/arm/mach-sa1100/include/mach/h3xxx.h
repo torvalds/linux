@@ -79,17 +79,6 @@
 #define H3600_EGPIO_LCD_5V_ON		(H3XXX_EGPIO_BASE + 14) /* enable 5V to LCD. active high. */
 #define H3600_EGPIO_LVDD_ON		(H3XXX_EGPIO_BASE + 15) /* enable 9V and -6.5V to LCD. */
 
-struct gpio_default_state {
-	int gpio;
-	int mode;
-	const char *name;
-};
-
-#define GPIO_MODE_IN	-1
-#define GPIO_MODE_OUT0	0
-#define GPIO_MODE_OUT1	1
-
-void h3xxx_init_gpio(struct gpio_default_state *s, size_t n);
 void __init h3xxx_map_io(void);
 void __init h3xxx_mach_init(void);
 

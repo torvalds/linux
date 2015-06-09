@@ -36,7 +36,7 @@ struct nv04_crtc_reg {
 
 	/* PRAMDAC regs */
 	uint32_t nv10_cursync;
-	struct nouveau_pll_vals pllvals;
+	struct nvkm_pll_vals pllvals;
 	uint32_t ramdac_gen_ctrl;
 	uint32_t ramdac_630;
 	uint32_t ramdac_634;
@@ -90,8 +90,6 @@ nv04_display(struct drm_device *dev)
 }
 
 /* nv04_display.c */
-int nv04_display_early_init(struct drm_device *);
-void nv04_display_late_takedown(struct drm_device *);
 int nv04_display_create(struct drm_device *);
 void nv04_display_destroy(struct drm_device *);
 int nv04_display_init(struct drm_device *);
@@ -131,7 +129,7 @@ nv_two_heads(struct drm_device *dev)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	const int impl = dev->pdev->device & 0x0ff0;
 
-	if (nv_device(drm->device)->card_type >= NV_10 && impl != 0x0100 &&
+	if (drm->device.info.family >= NV_DEVICE_INFO_V0_CELSIUS && impl != 0x0100 &&
 	    impl != 0x0150 && impl != 0x01a0 && impl != 0x0200)
 		return true;
 
@@ -150,7 +148,7 @@ nv_two_reg_pll(struct drm_device *dev)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	const int impl = dev->pdev->device & 0x0ff0;
 
-	if (impl == 0x0310 || impl == 0x0340 || nv_device(drm->device)->card_type >= NV_40)
+	if (impl == 0x0310 || impl == 0x0340 || drm->device.info.family >= NV_DEVICE_INFO_V0_CURIE)
 		return true;
 	return false;
 }
@@ -171,8 +169,8 @@ static inline void
 nouveau_bios_run_init_table(struct drm_device *dev, u16 table,
 			    struct dcb_output *outp, int crtc)
 {
-	struct nouveau_device *device = nouveau_dev(dev);
-	struct nouveau_bios *bios = nouveau_bios(device);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvkm_bios *bios = nvxx_bios(&drm->device);
 	struct nvbios_init init = {
 		.subdev = nv_subdev(bios),
 		.bios = bios,

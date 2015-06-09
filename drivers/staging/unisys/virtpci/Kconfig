@@ -1,0 +1,10 @@
+#
+# Unisys virtpci configuration
+#
+
+config UNISYS_VIRTPCI
+	tristate "Unisys virtpci driver"
+	select UNISYS_UISLIB
+	---help---
+	If you say Y here, you will enable the Unisys virtpci driver.
+

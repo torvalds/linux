@@ -185,9 +185,14 @@ struct dma_buf *exynos_dmabuf_prime_export(struct drm_device *drm_dev,
 				struct drm_gem_object *obj, int flags)
 {
 	struct exynos_drm_gem_obj *exynos_gem_obj = to_exynos_gem_obj(obj);
+	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 
-	return dma_buf_export(obj, &exynos_dmabuf_ops,
-				exynos_gem_obj->base.size, flags);
+	exp_info.ops = &exynos_dmabuf_ops;
+	exp_info.size = exynos_gem_obj->base.size;
+	exp_info.flags = flags;
+	exp_info.priv = obj;
+
+	return dma_buf_export(&exp_info);
 }
 
 struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
@@ -224,7 +229,7 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 	get_dma_buf(dma_buf);
 
 	sgt = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
-	if (IS_ERR_OR_NULL(sgt)) {
+	if (IS_ERR(sgt)) {
 		ret = PTR_ERR(sgt);
 		goto err_buf_detach;
 	}
@@ -263,7 +268,7 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 	buffer->sgt = sgt;
 	exynos_gem_obj->base.import_attach = attach;
 
-	DRM_DEBUG_PRIME("dma_addr = 0x%x, size = 0x%lx\n", buffer->dma_addr,
+	DRM_DEBUG_PRIME("dma_addr = %pad, size = 0x%lx\n", &buffer->dma_addr,
 								buffer->size);
 
 	return &exynos_gem_obj->base;
@@ -279,7 +284,3 @@ err_buf_detach:
 
 	return ERR_PTR(ret);
 }
-
-MODULE_AUTHOR("Inki Dae <inki.dae@samsung.com>");
-MODULE_DESCRIPTION("Samsung SoC DRM DMABUF Module");
-MODULE_LICENSE("GPL");

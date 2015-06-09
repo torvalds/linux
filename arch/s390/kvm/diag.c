@@ -13,37 +13,129 @@
 
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
+#include <asm/pgalloc.h>
 #include <asm/virtio-ccw.h>
 #include "kvm-s390.h"
 #include "trace.h"
 #include "trace-s390.h"
+#include "gaccess.h"
 
 static int diag_release_pages(struct kvm_vcpu *vcpu)
 {
 	unsigned long start, end;
-	unsigned long prefix  = vcpu->arch.sie_block->prefix;
+	unsigned long prefix  = kvm_s390_get_prefix(vcpu);
 
 	start = vcpu->run->s.regs.gprs[(vcpu->arch.sie_block->ipa & 0xf0) >> 4];
 	end = vcpu->run->s.regs.gprs[vcpu->arch.sie_block->ipa & 0xf] + 4096;
 
-	if (start & ~PAGE_MASK || end & ~PAGE_MASK || start > end
+	if (start & ~PAGE_MASK || end & ~PAGE_MASK || start >= end
 	    || start < 2 * PAGE_SIZE)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
 	VCPU_EVENT(vcpu, 5, "diag release pages %lX %lX", start, end);
 	vcpu->stat.diagnose_10++;
 
-	/* we checked for start > end above */
-	if (end < prefix || start >= prefix + 2 * PAGE_SIZE) {
-		gmap_discard(start, end, vcpu->arch.gmap);
+	/*
+	 * We checked for start >= end above, so lets check for the
+	 * fast path (no prefix swap page involved)
+	 */
+	if (end <= prefix || start >= prefix + 2 * PAGE_SIZE) {
+		gmap_discard(vcpu->arch.gmap, start, end);
 	} else {
-		if (start < prefix)
-			gmap_discard(start, prefix, vcpu->arch.gmap);
-		if (end >= prefix)
-			gmap_discard(prefix + 2 * PAGE_SIZE,
-				     end, vcpu->arch.gmap);
+		/*
+		 * This is slow path.  gmap_discard will check for start
+		 * so lets split this into before prefix, prefix, after
+		 * prefix and let gmap_discard make some of these calls
+		 * NOPs.
+		 */
+		gmap_discard(vcpu->arch.gmap, start, prefix);
+		if (start <= prefix)
+			gmap_discard(vcpu->arch.gmap, 0, 4096);
+		if (end > prefix + 4096)
+			gmap_discard(vcpu->arch.gmap, 4096, 8192);
+		gmap_discard(vcpu->arch.gmap, prefix + 2 * PAGE_SIZE, end);
 	}
 	return 0;
+}
+
+static int __diag_page_ref_service(struct kvm_vcpu *vcpu)
+{
+	struct prs_parm {
+		u16 code;
+		u16 subcode;
+		u16 parm_len;
+		u16 parm_version;
+		u64 token_addr;
+		u64 select_mask;
+		u64 compare_mask;
+		u64 zarch;
+	};
+	struct prs_parm parm;
+	int rc;
+	u16 rx = (vcpu->arch.sie_block->ipa & 0xf0) >> 4;
+	u16 ry = (vcpu->arch.sie_block->ipa & 0x0f);
+
+	if (vcpu->run->s.regs.gprs[rx] & 7)
+		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+	rc = read_guest(vcpu, vcpu->run->s.regs.gprs[rx], rx, &parm, sizeof(parm));
+	if (rc)
+		return kvm_s390_inject_prog_cond(vcpu, rc);
+	if (parm.parm_version != 2 || parm.parm_len < 5 || parm.code != 0x258)
+		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+
+	switch (parm.subcode) {
+	case 0: /* TOKEN */
+		if (vcpu->arch.pfault_token != KVM_S390_PFAULT_TOKEN_INVALID) {
+			/*
+			 * If the pagefault handshake is already activated,
+			 * the token must not be changed.  We have to return
+			 * decimal 8 instead, as mandated in SC24-6084.
+			 */
+			vcpu->run->s.regs.gprs[ry] = 8;
+			return 0;
+		}
+
+		if ((parm.compare_mask & parm.select_mask) != parm.compare_mask ||
+		    parm.token_addr & 7 || parm.zarch != 0x8000000000000000ULL)
+			return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+
+		if (kvm_is_error_gpa(vcpu->kvm, parm.token_addr))
+			return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+
+		vcpu->arch.pfault_token = parm.token_addr;
+		vcpu->arch.pfault_select = parm.select_mask;
+		vcpu->arch.pfault_compare = parm.compare_mask;
+		vcpu->run->s.regs.gprs[ry] = 0;
+		rc = 0;
+		break;
+	case 1: /*
+		 * CANCEL
+		 * Specification allows to let already pending tokens survive
+		 * the cancel, therefore to reduce code complexity, we assume
+		 * all outstanding tokens are already pending.
+		 */
+		if (parm.token_addr || parm.select_mask ||
+		    parm.compare_mask || parm.zarch)
+			return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+
+		vcpu->run->s.regs.gprs[ry] = 0;
+		/*
+		 * If the pfault handling was not established or is already
+		 * canceled SC24-6084 requests to return decimal 4.
+		 */
+		if (vcpu->arch.pfault_token == KVM_S390_PFAULT_TOKEN_INVALID)
+			vcpu->run->s.regs.gprs[ry] = 4;
+		else
+			vcpu->arch.pfault_token = KVM_S390_PFAULT_TOKEN_INVALID;
+
+		rc = 0;
+		break;
+	default:
+		rc = -EOPNOTSUPP;
+		break;
+	}
+
+	return rc;
 }
 
 static int __diag_time_slice_end(struct kvm_vcpu *vcpu)
@@ -94,7 +186,8 @@ static int __diag_ipl_functions(struct kvm_vcpu *vcpu)
 		return -EOPNOTSUPP;
 	}
 
-	atomic_set_mask(CPUSTAT_STOPPED, &vcpu->arch.sie_block->cpuflags);
+	if (!kvm_s390_user_cpu_state_ctrl(vcpu->kvm))
+		kvm_s390_vcpu_stop(vcpu);
 	vcpu->run->s390_reset_flags |= KVM_S390_RESET_SUBSYSTEM;
 	vcpu->run->s390_reset_flags |= KVM_S390_RESET_IPL;
 	vcpu->run->s390_reset_flags |= KVM_S390_RESET_CPU_INIT;
@@ -120,7 +213,7 @@ static int __diag_virtio_hypercall(struct kvm_vcpu *vcpu)
 	 * - gpr 3 contains the virtqueue index (passed as datamatch)
 	 * - gpr 4 contains the index on the bus (optionally)
 	 */
-	ret = kvm_io_bus_write_cookie(vcpu->kvm, KVM_VIRTIO_CCW_NOTIFY_BUS,
+	ret = kvm_io_bus_write_cookie(vcpu, KVM_VIRTIO_CCW_NOTIFY_BUS,
 				      vcpu->run->s.regs.gprs[2] & 0xffffffff,
 				      8, &vcpu->run->s.regs.gprs[3],
 				      vcpu->run->s.regs.gprs[4]);
@@ -137,7 +230,7 @@ static int __diag_virtio_hypercall(struct kvm_vcpu *vcpu)
 
 int kvm_s390_handle_diag(struct kvm_vcpu *vcpu)
 {
-	int code = kvm_s390_get_base_disp_rs(vcpu) & 0xffff;
+	int code = kvm_s390_get_base_disp_rs(vcpu, NULL) & 0xffff;
 
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
@@ -150,6 +243,8 @@ int kvm_s390_handle_diag(struct kvm_vcpu *vcpu)
 		return __diag_time_slice_end(vcpu);
 	case 0x9c:
 		return __diag_time_slice_end_directed(vcpu);
+	case 0x258:
+		return __diag_page_ref_service(vcpu);
 	case 0x308:
 		return __diag_ipl_functions(vcpu);
 	case 0x500:

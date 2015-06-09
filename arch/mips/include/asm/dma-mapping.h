@@ -23,7 +23,7 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 {
 	if (!dev->dma_mask)
-		return 0;
+		return false;
 
 	return addr + size <= *dev->dma_mask;
 }
@@ -49,8 +49,13 @@ static inline int dma_mapping_error(struct device *dev, u64 mask)
 static inline int
 dma_set_mask(struct device *dev, u64 mask)
 {
+	struct dma_map_ops *ops = get_dma_ops(dev);
+
 	if(!dev->dma_mask || !dma_supported(dev, mask))
 		return -EIO;
+
+	if (ops->set_dma_mask)
+		return ops->set_dma_mask(dev, mask);
 
 	*dev->dma_mask = mask;
 

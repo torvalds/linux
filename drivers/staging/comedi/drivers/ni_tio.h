@@ -115,10 +115,10 @@ struct ni_gpct {
 
 struct ni_gpct_device {
 	struct comedi_device *dev;
-	void (*write_register) (struct ni_gpct *counter, unsigned bits,
-				enum ni_gpct_register reg);
-	unsigned (*read_register) (struct ni_gpct *counter,
-				   enum ni_gpct_register reg);
+	void (*write_register)(struct ni_gpct *counter, unsigned bits,
+			       enum ni_gpct_register reg);
+	unsigned (*read_register)(struct ni_gpct *counter,
+				  enum ni_gpct_register reg);
 	enum ni_gpct_variant variant;
 	struct ni_gpct *counters;
 	unsigned num_counters;
@@ -149,8 +149,6 @@ int ni_tio_cmdtest(struct comedi_device *, struct comedi_subdevice *,
 int ni_tio_cancel(struct ni_gpct *);
 void ni_tio_handle_interrupt(struct ni_gpct *, struct comedi_subdevice *);
 void ni_tio_set_mite_channel(struct ni_gpct *, struct mite_channel *);
-void ni_tio_acknowledge_and_confirm(struct ni_gpct *,
-				    int *gate_error, int *tc_error,
-				    int *perm_stale_data, int *stale_data);
+void ni_tio_acknowledge(struct ni_gpct *);
 
 #endif /* _COMEDI_NI_TIO_H */

@@ -145,6 +145,10 @@ struct renesas_usbhs_driver_param {
 	int d0_rx_id;
 	int d1_tx_id;
 	int d1_rx_id;
+	int d2_tx_id;
+	int d2_rx_id;
+	int d3_tx_id;
+	int d3_rx_id;
 
 	/*
 	 * option:
@@ -153,12 +157,20 @@ struct renesas_usbhs_driver_param {
 	 */
 	int pio_dma_border; /* default is 64byte */
 
+	u32 type;
+	u32 enable_gpio;
+
 	/*
 	 * option:
 	 */
 	u32 has_otg:1; /* for controlling PWEN/EXTLP */
 	u32 has_sudmac:1; /* for SUDMAC */
+	u32 has_usb_dmac:1; /* for USB-DMAC */
+#define USBHS_USB_DMAC_XFER_SIZE	32	/* hardcode the xfer size */
 };
+
+#define USBHS_TYPE_R8A7790 1
+#define USBHS_TYPE_R8A7791 2
 
 /*
  * option:

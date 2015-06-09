@@ -466,7 +466,12 @@ smb2_verify_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 static inline void
 smb2_seq_num_into_buf(struct TCP_Server_Info *server, struct smb2_hdr *hdr)
 {
+	unsigned int i, num = le16_to_cpu(hdr->CreditCharge);
+
 	hdr->MessageId = get_next_mid64(server);
+	/* skip message numbers according to CreditCharge field */
+	for (i = 1; i < num; i++)
+		get_next_mid(server);
 }
 
 static struct mid_q_entry *
@@ -485,7 +490,7 @@ smb2_mid_entry_alloc(const struct smb2_hdr *smb_buffer,
 		return temp;
 	else {
 		memset(temp, 0, sizeof(struct mid_q_entry));
-		temp->mid = smb_buffer->MessageId;	/* always LE */
+		temp->mid = le64_to_cpu(smb_buffer->MessageId);
 		temp->pid = current->pid;
 		temp->command = smb_buffer->Command;	/* Always LE */
 		temp->when_alloc = jiffies;

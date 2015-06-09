@@ -91,7 +91,7 @@ smb2_open_op_close(const unsigned int xid, struct cifs_tcon *tcon,
 	case SMB2_OP_SET_EOF:
 		tmprc = SMB2_set_eof(xid, tcon, fid.persistent_fid,
 				     fid.volatile_fid, current->tgid,
-				     (__le64 *)data);
+				     (__le64 *)data, false);
 		break;
 	case SMB2_OP_SET_INFO:
 		tmprc = SMB2_set_info(xid, tcon, fid.persistent_fid,
@@ -131,7 +131,7 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 	*adjust_tz = false;
 	*symlink = false;
 
-	smb2_data = kzalloc(sizeof(struct smb2_file_all_info) + MAX_NAME * 2,
+	smb2_data = kzalloc(sizeof(struct smb2_file_all_info) + PATH_MAX * 2,
 			    GFP_KERNEL);
 	if (smb2_data == NULL)
 		return -ENOMEM;

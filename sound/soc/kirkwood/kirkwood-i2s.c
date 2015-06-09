@@ -212,7 +212,8 @@ static int kirkwood_i2s_hw_params(struct snd_pcm_substream *substream,
 				    KIRKWOOD_PLAYCTL_SIZE_MASK);
 		priv->ctl_play |= ctl_play;
 	} else {
-		priv->ctl_rec &= ~KIRKWOOD_RECCTL_SIZE_MASK;
+		priv->ctl_rec &= ~(KIRKWOOD_RECCTL_ENABLE_MASK |
+				   KIRKWOOD_RECCTL_SIZE_MASK);
 		priv->ctl_rec |= ctl_rec;
 	}
 
@@ -221,14 +222,24 @@ static int kirkwood_i2s_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static unsigned kirkwood_i2s_play_mute(unsigned ctl)
+{
+	if (!(ctl & KIRKWOOD_PLAYCTL_I2S_EN))
+		ctl |= KIRKWOOD_PLAYCTL_I2S_MUTE;
+	if (!(ctl & KIRKWOOD_PLAYCTL_SPDIF_EN))
+		ctl |= KIRKWOOD_PLAYCTL_SPDIF_MUTE;
+	return ctl;
+}
+
 static int kirkwood_i2s_play_trigger(struct snd_pcm_substream *substream,
 				int cmd, struct snd_soc_dai *dai)
 {
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct kirkwood_dma_data *priv = snd_soc_dai_get_drvdata(dai);
 	uint32_t ctl, value;
 
 	ctl = readl(priv->io + KIRKWOOD_PLAYCTL);
-	if (ctl & KIRKWOOD_PLAYCTL_PAUSE) {
+	if ((ctl & KIRKWOOD_PLAYCTL_ENABLE_MASK) == 0) {
 		unsigned timeout = 5000;
 		/*
 		 * The Armada510 spec says that if we enter pause mode, the
@@ -256,14 +267,16 @@ static int kirkwood_i2s_play_trigger(struct snd_pcm_substream *substream,
 			ctl &= ~KIRKWOOD_PLAYCTL_SPDIF_EN;	/* i2s */
 		else
 			ctl &= ~KIRKWOOD_PLAYCTL_I2S_EN;	/* spdif */
-
+		ctl = kirkwood_i2s_play_mute(ctl);
 		value = ctl & ~KIRKWOOD_PLAYCTL_ENABLE_MASK;
 		writel(value, priv->io + KIRKWOOD_PLAYCTL);
 
 		/* enable interrupts */
-		value = readl(priv->io + KIRKWOOD_INT_MASK);
-		value |= KIRKWOOD_INT_CAUSE_PLAY_BYTES;
-		writel(value, priv->io + KIRKWOOD_INT_MASK);
+		if (!runtime->no_period_wakeup) {
+			value = readl(priv->io + KIRKWOOD_INT_MASK);
+			value |= KIRKWOOD_INT_CAUSE_PLAY_BYTES;
+			writel(value, priv->io + KIRKWOOD_INT_MASK);
+		}
 
 		/* enable playback */
 		writel(ctl, priv->io + KIRKWOOD_PLAYCTL);
@@ -295,6 +308,7 @@ static int kirkwood_i2s_play_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		ctl &= ~(KIRKWOOD_PLAYCTL_PAUSE | KIRKWOOD_PLAYCTL_I2S_MUTE |
 				KIRKWOOD_PLAYCTL_SPDIF_MUTE);
+		ctl = kirkwood_i2s_play_mute(ctl);
 		writel(ctl, priv->io + KIRKWOOD_PLAYCTL);
 		break;
 
@@ -322,8 +336,7 @@ static int kirkwood_i2s_rec_trigger(struct snd_pcm_substream *substream,
 		else
 			ctl &= ~KIRKWOOD_RECCTL_I2S_EN;		/* spdif */
 
-		value = ctl & ~(KIRKWOOD_RECCTL_I2S_EN |
-				KIRKWOOD_RECCTL_SPDIF_EN);
+		value = ctl & ~KIRKWOOD_RECCTL_ENABLE_MASK;
 		writel(value, priv->io + KIRKWOOD_RECCTL);
 
 		/* enable interrupts */
@@ -347,7 +360,7 @@ static int kirkwood_i2s_rec_trigger(struct snd_pcm_substream *substream,
 
 		/* disable all records */
 		value = readl(priv->io + KIRKWOOD_RECCTL);
-		value &= ~(KIRKWOOD_RECCTL_I2S_EN | KIRKWOOD_RECCTL_SPDIF_EN);
+		value &= ~KIRKWOOD_RECCTL_ENABLE_MASK;
 		writel(value, priv->io + KIRKWOOD_RECCTL);
 		break;
 
@@ -411,7 +424,7 @@ static int kirkwood_i2s_init(struct kirkwood_dma_data *priv)
 	writel(value, priv->io + KIRKWOOD_PLAYCTL);
 
 	value = readl(priv->io + KIRKWOOD_RECCTL);
-	value &= ~(KIRKWOOD_RECCTL_I2S_EN | KIRKWOOD_RECCTL_SPDIF_EN);
+	value &= ~KIRKWOOD_RECCTL_ENABLE_MASK;
 	writel(value, priv->io + KIRKWOOD_RECCTL);
 
 	return 0;
@@ -566,7 +579,7 @@ static int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 		if (PTR_ERR(priv->extclk) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 	} else {
-		if (priv->extclk == priv->clk) {
+		if (clk_is_match(priv->extclk, priv->clk)) {
 			devm_clk_put(&pdev->dev, priv->extclk);
 			priv->extclk = ERR_PTR(-EINVAL);
 		} else {
@@ -630,9 +643,10 @@ static int kirkwood_i2s_dev_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id mvebu_audio_of_match[] = {
+static const struct of_device_id mvebu_audio_of_match[] = {
 	{ .compatible = "marvell,kirkwood-audio" },
 	{ .compatible = "marvell,dove-audio" },
+	{ .compatible = "marvell,armada370-audio" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mvebu_audio_of_match);
@@ -643,7 +657,6 @@ static struct platform_driver kirkwood_i2s_driver = {
 	.remove = kirkwood_i2s_dev_remove,
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(mvebu_audio_of_match),
 	},
 };

@@ -3,7 +3,7 @@ CPU cooling APIs How To
 
 Written by Amit Daniel Kachhap <amit.kachhap@linaro.org>
 
-Updated: 12 May 2012
+Updated: 6 Jan 2015
 
 Copyright (c)  2012 Samsung Electronics Co., Ltd(http://www.samsung.com)
 
@@ -25,7 +25,18 @@ the user. The registration APIs returns the cooling device pointer.
 
    clip_cpus: cpumask of cpus where the frequency constraints will happen.
 
-1.1.2 void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
+1.1.2 struct thermal_cooling_device *of_cpufreq_cooling_register(
+	struct device_node *np, const struct cpumask *clip_cpus)
+
+    This interface function registers the cpufreq cooling device with
+    the name "thermal-cpufreq-%x" linking it with a device tree node, in
+    order to bind it via the thermal DT code. This api can support multiple
+    instances of cpufreq cooling devices.
+
+    np: pointer to the cooling device device tree node
+    clip_cpus: cpumask of cpus where the frequency constraints will happen.
+
+1.1.3 void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 
     This interface function unregisters the "thermal-cpufreq-%x" cooling device.
 

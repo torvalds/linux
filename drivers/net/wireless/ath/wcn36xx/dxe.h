@@ -28,11 +28,11 @@ H2H_TEST_RX_TX = DMA2
 */
 
 /* DXE registers */
-#define WCN36XX_DXE_MEM_BASE			0x03000000
 #define WCN36XX_DXE_MEM_REG			0x202000
 
 #define WCN36XX_DXE_CCU_INT			0xA0011
-#define WCN36XX_DXE_REG_CCU_INT			0x200b10
+#define WCN36XX_DXE_REG_CCU_INT_3660		0x200b10
+#define WCN36XX_DXE_REG_CCU_INT_3680		0x2050dc
 
 /* TODO This must calculated properly but not hardcoded */
 #define WCN36XX_DXE_CTRL_TX_L			0x328a44

@@ -262,8 +262,10 @@ void __kvm_migrate_pit_timer(struct kvm_vcpu *vcpu)
 		return;
 
 	timer = &pit->pit_state.timer;
+	mutex_lock(&pit->pit_state.lock);
 	if (hrtimer_cancel(timer))
 		hrtimer_start_expires(timer, HRTIMER_MODE_ABS);
+	mutex_unlock(&pit->pit_state.lock);
 }
 
 static void destroy_pit_timer(struct kvm_pit *pit)
@@ -441,7 +443,8 @@ static inline int pit_in_range(gpa_t addr)
 		(addr < KVM_PIT_BASE_ADDRESS + KVM_PIT_MEM_LENGTH));
 }
 
-static int pit_ioport_write(struct kvm_io_device *this,
+static int pit_ioport_write(struct kvm_vcpu *vcpu,
+				struct kvm_io_device *this,
 			    gpa_t addr, int len, const void *data)
 {
 	struct kvm_pit *pit = dev_to_pit(this);
@@ -517,7 +520,8 @@ static int pit_ioport_write(struct kvm_io_device *this,
 	return 0;
 }
 
-static int pit_ioport_read(struct kvm_io_device *this,
+static int pit_ioport_read(struct kvm_vcpu *vcpu,
+			   struct kvm_io_device *this,
 			   gpa_t addr, int len, void *data)
 {
 	struct kvm_pit *pit = dev_to_pit(this);
@@ -587,7 +591,8 @@ static int pit_ioport_read(struct kvm_io_device *this,
 	return 0;
 }
 
-static int speaker_ioport_write(struct kvm_io_device *this,
+static int speaker_ioport_write(struct kvm_vcpu *vcpu,
+				struct kvm_io_device *this,
 				gpa_t addr, int len, const void *data)
 {
 	struct kvm_pit *pit = speaker_to_pit(this);
@@ -604,8 +609,9 @@ static int speaker_ioport_write(struct kvm_io_device *this,
 	return 0;
 }
 
-static int speaker_ioport_read(struct kvm_io_device *this,
-			       gpa_t addr, int len, void *data)
+static int speaker_ioport_read(struct kvm_vcpu *vcpu,
+				   struct kvm_io_device *this,
+				   gpa_t addr, int len, void *data)
 {
 	struct kvm_pit *pit = speaker_to_pit(this);
 	struct kvm_kpit_state *pit_state = &pit->pit_state;

@@ -633,7 +633,6 @@ ltq_etop_init(struct net_device *dev)
 	int err;
 	bool random_mac = false;
 
-	ether_setup(dev);
 	dev->watchdog_timeo = 10 * HZ;
 	err = ltq_etop_hw_init(dev);
 	if (err)
@@ -790,7 +789,6 @@ static struct platform_driver ltq_mii_driver = {
 	.remove = ltq_etop_remove,
 	.driver = {
 		.name = "ltq_etop",
-		.owner = THIS_MODULE,
 	},
 };
 

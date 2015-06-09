@@ -49,7 +49,7 @@ __be32 nfs4_callback_getattr(struct cb_getattrargs *args,
 		goto out_iput;
 	res->size = i_size_read(inode);
 	res->change_attr = delegation->change_attr;
-	if (nfsi->npages != 0)
+	if (nfsi->nrequests != 0)
 		res->change_attr++;
 	res->ctime = inode->i_ctime;
 	res->mtime = inode->i_mtime;
@@ -112,7 +112,8 @@ out:
  * TODO: keep track of all layouts (and delegations) in a hash table
  * hashed by filehandle.
  */
-static struct pnfs_layout_hdr * get_layout_by_fh_locked(struct nfs_client *clp, struct nfs_fh *fh)
+static struct pnfs_layout_hdr * get_layout_by_fh_locked(struct nfs_client *clp,
+		struct nfs_fh *fh, nfs4_stateid *stateid)
 {
 	struct nfs_server *server;
 	struct inode *ino;
@@ -120,17 +121,19 @@ static struct pnfs_layout_hdr * get_layout_by_fh_locked(struct nfs_client *clp, 
 
 	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link) {
 		list_for_each_entry(lo, &server->layouts, plh_layouts) {
+			if (!nfs4_stateid_match_other(&lo->plh_stateid, stateid))
+				continue;
 			if (nfs_compare_fh(fh, &NFS_I(lo->plh_inode)->fh))
 				continue;
 			ino = igrab(lo->plh_inode);
 			if (!ino)
-				continue;
+				break;
 			spin_lock(&ino->i_lock);
 			/* Is this layout in the process of being freed? */
 			if (NFS_I(ino)->layout != lo) {
 				spin_unlock(&ino->i_lock);
 				iput(ino);
-				continue;
+				break;
 			}
 			pnfs_get_layout_hdr(lo);
 			spin_unlock(&ino->i_lock);
@@ -141,13 +144,14 @@ static struct pnfs_layout_hdr * get_layout_by_fh_locked(struct nfs_client *clp, 
 	return NULL;
 }
 
-static struct pnfs_layout_hdr * get_layout_by_fh(struct nfs_client *clp, struct nfs_fh *fh)
+static struct pnfs_layout_hdr * get_layout_by_fh(struct nfs_client *clp,
+		struct nfs_fh *fh, nfs4_stateid *stateid)
 {
 	struct pnfs_layout_hdr *lo;
 
 	spin_lock(&clp->cl_lock);
 	rcu_read_lock();
-	lo = get_layout_by_fh_locked(clp, fh);
+	lo = get_layout_by_fh_locked(clp, fh, stateid);
 	rcu_read_unlock();
 	spin_unlock(&clp->cl_lock);
 
@@ -162,23 +166,36 @@ static u32 initiate_file_draining(struct nfs_client *clp,
 	u32 rv = NFS4ERR_NOMATCHING_LAYOUT;
 	LIST_HEAD(free_me_list);
 
-	lo = get_layout_by_fh(clp, &args->cbl_fh);
+	lo = get_layout_by_fh(clp, &args->cbl_fh, &args->cbl_stateid);
 	if (!lo)
-		return NFS4ERR_NOMATCHING_LAYOUT;
+		goto out;
 
 	ino = lo->plh_inode;
+
+	spin_lock(&ino->i_lock);
+	pnfs_set_layout_stateid(lo, &args->cbl_stateid, true);
+	spin_unlock(&ino->i_lock);
+
+	pnfs_layoutcommit_inode(ino, false);
+
 	spin_lock(&ino->i_lock);
 	if (test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags) ||
 	    pnfs_mark_matching_lsegs_invalid(lo, &free_me_list,
-					&args->cbl_range))
+					&args->cbl_range)) {
 		rv = NFS4ERR_DELAY;
-	else
-		rv = NFS4ERR_NOMATCHING_LAYOUT;
-	pnfs_set_layout_stateid(lo, &args->cbl_stateid, true);
+		goto unlock;
+	}
+
+	if (NFS_SERVER(ino)->pnfs_curr_ld->return_range) {
+		NFS_SERVER(ino)->pnfs_curr_ld->return_range(lo,
+			&args->cbl_range);
+	}
+unlock:
 	spin_unlock(&ino->i_lock);
 	pnfs_free_lseg_list(&free_me_list);
 	pnfs_put_layout_hdr(lo);
 	iput(ino);
+out:
 	return rv;
 }
 
@@ -272,9 +289,6 @@ __be32 nfs4_callback_devicenotify(struct cb_devicenotifyargs *args,
 		}
 
 	found:
-		if (dev->cbd_notify_type == NOTIFY_DEVICEID4_CHANGE)
-			dprintk("%s: NOTIFY_DEVICEID4_CHANGE not supported, "
-				"deleting instead\n", __func__);
 		nfs4_delete_deviceid(server->pnfs_curr_ld, clp, &dev->cbd_dev_id);
 	}
 
@@ -413,6 +427,8 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 	if (clp == NULL)
 		goto out;
 
+	if (!(clp->cl_session->flags & SESSION4_BACK_CHAN))
+		goto out;
 	tbl = &clp->cl_session->bc_slot_table;
 
 	spin_lock(&tbl->slot_tbl_lock);

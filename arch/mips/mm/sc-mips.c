@@ -76,9 +76,12 @@ static inline int mips_sc_is_activated(struct cpuinfo_mips *c)
 	case CPU_34K:
 	case CPU_74K:
 	case CPU_1004K:
+	case CPU_1074K:
 	case CPU_INTERAPTIV:
 	case CPU_PROAPTIV:
+	case CPU_P5600:
 	case CPU_BMIPS5000:
+	case CPU_QEMU_GENERIC:
 		if (config2 & (1 << 12))
 			return 0;
 	}
@@ -102,7 +105,8 @@ static inline int __init mips_sc_probe(void)
 
 	/* Ignore anything but MIPSxx processors */
 	if (!(c->isa_level & (MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M32R2 |
-			      MIPS_CPU_ISA_M64R1 | MIPS_CPU_ISA_M64R2)))
+			      MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R1 |
+			      MIPS_CPU_ISA_M64R2 | MIPS_CPU_ISA_M64R6)))
 		return 0;
 
 	/* Does this MIPS32/MIPS64 CPU have a config2 register? */

@@ -46,7 +46,7 @@ static int restore_sigcontext(struct pt_regs *regs,
 	int err = 0;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_no_restart_syscall;
 
 	/*
 	 * Restore the regs from &sc->regs.
@@ -132,29 +132,15 @@ static inline unsigned long align_sigframe(unsigned long sp)
  * or the alternate stack.
  */
 
-static inline void __user *get_sigframe(struct k_sigaction *ka,
+static inline void __user *get_sigframe(struct ksignal *ksig,
 					struct pt_regs *regs, size_t frame_size)
 {
 	unsigned long sp = regs->sp;
-	int onsigstack = on_sig_stack(sp);
 
 	/* redzone */
 	sp -= STACK_FRAME_OVERHEAD;
-
-	/* This is the X/Open sanctioned signal stack switching.  */
-	if ((ka->sa.sa_flags & SA_ONSTACK) && !onsigstack) {
-		if (current->sas_ss_size)
-			sp = current->sas_ss_sp + current->sas_ss_size;
-	}
-
+	sp = sigsp(sp, ksig);
 	sp = align_sigframe(sp - frame_size);
-
-	/*
-	 * If we are on the alternate signal stack and would overflow it, don't.
-	 * Return an always-bogus address instead so we will die with SIGSEGV.
-	 */
-	if (onsigstack && !likely(on_sig_stack(sp)))
-		return (void __user *)-1L;
 
 	return (void __user *)sp;
 }
@@ -173,7 +159,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	unsigned long return_ip;
 	int err = 0;
 
-	frame = get_sigframe(&ksig->ka, regs, sizeof(*frame));
+	frame = get_sigframe(ksig, regs, sizeof(*frame));
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		return -EFAULT;
@@ -206,8 +192,6 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 
 	if (err)
 		return -EFAULT;
-
-	/* TODO what is the current->exec_domain stuff and invmap ? */
 
 	/* Set up registers for signal handler */
 	regs->pc = (unsigned long)ksig->ka.sa.sa_handler; /* what we enter NOW */

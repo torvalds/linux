@@ -22,8 +22,11 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/clk/tegra.h>
-#include <linux/tegra-powergate.h>
+
+#include <soc/tegra/pmc.h>
+
 #include <dt-bindings/clock/tegra30-car.h>
+
 #include "clk.h"
 #include "clk-id.h"
 
@@ -174,6 +177,7 @@ static unsigned long input_freq;
 
 static DEFINE_SPINLOCK(cml_lock);
 static DEFINE_SPINLOCK(pll_d_lock);
+static DEFINE_SPINLOCK(emc_lock);
 
 #define TEGRA_INIT_DATA_MUX(_name, _parents, _offset,	\
 			    _clk_num, _gate_flags, _clk_id)	\
@@ -653,16 +657,16 @@ static struct tegra_devclk devclks[] __initdata = {
 	{ .con_id = "fuse_burn", .dev_id = "fuse-tegra", .dt_id = TEGRA30_CLK_FUSE_BURN },
 	{ .con_id = "apbif", .dev_id = "tegra30-ahub", .dt_id = TEGRA30_CLK_APBIF },
 	{ .con_id = "hda2hdmi", .dev_id = "tegra30-hda", .dt_id = TEGRA30_CLK_HDA2HDMI },
-	{ .dev_id =  "tegra-apbdma", .dt_id = TEGRA30_CLK_APBDMA },
-	{ .dev_id =  "rtc-tegra", .dt_id = TEGRA30_CLK_RTC },
-	{ .dev_id =  "timer", .dt_id = TEGRA30_CLK_TIMER },
-	{ .dev_id =  "tegra-kbc", .dt_id = TEGRA30_CLK_KBC },
-	{ .dev_id =  "fsl-tegra-udc", .dt_id = TEGRA30_CLK_USBD },
-	{ .dev_id =  "tegra-ehci.1", .dt_id = TEGRA30_CLK_USB2 },
-	{ .dev_id =  "tegra-ehci.2", .dt_id = TEGRA30_CLK_USB2 },
-	{ .dev_id =  "kfuse-tegra", .dt_id = TEGRA30_CLK_KFUSE },
-	{ .dev_id =  "tegra_sata_cold", .dt_id = TEGRA30_CLK_SATA_COLD },
-	{ .dev_id =  "dtv", .dt_id = TEGRA30_CLK_DTV },
+	{ .dev_id = "tegra-apbdma", .dt_id = TEGRA30_CLK_APBDMA },
+	{ .dev_id = "rtc-tegra", .dt_id = TEGRA30_CLK_RTC },
+	{ .dev_id = "timer", .dt_id = TEGRA30_CLK_TIMER },
+	{ .dev_id = "tegra-kbc", .dt_id = TEGRA30_CLK_KBC },
+	{ .dev_id = "fsl-tegra-udc", .dt_id = TEGRA30_CLK_USBD },
+	{ .dev_id = "tegra-ehci.1", .dt_id = TEGRA30_CLK_USB2 },
+	{ .dev_id = "tegra-ehci.2", .dt_id = TEGRA30_CLK_USB2 },
+	{ .dev_id = "kfuse-tegra", .dt_id = TEGRA30_CLK_KFUSE },
+	{ .dev_id = "tegra_sata_cold", .dt_id = TEGRA30_CLK_SATA_COLD },
+	{ .dev_id = "dtv", .dt_id = TEGRA30_CLK_DTV },
 	{ .dev_id = "tegra30-i2s.0", .dt_id = TEGRA30_CLK_I2S0 },
 	{ .dev_id = "tegra30-i2s.1", .dt_id = TEGRA30_CLK_I2S1 },
 	{ .dev_id = "tegra30-i2s.2", .dt_id = TEGRA30_CLK_I2S2 },
@@ -1154,10 +1158,14 @@ static void __init tegra30_periph_clk_init(void)
 			       ARRAY_SIZE(mux_pllmcp_clkm),
 			       CLK_SET_RATE_NO_REPARENT,
 			       clk_base + CLK_SOURCE_EMC,
-			       30, 2, 0, NULL);
+			       30, 2, 0, &emc_lock);
 	clk = tegra_clk_register_periph_gate("emc", "emc_mux", 0, clk_base, 0,
 				    57, periph_clk_enb_refcnt);
 	clks[TEGRA30_CLK_EMC] = clk;
+
+	clk = tegra_clk_register_mc("mc", "emc_mux", clk_base + CLK_SOURCE_EMC,
+				    &emc_lock);
+	clks[TEGRA30_CLK_MC] = clk;
 
 	/* cml0 */
 	clk = clk_register_gate(NULL, "cml0", "pll_e", 0, clk_base + PLLE_AUX,
@@ -1426,7 +1434,8 @@ static void __init tegra30_clock_init(struct device_node *np)
 		return;
 
 	if (tegra_osc_clk_init(clk_base, tegra30_clks, tegra30_input_freq,
-		ARRAY_SIZE(tegra30_input_freq), &input_freq, NULL) < 0)
+			       ARRAY_SIZE(tegra30_input_freq), 1, &input_freq,
+			       NULL) < 0)
 		return;
 
 

@@ -233,7 +233,7 @@ static int tegra_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 	}
 
-	ret = gpio_lock_as_irq(&tegra_gpio_chip, gpio);
+	ret = gpiochip_lock_as_irq(&tegra_gpio_chip, gpio);
 	if (ret) {
 		dev_err(dev, "unable to lock Tegra GPIO %d as IRQ\n", gpio);
 		return ret;
@@ -263,7 +263,7 @@ static void tegra_gpio_irq_shutdown(struct irq_data *d)
 {
 	int gpio = d->hwirq;
 
-	gpio_unlock_as_irq(&tegra_gpio_chip, gpio);
+	gpiochip_unlock_as_irq(&tegra_gpio_chip, gpio);
 }
 
 static void tegra_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
@@ -408,7 +408,7 @@ static struct tegra_gpio_soc_config tegra30_gpio_config = {
 	.upper_offset = 0x80,
 };
 
-static struct of_device_id tegra_gpio_of_match[] = {
+static const struct of_device_id tegra_gpio_of_match[] = {
 	{ .compatible = "nvidia,tegra30-gpio", .data = &tegra30_gpio_config },
 	{ .compatible = "nvidia,tegra20-gpio", .data = &tegra20_gpio_config },
 	{ },
@@ -458,10 +458,8 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	tegra_gpio_banks = devm_kzalloc(&pdev->dev,
 			tegra_gpio_bank_count * sizeof(*tegra_gpio_banks),
 			GFP_KERNEL);
-	if (!tegra_gpio_banks) {
-		dev_err(&pdev->dev, "Couldn't allocate bank structure\n");
+	if (!tegra_gpio_banks)
 		return -ENODEV;
-	}
 
 	irq_domain = irq_domain_add_linear(pdev->dev.of_node,
 					   tegra_gpio_chip.ngpio,
@@ -530,7 +528,6 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 static struct platform_driver tegra_gpio_driver = {
 	.driver		= {
 		.name	= "tegra-gpio",
-		.owner	= THIS_MODULE,
 		.pm	= &tegra_gpio_pm_ops,
 		.of_match_table = tegra_gpio_of_match,
 	},

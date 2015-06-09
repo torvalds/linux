@@ -21,8 +21,8 @@ running a Linux kernel.  Also, not all tools are necessary on all
 systems; obviously, if you don't have any ISDN hardware, for example,
 you probably needn't concern yourself with isdn4k-utils.
 
-o  Gnu C                  3.2                     # gcc --version
-o  Gnu make               3.80                    # make --version
+o  GNU C                  3.2                     # gcc --version
+o  GNU make               3.80                    # make --version
 o  binutils               2.12                    # ld -v
 o  util-linux             2.10o                   # fdformat --version
 o  module-init-tools      0.9.10                  # depmod -V
@@ -57,7 +57,7 @@ computer.
 Make
 ----
 
-You will need Gnu make 3.80 or later to build the kernel.
+You will need GNU make 3.80 or later to build the kernel.
 
 Binutils
 --------
@@ -72,6 +72,11 @@ Perl
 
 You will need perl 5 and the following modules: Getopt::Long, Getopt::Std,
 File::Basename, and File::Find to build the kernel.
+
+BC
+--
+
+You will need bc to build kernels 3.10 and higher
 
 
 System utilities
@@ -162,17 +167,10 @@ later is recommended, due to some significant improvements).
 PCMCIAutils
 -----------
 
-PCMCIAutils replaces pcmcia-cs (see below). It properly sets up
+PCMCIAutils replaces pcmcia-cs. It properly sets up
 PCMCIA sockets at system startup and loads the appropriate modules
 for 16-bit PCMCIA devices if the kernel is modularized and the hotplug
 subsystem is used.
-
-Pcmcia-cs
----------
-
-PCMCIA (PC Card) support is now partially implemented in the main
-kernel source. The "pcmciautils" package (see above) replaces pcmcia-cs
-for newest kernels.
 
 Quota-tools
 -----------
@@ -275,12 +273,9 @@ that is possible.
 mcelog
 ------
 
-In Linux 2.6.31+ the i386 kernel needs to run the mcelog utility
-as a regular cronjob similar to the x86-64 kernel to process and log
-machine check events when CONFIG_X86_NEW_MCE is enabled. Machine check
-events are errors reported by the CPU. Processing them is strongly encouraged.
-All x86-64 kernels since 2.6.4 require the mcelog utility to
-process machine checks.
+On x86 kernels the mcelog utility is needed to process and log machine check
+events when CONFIG_X86_MCE is enabled. Machine check events are errors reported
+by the CPU. Processing them is strongly encouraged.
 
 Getting updated software
 ========================
@@ -339,17 +334,13 @@ Pcmciautils
 -----------
 o  <ftp://ftp.kernel.org/pub/linux/utils/kernel/pcmcia/>
 
-Pcmcia-cs
----------
-o  <http://pcmcia-cs.sourceforge.net/>
-
 Quota-tools
 ----------
 o  <http://sourceforge.net/projects/linuxquota/>
 
 DocBook Stylesheets
 -------------------
-o  <http://nwalsh.com/docbook/dsssl/>
+o  <http://sourceforge.net/projects/docbook/files/docbook-dsssl/>
 
 XMLTO XSLT Frontend
 -------------------
@@ -357,11 +348,11 @@ o  <http://cyberelk.net/tim/xmlto/>
 
 Intel P6 microcode
 ------------------
-o  <http://www.urbanmyth.org/microcode/>
+o  <https://downloadcenter.intel.com/>
 
 udev
 ----
-o <http://www.kernel.org/pub/linux/utils/kernel/hotplug/udev.html>
+o <http://www.freedesktop.org/software/systemd/man/udev.html>
 
 FUSE
 ----
@@ -369,7 +360,7 @@ o <http://sourceforge.net/projects/fuse>
 
 mcelog
 ------
-o <ftp://ftp.kernel.org/pub/linux/utils/cpu/mce/>
+o <http://www.mcelog.org/>
 
 Networking
 **********
@@ -392,7 +383,7 @@ o  <http://www.iptables.org/downloads.html>
 
 Ip-route2
 ---------
-o  <ftp://ftp.tux.org/pub/net/ip-routing/iproute2-2.2.4-now-ss991023.tar.gz>
+o  <https://www.kernel.org/pub/linux/utils/net/iproute2/>
 
 OProfile
 --------

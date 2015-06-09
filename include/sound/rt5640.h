@@ -16,6 +16,10 @@ struct rt5640_platform_data {
 	bool in1_diff;
 	bool in2_diff;
 
+	bool dmic_en;
+	bool dmic1_data_pin; /* 0 = IN1P; 1 = GPIO3 */
+	bool dmic2_data_pin; /* 0 = IN1N; 1 = GPIO4 */
+
 	int ldo1_en; /* GPIO for LDO1_EN */
 };
 

@@ -43,6 +43,7 @@ pgd_t swapper_pg_dir[PTRS_PER_PGD] __attribute__((__aligned__(PAGE_SIZE)));
 
 unsigned long empty_zero_page, zero_page_mask;
 EXPORT_SYMBOL(empty_zero_page);
+EXPORT_SYMBOL(zero_page_mask);
 
 static void __init setup_zero_pages(void)
 {
@@ -70,13 +71,16 @@ static void __init setup_zero_pages(void)
 		break;
 	case 0x2827:	/* zEC12 */
 	case 0x2828:	/* zEC12 */
-	default:
 		order = 5;
+		break;
+	case 0x2964:	/* z13 */
+	default:
+		order = 7;
 		break;
 	}
 	/* Limit number of empty zero pages for small memory sizes */
-	if (order > 2 && totalram_pages <= 16384)
-		order = 2;
+	while (order > 2 && (totalram_pages >> 10) < (1UL << order))
+		order--;
 
 	empty_zero_page = __get_free_pages(GFP_KERNEL | __GFP_ZERO, order);
 	if (!empty_zero_page)
@@ -101,7 +105,6 @@ void __init paging_init(void)
 	unsigned long pgd_type, asce_bits;
 
 	init_mm.pgd = swapper_pg_dir;
-#ifdef CONFIG_64BIT
 	if (VMALLOC_END > (1UL << 42)) {
 		asce_bits = _ASCE_TYPE_REGION2 | _ASCE_TABLE_LENGTH;
 		pgd_type = _REGION2_ENTRY_EMPTY;
@@ -109,10 +112,6 @@ void __init paging_init(void)
 		asce_bits = _ASCE_TYPE_REGION3 | _ASCE_TABLE_LENGTH;
 		pgd_type = _REGION3_ENTRY_EMPTY;
 	}
-#else
-	asce_bits = _ASCE_TABLE_LENGTH;
-	pgd_type = _SEGMENT_ENTRY_EMPTY;
-#endif
 	S390_lowcore.kernel_asce = (__pa(init_mm.pgd) & PAGE_MASK) | asce_bits;
 	clear_table((unsigned long *) init_mm.pgd, pgd_type,
 		    sizeof(unsigned long)*2048);
@@ -124,8 +123,6 @@ void __init paging_init(void)
 	__ctl_load(S390_lowcore.kernel_asce, 13, 13);
 	arch_local_irq_restore(4UL << (BITS_PER_LONG - 8));
 
-	atomic_set(&init_mm.context.attach_count, 1);
-
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
@@ -136,6 +133,11 @@ void __init paging_init(void)
 
 void __init mem_init(void)
 {
+	if (MACHINE_HAS_TLB_LC)
+		cpumask_set_cpu(0, &init_mm.context.cpu_attach_mask);
+	cpumask_set_cpu(0, mm_cpumask(&init_mm));
+	atomic_set(&init_mm.context.attach_count, 1);
+
         max_mapnr = max_low_pfn;
         high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
 

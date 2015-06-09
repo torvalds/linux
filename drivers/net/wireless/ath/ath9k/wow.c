@@ -16,36 +16,43 @@
 
 #include "ath9k.h"
 
-static const struct wiphy_wowlan_support ath9k_wowlan_support = {
+static const struct wiphy_wowlan_support ath9k_wowlan_support_legacy = {
 	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT,
 	.n_patterns = MAX_NUM_USER_PATTERN,
 	.pattern_min_len = 1,
 	.pattern_max_len = MAX_PATTERN_SIZE,
 };
 
-static void ath9k_wow_map_triggers(struct ath_softc *sc,
-				   struct cfg80211_wowlan *wowlan,
-				   u32 *wow_triggers)
+static const struct wiphy_wowlan_support ath9k_wowlan_support = {
+	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT,
+	.n_patterns = MAX_NUM_PATTERN - 2,
+	.pattern_min_len = 1,
+	.pattern_max_len = MAX_PATTERN_SIZE,
+};
+
+static u8 ath9k_wow_map_triggers(struct ath_softc *sc,
+				 struct cfg80211_wowlan *wowlan)
 {
+	u8 wow_triggers = 0;
+
 	if (wowlan->disconnect)
-		*wow_triggers |= AH_WOW_LINK_CHANGE |
-				 AH_WOW_BEACON_MISS;
+		wow_triggers |= AH_WOW_LINK_CHANGE |
+				AH_WOW_BEACON_MISS;
 	if (wowlan->magic_pkt)
-		*wow_triggers |= AH_WOW_MAGIC_PATTERN_EN;
+		wow_triggers |= AH_WOW_MAGIC_PATTERN_EN;
 
 	if (wowlan->n_patterns)
-		*wow_triggers |= AH_WOW_USER_PATTERN_EN;
+		wow_triggers |= AH_WOW_USER_PATTERN_EN;
 
-	sc->wow_enabled = *wow_triggers;
-
+	return wow_triggers;
 }
 
-static void ath9k_wow_add_disassoc_deauth_pattern(struct ath_softc *sc)
+static int ath9k_wow_add_disassoc_deauth_pattern(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	int pattern_count = 0;
-	int i, byte_cnt;
+	int ret, i, byte_cnt = 0;
 	u8 dis_deauth_pattern[MAX_PATTERN_SIZE];
 	u8 dis_deauth_mask[MAX_PATTERN_SIZE];
 
@@ -80,12 +87,7 @@ static void ath9k_wow_add_disassoc_deauth_pattern(struct ath_softc *sc)
 	 *			    | x:x:x:x:x:x  -- 22 bytes
 	 */
 
-	/* Create Disassociate Pattern first */
-
-	byte_cnt = 0;
-
 	/* Fill out the mask with all FF's */
-
 	for (i = 0; i < MAX_PATTERN_MASK_SIZE; i++)
 		dis_deauth_mask[i] = 0xff;
 
@@ -108,19 +110,17 @@ static void ath9k_wow_add_disassoc_deauth_pattern(struct ath_softc *sc)
 	byte_cnt += 6;
 
 	/* copy the bssid, its same as the source mac address */
-
 	memcpy((dis_deauth_pattern + byte_cnt), common->curbssid, ETH_ALEN);
 
 	/* Create Disassociate pattern mask */
-
 	dis_deauth_mask[0] = 0xfe;
 	dis_deauth_mask[1] = 0x03;
 	dis_deauth_mask[2] = 0xc0;
 
-	ath_dbg(common, WOW, "Adding disassoc/deauth patterns for WoW\n");
-
-	ath9k_hw_wow_apply_pattern(ah, dis_deauth_pattern, dis_deauth_mask,
-				   pattern_count, byte_cnt);
+	ret = ath9k_hw_wow_apply_pattern(ah, dis_deauth_pattern, dis_deauth_mask,
+					 pattern_count, byte_cnt);
+	if (ret)
+		goto exit;
 
 	pattern_count++;
 	/*
@@ -129,59 +129,39 @@ static void ath9k_wow_add_disassoc_deauth_pattern(struct ath_softc *sc)
 	 */
 	dis_deauth_pattern[0] = 0xC0;
 
-	ath9k_hw_wow_apply_pattern(ah, dis_deauth_pattern, dis_deauth_mask,
-				   pattern_count, byte_cnt);
-
+	ret = ath9k_hw_wow_apply_pattern(ah, dis_deauth_pattern, dis_deauth_mask,
+					 pattern_count, byte_cnt);
+exit:
+	return ret;
 }
 
-static void ath9k_wow_add_pattern(struct ath_softc *sc,
-				  struct cfg80211_wowlan *wowlan)
+static int ath9k_wow_add_pattern(struct ath_softc *sc,
+				 struct cfg80211_wowlan *wowlan)
 {
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath9k_wow_pattern *wow_pattern = NULL;
 	struct cfg80211_pkt_pattern *patterns = wowlan->patterns;
-	int mask_len;
+	u8 wow_pattern[MAX_PATTERN_SIZE];
+	u8 wow_mask[MAX_PATTERN_SIZE];
+	int mask_len, ret = 0;
 	s8 i = 0;
 
-	if (!wowlan->n_patterns)
-		return;
-
-	/*
-	 * Add the new user configured patterns
-	 */
 	for (i = 0; i < wowlan->n_patterns; i++) {
+		mask_len = DIV_ROUND_UP(patterns[i].pattern_len, 8);
+		memset(wow_pattern, 0, MAX_PATTERN_SIZE);
+		memset(wow_mask, 0, MAX_PATTERN_SIZE);
+		memcpy(wow_pattern, patterns[i].pattern, patterns[i].pattern_len);
+		memcpy(wow_mask, patterns[i].mask, mask_len);
 
-		wow_pattern = kzalloc(sizeof(*wow_pattern), GFP_KERNEL);
-
-		if (!wow_pattern)
-			return;
-
-		/*
-		 * TODO: convert the generic user space pattern to
-		 * appropriate chip specific/802.11 pattern.
-		 */
-
-		mask_len = DIV_ROUND_UP(wowlan->patterns[i].pattern_len, 8);
-		memset(wow_pattern->pattern_bytes, 0, MAX_PATTERN_SIZE);
-		memset(wow_pattern->mask_bytes, 0, MAX_PATTERN_SIZE);
-		memcpy(wow_pattern->pattern_bytes, patterns[i].pattern,
-		       patterns[i].pattern_len);
-		memcpy(wow_pattern->mask_bytes, patterns[i].mask, mask_len);
-		wow_pattern->pattern_len = patterns[i].pattern_len;
-
-		/*
-		 * just need to take care of deauth and disssoc pattern,
-		 * make sure we don't overwrite them.
-		 */
-
-		ath9k_hw_wow_apply_pattern(ah, wow_pattern->pattern_bytes,
-					   wow_pattern->mask_bytes,
-					   i + 2,
-					   wow_pattern->pattern_len);
-		kfree(wow_pattern);
-
+		ret = ath9k_hw_wow_apply_pattern(ah,
+						 wow_pattern,
+						 wow_mask,
+						 i + 2,
+						 patterns[i].pattern_len);
+		if (ret)
+			break;
 	}
 
+	return ret;
 }
 
 int ath9k_suspend(struct ieee80211_hw *hw,
@@ -190,56 +170,55 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	u32 wow_triggers_enabled = 0;
+	u8 triggers;
 	int ret = 0;
+
+	ath9k_deinit_channel_context(sc);
 
 	mutex_lock(&sc->mutex);
 
-	ath_cancel_work(sc);
-	ath_stop_ani(sc);
-
-	if (test_bit(SC_OP_INVALID, &sc->sc_flags)) {
-		ath_dbg(common, ANY, "Device not present\n");
-		ret = -EINVAL;
+	if (test_bit(ATH_OP_INVALID, &common->op_flags)) {
+		ath_err(common, "Device not present\n");
+		ret = -ENODEV;
 		goto fail_wow;
 	}
 
 	if (WARN_ON(!wowlan)) {
-		ath_dbg(common, WOW, "None of the WoW triggers enabled\n");
+		ath_err(common, "None of the WoW triggers enabled\n");
 		ret = -EINVAL;
 		goto fail_wow;
 	}
 
-	if (!device_can_wakeup(sc->dev)) {
-		ath_dbg(common, WOW, "device_can_wakeup failed, WoW is not enabled\n");
-		ret = 1;
-		goto fail_wow;
-	}
-
-	/*
-	 * none of the sta vifs are associated
-	 * and we are not currently handling multivif
-	 * cases, for instance we have to seperately
-	 * configure 'keep alive frame' for each
-	 * STA.
-	 */
-
-	if (!test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags)) {
-		ath_dbg(common, WOW, "None of the STA vifs are associated\n");
-		ret = 1;
-		goto fail_wow;
-	}
-
-	if (sc->nvifs > 1) {
+	if (sc->cur_chan->nvifs > 1) {
 		ath_dbg(common, WOW, "WoW for multivif is not yet supported\n");
 		ret = 1;
 		goto fail_wow;
 	}
 
-	ath9k_wow_map_triggers(sc, wowlan, &wow_triggers_enabled);
+	if (ath9k_is_chanctx_enabled()) {
+		if (test_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags)) {
+			ath_dbg(common, WOW,
+				"Multi-channel WOW is not supported\n");
+			ret = 1;
+			goto fail_wow;
+		}
+	}
 
-	ath_dbg(common, WOW, "WoW triggers enabled 0x%x\n",
-		wow_triggers_enabled);
+	if (!test_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags)) {
+		ath_dbg(common, WOW, "None of the STA vifs are associated\n");
+		ret = 1;
+		goto fail_wow;
+	}
+
+	triggers = ath9k_wow_map_triggers(sc, wowlan);
+	if (!triggers) {
+		ath_dbg(common, WOW, "No valid WoW triggers\n");
+		ret = 1;
+		goto fail_wow;
+	}
+
+	ath_cancel_work(sc);
+	ath_stop_ani(sc);
 
 	ath9k_ps_wakeup(sc);
 
@@ -249,10 +228,21 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 	 * Enable wake up on recieving disassoc/deauth
 	 * frame by default.
 	 */
-	ath9k_wow_add_disassoc_deauth_pattern(sc);
+	ret = ath9k_wow_add_disassoc_deauth_pattern(sc);
+	if (ret) {
+		ath_err(common,
+			"Unable to add disassoc/deauth pattern: %d\n", ret);
+		goto fail_wow;
+	}
 
-	if (wow_triggers_enabled & AH_WOW_USER_PATTERN_EN)
-		ath9k_wow_add_pattern(sc, wowlan);
+	if (triggers & AH_WOW_USER_PATTERN_EN) {
+		ret = ath9k_wow_add_pattern(sc, wowlan);
+		if (ret) {
+			ath_err(common,
+				"Unable to add user pattern: %d\n", ret);
+			goto fail_wow;
+		}
+	}
 
 	spin_lock_bh(&sc->sc_pcu_lock);
 	/*
@@ -276,12 +266,12 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 	synchronize_irq(sc->irq);
 	tasklet_kill(&sc->intr_tq);
 
-	ath9k_hw_wow_enable(ah, wow_triggers_enabled);
+	ath9k_hw_wow_enable(ah, triggers);
 
 	ath9k_ps_restore(sc);
-	ath_dbg(common, ANY, "WoW enabled in ath9k\n");
-	atomic_inc(&sc->wow_sleep_proc_intr);
+	ath_dbg(common, WOW, "Suspend with WoW triggers: 0x%x\n", triggers);
 
+	set_bit(ATH_OP_WOW_ENABLED, &common->op_flags);
 fail_wow:
 	mutex_unlock(&sc->mutex);
 	return ret;
@@ -292,7 +282,7 @@ int ath9k_resume(struct ieee80211_hw *hw)
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	u32 wow_status;
+	u8 status;
 
 	mutex_lock(&sc->mutex);
 
@@ -307,28 +297,13 @@ int ath9k_resume(struct ieee80211_hw *hw)
 
 	spin_unlock_bh(&sc->sc_pcu_lock);
 
-	wow_status = ath9k_hw_wow_wakeup(ah);
-
-	if (atomic_read(&sc->wow_got_bmiss_intr) == 0) {
-		/*
-		 * some devices may not pick beacon miss
-		 * as the reason they woke up so we add
-		 * that here for that shortcoming.
-		 */
-		wow_status |= AH_WOW_BEACON_MISS;
-		atomic_dec(&sc->wow_got_bmiss_intr);
-		ath_dbg(common, ANY, "Beacon miss interrupt picked up during WoW sleep\n");
-	}
-
-	atomic_dec(&sc->wow_sleep_proc_intr);
-
-	if (wow_status) {
-		ath_dbg(common, ANY, "Waking up due to WoW triggers %s with WoW status = %x\n",
-			ath9k_hw_wow_event_to_string(wow_status), wow_status);
-	}
+	status = ath9k_hw_wow_wakeup(ah);
+	ath_dbg(common, WOW, "Resume with WoW status: 0x%x\n", status);
 
 	ath_restart_work(sc);
 	ath9k_start_btcoex(sc);
+
+	clear_bit(ATH_OP_WOW_ENABLED, &common->op_flags);
 
 	ath9k_ps_restore(sc);
 	mutex_unlock(&sc->mutex);
@@ -339,22 +314,35 @@ int ath9k_resume(struct ieee80211_hw *hw)
 void ath9k_set_wakeup(struct ieee80211_hw *hw, bool enabled)
 {
 	struct ath_softc *sc = hw->priv;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
 	mutex_lock(&sc->mutex);
-	device_init_wakeup(sc->dev, 1);
 	device_set_wakeup_enable(sc->dev, enabled);
 	mutex_unlock(&sc->mutex);
+
+	ath_dbg(common, WOW, "WoW wakeup source is %s\n",
+		(enabled) ? "enabled" : "disabled");
 }
 
 void ath9k_init_wow(struct ieee80211_hw *hw)
 {
 	struct ath_softc *sc = hw->priv;
+	struct ath_hw *ah = sc->sc_ah;
 
-	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_WOW_DEVICE_CAPABLE) &&
-	    (sc->driver_data & ATH9K_PCI_WOW) &&
-	    device_can_wakeup(sc->dev))
-		hw->wiphy->wowlan = &ath9k_wowlan_support;
+	if ((sc->driver_data & ATH9K_PCI_WOW) || sc->force_wow) {
+		if (AR_SREV_9462_20_OR_LATER(ah) || AR_SREV_9565_11_OR_LATER(ah))
+			hw->wiphy->wowlan = &ath9k_wowlan_support;
+		else
+			hw->wiphy->wowlan = &ath9k_wowlan_support_legacy;
 
-	atomic_set(&sc->wow_sleep_proc_intr, -1);
-	atomic_set(&sc->wow_got_bmiss_intr, -1);
+		device_init_wakeup(sc->dev, 1);
+	}
+}
+
+void ath9k_deinit_wow(struct ieee80211_hw *hw)
+{
+	struct ath_softc *sc = hw->priv;
+
+	if ((sc->driver_data & ATH9K_PCI_WOW) || sc->force_wow)
+		device_init_wakeup(sc->dev, 0);
 }

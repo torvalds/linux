@@ -1,5 +1,6 @@
 #include <dt-bindings/clock/tegra114-car.h>
 #include <dt-bindings/gpio/tegra-gpio.h>
+#include <dt-bindings/memory/tegra114-mc.h>
 #include <dt-bindings/pinctrl/pinctrl-tegra.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
@@ -7,14 +8,7 @@
 
 / {
 	compatible = "nvidia,tegra114";
-	interrupt-parent = <&gic>;
-
-	aliases {
-		serial0 = &uarta;
-		serial1 = &uartb;
-		serial2 = &uartc;
-		serial3 = &uartd;
-	};
+	interrupt-parent = <&lic>;
 
 	host1x@50000000 {
 		compatible = "nvidia,tegra114-host1x", "simple-bus";
@@ -57,6 +51,8 @@
 			resets = <&tegra_car 27>;
 			reset-names = "dc";
 
+			iommus = <&mc TEGRA_SWGROUP_DC>;
+
 			nvidia,head = <0>;
 
 			rgb {
@@ -73,6 +69,8 @@
 			clock-names = "dc", "parent";
 			resets = <&tegra_car 26>;
 			reset-names = "dc";
+
+			iommus = <&mc TEGRA_SWGROUP_DCB>;
 
 			nvidia,head = <1>;
 
@@ -136,6 +134,19 @@
 		      <0x50046000 0x2000>;
 		interrupts = <GIC_PPI 9
 			(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+		interrupt-parent = <&gic>;
+	};
+
+	lic: interrupt-controller@60004000 {
+		compatible = "nvidia,tegra114-ictlr", "nvidia,tegra30-ictlr";
+		reg = <0x60004000 0x100>,
+		      <0x60004100 0x50>,
+		      <0x60004200 0x50>,
+		      <0x60004300 0x50>,
+		      <0x60004400 0x50>;
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		interrupt-parent = <&gic>;
 	};
 
 	timer@60005000 {
@@ -155,6 +166,11 @@
 		reg = <0x60006000 0x1000>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
+	};
+
+	flow-controller@60007000 {
+		compatible = "nvidia,tegra114-flowctrl";
+		reg = <0x60007000 0x1000>;
 	};
 
 	apbdma: dma@6000a000 {
@@ -218,6 +234,12 @@
 		gpio-controller;
 		#interrupt-cells = <2>;
 		interrupt-controller;
+	};
+
+	apbmisc@70000800 {
+		compatible = "nvidia,tegra114-apbmisc", "nvidia,tegra20-apbmisc";
+		reg = <0x70000800 0x64   /* Chip revision */
+		       0x70000008 0x04>; /* Strapping options */
 	};
 
 	pinmux: pinmux@70000868 {
@@ -485,15 +507,24 @@
 		clock-names = "pclk", "clk32k_in";
 	};
 
-	iommu@70019010 {
-		compatible = "nvidia,tegra114-smmu", "nvidia,tegra30-smmu";
-		reg = <0x70019010 0x02c
-		       0x700191f0 0x010
-		       0x70019228 0x074>;
-		nvidia,#asids = <4>;
-		dma-window = <0 0x40000000>;
-		nvidia,swgroups = <0x18659fe>;
-		nvidia,ahb = <&ahb>;
+	fuse@7000f800 {
+		compatible = "nvidia,tegra114-efuse";
+		reg = <0x7000f800 0x400>;
+		clocks = <&tegra_car TEGRA114_CLK_FUSE>;
+		clock-names = "fuse";
+		resets = <&tegra_car 39>;
+		reset-names = "fuse";
+	};
+
+	mc: memory-controller@70019000 {
+		compatible = "nvidia,tegra114-mc";
+		reg = <0x70019000 0x1000>;
+		clocks = <&tegra_car TEGRA114_CLK_MC>;
+		clock-names = "mc";
+
+		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+
+		#iommu-cells = <1>;
 	};
 
 	ahub@70080000 {
@@ -604,7 +635,7 @@
 		clocks = <&tegra_car TEGRA114_CLK_SDMMC1>;
 		resets = <&tegra_car 14>;
 		reset-names = "sdhci";
-		status = "disable";
+		status = "disabled";
 	};
 
 	sdhci@78000200 {
@@ -614,7 +645,7 @@
 		clocks = <&tegra_car TEGRA114_CLK_SDMMC2>;
 		resets = <&tegra_car 9>;
 		reset-names = "sdhci";
-		status = "disable";
+		status = "disabled";
 	};
 
 	sdhci@78000400 {
@@ -624,7 +655,7 @@
 		clocks = <&tegra_car TEGRA114_CLK_SDMMC3>;
 		resets = <&tegra_car 69>;
 		reset-names = "sdhci";
-		status = "disable";
+		status = "disabled";
 	};
 
 	sdhci@78000600 {
@@ -634,7 +665,7 @@
 		clocks = <&tegra_car TEGRA114_CLK_SDMMC4>;
 		resets = <&tegra_car 15>;
 		reset-names = "sdhci";
-		status = "disable";
+		status = "disabled";
 	};
 
 	usb@7d000000 {
@@ -657,6 +688,8 @@
 			 <&tegra_car TEGRA114_CLK_PLL_U>,
 			 <&tegra_car TEGRA114_CLK_USBD>;
 		clock-names = "reg", "pll_u", "utmi-pads";
+		resets = <&tegra_car 22>, <&tegra_car 22>;
+		reset-names = "usb", "utmi-pads";
 		nvidia,hssync-start-delay = <0>;
 		nvidia,idle-wait-delay = <17>;
 		nvidia,elastic-limit = <16>;
@@ -667,6 +700,7 @@
 		nvidia,hssquelch-level = <2>;
 		nvidia,hsdiscon-level = <5>;
 		nvidia,xcvr-hsslew = <12>;
+		nvidia,has-utmi-pad-registers;
 		status = "disabled";
 	};
 
@@ -690,6 +724,8 @@
 			 <&tegra_car TEGRA114_CLK_PLL_U>,
 			 <&tegra_car TEGRA114_CLK_USBD>;
 		clock-names = "reg", "pll_u", "utmi-pads";
+		resets = <&tegra_car 59>, <&tegra_car 22>;
+		reset-names = "usb", "utmi-pads";
 		nvidia,hssync-start-delay = <0>;
 		nvidia,idle-wait-delay = <17>;
 		nvidia,elastic-limit = <16>;
@@ -743,5 +779,6 @@
 				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
 			<GIC_PPI 10
 				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
+		interrupt-parent = <&gic>;
 	};
 };

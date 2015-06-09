@@ -293,7 +293,7 @@ static int ti_startup(struct usb_serial *serial)
 	int status;
 
 	dev_dbg(&dev->dev,
-		"%s - product 0x%4X, num configurations %d, configuration value %d",
+		"%s - product 0x%4X, num configurations %d, configuration value %d\n",
 		__func__, le16_to_cpu(dev->descriptor.idProduct),
 		dev->descriptor.bNumConfigurations,
 		dev->actconfig->desc.bConfigurationValue);
@@ -773,7 +773,6 @@ static void ti_set_termios(struct tty_struct *tty,
 			config->wFlags |= TI_UART_ENABLE_RTS_IN;
 		config->wFlags |= TI_UART_ENABLE_CTS_OUT;
 	} else {
-		tty->hw_stopped = 0;
 		ti_restart_read(tport, tty);
 	}
 
@@ -803,7 +802,7 @@ static void ti_set_termios(struct tty_struct *tty,
 		tty_encode_baud_rate(tty, baud, baud);
 
 	dev_dbg(&port->dev,
-		"%s - BaudRate=%d, wBaudRate=%d, wFlags=0x%04X, bDataBits=%d, bParity=%d, bStopBits=%d, cXon=%d, cXoff=%d, bUartMode=%d",
+		"%s - BaudRate=%d, wBaudRate=%d, wFlags=0x%04X, bDataBits=%d, bParity=%d, bStopBits=%d, cXon=%d, cXoff=%d, bUartMode=%d\n",
 		__func__, baud, config->wBaudRate, config->wFlags,
 		config->bDataBits, config->bParity, config->bStopBits,
 		config->cXon, config->cXoff, config->bUartMode);
@@ -1291,12 +1290,8 @@ static void ti_handle_new_msr(struct ti_port *tport, __u8 msr)
 	/* handle CTS flow control */
 	tty = tty_port_tty_get(&tport->tp_port->port);
 	if (tty && C_CRTSCTS(tty)) {
-		if (msr & TI_MSR_CTS) {
-			tty->hw_stopped = 0;
+		if (msr & TI_MSR_CTS)
 			tty_wakeup(tty);
-		} else {
-			tty->hw_stopped = 1;
-		}
 	}
 	tty_kref_put(tty);
 }

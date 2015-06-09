@@ -361,7 +361,7 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 	 * The Controller Area Network controllers only accept CAN frames with
 	 * correct CRCs - which are not visible in the controller registers.
 	 * According to skbuff.h documentation the csum_start element for IP
-	 * checksums is undefined/unsued when ip_summed == CHECKSUM_UNNECESSARY.
+	 * checksums is undefined/unused when ip_summed == CHECKSUM_UNNECESSARY.
 	 * Only CAN skbs can be processed here which already have this property.
 	 */
 
@@ -575,7 +575,8 @@ static int cgw_put_job(struct sk_buff *skb, struct cgw_job *gwj, int type,
 			goto cancel;
 	}
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 cancel:
 	nlmsg_cancel(skb, nlh);
@@ -804,7 +805,7 @@ static int cgw_create_job(struct sk_buff *skb,  struct nlmsghdr *nlh)
 	u8 limhops = 0;
 	int err = 0;
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
 	if (nlmsg_len(nlh) < sizeof(*r))
@@ -893,7 +894,7 @@ static int cgw_remove_job(struct sk_buff *skb, struct nlmsghdr *nlh)
 	u8 limhops = 0;
 	int err = 0;
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
 	if (nlmsg_len(nlh) < sizeof(*r))

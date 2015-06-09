@@ -209,10 +209,8 @@ static int ecap_pwm_probe(struct platform_device *pdev)
 	u16 status;
 
 	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
-	if (!pc) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (!pc)
 		return -ENOMEM;
-	}
 
 	clk = devm_clk_get(&pdev->dev, "fck");
 	if (IS_ERR(clk)) {
@@ -333,7 +331,6 @@ static SIMPLE_DEV_PM_OPS(ecap_pwm_pm_ops, ecap_pwm_suspend, ecap_pwm_resume);
 static struct platform_driver ecap_pwm_driver = {
 	.driver = {
 		.name	= "ecap",
-		.owner	= THIS_MODULE,
 		.of_match_table = ecap_of_match,
 		.pm	= &ecap_pwm_pm_ops,
 	},

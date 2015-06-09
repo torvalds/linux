@@ -19,8 +19,7 @@
 /*
  * Driver: pcmad
  * Description: Winsystems PCM-A/D12, PCM-A/D16
- * Devices: (Winsystems) PCM-A/D12 [pcmad12]
- *	    (Winsystems) PCM-A/D16 [pcmad16]
+ * Devices: [Winsystems] PCM-A/D12 (pcmad12), PCM-A/D16 (pcmad16)
  * Author: ds
  * Status: untested
  *
@@ -61,18 +60,17 @@ static const struct pcmad_board_struct pcmad_boards[] = {
 	},
 };
 
-#define TIMEOUT	100
-
-static int pcmad_ai_wait_for_eoc(struct comedi_device *dev,
-				 int timeout)
+static int pcmad_ai_eoc(struct comedi_device *dev,
+			struct comedi_subdevice *s,
+			struct comedi_insn *insn,
+			unsigned long context)
 {
-	int i;
+	unsigned int status;
 
-	for (i = 0; i < timeout; i++) {
-		if ((inb(dev->iobase + PCMAD_STATUS) & 0x3) == 0x3)
-			return 0;
-	}
-	return -ETIME;
+	status = inb(dev->iobase + PCMAD_STATUS);
+	if ((status & 0x3) == 0x3)
+		return 0;
+	return -EBUSY;
 }
 
 static int pcmad_ai_insn_read(struct comedi_device *dev,
@@ -89,7 +87,7 @@ static int pcmad_ai_insn_read(struct comedi_device *dev,
 	for (i = 0; i < insn->n; i++) {
 		outb(chan, dev->iobase + PCMAD_CONVERT);
 
-		ret = pcmad_ai_wait_for_eoc(dev, TIMEOUT);
+		ret = comedi_timeout(dev, s, insn, pcmad_ai_eoc, 0);
 		if (ret)
 			return ret;
 
@@ -113,7 +111,7 @@ static int pcmad_ai_insn_read(struct comedi_device *dev,
 
 static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct pcmad_board_struct *board = comedi_board(dev);
+	const struct pcmad_board_struct *board = dev->board_ptr;
 	struct comedi_subdevice *s;
 	int ret;
 

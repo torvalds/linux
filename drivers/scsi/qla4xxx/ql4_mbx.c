@@ -212,9 +212,8 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 			    ha->host_no, __func__));
 			goto mbox_exit;
 		}
-		DEBUG2(printk("scsi%ld: Mailbox Cmd 0x%08X timed out ...,"
-			      " Scheduling Adapter Reset\n", ha->host_no,
-			      mbx_cmd[0]));
+		ql4_printk(KERN_WARNING, ha, "scsi%ld: Mailbox Cmd 0x%08X timed out, Scheduling Adapter Reset\n",
+			   ha->host_no, mbx_cmd[0]);
 		ha->mailbox_timeout_count++;
 		mbx_sts[0] = (-1);
 		set_bit(DPC_RESET_HA, &ha->dpc_flags);
@@ -251,15 +250,16 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 		break;
 
 	case MBOX_STS_BUSY:
-		DEBUG2( printk("scsi%ld: %s: Cmd = %08X, ISP BUSY\n",
-			       ha->host_no, __func__, mbx_cmd[0]));
+		ql4_printk(KERN_WARNING, ha, "scsi%ld: %s: Cmd = %08X, ISP BUSY\n",
+			   ha->host_no, __func__, mbx_cmd[0]);
 		ha->mailbox_timeout_count++;
 		break;
 
 	default:
-		DEBUG2(printk("scsi%ld: %s: **** FAILED, cmd = %08X, "
-			      "sts = %08X ****\n", ha->host_no, __func__,
-			      mbx_cmd[0], mbx_sts[0]));
+		ql4_printk(KERN_WARNING, ha, "scsi%ld: %s: FAILED, MBOX CMD = %08X, MBOX STS = %08X %08X %08X %08X %08X %08X %08X %08X\n",
+			   ha->host_no, __func__, mbx_cmd[0], mbx_sts[0],
+			   mbx_sts[1], mbx_sts[2], mbx_sts[3], mbx_sts[4],
+			   mbx_sts[5], mbx_sts[6], mbx_sts[7]);
 		break;
 	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
@@ -383,7 +383,6 @@ qla4xxx_set_ifcb(struct scsi_qla_host *ha, uint32_t *mbox_cmd,
 	mbox_cmd[2] = LSDW(init_fw_cb_dma);
 	mbox_cmd[3] = MSDW(init_fw_cb_dma);
 	mbox_cmd[4] = sizeof(struct addr_ctrl_blk);
-	mbox_cmd[5] = (IFCB_VER_MAX << 8) | IFCB_VER_MIN;
 
 	if (qla4xxx_mailbox_command(ha, 6, 6, mbox_cmd, mbox_sts) !=
 	    QLA_SUCCESS) {
@@ -647,9 +646,6 @@ int qla4xxx_initialize_fw_cb(struct scsi_qla_host * ha)
 				  init_fw_cb, init_fw_cb_dma);
 		goto exit_init_fw_cb;
 	}
-
-	/* Initialize request and response queues. */
-	qla4xxx_init_rings(ha);
 
 	/* Fill in the request and response queue information. */
 	init_fw_cb->rqq_consumer_idx = cpu_to_le16(ha->request_out);
@@ -1002,6 +998,10 @@ int qla4xxx_session_logout_ddb(struct scsi_qla_host *ha,
 				  "%s: MBOX_CMD_CONN_CLOSE_SESS_LOGOUT "
 				  "failed sts %04X %04X", __func__,
 				  mbox_sts[0], mbox_sts[1]));
+		if ((mbox_sts[0] == MBOX_STS_COMMAND_ERROR) &&
+		    (mbox_sts[1] == DDB_NOT_LOGGED_IN)) {
+			set_bit(DDB_CONN_CLOSE_FAILURE, &ddb_entry->flags);
+		}
 	}
 
 	return status;
@@ -1205,7 +1205,7 @@ int qla4xxx_abort_task(struct scsi_qla_host *ha, struct srb *srb)
 	if (mbox_sts[0] != MBOX_STS_COMMAND_COMPLETE) {
 		status = QLA_ERROR;
 
-		DEBUG2(printk(KERN_WARNING "scsi%ld:%d:%d: abort task FAILED: "
+		DEBUG2(printk(KERN_WARNING "scsi%ld:%d:%llu: abort task FAILED: "
 		    "mbx0=%04X, mb1=%04X, mb2=%04X, mb3=%04X, mb4=%04X\n",
 		    ha->host_no, cmd->device->id, cmd->device->lun, mbox_sts[0],
 		    mbox_sts[1], mbox_sts[2], mbox_sts[3], mbox_sts[4]));
@@ -1225,14 +1225,14 @@ int qla4xxx_abort_task(struct scsi_qla_host *ha, struct srb *srb)
  * are valid before calling this routine.
  **/
 int qla4xxx_reset_lun(struct scsi_qla_host * ha, struct ddb_entry * ddb_entry,
-		      int lun)
+		      uint64_t lun)
 {
 	uint32_t mbox_cmd[MBOX_REG_COUNT];
 	uint32_t mbox_sts[MBOX_REG_COUNT];
 	uint32_t scsi_lun[2];
 	int status = QLA_SUCCESS;
 
-	DEBUG2(printk("scsi%ld:%d:%d: lun reset issued\n", ha->host_no,
+	DEBUG2(printk("scsi%ld:%d:%llu: lun reset issued\n", ha->host_no,
 		      ddb_entry->fw_ddb_index, lun));
 
 	/*
@@ -1620,8 +1620,8 @@ int qla4xxx_get_chap(struct scsi_qla_host *ha, char *username, char *password,
 		goto exit_get_chap;
 	}
 
-	strncpy(password, chap_table->secret, QL4_CHAP_MAX_SECRET_LEN);
-	strncpy(username, chap_table->name, QL4_CHAP_MAX_NAME_LEN);
+	strlcpy(password, chap_table->secret, QL4_CHAP_MAX_SECRET_LEN);
+	strlcpy(username, chap_table->name, QL4_CHAP_MAX_NAME_LEN);
 	chap_table->cookie = __constant_cpu_to_le16(CHAP_VALID_COOKIE);
 
 exit_get_chap:
@@ -1663,8 +1663,8 @@ int qla4xxx_set_chap(struct scsi_qla_host *ha, char *username, char *password,
 	else
 		chap_table->flags |= BIT_7; /* local */
 	chap_table->secret_len = strlen(password);
-	strncpy(chap_table->secret, password, MAX_CHAP_SECRET_LEN);
-	strncpy(chap_table->name, username, MAX_CHAP_NAME_LEN);
+	strncpy(chap_table->secret, password, MAX_CHAP_SECRET_LEN - 1);
+	strncpy(chap_table->name, username, MAX_CHAP_NAME_LEN - 1);
 	chap_table->cookie = __constant_cpu_to_le16(CHAP_VALID_COOKIE);
 
 	if (is_qla40XX(ha)) {
@@ -1742,8 +1742,8 @@ int qla4xxx_get_uni_chap_at_index(struct scsi_qla_host *ha, char *username,
 		goto exit_unlock_uni_chap;
 	}
 
-	strncpy(password, chap_table->secret, MAX_CHAP_SECRET_LEN);
-	strncpy(username, chap_table->name, MAX_CHAP_NAME_LEN);
+	strlcpy(password, chap_table->secret, MAX_CHAP_SECRET_LEN);
+	strlcpy(username, chap_table->name, MAX_CHAP_NAME_LEN);
 
 	rval = QLA_SUCCESS;
 
@@ -1918,6 +1918,7 @@ int qla4xxx_disable_acb(struct scsi_qla_host *ha)
 				  mbox_sts[0], mbox_sts[1], mbox_sts[2]));
 	} else {
 		if (is_qla8042(ha) &&
+		    test_bit(DPC_POST_IDC_ACK, &ha->dpc_flags) &&
 		    (mbox_sts[0] != MBOX_STS_COMMAND_COMPLETE)) {
 			/*
 			 * Disable ACB mailbox command takes time to complete
@@ -2294,7 +2295,7 @@ int qla4_8xxx_set_param(struct scsi_qla_host *ha, int param)
 	if (param == SET_DRVR_VERSION) {
 		mbox_cmd[1] = SET_DRVR_VERSION;
 		strncpy((char *)&mbox_cmd[2], QLA4XXX_DRIVER_VERSION,
-			MAX_DRVR_VER_LEN);
+			MAX_DRVR_VER_LEN - 1);
 	} else {
 		ql4_printk(KERN_ERR, ha, "%s: invalid parameter 0x%x\n",
 			   __func__, param);
@@ -2380,7 +2381,7 @@ int qla4_84xx_config_acb(struct scsi_qla_host *ha, int acb_config)
 			ql4_printk(KERN_ERR, ha, "%s: Unable to alloc acb\n",
 				   __func__);
 			rval = QLA_ERROR;
-			goto exit_config_acb;
+			goto exit_free_acb;
 		}
 		memcpy(ha->saved_acb, acb, acb_len);
 		break;
@@ -2394,8 +2395,6 @@ int qla4_84xx_config_acb(struct scsi_qla_host *ha, int acb_config)
 		}
 
 		memcpy(acb, ha->saved_acb, acb_len);
-		kfree(ha->saved_acb);
-		ha->saved_acb = NULL;
 
 		rval = qla4xxx_set_acb(ha, &mbox_cmd[0], &mbox_sts[0], acb_dma);
 		if (rval != QLA_SUCCESS)
@@ -2411,6 +2410,10 @@ exit_free_acb:
 	dma_free_coherent(&ha->pdev->dev, sizeof(struct addr_ctrl_blk), acb,
 			  acb_dma);
 exit_config_acb:
+	if ((acb_config == ACB_CONFIG_SET) && ha->saved_acb) {
+		kfree(ha->saved_acb);
+		ha->saved_acb = NULL;
+	}
 	DEBUG2(ql4_printk(KERN_INFO, ha,
 			  "%s %s\n", __func__,
 			  rval == QLA_SUCCESS ? "SUCCEEDED" : "FAILED"));

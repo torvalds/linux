@@ -512,7 +512,6 @@ static struct platform_driver mmpcam_driver = {
 #endif
 	.driver = {
 		.name	= "mmp-camera",
-		.owner	= THIS_MODULE
 	}
 };
 

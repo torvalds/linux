@@ -13,6 +13,17 @@
 #define KEXEC_PRESERVE_CONTEXT	0x00000002
 #define KEXEC_ARCH_MASK		0xffff0000
 
+/*
+ * Kexec file load interface flags.
+ * KEXEC_FILE_UNLOAD : Unload already loaded kexec/kdump image.
+ * KEXEC_FILE_ON_CRASH : Load/unload operation belongs to kdump image.
+ * KEXEC_FILE_NO_INITRAMFS : No initramfs is being loaded. Ignore the initrd
+ *                           fd field.
+ */
+#define KEXEC_FILE_UNLOAD	0x00000001
+#define KEXEC_FILE_ON_CRASH	0x00000002
+#define KEXEC_FILE_NO_INITRAMFS	0x00000004
+
 /* These values match the ELF architecture values.
  * Unless there is a good reason that should continue to be the case.
  */
@@ -44,12 +55,6 @@ struct kexec_segment {
 	size_t memsz;
 };
 
-/* Load a new kernel image as described by the kexec_segment array
- * consisting of passed number of segments at the entry-point address.
- * The flags allow different useage types.
- */
-extern int kexec_load(void *, size_t, struct kexec_segment *,
-		unsigned long int);
 #endif /* __KERNEL__ */
 
 #endif /* _UAPILINUX_KEXEC_H */

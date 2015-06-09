@@ -43,10 +43,10 @@
 #ifndef __LST_CONRPC_H__
 #define __LST_CONRPC_H__
 
-#include <linux/libcfs/libcfs.h>
-#include <linux/lnet/lnet.h>
-#include <linux/lnet/lib-types.h>
-#include <linux/lnet/lnetst.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "../../include/linux/lnet/lnet.h"
+#include "../../include/linux/lnet/lib-types.h"
+#include "../../include/linux/lnet/lnetst.h"
 #include "rpc.h"
 #include "selftest.h"
 
@@ -54,7 +54,7 @@
 #define LST_TRANS_TIMEOUT       30
 #define LST_TRANS_MIN_TIMEOUT   3
 
-#define LST_VALIDATE_TIMEOUT(t) MIN(MAX(t, LST_TRANS_MIN_TIMEOUT), LST_TRANS_TIMEOUT)
+#define LST_VALIDATE_TIMEOUT(t) min(max(t, LST_TRANS_MIN_TIMEOUT), LST_TRANS_TIMEOUT)
 
 #define LST_PING_INTERVAL       8
 
@@ -75,7 +75,7 @@ typedef struct lstcon_rpc {
 	/** RPC is embedded in other structure and can't free it */
 	unsigned int		 crp_embedded:1;
 	int		      crp_status;     /* console rpc errors */
-	cfs_time_t	       crp_stamp;      /* replied time stamp */
+	unsigned long	       crp_stamp;      /* replied time stamp */
 } lstcon_rpc_t;
 
 typedef struct lstcon_rpc_trans {

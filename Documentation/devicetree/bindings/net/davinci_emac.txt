@@ -4,7 +4,8 @@ This file provides information, what the device node
 for the davinci_emac interface contains.
 
 Required properties:
-- compatible: "ti,davinci-dm6467-emac" or "ti,am3517-emac"
+- compatible: "ti,davinci-dm6467-emac", "ti,am3517-emac" or
+  "ti,dm816-emac"
 - reg: Offset and length of the register set for the device
 - ti,davinci-ctrl-reg-offset: offset to control register
 - ti,davinci-ctrl-mod-reg-offset: offset to control module register
@@ -17,9 +18,8 @@ Required properties:
 			  Miscellaneous Interrupt>
 
 Optional properties:
-- phy-handle: Contains a phandle to an Ethernet PHY.
+- phy-handle: See ethernet.txt file in the same directory.
               If absent, davinci_emac driver defaults to 100/FULL.
-- local-mac-address : 6 bytes, mac address
 - ti,davinci-rmii-en: 1 byte, 1 means use RMII
 - ti,davinci-no-bd-ram: boolean, does EMAC have BD RAM?
 

@@ -31,14 +31,15 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/suspend.h>
 #include <linux/uaccess.h>
 
 #include "rtc-at91rm9200.h"
 
 #define at91_rtc_read(field) \
-	__raw_readl(at91_rtc_regs + field)
+	readl_relaxed(at91_rtc_regs + field)
 #define at91_rtc_write(field, val) \
-	__raw_writel((val), at91_rtc_regs + field)
+	writel_relaxed((val), at91_rtc_regs + field)
 
 #define AT91_RTC_EPOCH		1900UL	/* just like arch/arm/common/rtctime.c */
 
@@ -48,11 +49,16 @@ struct at91_rtc_config {
 
 static const struct at91_rtc_config *at91_rtc_config;
 static DECLARE_COMPLETION(at91_rtc_updated);
+static DECLARE_COMPLETION(at91_rtc_upd_rdy);
 static unsigned int at91_alarm_year = AT91_RTC_EPOCH;
 static void __iomem *at91_rtc_regs;
 static int irq;
 static DEFINE_SPINLOCK(at91_rtc_lock);
 static u32 at91_rtc_shadow_imr;
+static bool suspended;
+static DEFINE_SPINLOCK(suspended_lock);
+static unsigned long cached_events;
+static u32 at91_rtc_imr;
 
 static void at91_rtc_write_ier(u32 mask)
 {
@@ -161,6 +167,8 @@ static int at91_rtc_settime(struct device *dev, struct rtc_time *tm)
 		1900 + tm->tm_year, tm->tm_mon, tm->tm_mday,
 		tm->tm_hour, tm->tm_min, tm->tm_sec);
 
+	wait_for_completion(&at91_rtc_upd_rdy);
+
 	/* Stop Time/Calendar from counting */
 	cr = at91_rtc_read(AT91_RTC_CR);
 	at91_rtc_write(AT91_RTC_CR, cr | AT91_RTC_UPDCAL | AT91_RTC_UPDTIM);
@@ -183,7 +191,9 @@ static int at91_rtc_settime(struct device *dev, struct rtc_time *tm)
 
 	/* Restart Time/Calendar */
 	cr = at91_rtc_read(AT91_RTC_CR);
+	at91_rtc_write(AT91_RTC_SCCR, AT91_RTC_SECEV);
 	at91_rtc_write(AT91_RTC_CR, cr & ~(AT91_RTC_UPDCAL | AT91_RTC_UPDTIM));
+	at91_rtc_write_ier(AT91_RTC_SECEV);
 
 	return 0;
 }
@@ -285,26 +295,38 @@ static irqreturn_t at91_rtc_interrupt(int irq, void *dev_id)
 	struct rtc_device *rtc = platform_get_drvdata(pdev);
 	unsigned int rtsr;
 	unsigned long events = 0;
+	int ret = IRQ_NONE;
 
+	spin_lock(&suspended_lock);
 	rtsr = at91_rtc_read(AT91_RTC_SR) & at91_rtc_read_imr();
 	if (rtsr) {		/* this interrupt is shared!  Is it ours? */
 		if (rtsr & AT91_RTC_ALARM)
 			events |= (RTC_AF | RTC_IRQF);
-		if (rtsr & AT91_RTC_SECEV)
-			events |= (RTC_UF | RTC_IRQF);
+		if (rtsr & AT91_RTC_SECEV) {
+			complete(&at91_rtc_upd_rdy);
+			at91_rtc_write_idr(AT91_RTC_SECEV);
+		}
 		if (rtsr & AT91_RTC_ACKUPD)
 			complete(&at91_rtc_updated);
 
 		at91_rtc_write(AT91_RTC_SCCR, rtsr);	/* clear status reg */
 
-		rtc_update_irq(rtc, 1, events);
+		if (!suspended) {
+			rtc_update_irq(rtc, 1, events);
 
-		dev_dbg(&pdev->dev, "%s(): num=%ld, events=0x%02lx\n", __func__,
-			events >> 8, events & 0x000000FF);
+			dev_dbg(&pdev->dev, "%s(): num=%ld, events=0x%02lx\n",
+				__func__, events >> 8, events & 0x000000FF);
+		} else {
+			cached_events |= events;
+			at91_rtc_write_idr(at91_rtc_imr);
+			pm_system_wakeup();
+		}
 
-		return IRQ_HANDLED;
+		ret = IRQ_HANDLED;
 	}
-	return IRQ_NONE;		/* not handled */
+	spin_unlock(&suspended_lock);
+
+	return ret;
 }
 
 static const struct at91_rtc_config at91rm9200_config = {
@@ -394,8 +416,8 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 					AT91_RTC_CALEV);
 
 	ret = devm_request_irq(&pdev->dev, irq, at91_rtc_interrupt,
-				IRQF_SHARED,
-				"at91_rtc", pdev);
+			       IRQF_SHARED | IRQF_COND_SUSPEND,
+			       "at91_rtc", pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "IRQ %d already in use.\n", irq);
 		return ret;
@@ -412,6 +434,11 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 	platform_set_drvdata(pdev, rtc);
+
+	/* enable SECEV interrupt in order to initialize at91_rtc_upd_rdy
+	 * completion.
+	 */
+	at91_rtc_write_ier(AT91_RTC_SECEV);
 
 	dev_info(&pdev->dev, "AT91 Real Time Clock driver.\n");
 	return 0;
@@ -442,8 +469,6 @@ static void at91_rtc_shutdown(struct platform_device *pdev)
 
 /* AT91RM9200 RTC Power management control */
 
-static u32 at91_rtc_imr;
-
 static int at91_rtc_suspend(struct device *dev)
 {
 	/* this IRQ is shared with DBGU and other hardware which isn't
@@ -452,21 +477,42 @@ static int at91_rtc_suspend(struct device *dev)
 	at91_rtc_imr = at91_rtc_read_imr()
 			& (AT91_RTC_ALARM|AT91_RTC_SECEV);
 	if (at91_rtc_imr) {
-		if (device_may_wakeup(dev))
+		if (device_may_wakeup(dev)) {
+			unsigned long flags;
+
 			enable_irq_wake(irq);
-		else
+
+			spin_lock_irqsave(&suspended_lock, flags);
+			suspended = true;
+			spin_unlock_irqrestore(&suspended_lock, flags);
+		} else {
 			at91_rtc_write_idr(at91_rtc_imr);
+		}
 	}
 	return 0;
 }
 
 static int at91_rtc_resume(struct device *dev)
 {
+	struct rtc_device *rtc = dev_get_drvdata(dev);
+
 	if (at91_rtc_imr) {
-		if (device_may_wakeup(dev))
+		if (device_may_wakeup(dev)) {
+			unsigned long flags;
+
+			spin_lock_irqsave(&suspended_lock, flags);
+
+			if (cached_events) {
+				rtc_update_irq(rtc, 1, cached_events);
+				cached_events = 0;
+			}
+
+			suspended = false;
+			spin_unlock_irqrestore(&suspended_lock, flags);
+
 			disable_irq_wake(irq);
-		else
-			at91_rtc_write_ier(at91_rtc_imr);
+		}
+		at91_rtc_write_ier(at91_rtc_imr);
 	}
 	return 0;
 }
@@ -479,7 +525,6 @@ static struct platform_driver at91_rtc_driver = {
 	.shutdown	= at91_rtc_shutdown,
 	.driver		= {
 		.name	= "at91_rtc",
-		.owner	= THIS_MODULE,
 		.pm	= &at91_rtc_pm_ops,
 		.of_match_table = of_match_ptr(at91_rtc_dt_ids),
 	},

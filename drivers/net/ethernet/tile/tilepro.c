@@ -831,6 +831,9 @@ static int tile_net_poll(struct napi_struct *napi, int budget)
 
 	unsigned int work = 0;
 
+	if (budget <= 0)
+		goto done;
+
 	while (priv->active) {
 		int index = qup->__packet_receive_read;
 		if (index == qsp->__packet_receive_queue.__packet_write)
@@ -953,7 +956,7 @@ static int tile_net_open_aux(struct net_device *dev)
 	 */
 	if (hv_dev_pwrite(priv->hv_devhdl, 0, (HV_VirtAddr)&dummy,
 			  sizeof(dummy), NETIO_IPP_START_SHIM_OFF) < 0) {
-		pr_warning("Failed to start LIPP/LEPP.\n");
+		pr_warn("Failed to start LIPP/LEPP\n");
 		return -EIO;
 	}
 
@@ -993,13 +996,13 @@ static void tile_net_register(void *dev_ptr)
 	PDEBUG("tile_net_register(queue_id %d)\n", queue_id);
 
 	if (!strcmp(dev->name, "xgbe0"))
-		info = &__get_cpu_var(hv_xgbe0);
+		info = this_cpu_ptr(&hv_xgbe0);
 	else if (!strcmp(dev->name, "xgbe1"))
-		info = &__get_cpu_var(hv_xgbe1);
+		info = this_cpu_ptr(&hv_xgbe1);
 	else if (!strcmp(dev->name, "gbe0"))
-		info = &__get_cpu_var(hv_gbe0);
+		info = this_cpu_ptr(&hv_gbe0);
 	else if (!strcmp(dev->name, "gbe1"))
-		info = &__get_cpu_var(hv_gbe1);
+		info = this_cpu_ptr(&hv_gbe1);
 	else
 		BUG();
 
@@ -1821,7 +1824,7 @@ busy:
 
 	/* Handle completions. */
 	for (i = 0; i < nolds; i++)
-		kfree_skb(olds[i]);
+		dev_consume_skb_any(olds[i]);
 
 	/* Update stats. */
 	u64_stats_update_begin(&stats->syncp);
@@ -2005,7 +2008,7 @@ busy:
 
 	/* Handle completions. */
 	for (i = 0; i < nolds; i++)
-		kfree_skb(olds[i]);
+		dev_consume_skb_any(olds[i]);
 
 	/* HACK: Track "expanded" size for short packets (e.g. 42 < 60). */
 	u64_stats_update_begin(&stats->syncp);
@@ -2068,14 +2071,14 @@ static struct rtnl_link_stats64 *tile_net_get_stats64(struct net_device *dev,
 		cpu_stats = &priv->cpu[i]->stats;
 
 		do {
-			start = u64_stats_fetch_begin_bh(&cpu_stats->syncp);
+			start = u64_stats_fetch_begin_irq(&cpu_stats->syncp);
 			trx_packets = cpu_stats->rx_packets;
 			ttx_packets = cpu_stats->tx_packets;
 			trx_bytes   = cpu_stats->rx_bytes;
 			ttx_bytes   = cpu_stats->tx_bytes;
 			trx_errors  = cpu_stats->rx_errors;
 			trx_dropped = cpu_stats->rx_dropped;
-		} while (u64_stats_fetch_retry_bh(&cpu_stats->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, start));
 
 		rx_packets += trx_packets;
 		tx_packets += ttx_packets;
@@ -2289,7 +2292,8 @@ static struct net_device *tile_net_dev_init(const char *name)
 	 * tile_net_setup(), and saves "name".  Normally, "name" is a
 	 * template, instantiated by register_netdev(), but not for us.
 	 */
-	dev = alloc_netdev(sizeof(*priv), name, tile_net_setup);
+	dev = alloc_netdev(sizeof(*priv), name, NET_NAME_UNKNOWN,
+			   tile_net_setup);
 	if (!dev) {
 		pr_err("alloc_netdev(%s) failed\n", name);
 		return NULL;
@@ -2395,8 +2399,7 @@ static int __init network_cpus_setup(char *str)
 {
 	int rc = cpulist_parse_crop(str, &network_cpus_map);
 	if (rc != 0) {
-		pr_warning("network_cpus=%s: malformed cpu list\n",
-		       str);
+		pr_warn("network_cpus=%s: malformed cpu list\n", str);
 	} else {
 
 		/* Remove dedicated cpus. */
@@ -2405,12 +2408,10 @@ static int __init network_cpus_setup(char *str)
 
 
 		if (cpumask_empty(&network_cpus_map)) {
-			pr_warning("Ignoring network_cpus='%s'.\n",
-			       str);
+			pr_warn("Ignoring network_cpus='%s'\n", str);
 		} else {
-			char buf[1024];
-			cpulist_scnprintf(buf, sizeof(buf), &network_cpus_map);
-			pr_info("Linux network CPUs: %s\n", buf);
+			pr_info("Linux network CPUs: %*pbl\n",
+				cpumask_pr_args(&network_cpus_map));
 			network_cpus_used = true;
 		}
 	}

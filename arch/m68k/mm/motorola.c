@@ -45,7 +45,7 @@ EXPORT_SYMBOL(mm_cachebits);
 #endif
 
 /* size of memory already mapped in head.S */
-#define INIT_MAPPED_SIZE	(4UL<<20)
+extern __initdata unsigned long m68k_init_mapped_size;
 
 extern unsigned long availmem;
 
@@ -271,10 +271,12 @@ void __init paging_init(void)
 	 */
 	addr = m68k_memory[0].addr;
 	size = m68k_memory[0].size;
-	free_bootmem_node(NODE_DATA(0), availmem, min(INIT_MAPPED_SIZE, size) - (availmem - addr));
+	free_bootmem_node(NODE_DATA(0), availmem,
+			  min(m68k_init_mapped_size, size) - (availmem - addr));
 	map_node(0);
-	if (size > INIT_MAPPED_SIZE)
-		free_bootmem_node(NODE_DATA(0), addr + INIT_MAPPED_SIZE, size - INIT_MAPPED_SIZE);
+	if (size > m68k_init_mapped_size)
+		free_bootmem_node(NODE_DATA(0), addr + m68k_init_mapped_size,
+				  size - m68k_init_mapped_size);
 
 	for (i = 1; i < m68k_num_memory; i++)
 		map_node(i);

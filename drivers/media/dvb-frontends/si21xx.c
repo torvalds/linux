@@ -236,6 +236,9 @@ static int si21_writeregs(struct si21xx_state *state, u8 reg1,
 				.len = len + 1
 	};
 
+	if (len > sizeof(buf) - 1)
+		return -EINVAL;
+
 	msg.buf[0] =  reg1;
 	memcpy(msg.buf + 1, data, len);
 

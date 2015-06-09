@@ -335,7 +335,7 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 	}
 	init_rwsem(&v9ses->rename_sem);
 
-	rc = bdi_setup_and_register(&v9ses->bdi, "9p", BDI_CAP_MAP_COPY);
+	rc = bdi_setup_and_register(&v9ses->bdi, "9p");
 	if (rc) {
 		kfree(v9ses->aname);
 		kfree(v9ses->uname);
@@ -537,7 +537,7 @@ static struct attribute_group v9fs_attr_group = {
  *
  */
 
-static int v9fs_sysfs_init(void)
+static int __init v9fs_sysfs_init(void)
 {
 	v9fs_kobj = kobject_create_and_add("9p", fs_kobj);
 	if (!v9fs_kobj)

@@ -227,7 +227,7 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	dev->netdev_ops = &netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
-	SET_ETHTOOL_OPS(dev, &ethtool_ops);
+	dev->ethtool_ops = &ethtool_ops;
 #if 0
 	dev->features = NETIF_F_IP_CSUM;
 #endif
@@ -1185,8 +1185,8 @@ static int rio_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		ethtool_cmd_speed_set(cmd, np->speed);
 		cmd->duplex = np->full_duplex ? DUPLEX_FULL : DUPLEX_HALF;
 	} else {
-		ethtool_cmd_speed_set(cmd, -1);
-		cmd->duplex = -1;
+		ethtool_cmd_speed_set(cmd, SPEED_UNKNOWN);
+		cmd->duplex = DUPLEX_UNKNOWN;
 	}
 	if ( np->an_enable)
 		cmd->autoneg = AUTONEG_ENABLE;

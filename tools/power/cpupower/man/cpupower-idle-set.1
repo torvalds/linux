@@ -13,11 +13,17 @@ sleep states. This can be handy for power vs performance tuning.
 .SH "OPTIONS"
 .LP
 .TP
-\fB\-d\fR \fB\-\-disable\fR
+\fB\-d\fR \fB\-\-disable\fR <STATE_NO>
 Disable a specific processor sleep state.
 .TP
-\fB\-e\fR \fB\-\-enable\fR
+\fB\-e\fR \fB\-\-enable\fR <STATE_NO>
 Enable a specific processor sleep state.
+.TP
+\fB\-D\fR \fB\-\-disable-by-latency\fR <LATENCY>
+Disable all idle states with a equal or higher latency than <LATENCY>
+.TP
+\fB\-E\fR \fB\-\-enable-all\fR
+Enable all idle states if not enabled already.
 
 .SH "REMARKS"
 .LP

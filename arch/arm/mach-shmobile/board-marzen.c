@@ -13,10 +13,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 #include <linux/kernel.h>
@@ -31,7 +27,6 @@
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_data/camera-rcar.h>
 #include <linux/platform_data/gpio-rcar.h>
-#include <linux/platform_data/rcar-du.h>
 #include <linux/platform_data/usb-rcar-phy.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
@@ -41,13 +36,15 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mfd/tmio.h>
+
 #include <media/soc_camera.h>
-#include <mach/r8a7779.h>
-#include <mach/common.h>
-#include <mach/irqs.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/traps.h>
+
+#include "common.h"
+#include "irqs.h"
+#include "r8a7779.h"
 
 /* Fixed 3.3V regulator to be used by SDHI0 */
 static struct regulator_consumer_supply fixed3v3_power_consumers[] = {
@@ -125,11 +122,11 @@ static struct resource sdhi0_resources[] = {
 	},
 };
 
-static struct sh_mobile_sdhi_info sdhi0_platform_data = {
-	.dma_slave_tx = HPBDMA_SLAVE_SDHI0_TX,
-	.dma_slave_rx = HPBDMA_SLAVE_SDHI0_RX,
-	.tmio_flags = TMIO_MMC_WRPROTECT_DISABLE | TMIO_MMC_HAS_IDLE_WAIT,
-	.tmio_caps = MMC_CAP_SD_HIGHSPEED,
+static struct tmio_mmc_data sdhi0_platform_data = {
+	.chan_priv_tx = (void *)HPBDMA_SLAVE_SDHI0_TX,
+	.chan_priv_rx = (void *)HPBDMA_SLAVE_SDHI0_RX,
+	.flags        = TMIO_MMC_WRPROTECT_DISABLE | TMIO_MMC_HAS_IDLE_WAIT,
+	.capabilities = MMC_CAP_SD_HIGHSPEED,
 };
 
 static struct platform_device sdhi0_device = {
@@ -173,63 +170,6 @@ static struct platform_device hspi_device = {
 	.num_resources	= ARRAY_SIZE(hspi_resources),
 };
 
-/*
- * DU
- *
- * The panel only specifies the [hv]display and [hv]total values. The position
- * and width of the sync pulses don't matter, they're copied from VESA timings.
- */
-static struct rcar_du_encoder_data du_encoders[] = {
-	{
-		.type = RCAR_DU_ENCODER_VGA,
-		.output = RCAR_DU_OUTPUT_DPAD0,
-	}, {
-		.type = RCAR_DU_ENCODER_LVDS,
-		.output = RCAR_DU_OUTPUT_DPAD1,
-		.connector.lvds.panel = {
-			.width_mm = 210,
-			.height_mm = 158,
-			.mode = {
-				.clock = 65000,
-				.hdisplay = 1024,
-				.hsync_start = 1048,
-				.hsync_end = 1184,
-				.htotal = 1344,
-				.vdisplay = 768,
-				.vsync_start = 771,
-				.vsync_end = 777,
-				.vtotal = 806,
-				.flags = 0,
-			},
-		},
-	},
-};
-
-static const struct rcar_du_platform_data du_pdata __initconst = {
-	.encoders = du_encoders,
-	.num_encoders = ARRAY_SIZE(du_encoders),
-};
-
-static const struct resource du_resources[] __initconst = {
-	DEFINE_RES_MEM(0xfff80000, 0x40000),
-	DEFINE_RES_IRQ(gic_iid(0x3f)),
-};
-
-static void __init marzen_add_du_device(void)
-{
-	struct platform_device_info info = {
-		.name = "rcar-du-r8a7779",
-		.id = -1,
-		.res = du_resources,
-		.num_res = ARRAY_SIZE(du_resources),
-		.data = &du_pdata,
-		.size_data = sizeof(du_pdata),
-		.dma_mask = DMA_BIT_MASK(32),
-	};
-
-	platform_device_register_full(&info);
-}
-
 /* LEDS */
 static struct gpio_led marzen_leds[] = {
 	{
@@ -272,7 +212,6 @@ static struct resource vin##idx##_resources[] __initdata = {	\
 };								\
 								\
 static struct platform_device_info vin##idx##_info __initdata = { \
-	.parent		= &platform_bus,			\
 	.name		= "r8a7779-vin",			\
 	.id		= idx,					\
 	.res		= vin##idx##_resources,			\
@@ -389,7 +328,6 @@ static void __init marzen_init(void)
 	platform_device_register_full(&vin1_info);
 	platform_device_register_full(&vin3_info);
 	platform_add_devices(marzen_devices, ARRAY_SIZE(marzen_devices));
-	marzen_add_du_device();
 }
 
 static const char *marzen_boards_compat_dt[] __initdata = {

@@ -1,10 +1,13 @@
 #include <linux/io.h>
 #include <linux/fb.h>
+#include <linux/console.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
+
+#include <drm/drm_gem.h>
 
 #include <ttm/ttm_bo_driver.h>
 #include <ttm/ttm_page_alloc.h>
@@ -87,8 +90,6 @@ struct bochs_device {
 		struct bochs_framebuffer gfb;
 		struct drm_fb_helper helper;
 		int size;
-		int x1, y1, x2, y2; /* dirty rect */
-		spinlock_t dirty_lock;
 		bool initialized;
 	} fb;
 };
@@ -100,7 +101,7 @@ struct bochs_bo {
 	struct ttm_placement placement;
 	struct ttm_bo_kmap_obj kmap;
 	struct drm_gem_object gem;
-	u32 placements[3];
+	struct ttm_place placements[3];
 	int pin_count;
 };
 

@@ -13,12 +13,9 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <linux/clk/shmobile.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <linux/irqchip/arm-gic.h>
@@ -37,11 +34,28 @@
 #include <linux/usb/ehci_pdriver.h>
 #include <linux/usb/ohci_pdriver.h>
 #include <linux/dma-mapping.h>
-#include <mach/irqs.h>
-#include <mach/r8a7778.h>
-#include <mach/common.h>
+
 #include <asm/mach/arch.h>
 #include <asm/hardware/cache-l2x0.h>
+
+#include "common.h"
+#include "irqs.h"
+#include "r8a7778.h"
+
+#define MODEMR 0xffcc0020
+
+#ifdef CONFIG_COMMON_CLK
+static void __init r8a7778_timer_init(void)
+{
+	u32 mode;
+	void __iomem *modemr = ioremap_nocache(MODEMR, 4);
+
+	BUG_ON(!modemr);
+	mode = ioread32(modemr);
+	iounmap(modemr);
+	r8a7778_clocks_init(mode);
+}
+#endif
 
 /* SCIF */
 #define R8A7778_SCIF(index, baseaddr, irq)			\
@@ -64,40 +78,27 @@ R8A7778_SCIF(4, 0xffe44000, gic_iid(0x6a));
 R8A7778_SCIF(5, 0xffe45000, gic_iid(0x6b));
 
 #define r8a7778_register_scif(index)					       \
-	platform_device_register_resndata(&platform_bus, "sh-sci", index,      \
+	platform_device_register_resndata(NULL, "sh-sci", index,	       \
 					  scif##index##_resources,	       \
 					  ARRAY_SIZE(scif##index##_resources), \
 					  &scif##index##_platform_data,	       \
 					  sizeof(scif##index##_platform_data))
 
 /* TMU */
-static struct resource sh_tmu0_resources[] __initdata = {
-	DEFINE_RES_MEM(0xffd80008, 12),
+static struct sh_timer_config sh_tmu0_platform_data = {
+	.channels_mask = 7,
+};
+
+static struct resource sh_tmu0_resources[] = {
+	DEFINE_RES_MEM(0xffd80000, 0x30),
 	DEFINE_RES_IRQ(gic_iid(0x40)),
-};
-
-static struct sh_timer_config sh_tmu0_platform_data __initdata = {
-	.name			= "TMU00",
-	.channel_offset		= 0x4,
-	.timer_bit		= 0,
-	.clockevent_rating	= 200,
-};
-
-static struct resource sh_tmu1_resources[] __initdata = {
-	DEFINE_RES_MEM(0xffd80014, 12),
 	DEFINE_RES_IRQ(gic_iid(0x41)),
-};
-
-static struct sh_timer_config sh_tmu1_platform_data __initdata = {
-	.name			= "TMU01",
-	.channel_offset		= 0x10,
-	.timer_bit		= 1,
-	.clocksource_rating	= 200,
+	DEFINE_RES_IRQ(gic_iid(0x42)),
 };
 
 #define r8a7778_register_tmu(idx)			\
 	platform_device_register_resndata(		\
-		&platform_bus, "sh_tmu", idx,		\
+		NULL, "sh-tmu", idx,			\
 		sh_tmu##idx##_resources,		\
 		ARRAY_SIZE(sh_tmu##idx##_resources),	\
 		&sh_tmu##idx##_platform_data,		\
@@ -186,7 +187,6 @@ static struct resource ohci_resources[] __initdata = {
 
 #define USB_PLATFORM_INFO(hci)					\
 static struct platform_device_info hci##_info __initdata = {	\
-	.parent		= &platform_bus,			\
 	.name		= #hci "-platform",			\
 	.id		= -1,					\
 	.res		= hci##_resources,			\
@@ -225,7 +225,7 @@ R8A7778_GPIO(4);
 
 #define r8a7778_register_gpio(idx)				\
 	platform_device_register_resndata(			\
-		&platform_bus, "gpio_rcar", idx,		\
+		NULL, "gpio_rcar", idx,				\
 		r8a7778_gpio##idx##_resources,			\
 		ARRAY_SIZE(r8a7778_gpio##idx##_resources),	\
 		&r8a7778_gpio##idx##_platform_data,		\
@@ -298,21 +298,12 @@ void __init r8a7778_add_dt_devices(void)
 	void __iomem *base = ioremap_nocache(0xf0100000, 0x1000);
 	if (base) {
 		/*
-		 * Early BRESP enable, Shared attribute override enable, 64K*16way
+		 * Shared attribute override enable, 64K*16way
 		 * don't call iounmap(base)
 		 */
-		l2x0_init(base, 0x40470000, 0x82000fff);
+		l2x0_init(base, 0x00400000, 0xc20f0fff);
 	}
 #endif
-
-	r8a7778_register_scif(0);
-	r8a7778_register_scif(1);
-	r8a7778_register_scif(2);
-	r8a7778_register_scif(3);
-	r8a7778_register_scif(4);
-	r8a7778_register_scif(5);
-	r8a7778_register_tmu(0);
-	r8a7778_register_tmu(1);
 }
 
 /* HPB-DMA */
@@ -510,8 +501,8 @@ static struct resource hpb_dmae_resources[] __initdata = {
 
 static void __init r8a7778_register_hpb_dmae(void)
 {
-	platform_device_register_resndata(&platform_bus, "hpb-dma-engine", -1,
-					  hpb_dmae_resources,
+	platform_device_register_resndata(NULL, "hpb-dma-engine",
+					  -1, hpb_dmae_resources,
 					  ARRAY_SIZE(hpb_dmae_resources),
 					  &dma_platform_data,
 					  sizeof(dma_platform_data));
@@ -520,6 +511,13 @@ static void __init r8a7778_register_hpb_dmae(void)
 void __init r8a7778_add_standard_devices(void)
 {
 	r8a7778_add_dt_devices();
+	r8a7778_register_tmu(0);
+	r8a7778_register_scif(0);
+	r8a7778_register_scif(1);
+	r8a7778_register_scif(2);
+	r8a7778_register_scif(3);
+	r8a7778_register_scif(4);
+	r8a7778_register_scif(5);
 	r8a7778_register_i2c(0);
 	r8a7778_register_i2c(1);
 	r8a7778_register_i2c(2);
@@ -533,6 +531,7 @@ void __init r8a7778_add_standard_devices(void)
 
 void __init r8a7778_init_late(void)
 {
+	shmobile_init_late();
 	platform_device_register_full(&ehci_info);
 	platform_device_register_full(&ohci_info);
 }
@@ -579,14 +578,9 @@ void __init r8a7778_init_irq_extpin(int irlm)
 	r8a7778_init_irq_extpin_dt(irlm);
 	if (irlm)
 		platform_device_register_resndata(
-			&platform_bus, "renesas_intc_irqpin", -1,
+			NULL, "renesas_intc_irqpin", -1,
 			irqpin_resources, ARRAY_SIZE(irqpin_resources),
 			&irqpin_platform_data, sizeof(irqpin_platform_data));
-}
-
-void __init r8a7778_init_delay(void)
-{
-	shmobile_setup_delay(800, 1, 3); /* Cortex-A9 @ 800MHz */
 }
 
 #ifdef CONFIG_USE_OF
@@ -598,11 +592,18 @@ void __init r8a7778_init_delay(void)
 void __init r8a7778_init_irq_dt(void)
 {
 	void __iomem *base = ioremap_nocache(0xfe700000, 0x00100000);
+#ifdef CONFIG_ARCH_SHMOBILE_LEGACY
+	void __iomem *gic_dist_base = ioremap_nocache(0xfe438000, 0x1000);
+	void __iomem *gic_cpu_base = ioremap_nocache(0xfe430000, 0x1000);
+#endif
 
 	BUG_ON(!base);
 
+#ifdef CONFIG_ARCH_SHMOBILE_LEGACY
+	gic_init(0, 29, gic_dist_base, gic_cpu_base);
+#else
 	irqchip_init();
-
+#endif
 	/* route all interrupts to ARM */
 	__raw_writel(0x73ffffff, base + INT2NTSR0);
 	__raw_writel(0xffffffff, base + INT2NTSR1);
@@ -620,10 +621,13 @@ static const char *r8a7778_compat_dt[] __initdata = {
 };
 
 DT_MACHINE_START(R8A7778_DT, "Generic R8A7778 (Flattened Device Tree)")
-	.init_early	= r8a7778_init_delay,
+	.init_early	= shmobile_init_delay,
 	.init_irq	= r8a7778_init_irq_dt,
+	.init_late	= shmobile_init_late,
+#ifdef CONFIG_COMMON_CLK
+	.init_time	= r8a7778_timer_init,
+#endif
 	.dt_compat	= r8a7778_compat_dt,
-	.init_late      = r8a7778_init_late,
 MACHINE_END
 
 #endif /* CONFIG_USE_OF */

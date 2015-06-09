@@ -63,9 +63,6 @@
 #define OMAP_PACKAGE_CUS		5		/* 423-pin 0.65 */
 #define OMAP_PACKAGE_CBB		4		/* 515-pin 0.40 0.50 */
 #define OMAP_PACKAGE_CBC		3		/* 515-pin 0.50 0.65 */
-#define OMAP_PACKAGE_ZAC		2		/* 24xx 447-pin POP */
-#define OMAP_PACKAGE_ZAF		1		/* 2420 447-pin SIP */
-
 
 #define OMAP_MUX_NR_MODES		8		/* Available modes */
 #define OMAP_MUX_NR_SIDES		2		/* Bottom & top */

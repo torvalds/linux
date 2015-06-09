@@ -65,6 +65,7 @@ struct bt_security {
 #define BT_SECURITY_LOW		1
 #define BT_SECURITY_MEDIUM	2
 #define BT_SECURITY_HIGH	3
+#define BT_SECURITY_FIPS	4
 
 #define BT_DEFER_SETUP	7
 
@@ -119,9 +120,9 @@ struct bt_voice {
 #define BT_RCVMTU		13
 
 __printf(1, 2)
-int bt_info(const char *fmt, ...);
+void bt_info(const char *fmt, ...);
 __printf(1, 2)
-int bt_err(const char *fmt, ...);
+void bt_err(const char *fmt, ...);
 
 #define BT_INFO(fmt, ...)	bt_info(fmt "\n", ##__VA_ARGS__)
 #define BT_ERR(fmt, ...)	bt_err(fmt "\n", ##__VA_ARGS__)
@@ -244,10 +245,10 @@ int  bt_sock_register(int proto, const struct net_proto_family *ops);
 void bt_sock_unregister(int proto);
 void bt_sock_link(struct bt_sock_list *l, struct sock *s);
 void bt_sock_unlink(struct bt_sock_list *l, struct sock *s);
-int  bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
-				struct msghdr *msg, size_t len, int flags);
-int  bt_sock_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
-			struct msghdr *msg, size_t len, int flags);
+int  bt_sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
+		     int flags);
+int  bt_sock_stream_recvmsg(struct socket *sock, struct msghdr *msg,
+			    size_t len, int flags);
 uint bt_sock_poll(struct file *file, struct socket *sock, poll_table *wait);
 int  bt_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);
 int  bt_sock_wait_state(struct sock *sk, int state, unsigned long timeo);
@@ -259,37 +260,43 @@ struct sock *bt_accept_dequeue(struct sock *parent, struct socket *newsock);
 
 /* Skb helpers */
 struct l2cap_ctrl {
-	unsigned int	sframe:1,
-			poll:1,
-			final:1,
-			fcs:1,
-			sar:2,
-			super:2;
-	__u16		reqseq;
-	__u16		txseq;
-	__u8		retries;
+	__u8	sframe:1,
+		poll:1,
+		final:1,
+		fcs:1,
+		sar:2,
+		super:2;
+	__u16	reqseq;
+	__u16	txseq;
+	__u8	retries;
+	__le16  psm;
+	bdaddr_t bdaddr;
+	struct l2cap_chan *chan;
 };
 
 struct hci_dev;
 
-typedef void (*hci_req_complete_t)(struct hci_dev *hdev, u8 status);
+typedef void (*hci_req_complete_t)(struct hci_dev *hdev, u8 status, u16 opcode);
+typedef void (*hci_req_complete_skb_t)(struct hci_dev *hdev, u8 status,
+				       u16 opcode, struct sk_buff *skb);
 
-struct hci_req_ctrl {
-	bool			start;
-	u8			event;
-	hci_req_complete_t	complete;
+struct req_ctrl {
+	bool start;
+	u8 event;
+	hci_req_complete_t complete;
+	hci_req_complete_skb_t complete_skb;
 };
 
 struct bt_skb_cb {
 	__u8 pkt_type;
-	__u8 incoming;
-	__u16 expect;
 	__u8 force_active;
-	struct l2cap_chan *chan;
-	struct l2cap_ctrl control;
-	struct hci_req_ctrl req;
-	bdaddr_t bdaddr;
-	__le16 psm;
+	__u16 opcode;
+	__u16 expect;
+	__u8 incoming:1;
+	union {
+		struct l2cap_ctrl l2cap;
+		struct req_ctrl req;
+	};
 };
 #define bt_cb(skb) ((struct bt_skb_cb *)((skb)->cb))
 
@@ -337,6 +344,11 @@ out:
 
 int bt_to_errno(__u16 code);
 
+void hci_sock_set_flag(struct sock *sk, int nr);
+void hci_sock_clear_flag(struct sock *sk, int nr);
+int hci_sock_test_flag(struct sock *sk, int nr);
+unsigned short hci_sock_get_channel(struct sock *sk);
+
 int hci_sock_init(void);
 void hci_sock_cleanup(void);
 
@@ -355,6 +367,9 @@ void l2cap_exit(void);
 
 int sco_init(void);
 void sco_exit(void);
+
+int mgmt_init(void);
+void mgmt_exit(void);
 
 void bt_sock_reclassify_lock(struct sock *sk, int proto);
 

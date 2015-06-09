@@ -20,6 +20,8 @@
 #include <linux/log2.h>
 #include <linux/dm-kcopyd.h>
 
+#include "dm.h"
+
 #include "dm-exception-store.h"
 
 #define DM_MSG_PREFIX "snapshots"
@@ -291,12 +293,23 @@ struct origin {
 };
 
 /*
+ * This structure is allocated for each origin target
+ */
+struct dm_origin {
+	struct dm_dev *dev;
+	struct dm_target *ti;
+	unsigned split_boundary;
+	struct list_head hash_list;
+};
+
+/*
  * Size of the hash table for origin volumes. If we make this
  * the size of the minors list then it should be nearly perfect
  */
 #define ORIGIN_HASH_SIZE 256
 #define ORIGIN_MASK      0xFF
 static struct list_head *_origins;
+static struct list_head *_dm_origins;
 static struct rw_semaphore _origins_lock;
 
 static DECLARE_WAIT_QUEUE_HEAD(_pending_exceptions_done);
@@ -310,12 +323,22 @@ static int init_origin_hash(void)
 	_origins = kmalloc(ORIGIN_HASH_SIZE * sizeof(struct list_head),
 			   GFP_KERNEL);
 	if (!_origins) {
-		DMERR("unable to allocate memory");
+		DMERR("unable to allocate memory for _origins");
 		return -ENOMEM;
 	}
-
 	for (i = 0; i < ORIGIN_HASH_SIZE; i++)
 		INIT_LIST_HEAD(_origins + i);
+
+	_dm_origins = kmalloc(ORIGIN_HASH_SIZE * sizeof(struct list_head),
+			      GFP_KERNEL);
+	if (!_dm_origins) {
+		DMERR("unable to allocate memory for _dm_origins");
+		kfree(_origins);
+		return -ENOMEM;
+	}
+	for (i = 0; i < ORIGIN_HASH_SIZE; i++)
+		INIT_LIST_HEAD(_dm_origins + i);
+
 	init_rwsem(&_origins_lock);
 
 	return 0;
@@ -324,6 +347,7 @@ static int init_origin_hash(void)
 static void exit_origin_hash(void)
 {
 	kfree(_origins);
+	kfree(_dm_origins);
 }
 
 static unsigned origin_hash(struct block_device *bdev)
@@ -348,6 +372,30 @@ static void __insert_origin(struct origin *o)
 {
 	struct list_head *sl = &_origins[origin_hash(o->bdev)];
 	list_add_tail(&o->hash_list, sl);
+}
+
+static struct dm_origin *__lookup_dm_origin(struct block_device *origin)
+{
+	struct list_head *ol;
+	struct dm_origin *o;
+
+	ol = &_dm_origins[origin_hash(origin)];
+	list_for_each_entry (o, ol, hash_list)
+		if (bdev_equal(o->dev->bdev, origin))
+			return o;
+
+	return NULL;
+}
+
+static void __insert_dm_origin(struct dm_origin *o)
+{
+	struct list_head *sl = &_dm_origins[origin_hash(o->dev->bdev)];
+	list_add_tail(&o->hash_list, sl);
+}
+
+static void __remove_dm_origin(struct dm_origin *o)
+{
+	list_del(&o->hash_list);
 }
 
 /*
@@ -642,7 +690,7 @@ static void free_pending_exception(struct dm_snap_pending_exception *pe)
 	struct dm_snapshot *s = pe->snap;
 
 	mempool_free(pe, s->pending_pool);
-	smp_mb__before_atomic_dec();
+	smp_mb__before_atomic();
 	atomic_dec(&s->pending_exceptions_count);
 }
 
@@ -783,7 +831,7 @@ static int init_hash_tables(struct dm_snapshot *s)
 static void merge_shutdown(struct dm_snapshot *s)
 {
 	clear_bit_unlock(RUNNING_MERGE, &s->state_bits);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	wake_up_bit(&s->state_bits, RUNNING_MERGE);
 }
 
@@ -1032,21 +1080,13 @@ static void start_merge(struct dm_snapshot *s)
 		snapshot_merge_next_chunks(s);
 }
 
-static int wait_schedule(void *ptr)
-{
-	schedule();
-
-	return 0;
-}
-
 /*
  * Stop the merging process and wait until it finishes.
  */
 static void stop_merge(struct dm_snapshot *s)
 {
 	set_bit(SHUTDOWN_MERGE, &s->state_bits);
-	wait_on_bit(&s->state_bits, RUNNING_MERGE, wait_schedule,
-		    TASK_UNINTERRUPTIBLE);
+	wait_on_bit(&s->state_bits, RUNNING_MERGE, TASK_UNINTERRUPTIBLE);
 	clear_bit(SHUTDOWN_MERGE, &s->state_bits);
 }
 
@@ -1440,8 +1480,6 @@ out:
 		full_bio->bi_private = pe->full_bio_private;
 		atomic_inc(&full_bio->bi_remaining);
 	}
-	free_pending_exception(pe);
-
 	increment_pending_exceptions_done_count();
 
 	up_write(&s->lock);
@@ -1458,6 +1496,8 @@ out:
 	}
 
 	retry_origin_bios(s, origin_bios);
+
+	free_pending_exception(pe);
 }
 
 static void commit_callback(void *context, int success)
@@ -1848,9 +1888,40 @@ static int snapshot_preresume(struct dm_target *ti)
 static void snapshot_resume(struct dm_target *ti)
 {
 	struct dm_snapshot *s = ti->private;
-	struct dm_snapshot *snap_src = NULL, *snap_dest = NULL;
+	struct dm_snapshot *snap_src = NULL, *snap_dest = NULL, *snap_merging = NULL;
+	struct dm_origin *o;
+	struct mapped_device *origin_md = NULL;
+	bool must_restart_merging = false;
 
 	down_read(&_origins_lock);
+
+	o = __lookup_dm_origin(s->origin->bdev);
+	if (o)
+		origin_md = dm_table_get_md(o->ti->table);
+	if (!origin_md) {
+		(void) __find_snapshots_sharing_cow(s, NULL, NULL, &snap_merging);
+		if (snap_merging)
+			origin_md = dm_table_get_md(snap_merging->ti->table);
+	}
+	if (origin_md == dm_table_get_md(ti->table))
+		origin_md = NULL;
+	if (origin_md) {
+		if (dm_hold(origin_md))
+			origin_md = NULL;
+	}
+
+	up_read(&_origins_lock);
+
+	if (origin_md) {
+		dm_internal_suspend_fast(origin_md);
+		if (snap_merging && test_bit(RUNNING_MERGE, &snap_merging->state_bits)) {
+			must_restart_merging = true;
+			stop_merge(snap_merging);
+		}
+	}
+
+	down_read(&_origins_lock);
+
 	(void) __find_snapshots_sharing_cow(s, &snap_src, &snap_dest, NULL);
 	if (snap_src && snap_dest) {
 		down_write(&snap_src->lock);
@@ -1859,7 +1930,15 @@ static void snapshot_resume(struct dm_target *ti)
 		up_write(&snap_dest->lock);
 		up_write(&snap_src->lock);
 	}
+
 	up_read(&_origins_lock);
+
+	if (origin_md) {
+		if (must_restart_merging)
+			start_merge(snap_merging);
+		dm_internal_resume_fast(origin_md);
+		dm_put(origin_md);
+	}
 
 	/* Now we have correct chunk size, reregister */
 	reregister_snapshot(s);
@@ -2149,41 +2228,67 @@ static int origin_write_extent(struct dm_snapshot *merging_snap,
 static int origin_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	int r;
-	struct dm_dev *dev;
+	struct dm_origin *o;
 
 	if (argc != 1) {
 		ti->error = "origin: incorrect number of arguments";
 		return -EINVAL;
 	}
 
-	r = dm_get_device(ti, argv[0], dm_table_get_mode(ti->table), &dev);
-	if (r) {
-		ti->error = "Cannot get target device";
-		return r;
+	o = kmalloc(sizeof(struct dm_origin), GFP_KERNEL);
+	if (!o) {
+		ti->error = "Cannot allocate private origin structure";
+		r = -ENOMEM;
+		goto bad_alloc;
 	}
 
-	ti->private = dev;
+	r = dm_get_device(ti, argv[0], dm_table_get_mode(ti->table), &o->dev);
+	if (r) {
+		ti->error = "Cannot get target device";
+		goto bad_open;
+	}
+
+	o->ti = ti;
+	ti->private = o;
 	ti->num_flush_bios = 1;
 
 	return 0;
+
+bad_open:
+	kfree(o);
+bad_alloc:
+	return r;
 }
 
 static void origin_dtr(struct dm_target *ti)
 {
-	struct dm_dev *dev = ti->private;
-	dm_put_device(ti, dev);
+	struct dm_origin *o = ti->private;
+
+	dm_put_device(ti, o->dev);
+	kfree(o);
 }
 
 static int origin_map(struct dm_target *ti, struct bio *bio)
 {
-	struct dm_dev *dev = ti->private;
-	bio->bi_bdev = dev->bdev;
+	struct dm_origin *o = ti->private;
+	unsigned available_sectors;
 
-	if (bio->bi_rw & REQ_FLUSH)
+	bio->bi_bdev = o->dev->bdev;
+
+	if (unlikely(bio->bi_rw & REQ_FLUSH))
 		return DM_MAPIO_REMAPPED;
 
+	if (bio_rw(bio) != WRITE)
+		return DM_MAPIO_REMAPPED;
+
+	available_sectors = o->split_boundary -
+		((unsigned)bio->bi_iter.bi_sector & (o->split_boundary - 1));
+
+	if (bio_sectors(bio) > available_sectors)
+		dm_accept_partial_bio(bio, available_sectors);
+
 	/* Only tell snapshots if this is a write */
-	return (bio_rw(bio) == WRITE) ? do_origin(dev, bio) : DM_MAPIO_REMAPPED;
+	return do_origin(o->dev, bio);
 }
 
 /*
@@ -2192,15 +2297,28 @@ static int origin_map(struct dm_target *ti, struct bio *bio)
  */
 static void origin_resume(struct dm_target *ti)
 {
-	struct dm_dev *dev = ti->private;
+	struct dm_origin *o = ti->private;
 
-	ti->max_io_len = get_origin_minimum_chunksize(dev->bdev);
+	o->split_boundary = get_origin_minimum_chunksize(o->dev->bdev);
+
+	down_write(&_origins_lock);
+	__insert_dm_origin(o);
+	up_write(&_origins_lock);
+}
+
+static void origin_postsuspend(struct dm_target *ti)
+{
+	struct dm_origin *o = ti->private;
+
+	down_write(&_origins_lock);
+	__remove_dm_origin(o);
+	up_write(&_origins_lock);
 }
 
 static void origin_status(struct dm_target *ti, status_type_t type,
 			  unsigned status_flags, char *result, unsigned maxlen)
 {
-	struct dm_dev *dev = ti->private;
+	struct dm_origin *o = ti->private;
 
 	switch (type) {
 	case STATUSTYPE_INFO:
@@ -2208,7 +2326,7 @@ static void origin_status(struct dm_target *ti, status_type_t type,
 		break;
 
 	case STATUSTYPE_TABLE:
-		snprintf(result, maxlen, "%s", dev->name);
+		snprintf(result, maxlen, "%s", o->dev->name);
 		break;
 	}
 }
@@ -2216,13 +2334,13 @@ static void origin_status(struct dm_target *ti, status_type_t type,
 static int origin_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
 			struct bio_vec *biovec, int max_size)
 {
-	struct dm_dev *dev = ti->private;
-	struct request_queue *q = bdev_get_queue(dev->bdev);
+	struct dm_origin *o = ti->private;
+	struct request_queue *q = bdev_get_queue(o->dev->bdev);
 
 	if (!q->merge_bvec_fn)
 		return max_size;
 
-	bvm->bi_bdev = dev->bdev;
+	bvm->bi_bdev = o->dev->bdev;
 
 	return min(max_size, q->merge_bvec_fn(q, bvm, biovec));
 }
@@ -2230,19 +2348,20 @@ static int origin_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
 static int origin_iterate_devices(struct dm_target *ti,
 				  iterate_devices_callout_fn fn, void *data)
 {
-	struct dm_dev *dev = ti->private;
+	struct dm_origin *o = ti->private;
 
-	return fn(ti, dev, 0, ti->len, data);
+	return fn(ti, o->dev, 0, ti->len, data);
 }
 
 static struct target_type origin_target = {
 	.name    = "snapshot-origin",
-	.version = {1, 8, 1},
+	.version = {1, 9, 0},
 	.module  = THIS_MODULE,
 	.ctr     = origin_ctr,
 	.dtr     = origin_dtr,
 	.map     = origin_map,
 	.resume  = origin_resume,
+	.postsuspend = origin_postsuspend,
 	.status  = origin_status,
 	.merge	 = origin_merge,
 	.iterate_devices = origin_iterate_devices,
@@ -2250,7 +2369,7 @@ static struct target_type origin_target = {
 
 static struct target_type snapshot_target = {
 	.name    = "snapshot",
-	.version = {1, 12, 0},
+	.version = {1, 13, 0},
 	.module  = THIS_MODULE,
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,
@@ -2264,7 +2383,7 @@ static struct target_type snapshot_target = {
 
 static struct target_type merge_target = {
 	.name    = dm_snapshot_merge_target_name,
-	.version = {1, 2, 0},
+	.version = {1, 3, 0},
 	.module  = THIS_MODULE,
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,

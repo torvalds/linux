@@ -145,7 +145,7 @@ static int mdio_mux_mmioreg_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id mdio_mux_mmioreg_match[] = {
+static const struct of_device_id mdio_mux_mmioreg_match[] = {
 	{
 		.compatible = "mdio-mux-mmioreg",
 	},
@@ -156,7 +156,6 @@ MODULE_DEVICE_TABLE(of, mdio_mux_mmioreg_match);
 static struct platform_driver mdio_mux_mmioreg_driver = {
 	.driver = {
 		.name		= "mdio-mux-mmioreg",
-		.owner		= THIS_MODULE,
 		.of_match_table = mdio_mux_mmioreg_match,
 	},
 	.probe		= mdio_mux_mmioreg_probe,

@@ -134,17 +134,15 @@ struct snd_seq_client_port *snd_seq_create_port(struct snd_seq_client *client,
 	if (snd_BUG_ON(!client))
 		return NULL;
 
-	if (client->num_ports >= SNDRV_SEQ_MAX_PORTS - 1) {
-		snd_printk(KERN_WARNING "too many ports for client %d\n", client->number);
+	if (client->num_ports >= SNDRV_SEQ_MAX_PORTS) {
+		pr_warn("ALSA: seq: too many ports for client %d\n", client->number);
 		return NULL;
 	}
 
 	/* create a new port */
 	new_port = kzalloc(sizeof(*new_port), GFP_KERNEL);
-	if (! new_port) {
-		snd_printd("malloc failed for registering client port\n");
+	if (!new_port)
 		return NULL;	/* failure, out of memory */
-	}
 	/* init port data */
 	new_port->addr.client = client->number;
 	new_port->addr.port = -1;
@@ -411,9 +409,6 @@ int snd_seq_get_port_info(struct snd_seq_client_port * port,
  * invoked.
  * This feature is useful if these callbacks are associated with
  * initialization or termination of devices (see seq_midi.c).
- *
- * If callback_all option is set, the callback function is invoked
- * at each connection/disconnection. 
  */
 
 static int subscribe_port(struct snd_seq_client *client,
@@ -427,7 +422,7 @@ static int subscribe_port(struct snd_seq_client *client,
 	if (!try_module_get(port->owner))
 		return -EFAULT;
 	grp->count++;
-	if (grp->open && (port->callback_all || grp->count == 1)) {
+	if (grp->open && grp->count == 1) {
 		err = grp->open(port->private_data, info);
 		if (err < 0) {
 			module_put(port->owner);
@@ -452,7 +447,7 @@ static int unsubscribe_port(struct snd_seq_client *client,
 	if (! grp->count)
 		return -EINVAL;
 	grp->count--;
-	if (grp->close && (port->callback_all || grp->count == 0))
+	if (grp->close && grp->count == 0)
 		err = grp->close(port->private_data, info);
 	if (send_ack && client->type == USER_CLIENT)
 		snd_seq_client_notify_subscription(port->addr.client, port->addr.port,

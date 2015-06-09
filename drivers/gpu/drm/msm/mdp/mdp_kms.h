@@ -75,7 +75,7 @@ void mdp_update_vblank_mask(struct mdp_kms *mdp_kms, uint32_t mask, bool enable)
 void mdp_irq_wait(struct mdp_kms *mdp_kms, uint32_t irqmask);
 void mdp_irq_register(struct mdp_kms *mdp_kms, struct mdp_irq *irq);
 void mdp_irq_unregister(struct mdp_kms *mdp_kms, struct mdp_irq *irq);
-
+void mdp_irq_update(struct mdp_kms *mdp_kms);
 
 /*
  * pixel format helpers:
@@ -88,10 +88,32 @@ struct mdp_format {
 	uint8_t unpack[4];
 	bool alpha_enable, unpack_tight;
 	uint8_t cpp, unpack_count;
+	enum mdp_sspp_fetch_type fetch_type;
+	enum mdp_chroma_samp_type chroma_sample;
 };
 #define to_mdp_format(x) container_of(x, struct mdp_format, base)
+#define MDP_FORMAT_IS_YUV(mdp_format) ((mdp_format)->chroma_sample > CHROMA_RGB)
 
-uint32_t mdp_get_formats(uint32_t *formats, uint32_t max_formats);
+uint32_t mdp_get_formats(uint32_t *formats, uint32_t max_formats, bool rgb_only);
 const struct msm_format *mdp_get_format(struct msm_kms *kms, uint32_t format);
+
+enum csc_type {
+	CSC_RGB2RGB = 0,
+	CSC_YUV2RGB,
+	CSC_RGB2YUV,
+	CSC_YUV2YUV,
+	CSC_MAX
+};
+
+struct csc_cfg {
+	enum csc_type type;
+	uint32_t matrix[9];
+	uint32_t pre_bias[3];
+	uint32_t post_bias[3];
+	uint32_t pre_clamp[6];
+	uint32_t post_clamp[6];
+};
+
+struct csc_cfg *mdp_get_default_csc_cfg(enum csc_type);
 
 #endif /* __MDP_KMS_H__ */

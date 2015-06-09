@@ -34,9 +34,10 @@
 /*
  * Type of table and mapped_device's mempool
  */
-#define DM_TYPE_NONE		0
-#define DM_TYPE_BIO_BASED	1
-#define DM_TYPE_REQUEST_BASED	2
+#define DM_TYPE_NONE			0
+#define DM_TYPE_BIO_BASED		1
+#define DM_TYPE_REQUEST_BASED		2
+#define DM_TYPE_MQ_REQUEST_BASED	3
 
 /*
  * List of devices that a metadevice uses and should open/close.
@@ -44,7 +45,7 @@
 struct dm_dev_internal {
 	struct list_head list;
 	atomic_t count;
-	struct dm_dev dm_dev;
+	struct dm_dev *dm_dev;
 };
 
 struct dm_table;
@@ -65,15 +66,14 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 			       struct queue_limits *limits);
 struct list_head *dm_table_get_devices(struct dm_table *t);
 void dm_table_presuspend_targets(struct dm_table *t);
+void dm_table_presuspend_undo_targets(struct dm_table *t);
 void dm_table_postsuspend_targets(struct dm_table *t);
 int dm_table_resume_targets(struct dm_table *t);
 int dm_table_any_congested(struct dm_table *t, int bdi_bits);
-int dm_table_any_busy_target(struct dm_table *t);
 unsigned dm_table_get_type(struct dm_table *t);
 struct target_type *dm_table_get_immutable_target_type(struct dm_table *t);
 bool dm_table_request_based(struct dm_table *t);
-bool dm_table_supports_discards(struct dm_table *t);
-int dm_table_alloc_md_mempools(struct dm_table *t);
+bool dm_table_mq_request_based(struct dm_table *t);
 void dm_table_free_md_mempools(struct dm_table *t);
 struct dm_md_mempools *dm_table_get_md_mempools(struct dm_table *t);
 
@@ -100,7 +100,8 @@ int dm_setup_md_queue(struct mapped_device *md);
 /*
  * To check whether the target type is request-based or not (bio-based).
  */
-#define dm_target_request_based(t) ((t)->type->map_rq != NULL)
+#define dm_target_request_based(t) (((t)->type->map_rq != NULL) || \
+				    ((t)->type->clone_and_map_rq != NULL))
 
 /*
  * To check whether the target type is a hybrid (capable of being
@@ -129,6 +130,15 @@ int dm_deleting_md(struct mapped_device *md);
  * Is this mapped_device suspended?
  */
 int dm_suspended_md(struct mapped_device *md);
+
+/*
+ * Internal suspend and resume methods.
+ */
+int dm_suspended_internally_md(struct mapped_device *md);
+void dm_internal_suspend_fast(struct mapped_device *md);
+void dm_internal_resume_fast(struct mapped_device *md);
+void dm_internal_suspend_noflush(struct mapped_device *md);
+void dm_internal_resume(struct mapped_device *md);
 
 /*
  * Test if the device is scheduled for deferred remove.
@@ -189,6 +199,10 @@ int dm_lock_for_deletion(struct mapped_device *md, bool mark_deferred, bool only
 int dm_cancel_deferred_remove(struct mapped_device *md);
 int dm_request_based(struct mapped_device *md);
 sector_t dm_get_size(struct mapped_device *md);
+struct request_queue *dm_get_md_queue(struct mapped_device *md);
+int dm_get_table_device(struct mapped_device *md, dev_t dev, fmode_t mode,
+			struct dm_dev **result);
+void dm_put_table_device(struct mapped_device *md, struct dm_dev *d);
 struct dm_stats *dm_get_stats(struct mapped_device *md);
 
 int dm_kobject_uevent(struct mapped_device *md, enum kobject_action action,
@@ -196,6 +210,8 @@ int dm_kobject_uevent(struct mapped_device *md, enum kobject_action action,
 
 void dm_internal_suspend(struct mapped_device *md);
 void dm_internal_resume(struct mapped_device *md);
+
+bool dm_use_blk_mq(struct mapped_device *md);
 
 int dm_io_init(void);
 void dm_io_exit(void);
@@ -206,7 +222,8 @@ void dm_kcopyd_exit(void);
 /*
  * Mempool operations
  */
-struct dm_md_mempools *dm_alloc_md_mempools(unsigned type, unsigned integrity, unsigned per_bio_data_size);
+struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, unsigned type,
+					    unsigned integrity, unsigned per_bio_data_size);
 void dm_free_md_mempools(struct dm_md_mempools *pools);
 
 /*
@@ -219,5 +236,9 @@ static inline bool dm_message_test_buffer_overflow(char *result, unsigned maxlen
 {
 	return !maxlen || strlen(result) + 1 >= maxlen;
 }
+
+ssize_t dm_attr_rq_based_seq_io_merge_deadline_show(struct mapped_device *md, char *buf);
+ssize_t dm_attr_rq_based_seq_io_merge_deadline_store(struct mapped_device *md,
+						     const char *buf, size_t count);
 
 #endif

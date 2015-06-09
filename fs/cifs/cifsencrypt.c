@@ -1,6 +1,9 @@
 /*
  *   fs/cifs/cifsencrypt.c
  *
+ *   Encryption and hashing operations relating to NTLM, NTLMv2.  See MS-NLMP
+ *   for more detailed information
+ *
  *   Copyright (C) International Business Machines  Corp., 2005,2013
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
@@ -431,7 +434,7 @@ find_domain_name(struct cifs_ses *ses, const struct nls_table *nls_cp)
 						return -ENOMEM;
 				cifs_from_utf16(ses->domainName,
 					(__le16 *)blobptr, attrsize, attrsize,
-					nls_cp, false);
+					nls_cp, NO_MAP_UNI_RSVD);
 				break;
 			}
 		}
@@ -515,7 +518,8 @@ static int calc_ntlmv2_hash(struct cifs_ses *ses, char *ntlmv2_hash,
 				 __func__);
 			return rc;
 		}
-	} else if (ses->serverName) {
+	} else {
+		/* We use ses->serverName if no domain name available */
 		len = strlen(ses->serverName);
 
 		server = kmalloc(2 + (len * 2), GFP_KERNEL);

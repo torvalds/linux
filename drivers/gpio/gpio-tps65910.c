@@ -123,10 +123,8 @@ static int tps65910_gpio_probe(struct platform_device *pdev)
 
 	tps65910_gpio = devm_kzalloc(&pdev->dev,
 				sizeof(*tps65910_gpio), GFP_KERNEL);
-	if (!tps65910_gpio) {
-		dev_err(&pdev->dev, "Could not allocate tps65910_gpio\n");
+	if (!tps65910_gpio)
 		return -ENOMEM;
-	}
 
 	tps65910_gpio->tps65910 = tps65910;
 
@@ -192,7 +190,8 @@ static int tps65910_gpio_remove(struct platform_device *pdev)
 {
 	struct tps65910_gpio *tps65910_gpio = platform_get_drvdata(pdev);
 
-	return gpiochip_remove(&tps65910_gpio->gpio_chip);
+	gpiochip_remove(&tps65910_gpio->gpio_chip);
+	return 0;
 }
 
 static struct platform_driver tps65910_gpio_driver = {

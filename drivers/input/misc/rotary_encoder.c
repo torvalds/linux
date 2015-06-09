@@ -143,7 +143,7 @@ static irqreturn_t rotary_encoder_half_period_irq(int irq, void *dev_id)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id rotary_encoder_of_match[] = {
+static const struct of_device_id rotary_encoder_of_match[] = {
 	{ .compatible = "rotary-encoder", },
 	{ },
 };
@@ -325,7 +325,6 @@ static struct platform_driver rotary_encoder_driver = {
 	.remove		= rotary_encoder_remove,
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(rotary_encoder_of_match),
 	}
 };

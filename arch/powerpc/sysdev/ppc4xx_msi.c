@@ -22,7 +22,6 @@
  */
 
 #include <linux/irq.h>
-#include <linux/bootmem.h>
 #include <linux/pci.h>
 #include <linux/msi.h>
 #include <linux/of_platform.h>
@@ -85,8 +84,12 @@ static int ppc4xx_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	struct msi_desc *entry;
 	struct ppc4xx_msi *msi_data = &ppc4xx_msi;
 
-	msi_data->msi_virqs = kmalloc((msi_irqs) * sizeof(int),
-					    GFP_KERNEL);
+	dev_dbg(&dev->dev, "PCIE-MSI:%s called. vec %x type %d\n",
+		__func__, nvec, type);
+	if (type == PCI_CAP_ID_MSIX)
+		pr_debug("ppc4xx msi: MSI-X untested, trying anyway.\n");
+
+	msi_data->msi_virqs = kmalloc((msi_irqs) * sizeof(int), GFP_KERNEL);
 	if (!msi_data->msi_virqs)
 		return -ENOMEM;
 
@@ -112,7 +115,7 @@ static int ppc4xx_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 
 		irq_set_msi_desc(virq, entry);
 		msg.data = int_no;
-		write_msi_msg(virq, &msg);
+		pci_write_msi_msg(virq, &msg);
 	}
 	return 0;
 }
@@ -132,16 +135,6 @@ void ppc4xx_teardown_msi_irqs(struct pci_dev *dev)
 				virq_to_hw(entry->irq), 1);
 		irq_dispose_mapping(entry->irq);
 	}
-}
-
-static int ppc4xx_msi_check_device(struct pci_dev *pdev, int nvec, int type)
-{
-	dev_dbg(&pdev->dev, "PCIE-MSI:%s called. vec %x type %d\n",
-		__func__, nvec, type);
-	if (type == PCI_CAP_ID_MSIX)
-		pr_debug("ppc4xx msi: MSI-X untested, trying anyway.\n");
-
-	return 0;
 }
 
 static int ppc4xx_setup_pcieh_hw(struct platform_device *dev,
@@ -259,7 +252,6 @@ static int ppc4xx_msi_probe(struct platform_device *dev)
 
 	ppc_md.setup_msi_irqs = ppc4xx_setup_msi_irqs;
 	ppc_md.teardown_msi_irqs = ppc4xx_teardown_msi_irqs;
-	ppc_md.msi_check_device = ppc4xx_msi_check_device;
 	return err;
 
 error_out:
@@ -277,7 +269,6 @@ static struct platform_driver ppc4xx_msi_driver = {
 	.remove = ppc4xx_of_msi_remove,
 	.driver = {
 		   .name = "ppc4xx-msi",
-		   .owner = THIS_MODULE,
 		   .of_match_table = ppc4xx_msi_ids,
 		   },
 

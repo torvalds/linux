@@ -241,7 +241,7 @@ static int slave_configure(struct scsi_device *sdev)
 
 		/* Some USB cardreaders have trouble reading an sdcard's last
 		 * sector in a larger then 1 sector read, since the performance
-		 * impact is negible we set this flag for all USB disks */
+		 * impact is negligible we set this flag for all USB disks */
 		sdev->last_sector_bug = 1;
 
 		/* Enable last-sector hacks for single-target devices using
@@ -255,6 +255,10 @@ static int slave_configure(struct scsi_device *sdev)
 		/* Check if write cache default on flag is set or not */
 		if (us->fflags & US_FL_WRITE_CACHE)
 			sdev->wce_default_on = 1;
+
+		/* A few buggy USB-ATA bridges don't understand FUA */
+		if (us->fflags & US_FL_BROKEN_FUA)
+			sdev->broken_fua = 1;
 
 	} else {
 

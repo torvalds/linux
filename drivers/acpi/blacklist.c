@@ -215,6 +215,14 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	},
 	{
 	.callback = dmi_disable_osi_vista,
+	.ident = "VGN-SR19XN",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "VGN-SR19XN"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_vista,
 	.ident = "Toshiba Satellite L355",
 	.matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
@@ -247,71 +255,55 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	},
 
 	/*
-	 * The following machines have broken backlight support when reporting
-	 * the Windows 2012 OSI, so disable it until their support is fixed.
+	 * The wireless hotkey does not work on those machines when
+	 * returning true for _OSI("Windows 2012")
 	 */
 	{
 	.callback = dmi_disable_osi_win8,
-	.ident = "ASUS Zenbook Prime UX31A",
+	.ident = "Dell Inspiron 7737",
 	.matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-		     DMI_MATCH(DMI_PRODUCT_NAME, "UX31A"),
+		    DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		    DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 7737"),
 		},
 	},
 	{
 	.callback = dmi_disable_osi_win8,
-	.ident = "ThinkPad Edge E530",
+	.ident = "Dell Inspiron 7537",
 	.matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		     DMI_MATCH(DMI_PRODUCT_VERSION, "3259A2G"),
+		    DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		    DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 7537"),
 		},
 	},
 	{
 	.callback = dmi_disable_osi_win8,
-	.ident = "ThinkPad Edge E530",
+	.ident = "Dell Inspiron 5437",
 	.matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		     DMI_MATCH(DMI_PRODUCT_VERSION, "3259CTO"),
+		    DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		    DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 5437"),
 		},
 	},
 	{
 	.callback = dmi_disable_osi_win8,
-	.ident = "ThinkPad Edge E530",
+	.ident = "Dell Inspiron 3437",
 	.matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		     DMI_MATCH(DMI_PRODUCT_VERSION, "3259HJG"),
+		    DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		    DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 3437"),
 		},
 	},
 	{
 	.callback = dmi_disable_osi_win8,
-	.ident = "Acer Aspire V5-573G",
+	.ident = "Dell Vostro 3446",
 	.matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "Acer Aspire"),
-		     DMI_MATCH(DMI_PRODUCT_VERSION, "V5-573G/Dazzle_HW"),
+		    DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		    DMI_MATCH(DMI_PRODUCT_NAME, "Vostro 3446"),
 		},
 	},
 	{
 	.callback = dmi_disable_osi_win8,
-	.ident = "Acer Aspire V5-572G",
+	.ident = "Dell Vostro 3546",
 	.matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "Acer Aspire"),
-		     DMI_MATCH(DMI_PRODUCT_VERSION, "V5-572G/Dazzle_CX"),
-		},
-	},
-	{
-	.callback = dmi_disable_osi_win8,
-	.ident = "ThinkPad T431s",
-	.matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		     DMI_MATCH(DMI_PRODUCT_VERSION, "20AACTO1WW"),
-		},
-	},
-	{
-	.callback = dmi_disable_osi_win8,
-	.ident = "ThinkPad T430",
-	.matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		     DMI_MATCH(DMI_PRODUCT_VERSION, "2349D15"),
+		    DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		    DMI_MATCH(DMI_PRODUCT_NAME, "Vostro 3546"),
 		},
 	},
 
@@ -321,57 +313,16 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	 */
 
 	/*
-	 * Lenovo has a mix of systems OSI(Linux) situations
-	 * and thus we can not wildcard the vendor.
-	 *
-	 * _OSI(Linux) helps sound
-	 * DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad R61"),
-	 * DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T61"),
-	 * T400, T500
-	 * _OSI(Linux) has Linux specific hooks
-	 * DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X61"),
-	 * _OSI(Linux) is a NOP:
-	 * DMI_MATCH(DMI_PRODUCT_VERSION, "3000 N100"),
-	 * DMI_MATCH(DMI_PRODUCT_VERSION, "LENOVO3000 V100"),
+	 * Without this this EEEpc exports a non working WMI interface, with
+	 * this it exports a working "good old" eeepc_laptop interface, fixing
+	 * both brightness control, and rfkill not working.
 	 */
 	{
 	.callback = dmi_enable_osi_linux,
-	.ident = "Lenovo ThinkPad R61",
+	.ident = "Asus EEE PC 1015PX",
 	.matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		     DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad R61"),
-		},
-	},
-	{
-	.callback = dmi_enable_osi_linux,
-	.ident = "Lenovo ThinkPad T61",
-	.matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		     DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T61"),
-		},
-	},
-	{
-	.callback = dmi_enable_osi_linux,
-	.ident = "Lenovo ThinkPad X61",
-	.matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		     DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X61"),
-		},
-	},
-	{
-	.callback = dmi_enable_osi_linux,
-	.ident = "Lenovo ThinkPad T400",
-	.matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		     DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T400"),
-		},
-	},
-	{
-	.callback = dmi_enable_osi_linux,
-	.ident = "Lenovo ThinkPad T500",
-	.matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		     DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T500"),
+		     DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer INC."),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "1015PX"),
 		},
 	},
 	{}

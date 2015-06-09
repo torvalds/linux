@@ -62,7 +62,7 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 
 		r = dev->resource + idx;
 		if (!r->start && r->end) {
-			pr_err(KERN_ERR "PCI: Device %s not available because of resource collisions\n",
+			pr_err("PCI: Device %s not available because of resource collisions\n",
 				pci_name(dev));
 			return -EINVAL;
 		}

@@ -186,6 +186,10 @@ ebt_log_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	li.u.log.level = info->loglevel;
 	li.u.log.logflags = info->bitmask;
 
+	/* Remember that we have to use ebt_log_packet() not to break backward
+	 * compatibility. We cannot use the default bridge packet logger via
+	 * nf_log_packet() with NFT_LOG_TYPE_LOG here. --Pablo
+	 */
 	if (info->bitmask & EBT_LOG_NFLOG)
 		nf_log_packet(net, NFPROTO_BRIDGE, par->hooknum, skb,
 			      par->in, par->out, &li, "%s", info->prefix);
@@ -205,54 +209,13 @@ static struct xt_target ebt_log_tg_reg __read_mostly = {
 	.me		= THIS_MODULE,
 };
 
-static struct nf_logger ebt_log_logger __read_mostly = {
-	.name 		= "ebt_log",
-	.logfn		= &ebt_log_packet,
-	.me		= THIS_MODULE,
-};
-
-static int __net_init ebt_log_net_init(struct net *net)
-{
-	nf_log_set(net, NFPROTO_BRIDGE, &ebt_log_logger);
-	return 0;
-}
-
-static void __net_exit ebt_log_net_fini(struct net *net)
-{
-	nf_log_unset(net, &ebt_log_logger);
-}
-
-static struct pernet_operations ebt_log_net_ops = {
-	.init = ebt_log_net_init,
-	.exit = ebt_log_net_fini,
-};
-
 static int __init ebt_log_init(void)
 {
-	int ret;
-
-	ret = register_pernet_subsys(&ebt_log_net_ops);
-	if (ret < 0)
-		goto err_pernet;
-
-	ret = xt_register_target(&ebt_log_tg_reg);
-	if (ret < 0)
-		goto err_target;
-
-	nf_log_register(NFPROTO_BRIDGE, &ebt_log_logger);
-
-	return ret;
-
-err_target:
-	unregister_pernet_subsys(&ebt_log_net_ops);
-err_pernet:
-	return ret;
+	return xt_register_target(&ebt_log_tg_reg);
 }
 
 static void __exit ebt_log_fini(void)
 {
-	unregister_pernet_subsys(&ebt_log_net_ops);
-	nf_log_unregister(&ebt_log_logger);
 	xt_unregister_target(&ebt_log_tg_reg);
 }
 

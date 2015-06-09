@@ -17,6 +17,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
+#include <linux/firmware.h>
 #include <linux/platform_device.h>
 #include "wcn36xx.h"
 
@@ -177,6 +178,60 @@ static inline u8 get_sta_index(struct ieee80211_vif *vif,
 	       sta_priv->sta_index;
 }
 
+static const char * const wcn36xx_caps_names[] = {
+	"MCC",				/* 0 */
+	"P2P",				/* 1 */
+	"DOT11AC",			/* 2 */
+	"SLM_SESSIONIZATION",		/* 3 */
+	"DOT11AC_OPMODE",		/* 4 */
+	"SAP32STA",			/* 5 */
+	"TDLS",				/* 6 */
+	"P2P_GO_NOA_DECOUPLE_INIT_SCAN",/* 7 */
+	"WLANACTIVE_OFFLOAD",		/* 8 */
+	"BEACON_OFFLOAD",		/* 9 */
+	"SCAN_OFFLOAD",			/* 10 */
+	"ROAM_OFFLOAD",			/* 11 */
+	"BCN_MISS_OFFLOAD",		/* 12 */
+	"STA_POWERSAVE",		/* 13 */
+	"STA_ADVANCED_PWRSAVE",		/* 14 */
+	"AP_UAPSD",			/* 15 */
+	"AP_DFS",			/* 16 */
+	"BLOCKACK",			/* 17 */
+	"PHY_ERR",			/* 18 */
+	"BCN_FILTER",			/* 19 */
+	"RTT",				/* 20 */
+	"RATECTRL",			/* 21 */
+	"WOW"				/* 22 */
+};
+
+static const char *wcn36xx_get_cap_name(enum place_holder_in_cap_bitmap x)
+{
+	if (x >= ARRAY_SIZE(wcn36xx_caps_names))
+		return "UNKNOWN";
+	return wcn36xx_caps_names[x];
+}
+
+static void wcn36xx_feat_caps_info(struct wcn36xx *wcn)
+{
+	int i;
+
+	for (i = 0; i < MAX_FEATURE_SUPPORTED; i++) {
+		if (get_feat_caps(wcn->fw_feat_caps, i))
+			wcn36xx_info("FW Cap %s\n", wcn36xx_get_cap_name(i));
+	}
+}
+
+static void wcn36xx_detect_chip_version(struct wcn36xx *wcn)
+{
+	if (get_feat_caps(wcn->fw_feat_caps, DOT11AC)) {
+		wcn36xx_info("Chip is 3680\n");
+		wcn->chip_version = WCN36XX_CHIP_3680;
+	} else {
+		wcn36xx_info("Chip is 3660\n");
+		wcn->chip_version = WCN36XX_CHIP_3660;
+	}
+}
+
 static int wcn36xx_start(struct ieee80211_hw *hw)
 {
 	struct wcn36xx *wcn = hw->priv;
@@ -223,6 +278,16 @@ static int wcn36xx_start(struct ieee80211_hw *hw)
 		goto out_free_smd_buf;
 	}
 
+	if (!wcn36xx_is_fw_version(wcn, 1, 2, 2, 24)) {
+		ret = wcn36xx_smd_feature_caps_exchange(wcn);
+		if (ret)
+			wcn36xx_warn("Exchange feature caps failed\n");
+		else
+			wcn36xx_feat_caps_info(wcn);
+	}
+
+	wcn36xx_detect_chip_version(wcn);
+
 	/* DMA channel initialization */
 	ret = wcn36xx_dxe_init(wcn);
 	if (ret) {
@@ -232,12 +297,9 @@ static int wcn36xx_start(struct ieee80211_hw *hw)
 
 	wcn36xx_debugfs_init(wcn);
 
-	if (!wcn36xx_is_fw_version(wcn, 1, 2, 2, 24)) {
-		ret = wcn36xx_smd_feature_caps_exchange(wcn);
-		if (ret)
-			wcn36xx_warn("Exchange feature caps failed\n");
-	}
 	INIT_LIST_HEAD(&wcn->vif_list);
+	spin_lock_init(&wcn->dxe_lock);
+
 	return 0;
 
 out_smd_stop:
@@ -428,14 +490,15 @@ static int wcn36xx_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		wcn36xx_err("Unsupported key cmd 0x%x\n", cmd);
 		ret = -EOPNOTSUPP;
 		goto out;
-		break;
 	}
 
 out:
 	return ret;
 }
 
-static void wcn36xx_sw_scan_start(struct ieee80211_hw *hw)
+static void wcn36xx_sw_scan_start(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif,
+				  const u8 *mac_addr)
 {
 	struct wcn36xx *wcn = hw->priv;
 
@@ -443,7 +506,8 @@ static void wcn36xx_sw_scan_start(struct ieee80211_hw *hw)
 	wcn36xx_smd_start_scan(wcn);
 }
 
-static void wcn36xx_sw_scan_complete(struct ieee80211_hw *hw)
+static void wcn36xx_sw_scan_complete(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif)
 {
 	struct wcn36xx *wcn = hw->priv;
 
@@ -648,6 +712,7 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 			    bss_conf->enable_beacon);
 
 		if (bss_conf->enable_beacon) {
+			vif_priv->dtim_period = bss_conf->dtim_period;
 			vif_priv->bss_index = 0xff;
 			wcn36xx_smd_config_bss(wcn, vif, NULL,
 					       vif->addr, false);
@@ -732,6 +797,7 @@ static int wcn36xx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	wcn36xx_dbg(WCN36XX_DBG_MAC, "mac sta add vif %p sta %pM\n",
 		    vif, sta->addr);
 
+	spin_lock_init(&sta_priv->ampdu_lock);
 	vif_priv->sta = sta_priv;
 	sta_priv->vif = vif_priv;
 	/*
@@ -810,21 +876,32 @@ static int wcn36xx_ampdu_action(struct ieee80211_hw *hw,
 			get_sta_index(vif, sta_priv));
 		wcn36xx_smd_add_ba(wcn);
 		wcn36xx_smd_trigger_ba(wcn, get_sta_index(vif, sta_priv));
-		ieee80211_start_tx_ba_session(sta, tid, 0);
 		break;
 	case IEEE80211_AMPDU_RX_STOP:
 		wcn36xx_smd_del_ba(wcn, tid, get_sta_index(vif, sta_priv));
 		break;
 	case IEEE80211_AMPDU_TX_START:
+		spin_lock_bh(&sta_priv->ampdu_lock);
+		sta_priv->ampdu_state[tid] = WCN36XX_AMPDU_START;
+		spin_unlock_bh(&sta_priv->ampdu_lock);
+
 		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
+		spin_lock_bh(&sta_priv->ampdu_lock);
+		sta_priv->ampdu_state[tid] = WCN36XX_AMPDU_OPERATIONAL;
+		spin_unlock_bh(&sta_priv->ampdu_lock);
+
 		wcn36xx_smd_add_ba_session(wcn, sta, tid, ssn, 1,
 			get_sta_index(vif, sta_priv));
 		break;
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 	case IEEE80211_AMPDU_TX_STOP_CONT:
+		spin_lock_bh(&sta_priv->ampdu_lock);
+		sta_priv->ampdu_state[tid] = WCN36XX_AMPDU_NONE;
+		spin_unlock_bh(&sta_priv->ampdu_lock);
+
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
 	default:
@@ -992,6 +1069,7 @@ static int wcn36xx_remove(struct platform_device *pdev)
 	struct wcn36xx *wcn = hw->priv;
 	wcn36xx_dbg(WCN36XX_DBG_MAC, "platform remove\n");
 
+	release_firmware(wcn->nv);
 	mutex_destroy(&wcn->hal_mutex);
 
 	ieee80211_unregister_hw(hw);
@@ -1014,7 +1092,6 @@ static struct platform_driver wcn36xx_driver = {
 	.remove     = wcn36xx_remove,
 	.driver         = {
 		.name   = "wcn36xx",
-		.owner  = THIS_MODULE,
 	},
 	.id_table    = wcn36xx_platform_id_table,
 };

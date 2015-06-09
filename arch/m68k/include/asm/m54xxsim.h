@@ -55,9 +55,15 @@
 /*
  *	Generic GPIO support
  */
-#define MCFGPIO_PIN_MAX		0	/* I am too lazy to count */
-#define MCFGPIO_IRQ_MAX		-1
-#define MCFGPIO_IRQ_VECBASE	-1
+#define MCFGPIO_PODR		(MCF_MBAR + 0xA00)
+#define MCFGPIO_PDDR		(MCF_MBAR + 0xA10)
+#define MCFGPIO_PPDR		(MCF_MBAR + 0xA20)
+#define MCFGPIO_SETR		(MCF_MBAR + 0xA20)
+#define MCFGPIO_CLRR		(MCF_MBAR + 0xA30)
+
+#define MCFGPIO_PIN_MAX		136	/* 128 gpio + 8 eport */
+#define MCFGPIO_IRQ_MAX		8
+#define MCFGPIO_IRQ_VECBASE	MCFINT_VECBASE
 
 /*
  *	EDGE Port support.

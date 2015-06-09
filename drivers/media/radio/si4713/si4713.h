@@ -15,7 +15,9 @@
 #ifndef SI4713_I2C_H
 #define SI4713_I2C_H
 
+#include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
+#include <linux/gpio/consumer.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-ctrls.h>
 #include <media/si4713.h>
@@ -190,8 +192,6 @@
 #define MIN_ACOMP_THRESHOLD		(-40)
 #define MAX_ACOMP_GAIN			20
 
-#define SI4713_NUM_SUPPLIES		2
-
 /*
  * si4713_device - private data
  */
@@ -211,6 +211,15 @@ struct si4713_device {
 		struct v4l2_ctrl *rds_pi;
 		struct v4l2_ctrl *rds_deviation;
 		struct v4l2_ctrl *rds_pty;
+		struct v4l2_ctrl *rds_compressed;
+		struct v4l2_ctrl *rds_art_head;
+		struct v4l2_ctrl *rds_stereo;
+		struct v4l2_ctrl *rds_ta;
+		struct v4l2_ctrl *rds_tp;
+		struct v4l2_ctrl *rds_ms;
+		struct v4l2_ctrl *rds_dyn_pty;
+		struct v4l2_ctrl *rds_alt_freqs_enable;
+		struct v4l2_ctrl *rds_alt_freqs;
 		struct v4l2_ctrl *compression_enabled;
 		struct v4l2_ctrl *compression_threshold;
 		struct v4l2_ctrl *compression_gain;
@@ -227,14 +236,19 @@ struct si4713_device {
 		struct v4l2_ctrl *tune_ant_cap;
 	};
 	struct completion work;
-	unsigned supplies;
-	struct regulator_bulk_data supply_data[SI4713_NUM_SUPPLIES];
-	int gpio_reset;
+	struct regulator *vdd;
+	struct regulator *vio;
+	struct gpio_desc *gpio_reset;
+	struct platform_device *pd;
 	u32 power_state;
 	u32 rds_enabled;
 	u32 frequency;
 	u32 preemphasis;
 	u32 stereo;
 	u32 tune_rnl;
+};
+
+struct radio_si4713_platform_data {
+	struct i2c_client *subdev;
 };
 #endif /* ifndef SI4713_I2C_H */

@@ -18,7 +18,7 @@
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/irda.h>
+#include <linux/platform_data/irda-sa11x0.h>
 
 #include <mach/h3xxx.h>
 #include <mach/irqs.h>
@@ -122,15 +122,8 @@ static struct irda_platform_data h3100_irda_data = {
 	.shutdown	= h3100_irda_shutdown,
 };
 
-static struct gpio_default_state h3100_default_gpio[] = {
-	{ H3XXX_GPIO_COM_DCD,	GPIO_MODE_IN,	"COM DCD" },
-	{ H3XXX_GPIO_COM_CTS,	GPIO_MODE_IN,	"COM CTS" },
-	{ H3XXX_GPIO_COM_RTS,	GPIO_MODE_OUT0,	"COM RTS" },
-};
-
 static void __init h3100_mach_init(void)
 {
-	h3xxx_init_gpio(h3100_default_gpio, ARRAY_SIZE(h3100_default_gpio));
 	h3xxx_mach_init();
 
 	sa11x0_register_lcd(&h3100_lcd_info);

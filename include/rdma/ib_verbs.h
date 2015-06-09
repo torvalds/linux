@@ -51,6 +51,7 @@
 #include <uapi/linux/if_ether.h>
 
 #include <linux/atomic.h>
+#include <linux/mmu_notifier.h>
 #include <asm/uaccess.h>
 
 extern struct workqueue_struct *ib_wq;
@@ -80,8 +81,8 @@ enum rdma_transport_type {
 	RDMA_TRANSPORT_USNIC_UDP
 };
 
-enum rdma_transport_type
-rdma_node_get_transport(enum rdma_node_type node_type) __attribute_const__;
+__attribute_const__ enum rdma_transport_type
+rdma_node_get_transport(enum rdma_node_type node_type);
 
 enum rdma_link_layer {
 	IB_LINK_LAYER_UNSPECIFIED,
@@ -122,13 +123,47 @@ enum ib_device_cap_flags {
 	IB_DEVICE_BLOCK_MULTICAST_LOOPBACK = (1<<22),
 	IB_DEVICE_MEM_WINDOW_TYPE_2A	= (1<<23),
 	IB_DEVICE_MEM_WINDOW_TYPE_2B	= (1<<24),
-	IB_DEVICE_MANAGED_FLOW_STEERING = (1<<29)
+	IB_DEVICE_MANAGED_FLOW_STEERING = (1<<29),
+	IB_DEVICE_SIGNATURE_HANDOVER	= (1<<30),
+	IB_DEVICE_ON_DEMAND_PAGING	= (1<<31),
+};
+
+enum ib_signature_prot_cap {
+	IB_PROT_T10DIF_TYPE_1 = 1,
+	IB_PROT_T10DIF_TYPE_2 = 1 << 1,
+	IB_PROT_T10DIF_TYPE_3 = 1 << 2,
+};
+
+enum ib_signature_guard_cap {
+	IB_GUARD_T10DIF_CRC	= 1,
+	IB_GUARD_T10DIF_CSUM	= 1 << 1,
 };
 
 enum ib_atomic_cap {
 	IB_ATOMIC_NONE,
 	IB_ATOMIC_HCA,
 	IB_ATOMIC_GLOB
+};
+
+enum ib_odp_general_cap_bits {
+	IB_ODP_SUPPORT = 1 << 0,
+};
+
+enum ib_odp_transport_cap_bits {
+	IB_ODP_SUPPORT_SEND	= 1 << 0,
+	IB_ODP_SUPPORT_RECV	= 1 << 1,
+	IB_ODP_SUPPORT_WRITE	= 1 << 2,
+	IB_ODP_SUPPORT_READ	= 1 << 3,
+	IB_ODP_SUPPORT_ATOMIC	= 1 << 4,
+};
+
+struct ib_odp_caps {
+	uint64_t general_caps;
+	struct {
+		uint32_t  rc_odp_caps;
+		uint32_t  uc_odp_caps;
+		uint32_t  ud_odp_caps;
+	} per_transport_caps;
 };
 
 struct ib_device_attr {
@@ -172,6 +207,9 @@ struct ib_device_attr {
 	unsigned int		max_fast_reg_page_list_len;
 	u16			max_pkeys;
 	u8			local_ca_ack_delay;
+	int			sig_prot_cap;
+	int			sig_guard_cap;
+	struct ib_odp_caps	odp_caps;
 };
 
 enum ib_mtu {
@@ -452,21 +490,141 @@ enum ib_rate {
  * converted to 2, since 5 Gbit/sec is 2 * 2.5 Gbit/sec.
  * @rate: rate to convert.
  */
-int ib_rate_to_mult(enum ib_rate rate) __attribute_const__;
+__attribute_const__ int ib_rate_to_mult(enum ib_rate rate);
 
 /**
  * ib_rate_to_mbps - Convert the IB rate enum to Mbps.
  * For example, IB_RATE_2_5_GBPS will be converted to 2500.
  * @rate: rate to convert.
  */
-int ib_rate_to_mbps(enum ib_rate rate) __attribute_const__;
+__attribute_const__ int ib_rate_to_mbps(enum ib_rate rate);
+
+enum ib_mr_create_flags {
+	IB_MR_SIGNATURE_EN = 1,
+};
+
+/**
+ * ib_mr_init_attr - Memory region init attributes passed to routine
+ *     ib_create_mr.
+ * @max_reg_descriptors: max number of registration descriptors that
+ *     may be used with registration work requests.
+ * @flags: MR creation flags bit mask.
+ */
+struct ib_mr_init_attr {
+	int	    max_reg_descriptors;
+	u32	    flags;
+};
+
+/**
+ * Signature types
+ * IB_SIG_TYPE_NONE: Unprotected.
+ * IB_SIG_TYPE_T10_DIF: Type T10-DIF
+ */
+enum ib_signature_type {
+	IB_SIG_TYPE_NONE,
+	IB_SIG_TYPE_T10_DIF,
+};
+
+/**
+ * Signature T10-DIF block-guard types
+ * IB_T10DIF_CRC: Corresponds to T10-PI mandated CRC checksum rules.
+ * IB_T10DIF_CSUM: Corresponds to IP checksum rules.
+ */
+enum ib_t10_dif_bg_type {
+	IB_T10DIF_CRC,
+	IB_T10DIF_CSUM
+};
+
+/**
+ * struct ib_t10_dif_domain - Parameters specific for T10-DIF
+ *     domain.
+ * @bg_type: T10-DIF block guard type (CRC|CSUM)
+ * @pi_interval: protection information interval.
+ * @bg: seed of guard computation.
+ * @app_tag: application tag of guard block
+ * @ref_tag: initial guard block reference tag.
+ * @ref_remap: Indicate wethear the reftag increments each block
+ * @app_escape: Indicate to skip block check if apptag=0xffff
+ * @ref_escape: Indicate to skip block check if reftag=0xffffffff
+ * @apptag_check_mask: check bitmask of application tag.
+ */
+struct ib_t10_dif_domain {
+	enum ib_t10_dif_bg_type bg_type;
+	u16			pi_interval;
+	u16			bg;
+	u16			app_tag;
+	u32			ref_tag;
+	bool			ref_remap;
+	bool			app_escape;
+	bool			ref_escape;
+	u16			apptag_check_mask;
+};
+
+/**
+ * struct ib_sig_domain - Parameters for signature domain
+ * @sig_type: specific signauture type
+ * @sig: union of all signature domain attributes that may
+ *     be used to set domain layout.
+ */
+struct ib_sig_domain {
+	enum ib_signature_type sig_type;
+	union {
+		struct ib_t10_dif_domain dif;
+	} sig;
+};
+
+/**
+ * struct ib_sig_attrs - Parameters for signature handover operation
+ * @check_mask: bitmask for signature byte check (8 bytes)
+ * @mem: memory domain layout desciptor.
+ * @wire: wire domain layout desciptor.
+ */
+struct ib_sig_attrs {
+	u8			check_mask;
+	struct ib_sig_domain	mem;
+	struct ib_sig_domain	wire;
+};
+
+enum ib_sig_err_type {
+	IB_SIG_BAD_GUARD,
+	IB_SIG_BAD_REFTAG,
+	IB_SIG_BAD_APPTAG,
+};
+
+/**
+ * struct ib_sig_err - signature error descriptor
+ */
+struct ib_sig_err {
+	enum ib_sig_err_type	err_type;
+	u32			expected;
+	u32			actual;
+	u64			sig_err_offset;
+	u32			key;
+};
+
+enum ib_mr_status_check {
+	IB_MR_CHECK_SIG_STATUS = 1,
+};
+
+/**
+ * struct ib_mr_status - Memory region status container
+ *
+ * @fail_status: Bitmask of MR checks status. For each
+ *     failed check a corresponding status bit is set.
+ * @sig_err: Additional info for IB_MR_CEHCK_SIG_STATUS
+ *     failure.
+ */
+struct ib_mr_status {
+	u32		    fail_status;
+	struct ib_sig_err   sig_err;
+};
 
 /**
  * mult_to_ib_rate - Convert a multiple of 2.5 Gbit/sec to an IB rate
  * enum.
  * @mult: multiple to convert.
  */
-enum ib_rate mult_to_ib_rate(int mult) __attribute_const__;
+__attribute_const__ enum ib_rate mult_to_ib_rate(int mult);
 
 struct ib_ah_attr {
 	struct ib_global_route	grh;
@@ -644,6 +802,8 @@ enum ib_qp_create_flags {
 	IB_QP_CREATE_IPOIB_UD_LSO		= 1 << 0,
 	IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK	= 1 << 1,
 	IB_QP_CREATE_NETIF_QP			= 1 << 5,
+	IB_QP_CREATE_SIGNATURE_EN		= 1 << 6,
+	IB_QP_CREATE_USE_GFP_NOIO		= 1 << 7,
 	/* reserve bits 26-31 for low level drivers' internal use */
 	IB_QP_CREATE_RESERVED_START		= 1 << 26,
 	IB_QP_CREATE_RESERVED_END		= 1 << 31,
@@ -808,6 +968,7 @@ enum ib_wr_opcode {
 	IB_WR_MASKED_ATOMIC_CMP_AND_SWP,
 	IB_WR_MASKED_ATOMIC_FETCH_AND_ADD,
 	IB_WR_BIND_MW,
+	IB_WR_REG_SIG_MR,
 	/* reserve values for low level drivers' internal use.
 	 * These values will not be used at all in the ib core layer.
 	 */
@@ -913,6 +1074,12 @@ struct ib_send_wr {
 			u32                      rkey;
 			struct ib_mw_bind_info   bind_info;
 		} bind_mw;
+		struct {
+			struct ib_sig_attrs    *sig_attrs;
+			struct ib_mr	       *sig_mr;
+			int			access_flags;
+			struct ib_sge	       *prot;
+		} sig_handover;
 	} wr;
 	u32			xrc_remote_srq_num;	/* XRC TGT QPs only */
 };
@@ -930,7 +1097,8 @@ enum ib_access_flags {
 	IB_ACCESS_REMOTE_READ	= (1<<2),
 	IB_ACCESS_REMOTE_ATOMIC	= (1<<3),
 	IB_ACCESS_MW_BIND	= (1<<4),
-	IB_ZERO_BASED		= (1<<5)
+	IB_ZERO_BASED		= (1<<5),
+	IB_ACCESS_ON_DEMAND     = (1<<6),
 };
 
 struct ib_phys_buf {
@@ -950,7 +1118,8 @@ struct ib_mr_attr {
 enum ib_mr_rereg_flags {
 	IB_MR_REREG_TRANS	= 1,
 	IB_MR_REREG_PD		= (1<<1),
-	IB_MR_REREG_ACCESS	= (1<<2)
+	IB_MR_REREG_ACCESS	= (1<<2),
+	IB_MR_REREG_SUPPORTED	= ((IB_MR_REREG_ACCESS << 1) - 1)
 };
 
 /**
@@ -971,6 +1140,8 @@ struct ib_fmr_attr {
 	u8	page_shift;
 };
 
+struct ib_umem;
+
 struct ib_ucontext {
 	struct ib_device       *device;
 	struct list_head	pd_list;
@@ -983,6 +1154,24 @@ struct ib_ucontext {
 	struct list_head	xrcd_list;
 	struct list_head	rule_list;
 	int			closing;
+
+	struct pid             *tgid;
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	struct rb_root      umem_tree;
+	/*
+	 * Protects .umem_rbroot and tree, as well as odp_mrs_count and
+	 * mmu notifiers registration.
+	 */
+	struct rw_semaphore	umem_rwsem;
+	void (*invalidate_range)(struct ib_umem *umem,
+				 unsigned long start, unsigned long end);
+
+	struct mmu_notifier	mn;
+	atomic_t		notifier_count;
+	/* A list of umems that don't have private mmu notifier counters yet. */
+	struct list_head	no_private_counters;
+	int                     odp_mrs_count;
+#endif
 };
 
 struct ib_uobject {
@@ -1266,10 +1455,6 @@ struct ib_dma_mapping_ops {
 	void		(*unmap_sg)(struct ib_device *dev,
 				    struct scatterlist *sg, int nents,
 				    enum dma_data_direction direction);
-	u64		(*dma_address)(struct ib_device *dev,
-				       struct scatterlist *sg);
-	unsigned int	(*dma_len)(struct ib_device *dev,
-				   struct scatterlist *sg);
 	void		(*sync_single_for_cpu)(struct ib_device *dev,
 					       u64 dma_handle,
 					       size_t size,
@@ -1404,9 +1589,19 @@ struct ib_device {
 						  u64 virt_addr,
 						  int mr_access_flags,
 						  struct ib_udata *udata);
+	int			   (*rereg_user_mr)(struct ib_mr *mr,
+						    int flags,
+						    u64 start, u64 length,
+						    u64 virt_addr,
+						    int mr_access_flags,
+						    struct ib_pd *pd,
+						    struct ib_udata *udata);
 	int                        (*query_mr)(struct ib_mr *mr,
 					       struct ib_mr_attr *mr_attr);
 	int                        (*dereg_mr)(struct ib_mr *mr);
+	int                        (*destroy_mr)(struct ib_mr *mr);
+	struct ib_mr *		   (*create_mr)(struct ib_pd *pd,
+						struct ib_mr_init_attr *mr_init_attr);
 	struct ib_mr *		   (*alloc_fast_reg_mr)(struct ib_pd *pd,
 					       int max_page_list_len);
 	struct ib_fast_reg_page_list * (*alloc_fast_reg_page_list)(struct ib_device *device,
@@ -1455,6 +1650,8 @@ struct ib_device {
 						  *flow_attr,
 						  int domain);
 	int			   (*destroy_flow)(struct ib_flow *flow_id);
+	int			   (*check_mr_status)(struct ib_mr *mr, u32 check_mask,
+						      struct ib_mr_status *mr_status);
 
 	struct ib_dma_mapping_ops   *dma_ops;
 
@@ -2089,12 +2286,13 @@ static inline void ib_dma_unmap_sg_attrs(struct ib_device *dev,
  * ib_sg_dma_address - Return the DMA address from a scatter/gather entry
  * @dev: The device for which the DMA addresses were created
  * @sg: The scatter/gather entry
+ *
+ * Note: this function is obsolete. To do: change all occurrences of
+ * ib_sg_dma_address() into sg_dma_address().
  */
 static inline u64 ib_sg_dma_address(struct ib_device *dev,
 				    struct scatterlist *sg)
 {
-	if (dev->dma_ops)
-		return dev->dma_ops->dma_address(dev, sg);
 	return sg_dma_address(sg);
 }
 
@@ -2102,12 +2300,13 @@ static inline u64 ib_sg_dma_address(struct ib_device *dev,
  * ib_sg_dma_len - Return the DMA length from a scatter/gather entry
  * @dev: The device for which the DMA addresses were created
  * @sg: The scatter/gather entry
+ *
+ * Note: this function is obsolete. To do: change all occurrences of
+ * ib_sg_dma_len() into sg_dma_len().
  */
 static inline unsigned int ib_sg_dma_len(struct ib_device *dev,
 					 struct scatterlist *sg)
 {
-	if (dev->dma_ops)
-		return dev->dma_ops->dma_len(dev, sg);
 	return sg_dma_len(sg);
 }
 
@@ -2249,6 +2448,25 @@ int ib_query_mr(struct ib_mr *mr, struct ib_mr_attr *mr_attr);
  * This function can fail, if the memory region has memory windows bound to it.
  */
 int ib_dereg_mr(struct ib_mr *mr);
+
+
+/**
+ * ib_create_mr - Allocates a memory region that may be used for
+ *     signature handover operations.
+ * @pd: The protection domain associated with the region.
+ * @mr_init_attr: memory region init attributes.
+ */
+struct ib_mr *ib_create_mr(struct ib_pd *pd,
+			   struct ib_mr_init_attr *mr_init_attr);
+
+/**
+ * ib_destroy_mr - Destroys a memory region that was created using
+ *     ib_create_mr and removes it from HW translation tables.
+ * @mr: The memory region to destroy.
+ *
+ * This function can fail, if the memory region has memory windows bound to it.
+ */
+int ib_destroy_mr(struct ib_mr *mr);
 
 /**
  * ib_alloc_fast_reg_mr - Allocates memory region usable with the
@@ -2434,5 +2652,20 @@ static inline int ib_check_mr_access(int flags)
 
 	return 0;
 }
+
+/**
+ * ib_check_mr_status: lightweight check of MR status.
+ *     This routine may provide status checks on a selected
+ *     ib_mr. first use is for signature status check.
+ *
+ * @mr: A memory region.
+ * @check_mask: Bitmask of which checks to perform from
+ *     ib_mr_status_check enumeration.
+ * @mr_status: The container of relevant status checks.
+ *     failed checks will be indicated in the status bitmask
+ *     and the relevant info shall be in the error item.
+ */
+int ib_check_mr_status(struct ib_mr *mr, u32 check_mask,
+		       struct ib_mr_status *mr_status);
 
 #endif /* IB_VERBS_H */
