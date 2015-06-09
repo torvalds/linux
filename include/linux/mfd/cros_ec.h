@@ -22,6 +22,15 @@
 #include <linux/mutex.h>
 
 /*
+ * Max bus-specific overhead incurred by request/responses.
+ * I2C requires 1 additional byte for requests.
+ * I2C requires 2 additional bytes for responses.
+ * */
+#define EC_PROTO_VERSION_UNKNOWN	0
+#define EC_MAX_REQUEST_OVERHEAD		1
+#define EC_MAX_RESPONSE_OVERHEAD	2
+
+/*
  * Command interface between EC and AP, for LPC, I2C and SPI interfaces.
  */
 enum {
@@ -88,6 +97,7 @@ struct cros_ec_command {
  *     Returns the number of bytes received if the communication succeeded, but
  *     that doesn't mean the EC was happy with the command. The caller
  *     should check msg.result for the EC's result code.
+ * @pkt_xfer: send packet to EC and get response
  * @lock: one transaction at a time
  */
 struct cros_ec_device {
@@ -104,14 +114,20 @@ struct cros_ec_device {
 			   unsigned int bytes, void *dest);
 
 	/* These are used to implement the platform-specific interface */
+	u16 max_request;
+	u16 max_response;
+	u16 max_passthru;
+	u16 proto_version;
 	void *priv;
 	int irq;
-	uint8_t *din;
-	uint8_t *dout;
+	u8 *din;
+	u8 *dout;
 	int din_size;
 	int dout_size;
 	bool wake_enabled;
 	int (*cmd_xfer)(struct cros_ec_device *ec,
+			struct cros_ec_command *msg);
+	int (*pkt_xfer)(struct cros_ec_device *ec,
 			struct cros_ec_command *msg);
 	struct mutex lock;
 };
@@ -193,5 +209,13 @@ int cros_ec_remove(struct cros_ec_device *ec_dev);
  * @return 0 if ok, -ve on error
  */
 int cros_ec_register(struct cros_ec_device *ec_dev);
+
+/**
+ * cros_ec_register -  Query the protocol version supported by the ChromeOS EC
+ *
+ * @ec_dev: Device to register
+ * @return 0 if ok, -ve on error
+ */
+int cros_ec_query_all(struct cros_ec_device *ec_dev);
 
 #endif /* __LINUX_MFD_CROS_EC_H */
