@@ -3085,9 +3085,9 @@ static int rk81x_bat_get_rsoc_trend(struct rk81x_battery *di, int *trend_mult)
 	if (di->s2r && !di->slp_psy_status)
 		di->trend_start_cap = di->remain_capacity;
 
+	diff_cap = remain_cap - trend_start_cap;
 	DBG("<%s>. trend_start_cap = %d, diff_cap = %d\n",
 	    __func__, trend_start_cap, diff_cap);
-	diff_cap = remain_cap - trend_start_cap;
 	*trend_mult = abs(diff_cap) / TREND_CAP_DIFF;
 
 	if (abs(diff_cap) >= TREND_CAP_DIFF) {
