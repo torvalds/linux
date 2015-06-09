@@ -69,7 +69,7 @@ static const unsigned long goodix_irq_flags[] = {
  * @len: length of the buffer to write
  */
 static int goodix_i2c_read(struct i2c_client *client,
-				u16 reg, u8 *buf, int len)
+			   u16 reg, u8 *buf, int len)
 {
 	struct i2c_msg msgs[2];
 	u16 wbuf = cpu_to_be16(reg);
@@ -78,7 +78,7 @@ static int goodix_i2c_read(struct i2c_client *client,
 	msgs[0].flags = 0;
 	msgs[0].addr  = client->addr;
 	msgs[0].len   = 2;
-	msgs[0].buf   = (u8 *) &wbuf;
+	msgs[0].buf   = (u8 *)&wbuf;
 
 	msgs[1].flags = I2C_M_RD;
 	msgs[1].addr  = client->addr;
@@ -199,8 +199,8 @@ static void goodix_read_config(struct goodix_ts_data *ts)
 	int error;
 
 	error = goodix_i2c_read(ts->client, GOODIX_REG_CONFIG_DATA,
-			      config,
-			   GOODIX_CONFIG_MAX_LENGTH);
+				config,
+				GOODIX_CONFIG_MAX_LENGTH);
 	if (error) {
 		dev_warn(&ts->client->dev,
 			 "Error reading config (%d), using defaults\n",
@@ -296,10 +296,10 @@ static int goodix_request_input_dev(struct goodix_ts_data *ts)
 				  BIT_MASK(EV_KEY) |
 				  BIT_MASK(EV_ABS);
 
-	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, 0,
-				ts->abs_x_max, 0, 0);
-	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, 0,
-				ts->abs_y_max, 0, 0);
+	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X,
+			     0, ts->abs_x_max, 0, 0);
+	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y,
+			     0, ts->abs_y_max, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
 
