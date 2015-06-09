@@ -495,10 +495,18 @@ struct wmi_power_mgmt_cfg_cmd {
 /*
  * WMI_PCP_START_CMDID
  */
+
+enum wmi_hidden_ssid {
+	WMI_HIDDEN_SSID_DISABLED	= 0,
+	WMI_HIDDEN_SSID_SEND_EMPTY	= 1,
+	WMI_HIDDEN_SSID_CLEAR	= 2,
+};
+
 struct wmi_pcp_start_cmd {
 	__le16 bcon_interval;
 	u8 pcp_max_assoc_sta;
-	u8 reserved0[9];
+	u8 hidden_ssid;
+	u8 reserved0[8];
 	u8 network_type;
 	u8 channel;
 	u8 disable_sec_offload;

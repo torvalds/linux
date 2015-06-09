@@ -825,7 +825,8 @@ int wmi_set_mac_address(struct wil6210_priv *wil, void *addr)
 	return wmi_send(wil, WMI_SET_MAC_ADDRESS_CMDID, &cmd, sizeof(cmd));
 }
 
-int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype, u8 chan)
+int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype,
+		  u8 chan, u8 hidden_ssid)
 {
 	int rc;
 
@@ -835,6 +836,7 @@ int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype, u8 chan)
 		.disable_sec_offload = 1,
 		.channel = chan - 1,
 		.pcp_max_assoc_sta = max_assoc_sta,
+		.hidden_ssid = hidden_ssid,
 	};
 	struct {
 		struct wil6210_mbox_hdr_wmi wmi;
