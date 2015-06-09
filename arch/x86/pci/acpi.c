@@ -132,8 +132,10 @@ void __init pci_acpi_crs_quirks(void)
 {
 	int year;
 
-	if (dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL) && year < 2008)
-		pci_use_crs = false;
+	if (dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL) && year < 2008) {
+		if (iomem_resource.end <= 0xffffffff)
+			pci_use_crs = false;
+	}
 
 	dmi_check_system(pci_crs_quirks);
 
