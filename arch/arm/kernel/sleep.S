@@ -118,6 +118,12 @@ ENDPROC(cpu_resume_after_mmu)
 
 	.text
 	.align
+	.arm
+ENTRY(cpu_resume_arm)
+ THUMB(	adr	r9, BSYM(1f)	)	@ Kernel is entered in ARM.
+ THUMB(	bx	r9		)	@ If this is a Thumb-2 kernel,
+ THUMB(	.thumb			)	@ switch to Thumb now.
+ THUMB(1:			)
 ENTRY(cpu_resume)
 ARM_BE8(setend be)			@ ensure we are in BE mode
 #ifdef CONFIG_ARM_VIRT_EXT
@@ -149,6 +155,7 @@ THUMB(	ldmia	r0!, {r1, r2, r3}	)
 THUMB(	mov	sp, r2			)
 THUMB(	bx	r3			)
 ENDPROC(cpu_resume)
+ENDPROC(cpu_resume_arm)
 
 	.align 2
 _sleep_save_sp:
