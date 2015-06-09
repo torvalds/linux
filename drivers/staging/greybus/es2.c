@@ -24,7 +24,7 @@
 
 /* Memory sizes for the buffers sent to/from the ES1 controller */
 #define ES1_SVC_MSG_SIZE	(sizeof(struct svc_msg) + SZ_64K)
-#define ES1_GBUF_MSG_SIZE_MAX	PAGE_SIZE
+#define ES1_GBUF_MSG_SIZE_MAX	2048
 
 static const struct usb_device_id id_table[] = {
 	/* Made up numbers for the SVC USB Bridge in ES2 */
