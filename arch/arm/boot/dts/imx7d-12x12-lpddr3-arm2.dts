@@ -181,7 +181,7 @@
 	phy-mode = "rgmii";
 	phy-handle = <&ethphy1>;
 	fsl,magic-packet;
-	status = "disabled";
+	status = "okay";
 
 	mdio {
 		#address-cells = <1>;
@@ -211,7 +211,7 @@
 	phy-mode = "rgmii";
 	phy-handle = <&ethphy0>;
 	fsl,magic-packet;
-	status = "disabled";
+	status = "okay";
 };
 
 &flexcan1 {
