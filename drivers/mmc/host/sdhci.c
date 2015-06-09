@@ -1210,6 +1210,9 @@ void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 			}
 			real_div = div;
 			div >>= 1;
+			if ((host->quirks2 & SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN)
+				&& !div && host->max_clk <= 25000000)
+				div = 1;
 		}
 	} else {
 		/* Version 2.00 divisors must be a power of 2. */
