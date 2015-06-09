@@ -1378,14 +1378,14 @@ ksocknal_create_conn(lnet_ni_t *ni, ksock_route_t *route,
 	ksocknal_txlist_done(ni, &zombies, 1);
 	ksocknal_peer_decref(peer);
 
- failed_1:
+failed_1:
 	if (hello != NULL)
 		LIBCFS_FREE(hello, offsetof(ksock_hello_msg_t,
 					    kshm_ips[LNET_MAX_INTERFACES]));
 
 	LIBCFS_FREE(conn, sizeof(*conn));
 
- failed_0:
+failed_0:
 	sock_release(sock);
 	return rc;
 }
