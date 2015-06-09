@@ -61,7 +61,7 @@ mpp39         39       gpio, spi(cs0)
 mpp40         40       gpio, spi(cs1), uart2(cts), lcd(vga-hsync), pcie(clkreq0)
 mpp41         41       gpio, spi(cs2), uart2(rts), lcd(vga-vsync), sata1(prsnt),
                        pcie(clkreq1)
-mpp42         42       gpio, uart2(rxd), uart0(cts), tdm(int7), tdm-1(timer)
+mpp42         42       gpio, uart2(rxd), uart0(cts), tdm(int7), tdm(timer)
 mpp43         43       gpio, uart2(txd), uart0(rts), spi(cs3), pcie(rstout)
 mpp44         44       gpio, uart2(cts), uart3(rxd), spi(cs4), pcie(clkreq2),
                        dram(bat)

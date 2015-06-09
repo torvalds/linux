@@ -252,7 +252,7 @@ static struct mvebu_mpp_mode armada_xp_mpp_modes[] = {
 		 MPP_VAR_FUNCTION(0x1, "uart2", "rxd",      V_MV78230_PLUS),
 		 MPP_VAR_FUNCTION(0x2, "uart0", "cts",      V_MV78230_PLUS),
 		 MPP_VAR_FUNCTION(0x3, "tdm", "int7",       V_MV78230_PLUS),
-		 MPP_VAR_FUNCTION(0x4, "tdm-1", "timer",    V_MV78230_PLUS)),
+		 MPP_VAR_FUNCTION(0x4, "tdm", "timer",      V_MV78230_PLUS)),
 	MPP_MODE(43,
 		 MPP_VAR_FUNCTION(0x0, "gpio", NULL,        V_MV78230_PLUS),
 		 MPP_VAR_FUNCTION(0x1, "uart2", "txd",      V_MV78230_PLUS),
