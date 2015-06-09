@@ -281,7 +281,7 @@ struct fw_map {
 };
 
 /* array size should be in sync with actual definition in the wmi.c */
-extern const struct fw_map fw_mapping[7];
+extern const struct fw_map fw_mapping[8];
 
 /**
  * mk_cidxtid - construct @cidxtid field
