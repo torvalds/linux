@@ -1530,6 +1530,7 @@ static struct ixgbe_phy_operations phy_ops_X550 = {
 	.setup_link		= &ixgbe_setup_phy_link_generic,
 	.read_i2c_combined	= &ixgbe_read_i2c_combined_generic,
 	.write_i2c_combined	= &ixgbe_write_i2c_combined_generic,
+	.set_phy_power		= &ixgbe_set_copper_phy_power,
 };
 
 static struct ixgbe_phy_operations phy_ops_X550EM_x = {
