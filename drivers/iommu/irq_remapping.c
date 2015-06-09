@@ -81,6 +81,15 @@ void set_irq_remapping_broken(void)
 	irq_remap_broken = 1;
 }
 
+bool irq_remapping_cap(enum irq_remap_cap cap)
+{
+	if (!remap_ops || disable_irq_post)
+		return 0;
+
+	return (remap_ops->capability & (1 << cap));
+}
+EXPORT_SYMBOL_GPL(irq_remapping_cap);
+
 int __init irq_remapping_prepare(void)
 {
 	if (disable_irq_remap)

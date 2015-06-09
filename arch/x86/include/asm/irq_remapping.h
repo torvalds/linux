@@ -35,6 +35,7 @@ enum irq_remap_cap {
 
 #ifdef CONFIG_IRQ_REMAP
 
+extern bool irq_remapping_cap(enum irq_remap_cap cap);
 extern void set_irq_remapping_broken(void);
 extern int irq_remapping_prepare(void);
 extern int irq_remapping_enable(void);
@@ -64,6 +65,7 @@ struct vcpu_data {
 
 #else  /* CONFIG_IRQ_REMAP */
 
+static inline bool irq_remapping_cap(enum irq_remap_cap cap) { return 0; }
 static inline void set_irq_remapping_broken(void) { }
 static inline int irq_remapping_prepare(void) { return -ENODEV; }
 static inline int irq_remapping_enable(void) { return -ENODEV; }
