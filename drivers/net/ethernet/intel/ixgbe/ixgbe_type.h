@@ -1305,6 +1305,8 @@ struct ixgbe_thermal_sensor_data {
 #define IXGBE_MDIO_AUTO_NEG_CONTROL	0x0 /* AUTO_NEG Control Reg */
 #define IXGBE_MDIO_AUTO_NEG_STATUS	0x1 /* AUTO_NEG Status Reg */
 #define IXGBE_MDIO_AUTO_NEG_VENDOR_STAT	0xC800 /* AUTO_NEG Vendor Status Reg */
+#define IXGBE_MDIO_AUTO_NEG_VENDOR_TX_ALARM2 0xCC01 /* AUTO_NEG Vendor Tx Reg */
+#define IXGBE_MDIO_AUTO_NEG_VEN_LSC	0x1 /* AUTO_NEG Vendor Tx LSC */
 #define IXGBE_MDIO_AUTO_NEG_ADVT	0x10 /* AUTO_NEG Advt Reg */
 #define IXGBE_MDIO_AUTO_NEG_LP		0x13 /* AUTO_NEG LP Status Reg */
 #define IXGBE_MDIO_AUTO_NEG_EEE_ADVT	0x3C /* AUTO_NEG EEE Advt Reg */
@@ -1315,10 +1317,25 @@ struct ixgbe_thermal_sensor_data {
 #define IXGBE_MDIO_TX_VENDOR_ALARMS_3_RST_MASK 0x3 /* PHY Reset Complete Mask */
 #define IXGBE_MDIO_GLOBAL_RES_PR_10 0xC479 /* Global Resv Provisioning 10 Reg */
 #define IXGBE_MDIO_POWER_UP_STALL	0x8000 /* Power Up Stall */
+#define IXGBE_MDIO_GLOBAL_INT_CHIP_STD_MASK	0xFF00 /* int std mask */
+#define IXGBE_MDIO_GLOBAL_CHIP_STD_INT_FLAG	0xFC00 /* chip std int flag */
+#define IXGBE_MDIO_GLOBAL_INT_CHIP_VEN_MASK	0xFF01 /* int chip-wide mask */
+#define IXGBE_MDIO_GLOBAL_INT_CHIP_VEN_FLAG	0xFC01 /* int chip-wide mask */
+#define IXGBE_MDIO_GLOBAL_ALARM_1		0xCC00 /* Global alarm 1 */
+#define IXGBE_MDIO_GLOBAL_ALM_1_HI_TMP_FAIL	0x4000 /* high temp failure */
+#define IXGBE_MDIO_GLOBAL_INT_MASK		0xD400 /* Global int mask */
+/* autoneg vendor alarm int enable */
+#define IXGBE_MDIO_GLOBAL_AN_VEN_ALM_INT_EN	0x1000
+#define IXGBE_MDIO_GLOBAL_ALARM_1_INT		0x4 /* int in Global alarm 1 */
+#define IXGBE_MDIO_GLOBAL_VEN_ALM_INT_EN	0x1 /* vendor alarm int enable */
+#define IXGBE_MDIO_GLOBAL_STD_ALM2_INT		0x200 /* vendor alarm2 int mask */
+#define IXGBE_MDIO_GLOBAL_INT_HI_TEMP_EN	0x4000 /* int high temp enable */
 
 #define IXGBE_MDIO_PMA_PMD_SDA_SCL_ADDR	0xC30A /* PHY_XS SDA/SCL Addr Reg */
 #define IXGBE_MDIO_PMA_PMD_SDA_SCL_DATA	0xC30B /* PHY_XS SDA/SCL Data Reg */
 #define IXGBE_MDIO_PMA_PMD_SDA_SCL_STAT	0xC30C /* PHY_XS SDA/SCL Stat Reg */
+#define IXGBE_MDIO_PMA_TX_VEN_LASI_INT_MASK	0xD401 /* PHY TX Vendor LASI */
+#define IXGBE_MDIO_PMA_TX_VEN_LASI_INT_EN	0x1 /* PHY TX Vendor LASI enable */
 #define IXGBE_MDIO_PMD_STD_TX_DISABLE_CNTR	0x9 /* Standard Tx Dis Reg */
 #define IXGBE_MDIO_PMD_GLOBAL_TX_DISABLE	0x0001 /* PMD Global Tx Dis */
 
@@ -3280,6 +3297,7 @@ struct ixgbe_phy_operations {
 	s32 (*write_i2c_combined)(struct ixgbe_hw *, u8 addr, u16 reg, u16 val);
 	s32 (*check_overtemp)(struct ixgbe_hw *);
 	s32 (*set_phy_power)(struct ixgbe_hw *, bool on);
+	s32 (*handle_lasi)(struct ixgbe_hw *hw);
 };
 
 struct ixgbe_eeprom_info {
@@ -3341,6 +3359,7 @@ struct ixgbe_phy_info {
 	bool                            multispeed_fiber;
 	bool                            reset_if_overtemp;
 	bool                            qsfp_shared_i2c_bus;
+	u32				nw_mng_if_sel;
 };
 
 #include "ixgbe_mbx.h"
@@ -3509,4 +3528,6 @@ struct ixgbe_info {
 #define IXGBE_SB_IOSF_TARGET_KX4_PCS0	2
 #define IXGBE_SB_IOSF_TARGET_KX4_PCS1	3
 
+#define IXGBE_NW_MNG_IF_SEL		0x00011178
+#define IXGBE_NW_MNG_IF_SEL_INT_PHY_MODE	BIT(24)
 #endif /* _IXGBE_TYPE_H_ */
