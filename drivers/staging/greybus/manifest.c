@@ -201,27 +201,23 @@ static char *gb_string_get(struct gb_interface *intf, u8 string_id)
 static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 {
 	struct gb_interface *intf = bundle->intf;
+	struct manifest_desc *desc;
+	struct manifest_desc *next;
+	u8 bundle_id = bundle->id;
 	u32 count = 0;
 
-	while (true) {
-		struct manifest_desc *descriptor;
+	/* Set up all cport descriptors associated with this bundle */
+	list_for_each_entry_safe(desc, next, &intf->manifest_descs, links) {
 		struct greybus_descriptor_cport *desc_cport;
 		u8 protocol_id;
 		u16 cport_id;
-		bool found = false;
 
-		/* Find a cport descriptor */
-		list_for_each_entry(descriptor, &intf->manifest_descs, links) {
-			if (descriptor->type == GREYBUS_TYPE_CPORT) {
-				desc_cport = descriptor->data;
-				if (desc_cport->bundle == bundle->id) {
-					found = true;
-					break;
-				}
-			}
-		}
-		if (!found)
-			break;
+		if (desc->type != GREYBUS_TYPE_CPORT)
+			continue;
+
+		desc_cport = desc->data;
+		if (desc_cport->bundle != bundle_id)
+			continue;
 
 		/* Found one.  Set up its function structure */
 		protocol_id = desc_cport->protocol_id;
@@ -230,8 +226,9 @@ static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 			return 0;	/* Error */
 
 		count++;
+
 		/* Release the cport descriptor */
-		release_manifest_descriptor(descriptor);
+		release_manifest_descriptor(desc);
 	}
 
 	return count;
