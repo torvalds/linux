@@ -1155,11 +1155,6 @@ int dm_stats_message(struct mapped_device *md, unsigned argc, char **argv,
 {
 	int r;
 
-	if (dm_request_based(md)) {
-		DMWARN("Statistics are only supported for bio-based devices");
-		return -EOPNOTSUPP;
-	}
-
 	/* All messages here must start with '@' */
 	if (!strcasecmp(argv[0], "@stats_create"))
 		r = message_stats_create(md, argc, argv, result, maxlen);

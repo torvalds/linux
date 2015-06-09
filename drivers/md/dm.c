@@ -86,6 +86,9 @@ struct dm_rq_target_io {
 	struct kthread_work work;
 	int error;
 	union map_info info;
+	struct dm_stats_aux stats_aux;
+	unsigned long duration_jiffies;
+	unsigned n_sectors;
 };
 
 /*
@@ -995,6 +998,17 @@ static struct dm_rq_target_io *tio_from_request(struct request *rq)
 	return (rq->q->mq_ops ? blk_mq_rq_to_pdu(rq) : rq->special);
 }
 
+static void rq_end_stats(struct mapped_device *md, struct request *orig)
+{
+	if (unlikely(dm_stats_used(&md->stats))) {
+		struct dm_rq_target_io *tio = tio_from_request(orig);
+		tio->duration_jiffies = jiffies - tio->duration_jiffies;
+		dm_stats_account_io(&md->stats, orig->cmd_flags, blk_rq_pos(orig),
+				    tio->n_sectors, true, tio->duration_jiffies,
+				    &tio->stats_aux);
+	}
+}
+
 /*
  * Don't touch any member of the md after calling this function because
  * the md may be freed in dm_put() at the end of this function.
@@ -1078,6 +1092,7 @@ static void dm_end_request(struct request *clone, int error)
 	}
 
 	free_rq_clone(clone);
+	rq_end_stats(md, rq);
 	if (!rq->q->mq_ops)
 		blk_end_request_all(rq, error);
 	else
@@ -1120,6 +1135,7 @@ static void dm_requeue_original_request(struct mapped_device *md,
 
 	dm_unprep_request(rq);
 
+	rq_end_stats(md, rq);
 	if (!rq->q->mq_ops)
 		old_requeue_request(rq);
 	else {
@@ -1211,6 +1227,7 @@ static void dm_softirq_done(struct request *rq)
 	int rw;
 
 	if (!clone) {
+		rq_end_stats(tio->md, rq);
 		rw = rq_data_dir(rq);
 		if (!rq->q->mq_ops) {
 			blk_end_request_all(rq, tio->error);
@@ -1941,6 +1958,14 @@ static void dm_start_request(struct mapped_device *md, struct request *orig)
 		md->last_rq_pos = rq_end_sector(orig);
 		md->last_rq_rw = rq_data_dir(orig);
 		md->last_rq_start_time = ktime_get();
+	}
+
+	if (unlikely(dm_stats_used(&md->stats))) {
+		struct dm_rq_target_io *tio = tio_from_request(orig);
+		tio->duration_jiffies = jiffies;
+		tio->n_sectors = blk_rq_sectors(orig);
+		dm_stats_account_io(&md->stats, orig->cmd_flags, blk_rq_pos(orig),
+				    tio->n_sectors, false, 0, &tio->stats_aux);
 	}
 
 	/*
@@ -2689,6 +2714,7 @@ static int dm_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 		/* Direct call is fine since .queue_rq allows allocations */
 		if (map_request(tio, rq, md) == DM_MAPIO_REQUEUE) {
 			/* Undo dm_start_request() before requeuing */
+			rq_end_stats(md, rq);
 			rq_completed(md, rq_data_dir(rq), false);
 			return BLK_MQ_RQ_QUEUE_BUSY;
 		}
