@@ -241,26 +241,19 @@ static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
  */
 static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 {
+	struct manifest_desc *desc;
+	struct manifest_desc *next;
 	u32 count = 0;
 
-	while (true) {
-		struct manifest_desc *descriptor;
+	list_for_each_entry_safe(desc, next, &intf->manifest_descs, links) {
 		struct greybus_descriptor_bundle *desc_bundle;
 		struct gb_bundle *bundle;
-		bool found = false;
 
-		/* Find an bundle descriptor */
-		list_for_each_entry(descriptor, &intf->manifest_descs, links) {
-			if (descriptor->type == GREYBUS_TYPE_BUNDLE) {
-				found = true;
-				break;
-			}
-		}
-		if (!found)
-			break;
+		if (desc->type != GREYBUS_TYPE_BUNDLE)
+			continue;
 
 		/* Found one.  Set up its bundle structure*/
-		desc_bundle = descriptor->data;
+		desc_bundle = desc->data;
 		bundle = gb_bundle_create(intf, desc_bundle->id,
 					  desc_bundle->class);
 		if (!bundle)
@@ -273,7 +266,7 @@ static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 		count++;
 
 		/* Done with this bundle descriptor */
-		release_manifest_descriptor(descriptor);
+		release_manifest_descriptor(desc);
 	}
 
 	return count;
