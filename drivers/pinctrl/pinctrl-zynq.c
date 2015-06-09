@@ -1196,8 +1196,8 @@ static int zynq_pinctrl_probe(struct platform_device *pdev)
 	pctrl->nfuncs = ARRAY_SIZE(zynq_pmux_functions);
 
 	pctrl->pctrl = pinctrl_register(&zynq_desc, &pdev->dev, pctrl);
-	if (!pctrl->pctrl)
-		return -ENOMEM;
+	if (IS_ERR(pctrl->pctrl))
+		return PTR_ERR(pctrl->pctrl);
 
 	platform_set_drvdata(pdev, pctrl);
 

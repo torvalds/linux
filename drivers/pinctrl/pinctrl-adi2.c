@@ -1070,9 +1070,9 @@ static int adi_pinctrl_probe(struct platform_device *pdev)
 
 	/* Now register the pin controller and all pins it handles */
 	pinctrl->pctl = pinctrl_register(&adi_pinmux_desc, &pdev->dev, pinctrl);
-	if (!pinctrl->pctl) {
+	if (IS_ERR(pinctrl->pctl)) {
 		dev_err(&pdev->dev, "could not register pinctrl ADI2 driver\n");
-		return -EINVAL;
+		return PTR_ERR(pinctrl->pctl);
 	}
 
 	platform_set_drvdata(pdev, pinctrl);

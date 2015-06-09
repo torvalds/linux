@@ -2029,9 +2029,9 @@ static int nmk_pinctrl_probe(struct platform_device *pdev)
 	npct->dev = &pdev->dev;
 
 	npct->pctl = pinctrl_register(&nmk_pinctrl_desc, &pdev->dev, npct);
-	if (!npct->pctl) {
+	if (IS_ERR(npct->pctl)) {
 		dev_err(&pdev->dev, "could not register Nomadik pinctrl driver\n");
-		return -EINVAL;
+		return PTR_ERR(npct->pctl);
 	}
 
 	/* We will handle a range of GPIO pins */

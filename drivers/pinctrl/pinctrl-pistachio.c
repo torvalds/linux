@@ -1474,9 +1474,9 @@ static int pistachio_pinctrl_probe(struct platform_device *pdev)
 
 	pctl->pctldev = pinctrl_register(&pistachio_pinctrl_desc, &pdev->dev,
 					 pctl);
-	if (!pctl->pctldev) {
+	if (IS_ERR(pctl->pctldev)) {
 		dev_err(&pdev->dev, "Failed to register pinctrl device\n");
-		return -EINVAL;
+		return PTR_ERR(pctl->pctldev);
 	}
 
 	ret = pistachio_gpio_register(pctl);

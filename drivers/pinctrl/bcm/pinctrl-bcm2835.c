@@ -1036,9 +1036,9 @@ static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	pc->pctl_dev = pinctrl_register(&bcm2835_pinctrl_desc, dev, pc);
-	if (!pc->pctl_dev) {
+	if (IS_ERR(pc->pctl_dev)) {
 		gpiochip_remove(&pc->gpio_chip);
-		return -EINVAL;
+		return PTR_ERR(pc->pctl_dev);
 	}
 
 	pc->gpio_range = bcm2835_pinctrl_gpio_range;

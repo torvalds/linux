@@ -320,9 +320,9 @@ int berlin_pinctrl_probe(struct platform_device *pdev,
 	}
 
 	pctrl->pctrl_dev = pinctrl_register(&berlin_pctrl_desc, dev, pctrl);
-	if (!pctrl->pctrl_dev) {
+	if (IS_ERR(pctrl->pctrl_dev)) {
 		dev_err(dev, "failed to register pinctrl driver\n");
-		return -EINVAL;
+		return PTR_ERR(pctrl->pctrl_dev);
 	}
 
 	return 0;

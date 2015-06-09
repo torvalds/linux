@@ -1180,10 +1180,10 @@ static int lpc18xx_scu_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, scu);
 
 	scu->pctl = pinctrl_register(&lpc18xx_scu_desc, &pdev->dev, scu);
-	if (!scu->pctl) {
+	if (IS_ERR(scu->pctl)) {
 		dev_err(&pdev->dev, "Could not register pinctrl driver\n");
 		clk_disable_unprepare(scu->clk);
-		return -EINVAL;
+		return PTR_ERR(scu->pctl);
 	}
 
 	return 0;

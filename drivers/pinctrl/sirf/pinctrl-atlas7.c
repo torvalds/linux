@@ -4079,9 +4079,9 @@ static int atlas7_pinmux_probe(struct platform_device *pdev)
 
 	/* Now register the pin controller and all pins it handles */
 	pmx->pctl = pinctrl_register(&pmx->pctl_desc, &pdev->dev, pmx);
-	if (!pmx->pctl) {
+	if (IS_ERR(pmx->pctl)) {
 		dev_err(&pdev->dev, "could not register atlas7 pinmux driver\n");
-		ret = -EINVAL;
+		ret = PTR_ERR(pmx->pctl);
 		goto unmap_io;
 	}
 

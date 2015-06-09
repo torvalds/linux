@@ -1921,9 +1921,9 @@ static int pcs_probe(struct platform_device *pdev)
 		goto free;
 
 	pcs->pctl = pinctrl_register(&pcs->desc, pcs->dev, pcs);
-	if (!pcs->pctl) {
+	if (IS_ERR(pcs->pctl)) {
 		dev_err(pcs->dev, "could not register single pinctrl driver\n");
-		ret = -EINVAL;
+		ret = PTR_ERR(pcs->pctl);
 		goto free;
 	}
 

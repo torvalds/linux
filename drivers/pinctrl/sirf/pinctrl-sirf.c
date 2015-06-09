@@ -310,9 +310,9 @@ static int sirfsoc_pinmux_probe(struct platform_device *pdev)
 
 	/* Now register the pin controller and all pins it handles */
 	spmx->pmx = pinctrl_register(&sirfsoc_pinmux_desc, &pdev->dev, spmx);
-	if (!spmx->pmx) {
+	if (IS_ERR(spmx->pmx)) {
 		dev_err(&pdev->dev, "could not register SIRFSOC pinmux driver\n");
-		ret = -EINVAL;
+		ret = PTR_ERR(spmx->pmx);
 		goto out_no_pmx;
 	}
 

@@ -1021,9 +1021,9 @@ int intel_pinctrl_probe(struct platform_device *pdev,
 	pctrl->pctldesc.npins = pctrl->soc->npins;
 
 	pctrl->pctldev = pinctrl_register(&pctrl->pctldesc, &pdev->dev, pctrl);
-	if (!pctrl->pctldev) {
+	if (IS_ERR(pctrl->pctldev)) {
 		dev_err(&pdev->dev, "failed to register pinctrl driver\n");
-		return -ENODEV;
+		return PTR_ERR(pctrl->pctldev);
 	}
 
 	ret = intel_gpio_probe(pctrl, irq);

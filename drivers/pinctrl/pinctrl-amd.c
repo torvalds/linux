@@ -789,9 +789,9 @@ static int amd_gpio_probe(struct platform_device *pdev)
 	amd_pinctrl_desc.name = dev_name(&pdev->dev);
 	gpio_dev->pctrl = pinctrl_register(&amd_pinctrl_desc,
 					&pdev->dev, gpio_dev);
-	if (!gpio_dev->pctrl) {
+	if (IS_ERR(gpio_dev->pctrl)) {
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
-		return -ENODEV;
+		return PTR_ERR(gpio_dev->pctrl);
 	}
 
 	ret = gpiochip_add(&gpio_dev->gc);
