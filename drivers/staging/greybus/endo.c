@@ -551,3 +551,11 @@ void gb_endo_remove(struct gb_endo *endo)
 	device_unregister(&endo->dev);
 }
 
+int __init gb_endo_init(void)
+{
+	return 0;
+}
+
+void __exit gb_endo_exit(void)
+{
+}

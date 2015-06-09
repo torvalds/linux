@@ -959,7 +959,7 @@ err_destroy_message_cache:
 	return -ENOMEM;
 }
 
-void __exit gb_operation_exit(void)
+void gb_operation_exit(void)
 {
 	destroy_workqueue(gb_operation_workqueue);
 	gb_operation_workqueue = NULL;

@@ -252,7 +252,7 @@ static int __init gb_init(void)
 
 	retval = bus_register(&greybus_bus_type);
 	if (retval) {
-		pr_err("bus_register failed\n");
+		pr_err("bus_register failed (%d)\n", retval);
 		goto error_bus;
 	}
 
@@ -260,18 +260,26 @@ static int __init gb_init(void)
 
 	retval = gb_ap_init();
 	if (retval) {
-		pr_err("gb_ap_init failed\n");
+		pr_err("gb_ap_init failed (%d)\n", retval);
 		goto error_ap;
 	}
 
 	retval = gb_operation_init();
 	if (retval) {
-		pr_err("gb_operation_init failed\n");
+		pr_err("gb_operation_init failed (%d)\n", retval);
 		goto error_operation;
+	}
+
+	retval = gb_endo_init();
+	if (retval) {
+		pr_err("gb_endo_init failed (%d)\n", retval);
+		goto error_endo;
 	}
 
 	return 0;	/* Success */
 
+error_endo:
+	gb_operation_exit();
 error_operation:
 	gb_ap_exit();
 error_ap:
@@ -285,12 +293,12 @@ module_init(gb_init);
 
 static void __exit gb_exit(void)
 {
+	gb_endo_exit();
 	gb_operation_exit();
 	gb_ap_exit();
 	bus_unregister(&greybus_bus_type);
 	gb_debugfs_cleanup();
 }
 module_exit(gb_exit);
-
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Greg Kroah-Hartman <gregkh@linuxfoundation.org>");

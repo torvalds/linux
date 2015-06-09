@@ -159,6 +159,6 @@ int gb_operation_sync(struct gb_connection *connection, int type,
 		      void *response, int response_size);
 
 int gb_operation_init(void) __init;
-void gb_operation_exit(void) __exit;
+void gb_operation_exit(void);
 
 #endif /* !__OPERATION_H */
