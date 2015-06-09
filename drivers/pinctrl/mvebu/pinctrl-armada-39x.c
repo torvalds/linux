@@ -82,7 +82,7 @@ static struct mvebu_mpp_mode armada_39x_mpp_modes[] = {
 	MPP_MODE(10,
 		 MPP_VAR_FUNCTION(0, "gpio",    NULL,       V_88F6920_PLUS),
 		 MPP_VAR_FUNCTION(5, "dev",     "ad12",     V_88F6920_PLUS),
-		 MPP_VAR_FUNCTION(7, "ptp",     "event",    V_88F6920_PLUS)),
+		 MPP_VAR_FUNCTION(7, "ptp",     "evreq",    V_88F6920_PLUS)),
 	MPP_MODE(11,
 		 MPP_VAR_FUNCTION(0, "gpio",    NULL,       V_88F6920_PLUS),
 		 MPP_VAR_FUNCTION(5, "dev",     "ad13",     V_88F6920_PLUS),
