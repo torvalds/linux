@@ -67,8 +67,8 @@ static void release_manifest_descriptors(struct gb_interface *intf)
  * we expect to see.  (It could be bigger, perhaps for a new version
  * of the format.)
  *
- * Returns the number of bytes consumed by the descriptor, or a
- * negative errno.
+ * Returns the (non-zero) number of bytes consumed by the descriptor,
+ * or a negative errno.
  */
 static int identify_descriptor(struct gb_interface *intf,
 			       struct greybus_descriptor *desc, size_t size)
@@ -135,11 +135,11 @@ static int identify_descriptor(struct gb_interface *intf,
 		return -ENOMEM;
 
 	descriptor->size = desc_size;
-	descriptor->data = (u8 *)desc + sizeof(*desc_header);
+	descriptor->data = (char *)desc + sizeof(*desc_header);
 	descriptor->type = desc_header->type;
 	list_add_tail(&descriptor->links, &intf->manifest_descs);
 
-	/* desc_size is is positive and is known to fit in a signed int */
+	/* desc_size is positive and is known to fit in a signed int */
 
 	return desc_size;
 }
@@ -167,7 +167,6 @@ static char *gb_string_get(struct gb_interface *intf, u8 string_id)
 		return NULL;
 
 	list_for_each_entry(descriptor, &intf->manifest_descs, links) {
-
 		if (descriptor->type != GREYBUS_TYPE_STRING)
 			continue;
 
@@ -181,7 +180,7 @@ static char *gb_string_get(struct gb_interface *intf, u8 string_id)
 		return ERR_PTR(-ENOENT);
 
 	/* Allocate an extra byte so we can guarantee it's NUL-terminated */
-	string = kmemdup(&desc_string->string, (size_t)desc_string->length + 1,
+	string = kmemdup(&desc_string->string, desc_string->length + 1,
 				GFP_KERNEL);
 	if (!string)
 		return ERR_PTR(-ENOMEM);
@@ -194,9 +193,10 @@ static char *gb_string_get(struct gb_interface *intf, u8 string_id)
 }
 
 /*
- * Find cport descriptors in the manifest and set up data structures
- * for the functions that use them.  Returns the number of bundles
- * set up for the given interface, or 0 if there is an error.
+ * Find cport descriptors in the manifest associated with the given
+ * bundle, and set up data structures for the functions that use
+ * them.  Returns the number of cports set up for the bundle, or 0
+ * if there is an error.
  */
 static u32 gb_manifest_parse_cports(struct gb_interface *intf,
 				    struct gb_bundle *bundle)
@@ -292,11 +292,9 @@ static bool gb_manifest_parse_interface(struct gb_interface *intf,
 	if (IS_ERR(intf->vendor_string))
 		return false;
 
-	intf->product_string = gb_string_get(intf,
-					     desc_intf->product_stringid);
-	if (IS_ERR(intf->product_string)) {
+	intf->product_string = gb_string_get(intf, desc_intf->product_stringid);
+	if (IS_ERR(intf->product_string))
 		goto out_free_vendor_string;
-	}
 
 	// FIXME
 	// Vendor, Product and Unique id must come via control protocol
@@ -325,7 +323,7 @@ out_free_vendor_string:
 }
 
 /*
- * Parse a buffer containing a Interface manifest.
+ * Parse a buffer containing an interface manifest.
  *
  * If we find anything wrong with the content/format of the buffer
  * we reject it.
@@ -337,7 +335,7 @@ out_free_vendor_string:
  * the descriptors it contains, keeping track for each its type
  * and the location size of its data in the buffer.
  *
- * Next we scan the descriptors, looking for a interface descriptor;
+ * Next we scan the descriptors, looking for an interface descriptor;
  * there must be exactly one of those.  When found, we record the
  * information it contains, and then remove that descriptor (and any
  * string descriptors it refers to) from further consideration.
@@ -363,8 +361,8 @@ bool gb_manifest_parse(struct gb_interface *intf, void *data, size_t size)
 		return false;
 
 	/* we have to have at _least_ the manifest header */
-	if (size <= sizeof(manifest->header)) {
-		pr_err("short manifest (%zu)\n", size);
+	if (size < sizeof(*header)) {
+		pr_err("short manifest (%zu < %zu)\n", size, sizeof(*header));
 		return false;
 	}
 
