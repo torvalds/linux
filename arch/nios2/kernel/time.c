@@ -8,6 +8,7 @@
  * for more details.
  */
 
+#include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/clockchips.h>
 #include <linux/clocksource.h>
@@ -106,6 +107,7 @@ cycles_t get_cycles(void)
 {
 	return nios2_timer_read(&nios2_cs.cs);
 }
+EXPORT_SYMBOL(get_cycles);
 
 static void nios2_timer_start(struct nios2_timer *timer)
 {
