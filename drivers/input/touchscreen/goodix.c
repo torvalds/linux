@@ -301,10 +301,6 @@ static int goodix_request_input_dev(struct goodix_ts_data *ts, u16 version,
 		return -ENOMEM;
 	}
 
-	ts->input_dev->evbit[0] = BIT_MASK(EV_SYN) |
-				  BIT_MASK(EV_KEY) |
-				  BIT_MASK(EV_ABS);
-
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X,
 			     0, ts->abs_x_max, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y,
