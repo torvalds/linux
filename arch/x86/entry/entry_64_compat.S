@@ -344,6 +344,7 @@ cstar_dispatch:
 	call	*ia32_sys_call_table(, %rax, 8)
 	movq	%rax, RAX(%rsp)
 1:
+	movl	RCX(%rsp), %ebp
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	testl	$_TIF_ALLWORK_MASK, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
@@ -351,7 +352,6 @@ cstar_dispatch:
 
 sysretl_from_sys_call:
 	andl	$~TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
-	movl	RCX(%rsp), %ebp
 	RESTORE_RSI_RDI_RDX
 	movl	RIP(%rsp), %ecx
 	movl	EFLAGS(%rsp), %r11d
