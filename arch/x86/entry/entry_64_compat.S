@@ -178,17 +178,26 @@ sysexit_from_sys_call:
 
 #ifdef CONFIG_AUDITSYSCALL
 	.macro auditsys_entry_common
-	movl	%esi, %r8d		/* 5th arg: 4th syscall arg */
-	movl	%ecx, %r9d		/* swap with edx */
-	movl	%edx, %ecx		/* 4th arg: 3rd syscall arg */
-	movl	%r9d, %edx		/* 3rd arg: 2nd syscall arg */
-	movl	%ebx, %esi		/* 2nd arg: 1st syscall arg */
-	movl	%eax, %edi		/* 1st arg: syscall number */
-	call	__audit_syscall_entry
 	/*
-	 * We are going to jump back to syscall dispatch.
-	 * Prepare syscall args as required by 64-bit C ABI.
-	 * Clobbered registers are loaded from pt_regs on stack.
+	 * At this point, registers hold syscall args in the 32-bit syscall ABI:
+	 * EAX is syscall number, the 6 args are in EBX,ECX,EDX,ESI,EDI,EBP.
+	 *
+	 * We want to pass them to __audit_syscall_entry(), which is a 64-bit
+	 * C function with 5 parameters, so shuffle them to match what
+	 * the function expects: RDI,RSI,RDX,RCX,R8.
+	 */
+	movl	%esi, %r8d		/* arg5 (R8 ) <= 4th syscall arg (ESI) */
+	xchg	%ecx, %edx		/* arg4 (RCX) <= 3rd syscall arg (EDX) */
+					/* arg3 (RDX) <= 2nd syscall arg (ECX) */
+	movl	%ebx, %esi		/* arg2 (RSI) <= 1st syscall arg (EBX) */
+	movl	%eax, %edi		/* arg1 (RDI) <= syscall number  (EAX) */
+	call	__audit_syscall_entry
+
+	/*
+	 * We are going to jump back to the syscall dispatch code.
+	 * Prepare syscall args as required by the 64-bit C ABI.
+	 * Registers clobbered by __audit_syscall_entry() are
+	 * loaded from pt_regs on stack:
 	 */
 	movl	ORIG_RAX(%rsp), %eax	/* syscall number */
 	movl	%ebx, %edi		/* arg1 */
