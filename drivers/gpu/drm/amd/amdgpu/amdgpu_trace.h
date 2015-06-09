@@ -61,6 +61,54 @@ TRACE_EVENT(amdgpu_vm_grab_id,
 	    TP_printk("vmid=%u, ring=%u", __entry->vmid, __entry->ring)
 );
 
+TRACE_EVENT(amdgpu_vm_bo_map,
+	    TP_PROTO(struct amdgpu_bo_va *bo_va,
+		     struct amdgpu_bo_va_mapping *mapping),
+	    TP_ARGS(bo_va, mapping),
+	    TP_STRUCT__entry(
+			     __field(struct amdgpu_bo *, bo)
+			     __field(long, start)
+			     __field(long, last)
+			     __field(u64, offset)
+			     __field(u32, flags)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->bo = bo_va->bo;
+			   __entry->start = mapping->it.start;
+			   __entry->last = mapping->it.last;
+			   __entry->offset = mapping->offset;
+			   __entry->flags = mapping->flags;
+			   ),
+	    TP_printk("bo=%p, start=%lx, last=%lx, offset=%010llx, flags=%08x",
+		      __entry->bo, __entry->start, __entry->last,
+		      __entry->offset, __entry->flags)
+);
+
+TRACE_EVENT(amdgpu_vm_bo_unmap,
+	    TP_PROTO(struct amdgpu_bo_va *bo_va,
+		     struct amdgpu_bo_va_mapping *mapping),
+	    TP_ARGS(bo_va, mapping),
+	    TP_STRUCT__entry(
+			     __field(struct amdgpu_bo *, bo)
+			     __field(long, start)
+			     __field(long, last)
+			     __field(u64, offset)
+			     __field(u32, flags)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->bo = bo_va->bo;
+			   __entry->start = mapping->it.start;
+			   __entry->last = mapping->it.last;
+			   __entry->offset = mapping->offset;
+			   __entry->flags = mapping->flags;
+			   ),
+	    TP_printk("bo=%p, start=%lx, last=%lx, offset=%010llx, flags=%08x",
+		      __entry->bo, __entry->start, __entry->last,
+		      __entry->offset, __entry->flags)
+);
+
 TRACE_EVENT(amdgpu_vm_bo_update,
 	    TP_PROTO(struct amdgpu_bo_va_mapping *mapping),
 	    TP_ARGS(mapping),
