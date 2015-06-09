@@ -185,12 +185,18 @@ sysexit_from_sys_call:
 	movl	%ebx, %esi		/* 2nd arg: 1st syscall arg */
 	movl	%eax, %edi		/* 1st arg: syscall number */
 	call	__audit_syscall_entry
-	movl	ORIG_RAX(%rsp), %eax	/* reload syscall number */
-	movl	%ebx, %edi		/* reload 1st syscall arg */
-	movl	RCX(%rsp), %esi		/* reload 2nd syscall arg */
-	movl	RDX(%rsp), %edx		/* reload 3rd syscall arg */
-	movl	RSI(%rsp), %ecx		/* reload 4th syscall arg */
-	movl	RDI(%rsp), %r8d		/* reload 5th syscall arg */
+	/*
+	 * We are going to jump back to syscall dispatch.
+	 * Prepare syscall args as required by 64-bit C ABI.
+	 * Clobbered registers are loaded from pt_regs on stack.
+	 */
+	movl	ORIG_RAX(%rsp), %eax	/* syscall number */
+	movl	%ebx, %edi		/* arg1 */
+	movl	RCX(%rsp), %esi		/* arg2 */
+	movl	RDX(%rsp), %edx		/* arg3 */
+	movl	RSI(%rsp), %ecx		/* arg4 */
+	movl	RDI(%rsp), %r8d		/* arg5 */
+	movl	%ebp, %r9d		/* arg6 */
 	.endm
 
 	.macro auditsys_exit exit
@@ -221,7 +227,6 @@ sysexit_from_sys_call:
 
 sysenter_auditsys:
 	auditsys_entry_common
-	movl	%ebp, %r9d		/* reload 6th syscall arg */
 	jmp	sysenter_dispatch
 
 sysexit_audit:
@@ -379,7 +384,6 @@ sysretl_from_sys_call:
 #ifdef CONFIG_AUDITSYSCALL
 cstar_auditsys:
 	auditsys_entry_common
-	movl	%ebp, %r9d		/* reload 6th syscall arg */
 	jmp	cstar_dispatch
 
 sysretl_audit:
