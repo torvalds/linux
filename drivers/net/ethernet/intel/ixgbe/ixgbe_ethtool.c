@@ -207,6 +207,7 @@ static int ixgbe_get_settings(struct net_device *netdev,
 	switch (adapter->hw.phy.type) {
 	case ixgbe_phy_tn:
 	case ixgbe_phy_aq:
+	case ixgbe_phy_x550em_ext_t:
 	case ixgbe_phy_cu_unknown:
 		ecmd->supported |= SUPPORTED_TP;
 		ecmd->advertising |= ADVERTISED_TP;

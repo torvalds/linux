@@ -356,6 +356,9 @@ static enum ixgbe_phy_type ixgbe_get_phy_type_from_id(u32 phy_id)
 	case ATH_PHY_ID:
 		phy_type = ixgbe_phy_nl;
 		break;
+	case X557_PHY_ID:
+		phy_type = ixgbe_phy_x550em_ext_t;
+		break;
 	default:
 		phy_type = ixgbe_phy_unknown;
 		break;
