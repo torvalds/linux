@@ -18,6 +18,11 @@
 
 #include "irq_remapping.h"
 
+enum irq_mode {
+	IRQ_REMAPPING,
+	IRQ_POSTING,
+};
+
 struct ioapic_scope {
 	struct intel_iommu *iommu;
 	unsigned int id;
@@ -37,6 +42,7 @@ struct irq_2_iommu {
 	u16 irte_index;
 	u16 sub_handle;
 	u8  irte_mask;
+	enum irq_mode mode;
 };
 
 struct intel_ir_data {
@@ -104,6 +110,7 @@ static int alloc_irte(struct intel_iommu *iommu, int irq,
 		irq_iommu->irte_index =  index;
 		irq_iommu->sub_handle = 0;
 		irq_iommu->irte_mask = mask;
+		irq_iommu->mode = IRQ_REMAPPING;
 	}
 	raw_spin_unlock_irqrestore(&irq_2_ir_lock, flags);
 
@@ -144,6 +151,9 @@ static int modify_irte(struct irq_2_iommu *irq_iommu,
 	__iommu_flush_cache(iommu, irte, sizeof(*irte));
 
 	rc = qi_flush_iec(iommu, index, 0);
+
+	/* Update iommu mode according to the IRTE mode */
+	irq_iommu->mode = irte->pst ? IRQ_POSTING : IRQ_REMAPPING;
 	raw_spin_unlock_irqrestore(&irq_2_ir_lock, flags);
 
 	return rc;
