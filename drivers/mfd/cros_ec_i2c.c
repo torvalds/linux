@@ -76,7 +76,7 @@ static int cros_ec_cmd_xfer_i2c(struct cros_ec_device *ec_dev,
 	/* copy message payload and compute checksum */
 	sum = out_buf[0] + out_buf[1] + out_buf[2];
 	for (i = 0; i < msg->outsize; i++) {
-		out_buf[3 + i] = msg->outdata[i];
+		out_buf[3 + i] = msg->data[i];
 		sum += out_buf[3 + i];
 	}
 	out_buf[3 + msg->outsize] = sum;
@@ -109,7 +109,7 @@ static int cros_ec_cmd_xfer_i2c(struct cros_ec_device *ec_dev,
 	/* copy response packet payload and compute checksum */
 	sum = in_buf[0] + in_buf[1];
 	for (i = 0; i < len; i++) {
-		msg->indata[i] = in_buf[2 + i];
+		msg->data[i] = in_buf[2 + i];
 		sum += in_buf[2 + i];
 	}
 	dev_dbg(ec_dev->dev, "packet: %*ph, sum = %02x\n",

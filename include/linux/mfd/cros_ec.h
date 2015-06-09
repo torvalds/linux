@@ -42,8 +42,7 @@ enum {
  * @outsize: Outgoing length in bytes
  * @insize: Max number of bytes to accept from EC
  * @result: EC's response to the command (separate from communication failure)
- * @outdata: Outgoing data to EC
- * @indata: Where to put the incoming data from EC
+ * @data: Where to put the incoming data from EC and outgoing data to EC
  */
 struct cros_ec_command {
 	uint32_t version;
@@ -51,8 +50,7 @@ struct cros_ec_command {
 	uint32_t outsize;
 	uint32_t insize;
 	uint32_t result;
-	uint8_t outdata[EC_PROTO2_MAX_PARAM_SIZE];
-	uint8_t indata[EC_PROTO2_MAX_PARAM_SIZE];
+	uint8_t data[0];
 };
 
 /**

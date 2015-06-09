@@ -299,7 +299,7 @@ static int cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
 	for (i = 0; i < len; i++) {
 		sum += ptr[i + 2];
 		if (ec_msg->insize)
-			ec_msg->indata[i] = ptr[i + 2];
+			ec_msg->data[i] = ptr[i + 2];
 	}
 	sum &= 0xff;
 

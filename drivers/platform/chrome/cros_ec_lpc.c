@@ -73,8 +73,8 @@ static int cros_ec_cmd_xfer_lpc(struct cros_ec_device *ec,
 
 	/* Copy data and update checksum */
 	for (i = 0; i < msg->outsize; i++) {
-		outb(msg->outdata[i], EC_LPC_ADDR_HOST_PARAM + i);
-		csum += msg->outdata[i];
+		outb(msg->data[i], EC_LPC_ADDR_HOST_PARAM + i);
+		csum += msg->data[i];
 	}
 
 	/* Finalize checksum and write args */
@@ -129,8 +129,8 @@ static int cros_ec_cmd_xfer_lpc(struct cros_ec_device *ec,
 
 	/* Read response and update checksum */
 	for (i = 0; i < args.data_size; i++) {
-		msg->indata[i] = inb(EC_LPC_ADDR_HOST_PARAM + i);
-		csum += msg->indata[i];
+		msg->data[i] = inb(EC_LPC_ADDR_HOST_PARAM + i);
+		csum += msg->data[i];
 	}
 
 	/* Verify checksum */

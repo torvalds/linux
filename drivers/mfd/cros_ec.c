@@ -41,7 +41,7 @@ int cros_ec_prepare_tx(struct cros_ec_device *ec_dev,
 	out[2] = msg->outsize;
 	csum = out[0] + out[1] + out[2];
 	for (i = 0; i < msg->outsize; i++)
-		csum += out[EC_MSG_TX_HEADER_BYTES + i] = msg->outdata[i];
+		csum += out[EC_MSG_TX_HEADER_BYTES + i] = msg->data[i];
 	out[EC_MSG_TX_HEADER_BYTES + msg->outsize] = (uint8_t)(csum & 0xff);
 
 	return EC_MSG_TX_PROTO_BYTES + msg->outsize;
@@ -75,11 +75,20 @@ int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev,
 	ret = ec_dev->cmd_xfer(ec_dev, msg);
 	if (msg->result == EC_RES_IN_PROGRESS) {
 		int i;
-		struct cros_ec_command status_msg = { };
+		struct cros_ec_command *status_msg;
 		struct ec_response_get_comms_status *status;
 
-		status_msg.command = EC_CMD_GET_COMMS_STATUS;
-		status_msg.insize = sizeof(*status);
+		status_msg = kmalloc(sizeof(*status_msg) + sizeof(*status),
+				     GFP_KERNEL);
+		if (!status_msg) {
+			ret = -ENOMEM;
+			goto exit;
+		}
+
+		status_msg->version = 0;
+		status_msg->command = EC_CMD_GET_COMMS_STATUS;
+		status_msg->insize = sizeof(*status);
+		status_msg->outsize = 0;
 
 		/*
 		 * Query the EC's status until it's no longer busy or
@@ -88,20 +97,23 @@ int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev,
 		for (i = 0; i < EC_COMMAND_RETRIES; i++) {
 			usleep_range(10000, 11000);
 
-			ret = ec_dev->cmd_xfer(ec_dev, &status_msg);
+			ret = ec_dev->cmd_xfer(ec_dev, status_msg);
 			if (ret < 0)
 				break;
 
-			msg->result = status_msg.result;
-			if (status_msg.result != EC_RES_SUCCESS)
+			msg->result = status_msg->result;
+			if (status_msg->result != EC_RES_SUCCESS)
 				break;
 
 			status = (struct ec_response_get_comms_status *)
-				 status_msg.indata;
+				 status_msg->data;
 			if (!(status->flags & EC_COMMS_STATUS_PROCESSING))
 				break;
 		}
+
+		kfree(status_msg);
 	}
+exit:
 	mutex_unlock(&ec_dev->lock);
 
 	return ret;
