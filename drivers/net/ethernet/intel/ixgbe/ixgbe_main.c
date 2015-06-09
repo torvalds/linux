@@ -81,6 +81,8 @@ const char ixgbe_driver_version[] = DRV_VERSION;
 static const char ixgbe_copyright[] =
 				"Copyright (c) 1999-2014 Intel Corporation.";
 
+static const char ixgbe_overheat_msg[] = "Network adapter has been stopped because it has over heated. Restart the computer. If the problem persists, power off the system and replace the adapter";
+
 static const struct ixgbe_info *ixgbe_info_tbl[] = {
 	[board_82598]		= &ixgbe_82598_info,
 	[board_82599]		= &ixgbe_82599_info,
@@ -2390,10 +2392,7 @@ static void ixgbe_check_overtemp_subtask(struct ixgbe_adapter *adapter)
 			return;
 		break;
 	}
-	e_crit(drv,
-	       "Network adapter has been stopped because it has over heated. "
-	       "Restart the computer. If the problem persists, "
-	       "power off the system and replace the adapter\n");
+	e_crit(drv, "%s\n", ixgbe_overheat_msg);
 
 	adapter->interrupt_event = 0;
 }
@@ -2440,10 +2439,7 @@ static void ixgbe_check_overtemp_event(struct ixgbe_adapter *adapter, u32 eicr)
 		return;
 	}
 
-	e_crit(drv,
-	       "Network adapter has been stopped because it has over heated. "
-	       "Restart the computer. If the problem persists, "
-	       "power off the system and replace the adapter\n");
+	e_crit(drv, "%s\n", ixgbe_overheat_msg);
 }
 
 static void ixgbe_check_sfp_event(struct ixgbe_adapter *adapter, u32 eicr)
