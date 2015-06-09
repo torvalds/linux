@@ -1322,13 +1322,23 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 	int idx;
 	u16 copy_size, cmd_size, scratch_size;
 	bool had_nocopy = false;
+	u8 group_id = iwl_cmd_groupid(cmd->id);
 	int i, ret;
 	u32 cmd_pos;
 	const u8 *cmddata[IWL_MAX_CMD_TBS_PER_TFD];
 	u16 cmdlen[IWL_MAX_CMD_TBS_PER_TFD];
 
-	copy_size = sizeof(out_cmd->hdr);
-	cmd_size = sizeof(out_cmd->hdr);
+	if (WARN(!trans_pcie->wide_cmd_header && group_id != 0,
+		 "unsupported wide command %#x\n", cmd->id))
+		return -EINVAL;
+
+	if (group_id != 0) {
+		copy_size = sizeof(struct iwl_cmd_header_wide);
+		cmd_size = sizeof(struct iwl_cmd_header_wide);
+	} else {
+		copy_size = sizeof(struct iwl_cmd_header);
+		cmd_size = sizeof(struct iwl_cmd_header);
+	}
 
 	/* need one for the header if the first is NOCOPY */
 	BUILD_BUG_ON(IWL_MAX_CMD_TBS_PER_TFD > IWL_NUM_OF_TBS - 1);
@@ -1418,16 +1428,32 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		out_meta->source = cmd;
 
 	/* set up the header */
+	if (group_id != 0) {
+		out_cmd->hdr_wide.cmd = iwl_cmd_opcode(cmd->id);
+		out_cmd->hdr_wide.group_id = group_id;
+		out_cmd->hdr_wide.version = iwl_cmd_version(cmd->id);
+		out_cmd->hdr_wide.length =
+			cpu_to_le16(cmd_size -
+				    sizeof(struct iwl_cmd_header_wide));
+		out_cmd->hdr_wide.reserved = 0;
+		out_cmd->hdr_wide.sequence =
+			cpu_to_le16(QUEUE_TO_SEQ(trans_pcie->cmd_queue) |
+						 INDEX_TO_SEQ(q->write_ptr));
 
-	out_cmd->hdr.cmd = cmd->id;
-	out_cmd->hdr.reserved = 0;
-	out_cmd->hdr.sequence =
-		cpu_to_le16(QUEUE_TO_SEQ(trans_pcie->cmd_queue) |
-					 INDEX_TO_SEQ(q->write_ptr));
+		cmd_pos = sizeof(struct iwl_cmd_header_wide);
+		copy_size = sizeof(struct iwl_cmd_header_wide);
+	} else {
+		out_cmd->hdr.cmd = iwl_cmd_opcode(cmd->id);
+		out_cmd->hdr.sequence =
+			cpu_to_le16(QUEUE_TO_SEQ(trans_pcie->cmd_queue) |
+						 INDEX_TO_SEQ(q->write_ptr));
+		out_cmd->hdr.group_id = 0;
+
+		cmd_pos = sizeof(struct iwl_cmd_header);
+		copy_size = sizeof(struct iwl_cmd_header);
+	}
 
 	/* and copy the data that needs to be copied */
-	cmd_pos = offsetof(struct iwl_device_cmd, payload);
-	copy_size = sizeof(out_cmd->hdr);
 	for (i = 0; i < IWL_MAX_CMD_TBS_PER_TFD; i++) {
 		int copy;
 
@@ -1466,9 +1492,10 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 	}
 
 	IWL_DEBUG_HC(trans,
-		     "Sending command %s (#%x), seq: 0x%04X, %d bytes at %d[%d]:%d\n",
+		     "Sending command %s (%.2x.%.2x), seq: 0x%04X, %d bytes at %d[%d]:%d\n",
 		     get_cmd_string(trans_pcie, out_cmd->hdr.cmd),
-		     out_cmd->hdr.cmd, le16_to_cpu(out_cmd->hdr.sequence),
+		     group_id, out_cmd->hdr.cmd,
+		     le16_to_cpu(out_cmd->hdr.sequence),
 		     cmd_size, q->write_ptr, idx, trans_pcie->cmd_queue);
 
 	/* start the TFD with the scratchbuf */
@@ -1523,7 +1550,7 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		kzfree(txq->entries[idx].free_buf);
 	txq->entries[idx].free_buf = dup_buf;
 
-	trace_iwlwifi_dev_hcmd(trans->dev, cmd, cmd_size, &out_cmd->hdr);
+	trace_iwlwifi_dev_hcmd(trans->dev, cmd, cmd_size, &out_cmd->hdr_wide);
 
 	/* start timer if queue currently empty */
 	if (q->read_ptr == q->write_ptr && txq->wd_timeout)

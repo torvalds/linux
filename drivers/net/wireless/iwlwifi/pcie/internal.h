@@ -299,6 +299,7 @@ iwl_pcie_get_scratchbuf_dma(struct iwl_txq *txq, int idx)
  * @rx_buf_size_8k: 8 kB RX buffer size
  * @bc_table_dword: true if the BC table expects DWORD (as opposed to bytes)
  * @scd_set_active: should the transport configure the SCD for HCMD queue
+ * @wide_cmd_header: true when ucode supports wide command header format
  * @rx_page_order: page order for receive buffer size
  * @reg_lock: protect hw register access
  * @mutex: to protect stop_device / start_fw / start_hw
@@ -352,6 +353,7 @@ struct iwl_trans_pcie {
 	bool rx_buf_size_8k;
 	bool bc_table_dword;
 	bool scd_set_active;
+	bool wide_cmd_header;
 	u32 rx_page_order;
 
 	const char *const *command_names;

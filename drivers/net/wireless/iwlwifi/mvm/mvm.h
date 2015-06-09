@@ -977,12 +977,12 @@ u8 iwl_mvm_next_antenna(struct iwl_mvm *mvm, u8 valid, u8 last_idx);
 /* Tx / Host Commands */
 int __must_check iwl_mvm_send_cmd(struct iwl_mvm *mvm,
 				  struct iwl_host_cmd *cmd);
-int __must_check iwl_mvm_send_cmd_pdu(struct iwl_mvm *mvm, u8 id,
+int __must_check iwl_mvm_send_cmd_pdu(struct iwl_mvm *mvm, u32 id,
 				      u32 flags, u16 len, const void *data);
 int __must_check iwl_mvm_send_cmd_status(struct iwl_mvm *mvm,
 					 struct iwl_host_cmd *cmd,
 					 u32 *status);
-int __must_check iwl_mvm_send_cmd_pdu_status(struct iwl_mvm *mvm, u8 id,
+int __must_check iwl_mvm_send_cmd_pdu_status(struct iwl_mvm *mvm, u32 id,
 					     u16 len, const void *data,
 					     u32 *status);
 int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
