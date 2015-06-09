@@ -455,8 +455,8 @@ static int ipp_validate_mem_node(struct drm_device *drm_dev,
 {
 	struct drm_exynos_ipp_config *ipp_cfg;
 	unsigned int num_plane;
-	unsigned long min_size, size;
-	unsigned int bpp;
+	unsigned long size, buf_size = 0, plane_size, img_size = 0;
+	unsigned int bpp, width, height;
 	int i;
 
 	ipp_cfg = &c_node->property.config[m_node->ops_id];
@@ -470,20 +470,45 @@ static int ipp_validate_mem_node(struct drm_device *drm_dev,
 	 * but it seems more than enough
 	 */
 	for (i = 0; i < num_plane; ++i) {
-		if (!m_node->buf_info.handles[i]) {
-			DRM_ERROR("invalid handle for plane %d\n", i);
-			return -EINVAL;
-		}
+		width = ipp_cfg->sz.hsize;
+		height = ipp_cfg->sz.vsize;
 		bpp = drm_format_plane_cpp(ipp_cfg->fmt, i);
-		min_size = (ipp_cfg->sz.hsize * ipp_cfg->sz.vsize * bpp) >> 3;
-		size = exynos_drm_gem_get_size(drm_dev,
-					       m_node->buf_info.handles[i],
-					       c_node->filp);
-		if (min_size > size) {
-			DRM_ERROR("invalid size for plane %d\n", i);
-			return -EINVAL;
+
+		/*
+		 * The result of drm_format_plane_cpp() for chroma planes must
+		 * be used with drm_format_xxxx_chroma_subsampling() for
+		 * correct result.
+		 */
+		if (i > 0) {
+			width /= drm_format_horz_chroma_subsampling(
+								ipp_cfg->fmt);
+			height /= drm_format_vert_chroma_subsampling(
+								ipp_cfg->fmt);
+		}
+		plane_size = width * height * bpp;
+		img_size += plane_size;
+
+		if (m_node->buf_info.handles[i]) {
+			size = exynos_drm_gem_get_size(drm_dev,
+					m_node->buf_info.handles[i],
+					c_node->filp);
+			if (plane_size > size) {
+				DRM_ERROR(
+					"buffer %d is smaller than required\n",
+					i);
+				return -EINVAL;
+			}
+
+			buf_size += size;
 		}
 	}
+
+	if (buf_size < img_size) {
+		DRM_ERROR("size of buffers(%lu) is smaller than image(%lu)\n",
+			buf_size, img_size);
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
