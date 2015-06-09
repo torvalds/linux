@@ -531,6 +531,7 @@ struct ath9k_htc_priv {
 	struct ath9k_debug debug;
 #endif
 	struct mutex mutex;
+	struct ieee80211_vif *csa_vif;
 };
 
 static inline void ath_read_cachesize(struct ath_common *common, int *csz)
@@ -584,6 +585,7 @@ void ath9k_htc_tx_drain(struct ath9k_htc_priv *priv);
 void ath9k_htc_txstatus(struct ath9k_htc_priv *priv, void *wmi_event);
 void ath9k_tx_failed_tasklet(unsigned long data);
 void ath9k_htc_tx_cleanup_timer(unsigned long data);
+bool ath9k_htc_csa_is_finished(struct ath9k_htc_priv *priv);
 
 int ath9k_rx_init(struct ath9k_htc_priv *priv);
 void ath9k_rx_cleanup(struct ath9k_htc_priv *priv);
