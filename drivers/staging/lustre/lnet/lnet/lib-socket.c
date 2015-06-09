@@ -568,14 +568,6 @@ libcfs_sock_accept (struct socket **newsockp, struct socket *sock)
 
 EXPORT_SYMBOL(libcfs_sock_accept);
 
-void
-libcfs_sock_abort_accept (struct socket *sock)
-{
-	wake_up_all(sk_sleep(sock->sk));
-}
-
-EXPORT_SYMBOL(libcfs_sock_abort_accept);
-
 int
 libcfs_sock_connect (struct socket **sockp, int *fatal,
 		     __u32 local_ip, int local_port,

@@ -71,7 +71,6 @@ int libcfs_ipif_enumerate(char ***names);
 void libcfs_ipif_free_enumeration(char **names, int n);
 int libcfs_sock_listen(struct socket **sockp, __u32 ip, int port, int backlog);
 int libcfs_sock_accept(struct socket **newsockp, struct socket *sock);
-void libcfs_sock_abort_accept(struct socket *sock);
 int libcfs_sock_connect(struct socket **sockp, int *fatal,
 			__u32 local_ip, int local_port,
 			__u32 peer_ip, int peer_port);

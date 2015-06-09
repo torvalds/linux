@@ -377,7 +377,7 @@ lnet_acceptor(void *arg)
 			continue;
 		}
 
-		/* maybe we're waken up with libcfs_sock_abort_accept() */
+		/* maybe the LNet acceptor thread has been waken */
 		if (lnet_acceptor_state.pta_shutdown) {
 			sock_release(newsock);
 			break;
@@ -493,7 +493,7 @@ lnet_acceptor_stop(void)
 		return;
 
 	lnet_acceptor_state.pta_shutdown = 1;
-	libcfs_sock_abort_accept(lnet_acceptor_state.pta_sock);
+	wake_up_all(sk_sleep(lnet_acceptor_state.pta_sock->sk));
 
 	/* block until acceptor signals exit */
 	wait_for_completion(&lnet_acceptor_state.pta_signal);
