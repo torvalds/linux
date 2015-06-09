@@ -127,8 +127,22 @@ static int recv_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 	return status;
 }
 
+static void au0828_unregister_media_device(struct au0828_dev *dev)
+{
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+	if (dev->media_dev) {
+		media_device_unregister(dev->media_dev);
+		kfree(dev->media_dev);
+		dev->media_dev = NULL;
+	}
+#endif
+}
+
 static void au0828_usb_release(struct au0828_dev *dev)
 {
+	au0828_unregister_media_device(dev);
+
 	/* I2C */
 	au0828_i2c_unregister(dev);
 
@@ -161,6 +175,8 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 	*/
 	dev->dev_state = DEV_DISCONNECTED;
 
+	au0828_unregister_media_device(dev);
+
 	au0828_rc_unregister(dev);
 	/* Digital TV */
 	au0828_dvb_unregister(dev);
@@ -178,6 +194,81 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 	}
 #endif
 	au0828_usb_release(dev);
+}
+
+static void au0828_media_device_register(struct au0828_dev *dev,
+					  struct usb_device *udev)
+{
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_device *mdev;
+	int ret;
+
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	if (!mdev)
+		return;
+
+	mdev->dev = &udev->dev;
+
+	if (!dev->board.name)
+		strlcpy(mdev->model, "unknown au0828", sizeof(mdev->model));
+	else
+		strlcpy(mdev->model, dev->board.name, sizeof(mdev->model));
+	if (udev->serial)
+		strlcpy(mdev->serial, udev->serial, sizeof(mdev->serial));
+	strcpy(mdev->bus_info, udev->devpath);
+	mdev->hw_revision = le16_to_cpu(udev->descriptor.bcdDevice);
+	mdev->driver_version = LINUX_VERSION_CODE;
+
+	ret = media_device_register(mdev);
+	if (ret) {
+		pr_err(
+			"Couldn't create a media device. Error: %d\n",
+			ret);
+		kfree(mdev);
+		return;
+	}
+
+	dev->media_dev = mdev;
+#endif
+}
+
+
+static void au0828_create_media_graph(struct au0828_dev *dev)
+{
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_device *mdev = dev->media_dev;
+	struct media_entity *entity;
+	struct media_entity *tuner = NULL, *decoder = NULL;
+
+	if (!mdev)
+		return;
+
+	media_device_for_each_entity(entity, mdev) {
+		switch (entity->type) {
+		case MEDIA_ENT_T_V4L2_SUBDEV_TUNER:
+			tuner = entity;
+			break;
+		case MEDIA_ENT_T_V4L2_SUBDEV_DECODER:
+			decoder = entity;
+			break;
+		}
+	}
+
+	/* Analog setup, using tuner as a link */
+
+	if (!decoder)
+		return;
+
+	if (tuner)
+		media_entity_create_link(tuner, 0, decoder, 0,
+					 MEDIA_LNK_FL_ENABLED);
+	if (dev->vdev.entity.links)
+		media_entity_create_link(decoder, 1, &dev->vdev.entity, 0,
+				 MEDIA_LNK_FL_ENABLED);
+	if (dev->vbi_dev.entity.links)
+		media_entity_create_link(decoder, 2, &dev->vbi_dev.entity, 0,
+				 MEDIA_LNK_FL_ENABLED);
+#endif
 }
 
 static int au0828_usb_probe(struct usb_interface *interface,
@@ -224,11 +315,16 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	dev->boardnr = id->driver_info;
 	dev->board = au0828_boards[dev->boardnr];
 
+	/* Register the media controller */
+	au0828_media_device_register(dev, usbdev);
 
 #ifdef CONFIG_VIDEO_AU0828_V4L2
 	dev->v4l2_dev.release = au0828_usb_v4l2_release;
 
 	/* Create the v4l2_device */
+#ifdef CONFIG_MEDIA_CONTROLLER
+	dev->v4l2_dev.mdev = dev->media_dev;
+#endif
 	retval = v4l2_device_register(&interface->dev, &dev->v4l2_dev);
 	if (retval) {
 		pr_err("%s() v4l2_device_register failed\n",
@@ -286,6 +382,8 @@ static int au0828_usb_probe(struct usb_interface *interface,
 		dev->board.name == NULL ? "Unset" : dev->board.name);
 
 	mutex_unlock(&dev->lock);
+
+	au0828_create_media_graph(dev);
 
 	return retval;
 }

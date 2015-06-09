@@ -33,6 +33,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fh.h>
+#include <media/media-device.h>
 
 /* DVB */
 #include "demux.h"
@@ -276,6 +277,11 @@ struct au0828_dev {
 	/* Preallocated transfer digital transfer buffers */
 
 	char *dig_transfer_buffer[URB_COUNT];
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_device *media_dev;
+	struct media_pad video_pad, vbi_pad;
+#endif
 };
 
 
