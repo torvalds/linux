@@ -71,12 +71,15 @@
  * @spi: SPI device we are connected to
  * @last_transfer_ns: time that we last finished a transfer, or 0 if there
  *	if no record
+ * @start_of_msg_delay: used to set the delay_usecs on the spi_transfer that
+ *      is sent when we want to turn on CS at the start of a transaction.
  * @end_of_msg_delay: used to set the delay_usecs on the spi_transfer that
  *      is sent when we want to turn off CS at the end of a transaction.
  */
 struct cros_ec_spi {
 	struct spi_device *spi;
 	s64 last_transfer_ns;
+	unsigned int start_of_msg_delay;
 	unsigned int end_of_msg_delay;
 };
 
@@ -366,7 +369,7 @@ static int cros_ec_pkt_xfer_spi(struct cros_ec_device *ec_dev,
 	struct ec_host_request *request;
 	struct ec_host_response *response;
 	struct cros_ec_spi *ec_spi = ec_dev->priv;
-	struct spi_transfer trans;
+	struct spi_transfer trans, trans_delay;
 	struct spi_message msg;
 	int i, len;
 	u8 *ptr;
@@ -393,13 +396,23 @@ static int cros_ec_pkt_xfer_spi(struct cros_ec_device *ec_dev,
 		goto exit;
 	}
 
+	/*
+	 * Leave a gap between CS assertion and clocking of data to allow the
+	 * EC time to wakeup.
+	 */
+	spi_message_init(&msg);
+	if (ec_spi->start_of_msg_delay) {
+		memset(&trans_delay, 0, sizeof(trans_delay));
+		trans_delay.delay_usecs = ec_spi->start_of_msg_delay;
+		spi_message_add_tail(&trans_delay, &msg);
+	}
+
 	/* Transmit phase - send our message */
 	memset(&trans, 0, sizeof(trans));
 	trans.tx_buf = ec_dev->dout;
 	trans.rx_buf = rx_buf;
 	trans.len = len;
 	trans.cs_change = 1;
-	spi_message_init(&msg);
 	spi_message_add_tail(&trans, &msg);
 	ret = spi_sync(ec_spi->spi, &msg);
 
@@ -601,6 +614,10 @@ static void cros_ec_spi_dt_probe(struct cros_ec_spi *ec_spi, struct device *dev)
 	struct device_node *np = dev->of_node;
 	u32 val;
 	int ret;
+
+	ret = of_property_read_u32(np, "google,cros-ec-spi-pre-delay", &val);
+	if (!ret)
+		ec_spi->start_of_msg_delay = val;
 
 	ret = of_property_read_u32(np, "google,cros-ec-spi-msg-delay", &val);
 	if (!ret)
