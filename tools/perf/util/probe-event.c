@@ -41,6 +41,7 @@
 #include "symbol.h"
 #include "thread.h"
 #include <api/fs/debugfs.h>
+#include <api/fs/tracefs.h>
 #include "trace-event.h"	/* For __maybe_unused */
 #include "probe-event.h"
 #include "probe-finder.h"
@@ -79,6 +80,7 @@ static int init_symbol_maps(bool user_only)
 	int ret;
 
 	symbol_conf.sort_by_name = true;
+	symbol_conf.allow_aliases = true;
 	ret = symbol__init(NULL);
 	if (ret < 0) {
 		pr_debug("Failed to init symbol map.\n");
@@ -133,6 +135,8 @@ static struct ref_reloc_sym *kernel_get_ref_reloc_sym(void)
 		return NULL;
 
 	kmap = map__kmap(host_machine->vmlinux_maps[MAP__FUNCTION]);
+	if (!kmap)
+		return NULL;
 	return kmap->ref_reloc_sym;
 }
 
@@ -150,7 +154,7 @@ static u64 kernel_get_symbol_address_by_name(const char *name, bool reloc)
 		sym = __find_kernel_function_by_name(name, &map);
 		if (sym)
 			return map->unmap_ip(map, sym->start) -
-				(reloc) ? 0 : map->reloc;
+				((reloc) ? 0 : map->reloc);
 	}
 	return 0;
 }
@@ -176,6 +180,25 @@ static struct map *kernel_get_module_map(const char *module)
 	}
 	return NULL;
 }
+
+static struct map *get_target_map(const char *target, bool user)
+{
+	/* Init maps of given executable or kernel */
+	if (user)
+		return dso__new_map(target);
+	else
+		return kernel_get_module_map(target);
+}
+
+static void put_target_map(struct map *map, bool user)
+{
+	if (map && user) {
+		/* Only the user map needs to be released */
+		dso__delete(map->dso);
+		map__delete(map);
+	}
+}
+
 
 static struct dso *kernel_get_module_dso(const char *module)
 {
@@ -248,6 +271,13 @@ out:
 	return ret;
 }
 
+static void clear_perf_probe_point(struct perf_probe_point *pp)
+{
+	free(pp->file);
+	free(pp->function);
+	free(pp->lazy_line);
+}
+
 static void clear_probe_trace_events(struct probe_trace_event *tevs, int ntevs)
 {
 	int i;
@@ -257,6 +287,104 @@ static void clear_probe_trace_events(struct probe_trace_event *tevs, int ntevs)
 }
 
 #ifdef HAVE_DWARF_SUPPORT
+/*
+ * Some binaries like glibc have special symbols which are on the symbol
+ * table, but not in the debuginfo. If we can find the address of the
+ * symbol from map, we can translate the address back to the probe point.
+ */
+static int find_alternative_probe_point(struct debuginfo *dinfo,
+					struct perf_probe_point *pp,
+					struct perf_probe_point *result,
+					const char *target, bool uprobes)
+{
+	struct map *map = NULL;
+	struct symbol *sym;
+	u64 address = 0;
+	int ret = -ENOENT;
+
+	/* This can work only for function-name based one */
+	if (!pp->function || pp->file)
+		return -ENOTSUP;
+
+	map = get_target_map(target, uprobes);
+	if (!map)
+		return -EINVAL;
+
+	/* Find the address of given function */
+	map__for_each_symbol_by_name(map, pp->function, sym) {
+		if (uprobes)
+			address = sym->start;
+		else
+			address = map->unmap_ip(map, sym->start);
+		break;
+	}
+	if (!address) {
+		ret = -ENOENT;
+		goto out;
+	}
+	pr_debug("Symbol %s address found : %" PRIx64 "\n",
+			pp->function, address);
+
+	ret = debuginfo__find_probe_point(dinfo, (unsigned long)address,
+					  result);
+	if (ret <= 0)
+		ret = (!ret) ? -ENOENT : ret;
+	else {
+		result->offset += pp->offset;
+		result->line += pp->line;
+		result->retprobe = pp->retprobe;
+		ret = 0;
+	}
+
+out:
+	put_target_map(map, uprobes);
+	return ret;
+
+}
+
+static int get_alternative_probe_event(struct debuginfo *dinfo,
+				       struct perf_probe_event *pev,
+				       struct perf_probe_point *tmp,
+				       const char *target)
+{
+	int ret;
+
+	memcpy(tmp, &pev->point, sizeof(*tmp));
+	memset(&pev->point, 0, sizeof(pev->point));
+	ret = find_alternative_probe_point(dinfo, tmp, &pev->point,
+					   target, pev->uprobes);
+	if (ret < 0)
+		memcpy(&pev->point, tmp, sizeof(*tmp));
+
+	return ret;
+}
+
+static int get_alternative_line_range(struct debuginfo *dinfo,
+				      struct line_range *lr,
+				      const char *target, bool user)
+{
+	struct perf_probe_point pp = { .function = lr->function,
+				       .file = lr->file,
+				       .line = lr->start };
+	struct perf_probe_point result;
+	int ret, len = 0;
+
+	memset(&result, 0, sizeof(result));
+
+	if (lr->end != INT_MAX)
+		len = lr->end - lr->start;
+	ret = find_alternative_probe_point(dinfo, &pp, &result,
+					   target, user);
+	if (!ret) {
+		lr->function = result.function;
+		lr->file = result.file;
+		lr->start = result.line;
+		if (lr->end != INT_MAX)
+			lr->end = lr->start + len;
+		clear_perf_probe_point(&pp);
+	}
+	return ret;
+}
 
 /* Open new debuginfo of given module */
 static struct debuginfo *open_debuginfo(const char *module, bool silent)
@@ -465,6 +593,7 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 					  int max_tevs, const char *target)
 {
 	bool need_dwarf = perf_probe_event_need_dwarf(pev);
+	struct perf_probe_point tmp;
 	struct debuginfo *dinfo;
 	int ntevs, ret = 0;
 
@@ -481,6 +610,20 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 	/* Searching trace events corresponding to a probe event */
 	ntevs = debuginfo__find_trace_events(dinfo, pev, tevs, max_tevs);
 
+	if (ntevs == 0)	{  /* Not found, retry with an alternative */
+		ret = get_alternative_probe_event(dinfo, pev, &tmp, target);
+		if (!ret) {
+			ntevs = debuginfo__find_trace_events(dinfo, pev,
+							     tevs, max_tevs);
+			/*
+			 * Write back to the original probe_event for
+			 * setting appropriate (user given) event name
+			 */
+			clear_perf_probe_point(&pev->point);
+			memcpy(&pev->point, &tmp, sizeof(tmp));
+		}
+	}
+
 	debuginfo__delete(dinfo);
 
 	if (ntevs > 0) {	/* Succeeded to find trace events */
@@ -495,11 +638,9 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 	}
 
 	if (ntevs == 0)	{	/* No error but failed to find probe point. */
-		pr_warning("Probe point '%s' not found in debuginfo.\n",
+		pr_warning("Probe point '%s' not found.\n",
 			   synthesize_perf_probe_point(&pev->point));
-		if (need_dwarf)
-			return -ENOENT;
-		return 0;
+		return -ENOENT;
 	}
 	/* Error path : ntevs < 0 */
 	pr_debug("An error occurred in debuginfo analysis (%d).\n", ntevs);
@@ -512,63 +653,6 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 		}
 	}
 	return ntevs;
-}
-
-/*
- * Find a src file from a DWARF tag path. Prepend optional source path prefix
- * and chop off leading directories that do not exist. Result is passed back as
- * a newly allocated path on success.
- * Return 0 if file was found and readable, -errno otherwise.
- */
-static int get_real_path(const char *raw_path, const char *comp_dir,
-			 char **new_path)
-{
-	const char *prefix = symbol_conf.source_prefix;
-
-	if (!prefix) {
-		if (raw_path[0] != '/' && comp_dir)
-			/* If not an absolute path, try to use comp_dir */
-			prefix = comp_dir;
-		else {
-			if (access(raw_path, R_OK) == 0) {
-				*new_path = strdup(raw_path);
-				return 0;
-			} else
-				return -errno;
-		}
-	}
-
-	*new_path = malloc((strlen(prefix) + strlen(raw_path) + 2));
-	if (!*new_path)
-		return -ENOMEM;
-
-	for (;;) {
-		sprintf(*new_path, "%s/%s", prefix, raw_path);
-
-		if (access(*new_path, R_OK) == 0)
-			return 0;
-
-		if (!symbol_conf.source_prefix)
-			/* In case of searching comp_dir, don't retry */
-			return -errno;
-
-		switch (errno) {
-		case ENAMETOOLONG:
-		case ENOENT:
-		case EROFS:
-		case EFAULT:
-			raw_path = strchr(++raw_path, '/');
-			if (!raw_path) {
-				zfree(new_path);
-				return -ENOENT;
-			}
-			continue;
-
-		default:
-			zfree(new_path);
-			return -errno;
-		}
-	}
 }
 
 #define LINEBUF_SIZE 256
@@ -622,7 +706,8 @@ static int _show_one_line(FILE *fp, int l, bool skip, bool show_num)
  * Show line-range always requires debuginfo to find source file and
  * line number.
  */
-static int __show_line_range(struct line_range *lr, const char *module)
+static int __show_line_range(struct line_range *lr, const char *module,
+			     bool user)
 {
 	int l = 1;
 	struct int_node *ln;
@@ -638,6 +723,11 @@ static int __show_line_range(struct line_range *lr, const char *module)
 		return -ENOENT;
 
 	ret = debuginfo__find_line_range(dinfo, lr);
+	if (!ret) {	/* Not found, retry with an alternative */
+		ret = get_alternative_line_range(dinfo, lr, module, user);
+		if (!ret)
+			ret = debuginfo__find_line_range(dinfo, lr);
+	}
 	debuginfo__delete(dinfo);
 	if (ret == 0 || ret == -ENOENT) {
 		pr_warning("Specified source line is not found.\n");
@@ -650,7 +740,11 @@ static int __show_line_range(struct line_range *lr, const char *module)
 	/* Convert source file path */
 	tmp = lr->path;
 	ret = get_real_path(tmp, lr->comp_dir, &lr->path);
-	free(tmp);	/* Free old path */
+
+	/* Free old path when new path is assigned */
+	if (tmp != lr->path)
+		free(tmp);
+
 	if (ret < 0) {
 		pr_warning("Failed to find source file path.\n");
 		return ret;
@@ -707,7 +801,7 @@ int show_line_range(struct line_range *lr, const char *module, bool user)
 	ret = init_symbol_maps(user);
 	if (ret < 0)
 		return ret;
-	ret = __show_line_range(lr, module);
+	ret = __show_line_range(lr, module, user);
 	exit_symbol_maps();
 
 	return ret;
@@ -716,12 +810,13 @@ int show_line_range(struct line_range *lr, const char *module, bool user)
 static int show_available_vars_at(struct debuginfo *dinfo,
 				  struct perf_probe_event *pev,
 				  int max_vls, struct strfilter *_filter,
-				  bool externs)
+				  bool externs, const char *target)
 {
 	char *buf;
 	int ret, i, nvars;
 	struct str_node *node;
 	struct variable_list *vls = NULL, *vl;
+	struct perf_probe_point tmp;
 	const char *var;
 
 	buf = synthesize_perf_probe_point(&pev->point);
@@ -731,6 +826,15 @@ static int show_available_vars_at(struct debuginfo *dinfo,
 
 	ret = debuginfo__find_available_vars_at(dinfo, pev, &vls,
 						max_vls, externs);
+	if (!ret) {  /* Not found, retry with an alternative */
+		ret = get_alternative_probe_event(dinfo, pev, &tmp, target);
+		if (!ret) {
+			ret = debuginfo__find_available_vars_at(dinfo, pev,
+						&vls, max_vls, externs);
+			/* Release the old probe_point */
+			clear_perf_probe_point(&tmp);
+		}
+	}
 	if (ret <= 0) {
 		if (ret == 0 || ret == -ENOENT) {
 			pr_err("Failed to find the address of %s\n", buf);
@@ -793,7 +897,7 @@ int show_available_vars(struct perf_probe_event *pevs, int npevs,
 
 	for (i = 0; i < npevs && ret >= 0; i++)
 		ret = show_available_vars_at(dinfo, &pevs[i], max_vls, _filter,
-					     externs);
+					     externs, module);
 
 	debuginfo__delete(dinfo);
 out:
@@ -1739,15 +1843,13 @@ static int convert_to_perf_probe_event(struct probe_trace_event *tev,
 
 void clear_perf_probe_event(struct perf_probe_event *pev)
 {
-	struct perf_probe_point *pp = &pev->point;
 	struct perf_probe_arg_field *field, *next;
 	int i;
 
 	free(pev->event);
 	free(pev->group);
-	free(pp->file);
-	free(pp->function);
-	free(pp->lazy_line);
+	free(pev->target);
+	clear_perf_probe_point(&pev->point);
 
 	for (i = 0; i < pev->nargs; i++) {
 		free(pev->args[i].name);
@@ -1805,7 +1907,7 @@ static void print_open_warning(int err, bool is_kprobe)
 			   " - please rebuild kernel with %s.\n",
 			   is_kprobe ? 'k' : 'u', config);
 	} else if (err == -ENOTSUP)
-		pr_warning("Debugfs is not mounted.\n");
+		pr_warning("Tracefs or debugfs is not mounted.\n");
 	else
 		pr_warning("Failed to open %cprobe_events: %s\n",
 			   is_kprobe ? 'k' : 'u',
@@ -1816,7 +1918,7 @@ static void print_both_open_warning(int kerr, int uerr)
 {
 	/* Both kprobes and uprobes are disabled, warn it. */
 	if (kerr == -ENOTSUP && uerr == -ENOTSUP)
-		pr_warning("Debugfs is not mounted.\n");
+		pr_warning("Tracefs or debugfs is not mounted.\n");
 	else if (kerr == -ENOENT && uerr == -ENOENT)
 		pr_warning("Please rebuild kernel with CONFIG_KPROBE_EVENTS "
 			   "or/and CONFIG_UPROBE_EVENTS.\n");
@@ -1833,13 +1935,20 @@ static int open_probe_events(const char *trace_file, bool readwrite)
 {
 	char buf[PATH_MAX];
 	const char *__debugfs;
+	const char *tracing_dir = "";
 	int ret;
 
-	__debugfs = debugfs_find_mountpoint();
-	if (__debugfs == NULL)
-		return -ENOTSUP;
+	__debugfs = tracefs_find_mountpoint();
+	if (__debugfs == NULL) {
+		tracing_dir = "tracing/";
 
-	ret = e_snprintf(buf, PATH_MAX, "%s/%s", __debugfs, trace_file);
+		__debugfs = debugfs_find_mountpoint();
+		if (__debugfs == NULL)
+			return -ENOTSUP;
+	}
+
+	ret = e_snprintf(buf, PATH_MAX, "%s/%s%s",
+			 __debugfs, tracing_dir, trace_file);
 	if (ret >= 0) {
 		pr_debug("Opening %s write=%d\n", buf, readwrite);
 		if (readwrite && !probe_event_dry_run)
@@ -1855,12 +1964,12 @@ static int open_probe_events(const char *trace_file, bool readwrite)
 
 static int open_kprobe_events(bool readwrite)
 {
-	return open_probe_events("tracing/kprobe_events", readwrite);
+	return open_probe_events("kprobe_events", readwrite);
 }
 
 static int open_uprobe_events(bool readwrite)
 {
-	return open_probe_events("tracing/uprobe_events", readwrite);
+	return open_probe_events("uprobe_events", readwrite);
 }
 
 /* Get raw string list of current kprobe_events  or uprobe_events */
@@ -1893,6 +2002,95 @@ static struct strlist *get_probe_trace_command_rawlist(int fd)
 	fclose(fp);
 
 	return sl;
+}
+
+struct kprobe_blacklist_node {
+	struct list_head list;
+	unsigned long start;
+	unsigned long end;
+	char *symbol;
+};
+
+static void kprobe_blacklist__delete(struct list_head *blacklist)
+{
+	struct kprobe_blacklist_node *node;
+
+	while (!list_empty(blacklist)) {
+		node = list_first_entry(blacklist,
+					struct kprobe_blacklist_node, list);
+		list_del(&node->list);
+		free(node->symbol);
+		free(node);
+	}
+}
+
+static int kprobe_blacklist__load(struct list_head *blacklist)
+{
+	struct kprobe_blacklist_node *node;
+	const char *__debugfs = debugfs_find_mountpoint();
+	char buf[PATH_MAX], *p;
+	FILE *fp;
+	int ret;
+
+	if (__debugfs == NULL)
+		return -ENOTSUP;
+
+	ret = e_snprintf(buf, PATH_MAX, "%s/kprobes/blacklist", __debugfs);
+	if (ret < 0)
+		return ret;
+
+	fp = fopen(buf, "r");
+	if (!fp)
+		return -errno;
+
+	ret = 0;
+	while (fgets(buf, PATH_MAX, fp)) {
+		node = zalloc(sizeof(*node));
+		if (!node) {
+			ret = -ENOMEM;
+			break;
+		}
+		INIT_LIST_HEAD(&node->list);
+		list_add_tail(&node->list, blacklist);
+		if (sscanf(buf, "0x%lx-0x%lx", &node->start, &node->end) != 2) {
+			ret = -EINVAL;
+			break;
+		}
+		p = strchr(buf, '\t');
+		if (p) {
+			p++;
+			if (p[strlen(p) - 1] == '\n')
+				p[strlen(p) - 1] = '\0';
+		} else
+			p = (char *)"unknown";
+		node->symbol = strdup(p);
+		if (!node->symbol) {
+			ret = -ENOMEM;
+			break;
+		}
+		pr_debug2("Blacklist: 0x%lx-0x%lx, %s\n",
+			  node->start, node->end, node->symbol);
+		ret++;
+	}
+	if (ret < 0)
+		kprobe_blacklist__delete(blacklist);
+	fclose(fp);
+
+	return ret;
+}
+
+static struct kprobe_blacklist_node *
+kprobe_blacklist__find_by_address(struct list_head *blacklist,
+				  unsigned long address)
+{
+	struct kprobe_blacklist_node *node;
+
+	list_for_each_entry(node, blacklist, list) {
+		if (node->start <= address && address <= node->end)
+			return node;
+	}
+
+	return NULL;
 }
 
 /* Show an event */
@@ -2100,6 +2298,27 @@ static int get_new_event_name(char *buf, size_t len, const char *base,
 	return ret;
 }
 
+/* Warn if the current kernel's uprobe implementation is old */
+static void warn_uprobe_event_compat(struct probe_trace_event *tev)
+{
+	int i;
+	char *buf = synthesize_probe_trace_command(tev);
+
+	/* Old uprobe event doesn't support memory dereference */
+	if (!tev->uprobes || tev->nargs == 0 || !buf)
+		goto out;
+
+	for (i = 0; i < tev->nargs; i++)
+		if (strglobmatch(tev->args[i].value, "[$@+-]*")) {
+			pr_warning("Please upgrade your kernel to at least "
+				   "3.14 to have access to feature %s\n",
+				   tev->args[i].value);
+			break;
+		}
+out:
+	free(buf);
+}
+
 static int __add_probe_trace_events(struct perf_probe_event *pev,
 				     struct probe_trace_event *tevs,
 				     int ntevs, bool allow_suffix)
@@ -2109,6 +2328,8 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 	char buf[64];
 	const char *event, *group;
 	struct strlist *namelist;
+	LIST_HEAD(blacklist);
+	struct kprobe_blacklist_node *node;
 
 	if (pev->uprobes)
 		fd = open_uprobe_events(true);
@@ -2126,11 +2347,25 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 		pr_debug("Failed to get current event list.\n");
 		return -EIO;
 	}
+	/* Get kprobe blacklist if exists */
+	if (!pev->uprobes) {
+		ret = kprobe_blacklist__load(&blacklist);
+		if (ret < 0)
+			pr_debug("No kprobe blacklist support, ignored\n");
+	}
 
 	ret = 0;
 	pr_info("Added new event%s\n", (ntevs > 1) ? "s:" : ":");
 	for (i = 0; i < ntevs; i++) {
 		tev = &tevs[i];
+		/* Ensure that the address is NOT blacklisted */
+		node = kprobe_blacklist__find_by_address(&blacklist,
+							 tev->point.address);
+		if (node) {
+			pr_warning("Warning: Skipped probing on blacklisted function: %s\n", node->symbol);
+			continue;
+		}
+
 		if (pev->event)
 			event = pev->event;
 		else
@@ -2180,14 +2415,18 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 		 */
 		allow_suffix = true;
 	}
+	if (ret == -EINVAL && pev->uprobes)
+		warn_uprobe_event_compat(tev);
 
-	if (ret >= 0) {
+	/* Note that it is possible to skip all events because of blacklist */
+	if (ret >= 0 && tev->event) {
 		/* Show how to use the event. */
 		pr_info("\nYou can now use it in all perf tools, such as:\n\n");
 		pr_info("\tperf record -e %s:%s -aR sleep 1\n\n", tev->group,
 			 tev->event);
 	}
 
+	kprobe_blacklist__delete(&blacklist);
 	strlist__delete(namelist);
 	close(fd);
 	return ret;
@@ -2199,8 +2438,7 @@ static int find_probe_functions(struct map *map, char *name)
 	struct symbol *sym;
 
 	map__for_each_symbol_by_name(map, name, sym) {
-		if (sym->binding == STB_GLOBAL || sym->binding == STB_LOCAL)
-			found++;
+		found++;
 	}
 
 	return found;
@@ -2218,7 +2456,6 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 					    int max_tevs, const char *target)
 {
 	struct map *map = NULL;
-	struct kmap *kmap = NULL;
 	struct ref_reloc_sym *reloc_sym = NULL;
 	struct symbol *sym;
 	struct probe_trace_event *tev;
@@ -2227,11 +2464,7 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 	int num_matched_functions;
 	int ret, i;
 
-	/* Init maps of given executable or kernel */
-	if (pev->uprobes)
-		map = dso__new_map(target);
-	else
-		map = kernel_get_module_map(target);
+	map = get_target_map(target, pev->uprobes);
 	if (!map) {
 		ret = -EINVAL;
 		goto out;
@@ -2255,8 +2488,7 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 	}
 
 	if (!pev->uprobes && !pp->retprobe) {
-		kmap = map__kmap(map);
-		reloc_sym = kmap->ref_reloc_sym;
+		reloc_sym = kernel_get_ref_reloc_sym();
 		if (!reloc_sym) {
 			pr_warning("Relocated base symbol is not found!\n");
 			ret = -EINVAL;
@@ -2324,11 +2556,7 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 	}
 
 out:
-	if (map && pev->uprobes) {
-		/* Only when using uprobe(exec) map needs to be released */
-		dso__delete(map->dso);
-		map__delete(map);
-	}
+	put_target_map(map, pev->uprobes);
 	return ret;
 
 nomem_out:
@@ -2369,7 +2597,7 @@ struct __event_package {
 };
 
 int add_perf_probe_events(struct perf_probe_event *pevs, int npevs,
-			  int max_tevs, const char *target, bool force_add)
+			  int max_tevs, bool force_add)
 {
 	int i, j, ret;
 	struct __event_package *pkgs;
@@ -2393,7 +2621,7 @@ int add_perf_probe_events(struct perf_probe_event *pevs, int npevs,
 		ret  = convert_to_probe_trace_events(pkgs[i].pev,
 						     &pkgs[i].tevs,
 						     max_tevs,
-						     target);
+						     pkgs[i].pev->target);
 		if (ret < 0)
 			goto end;
 		pkgs[i].ntevs = ret;
@@ -2568,8 +2796,7 @@ static struct strfilter *available_func_filter;
 static int filter_available_functions(struct map *map __maybe_unused,
 				      struct symbol *sym)
 {
-	if ((sym->binding == STB_GLOBAL || sym->binding == STB_LOCAL) &&
-	    strfilter__compare(available_func_filter, sym->name))
+	if (strfilter__compare(available_func_filter, sym->name))
 		return 0;
 	return 1;
 }

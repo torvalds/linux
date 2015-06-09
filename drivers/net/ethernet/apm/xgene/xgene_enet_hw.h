@@ -97,6 +97,8 @@ enum xgene_enet_rm {
 #define QCOHERENT		BIT(4)
 #define RECOMBBUF		BIT(27)
 
+#define MAC_OFFSET			0x30
+
 #define BLOCK_ETH_CSR_OFFSET		0x2000
 #define BLOCK_ETH_RING_IF_OFFSET	0x9000
 #define BLOCK_ETH_DIAG_CSR_OFFSET	0xD000

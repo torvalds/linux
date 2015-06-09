@@ -660,7 +660,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0xfff01000 0x1000>;
-			interrupts = <0 156 4>;
+			interrupts = <0 155 4>;
 			num-cs = <4>;
 			clocks = <&spi_m_clk>;
 			status = "disabled";
@@ -713,6 +713,9 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&l4_sp_clk>;
+			dmas = <&pdma 28>,
+			       <&pdma 29>;
+			dma-names = "tx", "rx";
 		};
 
 		uart1: serial1@ffc03000 {
@@ -722,6 +725,9 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&l4_sp_clk>;
+			dmas = <&pdma 30>,
+			       <&pdma 31>;
+			dma-names = "tx", "rx";
 		};
 
 		rst: rstmgr@ffd05000 {

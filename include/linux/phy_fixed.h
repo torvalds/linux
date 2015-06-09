@@ -21,6 +21,9 @@ extern void fixed_phy_del(int phy_addr);
 extern int fixed_phy_set_link_update(struct phy_device *phydev,
 			int (*link_update)(struct net_device *,
 					   struct fixed_phy_status *));
+extern int fixed_phy_update_state(struct phy_device *phydev,
+			   const struct fixed_phy_status *status,
+			   const struct fixed_phy_status *changed);
 #else
 static inline int fixed_phy_add(unsigned int irq, int phy_id,
 				struct fixed_phy_status *status)
@@ -40,6 +43,12 @@ static inline int fixed_phy_del(int phy_addr)
 static inline int fixed_phy_set_link_update(struct phy_device *phydev,
 			int (*link_update)(struct net_device *,
 					   struct fixed_phy_status *))
+{
+	return -ENODEV;
+}
+static inline int fixed_phy_update_state(struct phy_device *phydev,
+			   const struct fixed_phy_status *status,
+			   const struct fixed_phy_status *changed)
 {
 	return -ENODEV;
 }

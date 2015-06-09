@@ -84,7 +84,7 @@ static void nf_ip6_saveroute(const struct sk_buff *skb,
 {
 	struct ip6_rt_info *rt_info = nf_queue_entry_reroute(entry);
 
-	if (entry->hook == NF_INET_LOCAL_OUT) {
+	if (entry->state.hook == NF_INET_LOCAL_OUT) {
 		const struct ipv6hdr *iph = ipv6_hdr(skb);
 
 		rt_info->daddr = iph->daddr;
@@ -98,7 +98,7 @@ static int nf_ip6_reroute(struct sk_buff *skb,
 {
 	struct ip6_rt_info *rt_info = nf_queue_entry_reroute(entry);
 
-	if (entry->hook == NF_INET_LOCAL_OUT) {
+	if (entry->state.hook == NF_INET_LOCAL_OUT) {
 		const struct ipv6hdr *iph = ipv6_hdr(skb);
 		if (!ipv6_addr_equal(&iph->daddr, &rt_info->daddr) ||
 		    !ipv6_addr_equal(&iph->saddr, &rt_info->saddr) ||

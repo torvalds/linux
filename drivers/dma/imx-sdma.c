@@ -531,6 +531,10 @@ static int sdma_run_channel0(struct sdma_engine *sdma)
 		dev_err(sdma->dev, "Timeout waiting for CH0 ready\n");
 	}
 
+	/* Set bits of CONFIG register with dynamic context switching */
+	if (readl(sdma->regs + SDMA_H_CONFIG) == 0)
+		writel_relaxed(SDMA_H_CONFIG_CSM, sdma->regs + SDMA_H_CONFIG);
+
 	return ret ? 0 : -ETIMEDOUT;
 }
 
@@ -1256,6 +1260,7 @@ static void sdma_issue_pending(struct dma_chan *chan)
 
 #define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V1	34
 #define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V2	38
+#define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V3	41
 
 static void sdma_add_scripts(struct sdma_engine *sdma,
 		const struct sdma_script_start_addrs *addr)
@@ -1301,6 +1306,9 @@ static void sdma_load_firmware(const struct firmware *fw, void *context)
 		break;
 	case 2:
 		sdma->script_number = SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V2;
+		break;
+	case 3:
+		sdma->script_number = SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V3;
 		break;
 	default:
 		dev_err(sdma->dev, "unknown firmware version\n");
@@ -1393,9 +1401,6 @@ static int sdma_init(struct sdma_engine *sdma)
 	writel_relaxed(0, sdma->regs + SDMA_H_CONFIG);
 
 	writel_relaxed(ccb_phys, sdma->regs + SDMA_H_C0PTR);
-
-	/* Set bits of CONFIG register with given context switching mode */
-	writel_relaxed(SDMA_H_CONFIG_CSM, sdma->regs + SDMA_H_CONFIG);
 
 	/* Initializes channel's priorities */
 	sdma_set_channel_priority(&sdma->channel[0], 7);

@@ -71,6 +71,7 @@ struct nci_ops {
 	int   (*close)(struct nci_dev *ndev);
 	int   (*send)(struct nci_dev *ndev, struct sk_buff *skb);
 	int   (*setup)(struct nci_dev *ndev);
+	int   (*fw_download)(struct nci_dev *ndev, const char *firmware_name);
 	__u32 (*get_rfprotocol)(struct nci_dev *ndev, __u8 rf_protocol);
 	int   (*discover_se)(struct nci_dev *ndev);
 	int   (*disable_se)(struct nci_dev *ndev, u32 se_idx);
@@ -137,6 +138,10 @@ struct nci_conn_info {
 #define NCI_HCI_INVALID_HOST               0x80
 
 #define NCI_HCI_MAX_CUSTOM_GATES   50
+/*
+ * According to specification 102 622 chapter 4.4 Pipes,
+ * the pipe identifier is 7 bits long.
+ */
 #define NCI_HCI_MAX_PIPES          127
 
 struct nci_hci_gate {

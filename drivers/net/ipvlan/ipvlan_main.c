@@ -114,7 +114,6 @@ static int ipvlan_init(struct net_device *dev)
 	dev->features = phy_dev->features & IPVLAN_FEATURES;
 	dev->features |= NETIF_F_LLTX;
 	dev->gso_max_size = phy_dev->gso_max_size;
-	dev->iflink = phy_dev->ifindex;
 	dev->hard_header_len = phy_dev->hard_header_len;
 
 	ipvlan_set_lockdep_class(dev);
@@ -305,6 +304,13 @@ static int ipvlan_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,
 	return 0;
 }
 
+static int ipvlan_get_iflink(const struct net_device *dev)
+{
+	struct ipvl_dev *ipvlan = netdev_priv(dev);
+
+	return ipvlan->phy_dev->ifindex;
+}
+
 static const struct net_device_ops ipvlan_netdev_ops = {
 	.ndo_init		= ipvlan_init,
 	.ndo_uninit		= ipvlan_uninit,
@@ -317,6 +323,7 @@ static const struct net_device_ops ipvlan_netdev_ops = {
 	.ndo_get_stats64	= ipvlan_get_stats64,
 	.ndo_vlan_rx_add_vid	= ipvlan_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= ipvlan_vlan_rx_kill_vid,
+	.ndo_get_iflink		= ipvlan_get_iflink,
 };
 
 static int ipvlan_hard_header(struct sk_buff *skb, struct net_device *dev,
@@ -336,7 +343,6 @@ static int ipvlan_hard_header(struct sk_buff *skb, struct net_device *dev,
 
 static const struct header_ops ipvlan_header_ops = {
 	.create  	= ipvlan_hard_header,
-	.rebuild	= eth_rebuild_header,
 	.parse		= eth_header_parse,
 	.cache		= eth_header_cache,
 	.cache_update	= eth_header_cache_update,
@@ -505,7 +511,7 @@ static void ipvlan_link_delete(struct net_device *dev, struct list_head *head)
 	if (ipvlan->ipv6cnt > 0 || ipvlan->ipv4cnt > 0) {
 		list_for_each_entry_safe(addr, next, &ipvlan->addrs, anode) {
 			ipvlan_ht_addr_del(addr, !dev->dismantle);
-			list_del_rcu(&addr->anode);
+			list_del(&addr->anode);
 		}
 	}
 	list_del_rcu(&ipvlan->pnode);
@@ -607,7 +613,7 @@ static int ipvlan_add_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
 {
 	struct ipvl_addr *addr;
 
-	if (ipvlan_addr_busy(ipvlan, ip6_addr, true)) {
+	if (ipvlan_addr_busy(ipvlan->port, ip6_addr, true)) {
 		netif_err(ipvlan, ifup, ipvlan->dev,
 			  "Failed to add IPv6=%pI6c addr for %s intf\n",
 			  ip6_addr, ipvlan->dev->name);
@@ -620,9 +626,13 @@ static int ipvlan_add_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
 	addr->master = ipvlan;
 	memcpy(&addr->ip6addr, ip6_addr, sizeof(struct in6_addr));
 	addr->atype = IPVL_IPV6;
-	list_add_tail_rcu(&addr->anode, &ipvlan->addrs);
+	list_add_tail(&addr->anode, &ipvlan->addrs);
 	ipvlan->ipv6cnt++;
-	ipvlan_ht_addr_add(ipvlan, addr);
+	/* If the interface is not up, the address will be added to the hash
+	 * list by ipvlan_open.
+	 */
+	if (netif_running(ipvlan->dev))
+		ipvlan_ht_addr_add(ipvlan, addr);
 
 	return 0;
 }
@@ -631,12 +641,12 @@ static void ipvlan_del_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
 {
 	struct ipvl_addr *addr;
 
-	addr = ipvlan_ht_addr_lookup(ipvlan->port, ip6_addr, true);
+	addr = ipvlan_find_addr(ipvlan, ip6_addr, true);
 	if (!addr)
 		return;
 
 	ipvlan_ht_addr_del(addr, true);
-	list_del_rcu(&addr->anode);
+	list_del(&addr->anode);
 	ipvlan->ipv6cnt--;
 	WARN_ON(ipvlan->ipv6cnt < 0);
 	kfree_rcu(addr, rcu);
@@ -675,7 +685,7 @@ static int ipvlan_add_addr4(struct ipvl_dev *ipvlan, struct in_addr *ip4_addr)
 {
 	struct ipvl_addr *addr;
 
-	if (ipvlan_addr_busy(ipvlan, ip4_addr, false)) {
+	if (ipvlan_addr_busy(ipvlan->port, ip4_addr, false)) {
 		netif_err(ipvlan, ifup, ipvlan->dev,
 			  "Failed to add IPv4=%pI4 on %s intf.\n",
 			  ip4_addr, ipvlan->dev->name);
@@ -688,9 +698,13 @@ static int ipvlan_add_addr4(struct ipvl_dev *ipvlan, struct in_addr *ip4_addr)
 	addr->master = ipvlan;
 	memcpy(&addr->ip4addr, ip4_addr, sizeof(struct in_addr));
 	addr->atype = IPVL_IPV4;
-	list_add_tail_rcu(&addr->anode, &ipvlan->addrs);
+	list_add_tail(&addr->anode, &ipvlan->addrs);
 	ipvlan->ipv4cnt++;
-	ipvlan_ht_addr_add(ipvlan, addr);
+	/* If the interface is not up, the address will be added to the hash
+	 * list by ipvlan_open.
+	 */
+	if (netif_running(ipvlan->dev))
+		ipvlan_ht_addr_add(ipvlan, addr);
 	ipvlan_set_broadcast_mac_filter(ipvlan, true);
 
 	return 0;
@@ -700,12 +714,12 @@ static void ipvlan_del_addr4(struct ipvl_dev *ipvlan, struct in_addr *ip4_addr)
 {
 	struct ipvl_addr *addr;
 
-	addr = ipvlan_ht_addr_lookup(ipvlan->port, ip4_addr, false);
+	addr = ipvlan_find_addr(ipvlan, ip4_addr, false);
 	if (!addr)
 		return;
 
 	ipvlan_ht_addr_del(addr, true);
-	list_del_rcu(&addr->anode);
+	list_del(&addr->anode);
 	ipvlan->ipv4cnt--;
 	WARN_ON(ipvlan->ipv4cnt < 0);
 	if (!ipvlan->ipv4cnt)

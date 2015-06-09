@@ -2820,7 +2820,7 @@ static int __init report_memory(void)
 
 	return 0;
 }
-device_initcall(report_memory);
+arch_initcall(report_memory);
 
 #ifdef CONFIG_SMP
 #define do_flush_tlb_kernel_range	smp_flush_tlb_kernel_range

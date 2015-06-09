@@ -650,15 +650,19 @@ lnet_prepare(lnet_pid_t requested_pid)
 
 	recs = lnet_res_containers_create(LNET_COOKIE_TYPE_ME, LNET_FL_MAX_MES,
 					  sizeof(lnet_me_t));
-	if (recs == NULL)
+	if (recs == NULL) {
+		rc = -ENOMEM;
 		goto failed;
+	}
 
 	the_lnet.ln_me_containers = recs;
 
 	recs = lnet_res_containers_create(LNET_COOKIE_TYPE_MD, LNET_FL_MAX_MDS,
 					  sizeof(lnet_libmd_t));
-	if (recs == NULL)
+	if (recs == NULL) {
+		rc = -ENOMEM;
 		goto failed;
+	}
 
 	the_lnet.ln_md_containers = recs;
 

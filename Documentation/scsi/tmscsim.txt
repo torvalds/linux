@@ -107,10 +107,6 @@ produced errors and started to corrupt my disks. So don't do that! A 37.50
 MHz PCI bus works for me, though, but I don't recommend using higher clocks
 than the 33.33 MHz being in the PCI spec.
 
-If you want to share the IRQ with another device and the driver refuses to
-do so, you might succeed with changing the DC390_IRQ type in tmscsim.c to 
-IRQF_SHARED | IRQF_DISABLED.
-
 
 3.Features
 ----------

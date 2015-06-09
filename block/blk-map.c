@@ -124,10 +124,10 @@ int blk_rq_map_user(struct request_queue *q, struct request *rq,
 {
 	struct iovec iov;
 	struct iov_iter i;
+	int ret = import_single_range(rq_data_dir(rq), ubuf, len, &iov, &i);
 
-	iov.iov_base = ubuf;
-	iov.iov_len = len;
-	iov_iter_init(&i, rq_data_dir(rq), &iov, 1, len);
+	if (unlikely(ret < 0))
+		return ret;
 
 	return blk_rq_map_user_iov(q, rq, map_data, &i, gfp_mask);
 }

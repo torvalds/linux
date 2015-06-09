@@ -17,7 +17,7 @@
 #include <linux/mutex.h>
 #include <linux/completion.h>
 #include <linux/slab.h>
-#include <linux/unaligned/access_ok.h>
+#include <asm/unaligned.h>
 #include <linux/crc-itu-t.h>
 #include "cyapa.h"
 
@@ -1926,7 +1926,7 @@ static int cyapa_gen5_read_idac_data(struct cyapa *cyapa,
 				electrodes_tx = cyapa->electrodes_x;
 			max_element_cnt = ((cyapa->aligned_electrodes_rx + 7) &
 						~7u) * electrodes_tx;
-		} else if (idac_data_type == GEN5_RETRIEVE_SELF_CAP_PWC_DATA) {
+		} else {
 			offset = 2;
 			max_element_cnt = cyapa->electrodes_x +
 						cyapa->electrodes_y;

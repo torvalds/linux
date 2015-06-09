@@ -230,6 +230,7 @@ struct pending_dir_move {
 	u64 parent_ino;
 	u64 ino;
 	u64 gen;
+	bool is_orphan;
 	struct list_head update_refs;
 };
 
@@ -2984,7 +2985,8 @@ static int add_pending_dir_move(struct send_ctx *sctx,
 				u64 ino_gen,
 				u64 parent_ino,
 				struct list_head *new_refs,
-				struct list_head *deleted_refs)
+				struct list_head *deleted_refs,
+				const bool is_orphan)
 {
 	struct rb_node **p = &sctx->pending_dir_moves.rb_node;
 	struct rb_node *parent = NULL;
@@ -2999,6 +3001,7 @@ static int add_pending_dir_move(struct send_ctx *sctx,
 	pm->parent_ino = parent_ino;
 	pm->ino = ino;
 	pm->gen = ino_gen;
+	pm->is_orphan = is_orphan;
 	INIT_LIST_HEAD(&pm->list);
 	INIT_LIST_HEAD(&pm->update_refs);
 	RB_CLEAR_NODE(&pm->node);
@@ -3064,48 +3067,6 @@ static struct pending_dir_move *get_pending_dir_moves(struct send_ctx *sctx,
 	return NULL;
 }
 
-static int path_loop(struct send_ctx *sctx, struct fs_path *name,
-		     u64 ino, u64 gen, u64 *ancestor_ino)
-{
-	int ret = 0;
-	u64 parent_inode = 0;
-	u64 parent_gen = 0;
-	u64 start_ino = ino;
-
-	*ancestor_ino = 0;
-	while (ino != BTRFS_FIRST_FREE_OBJECTID) {
-		fs_path_reset(name);
-
-		if (is_waiting_for_rm(sctx, ino))
-			break;
-		if (is_waiting_for_move(sctx, ino)) {
-			if (*ancestor_ino == 0)
-				*ancestor_ino = ino;
-			ret = get_first_ref(sctx->parent_root, ino,
-					    &parent_inode, &parent_gen, name);
-		} else {
-			ret = __get_cur_name_and_parent(sctx, ino, gen,
-							&parent_inode,
-							&parent_gen, name);
-			if (ret > 0) {
-				ret = 0;
-				break;
-			}
-		}
-		if (ret < 0)
-			break;
-		if (parent_inode == start_ino) {
-			ret = 1;
-			if (*ancestor_ino == 0)
-				*ancestor_ino = ino;
-			break;
-		}
-		ino = parent_inode;
-		gen = parent_gen;
-	}
-	return ret;
-}
-
 static int apply_dir_move(struct send_ctx *sctx, struct pending_dir_move *pm)
 {
 	struct fs_path *from_path = NULL;
@@ -3117,7 +3078,6 @@ static int apply_dir_move(struct send_ctx *sctx, struct pending_dir_move *pm)
 	struct waiting_dir_move *dm = NULL;
 	u64 rmdir_ino = 0;
 	int ret;
-	u64 ancestor = 0;
 
 	name = fs_path_alloc();
 	from_path = fs_path_alloc();
@@ -3131,35 +3091,24 @@ static int apply_dir_move(struct send_ctx *sctx, struct pending_dir_move *pm)
 	rmdir_ino = dm->rmdir_ino;
 	free_waiting_dir_move(sctx, dm);
 
-	ret = get_first_ref(sctx->parent_root, pm->ino,
-			    &parent_ino, &parent_gen, name);
-	if (ret < 0)
-		goto out;
-
-	ret = get_cur_path(sctx, parent_ino, parent_gen,
-			   from_path);
-	if (ret < 0)
-		goto out;
-	ret = fs_path_add_path(from_path, name);
+	if (pm->is_orphan) {
+		ret = gen_unique_name(sctx, pm->ino,
+				      pm->gen, from_path);
+	} else {
+		ret = get_first_ref(sctx->parent_root, pm->ino,
+				    &parent_ino, &parent_gen, name);
+		if (ret < 0)
+			goto out;
+		ret = get_cur_path(sctx, parent_ino, parent_gen,
+				   from_path);
+		if (ret < 0)
+			goto out;
+		ret = fs_path_add_path(from_path, name);
+	}
 	if (ret < 0)
 		goto out;
 
 	sctx->send_progress = sctx->cur_ino + 1;
-	ret = path_loop(sctx, name, pm->ino, pm->gen, &ancestor);
-	if (ret) {
-		LIST_HEAD(deleted_refs);
-		ASSERT(ancestor > BTRFS_FIRST_FREE_OBJECTID);
-		ret = add_pending_dir_move(sctx, pm->ino, pm->gen, ancestor,
-					   &pm->update_refs, &deleted_refs);
-		if (ret < 0)
-			goto out;
-		if (rmdir_ino) {
-			dm = get_waiting_dir_move(sctx, pm->ino);
-			ASSERT(dm);
-			dm->rmdir_ino = rmdir_ino;
-		}
-		goto out;
-	}
 	fs_path_reset(name);
 	to_path = name;
 	name = NULL;
@@ -3283,6 +3232,127 @@ out:
 	return ret;
 }
 
+/*
+ * We might need to delay a directory rename even when no ancestor directory
+ * (in the send root) with a higher inode number than ours (sctx->cur_ino) was
+ * renamed. This happens when we rename a directory to the old name (the name
+ * in the parent root) of some other unrelated directory that got its rename
+ * delayed due to some ancestor with higher number that got renamed.
+ *
+ * Example:
+ *
+ * Parent snapshot:
+ * .                                       (ino 256)
+ * |---- a/                                (ino 257)
+ * |     |---- file                        (ino 260)
+ * |
+ * |---- b/                                (ino 258)
+ * |---- c/                                (ino 259)
+ *
+ * Send snapshot:
+ * .                                       (ino 256)
+ * |---- a/                                (ino 258)
+ * |---- x/                                (ino 259)
+ *       |---- y/                          (ino 257)
+ *             |----- file                 (ino 260)
+ *
+ * Here we can not rename 258 from 'b' to 'a' without the rename of inode 257
+ * from 'a' to 'x/y' happening first, which in turn depends on the rename of
+ * inode 259 from 'c' to 'x'. So the order of rename commands the send stream
+ * must issue is:
+ *
+ * 1 - rename 259 from 'c' to 'x'
+ * 2 - rename 257 from 'a' to 'x/y'
+ * 3 - rename 258 from 'b' to 'a'
+ *
+ * Returns 1 if the rename of sctx->cur_ino needs to be delayed, 0 if it can
+ * be done right away and < 0 on error.
+ */
+static int wait_for_dest_dir_move(struct send_ctx *sctx,
+				  struct recorded_ref *parent_ref,
+				  const bool is_orphan)
+{
+	struct btrfs_path *path;
+	struct btrfs_key key;
+	struct btrfs_key di_key;
+	struct btrfs_dir_item *di;
+	u64 left_gen;
+	u64 right_gen;
+	int ret = 0;
+
+	if (RB_EMPTY_ROOT(&sctx->waiting_dir_moves))
+		return 0;
+
+	path = alloc_path_for_send();
+	if (!path)
+		return -ENOMEM;
+
+	key.objectid = parent_ref->dir;
+	key.type = BTRFS_DIR_ITEM_KEY;
+	key.offset = btrfs_name_hash(parent_ref->name, parent_ref->name_len);
+
+	ret = btrfs_search_slot(NULL, sctx->parent_root, &key, path, 0, 0);
+	if (ret < 0) {
+		goto out;
+	} else if (ret > 0) {
+		ret = 0;
+		goto out;
+	}
+
+	di = btrfs_match_dir_item_name(sctx->parent_root, path,
+				       parent_ref->name, parent_ref->name_len);
+	if (!di) {
+		ret = 0;
+		goto out;
+	}
+	/*
+	 * di_key.objectid has the number of the inode that has a dentry in the
+	 * parent directory with the same name that sctx->cur_ino is being
+	 * renamed to. We need to check if that inode is in the send root as
+	 * well and if it is currently marked as an inode with a pending rename,
+	 * if it is, we need to delay the rename of sctx->cur_ino as well, so
+	 * that it happens after that other inode is renamed.
+	 */
+	btrfs_dir_item_key_to_cpu(path->nodes[0], di, &di_key);
+	if (di_key.type != BTRFS_INODE_ITEM_KEY) {
+		ret = 0;
+		goto out;
+	}
+
+	ret = get_inode_info(sctx->parent_root, di_key.objectid, NULL,
+			     &left_gen, NULL, NULL, NULL, NULL);
+	if (ret < 0)
+		goto out;
+	ret = get_inode_info(sctx->send_root, di_key.objectid, NULL,
+			     &right_gen, NULL, NULL, NULL, NULL);
+	if (ret < 0) {
+		if (ret == -ENOENT)
+			ret = 0;
+		goto out;
+	}
+
+	/* Different inode, no need to delay the rename of sctx->cur_ino */
+	if (right_gen != left_gen) {
+		ret = 0;
+		goto out;
+	}
+
+	if (is_waiting_for_move(sctx, di_key.objectid)) {
+		ret = add_pending_dir_move(sctx,
+					   sctx->cur_ino,
+					   sctx->cur_inode_gen,
+					   di_key.objectid,
+					   &sctx->new_refs,
+					   &sctx->deleted_refs,
+					   is_orphan);
+		if (!ret)
+			ret = 1;
+	}
+out:
+	btrfs_free_path(path);
+	return ret;
+}
+
 static int wait_for_parent_move(struct send_ctx *sctx,
 				struct recorded_ref *parent_ref)
 {
@@ -3349,7 +3419,8 @@ out:
 					   sctx->cur_inode_gen,
 					   ino,
 					   &sctx->new_refs,
-					   &sctx->deleted_refs);
+					   &sctx->deleted_refs,
+					   false);
 		if (!ret)
 			ret = 1;
 	}
@@ -3372,6 +3443,7 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 	int did_overwrite = 0;
 	int is_orphan = 0;
 	u64 last_dir_ino_rm = 0;
+	bool can_rename = true;
 
 verbose_printk("btrfs: process_recorded_refs %llu\n", sctx->cur_ino);
 
@@ -3479,14 +3551,41 @@ verbose_printk("btrfs: process_recorded_refs %llu\n", sctx->cur_ino);
 			if (ret < 0)
 				goto out;
 			if (ret) {
+				struct name_cache_entry *nce;
+
 				ret = orphanize_inode(sctx, ow_inode, ow_gen,
 						cur->full_path);
 				if (ret < 0)
 					goto out;
+				/*
+				 * Make sure we clear our orphanized inode's
+				 * name from the name cache. This is because the
+				 * inode ow_inode might be an ancestor of some
+				 * other inode that will be orphanized as well
+				 * later and has an inode number greater than
+				 * sctx->send_progress. We need to prevent
+				 * future name lookups from using the old name
+				 * and get instead the orphan name.
+				 */
+				nce = name_cache_search(sctx, ow_inode, ow_gen);
+				if (nce) {
+					name_cache_delete(sctx, nce);
+					kfree(nce);
+				}
 			} else {
 				ret = send_unlink(sctx, cur->full_path);
 				if (ret < 0)
 					goto out;
+			}
+		}
+
+		if (S_ISDIR(sctx->cur_inode_mode) && sctx->parent_root) {
+			ret = wait_for_dest_dir_move(sctx, cur, is_orphan);
+			if (ret < 0)
+				goto out;
+			if (ret == 1) {
+				can_rename = false;
+				*pending_move = 1;
 			}
 		}
 
@@ -3495,7 +3594,7 @@ verbose_printk("btrfs: process_recorded_refs %llu\n", sctx->cur_ino);
 		 * inode, move it and update valid_path. If not, link or move
 		 * it depending on the inode mode.
 		 */
-		if (is_orphan) {
+		if (is_orphan && can_rename) {
 			ret = send_rename(sctx, valid_path, cur->full_path);
 			if (ret < 0)
 				goto out;
@@ -3503,7 +3602,7 @@ verbose_printk("btrfs: process_recorded_refs %llu\n", sctx->cur_ino);
 			ret = fs_path_copy(valid_path, cur->full_path);
 			if (ret < 0)
 				goto out;
-		} else {
+		} else if (can_rename) {
 			if (S_ISDIR(sctx->cur_inode_mode)) {
 				/*
 				 * Dirs can't be linked, so move it. For moved
@@ -5711,19 +5810,20 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 				ret = PTR_ERR(clone_root);
 				goto out;
 			}
-			clone_sources_to_rollback = i + 1;
 			spin_lock(&clone_root->root_item_lock);
-			clone_root->send_in_progress++;
-			if (!btrfs_root_readonly(clone_root)) {
+			if (!btrfs_root_readonly(clone_root) ||
+			    btrfs_root_dead(clone_root)) {
 				spin_unlock(&clone_root->root_item_lock);
 				srcu_read_unlock(&fs_info->subvol_srcu, index);
 				ret = -EPERM;
 				goto out;
 			}
+			clone_root->send_in_progress++;
 			spin_unlock(&clone_root->root_item_lock);
 			srcu_read_unlock(&fs_info->subvol_srcu, index);
 
 			sctx->clone_roots[i].root = clone_root;
+			clone_sources_to_rollback = i + 1;
 		}
 		vfree(clone_sources_tmp);
 		clone_sources_tmp = NULL;

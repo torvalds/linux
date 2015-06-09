@@ -44,7 +44,7 @@
 
 #define NVME_MINORS		(1U << MINORBITS)
 #define NVME_Q_DEPTH		1024
-#define NVME_AQ_DEPTH		64
+#define NVME_AQ_DEPTH		256
 #define SQ_SIZE(depth)		(depth * sizeof(struct nvme_command))
 #define CQ_SIZE(depth)		(depth * sizeof(struct nvme_completion))
 #define ADMIN_TIMEOUT		(admin_timeout * HZ)
@@ -152,6 +152,7 @@ struct nvme_cmd_info {
  */
 #define NVME_INT_PAGES		2
 #define NVME_INT_BYTES(dev)	(NVME_INT_PAGES * (dev)->page_size)
+#define NVME_INT_MASK		0x01
 
 /*
  * Will slightly overestimate the number of pages needed.  This is OK
@@ -257,7 +258,7 @@ static void *iod_get_private(struct nvme_iod *iod)
  */
 static bool iod_should_kfree(struct nvme_iod *iod)
 {
-	return (iod->private & 0x01) == 0;
+	return (iod->private & NVME_INT_MASK) == 0;
 }
 
 /* Special values must be less than 0x1000 */
@@ -301,8 +302,6 @@ static void *cancel_cmd_info(struct nvme_cmd_info *cmd, nvme_completion_fn *fn)
 static void async_req_completion(struct nvme_queue *nvmeq, void *ctx,
 						struct nvme_completion *cqe)
 {
-	struct request *req = ctx;
-
 	u32 result = le32_to_cpup(&cqe->result);
 	u16 status = le16_to_cpup(&cqe->status) >> 1;
 
@@ -311,8 +310,6 @@ static void async_req_completion(struct nvme_queue *nvmeq, void *ctx,
 	if (status == NVME_SC_SUCCESS)
 		dev_warn(nvmeq->q_dmadev,
 			"async event result %08x\n", result);
-
-	blk_mq_free_hctx_request(nvmeq->hctx, req);
 }
 
 static void abort_completion(struct nvme_queue *nvmeq, void *ctx,
@@ -432,7 +429,6 @@ static struct nvme_iod *nvme_alloc_iod(struct request *rq, struct nvme_dev *dev,
 {
 	unsigned size = !(rq->cmd_flags & REQ_DISCARD) ? blk_rq_bytes(rq) :
                                                 sizeof(struct nvme_dsm_range);
-	unsigned long mask = 0;
 	struct nvme_iod *iod;
 
 	if (rq->nr_phys_segments <= NVME_INT_PAGES &&
@@ -440,9 +436,8 @@ static struct nvme_iod *nvme_alloc_iod(struct request *rq, struct nvme_dev *dev,
 		struct nvme_cmd_info *cmd = blk_mq_rq_to_pdu(rq);
 
 		iod = cmd->iod;
-		mask = 0x01;
 		iod_init(iod, size, rq->nr_phys_segments,
-				(unsigned long) rq | 0x01);
+				(unsigned long) rq | NVME_INT_MASK);
 		return iod;
 	}
 
@@ -482,6 +477,7 @@ static int nvme_error_status(u16 status)
 	}
 }
 
+#ifdef CONFIG_BLK_DEV_INTEGRITY
 static void nvme_dif_prep(u32 p, u32 v, struct t10_pi_tuple *pi)
 {
 	if (be32_to_cpu(pi->ref_tag) == v)
@@ -521,8 +517,6 @@ static void nvme_dif_remap(struct request *req,
 		return;
 
 	pmap = kmap_atomic(bip->bip_vec->bv_page) + bip->bip_vec->bv_offset;
-	if (!pmap)
-		return;
 
 	p = pmap;
 	virt = bip_get_seed(bip);
@@ -537,6 +531,58 @@ static void nvme_dif_remap(struct request *req,
 	}
 	kunmap_atomic(pmap);
 }
+
+static int nvme_noop_verify(struct blk_integrity_iter *iter)
+{
+	return 0;
+}
+
+static int nvme_noop_generate(struct blk_integrity_iter *iter)
+{
+	return 0;
+}
+
+struct blk_integrity nvme_meta_noop = {
+	.name			= "NVME_META_NOOP",
+	.generate_fn		= nvme_noop_generate,
+	.verify_fn		= nvme_noop_verify,
+};
+
+static void nvme_init_integrity(struct nvme_ns *ns)
+{
+	struct blk_integrity integrity;
+
+	switch (ns->pi_type) {
+	case NVME_NS_DPS_PI_TYPE3:
+		integrity = t10_pi_type3_crc;
+		break;
+	case NVME_NS_DPS_PI_TYPE1:
+	case NVME_NS_DPS_PI_TYPE2:
+		integrity = t10_pi_type1_crc;
+		break;
+	default:
+		integrity = nvme_meta_noop;
+		break;
+	}
+	integrity.tuple_size = ns->ms;
+	blk_integrity_register(ns->disk, &integrity);
+	blk_queue_max_integrity_segments(ns->queue, 1);
+}
+#else /* CONFIG_BLK_DEV_INTEGRITY */
+static void nvme_dif_remap(struct request *req,
+			void (*dif_swap)(u32 p, u32 v, struct t10_pi_tuple *pi))
+{
+}
+static void nvme_dif_prep(u32 p, u32 v, struct t10_pi_tuple *pi)
+{
+}
+static void nvme_dif_complete(u32 p, u32 v, struct t10_pi_tuple *pi)
+{
+}
+static void nvme_init_integrity(struct nvme_ns *ns)
+{
+}
+#endif
 
 static void req_completion(struct nvme_queue *nvmeq, void *ctx,
 						struct nvme_completion *cqe)
@@ -592,12 +638,12 @@ int nvme_setup_prps(struct nvme_dev *dev, struct nvme_iod *iod, int total_len,
 	struct scatterlist *sg = iod->sg;
 	int dma_len = sg_dma_len(sg);
 	u64 dma_addr = sg_dma_address(sg);
-	int offset = offset_in_page(dma_addr);
+	u32 page_size = dev->page_size;
+	int offset = dma_addr & (page_size - 1);
 	__le64 *prp_list;
 	__le64 **list = iod_list(iod);
 	dma_addr_t prp_dma;
 	int nprps, i;
-	u32 page_size = dev->page_size;
 
 	length -= (page_size - offset);
 	if (length <= 0)
@@ -975,18 +1021,19 @@ static int nvme_submit_async_admin_req(struct nvme_dev *dev)
 	struct nvme_cmd_info *cmd_info;
 	struct request *req;
 
-	req = blk_mq_alloc_request(dev->admin_q, WRITE, GFP_ATOMIC, false);
+	req = blk_mq_alloc_request(dev->admin_q, WRITE, GFP_ATOMIC, true);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
 	req->cmd_flags |= REQ_NO_TIMEOUT;
 	cmd_info = blk_mq_rq_to_pdu(req);
-	nvme_set_info(cmd_info, req, async_req_completion);
+	nvme_set_info(cmd_info, NULL, async_req_completion);
 
 	memset(&c, 0, sizeof(c));
 	c.common.opcode = nvme_admin_async_event;
 	c.common.command_id = req->tag;
 
+	blk_mq_free_hctx_request(nvmeq->hctx, req);
 	return __nvme_submit_cmd(nvmeq, &c);
 }
 
@@ -1294,6 +1341,9 @@ static int nvme_suspend_queue(struct nvme_queue *nvmeq)
 	nvmeq->cq_vector = -1;
 	spin_unlock_irq(&nvmeq->q_lock);
 
+	if (!nvmeq->qid && nvmeq->dev->admin_q)
+		blk_mq_freeze_queue_start(nvmeq->dev->admin_q);
+
 	irq_set_affinity_hint(vector, NULL);
 	free_irq(vector, nvmeq);
 
@@ -1325,8 +1375,6 @@ static void nvme_disable_queue(struct nvme_dev *dev, int qid)
 		adapter_delete_sq(dev, qid);
 		adapter_delete_cq(dev, qid);
 	}
-	if (!qid && dev->admin_q)
-		blk_mq_freeze_queue_start(dev->admin_q);
 
 	spin_lock_irq(&nvmeq->q_lock);
 	nvme_process_cq(nvmeq);
@@ -1530,6 +1578,7 @@ static int nvme_alloc_admin_tags(struct nvme_dev *dev)
 		dev->admin_tagset.ops = &nvme_mq_admin_ops;
 		dev->admin_tagset.nr_hw_queues = 1;
 		dev->admin_tagset.queue_depth = NVME_AQ_DEPTH - 1;
+		dev->admin_tagset.reserved_tags = 1;
 		dev->admin_tagset.timeout = ADMIN_TIMEOUT;
 		dev->admin_tagset.numa_node = dev_to_node(&dev->pci_dev->dev);
 		dev->admin_tagset.cmd_size = nvme_cmd_size(dev);
@@ -1696,25 +1745,31 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	struct nvme_dev *dev = ns->dev;
 	struct nvme_user_io io;
 	struct nvme_command c;
-	unsigned length, meta_len;
-	int status, i;
-	struct nvme_iod *iod, *meta_iod = NULL;
-	dma_addr_t meta_dma_addr;
-	void *meta, *uninitialized_var(meta_mem);
+	unsigned length, meta_len, prp_len;
+	int status, write;
+	struct nvme_iod *iod;
+	dma_addr_t meta_dma = 0;
+	void *meta = NULL;
 
 	if (copy_from_user(&io, uio, sizeof(io)))
 		return -EFAULT;
 	length = (io.nblocks + 1) << ns->lba_shift;
 	meta_len = (io.nblocks + 1) * ns->ms;
 
-	if (meta_len && ((io.metadata & 3) || !io.metadata))
+	if (meta_len && ((io.metadata & 3) || !io.metadata) && !ns->ext)
 		return -EINVAL;
+	else if (meta_len && ns->ext) {
+		length += meta_len;
+		meta_len = 0;
+	}
+
+	write = io.opcode & 1;
 
 	switch (io.opcode) {
 	case nvme_cmd_write:
 	case nvme_cmd_read:
 	case nvme_cmd_compare:
-		iod = nvme_map_user_pages(dev, io.opcode & 1, io.addr, length);
+		iod = nvme_map_user_pages(dev, write, io.addr, length);
 		break;
 	default:
 		return -EINVAL;
@@ -1722,6 +1777,27 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 
 	if (IS_ERR(iod))
 		return PTR_ERR(iod);
+
+	prp_len = nvme_setup_prps(dev, iod, length, GFP_KERNEL);
+	if (length != prp_len) {
+		status = -ENOMEM;
+		goto unmap;
+	}
+	if (meta_len) {
+		meta = dma_alloc_coherent(&dev->pci_dev->dev, meta_len,
+						&meta_dma, GFP_KERNEL);
+		if (!meta) {
+			status = -ENOMEM;
+			goto unmap;
+		}
+		if (write) {
+			if (copy_from_user(meta, (void __user *)io.metadata,
+								meta_len)) {
+				status = -EFAULT;
+				goto unmap;
+			}
+		}
+	}
 
 	memset(&c, 0, sizeof(c));
 	c.rw.opcode = io.opcode;
@@ -1734,75 +1810,21 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	c.rw.reftag = cpu_to_le32(io.reftag);
 	c.rw.apptag = cpu_to_le16(io.apptag);
 	c.rw.appmask = cpu_to_le16(io.appmask);
-
-	if (meta_len) {
-		meta_iod = nvme_map_user_pages(dev, io.opcode & 1, io.metadata,
-								meta_len);
-		if (IS_ERR(meta_iod)) {
-			status = PTR_ERR(meta_iod);
-			meta_iod = NULL;
-			goto unmap;
-		}
-
-		meta_mem = dma_alloc_coherent(&dev->pci_dev->dev, meta_len,
-						&meta_dma_addr, GFP_KERNEL);
-		if (!meta_mem) {
-			status = -ENOMEM;
-			goto unmap;
-		}
-
-		if (io.opcode & 1) {
-			int meta_offset = 0;
-
-			for (i = 0; i < meta_iod->nents; i++) {
-				meta = kmap_atomic(sg_page(&meta_iod->sg[i])) +
-						meta_iod->sg[i].offset;
-				memcpy(meta_mem + meta_offset, meta,
-						meta_iod->sg[i].length);
-				kunmap_atomic(meta);
-				meta_offset += meta_iod->sg[i].length;
-			}
-		}
-
-		c.rw.metadata = cpu_to_le64(meta_dma_addr);
-	}
-
-	length = nvme_setup_prps(dev, iod, length, GFP_KERNEL);
 	c.rw.prp1 = cpu_to_le64(sg_dma_address(iod->sg));
 	c.rw.prp2 = cpu_to_le64(iod->first_dma);
-
-	if (length != (io.nblocks + 1) << ns->lba_shift)
-		status = -ENOMEM;
-	else
-		status = nvme_submit_io_cmd(dev, ns, &c, NULL);
-
-	if (meta_len) {
-		if (status == NVME_SC_SUCCESS && !(io.opcode & 1)) {
-			int meta_offset = 0;
-
-			for (i = 0; i < meta_iod->nents; i++) {
-				meta = kmap_atomic(sg_page(&meta_iod->sg[i])) +
-						meta_iod->sg[i].offset;
-				memcpy(meta, meta_mem + meta_offset,
-						meta_iod->sg[i].length);
-				kunmap_atomic(meta);
-				meta_offset += meta_iod->sg[i].length;
-			}
-		}
-
-		dma_free_coherent(&dev->pci_dev->dev, meta_len, meta_mem,
-								meta_dma_addr);
-	}
-
+	c.rw.metadata = cpu_to_le64(meta_dma);
+	status = nvme_submit_io_cmd(dev, ns, &c, NULL);
  unmap:
-	nvme_unmap_user_pages(dev, io.opcode & 1, iod);
+	nvme_unmap_user_pages(dev, write, iod);
 	nvme_free_iod(dev, iod);
-
-	if (meta_iod) {
-		nvme_unmap_user_pages(dev, io.opcode & 1, meta_iod);
-		nvme_free_iod(dev, meta_iod);
+	if (meta) {
+		if (status == NVME_SC_SUCCESS && !write) {
+			if (copy_to_user((void __user *)io.metadata, meta,
+								meta_len))
+				status = -EFAULT;
+		}
+		dma_free_coherent(&dev->pci_dev->dev, meta_len, meta, meta_dma);
 	}
-
 	return status;
 }
 
@@ -1959,50 +1981,14 @@ static void nvme_config_discard(struct nvme_ns *ns)
 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, ns->queue);
 }
 
-static int nvme_noop_verify(struct blk_integrity_iter *iter)
-{
-	return 0;
-}
-
-static int nvme_noop_generate(struct blk_integrity_iter *iter)
-{
-	return 0;
-}
-
-struct blk_integrity nvme_meta_noop = {
-	.name			= "NVME_META_NOOP",
-	.generate_fn		= nvme_noop_generate,
-	.verify_fn		= nvme_noop_verify,
-};
-
-static void nvme_init_integrity(struct nvme_ns *ns)
-{
-	struct blk_integrity integrity;
-
-	switch (ns->pi_type) {
-	case NVME_NS_DPS_PI_TYPE3:
-		integrity = t10_pi_type3_crc;
-		break;
-	case NVME_NS_DPS_PI_TYPE1:
-	case NVME_NS_DPS_PI_TYPE2:
-		integrity = t10_pi_type1_crc;
-		break;
-	default:
-		integrity = nvme_meta_noop;
-		break;
-	}
-	integrity.tuple_size = ns->ms;
-	blk_integrity_register(ns->disk, &integrity);
-	blk_queue_max_integrity_segments(ns->queue, 1);
-}
-
 static int nvme_revalidate_disk(struct gendisk *disk)
 {
 	struct nvme_ns *ns = disk->private_data;
 	struct nvme_dev *dev = ns->dev;
 	struct nvme_id_ns *id;
 	dma_addr_t dma_addr;
-	int lbaf, pi_type, old_ms;
+	u8 lbaf, pi_type;
+	u16 old_ms;
 	unsigned short bs;
 
 	id = dma_alloc_coherent(&dev->pci_dev->dev, 4096, &dma_addr,
@@ -2023,6 +2009,7 @@ static int nvme_revalidate_disk(struct gendisk *disk)
 	lbaf = id->flbas & NVME_NS_FLBAS_LBA_MASK;
 	ns->lba_shift = id->lbaf[lbaf].ds;
 	ns->ms = le16_to_cpu(id->lbaf[lbaf].ms);
+	ns->ext = ns->ms && (id->flbas & NVME_NS_FLBAS_META_EXT);
 
 	/*
 	 * If identify namespace failed, use default 512 byte block size so
@@ -2036,19 +2023,20 @@ static int nvme_revalidate_disk(struct gendisk *disk)
 	pi_type = ns->ms == sizeof(struct t10_pi_tuple) ?
 					id->dps & NVME_NS_DPS_PI_MASK : 0;
 
-	if (disk->integrity && (ns->pi_type != pi_type || ns->ms != old_ms ||
+	if (blk_get_integrity(disk) && (ns->pi_type != pi_type ||
+				ns->ms != old_ms ||
 				bs != queue_logical_block_size(disk->queue) ||
-				(ns->ms && id->flbas & NVME_NS_FLBAS_META_EXT)))
+				(ns->ms && ns->ext)))
 		blk_integrity_unregister(disk);
 
 	ns->pi_type = pi_type;
 	blk_queue_logical_block_size(ns->queue, bs);
 
-	if (ns->ms && !disk->integrity && (disk->flags & GENHD_FL_UP) &&
-				!(id->flbas & NVME_NS_FLBAS_META_EXT))
+	if (ns->ms && !blk_get_integrity(disk) && (disk->flags & GENHD_FL_UP) &&
+								!ns->ext)
 		nvme_init_integrity(ns);
 
-	if (id->ncap == 0 || (ns->ms && !disk->integrity))
+	if (id->ncap == 0 || (ns->ms && !blk_get_integrity(disk)))
 		set_capacity(disk, 0);
 	else
 		set_capacity(disk, le64_to_cpup(&id->nsze) << (ns->lba_shift - 9));
@@ -2317,7 +2305,6 @@ static int nvme_dev_add(struct nvme_dev *dev)
 	dev->oncs = le16_to_cpup(&ctrl->oncs);
 	dev->abort_limit = ctrl->acl + 1;
 	dev->vwc = ctrl->vwc;
-	dev->event_limit = min(ctrl->aerl + 1, 8);
 	memcpy(dev->serial, ctrl->sn, sizeof(ctrl->sn));
 	memcpy(dev->model, ctrl->mn, sizeof(ctrl->mn));
 	memcpy(dev->firmware_rev, ctrl->fr, sizeof(ctrl->fr));
@@ -2652,7 +2639,7 @@ static void nvme_dev_remove(struct nvme_dev *dev)
 
 	list_for_each_entry(ns, &dev->namespaces, list) {
 		if (ns->disk->flags & GENHD_FL_UP) {
-			if (ns->disk->integrity)
+			if (blk_get_integrity(ns->disk))
 				blk_integrity_unregister(ns->disk);
 			del_gendisk(ns->disk);
 		}
@@ -2864,6 +2851,7 @@ static int nvme_dev_start(struct nvme_dev *dev)
 
 	nvme_set_irq_hints(dev);
 
+	dev->event_limit = 1;
 	return result;
 
  free_tags:
@@ -2986,6 +2974,7 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 	get_device(dev->device);
 
+	INIT_LIST_HEAD(&dev->node);
 	INIT_WORK(&dev->probe_work, nvme_async_probe);
 	schedule_work(&dev->probe_work);
 	return 0;
@@ -3148,8 +3137,10 @@ static int __init nvme_init(void)
 		nvme_char_major = result;
 
 	nvme_class = class_create(THIS_MODULE, "nvme");
-	if (!nvme_class)
+	if (IS_ERR(nvme_class)) {
+		result = PTR_ERR(nvme_class);
 		goto unregister_chrdev;
+	}
 
 	result = pci_register_driver(&nvme_driver);
 	if (result)

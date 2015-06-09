@@ -128,7 +128,7 @@ static int mfd_add_device(struct device *parent, int id,
 	int platform_id;
 	int r;
 
-	if (id < 0)
+	if (id == PLATFORM_DEVID_AUTO)
 		platform_id = id;
 	else
 		platform_id = id + cell->id;

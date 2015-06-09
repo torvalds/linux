@@ -671,7 +671,7 @@ int p54_upload_key(struct p54_common *priv, u8 algo, int slot, u8 idx, u8 len,
 	if (addr)
 		memcpy(rxkey->mac, addr, ETH_ALEN);
 	else
-		memset(rxkey->mac, ~0, ETH_ALEN);
+		eth_broadcast_addr(rxkey->mac);
 
 	switch (algo) {
 	case P54_CRYPTO_WEP:

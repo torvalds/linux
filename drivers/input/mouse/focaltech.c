@@ -67,9 +67,6 @@ static void focaltech_reset(struct psmouse *psmouse)
 
 #define FOC_MAX_FINGERS 5
 
-#define FOC_MAX_X 2431
-#define FOC_MAX_Y 1663
-
 /*
  * Current state of a single finger on the touchpad.
  */
@@ -129,9 +126,17 @@ static void focaltech_report_state(struct psmouse *psmouse)
 		input_mt_slot(dev, i);
 		input_mt_report_slot_state(dev, MT_TOOL_FINGER, active);
 		if (active) {
-			input_report_abs(dev, ABS_MT_POSITION_X, finger->x);
+			unsigned int clamped_x, clamped_y;
+			/*
+			 * The touchpad might report invalid data, so we clamp
+			 * the resulting values so that we do not confuse
+			 * userspace.
+			 */
+			clamped_x = clamp(finger->x, 0U, priv->x_max);
+			clamped_y = clamp(finger->y, 0U, priv->y_max);
+			input_report_abs(dev, ABS_MT_POSITION_X, clamped_x);
 			input_report_abs(dev, ABS_MT_POSITION_Y,
-					 FOC_MAX_Y - finger->y);
+					 priv->y_max - clamped_y);
 		}
 	}
 	input_mt_report_pointer_emulation(dev, true);
@@ -179,16 +184,6 @@ static void focaltech_process_abs_packet(struct psmouse *psmouse,
 	}
 
 	state->pressed = (packet[0] >> 4) & 1;
-
-	/*
-	 * packet[5] contains some kind of tool size in the most
-	 * significant nibble. 0xff is a special value (latching) that
-	 * signals a large contact area.
-	 */
-	if (packet[5] == 0xff) {
-		state->fingers[finger].valid = false;
-		return;
-	}
 
 	state->fingers[finger].x = ((packet[1] & 0xf) << 8) | packet[2];
 	state->fingers[finger].y = (packet[3] << 8) | packet[4];
@@ -381,6 +376,23 @@ static int focaltech_read_size(struct psmouse *psmouse)
 
 	return 0;
 }
+
+void focaltech_set_resolution(struct psmouse *psmouse, unsigned int resolution)
+{
+	/* not supported yet */
+}
+
+static void focaltech_set_rate(struct psmouse *psmouse, unsigned int rate)
+{
+	/* not supported yet */
+}
+
+static void focaltech_set_scale(struct psmouse *psmouse,
+				enum psmouse_scale scale)
+{
+	/* not supported yet */
+}
+
 int focaltech_init(struct psmouse *psmouse)
 {
 	struct focaltech_data *priv;
@@ -415,6 +427,14 @@ int focaltech_init(struct psmouse *psmouse)
 	psmouse->cleanup = focaltech_reset;
 	/* resync is not supported yet */
 	psmouse->resync_time = 0;
+	/*
+	 * rate/resolution/scale changes are not supported yet, and
+	 * the generic implementations of these functions seem to
+	 * confuse some touchpads
+	 */
+	psmouse->set_resolution = focaltech_set_resolution;
+	psmouse->set_rate = focaltech_set_rate;
+	psmouse->set_scale = focaltech_set_scale;
 
 	return 0;
 

@@ -62,9 +62,8 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #include "8255.h"
 
@@ -178,7 +177,7 @@ static const struct pci_8255_boardinfo pci_8255_boards[] = {
 	},
 };
 
-/* ripped from mite.h and mite_setup2() to avoid mite dependancy */
+/* ripped from mite.h and mite_setup2() to avoid mite dependency */
 #define MITE_IODWBSR	0xc0	 /* IO Device Window Base Size Register */
 #define WENAB		(1 << 7) /* window enable */
 

@@ -3762,8 +3762,8 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 		goto out_tag_set;
 	}
 
-	/* We use the default size, but let's be explicit about it. */
-	blk_queue_physical_block_size(q, SECTOR_SIZE);
+	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
+	/* QUEUE_FLAG_ADD_RANDOM is off by default for blk-mq */
 
 	/* set io sizes to object size */
 	segment_size = rbd_obj_bytes(&rbd_dev->header);
@@ -5301,8 +5301,13 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool mapping)
 
 	if (mapping) {
 		ret = rbd_dev_header_watch_sync(rbd_dev);
-		if (ret)
+		if (ret) {
+			if (ret == -ENOENT)
+				pr_info("image %s/%s does not exist\n",
+					rbd_dev->spec->pool_name,
+					rbd_dev->spec->image_name);
 			goto out_header_name;
+		}
 	}
 
 	ret = rbd_dev_header_info(rbd_dev);
@@ -5319,8 +5324,14 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool mapping)
 		ret = rbd_spec_fill_snap_id(rbd_dev);
 	else
 		ret = rbd_spec_fill_names(rbd_dev);
-	if (ret)
+	if (ret) {
+		if (ret == -ENOENT)
+			pr_info("snap %s/%s@%s does not exist\n",
+				rbd_dev->spec->pool_name,
+				rbd_dev->spec->image_name,
+				rbd_dev->spec->snap_name);
 		goto err_out_probe;
+	}
 
 	if (rbd_dev->header.features & RBD_FEATURE_LAYERING) {
 		ret = rbd_dev_v2_parent_info(rbd_dev);
@@ -5390,8 +5401,11 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 
 	/* pick the pool */
 	rc = rbd_add_get_pool_id(rbdc, spec->pool_name);
-	if (rc < 0)
+	if (rc < 0) {
+		if (rc == -ENOENT)
+			pr_info("pool %s does not exist\n", spec->pool_name);
 		goto err_out_client;
+	}
 	spec->pool_id = (u64)rc;
 
 	/* The ceph file layout needs to fit pool id in 32 bits */
@@ -5673,7 +5687,7 @@ static int __init rbd_init(void)
 
 	/*
 	 * The number of active work items is limited by the number of
-	 * rbd devices, so leave @max_active at default.
+	 * rbd devices * queue depth, so leave @max_active at default.
 	 */
 	rbd_wq = alloc_workqueue(RBD_DRV_NAME, WQ_MEM_RECLAIM, 0);
 	if (!rbd_wq) {

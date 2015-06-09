@@ -249,7 +249,7 @@ static int mdio_gpio_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id mdio_gpio_of_match[] = {
+static const struct of_device_id mdio_gpio_of_match[] = {
 	{ .compatible = "virtual,mdio-gpio", },
 	{ /* sentinel */ }
 };

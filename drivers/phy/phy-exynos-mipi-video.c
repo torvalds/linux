@@ -43,7 +43,6 @@ struct exynos_mipi_video_phy {
 	} phys[EXYNOS_MIPI_PHYS_NUM];
 	spinlock_t slock;
 	void __iomem *regs;
-	struct mutex mutex;
 	struct regmap *regmap;
 };
 
@@ -59,8 +58,9 @@ static int __set_phy_state(struct exynos_mipi_video_phy *state,
 	else
 		reset = EXYNOS4_MIPI_PHY_SRESETN;
 
-	if (state->regmap) {
-		mutex_lock(&state->mutex);
+	spin_lock(&state->slock);
+
+	if (!IS_ERR(state->regmap)) {
 		regmap_read(state->regmap, offset, &val);
 		if (on)
 			val |= reset;
@@ -72,11 +72,9 @@ static int __set_phy_state(struct exynos_mipi_video_phy *state,
 		else if (!(val & EXYNOS4_MIPI_PHY_RESET_MASK))
 			val &= ~EXYNOS4_MIPI_PHY_ENABLE;
 		regmap_write(state->regmap, offset, val);
-		mutex_unlock(&state->mutex);
 	} else {
 		addr = state->regs + EXYNOS_MIPI_PHY_CONTROL(id / 2);
 
-		spin_lock(&state->slock);
 		val = readl(addr);
 		if (on)
 			val |= reset;
@@ -90,9 +88,9 @@ static int __set_phy_state(struct exynos_mipi_video_phy *state,
 			val &= ~EXYNOS4_MIPI_PHY_ENABLE;
 
 		writel(val, addr);
-		spin_unlock(&state->slock);
 	}
 
+	spin_unlock(&state->slock);
 	return 0;
 }
 
@@ -158,7 +156,6 @@ static int exynos_mipi_video_phy_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, state);
 	spin_lock_init(&state->slock);
-	mutex_init(&state->mutex);
 
 	for (i = 0; i < EXYNOS_MIPI_PHYS_NUM; i++) {
 		struct phy *phy = devm_phy_create(dev, NULL,

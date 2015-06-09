@@ -62,8 +62,9 @@ void rtllib_crypt_deinit_handler(unsigned long data)
 	spin_lock_irqsave(info->lock, flags);
 	rtllib_crypt_deinit_entries(info, 0);
 	if (!list_empty(&info->crypt_deinit_list)) {
-		printk(KERN_DEBUG "%s: entries remaining in delayed crypt "
-		       "deletion list\n", info->name);
+		printk(KERN_DEBUG
+		       "%s: entries remaining in delayed crypt deletion list\n",
+		       info->name);
 		info->crypt_deinit_timer.expires = jiffies + HZ;
 		add_timer(&info->crypt_deinit_timer);
 	}
@@ -86,7 +87,8 @@ void rtllib_crypt_delayed_deinit(struct lib80211_crypt_info *info,
 
 	/* must not run ops->deinit() while there may be pending encrypt or
 	 * decrypt operations. Use a list of delayed deinits to avoid needing
-	 * locking. */
+	 * locking.
+	 */
 
 	spin_lock_irqsave(info->lock, flags);
 	list_add(&tmp->list, &info->crypt_deinit_list);
@@ -145,8 +147,8 @@ int rtllib_unregister_crypto_ops(struct lib80211_crypto_ops *ops)
 	spin_unlock_irqrestore(&hcrypt->lock, flags);
 
 	if (del_alg) {
-		printk(KERN_DEBUG "rtllib_crypt: unregistered algorithm "
-		       "'%s'\n", ops->name);
+		printk(KERN_DEBUG "rtllib_crypt: unregistered algorithm '%s'\n",
+		       ops->name);
 		kfree(del_alg);
 	}
 
@@ -237,8 +239,9 @@ void __exit rtllib_crypto_deinit(void)
 		struct rtllib_crypto_alg *alg =
 			(struct rtllib_crypto_alg *) ptr;
 		list_del(ptr);
-		printk(KERN_DEBUG "rtllib_crypt: unregistered algorithm "
-		       "'%s' (deinit)\n", alg->ops->name);
+		printk(KERN_DEBUG
+		       "rtllib_crypt: unregistered algorithm '%s' (deinit)\n",
+		       alg->ops->name);
 		kfree(alg);
 	}
 

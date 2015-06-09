@@ -1172,17 +1172,17 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 
 	/* return skb */
 	ctx->tx_curr_skb = NULL;
-	dev->net->stats.tx_packets += ctx->tx_curr_frame_num;
 
 	/* keep private stats: framing overhead and number of NTBs */
 	ctx->tx_overhead += skb_out->len - ctx->tx_curr_frame_payload;
 	ctx->tx_ntbs++;
 
-	/* usbnet has already counted all the framing overhead.
+	/* usbnet will count all the framing overhead by default.
 	 * Adjust the stats so that the tx_bytes counter show real
 	 * payload data instead.
 	 */
-	dev->net->stats.tx_bytes -= skb_out->len - ctx->tx_curr_frame_payload;
+	usbnet_set_skb_tx_stats(skb_out, n,
+				ctx->tx_curr_frame_payload - skb_out->len);
 
 	return skb_out;
 

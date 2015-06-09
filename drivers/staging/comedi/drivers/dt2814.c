@@ -40,8 +40,6 @@ addition, the clock does not seem to be very accurate.
 
 #include <linux/delay.h>
 
-#include "comedi_fc.h"
-
 #define DT2814_CSR 0
 #define DT2814_DATA 1
 
@@ -56,7 +54,6 @@ addition, the clock does not seem to be very accurate.
 #define DT2814_CHANMASK 0x0f
 
 struct dt2814_private {
-
 	int ntrig;
 	int curadchan;
 };
@@ -130,18 +127,18 @@ static int dt2814_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
@@ -150,18 +147,19 @@ static int dt2814_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
-	err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg, 1000000000);
-	err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-					 DT2814_MAX_SPEED);
+	err |= comedi_check_trigger_arg_max(&cmd->scan_begin_arg, 1000000000);
+	err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+					    DT2814_MAX_SPEED);
 
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 2);
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 2);
 	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -170,7 +168,7 @@ static int dt2814_ai_cmdtest(struct comedi_device *dev,
 
 	arg = cmd->scan_begin_arg;
 	dt2814_ns_to_timer(&arg, cmd->flags);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 
 	if (err)
 		return 4;
@@ -193,7 +191,6 @@ static int dt2814_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	outb(chan | DT2814_ENB | (trigvar << 5), dev->iobase + DT2814_CSR);
 
 	return 0;
-
 }
 
 static irqreturn_t dt2814_interrupt(int irq, void *d)

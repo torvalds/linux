@@ -19,36 +19,15 @@
 #include "resources.h"
 #include "signaling.h"
 
-#undef WAIT_FOR_DEMON		/* #define this if system calls on SVC sockets
-				   should block until the demon runs.
-				   Danger: may cause nasty hangs if the demon
-				   crashes. */
-
 struct atm_vcc *sigd = NULL;
-#ifdef WAIT_FOR_DEMON
-static DECLARE_WAIT_QUEUE_HEAD(sigd_sleep);
-#endif
 
 static void sigd_put_skb(struct sk_buff *skb)
 {
-#ifdef WAIT_FOR_DEMON
-	DECLARE_WAITQUEUE(wait, current);
-
-	add_wait_queue(&sigd_sleep, &wait);
-	while (!sigd) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		pr_debug("atmsvc: waiting for signaling daemon...\n");
-		schedule();
-	}
-	current->state = TASK_RUNNING;
-	remove_wait_queue(&sigd_sleep, &wait);
-#else
 	if (!sigd) {
 		pr_debug("atmsvc: no signaling daemon\n");
 		kfree_skb(skb);
 		return;
 	}
-#endif
 	atm_force_charge(sigd, skb->truesize);
 	skb_queue_tail(&sk_atm(sigd)->sk_receive_queue, skb);
 	sk_atm(sigd)->sk_data_ready(sk_atm(sigd));
@@ -261,8 +240,5 @@ int sigd_attach(struct atm_vcc *vcc)
 	vcc_insert_socket(sk_atm(vcc));
 	set_bit(ATM_VF_META, &vcc->flags);
 	set_bit(ATM_VF_READY, &vcc->flags);
-#ifdef WAIT_FOR_DEMON
-	wake_up(&sigd_sleep);
-#endif
 	return 0;
 }

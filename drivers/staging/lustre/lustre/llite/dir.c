@@ -41,7 +41,7 @@
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/mm.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/buffer_head.h>   /* for wait_on_buffer */
 #include <linux/pagevec.h>
 #include <linux/prefetch.h>
@@ -1518,6 +1518,7 @@ out_rmdir:
 			lump = (struct lov_user_md *)arg;
 		} else {
 			struct lov_user_mds_data *lmdp;
+
 			lmdp = (struct lov_user_mds_data *)arg;
 			lump = &lmdp->lmd_lmm;
 		}
@@ -1909,21 +1910,21 @@ static loff_t ll_dir_seek(struct file *file, loff_t offset, int origin)
 
 	mutex_lock(&inode->i_mutex);
 	switch (origin) {
-		case SEEK_SET:
-			break;
-		case SEEK_CUR:
-			offset += file->f_pos;
-			break;
-		case SEEK_END:
-			if (offset > 0)
-				goto out;
-			if (api32)
-				offset += LL_DIR_END_OFF_32BIT;
-			else
-				offset += LL_DIR_END_OFF;
-			break;
-		default:
+	case SEEK_SET:
+		break;
+	case SEEK_CUR:
+		offset += file->f_pos;
+		break;
+	case SEEK_END:
+		if (offset > 0)
 			goto out;
+		if (api32)
+			offset += LL_DIR_END_OFF_32BIT;
+		else
+			offset += LL_DIR_END_OFF;
+		break;
+	default:
+		goto out;
 	}
 
 	if (offset >= 0 &&

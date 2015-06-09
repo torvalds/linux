@@ -77,13 +77,16 @@ struct clk_core {
 	struct kref		ref;
 };
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/clk.h>
+
 struct clk {
 	struct clk_core	*core;
 	const char *dev_id;
 	const char *con_id;
 	unsigned long min_rate;
 	unsigned long max_rate;
-	struct hlist_node child_node;
+	struct hlist_node clks_node;
 };
 
 /***           locking             ***/
@@ -480,6 +483,8 @@ static void clk_unprepare_unused_subtree(struct clk_core *clk)
 {
 	struct clk_core *child;
 
+	lockdep_assert_held(&prepare_lock);
+
 	hlist_for_each_entry(child, &clk->children, child_node)
 		clk_unprepare_unused_subtree(child);
 
@@ -490,10 +495,12 @@ static void clk_unprepare_unused_subtree(struct clk_core *clk)
 		return;
 
 	if (clk_core_is_prepared(clk)) {
+		trace_clk_unprepare(clk);
 		if (clk->ops->unprepare_unused)
 			clk->ops->unprepare_unused(clk->hw);
 		else if (clk->ops->unprepare)
 			clk->ops->unprepare(clk->hw);
+		trace_clk_unprepare_complete(clk);
 	}
 }
 
@@ -502,6 +509,8 @@ static void clk_disable_unused_subtree(struct clk_core *clk)
 {
 	struct clk_core *child;
 	unsigned long flags;
+
+	lockdep_assert_held(&prepare_lock);
 
 	hlist_for_each_entry(child, &clk->children, child_node)
 		clk_disable_unused_subtree(child);
@@ -520,10 +529,12 @@ static void clk_disable_unused_subtree(struct clk_core *clk)
 	 * back to .disable
 	 */
 	if (clk_core_is_enabled(clk)) {
+		trace_clk_disable(clk);
 		if (clk->ops->disable_unused)
 			clk->ops->disable_unused(clk->hw);
 		else if (clk->ops->disable)
 			clk->ops->disable(clk->hw);
+		trace_clk_disable_complete(clk);
 	}
 
 unlock_out:
@@ -851,10 +862,10 @@ static void clk_core_get_boundaries(struct clk_core *clk,
 	*min_rate = 0;
 	*max_rate = ULONG_MAX;
 
-	hlist_for_each_entry(clk_user, &clk->clks, child_node)
+	hlist_for_each_entry(clk_user, &clk->clks, clks_node)
 		*min_rate = max(*min_rate, clk_user->min_rate);
 
-	hlist_for_each_entry(clk_user, &clk->clks, child_node)
+	hlist_for_each_entry(clk_user, &clk->clks, clks_node)
 		*max_rate = min(*max_rate, clk_user->max_rate);
 }
 
@@ -903,9 +914,12 @@ static void clk_core_unprepare(struct clk_core *clk)
 
 	WARN_ON(clk->enable_count > 0);
 
+	trace_clk_unprepare(clk);
+
 	if (clk->ops->unprepare)
 		clk->ops->unprepare(clk->hw);
 
+	trace_clk_unprepare_complete(clk);
 	clk_core_unprepare(clk->parent);
 }
 
@@ -943,12 +957,16 @@ static int clk_core_prepare(struct clk_core *clk)
 		if (ret)
 			return ret;
 
-		if (clk->ops->prepare) {
+		trace_clk_prepare(clk);
+
+		if (clk->ops->prepare)
 			ret = clk->ops->prepare(clk->hw);
-			if (ret) {
-				clk_core_unprepare(clk->parent);
-				return ret;
-			}
+
+		trace_clk_prepare_complete(clk);
+
+		if (ret) {
+			clk_core_unprepare(clk->parent);
+			return ret;
 		}
 	}
 
@@ -995,8 +1013,12 @@ static void clk_core_disable(struct clk_core *clk)
 	if (--clk->enable_count > 0)
 		return;
 
+	trace_clk_disable(clk);
+
 	if (clk->ops->disable)
 		clk->ops->disable(clk->hw);
+
+	trace_clk_disable_complete(clk);
 
 	clk_core_disable(clk->parent);
 }
@@ -1050,12 +1072,16 @@ static int clk_core_enable(struct clk_core *clk)
 		if (ret)
 			return ret;
 
-		if (clk->ops->enable) {
+		trace_clk_enable(clk);
+
+		if (clk->ops->enable)
 			ret = clk->ops->enable(clk->hw);
-			if (ret) {
-				clk_core_disable(clk->parent);
-				return ret;
-			}
+
+		trace_clk_enable_complete(clk);
+
+		if (ret) {
+			clk_core_disable(clk->parent);
+			return ret;
 		}
 	}
 
@@ -1105,6 +1131,8 @@ static unsigned long clk_core_round_rate_nolock(struct clk_core *clk,
 	unsigned long parent_rate = 0;
 	struct clk_core *parent;
 	struct clk_hw *parent_hw;
+
+	lockdep_assert_held(&prepare_lock);
 
 	if (!clk)
 		return 0;
@@ -1245,6 +1273,8 @@ static void __clk_recalc_accuracies(struct clk_core *clk)
 	unsigned long parent_accuracy = 0;
 	struct clk_core *child;
 
+	lockdep_assert_held(&prepare_lock);
+
 	if (clk->parent)
 		parent_accuracy = clk->parent->accuracy;
 
@@ -1318,6 +1348,8 @@ static void __clk_recalc_rates(struct clk_core *clk, unsigned long msg)
 	unsigned long parent_rate = 0;
 	struct clk_core *child;
 
+	lockdep_assert_held(&prepare_lock);
+
 	old_rate = clk->rate;
 
 	if (clk->parent)
@@ -1350,7 +1382,6 @@ static unsigned long clk_core_get_rate(struct clk_core *clk)
 
 	return rate;
 }
-EXPORT_SYMBOL_GPL(clk_core_get_rate);
 
 /**
  * clk_get_rate - return the rate of clk
@@ -1480,9 +1511,13 @@ static int __clk_set_parent(struct clk_core *clk, struct clk_core *parent,
 
 	old_parent = __clk_set_parent_before(clk, parent);
 
+	trace_clk_set_parent(clk, parent);
+
 	/* change clock input source */
 	if (parent && clk->ops->set_parent)
 		ret = clk->ops->set_parent(clk->hw, p_index);
+
+	trace_clk_set_parent_complete(clk, parent);
 
 	if (ret) {
 		flags = clk_enable_lock();
@@ -1524,6 +1559,8 @@ static int __clk_speculate_rates(struct clk_core *clk,
 	struct clk_core *child;
 	unsigned long new_rate;
 	int ret = NOTIFY_DONE;
+
+	lockdep_assert_held(&prepare_lock);
 
 	new_rate = clk_recalc(clk, parent_rate);
 
@@ -1581,6 +1618,7 @@ static struct clk_core *clk_calc_new_rates(struct clk_core *clk,
 	unsigned long min_rate;
 	unsigned long max_rate;
 	int p_index = 0;
+	long ret;
 
 	/* sanity */
 	if (IS_ERR_OR_NULL(clk))
@@ -1596,15 +1634,23 @@ static struct clk_core *clk_calc_new_rates(struct clk_core *clk,
 	/* find the closest rate and parent clk/rate */
 	if (clk->ops->determine_rate) {
 		parent_hw = parent ? parent->hw : NULL;
-		new_rate = clk->ops->determine_rate(clk->hw, rate,
-						    min_rate,
-						    max_rate,
-						    &best_parent_rate,
-						    &parent_hw);
+		ret = clk->ops->determine_rate(clk->hw, rate,
+					       min_rate,
+					       max_rate,
+					       &best_parent_rate,
+					       &parent_hw);
+		if (ret < 0)
+			return NULL;
+
+		new_rate = ret;
 		parent = parent_hw ? parent_hw->core : NULL;
 	} else if (clk->ops->round_rate) {
-		new_rate = clk->ops->round_rate(clk->hw, rate,
-						&best_parent_rate);
+		ret = clk->ops->round_rate(clk->hw, rate,
+					   &best_parent_rate);
+		if (ret < 0)
+			return NULL;
+
+		new_rate = ret;
 		if (new_rate < min_rate || new_rate > max_rate)
 			return NULL;
 	} else if (!parent || !(clk->flags & CLK_SET_RATE_PARENT)) {
@@ -1707,6 +1753,7 @@ static void clk_change_rate(struct clk_core *clk)
 
 	if (clk->new_parent && clk->new_parent != clk->parent) {
 		old_parent = __clk_set_parent_before(clk, clk->new_parent);
+		trace_clk_set_parent(clk, clk->new_parent);
 
 		if (clk->ops->set_rate_and_parent) {
 			skip_set_rate = true;
@@ -1717,11 +1764,16 @@ static void clk_change_rate(struct clk_core *clk)
 			clk->ops->set_parent(clk->hw, clk->new_parent_index);
 		}
 
+		trace_clk_set_parent_complete(clk, clk->new_parent);
 		__clk_set_parent_after(clk, clk->new_parent, old_parent);
 	}
 
+	trace_clk_set_rate(clk, clk->new_rate);
+
 	if (!skip_set_rate && clk->ops->set_rate)
 		clk->ops->set_rate(clk->hw, clk->new_rate, best_parent_rate);
+
+	trace_clk_set_rate_complete(clk, clk->new_rate);
 
 	clk->rate = clk_recalc(clk, best_parent_rate);
 
@@ -2011,15 +2063,17 @@ static int clk_core_set_parent(struct clk_core *clk, struct clk_core *parent)
 	if (!clk)
 		return 0;
 
-	/* verify ops for for multi-parent clks */
-	if ((clk->num_parents > 1) && (!clk->ops->set_parent))
-		return -ENOSYS;
-
 	/* prevent racing with updates to the clock topology */
 	clk_prepare_lock();
 
 	if (clk->parent == parent)
 		goto out;
+
+	/* verify ops for for multi-parent clks */
+	if ((clk->num_parents > 1) && (!clk->ops->set_parent)) {
+		ret = -ENOSYS;
+		goto out;
+	}
 
 	/* check that we are allowed to re-parent if the clock is in use */
 	if ((clk->flags & CLK_SET_PARENT_GATE) && clk->prepare_count) {
@@ -2111,10 +2165,10 @@ EXPORT_SYMBOL_GPL(clk_set_parent);
  */
 int clk_set_phase(struct clk *clk, int degrees)
 {
-	int ret = 0;
+	int ret = -EINVAL;
 
 	if (!clk)
-		goto out;
+		return 0;
 
 	/* sanity check degrees */
 	degrees %= 360;
@@ -2123,18 +2177,18 @@ int clk_set_phase(struct clk *clk, int degrees)
 
 	clk_prepare_lock();
 
-	if (!clk->core->ops->set_phase)
-		goto out_unlock;
+	trace_clk_set_phase(clk->core, degrees);
 
-	ret = clk->core->ops->set_phase(clk->core->hw, degrees);
+	if (clk->core->ops->set_phase)
+		ret = clk->core->ops->set_phase(clk->core->hw, degrees);
+
+	trace_clk_set_phase_complete(clk->core, degrees);
 
 	if (!ret)
 		clk->core->phase = degrees;
 
-out_unlock:
 	clk_prepare_unlock();
 
-out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(clk_set_phase);
@@ -2169,6 +2223,32 @@ int clk_get_phase(struct clk *clk)
 
 	return clk_core_get_phase(clk->core);
 }
+
+/**
+ * clk_is_match - check if two clk's point to the same hardware clock
+ * @p: clk compared against q
+ * @q: clk compared against p
+ *
+ * Returns true if the two struct clk pointers both point to the same hardware
+ * clock node. Put differently, returns true if struct clk *p and struct clk *q
+ * share the same struct clk_core object.
+ *
+ * Returns false otherwise. Note that two NULL clks are treated as matching.
+ */
+bool clk_is_match(const struct clk *p, const struct clk *q)
+{
+	/* trivial case: identical struct clk's or both NULL */
+	if (p == q)
+		return true;
+
+	/* true if clk->core pointers match. Avoid derefing garbage */
+	if (!IS_ERR_OR_NULL(p) && !IS_ERR_OR_NULL(q))
+		if (p->core == q->core)
+			return true;
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(clk_is_match);
 
 /**
  * __clk_init - initialize the data structures in a struct clk
@@ -2376,7 +2456,7 @@ struct clk *__clk_create_clk(struct clk_hw *hw, const char *dev_id,
 	clk->max_rate = ULONG_MAX;
 
 	clk_prepare_lock();
-	hlist_add_head(&clk->child_node, &hw->core->clks);
+	hlist_add_head(&clk->clks_node, &hw->core->clks);
 	clk_prepare_unlock();
 
 	return clk;
@@ -2385,7 +2465,7 @@ struct clk *__clk_create_clk(struct clk_hw *hw, const char *dev_id,
 void __clk_free_clk(struct clk *clk)
 {
 	clk_prepare_lock();
-	hlist_del(&clk->child_node);
+	hlist_del(&clk->clks_node);
 	clk_prepare_unlock();
 
 	kfree(clk);
@@ -2487,6 +2567,8 @@ static void __clk_release(struct kref *ref)
 {
 	struct clk_core *clk = container_of(ref, struct clk_core, ref);
 	int i = clk->num_parents;
+
+	lockdep_assert_held(&prepare_lock);
 
 	kfree(clk->parents);
 	while (--i >= 0)
@@ -2663,7 +2745,7 @@ void __clk_put(struct clk *clk)
 
 	clk_prepare_lock();
 
-	hlist_del(&clk->child_node);
+	hlist_del(&clk->clks_node);
 	if (clk->min_rate > clk->core->req_rate ||
 	    clk->max_rate < clk->core->req_rate)
 		clk_core_set_rate_nolock(clk->core, clk->core->req_rate);
@@ -2809,17 +2891,6 @@ static const struct of_device_id __clk_of_table_sentinel
 static LIST_HEAD(of_clk_providers);
 static DEFINE_MUTEX(of_clk_mutex);
 
-/* of_clk_provider list locking helpers */
-void of_clk_lock(void)
-{
-	mutex_lock(&of_clk_mutex);
-}
-
-void of_clk_unlock(void)
-{
-	mutex_unlock(&of_clk_mutex);
-}
-
 struct clk *of_clk_src_simple_get(struct of_phandle_args *clkspec,
 				     void *data)
 {
@@ -2903,7 +2974,11 @@ struct clk *__of_clk_get_from_provider(struct of_phandle_args *clkspec,
 	struct of_clk_provider *provider;
 	struct clk *clk = ERR_PTR(-EPROBE_DEFER);
 
+	if (!clkspec)
+		return ERR_PTR(-EINVAL);
+
 	/* Check if we have such a provider in our array */
+	mutex_lock(&of_clk_mutex);
 	list_for_each_entry(provider, &of_clk_providers, link) {
 		if (provider->node == clkspec->np)
 			clk = provider->get(clkspec, provider->data);
@@ -2919,19 +2994,22 @@ struct clk *__of_clk_get_from_provider(struct of_phandle_args *clkspec,
 			break;
 		}
 	}
+	mutex_unlock(&of_clk_mutex);
 
 	return clk;
 }
 
+/**
+ * of_clk_get_from_provider() - Lookup a clock from a clock provider
+ * @clkspec: pointer to a clock specifier data structure
+ *
+ * This function looks up a struct clk from the registered list of clock
+ * providers, an input is a clock specifier data structure as returned
+ * from the of_parse_phandle_with_args() function call.
+ */
 struct clk *of_clk_get_from_provider(struct of_phandle_args *clkspec)
 {
-	struct clk *clk;
-
-	mutex_lock(&of_clk_mutex);
-	clk = __of_clk_get_from_provider(clkspec, NULL, __func__);
-	mutex_unlock(&of_clk_mutex);
-
-	return clk;
+	return __of_clk_get_from_provider(clkspec, NULL, __func__);
 }
 
 int of_clk_get_parent_count(struct device_node *np)

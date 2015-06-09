@@ -441,15 +441,15 @@ static int isl29028_chip_init(struct isl29028_chip *chip)
 
 	ret = isl29028_set_proxim_sampling(chip, chip->prox_sampling);
 	if (ret < 0) {
-		dev_err(chip->dev, "%s(): setting the proximity, err = %d\n",
-			__func__, ret);
+		dev_err(chip->dev, "setting the proximity, err = %d\n",
+			ret);
 		return ret;
 	}
 
 	ret = isl29028_set_als_scale(chip, chip->lux_scale);
 	if (ret < 0)
-		dev_err(chip->dev, "%s(): setting als scale failed, err = %d\n",
-			__func__, ret);
+		dev_err(chip->dev,
+			"setting als scale failed, err = %d\n", ret);
 	return ret;
 }
 

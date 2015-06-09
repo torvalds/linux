@@ -645,19 +645,17 @@ void mlmeext_sta_add_event_callback(struct adapter *padapter,
 
 void linked_status_chk(struct adapter *padapter);
 
-void survey_timer_hdl(void *function_context);
-void link_timer_hdl(void *funtion_context);
-void addba_timer_hdl(void *function_context);
+void survey_timer_hdl(unsigned long data);
+void link_timer_hdl(unsigned long data);
+void addba_timer_hdl(unsigned long data);
 
 #define set_survey_timer(mlmeext, ms) \
-	do { \
-		_set_timer(&(mlmeext)->survey_timer, (ms)); \
-	} while (0)
+	mod_timer(&mlmeext->survey_timer, jiffies +	\
+		  msecs_to_jiffies(ms))
 
 #define set_link_timer(mlmeext, ms) \
-	do { \
-		_set_timer(&(mlmeext)->link_timer, (ms)); \
-	} while (0)
+	mod_timer(&mlmeext->link_timer, jiffies +	\
+		  msecs_to_jiffies(ms))
 
 int cckrates_included(unsigned char *rate, int ratelen);
 int cckratesonly_included(unsigned char *rate, int ratelen);

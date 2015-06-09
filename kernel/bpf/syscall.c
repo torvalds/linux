@@ -16,6 +16,7 @@
 #include <linux/file.h>
 #include <linux/license.h>
 #include <linux/filter.h>
+#include <linux/version.h>
 
 static LIST_HEAD(bpf_map_types);
 
@@ -354,10 +355,11 @@ static int find_prog_type(enum bpf_prog_type type, struct bpf_prog *prog)
 	list_for_each_entry(tl, &bpf_prog_types, list_node) {
 		if (tl->type == type) {
 			prog->aux->ops = tl->ops;
-			prog->aux->prog_type = type;
+			prog->type = type;
 			return 0;
 		}
 	}
+
 	return -EINVAL;
 }
 
@@ -418,6 +420,7 @@ void bpf_prog_put(struct bpf_prog *prog)
 		bpf_prog_free(prog);
 	}
 }
+EXPORT_SYMBOL_GPL(bpf_prog_put);
 
 static int bpf_prog_release(struct inode *inode, struct file *filp)
 {
@@ -465,9 +468,10 @@ struct bpf_prog *bpf_prog_get(u32 ufd)
 	fdput(f);
 	return prog;
 }
+EXPORT_SYMBOL_GPL(bpf_prog_get);
 
 /* last field in 'union bpf_attr' used by this command */
-#define	BPF_PROG_LOAD_LAST_FIELD log_buf
+#define	BPF_PROG_LOAD_LAST_FIELD kern_version
 
 static int bpf_prog_load(union bpf_attr *attr)
 {
@@ -492,6 +496,10 @@ static int bpf_prog_load(union bpf_attr *attr)
 	if (attr->insn_cnt >= BPF_MAXINSNS)
 		return -EINVAL;
 
+	if (type == BPF_PROG_TYPE_KPROBE &&
+	    attr->kern_version != LINUX_VERSION_CODE)
+		return -EINVAL;
+
 	/* plain bpf_prog allocation */
 	prog = bpf_prog_alloc(bpf_prog_size(attr->insn_cnt), GFP_USER);
 	if (!prog)
@@ -508,7 +516,7 @@ static int bpf_prog_load(union bpf_attr *attr)
 	prog->jited = false;
 
 	atomic_set(&prog->aux->refcnt, 1);
-	prog->aux->is_gpl_compatible = is_gpl;
+	prog->gpl_compatible = is_gpl;
 
 	/* find program type: socket_filter vs tracing_filter */
 	err = find_prog_type(type, prog);
@@ -516,8 +524,7 @@ static int bpf_prog_load(union bpf_attr *attr)
 		goto free_prog;
 
 	/* run eBPF verifier */
-	err = bpf_check(prog, attr);
-
+	err = bpf_check(&prog, attr);
 	if (err < 0)
 		goto free_used_maps;
 
@@ -528,7 +535,6 @@ static int bpf_prog_load(union bpf_attr *attr)
 	bpf_prog_select_runtime(prog);
 
 	err = anon_inode_getfd("bpf-prog", &bpf_prog_fops, prog, O_RDWR | O_CLOEXEC);
-
 	if (err < 0)
 		/* failed to allocate fd */
 		goto free_used_maps;

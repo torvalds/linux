@@ -51,19 +51,6 @@ config INTEL_MIC_X100_DMA
 	  OS and tools for MIC to use with this driver are available from
 	  <http://software.intel.com/en-us/mic-developer>.
 
-config INTEL_MID_DMAC
-	tristate "Intel MID DMA support for Peripheral DMA controllers"
-	depends on PCI && X86
-	select DMA_ENGINE
-	default n
-	help
-	  Enable support for the Intel(R) MID DMA engine present
-	  in Intel MID chipsets.
-
-	  Say Y here if you have such a chipset.
-
-	  If unsure, say N.
-
 config ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	bool
 
@@ -124,6 +111,19 @@ config FSL_DMA
 	  The Elo is the DMA controller on some mpc82xx and mpc83xx parts, the
 	  EloPlus is on mpc85xx and mpc86xx and Pxxx parts, and the Elo3 is on
 	  some Txxx and Bxxx parts.
+
+config FSL_RAID
+        tristate "Freescale RAID engine Support"
+        depends on FSL_SOC && !ASYNC_TX_ENABLE_CHANNEL_SWITCH
+        select DMA_ENGINE
+        select DMA_ENGINE_RAID
+        ---help---
+          Enable support for Freescale RAID Engine. RAID Engine is
+          available on some QorIQ SoCs (like P5020/P5040). It has
+          the capability to offload memcpy, xor and pq computation
+	  for raid5/6.
+
+source "drivers/dma/hsu/Kconfig"
 
 config MPC512X_DMA
 	tristate "Freescale MPC512x built-in DMA engine support"
@@ -358,6 +358,16 @@ config DMA_JZ4740
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 
+config DMA_JZ4780
+	tristate "JZ4780 DMA support"
+	depends on MACH_JZ4780
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  This selects support for the DMA controller in Ingenic JZ4780 SoCs.
+	  If you have a board based on such a SoC and wish to use DMA for
+	  devices which can use the DMA controller, say Y or M here.
+
 config K3_DMA
 	tristate "Hisilicon K3 DMA support"
 	depends on ARCH_HI3xxx
@@ -424,6 +434,14 @@ config IMG_MDC_DMA
 	select DMA_VIRTUAL_CHANNELS
 	help
 	  Enable support for the IMG multi-threaded DMA controller (MDC).
+
+config XGENE_DMA
+	tristate "APM X-Gene DMA support"
+	select DMA_ENGINE
+	select DMA_ENGINE_RAID
+	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
+	help
+	  Enable support for the APM X-Gene SoC DMA engine.
 
 config DMA_ENGINE
 	bool

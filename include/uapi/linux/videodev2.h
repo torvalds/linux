@@ -268,9 +268,10 @@ enum v4l2_ycbcr_encoding {
 
 enum v4l2_quantization {
 	/*
-	 * The default for R'G'B' quantization is always full range. For
-	 * Y'CbCr the quantization is always limited range, except for
-	 * SYCC, XV601, XV709 or JPEG: those are full range.
+	 * The default for R'G'B' quantization is always full range, except
+	 * for the BT2020 colorspace. For Y'CbCr the quantization is always
+	 * limited range, except for COLORSPACE_JPEG, SYCC, XV601 or XV709:
+	 * those are full range.
 	 */
 	V4L2_QUANTIZATION_DEFAULT     = 0,
 	V4L2_QUANTIZATION_FULL_RANGE  = 1,
@@ -1187,6 +1188,12 @@ struct v4l2_bt_timings {
    exactly the same number of half-lines. Whether half-lines can be detected
    or used depends on the hardware. */
 #define V4L2_DV_FL_HALF_LINE			(1 << 3)
+/* If set, then this is a Consumer Electronics (CE) video format. Such formats
+ * differ from other formats (commonly called IT formats) in that if RGB
+ * encoding is used then by default the RGB values use limited range (i.e.
+ * use the range 16-235) as opposed to 0-255. All formats defined in CEA-861
+ * except for the 640x480 format are CE formats. */
+#define V4L2_DV_FL_IS_CE_VIDEO			(1 << 4)
 
 /* A few useful defines to calculate the total blanking and frame sizes */
 #define V4L2_DV_BT_BLANKING_WIDTH(bt) \
@@ -1456,6 +1463,7 @@ struct v4l2_querymenu {
 #define V4L2_CTRL_FLAG_WRITE_ONLY 	0x0040
 #define V4L2_CTRL_FLAG_VOLATILE		0x0080
 #define V4L2_CTRL_FLAG_HAS_PAYLOAD	0x0100
+#define V4L2_CTRL_FLAG_EXECUTE_ON_WRITE	0x0200
 
 /*  Query flags, to be ORed with the control ID */
 #define V4L2_CTRL_FLAG_NEXT_CTRL	0x80000000
@@ -1841,8 +1849,8 @@ struct v4l2_mpeg_vbi_fmt_ivtv {
  */
 struct v4l2_plane_pix_format {
 	__u32		sizeimage;
-	__u16		bytesperline;
-	__u16		reserved[7];
+	__u32		bytesperline;
+	__u16		reserved[6];
 } __attribute__ ((packed));
 
 /**

@@ -230,7 +230,8 @@ static void dwc_dostart(struct dw_dma_chan *dwc, struct dw_desc *first)
 	/* ASSERT:  channel is idle */
 	if (dma_readl(dw, CH_EN) & dwc->mask) {
 		dev_err(chan2dev(&dwc->chan),
-			"BUG: Attempted to start non-idle channel\n");
+			"%s: BUG: Attempted to start non-idle channel\n",
+			__func__);
 		dwc_dump_chan_regs(dwc);
 
 		/* The tasklet will hopefully advance the queue... */
@@ -626,7 +627,7 @@ static irqreturn_t dw_dma_interrupt(int irq, void *dev_id)
 	dev_vdbg(dw->dma.dev, "%s: status=0x%x\n", __func__, status);
 
 	/* Check if we have any interrupt from the DMAC */
-	if (!status)
+	if (!status || !dw->in_use)
 		return IRQ_NONE;
 
 	/*
@@ -814,11 +815,8 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 slave_sg_todev_fill_desc:
 			desc = dwc_desc_get(dwc);
-			if (!desc) {
-				dev_err(chan2dev(chan),
-					"not enough descriptors available\n");
+			if (!desc)
 				goto err_desc_get;
-			}
 
 			desc->lli.sar = mem;
 			desc->lli.dar = reg;
@@ -874,11 +872,8 @@ slave_sg_todev_fill_desc:
 
 slave_sg_fromdev_fill_desc:
 			desc = dwc_desc_get(dwc);
-			if (!desc) {
-				dev_err(chan2dev(chan),
-						"not enough descriptors available\n");
+			if (!desc)
 				goto err_desc_get;
-			}
 
 			desc->lli.sar = reg;
 			desc->lli.dar = mem;
@@ -922,6 +917,8 @@ slave_sg_fromdev_fill_desc:
 	return &first->txd;
 
 err_desc_get:
+	dev_err(chan2dev(chan),
+		"not enough descriptors available. Direction %d\n", direction);
 	dwc_desc_put(dwc, first);
 	return NULL;
 }
@@ -1261,7 +1258,8 @@ int dw_dma_cyclic_start(struct dma_chan *chan)
 	/* Assert channel is idle */
 	if (dma_readl(dw, CH_EN) & dwc->mask) {
 		dev_err(chan2dev(&dwc->chan),
-			"BUG: Attempted to start non-idle channel\n");
+			"%s: BUG: Attempted to start non-idle channel\n",
+			__func__);
 		dwc_dump_chan_regs(dwc);
 		spin_unlock_irqrestore(&dwc->lock, flags);
 		return -EBUSY;

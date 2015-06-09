@@ -719,6 +719,7 @@ xfs_qm_qino_alloc(
 	xfs_trans_t	*tp;
 	int		error;
 	int		committed;
+	bool		need_alloc = true;
 
 	*ip = NULL;
 	/*
@@ -747,6 +748,7 @@ xfs_qm_qino_alloc(
 				return error;
 			mp->m_sb.sb_gquotino = NULLFSINO;
 			mp->m_sb.sb_pquotino = NULLFSINO;
+			need_alloc = false;
 		}
 	}
 
@@ -758,7 +760,7 @@ xfs_qm_qino_alloc(
 		return error;
 	}
 
-	if (!*ip) {
+	if (need_alloc) {
 		error = xfs_dir_ialloc(&tp, NULL, S_IFREG, 1, 0, 0, 1, ip,
 								&committed);
 		if (error) {
@@ -794,11 +796,14 @@ xfs_qm_qino_alloc(
 	spin_unlock(&mp->m_sb_lock);
 	xfs_log_sb(tp);
 
-	if ((error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES))) {
+	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+	if (error) {
+		ASSERT(XFS_FORCED_SHUTDOWN(mp));
 		xfs_alert(mp, "%s failed (error %d)!", __func__, error);
-		return error;
 	}
-	return 0;
+	if (need_alloc)
+		xfs_finish_inode_setup(*ip);
+	return error;
 }
 
 
@@ -836,6 +841,11 @@ xfs_qm_reset_dqcounts(
 		 */
 		xfs_dqcheck(mp, ddq, id+j, type, XFS_QMOPT_DQREPAIR,
 			    "xfs_quotacheck");
+		/*
+		 * Reset type in case we are reusing group quota file for
+		 * project quotas or vice versa
+		 */
+		ddq->d_flags = type;
 		ddq->d_bcount = 0;
 		ddq->d_icount = 0;
 		ddq->d_rtbcount = 0;

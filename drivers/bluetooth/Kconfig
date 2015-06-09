@@ -2,9 +2,17 @@
 menu "Bluetooth device drivers"
 	depends on BT
 
+config BT_INTEL
+	tristate
+
+config BT_BCM
+	tristate
+	select FW_LOADER
+
 config BT_HCIBTUSB
 	tristate "HCI USB driver"
 	depends on USB
+	select BT_INTEL
 	help
 	  Bluetooth HCI USB driver.
 	  This driver is required if you want to use Bluetooth devices with
@@ -12,6 +20,17 @@ config BT_HCIBTUSB
 
 	  Say Y here to compile support for Bluetooth USB devices into the
 	  kernel or say M to compile it as module (btusb).
+
+config BT_HCIBTUSB_BCM
+	bool "Broadcom protocol support"
+	depends on BT_HCIBTUSB
+	select BT_BCM
+	default y
+	help
+	  The Broadcom protocol support enables firmware and patchram
+	  download support for Broadcom Bluetooth controllers.
+
+	  Say Y here to compile support for Broadcom protocol.
 
 config BT_HCIBTSDIO
 	tristate "HCI SDIO driver"
@@ -62,6 +81,7 @@ config BT_HCIUART_BCSP
 config BT_HCIUART_ATH3K
 	bool "Atheros AR300x serial support"
 	depends on BT_HCIUART
+	select BT_HCIUART_H4
 	help
 	  HCIATH3K (HCI Atheros AR300x) is a serial protocol for
 	  communication between host and Atheros AR300x Bluetooth devices.
@@ -93,6 +113,27 @@ config BT_HCIUART_3WIRE
 	  errors and thereby making CTS/RTS lines unnecessary.
 
 	  Say Y here to compile support for Three-wire UART protocol.
+
+config BT_HCIUART_INTEL
+	bool "Intel protocol support"
+	depends on BT_HCIUART
+	select BT_INTEL
+	help
+	  The Intel protocol support enables Bluetooth HCI over serial
+	  port interface for Intel Bluetooth controllers.
+
+	  Say Y here to compile support for Intel protocol.
+
+config BT_HCIUART_BCM
+	bool "Broadcom protocol support"
+	depends on BT_HCIUART
+	select BT_HCIUART_H4
+	select BT_BCM
+	help
+	  The Broadcom protocol support enables Bluetooth HCI over serial
+	  port interface for Broadcom Bluetooth controllers.
+
+	  Say Y here to compile support for Broadcom protocol.
 
 config BT_HCIBCM203X
 	tristate "HCI BCM203x USB driver"

@@ -1776,6 +1776,7 @@ void igb_down(struct igb_adapter *adapter)
 	wr32(E1000_RCTL, rctl & ~E1000_RCTL_EN);
 	/* flush and sleep below */
 
+	netif_carrier_off(netdev);
 	netif_tx_stop_all_queues(netdev);
 
 	/* disable transmits in the hardware */
@@ -1797,11 +1798,8 @@ void igb_down(struct igb_adapter *adapter)
 		}
 	}
 
-
 	del_timer_sync(&adapter->watchdog_timer);
 	del_timer_sync(&adapter->phy_info_timer);
-
-	netif_carrier_off(netdev);
 
 	/* record the stats before reset*/
 	spin_lock(&adapter->stats64_lock);
@@ -2095,6 +2093,7 @@ static const struct net_device_ops igb_netdev_ops = {
 #endif
 	.ndo_fix_features	= igb_fix_features,
 	.ndo_set_features	= igb_set_features,
+	.ndo_features_check	= passthru_features_check,
 };
 
 /**

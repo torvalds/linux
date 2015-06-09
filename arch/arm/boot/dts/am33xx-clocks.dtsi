@@ -7,7 +7,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-&scrm_clocks {
+&scm_clocks {
 	sys_clkin_ck: sys_clkin_ck {
 		#clock-cells = <0>;
 		compatible = "ti,mux-clock";
@@ -99,7 +99,7 @@
 	ehrpwm0_tbclk: ehrpwm0_tbclk@44e10664 {
 		#clock-cells = <0>;
 		compatible = "ti,gate-clock";
-		clocks = <&dpll_per_m2_ck>;
+		clocks = <&l4ls_gclk>;
 		ti,bit-shift = <0>;
 		reg = <0x0664>;
 	};
@@ -107,7 +107,7 @@
 	ehrpwm1_tbclk: ehrpwm1_tbclk@44e10664 {
 		#clock-cells = <0>;
 		compatible = "ti,gate-clock";
-		clocks = <&dpll_per_m2_ck>;
+		clocks = <&l4ls_gclk>;
 		ti,bit-shift = <1>;
 		reg = <0x0664>;
 	};
@@ -115,7 +115,7 @@
 	ehrpwm2_tbclk: ehrpwm2_tbclk@44e10664 {
 		#clock-cells = <0>;
 		compatible = "ti,gate-clock";
-		clocks = <&dpll_per_m2_ck>;
+		clocks = <&l4ls_gclk>;
 		ti,bit-shift = <2>;
 		reg = <0x0664>;
 	};

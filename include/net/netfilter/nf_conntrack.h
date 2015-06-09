@@ -95,9 +95,8 @@ struct nf_conn {
 	/* Timer function; drops refcnt when it goes off. */
 	struct timer_list timeout;
 
-#ifdef CONFIG_NET_NS
-	struct net *ct_net;
-#endif
+	possible_net_t ct_net;
+
 	/* all members below initialized via memset */
 	u8 __nfct_init_offset[0];
 

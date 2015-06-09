@@ -140,16 +140,6 @@ static int tpm_dev_add_device(struct tpm_chip *chip)
 {
 	int rc;
 
-	rc = device_add(&chip->dev);
-	if (rc) {
-		dev_err(&chip->dev,
-			"unable to device_register() %s, major %d, minor %d, err=%d\n",
-			chip->devname, MAJOR(chip->dev.devt),
-			MINOR(chip->dev.devt), rc);
-
-		return rc;
-	}
-
 	rc = cdev_add(&chip->cdev, chip->dev.devt, 1);
 	if (rc) {
 		dev_err(&chip->dev,
@@ -158,6 +148,16 @@ static int tpm_dev_add_device(struct tpm_chip *chip)
 			MINOR(chip->dev.devt), rc);
 
 		device_unregister(&chip->dev);
+		return rc;
+	}
+
+	rc = device_add(&chip->dev);
+	if (rc) {
+		dev_err(&chip->dev,
+			"unable to device_register() %s, major %d, minor %d, err=%d\n",
+			chip->devname, MAJOR(chip->dev.devt),
+			MINOR(chip->dev.devt), rc);
+
 		return rc;
 	}
 
@@ -170,43 +170,63 @@ static void tpm_dev_del_device(struct tpm_chip *chip)
 	device_unregister(&chip->dev);
 }
 
+static int tpm1_chip_register(struct tpm_chip *chip)
+{
+	int rc;
+
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		return 0;
+
+	rc = tpm_sysfs_add_device(chip);
+	if (rc)
+		return rc;
+
+	rc = tpm_add_ppi(chip);
+	if (rc) {
+		tpm_sysfs_del_device(chip);
+		return rc;
+	}
+
+	chip->bios_dir = tpm_bios_log_setup(chip->devname);
+
+	return 0;
+}
+
+static void tpm1_chip_unregister(struct tpm_chip *chip)
+{
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		return;
+
+	if (chip->bios_dir)
+		tpm_bios_log_teardown(chip->bios_dir);
+
+	tpm_remove_ppi(chip);
+
+	tpm_sysfs_del_device(chip);
+}
+
 /*
  * tpm_chip_register() - create a character device for the TPM chip
  * @chip: TPM chip to use.
  *
- * Creates a character device for the TPM chip and adds sysfs interfaces for
- * the device, PPI and TCPA. As the last step this function adds the
- * chip to the list of TPM chips available for use.
+ * Creates a character device for the TPM chip and adds sysfs attributes for
+ * the device. As the last step this function adds the chip to the list of TPM
+ * chips available for in-kernel use.
  *
- * NOTE: This function should be only called after the chip initialization
- * is complete.
- *
- * Called from tpm_<specific>.c probe function only for devices
- * the driver has determined it should claim.  Prior to calling
- * this function the specific probe function has called pci_enable_device
- * upon errant exit from this function specific probe function should call
- * pci_disable_device
+ * This function should be only called after the chip initialization is
+ * complete.
  */
 int tpm_chip_register(struct tpm_chip *chip)
 {
 	int rc;
 
-	rc = tpm_dev_add_device(chip);
+	rc = tpm1_chip_register(chip);
 	if (rc)
 		return rc;
 
-	/* Populate sysfs for TPM1 devices. */
-	if (!(chip->flags & TPM_CHIP_FLAG_TPM2)) {
-		rc = tpm_sysfs_add_device(chip);
-		if (rc)
-			goto del_misc;
-
-		rc = tpm_add_ppi(chip);
-		if (rc)
-			goto del_sysfs;
-
-		chip->bios_dir = tpm_bios_log_setup(chip->devname);
-	}
+	rc = tpm_dev_add_device(chip);
+	if (rc)
+		goto out_err;
 
 	/* Make the chip available. */
 	spin_lock(&driver_lock);
@@ -216,10 +236,8 @@ int tpm_chip_register(struct tpm_chip *chip)
 	chip->flags |= TPM_CHIP_FLAG_REGISTERED;
 
 	return 0;
-del_sysfs:
-	tpm_sysfs_del_device(chip);
-del_misc:
-	tpm_dev_del_device(chip);
+out_err:
+	tpm1_chip_unregister(chip);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(tpm_chip_register);
@@ -244,13 +262,7 @@ void tpm_chip_unregister(struct tpm_chip *chip)
 	spin_unlock(&driver_lock);
 	synchronize_rcu();
 
-	if (!(chip->flags & TPM_CHIP_FLAG_TPM2)) {
-		if (chip->bios_dir)
-			tpm_bios_log_teardown(chip->bios_dir);
-		tpm_remove_ppi(chip);
-		tpm_sysfs_del_device(chip);
-	}
-
+	tpm1_chip_unregister(chip);
 	tpm_dev_del_device(chip);
 }
 EXPORT_SYMBOL_GPL(tpm_chip_unregister);

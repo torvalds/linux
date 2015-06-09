@@ -66,6 +66,7 @@
 #define __iwl_fw_file_h__
 
 #include <linux/netdevice.h>
+#include <linux/nl80211.h>
 
 /* v1/v2 uCode file layout */
 struct iwl_ucode_header {
@@ -133,8 +134,10 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_N_SCAN_CHANNELS		= 31,
 	IWL_UCODE_TLV_SEC_RT_USNIFFER	= 34,
 	IWL_UCODE_TLV_SDIO_ADMA_ADDR	= 35,
+	IWL_UCODE_TLV_FW_VERSION	= 36,
 	IWL_UCODE_TLV_FW_DBG_DEST	= 38,
 	IWL_UCODE_TLV_FW_DBG_CONF	= 39,
+	IWL_UCODE_TLV_FW_DBG_TRIGGER	= 40,
 };
 
 struct iwl_ucode_tlv {
@@ -156,7 +159,8 @@ struct iwl_tlv_ucode_header {
 	__le32 zero;
 	__le32 magic;
 	u8 human_readable[FW_VER_HUMAN_READABLE_SZ];
-	__le32 ver;		/* major/minor/API/serial */
+	/* major/minor/API/serial or major in new format */
+	__le32 ver;
 	__le32 build;
 	__le64 ignore;
 	/*
@@ -187,7 +191,7 @@ struct iwl_ucode_capa {
  * enum iwl_ucode_tlv_flag - ucode API flags
  * @IWL_UCODE_TLV_FLAGS_PAN: This is PAN capable microcode; this previously
  *	was a separate TLV but moved here to save space.
- * @IWL_UCODE_TLV_FLAGS_NEWSCAN: new uCode scan behaviour on hidden SSID,
+ * @IWL_UCODE_TLV_FLAGS_NEWSCAN: new uCode scan behavior on hidden SSID,
  *	treats good CRC threshold as a boolean
  * @IWL_UCODE_TLV_FLAGS_MFP: This uCode image supports MFP (802.11w).
  * @IWL_UCODE_TLV_FLAGS_P2P: This uCode image supports P2P.
@@ -236,11 +240,9 @@ enum iwl_ucode_tlv_flag {
 /**
  * enum iwl_ucode_tlv_api - ucode api
  * @IWL_UCODE_TLV_API_BT_COEX_SPLIT: new API for BT Coex
- * @IWL_UCODE_TLV_API_DISABLE_STA_TX: ucode supports tx_disable bit.
- * @IWL_UCODE_TLV_API_LMAC_SCAN: This ucode uses LMAC unified scan API.
- * @IWL_UCODE_TLV_API_SF_NO_DUMMY_NOTIF: ucode supports disabling dummy notif.
  * @IWL_UCODE_TLV_API_FRAGMENTED_SCAN: This ucode supports active dwell time
  *	longer than the passive one, which is essential for fragmented scan.
+ * @IWL_UCODE_TLV_API_WIFI_MCC_UPDATE: ucode supports MCC updates with source.
  * IWL_UCODE_TLV_API_HDC_PHASE_0: ucode supports finer configuration of LTR
  * @IWL_UCODE_TLV_API_BASIC_DWELL: use only basic dwell time in scan command,
  *	regardless of the band or the number of the probes. FW will calculate
@@ -250,19 +252,21 @@ enum iwl_ucode_tlv_flag {
  * @IWL_UCODE_TLV_API_SINGLE_SCAN_EBS: EBS is supported for single scans too.
  * @IWL_UCODE_TLV_API_ASYNC_DTM: Async temperature notifications are supported.
  * @IWL_UCODE_TLV_API_LQ_SS_PARAMS: Configure STBC/BFER via LQ CMD ss_params
+ * @IWL_UCODE_TLV_API_STATS_V10: uCode supports/uses statistics API version 10
+ * @IWL_UCODE_TLV_API_NEW_VERSION: new versioning format
  */
 enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_BT_COEX_SPLIT         = BIT(3),
-	IWL_UCODE_TLV_API_DISABLE_STA_TX	= BIT(5),
-	IWL_UCODE_TLV_API_LMAC_SCAN		= BIT(6),
-	IWL_UCODE_TLV_API_SF_NO_DUMMY_NOTIF	= BIT(7),
 	IWL_UCODE_TLV_API_FRAGMENTED_SCAN	= BIT(8),
+	IWL_UCODE_TLV_API_WIFI_MCC_UPDATE	= BIT(9),
 	IWL_UCODE_TLV_API_HDC_PHASE_0		= BIT(10),
 	IWL_UCODE_TLV_API_BASIC_DWELL		= BIT(13),
 	IWL_UCODE_TLV_API_SCD_CFG		= BIT(15),
 	IWL_UCODE_TLV_API_SINGLE_SCAN_EBS	= BIT(16),
 	IWL_UCODE_TLV_API_ASYNC_DTM		= BIT(17),
 	IWL_UCODE_TLV_API_LQ_SS_PARAMS		= BIT(18),
+	IWL_UCODE_TLV_API_STATS_V10		= BIT(19),
+	IWL_UCODE_TLV_API_NEW_VERSION		= BIT(20),
 };
 
 /**
@@ -284,6 +288,13 @@ enum iwl_ucode_tlv_api {
  *	which also implies support for the scheduler configuration command
  * @IWL_UCODE_TLV_CAPA_TDLS_CHANNEL_SWITCH: supports TDLS channel switching
  * @IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT: supports Hot Spot Command
+ * @IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS: support radio and beacon statistics
+ * @IWL_UCODE_TLV_CAPA_BT_COEX_PLCR: enabled BT Coex packet level co-running
+ * @IWL_UCODE_TLV_CAPA_LAR_MULTI_MCC: ucode supports LAR updates with different
+ *	sources for the MCC. This TLV bit is a future replacement to
+ *	IWL_UCODE_TLV_API_WIFI_MCC_UPDATE. When either is set, multi-source LAR
+ *	is supported.
+ * @IWL_UCODE_TLV_CAPA_BT_COEX_RRC: supports BT Coex RRC
  */
 enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_D0I3_SUPPORT			= BIT(0),
@@ -298,6 +309,10 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_DQA_SUPPORT			= BIT(12),
 	IWL_UCODE_TLV_CAPA_TDLS_CHANNEL_SWITCH		= BIT(13),
 	IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT		= BIT(18),
+	IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS		= BIT(22),
+	IWL_UCODE_TLV_CAPA_BT_COEX_PLCR			= BIT(28),
+	IWL_UCODE_TLV_CAPA_LAR_MULTI_MCC		= BIT(29),
+	IWL_UCODE_TLV_CAPA_BT_COEX_RRC			= BIT(30),
 };
 
 /* The default calibrate table size if not specified by firmware file */
@@ -450,44 +465,207 @@ struct iwl_fw_dbg_conf_hcmd {
 } __packed;
 
 /**
- * struct iwl_fw_dbg_trigger - a TLV that describes a debug configuration
+ * enum iwl_fw_dbg_trigger_mode - triggers functionalities
  *
- * @enabled: is this trigger enabled
- * @reserved:
- * @len: length, in bytes, of the %trigger field
- * @trigger: pointer to a trigger struct
+ * @IWL_FW_DBG_TRIGGER_START: when trigger occurs re-conf the dbg mechanism
+ * @IWL_FW_DBG_TRIGGER_STOP: when trigger occurs pull the dbg data
  */
-struct iwl_fw_dbg_trigger {
-	u8 enabled;
-	u8 reserved;
-	u8 len;
-	u8 trigger[0];
-} __packed;
-
-/**
- * enum iwl_fw_dbg_conf - configurations available
- *
- * @FW_DBG_CUSTOM: take this configuration from alive
- *	Note that the trigger is NO-OP for this configuration
- */
-enum iwl_fw_dbg_conf {
-	FW_DBG_CUSTOM = 0,
-
-	/* must be last */
-	FW_DBG_MAX,
-	FW_DBG_INVALID = 0xff,
+enum iwl_fw_dbg_trigger_mode {
+	IWL_FW_DBG_TRIGGER_START = BIT(0),
+	IWL_FW_DBG_TRIGGER_STOP = BIT(1),
 };
 
 /**
- * struct iwl_fw_dbg_conf_tlv - a TLV that describes a debug configuration
+ * enum iwl_fw_dbg_trigger_vif_type - define the VIF type for a trigger
+ * @IWL_FW_DBG_CONF_VIF_ANY: any vif type
+ * @IWL_FW_DBG_CONF_VIF_IBSS: IBSS mode
+ * @IWL_FW_DBG_CONF_VIF_STATION: BSS mode
+ * @IWL_FW_DBG_CONF_VIF_AP: AP mode
+ * @IWL_FW_DBG_CONF_VIF_P2P_CLIENT: P2P Client mode
+ * @IWL_FW_DBG_CONF_VIF_P2P_GO: P2P GO mode
+ * @IWL_FW_DBG_CONF_VIF_P2P_DEVICE: P2P device
+ */
+enum iwl_fw_dbg_trigger_vif_type {
+	IWL_FW_DBG_CONF_VIF_ANY = NL80211_IFTYPE_UNSPECIFIED,
+	IWL_FW_DBG_CONF_VIF_IBSS = NL80211_IFTYPE_ADHOC,
+	IWL_FW_DBG_CONF_VIF_STATION = NL80211_IFTYPE_STATION,
+	IWL_FW_DBG_CONF_VIF_AP = NL80211_IFTYPE_AP,
+	IWL_FW_DBG_CONF_VIF_P2P_CLIENT = NL80211_IFTYPE_P2P_CLIENT,
+	IWL_FW_DBG_CONF_VIF_P2P_GO = NL80211_IFTYPE_P2P_GO,
+	IWL_FW_DBG_CONF_VIF_P2P_DEVICE = NL80211_IFTYPE_P2P_DEVICE,
+};
+
+/**
+ * struct iwl_fw_dbg_trigger_tlv - a TLV that describes the trigger
+ * @id: %enum iwl_fw_dbg_trigger
+ * @vif_type: %enum iwl_fw_dbg_trigger_vif_type
+ * @stop_conf_ids: bitmap of configurations this trigger relates to.
+ *	if the mode is %IWL_FW_DBG_TRIGGER_STOP, then if the bit corresponding
+ *	to the currently running configuration is set, the data should be
+ *	collected.
+ * @stop_delay: how many milliseconds to wait before collecting the data
+ *	after the STOP trigger fires.
+ * @mode: %enum iwl_fw_dbg_trigger_mode - can be stop / start of both
+ * @start_conf_id: if mode is %IWL_FW_DBG_TRIGGER_START, this defines what
+ *	configuration should be applied when the triggers kicks in.
+ * @occurrences: number of occurrences. 0 means the trigger will never fire.
+ */
+struct iwl_fw_dbg_trigger_tlv {
+	__le32 id;
+	__le32 vif_type;
+	__le32 stop_conf_ids;
+	__le32 stop_delay;
+	u8 mode;
+	u8 start_conf_id;
+	__le16 occurrences;
+	__le32 reserved[2];
+
+	u8 data[0];
+} __packed;
+
+#define FW_DBG_START_FROM_ALIVE	0
+#define FW_DBG_CONF_MAX		32
+#define FW_DBG_INVALID		0xff
+
+/**
+ * struct iwl_fw_dbg_trigger_missed_bcon - configures trigger for missed beacons
+ * @stop_consec_missed_bcon: stop recording if threshold is crossed.
+ * @stop_consec_missed_bcon_since_rx: stop recording if threshold is crossed.
+ * @start_consec_missed_bcon: start recording if threshold is crossed.
+ * @start_consec_missed_bcon_since_rx: start recording if threshold is crossed.
+ * @reserved1: reserved
+ * @reserved2: reserved
+ */
+struct iwl_fw_dbg_trigger_missed_bcon {
+	__le32 stop_consec_missed_bcon;
+	__le32 stop_consec_missed_bcon_since_rx;
+	__le32 reserved2[2];
+	__le32 start_consec_missed_bcon;
+	__le32 start_consec_missed_bcon_since_rx;
+	__le32 reserved1[2];
+} __packed;
+
+/**
+ * struct iwl_fw_dbg_trigger_cmd - configures trigger for messages from FW.
+ * cmds: the list of commands to trigger the collection on
+ */
+struct iwl_fw_dbg_trigger_cmd {
+	struct cmd {
+		u8 cmd_id;
+		u8 group_id;
+	} __packed cmds[16];
+} __packed;
+
+/**
+ * iwl_fw_dbg_trigger_stats - configures trigger for statistics
+ * @stop_offset: the offset of the value to be monitored
+ * @stop_threshold: the threshold above which to collect
+ * @start_offset: the offset of the value to be monitored
+ * @start_threshold: the threshold above which to start recording
+ */
+struct iwl_fw_dbg_trigger_stats {
+	__le32 stop_offset;
+	__le32 stop_threshold;
+	__le32 start_offset;
+	__le32 start_threshold;
+} __packed;
+
+/**
+ * struct iwl_fw_dbg_trigger_low_rssi - trigger for low beacon RSSI
+ * @rssi: RSSI value to trigger at
+ */
+struct iwl_fw_dbg_trigger_low_rssi {
+	__le32 rssi;
+} __packed;
+
+/**
+ * struct iwl_fw_dbg_trigger_mlme - configures trigger for mlme events
+ * @stop_auth_denied: number of denied authentication to collect
+ * @stop_auth_timeout: number of authentication timeout to collect
+ * @stop_rx_deauth: number of Rx deauth before to collect
+ * @stop_tx_deauth: number of Tx deauth before to collect
+ * @stop_assoc_denied: number of denied association to collect
+ * @stop_assoc_timeout: number of association timeout to collect
+ * @stop_connection_loss: number of connection loss to collect
+ * @start_auth_denied: number of denied authentication to start recording
+ * @start_auth_timeout: number of authentication timeout to start recording
+ * @start_rx_deauth: number of Rx deauth to start recording
+ * @start_tx_deauth: number of Tx deauth to start recording
+ * @start_assoc_denied: number of denied association to start recording
+ * @start_assoc_timeout: number of association timeout to start recording
+ * @start_connection_loss: number of connection loss to start recording
+ */
+struct iwl_fw_dbg_trigger_mlme {
+	u8 stop_auth_denied;
+	u8 stop_auth_timeout;
+	u8 stop_rx_deauth;
+	u8 stop_tx_deauth;
+
+	u8 stop_assoc_denied;
+	u8 stop_assoc_timeout;
+	u8 stop_connection_loss;
+	u8 reserved;
+
+	u8 start_auth_denied;
+	u8 start_auth_timeout;
+	u8 start_rx_deauth;
+	u8 start_tx_deauth;
+
+	u8 start_assoc_denied;
+	u8 start_assoc_timeout;
+	u8 start_connection_loss;
+	u8 reserved2;
+} __packed;
+
+/**
+ * struct iwl_fw_dbg_trigger_txq_timer - configures the Tx queue's timer
+ * @command_queue: timeout for the command queue in ms
+ * @bss: timeout for the queues of a BSS (except for TDLS queues) in ms
+ * @softap: timeout for the queues of a softAP in ms
+ * @p2p_go: timeout for the queues of a P2P GO in ms
+ * @p2p_client: timeout for the queues of a P2P client in ms
+ * @p2p_device: timeout for the queues of a P2P device in ms
+ * @ibss: timeout for the queues of an IBSS in ms
+ * @tdls: timeout for the queues of a TDLS station in ms
+ */
+struct iwl_fw_dbg_trigger_txq_timer {
+	__le32 command_queue;
+	__le32 bss;
+	__le32 softap;
+	__le32 p2p_go;
+	__le32 p2p_client;
+	__le32 p2p_device;
+	__le32 ibss;
+	__le32 tdls;
+	__le32 reserved[4];
+} __packed;
+
+/**
+ * struct iwl_fw_dbg_trigger_time_event - configures a time event trigger
+ * time_Events: a list of tuples <id, action_bitmap>. The driver will issue a
+ *	trigger each time a time event notification that relates to time event
+ *	id with one of the actions in the bitmap is received and
+ *	BIT(notif->status) is set in status_bitmap.
  *
- * @id: %enum iwl_fw_dbg_conf
+ */
+struct iwl_fw_dbg_trigger_time_event {
+	struct {
+		__le32 id;
+		__le32 action_bitmap;
+		__le32 status_bitmap;
+	} __packed time_events[16];
+} __packed;
+
+/**
+ * struct iwl_fw_dbg_conf_tlv - a TLV that describes a debug configuration.
+ * @id: conf id
  * @usniffer: should the uSniffer image be used
  * @num_of_hcmds: how many HCMDs to send are present here
  * @hcmd: a variable length host command to be sent to apply the configuration.
  *	If there is more than one HCMD to send, they will appear one after the
  *	other and be sent in the order that they appear in.
- * This parses IWL_UCODE_TLV_FW_DBG_CONF
+ * This parses IWL_UCODE_TLV_FW_DBG_CONF. The user can add up-to
+ * %FW_DBG_CONF_MAX configuration per run.
  */
 struct iwl_fw_dbg_conf_tlv {
 	u8 id;
@@ -495,8 +673,6 @@ struct iwl_fw_dbg_conf_tlv {
 	u8 reserved;
 	u8 num_of_hcmds;
 	struct iwl_fw_dbg_conf_hcmd hcmd;
-
-	/* struct iwl_fw_dbg_trigger sits after all variable length hcmds */
 } __packed;
 
 #endif  /* __iwl_fw_file_h__ */

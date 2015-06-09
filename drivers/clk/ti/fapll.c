@@ -11,18 +11,26 @@
 
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
-#include <linux/slab.h>
 #include <linux/err.h>
+#include <linux/math64.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/clk/ti.h>
-#include <asm/div64.h>
 
 /* FAPLL Control Register PLL_CTRL */
+#define FAPLL_MAIN_MULT_N_SHIFT	16
+#define FAPLL_MAIN_DIV_P_SHIFT	8
 #define FAPLL_MAIN_LOCK		BIT(7)
 #define FAPLL_MAIN_PLLEN	BIT(3)
 #define FAPLL_MAIN_BP		BIT(2)
 #define FAPLL_MAIN_LOC_CTL	BIT(0)
+
+#define FAPLL_MAIN_MAX_MULT_N	0xffff
+#define FAPLL_MAIN_MAX_DIV_P	0xff
+#define FAPLL_MAIN_CLEAR_MASK	\
+	((FAPLL_MAIN_MAX_MULT_N << FAPLL_MAIN_MULT_N_SHIFT) | \
+	 (FAPLL_MAIN_DIV_P_SHIFT << FAPLL_MAIN_DIV_P_SHIFT) | \
+	 FAPLL_MAIN_LOC_CTL)
 
 /* FAPLL powerdown register PWD */
 #define FAPLL_PWD_OFFSET	4
@@ -48,6 +56,10 @@
 
 /* Synthesizer frequency register */
 #define SYNTH_LDFREQ		BIT(31)
+
+#define SYNTH_PHASE_K		8
+#define SYNTH_MAX_INT_DIV	0xf
+#define SYNTH_MAX_DIV_M		0xff
 
 struct fapll_data {
 	struct clk_hw hw;
@@ -79,13 +91,56 @@ static bool ti_fapll_clock_is_bypass(struct fapll_data *fd)
 		return !!(v & FAPLL_MAIN_BP);
 }
 
+static void ti_fapll_set_bypass(struct fapll_data *fd)
+{
+	u32 v = readl_relaxed(fd->base);
+
+	if (fd->bypass_bit_inverted)
+		v &= ~FAPLL_MAIN_BP;
+	else
+		v |= FAPLL_MAIN_BP;
+	writel_relaxed(v, fd->base);
+}
+
+static void ti_fapll_clear_bypass(struct fapll_data *fd)
+{
+	u32 v = readl_relaxed(fd->base);
+
+	if (fd->bypass_bit_inverted)
+		v |= FAPLL_MAIN_BP;
+	else
+		v &= ~FAPLL_MAIN_BP;
+	writel_relaxed(v, fd->base);
+}
+
+static int ti_fapll_wait_lock(struct fapll_data *fd)
+{
+	int retries = FAPLL_MAX_RETRIES;
+	u32 v;
+
+	while ((v = readl_relaxed(fd->base))) {
+		if (v & FAPLL_MAIN_LOCK)
+			return 0;
+
+		if (retries-- <= 0)
+			break;
+
+		udelay(1);
+	}
+
+	pr_err("%s failed to lock\n", fd->name);
+
+	return -ETIMEDOUT;
+}
+
 static int ti_fapll_enable(struct clk_hw *hw)
 {
 	struct fapll_data *fd = to_fapll(hw);
 	u32 v = readl_relaxed(fd->base);
 
-	v |= (1 << FAPLL_MAIN_PLLEN);
+	v |= FAPLL_MAIN_PLLEN;
 	writel_relaxed(v, fd->base);
+	ti_fapll_wait_lock(fd);
 
 	return 0;
 }
@@ -95,7 +150,7 @@ static void ti_fapll_disable(struct clk_hw *hw)
 	struct fapll_data *fd = to_fapll(hw);
 	u32 v = readl_relaxed(fd->base);
 
-	v &= ~(1 << FAPLL_MAIN_PLLEN);
+	v &= ~FAPLL_MAIN_PLLEN;
 	writel_relaxed(v, fd->base);
 }
 
@@ -104,7 +159,7 @@ static int ti_fapll_is_enabled(struct clk_hw *hw)
 	struct fapll_data *fd = to_fapll(hw);
 	u32 v = readl_relaxed(fd->base);
 
-	return v & (1 << FAPLL_MAIN_PLLEN);
+	return v & FAPLL_MAIN_PLLEN;
 }
 
 static unsigned long ti_fapll_recalc_rate(struct clk_hw *hw,
@@ -141,12 +196,85 @@ static u8 ti_fapll_get_parent(struct clk_hw *hw)
 	return 0;
 }
 
+static int ti_fapll_set_div_mult(unsigned long rate,
+				 unsigned long parent_rate,
+				 u32 *pre_div_p, u32 *mult_n)
+{
+	/*
+	 * So far no luck getting decent clock with PLL divider,
+	 * PLL does not seem to lock and the signal does not look
+	 * right. It seems the divider can only be used together
+	 * with the multiplier?
+	 */
+	if (rate < parent_rate) {
+		pr_warn("FAPLL main divider rates unsupported\n");
+		return -EINVAL;
+	}
+
+	*mult_n = rate / parent_rate;
+	if (*mult_n > FAPLL_MAIN_MAX_MULT_N)
+		return -EINVAL;
+	*pre_div_p = 1;
+
+	return 0;
+}
+
+static long ti_fapll_round_rate(struct clk_hw *hw, unsigned long rate,
+				unsigned long *parent_rate)
+{
+	u32 pre_div_p, mult_n;
+	int error;
+
+	if (!rate)
+		return -EINVAL;
+
+	error = ti_fapll_set_div_mult(rate, *parent_rate,
+				      &pre_div_p, &mult_n);
+	if (error)
+		return error;
+
+	rate = *parent_rate / pre_div_p;
+	rate *= mult_n;
+
+	return rate;
+}
+
+static int ti_fapll_set_rate(struct clk_hw *hw, unsigned long rate,
+			     unsigned long parent_rate)
+{
+	struct fapll_data *fd = to_fapll(hw);
+	u32 pre_div_p, mult_n, v;
+	int error;
+
+	if (!rate)
+		return -EINVAL;
+
+	error = ti_fapll_set_div_mult(rate, parent_rate,
+				      &pre_div_p, &mult_n);
+	if (error)
+		return error;
+
+	ti_fapll_set_bypass(fd);
+	v = readl_relaxed(fd->base);
+	v &= ~FAPLL_MAIN_CLEAR_MASK;
+	v |= pre_div_p << FAPLL_MAIN_DIV_P_SHIFT;
+	v |= mult_n << FAPLL_MAIN_MULT_N_SHIFT;
+	writel_relaxed(v, fd->base);
+	if (ti_fapll_is_enabled(hw))
+		ti_fapll_wait_lock(fd);
+	ti_fapll_clear_bypass(fd);
+
+	return 0;
+}
+
 static struct clk_ops ti_fapll_ops = {
 	.enable = ti_fapll_enable,
 	.disable = ti_fapll_disable,
 	.is_enabled = ti_fapll_is_enabled,
 	.recalc_rate = ti_fapll_recalc_rate,
 	.get_parent = ti_fapll_get_parent,
+	.round_rate = ti_fapll_round_rate,
+	.set_rate = ti_fapll_set_rate,
 };
 
 static int ti_fapll_synth_enable(struct clk_hw *hw)
@@ -204,7 +332,7 @@ static unsigned long ti_fapll_synth_recalc_rate(struct clk_hw *hw,
 	/*
 	 * Synth frequency integer and fractional divider.
 	 * Note that the phase output K is 8, so the result needs
-	 * to be multiplied by 8.
+	 * to be multiplied by SYNTH_PHASE_K.
 	 */
 	if (synth->freq) {
 		u32 v, synth_int_div, synth_frac_div, synth_div_freq;
@@ -215,14 +343,138 @@ static unsigned long ti_fapll_synth_recalc_rate(struct clk_hw *hw,
 		synth_div_freq = (synth_int_div * 10000000) + synth_frac_div;
 		rate *= 10000000;
 		do_div(rate, synth_div_freq);
-		rate *= 8;
+		rate *= SYNTH_PHASE_K;
 	}
 
-	/* Synth ost-divider M */
-	synth_div_m = readl_relaxed(synth->div) & 0xff;
-	do_div(rate, synth_div_m);
+	/* Synth post-divider M */
+	synth_div_m = readl_relaxed(synth->div) & SYNTH_MAX_DIV_M;
 
-	return rate;
+	return DIV_ROUND_UP_ULL(rate, synth_div_m);
+}
+
+static unsigned long ti_fapll_synth_get_frac_rate(struct clk_hw *hw,
+						  unsigned long parent_rate)
+{
+	struct fapll_synth *synth = to_synth(hw);
+	unsigned long current_rate, frac_rate;
+	u32 post_div_m;
+
+	current_rate = ti_fapll_synth_recalc_rate(hw, parent_rate);
+	post_div_m = readl_relaxed(synth->div) & SYNTH_MAX_DIV_M;
+	frac_rate = current_rate * post_div_m;
+
+	return frac_rate;
+}
+
+static u32 ti_fapll_synth_set_frac_rate(struct fapll_synth *synth,
+					unsigned long rate,
+					unsigned long parent_rate)
+{
+	u32 post_div_m, synth_int_div = 0, synth_frac_div = 0, v;
+
+	post_div_m = DIV_ROUND_UP_ULL((u64)parent_rate * SYNTH_PHASE_K, rate);
+	post_div_m = post_div_m / SYNTH_MAX_INT_DIV;
+	if (post_div_m > SYNTH_MAX_DIV_M)
+		return -EINVAL;
+	if (!post_div_m)
+		post_div_m = 1;
+
+	for (; post_div_m < SYNTH_MAX_DIV_M; post_div_m++) {
+		synth_int_div = DIV_ROUND_UP_ULL((u64)parent_rate *
+						 SYNTH_PHASE_K *
+						 10000000,
+						 rate * post_div_m);
+		synth_frac_div = synth_int_div % 10000000;
+		synth_int_div /= 10000000;
+
+		if (synth_int_div <= SYNTH_MAX_INT_DIV)
+			break;
+	}
+
+	if (synth_int_div > SYNTH_MAX_INT_DIV)
+		return -EINVAL;
+
+	v = readl_relaxed(synth->freq);
+	v &= ~0x1fffffff;
+	v |= (synth_int_div & SYNTH_MAX_INT_DIV) << 24;
+	v |= (synth_frac_div & 0xffffff);
+	v |= SYNTH_LDFREQ;
+	writel_relaxed(v, synth->freq);
+
+	return post_div_m;
+}
+
+static long ti_fapll_synth_round_rate(struct clk_hw *hw, unsigned long rate,
+				      unsigned long *parent_rate)
+{
+	struct fapll_synth *synth = to_synth(hw);
+	struct fapll_data *fd = synth->fd;
+	unsigned long r;
+
+	if (ti_fapll_clock_is_bypass(fd) || !synth->div || !rate)
+		return -EINVAL;
+
+	/* Only post divider m available with no fractional divider? */
+	if (!synth->freq) {
+		unsigned long frac_rate;
+		u32 synth_post_div_m;
+
+		frac_rate = ti_fapll_synth_get_frac_rate(hw, *parent_rate);
+		synth_post_div_m = DIV_ROUND_UP(frac_rate, rate);
+		r = DIV_ROUND_UP(frac_rate, synth_post_div_m);
+		goto out;
+	}
+
+	r = *parent_rate * SYNTH_PHASE_K;
+	if (rate > r)
+		goto out;
+
+	r = DIV_ROUND_UP_ULL(r, SYNTH_MAX_INT_DIV * SYNTH_MAX_DIV_M);
+	if (rate < r)
+		goto out;
+
+	r = rate;
+out:
+	return r;
+}
+
+static int ti_fapll_synth_set_rate(struct clk_hw *hw, unsigned long rate,
+				   unsigned long parent_rate)
+{
+	struct fapll_synth *synth = to_synth(hw);
+	struct fapll_data *fd = synth->fd;
+	unsigned long frac_rate, post_rate = 0;
+	u32 post_div_m = 0, v;
+
+	if (ti_fapll_clock_is_bypass(fd) || !synth->div || !rate)
+		return -EINVAL;
+
+	/* Produce the rate with just post divider M? */
+	frac_rate = ti_fapll_synth_get_frac_rate(hw, parent_rate);
+	if (frac_rate < rate) {
+		if (!synth->freq)
+			return -EINVAL;
+	} else {
+		post_div_m = DIV_ROUND_UP(frac_rate, rate);
+		if (post_div_m && (post_div_m <= SYNTH_MAX_DIV_M))
+			post_rate = DIV_ROUND_UP(frac_rate, post_div_m);
+		if (!synth->freq && !post_rate)
+			return -EINVAL;
+	}
+
+	/* Need to recalculate the fractional divider? */
+	if ((post_rate != rate) && synth->freq)
+		post_div_m = ti_fapll_synth_set_frac_rate(synth,
+							  rate,
+							  parent_rate);
+
+	v = readl_relaxed(synth->div);
+	v &= ~SYNTH_MAX_DIV_M;
+	v |= post_div_m;
+	v |= SYNTH_LDMDIV1;
+	writel_relaxed(v, synth->div);
+
+	return 0;
 }
 
 static struct clk_ops ti_fapll_synt_ops = {
@@ -230,6 +482,8 @@ static struct clk_ops ti_fapll_synt_ops = {
 	.disable = ti_fapll_synth_disable,
 	.is_enabled = ti_fapll_synth_is_enabled,
 	.recalc_rate = ti_fapll_synth_recalc_rate,
+	.round_rate = ti_fapll_synth_round_rate,
+	.set_rate = ti_fapll_synth_set_rate,
 };
 
 static struct clk * __init ti_fapll_synth_setup(struct fapll_data *fd,

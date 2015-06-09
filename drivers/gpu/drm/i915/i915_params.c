@@ -27,7 +27,6 @@
 struct i915_params i915 __read_mostly = {
 	.modeset = -1,
 	.panel_ignore_lid = 1,
-	.powersave = 1,
 	.semaphores = -1,
 	.lvds_downclock = 0,
 	.lvds_channel_mode = 0,
@@ -44,6 +43,7 @@ struct i915_params i915 __read_mostly = {
 	.enable_ips = 1,
 	.fastboot = 0,
 	.prefault_disable = 0,
+	.load_detect_test = 0,
 	.reset = true,
 	.invert_brightness = 0,
 	.disable_display = 0,
@@ -64,10 +64,6 @@ module_param_named(panel_ignore_lid, i915.panel_ignore_lid, int, 0600);
 MODULE_PARM_DESC(panel_ignore_lid,
 	"Override lid status (0=autodetect, 1=autodetect disabled [default], "
 	"-1=force lid closed, -2=force lid open)");
-
-module_param_named(powersave, i915.powersave, int, 0600);
-MODULE_PARM_DESC(powersave,
-	"Enable powersavings, fbc, downclocking, etc. (default: true)");
 
 module_param_named_unsafe(semaphores, i915.semaphores, int, 0400);
 MODULE_PARM_DESC(semaphores,
@@ -144,9 +140,14 @@ module_param_named(fastboot, i915.fastboot, bool, 0600);
 MODULE_PARM_DESC(fastboot,
 	"Try to skip unnecessary mode sets at boot time (default: false)");
 
-module_param_named(prefault_disable, i915.prefault_disable, bool, 0600);
+module_param_named_unsafe(prefault_disable, i915.prefault_disable, bool, 0600);
 MODULE_PARM_DESC(prefault_disable,
 	"Disable page prefaulting for pread/pwrite/reloc (default:false). "
+	"For developers only.");
+
+module_param_named_unsafe(load_detect_test, i915.load_detect_test, bool, 0600);
+MODULE_PARM_DESC(load_detect_test,
+	"Force-enable the VGA load detect code for testing (default:false). "
 	"For developers only.");
 
 module_param_named(invert_brightness, i915.invert_brightness, int, 0600);
@@ -171,10 +172,10 @@ module_param_named(use_mmio_flip, i915.use_mmio_flip, int, 0600);
 MODULE_PARM_DESC(use_mmio_flip,
 		 "use MMIO flips (-1=never, 0=driver discretion [default], 1=always)");
 
-module_param_named(mmio_debug, i915.mmio_debug, bool, 0600);
+module_param_named(mmio_debug, i915.mmio_debug, int, 0600);
 MODULE_PARM_DESC(mmio_debug,
-	"Enable the MMIO debug code (default: false). This may negatively "
-	"affect performance.");
+	"Enable the MMIO debug code for the first N failures (default: off). "
+	"This may negatively affect performance.");
 
 module_param_named(verbose_state_checks, i915.verbose_state_checks, bool, 0600);
 MODULE_PARM_DESC(verbose_state_checks,

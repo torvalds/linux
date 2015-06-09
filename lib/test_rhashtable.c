@@ -38,6 +38,15 @@ struct test_obj {
 	struct rhash_head	node;
 };
 
+static const struct rhashtable_params test_rht_params = {
+	.nelem_hint = TEST_HT_SIZE,
+	.head_offset = offsetof(struct test_obj, node),
+	.key_offset = offsetof(struct test_obj, value),
+	.key_len = sizeof(int),
+	.hashfn = jhash,
+	.nulls_base = (3U << RHT_BASE_SHIFT),
+};
+
 static int __init test_rht_lookup(struct rhashtable *ht)
 {
 	unsigned int i;
@@ -47,7 +56,7 @@ static int __init test_rht_lookup(struct rhashtable *ht)
 		bool expected = !(i % 2);
 		u32 key = i;
 
-		obj = rhashtable_lookup(ht, &key);
+		obj = rhashtable_lookup_fast(ht, &key, test_rht_params);
 
 		if (expected && !obj) {
 			pr_warn("Test failed: Could not find key %u\n", key);
@@ -80,7 +89,7 @@ static void test_bucket_stats(struct rhashtable *ht, bool quiet)
 		rcu_cnt = cnt = 0;
 
 		if (!quiet)
-			pr_info(" [%#4x/%zu]", i, tbl->size);
+			pr_info(" [%#4x/%u]", i, tbl->size);
 
 		rht_for_each_entry_rcu(obj, pos, tbl, i, node) {
 			cnt++;
@@ -133,37 +142,17 @@ static int __init test_rhashtable(struct rhashtable *ht)
 		obj->ptr = TEST_PTR;
 		obj->value = i * 2;
 
-		rhashtable_insert(ht, &obj->node);
+		err = rhashtable_insert_fast(ht, &obj->node, test_rht_params);
+		if (err) {
+			kfree(obj);
+			goto error;
+		}
 	}
 
 	rcu_read_lock();
 	test_bucket_stats(ht, true);
 	test_rht_lookup(ht);
 	rcu_read_unlock();
-
-	for (i = 0; i < TEST_NEXPANDS; i++) {
-		pr_info("  Table expansion iteration %u...\n", i);
-		mutex_lock(&ht->mutex);
-		rhashtable_expand(ht);
-		mutex_unlock(&ht->mutex);
-
-		rcu_read_lock();
-		pr_info("  Verifying lookups...\n");
-		test_rht_lookup(ht);
-		rcu_read_unlock();
-	}
-
-	for (i = 0; i < TEST_NEXPANDS; i++) {
-		pr_info("  Table shrinkage iteration %u...\n", i);
-		mutex_lock(&ht->mutex);
-		rhashtable_shrink(ht);
-		mutex_unlock(&ht->mutex);
-
-		rcu_read_lock();
-		pr_info("  Verifying lookups...\n");
-		test_rht_lookup(ht);
-		rcu_read_unlock();
-	}
 
 	rcu_read_lock();
 	test_bucket_stats(ht, true);
@@ -173,10 +162,10 @@ static int __init test_rhashtable(struct rhashtable *ht)
 	for (i = 0; i < TEST_ENTRIES; i++) {
 		u32 key = i * 2;
 
-		obj = rhashtable_lookup(ht, &key);
+		obj = rhashtable_lookup_fast(ht, &key, test_rht_params);
 		BUG_ON(!obj);
 
-		rhashtable_remove(ht, &obj->node);
+		rhashtable_remove_fast(ht, &obj->node, test_rht_params);
 		kfree(obj);
 	}
 
@@ -191,24 +180,15 @@ error:
 	return err;
 }
 
+static struct rhashtable ht;
+
 static int __init test_rht_init(void)
 {
-	struct rhashtable ht;
-	struct rhashtable_params params = {
-		.nelem_hint = TEST_HT_SIZE,
-		.head_offset = offsetof(struct test_obj, node),
-		.key_offset = offsetof(struct test_obj, value),
-		.key_len = sizeof(int),
-		.hashfn = jhash,
-		.nulls_base = (3U << RHT_BASE_SHIFT),
-		.grow_decision = rht_grow_above_75,
-		.shrink_decision = rht_shrink_below_30,
-	};
 	int err;
 
 	pr_info("Running resizable hashtable tests...\n");
 
-	err = rhashtable_init(&ht, &params);
+	err = rhashtable_init(&ht, &test_rht_params);
 	if (err < 0) {
 		pr_warn("Test failed: Unable to initialize hashtable: %d\n",
 			err);
@@ -222,6 +202,11 @@ static int __init test_rht_init(void)
 	return err;
 }
 
+static void __exit test_rht_exit(void)
+{
+}
+
 module_init(test_rht_init);
+module_exit(test_rht_exit);
 
 MODULE_LICENSE("GPL v2");

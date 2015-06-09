@@ -42,7 +42,6 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/nfs_fs.h>
-#include <linux/nfs_idmap.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/random.h>
@@ -57,6 +56,7 @@
 #include "callback.h"
 #include "delegation.h"
 #include "internal.h"
+#include "nfs4idmap.h"
 #include "nfs4session.h"
 #include "pnfs.h"
 #include "netns.h"
@@ -346,9 +346,23 @@ int nfs41_discover_server_trunking(struct nfs_client *clp,
 	status = nfs4_proc_exchange_id(clp, cred);
 	if (status != NFS4_OK)
 		return status;
-	set_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
 
-	return nfs41_walk_client_list(clp, result, cred);
+	status = nfs41_walk_client_list(clp, result, cred);
+	if (status < 0)
+		return status;
+	if (clp != *result)
+		return 0;
+
+	/* Purge state if the client id was established in a prior instance */
+	if (clp->cl_exchange_flags & EXCHGID4_FLAG_CONFIRMED_R)
+		set_bit(NFS4CLNT_PURGE_STATE, &clp->cl_state);
+	else
+		set_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
+	nfs4_schedule_state_manager(clp);
+	status = nfs_wait_client_init_complete(clp);
+	if (status < 0)
+		nfs_put_client(clp);
+	return status;
 }
 
 #endif /* CONFIG_NFS_V4_1 */
@@ -1888,7 +1902,7 @@ static int nfs4_try_migration(struct nfs_server *server, struct rpc_cred *cred)
 		goto out;
 	}
 
-	inode = server->super->s_root->d_inode;
+	inode = d_inode(server->super->s_root);
 	result = nfs4_proc_get_locations(inode, locations, page, cred);
 	if (result) {
 		dprintk("<-- %s: failed to retrieve fs_locations: %d\n",
@@ -2007,7 +2021,7 @@ restart:
 
 		rcu_read_unlock();
 
-		inode = server->super->s_root->d_inode;
+		inode = d_inode(server->super->s_root);
 		status = nfs4_proc_fsid_present(inode, cred);
 		if (status != -NFS4ERR_MOVED)
 			goto restart;	/* wasn't this one */

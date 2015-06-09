@@ -272,8 +272,8 @@ static irqreturn_t enic_isr_legacy(int irq, void *data)
 	}
 
 	if (ENIC_TEST_INTR(pba, notify_intr)) {
-		vnic_intr_return_all_credits(&enic->intr[notify_intr]);
 		enic_notify_check(enic);
+		vnic_intr_return_all_credits(&enic->intr[notify_intr]);
 	}
 
 	if (ENIC_TEST_INTR(pba, err_intr)) {
@@ -346,8 +346,8 @@ static irqreturn_t enic_isr_msix_notify(int irq, void *data)
 	struct enic *enic = data;
 	unsigned int intr = enic_msix_notify_intr(enic);
 
-	vnic_intr_return_all_credits(&enic->intr[intr]);
 	enic_notify_check(enic);
+	vnic_intr_return_all_credits(&enic->intr[intr]);
 
 	return IRQ_HANDLED;
 }
@@ -893,7 +893,7 @@ static int enic_set_vf_port(struct net_device *netdev, int vf,
 		} else {
 			memset(pp, 0, sizeof(*pp));
 			if (vf == PORT_SELF_VF)
-				memset(netdev->dev_addr, 0, ETH_ALEN);
+				eth_zero_addr(netdev->dev_addr);
 		}
 	} else {
 		/* Set flag to indicate that the port assoc/disassoc
@@ -903,14 +903,14 @@ static int enic_set_vf_port(struct net_device *netdev, int vf,
 
 		/* If DISASSOCIATE, clean up all assigned/saved macaddresses */
 		if (pp->request == PORT_REQUEST_DISASSOCIATE) {
-			memset(pp->mac_addr, 0, ETH_ALEN);
+			eth_zero_addr(pp->mac_addr);
 			if (vf == PORT_SELF_VF)
-				memset(netdev->dev_addr, 0, ETH_ALEN);
+				eth_zero_addr(netdev->dev_addr);
 		}
 	}
 
 	if (vf == PORT_SELF_VF)
-		memset(pp->vf_mac, 0, ETH_ALEN);
+		eth_zero_addr(pp->vf_mac);
 
 	return err;
 }

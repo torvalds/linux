@@ -205,7 +205,7 @@ struct qlcnic_add_rings_mbx_out {
  * @phys_addr_{low|high}: DMA address of the transmit buffer
  * @cnsmr_index_{low|high}: host consumer index
  * @size: legth of transmit buffer ring
- * @intr_id: interrput id
+ * @intr_id: interrupt id
  * @src: src of interrupt
  */
 struct qlcnic_tx_mbx {

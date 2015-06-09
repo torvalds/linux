@@ -240,15 +240,12 @@ static acpi_status resource_to_window(struct acpi_resource *resource,
 	 * We're only interested in _CRS descriptors that are
 	 *	- address space descriptors for memory or I/O space
 	 *	- non-zero size
-	 *	- producers, i.e., the address space is routed downstream,
-	 *	  not consumed by the bridge itself
 	 */
 	status = acpi_resource_to_address64(resource, addr);
 	if (ACPI_SUCCESS(status) &&
 	    (addr->resource_type == ACPI_MEMORY_RANGE ||
 	     addr->resource_type == ACPI_IO_RANGE) &&
-	    addr->address.address_length &&
-	    addr->producer_consumer == ACPI_PRODUCER)
+	    addr->address.address_length)
 		return AE_OK;
 
 	return AE_ERROR;

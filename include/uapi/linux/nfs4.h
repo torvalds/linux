@@ -162,13 +162,6 @@
  */
 #define NFS4_MAX_BACK_CHANNEL_OPS 2
 
-enum nfs4_acl_whotype {
-	NFS4_ACL_WHO_NAMED = 0,
-	NFS4_ACL_WHO_OWNER,
-	NFS4_ACL_WHO_GROUP,
-	NFS4_ACL_WHO_EVERYONE,
-};
-
 #endif /* _UAPI_LINUX_NFS4_H */
 
 /*

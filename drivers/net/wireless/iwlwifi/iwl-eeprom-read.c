@@ -248,7 +248,7 @@ static int iwl_read_otp_word(struct iwl_trans *trans, u16 addr,
 	otpgp = iwl_read32(trans, CSR_OTP_GP_REG);
 	if (otpgp & CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK) {
 		/* stop in this case */
-		/* set the uncorrectable OTP ECC bit for acknowledgement */
+		/* set the uncorrectable OTP ECC bit for acknowledgment */
 		iwl_set_bit(trans, CSR_OTP_GP_REG,
 			    CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK);
 		IWL_ERR(trans, "Uncorrectable OTP ECC error, abort OTP read\n");
@@ -256,7 +256,7 @@ static int iwl_read_otp_word(struct iwl_trans *trans, u16 addr,
 	}
 	if (otpgp & CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK) {
 		/* continue in this case */
-		/* set the correctable OTP ECC bit for acknowledgement */
+		/* set the correctable OTP ECC bit for acknowledgment */
 		iwl_set_bit(trans, CSR_OTP_GP_REG,
 			    CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK);
 		IWL_ERR(trans, "Correctable OTP ECC error, continue read\n");

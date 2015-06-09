@@ -46,8 +46,6 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 
-#include <asm/mach-types.h>
-
 #include "../codecs/wm8731.h"
 #include "atmel-pcm.h"
 #include "atmel_ssc_dai.h"
@@ -171,9 +169,7 @@ static int at91sam9g20ek_audio_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!np) {
-		if (!(machine_is_at91sam9g20ek() ||
-			machine_is_at91sam9g20ek_2mmc()))
-			return -ENODEV;
+		return -ENODEV;
 	}
 
 	ret = atmel_ssc_set_audio(0);
@@ -210,39 +206,37 @@ static int at91sam9g20ek_audio_probe(struct platform_device *pdev)
 	card->dev = &pdev->dev;
 
 	/* Parse device node info */
-	if (np) {
-		ret = snd_soc_of_parse_card_name(card, "atmel,model");
-		if (ret)
-			goto err;
+	ret = snd_soc_of_parse_card_name(card, "atmel,model");
+	if (ret)
+		goto err;
 
-		ret = snd_soc_of_parse_audio_routing(card,
-			"atmel,audio-routing");
-		if (ret)
-			goto err;
+	ret = snd_soc_of_parse_audio_routing(card,
+		"atmel,audio-routing");
+	if (ret)
+		goto err;
 
-		/* Parse codec info */
-		at91sam9g20ek_dai.codec_name = NULL;
-		codec_np = of_parse_phandle(np, "atmel,audio-codec", 0);
-		if (!codec_np) {
-			dev_err(&pdev->dev, "codec info missing\n");
-			return -EINVAL;
-		}
-		at91sam9g20ek_dai.codec_of_node = codec_np;
-
-		/* Parse dai and platform info */
-		at91sam9g20ek_dai.cpu_dai_name = NULL;
-		at91sam9g20ek_dai.platform_name = NULL;
-		cpu_np = of_parse_phandle(np, "atmel,ssc-controller", 0);
-		if (!cpu_np) {
-			dev_err(&pdev->dev, "dai and pcm info missing\n");
-			return -EINVAL;
-		}
-		at91sam9g20ek_dai.cpu_of_node = cpu_np;
-		at91sam9g20ek_dai.platform_of_node = cpu_np;
-
-		of_node_put(codec_np);
-		of_node_put(cpu_np);
+	/* Parse codec info */
+	at91sam9g20ek_dai.codec_name = NULL;
+	codec_np = of_parse_phandle(np, "atmel,audio-codec", 0);
+	if (!codec_np) {
+		dev_err(&pdev->dev, "codec info missing\n");
+		return -EINVAL;
 	}
+	at91sam9g20ek_dai.codec_of_node = codec_np;
+
+	/* Parse dai and platform info */
+	at91sam9g20ek_dai.cpu_dai_name = NULL;
+	at91sam9g20ek_dai.platform_name = NULL;
+	cpu_np = of_parse_phandle(np, "atmel,ssc-controller", 0);
+	if (!cpu_np) {
+		dev_err(&pdev->dev, "dai and pcm info missing\n");
+		return -EINVAL;
+	}
+	at91sam9g20ek_dai.cpu_of_node = cpu_np;
+	at91sam9g20ek_dai.platform_of_node = cpu_np;
+
+	of_node_put(codec_np);
+	of_node_put(cpu_np);
 
 	ret = snd_soc_register_card(card);
 	if (ret) {

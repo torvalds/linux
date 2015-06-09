@@ -25,7 +25,6 @@
 #include <asm/machdep.h>
 #include <asm/cputable.h>
 #include <asm/firmware.h>
-#include <asm/rtas.h>
 #include <asm/vdso_datapage.h>
 #include <asm/cputhreads.h>
 #include <asm/xics.h>
@@ -33,6 +32,8 @@
 #include <asm/runlatch.h>
 #include <asm/code-patching.h>
 #include <asm/dbell.h>
+#include <asm/kvm_ppc.h>
+#include <asm/ppc-opcode.h>
 
 #include "powernv.h"
 
@@ -149,7 +150,7 @@ static int pnv_smp_cpu_disable(void)
 static void pnv_smp_cpu_kill_self(void)
 {
 	unsigned int cpu;
-	unsigned long srr1;
+	unsigned long srr1, wmask;
 	u32 idle_states;
 
 	/* Standard hot unplug procedure */
@@ -160,6 +161,10 @@ static void pnv_smp_cpu_kill_self(void)
 	DBG("CPU%d offline\n", cpu);
 	generic_set_cpu_dead(cpu);
 	smp_wmb();
+
+	wmask = SRR1_WAKEMASK;
+	if (cpu_has_feature(CPU_FTR_ARCH_207S))
+		wmask = SRR1_WAKEMASK_P8;
 
 	idle_states = pnv_get_supported_cpuidle_states();
 	/* We don't want to take decrementer interrupts while we are offline,
@@ -191,10 +196,14 @@ static void pnv_smp_cpu_kill_self(void)
 		 * having finished executing in a KVM guest, then srr1
 		 * contains 0.
 		 */
-		if ((srr1 & SRR1_WAKEMASK) == SRR1_WAKEEE) {
+		if ((srr1 & wmask) == SRR1_WAKEEE) {
 			icp_native_flush_interrupt();
 			local_paca->irq_happened &= PACA_IRQ_HARD_DIS;
 			smp_mb();
+		} else if ((srr1 & wmask) == SRR1_WAKEHDBELL) {
+			unsigned long msg = PPC_DBELL_TYPE(PPC_DBELL_SERVER);
+			asm volatile(PPC_MSGCLR(%0) : : "r" (msg));
+			kvmppc_set_host_ipi(cpu, 0);
 		}
 
 		if (cpu_core_split_required())
@@ -240,18 +249,6 @@ static struct smp_ops_t pnv_smp_ops = {
 void __init pnv_smp_init(void)
 {
 	smp_ops = &pnv_smp_ops;
-
-	/* XXX We don't yet have a proper entry point from HAL, for
-	 * now we rely on kexec-style entry from BML
-	 */
-
-#ifdef CONFIG_PPC_RTAS
-	/* Non-lpar has additional take/give timebase */
-	if (rtas_token("freeze-time-base") != RTAS_UNKNOWN_SERVICE) {
-		smp_ops->give_timebase = rtas_give_timebase;
-		smp_ops->take_timebase = rtas_take_timebase;
-	}
-#endif /* CONFIG_PPC_RTAS */
 
 #ifdef CONFIG_HOTPLUG_CPU
 	ppc_md.cpu_die	= pnv_smp_cpu_kill_self;

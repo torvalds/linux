@@ -1131,23 +1131,22 @@ static void __init l2c310_of_parse(const struct device_node *np,
 	}
 
 	ret = l2x0_cache_size_of_parse(np, aux_val, aux_mask, &assoc, SZ_512K);
-	if (ret)
-		return;
-
-	switch (assoc) {
-	case 16:
-		*aux_val &= ~L2X0_AUX_CTRL_ASSOC_MASK;
-		*aux_val |= L310_AUX_CTRL_ASSOCIATIVITY_16;
-		*aux_mask &= ~L2X0_AUX_CTRL_ASSOC_MASK;
-		break;
-	case 8:
-		*aux_val &= ~L2X0_AUX_CTRL_ASSOC_MASK;
-		*aux_mask &= ~L2X0_AUX_CTRL_ASSOC_MASK;
-		break;
-	default:
-		pr_err("L2C-310 OF cache associativity %d invalid, only 8 or 16 permitted\n",
-		       assoc);
-		break;
+	if (!ret) {
+		switch (assoc) {
+		case 16:
+			*aux_val &= ~L2X0_AUX_CTRL_ASSOC_MASK;
+			*aux_val |= L310_AUX_CTRL_ASSOCIATIVITY_16;
+			*aux_mask &= ~L2X0_AUX_CTRL_ASSOC_MASK;
+			break;
+		case 8:
+			*aux_val &= ~L2X0_AUX_CTRL_ASSOC_MASK;
+			*aux_mask &= ~L2X0_AUX_CTRL_ASSOC_MASK;
+			break;
+		default:
+			pr_err("L2C-310 OF cache associativity %d invalid, only 8 or 16 permitted\n",
+			       assoc);
+			break;
+		}
 	}
 
 	prefetch = l2x0_saved_regs.prefetch_ctrl;
@@ -1648,6 +1647,7 @@ int __init l2x0_of_init(u32 aux_val, u32 aux_mask)
 	struct device_node *np;
 	struct resource res;
 	u32 cache_id, old_aux;
+	u32 cache_level = 2;
 
 	np = of_find_matching_node(NULL, l2x0_ids);
 	if (!np)
@@ -1679,6 +1679,12 @@ int __init l2x0_of_init(u32 aux_val, u32 aux_mask)
 	/* All L2 caches are unified, so this property should be specified */
 	if (!of_property_read_bool(np, "cache-unified"))
 		pr_err("L2C: device tree omits to specify unified cache\n");
+
+	if (of_property_read_u32(np, "cache-level", &cache_level))
+		pr_err("L2C: device tree omits to specify cache-level\n");
+
+	if (cache_level != 2)
+		pr_err("L2C: device tree specifies invalid cache level\n");
 
 	/* Read back current (default) hardware configuration */
 	if (data->save)

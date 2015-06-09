@@ -176,16 +176,9 @@ int cx231xx_send_usb_command(struct cx231xx_i2c *i2c_bus,
 	saddr_len = req_data->saddr_len;
 
 	/* Set wValue */
-	if (saddr_len == 1)	/* need check saddr_len == 0  */
-		ven_req.wValue =
-		    req_data->
-		    dev_addr << 9 | _i2c_period << 4 | saddr_len << 2 |
-		    _i2c_nostop << 1 | I2C_SYNC | _i2c_reserve << 6;
-	else
-		ven_req.wValue =
-		    req_data->
-		    dev_addr << 9 | _i2c_period << 4 | saddr_len << 2 |
-		    _i2c_nostop << 1 | I2C_SYNC | _i2c_reserve << 6;
+	ven_req.wValue = (req_data->dev_addr << 9 | _i2c_period << 4 |
+			  saddr_len << 2 | _i2c_nostop << 1 | I2C_SYNC |
+			  _i2c_reserve << 6);
 
 	/* set channel number */
 	if (req_data->direction & I2C_M_RD) {

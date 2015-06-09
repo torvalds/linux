@@ -963,6 +963,7 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	hw = ieee80211_alloc_hw(sizeof(struct vnt_private), &vnt_mac_ops);
 	if (!hw) {
 		dev_err(&udev->dev, "could not register ieee80211_hw\n");
+		rc = -ENOMEM;
 		goto err_nomem;
 	}
 

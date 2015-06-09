@@ -19,6 +19,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/err.h>
+#include <linux/idr.h>
 
 #include "of_private.h"
 
@@ -85,7 +86,7 @@ static int of_overlay_apply_single_device_node(struct of_overlay *ov,
 		struct device_node *target, struct device_node *child)
 {
 	const char *cname;
-	struct device_node *tchild, *grandchild;
+	struct device_node *tchild;
 	int ret = 0;
 
 	cname = kbasename(child->full_name);

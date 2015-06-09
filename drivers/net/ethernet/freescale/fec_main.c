@@ -1189,13 +1189,12 @@ static void
 fec_enet_tx_queue(struct net_device *ndev, u16 queue_id)
 {
 	struct	fec_enet_private *fep;
-	struct bufdesc *bdp, *bdp_t;
+	struct bufdesc *bdp;
 	unsigned short status;
 	struct	sk_buff	*skb;
 	struct fec_enet_priv_tx_q *txq;
 	struct netdev_queue *nq;
 	int	index = 0;
-	int	i, bdnum;
 	int	entries_free;
 
 	fep = netdev_priv(ndev);
@@ -1216,29 +1215,18 @@ fec_enet_tx_queue(struct net_device *ndev, u16 queue_id)
 		if (bdp == txq->cur_tx)
 			break;
 
-		bdp_t = bdp;
-		bdnum = 1;
-		index = fec_enet_get_bd_index(txq->tx_bd_base, bdp_t, fep);
-		skb = txq->tx_skbuff[index];
-		while (!skb) {
-			bdp_t = fec_enet_get_nextdesc(bdp_t, fep, queue_id);
-			index = fec_enet_get_bd_index(txq->tx_bd_base, bdp_t, fep);
-			skb = txq->tx_skbuff[index];
-			bdnum++;
-		}
-		if (skb_shinfo(skb)->nr_frags &&
-		    (status = bdp_t->cbd_sc) & BD_ENET_TX_READY)
-			break;
+		index = fec_enet_get_bd_index(txq->tx_bd_base, bdp, fep);
 
-		for (i = 0; i < bdnum; i++) {
-			if (!IS_TSO_HEADER(txq, bdp->cbd_bufaddr))
-				dma_unmap_single(&fep->pdev->dev, bdp->cbd_bufaddr,
-						 bdp->cbd_datlen, DMA_TO_DEVICE);
-			bdp->cbd_bufaddr = 0;
-			if (i < bdnum - 1)
-				bdp = fec_enet_get_nextdesc(bdp, fep, queue_id);
-		}
+		skb = txq->tx_skbuff[index];
 		txq->tx_skbuff[index] = NULL;
+		if (!IS_TSO_HEADER(txq, bdp->cbd_bufaddr))
+			dma_unmap_single(&fep->pdev->dev, bdp->cbd_bufaddr,
+					bdp->cbd_datlen, DMA_TO_DEVICE);
+		bdp->cbd_bufaddr = 0;
+		if (!skb) {
+			bdp = fec_enet_get_nextdesc(bdp, fep, queue_id);
+			continue;
+		}
 
 		/* Check for errors. */
 		if (status & (BD_ENET_TX_HB | BD_ENET_TX_LC |
@@ -1479,8 +1467,7 @@ fec_enet_rx_queue(struct net_device *ndev, int budget, u16 queue_id)
 
 			vlan_packet_rcvd = true;
 
-			skb_copy_to_linear_data_offset(skb, VLAN_HLEN,
-						       data, (2 * ETH_ALEN));
+			memmove(skb->data + VLAN_HLEN, data, ETH_ALEN * 2);
 			skb_pull(skb, VLAN_HLEN);
 		}
 
@@ -1597,7 +1584,7 @@ fec_enet_interrupt(int irq, void *dev_id)
 	writel(int_events, fep->hwp + FEC_IEVENT);
 	fec_enet_collect_events(fep, int_events);
 
-	if (fep->work_tx || fep->work_rx) {
+	if ((fep->work_tx || fep->work_rx) && fep->link) {
 		ret = IRQ_HANDLED;
 
 		if (napi_schedule_prep(&fep->napi)) {
@@ -1967,6 +1954,7 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	struct device_node *node;
 	int err = -ENXIO, i;
+	u32 mii_speed, holdtime;
 
 	/*
 	 * The i.MX28 dual fec interfaces are not equal.
@@ -2004,10 +1992,33 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 	 * Reference Manual has an error on this, and gets fixed on i.MX6Q
 	 * document.
 	 */
-	fep->phy_speed = DIV_ROUND_UP(clk_get_rate(fep->clk_ipg), 5000000);
+	mii_speed = DIV_ROUND_UP(clk_get_rate(fep->clk_ipg), 5000000);
 	if (fep->quirks & FEC_QUIRK_ENET_MAC)
-		fep->phy_speed--;
-	fep->phy_speed <<= 1;
+		mii_speed--;
+	if (mii_speed > 63) {
+		dev_err(&pdev->dev,
+			"fec clock (%lu) to fast to get right mii speed\n",
+			clk_get_rate(fep->clk_ipg));
+		err = -EINVAL;
+		goto err_out;
+	}
+
+	/*
+	 * The i.MX28 and i.MX6 types have another filed in the MSCR (aka
+	 * MII_SPEED) register that defines the MDIO output hold time. Earlier
+	 * versions are RAZ there, so just ignore the difference and write the
+	 * register always.
+	 * The minimal hold time according to IEE802.3 (clause 22) is 10 ns.
+	 * HOLDTIME + 1 is the number of clk cycles the fec is holding the
+	 * output.
+	 * The HOLDTIME bitfield takes values between 0 and 7 (inclusive).
+	 * Given that ceil(clkrate / 5000000) <= 64, the calculation for
+	 * holdtime cannot result in a value greater than 3.
+	 */
+	holdtime = DIV_ROUND_UP(clk_get_rate(fep->clk_ipg), 100000000) - 1;
+
+	fep->phy_speed = mii_speed << 1 | holdtime << 8;
+
 	writel(fep->phy_speed, fep->hwp + FEC_MII_SPEED);
 
 	fep->mii_bus = mdiobus_alloc();
@@ -3383,7 +3394,6 @@ fec_drv_remove(struct platform_device *pdev)
 		regulator_disable(fep->reg_phy);
 	if (fep->ptp_clock)
 		ptp_clock_unregister(fep->ptp_clock);
-	fec_enet_clk_enable(ndev, false);
 	of_node_put(fep->phy_node);
 	free_netdev(ndev);
 

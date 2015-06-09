@@ -646,6 +646,30 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
 		c->x86_capability[10] = eax;
 	}
 
+	/* Additional Intel-defined flags: level 0x0000000F */
+	if (c->cpuid_level >= 0x0000000F) {
+		u32 eax, ebx, ecx, edx;
+
+		/* QoS sub-leaf, EAX=0Fh, ECX=0 */
+		cpuid_count(0x0000000F, 0, &eax, &ebx, &ecx, &edx);
+		c->x86_capability[11] = edx;
+		if (cpu_has(c, X86_FEATURE_CQM_LLC)) {
+			/* will be overridden if occupancy monitoring exists */
+			c->x86_cache_max_rmid = ebx;
+
+			/* QoS sub-leaf, EAX=0Fh, ECX=1 */
+			cpuid_count(0x0000000F, 1, &eax, &ebx, &ecx, &edx);
+			c->x86_capability[12] = edx;
+			if (cpu_has(c, X86_FEATURE_CQM_OCCUP_LLC)) {
+				c->x86_cache_max_rmid = ecx;
+				c->x86_cache_occ_scale = ebx;
+			}
+		} else {
+			c->x86_cache_max_rmid = -1;
+			c->x86_cache_occ_scale = -1;
+		}
+	}
+
 	/* AMD-defined flags: level 0x80000001 */
 	xlvl = cpuid_eax(0x80000000);
 	c->extended_cpuid_level = xlvl;
@@ -834,6 +858,20 @@ static void generic_identify(struct cpuinfo_x86 *c)
 	detect_nopl(c);
 }
 
+static void x86_init_cache_qos(struct cpuinfo_x86 *c)
+{
+	/*
+	 * The heavy lifting of max_rmid and cache_occ_scale are handled
+	 * in get_cpu_cap().  Here we just set the max_rmid for the boot_cpu
+	 * in case CQM bits really aren't there in this CPU.
+	 */
+	if (c != &boot_cpu_data) {
+		boot_cpu_data.x86_cache_max_rmid =
+			min(boot_cpu_data.x86_cache_max_rmid,
+			    c->x86_cache_max_rmid);
+	}
+}
+
 /*
  * This does the hard work of actually picking apart the CPU stuff...
  */
@@ -923,6 +961,7 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 
 	init_hypervisor(c);
 	x86_init_rdrand(c);
+	x86_init_cache_qos(c);
 
 	/*
 	 * Clear/Set all flags overriden by options, need do it
@@ -959,38 +998,37 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 #endif
 }
 
-#ifdef CONFIG_X86_64
-#ifdef CONFIG_IA32_EMULATION
-/* May not be __init: called during resume */
-static void syscall32_cpu_init(void)
-{
-	/* Load these always in case some future AMD CPU supports
-	   SYSENTER from compat mode too. */
-	wrmsrl_safe(MSR_IA32_SYSENTER_CS, (u64)__KERNEL_CS);
-	wrmsrl_safe(MSR_IA32_SYSENTER_ESP, 0ULL);
-	wrmsrl_safe(MSR_IA32_SYSENTER_EIP, (u64)ia32_sysenter_target);
-
-	wrmsrl(MSR_CSTAR, ia32_cstar_target);
-}
-#endif		/* CONFIG_IA32_EMULATION */
-#endif		/* CONFIG_X86_64 */
-
+/*
+ * Set up the CPU state needed to execute SYSENTER/SYSEXIT instructions
+ * on 32-bit kernels:
+ */
 #ifdef CONFIG_X86_32
 void enable_sep_cpu(void)
 {
-	int cpu = get_cpu();
-	struct tss_struct *tss = &per_cpu(init_tss, cpu);
+	struct tss_struct *tss;
+	int cpu;
 
-	if (!boot_cpu_has(X86_FEATURE_SEP)) {
-		put_cpu();
-		return;
-	}
+	cpu = get_cpu();
+	tss = &per_cpu(cpu_tss, cpu);
+
+	if (!boot_cpu_has(X86_FEATURE_SEP))
+		goto out;
+
+	/*
+	 * We cache MSR_IA32_SYSENTER_CS's value in the TSS's ss1 field --
+	 * see the big comment in struct x86_hw_tss's definition.
+	 */
 
 	tss->x86_tss.ss1 = __KERNEL_CS;
-	tss->x86_tss.sp1 = sizeof(struct tss_struct) + (unsigned long) tss;
-	wrmsr(MSR_IA32_SYSENTER_CS, __KERNEL_CS, 0);
-	wrmsr(MSR_IA32_SYSENTER_ESP, tss->x86_tss.sp1, 0);
-	wrmsr(MSR_IA32_SYSENTER_EIP, (unsigned long) ia32_sysenter_target, 0);
+	wrmsr(MSR_IA32_SYSENTER_CS, tss->x86_tss.ss1, 0);
+
+	wrmsr(MSR_IA32_SYSENTER_ESP,
+	      (unsigned long)tss + offsetofend(struct tss_struct, SYSENTER_stack),
+	      0);
+
+	wrmsr(MSR_IA32_SYSENTER_EIP, (unsigned long)ia32_sysenter_target, 0);
+
+out:
 	put_cpu();
 }
 #endif
@@ -1118,7 +1156,7 @@ static __init int setup_disablecpuid(char *arg)
 __setup("clearcpuid=", setup_disablecpuid);
 
 DEFINE_PER_CPU(unsigned long, kernel_stack) =
-	(unsigned long)&init_thread_union - KERNEL_STACK_OFFSET + THREAD_SIZE;
+	(unsigned long)&init_thread_union + THREAD_SIZE;
 EXPORT_PER_CPU_SYMBOL(kernel_stack);
 
 #ifdef CONFIG_X86_64
@@ -1130,8 +1168,8 @@ DEFINE_PER_CPU_FIRST(union irq_stack_union,
 		     irq_stack_union) __aligned(PAGE_SIZE) __visible;
 
 /*
- * The following four percpu variables are hot.  Align current_task to
- * cacheline size such that all four fall in the same cacheline.
+ * The following percpu variables are hot.  Align current_task to
+ * cacheline size such that they fall in the same cacheline.
  */
 DEFINE_PER_CPU(struct task_struct *, current_task) ____cacheline_aligned =
 	&init_task;
@@ -1171,10 +1209,23 @@ void syscall_init(void)
 	 */
 	wrmsrl(MSR_STAR,  ((u64)__USER32_CS)<<48  | ((u64)__KERNEL_CS)<<32);
 	wrmsrl(MSR_LSTAR, system_call);
-	wrmsrl(MSR_CSTAR, ignore_sysret);
 
 #ifdef CONFIG_IA32_EMULATION
-	syscall32_cpu_init();
+	wrmsrl(MSR_CSTAR, ia32_cstar_target);
+	/*
+	 * This only works on Intel CPUs.
+	 * On AMD CPUs these MSRs are 32-bit, CPU truncates MSR_IA32_SYSENTER_EIP.
+	 * This does not cause SYSENTER to jump to the wrong location, because
+	 * AMD doesn't allow SYSENTER in long mode (either 32- or 64-bit).
+	 */
+	wrmsrl_safe(MSR_IA32_SYSENTER_CS, (u64)__KERNEL_CS);
+	wrmsrl_safe(MSR_IA32_SYSENTER_ESP, 0ULL);
+	wrmsrl_safe(MSR_IA32_SYSENTER_EIP, (u64)ia32_sysenter_target);
+#else
+	wrmsrl(MSR_CSTAR, ignore_sysret);
+	wrmsrl_safe(MSR_IA32_SYSENTER_CS, (u64)GDT_ENTRY_INVALID_SEG);
+	wrmsrl_safe(MSR_IA32_SYSENTER_ESP, 0ULL);
+	wrmsrl_safe(MSR_IA32_SYSENTER_EIP, 0ULL);
 #endif
 
 	/* Flags to clear on syscall */
@@ -1225,6 +1276,15 @@ EXPORT_PER_CPU_SYMBOL(current_task);
 DEFINE_PER_CPU(int, __preempt_count) = INIT_PREEMPT_COUNT;
 EXPORT_PER_CPU_SYMBOL(__preempt_count);
 DEFINE_PER_CPU(struct task_struct *, fpu_owner_task);
+
+/*
+ * On x86_32, vm86 modifies tss.sp0, so sp0 isn't a reliable way to find
+ * the top of the kernel stack.  Use an extra percpu variable to track the
+ * top of the kernel stack directly.
+ */
+DEFINE_PER_CPU(unsigned long, cpu_current_top_of_stack) =
+	(unsigned long)&init_thread_union + THREAD_SIZE;
+EXPORT_PER_CPU_SYMBOL(cpu_current_top_of_stack);
 
 #ifdef CONFIG_CC_STACKPROTECTOR
 DEFINE_PER_CPU_ALIGNED(struct stack_canary, stack_canary);
@@ -1307,7 +1367,7 @@ void cpu_init(void)
 	 */
 	load_ucode_ap();
 
-	t = &per_cpu(init_tss, cpu);
+	t = &per_cpu(cpu_tss, cpu);
 	oist = &per_cpu(orig_ist, cpu);
 
 #ifdef CONFIG_NUMA
@@ -1391,10 +1451,16 @@ void cpu_init(void)
 {
 	int cpu = smp_processor_id();
 	struct task_struct *curr = current;
-	struct tss_struct *t = &per_cpu(init_tss, cpu);
+	struct tss_struct *t = &per_cpu(cpu_tss, cpu);
 	struct thread_struct *thread = &curr->thread;
 
 	wait_for_master_cpu(cpu);
+
+	/*
+	 * Initialize the CR4 shadow before doing anything that could
+	 * try to read it.
+	 */
+	cr4_init_shadow();
 
 	show_ucode_info_early();
 

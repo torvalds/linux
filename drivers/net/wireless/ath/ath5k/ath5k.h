@@ -1283,6 +1283,7 @@ struct ath5k_hw {
 #define ATH_STAT_PROMISC	1
 #define ATH_STAT_LEDSOFT	2		/* enable LED gpio status */
 #define ATH_STAT_STARTED	3		/* opened & irqs enabled */
+#define ATH_STAT_RESET		4		/* hw reset */
 
 	unsigned int		filter_flags;	/* HW flags, AR5K_RX_FILTER_* */
 	unsigned int		fif_filter_flags; /* Current FIF_* filter flags */

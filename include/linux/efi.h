@@ -942,6 +942,7 @@ extern int __init efi_setup_pcdp_console(char *);
 #define EFI_64BIT		5	/* Is the firmware 64-bit? */
 #define EFI_PARAVIRT		6	/* Access is via a paravirt interface */
 #define EFI_ARCH_1		7	/* First arch-specific bit */
+#define EFI_DBG			8	/* Print additional debug info at runtime */
 
 #ifdef CONFIG_EFI
 /*

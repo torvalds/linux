@@ -139,10 +139,22 @@ static int rd_allocate_sgl_table(struct rd_dev *rd_dev, struct rd_dev_sg_table *
 	unsigned char *p;
 
 	while (total_sg_needed) {
+		unsigned int chain_entry = 0;
+
 		sg_per_table = (total_sg_needed > max_sg_per_table) ?
 			max_sg_per_table : total_sg_needed;
 
-		sg = kzalloc(sg_per_table * sizeof(struct scatterlist),
+#ifdef CONFIG_ARCH_HAS_SG_CHAIN
+
+		/*
+		 * Reserve extra element for chain entry
+		 */
+		if (sg_per_table < total_sg_needed)
+			chain_entry = 1;
+
+#endif /* CONFIG_ARCH_HAS_SG_CHAIN */
+
+		sg = kcalloc(sg_per_table + chain_entry, sizeof(*sg),
 				GFP_KERNEL);
 		if (!sg) {
 			pr_err("Unable to allocate scatterlist array"
@@ -150,7 +162,16 @@ static int rd_allocate_sgl_table(struct rd_dev *rd_dev, struct rd_dev_sg_table *
 			return -ENOMEM;
 		}
 
-		sg_init_table(sg, sg_per_table);
+		sg_init_table(sg, sg_per_table + chain_entry);
+
+#ifdef CONFIG_ARCH_HAS_SG_CHAIN
+
+		if (i > 0) {
+			sg_chain(sg_table[i - 1].sg_table,
+				 max_sg_per_table + 1, sg);
+		}
+
+#endif /* CONFIG_ARCH_HAS_SG_CHAIN */
 
 		sg_table[i].sg_table = sg;
 		sg_table[i].rd_sg_count = sg_per_table;
@@ -382,6 +403,76 @@ static struct rd_dev_sg_table *rd_get_prot_table(struct rd_dev *rd_dev, u32 page
 	return NULL;
 }
 
+typedef sense_reason_t (*dif_verify)(struct se_cmd *, sector_t, unsigned int,
+				     unsigned int, struct scatterlist *, int);
+
+static sense_reason_t rd_do_prot_rw(struct se_cmd *cmd, dif_verify dif_verify)
+{
+	struct se_device *se_dev = cmd->se_dev;
+	struct rd_dev *dev = RD_DEV(se_dev);
+	struct rd_dev_sg_table *prot_table;
+	bool need_to_release = false;
+	struct scatterlist *prot_sg;
+	u32 sectors = cmd->data_length / se_dev->dev_attrib.block_size;
+	u32 prot_offset, prot_page;
+	u32 prot_npages __maybe_unused;
+	u64 tmp;
+	sense_reason_t rc = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+
+	tmp = cmd->t_task_lba * se_dev->prot_length;
+	prot_offset = do_div(tmp, PAGE_SIZE);
+	prot_page = tmp;
+
+	prot_table = rd_get_prot_table(dev, prot_page);
+	if (!prot_table)
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+
+	prot_sg = &prot_table->sg_table[prot_page -
+					prot_table->page_start_offset];
+
+#ifndef CONFIG_ARCH_HAS_SG_CHAIN
+
+	prot_npages = DIV_ROUND_UP(prot_offset + sectors * se_dev->prot_length,
+				   PAGE_SIZE);
+
+	/*
+	 * Allocate temporaly contiguous scatterlist entries if prot pages
+	 * straddles multiple scatterlist tables.
+	 */
+	if (prot_table->page_end_offset < prot_page + prot_npages - 1) {
+		int i;
+
+		prot_sg = kcalloc(prot_npages, sizeof(*prot_sg), GFP_KERNEL);
+		if (!prot_sg)
+			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+
+		need_to_release = true;
+		sg_init_table(prot_sg, prot_npages);
+
+		for (i = 0; i < prot_npages; i++) {
+			if (prot_page + i > prot_table->page_end_offset) {
+				prot_table = rd_get_prot_table(dev,
+								prot_page + i);
+				if (!prot_table) {
+					kfree(prot_sg);
+					return rc;
+				}
+				sg_unmark_end(&prot_sg[i - 1]);
+			}
+			prot_sg[i] = prot_table->sg_table[prot_page + i -
+						prot_table->page_start_offset];
+		}
+	}
+
+#endif /* !CONFIG_ARCH_HAS_SG_CHAIN */
+
+	rc = dif_verify(cmd, cmd->t_task_lba, sectors, 0, prot_sg, prot_offset);
+	if (need_to_release)
+		kfree(prot_sg);
+
+	return rc;
+}
+
 static sense_reason_t
 rd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 	      enum dma_data_direction data_direction)
@@ -419,24 +510,9 @@ rd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 			data_direction == DMA_FROM_DEVICE ? "Read" : "Write",
 			cmd->t_task_lba, rd_size, rd_page, rd_offset);
 
-	if (cmd->prot_type && data_direction == DMA_TO_DEVICE) {
-		struct rd_dev_sg_table *prot_table;
-		struct scatterlist *prot_sg;
-		u32 sectors = cmd->data_length / se_dev->dev_attrib.block_size;
-		u32 prot_offset, prot_page;
-
-		tmp = cmd->t_task_lba * se_dev->prot_length;
-		prot_offset = do_div(tmp, PAGE_SIZE);
-		prot_page = tmp;
-
-		prot_table = rd_get_prot_table(dev, prot_page);
-		if (!prot_table)
-			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-
-		prot_sg = &prot_table->sg_table[prot_page - prot_table->page_start_offset];
-
-		rc = sbc_dif_verify_write(cmd, cmd->t_task_lba, sectors, 0,
-					  prot_sg, prot_offset);
+	if (cmd->prot_type && se_dev->dev_attrib.pi_prot_type &&
+	    data_direction == DMA_TO_DEVICE) {
+		rc = rd_do_prot_rw(cmd, sbc_dif_verify_write);
 		if (rc)
 			return rc;
 	}
@@ -502,24 +578,9 @@ rd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 	}
 	sg_miter_stop(&m);
 
-	if (cmd->prot_type && data_direction == DMA_FROM_DEVICE) {
-		struct rd_dev_sg_table *prot_table;
-		struct scatterlist *prot_sg;
-		u32 sectors = cmd->data_length / se_dev->dev_attrib.block_size;
-		u32 prot_offset, prot_page;
-
-		tmp = cmd->t_task_lba * se_dev->prot_length;
-		prot_offset = do_div(tmp, PAGE_SIZE);
-		prot_page = tmp;
-
-		prot_table = rd_get_prot_table(dev, prot_page);
-		if (!prot_table)
-			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-
-		prot_sg = &prot_table->sg_table[prot_page - prot_table->page_start_offset];
-
-		rc = sbc_dif_verify_read(cmd, cmd->t_task_lba, sectors, 0,
-					 prot_sg, prot_offset);
+	if (cmd->prot_type && se_dev->dev_attrib.pi_prot_type &&
+	    data_direction == DMA_FROM_DEVICE) {
+		rc = rd_do_prot_rw(cmd, sbc_dif_verify_read);
 		if (rc)
 			return rc;
 	}

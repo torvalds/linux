@@ -83,9 +83,6 @@ static int iio_store_to_kfifo(struct iio_buffer *r,
 	ret = kfifo_in(&kf->kf, data, 1);
 	if (ret != 1)
 		return -EBUSY;
-
-	wake_up_interruptible_poll(&r->pollq, POLLIN | POLLRDNORM);
-
 	return 0;
 }
 
@@ -109,16 +106,16 @@ static int iio_read_first_n_kfifo(struct iio_buffer *r,
 	return copied;
 }
 
-static bool iio_kfifo_buf_data_available(struct iio_buffer *r)
+static size_t iio_kfifo_buf_data_available(struct iio_buffer *r)
 {
 	struct iio_kfifo *kf = iio_to_kfifo(r);
-	bool empty;
+	size_t samples;
 
 	mutex_lock(&kf->user_lock);
-	empty = kfifo_is_empty(&kf->kf);
+	samples = kfifo_len(&kf->kf);
 	mutex_unlock(&kf->user_lock);
 
-	return !empty;
+	return samples;
 }
 
 static void iio_kfifo_buffer_release(struct iio_buffer *buffer)

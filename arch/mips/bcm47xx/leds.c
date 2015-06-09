@@ -292,6 +292,13 @@ bcm47xx_leds_linksys_wrt160nv3[] __initconst = {
 };
 
 static const struct gpio_led
+bcm47xx_leds_linksys_wrt300n_v1[] __initconst = {
+	BCM47XX_GPIO_LED(1, "green", "power", 0, LEDS_GPIO_DEFSTATE_ON),
+	BCM47XX_GPIO_LED(3, "amber", "wps", 1, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(5, "green", "wps", 1, LEDS_GPIO_DEFSTATE_OFF),
+};
+
+static const struct gpio_led
 bcm47xx_leds_linksys_wrt300nv11[] __initconst = {
 	BCM47XX_GPIO_LED(1, "unk", "power", 0, LEDS_GPIO_DEFSTATE_ON),
 	BCM47XX_GPIO_LED(3, "amber", "wps", 1, LEDS_GPIO_DEFSTATE_OFF),
@@ -584,6 +591,9 @@ void __init bcm47xx_leds_register(void)
 		break;
 	case BCM47XX_BOARD_LINKSYS_WRT160NV3:
 		bcm47xx_set_pdata(bcm47xx_leds_linksys_wrt160nv3);
+		break;
+	case BCM47XX_BOARD_LINKSYS_WRT300N_V1:
+		bcm47xx_set_pdata(bcm47xx_leds_linksys_wrt300n_v1);
 		break;
 	case BCM47XX_BOARD_LINKSYS_WRT300NV11:
 		bcm47xx_set_pdata(bcm47xx_leds_linksys_wrt300nv11);

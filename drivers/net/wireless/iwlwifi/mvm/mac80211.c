@@ -86,6 +86,7 @@
 #include "iwl-fw-error-dump.h"
 #include "iwl-prph.h"
 #include "iwl-csr.h"
+#include "iwl-nvm-parse.h"
 
 static const struct ieee80211_iface_limit iwl_mvm_limits[] = {
 	{
@@ -301,6 +302,116 @@ static void iwl_mvm_reset_phy_ctxts(struct iwl_mvm *mvm)
 	}
 }
 
+struct ieee80211_regdomain *iwl_mvm_get_regdomain(struct wiphy *wiphy,
+						  const char *alpha2,
+						  enum iwl_mcc_source src_id,
+						  bool *changed)
+{
+	struct ieee80211_regdomain *regd = NULL;
+	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_mcc_update_resp *resp;
+
+	IWL_DEBUG_LAR(mvm, "Getting regdomain data for %s from FW\n", alpha2);
+
+	lockdep_assert_held(&mvm->mutex);
+
+	resp = iwl_mvm_update_mcc(mvm, alpha2, src_id);
+	if (IS_ERR_OR_NULL(resp)) {
+		IWL_DEBUG_LAR(mvm, "Could not get update from FW %d\n",
+			      PTR_RET(resp));
+		goto out;
+	}
+
+	if (changed)
+		*changed = (resp->status == MCC_RESP_NEW_CHAN_PROFILE);
+
+	regd = iwl_parse_nvm_mcc_info(mvm->trans->dev, mvm->cfg,
+				      __le32_to_cpu(resp->n_channels),
+				      resp->channels,
+				      __le16_to_cpu(resp->mcc));
+	/* Store the return source id */
+	src_id = resp->source_id;
+	kfree(resp);
+	if (IS_ERR_OR_NULL(regd)) {
+		IWL_DEBUG_LAR(mvm, "Could not get parse update from FW %d\n",
+			      PTR_RET(regd));
+		goto out;
+	}
+
+	IWL_DEBUG_LAR(mvm, "setting alpha2 from FW to %s (0x%x, 0x%x) src=%d\n",
+		      regd->alpha2, regd->alpha2[0], regd->alpha2[1], src_id);
+	mvm->lar_regdom_set = true;
+	mvm->mcc_src = src_id;
+
+out:
+	return regd;
+}
+
+void iwl_mvm_update_changed_regdom(struct iwl_mvm *mvm)
+{
+	bool changed;
+	struct ieee80211_regdomain *regd;
+
+	if (!iwl_mvm_is_lar_supported(mvm))
+		return;
+
+	regd = iwl_mvm_get_current_regdomain(mvm, &changed);
+	if (!IS_ERR_OR_NULL(regd)) {
+		/* only update the regulatory core if changed */
+		if (changed)
+			regulatory_set_wiphy_regd(mvm->hw->wiphy, regd);
+
+		kfree(regd);
+	}
+}
+
+struct ieee80211_regdomain *iwl_mvm_get_current_regdomain(struct iwl_mvm *mvm,
+							  bool *changed)
+{
+	return iwl_mvm_get_regdomain(mvm->hw->wiphy, "ZZ",
+				     iwl_mvm_is_wifi_mcc_supported(mvm) ?
+				     MCC_SOURCE_GET_CURRENT :
+				     MCC_SOURCE_OLD_FW, changed);
+}
+
+int iwl_mvm_init_fw_regd(struct iwl_mvm *mvm)
+{
+	enum iwl_mcc_source used_src;
+	struct ieee80211_regdomain *regd;
+	int ret;
+	bool changed;
+	const struct ieee80211_regdomain *r =
+			rtnl_dereference(mvm->hw->wiphy->regd);
+
+	if (!r)
+		return -ENOENT;
+
+	/* save the last source in case we overwrite it below */
+	used_src = mvm->mcc_src;
+	if (iwl_mvm_is_wifi_mcc_supported(mvm)) {
+		/* Notify the firmware we support wifi location updates */
+		regd = iwl_mvm_get_current_regdomain(mvm, NULL);
+		if (!IS_ERR_OR_NULL(regd))
+			kfree(regd);
+	}
+
+	/* Now set our last stored MCC and source */
+	regd = iwl_mvm_get_regdomain(mvm->hw->wiphy, r->alpha2, used_src,
+				     &changed);
+	if (IS_ERR_OR_NULL(regd))
+		return -EIO;
+
+	/* update cfg80211 if the regdomain was changed */
+	if (changed)
+		ret = regulatory_set_wiphy_regd_sync_rtnl(mvm->hw->wiphy, regd);
+	else
+		ret = 0;
+
+	kfree(regd);
+	return ret;
+}
+
 int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 {
 	struct ieee80211_hw *hw = mvm->hw;
@@ -339,13 +450,10 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	    !iwlwifi_mod_params.sw_crypto)
 		hw->flags |= IEEE80211_HW_MFP_CAPABLE;
 
-	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN ||
-	    mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN) {
-		hw->flags |= IEEE80211_SINGLE_HW_SCAN_ON_ALL_BANDS;
-		hw->wiphy->features |=
-			NL80211_FEATURE_SCHED_SCAN_RANDOM_MAC_ADDR |
-			NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
-	}
+	hw->flags |= IEEE80211_SINGLE_HW_SCAN_ON_ALL_BANDS;
+	hw->wiphy->features |=
+		NL80211_FEATURE_SCHED_SCAN_RANDOM_MAC_ADDR |
+		NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
 
 	hw->sta_data_size = sizeof(struct iwl_mvm_sta);
 	hw->vif_data_size = sizeof(struct iwl_mvm_vif);
@@ -359,8 +467,12 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		BIT(NL80211_IFTYPE_ADHOC);
 
 	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
-	hw->wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
-				       REGULATORY_DISABLE_BEACON_HINTS;
+	hw->wiphy->regulatory_flags |= REGULATORY_ENABLE_RELAX_NO_IR;
+	if (iwl_mvm_is_lar_supported(mvm))
+		hw->wiphy->regulatory_flags |= REGULATORY_WIPHY_SELF_MANAGED;
+	else
+		hw->wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
+					       REGULATORY_DISABLE_BEACON_HINTS;
 
 	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_GO_UAPSD)
 		hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
@@ -405,7 +517,10 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&mvm->nvm_data->bands[IEEE80211_BAND_5GHZ];
 
-		if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_BEAMFORMER)
+		if ((mvm->fw->ucode_capa.capa[0] &
+		     IWL_UCODE_TLV_CAPA_BEAMFORMER) &&
+		    (mvm->fw->ucode_capa.api[0] &
+		     IWL_UCODE_TLV_API_LQ_SS_PARAMS))
 			hw->wiphy->bands[IEEE80211_BAND_5GHZ]->vht_cap.cap |=
 				IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE;
 	}
@@ -889,12 +1004,26 @@ static void iwl_mvm_dump_fifos(struct iwl_mvm *mvm,
 	iwl_trans_release_nic_access(mvm->trans, &flags);
 }
 
+void iwl_mvm_free_fw_dump_desc(struct iwl_mvm *mvm)
+{
+	if (mvm->fw_dump_desc == &iwl_mvm_dump_desc_assert ||
+	    !mvm->fw_dump_desc)
+		return;
+
+	kfree(mvm->fw_dump_desc);
+	mvm->fw_dump_desc = NULL;
+}
+
+#define IWL8260_ICCM_OFFSET		0x44000 /* Only for B-step */
+#define IWL8260_ICCM_LEN		0xC000 /* Only for B-step */
+
 void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 {
 	struct iwl_fw_error_dump_file *dump_file;
 	struct iwl_fw_error_dump_data *dump_data;
 	struct iwl_fw_error_dump_info *dump_info;
 	struct iwl_fw_error_dump_mem *dump_mem;
+	struct iwl_fw_error_dump_trigger_desc *dump_trig;
 	struct iwl_mvm_dump_ptrs *fw_error_dump;
 	u32 sram_len, sram_ofs;
 	u32 file_len, fifo_data_len = 0;
@@ -902,16 +1031,6 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	u32 sram2_len = mvm->cfg->dccm2_len;
 
 	lockdep_assert_held(&mvm->mutex);
-
-	/* W/A for 8000 HW family A-step */
-	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
-	    CSR_HW_REV_STEP(mvm->trans->hw_rev) == SILICON_A_STEP) {
-		if (smem_len)
-			smem_len = 0x38000;
-
-		if (sram2_len)
-			sram2_len = 0x10000;
-	}
 
 	fw_error_dump = kzalloc(sizeof(*fw_error_dump), GFP_KERNEL);
 	if (!fw_error_dump)
@@ -964,6 +1083,18 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 		   fifo_data_len +
 		   sizeof(*dump_info);
 
+	/*
+	 * In 8000 HW family B-step include the ICCM (which resides separately)
+	 */
+	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
+	    CSR_HW_REV_STEP(mvm->trans->hw_rev) == SILICON_B_STEP)
+		file_len += sizeof(*dump_data) + sizeof(*dump_mem) +
+			    IWL8260_ICCM_LEN;
+
+	if (mvm->fw_dump_desc)
+		file_len += sizeof(*dump_data) + sizeof(*dump_trig) +
+			    mvm->fw_dump_desc->len;
+
 	/* Make room for the SMEM, if it exists */
 	if (smem_len)
 		file_len += sizeof(*dump_data) + sizeof(*dump_mem) + smem_len;
@@ -975,6 +1106,7 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	dump_file = vzalloc(file_len);
 	if (!dump_file) {
 		kfree(fw_error_dump);
+		iwl_mvm_free_fw_dump_desc(mvm);
 		return;
 	}
 
@@ -1002,6 +1134,19 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	/* We only dump the FIFOs if the FW is in error state */
 	if (test_bit(STATUS_FW_ERROR, &mvm->trans->status))
 		iwl_mvm_dump_fifos(mvm, &dump_data);
+
+	if (mvm->fw_dump_desc) {
+		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_ERROR_INFO);
+		dump_data->len = cpu_to_le32(sizeof(*dump_trig) +
+					     mvm->fw_dump_desc->len);
+		dump_trig = (void *)dump_data->data;
+		memcpy(dump_trig, &mvm->fw_dump_desc->trig_desc,
+		       sizeof(*dump_trig) + mvm->fw_dump_desc->len);
+
+		/* now we can free this copy */
+		iwl_mvm_free_fw_dump_desc(mvm);
+		dump_data = iwl_fw_error_next_data(dump_data);
+	}
 
 	dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
 	dump_data->len = cpu_to_le32(sram_len + sizeof(*dump_mem));
@@ -1033,6 +1178,19 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 					 dump_mem->data, sram2_len);
 	}
 
+	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
+	    CSR_HW_REV_STEP(mvm->trans->hw_rev) == SILICON_B_STEP) {
+		dump_data = iwl_fw_error_next_data(dump_data);
+		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
+		dump_data->len = cpu_to_le32(IWL8260_ICCM_LEN +
+					     sizeof(*dump_mem));
+		dump_mem = (void *)dump_data->data;
+		dump_mem->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM_SRAM);
+		dump_mem->offset = cpu_to_le32(IWL8260_ICCM_OFFSET);
+		iwl_trans_read_mem_bytes(mvm->trans, IWL8260_ICCM_OFFSET,
+					 dump_mem->data, IWL8260_ICCM_LEN);
+	}
+
 	fw_error_dump->trans_ptr = iwl_trans_dump_data(mvm->trans);
 	fw_error_dump->op_mode_len = file_len;
 	if (fw_error_dump->trans_ptr)
@@ -1041,7 +1199,15 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 
 	dev_coredumpm(mvm->trans->dev, THIS_MODULE, fw_error_dump, 0,
 		      GFP_KERNEL, iwl_mvm_read_coredump, iwl_mvm_free_coredump);
+
+	clear_bit(IWL_MVM_STATUS_DUMPING_FW_LOG, &mvm->status);
 }
+
+struct iwl_mvm_dump_desc iwl_mvm_dump_desc_assert = {
+	.trig_desc = {
+		.type = cpu_to_le32(FW_DBG_TRIGGER_FW_ASSERT),
+	},
+};
 
 static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 {
@@ -1049,8 +1215,10 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 	 * firmware coredump on reconfiguration, we shouldn't do that
 	 * on D3->D0 transition
 	 */
-	if (!test_and_clear_bit(IWL_MVM_STATUS_D3_RECONFIG, &mvm->status))
+	if (!test_and_clear_bit(IWL_MVM_STATUS_D3_RECONFIG, &mvm->status)) {
+		mvm->fw_dump_desc = &iwl_mvm_dump_desc_assert;
 		iwl_mvm_fw_error_dump(mvm);
+	}
 
 	/* cleanup all stale references (scan, roc), but keep the
 	 * ucode_down ref until reconfig is complete
@@ -1091,6 +1259,10 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 
 	mvm->vif_count = 0;
 	mvm->rx_ba_sessions = 0;
+	mvm->fw_dbg_conf = FW_DBG_INVALID;
+
+	/* keep statistics ticking */
+	iwl_mvm_accu_radio_stats(mvm);
 }
 
 int __iwl_mvm_mac_start(struct iwl_mvm *mvm)
@@ -1150,7 +1322,7 @@ static void iwl_mvm_restart_complete(struct iwl_mvm *mvm)
 
 	clear_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
 	iwl_mvm_d0i3_enable_tx(mvm, NULL);
-	ret = iwl_mvm_update_quotas(mvm, NULL);
+	ret = iwl_mvm_update_quotas(mvm, false, NULL);
 	if (ret)
 		IWL_ERR(mvm, "Failed to update quotas after restart (%d)\n",
 			ret);
@@ -1213,6 +1385,11 @@ void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
 {
 	lockdep_assert_held(&mvm->mutex);
 
+	/* firmware counters are obviously reset now, but we shouldn't
+	 * partially track so also clear the fw_reset_accu counters.
+	 */
+	memset(&mvm->accu_radio_stats, 0, sizeof(mvm->accu_radio_stats));
+
 	/*
 	 * Disallow low power states when the FW is down by taking
 	 * the UCODE_DOWN ref. in case of ongoing hw restart the
@@ -1243,6 +1420,20 @@ void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
 	 */
 	clear_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
 
+	/* We shouldn't have any UIDs still set.  Loop over all the UIDs to
+	 * make sure there's nothing left there and warn if any is found.
+	 */
+	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN) {
+		int i;
+
+		for (i = 0; i < IWL_MVM_MAX_SIMULTANEOUS_SCANS; i++) {
+			if (WARN_ONCE(mvm->scan_uid[i],
+				      "UMAC scan UID %d was not cleaned\n",
+				      mvm->scan_uid[i]))
+				mvm->scan_uid[i] = 0;
+		}
+	}
+
 	mvm->ucode_loaded = false;
 }
 
@@ -1252,7 +1443,8 @@ static void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
 
 	flush_work(&mvm->d0i3_exit_work);
 	flush_work(&mvm->async_handlers_wk);
-	flush_work(&mvm->fw_error_dump_wk);
+	cancel_delayed_work_sync(&mvm->fw_dump_wk);
+	iwl_mvm_free_fw_dump_desc(mvm);
 
 	mutex_lock(&mvm->mutex);
 	__iwl_mvm_mac_stop(mvm);
@@ -1300,6 +1492,8 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int ret;
 
+	mvmvif->mvm = mvm;
+
 	/*
 	 * make sure D0i3 exit is completed, otherwise a target access
 	 * during tx queue configuration could be done when still in
@@ -1316,6 +1510,11 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	 */
 
 	mutex_lock(&mvm->mutex);
+
+	/* make sure that beacon statistics don't go backwards with FW reset */
+	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		mvmvif->beacon_stats.accu_num_beacons +=
+			mvmvif->beacon_stats.num_beacons;
 
 	/* Allocate resources for the MAC context, and add it to the fw  */
 	ret = iwl_mvm_mac_ctxt_init(mvm, vif);
@@ -1431,9 +1630,33 @@ static void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 	u32 tfd_msk = iwl_mvm_mac_get_queues_mask(vif);
 
 	if (tfd_msk) {
+		/*
+		 * mac80211 first removes all the stations of the vif and
+		 * then removes the vif. When it removes a station it also
+		 * flushes the AMPDU session. So by now, all the AMPDU sessions
+		 * of all the stations of this vif are closed, and the queues
+		 * of these AMPDU sessions are properly closed.
+		 * We still need to take care of the shared queues of the vif.
+		 * Flush them here.
+		 */
 		mutex_lock(&mvm->mutex);
 		iwl_mvm_flush_tx_path(mvm, tfd_msk, true);
 		mutex_unlock(&mvm->mutex);
+
+		/*
+		 * There are transports that buffer a few frames in the host.
+		 * For these, the flush above isn't enough since while we were
+		 * flushing, the transport might have sent more frames to the
+		 * device. To solve this, wait here until the transport is
+		 * empty. Technically, this could have replaced the flush
+		 * above, but flush is much faster than draining. So flush
+		 * first, and drain to make sure we have no frames in the
+		 * transport anymore.
+		 * If a station still had frames on the shared queues, it is
+		 * already marked as draining, so to complete the draining, we
+		 * just need to wait until the transport is empty.
+		 */
+		iwl_trans_wait_tx_queue_empty(mvm->trans, tfd_msk);
 	}
 
 	if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
@@ -1810,8 +2033,13 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 
 	if (changes & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
+			/* clear statistics to get clean beacon counter */
+			iwl_mvm_request_statistics(mvm, true);
+			memset(&mvmvif->beacon_stats, 0,
+			       sizeof(mvmvif->beacon_stats));
+
 			/* add quota for this interface */
-			ret = iwl_mvm_update_quotas(mvm, NULL);
+			ret = iwl_mvm_update_quotas(mvm, true, NULL);
 			if (ret) {
 				IWL_ERR(mvm, "failed to update quotas\n");
 				return;
@@ -1863,7 +2091,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 				mvm->d0i3_ap_sta_id = IWL_MVM_STATION_COUNT;
 			mvmvif->ap_sta_id = IWL_MVM_STATION_COUNT;
 			/* remove quota for this interface */
-			ret = iwl_mvm_update_quotas(mvm, NULL);
+			ret = iwl_mvm_update_quotas(mvm, false, NULL);
 			if (ret)
 				IWL_ERR(mvm, "failed to update quotas\n");
 
@@ -1982,7 +2210,7 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	/* power updated needs to be done before quotas */
 	iwl_mvm_power_update_mac(mvm);
 
-	ret = iwl_mvm_update_quotas(mvm, NULL);
+	ret = iwl_mvm_update_quotas(mvm, false, NULL);
 	if (ret)
 		goto out_quota_failed;
 
@@ -1998,8 +2226,7 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	if (iwl_mvm_phy_ctx_count(mvm) > 1)
 		iwl_mvm_teardown_tdls_peers(mvm);
 
-	mutex_unlock(&mvm->mutex);
-	return 0;
+	goto out_unlock;
 
 out_quota_failed:
 	iwl_mvm_power_update_mac(mvm);
@@ -2048,7 +2275,7 @@ static void iwl_mvm_stop_ap_ibss(struct ieee80211_hw *hw,
 	if (vif->p2p && mvm->p2p_device_vif)
 		iwl_mvm_mac_ctxt_changed(mvm, mvm->p2p_device_vif, false, NULL);
 
-	iwl_mvm_update_quotas(mvm, NULL);
+	iwl_mvm_update_quotas(mvm, false, NULL);
 	iwl_mvm_send_rm_bcast_sta(mvm, vif);
 	iwl_mvm_binding_remove_vif(mvm, vif);
 
@@ -2187,6 +2414,12 @@ static int iwl_mvm_mac_hw_scan(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
+	if (iwl_mvm_is_lar_supported(mvm) && !mvm->lar_regdom_set) {
+		IWL_ERR(mvm, "scan while LAR regdomain is not set\n");
+		ret = -EBUSY;
+		goto out;
+	}
+
 	if (mvm->scan_status != IWL_MVM_SCAN_NONE) {
 		ret = -EBUSY;
 		goto out;
@@ -2196,10 +2429,8 @@ static int iwl_mvm_mac_hw_scan(struct ieee80211_hw *hw,
 
 	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
 		ret = iwl_mvm_scan_umac(mvm, vif, hw_req);
-	else if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)
-		ret = iwl_mvm_unified_scan_lmac(mvm, vif, hw_req);
 	else
-		ret = iwl_mvm_scan_request(mvm, vif, req);
+		ret = iwl_mvm_unified_scan_lmac(mvm, vif, hw_req);
 
 	if (ret)
 		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
@@ -2215,7 +2446,19 @@ static void iwl_mvm_mac_cancel_hw_scan(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
-	iwl_mvm_cancel_scan(mvm);
+	/* Due to a race condition, it's possible that mac80211 asks
+	 * us to stop a hw_scan when it's already stopped.  This can
+	 * happen, for instance, if we stopped the scan ourselves,
+	 * called ieee80211_scan_completed() and the userspace called
+	 * cancel scan scan before ieee80211_scan_work() could run.
+	 * To handle that, simply return if the scan is not running.
+	*/
+	/* FIXME: for now, we ignore this race for UMAC scans, since
+	 * they don't set the scan_status.
+	 */
+	if ((mvm->scan_status == IWL_MVM_SCAN_OS) ||
+	    (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN))
+		iwl_mvm_cancel_scan(mvm);
 
 	mutex_unlock(&mvm->mutex);
 }
@@ -2257,25 +2500,35 @@ static void iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	unsigned long txqs = 0, tids = 0;
 	int tid;
+
+	spin_lock_bh(&mvmsta->lock);
+	for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++) {
+		struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
+
+		if (tid_data->state != IWL_AGG_ON &&
+		    tid_data->state != IWL_EMPTYING_HW_QUEUE_DELBA)
+			continue;
+
+		__set_bit(tid_data->txq_id, &txqs);
+
+		if (iwl_mvm_tid_queued(tid_data) == 0)
+			continue;
+
+		__set_bit(tid, &tids);
+	}
 
 	switch (cmd) {
 	case STA_NOTIFY_SLEEP:
 		if (atomic_read(&mvm->pending_frames[mvmsta->sta_id]) > 0)
 			ieee80211_sta_block_awake(hw, sta, true);
-		spin_lock_bh(&mvmsta->lock);
-		for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++) {
-			struct iwl_mvm_tid_data *tid_data;
 
-			tid_data = &mvmsta->tid_data[tid];
-			if (tid_data->state != IWL_AGG_ON &&
-			    tid_data->state != IWL_EMPTYING_HW_QUEUE_DELBA)
-				continue;
-			if (iwl_mvm_tid_queued(tid_data) == 0)
-				continue;
+		for_each_set_bit(tid, &tids, IWL_MAX_TID_COUNT)
 			ieee80211_sta_set_buffered(sta, tid, true);
-		}
-		spin_unlock_bh(&mvmsta->lock);
+
+		if (txqs)
+			iwl_trans_freeze_txq_timer(mvm->trans, txqs, true);
 		/*
 		 * The fw updates the STA to be asleep. Tx packets on the Tx
 		 * queues to this station will not be transmitted. The fw will
@@ -2285,11 +2538,15 @@ static void iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 	case STA_NOTIFY_AWAKE:
 		if (WARN_ON(mvmsta->sta_id == IWL_MVM_STATION_COUNT))
 			break;
+
+		if (txqs)
+			iwl_trans_freeze_txq_timer(mvm->trans, txqs, false);
 		iwl_mvm_sta_modify_ps_wake(mvm, sta);
 		break;
 	default:
 		break;
 	}
+	spin_unlock_bh(&mvmsta->lock);
 }
 
 static void iwl_mvm_sta_pre_rcu_remove(struct ieee80211_hw *hw,
@@ -2527,13 +2784,13 @@ static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
-	/* Newest FW fixes sched scan while connected on another interface */
-	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN) {
-		if (!vif->bss_conf.idle) {
-			ret = -EBUSY;
-			goto out;
-		}
-	} else if (!iwl_mvm_is_idle(mvm)) {
+	if (iwl_mvm_is_lar_supported(mvm) && !mvm->lar_regdom_set) {
+		IWL_ERR(mvm, "sched-scan while LAR regdomain is not set\n");
+		ret = -EBUSY;
+		goto out;
+	}
+
+	if (!vif->bss_conf.idle) {
 		ret = -EBUSY;
 		goto out;
 	}
@@ -2559,12 +2816,29 @@ static int iwl_mvm_mac_sched_scan_stop(struct ieee80211_hw *hw,
 	int ret;
 
 	mutex_lock(&mvm->mutex);
+
+	/* Due to a race condition, it's possible that mac80211 asks
+	 * us to stop a sched_scan when it's already stopped.  This
+	 * can happen, for instance, if we stopped the scan ourselves,
+	 * called ieee80211_sched_scan_stopped() and the userspace called
+	 * stop sched scan scan before ieee80211_sched_scan_stopped_work()
+	 * could run.  To handle this, simply return if the scan is
+	 * not running.
+	*/
+	/* FIXME: for now, we ignore this race for UMAC scans, since
+	 * they don't set the scan_status.
+	 */
+	if (mvm->scan_status != IWL_MVM_SCAN_SCHED &&
+	    !(mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)) {
+		mutex_unlock(&mvm->mutex);
+		return 0;
+	}
+
 	ret = iwl_mvm_scan_offload_stop(mvm, false);
 	mutex_unlock(&mvm->mutex);
 	iwl_mvm_wait_for_async_handlers(mvm);
 
 	return ret;
-
 }
 
 static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
@@ -2805,6 +3079,8 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 
 	IWL_DEBUG_MAC80211(mvm, "enter (%d, %d, %d)\n", channel->hw_value,
 			   duration, type);
+
+	flush_work(&mvm->roc_done_wk);
 
 	mutex_lock(&mvm->mutex);
 
@@ -3077,14 +3353,14 @@ static int __iwl_mvm_assign_vif_chanctx(struct iwl_mvm *mvm,
 	 */
 	if (vif->type == NL80211_IFTYPE_MONITOR) {
 		mvmvif->monitor_active = true;
-		ret = iwl_mvm_update_quotas(mvm, NULL);
+		ret = iwl_mvm_update_quotas(mvm, false, NULL);
 		if (ret)
 			goto out_remove_binding;
 	}
 
 	/* Handle binding during CSA */
 	if (vif->type == NL80211_IFTYPE_AP) {
-		iwl_mvm_update_quotas(mvm, NULL);
+		iwl_mvm_update_quotas(mvm, false, NULL);
 		iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
 	}
 
@@ -3108,7 +3384,7 @@ static int __iwl_mvm_assign_vif_chanctx(struct iwl_mvm *mvm,
 
 		iwl_mvm_unref(mvm, IWL_MVM_REF_PROTECT_CSA);
 
-		iwl_mvm_update_quotas(mvm, NULL);
+		iwl_mvm_update_quotas(mvm, false, NULL);
 	}
 
 	goto out;
@@ -3181,7 +3457,7 @@ static void __iwl_mvm_unassign_vif_chanctx(struct iwl_mvm *mvm,
 		break;
 	}
 
-	iwl_mvm_update_quotas(mvm, disabled_vif);
+	iwl_mvm_update_quotas(mvm, false, disabled_vif);
 	iwl_mvm_binding_remove_vif(mvm, vif);
 
 out:
@@ -3373,7 +3649,7 @@ static int __iwl_mvm_mac_testmode_cmd(struct iwl_mvm *mvm,
 		mvm->noa_duration = noa_duration;
 		mvm->noa_vif = vif;
 
-		return iwl_mvm_update_quotas(mvm, NULL);
+		return iwl_mvm_update_quotas(mvm, false, NULL);
 	case IWL_MVM_TM_CMD_SET_BEACON_FILTER:
 		/* must be associated client vif - ignore authorized */
 		if (!vif || vif->type != NL80211_IFTYPE_STATION ||
@@ -3430,8 +3706,12 @@ static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
+	mvmvif->csa_failed = false;
+
 	IWL_DEBUG_MAC80211(mvm, "pre CSA to freq %d\n",
 			   chsw->chandef.center_freq1);
+
+	iwl_fw_dbg_trigger_simple_stop(mvm, vif, FW_DBG_TRIGGER_CHANNEL_SWITCH);
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
@@ -3501,6 +3781,12 @@ static int iwl_mvm_post_channel_switch(struct ieee80211_hw *hw,
 	int ret;
 
 	mutex_lock(&mvm->mutex);
+
+	if (mvmvif->csa_failed) {
+		mvmvif->csa_failed = false;
+		ret = -EIO;
+		goto out_unlock;
+	}
 
 	if (vif->type == NL80211_IFTYPE_STATION) {
 		struct iwl_mvm_sta *mvmsta;
@@ -3581,6 +3867,154 @@ static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
 	}
 }
 
+static int iwl_mvm_mac_get_survey(struct ieee80211_hw *hw, int idx,
+				  struct survey_info *survey)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int ret;
+
+	memset(survey, 0, sizeof(*survey));
+
+	/* only support global statistics right now */
+	if (idx != 0)
+		return -ENOENT;
+
+	if (!(mvm->fw->ucode_capa.capa[0] &
+			IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS))
+		return -ENOENT;
+
+	mutex_lock(&mvm->mutex);
+
+	if (mvm->ucode_loaded) {
+		ret = iwl_mvm_request_statistics(mvm, false);
+		if (ret)
+			goto out;
+	}
+
+	survey->filled = SURVEY_INFO_TIME |
+			 SURVEY_INFO_TIME_RX |
+			 SURVEY_INFO_TIME_TX |
+			 SURVEY_INFO_TIME_SCAN;
+	survey->time = mvm->accu_radio_stats.on_time_rf +
+		       mvm->radio_stats.on_time_rf;
+	do_div(survey->time, USEC_PER_MSEC);
+
+	survey->time_rx = mvm->accu_radio_stats.rx_time +
+			  mvm->radio_stats.rx_time;
+	do_div(survey->time_rx, USEC_PER_MSEC);
+
+	survey->time_tx = mvm->accu_radio_stats.tx_time +
+			  mvm->radio_stats.tx_time;
+	do_div(survey->time_tx, USEC_PER_MSEC);
+
+	survey->time_scan = mvm->accu_radio_stats.on_time_scan +
+			    mvm->radio_stats.on_time_scan;
+	do_div(survey->time_scan, USEC_PER_MSEC);
+
+	ret = 0;
+ out:
+	mutex_unlock(&mvm->mutex);
+	return ret;
+}
+
+static void iwl_mvm_mac_sta_statistics(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif,
+				       struct ieee80211_sta *sta,
+				       struct station_info *sinfo)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+
+	if (!(mvm->fw->ucode_capa.capa[0] &
+				IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS))
+		return;
+
+	/* if beacon filtering isn't on mac80211 does it anyway */
+	if (!(vif->driver_flags & IEEE80211_VIF_BEACON_FILTER))
+		return;
+
+	if (!vif->bss_conf.assoc)
+		return;
+
+	mutex_lock(&mvm->mutex);
+
+	if (mvmvif->ap_sta_id != mvmsta->sta_id)
+		goto unlock;
+
+	if (iwl_mvm_request_statistics(mvm, false))
+		goto unlock;
+
+	sinfo->rx_beacon = mvmvif->beacon_stats.num_beacons +
+			   mvmvif->beacon_stats.accu_num_beacons;
+	sinfo->filled |= BIT(NL80211_STA_INFO_BEACON_RX);
+	if (mvmvif->beacon_stats.avg_signal) {
+		/* firmware only reports a value after RXing a few beacons */
+		sinfo->rx_beacon_signal_avg = mvmvif->beacon_stats.avg_signal;
+		sinfo->filled |= BIT(NL80211_STA_INFO_BEACON_SIGNAL_AVG);
+	}
+ unlock:
+	mutex_unlock(&mvm->mutex);
+}
+
+static void iwl_mvm_mac_event_callback(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif,
+				       const struct ieee80211_event *event)
+{
+#define CHECK_MLME_TRIGGER(_mvm, _trig, _buf, _cnt, _fmt...)	\
+	do {							\
+		if ((_cnt) && --(_cnt))				\
+			break;					\
+		iwl_mvm_fw_dbg_collect_trig(_mvm, _trig, _fmt);\
+	} while (0)
+
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_fw_dbg_trigger_tlv *trig;
+	struct iwl_fw_dbg_trigger_mlme *trig_mlme;
+
+	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_MLME))
+		return;
+
+	if (event->u.mlme.status == MLME_SUCCESS)
+		return;
+
+	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_MLME);
+	trig_mlme = (void *)trig->data;
+	if (!iwl_fw_dbg_trigger_check_stop(mvm, vif, trig))
+		return;
+
+	if (event->u.mlme.data == ASSOC_EVENT) {
+		if (event->u.mlme.status == MLME_DENIED)
+			CHECK_MLME_TRIGGER(mvm, trig, buf,
+					   trig_mlme->stop_assoc_denied,
+					   "DENIED ASSOC: reason %d",
+					    event->u.mlme.reason);
+		else if (event->u.mlme.status == MLME_TIMEOUT)
+			CHECK_MLME_TRIGGER(mvm, trig, buf,
+					   trig_mlme->stop_assoc_timeout,
+					   "ASSOC TIMEOUT");
+	} else if (event->u.mlme.data == AUTH_EVENT) {
+		if (event->u.mlme.status == MLME_DENIED)
+			CHECK_MLME_TRIGGER(mvm, trig, buf,
+					   trig_mlme->stop_auth_denied,
+					   "DENIED AUTH: reason %d",
+					   event->u.mlme.reason);
+		else if (event->u.mlme.status == MLME_TIMEOUT)
+			CHECK_MLME_TRIGGER(mvm, trig, buf,
+					   trig_mlme->stop_auth_timeout,
+					   "AUTH TIMEOUT");
+	} else if (event->u.mlme.data == DEAUTH_RX_EVENT) {
+		CHECK_MLME_TRIGGER(mvm, trig, buf,
+				   trig_mlme->stop_rx_deauth,
+				   "DEAUTH RX %d", event->u.mlme.reason);
+	} else if (event->u.mlme.data == DEAUTH_TX_EVENT) {
+		CHECK_MLME_TRIGGER(mvm, trig, buf,
+				   trig_mlme->stop_tx_deauth,
+				   "DEAUTH TX %d", event->u.mlme.reason);
+	}
+#undef CHECK_MLME_TRIGGER
+}
+
 const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.tx = iwl_mvm_mac_tx,
 	.ampdu_action = iwl_mvm_mac_ampdu_action,
@@ -3634,6 +4068,8 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.tdls_cancel_channel_switch = iwl_mvm_tdls_cancel_channel_switch,
 	.tdls_recv_channel_switch = iwl_mvm_tdls_recv_channel_switch,
 
+	.event_callback = iwl_mvm_mac_event_callback,
+
 	CFG80211_TESTMODE_CMD(iwl_mvm_mac_testmode_cmd)
 
 #ifdef CONFIG_PM_SLEEP
@@ -3647,4 +4083,6 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 #endif
 	.set_default_unicast_key = iwl_mvm_set_default_unicast_key,
 #endif
+	.get_survey = iwl_mvm_mac_get_survey,
+	.sta_statistics = iwl_mvm_mac_sta_statistics,
 };

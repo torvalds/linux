@@ -99,8 +99,8 @@ static inline void task_name(struct seq_file *m, struct task_struct *p)
 	buf = m->buf + m->count;
 
 	/* Ignore error for now */
-	string_escape_str(tcomm, &buf, m->size - m->count,
-			  ESCAPE_SPACE | ESCAPE_SPECIAL, "\n\\");
+	buf += string_escape_str(tcomm, buf, m->size - m->count,
+				 ESCAPE_SPACE | ESCAPE_SPECIAL, "\n\\");
 
 	m->count = buf - m->buf;
 	seq_putc(m, '\n');
@@ -188,6 +188,24 @@ static inline void task_state(struct seq_file *m, struct pid_namespace *ns,
 			   from_kgid_munged(user_ns, GROUP_AT(group_info, g)));
 	put_cred(cred);
 
+#ifdef CONFIG_PID_NS
+	seq_puts(m, "\nNStgid:");
+	for (g = ns->level; g <= pid->level; g++)
+		seq_printf(m, "\t%d",
+			task_tgid_nr_ns(p, pid->numbers[g].ns));
+	seq_puts(m, "\nNSpid:");
+	for (g = ns->level; g <= pid->level; g++)
+		seq_printf(m, "\t%d",
+			task_pid_nr_ns(p, pid->numbers[g].ns));
+	seq_puts(m, "\nNSpgid:");
+	for (g = ns->level; g <= pid->level; g++)
+		seq_printf(m, "\t%d",
+			task_pgrp_nr_ns(p, pid->numbers[g].ns));
+	seq_puts(m, "\nNSsid:");
+	for (g = ns->level; g <= pid->level; g++)
+		seq_printf(m, "\t%d",
+			task_session_nr_ns(p, pid->numbers[g].ns));
+#endif
 	seq_putc(m, '\n');
 }
 
@@ -614,7 +632,9 @@ static int children_seq_show(struct seq_file *seq, void *v)
 	pid_t pid;
 
 	pid = pid_nr_ns(v, inode->i_sb->s_fs_info);
-	return seq_printf(seq, "%d ", pid);
+	seq_printf(seq, "%d ", pid);
+
+	return 0;
 }
 
 static void *children_seq_start(struct seq_file *seq, loff_t *pos)

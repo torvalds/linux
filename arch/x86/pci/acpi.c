@@ -331,7 +331,7 @@ static void probe_pci_root_info(struct pci_root_info *info,
 				struct list_head *list)
 {
 	int ret;
-	struct resource_entry *entry;
+	struct resource_entry *entry, *tmp;
 
 	sprintf(info->name, "PCI Bus %04x:%02x", domain, busnum);
 	info->bridge = device;
@@ -345,8 +345,13 @@ static void probe_pci_root_info(struct pci_root_info *info,
 		dev_dbg(&device->dev,
 			"no IO and memory resources present in _CRS\n");
 	else
-		resource_list_for_each_entry(entry, list)
-			entry->res->name = info->name;
+		resource_list_for_each_entry_safe(entry, tmp, list) {
+			if ((entry->res->flags & IORESOURCE_WINDOW) == 0 ||
+			    (entry->res->flags & IORESOURCE_DISABLED))
+				resource_list_destroy_entry(entry);
+			else
+				entry->res->name = info->name;
+		}
 }
 
 struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)

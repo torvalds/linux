@@ -276,6 +276,16 @@ int usbhs_set_device_config(struct usbhs_priv *priv, int devnum,
 }
 
 /*
+ *		interrupt functions
+ */
+void usbhs_xxxsts_clear(struct usbhs_priv *priv, u16 sts_reg, u16 bit)
+{
+	u16 pipe_mask = (u16)GENMASK(usbhs_get_dparam(priv, pipe_size), 0);
+
+	usbhs_write(priv, sts_reg, ~(1 << bit) & pipe_mask);
+}
+
+/*
  *		local functions
  */
 static void usbhsc_set_buswait(struct usbhs_priv *priv)
@@ -486,6 +496,15 @@ static struct renesas_usbhs_platform_info *usbhs_parse_dt(struct device *dev)
 				       NULL);
 	if (gpio > 0)
 		dparam->enable_gpio = gpio;
+
+	switch (dparam->type) {
+	case USBHS_TYPE_R8A7790:
+	case USBHS_TYPE_R8A7791:
+		dparam->has_usb_dmac = 1;
+		break;
+	default:
+		break;
+	}
 
 	return info;
 }

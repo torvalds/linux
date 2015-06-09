@@ -418,17 +418,18 @@ static int mma9551_gpio_probe(struct iio_dev *indio_dev)
 	struct device *dev = &data->client->dev;
 
 	for (i = 0; i < MMA9551_GPIO_COUNT; i++) {
-		gpio = devm_gpiod_get_index(dev, MMA9551_GPIO_NAME, i);
+		gpio = devm_gpiod_get_index(dev, MMA9551_GPIO_NAME, i,
+					    GPIOD_IN);
 		if (IS_ERR(gpio)) {
 			dev_err(dev, "acpi gpio get index failed\n");
 			return PTR_ERR(gpio);
 		}
 
-		ret = gpiod_direction_input(gpio);
-		if (ret)
+		ret = gpiod_to_irq(gpio);
+		if (ret < 0)
 			return ret;
 
-		data->irqs[i] = gpiod_to_irq(gpio);
+		data->irqs[i] = ret;
 		ret = devm_request_threaded_irq(dev, data->irqs[i],
 				NULL, mma9551_event_handler,
 				IRQF_TRIGGER_RISING | IRQF_ONESHOT,

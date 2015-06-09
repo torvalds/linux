@@ -145,7 +145,7 @@ static void tomoyo_add_slash(struct tomoyo_path_info *buf)
  *
  * Returns true on success, false otherwise.
  */
-static bool tomoyo_get_realpath(struct tomoyo_path_info *buf, struct path *path)
+static bool tomoyo_get_realpath(struct tomoyo_path_info *buf, const struct path *path)
 {
 	buf->name = tomoyo_realpath_from_path(path);
 	if (buf->name) {
@@ -782,7 +782,7 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
  *
  * Returns 0 on success, negative value otherwise.
  */
-int tomoyo_path_perm(const u8 operation, struct path *path, const char *target)
+int tomoyo_path_perm(const u8 operation, const struct path *path, const char *target)
 {
 	struct tomoyo_request_info r;
 	struct tomoyo_obj_info obj = {

@@ -34,15 +34,17 @@ void leon_pci_init(struct platform_device *ofdev, struct leon_pci_info *info)
 
 	root_bus = pci_scan_root_bus(&ofdev->dev, 0, info->ops, info,
 				     &resources);
-	if (root_bus) {
-		/* Setup IRQs of all devices using custom routines */
-		pci_fixup_irqs(pci_common_swizzle, info->map_irq);
-
-		/* Assign devices with resources */
-		pci_assign_unassigned_resources();
-	} else {
+	if (!root_bus) {
 		pci_free_resource_list(&resources);
+		return;
 	}
+
+	/* Setup IRQs of all devices using custom routines */
+	pci_fixup_irqs(pci_common_swizzle, info->map_irq);
+
+	/* Assign devices with resources */
+	pci_assign_unassigned_resources();
+	pci_bus_add_devices(root_bus);
 }
 
 void pcibios_fixup_bus(struct pci_bus *pbus)

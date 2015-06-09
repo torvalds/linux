@@ -1717,7 +1717,7 @@ static struct uart_driver mpc52xx_uart_driver = {
 /* OF Platform Driver                                                       */
 /* ======================================================================== */
 
-static struct of_device_id mpc52xx_uart_of_match[] = {
+static const struct of_device_id mpc52xx_uart_of_match[] = {
 #ifdef CONFIG_PPC_MPC52xx
 	{ .compatible = "fsl,mpc5200b-psc-uart", .data = &mpc5200b_psc_ops, },
 	{ .compatible = "fsl,mpc5200-psc-uart", .data = &mpc52xx_psc_ops, },

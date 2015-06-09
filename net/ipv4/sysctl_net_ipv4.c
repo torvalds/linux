@@ -883,6 +883,20 @@ static struct ctl_table ipv4_net_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
+	{
+		.procname	= "tcp_probe_threshold",
+		.data		= &init_net.ipv4.sysctl_tcp_probe_threshold,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "tcp_probe_interval",
+		.data		= &init_net.ipv4.sysctl_tcp_probe_interval,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
 	{ }
 };
 
@@ -895,7 +909,7 @@ static __net_init int ipv4_sysctl_init_net(struct net *net)
 		int i;
 
 		table = kmemdup(table, sizeof(ipv4_net_table), GFP_KERNEL);
-		if (table == NULL)
+		if (!table)
 			goto err_alloc;
 
 		/* Update the variables to point into the current struct net */
@@ -904,7 +918,7 @@ static __net_init int ipv4_sysctl_init_net(struct net *net)
 	}
 
 	net->ipv4.ipv4_hdr = register_net_sysctl(net, "net/ipv4", table);
-	if (net->ipv4.ipv4_hdr == NULL)
+	if (!net->ipv4.ipv4_hdr)
 		goto err_reg;
 
 	net->ipv4.sysctl_local_reserved_ports = kzalloc(65536 / 8, GFP_KERNEL);
@@ -942,7 +956,7 @@ static __init int sysctl_ipv4_init(void)
 	struct ctl_table_header *hdr;
 
 	hdr = register_net_sysctl(&init_net, "net/ipv4", ipv4_table);
-	if (hdr == NULL)
+	if (!hdr)
 		return -ENOMEM;
 
 	if (register_pernet_subsys(&ipv4_sysctl_ops)) {

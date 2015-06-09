@@ -19,6 +19,7 @@
 
 #include <linux/pci.h>
 #include <linux/acpi.h>
+#include <linux/pci-acpi.h>
 #include <xen/xen.h>
 #include <xen/interface/physdev.h>
 #include <xen/interface/xen.h>
@@ -67,12 +68,22 @@ static int xen_add_device(struct device *dev)
 
 #ifdef CONFIG_ACPI
 		handle = ACPI_HANDLE(&pci_dev->dev);
-		if (!handle && pci_dev->bus->bridge)
-			handle = ACPI_HANDLE(pci_dev->bus->bridge);
 #ifdef CONFIG_PCI_IOV
 		if (!handle && pci_dev->is_virtfn)
 			handle = ACPI_HANDLE(physfn->bus->bridge);
 #endif
+		if (!handle) {
+			/*
+			 * This device was not listed in the ACPI name space at
+			 * all. Try to get acpi handle of parent pci bus.
+			 */
+			struct pci_bus *pbus;
+			for (pbus = pci_dev->bus; pbus; pbus = pbus->parent) {
+				handle = acpi_pci_get_bridge_handle(pbus);
+				if (handle)
+					break;
+			}
+		}
 		if (handle) {
 			acpi_status status;
 

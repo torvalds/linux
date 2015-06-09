@@ -5,7 +5,7 @@
 
 static void i2o_report_util_cmd(u8 cmd);
 static void i2o_report_exec_cmd(u8 cmd);
-static void i2o_report_fail_status(u8 req_status, u32 * msg);
+static void i2o_report_fail_status(u8 req_status, u32 *msg);
 static void i2o_report_common_status(u8 req_status);
 static void i2o_report_common_dsc(u16 detailed_status);
 
@@ -22,7 +22,7 @@ void i2o_report_status(const char *severity, const char *str,
 	u16 detailed_status = msg[4] & 0xFFFF;
 
 	if (cmd == I2O_CMD_UTIL_EVT_REGISTER)
-		return;		// No status in this reply
+		return;		/* No status in this reply */
 
 	printk("%s%s: ", severity, str);
 
@@ -54,6 +54,7 @@ void i2o_dump_message(struct i2o_message *m)
 #ifdef DEBUG
 	u32 *msg = (u32 *) m;
 	int i;
+
 	printk(KERN_INFO "Dumping I2O message size %d @ %p\n",
 	       msg[0] >> 16 & 0xffff, msg);
 	for (i = 0; i < ((msg[0] >> 16) & 0xffff); i++)
@@ -66,7 +67,7 @@ void i2o_dump_message(struct i2o_message *m)
  * Following fail status are common to all classes.
  * The preserved message must be handled in the reply handler.
  */
-static void i2o_report_fail_status(u8 req_status, u32 * msg)
+static void i2o_report_fail_status(u8 req_status, u32 *msg)
 {
 	static char *FAIL_STATUS[] = {
 		"0x80",		/* not used */

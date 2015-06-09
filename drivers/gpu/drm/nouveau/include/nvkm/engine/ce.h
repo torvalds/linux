@@ -10,4 +10,7 @@ extern struct nvkm_oclass gf100_ce1_oclass;
 extern struct nvkm_oclass gk104_ce0_oclass;
 extern struct nvkm_oclass gk104_ce1_oclass;
 extern struct nvkm_oclass gk104_ce2_oclass;
+extern struct nvkm_oclass gm204_ce0_oclass;
+extern struct nvkm_oclass gm204_ce1_oclass;
+extern struct nvkm_oclass gm204_ce2_oclass;
 #endif

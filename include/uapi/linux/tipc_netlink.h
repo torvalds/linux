@@ -83,11 +83,20 @@ enum {
 	TIPC_NLA_BEARER_NAME,		/* string */
 	TIPC_NLA_BEARER_PROP,		/* nest */
 	TIPC_NLA_BEARER_DOMAIN,		/* u32 */
+	TIPC_NLA_BEARER_UDP_OPTS,	/* nest */
 
 	__TIPC_NLA_BEARER_MAX,
 	TIPC_NLA_BEARER_MAX = __TIPC_NLA_BEARER_MAX - 1
 };
 
+enum {
+	TIPC_NLA_UDP_UNSPEC,
+	TIPC_NLA_UDP_LOCAL,		/* sockaddr_storage */
+	TIPC_NLA_UDP_REMOTE,		/* sockaddr_storage */
+
+	__TIPC_NLA_UDP_MAX,
+	TIPC_NLA_UDP_MAX = __TIPC_NLA_UDP_MAX - 1
+};
 /* Socket info */
 enum {
 	TIPC_NLA_SOCK_UNSPEC,

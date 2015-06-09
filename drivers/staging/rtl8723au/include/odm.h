@@ -158,27 +158,6 @@ struct false_alarm_stats {
 	u32	Cnt_BW_LSC;	/* Gary */
 };
 
-struct pri_cca {
-	u8		PriCCA_flag;
-	u8		intf_flag;
-	u8		intf_type;
-	u8		DupRTS_flag;
-	u8		Monitor_flag;
-};
-
-struct rx_hp {
-	u8		RXHP_flag;
-	u8		PSD_func_trigger;
-	u8		PSD_bitmap_RXHP[80];
-	u8		Pre_IGI;
-	u8		Cur_IGI;
-	u8		Pre_pw_th;
-	u8		Cur_pw_th;
-	bool		First_time_enter;
-	bool		RXHP_enable;
-	u8		TP_Mode;
-};
-
 #define ASSOCIATE_ENTRY_NUM					32 /*  Max size of AsocEntry[]. */
 #define	ODM_ASSOCIATE_ENTRY_NUM				ASSOCIATE_ENTRY_NUM
 
@@ -227,7 +206,6 @@ struct sw_ant_sw {
 
 struct edca_turbo {
 	bool bCurrentTurboEDCA;
-	bool bIsCurRDLState;
 	u32	prv_traffic_idx; /*  edca turbo */
 };
 
@@ -298,18 +276,14 @@ enum odm_cmninfo {
 	/*  Fixed value: */
 	/*  */
 
-	ODM_CMNINFO_PLATFORM = 0,
-	ODM_CMNINFO_INTERFACE,				/*  enum odm_interface_def */
-	ODM_CMNINFO_MP_TEST_CHIP,
-	ODM_CMNINFO_IC_TYPE,					/*  enum odm_ic_type_def */
-	ODM_CMNINFO_CUT_VER,					/*  enum odm_cut_version */
-	ODM_CMNINFO_FAB_VER,					/*  enum odm_fab_version */
-	ODM_CMNINFO_RF_TYPE,					/*  enum rf_path_def or enum odm_rf_type? */
-	ODM_CMNINFO_BOARD_TYPE,				/*  enum odm_board_type */
-	ODM_CMNINFO_EXT_LNA,					/*  true */
+	ODM_CMNINFO_MP_TEST_CHIP = 2,
+	ODM_CMNINFO_IC_TYPE,			/*  enum odm_ic_type_def */
+	ODM_CMNINFO_CUT_VER,			/*  enum odm_cut_version */
+	ODM_CMNINFO_FAB_VER,			/*  enum odm_fab_version */
+	ODM_CMNINFO_BOARD_TYPE,			/*  enum odm_board_type */
+	ODM_CMNINFO_EXT_LNA,			/*  true */
 	ODM_CMNINFO_EXT_PA,
 	ODM_CMNINFO_EXT_TRSW,
-	ODM_CMNINFO_PATCH_ID,				/* CUSTOMER ID */
 	ODM_CMNINFO_BINHCT_TEST,
 	ODM_CMNINFO_BWIFI_TEST,
 	ODM_CMNINFO_SMART_CONCURRENT,
@@ -348,29 +322,7 @@ enum odm_cmninfo {
 /*  Define ODM support ability.  ODM_CMNINFO_ABILITY */
 enum {
 	/*  BB ODM section BIT 0-15 */
-	ODM_BB_DIG				= BIT(0),
-	ODM_BB_RA_MASK				= BIT(1),
-	ODM_BB_DYNAMIC_TXPWR			= BIT(2),
-	ODM_BB_FA_CNT				= BIT(3),
-	ODM_BB_RSSI_MONITOR			= BIT(4),
-	ODM_BB_CCK_PD				= BIT(5),
 	ODM_BB_ANT_DIV				= BIT(6),
-	ODM_BB_PWR_SAVE				= BIT(7),
-	ODM_BB_PWR_TRAIN			= BIT(8),
-	ODM_BB_RATE_ADAPTIVE			= BIT(9),
-	ODM_BB_PATH_DIV				= BIT(10),
-	ODM_BB_PSD				= BIT(11),
-	ODM_BB_RXHP				= BIT(12),
-
-	/*  MAC DM section BIT 16-23 */
-	ODM_MAC_EDCA_TURBO			= BIT(16),
-	ODM_MAC_EARLY_MODE			= BIT(17),
-
-	/*  RF ODM section BIT 24-31 */
-	ODM_RF_TX_PWR_TRACK			= BIT(24),
-	ODM_RF_RX_GAIN_TRACK			= BIT(25),
-	ODM_RF_CALIBRATION			= BIT(26),
-
 };
 
 /*	ODM_CMNINFO_INTERFACE */
@@ -409,7 +361,6 @@ enum odm_fab_version {
 	ODM_UMC		=	1,
 };
 
-/*  ODM_CMNINFO_RF_TYPE */
 /*  For example 1T2R (A+AB = BIT0|BIT4|BIT5) */
 enum rf_path_def {
 	ODM_RF_TX_A	=	BIT(0),
@@ -420,18 +371,6 @@ enum rf_path_def {
 	ODM_RF_RX_B	=	BIT(5),
 	ODM_RF_RX_C	=	BIT(6),
 	ODM_RF_RX_D	=	BIT(7),
-};
-
-
-enum odm_rf_type {
-	ODM_1T1R	=	0,
-	ODM_1T2R	=	1,
-	ODM_2T2R	=	2,
-	ODM_2T3R	=	3,
-	ODM_2T4R	=	4,
-	ODM_3T3R	=	5,
-	ODM_3T4R	=	6,
-	ODM_4T4R	=	7,
 };
 
 /*  ODM Dynamic common info value definition */
@@ -587,33 +526,6 @@ struct odm_rf_cal_t {
 	u8	bDPPathBOK;
 };
 
-/*  ODM Dynamic common info value definition */
-struct odm_fat_t {
-	u8	Bssid[6];
-	u8	antsel_rx_keep_0;
-	u8	antsel_rx_keep_1;
-	u8	antsel_rx_keep_2;
-	u32	antSumRSSI[7];
-	u32	antRSSIcnt[7];
-	u32	antAveRSSI[7];
-	u8	FAT_State;
-	u32	TrainIdx;
-	u8	antsel_a[ODM_ASSOCIATE_ENTRY_NUM];
-	u8	antsel_b[ODM_ASSOCIATE_ENTRY_NUM];
-	u8	antsel_c[ODM_ASSOCIATE_ENTRY_NUM];
-	u32	MainAnt_Sum[ODM_ASSOCIATE_ENTRY_NUM];
-	u32	AuxAnt_Sum[ODM_ASSOCIATE_ENTRY_NUM];
-	u32	MainAnt_Cnt[ODM_ASSOCIATE_ENTRY_NUM];
-	u32	AuxAnt_Cnt[ODM_ASSOCIATE_ENTRY_NUM];
-	u8	RxIdleAnt;
-	bool	bBecomeLinked;
-};
-
-enum fat_state {
-	FAT_NORMAL_STATE		= 0,
-	FAT_TRAINING_STATE		= 1,
-};
-
 enum ant_dif_type {
 	NO_ANTDIV			= 0xFF,
 	CG_TRX_HW_ANTDIV		= 0x01,
@@ -636,7 +548,6 @@ struct dm_odm_t {
 /*  ODM HANDLE, DRIVER NEEDS NOT TO HOOK------ */
 	bool			bCckHighPower;
 	u8			RFPathRxEnable;		/*  ODM_CMNINFO_RFPATH_ENABLE */
-	u8			ControlChannel;
 /*  ODM HANDLE, DRIVER NEEDS NOT TO HOOK------ */
 
 /* 1  COMMON INFORMATION */
@@ -645,16 +556,12 @@ struct dm_odm_t {
 /* HOOK BEFORE REG INIT----------- */
 	/*  ODM Support Ability DIG/RATR/TX_PWR_TRACK/ ¡K¡K = 1/2/3/¡K */
 	u32			SupportAbility;
-	/*  ODM PCIE/USB/SDIO/GSPI = 0/1/2/3 */
-	u8			SupportInterface;
 	/*  ODM composite or independent. Bit oriented/ 92C+92D+ .... or any other type = 1/2/3/... */
 	u32			SupportICType;
 	/*  Cut Version TestChip/A-cut/B-cut... = 0/1/2/3/... */
 	u8			CutVersion;
 	/*  Fab Version TSMC/UMC = 0/1 */
 	u8			FabVersion;
-	/*  RF Type 4T4R/3T3R/2T2R/1T2R/1T1R/... */
-	u8			RFType;
 	/*  Board Type Normal/HighPower/MiniCard/SLIM/Combo/... = 0/1/2/3/4/... */
 	u8			BoardType;
 	/*  with external LNA  NO/Yes = 0/1 */
@@ -663,7 +570,6 @@ struct dm_odm_t {
 	u8			ExtPA;
 	/*  with external TRSW  NO/Yes = 0/1 */
 	u8			ExtTRSW;
-	u8			PatchID; /* Customer ID */
 	bool			bInHctTest;
 	bool			bWIFITest;
 
@@ -703,14 +609,6 @@ struct dm_odm_t {
 	/*  2012/01/12 MH For MP, we need to reduce one array pointer for default port.?? */
 	struct sta_info *		pODM_StaInfo[ODM_ASSOCIATE_ENTRY_NUM];
 
-	/*  */
-	/*  2012/02/14 MH Add to share 88E ra with other SW team. */
-	/*  We need to colelct all support abilit to a proper area. */
-	/*  */
-	bool				RaSupport88E;
-
-	/*  Define ........... */
-
 	/*  Latest packet phy info (ODM write) */
 	struct odm_phy_dbg_info	 PhyDbgInfo;
 	/* PHY_INFO_88E		PhyInfo; */
@@ -728,11 +626,8 @@ struct dm_odm_t {
 	/*  */
 	/* ODM Structure */
 	/*  */
-	struct odm_fat_t		DM_FatTable;
 	struct dig_t	DM_DigTable;
 	struct dynamic_pwr_sav		DM_PSTable;
-	struct pri_cca	DM_PriCCA;
-	struct rx_hp		DM_RXHP_Table;
 	struct false_alarm_stats	FalseAlmCnt;
 	struct false_alarm_stats	FlaseAlmCntBuddyAdapter;
 	struct sw_ant_sw		DM_SWAT_Table;
@@ -745,32 +640,11 @@ struct dm_odm_t {
 	/*  */
 
 	/* PSD */
-	bool			bUserAssignLevel;
-	u8			RSSI_BT;			/* come from BT */
-	bool			bPSDinProcess;
-
-	/* for rate adaptive, in fact,  88c/92c fw will handle this */
-	u8			bUseRAMask;
-
+	u8			RSSI_BT;		/* come from BT */
 	struct odm_rate_adapt	RateAdaptive;
 
 
 	struct odm_rf_cal_t	RFCalibrateInfo;
-
-	/*  */
-	/*  TX power tracking */
-	/*  */
-	u8			BbSwingIdxOfdm;
-	u8			BbSwingIdxOfdmCurrent;
-	u8			BbSwingIdxOfdmBase;
-	bool			BbSwingFlagOfdm;
-	u8			BbSwingIdxCck;
-	u8			BbSwingIdxCckCurrent;
-	u8			BbSwingIdxCckBase;
-	bool			BbSwingFlagCck;
-	/*  */
-	/*  ODM system resource. */
-	/*  */
 };	/*  DM_Dynamic_Mechanism_Structure */
 
 enum odm_rf_content {
@@ -982,7 +856,5 @@ void ODM_AntselStatistics_88C(struct dm_odm_t *pDM_Odm, u8 MacId, u32 PWDBAll, b
 void ODM_SingleDualAntennaDefaultSetting(struct dm_odm_t *pDM_Odm);
 
 bool ODM_SingleDualAntennaDetection(struct dm_odm_t *pDM_Odm, u8 mode);
-
-void odm_dtc(struct dm_odm_t *pDM_Odm);
 
 #endif

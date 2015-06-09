@@ -95,7 +95,7 @@ static const struct regmap_range_cfg da9150_range_cfg[] = {
 	},
 };
 
-static struct regmap_config da9150_regmap_config = {
+static const struct regmap_config da9150_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.ranges = da9150_range_cfg,

@@ -305,8 +305,7 @@ static irqreturn_t da9211_irq_handler(int irq, void *data)
 
 	if (reg_val & DA9211_E_OV_CURR_A) {
 		regulator_notifier_call_chain(chip->rdev[0],
-			REGULATOR_EVENT_OVER_CURRENT,
-			rdev_get_drvdata(chip->rdev[0]));
+			REGULATOR_EVENT_OVER_CURRENT, NULL);
 
 		err = regmap_write(chip->regmap, DA9211_REG_EVENT_B,
 			DA9211_E_OV_CURR_A);
@@ -318,8 +317,7 @@ static irqreturn_t da9211_irq_handler(int irq, void *data)
 
 	if (reg_val & DA9211_E_OV_CURR_B) {
 		regulator_notifier_call_chain(chip->rdev[1],
-			REGULATOR_EVENT_OVER_CURRENT,
-			rdev_get_drvdata(chip->rdev[1]));
+			REGULATOR_EVENT_OVER_CURRENT, NULL);
 
 		err = regmap_write(chip->regmap, DA9211_REG_EVENT_B,
 			DA9211_E_OV_CURR_B);
@@ -344,7 +342,7 @@ static int da9211_regulator_init(struct da9211 *chip)
 
 	ret = regmap_read(chip->regmap, DA9211_REG_CONFIG_E, &data);
 	if (ret < 0) {
-		dev_err(chip->dev, "Failed to read CONTROL_E reg: %d\n", ret);
+		dev_err(chip->dev, "Failed to read CONFIG_E reg: %d\n", ret);
 		return ret;
 	}
 

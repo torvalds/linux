@@ -7,6 +7,7 @@
  */
 #include <linux/clocksource.h>
 #include <linux/init.h>
+#include <linux/sched_clock.h>
 
 #include <asm/time.h>
 
@@ -22,6 +23,11 @@ static struct clocksource clocksource_mips = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
+static u64 notrace r4k_read_sched_clock(void)
+{
+	return read_c0_count();
+}
+
 int __init init_r4k_clocksource(void)
 {
 	if (!cpu_has_counter || !mips_hpt_frequency)
@@ -31,6 +37,8 @@ int __init init_r4k_clocksource(void)
 	clocksource_mips.rating = 200 + mips_hpt_frequency / 10000000;
 
 	clocksource_register_hz(&clocksource_mips, mips_hpt_frequency);
+
+	sched_clock_register(r4k_read_sched_clock, 32, mips_hpt_frequency);
 
 	return 0;
 }

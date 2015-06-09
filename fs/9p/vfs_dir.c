@@ -33,6 +33,7 @@
 #include <linux/inet.h>
 #include <linux/idr.h>
 #include <linux/slab.h>
+#include <linux/uio.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 
@@ -115,6 +116,7 @@ static int v9fs_dir_readdir(struct file *file, struct dir_context *ctx)
 	int buflen;
 	int reclen = 0;
 	struct p9_rdir *rdir;
+	struct kvec kvec;
 
 	p9_debug(P9_DEBUG_VFS, "name %pD\n", file);
 	fid = file->private_data;
@@ -124,16 +126,23 @@ static int v9fs_dir_readdir(struct file *file, struct dir_context *ctx)
 	rdir = v9fs_alloc_rdir_buf(file, buflen);
 	if (!rdir)
 		return -ENOMEM;
+	kvec.iov_base = rdir->buf;
+	kvec.iov_len = buflen;
 
 	while (1) {
 		if (rdir->tail == rdir->head) {
-			err = v9fs_file_readn(file, rdir->buf, NULL,
-							buflen, ctx->pos);
-			if (err <= 0)
+			struct iov_iter to;
+			int n;
+			iov_iter_kvec(&to, READ | ITER_KVEC, &kvec, 1, buflen);
+			n = p9_client_read(file->private_data, ctx->pos, &to,
+					   &err);
+			if (err)
 				return err;
+			if (n == 0)
+				return 0;
 
 			rdir->head = 0;
-			rdir->tail = err;
+			rdir->tail = n;
 		}
 		while (rdir->head < rdir->tail) {
 			p9stat_init(&st);

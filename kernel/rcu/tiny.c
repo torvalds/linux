@@ -103,8 +103,7 @@ EXPORT_SYMBOL(__rcu_is_watching);
 static int rcu_qsctr_help(struct rcu_ctrlblk *rcp)
 {
 	RCU_TRACE(reset_cpu_stall_ticks(rcp));
-	if (rcp->rcucblist != NULL &&
-	    rcp->donetail != rcp->curtail) {
+	if (rcp->donetail != rcp->curtail) {
 		rcp->donetail = rcp->curtail;
 		return 1;
 	}
@@ -168,17 +167,6 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 	struct rcu_head *next, *list;
 	unsigned long flags;
 	RCU_TRACE(int cb_count = 0);
-
-	/* If no RCU callbacks ready to invoke, just return. */
-	if (&rcp->rcucblist == rcp->donetail) {
-		RCU_TRACE(trace_rcu_batch_start(rcp->name, 0, 0, -1));
-		RCU_TRACE(trace_rcu_batch_end(rcp->name, 0,
-					      !!ACCESS_ONCE(rcp->rcucblist),
-					      need_resched(),
-					      is_idle_task(current),
-					      false));
-		return;
-	}
 
 	/* Move the ready-to-invoke callbacks to a local list. */
 	local_irq_save(flags);

@@ -93,6 +93,8 @@ sbc_emulate_readcapacity_16(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct se_session *sess = cmd->se_sess;
+	int pi_prot_type = dev->dev_attrib.pi_prot_type;
+
 	unsigned char *rbuf;
 	unsigned char buf[32];
 	unsigned long long blocks = dev->transport->get_blocks(dev);
@@ -114,8 +116,15 @@ sbc_emulate_readcapacity_16(struct se_cmd *cmd)
 	 * Set P_TYPE and PROT_EN bits for DIF support
 	 */
 	if (sess->sup_prot_ops & (TARGET_PROT_DIN_PASS | TARGET_PROT_DOUT_PASS)) {
-		if (dev->dev_attrib.pi_prot_type)
-			buf[12] = (dev->dev_attrib.pi_prot_type - 1) << 1 | 0x1;
+		/*
+		 * Only override a device's pi_prot_type if no T10-PI is
+		 * available, and sess_prot_type has been explicitly enabled.
+		 */
+		if (!pi_prot_type)
+			pi_prot_type = sess->sess_prot_type;
+
+		if (pi_prot_type)
+			buf[12] = (pi_prot_type - 1) << 1 | 0x1;
 	}
 
 	if (dev->transport->get_lbppbe)
@@ -312,7 +321,7 @@ sbc_setup_write_same(struct se_cmd *cmd, unsigned char *flags, struct sbc_ops *o
 	return 0;
 }
 
-static sense_reason_t xdreadwrite_callback(struct se_cmd *cmd)
+static sense_reason_t xdreadwrite_callback(struct se_cmd *cmd, bool success)
 {
 	unsigned char *buf, *addr;
 	struct scatterlist *sg;
@@ -376,7 +385,7 @@ sbc_execute_rw(struct se_cmd *cmd)
 			       cmd->data_direction);
 }
 
-static sense_reason_t compare_and_write_post(struct se_cmd *cmd)
+static sense_reason_t compare_and_write_post(struct se_cmd *cmd, bool success)
 {
 	struct se_device *dev = cmd->se_dev;
 
@@ -399,7 +408,7 @@ static sense_reason_t compare_and_write_post(struct se_cmd *cmd)
 	return TCM_NO_SENSE;
 }
 
-static sense_reason_t compare_and_write_callback(struct se_cmd *cmd)
+static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool success)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct scatterlist *write_sg = NULL, *sg;
@@ -414,10 +423,15 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd)
 
 	/*
 	 * Handle early failure in transport_generic_request_failure(),
-	 * which will not have taken ->caw_mutex yet..
+	 * which will not have taken ->caw_sem yet..
 	 */
-	if (!cmd->t_data_sg || !cmd->t_bidi_data_sg)
+	if (!success && (!cmd->t_data_sg || !cmd->t_bidi_data_sg))
 		return TCM_NO_SENSE;
+	/*
+	 * Handle special case for zero-length COMPARE_AND_WRITE
+	 */
+	if (!cmd->data_length)
+		goto out;
 	/*
 	 * Immediately exit + release dev->caw_sem if command has already
 	 * been failed with a non-zero SCSI status.
@@ -581,12 +595,13 @@ sbc_compare_and_write(struct se_cmd *cmd)
 }
 
 static int
-sbc_set_prot_op_checks(u8 protect, enum target_prot_type prot_type,
+sbc_set_prot_op_checks(u8 protect, bool fabric_prot, enum target_prot_type prot_type,
 		       bool is_write, struct se_cmd *cmd)
 {
 	if (is_write) {
-		cmd->prot_op = protect ? TARGET_PROT_DOUT_PASS :
-					 TARGET_PROT_DOUT_INSERT;
+		cmd->prot_op = fabric_prot ? TARGET_PROT_DOUT_STRIP :
+			       protect ? TARGET_PROT_DOUT_PASS :
+			       TARGET_PROT_DOUT_INSERT;
 		switch (protect) {
 		case 0x0:
 		case 0x3:
@@ -610,8 +625,9 @@ sbc_set_prot_op_checks(u8 protect, enum target_prot_type prot_type,
 			return -EINVAL;
 		}
 	} else {
-		cmd->prot_op = protect ? TARGET_PROT_DIN_PASS :
-					 TARGET_PROT_DIN_STRIP;
+		cmd->prot_op = fabric_prot ? TARGET_PROT_DIN_INSERT :
+			       protect ? TARGET_PROT_DIN_PASS :
+			       TARGET_PROT_DIN_STRIP;
 		switch (protect) {
 		case 0x0:
 		case 0x1:
@@ -644,11 +660,15 @@ sbc_check_prot(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb,
 	       u32 sectors, bool is_write)
 {
 	u8 protect = cdb[1] >> 5;
+	int sp_ops = cmd->se_sess->sup_prot_ops;
+	int pi_prot_type = dev->dev_attrib.pi_prot_type;
+	bool fabric_prot = false;
 
 	if (!cmd->t_prot_sg || !cmd->t_prot_nents) {
-		if (protect && !dev->dev_attrib.pi_prot_type) {
-			pr_err("CDB contains protect bit, but device does not"
-			       " advertise PROTECT=1 feature bit\n");
+		if (unlikely(protect &&
+		    !dev->dev_attrib.pi_prot_type && !cmd->se_sess->sess_prot_type)) {
+			pr_err("CDB contains protect bit, but device + fabric does"
+			       " not advertise PROTECT=1 feature bit\n");
 			return TCM_INVALID_CDB_FIELD;
 		}
 		if (cmd->prot_pto)
@@ -669,15 +689,32 @@ sbc_check_prot(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb,
 		cmd->reftag_seed = cmd->t_task_lba;
 		break;
 	case TARGET_DIF_TYPE0_PROT:
+		/*
+		 * See if the fabric supports T10-PI, and the session has been
+		 * configured to allow export PROTECT=1 feature bit with backend
+		 * devices that don't support T10-PI.
+		 */
+		fabric_prot = is_write ?
+			      !!(sp_ops & (TARGET_PROT_DOUT_PASS | TARGET_PROT_DOUT_STRIP)) :
+			      !!(sp_ops & (TARGET_PROT_DIN_PASS | TARGET_PROT_DIN_INSERT));
+
+		if (fabric_prot && cmd->se_sess->sess_prot_type) {
+			pi_prot_type = cmd->se_sess->sess_prot_type;
+			break;
+		}
+		if (!protect)
+			return TCM_NO_SENSE;
+		/* Fallthrough */
 	default:
-		return TCM_NO_SENSE;
+		pr_err("Unable to determine pi_prot_type for CDB: 0x%02x "
+		       "PROTECT: 0x%02x\n", cdb[0], protect);
+		return TCM_INVALID_CDB_FIELD;
 	}
 
-	if (sbc_set_prot_op_checks(protect, dev->dev_attrib.pi_prot_type,
-				   is_write, cmd))
+	if (sbc_set_prot_op_checks(protect, fabric_prot, pi_prot_type, is_write, cmd))
 		return TCM_INVALID_CDB_FIELD;
 
-	cmd->prot_type = dev->dev_attrib.pi_prot_type;
+	cmd->prot_type = pi_prot_type;
 	cmd->prot_length = dev->prot_length * sectors;
 
 	/**
@@ -708,8 +745,7 @@ sbc_check_dpofua(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb)
 		}
 	}
 	if (cdb[1] & 0x8) {
-		if (!dev->dev_attrib.emulate_fua_write ||
-		    !dev->dev_attrib.emulate_write_cache) {
+		if (!dev->dev_attrib.emulate_fua_write || !se_dev_check_wce(dev)) {
 			pr_err("Got CDB: 0x%02x with FUA bit set, but device"
 			       " does not advertise support for FUA write\n",
 			       cdb[0]);
@@ -1167,14 +1203,16 @@ sbc_dif_generate(struct se_cmd *cmd)
 			sdt = paddr + offset;
 			sdt->guard_tag = cpu_to_be16(crc_t10dif(daddr + j,
 						dev->dev_attrib.block_size));
-			if (dev->dev_attrib.pi_prot_type == TARGET_DIF_TYPE1_PROT)
+			if (cmd->prot_type == TARGET_DIF_TYPE1_PROT)
 				sdt->ref_tag = cpu_to_be32(sector & 0xffffffff);
 			sdt->app_tag = 0;
 
-			pr_debug("DIF WRITE INSERT sector: %llu guard_tag: 0x%04x"
+			pr_debug("DIF %s INSERT sector: %llu guard_tag: 0x%04x"
 				 " app_tag: 0x%04x ref_tag: %u\n",
-				 (unsigned long long)sector, sdt->guard_tag,
-				 sdt->app_tag, be32_to_cpu(sdt->ref_tag));
+				 (cmd->data_direction == DMA_TO_DEVICE) ?
+				 "WRITE" : "READ", (unsigned long long)sector,
+				 sdt->guard_tag, sdt->app_tag,
+				 be32_to_cpu(sdt->ref_tag));
 
 			sector++;
 			offset += sizeof(struct se_dif_v1_tuple);
@@ -1186,11 +1224,15 @@ sbc_dif_generate(struct se_cmd *cmd)
 }
 
 static sense_reason_t
-sbc_dif_v1_verify(struct se_device *dev, struct se_dif_v1_tuple *sdt,
+sbc_dif_v1_verify(struct se_cmd *cmd, struct se_dif_v1_tuple *sdt,
 		  const void *p, sector_t sector, unsigned int ei_lba)
 {
+	struct se_device *dev = cmd->se_dev;
 	int block_size = dev->dev_attrib.block_size;
 	__be16 csum;
+
+	if (!(cmd->prot_checks & TARGET_DIF_CHECK_GUARD))
+		goto check_ref;
 
 	csum = cpu_to_be16(crc_t10dif(p, block_size));
 
@@ -1201,7 +1243,11 @@ sbc_dif_v1_verify(struct se_device *dev, struct se_dif_v1_tuple *sdt,
 		return TCM_LOGICAL_BLOCK_GUARD_CHECK_FAILED;
 	}
 
-	if (dev->dev_attrib.pi_prot_type == TARGET_DIF_TYPE1_PROT &&
+check_ref:
+	if (!(cmd->prot_checks & TARGET_DIF_CHECK_REFTAG))
+		return 0;
+
+	if (cmd->prot_type == TARGET_DIF_TYPE1_PROT &&
 	    be32_to_cpu(sdt->ref_tag) != (sector & 0xffffffff)) {
 		pr_err("DIFv1 Type 1 reference failed on sector: %llu tag: 0x%08x"
 		       " sector MSB: 0x%08x\n", (unsigned long long)sector,
@@ -1209,7 +1255,7 @@ sbc_dif_v1_verify(struct se_device *dev, struct se_dif_v1_tuple *sdt,
 		return TCM_LOGICAL_BLOCK_REF_TAG_CHECK_FAILED;
 	}
 
-	if (dev->dev_attrib.pi_prot_type == TARGET_DIF_TYPE2_PROT &&
+	if (cmd->prot_type == TARGET_DIF_TYPE2_PROT &&
 	    be32_to_cpu(sdt->ref_tag) != ei_lba) {
 		pr_err("DIFv1 Type 2 reference failed on sector: %llu tag: 0x%08x"
 		       " ei_lba: 0x%08x\n", (unsigned long long)sector,
@@ -1229,6 +1275,9 @@ sbc_dif_copy_prot(struct se_cmd *cmd, unsigned int sectors, bool read,
 	void *paddr, *addr;
 	unsigned int i, len, left;
 	unsigned int offset = sg_off;
+
+	if (!sg)
+		return;
 
 	left = sectors * dev->prot_length;
 
@@ -1293,7 +1342,7 @@ sbc_dif_verify_write(struct se_cmd *cmd, sector_t start, unsigned int sectors,
 				 (unsigned long long)sector, sdt->guard_tag,
 				 sdt->app_tag, be32_to_cpu(sdt->ref_tag));
 
-			rc = sbc_dif_v1_verify(dev, sdt, daddr + j, sector,
+			rc = sbc_dif_v1_verify(cmd, sdt, daddr + j, sector,
 					       ei_lba);
 			if (rc) {
 				kunmap_atomic(paddr);
@@ -1310,6 +1359,9 @@ sbc_dif_verify_write(struct se_cmd *cmd, sector_t start, unsigned int sectors,
 		kunmap_atomic(paddr);
 		kunmap_atomic(daddr);
 	}
+	if (!sg)
+		return 0;
+
 	sbc_dif_copy_prot(cmd, sectors, false, sg, sg_off);
 
 	return 0;
@@ -1354,7 +1406,7 @@ __sbc_dif_verify_read(struct se_cmd *cmd, sector_t start, unsigned int sectors,
 				continue;
 			}
 
-			rc = sbc_dif_v1_verify(dev, sdt, daddr + j, sector,
+			rc = sbc_dif_v1_verify(cmd, sdt, daddr + j, sector,
 					       ei_lba);
 			if (rc) {
 				kunmap_atomic(paddr);

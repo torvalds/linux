@@ -12,8 +12,9 @@
 #ifndef __LINUX_BRIDGE_EFF_H
 #define __LINUX_BRIDGE_EFF_H
 
+#include <linux/if.h>
+#include <linux/if_ether.h>
 #include <uapi/linux/netfilter_bridge/ebtables.h>
-
 
 /* return values for match() functions */
 #define EBT_MATCH 0

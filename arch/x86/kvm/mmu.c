@@ -4465,6 +4465,73 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm,
 		kvm_flush_remote_tlbs(kvm);
 }
 
+static bool kvm_mmu_zap_collapsible_spte(struct kvm *kvm,
+		unsigned long *rmapp)
+{
+	u64 *sptep;
+	struct rmap_iterator iter;
+	int need_tlb_flush = 0;
+	pfn_t pfn;
+	struct kvm_mmu_page *sp;
+
+	for (sptep = rmap_get_first(*rmapp, &iter); sptep;) {
+		BUG_ON(!(*sptep & PT_PRESENT_MASK));
+
+		sp = page_header(__pa(sptep));
+		pfn = spte_to_pfn(*sptep);
+
+		/*
+		 * We cannot do huge page mapping for indirect shadow pages,
+		 * which are found on the last rmap (level = 1) when not using
+		 * tdp; such shadow pages are synced with the page table in
+		 * the guest, and the guest page table is using 4K page size
+		 * mapping if the indirect sp has level = 1.
+		 */
+		if (sp->role.direct &&
+			!kvm_is_reserved_pfn(pfn) &&
+			PageTransCompound(pfn_to_page(pfn))) {
+			drop_spte(kvm, sptep);
+			sptep = rmap_get_first(*rmapp, &iter);
+			need_tlb_flush = 1;
+		} else
+			sptep = rmap_get_next(&iter);
+	}
+
+	return need_tlb_flush;
+}
+
+void kvm_mmu_zap_collapsible_sptes(struct kvm *kvm,
+			struct kvm_memory_slot *memslot)
+{
+	bool flush = false;
+	unsigned long *rmapp;
+	unsigned long last_index, index;
+
+	spin_lock(&kvm->mmu_lock);
+
+	rmapp = memslot->arch.rmap[0];
+	last_index = gfn_to_index(memslot->base_gfn + memslot->npages - 1,
+				memslot->base_gfn, PT_PAGE_TABLE_LEVEL);
+
+	for (index = 0; index <= last_index; ++index, ++rmapp) {
+		if (*rmapp)
+			flush |= kvm_mmu_zap_collapsible_spte(kvm, rmapp);
+
+		if (need_resched() || spin_needbreak(&kvm->mmu_lock)) {
+			if (flush) {
+				kvm_flush_remote_tlbs(kvm);
+				flush = false;
+			}
+			cond_resched_lock(&kvm->mmu_lock);
+		}
+	}
+
+	if (flush)
+		kvm_flush_remote_tlbs(kvm);
+
+	spin_unlock(&kvm->mmu_lock);
+}
+
 void kvm_mmu_slot_leaf_clear_dirty(struct kvm *kvm,
 				   struct kvm_memory_slot *memslot)
 {

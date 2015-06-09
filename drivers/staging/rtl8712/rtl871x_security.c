@@ -153,7 +153,7 @@ static u32 getcrc32(u8 *buf, u32 len)
 	u8 *p;
 	u32  crc;
 
-	if (bcrc32initialized == 0)
+	if (!bcrc32initialized)
 		crc32_init();
 	crc = 0xffffffff; /* preload shift register, per CRC-32 spec */
 	for (p = buf; len > 0; ++p, --len)
@@ -1045,7 +1045,7 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 	uint	frtype  = GetFrameType(pframe);
 	uint	frsubtype  = GetFrameSubType(pframe);
 
-	frsubtype = frsubtype >> 4;
+	frsubtype >>= 4;
 	memset((void *)mic_iv, 0, 16);
 	memset((void *)mic_header1, 0, 16);
 	memset((void *)mic_header2, 0, 16);
@@ -1086,7 +1086,7 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 	payload_remainder = plen % 16;
 	num_blocks = plen / 16;
 	/* Find start of payload */
-	payload_index = (hdrlen + 8);
+	payload_index = hdrlen + 8;
 	/* Calculate MIC */
 	aes128k128d(key, mic_iv, aes_out);
 	bitwise_xor(aes_out, mic_header1, chain_buffer);
@@ -1216,7 +1216,7 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 	uint frtype  = GetFrameType(pframe);
 	uint frsubtype  = GetFrameSubType(pframe);
 
-	frsubtype = frsubtype >> 4;
+	frsubtype >>= 4;
 	memset((void *)mic_iv, 0, 16);
 	memset((void *)mic_header1, 0, 16);
 	memset((void *)mic_header2, 0, 16);
@@ -1292,7 +1292,7 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 	payload_remainder = (plen - 8) % 16;
 	num_blocks = (plen - 8) / 16;
 	/* Find start of payload */
-	payload_index = (hdrlen + 8);
+	payload_index = hdrlen + 8;
 	/* Calculate MIC */
 	aes128k128d(key, mic_iv, aes_out);
 	bitwise_xor(aes_out, mic_header1, chain_buffer);
@@ -1392,9 +1392,9 @@ u32 r8712_aes_decrypt(struct _adapter *padapter, u8 *precvframe)
 	return _SUCCESS;
 }
 
-void r8712_use_tkipkey_handler(void *FunctionContext)
+void r8712_use_tkipkey_handler(unsigned long data)
 {
-	struct _adapter *padapter = (struct _adapter *)FunctionContext;
+	struct _adapter *padapter = (struct _adapter *)data;
 
 	padapter->securitypriv.busetkipkey = true;
 }

@@ -92,7 +92,7 @@ bool scm_reserve_cluster(struct scm_request *scmrq)
 			add = 0;
 			continue;
 		}
-		for (pos = 0; pos <= iter->aob->request.msb_count; pos++) {
+		for (pos = 0; pos < iter->aob->request.msb_count; pos++) {
 			if (clusters_intersect(req, iter->request[pos]) &&
 			    (rq_data_dir(req) == WRITE ||
 			     rq_data_dir(iter->request[pos]) == WRITE)) {

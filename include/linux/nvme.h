@@ -117,8 +117,9 @@ struct nvme_ns {
 
 	unsigned ns_id;
 	int lba_shift;
-	int ms;
-	int pi_type;
+	u16 ms;
+	bool ext;
+	u8 pi_type;
 	u64 mode_select_num_blocks;
 	u32 mode_select_block_len;
 };

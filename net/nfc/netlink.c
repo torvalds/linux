@@ -1584,7 +1584,7 @@ static const struct genl_ops nfc_genl_ops[] = {
 
 struct urelease_work {
 	struct	work_struct w;
-	int	portid;
+	u32	portid;
 };
 
 static void nfc_urelease_event_work(struct work_struct *work)

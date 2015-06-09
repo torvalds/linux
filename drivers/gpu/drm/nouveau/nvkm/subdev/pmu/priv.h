@@ -40,4 +40,6 @@ struct nvkm_pmu_impl {
 
 	void (*pgob)(struct nvkm_pmu *, bool);
 };
+
+void gk110_pmu_pgob(struct nvkm_pmu *, bool);
 #endif

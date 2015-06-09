@@ -851,9 +851,9 @@ gk104_grctx_generate_bundle(struct gf100_grctx *info)
 	const int s = 8;
 	const int b = mmio_vram(info, impl->bundle_size, (1 << s), access);
 	mmio_refn(info, 0x408004, 0x00000000, s, b);
-	mmio_refn(info, 0x408008, 0x80000000 | (impl->bundle_size >> s), 0, b);
+	mmio_wr32(info, 0x408008, 0x80000000 | (impl->bundle_size >> s));
 	mmio_refn(info, 0x418808, 0x00000000, s, b);
-	mmio_refn(info, 0x41880c, 0x80000000 | (impl->bundle_size >> s), 0, b);
+	mmio_wr32(info, 0x41880c, 0x80000000 | (impl->bundle_size >> s));
 	mmio_wr32(info, 0x4064c8, (state_limit << 16) | token_limit);
 }
 
@@ -941,6 +941,14 @@ gk104_grctx_generate_r418bb8(struct gf100_gr_priv *priv)
 }
 
 void
+gk104_grctx_generate_rop_active_fbps(struct gf100_gr_priv *priv)
+{
+	const u32 fbp_count = nv_rd32(priv, 0x120074);
+	nv_mask(priv, 0x408850, 0x0000000f, fbp_count); /* zrop */
+	nv_mask(priv, 0x408958, 0x0000000f, fbp_count); /* crop */
+}
+
+void
 gk104_grctx_generate_main(struct gf100_gr_priv *priv, struct gf100_grctx *info)
 {
 	struct gf100_grctx_oclass *oclass = (void *)nv_engine(priv)->cclass;
@@ -970,13 +978,7 @@ gk104_grctx_generate_main(struct gf100_gr_priv *priv, struct gf100_grctx *info)
 		nv_wr32(priv, 0x4064d0 + (i * 0x04), 0x00000000);
 
 	nv_wr32(priv, 0x405b00, (priv->tpc_total << 8) | priv->gpc_nr);
-	if (priv->gpc_nr == 1) {
-		nv_mask(priv, 0x408850, 0x0000000f, priv->tpc_nr[0]);
-		nv_mask(priv, 0x408958, 0x0000000f, priv->tpc_nr[0]);
-	} else {
-		nv_mask(priv, 0x408850, 0x0000000f, priv->gpc_nr);
-		nv_mask(priv, 0x408958, 0x0000000f, priv->gpc_nr);
-	}
+	gk104_grctx_generate_rop_active_fbps(priv);
 	nv_mask(priv, 0x419f78, 0x00000001, 0x00000000);
 
 	gf100_gr_icmd(priv, oclass->icmd);

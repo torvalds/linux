@@ -1146,6 +1146,10 @@ static int ceph_write_begin(struct file *file, struct address_space *mapping,
 		     inode, page, (int)pos, (int)len);
 
 		r = ceph_update_writeable_page(file, pos, len, page);
+		if (r < 0)
+			page_cache_release(page);
+		else
+			*pagep = page;
 	} while (r == -EAGAIN);
 
 	return r;
@@ -1198,8 +1202,7 @@ static int ceph_write_end(struct file *file, struct address_space *mapping,
  * intercept O_DIRECT reads and writes early, this function should
  * never get called.
  */
-static ssize_t ceph_direct_io(int rw, struct kiocb *iocb,
-			      struct iov_iter *iter,
+static ssize_t ceph_direct_io(struct kiocb *iocb, struct iov_iter *iter,
 			      loff_t pos)
 {
 	WARN_ON(1);
@@ -1535,19 +1538,27 @@ int ceph_uninline_data(struct file *filp, struct page *locked_page)
 
 	osd_req_op_extent_osd_data_pages(req, 1, &page, len, 0, false, false);
 
-	err = osd_req_op_xattr_init(req, 0, CEPH_OSD_OP_CMPXATTR,
-				    "inline_version", &inline_version,
-				    sizeof(inline_version),
-				    CEPH_OSD_CMPXATTR_OP_GT,
-				    CEPH_OSD_CMPXATTR_MODE_U64);
-	if (err)
-		goto out_put;
+	{
+		__le64 xattr_buf = cpu_to_le64(inline_version);
+		err = osd_req_op_xattr_init(req, 0, CEPH_OSD_OP_CMPXATTR,
+					    "inline_version", &xattr_buf,
+					    sizeof(xattr_buf),
+					    CEPH_OSD_CMPXATTR_OP_GT,
+					    CEPH_OSD_CMPXATTR_MODE_U64);
+		if (err)
+			goto out_put;
+	}
 
-	err = osd_req_op_xattr_init(req, 2, CEPH_OSD_OP_SETXATTR,
-				    "inline_version", &inline_version,
-				    sizeof(inline_version), 0, 0);
-	if (err)
-		goto out_put;
+	{
+		char xattr_buf[32];
+		int xattr_len = snprintf(xattr_buf, sizeof(xattr_buf),
+					 "%llu", inline_version);
+		err = osd_req_op_xattr_init(req, 2, CEPH_OSD_OP_SETXATTR,
+					    "inline_version",
+					    xattr_buf, xattr_len, 0, 0);
+		if (err)
+			goto out_put;
+	}
 
 	ceph_osdc_build_request(req, 0, NULL, CEPH_NOSNAP, &inode->i_mtime);
 	err = ceph_osdc_start_request(&fsc->client->osdc, req, false);

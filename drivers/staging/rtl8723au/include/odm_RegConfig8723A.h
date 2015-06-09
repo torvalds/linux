@@ -20,9 +20,8 @@ void odm_ConfigRFReg_8723A(struct dm_odm_t *pDM_Odm, u32 Addr, u32 Data,
 
 void odm_ConfigMAC_8723A(struct dm_odm_t *pDM_Odm, u32 Addr, u8 Data);
 
-void odm_ConfigBB_AGC_8723A(struct dm_odm_t *pDM_Odm, u32 Addr,
-			    u32 Bitmask, u32 Data);
+void odm_ConfigBB_AGC_8723A(struct dm_odm_t *pDM_Odm, u32 addr, u32 data);
 
-void odm_ConfigBB_PHY_8723A(struct dm_odm_t *pDM_Odm, u32 Addr, u32 Bitmask, u32 Data);
+void odm_ConfigBB_PHY_8723A(struct dm_odm_t *pDM_Odm, u32 addr, u32 data);
 
 #endif /*  end of SUPPORT */

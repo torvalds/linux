@@ -28,6 +28,7 @@ struct rsnd_gen {
 
 	struct regmap *regmap[RSND_BASE_MAX];
 	struct regmap_field *regs[RSND_REG_MAX];
+	phys_addr_t res[RSND_REG_MAX];
 };
 
 #define rsnd_priv_to_gen(p)	((struct rsnd_gen *)(p)->gen)
@@ -118,11 +119,19 @@ void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod,
 				  mask, data);
 }
 
-#define rsnd_gen_regmap_init(priv, id_size, reg_id, conf)		\
-	_rsnd_gen_regmap_init(priv, id_size, reg_id, conf, ARRAY_SIZE(conf))
+phys_addr_t rsnd_gen_get_phy_addr(struct rsnd_priv *priv, int reg_id)
+{
+	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
+
+	return	gen->res[reg_id];
+}
+
+#define rsnd_gen_regmap_init(priv, id_size, reg_id, name, conf)		\
+	_rsnd_gen_regmap_init(priv, id_size, reg_id, name, conf, ARRAY_SIZE(conf))
 static int _rsnd_gen_regmap_init(struct rsnd_priv *priv,
 				 int id_size,
 				 int reg_id,
+				 const char *name,
 				 struct rsnd_regmap_field_conf *conf,
 				 int conf_size)
 {
@@ -141,8 +150,11 @@ static int _rsnd_gen_regmap_init(struct rsnd_priv *priv,
 	regc.reg_bits = 32;
 	regc.val_bits = 32;
 	regc.reg_stride = 4;
+	regc.name = name;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, reg_id);
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
+	if (!res)
+		res = platform_get_resource(pdev, IORESOURCE_MEM, reg_id);
 	if (!res)
 		return -ENODEV;
 
@@ -156,6 +168,7 @@ static int _rsnd_gen_regmap_init(struct rsnd_priv *priv,
 
 	gen->base[reg_id] = base;
 	gen->regmap[reg_id] = regmap;
+	gen->res[reg_id] = res->start;
 
 	for (i = 0; i < conf_size; i++) {
 
@@ -176,125 +189,11 @@ static int _rsnd_gen_regmap_init(struct rsnd_priv *priv,
 }
 
 /*
- *	DMA read/write register offset
- *
- *	RSND_xxx_I_N	for Audio DMAC input
- *	RSND_xxx_O_N	for Audio DMAC output
- *	RSND_xxx_I_P	for Audio DMAC peri peri input
- *	RSND_xxx_O_P	for Audio DMAC peri peri output
- *
- *	ex) R-Car H2 case
- *	      mod        / DMAC in    / DMAC out   / DMAC PP in / DMAC pp out
- *	SSI : 0xec541000 / 0xec241008 / 0xec24100c
- *	SSIU: 0xec541000 / 0xec100000 / 0xec100000 / 0xec400000 / 0xec400000
- *	SCU : 0xec500000 / 0xec000000 / 0xec004000 / 0xec300000 / 0xec304000
- *	CMD : 0xec500000 /            / 0xec008000                0xec308000
- */
-#define RDMA_SSI_I_N(addr, i)	(addr ##_reg - 0x00300000 + (0x40 * i) + 0x8)
-#define RDMA_SSI_O_N(addr, i)	(addr ##_reg - 0x00300000 + (0x40 * i) + 0xc)
-
-#define RDMA_SSIU_I_N(addr, i)	(addr ##_reg - 0x00441000 + (0x1000 * i))
-#define RDMA_SSIU_O_N(addr, i)	(addr ##_reg - 0x00441000 + (0x1000 * i))
-
-#define RDMA_SSIU_I_P(addr, i)	(addr ##_reg - 0x00141000 + (0x1000 * i))
-#define RDMA_SSIU_O_P(addr, i)	(addr ##_reg - 0x00141000 + (0x1000 * i))
-
-#define RDMA_SRC_I_N(addr, i)	(addr ##_reg - 0x00500000 + (0x400 * i))
-#define RDMA_SRC_O_N(addr, i)	(addr ##_reg - 0x004fc000 + (0x400 * i))
-
-#define RDMA_SRC_I_P(addr, i)	(addr ##_reg - 0x00200000 + (0x400 * i))
-#define RDMA_SRC_O_P(addr, i)	(addr ##_reg - 0x001fc000 + (0x400 * i))
-
-#define RDMA_CMD_O_N(addr, i)	(addr ##_reg - 0x004f8000 + (0x400 * i))
-#define RDMA_CMD_O_P(addr, i)	(addr ##_reg - 0x001f8000 + (0x400 * i))
-
-static dma_addr_t
-rsnd_gen2_dma_addr(struct rsnd_priv *priv,
-		   struct rsnd_mod *mod,
-		   int is_play, int is_from)
-{
-	struct platform_device *pdev = rsnd_priv_to_pdev(priv);
-	struct device *dev = rsnd_priv_to_dev(priv);
-	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
-	dma_addr_t ssi_reg = platform_get_resource(pdev,
-				IORESOURCE_MEM, RSND_GEN2_SSI)->start;
-	dma_addr_t src_reg = platform_get_resource(pdev,
-				IORESOURCE_MEM, RSND_GEN2_SCU)->start;
-	int is_ssi = !!(rsnd_io_to_mod_ssi(io) == mod);
-	int use_src = !!rsnd_io_to_mod_src(io);
-	int use_dvc = !!rsnd_io_to_mod_dvc(io);
-	int id = rsnd_mod_id(mod);
-	struct dma_addr {
-		dma_addr_t out_addr;
-		dma_addr_t in_addr;
-	} dma_addrs[3][2][3] = {
-		/* SRC */
-		{{{ 0,				0 },
-		/* Capture */
-		  { RDMA_SRC_O_N(src, id),	RDMA_SRC_I_P(src, id) },
-		  { RDMA_CMD_O_N(src, id),	RDMA_SRC_I_P(src, id) } },
-		 /* Playback */
-		 {{ 0,				0, },
-		  { RDMA_SRC_O_P(src, id),	RDMA_SRC_I_N(src, id) },
-		  { RDMA_CMD_O_P(src, id),	RDMA_SRC_I_N(src, id) } }
-		},
-		/* SSI */
-		/* Capture */
-		{{{ RDMA_SSI_O_N(ssi, id),	0 },
-		  { RDMA_SSIU_O_P(ssi, id),	0 },
-		  { RDMA_SSIU_O_P(ssi, id),	0 } },
-		 /* Playback */
-		 {{ 0,				RDMA_SSI_I_N(ssi, id) },
-		  { 0,				RDMA_SSIU_I_P(ssi, id) },
-		  { 0,				RDMA_SSIU_I_P(ssi, id) } }
-		},
-		/* SSIU */
-		/* Capture */
-		{{{ RDMA_SSIU_O_N(ssi, id),	0 },
-		  { RDMA_SSIU_O_P(ssi, id),	0 },
-		  { RDMA_SSIU_O_P(ssi, id),	0 } },
-		 /* Playback */
-		 {{ 0,				RDMA_SSIU_I_N(ssi, id) },
-		  { 0,				RDMA_SSIU_I_P(ssi, id) },
-		  { 0,				RDMA_SSIU_I_P(ssi, id) } } },
-	};
-
-	/* it shouldn't happen */
-	if (use_dvc && !use_src)
-		dev_err(dev, "DVC is selected without SRC\n");
-
-	/* use SSIU or SSI ? */
-	if (is_ssi && (0 == strcmp(rsnd_mod_dma_name(mod), "ssiu")))
-		is_ssi++;
-
-	return (is_from) ?
-		dma_addrs[is_ssi][is_play][use_src + use_dvc].out_addr :
-		dma_addrs[is_ssi][is_play][use_src + use_dvc].in_addr;
-}
-
-dma_addr_t rsnd_gen_dma_addr(struct rsnd_priv *priv,
-			     struct rsnd_mod *mod,
-			     int is_play, int is_from)
-{
-	/*
-	 * gen1 uses default DMA addr
-	 */
-	if (rsnd_is_gen1(priv))
-		return 0;
-
-	if (!mod)
-		return 0;
-
-	return rsnd_gen2_dma_addr(priv, mod, is_play, is_from);
-}
-
-/*
  *		Gen2
  */
 static int rsnd_gen2_probe(struct platform_device *pdev,
 			   struct rsnd_priv *priv)
 {
-	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_regmap_field_conf conf_ssiu[] = {
 		RSND_GEN_S_REG(SSI_MODE0,	0x800),
 		RSND_GEN_S_REG(SSI_MODE1,	0x804),
@@ -368,17 +267,15 @@ static int rsnd_gen2_probe(struct platform_device *pdev,
 	int ret_adg;
 	int ret_ssi;
 
-	ret_ssiu = rsnd_gen_regmap_init(priv, 10, RSND_GEN2_SSIU, conf_ssiu);
-	ret_scu  = rsnd_gen_regmap_init(priv, 10, RSND_GEN2_SCU,  conf_scu);
-	ret_adg  = rsnd_gen_regmap_init(priv, 10, RSND_GEN2_ADG,  conf_adg);
-	ret_ssi  = rsnd_gen_regmap_init(priv, 10, RSND_GEN2_SSI,  conf_ssi);
+	ret_ssiu = rsnd_gen_regmap_init(priv, 10, RSND_GEN2_SSIU, "ssiu", conf_ssiu);
+	ret_scu  = rsnd_gen_regmap_init(priv, 10, RSND_GEN2_SCU,  "scu",  conf_scu);
+	ret_adg  = rsnd_gen_regmap_init(priv, 10, RSND_GEN2_ADG,  "adg",  conf_adg);
+	ret_ssi  = rsnd_gen_regmap_init(priv, 10, RSND_GEN2_SSI,  "ssi",  conf_ssi);
 	if (ret_ssiu < 0 ||
 	    ret_scu  < 0 ||
 	    ret_adg  < 0 ||
 	    ret_ssi  < 0)
 		return ret_ssiu | ret_scu | ret_adg | ret_ssi;
-
-	dev_dbg(dev, "Gen2 is probed\n");
 
 	return 0;
 }
@@ -390,7 +287,6 @@ static int rsnd_gen2_probe(struct platform_device *pdev,
 static int rsnd_gen1_probe(struct platform_device *pdev,
 			   struct rsnd_priv *priv)
 {
-	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_regmap_field_conf conf_sru[] = {
 		RSND_GEN_S_REG(SRC_ROUTE_SEL,	0x00),
 		RSND_GEN_S_REG(SRC_TMG_SEL0,	0x08),
@@ -440,15 +336,13 @@ static int rsnd_gen1_probe(struct platform_device *pdev,
 	int ret_adg;
 	int ret_ssi;
 
-	ret_sru  = rsnd_gen_regmap_init(priv, 9, RSND_GEN1_SRU,  conf_sru);
-	ret_adg  = rsnd_gen_regmap_init(priv, 9, RSND_GEN1_ADG,  conf_adg);
-	ret_ssi  = rsnd_gen_regmap_init(priv, 9, RSND_GEN1_SSI,  conf_ssi);
+	ret_sru  = rsnd_gen_regmap_init(priv, 9, RSND_GEN1_SRU, "sru", conf_sru);
+	ret_adg  = rsnd_gen_regmap_init(priv, 9, RSND_GEN1_ADG, "adg", conf_adg);
+	ret_ssi  = rsnd_gen_regmap_init(priv, 9, RSND_GEN1_SSI, "ssi", conf_ssi);
 	if (ret_sru  < 0 ||
 	    ret_adg  < 0 ||
 	    ret_ssi  < 0)
 		return ret_sru | ret_adg | ret_ssi;
-
-	dev_dbg(dev, "Gen1 is probed\n");
 
 	return 0;
 }

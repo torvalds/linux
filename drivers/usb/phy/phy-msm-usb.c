@@ -142,27 +142,22 @@ static int msm_hsusb_ldo_set_mode(struct msm_otg *motg, int on)
 	int ret = 0;
 
 	if (on) {
-		ret = regulator_set_optimum_mode(motg->v1p8,
-				USB_PHY_1P8_HPM_LOAD);
+		ret = regulator_set_load(motg->v1p8, USB_PHY_1P8_HPM_LOAD);
 		if (ret < 0) {
 			pr_err("Could not set HPM for v1p8\n");
 			return ret;
 		}
-		ret = regulator_set_optimum_mode(motg->v3p3,
-				USB_PHY_3P3_HPM_LOAD);
+		ret = regulator_set_load(motg->v3p3, USB_PHY_3P3_HPM_LOAD);
 		if (ret < 0) {
 			pr_err("Could not set HPM for v3p3\n");
-			regulator_set_optimum_mode(motg->v1p8,
-				USB_PHY_1P8_LPM_LOAD);
+			regulator_set_load(motg->v1p8, USB_PHY_1P8_LPM_LOAD);
 			return ret;
 		}
 	} else {
-		ret = regulator_set_optimum_mode(motg->v1p8,
-				USB_PHY_1P8_LPM_LOAD);
+		ret = regulator_set_load(motg->v1p8, USB_PHY_1P8_LPM_LOAD);
 		if (ret < 0)
 			pr_err("Could not set LPM for v1p8\n");
-		ret = regulator_set_optimum_mode(motg->v3p3,
-				USB_PHY_3P3_LPM_LOAD);
+		ret = regulator_set_load(motg->v3p3, USB_PHY_3P3_LPM_LOAD);
 		if (ret < 0)
 			pr_err("Could not set LPM for v3p3\n");
 	}
@@ -263,9 +258,7 @@ static int msm_otg_link_clk_reset(struct msm_otg *motg, bool assert)
 {
 	int ret;
 
-	if (motg->pdata->link_clk_reset)
-		ret = motg->pdata->link_clk_reset(motg->clk, assert);
-	else if (assert)
+	if (assert)
 		ret = reset_control_assert(motg->link_rst);
 	else
 		ret = reset_control_deassert(motg->link_rst);
@@ -281,9 +274,7 @@ static int msm_otg_phy_clk_reset(struct msm_otg *motg)
 {
 	int ret = 0;
 
-	if (motg->pdata->phy_clk_reset)
-		ret = motg->pdata->phy_clk_reset(motg->phy_reset_clk);
-	else if (motg->phy_rst)
+	if (motg->phy_rst)
 		ret = reset_control_reset(motg->phy_rst);
 
 	if (ret)
@@ -1550,16 +1541,6 @@ static int msm_otg_probe(struct platform_device *pdev)
 
 	phy = &motg->phy;
 	phy->dev = &pdev->dev;
-
-	if (motg->pdata->phy_clk_reset) {
-		motg->phy_reset_clk = devm_clk_get(&pdev->dev,
-					   np ? "phy" : "usb_phy_clk");
-
-		if (IS_ERR(motg->phy_reset_clk)) {
-			dev_err(&pdev->dev, "failed to get usb_phy_clk\n");
-			return PTR_ERR(motg->phy_reset_clk);
-		}
-	}
 
 	motg->clk = devm_clk_get(&pdev->dev, np ? "core" : "usb_hs_clk");
 	if (IS_ERR(motg->clk)) {

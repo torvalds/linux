@@ -854,7 +854,6 @@ static int snd_pcm_oss_change_params(struct snd_pcm_substream *substream)
 	params = kmalloc(sizeof(*params), GFP_KERNEL);
 	sparams = kmalloc(sizeof(*sparams), GFP_KERNEL);
 	if (!sw_params || !params || !sparams) {
-		pcm_dbg(substream->pcm, "No memory\n");
 		err = -ENOMEM;
 		goto failure;
 	}

@@ -12,6 +12,7 @@
 #include <linux/pm.h>
 #include <linux/serial_core.h>
 #include <linux/slab.h>
+#include <linux/smc91x.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
@@ -258,12 +259,17 @@ static int neponset_probe(struct platform_device *dev)
 			0x02000000, "smc91x-attrib"),
 		{ .flags = IORESOURCE_IRQ },
 	};
+	struct smc91x_platdata smc91x_platdata = {
+		.flags = SMC91X_USE_8BIT | SMC91X_IO_SHIFT_2 | SMC91X_NOWAIT,
+	};
 	struct platform_device_info smc91x_devinfo = {
 		.parent = &dev->dev,
 		.name = "smc91x",
 		.id = 0,
 		.res = smc91x_resources,
 		.num_res = ARRAY_SIZE(smc91x_resources),
+		.data = &smc91x_platdata,
+		.size_data = sizeof(smc91x_platdata),
 	};
 	int ret, irq;
 

@@ -37,6 +37,7 @@ struct exynos_pm_domain {
 	struct clk *oscclk;
 	struct clk *clk[MAX_CLK_PER_DOMAIN];
 	struct clk *pclk[MAX_CLK_PER_DOMAIN];
+	struct clk *asb_clk[MAX_CLK_PER_DOMAIN];
 };
 
 static int exynos_pd_power(struct generic_pm_domain *domain, bool power_on)
@@ -45,14 +46,19 @@ static int exynos_pd_power(struct generic_pm_domain *domain, bool power_on)
 	void __iomem *base;
 	u32 timeout, pwr;
 	char *op;
+	int i;
 
 	pd = container_of(domain, struct exynos_pm_domain, pd);
 	base = pd->base;
 
+	for (i = 0; i < MAX_CLK_PER_DOMAIN; i++) {
+		if (IS_ERR(pd->asb_clk[i]))
+			break;
+		clk_prepare_enable(pd->asb_clk[i]);
+	}
+
 	/* Set oscclk before powering off a domain*/
 	if (!power_on) {
-		int i;
-
 		for (i = 0; i < MAX_CLK_PER_DOMAIN; i++) {
 			if (IS_ERR(pd->clk[i]))
 				break;
@@ -81,8 +87,6 @@ static int exynos_pd_power(struct generic_pm_domain *domain, bool power_on)
 
 	/* Restore clocks after powering on a domain*/
 	if (power_on) {
-		int i;
-
 		for (i = 0; i < MAX_CLK_PER_DOMAIN; i++) {
 			if (IS_ERR(pd->clk[i]))
 				break;
@@ -90,6 +94,12 @@ static int exynos_pd_power(struct generic_pm_domain *domain, bool power_on)
 				pr_err("%s: error setting parent to clock%d\n",
 						pd->name, i);
 		}
+	}
+
+	for (i = 0; i < MAX_CLK_PER_DOMAIN; i++) {
+		if (IS_ERR(pd->asb_clk[i]))
+			break;
+		clk_disable_unprepare(pd->asb_clk[i]);
 	}
 
 	return 0;
@@ -125,11 +135,20 @@ static __init int exynos4_pm_init_power_domain(void)
 			return -ENOMEM;
 		}
 
-		pd->pd.name = kstrdup(np->name, GFP_KERNEL);
+		pd->pd.name = kstrdup(dev_name(dev), GFP_KERNEL);
 		pd->name = pd->pd.name;
 		pd->base = of_iomap(np, 0);
 		pd->pd.power_off = exynos_pd_power_off;
 		pd->pd.power_on = exynos_pd_power_on;
+
+		for (i = 0; i < MAX_CLK_PER_DOMAIN; i++) {
+			char clk_name[8];
+
+			snprintf(clk_name, sizeof(clk_name), "asb%d", i);
+			pd->asb_clk[i] = clk_get(dev, clk_name);
+			if (IS_ERR(pd->asb_clk[i]))
+				break;
+		}
 
 		pd->oscclk = clk_get(dev, "oscclk");
 		if (IS_ERR(pd->oscclk))
@@ -159,6 +178,34 @@ no_clk:
 
 		pm_genpd_init(&pd->pd, NULL, !on);
 		of_genpd_add_provider_simple(np, &pd->pd);
+	}
+
+	/* Assign the child power domains to their parents */
+	for_each_compatible_node(np, NULL, "samsung,exynos4210-pd") {
+		struct generic_pm_domain *child_domain, *parent_domain;
+		struct of_phandle_args args;
+
+		args.np = np;
+		args.args_count = 0;
+		child_domain = of_genpd_get_from_provider(&args);
+		if (!child_domain)
+			continue;
+
+		if (of_parse_phandle_with_args(np, "power-domains",
+					 "#power-domain-cells", 0, &args) != 0)
+			continue;
+
+		parent_domain = of_genpd_get_from_provider(&args);
+		if (!parent_domain)
+			continue;
+
+		if (pm_genpd_add_subdomain(parent_domain, child_domain))
+			pr_warn("%s failed to add subdomain: %s\n",
+				parent_domain->name, child_domain->name);
+		else
+			pr_info("%s has as child subdomain: %s.\n",
+				parent_domain->name, child_domain->name);
+		of_node_put(np);
 	}
 
 	return 0;

@@ -174,7 +174,7 @@ request_gpios_match(struct fbtft_par *par, const struct fbtft_gpio *gpio)
 
 /* This function oses to enter commands
  * first byte - destination controller 0 or 1
- * folowing - commands
+ * following - commands
  */
 static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 {
@@ -198,8 +198,8 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 
 	if (*buf > 1) {
 		va_end(args);
-		dev_err(par->info->device, "%s: Incorrect chip sellect request (%d)\n",
-			__func__, *buf);
+		dev_err(par->info->device,
+			"Incorrect chip select request (%d)\n", *buf);
 		return;
 	}
 
@@ -224,8 +224,8 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 		ret = par->fbtftops.write(par, par->buf, len * (sizeof(u8)));
 		if (ret < 0) {
 			va_end(args);
-			dev_err(par->info->device, "%s: write() failed and returned %d\n",
-				__func__, ret);
+			dev_err(par->info->device,
+				"write() failed and returned %d\n", ret);
 			return;
 		}
 	}
@@ -278,9 +278,12 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 	int x, y;
 	int ret = 0;
 
-	/* buffer to convert RGB565 -> grayscale16 -> Ditherd image 1bpp */
+	/* buffer to convert RGB565 -> grayscale16 -> Dithered image 1bpp */
 	signed short *convert_buf = kmalloc(par->info->var.xres *
 		par->info->var.yres * sizeof(signed short), GFP_NOIO);
+
+	if (!convert_buf)
+		return -ENOMEM;
 
 	fbtft_par_dbg(DEBUG_WRITE_VMEM, par, "%s()\n", __func__);
 
@@ -376,8 +379,8 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 			ret = par->fbtftops.write(par, buf, len);
 			if (ret < 0)
 				dev_err(par->info->device,
-					"%s: write failed and returned: %d\n",
-					__func__, ret);
+					"write failed and returned: %d\n",
+					ret);
 		}
 		/* right half of display */
 		if (addr_win.xe >= par->info->var.xres / 2) {
@@ -390,7 +393,7 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 			/* select right side (sc1)
 			 * set addr
 			 */
-			write_reg(par, 0x01, (1 << 6));
+			write_reg(par, 0x01, 1 << 6);
 			write_reg(par, 0x01, (0x17 << 3) | (u8)y);
 
 			/* write bitmap */
@@ -398,8 +401,8 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 			par->fbtftops.write(par, buf, len);
 			if (ret < 0)
 				dev_err(par->info->device,
-					"%s: write failed and returned: %d\n",
-					__func__, ret);
+					"write failed and returned: %d\n",
+					ret);
 		}
 	}
 	kfree(convert_buf);

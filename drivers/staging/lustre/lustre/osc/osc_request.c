@@ -1165,8 +1165,8 @@ static int check_write_rcs(struct ptlrpc_request *req,
 static inline int can_merge_pages(struct brw_page *p1, struct brw_page *p2)
 {
 	if (p1->flag != p2->flag) {
-		unsigned mask = ~(OBD_BRW_FROM_GRANT| OBD_BRW_NOCACHE|
-				  OBD_BRW_SYNC|OBD_BRW_ASYNC|OBD_BRW_NOQUOTA);
+		unsigned mask = ~(OBD_BRW_FROM_GRANT | OBD_BRW_NOCACHE |
+				  OBD_BRW_SYNC | OBD_BRW_ASYNC|OBD_BRW_NOQUOTA);
 
 		/* warn if we try to combine flags that we don't know to be
 		 * safe to combine */
@@ -1880,6 +1880,7 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 	int				page_count = 0;
 	int				i;
 	int				rc;
+	struct ost_body			*body;
 	LIST_HEAD(rpc_list);
 
 	LASSERT(!list_empty(ext_list));
@@ -1981,6 +1982,8 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 	 * later setattr before earlier BRW (as determined by the request xid),
 	 * the OST will not use BRW timestamps.  Sadly, there is no obvious
 	 * way to do this in a single call.  bug 10150 */
+	body = req_capsule_client_get(&req->rq_pill, &RMF_OST_BODY);
+	crattr->cra_oa = &body->oa;
 	cl_req_attr_set(env, clerq, crattr,
 			OBD_MD_FLMTIME|OBD_MD_FLCTIME|OBD_MD_FLATIME);
 

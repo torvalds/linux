@@ -41,9 +41,18 @@
 #define SKB_BUFFER_SIZE		(XGENE_ENET_MAX_MTU - NET_IP_ALIGN)
 #define NUM_PKT_BUF	64
 #define NUM_BUFPOOL	32
-#define START_ETH_BUFNUM	2
-#define START_BP_BUFNUM		0x22
-#define START_RING_NUM		8
+
+#define START_CPU_BUFNUM_0	0
+#define START_ETH_BUFNUM_0	2
+#define START_BP_BUFNUM_0	0x22
+#define START_RING_NUM_0	8
+#define START_CPU_BUFNUM_1	12
+#define START_ETH_BUFNUM_1	10
+#define START_BP_BUFNUM_1	0x2A
+#define START_RING_NUM_1	264
+
+#define IRQ_ID_SIZE		16
+#define XGENE_MAX_TXC_RINGS	1
 
 #define PHY_POLL_LINK_ON	(10 * HZ)
 #define PHY_POLL_LINK_OFF	(PHY_POLL_LINK_ON / 5)
@@ -57,6 +66,7 @@ struct xgene_enet_desc_ring {
 	u16 tail;
 	u16 slots;
 	u16 irq;
+	char irq_name[IRQ_ID_SIZE];
 	u32 size;
 	u32 state[NUM_RING_CONFIG];
 	void __iomem *cmd_base;
@@ -111,6 +121,8 @@ struct xgene_enet_pdata {
 	u32 cp_qcnt_hi;
 	u32 cp_qcnt_low;
 	u32 rx_irq;
+	u32 txc_irq;
+	u8 cq_cnt;
 	void __iomem *eth_csr_addr;
 	void __iomem *eth_ring_if_addr;
 	void __iomem *eth_diag_csr_addr;
@@ -125,6 +137,11 @@ struct xgene_enet_pdata {
 	struct xgene_mac_ops *mac_ops;
 	struct xgene_port_ops *port_ops;
 	struct delayed_work link_work;
+	u32 port_id;
+	u8 cpu_bufnum;
+	u8 eth_bufnum;
+	u8 bp_bufnum;
+	u16 ring_num;
 };
 
 struct xgene_indirect_ctl {

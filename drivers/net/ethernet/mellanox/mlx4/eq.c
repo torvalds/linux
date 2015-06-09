@@ -153,12 +153,10 @@ void mlx4_gen_slave_eqe(struct work_struct *work)
 
 		/* All active slaves need to receive the event */
 		if (slave == ALL_SLAVES) {
-			for (i = 0; i < dev->num_slaves; i++) {
-				if (i != dev->caps.function &&
-				    master->slave_state[i].active)
-					if (mlx4_GEN_EQE(dev, i, eqe))
-						mlx4_warn(dev, "Failed to generate event for slave %d\n",
-							  i);
+			for (i = 0; i <= dev->persist->num_vfs; i++) {
+				if (mlx4_GEN_EQE(dev, i, eqe))
+					mlx4_warn(dev, "Failed to generate event for slave %d\n",
+						  i);
 			}
 		} else {
 			if (mlx4_GEN_EQE(dev, slave, eqe))
@@ -190,7 +188,7 @@ static void slave_event(struct mlx4_dev *dev, u8 slave, struct mlx4_eqe *eqe)
 	memcpy(s_eqe, eqe, dev->caps.eqe_size - 1);
 	s_eqe->slave_id = slave;
 	/* ensure all information is written before setting the ownersip bit */
-	wmb();
+	dma_wmb();
 	s_eqe->owner = !!(slave_eq->prod & SLAVE_EVENT_EQ_SIZE) ? 0x0 : 0x80;
 	++slave_eq->prod;
 
@@ -203,13 +201,11 @@ static void mlx4_slave_event(struct mlx4_dev *dev, int slave,
 			     struct mlx4_eqe *eqe)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
-	struct mlx4_slave_state *s_slave =
-		&priv->mfunc.master.slave_state[slave];
 
-	if (!s_slave->active) {
-		/*mlx4_warn(dev, "Trying to pass event to inactive slave\n");*/
+	if (slave < 0 || slave > dev->persist->num_vfs ||
+	    slave == dev->caps.function ||
+	    !priv->mfunc.master.slave_state[slave].active)
 		return;
-	}
 
 	slave_event(dev, slave, eqe);
 }
@@ -477,7 +473,7 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 		 * Make sure we read EQ entry contents after we've
 		 * checked the ownership bit.
 		 */
-		rmb();
+		dma_rmb();
 
 		switch (eqe->type) {
 		case MLX4_EVENT_TYPE_COMP:
@@ -706,6 +702,8 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 				priv->mfunc.master.slave_state[flr_slave].is_slave_going_down = 1;
 			}
 			spin_unlock_irqrestore(&priv->mfunc.master.slave_state_lock, flags);
+			mlx4_dispatch_event(dev, MLX4_DEV_EVENT_SLAVE_SHUTDOWN,
+					    flr_slave);
 			queue_work(priv->mfunc.master.comm_wq,
 				   &priv->mfunc.master.slave_flr_event_work);
 			break;

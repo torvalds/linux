@@ -437,8 +437,6 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 	return err;
 } /* class_handle_ioctl */
 
-extern struct miscdevice obd_psdev;
-
 #define OBD_INIT_CHECK
 int obd_init_checks(void)
 {
@@ -508,7 +506,6 @@ int obd_init_checks(void)
 	return ret;
 }
 
-extern spinlock_t obd_types_lock;
 #if defined (CONFIG_PROC_FS)
 extern int class_procfs_init(void);
 extern int class_procfs_clean(void);

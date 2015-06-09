@@ -103,11 +103,6 @@ enum vmk80xx_model {
 	VMK8061_MODEL
 };
 
-struct firmware_version {
-	unsigned char ic3_vers[32];	/* USB-Controller */
-	unsigned char ic6_vers[32];	/* CPU */
-};
-
 static const struct comedi_lrange vmk8061_range = {
 	2, {
 		UNI_RANGE(5),
@@ -156,67 +151,11 @@ static const struct vmk80xx_board vmk80xx_boardinfo[] = {
 struct vmk80xx_private {
 	struct usb_endpoint_descriptor *ep_rx;
 	struct usb_endpoint_descriptor *ep_tx;
-	struct firmware_version fw;
 	struct semaphore limit_sem;
 	unsigned char *usb_rx_buf;
 	unsigned char *usb_tx_buf;
 	enum vmk80xx_model model;
 };
-
-static int vmk80xx_check_data_link(struct comedi_device *dev)
-{
-	struct vmk80xx_private *devpriv = dev->private;
-	struct usb_device *usb = comedi_to_usb_dev(dev);
-	unsigned int tx_pipe;
-	unsigned int rx_pipe;
-	unsigned char tx[1];
-	unsigned char rx[2];
-
-	tx_pipe = usb_sndbulkpipe(usb, 0x01);
-	rx_pipe = usb_rcvbulkpipe(usb, 0x81);
-
-	tx[0] = VMK8061_CMD_RD_PWR_STAT;
-
-	/*
-	 * Check that IC6 (PIC16F871) is powered and
-	 * running and the data link between IC3 and
-	 * IC6 is working properly
-	 */
-	usb_bulk_msg(usb, tx_pipe, tx, 1, NULL, devpriv->ep_tx->bInterval);
-	usb_bulk_msg(usb, rx_pipe, rx, 2, NULL, HZ * 10);
-
-	return (int)rx[1];
-}
-
-static void vmk80xx_read_eeprom(struct comedi_device *dev, int flag)
-{
-	struct vmk80xx_private *devpriv = dev->private;
-	struct usb_device *usb = comedi_to_usb_dev(dev);
-	unsigned int tx_pipe;
-	unsigned int rx_pipe;
-	unsigned char tx[1];
-	unsigned char rx[64];
-	int cnt;
-
-	tx_pipe = usb_sndbulkpipe(usb, 0x01);
-	rx_pipe = usb_rcvbulkpipe(usb, 0x81);
-
-	tx[0] = VMK8061_CMD_RD_VERSION;
-
-	/*
-	 * Read the firmware version info of IC3 and
-	 * IC6 from the internal EEPROM of the IC
-	 */
-	usb_bulk_msg(usb, tx_pipe, tx, 1, NULL, devpriv->ep_tx->bInterval);
-	usb_bulk_msg(usb, rx_pipe, rx, 64, &cnt, HZ * 10);
-
-	rx[cnt] = '\0';
-
-	if (flag & IC3_VERSION)
-		strncpy(devpriv->fw.ic3_vers, rx + 1, 24);
-	else			/* IC6_VERSION */
-		strncpy(devpriv->fw.ic6_vers, rx + 25, 24);
-}
 
 static void vmk80xx_do_bulk_msg(struct comedi_device *dev)
 {
@@ -877,16 +816,6 @@ static int vmk80xx_auto_attach(struct comedi_device *dev,
 	sema_init(&devpriv->limit_sem, 8);
 
 	usb_set_intfdata(intf, devpriv);
-
-	if (devpriv->model == VMK8061_MODEL) {
-		vmk80xx_read_eeprom(dev, IC3_VERSION);
-		dev_info(&intf->dev, "%s\n", devpriv->fw.ic3_vers);
-
-		if (vmk80xx_check_data_link(dev)) {
-			vmk80xx_read_eeprom(dev, IC6_VERSION);
-			dev_info(&intf->dev, "%s\n", devpriv->fw.ic6_vers);
-		}
-	}
 
 	if (devpriv->model == VMK8055_MODEL)
 		vmk80xx_reset_device(dev);

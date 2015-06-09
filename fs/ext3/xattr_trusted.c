@@ -32,7 +32,7 @@ ext3_xattr_trusted_get(struct dentry *dentry, const char *name,
 {
 	if (strcmp(name, "") == 0)
 		return -EINVAL;
-	return ext3_xattr_get(dentry->d_inode, EXT3_XATTR_INDEX_TRUSTED,
+	return ext3_xattr_get(d_inode(dentry), EXT3_XATTR_INDEX_TRUSTED,
 			      name, buffer, size);
 }
 
@@ -42,7 +42,7 @@ ext3_xattr_trusted_set(struct dentry *dentry, const char *name,
 {
 	if (strcmp(name, "") == 0)
 		return -EINVAL;
-	return ext3_xattr_set(dentry->d_inode, EXT3_XATTR_INDEX_TRUSTED, name,
+	return ext3_xattr_set(d_inode(dentry), EXT3_XATTR_INDEX_TRUSTED, name,
 			      value, size, flags);
 }
 

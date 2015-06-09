@@ -2007,7 +2007,7 @@ static void hdmi_mode_set(struct exynos_drm_display *display,
 	DRM_DEBUG_KMS("xres=%d, yres=%d, refresh=%d, intl=%s\n",
 		m->hdisplay, m->vdisplay,
 		m->vrefresh, (m->flags & DRM_MODE_FLAG_INTERLACE) ?
-		"INTERLACED" : "PROGERESSIVE");
+		"INTERLACED" : "PROGRESSIVE");
 
 	/* preserve mode information for later use. */
 	drm_mode_copy(&hdata->current_mode, mode);
@@ -2101,7 +2101,7 @@ static void hdmi_dpms(struct exynos_drm_display *display, int mode)
 	struct hdmi_context *hdata = display_to_hdmi(display);
 	struct drm_encoder *encoder = hdata->encoder;
 	struct drm_crtc *crtc = encoder->crtc;
-	struct drm_crtc_helper_funcs *funcs = NULL;
+	const struct drm_crtc_helper_funcs *funcs = NULL;
 
 	DRM_DEBUG_KMS("mode %d\n", mode);
 

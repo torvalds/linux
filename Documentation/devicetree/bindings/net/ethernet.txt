@@ -19,6 +19,12 @@ The following properties are common to the Ethernet controllers:
 - phy: the same as "phy-handle" property, not recommended for new bindings.
 - phy-device: the same as "phy-handle" property, not recommended for new
   bindings.
+- rx-fifo-depth: the size of the controller's receive fifo in bytes. This
+  is used for components that can have configurable receive fifo sizes,
+  and is useful for determining certain configuration settings such as
+  flow control thresholds.
+- tx-fifo-depth: the size of the controller's transmit fifo in bytes. This
+  is used for components that can have configurable fifo sizes.
 
 Child nodes of the Ethernet controller are typically the individual PHY devices
 connected via the MDIO bus (sometimes the MDIO bus controller is separate).

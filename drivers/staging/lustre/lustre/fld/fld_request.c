@@ -217,10 +217,9 @@ int fld_client_add_target(struct lu_client_fld *fld,
 		CERROR("%s: Attempt to add target %s (idx %llu) on fly - skip it\n",
 			fld->lcf_name, name, tar->ft_idx);
 		return 0;
-	} else {
-		CDEBUG(D_INFO, "%s: Adding target %s (idx %llu)\n",
-		       fld->lcf_name, name, tar->ft_idx);
 	}
+	CDEBUG(D_INFO, "%s: Adding target %s (idx %llu)\n",
+			fld->lcf_name, name, tar->ft_idx);
 
 	OBD_ALLOC_PTR(target);
 	if (target == NULL)
@@ -280,7 +279,7 @@ EXPORT_SYMBOL(fld_client_del_target);
 
 static struct proc_dir_entry *fld_type_proc_dir;
 
-#if defined (CONFIG_PROC_FS)
+#if defined(CONFIG_PROC_FS)
 static int fld_client_proc_init(struct lu_client_fld *fld)
 {
 	int rc;
@@ -327,7 +326,6 @@ static int fld_client_proc_init(struct lu_client_fld *fld)
 
 void fld_client_proc_fini(struct lu_client_fld *fld)
 {
-	return;
 }
 #endif
 EXPORT_SYMBOL(fld_client_proc_fini);

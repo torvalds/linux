@@ -17,10 +17,9 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/interrupt.h>
 
-#include "comedidev.h"
+#include "comedi_pci.h"
 
 /**
  * comedi_to_pci_dev() - comedi_device pointer to pci_dev pointer.

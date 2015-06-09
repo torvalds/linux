@@ -65,6 +65,21 @@ static void atc_issue_pending(struct dma_chan *chan);
 
 /*----------------------------------------------------------------------*/
 
+static inline unsigned int atc_get_xfer_width(dma_addr_t src, dma_addr_t dst,
+						size_t len)
+{
+	unsigned int width;
+
+	if (!((src | dst  | len) & 3))
+		width = 2;
+	else if (!((src | dst | len) & 1))
+		width = 1;
+	else
+		width = 0;
+
+	return width;
+}
+
 static struct at_desc *atc_first_active(struct at_dma_chan *atchan)
 {
 	return list_first_entry(&atchan->active_list,
@@ -238,93 +253,126 @@ static void atc_dostart(struct at_dma_chan *atchan, struct at_desc *first)
 }
 
 /*
- * atc_get_current_descriptors -
- * locate the descriptor which equal to physical address in DSCR
- * @atchan: the channel we want to start
- * @dscr_addr: physical descriptor address in DSCR
+ * atc_get_desc_by_cookie - get the descriptor of a cookie
+ * @atchan: the DMA channel
+ * @cookie: the cookie to get the descriptor for
  */
-static struct at_desc *atc_get_current_descriptors(struct at_dma_chan *atchan,
-							u32 dscr_addr)
+static struct at_desc *atc_get_desc_by_cookie(struct at_dma_chan *atchan,
+						dma_cookie_t cookie)
 {
-	struct at_desc  *desc, *_desc, *child, *desc_cur = NULL;
+	struct at_desc *desc, *_desc;
+
+	list_for_each_entry_safe(desc, _desc, &atchan->queue, desc_node) {
+		if (desc->txd.cookie == cookie)
+			return desc;
+	}
 
 	list_for_each_entry_safe(desc, _desc, &atchan->active_list, desc_node) {
-		if (desc->lli.dscr == dscr_addr) {
-			desc_cur = desc;
-			break;
-		}
-
-		list_for_each_entry(child, &desc->tx_list, desc_node) {
-			if (child->lli.dscr == dscr_addr) {
-				desc_cur = child;
-				break;
-			}
-		}
+		if (desc->txd.cookie == cookie)
+			return desc;
 	}
 
-	return desc_cur;
+	return NULL;
 }
 
-/*
- * atc_get_bytes_left -
- * Get the number of bytes residue in dma buffer,
- * @chan: the channel we want to start
+/**
+ * atc_calc_bytes_left - calculates the number of bytes left according to the
+ * value read from CTRLA.
+ *
+ * @current_len: the number of bytes left before reading CTRLA
+ * @ctrla: the value of CTRLA
+ * @desc: the descriptor containing the transfer width
  */
-static int atc_get_bytes_left(struct dma_chan *chan)
+static inline int atc_calc_bytes_left(int current_len, u32 ctrla,
+					struct at_desc *desc)
+{
+	return current_len - ((ctrla & ATC_BTSIZE_MAX) << desc->tx_width);
+}
+
+/**
+ * atc_calc_bytes_left_from_reg - calculates the number of bytes left according
+ * to the current value of CTRLA.
+ *
+ * @current_len: the number of bytes left before reading CTRLA
+ * @atchan: the channel to read CTRLA for
+ * @desc: the descriptor containing the transfer width
+ */
+static inline int atc_calc_bytes_left_from_reg(int current_len,
+			struct at_dma_chan *atchan, struct at_desc *desc)
+{
+	u32 ctrla = channel_readl(atchan, CTRLA);
+
+	return atc_calc_bytes_left(current_len, ctrla, desc);
+}
+
+/**
+ * atc_get_bytes_left - get the number of bytes residue for a cookie
+ * @chan: DMA channel
+ * @cookie: transaction identifier to check status of
+ */
+static int atc_get_bytes_left(struct dma_chan *chan, dma_cookie_t cookie)
 {
 	struct at_dma_chan      *atchan = to_at_dma_chan(chan);
-	struct at_dma           *atdma = to_at_dma(chan->device);
-	int	chan_id = atchan->chan_common.chan_id;
 	struct at_desc *desc_first = atc_first_active(atchan);
-	struct at_desc *desc_cur;
-	int ret = 0, count = 0;
+	struct at_desc *desc;
+	int ret;
+	u32 ctrla, dscr;
 
 	/*
-	 * Initialize necessary values in the first time.
-	 * remain_desc record remain desc length.
+	 * If the cookie doesn't match to the currently running transfer then
+	 * we can return the total length of the associated DMA transfer,
+	 * because it is still queued.
 	 */
-	if (atchan->remain_desc == 0)
-		/* First descriptor embedds the transaction length */
-		atchan->remain_desc = desc_first->len;
+	desc = atc_get_desc_by_cookie(atchan, cookie);
+	if (desc == NULL)
+		return -EINVAL;
+	else if (desc != desc_first)
+		return desc->total_len;
 
-	/*
-	 * This happens when current descriptor transfer complete.
-	 * The residual buffer size should reduce current descriptor length.
-	 */
-	if (unlikely(test_bit(ATC_IS_BTC, &atchan->status))) {
-		clear_bit(ATC_IS_BTC, &atchan->status);
-		desc_cur = atc_get_current_descriptors(atchan,
-						channel_readl(atchan, DSCR));
-		if (!desc_cur) {
-			ret = -EINVAL;
-			goto out;
-		}
+	/* cookie matches to the currently running transfer */
+	ret = desc_first->total_len;
 
-		count = (desc_cur->lli.ctrla & ATC_BTSIZE_MAX)
-			<< desc_first->tx_width;
-		if (atchan->remain_desc < count) {
-			ret = -EINVAL;
-			goto out;
-		}
+	if (desc_first->lli.dscr) {
+		/* hardware linked list transfer */
 
-		atchan->remain_desc -= count;
-		ret = atchan->remain_desc;
-	} else {
 		/*
-		 * Get residual bytes when current
-		 * descriptor transfer in progress.
+		 * Calculate the residue by removing the length of the child
+		 * descriptors already transferred from the total length.
+		 * To get the current child descriptor we can use the value of
+		 * the channel's DSCR register and compare it against the value
+		 * of the hardware linked list structure of each child
+		 * descriptor.
 		 */
-		count = (channel_readl(atchan, CTRLA) & ATC_BTSIZE_MAX)
-				<< (desc_first->tx_width);
-		ret = atchan->remain_desc - count;
-	}
-	/*
-	 * Check fifo empty.
-	 */
-	if (!(dma_readl(atdma, CHSR) & AT_DMA_EMPT(chan_id)))
-		atc_issue_pending(chan);
 
-out:
+		ctrla = channel_readl(atchan, CTRLA);
+		rmb(); /* ensure CTRLA is read before DSCR */
+		dscr = channel_readl(atchan, DSCR);
+
+		/* for the first descriptor we can be more accurate */
+		if (desc_first->lli.dscr == dscr)
+			return atc_calc_bytes_left(ret, ctrla, desc_first);
+
+		ret -= desc_first->len;
+		list_for_each_entry(desc, &desc_first->tx_list, desc_node) {
+			if (desc->lli.dscr == dscr)
+				break;
+
+			ret -= desc->len;
+		}
+
+		/*
+		 * For the last descriptor in the chain we can calculate
+		 * the remaining bytes using the channel's register.
+		 * Note that the transfer width of the first and last
+		 * descriptor may differ.
+		 */
+		if (!desc->lli.dscr)
+			ret = atc_calc_bytes_left_from_reg(ret, atchan, desc);
+	} else {
+		/* single transfer */
+		ret = atc_calc_bytes_left_from_reg(ret, atchan, desc_first);
+	}
+
 	return ret;
 }
 
@@ -539,8 +587,6 @@ static irqreturn_t at_dma_interrupt(int irq, void *dev_id)
 					/* Give information to tasklet */
 					set_bit(ATC_IS_ERROR, &atchan->status);
 				}
-				if (pending & AT_DMA_BTC(i))
-					set_bit(ATC_IS_BTC, &atchan->status);
 				tasklet_schedule(&atchan->tasklet);
 				ret = IRQ_HANDLED;
 			}
@@ -628,16 +674,10 @@ atc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	 * We can be a lot more clever here, but this should take care
 	 * of the most common optimization.
 	 */
-	if (!((src | dest  | len) & 3)) {
-		ctrla = ATC_SRC_WIDTH_WORD | ATC_DST_WIDTH_WORD;
-		src_width = dst_width = 2;
-	} else if (!((src | dest | len) & 1)) {
-		ctrla = ATC_SRC_WIDTH_HALFWORD | ATC_DST_WIDTH_HALFWORD;
-		src_width = dst_width = 1;
-	} else {
-		ctrla = ATC_SRC_WIDTH_BYTE | ATC_DST_WIDTH_BYTE;
-		src_width = dst_width = 0;
-	}
+	src_width = dst_width = atc_get_xfer_width(src, dest, len);
+
+	ctrla = ATC_SRC_WIDTH(src_width) |
+		ATC_DST_WIDTH(dst_width);
 
 	for (offset = 0; offset < len; offset += xfer_count << src_width) {
 		xfer_count = min_t(size_t, (len - offset) >> src_width,
@@ -653,14 +693,18 @@ atc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 		desc->lli.ctrlb = ctrlb;
 
 		desc->txd.cookie = 0;
+		desc->len = xfer_count << src_width;
 
 		atc_desc_chain(&first, &prev, desc);
 	}
 
 	/* First descriptor of the chain embedds additional information */
 	first->txd.cookie = -EBUSY;
-	first->len = len;
+	first->total_len = len;
+
+	/* set transfer width for the calculation of the residue */
 	first->tx_width = src_width;
+	prev->tx_width = src_width;
 
 	/* set end-of-link to the last link descriptor of list*/
 	set_desc_eol(desc);
@@ -752,6 +796,7 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 					| ATC_SRC_WIDTH(mem_width)
 					| len >> mem_width;
 			desc->lli.ctrlb = ctrlb;
+			desc->len = len;
 
 			atc_desc_chain(&first, &prev, desc);
 			total_len += len;
@@ -792,6 +837,7 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 					| ATC_DST_WIDTH(mem_width)
 					| len >> reg_width;
 			desc->lli.ctrlb = ctrlb;
+			desc->len = len;
 
 			atc_desc_chain(&first, &prev, desc);
 			total_len += len;
@@ -806,8 +852,11 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 	/* First descriptor of the chain embedds additional information */
 	first->txd.cookie = -EBUSY;
-	first->len = total_len;
+	first->total_len = total_len;
+
+	/* set transfer width for the calculation of the residue */
 	first->tx_width = reg_width;
+	prev->tx_width = reg_width;
 
 	/* first link descriptor of list is responsible of flags */
 	first->txd.flags = flags; /* client is in control of this ack */
@@ -817,6 +866,144 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 err_desc_get:
 	dev_err(chan2dev(chan), "not enough descriptors available\n");
 err:
+	atc_desc_put(atchan, first);
+	return NULL;
+}
+
+/**
+ * atc_prep_dma_sg - prepare memory to memory scather-gather operation
+ * @chan: the channel to prepare operation on
+ * @dst_sg: destination scatterlist
+ * @dst_nents: number of destination scatterlist entries
+ * @src_sg: source scatterlist
+ * @src_nents: number of source scatterlist entries
+ * @flags: tx descriptor status flags
+ */
+static struct dma_async_tx_descriptor *
+atc_prep_dma_sg(struct dma_chan *chan,
+		struct scatterlist *dst_sg, unsigned int dst_nents,
+		struct scatterlist *src_sg, unsigned int src_nents,
+		unsigned long flags)
+{
+	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
+	struct at_desc		*desc = NULL;
+	struct at_desc		*first = NULL;
+	struct at_desc		*prev = NULL;
+	unsigned int		src_width;
+	unsigned int		dst_width;
+	size_t			xfer_count;
+	u32			ctrla;
+	u32			ctrlb;
+	size_t			dst_len = 0, src_len = 0;
+	dma_addr_t		dst = 0, src = 0;
+	size_t			len = 0, total_len = 0;
+
+	if (unlikely(dst_nents == 0 || src_nents == 0))
+		return NULL;
+
+	if (unlikely(dst_sg == NULL || src_sg == NULL))
+		return NULL;
+
+	ctrlb =   ATC_DEFAULT_CTRLB | ATC_IEN
+		| ATC_SRC_ADDR_MODE_INCR
+		| ATC_DST_ADDR_MODE_INCR
+		| ATC_FC_MEM2MEM;
+
+	/*
+	 * loop until there is either no more source or no more destination
+	 * scatterlist entry
+	 */
+	while (true) {
+
+		/* prepare the next transfer */
+		if (dst_len == 0) {
+
+			/* no more destination scatterlist entries */
+			if (!dst_sg || !dst_nents)
+				break;
+
+			dst = sg_dma_address(dst_sg);
+			dst_len = sg_dma_len(dst_sg);
+
+			dst_sg = sg_next(dst_sg);
+			dst_nents--;
+		}
+
+		if (src_len == 0) {
+
+			/* no more source scatterlist entries */
+			if (!src_sg || !src_nents)
+				break;
+
+			src = sg_dma_address(src_sg);
+			src_len = sg_dma_len(src_sg);
+
+			src_sg = sg_next(src_sg);
+			src_nents--;
+		}
+
+		len = min_t(size_t, src_len, dst_len);
+		if (len == 0)
+			continue;
+
+		/* take care for the alignment */
+		src_width = dst_width = atc_get_xfer_width(src, dst, len);
+
+		ctrla = ATC_SRC_WIDTH(src_width) |
+			ATC_DST_WIDTH(dst_width);
+
+		/*
+		 * The number of transfers to set up refer to the source width
+		 * that depends on the alignment.
+		 */
+		xfer_count = len >> src_width;
+		if (xfer_count > ATC_BTSIZE_MAX) {
+			xfer_count = ATC_BTSIZE_MAX;
+			len = ATC_BTSIZE_MAX << src_width;
+		}
+
+		/* create the transfer */
+		desc = atc_desc_get(atchan);
+		if (!desc)
+			goto err_desc_get;
+
+		desc->lli.saddr = src;
+		desc->lli.daddr = dst;
+		desc->lli.ctrla = ctrla | xfer_count;
+		desc->lli.ctrlb = ctrlb;
+
+		desc->txd.cookie = 0;
+		desc->len = len;
+
+		/*
+		 * Although we only need the transfer width for the first and
+		 * the last descriptor, its easier to set it to all descriptors.
+		 */
+		desc->tx_width = src_width;
+
+		atc_desc_chain(&first, &prev, desc);
+
+		/* update the lengths and addresses for the next loop cycle */
+		dst_len -= len;
+		src_len -= len;
+		dst += len;
+		src += len;
+
+		total_len += len;
+	}
+
+	/* First descriptor of the chain embedds additional information */
+	first->txd.cookie = -EBUSY;
+	first->total_len = total_len;
+
+	/* set end-of-link to the last link descriptor of list*/
+	set_desc_eol(desc);
+
+	first->txd.flags = flags; /* client is in control of this ack */
+
+	return &first->txd;
+
+err_desc_get:
 	atc_desc_put(atchan, first);
 	return NULL;
 }
@@ -872,6 +1059,7 @@ atc_dma_cyclic_fill_desc(struct dma_chan *chan, struct at_desc *desc,
 				| ATC_FC_MEM2PER
 				| ATC_SIF(atchan->mem_if)
 				| ATC_DIF(atchan->per_if);
+		desc->len = period_len;
 		break;
 
 	case DMA_DEV_TO_MEM:
@@ -883,6 +1071,7 @@ atc_dma_cyclic_fill_desc(struct dma_chan *chan, struct at_desc *desc,
 				| ATC_FC_PER2MEM
 				| ATC_SIF(atchan->per_if)
 				| ATC_DIF(atchan->mem_if);
+		desc->len = period_len;
 		break;
 
 	default:
@@ -964,7 +1153,7 @@ atc_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
 
 	/* First descriptor of the chain embedds additional information */
 	first->txd.cookie = -EBUSY;
-	first->len = buf_len;
+	first->total_len = buf_len;
 	first->tx_width = reg_width;
 
 	return &first->txd;
@@ -1118,7 +1307,7 @@ atc_tx_status(struct dma_chan *chan,
 	spin_lock_irqsave(&atchan->lock, flags);
 
 	/*  Get number of bytes left in the active transactions */
-	bytes = atc_get_bytes_left(chan);
+	bytes = atc_get_bytes_left(chan, cookie);
 
 	spin_unlock_irqrestore(&atchan->lock, flags);
 
@@ -1214,7 +1403,6 @@ static int atc_alloc_chan_resources(struct dma_chan *chan)
 
 	spin_lock_irqsave(&atchan->lock, flags);
 	atchan->descs_allocated = i;
-	atchan->remain_desc = 0;
 	list_splice(&tmp_list, &atchan->free_list);
 	dma_cookie_init(chan);
 	spin_unlock_irqrestore(&atchan->lock, flags);
@@ -1257,7 +1445,6 @@ static void atc_free_chan_resources(struct dma_chan *chan)
 	list_splice_init(&atchan->free_list, &list);
 	atchan->descs_allocated = 0;
 	atchan->status = 0;
-	atchan->remain_desc = 0;
 
 	dev_vdbg(chan2dev(chan), "free_chan_resources: done\n");
 }
@@ -1421,8 +1608,10 @@ static int __init at_dma_probe(struct platform_device *pdev)
 
 	/* setup platform data for each SoC */
 	dma_cap_set(DMA_MEMCPY, at91sam9rl_config.cap_mask);
+	dma_cap_set(DMA_SG, at91sam9rl_config.cap_mask);
 	dma_cap_set(DMA_MEMCPY, at91sam9g45_config.cap_mask);
 	dma_cap_set(DMA_SLAVE, at91sam9g45_config.cap_mask);
+	dma_cap_set(DMA_SG, at91sam9g45_config.cap_mask);
 
 	/* get DMA parameters from controller type */
 	plat_dat = at_dma_get_driver_data(pdev);
@@ -1542,11 +1731,15 @@ static int __init at_dma_probe(struct platform_device *pdev)
 		atdma->dma_common.residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 	}
 
+	if (dma_has_cap(DMA_SG, atdma->dma_common.cap_mask))
+		atdma->dma_common.device_prep_dma_sg = atc_prep_dma_sg;
+
 	dma_writel(atdma, EN, AT_DMA_ENABLE);
 
-	dev_info(&pdev->dev, "Atmel AHB DMA Controller ( %s%s), %d channels\n",
+	dev_info(&pdev->dev, "Atmel AHB DMA Controller ( %s%s%s), %d channels\n",
 	  dma_has_cap(DMA_MEMCPY, atdma->dma_common.cap_mask) ? "cpy " : "",
 	  dma_has_cap(DMA_SLAVE, atdma->dma_common.cap_mask)  ? "slave " : "",
+	  dma_has_cap(DMA_SG, atdma->dma_common.cap_mask)  ? "sg-cpy " : "",
 	  plat_dat->nr_channels);
 
 	dma_async_device_register(&atdma->dma_common);

@@ -68,7 +68,7 @@
  * so properly, we would have to add in whatever registers were loaded before
  * the fault, which, with the current asm above is not predictable.
  */
-		.pushsection .fixup,"ax"
+		.pushsection .text.fixup,"ax"
 		.align	4
 9001:		mov	r4, #-EFAULT
 		ldr	r5, [sp, #8*4]		@ *err_ptr

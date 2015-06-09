@@ -418,7 +418,7 @@ DECLARE_EVENT_CLASS(nfs4_open_event,
 				__entry->fileid = 0;
 				__entry->fhandle = 0;
 			}
-			__entry->dir = NFS_FILEID(ctx->dentry->d_parent->d_inode);
+			__entry->dir = NFS_FILEID(d_inode(ctx->dentry->d_parent));
 			__assign_str(name, ctx->dentry->d_name.name);
 		),
 
@@ -1110,7 +1110,7 @@ TRACE_EVENT(nfs4_layoutget,
 		),
 
 		TP_fast_assign(
-			const struct inode *inode = ctx->dentry->d_inode;
+			const struct inode *inode = d_inode(ctx->dentry);
 			__entry->dev = inode->i_sb->s_dev;
 			__entry->fileid = NFS_FILEID(inode);
 			__entry->fhandle = nfs_fhandle_hash(NFS_FH(inode));

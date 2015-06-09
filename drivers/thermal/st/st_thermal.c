@@ -25,7 +25,7 @@
  * Function to allocate regfields which are common
  * between syscfg and memory mapped based sensors
  */
-int st_thermal_alloc_regfields(struct st_thermal_sensor *sensor)
+static int st_thermal_alloc_regfields(struct st_thermal_sensor *sensor)
 {
 	struct device *dev = sensor->dev;
 	struct regmap *regmap = sensor->regmap;

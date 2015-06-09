@@ -829,10 +829,16 @@ out:
 	return key;
 }
 
+int map_symbol__tui_annotate(struct map_symbol *ms, struct perf_evsel *evsel,
+			     struct hist_browser_timer *hbt)
+{
+	return symbol__tui_annotate(ms->sym, ms->map, evsel, hbt);
+}
+
 int hist_entry__tui_annotate(struct hist_entry *he, struct perf_evsel *evsel,
 			     struct hist_browser_timer *hbt)
 {
-	return symbol__tui_annotate(he->ms.sym, he->ms.map, evsel, hbt);
+	return map_symbol__tui_annotate(&he->ms, evsel, hbt);
 }
 
 static void annotate_browser__mark_jump_targets(struct annotate_browser *browser,

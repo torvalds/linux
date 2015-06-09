@@ -47,9 +47,9 @@
 #define XGMAC_REMOTE_WAKE	0x00000700	/* Remote Wake-Up Frm Filter */
 #define XGMAC_PMT		0x00000704	/* PMT Control and Status */
 #define XGMAC_MMC_CTRL		0x00000800	/* XGMAC MMC Control */
-#define XGMAC_MMC_INTR_RX	0x00000804	/* Recieve Interrupt */
+#define XGMAC_MMC_INTR_RX	0x00000804	/* Receive Interrupt */
 #define XGMAC_MMC_INTR_TX	0x00000808	/* Transmit Interrupt */
-#define XGMAC_MMC_INTR_MASK_RX	0x0000080c	/* Recieve Interrupt Mask */
+#define XGMAC_MMC_INTR_MASK_RX	0x0000080c	/* Receive Interrupt Mask */
 #define XGMAC_MMC_INTR_MASK_TX	0x00000810	/* Transmit Interrupt Mask */
 
 /* Hardware TX Statistics Counters */
@@ -153,7 +153,7 @@
 #define XGMAC_FLOW_CTRL_PT_MASK	0xffff0000	/* Pause Time Mask */
 #define XGMAC_FLOW_CTRL_PT_SHIFT	16
 #define XGMAC_FLOW_CTRL_DZQP	0x00000080	/* Disable Zero-Quanta Phase */
-#define XGMAC_FLOW_CTRL_PLT	0x00000020	/* Pause Low Threshhold */
+#define XGMAC_FLOW_CTRL_PLT	0x00000020	/* Pause Low Threshold */
 #define XGMAC_FLOW_CTRL_PLT_MASK 0x00000030	/* PLT MASK */
 #define XGMAC_FLOW_CTRL_UP	0x00000008	/* Unicast Pause Frame Detect */
 #define XGMAC_FLOW_CTRL_RFE	0x00000004	/* Rx Flow Control Enable */
@@ -254,18 +254,18 @@
 /* XGMAC Operation Mode Register */
 #define XGMAC_OMR_TSF		0x00200000	/* TX FIFO Store and Forward */
 #define XGMAC_OMR_FTF		0x00100000	/* Flush Transmit FIFO */
-#define XGMAC_OMR_TTC		0x00020000	/* Transmit Threshhold Ctrl */
+#define XGMAC_OMR_TTC		0x00020000	/* Transmit Threshold Ctrl */
 #define XGMAC_OMR_TTC_MASK	0x00030000
-#define XGMAC_OMR_RFD		0x00006000	/* FC Deactivation Threshhold */
-#define XGMAC_OMR_RFD_MASK	0x00007000	/* FC Deact Threshhold MASK */
-#define XGMAC_OMR_RFA		0x00000600	/* FC Activation Threshhold */
-#define XGMAC_OMR_RFA_MASK	0x00000E00	/* FC Act Threshhold MASK */
+#define XGMAC_OMR_RFD		0x00006000	/* FC Deactivation Threshold */
+#define XGMAC_OMR_RFD_MASK	0x00007000	/* FC Deact Threshold MASK */
+#define XGMAC_OMR_RFA		0x00000600	/* FC Activation Threshold */
+#define XGMAC_OMR_RFA_MASK	0x00000E00	/* FC Act Threshold MASK */
 #define XGMAC_OMR_EFC		0x00000100	/* Enable Hardware FC */
 #define XGMAC_OMR_FEF		0x00000080	/* Forward Error Frames */
 #define XGMAC_OMR_DT		0x00000040	/* Drop TCP/IP csum Errors */
 #define XGMAC_OMR_RSF		0x00000020	/* RX FIFO Store and Forward */
-#define XGMAC_OMR_RTC_256	0x00000018	/* RX Threshhold Ctrl */
-#define XGMAC_OMR_RTC_MASK	0x00000018	/* RX Threshhold Ctrl MASK */
+#define XGMAC_OMR_RTC_256	0x00000018	/* RX Threshold Ctrl */
+#define XGMAC_OMR_RTC_MASK	0x00000018	/* RX Threshold Ctrl MASK */
 
 /* XGMAC HW Features Register */
 #define DMA_HW_FEAT_TXCOESEL	0x00010000	/* TX Checksum offload */

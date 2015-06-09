@@ -579,7 +579,7 @@ static int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 		if (PTR_ERR(priv->extclk) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 	} else {
-		if (priv->extclk == priv->clk) {
+		if (clk_is_match(priv->extclk, priv->clk)) {
 			devm_clk_put(&pdev->dev, priv->extclk);
 			priv->extclk = ERR_PTR(-EINVAL);
 		} else {
@@ -643,7 +643,7 @@ static int kirkwood_i2s_dev_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id mvebu_audio_of_match[] = {
+static const struct of_device_id mvebu_audio_of_match[] = {
 	{ .compatible = "marvell,kirkwood-audio" },
 	{ .compatible = "marvell,dove-audio" },
 	{ .compatible = "marvell,armada370-audio" },

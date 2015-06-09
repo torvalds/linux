@@ -58,7 +58,7 @@ struct comedi_device *comedi_open(const char *filename)
 		retval = NULL;
 	up_read(&dev->attach_lock);
 
-	if (retval == NULL)
+	if (!retval)
 		comedi_dev_put(dev);
 
 	return retval;

@@ -33,6 +33,12 @@ struct mn88473_config {
 	 * DVB frontend.
 	 */
 	struct dvb_frontend **fe;
+
+	/*
+	 * Xtal frequency.
+	 * Hz
+	 */
+	u32 xtal;
 };
 
 #endif

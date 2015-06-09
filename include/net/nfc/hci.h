@@ -83,6 +83,10 @@ struct nfc_hci_pipe {
 };
 
 #define NFC_HCI_MAX_CUSTOM_GATES	50
+/*
+ * According to specification 102 622 chapter 4.4 Pipes,
+ * the pipe identifier is 7 bits long.
+ */
 #define NFC_HCI_MAX_PIPES		127
 struct nfc_hci_init_data {
 	u8 gate_count;

@@ -24,8 +24,6 @@
 
 #include "platform_data.h"
 
-/* FIXME define these in <linux/pci_ids.h> */
-#define PCI_VENDOR_ID_SYNOPSYS		0x16c3
 #define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3	0xabcd
 #define PCI_DEVICE_ID_INTEL_BYT		0x0f37
 #define PCI_DEVICE_ID_INTEL_MRFLD	0x119e

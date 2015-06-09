@@ -51,7 +51,6 @@
 #include <linux/module.h>
 #include "../comedidev.h"
 
-#include "comedi_fc.h"
 #include "8255.h"
 
 struct subdev_8255_private {

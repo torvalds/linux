@@ -30,11 +30,12 @@
 #include <linux/firmware.h>
 #include <linux/slab.h>
 #include <linux/u64_stats_sync.h>
+#include <linux/cpumask.h>
 
 #include "be_hw.h"
 #include "be_roce.h"
 
-#define DRV_VER			"10.4u"
+#define DRV_VER			"10.6.0.1"
 #define DRV_NAME		"be2net"
 #define BE_NAME			"Emulex BladeEngine2"
 #define BE3_NAME		"Emulex BladeEngine3"
@@ -87,6 +88,7 @@
 #define BE3_MAX_EVT_QS		16
 #define BE3_SRIOV_MAX_EVT_QS	8
 
+#define MAX_RSS_IFACES		15
 #define MAX_RX_QS		32
 #define MAX_EVT_QS		32
 #define MAX_TX_QS		32
@@ -97,6 +99,7 @@
 #define BE_NAPI_WEIGHT		64
 #define MAX_RX_POST		BE_NAPI_WEIGHT /* Frags posted at a time */
 #define RX_FRAGS_REFILL_WM	(RX_Q_LEN - MAX_RX_POST)
+#define MAX_NUM_POST_ERX_DB	255u
 
 #define MAX_VFS			30 /* Max VFs supported by BE3 FW */
 #define FW_VER_LEN		32
@@ -182,6 +185,7 @@ struct be_eq_obj {
 	u16 spurious_intr;
 	struct napi_struct napi;
 	struct be_adapter *adapter;
+	cpumask_var_t  affinity_mask;
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 #define BE_EQ_IDLE		0
@@ -238,10 +242,17 @@ struct be_tx_stats {
 	struct u64_stats_sync sync_compl;
 };
 
+/* Structure to hold some data of interest obtained from a TX CQE */
+struct be_tx_compl_info {
+	u8 status;		/* Completion status */
+	u16 end_index;		/* Completed TXQ Index */
+};
+
 struct be_tx_obj {
 	u32 db_offset;
 	struct be_queue_info q;
 	struct be_queue_info cq;
+	struct be_tx_compl_info txcp;
 	/* Remember the skbs that were transmitted */
 	struct sk_buff *sent_skb_list[TX_Q_LEN];
 	struct be_tx_stats stats;
@@ -354,6 +365,7 @@ struct be_vf_cfg {
 	u16 vlan_tag;
 	u32 tx_rate;
 	u32 plink_tracking;
+	u32 privileges;
 };
 
 enum vf_state {
@@ -369,6 +381,7 @@ enum vf_state {
 #define BE_FLAGS_VXLAN_OFFLOADS			BIT(8)
 #define BE_FLAGS_SETUP_DONE			BIT(9)
 #define BE_FLAGS_EVT_INCOMPATIBLE_SFP		BIT(10)
+#define BE_FLAGS_ERR_DETECTION_SCHEDULED	BIT(11)
 
 #define BE_UC_PMAC_COUNT			30
 #define BE_VF_UC_PMAC_COUNT			2
@@ -403,8 +416,11 @@ struct be_resources {
 	u16 max_tx_qs;
 	u16 max_rss_qs;
 	u16 max_rx_qs;
+	u16 max_cq_count;
 	u16 max_uc_mac;		/* Max UC MACs programmable */
 	u16 max_vlans;		/* Number of vlans supported */
+	u16 max_iface_count;
+	u16 max_mcc_count;
 	u16 max_evt_qs;
 	u32 if_cap_flags;
 	u32 vf_if_cap_flags;	/* VF if capability flags */
@@ -417,12 +433,46 @@ struct rss_info {
 	u8 rss_hkey[RSS_HASH_KEY_LEN];
 };
 
+/* Macros to read/write the 'features' word of be_wrb_params structure.
+ */
+#define	BE_WRB_F_BIT(name)			BE_WRB_F_##name##_BIT
+#define	BE_WRB_F_MASK(name)			BIT_MASK(BE_WRB_F_##name##_BIT)
+
+#define	BE_WRB_F_GET(word, name)	\
+	(((word) & (BE_WRB_F_MASK(name))) >> BE_WRB_F_BIT(name))
+
+#define	BE_WRB_F_SET(word, name, val)	\
+	((word) |= (((val) << BE_WRB_F_BIT(name)) & BE_WRB_F_MASK(name)))
+
+/* Feature/offload bits */
+enum {
+	BE_WRB_F_CRC_BIT,		/* Ethernet CRC */
+	BE_WRB_F_IPCS_BIT,		/* IP csum */
+	BE_WRB_F_TCPCS_BIT,		/* TCP csum */
+	BE_WRB_F_UDPCS_BIT,		/* UDP csum */
+	BE_WRB_F_LSO_BIT,		/* LSO */
+	BE_WRB_F_LSO6_BIT,		/* LSO6 */
+	BE_WRB_F_VLAN_BIT,		/* VLAN */
+	BE_WRB_F_VLAN_SKIP_HW_BIT	/* Skip VLAN tag (workaround) */
+};
+
+/* The structure below provides a HW-agnostic abstraction of WRB params
+ * retrieved from a TX skb. This is in turn passed to chip specific routines
+ * during transmit, to set the corresponding params in the WRB.
+ */
+struct be_wrb_params {
+	u32 features;	/* Feature bits */
+	u16 vlan_tag;	/* VLAN tag */
+	u16 lso_mss;	/* MSS for LSO */
+};
+
 struct be_adapter {
 	struct pci_dev *pdev;
 	struct net_device *netdev;
 
 	u8 __iomem *csr;	/* CSR BAR used only for BE2/3 */
 	u8 __iomem *db;		/* Door Bell */
+	u8 __iomem *pcicfg;	/* On SH,BEx only. Shadow of PCI config space */
 
 	struct mutex mbox_lock; /* For serializing mbox cmds to BE card */
 	struct be_dma_mem mbox_mem;
@@ -447,6 +497,8 @@ struct be_adapter {
 
 	/* Rx rings */
 	u16 num_rx_qs;
+	u16 num_rss_qs;
+	u16 need_def_rxq;
 	struct be_rx_obj rx_obj[MAX_RX_QS];
 	u32 big_page_size;	/* Compounded page size shared by rx wrbs */
 
@@ -461,7 +513,7 @@ struct be_adapter {
 	struct delayed_work work;
 	u16 work_counter;
 
-	struct delayed_work func_recovery_work;
+	struct delayed_work be_err_detection_work;
 	u32 flags;
 	u32 cmd_privileges;
 	/* Ethtool knobs and info */
@@ -594,9 +646,8 @@ extern const struct ethtool_ops be_ethtool_ops;
 	for (i = 0, rxo = &adapter->rx_obj[i]; i < adapter->num_rx_qs;	\
 		i++, rxo++)
 
-/* Skip the default non-rss queue (last one)*/
 #define for_all_rss_queues(adapter, rxo, i)				\
-	for (i = 0, rxo = &adapter->rx_obj[i]; i < (adapter->num_rx_qs - 1);\
+	for (i = 0, rxo = &adapter->rx_obj[i]; i < adapter->num_rss_qs;	\
 		i++, rxo++)
 
 #define for_all_tx_queues(adapter, txo, i)				\

@@ -21,8 +21,8 @@ struct iio_buffer;
  * struct iio_buffer_access_funcs - access functions for buffers.
  * @store_to:		actually store stuff to the buffer
  * @read_first_n:	try to get a specified number of bytes (must exist)
- * @data_available:	indicates whether data for reading from the buffer is
- *			available.
+ * @data_available:	indicates how much data is available for reading from
+ *			the buffer.
  * @request_update:	if a parameter change has been marked, update underlying
  *			storage.
  * @set_bytes_per_datum:set number of bytes per datum
@@ -43,7 +43,7 @@ struct iio_buffer_access_funcs {
 	int (*read_first_n)(struct iio_buffer *buffer,
 			    size_t n,
 			    char __user *buf);
-	bool (*data_available)(struct iio_buffer *buffer);
+	size_t (*data_available)(struct iio_buffer *buffer);
 
 	int (*request_update)(struct iio_buffer *buffer);
 
@@ -72,6 +72,7 @@ struct iio_buffer_access_funcs {
  * @demux_bounce:	[INTERN] buffer for doing gather from incoming scan.
  * @buffer_list:	[INTERN] entry in the devices list of current buffers.
  * @ref:		[INTERN] reference count of the buffer.
+ * @watermark:		[INTERN] number of datums to wait for poll/read.
  */
 struct iio_buffer {
 	int					length;
@@ -90,6 +91,7 @@ struct iio_buffer {
 	void					*demux_bounce;
 	struct list_head			buffer_list;
 	struct kref				ref;
+	unsigned int				watermark;
 };
 
 /**

@@ -176,18 +176,51 @@ static void bond_info_show_slave(struct seq_file *seq,
 		   slave->link_failure_count);
 
 	seq_printf(seq, "Permanent HW addr: %pM\n", slave->perm_hwaddr);
+	seq_printf(seq, "Slave queue ID: %d\n", slave->queue_id);
 
 	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
-		const struct aggregator *agg
-			= SLAVE_AD_INFO(slave)->port.aggregator;
+		const struct port *port = &SLAVE_AD_INFO(slave)->port;
+		const struct aggregator *agg = port->aggregator;
 
-		if (agg)
+		if (agg) {
 			seq_printf(seq, "Aggregator ID: %d\n",
 				   agg->aggregator_identifier);
-		else
+			seq_printf(seq, "Actor Churn State: %s\n",
+				   bond_3ad_churn_desc(port->sm_churn_actor_state));
+			seq_printf(seq, "Partner Churn State: %s\n",
+				   bond_3ad_churn_desc(port->sm_churn_partner_state));
+			seq_printf(seq, "Actor Churned Count: %d\n",
+				   port->churn_actor_count);
+			seq_printf(seq, "Partner Churned Count: %d\n",
+				   port->churn_partner_count);
+
+			seq_puts(seq, "details actor lacp pdu:\n");
+			seq_printf(seq, "    system priority: %d\n",
+				   port->actor_system_priority);
+			seq_printf(seq, "    port key: %d\n",
+				   port->actor_oper_port_key);
+			seq_printf(seq, "    port priority: %d\n",
+				   port->actor_port_priority);
+			seq_printf(seq, "    port number: %d\n",
+				   port->actor_port_number);
+			seq_printf(seq, "    port state: %d\n",
+				   port->actor_oper_port_state);
+
+			seq_puts(seq, "details partner lacp pdu:\n");
+			seq_printf(seq, "    system priority: %d\n",
+				   port->partner_oper.system_priority);
+			seq_printf(seq, "    oper key: %d\n",
+				   port->partner_oper.key);
+			seq_printf(seq, "    port priority: %d\n",
+				   port->partner_oper.port_priority);
+			seq_printf(seq, "    port number: %d\n",
+				   port->partner_oper.port_number);
+			seq_printf(seq, "    port state: %d\n",
+				   port->partner_oper.port_state);
+		} else {
 			seq_puts(seq, "Aggregator ID: N/A\n");
+		}
 	}
-	seq_printf(seq, "Slave queue ID: %d\n", slave->queue_id);
 }
 
 static int bond_info_seq_show(struct seq_file *seq, void *v)

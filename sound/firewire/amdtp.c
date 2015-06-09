@@ -33,7 +33,7 @@
  */
 #define MAX_MIDI_RX_BLOCKS	8
 
-#define TRANSFER_DELAY_TICKS	0x2e00 /* 479.17 Âµs */
+#define TRANSFER_DELAY_TICKS	0x2e00 /* 479.17 microseconds */
 
 /* isochronous header parameters */
 #define ISO_DATA_LENGTH_SHIFT	16
@@ -78,7 +78,7 @@ static void pcm_period_tasklet(unsigned long data);
 int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
 		      enum amdtp_stream_direction dir, enum cip_flags flags)
 {
-	s->unit = fw_unit_get(unit);
+	s->unit = unit;
 	s->direction = dir;
 	s->flags = flags;
 	s->context = ERR_PTR(-1);
@@ -102,7 +102,6 @@ void amdtp_stream_destroy(struct amdtp_stream *s)
 {
 	WARN_ON(amdtp_stream_running(s));
 	mutex_destroy(&s->mutex);
-	fw_unit_put(s->unit);
 }
 EXPORT_SYMBOL(amdtp_stream_destroy);
 
@@ -167,10 +166,10 @@ int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 	 * One AMDTP packet can include some frames. In blocking mode, the
 	 * number equals to SYT_INTERVAL. So the number is 8, 16 or 32,
 	 * depending on its sampling rate. For accurate period interrupt, it's
-	 * preferrable to aligh period/buffer sizes to current SYT_INTERVAL.
+	 * preferrable to align period/buffer sizes to current SYT_INTERVAL.
 	 *
-	 * TODO: These constraints can be improved with propper rules.
-	 * Currently apply LCM of SYT_INTEVALs.
+	 * TODO: These constraints can be improved with proper rules.
+	 * Currently apply LCM of SYT_INTERVALs.
 	 */
 	err = snd_pcm_hw_constraint_step(runtime, 0,
 					 SNDRV_PCM_HW_PARAM_PERIOD_SIZE, 32);
@@ -271,7 +270,7 @@ static void amdtp_read_s32(struct amdtp_stream *s,
  * @s: the AMDTP stream to configure
  * @format: the format of the ALSA PCM device
  *
- * The sample format must be set after the other paramters (rate/PCM channels/
+ * The sample format must be set after the other parameters (rate/PCM channels/
  * MIDI) and before the stream is started, and must not be changed while the
  * stream is running.
  */

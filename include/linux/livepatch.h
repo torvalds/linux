@@ -123,10 +123,10 @@ struct klp_patch {
 	enum klp_state state;
 };
 
-extern int klp_register_patch(struct klp_patch *);
-extern int klp_unregister_patch(struct klp_patch *);
-extern int klp_enable_patch(struct klp_patch *);
-extern int klp_disable_patch(struct klp_patch *);
+int klp_register_patch(struct klp_patch *);
+int klp_unregister_patch(struct klp_patch *);
+int klp_enable_patch(struct klp_patch *);
+int klp_disable_patch(struct klp_patch *);
 
 #endif /* CONFIG_LIVEPATCH */
 

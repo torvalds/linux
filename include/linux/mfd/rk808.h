@@ -156,6 +156,9 @@ enum rk808_reg {
 #define BUCK2_RATE_MASK		(3 << 3)
 #define MASK_ALL	0xff
 
+#define BUCK_UV_ACT_MASK	0x0f
+#define BUCK_UV_ACT_DISABLE	0
+
 #define SWITCH2_EN	BIT(6)
 #define SWITCH1_EN	BIT(5)
 #define DEV_OFF_RST	BIT(3)

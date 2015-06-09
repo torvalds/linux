@@ -39,7 +39,7 @@ iii) PCI-SIG's I/O Virtualization
 
 iv)  Jumbo frames
        X3100 Series supports MTU up to 9600 bytes, modifiable using
-       ifconfig command.
+       ip command.
 
 v)   Offloads supported: (Enabled by default)
        Checksum offload (TCP/UDP/IP) on transmit and receive paths

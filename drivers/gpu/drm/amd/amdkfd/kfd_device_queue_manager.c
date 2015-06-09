@@ -62,10 +62,16 @@ enum KFD_MQD_TYPE get_mqd_type_from_queue_type(enum kfd_queue_type type)
 	return KFD_MQD_TYPE_CP;
 }
 
-static inline unsigned int get_first_pipe(struct device_queue_manager *dqm)
+unsigned int get_first_pipe(struct device_queue_manager *dqm)
 {
-	BUG_ON(!dqm);
+	BUG_ON(!dqm || !dqm->dev);
 	return dqm->dev->shared_resources.first_compute_pipe;
+}
+
+unsigned int get_pipes_num(struct device_queue_manager *dqm)
+{
+	BUG_ON(!dqm || !dqm->dev);
+	return dqm->dev->shared_resources.compute_pipe_count;
 }
 
 static inline unsigned int get_pipes_num_cpsch(void)
@@ -76,7 +82,8 @@ static inline unsigned int get_pipes_num_cpsch(void)
 void program_sh_mem_settings(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd)
 {
-	return kfd2kgd->program_sh_mem_settings(dqm->dev->kgd, qpd->vmid,
+	return dqm->dev->kfd2kgd->program_sh_mem_settings(
+						dqm->dev->kgd, qpd->vmid,
 						qpd->sh_mem_config,
 						qpd->sh_mem_ape1_base,
 						qpd->sh_mem_ape1_limit,
@@ -451,9 +458,12 @@ set_pasid_vmid_mapping(struct device_queue_manager *dqm, unsigned int pasid,
 {
 	uint32_t pasid_mapping;
 
-	pasid_mapping = (pasid == 0) ? 0 : (uint32_t)pasid |
-						ATC_VMID_PASID_MAPPING_VALID;
-	return kfd2kgd->set_pasid_vmid_mapping(dqm->dev->kgd, pasid_mapping,
+	pasid_mapping = (pasid == 0) ? 0 :
+		(uint32_t)pasid |
+		ATC_VMID_PASID_MAPPING_VALID;
+
+	return dqm->dev->kfd2kgd->set_pasid_vmid_mapping(
+						dqm->dev->kgd, pasid_mapping,
 						vmid);
 }
 
@@ -505,7 +515,7 @@ int init_pipelines(struct device_queue_manager *dqm,
 		pipe_hpd_addr = dqm->pipelines_addr + i * CIK_HPD_EOP_BYTES;
 		pr_debug("kfd: pipeline address %llX\n", pipe_hpd_addr);
 		/* = log2(bytes/4)-1 */
-		kfd2kgd->init_pipeline(dqm->dev->kgd, inx,
+		dqm->dev->kfd2kgd->init_pipeline(dqm->dev->kgd, inx,
 				CIK_HPD_EOP_BYTES_LOG2 - 3, pipe_hpd_addr);
 	}
 
@@ -639,6 +649,7 @@ static int create_sdma_queue_nocpsch(struct device_queue_manager *dqm,
 	pr_debug("     sdma queue id: %d\n", q->properties.sdma_queue_id);
 	pr_debug("     sdma engine id: %d\n", q->properties.sdma_engine_id);
 
+	init_sdma_vm(dqm, q, qpd);
 	retval = mqd->init_mqd(mqd, &q->mqd, &q->mqd_mem_obj,
 				&q->gart_mqd_addr, &q->properties);
 	if (retval != 0) {
@@ -646,7 +657,14 @@ static int create_sdma_queue_nocpsch(struct device_queue_manager *dqm,
 		return retval;
 	}
 
-	init_sdma_vm(dqm, q, qpd);
+	retval = mqd->load_mqd(mqd, q->mqd, 0,
+				0, NULL);
+	if (retval != 0) {
+		deallocate_sdma_queue(dqm, q->sdma_id);
+		mqd->uninit_mqd(mqd, q->mqd, q->mqd_mem_obj);
+		return retval;
+	}
+
 	return 0;
 }
 
@@ -891,7 +909,7 @@ out:
 	return retval;
 }
 
-static int fence_wait_timeout(unsigned int *fence_addr,
+static int amdkfd_fence_wait_timeout(unsigned int *fence_addr,
 				unsigned int fence_value,
 				unsigned long timeout)
 {
@@ -947,7 +965,7 @@ static int destroy_queues_cpsch(struct device_queue_manager *dqm, bool lock)
 	pm_send_query_status(&dqm->packets, dqm->fence_gpu_addr,
 				KFD_FENCE_COMPLETED);
 	/* should be timed out */
-	fence_wait_timeout(dqm->fence_addr, KFD_FENCE_COMPLETED,
+	amdkfd_fence_wait_timeout(dqm->fence_addr, KFD_FENCE_COMPLETED,
 				QUEUE_PREEMPT_DEFAULT_TIMEOUT_MS);
 	pm_release_ib(&dqm->packets);
 	dqm->active_runlist = false;

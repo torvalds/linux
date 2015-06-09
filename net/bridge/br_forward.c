@@ -35,11 +35,9 @@ static inline int should_deliver(const struct net_bridge_port *p,
 		p->state == BR_STATE_FORWARDING;
 }
 
-int br_dev_queue_push_xmit(struct sk_buff *skb)
+int br_dev_queue_push_xmit(struct sock *sk, struct sk_buff *skb)
 {
-	/* ip_fragment doesn't copy the MAC header */
-	if (nf_bridge_maybe_copy_header(skb) ||
-	    !is_skb_forwardable(skb->dev, skb)) {
+	if (!is_skb_forwardable(skb->dev, skb)) {
 		kfree_skb(skb);
 	} else {
 		skb_push(skb, ETH_HLEN);
@@ -51,9 +49,10 @@ int br_dev_queue_push_xmit(struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(br_dev_queue_push_xmit);
 
-int br_forward_finish(struct sk_buff *skb)
+int br_forward_finish(struct sock *sk, struct sk_buff *skb)
 {
-	return NF_HOOK(NFPROTO_BRIDGE, NF_BR_POST_ROUTING, skb, NULL, skb->dev,
+	return NF_HOOK(NFPROTO_BRIDGE, NF_BR_POST_ROUTING, sk, skb,
+		       NULL, skb->dev,
 		       br_dev_queue_push_xmit);
 
 }
@@ -77,7 +76,8 @@ static void __br_deliver(const struct net_bridge_port *to, struct sk_buff *skb)
 		return;
 	}
 
-	NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_OUT, skb, NULL, skb->dev,
+	NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_OUT, NULL, skb,
+		NULL, skb->dev,
 		br_forward_finish);
 }
 
@@ -98,7 +98,8 @@ static void __br_forward(const struct net_bridge_port *to, struct sk_buff *skb)
 	skb->dev = to->dev;
 	skb_forward_csum(skb);
 
-	NF_HOOK(NFPROTO_BRIDGE, NF_BR_FORWARD, skb, indev, skb->dev,
+	NF_HOOK(NFPROTO_BRIDGE, NF_BR_FORWARD, NULL, skb,
+		indev, skb->dev,
 		br_forward_finish);
 }
 
@@ -187,6 +188,9 @@ static void br_flood(struct net_bridge *br, struct sk_buff *skb,
 
 		/* Do not flood to ports that enable proxy ARP */
 		if (p->flags & BR_PROXYARP)
+			continue;
+		if ((p->flags & BR_PROXYARP_WIFI) &&
+		    BR_INPUT_SKB_CB(skb)->proxyarp_replied)
 			continue;
 
 		prev = maybe_deliver(prev, p, skb, __packet_hook);

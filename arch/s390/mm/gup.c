@@ -106,11 +106,9 @@ static inline int gup_pmd_range(pud_t *pudp, pud_t pud, unsigned long addr,
 	pmd_t *pmdp, pmd;
 
 	pmdp = (pmd_t *) pudp;
-#ifdef CONFIG_64BIT
 	if ((pud_val(pud) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3)
 		pmdp = (pmd_t *) pud_deref(pud);
 	pmdp += pmd_index(addr);
-#endif
 	do {
 		pmd = *pmdp;
 		barrier();
@@ -145,11 +143,9 @@ static inline int gup_pud_range(pgd_t *pgdp, pgd_t pgd, unsigned long addr,
 	pud_t *pudp, pud;
 
 	pudp = (pud_t *) pgdp;
-#ifdef CONFIG_64BIT
 	if ((pgd_val(pgd) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R2)
 		pudp = (pud_t *) pgd_deref(pgd);
 	pudp += pud_index(addr);
-#endif
 	do {
 		pud = *pudp;
 		barrier();

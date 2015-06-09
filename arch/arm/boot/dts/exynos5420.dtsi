@@ -221,7 +221,7 @@
 		compatible = "samsung,exynos4210-mct";
 		reg = <0x101C0000 0x800>;
 		interrupt-controller;
-		#interrups-cells = <1>;
+		#interrupt-cells = <1>;
 		interrupt-parent = <&mct_map>;
 		interrupts = <0>, <1>, <2>, <3>, <4>, <5>, <6>, <7>,
 				<8>, <9>, <10>, <11>;
@@ -251,6 +251,8 @@
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10044000 0x20>;
 		#power-domain-cells = <0>;
+		clocks = <&clock CLK_GSCL0>, <&clock CLK_GSCL1>;
+		clock-names = "asb0", "asb1";
 	};
 
 	isp_pd: power-domain@10044020 {
@@ -283,9 +285,11 @@
 			 <&clock CLK_MOUT_SW_ACLK300>,
 			 <&clock CLK_MOUT_USER_ACLK300_DISP1>,
 			 <&clock CLK_MOUT_SW_ACLK400>,
-			 <&clock CLK_MOUT_USER_ACLK400_DISP1>;
+			 <&clock CLK_MOUT_USER_ACLK400_DISP1>,
+			 <&clock CLK_FIMD1>, <&clock CLK_MIXER>;
 		clock-names = "oscclk", "pclk0", "clk0",
-			      "pclk1", "clk1", "pclk2", "clk2";
+			      "pclk1", "clk1", "pclk2", "clk2",
+			      "asb0", "asb1";
 	};
 
 	pinctrl_0: pinctrl@13400000 {
@@ -327,6 +331,7 @@
 	rtc: rtc@101E0000 {
 		clocks = <&clock CLK_RTC>;
 		clock-names = "rtc";
+		interrupt-parent = <&pmu_system_controller>;
 		status = "disabled";
 	};
 
@@ -740,8 +745,9 @@
 		compatible = "samsung,exynos5420-mixer";
 		reg = <0x14450000 0x10000>;
 		interrupts = <0 94 0>;
-		clocks = <&clock CLK_MIXER>, <&clock CLK_SCLK_HDMI>;
-		clock-names = "mixer", "sclk_hdmi";
+		clocks = <&clock CLK_MIXER>, <&clock CLK_HDMI>,
+			 <&clock CLK_SCLK_HDMI>;
+		clock-names = "mixer", "hdmi", "sclk_hdmi";
 		power-domains = <&disp_pd>;
 	};
 
@@ -769,6 +775,9 @@
 		clock-names = "clkout16";
 		clocks = <&clock CLK_FIN_PLL>;
 		#clock-cells = <1>;
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		interrupt-parent = <&gic>;
 	};
 
 	sysreg_system_controller: syscon@10050000 {
@@ -782,6 +791,7 @@
 		interrupts = <0 65 0>;
 		clocks = <&clock CLK_TMU>;
 		clock-names = "tmu_apbif";
+		#include "exynos4412-tmu-sensor-conf.dtsi"
 	};
 
 	tmu_cpu1: tmu@10064000 {
@@ -790,6 +800,7 @@
 		interrupts = <0 183 0>;
 		clocks = <&clock CLK_TMU>;
 		clock-names = "tmu_apbif";
+		#include "exynos4412-tmu-sensor-conf.dtsi"
 	};
 
 	tmu_cpu2: tmu@10068000 {
@@ -798,6 +809,7 @@
 		interrupts = <0 184 0>;
 		clocks = <&clock CLK_TMU>, <&clock CLK_TMU>;
 		clock-names = "tmu_apbif", "tmu_triminfo_apbif";
+		#include "exynos4412-tmu-sensor-conf.dtsi"
 	};
 
 	tmu_cpu3: tmu@1006c000 {
@@ -806,6 +818,7 @@
 		interrupts = <0 185 0>;
 		clocks = <&clock CLK_TMU>, <&clock CLK_TMU_GPU>;
 		clock-names = "tmu_apbif", "tmu_triminfo_apbif";
+		#include "exynos4412-tmu-sensor-conf.dtsi"
 	};
 
 	tmu_gpu: tmu@100a0000 {
@@ -814,6 +827,30 @@
 		interrupts = <0 215 0>;
 		clocks = <&clock CLK_TMU_GPU>, <&clock CLK_TMU>;
 		clock-names = "tmu_apbif", "tmu_triminfo_apbif";
+		#include "exynos4412-tmu-sensor-conf.dtsi"
+	};
+
+	thermal-zones {
+		cpu0_thermal: cpu0-thermal {
+			thermal-sensors = <&tmu_cpu0>;
+			#include "exynos5420-trip-points.dtsi"
+		};
+		cpu1_thermal: cpu1-thermal {
+		       thermal-sensors = <&tmu_cpu1>;
+		       #include "exynos5420-trip-points.dtsi"
+		};
+		cpu2_thermal: cpu2-thermal {
+		       thermal-sensors = <&tmu_cpu2>;
+		       #include "exynos5420-trip-points.dtsi"
+		};
+		cpu3_thermal: cpu3-thermal {
+		       thermal-sensors = <&tmu_cpu3>;
+		       #include "exynos5420-trip-points.dtsi"
+		};
+		gpu_thermal: gpu-thermal {
+		       thermal-sensors = <&tmu_gpu>;
+		       #include "exynos5420-trip-points.dtsi"
+		};
 	};
 
         watchdog: watchdog@101D0000 {

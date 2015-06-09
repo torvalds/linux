@@ -141,6 +141,16 @@ static unsigned int ath9k_ioread32(void *hw_priv, u32 reg_offset)
 	return val;
 }
 
+static void ath9k_multi_ioread32(void *hw_priv, u32 *addr,
+                                u32 *val, u16 count)
+{
+	int i;
+
+	for (i = 0; i < count; i++)
+		val[i] = ath9k_ioread32(hw_priv, addr[i]);
+}
+
+
 static unsigned int __ath9k_reg_rmw(struct ath_softc *sc, u32 reg_offset,
 				    u32 set, u32 clr)
 {
@@ -437,8 +447,15 @@ static void ath9k_init_pcoem_platform(struct ath_softc *sc)
 		ath_info(common, "Enable WAR for ASPM D3/L1\n");
 	}
 
+	/*
+	 * The default value of pll_pwrsave is 1.
+	 * For certain AR9485 cards, it is set to 0.
+	 * For AR9462, AR9565 it's set to 7.
+	 */
+	ah->config.pll_pwrsave = 1;
+
 	if (sc->driver_data & ATH9K_PCI_NO_PLL_PWRSAVE) {
-		ah->config.no_pll_pwrsave = true;
+		ah->config.pll_pwrsave = 0;
 		ath_info(common, "Disable PLL PowerSave\n");
 	}
 
@@ -530,6 +547,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	ah->hw = sc->hw;
 	ah->hw_version.devid = devid;
 	ah->reg_ops.read = ath9k_ioread32;
+	ah->reg_ops.multi_read = ath9k_multi_ioread32;
 	ah->reg_ops.write = ath9k_iowrite32;
 	ah->reg_ops.rmw = ath9k_reg_rmw;
 	pCap = &ah->caps;
@@ -763,7 +781,8 @@ static const struct ieee80211_iface_combination if_comb[] = {
 		.num_different_channels = 1,
 		.beacon_int_infra_match = true,
 		.radar_detect_widths =	BIT(NL80211_CHAN_WIDTH_20_NOHT) |
-					BIT(NL80211_CHAN_WIDTH_20),
+					BIT(NL80211_CHAN_WIDTH_20) |
+					BIT(NL80211_CHAN_WIDTH_40),
 	}
 #endif
 };

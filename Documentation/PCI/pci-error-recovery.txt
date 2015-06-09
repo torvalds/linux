@@ -256,7 +256,7 @@ STEP 4: Slot Reset
 ------------------
 
 In response to a return value of PCI_ERS_RESULT_NEED_RESET, the
-the platform will peform a slot reset on the requesting PCI device(s). 
+the platform will perform a slot reset on the requesting PCI device(s). 
 The actual steps taken by a platform to perform a slot reset
 will be platform-dependent. Upon completion of slot reset, the
 platform will call the device slot_reset() callback.

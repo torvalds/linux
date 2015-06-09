@@ -46,8 +46,8 @@
 #include <linux/errno.h>
 #include <linux/unistd.h>
 #include <linux/uio.h>
+#include <linux/uaccess.h>
 
-#include <asm/uaccess.h>
 #include <asm/io.h>
 
 #include <linux/fs.h>

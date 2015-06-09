@@ -33,7 +33,6 @@ static int sg_version_num = 30536;	/* 2 digits for each component */
 #include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/aio.h>
 #include <linux/errno.h>
 #include <linux/mtio.h>
 #include <linux/ioctl.h>
@@ -51,6 +50,7 @@ static int sg_version_num = 30536;	/* 2 digits for each component */
 #include <linux/mutex.h>
 #include <linux/atomic.h>
 #include <linux/ratelimit.h>
+#include <linux/uio.h>
 
 #include "scsi.h"
 #include <scsi/scsi_dbg.h>
@@ -1745,17 +1745,14 @@ sg_start_req(Sg_request *srp, unsigned char *cmd)
 	}
 
 	if (iov_count) {
-		int size = sizeof(struct iovec) * iov_count;
-		struct iovec *iov;
+		struct iovec *iov = NULL;
 		struct iov_iter i;
 
-		iov = memdup_user(hp->dxferp, size);
-		if (IS_ERR(iov))
-			return PTR_ERR(iov);
+		res = import_iovec(rw, hp->dxferp, iov_count, 0, &iov, &i);
+		if (res < 0)
+			return res;
 
-		iov_iter_init(&i, rw, iov, iov_count,
-			      min_t(size_t, hp->dxfer_len,
-				    iov_length(iov, iov_count)));
+		iov_iter_truncate(&i, hp->dxfer_len);
 
 		res = blk_rq_map_user_iov(q, rq, md, &i, GFP_ATOMIC);
 		kfree(iov);

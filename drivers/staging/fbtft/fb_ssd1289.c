@@ -126,16 +126,16 @@ static int set_var(struct fbtft_par *par)
 
 	switch (par->info->var.rotate) {
 	case 0:
-		write_reg(par, 0x11, reg11 | 0b110000);
+		write_reg(par, 0x11, reg11 | 0x30);
 		break;
 	case 270:
-		write_reg(par, 0x11, reg11 | 0b101000);
+		write_reg(par, 0x11, reg11 | 0x28);
 		break;
 	case 180:
-		write_reg(par, 0x11, reg11 | 0b000000);
+		write_reg(par, 0x11, reg11 | 0x00);
 		break;
 	case 90:
-		write_reg(par, 0x11, reg11 | 0b011000);
+		write_reg(par, 0x11, reg11 | 0x18);
 		break;
 	}
 
@@ -151,10 +151,9 @@ static int set_var(struct fbtft_par *par)
 static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 {
 	unsigned long mask[] = {
-		0b11111, 0b11111, 0b111, 0b111, 0b111,
-		0b111, 0b111, 0b111, 0b111, 0b111,
-		0b11111, 0b11111, 0b111, 0b111, 0b111,
-		0b111, 0b111, 0b111, 0b111, 0b111 };
+		0x1f, 0x1f, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
+		0x1f, 0x1f, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
+	};
 	int i, j;
 
 	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);

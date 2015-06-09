@@ -61,7 +61,6 @@
 #define CPU_FTR_NOEXECUTE	0
 #endif
 
-int mem_init_done;
 unsigned long long memory_limit;
 
 #ifdef CONFIG_HIGHMEM
@@ -377,8 +376,6 @@ void __init mem_init(void)
 	pr_info("  * 0x%08lx..0x%08lx  : vmalloc & ioremap\n",
 		VMALLOC_START, VMALLOC_END);
 #endif /* CONFIG_PPC32 */
-
-	mem_init_done = 1;
 }
 
 void free_initmem(void)

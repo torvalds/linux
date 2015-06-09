@@ -53,6 +53,14 @@
 # define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
 
+enum rpcrdma_chunktype {
+	rpcrdma_noch = 0,
+	rpcrdma_readch,
+	rpcrdma_areadch,
+	rpcrdma_writech,
+	rpcrdma_replych
+};
+
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 static const char transfertypes[][12] = {
 	"pure inline",	/* no chunks */
@@ -179,6 +187,7 @@ rpcrdma_create_chunks(struct rpc_rqst *rqst, struct xdr_buf *target,
 	struct rpcrdma_write_array *warray = NULL;
 	struct rpcrdma_write_chunk *cur_wchunk = NULL;
 	__be32 *iptr = headerp->rm_body.rm_chunks;
+	int (*map)(struct rpcrdma_xprt *, struct rpcrdma_mr_seg *, int, bool);
 
 	if (type == rpcrdma_readch || type == rpcrdma_areadch) {
 		/* a read chunk - server will RDMA Read our memory */
@@ -201,9 +210,9 @@ rpcrdma_create_chunks(struct rpc_rqst *rqst, struct xdr_buf *target,
 	if (nsegs < 0)
 		return nsegs;
 
+	map = r_xprt->rx_ia.ri_ops->ro_map;
 	do {
-		n = rpcrdma_register_external(seg, nsegs,
-						cur_wchunk != NULL, r_xprt);
+		n = map(r_xprt, seg, nsegs, cur_wchunk != NULL);
 		if (n <= 0)
 			goto out;
 		if (cur_rchunk) {	/* read */
@@ -275,34 +284,13 @@ rpcrdma_create_chunks(struct rpc_rqst *rqst, struct xdr_buf *target,
 	return (unsigned char *)iptr - (unsigned char *)headerp;
 
 out:
-	if (r_xprt->rx_ia.ri_memreg_strategy != RPCRDMA_FRMR) {
-		for (pos = 0; nchunks--;)
-			pos += rpcrdma_deregister_external(
-					&req->rl_segments[pos], r_xprt);
-	}
+	if (r_xprt->rx_ia.ri_memreg_strategy == RPCRDMA_FRMR)
+		return n;
+
+	for (pos = 0; nchunks--;)
+		pos += r_xprt->rx_ia.ri_ops->ro_unmap(r_xprt,
+						      &req->rl_segments[pos]);
 	return n;
-}
-
-/*
- * Marshal chunks. This routine returns the header length
- * consumed by marshaling.
- *
- * Returns positive RPC/RDMA header size, or negative errno.
- */
-
-ssize_t
-rpcrdma_marshal_chunks(struct rpc_rqst *rqst, ssize_t result)
-{
-	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
-	struct rpcrdma_msg *headerp = rdmab_to_msg(req->rl_rdmabuf);
-
-	if (req->rl_rtype != rpcrdma_noch)
-		result = rpcrdma_create_chunks(rqst, &rqst->rq_snd_buf,
-					       headerp, req->rl_rtype);
-	else if (req->rl_wtype != rpcrdma_noch)
-		result = rpcrdma_create_chunks(rqst, &rqst->rq_rcv_buf,
-					       headerp, req->rl_wtype);
-	return result;
 }
 
 /*
@@ -397,6 +385,7 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	char *base;
 	size_t rpclen, padlen;
 	ssize_t hdrlen;
+	enum rpcrdma_chunktype rtype, wtype;
 	struct rpcrdma_msg *headerp;
 
 	/*
@@ -433,13 +422,13 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	 * into pages; otherwise use reply chunks.
 	 */
 	if (rqst->rq_rcv_buf.buflen <= RPCRDMA_INLINE_READ_THRESHOLD(rqst))
-		req->rl_wtype = rpcrdma_noch;
+		wtype = rpcrdma_noch;
 	else if (rqst->rq_rcv_buf.page_len == 0)
-		req->rl_wtype = rpcrdma_replych;
+		wtype = rpcrdma_replych;
 	else if (rqst->rq_rcv_buf.flags & XDRBUF_READ)
-		req->rl_wtype = rpcrdma_writech;
+		wtype = rpcrdma_writech;
 	else
-		req->rl_wtype = rpcrdma_replych;
+		wtype = rpcrdma_replych;
 
 	/*
 	 * Chunks needed for arguments?
@@ -456,16 +445,16 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	 * TBD check NFSv4 setacl
 	 */
 	if (rqst->rq_snd_buf.len <= RPCRDMA_INLINE_WRITE_THRESHOLD(rqst))
-		req->rl_rtype = rpcrdma_noch;
+		rtype = rpcrdma_noch;
 	else if (rqst->rq_snd_buf.page_len == 0)
-		req->rl_rtype = rpcrdma_areadch;
+		rtype = rpcrdma_areadch;
 	else
-		req->rl_rtype = rpcrdma_readch;
+		rtype = rpcrdma_readch;
 
 	/* The following simplification is not true forever */
-	if (req->rl_rtype != rpcrdma_noch && req->rl_wtype == rpcrdma_replych)
-		req->rl_wtype = rpcrdma_noch;
-	if (req->rl_rtype != rpcrdma_noch && req->rl_wtype != rpcrdma_noch) {
+	if (rtype != rpcrdma_noch && wtype == rpcrdma_replych)
+		wtype = rpcrdma_noch;
+	if (rtype != rpcrdma_noch && wtype != rpcrdma_noch) {
 		dprintk("RPC:       %s: cannot marshal multiple chunk lists\n",
 			__func__);
 		return -EIO;
@@ -479,7 +468,7 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	 * When padding is in use and applies to the transfer, insert
 	 * it and change the message type.
 	 */
-	if (req->rl_rtype == rpcrdma_noch) {
+	if (rtype == rpcrdma_noch) {
 
 		padlen = rpcrdma_inline_pullup(rqst,
 						RPCRDMA_INLINE_PAD_VALUE(rqst));
@@ -494,7 +483,7 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 			headerp->rm_body.rm_padded.rm_pempty[1] = xdr_zero;
 			headerp->rm_body.rm_padded.rm_pempty[2] = xdr_zero;
 			hdrlen += 2 * sizeof(u32); /* extra words in padhdr */
-			if (req->rl_wtype != rpcrdma_noch) {
+			if (wtype != rpcrdma_noch) {
 				dprintk("RPC:       %s: invalid chunk list\n",
 					__func__);
 				return -EIO;
@@ -515,18 +504,26 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 			 * on receive. Therefore, we request a reply chunk
 			 * for non-writes wherever feasible and efficient.
 			 */
-			if (req->rl_wtype == rpcrdma_noch)
-				req->rl_wtype = rpcrdma_replych;
+			if (wtype == rpcrdma_noch)
+				wtype = rpcrdma_replych;
 		}
 	}
 
-	hdrlen = rpcrdma_marshal_chunks(rqst, hdrlen);
+	if (rtype != rpcrdma_noch) {
+		hdrlen = rpcrdma_create_chunks(rqst, &rqst->rq_snd_buf,
+					       headerp, rtype);
+		wtype = rtype;	/* simplify dprintk */
+
+	} else if (wtype != rpcrdma_noch) {
+		hdrlen = rpcrdma_create_chunks(rqst, &rqst->rq_rcv_buf,
+					       headerp, wtype);
+	}
 	if (hdrlen < 0)
 		return hdrlen;
 
 	dprintk("RPC:       %s: %s: hdrlen %zd rpclen %zd padlen %zd"
 		" headerp 0x%p base 0x%p lkey 0x%x\n",
-		__func__, transfertypes[req->rl_wtype], hdrlen, rpclen, padlen,
+		__func__, transfertypes[wtype], hdrlen, rpclen, padlen,
 		headerp, base, rdmab_lkey(req->rl_rdmabuf));
 
 	/*
@@ -738,8 +735,9 @@ rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	struct rpc_xprt *xprt = rep->rr_xprt;
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 	__be32 *iptr;
-	int credits, rdmalen, status;
+	int rdmalen, status;
 	unsigned long cwnd;
+	u32 credits;
 
 	/* Check status. If bad, signal disconnect and return rep to pool */
 	if (rep->rr_len == ~0U) {

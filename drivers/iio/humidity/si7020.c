@@ -45,12 +45,12 @@ static int si7020_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan, int *val,
 			   int *val2, long mask)
 {
-	struct i2c_client *client = iio_priv(indio_dev);
+	struct i2c_client **client = iio_priv(indio_dev);
 	int ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = i2c_smbus_read_word_data(client,
+		ret = i2c_smbus_read_word_data(*client,
 					       chan->type == IIO_TEMP ?
 					       SI7020CMD_TEMP_HOLD :
 					       SI7020CMD_RH_HOLD);
@@ -126,7 +126,7 @@ static int si7020_probe(struct i2c_client *client,
 	/* Wait the maximum power-up time after software reset. */
 	msleep(15);
 
-	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*client));
+	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
 		return -ENOMEM;
 

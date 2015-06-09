@@ -216,10 +216,16 @@ static void prb_fill_vlan_info(struct tpacket_kbdq_core *,
 static void packet_flush_mclist(struct sock *sk);
 
 struct packet_skb_cb {
-	unsigned int origlen;
 	union {
 		struct sockaddr_pkt pkt;
-		struct sockaddr_ll ll;
+		union {
+			/* Trick: alias skb original length with
+			 * ll.sll_family and ll.protocol in order
+			 * to save room.
+			 */
+			unsigned int origlen;
+			struct sockaddr_ll ll;
+		};
 	} sa;
 };
 
@@ -698,6 +704,10 @@ static void prb_retire_rx_blk_timer_expired(unsigned long data)
 
 	if (pkc->last_kactive_blk_num == pkc->kactive_blk_num) {
 		if (!frozen) {
+			if (!BLOCK_NUM_PKTS(pbd)) {
+				/* An empty block. Just refresh the timer. */
+				goto refresh_timer;
+			}
 			prb_retire_current_block(pkc, po, TP_STATUS_BLK_TMO);
 			if (!prb_dispatch_next_block(pkc, po))
 				goto refresh_timer;
@@ -798,7 +808,11 @@ static void prb_close_block(struct tpacket_kbdq_core *pkc1,
 		h1->ts_last_pkt.ts_sec = last_pkt->tp_sec;
 		h1->ts_last_pkt.ts_nsec	= last_pkt->tp_nsec;
 	} else {
-		/* Ok, we tmo'd - so get the current time */
+		/* Ok, we tmo'd - so get the current time.
+		 *
+		 * It shouldn't really happen as we don't close empty
+		 * blocks. See prb_retire_rx_blk_timer_expired().
+		 */
 		struct timespec ts;
 		getnstimeofday(&ts);
 		h1->ts_last_pkt.ts_sec = ts.tv_sec;
@@ -1349,14 +1363,14 @@ static int packet_rcv_fanout(struct sk_buff *skb, struct net_device *dev,
 		return 0;
 	}
 
+	if (fanout_has_flag(f, PACKET_FANOUT_FLAG_DEFRAG)) {
+		skb = ip_check_defrag(skb, IP_DEFRAG_AF_PACKET);
+		if (!skb)
+			return 0;
+	}
 	switch (f->type) {
 	case PACKET_FANOUT_HASH:
 	default:
-		if (fanout_has_flag(f, PACKET_FANOUT_FLAG_DEFRAG)) {
-			skb = ip_check_defrag(skb, IP_DEFRAG_AF_PACKET);
-			if (!skb)
-				return 0;
-		}
 		idx = fanout_demux_hash(f, skb, num);
 		break;
 	case PACKET_FANOUT_LB:
@@ -1600,8 +1614,8 @@ oom:
  *	protocol layers and you must therefore supply it with a complete frame
  */
 
-static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
-			       struct msghdr *msg, size_t len)
+static int packet_sendmsg_spkt(struct socket *sock, struct msghdr *msg,
+			       size_t len)
 {
 	struct sock *sk = sock->sk;
 	DECLARE_SOCKADDR(struct sockaddr_pkt *, saddr, msg->msg_name);
@@ -1810,13 +1824,10 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev,
 		skb = nskb;
 	}
 
-	BUILD_BUG_ON(sizeof(*PACKET_SKB_CB(skb)) + MAX_ADDR_LEN - 8 >
-		     sizeof(skb->cb));
+	sock_skb_cb_check_size(sizeof(*PACKET_SKB_CB(skb)) + MAX_ADDR_LEN - 8);
 
 	sll = &PACKET_SKB_CB(skb)->sa.ll;
-	sll->sll_family = AF_PACKET;
 	sll->sll_hatype = dev->type;
-	sll->sll_protocol = skb->protocol;
 	sll->sll_pkttype = skb->pkt_type;
 	if (unlikely(po->origdev))
 		sll->sll_ifindex = orig_dev->ifindex;
@@ -1825,7 +1836,10 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	sll->sll_halen = dev_parse_header(skb, sll->sll_addr);
 
-	PACKET_SKB_CB(skb)->origlen = skb->len;
+	/* sll->sll_family and sll->sll_protocol are set in packet_recvmsg().
+	 * Use their space for storing the original skb length.
+	 */
+	PACKET_SKB_CB(skb)->sa.origlen = skb->len;
 
 	if (pskb_trim(skb, snaplen))
 		goto drop_n_acct;
@@ -1839,7 +1853,7 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	spin_lock(&sk->sk_receive_queue.lock);
 	po->stats.stats1.tp_packets++;
-	skb->dropcount = atomic_read(&sk->sk_drops);
+	sock_skb_set_dropcount(sk, skb);
 	__skb_queue_tail(&sk->sk_receive_queue, skb);
 	spin_unlock(&sk->sk_receive_queue.lock);
 	sk->sk_data_ready(sk);
@@ -1902,14 +1916,19 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		}
 	}
 
-	if (skb->ip_summed == CHECKSUM_PARTIAL)
-		status |= TP_STATUS_CSUMNOTREADY;
-
 	snaplen = skb->len;
 
 	res = run_filter(skb, sk, snaplen);
 	if (!res)
 		goto drop_n_restore;
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
+		status |= TP_STATUS_CSUMNOTREADY;
+	else if (skb->pkt_type != PACKET_OUTGOING &&
+		 (skb->ip_summed == CHECKSUM_COMPLETE ||
+		  skb_csum_unnecessary(skb)))
+		status |= TP_STATUS_CSUM_VALID;
+
 	if (snaplen > res)
 		snaplen = res;
 
@@ -2595,8 +2614,7 @@ out:
 	return err;
 }
 
-static int packet_sendmsg(struct kiocb *iocb, struct socket *sock,
-		struct msghdr *msg, size_t len)
+static int packet_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 {
 	struct sock *sk = sock->sk;
 	struct packet_sock *po = pkt_sk(sk);
@@ -2876,13 +2894,14 @@ out:
  *	If necessary we block.
  */
 
-static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
-			  struct msghdr *msg, size_t len, int flags)
+static int packet_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
+			  int flags)
 {
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb;
 	int copied, err;
 	int vnet_hdr_len = 0;
+	unsigned int origlen = 0;
 
 	err = -EINVAL;
 	if (flags & ~(MSG_PEEK|MSG_DONTWAIT|MSG_TRUNC|MSG_CMSG_COMPAT|MSG_ERRQUEUE))
@@ -2982,6 +3001,15 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (err)
 		goto out_free;
 
+	if (sock->type != SOCK_PACKET) {
+		struct sockaddr_ll *sll = &PACKET_SKB_CB(skb)->sa.ll;
+
+		/* Original length was stored in sockaddr_ll fields */
+		origlen = PACKET_SKB_CB(skb)->sa.origlen;
+		sll->sll_family = AF_PACKET;
+		sll->sll_protocol = skb->protocol;
+	}
+
 	sock_recv_ts_and_drops(msg, sk, skb);
 
 	if (msg->msg_name) {
@@ -2993,6 +3021,7 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 			msg->msg_namelen = sizeof(struct sockaddr_pkt);
 		} else {
 			struct sockaddr_ll *sll = &PACKET_SKB_CB(skb)->sa.ll;
+
 			msg->msg_namelen = sll->sll_halen +
 				offsetof(struct sockaddr_ll, sll_addr);
 		}
@@ -3006,7 +3035,12 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 		aux.tp_status = TP_STATUS_USER;
 		if (skb->ip_summed == CHECKSUM_PARTIAL)
 			aux.tp_status |= TP_STATUS_CSUMNOTREADY;
-		aux.tp_len = PACKET_SKB_CB(skb)->origlen;
+		else if (skb->pkt_type != PACKET_OUTGOING &&
+			 (skb->ip_summed == CHECKSUM_COMPLETE ||
+			  skb_csum_unnecessary(skb)))
+			aux.tp_status |= TP_STATUS_CSUM_VALID;
+
+		aux.tp_len = origlen;
 		aux.tp_snaplen = skb->len;
 		aux.tp_mac = 0;
 		aux.tp_net = skb_network_offset(skb);
@@ -3115,11 +3149,18 @@ static int packet_dev_mc(struct net_device *dev, struct packet_mclist *i,
 	return 0;
 }
 
-static void packet_dev_mclist(struct net_device *dev, struct packet_mclist *i, int what)
+static void packet_dev_mclist_delete(struct net_device *dev,
+				     struct packet_mclist **mlp)
 {
-	for ( ; i; i = i->next) {
-		if (i->ifindex == dev->ifindex)
-			packet_dev_mc(dev, i, what);
+	struct packet_mclist *ml;
+
+	while ((ml = *mlp) != NULL) {
+		if (ml->ifindex == dev->ifindex) {
+			packet_dev_mc(dev, ml, -1);
+			*mlp = ml->next;
+			kfree(ml);
+		} else
+			mlp = &ml->next;
 	}
 }
 
@@ -3196,12 +3237,11 @@ static int packet_mc_drop(struct sock *sk, struct packet_mreq_max *mreq)
 					packet_dev_mc(dev, ml, -1);
 				kfree(ml);
 			}
-			rtnl_unlock();
-			return 0;
+			break;
 		}
 	}
 	rtnl_unlock();
-	return -EADDRNOTAVAIL;
+	return 0;
 }
 
 static void packet_flush_mclist(struct sock *sk)
@@ -3551,7 +3591,7 @@ static int packet_notifier(struct notifier_block *this,
 		switch (msg) {
 		case NETDEV_UNREGISTER:
 			if (po->mclist)
-				packet_dev_mclist(dev, po->mclist, -1);
+				packet_dev_mclist_delete(dev, &po->mclist);
 			/* fallthrough */
 
 		case NETDEV_DOWN:

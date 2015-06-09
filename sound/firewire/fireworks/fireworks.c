@@ -173,10 +173,22 @@ end:
 	return err;
 }
 
+/*
+ * This module releases the FireWire unit data after all ALSA character devices
+ * are released by applications. This is for releasing stream data or finishing
+ * transactions safely. Thus at returning from .remove(), this module still keep
+ * references for the unit.
+ */
 static void
 efw_card_free(struct snd_card *card)
 {
 	struct snd_efw *efw = card->private_data;
+
+	snd_efw_stream_destroy_duplex(efw);
+	snd_efw_transaction_remove_instance(efw);
+	fw_unit_put(efw->unit);
+
+	kfree(efw->resp_buf);
 
 	if (efw->card_index >= 0) {
 		mutex_lock(&devices_mutex);
@@ -185,7 +197,6 @@ efw_card_free(struct snd_card *card)
 	}
 
 	mutex_destroy(&efw->mutex);
-	kfree(efw->resp_buf);
 }
 
 static int
@@ -218,7 +229,7 @@ efw_probe(struct fw_unit *unit,
 	card->private_free = efw_card_free;
 
 	efw->card = card;
-	efw->unit = unit;
+	efw->unit = fw_unit_get(unit);
 	mutex_init(&efw->mutex);
 	spin_lock_init(&efw->lock);
 	init_waitqueue_head(&efw->hwdep_wait);
@@ -289,10 +300,7 @@ static void efw_remove(struct fw_unit *unit)
 {
 	struct snd_efw *efw = dev_get_drvdata(&unit->device);
 
-	snd_efw_stream_destroy_duplex(efw);
-	snd_efw_transaction_remove_instance(efw);
-
-	snd_card_disconnect(efw->card);
+	/* No need to wait for releasing card object in this context. */
 	snd_card_free_when_closed(efw->card);
 }
 

@@ -1,7 +1,7 @@
 /*
  * P1023 RDB Device Tree Source
  *
- *    Copyright 2013 Freescale Semiconductor Inc.
+ * Copyright 2013 - 2014 Freescale Semiconductor Inc.
  *
  * Author: Chunhe Lan <Chunhe.Lan@freescale.com>
  *
@@ -45,6 +45,21 @@
 
 	memory {
 		device_type = "memory";
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		bman_fbpr: bman-fbpr {
+			size = <0 0x1000000>;
+			alignment = <0 0x1000000>;
+		};
+	};
+
+	bportals: bman-portals@ff200000 {
+		ranges = <0x0 0xf 0xff200000 0x200000>;
 	};
 
 	soc: soc@ff600000 {
@@ -228,7 +243,6 @@
 				  0x0 0x100000>;
 		};
 	};
-
 };
 
 /include/ "fsl/p1023si-post.dtsi"

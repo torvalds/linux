@@ -91,6 +91,12 @@ EXPORT_SYMBOL_GPL(xen_p2m_size);
 unsigned long xen_max_p2m_pfn __read_mostly;
 EXPORT_SYMBOL_GPL(xen_max_p2m_pfn);
 
+#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG_LIMIT
+#define P2M_LIMIT CONFIG_XEN_BALLOON_MEMORY_HOTPLUG_LIMIT
+#else
+#define P2M_LIMIT 0
+#endif
+
 static DEFINE_SPINLOCK(p2m_update_lock);
 
 static unsigned long *p2m_mid_missing_mfn;
@@ -385,9 +391,11 @@ static void __init xen_rebuild_p2m_list(unsigned long *p2m)
 void __init xen_vmalloc_p2m_tree(void)
 {
 	static struct vm_struct vm;
+	unsigned long p2m_limit;
 
+	p2m_limit = (phys_addr_t)P2M_LIMIT * 1024 * 1024 * 1024 / PAGE_SIZE;
 	vm.flags = VM_ALLOC;
-	vm.size = ALIGN(sizeof(unsigned long) * xen_max_p2m_pfn,
+	vm.size = ALIGN(sizeof(unsigned long) * max(xen_max_p2m_pfn, p2m_limit),
 			PMD_SIZE * PMDS_PER_MID_PAGE);
 	vm_area_register_early(&vm, PMD_SIZE * PMDS_PER_MID_PAGE);
 	pr_notice("p2m virtual area at %p, size is %lx\n", vm.addr, vm.size);
@@ -563,7 +571,7 @@ static bool alloc_p2m(unsigned long pfn)
 		if (p2m_pfn == PFN_DOWN(__pa(p2m_missing)))
 			p2m_init(p2m);
 		else
-			p2m_init_identity(p2m, pfn);
+			p2m_init_identity(p2m, pfn & ~(P2M_PER_PAGE - 1));
 
 		spin_lock_irqsave(&p2m_update_lock, flags);
 

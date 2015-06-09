@@ -278,6 +278,21 @@ bool die_is_func_def(Dwarf_Die *dw_die)
 }
 
 /**
+ * die_is_func_instance - Ensure that this DIE is an instance of a subprogram
+ * @dw_die: a DIE
+ *
+ * Ensure that this DIE is an instance (which has an entry address).
+ * This returns true if @dw_die is a function instance. If not, you need to
+ * call die_walk_instances() to find actual instances.
+ **/
+bool die_is_func_instance(Dwarf_Die *dw_die)
+{
+	Dwarf_Addr tmp;
+
+	/* Actually gcc optimizes non-inline as like as inlined */
+	return !dwarf_func_inline(dw_die) && dwarf_entrypc(dw_die, &tmp) == 0;
+}
+/**
  * die_get_data_member_location - Get the data-member offset
  * @mb_die: a DIE of a member of a data structure
  * @offs: The offset of the member in the data structure
@@ -786,10 +801,16 @@ static int __die_find_member_cb(Dwarf_Die *die_mem, void *data)
 {
 	const char *name = data;
 
-	if ((dwarf_tag(die_mem) == DW_TAG_member) &&
-	    die_compare_name(die_mem, name))
-		return DIE_FIND_CB_END;
-
+	if (dwarf_tag(die_mem) == DW_TAG_member) {
+		if (die_compare_name(die_mem, name))
+			return DIE_FIND_CB_END;
+		else if (!dwarf_diename(die_mem)) {	/* Unnamed structure */
+			Dwarf_Die type_die, tmp_die;
+			if (die_get_type(die_mem, &type_die) &&
+			    die_find_member(&type_die, name, &tmp_die))
+				return DIE_FIND_CB_END;
+		}
+	}
 	return DIE_FIND_CB_SIBLING;
 }
 

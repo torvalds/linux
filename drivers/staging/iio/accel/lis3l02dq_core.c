@@ -558,13 +558,11 @@ static const struct iio_chan_spec lis3l02dq_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(3)
 };
 
-
 static int lis3l02dq_read_event_config(struct iio_dev *indio_dev,
 				       const struct iio_chan_spec *chan,
 				       enum iio_event_type type,
 				       enum iio_event_direction dir)
 {
-
 	u8 val;
 	int ret;
 	u8 mask = (1 << (chan->channel2*2 + (dir == IIO_EV_DIR_RISING)));
@@ -656,8 +654,8 @@ static int lis3l02dq_write_event_config(struct iio_dev *indio_dev,
 			(control | LIS3L02DQ_REG_CTRL_2_ENABLE_INTERRUPT) :
 			(control & ~LIS3L02DQ_REG_CTRL_2_ENABLE_INTERRUPT);
 		ret = lis3l02dq_spi_write_reg_8(indio_dev,
-					       LIS3L02DQ_REG_CTRL_2_ADDR,
-					       control);
+						LIS3L02DQ_REG_CTRL_2_ADDR,
+						control);
 		if (ret)
 			goto error_ret;
 	}

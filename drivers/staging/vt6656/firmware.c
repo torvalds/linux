@@ -61,7 +61,7 @@ int vnt_download_firmware(struct vnt_private *priv)
 
 	buffer = kmalloc(FIRMWARE_CHUNK_SIZE, GFP_KERNEL);
 	if (!buffer)
-		goto out;
+		goto free_fw;
 
 	for (ii = 0; ii < fw->size; ii += FIRMWARE_CHUNK_SIZE) {
 		length = min_t(int, fw->size - ii, FIRMWARE_CHUNK_SIZE);

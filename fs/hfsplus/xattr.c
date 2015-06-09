@@ -44,7 +44,7 @@ static int strcmp_xattr_acl(const char *name)
 	return -1;
 }
 
-static inline int is_known_namespace(const char *name)
+static bool is_known_namespace(const char *name)
 {
 	if (strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN) &&
 	    strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN) &&
@@ -424,6 +424,28 @@ static int copy_name(char *buffer, const char *xattr_name, int name_len)
 	return len;
 }
 
+int hfsplus_setxattr(struct dentry *dentry, const char *name,
+		     const void *value, size_t size, int flags,
+		     const char *prefix, size_t prefixlen)
+{
+	char *xattr_name;
+	int res;
+
+	if (!strcmp(name, ""))
+		return -EINVAL;
+
+	xattr_name = kmalloc(NLS_MAX_CHARSET_SIZE * HFSPLUS_ATTR_MAX_STRLEN + 1,
+		GFP_KERNEL);
+	if (!xattr_name)
+		return -ENOMEM;
+	strcpy(xattr_name, prefix);
+	strcpy(xattr_name + prefixlen, name);
+	res = __hfsplus_setxattr(d_inode(dentry), xattr_name, value, size,
+				 flags);
+	kfree(xattr_name);
+	return res;
+}
+
 static ssize_t hfsplus_getxattr_finder_info(struct inode *inode,
 						void *value, size_t size)
 {
@@ -560,6 +582,30 @@ failed_getxattr_init:
 	return res;
 }
 
+ssize_t hfsplus_getxattr(struct dentry *dentry, const char *name,
+			 void *value, size_t size,
+			 const char *prefix, size_t prefixlen)
+{
+	int res;
+	char *xattr_name;
+
+	if (!strcmp(name, ""))
+		return -EINVAL;
+
+	xattr_name = kmalloc(NLS_MAX_CHARSET_SIZE * HFSPLUS_ATTR_MAX_STRLEN + 1,
+			     GFP_KERNEL);
+	if (!xattr_name)
+		return -ENOMEM;
+
+	strcpy(xattr_name, prefix);
+	strcpy(xattr_name + prefixlen, name);
+
+	res = __hfsplus_getxattr(d_inode(dentry), xattr_name, value, size);
+	kfree(xattr_name);
+	return res;
+
+}
+
 static inline int can_list(const char *xattr_name)
 {
 	if (!xattr_name)
@@ -574,7 +620,7 @@ static ssize_t hfsplus_listxattr_finder_info(struct dentry *dentry,
 						char *buffer, size_t size)
 {
 	ssize_t res = 0;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct hfs_find_data fd;
 	u16 entry_type;
 	u8 folder_finder_info[sizeof(struct DInfo) + sizeof(struct DXInfo)];
@@ -642,7 +688,7 @@ ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
 	ssize_t err;
 	ssize_t res = 0;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct hfs_find_data fd;
 	u16 key_len = 0;
 	struct hfsplus_attr_key attr_key;
@@ -806,9 +852,6 @@ end_removexattr:
 static int hfsplus_osx_getxattr(struct dentry *dentry, const char *name,
 					void *buffer, size_t size, int type)
 {
-	char *xattr_name;
-	int res;
-
 	if (!strcmp(name, ""))
 		return -EINVAL;
 
@@ -818,24 +861,19 @@ static int hfsplus_osx_getxattr(struct dentry *dentry, const char *name,
 	 */
 	if (is_known_namespace(name))
 		return -EOPNOTSUPP;
-	xattr_name = kmalloc(NLS_MAX_CHARSET_SIZE * HFSPLUS_ATTR_MAX_STRLEN
-		+ XATTR_MAC_OSX_PREFIX_LEN + 1, GFP_KERNEL);
-	if (!xattr_name)
-		return -ENOMEM;
-	strcpy(xattr_name, XATTR_MAC_OSX_PREFIX);
-	strcpy(xattr_name + XATTR_MAC_OSX_PREFIX_LEN, name);
 
-	res = hfsplus_getxattr(dentry, xattr_name, buffer, size);
-	kfree(xattr_name);
-	return res;
+	/*
+	 * osx is the namespace we use to indicate an unprefixed
+	 * attribute on the filesystem (like the ones that OS X
+	 * creates), so we pass the name through unmodified (after
+	 * ensuring it doesn't conflict with another namespace).
+	 */
+	return __hfsplus_getxattr(d_inode(dentry), name, buffer, size);
 }
 
 static int hfsplus_osx_setxattr(struct dentry *dentry, const char *name,
 		const void *buffer, size_t size, int flags, int type)
 {
-	char *xattr_name;
-	int res;
-
 	if (!strcmp(name, ""))
 		return -EINVAL;
 
@@ -845,16 +883,14 @@ static int hfsplus_osx_setxattr(struct dentry *dentry, const char *name,
 	 */
 	if (is_known_namespace(name))
 		return -EOPNOTSUPP;
-	xattr_name = kmalloc(NLS_MAX_CHARSET_SIZE * HFSPLUS_ATTR_MAX_STRLEN
-		+ XATTR_MAC_OSX_PREFIX_LEN + 1, GFP_KERNEL);
-	if (!xattr_name)
-		return -ENOMEM;
-	strcpy(xattr_name, XATTR_MAC_OSX_PREFIX);
-	strcpy(xattr_name + XATTR_MAC_OSX_PREFIX_LEN, name);
 
-	res = hfsplus_setxattr(dentry, xattr_name, buffer, size, flags);
-	kfree(xattr_name);
-	return res;
+	/*
+	 * osx is the namespace we use to indicate an unprefixed
+	 * attribute on the filesystem (like the ones that OS X
+	 * creates), so we pass the name through unmodified (after
+	 * ensuring it doesn't conflict with another namespace).
+	 */
+	return __hfsplus_setxattr(d_inode(dentry), name, buffer, size, flags);
 }
 
 static size_t hfsplus_osx_listxattr(struct dentry *dentry, char *list,

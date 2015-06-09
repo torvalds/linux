@@ -96,11 +96,11 @@ static void complete_commit(struct msm_commit *c)
 
 	kms->funcs->prepare_commit(kms, state);
 
-	drm_atomic_helper_commit_pre_planes(dev, state);
+	drm_atomic_helper_commit_modeset_disables(dev, state);
 
 	drm_atomic_helper_commit_planes(dev, state);
 
-	drm_atomic_helper_commit_post_planes(dev, state);
+	drm_atomic_helper_commit_modeset_enables(dev, state);
 
 	/* NOTE: _wait_for_vblanks() only waits for vblank on
 	 * enabled CRTCs.  So we end up faulting when disabling
@@ -219,8 +219,10 @@ int msm_atomic_commit(struct drm_device *dev,
 	 * mark our set of crtc's as busy:
 	 */
 	ret = start_atomic(dev->dev_private, c->crtc_mask);
-	if (ret)
+	if (ret) {
+		kfree(c);
 		return ret;
+	}
 
 	/*
 	 * This is the point of no return - everything below never fails except

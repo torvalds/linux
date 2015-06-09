@@ -526,19 +526,25 @@ static unsigned int __startup_pirq(unsigned int irq)
 	pirq_query_unmask(irq);
 
 	rc = set_evtchn_to_irq(evtchn, irq);
-	if (rc != 0) {
-		pr_err("irq%d: Failed to set port to irq mapping (%d)\n",
-		       irq, rc);
-		xen_evtchn_close(evtchn);
-		return 0;
-	}
+	if (rc)
+		goto err;
+
 	bind_evtchn_to_cpu(evtchn, 0);
 	info->evtchn = evtchn;
+
+	rc = xen_evtchn_port_setup(info);
+	if (rc)
+		goto err;
 
 out:
 	unmask_evtchn(evtchn);
 	eoi_pirq(irq_get_irq_data(irq));
 
+	return 0;
+
+err:
+	pr_err("irq%d: Failed to set port to irq mapping (%d)\n", irq, rc);
+	xen_evtchn_close(evtchn);
 	return 0;
 }
 

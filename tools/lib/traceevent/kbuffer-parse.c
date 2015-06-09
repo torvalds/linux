@@ -372,7 +372,6 @@ translate_data(struct kbuffer *kbuf, void *data, void **rptr,
 	switch (type_len) {
 	case KBUFFER_TYPE_PADDING:
 		*length = read_4(kbuf, data);
-		data += *length;
 		break;
 
 	case KBUFFER_TYPE_TIME_EXTEND:
@@ -729,4 +728,15 @@ void kbuffer_set_old_format(struct kbuffer *kbuf)
 	kbuf->flags |= KBUFFER_FL_OLD_FORMAT;
 
 	kbuf->next_event = __old_next_event;
+}
+
+/**
+ * kbuffer_start_of_data - return offset of where data starts on subbuffer
+ * @kbuf:	The kbuffer
+ *
+ * Returns the location on the subbuffer where the data starts.
+ */
+int kbuffer_start_of_data(struct kbuffer *kbuf)
+{
+	return kbuf->start;
 }

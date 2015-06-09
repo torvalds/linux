@@ -175,7 +175,7 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 	unsigned long initrd_addr;
 	u64 initrd_size = 0;
 	unsigned long fdt_addr = 0;  /* Original DTB */
-	u64 fdt_size = 0;  /* We don't get size from configuration table */
+	unsigned long fdt_size = 0;
 	char *cmdline_ptr = NULL;
 	int cmdline_size = 0;
 	unsigned long new_fdt_addr;
@@ -239,8 +239,7 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 	} else {
 		status = handle_cmdline_files(sys_table, image, cmdline_ptr,
 					      "dtb=",
-					      ~0UL, (unsigned long *)&fdt_addr,
-					      (unsigned long *)&fdt_size);
+					      ~0UL, &fdt_addr, &fdt_size);
 
 		if (status != EFI_SUCCESS) {
 			pr_efi_err(sys_table, "Failed to load device tree!\n");
@@ -252,7 +251,7 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 		pr_efi(sys_table, "Using DTB from command line\n");
 	} else {
 		/* Look for a device tree configuration table entry. */
-		fdt_addr = (uintptr_t)get_fdt(sys_table);
+		fdt_addr = (uintptr_t)get_fdt(sys_table, &fdt_size);
 		if (fdt_addr)
 			pr_efi(sys_table, "Using DTB from configuration table\n");
 	}

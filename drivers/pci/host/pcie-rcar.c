@@ -64,8 +64,8 @@
 #define  LAR_ENABLE		(1 << 1)
 
 /* PCIe address reg & mask */
-#define PCIEPARL(x)		(0x03400 + ((x) * 0x20))
-#define PCIEPARH(x)		(0x03404 + ((x) * 0x20))
+#define PCIEPALR(x)		(0x03400 + ((x) * 0x20))
+#define PCIEPAUR(x)		(0x03404 + ((x) * 0x20))
 #define PCIEPAMR(x)		(0x03408 + ((x) * 0x20))
 #define PCIEPTCTLR(x)		(0x0340c + ((x) * 0x20))
 #define  PAR_ENABLE		(1 << 31)
@@ -341,8 +341,9 @@ static void rcar_pcie_setup_window(int win, struct rcar_pcie *pcie)
 	else
 		res_start = res->start;
 
-	rcar_pci_write_reg(pcie, upper_32_bits(res_start), PCIEPARH(win));
-	rcar_pci_write_reg(pcie, lower_32_bits(res_start), PCIEPARL(win));
+	rcar_pci_write_reg(pcie, upper_32_bits(res_start), PCIEPAUR(win));
+	rcar_pci_write_reg(pcie, lower_32_bits(res_start) & ~0x7F,
+			   PCIEPALR(win));
 
 	/* First resource is for IO */
 	mask = PAR_ENABLE;
@@ -501,7 +502,7 @@ static int rcar_pcie_hw_init(struct rcar_pcie *pcie)
 
 	/* Enable MSI */
 	if (IS_ENABLED(CONFIG_PCI_MSI))
-		rcar_pci_write_reg(pcie, 0x101f0000, PCIEMSITXR);
+		rcar_pci_write_reg(pcie, 0x801f0000, PCIEMSITXR);
 
 	/* Finish initialization - establish a PCI Express link */
 	rcar_pci_write_reg(pcie, CFINIT, PCIETCTLR);

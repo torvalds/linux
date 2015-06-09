@@ -122,8 +122,6 @@
 unsigned long max_low_pfn_mapped;
 unsigned long max_pfn_mapped;
 
-bool __read_mostly kaslr_enabled = false;
-
 #ifdef CONFIG_DMI
 RESERVE_BRK(dmi_alloc, 65536);
 #endif
@@ -356,7 +354,7 @@ static void __init relocate_initrd(void)
 		mapaddr = ramdisk_image & PAGE_MASK;
 		p = early_memremap(mapaddr, clen+slop);
 		memcpy(q, p+slop, clen);
-		early_iounmap(p, clen+slop);
+		early_memunmap(p, clen+slop);
 		q += clen;
 		ramdisk_image += clen;
 		ramdisk_size  -= clen;
@@ -427,11 +425,6 @@ static void __init reserve_initrd(void)
 }
 #endif /* CONFIG_BLK_DEV_INITRD */
 
-static void __init parse_kaslr_setup(u64 pa_data, u32 data_len)
-{
-	kaslr_enabled = (bool)(pa_data + sizeof(struct setup_data));
-}
-
 static void __init parse_setup_data(void)
 {
 	struct setup_data *data;
@@ -445,7 +438,7 @@ static void __init parse_setup_data(void)
 		data_len = data->len + sizeof(struct setup_data);
 		data_type = data->type;
 		pa_next = data->next;
-		early_iounmap(data, sizeof(*data));
+		early_memunmap(data, sizeof(*data));
 
 		switch (data_type) {
 		case SETUP_E820_EXT:
@@ -456,9 +449,6 @@ static void __init parse_setup_data(void)
 			break;
 		case SETUP_EFI:
 			parse_efi_setup(pa_data, data_len);
-			break;
-		case SETUP_KASLR:
-			parse_kaslr_setup(pa_data, data_len);
 			break;
 		default:
 			break;
@@ -480,7 +470,7 @@ static void __init e820_reserve_setup_data(void)
 			 E820_RAM, E820_RESERVED_KERN);
 		found = 1;
 		pa_data = data->next;
-		early_iounmap(data, sizeof(*data));
+		early_memunmap(data, sizeof(*data));
 	}
 	if (!found)
 		return;
@@ -501,7 +491,7 @@ static void __init memblock_x86_reserve_range_setup_data(void)
 		data = early_memremap(pa_data, sizeof(*data));
 		memblock_reserve(pa_data, sizeof(*data) + data->len);
 		pa_data = data->next;
-		early_iounmap(data, sizeof(*data));
+		early_memunmap(data, sizeof(*data));
 	}
 }
 
@@ -842,14 +832,15 @@ static void __init trim_low_memory_range(void)
 static int
 dump_kernel_offset(struct notifier_block *self, unsigned long v, void *p)
 {
-	if (kaslr_enabled)
+	if (kaslr_enabled()) {
 		pr_emerg("Kernel Offset: 0x%lx from 0x%lx (relocation range: 0x%lx-0x%lx)\n",
 			 (unsigned long)&_text - __START_KERNEL,
 			 __START_KERNEL,
 			 __START_KERNEL_map,
 			 MODULES_VADDR-1);
-	else
+	} else {
 		pr_emerg("Kernel Offset: disabled\n");
+	}
 
 	return 0;
 }

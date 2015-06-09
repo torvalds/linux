@@ -55,9 +55,11 @@ _nvkm_fb_fini(struct nvkm_object *object, bool suspend)
 	struct nvkm_fb *pfb = (void *)object;
 	int ret;
 
-	ret = nv_ofuncs(pfb->ram)->fini(nv_object(pfb->ram), suspend);
-	if (ret && suspend)
-		return ret;
+	if (pfb->ram) {
+		ret = nv_ofuncs(pfb->ram)->fini(nv_object(pfb->ram), suspend);
+		if (ret && suspend)
+			return ret;
+	}
 
 	return nvkm_subdev_fini(&pfb->base, suspend);
 }
@@ -72,9 +74,11 @@ _nvkm_fb_init(struct nvkm_object *object)
 	if (ret)
 		return ret;
 
-	ret = nv_ofuncs(pfb->ram)->init(nv_object(pfb->ram));
-	if (ret)
-		return ret;
+	if (pfb->ram) {
+		ret = nv_ofuncs(pfb->ram)->init(nv_object(pfb->ram));
+		if (ret)
+			return ret;
+	}
 
 	for (i = 0; i < pfb->tile.regions; i++)
 		pfb->tile.prog(pfb, i, &pfb->tile.region[i]);
@@ -91,9 +95,12 @@ _nvkm_fb_dtor(struct nvkm_object *object)
 	for (i = 0; i < pfb->tile.regions; i++)
 		pfb->tile.fini(pfb, i, &pfb->tile.region[i]);
 	nvkm_mm_fini(&pfb->tags);
-	nvkm_mm_fini(&pfb->vram);
 
-	nvkm_object_ref(NULL, (struct nvkm_object **)&pfb->ram);
+	if (pfb->ram) {
+		nvkm_mm_fini(&pfb->vram);
+		nvkm_object_ref(NULL, (struct nvkm_object **)&pfb->ram);
+	}
+
 	nvkm_subdev_destroy(&pfb->base);
 }
 
@@ -126,6 +133,9 @@ nvkm_fb_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 
 	pfb->memtype_valid = impl->memtype;
+
+	if (!impl->ram)
+		return 0;
 
 	ret = nvkm_object_ctor(nv_object(pfb), NULL, impl->ram, NULL, 0, &ram);
 	if (ret) {

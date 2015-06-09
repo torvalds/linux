@@ -30,7 +30,7 @@ static int execveat_(int fd, const char *path, char **argv, char **envp,
 #ifdef __NR_execveat
 	return syscall(__NR_execveat, fd, path, argv, envp, flags);
 #else
-	errno = -ENOSYS;
+	errno = ENOSYS;
 	return -1;
 #endif
 }
@@ -233,6 +233,14 @@ static int run_tests(void)
 	int fd_script_ephemeral = open_or_die("script.ephemeral", O_RDONLY);
 	int fd_cloexec = open_or_die("execveat", O_RDONLY|O_CLOEXEC);
 	int fd_script_cloexec = open_or_die("script", O_RDONLY|O_CLOEXEC);
+
+	/* Check if we have execveat at all, and bail early if not */
+	errno = 0;
+	execveat_(-1, NULL, NULL, NULL, 0);
+	if (errno == ENOSYS) {
+		printf("[FAIL] ENOSYS calling execveat - no kernel support?\n");
+		return 1;
+	}
 
 	/* Change file position to confirm it doesn't affect anything */
 	lseek(fd, 10, SEEK_SET);

@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2014 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2015 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -107,6 +107,7 @@ struct lpfc_sli_ct_request {
 	uint8_t ReasonCode;
 	uint8_t Explanation;
 	uint8_t VendorUnique;
+#define LPFC_CT_PREAMBLE	20	/* Size of CTReq + 4 up to here */
 
 	union {
 		uint32_t PortID;
@@ -169,6 +170,8 @@ struct lpfc_sli_ct_request {
 		} rff;
 	} un;
 };
+
+#define LPFC_MAX_CT_SIZE	(60 * 4096)
 
 #define  SLI_CT_REVISION        1
 #define  GID_REQUEST_SZ   (offsetof(struct lpfc_sli_ct_request, un) + \
@@ -1007,78 +1010,45 @@ typedef struct _ELS_PKT {	/* Structure is in Big Endian format */
 	} un;
 } ELS_PKT;
 
-/*
- * FDMI
- * HBA MAnagement Operations Command Codes
- */
-#define  SLI_MGMT_GRHL     0x100	/* Get registered HBA list */
-#define  SLI_MGMT_GHAT     0x101	/* Get HBA attributes */
-#define  SLI_MGMT_GRPL     0x102	/* Get registered Port list */
-#define  SLI_MGMT_GPAT     0x110	/* Get Port attributes */
-#define  SLI_MGMT_RHBA     0x200	/* Register HBA */
-#define  SLI_MGMT_RHAT     0x201	/* Register HBA attributes */
-#define  SLI_MGMT_RPRT     0x210	/* Register Port */
-#define  SLI_MGMT_RPA      0x211	/* Register Port attributes */
-#define  SLI_MGMT_DHBA     0x300	/* De-register HBA */
-#define  SLI_MGMT_DPRT     0x310	/* De-register Port */
+/******** FDMI ********/
+
+/* lpfc_sli_ct_request defines the CT_IU preamble for FDMI commands */
+#define  SLI_CT_FDMI_Subtypes     0x10	/* Management Service Subtype */
 
 /*
- * Management Service Subtypes
+ * Registered Port List Format
  */
-#define  SLI_CT_FDMI_Subtypes     0x10
-
-/*
- * HBA Management Service Reject Code
- */
-#define  REJECT_CODE             0x9	/* Unable to perform command request */
-
-/*
- * HBA Management Service Reject Reason Code
- * Please refer to the Reason Codes above
- */
-
-/*
- * HBA Attribute Types
- */
-#define  NODE_NAME               0x1
-#define  MANUFACTURER            0x2
-#define  SERIAL_NUMBER           0x3
-#define  MODEL                   0x4
-#define  MODEL_DESCRIPTION       0x5
-#define  HARDWARE_VERSION        0x6
-#define  DRIVER_VERSION          0x7
-#define  OPTION_ROM_VERSION      0x8
-#define  FIRMWARE_VERSION        0x9
-#define  OS_NAME_VERSION	 0xa
-#define  MAX_CT_PAYLOAD_LEN	 0xb
-
-/*
- * Port Attrubute Types
- */
-#define  SUPPORTED_FC4_TYPES     0x1
-#define  SUPPORTED_SPEED         0x2
-#define  PORT_SPEED              0x3
-#define  MAX_FRAME_SIZE          0x4
-#define  OS_DEVICE_NAME          0x5
-#define  HOST_NAME               0x6
-
-union AttributesDef {
-	/* Structure is in Big Endian format */
-	struct {
-		uint32_t AttrType:16;
-		uint32_t AttrLen:16;
-	} bits;
-	uint32_t word;
+struct lpfc_fdmi_reg_port_list {
+	uint32_t EntryCnt;
+	uint32_t pe;		/* Variable-length array */
 };
 
 
-/*
- * HBA Attribute Entry (8 - 260 bytes)
- */
-typedef struct {
-	union AttributesDef ad;
+/* Definitions for HBA / Port attribute entries */
+
+struct lpfc_fdmi_attr_def { /* Defined in TLV format */
+	/* Structure is in Big Endian format */
+	uint32_t AttrType:16;
+	uint32_t AttrLen:16;
+	uint32_t AttrValue;  /* Marks start of Value (ATTRIBUTE_ENTRY) */
+};
+
+
+/* Attribute Entry */
+struct lpfc_fdmi_attr_entry {
 	union {
 		uint32_t VendorSpecific;
+		uint32_t SupportClass;
+		uint32_t SupportSpeed;
+		uint32_t PortSpeed;
+		uint32_t MaxFrameSize;
+		uint32_t MaxCTPayloadLen;
+		uint32_t PortState;
+		uint32_t PortId;
+		struct lpfc_name NodeName;
+		struct lpfc_name PortName;
+		struct lpfc_name FabricName;
+		uint8_t FC4Types[32];
 		uint8_t Manufacturer[64];
 		uint8_t SerialNumber[64];
 		uint8_t Model[256];
@@ -1087,97 +1057,115 @@ typedef struct {
 		uint8_t DriverVersion[256];
 		uint8_t OptionROMVersion[256];
 		uint8_t FirmwareVersion[256];
-		struct lpfc_name NodeName;
-		uint8_t SupportFC4Types[32];
-		uint32_t SupportSpeed;
-		uint32_t PortSpeed;
-		uint32_t MaxFrameSize;
+		uint8_t OsHostName[256];
+		uint8_t NodeSymName[256];
 		uint8_t OsDeviceName[256];
 		uint8_t OsNameVersion[256];
-		uint32_t MaxCTPayloadLen;
 		uint8_t HostName[256];
 	} un;
-} ATTRIBUTE_ENTRY;
+};
+
+#define LPFC_FDMI_MAX_AE_SIZE	sizeof(struct lpfc_fdmi_attr_entry)
 
 /*
  * HBA Attribute Block
  */
-typedef struct {
-	uint32_t EntryCnt;	/* Number of HBA attribute entries */
-	ATTRIBUTE_ENTRY Entry;	/* Variable-length array */
-} ATTRIBUTE_BLOCK;
+struct lpfc_fdmi_attr_block {
+	uint32_t EntryCnt;		/* Number of HBA attribute entries */
+	struct lpfc_fdmi_attr_entry Entry;	/* Variable-length array */
+};
 
 /*
  * Port Entry
  */
-typedef struct {
+struct lpfc_fdmi_port_entry {
 	struct lpfc_name PortName;
-} PORT_ENTRY;
+};
 
 /*
  * HBA Identifier
  */
-typedef struct {
+struct lpfc_fdmi_hba_ident {
 	struct lpfc_name PortName;
-} HBA_IDENTIFIER;
-
-/*
- * Registered Port List Format
- */
-typedef struct {
-	uint32_t EntryCnt;
-	PORT_ENTRY pe;		/* Variable-length array */
-} REG_PORT_LIST;
+};
 
 /*
  * Register HBA(RHBA)
  */
-typedef struct {
-	HBA_IDENTIFIER hi;
-	REG_PORT_LIST rpl;	/* variable-length array */
-/* ATTRIBUTE_BLOCK   ab; */
-} REG_HBA;
+struct lpfc_fdmi_reg_hba {
+	struct lpfc_fdmi_hba_ident hi;
+	struct lpfc_fdmi_reg_port_list rpl;	/* variable-length array */
+/* struct lpfc_fdmi_attr_block   ab; */
+};
 
 /*
  * Register HBA Attributes (RHAT)
  */
-typedef struct {
+struct lpfc_fdmi_reg_hbaattr {
 	struct lpfc_name HBA_PortName;
-	ATTRIBUTE_BLOCK ab;
-} REG_HBA_ATTRIBUTE;
+	struct lpfc_fdmi_attr_block ab;
+};
 
 /*
  * Register Port Attributes (RPA)
  */
-typedef struct {
+struct lpfc_fdmi_reg_portattr {
 	struct lpfc_name PortName;
-	ATTRIBUTE_BLOCK ab;
-} REG_PORT_ATTRIBUTE;
+	struct lpfc_fdmi_attr_block ab;
+};
 
 /*
- * Get Registered HBA List (GRHL) Accept Payload Format
+ * HBA MAnagement Operations Command Codes
  */
-typedef struct {
-	uint32_t HBA__Entry_Cnt; /* Number of Registered HBA Identifiers */
-	struct lpfc_name HBA_PortName;	/* Variable-length array */
-} GRHL_ACC_PAYLOAD;
+#define  SLI_MGMT_GRHL     0x100	/* Get registered HBA list */
+#define  SLI_MGMT_GHAT     0x101	/* Get HBA attributes */
+#define  SLI_MGMT_GRPL     0x102	/* Get registered Port list */
+#define  SLI_MGMT_GPAT     0x110	/* Get Port attributes */
+#define  SLI_MGMT_GPAS     0x120	/* Get Port Statistics */
+#define  SLI_MGMT_RHBA     0x200	/* Register HBA */
+#define  SLI_MGMT_RHAT     0x201	/* Register HBA attributes */
+#define  SLI_MGMT_RPRT     0x210	/* Register Port */
+#define  SLI_MGMT_RPA      0x211	/* Register Port attributes */
+#define  SLI_MGMT_DHBA     0x300	/* De-register HBA */
+#define  SLI_MGMT_DHAT     0x301	/* De-register HBA attributes */
+#define  SLI_MGMT_DPRT     0x310	/* De-register Port */
+#define  SLI_MGMT_DPA      0x311	/* De-register Port attributes */
 
 /*
- * Get Registered Port List (GRPL) Accept Payload Format
+ * HBA Attribute Types
  */
-typedef struct {
-	uint32_t RPL_Entry_Cnt;	/* Number of Registered Port Entries */
-	PORT_ENTRY Reg_Port_Entry[1];	/* Variable-length array */
-} GRPL_ACC_PAYLOAD;
+#define  RHBA_NODENAME           0x1 /* 8 byte WWNN */
+#define  RHBA_MANUFACTURER       0x2 /* 4 to 64 byte ASCII string */
+#define  RHBA_SERIAL_NUMBER      0x3 /* 4 to 64 byte ASCII string */
+#define  RHBA_MODEL              0x4 /* 4 to 256 byte ASCII string */
+#define  RHBA_MODEL_DESCRIPTION  0x5 /* 4 to 256 byte ASCII string */
+#define  RHBA_HARDWARE_VERSION   0x6 /* 4 to 256 byte ASCII string */
+#define  RHBA_DRIVER_VERSION     0x7 /* 4 to 256 byte ASCII string */
+#define  RHBA_OPTION_ROM_VERSION 0x8 /* 4 to 256 byte ASCII string */
+#define  RHBA_FIRMWARE_VERSION   0x9 /* 4 to 256 byte ASCII string */
+#define  RHBA_OS_NAME_VERSION	 0xa /* 4 to 256 byte ASCII string */
+#define  RHBA_MAX_CT_PAYLOAD_LEN 0xb /* 32-bit unsigned int */
+#define  RHBA_SYM_NODENAME       0xc /* 4 to 256 byte ASCII string */
 
 /*
- * Get Port Attributes (GPAT) Accept Payload Format
+ * Port Attrubute Types
  */
-
-typedef struct {
-	ATTRIBUTE_BLOCK pab;
-} GPAT_ACC_PAYLOAD;
-
+#define  RPRT_SUPPORTED_FC4_TYPES     0x1 /* 32 byte binary array */
+#define  RPRT_SUPPORTED_SPEED         0x2 /* 32-bit unsigned int */
+#define  RPRT_PORT_SPEED              0x3 /* 32-bit unsigned int */
+#define  RPRT_MAX_FRAME_SIZE          0x4 /* 32-bit unsigned int */
+#define  RPRT_OS_DEVICE_NAME          0x5 /* 4 to 256 byte ASCII string */
+#define  RPRT_HOST_NAME               0x6 /* 4 to 256 byte ASCII string */
+#define  RPRT_NODENAME                0x7 /* 8 byte WWNN */
+#define  RPRT_PORTNAME                0x8 /* 8 byte WWNN */
+#define  RPRT_SYM_PORTNAME            0x9 /* 4 to 256 byte ASCII string */
+#define  RPRT_PORT_TYPE               0xa /* 32-bit unsigned int */
+#define  RPRT_SUPPORTED_CLASS         0xb /* 32-bit unsigned int */
+#define  RPRT_FABRICNAME              0xc /* 8 byte Fabric WWNN */
+#define  RPRT_ACTIVE_FC4_TYPES        0xd /* 32 byte binary array */
+#define  RPRT_PORT_STATE              0x101 /* 32-bit unsigned int */
+#define  RPRT_DISC_PORT               0x102 /* 32-bit unsigned int */
+#define  RPRT_PORT_ID                 0x103 /* 32-bit unsigned int */
 
 /*
  *  Begin HBA configuration parameters.

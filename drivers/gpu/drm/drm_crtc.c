@@ -43,9 +43,10 @@
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
 
-static struct drm_framebuffer *add_framebuffer_internal(struct drm_device *dev,
-							struct drm_mode_fb_cmd2 *r,
-							struct drm_file *file_priv);
+static struct drm_framebuffer *
+internal_framebuffer_create(struct drm_device *dev,
+			    struct drm_mode_fb_cmd2 *r,
+			    struct drm_file *file_priv);
 
 /* Avoid boilerplate.  I'm tired of typing. */
 #define DRM_ENUM_NAME_FN(fnname, list)				\
@@ -524,17 +525,6 @@ void drm_framebuffer_reference(struct drm_framebuffer *fb)
 }
 EXPORT_SYMBOL(drm_framebuffer_reference);
 
-static void drm_framebuffer_free_bug(struct kref *kref)
-{
-	BUG();
-}
-
-static void __drm_framebuffer_unreference(struct drm_framebuffer *fb)
-{
-	DRM_DEBUG("%p: FB ID: %d (%d)\n", fb, fb->base.id, atomic_read(&fb->refcount.refcount));
-	kref_put(&fb->refcount, drm_framebuffer_free_bug);
-}
-
 /**
  * drm_framebuffer_unregister_private - unregister a private fb from the lookup idr
  * @fb: fb to unregister
@@ -669,6 +659,9 @@ int drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *crtc,
 {
 	struct drm_mode_config *config = &dev->mode_config;
 	int ret;
+
+	WARN_ON(primary && primary->type != DRM_PLANE_TYPE_PRIMARY);
+	WARN_ON(cursor && cursor->type != DRM_PLANE_TYPE_CURSOR);
 
 	crtc->dev = dev;
 	crtc->funcs = funcs;
@@ -1319,7 +1312,7 @@ void drm_plane_force_disable(struct drm_plane *plane)
 		return;
 	}
 	/* disconnect the plane from the fb and crtc: */
-	__drm_framebuffer_unreference(plane->old_fb);
+	drm_framebuffer_unreference(plane->old_fb);
 	plane->old_fb = NULL;
 	plane->fb = NULL;
 	plane->crtc = NULL;
@@ -2009,21 +2002,32 @@ int drm_mode_getcrtc(struct drm_device *dev,
 		return -ENOENT;
 
 	drm_modeset_lock_crtc(crtc, crtc->primary);
-	crtc_resp->x = crtc->x;
-	crtc_resp->y = crtc->y;
 	crtc_resp->gamma_size = crtc->gamma_size;
 	if (crtc->primary->fb)
 		crtc_resp->fb_id = crtc->primary->fb->base.id;
 	else
 		crtc_resp->fb_id = 0;
 
-	if (crtc->enabled) {
+	if (crtc->state) {
+		crtc_resp->x = crtc->primary->state->src_x >> 16;
+		crtc_resp->y = crtc->primary->state->src_y >> 16;
+		if (crtc->state->enable) {
+			drm_crtc_convert_to_umode(&crtc_resp->mode, &crtc->state->mode);
+			crtc_resp->mode_valid = 1;
 
-		drm_crtc_convert_to_umode(&crtc_resp->mode, &crtc->mode);
-		crtc_resp->mode_valid = 1;
-
+		} else {
+			crtc_resp->mode_valid = 0;
+		}
 	} else {
-		crtc_resp->mode_valid = 0;
+		crtc_resp->x = crtc->x;
+		crtc_resp->y = crtc->y;
+		if (crtc->enabled) {
+			drm_crtc_convert_to_umode(&crtc_resp->mode, &crtc->mode);
+			crtc_resp->mode_valid = 1;
+
+		} else {
+			crtc_resp->mode_valid = 0;
+		}
 	}
 	drm_modeset_unlock_crtc(crtc);
 
@@ -2127,12 +2131,11 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	DRM_DEBUG_KMS("[CONNECTOR:%d:?]\n", out_resp->connector_id);
 
 	mutex_lock(&dev->mode_config.mutex);
-	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 
 	connector = drm_connector_find(dev, out_resp->connector_id);
 	if (!connector) {
 		ret = -ENOENT;
-		goto out;
+		goto out_unlock;
 	}
 
 	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++)
@@ -2157,6 +2160,8 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	out_resp->mm_height = connector->display_info.height_mm;
 	out_resp->subpixel = connector->display_info.subpixel_order;
 	out_resp->connection = connector->status;
+
+	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 	encoder = drm_connector_get_encoder(connector);
 	if (encoder)
 		out_resp->encoder_id = encoder->base.id;
@@ -2210,6 +2215,8 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 
 out:
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+
+out_unlock:
 	mutex_unlock(&dev->mode_config.mutex);
 
 	return ret;
@@ -2273,8 +2280,6 @@ int drm_mode_getencoder(struct drm_device *dev, void *data,
 	crtc = drm_encoder_get_crtc(encoder);
 	if (crtc)
 		enc_resp->crtc_id = crtc->base.id;
-	else if (encoder->crtc)
-		enc_resp->crtc_id = encoder->crtc->base.id;
 	else
 		enc_resp->crtc_id = 0;
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
@@ -2409,6 +2414,27 @@ int drm_mode_getplane(struct drm_device *dev, void *data,
 	return 0;
 }
 
+/**
+ * drm_plane_check_pixel_format - Check if the plane supports the pixel format
+ * @plane: plane to check for format support
+ * @format: the pixel format
+ *
+ * Returns:
+ * Zero of @plane has @format in its list of supported pixel formats, -EINVAL
+ * otherwise.
+ */
+int drm_plane_check_pixel_format(const struct drm_plane *plane, u32 format)
+{
+	unsigned int i;
+
+	for (i = 0; i < plane->format_count; i++) {
+		if (format == plane->format_types[i])
+			return 0;
+	}
+
+	return -EINVAL;
+}
+
 /*
  * setplane_internal - setplane handler for internal callers
  *
@@ -2429,7 +2455,6 @@ static int __setplane_internal(struct drm_plane *plane,
 {
 	int ret = 0;
 	unsigned int fb_width, fb_height;
-	unsigned int i;
 
 	/* No fb means shut it down */
 	if (!fb) {
@@ -2452,15 +2477,23 @@ static int __setplane_internal(struct drm_plane *plane,
 	}
 
 	/* Check whether this plane supports the fb pixel format. */
-	for (i = 0; i < plane->format_count; i++)
-		if (fb->pixel_format == plane->format_types[i])
-			break;
-	if (i == plane->format_count) {
+	ret = drm_plane_check_pixel_format(plane, fb->pixel_format);
+	if (ret) {
 		DRM_DEBUG_KMS("Invalid pixel format %s\n",
 			      drm_get_format_name(fb->pixel_format));
-		ret = -EINVAL;
 		goto out;
 	}
+
+	/* Give drivers some help against integer overflows */
+	if (crtc_w > INT_MAX ||
+	    crtc_x > INT_MAX - (int32_t) crtc_w ||
+	    crtc_h > INT_MAX ||
+	    crtc_y > INT_MAX - (int32_t) crtc_h) {
+		DRM_DEBUG_KMS("Invalid CRTC coordinates %ux%u+%d+%d\n",
+			      crtc_w, crtc_h, crtc_x, crtc_y);
+		return -ERANGE;
+	}
+
 
 	fb_width = fb->width << 16;
 	fb_height = fb->height << 16;
@@ -2545,17 +2578,6 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
-
-	/* Give drivers some help against integer overflows */
-	if (plane_req->crtc_w > INT_MAX ||
-	    plane_req->crtc_x > INT_MAX - (int32_t) plane_req->crtc_w ||
-	    plane_req->crtc_h > INT_MAX ||
-	    plane_req->crtc_y > INT_MAX - (int32_t) plane_req->crtc_h) {
-		DRM_DEBUG_KMS("Invalid CRTC coordinates %ux%u+%d+%d\n",
-			      plane_req->crtc_w, plane_req->crtc_h,
-			      plane_req->crtc_x, plane_req->crtc_y);
-		return -ERANGE;
-	}
 
 	/*
 	 * First, find the plane, crtc, and fb objects.  If not available,
@@ -2782,6 +2804,23 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 
 		drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
 
+		/*
+		 * Check whether the primary plane supports the fb pixel format.
+		 * Drivers not implementing the universal planes API use a
+		 * default formats list provided by the DRM core which doesn't
+		 * match real hardware capabilities. Skip the check in that
+		 * case.
+		 */
+		if (!crtc->primary->format_default) {
+			ret = drm_plane_check_pixel_format(crtc->primary,
+							   fb->pixel_format);
+			if (ret) {
+				DRM_DEBUG_KMS("Invalid pixel format %s\n",
+					drm_get_format_name(fb->pixel_format));
+				goto out;
+			}
+		}
+
 		ret = drm_crtc_check_viewport(crtc, crtc_req->x, crtc_req->y,
 					      mode, fb);
 		if (ret)
@@ -2907,13 +2946,11 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 	 */
 	if (req->flags & DRM_MODE_CURSOR_BO) {
 		if (req->handle) {
-			fb = add_framebuffer_internal(dev, &fbreq, file_priv);
+			fb = internal_framebuffer_create(dev, &fbreq, file_priv);
 			if (IS_ERR(fb)) {
 				DRM_DEBUG_KMS("failed to wrap cursor buffer in drm framebuffer\n");
 				return PTR_ERR(fb);
 			}
-
-			drm_framebuffer_reference(fb);
 		} else {
 			fb = NULL;
 		}
@@ -3261,20 +3298,27 @@ static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
 			DRM_DEBUG_KMS("bad pitch %u for plane %d\n", r->pitches[i], i);
 			return -EINVAL;
 		}
+
+		if (r->modifier[i] && !(r->flags & DRM_MODE_FB_MODIFIERS)) {
+			DRM_DEBUG_KMS("bad fb modifier %llu for plane %d\n",
+				      r->modifier[i], i);
+			return -EINVAL;
+		}
 	}
 
 	return 0;
 }
 
-static struct drm_framebuffer *add_framebuffer_internal(struct drm_device *dev,
-							struct drm_mode_fb_cmd2 *r,
-							struct drm_file *file_priv)
+static struct drm_framebuffer *
+internal_framebuffer_create(struct drm_device *dev,
+			    struct drm_mode_fb_cmd2 *r,
+			    struct drm_file *file_priv)
 {
 	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_framebuffer *fb;
 	int ret;
 
-	if (r->flags & ~DRM_MODE_FB_INTERLACED) {
+	if (r->flags & ~(DRM_MODE_FB_INTERLACED | DRM_MODE_FB_MODIFIERS)) {
 		DRM_DEBUG_KMS("bad framebuffer flags 0x%08x\n", r->flags);
 		return ERR_PTR(-EINVAL);
 	}
@@ -3290,6 +3334,12 @@ static struct drm_framebuffer *add_framebuffer_internal(struct drm_device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
+	if (r->flags & DRM_MODE_FB_MODIFIERS &&
+	    !dev->mode_config.allow_fb_modifiers) {
+		DRM_DEBUG_KMS("driver does not support fb modifiers\n");
+		return ERR_PTR(-EINVAL);
+	}
+
 	ret = framebuffer_check(r);
 	if (ret)
 		return ERR_PTR(ret);
@@ -3299,12 +3349,6 @@ static struct drm_framebuffer *add_framebuffer_internal(struct drm_device *dev,
 		DRM_DEBUG_KMS("could not create framebuffer\n");
 		return fb;
 	}
-
-	mutex_lock(&file_priv->fbs_lock);
-	r->fb_id = fb->base.id;
-	list_add(&fb->filp_head, &file_priv->fbs);
-	DRM_DEBUG_KMS("[FB:%d]\n", fb->base.id);
-	mutex_unlock(&file_priv->fbs_lock);
 
 	return fb;
 }
@@ -3327,14 +3371,23 @@ static struct drm_framebuffer *add_framebuffer_internal(struct drm_device *dev,
 int drm_mode_addfb2(struct drm_device *dev,
 		    void *data, struct drm_file *file_priv)
 {
+	struct drm_mode_fb_cmd2 *r = data;
 	struct drm_framebuffer *fb;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	fb = add_framebuffer_internal(dev, data, file_priv);
+	fb = internal_framebuffer_create(dev, r, file_priv);
 	if (IS_ERR(fb))
 		return PTR_ERR(fb);
+
+	/* Transfer ownership to the filp for reaping on close */
+
+	DRM_DEBUG_KMS("[FB:%d]\n", fb->base.id);
+	mutex_lock(&file_priv->fbs_lock);
+	r->fb_id = fb->base.id;
+	list_add(&fb->filp_head, &file_priv->fbs);
+	mutex_unlock(&file_priv->fbs_lock);
 
 	return 0;
 }
@@ -5548,6 +5601,7 @@ struct drm_tile_group *drm_mode_get_tile_group(struct drm_device *dev,
 	mutex_unlock(&dev->mode_config.idr_mutex);
 	return NULL;
 }
+EXPORT_SYMBOL(drm_mode_get_tile_group);
 
 /**
  * drm_mode_create_tile_group - create a tile group from a displayid description
@@ -5586,3 +5640,4 @@ struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
 	mutex_unlock(&dev->mode_config.idr_mutex);
 	return tg;
 }
+EXPORT_SYMBOL(drm_mode_create_tile_group);

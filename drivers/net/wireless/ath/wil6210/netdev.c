@@ -82,7 +82,7 @@ static int wil6210_netdev_poll_rx(struct napi_struct *napi, int budget)
 	wil_rx_handle(wil, &quota);
 	done = budget - quota;
 
-	if (done <= 1) { /* burst ends - only one packet processed */
+	if (done < budget) {
 		napi_complete(napi);
 		wil6210_unmask_irq_rx(wil);
 		wil_dbg_txrx(wil, "NAPI RX complete\n");
@@ -110,7 +110,7 @@ static int wil6210_netdev_poll_tx(struct napi_struct *napi, int budget)
 		tx_done += wil_tx_complete(wil, i);
 	}
 
-	if (tx_done <= 1) { /* burst ends - only one packet processed */
+	if (tx_done < budget) {
 		napi_complete(napi);
 		wil6210_unmask_irq_tx(wil);
 		wil_dbg_txrx(wil, "NAPI TX complete\n");

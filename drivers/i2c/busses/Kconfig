@@ -485,6 +485,15 @@ config I2C_DESIGNWARE_BAYTRAIL
 	  the platform firmware controlling it. You should say Y if running on
 	  a BayTrail system using the AXP288.
 
+config I2C_DIGICOLOR
+	tristate "Conexant Digicolor I2C driver"
+	depends on ARCH_DIGICOLOR
+	help
+	  Support for Conexant Digicolor SoCs (CX92755) I2C controller driver.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-digicolor.
+
 config I2C_EFM32
 	tristate "EFM32 I2C controller"
 	depends on ARCH_EFM32 || COMPILE_TEST
@@ -573,6 +582,15 @@ config I2C_IOP3XX
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-iop3xx.
+
+config I2C_JZ4780
+	tristate "JZ4780 I2C controller interface support"
+	depends on MACH_JZ4780 || COMPILE_TEST
+	help
+	 If you say yes to this option, support will be included for the
+	 Ingenic JZ4780 I2C controller.
+
+	 If you don't know what to do here, say N.
 
 config I2C_KEMPLD
 	tristate "Kontron COM I2C Controller"
@@ -897,6 +915,16 @@ config I2C_XLR
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-xlr.
+
+config I2C_XLP9XX
+	tristate "XLP9XX I2C support"
+	depends on CPU_XLP || COMPILE_TEST
+	help
+	  This driver enables support for the on-chip I2C interface of
+	  the Broadcom XLP9xx/XLP5xx MIPS processors.
+
+	  This driver can also be built as a module.  If so, the module will
+	  be called i2c-xlp9xx.
 
 config I2C_RCAR
 	tristate "Renesas R-Car I2C Controller"

@@ -107,6 +107,22 @@ static bool handle_mmio_clear_pending_reg(struct kvm_vcpu *vcpu,
 					     vcpu->vcpu_id);
 }
 
+static bool handle_mmio_set_active_reg(struct kvm_vcpu *vcpu,
+				       struct kvm_exit_mmio *mmio,
+				       phys_addr_t offset)
+{
+	return vgic_handle_set_active_reg(vcpu->kvm, mmio, offset,
+					  vcpu->vcpu_id);
+}
+
+static bool handle_mmio_clear_active_reg(struct kvm_vcpu *vcpu,
+					 struct kvm_exit_mmio *mmio,
+					 phys_addr_t offset)
+{
+	return vgic_handle_clear_active_reg(vcpu->kvm, mmio, offset,
+					    vcpu->vcpu_id);
+}
+
 static bool handle_mmio_priority_reg(struct kvm_vcpu *vcpu,
 				     struct kvm_exit_mmio *mmio,
 				     phys_addr_t offset)
@@ -303,7 +319,7 @@ static bool handle_mmio_sgi_clear(struct kvm_vcpu *vcpu,
 		return write_set_clear_sgi_pend_reg(vcpu, mmio, offset, false);
 }
 
-static const struct kvm_mmio_range vgic_dist_ranges[] = {
+static const struct vgic_io_range vgic_dist_ranges[] = {
 	{
 		.base		= GIC_DIST_CTRL,
 		.len		= 12,
@@ -344,13 +360,13 @@ static const struct kvm_mmio_range vgic_dist_ranges[] = {
 		.base		= GIC_DIST_ACTIVE_SET,
 		.len		= VGIC_MAX_IRQS / 8,
 		.bits_per_irq	= 1,
-		.handle_mmio	= handle_mmio_raz_wi,
+		.handle_mmio	= handle_mmio_set_active_reg,
 	},
 	{
 		.base		= GIC_DIST_ACTIVE_CLEAR,
 		.len		= VGIC_MAX_IRQS / 8,
 		.bits_per_irq	= 1,
-		.handle_mmio	= handle_mmio_raz_wi,
+		.handle_mmio	= handle_mmio_clear_active_reg,
 	},
 	{
 		.base		= GIC_DIST_PRI,
@@ -387,24 +403,6 @@ static const struct kvm_mmio_range vgic_dist_ranges[] = {
 	},
 	{}
 };
-
-static bool vgic_v2_handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *run,
-				struct kvm_exit_mmio *mmio)
-{
-	unsigned long base = vcpu->kvm->arch.vgic.vgic_dist_base;
-
-	if (!is_in_range(mmio->phys_addr, mmio->len, base,
-			 KVM_VGIC_V2_DIST_SIZE))
-		return false;
-
-	/* GICv2 does not support accesses wider than 32 bits */
-	if (mmio->len > 4) {
-		kvm_inject_dabt(vcpu, mmio->phys_addr);
-		return true;
-	}
-
-	return vgic_handle_mmio_range(vcpu, run, mmio, vgic_dist_ranges, base);
-}
 
 static void vgic_dispatch_sgi(struct kvm_vcpu *vcpu, u32 reg)
 {
@@ -490,6 +488,7 @@ static bool vgic_v2_queue_sgi(struct kvm_vcpu *vcpu, int irq)
 static int vgic_v2_map_resources(struct kvm *kvm,
 				 const struct vgic_params *params)
 {
+	struct vgic_dist *dist = &kvm->arch.vgic;
 	int ret = 0;
 
 	if (!irqchip_in_kernel(kvm))
@@ -500,12 +499,16 @@ static int vgic_v2_map_resources(struct kvm *kvm,
 	if (vgic_ready(kvm))
 		goto out;
 
-	if (IS_VGIC_ADDR_UNDEF(kvm->arch.vgic.vgic_dist_base) ||
-	    IS_VGIC_ADDR_UNDEF(kvm->arch.vgic.vgic_cpu_base)) {
+	if (IS_VGIC_ADDR_UNDEF(dist->vgic_dist_base) ||
+	    IS_VGIC_ADDR_UNDEF(dist->vgic_cpu_base)) {
 		kvm_err("Need to set vgic cpu and dist addresses first\n");
 		ret = -ENXIO;
 		goto out;
 	}
+
+	vgic_register_kvm_io_dev(kvm, dist->vgic_dist_base,
+				 KVM_VGIC_V2_DIST_SIZE,
+				 vgic_dist_ranges, -1, &dist->dist_iodev);
 
 	/*
 	 * Initialize the vgic if this hasn't already been done on demand by
@@ -514,18 +517,23 @@ static int vgic_v2_map_resources(struct kvm *kvm,
 	ret = vgic_init(kvm);
 	if (ret) {
 		kvm_err("Unable to allocate maps\n");
-		goto out;
+		goto out_unregister;
 	}
 
-	ret = kvm_phys_addr_ioremap(kvm, kvm->arch.vgic.vgic_cpu_base,
+	ret = kvm_phys_addr_ioremap(kvm, dist->vgic_cpu_base,
 				    params->vcpu_base, KVM_VGIC_V2_CPU_SIZE,
 				    true);
 	if (ret) {
 		kvm_err("Unable to remap VGIC CPU to VCPU\n");
-		goto out;
+		goto out_unregister;
 	}
 
-	kvm->arch.vgic.ready = true;
+	dist->ready = true;
+	goto out;
+
+out_unregister:
+	kvm_io_bus_unregister_dev(kvm, KVM_MMIO_BUS, &dist->dist_iodev.dev);
+
 out:
 	if (ret)
 		kvm_vgic_destroy(kvm);
@@ -554,7 +562,6 @@ void vgic_v2_init_emulation(struct kvm *kvm)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
 
-	dist->vm_ops.handle_mmio = vgic_v2_handle_mmio;
 	dist->vm_ops.queue_sgi = vgic_v2_queue_sgi;
 	dist->vm_ops.add_sgi_source = vgic_v2_add_sgi_source;
 	dist->vm_ops.init_model = vgic_v2_init_model;
@@ -631,7 +638,7 @@ static bool handle_cpu_mmio_ident(struct kvm_vcpu *vcpu,
  * CPU Interface Register accesses - these are not accessed by the VM, but by
  * user space for saving and restoring VGIC state.
  */
-static const struct kvm_mmio_range vgic_cpu_ranges[] = {
+static const struct vgic_io_range vgic_cpu_ranges[] = {
 	{
 		.base		= GIC_CPU_CTRL,
 		.len		= 12,
@@ -658,12 +665,13 @@ static int vgic_attr_regs_access(struct kvm_device *dev,
 				 struct kvm_device_attr *attr,
 				 u32 *reg, bool is_write)
 {
-	const struct kvm_mmio_range *r = NULL, *ranges;
+	const struct vgic_io_range *r = NULL, *ranges;
 	phys_addr_t offset;
 	int ret, cpuid, c;
 	struct kvm_vcpu *vcpu, *tmp_vcpu;
 	struct vgic_dist *vgic;
 	struct kvm_exit_mmio mmio;
+	u32 data;
 
 	offset = attr->attr & KVM_DEV_ARM_VGIC_OFFSET_MASK;
 	cpuid = (attr->attr & KVM_DEV_ARM_VGIC_CPUID_MASK) >>
@@ -685,6 +693,7 @@ static int vgic_attr_regs_access(struct kvm_device *dev,
 
 	mmio.len = 4;
 	mmio.is_write = is_write;
+	mmio.data = &data;
 	if (is_write)
 		mmio_data_write(&mmio, ~0, *reg);
 	switch (attr->group) {
@@ -699,7 +708,7 @@ static int vgic_attr_regs_access(struct kvm_device *dev,
 	default:
 		BUG();
 	}
-	r = vgic_find_range(ranges, &mmio, offset);
+	r = vgic_find_range(ranges, 4, offset);
 
 	if (unlikely(!r || !r->handle_mmio)) {
 		ret = -ENXIO;

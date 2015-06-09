@@ -14,8 +14,8 @@
 .macro op_safe_regs op
 ENTRY(\op\()_safe_regs)
 	CFI_STARTPROC
-	pushq_cfi %rbx
-	pushq_cfi %rbp
+	pushq_cfi_reg rbx
+	pushq_cfi_reg rbp
 	movq	%rdi, %r10	/* Save pointer */
 	xorl	%r11d, %r11d	/* Return value */
 	movl    (%rdi), %eax
@@ -35,8 +35,8 @@ ENTRY(\op\()_safe_regs)
 	movl    %ebp, 20(%r10)
 	movl    %esi, 24(%r10)
 	movl    %edi, 28(%r10)
-	popq_cfi %rbp
-	popq_cfi %rbx
+	popq_cfi_reg rbp
+	popq_cfi_reg rbx
 	ret
 3:
 	CFI_RESTORE_STATE
@@ -53,10 +53,10 @@ ENDPROC(\op\()_safe_regs)
 .macro op_safe_regs op
 ENTRY(\op\()_safe_regs)
 	CFI_STARTPROC
-	pushl_cfi %ebx
-	pushl_cfi %ebp
-	pushl_cfi %esi
-	pushl_cfi %edi
+	pushl_cfi_reg ebx
+	pushl_cfi_reg ebp
+	pushl_cfi_reg esi
+	pushl_cfi_reg edi
 	pushl_cfi $0              /* Return value */
 	pushl_cfi %eax
 	movl    4(%eax), %ecx
@@ -80,10 +80,10 @@ ENTRY(\op\()_safe_regs)
 	movl    %esi, 24(%eax)
 	movl    %edi, 28(%eax)
 	popl_cfi %eax
-	popl_cfi %edi
-	popl_cfi %esi
-	popl_cfi %ebp
-	popl_cfi %ebx
+	popl_cfi_reg edi
+	popl_cfi_reg esi
+	popl_cfi_reg ebp
+	popl_cfi_reg ebx
 	ret
 3:
 	CFI_RESTORE_STATE

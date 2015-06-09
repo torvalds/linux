@@ -51,7 +51,7 @@ static int __init early_coherent_pool(char *p)
 }
 early_param("coherent_pool", early_coherent_pool);
 
-static void *__alloc_from_pool(size_t size, struct page **ret_page)
+static void *__alloc_from_pool(size_t size, struct page **ret_page, gfp_t flags)
 {
 	unsigned long val;
 	void *ptr = NULL;
@@ -67,6 +67,8 @@ static void *__alloc_from_pool(size_t size, struct page **ret_page)
 
 		*ret_page = phys_to_page(phys);
 		ptr = (void *)val;
+		if (flags & __GFP_ZERO)
+			memset(ptr, 0, size);
 	}
 
 	return ptr;
@@ -101,6 +103,7 @@ static void *__dma_alloc_coherent(struct device *dev, size_t size,
 		flags |= GFP_DMA;
 	if (IS_ENABLED(CONFIG_DMA_CMA) && (flags & __GFP_WAIT)) {
 		struct page *page;
+		void *addr;
 
 		size = PAGE_ALIGN(size);
 		page = dma_alloc_from_contiguous(dev, size >> PAGE_SHIFT,
@@ -109,7 +112,10 @@ static void *__dma_alloc_coherent(struct device *dev, size_t size,
 			return NULL;
 
 		*dma_handle = phys_to_dma(dev, page_to_phys(page));
-		return page_address(page);
+		addr = page_address(page);
+		if (flags & __GFP_ZERO)
+			memset(addr, 0, size);
+		return addr;
 	} else {
 		return swiotlb_alloc_coherent(dev, size, dma_handle, flags);
 	}
@@ -146,7 +152,7 @@ static void *__dma_alloc(struct device *dev, size_t size,
 
 	if (!coherent && !(flags & __GFP_WAIT)) {
 		struct page *page = NULL;
-		void *addr = __alloc_from_pool(size, &page);
+		void *addr = __alloc_from_pool(size, &page, flags);
 
 		if (addr)
 			*dma_handle = phys_to_dma(dev, page_to_phys(page));
@@ -348,8 +354,6 @@ static struct dma_map_ops swiotlb_dma_ops = {
 	.mapping_error = swiotlb_dma_mapping_error,
 };
 
-extern int swiotlb_late_init_with_default_size(size_t default_size);
-
 static int __init atomic_pool_init(void)
 {
 	pgprot_t prot = __pgprot(PROT_NORMAL_NC);
@@ -411,21 +415,13 @@ out:
 	return -ENOMEM;
 }
 
-static int __init swiotlb_late_init(void)
+static int __init arm64_dma_init(void)
 {
-	size_t swiotlb_size = min(SZ_64M, MAX_ORDER_NR_PAGES << PAGE_SHIFT);
+	int ret;
 
 	dma_ops = &swiotlb_dma_ops;
 
-	return swiotlb_late_init_with_default_size(swiotlb_size);
-}
-
-static int __init arm64_dma_init(void)
-{
-	int ret = 0;
-
-	ret |= swiotlb_late_init();
-	ret |= atomic_pool_init();
+	ret = atomic_pool_init();
 
 	return ret;
 }

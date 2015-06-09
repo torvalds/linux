@@ -103,6 +103,7 @@ void unset_migratetype_isolate(struct page *page, unsigned migratetype)
 
 			if (!is_migrate_isolate_page(buddy)) {
 				__isolate_free_page(page, order);
+				kernel_map_pages(page, (1 << order), 1);
 				set_page_refcounted(page);
 				isolated_page = page;
 			}

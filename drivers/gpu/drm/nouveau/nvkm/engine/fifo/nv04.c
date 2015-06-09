@@ -502,72 +502,57 @@ nv04_fifo_intr(struct nvkm_subdev *subdev)
 {
 	struct nvkm_device *device = nv_device(subdev);
 	struct nv04_fifo_priv *priv = (void *)subdev;
-	uint32_t status, reassign;
-	int cnt = 0;
+	u32 mask = nv_rd32(priv, NV03_PFIFO_INTR_EN_0);
+	u32 stat = nv_rd32(priv, NV03_PFIFO_INTR_0) & mask;
+	u32 reassign, chid, get, sem;
 
 	reassign = nv_rd32(priv, NV03_PFIFO_CACHES) & 1;
-	while ((status = nv_rd32(priv, NV03_PFIFO_INTR_0)) && (cnt++ < 100)) {
-		uint32_t chid, get;
+	nv_wr32(priv, NV03_PFIFO_CACHES, 0);
 
-		nv_wr32(priv, NV03_PFIFO_CACHES, 0);
+	chid = nv_rd32(priv, NV03_PFIFO_CACHE1_PUSH1) & priv->base.max;
+	get  = nv_rd32(priv, NV03_PFIFO_CACHE1_GET);
 
-		chid = nv_rd32(priv, NV03_PFIFO_CACHE1_PUSH1) & priv->base.max;
-		get  = nv_rd32(priv, NV03_PFIFO_CACHE1_GET);
-
-		if (status & NV_PFIFO_INTR_CACHE_ERROR) {
-			nv04_fifo_cache_error(device, priv, chid, get);
-			status &= ~NV_PFIFO_INTR_CACHE_ERROR;
-		}
-
-		if (status & NV_PFIFO_INTR_DMA_PUSHER) {
-			nv04_fifo_dma_pusher(device, priv, chid);
-			status &= ~NV_PFIFO_INTR_DMA_PUSHER;
-		}
-
-		if (status & NV_PFIFO_INTR_SEMAPHORE) {
-			uint32_t sem;
-
-			status &= ~NV_PFIFO_INTR_SEMAPHORE;
-			nv_wr32(priv, NV03_PFIFO_INTR_0,
-				NV_PFIFO_INTR_SEMAPHORE);
-
-			sem = nv_rd32(priv, NV10_PFIFO_CACHE1_SEMAPHORE);
-			nv_wr32(priv, NV10_PFIFO_CACHE1_SEMAPHORE, sem | 0x1);
-
-			nv_wr32(priv, NV03_PFIFO_CACHE1_GET, get + 4);
-			nv_wr32(priv, NV04_PFIFO_CACHE1_PULL0, 1);
-		}
-
-		if (device->card_type == NV_50) {
-			if (status & 0x00000010) {
-				status &= ~0x00000010;
-				nv_wr32(priv, 0x002100, 0x00000010);
-			}
-
-			if (status & 0x40000000) {
-				nv_wr32(priv, 0x002100, 0x40000000);
-				nvkm_fifo_uevent(&priv->base);
-				status &= ~0x40000000;
-			}
-		}
-
-		if (status) {
-			nv_warn(priv, "unknown intr 0x%08x, ch %d\n",
-				status, chid);
-			nv_wr32(priv, NV03_PFIFO_INTR_0, status);
-			status = 0;
-		}
-
-		nv_wr32(priv, NV03_PFIFO_CACHES, reassign);
+	if (stat & NV_PFIFO_INTR_CACHE_ERROR) {
+		nv04_fifo_cache_error(device, priv, chid, get);
+		stat &= ~NV_PFIFO_INTR_CACHE_ERROR;
 	}
 
-	if (status) {
-		nv_error(priv, "still angry after %d spins, halt\n", cnt);
-		nv_wr32(priv, 0x002140, 0);
-		nv_wr32(priv, 0x000140, 0);
+	if (stat & NV_PFIFO_INTR_DMA_PUSHER) {
+		nv04_fifo_dma_pusher(device, priv, chid);
+		stat &= ~NV_PFIFO_INTR_DMA_PUSHER;
 	}
 
-	nv_wr32(priv, 0x000100, 0x00000100);
+	if (stat & NV_PFIFO_INTR_SEMAPHORE) {
+		stat &= ~NV_PFIFO_INTR_SEMAPHORE;
+		nv_wr32(priv, NV03_PFIFO_INTR_0, NV_PFIFO_INTR_SEMAPHORE);
+
+		sem = nv_rd32(priv, NV10_PFIFO_CACHE1_SEMAPHORE);
+		nv_wr32(priv, NV10_PFIFO_CACHE1_SEMAPHORE, sem | 0x1);
+
+		nv_wr32(priv, NV03_PFIFO_CACHE1_GET, get + 4);
+		nv_wr32(priv, NV04_PFIFO_CACHE1_PULL0, 1);
+	}
+
+	if (device->card_type == NV_50) {
+		if (stat & 0x00000010) {
+			stat &= ~0x00000010;
+			nv_wr32(priv, 0x002100, 0x00000010);
+		}
+
+		if (stat & 0x40000000) {
+			nv_wr32(priv, 0x002100, 0x40000000);
+			nvkm_fifo_uevent(&priv->base);
+			stat &= ~0x40000000;
+		}
+	}
+
+	if (stat) {
+		nv_warn(priv, "unknown intr 0x%08x\n", stat);
+		nv_mask(priv, NV03_PFIFO_INTR_EN_0, stat, 0x00000000);
+		nv_wr32(priv, NV03_PFIFO_INTR_0, stat);
+	}
+
+	nv_wr32(priv, NV03_PFIFO_CACHES, reassign);
 }
 
 static int

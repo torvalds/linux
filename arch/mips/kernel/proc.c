@@ -120,6 +120,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	if (cpu_has_msa)	seq_printf(m, "%s", " msa");
 	if (cpu_has_eva)	seq_printf(m, "%s", " eva");
 	if (cpu_has_htw)	seq_printf(m, "%s", " htw");
+	if (cpu_has_xpa)	seq_printf(m, "%s", " xpa");
 	seq_printf(m, "\n");
 
 	if (cpu_has_mmips) {

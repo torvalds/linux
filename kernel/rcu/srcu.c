@@ -402,23 +402,6 @@ void call_srcu(struct srcu_struct *sp, struct rcu_head *head,
 }
 EXPORT_SYMBOL_GPL(call_srcu);
 
-struct rcu_synchronize {
-	struct rcu_head head;
-	struct completion completion;
-};
-
-/*
- * Awaken the corresponding synchronize_srcu() instance now that a
- * grace period has elapsed.
- */
-static void wakeme_after_rcu(struct rcu_head *head)
-{
-	struct rcu_synchronize *rcu;
-
-	rcu = container_of(head, struct rcu_synchronize, head);
-	complete(&rcu->completion);
-}
-
 static void srcu_advance_batches(struct srcu_struct *sp, int trycount);
 static void srcu_reschedule(struct srcu_struct *sp);
 
@@ -507,7 +490,7 @@ static void __synchronize_srcu(struct srcu_struct *sp, int trycount)
  */
 void synchronize_srcu(struct srcu_struct *sp)
 {
-	__synchronize_srcu(sp, rcu_expedited
+	__synchronize_srcu(sp, rcu_gp_is_expedited()
 			   ? SYNCHRONIZE_SRCU_EXP_TRYCOUNT
 			   : SYNCHRONIZE_SRCU_TRYCOUNT);
 }

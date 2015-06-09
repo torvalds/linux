@@ -492,51 +492,36 @@ static struct twl4030_platform_data cm_t35_twldata = {
 #include <media/omap3isp.h>
 #include "devices.h"
 
-static struct i2c_board_info cm_t35_isp_i2c_boardinfo[] = {
+static struct isp_platform_subdev cm_t35_isp_subdevs[] = {
 	{
-		I2C_BOARD_INFO("mt9t001", 0x5d),
-	},
-	{
-		I2C_BOARD_INFO("tvp5150", 0x5c),
-	},
-};
-
-static struct isp_subdev_i2c_board_info cm_t35_isp_primary_subdevs[] = {
-	{
-		.board_info = &cm_t35_isp_i2c_boardinfo[0],
+		.board_info = &(struct i2c_board_info){
+			I2C_BOARD_INFO("mt9t001", 0x5d)
+		},
 		.i2c_adapter_id = 3,
-	},
-	{ NULL, 0, },
-};
-
-static struct isp_subdev_i2c_board_info cm_t35_isp_secondary_subdevs[] = {
-	{
-		.board_info = &cm_t35_isp_i2c_boardinfo[1],
-		.i2c_adapter_id = 3,
-	},
-	{ NULL, 0, },
-};
-
-static struct isp_v4l2_subdevs_group cm_t35_isp_subdevs[] = {
-	{
-		.subdevs = cm_t35_isp_primary_subdevs,
-		.interface = ISP_INTERFACE_PARALLEL,
-		.bus = {
-			.parallel = {
-				.clk_pol = 1,
+		.bus = &(struct isp_bus_cfg){
+			.interface = ISP_INTERFACE_PARALLEL,
+			.bus = {
+				.parallel = {
+					.clk_pol = 1,
+				},
 			},
 		},
 	},
 	{
-		.subdevs = cm_t35_isp_secondary_subdevs,
-		.interface = ISP_INTERFACE_PARALLEL,
-		.bus = {
-			.parallel = {
-				.clk_pol = 0,
+		.board_info = &(struct i2c_board_info){
+			I2C_BOARD_INFO("tvp5150", 0x5c),
+		},
+		.i2c_adapter_id = 3,
+		.bus = &(struct isp_bus_cfg){
+			.interface = ISP_INTERFACE_PARALLEL,
+			.bus = {
+				.parallel = {
+					.clk_pol = 0,
+				},
 			},
 		},
 	},
-	{ NULL, 0, },
+	{ 0 },
 };
 
 static struct isp_platform_data cm_t35_isp_pdata = {

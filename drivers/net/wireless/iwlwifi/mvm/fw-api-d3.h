@@ -132,7 +132,7 @@ struct iwl_proto_offload_cmd_common {
  * @solicited_node_ipv6_addr: broken -- solicited node address exists
  *	for each target address
  * @target_ipv6_addr: our target addresses
- * @ndp_mac_addr: neighbor soliciation response MAC address
+ * @ndp_mac_addr: neighbor solicitation response MAC address
  */
 struct iwl_proto_offload_cmd_v1 {
 	struct iwl_proto_offload_cmd_common common;
@@ -150,7 +150,7 @@ struct iwl_proto_offload_cmd_v1 {
  * @solicited_node_ipv6_addr: broken -- solicited node address exists
  *	for each target address
  * @target_ipv6_addr: our target addresses
- * @ndp_mac_addr: neighbor soliciation response MAC address
+ * @ndp_mac_addr: neighbor solicitation response MAC address
  */
 struct iwl_proto_offload_cmd_v2 {
 	struct iwl_proto_offload_cmd_common common;

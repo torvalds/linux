@@ -229,16 +229,16 @@ static u16 netvsc_select_queue(struct net_device *ndev, struct sk_buff *skb,
 	return q_idx;
 }
 
-static void netvsc_xmit_completion(void *context)
+void netvsc_xmit_completion(void *context)
 {
 	struct hv_netvsc_packet *packet = (struct hv_netvsc_packet *)context;
 	struct sk_buff *skb = (struct sk_buff *)
 		(unsigned long)packet->send_completion_tid;
-	u32 index = packet->send_buf_index;
 
-	kfree(packet);
+	if (!packet->part_of_skb)
+		kfree(packet);
 
-	if (skb && (index == NETVSC_INVALID_INDEX))
+	if (skb)
 		dev_kfree_skb_any(skb);
 }
 
@@ -277,15 +277,16 @@ static u32 fill_pg_buf(struct page *page, u32 offset, u32 len,
 }
 
 static u32 init_page_array(void *hdr, u32 len, struct sk_buff *skb,
-			   struct hv_page_buffer *pb)
+			   struct hv_netvsc_packet *packet)
 {
+	struct hv_page_buffer *pb = packet->page_buf;
 	u32 slots_used = 0;
 	char *data = skb->data;
 	int frags = skb_shinfo(skb)->nr_frags;
 	int i;
 
 	/* The packet is laid out thus:
-	 * 1. hdr
+	 * 1. hdr: RNDIS header and PPI
 	 * 2. skb linear data
 	 * 3. skb fragment data
 	 */
@@ -293,6 +294,9 @@ static u32 init_page_array(void *hdr, u32 len, struct sk_buff *skb,
 		slots_used += fill_pg_buf(virt_to_page(hdr),
 					offset_in_page(hdr),
 					len, &pb[slots_used]);
+
+	packet->rmsg_size = len;
+	packet->rmsg_pgcnt = slots_used;
 
 	slots_used += fill_pg_buf(virt_to_page(data),
 				offset_in_page(data),
@@ -370,50 +374,73 @@ not_ip:
 static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(net);
-	struct hv_netvsc_packet *packet;
+	struct hv_netvsc_packet *packet = NULL;
 	int ret;
 	unsigned int num_data_pgs;
 	struct rndis_message *rndis_msg;
 	struct rndis_packet *rndis_pkt;
 	u32 rndis_msg_size;
 	bool isvlan;
+	bool linear = false;
 	struct rndis_per_packet_info *ppi;
 	struct ndis_tcp_ip_checksum_info *csum_info;
 	struct ndis_tcp_lso_info *lso_info;
 	int  hdr_offset;
 	u32 net_trans_info;
 	u32 hash;
-	u32 skb_length = skb->len;
+	u32 skb_length;
+	u32 head_room;
+	u32 pkt_sz;
+	struct hv_page_buffer page_buf[MAX_PAGE_BUFFER_COUNT];
 
 
 	/* We will atmost need two pages to describe the rndis
 	 * header. We can only transmit MAX_PAGE_BUFFER_COUNT number
-	 * of pages in a single packet.
+	 * of pages in a single packet. If skb is scattered around
+	 * more pages we try linearizing it.
 	 */
+
+check_size:
+	skb_length = skb->len;
+	head_room = skb_headroom(skb);
 	num_data_pgs = netvsc_get_slots(skb) + 2;
-	if (num_data_pgs > MAX_PAGE_BUFFER_COUNT) {
-		netdev_err(net, "Packet too big: %u\n", skb->len);
-		dev_kfree_skb(skb);
-		net->stats.tx_dropped++;
-		return NETDEV_TX_OK;
+	if (num_data_pgs > MAX_PAGE_BUFFER_COUNT && linear) {
+		net_alert_ratelimited("packet too big: %u pages (%u bytes)\n",
+				      num_data_pgs, skb->len);
+		ret = -EFAULT;
+		goto drop;
+	} else if (num_data_pgs > MAX_PAGE_BUFFER_COUNT) {
+		if (skb_linearize(skb)) {
+			net_alert_ratelimited("failed to linearize skb\n");
+			ret = -ENOMEM;
+			goto drop;
+		}
+		linear = true;
+		goto check_size;
 	}
 
-	/* Allocate a netvsc packet based on # of frags. */
-	packet = kzalloc(sizeof(struct hv_netvsc_packet) +
-			 (num_data_pgs * sizeof(struct hv_page_buffer)) +
-			 sizeof(struct rndis_message) +
-			 NDIS_VLAN_PPI_SIZE + NDIS_CSUM_PPI_SIZE +
-			 NDIS_LSO_PPI_SIZE + NDIS_HASH_PPI_SIZE, GFP_ATOMIC);
-	if (!packet) {
-		/* out of memory, drop packet */
-		netdev_err(net, "unable to allocate hv_netvsc_packet\n");
+	pkt_sz = sizeof(struct hv_netvsc_packet) + RNDIS_AND_PPI_SIZE;
 
-		dev_kfree_skb(skb);
-		net->stats.tx_dropped++;
-		return NETDEV_TX_OK;
+	if (head_room < pkt_sz) {
+		packet = kmalloc(pkt_sz, GFP_ATOMIC);
+		if (!packet) {
+			/* out of memory, drop packet */
+			netdev_err(net, "unable to alloc hv_netvsc_packet\n");
+			ret = -ENOMEM;
+			goto drop;
+		}
+		packet->part_of_skb = false;
+	} else {
+		/* Use the headroom for building up the packet */
+		packet = (struct hv_netvsc_packet *)skb->head;
+		packet->part_of_skb = true;
 	}
+
+	packet->status = 0;
+	packet->xmit_more = skb->xmit_more;
 
 	packet->vlan_tci = skb->vlan_tci;
+	packet->page_buf = page_buf;
 
 	packet->q_idx = skb_get_queue_mapping(skb);
 
@@ -421,8 +448,9 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	packet->total_data_buflen = skb->len;
 
 	packet->rndis_msg = (struct rndis_message *)((unsigned long)packet +
-				sizeof(struct hv_netvsc_packet) +
-				(num_data_pgs * sizeof(struct hv_page_buffer)));
+				sizeof(struct hv_netvsc_packet));
+
+	memset(packet->rndis_msg, 0, RNDIS_AND_PPI_SIZE);
 
 	/* Set the completion routine */
 	packet->send_completion = netvsc_xmit_completion;
@@ -554,7 +582,7 @@ do_send:
 	rndis_msg->msg_len += rndis_msg_size;
 	packet->total_data_buflen = rndis_msg->msg_len;
 	packet->page_buf_cnt = init_page_array(rndis_msg, rndis_msg_size,
-					skb, &packet->page_buf[0]);
+					       skb, packet);
 
 	ret = netvsc_send(net_device_ctx->device_ctx, packet);
 
@@ -563,7 +591,8 @@ drop:
 		net->stats.tx_bytes += skb_length;
 		net->stats.tx_packets++;
 	} else {
-		kfree(packet);
+		if (packet && !packet->part_of_skb)
+			kfree(packet);
 		if (ret != -EAGAIN) {
 			dev_kfree_skb_any(skb);
 			net->stats.tx_dropped++;
@@ -687,6 +716,19 @@ static void netvsc_get_drvinfo(struct net_device *net,
 	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
 }
 
+static void netvsc_get_channels(struct net_device *net,
+				struct ethtool_channels *channel)
+{
+	struct net_device_context *net_device_ctx = netdev_priv(net);
+	struct hv_device *dev = net_device_ctx->device_ctx;
+	struct netvsc_device *nvdev = hv_get_drvdata(dev);
+
+	if (nvdev) {
+		channel->max_combined	= nvdev->max_chn;
+		channel->combined_count = nvdev->num_chn;
+	}
+}
+
 static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 {
 	struct net_device_context *ndevctx = netdev_priv(ndev);
@@ -760,6 +802,7 @@ static void netvsc_poll_controller(struct net_device *net)
 static const struct ethtool_ops ethtool_ops = {
 	.get_drvinfo	= netvsc_get_drvinfo,
 	.get_link	= ethtool_op_get_link,
+	.get_channels   = netvsc_get_channels,
 };
 
 static const struct net_device_ops device_ops = {
@@ -831,11 +874,15 @@ static int netvsc_probe(struct hv_device *dev,
 	struct netvsc_device_info device_info;
 	struct netvsc_device *nvdev;
 	int ret;
+	u32 max_needed_headroom;
 
 	net = alloc_etherdev_mq(sizeof(struct net_device_context),
 				num_online_cpus());
 	if (!net)
 		return -ENOMEM;
+
+	max_needed_headroom = sizeof(struct hv_netvsc_packet) +
+			      RNDIS_AND_PPI_SIZE;
 
 	netif_carrier_off(net);
 
@@ -854,6 +901,13 @@ static int netvsc_probe(struct hv_device *dev,
 
 	net->ethtool_ops = &ethtool_ops;
 	SET_NETDEV_DEV(net, &dev->device);
+
+	/*
+	 * Request additional head room in the skb.
+	 * We will use this space to build the rndis
+	 * heaser and other state we need to maintain.
+	 */
+	net->needed_headroom = max_needed_headroom;
 
 	/* Notify the netvsc driver of the new device */
 	device_info.ring_size = ring_size;

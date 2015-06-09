@@ -32,9 +32,6 @@
  * and that's assures that any user process won't get access to the
  * kernel doorbells page
  */
-static DEFINE_MUTEX(doorbell_mutex);
-static unsigned long doorbell_available_index[
-	DIV_ROUND_UP(KFD_MAX_NUM_OF_QUEUES_PER_PROCESS, BITS_PER_LONG)] = { 0 };
 
 #define KERNEL_DOORBELL_PASID 1
 #define KFD_SIZE_OF_DOORBELL_IN_BYTES 4
@@ -170,12 +167,12 @@ u32 __iomem *kfd_get_kernel_doorbell(struct kfd_dev *kfd,
 
 	BUG_ON(!kfd || !doorbell_off);
 
-	mutex_lock(&doorbell_mutex);
-	inx = find_first_zero_bit(doorbell_available_index,
+	mutex_lock(&kfd->doorbell_mutex);
+	inx = find_first_zero_bit(kfd->doorbell_available_index,
 					KFD_MAX_NUM_OF_QUEUES_PER_PROCESS);
 
-	__set_bit(inx, doorbell_available_index);
-	mutex_unlock(&doorbell_mutex);
+	__set_bit(inx, kfd->doorbell_available_index);
+	mutex_unlock(&kfd->doorbell_mutex);
 
 	if (inx >= KFD_MAX_NUM_OF_QUEUES_PER_PROCESS)
 		return NULL;
@@ -203,9 +200,9 @@ void kfd_release_kernel_doorbell(struct kfd_dev *kfd, u32 __iomem *db_addr)
 
 	inx = (unsigned int)(db_addr - kfd->doorbell_kernel_ptr);
 
-	mutex_lock(&doorbell_mutex);
-	__clear_bit(inx, doorbell_available_index);
-	mutex_unlock(&doorbell_mutex);
+	mutex_lock(&kfd->doorbell_mutex);
+	__clear_bit(inx, kfd->doorbell_available_index);
+	mutex_unlock(&kfd->doorbell_mutex);
 }
 
 inline void write_kernel_doorbell(u32 __iomem *db, u32 value)

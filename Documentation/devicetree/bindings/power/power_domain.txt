@@ -19,6 +19,16 @@ Required properties:
    providing multiple PM domains (e.g. power controllers), but can be any value
    as specified by device tree binding documentation of particular provider.
 
+Optional properties:
+ - power-domains : A phandle and PM domain specifier as defined by bindings of
+                   the power controller specified by phandle.
+   Some power domains might be powered from another power domain (or have
+   other hardware specific dependencies). For representing such dependency
+   a standard PM domain consumer binding is used. When provided, all domains
+   created by the given provider should be subdomains of the domain
+   specified by this binding. More details about power domain specifier are
+   available in the next section.
+
 Example:
 
 	power: power-controller@12340000 {
@@ -29,6 +39,25 @@ Example:
 
 The node above defines a power controller that is a PM domain provider and
 expects one cell as its phandle argument.
+
+Example 2:
+
+	parent: power-controller@12340000 {
+		compatible = "foo,power-controller";
+		reg = <0x12340000 0x1000>;
+		#power-domain-cells = <1>;
+	};
+
+	child: power-controller@12340000 {
+		compatible = "foo,power-controller";
+		reg = <0x12341000 0x1000>;
+		power-domains = <&parent 0>;
+		#power-domain-cells = <1>;
+	};
+
+The nodes above define two power controllers: 'parent' and 'child'.
+Domains created by the 'child' power controller are subdomains of '0' power
+domain provided by the 'parent' power controller.
 
 ==PM domain consumers==
 

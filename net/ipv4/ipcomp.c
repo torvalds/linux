@@ -63,7 +63,7 @@ static struct xfrm_state *ipcomp_tunnel_create(struct xfrm_state *x)
 	struct xfrm_state *t;
 
 	t = xfrm_state_alloc(net);
-	if (t == NULL)
+	if (!t)
 		goto out;
 
 	t->id.proto = IPPROTO_IPIP;

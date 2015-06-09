@@ -82,9 +82,15 @@ module_param(allow_duplicates, bool, 0644);
  * For Windows 8 systems: used to decide if video module
  * should skip registering backlight interface of its own.
  */
-static int use_native_backlight_param = -1;
+enum {
+	NATIVE_BACKLIGHT_NOT_SET = -1,
+	NATIVE_BACKLIGHT_OFF,
+	NATIVE_BACKLIGHT_ON,
+};
+
+static int use_native_backlight_param = NATIVE_BACKLIGHT_NOT_SET;
 module_param_named(use_native_backlight, use_native_backlight_param, int, 0444);
-static bool use_native_backlight_dmi = true;
+static int use_native_backlight_dmi = NATIVE_BACKLIGHT_NOT_SET;
 
 static int register_count;
 static struct mutex video_list_lock;
@@ -237,15 +243,16 @@ static void acpi_video_switch_brightness(struct work_struct *work);
 
 static bool acpi_video_use_native_backlight(void)
 {
-	if (use_native_backlight_param != -1)
+	if (use_native_backlight_param != NATIVE_BACKLIGHT_NOT_SET)
 		return use_native_backlight_param;
-	else
+	else if (use_native_backlight_dmi != NATIVE_BACKLIGHT_NOT_SET)
 		return use_native_backlight_dmi;
+	return acpi_osi_is_win8();
 }
 
 bool acpi_video_verify_backlight_support(void)
 {
-	if (acpi_osi_is_win8() && acpi_video_use_native_backlight() &&
+	if (acpi_video_use_native_backlight() &&
 	    backlight_device_registered(BACKLIGHT_RAW))
 		return false;
 	return acpi_video_backlight_support();
@@ -414,7 +421,13 @@ static int __init video_set_bqc_offset(const struct dmi_system_id *d)
 
 static int __init video_disable_native_backlight(const struct dmi_system_id *d)
 {
-	use_native_backlight_dmi = false;
+	use_native_backlight_dmi = NATIVE_BACKLIGHT_OFF;
+	return 0;
+}
+
+static int __init video_enable_native_backlight(const struct dmi_system_id *d)
+{
+	use_native_backlight_dmi = NATIVE_BACKLIGHT_ON;
 	return 0;
 }
 
@@ -557,6 +570,17 @@ static struct dmi_system_id video_dmi_table[] __initdata = {
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 		DMI_MATCH(DMI_PRODUCT_NAME, "XPS L521X"),
+		},
+	},
+
+	/* Non win8 machines which need native backlight nevertheless */
+	{
+	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1187004 */
+	 .callback = video_enable_native_backlight,
+	 .ident = "Lenovo Ideapad Z570",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "102434U"),
 		},
 	},
 	{}
@@ -2110,7 +2134,8 @@ static int __init intel_opregion_present(void)
 
 int acpi_video_register(void)
 {
-	int result = 0;
+	int ret;
+
 	if (register_count) {
 		/*
 		 * if the function of acpi_video_register is already called,
@@ -2122,9 +2147,9 @@ int acpi_video_register(void)
 	mutex_init(&video_list_lock);
 	INIT_LIST_HEAD(&video_bus_head);
 
-	result = acpi_bus_register_driver(&acpi_video_bus);
-	if (result < 0)
-		return -ENODEV;
+	ret = acpi_bus_register_driver(&acpi_video_bus);
+	if (ret)
+		return ret;
 
 	/*
 	 * When the acpi_video_bus is loaded successfully, increase
@@ -2176,6 +2201,17 @@ EXPORT_SYMBOL(acpi_video_unregister_backlight);
 
 static int __init acpi_video_init(void)
 {
+	/*
+	 * Let the module load even if ACPI is disabled (e.g. due to
+	 * a broken BIOS) so that i915.ko can still be loaded on such
+	 * old systems without an AcpiOpRegion.
+	 *
+	 * acpi_video_register() will report -ENODEV later as well due
+	 * to acpi_disabled when i915.ko tries to register itself afterwards.
+	 */
+	if (acpi_disabled)
+		return 0;
+
 	dmi_check_system(video_dmi_table);
 
 	if (intel_opregion_present())

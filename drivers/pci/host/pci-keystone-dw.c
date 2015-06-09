@@ -496,10 +496,11 @@ int __init ks_dw_pcie_host_init(struct keystone_pcie *ks_pcie,
 
 	/* Index 1 is the application reg. space address */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	ks_pcie->app = *res;
 	ks_pcie->va_app_base = devm_ioremap_resource(pp->dev, res);
 	if (IS_ERR(ks_pcie->va_app_base))
 		return PTR_ERR(ks_pcie->va_app_base);
+
+	ks_pcie->app = *res;
 
 	/* Create legacy IRQ domain */
 	ks_pcie->legacy_irq_domain =

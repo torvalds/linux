@@ -165,15 +165,11 @@ static int ti_pipe3_dpll_wait_lock(struct ti_pipe3 *phy)
 		cpu_relax();
 		val = ti_pipe3_readl(phy->pll_ctrl_base, PLL_STATUS);
 		if (val & PLL_LOCK)
-			break;
+			return 0;
 	} while (!time_after(jiffies, timeout));
 
-	if (!(val & PLL_LOCK)) {
-		dev_err(phy->dev, "DPLL failed to lock\n");
-		return -EBUSY;
-	}
-
-	return 0;
+	dev_err(phy->dev, "DPLL failed to lock\n");
+	return -EBUSY;
 }
 
 static int ti_pipe3_dpll_program(struct ti_pipe3 *phy)
@@ -291,9 +287,7 @@ static struct phy_ops ops = {
 	.owner		= THIS_MODULE,
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id ti_pipe3_id_table[];
-#endif
 
 static int ti_pipe3_probe(struct platform_device *pdev)
 {
@@ -315,8 +309,7 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 	spin_lock_init(&phy->lock);
 
 	if (!of_device_is_compatible(node, "ti,phy-pipe3-pcie")) {
-		match = of_match_device(of_match_ptr(ti_pipe3_id_table),
-					&pdev->dev);
+		match = of_match_device(ti_pipe3_id_table, &pdev->dev);
 		if (!match)
 			return -EINVAL;
 
@@ -574,7 +567,6 @@ static const struct dev_pm_ops ti_pipe3_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(ti_pipe3_suspend, ti_pipe3_resume)
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id ti_pipe3_id_table[] = {
 	{
 		.compatible = "ti,phy-usb3",
@@ -594,7 +586,6 @@ static const struct of_device_id ti_pipe3_id_table[] = {
 	{}
 };
 MODULE_DEVICE_TABLE(of, ti_pipe3_id_table);
-#endif
 
 static struct platform_driver ti_pipe3_driver = {
 	.probe		= ti_pipe3_probe,
@@ -602,13 +593,13 @@ static struct platform_driver ti_pipe3_driver = {
 	.driver		= {
 		.name	= "ti-pipe3",
 		.pm	= &ti_pipe3_pm_ops,
-		.of_match_table = of_match_ptr(ti_pipe3_id_table),
+		.of_match_table = ti_pipe3_id_table,
 	},
 };
 
 module_platform_driver(ti_pipe3_driver);
 
-MODULE_ALIAS("platform: ti_pipe3");
+MODULE_ALIAS("platform:ti_pipe3");
 MODULE_AUTHOR("Texas Instruments Inc.");
 MODULE_DESCRIPTION("TI PIPE3 phy driver");
 MODULE_LICENSE("GPL v2");

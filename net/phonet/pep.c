@@ -1118,8 +1118,7 @@ static int pipe_skb_send(struct sock *sk, struct sk_buff *skb)
 
 }
 
-static int pep_sendmsg(struct kiocb *iocb, struct sock *sk,
-			struct msghdr *msg, size_t len)
+static int pep_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 {
 	struct pep_sock *pn = pep_sk(sk);
 	struct sk_buff *skb;
@@ -1246,9 +1245,8 @@ struct sk_buff *pep_read(struct sock *sk)
 	return skb;
 }
 
-static int pep_recvmsg(struct kiocb *iocb, struct sock *sk,
-			struct msghdr *msg, size_t len, int noblock,
-			int flags, int *addr_len)
+static int pep_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
+		       int noblock, int flags, int *addr_len)
 {
 	struct sk_buff *skb;
 	int err;

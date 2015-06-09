@@ -139,26 +139,26 @@ struct tegra_pingroup {
 	u32 pupd_bank:2;
 	u32 tri_bank:2;
 	u32 drv_bank:2;
-	u32 mux_bit:6;
-	u32 pupd_bit:6;
-	u32 tri_bit:6;
-	u32 einput_bit:6;
-	u32 odrain_bit:6;
-	u32 lock_bit:6;
-	u32 ioreset_bit:6;
-	u32 rcv_sel_bit:6;
-	u32 hsm_bit:6;
-	u32 schmitt_bit:6;
-	u32 lpmd_bit:6;
-	u32 drvdn_bit:6;
-	u32 drvup_bit:6;
-	u32 slwr_bit:6;
-	u32 slwf_bit:6;
-	u32 drvtype_bit:6;
-	u32 drvdn_width:6;
-	u32 drvup_width:6;
-	u32 slwr_width:6;
-	u32 slwf_width:6;
+	s32 mux_bit:6;
+	s32 pupd_bit:6;
+	s32 tri_bit:6;
+	s32 einput_bit:6;
+	s32 odrain_bit:6;
+	s32 lock_bit:6;
+	s32 ioreset_bit:6;
+	s32 rcv_sel_bit:6;
+	s32 hsm_bit:6;
+	s32 schmitt_bit:6;
+	s32 lpmd_bit:6;
+	s32 drvdn_bit:6;
+	s32 drvup_bit:6;
+	s32 slwr_bit:6;
+	s32 slwf_bit:6;
+	s32 drvtype_bit:6;
+	s32 drvdn_width:6;
+	s32 drvup_width:6;
+	s32 slwr_width:6;
+	s32 slwf_width:6;
 };
 
 /**
@@ -182,6 +182,9 @@ struct tegra_pinctrl_soc_data {
 	unsigned nfunctions;
 	const struct tegra_pingroup *groups;
 	unsigned ngroups;
+	bool hsm_in_mux;
+	bool schmitt_in_mux;
+	bool drvtype_in_mux;
 };
 
 int tegra_pinctrl_probe(struct platform_device *pdev,

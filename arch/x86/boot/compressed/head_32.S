@@ -29,6 +29,7 @@
 #include <asm/page_types.h>
 #include <asm/boot.h>
 #include <asm/asm-offsets.h>
+#include <asm/bootparam.h>
 
 	__HEAD
 ENTRY(startup_32)
@@ -102,7 +103,7 @@ preferred_addr:
 	 * Test KEEP_SEGMENTS flag to see if the bootloader is asking
 	 * us to not reload segments
 	 */
-	testb	$(1<<6), BP_loadflags(%esi)
+	testb	$KEEP_SEGMENTS, BP_loadflags(%esi)
 	jnz	1f
 
 	cli

@@ -15,10 +15,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- *
  * The full GNU General Public License is in this distribution in the file
  * called COPYING.
  *
@@ -96,6 +92,12 @@
 #include "virt-dma.h"
 
 #define DRIVER_NAME	"pl08xdmac"
+
+#define PL80X_DMA_BUSWIDTHS \
+	BIT(DMA_SLAVE_BUSWIDTH_UNDEFINED) | \
+	BIT(DMA_SLAVE_BUSWIDTH_1_BYTE) | \
+	BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) | \
+	BIT(DMA_SLAVE_BUSWIDTH_4_BYTES)
 
 static struct amba_driver pl08x_amba_driver;
 struct pl08x_driver_data;
@@ -1189,11 +1191,6 @@ static void pl08x_free_txd_list(struct pl08x_driver_data *pl08x,
 /*
  * The DMA ENGINE API
  */
-static int pl08x_alloc_chan_resources(struct dma_chan *chan)
-{
-	return 0;
-}
-
 static void pl08x_free_chan_resources(struct dma_chan *chan)
 {
 	/* Ensure all queued descriptors are freed */
@@ -2060,7 +2057,6 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	/* Initialize memcpy engine */
 	dma_cap_set(DMA_MEMCPY, pl08x->memcpy.cap_mask);
 	pl08x->memcpy.dev = &adev->dev;
-	pl08x->memcpy.device_alloc_chan_resources = pl08x_alloc_chan_resources;
 	pl08x->memcpy.device_free_chan_resources = pl08x_free_chan_resources;
 	pl08x->memcpy.device_prep_dma_memcpy = pl08x_prep_dma_memcpy;
 	pl08x->memcpy.device_prep_dma_interrupt = pl08x_prep_dma_interrupt;
@@ -2070,12 +2066,15 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	pl08x->memcpy.device_pause = pl08x_pause;
 	pl08x->memcpy.device_resume = pl08x_resume;
 	pl08x->memcpy.device_terminate_all = pl08x_terminate_all;
+	pl08x->memcpy.src_addr_widths = PL80X_DMA_BUSWIDTHS;
+	pl08x->memcpy.dst_addr_widths = PL80X_DMA_BUSWIDTHS;
+	pl08x->memcpy.directions = BIT(DMA_MEM_TO_MEM);
+	pl08x->memcpy.residue_granularity = DMA_RESIDUE_GRANULARITY_SEGMENT;
 
 	/* Initialize slave engine */
 	dma_cap_set(DMA_SLAVE, pl08x->slave.cap_mask);
 	dma_cap_set(DMA_CYCLIC, pl08x->slave.cap_mask);
 	pl08x->slave.dev = &adev->dev;
-	pl08x->slave.device_alloc_chan_resources = pl08x_alloc_chan_resources;
 	pl08x->slave.device_free_chan_resources = pl08x_free_chan_resources;
 	pl08x->slave.device_prep_dma_interrupt = pl08x_prep_dma_interrupt;
 	pl08x->slave.device_tx_status = pl08x_dma_tx_status;
@@ -2086,6 +2085,10 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	pl08x->slave.device_pause = pl08x_pause;
 	pl08x->slave.device_resume = pl08x_resume;
 	pl08x->slave.device_terminate_all = pl08x_terminate_all;
+	pl08x->slave.src_addr_widths = PL80X_DMA_BUSWIDTHS;
+	pl08x->slave.dst_addr_widths = PL80X_DMA_BUSWIDTHS;
+	pl08x->slave.directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
+	pl08x->slave.residue_granularity = DMA_RESIDUE_GRANULARITY_SEGMENT;
 
 	/* Get the platform data */
 	pl08x->pd = dev_get_platdata(&adev->dev);

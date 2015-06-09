@@ -184,12 +184,12 @@ struct ath_frame_info {
 	struct ath_buf *bf;
 	u16 framelen;
 	s8 txq;
-	enum ath9k_key_type keytype;
 	u8 keyix;
 	u8 rtscts_rate;
 	u8 retries : 7;
 	u8 baw_tracked : 1;
 	u8 tx_power;
+	enum ath9k_key_type keytype:2;
 };
 
 struct ath_rxbuf {
@@ -645,6 +645,7 @@ void ath9k_calculate_iter_data(struct ath_softc *sc,
 			       struct ath9k_vif_iter_data *iter_data);
 void ath9k_calculate_summary_state(struct ath_softc *sc,
 				   struct ath_chanctx *ctx);
+void ath9k_set_txpower(struct ath_softc *sc, struct ieee80211_vif *vif);
 
 /*******************/
 /* Beacon Handling */

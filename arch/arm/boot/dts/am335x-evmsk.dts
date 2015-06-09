@@ -15,6 +15,7 @@
 
 #include "am33xx.dtsi"
 #include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "TI AM335x EVM-SK";
@@ -647,6 +648,16 @@
 	cap-power-off-card;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc2_pins>;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	wlcore: wlcore@2 {
+		compatible = "ti,wl1271";
+		reg = <2>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <31 IRQ_TYPE_LEVEL_HIGH>; /* gpio 31 */
+		ref-clock-frequency = <38400000>;
+	};
 };
 
 &mcasp1 {

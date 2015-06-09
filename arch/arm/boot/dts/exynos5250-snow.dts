@@ -29,6 +29,7 @@
 
 	chosen {
 		bootargs = "console=tty1";
+		stdout-path = "serial3:115200n8";
 	};
 
 	gpio-keys {
@@ -183,7 +184,20 @@
 			powerdown-gpios = <&gpy2 5 GPIO_ACTIVE_HIGH>;
 			reset-gpios = <&gpx1 5 GPIO_ACTIVE_HIGH>;
 			edid-emulation = <5>;
-			panel = <&panel>;
+
+			ports {
+				port@0 {
+					bridge_out: endpoint {
+						remote-endpoint = <&panel_in>;
+					};
+				};
+
+				port@1 {
+					bridge_in: endpoint {
+						remote-endpoint = <&dp_out>;
+					};
+				};
+			};
 		};
 	};
 
@@ -228,6 +242,20 @@
 		compatible = "auo,b116xw03";
 		power-supply = <&fet6>;
 		backlight = <&backlight>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&bridge_out>;
+			};
+		};
+	};
+
+	mmc3_pwrseq: mmc3_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&gpx0 2 GPIO_ACTIVE_LOW>, /* WIFI_RSTn */
+			      <&gpx0 1 GPIO_ACTIVE_LOW>; /* WIFI_EN */
+		clocks = <&max77686 MAX77686_CLK_PMIC>;
+		clock-names = "ext_clock";
 	};
 };
 
@@ -242,7 +270,14 @@
 	samsung,link-rate = <0x0a>;
 	samsung,lane-count = <2>;
 	samsung,hpd-gpio = <&gpx0 7 GPIO_ACTIVE_HIGH>;
-	bridge = <&ptn3460>;
+
+	ports {
+		port@0 {
+			dp_out: endpoint {
+				remote-endpoint = <&bridge_in>;
+			};
+		};
+	};
 };
 
 &ehci {
@@ -531,17 +566,33 @@
 	status = "okay";
 	num-slots = <1>;
 	broken-cd;
+	cap-sdio-irq;
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;
 	samsung,dw-mshc-sdr-timing = <2 3>;
 	samsung,dw-mshc-ddr-timing = <1 2>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&sd3_clk &sd3_cmd &sd3_bus4>;
+	pinctrl-0 = <&sd3_clk &sd3_cmd &sd3_bus4 &wifi_en &wifi_rst>;
 	bus-width = <4>;
 	cap-sd-highspeed;
+	mmc-pwrseq = <&mmc3_pwrseq>;
 };
 
 &pinctrl_0 {
+	wifi_en: wifi-en {
+		samsung,pins = "gpx0-1";
+		samsung,pin-function = <1>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
+	};
+
+	wifi_rst: wifi-rst {
+		samsung,pins = "gpx0-2";
+		samsung,pin-function = <1>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
+	};
+
 	power_key_irq: power-key-irq {
 		samsung,pins = "gpx1-3";
 		samsung,pin-function = <0xf>;

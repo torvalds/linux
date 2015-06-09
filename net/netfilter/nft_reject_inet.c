@@ -18,7 +18,7 @@
 #include <net/netfilter/ipv6/nf_reject.h>
 
 static void nft_reject_inet_eval(const struct nft_expr *expr,
-				 struct nft_data data[NFT_REG_MAX + 1],
+				 struct nft_regs *regs,
 				 const struct nft_pktinfo *pkt)
 {
 	struct nft_reject *priv = nft_expr_priv(expr);
@@ -28,14 +28,16 @@ static void nft_reject_inet_eval(const struct nft_expr *expr,
 	case NFPROTO_IPV4:
 		switch (priv->type) {
 		case NFT_REJECT_ICMP_UNREACH:
-			nf_send_unreach(pkt->skb, priv->icmp_code);
+			nf_send_unreach(pkt->skb, priv->icmp_code,
+					pkt->ops->hooknum);
 			break;
 		case NFT_REJECT_TCP_RST:
 			nf_send_reset(pkt->skb, pkt->ops->hooknum);
 			break;
 		case NFT_REJECT_ICMPX_UNREACH:
 			nf_send_unreach(pkt->skb,
-					nft_reject_icmp_code(priv->icmp_code));
+					nft_reject_icmp_code(priv->icmp_code),
+					pkt->ops->hooknum);
 			break;
 		}
 		break;
@@ -56,7 +58,8 @@ static void nft_reject_inet_eval(const struct nft_expr *expr,
 		}
 		break;
 	}
-	data[NFT_REG_VERDICT].verdict = NF_DROP;
+
+	regs->verdict.code = NF_DROP;
 }
 
 static int nft_reject_inet_init(const struct nft_ctx *ctx,

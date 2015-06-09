@@ -97,7 +97,7 @@ LEN= 0e
 *** Attack and fade ***
 OP=  02
 LEN= 08
-00-01 Address where to store the parameteres
+00-01 Address where to store the parameters
 02-03 Duration of attack (little endian encoding, in ms)
 04 Level at end of attack. Signed byte.
 05-06 Duration of fade.

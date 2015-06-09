@@ -17,27 +17,31 @@
 #include <linux/acpi.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
+
 #include <asm/iosf_mbi.h>
+
 #include "i2c-designware-core.h"
 
 #define SEMAPHORE_TIMEOUT	100
 #define PUNIT_SEMAPHORE		0x7
+#define PUNIT_SEMAPHORE_BIT	BIT(0)
+#define PUNIT_SEMAPHORE_ACQUIRE	BIT(1)
 
 static unsigned long acquired;
 
 static int get_sem(struct device *dev, u32 *sem)
 {
-	u32 reg_val;
+	u32 data;
 	int ret;
 
 	ret = iosf_mbi_read(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_READ, PUNIT_SEMAPHORE,
-			    &reg_val);
+				&data);
 	if (ret) {
 		dev_err(dev, "iosf failed to read punit semaphore\n");
 		return ret;
 	}
 
-	*sem = reg_val & 0x1;
+	*sem = data & PUNIT_SEMAPHORE_BIT;
 
 	return 0;
 }
@@ -52,27 +56,29 @@ static void reset_semaphore(struct device *dev)
 		return;
 	}
 
-	data = data & 0xfffffffe;
+	data &= ~PUNIT_SEMAPHORE_BIT;
 	if (iosf_mbi_write(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_WRITE,
-				 PUNIT_SEMAPHORE, data))
+				PUNIT_SEMAPHORE, data))
 		dev_err(dev, "iosf failed to reset punit semaphore during write\n");
 }
 
-int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
+static int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 {
-	u32 sem = 0;
+	u32 sem;
 	int ret;
 	unsigned long start, end;
+
+	might_sleep();
 
 	if (!dev || !dev->dev)
 		return -ENODEV;
 
-	if (!dev->acquire_lock)
+	if (!dev->release_lock)
 		return 0;
 
-	/* host driver writes 0x2 to side band semaphore register */
+	/* host driver writes to side band semaphore register */
 	ret = iosf_mbi_write(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_WRITE,
-				 PUNIT_SEMAPHORE, 0x2);
+				PUNIT_SEMAPHORE, PUNIT_SEMAPHORE_ACQUIRE);
 	if (ret) {
 		dev_err(dev->dev, "iosf punit semaphore request failed\n");
 		return ret;
@@ -81,7 +87,7 @@ int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 	/* host driver waits for bit 0 to be set in semaphore register */
 	start = jiffies;
 	end = start + msecs_to_jiffies(SEMAPHORE_TIMEOUT);
-	while (!time_after(jiffies, end)) {
+	do {
 		ret = get_sem(dev->dev, &sem);
 		if (!ret && sem) {
 			acquired = jiffies;
@@ -91,14 +97,14 @@ int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 		}
 
 		usleep_range(1000, 2000);
-	}
+	} while (time_before(jiffies, end));
 
 	dev_err(dev->dev, "punit semaphore timed out, resetting\n");
 	reset_semaphore(dev->dev);
 
 	ret = iosf_mbi_read(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_READ,
-		PUNIT_SEMAPHORE, &sem);
-	if (!ret)
+				PUNIT_SEMAPHORE, &sem);
+	if (ret)
 		dev_err(dev->dev, "iosf failed to read punit semaphore\n");
 	else
 		dev_err(dev->dev, "PUNIT SEM: %d\n", sem);
@@ -107,9 +113,8 @@ int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 
 	return -ETIMEDOUT;
 }
-EXPORT_SYMBOL(baytrail_i2c_acquire);
 
-void baytrail_i2c_release(struct dw_i2c_dev *dev)
+static void baytrail_i2c_release(struct dw_i2c_dev *dev)
 {
 	if (!dev || !dev->dev)
 		return;
@@ -121,7 +126,6 @@ void baytrail_i2c_release(struct dw_i2c_dev *dev)
 	dev_dbg(dev->dev, "punit semaphore held for %ums\n",
 		jiffies_to_msecs(jiffies - acquired));
 }
-EXPORT_SYMBOL(baytrail_i2c_release);
 
 int i2c_dw_eval_lock_support(struct dw_i2c_dev *dev)
 {
@@ -137,7 +141,6 @@ int i2c_dw_eval_lock_support(struct dw_i2c_dev *dev)
 		return 0;
 
 	status = acpi_evaluate_integer(handle, "_SEM", NULL, &shared_host);
-
 	if (ACPI_FAILURE(status))
 		return 0;
 
@@ -153,7 +156,6 @@ int i2c_dw_eval_lock_support(struct dw_i2c_dev *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL(i2c_dw_eval_lock_support);
 
 MODULE_AUTHOR("David E. Box <david.e.box@linux.intel.com>");
 MODULE_DESCRIPTION("Baytrail I2C Semaphore driver");

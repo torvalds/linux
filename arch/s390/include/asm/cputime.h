@@ -22,15 +22,7 @@ typedef unsigned long long __nocast cputime64_t;
 
 static inline unsigned long __div(unsigned long long n, unsigned long base)
 {
-#ifndef CONFIG_64BIT
-	register_pair rp;
-
-	rp.pair = n >> 1;
-	asm ("dr %0,%1" : "+d" (rp) : "d" (base >> 1));
-	return rp.subreg.odd;
-#else /* CONFIG_64BIT */
 	return n / base;
-#endif /* CONFIG_64BIT */
 }
 
 #define cputime_one_jiffy		jiffies_to_cputime(1)
@@ -101,17 +93,8 @@ static inline void cputime_to_timespec(const cputime_t cputime,
 				       struct timespec *value)
 {
 	unsigned long long __cputime = (__force unsigned long long) cputime;
-#ifndef CONFIG_64BIT
-	register_pair rp;
-
-	rp.pair = __cputime >> 1;
-	asm ("dr %0,%1" : "+d" (rp) : "d" (CPUTIME_PER_SEC / 2));
-	value->tv_nsec = rp.subreg.even * NSEC_PER_USEC / CPUTIME_PER_USEC;
-	value->tv_sec = rp.subreg.odd;
-#else
 	value->tv_nsec = (__cputime % CPUTIME_PER_SEC) * NSEC_PER_USEC / CPUTIME_PER_USEC;
 	value->tv_sec = __cputime / CPUTIME_PER_SEC;
-#endif
 }
 
 /*
@@ -129,17 +112,8 @@ static inline void cputime_to_timeval(const cputime_t cputime,
 				      struct timeval *value)
 {
 	unsigned long long __cputime = (__force unsigned long long) cputime;
-#ifndef CONFIG_64BIT
-	register_pair rp;
-
-	rp.pair = __cputime >> 1;
-	asm ("dr %0,%1" : "+d" (rp) : "d" (CPUTIME_PER_USEC / 2));
-	value->tv_usec = rp.subreg.even / CPUTIME_PER_USEC;
-	value->tv_sec = rp.subreg.odd;
-#else
 	value->tv_usec = (__cputime % CPUTIME_PER_SEC) / CPUTIME_PER_USEC;
 	value->tv_sec = __cputime / CPUTIME_PER_SEC;
-#endif
 }
 
 /*

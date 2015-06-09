@@ -256,10 +256,9 @@ int ndlc_probe(void *phy_id, struct nfc_phy_ops *phy_ops, struct device *dev,
 	struct llt_ndlc *ndlc;
 
 	ndlc = devm_kzalloc(dev, sizeof(struct llt_ndlc), GFP_KERNEL);
-	if (!ndlc) {
-		nfc_err(dev, "Cannot allocate memory for ndlc.\n");
+	if (!ndlc)
 		return -ENOMEM;
-	}
+
 	ndlc->ops = phy_ops;
 	ndlc->phy_id = phy_id;
 	ndlc->dev = dev;

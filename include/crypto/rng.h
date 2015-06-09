@@ -103,8 +103,7 @@ static inline void crypto_free_rng(struct crypto_rng *tfm)
  * This function fills the caller-allocated buffer with random numbers using the
  * random number generator referenced by the cipher handle.
  *
- * Return: > 0 function was successful and returns the number of generated
- *	   bytes; < 0 if an error occurred
+ * Return: 0 function was successful; < 0 if an error occurred
  */
 static inline int crypto_rng_get_bytes(struct crypto_rng *tfm,
 				       u8 *rdata, unsigned int dlen)

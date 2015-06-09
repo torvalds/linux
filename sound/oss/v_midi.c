@@ -49,13 +49,13 @@ static int v_midi_open (int dev, int mode,
 	unsigned long flags;
 
 	if (devc == NULL)
-		return -(ENXIO);
+		return -ENXIO;
 
 	spin_lock_irqsave(&devc->lock,flags);
 	if (devc->opened)
 	{
 		spin_unlock_irqrestore(&devc->lock,flags);
-		return -(EBUSY);
+		return -EBUSY;
 	}
 	devc->opened = 1;
 	spin_unlock_irqrestore(&devc->lock,flags);

@@ -68,10 +68,8 @@ int iscsit_load_discovery_tpg(void)
 		return -1;
 	}
 
-	ret = core_tpg_register(
-			&lio_target_fabric_configfs->tf_ops,
-			NULL, &tpg->tpg_se_tpg, tpg,
-			TRANSPORT_TPG_TYPE_DISCOVERY);
+	ret = core_tpg_register(&iscsi_ops, NULL, &tpg->tpg_se_tpg,
+				tpg, TRANSPORT_TPG_TYPE_DISCOVERY);
 	if (ret < 0) {
 		kfree(tpg);
 		return -1;
@@ -228,6 +226,7 @@ static void iscsit_set_default_tpg_attribs(struct iscsi_portal_group *tpg)
 	a->demo_mode_discovery = TA_DEMO_MODE_DISCOVERY;
 	a->default_erl = TA_DEFAULT_ERL;
 	a->t10_pi = TA_DEFAULT_T10_PI;
+	a->fabric_prot_type = TA_DEFAULT_FABRIC_PROT_TYPE;
 }
 
 int iscsit_tpg_add_portal_group(struct iscsi_tiqn *tiqn, struct iscsi_portal_group *tpg)
@@ -875,6 +874,24 @@ int iscsit_ta_t10_pi(
 	pr_debug("iSCSI_TPG[%hu] - T10 Protection information bit:"
 		" %s\n", tpg->tpgt, (a->t10_pi) ?
 		"ON" : "OFF");
+
+	return 0;
+}
+
+int iscsit_ta_fabric_prot_type(
+	struct iscsi_portal_group *tpg,
+	u32 prot_type)
+{
+	struct iscsi_tpg_attrib *a = &tpg->tpg_attrib;
+
+	if ((prot_type != 0) && (prot_type != 1) && (prot_type != 3)) {
+		pr_err("Illegal value for fabric_prot_type: %u\n", prot_type);
+		return -EINVAL;
+	}
+
+	a->fabric_prot_type = prot_type;
+	pr_debug("iSCSI_TPG[%hu] - T10 Fabric Protection Type: %u\n",
+		 tpg->tpgt, prot_type);
 
 	return 0;
 }

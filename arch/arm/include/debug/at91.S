@@ -18,8 +18,11 @@
 #define AT91_DBGU 0xfc00c000 /* SAMA5D4_BASE_USART3 */
 #endif
 
-/* Keep in sync with mach-at91/include/mach/hardware.h */
+#ifdef CONFIG_MMU
 #define AT91_IO_P2V(x) ((x) - 0x01000000)
+#else
+#define AT91_IO_P2V(x) (x)
+#endif
 
 #define AT91_DBGU_SR		(0x14)	/* Status Register */
 #define AT91_DBGU_THR		(0x1c)	/* Transmitter Holding Register */

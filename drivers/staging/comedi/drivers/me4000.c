@@ -41,14 +41,12 @@ broken.
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
-#include "comedi_fc.h"
-#include "8253.h"
+#include "comedi_8254.h"
 #include "plx9052.h"
 
 #define ME4000_FIRMWARE		"me4000_firmware.bin"
@@ -170,7 +168,6 @@ broken.
 
 struct me4000_info {
 	unsigned long plx_regbase;
-	unsigned long timer_regbase;
 };
 
 enum me4000_boardid {
@@ -424,7 +421,7 @@ static void me4000_reset(struct comedi_device *dev)
 
 	/* Set both stop bits in the analog input control register */
 	outl(ME4000_AI_CTRL_BIT_IMMEDIATE_STOP | ME4000_AI_CTRL_BIT_STOP,
-		dev->iobase + ME4000_AI_CTRL_REG);
+	     dev->iobase + ME4000_AI_CTRL_REG);
 
 	/* Set both stop bits in the analog output control register */
 	val = ME4000_AO_CTRL_BIT_IMMEDIATE_STOP | ME4000_AO_CTRL_BIT_STOP;
@@ -438,7 +435,7 @@ static void me4000_reset(struct comedi_device *dev)
 
 	/* Set the adustment register for AO demux */
 	outl(ME4000_AO_DEMUX_ADJUST_VALUE,
-		    dev->iobase + ME4000_AO_DEMUX_ADJUST_REG);
+	     dev->iobase + ME4000_AO_DEMUX_ADJUST_REG);
 
 	/*
 	 * Set digital I/O direction for port 0
@@ -609,7 +606,7 @@ static int me4000_ai_check_chanlist(struct comedi_device *dev,
 
 			if (!comedi_range_is_bipolar(s, range)) {
 				dev_dbg(dev->class_dev,
-				       "Bipolar is not selected in differential mode\n");
+					"Bipolar is not selected in differential mode\n");
 				return -EINVAL;
 			}
 		}
@@ -624,7 +621,6 @@ static int ai_round_cmd_args(struct comedi_device *dev,
 			     unsigned int *init_ticks,
 			     unsigned int *scan_ticks, unsigned int *chan_ticks)
 {
-
 	int rest;
 
 	*init_ticks = 0;
@@ -731,7 +727,6 @@ static int ai_prepare(struct comedi_device *dev,
 		      unsigned int init_ticks,
 		      unsigned int scan_ticks, unsigned int chan_ticks)
 {
-
 	unsigned int tmp = 0;
 
 	/* Write timer arguments */
@@ -772,12 +767,12 @@ static int ai_prepare(struct comedi_device *dev,
 	/* Stop triggers */
 	if (cmd->stop_src == TRIG_COUNT) {
 		outl(cmd->chanlist_len * cmd->stop_arg,
-			    dev->iobase + ME4000_AI_SAMPLE_COUNTER_REG);
+		     dev->iobase + ME4000_AI_SAMPLE_COUNTER_REG);
 		tmp |= ME4000_AI_CTRL_BIT_HF_IRQ | ME4000_AI_CTRL_BIT_SC_IRQ;
 	} else if (cmd->stop_src == TRIG_NONE &&
 		   cmd->scan_end_src == TRIG_COUNT) {
 		outl(cmd->scan_end_arg,
-			    dev->iobase + ME4000_AI_SAMPLE_COUNTER_REG);
+		     dev->iobase + ME4000_AI_SAMPLE_COUNTER_REG);
 		tmp |= ME4000_AI_CTRL_BIT_HF_IRQ | ME4000_AI_CTRL_BIT_SC_IRQ;
 	} else {
 		tmp |= ME4000_AI_CTRL_BIT_HF_IRQ;
@@ -827,7 +822,6 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_cmd *cmd)
 {
-
 	unsigned int init_ticks;
 	unsigned int chan_ticks;
 	unsigned int scan_ticks;
@@ -838,24 +832,25 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src,
 					TRIG_FOLLOW | TRIG_TIMER | TRIG_EXT);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER | TRIG_EXT);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src,
+	err |= comedi_check_trigger_src(&cmd->convert_src,
+					TRIG_TIMER | TRIG_EXT);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src,
 					TRIG_NONE | TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_NONE | TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_NONE | TRIG_COUNT);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->start_src);
-	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
-	err |= cfc_check_trigger_is_unique(cmd->convert_src);
-	err |= cfc_check_trigger_is_unique(cmd->scan_end_src);
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= comedi_check_trigger_is_unique(cmd->start_src);
+	err |= comedi_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= comedi_check_trigger_is_unique(cmd->convert_src);
+	err |= comedi_check_trigger_is_unique(cmd->scan_end_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
@@ -886,7 +881,7 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->chanlist_len < 1) {
 		cmd->chanlist_len = 1;
@@ -906,9 +901,9 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	}
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
 	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -919,7 +914,6 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	if (cmd->start_src == TRIG_NOW &&
 	    cmd->scan_begin_src == TRIG_TIMER &&
 	    cmd->convert_src == TRIG_TIMER) {
-
 		/* Check timer arguments */
 		if (init_ticks < ME4000_AI_MIN_TICKS) {
 			dev_err(dev->class_dev, "Invalid start arg\n");
@@ -941,7 +935,6 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	} else if (cmd->start_src == TRIG_NOW &&
 		   cmd->scan_begin_src == TRIG_FOLLOW &&
 		   cmd->convert_src == TRIG_TIMER) {
-
 		/* Check timer arguments */
 		if (init_ticks < ME4000_AI_MIN_TICKS) {
 			dev_err(dev->class_dev, "Invalid start arg\n");
@@ -956,7 +949,6 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	} else if (cmd->start_src == TRIG_EXT &&
 		   cmd->scan_begin_src == TRIG_TIMER &&
 		   cmd->convert_src == TRIG_TIMER) {
-
 		/* Check timer arguments */
 		if (init_ticks < ME4000_AI_MIN_TICKS) {
 			dev_err(dev->class_dev, "Invalid start arg\n");
@@ -978,7 +970,6 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	} else if (cmd->start_src == TRIG_EXT &&
 		   cmd->scan_begin_src == TRIG_FOLLOW &&
 		   cmd->convert_src == TRIG_TIMER) {
-
 		/* Check timer arguments */
 		if (init_ticks < ME4000_AI_MIN_TICKS) {
 			dev_err(dev->class_dev, "Invalid start arg\n");
@@ -993,7 +984,6 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	} else if (cmd->start_src == TRIG_EXT &&
 		   cmd->scan_begin_src == TRIG_EXT &&
 		   cmd->convert_src == TRIG_TIMER) {
-
 		/* Check timer arguments */
 		if (init_ticks < ME4000_AI_MIN_TICKS) {
 			dev_err(dev->class_dev, "Invalid start arg\n");
@@ -1008,7 +998,6 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	} else if (cmd->start_src == TRIG_EXT &&
 		   cmd->scan_begin_src == TRIG_EXT &&
 		   cmd->convert_src == TRIG_EXT) {
-
 		/* Check timer arguments */
 		if (init_ticks < ME4000_AI_MIN_TICKS) {
 			dev_err(dev->class_dev, "Invalid start arg\n");
@@ -1187,13 +1176,13 @@ static int me4000_dio_insn_bits(struct comedi_device *dev,
 {
 	if (comedi_dio_update_state(s, data)) {
 		outl((s->state >> 0) & 0xFF,
-			    dev->iobase + ME4000_DIO_PORT_0_REG);
+		     dev->iobase + ME4000_DIO_PORT_0_REG);
 		outl((s->state >> 8) & 0xFF,
-			    dev->iobase + ME4000_DIO_PORT_1_REG);
+		     dev->iobase + ME4000_DIO_PORT_1_REG);
 		outl((s->state >> 16) & 0xFF,
-			    dev->iobase + ME4000_DIO_PORT_2_REG);
+		     dev->iobase + ME4000_DIO_PORT_2_REG);
 		outl((s->state >> 24) & 0xFF,
-			    dev->iobase + ME4000_DIO_PORT_3_REG);
+		     dev->iobase + ME4000_DIO_PORT_3_REG);
 	}
 
 	data[1] = ((inl(dev->iobase + ME4000_DIO_PORT_0_REG) & 0xFF) << 0) |
@@ -1259,85 +1248,6 @@ static int me4000_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*=============================================================================
-  Counter section
-  ===========================================================================*/
-
-static int me4000_cnt_insn_config(struct comedi_device *dev,
-				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn,
-				  unsigned int *data)
-{
-	struct me4000_info *info = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int err;
-
-	switch (data[0]) {
-	case GPCT_RESET:
-		if (insn->n != 1)
-			return -EINVAL;
-
-		err = i8254_set_mode(info->timer_regbase, 0, chan,
-				     I8254_MODE0 | I8254_BINARY);
-		if (err)
-			return err;
-		i8254_write(info->timer_regbase, 0, chan, 0);
-		break;
-	case GPCT_SET_OPERATION:
-		if (insn->n != 2)
-			return -EINVAL;
-
-		err = i8254_set_mode(info->timer_regbase, 0, chan,
-				(data[1] << 1) | I8254_BINARY);
-		if (err)
-			return err;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return insn->n;
-}
-
-static int me4000_cnt_insn_read(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
-{
-	struct me4000_info *info = dev->private;
-
-	if (insn->n == 0)
-		return 0;
-
-	if (insn->n > 1) {
-		dev_err(dev->class_dev, "Invalid instruction length %d\n",
-			insn->n);
-		return -EINVAL;
-	}
-
-	data[0] = i8254_read(info->timer_regbase, 0, insn->chanspec);
-
-	return 1;
-}
-
-static int me4000_cnt_insn_write(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
-{
-	struct me4000_info *info = dev->private;
-
-	if (insn->n == 0) {
-		return 0;
-	} else if (insn->n > 1) {
-		dev_err(dev->class_dev, "Invalid instruction length %d\n",
-			insn->n);
-		return -EINVAL;
-	}
-
-	i8254_write(info->timer_regbase, 0, insn->chanspec, data[0]);
-
-	return 1;
-}
-
 static int me4000_auto_attach(struct comedi_device *dev,
 			      unsigned long context)
 {
@@ -1364,8 +1274,7 @@ static int me4000_auto_attach(struct comedi_device *dev,
 
 	info->plx_regbase = pci_resource_start(pcidev, 1);
 	dev->iobase = pci_resource_start(pcidev, 2);
-	info->timer_regbase = pci_resource_start(pcidev, 3);
-	if (!info->plx_regbase || !dev->iobase || !info->timer_regbase)
+	if (!info->plx_regbase || !dev->iobase)
 		return -ENODEV;
 
 	result = comedi_load_firmware(dev, &pcidev->dev, ME4000_FIRMWARE,
@@ -1377,7 +1286,7 @@ static int me4000_auto_attach(struct comedi_device *dev,
 
 	if (pcidev->irq > 0) {
 		result = request_irq(pcidev->irq, me4000_ai_isr, IRQF_SHARED,
-				  dev->board_name, dev);
+				     dev->board_name, dev);
 		if (result == 0)
 			dev->irq = pcidev->irq;
 	}
@@ -1459,23 +1368,22 @@ static int me4000_auto_attach(struct comedi_device *dev,
 	if (!inl(dev->iobase + ME4000_DIO_DIR_REG)) {
 		s->io_bits |= 0xFF;
 		outl(ME4000_DIO_CTRL_BIT_MODE_0,
-			dev->iobase + ME4000_DIO_DIR_REG);
+		     dev->iobase + ME4000_DIO_DIR_REG);
 	}
 
-    /*=========================================================================
-      Counter subdevice
-      ========================================================================*/
-
+	/* Counter subdevice (8254) */
 	s = &dev->subdevices[3];
-
 	if (thisboard->has_counter) {
-		s->type = COMEDI_SUBD_COUNTER;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-		s->n_chan = 3;
-		s->maxdata = 0xFFFF;	/*  16 bit counters */
-		s->insn_read = me4000_cnt_insn_read;
-		s->insn_write = me4000_cnt_insn_write;
-		s->insn_config = me4000_cnt_insn_config;
+		unsigned long timer_base = pci_resource_start(pcidev, 3);
+
+		if (!timer_base)
+			return -ENODEV;
+
+		dev->pacer = comedi_8254_init(timer_base, 0, I8254_IO8, 0);
+		if (!dev->pacer)
+			return -ENOMEM;
+
+		comedi_8254_subdevice_init(s, dev->pacer);
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}

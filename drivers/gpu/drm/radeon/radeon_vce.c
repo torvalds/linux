@@ -571,6 +571,7 @@ int radeon_vce_cs_parse(struct radeon_cs_parser *p)
 		case 0x04000005: // rate control
 		case 0x04000007: // motion estimation
 		case 0x04000008: // rdo
+		case 0x04000009: // vui
 			break;
 
 		case 0x03000001: // encode

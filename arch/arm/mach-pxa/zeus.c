@@ -412,7 +412,7 @@ static struct fixed_voltage_config can_regulator_pdata = {
 };
 
 static struct platform_device can_regulator_device = {
-	.name	= "reg-fixed-volage",
+	.name	= "reg-fixed-voltage",
 	.id	= 0,
 	.dev	= {
 		.platform_data	= &can_regulator_pdata,

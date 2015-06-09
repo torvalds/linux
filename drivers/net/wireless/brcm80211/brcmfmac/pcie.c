@@ -47,8 +47,6 @@ enum brcmf_pcie_state {
 
 #define BRCMF_PCIE_43602_FW_NAME		"brcm/brcmfmac43602-pcie.bin"
 #define BRCMF_PCIE_43602_NVRAM_NAME		"brcm/brcmfmac43602-pcie.txt"
-#define BRCMF_PCIE_4354_FW_NAME			"brcm/brcmfmac4354-pcie.bin"
-#define BRCMF_PCIE_4354_NVRAM_NAME		"brcm/brcmfmac4354-pcie.txt"
 #define BRCMF_PCIE_4356_FW_NAME			"brcm/brcmfmac4356-pcie.bin"
 #define BRCMF_PCIE_4356_NVRAM_NAME		"brcm/brcmfmac4356-pcie.txt"
 #define BRCMF_PCIE_43570_FW_NAME		"brcm/brcmfmac43570-pcie.bin"
@@ -187,8 +185,8 @@ enum brcmf_pcie_state {
 
 MODULE_FIRMWARE(BRCMF_PCIE_43602_FW_NAME);
 MODULE_FIRMWARE(BRCMF_PCIE_43602_NVRAM_NAME);
-MODULE_FIRMWARE(BRCMF_PCIE_4354_FW_NAME);
-MODULE_FIRMWARE(BRCMF_PCIE_4354_NVRAM_NAME);
+MODULE_FIRMWARE(BRCMF_PCIE_4356_FW_NAME);
+MODULE_FIRMWARE(BRCMF_PCIE_4356_NVRAM_NAME);
 MODULE_FIRMWARE(BRCMF_PCIE_43570_FW_NAME);
 MODULE_FIRMWARE(BRCMF_PCIE_43570_NVRAM_NAME);
 
@@ -509,8 +507,6 @@ static void brcmf_pcie_attach(struct brcmf_pciedev_info *devinfo)
 
 static int brcmf_pcie_enter_download_state(struct brcmf_pciedev_info *devinfo)
 {
-	brcmf_chip_enter_download(devinfo->ci);
-
 	if (devinfo->ci->chip == BRCM_CC_43602_CHIP_ID) {
 		brcmf_pcie_select_core(devinfo, BCMA_CORE_ARM_CR4);
 		brcmf_pcie_write_reg32(devinfo, BRCMF_PCIE_ARMCR4REG_BANKIDX,
@@ -536,7 +532,7 @@ static int brcmf_pcie_exit_download_state(struct brcmf_pciedev_info *devinfo,
 		brcmf_chip_resetcore(core, 0, 0, 0);
 	}
 
-	return !brcmf_chip_exit_download(devinfo->ci, resetintr);
+	return !brcmf_chip_set_active(devinfo->ci, resetintr);
 }
 
 
@@ -653,10 +649,9 @@ static void brcmf_pcie_bus_console_read(struct brcmf_pciedev_info *devinfo)
 			console->log_str[console->log_idx] = ch;
 			console->log_idx++;
 		}
-
 		if (ch == '\n') {
 			console->log_str[console->log_idx] = 0;
-			brcmf_dbg(PCIE, "CONSOLE: %s\n", console->log_str);
+			brcmf_dbg(PCIE, "CONSOLE: %s", console->log_str);
 			console->log_idx = 0;
 		}
 	}
@@ -1328,10 +1323,6 @@ static int brcmf_pcie_get_fwnames(struct brcmf_pciedev_info *devinfo)
 		fw_name = BRCMF_PCIE_43602_FW_NAME;
 		nvram_name = BRCMF_PCIE_43602_NVRAM_NAME;
 		break;
-	case BRCM_CC_4354_CHIP_ID:
-		fw_name = BRCMF_PCIE_4354_FW_NAME;
-		nvram_name = BRCMF_PCIE_4354_NVRAM_NAME;
-		break;
 	case BRCM_CC_4356_CHIP_ID:
 		fw_name = BRCMF_PCIE_4356_FW_NAME;
 		nvram_name = BRCMF_PCIE_4356_NVRAM_NAME;
@@ -1566,8 +1557,8 @@ static int brcmf_pcie_buscoreprep(void *ctx)
 }
 
 
-static void brcmf_pcie_buscore_exitdl(void *ctx, struct brcmf_chip *chip,
-				      u32 rstvec)
+static void brcmf_pcie_buscore_activate(void *ctx, struct brcmf_chip *chip,
+					u32 rstvec)
 {
 	struct brcmf_pciedev_info *devinfo = (struct brcmf_pciedev_info *)ctx;
 
@@ -1577,7 +1568,7 @@ static void brcmf_pcie_buscore_exitdl(void *ctx, struct brcmf_chip *chip,
 
 static const struct brcmf_buscore_ops brcmf_pcie_buscore_ops = {
 	.prepare = brcmf_pcie_buscoreprep,
-	.exit_dl = brcmf_pcie_buscore_exitdl,
+	.activate = brcmf_pcie_buscore_activate,
 	.read32 = brcmf_pcie_buscore_read32,
 	.write32 = brcmf_pcie_buscore_write32,
 };
@@ -1856,7 +1847,6 @@ cleanup:
 	PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_NETWORK_OTHER << 8, 0xffff00, 0 }
 
 static struct pci_device_id brcmf_pcie_devid_table[] = {
-	BRCMF_PCIE_DEVICE(BRCM_PCIE_4354_DEVICE_ID),
 	BRCMF_PCIE_DEVICE(BRCM_PCIE_4356_DEVICE_ID),
 	BRCMF_PCIE_DEVICE(BRCM_PCIE_43567_DEVICE_ID),
 	BRCMF_PCIE_DEVICE(BRCM_PCIE_43570_DEVICE_ID),

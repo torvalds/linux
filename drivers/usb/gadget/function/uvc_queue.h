@@ -41,7 +41,6 @@ struct uvc_buffer {
 
 struct uvc_video_queue {
 	struct vb2_queue queue;
-	struct mutex mutex;	/* Protects queue */
 
 	unsigned int flags;
 	__u32 sequence;
@@ -57,7 +56,8 @@ static inline int uvc_queue_streaming(struct uvc_video_queue *queue)
 	return vb2_is_streaming(&queue->queue);
 }
 
-int uvcg_queue_init(struct uvc_video_queue *queue, enum v4l2_buf_type type);
+int uvcg_queue_init(struct uvc_video_queue *queue, enum v4l2_buf_type type,
+		    struct mutex *lock);
 
 void uvcg_free_buffers(struct uvc_video_queue *queue);
 

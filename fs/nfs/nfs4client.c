@@ -4,7 +4,6 @@
  */
 #include <linux/module.h>
 #include <linux/nfs_fs.h>
-#include <linux/nfs_idmap.h>
 #include <linux/nfs_mount.h>
 #include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/auth.h>
@@ -15,6 +14,7 @@
 #include "callback.h"
 #include "delegation.h"
 #include "nfs4session.h"
+#include "nfs4idmap.h"
 #include "pnfs.h"
 #include "netns.h"
 
@@ -621,6 +621,9 @@ int nfs41_walk_client_list(struct nfs_client *new,
 	spin_lock(&nn->nfs_client_lock);
 	list_for_each_entry(pos, &nn->nfs_client_list, cl_share_link) {
 
+		if (pos == new)
+			goto found;
+
 		if (pos->rpc_ops != new->rpc_ops)
 			continue;
 
@@ -639,10 +642,6 @@ int nfs41_walk_client_list(struct nfs_client *new,
 			prev = pos;
 
 			status = nfs_wait_client_init_complete(pos);
-			if (pos->cl_cons_state == NFS_CS_SESSION_INITING) {
-				nfs4_schedule_lease_recovery(pos);
-				status = nfs4_wait_clnt_recover(pos);
-			}
 			spin_lock(&nn->nfs_client_lock);
 			if (status < 0)
 				break;
@@ -668,7 +667,7 @@ int nfs41_walk_client_list(struct nfs_client *new,
 		 */
 		if (!nfs4_match_client_owner_id(pos, new))
 			continue;
-
+found:
 		atomic_inc(&pos->cl_count);
 		*result = pos;
 		status = 0;
@@ -1131,7 +1130,7 @@ error:
  */
 static int nfs_probe_destination(struct nfs_server *server)
 {
-	struct inode *inode = server->super->s_root->d_inode;
+	struct inode *inode = d_inode(server->super->s_root);
 	struct nfs_fattr *fattr;
 	int error;
 

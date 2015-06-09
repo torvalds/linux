@@ -1356,8 +1356,8 @@ static int lbs_cfg_connect(struct wiphy *wiphy, struct net_device *dev,
 
 	/* Find the BSS we want using available scan results */
 	bss = cfg80211_get_bss(wiphy, sme->channel, sme->bssid,
-		sme->ssid, sme->ssid_len,
-		WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
+		sme->ssid, sme->ssid_len, IEEE80211_BSS_TYPE_ESS,
+		IEEE80211_PRIVACY_ANY);
 	if (!bss) {
 		wiphy_err(wiphy, "assoc: bss %pM not in scan results\n",
 			  sme->bssid);
@@ -2000,7 +2000,7 @@ static int lbs_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	 * bss list is populated already */
 	bss = cfg80211_get_bss(wiphy, params->chandef.chan, params->bssid,
 		params->ssid, params->ssid_len,
-		WLAN_CAPABILITY_IBSS, WLAN_CAPABILITY_IBSS);
+		IEEE80211_BSS_TYPE_IBSS, IEEE80211_PRIVACY_ANY);
 
 	if (bss) {
 		ret = lbs_ibss_join_existing(priv, params, bss);

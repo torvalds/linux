@@ -388,7 +388,7 @@ sh_mmcif_request_dma_one(struct sh_mmcif_host *host,
 {
 	struct dma_slave_config cfg = { 0, };
 	struct dma_chan *chan;
-	unsigned int slave_id;
+	void *slave_data = NULL;
 	struct resource *res;
 	dma_cap_mask_t mask;
 	int ret;
@@ -397,13 +397,12 @@ sh_mmcif_request_dma_one(struct sh_mmcif_host *host,
 	dma_cap_set(DMA_SLAVE, mask);
 
 	if (pdata)
-		slave_id = direction == DMA_MEM_TO_DEV
-			 ? pdata->slave_id_tx : pdata->slave_id_rx;
-	else
-		slave_id = 0;
+		slave_data = direction == DMA_MEM_TO_DEV ?
+			(void *)pdata->slave_id_tx :
+			(void *)pdata->slave_id_rx;
 
 	chan = dma_request_slave_channel_compat(mask, shdma_chan_filter,
-				(void *)(unsigned long)slave_id, &host->pd->dev,
+				slave_data, &host->pd->dev,
 				direction == DMA_MEM_TO_DEV ? "tx" : "rx");
 
 	dev_dbg(&host->pd->dev, "%s: %s: got channel %p\n", __func__,
@@ -414,8 +413,6 @@ sh_mmcif_request_dma_one(struct sh_mmcif_host *host,
 
 	res = platform_get_resource(host->pd, IORESOURCE_MEM, 0);
 
-	/* In the OF case the driver will get the slave ID from the DT */
-	cfg.slave_id = slave_id;
 	cfg.direction = direction;
 
 	if (direction == DMA_DEV_TO_MEM) {
@@ -875,6 +872,7 @@ static void sh_mmcif_start_cmd(struct sh_mmcif_host *host,
 	struct mmc_command *cmd = mrq->cmd;
 	u32 opc = cmd->opcode;
 	u32 mask;
+	unsigned long flags;
 
 	switch (opc) {
 	/* response busy check */
@@ -909,10 +907,12 @@ static void sh_mmcif_start_cmd(struct sh_mmcif_host *host,
 	/* set arg */
 	sh_mmcif_writel(host->addr, MMCIF_CE_ARG, cmd->arg);
 	/* set cmd */
+	spin_lock_irqsave(&host->lock, flags);
 	sh_mmcif_writel(host->addr, MMCIF_CE_CMD_SET, opc);
 
 	host->wait_for = MMCIF_WAIT_FOR_CMD;
 	schedule_delayed_work(&host->timeout_work, host->timeout);
+	spin_unlock_irqrestore(&host->lock, flags);
 }
 
 static void sh_mmcif_stop_cmd(struct sh_mmcif_host *host,
@@ -1171,6 +1171,12 @@ static irqreturn_t sh_mmcif_irqt(int irq, void *dev_id)
 	struct sh_mmcif_host *host = dev_id;
 	struct mmc_request *mrq;
 	bool wait = false;
+	unsigned long flags;
+	int wait_work;
+
+	spin_lock_irqsave(&host->lock, flags);
+	wait_work = host->wait_for;
+	spin_unlock_irqrestore(&host->lock, flags);
 
 	cancel_delayed_work_sync(&host->timeout_work);
 
@@ -1188,7 +1194,7 @@ static irqreturn_t sh_mmcif_irqt(int irq, void *dev_id)
 	 * All handlers return true, if processing continues, and false, if the
 	 * request has to be completed - successfully or not
 	 */
-	switch (host->wait_for) {
+	switch (wait_work) {
 	case MMCIF_WAIT_FOR_REQUEST:
 		/* We're too late, the timeout has already kicked in */
 		mutex_unlock(&host->thread_lock);
@@ -1312,14 +1318,14 @@ static void mmcif_timeout_work(struct work_struct *work)
 		/* Don't run after mmc_remove_host() */
 		return;
 
-	dev_err(&host->pd->dev, "Timeout waiting for %u on CMD%u\n",
-		host->wait_for, mrq->cmd->opcode);
-
 	spin_lock_irqsave(&host->lock, flags);
 	if (host->state == STATE_IDLE) {
 		spin_unlock_irqrestore(&host->lock, flags);
 		return;
 	}
+
+	dev_err(&host->pd->dev, "Timeout waiting for %u on CMD%u\n",
+		host->wait_for, mrq->cmd->opcode);
 
 	host->state = STATE_TIMEOUT;
 	spin_unlock_irqrestore(&host->lock, flags);

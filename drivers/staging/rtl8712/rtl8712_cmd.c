@@ -95,7 +95,7 @@ static void query_fw_rx_phy_status(struct _adapter *padapter)
 			val32 = r8712_read32(padapter, IOCMD_DATA_REG);
 		else /* time out */
 			val32 = 0;
-		val32 = val32 >> 4;
+		val32 >>= 4;
 		padapter->recvpriv.fw_rssi =
 			 (u8)r8712_signal_scale_mapping(val32);
 	}
