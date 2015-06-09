@@ -47,7 +47,7 @@ struct goodix_ts_data {
 /* Register defines */
 #define GOODIX_READ_COOR_ADDR		0x814E
 #define GOODIX_REG_CONFIG_DATA		0x8047
-#define GOODIX_REG_VERSION		0x8140
+#define GOODIX_REG_ID			0x8140
 
 #define RESOLUTION_LOC		1
 #define MAX_CONTACTS_LOC	5
@@ -230,22 +230,28 @@ static void goodix_read_config(struct goodix_ts_data *ts)
  *
  * @client: the i2c client
  * @version: output buffer containing the version on success
+ * @id: output buffer containing the id on success
  */
-static int goodix_read_version(struct i2c_client *client, u16 *version)
+static int goodix_read_version(struct i2c_client *client, u16 *version, u16 *id)
 {
 	int error;
 	u8 buf[6];
+	char id_str[5];
 
-	error = goodix_i2c_read(client, GOODIX_REG_VERSION, buf, sizeof(buf));
+	error = goodix_i2c_read(client, GOODIX_REG_ID, buf, sizeof(buf));
 	if (error) {
 		dev_err(&client->dev, "read version failed: %d\n", error);
 		return error;
 	}
 
-	if (version)
-		*version = get_unaligned_le16(&buf[4]);
+	memcpy(id_str, buf, 4);
+	id_str[4] = 0;
+	if (kstrtou16(id_str, 10, id))
+		*id = 0x1001;
 
-	dev_info(&client->dev, "IC VERSION: %6ph\n", buf);
+	*version = get_unaligned_le16(&buf[4]);
+
+	dev_info(&client->dev, "ID %d, version: %04x\n", *id, *version);
 
 	return 0;
 }
@@ -279,10 +285,13 @@ static int goodix_i2c_test(struct i2c_client *client)
  * goodix_request_input_dev - Allocate, populate and register the input device
  *
  * @ts: our goodix_ts_data pointer
+ * @version: device firmware version
+ * @id: device ID
  *
  * Must be called during probe
  */
-static int goodix_request_input_dev(struct goodix_ts_data *ts)
+static int goodix_request_input_dev(struct goodix_ts_data *ts, u16 version,
+				    u16 id)
 {
 	int error;
 
@@ -310,8 +319,8 @@ static int goodix_request_input_dev(struct goodix_ts_data *ts)
 	ts->input_dev->phys = "input/ts";
 	ts->input_dev->id.bustype = BUS_I2C;
 	ts->input_dev->id.vendor = 0x0416;
-	ts->input_dev->id.product = 0x1001;
-	ts->input_dev->id.version = 10427;
+	ts->input_dev->id.product = id;
+	ts->input_dev->id.version = version;
 
 	error = input_register_device(ts->input_dev);
 	if (error) {
@@ -329,7 +338,7 @@ static int goodix_ts_probe(struct i2c_client *client,
 	struct goodix_ts_data *ts;
 	unsigned long irq_flags;
 	int error;
-	u16 version_info;
+	u16 version_info, id_info;
 
 	dev_dbg(&client->dev, "I2C Address: 0x%02x\n", client->addr);
 
@@ -351,7 +360,7 @@ static int goodix_ts_probe(struct i2c_client *client,
 		return error;
 	}
 
-	error = goodix_read_version(client, &version_info);
+	error = goodix_read_version(client, &version_info, &id_info);
 	if (error) {
 		dev_err(&client->dev, "Read version failed.\n");
 		return error;
@@ -359,7 +368,7 @@ static int goodix_ts_probe(struct i2c_client *client,
 
 	goodix_read_config(ts);
 
-	error = goodix_request_input_dev(ts);
+	error = goodix_request_input_dev(ts, version_info, id_info);
 	if (error)
 		return error;
 
