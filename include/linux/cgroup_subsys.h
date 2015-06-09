@@ -62,6 +62,11 @@ SUBSYS(hugetlb)
  * Subsystems that implement the can_fork() family of callbacks.
  */
 SUBSYS_TAG(CANFORK_START)
+
+#if IS_ENABLED(CONFIG_CGROUP_PIDS)
+SUBSYS(pids)
+#endif
+
 SUBSYS_TAG(CANFORK_END)
 
 /*
