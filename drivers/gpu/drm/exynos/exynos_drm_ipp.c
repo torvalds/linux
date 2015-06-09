@@ -459,8 +459,7 @@ static int ipp_validate_mem_node(struct drm_device *drm_dev,
 	unsigned int bpp;
 	int i;
 
-	/* The property id should already be varified */
-	ipp_cfg = &c_node->property.config[m_node->prop_id];
+	ipp_cfg = &c_node->property.config[m_node->ops_id];
 	num_plane = drm_format_num_planes(ipp_cfg->fmt);
 
 	/**
