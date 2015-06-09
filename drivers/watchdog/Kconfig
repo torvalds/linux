@@ -1,3 +1,4 @@
+
 #
 # Watchdog device configuration
 #
@@ -112,6 +113,17 @@ config GPIO_WATCHDOG
 	help
 	  If you say yes here you get support for watchdog device
 	  controlled through GPIO-line.
+
+config GPIO_WATCHDOG_ARCH_INITCALL
+	bool "Register the watchdog as early as possible"
+	depends on GPIO_WATCHDOG=y
+	help
+	  In some situations, the default initcall level (module_init)
+	  in not early enough in the boot process to avoid the watchdog
+	  to be triggered.
+	  If you say yes here, the initcall level would be raised to
+	  arch_initcall.
+	  If in doubt, say N.
 
 config MENF21BMC_WATCHDOG
 	tristate "MEN 14F021P00 BMC Watchdog"
