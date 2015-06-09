@@ -92,6 +92,9 @@ static int use_native_backlight_param = NATIVE_BACKLIGHT_NOT_SET;
 module_param_named(use_native_backlight, use_native_backlight_param, int, 0444);
 static int use_native_backlight_dmi = NATIVE_BACKLIGHT_NOT_SET;
 
+static int disable_backlight_sysfs_if = -1;
+module_param(disable_backlight_sysfs_if, int, 0444);
+
 static int register_count;
 static struct mutex video_list_lock;
 static struct list_head video_bus_head;
@@ -431,6 +434,14 @@ static int __init video_enable_native_backlight(const struct dmi_system_id *d)
 	return 0;
 }
 
+static int __init video_disable_backlight_sysfs_if(
+	const struct dmi_system_id *d)
+{
+	if (disable_backlight_sysfs_if == -1)
+		disable_backlight_sysfs_if = 1;
+	return 0;
+}
+
 static struct dmi_system_id video_dmi_table[] __initdata = {
 	/*
 	 * Broken _BQC workaround http://bugzilla.kernel.org/show_bug.cgi?id=13121
@@ -590,6 +601,23 @@ static struct dmi_system_id video_dmi_table[] __initdata = {
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
 		DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro12,1"),
+		},
+	},
+
+	/*
+	 * Some machines have a broken acpi-video interface for brightness
+	 * control, but still need an acpi_video_device_lcd_set_level() call
+	 * on resume to turn the backlight power on.  We Enable backlight
+	 * control on these systems, but do not register a backlight sysfs
+	 * as brightness control does not work.
+	 */
+	{
+	 /* https://bugs.freedesktop.org/show_bug.cgi?id=82634 */
+	 .callback = video_disable_backlight_sysfs_if,
+	 .ident = "Toshiba Portege R830",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "PORTEGE R830"),
 		},
 	},
 	{}
@@ -1391,7 +1419,7 @@ acpi_video_switch_brightness(struct work_struct *work)
 	int result = -EINVAL;
 
 	/* no warning message if acpi_backlight=vendor or a quirk is used */
-	if (!acpi_video_verify_backlight_support())
+	if (!device->backlight)
 		return;
 
 	if (!device->brightness)
@@ -1666,8 +1694,9 @@ static int acpi_video_resume(struct notifier_block *nb,
 
 	for (i = 0; i < video->attached_count; i++) {
 		video_device = video->attached_array[i].bind_info;
-		if (video_device && video_device->backlight)
-			acpi_video_set_brightness(video_device->backlight);
+		if (video_device && video_device->brightness)
+			acpi_video_device_lcd_set_level(video_device,
+					video_device->brightness->curr);
 	}
 
 	return NOTIFY_OK;
@@ -1716,6 +1745,10 @@ static void acpi_video_dev_register_backlight(struct acpi_video_device *device)
 	result = acpi_video_init_brightness(device);
 	if (result)
 		return;
+
+	if (disable_backlight_sysfs_if > 0)
+		return;
+
 	name = kasprintf(GFP_KERNEL, "acpi_video%d", count);
 	if (!name)
 		return;
@@ -1738,8 +1771,10 @@ static void acpi_video_dev_register_backlight(struct acpi_video_device *device)
 						      &acpi_backlight_ops,
 						      &props);
 	kfree(name);
-	if (IS_ERR(device->backlight))
+	if (IS_ERR(device->backlight)) {
+		device->backlight = NULL;
 		return;
+	}
 
 	/*
 	 * Save current brightness level in case we have to restore it
