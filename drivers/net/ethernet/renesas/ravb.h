@@ -20,6 +20,8 @@
 #include <linux/mdio-bitbang.h>
 #include <linux/netdevice.h>
 #include <linux/phy.h>
+#include <linux/platform_device.h>
+#include <linux/ptp_clock_kernel.h>
 
 #define BE_TX_RING_SIZE	64	/* TX ring size for Best Effort */
 #define BE_RX_RING_SIZE	1024	/* RX ring size for Best Effort */
@@ -744,6 +746,23 @@ struct ravb_tstamp_skb {
 	u16 tag;
 };
 
+struct ravb_ptp_perout {
+	u32 target;
+	u32 period;
+};
+
+#define N_EXT_TS	1
+#define N_PER_OUT	1
+
+struct ravb_ptp {
+	struct ptp_clock *clock;
+	struct ptp_clock_info info;
+	u32 default_addend;
+	u32 current_addend;
+	int extts[N_EXT_TS];
+	struct ravb_ptp_perout perout[N_PER_OUT];
+};
+
 struct ravb_private {
 	struct net_device *ndev;
 	struct platform_device *pdev;
@@ -768,6 +787,7 @@ struct ravb_private {
 	u32 tstamp_rx_ctrl;
 	struct list_head ts_skb_list;
 	u32 ts_skb_tag;
+	struct ravb_ptp ptp;
 	spinlock_t lock;		/* Register access lock */
 	u32 cur_rx[NUM_RX_QUEUE];	/* Consumer ring indices */
 	u32 dirty_rx[NUM_RX_QUEUE];	/* Producer ring indices */
@@ -802,5 +822,11 @@ static inline void ravb_write(struct net_device *ndev, u32 data,
 
 	iowrite32(data, priv->addr + reg);
 }
+
+int ravb_wait(struct net_device *ndev, enum ravb_reg reg, u32 mask, u32 value);
+
+irqreturn_t ravb_ptp_interrupt(struct net_device *ndev);
+void ravb_ptp_init(struct net_device *ndev, struct platform_device *pdev);
+void ravb_ptp_stop(struct net_device *ndev);
 
 #endif	/* #ifndef __RAVB_H__ */

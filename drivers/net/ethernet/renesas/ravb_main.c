@@ -28,7 +28,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
-#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -41,8 +40,7 @@
 		 NETIF_MSG_RX_ERR | \
 		 NETIF_MSG_TX_ERR)
 
-static int ravb_wait(struct net_device *ndev, enum ravb_reg reg, u32 mask,
-		     u32 value)
+int ravb_wait(struct net_device *ndev, enum ravb_reg reg, u32 mask, u32 value)
 {
 	int i;
 
@@ -763,6 +761,9 @@ static irqreturn_t ravb_interrupt(int irq, void *dev_id)
 		result = IRQ_HANDLED;
 	}
 
+	if (iss & ISS_CGIS)
+		result = ravb_ptp_interrupt(ndev);
+
 	mmiowb();
 	spin_unlock(&priv->lock);
 	return result;
@@ -1103,6 +1104,8 @@ static int ravb_set_ringparam(struct net_device *ndev,
 
 	if (netif_running(ndev)) {
 		netif_device_detach(ndev);
+		/* Stop PTP Clock driver */
+		ravb_ptp_stop(ndev);
 		/* Wait for DMA stopping */
 		error = ravb_stop_dma(ndev);
 		if (error) {
@@ -1132,6 +1135,9 @@ static int ravb_set_ringparam(struct net_device *ndev,
 
 		ravb_emac_init(ndev);
 
+		/* Initialise PTP Clock driver */
+		ravb_ptp_init(ndev, priv->pdev);
+
 		netif_device_attach(ndev);
 	}
 
@@ -1141,6 +1147,8 @@ static int ravb_set_ringparam(struct net_device *ndev,
 static int ravb_get_ts_info(struct net_device *ndev,
 			    struct ethtool_ts_info *info)
 {
+	struct ravb_private *priv = netdev_priv(ndev);
+
 	info->so_timestamping =
 		SOF_TIMESTAMPING_TX_SOFTWARE |
 		SOF_TIMESTAMPING_RX_SOFTWARE |
@@ -1153,7 +1161,7 @@ static int ravb_get_ts_info(struct net_device *ndev,
 		(1 << HWTSTAMP_FILTER_NONE) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
 		(1 << HWTSTAMP_FILTER_ALL);
-	info->phc_index = -1;
+	info->phc_index = ptp_clock_index(priv->ptp.clock);
 
 	return 0;
 }
@@ -1195,15 +1203,21 @@ static int ravb_open(struct net_device *ndev)
 		goto out_free_irq;
 	ravb_emac_init(ndev);
 
+	/* Initialise PTP Clock driver */
+	ravb_ptp_init(ndev, priv->pdev);
+
 	netif_tx_start_all_queues(ndev);
 
 	/* PHY control start */
 	error = ravb_phy_start(ndev);
 	if (error)
-		goto out_free_irq;
+		goto out_ptp_stop;
 
 	return 0;
 
+out_ptp_stop:
+	/* Stop PTP Clock driver */
+	ravb_ptp_stop(ndev);
 out_free_irq:
 	free_irq(ndev->irq, ndev);
 out_napi_off:
@@ -1235,6 +1249,9 @@ static void ravb_tx_timeout_work(struct work_struct *work)
 
 	netif_tx_stop_all_queues(ndev);
 
+	/* Stop PTP Clock driver */
+	ravb_ptp_stop(ndev);
+
 	/* Wait for DMA stopping */
 	ravb_stop_dma(ndev);
 
@@ -1244,6 +1261,9 @@ static void ravb_tx_timeout_work(struct work_struct *work)
 	/* Device init */
 	ravb_dmac_init(ndev);
 	ravb_emac_init(ndev);
+
+	/* Initialise PTP Clock driver */
+	ravb_ptp_init(ndev, priv->pdev);
 
 	netif_tx_start_all_queues(ndev);
 }
@@ -1408,6 +1428,9 @@ static int ravb_close(struct net_device *ndev)
 	ravb_write(ndev, 0, RIC1);
 	ravb_write(ndev, 0, RIC2);
 	ravb_write(ndev, 0, TIC);
+
+	/* Stop PTP Clock driver */
+	ravb_ptp_stop(ndev);
 
 	/* Set the config mode to stop the AVB-DMAC's processes */
 	if (ravb_stop_dma(ndev) < 0)
