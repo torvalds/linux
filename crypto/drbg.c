@@ -1635,7 +1635,8 @@ static int drbg_init_hash_kernel(struct drbg_state *drbg)
 
 	tfm = crypto_alloc_shash(drbg->core->backend_cra_name, 0, 0);
 	if (IS_ERR(tfm)) {
-		pr_info("DRBG: could not allocate digest TFM handle\n");
+		pr_info("DRBG: could not allocate digest TFM handle: %s\n",
+				drbg->core->backend_cra_name);
 		return PTR_ERR(tfm);
 	}
 	BUG_ON(drbg_blocklen(drbg) != crypto_shash_digestsize(tfm));
@@ -1686,7 +1687,8 @@ static int drbg_init_sym_kernel(struct drbg_state *drbg)
 
 	tfm = crypto_alloc_cipher(drbg->core->backend_cra_name, 0, 0);
 	if (IS_ERR(tfm)) {
-		pr_info("DRBG: could not allocate cipher TFM handle\n");
+		pr_info("DRBG: could not allocate cipher TFM handle: %s\n",
+				drbg->core->backend_cra_name);
 		return PTR_ERR(tfm);
 	}
 	BUG_ON(drbg_blocklen(drbg) != crypto_cipher_blocksize(tfm));
