@@ -747,7 +747,7 @@ static int fsl_elbc_chip_init(struct fsl_elbc_mtd *priv)
 
 	/* Fill in fsl_elbc_mtd structure */
 	priv->mtd.priv = chip;
-	priv->mtd.owner = THIS_MODULE;
+	priv->mtd.dev.parent = priv->dev;
 
 	/* set timeout to maximum */
 	priv->fmr = 15 << FMR_CWTO_SHIFT;
