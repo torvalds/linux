@@ -1516,65 +1516,35 @@ static s32 ixgbe_init_ext_t_x550em(struct ixgbe_hw *hw)
 {
 	s32 status;
 	u16 reg;
-	u32 retries = 2;
 
-	do {
-		/* decrement retries counter and exit if we hit 0 */
-		if (retries < 1) {
-			hw_dbg(hw, "External PHY not yet finished resetting.");
-			return IXGBE_ERR_PHY;
-		}
-		retries--;
-
-		status = hw->phy.ops.read_reg(hw,
-					      IXGBE_MDIO_TX_VENDOR_ALARMS_3,
-					      IXGBE_MDIO_PMA_PMD_DEV_TYPE,
-					      &reg);
-		if (status)
-			return status;
-
-		/* Verify PHY FW reset has completed */
-	} while ((reg & IXGBE_MDIO_TX_VENDOR_ALARMS_3_RST_MASK) != 1);
-
-	/* Set port to low power mode */
 	status = hw->phy.ops.read_reg(hw,
-				      IXGBE_MDIO_VENDOR_SPECIFIC_1_CONTROL,
-				      IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
-				      &reg);
-	if (status)
-		return status;
-
-	/* Enable the transmitter */
-	status = hw->phy.ops.read_reg(hw,
-				      IXGBE_MDIO_PMD_STD_TX_DISABLE_CNTR,
+				      IXGBE_MDIO_TX_VENDOR_ALARMS_3,
 				      IXGBE_MDIO_PMA_PMD_DEV_TYPE,
 				      &reg);
 	if (status)
 		return status;
 
-	reg &= ~IXGBE_MDIO_PMD_GLOBAL_TX_DISABLE;
+	/* If PHY FW reset completed bit is set then this is the first
+	 * SW instance after a power on so the PHY FW must be un-stalled.
+	 */
+	if (reg & IXGBE_MDIO_TX_VENDOR_ALARMS_3_RST_MASK) {
+		status = hw->phy.ops.read_reg(hw,
+					IXGBE_MDIO_GLOBAL_RES_PR_10,
+					IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
+					&reg);
+		if (status)
+			return status;
 
-	status = hw->phy.ops.write_reg(hw,
-				       IXGBE_MDIO_PMD_STD_TX_DISABLE_CNTR,
-				       IXGBE_MDIO_PMA_PMD_DEV_TYPE,
-				       reg);
-	if (status)
-		return status;
+		reg &= ~IXGBE_MDIO_POWER_UP_STALL;
 
-	/* Un-stall the PHY FW */
-	status = hw->phy.ops.read_reg(hw,
-				      IXGBE_MDIO_GLOBAL_RES_PR_10,
-				      IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
-				      &reg);
-	if (status)
-		return status;
+		status = hw->phy.ops.write_reg(hw,
+					IXGBE_MDIO_GLOBAL_RES_PR_10,
+					IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
+					reg);
+		if (status)
+			return status;
+	}
 
-	reg &= ~IXGBE_MDIO_POWER_UP_STALL;
-
-	status = hw->phy.ops.write_reg(hw,
-				       IXGBE_MDIO_GLOBAL_RES_PR_10,
-				       IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
-				       reg);
 	return status;
 }
 
