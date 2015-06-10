@@ -10,6 +10,7 @@
 /dts-v1/;
 
 #include "bcm4708.dtsi"
+#include "bcm5301x-nand-cs0-bch8.dtsi"
 
 / {
 	compatible = "netgear,r8000", "brcm,bcm4709", "brcm,bcm4708";
