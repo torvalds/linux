@@ -914,6 +914,48 @@ static s32 ixgbe_setup_mac_link_t_X550em(struct ixgbe_hw *hw,
 	return hw->phy.ops.setup_link_speed(hw, speed, autoneg_wait);
 }
 
+/** ixgbe_check_link_t_X550em - Determine link and speed status
+  * @hw: pointer to hardware structure
+  * @speed: pointer to link speed
+  * @link_up: true when link is up
+  * @link_up_wait_to_complete: bool used to wait for link up or not
+  *
+  * Check that both the MAC and X557 external PHY have link.
+  **/
+static s32 ixgbe_check_link_t_X550em(struct ixgbe_hw *hw,
+				     ixgbe_link_speed *speed,
+				     bool *link_up,
+				     bool link_up_wait_to_complete)
+{
+	u32 status;
+	u16 autoneg_status;
+
+	if (hw->mac.ops.get_media_type(hw) != ixgbe_media_type_copper)
+		return IXGBE_ERR_CONFIG;
+
+	status = ixgbe_check_mac_link_generic(hw, speed, link_up,
+					      link_up_wait_to_complete);
+
+	/* If check link fails or MAC link is not up, then return */
+	if (status || !(*link_up))
+		return status;
+
+	 /* MAC link is up, so check external PHY link.
+	  * Read this twice back to back to indicate current status.
+	  */
+	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_AUTO_NEG_STATUS,
+				      IXGBE_MDIO_AUTO_NEG_DEV_TYPE,
+				      &autoneg_status);
+	if (status)
+		return status;
+
+	/* If external PHY link is not up, then indicate link not up */
+	if (!(autoneg_status & IXGBE_MDIO_AUTO_NEG_LINK_STATUS))
+		*link_up = false;
+
+	return 0;
+}
+
 /** ixgbe_init_mac_link_ops_X550em - init mac link function pointers
  *  @hw: pointer to hardware structure
  **/
@@ -932,6 +974,7 @@ static void ixgbe_init_mac_link_ops_X550em(struct ixgbe_hw *hw)
 		break;
 	case ixgbe_media_type_copper:
 		mac->ops.setup_link = ixgbe_setup_mac_link_t_X550em;
+		mac->ops.check_link = ixgbe_check_link_t_X550em;
 		break;
 	default:
 		break;
