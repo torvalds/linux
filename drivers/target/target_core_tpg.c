@@ -602,15 +602,6 @@ struct se_lun *core_tpg_alloc_lun(
 {
 	struct se_lun *lun;
 
-	if (unpacked_lun > (TRANSPORT_MAX_LUNS_PER_TPG-1)) {
-		pr_err("%s LUN: %llu exceeds TRANSPORT_MAX_LUNS_PER_TPG"
-			"-1: %u for Target Portal Group: %u\n",
-			tpg->se_tpg_tfo->get_fabric_name(),
-			unpacked_lun, TRANSPORT_MAX_LUNS_PER_TPG-1,
-			tpg->se_tpg_tfo->tpg_get_tag(tpg));
-		return ERR_PTR(-EOVERFLOW);
-	}
-
 	lun = kzalloc(sizeof(*lun), GFP_KERNEL);
 	if (!lun) {
 		pr_err("Unable to allocate se_lun memory\n");

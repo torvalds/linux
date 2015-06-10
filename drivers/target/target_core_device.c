@@ -63,9 +63,6 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd, u64 unpacked_lun)
 	struct se_node_acl *nacl = se_sess->se_node_acl;
 	struct se_dev_entry *deve;
 
-	if (unpacked_lun >= TRANSPORT_MAX_LUNS_PER_TPG)
-		return TCM_NON_EXISTENT_LUN;
-
 	rcu_read_lock();
 	deve = target_nacl_find_deve(nacl, unpacked_lun);
 	if (deve) {
@@ -156,9 +153,6 @@ int transport_lookup_tmr_lun(struct se_cmd *se_cmd, u64 unpacked_lun)
 	struct se_tmr_req *se_tmr = se_cmd->se_tmr_req;
 	unsigned long flags;
 
-	if (unpacked_lun >= TRANSPORT_MAX_LUNS_PER_TPG)
-		return -ENODEV;
-
 	rcu_read_lock();
 	deve = target_nacl_find_deve(nacl, unpacked_lun);
 	if (deve) {
@@ -196,9 +190,6 @@ bool target_lun_is_rdonly(struct se_cmd *cmd)
 	struct se_session *se_sess = cmd->se_sess;
 	struct se_dev_entry *deve;
 	bool ret;
-
-	if (cmd->se_lun->lun_access & TRANSPORT_LUNFLAGS_READ_ONLY)
-		return true;
 
 	rcu_read_lock();
 	deve = target_nacl_find_deve(se_sess->se_node_acl, cmd->orig_fe_lun);

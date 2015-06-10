@@ -864,7 +864,7 @@ static int scsiback_add_translation_entry(struct vscsibk_info *info,
 	struct list_head *head = &(info->v2p_entry_lists);
 	unsigned long flags;
 	char *lunp;
-	unsigned int unpacked_lun;
+	unsigned long long unpacked_lun;
 	struct se_lun *se_lun;
 	struct scsiback_tpg *tpg_entry, *tpg = NULL;
 	char *error = "doesn't exist";
@@ -876,9 +876,10 @@ static int scsiback_add_translation_entry(struct vscsibk_info *info,
 	}
 	*lunp = 0;
 	lunp++;
-	if (kstrtouint(lunp, 10, &unpacked_lun) || unpacked_lun >= TRANSPORT_MAX_LUNS_PER_TPG) {
+	err = kstrtoull(lunp, 10, &unpacked_lun);
+	if (err < 0) {
 		pr_err("lun number not valid: %s\n", lunp);
-		return -EINVAL;
+		return err;
 	}
 
 	mutex_lock(&scsiback_mutex);
