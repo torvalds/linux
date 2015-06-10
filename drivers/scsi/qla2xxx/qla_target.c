@@ -2341,9 +2341,10 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 		res = qlt_build_ctio_crc2_pkt(&prm, vha);
 	else
 		res = qlt_24xx_build_ctio_pkt(&prm, vha);
-	if (unlikely(res != 0))
+	if (unlikely(res != 0)) {
+		vha->req->cnt += full_req_cnt;
 		goto out_unmap_unlock;
-
+	}
 
 	pkt = (struct ctio7_to_24xx *)prm.pkt;
 
@@ -2481,8 +2482,11 @@ int qlt_rdy_to_xfer(struct qla_tgt_cmd *cmd)
 	else
 		res = qlt_24xx_build_ctio_pkt(&prm, vha);
 
-	if (unlikely(res != 0))
+	if (unlikely(res != 0)) {
+		vha->req->cnt += prm.req_cnt;
 		goto out_unlock_free_unmap;
+	}
+
 	pkt = (struct ctio7_to_24xx *)prm.pkt;
 	pkt->u.status0.flags |= __constant_cpu_to_le16(CTIO7_FLAGS_DATA_OUT |
 	    CTIO7_FLAGS_STATUS_MODE_0);
