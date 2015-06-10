@@ -810,6 +810,8 @@ int elv_register_queue(struct request_queue *q)
 		}
 		kobject_uevent(&e->kobj, KOBJ_ADD);
 		e->registered = 1;
+		if (e->type->ops.elevator_registered_fn)
+			e->type->ops.elevator_registered_fn(q);
 	}
 	return error;
 }
