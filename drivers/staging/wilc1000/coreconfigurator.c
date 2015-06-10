@@ -672,14 +672,14 @@ INLINE WILC_Uint16 get_asoc_id(u8 *data)
 WILC_Sint32 CoreConfiguratorInit(void)
 {
 	WILC_Sint32 s32Error = WILC_SUCCESS;
-	PRINT_D(CORECONFIG_DBG, "CoreConfiguratorInit() \n");
+	PRINT_D(CORECONFIG_DBG, "CoreConfiguratorInit()\n");
 
 	sema_init(&SemHandleSendPkt, 1);
 	sema_init(&SemHandlePktResp, 0);
 
 	gps8ConfigPacket = (WILC_Sint8 *)WILC_MALLOC(MAX_PACKET_BUFF_SIZE);
 	if (gps8ConfigPacket == NULL) {
-		PRINT_ER("failed in gps8ConfigPacket allocation \n");
+		PRINT_ER("failed in gps8ConfigPacket allocation\n");
 		s32Error = WILC_NO_MEM;
 		goto _fail_;
 	}
@@ -1444,7 +1444,7 @@ void ProcessAdrWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 void ProcessBinWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 		   tstrWID *pstrWID, u8 *pu8val, WILC_Sint32 s32ValueSize)
 {
-	/* WILC_ERROR("processing Binary WIDs is not supported \n"); */
+	/* WILC_ERROR("processing Binary WIDs is not supported\n"); */
 
 	WILC_Uint16 u16MsgLen = 0;
 	WILC_Uint16 idx    = 0;
@@ -1583,7 +1583,7 @@ WILC_Sint32 further_process_response(u8 *resp,
 			WILC_memcpy(pstrWIDresult->ps8WidVal, cfg_str, cfg_len); /* mostafa: no need currently for the extra NULL byte */
 			pstrWIDresult->s32ValueSize = cfg_len;
 		} else {
-			PRINT_ER("allocated WID buffer length is smaller than the received WID Length \n");
+			PRINT_ER("allocated WID buffer length is smaller than the received WID Length\n");
 			retval = -2;
 		}
 
@@ -2027,7 +2027,7 @@ WILC_Sint32 ConfigProvideResponse(WILC_Char *pcRespBuffer, WILC_Sint32 s32RespLe
 		} else {
 			WILC_memcpy(gstrConfigPktInfo.pcRespBuffer, pcRespBuffer, gstrConfigPktInfo.s32MaxRespBuffLen);
 			gstrConfigPktInfo.s32BytesRead = gstrConfigPktInfo.s32MaxRespBuffLen;
-			PRINT_ER("BusProvideResponse() Response greater than the prepared Buffer Size \n");
+			PRINT_ER("BusProvideResponse() Response greater than the prepared Buffer Size\n");
 		}
 
 		up(&SemHandlePktResp);
@@ -2076,7 +2076,7 @@ WILC_Sint32 ConfigPktReceived(u8 *pu8RxPacket, WILC_Sint32 s32RxPacketLen)
 		break;
 
 	default:
-		PRINT_ER("ConfigPktReceived(): invalid received msg type at the Core Configurator \n");
+		PRINT_ER("ConfigPktReceived(): invalid received msg type at the Core Configurator\n");
 		break;
 	}
 
@@ -2097,7 +2097,7 @@ WILC_Sint32 CoreConfiguratorDeInit(void)
 {
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 
-	PRINT_D(CORECONFIG_DBG, "CoreConfiguratorDeInit() \n");
+	PRINT_D(CORECONFIG_DBG, "CoreConfiguratorDeInit()\n");
 
 	if (gps8ConfigPacket != NULL) {
 
