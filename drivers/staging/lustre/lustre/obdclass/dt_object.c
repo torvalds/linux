@@ -329,9 +329,9 @@ static struct dt_object *dt_reg_open(const struct lu_env *env,
 	int result;
 
 	result = dt_lookup_dir(env, p, name, fid);
-	if (result == 0){
+	if (result == 0)
 		o = dt_locate(env, dt, fid);
-	} else
+	else
 		o = ERR_PTR(result);
 
 	return o;
