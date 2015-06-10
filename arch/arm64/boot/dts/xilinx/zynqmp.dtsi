@@ -272,6 +272,21 @@
 			#size-cells = <0>;
 		};
 
+		sata_clk: sata_clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <75000000>;
+		};
+
+		sata: ahci@fd0c0000 {
+			compatible = "ceva,ahci-1v84";
+			status = "disabled";
+			reg = <0x0 0xfd0c0000 0x2000>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 133 4>;
+			clocks = <&sata_clk>;
+		};
+
 		sdhci0: sdhci@ff160000 {
 			compatible = "arasan,sdhci-8.9a";
 			status = "disabled";
