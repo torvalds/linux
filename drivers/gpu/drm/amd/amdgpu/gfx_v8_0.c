@@ -3783,11 +3783,10 @@ static bool gfx_v8_0_ring_emit_semaphore(struct amdgpu_ring *ring,
 	unsigned sel = emit_wait ? PACKET3_SEM_SEL_WAIT : PACKET3_SEM_SEL_SIGNAL;
 
 	if (ring->adev->asic_type == CHIP_TOPAZ ||
-	    ring->adev->asic_type == CHIP_TONGA) {
-		amdgpu_ring_write(ring, PACKET3(PACKET3_MEM_SEMAPHORE, 1));
-		amdgpu_ring_write(ring, lower_32_bits(addr));
-		amdgpu_ring_write(ring, (upper_32_bits(addr) & 0xffff) | sel);
-	} else {
+	    ring->adev->asic_type == CHIP_TONGA)
+		/* we got a hw semaphore bug in VI TONGA, return false to switch back to sw fence wait */
+		return false;
+	else {
 		amdgpu_ring_write(ring, PACKET3(PACKET3_MEM_SEMAPHORE, 2));
 		amdgpu_ring_write(ring, lower_32_bits(addr));
 		amdgpu_ring_write(ring, upper_32_bits(addr));
