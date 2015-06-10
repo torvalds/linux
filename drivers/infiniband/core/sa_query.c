@@ -450,7 +450,7 @@ static void ib_sa_event(struct ib_event_handler *handler, struct ib_event *event
 		struct ib_sa_port *port =
 			&sa_dev->port[event->element.port_num - sa_dev->start_port];
 
-		if (WARN_ON(!rdma_cap_ib_sa(handler->device, port->port_num)))
+		if (!rdma_cap_ib_sa(handler->device, port->port_num))
 			return;
 
 		spin_lock_irqsave(&port->ah_lock, flags);

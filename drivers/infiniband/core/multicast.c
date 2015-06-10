@@ -780,7 +780,7 @@ static void mcast_event_handler(struct ib_event_handler *handler,
 	int index;
 
 	dev = container_of(handler, struct mcast_device, event_handler);
-	if (WARN_ON(!rdma_cap_ib_mcast(dev->device, event->element.port_num)))
+	if (!rdma_cap_ib_mcast(dev->device, event->element.port_num))
 		return;
 
 	index = event->element.port_num - dev->start_port;
