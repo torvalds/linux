@@ -5,10 +5,15 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <dt-bindings/clock/imx27-clock.h>
+#include <soc/imx/revision.h>
+#include <soc/imx/timer.h>
+#include <asm/irq.h>
 
 #include "clk.h"
-#include "common.h"
-#include "hardware.h"
+
+#define MX27_CCM_BASE_ADDR	0x10027000
+#define MX27_GPT1_BASE_ADDR	0x10003000
+#define MX27_INT_GPT1		(NR_IRQS_LEGACY + 26)
 
 static void __iomem *ccm __initdata;
 
@@ -54,8 +59,8 @@ static void __init _mx27_clocks_init(unsigned long fref)
 	clk[IMX27_CLK_CKIH_GATE] = imx_clk_gate_dis("ckih_gate", "ckih", CCM_CSCR, 3);
 	clk[IMX27_CLK_MPLL_OSC_SEL] = imx_clk_mux("mpll_osc_sel", CCM_CSCR, 4, 1, mpll_osc_sel_clks, ARRAY_SIZE(mpll_osc_sel_clks));
 	clk[IMX27_CLK_MPLL_SEL] = imx_clk_mux("mpll_sel", CCM_CSCR, 16, 1, mpll_sel_clks, ARRAY_SIZE(mpll_sel_clks));
-	clk[IMX27_CLK_MPLL] = imx_clk_pllv1("mpll", "mpll_sel", CCM_MPCTL0);
-	clk[IMX27_CLK_SPLL] = imx_clk_pllv1("spll", "ckih_gate", CCM_SPCTL0);
+	clk[IMX27_CLK_MPLL] = imx_clk_pllv1(IMX_PLLV1_IMX27, "mpll", "mpll_sel", CCM_MPCTL0);
+	clk[IMX27_CLK_SPLL] = imx_clk_pllv1(IMX_PLLV1_IMX27, "spll", "ckih_gate", CCM_SPCTL0);
 	clk[IMX27_CLK_SPLL_GATE] = imx_clk_gate("spll_gate", "spll", CCM_CSCR, 1);
 	clk[IMX27_CLK_MPLL_MAIN2] = imx_clk_fixed_factor("mpll_main2", "mpll", 2, 3);
 
@@ -229,7 +234,7 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[IMX27_CLK_EMMA_AHB_GATE], "ahb", "m2m-emmaprp.0");
 	clk_register_clkdev(clk[IMX27_CLK_EMMA_IPG_GATE], "ipg", "m2m-emmaprp.0");
 
-	mxc_timer_init(MX27_IO_ADDRESS(MX27_GPT1_BASE_ADDR), MX27_INT_GPT1);
+	mxc_timer_init(MX27_GPT1_BASE_ADDR, MX27_INT_GPT1, GPT_TYPE_IMX21);
 
 	return 0;
 }

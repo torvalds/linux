@@ -21,7 +21,6 @@
 #include <linux/types.h>
 
 #include "clk.h"
-#include "common.h"
 
 #define CCDR    0x4
 #define BM_CCM_CCDR_MMDC_CH0_MASK       (0x2 << 16)
@@ -267,8 +266,6 @@ static void __init imx6sx_clocks_init(struct device_node *ccm_node)
 	np = ccm_node;
 	base = of_iomap(np, 0);
 	WARN_ON(!base);
-
-	imx6q_pm_set_ccm_base(base);
 
 	/*                                                name                reg           shift   width   parent_names       num_parents */
 	clks[IMX6SX_CLK_STEP]               = imx_clk_mux("step",             base + 0xc,   8,      1,      step_sels,         ARRAY_SIZE(step_sels));
@@ -560,8 +557,5 @@ static void __init imx6sx_clocks_init(struct device_node *ccm_node)
 
 	clk_set_parent(clks[IMX6SX_CLK_QSPI1_SEL], clks[IMX6SX_CLK_PLL2_BUS]);
 	clk_set_parent(clks[IMX6SX_CLK_QSPI2_SEL], clks[IMX6SX_CLK_PLL2_BUS]);
-
-	/* Set initial power mode */
-	imx6q_set_lpm(WAIT_CLOCKED);
 }
 CLK_OF_DECLARE(imx6sx, "fsl,imx6sx-ccm", imx6sx_clocks_init);

@@ -21,12 +21,26 @@
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/of.h>
+#include <soc/imx/revision.h>
+#include <soc/imx/timer.h>
+#include <asm/irq.h>
 
 #include "clk.h"
-#include "common.h"
-#include "crmregs-imx3.h"
-#include "hardware.h"
-#include "mx31.h"
+
+#define MX31_CCM_BASE_ADDR	0x53f80000
+#define MX31_GPT1_BASE_ADDR	0x53f90000
+#define MX31_INT_GPT		(NR_IRQS_LEGACY + 29)
+
+#define MXC_CCM_CCMR		0x00
+#define MXC_CCM_PDR0		0x04
+#define MXC_CCM_PDR1		0x08
+#define MXC_CCM_MPCTL		0x10
+#define MXC_CCM_UPCTL		0x14
+#define MXC_CCM_SRPCTL		0x18
+#define MXC_CCM_CGR0		0x20
+#define MXC_CCM_CGR1		0x24
+#define MXC_CCM_CGR2		0x28
+#define MXC_CCM_PMCR0		0x5c
 
 static const char *mcu_main_sel[] = { "spll", "mpll", };
 static const char *per_sel[] = { "per_div", "ipg", };
@@ -50,15 +64,18 @@ static struct clk_onecell_data clk_data;
 
 int __init mx31_clocks_init(unsigned long fref)
 {
-	void __iomem *base = MX31_IO_ADDRESS(MX31_CCM_BASE_ADDR);
+	void __iomem *base;
 	struct device_node *np;
+
+	base = ioremap(MX31_CCM_BASE_ADDR, SZ_4K);
+	BUG_ON(!base);
 
 	clk[dummy] = imx_clk_fixed("dummy", 0);
 	clk[ckih] = imx_clk_fixed("ckih", fref);
 	clk[ckil] = imx_clk_fixed("ckil", 32768);
-	clk[mpll] = imx_clk_pllv1("mpll", "ckih", base + MXC_CCM_MPCTL);
-	clk[spll] = imx_clk_pllv1("spll", "ckih", base + MXC_CCM_SRPCTL);
-	clk[upll] = imx_clk_pllv1("upll", "ckih", base + MXC_CCM_UPCTL);
+	clk[mpll] = imx_clk_pllv1(IMX_PLLV1_IMX31, "mpll", "ckih", base + MXC_CCM_MPCTL);
+	clk[spll] = imx_clk_pllv1(IMX_PLLV1_IMX31, "spll", "ckih", base + MXC_CCM_SRPCTL);
+	clk[upll] = imx_clk_pllv1(IMX_PLLV1_IMX31, "upll", "ckih", base + MXC_CCM_UPCTL);
 	clk[mcu_main] = imx_clk_mux("mcu_main", base + MXC_CCM_PMCR0, 31, 1, mcu_main_sel, ARRAY_SIZE(mcu_main_sel));
 	clk[hsp] = imx_clk_divider("hsp", "mcu_main", base + MXC_CCM_PDR0, 11, 3);
 	clk[ahb] = imx_clk_divider("ahb", "mcu_main", base + MXC_CCM_PDR0, 3, 3);
@@ -182,7 +199,7 @@ int __init mx31_clocks_init(unsigned long fref)
 	mx31_revision();
 	clk_disable_unprepare(clk[iim_gate]);
 
-	mxc_timer_init(MX31_IO_ADDRESS(MX31_GPT1_BASE_ADDR), MX31_INT_GPT);
+	mxc_timer_init(MX31_GPT1_BASE_ADDR, MX31_INT_GPT, GPT_TYPE_IMX31);
 
 	return 0;
 }

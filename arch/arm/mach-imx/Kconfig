@@ -2,7 +2,7 @@ menuconfig ARCH_MXC
 	bool "Freescale i.MX family" if ARCH_MULTI_V4_V5 || ARCH_MULTI_V6_V7 || ARM_SINGLE_ARMV7M
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_CPU_SUSPEND if PM
-	select CLKSRC_MMIO
+	select CLKSRC_IMX_GPT
 	select GENERIC_IRQ_CHIP
 	select PINCTRL
 	select PM_OPP if PM
@@ -581,6 +581,15 @@ config SOC_IMX6SX
 
 	help
 	  This enables support for Freescale i.MX6 SoloX processor.
+
+config SOC_IMX7D
+	bool "i.MX7 Dual support"
+	select PINCTRL_IMX7D
+	select ARM_GIC
+	select HAVE_IMX_ANATOP
+	select HAVE_IMX_MMDC
+	help
+		This enables support for Freescale i.MX7 Dual processor.
 
 config SOC_LS1021A
 	bool "Freescale LS1021A support"

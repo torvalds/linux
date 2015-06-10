@@ -1044,6 +1044,8 @@ F:	arch/arm/mach-imx/
 F:	arch/arm/mach-mxs/
 F:	arch/arm/boot/dts/imx*
 F:	arch/arm/configs/imx*_defconfig
+F:	drivers/clk/imx/
+F:	include/soc/imx/
 
 ARM/FREESCALE VYBRID ARM ARCHITECTURE
 M:	Shawn Guo <shawn.guo@linaro.org>

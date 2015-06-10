@@ -15,10 +15,14 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <dt-bindings/clock/imx21-clock.h>
+#include <soc/imx/timer.h>
+#include <asm/irq.h>
 
 #include "clk.h"
-#include "common.h"
-#include "hardware.h"
+
+#define MX21_CCM_BASE_ADDR	0x10027000
+#define MX21_GPT1_BASE_ADDR	0x10003000
+#define MX21_INT_GPT1		(NR_IRQS_LEGACY + 26)
 
 static void __iomem *ccm __initdata;
 
@@ -63,9 +67,9 @@ static void __init _mx21_clocks_init(unsigned long lref, unsigned long href)
 	clk[IMX21_CLK_USB_DIV] = imx_clk_divider("usb_div", "spll_gate", CCM_CSCR, 26, 3);
 	clk[IMX21_CLK_FCLK] = imx_clk_divider("fclk", "mpll_gate", CCM_CSCR, 29, 3);
 
-	clk[IMX21_CLK_MPLL] = imx_clk_pllv1("mpll", "mpll_sel", CCM_MPCTL0);
+	clk[IMX21_CLK_MPLL] = imx_clk_pllv1(IMX_PLLV1_IMX21, "mpll", "mpll_sel", CCM_MPCTL0);
 
-	clk[IMX21_CLK_SPLL] = imx_clk_pllv1("spll", "spll_sel", CCM_SPCTL0);
+	clk[IMX21_CLK_SPLL] = imx_clk_pllv1(IMX_PLLV1_IMX21, "spll", "spll_sel", CCM_SPCTL0);
 
 	clk[IMX21_CLK_NFC_DIV] = imx_clk_divider("nfc_div", "fclk", CCM_PCDR0, 12, 4);
 	clk[IMX21_CLK_SSI1_DIV] = imx_clk_divider("ssi1_div", "ssi1_sel", CCM_PCDR0, 16, 6);
@@ -153,7 +157,7 @@ int __init mx21_clocks_init(unsigned long lref, unsigned long href)
 	clk_register_clkdev(clk[IMX21_CLK_I2C_GATE], NULL, "imx21-i2c.0");
 	clk_register_clkdev(clk[IMX21_CLK_OWIRE_GATE], NULL, "mxc_w1.0");
 
-	mxc_timer_init(MX21_IO_ADDRESS(MX21_GPT1_BASE_ADDR), MX21_INT_GPT1);
+	mxc_timer_init(MX21_GPT1_BASE_ADDR, MX21_INT_GPT1, GPT_TYPE_IMX21);
 
 	return 0;
 }

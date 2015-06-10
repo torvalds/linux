@@ -13,11 +13,26 @@
 #include <linux/clkdev.h>
 #include <linux/of.h>
 #include <linux/err.h>
+#include <soc/imx/revision.h>
+#include <soc/imx/timer.h>
+#include <asm/irq.h>
 
-#include "crmregs-imx3.h"
 #include "clk.h"
-#include "common.h"
-#include "hardware.h"
+
+#define MX35_CCM_BASE_ADDR	0x53f80000
+#define MX35_GPT1_BASE_ADDR	0x53f90000
+#define MX35_INT_GPT		(NR_IRQS_LEGACY + 29)
+
+#define MXC_CCM_PDR0		0x04
+#define MX35_CCM_PDR2		0x0c
+#define MX35_CCM_PDR3		0x10
+#define MX35_CCM_PDR4		0x14
+#define MX35_CCM_MPCTL		0x1c
+#define MX35_CCM_PPCTL		0x20
+#define MX35_CCM_CGR0		0x2c
+#define MX35_CCM_CGR1		0x30
+#define MX35_CCM_CGR2		0x34
+#define MX35_CCM_CGR3		0x38
 
 struct arm_ahb_div {
 	unsigned char arm, ahb, sel;
@@ -71,10 +86,13 @@ static struct clk *clk[clk_max];
 
 int __init mx35_clocks_init(void)
 {
-	void __iomem *base = MX35_IO_ADDRESS(MX35_CCM_BASE_ADDR);
+	void __iomem *base;
 	u32 pdr0, consumer_sel, hsp_sel;
 	struct arm_ahb_div *aad;
 	unsigned char *hsp_div;
+
+	base = ioremap(MX35_CCM_BASE_ADDR, SZ_4K);
+	BUG_ON(!base);
 
 	pdr0 = __raw_readl(base + MXC_CCM_PDR0);
 	consumer_sel = (pdr0 >> 16) & 0xf;
@@ -89,8 +107,8 @@ int __init mx35_clocks_init(void)
 	}
 
 	clk[ckih] = imx_clk_fixed("ckih", 24000000);
-	clk[mpll] = imx_clk_pllv1("mpll", "ckih", base + MX35_CCM_MPCTL);
-	clk[ppll] = imx_clk_pllv1("ppll", "ckih", base + MX35_CCM_PPCTL);
+	clk[mpll] = imx_clk_pllv1(IMX_PLLV1_IMX35, "mpll", "ckih", base + MX35_CCM_MPCTL);
+	clk[ppll] = imx_clk_pllv1(IMX_PLLV1_IMX35, "ppll", "ckih", base + MX35_CCM_PPCTL);
 
 	clk[mpll] = imx_clk_fixed_factor("mpll_075", "mpll", 3, 4);
 
@@ -276,11 +294,7 @@ int __init mx35_clocks_init(void)
 
 	imx_print_silicon_rev("i.MX35", mx35_revision());
 
-#ifdef CONFIG_MXC_USE_EPIT
-	epit_timer_init(MX35_IO_ADDRESS(MX35_EPIT1_BASE_ADDR), MX35_INT_EPIT1);
-#else
-	mxc_timer_init(MX35_IO_ADDRESS(MX35_GPT1_BASE_ADDR), MX35_INT_GPT);
-#endif
+	mxc_timer_init(MX35_GPT1_BASE_ADDR, MX35_INT_GPT, GPT_TYPE_IMX31);
 
 	return 0;
 }

@@ -24,12 +24,14 @@
 
 #define BM_PLL_POWER		(0x1 << 12)
 #define BM_PLL_LOCK		(0x1 << 31)
+#define IMX7_ENET_PLL_POWER	(0x1 << 5)
 
 /**
  * struct clk_pllv3 - IMX PLL clock version 3
  * @clk_hw:	 clock source
  * @base:	 base address of PLL registers
  * @powerup_set: set POWER bit to power up the PLL
+ * @powerdown:   pll powerdown offset bit
  * @div_mask:	 mask of divider bits
  * @div_shift:	 shift of divider bits
  *
@@ -40,6 +42,7 @@ struct clk_pllv3 {
 	struct clk_hw	hw;
 	void __iomem	*base;
 	bool		powerup_set;
+	u32		powerdown;
 	u32		div_mask;
 	u32		div_shift;
 };
@@ -49,7 +52,7 @@ struct clk_pllv3 {
 static int clk_pllv3_wait_lock(struct clk_pllv3 *pll)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(10);
-	u32 val = readl_relaxed(pll->base) & BM_PLL_POWER;
+	u32 val = readl_relaxed(pll->base) & pll->powerdown;
 
 	/* No need to wait for lock when pll is not powered up */
 	if ((pll->powerup_set && !val) || (!pll->powerup_set && val))
@@ -215,7 +218,7 @@ static long clk_pllv3_av_round_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long max_rate = parent_rate * 54;
 	u32 div;
 	u32 mfn, mfd = 1000000;
-	s64 temp64;
+	u64 temp64;
 
 	if (rate > max_rate)
 		rate = max_rate;
@@ -239,7 +242,7 @@ static int clk_pllv3_av_set_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long max_rate = parent_rate * 54;
 	u32 val, div;
 	u32 mfn, mfd = 1000000;
-	s64 temp64;
+	u64 temp64;
 
 	if (rate < min_rate || rate > max_rate)
 		return -EINVAL;
@@ -293,6 +296,8 @@ struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 
+	pll->powerdown = BM_PLL_POWER;
+
 	switch (type) {
 	case IMX_PLLV3_SYS:
 		ops = &clk_pllv3_sys_ops;
@@ -306,6 +311,8 @@ struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 	case IMX_PLLV3_AV:
 		ops = &clk_pllv3_av_ops;
 		break;
+	case IMX_PLLV3_ENET_IMX7:
+		pll->powerdown = IMX7_ENET_PLL_POWER;
 	case IMX_PLLV3_ENET:
 		ops = &clk_pllv3_enet_ops;
 		break;

@@ -6,8 +6,6 @@
 #include <linux/err.h>
 
 #include "clk.h"
-#include "common.h"
-#include "hardware.h"
 
 /**
  * pll v1
@@ -26,13 +24,29 @@
 struct clk_pllv1 {
 	struct clk_hw	hw;
 	void __iomem	*base;
+	enum imx_pllv1_type type;
 };
 
 #define to_clk_pllv1(clk) (container_of(clk, struct clk_pllv1, clk))
 
-static inline bool mfn_is_negative(unsigned int mfn)
+static inline bool is_imx1_pllv1(struct clk_pllv1 *pll)
 {
-	return !cpu_is_mx1() && !cpu_is_mx21() && (mfn & MFN_SIGN);
+	return pll->type == IMX_PLLV1_IMX1;
+}
+
+static inline bool is_imx21_pllv1(struct clk_pllv1 *pll)
+{
+	return pll->type == IMX_PLLV1_IMX21;
+}
+
+static inline bool is_imx27_pllv1(struct clk_pllv1 *pll)
+{
+	return pll->type == IMX_PLLV1_IMX27;
+}
+
+static inline bool mfn_is_negative(struct clk_pllv1 *pll, unsigned int mfn)
+{
+	return !is_imx1_pllv1(pll) && !is_imx21_pllv1(pll) && (mfn & MFN_SIGN);
 }
 
 static unsigned long clk_pllv1_recalc_rate(struct clk_hw *hw,
@@ -71,8 +85,8 @@ static unsigned long clk_pllv1_recalc_rate(struct clk_hw *hw,
 	 * 2's complements number.
 	 * On i.MX27 the bit 9 is the sign bit.
 	 */
-	if (mfn_is_negative(mfn)) {
-		if (cpu_is_mx27())
+	if (mfn_is_negative(pll, mfn)) {
+		if (is_imx27_pllv1(pll))
 			mfn_abs = mfn & MFN_MASK;
 		else
 			mfn_abs = BIT(MFN_BITS) - mfn;
@@ -85,7 +99,7 @@ static unsigned long clk_pllv1_recalc_rate(struct clk_hw *hw,
 
 	do_div(ll, mfd + 1);
 
-	if (mfn_is_negative(mfn))
+	if (mfn_is_negative(pll, mfn))
 		ll = -ll;
 
 	ll = (rate * mfi) + ll;
@@ -97,8 +111,8 @@ static struct clk_ops clk_pllv1_ops = {
 	.recalc_rate = clk_pllv1_recalc_rate,
 };
 
-struct clk *imx_clk_pllv1(const char *name, const char *parent,
-		void __iomem *base)
+struct clk *imx_clk_pllv1(enum imx_pllv1_type type, const char *name,
+		const char *parent, void __iomem *base)
 {
 	struct clk_pllv1 *pll;
 	struct clk *clk;
@@ -109,6 +123,7 @@ struct clk *imx_clk_pllv1(const char *name, const char *parent,
 		return ERR_PTR(-ENOMEM);
 
 	pll->base = base;
+	pll->type = type;
 
 	init.name = name;
 	init.ops = &clk_pllv1_ops;

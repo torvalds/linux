@@ -28,8 +28,6 @@
 #include <linux/of_irq.h>
 
 #include "clk.h"
-#include "common.h"
-#include "hardware.h"
 
 #define CCM_MPCTL	0x00
 #define CCM_UPCTL	0x04
@@ -95,8 +93,8 @@ static int __init __mx25_clocks_init(unsigned long osc_rate,
 
 	clk[dummy] = imx_clk_fixed("dummy", 0);
 	clk[osc] = imx_clk_fixed("osc", osc_rate);
-	clk[mpll] = imx_clk_pllv1("mpll", "osc", ccm(CCM_MPCTL));
-	clk[upll] = imx_clk_pllv1("upll", "osc", ccm(CCM_UPCTL));
+	clk[mpll] = imx_clk_pllv1(IMX_PLLV1_IMX25, "mpll", "osc", ccm(CCM_MPCTL));
+	clk[upll] = imx_clk_pllv1(IMX_PLLV1_IMX25, "upll", "osc", ccm(CCM_UPCTL));
 	clk[mpll_cpu_3_4] = imx_clk_fixed_factor("mpll_cpu_3_4", "mpll", 3, 4);
 	clk[cpu_sel] = imx_clk_mux("cpu_sel", ccm(CCM_CCTL), 14, 1, cpu_sel_clks, ARRAY_SIZE(cpu_sel_clks));
 	clk[cpu] = imx_clk_divider("cpu", "cpu_sel", ccm(CCM_CCTL), 30, 2);

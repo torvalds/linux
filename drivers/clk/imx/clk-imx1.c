@@ -23,10 +23,14 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <dt-bindings/clock/imx1-clock.h>
+#include <soc/imx/timer.h>
+#include <asm/irq.h>
 
 #include "clk.h"
-#include "common.h"
-#include "hardware.h"
+
+#define MX1_CCM_BASE_ADDR	0x0021b000
+#define MX1_TIM1_BASE_ADDR	0x00220000
+#define MX1_TIM1_INT		(NR_IRQS_LEGACY + 59)
 
 static const char *prem_sel_clks[] = { "clk32_premult", "clk16m", };
 static const char *clko_sel_clks[] = { "per1", "hclk", "clk48m", "clk16m",
@@ -50,9 +54,9 @@ static void __init _mx1_clocks_init(unsigned long fref)
 	clk[IMX1_CLK_CLK16M] = imx_clk_gate("clk16m", "clk16m_ext", CCM_CSCR, 17);
 	clk[IMX1_CLK_CLK32_PREMULT] = imx_clk_fixed_factor("clk32_premult", "clk32", 512, 1);
 	clk[IMX1_CLK_PREM] = imx_clk_mux("prem", CCM_CSCR, 16, 1, prem_sel_clks, ARRAY_SIZE(prem_sel_clks));
-	clk[IMX1_CLK_MPLL] = imx_clk_pllv1("mpll", "clk32_premult", CCM_MPCTL0);
+	clk[IMX1_CLK_MPLL] = imx_clk_pllv1(IMX_PLLV1_IMX1, "mpll", "clk32_premult", CCM_MPCTL0);
 	clk[IMX1_CLK_MPLL_GATE] = imx_clk_gate("mpll_gate", "mpll", CCM_CSCR, 0);
-	clk[IMX1_CLK_SPLL] = imx_clk_pllv1("spll", "prem", CCM_SPCTL0);
+	clk[IMX1_CLK_SPLL] = imx_clk_pllv1(IMX_PLLV1_IMX1, "spll", "prem", CCM_SPCTL0);
 	clk[IMX1_CLK_SPLL_GATE] = imx_clk_gate("spll_gate", "spll", CCM_CSCR, 1);
 	clk[IMX1_CLK_MCU] = imx_clk_divider("mcu", "clk32_premult", CCM_CSCR, 15, 1);
 	clk[IMX1_CLK_FCLK] = imx_clk_divider("fclk", "mpll_gate", CCM_CSCR, 15, 1);
@@ -75,7 +79,8 @@ static void __init _mx1_clocks_init(unsigned long fref)
 
 int __init mx1_clocks_init(unsigned long fref)
 {
-	ccm = MX1_IO_ADDRESS(MX1_CCM_BASE_ADDR);
+	ccm = ioremap(MX1_CCM_BASE_ADDR, SZ_4K);
+	BUG_ON(!ccm);
 
 	_mx1_clocks_init(fref);
 
@@ -98,7 +103,7 @@ int __init mx1_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[IMX1_CLK_DUMMY], "ipg", "imx1-fb.0");
 	clk_register_clkdev(clk[IMX1_CLK_DUMMY], "ahb", "imx1-fb.0");
 
-	mxc_timer_init(MX1_IO_ADDRESS(MX1_TIM1_BASE_ADDR), MX1_TIM1_INT);
+	mxc_timer_init(MX1_TIM1_BASE_ADDR, MX1_TIM1_INT, GPT_TYPE_IMX1);
 
 	return 0;
 }

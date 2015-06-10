@@ -16,7 +16,6 @@
 #include <dt-bindings/clock/imx6sl-clock.h>
 
 #include "clk.h"
-#include "common.h"
 
 #define CCSR			0xc
 #define BM_CCSR_PLL1_SW_CLK_SEL	(1 << 2)
@@ -288,9 +287,6 @@ static void __init imx6sl_clocks_init(struct device_node *ccm_node)
 	WARN_ON(!base);
 	ccm_base = base;
 
-	/* Reuse imx6q pm code */
-	imx6q_pm_set_ccm_base(base);
-
 	/*                                              name                reg       shift width parent_names     num_parents */
 	clks[IMX6SL_CLK_STEP]             = imx_clk_mux("step",             base + 0xc,  8,  1, step_sels,         ARRAY_SIZE(step_sels));
 	clks[IMX6SL_CLK_PLL1_SW]          = imx_clk_mux("pll1_sw",          base + 0xc,  2,  1, pll1_sw_sels,      ARRAY_SIZE(pll1_sw_sels));
@@ -443,8 +439,5 @@ static void __init imx6sl_clocks_init(struct device_node *ccm_node)
 
 	clk_set_parent(clks[IMX6SL_CLK_LCDIF_AXI_SEL],
 		       clks[IMX6SL_CLK_PLL2_PFD2]);
-
-	/* Set initial power mode */
-	imx6q_set_lpm(WAIT_CLOCKED);
 }
 CLK_OF_DECLARE(imx6sl, "fsl,imx6sl-ccm", imx6sl_clocks_init);

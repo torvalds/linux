@@ -16,11 +16,10 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <soc/imx/revision.h>
 #include <dt-bindings/clock/imx5-clock.h>
 
 #include "clk.h"
-#include "common.h"
-#include "hardware.h"
 
 #define MX51_DPLL1_BASE		0x83f80000
 #define MX51_DPLL2_BASE		0x83f84000
@@ -133,8 +132,6 @@ static struct clk_onecell_data clk_data;
 
 static void __init mx5_clocks_common_init(void __iomem *ccm_base)
 {
-	imx5_pm_set_ccm_base(ccm_base);
-
 	clk[IMX5_CLK_DUMMY]		= imx_clk_fixed("dummy", 0);
 	clk[IMX5_CLK_CKIL]		= imx_obtain_fixed_clock("ckil", 0);
 	clk[IMX5_CLK_OSC]		= imx_obtain_fixed_clock("osc", 0);
