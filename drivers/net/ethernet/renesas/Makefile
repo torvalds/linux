@@ -3,3 +3,4 @@
 #
 
 obj-$(CONFIG_SH_ETH) += sh_eth.o
+obj-$(CONFIG_RAVB) += ravb.o
