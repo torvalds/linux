@@ -117,7 +117,8 @@ static irqreturn_t mantis_irq_handler(int irq, void *dev_id)
 	if (stat & MANTIS_INT_IRQ1) {
 		dprintk(MANTIS_DEBUG, 0, "<%s>", label[2]);
 		spin_lock(&mantis->intmask_lock);
-		mmwrite(mmread(MANTIS_INT_MASK) & ~MANTIS_INT_IRQ1, MANTIS_INT_MASK);
+		mmwrite(mmread(MANTIS_INT_MASK) & ~MANTIS_INT_IRQ1,
+			MANTIS_INT_MASK);
 		spin_unlock(&mantis->intmask_lock);
 		schedule_work(&mantis->uart_work);
 	}
@@ -178,7 +179,7 @@ static int mantis_pci_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 	}
 
-	drvdata			= (struct mantis_pci_drvdata *) pci_id->driver_data;
+	drvdata			= (void *)pci_id->driver_data;
 	mantis->num		= devs;
 	mantis->verbose		= verbose;
 	mantis->pdev		= pdev;
@@ -227,7 +228,8 @@ static int mantis_pci_probe(struct pci_dev *pdev,
 
 	err = mantis_input_init(mantis);
 	if (err < 0) {
-		dprintk(MANTIS_ERROR, 1, "ERROR: Mantis DVB initialization failed <%d>", err);
+		dprintk(MANTIS_ERROR, 1,
+			"ERROR: Mantis DVB initialization failed <%d>", err);
 		goto err_dvb_exit;
 	}
 
@@ -281,27 +283,27 @@ static void mantis_pci_remove(struct pci_dev *pdev)
 
 static struct pci_device_id mantis_pci_table[] = {
 	MAKE_ENTRY(TECHNISAT, CABLESTAR_HD2, &vp2040_config,
-		RC_MAP_TECHNISAT_TS35),
+		   RC_MAP_TECHNISAT_TS35),
 	MAKE_ENTRY(TECHNISAT, SKYSTAR_HD2_10, &vp1041_config,
-		NULL),
+		   NULL),
 	MAKE_ENTRY(TECHNISAT, SKYSTAR_HD2_20, &vp1041_config,
-		NULL),
+		   NULL),
 	MAKE_ENTRY(TERRATEC, CINERGY_C, &vp2040_config,
-		RC_MAP_TERRATEC_CINERGY_C_PCI),
+		   RC_MAP_TERRATEC_CINERGY_C_PCI),
 	MAKE_ENTRY(TERRATEC, CINERGY_S2_PCI_HD, &vp1041_config,
-		RC_MAP_TERRATEC_CINERGY_S2_HD),
+		   RC_MAP_TERRATEC_CINERGY_S2_HD),
 	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_1033_DVB_S, &vp1033_config,
-		NULL),
+		   NULL),
 	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_1034_DVB_S, &vp1034_config,
-		NULL),
+		   NULL),
 	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_1041_DVB_S2, &vp1041_config,
-		RC_MAP_TWINHAN_DTV_CAB_CI),
+		   RC_MAP_TWINHAN_DTV_CAB_CI),
 	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_2033_DVB_C, &vp2033_config,
-		RC_MAP_TWINHAN_DTV_CAB_CI),
+		   RC_MAP_TWINHAN_DTV_CAB_CI),
 	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_2040_DVB_C, &vp2040_config,
-		NULL),
+		   NULL),
 	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_3030_DVB_T, &vp3030_config,
-		NULL),
+		   NULL),
 	{ }
 };
 

@@ -12,17 +12,13 @@
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #ifndef __MANTIS_INPUT_H
 #define __MANTIS_INPUT_H
 
-extern int mantis_input_init(struct mantis_pci *mantis);
-extern void mantis_input_exit(struct mantis_pci *mantis);
-extern void mantis_input_process(struct mantis_pci *mantis, int scancode);
+int mantis_input_init(struct mantis_pci *mantis);
+void mantis_input_exit(struct mantis_pci *mantis);
+void mantis_input_process(struct mantis_pci *mantis, int scancode);
 
 #endif /* __MANTIS_UART_H */

@@ -12,10 +12,6 @@
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #include <media/rc-core.h>
@@ -51,9 +47,9 @@ int mantis_input_init(struct mantis_pci *mantis)
 	}
 
 	snprintf(mantis->input_name, sizeof(mantis->input_name),
-		"Mantis %s IR receiver", mantis->hwconfig->model_name);
+		 "Mantis %s IR receiver", mantis->hwconfig->model_name);
 	snprintf(mantis->input_phys, sizeof(mantis->input_phys),
-		"pci-%s/ir0", pci_name(mantis->pdev));
+		 "pci-%s/ir0", pci_name(mantis->pdev));
 
 	dev->input_name         = mantis->input_name;
 	dev->input_phys         = mantis->input_phys;

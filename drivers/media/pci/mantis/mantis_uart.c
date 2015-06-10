@@ -70,6 +70,7 @@ static void mantis_uart_read(struct mantis_pci *mantis)
 	dprintk(MANTIS_DEBUG, 1, "UART Reading ...");
 	for (i = 0; i < (config->bytes + 1); i++) {
 		int data = mmread(MANTIS_UART_RXD);
+
 		dprintk(MANTIS_DEBUG, 0, " <%02x>", data);
 
 		scancode = (scancode << 8) | (data & 0x3f);
@@ -98,8 +99,8 @@ static void mantis_uart_work(struct work_struct *work)
 		dprintk(MANTIS_ERROR, 1, "RX Fifo FULL");
 
 	/*
-	 * MANTIS_UART_RXFIFO_DATA is only set if at least config->bytes + 1 bytes
-	 * are in the FIFO.
+	 * MANTIS_UART_RXFIFO_DATA is only set if at least
+	 * config->bytes + 1 bytes are in the FIFO.
 	 */
 	while (stat & MANTIS_UART_RXFIFO_DATA) {
 		mantis_uart_read(mantis);
