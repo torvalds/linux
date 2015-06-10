@@ -26,17 +26,26 @@ enum {
 	ND_CMD_MAX_ELEM = 4,
 	ND_CMD_MAX_ENVELOPE = 16,
 	ND_CMD_ARS_STATUS_MAX = SZ_4K,
+	ND_MAX_MAPPINGS = 32,
 };
 
 extern struct attribute_group nvdimm_bus_attribute_group;
 extern struct attribute_group nvdimm_attribute_group;
 extern struct attribute_group nd_device_attribute_group;
+extern struct attribute_group nd_region_attribute_group;
+extern struct attribute_group nd_mapping_attribute_group;
 
 struct nvdimm;
 struct nvdimm_bus_descriptor;
 typedef int (*ndctl_fn)(struct nvdimm_bus_descriptor *nd_desc,
 		struct nvdimm *nvdimm, unsigned int cmd, void *buf,
 		unsigned int buf_len);
+
+struct nd_mapping {
+	struct nvdimm *nvdimm;
+	u64 start;
+	u64 size;
+};
 
 struct nvdimm_bus_descriptor {
 	const struct attribute_group **attr_groups;
@@ -52,6 +61,14 @@ struct nd_cmd_desc {
 	int out_sizes[ND_CMD_MAX_ELEM];
 };
 
+struct nd_region_desc {
+	struct resource *res;
+	struct nd_mapping *nd_mapping;
+	u16 num_mappings;
+	const struct attribute_group **attr_groups;
+	void *provider_data;
+};
+
 struct nvdimm_bus;
 struct device;
 struct nvdimm_bus *nvdimm_bus_register(struct device *parent,
@@ -59,9 +76,11 @@ struct nvdimm_bus *nvdimm_bus_register(struct device *parent,
 void nvdimm_bus_unregister(struct nvdimm_bus *nvdimm_bus);
 struct nvdimm_bus *to_nvdimm_bus(struct device *dev);
 struct nvdimm *to_nvdimm(struct device *dev);
+struct nd_region *to_nd_region(struct device *dev);
 struct nvdimm_bus_descriptor *to_nd_desc(struct nvdimm_bus *nvdimm_bus);
 const char *nvdimm_name(struct nvdimm *nvdimm);
 void *nvdimm_provider_data(struct nvdimm *nvdimm);
+void *nd_region_provider_data(struct nd_region *nd_region);
 struct nvdimm *nvdimm_create(struct nvdimm_bus *nvdimm_bus, void *provider_data,
 		const struct attribute_group **groups, unsigned long flags,
 		unsigned long *dsm_mask);
@@ -73,4 +92,10 @@ u32 nd_cmd_out_size(struct nvdimm *nvdimm, int cmd,
 		const struct nd_cmd_desc *desc, int idx, const u32 *in_field,
 		const u32 *out_field);
 int nvdimm_bus_check_dimm_count(struct nvdimm_bus *nvdimm_bus, int dimm_count);
+struct nd_region *nvdimm_pmem_region_create(struct nvdimm_bus *nvdimm_bus,
+		struct nd_region_desc *ndr_desc);
+struct nd_region *nvdimm_blk_region_create(struct nvdimm_bus *nvdimm_bus,
+		struct nd_region_desc *ndr_desc);
+struct nd_region *nvdimm_volatile_region_create(struct nvdimm_bus *nvdimm_bus,
+		struct nd_region_desc *ndr_desc);
 #endif /* __LIBNVDIMM_H__ */

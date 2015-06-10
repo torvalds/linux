@@ -12,6 +12,7 @@
  */
 #ifndef __ND_H__
 #define __ND_H__
+#include <linux/libnvdimm.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/ndctl.h>
@@ -20,6 +21,16 @@ struct nvdimm_drvdata {
 	struct device *dev;
 	struct nd_cmd_get_config_size nsarea;
 	void *data;
+};
+
+struct nd_region {
+	struct device dev;
+	u16 ndr_mappings;
+	u64 ndr_size;
+	u64 ndr_start;
+	int id;
+	void *provider_data;
+	struct nd_mapping mapping[0];
 };
 
 enum nd_async_mode {

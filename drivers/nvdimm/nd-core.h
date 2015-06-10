@@ -40,5 +40,8 @@ void nvdimm_bus_exit(void);
 int nvdimm_bus_create_ndctl(struct nvdimm_bus *nvdimm_bus);
 void nvdimm_bus_destroy_ndctl(struct nvdimm_bus *nvdimm_bus);
 void nd_synchronize(void);
+int nvdimm_bus_register_dimms(struct nvdimm_bus *nvdimm_bus);
+int nvdimm_bus_register_regions(struct nvdimm_bus *nvdimm_bus);
+int nd_match_dimm(struct device *dev, void *data);
 bool is_nvdimm(struct device *dev);
 #endif /* __ND_CORE_H__ */

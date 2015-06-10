@@ -4,3 +4,4 @@ libnvdimm-y := core.o
 libnvdimm-y += bus.o
 libnvdimm-y += dimm_devs.o
 libnvdimm-y += dimm.o
+libnvdimm-y += region_devs.o
