@@ -434,7 +434,7 @@ static int jz_nand_probe(struct platform_device *pdev)
 	mtd		= &nand->mtd;
 	chip		= &nand->chip;
 	mtd->priv	= chip;
-	mtd->owner	= THIS_MODULE;
+	mtd->dev.parent = &pdev->dev;
 	mtd->name	= "jz4740-nand";
 
 	chip->ecc.hwctl		= jz_nand_hwctl;
