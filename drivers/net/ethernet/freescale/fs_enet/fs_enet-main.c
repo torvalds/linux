@@ -86,7 +86,7 @@ static int fs_enet_rx_napi(struct napi_struct *napi, int budget)
 	struct net_device *dev = fep->ndev;
 	const struct fs_platform_info *fpi = fep->fpi;
 	cbd_t __iomem *bdp;
-	struct sk_buff *skb, *skbn, *skbt;
+	struct sk_buff *skb, *skbn;
 	int received = 0;
 	u16 pkt_len, sc;
 	int curidx;
@@ -161,10 +161,7 @@ static int fs_enet_rx_napi(struct napi_struct *napi, int budget)
 					skb_reserve(skbn, 2);	/* align IP header */
 					skb_copy_from_linear_data(skb,
 						      skbn->data, pkt_len);
-					/* swap */
-					skbt = skb;
-					skb = skbn;
-					skbn = skbt;
+					swap(skb, skbn);
 				}
 			} else {
 				skbn = netdev_alloc_skb(dev, ENET_RX_FRSIZE);
