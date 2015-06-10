@@ -561,7 +561,7 @@ int find_type_by_name(const char *name, const char *type)
 	const struct dirent *ent;
 	int number, numstrlen, ret;
 
-	FILE *nameFile;
+	FILE *namefp;
 	DIR *dp;
 	char thisname[IIO_MAX_NAME_LENGTH];
 	char *filename;
@@ -607,20 +607,20 @@ int find_type_by_name(const char *name, const char *type)
 					goto error_close_dir;
 				}
 
-				nameFile = fopen(filename, "r");
-				if (!nameFile) {
+				namefp = fopen(filename, "r");
+				if (!namefp) {
 					free(filename);
 					continue;
 				}
 
 				free(filename);
 				errno = 0;
-				if (fscanf(nameFile, "%s", thisname) != 1) {
+				if (fscanf(namefp, "%s", thisname) != 1) {
 					ret = errno ? -errno : -ENODATA;
 					goto error_close_dir;
 				}
 
-				if (fclose(nameFile)) {
+				if (fclose(namefp)) {
 					ret = -errno;
 					goto error_close_dir;
 				}

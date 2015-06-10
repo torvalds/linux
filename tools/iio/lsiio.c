@@ -61,16 +61,16 @@ static int dump_one_device(const char *dev_dir_name)
 {
 	char name[IIO_MAX_NAME_LENGTH];
 	int dev_idx;
-	int retval;
+	int ret;
 
-	retval = sscanf(dev_dir_name + strlen(iio_dir) + strlen(type_device),
-			"%i", &dev_idx);
-	if (retval != 1)
+	ret = sscanf(dev_dir_name + strlen(iio_dir) + strlen(type_device), "%i",
+		     &dev_idx);
+	if (ret != 1)
 		return -EINVAL;
 
-	retval = read_sysfs_string("name", dev_dir_name, name);
-	if (retval)
-		return retval;
+	ret = read_sysfs_string("name", dev_dir_name, name);
+	if (ret)
+		return ret;
 
 	printf("Device %03d: %s\n", dev_idx, name);
 
@@ -84,16 +84,16 @@ static int dump_one_trigger(const char *dev_dir_name)
 {
 	char name[IIO_MAX_NAME_LENGTH];
 	int dev_idx;
-	int retval;
+	int ret;
 
-	retval = sscanf(dev_dir_name + strlen(iio_dir) + strlen(type_trigger),
-			"%i", &dev_idx);
-	if (retval != 1)
+	ret = sscanf(dev_dir_name + strlen(iio_dir) + strlen(type_trigger),
+		     "%i", &dev_idx);
+	if (ret != 1)
 		return -EINVAL;
 
-	retval = read_sysfs_string("name", dev_dir_name, name);
-	if (retval)
-		return retval;
+	ret = read_sysfs_string("name", dev_dir_name, name);
+	if (ret)
+		return ret;
 
 	printf("Trigger %03d: %s\n", dev_idx, name);
 
