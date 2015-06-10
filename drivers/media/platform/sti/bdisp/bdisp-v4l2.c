@@ -1021,13 +1021,10 @@ static const struct v4l2_ioctl_ops bdisp_ioctl_ops = {
 
 static int bdisp_register_device(struct bdisp_dev *bdisp)
 {
-	struct platform_device *pdev;
 	int ret;
 
 	if (!bdisp)
 		return -ENODEV;
-
-	pdev = bdisp->pdev;
 
 	bdisp->vdev.fops        = &bdisp_fops;
 	bdisp->vdev.ioctl_ops   = &bdisp_ioctl_ops;
