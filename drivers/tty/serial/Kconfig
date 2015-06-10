@@ -1608,6 +1608,23 @@ config SERIAL_SPRD_CONSOLE
 	  with "earlycon" on the kernel command line. The console is
 	  enabled when early_param is processed.
 
+config SERIAL_STM32
+	tristate "STMicroelectronics STM32 serial port support"
+	select SERIAL_CORE
+	depends on ARM || COMPILE_TEST
+	help
+	  This driver is for the on-chip Serial Controller on
+	  STMicroelectronics STM32 MCUs.
+	  USART supports Rx & Tx functionality.
+	  It support all industry standard baud rates.
+
+	  If unsure, say N.
+
+config SERIAL_STM32_CONSOLE
+	bool "Support for console on STM32"
+	depends on SERIAL_STM32=y
+	select SERIAL_CORE_CONSOLE
+
 endmenu
 
 config SERIAL_MCTRL_GPIO
