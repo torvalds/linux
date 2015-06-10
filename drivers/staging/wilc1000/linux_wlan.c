@@ -2778,7 +2778,7 @@ late_initcall(init_wilc_driver);
 static void __exit exit_wilc_driver(void)
 {
 	int i = 0;
-	perInterface_wlan_t *nic[NUM_CONCURRENT_IFC];
+	perInterface_wlan_t *nic[NUM_CONCURRENT_IFC] = {NULL,};
 	#define CLOSE_TIMEOUT (12 * 1000)
 
 	if ((g_linux_wlan != NULL) && (((g_linux_wlan->strInterfaceInfo[0].wilc_netdev) != NULL)

@@ -829,9 +829,9 @@ static int WILC_WFI_CfgConnect(struct wiphy *wiphy, struct net_device *dev,
 	WILC_Uint32 i;
 	u8 u8security = NO_ENCRYPT;
 	AUTHTYPE_T tenuAuth_type = ANY;
-	WILC_Char *pcgroup_encrypt_val;
-	WILC_Char *pccipher_group;
-	WILC_Char *pcwpa_version;
+	WILC_Char *pcgroup_encrypt_val = NULL;
+	WILC_Char *pccipher_group = NULL;
+	WILC_Char *pcwpa_version = NULL;
 
 	struct WILC_WFI_priv *priv;
 	tstrWILC_WFIDrv *pstrWFIDrv;
