@@ -332,7 +332,7 @@ int platform_device_add(struct platform_device *pdev)
 		 */
 		ret = ida_simple_get(&platform_devid_ida, 0, 0, GFP_KERNEL);
 		if (ret < 0)
-			return ret;
+			goto err_out;
 		pdev->id = ret;
 		pdev->id_auto = true;
 		dev_set_name(&pdev->dev, "%s.%d.auto", pdev->name, pdev->id);
@@ -340,7 +340,7 @@ int platform_device_add(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < pdev->num_resources; i++) {
-		struct resource *conflict, *p, *r = &pdev->resource[i];
+		struct resource *p, *r = &pdev->resource[i];
 		unsigned long type = resource_type(r);
 
 		if (r->name == NULL)
@@ -357,14 +357,11 @@ int platform_device_add(struct platform_device *pdev)
 				p = &ioport_resource;
 		}
 
-		conflict = insert_resource_conflict(p, r);
-		if (!conflict)
-			continue;
-
-		dev_err(&pdev->dev,
-			"ignoring resource %pR (conflicts with %s %pR)\n",
-			r, conflict->name, conflict);
-		p->parent = NULL;
+		if (insert_resource(p, r)) {
+			dev_err(&pdev->dev, "failed to claim resource %d\n", i);
+			ret = -EBUSY;
+			goto failed;
+		}
 	}
 
 	pr_debug("Registering platform device '%s'. Parent at %s\n",
@@ -374,7 +371,7 @@ int platform_device_add(struct platform_device *pdev)
 	if (ret == 0)
 		return ret;
 
-	/* Failure path */
+ failed:
 	if (pdev->id_auto) {
 		ida_simple_remove(&platform_devid_ida, pdev->id);
 		pdev->id = PLATFORM_DEVID_AUTO;
@@ -384,11 +381,11 @@ int platform_device_add(struct platform_device *pdev)
 		struct resource *r = &pdev->resource[i];
 		unsigned long type = resource_type(r);
 
-		if ((type == IORESOURCE_MEM || type == IORESOURCE_IO) &&
-				r->parent)
+		if (type == IORESOURCE_MEM || type == IORESOURCE_IO)
 			release_resource(r);
 	}
 
+ err_out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(platform_device_add);
@@ -417,8 +414,7 @@ void platform_device_del(struct platform_device *pdev)
 			struct resource *r = &pdev->resource[i];
 			unsigned long type = resource_type(r);
 
-			if ((type == IORESOURCE_MEM || type == IORESOURCE_IO) &&
-					r->parent)
+			if (type == IORESOURCE_MEM || type == IORESOURCE_IO)
 				release_resource(r);
 		}
 	}
