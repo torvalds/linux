@@ -710,13 +710,13 @@ u8 *get_tim_elm(u8 *pu8msa, WILC_Uint16 u16RxLen, WILC_Uint16 u16TagParamOffset)
 	/* Search for the TIM Element Field and return if the element is found */
 	while (u16index < (u16RxLen - FCS_LEN)) {
 		if (pu8msa[u16index] == ITIM) {
-			return(&pu8msa[u16index]);
+			return &pu8msa[u16index];
 		} else {
 			u16index += (IE_HDR_LEN + pu8msa[u16index + 1]);
 		}
 	}
 
-	return(0);
+	return 0;
 }
 
 /* This function gets the current channel information from
@@ -728,7 +728,7 @@ u8 get_current_channel_802_11n(u8 *pu8msa, WILC_Uint16 u16RxLen)
 	index = TAG_PARAM_OFFSET;
 	while (index < (u16RxLen - FCS_LEN)) {
 		if (pu8msa[index] == IDSPARMS)
-			return (pu8msa[index + 2]);
+			return pu8msa[index + 2];
 		else
 			/* Increment index by length information and header */
 			index += pu8msa[index + 1] + IE_HDR_LEN;
@@ -750,7 +750,7 @@ u8 get_current_channel(u8 *pu8msa, WILC_Uint16 u16RxLen)
 #else /* FIVE_GHZ_BAND */
 	/* Extract current channel information from */
 	/* the beacon/probe response frame          */
-	return (get_current_channel_802_11n(pu8msa, u16RxLen));
+	return get_current_channel_802_11n(pu8msa, u16RxLen);
 #endif /* FIVE_GHZ_BAND */
 #else
 	return 0;
