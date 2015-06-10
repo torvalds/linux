@@ -345,6 +345,7 @@ ipt_do_table(struct sk_buff *skb,
 	do {
 		const struct xt_entry_target *t;
 		const struct xt_entry_match *ematch;
+		struct xt_counters *counter;
 
 		IP_NF_ASSERT(e);
 		if (!ip_packet_match(ip, indev, outdev,
@@ -361,7 +362,8 @@ ipt_do_table(struct sk_buff *skb,
 				goto no_match;
 		}
 
-		ADD_COUNTER(e->counters, skb->len, 1);
+		counter = xt_get_this_cpu_counter(&e->counters);
+		ADD_COUNTER(*counter, skb->len, 1);
 
 		t = ipt_get_target(e);
 		IP_NF_ASSERT(t->u.kernel.target);
@@ -665,6 +667,10 @@ find_check_entry(struct ipt_entry *e, struct net *net, const char *name,
 	if (ret)
 		return ret;
 
+	e->counters.pcnt = xt_percpu_counter_alloc();
+	if (IS_ERR_VALUE(e->counters.pcnt))
+		return -ENOMEM;
+
 	j = 0;
 	mtpar.net	= net;
 	mtpar.table     = name;
@@ -691,6 +697,7 @@ find_check_entry(struct ipt_entry *e, struct net *net, const char *name,
 	ret = check_target(e, net, name);
 	if (ret)
 		goto err;
+
 	return 0;
  err:
 	module_put(t->u.kernel.target->me);
@@ -700,6 +707,9 @@ find_check_entry(struct ipt_entry *e, struct net *net, const char *name,
 			break;
 		cleanup_match(ematch, net);
 	}
+
+	xt_percpu_counter_free(e->counters.pcnt);
+
 	return ret;
 }
 
@@ -784,6 +794,7 @@ cleanup_entry(struct ipt_entry *e, struct net *net)
 	if (par.target->destroy != NULL)
 		par.target->destroy(&par);
 	module_put(par.target->me);
+	xt_percpu_counter_free(e->counters.pcnt);
 }
 
 /* Checks and translates the user-supplied table segment (held in
@@ -888,13 +899,15 @@ get_counters(const struct xt_table_info *t,
 
 		i = 0;
 		xt_entry_foreach(iter, t->entries[cpu], t->size) {
+			struct xt_counters *tmp;
 			u64 bcnt, pcnt;
 			unsigned int start;
 
+			tmp = xt_get_per_cpu_counter(&iter->counters, cpu);
 			do {
 				start = read_seqcount_begin(s);
-				bcnt = iter->counters.bcnt;
-				pcnt = iter->counters.pcnt;
+				bcnt = tmp->bcnt;
+				pcnt = tmp->pcnt;
 			} while (read_seqcount_retry(s, start));
 
 			ADD_COUNTER(counters[i], bcnt, pcnt);
@@ -1374,7 +1387,10 @@ do_add_counters(struct net *net, const void __user *user,
 	loc_cpu_entry = private->entries[curcpu];
 	addend = xt_write_recseq_begin();
 	xt_entry_foreach(iter, loc_cpu_entry, private->size) {
-		ADD_COUNTER(iter->counters, paddc[i].bcnt, paddc[i].pcnt);
+		struct xt_counters *tmp;
+
+		tmp = xt_get_this_cpu_counter(&iter->counters);
+		ADD_COUNTER(*tmp, paddc[i].bcnt, paddc[i].pcnt);
 		++i;
 	}
 	xt_write_recseq_end(addend);
@@ -1608,6 +1624,10 @@ compat_check_entry(struct ipt_entry *e, struct net *net, const char *name)
 	unsigned int j;
 	int ret = 0;
 
+	e->counters.pcnt = xt_percpu_counter_alloc();
+	if (IS_ERR_VALUE(e->counters.pcnt))
+		return -ENOMEM;
+
 	j = 0;
 	mtpar.net	= net;
 	mtpar.table     = name;
@@ -1632,6 +1652,9 @@ compat_check_entry(struct ipt_entry *e, struct net *net, const char *name)
 			break;
 		cleanup_match(ematch, net);
 	}
+
+	xt_percpu_counter_free(e->counters.pcnt);
+
 	return ret;
 }
 
