@@ -459,7 +459,7 @@ struct clk_fixed_factor {
 	unsigned int	div;
 };
 
-extern struct clk_ops clk_fixed_factor_ops;
+extern const struct clk_ops clk_fixed_factor_ops;
 struct clk *clk_register_fixed_factor(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags,
 		unsigned int mult, unsigned int div);
