@@ -374,7 +374,7 @@ static int tcm_qla2xxx_write_pending(struct se_cmd *se_cmd)
 {
 	struct qla_tgt_cmd *cmd = container_of(se_cmd,
 				struct qla_tgt_cmd, se_cmd);
-
+	cmd->cmd_flags |= BIT_3;
 	cmd->bufflen = se_cmd->data_length;
 	cmd->dma_data_direction = target_reverse_dma_direction(se_cmd);
 
@@ -546,7 +546,6 @@ static int tcm_qla2xxx_queue_data_in(struct se_cmd *se_cmd)
 	cmd->sg_cnt = se_cmd->t_data_nents;
 	cmd->sg = se_cmd->t_data_sg;
 	cmd->offset = 0;
-	cmd->cmd_flags |= BIT_3;
 
 	cmd->prot_sg_cnt = se_cmd->t_prot_nents;
 	cmd->prot_sg = se_cmd->t_prot_sg;

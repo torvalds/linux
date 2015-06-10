@@ -961,6 +961,9 @@ struct qla_tgt_cmd {
 	 * BIT_14 - Back end data received/sent.
 	 * BIT_15 - SRR prepare ctio
 	 * BIT_16 - complete free
+	 * BIT_17 - flush - qlt_abort_cmd_on_host_reset
+	 * BIT_18 - completion w/abort status
+	 * BIT_19 - completion w/unknown status
 	 */
 	uint32_t cmd_flags;
 };
