@@ -439,7 +439,7 @@ static int au1550nd_probe(struct platform_device *pdev)
 
 	this = &ctx->chip;
 	ctx->info.priv = this;
-	ctx->info.owner = THIS_MODULE;
+	ctx->info.dev.parent = &pdev->dev;
 
 	/* figure out which CS# r->start belongs to */
 	cs = find_nand_cs(r->start);
