@@ -18,6 +18,19 @@
 #ifndef _NET_BATMAN_ADV_NETWORK_CODING_H_
 #define _NET_BATMAN_ADV_NETWORK_CODING_H_
 
+#include "main.h"
+
+#include <linux/types.h>
+
+struct batadv_nc_node;
+struct batadv_neigh_node;
+struct batadv_ogm_packet;
+struct batadv_orig_node;
+struct batadv_priv;
+struct net_device;
+struct seq_file;
+struct sk_buff;
+
 #ifdef CONFIG_BATMAN_ADV_NC
 
 void batadv_nc_status_update(struct net_device *net_dev);

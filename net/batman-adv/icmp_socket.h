@@ -18,6 +18,13 @@
 #ifndef _NET_BATMAN_ADV_ICMP_SOCKET_H_
 #define _NET_BATMAN_ADV_ICMP_SOCKET_H_
 
+#include "main.h"
+
+#include <linux/types.h>
+
+struct batadv_icmp_header;
+struct batadv_priv;
+
 #define BATADV_ICMP_SOCKET "socket"
 
 void batadv_socket_init(void);

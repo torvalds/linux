@@ -18,6 +18,15 @@
 #ifndef _NET_BATMAN_ADV_FRAGMENTATION_H_
 #define _NET_BATMAN_ADV_FRAGMENTATION_H_
 
+#include "main.h"
+
+#include <linux/compiler.h>
+#include <linux/list.h>
+#include <linux/stddef.h>
+#include <linux/types.h>
+
+struct sk_buff;
+
 void batadv_frag_purge_orig(struct batadv_orig_node *orig,
 			    bool (*check_cb)(struct batadv_frag_table_entry *));
 bool batadv_frag_skb_fwd(struct sk_buff *skb,

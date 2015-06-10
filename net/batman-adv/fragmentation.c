@@ -15,12 +15,28 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
 #include "fragmentation.h"
-#include "send.h"
-#include "originator.h"
-#include "routing.h"
+#include "main.h"
+
+#include <linux/atomic.h>
+#include <linux/byteorder/generic.h>
+#include <linux/etherdevice.h>
+#include <linux/fs.h>
+#include <linux/if_ether.h>
+#include <linux/jiffies.h>
+#include <linux/kernel.h>
+#include <linux/netdevice.h>
+#include <linux/pkt_sched.h>
+#include <linux/skbuff.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/string.h>
+
 #include "hard-interface.h"
+#include "originator.h"
+#include "packet.h"
+#include "routing.h"
+#include "send.h"
 #include "soft-interface.h"
 
 /**

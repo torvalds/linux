@@ -18,6 +18,13 @@
 #ifndef _NET_BATMAN_ADV_DEBUGFS_H_
 #define _NET_BATMAN_ADV_DEBUGFS_H_
 
+#include "main.h"
+
+#include <linux/kconfig.h>
+
+struct batadv_hard_iface;
+struct net_device;
+
 #define BATADV_DEBUGFS_SUBDIR "batman_adv"
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)

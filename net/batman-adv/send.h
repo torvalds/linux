@@ -18,6 +18,19 @@
 #ifndef _NET_BATMAN_ADV_SEND_H_
 #define _NET_BATMAN_ADV_SEND_H_
 
+#include "main.h"
+
+#include <linux/compiler.h>
+#include <linux/types.h>
+
+#include "packet.h"
+
+struct batadv_hard_iface;
+struct batadv_orig_node;
+struct batadv_priv;
+struct sk_buff;
+struct work_struct;
+
 int batadv_send_skb_packet(struct sk_buff *skb,
 			   struct batadv_hard_iface *hard_iface,
 			   const uint8_t *dst_addr);

@@ -18,6 +18,15 @@
 #ifndef _NET_BATMAN_ADV_TRANSLATION_TABLE_H_
 #define _NET_BATMAN_ADV_TRANSLATION_TABLE_H_
 
+#include "main.h"
+
+#include <linux/types.h>
+
+struct batadv_orig_node;
+struct batadv_priv;
+struct net_device;
+struct seq_file;
+
 int batadv_tt_init(struct batadv_priv *bat_priv);
 bool batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 			 unsigned short vid, int ifindex, uint32_t mark);
