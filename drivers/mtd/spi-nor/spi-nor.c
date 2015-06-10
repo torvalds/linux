@@ -978,6 +978,14 @@ static int set_ddr_quad_mode(struct spi_nor *nor, struct flash_info *info)
 			return status;
 		}
 		return status;
+	case CFI_MFR_MACRONIX:
+		status = macronix_quad_enable(nor);
+		if (status) {
+			dev_err(nor->dev,
+				"Macronix DDR quad-read not enabled\n");
+			return status;
+		}
+		return status;
 	case CFI_MFR_ST: /* Micron, actually */
 		/* DTR quad read works with the Extended SPI protocol. */
 		return 0;
@@ -1181,6 +1189,8 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 			nor->read_opcode = SPINOR_OP_READ_1_4_4_D;
 		} else if (JEDEC_MFR(info) == CFI_MFR_ST) {
 			nor->read_opcode = SPINOR_OP_READ_1_1_4_D;
+		} else if (JEDEC_MFR(info) == CFI_MFR_MACRONIX) {
+			nor->read_opcode = SPINOR_OP_READ_1_4_4_D;
 		} else {
 			dev_err(dev, "DDR Quad Read is not supported.\n");
 			return -EINVAL;

@@ -39,6 +39,8 @@
 		#size-cells = <1>;
 		compatible = "macronix,mx25l51245g";
 		spi-max-frequency = <29000000>;
+		/* take off one dummy cycle */
+		spi-nor,ddr-quad-read-dummy = <5>;
 		reg = <0>;
 	};
 };
