@@ -666,7 +666,7 @@ inline struct sk_buff *ieee80211_authentication_req(struct ieee80211_network *be
 	else
 		auth->header.frame_ctl = cpu_to_le16(IEEE80211_STYPE_AUTH);
 
-	auth->header.duration_id = 0x013a; //FIXME
+	auth->header.duration_id = cpu_to_le16(0x013a);
 
 	memcpy(auth->header.addr1, beacon->bssid, ETH_ALEN);
 	memcpy(auth->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
@@ -676,7 +676,7 @@ inline struct sk_buff *ieee80211_authentication_req(struct ieee80211_network *be
 	if(ieee->auth_mode == 0)
 		auth->algorithm = WLAN_AUTH_OPEN;
 	else if(ieee->auth_mode == 1)
-		auth->algorithm = WLAN_AUTH_SHARED_KEY;
+		auth->algorithm = cpu_to_le16(WLAN_AUTH_SHARED_KEY);
 	else if(ieee->auth_mode == 2)
 		auth->algorithm = WLAN_AUTH_OPEN;//0x80;
 	printk("=================>%s():auth->algorithm is %d\n",__func__,auth->algorithm);
@@ -1087,7 +1087,7 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 
 
 	hdr->header.frame_ctl = IEEE80211_STYPE_ASSOC_REQ;
-	hdr->header.duration_id= 37; //FIXME
+	hdr->header.duration_id = cpu_to_le16(37);
 	memcpy(hdr->header.addr1, beacon->bssid, ETH_ALEN);
 	memcpy(hdr->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
 	memcpy(hdr->header.addr3, beacon->bssid, ETH_ALEN);
@@ -1106,7 +1106,7 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 	if (wmm_info_len) //QOS
 		hdr->capability |= cpu_to_le16(WLAN_CAPABILITY_QOS);
 
-	hdr->listen_interval = 0xa; //FIXME
+	hdr->listen_interval = cpu_to_le16(0xa);
 
 	hdr->info_element[0].id = MFIE_TYPE_SSID;
 
@@ -3127,7 +3127,7 @@ inline struct sk_buff *ieee80211_disassociate_skb(
 	memcpy(disass->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
 	memcpy(disass->header.addr3, beacon->bssid, ETH_ALEN);
 
-	disass->reason = asRsn;
+	disass->reason = cpu_to_le16(asRsn);
 	return skb;
 }
 
