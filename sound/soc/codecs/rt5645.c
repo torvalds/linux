@@ -349,6 +349,7 @@ static bool rt5645_readable_register(struct device *dev, unsigned int reg)
 	case RT5645_TDM_CTRL_1:
 	case RT5645_TDM_CTRL_2:
 	case RT5645_TDM_CTRL_3:
+	case RT5650_TDM_CTRL_4:
 	case RT5645_GLB_CLK:
 	case RT5645_PLL_CTRL1:
 	case RT5645_PLL_CTRL2:
