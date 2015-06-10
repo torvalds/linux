@@ -788,15 +788,16 @@ static struct iommu_group *iommu_group_get_for_pci_dev(struct pci_dev *pdev)
 
 	/* No shared group found, allocate new */
 	group = iommu_group_alloc();
-	if (group) {
-		/*
-		 * Try to allocate a default domain - needs support from the
-		 * IOMMU driver.
-		 */
-		group->default_domain = __iommu_domain_alloc(pdev->dev.bus,
-							     IOMMU_DOMAIN_DMA);
-		group->domain = group->default_domain;
-	}
+	if (IS_ERR(group))
+		return NULL;
+
+	/*
+	 * Try to allocate a default domain - needs support from the
+	 * IOMMU driver.
+	 */
+	group->default_domain = __iommu_domain_alloc(pdev->dev.bus,
+						     IOMMU_DOMAIN_DMA);
+	group->domain = group->default_domain;
 
 	return group;
 }
@@ -1548,8 +1549,8 @@ int iommu_request_dm_for_dev(struct device *dev)
 
 	/* Device must already be in a group before calling this function */
 	group = iommu_group_get_for_dev(dev);
-	if (!group)
-		return -EINVAL;
+	if (IS_ERR(group))
+		return PTR_ERR(group);
 
 	mutex_lock(&group->mutex);
 
