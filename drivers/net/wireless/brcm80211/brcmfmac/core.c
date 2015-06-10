@@ -867,8 +867,6 @@ static void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx)
 		}
 		/* unregister will take care of freeing it */
 		unregister_netdev(ifp->ndev);
-	} else {
-		kfree(ifp);
 	}
 }
 

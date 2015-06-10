@@ -2238,6 +2238,7 @@ static void brcmf_p2p_delete_p2pdev(struct brcmf_p2p_info *p2p,
 {
 	cfg80211_unregister_wdev(&vif->wdev);
 	p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif = NULL;
+	kfree(vif->ifp);
 	brcmf_free_vif(vif);
 }
 
@@ -2364,6 +2365,8 @@ int brcmf_p2p_del_vif(struct wiphy *wiphy, struct wireless_dev *wdev)
 		break;
 
 	case NL80211_IFTYPE_P2P_DEVICE:
+		brcmf_p2p_cancel_remain_on_channel(vif->ifp);
+		brcmf_p2p_deinit_discovery(p2p);
 		brcmf_p2p_delete_p2pdev(p2p, vif);
 		return 0;
 	default:
