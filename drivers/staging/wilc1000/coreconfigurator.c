@@ -40,11 +40,12 @@
 /*****************************************************************************/
 
 /* Basic Frame Type Codes (2-bit) */
-typedef enum {FRAME_TYPE_CONTROL = 0x04,
-	      FRAME_TYPE_DATA        = 0x08,
-	      FRAME_TYPE_MANAGEMENT            = 0x00,
-	      FRAME_TYPE_RESERVED              = 0x0C,
-	      FRAME_TYPE_FORCE_32BIT  = 0xFFFFFFFF
+typedef enum {
+	FRAME_TYPE_CONTROL     = 0x04,
+	FRAME_TYPE_DATA        = 0x08,
+	FRAME_TYPE_MANAGEMENT  = 0x00,
+	FRAME_TYPE_RESERVED    = 0x0C,
+	FRAME_TYPE_FORCE_32BIT = 0xFFFFFFFF
 } tenuBasicFrmType;
 
 /* Frame Type and Subtype Codes (6-bit) */
@@ -188,7 +189,7 @@ static tstrWID gastrWIDs[] = {
 	{WID_QOS_ENABLE,                WID_CHAR},
 	{WID_11I_MODE,                  WID_CHAR},
 	{WID_CURRENT_TX_RATE,           WID_CHAR},
-	{WID_LINKSPEED,           WID_CHAR},
+	{WID_LINKSPEED,                 WID_CHAR},
 	{WID_RTS_THRESHOLD,             WID_SHORT},
 	{WID_FRAG_THRESHOLD,            WID_SHORT},
 	{WID_SSID,                      WID_STR},
@@ -223,14 +224,14 @@ static tstrWID gastrWIDs[] = {
 	{WID_MEMORY_ACCESS_32BIT,       WID_INT},
 	{WID_MEMORY_ACCESS_16BIT,       WID_SHORT},
 	{WID_MEMORY_ACCESS_8BIT,        WID_CHAR},
-	{WID_SITE_SURVEY_RESULTS,		WID_STR},
-	{WID_PMKID_INFO,				WID_STR},
-	{WID_ASSOC_RES_INFO,			WID_STR},
-	{WID_MANUFACTURER,				WID_STR}, /* 4 Wids added for the CAPI tool*/
-	{WID_MODEL_NAME,				WID_STR},
-	{WID_MODEL_NUM,					WID_STR},
-	{WID_DEVICE_NAME,				WID_STR},
-	{WID_SSID_PROBE_REQ, WID_STR},
+	{WID_SITE_SURVEY_RESULTS,       WID_STR},
+	{WID_PMKID_INFO,                WID_STR},
+	{WID_ASSOC_RES_INFO,            WID_STR},
+	{WID_MANUFACTURER,              WID_STR}, /* 4 Wids added for the CAPI tool*/
+	{WID_MODEL_NAME,                WID_STR},
+	{WID_MODEL_NUM,                 WID_STR},
+	{WID_DEVICE_NAME,               WID_STR},
+	{WID_SSID_PROBE_REQ,            WID_STR},
 
 #ifdef MAC_802_11N
 	{WID_11N_ENABLE,                WID_CHAR},

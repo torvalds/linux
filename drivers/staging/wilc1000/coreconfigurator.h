@@ -19,9 +19,9 @@
 /*****************************************************************************/
 /* Number of WID Options Supported */
 #define NUM_BASIC_SWITCHES      45
-#define NUM_FHSS_SWITCHES        0
+#define NUM_FHSS_SWITCHES       0
 
-#define NUM_RSSI	5
+#define NUM_RSSI                5
 
 #ifdef MAC_802_11N
 #define NUM_11N_BASIC_SWITCHES  25
@@ -51,14 +51,14 @@ extern WILC_Uint16 g_num_total_switches;
 
 #define MAX_PACKET_BUFF_SIZE 1596
 
-#define MAX_STRING_LEN					256
-#define MAX_SURVEY_RESULT_FRAG_SIZE MAX_STRING_LEN
-#define SURVEY_RESULT_LENGTH		44
-#define MAX_ASSOC_RESP_FRAME_SIZE MAX_STRING_LEN
+#define MAX_STRING_LEN               256
+#define MAX_SURVEY_RESULT_FRAG_SIZE  MAX_STRING_LEN
+#define SURVEY_RESULT_LENGTH         44
+#define MAX_ASSOC_RESP_FRAME_SIZE    MAX_STRING_LEN
 
-#define STATUS_MSG_LEN			12
-#define MAC_CONNECTED			1
-#define MAC_DISCONNECTED		0
+#define STATUS_MSG_LEN               12
+#define MAC_CONNECTED                1
+#define MAC_DISCONNECTED             0
 
 
 
@@ -327,10 +327,10 @@ typedef enum {
 	WID_SUPP_PASSWORD                  = 0x3011,
 	WID_SITE_SURVEY_RESULTS            = 0x3012,
 	WID_RX_POWER_LEVEL                 = 0x3013,
-	WID_MANUFACTURER                   = 0x3026,             /*Added for CAPI tool */
-	WID_MODEL_NAME                                         = 0x3027,             /*Added for CAPI tool */
-	WID_MODEL_NUM                      = 0x3028,             /*Added for CAPI tool */
-	WID_DEVICE_NAME                                        = 0x3029,             /*Added for CAPI tool */
+	WID_MANUFACTURER                   = 0x3026,    /*Added for CAPI tool */
+	WID_MODEL_NAME                     = 0x3027,    /*Added for CAPI tool */
+	WID_MODEL_NUM                      = 0x3028,    /*Added for CAPI tool */
+	WID_DEVICE_NAME                    = 0x3029,    /*Added for CAPI tool */
 
 	WID_ASSOC_RES_INFO                 = 0x3020,
 
@@ -362,9 +362,9 @@ typedef enum {
 	WID_HUT_LOG_STATS                  = 0x4083,
 
 	/*BugID_3746 WID to add IE to be added in next probe request*/
-	WID_INFO_ELEMENT_PROBE	= 0x4085,
+	WID_INFO_ELEMENT_PROBE             = 0x4085,
 	/*BugID_3746 WID to add IE to be added in next associate request*/
-	WID_INFO_ELEMENT_ASSOCIATE	= 0x4086,
+	WID_INFO_ELEMENT_ASSOCIATE         = 0x4086,
 
 	/* Miscellaneous WIDs */
 	WID_ALL                            = 0x7FFE,
@@ -374,22 +374,22 @@ typedef enum {
 
 /* Status Codes for Authentication and Association Frames */
 typedef enum {
-	SUCCESSFUL_STATUSCODE	= 0,
-	UNSPEC_FAIL				  = 1,
-	UNSUP_CAP				  = 10,
-	REASOC_NO_ASOC				  = 11,
-	FAIL_OTHER				  = 12,
-	UNSUPT_ALG				  = 13,
-	AUTH_SEQ_FAIL			  = 14,
-	CHLNG_FAIL				  = 15,
-	AUTH_TIMEOUT			  = 16,
-	AP_FULL					  = 17,
-	UNSUP_RATE				  = 18,
-	SHORT_PREAMBLE_UNSUP	  = 19,
-	PBCC_UNSUP				  = 20,
-	CHANNEL_AGIL_UNSUP	  = 21,
-	SHORT_SLOT_UNSUP		  = 25,
-	OFDM_DSSS_UNSUP			  = 26,
+	SUCCESSFUL_STATUSCODE    = 0,
+	UNSPEC_FAIL              = 1,
+	UNSUP_CAP                = 10,
+	REASOC_NO_ASOC           = 11,
+	FAIL_OTHER               = 12,
+	UNSUPT_ALG               = 13,
+	AUTH_SEQ_FAIL            = 14,
+	CHLNG_FAIL               = 15,
+	AUTH_TIMEOUT             = 16,
+	AP_FULL                  = 17,
+	UNSUP_RATE               = 18,
+	SHORT_PREAMBLE_UNSUP     = 19,
+	PBCC_UNSUP               = 20,
+	CHANNEL_AGIL_UNSUP       = 21,
+	SHORT_SLOT_UNSUP         = 25,
+	OFDM_DSSS_UNSUP          = 26,
 	CONNECT_STS_FORCE_16_BIT = 0xFFFF
 } tenuConnectSts;
 
