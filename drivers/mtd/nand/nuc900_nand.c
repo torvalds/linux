@@ -250,7 +250,7 @@ static int nuc900_nand_probe(struct platform_device *pdev)
 	chip = &(nuc900_nand->chip);
 
 	nuc900_nand->mtd.priv	= chip;
-	nuc900_nand->mtd.owner	= THIS_MODULE;
+	nuc900_nand->mtd.dev.parent = &pdev->dev;
 	spin_lock_init(&nuc900_nand->lock);
 
 	nuc900_nand->clk = devm_clk_get(&pdev->dev, NULL);
