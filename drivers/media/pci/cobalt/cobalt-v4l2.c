@@ -327,7 +327,7 @@ static int cobalt_start_streaming(struct vb2_queue *q, unsigned int count)
 	iowrite32(clk_freq / 1000000, &clkloss->ref_clk_cnt_val);
 	/* The lower bound for the clock frequency is 0.5% lower as is
 	 * allowed by the spec */
-	iowrite32((((u64)bt->pixelclock * 995) / 1000) / 1000000,
+	iowrite32(div_u64(bt->pixelclock * 995, 1000000000),
 		  &clkloss->test_clk_cnt_val);
 	/* will be enabled after the first frame has been received */
 	iowrite32(bt->width * bt->height, &fw->active_length);

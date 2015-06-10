@@ -240,8 +240,8 @@ static const struct multiplier multipliers[] = {
 bool cobalt_cpld_set_freq(struct cobalt *cobalt, unsigned f_out)
 {
 	const unsigned f_xtal = 39170000;	/* xtal for si598 */
-	unsigned long long dco;
-	unsigned long long rfreq;
+	u64 dco;
+	u64 rfreq;
 	unsigned delta = 0xffffffff;
 	unsigned i_best = 0;
 	unsigned i;
@@ -253,12 +253,12 @@ bool cobalt_cpld_set_freq(struct cobalt *cobalt, unsigned f_out)
 
 	for (i = 0; i < ARRAY_SIZE(multipliers); i++) {
 		unsigned mult = multipliers[i].mult;
-		unsigned d;
+		u32 d;
 
-		dco = (unsigned long long)f_out * mult;
+		dco = (u64)f_out * mult;
 		if (dco < DCO_MIN || dco > DCO_MAX)
 			continue;
-		d = ((dco << 28) + f_xtal / 2) % f_xtal;
+		div_u64_rem((dco << 28) + f_xtal / 2, f_xtal, &d);
 		if (d < delta) {
 			found = 1;
 			i_best = i;
@@ -267,10 +267,10 @@ bool cobalt_cpld_set_freq(struct cobalt *cobalt, unsigned f_out)
 	}
 	if (!found)
 		return false;
-	dco = (unsigned long long)f_out * multipliers[i_best].mult;
+	dco = (u64)f_out * multipliers[i_best].mult;
 	n1 = multipliers[i_best].n1 - 1;
 	hsdiv = multipliers[i_best].hsdiv - 4;
-	rfreq = (dco << 28) / f_xtal;
+	rfreq = div_u64(dco << 28, f_xtal);
 
 	clock_ctrl = cpld_read(cobalt, SI570_CLOCK_CTRL);
 	clock_ctrl |= S01755_REG_CLOCK_CTRL_BITMAP_CLKHSMA_FPGA_CTRL;
