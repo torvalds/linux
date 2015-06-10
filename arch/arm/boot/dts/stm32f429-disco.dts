@@ -66,6 +66,10 @@
 	};
 };
 
+&clk_hse {
+	clock-frequency = <8000000>;
+};
+
 &usart1 {
 	status = "okay";
 };
