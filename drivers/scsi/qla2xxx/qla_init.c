@@ -2924,6 +2924,7 @@ qla2x00_rport_del(void *data)
 	struct fc_rport *rport;
 	scsi_qla_host_t *vha = fcport->vha;
 	unsigned long flags;
+	unsigned long vha_flags;
 
 	spin_lock_irqsave(fcport->vha->host->host_lock, flags);
 	rport = fcport->drport ? fcport->drport: fcport->rport;
@@ -2935,7 +2936,9 @@ qla2x00_rport_del(void *data)
 		 * Release the target mode FC NEXUS in qla_target.c code
 		 * if target mod is enabled.
 		 */
+		spin_lock_irqsave(&vha->hw->hardware_lock, vha_flags);
 		qlt_fc_port_deleted(vha, fcport);
+		spin_unlock_irqrestore(&vha->hw->hardware_lock, vha_flags);
 	}
 }
 
@@ -3303,6 +3306,7 @@ qla2x00_reg_remote_port(scsi_qla_host_t *vha, fc_port_t *fcport)
 	 * Create target mode FC NEXUS in qla_target.c if target mode is
 	 * enabled..
 	 */
+
 	qlt_fc_port_added(vha, fcport);
 
 	spin_lock_irqsave(fcport->vha->host->host_lock, flags);
