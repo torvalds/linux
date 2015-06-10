@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2012 Altera Corporation
+ *  Copyright (C) 2012-2015 Altera Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 
 void __iomem *sys_manager_base_addr;
 void __iomem *rst_manager_base_addr;
+void __iomem *sdr_ctl_base_addr;
 unsigned long socfpga_cpu1start_addr;
 
 void __init socfpga_sysmgr_init(void)
@@ -49,6 +50,9 @@ void __init socfpga_sysmgr_init(void)
 
 	np = of_find_compatible_node(NULL, NULL, "altr,rst-mgr");
 	rst_manager_base_addr = of_iomap(np, 0);
+
+	np = of_find_compatible_node(NULL, NULL, "altr,sdr-ctl");
+	sdr_ctl_base_addr = of_iomap(np, 0);
 }
 
 static void __init socfpga_init_irq(void)
@@ -78,7 +82,6 @@ static const char *altera_dt_match[] = {
 DT_MACHINE_START(SOCFPGA, "Altera SOCFPGA")
 	.l2c_aux_val	= 0,
 	.l2c_aux_mask	= ~0,
-	.smp		= smp_ops(socfpga_smp_ops),
 	.init_irq	= socfpga_init_irq,
 	.restart	= socfpga_cyclone5_restart,
 	.dt_compat	= altera_dt_match,

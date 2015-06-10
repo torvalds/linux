@@ -54,6 +54,29 @@ static int socfpga_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	return 0;
 }
 
+static int socfpga_a10_boot_secondary(unsigned int cpu, struct task_struct *idle)
+{
+	int trampoline_size = &secondary_trampoline_end - &secondary_trampoline;
+
+	if (socfpga_cpu1start_addr) {
+		writel(RSTMGR_MPUMODRST_CPU1, rst_manager_base_addr +
+		       SOCFPGA_A10_RSTMGR_MODMPURST);
+		memcpy(phys_to_virt(0), &secondary_trampoline, trampoline_size);
+
+		writel(virt_to_phys(socfpga_secondary_startup),
+		       sys_manager_base_addr + (socfpga_cpu1start_addr & 0x00000fff));
+
+		flush_cache_all();
+		smp_wmb();
+		outer_clean_range(0, trampoline_size);
+
+		/* This will release CPU #1 out of reset. */
+		writel(0, rst_manager_base_addr + SOCFPGA_A10_RSTMGR_MODMPURST);
+	}
+
+	return 0;
+}
+
 static void __init socfpga_smp_prepare_cpus(unsigned int max_cpus)
 {
 	struct device_node *np;
@@ -83,10 +106,21 @@ static void socfpga_cpu_die(unsigned int cpu)
 		cpu_do_idle();
 }
 
-struct smp_operations socfpga_smp_ops __initdata = {
+static struct smp_operations socfpga_smp_ops __initdata = {
 	.smp_prepare_cpus	= socfpga_smp_prepare_cpus,
 	.smp_boot_secondary	= socfpga_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_die		= socfpga_cpu_die,
 #endif
 };
+
+static struct smp_operations socfpga_a10_smp_ops __initdata = {
+	.smp_prepare_cpus	= socfpga_smp_prepare_cpus,
+	.smp_boot_secondary	= socfpga_a10_boot_secondary,
+#ifdef CONFIG_HOTPLUG_CPU
+	.cpu_die		= socfpga_cpu_die,
+#endif
+};
+
+CPU_METHOD_OF_DECLARE(socfpga_smp, "altr,socfpga-smp", &socfpga_smp_ops);
+CPU_METHOD_OF_DECLARE(socfpga_a10_smp, "altr,socfpga-a10-smp", &socfpga_a10_smp_ops);
