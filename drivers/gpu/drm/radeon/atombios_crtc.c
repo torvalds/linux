@@ -1798,9 +1798,7 @@ static int radeon_get_shared_nondp_ppll(struct drm_crtc *crtc)
 			if ((crtc->mode.clock == test_crtc->mode.clock) &&
 			    (adjusted_clock == test_adjusted_clock) &&
 			    (radeon_crtc->ss_enabled == test_radeon_crtc->ss_enabled) &&
-			    (test_radeon_crtc->pll_id != ATOM_PPLL_INVALID) &&
-			    (drm_detect_monitor_audio(radeon_connector_edid(test_radeon_crtc->connector)) ==
-			     drm_detect_monitor_audio(radeon_connector_edid(radeon_crtc->connector))))
+			    (test_radeon_crtc->pll_id != ATOM_PPLL_INVALID))
 				return test_radeon_crtc->pll_id;
 		}
 	}
