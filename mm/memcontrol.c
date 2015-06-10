@@ -2323,6 +2323,8 @@ done_restock:
 	css_get_many(&memcg->css, batch);
 	if (batch > nr_pages)
 		refill_stock(memcg, batch - nr_pages);
+	if (!(gfp_mask & __GFP_WAIT))
+		goto done;
 	/*
 	 * If the hierarchy is above the normal consumption range,
 	 * make the charging task trim their excess contribution.
