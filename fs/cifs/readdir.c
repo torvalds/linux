@@ -90,6 +90,8 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 	if (dentry) {
 		inode = d_inode(dentry);
 		if (inode) {
+			if (d_mountpoint(dentry))
+				goto out;
 			/*
 			 * If we're generating inode numbers, then we don't
 			 * want to clobber the existing one with the one that

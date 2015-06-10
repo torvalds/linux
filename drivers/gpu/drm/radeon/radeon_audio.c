@@ -102,7 +102,6 @@ static void radeon_audio_dp_mode_set(struct drm_encoder *encoder,
 void r600_hdmi_enable(struct drm_encoder *encoder, bool enable);
 void evergreen_hdmi_enable(struct drm_encoder *encoder, bool enable);
 void evergreen_dp_enable(struct drm_encoder *encoder, bool enable);
-void dce6_dp_enable(struct drm_encoder *encoder, bool enable);
 
 static const u32 pin_offsets[7] =
 {
@@ -240,7 +239,7 @@ static struct radeon_audio_funcs dce6_dp_funcs = {
 	.set_avi_packet = evergreen_set_avi_packet,
 	.set_audio_packet = dce4_set_audio_packet,
 	.mode_set = radeon_audio_dp_mode_set,
-	.dpms = dce6_dp_enable,
+	.dpms = evergreen_dp_enable,
 };
 
 static void radeon_audio_interface_init(struct radeon_device *rdev)
@@ -462,6 +461,10 @@ void radeon_audio_detect(struct drm_connector *connector,
 		return;
 
 	rdev = connector->encoder->dev->dev_private;
+
+	if (!radeon_audio_chipset_supported(rdev))
+		return;
+
 	radeon_encoder = to_radeon_encoder(connector->encoder);
 	dig = radeon_encoder->enc_priv;
 

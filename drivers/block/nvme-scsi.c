@@ -944,7 +944,8 @@ static int nvme_trans_ext_inq_page(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 static int nvme_trans_bdev_limits_page(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 					u8 *inq_response, int alloc_len)
 {
-	__be32 max_sectors = cpu_to_be32(queue_max_hw_sectors(ns->queue));
+	__be32 max_sectors = cpu_to_be32(
+		nvme_block_nr(ns, queue_max_hw_sectors(ns->queue)));
 	__be32 max_discard = cpu_to_be32(ns->queue->limits.max_discard_sectors);
 	__be32 discard_desc_count = cpu_to_be32(0x100);
 
@@ -2256,7 +2257,8 @@ static int nvme_trans_inquiry(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	page_code = GET_INQ_PAGE_CODE(cmd);
 	alloc_len = GET_INQ_ALLOC_LENGTH(cmd);
 
-	inq_response = kmalloc(alloc_len, GFP_KERNEL);
+	inq_response = kmalloc(max(alloc_len, STANDARD_INQUIRY_LENGTH),
+				GFP_KERNEL);
 	if (inq_response == NULL) {
 		res = -ENOMEM;
 		goto out_mem;

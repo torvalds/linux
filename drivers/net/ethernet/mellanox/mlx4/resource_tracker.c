@@ -2845,7 +2845,7 @@ int mlx4_SW2HW_EQ_wrapper(struct mlx4_dev *dev, int slave,
 {
 	int err;
 	int eqn = vhcr->in_modifier;
-	int res_id = (slave << 8) | eqn;
+	int res_id = (slave << 10) | eqn;
 	struct mlx4_eq_context *eqc = inbox->buf;
 	int mtt_base = eq_get_mtt_addr(eqc) / dev->caps.mtt_entry_sz;
 	int mtt_size = eq_get_mtt_size(eqc);
@@ -3051,7 +3051,7 @@ int mlx4_HW2SW_EQ_wrapper(struct mlx4_dev *dev, int slave,
 			  struct mlx4_cmd_info *cmd)
 {
 	int eqn = vhcr->in_modifier;
-	int res_id = eqn | (slave << 8);
+	int res_id = eqn | (slave << 10);
 	struct res_eq *eq;
 	int err;
 
@@ -3108,7 +3108,7 @@ int mlx4_GEN_EQE(struct mlx4_dev *dev, int slave, struct mlx4_eqe *eqe)
 		return 0;
 
 	mutex_lock(&priv->mfunc.master.gen_eqe_mutex[slave]);
-	res_id = (slave << 8) | event_eq->eqn;
+	res_id = (slave << 10) | event_eq->eqn;
 	err = get_res(dev, slave, res_id, RES_EQ, &req);
 	if (err)
 		goto unlock;
@@ -3131,7 +3131,7 @@ int mlx4_GEN_EQE(struct mlx4_dev *dev, int slave, struct mlx4_eqe *eqe)
 
 	memcpy(mailbox->buf, (u8 *) eqe, 28);
 
-	in_modifier = (slave & 0xff) | ((event_eq->eqn & 0xff) << 16);
+	in_modifier = (slave & 0xff) | ((event_eq->eqn & 0x3ff) << 16);
 
 	err = mlx4_cmd(dev, mailbox->dma, in_modifier, 0,
 		       MLX4_CMD_GEN_EQE, MLX4_CMD_TIME_CLASS_B,
@@ -3157,7 +3157,7 @@ int mlx4_QUERY_EQ_wrapper(struct mlx4_dev *dev, int slave,
 			  struct mlx4_cmd_info *cmd)
 {
 	int eqn = vhcr->in_modifier;
-	int res_id = eqn | (slave << 8);
+	int res_id = eqn | (slave << 10);
 	struct res_eq *eq;
 	int err;
 
@@ -3187,7 +3187,7 @@ int mlx4_SW2HW_CQ_wrapper(struct mlx4_dev *dev, int slave,
 	int cqn = vhcr->in_modifier;
 	struct mlx4_cq_context *cqc = inbox->buf;
 	int mtt_base = cq_get_mtt_addr(cqc) / dev->caps.mtt_entry_sz;
-	struct res_cq *cq;
+	struct res_cq *cq = NULL;
 	struct res_mtt *mtt;
 
 	err = cq_res_start_move_to(dev, slave, cqn, RES_CQ_HW, &cq);
@@ -3223,7 +3223,7 @@ int mlx4_HW2SW_CQ_wrapper(struct mlx4_dev *dev, int slave,
 {
 	int err;
 	int cqn = vhcr->in_modifier;
-	struct res_cq *cq;
+	struct res_cq *cq = NULL;
 
 	err = cq_res_start_move_to(dev, slave, cqn, RES_CQ_ALLOCATED, &cq);
 	if (err)
@@ -3362,7 +3362,7 @@ int mlx4_SW2HW_SRQ_wrapper(struct mlx4_dev *dev, int slave,
 	int err;
 	int srqn = vhcr->in_modifier;
 	struct res_mtt *mtt;
-	struct res_srq *srq;
+	struct res_srq *srq = NULL;
 	struct mlx4_srq_context *srqc = inbox->buf;
 	int mtt_base = srq_get_mtt_addr(srqc) / dev->caps.mtt_entry_sz;
 
@@ -3406,7 +3406,7 @@ int mlx4_HW2SW_SRQ_wrapper(struct mlx4_dev *dev, int slave,
 {
 	int err;
 	int srqn = vhcr->in_modifier;
-	struct res_srq *srq;
+	struct res_srq *srq = NULL;
 
 	err = srq_res_start_move_to(dev, slave, srqn, RES_SRQ_ALLOCATED, &srq);
 	if (err)
@@ -4714,13 +4714,13 @@ static void rem_slave_eqs(struct mlx4_dev *dev, int slave)
 					break;
 
 				case RES_EQ_HW:
-					err = mlx4_cmd(dev, slave, eqn & 0xff,
+					err = mlx4_cmd(dev, slave, eqn & 0x3ff,
 						       1, MLX4_CMD_HW2SW_EQ,
 						       MLX4_CMD_TIME_CLASS_A,
 						       MLX4_CMD_NATIVE);
 					if (err)
 						mlx4_dbg(dev, "rem_slave_eqs: failed to move slave %d eqs %d to SW ownership\n",
-							 slave, eqn);
+							 slave, eqn & 0x3ff);
 					atomic_dec(&eq->mtt->ref_count);
 					state = RES_EQ_RESERVED;
 					break;

@@ -53,6 +53,11 @@ static DEFINE_MUTEX(gpio_lookup_lock);
 static LIST_HEAD(gpio_lookup_list);
 LIST_HEAD(gpio_chips);
 
+
+static void gpiochip_free_hogs(struct gpio_chip *chip);
+static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip);
+
+
 static inline void desc_set_label(struct gpio_desc *d, const char *label)
 {
 	d->label = label;
@@ -297,6 +302,7 @@ int gpiochip_add(struct gpio_chip *chip)
 
 err_remove_chip:
 	acpi_gpiochip_remove(chip);
+	gpiochip_free_hogs(chip);
 	of_gpiochip_remove(chip);
 	spin_lock_irqsave(&gpio_lock, flags);
 	list_del(&chip->list);
@@ -312,10 +318,6 @@ err_free_descs:
 	return status;
 }
 EXPORT_SYMBOL_GPL(gpiochip_add);
-
-/* Forward-declaration */
-static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip);
-static void gpiochip_free_hogs(struct gpio_chip *chip);
 
 /**
  * gpiochip_remove() - unregister a gpio_chip

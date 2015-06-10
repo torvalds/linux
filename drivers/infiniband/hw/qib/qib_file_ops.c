@@ -835,7 +835,8 @@ static int mmap_piobufs(struct vm_area_struct *vma,
 	vma->vm_flags &= ~VM_MAYREAD;
 	vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND;
 
-	if (qib_wc_pat)
+	/* We used PAT if wc_cookie == 0 */
+	if (!dd->wc_cookie)
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 
 	ret = io_remap_pfn_range(vma, vma->vm_start, phys >> PAGE_SHIFT,

@@ -446,7 +446,6 @@ static int ib_umem_odp_map_dma_single_page(
 	int remove_existing_mapping = 0;
 	int ret = 0;
 
-	mutex_lock(&umem->odp_data->umem_mutex);
 	/*
 	 * Note: we avoid writing if seq is different from the initial seq, to
 	 * handle case of a racing notifier. This check also allows us to bail
@@ -479,8 +478,6 @@ static int ib_umem_odp_map_dma_single_page(
 	}
 
 out:
-	mutex_unlock(&umem->odp_data->umem_mutex);
-
 	/* On Demand Paging - avoid pinning the page */
 	if (umem->context->invalidate_range || !stored_page)
 		put_page(page);
@@ -586,6 +583,7 @@ int ib_umem_odp_map_dma_pages(struct ib_umem *umem, u64 user_virt, u64 bcnt,
 
 		bcnt -= min_t(size_t, npages << PAGE_SHIFT, bcnt);
 		user_virt += npages << PAGE_SHIFT;
+		mutex_lock(&umem->odp_data->umem_mutex);
 		for (j = 0; j < npages; ++j) {
 			ret = ib_umem_odp_map_dma_single_page(
 				umem, k, base_virt_addr, local_page_list[j],
@@ -594,6 +592,7 @@ int ib_umem_odp_map_dma_pages(struct ib_umem *umem, u64 user_virt, u64 bcnt,
 				break;
 			k++;
 		}
+		mutex_unlock(&umem->odp_data->umem_mutex);
 
 		if (ret < 0) {
 			/* Release left over pages when handling errors. */
@@ -633,12 +632,11 @@ void ib_umem_odp_unmap_dma_pages(struct ib_umem *umem, u64 virt,
 	 * faults from completion. We might be racing with other
 	 * invalidations, so we must make sure we free each page only
 	 * once. */
+	mutex_lock(&umem->odp_data->umem_mutex);
 	for (addr = virt; addr < bound; addr += (u64)umem->page_size) {
 		idx = (addr - ib_umem_start(umem)) / PAGE_SIZE;
-		mutex_lock(&umem->odp_data->umem_mutex);
 		if (umem->odp_data->page_list[idx]) {
 			struct page *page = umem->odp_data->page_list[idx];
-			struct page *head_page = compound_head(page);
 			dma_addr_t dma = umem->odp_data->dma_list[idx];
 			dma_addr_t dma_addr = dma & ODP_DMA_ADDR_MASK;
 
@@ -646,7 +644,8 @@ void ib_umem_odp_unmap_dma_pages(struct ib_umem *umem, u64 virt,
 
 			ib_dma_unmap_page(dev, dma_addr, PAGE_SIZE,
 					  DMA_BIDIRECTIONAL);
-			if (dma & ODP_WRITE_ALLOWED_BIT)
+			if (dma & ODP_WRITE_ALLOWED_BIT) {
+				struct page *head_page = compound_head(page);
 				/*
 				 * set_page_dirty prefers being called with
 				 * the page lock. However, MMU notifiers are
@@ -657,13 +656,14 @@ void ib_umem_odp_unmap_dma_pages(struct ib_umem *umem, u64 virt,
 				 * be removed.
 				 */
 				set_page_dirty(head_page);
+			}
 			/* on demand pinning support */
 			if (!umem->context->invalidate_range)
 				put_page(page);
 			umem->odp_data->page_list[idx] = NULL;
 			umem->odp_data->dma_list[idx] = 0;
 		}
-		mutex_unlock(&umem->odp_data->umem_mutex);
 	}
+	mutex_unlock(&umem->odp_data->umem_mutex);
 }
 EXPORT_SYMBOL(ib_umem_odp_unmap_dma_pages);

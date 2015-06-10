@@ -1058,6 +1058,7 @@ static int contains_pending_extent(struct btrfs_trans_handle *trans,
 	struct extent_map *em;
 	struct list_head *search_list = &trans->transaction->pending_chunks;
 	int ret = 0;
+	u64 physical_start = *start;
 
 again:
 	list_for_each_entry(em, search_list, list) {
@@ -1068,9 +1069,9 @@ again:
 		for (i = 0; i < map->num_stripes; i++) {
 			if (map->stripes[i].dev != device)
 				continue;
-			if (map->stripes[i].physical >= *start + len ||
+			if (map->stripes[i].physical >= physical_start + len ||
 			    map->stripes[i].physical + em->orig_block_len <=
-			    *start)
+			    physical_start)
 				continue;
 			*start = map->stripes[i].physical +
 				em->orig_block_len;
@@ -1193,8 +1194,14 @@ again:
 			 */
 			if (contains_pending_extent(trans, device,
 						    &search_start,
-						    hole_size))
-				hole_size = 0;
+						    hole_size)) {
+				if (key.offset >= search_start) {
+					hole_size = key.offset - search_start;
+				} else {
+					WARN_ON_ONCE(1);
+					hole_size = 0;
+				}
+			}
 
 			if (hole_size > max_hole_size) {
 				max_hole_start = search_start;
@@ -4618,6 +4625,7 @@ int btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 {
 	u64 chunk_offset;
 
+	ASSERT(mutex_is_locked(&extent_root->fs_info->chunk_mutex));
 	chunk_offset = find_next_chunk(extent_root->fs_info);
 	return __btrfs_alloc_chunk(trans, extent_root, chunk_offset, type);
 }

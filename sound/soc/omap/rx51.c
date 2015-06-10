@@ -455,48 +455,34 @@ static int rx51_soc_probe(struct platform_device *pdev)
 	snd_soc_card_set_drvdata(card, pdata);
 
 	pdata->tvout_selection_gpio = devm_gpiod_get(card->dev,
-						     "tvout-selection");
+						     "tvout-selection",
+						     GPIOD_OUT_LOW);
 	if (IS_ERR(pdata->tvout_selection_gpio)) {
 		dev_err(card->dev, "could not get tvout selection gpio\n");
 		return PTR_ERR(pdata->tvout_selection_gpio);
 	}
 
-	err = gpiod_direction_output(pdata->tvout_selection_gpio, 0);
-	if (err) {
-		dev_err(card->dev, "could not setup tvout selection gpio\n");
-		return err;
-	}
-
 	pdata->jack_detection_gpio = devm_gpiod_get(card->dev,
-						    "jack-detection");
+						    "jack-detection",
+						    GPIOD_ASIS);
 	if (IS_ERR(pdata->jack_detection_gpio)) {
 		dev_err(card->dev, "could not get jack detection gpio\n");
 		return PTR_ERR(pdata->jack_detection_gpio);
 	}
 
-	pdata->eci_sw_gpio = devm_gpiod_get(card->dev, "eci-switch");
+	pdata->eci_sw_gpio = devm_gpiod_get(card->dev, "eci-switch",
+					    GPIOD_OUT_HIGH);
 	if (IS_ERR(pdata->eci_sw_gpio)) {
 		dev_err(card->dev, "could not get eci switch gpio\n");
 		return PTR_ERR(pdata->eci_sw_gpio);
 	}
 
-	err = gpiod_direction_output(pdata->eci_sw_gpio, 1);
-	if (err) {
-		dev_err(card->dev, "could not setup eci switch gpio\n");
-		return err;
-	}
-
 	pdata->speaker_amp_gpio = devm_gpiod_get(card->dev,
-						 "speaker-amplifier");
+						 "speaker-amplifier",
+						 GPIOD_OUT_LOW);
 	if (IS_ERR(pdata->speaker_amp_gpio)) {
 		dev_err(card->dev, "could not get speaker enable gpio\n");
 		return PTR_ERR(pdata->speaker_amp_gpio);
-	}
-
-	err = gpiod_direction_output(pdata->speaker_amp_gpio, 0);
-	if (err) {
-		dev_err(card->dev, "could not setup speaker enable gpio\n");
-		return err;
 	}
 
 	err = devm_snd_soc_register_card(card->dev, card);

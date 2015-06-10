@@ -911,6 +911,7 @@ struct ext4_inode_info {
 
 	/* on-disk additional length */
 	__u16 i_extra_isize;
+	char i_crypt_policy_flags;
 
 	/* Indicate the inline data space. */
 	u16 i_inline_off;
@@ -1065,12 +1066,6 @@ extern void ext4_set_bits(void *bm, int cur, int len);
 
 /* Metadata checksum algorithm codes */
 #define EXT4_CRC32C_CHKSUM		1
-
-/* Encryption algorithms */
-#define EXT4_ENCRYPTION_MODE_INVALID		0
-#define EXT4_ENCRYPTION_MODE_AES_256_XTS	1
-#define EXT4_ENCRYPTION_MODE_AES_256_GCM	2
-#define EXT4_ENCRYPTION_MODE_AES_256_CBC	3
 
 /*
  * Structure of the super block
@@ -2093,9 +2088,11 @@ u32 ext4_fname_crypto_round_up(u32 size, u32 blksize);
 int ext4_fname_crypto_alloc_buffer(struct ext4_fname_crypto_ctx *ctx,
 				   u32 ilen, struct ext4_str *crypto_str);
 int _ext4_fname_disk_to_usr(struct ext4_fname_crypto_ctx *ctx,
+			    struct dx_hash_info *hinfo,
 			    const struct ext4_str *iname,
 			    struct ext4_str *oname);
 int ext4_fname_disk_to_usr(struct ext4_fname_crypto_ctx *ctx,
+			   struct dx_hash_info *hinfo,
 			   const struct ext4_dir_entry_2 *de,
 			   struct ext4_str *oname);
 int ext4_fname_usr_to_disk(struct ext4_fname_crypto_ctx *ctx,
@@ -2104,11 +2101,12 @@ int ext4_fname_usr_to_disk(struct ext4_fname_crypto_ctx *ctx,
 int ext4_fname_usr_to_hash(struct ext4_fname_crypto_ctx *ctx,
 			   const struct qstr *iname,
 			   struct dx_hash_info *hinfo);
-int ext4_fname_disk_to_hash(struct ext4_fname_crypto_ctx *ctx,
-			    const struct ext4_dir_entry_2 *de,
-			    struct dx_hash_info *hinfo);
 int ext4_fname_crypto_namelen_on_disk(struct ext4_fname_crypto_ctx *ctx,
 				      u32 namelen);
+int ext4_fname_match(struct ext4_fname_crypto_ctx *ctx, struct ext4_str *cstr,
+		     int len, const char * const name,
+		     struct ext4_dir_entry_2 *de);
+
 
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
 void ext4_put_fname_crypto_ctx(struct ext4_fname_crypto_ctx **ctx);
@@ -2891,7 +2889,6 @@ extern int ext4_map_blocks(handle_t *handle, struct inode *inode,
 			   struct ext4_map_blocks *map, int flags);
 extern int ext4_ext_calc_metadata_amount(struct inode *inode,
 					 ext4_lblk_t lblocks);
-extern int ext4_extent_tree_init(handle_t *, struct inode *);
 extern int ext4_ext_calc_credits_for_single_extent(struct inode *inode,
 						   int num,
 						   struct ext4_ext_path *path);

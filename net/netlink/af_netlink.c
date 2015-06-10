@@ -89,7 +89,7 @@ static inline int netlink_is_kernel(struct sock *sk)
 	return nlk_sk(sk)->flags & NETLINK_KERNEL_SOCKET;
 }
 
-struct netlink_table *nl_table;
+struct netlink_table *nl_table __read_mostly;
 EXPORT_SYMBOL_GPL(nl_table);
 
 static DECLARE_WAIT_QUEUE_HEAD(nl_table_wait);
@@ -1081,6 +1081,7 @@ static int netlink_insert(struct sock *sk, u32 portid)
 	if (err) {
 		if (err == -EEXIST)
 			err = -EADDRINUSE;
+		nlk_sk(sk)->portid = 0;
 		sock_put(sk);
 	}
 
@@ -1629,13 +1630,11 @@ static struct sk_buff *netlink_alloc_large_skb(unsigned int size,
 	if (data == NULL)
 		return NULL;
 
-	skb = build_skb(data, size);
+	skb = __build_skb(data, size);
 	if (skb == NULL)
 		vfree(data);
-	else {
-		skb->head_frag = 0;
+	else
 		skb->destructor = netlink_skb_destructor;
-	}
 
 	return skb;
 }
@@ -3141,7 +3140,6 @@ static const struct rhashtable_params netlink_rhashtable_params = {
 	.key_len = netlink_compare_arg_len,
 	.obj_hashfn = netlink_hash,
 	.obj_cmpfn = netlink_compare,
-	.max_size = 65536,
 	.automatic_shrinking = true,
 };
 

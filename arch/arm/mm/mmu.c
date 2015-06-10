@@ -1112,22 +1112,22 @@ void __init sanity_check_meminfo(void)
 			}
 
 			/*
-			 * Find the first non-section-aligned page, and point
+			 * Find the first non-pmd-aligned page, and point
 			 * memblock_limit at it. This relies on rounding the
-			 * limit down to be section-aligned, which happens at
-			 * the end of this function.
+			 * limit down to be pmd-aligned, which happens at the
+			 * end of this function.
 			 *
 			 * With this algorithm, the start or end of almost any
-			 * bank can be non-section-aligned. The only exception
-			 * is that the start of the bank 0 must be section-
+			 * bank can be non-pmd-aligned. The only exception is
+			 * that the start of the bank 0 must be section-
 			 * aligned, since otherwise memory would need to be
 			 * allocated when mapping the start of bank 0, which
 			 * occurs before any free memory is mapped.
 			 */
 			if (!memblock_limit) {
-				if (!IS_ALIGNED(block_start, SECTION_SIZE))
+				if (!IS_ALIGNED(block_start, PMD_SIZE))
 					memblock_limit = block_start;
-				else if (!IS_ALIGNED(block_end, SECTION_SIZE))
+				else if (!IS_ALIGNED(block_end, PMD_SIZE))
 					memblock_limit = arm_lowmem_limit;
 			}
 
@@ -1137,12 +1137,12 @@ void __init sanity_check_meminfo(void)
 	high_memory = __va(arm_lowmem_limit - 1) + 1;
 
 	/*
-	 * Round the memblock limit down to a section size.  This
+	 * Round the memblock limit down to a pmd size.  This
 	 * helps to ensure that we will allocate memory from the
-	 * last full section, which should be mapped.
+	 * last full pmd, which should be mapped.
 	 */
 	if (memblock_limit)
-		memblock_limit = round_down(memblock_limit, SECTION_SIZE);
+		memblock_limit = round_down(memblock_limit, PMD_SIZE);
 	if (!memblock_limit)
 		memblock_limit = arm_lowmem_limit;
 

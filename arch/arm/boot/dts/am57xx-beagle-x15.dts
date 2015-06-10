@@ -18,6 +18,7 @@
 	aliases {
 		rtc0 = &mcp_rtc;
 		rtc1 = &tps659038_rtc;
+		rtc2 = &rtc;
 	};
 
 	memory {
@@ -83,7 +84,7 @@
 	gpio_fan: gpio_fan {
 		/* Based on 5v 500mA AFB02505HHB */
 		compatible = "gpio-fan";
-		gpios =  <&tps659038_gpio 1 GPIO_ACTIVE_HIGH>;
+		gpios =  <&tps659038_gpio 2 GPIO_ACTIVE_HIGH>;
 		gpio-fan,speed-map = <0     0>,
 				     <13000 1>;
 		#cooling-cells = <2>;
@@ -130,8 +131,8 @@
 
 	uart3_pins_default: uart3_pins_default {
 		pinctrl-single,pins = <
-			0x248 (PIN_INPUT_SLEW | MUX_MODE0) /* uart3_rxd.rxd */
-			0x24c (PIN_INPUT_SLEW | MUX_MODE0) /* uart3_txd.txd */
+			0x3f8 (PIN_INPUT_SLEW | MUX_MODE2) /* uart2_ctsn.uart3_rxd */
+			0x3fc (PIN_INPUT_SLEW | MUX_MODE1) /* uart2_rtsn.uart3_txd */
 		>;
 	};
 
@@ -455,7 +456,7 @@
 	mcp_rtc: rtc@6f {
 		compatible = "microchip,mcp7941x";
 		reg = <0x6f>;
-		interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_LOW>;  /* IRQ_SYS_1N */
+		interrupts = <GIC_SPI 2 IRQ_TYPE_EDGE_RISING>;  /* IRQ_SYS_1N */
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&mcp79410_pins_default>;
@@ -478,7 +479,7 @@
 &uart3 {
 	status = "okay";
 	interrupts-extended = <&crossbar_mpu GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>,
-			      <&dra7_pmx_core 0x248>;
+			      <&dra7_pmx_core 0x3f8>;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart3_pins_default>;

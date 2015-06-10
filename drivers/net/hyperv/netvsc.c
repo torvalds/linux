@@ -826,7 +826,6 @@ int netvsc_send(struct hv_device *device,
 	u16 q_idx = packet->q_idx;
 	u32 pktlen = packet->total_data_buflen, msd_len = 0;
 	unsigned int section_index = NETVSC_INVALID_INDEX;
-	struct sk_buff *skb = NULL;
 	unsigned long flag;
 	struct multi_send_data *msdp;
 	struct hv_netvsc_packet *msd_send = NULL, *cur_send = NULL;
@@ -889,11 +888,6 @@ int netvsc_send(struct hv_device *device,
 		} else {
 			packet->page_buf_cnt = 0;
 			packet->total_data_buflen += msd_len;
-			if (!packet->part_of_skb) {
-				skb = (struct sk_buff *)(unsigned long)packet->
-				       send_completion_tid;
-				packet->send_completion_tid = 0;
-			}
 		}
 
 		if (msdp->pkt)
@@ -929,12 +923,8 @@ int netvsc_send(struct hv_device *device,
 	if (cur_send)
 		ret = netvsc_send_pkt(cur_send, net_device);
 
-	if (ret != 0) {
-		if (section_index != NETVSC_INVALID_INDEX)
-			netvsc_free_send_slot(net_device, section_index);
-	} else if (skb) {
-		dev_kfree_skb_any(skb);
-	}
+	if (ret != 0 && section_index != NETVSC_INVALID_INDEX)
+		netvsc_free_send_slot(net_device, section_index);
 
 	return ret;
 }
@@ -1196,6 +1186,9 @@ int netvsc_device_add(struct hv_device *device, void *additional_info)
 	 * in struct netvsc_device *.
 	 */
 	ndev = net_device->ndev;
+
+	/* Add netvsc_device context to netvsc_device */
+	net_device->nd_ctx = netdev_priv(ndev);
 
 	/* Initialize the NetVSC channel extension */
 	init_completion(&net_device->channel_init_wait);

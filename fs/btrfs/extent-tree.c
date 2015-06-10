@@ -3178,10 +3178,8 @@ static int write_one_cache_group(struct btrfs_trans_handle *trans,
 	bi = btrfs_item_ptr_offset(leaf, path->slots[0]);
 	write_extent_buffer(leaf, &cache->item, bi, sizeof(cache->item));
 	btrfs_mark_buffer_dirty(leaf);
-	btrfs_release_path(path);
 fail:
-	if (ret)
-		btrfs_abort_transaction(trans, root, ret);
+	btrfs_release_path(path);
 	return ret;
 
 }
@@ -3305,8 +3303,7 @@ again:
 
 	spin_lock(&block_group->lock);
 	if (block_group->cached != BTRFS_CACHE_FINISHED ||
-	    !btrfs_test_opt(root, SPACE_CACHE) ||
-	    block_group->delalloc_bytes) {
+	    !btrfs_test_opt(root, SPACE_CACHE)) {
 		/*
 		 * don't bother trying to write stuff out _if_
 		 * a) we're not cached,
@@ -3408,17 +3405,14 @@ int btrfs_start_dirty_block_groups(struct btrfs_trans_handle *trans,
 	int loops = 0;
 
 	spin_lock(&cur_trans->dirty_bgs_lock);
-	if (!list_empty(&cur_trans->dirty_bgs)) {
-		list_splice_init(&cur_trans->dirty_bgs, &dirty);
+	if (list_empty(&cur_trans->dirty_bgs)) {
+		spin_unlock(&cur_trans->dirty_bgs_lock);
+		return 0;
 	}
+	list_splice_init(&cur_trans->dirty_bgs, &dirty);
 	spin_unlock(&cur_trans->dirty_bgs_lock);
 
 again:
-	if (list_empty(&dirty)) {
-		btrfs_free_path(path);
-		return 0;
-	}
-
 	/*
 	 * make sure all the block groups on our dirty list actually
 	 * exist
@@ -3431,18 +3425,16 @@ again:
 			return -ENOMEM;
 	}
 
+	/*
+	 * cache_write_mutex is here only to save us from balance or automatic
+	 * removal of empty block groups deleting this block group while we are
+	 * writing out the cache
+	 */
+	mutex_lock(&trans->transaction->cache_write_mutex);
 	while (!list_empty(&dirty)) {
 		cache = list_first_entry(&dirty,
 					 struct btrfs_block_group_cache,
 					 dirty_list);
-
-		/*
-		 * cache_write_mutex is here only to save us from balance
-		 * deleting this block group while we are writing out the
-		 * cache
-		 */
-		mutex_lock(&trans->transaction->cache_write_mutex);
-
 		/*
 		 * this can happen if something re-dirties a block
 		 * group that is already under IO.  Just wait for it to
@@ -3493,9 +3485,30 @@ again:
 				ret = 0;
 			}
 		}
-		if (!ret)
+		if (!ret) {
 			ret = write_one_cache_group(trans, root, path, cache);
-		mutex_unlock(&trans->transaction->cache_write_mutex);
+			/*
+			 * Our block group might still be attached to the list
+			 * of new block groups in the transaction handle of some
+			 * other task (struct btrfs_trans_handle->new_bgs). This
+			 * means its block group item isn't yet in the extent
+			 * tree. If this happens ignore the error, as we will
+			 * try again later in the critical section of the
+			 * transaction commit.
+			 */
+			if (ret == -ENOENT) {
+				ret = 0;
+				spin_lock(&cur_trans->dirty_bgs_lock);
+				if (list_empty(&cache->dirty_list)) {
+					list_add_tail(&cache->dirty_list,
+						      &cur_trans->dirty_bgs);
+					btrfs_get_block_group(cache);
+				}
+				spin_unlock(&cur_trans->dirty_bgs_lock);
+			} else if (ret) {
+				btrfs_abort_transaction(trans, root, ret);
+			}
+		}
 
 		/* if its not on the io list, we need to put the block group */
 		if (should_put)
@@ -3503,7 +3516,16 @@ again:
 
 		if (ret)
 			break;
+
+		/*
+		 * Avoid blocking other tasks for too long. It might even save
+		 * us from writing caches for block groups that are going to be
+		 * removed.
+		 */
+		mutex_unlock(&trans->transaction->cache_write_mutex);
+		mutex_lock(&trans->transaction->cache_write_mutex);
 	}
+	mutex_unlock(&trans->transaction->cache_write_mutex);
 
 	/*
 	 * go through delayed refs for all the stuff we've just kicked off
@@ -3514,8 +3536,15 @@ again:
 		loops++;
 		spin_lock(&cur_trans->dirty_bgs_lock);
 		list_splice_init(&cur_trans->dirty_bgs, &dirty);
+		/*
+		 * dirty_bgs_lock protects us from concurrent block group
+		 * deletes too (not just cache_write_mutex).
+		 */
+		if (!list_empty(&dirty)) {
+			spin_unlock(&cur_trans->dirty_bgs_lock);
+			goto again;
+		}
 		spin_unlock(&cur_trans->dirty_bgs_lock);
-		goto again;
 	}
 
 	btrfs_free_path(path);
@@ -3588,8 +3617,11 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 				ret = 0;
 			}
 		}
-		if (!ret)
+		if (!ret) {
 			ret = write_one_cache_group(trans, root, path, cache);
+			if (ret)
+				btrfs_abort_transaction(trans, root, ret);
+		}
 
 		/* if its not on the io list, we need to put the block group */
 		if (should_put)
@@ -7537,7 +7569,7 @@ static void unuse_block_rsv(struct btrfs_fs_info *fs_info,
  * returns the key for the extent through ins, and a tree buffer for
  * the first block of the extent through buf.
  *
- * returns the tree buffer or NULL.
+ * returns the tree buffer or an ERR_PTR on error.
  */
 struct extent_buffer *btrfs_alloc_tree_block(struct btrfs_trans_handle *trans,
 					struct btrfs_root *root,
@@ -7548,6 +7580,7 @@ struct extent_buffer *btrfs_alloc_tree_block(struct btrfs_trans_handle *trans,
 	struct btrfs_key ins;
 	struct btrfs_block_rsv *block_rsv;
 	struct extent_buffer *buf;
+	struct btrfs_delayed_extent_op *extent_op;
 	u64 flags = 0;
 	int ret;
 	u32 blocksize = root->nodesize;
@@ -7568,13 +7601,14 @@ struct extent_buffer *btrfs_alloc_tree_block(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_reserve_extent(root, blocksize, blocksize,
 				   empty_size, hint, &ins, 0, 0);
-	if (ret) {
-		unuse_block_rsv(root->fs_info, block_rsv, blocksize);
-		return ERR_PTR(ret);
-	}
+	if (ret)
+		goto out_unuse;
 
 	buf = btrfs_init_new_buffer(trans, root, ins.objectid, level);
-	BUG_ON(IS_ERR(buf)); /* -ENOMEM */
+	if (IS_ERR(buf)) {
+		ret = PTR_ERR(buf);
+		goto out_free_reserved;
+	}
 
 	if (root_objectid == BTRFS_TREE_RELOC_OBJECTID) {
 		if (parent == 0)
@@ -7584,9 +7618,11 @@ struct extent_buffer *btrfs_alloc_tree_block(struct btrfs_trans_handle *trans,
 		BUG_ON(parent > 0);
 
 	if (root_objectid != BTRFS_TREE_LOG_OBJECTID) {
-		struct btrfs_delayed_extent_op *extent_op;
 		extent_op = btrfs_alloc_delayed_extent_op();
-		BUG_ON(!extent_op); /* -ENOMEM */
+		if (!extent_op) {
+			ret = -ENOMEM;
+			goto out_free_buf;
+		}
 		if (key)
 			memcpy(&extent_op->key, key, sizeof(extent_op->key));
 		else
@@ -7601,13 +7637,24 @@ struct extent_buffer *btrfs_alloc_tree_block(struct btrfs_trans_handle *trans,
 		extent_op->level = level;
 
 		ret = btrfs_add_delayed_tree_ref(root->fs_info, trans,
-					ins.objectid,
-					ins.offset, parent, root_objectid,
-					level, BTRFS_ADD_DELAYED_EXTENT,
-					extent_op, 0);
-		BUG_ON(ret); /* -ENOMEM */
+						 ins.objectid, ins.offset,
+						 parent, root_objectid, level,
+						 BTRFS_ADD_DELAYED_EXTENT,
+						 extent_op, 0);
+		if (ret)
+			goto out_free_delayed;
 	}
 	return buf;
+
+out_free_delayed:
+	btrfs_free_delayed_extent_op(extent_op);
+out_free_buf:
+	free_extent_buffer(buf);
+out_free_reserved:
+	btrfs_free_reserved_extent(root, ins.objectid, ins.offset, 0);
+out_unuse:
+	unuse_block_rsv(root->fs_info, block_rsv, blocksize);
+	return ERR_PTR(ret);
 }
 
 struct walk_control {
@@ -8782,6 +8829,24 @@ again:
 		goto again;
 	}
 
+	/*
+	 * if we are changing raid levels, try to allocate a corresponding
+	 * block group with the new raid level.
+	 */
+	alloc_flags = update_block_group_flags(root, cache->flags);
+	if (alloc_flags != cache->flags) {
+		ret = do_chunk_alloc(trans, root, alloc_flags,
+				     CHUNK_ALLOC_FORCE);
+		/*
+		 * ENOSPC is allowed here, we may have enough space
+		 * already allocated at the new raid level to
+		 * carry on
+		 */
+		if (ret == -ENOSPC)
+			ret = 0;
+		if (ret < 0)
+			goto out;
+	}
 
 	ret = set_block_group_ro(cache, 0);
 	if (!ret)
@@ -8795,7 +8860,9 @@ again:
 out:
 	if (cache->flags & BTRFS_BLOCK_GROUP_SYSTEM) {
 		alloc_flags = update_block_group_flags(root, cache->flags);
+		lock_chunks(root->fs_info->chunk_root);
 		check_system_chunk(trans, root, alloc_flags);
+		unlock_chunks(root->fs_info->chunk_root);
 	}
 	mutex_unlock(&root->fs_info->ro_block_group_mutex);
 

@@ -1292,13 +1292,6 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	void __iomem *iomem;
 	char name[64];
 
-	/* SSIs that are not connected on the board should have a
-	 *      status = "disabled"
-	 * property in their device tree nodes.
-	 */
-	if (!of_device_is_available(np))
-		return -ENODEV;
-
 	of_id = of_match_device(fsl_ssi_ids, &pdev->dev);
 	if (!of_id || !of_id->data)
 		return -EINVAL;
@@ -1357,7 +1350,7 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	}
 
 	ssi_private->irq = platform_get_irq(pdev, 0);
-	if (!ssi_private->irq) {
+	if (ssi_private->irq < 0) {
 		dev_err(&pdev->dev, "no irq for node %s\n", pdev->name);
 		return ssi_private->irq;
 	}

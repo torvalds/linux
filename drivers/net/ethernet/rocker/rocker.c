@@ -2921,10 +2921,11 @@ static int rocker_port_ipv4_resolve(struct rocker_port *rocker_port,
 	struct neighbour *n = __ipv4_neigh_lookup(dev, (__force u32)ip_addr);
 	int err = 0;
 
-	if (!n)
+	if (!n) {
 		n = neigh_create(&arp_tbl, &ip_addr, dev);
-	if (!n)
-		return -ENOMEM;
+		if (IS_ERR(n))
+			return IS_ERR(n);
+	}
 
 	/* If the neigh is already resolved, then go ahead and
 	 * install the entry, otherwise start the ARP process to
@@ -2936,6 +2937,7 @@ static int rocker_port_ipv4_resolve(struct rocker_port *rocker_port,
 	else
 		neigh_event_send(n, NULL);
 
+	neigh_release(n);
 	return err;
 }
 
@@ -4176,14 +4178,15 @@ static int rocker_port_bridge_setlink(struct net_device *dev,
 
 static int rocker_port_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 				      struct net_device *dev,
-				      u32 filter_mask)
+				      u32 filter_mask, int nlflags)
 {
 	struct rocker_port *rocker_port = netdev_priv(dev);
 	u16 mode = BRIDGE_MODE_UNDEF;
 	u32 mask = BR_LEARNING | BR_LEARNING_SYNC;
 
 	return ndo_dflt_bridge_getlink(skb, pid, seq, dev, mode,
-				       rocker_port->brport_flags, mask);
+				       rocker_port->brport_flags, mask,
+				       nlflags);
 }
 
 static int rocker_port_get_phys_port_name(struct net_device *dev,

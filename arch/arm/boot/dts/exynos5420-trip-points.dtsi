@@ -28,7 +28,7 @@ trips {
 		type = "active";
 	};
 	cpu-crit-0 {
-		temperature = <1200000>; /* millicelsius */
+		temperature = <120000>; /* millicelsius */
 		hysteresis = <0>; /* millicelsius */
 		type = "critical";
 	};

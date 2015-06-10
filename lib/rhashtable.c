@@ -14,6 +14,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/atomic.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/log2.h>
@@ -405,13 +406,18 @@ int rhashtable_insert_rehash(struct rhashtable *ht)
 
 	if (rht_grow_above_75(ht, tbl))
 		size *= 2;
-	/* More than two rehashes (not resizes) detected. */
-	else if (WARN_ON(old_tbl != tbl && old_tbl->size == size))
+	/* Do not schedule more than one rehash */
+	else if (old_tbl != tbl)
 		return -EBUSY;
 
 	new_tbl = bucket_table_alloc(ht, size, GFP_ATOMIC);
-	if (new_tbl == NULL)
+	if (new_tbl == NULL) {
+		/* Schedule async resize/rehash to try allocation
+		 * non-atomic context.
+		 */
+		schedule_work(&ht->run_work);
 		return -ENOMEM;
+	}
 
 	err = rhashtable_rehash_attach(ht, tbl, new_tbl);
 	if (err) {
@@ -439,6 +445,10 @@ int rhashtable_insert_slow(struct rhashtable *ht, const void *key,
 
 	err = -EEXIST;
 	if (key && rhashtable_lookup_fast(ht, key, ht->p))
+		goto exit;
+
+	err = -E2BIG;
+	if (unlikely(rht_grow_above_max(ht, tbl)))
 		goto exit;
 
 	err = -EAGAIN;
@@ -732,6 +742,12 @@ int rhashtable_init(struct rhashtable *ht,
 
 	if (params->max_size)
 		ht->p.max_size = rounddown_pow_of_two(params->max_size);
+
+	if (params->insecure_max_entries)
+		ht->p.insecure_max_entries =
+			rounddown_pow_of_two(params->insecure_max_entries);
+	else
+		ht->p.insecure_max_entries = ht->p.max_size * 2;
 
 	ht->p.min_size = max(ht->p.min_size, HASH_MIN_SIZE);
 

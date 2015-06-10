@@ -346,6 +346,7 @@ static int iscsi_login_zero_tsih_s1(
 	if (IS_ERR(sess->se_sess)) {
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
 				ISCSI_LOGIN_STATUS_NO_RESOURCES);
+		kfree(sess->sess_ops);
 		kfree(sess);
 		return -ENOMEM;
 	}

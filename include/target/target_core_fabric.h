@@ -4,7 +4,6 @@
 struct target_core_fabric_ops {
 	struct module *module;
 	const char *name;
-	struct configfs_subsystem *tf_subsys;
 	char *(*get_fabric_name)(void);
 	u8 (*get_fabric_proto_ident)(struct se_portal_group *);
 	char *(*tpg_get_wwn)(struct se_portal_group *);
@@ -108,6 +107,9 @@ struct target_core_fabric_ops {
 
 int target_register_template(const struct target_core_fabric_ops *fo);
 void target_unregister_template(const struct target_core_fabric_ops *fo);
+
+int target_depend_item(struct config_item *item);
+void target_undepend_item(struct config_item *item);
 
 struct se_session *transport_init_session(enum target_prot_op);
 int transport_alloc_session_tags(struct se_session *, unsigned int,

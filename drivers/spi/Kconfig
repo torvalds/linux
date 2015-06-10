@@ -78,6 +78,7 @@ config SPI_ATMEL
 config SPI_BCM2835
 	tristate "BCM2835 SPI controller"
 	depends on ARCH_BCM2835 || COMPILE_TEST
+	depends on GPIOLIB
 	help
 	  This selects a driver for the Broadcom BCM2835 SPI master.
 
@@ -302,7 +303,7 @@ config SPI_FSL_SPI
 config SPI_FSL_DSPI
 	tristate "Freescale DSPI controller"
 	select REGMAP_MMIO
-	depends on SOC_VF610 || COMPILE_TEST
+	depends on SOC_VF610 || SOC_LS1021A || COMPILE_TEST
 	help
 	  This enables support for the Freescale DSPI controller in master
 	  mode. VF610 platform uses the controller.

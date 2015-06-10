@@ -370,6 +370,7 @@ static int pmic_mpp_set_mux(struct pinctrl_dev *pctldev, unsigned function,
 		}
 	}
 
+	val = val << PMIC_MPP_REG_MODE_DIR_SHIFT;
 	val |= pad->function << PMIC_MPP_REG_MODE_FUNCTION_SHIFT;
 	val |= pad->out_value & PMIC_MPP_REG_MODE_VALUE_MASK;
 
@@ -576,10 +577,11 @@ static void pmic_mpp_config_dbg_show(struct pinctrl_dev *pctldev,
 
 		if (pad->input_enabled) {
 			ret = pmic_mpp_read(state, pad, PMIC_MPP_REG_RT_STS);
-			if (!ret) {
-				ret &= PMIC_MPP_REG_RT_STS_VAL_MASK;
-				pad->out_value = ret;
-			}
+			if (ret < 0)
+				return;
+
+			ret &= PMIC_MPP_REG_RT_STS_VAL_MASK;
+			pad->out_value = ret;
 		}
 
 		seq_printf(s, " %-4s", pad->output_enabled ? "out" : "in");

@@ -1870,7 +1870,7 @@ static int rt5640_set_bias_level(struct snd_soc_codec *codec,
 {
 	switch (level) {
 	case SND_SOC_BIAS_STANDBY:
-		if (SND_SOC_BIAS_OFF == codec->dapm.bias_level) {
+		if (SND_SOC_BIAS_OFF == snd_soc_codec_get_bias_level(codec)) {
 			snd_soc_update_bits(codec, RT5640_PWR_ANLG1,
 				RT5640_PWR_VREF1 | RT5640_PWR_MB |
 				RT5640_PWR_BG | RT5640_PWR_VREF2,
@@ -1902,7 +1902,6 @@ static int rt5640_set_bias_level(struct snd_soc_codec *codec,
 	default:
 		break;
 	}
-	codec->dapm.bias_level = level;
 
 	return 0;
 }
@@ -1935,11 +1934,12 @@ EXPORT_SYMBOL_GPL(rt5640_dmic_enable);
 
 static int rt5640_probe(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
 
 	rt5640->codec = codec;
 
-	rt5640_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	snd_soc_update_bits(codec, RT5640_DUMMY1, 0x0301, 0x0301);
 	snd_soc_update_bits(codec, RT5640_MICBIAS, 0x0030, 0x0030);
@@ -1951,18 +1951,18 @@ static int rt5640_probe(struct snd_soc_codec *codec)
 		snd_soc_add_codec_controls(codec,
 			rt5640_specific_snd_controls,
 			ARRAY_SIZE(rt5640_specific_snd_controls));
-		snd_soc_dapm_new_controls(&codec->dapm,
+		snd_soc_dapm_new_controls(dapm,
 			rt5640_specific_dapm_widgets,
 			ARRAY_SIZE(rt5640_specific_dapm_widgets));
-		snd_soc_dapm_add_routes(&codec->dapm,
+		snd_soc_dapm_add_routes(dapm,
 			rt5640_specific_dapm_routes,
 			ARRAY_SIZE(rt5640_specific_dapm_routes));
 		break;
 	case RT5640_ID_5639:
-		snd_soc_dapm_new_controls(&codec->dapm,
+		snd_soc_dapm_new_controls(dapm,
 			rt5639_specific_dapm_widgets,
 			ARRAY_SIZE(rt5639_specific_dapm_widgets));
-		snd_soc_dapm_add_routes(&codec->dapm,
+		snd_soc_dapm_add_routes(dapm,
 			rt5639_specific_dapm_routes,
 			ARRAY_SIZE(rt5639_specific_dapm_routes));
 		break;
@@ -1991,7 +1991,7 @@ static int rt5640_suspend(struct snd_soc_codec *codec)
 {
 	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
 
-	rt5640_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_OFF);
 	rt5640_reset(codec);
 	regcache_cache_only(rt5640->regmap, true);
 	regcache_mark_dirty(rt5640->regmap);

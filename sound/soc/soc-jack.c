@@ -315,8 +315,11 @@ int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 			goto undo;
 		}
 
-		if (gpios[i].gpiod_dev) {
-			/* GPIO descriptor */
+		if (gpios[i].desc) {
+			/* Already have a GPIO descriptor. */
+			goto got_gpio;
+		} else if (gpios[i].gpiod_dev) {
+			/* Get a GPIO descriptor */
 			gpios[i].desc = gpiod_get_index(gpios[i].gpiod_dev,
 							gpios[i].name,
 							gpios[i].idx, GPIOD_IN);
@@ -344,7 +347,7 @@ int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 
 			gpios[i].desc = gpio_to_desc(gpios[i].gpio);
 		}
-
+got_gpio:
 		INIT_DELAYED_WORK(&gpios[i].work, gpio_work);
 		gpios[i].jack = jack;
 

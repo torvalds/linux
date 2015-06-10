@@ -865,6 +865,16 @@ static void iwl_mvm_fw_error_dump_wk(struct work_struct *work)
 		return;
 
 	mutex_lock(&mvm->mutex);
+
+	/* stop recording */
+	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
+		iwl_set_bits_prph(mvm->trans, MON_BUFF_SAMPLE_CTL, 0x100);
+	} else {
+		iwl_write_prph(mvm->trans, DBGC_IN_SAMPLE, 0);
+		/* wait before we collect the data till the DBGC stop */
+		udelay(100);
+	}
+
 	iwl_mvm_fw_error_dump(mvm);
 
 	/* start recording again if the firmware is not crashed */
@@ -1253,10 +1263,12 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 		ieee80211_iterate_active_interfaces(
 			mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
 			iwl_mvm_d0i3_disconnect_iter, mvm);
-
-	iwl_free_resp(&get_status_cmd);
 out:
 	iwl_mvm_d0i3_enable_tx(mvm, qos_seq);
+
+	/* qos_seq might point inside resp_pkt, so free it only now */
+	if (get_status_cmd.resp_pkt)
+		iwl_free_resp(&get_status_cmd);
 
 	/* the FW might have updated the regdomain */
 	iwl_mvm_update_changed_regdom(mvm);

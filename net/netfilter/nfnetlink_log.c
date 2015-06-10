@@ -1073,7 +1073,13 @@ static struct pernet_operations nfnl_log_net_ops = {
 
 static int __init nfnetlink_log_init(void)
 {
-	int status = -ENOMEM;
+	int status;
+
+	status = register_pernet_subsys(&nfnl_log_net_ops);
+	if (status < 0) {
+		pr_err("failed to register pernet ops\n");
+		goto out;
+	}
 
 	netlink_register_notifier(&nfulnl_rtnl_notifier);
 	status = nfnetlink_subsys_register(&nfulnl_subsys);
@@ -1088,28 +1094,23 @@ static int __init nfnetlink_log_init(void)
 		goto cleanup_subsys;
 	}
 
-	status = register_pernet_subsys(&nfnl_log_net_ops);
-	if (status < 0) {
-		pr_err("failed to register pernet ops\n");
-		goto cleanup_logger;
-	}
 	return status;
 
-cleanup_logger:
-	nf_log_unregister(&nfulnl_logger);
 cleanup_subsys:
 	nfnetlink_subsys_unregister(&nfulnl_subsys);
 cleanup_netlink_notifier:
 	netlink_unregister_notifier(&nfulnl_rtnl_notifier);
+	unregister_pernet_subsys(&nfnl_log_net_ops);
+out:
 	return status;
 }
 
 static void __exit nfnetlink_log_fini(void)
 {
-	unregister_pernet_subsys(&nfnl_log_net_ops);
 	nf_log_unregister(&nfulnl_logger);
 	nfnetlink_subsys_unregister(&nfulnl_subsys);
 	netlink_unregister_notifier(&nfulnl_rtnl_notifier);
+	unregister_pernet_subsys(&nfnl_log_net_ops);
 }
 
 MODULE_DESCRIPTION("netfilter userspace logging");

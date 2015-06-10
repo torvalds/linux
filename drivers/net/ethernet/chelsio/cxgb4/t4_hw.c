@@ -492,7 +492,7 @@ int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
 		memoffset = (mtype * (edc_size * 1024 * 1024));
 	else {
 		mc_size = EXT_MEM0_SIZE_G(t4_read_reg(adap,
-						      MA_EXT_MEMORY1_BAR_A));
+						      MA_EXT_MEMORY0_BAR_A));
 		memoffset = (MEM_MC0 * edc_size + mc_size) * 1024 * 1024;
 	}
 

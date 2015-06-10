@@ -304,7 +304,7 @@ do {									\
 									\
 	current->thread.abi = &mips_abi;				\
 									\
-	current->thread.fpu.fcr31 = current_cpu_data.fpu_csr31;		\
+	current->thread.fpu.fcr31 = boot_cpu_data.fpu_csr31;		\
 } while (0)
 
 #endif /* CONFIG_32BIT */
@@ -366,7 +366,7 @@ do {									\
 	else								\
 		current->thread.abi = &mips_abi;			\
 									\
-	current->thread.fpu.fcr31 = current_cpu_data.fpu_csr31;		\
+	current->thread.fpu.fcr31 = boot_cpu_data.fpu_csr31;		\
 									\
 	p = personality(current->personality);				\
 	if (p != PER_LINUX32 && p != PER_LINUX)				\

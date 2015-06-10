@@ -239,8 +239,10 @@ static struct ntc_thermistor_platform_data *
 ntc_thermistor_parse_dt(struct platform_device *pdev)
 {
 	struct iio_channel *chan;
+	enum iio_chan_type type;
 	struct device_node *np = pdev->dev.of_node;
 	struct ntc_thermistor_platform_data *pdata;
+	int ret;
 
 	if (!np)
 		return NULL;
@@ -252,6 +254,13 @@ ntc_thermistor_parse_dt(struct platform_device *pdev)
 	chan = iio_channel_get(&pdev->dev, NULL);
 	if (IS_ERR(chan))
 		return ERR_CAST(chan);
+
+	ret = iio_get_channel_type(chan, &type);
+	if (ret < 0)
+		return ERR_PTR(ret);
+
+	if (type != IIO_VOLTAGE)
+		return ERR_PTR(-EINVAL);
 
 	if (of_property_read_u32(np, "pullup-uv", &pdata->pullup_uv))
 		return ERR_PTR(-ENODEV);

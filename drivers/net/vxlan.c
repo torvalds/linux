@@ -730,12 +730,8 @@ static int vxlan_fdb_create(struct vxlan_dev *vxlan,
 			/* Only change unicasts */
 			if (!(is_multicast_ether_addr(f->eth_addr) ||
 			     is_zero_ether_addr(f->eth_addr))) {
-				int rc = vxlan_fdb_replace(f, ip, port, vni,
+				notify |= vxlan_fdb_replace(f, ip, port, vni,
 							   ifindex);
-
-				if (rc < 0)
-					return rc;
-				notify |= rc;
 			} else
 				return -EOPNOTSUPP;
 		}
@@ -2965,7 +2961,7 @@ static void __net_exit vxlan_exit_net(struct net *net)
 		 * to the list by the previous loop.
 		 */
 		if (!net_eq(dev_net(vxlan->dev), net))
-			unregister_netdevice_queue(dev, &list);
+			unregister_netdevice_queue(vxlan->dev, &list);
 	}
 
 	unregister_netdevice_many(&list);
