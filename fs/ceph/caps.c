@@ -1356,7 +1356,8 @@ static void ceph_flush_snaps(struct ceph_inode_info *ci)
  * Caller is then responsible for calling __mark_inode_dirty with the
  * returned flags value.
  */
-int __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask)
+int __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask,
+			   struct ceph_cap_flush **pcf)
 {
 	struct ceph_mds_client *mdsc =
 		ceph_sb_to_client(ci->vfs_inode.i_sb)->mdsc;
@@ -1376,6 +1377,9 @@ int __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask)
 	     ceph_cap_string(was | mask));
 	ci->i_dirty_caps |= mask;
 	if (was == 0) {
+		WARN_ON_ONCE(ci->i_prealloc_cap_flush);
+		swap(ci->i_prealloc_cap_flush, *pcf);
+
 		if (!ci->i_head_snapc) {
 			WARN_ON_ONCE(!rwsem_is_locked(&mdsc->snap_rwsem));
 			ci->i_head_snapc = ceph_get_snap_context(
@@ -1391,6 +1395,8 @@ int __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask)
 			ihold(inode);
 			dirty |= I_DIRTY_SYNC;
 		}
+	} else {
+		WARN_ON_ONCE(!ci->i_prealloc_cap_flush);
 	}
 	BUG_ON(list_empty(&ci->i_dirty_item));
 	if (((was | ci->i_flushing_caps) & CEPH_CAP_FILE_BUFFER) &&
@@ -1446,6 +1452,17 @@ static void __add_cap_flushing_to_mdsc(struct ceph_mds_client *mdsc,
 	rb_insert_color(&cf->g_node, &mdsc->cap_flush_tree);
 }
 
+struct ceph_cap_flush *ceph_alloc_cap_flush(void)
+{
+	return kmem_cache_alloc(ceph_cap_flush_cachep, GFP_KERNEL);
+}
+
+void ceph_free_cap_flush(struct ceph_cap_flush *cf)
+{
+	if (cf)
+		kmem_cache_free(ceph_cap_flush_cachep, cf);
+}
+
 static u64 __get_oldest_flush_tid(struct ceph_mds_client *mdsc)
 {
 	struct rb_node *n = rb_first(&mdsc->cap_flush_tree);
@@ -1469,11 +1486,12 @@ static int __mark_caps_flushing(struct inode *inode,
 {
 	struct ceph_mds_client *mdsc = ceph_sb_to_client(inode->i_sb)->mdsc;
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_cap_flush *cf;
+	struct ceph_cap_flush *cf = NULL;
 	int flushing;
 
 	BUG_ON(ci->i_dirty_caps == 0);
 	BUG_ON(list_empty(&ci->i_dirty_item));
+	BUG_ON(!ci->i_prealloc_cap_flush);
 
 	flushing = ci->i_dirty_caps;
 	dout("__mark_caps_flushing flushing %s, flushing_caps %s -> %s\n",
@@ -1484,7 +1502,7 @@ static int __mark_caps_flushing(struct inode *inode,
 	ci->i_dirty_caps = 0;
 	dout(" inode %p now !dirty\n", inode);
 
-	cf = kmalloc(sizeof(*cf), GFP_ATOMIC);
+	swap(cf, ci->i_prealloc_cap_flush);
 	cf->caps = flushing;
 	cf->kick = false;
 
@@ -3075,7 +3093,7 @@ out:
 		cf = list_first_entry(&to_remove,
 				      struct ceph_cap_flush, list);
 		list_del(&cf->list);
-		kfree(cf);
+		ceph_free_cap_flush(cf);
 	}
 	if (drop)
 		iput(inode);

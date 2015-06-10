@@ -1189,6 +1189,10 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		}
 		spin_unlock(&mdsc->cap_dirty_lock);
 
+		if (!ci->i_dirty_caps && ci->i_prealloc_cap_flush) {
+			list_add(&ci->i_prealloc_cap_flush->list, &to_remove);
+			ci->i_prealloc_cap_flush = NULL;
+		}
 	}
 	spin_unlock(&ci->i_ceph_lock);
 	while (!list_empty(&to_remove)) {
@@ -1196,7 +1200,7 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		cf = list_first_entry(&to_remove,
 				      struct ceph_cap_flush, list);
 		list_del(&cf->list);
-		kfree(cf);
+		ceph_free_cap_flush(cf);
 	}
 	while (drop--)
 		iput(inode);

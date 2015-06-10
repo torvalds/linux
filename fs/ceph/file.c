@@ -939,12 +939,17 @@ static ssize_t ceph_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_osd_client *osdc =
 		&ceph_sb_to_client(inode->i_sb)->client->osdc;
+	struct ceph_cap_flush *prealloc_cf;
 	ssize_t count, written = 0;
 	int err, want, got;
 	loff_t pos;
 
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EROFS;
+
+	prealloc_cf = ceph_alloc_cap_flush();
+	if (!prealloc_cf)
+		return -ENOMEM;
 
 	mutex_lock(&inode->i_mutex);
 
@@ -1050,7 +1055,8 @@ retry_snap:
 		int dirty;
 		spin_lock(&ci->i_ceph_lock);
 		ci->i_inline_version = CEPH_INLINE_NONE;
-		dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_FILE_WR);
+		dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_FILE_WR,
+					       &prealloc_cf);
 		spin_unlock(&ci->i_ceph_lock);
 		if (dirty)
 			__mark_inode_dirty(inode, dirty);
@@ -1074,6 +1080,7 @@ retry_snap:
 out:
 	mutex_unlock(&inode->i_mutex);
 out_unlocked:
+	ceph_free_cap_flush(prealloc_cf);
 	current->backing_dev_info = NULL;
 	return written ? written : err;
 }
@@ -1270,6 +1277,7 @@ static long ceph_fallocate(struct file *file, int mode,
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_osd_client *osdc =
 		&ceph_inode_to_client(inode)->client->osdc;
+	struct ceph_cap_flush *prealloc_cf;
 	int want, got = 0;
 	int dirty;
 	int ret = 0;
@@ -1281,6 +1289,10 @@ static long ceph_fallocate(struct file *file, int mode,
 
 	if (!S_ISREG(inode->i_mode))
 		return -EOPNOTSUPP;
+
+	prealloc_cf = ceph_alloc_cap_flush();
+	if (!prealloc_cf)
+		return -ENOMEM;
 
 	mutex_lock(&inode->i_mutex);
 
@@ -1328,7 +1340,8 @@ static long ceph_fallocate(struct file *file, int mode,
 	if (!ret) {
 		spin_lock(&ci->i_ceph_lock);
 		ci->i_inline_version = CEPH_INLINE_NONE;
-		dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_FILE_WR);
+		dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_FILE_WR,
+					       &prealloc_cf);
 		spin_unlock(&ci->i_ceph_lock);
 		if (dirty)
 			__mark_inode_dirty(inode, dirty);
@@ -1337,6 +1350,7 @@ static long ceph_fallocate(struct file *file, int mode,
 	ceph_put_cap_refs(ci, got);
 unlock:
 	mutex_unlock(&inode->i_mutex);
+	ceph_free_cap_flush(prealloc_cf);
 	return ret;
 }
 
