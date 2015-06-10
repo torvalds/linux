@@ -665,7 +665,6 @@ EXPORT_SYMBOL_GPL(v4l2_detect_gtf);
 struct v4l2_fract v4l2_calc_aspect_ratio(u8 hor_landscape, u8 vert_portrait)
 {
 	struct v4l2_fract aspect = { 16, 9 };
-	u32 tmp;
 	u8 ratio;
 
 	/* Nothing filled in, fallback to 16:9 */
@@ -697,9 +696,7 @@ struct v4l2_fract v4l2_calc_aspect_ratio(u8 hor_landscape, u8 vert_portrait)
 	if (hor_landscape)
 		return aspect;
 	/* The aspect ratio is for portrait, so swap numerator and denominator */
-	tmp = aspect.denominator;
-	aspect.denominator = aspect.numerator;
-	aspect.numerator = tmp;
+	swap(aspect.denominator, aspect.numerator);
 	return aspect;
 }
 EXPORT_SYMBOL_GPL(v4l2_calc_aspect_ratio);
