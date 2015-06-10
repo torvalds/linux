@@ -111,6 +111,7 @@ struct drbg_state {
 	unsigned char *C;
 	/* Number of RNG requests since last reseed -- 10.1.1.1 1c) */
 	size_t reseed_ctr;
+	size_t reseed_threshold;
 	 /* some memory the DRBG can use for its operation */
 	unsigned char *scratchpad;
 	void *priv_data;	/* Cipher handle */

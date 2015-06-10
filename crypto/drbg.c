@@ -1088,6 +1088,9 @@ static void drbg_async_seed(struct work_struct *work)
 
 	__drbg_seed(drbg, &seedlist, true);
 
+	if (drbg->seeded)
+		drbg->reseed_threshold = drbg_max_requests(drbg);
+
 	mutex_unlock(&drbg->drbg_mutex);
 
 	memzero_explicit(entropy, entropylen);
@@ -1334,7 +1337,7 @@ static int drbg_generate(struct drbg_state *drbg,
 	 * 9.3.1 step 6 and 9 supplemented by 9.3.2 step c is implemented
 	 * here. The spec is a bit convoluted here, we make it simpler.
 	 */
-	if ((drbg_max_requests(drbg)) < drbg->reseed_ctr)
+	if (drbg->reseed_threshold < drbg->reseed_ctr)
 		drbg->seeded = false;
 
 	if (drbg->pr || !drbg->seeded) {
@@ -1478,6 +1481,12 @@ static int drbg_prepare_hrng(struct drbg_state *drbg)
 
 	drbg->jent = crypto_alloc_rng("jitterentropy_rng", 0, 0);
 
+	/*
+	 * Require frequent reseeds until the seed source is fully
+	 * initialized.
+	 */
+	drbg->reseed_threshold = 50;
+
 	return err;
 }
 
@@ -1522,6 +1531,7 @@ static int drbg_instantiate(struct drbg_state *drbg, struct drbg_string *pers,
 		drbg->core = &drbg_cores[coreref];
 		drbg->pr = pr;
 		drbg->seeded = false;
+		drbg->reseed_threshold = drbg_max_requests(drbg);
 
 		ret = drbg_alloc_state(drbg);
 		if (ret)
