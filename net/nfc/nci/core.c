@@ -74,6 +74,7 @@ void nci_req_complete(struct nci_dev *ndev, int result)
 		complete(&ndev->req_completion);
 	}
 }
+EXPORT_SYMBOL(nci_req_complete);
 
 static void nci_req_cancel(struct nci_dev *ndev, int err)
 {
