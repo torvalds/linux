@@ -547,6 +547,27 @@
 					};
 				};
 			};
+
+			tsin5 {
+				pinctrl_tsin5_serial_alt1: tsin5_serial_alt1 {
+					st,pins {
+						DATA7 = <&pio18 4 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						CLKIN = <&pio18 3 ALT1 IN CLKNOTDATA 0 CLK_A>;
+						VALID = <&pio18 1 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						ERROR = <&pio18 0 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						PKCLK = <&pio18 2 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+					};
+				};
+				pinctrl_tsin5_serial_alt2: tsin5_serial_alt2 {
+					st,pins {
+						DATA7 = <&pio19 4 ALT2 IN SE_NICLK_IO 0 CLK_A>;
+						CLKIN = <&pio19 3 ALT2 IN CLKNOTDATA 0 CLK_A>;
+						VALID = <&pio19 1 ALT2 IN SE_NICLK_IO 0 CLK_A>;
+						ERROR = <&pio19 0 ALT2 IN SE_NICLK_IO 0 CLK_A>;
+						PKCLK = <&pio19 2 ALT2 IN SE_NICLK_IO 0 CLK_A>;
+					};
+				};
+			};
 		};
 
 		pin-controller-front1 {
