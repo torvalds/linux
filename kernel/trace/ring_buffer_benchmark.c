@@ -32,11 +32,11 @@ static struct task_struct *producer;
 static struct task_struct *consumer;
 static unsigned long read;
 
-static int disable_reader;
+static unsigned int disable_reader;
 module_param(disable_reader, uint, 0644);
 MODULE_PARM_DESC(disable_reader, "only run producer");
 
-static int write_iteration = 50;
+static unsigned int write_iteration = 50;
 module_param(write_iteration, uint, 0644);
 MODULE_PARM_DESC(write_iteration, "# of writes between timestamp readings");
 
