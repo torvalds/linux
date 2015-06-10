@@ -20,6 +20,8 @@
 #include <asm/page.h>
 #include <asm/sigp.h>
 #include <asm/irq.h>
+#include <asm/fpu-internal.h>
+#include <asm/vx-insn.h>
 
 __PT_R0      =	__PT_GPRS
 __PT_R1      =	__PT_GPRS + 8
@@ -46,10 +48,10 @@ _TIF_WORK	= (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
 		   _TIF_UPROBE)
 _TIF_TRACE	= (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SECCOMP | \
 		   _TIF_SYSCALL_TRACEPOINT)
-_CIF_WORK	= (_CIF_MCCK_PENDING | _CIF_ASCE)
+_CIF_WORK	= (_CIF_MCCK_PENDING | _CIF_ASCE | _CIF_FPU)
 _PIF_WORK	= (_PIF_PER_TRAP)
 
-#define BASED(name) name-system_call(%r13)
+#define BASED(name) name-cleanup_critical(%r13)
 
 	.macro	TRACE_IRQS_ON
 #ifdef CONFIG_TRACE_IRQFLAGS
@@ -280,6 +282,8 @@ ENTRY(system_call)
 	jo	.Lsysc_sigpending
 	tm	__TI_flags+7(%r12),_TIF_NOTIFY_RESUME
 	jo	.Lsysc_notify_resume
+	tm	__LC_CPU_FLAGS+7,_CIF_FPU
+	jo	.Lsysc_vxrs
 	tm	__LC_CPU_FLAGS+7,_CIF_ASCE
 	jo	.Lsysc_uaccess
 	j	.Lsysc_return		# beware of critical section cleanup
@@ -305,6 +309,13 @@ ENTRY(system_call)
 	ni	__LC_CPU_FLAGS+7,255-_CIF_ASCE
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
 	j	.Lsysc_return
+
+#
+# CIF_FPU is set, restore floating-point controls and floating-point registers.
+#
+.Lsysc_vxrs:
+	larl	%r14,.Lsysc_return
+	jg	load_fpu_regs
 
 #
 # _TIF_SIGPENDING is set, call do_signal
@@ -405,7 +416,7 @@ ENTRY(pgm_check_handler)
 	stmg	%r8,%r15,__LC_SAVE_AREA_SYNC
 	lg	%r10,__LC_LAST_BREAK
 	lg	%r12,__LC_THREAD_INFO
-	larl	%r13,system_call
+	larl	%r13,cleanup_critical
 	lmg	%r8,%r9,__LC_PGM_OLD_PSW
 	HANDLE_SIE_INTERCEPT %r14,1
 	tmhh	%r8,0x0001		# test problem state bit
@@ -483,7 +494,7 @@ ENTRY(io_int_handler)
 	stmg	%r8,%r15,__LC_SAVE_AREA_ASYNC
 	lg	%r10,__LC_LAST_BREAK
 	lg	%r12,__LC_THREAD_INFO
-	larl	%r13,system_call
+	larl	%r13,cleanup_critical
 	lmg	%r8,%r9,__LC_IO_OLD_PSW
 	HANDLE_SIE_INTERCEPT %r14,2
 	SWITCH_ASYNC __LC_SAVE_AREA_ASYNC,__LC_ASYNC_STACK,STACK_SHIFT
@@ -587,6 +598,8 @@ ENTRY(io_int_handler)
 	jo	.Lio_sigpending
 	tm	__TI_flags+7(%r12),_TIF_NOTIFY_RESUME
 	jo	.Lio_notify_resume
+	tm	__LC_CPU_FLAGS+7,_CIF_FPU
+	jo	.Lio_vxrs
 	tm	__LC_CPU_FLAGS+7,_CIF_ASCE
 	jo	.Lio_uaccess
 	j	.Lio_return		# beware of critical section cleanup
@@ -607,6 +620,13 @@ ENTRY(io_int_handler)
 	ni	__LC_CPU_FLAGS+7,255-_CIF_ASCE
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
 	j	.Lio_return
+
+#
+# CIF_FPU is set, restore floating-point controls and floating-point registers.
+#
+.Lio_vxrs:
+	larl	%r14,.Lio_return
+	jg	load_fpu_regs
 
 #
 # _TIF_NEED_RESCHED is set, call schedule
@@ -652,7 +672,7 @@ ENTRY(ext_int_handler)
 	stmg	%r8,%r15,__LC_SAVE_AREA_ASYNC
 	lg	%r10,__LC_LAST_BREAK
 	lg	%r12,__LC_THREAD_INFO
-	larl	%r13,system_call
+	larl	%r13,cleanup_critical
 	lmg	%r8,%r9,__LC_EXT_OLD_PSW
 	HANDLE_SIE_INTERCEPT %r14,3
 	SWITCH_ASYNC __LC_SAVE_AREA_ASYNC,__LC_ASYNC_STACK,STACK_SHIFT
@@ -690,6 +710,121 @@ ENTRY(psw_idle)
 	br	%r14
 .Lpsw_idle_end:
 
+/* Store floating-point controls and floating-point or vector extension
+ * registers instead.  A critical section cleanup assures that the registers
+ * are stored even if interrupted for some other work.	The register %r2
+ * designates a struct fpu to store register contents.	If the specified
+ * structure does not contain a register save area, the register store is
+ * omitted (see also comments in arch_dup_task_struct()).
+ *
+ * The CIF_FPU flag is set in any case.  The CIF_FPU triggers a lazy restore
+ * of the register contents at system call or io return.
+ */
+ENTRY(save_fpu_regs)
+	tm	__LC_CPU_FLAGS+7,_CIF_FPU
+	bor	%r14
+	stfpc	__FPU_fpc(%r2)
+.Lsave_fpu_regs_fpc_end:
+	lg	%r3,__FPU_regs(%r2)
+	ltgr	%r3,%r3
+	jz	.Lsave_fpu_regs_done	  # no save area -> set CIF_FPU
+	tm	__FPU_flags+3(%r2),FPU_USE_VX
+	jz	.Lsave_fpu_regs_fp	  # no -> store FP regs
+.Lsave_fpu_regs_vx_low:
+	VSTM	%v0,%v15,0,%r3		  # vstm 0,15,0(3)
+.Lsave_fpu_regs_vx_high:
+	VSTM	%v16,%v31,256,%r3	  # vstm 16,31,256(3)
+	j	.Lsave_fpu_regs_done	  # -> set CIF_FPU flag
+.Lsave_fpu_regs_fp:
+	std	0,0(%r3)
+	std	1,8(%r3)
+	std	2,16(%r3)
+	std	3,24(%r3)
+	std	4,32(%r3)
+	std	5,40(%r3)
+	std	6,48(%r3)
+	std	7,56(%r3)
+	std	8,64(%r3)
+	std	9,72(%r3)
+	std	10,80(%r3)
+	std	11,88(%r3)
+	std	12,96(%r3)
+	std	13,104(%r3)
+	std	14,112(%r3)
+	std	15,120(%r3)
+.Lsave_fpu_regs_done:
+	oi	__LC_CPU_FLAGS+7,_CIF_FPU
+	br	%r14
+.Lsave_fpu_regs_end:
+
+/* Load floating-point controls and floating-point or vector extension
+ * registers.  A critical section cleanup assures that the register contents
+ * are loaded even if interrupted for some other work.	Depending on the saved
+ * FP/VX state, the vector-enablement control, CR0.46, is either set or cleared.
+ *
+ * There are special calling conventions to fit into sysc and io return work:
+ *	%r12:	__LC_THREAD_INFO
+ *	%r15:	<kernel stack>
+ * The function requires:
+ *	%r4 and __SF_EMPTY+32(%r15)
+ */
+load_fpu_regs:
+	tm	__LC_CPU_FLAGS+7,_CIF_FPU
+	bnor	%r14
+	lg	%r4,__TI_task(%r12)
+	la	%r4,__THREAD_fpu(%r4)
+	lfpc	__FPU_fpc(%r4)
+	stctg	%c0,%c0,__SF_EMPTY+32(%r15)	# store CR0
+	tm	__FPU_flags+3(%r4),FPU_USE_VX	# VX-enabled task ?
+	lg	%r4,__FPU_regs(%r4)		# %r4 <- reg save area
+	jz	.Lload_fpu_regs_fp_ctl		# -> no VX, load FP regs
+.Lload_fpu_regs_vx_ctl:
+	tm	__SF_EMPTY+32+5(%r15),2		# test VX control
+	jo	.Lload_fpu_regs_vx
+	oi	__SF_EMPTY+32+5(%r15),2		# set VX control
+	lctlg	%c0,%c0,__SF_EMPTY+32(%r15)
+.Lload_fpu_regs_vx:
+	VLM	%v0,%v15,0,%r4
+.Lload_fpu_regs_vx_high:
+	VLM	%v16,%v31,256,%r4
+	j	.Lload_fpu_regs_done
+.Lload_fpu_regs_fp_ctl:
+	tm	__SF_EMPTY+32+5(%r15),2		# test VX control
+	jz	.Lload_fpu_regs_fp
+	ni	__SF_EMPTY+32+5(%r15),253	# clear VX control
+	lctlg	%c0,%c0,__SF_EMPTY+32(%r15)
+.Lload_fpu_regs_fp:
+	ld	0,0(%r4)
+	ld	1,8(%r4)
+	ld	2,16(%r4)
+	ld	3,24(%r4)
+	ld	4,32(%r4)
+	ld	5,40(%r4)
+	ld	6,48(%r4)
+	ld	7,56(%r4)
+	ld	8,64(%r4)
+	ld	9,72(%r4)
+	ld	10,80(%r4)
+	ld	11,88(%r4)
+	ld	12,96(%r4)
+	ld	13,104(%r4)
+	ld	14,112(%r4)
+	ld	15,120(%r4)
+.Lload_fpu_regs_done:
+	ni	__LC_CPU_FLAGS+7,255-_CIF_FPU
+	br	%r14
+.Lload_fpu_regs_end:
+
+/* Test and set the vector enablement control in CR0.46 */
+ENTRY(__ctl_set_vx)
+	stctg	%c0,%c0,__SF_EMPTY(%r15)
+	tm	__SF_EMPTY+5(%r15),2
+	bor	%r14
+	oi	__SF_EMPTY+5(%r15),2
+	lctlg	%c0,%c0,__SF_EMPTY(%r15)
+	br	%r14
+.L__ctl_set_vx_end:
+
 .L__critical_end:
 
 /*
@@ -702,7 +837,7 @@ ENTRY(mcck_int_handler)
 	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-4095(%r1)# revalidate gprs
 	lg	%r10,__LC_LAST_BREAK
 	lg	%r12,__LC_THREAD_INFO
-	larl	%r13,system_call
+	larl	%r13,cleanup_critical
 	lmg	%r8,%r9,__LC_MCK_OLD_PSW
 	HANDLE_SIE_INTERCEPT %r14,4
 	tm	__LC_MCCK_CODE,0x80	# system damage?
@@ -831,6 +966,12 @@ stack_overflow:
 	.quad	.Lio_done
 	.quad	psw_idle
 	.quad	.Lpsw_idle_end
+	.quad	save_fpu_regs
+	.quad	.Lsave_fpu_regs_end
+	.quad	load_fpu_regs
+	.quad	.Lload_fpu_regs_end
+	.quad	__ctl_set_vx
+	.quad	.L__ctl_set_vx_end
 
 cleanup_critical:
 	clg	%r9,BASED(.Lcleanup_table)	# system_call
@@ -853,6 +994,18 @@ cleanup_critical:
 	jl	0f
 	clg	%r9,BASED(.Lcleanup_table+72)	# .Lpsw_idle_end
 	jl	.Lcleanup_idle
+	clg	%r9,BASED(.Lcleanup_table+80)	# save_fpu_regs
+	jl	0f
+	clg	%r9,BASED(.Lcleanup_table+88)	# .Lsave_fpu_regs_end
+	jl	.Lcleanup_save_fpu_regs
+	clg	%r9,BASED(.Lcleanup_table+96)	# load_fpu_regs
+	jl	0f
+	clg	%r9,BASED(.Lcleanup_table+104)	# .Lload_fpu_regs_end
+	jl	.Lcleanup_load_fpu_regs
+	clg	%r9,BASED(.Lcleanup_table+112)	# __ctl_set_vx
+	jl	0f
+	clg	%r9,BASED(.Lcleanup_table+120)	# .L__ctl_set_vx_end
+	jl	.Lcleanup___ctl_set_vx
 0:	br	%r14
 
 
@@ -981,6 +1134,145 @@ cleanup_critical:
 .Lcleanup_idle_insn:
 	.quad	.Lpsw_idle_lpsw
 
+.Lcleanup_save_fpu_regs:
+	tm	__LC_CPU_FLAGS+7,_CIF_FPU
+	bor	%r14
+	clg	%r9,BASED(.Lcleanup_save_fpu_regs_done)
+	jhe	5f
+	clg	%r9,BASED(.Lcleanup_save_fpu_regs_fp)
+	jhe	4f
+	clg	%r9,BASED(.Lcleanup_save_fpu_regs_vx_high)
+	jhe	3f
+	clg	%r9,BASED(.Lcleanup_save_fpu_regs_vx_low)
+	jhe	2f
+	clg	%r9,BASED(.Lcleanup_save_fpu_fpc_end)
+	jhe	1f
+0:	# Store floating-point controls
+	stfpc	__FPU_fpc(%r2)
+1:	# Load register save area and check if VX is active
+	lg	%r3,__FPU_regs(%r2)
+	ltgr	%r3,%r3
+	jz	5f			  # no save area -> set CIF_FPU
+	tm	__FPU_flags+3(%r2),FPU_USE_VX
+	jz	4f			  # no VX -> store FP regs
+2:	# Store vector registers (V0-V15)
+	VSTM	%v0,%v15,0,%r3		  # vstm 0,15,0(3)
+3:	# Store vector registers (V16-V31)
+	VSTM	%v16,%v31,256,%r3	  # vstm 16,31,256(3)
+	j	5f			  # -> done, set CIF_FPU flag
+4:	# Store floating-point registers
+	std	0,0(%r3)
+	std	1,8(%r3)
+	std	2,16(%r3)
+	std	3,24(%r3)
+	std	4,32(%r3)
+	std	5,40(%r3)
+	std	6,48(%r3)
+	std	7,56(%r3)
+	std	8,64(%r3)
+	std	9,72(%r3)
+	std	10,80(%r3)
+	std	11,88(%r3)
+	std	12,96(%r3)
+	std	13,104(%r3)
+	std	14,112(%r3)
+	std	15,120(%r3)
+5:	# Set CIF_FPU flag
+	oi	__LC_CPU_FLAGS+7,_CIF_FPU
+	lg	%r9,48(%r11)		# return from save_fpu_regs
+	br	%r14
+.Lcleanup_save_fpu_fpc_end:
+	.quad	.Lsave_fpu_regs_fpc_end
+.Lcleanup_save_fpu_regs_vx_low:
+	.quad	.Lsave_fpu_regs_vx_low
+.Lcleanup_save_fpu_regs_vx_high:
+	.quad	.Lsave_fpu_regs_vx_high
+.Lcleanup_save_fpu_regs_fp:
+	.quad	.Lsave_fpu_regs_fp
+.Lcleanup_save_fpu_regs_done:
+	.quad	.Lsave_fpu_regs_done
+
+.Lcleanup_load_fpu_regs:
+	tm	__LC_CPU_FLAGS+7,_CIF_FPU
+	bnor	%r14
+	clg	%r9,BASED(.Lcleanup_load_fpu_regs_done)
+	jhe	1f
+	clg	%r9,BASED(.Lcleanup_load_fpu_regs_fp)
+	jhe	2f
+	clg	%r9,BASED(.Lcleanup_load_fpu_regs_fp_ctl)
+	jhe	3f
+	clg	%r9,BASED(.Lcleanup_load_fpu_regs_vx_high)
+	jhe	4f
+	clg	%r9,BASED(.Lcleanup_load_fpu_regs_vx)
+	jhe	5f
+	clg	%r9,BASED(.Lcleanup_load_fpu_regs_vx_ctl)
+	jhe	6f
+	lg	%r4,__TI_task(%r12)
+	la	%r4,__THREAD_fpu(%r4)
+	lfpc	__FPU_fpc(%r4)
+	tm	__FPU_flags+3(%r4),FPU_USE_VX	# VX-enabled task ?
+	lg	%r4,__FPU_regs(%r4)		# %r4 <- reg save area
+	jz	3f				# -> no VX, load FP regs
+6:	# Set VX-enablement control
+	stctg	%c0,%c0,__SF_EMPTY+32(%r15)	# store CR0
+	tm	__SF_EMPTY+32+5(%r15),2		# test VX control
+	jo	5f
+	oi	__SF_EMPTY+32+5(%r15),2		# set VX control
+	lctlg	%c0,%c0,__SF_EMPTY+32(%r15)
+5:	# Load V0 ..V15 registers
+	VLM	%v0,%v15,0,%r4
+4:	# Load V16..V31 registers
+	VLM	%v16,%v31,256,%r4
+	j	1f
+3:	# Clear VX-enablement control for FP
+	stctg	%c0,%c0,__SF_EMPTY+32(%r15)	# store CR0
+	tm	__SF_EMPTY+32+5(%r15),2		# test VX control
+	jz	2f
+	ni	__SF_EMPTY+32+5(%r15),253	# clear VX control
+	lctlg	%c0,%c0,__SF_EMPTY+32(%r15)
+2:	# Load floating-point registers
+	ld	0,0(%r4)
+	ld	1,8(%r4)
+	ld	2,16(%r4)
+	ld	3,24(%r4)
+	ld	4,32(%r4)
+	ld	5,40(%r4)
+	ld	6,48(%r4)
+	ld	7,56(%r4)
+	ld	8,64(%r4)
+	ld	9,72(%r4)
+	ld	10,80(%r4)
+	ld	11,88(%r4)
+	ld	12,96(%r4)
+	ld	13,104(%r4)
+	ld	14,112(%r4)
+	ld	15,120(%r4)
+1:	# Clear CIF_FPU bit
+	ni	__LC_CPU_FLAGS+7,255-_CIF_FPU
+	lg	%r9,48(%r11)		# return from load_fpu_regs
+	br	%r14
+.Lcleanup_load_fpu_regs_vx_ctl:
+	.quad	.Lload_fpu_regs_vx_ctl
+.Lcleanup_load_fpu_regs_vx:
+	.quad	.Lload_fpu_regs_vx
+.Lcleanup_load_fpu_regs_vx_high:
+	.quad	.Lload_fpu_regs_vx_high
+.Lcleanup_load_fpu_regs_fp_ctl:
+	.quad	.Lload_fpu_regs_fp_ctl
+.Lcleanup_load_fpu_regs_fp:
+	.quad	.Lload_fpu_regs_fp
+.Lcleanup_load_fpu_regs_done:
+	.quad	.Lload_fpu_regs_done
+
+.Lcleanup___ctl_set_vx:
+	stctg	%c0,%c0,__SF_EMPTY(%r15)
+	tm	__SF_EMPTY+5(%r15),2
+	bor	%r14
+	oi	__SF_EMPTY+5(%r15),2
+	lctlg	%c0,%c0,__SF_EMPTY(%r15)
+	lg	%r9,48(%r11)		# return from __ctl_set_vx
+	br	%r14
+
 /*
  * Integer constants
  */
@@ -1002,6 +1294,11 @@ ENTRY(sie64a)
 	stg	%r2,__SF_EMPTY(%r15)		# save control block pointer
 	stg	%r3,__SF_EMPTY+8(%r15)		# save guest register save area
 	xc	__SF_EMPTY+16(16,%r15),__SF_EMPTY+16(%r15) # host id & reason
+	tm	__LC_CPU_FLAGS+7,_CIF_FPU	# load guest fp/vx registers ?
+	jno	.Lsie_load_guest_gprs
+	lg	%r12,__LC_THREAD_INFO		# load fp/vx regs save area
+	brasl	%r14,load_fpu_regs		# load guest fp/vx regs
+.Lsie_load_guest_gprs:
 	lmg	%r0,%r13,0(%r3)			# load guest gprs 0-13
 	lg	%r14,__LC_GMAP			# get gmap pointer
 	ltgr	%r14,%r14
@@ -1012,6 +1309,8 @@ ENTRY(sie64a)
 	oi	__SIE_PROG0C+3(%r14),1		# we are going into SIE now
 	tm	__SIE_PROG20+3(%r14),3		# last exit...
 	jnz	.Lsie_done
+	tm	__LC_CPU_FLAGS+7,_CIF_FPU
+	jo	.Lsie_done			# exit if fp/vx regs changed
 	LPP	__SF_EMPTY(%r15)		# set guest id
 	sie	0(%r14)
 .Lsie_done:

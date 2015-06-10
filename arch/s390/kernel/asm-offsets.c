@@ -28,10 +28,15 @@ int main(void)
 	DEFINE(__TASK_pid, offsetof(struct task_struct, pid));
 	BLANK();
 	DEFINE(__THREAD_ksp, offsetof(struct thread_struct, ksp));
+	DEFINE(__THREAD_fpu, offsetof(struct task_struct, thread.fpu));
 	DEFINE(__THREAD_per_cause, offsetof(struct thread_struct, per_event.cause));
 	DEFINE(__THREAD_per_address, offsetof(struct thread_struct, per_event.address));
 	DEFINE(__THREAD_per_paid, offsetof(struct thread_struct, per_event.paid));
 	DEFINE(__THREAD_trap_tdb, offsetof(struct thread_struct, trap_tdb));
+	BLANK();
+	DEFINE(__FPU_fpc, offsetof(struct fpu, fpc));
+	DEFINE(__FPU_flags, offsetof(struct fpu, flags));
+	DEFINE(__FPU_regs, offsetof(struct fpu, regs));
 	BLANK();
 	DEFINE(__TI_task, offsetof(struct thread_info, task));
 	DEFINE(__TI_flags, offsetof(struct thread_info, flags));

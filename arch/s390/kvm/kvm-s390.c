@@ -1198,27 +1198,54 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+/*
+ * Backs up the current FP/VX register save area on a particular
+ * destination.  Used to switch between different register save
+ * areas.
+ */
+static inline void save_fpu_to(struct fpu *dst)
+{
+	dst->fpc = current->thread.fpu.fpc;
+	dst->flags = current->thread.fpu.flags;
+	dst->regs = current->thread.fpu.regs;
+}
+
+/*
+ * Switches the FP/VX register save area from which to lazy
+ * restore register contents.
+ */
+static inline void load_fpu_from(struct fpu *from)
+{
+	current->thread.fpu.fpc = from->fpc;
+	current->thread.fpu.flags = from->flags;
+	current->thread.fpu.regs = from->regs;
+}
+
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
-	__u32 fpc;
+	/* Save host register state */
+	save_fpu_regs(&current->thread.fpu);
+	save_fpu_to(&vcpu->arch.host_fpregs);
 
-	save_fp_ctl(&vcpu->arch.host_fpregs.fpc);
-	if (test_kvm_facility(vcpu->kvm, 129))
-		save_vx_regs((__vector128 *)&vcpu->arch.host_vregs->vrs);
-	else
-		save_fp_regs(vcpu->arch.host_fpregs.fprs);
-	save_access_regs(vcpu->arch.host_acrs);
 	if (test_kvm_facility(vcpu->kvm, 129)) {
-		fpc = vcpu->run->s.regs.fpc;
-		restore_vx_regs((__vector128 *)&vcpu->run->s.regs.vrs);
-	} else {
-		fpc = vcpu->arch.guest_fpregs.fpc;
-		restore_fp_regs(vcpu->arch.guest_fpregs.fprs);
-	}
-	if (test_fp_ctl(fpc))
+		current->thread.fpu.fpc = vcpu->run->s.regs.fpc;
+		current->thread.fpu.flags = FPU_USE_VX;
+		/*
+		 * Use the register save area in the SIE-control block
+		 * for register restore and save in kvm_arch_vcpu_put()
+		 */
+		current->thread.fpu.vxrs =
+			(__vector128 *)&vcpu->run->s.regs.vrs;
+		/* Always enable the vector extension for KVM */
+		__ctl_set_vx();
+	} else
+		load_fpu_from(&vcpu->arch.guest_fpregs);
+
+	if (test_fp_ctl(current->thread.fpu.fpc))
 		/* User space provided an invalid FPC, let's clear it */
-		fpc = 0;
-	restore_fp_ctl(&fpc);
+		current->thread.fpu.fpc = 0;
+
+	save_access_regs(vcpu->arch.host_acrs);
 	restore_access_regs(vcpu->run->s.regs.acrs);
 	gmap_enable(vcpu->arch.gmap);
 	atomic_set_mask(CPUSTAT_RUNNING, &vcpu->arch.sie_block->cpuflags);
@@ -1228,19 +1255,22 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	atomic_clear_mask(CPUSTAT_RUNNING, &vcpu->arch.sie_block->cpuflags);
 	gmap_disable(vcpu->arch.gmap);
-	if (test_kvm_facility(vcpu->kvm, 129)) {
-		save_fp_ctl(&vcpu->run->s.regs.fpc);
-		save_vx_regs((__vector128 *)&vcpu->run->s.regs.vrs);
-	} else {
-		save_fp_ctl(&vcpu->arch.guest_fpregs.fpc);
-		save_fp_regs(vcpu->arch.guest_fpregs.fprs);
-	}
-	save_access_regs(vcpu->run->s.regs.acrs);
-	restore_fp_ctl(&vcpu->arch.host_fpregs.fpc);
+
+	save_fpu_regs(&current->thread.fpu);
+
 	if (test_kvm_facility(vcpu->kvm, 129))
-		restore_vx_regs((__vector128 *)&vcpu->arch.host_vregs->vrs);
+		/*
+		 * kvm_arch_vcpu_load() set up the register save area to
+		 * the &vcpu->run->s.regs.vrs and, thus, the vector registers
+		 * are already saved.  Only the floating-point control must be
+		 * copied.
+		 */
+		vcpu->run->s.regs.fpc = current->thread.fpu.fpc;
 	else
-		restore_fp_regs(vcpu->arch.host_fpregs.fprs);
+		save_fpu_to(&vcpu->arch.guest_fpregs);
+	load_fpu_from(&vcpu->arch.host_fpregs);
+
+	save_access_regs(vcpu->run->s.regs.acrs);
 	restore_access_regs(vcpu->arch.host_acrs);
 }
 
@@ -1383,7 +1413,6 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 
 	vcpu->arch.sie_block = &sie_page->sie_block;
 	vcpu->arch.sie_block->itdba = (unsigned long) &sie_page->itdb;
-	vcpu->arch.host_vregs = &sie_page->vregs;
 
 	vcpu->arch.sie_block->icpua = id;
 	if (!kvm_is_ucontrol(kvm)) {
@@ -1404,6 +1433,19 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 	vcpu->arch.local_int.float_int = &kvm->arch.float_int;
 	vcpu->arch.local_int.wq = &vcpu->wq;
 	vcpu->arch.local_int.cpuflags = &vcpu->arch.sie_block->cpuflags;
+
+	/*
+	 * Allocate a save area for floating-point registers.  If the vector
+	 * extension is available, register contents are saved in the SIE
+	 * control block.  The allocated save area is still required in
+	 * particular places, for example, in kvm_s390_vcpu_store_status().
+	 */
+	vcpu->arch.guest_fpregs.fprs = kzalloc(sizeof(freg_t) * __NUM_FPRS,
+					       GFP_KERNEL);
+	if (!vcpu->arch.guest_fpregs.fprs) {
+		rc = -ENOMEM;
+		goto out_free_sie_block;
+	}
 
 	rc = kvm_vcpu_init(vcpu, kvm, id);
 	if (rc)
@@ -1627,16 +1669,16 @@ int kvm_arch_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 {
 	if (test_fp_ctl(fpu->fpc))
 		return -EINVAL;
-	memcpy(&vcpu->arch.guest_fpregs.fprs, &fpu->fprs, sizeof(fpu->fprs));
+	memcpy(vcpu->arch.guest_fpregs.fprs, &fpu->fprs, sizeof(fpu->fprs));
 	vcpu->arch.guest_fpregs.fpc = fpu->fpc;
-	restore_fp_ctl(&vcpu->arch.guest_fpregs.fpc);
-	restore_fp_regs(vcpu->arch.guest_fpregs.fprs);
+	save_fpu_regs(&current->thread.fpu);
+	load_fpu_from(&vcpu->arch.guest_fpregs);
 	return 0;
 }
 
 int kvm_arch_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 {
-	memcpy(&fpu->fprs, &vcpu->arch.guest_fpregs.fprs, sizeof(fpu->fprs));
+	memcpy(&fpu->fprs, vcpu->arch.guest_fpregs.fprs, sizeof(fpu->fprs));
 	fpu->fpc = vcpu->arch.guest_fpregs.fpc;
 	return 0;
 }
@@ -2199,8 +2241,21 @@ int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 	 * copying in vcpu load/put. Lets update our copies before we save
 	 * it into the save area
 	 */
-	save_fp_ctl(&vcpu->arch.guest_fpregs.fpc);
-	save_fp_regs(vcpu->arch.guest_fpregs.fprs);
+	save_fpu_regs(&current->thread.fpu);
+	if (test_kvm_facility(vcpu->kvm, 129)) {
+		/*
+		 * If the vector extension is available, the vector registers
+		 * which overlaps with floating-point registers are saved in
+		 * the SIE-control block.  Hence, extract the floating-point
+		 * registers and the FPC value and store them in the
+		 * guest_fpregs structure.
+		 */
+		WARN_ON(!is_vx_task(current));	  /* XXX remove later */
+		vcpu->arch.guest_fpregs.fpc = current->thread.fpu.fpc;
+		convert_vx_to_fp(vcpu->arch.guest_fpregs.fprs,
+				 current->thread.fpu.vxrs);
+	} else
+		save_fpu_to(&vcpu->arch.guest_fpregs);
 	save_access_regs(vcpu->run->s.regs.acrs);
 
 	return kvm_s390_store_status_unloaded(vcpu, addr);
@@ -2227,10 +2282,13 @@ int kvm_s390_vcpu_store_adtl_status(struct kvm_vcpu *vcpu, unsigned long addr)
 
 	/*
 	 * The guest VXRS are in the host VXRs due to the lazy
-	 * copying in vcpu load/put. Let's update our copies before we save
-	 * it into the save area.
+	 * copying in vcpu load/put. We can simply call save_fpu_regs()
+	 * to save the current register state because we are in the
+	 * middle of a load/put cycle.
+	 *
+	 * Let's update our copies before we save it into the save area.
 	 */
-	save_vx_regs((__vector128 *)&vcpu->run->s.regs.vrs);
+	save_fpu_regs(&current->thread.fpu);
 
 	return kvm_s390_store_adtl_status_unloaded(vcpu, addr);
 }

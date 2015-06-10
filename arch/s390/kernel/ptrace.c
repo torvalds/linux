@@ -45,39 +45,27 @@ void update_cr_regs(struct task_struct *task)
 	struct per_regs old, new;
 
 	/* Take care of the enable/disable of transactional execution. */
-	if (MACHINE_HAS_TE || MACHINE_HAS_VX) {
+	if (MACHINE_HAS_TE) {
 		unsigned long cr, cr_new;
 
 		__ctl_store(cr, 0, 0);
-		cr_new = cr;
-		if (MACHINE_HAS_TE) {
-			/* Set or clear transaction execution TXC bit 8. */
-			cr_new |= (1UL << 55);
-			if (task->thread.per_flags & PER_FLAG_NO_TE)
-				cr_new &= ~(1UL << 55);
-		}
-		if (MACHINE_HAS_VX) {
-			/* Enable/disable of vector extension */
-			cr_new &= ~(1UL << 17);
-			if (task->thread.fpu.vxrs)
-				cr_new |= (1UL << 17);
-		}
+		/* Set or clear transaction execution TXC bit 8. */
+		cr_new = cr | (1UL << 55);
+		if (task->thread.per_flags & PER_FLAG_NO_TE)
+			cr_new &= ~(1UL << 55);
 		if (cr_new != cr)
 			__ctl_load(cr_new, 0, 0);
-		if (MACHINE_HAS_TE) {
-			/* Set/clear transaction execution TDC bits 62/63. */
-			__ctl_store(cr, 2, 2);
-			cr_new = cr & ~3UL;
-			if (task->thread.per_flags & PER_FLAG_TE_ABORT_RAND) {
-				if (task->thread.per_flags &
-				    PER_FLAG_TE_ABORT_RAND_TEND)
-					cr_new |= 1UL;
-				else
-					cr_new |= 2UL;
-			}
-			if (cr_new != cr)
-				__ctl_load(cr_new, 2, 2);
+		/* Set or clear transaction execution TDC bits 62 and 63. */
+		__ctl_store(cr, 2, 2);
+		cr_new = cr & ~3UL;
+		if (task->thread.per_flags & PER_FLAG_TE_ABORT_RAND) {
+			if (task->thread.per_flags & PER_FLAG_TE_ABORT_RAND_TEND)
+				cr_new |= 1UL;
+			else
+				cr_new |= 2UL;
 		}
+		if (cr_new != cr)
+			__ctl_load(cr_new, 2, 2);
 	}
 	/* Copy user specified PER registers */
 	new.control = thread->per_user.control;
@@ -998,9 +986,6 @@ static int s390_fpregs_set(struct task_struct *target,
 	else
 		memcpy(target->thread.fpu.fprs, &fprs, sizeof(fprs));
 
-	if (target == current)
-		restore_fpu_regs(&target->thread.fpu);
-
 	return rc;
 }
 
@@ -1090,12 +1075,9 @@ static int s390_vxrs_low_set(struct task_struct *target,
 		save_fpu_regs(&target->thread.fpu);
 
 	rc = user_regset_copyin(&pos, &count, &kbuf, &ubuf, vxrs, 0, -1);
-	if (rc == 0) {
+	if (rc == 0)
 		for (i = 0; i < __NUM_VXRS_LOW; i++)
 			*((__u64 *)(target->thread.fpu.vxrs + i) + 1) = vxrs[i];
-		if (target == current)
-			restore_fpu_regs(&target->thread.fpu);
-	}
 
 	return rc;
 }
@@ -1137,9 +1119,6 @@ static int s390_vxrs_high_set(struct task_struct *target,
 
 	rc = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				target->thread.fpu.vxrs + __NUM_VXRS_LOW, 0, -1);
-	if (rc == 0 && target == current)
-		restore_vx_regs(target->thread.fpu.vxrs);
-
 	return rc;
 }
 

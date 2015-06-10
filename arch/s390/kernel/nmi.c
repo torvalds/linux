@@ -165,8 +165,12 @@ static int notrace s390_revalidate_registers(struct mci *mci)
 		cr0.val = S390_lowcore.cregs_save_area[0];
 		cr0.afp = cr0.vx = 1;
 		__ctl_load(cr0.val, 0, 0);
-		restore_vx_regs((__vector128 *)
-				&S390_lowcore.vector_save_area);
+		asm volatile(
+			"	la	1,%0\n"
+			"	.word	0xe70f,0x1000,0x0036\n"	/* vlm 0,15,0(1) */
+			"	.word	0xe70f,0x1100,0x0c36\n"	/* vlm 16,31,256(1) */
+			: : "Q" (*(struct vx_array *)
+				 &S390_lowcore.vector_save_area) : "1");
 		__ctl_load(S390_lowcore.cregs_save_area[0], 0, 0);
 	}
 	/* Revalidate access registers */

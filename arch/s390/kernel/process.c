@@ -90,16 +90,28 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	*dst = *src;
 
 	/* Set up a new floating-point register save area */
+	dst->thread.fpu.fpc = 0;
+	dst->thread.fpu.flags = 0;	/* Always start with VX disabled */
 	dst->thread.fpu.fprs = kzalloc(sizeof(freg_t) * __NUM_FPRS,
 				       GFP_KERNEL|__GFP_REPEAT);
 	if (!dst->thread.fpu.fprs)
 		return -ENOMEM;
 
-	/* Save the fpu registers to new thread structure. */
-	save_fp_ctl(&dst->thread.fpu.fpc);
-	save_fp_regs(dst->thread.fpu.fprs);
-	dst->thread.fpu.flags = 0;     /* Always start with VX disabled */
-
+	/*
+	 * Save the floating-point or vector register state of the current
+	 * task.  The state is not saved for early kernel threads, for example,
+	 * the init_task, which do not have an allocated save area.
+	 * The CIF_FPU flag is set in any case to lazy clear or restore a saved
+	 * state when switching to a different task or returning to user space.
+	 */
+	save_fpu_regs(&current->thread.fpu);
+	dst->thread.fpu.fpc = current->thread.fpu.fpc;
+	if (is_vx_task(current))
+		convert_vx_to_fp(dst->thread.fpu.fprs,
+				 current->thread.fpu.vxrs);
+	else
+		memcpy(dst->thread.fpu.fprs, current->thread.fpu.fprs,
+		       sizeof(freg_t) * __NUM_FPRS);
 	return 0;
 }
 
@@ -184,8 +196,15 @@ asmlinkage void execve_tail(void)
  */
 int dump_fpu (struct pt_regs * regs, s390_fp_regs *fpregs)
 {
-	save_fp_ctl(&fpregs->fpc);
-	save_fp_regs(fpregs->fprs);
+	save_fpu_regs(&current->thread.fpu);
+	fpregs->fpc = current->thread.fpu.fpc;
+	fpregs->pad = 0;
+	if (is_vx_task(current))
+		convert_vx_to_fp((freg_t *)&fpregs->fprs,
+				 current->thread.fpu.vxrs);
+	else
+		memcpy(&fpregs->fprs, current->thread.fpu.fprs,
+		       sizeof(fpregs->fprs));
 	return 1;
 }
 EXPORT_SYMBOL(dump_fpu);

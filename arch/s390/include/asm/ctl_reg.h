@@ -46,6 +46,8 @@ static inline void __ctl_clear_bit(unsigned int cr, unsigned int bit)
 	__ctl_load(reg, cr, cr);
 }
 
+void __ctl_set_vx(void);
+
 void smp_ctl_set_bit(int cr, int bit);
 void smp_ctl_clear_bit(int cr, int bit);
 

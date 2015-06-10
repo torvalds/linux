@@ -151,7 +151,7 @@ DO_ERROR_INFO(special_op_exception, SIGILL, ILL_ILLOPN,
 DO_ERROR_INFO(transaction_exception, SIGILL, ILL_ILLOPN,
 	      "transaction constraint exception")
 
-static inline void do_fp_trap(struct pt_regs *regs, int fpc)
+static inline void do_fp_trap(struct pt_regs *regs, __u32 fpc)
 {
 	int si_code = 0;
 	/* FPC[2] is Data Exception Code */
@@ -236,17 +236,13 @@ int alloc_vector_registers(struct task_struct *tsk)
 		return -ENOMEM;
 	preempt_disable();
 	if (tsk == current)
-		save_fp_regs(tsk->thread.fpu.fprs);
+		save_fpu_regs(&tsk->thread.fpu);
 	/* Copy the 16 floating point registers */
 	convert_fp_to_vx(vxrs, tsk->thread.fpu.fprs);
 	fprs = tsk->thread.fpu.fprs;
 	tsk->thread.fpu.vxrs = vxrs;
 	tsk->thread.fpu.flags |= FPU_USE_VX;
 	kfree(fprs);
-	if (tsk == current) {
-		__ctl_set_bit(0, 17);
-		restore_vx_regs(vxrs);
-	}
 	preempt_enable();
 	return 0;
 }
@@ -261,7 +257,7 @@ void vector_exception(struct pt_regs *regs)
 	}
 
 	/* get vector interrupt code from fpc */
-	asm volatile("stfpc %0" : "=Q" (current->thread.fpu.fpc));
+	save_fpu_regs(&current->thread.fpu);
 	vic = (current->thread.fpu.fpc & 0xf00) >> 8;
 	switch (vic) {
 	case 1: /* invalid vector operation */
@@ -299,7 +295,7 @@ void data_exception(struct pt_regs *regs)
 
 	location = get_trap_ip(regs);
 
-	asm volatile("stfpc %0" : "=Q" (current->thread.fpu.fpc));
+	save_fpu_regs(&current->thread.fpu);
 	/* Check for vector register enablement */
 	if (MACHINE_HAS_VX && !is_vx_task(current) &&
 	    (current->thread.fpu.fpc & FPC_DXC_MASK) == 0xfe00) {

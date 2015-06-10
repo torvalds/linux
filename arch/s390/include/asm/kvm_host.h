@@ -22,6 +22,7 @@
 #include <linux/kvm.h>
 #include <asm/debug.h>
 #include <asm/cpu.h>
+#include <asm/fpu-internal.h>
 #include <asm/isc.h>
 
 #define KVM_MAX_VCPUS 64
@@ -498,10 +499,9 @@ struct kvm_guestdbg_info_arch {
 
 struct kvm_vcpu_arch {
 	struct kvm_s390_sie_block *sie_block;
-	s390_fp_regs      host_fpregs;
 	unsigned int      host_acrs[NUM_ACRS];
-	s390_fp_regs      guest_fpregs;
-	struct kvm_s390_vregs	*host_vregs;
+	struct fpu	  host_fpregs;
+	struct fpu	  guest_fpregs;
 	struct kvm_s390_local_interrupt local_int;
 	struct hrtimer    ckc_timer;
 	struct kvm_s390_pgm_info pgm;
