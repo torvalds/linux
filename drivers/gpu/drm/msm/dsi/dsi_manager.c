@@ -14,6 +14,18 @@
 #include "msm_kms.h"
 #include "dsi.h"
 
+#define DSI_CLOCK_MASTER	DSI_0
+#define DSI_CLOCK_SLAVE		DSI_1
+
+#define DSI_LEFT		DSI_0
+#define DSI_RIGHT		DSI_1
+
+/* According to the current drm framework sequence, take the encoder of
+ * DSI_1 as master encoder
+ */
+#define DSI_ENCODER_MASTER	DSI_1
+#define DSI_ENCODER_SLAVE	DSI_0
+
 struct msm_dsi_manager {
 	struct msm_dsi *dsi[DSI_MAX];
 
@@ -598,9 +610,10 @@ int msm_dsi_manager_phy_enable(int id,
 {
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct msm_dsi_phy *phy = msm_dsi->phy;
+	int src_pll_id = IS_DUAL_PANEL() ? DSI_CLOCK_MASTER : id;
 	int ret;
 
-	ret = msm_dsi_phy_enable(phy, IS_DUAL_PANEL(), bit_rate, esc_rate);
+	ret = msm_dsi_phy_enable(phy, src_pll_id, bit_rate, esc_rate);
 	if (ret)
 		return ret;
 

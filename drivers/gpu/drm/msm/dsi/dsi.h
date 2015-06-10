@@ -27,18 +27,6 @@
 #define DSI_1	1
 #define DSI_MAX	2
 
-#define DSI_CLOCK_MASTER	DSI_0
-#define DSI_CLOCK_SLAVE		DSI_1
-
-#define DSI_LEFT		DSI_0
-#define DSI_RIGHT		DSI_1
-
-/* According to the current drm framework sequence, take the encoder of
- * DSI_1 as master encoder
- */
-#define DSI_ENCODER_MASTER	DSI_1
-#define DSI_ENCODER_SLAVE	DSI_0
-
 enum msm_dsi_phy_type {
 	MSM_DSI_PHY_28NM_HPM,
 	MSM_DSI_PHY_28NM_LP,
@@ -153,7 +141,7 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi);
 struct msm_dsi_phy;
 void msm_dsi_phy_driver_register(void);
 void msm_dsi_phy_driver_unregister(void);
-int msm_dsi_phy_enable(struct msm_dsi_phy *phy, bool is_dual_panel,
+int msm_dsi_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 	const unsigned long bit_rate, const unsigned long esc_rate);
 int msm_dsi_phy_disable(struct msm_dsi_phy *phy);
 void msm_dsi_phy_get_clk_pre_post(struct msm_dsi_phy *phy,

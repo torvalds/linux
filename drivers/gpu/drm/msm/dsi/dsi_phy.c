@@ -21,7 +21,7 @@
 #define dsi_phy_write(offset, data) msm_writel((data), (offset))
 
 struct dsi_phy_ops {
-	int (*enable)(struct msm_dsi_phy *phy, bool is_dual_panel,
+	int (*enable)(struct msm_dsi_phy *phy, int src_pll_id,
 		const unsigned long bit_rate, const unsigned long esc_rate);
 	int (*disable)(struct msm_dsi_phy *phy);
 };
@@ -30,6 +30,12 @@ struct dsi_phy_cfg {
 	enum msm_dsi_phy_type type;
 	struct dsi_reg_config reg_cfg;
 	struct dsi_phy_ops ops;
+
+	/* Each cell {phy_id, pll_id} of the truth table indicates
+	 * if the source PLL is on the right side of the PHY.
+	 * Fill default H/W values in illegal cells, eg. cell {0, 1}.
+	 */
+	bool src_pll_truthtable[DSI_MAX][DSI_MAX];
 };
 
 struct dsi_dphy_timing {
@@ -147,6 +153,19 @@ fail:
 	for (i--; i >= 0; i--)
 		regulator_set_load(s[i].consumer, regs[i].disable_load);
 	return ret;
+}
+
+static void dsi_phy_set_src_pll(struct msm_dsi_phy *phy, int pll_id, u32 reg)
+{
+	int phy_id = phy->id;
+
+	if ((phy_id >= DSI_MAX) || (pll_id >= DSI_MAX))
+		return;
+
+	if (phy->cfg->src_pll_truthtable[phy_id][pll_id])
+		dsi_phy_write(phy->base + reg, 0x01);
+	else
+		dsi_phy_write(phy->base + reg, 0x00);
 }
 
 #define S_DIV_ROUND_UP(n, d)	\
@@ -295,7 +314,7 @@ static void dsi_28nm_phy_regulator_ctrl(struct msm_dsi_phy *phy, bool enable)
 	dsi_phy_write(base + REG_DSI_28nm_PHY_REGULATOR_CTRL_4, 0x20);
 }
 
-static int dsi_28nm_phy_enable(struct msm_dsi_phy *phy, bool is_dual_panel,
+static int dsi_28nm_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 		const unsigned long bit_rate, const unsigned long esc_rate)
 {
 	struct dsi_dphy_timing *timing = &phy->timing;
@@ -368,10 +387,7 @@ static int dsi_28nm_phy_enable(struct msm_dsi_phy *phy, bool is_dual_panel,
 
 	dsi_phy_write(base + REG_DSI_28nm_PHY_CTRL_0, 0x5f);
 
-	if (is_dual_panel && (phy->id != DSI_CLOCK_MASTER))
-		dsi_phy_write(base + REG_DSI_28nm_PHY_GLBL_TEST_CTRL, 0x00);
-	else
-		dsi_phy_write(base + REG_DSI_28nm_PHY_GLBL_TEST_CTRL, 0x01);
+	dsi_phy_set_src_pll(phy, src_pll_id, REG_DSI_28nm_PHY_GLBL_TEST_CTRL);
 
 	return 0;
 }
@@ -414,6 +430,7 @@ static void dsi_phy_disable_resource(struct msm_dsi_phy *phy)
 static const struct dsi_phy_cfg dsi_phy_cfgs[MSM_DSI_PHY_MAX] = {
 	[MSM_DSI_PHY_28NM_HPM] = {
 		.type = MSM_DSI_PHY_28NM_HPM,
+		.src_pll_truthtable = { {true, true}, {false, true} },
 		.reg_cfg = {
 			.num = 1,
 			.regs = {
@@ -427,6 +444,7 @@ static const struct dsi_phy_cfg dsi_phy_cfgs[MSM_DSI_PHY_MAX] = {
 	},
 	[MSM_DSI_PHY_28NM_LP] = {
 		.type = MSM_DSI_PHY_28NM_LP,
+		.src_pll_truthtable = { {true, true}, {true, true} },
 		.reg_cfg = {
 			.num = 1,
 			.regs = {
@@ -557,7 +575,7 @@ void __exit msm_dsi_phy_driver_unregister(void)
 	platform_driver_unregister(&dsi_phy_platform_driver);
 }
 
-int msm_dsi_phy_enable(struct msm_dsi_phy *phy, bool is_dual_panel,
+int msm_dsi_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 	const unsigned long bit_rate, const unsigned long esc_rate)
 {
 	int ret;
@@ -572,7 +590,7 @@ int msm_dsi_phy_enable(struct msm_dsi_phy *phy, bool is_dual_panel,
 		return ret;
 	}
 
-	return phy->cfg->ops.enable(phy, is_dual_panel, bit_rate, esc_rate);
+	return phy->cfg->ops.enable(phy, src_pll_id, bit_rate, esc_rate);
 }
 
 int msm_dsi_phy_disable(struct msm_dsi_phy *phy)
