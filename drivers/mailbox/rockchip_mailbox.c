@@ -25,6 +25,8 @@
 #include <linux/rockchip-mailbox.h>
 #include <linux/scpi_protocol.h>
 
+#define MAILBOX_VERSION			"V1.00"
+
 #define MAILBOX_A2B_INTEN		0x00
 #define MAILBOX_A2B_STATUS		0x04
 #define MAILBOX_A2B_CMD(x)		(0x08 + (x) * 8)
@@ -192,6 +194,9 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 	const struct rockchip_mbox_drv_data *drv_data;
 	struct resource *res;
 	int ret, irq, i;
+
+	dev_info(&pdev->dev,
+		 "Rockchip mailbox initialize, version: "MAILBOX_VERSION"\n");
 
 	if (!pdev->dev.of_node)
 		return -ENODEV;
