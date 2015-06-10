@@ -46,16 +46,16 @@ static int consumer_nice = MAX_NICE;
 static int producer_fifo = -1;
 static int consumer_fifo = -1;
 
-module_param(producer_nice, uint, 0644);
+module_param(producer_nice, int, 0644);
 MODULE_PARM_DESC(producer_nice, "nice prio for producer");
 
-module_param(consumer_nice, uint, 0644);
+module_param(consumer_nice, int, 0644);
 MODULE_PARM_DESC(consumer_nice, "nice prio for consumer");
 
-module_param(producer_fifo, uint, 0644);
+module_param(producer_fifo, int, 0644);
 MODULE_PARM_DESC(producer_fifo, "fifo prio for producer");
 
-module_param(consumer_fifo, uint, 0644);
+module_param(consumer_fifo, int, 0644);
 MODULE_PARM_DESC(consumer_fifo, "fifo prio for consumer");
 
 static int read_events;
