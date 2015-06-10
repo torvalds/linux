@@ -30,19 +30,21 @@ TRACE_EVENT(amdgpu_cs,
 	    TP_PROTO(struct amdgpu_cs_parser *p, int i),
 	    TP_ARGS(p, i),
 	    TP_STRUCT__entry(
+			     __field(struct amdgpu_bo_list *, bo_list)
 			     __field(u32, ring)
 			     __field(u32, dw)
 			     __field(u32, fences)
 			     ),
 
 	    TP_fast_assign(
+			   __entry->bo_list = p->bo_list;
 			   __entry->ring = p->ibs[i].ring->idx;
 			   __entry->dw = p->ibs[i].length_dw;
 			   __entry->fences = amdgpu_fence_count_emitted(
 				p->ibs[i].ring);
 			   ),
-	    TP_printk("ring=%u, dw=%u, fences=%u",
-		      __entry->ring, __entry->dw,
+	    TP_printk("bo_list=%p, ring=%u, dw=%u, fences=%u",
+		      __entry->bo_list, __entry->ring, __entry->dw,
 		      __entry->fences)
 );
 
