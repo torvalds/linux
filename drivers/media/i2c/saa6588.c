@@ -301,9 +301,7 @@ static void saa6588_i2c_poll(struct saa6588 *s)
 	   first and the last of the 3 bytes block.
 	 */
 
-	tmp = tmpbuf[2];
-	tmpbuf[2] = tmpbuf[0];
-	tmpbuf[0] = tmp;
+	swap(tmpbuf[2], tmpbuf[0]);
 
 	/* Map 'Invalid block E' to 'Invalid Block' */
 	if (blocknum == 6)
