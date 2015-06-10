@@ -275,7 +275,7 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	chip->cmd_ctrl		= gpio_nand_cmd_ctrl;
 
 	gpiomtd->mtd_info.priv	= chip;
-	gpiomtd->mtd_info.owner	= THIS_MODULE;
+	gpiomtd->mtd_info.dev.parent = &pdev->dev;
 
 	platform_set_drvdata(pdev, gpiomtd);
 
