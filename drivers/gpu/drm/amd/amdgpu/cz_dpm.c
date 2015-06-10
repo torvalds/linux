@@ -557,9 +557,11 @@ static int cz_dpm_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	/* powerdown unused blocks for now */
-	cz_dpm_powergate_uvd(adev, true);
-	cz_dpm_powergate_vce(adev, true);
+	if (amdgpu_dpm) {
+		/* powerdown unused blocks for now */
+		cz_dpm_powergate_uvd(adev, true);
+		cz_dpm_powergate_vce(adev, true);
+	}
 
 	return 0;
 }
