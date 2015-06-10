@@ -22,6 +22,7 @@
 #include "dvb_frontend.h"
 #include "ts2020.h"
 #include <linux/regmap.h>
+#include <linux/math64.h>
 
 #define TS2020_XTAL_FREQ   27000 /* in kHz */
 #define FREQ_OFFSET_LOW_SYM_RATE 3000
@@ -483,13 +484,13 @@ static int ts2020_read_signal_strength(struct dvb_frontend *fe,
 		strength = 0;
 	else if (gain < -65000)
 		/* 0% - 60%: weak signal */
-		strength = 0 + (85000 + gain) * 3 / 1000;
+		strength = 0 + div64_s64((85000 + gain) * 3, 1000);
 	else if (gain < -45000)
 		/* 60% - 90%: normal signal */
-		strength = 60 + (65000 + gain) * 3 / 2000;
+		strength = 60 + div64_s64((65000 + gain) * 3, 2000);
 	else
 		/* 90% - 99%: strong signal */
-		strength = 90 + (45000 + gain) / 5000;
+		strength = 90 + div64_s64((45000 + gain), 5000);
 
 	*_signal_strength = strength * 65535 / 100;
 	return 0;
