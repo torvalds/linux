@@ -604,7 +604,6 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 
 	mtd->dev.parent = &pdev->dev;
 	mtd->priv = cafe;
-	mtd->owner = THIS_MODULE;
 
 	cafe->pdev = pdev;
 	cafe->mmio = pci_iomap(pdev, 0, 0);
