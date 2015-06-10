@@ -648,6 +648,30 @@ int mwifiex_send_delba(struct mwifiex_private *priv, int tid, u8 *peer_mac,
 }
 
 /*
+ * This function sends delba to specific tid
+ */
+void mwifiex_11n_delba(struct mwifiex_private *priv, int tid)
+{
+	struct mwifiex_rx_reorder_tbl *rx_reor_tbl_ptr;
+
+	if (list_empty(&priv->rx_reorder_tbl_ptr)) {
+		dev_dbg(priv->adapter->dev,
+			"mwifiex_11n_delba: rx_reorder_tbl_ptr empty\n");
+		return;
+	}
+
+	list_for_each_entry(rx_reor_tbl_ptr, &priv->rx_reorder_tbl_ptr, list) {
+		if (rx_reor_tbl_ptr->tid == tid) {
+			dev_dbg(priv->adapter->dev,
+				"Send delba to tid=%d, %pM\n",
+				tid, rx_reor_tbl_ptr->ta);
+			mwifiex_send_delba(priv, tid, rx_reor_tbl_ptr->ta, 0);
+			return;
+		}
+	}
+}
+
+/*
  * This function handles the command response of a delete BA request.
  */
 void mwifiex_11n_delete_ba_stream(struct mwifiex_private *priv, u8 *del_ba)
@@ -818,4 +842,73 @@ u8 mwifiex_get_sec_chan_offset(int chan)
 	}
 
 	return sec_offset;
+}
+
+/* This function will send DELBA to entries in the priv's
+ * Tx BA stream table
+ */
+static void
+mwifiex_send_delba_txbastream_tbl(struct mwifiex_private *priv, u8 tid)
+{
+	struct mwifiex_adapter *adapter = priv->adapter;
+	struct mwifiex_tx_ba_stream_tbl *tx_ba_stream_tbl_ptr;
+
+	if (list_empty(&priv->tx_ba_stream_tbl_ptr))
+		return;
+
+	list_for_each_entry(tx_ba_stream_tbl_ptr,
+			    &priv->tx_ba_stream_tbl_ptr, list) {
+		if (tx_ba_stream_tbl_ptr->ba_status == BA_SETUP_COMPLETE) {
+			if (tid == tx_ba_stream_tbl_ptr->tid) {
+				dev_dbg(adapter->dev,
+					"Tx:Send delba to tid=%d, %pM\n", tid,
+					tx_ba_stream_tbl_ptr->ra);
+				mwifiex_send_delba(priv,
+						   tx_ba_stream_tbl_ptr->tid,
+						   tx_ba_stream_tbl_ptr->ra, 1);
+				return;
+			}
+		}
+	}
+}
+
+/* This function updates all the tx_win_size
+ */
+void mwifiex_update_ampdu_txwinsize(struct mwifiex_adapter *adapter)
+{
+	u8 i;
+	u32 tx_win_size;
+	struct mwifiex_private *priv;
+
+	for (i = 0; i < adapter->priv_num; i++) {
+		if (!adapter->priv[i])
+			continue;
+		priv = adapter->priv[i];
+		tx_win_size = priv->add_ba_param.tx_win_size;
+
+		if (priv->bss_type == MWIFIEX_BSS_TYPE_STA)
+			priv->add_ba_param.tx_win_size =
+				MWIFIEX_STA_AMPDU_DEF_TXWINSIZE;
+
+		if (priv->bss_type == MWIFIEX_BSS_TYPE_P2P)
+			priv->add_ba_param.tx_win_size =
+				MWIFIEX_STA_AMPDU_DEF_TXWINSIZE;
+
+		if (priv->bss_type == MWIFIEX_BSS_TYPE_UAP)
+			priv->add_ba_param.tx_win_size =
+				MWIFIEX_UAP_AMPDU_DEF_TXWINSIZE;
+
+		if (adapter->coex_win_size) {
+			if (adapter->coex_tx_win_size)
+				priv->add_ba_param.tx_win_size =
+					adapter->coex_tx_win_size;
+		}
+
+		if (tx_win_size != priv->add_ba_param.tx_win_size) {
+			if (!priv->media_connected)
+				continue;
+			for (i = 0; i < MAX_NUM_TID; i++)
+				mwifiex_send_delba_txbastream_tbl(priv, i);
+		}
+	}
 }

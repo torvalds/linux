@@ -828,3 +828,83 @@ void mwifiex_update_rxreor_flags(struct mwifiex_adapter *adapter, u8 flags)
 
 	return;
 }
+
+/* This function update all the rx_win_size based on coex flag
+ */
+static void mwifiex_update_ampdu_rxwinsize(struct mwifiex_adapter *adapter,
+					   bool coex_flag)
+{
+	u8 i;
+	u32 rx_win_size;
+	struct mwifiex_private *priv;
+
+	dev_dbg(adapter->dev, "Update rxwinsize %d\n", coex_flag);
+
+	for (i = 0; i < adapter->priv_num; i++) {
+		if (!adapter->priv[i])
+			continue;
+		priv = adapter->priv[i];
+		rx_win_size = priv->add_ba_param.rx_win_size;
+		if (coex_flag) {
+			if (priv->bss_type == MWIFIEX_BSS_TYPE_STA)
+				priv->add_ba_param.rx_win_size =
+					MWIFIEX_STA_COEX_AMPDU_DEF_RXWINSIZE;
+			if (priv->bss_type == MWIFIEX_BSS_TYPE_P2P)
+				priv->add_ba_param.rx_win_size =
+					MWIFIEX_STA_COEX_AMPDU_DEF_RXWINSIZE;
+			if (priv->bss_type == MWIFIEX_BSS_TYPE_UAP)
+				priv->add_ba_param.rx_win_size =
+					MWIFIEX_UAP_COEX_AMPDU_DEF_RXWINSIZE;
+		} else {
+			if (priv->bss_type == MWIFIEX_BSS_TYPE_STA)
+				priv->add_ba_param.rx_win_size =
+					MWIFIEX_STA_AMPDU_DEF_RXWINSIZE;
+			if (priv->bss_type == MWIFIEX_BSS_TYPE_P2P)
+				priv->add_ba_param.rx_win_size =
+					MWIFIEX_STA_AMPDU_DEF_RXWINSIZE;
+			if (priv->bss_type == MWIFIEX_BSS_TYPE_UAP)
+				priv->add_ba_param.rx_win_size =
+					MWIFIEX_UAP_AMPDU_DEF_RXWINSIZE;
+		}
+
+		if (adapter->coex_win_size && adapter->coex_rx_win_size)
+			priv->add_ba_param.rx_win_size =
+					adapter->coex_rx_win_size;
+
+		if (rx_win_size != priv->add_ba_param.rx_win_size) {
+			if (!priv->media_connected)
+				continue;
+			for (i = 0; i < MAX_NUM_TID; i++)
+				mwifiex_11n_delba(priv, i);
+		}
+	}
+}
+
+/* This function check coex for RX BA
+ */
+void mwifiex_coex_ampdu_rxwinsize(struct mwifiex_adapter *adapter)
+{
+	u8 i;
+	struct mwifiex_private *priv;
+	u8 count = 0;
+
+	for (i = 0; i < adapter->priv_num; i++) {
+		if (adapter->priv[i]) {
+			priv = adapter->priv[i];
+			if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) {
+				if (priv->media_connected)
+					count++;
+			}
+			if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
+				if (priv->bss_started)
+					count++;
+			}
+		}
+		if (count >= MWIFIEX_BSS_COEX_COUNT)
+			break;
+	}
+	if (count >= MWIFIEX_BSS_COEX_COUNT)
+		mwifiex_update_ampdu_rxwinsize(adapter, true);
+	else
+		mwifiex_update_ampdu_rxwinsize(adapter, false);
+}

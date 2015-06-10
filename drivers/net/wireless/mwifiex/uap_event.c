@@ -292,6 +292,11 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 		mwifiex_dbg(adapter, EVENT, "event: Radar detected\n");
 		mwifiex_11h_handle_radar_detected(priv, adapter->event_skb);
 		break;
+	case EVENT_BT_COEX_WLAN_PARA_CHANGE:
+		dev_err(adapter->dev, "EVENT: BT coex wlan param update\n");
+		mwifiex_bt_coex_wlan_param_update_event(priv,
+							adapter->event_skb);
+		break;
 	default:
 		mwifiex_dbg(adapter, EVENT,
 			    "event: unknown event id: %#x\n", eventcause);
