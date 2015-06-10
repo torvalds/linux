@@ -443,14 +443,12 @@ int virtio_gpu_ttm_init(struct virtio_gpu_device *vgdev)
 	if (r) {
 		DRM_ERROR("failed initializing buffer object driver(%d).\n", r);
 		goto err_dev_init;
-		return r;
 	}
 
 	r = ttm_bo_init_mm(&vgdev->mman.bdev, TTM_PL_TT, 0);
 	if (r) {
 		DRM_ERROR("Failed initializing GTT heap.\n");
 		goto err_mm_init;
-		return r;
 	}
 	return 0;
 
