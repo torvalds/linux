@@ -169,6 +169,21 @@ TRACE_EVENT(amdgpu_vm_flush,
 		      __entry->pd_addr, __entry->ring, __entry->id)
 );
 
+TRACE_EVENT(amdgpu_bo_list_set,
+	    TP_PROTO(struct amdgpu_bo_list *list, struct amdgpu_bo *bo),
+	    TP_ARGS(list, bo),
+	    TP_STRUCT__entry(
+			     __field(struct amdgpu_bo_list *, list)
+			     __field(struct amdgpu_bo *, bo)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->list = list;
+			   __entry->bo = bo;
+			   ),
+	    TP_printk("list=%p, bo=%p", __entry->list, __entry->bo)
+);
+
 DECLARE_EVENT_CLASS(amdgpu_fence_request,
 
 	    TP_PROTO(struct drm_device *dev, int ring, u32 seqno),
