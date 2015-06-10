@@ -3154,13 +3154,13 @@ struct qla_hw_data {
 /* Bit 21 of fw_attributes decides the MCTP capabilities */
 #define IS_MCTP_CAPABLE(ha)	(IS_QLA2031(ha) && \
 				((ha)->fw_attributes_ext[0] & BIT_0))
-#define IS_PI_UNINIT_CAPABLE(ha)	(IS_QLA83XX(ha))
-#define IS_PI_IPGUARD_CAPABLE(ha)	(IS_QLA83XX(ha))
+#define IS_PI_UNINIT_CAPABLE(ha)	(IS_QLA83XX(ha) || IS_QLA27XX(ha))
+#define IS_PI_IPGUARD_CAPABLE(ha)	(IS_QLA83XX(ha) || IS_QLA27XX(ha))
 #define IS_PI_DIFB_DIX0_CAPABLE(ha)	(0)
-#define IS_PI_SPLIT_DET_CAPABLE_HBA(ha)	(IS_QLA83XX(ha))
+#define IS_PI_SPLIT_DET_CAPABLE_HBA(ha)	(IS_QLA83XX(ha) || IS_QLA27XX(ha))
 #define IS_PI_SPLIT_DET_CAPABLE(ha)	(IS_PI_SPLIT_DET_CAPABLE_HBA(ha) && \
     (((ha)->fw_attributes_h << 16 | (ha)->fw_attributes) & BIT_22))
-#define IS_ATIO_MSIX_CAPABLE(ha) (IS_QLA83XX(ha))
+#define IS_ATIO_MSIX_CAPABLE(ha) (IS_QLA83XX(ha) || IS_QLA27XX(ha))
 #define IS_TGT_MODE_CAPABLE(ha)	(ha->tgt.atio_q_length)
 #define IS_SHADOW_REG_CAPABLE(ha)  (IS_QLA27XX(ha))
 #define IS_DPORT_CAPABLE(ha)  (IS_QLA83XX(ha) || IS_QLA27XX(ha))
