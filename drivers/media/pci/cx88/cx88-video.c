@@ -410,7 +410,6 @@ static int stop_video_dma(struct cx8800_dev    *dev)
 	cx_clear(MO_VID_INTMSK, 0x0f0011);
 	return 0;
 }
-#endif
 
 static int restart_video_queue(struct cx8800_dev    *dev,
 			       struct cx88_dmaqueue *q)
@@ -426,6 +425,7 @@ static int restart_video_queue(struct cx8800_dev    *dev,
 	}
 	return 0;
 }
+#endif
 
 /* ------------------------------------------------------------------ */
 
