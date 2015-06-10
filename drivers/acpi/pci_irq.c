@@ -412,7 +412,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 		return 0;
 	}
 
-	if (dev->irq_managed && dev->irq > 0)
+	if (pci_has_managed_irq(dev))
 		return 0;
 
 	entry = acpi_pci_irq_lookup(dev, pin);
@@ -457,8 +457,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 		kfree(entry);
 		return rc;
 	}
-	dev->irq = rc;
-	dev->irq_managed = 1;
+	pci_set_managed_irq(dev, rc);
 
 	if (link)
 		snprintf(link_desc, sizeof(link_desc), " -> Link[%s]", link);
@@ -481,7 +480,7 @@ void acpi_pci_irq_disable(struct pci_dev *dev)
 	u8 pin;
 
 	pin = dev->pin;
-	if (!pin || !dev->irq_managed || dev->irq <= 0)
+	if (!pin || !pci_has_managed_irq(dev))
 		return;
 
 	entry = acpi_pci_irq_lookup(dev, pin);
@@ -503,7 +502,6 @@ void acpi_pci_irq_disable(struct pci_dev *dev)
 	dev_dbg(&dev->dev, "PCI INT %c disabled\n", pin_name(pin));
 	if (gsi >= 0) {
 		acpi_unregister_gsi(gsi);
-		dev->irq_managed = 0;
-		dev->irq = 0;
+		pci_reset_managed_irq(dev);
 	}
 }

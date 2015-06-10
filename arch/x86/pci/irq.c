@@ -1202,7 +1202,7 @@ static int pirq_enable_irq(struct pci_dev *dev)
 			struct pci_dev *temp_dev;
 			int irq;
 
-			if (dev->irq_managed && dev->irq > 0)
+			if (pci_has_managed_irq(dev))
 				return 0;
 
 			irq = IO_APIC_get_PCI_irq_vector(dev->bus->number,
@@ -1230,8 +1230,7 @@ static int pirq_enable_irq(struct pci_dev *dev)
 			}
 			dev = temp_dev;
 			if (irq >= 0) {
-				dev->irq_managed = 1;
-				dev->irq = irq;
+				pci_set_managed_irq(dev, irq);
 				dev_info(&dev->dev, "PCI->APIC IRQ transform: "
 					 "INT %c -> IRQ %d\n", 'A' + pin - 1, irq);
 				return 0;
@@ -1259,9 +1258,8 @@ static int pirq_enable_irq(struct pci_dev *dev)
 
 static void pirq_disable_irq(struct pci_dev *dev)
 {
-	if (io_apic_assign_pci_irqs && dev->irq_managed && dev->irq) {
+	if (io_apic_assign_pci_irqs && pci_has_managed_irq(dev)) {
 		mp_unmap_irq(dev->irq);
-		dev->irq = 0;
-		dev->irq_managed = 0;
+		pci_reset_managed_irq(dev);
 	}
 }
