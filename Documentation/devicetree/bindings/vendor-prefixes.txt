@@ -148,6 +148,7 @@ nintendo	Nintendo
 nokia	Nokia
 nvidia	NVIDIA
 nxp	NXP Semiconductors
+okaya	Okaya Electric America, Inc.
 onnn	ON Semiconductor Corp.
 opencores	OpenCores.org
 ortustech	Ortus Technology Co., Ltd.
