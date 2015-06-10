@@ -1,6 +1,7 @@
 /*
- * Copyright 2015 Aleksei Mamlin
- * Aleksei Mamlin <mamlinav@gmail.com>
+ * Copyright 2015 Maxime Ripard
+ *
+ * Maxime Ripard <maxime.ripard@free-electrons.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -42,72 +43,26 @@
  */
 
 /dts-v1/;
-#include "sun4i-a10.dtsi"
+#include "sun8i-a23.dtsi"
 #include "sunxi-common-regulators.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
-	model = "HAOYU Electronics Marsboard A10";
-	compatible = "haoyu,a10-marsboard", "allwinner,sun4i-a10";
+	model = "Allwinner A23 Evaluation Board";
+	compatible = "allwinner,sun8i-a23-evb", "allwinner,sun8i-a23";
 
 	aliases {
-		serial0 = &uart0;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		serial0 = &r_uart;
 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
-
-	leds {
-		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_marsboard>;
-
-		red1 {
-			label = "marsboard:red1:usr";
-			gpios = <&pio 1 5 GPIO_ACTIVE_HIGH>;
-		};
-
-		red2 {
-			label = "marsboard:red2:usr";
-			gpios = <&pio 1 6 GPIO_ACTIVE_HIGH>;
-		};
-
-		red3 {
-			label = "marsboard:red3:usr";
-			gpios = <&pio 1 7 GPIO_ACTIVE_HIGH>;
-		};
-
-		red4 {
-			label = "marsboard:red4:usr";
-			gpios = <&pio 1 8 GPIO_ACTIVE_HIGH>;
-		};
-	};
-};
-
-&ahci {
-	status = "okay";
-};
-
-&ehci0 {
-	status = "okay";
-};
-
-&ehci1 {
-	status = "okay";
-};
-
-&emac_sram {
-	status = "okay";
-};
-
-&emac {
-	pinctrl-names = "default";
-	pinctrl-0 = <&emac_pins_a>;
-	phy = <&phy1>;
-	status = "okay";
 };
 
 &i2c0 {
@@ -122,70 +77,58 @@
 	status = "okay";
 };
 
-&i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins_a>;
-	status = "okay";
-};
-
-&mdio {
+&lradc {
+	vref-supply = <&reg_vcc3v0>;
 	status = "okay";
 
-	phy1: ethernet-phy@1 {
-		reg = <1>;
+	button@190 {
+		label = "Volume Up";
+		linux,code = <KEY_VOLUMEUP>;
+		channel = <0>;
+		voltage = <190000>;
+	};
+
+	button@390 {
+		label = "Volume Down";
+		linux,code = <KEY_VOLUMEDOWN>;
+		channel = <0>;
+		voltage = <390000>;
+	};
+
+	button@600 {
+		label = "Home";
+		linux,code = <KEY_HOME>;
+		channel = <0>;
+		voltage = <600000>;
 	};
 };
 
 &mmc0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_reference_design>;
-	vmmc-supply = <&reg_vcc3v3>;
+	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_evb>;
+	vmmc-supply = <&reg_vcc3v0>;
 	bus-width = <4>;
-	cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
+	cd-gpios = <&pio 1 4 GPIO_ACTIVE_HIGH>; /* PB4 */
 	cd-inverted;
 	status = "okay";
 };
 
-&ohci0 {
-	status = "okay";
-};
-
-&ohci1 {
-	status = "okay";
-};
-
 &pio {
-	led_pins_marsboard: led_pins@0 {
-		allwinner,pins = "PB5", "PB6", "PB7", "PB8";
-		allwinner,function = "gpio_out";
+	mmc0_cd_pin_evb: mmc0_cd_pin@0 {
+		allwinner,pins = "PB4";
+		allwinner,function = "gpio_in";
 		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 	};
 };
 
-&reg_usb1_vbus {
-	status = "okay";
-};
-
-&reg_usb2_vbus {
-	status = "okay";
-};
-
-&spi0 {
+/*
+ * The RX line has a non-populated resistance. In order to use it, you
+ * need to solder R207 on the back of the board in order to close the
+ * line and get a working UART.
+ */
+&r_uart {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spi0_pins_a>,
-		    <&spi0_cs0_pins_a>;
-	status = "okay";
-};
-
-&uart0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
-	status = "okay";
-};
-
-&usbphy {
-	usb1_vbus-supply = <&reg_usb1_vbus>;
-	usb2_vbus-supply = <&reg_usb2_vbus>;
+	pinctrl-0 = <&r_uart_pins_a>;
 	status = "okay";
 };

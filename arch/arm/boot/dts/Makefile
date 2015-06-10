@@ -563,6 +563,7 @@ dtb-$(CONFIG_MACH_SUN6I) += \
 	sun6i-a31-hummingbird.dtb \
 	sun6i-a31-i7.dtb \
 	sun6i-a31-m9.dtb \
+	sun6i-a31-mele-a1000g-quad.dtb \
 	sun6i-a31s-cs908.dtb
 dtb-$(CONFIG_MACH_SUN7I) += \
 	sun7i-a20-bananapi.dtb \
@@ -582,8 +583,12 @@ dtb-$(CONFIG_MACH_SUN7I) += \
 	sun7i-a20-pcduino3-nano.dtb \
 	sun7i-a20-wexler-tab7200.dtb
 dtb-$(CONFIG_MACH_SUN8I) += \
+	sun8i-a23-evb.dtb \
 	sun8i-a23-ippo-q8h-v5.dtb \
-	sun8i-a23-ippo-q8h-v1.2.dtb
+	sun8i-a23-ippo-q8h-v1.2.dtb \
+	sun8i-a33-et-q8-v1.6.dtb \
+	sun8i-a33-ga10h-v1.1.dtb \
+	sun8i-a33-sinlinx-sina33.dtb
 dtb-$(CONFIG_MACH_SUN9I) += \
 	sun9i-a80-optimus.dtb \
 	sun9i-a80-cubieboard4.dtb

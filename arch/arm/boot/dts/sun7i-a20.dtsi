@@ -528,44 +528,46 @@
 		};
 	};
 
-	/*
-	 * Note we use the address where the mmio registers start, not where
-	 * the SRAM blocks start, this cannot be changed because that would be
-	 * a devicetree ABI change.
-	 */
 	soc@01c00000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
 
-		sram@00000000 {
-			compatible = "allwinner,sun4i-a10-sram";
-			reg = <0x00000000 0x4000>;
-			allwinner,sram-name = "A1";
-		};
-
-		sram@00004000 {
-			compatible = "allwinner,sun4i-a10-sram";
-			reg = <0x00004000 0x4000>;
-			allwinner,sram-name = "A2";
-		};
-
-		sram@00008000 {
-			compatible = "allwinner,sun4i-a10-sram";
-			reg = <0x00008000 0x4000>;
-			allwinner,sram-name = "A3-A4";
-		};
-
-		sram@00010000 {
-			compatible = "allwinner,sun4i-a10-sram";
-			reg = <0x00010000 0x1000>;
-			allwinner,sram-name = "D";
-		};
-
 		sram-controller@01c00000 {
 			compatible = "allwinner,sun4i-a10-sram-controller";
 			reg = <0x01c00000 0x30>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			sram_a: sram@00000000 {
+				compatible = "mmio-sram";
+				reg = <0x00000000 0xc000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x00000000 0xc000>;
+
+				emac_sram: sram-section@8000 {
+					compatible = "allwinner,sun4i-a10-sram-a3-a4";
+					reg = <0x8000 0x4000>;
+					status = "disabled";
+				};
+			};
+
+			sram_d: sram@00010000 {
+				compatible = "mmio-sram";
+				reg = <0x00010000 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x00010000 0x1000>;
+
+				otg_sram: sram-section@0000 {
+					compatible = "allwinner,sun4i-a10-sram-d";
+					reg = <0x0000 0x1000>;
+					status = "disabled";
+				};
+			};
 		};
 
 		nmi_intc: interrupt-controller@01c00030 {
@@ -617,6 +619,7 @@
 			reg = <0x01c0b000 0x1000>;
 			interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ahb_gates 17>;
+			allwinner,sram = <&emac_sram 1>;
 			status = "disabled";
 		};
 
@@ -839,6 +842,13 @@
 
 			uart4_pins_a: uart4@0 {
 				allwinner,pins = "PG10", "PG11";
+				allwinner,function = "uart4";
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
+			uart4_pins_b: uart4@1 {
+				allwinner,pins = "PH4", "PH5";
 				allwinner,function = "uart4";
 				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;

@@ -48,7 +48,7 @@
 #include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
-	model = "Mele M9 / A1000G Quad top set box";
+	model = "Mele M9 top set box";
 	compatible = "mele,m9", "allwinner,sun6i-a31";
 
 	aliases {

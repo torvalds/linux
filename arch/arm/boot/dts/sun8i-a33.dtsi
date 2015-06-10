@@ -1,7 +1,7 @@
 /*
- * Copyright 2012 Maxime Ripard
+ * Copyright 2014 Chen-Yu Tsai
  *
- * Maxime Ripard <maxime.ripard@free-electrons.com>
+ * Chen-Yu Tsai <wens@csie.org>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -42,124 +42,56 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/dts-v1/;
-#include "sun4i-a10.dtsi"
-#include "sunxi-common-regulators.dtsi"
-
-#include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
+#include "sun8i-a23-a33.dtsi"
 
 / {
-	model = "Miniand Hackberry";
-	compatible = "miniand,hackberry", "allwinner,sun4i-a10";
+	cpus {
+		cpu@2 {
+			compatible = "arm,cortex-a7";
+			device_type = "cpu";
+			reg = <2>;
+		};
 
-	aliases {
-		serial0 = &uart0;
+		cpu@3 {
+			compatible = "arm,cortex-a7";
+			device_type = "cpu";
+			reg = <3>;
+		};
 	};
 
-	chosen {
-		stdout-path = "serial0:115200n8";
+	memory {
+		reg = <0x40000000 0x80000000>;
 	};
 
-	reg_emac_3v3: emac-3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "emac-3v3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		enable-active-high;
-		gpio = <&pio 7 19 GPIO_ACTIVE_HIGH>;
+	clocks {
+		/* Dummy clock for pll11 (DDR1) until actually implemented */
+		pll11: pll11_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <0>;
+			clock-output-names = "pll11";
+		};
+
+		mbus_clk: clk@01c2015c {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun8i-a23-mbus-clk";
+			reg = <0x01c2015c 0x4>;
+			clocks = <&osc24M>, <&pll6 1>, <&pll5>, <&pll11>;
+			clock-output-names = "mbus";
+		};
 	};
-};
-
-&ehci0 {
-	status = "okay";
-};
-
-&ehci1 {
-	status = "okay";
-};
-
-&emac {
-	pinctrl-names = "default";
-	pinctrl-0 = <&emac_pins_a>;
-	phy = <&phy0>;
-	status = "okay";
-};
-
-&emac_sram {
-	status = "okay";
-};
-
-&ir0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&ir0_rx_pins_a>;
-	status = "okay";
-};
-
-&mdio {
-	phy-supply = <&reg_emac_3v3>;
-	status = "okay";
-
-	phy0: ethernet-phy@0 {
-		reg = <0>;
-	};
-};
-
-&mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_reference_design>;
-	vmmc-supply = <&reg_vcc3v3>;
-	bus-width = <4>;
-	cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
-	cd-inverted;
-	status = "okay";
-};
-
-&ohci0 {
-	status = "okay";
-};
-
-&ohci1 {
-	status = "okay";
 };
 
 &pio {
-	pinctrl-names = "default";
-	pinctrl-0 = <&hackberry_hogs>;
+	compatible = "allwinner,sun8i-a33-pinctrl";
+	interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 
-	hackberry_hogs: hogs@0 {
-		allwinner,pins = "PH19";
-		allwinner,function = "gpio_out";
+	uart0_pins_b: uart0@1 {
+		allwinner,pins = "PB0", "PB1";
+		allwinner,function = "uart0";
 		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
-	usb2_vbus_pin_hackberry: usb2_vbus_pin@0 {
-		allwinner,pins = "PH12";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-};
-
-&reg_usb1_vbus {
-	status = "okay";
-};
-
-&reg_usb2_vbus {
-	pinctrl-0 = <&usb2_vbus_pin_hackberry>;
-	gpio = <&pio 7 12 GPIO_ACTIVE_HIGH>;
-	status = "okay";
-};
-
-&usbphy {
-	usb1_vbus-supply = <&reg_usb1_vbus>;
-	usb2_vbus-supply = <&reg_usb2_vbus>;
-	status = "okay";
-};
-
-&uart0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
-	status = "okay";
 };
