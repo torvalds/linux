@@ -310,6 +310,12 @@ int main(int argc, char **argv)
 			}
 		}
 
+		if (ret != sizeof(event)) {
+			printf("Reading event failed!\n");
+			ret = -EIO;
+			break;
+		}
+
 		print_event(&event);
 	}
 
