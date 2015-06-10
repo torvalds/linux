@@ -523,6 +523,18 @@
 					};
 				};
 			};
+
+			tsin3 {
+				pinctrl_tsin3_serial: tsin3_serial {
+					st,pins {
+						DATA7 = <&pio14 1 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						CLKIN = <&pio14 0 ALT1 IN CLKNOTDATA 0 CLK_A>;
+						VALID = <&pio13 6 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						ERROR = <&pio13 5 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+						PKCLK = <&pio13 7 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+					};
+				};
+			};
 		};
 
 		pin-controller-front1 {
