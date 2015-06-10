@@ -50,7 +50,10 @@
  *
  * Locally, the range is stored as a table index.
  */
-static const int stk8ba50_scale_table[][2] = {
+static const struct {
+	u8 reg_val;
+	u32 scale_val;
+} stk8ba50_scale_table[] = {
 	{3, 38400}, {5, 76700}, {8, 153400}, {12, 306900}
 };
 
@@ -114,7 +117,7 @@ static int stk8ba50_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
-		*val2 = stk8ba50_scale_table[data->range][1];
+		*val2 = stk8ba50_scale_table[data->range].scale_val;
 		return IIO_VAL_INT_PLUS_MICRO;
 	}
 
@@ -136,7 +139,7 @@ static int stk8ba50_write_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 
 		for (i = 0; i < ARRAY_SIZE(stk8ba50_scale_table); i++)
-			if (val2 == stk8ba50_scale_table[i][1]) {
+			if (val2 == stk8ba50_scale_table[i].scale_val) {
 				index = i;
 				break;
 			}
@@ -145,7 +148,7 @@ static int stk8ba50_write_raw(struct iio_dev *indio_dev,
 
 		ret = i2c_smbus_write_byte_data(data->client,
 				STK8BA50_REG_RANGE,
-				stk8ba50_scale_table[index][0]);
+				stk8ba50_scale_table[index].reg_val);
 		if (ret < 0)
 			dev_err(&data->client->dev,
 					"failed to set measurement range\n");
