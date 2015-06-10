@@ -18,6 +18,7 @@
 #include <linux/circ_buf.h>
 #include <linux/types.h>
 #include <linux/io.h>
+#include <linux/errno.h>
 
 #include "scif_rb.h"
 
