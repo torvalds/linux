@@ -96,7 +96,7 @@ static struct usb_device_id id_table [] = {
 		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
 	{ USB_DEVICE(ACER_VENDOR_ID, ACER_S10_ID),
 		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
-	{ USB_DEVICE(SAMSUNG_VENDOR_ID, SAMSUNG_SCH_I330_ID),
+	{ USB_DEVICE_INTERFACE_CLASS(SAMSUNG_VENDOR_ID, SAMSUNG_SCH_I330_ID, 0xff),
 		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
 	{ USB_DEVICE(SAMSUNG_VENDOR_ID, SAMSUNG_SPH_I500_ID),
 		.driver_info = (kernel_ulong_t)&palm_os_4_probe },

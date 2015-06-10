@@ -3490,6 +3490,14 @@ static const struct hda_codec_preset snd_hda_preset_conexant[] = {
 	  .patch = patch_conexant_auto },
 	{ .id = 0x14f150b9, .name = "CX20665",
 	  .patch = patch_conexant_auto },
+	{ .id = 0x14f150f1, .name = "CX20721",
+	  .patch = patch_conexant_auto },
+	{ .id = 0x14f150f2, .name = "CX20722",
+	  .patch = patch_conexant_auto },
+	{ .id = 0x14f150f3, .name = "CX20723",
+	  .patch = patch_conexant_auto },
+	{ .id = 0x14f150f4, .name = "CX20724",
+	  .patch = patch_conexant_auto },
 	{ .id = 0x14f1510f, .name = "CX20751/2",
 	  .patch = patch_conexant_auto },
 	{ .id = 0x14f15110, .name = "CX20751/2",
@@ -3524,6 +3532,10 @@ MODULE_ALIAS("snd-hda-codec-id:14f150ab");
 MODULE_ALIAS("snd-hda-codec-id:14f150ac");
 MODULE_ALIAS("snd-hda-codec-id:14f150b8");
 MODULE_ALIAS("snd-hda-codec-id:14f150b9");
+MODULE_ALIAS("snd-hda-codec-id:14f150f1");
+MODULE_ALIAS("snd-hda-codec-id:14f150f2");
+MODULE_ALIAS("snd-hda-codec-id:14f150f3");
+MODULE_ALIAS("snd-hda-codec-id:14f150f4");
 MODULE_ALIAS("snd-hda-codec-id:14f1510f");
 MODULE_ALIAS("snd-hda-codec-id:14f15110");
 MODULE_ALIAS("snd-hda-codec-id:14f15111");
