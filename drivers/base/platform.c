@@ -298,25 +298,6 @@ int platform_device_add_data(struct platform_device *pdev, const void *data,
 }
 EXPORT_SYMBOL_GPL(platform_device_add_data);
 
-static void platform_device_cleanout(struct platform_device *pdev, int n_res)
-{
-	int i;
-
-	if (pdev->id_auto) {
-		ida_simple_remove(&platform_devid_ida, pdev->id);
-		pdev->id = PLATFORM_DEVID_AUTO;
-	}
-
-	for (i = 0; i < n_res; i++) {
-		struct resource *r = &pdev->resource[i];
-		unsigned long type = resource_type(r);
-
-		if ((type == IORESOURCE_MEM || type == IORESOURCE_IO) &&
-				r->parent)
-			release_resource(r);
-	}
-}
-
 /**
  * platform_device_add - add a platform device to device hierarchy
  * @pdev: platform device we're adding
@@ -390,8 +371,23 @@ int platform_device_add(struct platform_device *pdev)
 		 dev_name(&pdev->dev), dev_name(pdev->dev.parent));
 
 	ret = device_add(&pdev->dev);
-	if (ret)
-		platform_device_cleanout(pdev, i);
+	if (ret == 0)
+		return ret;
+
+	/* Failure path */
+	if (pdev->id_auto) {
+		ida_simple_remove(&platform_devid_ida, pdev->id);
+		pdev->id = PLATFORM_DEVID_AUTO;
+	}
+
+	while (--i >= 0) {
+		struct resource *r = &pdev->resource[i];
+		unsigned long type = resource_type(r);
+
+		if ((type == IORESOURCE_MEM || type == IORESOURCE_IO) &&
+				r->parent)
+			release_resource(r);
+	}
 
 	return ret;
 }
@@ -407,11 +403,25 @@ EXPORT_SYMBOL_GPL(platform_device_add);
  */
 void platform_device_del(struct platform_device *pdev)
 {
-	if (!pdev)
-		return;
+	int i;
 
-	device_del(&pdev->dev);
-	platform_device_cleanout(pdev, pdev->num_resources);
+	if (pdev) {
+		device_del(&pdev->dev);
+
+		if (pdev->id_auto) {
+			ida_simple_remove(&platform_devid_ida, pdev->id);
+			pdev->id = PLATFORM_DEVID_AUTO;
+		}
+
+		for (i = 0; i < pdev->num_resources; i++) {
+			struct resource *r = &pdev->resource[i];
+			unsigned long type = resource_type(r);
+
+			if ((type == IORESOURCE_MEM || type == IORESOURCE_IO) &&
+					r->parent)
+				release_resource(r);
+		}
+	}
 }
 EXPORT_SYMBOL_GPL(platform_device_del);
 
