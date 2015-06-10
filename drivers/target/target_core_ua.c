@@ -88,7 +88,7 @@ target_scsi3_ua_check(struct se_cmd *cmd)
 
 int core_scsi3_ua_allocate(
 	struct se_node_acl *nacl,
-	u32 unpacked_lun,
+	u64 unpacked_lun,
 	u8 asc,
 	u8 ascq)
 {
@@ -177,7 +177,7 @@ int core_scsi3_ua_allocate(
 	list_add_tail(&ua->ua_nacl_list, &deve->ua_list);
 	spin_unlock(&deve->ua_lock);
 
-	pr_debug("[%s]: Allocated UNIT ATTENTION, mapped LUN: %u, ASC:"
+	pr_debug("[%s]: Allocated UNIT ATTENTION, mapped LUN: %llu, ASC:"
 		" 0x%02x, ASCQ: 0x%02x\n",
 		nacl->se_tpg->se_tpg_tfo->get_fabric_name(), unpacked_lun,
 		asc, ascq);
@@ -267,7 +267,7 @@ void core_scsi3_ua_for_check_condition(
 	rcu_read_unlock();
 
 	pr_debug("[%s]: %s UNIT ATTENTION condition with"
-		" INTLCK_CTRL: %d, mapped LUN: %u, got CDB: 0x%02x"
+		" INTLCK_CTRL: %d, mapped LUN: %llu, got CDB: 0x%02x"
 		" reported ASC: 0x%02x, ASCQ: 0x%02x\n",
 		nacl->se_tpg->se_tpg_tfo->get_fabric_name(),
 		(dev->dev_attrib.emulate_ua_intlck_ctrl != 0) ? "Reporting" :
@@ -329,7 +329,7 @@ int core_scsi3_ua_clear_for_request_sense(
 	rcu_read_unlock();
 
 	pr_debug("[%s]: Released UNIT ATTENTION condition, mapped"
-		" LUN: %u, got REQUEST_SENSE reported ASC: 0x%02x,"
+		" LUN: %llu, got REQUEST_SENSE reported ASC: 0x%02x,"
 		" ASCQ: 0x%02x\n", nacl->se_tpg->se_tpg_tfo->get_fabric_name(),
 		cmd->orig_fe_lun, *asc, *ascq);
 

@@ -1438,7 +1438,7 @@ static ssize_t target_core_dev_pr_show_attr_res_pr_holder_tg_port(
 		tfo->tpg_get_wwn(se_tpg));
 	len += sprintf(page+len, "SPC-3 Reservation: Relative Port"
 		" Identifier Tag: %hu %s Portal Group Tag: %hu"
-		" %s Logical Unit: %u\n", pr_reg->tg_pt_sep_rtpi,
+		" %s Logical Unit: %llu\n", pr_reg->tg_pt_sep_rtpi,
 		tfo->get_fabric_name(), tfo->tpg_get_tag(se_tpg),
 		tfo->get_fabric_name(), pr_reg->pr_aptpl_target_lun);
 
@@ -1565,12 +1565,12 @@ static match_table_t tokens = {
 	{Opt_res_type, "res_type=%d"},
 	{Opt_res_scope, "res_scope=%d"},
 	{Opt_res_all_tg_pt, "res_all_tg_pt=%d"},
-	{Opt_mapped_lun, "mapped_lun=%d"},
+	{Opt_mapped_lun, "mapped_lun=%lld"},
 	{Opt_target_fabric, "target_fabric=%s"},
 	{Opt_target_node, "target_node=%s"},
 	{Opt_tpgt, "tpgt=%d"},
 	{Opt_port_rtpi, "port_rtpi=%d"},
-	{Opt_target_lun, "target_lun=%d"},
+	{Opt_target_lun, "target_lun=%lld"},
 	{Opt_err, NULL}
 };
 
@@ -1585,7 +1585,7 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 	substring_t args[MAX_OPT_ARGS];
 	unsigned long long tmp_ll;
 	u64 sa_res_key = 0;
-	u32 mapped_lun = 0, target_lun = 0;
+	u64 mapped_lun = 0, target_lun = 0;
 	int ret = -1, res_holder = 0, all_tg_pt = 0, arg, token;
 	u16 tpgt = 0;
 	u8 type = 0;
@@ -1675,7 +1675,7 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 			break;
 		case Opt_mapped_lun:
 			match_int(args, &arg);
-			mapped_lun = (u32)arg;
+			mapped_lun = (u64)arg;
 			break;
 		/*
 		 * PR APTPL Metadata for Target Port
@@ -1710,7 +1710,7 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 			break;
 		case Opt_target_lun:
 			match_int(args, &arg);
-			target_lun = (u32)arg;
+			target_lun = (u64)arg;
 			break;
 		default:
 			break;

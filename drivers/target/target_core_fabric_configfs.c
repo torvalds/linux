@@ -202,7 +202,7 @@ static ssize_t target_fabric_mappedlun_store_write_protect(
 			lacl->se_lun_nacl);
 
 	pr_debug("%s_ConfigFS: Changed Initiator ACL: %s"
-		" Mapped LUN: %u Write Protect bit to %s\n",
+		" Mapped LUN: %llu Write Protect bit to %s\n",
 		se_tpg->se_tpg_tfo->get_fabric_name(),
 		lacl->initiatorname, lacl->mapped_lun, (op) ? "ON" : "OFF");
 
@@ -322,7 +322,7 @@ static struct config_group *target_fabric_make_mappedlun(
 	struct config_item *acl_ci;
 	struct config_group *lacl_cg = NULL, *ml_stat_grp = NULL;
 	char *buf;
-	unsigned long mapped_lun;
+	unsigned long long mapped_lun;
 	int ret = 0;
 
 	acl_ci = &group->cg_item;
@@ -350,15 +350,11 @@ static struct config_group *target_fabric_make_mappedlun(
 	 * Determine the Mapped LUN value.  This is what the SCSI Initiator
 	 * Port will actually see.
 	 */
-	ret = kstrtoul(buf + 4, 0, &mapped_lun);
+	ret = kstrtoull(buf + 4, 0, &mapped_lun);
 	if (ret)
 		goto out;
-	if (mapped_lun > UINT_MAX) {
-		ret = -EINVAL;
-		goto out;
-	}
 	if (mapped_lun > (TRANSPORT_MAX_LUNS_PER_TPG-1)) {
-		pr_err("Mapped LUN: %lu exceeds TRANSPORT_MAX_LUNS_PER_TPG"
+		pr_err("Mapped LUN: %llu exceeds TRANSPORT_MAX_LUNS_PER_TPG"
 			"-1: %u for Target Portal Group: %u\n", mapped_lun,
 			TRANSPORT_MAX_LUNS_PER_TPG-1,
 			se_tpg->se_tpg_tfo->tpg_get_tag(se_tpg));
@@ -881,7 +877,7 @@ static struct config_group *target_fabric_make_lun(
 			struct se_portal_group, tpg_lun_group);
 	struct target_fabric_configfs *tf = se_tpg->se_tpg_wwn->wwn_tf;
 	struct config_group *lun_cg = NULL, *port_stat_grp = NULL;
-	unsigned long unpacked_lun;
+	unsigned long long unpacked_lun;
 	int errno;
 
 	if (strstr(name, "lun_") != name) {
@@ -889,11 +885,9 @@ static struct config_group *target_fabric_make_lun(
 				" \"lun_$LUN_NUMBER\"\n");
 		return ERR_PTR(-EINVAL);
 	}
-	errno = kstrtoul(name + 4, 0, &unpacked_lun);
+	errno = kstrtoull(name + 4, 0, &unpacked_lun);
 	if (errno)
 		return ERR_PTR(errno);
-	if (unpacked_lun > UINT_MAX)
-		return ERR_PTR(-EINVAL);
 
 	lun = core_tpg_alloc_lun(se_tpg, unpacked_lun);
 	if (IS_ERR(lun))

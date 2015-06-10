@@ -56,7 +56,7 @@ static struct se_hba *lun0_hba;
 struct se_device *g_lun0_dev;
 
 sense_reason_t
-transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
+transport_lookup_cmd_lun(struct se_cmd *se_cmd, u64 unpacked_lun)
 {
 	struct se_lun *se_lun = NULL;
 	struct se_session *se_sess = se_cmd->se_sess;
@@ -74,7 +74,7 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 		if ((se_cmd->data_direction == DMA_TO_DEVICE) &&
 		    (deve->lun_flags & TRANSPORT_LUNFLAGS_READ_ONLY)) {
 			pr_err("TARGET_CORE[%s]: Detected WRITE_PROTECTED LUN"
-				" Access for 0x%08x\n",
+				" Access for 0x%08llx\n",
 				se_cmd->se_tfo->get_fabric_name(),
 				unpacked_lun);
 			rcu_read_unlock();
@@ -107,7 +107,7 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 		 */
 		if (unpacked_lun != 0) {
 			pr_err("TARGET_CORE[%s]: Detected NON_EXISTENT_LUN"
-				" Access for 0x%08x\n",
+				" Access for 0x%08llx\n",
 				se_cmd->se_tfo->get_fabric_name(),
 				unpacked_lun);
 			return TCM_NON_EXISTENT_LUN;
@@ -147,7 +147,7 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 }
 EXPORT_SYMBOL(transport_lookup_cmd_lun);
 
-int transport_lookup_tmr_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
+int transport_lookup_tmr_lun(struct se_cmd *se_cmd, u64 unpacked_lun)
 {
 	struct se_dev_entry *deve;
 	struct se_lun *se_lun = NULL;
@@ -172,7 +172,7 @@ int transport_lookup_tmr_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 
 	if (!se_lun) {
 		pr_debug("TARGET_CORE[%s]: Detected NON_EXISTENT_LUN"
-			" Access for 0x%08x\n",
+			" Access for 0x%08llx\n",
 			se_cmd->se_tfo->get_fabric_name(),
 			unpacked_lun);
 		return -ENODEV;
@@ -260,7 +260,7 @@ void core_free_device_list_for_node(
 }
 
 void core_update_device_list_access(
-	u32 mapped_lun,
+	u64 mapped_lun,
 	u32 lun_access,
 	struct se_node_acl *nacl)
 {
@@ -283,7 +283,7 @@ void core_update_device_list_access(
 /*
  * Called with rcu_read_lock or nacl->device_list_lock held.
  */
-struct se_dev_entry *target_nacl_find_deve(struct se_node_acl *nacl, u32 mapped_lun)
+struct se_dev_entry *target_nacl_find_deve(struct se_node_acl *nacl, u64 mapped_lun)
 {
 	struct se_dev_entry *deve;
 
@@ -309,7 +309,7 @@ void target_pr_kref_release(struct kref *kref)
 int core_enable_device_list_for_node(
 	struct se_lun *lun,
 	struct se_lun_acl *lun_acl,
-	u32 mapped_lun,
+	u64 mapped_lun,
 	u32 lun_access,
 	struct se_node_acl *nacl,
 	struct se_portal_group *tpg)
@@ -550,7 +550,7 @@ int core_dev_add_lun(
 	if (rc < 0)
 		return rc;
 
-	pr_debug("%s_TPG[%u]_LUN[%u] - Activated %s Logical Unit from"
+	pr_debug("%s_TPG[%u]_LUN[%llu] - Activated %s Logical Unit from"
 		" CORE HBA: %u\n", tpg->se_tpg_tfo->get_fabric_name(),
 		tpg->se_tpg_tfo->tpg_get_tag(tpg), lun->unpacked_lun,
 		tpg->se_tpg_tfo->get_fabric_name(), dev->se_hba->hba_id);
@@ -583,7 +583,7 @@ void core_dev_del_lun(
 	struct se_portal_group *tpg,
 	struct se_lun *lun)
 {
-	pr_debug("%s_TPG[%u]_LUN[%u] - Deactivating %s Logical Unit from"
+	pr_debug("%s_TPG[%u]_LUN[%llu] - Deactivating %s Logical Unit from"
 		" device object\n", tpg->se_tpg_tfo->get_fabric_name(),
 		tpg->se_tpg_tfo->tpg_get_tag(tpg), lun->unpacked_lun,
 		tpg->se_tpg_tfo->get_fabric_name());
@@ -594,7 +594,7 @@ void core_dev_del_lun(
 struct se_lun_acl *core_dev_init_initiator_node_lun_acl(
 	struct se_portal_group *tpg,
 	struct se_node_acl *nacl,
-	u32 mapped_lun,
+	u64 mapped_lun,
 	int *ret)
 {
 	struct se_lun_acl *lacl;
@@ -646,7 +646,7 @@ int core_dev_add_initiator_node_lun_acl(
 			lun_access, nacl, tpg) < 0)
 		return -EINVAL;
 
-	pr_debug("%s_TPG[%hu]_LUN[%u->%u] - Added %s ACL for "
+	pr_debug("%s_TPG[%hu]_LUN[%llu->%llu] - Added %s ACL for "
 		" InitiatorNode: %s\n", tpg->se_tpg_tfo->get_fabric_name(),
 		tpg->se_tpg_tfo->tpg_get_tag(tpg), lun->unpacked_lun, lacl->mapped_lun,
 		(lun_access & TRANSPORT_LUNFLAGS_READ_WRITE) ? "RW" : "RO",
@@ -678,8 +678,8 @@ int core_dev_del_initiator_node_lun_acl(
 		core_disable_device_list_for_node(lun, deve, nacl, tpg);
 	mutex_unlock(&nacl->lun_entry_mutex);
 
-	pr_debug("%s_TPG[%hu]_LUN[%u] - Removed ACL for"
-		" InitiatorNode: %s Mapped LUN: %u\n",
+	pr_debug("%s_TPG[%hu]_LUN[%llu] - Removed ACL for"
+		" InitiatorNode: %s Mapped LUN: %llu\n",
 		tpg->se_tpg_tfo->get_fabric_name(),
 		tpg->se_tpg_tfo->tpg_get_tag(tpg), lun->unpacked_lun,
 		lacl->initiatorname, lacl->mapped_lun);
@@ -692,7 +692,7 @@ void core_dev_free_initiator_node_lun_acl(
 	struct se_lun_acl *lacl)
 {
 	pr_debug("%s_TPG[%hu] - Freeing ACL for %s InitiatorNode: %s"
-		" Mapped LUN: %u\n", tpg->se_tpg_tfo->get_fabric_name(),
+		" Mapped LUN: %llu\n", tpg->se_tpg_tfo->get_fabric_name(),
 		tpg->se_tpg_tfo->tpg_get_tag(tpg),
 		tpg->se_tpg_tfo->get_fabric_name(),
 		lacl->initiatorname, lacl->mapped_lun);

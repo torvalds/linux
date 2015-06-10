@@ -355,8 +355,8 @@ struct t10_pr_registration {
 	int pr_res_scope;
 	/* Used for fabric initiator WWPNs using a ISID */
 	bool isid_present_at_reg;
-	u32 pr_res_mapped_lun;
-	u32 pr_aptpl_target_lun;
+	u64 pr_res_mapped_lun;
+	u64 pr_aptpl_target_lun;
 	u16 tg_pt_sep_rtpi;
 	u32 pr_res_generation;
 	u64 pr_reg_bin_isid;
@@ -476,7 +476,7 @@ struct se_cmd {
 	/* Total size in bytes associated with command */
 	u32			data_length;
 	u32			residual_count;
-	u32			orig_fe_lun;
+	u64			orig_fe_lun;
 	/* Persistent Reservation key */
 	u64			pr_res_key;
 	/* Used for sense data */
@@ -614,7 +614,7 @@ struct se_ml_stat_grps {
 
 struct se_lun_acl {
 	char			initiatorname[TRANSPORT_IQN_LEN];
-	u32			mapped_lun;
+	u64			mapped_lun;
 	struct se_node_acl	*se_lun_nacl;
 	struct se_lun		*se_lun;
 	struct config_group	se_lun_group;
@@ -623,10 +623,10 @@ struct se_lun_acl {
 
 struct se_dev_entry {
 	/* See transport_lunflags_table */
-	u32			lun_flags;
-	u32			mapped_lun;
+	u64			mapped_lun;
 	u64			pr_res_key;
 	u64			creation_time;
+	u32			lun_flags;
 	u32			attach_count;
 	atomic_long_t		total_cmds;
 	atomic_long_t		read_bytes;
@@ -696,14 +696,15 @@ struct scsi_port_stats {
 };
 
 struct se_lun {
-	/* RELATIVE TARGET PORT IDENTIFER */
-	u16			lun_rtpi;
+	u64			unpacked_lun;
 #define SE_LUN_LINK_MAGIC			0xffff7771
 	u32			lun_link_magic;
 	u32			lun_access;
 	u32			lun_flags;
-	u32			unpacked_lun;
 	u32			lun_index;
+
+	/* RELATIVE TARGET PORT IDENTIFER */
+	u16			lun_rtpi;
 	atomic_t		lun_acl_count;
 	struct se_device __rcu	*lun_se_dev;
 

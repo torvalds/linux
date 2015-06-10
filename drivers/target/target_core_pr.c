@@ -229,8 +229,9 @@ target_scsi2_reservation_release(struct se_cmd *cmd)
 		dev->dev_reservation_flags &= ~DRF_SPC2_RESERVATIONS_WITH_ISID;
 	}
 	tpg = sess->se_tpg;
-	pr_debug("SCSI-2 Released reservation for %s LUN: %u ->"
-		" MAPPED LUN: %u for %s\n", tpg->se_tpg_tfo->get_fabric_name(),
+	pr_debug("SCSI-2 Released reservation for %s LUN: %llu ->"
+		" MAPPED LUN: %llu for %s\n",
+		tpg->se_tpg_tfo->get_fabric_name(),
 		cmd->se_lun->unpacked_lun, cmd->orig_fe_lun,
 		sess->se_node_acl->initiatorname);
 
@@ -275,10 +276,10 @@ target_scsi2_reservation_reserve(struct se_cmd *cmd)
 	   (dev->dev_reserved_node_acl != sess->se_node_acl)) {
 		pr_err("SCSI-2 RESERVATION CONFLIFT for %s fabric\n",
 			tpg->se_tpg_tfo->get_fabric_name());
-		pr_err("Original reserver LUN: %u %s\n",
+		pr_err("Original reserver LUN: %llu %s\n",
 			cmd->se_lun->unpacked_lun,
 			dev->dev_reserved_node_acl->initiatorname);
-		pr_err("Current attempt - LUN: %u -> MAPPED LUN: %u"
+		pr_err("Current attempt - LUN: %llu -> MAPPED LUN: %llu"
 			" from %s \n", cmd->se_lun->unpacked_lun,
 			cmd->orig_fe_lun,
 			sess->se_node_acl->initiatorname);
@@ -292,7 +293,7 @@ target_scsi2_reservation_reserve(struct se_cmd *cmd)
 		dev->dev_res_bin_isid = sess->sess_bin_isid;
 		dev->dev_reservation_flags |= DRF_SPC2_RESERVATIONS_WITH_ISID;
 	}
-	pr_debug("SCSI-2 Reserved %s LUN: %u -> MAPPED LUN: %u"
+	pr_debug("SCSI-2 Reserved %s LUN: %llu -> MAPPED LUN: %llu"
 		" for %s\n", tpg->se_tpg_tfo->get_fabric_name(),
 		cmd->se_lun->unpacked_lun, cmd->orig_fe_lun,
 		sess->se_node_acl->initiatorname);
@@ -618,7 +619,7 @@ static struct t10_pr_registration *__core_scsi3_do_alloc_registration(
 	struct se_node_acl *nacl,
 	struct se_lun *lun,
 	struct se_dev_entry *deve,
-	u32 mapped_lun,
+	u64 mapped_lun,
 	unsigned char *isid,
 	u64 sa_res_key,
 	int all_tg_pt,
@@ -671,7 +672,7 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 	struct se_node_acl *nacl,
 	struct se_lun *lun,
 	struct se_dev_entry *deve,
-	u32 mapped_lun,
+	u64 mapped_lun,
 	unsigned char *isid,
 	u64 sa_res_key,
 	int all_tg_pt,
@@ -804,10 +805,10 @@ int core_scsi3_alloc_aptpl_registration(
 	u64 sa_res_key,
 	unsigned char *i_port,
 	unsigned char *isid,
-	u32 mapped_lun,
+	u64 mapped_lun,
 	unsigned char *t_port,
 	u16 tpgt,
-	u32 target_lun,
+	u64 target_lun,
 	int res_holder,
 	int all_tg_pt,
 	u8 type)
@@ -901,9 +902,9 @@ static int __core_scsi3_check_aptpl_registration(
 	struct se_device *dev,
 	struct se_portal_group *tpg,
 	struct se_lun *lun,
-	u32 target_lun,
+	u64 target_lun,
 	struct se_node_acl *nacl,
-	u32 mapped_lun)
+	u64 mapped_lun)
 {
 	struct t10_pr_registration *pr_reg, *pr_reg_tmp;
 	struct t10_reservation *pr_tmpl = &dev->t10_pr;
@@ -972,7 +973,7 @@ int core_scsi3_check_aptpl_registration(
 	struct se_portal_group *tpg,
 	struct se_lun *lun,
 	struct se_node_acl *nacl,
-	u32 mapped_lun)
+	u64 mapped_lun)
 {
 	if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
 		return 0;
@@ -1094,7 +1095,7 @@ static int core_scsi3_alloc_registration(
 	struct se_node_acl *nacl,
 	struct se_lun *lun,
 	struct se_dev_entry *deve,
-	u32 mapped_lun,
+	u64 mapped_lun,
 	unsigned char *isid,
 	u64 sa_res_key,
 	int all_tg_pt,
@@ -1668,7 +1669,7 @@ core_scsi3_decode_spec_i_port(
 		}
 
 		pr_debug("SPC-3 PR SPEC_I_PT: Located %s Node: %s"
-			" dest_se_deve mapped_lun: %u\n",
+			" dest_se_deve mapped_lun: %llu\n",
 			dest_tpg->se_tpg_tfo->get_fabric_name(),
 			dest_node_acl->initiatorname, dest_se_deve->mapped_lun);
 
@@ -1780,7 +1781,7 @@ core_scsi3_decode_spec_i_port(
 
 		pr_debug("SPC-3 PR [%s] SPEC_I_PT: Successfully"
 			" registered Transport ID for Node: %s%s Mapped LUN:"
-			" %u\n", dest_tpg->se_tpg_tfo->get_fabric_name(),
+			" %llu\n", dest_tpg->se_tpg_tfo->get_fabric_name(),
 			dest_node_acl->initiatorname, i_buf, (dest_se_deve) ?
 			dest_se_deve->mapped_lun : 0);
 
@@ -1873,7 +1874,7 @@ static int core_scsi3_update_aptpl_buf(
 				"sa_res_key=%llu\n"
 				"res_holder=1\nres_type=%02x\n"
 				"res_scope=%02x\nres_all_tg_pt=%d\n"
-				"mapped_lun=%u\n", reg_count,
+				"mapped_lun=%llu\n", reg_count,
 				tpg->se_tpg_tfo->get_fabric_name(),
 				pr_reg->pr_reg_nacl->initiatorname, isid_buf,
 				pr_reg->pr_res_key, pr_reg->pr_res_type,
@@ -1883,7 +1884,7 @@ static int core_scsi3_update_aptpl_buf(
 			snprintf(tmp, 512, "PR_REG_START: %d\n"
 				"initiator_fabric=%s\ninitiator_node=%s\n%s"
 				"sa_res_key=%llu\nres_holder=0\n"
-				"res_all_tg_pt=%d\nmapped_lun=%u\n",
+				"res_all_tg_pt=%d\nmapped_lun=%llu\n",
 				reg_count, tpg->se_tpg_tfo->get_fabric_name(),
 				pr_reg->pr_reg_nacl->initiatorname, isid_buf,
 				pr_reg->pr_res_key, pr_reg->pr_reg_all_tg_pt,
@@ -1902,7 +1903,7 @@ static int core_scsi3_update_aptpl_buf(
 		 * Include information about the associated SCSI target port.
 		 */
 		snprintf(tmp, 512, "target_fabric=%s\ntarget_node=%s\n"
-			"tpgt=%hu\nport_rtpi=%hu\ntarget_lun=%u\nPR_REG_END:"
+			"tpgt=%hu\nport_rtpi=%hu\ntarget_lun=%llu\nPR_REG_END:"
 			" %d\n", tpg->se_tpg_tfo->get_fabric_name(),
 			tpg->se_tpg_tfo->tpg_get_wwn(tpg),
 			tpg->se_tpg_tfo->tpg_get_tag(tpg),
@@ -2646,7 +2647,7 @@ core_scsi3_emulate_pro_clear(struct se_cmd *cmd, u64 res_key)
 	struct se_session *se_sess = cmd->se_sess;
 	struct t10_reservation *pr_tmpl = &dev->t10_pr;
 	struct t10_pr_registration *pr_reg, *pr_reg_tmp, *pr_reg_n, *pr_res_holder;
-	u32 pr_res_mapped_lun = 0;
+	u64 pr_res_mapped_lun = 0;
 	int calling_it_nexus = 0;
 	/*
 	 * Locate the existing *pr_reg via struct se_node_acl pointers
@@ -2802,7 +2803,7 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 	LIST_HEAD(preempt_and_abort_list);
 	struct t10_pr_registration *pr_reg, *pr_reg_tmp, *pr_reg_n, *pr_res_holder;
 	struct t10_reservation *pr_tmpl = &dev->t10_pr;
-	u32 pr_res_mapped_lun = 0;
+	u64 pr_res_mapped_lun = 0;
 	int all_reg = 0, calling_it_nexus = 0;
 	bool sa_res_key_unmatched = sa_res_key != 0;
 	int prh_type = 0, prh_scope = 0;
@@ -3350,7 +3351,7 @@ after_iport_check:
 	}
 
 	pr_debug("SPC-3 PR REGISTER_AND_MOVE: Located %s node %s LUN"
-		" ACL for dest_se_deve->mapped_lun: %u\n",
+		" ACL for dest_se_deve->mapped_lun: %llu\n",
 		dest_tf_ops->get_fabric_name(), dest_node_acl->initiatorname,
 		dest_se_deve->mapped_lun);
 
