@@ -381,7 +381,6 @@ union rdma_protocol_stats {
 #define RDMA_CORE_PORT_IBA_ROCE        (RDMA_CORE_CAP_PROT_ROCE \
 					| RDMA_CORE_CAP_IB_MAD  \
 					| RDMA_CORE_CAP_IB_CM   \
-					| RDMA_CORE_CAP_IB_SA   \
 					| RDMA_CORE_CAP_AF_IB   \
 					| RDMA_CORE_CAP_ETH_AH)
 #define RDMA_CORE_PORT_IWARP           (RDMA_CORE_CAP_PROT_IWARP \
