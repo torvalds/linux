@@ -568,6 +568,34 @@
 					};
 				};
 			};
+
+			tsout0 {
+				pinctrl_tsout0_parallel: tsout0_parallel {
+					st,pins {
+						DATA7 = <&pio12 0 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						DATA6 = <&pio12 1 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						DATA5 = <&pio12 2 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						DATA4 = <&pio12 3 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						DATA3 = <&pio12 4 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						DATA2 = <&pio12 5 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						DATA1 = <&pio12 6 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						DATA0 = <&pio12 7 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						CLKIN = <&pio11 7 ALT3 OUT NICLK 0 CLK_A>;
+						VALID = <&pio11 5 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						ERROR = <&pio11 4 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						PKCLK = <&pio11 6 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+					};
+				};
+				pinctrl_tsout0_serial: tsout0_serial {
+					st,pins {
+						DATA7 = <&pio12 0 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						CLKIN = <&pio11 7 ALT3 OUT NICLK 0 CLK_A>;
+						VALID = <&pio11 5 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						ERROR = <&pio11 4 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+						PKCLK = <&pio11 6 ALT3 OUT SE_NICLK_IO 0 CLK_A>;
+					};
+				};
+			};
 		};
 
 		pin-controller-front1 {
