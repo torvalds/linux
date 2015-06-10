@@ -13,7 +13,6 @@
  *
  * Usage:
  *	iio_event_monitor <device_name>
- *
  */
 
 #include <unistd.h>
@@ -209,7 +208,8 @@ static void print_event(struct iio_event_data *event)
 
 	if (!event_is_known(event)) {
 		printf("Unknown event: time: %lld, id: %llx\n",
-				event->timestamp, event->id);
+		       event->timestamp, event->id);
+
 		return;
 	}
 
@@ -229,6 +229,7 @@ static void print_event(struct iio_event_data *event)
 
 	if (dir != IIO_EV_DIR_NONE)
 		printf(", direction: %s", iio_ev_dir_text[dir]);
+
 	printf("\n");
 }
 
@@ -251,14 +252,16 @@ int main(int argc, char **argv)
 	dev_num = find_type_by_name(device_name, "iio:device");
 	if (dev_num >= 0) {
 		printf("Found IIO device with name %s with device number %d\n",
-			device_name, dev_num);
+		       device_name, dev_num);
 		ret = asprintf(&chrdev_name, "/dev/iio:device%d", dev_num);
 		if (ret < 0) {
 			return -ENOMEM;
 		}
 	} else {
-		/* If we can't find a IIO device by name assume device_name is a
-		   IIO chrdev */
+		/*
+		 * If we can't find an IIO device by name assume device_name is
+		 * an IIO chrdev
+		 */
 		chrdev_name = strdup(device_name);
 		if (!chrdev_name)
 			return -ENOMEM;
