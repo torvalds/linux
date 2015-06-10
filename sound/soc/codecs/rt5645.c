@@ -2944,17 +2944,11 @@ static int rt5645_irq_detection(struct rt5645_priv *rt5645)
 
 	switch (rt5645->pdata.jd_mode) {
 	case 0: /* Not using rt5645 JD */
-		if (gpio_is_valid(rt5645->pdata.hp_det_gpio)) {
-			gpio_state = gpio_get_value(rt5645->pdata.hp_det_gpio);
-			dev_dbg(rt5645->codec->dev, "gpio = %d(%d)\n",
-				rt5645->pdata.hp_det_gpio, gpio_state);
-		}
-		if ((rt5645->pdata.gpio_hp_det_active_high && gpio_state) ||
-			(!rt5645->pdata.gpio_hp_det_active_high &&
-			 !gpio_state)) {
-			report = rt5645_jack_detect(rt5645->codec, 1);
-		} else {
-			report = rt5645_jack_detect(rt5645->codec, 0);
+		if (rt5645->gpiod_hp_det) {
+			gpio_state = gpiod_get_value(rt5645->gpiod_hp_det);
+			dev_dbg(rt5645->codec->dev, "gpio_state = %d\n",
+				gpio_state);
+			report = rt5645_jack_detect(rt5645->codec, gpio_state);
 		}
 		snd_soc_jack_report(rt5645->hp_jack,
 				    report, SND_JACK_HEADPHONE);
@@ -3244,7 +3238,6 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 	struct rt5645_priv *rt5645;
 	int ret;
 	unsigned int val;
-	struct gpio_desc *gpiod;
 
 	rt5645 = devm_kzalloc(&i2c->dev, sizeof(struct rt5645_priv),
 				GFP_KERNEL);
@@ -3259,17 +3252,14 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 	} else {
 		if (dmi_check_system(dmi_platform_intel_braswell)) {
 			rt5645->pdata = *rt5645_pdata;
-			gpiod = devm_gpiod_get_index(&i2c->dev, "rt5645", 0);
-
-			if (IS_ERR(gpiod) || gpiod_direction_input(gpiod)) {
-				rt5645->pdata.hp_det_gpio = -1;
-				dev_err(&i2c->dev, "failed to initialize gpiod\n");
-			} else {
-				rt5645->pdata.hp_det_gpio = desc_to_gpio(gpiod);
-				rt5645->pdata.gpio_hp_det_active_high
-						= !gpiod_is_active_low(gpiod);
-			}
 		}
+	}
+
+	rt5645->gpiod_hp_det = devm_gpiod_get(&i2c->dev, "hp-detect", GPIOD_IN);
+
+	if (IS_ERR(rt5645->gpiod_hp_det)) {
+		rt5645->gpiod_hp_det = NULL;
+		dev_err(&i2c->dev, "failed to initialize gpiod\n");
 	}
 
 	rt5645->regmap = devm_regmap_init_i2c(i2c, &rt5645_regmap);
@@ -3433,16 +3423,6 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 			dev_err(&i2c->dev, "Failed to reguest IRQ: %d\n", ret);
 	}
 
-	if (gpio_is_valid(rt5645->pdata.hp_det_gpio)) {
-		ret = gpio_request(rt5645->pdata.hp_det_gpio, "rt5645");
-		if (ret)
-			dev_err(&i2c->dev, "Fail gpio_request hp_det_gpio\n");
-
-		ret = gpio_direction_input(rt5645->pdata.hp_det_gpio);
-		if (ret)
-			dev_err(&i2c->dev, "Fail gpio_direction hp_det_gpio\n");
-	}
-
 	return snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5645,
 				      rt5645_dai, ARRAY_SIZE(rt5645_dai));
 }
@@ -3455,9 +3435,6 @@ static int rt5645_i2c_remove(struct i2c_client *i2c)
 		free_irq(i2c->irq, rt5645);
 
 	cancel_delayed_work_sync(&rt5645->jack_detect_work);
-
-	if (gpio_is_valid(rt5645->pdata.hp_det_gpio))
-		gpio_free(rt5645->pdata.hp_det_gpio);
 
 	snd_soc_unregister_codec(&i2c->dev);
 
