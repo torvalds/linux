@@ -922,7 +922,7 @@ int dt_index_read(const struct lu_env *env, struct dt_device *dev,
 	ii->ii_version = dt_version_get(env, obj);
 
 	/* walk the index and fill lu_idxpages with key/record pairs */
-	rc = dt_index_walk(env, obj, rdpg, dt_index_page_build ,ii);
+	rc = dt_index_walk(env, obj, rdpg, dt_index_page_build, ii);
 	dt_read_unlock(env, obj);
 
 	if (rc == 0) {
