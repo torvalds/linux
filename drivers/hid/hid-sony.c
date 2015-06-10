@@ -902,6 +902,7 @@ struct motion_output_report_02 {
 #define DS4_REPORT_0x81_SIZE 7
 #define SIXAXIS_REPORT_0xF2_SIZE 17
 #define SIXAXIS_REPORT_0xF5_SIZE 8
+#define MOTION_REPORT_0x02_SIZE 49
 
 static DEFINE_SPINLOCK(sony_dev_list_lock);
 static LIST_HEAD(sony_device_list);
@@ -1746,7 +1747,7 @@ static void motion_state_worker(struct work_struct *work)
 	struct motion_output_report_02 *report =
 		(struct motion_output_report_02 *)sc->output_report_dmabuf;
 
-	memset(report, 0, sizeof(struct motion_output_report_02));
+	memset(report, 0, MOTION_REPORT_0x02_SIZE);
 
 	report->type = 0x02; /* set leds */
 	report->r = sc->led_state[0];
@@ -1757,8 +1758,7 @@ static void motion_state_worker(struct work_struct *work)
 	report->rumble = max(sc->right, sc->left);
 #endif
 
-	hid_hw_output_report(hdev, (__u8 *)report,
-			sizeof(struct motion_output_report_02));
+	hid_hw_output_report(hdev, (__u8 *)report, MOTION_REPORT_0x02_SIZE);
 }
 
 static int sony_allocate_output_report(struct sony_sc *sc)
@@ -1774,9 +1774,8 @@ static int sony_allocate_output_report(struct sony_sc *sc)
 		sc->output_report_dmabuf = kmalloc(DS4_REPORT_0x05_SIZE,
 						GFP_KERNEL);
 	else if (sc->quirks & MOTION_CONTROLLER)
-		sc->output_report_dmabuf =
-				kmalloc(sizeof(struct motion_output_report_02),
-				GFP_KERNEL);
+		sc->output_report_dmabuf = kmalloc(MOTION_REPORT_0x02_SIZE,
+						GFP_KERNEL);
 	else
 		return 0;
 
