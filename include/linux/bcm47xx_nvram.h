@@ -12,7 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/vmalloc.h>
 
-#ifdef CONFIG_BCM47XX
+#ifdef CONFIG_BCM47XX_NVRAM
 int bcm47xx_nvram_init_from_mem(u32 base, u32 lim);
 int bcm47xx_nvram_getenv(const char *name, char *val, size_t val_len);
 int bcm47xx_nvram_gpio_pin(const char *name);
