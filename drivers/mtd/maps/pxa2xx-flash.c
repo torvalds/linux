@@ -93,7 +93,7 @@ static int pxa2xx_flash_probe(struct platform_device *pdev)
 			iounmap(info->map.cached);
 		return -EIO;
 	}
-	info->mtd->owner = THIS_MODULE;
+	info->mtd->dev.parent = &pdev->dev;
 
 	mtd_device_parse_register(info->mtd, probes, NULL, flash->parts,
 				  flash->nr_parts);
