@@ -795,7 +795,7 @@ static s32 ixgbe_setup_ixfi_x550em(struct ixgbe_hw *hw, ixgbe_link_speed *speed)
 	}
 
 	status = ixgbe_write_iosf_sb_reg_x550(hw,
-				IXGBE_KRM_RX_TRN_LINKUP_CTRL(hw->bus.lan_id),
+				IXGBE_KRM_LINK_CTRL_1(hw->bus.lan_id),
 				IXGBE_SB_IOSF_TARGET_KR_PHY, reg_val);
 	if (status)
 		return status;
