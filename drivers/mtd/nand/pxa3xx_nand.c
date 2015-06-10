@@ -1663,7 +1663,7 @@ static int alloc_nand_resource(struct platform_device *pdev)
 		host->cs = cs;
 		host->info_data = info;
 		mtd->priv = host;
-		mtd->owner = THIS_MODULE;
+		mtd->dev.parent = &pdev->dev;
 
 		chip->ecc.read_page	= pxa3xx_nand_read_page_hwecc;
 		chip->ecc.write_page	= pxa3xx_nand_write_page_hwecc;
