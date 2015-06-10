@@ -1316,7 +1316,7 @@ static int __init probe_docg4(struct platform_device *pdev)
 	doc = (struct docg4_priv *) (nand + 1);
 	mtd->priv = nand;
 	nand->priv = doc;
-	mtd->owner = THIS_MODULE;
+	mtd->dev.parent = &pdev->dev;
 	doc->virtadr = virtadr;
 	doc->dev = dev;
 
