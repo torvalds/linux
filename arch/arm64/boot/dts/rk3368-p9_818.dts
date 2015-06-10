@@ -344,6 +344,7 @@
                         sleep_exit_current = <600>;
                         power_off_thresd = <3400>;
                         chrg_diff_voltagemV = <0>;
+                        virtual_power = <0>;
                         support_usb_adp = <1>;
                         support_dc_adp = <1>;
                         dc_det_gpio = <&gpio0 GPIO_C1 GPIO_ACTIVE_LOW>;
@@ -573,7 +574,7 @@
 &rk818 {
 	gpios =<&gpio0 GPIO_A1 GPIO_ACTIVE_HIGH>,<&gpio0 GPIO_A0 GPIO_ACTIVE_LOW>;
 	rk818,system-power-controller;
-        pinctrl-names = "dc_det";
+        pinctrl-names = "default";
         pinctrl-0 = <&gpio0_c1>;
 	regulators {
 
