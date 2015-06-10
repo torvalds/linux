@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/rtnetlink.h>
 #include <net/cfg80211.h>
 
 #include <brcmu_wifi.h>
@@ -2421,8 +2422,9 @@ void brcmf_p2p_detach(struct brcmf_p2p_info *p2p)
 		brcmf_p2p_cancel_remain_on_channel(vif->ifp);
 		brcmf_p2p_deinit_discovery(p2p);
 		/* remove discovery interface */
-		brcmf_free_vif(vif);
-		p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif = NULL;
+		rtnl_lock();
+		brcmf_p2p_delete_p2pdev(p2p, vif);
+		rtnl_unlock();
 	}
 	/* just set it all to zero */
 	memset(p2p, 0, sizeof(*p2p));

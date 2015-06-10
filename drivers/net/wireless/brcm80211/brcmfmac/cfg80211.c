@@ -6207,10 +6207,8 @@ void brcmf_cfg80211_detach(struct brcmf_cfg80211_info *cfg)
 	if (!cfg)
 		return;
 
-	WARN_ON(!list_empty(&cfg->vif_list));
-	wiphy_unregister(cfg->wiphy);
 	brcmf_btcoex_detach(cfg);
-	brcmf_p2p_detach(&cfg->p2p);
+	wiphy_unregister(cfg->wiphy);
 	wl_deinit_priv(cfg);
 	brcmf_free_wiphy(cfg->wiphy);
 }
