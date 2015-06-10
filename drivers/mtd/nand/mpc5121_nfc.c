@@ -659,6 +659,7 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	chip = &prv->chip;
 
 	mtd->priv = chip;
+	mtd->dev.parent = dev;
 	chip->priv = prv;
 	prv->dev = dev;
 
