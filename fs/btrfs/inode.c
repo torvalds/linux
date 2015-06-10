@@ -4989,8 +4989,9 @@ static void evict_inode_truncate_pages(struct inode *inode)
 	/*
 	 * Keep looping until we have no more ranges in the io tree.
 	 * We can have ongoing bios started by readpages (called from readahead)
-	 * that didn't get their end io callbacks called yet or they are still
-	 * in progress ((extent_io.c:end_bio_extent_readpage()). This means some
+	 * that have their endio callback (extent_io.c:end_bio_extent_readpage)
+	 * still in progress (unlocked the pages in the bio but did not yet
+	 * unlocked the ranges in the io tree). Therefore this means some
 	 * ranges can still be locked and eviction started because before
 	 * submitting those bios, which are executed by a separate task (work
 	 * queue kthread), inode references (inode->i_count) were not taken
