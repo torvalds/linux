@@ -316,6 +316,7 @@ EXPORT_SYMBOL_GPL(v4l2_print_dv_timings);
  */
 
 #define CVT_PXL_CLK_GRAN	250000	/* pixel clock granularity */
+#define CVT_PXL_CLK_GRAN_RB_V2 1000	/* granularity for reduced blanking v2*/
 
 /* Normal blanking */
 #define CVT_MIN_V_BPORCH	7	/* lines */
@@ -335,15 +336,22 @@ EXPORT_SYMBOL_GPL(v4l2_print_dv_timings);
 /* Reduced Blanking */
 #define CVT_RB_MIN_V_BPORCH    7       /* lines  */
 #define CVT_RB_V_FPORCH        3       /* lines  */
-#define CVT_RB_MIN_V_BLANK   460     /* us     */
+#define CVT_RB_MIN_V_BLANK   460       /* us     */
 #define CVT_RB_H_SYNC         32       /* pixels */
-#define CVT_RB_H_BPORCH       80       /* pixels */
 #define CVT_RB_H_BLANK       160       /* pixels */
+/* Reduce blanking Version 2 */
+#define CVT_RB_V2_H_BLANK     80       /* pixels */
+#define CVT_RB_MIN_V_FPORCH    3       /* lines  */
+#define CVT_RB_V2_MIN_V_FPORCH 1       /* lines  */
+#define CVT_RB_V_BPORCH        6       /* lines  */
 
 /** v4l2_detect_cvt - detect if the given timings follow the CVT standard
  * @frame_height - the total height of the frame (including blanking) in lines.
  * @hfreq - the horizontal frequency in Hz.
  * @vsync - the height of the vertical sync in lines.
+ * @active_width - active width of image (does not include blanking). This
+ * information is needed only in case of version 2 of reduced blanking.
+ * In other cases, this parameter does not have any effect on timings.
  * @polarities - the horizontal and vertical polarities (same as struct
  *		v4l2_bt_timings polarities).
  * @interlaced - if this flag is true, it indicates interlaced format
@@ -352,20 +360,22 @@ EXPORT_SYMBOL_GPL(v4l2_print_dv_timings);
  * This function will attempt to detect if the given values correspond to a
  * valid CVT format. If so, then it will return true, and fmt will be filled
  * in with the found CVT timings.
- *
- * TODO: VESA defined a new version 2 of their reduced blanking
- * formula. Support for that is currently missing in this CVT
- * detection function.
  */
-bool v4l2_detect_cvt(unsigned frame_height, unsigned hfreq, unsigned vsync,
-		u32 polarities, bool interlaced, struct v4l2_dv_timings *fmt)
+bool v4l2_detect_cvt(unsigned frame_height,
+		     unsigned hfreq,
+		     unsigned vsync,
+		     unsigned active_width,
+		     u32 polarities,
+		     bool interlaced,
+		     struct v4l2_dv_timings *fmt)
 {
 	int  v_fp, v_bp, h_fp, h_bp, hsync;
 	int  frame_width, image_height, image_width;
 	bool reduced_blanking;
+	bool rb_v2 = false;
 	unsigned pix_clk;
 
-	if (vsync < 4 || vsync > 7)
+	if (vsync < 4 || vsync > 8)
 		return false;
 
 	if (polarities == V4L2_DV_VSYNC_POS_POL)
@@ -375,17 +385,35 @@ bool v4l2_detect_cvt(unsigned frame_height, unsigned hfreq, unsigned vsync,
 	else
 		return false;
 
+	if (reduced_blanking && vsync == 8)
+		rb_v2 = true;
+
+	if (rb_v2 && active_width == 0)
+		return false;
+
+	if (!rb_v2 && vsync > 7)
+		return false;
+
 	if (hfreq == 0)
 		return false;
 
 	/* Vertical */
 	if (reduced_blanking) {
-		v_fp = CVT_RB_V_FPORCH;
-		v_bp = (CVT_RB_MIN_V_BLANK * hfreq) / 1000000 + 1;
-		v_bp -= vsync + v_fp;
+		if (rb_v2) {
+			v_bp = CVT_RB_V_BPORCH;
+			v_fp = (CVT_RB_MIN_V_BLANK * hfreq) / 1000000 + 1;
+			v_fp -= vsync + v_bp;
 
-		if (v_bp < CVT_RB_MIN_V_BPORCH)
-			v_bp = CVT_RB_MIN_V_BPORCH;
+			if (v_fp < CVT_RB_V2_MIN_V_FPORCH)
+				v_fp = CVT_RB_V2_MIN_V_FPORCH;
+		} else {
+			v_fp = CVT_RB_V_FPORCH;
+			v_bp = (CVT_RB_MIN_V_BLANK * hfreq) / 1000000 + 1;
+			v_bp -= vsync + v_fp;
+
+			if (v_bp < CVT_RB_MIN_V_BPORCH)
+				v_bp = CVT_RB_MIN_V_BPORCH;
+		}
 	} else {
 		v_fp = CVT_MIN_V_PORCH_RND;
 		v_bp = (CVT_MIN_VSYNC_BP * hfreq) / 1000000 + 1 - vsync;
@@ -422,22 +450,32 @@ bool v4l2_detect_cvt(unsigned frame_height, unsigned hfreq, unsigned vsync,
 		else
 			return false;
 		break;
+	case 8:
+		image_width = active_width;
+		break;
 	default:
 		return false;
 	}
 
-	image_width = image_width & ~7;
+	if (!rb_v2)
+		image_width = image_width & ~7;
 
 	/* Horizontal */
 	if (reduced_blanking) {
-		pix_clk = (image_width + CVT_RB_H_BLANK) * hfreq;
-		pix_clk = (pix_clk / CVT_PXL_CLK_GRAN) * CVT_PXL_CLK_GRAN;
+		int h_blank;
+		int clk_gran;
 
-		h_bp = CVT_RB_H_BPORCH;
+		h_blank = rb_v2 ? CVT_RB_V2_H_BLANK : CVT_RB_H_BLANK;
+		clk_gran = rb_v2 ? CVT_PXL_CLK_GRAN_RB_V2 : CVT_PXL_CLK_GRAN;
+
+		pix_clk = (image_width + h_blank) * hfreq;
+		pix_clk = (pix_clk / clk_gran) * clk_gran;
+
+		h_bp  = h_blank / 2;
 		hsync = CVT_RB_H_SYNC;
-		h_fp = CVT_RB_H_BLANK - h_bp - hsync;
+		h_fp  = h_blank - h_bp - hsync;
 
-		frame_width = image_width + CVT_RB_H_BLANK;
+		frame_width = image_width + h_blank;
 	} else {
 		unsigned ideal_duty_cycle_per_myriad =
 			100 * CVT_C_PRIME - (CVT_M_PRIME * 100000) / hfreq;

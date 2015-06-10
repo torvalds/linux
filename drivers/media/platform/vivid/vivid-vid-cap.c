@@ -1627,7 +1627,7 @@ static bool valid_cvt_gtf_timings(struct v4l2_dv_timings *timings)
 	h_freq = (u32)bt->pixelclock / total_h_pixel;
 
 	if (bt->standards == 0 || (bt->standards & V4L2_DV_BT_STD_CVT)) {
-		if (v4l2_detect_cvt(total_v_lines, h_freq, bt->vsync,
+		if (v4l2_detect_cvt(total_v_lines, h_freq, bt->vsync, bt->width,
 				    bt->polarities, bt->interlaced, timings))
 			return true;
 	}

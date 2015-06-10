@@ -1328,7 +1328,7 @@ static int stdi2dv_timings(struct v4l2_subdev *sd,
 		}
 	}
 
-	if (v4l2_detect_cvt(stdi->lcf + 1, hfreq, stdi->lcvs,
+	if (v4l2_detect_cvt(stdi->lcf + 1, hfreq, stdi->lcvs, 0,
 			(stdi->hs_pol == '+' ? V4L2_DV_HSYNC_POS_POL : 0) |
 			(stdi->vs_pol == '+' ? V4L2_DV_VSYNC_POS_POL : 0),
 			false, timings))

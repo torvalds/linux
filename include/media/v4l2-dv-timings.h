@@ -115,6 +115,9 @@ void v4l2_print_dv_timings(const char *dev_prefix, const char *prefix,
  * @frame_height - the total height of the frame (including blanking) in lines.
  * @hfreq - the horizontal frequency in Hz.
  * @vsync - the height of the vertical sync in lines.
+ * @active_width - active width of image (does not include blanking). This
+ * information is needed only in case of version 2 of reduced blanking.
+ * In other cases, this parameter does not have any effect on timings.
  * @polarities - the horizontal and vertical polarities (same as struct
  *		v4l2_bt_timings polarities).
  * @interlaced - if this flag is true, it indicates interlaced format
@@ -125,7 +128,8 @@ void v4l2_print_dv_timings(const char *dev_prefix, const char *prefix,
  * in with the found CVT timings.
  */
 bool v4l2_detect_cvt(unsigned frame_height, unsigned hfreq, unsigned vsync,
-		u32 polarities, bool interlaced, struct v4l2_dv_timings *fmt);
+		unsigned active_width, u32 polarities, bool interlaced,
+		struct v4l2_dv_timings *fmt);
 
 /** v4l2_detect_gtf - detect if the given timings follow the GTF standard
  * @frame_height - the total height of the frame (including blanking) in lines.
