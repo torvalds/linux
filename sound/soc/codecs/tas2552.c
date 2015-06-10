@@ -703,13 +703,10 @@ static int tas2552_probe(struct i2c_client *client,
 	if (data == NULL)
 		return -ENOMEM;
 
-	data->enable_gpio = devm_gpiod_get(dev, "enable", GPIOD_OUT_LOW);
-	if (IS_ERR(data->enable_gpio)) {
-		if (PTR_ERR(data->enable_gpio) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-
-		data->enable_gpio = NULL;
-	}
+	data->enable_gpio = devm_gpiod_get_optional(dev, "enable",
+						    GPIOD_OUT_LOW);
+	if (IS_ERR(data->enable_gpio))
+		return PTR_ERR(data->enable_gpio);
 
 	data->tas2552_client = client;
 	data->regmap = devm_regmap_init_i2c(client, &tas2552_regmap_config);
