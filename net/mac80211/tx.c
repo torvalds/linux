@@ -3210,6 +3210,16 @@ static void ieee80211_set_csa(struct ieee80211_sub_if_data *sdata,
 	rcu_read_unlock();
 }
 
+static u8 __ieee80211_csa_update_counter(struct beacon_data *beacon)
+{
+	beacon->csa_current_counter--;
+
+	/* the counter should never reach 0 */
+	WARN_ON_ONCE(!beacon->csa_current_counter);
+
+	return beacon->csa_current_counter;
+}
+
 u8 ieee80211_csa_update_counter(struct ieee80211_vif *vif)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
@@ -3228,11 +3238,7 @@ u8 ieee80211_csa_update_counter(struct ieee80211_vif *vif)
 	if (!beacon)
 		goto unlock;
 
-	beacon->csa_current_counter--;
-
-	/* the counter should never reach 0 */
-	WARN_ON_ONCE(!beacon->csa_current_counter);
-	count = beacon->csa_current_counter;
+	count = __ieee80211_csa_update_counter(beacon);
 
 unlock:
 	rcu_read_unlock();
@@ -3332,7 +3338,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 		if (beacon) {
 			if (beacon->csa_counter_offsets[0]) {
 				if (!is_template)
-					ieee80211_csa_update_counter(vif);
+					__ieee80211_csa_update_counter(beacon);
 
 				ieee80211_set_csa(sdata, beacon);
 			}
@@ -3378,7 +3384,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 
 		if (beacon->csa_counter_offsets[0]) {
 			if (!is_template)
-				ieee80211_csa_update_counter(vif);
+				__ieee80211_csa_update_counter(beacon);
 
 			ieee80211_set_csa(sdata, beacon);
 		}
@@ -3408,7 +3414,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 				 * for now we leave it consistent with overall
 				 * mac80211's behavior.
 				 */
-				ieee80211_csa_update_counter(vif);
+				__ieee80211_csa_update_counter(beacon);
 
 			ieee80211_set_csa(sdata, beacon);
 		}
