@@ -196,15 +196,15 @@ static void do_inject(void)
 		return;
 	}
 
-	get_online_cpus();
-	if (!cpu_online(cpu))
-		goto err;
-
 	/* prep MCE global settings for the injection */
 	mcg_status = MCG_STATUS_MCIP | MCG_STATUS_EIPV;
 
 	if (!(i_mce.status & MCI_STATUS_PCC))
 		mcg_status |= MCG_STATUS_RIPV;
+
+	get_online_cpus();
+	if (!cpu_online(cpu))
+		goto err;
 
 	toggle_hw_mce_inject(cpu, true);
 
