@@ -307,6 +307,7 @@ void acpi_gpiochip_request_interrupts(struct gpio_chip *chip)
 	acpi_walk_resources(handle, "_AEI",
 			    acpi_gpiochip_request_interrupt, acpi_gpio);
 }
+EXPORT_SYMBOL_GPL(acpi_gpiochip_request_interrupts);
 
 /**
  * acpi_gpiochip_free_interrupts() - Free GPIO ACPI event interrupts.
@@ -346,6 +347,7 @@ void acpi_gpiochip_free_interrupts(struct gpio_chip *chip)
 		kfree(event);
 	}
 }
+EXPORT_SYMBOL_GPL(acpi_gpiochip_free_interrupts);
 
 int acpi_dev_add_driver_gpios(struct acpi_device *adev,
 			      const struct acpi_gpio_mapping *gpios)
