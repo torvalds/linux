@@ -844,7 +844,7 @@ static int WILC_WFI_CfgConnect(struct wiphy *wiphy, struct net_device *dev,
 
 	host_int_set_wfi_drv_handler((WILC_Uint32)priv->hWILCWFIDrv);
 
-	PRINT_D(CFG80211_DBG, "Connecting to SSID [%s] on netdev [%p] host if [%x]\n", sme->ssid, dev, (WILC_Uint32)priv->hWILCWFIDrv);
+	PRINT_D(CFG80211_DBG, "Connecting to SSID [%s] on netdev [%p] host if [%p]\n", sme->ssid, dev, priv->hWILCWFIDrv);
 	#ifdef WILC_P2P
 	if (!(WILC_strncmp(sme->ssid, "DIRECT-", 7))) {
 		PRINT_D(CFG80211_DBG, "Connected to Direct network,OBSS disabled\n");
@@ -1147,7 +1147,7 @@ static int WILC_WFI_add_key(struct wiphy *wiphy, struct net_device *netdev, u8 k
 	PRINT_D(CFG80211_DBG, "Adding key with cipher suite = %x\n", params->cipher);
 
 	/*BugID_5137*/
-	PRINT_D(CFG80211_DBG, "%x %x %d\n", (WILC_Uint32)wiphy, (WILC_Uint32)netdev, key_index);
+	PRINT_D(CFG80211_DBG, "%p %p %d\n", wiphy, netdev, key_index);
 
 	PRINT_D(CFG80211_DBG, "key %x %x %x\n", params->key[0],
 		params->key[1],
@@ -3062,7 +3062,7 @@ static int WILC_WFI_change_virt_intf(struct wiphy *wiphy, struct net_device *dev
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev->iftype = type;
 		nic->iftype = AP_MODE;
-		PRINT_D(CORECONFIG_DBG, "(WILC_Uint32)priv->hWILCWFIDrv[%x]\n", (WILC_Uint32)priv->hWILCWFIDrv);
+		PRINT_D(CORECONFIG_DBG, "priv->hWILCWFIDrv[%p]\n", priv->hWILCWFIDrv);
 
 		#ifndef SIMULATION
 		PRINT_D(HOSTAPD_DBG, "Downloading AP firmware\n");
@@ -3108,7 +3108,7 @@ static int WILC_WFI_change_virt_intf(struct wiphy *wiphy, struct net_device *dev
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev->iftype = type;
 
-		PRINT_D(CORECONFIG_DBG, "(WILC_Uint32)priv->hWILCWFIDrv[%x]\n", (WILC_Uint32)priv->hWILCWFIDrv);
+		PRINT_D(CORECONFIG_DBG, "priv->hWILCWFIDrv[%p]\n", priv->hWILCWFIDrv);
 
 		#ifndef SIMULATION
 		#ifdef WILC_P2P

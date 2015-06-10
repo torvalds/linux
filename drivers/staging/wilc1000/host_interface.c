@@ -703,7 +703,7 @@ static WILC_Sint32 Handle_SetOperationMode(void *drvHandler, tstrHostIfSetOperat
 	strWID.s32ValueSize = sizeof(WILC_Uint32);
 
 	/*Sending Cfg*/
-	PRINT_INFO(HOSTINF_DBG, "(WILC_Uint32)pstrWFIDrv= %x \n", (WILC_Uint32)pstrWFIDrv);
+	PRINT_INFO(HOSTINF_DBG, "(size_t)pstrWFIDrv= %p \n", pstrWFIDrv);
 
 	s32Error = SendConfigPkt(SET_CFG, &strWID, 1, WILC_TRUE, (WILC_Uint32)pstrWFIDrv);
 
@@ -6631,7 +6631,7 @@ WILC_Sint32 host_int_init(WILC_WFIDrvHandle *phWFIDrv)
 	g_obtainingIP = WILC_FALSE;
 	#endif
 
-	PRINT_D(HOSTINF_DBG, "Global handle pointer value=%x\n", (WILC_Uint32)pstrWFIDrv);
+	PRINT_D(HOSTINF_DBG, "Global handle pointer value=%p\n", pstrWFIDrv);
 	/* /////////////////////////////////////// */
 	if (clients_count == 0)	{
 		sema_init(&hSemHostIFthrdEnd, 0);
@@ -6928,7 +6928,7 @@ void NetworkInfoReceived(u8 *pu8Buffer, WILC_Uint32 u32Length)
 
 
 	if (pstrWFIDrv == NULL || pstrWFIDrv == terminated_handle)	{
-		PRINT_ER("NetworkInfo received but driver not init[%x]\n", (WILC_Uint32)pstrWFIDrv);
+		PRINT_ER("NetworkInfo received but driver not init[%p]\n", pstrWFIDrv);
 		return;
 	}
 
@@ -7037,7 +7037,7 @@ void host_int_ScanCompleteReceived(u8 *pu8Buffer, WILC_Uint32 u32Length)
 	pstrWFIDrv = (tstrWILC_WFIDrv *)drvHandler;
 
 
-	PRINT_D(GENERIC_DBG, "Scan notification received %x\n", (WILC_Uint32)pstrWFIDrv);
+	PRINT_D(GENERIC_DBG, "Scan notification received %p\n", pstrWFIDrv);
 
 	if (pstrWFIDrv == NULL || pstrWFIDrv == terminated_handle) {
 		return;
