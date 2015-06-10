@@ -1,4 +1,5 @@
 #include <linux/list.h>
+#include <linux/compiler.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -436,7 +437,7 @@ static struct cpu_map *pmu_cpumask(const char *name)
 	return cpus;
 }
 
-struct perf_event_attr *__attribute__((weak))
+struct perf_event_attr * __weak
 perf_pmu__get_default_config(struct perf_pmu *pmu __maybe_unused)
 {
 	return NULL;
