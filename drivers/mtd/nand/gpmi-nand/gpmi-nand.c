@@ -1897,7 +1897,7 @@ static int gpmi_nand_init(struct gpmi_nand_data *this)
 	/* init the MTD data structures */
 	mtd->priv		= chip;
 	mtd->name		= "gpmi-nand";
-	mtd->owner		= THIS_MODULE;
+	mtd->dev.parent		= this->dev;
 
 	/* init the nand_chip{}, we don't support a 16-bit NAND Flash bus. */
 	chip->priv		= this;
