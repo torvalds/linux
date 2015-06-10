@@ -1234,4 +1234,5 @@ struct ixgbe_info ixgbe_82598_info = {
 	.mac_ops		= &mac_ops_82598,
 	.eeprom_ops		= &eeprom_ops_82598,
 	.phy_ops		= &phy_ops_82598,
+	.mvals			= ixgbe_mvals_8259X,
 };

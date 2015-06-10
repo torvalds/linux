@@ -2366,7 +2366,7 @@ static void ixgbe_check_overtemp_subtask(struct ixgbe_adapter *adapter)
 		 *  - We may have missed the interrupt so always have to
 		 *    check if we  got a LSC
 		 */
-		if (!(eicr & IXGBE_EICR_GPI_SDP0) &&
+		if (!(eicr & IXGBE_EICR_GPI_SDP0_8259X) &&
 		    !(eicr & IXGBE_EICR_LSC))
 			return;
 
@@ -2386,7 +2386,7 @@ static void ixgbe_check_overtemp_subtask(struct ixgbe_adapter *adapter)
 
 		break;
 	default:
-		if (!(eicr & IXGBE_EICR_GPI_SDP0))
+		if (!(eicr & IXGBE_EICR_GPI_SDP0(hw)))
 			return;
 		break;
 	}
@@ -2403,15 +2403,17 @@ static void ixgbe_check_fan_failure(struct ixgbe_adapter *adapter, u32 eicr)
 	struct ixgbe_hw *hw = &adapter->hw;
 
 	if ((adapter->flags & IXGBE_FLAG_FAN_FAIL_CAPABLE) &&
-	    (eicr & IXGBE_EICR_GPI_SDP1)) {
+	    (eicr & IXGBE_EICR_GPI_SDP1(hw))) {
 		e_crit(probe, "Fan has stopped, replace the adapter\n");
 		/* write to clear the interrupt */
-		IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_GPI_SDP1);
+		IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_GPI_SDP1(hw));
 	}
 }
 
 static void ixgbe_check_overtemp_event(struct ixgbe_adapter *adapter, u32 eicr)
 {
+	struct ixgbe_hw *hw = &adapter->hw;
+
 	if (!(adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE))
 		return;
 
@@ -2421,7 +2423,8 @@ static void ixgbe_check_overtemp_event(struct ixgbe_adapter *adapter, u32 eicr)
 		 * Need to check link state so complete overtemp check
 		 * on service task
 		 */
-		if (((eicr & IXGBE_EICR_GPI_SDP0) || (eicr & IXGBE_EICR_LSC)) &&
+		if (((eicr & IXGBE_EICR_GPI_SDP0(hw)) ||
+		     (eicr & IXGBE_EICR_LSC)) &&
 		    (!test_bit(__IXGBE_DOWN, &adapter->state))) {
 			adapter->interrupt_event = eicr;
 			adapter->flags2 |= IXGBE_FLAG2_TEMP_SENSOR_EVENT;
@@ -2447,18 +2450,18 @@ static void ixgbe_check_sfp_event(struct ixgbe_adapter *adapter, u32 eicr)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 
-	if (eicr & IXGBE_EICR_GPI_SDP2) {
+	if (eicr & IXGBE_EICR_GPI_SDP2(hw)) {
 		/* Clear the interrupt */
-		IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_GPI_SDP2);
+		IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_GPI_SDP2(hw));
 		if (!test_bit(__IXGBE_DOWN, &adapter->state)) {
 			adapter->flags2 |= IXGBE_FLAG2_SFP_NEEDS_RESET;
 			ixgbe_service_event_schedule(adapter);
 		}
 	}
 
-	if (eicr & IXGBE_EICR_GPI_SDP1) {
+	if (eicr & IXGBE_EICR_GPI_SDP1(hw)) {
 		/* Clear the interrupt */
-		IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_GPI_SDP1);
+		IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_GPI_SDP1(hw));
 		if (!test_bit(__IXGBE_DOWN, &adapter->state)) {
 			adapter->flags |= IXGBE_FLAG_NEED_LINK_CONFIG;
 			ixgbe_service_event_schedule(adapter);
@@ -2543,6 +2546,7 @@ static inline void ixgbe_irq_disable_queues(struct ixgbe_adapter *adapter,
 static inline void ixgbe_irq_enable(struct ixgbe_adapter *adapter, bool queues,
 				    bool flush)
 {
+	struct ixgbe_hw *hw = &adapter->hw;
 	u32 mask = (IXGBE_EIMS_ENABLE_MASK & ~IXGBE_EIMS_RTX_QUEUE);
 
 	/* don't reenable LSC while waiting for link */
@@ -2552,7 +2556,7 @@ static inline void ixgbe_irq_enable(struct ixgbe_adapter *adapter, bool queues,
 	if (adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE)
 		switch (adapter->hw.mac.type) {
 		case ixgbe_mac_82599EB:
-			mask |= IXGBE_EIMS_GPI_SDP0;
+			mask |= IXGBE_EIMS_GPI_SDP0(hw);
 			break;
 		case ixgbe_mac_X540:
 		case ixgbe_mac_X550:
@@ -2563,11 +2567,11 @@ static inline void ixgbe_irq_enable(struct ixgbe_adapter *adapter, bool queues,
 			break;
 		}
 	if (adapter->flags & IXGBE_FLAG_FAN_FAIL_CAPABLE)
-		mask |= IXGBE_EIMS_GPI_SDP1;
+		mask |= IXGBE_EIMS_GPI_SDP1(hw);
 	switch (adapter->hw.mac.type) {
 	case ixgbe_mac_82599EB:
-		mask |= IXGBE_EIMS_GPI_SDP1;
-		mask |= IXGBE_EIMS_GPI_SDP2;
+		mask |= IXGBE_EIMS_GPI_SDP1(hw);
+		mask |= IXGBE_EIMS_GPI_SDP2(hw);
 		/* fall through */
 	case ixgbe_mac_X540:
 	case ixgbe_mac_X550:
@@ -4833,7 +4837,7 @@ static void ixgbe_setup_gpie(struct ixgbe_adapter *adapter)
 	if (adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE) {
 		switch (adapter->hw.mac.type) {
 		case ixgbe_mac_82599EB:
-			gpie |= IXGBE_SDP0_GPIEN;
+			gpie |= IXGBE_SDP0_GPIEN_8259X;
 			break;
 		case ixgbe_mac_X540:
 			gpie |= IXGBE_EIMS_TS;
@@ -4845,11 +4849,11 @@ static void ixgbe_setup_gpie(struct ixgbe_adapter *adapter)
 
 	/* Enable fan failure interrupt */
 	if (adapter->flags & IXGBE_FLAG_FAN_FAIL_CAPABLE)
-		gpie |= IXGBE_SDP1_GPIEN;
+		gpie |= IXGBE_SDP1_GPIEN(hw);
 
 	if (hw->mac.type == ixgbe_mac_82599EB) {
-		gpie |= IXGBE_SDP1_GPIEN;
-		gpie |= IXGBE_SDP2_GPIEN;
+		gpie |= IXGBE_SDP1_GPIEN_8259X;
+		gpie |= IXGBE_SDP2_GPIEN_8259X;
 	}
 
 	IXGBE_WRITE_REG(hw, IXGBE_GPIE, gpie);
@@ -5260,7 +5264,7 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter)
 			adapter->flags2 |= IXGBE_FLAG2_TEMP_SENSOR_CAPABLE;
 		break;
 	case ixgbe_mac_X540:
-		fwsm = IXGBE_READ_REG(hw, IXGBE_FWSM);
+		fwsm = IXGBE_READ_REG(hw, IXGBE_FWSM(hw));
 		if (fwsm & IXGBE_FWSM_TS_ENABLED)
 			adapter->flags2 |= IXGBE_FLAG2_TEMP_SENSOR_CAPABLE;
 		break;
@@ -8431,10 +8435,11 @@ static int ixgbe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Setup hw api */
 	memcpy(&hw->mac.ops, ii->mac_ops, sizeof(hw->mac.ops));
 	hw->mac.type  = ii->mac;
+	hw->mvals     = ii->mvals;
 
 	/* EEPROM */
 	memcpy(&hw->eeprom.ops, ii->eeprom_ops, sizeof(hw->eeprom.ops));
-	eec = IXGBE_READ_REG(hw, IXGBE_EEC);
+	eec = IXGBE_READ_REG(hw, IXGBE_EEC(hw));
 	if (ixgbe_removed(hw->hw_addr)) {
 		err = -EIO;
 		goto err_ioremap;

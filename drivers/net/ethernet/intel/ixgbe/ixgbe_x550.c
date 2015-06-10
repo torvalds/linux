@@ -90,7 +90,7 @@ static s32 ixgbe_init_eeprom_params_X550(struct ixgbe_hw *hw)
 		eeprom->semaphore_delay = 10;
 		eeprom->type = ixgbe_flash;
 
-		eec = IXGBE_READ_REG(hw, IXGBE_EEC);
+		eec = IXGBE_READ_REG(hw, IXGBE_EEC(hw));
 		eeprom_size = (u16)((eec & IXGBE_EEC_SIZE) >>
 				    IXGBE_EEC_SIZE_SHIFT);
 		eeprom->word_size = 1 << (eeprom_size +
@@ -1541,6 +1541,14 @@ static struct ixgbe_phy_operations phy_ops_X550EM_x = {
 	.setup_link		= NULL, /* defined later */
 };
 
+static const u32 ixgbe_mvals_X550[IXGBE_MVALS_IDX_LIMIT] = {
+	IXGBE_MVALS_INIT(X550)
+};
+
+static const u32 ixgbe_mvals_X550EM_x[IXGBE_MVALS_IDX_LIMIT] = {
+	IXGBE_MVALS_INIT(X550EM_x)
+};
+
 struct ixgbe_info ixgbe_X550_info = {
 	.mac			= ixgbe_mac_X550,
 	.get_invariants		= &ixgbe_get_invariants_X540,
@@ -1548,6 +1556,7 @@ struct ixgbe_info ixgbe_X550_info = {
 	.eeprom_ops		= &eeprom_ops_X550,
 	.phy_ops		= &phy_ops_X550,
 	.mbx_ops		= &mbx_ops_generic,
+	.mvals			= ixgbe_mvals_X550,
 };
 
 struct ixgbe_info ixgbe_X550EM_x_info = {
@@ -1557,4 +1566,5 @@ struct ixgbe_info ixgbe_X550EM_x_info = {
 	.eeprom_ops		= &eeprom_ops_X550EM_x,
 	.phy_ops		= &phy_ops_X550EM_x,
 	.mbx_ops		= &mbx_ops_generic,
+	.mvals			= ixgbe_mvals_X550EM_x,
 };

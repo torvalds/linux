@@ -470,16 +470,16 @@ static void ixgbe_get_regs(struct net_device *netdev,
 	regs_buff[7] = IXGBE_READ_REG(hw, IXGBE_TCPTIMER);
 
 	/* NVM Register */
-	regs_buff[8] = IXGBE_READ_REG(hw, IXGBE_EEC);
+	regs_buff[8] = IXGBE_READ_REG(hw, IXGBE_EEC(hw));
 	regs_buff[9] = IXGBE_READ_REG(hw, IXGBE_EERD);
-	regs_buff[10] = IXGBE_READ_REG(hw, IXGBE_FLA);
+	regs_buff[10] = IXGBE_READ_REG(hw, IXGBE_FLA(hw));
 	regs_buff[11] = IXGBE_READ_REG(hw, IXGBE_EEMNGCTL);
 	regs_buff[12] = IXGBE_READ_REG(hw, IXGBE_EEMNGDATA);
 	regs_buff[13] = IXGBE_READ_REG(hw, IXGBE_FLMNGCTL);
 	regs_buff[14] = IXGBE_READ_REG(hw, IXGBE_FLMNGDATA);
 	regs_buff[15] = IXGBE_READ_REG(hw, IXGBE_FLMNGCNT);
 	regs_buff[16] = IXGBE_READ_REG(hw, IXGBE_FLOP);
-	regs_buff[17] = IXGBE_READ_REG(hw, IXGBE_GRC);
+	regs_buff[17] = IXGBE_READ_REG(hw, IXGBE_GRC(hw));
 
 	/* Interrupt */
 	/* don't read EICR because it can clear interrupt causes, instead
