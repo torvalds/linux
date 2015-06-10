@@ -35,20 +35,28 @@ void ieee80211_tdls_peer_del_work(struct work_struct *wk)
 	mutex_unlock(&local->mtx);
 }
 
-static void ieee80211_tdls_add_ext_capab(struct ieee80211_local *local,
+static void ieee80211_tdls_add_ext_capab(struct ieee80211_sub_if_data *sdata,
 					 struct sk_buff *skb)
 {
-	u8 *pos = (void *)skb_put(skb, 7);
+	struct ieee80211_local *local = sdata->local;
 	bool chan_switch = local->hw.wiphy->features &
 			   NL80211_FEATURE_TDLS_CHANNEL_SWITCH;
+	bool wider_band = ieee80211_hw_check(&local->hw, TDLS_WIDER_BW);
+	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+	struct ieee80211_supported_band *sband = local->hw.wiphy->bands[band];
+	bool vht = sband && sband->vht_cap.vht_supported;
+	u8 *pos = (void *)skb_put(skb, 10);
 
 	*pos++ = WLAN_EID_EXT_CAPABILITY;
-	*pos++ = 5; /* len */
+	*pos++ = 8; /* len */
 	*pos++ = 0x0;
 	*pos++ = 0x0;
 	*pos++ = 0x0;
 	*pos++ = chan_switch ? WLAN_EXT_CAPA4_TDLS_CHAN_SWITCH : 0;
 	*pos++ = WLAN_EXT_CAPA5_TDLS_ENABLED;
+	*pos++ = 0;
+	*pos++ = 0;
+	*pos++ = (vht && wider_band) ? WLAN_EXT_CAPA8_TDLS_WIDE_BW_ENABLED : 0;
 }
 
 static u8
@@ -320,7 +328,7 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_sub_if_data *sdata,
 		offset = noffset;
 	}
 
-	ieee80211_tdls_add_ext_capab(local, skb);
+	ieee80211_tdls_add_ext_capab(sdata, skb);
 
 	/* add the QoS element if we support it */
 	if (local->hw.queues >= IEEE80211_NUM_ACS &&
@@ -784,7 +792,7 @@ ieee80211_tdls_build_mgmt_packet_data(struct ieee80211_sub_if_data *sdata,
 			       max(sizeof(struct ieee80211_mgmt),
 				   sizeof(struct ieee80211_tdls_data)) +
 			       50 + /* supported rates */
-			       7 + /* ext capab */
+			       10 + /* ext capab */
 			       26 + /* max(WMM-info, WMM-param) */
 			       2 + max(sizeof(struct ieee80211_ht_cap),
 				       sizeof(struct ieee80211_ht_operation)) +

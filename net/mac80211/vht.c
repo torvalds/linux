@@ -308,10 +308,14 @@ enum ieee80211_sta_rx_bandwidth ieee80211_sta_cur_vht_bw(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	enum ieee80211_sta_rx_bandwidth bw;
+	enum nl80211_chan_width bss_width = sdata->vif.bss_conf.chandef.width;
 
-	bw = ieee80211_chan_width_to_rx_bw(sdata->vif.bss_conf.chandef.width);
-	bw = min(bw, ieee80211_sta_cap_rx_bw(sta));
+	bw = ieee80211_sta_cap_rx_bw(sta);
 	bw = min(bw, sta->cur_max_bandwidth);
+
+	/* do not cap the BW of TDLS WIDER_BW peers by the bss */
+	if (!test_sta_flag(sta, WLAN_STA_TDLS_WIDER_BW))
+		bw = min(bw, ieee80211_chan_width_to_rx_bw(bss_width));
 
 	return bw;
 }

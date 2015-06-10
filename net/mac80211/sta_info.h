@@ -53,6 +53,8 @@
  * @WLAN_STA_TDLS_CHAN_SWITCH: This TDLS peer supports TDLS channel-switching
  * @WLAN_STA_TDLS_OFF_CHANNEL: The local STA is currently off-channel with this
  *	TDLS peer
+ * @WLAN_STA_TDLS_WIDER_BW: This TDLS peer supports working on a wider bw on
+ *	the BSS base channel.
  * @WLAN_STA_UAPSD: Station requested unscheduled SP while driver was
  *	keeping station in power-save mode, reply when the driver
  *	unblocks the station.
@@ -84,6 +86,7 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_TDLS_INITIATOR,
 	WLAN_STA_TDLS_CHAN_SWITCH,
 	WLAN_STA_TDLS_OFF_CHANNEL,
+	WLAN_STA_TDLS_WIDER_BW,
 	WLAN_STA_UAPSD,
 	WLAN_STA_SP,
 	WLAN_STA_4ADDR_EVENT,

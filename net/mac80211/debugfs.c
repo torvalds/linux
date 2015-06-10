@@ -122,6 +122,7 @@ static const char *hw_flag_names[NUM_IEEE80211_HW_FLAGS + 1] = {
 	FLAG(CHANCTX_STA_CSA),
 	FLAG(SUPPORTS_CLONED_SKBS),
 	FLAG(SINGLE_SCAN_ON_ALL_BANDS),
+	FLAG(TDLS_WIDER_BW),
 
 	/* keep last for the build bug below */
 	(void *)0x1
