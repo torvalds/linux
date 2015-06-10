@@ -3346,6 +3346,11 @@ static struct qla_tgt_cmd *qlt_get_tag(scsi_qla_host_t *vha,
 	cmd->loop_id = sess->loop_id;
 	cmd->conf_compl_supported = sess->conf_compl_supported;
 
+	cmd->cmd_flags = 0;
+	cmd->jiffies_at_alloc = get_jiffies_64();
+
+	cmd->reset_count = vha->hw->chip_reset;
+
 	return cmd;
 }
 
@@ -3451,11 +3456,6 @@ static int qlt_handle_cmd_for_atio(struct scsi_qla_host *vha,
 		ha->tgt.tgt_ops->put_sess(sess);
 		return -ENOMEM;
 	}
-
-	cmd->cmd_flags = 0;
-	cmd->jiffies_at_alloc = get_jiffies_64();
-
-	cmd->reset_count = vha->hw->chip_reset;
 
 	cmd->cmd_in_wq = 1;
 	cmd->cmd_flags |= BIT_0;
