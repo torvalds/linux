@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  *  Intel 10 Gigabit PCI Express Linux driver
- *  Copyright(c) 1999 - 2014 Intel Corporation.
+ *  Copyright(c) 1999 - 2015 Intel Corporation.
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms and conditions of the GNU General Public License,
@@ -1855,6 +1855,7 @@ static struct ixgbe_eeprom_operations eeprom_ops_X550EM_x = {
 	.read_reg		= &ixgbe_read_phy_reg_generic, \
 	.write_reg		= &ixgbe_write_phy_reg_generic, \
 	.setup_link		= &ixgbe_setup_phy_link_generic, \
+	.set_phy_power		= &ixgbe_set_copper_phy_power, \
 	.check_overtemp		= &ixgbe_tn_check_overtemp, \
 	.get_firmware_version	= &ixgbe_get_phy_firmware_version_generic,
 
@@ -1864,7 +1865,6 @@ static struct ixgbe_phy_operations phy_ops_X550 = {
 	.identify		= &ixgbe_identify_phy_generic,
 	.read_i2c_combined	= &ixgbe_read_i2c_combined_generic,
 	.write_i2c_combined	= &ixgbe_write_i2c_combined_generic,
-	.set_phy_power		= &ixgbe_set_copper_phy_power,
 };
 
 static struct ixgbe_phy_operations phy_ops_X550EM_x = {
