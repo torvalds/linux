@@ -1463,7 +1463,6 @@ int denali_init(struct denali_nand_info *denali)
 	/* now that our ISR is registered, we can enable interrupts */
 	denali_set_intr_modes(denali, true);
 	denali->mtd.name = "denali-nand";
-	denali->mtd.owner = THIS_MODULE;
 	denali->mtd.priv = &denali->nand;
 
 	/* register the driver with the NAND core subsystem */
