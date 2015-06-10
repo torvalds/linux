@@ -95,9 +95,8 @@ static inline int to_reg(int gpio, enum ctrl_register reg_type)
 {
 	int reg;
 
-	if (gpio == 94) {
+	if (gpio == 94)
 		return GPIOPANELCTL;
-	}
 
 	if (reg_type == CTRL_IN) {
 		if (gpio < 8)
