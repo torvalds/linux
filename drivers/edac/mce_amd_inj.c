@@ -191,6 +191,9 @@ static void do_inject(void)
 	unsigned int cpu = i_mce.extcpu;
 	u8 b = i_mce.bank;
 
+	if (i_mce.misc)
+		i_mce.status |= MCI_STATUS_MISCV;
+
 	if (inj_type == SW_INJ) {
 		amd_decode_mce(NULL, 0, &i_mce);
 		return;
