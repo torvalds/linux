@@ -127,15 +127,12 @@ static void pcie_set_clkpm_nocheck(struct pcie_link_state *link, int enable)
 {
 	struct pci_dev *child;
 	struct pci_bus *linkbus = link->pdev->subordinate;
+	u32 val = enable ? PCI_EXP_LNKCTL_CLKREQ_EN : 0;
 
-	list_for_each_entry(child, &linkbus->devices, bus_list) {
-		if (enable)
-			pcie_capability_set_word(child, PCI_EXP_LNKCTL,
-						 PCI_EXP_LNKCTL_CLKREQ_EN);
-		else
-			pcie_capability_clear_word(child, PCI_EXP_LNKCTL,
-						   PCI_EXP_LNKCTL_CLKREQ_EN);
-	}
+	list_for_each_entry(child, &linkbus->devices, bus_list)
+		pcie_capability_clear_and_set_word(child, PCI_EXP_LNKCTL,
+						   PCI_EXP_LNKCTL_CLKREQ_EN,
+						   val);
 	link->clkpm_enabled = !!enable;
 }
 
