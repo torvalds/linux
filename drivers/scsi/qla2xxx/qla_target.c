@@ -782,10 +782,8 @@ void qlt_fc_port_added(struct scsi_qla_host *vha, fc_port_t *fcport)
 
 void qlt_fc_port_deleted(struct scsi_qla_host *vha, fc_port_t *fcport)
 {
-	struct qla_hw_data *ha = vha->hw;
 	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
 	struct qla_tgt_sess *sess;
-	unsigned long flags;
 
 	if (!vha->hw->tgt.tgt_ops)
 		return;
@@ -793,14 +791,11 @@ void qlt_fc_port_deleted(struct scsi_qla_host *vha, fc_port_t *fcport)
 	if (!tgt || (fcport->port_type != FCT_INITIATOR))
 		return;
 
-	spin_lock_irqsave(&ha->hardware_lock, flags);
 	if (tgt->tgt_stop) {
-		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 		return;
 	}
 	sess = qlt_find_sess_by_port_name(tgt, fcport->port_name);
 	if (!sess) {
-		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 		return;
 	}
 
@@ -808,7 +803,6 @@ void qlt_fc_port_deleted(struct scsi_qla_host *vha, fc_port_t *fcport)
 
 	sess->local = 1;
 	qlt_schedule_sess_for_deletion(sess, false);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
 
 static inline int test_tgt_sess_count(struct qla_tgt *tgt)
