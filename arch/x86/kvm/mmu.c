@@ -3736,8 +3736,8 @@ static void reset_rsvds_bits_mask_ept(struct kvm_vcpu *vcpu,
 	}
 }
 
-void update_permission_bitmask(struct kvm_vcpu *vcpu,
-		struct kvm_mmu *mmu, bool ept)
+static void update_permission_bitmask(struct kvm_vcpu *vcpu,
+				      struct kvm_mmu *mmu, bool ept)
 {
 	unsigned bit, byte, pfec;
 	u8 map;
@@ -3918,6 +3918,7 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu)
 {
 	bool smep = kvm_read_cr4_bits(vcpu, X86_CR4_SMEP);
+	bool smap = kvm_read_cr4_bits(vcpu, X86_CR4_SMAP);
 	struct kvm_mmu *context = &vcpu->arch.mmu;
 
 	MMU_WARN_ON(VALID_PAGE(context->root_hpa));
@@ -3936,6 +3937,8 @@ void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu)
 	context->base_role.cr0_wp  = is_write_protection(vcpu);
 	context->base_role.smep_andnot_wp
 		= smep && !is_write_protection(vcpu);
+	context->base_role.smap_andnot_wp
+		= smap && !is_write_protection(vcpu);
 }
 EXPORT_SYMBOL_GPL(kvm_init_shadow_mmu);
 
@@ -4207,12 +4210,18 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		       const u8 *new, int bytes)
 {
 	gfn_t gfn = gpa >> PAGE_SHIFT;
-	union kvm_mmu_page_role mask = { .word = 0 };
 	struct kvm_mmu_page *sp;
 	LIST_HEAD(invalid_list);
 	u64 entry, gentry, *spte;
 	int npte;
 	bool remote_flush, local_flush, zap_page;
+	union kvm_mmu_page_role mask = (union kvm_mmu_page_role) {
+		.cr0_wp = 1,
+		.cr4_pae = 1,
+		.nxe = 1,
+		.smep_andnot_wp = 1,
+		.smap_andnot_wp = 1,
+	};
 
 	/*
 	 * If we don't have indirect shadow pages, it means no page is
@@ -4238,7 +4247,6 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	++vcpu->kvm->stat.mmu_pte_write;
 	kvm_mmu_audit(vcpu, AUDIT_PRE_PTE_WRITE);
 
-	mask.cr0_wp = mask.cr4_pae = mask.nxe = 1;
 	for_each_gfn_indirect_valid_sp(vcpu->kvm, sp, gfn) {
 		if (detect_write_misaligned(sp, gpa, bytes) ||
 		      detect_write_flooding(sp)) {

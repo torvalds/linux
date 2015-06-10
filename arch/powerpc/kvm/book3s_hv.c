@@ -1952,7 +1952,7 @@ static void post_guest_process(struct kvmppc_vcore *vc)
  */
 static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 {
-	struct kvm_vcpu *vcpu;
+	struct kvm_vcpu *vcpu, *vnext;
 	int i;
 	int srcu_idx;
 
@@ -1982,7 +1982,8 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	 */
 	if ((threads_per_core > 1) &&
 	    ((vc->num_threads > threads_per_subcore) || !on_primary_thread())) {
-		list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list) {
+		list_for_each_entry_safe(vcpu, vnext, &vc->runnable_threads,
+					 arch.run_list) {
 			vcpu->arch.ret = -EBUSY;
 			kvmppc_remove_runnable(vc, vcpu);
 			wake_up(&vcpu->arch.cpu_run);

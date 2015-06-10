@@ -574,8 +574,8 @@ xfs_attr_shortform_add(xfs_da_args_t *args, int forkoff)
  * After the last attribute is removed revert to original inode format,
  * making all literal area available to the data fork once more.
  */
-STATIC void
-xfs_attr_fork_reset(
+void
+xfs_attr_fork_remove(
 	struct xfs_inode	*ip,
 	struct xfs_trans	*tp)
 {
@@ -641,7 +641,7 @@ xfs_attr_shortform_remove(xfs_da_args_t *args)
 	    (mp->m_flags & XFS_MOUNT_ATTR2) &&
 	    (dp->i_d.di_format != XFS_DINODE_FMT_BTREE) &&
 	    !(args->op_flags & XFS_DA_OP_ADDNAME)) {
-		xfs_attr_fork_reset(dp, args->trans);
+		xfs_attr_fork_remove(dp, args->trans);
 	} else {
 		xfs_idata_realloc(dp, -size, XFS_ATTR_FORK);
 		dp->i_d.di_forkoff = xfs_attr_shortform_bytesfit(dp, totsize);
@@ -905,7 +905,7 @@ xfs_attr3_leaf_to_shortform(
 	if (forkoff == -1) {
 		ASSERT(dp->i_mount->m_flags & XFS_MOUNT_ATTR2);
 		ASSERT(dp->i_d.di_format != XFS_DINODE_FMT_BTREE);
-		xfs_attr_fork_reset(dp, args->trans);
+		xfs_attr_fork_remove(dp, args->trans);
 		goto out;
 	}
 

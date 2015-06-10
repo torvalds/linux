@@ -177,17 +177,17 @@ int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 		goto fail;
 	}
 
+	for (i = 0; i < MSM_DSI_ENCODER_NUM; i++) {
+		encoders[i]->bridge = msm_dsi->bridge;
+		msm_dsi->encoders[i] = encoders[i];
+	}
+
 	msm_dsi->connector = msm_dsi_manager_connector_init(msm_dsi->id);
 	if (IS_ERR(msm_dsi->connector)) {
 		ret = PTR_ERR(msm_dsi->connector);
 		dev_err(dev->dev, "failed to create dsi connector: %d\n", ret);
 		msm_dsi->connector = NULL;
 		goto fail;
-	}
-
-	for (i = 0; i < MSM_DSI_ENCODER_NUM; i++) {
-		encoders[i]->bridge = msm_dsi->bridge;
-		msm_dsi->encoders[i] = encoders[i];
 	}
 
 	priv->bridges[priv->num_bridges++]       = msm_dsi->bridge;

@@ -354,7 +354,7 @@ enum ieee80211_rssi_event_data {
 };
 
 /**
- * enum ieee80211_rssi_event - data attached to an %RSSI_EVENT
+ * struct ieee80211_rssi_event - data attached to an %RSSI_EVENT
  * @data: See &enum ieee80211_rssi_event_data
  */
 struct ieee80211_rssi_event {
@@ -388,7 +388,7 @@ enum ieee80211_mlme_event_status {
 };
 
 /**
- * enum ieee80211_mlme_event - data attached to an %MLME_EVENT
+ * struct ieee80211_mlme_event - data attached to an %MLME_EVENT
  * @data: See &enum ieee80211_mlme_event_data
  * @status: See &enum ieee80211_mlme_event_status
  * @reason: the reason code if applicable
@@ -401,9 +401,10 @@ struct ieee80211_mlme_event {
 
 /**
  * struct ieee80211_event - event to be sent to the driver
- * @type The event itself. See &enum ieee80211_event_type.
+ * @type: The event itself. See &enum ieee80211_event_type.
  * @rssi: relevant if &type is %RSSI_EVENT
  * @mlme: relevant if &type is %AUTH_EVENT
+ * @u:    union holding the above two fields
  */
 struct ieee80211_event {
 	enum ieee80211_event_type type;

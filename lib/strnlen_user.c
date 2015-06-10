@@ -57,7 +57,8 @@ static inline long do_strnlen_user(const char __user *src, unsigned long count, 
 			return res + find_zero(data) + 1 - align;
 		}
 		res += sizeof(unsigned long);
-		if (unlikely(max < sizeof(unsigned long)))
+		/* We already handled 'unsigned long' bytes. Did we do it all ? */
+		if (unlikely(max <= sizeof(unsigned long)))
 			break;
 		max -= sizeof(unsigned long);
 		if (unlikely(__get_user(c,(unsigned long __user *)(src+res))))
@@ -89,8 +90,15 @@ static inline long do_strnlen_user(const char __user *src, unsigned long count, 
  * Get the size of a NUL-terminated string in user space.
  *
  * Returns the size of the string INCLUDING the terminating NUL.
- * If the string is too long, returns 'count+1'.
+ * If the string is too long, returns a number larger than @count. User
+ * has to check the return value against "> count".
  * On exception (or invalid count), returns 0.
+ *
+ * NOTE! You should basically never use this function. There is
+ * almost never any valid case for using the length of a user space
+ * string, since the string can be changed at any time by other
+ * threads. Use "strncpy_from_user()" instead to get a stable copy
+ * of the string.
  */
 long strnlen_user(const char __user *str, long count)
 {

@@ -1039,18 +1039,14 @@ static int iwl_pcie_set_cmd_in_flight(struct iwl_trans *trans,
 		iwl_trans_pcie_ref(trans);
 	}
 
-	if (trans_pcie->cmd_in_flight)
-		return 0;
-
-	trans_pcie->cmd_in_flight = true;
-
 	/*
 	 * wake up the NIC to make sure that the firmware will see the host
 	 * command - we will let the NIC sleep once all the host commands
 	 * returned. This needs to be done only on NICs that have
 	 * apmg_wake_up_wa set.
 	 */
-	if (trans->cfg->base_params->apmg_wake_up_wa) {
+	if (trans->cfg->base_params->apmg_wake_up_wa &&
+	    !trans_pcie->cmd_hold_nic_awake) {
 		__iwl_trans_pcie_set_bit(trans, CSR_GP_CNTRL,
 					 CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 		if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
@@ -1064,10 +1060,10 @@ static int iwl_pcie_set_cmd_in_flight(struct iwl_trans *trans,
 		if (ret < 0) {
 			__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
 					CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-			trans_pcie->cmd_in_flight = false;
 			IWL_ERR(trans, "Failed to wake NIC for hcmd\n");
 			return -EIO;
 		}
+		trans_pcie->cmd_hold_nic_awake = true;
 	}
 
 	return 0;
@@ -1085,15 +1081,14 @@ static int iwl_pcie_clear_cmd_in_flight(struct iwl_trans *trans)
 		iwl_trans_pcie_unref(trans);
 	}
 
-	if (WARN_ON(!trans_pcie->cmd_in_flight))
-		return 0;
+	if (trans->cfg->base_params->apmg_wake_up_wa) {
+		if (WARN_ON(!trans_pcie->cmd_hold_nic_awake))
+			return 0;
 
-	trans_pcie->cmd_in_flight = false;
-
-	if (trans->cfg->base_params->apmg_wake_up_wa)
+		trans_pcie->cmd_hold_nic_awake = false;
 		__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
-					CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-
+					   CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+	}
 	return 0;
 }
 

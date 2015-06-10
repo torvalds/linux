@@ -71,13 +71,6 @@ enum exynos_drm_output_type {
  * @dma_addr: array of bus(accessed by dma) address to the memory region
  *	      allocated for a overlay.
  * @zpos: order of overlay layer(z position).
- * @index_color: if using color key feature then this value would be used
- *			as index color.
- * @default_win: a window to be enabled.
- * @color_key: color key on or off.
- * @local_path: in case of lcd type, local path mode on or off.
- * @transparency: transparency on or off.
- * @activated: activated or not.
  * @enabled: enabled or not.
  * @resume: to resume or not.
  *
@@ -108,13 +101,7 @@ struct exynos_drm_plane {
 	uint32_t pixel_format;
 	dma_addr_t dma_addr[MAX_FB_BUFFER];
 	unsigned int zpos;
-	unsigned int index_color;
 
-	bool default_win:1;
-	bool color_key:1;
-	bool local_path:1;
-	bool transparency:1;
-	bool activated:1;
 	bool enabled:1;
 	bool resume:1;
 };
@@ -181,6 +168,10 @@ struct exynos_drm_display {
  * @win_disable: disable hardware specific overlay.
  * @te_handler: trigger to transfer video image at the tearing effect
  *	synchronization signal if there is a page flip request.
+ * @clock_enable: optional function enabling/disabling display domain clock,
+ *	called from exynos-dp driver before powering up (with
+ *	'enable' argument as true) and after powering down (with
+ *	'enable' as false).
  */
 struct exynos_drm_crtc;
 struct exynos_drm_crtc_ops {
@@ -195,6 +186,7 @@ struct exynos_drm_crtc_ops {
 	void (*win_commit)(struct exynos_drm_crtc *crtc, unsigned int zpos);
 	void (*win_disable)(struct exynos_drm_crtc *crtc, unsigned int zpos);
 	void (*te_handler)(struct exynos_drm_crtc *crtc);
+	void (*clock_enable)(struct exynos_drm_crtc *crtc, bool enable);
 };
 
 /*
@@ -221,7 +213,7 @@ struct exynos_drm_crtc {
 	unsigned int			dpms;
 	wait_queue_head_t		pending_flip_queue;
 	struct drm_pending_vblank_event	*event;
-	struct exynos_drm_crtc_ops	*ops;
+	const struct exynos_drm_crtc_ops	*ops;
 	void				*ctx;
 };
 

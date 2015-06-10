@@ -300,7 +300,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 			tw->tw_v6_daddr = sk->sk_v6_daddr;
 			tw->tw_v6_rcv_saddr = sk->sk_v6_rcv_saddr;
 			tw->tw_tclass = np->tclass;
-			tw->tw_flowlabel = np->flow_label >> 12;
+			tw->tw_flowlabel = be32_to_cpu(np->flow_label & IPV6_FLOWLABEL_MASK);
 			tw->tw_ipv6only = sk->sk_ipv6only;
 		}
 #endif
@@ -420,7 +420,10 @@ void tcp_ca_openreq_child(struct sock *sk, const struct dst_entry *dst)
 		rcu_read_unlock();
 	}
 
-	if (!ca_got_dst && !try_module_get(icsk->icsk_ca_ops->owner))
+	/* If no valid choice made yet, assign current system default ca. */
+	if (!ca_got_dst &&
+	    (!icsk->icsk_ca_setsockopt ||
+	     !try_module_get(icsk->icsk_ca_ops->owner)))
 		tcp_assign_congestion_control(sk);
 
 	tcp_set_ca_state(sk, TCP_CA_Open);

@@ -264,8 +264,8 @@ static int lancer_cmd_read_file(struct be_adapter *adapter, u8 *file_name,
 	int status = 0;
 
 	read_cmd.size = LANCER_READ_FILE_CHUNK;
-	read_cmd.va = pci_alloc_consistent(adapter->pdev, read_cmd.size,
-					   &read_cmd.dma);
+	read_cmd.va = dma_zalloc_coherent(&adapter->pdev->dev, read_cmd.size,
+					  &read_cmd.dma, GFP_ATOMIC);
 
 	if (!read_cmd.va) {
 		dev_err(&adapter->pdev->dev,
@@ -289,8 +289,8 @@ static int lancer_cmd_read_file(struct be_adapter *adapter, u8 *file_name,
 			break;
 		}
 	}
-	pci_free_consistent(adapter->pdev, read_cmd.size, read_cmd.va,
-			    read_cmd.dma);
+	dma_free_coherent(&adapter->pdev->dev, read_cmd.size, read_cmd.va,
+			  read_cmd.dma);
 
 	return status;
 }
@@ -818,8 +818,9 @@ static int be_test_ddr_dma(struct be_adapter *adapter)
 	};
 
 	ddrdma_cmd.size = sizeof(struct be_cmd_req_ddrdma_test);
-	ddrdma_cmd.va = dma_alloc_coherent(&adapter->pdev->dev, ddrdma_cmd.size,
-					   &ddrdma_cmd.dma, GFP_KERNEL);
+	ddrdma_cmd.va = dma_zalloc_coherent(&adapter->pdev->dev,
+					    ddrdma_cmd.size, &ddrdma_cmd.dma,
+					    GFP_KERNEL);
 	if (!ddrdma_cmd.va)
 		return -ENOMEM;
 
@@ -941,8 +942,9 @@ static int be_read_eeprom(struct net_device *netdev,
 
 	memset(&eeprom_cmd, 0, sizeof(struct be_dma_mem));
 	eeprom_cmd.size = sizeof(struct be_cmd_req_seeprom_read);
-	eeprom_cmd.va = dma_alloc_coherent(&adapter->pdev->dev, eeprom_cmd.size,
-					   &eeprom_cmd.dma, GFP_KERNEL);
+	eeprom_cmd.va = dma_zalloc_coherent(&adapter->pdev->dev,
+					    eeprom_cmd.size, &eeprom_cmd.dma,
+					    GFP_KERNEL);
 
 	if (!eeprom_cmd.va)
 		return -ENOMEM;

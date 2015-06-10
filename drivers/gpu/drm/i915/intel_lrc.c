@@ -1134,6 +1134,12 @@ static int gen8_init_common_ring(struct intel_engine_cs *ring)
 	I915_WRITE_IMR(ring, ~(ring->irq_enable_mask | ring->irq_keep_mask));
 	I915_WRITE(RING_HWSTAM(ring->mmio_base), 0xffffffff);
 
+	if (ring->status_page.obj) {
+		I915_WRITE(RING_HWS_PGA(ring->mmio_base),
+			   (u32)ring->status_page.gfx_addr);
+		POSTING_READ(RING_HWS_PGA(ring->mmio_base));
+	}
+
 	I915_WRITE(RING_MODE_GEN7(ring),
 		   _MASKED_BIT_DISABLE(GFX_REPLAY_MODE) |
 		   _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE));

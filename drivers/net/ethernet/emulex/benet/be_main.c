@@ -2358,11 +2358,11 @@ static int be_evt_queues_create(struct be_adapter *adapter)
 				    adapter->cfg_num_qs);
 
 	for_all_evt_queues(adapter, eqo, i) {
+		int numa_node = dev_to_node(&adapter->pdev->dev);
 		if (!zalloc_cpumask_var(&eqo->affinity_mask, GFP_KERNEL))
 			return -ENOMEM;
-		cpumask_set_cpu_local_first(i, dev_to_node(&adapter->pdev->dev),
-					    eqo->affinity_mask);
-
+		cpumask_set_cpu(cpumask_local_spread(i, numa_node),
+				eqo->affinity_mask);
 		netif_napi_add(adapter->netdev, &eqo->napi, be_poll,
 			       BE_NAPI_WEIGHT);
 		napi_hash_add(&eqo->napi);
@@ -4605,8 +4605,8 @@ static int lancer_fw_download(struct be_adapter *adapter,
 
 	flash_cmd.size = sizeof(struct lancer_cmd_req_write_object)
 				+ LANCER_FW_DOWNLOAD_CHUNK;
-	flash_cmd.va = dma_alloc_coherent(dev, flash_cmd.size,
-					  &flash_cmd.dma, GFP_KERNEL);
+	flash_cmd.va = dma_zalloc_coherent(dev, flash_cmd.size,
+					   &flash_cmd.dma, GFP_KERNEL);
 	if (!flash_cmd.va)
 		return -ENOMEM;
 
@@ -4739,8 +4739,8 @@ static int be_fw_download(struct be_adapter *adapter, const struct firmware* fw)
 	}
 
 	flash_cmd.size = sizeof(struct be_cmd_write_flashrom);
-	flash_cmd.va = dma_alloc_coherent(dev, flash_cmd.size, &flash_cmd.dma,
-					  GFP_KERNEL);
+	flash_cmd.va = dma_zalloc_coherent(dev, flash_cmd.size, &flash_cmd.dma,
+					   GFP_KERNEL);
 	if (!flash_cmd.va)
 		return -ENOMEM;
 
@@ -5291,16 +5291,15 @@ static int be_drv_init(struct be_adapter *adapter)
 	int status = 0;
 
 	mbox_mem_alloc->size = sizeof(struct be_mcc_mailbox) + 16;
-	mbox_mem_alloc->va = dma_alloc_coherent(dev, mbox_mem_alloc->size,
-						&mbox_mem_alloc->dma,
-						GFP_KERNEL);
+	mbox_mem_alloc->va = dma_zalloc_coherent(dev, mbox_mem_alloc->size,
+						 &mbox_mem_alloc->dma,
+						 GFP_KERNEL);
 	if (!mbox_mem_alloc->va)
 		return -ENOMEM;
 
 	mbox_mem_align->size = sizeof(struct be_mcc_mailbox);
 	mbox_mem_align->va = PTR_ALIGN(mbox_mem_alloc->va, 16);
 	mbox_mem_align->dma = PTR_ALIGN(mbox_mem_alloc->dma, 16);
-	memset(mbox_mem_align->va, 0, sizeof(struct be_mcc_mailbox));
 
 	rx_filter->size = sizeof(struct be_cmd_req_rx_filter);
 	rx_filter->va = dma_zalloc_coherent(dev, rx_filter->size,

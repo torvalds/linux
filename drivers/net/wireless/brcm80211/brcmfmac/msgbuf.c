@@ -511,11 +511,9 @@ static int brcmf_msgbuf_query_dcmd(struct brcmf_pub *drvr, int ifidx,
 				     msgbuf->rx_pktids,
 				     msgbuf->ioctl_resp_pktid);
 	if (msgbuf->ioctl_resp_ret_len != 0) {
-		if (!skb) {
-			brcmf_err("Invalid packet id idx recv'd %d\n",
-				  msgbuf->ioctl_resp_pktid);
+		if (!skb)
 			return -EBADF;
-		}
+
 		memcpy(buf, skb->data, (len < msgbuf->ioctl_resp_ret_len) ?
 				       len : msgbuf->ioctl_resp_ret_len);
 	}
@@ -874,10 +872,8 @@ brcmf_msgbuf_process_txstatus(struct brcmf_msgbuf *msgbuf, void *buf)
 	flowid -= BRCMF_NROF_H2D_COMMON_MSGRINGS;
 	skb = brcmf_msgbuf_get_pktid(msgbuf->drvr->bus_if->dev,
 				     msgbuf->tx_pktids, idx);
-	if (!skb) {
-		brcmf_err("Invalid packet id idx recv'd %d\n", idx);
+	if (!skb)
 		return;
-	}
 
 	set_bit(flowid, msgbuf->txstatus_done_map);
 	commonring = msgbuf->flowrings[flowid];
@@ -1156,6 +1152,8 @@ brcmf_msgbuf_process_rx_complete(struct brcmf_msgbuf *msgbuf, void *buf)
 
 	skb = brcmf_msgbuf_get_pktid(msgbuf->drvr->bus_if->dev,
 				     msgbuf->rx_pktids, idx);
+	if (!skb)
+		return;
 
 	if (data_offset)
 		skb_pull(skb, data_offset);

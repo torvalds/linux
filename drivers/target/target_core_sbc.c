@@ -568,7 +568,7 @@ sbc_compare_and_write(struct se_cmd *cmd)
 	 * comparision using SGLs at cmd->t_bidi_data_sg..
 	 */
 	rc = down_interruptible(&dev->caw_sem);
-	if ((rc != 0) || signal_pending(current)) {
+	if (rc != 0) {
 		cmd->transport_complete_callback = NULL;
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}

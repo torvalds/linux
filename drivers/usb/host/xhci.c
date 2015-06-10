@@ -3682,18 +3682,21 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	unsigned long flags;
-	int ret;
+	int ret, slot_id;
 	struct xhci_command *command;
 
 	command = xhci_alloc_command(xhci, false, false, GFP_KERNEL);
 	if (!command)
 		return 0;
 
+	/* xhci->slot_id and xhci->addr_dev are not thread-safe */
+	mutex_lock(&xhci->mutex);
 	spin_lock_irqsave(&xhci->lock, flags);
 	command->completion = &xhci->addr_dev;
 	ret = xhci_queue_slot_control(xhci, command, TRB_ENABLE_SLOT, 0);
 	if (ret) {
 		spin_unlock_irqrestore(&xhci->lock, flags);
+		mutex_unlock(&xhci->mutex);
 		xhci_dbg(xhci, "FIXME: allocate a command ring segment\n");
 		kfree(command);
 		return 0;
@@ -3702,8 +3705,10 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	spin_unlock_irqrestore(&xhci->lock, flags);
 
 	wait_for_completion(command->completion);
+	slot_id = xhci->slot_id;
+	mutex_unlock(&xhci->mutex);
 
-	if (!xhci->slot_id || command->status != COMP_SUCCESS) {
+	if (!slot_id || command->status != COMP_SUCCESS) {
 		xhci_err(xhci, "Error while assigning device slot ID\n");
 		xhci_err(xhci, "Max number of devices this xHCI host supports is %u.\n",
 				HCS_MAX_SLOTS(
@@ -3728,11 +3733,11 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	 * xhci_discover_or_reset_device(), which may be called as part of
 	 * mass storage driver error handling.
 	 */
-	if (!xhci_alloc_virt_device(xhci, xhci->slot_id, udev, GFP_NOIO)) {
+	if (!xhci_alloc_virt_device(xhci, slot_id, udev, GFP_NOIO)) {
 		xhci_warn(xhci, "Could not allocate xHCI USB device data structures\n");
 		goto disable_slot;
 	}
-	udev->slot_id = xhci->slot_id;
+	udev->slot_id = slot_id;
 
 #ifndef CONFIG_USB_DEFAULT_PERSIST
 	/*
@@ -3778,12 +3783,15 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 	struct xhci_slot_ctx *slot_ctx;
 	struct xhci_input_control_ctx *ctrl_ctx;
 	u64 temp_64;
-	struct xhci_command *command;
+	struct xhci_command *command = NULL;
+
+	mutex_lock(&xhci->mutex);
 
 	if (!udev->slot_id) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_address,
 				"Bad Slot ID %d", udev->slot_id);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	virt_dev = xhci->devs[udev->slot_id];
@@ -3796,7 +3804,8 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 		 */
 		xhci_warn(xhci, "Virt dev invalid for slot_id 0x%x!\n",
 			udev->slot_id);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	if (setup == SETUP_CONTEXT_ONLY) {
@@ -3804,13 +3813,15 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 		if (GET_SLOT_STATE(le32_to_cpu(slot_ctx->dev_state)) ==
 		    SLOT_STATE_DEFAULT) {
 			xhci_dbg(xhci, "Slot already in default state\n");
-			return 0;
+			goto out;
 		}
 	}
 
 	command = xhci_alloc_command(xhci, false, false, GFP_KERNEL);
-	if (!command)
-		return -ENOMEM;
+	if (!command) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	command->in_ctx = virt_dev->in_ctx;
 	command->completion = &xhci->addr_dev;
@@ -3820,8 +3831,8 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 	if (!ctrl_ctx) {
 		xhci_warn(xhci, "%s: Could not get input context, bad type.\n",
 				__func__);
-		kfree(command);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 	/*
 	 * If this is the first Set Address since device plug-in or
@@ -3848,8 +3859,7 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		xhci_dbg_trace(xhci, trace_xhci_dbg_address,
 				"FIXME: allocate a command ring segment");
-		kfree(command);
-		return ret;
+		goto out;
 	}
 	xhci_ring_cmd_db(xhci);
 	spin_unlock_irqrestore(&xhci->lock, flags);
@@ -3896,10 +3906,8 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 		ret = -EINVAL;
 		break;
 	}
-	if (ret) {
-		kfree(command);
-		return ret;
-	}
+	if (ret)
+		goto out;
 	temp_64 = xhci_read_64(xhci, &xhci->op_regs->dcbaa_ptr);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_address,
 			"Op regs DCBAA ptr = %#016llx", temp_64);
@@ -3932,8 +3940,10 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 	xhci_dbg_trace(xhci, trace_xhci_dbg_address,
 		       "Internal device address = %d",
 		       le32_to_cpu(slot_ctx->dev_state) & DEV_ADDR_MASK);
+out:
+	mutex_unlock(&xhci->mutex);
 	kfree(command);
-	return 0;
+	return ret;
 }
 
 int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
@@ -4855,6 +4865,7 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 		return 0;
 	}
 
+	mutex_init(&xhci->mutex);
 	xhci->cap_regs = hcd->regs;
 	xhci->op_regs = hcd->regs +
 		HC_LENGTH(readl(&xhci->cap_regs->hc_capbase));
@@ -5011,4 +5022,12 @@ static int __init xhci_hcd_init(void)
 	BUILD_BUG_ON(sizeof(struct xhci_run_regs) != (8+8*128)*32/8);
 	return 0;
 }
+
+/*
+ * If an init function is provided, an exit function must also be provided
+ * to allow module unload.
+ */
+static void __exit xhci_hcd_fini(void) { }
+
 module_init(xhci_hcd_init);
+module_exit(xhci_hcd_fini);

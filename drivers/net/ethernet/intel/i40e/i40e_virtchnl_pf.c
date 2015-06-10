@@ -1018,11 +1018,19 @@ int i40e_pci_sriov_configure(struct pci_dev *pdev, int num_vfs)
 {
 	struct i40e_pf *pf = pci_get_drvdata(pdev);
 
-	if (num_vfs)
+	if (num_vfs) {
+		if (!(pf->flags & I40E_FLAG_VEB_MODE_ENABLED)) {
+			pf->flags |= I40E_FLAG_VEB_MODE_ENABLED;
+			i40e_do_reset_safe(pf,
+					   BIT_ULL(__I40E_PF_RESET_REQUESTED));
+		}
 		return i40e_pci_sriov_enable(pdev, num_vfs);
+	}
 
 	if (!pci_vfs_assigned(pf->pdev)) {
 		i40e_free_vfs(pf);
+		pf->flags &= ~I40E_FLAG_VEB_MODE_ENABLED;
+		i40e_do_reset_safe(pf, BIT_ULL(__I40E_PF_RESET_REQUESTED));
 	} else {
 		dev_warn(&pdev->dev, "Unable to free VFs because some are assigned to VMs.\n");
 		return -EINVAL;
