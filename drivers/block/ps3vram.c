@@ -1,5 +1,5 @@
 /*
- * ps3vram - Use extra PS3 video ram as MTD block device.
+ * ps3vram - Use extra PS3 video ram as block device.
  *
  * Copyright 2009 Sony Corporation
  *
