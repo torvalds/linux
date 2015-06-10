@@ -601,7 +601,7 @@ static int rtnl_net_getid(struct sk_buff *skb, struct nlmsghdr *nlh)
 	}
 
 	err = rtnl_net_fill(msg, NETLINK_CB(skb).portid, nlh->nlmsg_seq, 0,
-			    RTM_GETNSID, net, peer, -1);
+			    RTM_NEWNSID, net, peer, -1);
 	if (err < 0)
 		goto err_out;
 

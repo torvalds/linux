@@ -2656,9 +2656,6 @@ void i915_gem_reset(struct drm_device *dev)
 void
 i915_gem_retire_requests_ring(struct intel_engine_cs *ring)
 {
-	if (list_empty(&ring->request_list))
-		return;
-
 	WARN_ON(i915_verify_lists(ring->dev));
 
 	/* Retire requests first as we use it above for the early return.

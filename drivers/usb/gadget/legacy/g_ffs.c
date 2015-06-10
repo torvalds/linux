@@ -163,7 +163,7 @@ static int gfs_unbind(struct usb_composite_dev *cdev);
 static int gfs_do_config(struct usb_configuration *c);
 
 
-static __refdata struct usb_composite_driver gfs_driver = {
+static struct usb_composite_driver gfs_driver = {
 	.name		= DRIVER_NAME,
 	.dev		= &gfs_dev_desc,
 	.strings	= gfs_dev_strings,
@@ -304,8 +304,10 @@ static int functionfs_ready_callback(struct ffs_data *ffs)
 	gfs_registered = true;
 
 	ret = usb_composite_probe(&gfs_driver);
-	if (unlikely(ret < 0))
+	if (unlikely(ret < 0)) {
+		++missing_funcs;
 		gfs_registered = false;
+	}
 	
 	return ret;
 }

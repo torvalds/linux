@@ -22,9 +22,9 @@
     defined(CONFIG_BFIN_UART2_CTSRTS) || \
     defined(CONFIG_BFIN_UART3_CTSRTS)
 # if defined(BFIN_UART_BF54X_STYLE) || defined(BFIN_UART_BF60X_STYLE)
-#  define CONFIG_SERIAL_BFIN_HARD_CTSRTS
+#  define SERIAL_BFIN_HARD_CTSRTS
 # else
-#  define CONFIG_SERIAL_BFIN_CTSRTS
+#  define SERIAL_BFIN_CTSRTS
 # endif
 #endif
 
@@ -50,8 +50,8 @@ struct bfin_serial_port {
 #elif ANOMALY_05000363
 	unsigned int anomaly_threshold;
 #endif
-#if defined(CONFIG_SERIAL_BFIN_CTSRTS) || \
-	defined(CONFIG_SERIAL_BFIN_HARD_CTSRTS)
+#if defined(SERIAL_BFIN_CTSRTS) || \
+	defined(SERIAL_BFIN_HARD_CTSRTS)
 	int cts_pin;
 	int rts_pin;
 #endif

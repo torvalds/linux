@@ -387,7 +387,7 @@ console_initcall(altera_jtaguart_console_init);
 
 #define	ALTERA_JTAGUART_CONSOLE	NULL
 
-#endif /* CONFIG_ALTERA_JTAGUART_CONSOLE */
+#endif /* CONFIG_SERIAL_ALTERA_JTAGUART_CONSOLE */
 
 static struct uart_driver altera_jtaguart_driver = {
 	.owner		= THIS_MODULE,

@@ -12054,7 +12054,7 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 	mutex_init(&bp->port.phy_mutex);
 	mutex_init(&bp->fw_mb_mutex);
 	mutex_init(&bp->drv_info_mutex);
-	mutex_init(&bp->stats_lock);
+	sema_init(&bp->stats_lock, 1);
 	bp->drv_info_mng_owner = false;
 
 	INIT_DELAYED_WORK(&bp->sp_task, bnx2x_sp_task);
@@ -13371,8 +13371,13 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 	/* Management FW 'remembers' living interfaces. Allow it some time
 	 * to forget previously living interfaces, allowing a proper re-load.
 	 */
-	if (is_kdump_kernel())
-		msleep(5000);
+	if (is_kdump_kernel()) {
+		ktime_t now = ktime_get_boottime();
+		ktime_t fw_ready_time = ktime_set(5, 0);
+
+		if (ktime_before(now, fw_ready_time))
+			msleep(ktime_ms_delta(fw_ready_time, now));
+	}
 
 	/* An estimated maximum supported CoS number according to the chip
 	 * version.
@@ -13685,9 +13690,10 @@ static int bnx2x_eeh_nic_unload(struct bnx2x *bp)
 	cancel_delayed_work_sync(&bp->sp_task);
 	cancel_delayed_work_sync(&bp->period_task);
 
-	mutex_lock(&bp->stats_lock);
-	bp->stats_state = STATS_STATE_DISABLED;
-	mutex_unlock(&bp->stats_lock);
+	if (!down_timeout(&bp->stats_lock, HZ / 10)) {
+		bp->stats_state = STATS_STATE_DISABLED;
+		up(&bp->stats_lock);
+	}
 
 	bnx2x_save_statistics(bp);
 

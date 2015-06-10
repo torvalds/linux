@@ -217,7 +217,7 @@ static ssize_t status_store(struct device *device,
 
 	mutex_unlock(&dev->mode_config.mutex);
 
-	return ret;
+	return ret ? ret : count;
 }
 
 static ssize_t status_show(struct device *device,

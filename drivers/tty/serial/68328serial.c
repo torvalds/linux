@@ -508,7 +508,8 @@ static void change_speed(struct m68k_serial *info, struct tty_struct *tty)
 	int	i;
 
 	cflag = tty->termios.c_cflag;
-	if (!(port = info->port))
+	port = info->port;
+	if (!port)
 		return;
 
 	ustcnt = uart->ustcnt;

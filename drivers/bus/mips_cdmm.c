@@ -453,7 +453,7 @@ void __iomem *mips_cdmm_early_probe(unsigned int dev_type)
 
 	/* Look for a specific device type */
 	for (; drb < bus->drbs; drb += size + 1) {
-		acsr = readl(cdmm + drb * CDMM_DRB_SIZE);
+		acsr = __raw_readl(cdmm + drb * CDMM_DRB_SIZE);
 		type = (acsr & CDMM_ACSR_DEVTYPE) >> CDMM_ACSR_DEVTYPE_SHIFT;
 		if (type == dev_type)
 			return cdmm + drb * CDMM_DRB_SIZE;
@@ -500,7 +500,7 @@ static void mips_cdmm_bus_discover(struct mips_cdmm_bus *bus)
 	bus->discovered = true;
 	pr_info("cdmm%u discovery (%u blocks)\n", cpu, bus->drbs);
 	for (; drb < bus->drbs; drb += size + 1) {
-		acsr = readl(cdmm + drb * CDMM_DRB_SIZE);
+		acsr = __raw_readl(cdmm + drb * CDMM_DRB_SIZE);
 		type = (acsr & CDMM_ACSR_DEVTYPE) >> CDMM_ACSR_DEVTYPE_SHIFT;
 		size = (acsr & CDMM_ACSR_DEVSIZE) >> CDMM_ACSR_DEVSIZE_SHIFT;
 		rev  = (acsr & CDMM_ACSR_DEVREV)  >> CDMM_ACSR_DEVREV_SHIFT;

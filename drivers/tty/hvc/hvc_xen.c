@@ -289,7 +289,7 @@ static int xen_initial_domain_console_init(void)
 			return -ENOMEM;
 	}
 
-	info->irq = bind_virq_to_irq(VIRQ_CONSOLE, 0);
+	info->irq = bind_virq_to_irq(VIRQ_CONSOLE, 0, false);
 	info->vtermno = HVC_COOKIE;
 
 	spin_lock(&xencons_lock);

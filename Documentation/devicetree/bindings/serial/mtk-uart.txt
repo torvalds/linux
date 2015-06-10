@@ -14,7 +14,14 @@ Required properties:
 
 - interrupts: A single interrupt specifier.
 
-- clocks: Clock driving the hardware.
+- clocks : Must contain an entry for each entry in clock-names.
+  See ../clocks/clock-bindings.txt for details.
+- clock-names:
+  - "baud": The clock the baudrate is derived from
+  - "bus": The bus clock for register accesses (optional)
+
+For compatibility with older device trees an unnamed clock is used for the
+baud clock if the baudclk does not exist. Do not use this for new designs.
 
 Example:
 
@@ -22,5 +29,6 @@ Example:
 		compatible = "mediatek,mt6589-uart", "mediatek,mt6577-uart";
 		reg = <0x11006000 0x400>;
 		interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_LOW>;
-		clocks = <&uart_clk>;
+		clocks = <&uart_clk>, <&bus_clk>;
+		clock-names = "baud", "bus";
 	};

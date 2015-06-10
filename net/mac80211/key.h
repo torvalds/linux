@@ -161,6 +161,7 @@ void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata,
 void ieee80211_free_sta_keys(struct ieee80211_local *local,
 			     struct sta_info *sta);
 void ieee80211_enable_keys(struct ieee80211_sub_if_data *sdata);
+void ieee80211_reset_crypto_tx_tailroom(struct ieee80211_sub_if_data *sdata);
 
 #define key_mtx_dereference(local, ref) \
 	rcu_dereference_protected(ref, lockdep_is_held(&((local)->key_mtx)))
