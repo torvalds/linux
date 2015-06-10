@@ -24,6 +24,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		enable-method = "altr,socfpga-a10-smp";
 
 		cpu@0 {
 			compatible = "arm,cortex-a9";
@@ -565,6 +566,11 @@
 			#reset-cells = <1>;
 			compatible = "altr,rst-mgr";
 			reg = <0xffd05000 0x100>;
+		};
+
+		scu: snoop-control-unit@ffffc000 {
+			compatible = "arm,cortex-a9-scu";
+			reg = <0xffffc000 0x100>;
 		};
 
 		sysmgr: sysmgr@ffd06000 {
