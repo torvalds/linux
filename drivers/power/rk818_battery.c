@@ -3908,7 +3908,6 @@ static void rk81x_bat_info_init(struct rk81x_battery *di,
 	di->early_resume = 1;
 	di->psy_status = POWER_SUPPLY_STATUS_DISCHARGING;
 	di->bat_res = di->pdata->sense_resistor_mohm;
-	di->fg_drv_mode = FG_NORMAL_MODE;
 	di->dischrg_algorithm_mode = DISCHRG_NORMAL_MODE;
 	di->last_zero_mode_dsoc = DEF_LAST_ZERO_MODE_SOC;
 	di->slp_chrg_status = rk81x_bat_get_chrg_status(di);
@@ -4091,6 +4090,8 @@ static int rk81x_bat_parse_dt(struct rk81x_battery *di)
 	pdata->power_off_thresd = out_value;
 
 	of_property_read_u32(np, "chrg_diff_voltagemV", &pdata->chrg_diff_vol);
+	of_property_read_u32(np, "virtual_power", &di->fg_drv_mode);
+	di->fg_drv_mode = di->fg_drv_mode ? TEST_POWER_MODE : FG_NORMAL_MODE;
 
 	/*************  charger support adp types **********************/
 	ret = of_property_read_u32(np, "support_usb_adp", &support_usb_adp);
