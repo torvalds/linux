@@ -619,7 +619,8 @@ static void gen8_initialize_pd(struct i915_address_space *vm,
 	fill_px(vm->dev, pd, scratch_pde);
 }
 
-static void gen8_free_page_tables(struct i915_page_directory *pd, struct drm_device *dev)
+static void gen8_free_page_tables(struct drm_device *dev,
+				  struct i915_page_directory *pd)
 {
 	int i;
 
@@ -645,7 +646,8 @@ static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 		if (WARN_ON(!ppgtt->pdp.page_directory[i]))
 			continue;
 
-		gen8_free_page_tables(ppgtt->pdp.page_directory[i], ppgtt->base.dev);
+		gen8_free_page_tables(ppgtt->base.dev,
+				      ppgtt->pdp.page_directory[i]);
 		free_pd(ppgtt->base.dev, ppgtt->pdp.page_directory[i]);
 	}
 
