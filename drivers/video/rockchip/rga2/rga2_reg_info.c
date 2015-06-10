@@ -679,7 +679,7 @@ RGA2_set_reg_color_palette(RK_U8 *base, struct rga2_req *msg)
 
     src_stride = (byte_num + 3) & (~3);
 
-    p = (RK_U32 *)msg->src.yrgb_addr;
+    p = (RK_U32 *)((RK_U32)msg->src.yrgb_addr);
 
     #if 0
     if(endian_mode)
