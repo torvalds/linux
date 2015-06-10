@@ -2463,7 +2463,6 @@ int kiblnd_dev_failover(kib_dev_t *dev)
 	LIST_HEAD(zombie_fpo);
 	struct rdma_cm_id *cmid  = NULL;
 	kib_hca_dev_t *hdev  = NULL;
-	kib_hca_dev_t *old;
 	struct ib_pd *pd;
 	kib_net_t *net;
 	struct sockaddr_in addr;
@@ -2555,9 +2554,7 @@ int kiblnd_dev_failover(kib_dev_t *dev)
 
 	write_lock_irqsave(&kiblnd_data.kib_global_lock, flags);
 
-	old = dev->ibd_hdev;
-	dev->ibd_hdev = hdev; /* take over the refcount */
-	hdev = old;
+	swap(dev->ibd_hdev, hdev); /* take over the refcount */
 
 	list_for_each_entry(net, &dev->ibd_nets, ibn_list) {
 		cfs_cpt_for_each(i, lnet_cpt_table()) {
