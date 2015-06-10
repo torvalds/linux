@@ -1843,7 +1843,6 @@ static int __init doc_set_driver_info(int chip_id, struct mtd_info *mtd)
 		mtd->erasesize /= 2;
 	mtd->writebufsize = mtd->writesize = DOC_LAYOUT_PAGE_SIZE;
 	mtd->oobsize = DOC_LAYOUT_OOB_SIZE;
-	mtd->owner = THIS_MODULE;
 	mtd->_erase = doc_erase;
 	mtd->_read = doc_read;
 	mtd->_write = doc_write;
@@ -1885,6 +1884,7 @@ doc_probe_device(struct docg3_cascade *cascade, int floor, struct device *dev)
 	if (!mtd)
 		goto nomem2;
 	mtd->priv = docg3;
+	mtd->dev.parent = dev;
 	bbt_nbpages = DIV_ROUND_UP(docg3->max_block + 1,
 				   8 * DOC_LAYOUT_PAGE_SIZE);
 	docg3->bbt = kzalloc(bbt_nbpages * DOC_LAYOUT_PAGE_SIZE, GFP_KERNEL);
