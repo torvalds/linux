@@ -114,10 +114,11 @@ static inline int acpi_gpiochip_pin_to_gpio_offset(struct gpio_chip *chip,
  * @path:	ACPI GPIO controller full path name, (e.g. "\\_SB.GPO1")
  * @pin:	ACPI GPIO pin number (0-based, controller-relative)
  *
- * Returns GPIO descriptor to use with Linux generic GPIO API, or ERR_PTR
- * error value
+ * Return: GPIO descriptor to use with Linux generic GPIO API, or ERR_PTR
+ * error value. Specifically returns %-EPROBE_DEFER if the referenced GPIO
+ * controller does not have gpiochip registered at the moment. This is to
+ * support probe deferral.
  */
-
 static struct gpio_desc *acpi_get_gpiod(char *path, int pin)
 {
 	struct gpio_chip *chip;
@@ -131,7 +132,7 @@ static struct gpio_desc *acpi_get_gpiod(char *path, int pin)
 
 	chip = gpiochip_find(handle, acpi_gpiochip_find);
 	if (!chip)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EPROBE_DEFER);
 
 	offset = acpi_gpiochip_pin_to_gpio_offset(chip, pin);
 	if (offset < 0)
