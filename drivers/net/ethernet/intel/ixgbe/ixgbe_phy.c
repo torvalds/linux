@@ -1352,6 +1352,9 @@ static s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw)
 		return IXGBE_ERR_SFP_NOT_PRESENT;
 	}
 
+	/* LAN ID is needed for sfp_type determination */
+	hw->mac.ops.set_lan_id(hw);
+
 	status = hw->phy.ops.read_i2c_eeprom(hw, IXGBE_SFF_IDENTIFIER,
 					     &identifier);
 
@@ -1364,9 +1367,6 @@ static s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw)
 	}
 
 	hw->phy.id = identifier;
-
-	/* LAN ID is needed for sfp_type determination */
-	hw->mac.ops.set_lan_id(hw);
 
 	status = hw->phy.ops.read_i2c_eeprom(hw, IXGBE_SFF_QSFP_10GBE_COMP,
 					     &comp_codes_10g);

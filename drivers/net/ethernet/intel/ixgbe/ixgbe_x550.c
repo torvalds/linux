@@ -1457,6 +1457,8 @@ static s32 ixgbe_init_phy_ops_X550em(struct ixgbe_hw *hw)
 	ixgbe_link_speed speed;
 	s32 ret_val;
 
+	hw->mac.ops.set_lan_id(hw);
+
 	if (hw->mac.ops.get_media_type(hw) == ixgbe_media_type_fiber) {
 		phy->phy_semaphore_mask = IXGBE_GSSR_SHARED_I2C_SM;
 		ixgbe_setup_mux_ctl(hw);
