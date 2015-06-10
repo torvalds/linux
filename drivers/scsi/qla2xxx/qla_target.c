@@ -5546,6 +5546,7 @@ qlt_24xx_process_atio_queue(struct scsi_qla_host *vha)
 
 	/* Adjust ring index */
 	WRT_REG_DWORD(ISP_ATIO_Q_OUT(vha), ha->tgt.atio_ring_index);
+	RD_REG_DWORD_RELAXED(ISP_ATIO_Q_OUT(vha));
 }
 
 void
