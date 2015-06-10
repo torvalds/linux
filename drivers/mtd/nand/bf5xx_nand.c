@@ -782,7 +782,7 @@ static int bf5xx_nand_probe(struct platform_device *pdev)
 	/* initialise mtd info data struct */
 	mtd 		= &info->mtd;
 	mtd->priv	= chip;
-	mtd->owner	= THIS_MODULE;
+	mtd->dev.parent = &pdev->dev;
 
 	/* initialise the hardware */
 	err = bf5xx_nand_hw_init(info);
