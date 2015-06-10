@@ -1271,7 +1271,14 @@ static void smp_distribute_keys(struct smp_chan *smp)
 		__le16 ediv;
 		__le64 rand;
 
-		get_random_bytes(enc.ltk, sizeof(enc.ltk));
+		/* Make sure we generate only the significant amount of
+		 * bytes based on the encryption key size, and set the rest
+		 * of the value to zeroes.
+		 */
+		get_random_bytes(enc.ltk, smp->enc_key_size);
+		memset(enc.ltk + smp->enc_key_size, 0,
+		       sizeof(enc.ltk) - smp->enc_key_size);
+
 		get_random_bytes(&ediv, sizeof(ediv));
 		get_random_bytes(&rand, sizeof(rand));
 

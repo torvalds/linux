@@ -7603,7 +7603,12 @@ void mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key, bool persistent)
 	if (key->type == SMP_LTK)
 		ev.key.master = 1;
 
-	memcpy(ev.key.val, key->val, sizeof(key->val));
+	/* Make sure we copy only the significant bytes based on the
+	 * encryption key size, and set the rest of the value to zeroes.
+	 */
+	memcpy(ev.key.val, key->val, sizeof(key->enc_size));
+	memset(ev.key.val + key->enc_size, 0,
+	       sizeof(ev.key.val) - key->enc_size);
 
 	mgmt_event(MGMT_EV_NEW_LONG_TERM_KEY, hdev, &ev, sizeof(ev), NULL);
 }
