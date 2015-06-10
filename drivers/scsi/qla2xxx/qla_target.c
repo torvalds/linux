@@ -2715,7 +2715,7 @@ static int __qlt_send_term_exchange(struct scsi_qla_host *vha,
 static void qlt_send_term_exchange(struct scsi_qla_host *vha,
 	struct qla_tgt_cmd *cmd, struct atio_from_isp *atio, int ha_locked)
 {
-	unsigned long flags;
+	unsigned long flags = 0;
 	int rc;
 
 	if (qlt_issue_marker(vha, ha_locked) < 0)
@@ -2731,17 +2731,18 @@ static void qlt_send_term_exchange(struct scsi_qla_host *vha,
 	rc = __qlt_send_term_exchange(vha, cmd, atio);
 	if (rc == -ENOMEM)
 		qlt_alloc_qfull_cmd(vha, atio, 0, 0);
-	spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
 
 done:
 	if (cmd && ((cmd->state != QLA_TGT_STATE_ABORTED) ||
 	    !cmd->cmd_sent_to_fw)) {
-		if (!ha_locked && !in_interrupt())
-			msleep(250); /* just in case */
-
-		qlt_unmap_sg(vha, cmd);
+		if (cmd->sg_mapped)
+			qlt_unmap_sg(vha, cmd);
 		vha->hw->tgt.tgt_ops->free_cmd(cmd);
 	}
+
+	if (!ha_locked)
+		spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
+
 	return;
 }
 
