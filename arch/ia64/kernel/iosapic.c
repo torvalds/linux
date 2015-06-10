@@ -690,7 +690,7 @@ skip_numa_setup:
 	do {
 		if (++cpu >= nr_cpu_ids)
 			cpu = 0;
-	} while (!cpu_online(cpu) || !cpu_isset(cpu, domain));
+	} while (!cpu_online(cpu) || !cpumask_test_cpu(cpu, &domain));
 
 	return cpu_physical_id(cpu);
 #else  /* CONFIG_SMP */

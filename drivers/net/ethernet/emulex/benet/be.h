@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2014 Emulex
+ * Copyright (C) 2005 - 2015 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -31,11 +31,13 @@
 #include <linux/slab.h>
 #include <linux/u64_stats_sync.h>
 #include <linux/cpumask.h>
+#include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
 
 #include "be_hw.h"
 #include "be_roce.h"
 
-#define DRV_VER			"10.6.0.1"
+#define DRV_VER			"10.6.0.2"
 #define DRV_NAME		"be2net"
 #define BE_NAME			"Emulex BladeEngine2"
 #define BE3_NAME		"Emulex BladeEngine3"
@@ -314,7 +316,6 @@ struct be_rx_obj {
 } ____cacheline_aligned_in_smp;
 
 struct be_drv_stats {
-	u32 be_on_die_temperature;
 	u32 eth_red_drops;
 	u32 dma_map_errors;
 	u32 rx_drops_no_pbuf;
@@ -366,6 +367,7 @@ struct be_vf_cfg {
 	u32 tx_rate;
 	u32 plink_tracking;
 	u32 privileges;
+	bool spoofchk;
 };
 
 enum vf_state {
@@ -382,6 +384,7 @@ enum vf_state {
 #define BE_FLAGS_SETUP_DONE			BIT(9)
 #define BE_FLAGS_EVT_INCOMPATIBLE_SFP		BIT(10)
 #define BE_FLAGS_ERR_DETECTION_SCHEDULED	BIT(11)
+#define BE_FLAGS_OS2BMC				BIT(12)
 
 #define BE_UC_PMAC_COUNT			30
 #define BE_VF_UC_PMAC_COUNT			2
@@ -426,11 +429,19 @@ struct be_resources {
 	u32 vf_if_cap_flags;	/* VF if capability flags */
 };
 
+#define be_is_os2bmc_enabled(adapter) (adapter->flags & BE_FLAGS_OS2BMC)
+
 struct rss_info {
 	u64 rss_flags;
 	u8 rsstable[RSS_INDIR_TABLE_LEN];
 	u8 rss_queue[RSS_INDIR_TABLE_LEN];
 	u8 rss_hkey[RSS_HASH_KEY_LEN];
+};
+
+#define BE_INVALID_DIE_TEMP	0xFF
+struct be_hwmon {
+	struct device *hwmon_dev;
+	u8 be_on_die_temp;  /* Unit: millidegree Celsius */
 };
 
 /* Macros to read/write the 'features' word of be_wrb_params structure.
@@ -453,7 +464,8 @@ enum {
 	BE_WRB_F_LSO_BIT,		/* LSO */
 	BE_WRB_F_LSO6_BIT,		/* LSO6 */
 	BE_WRB_F_VLAN_BIT,		/* VLAN */
-	BE_WRB_F_VLAN_SKIP_HW_BIT	/* Skip VLAN tag (workaround) */
+	BE_WRB_F_VLAN_SKIP_HW_BIT,	/* Skip VLAN tag (workaround) */
+	BE_WRB_F_OS2BMC_BIT		/* Send packet to the management ring */
 };
 
 /* The structure below provides a HW-agnostic abstraction of WRB params
@@ -514,6 +526,7 @@ struct be_adapter {
 	u16 work_counter;
 
 	struct delayed_work be_err_detection_work;
+	u8 err_flags;
 	u32 flags;
 	u32 cmd_privileges;
 	/* Ethtool knobs and info */
@@ -572,8 +585,11 @@ struct be_adapter {
 	u16 qnq_vid;
 	u32 msg_enable;
 	int be_get_temp_freq;
+	struct be_hwmon hwmon_info;
 	u8 pf_number;
 	struct rss_info rss_info;
+	/* Filters for packets that need to be sent to BMC */
+	u32 bmc_filt_mask;
 };
 
 #define be_physfn(adapter)		(!adapter->virtfn)
@@ -772,26 +788,36 @@ static inline bool is_ipv4_pkt(struct sk_buff *skb)
 	return skb->protocol == htons(ETH_P_IP) && ip_hdr(skb)->version == 4;
 }
 
+#define BE_ERROR_EEH		1
+#define BE_ERROR_UE		BIT(1)
+#define BE_ERROR_FW		BIT(2)
+#define BE_ERROR_HW		(BE_ERROR_EEH | BE_ERROR_UE)
+#define BE_ERROR_ANY		(BE_ERROR_EEH | BE_ERROR_UE | BE_ERROR_FW)
+#define BE_CLEAR_ALL		0xFF
+
+static inline u8 be_check_error(struct be_adapter *adapter, u32 err_type)
+{
+	return (adapter->err_flags & err_type);
+}
+
+static inline void be_set_error(struct be_adapter *adapter, int err_type)
+{
+	struct net_device *netdev = adapter->netdev;
+
+	adapter->err_flags |= err_type;
+	netif_carrier_off(netdev);
+
+	dev_info(&adapter->pdev->dev, "%s: Link down\n", netdev->name);
+}
+
+static inline void  be_clear_error(struct be_adapter *adapter, int err_type)
+{
+	adapter->err_flags &= ~err_type;
+}
+
 static inline bool be_multi_rxq(const struct be_adapter *adapter)
 {
 	return adapter->num_rx_qs > 1;
-}
-
-static inline bool be_error(struct be_adapter *adapter)
-{
-	return adapter->eeh_error || adapter->hw_error || adapter->fw_timeout;
-}
-
-static inline bool be_hw_error(struct be_adapter *adapter)
-{
-	return adapter->eeh_error || adapter->hw_error;
-}
-
-static inline void  be_clear_all_error(struct be_adapter *adapter)
-{
-	adapter->eeh_error = false;
-	adapter->hw_error = false;
-	adapter->fw_timeout = false;
 }
 
 void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,
@@ -804,6 +830,7 @@ bool be_pause_supported(struct be_adapter *adapter);
 u32 be_get_fw_log_level(struct be_adapter *adapter);
 int be_update_queues(struct be_adapter *adapter);
 int be_poll(struct napi_struct *napi, int budget);
+void be_eqd_update(struct be_adapter *adapter, bool force_update);
 
 /*
  * internal function to initialize-cleanup roce device.

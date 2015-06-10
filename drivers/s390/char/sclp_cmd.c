@@ -315,8 +315,27 @@ static int sclp_mem_change_state(unsigned long start, unsigned long size,
 			rc |= sclp_assign_storage(incr->rn);
 		else
 			sclp_unassign_storage(incr->rn);
+		if (rc == 0)
+			incr->standby = online ? 0 : 1;
 	}
 	return rc ? -EIO : 0;
+}
+
+static bool contains_standby_increment(unsigned long start, unsigned long end)
+{
+	struct memory_increment *incr;
+	unsigned long istart;
+
+	list_for_each_entry(incr, &sclp_mem_list, list) {
+		istart = rn2addr(incr->rn);
+		if (end - 1 < istart)
+			continue;
+		if (start > istart + sclp_rzm - 1)
+			continue;
+		if (incr->standby)
+			return true;
+	}
+	return false;
 }
 
 static int sclp_mem_notifier(struct notifier_block *nb,
@@ -334,8 +353,16 @@ static int sclp_mem_notifier(struct notifier_block *nb,
 	for_each_clear_bit(id, sclp_storage_ids, sclp_max_storage_id + 1)
 		sclp_attach_storage(id);
 	switch (action) {
-	case MEM_ONLINE:
 	case MEM_GOING_OFFLINE:
+		/*
+		 * We do not allow to set memory blocks offline that contain
+		 * standby memory. This is done to simplify the "memory online"
+		 * case.
+		 */
+		if (contains_standby_increment(start, start + size))
+			rc = -EPERM;
+		break;
+	case MEM_ONLINE:
 	case MEM_CANCEL_OFFLINE:
 		break;
 	case MEM_GOING_ONLINE:
@@ -361,6 +388,21 @@ static struct notifier_block sclp_mem_nb = {
 	.notifier_call = sclp_mem_notifier,
 };
 
+static void __init align_to_block_size(unsigned long long *start,
+				       unsigned long long *size)
+{
+	unsigned long long start_align, size_align, alignment;
+
+	alignment = memory_block_size_bytes();
+	start_align = roundup(*start, alignment);
+	size_align = rounddown(*start + *size, alignment) - start_align;
+
+	pr_info("Standby memory at 0x%llx (%lluM of %lluM usable)\n",
+		*start, size_align >> 20, *size >> 20);
+	*start = start_align;
+	*size = size_align;
+}
+
 static void __init add_memory_merged(u16 rn)
 {
 	static u16 first_rn, num;
@@ -382,7 +424,9 @@ static void __init add_memory_merged(u16 rn)
 		goto skip_add;
 	if (memory_end_set && (start + size > memory_end))
 		size = memory_end - start;
-	add_memory(0, start, size);
+	align_to_block_size(&start, &size);
+	if (size)
+		add_memory(0, start, size);
 skip_add:
 	first_rn = rn;
 	num = 1;

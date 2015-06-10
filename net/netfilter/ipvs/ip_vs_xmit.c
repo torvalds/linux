@@ -364,12 +364,15 @@ err_unreach:
 #ifdef CONFIG_IP_VS_IPV6
 static struct dst_entry *
 __ip_vs_route_output_v6(struct net *net, struct in6_addr *daddr,
-			struct in6_addr *ret_saddr, int do_xfrm)
+			struct in6_addr *ret_saddr, int do_xfrm, int rt_mode)
 {
 	struct dst_entry *dst;
 	struct flowi6 fl6 = {
 		.daddr = *daddr,
 	};
+
+	if (rt_mode & IP_VS_RT_MODE_KNOWN_NH)
+		fl6.flowi6_flags = FLOWI_FLAG_KNOWN_NH;
 
 	dst = ip6_route_output(net, NULL, &fl6);
 	if (dst->error)
@@ -427,7 +430,7 @@ __ip_vs_get_out_rt_v6(int skb_af, struct sk_buff *skb, struct ip_vs_dest *dest,
 			}
 			dst = __ip_vs_route_output_v6(net, &dest->addr.in6,
 						      &dest_dst->dst_saddr.in6,
-						      do_xfrm);
+						      do_xfrm, rt_mode);
 			if (!dst) {
 				__ip_vs_dst_set(dest, NULL, NULL, 0);
 				spin_unlock_bh(&dest->dst_lock);
@@ -435,7 +438,7 @@ __ip_vs_get_out_rt_v6(int skb_af, struct sk_buff *skb, struct ip_vs_dest *dest,
 				goto err_unreach;
 			}
 			rt = (struct rt6_info *) dst;
-			cookie = rt->rt6i_node ? rt->rt6i_node->fn_sernum : 0;
+			cookie = rt6_get_cookie(rt);
 			__ip_vs_dst_set(dest, dest_dst, &rt->dst, cookie);
 			spin_unlock_bh(&dest->dst_lock);
 			IP_VS_DBG(10, "new dst %pI6, src %pI6, refcnt=%d\n",
@@ -446,7 +449,8 @@ __ip_vs_get_out_rt_v6(int skb_af, struct sk_buff *skb, struct ip_vs_dest *dest,
 			*ret_saddr = dest_dst->dst_saddr.in6;
 	} else {
 		noref = 0;
-		dst = __ip_vs_route_output_v6(net, daddr, ret_saddr, do_xfrm);
+		dst = __ip_vs_route_output_v6(net, daddr, ret_saddr, do_xfrm,
+					      rt_mode);
 		if (!dst)
 			goto err_unreach;
 		rt = (struct rt6_info *) dst;
@@ -781,7 +785,7 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	/* From world but DNAT to loopback address? */
 	if (local && skb->dev && !(skb->dev->flags & IFF_LOOPBACK) &&
-	    ipv6_addr_type(&rt->rt6i_dst.addr) & IPV6_ADDR_LOOPBACK) {
+	    ipv6_addr_type(&cp->daddr.in6) & IPV6_ADDR_LOOPBACK) {
 		IP_VS_DBG_RL_PKT(1, AF_INET6, pp, skb, 0,
 				 "ip_vs_nat_xmit_v6(): "
 				 "stopping DNAT to loopback address");
@@ -1164,7 +1168,8 @@ ip_vs_dr_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	local = __ip_vs_get_out_rt_v6(cp->af, skb, cp->dest, &cp->daddr.in6,
 				      NULL, ipvsh, 0,
 				      IP_VS_RT_MODE_LOCAL |
-				      IP_VS_RT_MODE_NON_LOCAL);
+				      IP_VS_RT_MODE_NON_LOCAL |
+				      IP_VS_RT_MODE_KNOWN_NH);
 	if (local < 0)
 		goto tx_error;
 	if (local) {
@@ -1346,7 +1351,7 @@ ip_vs_icmp_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	/* From world but DNAT to loopback address? */
 	if (local && skb->dev && !(skb->dev->flags & IFF_LOOPBACK) &&
-	    ipv6_addr_type(&rt->rt6i_dst.addr) & IPV6_ADDR_LOOPBACK) {
+	    ipv6_addr_type(&cp->daddr.in6) & IPV6_ADDR_LOOPBACK) {
 		IP_VS_DBG(1, "%s(): "
 			  "stopping DNAT to loopback %pI6\n",
 			  __func__, &cp->daddr.in6);

@@ -24,10 +24,12 @@
 #define __NOUVEAU_PLATFORM_H__
 
 #include "core/device.h"
+#include "core/mm.h"
 
 struct reset_control;
 struct clk;
 struct regulator;
+struct iommu_domain;
 struct platform_driver;
 
 struct nouveau_platform_gpu {
@@ -36,6 +38,22 @@ struct nouveau_platform_gpu {
 	struct clk *clk_pwr;
 
 	struct regulator *vdd;
+
+	struct {
+		/*
+		 * Protects accesses to mm from subsystems
+		 */
+		struct mutex mutex;
+
+		struct nvkm_mm _mm;
+		/*
+		 * Just points to _mm. We need this to avoid embedding
+		 * struct nvkm_mm in os.h
+		 */
+		struct nvkm_mm *mm;
+		struct iommu_domain *domain;
+		unsigned long pgshift;
+	} iommu;
 };
 
 struct nouveau_platform_device {

@@ -529,6 +529,9 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_PPC_RMA:
 		r = 0;
 		break;
+	case KVM_CAP_PPC_HWRNG:
+		r = kvmppc_hwrng_present();
+		break;
 #endif
 	case KVM_CAP_SYNC_MMU:
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE

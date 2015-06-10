@@ -94,7 +94,6 @@ static ssize_t dut_mode_write(struct file *file, const char __user *user_buf,
 	char buf[32];
 	size_t buf_size = min(count, (sizeof(buf)-1));
 	bool enable;
-	int err;
 
 	if (!test_bit(HCI_UP, &hdev->flags))
 		return -ENETDOWN;
@@ -121,11 +120,7 @@ static ssize_t dut_mode_write(struct file *file, const char __user *user_buf,
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
-	err = -bt_to_errno(skb->data[0]);
 	kfree_skb(skb);
-
-	if (err < 0)
-		return err;
 
 	hci_dev_change_flag(hdev, HCI_DUT_MODE);
 
@@ -1557,7 +1552,8 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 {
 	BT_DBG("%s %p", hdev->name, hdev);
 
-	if (!hci_dev_test_flag(hdev, HCI_UNREGISTER)) {
+	if (!hci_dev_test_flag(hdev, HCI_UNREGISTER) &&
+	    test_bit(HCI_UP, &hdev->flags)) {
 		/* Execute vendor specific shutdown routine */
 		if (hdev->shutdown)
 			hdev->shutdown(hdev);
@@ -2853,9 +2849,11 @@ static void le_scan_disable_work_complete(struct hci_dev *hdev, u8 status,
 			 * state. If we were running both LE and BR/EDR inquiry
 			 * simultaneously, and BR/EDR inquiry is already
 			 * finished, stop discovery, otherwise BR/EDR inquiry
-			 * will stop discovery when finished.
+			 * will stop discovery when finished. If we will resolve
+			 * remote device name, do not change discovery state.
 			 */
-			if (!test_bit(HCI_INQUIRY, &hdev->flags))
+			if (!test_bit(HCI_INQUIRY, &hdev->flags) &&
+			    hdev->discovery.state != DISCOVERY_RESOLVING)
 				hci_discovery_set_state(hdev,
 							DISCOVERY_STOPPED);
 		} else {

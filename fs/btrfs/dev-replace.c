@@ -670,8 +670,8 @@ void btrfs_dev_replace_status(struct btrfs_fs_info *fs_info,
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_STARTED:
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_SUSPENDED:
 		srcdev = dev_replace->srcdev;
-		args->status.progress_1000 = div64_u64(dev_replace->cursor_left,
-			div64_u64(btrfs_device_get_total_bytes(srcdev), 1000));
+		args->status.progress_1000 = div_u64(dev_replace->cursor_left,
+			div_u64(btrfs_device_get_total_bytes(srcdev), 1000));
 		break;
 	}
 	btrfs_dev_replace_unlock(dev_replace);
@@ -806,7 +806,7 @@ static int btrfs_dev_replace_kthread(void *data)
 		btrfs_dev_replace_status(fs_info, status_args);
 		progress = status_args->status.progress_1000;
 		kfree(status_args);
-		do_div(progress, 10);
+		progress = div_u64(progress, 10);
 		printk_in_rcu(KERN_INFO
 			"BTRFS: continuing dev_replace from %s (devid %llu) to %s @%u%%\n",
 			dev_replace->srcdev->missing ? "<missing disk>" :

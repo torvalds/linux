@@ -435,7 +435,7 @@ next_step:
 				set_page_dirty(node_page);
 		}
 		f2fs_put_page(node_page, 1);
-		stat_inc_node_blk_count(sbi, 1);
+		stat_inc_node_blk_count(sbi, 1, gc_type);
 	}
 
 	if (initial) {
@@ -622,7 +622,7 @@ next_step:
 			if (IS_ERR(data_page))
 				continue;
 			move_data_page(inode, data_page, gc_type);
-			stat_inc_data_blk_count(sbi, 1);
+			stat_inc_data_blk_count(sbi, 1, gc_type);
 		}
 	}
 
@@ -680,7 +680,7 @@ static void do_garbage_collect(struct f2fs_sb_info *sbi, unsigned int segno,
 	}
 	blk_finish_plug(&plug);
 
-	stat_inc_seg_count(sbi, GET_SUM_TYPE((&sum->footer)));
+	stat_inc_seg_count(sbi, GET_SUM_TYPE((&sum->footer)), gc_type);
 	stat_inc_call_count(sbi->stat_info);
 
 	f2fs_put_page(sum_page, 1);

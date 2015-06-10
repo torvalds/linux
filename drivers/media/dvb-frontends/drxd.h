@@ -52,7 +52,7 @@ struct drxd_config {
 	 s16(*osc_deviation) (void *priv, s16 dev, int flag);
 };
 
-#if IS_ENABLED(CONFIG_DVB_DRXD)
+#if IS_REACHABLE(CONFIG_DVB_DRXD)
 extern
 struct dvb_frontend *drxd_attach(const struct drxd_config *config,
 				 void *priv, struct i2c_adapter *i2c,

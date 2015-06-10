@@ -600,7 +600,7 @@ static int hfs_file_release(struct inode *inode, struct file *file)
 
 int hfs_inode_setattr(struct dentry *dentry, struct iattr * attr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct hfs_sb_info *hsb = HFS_SB(inode->i_sb);
 	int error;
 

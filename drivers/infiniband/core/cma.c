@@ -845,33 +845,49 @@ static void cma_save_ib_info(struct rdma_cm_id *id, struct rdma_cm_id *listen_id
 	listen_ib = (struct sockaddr_ib *) &listen_id->route.addr.src_addr;
 	ib = (struct sockaddr_ib *) &id->route.addr.src_addr;
 	ib->sib_family = listen_ib->sib_family;
-	ib->sib_pkey = path->pkey;
-	ib->sib_flowinfo = path->flow_label;
-	memcpy(&ib->sib_addr, &path->sgid, 16);
+	if (path) {
+		ib->sib_pkey = path->pkey;
+		ib->sib_flowinfo = path->flow_label;
+		memcpy(&ib->sib_addr, &path->sgid, 16);
+	} else {
+		ib->sib_pkey = listen_ib->sib_pkey;
+		ib->sib_flowinfo = listen_ib->sib_flowinfo;
+		ib->sib_addr = listen_ib->sib_addr;
+	}
 	ib->sib_sid = listen_ib->sib_sid;
 	ib->sib_sid_mask = cpu_to_be64(0xffffffffffffffffULL);
 	ib->sib_scope_id = listen_ib->sib_scope_id;
 
-	ib = (struct sockaddr_ib *) &id->route.addr.dst_addr;
-	ib->sib_family = listen_ib->sib_family;
-	ib->sib_pkey = path->pkey;
-	ib->sib_flowinfo = path->flow_label;
-	memcpy(&ib->sib_addr, &path->dgid, 16);
+	if (path) {
+		ib = (struct sockaddr_ib *) &id->route.addr.dst_addr;
+		ib->sib_family = listen_ib->sib_family;
+		ib->sib_pkey = path->pkey;
+		ib->sib_flowinfo = path->flow_label;
+		memcpy(&ib->sib_addr, &path->dgid, 16);
+	}
+}
+
+static __be16 ss_get_port(const struct sockaddr_storage *ss)
+{
+	if (ss->ss_family == AF_INET)
+		return ((struct sockaddr_in *)ss)->sin_port;
+	else if (ss->ss_family == AF_INET6)
+		return ((struct sockaddr_in6 *)ss)->sin6_port;
+	BUG();
 }
 
 static void cma_save_ip4_info(struct rdma_cm_id *id, struct rdma_cm_id *listen_id,
 			      struct cma_hdr *hdr)
 {
-	struct sockaddr_in *listen4, *ip4;
+	struct sockaddr_in *ip4;
 
-	listen4 = (struct sockaddr_in *) &listen_id->route.addr.src_addr;
 	ip4 = (struct sockaddr_in *) &id->route.addr.src_addr;
-	ip4->sin_family = listen4->sin_family;
+	ip4->sin_family = AF_INET;
 	ip4->sin_addr.s_addr = hdr->dst_addr.ip4.addr;
-	ip4->sin_port = listen4->sin_port;
+	ip4->sin_port = ss_get_port(&listen_id->route.addr.src_addr);
 
 	ip4 = (struct sockaddr_in *) &id->route.addr.dst_addr;
-	ip4->sin_family = listen4->sin_family;
+	ip4->sin_family = AF_INET;
 	ip4->sin_addr.s_addr = hdr->src_addr.ip4.addr;
 	ip4->sin_port = hdr->port;
 }
@@ -879,16 +895,15 @@ static void cma_save_ip4_info(struct rdma_cm_id *id, struct rdma_cm_id *listen_i
 static void cma_save_ip6_info(struct rdma_cm_id *id, struct rdma_cm_id *listen_id,
 			      struct cma_hdr *hdr)
 {
-	struct sockaddr_in6 *listen6, *ip6;
+	struct sockaddr_in6 *ip6;
 
-	listen6 = (struct sockaddr_in6 *) &listen_id->route.addr.src_addr;
 	ip6 = (struct sockaddr_in6 *) &id->route.addr.src_addr;
-	ip6->sin6_family = listen6->sin6_family;
+	ip6->sin6_family = AF_INET6;
 	ip6->sin6_addr = hdr->dst_addr.ip6;
-	ip6->sin6_port = listen6->sin6_port;
+	ip6->sin6_port = ss_get_port(&listen_id->route.addr.src_addr);
 
 	ip6 = (struct sockaddr_in6 *) &id->route.addr.dst_addr;
-	ip6->sin6_family = listen6->sin6_family;
+	ip6->sin6_family = AF_INET6;
 	ip6->sin6_addr = hdr->src_addr.ip6;
 	ip6->sin6_port = hdr->port;
 }
@@ -898,9 +913,11 @@ static int cma_save_net_info(struct rdma_cm_id *id, struct rdma_cm_id *listen_id
 {
 	struct cma_hdr *hdr;
 
-	if ((listen_id->route.addr.src_addr.ss_family == AF_IB) &&
-	    (ib_event->event == IB_CM_REQ_RECEIVED)) {
-		cma_save_ib_info(id, listen_id, ib_event->param.req_rcvd.primary_path);
+	if (listen_id->route.addr.src_addr.ss_family == AF_IB) {
+		if (ib_event->event == IB_CM_REQ_RECEIVED)
+			cma_save_ib_info(id, listen_id, ib_event->param.req_rcvd.primary_path);
+		else if (ib_event->event == IB_CM_SIDR_REQ_RECEIVED)
+			cma_save_ib_info(id, listen_id, NULL);
 		return 0;
 	}
 

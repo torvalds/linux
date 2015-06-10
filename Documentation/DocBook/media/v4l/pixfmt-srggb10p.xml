@@ -38,7 +38,7 @@
 	<title>Byte Order.</title>
 	<para>Each cell is one byte.
 	  <informaltable frame="topbot" colsep="1" rowsep="1">
-	    <tgroup cols="5" align="center" border="1">
+	    <tgroup cols="5" align="center">
 	      <colspec align="left" colwidth="2*" />
 	      <tbody valign="top">
 		<row>

@@ -68,6 +68,9 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio, struct device_node *chi
 			phy->irq = mdio->irq[addr];
 	}
 
+	if (of_property_read_bool(child, "broken-turn-around"))
+		mdio->phy_ignore_ta_mask |= 1 << addr;
+
 	/* Associate the OF node with the device structure so it
 	 * can be looked up later */
 	of_node_get(child);

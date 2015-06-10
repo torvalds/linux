@@ -204,8 +204,7 @@ static LIST_HEAD(scsiback_free_pages);
 static DEFINE_MUTEX(scsiback_mutex);
 static LIST_HEAD(scsiback_list);
 
-/* Local pointer to allocated TCM configfs fabric module */
-static struct target_fabric_configfs *scsiback_fabric_configfs;
+static const struct target_core_fabric_ops scsiback_ops;
 
 static void scsiback_get(struct vscsibk_info *info)
 {
@@ -1902,7 +1901,7 @@ scsiback_make_tpg(struct se_wwn *wwn,
 	tpg->tport = tport;
 	tpg->tport_tpgt = tpgt;
 
-	ret = core_tpg_register(&scsiback_fabric_configfs->tf_ops, wwn,
+	ret = core_tpg_register(&scsiback_ops, wwn,
 				&tpg->se_tpg, tpg, TRANSPORT_TPG_TYPE_NORMAL);
 	if (ret < 0) {
 		kfree(tpg);
@@ -1944,7 +1943,9 @@ static int scsiback_check_false(struct se_portal_group *se_tpg)
 	return 0;
 }
 
-static struct target_core_fabric_ops scsiback_ops = {
+static const struct target_core_fabric_ops scsiback_ops = {
+	.module				= THIS_MODULE,
+	.name				= "xen-pvscsi",
 	.get_fabric_name		= scsiback_get_fabric_name,
 	.get_fabric_proto_ident		= scsiback_get_fabric_proto_ident,
 	.tpg_get_wwn			= scsiback_get_fabric_wwn,
@@ -1991,62 +1992,10 @@ static struct target_core_fabric_ops scsiback_ops = {
 	.fabric_make_nodeacl		= scsiback_make_nodeacl,
 	.fabric_drop_nodeacl		= scsiback_drop_nodeacl,
 #endif
-};
 
-static int scsiback_register_configfs(void)
-{
-	struct target_fabric_configfs *fabric;
-	int ret;
-
-	pr_debug("fabric module %s on %s/%s on "UTS_RELEASE"\n",
-		 VSCSI_VERSION, utsname()->sysname, utsname()->machine);
-	/*
-	 * Register the top level struct config_item_type with TCM core
-	 */
-	fabric = target_fabric_configfs_init(THIS_MODULE, "xen-pvscsi");
-	if (IS_ERR(fabric))
-		return PTR_ERR(fabric);
-
-	/*
-	 * Setup fabric->tf_ops from our local scsiback_ops
-	 */
-	fabric->tf_ops = scsiback_ops;
-	/*
-	 * Setup default attribute lists for various fabric->tf_cit_tmpl
-	 */
-	fabric->tf_cit_tmpl.tfc_wwn_cit.ct_attrs = scsiback_wwn_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_base_cit.ct_attrs = scsiback_tpg_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_attrib_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_param_cit.ct_attrs = scsiback_param_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_np_base_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_base_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_attrib_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_auth_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_param_cit.ct_attrs = NULL;
-	/*
-	 * Register the fabric for use within TCM
-	 */
-	ret = target_fabric_configfs_register(fabric);
-	if (ret < 0) {
-		target_fabric_configfs_free(fabric);
-		return ret;
-	}
-	/*
-	 * Setup our local pointer to *fabric
-	 */
-	scsiback_fabric_configfs = fabric;
-	pr_debug("Set fabric -> scsiback_fabric_configfs\n");
-	return 0;
-};
-
-static void scsiback_deregister_configfs(void)
-{
-	if (!scsiback_fabric_configfs)
-		return;
-
-	target_fabric_configfs_deregister(scsiback_fabric_configfs);
-	scsiback_fabric_configfs = NULL;
-	pr_debug("Cleared scsiback_fabric_configfs\n");
+	.tfc_wwn_attrs			= scsiback_wwn_attrs,
+	.tfc_tpg_base_attrs		= scsiback_tpg_attrs,
+	.tfc_tpg_param_attrs		= scsiback_param_attrs,
 };
 
 static const struct xenbus_device_id scsiback_ids[] = {
@@ -2078,6 +2027,9 @@ static int __init scsiback_init(void)
 	if (!xen_domain())
 		return -ENODEV;
 
+	pr_debug("xen-pvscsi: fabric module %s on %s/%s on "UTS_RELEASE"\n",
+		 VSCSI_VERSION, utsname()->sysname, utsname()->machine);
+
 	scsiback_cachep = kmem_cache_create("vscsiif_cache",
 		sizeof(struct vscsibk_pend), 0, 0, scsiback_init_pend);
 	if (!scsiback_cachep)
@@ -2087,7 +2039,7 @@ static int __init scsiback_init(void)
 	if (ret)
 		goto out_cache_destroy;
 
-	ret = scsiback_register_configfs();
+	ret = target_register_template(&scsiback_ops);
 	if (ret)
 		goto out_unregister_xenbus;
 
@@ -2110,7 +2062,7 @@ static void __exit scsiback_exit(void)
 			BUG();
 		gnttab_free_pages(1, &page);
 	}
-	scsiback_deregister_configfs();
+	target_unregister_template(&scsiback_ops);
 	xenbus_unregister_driver(&scsiback_driver);
 	kmem_cache_destroy(scsiback_cachep);
 }

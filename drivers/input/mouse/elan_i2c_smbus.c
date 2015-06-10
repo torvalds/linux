@@ -268,9 +268,16 @@ static int elan_smbus_get_num_traces(struct i2c_client *client,
 		return error;
 	}
 
-	*x_traces = val[1] - 1;
-	*y_traces = val[2] - 1;
+	*x_traces = val[1];
+	*y_traces = val[2];
 
+	return 0;
+}
+
+static int elan_smbus_get_pressure_adjustment(struct i2c_client *client,
+					      int *adjustment)
+{
+	*adjustment = ETP_PRESSURE_OFFSET;
 	return 0;
 }
 
@@ -497,6 +504,7 @@ const struct elan_transport_ops elan_smbus_ops = {
 	.get_sm_version		= elan_smbus_get_sm_version,
 	.get_product_id		= elan_smbus_get_product_id,
 	.get_checksum		= elan_smbus_get_checksum,
+	.get_pressure_adjustment = elan_smbus_get_pressure_adjustment,
 
 	.get_max		= elan_smbus_get_max,
 	.get_resolution		= elan_smbus_get_resolution,

@@ -43,9 +43,9 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 void drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
 					struct drm_atomic_state *old_state);
 
-void drm_atomic_helper_commit_pre_planes(struct drm_device *dev,
-					 struct drm_atomic_state *state);
-void drm_atomic_helper_commit_post_planes(struct drm_device *dev,
+void drm_atomic_helper_commit_modeset_disables(struct drm_device *dev,
+					       struct drm_atomic_state *state);
+void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 					  struct drm_atomic_state *old_state);
 
 int drm_atomic_helper_prepare_planes(struct drm_device *dev,
@@ -87,20 +87,34 @@ void drm_atomic_helper_connector_dpms(struct drm_connector *connector,
 
 /* default implementations for state handling */
 void drm_atomic_helper_crtc_reset(struct drm_crtc *crtc);
+void __drm_atomic_helper_crtc_duplicate_state(struct drm_crtc *crtc,
+					      struct drm_crtc_state *state);
 struct drm_crtc_state *
 drm_atomic_helper_crtc_duplicate_state(struct drm_crtc *crtc);
+void __drm_atomic_helper_crtc_destroy_state(struct drm_crtc *crtc,
+					    struct drm_crtc_state *state);
 void drm_atomic_helper_crtc_destroy_state(struct drm_crtc *crtc,
 					  struct drm_crtc_state *state);
 
 void drm_atomic_helper_plane_reset(struct drm_plane *plane);
+void __drm_atomic_helper_plane_duplicate_state(struct drm_plane *plane,
+					       struct drm_plane_state *state);
 struct drm_plane_state *
 drm_atomic_helper_plane_duplicate_state(struct drm_plane *plane);
+void __drm_atomic_helper_plane_destroy_state(struct drm_plane *plane,
+					     struct drm_plane_state *state);
 void drm_atomic_helper_plane_destroy_state(struct drm_plane *plane,
 					  struct drm_plane_state *state);
 
 void drm_atomic_helper_connector_reset(struct drm_connector *connector);
+void
+__drm_atomic_helper_connector_duplicate_state(struct drm_connector *connector,
+					   struct drm_connector_state *state);
 struct drm_connector_state *
 drm_atomic_helper_connector_duplicate_state(struct drm_connector *connector);
+void
+__drm_atomic_helper_connector_destroy_state(struct drm_connector *connector,
+					    struct drm_connector_state *state);
 void drm_atomic_helper_connector_destroy_state(struct drm_connector *connector,
 					  struct drm_connector_state *state);
 

@@ -207,7 +207,7 @@ static bool icmpv6_xrlim_allow(struct sock *sk, u8 type,
 			struct inet_peer *peer;
 
 			peer = inet_getpeer_v6(net->ipv6.peers,
-					       &rt->rt6i_dst.addr, 1);
+					       &fl6->daddr, 1);
 			res = inet_peer_xrlim_allow(peer, tmo);
 			if (peer)
 				inet_putpeer(peer);
@@ -337,7 +337,7 @@ static struct dst_entry *icmpv6_route_lookup(struct net *net,
 	 * We won't send icmp if the destination is known
 	 * anycast.
 	 */
-	if (((struct rt6_info *)dst)->rt6i_flags & RTF_ANYCAST) {
+	if (ipv6_anycast_destination(dst, &fl6->daddr)) {
 		net_dbg_ratelimited("icmp6_send: acast source\n");
 		dst_release(dst);
 		return ERR_PTR(-EINVAL);
@@ -564,7 +564,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 
 	if (!ipv6_unicast_destination(skb) &&
 	    !(net->ipv6.sysctl.anycast_src_echo_reply &&
-	      ipv6_anycast_destination(skb)))
+	      ipv6_anycast_destination(skb_dst(skb), saddr)))
 		saddr = NULL;
 
 	memcpy(&tmp_hdr, icmph, sizeof(tmp_hdr));

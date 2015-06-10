@@ -2260,6 +2260,37 @@ void mlx4_counter_free(struct mlx4_dev *dev, u32 idx)
 }
 EXPORT_SYMBOL_GPL(mlx4_counter_free);
 
+void mlx4_set_admin_guid(struct mlx4_dev *dev, __be64 guid, int entry, int port)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	priv->mfunc.master.vf_admin[entry].vport[port].guid = guid;
+}
+EXPORT_SYMBOL_GPL(mlx4_set_admin_guid);
+
+__be64 mlx4_get_admin_guid(struct mlx4_dev *dev, int entry, int port)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	return priv->mfunc.master.vf_admin[entry].vport[port].guid;
+}
+EXPORT_SYMBOL_GPL(mlx4_get_admin_guid);
+
+void mlx4_set_random_admin_guid(struct mlx4_dev *dev, int entry, int port)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	__be64 guid;
+
+	/* hw GUID */
+	if (entry == 0)
+		return;
+
+	get_random_bytes((char *)&guid, sizeof(guid));
+	guid &= ~(cpu_to_be64(1ULL << 56));
+	guid |= cpu_to_be64(1ULL << 57);
+	priv->mfunc.master.vf_admin[entry].vport[port].guid = guid;
+}
+
 static int mlx4_setup_hca(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -2333,11 +2364,11 @@ static int mlx4_setup_hca(struct mlx4_dev *dev)
 	if (err) {
 		if (dev->flags & MLX4_FLAG_MSI_X) {
 			mlx4_warn(dev, "NOP command failed to generate MSI-X interrupt IRQ %d)\n",
-				  priv->eq_table.eq[dev->caps.num_comp_vectors].irq);
+				  priv->eq_table.eq[MLX4_EQ_ASYNC].irq);
 			mlx4_warn(dev, "Trying again without MSI-X\n");
 		} else {
 			mlx4_err(dev, "NOP command failed to generate interrupt (IRQ %d), aborting\n",
-				 priv->eq_table.eq[dev->caps.num_comp_vectors].irq);
+				 priv->eq_table.eq[MLX4_EQ_ASYNC].irq);
 			mlx4_err(dev, "BIOS or ACPI interrupt routing problem?\n");
 		}
 
@@ -2450,14 +2481,45 @@ err_uar_table_free:
 	return err;
 }
 
+static int mlx4_init_affinity_hint(struct mlx4_dev *dev, int port, int eqn)
+{
+	int requested_cpu = 0;
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_eq *eq;
+	int off = 0;
+	int i;
+
+	if (eqn > dev->caps.num_comp_vectors)
+		return -EINVAL;
+
+	for (i = 1; i < port; i++)
+		off += mlx4_get_eqs_per_port(dev, i);
+
+	requested_cpu = eqn - off - !!(eqn > MLX4_EQ_ASYNC);
+
+	/* Meaning EQs are shared, and this call comes from the second port */
+	if (requested_cpu < 0)
+		return 0;
+
+	eq = &priv->eq_table.eq[eqn];
+
+	if (!zalloc_cpumask_var(&eq->affinity_mask, GFP_KERNEL))
+		return -ENOMEM;
+
+	cpumask_set_cpu(requested_cpu, eq->affinity_mask);
+
+	return 0;
+}
+
 static void mlx4_enable_msi_x(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct msix_entry *entries;
 	int i;
+	int port = 0;
 
 	if (msi_x) {
-		int nreq = dev->caps.num_ports * num_online_cpus() + MSIX_LEGACY_SZ;
+		int nreq = dev->caps.num_ports * num_online_cpus() + 1;
 
 		nreq = min_t(int, dev->caps.num_eqs - dev->caps.reserved_eqs,
 			     nreq);
@@ -2472,20 +2534,55 @@ static void mlx4_enable_msi_x(struct mlx4_dev *dev)
 		nreq = pci_enable_msix_range(dev->persist->pdev, entries, 2,
 					     nreq);
 
-		if (nreq < 0) {
+		if (nreq < 0 || nreq < MLX4_EQ_ASYNC) {
 			kfree(entries);
 			goto no_msi;
-		} else if (nreq < MSIX_LEGACY_SZ +
-			   dev->caps.num_ports * MIN_MSIX_P_PORT) {
-			/*Working in legacy mode , all EQ's shared*/
-			dev->caps.comp_pool           = 0;
-			dev->caps.num_comp_vectors = nreq - 1;
-		} else {
-			dev->caps.comp_pool           = nreq - MSIX_LEGACY_SZ;
-			dev->caps.num_comp_vectors = MSIX_LEGACY_SZ - 1;
 		}
-		for (i = 0; i < nreq; ++i)
-			priv->eq_table.eq[i].irq = entries[i].vector;
+		/* 1 is reserved for events (asyncrounous EQ) */
+		dev->caps.num_comp_vectors = nreq - 1;
+
+		priv->eq_table.eq[MLX4_EQ_ASYNC].irq = entries[0].vector;
+		bitmap_zero(priv->eq_table.eq[MLX4_EQ_ASYNC].actv_ports.ports,
+			    dev->caps.num_ports);
+
+		for (i = 0; i < dev->caps.num_comp_vectors + 1; i++) {
+			if (i == MLX4_EQ_ASYNC)
+				continue;
+
+			priv->eq_table.eq[i].irq =
+				entries[i + 1 - !!(i > MLX4_EQ_ASYNC)].vector;
+
+			if (MLX4_IS_LEGACY_EQ_MODE(dev->caps)) {
+				bitmap_fill(priv->eq_table.eq[i].actv_ports.ports,
+					    dev->caps.num_ports);
+				/* We don't set affinity hint when there
+				 * aren't enough EQs
+				 */
+			} else {
+				set_bit(port,
+					priv->eq_table.eq[i].actv_ports.ports);
+				if (mlx4_init_affinity_hint(dev, port + 1, i))
+					mlx4_warn(dev, "Couldn't init hint cpumask for EQ %d\n",
+						  i);
+			}
+			/* We divide the Eqs evenly between the two ports.
+			 * (dev->caps.num_comp_vectors / dev->caps.num_ports)
+			 * refers to the number of Eqs per port
+			 * (i.e eqs_per_port). Theoretically, we would like to
+			 * write something like (i + 1) % eqs_per_port == 0.
+			 * However, since there's an asynchronous Eq, we have
+			 * to skip over it by comparing this condition to
+			 * !!((i + 1) > MLX4_EQ_ASYNC).
+			 */
+			if ((dev->caps.num_comp_vectors > dev->caps.num_ports) &&
+			    ((i + 1) %
+			     (dev->caps.num_comp_vectors / dev->caps.num_ports)) ==
+			    !!((i + 1) > MLX4_EQ_ASYNC))
+				/* If dev->caps.num_comp_vectors < dev->caps.num_ports,
+				 * everything is shared anyway.
+				 */
+				port++;
+		}
 
 		dev->flags |= MLX4_FLAG_MSI_X;
 
@@ -2495,10 +2592,15 @@ static void mlx4_enable_msi_x(struct mlx4_dev *dev)
 
 no_msi:
 	dev->caps.num_comp_vectors = 1;
-	dev->caps.comp_pool	   = 0;
 
-	for (i = 0; i < 2; ++i)
+	BUG_ON(MLX4_EQ_ASYNC >= 2);
+	for (i = 0; i < 2; ++i) {
 		priv->eq_table.eq[i].irq = dev->persist->pdev->irq;
+		if (i != MLX4_EQ_ASYNC) {
+			bitmap_fill(priv->eq_table.eq[i].actv_ports.ports,
+				    dev->caps.num_ports);
+		}
+	}
 }
 
 static int mlx4_init_port_info(struct mlx4_dev *dev, int port)
@@ -2563,6 +2665,10 @@ static void mlx4_cleanup_port_info(struct mlx4_port_info *info)
 	device_remove_file(&info->dev->persist->pdev->dev, &info->port_attr);
 	device_remove_file(&info->dev->persist->pdev->dev,
 			   &info->port_mtu_attr);
+#ifdef CONFIG_RFS_ACCEL
+	free_irq_cpu_rmap(info->rmap);
+	info->rmap = NULL;
+#endif
 }
 
 static int mlx4_init_steering(struct mlx4_dev *dev)
@@ -2718,6 +2824,7 @@ disable_sriov:
 free_mem:
 	dev->persist->num_vfs = 0;
 	kfree(dev->dev_vfs);
+        dev->dev_vfs = NULL;
 	return dev_flags & ~MLX4_FLAG_MASTER;
 }
 
@@ -2869,6 +2976,7 @@ slave_start:
 								  existing_vfs,
 								  reset_flow);
 
+				mlx4_close_fw(dev);
 				mlx4_cmd_cleanup(dev, MLX4_CMD_CLEANUP_ALL);
 				dev->flags = dev_flags;
 				if (!SRIOV_VALID_STATE(dev->flags)) {
@@ -2957,18 +3065,6 @@ slave_start:
 	/* In master functions, the communication channel must be initialized
 	 * after obtaining its address from fw */
 	if (mlx4_is_master(dev)) {
-		int ib_ports = 0;
-
-		mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
-			ib_ports++;
-
-		if (ib_ports &&
-		    (num_vfs_argc > 1 || probe_vfs_argc > 1)) {
-			mlx4_err(dev,
-				 "Invalid syntax of num_vfs/probe_vfs with IB port - single port VFs syntax is only supported when all ports are configured as ethernet\n");
-			err = -EINVAL;
-			goto err_close;
-		}
 		if (dev->caps.num_ports < 2 &&
 		    num_vfs_argc > 1) {
 			err = -EINVAL;
@@ -3005,7 +3101,7 @@ slave_start:
 	if (err)
 		goto err_master_mfunc;
 
-	priv->msix_ctl.pool_bm = 0;
+	bitmap_zero(priv->msix_ctl.pool_bm, MAX_MSIX);
 	mutex_init(&priv->msix_ctl.pool_lock);
 
 	mlx4_enable_msi_x(dev);
@@ -3027,7 +3123,6 @@ slave_start:
 	    !mlx4_is_mfunc(dev)) {
 		dev->flags &= ~MLX4_FLAG_MSI_X;
 		dev->caps.num_comp_vectors = 1;
-		dev->caps.comp_pool	   = 0;
 		pci_disable_msix(pdev);
 		err = mlx4_setup_hca(dev);
 	}

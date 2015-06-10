@@ -292,7 +292,7 @@ struct bcm_rsb {
 #define RDMA_END_ADDR_LO		0x102c
 
 #define RDMA_MBDONE_INTR		0x1030
-#define  RDMA_INTR_THRESH_MASK		0xff
+#define  RDMA_INTR_THRESH_MASK		0x1ff
 #define  RDMA_TIMEOUT_SHIFT		16
 #define  RDMA_TIMEOUT_MASK		0xffff
 
@@ -543,7 +543,7 @@ struct bcm_sysport_tx_counters {
 	u32	jbr;		/* RO # of xmited jabber count*/
 	u32	bytes;		/* RO # of xmited byte count */
 	u32	pok;		/* RO # of xmited good pkt */
-	u32	uc;		/* RO (0x0x4f0)# of xmited unitcast pkt */
+	u32	uc;		/* RO (0x4f0) # of xmited unicast pkt */
 };
 
 struct bcm_sysport_mib {
@@ -663,8 +663,6 @@ struct bcm_sysport_priv {
 
 	/* Receive queue */
 	void __iomem		*rx_bds;
-	void __iomem		*rx_bd_assign_ptr;
-	unsigned int		rx_bd_assign_index;
 	struct bcm_sysport_cb	*rx_cbs;
 	unsigned int		num_rx_bds;
 	unsigned int		rx_read_ptr;

@@ -118,7 +118,7 @@ static int
 nfs_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 		 struct iattr *sattr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct nfs_sattrargs	arg = { 
 		.fh	= NFS_FH(inode),
 		.sattr	= sattr
@@ -487,7 +487,7 @@ static int
 nfs_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 		 u64 cookie, struct page **pages, unsigned int count, int plus)
 {
-	struct inode		*dir = dentry->d_inode;
+	struct inode		*dir = d_inode(dentry);
 	struct nfs_readdirargs	arg = {
 		.fh		= NFS_FH(dir),
 		.cookie		= cookie,

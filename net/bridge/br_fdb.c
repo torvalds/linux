@@ -736,6 +736,12 @@ static int fdb_add_entry(struct net_bridge_port *source, const __u8 *addr,
 	struct net_bridge_fdb_entry *fdb;
 	bool modified = false;
 
+	/* If the port cannot learn allow only local and static entries */
+	if (!(state & NUD_PERMANENT) && !(state & NUD_NOARP) &&
+	    !(source->state == BR_STATE_LEARNING ||
+	      source->state == BR_STATE_FORWARDING))
+		return -EPERM;
+
 	fdb = fdb_find(head, addr, vid);
 	if (fdb == NULL) {
 		if (!(flags & NLM_F_CREATE))
@@ -796,9 +802,11 @@ static int __br_fdb_add(struct ndmsg *ndm, struct net_bridge_port *p,
 	int err = 0;
 
 	if (ndm->ndm_flags & NTF_USE) {
+		local_bh_disable();
 		rcu_read_lock();
 		br_fdb_update(p->br, p, addr, vid, true);
 		rcu_read_unlock();
+		local_bh_enable();
 	} else {
 		spin_lock_bh(&p->br->hash_lock);
 		err = fdb_add_entry(p, addr, ndm->ndm_state,

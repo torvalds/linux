@@ -420,7 +420,7 @@ static int ea_list_i(struct gfs2_inode *ip, struct buffer_head *bh,
 
 ssize_t gfs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
-	struct gfs2_inode *ip = GFS2_I(dentry->d_inode);
+	struct gfs2_inode *ip = GFS2_I(d_inode(dentry));
 	struct gfs2_ea_request er;
 	struct gfs2_holder i_gh;
 	int error;
@@ -586,7 +586,7 @@ out:
 static int gfs2_xattr_get(struct dentry *dentry, const char *name,
 		void *buffer, size_t size, int type)
 {
-	struct gfs2_inode *ip = GFS2_I(dentry->d_inode);
+	struct gfs2_inode *ip = GFS2_I(d_inode(dentry));
 	struct gfs2_ea_location el;
 	int error;
 
@@ -1230,7 +1230,7 @@ int __gfs2_xattr_set(struct inode *inode, const char *name,
 static int gfs2_xattr_set(struct dentry *dentry, const char *name,
 		const void *value, size_t size, int flags, int type)
 {
-	return __gfs2_xattr_set(dentry->d_inode, name, value,
+	return __gfs2_xattr_set(d_inode(dentry), name, value,
 				size, flags, type);
 }
 

@@ -1365,14 +1365,17 @@ static void mlx4_ib_multiplex_mad(struct mlx4_ib_demux_pv_ctx *ctx, struct ib_wc
 	 * stadard address handle by decoding the tunnelled mlx4_ah fields */
 	memcpy(&ah.av, &tunnel->hdr.av, sizeof (struct mlx4_av));
 	ah.ibah.device = ctx->ib_dev;
+
+	port = be32_to_cpu(ah.av.ib.port_pd) >> 24;
+	port = mlx4_slave_convert_port(dev->dev, slave, port);
+	if (port < 0)
+		return;
+	ah.av.ib.port_pd = cpu_to_be32(port << 24 | (be32_to_cpu(ah.av.ib.port_pd) & 0xffffff));
+
 	mlx4_ib_query_ah(&ah.ibah, &ah_attr);
 	if (ah_attr.ah_flags & IB_AH_GRH)
 		fill_in_real_sgid_index(dev, slave, ctx->port, &ah_attr);
 
-	port = mlx4_slave_convert_port(dev->dev, slave, ah_attr.port_num);
-	if (port < 0)
-		return;
-	ah_attr.port_num = port;
 	memcpy(ah_attr.dmac, tunnel->hdr.mac, 6);
 	ah_attr.vlan_id = be16_to_cpu(tunnel->hdr.vlan);
 	/* if slave have default vlan use it */
@@ -1430,6 +1433,10 @@ static int mlx4_ib_alloc_pv_bufs(struct mlx4_ib_demux_pv_ctx *ctx,
 							tun_qp->ring[i].addr,
 							rx_buf_size,
 							DMA_FROM_DEVICE);
+		if (ib_dma_mapping_error(ctx->ib_dev, tun_qp->ring[i].map)) {
+			kfree(tun_qp->ring[i].addr);
+			goto err;
+		}
 	}
 
 	for (i = 0; i < MLX4_NUM_TUNNEL_BUFS; i++) {
@@ -1442,6 +1449,11 @@ static int mlx4_ib_alloc_pv_bufs(struct mlx4_ib_demux_pv_ctx *ctx,
 					  tun_qp->tx_ring[i].buf.addr,
 					  tx_buf_size,
 					  DMA_TO_DEVICE);
+		if (ib_dma_mapping_error(ctx->ib_dev,
+					 tun_qp->tx_ring[i].buf.map)) {
+			kfree(tun_qp->tx_ring[i].buf.addr);
+			goto tx_err;
+		}
 		tun_qp->tx_ring[i].ah = NULL;
 	}
 	spin_lock_init(&tun_qp->tx_lock);

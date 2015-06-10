@@ -21,6 +21,7 @@
 #include "xgene_enet_main.h"
 #include "xgene_enet_hw.h"
 #include "xgene_enet_sgmac.h"
+#include "xgene_enet_xgmac.h"
 
 static void xgene_enet_wr_csr(struct xgene_enet_pdata *p, u32 offset, u32 val)
 {
@@ -37,6 +38,14 @@ static void xgene_enet_wr_diag_csr(struct xgene_enet_pdata *p,
 				   u32 offset, u32 val)
 {
 	iowrite32(val, p->eth_diag_csr_addr + offset);
+}
+
+static void xgene_enet_wr_mcx_csr(struct xgene_enet_pdata *pdata,
+				  u32 offset, u32 val)
+{
+	void __iomem *addr = pdata->mcx_mac_csr_addr + offset;
+
+	iowrite32(val, addr);
 }
 
 static bool xgene_enet_wr_indirect(struct xgene_indirect_ctl *ctl,
@@ -140,8 +149,9 @@ static int xgene_enet_ecc_init(struct xgene_enet_pdata *p)
 
 static void xgene_enet_config_ring_if_assoc(struct xgene_enet_pdata *p)
 {
-	u32 val = 0xffffffff;
+	u32 val;
 
+	val = (p->enet_id == XGENE_ENET1) ? 0xffffffff : 0;
 	xgene_enet_wr_ring_if(p, ENET_CFGSSQMIWQASSOC_ADDR, val);
 	xgene_enet_wr_ring_if(p, ENET_CFGSSQMIFPQASSOC_ADDR, val);
 }
@@ -227,6 +237,8 @@ static void xgene_sgmac_init(struct xgene_enet_pdata *p)
 {
 	u32 data, loop = 10;
 	u32 offset = p->port_id * 4;
+	u32 enet_spare_cfg_reg, rsif_config_reg;
+	u32 cfg_bypass_reg, rx_dv_gate_reg;
 
 	xgene_sgmac_reset(p);
 
@@ -239,7 +251,7 @@ static void xgene_sgmac_init(struct xgene_enet_pdata *p)
 					  SGMII_STATUS_ADDR >> 2);
 		if ((data & AUTO_NEG_COMPLETE) && (data & LINK_STATUS))
 			break;
-		usleep_range(10, 20);
+		usleep_range(1000, 2000);
 	}
 	if (!(data & AUTO_NEG_COMPLETE) || !(data & LINK_STATUS))
 		netdev_err(p->ndev, "Auto-negotiation failed\n");
@@ -249,15 +261,23 @@ static void xgene_sgmac_init(struct xgene_enet_pdata *p)
 	xgene_enet_wr_mac(p, MAC_CONFIG_2_ADDR, data | FULL_DUPLEX2);
 	xgene_enet_wr_mac(p, INTERFACE_CONTROL_ADDR, ENET_GHD_MODE);
 
-	data = xgene_enet_rd_csr(p, ENET_SPARE_CFG_REG_ADDR);
+	if (p->enet_id == XGENE_ENET1) {
+		enet_spare_cfg_reg = ENET_SPARE_CFG_REG_ADDR;
+		rsif_config_reg = RSIF_CONFIG_REG_ADDR;
+		cfg_bypass_reg = CFG_BYPASS_ADDR;
+		rx_dv_gate_reg = SG_RX_DV_GATE_REG_0_ADDR;
+	} else {
+		enet_spare_cfg_reg = XG_ENET_SPARE_CFG_REG_ADDR;
+		rsif_config_reg = XG_RSIF_CONFIG_REG_ADDR;
+		cfg_bypass_reg = XG_CFG_BYPASS_ADDR;
+		rx_dv_gate_reg = XG_MCX_RX_DV_GATE_REG_0_ADDR;
+	}
+
+	data = xgene_enet_rd_csr(p, enet_spare_cfg_reg);
 	data |= MPA_IDLE_WITH_QMI_EMPTY;
-	xgene_enet_wr_csr(p, ENET_SPARE_CFG_REG_ADDR, data);
+	xgene_enet_wr_csr(p, enet_spare_cfg_reg, data);
 
 	xgene_sgmac_set_mac_addr(p);
-
-	data = xgene_enet_rd_csr(p, DEBUG_REG_ADDR);
-	data |= CFG_BYPASS_UNISEC_TX | CFG_BYPASS_UNISEC_RX;
-	xgene_enet_wr_csr(p, DEBUG_REG_ADDR, data);
 
 	/* Adjust MDC clock frequency */
 	data = xgene_enet_rd_mac(p, MII_MGMT_CONFIG_ADDR);
@@ -265,17 +285,14 @@ static void xgene_sgmac_init(struct xgene_enet_pdata *p)
 	xgene_enet_wr_mac(p, MII_MGMT_CONFIG_ADDR, data);
 
 	/* Enable drop if bufpool not available */
-	data = xgene_enet_rd_csr(p, RSIF_CONFIG_REG_ADDR);
+	data = xgene_enet_rd_csr(p, rsif_config_reg);
 	data |= CFG_RSIF_FPBUFF_TIMEOUT_EN;
-	xgene_enet_wr_csr(p, RSIF_CONFIG_REG_ADDR, data);
-
-	/* Rtype should be copied from FP */
-	xgene_enet_wr_csr(p, RSIF_RAM_DBG_REG0_ADDR, 0);
+	xgene_enet_wr_csr(p, rsif_config_reg, data);
 
 	/* Bypass traffic gating */
-	xgene_enet_wr_csr(p, CFG_LINK_AGGR_RESUME_0_ADDR + offset, TX_PORT0);
-	xgene_enet_wr_csr(p, CFG_BYPASS_ADDR, RESUME_TX);
-	xgene_enet_wr_csr(p, SG_RX_DV_GATE_REG_0_ADDR + offset, RESUME_RX0);
+	xgene_enet_wr_csr(p, XG_ENET_SPARE_CFG_REG_1_ADDR, 0x84);
+	xgene_enet_wr_csr(p, cfg_bypass_reg, RESUME_TX);
+	xgene_enet_wr_mcx_csr(p, rx_dv_gate_reg + offset, RESUME_RX0);
 }
 
 static void xgene_sgmac_rxtx(struct xgene_enet_pdata *p, u32 bits, bool set)
@@ -331,14 +348,23 @@ static void xgene_enet_cle_bypass(struct xgene_enet_pdata *p,
 				  u32 dst_ring_num, u16 bufpool_id)
 {
 	u32 data, fpsel;
+	u32 cle_bypass_reg0, cle_bypass_reg1;
 	u32 offset = p->port_id * MAC_OFFSET;
 
+	if (p->enet_id == XGENE_ENET1) {
+		cle_bypass_reg0 = CLE_BYPASS_REG0_0_ADDR;
+		cle_bypass_reg1 = CLE_BYPASS_REG1_0_ADDR;
+	} else {
+		cle_bypass_reg0 = XCLE_BYPASS_REG0_ADDR;
+		cle_bypass_reg1 = XCLE_BYPASS_REG1_ADDR;
+	}
+
 	data = CFG_CLE_BYPASS_EN0;
-	xgene_enet_wr_csr(p, CLE_BYPASS_REG0_0_ADDR + offset, data);
+	xgene_enet_wr_csr(p, cle_bypass_reg0 + offset, data);
 
 	fpsel = xgene_enet_ring_bufnum(bufpool_id) - 0x20;
 	data = CFG_CLE_DSTQID0(dst_ring_num) | CFG_CLE_FPSEL0(fpsel);
-	xgene_enet_wr_csr(p, CLE_BYPASS_REG1_0_ADDR + offset, data);
+	xgene_enet_wr_csr(p, cle_bypass_reg1 + offset, data);
 }
 
 static void xgene_enet_shutdown(struct xgene_enet_pdata *p)

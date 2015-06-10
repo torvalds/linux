@@ -422,26 +422,10 @@ struct ieee802154_mlme_ops {
 			       struct ieee802154_mac_params *params);
 
 	struct ieee802154_llsec_ops *llsec;
-
-	/* The fields below are required. */
-
-	/*
-	 * FIXME: these should become the part of PIB/MIB interface.
-	 * However we still don't have IB interface of any kind
-	 */
-	__le16 (*get_pan_id)(const struct net_device *dev);
-	__le16 (*get_short_addr)(const struct net_device *dev);
-	u8 (*get_dsn)(const struct net_device *dev);
 };
 
 static inline struct ieee802154_mlme_ops *
 ieee802154_mlme_ops(const struct net_device *dev)
-{
-	return dev->ml_priv;
-}
-
-static inline struct ieee802154_reduced_mlme_ops *
-ieee802154_reduced_mlme_ops(const struct net_device *dev)
 {
 	return dev->ml_priv;
 }

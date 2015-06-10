@@ -36,6 +36,7 @@
 #include <linux/of.h>
 #include <linux/idr.h>
 #include <linux/inetdevice.h>
+#include <linux/devcoredump.h>
 
 #include "decl.h"
 #include "ioctl.h"
@@ -146,6 +147,54 @@ enum {
 
 /* Address alignment */
 #define MWIFIEX_ALIGN_ADDR(p, a) (((long)(p) + (a) - 1) & ~((a) - 1))
+
+/**
+ *enum mwifiex_debug_level  -  marvell wifi debug level
+ */
+enum MWIFIEX_DEBUG_LEVEL {
+	MWIFIEX_DBG_MSG		= 0x00000001,
+	MWIFIEX_DBG_FATAL	= 0x00000002,
+	MWIFIEX_DBG_ERROR	= 0x00000004,
+	MWIFIEX_DBG_DATA	= 0x00000008,
+	MWIFIEX_DBG_CMD		= 0x00000010,
+	MWIFIEX_DBG_EVENT	= 0x00000020,
+	MWIFIEX_DBG_INTR	= 0x00000040,
+	MWIFIEX_DBG_IOCTL	= 0x00000080,
+
+	MWIFIEX_DBG_MPA_D	= 0x00008000,
+	MWIFIEX_DBG_DAT_D	= 0x00010000,
+	MWIFIEX_DBG_CMD_D	= 0x00020000,
+	MWIFIEX_DBG_EVT_D	= 0x00040000,
+	MWIFIEX_DBG_FW_D	= 0x00080000,
+	MWIFIEX_DBG_IF_D	= 0x00100000,
+
+	MWIFIEX_DBG_ENTRY	= 0x10000000,
+	MWIFIEX_DBG_WARN	= 0x20000000,
+	MWIFIEX_DBG_INFO	= 0x40000000,
+	MWIFIEX_DBG_DUMP	= 0x80000000,
+
+	MWIFIEX_DBG_ANY		= 0xffffffff
+};
+
+#define MWIFIEX_DEFAULT_DEBUG_MASK	(MWIFIEX_DBG_MSG | \
+					MWIFIEX_DBG_FATAL | \
+					MWIFIEX_DBG_ERROR)
+
+#define mwifiex_dbg(adapter, dbg_mask, fmt, args...)		\
+do {								\
+	if ((adapter)->debug_mask & MWIFIEX_DBG_##dbg_mask)	\
+		if ((adapter)->dev)				\
+			dev_info((adapter)->dev, fmt, ## args);	\
+} while (0)
+
+#define DEBUG_DUMP_DATA_MAX_LEN		128
+#define mwifiex_dbg_dump(adapter, dbg_mask, str, buf, len)	\
+do {								\
+	if ((adapter)->debug_mask & MWIFIEX_DBG_##dbg_mask)	\
+		print_hex_dump(KERN_DEBUG, str,			\
+			       DUMP_PREFIX_OFFSET, 16, 1,	\
+			       buf, len, false);		\
+} while (0)
 
 struct mwifiex_dbg {
 	u32 num_cmd_host_to_card_failure;
@@ -451,7 +500,7 @@ enum rdwr_status {
 };
 
 enum mwifiex_iface_work_flags {
-	MWIFIEX_IFACE_WORK_FW_DUMP,
+	MWIFIEX_IFACE_WORK_DEVICE_DUMP,
 	MWIFIEX_IFACE_WORK_CARD_RESET,
 };
 
@@ -611,6 +660,7 @@ struct mwifiex_private {
 	struct delayed_work dfs_chan_sw_work;
 	struct cfg80211_beacon_data beacon_after;
 	struct mwifiex_11h_intf_state state_11h;
+	struct mwifiex_ds_mem_rw mem_rw;
 };
 
 
@@ -740,8 +790,8 @@ struct mwifiex_if_ops {
 	int (*init_fw_port) (struct mwifiex_adapter *);
 	int (*dnld_fw) (struct mwifiex_adapter *, struct mwifiex_fw_image *);
 	void (*card_reset) (struct mwifiex_adapter *);
-	void (*fw_dump)(struct mwifiex_adapter *);
 	int (*reg_dump)(struct mwifiex_adapter *, char *);
+	void (*device_dump)(struct mwifiex_adapter *);
 	int (*clean_pcie_ring) (struct mwifiex_adapter *adapter);
 	void (*iface_work)(struct work_struct *work);
 	void (*submit_rem_rx_urbs)(struct mwifiex_adapter *adapter);
@@ -750,6 +800,7 @@ struct mwifiex_if_ops {
 
 struct mwifiex_adapter {
 	u8 iface_type;
+	unsigned int debug_mask;
 	struct mwifiex_iface_comb iface_limit;
 	struct mwifiex_iface_comb curr_iface_comb;
 	struct mwifiex_private *priv[MWIFIEX_MAX_BSS_NUM];
@@ -900,7 +951,6 @@ struct mwifiex_adapter {
 	u8 key_api_major_ver, key_api_minor_ver;
 	struct memory_type_mapping *mem_type_mapping_tbl;
 	u8 num_mem_types;
-	u8 curr_mem_idx;
 	void *drv_info_dump;
 	u32 drv_info_size;
 	bool scan_chan_gap_enabled;
@@ -1434,7 +1484,8 @@ void mwifiex_hist_data_add(struct mwifiex_private *priv,
 u8 mwifiex_adjust_data_rate(struct mwifiex_private *priv,
 			    u8 rx_rate, u8 ht_info);
 
-void mwifiex_dump_drv_info(struct mwifiex_adapter *adapter);
+void mwifiex_drv_info_dump(struct mwifiex_adapter *adapter);
+void mwifiex_upload_device_dump(struct mwifiex_adapter *adapter);
 void *mwifiex_alloc_dma_align_buf(int rx_len, gfp_t flags);
 void mwifiex_queue_main_work(struct mwifiex_adapter *adapter);
 

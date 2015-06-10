@@ -42,7 +42,7 @@ int mwifiex_fill_cap_info(struct mwifiex_private *priv, u8 radio_type,
 					priv->wdev.wiphy->bands[radio_type];
 
 	if (WARN_ON_ONCE(!sband)) {
-		dev_err(priv->adapter->dev, "Invalid radio type!\n");
+		mwifiex_dbg(priv->adapter, ERROR, "Invalid radio type!\n");
 		return -EINVAL;
 	}
 
@@ -184,7 +184,7 @@ int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
 
 	tx_ba_tbl = mwifiex_get_ba_tbl(priv, tid, add_ba_rsp->peer_mac_addr);
 	if (tx_ba_tbl) {
-		dev_dbg(priv->adapter->dev, "info: BA stream complete\n");
+		mwifiex_dbg(priv->adapter, EVENT, "info: BA stream complete\n");
 		tx_ba_tbl->ba_status = BA_SETUP_COMPLETE;
 		if ((block_ack_param_set & BLOCKACKPARAM_AMSDU_SUPP_MASK) &&
 		    priv->add_ba_param.tx_amsdu &&
@@ -197,7 +197,7 @@ int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
 			ra_list->ba_status = BA_SETUP_COMPLETE;
 		}
 	} else {
-		dev_err(priv->adapter->dev, "BA stream not created\n");
+		mwifiex_dbg(priv->adapter, ERROR, "BA stream not created\n");
 	}
 
 	return 0;
@@ -224,7 +224,8 @@ int mwifiex_cmd_recfg_tx_buf(struct mwifiex_private *priv,
 	tx_buf->action = cpu_to_le16(action);
 	switch (action) {
 	case HostCmd_ACT_GEN_SET:
-		dev_dbg(priv->adapter->dev, "cmd: set tx_buf=%d\n", *buf_size);
+		mwifiex_dbg(priv->adapter, CMD,
+			    "cmd: set tx_buf=%d\n", *buf_size);
 		tx_buf->buff_size = cpu_to_le16(*buf_size);
 		break;
 	case HostCmd_ACT_GEN_GET:
@@ -466,7 +467,8 @@ void mwifiex_11n_delete_tx_ba_stream_tbl_entry(struct mwifiex_private *priv,
 	    mwifiex_is_tx_ba_stream_ptr_valid(priv, tx_ba_tsr_tbl))
 		return;
 
-	dev_dbg(priv->adapter->dev, "info: tx_ba_tsr_tbl %p\n", tx_ba_tsr_tbl);
+	mwifiex_dbg(priv->adapter, INFO,
+		    "info: tx_ba_tsr_tbl %p\n", tx_ba_tsr_tbl);
 
 	list_del(&tx_ba_tsr_tbl->list);
 
@@ -563,7 +565,7 @@ int mwifiex_send_addba(struct mwifiex_private *priv, int tid, u8 *peer_mac)
 	unsigned long flags;
 	u16 block_ack_param_set;
 
-	dev_dbg(priv->adapter->dev, "cmd: %s: tid %d\n", __func__, tid);
+	mwifiex_dbg(priv->adapter, CMD, "cmd: %s: tid %d\n", __func__, tid);
 
 	if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) &&
 	    ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info) &&
@@ -575,9 +577,9 @@ int mwifiex_send_addba(struct mwifiex_private *priv, int tid, u8 *peer_mac)
 		sta_ptr = mwifiex_get_sta_entry(priv, peer_mac);
 		if (!sta_ptr) {
 			spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
-			dev_warn(priv->adapter->dev,
-				 "BA setup with unknown TDLS peer %pM!\n",
-				peer_mac);
+			mwifiex_dbg(priv->adapter, ERROR,
+				    "BA setup with unknown TDLS peer %pM!\n",
+				    peer_mac);
 			return -1;
 		}
 		if (sta_ptr->is_11ac_enabled)
@@ -706,8 +708,8 @@ int mwifiex_get_tx_ba_stream_tbl(struct mwifiex_private *priv,
 	spin_lock_irqsave(&priv->tx_ba_stream_tbl_lock, flags);
 	list_for_each_entry(tx_ba_tsr_tbl, &priv->tx_ba_stream_tbl_ptr, list) {
 		rx_reo_tbl->tid = (u16) tx_ba_tsr_tbl->tid;
-		dev_dbg(priv->adapter->dev, "data: %s tid=%d\n",
-			__func__, rx_reo_tbl->tid);
+		mwifiex_dbg(priv->adapter, DATA, "data: %s tid=%d\n",
+			    __func__, rx_reo_tbl->tid);
 		memcpy(rx_reo_tbl->ra, tx_ba_tsr_tbl->ra, ETH_ALEN);
 		rx_reo_tbl->amsdu = tx_ba_tsr_tbl->amsdu;
 		rx_reo_tbl++;

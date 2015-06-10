@@ -280,8 +280,8 @@ static int tfa9879_i2c_probe(struct i2c_client *i2c,
 	int i;
 
 	tfa9879 = devm_kzalloc(&i2c->dev, sizeof(*tfa9879), GFP_KERNEL);
-	if (IS_ERR(tfa9879))
-		return PTR_ERR(tfa9879);
+	if (!tfa9879)
+		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, tfa9879);
 

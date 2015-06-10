@@ -179,6 +179,20 @@ config VXLAN
 	  To compile this driver as a module, choose M here: the module
 	  will be called vxlan.
 
+config GENEVE
+       tristate "Generic Network Virtualization Encapsulation netdev"
+       depends on INET && GENEVE_CORE
+       select NET_IP_TUNNEL
+       ---help---
+	  This allows one to create geneve virtual interfaces that provide
+	  Layer 2 Networks over Layer 3 Networks. GENEVE is often used
+	  to tunnel virtual network infrastructure in virtualized environments.
+	  For more information see:
+	    http://tools.ietf.org/html/draft-gross-geneve-02
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called geneve.
+
 config NETCONSOLE
 	tristate "Network console logging support"
 	---help---

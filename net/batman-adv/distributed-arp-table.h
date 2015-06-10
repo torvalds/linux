@@ -1,4 +1,4 @@
-/* Copyright (C) 2011-2014 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2011-2015 B.A.T.M.A.N. contributors:
  *
  * Antonio Quartulli
  *
@@ -18,12 +18,19 @@
 #ifndef _NET_BATMAN_ADV_DISTRIBUTED_ARP_TABLE_H_
 #define _NET_BATMAN_ADV_DISTRIBUTED_ARP_TABLE_H_
 
-#ifdef CONFIG_BATMAN_ADV_DAT
+#include "main.h"
 
-#include "types.h"
+#include <linux/compiler.h>
+#include <linux/netdevice.h>
+#include <linux/types.h>
+
 #include "originator.h"
+#include "packet.h"
 
-#include <linux/if_arp.h>
+struct seq_file;
+struct sk_buff;
+
+#ifdef CONFIG_BATMAN_ADV_DAT
 
 /* BATADV_DAT_ADDR_MAX - maximum address value in the DHT space */
 #define BATADV_DAT_ADDR_MAX ((batadv_dat_addr_t)~(batadv_dat_addr_t)0)

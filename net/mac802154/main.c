@@ -107,6 +107,18 @@ ieee802154_alloc_hw(size_t priv_data_len, const struct ieee802154_ops *ops)
 
 	skb_queue_head_init(&local->skb_queue);
 
+	/* init supported flags with 802.15.4 default ranges */
+	phy->supported.max_minbe = 8;
+	phy->supported.min_maxbe = 3;
+	phy->supported.max_maxbe = 8;
+	phy->supported.min_frame_retries = -1;
+	phy->supported.max_frame_retries = 7;
+	phy->supported.max_csma_backoffs = 5;
+	phy->supported.lbt = NL802154_SUPPORTED_BOOL_FALSE;
+
+	/* always supported */
+	phy->supported.iftypes = BIT(NL802154_IFTYPE_NODE);
+
 	return &local->hw;
 }
 EXPORT_SYMBOL(ieee802154_alloc_hw);
@@ -155,24 +167,47 @@ int ieee802154_register_hw(struct ieee802154_hw *hw)
 
 	ieee802154_setup_wpan_phy_pib(local->phy);
 
+	if (!(hw->flags & IEEE802154_HW_CSMA_PARAMS)) {
+		local->phy->supported.min_csma_backoffs = 4;
+		local->phy->supported.max_csma_backoffs = 4;
+		local->phy->supported.min_maxbe = 5;
+		local->phy->supported.max_maxbe = 5;
+		local->phy->supported.min_minbe = 3;
+		local->phy->supported.max_minbe = 3;
+	}
+
+	if (!(hw->flags & IEEE802154_HW_FRAME_RETRIES)) {
+		/* TODO should be 3, but our default value is -1 which means
+		 * no ARET handling.
+		 */
+		local->phy->supported.min_frame_retries = -1;
+		local->phy->supported.max_frame_retries = -1;
+	}
+
+	if (hw->flags & IEEE802154_HW_PROMISCUOUS)
+		local->phy->supported.iftypes |= BIT(NL802154_IFTYPE_MONITOR);
+
 	rc = wpan_phy_register(local->phy);
 	if (rc < 0)
 		goto out_wq;
 
 	rtnl_lock();
 
-	dev = ieee802154_if_add(local, "wpan%d", NL802154_IFTYPE_NODE,
+	dev = ieee802154_if_add(local, "wpan%d", NET_NAME_ENUM,
+				NL802154_IFTYPE_NODE,
 				cpu_to_le64(0x0000000000000000ULL));
 	if (IS_ERR(dev)) {
 		rtnl_unlock();
 		rc = PTR_ERR(dev);
-		goto out_wq;
+		goto out_phy;
 	}
 
 	rtnl_unlock();
 
 	return 0;
 
+out_phy:
+	wpan_phy_unregister(local->phy);
 out_wq:
 	destroy_workqueue(local->workqueue);
 out:

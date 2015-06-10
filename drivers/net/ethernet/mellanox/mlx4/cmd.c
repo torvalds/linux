@@ -714,8 +714,13 @@ static int mlx4_cmd_wait(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 					 msecs_to_jiffies(timeout))) {
 		mlx4_warn(dev, "command 0x%x timed out (go bit not cleared)\n",
 			  op);
-		err = -EIO;
-		goto out_reset;
+		if (op == MLX4_CMD_NOP) {
+			err = -EBUSY;
+			goto out;
+		} else {
+			err = -EIO;
+			goto out_reset;
+		}
 	}
 
 	err = context->result;
@@ -877,7 +882,7 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 {
 	struct ib_smp *smp = inbox->buf;
 	u32 index;
-	u8 port;
+	u8 port, slave_port;
 	u8 opcode_modifier;
 	u16 *table;
 	int err;
@@ -889,7 +894,8 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 	__be32 slave_cap_mask;
 	__be64 slave_node_guid;
 
-	port = vhcr->in_modifier;
+	slave_port = vhcr->in_modifier;
+	port = mlx4_slave_convert_port(dev, slave, slave_port);
 
 	/* network-view bit is for driver use only, and should not be passed to FW */
 	opcode_modifier = vhcr->op_modifier & ~0x8; /* clear netw view bit */
@@ -925,8 +931,9 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 			if (smp->attr_id == IB_SMP_ATTR_PORT_INFO) {
 				/*get the slave specific caps:*/
 				/*do the command */
+				smp->attr_mod = cpu_to_be32(port);
 				err = mlx4_cmd_box(dev, inbox->dma, outbox->dma,
-					    vhcr->in_modifier, opcode_modifier,
+					    port, opcode_modifier,
 					    vhcr->op, MLX4_CMD_TIME_CLASS_C, MLX4_CMD_NATIVE);
 				/* modify the response for slaves */
 				if (!err && slave != mlx4_master_func_num(dev)) {
@@ -939,25 +946,38 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 				return err;
 			}
 			if (smp->attr_id == IB_SMP_ATTR_GUID_INFO) {
-				/* compute slave's gid block */
-				smp->attr_mod = cpu_to_be32(slave / 8);
-				/* execute cmd */
-				err = mlx4_cmd_box(dev, inbox->dma, outbox->dma,
-					     vhcr->in_modifier, opcode_modifier,
-					     vhcr->op, MLX4_CMD_TIME_CLASS_C, MLX4_CMD_NATIVE);
-				if (!err) {
-					/* if needed, move slave gid to index 0 */
-					if (slave % 8)
-						memcpy(outsmp->data,
-						       outsmp->data + (slave % 8) * 8, 8);
-					/* delete all other gids */
-					memset(outsmp->data + 8, 0, 56);
+				__be64 guid = mlx4_get_admin_guid(dev, slave,
+								  port);
+
+				/* set the PF admin guid to the FW/HW burned
+				 * GUID, if it wasn't yet set
+				 */
+				if (slave == 0 && guid == 0) {
+					smp->attr_mod = 0;
+					err = mlx4_cmd_box(dev,
+							   inbox->dma,
+							   outbox->dma,
+							   vhcr->in_modifier,
+							   opcode_modifier,
+							   vhcr->op,
+							   MLX4_CMD_TIME_CLASS_C,
+							   MLX4_CMD_NATIVE);
+					if (err)
+						return err;
+					mlx4_set_admin_guid(dev,
+							    *(__be64 *)outsmp->
+							    data, slave, port);
+				} else {
+					memcpy(outsmp->data, &guid, 8);
 				}
-				return err;
+
+				/* clean all other gids */
+				memset(outsmp->data + 8, 0, 56);
+				return 0;
 			}
 			if (smp->attr_id == IB_SMP_ATTR_NODE_INFO) {
 				err = mlx4_cmd_box(dev, inbox->dma, outbox->dma,
-					     vhcr->in_modifier, opcode_modifier,
+					     port, opcode_modifier,
 					     vhcr->op, MLX4_CMD_TIME_CLASS_C, MLX4_CMD_NATIVE);
 				if (!err) {
 					slave_node_guid =  mlx4_get_slave_node_guid(dev, slave);
@@ -2350,6 +2370,7 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 				oper_vport->qos_vport = MLX4_VPP_DEFAULT_VPORT;
 				vf_oper->vport[port].vlan_idx = NO_INDX;
 				vf_oper->vport[port].mac_idx = NO_INDX;
+				mlx4_set_random_admin_guid(dev, i, port);
 			}
 			spin_lock_init(&s_state->lock);
 		}
@@ -2896,7 +2917,7 @@ int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u64 mac)
 	port = mlx4_slaves_closest_port(dev, slave, port);
 	s_info = &priv->mfunc.master.vf_admin[slave].vport[port];
 	s_info->mac = mac;
-	mlx4_info(dev, "default mac on vf %d port %d to %llX will take afect only after vf restart\n",
+	mlx4_info(dev, "default mac on vf %d port %d to %llX will take effect only after vf restart\n",
 		  vf, port, s_info->mac);
 	return 0;
 }
@@ -3178,6 +3199,12 @@ int mlx4_vf_set_enable_smi_admin(struct mlx4_dev *dev, int slave, int port,
 				 int enabled)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_active_ports actv_ports = mlx4_get_active_ports(
+			&priv->dev, slave);
+	int min_port = find_first_bit(actv_ports.ports,
+				      priv->dev.caps.num_ports) + 1;
+	int max_port = min_port - 1 +
+		bitmap_weight(actv_ports.ports, priv->dev.caps.num_ports);
 
 	if (slave == mlx4_master_func_num(dev))
 		return 0;
@@ -3186,6 +3213,11 @@ int mlx4_vf_set_enable_smi_admin(struct mlx4_dev *dev, int slave, int port,
 	    port < 1 || port > MLX4_MAX_PORTS ||
 	    enabled < 0 || enabled > 1)
 		return -EINVAL;
+
+	if (min_port == max_port && dev->caps.num_ports > 1) {
+		mlx4_info(dev, "SMI access disallowed for single ported VFs\n");
+		return -EPROTONOSUPPORT;
+	}
 
 	priv->mfunc.master.vf_admin[slave].enable_smi[port] = enabled;
 	return 0;

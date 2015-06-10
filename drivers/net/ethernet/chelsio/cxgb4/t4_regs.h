@@ -418,6 +418,20 @@
 #define SGE_INGRESS_QUEUES_PER_PAGE_PF_A 0x10f4
 #define SGE_INGRESS_QUEUES_PER_PAGE_VF_A 0x10f8
 
+#define SGE_ERROR_STATS_A 0x1100
+
+#define UNCAPTURED_ERROR_S    18
+#define UNCAPTURED_ERROR_V(x) ((x) << UNCAPTURED_ERROR_S)
+#define UNCAPTURED_ERROR_F    UNCAPTURED_ERROR_V(1U)
+
+#define ERROR_QID_VALID_S    17
+#define ERROR_QID_VALID_V(x) ((x) << ERROR_QID_VALID_S)
+#define ERROR_QID_VALID_F    ERROR_QID_VALID_V(1U)
+
+#define ERROR_QID_S    0
+#define ERROR_QID_M    0x1ffffU
+#define ERROR_QID_G(x) (((x) >> ERROR_QID_S) & ERROR_QID_M)
+
 #define HP_INT_THRESH_S    28
 #define HP_INT_THRESH_M    0xfU
 #define HP_INT_THRESH_V(x) ((x) << HP_INT_THRESH_S)
@@ -448,8 +462,13 @@
 #define SGE_STAT_MATCH_A	0x10e8
 #define SGE_STAT_CFG_A		0x10ec
 
+#define STATMODE_S    2
+#define STATMODE_V(x) ((x) << STATMODE_S)
+
 #define STATSOURCE_T5_S    9
+#define STATSOURCE_T5_M    0xfU
 #define STATSOURCE_T5_V(x) ((x) << STATSOURCE_T5_S)
+#define STATSOURCE_T5_G(x) (((x) >> STATSOURCE_T5_S) & STATSOURCE_T5_M)
 
 #define SGE_DBFIFO_STATUS2_A 0x1118
 
@@ -704,6 +723,10 @@
 
 #define REGISTER_S    0
 #define REGISTER_V(x) ((x) << REGISTER_S)
+
+#define T6_ENABLE_S    31
+#define T6_ENABLE_V(x) ((x) << T6_ENABLE_S)
+#define T6_ENABLE_F    T6_ENABLE_V(1U)
 
 #define PFNUM_S    0
 #define PFNUM_V(x) ((x) << PFNUM_S)
@@ -1399,6 +1422,8 @@
 #define CSUM_HAS_PSEUDO_HDR_F    CSUM_HAS_PSEUDO_HDR_V(1U)
 
 #define TP_MIB_MAC_IN_ERR_0_A	0x0
+#define TP_MIB_HDR_IN_ERR_0_A	0x4
+#define TP_MIB_TCP_IN_ERR_0_A	0x8
 #define TP_MIB_TCP_OUT_RST_A	0xc
 #define TP_MIB_TCP_IN_SEG_HI_A	0x10
 #define TP_MIB_TCP_IN_SEG_LO_A	0x11
@@ -1407,11 +1432,19 @@
 #define TP_MIB_TCP_RXT_SEG_HI_A	0x14
 #define TP_MIB_TCP_RXT_SEG_LO_A	0x15
 #define TP_MIB_TNL_CNG_DROP_0_A 0x18
+#define TP_MIB_OFD_CHN_DROP_0_A 0x1c
 #define TP_MIB_TCP_V6IN_ERR_0_A 0x28
 #define TP_MIB_TCP_V6OUT_RST_A	0x2c
 #define TP_MIB_OFD_ARP_DROP_A	0x36
+#define TP_MIB_CPL_IN_REQ_0_A	0x38
+#define TP_MIB_CPL_OUT_RSP_0_A	0x3c
 #define TP_MIB_TNL_DROP_0_A	0x44
+#define TP_MIB_FCOE_DDP_0_A	0x48
+#define TP_MIB_FCOE_DROP_0_A	0x4c
+#define TP_MIB_FCOE_BYTE_0_HI_A	0x50
 #define TP_MIB_OFD_VLN_DROP_0_A	0x58
+#define TP_MIB_USM_PKTS_A	0x5c
+#define TP_MIB_RQE_DFR_PKT_A	0x64
 
 #define ULP_TX_INT_CAUSE_A	0x8dcc
 
@@ -1572,6 +1605,7 @@
 #define MPS_PORT_STAT_LB_PORT_1519B_MAX_L 0x520
 #define MPS_PORT_STAT_LB_PORT_1519B_MAX_H 0x524
 #define MPS_PORT_STAT_LB_PORT_DROP_FRAMES 0x528
+#define MPS_PORT_STAT_LB_PORT_DROP_FRAMES_L 0x528
 #define MPS_PORT_STAT_RX_PORT_BYTES_L 0x540
 #define MPS_PORT_STAT_RX_PORT_BYTES_H 0x544
 #define MPS_PORT_STAT_RX_PORT_FRAMES_L 0x548
@@ -2054,6 +2088,11 @@
 #define VFLKPIDX_M    0xffU
 #define VFLKPIDX_G(x) (((x) >> VFLKPIDX_S) & VFLKPIDX_M)
 
+#define T6_VFWRADDR_S    8
+#define T6_VFWRADDR_M    0xffU
+#define T6_VFWRADDR_V(x) ((x) << T6_VFWRADDR_S)
+#define T6_VFWRADDR_G(x) (((x) >> T6_VFWRADDR_S) & T6_VFWRADDR_M)
+
 #define TP_RSS_CONFIG_CNG_A 0x7e04
 #define TP_RSS_SECRET_KEY0_A 0x40
 #define TP_RSS_PF0_CONFIG_A 0x30
@@ -2175,7 +2214,28 @@
 #define MPS_RX_PERR_INT_CAUSE_A 0x11074
 
 #define MPS_CLS_TCAM_Y_L_A 0xf000
+#define MPS_CLS_TCAM_DATA0_A 0xf000
+#define MPS_CLS_TCAM_DATA1_A 0xf004
+
+#define DMACH_S    0
+#define DMACH_M    0xffffU
+#define DMACH_G(x) (((x) >> DMACH_S) & DMACH_M)
+
 #define MPS_CLS_TCAM_X_L_A 0xf008
+#define MPS_CLS_TCAM_DATA2_CTL_A 0xf008
+
+#define CTLCMDTYPE_S    31
+#define CTLCMDTYPE_V(x) ((x) << CTLCMDTYPE_S)
+#define CTLCMDTYPE_F    CTLCMDTYPE_V(1U)
+
+#define CTLTCAMSEL_S    25
+#define CTLTCAMSEL_V(x) ((x) << CTLTCAMSEL_S)
+
+#define CTLTCAMINDEX_S    17
+#define CTLTCAMINDEX_V(x) ((x) << CTLTCAMINDEX_S)
+
+#define CTLXYBITSEL_S    16
+#define CTLXYBITSEL_V(x) ((x) << CTLXYBITSEL_S)
 
 #define MPS_CLS_TCAM_Y_L(idx) (MPS_CLS_TCAM_Y_L_A + (idx) * 16)
 #define NUM_MPS_CLS_TCAM_Y_L_INSTANCES 512
@@ -2184,6 +2244,45 @@
 #define NUM_MPS_CLS_TCAM_X_L_INSTANCES 512
 
 #define MPS_CLS_SRAM_L_A 0xe000
+
+#define T6_MULTILISTEN0_S    26
+
+#define T6_SRAM_PRIO3_S    23
+#define T6_SRAM_PRIO3_M    0x7U
+#define T6_SRAM_PRIO3_G(x) (((x) >> T6_SRAM_PRIO3_S) & T6_SRAM_PRIO3_M)
+
+#define T6_SRAM_PRIO2_S    20
+#define T6_SRAM_PRIO2_M    0x7U
+#define T6_SRAM_PRIO2_G(x) (((x) >> T6_SRAM_PRIO2_S) & T6_SRAM_PRIO2_M)
+
+#define T6_SRAM_PRIO1_S    17
+#define T6_SRAM_PRIO1_M    0x7U
+#define T6_SRAM_PRIO1_G(x) (((x) >> T6_SRAM_PRIO1_S) & T6_SRAM_PRIO1_M)
+
+#define T6_SRAM_PRIO0_S    14
+#define T6_SRAM_PRIO0_M    0x7U
+#define T6_SRAM_PRIO0_G(x) (((x) >> T6_SRAM_PRIO0_S) & T6_SRAM_PRIO0_M)
+
+#define T6_SRAM_VLD_S    13
+#define T6_SRAM_VLD_V(x) ((x) << T6_SRAM_VLD_S)
+#define T6_SRAM_VLD_F    T6_SRAM_VLD_V(1U)
+
+#define T6_REPLICATE_S    12
+#define T6_REPLICATE_V(x) ((x) << T6_REPLICATE_S)
+#define T6_REPLICATE_F    T6_REPLICATE_V(1U)
+
+#define T6_PF_S    9
+#define T6_PF_M    0x7U
+#define T6_PF_G(x) (((x) >> T6_PF_S) & T6_PF_M)
+
+#define T6_VF_VALID_S    8
+#define T6_VF_VALID_V(x) ((x) << T6_VF_VALID_S)
+#define T6_VF_VALID_F    T6_VF_VALID_V(1U)
+
+#define T6_VF_S    0
+#define T6_VF_M    0xffU
+#define T6_VF_G(x) (((x) >> T6_VF_S) & T6_VF_M)
+
 #define MPS_CLS_SRAM_H_A 0xe004
 
 #define MPS_CLS_SRAM_L(idx) (MPS_CLS_SRAM_L_A + (idx) * 8)
@@ -2433,6 +2532,8 @@
 #define CIM_F    CIM_V(1U)
 
 #define MC1_S    31
+#define MC1_V(x) ((x) << MC1_S)
+#define MC1_F    MC1_V(1U)
 
 #define PL_INT_ENABLE_A 0x19410
 #define PL_INT_MAP0_A 0x19414
@@ -2463,6 +2564,18 @@
 #define REV_V(x) ((x) << REV_S)
 #define REV_G(x) (((x) >> REV_S) & REV_M)
 
+#define T6_UNKNOWNCMD_S    3
+#define T6_UNKNOWNCMD_V(x) ((x) << T6_UNKNOWNCMD_S)
+#define T6_UNKNOWNCMD_F    T6_UNKNOWNCMD_V(1U)
+
+#define T6_LIP0_S    2
+#define T6_LIP0_V(x) ((x) << T6_LIP0_S)
+#define T6_LIP0_F    T6_LIP0_V(1U)
+
+#define T6_LIPMISS_S    1
+#define T6_LIPMISS_V(x) ((x) << T6_LIPMISS_S)
+#define T6_LIPMISS_F    T6_LIPMISS_V(1U)
+
 #define LE_DB_INT_CAUSE_A 0x19c3c
 
 #define REQQPARERR_S    16
@@ -2484,6 +2597,14 @@
 #define LIP0_S    4
 #define LIP0_V(x) ((x) << LIP0_S)
 #define LIP0_F    LIP0_V(1U)
+
+#define TCAMINTPERR_S    13
+#define TCAMINTPERR_V(x) ((x) << TCAMINTPERR_S)
+#define TCAMINTPERR_F    TCAMINTPERR_V(1U)
+
+#define SSRAMINTPERR_S    10
+#define SSRAMINTPERR_V(x) ((x) << SSRAMINTPERR_S)
+#define SSRAMINTPERR_F    SSRAMINTPERR_V(1U)
 
 #define NCSI_INT_CAUSE_A 0x1a0d8
 

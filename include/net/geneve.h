@@ -62,6 +62,11 @@ struct genevehdr {
 	struct geneve_opt options[];
 };
 
+static inline struct genevehdr *geneve_hdr(const struct sk_buff *skb)
+{
+	return (struct genevehdr *)(udp_hdr(skb) + 1);
+}
+
 #ifdef CONFIG_INET
 struct geneve_sock;
 

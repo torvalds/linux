@@ -1461,7 +1461,7 @@ overlay_rop3_store(struct device *dev, struct device_attribute *attr,
 	unsigned int rop3;
 	char *endp;
 
-	rop3 = !!simple_strtoul(buf, &endp, 10);
+	rop3 = simple_strtoul(buf, &endp, 10);
 	if (isspace(*endp))
 		endp++;
 
@@ -2605,7 +2605,6 @@ sh_mobile_lcdc_channel_init(struct sh_mobile_lcdc_chan *ch)
 	unsigned int max_size;
 	unsigned int i;
 
-	mutex_init(&ch->open_lock);
 	ch->notify = sh_mobile_lcdc_display_notify;
 
 	/* Validate the format. */
@@ -2704,7 +2703,7 @@ static int sh_mobile_lcdc_probe(struct platform_device *pdev)
 	struct resource *res;
 	int num_channels;
 	int error;
-	int i;
+	int irq, i;
 
 	if (!pdata) {
 		dev_err(&pdev->dev, "no platform data defined\n");
@@ -2712,8 +2711,8 @@ static int sh_mobile_lcdc_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	i = platform_get_irq(pdev, 0);
-	if (!res || i < 0) {
+	irq = platform_get_irq(pdev, 0);
+	if (!res || irq < 0) {
 		dev_err(&pdev->dev, "cannot get platform resources\n");
 		return -ENOENT;
 	}
@@ -2726,16 +2725,18 @@ static int sh_mobile_lcdc_probe(struct platform_device *pdev)
 
 	priv->dev = &pdev->dev;
 	priv->meram_dev = pdata->meram_dev;
+	for (i = 0; i < ARRAY_SIZE(priv->ch); i++)
+		mutex_init(&priv->ch[i].open_lock);
 	platform_set_drvdata(pdev, priv);
 
-	error = request_irq(i, sh_mobile_lcdc_irq, 0,
+	error = request_irq(irq, sh_mobile_lcdc_irq, 0,
 			    dev_name(&pdev->dev), priv);
 	if (error) {
 		dev_err(&pdev->dev, "unable to request irq\n");
 		goto err1;
 	}
 
-	priv->irq = i;
+	priv->irq = irq;
 	atomic_set(&priv->hw_usecnt, -1);
 
 	for (i = 0, num_channels = 0; i < ARRAY_SIZE(pdata->ch); i++) {

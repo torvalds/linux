@@ -625,7 +625,7 @@ int psb_intel_lvds_set_property(struct drm_connector *connector,
 		else
                         gma_backlight_set(encoder->dev, value);
 	} else if (!strcmp(property->name, "DPMS")) {
-		struct drm_encoder_helper_funcs *hfuncs
+		const struct drm_encoder_helper_funcs *hfuncs
 						= encoder->helper_private;
 		hfuncs->dpms(encoder, value);
 	}

@@ -162,10 +162,16 @@ static void kfd_process_wq_release(struct work_struct *work)
 
 	p = my_work->p;
 
+	pr_debug("Releasing process (pasid %d) in workqueue\n",
+			p->pasid);
+
 	mutex_lock(&p->mutex);
 
 	list_for_each_entry_safe(pdd, temp, &p->per_device_data,
 							per_device_list) {
+		pr_debug("Releasing pdd (topology id %d) for process (pasid %d) in workqueue\n",
+				pdd->dev->id, p->pasid);
+
 		amd_iommu_unbind_pasid(pdd->dev->pdev, p->pasid);
 		list_del(&pdd->per_device_list);
 

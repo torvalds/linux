@@ -1628,7 +1628,8 @@ static void dasd_eckd_kick_validate_server(struct dasd_device *device)
 		return;
 	}
 	/* queue call to do_validate_server to the kernel event daemon. */
-	schedule_work(&device->kick_validate);
+	if (!schedule_work(&device->kick_validate))
+		dasd_put_device(device);
 }
 
 static u32 get_fcx_max_data(struct dasd_device *device)

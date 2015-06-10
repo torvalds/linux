@@ -6618,7 +6618,7 @@ static void tg3_tx(struct tg3_napi *tnapi)
 static void tg3_frag_free(bool is_frag, void *data)
 {
 	if (is_frag)
-		put_page(virt_to_head_page(data));
+		skb_free_frag(data);
 	else
 		kfree(data);
 }
@@ -18129,7 +18129,9 @@ static pci_ers_result_t tg3_io_error_detected(struct pci_dev *pdev,
 
 	rtnl_lock();
 
-	tp->pcierr_recovery = true;
+	/* We needn't recover from permanent error */
+	if (state == pci_channel_io_frozen)
+		tp->pcierr_recovery = true;
 
 	/* We probably don't have netdev yet */
 	if (!netdev || !netif_running(netdev))

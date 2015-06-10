@@ -1843,6 +1843,12 @@ static int bnx2x_set_ringparam(struct net_device *dev,
 	   "set ring params command parameters: rx_pending = %d, tx_pending = %d\n",
 	   ering->rx_pending, ering->tx_pending);
 
+	if (pci_num_vf(bp->pdev)) {
+		DP(BNX2X_MSG_IOV,
+		   "VFs are enabled, can not change ring parameters\n");
+		return -EPERM;
+	}
+
 	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
 		DP(BNX2X_MSG_ETHTOOL,
 		   "Handling parity error recovery. Try again later\n");
@@ -2899,6 +2905,12 @@ static void bnx2x_self_test(struct net_device *dev,
 	u8 is_serdes, link_up;
 	int rc, cnt = 0;
 
+	if (pci_num_vf(bp->pdev)) {
+		DP(BNX2X_MSG_IOV,
+		   "VFs are enabled, can not perform self test\n");
+		return;
+	}
+
 	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
 		netdev_err(bp->dev,
 			   "Handling parity error recovery. Try again later\n");
@@ -3467,6 +3479,11 @@ static int bnx2x_set_channels(struct net_device *dev,
 	   "set-channels command parameters: rx = %d, tx = %d, other = %d, combined = %d\n",
 	   channels->rx_count, channels->tx_count, channels->other_count,
 	   channels->combined_count);
+
+	if (pci_num_vf(bp->pdev)) {
+		DP(BNX2X_MSG_IOV, "VFs are enabled, can not set channels\n");
+		return -EPERM;
+	}
 
 	/* We don't support separate rx / tx channels.
 	 * We don't allow setting 'other' channels.

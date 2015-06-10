@@ -63,11 +63,6 @@ int show_cpuinfo(struct seq_file *m, void *v)
 
 	info = &cpinfo[ARRAY_SIZE(cpinfo) - 1];
 
-#ifdef CONFIG_SMP
-	if (!cpu_online(cpu))
-		return 0;
-#endif
-
 	revision = rdvr();
 
 	for (i = 0; i < ARRAY_SIZE(cpinfo); i++) {

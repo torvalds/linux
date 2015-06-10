@@ -37,10 +37,6 @@
 #include <net/route.h>
 #include <net/netfilter/br_netfilter.h>
 
-#if IS_ENABLED(CONFIG_NF_CONNTRACK)
-#include <net/netfilter/nf_conntrack.h>
-#endif
-
 #include <asm/uaccess.h>
 #include "br_private.h"
 #ifdef CONFIG_SYSCTL
@@ -127,6 +123,14 @@ static DEFINE_PER_CPU(struct brnf_frag_data, brnf_frag_data_storage);
 static struct nf_bridge_info *nf_bridge_info_get(const struct sk_buff *skb)
 {
 	return skb->nf_bridge;
+}
+
+static void nf_bridge_info_free(struct sk_buff *skb)
+{
+	if (skb->nf_bridge) {
+		nf_bridge_put(skb->nf_bridge);
+		skb->nf_bridge = NULL;
+	}
 }
 
 static inline struct rtable *bridge_parent_rtable(const struct net_device *dev)
@@ -350,24 +354,15 @@ free_skb:
 	return 0;
 }
 
-static bool dnat_took_place(const struct sk_buff *skb)
+static bool daddr_was_changed(const struct sk_buff *skb,
+			      const struct nf_bridge_info *nf_bridge)
 {
-#if IS_ENABLED(CONFIG_NF_CONNTRACK)
-	enum ip_conntrack_info ctinfo;
-	struct nf_conn *ct;
-
-	ct = nf_ct_get(skb, &ctinfo);
-	if (!ct || nf_ct_is_untracked(ct))
-		return false;
-
-	return test_bit(IPS_DST_NAT_BIT, &ct->status);
-#else
-	return false;
-#endif
+	return ip_hdr(skb)->daddr != nf_bridge->ipv4_daddr;
 }
 
 /* This requires some explaining. If DNAT has taken place,
  * we will need to fix up the destination Ethernet address.
+ * This is also true when SNAT takes place (for the reply direction).
  *
  * There are two cases to consider:
  * 1. The packet was DNAT'ed to a device in the same bridge
@@ -421,7 +416,7 @@ static int br_nf_pre_routing_finish(struct sock *sk, struct sk_buff *skb)
 		nf_bridge->pkt_otherhost = false;
 	}
 	nf_bridge->mask ^= BRNF_NF_BRIDGE_PREROUTING;
-	if (dnat_took_place(skb)) {
+	if (daddr_was_changed(skb, nf_bridge)) {
 		if ((err = ip_route_input(skb, iph->daddr, iph->saddr, iph->tos, dev))) {
 			struct in_device *in_dev = __in_dev_get_rcu(dev);
 
@@ -632,6 +627,7 @@ static unsigned int br_nf_pre_routing(const struct nf_hook_ops *ops,
 				      struct sk_buff *skb,
 				      const struct nf_hook_state *state)
 {
+	struct nf_bridge_info *nf_bridge;
 	struct net_bridge_port *p;
 	struct net_bridge *br;
 	__u32 len = nf_bridge_encap_header_len(skb);
@@ -668,6 +664,9 @@ static unsigned int br_nf_pre_routing(const struct nf_hook_ops *ops,
 		return NF_DROP;
 	if (!setup_pre_routing(skb))
 		return NF_DROP;
+
+	nf_bridge = nf_bridge_info_get(skb);
+	nf_bridge->ipv4_daddr = ip_hdr(skb)->daddr;
 
 	skb->protocol = htons(ETH_P_IP);
 
@@ -841,7 +840,27 @@ static int br_nf_push_frag_xmit(struct sock *sk, struct sk_buff *skb)
 	skb_copy_to_linear_data_offset(skb, -data->size, data->mac, data->size);
 	__skb_push(skb, data->encap_size);
 
+	nf_bridge_info_free(skb);
 	return br_dev_queue_push_xmit(sk, skb);
+}
+
+static int br_nf_ip_fragment(struct sock *sk, struct sk_buff *skb,
+			     int (*output)(struct sock *, struct sk_buff *))
+{
+	unsigned int mtu = ip_skb_dst_mtu(skb);
+	struct iphdr *iph = ip_hdr(skb);
+	struct rtable *rt = skb_rtable(skb);
+	struct net_device *dev = rt->dst.dev;
+
+	if (unlikely(((iph->frag_off & htons(IP_DF)) && !skb->ignore_df) ||
+		     (IPCB(skb)->frag_max_size &&
+		      IPCB(skb)->frag_max_size > mtu))) {
+		IP_INC_STATS(dev_net(dev), IPSTATS_MIB_FRAGFAILS);
+		kfree_skb(skb);
+		return -EMSGSIZE;
+	}
+
+	return ip_do_fragment(sk, skb, output);
 }
 
 static int br_nf_dev_queue_xmit(struct sock *sk, struct sk_buff *skb)
@@ -850,8 +869,10 @@ static int br_nf_dev_queue_xmit(struct sock *sk, struct sk_buff *skb)
 	int frag_max_size;
 	unsigned int mtu_reserved;
 
-	if (skb_is_gso(skb) || skb->protocol != htons(ETH_P_IP))
+	if (skb_is_gso(skb) || skb->protocol != htons(ETH_P_IP)) {
+		nf_bridge_info_free(skb);
 		return br_dev_queue_push_xmit(sk, skb);
+	}
 
 	mtu_reserved = nf_bridge_mtu_reduction(skb);
 	/* This is wrong! We should preserve the original fragment
@@ -875,8 +896,9 @@ static int br_nf_dev_queue_xmit(struct sock *sk, struct sk_buff *skb)
 		skb_copy_from_linear_data_offset(skb, -data->size, data->mac,
 						 data->size);
 
-		ret = ip_fragment(sk, skb, br_nf_push_frag_xmit);
+		ret = br_nf_ip_fragment(sk, skb, br_nf_push_frag_xmit);
 	} else {
+		nf_bridge_info_free(skb);
 		ret = br_dev_queue_push_xmit(sk, skb);
 	}
 
@@ -885,7 +907,8 @@ static int br_nf_dev_queue_xmit(struct sock *sk, struct sk_buff *skb)
 #else
 static int br_nf_dev_queue_xmit(struct sock *sk, struct sk_buff *skb)
 {
-        return br_dev_queue_push_xmit(sk, skb);
+	nf_bridge_info_free(skb);
+	return br_dev_queue_push_xmit(sk, skb);
 }
 #endif
 
@@ -973,6 +996,8 @@ static void br_nf_pre_routing_finish_bridge_slow(struct sk_buff *skb)
 				       nf_bridge->neigh_header,
 				       ETH_HLEN - ETH_ALEN);
 	skb->dev = nf_bridge->physindev;
+
+	nf_bridge->physoutdev = NULL;
 	br_handle_frame_finish(NULL, skb);
 }
 

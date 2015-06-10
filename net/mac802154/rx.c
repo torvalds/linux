@@ -47,8 +47,6 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 
 	pr_debug("getting packet via slave interface %s\n", sdata->dev->name);
 
-	spin_lock_bh(&sdata->mib_lock);
-
 	span = wpan_dev->pan_id;
 	sshort = wpan_dev->short_addr;
 
@@ -83,12 +81,9 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 			skb->pkt_type = PACKET_OTHERHOST;
 		break;
 	default:
-		spin_unlock_bh(&sdata->mib_lock);
 		pr_debug("invalid dest mode\n");
 		goto fail;
 	}
-
-	spin_unlock_bh(&sdata->mib_lock);
 
 	skb->dev = sdata->dev;
 

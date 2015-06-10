@@ -1,0 +1,40 @@
+#
+# Cavium ethernet device configuration
+#
+
+config NET_VENDOR_CAVIUM
+	tristate "Cavium ethernet drivers"
+	depends on PCI && 64BIT
+	---help---
+	  Enable support for the Cavium ThunderX Network Interface
+	  Controller (NIC). The NIC provides the controller and DMA
+	  engines to move network traffic to/from the memory. The NIC
+	  works closely with TNS, BGX and SerDes to implement the
+	  functions replacing and virtualizing those of a typical
+	  standalone PCIe NIC chip.
+
+	  If you have a Cavium Thunder board, say Y.
+
+if NET_VENDOR_CAVIUM
+
+config THUNDER_NIC_PF
+	tristate "Thunder Physical function driver"
+	default NET_VENDOR_CAVIUM
+	select THUNDER_NIC_BGX
+	---help---
+	  This driver supports Thunder's NIC physical function.
+
+config THUNDER_NIC_VF
+	tristate "Thunder Virtual function driver"
+	default NET_VENDOR_CAVIUM
+	---help---
+	  This driver supports Thunder's NIC virtual function
+
+config	THUNDER_NIC_BGX
+	tristate "Thunder MAC interface driver (BGX)"
+	default NET_VENDOR_CAVIUM
+	---help---
+	  This driver supports programming and controlling of MAC
+	  interface from NIC physical function driver.
+
+endif # NET_VENDOR_CAVIUM

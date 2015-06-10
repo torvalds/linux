@@ -108,6 +108,7 @@ struct nlmsgerr {
 #define NETLINK_NO_ENOBUFS	5
 #define NETLINK_RX_RING		6
 #define NETLINK_TX_RING		7
+#define NETLINK_LISTEN_ALL_NSID	8
 
 struct nl_pktinfo {
 	__u32	group;

@@ -8,7 +8,16 @@
  */
 /dts-v1/;
 
-#include "omap34xx-hs.dtsi"
+#include "omap34xx.dtsi"
+
+/* Secure omaps have some devices inaccessible depending on the firmware */
+&aes {
+	status = "disabled";
+};
+
+&sham {
+	status = "disabled";
+};
 
 / {
 	cpus {
@@ -45,7 +54,6 @@
 
 		/* McBSP2 is used for onboard sound, same as on beagle */
 		ti,mcbsp = <&mcbsp2>;
-		ti,codec = <&twl_audio>;
 	};
 
 	/* Regulator to enable/switch the vcc of the Wifi module */

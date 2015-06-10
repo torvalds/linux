@@ -103,6 +103,39 @@ static s32 ixgbe_init_eeprom_params_X550(struct ixgbe_hw *hw)
 	return 0;
 }
 
+/**
+ * ixgbe_iosf_wait - Wait for IOSF command completion
+ * @hw: pointer to hardware structure
+ * @ctrl: pointer to location to receive final IOSF control value
+ *
+ * Return: failing status on timeout
+ *
+ * Note: ctrl can be NULL if the IOSF control register value is not needed
+ */
+static s32 ixgbe_iosf_wait(struct ixgbe_hw *hw, u32 *ctrl)
+{
+	u32 i, command;
+
+	/* Check every 10 usec to see if the address cycle completed.
+	 * The SB IOSF BUSY bit will clear when the operation is
+	 * complete.
+	 */
+	for (i = 0; i < IXGBE_MDIO_COMMAND_TIMEOUT; i++) {
+		command = IXGBE_READ_REG(hw, IXGBE_SB_IOSF_INDIRECT_CTRL);
+		if (!(command & IXGBE_SB_IOSF_CTRL_BUSY))
+			break;
+		usleep_range(10, 20);
+	}
+	if (ctrl)
+		*ctrl = command;
+	if (i == IXGBE_MDIO_COMMAND_TIMEOUT) {
+		hw_dbg(hw, "IOSF wait timed out\n");
+		return IXGBE_ERR_PHY;
+	}
+
+	return 0;
+}
+
 /** ixgbe_read_iosf_sb_reg_x550 - Writes a value to specified register of the
  *  IOSF device
  *  @hw: pointer to hardware structure
@@ -113,7 +146,17 @@ static s32 ixgbe_init_eeprom_params_X550(struct ixgbe_hw *hw)
 static s32 ixgbe_read_iosf_sb_reg_x550(struct ixgbe_hw *hw, u32 reg_addr,
 				       u32 device_type, u32 *data)
 {
-	u32 i, command, error;
+	u32 gssr = IXGBE_GSSR_PHY1_SM | IXGBE_GSSR_PHY0_SM;
+	u32 command, error;
+	s32 ret;
+
+	ret = hw->mac.ops.acquire_swfw_sync(hw, gssr);
+	if (ret)
+		return ret;
+
+	ret = ixgbe_iosf_wait(hw, NULL);
+	if (ret)
+		goto out;
 
 	command = ((reg_addr << IXGBE_SB_IOSF_CTRL_ADDR_SHIFT) |
 		   (device_type << IXGBE_SB_IOSF_CTRL_TARGET_SELECT_SHIFT));
@@ -121,17 +164,7 @@ static s32 ixgbe_read_iosf_sb_reg_x550(struct ixgbe_hw *hw, u32 reg_addr,
 	/* Write IOSF control register */
 	IXGBE_WRITE_REG(hw, IXGBE_SB_IOSF_INDIRECT_CTRL, command);
 
-	/* Check every 10 usec to see if the address cycle completed.
-	 * The SB IOSF BUSY bit will clear when the operation is
-	 * complete
-	 */
-	for (i = 0; i < IXGBE_MDIO_COMMAND_TIMEOUT; i++) {
-		usleep_range(10, 20);
-
-		command = IXGBE_READ_REG(hw, IXGBE_SB_IOSF_INDIRECT_CTRL);
-		if ((command & IXGBE_SB_IOSF_CTRL_BUSY) == 0)
-			break;
-	}
+	ret = ixgbe_iosf_wait(hw, &command);
 
 	if ((command & IXGBE_SB_IOSF_CTRL_RESP_STAT_MASK) != 0) {
 		error = (command & IXGBE_SB_IOSF_CTRL_CMPL_ERR_MASK) >>
@@ -140,14 +173,12 @@ static s32 ixgbe_read_iosf_sb_reg_x550(struct ixgbe_hw *hw, u32 reg_addr,
 		return IXGBE_ERR_PHY;
 	}
 
-	if (i == IXGBE_MDIO_COMMAND_TIMEOUT) {
-		hw_dbg(hw, "Read timed out\n");
-		return IXGBE_ERR_PHY;
-	}
+	if (!ret)
+		*data = IXGBE_READ_REG(hw, IXGBE_SB_IOSF_INDIRECT_DATA);
 
-	*data = IXGBE_READ_REG(hw, IXGBE_SB_IOSF_INDIRECT_DATA);
-
-	return 0;
+out:
+	hw->mac.ops.release_swfw_sync(hw, gssr);
+	return ret;
 }
 
 /** ixgbe_read_ee_hostif_data_X550 - Read EEPROM word using a host interface
@@ -789,7 +820,17 @@ static s32 ixgbe_get_link_capabilities_X550em(struct ixgbe_hw *hw,
 static s32 ixgbe_write_iosf_sb_reg_x550(struct ixgbe_hw *hw, u32 reg_addr,
 					u32 device_type, u32 data)
 {
-	u32 i, command, error;
+	u32 gssr = IXGBE_GSSR_PHY1_SM | IXGBE_GSSR_PHY0_SM;
+	u32 command, error;
+	s32 ret;
+
+	ret = hw->mac.ops.acquire_swfw_sync(hw, gssr);
+	if (ret)
+		return ret;
+
+	ret = ixgbe_iosf_wait(hw, NULL);
+	if (ret)
+		goto out;
 
 	command = ((reg_addr << IXGBE_SB_IOSF_CTRL_ADDR_SHIFT) |
 		   (device_type << IXGBE_SB_IOSF_CTRL_TARGET_SELECT_SHIFT));
@@ -800,17 +841,7 @@ static s32 ixgbe_write_iosf_sb_reg_x550(struct ixgbe_hw *hw, u32 reg_addr,
 	/* Write IOSF data register */
 	IXGBE_WRITE_REG(hw, IXGBE_SB_IOSF_INDIRECT_DATA, data);
 
-	/* Check every 10 usec to see if the address cycle completed.
-	 * The SB IOSF BUSY bit will clear when the operation is
-	 * complete
-	 */
-	for (i = 0; i < IXGBE_MDIO_COMMAND_TIMEOUT; i++) {
-		usleep_range(10, 20);
-
-		command = IXGBE_READ_REG(hw, IXGBE_SB_IOSF_INDIRECT_CTRL);
-		if ((command & IXGBE_SB_IOSF_CTRL_BUSY) == 0)
-			break;
-	}
+	ret = ixgbe_iosf_wait(hw, &command);
 
 	if ((command & IXGBE_SB_IOSF_CTRL_RESP_STAT_MASK) != 0) {
 		error = (command & IXGBE_SB_IOSF_CTRL_CMPL_ERR_MASK) >>
@@ -819,12 +850,9 @@ static s32 ixgbe_write_iosf_sb_reg_x550(struct ixgbe_hw *hw, u32 reg_addr,
 		return IXGBE_ERR_PHY;
 	}
 
-	if (i == IXGBE_MDIO_COMMAND_TIMEOUT) {
-		hw_dbg(hw, "Write timed out\n");
-		return IXGBE_ERR_PHY;
-	}
-
-	return 0;
+out:
+	hw->mac.ops.release_swfw_sync(hw, gssr);
+	return ret;
 }
 
 /** ixgbe_setup_ixfi_x550em - Configure the KR PHY for iXFI mode.
@@ -1035,7 +1063,7 @@ static s32 ixgbe_setup_kr_x550em(struct ixgbe_hw *hw)
  **/
 static s32 ixgbe_setup_internal_phy_x550em(struct ixgbe_hw *hw)
 {
-	u32 status;
+	s32 status;
 	u16 lasi, autoneg_status, speed;
 	ixgbe_link_speed force_speed;
 
@@ -1177,7 +1205,7 @@ static enum ixgbe_media_type ixgbe_get_media_type_X550em(struct ixgbe_hw *hw)
  **/
 static s32 ixgbe_init_ext_t_x550em(struct ixgbe_hw *hw)
 {
-	u32 status;
+	s32 status;
 	u16 reg;
 	u32 retries = 2;
 

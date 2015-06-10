@@ -131,6 +131,11 @@ struct dvb_frontend_private {
 	int quality;
 	unsigned int check_wrapped;
 	enum dvbfe_search algo_status;
+
+#if defined(CONFIG_MEDIA_CONTROLLER_DVB)
+	struct media_pipeline pipe;
+	struct media_entity *pipe_start_entity;
+#endif
 };
 
 static void dvb_frontend_wakeup(struct dvb_frontend *fe);
@@ -590,12 +595,106 @@ static void dvb_frontend_wakeup(struct dvb_frontend *fe)
 	wake_up_interruptible(&fepriv->wait_queue);
 }
 
+/**
+ * dvb_enable_media_tuner() - tries to enable the DVB tuner
+ *
+ * @fe:		struct dvb_frontend pointer
+ *
+ * This function ensures that just one media tuner is enabled for a given
+ * frontend. It has two different behaviors:
+ * - For trivial devices with just one tuner:
+ *   it just enables the existing tuner->fe link
+ * - For devices with more than one tuner:
+ *   It is up to the driver to implement the logic that will enable one tuner
+ *   and disable the other ones. However, if more than one tuner is enabled for
+ *   the same frontend, it will print an error message and return -EINVAL.
+ *
+ * At return, it will return the error code returned by media_entity_setup_link,
+ * or 0 if everything is OK, if no tuner is linked to the frontend or if the
+ * mdev is NULL.
+ */
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+static int dvb_enable_media_tuner(struct dvb_frontend *fe)
+{
+	struct dvb_frontend_private *fepriv = fe->frontend_priv;
+	struct dvb_adapter *adapter = fe->dvb;
+	struct media_device *mdev = adapter->mdev;
+	struct media_entity  *entity, *source;
+	struct media_link *link, *found_link = NULL;
+	int i, ret, n_links = 0, active_links = 0;
+
+	fepriv->pipe_start_entity = NULL;
+
+	if (!mdev)
+		return 0;
+
+	entity = fepriv->dvbdev->entity;
+	fepriv->pipe_start_entity = entity;
+
+	for (i = 0; i < entity->num_links; i++) {
+		link = &entity->links[i];
+		if (link->sink->entity == entity) {
+			found_link = link;
+			n_links++;
+			if (link->flags & MEDIA_LNK_FL_ENABLED)
+				active_links++;
+		}
+	}
+
+	if (!n_links || active_links == 1 || !found_link)
+		return 0;
+
+	/*
+	 * If a frontend has more than one tuner linked, it is up to the driver
+	 * to select with one will be the active one, as the frontend core can't
+	 * guess. If the driver doesn't do that, it is a bug.
+	 */
+	if (n_links > 1 && active_links != 1) {
+		dev_err(fe->dvb->device,
+			"WARNING: there are %d active links among %d tuners. This is a driver's bug!\n",
+			active_links, n_links);
+		return -EINVAL;
+	}
+
+	source = found_link->source->entity;
+	fepriv->pipe_start_entity = source;
+	for (i = 0; i < source->num_links; i++) {
+		struct media_entity *sink;
+		int flags = 0;
+
+		link = &source->links[i];
+		sink = link->sink->entity;
+
+		if (sink == entity)
+			flags = MEDIA_LNK_FL_ENABLED;
+
+		ret = media_entity_setup_link(link, flags);
+		if (ret) {
+			dev_err(fe->dvb->device,
+				"Couldn't change link %s->%s to %s. Error %d\n",
+				source->name, sink->name,
+				flags ? "enabled" : "disabled",
+				ret);
+			return ret;
+		} else
+			dev_dbg(fe->dvb->device,
+				"link %s->%s was %s\n",
+				source->name, sink->name,
+				flags ? "ENABLED" : "disabled");
+	}
+	return 0;
+}
+#endif
+
 static int dvb_frontend_thread(void *data)
 {
 	struct dvb_frontend *fe = data;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	fe_status_t s;
 	enum dvbfe_algo algo;
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	int ret;
+#endif
 
 	bool re_tune = false;
 	bool semheld = false;
@@ -608,6 +707,20 @@ static int dvb_frontend_thread(void *data)
 	fepriv->status = 0;
 	fepriv->wakeup = 0;
 	fepriv->reinitialise = 0;
+
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	ret = dvb_enable_media_tuner(fe);
+	if (ret) {
+		/* FIXME: return an error if it fails */
+		dev_info(fe->dvb->device,
+			"proceeding with FE task\n");
+	} else if (fepriv->pipe_start_entity) {
+		ret = media_entity_pipeline_start(fepriv->pipe_start_entity,
+						  &fepriv->pipe);
+		if (ret)
+			return ret;
+	}
+#endif
 
 	dvb_frontend_init(fe);
 
@@ -717,6 +830,12 @@ restart:
 			dvb_frontend_swzigzag(fe);
 		}
 	}
+
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	if (fepriv->pipe_start_entity)
+		media_entity_pipeline_stop(fepriv->pipe_start_entity);
+	fepriv->pipe_start_entity = NULL;
+#endif
 
 	if (dvb_powerdown_on_sleep) {
 		if (fe->ops.set_voltage)
@@ -2612,11 +2731,14 @@ int dvb_register_frontend(struct dvb_adapter* dvb,
 			  struct dvb_frontend* fe)
 {
 	struct dvb_frontend_private *fepriv;
-	static const struct dvb_device dvbdev_template = {
+	const struct dvb_device dvbdev_template = {
 		.users = ~0,
 		.writers = 1,
 		.readers = (~0)-1,
 		.fops = &dvb_frontend_fops,
+#if defined(CONFIG_MEDIA_CONTROLLER_DVB)
+		.name = fe->ops.info.name,
+#endif
 		.kernel_ioctl = dvb_frontend_ioctl
 	};
 

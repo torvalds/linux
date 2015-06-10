@@ -117,7 +117,7 @@ static int kempld_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 		= container_of(chip, struct kempld_gpio_data, chip);
 	struct kempld_device_data *pld = gpio->pld;
 
-	return kempld_gpio_get_bit(pld, KEMPLD_GPIO_DIR_NUM(offset), offset);
+	return !kempld_gpio_get_bit(pld, KEMPLD_GPIO_DIR_NUM(offset), offset);
 }
 
 static int kempld_gpio_pincount(struct kempld_device_data *pld)
@@ -156,7 +156,7 @@ static int kempld_gpio_probe(struct platform_device *pdev)
 	}
 
 	gpio = devm_kzalloc(dev, sizeof(*gpio), GFP_KERNEL);
-	if (gpio == NULL)
+	if (!gpio)
 		return -ENOMEM;
 
 	gpio->pld = pld;

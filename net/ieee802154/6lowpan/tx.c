@@ -207,7 +207,7 @@ static int lowpan_header(struct sk_buff *skb, struct net_device *dev)
 
 	/* prepare wpan address data */
 	sa.mode = IEEE802154_ADDR_LONG;
-	sa.pan_id = ieee802154_mlme_ops(dev)->get_pan_id(dev);
+	sa.pan_id = lowpan_dev_info(dev)->real_dev->ieee802154_ptr->pan_id;
 	sa.extended_addr = ieee802154_devaddr_from_raw(saddr);
 
 	/* intra-PAN communications */

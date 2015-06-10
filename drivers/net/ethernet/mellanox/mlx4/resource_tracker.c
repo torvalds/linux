@@ -2703,6 +2703,10 @@ static void adjust_proxy_tun_qkey(struct mlx4_dev *dev, struct mlx4_vhcr *vhcr,
 	context->qkey = cpu_to_be32(qkey);
 }
 
+static int adjust_qp_sched_queue(struct mlx4_dev *dev, int slave,
+				 struct mlx4_qp_context *qpc,
+				 struct mlx4_cmd_mailbox *inbox);
+
 int mlx4_RST2INIT_QP_wrapper(struct mlx4_dev *dev, int slave,
 			     struct mlx4_vhcr *vhcr,
 			     struct mlx4_cmd_mailbox *inbox,
@@ -2724,6 +2728,10 @@ int mlx4_RST2INIT_QP_wrapper(struct mlx4_dev *dev, int slave,
 	int use_srq = (qp_get_srqn(qpc) >> 24) & 1;
 	struct res_srq *srq;
 	int local_qpn = be32_to_cpu(qpc->local_qpn) & 0xffffff;
+
+	err = adjust_qp_sched_queue(dev, slave, qpc, inbox);
+	if (err)
+		return err;
 
 	err = qp_res_start_move_to(dev, slave, qpn, RES_QP_HW, &qp, 0);
 	if (err)
@@ -2845,7 +2853,7 @@ int mlx4_SW2HW_EQ_wrapper(struct mlx4_dev *dev, int slave,
 {
 	int err;
 	int eqn = vhcr->in_modifier;
-	int res_id = (slave << 8) | eqn;
+	int res_id = (slave << 10) | eqn;
 	struct mlx4_eq_context *eqc = inbox->buf;
 	int mtt_base = eq_get_mtt_addr(eqc) / dev->caps.mtt_entry_sz;
 	int mtt_size = eq_get_mtt_size(eqc);
@@ -3051,7 +3059,7 @@ int mlx4_HW2SW_EQ_wrapper(struct mlx4_dev *dev, int slave,
 			  struct mlx4_cmd_info *cmd)
 {
 	int eqn = vhcr->in_modifier;
-	int res_id = eqn | (slave << 8);
+	int res_id = eqn | (slave << 10);
 	struct res_eq *eq;
 	int err;
 
@@ -3108,7 +3116,7 @@ int mlx4_GEN_EQE(struct mlx4_dev *dev, int slave, struct mlx4_eqe *eqe)
 		return 0;
 
 	mutex_lock(&priv->mfunc.master.gen_eqe_mutex[slave]);
-	res_id = (slave << 8) | event_eq->eqn;
+	res_id = (slave << 10) | event_eq->eqn;
 	err = get_res(dev, slave, res_id, RES_EQ, &req);
 	if (err)
 		goto unlock;
@@ -3131,7 +3139,7 @@ int mlx4_GEN_EQE(struct mlx4_dev *dev, int slave, struct mlx4_eqe *eqe)
 
 	memcpy(mailbox->buf, (u8 *) eqe, 28);
 
-	in_modifier = (slave & 0xff) | ((event_eq->eqn & 0xff) << 16);
+	in_modifier = (slave & 0xff) | ((event_eq->eqn & 0x3ff) << 16);
 
 	err = mlx4_cmd(dev, mailbox->dma, in_modifier, 0,
 		       MLX4_CMD_GEN_EQE, MLX4_CMD_TIME_CLASS_B,
@@ -3157,7 +3165,7 @@ int mlx4_QUERY_EQ_wrapper(struct mlx4_dev *dev, int slave,
 			  struct mlx4_cmd_info *cmd)
 {
 	int eqn = vhcr->in_modifier;
-	int res_id = eqn | (slave << 8);
+	int res_id = eqn | (slave << 10);
 	struct res_eq *eq;
 	int err;
 
@@ -3187,7 +3195,7 @@ int mlx4_SW2HW_CQ_wrapper(struct mlx4_dev *dev, int slave,
 	int cqn = vhcr->in_modifier;
 	struct mlx4_cq_context *cqc = inbox->buf;
 	int mtt_base = cq_get_mtt_addr(cqc) / dev->caps.mtt_entry_sz;
-	struct res_cq *cq;
+	struct res_cq *cq = NULL;
 	struct res_mtt *mtt;
 
 	err = cq_res_start_move_to(dev, slave, cqn, RES_CQ_HW, &cq);
@@ -3223,7 +3231,7 @@ int mlx4_HW2SW_CQ_wrapper(struct mlx4_dev *dev, int slave,
 {
 	int err;
 	int cqn = vhcr->in_modifier;
-	struct res_cq *cq;
+	struct res_cq *cq = NULL;
 
 	err = cq_res_start_move_to(dev, slave, cqn, RES_CQ_ALLOCATED, &cq);
 	if (err)
@@ -3362,7 +3370,7 @@ int mlx4_SW2HW_SRQ_wrapper(struct mlx4_dev *dev, int slave,
 	int err;
 	int srqn = vhcr->in_modifier;
 	struct res_mtt *mtt;
-	struct res_srq *srq;
+	struct res_srq *srq = NULL;
 	struct mlx4_srq_context *srqc = inbox->buf;
 	int mtt_base = srq_get_mtt_addr(srqc) / dev->caps.mtt_entry_sz;
 
@@ -3406,7 +3414,7 @@ int mlx4_HW2SW_SRQ_wrapper(struct mlx4_dev *dev, int slave,
 {
 	int err;
 	int srqn = vhcr->in_modifier;
-	struct res_srq *srq;
+	struct res_srq *srq = NULL;
 
 	err = srq_res_start_move_to(dev, slave, srqn, RES_SRQ_ALLOCATED, &srq);
 	if (err)
@@ -3526,8 +3534,8 @@ static int adjust_qp_sched_queue(struct mlx4_dev *dev, int slave,
 	pri_sched_queue = (qpc->pri_path.sched_queue & ~(1 << 6)) |
 			  ((port & 1) << 6);
 
-	if (optpar & MLX4_QP_OPTPAR_PRIMARY_ADDR_PATH ||
-	    mlx4_is_eth(dev, port + 1)) {
+	if (optpar & (MLX4_QP_OPTPAR_PRIMARY_ADDR_PATH | MLX4_QP_OPTPAR_SCHED_QUEUE) ||
+	    qpc->pri_path.sched_queue || mlx4_is_eth(dev, port + 1)) {
 		qpc->pri_path.sched_queue = pri_sched_queue;
 	}
 
@@ -3965,6 +3973,22 @@ static int validate_eth_header_mac(int slave, struct _rule_hw *eth_header,
 	return 0;
 }
 
+static void handle_eth_header_mcast_prio(struct mlx4_net_trans_rule_hw_ctrl *ctrl,
+					 struct _rule_hw *eth_header)
+{
+	if (is_multicast_ether_addr(eth_header->eth.dst_mac) ||
+	    is_broadcast_ether_addr(eth_header->eth.dst_mac)) {
+		struct mlx4_net_trans_rule_hw_eth *eth =
+			(struct mlx4_net_trans_rule_hw_eth *)eth_header;
+		struct _rule_hw *next_rule = (struct _rule_hw *)(eth + 1);
+		bool last_rule = next_rule->size == 0 && next_rule->id == 0 &&
+			next_rule->rsvd == 0;
+
+		if (last_rule)
+			ctrl->prio = cpu_to_be16(MLX4_DOMAIN_NIC);
+	}
+}
+
 /*
  * In case of missing eth header, append eth header with a MAC address
  * assigned to the VF.
@@ -4117,6 +4141,12 @@ int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 	rule_header = (struct _rule_hw *)(ctrl + 1);
 	header_id = map_hw_to_sw_id(be16_to_cpu(rule_header->id));
 
+	if (header_id == MLX4_NET_TRANS_RULE_ID_ETH)
+		handle_eth_header_mcast_prio(ctrl, rule_header);
+
+	if (slave == dev->caps.function)
+		goto execute;
+
 	switch (header_id) {
 	case MLX4_NET_TRANS_RULE_ID_ETH:
 		if (validate_eth_header_mac(slave, rule_header, rlist)) {
@@ -4143,6 +4173,7 @@ int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 		goto err_put;
 	}
 
+execute:
 	err = mlx4_cmd_imm(dev, inbox->dma, &vhcr->out_param,
 			   vhcr->in_modifier, 0,
 			   MLX4_QP_FLOW_STEERING_ATTACH, MLX4_CMD_TIME_CLASS_A,
@@ -4714,13 +4745,13 @@ static void rem_slave_eqs(struct mlx4_dev *dev, int slave)
 					break;
 
 				case RES_EQ_HW:
-					err = mlx4_cmd(dev, slave, eqn & 0xff,
+					err = mlx4_cmd(dev, slave, eqn & 0x3ff,
 						       1, MLX4_CMD_HW2SW_EQ,
 						       MLX4_CMD_TIME_CLASS_A,
 						       MLX4_CMD_NATIVE);
 					if (err)
 						mlx4_dbg(dev, "rem_slave_eqs: failed to move slave %d eqs %d to SW ownership\n",
-							 slave, eqn);
+							 slave, eqn & 0x3ff);
 					atomic_dec(&eq->mtt->ref_count);
 					state = RES_EQ_RESERVED;
 					break;

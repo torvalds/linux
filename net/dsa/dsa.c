@@ -359,7 +359,7 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	 */
 	ds = kzalloc(sizeof(*ds) + drv->priv_size, GFP_KERNEL);
 	if (ds == NULL)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	ds->dst = dst;
 	ds->index = index;
@@ -370,7 +370,7 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 
 	ret = dsa_switch_setup_one(ds, parent);
 	if (ret)
-		return NULL;
+		return ERR_PTR(ret);
 
 	return ds;
 }
@@ -633,7 +633,7 @@ static int dsa_of_probe(struct device *dev)
 		if (cd->sw_addr > PHY_MAX_ADDR)
 			continue;
 
-		if (!of_property_read_u32(np, "eeprom-length", &eeprom_len))
+		if (!of_property_read_u32(child, "eeprom-length", &eeprom_len))
 			cd->eeprom_len = eeprom_len;
 
 		for_each_available_child_of_node(child, port) {

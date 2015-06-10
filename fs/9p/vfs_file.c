@@ -151,7 +151,7 @@ static int v9fs_file_do_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
 	struct p9_flock flock;
 	struct p9_fid *fid;
-	uint8_t status;
+	uint8_t status = P9_LOCK_ERROR;
 	int res = 0;
 	unsigned char fl_type;
 
@@ -196,7 +196,7 @@ static int v9fs_file_do_lock(struct file *filp, int cmd, struct file_lock *fl)
 	for (;;) {
 		res = p9_client_lock_dotl(fid, &flock, &status);
 		if (res < 0)
-			break;
+			goto out_unlock;
 
 		if (status != P9_LOCK_BLOCKED)
 			break;
@@ -214,14 +214,16 @@ static int v9fs_file_do_lock(struct file *filp, int cmd, struct file_lock *fl)
 	case P9_LOCK_BLOCKED:
 		res = -EAGAIN;
 		break;
+	default:
+		WARN_ONCE(1, "unknown lock status code: %d\n", status);
+		/* fallthough */
 	case P9_LOCK_ERROR:
 	case P9_LOCK_GRACE:
 		res = -ENOLCK;
 		break;
-	default:
-		BUG();
 	}
 
+out_unlock:
 	/*
 	 * incase server returned error for lock request, revert
 	 * it locally

@@ -1028,7 +1028,7 @@ static int _do_truncate(struct inode *inode, loff_t newsize)
  */
 int exofs_setattr(struct dentry *dentry, struct iattr *iattr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int error;
 
 	/* if we are about to modify an object, and it hasn't been

@@ -39,12 +39,24 @@ static inline void br_drop_fake_rtable(struct sk_buff *skb)
 
 static inline int nf_bridge_get_physinif(const struct sk_buff *skb)
 {
-	return skb->nf_bridge ? skb->nf_bridge->physindev->ifindex : 0;
+	struct nf_bridge_info *nf_bridge;
+
+	if (skb->nf_bridge == NULL)
+		return 0;
+
+	nf_bridge = skb->nf_bridge;
+	return nf_bridge->physindev ? nf_bridge->physindev->ifindex : 0;
 }
 
 static inline int nf_bridge_get_physoutif(const struct sk_buff *skb)
 {
-	return skb->nf_bridge ? skb->nf_bridge->physoutdev->ifindex : 0;
+	struct nf_bridge_info *nf_bridge;
+
+	if (skb->nf_bridge == NULL)
+		return 0;
+
+	nf_bridge = skb->nf_bridge;
+	return nf_bridge->physoutdev ? nf_bridge->physoutdev->ifindex : 0;
 }
 
 static inline struct net_device *

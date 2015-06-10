@@ -37,8 +37,6 @@ extern int of_irq_parse_one(struct device_node *device, int index,
 extern unsigned int irq_create_of_mapping(struct of_phandle_args *irq_data);
 extern int of_irq_to_resource(struct device_node *dev, int index,
 			      struct resource *r);
-extern int of_irq_to_resource_table(struct device_node *dev,
-		struct resource *res, int nr_irqs);
 
 extern void of_irq_init(const struct of_device_id *matches);
 
@@ -46,6 +44,8 @@ extern void of_irq_init(const struct of_device_id *matches);
 extern int of_irq_count(struct device_node *dev);
 extern int of_irq_get(struct device_node *dev, int index);
 extern int of_irq_get_byname(struct device_node *dev, const char *name);
+extern int of_irq_to_resource_table(struct device_node *dev,
+		struct resource *res, int nr_irqs);
 #else
 static inline int of_irq_count(struct device_node *dev)
 {
@@ -56,6 +56,11 @@ static inline int of_irq_get(struct device_node *dev, int index)
 	return 0;
 }
 static inline int of_irq_get_byname(struct device_node *dev, const char *name)
+{
+	return 0;
+}
+static inline int of_irq_to_resource_table(struct device_node *dev,
+					   struct resource *res, int nr_irqs)
 {
 	return 0;
 }

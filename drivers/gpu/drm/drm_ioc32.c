@@ -1016,7 +1016,7 @@ static int compat_drm_wait_vblank(struct file *file, unsigned int cmd,
 	return 0;
 }
 
-drm_ioctl_compat_t *drm_compat_ioctls[] = {
+static drm_ioctl_compat_t *drm_compat_ioctls[] = {
 	[DRM_IOCTL_NR(DRM_IOCTL_VERSION32)] = compat_drm_version,
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_UNIQUE32)] = compat_drm_getunique,
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_MAP32)] = compat_drm_getmap,

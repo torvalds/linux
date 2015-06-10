@@ -42,7 +42,7 @@ static inline struct ip_set_net *ip_set_pernet(struct net *net)
 }
 
 #define IP_SET_INC	64
-#define STREQ(a, b)	(strncmp(a, b, IPSET_MAXNAMELEN) == 0)
+#define STRNCMP(a, b)	(strncmp(a, b, IPSET_MAXNAMELEN) == 0)
 
 static unsigned int max_sets;
 
@@ -85,7 +85,7 @@ find_set_type(const char *name, u8 family, u8 revision)
 	struct ip_set_type *type;
 
 	list_for_each_entry_rcu(type, &ip_set_type_list, list)
-		if (STREQ(type->name, name) &&
+		if (STRNCMP(type->name, name) &&
 		    (type->family == family ||
 		     type->family == NFPROTO_UNSPEC) &&
 		    revision >= type->revision_min &&
@@ -132,7 +132,7 @@ __find_set_type_get(const char *name, u8 family, u8 revision,
 	/* Make sure the type is already loaded
 	 * but we don't support the revision */
 	list_for_each_entry_rcu(type, &ip_set_type_list, list)
-		if (STREQ(type->name, name)) {
+		if (STRNCMP(type->name, name)) {
 			err = -IPSET_ERR_FIND_TYPE;
 			goto unlock;
 		}
@@ -166,7 +166,7 @@ __find_set_type_minmax(const char *name, u8 family, u8 *min, u8 *max,
 	*min = 255; *max = 0;
 	rcu_read_lock();
 	list_for_each_entry_rcu(type, &ip_set_type_list, list)
-		if (STREQ(type->name, name) &&
+		if (STRNCMP(type->name, name) &&
 		    (type->family == family ||
 		     type->family == NFPROTO_UNSPEC)) {
 			found = true;
@@ -365,7 +365,7 @@ size_t
 ip_set_elem_len(struct ip_set *set, struct nlattr *tb[], size_t len)
 {
 	enum ip_set_ext_id id;
-	size_t offset = 0;
+	size_t offset = len;
 	u32 cadt_flags = 0;
 
 	if (tb[IPSET_ATTR_CADT_FLAGS])
@@ -375,12 +375,12 @@ ip_set_elem_len(struct ip_set *set, struct nlattr *tb[], size_t len)
 	for (id = 0; id < IPSET_EXT_ID_MAX; id++) {
 		if (!add_extension(id, cadt_flags, tb))
 			continue;
-		offset += ALIGN(len + offset, ip_set_extensions[id].align);
+		offset = ALIGN(offset, ip_set_extensions[id].align);
 		set->offset[id] = offset;
 		set->extensions |= ip_set_extensions[id].type;
 		offset += ip_set_extensions[id].len;
 	}
-	return len + offset;
+	return offset;
 }
 EXPORT_SYMBOL_GPL(ip_set_elem_len);
 
@@ -431,6 +431,31 @@ ip_set_get_extensions(struct ip_set *set, struct nlattr *tb[],
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ip_set_get_extensions);
+
+int
+ip_set_put_extensions(struct sk_buff *skb, const struct ip_set *set,
+		      const void *e, bool active)
+{
+	if (SET_WITH_TIMEOUT(set)) {
+		unsigned long *timeout = ext_timeout(e, set);
+
+		if (nla_put_net32(skb, IPSET_ATTR_TIMEOUT,
+			htonl(active ? ip_set_timeout_get(timeout)
+				: *timeout)))
+			return -EMSGSIZE;
+	}
+	if (SET_WITH_COUNTER(set) &&
+	    ip_set_put_counter(skb, ext_counter(e, set)))
+		return -EMSGSIZE;
+	if (SET_WITH_COMMENT(set) &&
+	    ip_set_put_comment(skb, ext_comment(e, set)))
+		return -EMSGSIZE;
+	if (SET_WITH_SKBINFO(set) &&
+	    ip_set_put_skbinfo(skb, ext_skbinfo(e, set)))
+		return -EMSGSIZE;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ip_set_put_extensions);
 
 /*
  * Creating/destroying/renaming/swapping affect the existence and
@@ -581,7 +606,7 @@ ip_set_get_byname(struct net *net, const char *name, struct ip_set **set)
 	rcu_read_lock();
 	for (i = 0; i < inst->ip_set_max; i++) {
 		s = rcu_dereference(inst->ip_set_list)[i];
-		if (s != NULL && STREQ(s->name, name)) {
+		if (s != NULL && STRNCMP(s->name, name)) {
 			__ip_set_get(s);
 			index = i;
 			*set = s;
@@ -758,7 +783,7 @@ find_set_and_id(struct ip_set_net *inst, const char *name, ip_set_id_t *id)
 	*id = IPSET_INVALID_ID;
 	for (i = 0; i < inst->ip_set_max; i++) {
 		set = ip_set(inst, i);
-		if (set != NULL && STREQ(set->name, name)) {
+		if (set != NULL && STRNCMP(set->name, name)) {
 			*id = i;
 			break;
 		}
@@ -787,7 +812,7 @@ find_free_id(struct ip_set_net *inst, const char *name, ip_set_id_t *index,
 		if (s == NULL) {
 			if (*index == IPSET_INVALID_ID)
 				*index = i;
-		} else if (STREQ(name, s->name)) {
+		} else if (STRNCMP(name, s->name)) {
 			/* Name clash */
 			*set = s;
 			return -EEXIST;
@@ -887,7 +912,7 @@ ip_set_create(struct sock *ctnl, struct sk_buff *skb,
 	if (ret == -EEXIST) {
 		/* If this is the same set and requested, ignore error */
 		if ((flags & IPSET_FLAG_EXIST) &&
-		    STREQ(set->type->name, clash->type->name) &&
+		    STRNCMP(set->type->name, clash->type->name) &&
 		    set->type->family == clash->type->family &&
 		    set->type->revision_min == clash->type->revision_min &&
 		    set->type->revision_max == clash->type->revision_max &&
@@ -1098,7 +1123,7 @@ ip_set_rename(struct sock *ctnl, struct sk_buff *skb,
 	name2 = nla_data(attr[IPSET_ATTR_SETNAME2]);
 	for (i = 0; i < inst->ip_set_max; i++) {
 		s = ip_set(inst, i);
-		if (s != NULL && STREQ(s->name, name2)) {
+		if (s != NULL && STRNCMP(s->name, name2)) {
 			ret = -IPSET_ERR_EXIST_SETNAME2;
 			goto out;
 		}

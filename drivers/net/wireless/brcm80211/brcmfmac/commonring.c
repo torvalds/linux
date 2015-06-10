@@ -22,17 +22,6 @@
 #include "core.h"
 #include "commonring.h"
 
-
-/* dma flushing needs implementation for mips and arm platforms. Should
- * be put in util. Note, this is not real flushing. It is virtual non
- * cached memory. Only write buffers should have to be drained. Though
- * this may be different depending on platform......
- * SEE ALSO msgbuf.c
- */
-#define brcmf_dma_flush(addr, len)
-#define brcmf_dma_invalidate_cache(addr, len)
-
-
 void brcmf_commonring_register_cb(struct brcmf_commonring *commonring,
 				  int (*cr_ring_bell)(void *ctx),
 				  int (*cr_update_rptr)(void *ctx),
@@ -206,14 +195,9 @@ int brcmf_commonring_write_complete(struct brcmf_commonring *commonring)
 	address = commonring->buf_addr;
 	address += (commonring->f_ptr * commonring->item_len);
 	if (commonring->f_ptr > commonring->w_ptr) {
-		brcmf_dma_flush(address,
-				(commonring->depth - commonring->f_ptr) *
-				commonring->item_len);
 		address = commonring->buf_addr;
 		commonring->f_ptr = 0;
 	}
-	brcmf_dma_flush(address, (commonring->w_ptr - commonring->f_ptr) *
-			commonring->item_len);
 
 	commonring->f_ptr = commonring->w_ptr;
 
@@ -257,8 +241,6 @@ void *brcmf_commonring_get_read_ptr(struct brcmf_commonring *commonring,
 	commonring->r_ptr += *n_items;
 	if (commonring->r_ptr == commonring->depth)
 		commonring->r_ptr = 0;
-
-	brcmf_dma_invalidate_cache(ret_addr, *n_ items * commonring->item_len);
 
 	return ret_addr;
 }

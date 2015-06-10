@@ -529,7 +529,7 @@ static void afs_destroy_inode(struct inode *inode)
 static int afs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct afs_volume_status vs;
-	struct afs_vnode *vnode = AFS_FS_I(dentry->d_inode);
+	struct afs_vnode *vnode = AFS_FS_I(d_inode(dentry));
 	struct key *key;
 	int ret;
 

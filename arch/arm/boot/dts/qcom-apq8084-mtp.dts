@@ -1,4 +1,5 @@
 #include "qcom-apq8084.dtsi"
+#include "qcom-pma8084.dtsi"
 
 / {
 	model = "Qualcomm APQ 8084-MTP";

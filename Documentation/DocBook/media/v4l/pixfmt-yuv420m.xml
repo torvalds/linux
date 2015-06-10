@@ -29,12 +29,12 @@ and Cr planes have half as many pad bytes after their rows. In other
 words, two Cx rows (including padding) is exactly as long as one Y row
 (including padding).</para>
 
-	<para><constant>V4L2_PIX_FMT_NV12M</constant> is intended to be
+	<para><constant>V4L2_PIX_FMT_YUV420M</constant> is intended to be
 used only in drivers and applications that support the multi-planar API,
 described in <xref linkend="planar-apis"/>. </para>
 
 	<example>
-	  <title><constant>V4L2_PIX_FMT_YVU420M</constant> 4 &times; 4
+	  <title><constant>V4L2_PIX_FMT_YUV420M</constant> 4 &times; 4
 pixel image</title>
 
 	  <formalpara>

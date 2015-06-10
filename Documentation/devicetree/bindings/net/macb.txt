@@ -9,6 +9,7 @@ Required properties:
   the Cadence GEM, or the generic form: "cdns,gem".
   Use "cdns,sama5d3-gem" for the Gigabit IP available on Atmel sama5d3 SoCs.
   Use "cdns,sama5d4-gem" for the Gigabit IP available on Atmel sama5d4 SoCs.
+  Use "cdns,zynqmp-gem" for Zynq Ultrascale+ MPSoC.
 - reg: Address and length of the register set for the device
 - interrupts: Should contain macb interrupt
 - phy-mode: See ethernet.txt file in the same directory.

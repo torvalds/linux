@@ -445,10 +445,10 @@ static int c4iw_get_mib(struct ib_device *ibdev,
 
 	cxgb4_get_tcp_stats(c4iw_dev->rdev.lldi.pdev, &v4, &v6);
 	memset(stats, 0, sizeof *stats);
-	stats->iw.tcpInSegs = v4.tcpInSegs + v6.tcpInSegs;
-	stats->iw.tcpOutSegs = v4.tcpOutSegs + v6.tcpOutSegs;
-	stats->iw.tcpRetransSegs = v4.tcpRetransSegs + v6.tcpRetransSegs;
-	stats->iw.tcpOutRsts = v4.tcpOutRsts + v6.tcpOutSegs;
+	stats->iw.tcpInSegs = v4.tcp_in_segs + v6.tcp_in_segs;
+	stats->iw.tcpOutSegs = v4.tcp_out_segs + v6.tcp_out_segs;
+	stats->iw.tcpRetransSegs = v4.tcp_retrans_segs + v6.tcp_retrans_segs;
+	stats->iw.tcpOutRsts = v4.tcp_out_rsts + v6.tcp_out_rsts;
 
 	return 0;
 }

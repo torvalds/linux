@@ -38,7 +38,7 @@ nvkm_gr(void *obj)
 }
 
 #define nvkm_gr_create(p,e,c,y,d)                                        \
-	nvkm_engine_create((p), (e), (c), (y), "PGR", "graphics", (d))
+	nvkm_engine_create((p), (e), (c), (y), "PGRAPH", "graphics", (d))
 #define nvkm_gr_destroy(d)                                               \
 	nvkm_engine_destroy(&(d)->base)
 #define nvkm_gr_init(d)                                                  \
@@ -72,6 +72,8 @@ extern struct nvkm_oclass *gk110_gr_oclass;
 extern struct nvkm_oclass *gk110b_gr_oclass;
 extern struct nvkm_oclass *gk208_gr_oclass;
 extern struct nvkm_oclass *gm107_gr_oclass;
+extern struct nvkm_oclass *gm204_gr_oclass;
+extern struct nvkm_oclass *gm206_gr_oclass;
 
 #include <core/enum.h>
 

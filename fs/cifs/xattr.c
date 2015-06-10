@@ -50,9 +50,9 @@ int cifs_removexattr(struct dentry *direntry, const char *ea_name)
 
 	if (direntry == NULL)
 		return -EIO;
-	if (direntry->d_inode == NULL)
+	if (d_really_is_negative(direntry))
 		return -EIO;
-	sb = direntry->d_inode->i_sb;
+	sb = d_inode(direntry)->i_sb;
 	if (sb == NULL)
 		return -EIO;
 
@@ -111,9 +111,9 @@ int cifs_setxattr(struct dentry *direntry, const char *ea_name,
 
 	if (direntry == NULL)
 		return -EIO;
-	if (direntry->d_inode == NULL)
+	if (d_really_is_negative(direntry))
 		return -EIO;
-	sb = direntry->d_inode->i_sb;
+	sb = d_inode(direntry)->i_sb;
 	if (sb == NULL)
 		return -EIO;
 
@@ -177,12 +177,12 @@ int cifs_setxattr(struct dentry *direntry, const char *ea_name,
 			memcpy(pacl, ea_value, value_size);
 			if (pTcon->ses->server->ops->set_acl)
 				rc = pTcon->ses->server->ops->set_acl(pacl,
-						value_size, direntry->d_inode,
+						value_size, d_inode(direntry),
 						full_path, CIFS_ACL_DACL);
 			else
 				rc = -EOPNOTSUPP;
 			if (rc == 0) /* force revalidate of the inode */
-				CIFS_I(direntry->d_inode)->time = 0;
+				CIFS_I(d_inode(direntry))->time = 0;
 			kfree(pacl);
 		}
 #else
@@ -246,9 +246,9 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 
 	if (direntry == NULL)
 		return -EIO;
-	if (direntry->d_inode == NULL)
+	if (d_really_is_negative(direntry))
 		return -EIO;
-	sb = direntry->d_inode->i_sb;
+	sb = d_inode(direntry)->i_sb;
 	if (sb == NULL)
 		return -EIO;
 
@@ -324,7 +324,7 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 				goto get_ea_exit; /* rc already EOPNOTSUPP */
 
 			pacl = pTcon->ses->server->ops->get_acl(cifs_sb,
-					direntry->d_inode, full_path, &acllen);
+					d_inode(direntry), full_path, &acllen);
 			if (IS_ERR(pacl)) {
 				rc = PTR_ERR(pacl);
 				cifs_dbg(VFS, "%s: error %zd getting sec desc\n",
@@ -382,9 +382,9 @@ ssize_t cifs_listxattr(struct dentry *direntry, char *data, size_t buf_size)
 
 	if (direntry == NULL)
 		return -EIO;
-	if (direntry->d_inode == NULL)
+	if (d_really_is_negative(direntry))
 		return -EIO;
-	sb = direntry->d_inode->i_sb;
+	sb = d_inode(direntry)->i_sb;
 	if (sb == NULL)
 		return -EIO;
 

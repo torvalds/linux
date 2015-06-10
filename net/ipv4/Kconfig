@@ -331,8 +331,8 @@ config NET_FOU_IP_TUNNELS
 	  When this option is enabled IP tunnels can be configured to use
 	  FOU or GUE encapsulation.
 
-config GENEVE
-	tristate "Generic Network Virtualization Encapsulation (Geneve)"
+config GENEVE_CORE
+	tristate "Generic Network Virtualization Encapsulation library"
 	depends on INET
 	select NET_UDP_TUNNEL
 	---help---

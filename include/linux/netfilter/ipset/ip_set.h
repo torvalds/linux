@@ -122,13 +122,13 @@ struct ip_set_skbinfo {
 struct ip_set;
 
 #define ext_timeout(e, s)	\
-(unsigned long *)(((void *)(e)) + (s)->offset[IPSET_EXT_ID_TIMEOUT])
+((unsigned long *)(((void *)(e)) + (s)->offset[IPSET_EXT_ID_TIMEOUT]))
 #define ext_counter(e, s)	\
-(struct ip_set_counter *)(((void *)(e)) + (s)->offset[IPSET_EXT_ID_COUNTER])
+((struct ip_set_counter *)(((void *)(e)) + (s)->offset[IPSET_EXT_ID_COUNTER]))
 #define ext_comment(e, s)	\
-(struct ip_set_comment *)(((void *)(e)) + (s)->offset[IPSET_EXT_ID_COMMENT])
+((struct ip_set_comment *)(((void *)(e)) + (s)->offset[IPSET_EXT_ID_COMMENT]))
 #define ext_skbinfo(e, s)	\
-(struct ip_set_skbinfo *)(((void *)(e)) + (s)->offset[IPSET_EXT_ID_SKBINFO])
+((struct ip_set_skbinfo *)(((void *)(e)) + (s)->offset[IPSET_EXT_ID_SKBINFO]))
 
 typedef int (*ipset_adtfn)(struct ip_set *set, void *value,
 			   const struct ip_set_ext *ext,
@@ -533,29 +533,9 @@ bitmap_bytes(u32 a, u32 b)
 #include <linux/netfilter/ipset/ip_set_timeout.h>
 #include <linux/netfilter/ipset/ip_set_comment.h>
 
-static inline int
+int
 ip_set_put_extensions(struct sk_buff *skb, const struct ip_set *set,
-		      const void *e, bool active)
-{
-	if (SET_WITH_TIMEOUT(set)) {
-		unsigned long *timeout = ext_timeout(e, set);
-
-		if (nla_put_net32(skb, IPSET_ATTR_TIMEOUT,
-			htonl(active ? ip_set_timeout_get(timeout)
-				: *timeout)))
-			return -EMSGSIZE;
-	}
-	if (SET_WITH_COUNTER(set) &&
-	    ip_set_put_counter(skb, ext_counter(e, set)))
-		return -EMSGSIZE;
-	if (SET_WITH_COMMENT(set) &&
-	    ip_set_put_comment(skb, ext_comment(e, set)))
-		return -EMSGSIZE;
-	if (SET_WITH_SKBINFO(set) &&
-	    ip_set_put_skbinfo(skb, ext_skbinfo(e, set)))
-		return -EMSGSIZE;
-	return 0;
-}
+		      const void *e, bool active);
 
 #define IP_SET_INIT_KEXT(skb, opt, set)			\
 	{ .bytes = (skb)->len, .packets = 1,		\

@@ -29,6 +29,7 @@
 #define GK100 0xe0
 #define GK110 0xf0
 #define GK208 0x108
+#define GM107 0x117
 
 #define NV_PGRAPH_TRAPPED_ADDR                                         0x400704
 #define NV_PGRAPH_TRAPPED_DATA_LO                                      0x400708
@@ -79,7 +80,9 @@
 #define NV_PGRAPH_FECS_MMCTX_MULTI_STRIDE                              0x409718
 #define NV_PGRAPH_FECS_MMCTX_MULTI_MASK                                0x40971c
 #define NV_PGRAPH_FECS_MMCTX_QUEUE                                     0x409720
+#define NV_PGRAPH_FECS_MMIO_BASE                                       0x409724
 #define NV_PGRAPH_FECS_MMIO_CTRL                                       0x409728
+#define NV_PGRAPH_FECS_MMIO_CTRL_BASE_ENABLE                         0x00000001
 #define NV_PGRAPH_FECS_MMIO_RDVAL                                      0x40972c
 #define NV_PGRAPH_FECS_MMIO_WRVAL                                      0x409730
 #define NV_PGRAPH_FECS_MMCTX_LOAD_COUNT                                0x40974c
@@ -147,6 +150,11 @@
 #define NV_PGRAPH_GPCX_GPCCS_MYINDEX                                   0x41a618
 #define NV_PGRAPH_GPCX_GPCCS_MMCTX_SAVE_SWBASE                         0x41a700
 #define NV_PGRAPH_GPCX_GPCCS_MMCTX_LOAD_SWBASE                         0x41a704
+#define NV_PGRAPH_GPCX_GPCCS_MMIO_BASE                                 0x41a724
+#define NV_PGRAPH_GPCX_GPCCS_MMIO_CTRL                                 0x41a728
+#define NV_PGRAPH_GPCX_GPCCS_MMIO_CTRL_BASE_ENABLE                   0x00000001
+#define NV_PGRAPH_GPCX_GPCCS_MMIO_RDVAL                                0x41a72c
+#define NV_PGRAPH_GPCX_GPCCS_MMIO_WRVAL                                0x41a730
 #define NV_PGRAPH_GPCX_GPCCS_MMCTX_LOAD_COUNT                          0x41a74c
 #if CHIPSET < GK110
 #define NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_VAL(n)              ((n) * 4 + 0x41a800)
@@ -164,6 +172,29 @@
 #define NV_PGRAPH_GPCX_GPCCS_STRAND_CMD_SAVE                         0x00000003
 #define NV_PGRAPH_GPCX_GPCCS_STRAND_CMD_LOAD                         0x00000004
 #define NV_PGRAPH_GPCX_GPCCS_MEM_BASE                                  0x41aa04
+#define NV_PGRAPH_GPCX_GPCCS_TPC_STATUS                                0x41acfc
+
+#define NV_PGRAPH_GPC0_TPC0                                            0x504000
+#define NV_PGRAPH_GPC0_TPC0__SIZE                                      0x000800
+
+#define NV_PGRAPH_GPC0_TPCX_STRAND_INDEX                               0x501d60
+#define NV_PGRAPH_GPC0_TPCX_STRAND_INDEX_ALL                         0x0000003f
+#define NV_PGRAPH_GPC0_TPCX_STRAND_DATA                                0x501d98
+#define NV_PGRAPH_GPC0_TPCX_STRAND_SELECT                              0x501d9c
+#define NV_PGRAPH_GPC0_TPCX_STRAND_CMD                                 0x501da8
+#define NV_PGRAPH_GPC0_TPCX_STRAND_CMD_SEEK                          0x00000001
+#define NV_PGRAPH_GPC0_TPCX_STRAND_CMD_GET_INFO                      0x00000002
+#define NV_PGRAPH_GPC0_TPCX_STRAND_CMD_SAVE                          0x00000003
+#define NV_PGRAPH_GPC0_TPCX_STRAND_CMD_LOAD                          0x00000004
+#define NV_PGRAPH_GPC0_TPCX_STRAND_CMD_ENABLE                        0x0000000c
+#define NV_PGRAPH_GPC0_TPCX_STRAND_CMD_DISABLE                       0x0000000d
+#define NV_PGRAPH_GPC0_TPCX_STRAND_MEM_BASE                            0x501dc4
+
+#define NV_TPC_STRAND_INDEX                                               0x560
+#define NV_TPC_STRAND_CNT                                                 0x570
+#define NV_TPC_STRAND_SAVE_SWBASE                                         0x588
+#define NV_TPC_STRAND_LOAD_SWBASE                                         0x58c
+#define NV_TPC_STRAND_WORDS                                               0x590
 
 #define mmctx_data(r,c) .b32 (((c - 1) << 26) | r)
 #define queue_init      .skip 72 // (2 * 4) + ((8 * 4) * 2)
@@ -178,6 +209,7 @@
 #define T_SAVE    7
 #define T_LCHAN   8
 #define T_LCTXH   9
+#define T_STRTPC  10
 
 #if CHIPSET < GK208
 #define imm32(reg,val) /*

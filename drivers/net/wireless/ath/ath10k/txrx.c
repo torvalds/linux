@@ -55,8 +55,10 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 
 	lockdep_assert_held(&htt->tx_lock);
 
-	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt tx completion msdu_id %u discard %d no_ack %d\n",
-		   tx_done->msdu_id, !!tx_done->discard, !!tx_done->no_ack);
+	ath10k_dbg(ar, ATH10K_DBG_HTT,
+		   "htt tx completion msdu_id %u discard %d no_ack %d success %d\n",
+		   tx_done->msdu_id, !!tx_done->discard,
+		   !!tx_done->no_ack, !!tx_done->success);
 
 	if (tx_done->msdu_id >= htt->max_num_pending_tx) {
 		ath10k_warn(ar, "warning: msdu_id %d too big, ignoring\n",
@@ -96,6 +98,9 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 
 	if (tx_done->no_ack)
 		info->flags &= ~IEEE80211_TX_STAT_ACK;
+
+	if (tx_done->success && (info->flags & IEEE80211_TX_CTL_NO_ACK))
+		info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
 
 	ieee80211_tx_status(htt->ar->hw, msdu);
 	/* we do not own the msdu anymore */

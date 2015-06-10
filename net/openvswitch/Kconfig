@@ -59,7 +59,7 @@ config OPENVSWITCH_VXLAN
 config OPENVSWITCH_GENEVE
 	tristate "Open vSwitch Geneve tunneling support"
 	depends on OPENVSWITCH
-	depends on GENEVE
+	depends on GENEVE_CORE
 	default OPENVSWITCH
 	---help---
 	  If you say Y here, then the Open vSwitch will be able create geneve vport.

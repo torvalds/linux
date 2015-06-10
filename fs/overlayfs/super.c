@@ -529,7 +529,7 @@ static int ovl_remount(struct super_block *sb, int *flags, char *data)
 {
 	struct ovl_fs *ufs = sb->s_fs_info;
 
-	if (!(*flags & MS_RDONLY) && !ufs->upper_mnt)
+	if (!(*flags & MS_RDONLY) && (!ufs->upper_mnt || !ufs->workdir))
 		return -EROFS;
 
 	return 0;
@@ -925,9 +925,10 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		ufs->workdir = ovl_workdir_create(ufs->upper_mnt, workpath.dentry);
 		err = PTR_ERR(ufs->workdir);
 		if (IS_ERR(ufs->workdir)) {
-			pr_err("overlayfs: failed to create directory %s/%s\n",
-			       ufs->config.workdir, OVL_WORKDIR_NAME);
-			goto out_put_upper_mnt;
+			pr_warn("overlayfs: failed to create directory %s/%s (errno: %i); mounting read-only\n",
+				ufs->config.workdir, OVL_WORKDIR_NAME, -err);
+			sb->s_flags |= MS_RDONLY;
+			ufs->workdir = NULL;
 		}
 	}
 
@@ -997,7 +998,6 @@ out_put_lower_mnt:
 	kfree(ufs->lower_mnt);
 out_put_workdir:
 	dput(ufs->workdir);
-out_put_upper_mnt:
 	mntput(ufs->upper_mnt);
 out_put_lowerpath:
 	for (i = 0; i < numlower; i++)

@@ -289,6 +289,7 @@ static int sproc_probe(struct platform_device *pdev)
 	sproc = rproc->priv;
 	sproc->mdev = mdev;
 	sproc->rproc = rproc;
+	rproc->has_iommu = false;
 	mdev->drv_data = sproc;
 
 	/* Provide callback functions to modem device */

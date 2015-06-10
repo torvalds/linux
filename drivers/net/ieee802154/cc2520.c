@@ -653,7 +653,7 @@ static int cc2520_register(struct cc2520_private *priv)
 	ieee802154_random_extended_addr(&priv->hw->phy->perm_extended_addr);
 
 	/* We do support only 2.4 Ghz */
-	priv->hw->phy->channels_supported[0] = 0x7FFF800;
+	priv->hw->phy->supported.channels[0] = 0x7FFF800;
 	priv->hw->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AACK |
 			  IEEE802154_HW_AFILT;
 

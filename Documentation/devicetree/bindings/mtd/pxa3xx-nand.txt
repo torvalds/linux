@@ -14,7 +14,7 @@ Optional properties:
  - marvell,nand-enable-arbiter:	Set to enable the bus arbiter
  - marvell,nand-keep-config:	Set to keep the NAND controller config as set
 				by the bootloader
- - num-cs:			Number of chipselect lines to usw
+ - num-cs:			Number of chipselect lines to use
  - nand-on-flash-bbt: 		boolean to enable on flash bbt option if
 				not present false
  - nand-ecc-strength:           number of bits to correct per ECC step

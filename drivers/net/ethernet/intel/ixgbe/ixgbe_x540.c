@@ -696,13 +696,13 @@ static void ixgbe_release_swfw_sync_semaphore(struct ixgbe_hw *hw)
 
 	/* Release both semaphores by writing 0 to the bits REGSMP and SMBI */
 
-	swsm = IXGBE_READ_REG(hw, IXGBE_SWSM);
-	swsm &= ~IXGBE_SWSM_SMBI;
-	IXGBE_WRITE_REG(hw, IXGBE_SWSM, swsm);
-
 	swsm = IXGBE_READ_REG(hw, IXGBE_SWFW_SYNC);
 	swsm &= ~IXGBE_SWFW_REGSMP;
 	IXGBE_WRITE_REG(hw, IXGBE_SWFW_SYNC, swsm);
+
+	swsm = IXGBE_READ_REG(hw, IXGBE_SWSM);
+	swsm &= ~IXGBE_SWSM_SMBI;
+	IXGBE_WRITE_REG(hw, IXGBE_SWSM, swsm);
 
 	IXGBE_WRITE_FLUSH(hw);
 }

@@ -541,7 +541,7 @@ struct clk_gpio {
 
 extern const struct clk_ops clk_gpio_gate_ops;
 struct clk *clk_register_gpio_gate(struct device *dev, const char *name,
-		const char *parent_name, struct gpio_desc *gpio,
+		const char *parent_name, unsigned gpio, bool active_low,
 		unsigned long flags);
 
 void of_gpio_clk_gate_setup(struct device_node *node);

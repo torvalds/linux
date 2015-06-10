@@ -121,13 +121,13 @@ static struct notifier_block br_device_notifier = {
 	.notifier_call = br_device_event
 };
 
-static int br_netdev_switch_event(struct notifier_block *unused,
-				  unsigned long event, void *ptr)
+static int br_switchdev_event(struct notifier_block *unused,
+			      unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_switch_notifier_info_to_dev(ptr);
+	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
 	struct net_bridge_port *p;
 	struct net_bridge *br;
-	struct netdev_switch_notifier_fdb_info *fdb_info;
+	struct switchdev_notifier_fdb_info *fdb_info;
 	int err = NOTIFY_DONE;
 
 	rtnl_lock();
@@ -138,14 +138,14 @@ static int br_netdev_switch_event(struct notifier_block *unused,
 	br = p->br;
 
 	switch (event) {
-	case NETDEV_SWITCH_FDB_ADD:
+	case SWITCHDEV_FDB_ADD:
 		fdb_info = ptr;
 		err = br_fdb_external_learn_add(br, p, fdb_info->addr,
 						fdb_info->vid);
 		if (err)
 			err = notifier_from_errno(err);
 		break;
-	case NETDEV_SWITCH_FDB_DEL:
+	case SWITCHDEV_FDB_DEL:
 		fdb_info = ptr;
 		err = br_fdb_external_learn_del(br, p, fdb_info->addr,
 						fdb_info->vid);
@@ -159,8 +159,8 @@ out:
 	return err;
 }
 
-static struct notifier_block br_netdev_switch_notifier = {
-	.notifier_call = br_netdev_switch_event,
+static struct notifier_block br_switchdev_notifier = {
+	.notifier_call = br_switchdev_event,
 };
 
 static void __net_exit br_net_exit(struct net *net)
@@ -214,7 +214,7 @@ static int __init br_init(void)
 	if (err)
 		goto err_out3;
 
-	err = register_netdev_switch_notifier(&br_netdev_switch_notifier);
+	err = register_switchdev_notifier(&br_switchdev_notifier);
 	if (err)
 		goto err_out4;
 
@@ -235,7 +235,7 @@ static int __init br_init(void)
 	return 0;
 
 err_out5:
-	unregister_netdev_switch_notifier(&br_netdev_switch_notifier);
+	unregister_switchdev_notifier(&br_switchdev_notifier);
 err_out4:
 	unregister_netdevice_notifier(&br_device_notifier);
 err_out3:
@@ -253,7 +253,7 @@ static void __exit br_deinit(void)
 {
 	stp_proto_unregister(&br_stp_proto);
 	br_netlink_fini();
-	unregister_netdev_switch_notifier(&br_netdev_switch_notifier);
+	unregister_switchdev_notifier(&br_switchdev_notifier);
 	unregister_netdevice_notifier(&br_device_notifier);
 	brioctl_set(NULL);
 	unregister_pernet_subsys(&br_net_ops);

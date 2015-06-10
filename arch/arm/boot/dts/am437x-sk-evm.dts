@@ -49,7 +49,7 @@
 		pinctrl-0 = <&matrix_keypad_pins>;
 
 		debounce-delay-ms = <5>;
-		col-scan-delay-us = <1500>;
+		col-scan-delay-us = <5>;
 
 		row-gpios = <&gpio5 5 GPIO_ACTIVE_HIGH		/* Bank5, pin5 */
 				&gpio5 6 GPIO_ACTIVE_HIGH>;	/* Bank5, pin6 */
@@ -473,7 +473,7 @@
 		interrupt-parent = <&gpio0>;
 		interrupts = <31 0>;
 
-		wake-gpios = <&gpio1 28 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio1 28 GPIO_ACTIVE_LOW>;
 
 		touchscreen-size-x = <480>;
 		touchscreen-size-y = <272>;

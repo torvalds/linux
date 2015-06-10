@@ -93,7 +93,7 @@ Format description:
   Format specifier
     '8' :  Generic 7 segment digit with individual addressable segments
 
-    Reduced capability 7 segm digit, when segments are hard wired together.
+    Reduced capability 7 segment digit, when segments are hard wired together.
     '1' : 2 segments digit only able to produce a 1.
     'e' : Most significant day of the month digit,
           able to produce at least 1 2 3.

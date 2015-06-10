@@ -24,7 +24,6 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/wait.h>
-#include <linux/vmalloc.h>
 
 #include <net/inet_connection_sock.h>
 #include <net/inet_sock.h>
@@ -148,8 +147,6 @@ struct inet_hashinfo {
 	 */
 	struct inet_listen_hashbucket	listening_hash[INET_LHTABLE_SIZE]
 					____cacheline_aligned_in_smp;
-
-	atomic_t			bsockets;
 };
 
 static inline struct inet_ehash_bucket *inet_ehash_bucket(
@@ -166,52 +163,12 @@ static inline spinlock_t *inet_ehash_lockp(
 	return &hashinfo->ehash_locks[hash & hashinfo->ehash_locks_mask];
 }
 
-static inline int inet_ehash_locks_alloc(struct inet_hashinfo *hashinfo)
-{
-	unsigned int i, size = 256;
-#if defined(CONFIG_PROVE_LOCKING)
-	unsigned int nr_pcpus = 2;
-#else
-	unsigned int nr_pcpus = num_possible_cpus();
-#endif
-	if (nr_pcpus >= 4)
-		size = 512;
-	if (nr_pcpus >= 8)
-		size = 1024;
-	if (nr_pcpus >= 16)
-		size = 2048;
-	if (nr_pcpus >= 32)
-		size = 4096;
-	if (sizeof(spinlock_t) != 0) {
-#ifdef CONFIG_NUMA
-		if (size * sizeof(spinlock_t) > PAGE_SIZE)
-			hashinfo->ehash_locks = vmalloc(size * sizeof(spinlock_t));
-		else
-#endif
-		hashinfo->ehash_locks =	kmalloc(size * sizeof(spinlock_t),
-						GFP_KERNEL);
-		if (!hashinfo->ehash_locks)
-			return ENOMEM;
-		for (i = 0; i < size; i++)
-			spin_lock_init(&hashinfo->ehash_locks[i]);
-	}
-	hashinfo->ehash_locks_mask = size - 1;
-	return 0;
-}
+int inet_ehash_locks_alloc(struct inet_hashinfo *hashinfo);
 
 static inline void inet_ehash_locks_free(struct inet_hashinfo *hashinfo)
 {
-	if (hashinfo->ehash_locks) {
-#ifdef CONFIG_NUMA
-		unsigned int size = (hashinfo->ehash_locks_mask + 1) *
-							sizeof(spinlock_t);
-		if (size > PAGE_SIZE)
-			vfree(hashinfo->ehash_locks);
-		else
-#endif
-		kfree(hashinfo->ehash_locks);
-		hashinfo->ehash_locks = NULL;
-	}
+	kvfree(hashinfo->ehash_locks);
+	hashinfo->ehash_locks = NULL;
 }
 
 struct inet_bind_bucket *

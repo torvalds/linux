@@ -179,7 +179,7 @@ static int can_create(struct net *net, struct socket *sock, int protocol,
 
 	sock->ops = cp->ops;
 
-	sk = sk_alloc(net, PF_CAN, GFP_KERNEL, cp->prot);
+	sk = sk_alloc(net, PF_CAN, GFP_KERNEL, cp->prot, kern);
 	if (!sk) {
 		err = -ENOMEM;
 		goto errout;

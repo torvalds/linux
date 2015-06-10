@@ -173,6 +173,21 @@ static void init_thread_xstate(void)
 		xstate_size = sizeof(struct i387_fxsave_struct);
 	else
 		xstate_size = sizeof(struct i387_fsave_struct);
+
+	/*
+	 * Quirk: we don't yet handle the XSAVES* instructions
+	 * correctly, as we don't correctly convert between
+	 * standard and compacted format when interfacing
+	 * with user-space - so disable it for now.
+	 *
+	 * The difference is small: with recent CPUs the
+	 * compacted format is only marginally smaller than
+	 * the standard FPU state format.
+	 *
+	 * ( This is easy to backport while we are fixing
+	 *   XSAVES* support. )
+	 */
+	setup_clear_cpu_cap(X86_FEATURE_XSAVES);
 }
 
 /*
@@ -341,7 +356,7 @@ int xstateregs_get(struct task_struct *target, const struct user_regset *regset,
 		unsigned int pos, unsigned int count,
 		void *kbuf, void __user *ubuf)
 {
-	struct xsave_struct *xsave = &target->thread.fpu.state->xsave;
+	struct xsave_struct *xsave;
 	int ret;
 
 	if (!cpu_has_xsave)
@@ -350,6 +365,8 @@ int xstateregs_get(struct task_struct *target, const struct user_regset *regset,
 	ret = init_fpu(target);
 	if (ret)
 		return ret;
+
+	xsave = &target->thread.fpu.state->xsave;
 
 	/*
 	 * Copy the 48bytes defined by the software first into the xstate
@@ -369,7 +386,7 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 		  unsigned int pos, unsigned int count,
 		  const void *kbuf, const void __user *ubuf)
 {
-	struct xsave_struct *xsave = &target->thread.fpu.state->xsave;
+	struct xsave_struct *xsave;
 	int ret;
 
 	if (!cpu_has_xsave)
@@ -378,6 +395,8 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 	ret = init_fpu(target);
 	if (ret)
 		return ret;
+
+	xsave = &target->thread.fpu.state->xsave;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, xsave, 0, -1);
 	/*

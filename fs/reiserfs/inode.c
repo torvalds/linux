@@ -3308,7 +3308,7 @@ static ssize_t reiserfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 
 int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	unsigned int ia_valid;
 	int error;
 

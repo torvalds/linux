@@ -129,13 +129,47 @@ static struct ieee80211_rate __wl_rates[] = {
 	RATETAB_ENT(BRCM_RATE_54M, 0),
 };
 
-#define wl_a_rates		(__wl_rates + 4)
-#define wl_a_rates_size	8
 #define wl_g_rates		(__wl_rates + 0)
-#define wl_g_rates_size	12
+#define wl_g_rates_size		ARRAY_SIZE(__wl_rates)
+#define wl_a_rates		(__wl_rates + 4)
+#define wl_a_rates_size		(wl_g_rates_size - 4)
+
+#define CHAN2G(_channel, _freq) {				\
+	.band			= IEEE80211_BAND_2GHZ,		\
+	.center_freq		= (_freq),			\
+	.hw_value		= (_channel),			\
+	.flags			= IEEE80211_CHAN_DISABLED,	\
+	.max_antenna_gain	= 0,				\
+	.max_power		= 30,				\
+}
+
+#define CHAN5G(_channel) {					\
+	.band			= IEEE80211_BAND_5GHZ,		\
+	.center_freq		= 5000 + (5 * (_channel)),	\
+	.hw_value		= (_channel),			\
+	.flags			= IEEE80211_CHAN_DISABLED,	\
+	.max_antenna_gain	= 0,				\
+	.max_power		= 30,				\
+}
+
+static struct ieee80211_channel __wl_2ghz_channels[] = {
+	CHAN2G(1, 2412), CHAN2G(2, 2417), CHAN2G(3, 2422), CHAN2G(4, 2427),
+	CHAN2G(5, 2432), CHAN2G(6, 2437), CHAN2G(7, 2442), CHAN2G(8, 2447),
+	CHAN2G(9, 2452), CHAN2G(10, 2457), CHAN2G(11, 2462), CHAN2G(12, 2467),
+	CHAN2G(13, 2472), CHAN2G(14, 2484)
+};
+
+static struct ieee80211_channel __wl_5ghz_channels[] = {
+	CHAN5G(34), CHAN5G(36), CHAN5G(38), CHAN5G(40), CHAN5G(42),
+	CHAN5G(44), CHAN5G(46), CHAN5G(48), CHAN5G(52), CHAN5G(56),
+	CHAN5G(60), CHAN5G(64), CHAN5G(100), CHAN5G(104), CHAN5G(108),
+	CHAN5G(112), CHAN5G(116), CHAN5G(120), CHAN5G(124), CHAN5G(128),
+	CHAN5G(132), CHAN5G(136), CHAN5G(140), CHAN5G(144), CHAN5G(149),
+	CHAN5G(153), CHAN5G(157), CHAN5G(161), CHAN5G(165)
+};
 
 /* Band templates duplicated per wiphy. The channel info
- * is filled in after querying the device.
+ * above is added to the band during setup.
  */
 static const struct ieee80211_supported_band __wl_band_2ghz = {
 	.band = IEEE80211_BAND_2GHZ,
@@ -143,7 +177,7 @@ static const struct ieee80211_supported_band __wl_band_2ghz = {
 	.n_bitrates = wl_g_rates_size,
 };
 
-static const struct ieee80211_supported_band __wl_band_5ghz_a = {
+static const struct ieee80211_supported_band __wl_band_5ghz = {
 	.band = IEEE80211_BAND_5GHZ,
 	.bitrates = wl_a_rates,
 	.n_bitrates = wl_a_rates_size,
@@ -5253,40 +5287,6 @@ dongle_scantime_out:
 	return err;
 }
 
-/* Filter the list of channels received from firmware counting only
- * the 20MHz channels. The wiphy band data only needs those which get
- * flagged to indicate if they can take part in higher bandwidth.
- */
-static void brcmf_count_20mhz_channels(struct brcmf_cfg80211_info *cfg,
-				       struct brcmf_chanspec_list *chlist,
-				       u32 chcnt[])
-{
-	u32 total = le32_to_cpu(chlist->count);
-	struct brcmu_chan ch;
-	int i;
-
-	for (i = 0; i < total; i++) {
-		ch.chspec = (u16)le32_to_cpu(chlist->element[i]);
-		cfg->d11inf.decchspec(&ch);
-
-		/* Firmware gives a ordered list. We skip non-20MHz
-		 * channels is 2G. For 5G we can abort upon reaching
-		 * a non-20MHz channel in the list.
-		 */
-		if (ch.bw != BRCMU_CHAN_BW_20) {
-			if (ch.band == BRCMU_CHAN_BAND_5G)
-				break;
-			else
-				continue;
-		}
-
-		if (ch.band == BRCMU_CHAN_BAND_2G)
-			chcnt[0] += 1;
-		else if (ch.band == BRCMU_CHAN_BAND_5G)
-			chcnt[1] += 1;
-	}
-}
-
 static void brcmf_update_bw40_channel_flag(struct ieee80211_channel *channel,
 					   struct brcmu_chan *ch)
 {
@@ -5322,7 +5322,6 @@ static int brcmf_construct_chaninfo(struct brcmf_cfg80211_info *cfg,
 	u32 i, j;
 	u32 total;
 	u32 chaninfo;
-	u32 chcnt[2] = { 0, 0 };
 	u32 index;
 
 	pbuf = kzalloc(BRCMF_DCMD_MEDLEN, GFP_KERNEL);
@@ -5339,42 +5338,15 @@ static int brcmf_construct_chaninfo(struct brcmf_cfg80211_info *cfg,
 		goto fail_pbuf;
 	}
 
-	brcmf_count_20mhz_channels(cfg, list, chcnt);
 	wiphy = cfg_to_wiphy(cfg);
-	if (chcnt[0]) {
-		band = kmemdup(&__wl_band_2ghz, sizeof(__wl_band_2ghz),
-			       GFP_KERNEL);
-		if (band == NULL) {
-			err = -ENOMEM;
-			goto fail_pbuf;
-		}
-		band->channels = kcalloc(chcnt[0], sizeof(*channel),
-					 GFP_KERNEL);
-		if (band->channels == NULL) {
-			kfree(band);
-			err = -ENOMEM;
-			goto fail_pbuf;
-		}
-		band->n_channels = 0;
-		wiphy->bands[IEEE80211_BAND_2GHZ] = band;
-	}
-	if (chcnt[1]) {
-		band = kmemdup(&__wl_band_5ghz_a, sizeof(__wl_band_5ghz_a),
-			       GFP_KERNEL);
-		if (band == NULL) {
-			err = -ENOMEM;
-			goto fail_band2g;
-		}
-		band->channels = kcalloc(chcnt[1], sizeof(*channel),
-					 GFP_KERNEL);
-		if (band->channels == NULL) {
-			kfree(band);
-			err = -ENOMEM;
-			goto fail_band2g;
-		}
-		band->n_channels = 0;
-		wiphy->bands[IEEE80211_BAND_5GHZ] = band;
-	}
+	band = wiphy->bands[IEEE80211_BAND_2GHZ];
+	if (band)
+		for (i = 0; i < band->n_channels; i++)
+			band->channels[i].flags = IEEE80211_CHAN_DISABLED;
+	band = wiphy->bands[IEEE80211_BAND_5GHZ];
+	if (band)
+		for (i = 0; i < band->n_channels; i++)
+			band->channels[i].flags = IEEE80211_CHAN_DISABLED;
 
 	total = le32_to_cpu(list->count);
 	for (i = 0; i < total; i++) {
@@ -5389,6 +5361,8 @@ static int brcmf_construct_chaninfo(struct brcmf_cfg80211_info *cfg,
 			brcmf_err("Invalid channel Spec. 0x%x.\n", ch.chspec);
 			continue;
 		}
+		if (!band)
+			continue;
 		if (!(bw_cap[band->band] & WLC_BW_40MHZ_BIT) &&
 		    ch.bw == BRCMU_CHAN_BW_40)
 			continue;
@@ -5416,9 +5390,9 @@ static int brcmf_construct_chaninfo(struct brcmf_cfg80211_info *cfg,
 		} else if (ch.bw == BRCMU_CHAN_BW_40) {
 			brcmf_update_bw40_channel_flag(&channel[index], &ch);
 		} else {
-			/* disable other bandwidths for now as mentioned
-			 * order assure they are enabled for subsequent
-			 * chanspecs.
+			/* enable the channel and disable other bandwidths
+			 * for now as mentioned order assure they are enabled
+			 * for subsequent chanspecs.
 			 */
 			channel[index].flags = IEEE80211_CHAN_NO_HT40 |
 					       IEEE80211_CHAN_NO_80MHZ;
@@ -5437,16 +5411,8 @@ static int brcmf_construct_chaninfo(struct brcmf_cfg80211_info *cfg,
 						IEEE80211_CHAN_NO_IR;
 			}
 		}
-		if (index == band->n_channels)
-			band->n_channels++;
 	}
-	kfree(pbuf);
-	return 0;
 
-fail_band2g:
-	kfree(wiphy->bands[IEEE80211_BAND_2GHZ]->channels);
-	kfree(wiphy->bands[IEEE80211_BAND_2GHZ]);
-	wiphy->bands[IEEE80211_BAND_2GHZ] = NULL;
 fail_pbuf:
 	kfree(pbuf);
 	return err;
@@ -5779,7 +5745,12 @@ static void brcmf_wiphy_wowl_params(struct wiphy *wiphy)
 
 static int brcmf_setup_wiphy(struct wiphy *wiphy, struct brcmf_if *ifp)
 {
+	struct ieee80211_supported_band *band;
 	struct ieee80211_iface_combination ifc_combo;
+	__le32 bandlist[3];
+	u32 n_bands;
+	int err, i;
+
 	wiphy->max_scan_ssids = WL_NUM_SCAN_MAX;
 	wiphy->max_scan_ie_len = BRCMF_SCAN_IE_LEN_MAX;
 	wiphy->max_num_pmkids = WL_NUM_PMKIDS_MAX;
@@ -5812,7 +5783,8 @@ static int brcmf_setup_wiphy(struct wiphy *wiphy, struct brcmf_if *ifp)
 		wiphy->flags |= WIPHY_FLAG_SUPPORTS_FW_ROAM;
 	wiphy->mgmt_stypes = brcmf_txrx_stypes;
 	wiphy->max_remain_on_channel_duration = 5000;
-	brcmf_wiphy_pno_params(wiphy);
+	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_PNO))
+		brcmf_wiphy_pno_params(wiphy);
 
 	/* vendor commands/events support */
 	wiphy->vendor_commands = brcmf_vendor_cmds;
@@ -5821,7 +5793,52 @@ static int brcmf_setup_wiphy(struct wiphy *wiphy, struct brcmf_if *ifp)
 	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_WOWL))
 		brcmf_wiphy_wowl_params(wiphy);
 
-	return brcmf_setup_wiphybands(wiphy);
+	err = brcmf_fil_cmd_data_get(ifp, BRCMF_C_GET_BANDLIST, &bandlist,
+				     sizeof(bandlist));
+	if (err) {
+		brcmf_err("could not obtain band info: err=%d\n", err);
+		return err;
+	}
+	/* first entry in bandlist is number of bands */
+	n_bands = le32_to_cpu(bandlist[0]);
+	for (i = 1; i <= n_bands && i < ARRAY_SIZE(bandlist); i++) {
+		if (bandlist[i] == cpu_to_le32(WLC_BAND_2G)) {
+			band = kmemdup(&__wl_band_2ghz, sizeof(__wl_band_2ghz),
+				       GFP_KERNEL);
+			if (!band)
+				return -ENOMEM;
+
+			band->channels = kmemdup(&__wl_2ghz_channels,
+						 sizeof(__wl_2ghz_channels),
+						 GFP_KERNEL);
+			if (!band->channels) {
+				kfree(band);
+				return -ENOMEM;
+			}
+
+			band->n_channels = ARRAY_SIZE(__wl_2ghz_channels);
+			wiphy->bands[IEEE80211_BAND_2GHZ] = band;
+		}
+		if (bandlist[i] == cpu_to_le32(WLC_BAND_5G)) {
+			band = kmemdup(&__wl_band_5ghz, sizeof(__wl_band_5ghz),
+				       GFP_KERNEL);
+			if (!band)
+				return -ENOMEM;
+
+			band->channels = kmemdup(&__wl_5ghz_channels,
+						 sizeof(__wl_5ghz_channels),
+						 GFP_KERNEL);
+			if (!band->channels) {
+				kfree(band);
+				return -ENOMEM;
+			}
+
+			band->n_channels = ARRAY_SIZE(__wl_5ghz_channels);
+			wiphy->bands[IEEE80211_BAND_5GHZ] = band;
+		}
+	}
+	err = brcmf_setup_wiphybands(wiphy);
+	return err;
 }
 
 static s32 brcmf_config_dongle(struct brcmf_cfg80211_info *cfg)
@@ -6007,11 +6024,18 @@ static void brcmf_cfg80211_reg_notifier(struct wiphy *wiphy,
 	memset(&ccreq, 0, sizeof(ccreq));
 	ccreq.rev = cpu_to_le32(-1);
 	memcpy(ccreq.ccode, req->alpha2, sizeof(req->alpha2));
-	brcmf_fil_iovar_data_set(ifp, "country", &ccreq, sizeof(ccreq));
+	if (brcmf_fil_iovar_data_set(ifp, "country", &ccreq, sizeof(ccreq))) {
+		brcmf_err("firmware rejected country setting\n");
+		return;
+	}
+	brcmf_setup_wiphybands(wiphy);
 }
 
 static void brcmf_free_wiphy(struct wiphy *wiphy)
 {
+	if (!wiphy)
+		return;
+
 	kfree(wiphy->iface_combinations);
 	if (wiphy->bands[IEEE80211_BAND_2GHZ]) {
 		kfree(wiphy->bands[IEEE80211_BAND_2GHZ]->channels);

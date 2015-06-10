@@ -135,6 +135,7 @@ struct host1x_syncpt *host1x_syncpt_get(struct host1x *host, u32 id);
 u32 host1x_syncpt_id(struct host1x_syncpt *sp);
 u32 host1x_syncpt_read_min(struct host1x_syncpt *sp);
 u32 host1x_syncpt_read_max(struct host1x_syncpt *sp);
+u32 host1x_syncpt_read(struct host1x_syncpt *sp);
 int host1x_syncpt_incr(struct host1x_syncpt *sp);
 u32 host1x_syncpt_incr_max(struct host1x_syncpt *sp, u32 incrs);
 int host1x_syncpt_wait(struct host1x_syncpt *sp, u32 thresh, long timeout,

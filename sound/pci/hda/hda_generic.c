@@ -844,8 +844,16 @@ static hda_nid_t path_power_update(struct hda_codec *codec,
 			snd_hda_codec_write(codec, nid, 0,
 					    AC_VERB_SET_POWER_STATE, state);
 			changed = nid;
+			/* all known codecs seem to be capable to handl
+			 * widgets state even in D3, so far.
+			 * if any new codecs need to restore the widget
+			 * states after D0 transition, call the function
+			 * below.
+			 */
+#if 0 /* disabled */
 			if (state == AC_PWRST_D0)
 				snd_hdac_regmap_sync_node(&codec->core, nid);
+#endif
 		}
 	}
 	return changed;
@@ -3259,7 +3267,8 @@ static int create_input_ctls(struct hda_codec *codec)
 		val = PIN_IN;
 		if (cfg->inputs[i].type == AUTO_PIN_MIC)
 			val |= snd_hda_get_default_vref(codec, pin);
-		if (pin != spec->hp_mic_pin)
+		if (pin != spec->hp_mic_pin &&
+		    !snd_hda_codec_get_pin_target(codec, pin))
 			set_pin_target(codec, pin, val, false);
 
 		if (mixer) {
@@ -4917,9 +4926,12 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
  dig_only:
 	parse_digital(codec);
 
-	if (spec->power_down_unused || codec->power_save_node)
+	if (spec->power_down_unused || codec->power_save_node) {
 		if (!codec->power_filter)
 			codec->power_filter = snd_hda_gen_path_power_filter;
+		if (!codec->patch_ops.stream_pm)
+			codec->patch_ops.stream_pm = snd_hda_gen_stream_pm;
+	}
 
 	if (!spec->no_analog && spec->beep_nid) {
 		err = snd_hda_attach_beep_device(codec, spec->beep_nid);

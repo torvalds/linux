@@ -52,7 +52,7 @@
  * event channels are limited resource. Split event channels are
  * enabled by default.
  */
-bool separate_tx_rx_irq = 1;
+bool separate_tx_rx_irq = true;
 module_param(separate_tx_rx_irq, bool, 0644);
 
 /* The time that packets can stay on the guest Rx internal queue
@@ -1250,7 +1250,7 @@ static void xenvif_tx_build_gops(struct xenvif_queue *queue,
 			netdev_err(queue->vif->dev,
 				   "txreq.offset: %x, size: %u, end: %lu\n",
 				   txreq.offset, txreq.size,
-				   (txreq.offset&~PAGE_MASK) + txreq.size);
+				   (unsigned long)(txreq.offset&~PAGE_MASK) + txreq.size);
 			xenvif_fatal_tx_err(queue->vif);
 			break;
 		}

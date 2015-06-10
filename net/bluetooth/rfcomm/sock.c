@@ -269,12 +269,12 @@ static struct proto rfcomm_proto = {
 	.obj_size	= sizeof(struct rfcomm_pinfo)
 };
 
-static struct sock *rfcomm_sock_alloc(struct net *net, struct socket *sock, int proto, gfp_t prio)
+static struct sock *rfcomm_sock_alloc(struct net *net, struct socket *sock, int proto, gfp_t prio, int kern)
 {
 	struct rfcomm_dlc *d;
 	struct sock *sk;
 
-	sk = sk_alloc(net, PF_BLUETOOTH, prio, &rfcomm_proto);
+	sk = sk_alloc(net, PF_BLUETOOTH, prio, &rfcomm_proto, kern);
 	if (!sk)
 		return NULL;
 
@@ -324,7 +324,7 @@ static int rfcomm_sock_create(struct net *net, struct socket *sock,
 
 	sock->ops = &rfcomm_sock_ops;
 
-	sk = rfcomm_sock_alloc(net, sock, protocol, GFP_ATOMIC);
+	sk = rfcomm_sock_alloc(net, sock, protocol, GFP_ATOMIC, kern);
 	if (!sk)
 		return -ENOMEM;
 
@@ -969,7 +969,7 @@ int rfcomm_connect_ind(struct rfcomm_session *s, u8 channel, struct rfcomm_dlc *
 		goto done;
 	}
 
-	sk = rfcomm_sock_alloc(sock_net(parent), NULL, BTPROTO_RFCOMM, GFP_ATOMIC);
+	sk = rfcomm_sock_alloc(sock_net(parent), NULL, BTPROTO_RFCOMM, GFP_ATOMIC, 0);
 	if (!sk)
 		goto done;
 

@@ -25,7 +25,7 @@ struct iommu_arena {
 };
 
 struct iommu {
-	struct iommu_table	tbl;
+	struct iommu_map_table	tbl;
 	spinlock_t		lock;
 	u32			dma_addr_mask;
 	iopte_t			*page_table;

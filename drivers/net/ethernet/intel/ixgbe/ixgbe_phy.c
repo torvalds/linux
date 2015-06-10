@@ -317,14 +317,14 @@ bool ixgbe_check_reset_blocked(struct ixgbe_hw *hw)
  **/
 static s32 ixgbe_get_phy_id(struct ixgbe_hw *hw)
 {
-	u32 status;
+	s32 status;
 	u16 phy_id_high = 0;
 	u16 phy_id_low = 0;
 
 	status = hw->phy.ops.read_reg(hw, MDIO_DEVID1, MDIO_MMD_PMAPMD,
 				      &phy_id_high);
 
-	if (status == 0) {
+	if (!status) {
 		hw->phy.id = (u32)(phy_id_high << 16);
 		status = hw->phy.ops.read_reg(hw, MDIO_DEVID2, MDIO_MMD_PMAPMD,
 					      &phy_id_low);

@@ -264,7 +264,7 @@ static int tegra_ictlr_domain_alloc(struct irq_domain *domain,
 
 		irq_domain_set_hwirq_and_chip(domain, virq + i, hwirq + i,
 					      &tegra_ictlr_chip,
-					      &info->base[ictlr]);
+					      info->base[ictlr]);
 	}
 
 	parent_args = *args;

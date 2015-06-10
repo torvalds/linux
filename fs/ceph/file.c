@@ -291,14 +291,14 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 	}
 	if (err)
 		goto out_req;
-	if (dn || dentry->d_inode == NULL || d_is_symlink(dentry)) {
+	if (dn || d_really_is_negative(dentry) || d_is_symlink(dentry)) {
 		/* make vfs retry on splice, ENOENT, or symlink */
 		dout("atomic_open finish_no_open on dn %p\n", dn);
 		err = finish_no_open(file, dn);
 	} else {
 		dout("atomic_open finish_open on dn %p\n", dn);
 		if (req->r_op == CEPH_MDS_OP_CREATE && req->r_reply_info.has_create_ino) {
-			ceph_init_inode_acls(dentry->d_inode, &acls);
+			ceph_init_inode_acls(d_inode(dentry), &acls);
 			*opened |= FILE_CREATED;
 		}
 		err = finish_open(file, dentry, ceph_open, opened);

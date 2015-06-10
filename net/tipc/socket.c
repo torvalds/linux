@@ -41,6 +41,7 @@
 #include "link.h"
 #include "name_distr.h"
 #include "socket.h"
+#include "bcast.h"
 
 #define SS_LISTENING		-1	/* socket is listening */
 #define SS_READY		-2	/* socket is connectionless */
@@ -342,7 +343,7 @@ static int tipc_sk_create(struct net *net, struct socket *sock,
 	}
 
 	/* Allocate socket's protocol area */
-	sk = sk_alloc(net, AF_TIPC, GFP_KERNEL, &tipc_proto);
+	sk = sk_alloc(net, AF_TIPC, GFP_KERNEL, &tipc_proto, kern);
 	if (sk == NULL)
 		return -ENOMEM;
 
@@ -409,7 +410,7 @@ static int tipc_release(struct socket *sock)
 	struct net *net;
 	struct tipc_sock *tsk;
 	struct sk_buff *skb;
-	u32 dnode, probing_state;
+	u32 dnode;
 
 	/*
 	 * Exit if socket isn't fully initialized (occurs when a failed accept()
@@ -447,10 +448,7 @@ static int tipc_release(struct socket *sock)
 	}
 
 	tipc_sk_withdraw(tsk, 0, NULL);
-	probing_state = tsk->probing_state;
-	if (del_timer_sync(&sk->sk_timer) &&
-	    probing_state != TIPC_CONN_PROBING)
-		sock_put(sk);
+	sk_stop_timer(sk, &sk->sk_timer);
 	tipc_sk_remove(tsk);
 	if (tsk->connected) {
 		skb = tipc_msg_create(TIPC_CRITICAL_IMPORTANCE,
@@ -1764,13 +1762,14 @@ static int tipc_sk_enqueue(struct sk_buff_head *inputq, struct sock *sk,
 int tipc_sk_rcv(struct net *net, struct sk_buff_head *inputq)
 {
 	u32 dnode, dport = 0;
-	int err = -TIPC_ERR_NO_PORT;
+	int err;
 	struct sk_buff *skb;
 	struct tipc_sock *tsk;
 	struct tipc_net *tn;
 	struct sock *sk;
 
 	while (skb_queue_len(inputq)) {
+		err = -TIPC_ERR_NO_PORT;
 		skb = NULL;
 		dport = tipc_skb_peek_port(inputq, dport);
 		tsk = tipc_sk_lookup(net, dport);

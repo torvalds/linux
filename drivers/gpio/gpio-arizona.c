@@ -103,7 +103,7 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 
 	arizona_gpio = devm_kzalloc(&pdev->dev, sizeof(*arizona_gpio),
 				    GFP_KERNEL);
-	if (arizona_gpio == NULL)
+	if (!arizona_gpio)
 		return -ENOMEM;
 
 	arizona_gpio->arizona = arizona;
@@ -156,7 +156,6 @@ static int arizona_gpio_remove(struct platform_device *pdev)
 
 static struct platform_driver arizona_gpio_driver = {
 	.driver.name	= "arizona-gpio",
-	.driver.owner	= THIS_MODULE,
 	.probe		= arizona_gpio_probe,
 	.remove		= arizona_gpio_remove,
 };

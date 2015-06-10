@@ -224,6 +224,7 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 
 	drproc = rproc->priv;
 	drproc->rproc = rproc;
+	rproc->has_iommu = false;
 
 	platform_set_drvdata(pdev, rproc);
 

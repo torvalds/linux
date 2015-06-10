@@ -286,18 +286,19 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 }
 
 /* Extract info for Tcp socket info provided via netlink. */
-int tcp_vegas_get_info(struct sock *sk, u32 ext, struct sk_buff *skb)
+size_t tcp_vegas_get_info(struct sock *sk, u32 ext, int *attr,
+			  union tcp_cc_info *info)
 {
 	const struct vegas *ca = inet_csk_ca(sk);
-	if (ext & (1 << (INET_DIAG_VEGASINFO - 1))) {
-		struct tcpvegas_info info = {
-			.tcpv_enabled = ca->doing_vegas_now,
-			.tcpv_rttcnt = ca->cntRTT,
-			.tcpv_rtt = ca->baseRTT,
-			.tcpv_minrtt = ca->minRTT,
-		};
 
-		return nla_put(skb, INET_DIAG_VEGASINFO, sizeof(info), &info);
+	if (ext & (1 << (INET_DIAG_VEGASINFO - 1))) {
+		info->vegas.tcpv_enabled = ca->doing_vegas_now,
+		info->vegas.tcpv_rttcnt = ca->cntRTT,
+		info->vegas.tcpv_rtt = ca->baseRTT,
+		info->vegas.tcpv_minrtt = ca->minRTT,
+
+		*attr = INET_DIAG_VEGASINFO;
+		return sizeof(struct tcpvegas_info);
 	}
 	return 0;
 }

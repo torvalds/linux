@@ -118,7 +118,7 @@ static int pppox_create(struct net *net, struct socket *sock, int protocol,
 	    !try_module_get(pppox_protos[protocol]->owner))
 		goto out;
 
-	rc = pppox_protos[protocol]->create(net, sock);
+	rc = pppox_protos[protocol]->create(net, sock, kern);
 
 	module_put(pppox_protos[protocol]->owner);
 out:

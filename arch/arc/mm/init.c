@@ -71,7 +71,7 @@ early_param("initrd", early_initrd);
  */
 void __init setup_arch_memory(void)
 {
-	unsigned long zones_size[MAX_NR_ZONES] = { 0, 0 };
+	unsigned long zones_size[MAX_NR_ZONES];
 	unsigned long end_mem = CONFIG_LINUX_LINK_BASE + arc_mem_sz;
 
 	init_mm.start_code = (unsigned long)_text;
@@ -90,7 +90,7 @@ void __init setup_arch_memory(void)
 	/*------------- externs in mm need setting up ---------------*/
 
 	/* first page of system - kernel .vector starts here */
-	min_low_pfn = PFN_DOWN(CONFIG_LINUX_LINK_BASE);
+	min_low_pfn = ARCH_PFN_OFFSET;
 
 	/* Last usable page of low mem (no HIGHMEM yet for ARC port) */
 	max_low_pfn = max_pfn = PFN_DOWN(end_mem);
@@ -111,7 +111,7 @@ void __init setup_arch_memory(void)
 
 	/*-------------- node setup --------------------------------*/
 	memset(zones_size, 0, sizeof(zones_size));
-	zones_size[ZONE_NORMAL] = max_low_pfn - min_low_pfn;
+	zones_size[ZONE_NORMAL] = max_mapnr;
 
 	/*
 	 * We can't use the helper free_area_init(zones[]) because it uses
@@ -123,6 +123,8 @@ void __init setup_arch_memory(void)
 			    zones_size,		/* num pages per zone */
 			    min_low_pfn,	/* first pfn of node */
 			    NULL);		/* NO holes */
+
+	high_memory = (void *)end_mem;
 }
 
 /*
@@ -133,7 +135,6 @@ void __init setup_arch_memory(void)
  */
 void __init mem_init(void)
 {
-	high_memory = (void *)(CONFIG_LINUX_LINK_BASE + arc_mem_sz);
 	free_all_bootmem();
 	mem_init_print_info(NULL);
 }

@@ -209,7 +209,7 @@ ssize_t dax_do_io(struct kiocb *iocb, struct inode *inode,
 	}
 
 	/* Protects against truncate */
-	atomic_inc(&inode->i_dio_count);
+	inode_dio_begin(inode);
 
 	retval = dax_io(inode, iter, pos, end, get_block, &bh);
 
@@ -219,7 +219,7 @@ ssize_t dax_do_io(struct kiocb *iocb, struct inode *inode,
 	if ((retval > 0) && end_io)
 		end_io(iocb, pos, retval, bh.b_private);
 
-	inode_dio_done(inode);
+	inode_dio_end(inode);
  out:
 	return retval;
 }

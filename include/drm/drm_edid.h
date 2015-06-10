@@ -215,6 +215,8 @@ struct detailed_timing {
 #define DRM_ELD_VER			0
 # define DRM_ELD_VER_SHIFT		3
 # define DRM_ELD_VER_MASK		(0x1f << 3)
+# define DRM_ELD_VER_CEA861D		(2 << 3) /* supports 861D or below */
+# define DRM_ELD_VER_CANNED		(0x1f << 3)
 
 #define DRM_ELD_BASELINE_ELD_LEN	2	/* in dwords! */
 

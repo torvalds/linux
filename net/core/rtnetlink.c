@@ -1004,16 +1004,20 @@ static int rtnl_phys_port_name_fill(struct sk_buff *skb, struct net_device *dev)
 static int rtnl_phys_switch_id_fill(struct sk_buff *skb, struct net_device *dev)
 {
 	int err;
-	struct netdev_phys_item_id psid;
+	struct switchdev_attr attr = {
+		.id = SWITCHDEV_ATTR_PORT_PARENT_ID,
+		.flags = SWITCHDEV_F_NO_RECURSE,
+	};
 
-	err = netdev_switch_parent_id_get(dev, &psid);
+	err = switchdev_port_attr_get(dev, &attr);
 	if (err) {
 		if (err == -EOPNOTSUPP)
 			return 0;
 		return err;
 	}
 
-	if (nla_put(skb, IFLA_PHYS_SWITCH_ID, psid.id_len, psid.id))
+	if (nla_put(skb, IFLA_PHYS_SWITCH_ID, attr.u.ppid.id_len,
+		    attr.u.ppid.id))
 		return -EMSGSIZE;
 
 	return 0;
@@ -1204,7 +1208,7 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 		struct net *link_net = dev->rtnl_link_ops->get_link_net(dev);
 
 		if (!net_eq(dev_net(dev), link_net)) {
-			int id = peernet2id(dev_net(dev), link_net);
+			int id = peernet2id_alloc(dev_net(dev), link_net);
 
 			if (nla_put_s32(skb, IFLA_LINK_NETNSID, id))
 				goto nla_put_failure;
@@ -2416,6 +2420,9 @@ void rtmsg_ifinfo(int type, struct net_device *dev, unsigned int change,
 {
 	struct sk_buff *skb;
 
+	if (dev->reg_state != NETREG_REGISTERED)
+		return;
+
 	skb = rtmsg_ifinfo_build_skb(type, dev, change, flags);
 	if (skb)
 		rtmsg_ifinfo_send(skb, dev, flags);
@@ -2854,7 +2861,7 @@ static int brport_nla_put_flag(struct sk_buff *skb, u32 flags, u32 mask,
 
 int ndo_dflt_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 			    struct net_device *dev, u16 mode,
-			    u32 flags, u32 mask)
+			    u32 flags, u32 mask, int nlflags)
 {
 	struct nlmsghdr *nlh;
 	struct ifinfomsg *ifm;
@@ -2863,7 +2870,7 @@ int ndo_dflt_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 	u8 operstate = netif_running(dev) ? dev->operstate : IF_OPER_DOWN;
 	struct net_device *br_dev = netdev_master_upper_dev_get(dev);
 
-	nlh = nlmsg_put(skb, pid, seq, RTM_NEWLINK, sizeof(*ifm), NLM_F_MULTI);
+	nlh = nlmsg_put(skb, pid, seq, RTM_NEWLINK, sizeof(*ifm), nlflags);
 	if (nlh == NULL)
 		return -EMSGSIZE;
 
@@ -2969,7 +2976,8 @@ static int rtnl_bridge_getlink(struct sk_buff *skb, struct netlink_callback *cb)
 		if (br_dev && br_dev->netdev_ops->ndo_bridge_getlink) {
 			if (idx >= cb->args[0] &&
 			    br_dev->netdev_ops->ndo_bridge_getlink(
-				    skb, portid, seq, dev, filter_mask) < 0)
+				    skb, portid, seq, dev, filter_mask,
+				    NLM_F_MULTI) < 0)
 				break;
 			idx++;
 		}
@@ -2977,7 +2985,8 @@ static int rtnl_bridge_getlink(struct sk_buff *skb, struct netlink_callback *cb)
 		if (ops->ndo_bridge_getlink) {
 			if (idx >= cb->args[0] &&
 			    ops->ndo_bridge_getlink(skb, portid, seq, dev,
-						    filter_mask) < 0)
+						    filter_mask,
+						    NLM_F_MULTI) < 0)
 				break;
 			idx++;
 		}
@@ -3018,7 +3027,7 @@ static int rtnl_bridge_notify(struct net_device *dev)
 		goto errout;
 	}
 
-	err = dev->netdev_ops->ndo_bridge_getlink(skb, 0, 0, dev, 0);
+	err = dev->netdev_ops->ndo_bridge_getlink(skb, 0, 0, dev, 0, 0);
 	if (err < 0)
 		goto errout;
 

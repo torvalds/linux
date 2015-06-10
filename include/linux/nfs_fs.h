@@ -511,6 +511,7 @@ extern int  nfs_updatepage(struct file *, struct page *, unsigned int, unsigned 
  * Try to write back everything synchronously (but check the
  * return value!)
  */
+extern int nfs_sync_inode(struct inode *inode);
 extern int nfs_wb_all(struct inode *inode);
 extern int nfs_wb_page(struct inode *inode, struct page* page);
 extern int nfs_wb_page_cancel(struct inode *inode, struct page* page);

@@ -889,7 +889,7 @@ static int _rtl92cu_init_mac(struct ieee80211_hw *hw)
 	rtl92c_set_min_space(hw, IS_92C_SERIAL(rtlhal->version));
 	rtl92c_init_beacon_parameters(hw, rtlhal->version);
 	rtl92c_init_ampdu_aggregation(hw);
-	rtl92c_init_beacon_max_error(hw, true);
+	rtl92c_init_beacon_max_error(hw);
 	return err;
 }
 
@@ -1323,7 +1323,6 @@ static int _rtl92cu_set_media_status(struct ieee80211_hw *hw,
 	enum led_ctl_mode ledaction = LED_CTL_NO_LINK;
 
 	bt_msr &= 0xfc;
-	rtl_write_byte(rtlpriv, REG_BCN_MAX_ERR, 0xFF);
 	if (type == NL80211_IFTYPE_UNSPECIFIED || type ==
 	    NL80211_IFTYPE_STATION) {
 		_rtl92cu_stop_tx_beacon(hw);

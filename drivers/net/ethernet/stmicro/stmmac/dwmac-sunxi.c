@@ -18,7 +18,9 @@
 
 #include <linux/stmmac.h>
 #include <linux/clk.h>
+#include <linux/module.h>
 #include <linux/phy.h>
+#include <linux/platform_device.h>
 #include <linux/of_net.h>
 #include <linux/regulator/consumer.h>
 
@@ -132,7 +134,7 @@ static void sun7i_fix_speed(void *priv, unsigned int speed)
 
 /* of_data specifying hardware features and callbacks.
  * hardware features were copied from Allwinner drivers. */
-const struct stmmac_of_data sun7i_gmac_data = {
+static const struct stmmac_of_data sun7i_gmac_data = {
 	.has_gmac = 1,
 	.tx_coe = 1,
 	.fix_mac_speed = sun7i_fix_speed,
@@ -140,3 +142,24 @@ const struct stmmac_of_data sun7i_gmac_data = {
 	.init = sun7i_gmac_init,
 	.exit = sun7i_gmac_exit,
 };
+
+static const struct of_device_id sun7i_dwmac_match[] = {
+	{ .compatible = "allwinner,sun7i-a20-gmac", .data = &sun7i_gmac_data},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, sun7i_dwmac_match);
+
+static struct platform_driver sun7i_dwmac_driver = {
+	.probe  = stmmac_pltfr_probe,
+	.remove = stmmac_pltfr_remove,
+	.driver = {
+		.name           = "sun7i-dwmac",
+		.pm		= &stmmac_pltfr_pm_ops,
+		.of_match_table = sun7i_dwmac_match,
+	},
+};
+module_platform_driver(sun7i_dwmac_driver);
+
+MODULE_AUTHOR("Chen-Yu Tsai <wens@csie.org>");
+MODULE_DESCRIPTION("Allwinner sunxi DWMAC specific glue layer");
+MODULE_LICENSE("GPL");

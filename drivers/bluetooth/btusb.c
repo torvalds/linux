@@ -24,19 +24,21 @@
 #include <linux/module.h>
 #include <linux/usb.h>
 #include <linux/firmware.h>
+#include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
 #include "btintel.h"
 #include "btbcm.h"
+#include "btrtl.h"
 
 #define VERSION "0.8"
 
 static bool disable_scofix;
 static bool force_scofix;
 
-static bool reset = 1;
+static bool reset = true;
 
 static struct usb_driver btusb_driver;
 
@@ -57,6 +59,7 @@ static struct usb_driver btusb_driver;
 #define BTUSB_AMP		0x4000
 #define BTUSB_QCA_ROME		0x8000
 #define BTUSB_BCM_APPLE		0x10000
+#define BTUSB_REALTEK		0x20000
 
 static const struct usb_device_id btusb_table[] = {
 	/* Generic Bluetooth USB device */
@@ -184,6 +187,7 @@ static const struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x04ca, 0x3007), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x04ca, 0x3008), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x04ca, 0x300b), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x04ca, 0x300f), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x04ca, 0x3010), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x0930, 0x0219), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x0930, 0x0220), .driver_info = BTUSB_ATH3012 },
@@ -200,6 +204,7 @@ static const struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x0cf3, 0xe003), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x0cf3, 0xe004), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x0cf3, 0xe005), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x0cf3, 0xe006), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x13d3, 0x3362), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x13d3, 0x3375), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x13d3, 0x3393), .driver_info = BTUSB_ATH3012 },
@@ -216,6 +221,7 @@ static const struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x0489, 0xe03c), .driver_info = BTUSB_ATH3012 },
 
 	/* QCA ROME chipset */
+	{ USB_DEVICE(0x0cf3, 0xe007), .driver_info = BTUSB_QCA_ROME },
 	{ USB_DEVICE(0x0cf3, 0xe300), .driver_info = BTUSB_QCA_ROME },
 	{ USB_DEVICE(0x0cf3, 0xe360), .driver_info = BTUSB_QCA_ROME },
 
@@ -288,6 +294,28 @@ static const struct usb_device_id blacklist_table[] = {
 	{ USB_VENDOR_AND_INTERFACE_INFO(0x8087, 0xe0, 0x01, 0x01),
 	  .driver_info = BTUSB_IGNORE },
 
+	/* Realtek Bluetooth devices */
+	{ USB_VENDOR_AND_INTERFACE_INFO(0x0bda, 0xe0, 0x01, 0x01),
+	  .driver_info = BTUSB_REALTEK },
+
+	/* Additional Realtek 8723AE Bluetooth devices */
+	{ USB_DEVICE(0x0930, 0x021d), .driver_info = BTUSB_REALTEK },
+	{ USB_DEVICE(0x13d3, 0x3394), .driver_info = BTUSB_REALTEK },
+
+	/* Additional Realtek 8723BE Bluetooth devices */
+	{ USB_DEVICE(0x0489, 0xe085), .driver_info = BTUSB_REALTEK },
+	{ USB_DEVICE(0x0489, 0xe08b), .driver_info = BTUSB_REALTEK },
+	{ USB_DEVICE(0x13d3, 0x3410), .driver_info = BTUSB_REALTEK },
+	{ USB_DEVICE(0x13d3, 0x3416), .driver_info = BTUSB_REALTEK },
+	{ USB_DEVICE(0x13d3, 0x3459), .driver_info = BTUSB_REALTEK },
+
+	/* Additional Realtek 8821AE Bluetooth devices */
+	{ USB_DEVICE(0x0b05, 0x17dc), .driver_info = BTUSB_REALTEK },
+	{ USB_DEVICE(0x13d3, 0x3414), .driver_info = BTUSB_REALTEK },
+	{ USB_DEVICE(0x13d3, 0x3458), .driver_info = BTUSB_REALTEK },
+	{ USB_DEVICE(0x13d3, 0x3461), .driver_info = BTUSB_REALTEK },
+	{ USB_DEVICE(0x13d3, 0x3462), .driver_info = BTUSB_REALTEK },
+
 	{ }	/* Terminating entry */
 };
 
@@ -303,6 +331,7 @@ static const struct usb_device_id blacklist_table[] = {
 #define BTUSB_FIRMWARE_LOADED	7
 #define BTUSB_FIRMWARE_FAILED	8
 #define BTUSB_BOOTING		9
+#define BTUSB_RESET_RESUME	10
 
 struct btusb_data {
 	struct hci_dev       *hdev;
@@ -892,7 +921,7 @@ static int btusb_open(struct hci_dev *hdev)
 	 */
 	if (data->setup_on_usb) {
 		err = data->setup_on_usb(hdev);
-		if (err <0)
+		if (err < 0)
 			return err;
 	}
 
@@ -1552,12 +1581,6 @@ static int btusb_setup_intel(struct hci_dev *hdev)
 	}
 
 	ver = (struct intel_version *)skb->data;
-	if (ver->status) {
-		BT_ERR("%s Intel fw version event failed (%02x)", hdev->name,
-		       ver->status);
-		kfree_skb(skb);
-		return -bt_to_errno(ver->status);
-	}
 
 	BT_INFO("%s: read Intel version: %02x%02x%02x%02x%02x%02x%02x%02x%02x",
 		hdev->name, ver->hw_platform, ver->hw_variant,
@@ -1605,15 +1628,6 @@ static int btusb_setup_intel(struct hci_dev *hdev)
 		return PTR_ERR(skb);
 	}
 
-	if (skb->data[0]) {
-		u8 evt_status = skb->data[0];
-
-		BT_ERR("%s enable Intel manufacturer mode event failed (%02x)",
-		       hdev->name, evt_status);
-		kfree_skb(skb);
-		release_firmware(fw);
-		return -bt_to_errno(evt_status);
-	}
 	kfree_skb(skb);
 
 	disable_patch = 1;
@@ -1959,13 +1973,6 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 	}
 
 	ver = (struct intel_version *)skb->data;
-	if (ver->status) {
-		BT_ERR("%s: Intel version command failure (%02x)",
-		       hdev->name, ver->status);
-		err = -bt_to_errno(ver->status);
-		kfree_skb(skb);
-		return err;
-	}
 
 	/* The hardware platform number has a fixed value of 0x37 and
 	 * for now only accept this single value.
@@ -2040,13 +2047,6 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 	}
 
 	params = (struct intel_boot_params *)skb->data;
-	if (params->status) {
-		BT_ERR("%s: Intel boot parameters command failure (%02x)",
-		       hdev->name, params->status);
-		err = -bt_to_errno(params->status);
-		kfree_skb(skb);
-		return err;
-	}
 
 	BT_INFO("%s: Device revision is %u", hdev->name,
 		le16_to_cpu(params->dev_revid));
@@ -2279,13 +2279,6 @@ static void btusb_hw_error_intel(struct hci_dev *hdev, u8 code)
 		return;
 	}
 
-	if (skb->data[0] != 0x00) {
-		BT_ERR("%s: Exception info command failure (%02x)",
-		       hdev->name, skb->data[0]);
-		kfree_skb(skb);
-		return;
-	}
-
 	BT_ERR("%s: Exception info %s", hdev->name, (char *)(skb->data + 1));
 
 	kfree_skb(skb);
@@ -2393,6 +2386,7 @@ struct qca_device_info {
 static const struct qca_device_info qca_devices_table[] = {
 	{ 0x00000100, 20, 4, 10 }, /* Rome 1.0 */
 	{ 0x00000101, 20, 4, 10 }, /* Rome 1.1 */
+	{ 0x00000200, 28, 4, 18 }, /* Rome 2.0 */
 	{ 0x00000201, 28, 4, 18 }, /* Rome 2.1 */
 	{ 0x00000300, 28, 4, 18 }, /* Rome 3.0 */
 	{ 0x00000302, 28, 4, 18 }, /* Rome 3.2 */
@@ -2577,7 +2571,7 @@ static int btusb_setup_qca(struct hci_dev *hdev)
 	int i, err;
 
 	err = btusb_qca_send_vendor_req(hdev, QCA_GET_TARGET_VERSION, &ver,
-				        sizeof(ver));
+					sizeof(ver));
 	if (err < 0)
 		return err;
 
@@ -2776,6 +2770,18 @@ static int btusb_probe(struct usb_interface *intf,
 		hdev->set_bdaddr = btusb_set_bdaddr_ath3012;
 	}
 
+#ifdef CONFIG_BT_HCIBTUSB_RTL
+	if (id->driver_info & BTUSB_REALTEK) {
+		hdev->setup = btrtl_setup_realtek;
+
+		/* Realtek devices lose their updated firmware over suspend,
+		 * but the USB hub doesn't notice any status change.
+		 * Explicitly request a device reset on resume.
+		 */
+		set_bit(BTUSB_RESET_RESUME, &data->flags);
+	}
+#endif
+
 	if (id->driver_info & BTUSB_AMP) {
 		/* AMP controllers do not support SCO packets */
 		data->isoc = NULL;
@@ -2905,6 +2911,14 @@ static int btusb_suspend(struct usb_interface *intf, pm_message_t message)
 
 	btusb_stop_traffic(data);
 	usb_kill_anchored_urbs(&data->tx_anchor);
+
+	/* Optionally request a device reset on resume, but only when
+	 * wakeups are disabled. If wakeups are enabled we assume the
+	 * device will stay powered up throughout suspend.
+	 */
+	if (test_bit(BTUSB_RESET_RESUME, &data->flags) &&
+	    !device_may_wakeup(&data->udev->dev))
+		data->udev->reset_resume = 1;
 
 	return 0;
 }

@@ -816,7 +816,7 @@ static int ovs_key_from_nlattrs(struct sw_flow_match *match, u64 attrs,
 		if (is_mask) {
 			/* Always exact match EtherType. */
 			eth_type = htons(0xffff);
-		} else if (ntohs(eth_type) < ETH_P_802_3_MIN) {
+		} else if (!eth_proto_is_802_3(eth_type)) {
 			OVS_NLERR(log, "EtherType %x is less than min %x",
 				  ntohs(eth_type), ETH_P_802_3_MIN);
 			return -EINVAL;

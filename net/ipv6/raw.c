@@ -865,6 +865,9 @@ static int rawv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		fl6.flowi6_oif = np->ucast_oif;
 	security_sk_classify_flow(sk, flowi6_to_flowi(&fl6));
 
+	if (inet->hdrincl)
+		fl6.flowi6_flags |= FLOWI_FLAG_KNOWN_NH;
+
 	dst = ip6_dst_lookup_flow(sk, &fl6, final_p);
 	if (IS_ERR(dst)) {
 		err = PTR_ERR(dst);
@@ -1324,13 +1327,7 @@ static struct inet_protosw rawv6_protosw = {
 
 int __init rawv6_init(void)
 {
-	int ret;
-
-	ret = inet6_register_protosw(&rawv6_protosw);
-	if (ret)
-		goto out;
-out:
-	return ret;
+	return inet6_register_protosw(&rawv6_protosw);
 }
 
 void rawv6_exit(void)

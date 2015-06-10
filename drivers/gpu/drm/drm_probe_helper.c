@@ -98,7 +98,7 @@ static int drm_helper_probe_single_connector_modes_merge_bits(struct drm_connect
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *mode;
-	struct drm_connector_helper_funcs *connector_funcs =
+	const struct drm_connector_helper_funcs *connector_funcs =
 		connector->helper_private;
 	int count = 0;
 	int mode_flags = 0;

@@ -495,7 +495,7 @@ static void r4k_tlb_configure(void)
 
 	if (cpu_has_rixi) {
 		/*
-		 * Enable the no read, no exec bits, and enable large virtual
+		 * Enable the no read, no exec bits, and enable large physical
 		 * address.
 		 */
 #ifdef CONFIG_64BIT

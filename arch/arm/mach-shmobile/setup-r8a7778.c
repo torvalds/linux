@@ -15,6 +15,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/clk/shmobile.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <linux/irqchip/arm-gic.h>
@@ -40,6 +41,21 @@
 #include "common.h"
 #include "irqs.h"
 #include "r8a7778.h"
+
+#define MODEMR 0xffcc0020
+
+#ifdef CONFIG_COMMON_CLK
+static void __init r8a7778_timer_init(void)
+{
+	u32 mode;
+	void __iomem *modemr = ioremap_nocache(MODEMR, 4);
+
+	BUG_ON(!modemr);
+	mode = ioread32(modemr);
+	iounmap(modemr);
+	r8a7778_clocks_init(mode);
+}
+#endif
 
 /* SCIF */
 #define R8A7778_SCIF(index, baseaddr, irq)			\
@@ -608,6 +624,9 @@ DT_MACHINE_START(R8A7778_DT, "Generic R8A7778 (Flattened Device Tree)")
 	.init_early	= shmobile_init_delay,
 	.init_irq	= r8a7778_init_irq_dt,
 	.init_late	= shmobile_init_late,
+#ifdef CONFIG_COMMON_CLK
+	.init_time	= r8a7778_timer_init,
+#endif
 	.dt_compat	= r8a7778_compat_dt,
 MACHINE_END
 

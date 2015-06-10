@@ -487,7 +487,7 @@ emit_cond_jmp:
 			return -EINVAL;
 		}
 
-		imm64 = (u64)insn1.imm << 32 | imm;
+		imm64 = (u64)insn1.imm << 32 | (u32)imm;
 		emit_a64_mov_i64(dst, imm64, ctx);
 
 		return 1;

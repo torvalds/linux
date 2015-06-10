@@ -2049,6 +2049,10 @@ D: pirq addr, CS5535 alsa audio driver
 S: Gurgaon, India
 S: Kuala Lumpur, Malaysia
 
+N: Mohit Kumar
+D: ST Microelectronics SPEAr13xx PCI host bridge driver
+D: Synopsys Designware PCI host bridge driver
+
 N: Gabor Kuti
 M: seasons@falcon.sch.bme.hu
 M: seasons@makosteszta.sote.hu
@@ -3704,6 +3708,13 @@ S: USA
 N: Dirk Verworner
 D: Co-author of German book ``Linux-Kernel-Programmierung''
 D: Co-founder of Berlin Linux User Group
+
+N: Andrew Victor
+E: linux@maxim.org.za
+W: http://maxim.org.za/at91_26.html
+D: First maintainer of Atmel ARM-based SoC, aka AT91
+D: Introduced support for at91rm9200, the first chip of AT91 family
+S: South Africa
 
 N: Riku Voipio
 E: riku.voipio@iki.fi

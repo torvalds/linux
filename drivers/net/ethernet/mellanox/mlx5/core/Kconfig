@@ -3,6 +3,18 @@
 #
 
 config MLX5_CORE
-	tristate
+	tristate "Mellanox Technologies ConnectX-4 and Connect-IB core driver"
 	depends on PCI
 	default n
+	---help---
+	  Core driver for low level functionality of the ConnectX-4 and
+	  Connect-IB cards by Mellanox Technologies.
+
+config MLX5_CORE_EN
+	bool "Mellanox Technologies ConnectX-4 Ethernet support"
+	depends on NETDEVICES && ETHERNET && PCI && MLX5_CORE
+	default n
+	---help---
+	  Ethernet support in Mellanox Technologies ConnectX-4 NIC.
+	  Ethernet and Infiniband support in ConnectX-4 are currently mutually
+	  exclusive.

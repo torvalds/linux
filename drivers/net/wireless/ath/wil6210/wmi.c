@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2015 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -543,55 +543,22 @@ static void wmi_evt_eapol_rx(struct wil6210_priv *wil, int id,
 	}
 }
 
-static void wil_addba_tx_cid(struct wil6210_priv *wil, u8 cid, u16 wsize)
+static void wmi_evt_vring_en(struct wil6210_priv *wil, int id, void *d, int len)
 {
-	struct vring_tx_data *t;
-	int i;
+	struct wmi_vring_en_event *evt = d;
+	u8 vri = evt->vring_index;
 
-	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
-		if (cid != wil->vring2cid_tid[i][0])
-			continue;
-		t = &wil->vring_tx_data[i];
-		if (!t->enabled)
-			continue;
+	wil_dbg_wmi(wil, "Enable vring %d\n", vri);
 
-		wil_addba_tx_request(wil, i, wsize);
-	}
-}
-
-static void wmi_evt_linkup(struct wil6210_priv *wil, int id, void *d, int len)
-{
-	struct wmi_data_port_open_event *evt = d;
-	u8 cid = evt->cid;
-
-	wil_dbg_wmi(wil, "Link UP for CID %d\n", cid);
-
-	if (cid >= ARRAY_SIZE(wil->sta)) {
-		wil_err(wil, "Link UP for invalid CID %d\n", cid);
+	if (vri >= ARRAY_SIZE(wil->vring_tx)) {
+		wil_err(wil, "Enable for invalid vring %d\n", vri);
 		return;
 	}
-
-	wil->sta[cid].data_port_open = true;
+	wil->vring_tx_data[vri].dot1x_open = true;
+	if (vri == wil->bcast_vring) /* no BA for bcast */
+		return;
 	if (agg_wsize >= 0)
-		wil_addba_tx_cid(wil, cid, agg_wsize);
-}
-
-static void wmi_evt_linkdown(struct wil6210_priv *wil, int id, void *d, int len)
-{
-	struct net_device *ndev = wil_to_ndev(wil);
-	struct wmi_wbe_link_down_event *evt = d;
-	u8 cid = evt->cid;
-
-	wil_dbg_wmi(wil, "Link DOWN for CID %d, reason %d\n",
-		    cid, le32_to_cpu(evt->reason));
-
-	if (cid >= ARRAY_SIZE(wil->sta)) {
-		wil_err(wil, "Link DOWN for invalid CID %d\n", cid);
-		return;
-	}
-
-	wil->sta[cid].data_port_open = false;
-	netif_carrier_off(ndev);
+		wil_addba_tx_request(wil, vri, agg_wsize);
 }
 
 static void wmi_evt_ba_status(struct wil6210_priv *wil, int id, void *d,
@@ -695,11 +662,10 @@ static const struct {
 	{WMI_CONNECT_EVENTID,		wmi_evt_connect},
 	{WMI_DISCONNECT_EVENTID,	wmi_evt_disconnect},
 	{WMI_EAPOL_RX_EVENTID,		wmi_evt_eapol_rx},
-	{WMI_DATA_PORT_OPEN_EVENTID,	wmi_evt_linkup},
-	{WMI_WBE_LINKDOWN_EVENTID,	wmi_evt_linkdown},
 	{WMI_BA_STATUS_EVENTID,		wmi_evt_ba_status},
 	{WMI_RCP_ADDBA_REQ_EVENTID,	wmi_evt_addba_rx_req},
 	{WMI_DELBA_EVENTID,		wmi_evt_delba},
+	{WMI_VRING_EN_EVENTID,		wmi_evt_vring_en},
 };
 
 /*
@@ -844,7 +810,7 @@ int wmi_echo(struct wil6210_priv *wil)
 	};
 
 	return wmi_call(wil, WMI_ECHO_CMDID, &cmd, sizeof(cmd),
-			 WMI_ECHO_RSP_EVENTID, NULL, 0, 20);
+			WMI_ECHO_RSP_EVENTID, NULL, 0, 50);
 }
 
 int wmi_set_mac_address(struct wil6210_priv *wil, void *addr)
@@ -985,7 +951,7 @@ int wmi_p2p_cfg(struct wil6210_priv *wil, int channel)
 }
 
 int wmi_del_cipher_key(struct wil6210_priv *wil, u8 key_index,
-		       const void *mac_addr)
+		       const void *mac_addr, int key_usage)
 {
 	struct wmi_delete_cipher_key_cmd cmd = {
 		.key_index = key_index,
@@ -998,11 +964,12 @@ int wmi_del_cipher_key(struct wil6210_priv *wil, u8 key_index,
 }
 
 int wmi_add_cipher_key(struct wil6210_priv *wil, u8 key_index,
-		       const void *mac_addr, int key_len, const void *key)
+		       const void *mac_addr, int key_len, const void *key,
+		       int key_usage)
 {
 	struct wmi_add_cipher_key_cmd cmd = {
 		.key_index = key_index,
-		.key_usage = WMI_KEY_USE_PAIRWISE,
+		.key_usage = key_usage,
 		.key_len = key_len,
 	};
 
@@ -1238,7 +1205,8 @@ int wmi_addba_rx_resp(struct wil6210_priv *wil, u8 cid, u8 tid, u8 token,
 		    cid, tid, agg_wsize, timeout, status, amsdu ? "+" : "-");
 
 	rc = wmi_call(wil, WMI_RCP_ADDBA_RESP_CMDID, &cmd, sizeof(cmd),
-		      WMI_ADDBA_RESP_SENT_EVENTID, &reply, sizeof(reply), 100);
+		      WMI_RCP_ADDBA_RESP_SENT_EVENTID, &reply, sizeof(reply),
+		      100);
 	if (rc)
 		return rc;
 

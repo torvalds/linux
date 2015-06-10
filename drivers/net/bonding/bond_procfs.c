@@ -4,6 +4,7 @@
 #include <net/netns/generic.h>
 #include <net/bonding.h>
 
+#include "bonding_priv.h"
 
 static void *bond_info_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(RCU)
@@ -134,6 +135,10 @@ static void bond_info_show_master(struct seq_file *seq)
 					  bond->params.ad_select);
 		seq_printf(seq, "Aggregator selection policy (ad_select): %s\n",
 			   optval->string);
+		seq_printf(seq, "System priority: %d\n",
+			   BOND_AD_INFO(bond).system.sys_priority);
+		seq_printf(seq, "System MAC address: %pM\n",
+			   &BOND_AD_INFO(bond).system.sys_mac_addr);
 
 		if (__bond_3ad_get_active_agg_info(bond, &ad_info)) {
 			seq_printf(seq, "bond %s has no active aggregator\n",
@@ -197,6 +202,8 @@ static void bond_info_show_slave(struct seq_file *seq,
 			seq_puts(seq, "details actor lacp pdu:\n");
 			seq_printf(seq, "    system priority: %d\n",
 				   port->actor_system_priority);
+			seq_printf(seq, "    system mac address: %pM\n",
+				   &port->actor_system);
 			seq_printf(seq, "    port key: %d\n",
 				   port->actor_oper_port_key);
 			seq_printf(seq, "    port priority: %d\n",
@@ -209,6 +216,8 @@ static void bond_info_show_slave(struct seq_file *seq,
 			seq_puts(seq, "details partner lacp pdu:\n");
 			seq_printf(seq, "    system priority: %d\n",
 				   port->partner_oper.system_priority);
+			seq_printf(seq, "    system mac address: %pM\n",
+				   &port->partner_oper.system);
 			seq_printf(seq, "    oper key: %d\n",
 				   port->partner_oper.key);
 			seq_printf(seq, "    port priority: %d\n",

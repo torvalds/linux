@@ -267,6 +267,15 @@ tcp_ecn - INTEGER
 		  but do not request ECN on outgoing connections.
 	Default: 2
 
+tcp_ecn_fallback - BOOLEAN
+	If the kernel detects that ECN connection misbehaves, enable fall
+	back to non-ECN. Currently, this knob implements the fallback
+	from RFC3168, section 6.1.1.1., but we reserve that in future,
+	additional detection mechanisms could be implemented under this
+	knob. The value	is not used, if tcp_ecn or per route (or congestion
+	control) ECN settings are disabled.
+	Default: 1 (fallback enabled)
+
 tcp_fack - BOOLEAN
 	Enable FACK congestion avoidance and fast retransmission.
 	The value is not used, if tcp_sack is not enabled.
@@ -742,8 +751,10 @@ IP Variables:
 ip_local_port_range - 2 INTEGERS
 	Defines the local port range that is used by TCP and UDP to
 	choose the local port. The first number is the first, the
-	second the last local port number. The default values are
-	32768 and 61000 respectively.
+	second the last local port number.
+	If possible, it is better these numbers have different parity.
+	(one even and one odd values)
+	The default values are 32768 and 60999 respectively.
 
 ip_local_reserved_ports - list of comma separated ranges
 	Specify the ports which are reserved for known third-party
@@ -766,7 +777,7 @@ ip_local_reserved_ports - list of comma separated ranges
 	ip_local_port_range, e.g.:
 
 	$ cat /proc/sys/net/ipv4/ip_local_port_range
-	32000	61000
+	32000	60999
 	$ cat /proc/sys/net/ipv4/ip_local_reserved_ports
 	8080,9148
 
@@ -1212,6 +1223,14 @@ auto_flowlabels - BOOLEAN
 	TRUE: enabled
 	FALSE: disabled
 	Default: false
+
+flowlabel_state_ranges - BOOLEAN
+	Split the flow label number space into two ranges. 0-0x7FFFF is
+	reserved for the IPv6 flow manager facility, 0x80000-0xFFFFF
+	is reserved for stateless flow labels as described in RFC6437.
+	TRUE: enabled
+	FALSE: disabled
+	Default: true
 
 anycast_src_echo_reply - BOOLEAN
 	Controls the use of anycast addresses as source addresses for ICMPv6

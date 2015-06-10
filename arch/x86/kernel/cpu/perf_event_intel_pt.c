@@ -151,7 +151,7 @@ static int __init pt_pmu_hw_init(void)
 
 		de_attr->attr.attr.name = pt_caps[i].name;
 
-		sysfs_attr_init(&de_attrs->attr.attr);
+		sysfs_attr_init(&de_attr->attr.attr);
 
 		de_attr->attr.attr.mode		= S_IRUGO;
 		de_attr->attr.show		= pt_cap_show;
@@ -615,7 +615,8 @@ static int pt_buffer_reset_markers(struct pt_buffer *buf,
 				   struct perf_output_handle *handle)
 
 {
-	unsigned long idx, npages, end;
+	unsigned long head = local64_read(&buf->head);
+	unsigned long idx, npages, wakeup;
 
 	if (buf->snapshot)
 		return 0;
@@ -634,17 +635,26 @@ static int pt_buffer_reset_markers(struct pt_buffer *buf,
 	buf->topa_index[buf->stop_pos]->stop = 0;
 	buf->topa_index[buf->intr_pos]->intr = 0;
 
-	if (pt_cap_get(PT_CAP_topa_multiple_entries)) {
-		npages = (handle->size + 1) >> PAGE_SHIFT;
-		end = (local64_read(&buf->head) >> PAGE_SHIFT) + npages;
-		/*if (end > handle->wakeup >> PAGE_SHIFT)
-		  end = handle->wakeup >> PAGE_SHIFT;*/
-		idx = end & (buf->nr_pages - 1);
-		buf->stop_pos = idx;
-		idx = (local64_read(&buf->head) >> PAGE_SHIFT) + npages - 1;
-		idx &= buf->nr_pages - 1;
-		buf->intr_pos = idx;
-	}
+	/* how many pages till the STOP marker */
+	npages = handle->size >> PAGE_SHIFT;
+
+	/* if it's on a page boundary, fill up one more page */
+	if (!offset_in_page(head + handle->size + 1))
+		npages++;
+
+	idx = (head >> PAGE_SHIFT) + npages;
+	idx &= buf->nr_pages - 1;
+	buf->stop_pos = idx;
+
+	wakeup = handle->wakeup >> PAGE_SHIFT;
+
+	/* in the worst case, wake up the consumer one page before hard stop */
+	idx = (head >> PAGE_SHIFT) + npages - 1;
+	if (idx > wakeup)
+		idx = wakeup;
+
+	idx &= buf->nr_pages - 1;
+	buf->intr_pos = idx;
 
 	buf->topa_index[buf->stop_pos]->stop = 1;
 	buf->topa_index[buf->intr_pos]->intr = 1;
@@ -988,39 +998,36 @@ static int pt_event_add(struct perf_event *event, int mode)
 	int ret = -EBUSY;
 
 	if (pt->handle.event)
-		goto out;
+		goto fail;
 
 	buf = perf_aux_output_begin(&pt->handle, event);
-	if (!buf) {
-		ret = -EINVAL;
-		goto out;
-	}
+	ret = -EINVAL;
+	if (!buf)
+		goto fail_stop;
 
 	pt_buffer_reset_offsets(buf, pt->handle.head);
 	if (!buf->snapshot) {
 		ret = pt_buffer_reset_markers(buf, &pt->handle);
-		if (ret) {
-			perf_aux_output_end(&pt->handle, 0, true);
-			goto out;
-		}
+		if (ret)
+			goto fail_end_stop;
 	}
 
 	if (mode & PERF_EF_START) {
 		pt_event_start(event, 0);
-		if (hwc->state == PERF_HES_STOPPED) {
-			pt_event_del(event, 0);
-			ret = -EBUSY;
-		}
+		ret = -EBUSY;
+		if (hwc->state == PERF_HES_STOPPED)
+			goto fail_end_stop;
 	} else {
 		hwc->state = PERF_HES_STOPPED;
 	}
 
-	ret = 0;
-out:
+	return 0;
 
-	if (ret)
-		hwc->state = PERF_HES_STOPPED;
-
+fail_end_stop:
+	perf_aux_output_end(&pt->handle, 0, true);
+fail_stop:
+	hwc->state = PERF_HES_STOPPED;
+fail:
 	return ret;
 }
 

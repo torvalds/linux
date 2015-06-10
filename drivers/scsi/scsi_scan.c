@@ -897,6 +897,12 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	 */
 	if (*bflags & BLIST_MAX_512)
 		blk_queue_max_hw_sectors(sdev->request_queue, 512);
+	/*
+	 * Max 1024 sector transfer length for targets that report incorrect
+	 * max/optimal lengths and relied on the old block layer safe default
+	 */
+	else if (*bflags & BLIST_MAX_1024)
+		blk_queue_max_hw_sectors(sdev->request_queue, 1024);
 
 	/*
 	 * Some devices may not want to have a start command automatically

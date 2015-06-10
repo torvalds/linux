@@ -1415,6 +1415,7 @@ static int lookup_fast(struct nameidata *nd,
 	 */
 	if (nd->flags & LOOKUP_RCU) {
 		unsigned seq;
+		bool negative;
 		dentry = __d_lookup_rcu(parent, &nd->last, &seq);
 		if (!dentry)
 			goto unlazy;
@@ -1424,8 +1425,11 @@ static int lookup_fast(struct nameidata *nd,
 		 * the dentry name information from lookup.
 		 */
 		*inode = dentry->d_inode;
+		negative = d_is_negative(dentry);
 		if (read_seqcount_retry(&dentry->d_seq, seq))
 			return -ECHILD;
+		if (negative)
+			return -ENOENT;
 
 		/*
 		 * This sequence count validates that the parent had no
@@ -1472,6 +1476,10 @@ unlazy:
 		goto need_lookup;
 	}
 
+	if (unlikely(d_is_negative(dentry))) {
+		dput(dentry);
+		return -ENOENT;
+	}
 	path->mnt = mnt;
 	path->dentry = dentry;
 	err = follow_managed(path, nd->flags);
@@ -1583,14 +1591,15 @@ static inline int walk_component(struct nameidata *nd, struct path *path,
 			goto out_err;
 
 		inode = path->dentry->d_inode;
+		err = -ENOENT;
+		if (d_is_negative(path->dentry))
+			goto out_path_put;
 	}
-	err = -ENOENT;
-	if (d_is_negative(path->dentry))
-		goto out_path_put;
 
 	if (should_follow_link(path->dentry, follow)) {
 		if (nd->flags & LOOKUP_RCU) {
-			if (unlikely(unlazy_walk(nd, path->dentry))) {
+			if (unlikely(nd->path.mnt != path->mnt ||
+				     unlazy_walk(nd, path->dentry))) {
 				err = -ECHILD;
 				goto out_err;
 			}
@@ -3035,17 +3044,17 @@ retry_lookup:
 
 	BUG_ON(nd->flags & LOOKUP_RCU);
 	inode = path->dentry->d_inode;
-finish_lookup:
-	/* we _can_ be in RCU mode here */
 	error = -ENOENT;
 	if (d_is_negative(path->dentry)) {
 		path_to_nameidata(path, nd);
 		goto out;
 	}
-
+finish_lookup:
+	/* we _can_ be in RCU mode here */
 	if (should_follow_link(path->dentry, !symlink_ok)) {
 		if (nd->flags & LOOKUP_RCU) {
-			if (unlikely(unlazy_walk(nd, path->dentry))) {
+			if (unlikely(nd->path.mnt != path->mnt ||
+				     unlazy_walk(nd, path->dentry))) {
 				error = -ECHILD;
 				goto out;
 			}
@@ -3224,7 +3233,7 @@ static struct file *path_openat(int dfd, struct filename *pathname,
 
 	if (unlikely(file->f_flags & __O_TMPFILE)) {
 		error = do_tmpfile(dfd, pathname, nd, flags, op, file, &opened);
-		goto out;
+		goto out2;
 	}
 
 	error = path_init(dfd, pathname, flags, nd);
@@ -3254,6 +3263,7 @@ static struct file *path_openat(int dfd, struct filename *pathname,
 	}
 out:
 	path_cleanup(nd);
+out2:
 	if (!(opened & FILE_OPENED)) {
 		BUG_ON(!error);
 		put_filp(file);

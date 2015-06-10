@@ -594,7 +594,7 @@ static void ath9k_init_misc(struct ath9k_htc_priv *priv)
 
 	priv->spec_priv.ah = priv->ah;
 	priv->spec_priv.spec_config.enabled = 0;
-	priv->spec_priv.spec_config.short_repeat = false;
+	priv->spec_priv.spec_config.short_repeat = true;
 	priv->spec_priv.spec_config.count = 8;
 	priv->spec_priv.spec_config.endless = false;
 	priv->spec_priv.spec_config.period = 0x12;

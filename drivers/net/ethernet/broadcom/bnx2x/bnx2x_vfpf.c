@@ -594,7 +594,7 @@ int bnx2x_vfpf_setup_q(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	bnx2x_vfpf_prep(bp, &req->first_tlv, CHANNEL_TLV_SETUP_Q, sizeof(*req));
 
 	/* select tpa mode to request */
-	if (!fp->disable_tpa) {
+	if (fp->mode != TPA_MODE_DISABLED) {
 		flags |= VFPF_QUEUE_FLG_TPA;
 		flags |= VFPF_QUEUE_FLG_TPA_IPV6;
 		if (fp->mode == TPA_MODE_GRO)

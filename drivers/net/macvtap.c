@@ -476,7 +476,7 @@ static int macvtap_open(struct inode *inode, struct file *file)
 
 	err = -ENOMEM;
 	q = (struct macvtap_queue *)sk_alloc(net, AF_UNSPEC, GFP_KERNEL,
-					     &macvtap_proto);
+					     &macvtap_proto, 0);
 	if (!q)
 		goto out;
 
@@ -1006,6 +1006,7 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 	unsigned int __user *up = argp;
 	unsigned short u;
 	int __user *sp = argp;
+	struct sockaddr sa;
 	int s;
 	int ret;
 
@@ -1098,6 +1099,37 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 
 		rtnl_lock();
 		ret = set_offload(q, arg);
+		rtnl_unlock();
+		return ret;
+
+	case SIOCGIFHWADDR:
+		rtnl_lock();
+		vlan = macvtap_get_vlan(q);
+		if (!vlan) {
+			rtnl_unlock();
+			return -ENOLINK;
+		}
+		ret = 0;
+		u = vlan->dev->type;
+		if (copy_to_user(&ifr->ifr_name, vlan->dev->name, IFNAMSIZ) ||
+		    copy_to_user(&ifr->ifr_hwaddr.sa_data, vlan->dev->dev_addr, ETH_ALEN) ||
+		    put_user(u, &ifr->ifr_hwaddr.sa_family))
+			ret = -EFAULT;
+		macvtap_put_vlan(vlan);
+		rtnl_unlock();
+		return ret;
+
+	case SIOCSIFHWADDR:
+		if (copy_from_user(&sa, &ifr->ifr_hwaddr, sizeof(sa)))
+			return -EFAULT;
+		rtnl_lock();
+		vlan = macvtap_get_vlan(q);
+		if (!vlan) {
+			rtnl_unlock();
+			return -ENOLINK;
+		}
+		ret = dev_set_mac_address(vlan->dev, &sa);
+		macvtap_put_vlan(vlan);
 		rtnl_unlock();
 		return ret;
 

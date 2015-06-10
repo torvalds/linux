@@ -135,6 +135,8 @@
 #define VIN_MAX_WIDTH		2048
 #define VIN_MAX_HEIGHT		2048
 
+#define TIMEOUT_MS		100
+
 enum chip_id {
 	RCAR_GEN2,
 	RCAR_H1,
@@ -820,7 +822,10 @@ static void rcar_vin_wait_stop_streaming(struct rcar_vin_priv *priv)
 		if (priv->state == STOPPING) {
 			priv->request_to_stop = true;
 			spin_unlock_irq(&priv->lock);
-			wait_for_completion(&priv->capture_stop);
+			if (!wait_for_completion_timeout(
+					&priv->capture_stop,
+					msecs_to_jiffies(TIMEOUT_MS)))
+				priv->state = STOPPED;
 			spin_lock_irq(&priv->lock);
 		}
 	}
@@ -975,19 +980,6 @@ static void rcar_vin_remove_device(struct soc_camera_device *icd)
 
 	dev_dbg(icd->parent, "R-Car VIN driver detached from camera %d\n",
 		icd->devnum);
-}
-
-/* Called with .host_lock held */
-static int rcar_vin_clock_start(struct soc_camera_host *ici)
-{
-	/* VIN does not have "mclk" */
-	return 0;
-}
-
-/* Called with .host_lock held */
-static void rcar_vin_clock_stop(struct soc_camera_host *ici)
-{
-	/* VIN does not have "mclk" */
 }
 
 static void set_coeff(struct rcar_vin_priv *priv, unsigned short xs)
@@ -1803,8 +1795,6 @@ static struct soc_camera_host_ops rcar_vin_host_ops = {
 	.owner		= THIS_MODULE,
 	.add		= rcar_vin_add_device,
 	.remove		= rcar_vin_remove_device,
-	.clock_start	= rcar_vin_clock_start,
-	.clock_stop	= rcar_vin_clock_stop,
 	.get_formats	= rcar_vin_get_formats,
 	.put_formats	= rcar_vin_put_formats,
 	.get_crop	= rcar_vin_get_crop,

@@ -20,13 +20,10 @@ extern unsigned long switcher_addr;
 /* Found in switcher.S */
 extern unsigned long default_idt_entries[];
 
-/* Declarations for definitions in lguest_guest.S */
-extern char lguest_noirq_start[], lguest_noirq_end[];
+/* Declarations for definitions in arch/x86/lguest/head_32.S */
+extern char lguest_noirq_iret[];
 extern const char lgstart_cli[], lgend_cli[];
-extern const char lgstart_sti[], lgend_sti[];
-extern const char lgstart_popf[], lgend_popf[];
 extern const char lgstart_pushf[], lgend_pushf[];
-extern const char lgstart_iret[], lgend_iret[];
 
 extern void lguest_iret(void);
 extern void lguest_init(void);

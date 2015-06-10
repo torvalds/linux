@@ -111,6 +111,21 @@
 			pinctrl-1 = <&i2c3_sleep_mode>;
 		};
 
+		vmmci: regulator-gpio {
+			compatible = "regulator-gpio";
+
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <2900000>;
+			regulator-name = "mmci-reg";
+			regulator-type = "voltage";
+
+			startup-delay-us = <100>;
+			enable-active-high;
+
+			states = <1800000 0x1
+				  2900000 0x0>;
+		};
+
 		// External Micro SD slot
 		sdi0_per1@80126000 {
 			arm,primecell-periphid = <0x10480180>;

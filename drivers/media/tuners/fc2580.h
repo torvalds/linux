@@ -37,7 +37,7 @@ struct fc2580_config {
 	u32 clock;
 };
 
-#if IS_ENABLED(CONFIG_MEDIA_TUNER_FC2580)
+#if IS_REACHABLE(CONFIG_MEDIA_TUNER_FC2580)
 extern struct dvb_frontend *fc2580_attach(struct dvb_frontend *fe,
 	struct i2c_adapter *i2c, const struct fc2580_config *cfg);
 #else

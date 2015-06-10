@@ -28,6 +28,8 @@
 #define RES_RING_CSR	1
 #define RES_RING_CMD	2
 
+static const struct of_device_id xgene_enet_of_match[];
+
 static void xgene_enet_init_bufpool(struct xgene_enet_desc_ring *buf_pool)
 {
 	struct xgene_enet_raw_desc16 *raw_desc;
@@ -48,6 +50,7 @@ static int xgene_enet_refill_bufpool(struct xgene_enet_desc_ring *buf_pool,
 {
 	struct sk_buff *skb;
 	struct xgene_enet_raw_desc16 *raw_desc;
+	struct xgene_enet_pdata *pdata;
 	struct net_device *ndev;
 	struct device *dev;
 	dma_addr_t dma_addr;
@@ -58,6 +61,7 @@ static int xgene_enet_refill_bufpool(struct xgene_enet_desc_ring *buf_pool,
 
 	ndev = buf_pool->ndev;
 	dev = ndev_to_dev(buf_pool->ndev);
+	pdata = netdev_priv(ndev);
 	bufdatalen = BUF_LEN_CODE_2K | (SKB_BUFFER_SIZE & GENMASK(11, 0));
 	len = XGENE_ENET_MAX_MTU;
 
@@ -82,7 +86,7 @@ static int xgene_enet_refill_bufpool(struct xgene_enet_desc_ring *buf_pool,
 		tail = (tail + 1) & slots;
 	}
 
-	iowrite32(nbuf, buf_pool->cmd);
+	pdata->ring_ops->wr_cmd(buf_pool, nbuf);
 	buf_pool->tail = tail;
 
 	return 0;
@@ -102,26 +106,16 @@ static u8 xgene_enet_hdr_len(const void *data)
 	return (eth->h_proto == htons(ETH_P_8021Q)) ? VLAN_ETH_HLEN : ETH_HLEN;
 }
 
-static u32 xgene_enet_ring_len(struct xgene_enet_desc_ring *ring)
-{
-	u32 __iomem *cmd_base = ring->cmd_base;
-	u32 ring_state, num_msgs;
-
-	ring_state = ioread32(&cmd_base[1]);
-	num_msgs = ring_state & CREATE_MASK(NUMMSGSINQ_POS, NUMMSGSINQ_LEN);
-
-	return num_msgs >> NUMMSGSINQ_POS;
-}
-
 static void xgene_enet_delete_bufpool(struct xgene_enet_desc_ring *buf_pool)
 {
+	struct xgene_enet_pdata *pdata = netdev_priv(buf_pool->ndev);
 	struct xgene_enet_raw_desc16 *raw_desc;
 	u32 slots = buf_pool->slots - 1;
 	u32 tail = buf_pool->tail;
 	u32 userinfo;
 	int i, len;
 
-	len = xgene_enet_ring_len(buf_pool);
+	len = pdata->ring_ops->len(buf_pool);
 	for (i = 0; i < len; i++) {
 		tail = (tail - 1) & slots;
 		raw_desc = &buf_pool->raw_desc16[tail];
@@ -131,7 +125,7 @@ static void xgene_enet_delete_bufpool(struct xgene_enet_desc_ring *buf_pool)
 		dev_kfree_skb_any(buf_pool->rx_skb[userinfo]);
 	}
 
-	iowrite32(-len, buf_pool->cmd);
+	pdata->ring_ops->wr_cmd(buf_pool, -len);
 	buf_pool->tail = tail;
 }
 
@@ -263,8 +257,8 @@ static netdev_tx_t xgene_enet_start_xmit(struct sk_buff *skb,
 	struct xgene_enet_desc_ring *cp_ring = tx_ring->cp_ring;
 	u32 tx_level, cq_level;
 
-	tx_level = xgene_enet_ring_len(tx_ring);
-	cq_level = xgene_enet_ring_len(cp_ring);
+	tx_level = pdata->ring_ops->len(tx_ring);
+	cq_level = pdata->ring_ops->len(cp_ring);
 	if (unlikely(tx_level > pdata->tx_qcnt_hi ||
 		     cq_level > pdata->cp_qcnt_hi)) {
 		netif_stop_queue(ndev);
@@ -276,7 +270,7 @@ static netdev_tx_t xgene_enet_start_xmit(struct sk_buff *skb,
 		return NETDEV_TX_OK;
 	}
 
-	iowrite32(1, tx_ring->cmd);
+	pdata->ring_ops->wr_cmd(tx_ring, 1);
 	skb_tx_timestamp(skb);
 	tx_ring->tail = (tx_ring->tail + 1) & (tx_ring->slots - 1);
 
@@ -389,11 +383,11 @@ static int xgene_enet_process_ring(struct xgene_enet_desc_ring *ring,
 	} while (--budget);
 
 	if (likely(count)) {
-		iowrite32(-count, ring->cmd);
+		pdata->ring_ops->wr_cmd(ring, -count);
 		ring->head = head;
 
 		if (netif_queue_stopped(ring->ndev)) {
-			if (xgene_enet_ring_len(ring) < pdata->cp_qcnt_low)
+			if (pdata->ring_ops->len(ring) < pdata->cp_qcnt_low)
 				netif_wake_queue(ring->ndev);
 		}
 	}
@@ -510,6 +504,7 @@ static int xgene_enet_open(struct net_device *ndev)
 	else
 		schedule_delayed_work(&pdata->link_work, PHY_POLL_LINK_OFF);
 
+	netif_carrier_off(ndev);
 	netif_start_queue(ndev);
 
 	return ret;
@@ -545,7 +540,7 @@ static void xgene_enet_delete_ring(struct xgene_enet_desc_ring *ring)
 	pdata = netdev_priv(ring->ndev);
 	dev = ndev_to_dev(ring->ndev);
 
-	xgene_enet_clear_ring(ring);
+	pdata->ring_ops->clear(ring);
 	dma_free_coherent(dev, ring->size, ring->desc_addr, ring->dma);
 }
 
@@ -598,15 +593,17 @@ static int xgene_enet_get_ring_size(struct device *dev,
 
 static void xgene_enet_free_desc_ring(struct xgene_enet_desc_ring *ring)
 {
+	struct xgene_enet_pdata *pdata;
 	struct device *dev;
 
 	if (!ring)
 		return;
 
 	dev = ndev_to_dev(ring->ndev);
+	pdata = netdev_priv(ring->ndev);
 
 	if (ring->desc_addr) {
-		xgene_enet_clear_ring(ring);
+		pdata->ring_ops->clear(ring);
 		dma_free_coherent(dev, ring->size, ring->desc_addr, ring->dma);
 	}
 	devm_kfree(dev, ring);
@@ -635,6 +632,25 @@ static void xgene_enet_free_desc_rings(struct xgene_enet_pdata *pdata)
 		}
 		xgene_enet_free_desc_ring(ring);
 	}
+}
+
+static bool is_irq_mbox_required(struct xgene_enet_pdata *pdata,
+				 struct xgene_enet_desc_ring *ring)
+{
+	if ((pdata->enet_id == XGENE_ENET2) &&
+	    (xgene_enet_ring_owner(ring->id) == RING_OWNER_CPU)) {
+		return true;
+	}
+
+	return false;
+}
+
+static void __iomem *xgene_enet_ring_cmd_base(struct xgene_enet_pdata *pdata,
+					      struct xgene_enet_desc_ring *ring)
+{
+	u8 num_ring_id_shift = pdata->ring_ops->num_ring_id_shift;
+
+	return pdata->ring_cmd_addr + (ring->num << num_ring_id_shift);
 }
 
 static struct xgene_enet_desc_ring *xgene_enet_create_desc_ring(
@@ -668,9 +684,20 @@ static struct xgene_enet_desc_ring *xgene_enet_create_desc_ring(
 	}
 	ring->size = size;
 
-	ring->cmd_base = pdata->ring_cmd_addr + (ring->num << 6);
+	if (is_irq_mbox_required(pdata, ring)) {
+		ring->irq_mbox_addr = dma_zalloc_coherent(dev, INTR_MBOX_SIZE,
+				&ring->irq_mbox_dma, GFP_KERNEL);
+		if (!ring->irq_mbox_addr) {
+			dma_free_coherent(dev, size, ring->desc_addr,
+					  ring->dma);
+			devm_kfree(dev, ring);
+			return NULL;
+		}
+	}
+
+	ring->cmd_base = xgene_enet_ring_cmd_base(pdata, ring);
 	ring->cmd = ring->cmd_base + INC_DEC_CMD_ADDR;
-	ring = xgene_enet_setup_ring(ring);
+	ring = pdata->ring_ops->setup(ring);
 	netdev_dbg(ndev, "ring info: num=%d  size=%d  id=%d  slots=%d\n",
 		   ring->num, ring->size, ring->id, ring->slots);
 
@@ -682,12 +709,34 @@ static u16 xgene_enet_get_ring_id(enum xgene_ring_owner owner, u8 bufnum)
 	return (owner << 6) | (bufnum & GENMASK(5, 0));
 }
 
+static enum xgene_ring_owner xgene_derive_ring_owner(struct xgene_enet_pdata *p)
+{
+	enum xgene_ring_owner owner;
+
+	if (p->enet_id == XGENE_ENET1) {
+		switch (p->phy_mode) {
+		case PHY_INTERFACE_MODE_SGMII:
+			owner = RING_OWNER_ETH0;
+			break;
+		default:
+			owner = (!p->port_id) ? RING_OWNER_ETH0 :
+						RING_OWNER_ETH1;
+			break;
+		}
+	} else {
+		owner = (!p->port_id) ? RING_OWNER_ETH0 : RING_OWNER_ETH1;
+	}
+
+	return owner;
+}
+
 static int xgene_enet_create_desc_rings(struct net_device *ndev)
 {
 	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
 	struct device *dev = ndev_to_dev(ndev);
 	struct xgene_enet_desc_ring *rx_ring, *tx_ring, *cp_ring;
 	struct xgene_enet_desc_ring *buf_pool = NULL;
+	enum xgene_ring_owner owner;
 	u8 cpu_bufnum = pdata->cpu_bufnum;
 	u8 eth_bufnum = pdata->eth_bufnum;
 	u8 bp_bufnum = pdata->bp_bufnum;
@@ -696,6 +745,7 @@ static int xgene_enet_create_desc_rings(struct net_device *ndev)
 	int ret;
 
 	/* allocate rx descriptor ring */
+	owner = xgene_derive_ring_owner(pdata);
 	ring_id = xgene_enet_get_ring_id(RING_OWNER_CPU, cpu_bufnum++);
 	rx_ring = xgene_enet_create_desc_ring(ndev, ring_num++,
 					      RING_CFGSIZE_16KB, ring_id);
@@ -705,7 +755,8 @@ static int xgene_enet_create_desc_rings(struct net_device *ndev)
 	}
 
 	/* allocate buffer pool for receiving packets */
-	ring_id = xgene_enet_get_ring_id(RING_OWNER_ETH0, bp_bufnum++);
+	owner = xgene_derive_ring_owner(pdata);
+	ring_id = xgene_enet_get_ring_id(owner, bp_bufnum++);
 	buf_pool = xgene_enet_create_desc_ring(ndev, ring_num++,
 					       RING_CFGSIZE_2KB, ring_id);
 	if (!buf_pool) {
@@ -734,7 +785,8 @@ static int xgene_enet_create_desc_rings(struct net_device *ndev)
 	pdata->rx_ring = rx_ring;
 
 	/* allocate tx descriptor ring */
-	ring_id = xgene_enet_get_ring_id(RING_OWNER_ETH0, eth_bufnum++);
+	owner = xgene_derive_ring_owner(pdata);
+	ring_id = xgene_enet_get_ring_id(owner, eth_bufnum++);
 	tx_ring = xgene_enet_create_desc_ring(ndev, ring_num++,
 					      RING_CFGSIZE_16KB, ring_id);
 	if (!tx_ring) {
@@ -824,14 +876,21 @@ static int xgene_get_port_id(struct device *dev, struct xgene_enet_pdata *pdata)
 	int ret;
 
 	ret = device_property_read_u32(dev, "port-id", &id);
-	if (!ret && id > 1) {
-		dev_err(dev, "Incorrect port-id specified\n");
-		return -ENODEV;
+
+	switch (ret) {
+	case -EINVAL:
+		pdata->port_id = 0;
+		ret = 0;
+		break;
+	case 0:
+		pdata->port_id = id & BIT(0);
+		break;
+	default:
+		dev_err(dev, "Incorrect port-id specified: errno: %d\n", ret);
+		break;
 	}
 
-	pdata->port_id = id;
-
-	return 0;
+	return ret;
 }
 
 static int xgene_get_mac_address(struct device *dev,
@@ -876,6 +935,7 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	struct device *dev;
 	struct resource *res;
 	void __iomem *base_addr;
+	u32 offset;
 	int ret;
 
 	pdev = pdata->pdev;
@@ -962,14 +1022,20 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 		pdata->clk = NULL;
 	}
 
-	base_addr = pdata->base_addr - (pdata->port_id * MAC_OFFSET);
+	if (pdata->phy_mode != PHY_INTERFACE_MODE_XGMII)
+		base_addr = pdata->base_addr - (pdata->port_id * MAC_OFFSET);
+	else
+		base_addr = pdata->base_addr;
 	pdata->eth_csr_addr = base_addr + BLOCK_ETH_CSR_OFFSET;
 	pdata->eth_ring_if_addr = base_addr + BLOCK_ETH_RING_IF_OFFSET;
 	pdata->eth_diag_csr_addr = base_addr + BLOCK_ETH_DIAG_CSR_OFFSET;
 	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII ||
 	    pdata->phy_mode == PHY_INTERFACE_MODE_SGMII) {
 		pdata->mcx_mac_addr = pdata->base_addr + BLOCK_ETH_MAC_OFFSET;
-		pdata->mcx_mac_csr_addr = base_addr + BLOCK_ETH_MAC_CSR_OFFSET;
+		offset = (pdata->enet_id == XGENE_ENET1) ?
+			  BLOCK_ETH_MAC_CSR_OFFSET :
+			  X2_BLOCK_ETH_MAC_CSR_OFFSET;
+		pdata->mcx_mac_csr_addr = base_addr + offset;
 	} else {
 		pdata->mcx_mac_addr = base_addr + BLOCK_AXG_MAC_OFFSET;
 		pdata->mcx_mac_csr_addr = base_addr + BLOCK_AXG_MAC_CSR_OFFSET;
@@ -1034,23 +1100,44 @@ static void xgene_enet_setup_ops(struct xgene_enet_pdata *pdata)
 		break;
 	}
 
-	switch (pdata->port_id) {
-	case 0:
-		pdata->cpu_bufnum = START_CPU_BUFNUM_0;
-		pdata->eth_bufnum = START_ETH_BUFNUM_0;
-		pdata->bp_bufnum = START_BP_BUFNUM_0;
-		pdata->ring_num = START_RING_NUM_0;
-		break;
-	case 1:
-		pdata->cpu_bufnum = START_CPU_BUFNUM_1;
-		pdata->eth_bufnum = START_ETH_BUFNUM_1;
-		pdata->bp_bufnum = START_BP_BUFNUM_1;
-		pdata->ring_num = START_RING_NUM_1;
-		break;
-	default:
-		break;
+	if (pdata->enet_id == XGENE_ENET1) {
+		switch (pdata->port_id) {
+		case 0:
+			pdata->cpu_bufnum = START_CPU_BUFNUM_0;
+			pdata->eth_bufnum = START_ETH_BUFNUM_0;
+			pdata->bp_bufnum = START_BP_BUFNUM_0;
+			pdata->ring_num = START_RING_NUM_0;
+			break;
+		case 1:
+			pdata->cpu_bufnum = START_CPU_BUFNUM_1;
+			pdata->eth_bufnum = START_ETH_BUFNUM_1;
+			pdata->bp_bufnum = START_BP_BUFNUM_1;
+			pdata->ring_num = START_RING_NUM_1;
+			break;
+		default:
+			break;
+		}
+		pdata->ring_ops = &xgene_ring1_ops;
+	} else {
+		switch (pdata->port_id) {
+		case 0:
+			pdata->cpu_bufnum = X2_START_CPU_BUFNUM_0;
+			pdata->eth_bufnum = X2_START_ETH_BUFNUM_0;
+			pdata->bp_bufnum = X2_START_BP_BUFNUM_0;
+			pdata->ring_num = X2_START_RING_NUM_0;
+			break;
+		case 1:
+			pdata->cpu_bufnum = X2_START_CPU_BUFNUM_1;
+			pdata->eth_bufnum = X2_START_ETH_BUFNUM_1;
+			pdata->bp_bufnum = X2_START_BP_BUFNUM_1;
+			pdata->ring_num = X2_START_RING_NUM_1;
+			break;
+		default:
+			break;
+		}
+		pdata->rm = RM0;
+		pdata->ring_ops = &xgene_ring2_ops;
 	}
-
 }
 
 static void xgene_enet_napi_add(struct xgene_enet_pdata *pdata)
@@ -1086,6 +1173,9 @@ static int xgene_enet_probe(struct platform_device *pdev)
 	struct xgene_enet_pdata *pdata;
 	struct device *dev = &pdev->dev;
 	struct xgene_mac_ops *mac_ops;
+#ifdef CONFIG_OF
+	const struct of_device_id *of_id;
+#endif
 	int ret;
 
 	ndev = alloc_etherdev(sizeof(struct xgene_enet_pdata));
@@ -1103,6 +1193,17 @@ static int xgene_enet_probe(struct platform_device *pdev)
 	ndev->features |= NETIF_F_IP_CSUM |
 			  NETIF_F_GSO |
 			  NETIF_F_GRO;
+
+#ifdef CONFIG_OF
+	of_id = of_match_device(xgene_enet_of_match, &pdev->dev);
+	if (of_id) {
+		pdata->enet_id = (enum xgene_enet_id)of_id->data;
+		if (!pdata->enet_id) {
+			free_netdev(ndev);
+			return -ENODEV;
+		}
+	}
+#endif
 
 	ret = xgene_enet_get_resources(pdata);
 	if (ret)
@@ -1175,9 +1276,11 @@ MODULE_DEVICE_TABLE(acpi, xgene_enet_acpi_match);
 
 #ifdef CONFIG_OF
 static const struct of_device_id xgene_enet_of_match[] = {
-	{.compatible = "apm,xgene-enet",},
-	{.compatible = "apm,xgene1-sgenet",},
-	{.compatible = "apm,xgene1-xgenet",},
+	{.compatible = "apm,xgene-enet",    .data = (void *)XGENE_ENET1},
+	{.compatible = "apm,xgene1-sgenet", .data = (void *)XGENE_ENET1},
+	{.compatible = "apm,xgene1-xgenet", .data = (void *)XGENE_ENET1},
+	{.compatible = "apm,xgene2-sgenet", .data = (void *)XGENE_ENET2},
+	{.compatible = "apm,xgene2-xgenet", .data = (void *)XGENE_ENET2},
 	{},
 };
 

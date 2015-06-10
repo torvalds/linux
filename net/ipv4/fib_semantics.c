@@ -713,8 +713,6 @@ static void fib_info_hash_move(struct hlist_head *new_info_hash,
 			struct hlist_head *dest;
 			unsigned int new_hash;
 
-			hlist_del(&fi->fib_hash);
-
 			new_hash = fib_info_hashfn(fi);
 			dest = &new_info_hash[new_hash];
 			hlist_add_head(&fi->fib_hash, dest);
@@ -730,8 +728,6 @@ static void fib_info_hash_move(struct hlist_head *new_info_hash,
 		hlist_for_each_entry_safe(fi, n, lhead, fib_lhash) {
 			struct hlist_head *ldest;
 			unsigned int new_hash;
-
-			hlist_del(&fi->fib_lhash);
 
 			new_hash = fib_laddr_hashfn(fi->fib_prefsrc);
 			ldest = &new_laddrhash[new_hash];

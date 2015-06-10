@@ -881,6 +881,8 @@ static int mtk_gpio_set_debounce(struct gpio_chip *chip, unsigned offset,
 	if (!mtk_eint_get_mask(pctl, eint_num)) {
 		mtk_eint_mask(d);
 		unmask = 1;
+	} else {
+		unmask = 0;
 	}
 
 	clr_bit = 0xff << eint_offset;

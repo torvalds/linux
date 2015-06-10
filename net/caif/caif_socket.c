@@ -330,6 +330,10 @@ static long caif_stream_data_wait(struct sock *sk, long timeo)
 		release_sock(sk);
 		timeo = schedule_timeout(timeo);
 		lock_sock(sk);
+
+		if (sock_flag(sk, SOCK_DEAD))
+			break;
+
 		clear_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
 	}
 
@@ -373,6 +377,10 @@ static int caif_stream_recvmsg(struct socket *sock, struct msghdr *msg,
 		struct sk_buff *skb;
 
 		lock_sock(sk);
+		if (sock_flag(sk, SOCK_DEAD)) {
+			err = -ECONNRESET;
+			goto unlock;
+		}
 		skb = skb_dequeue(&sk->sk_receive_queue);
 		caif_check_flow_release(sk);
 
@@ -1047,7 +1055,7 @@ static int caif_create(struct net *net, struct socket *sock, int protocol,
 	 * is really not used at all in the net/core or socket.c but the
 	 * initialization makes sure that sock->state is not uninitialized.
 	 */
-	sk = sk_alloc(net, PF_CAIF, GFP_KERNEL, &prot);
+	sk = sk_alloc(net, PF_CAIF, GFP_KERNEL, &prot, kern);
 	if (!sk)
 		return -ENOMEM;
 

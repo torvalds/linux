@@ -1,7 +1,7 @@
 /*
  * net/tipc/node.c: TIPC node management routines
  *
- * Copyright (c) 2000-2006, 2012-2014, Ericsson AB
+ * Copyright (c) 2000-2006, 2012-2015, Ericsson AB
  * Copyright (c) 2005-2006, 2010-2014, Wind River Systems
  * All rights reserved.
  *
@@ -39,6 +39,7 @@
 #include "node.h"
 #include "name_distr.h"
 #include "socket.h"
+#include "bcast.h"
 
 static void node_lost_contact(struct tipc_node *n_ptr);
 static void node_established_contact(struct tipc_node *n_ptr);

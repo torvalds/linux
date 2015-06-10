@@ -3622,8 +3622,16 @@ static void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 
 static int vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 {
-	unsigned long hw_cr4 = cr4 | (to_vmx(vcpu)->rmode.vm86_active ?
-		    KVM_RMODE_VM_CR4_ALWAYS_ON : KVM_PMODE_VM_CR4_ALWAYS_ON);
+	/*
+	 * Pass through host's Machine Check Enable value to hw_cr4, which
+	 * is in force while we are in guest mode.  Do not let guests control
+	 * this bit, even if host CR4.MCE == 0.
+	 */
+	unsigned long hw_cr4 =
+		(cr4_read_shadow() & X86_CR4_MCE) |
+		(cr4 & ~X86_CR4_MCE) |
+		(to_vmx(vcpu)->rmode.vm86_active ?
+		 KVM_RMODE_VM_CR4_ALWAYS_ON : KVM_PMODE_VM_CR4_ALWAYS_ON);
 
 	if (cr4 & X86_CR4_VMXE) {
 		/*
@@ -10177,6 +10185,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.cache_reg = vmx_cache_reg,
 	.get_rflags = vmx_get_rflags,
 	.set_rflags = vmx_set_rflags,
+	.fpu_activate = vmx_fpu_activate,
 	.fpu_deactivate = vmx_fpu_deactivate,
 
 	.tlb_flush = vmx_flush_tlb,
