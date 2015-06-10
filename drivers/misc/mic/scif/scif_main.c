@@ -91,8 +91,6 @@ static int scif_peer_probe(struct scif_peer_dev *spdev)
 	rcu_assign_pointer(scifdev->spdev, spdev);
 
 	/* In the future SCIF kernel client devices will be added here */
-	dev_info(&spdev->dev, "Peer added dnode %d\n",
-		 spdev->dnode);
 	return 0;
 }
 
@@ -109,8 +107,6 @@ static void scif_peer_remove(struct scif_peer_dev *spdev)
 	mutex_lock(&scif_info.conflock);
 	scif_info.total--;
 	mutex_unlock(&scif_info.conflock);
-	dev_info(&spdev->dev, "Peer removed dnode %d\n",
-		 spdev->dnode);
 }
 
 static void scif_qp_setup_handler(struct work_struct *work)
