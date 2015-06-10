@@ -318,20 +318,37 @@ void wakeme_after_rcu(struct rcu_head *head)
 	rcu = container_of(head, struct rcu_synchronize, head);
 	complete(&rcu->completion);
 }
+EXPORT_SYMBOL_GPL(wakeme_after_rcu);
 
-void wait_rcu_gp(call_rcu_func_t crf)
+void __wait_rcu_gp(bool checktiny, int n, call_rcu_func_t *crcu_array,
+		   struct rcu_synchronize *rs_array)
 {
-	struct rcu_synchronize rcu;
+	int i;
 
-	init_rcu_head_on_stack(&rcu.head);
-	init_completion(&rcu.completion);
-	/* Will wake me after RCU finished. */
-	crf(&rcu.head, wakeme_after_rcu);
-	/* Wait for it. */
-	wait_for_completion(&rcu.completion);
-	destroy_rcu_head_on_stack(&rcu.head);
+	/* Initialize and register callbacks for each flavor specified. */
+	for (i = 0; i < n; i++) {
+		if (checktiny &&
+		    (crcu_array[i] == call_rcu ||
+		     crcu_array[i] == call_rcu_bh)) {
+			might_sleep();
+			continue;
+		}
+		init_rcu_head_on_stack(&rs_array[i].head);
+		init_completion(&rs_array[i].completion);
+		(crcu_array[i])(&rs_array[i].head, wakeme_after_rcu);
+	}
+
+	/* Wait for all callbacks to be invoked. */
+	for (i = 0; i < n; i++) {
+		if (checktiny &&
+		    (crcu_array[i] == call_rcu ||
+		     crcu_array[i] == call_rcu_bh))
+			continue;
+		wait_for_completion(&rs_array[i].completion);
+		destroy_rcu_head_on_stack(&rs_array[i].head);
+	}
 }
-EXPORT_SYMBOL_GPL(wait_rcu_gp);
+EXPORT_SYMBOL_GPL(__wait_rcu_gp);
 
 #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD
 void init_rcu_head(struct rcu_head *head)
