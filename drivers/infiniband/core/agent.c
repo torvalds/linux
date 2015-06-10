@@ -80,7 +80,7 @@ ib_get_agent_port(const struct ib_device *device, int port_num)
 
 void agent_send_response(const struct ib_mad_hdr *mad_hdr, const struct ib_grh *grh,
 			 const struct ib_wc *wc, const struct ib_device *device,
-			 int port_num, int qpn, size_t resp_mad_len)
+			 int port_num, int qpn, size_t resp_mad_len, bool opa)
 {
 	struct ib_agent_port_private *port_priv;
 	struct ib_mad_agent *agent;
@@ -106,11 +106,14 @@ void agent_send_response(const struct ib_mad_hdr *mad_hdr, const struct ib_grh *
 		return;
 	}
 
+	if (opa && mad_hdr->base_version != OPA_MGMT_BASE_VERSION)
+		resp_mad_len = IB_MGMT_MAD_SIZE;
+
 	send_buf = ib_create_send_mad(agent, wc->src_qp, wc->pkey_index, 0,
 				      IB_MGMT_MAD_HDR,
 				      resp_mad_len - IB_MGMT_MAD_HDR,
 				      GFP_KERNEL,
-				      IB_MGMT_BASE_VERSION);
+				      mad_hdr->base_version);
 	if (IS_ERR(send_buf)) {
 		dev_err(&device->dev, "ib_create_send_mad error\n");
 		goto err1;

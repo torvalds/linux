@@ -199,6 +199,12 @@ struct ib_rmpp_mad {
 	u8			data[IB_MGMT_RMPP_DATA];
 };
 
+struct opa_rmpp_mad {
+	struct ib_mad_hdr	mad_hdr;
+	struct ib_rmpp_hdr	rmpp_hdr;
+	u8			data[OPA_MGMT_RMPP_DATA];
+};
+
 struct ib_sa_mad {
 	struct ib_mad_hdr	mad_hdr;
 	struct ib_rmpp_hdr	rmpp_hdr;
@@ -429,6 +435,7 @@ struct ib_mad_recv_buf {
  * @recv_buf: Specifies the location of the received data buffer(s).
  * @rmpp_list: Specifies a list of RMPP reassembled received MAD buffers.
  * @mad_len: The length of the received MAD, without duplicated headers.
+ * @mad_seg_size: The size of individual MAD segments
  *
  * For received response, the wr_id contains a pointer to the ib_mad_send_buf
  *   for the corresponding send request.
@@ -438,6 +445,7 @@ struct ib_mad_recv_wc {
 	struct ib_mad_recv_buf	recv_buf;
 	struct list_head	rmpp_list;
 	int			mad_len;
+	size_t			mad_seg_size;
 };
 
 /**
