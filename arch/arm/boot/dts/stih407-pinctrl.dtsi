@@ -596,6 +596,18 @@
 					};
 				};
 			};
+
+			tsout1 {
+				pinctrl_tsout1_serial: tsout1_serial {
+					st,pins {
+						DATA7 = <&pio19 4 ALT1 OUT SE_NICLK_IO 0 CLK_A>;
+						CLKIN = <&pio19 3 ALT1 OUT NICLK 0 CLK_A>;
+						VALID = <&pio19 1 ALT1 OUT SE_NICLK_IO 0 CLK_A>;
+						ERROR = <&pio19 0 ALT1 OUT SE_NICLK_IO 0 CLK_A>;
+						PKCLK = <&pio19 2 ALT1 OUT SE_NICLK_IO 0 CLK_A>;
+					};
+				};
+			};
 		};
 
 		pin-controller-front1 {
