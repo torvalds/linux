@@ -1800,6 +1800,9 @@ static struct ixgbe_eeprom_operations eeprom_ops_X550EM_x = {
 	.read_i2c_sff8472	= &ixgbe_read_i2c_sff8472_generic, \
 	.read_i2c_eeprom	= &ixgbe_read_i2c_eeprom_generic, \
 	.write_i2c_eeprom	= &ixgbe_write_i2c_eeprom_generic, \
+	.read_reg		= &ixgbe_read_phy_reg_generic, \
+	.write_reg		= &ixgbe_write_phy_reg_generic, \
+	.setup_link		= &ixgbe_setup_phy_link_generic, \
 	.check_overtemp		= &ixgbe_tn_check_overtemp, \
 	.get_firmware_version	= &ixgbe_get_phy_firmware_version_generic,
 
@@ -1807,9 +1810,6 @@ static struct ixgbe_phy_operations phy_ops_X550 = {
 	X550_COMMON_PHY
 	.init			= NULL,
 	.identify		= &ixgbe_identify_phy_generic,
-	.read_reg		= &ixgbe_read_phy_reg_generic,
-	.write_reg		= &ixgbe_write_phy_reg_generic,
-	.setup_link		= &ixgbe_setup_phy_link_generic,
 	.read_i2c_combined	= &ixgbe_read_i2c_combined_generic,
 	.write_i2c_combined	= &ixgbe_write_i2c_combined_generic,
 	.set_phy_power		= &ixgbe_set_copper_phy_power,
@@ -1819,9 +1819,6 @@ static struct ixgbe_phy_operations phy_ops_X550EM_x = {
 	X550_COMMON_PHY
 	.init			= &ixgbe_init_phy_ops_X550em,
 	.identify		= &ixgbe_identify_phy_x550em,
-	.read_reg		= NULL, /* defined later */
-	.write_reg		= NULL, /* defined later */
-	.setup_link		= NULL, /* defined later */
 };
 
 static const u32 ixgbe_mvals_X550[IXGBE_MVALS_IDX_LIMIT] = {
