@@ -235,7 +235,8 @@ EXPORT_SYMBOL(dt_locate_at);
 /**
  * find a object named \a entry in given \a dfh->dfh_o directory.
  */
-static int dt_find_entry(const struct lu_env *env, const char *entry, void *data)
+static int dt_find_entry(const struct lu_env *env,
+			 const char *entry, void *data)
 {
 	struct dt_find_hint  *dfh = data;
 	struct dt_device     *dt = dfh->dfh_dt;
