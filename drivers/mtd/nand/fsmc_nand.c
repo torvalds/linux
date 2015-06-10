@@ -1017,7 +1017,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	mtd->priv = nand;
 	nand->priv = host;
 
-	host->mtd.owner = THIS_MODULE;
+	host->mtd.dev.parent = &pdev->dev;
 	nand->IO_ADDR_R = host->data_va;
 	nand->IO_ADDR_W = host->data_va;
 	nand->cmd_ctrl = fsmc_cmd_ctrl;
