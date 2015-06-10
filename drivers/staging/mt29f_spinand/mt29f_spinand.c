@@ -912,8 +912,7 @@ static int spinand_probe(struct spi_device *spi_nand)
 	dev_set_drvdata(&spi_nand->dev, mtd);
 
 	mtd->priv = chip;
-	mtd->name = dev_name(&spi_nand->dev);
-	mtd->owner = THIS_MODULE;
+	mtd->dev.parent = &spi_nand->dev;
 	mtd->oobsize = 64;
 
 	if (nand_scan(mtd, 1))
