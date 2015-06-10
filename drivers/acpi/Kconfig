@@ -54,6 +54,9 @@ config ACPI_GENERIC_GSI
 config ACPI_SYSTEM_POWER_STATES_SUPPORT
 	bool
 
+config ACPI_CCA_REQUIRED
+	bool
+
 config ACPI_SLEEP
 	bool
 	depends on SUSPEND || HIBERNATION

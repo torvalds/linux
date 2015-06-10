@@ -11,6 +11,7 @@
 #include <linux/kthread.h>
 #include <linux/dmi.h>
 #include <linux/nls.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/pgtable.h>
 
@@ -2111,6 +2112,39 @@ void acpi_free_pnp_ids(struct acpi_device_pnp *pnp)
 	kfree(pnp->unique_id);
 }
 
+static void acpi_init_coherency(struct acpi_device *adev)
+{
+	unsigned long long cca = 0;
+	acpi_status status;
+	struct acpi_device *parent = adev->parent;
+
+	if (parent && parent->flags.cca_seen) {
+		/*
+		 * From ACPI spec, OSPM will ignore _CCA if an ancestor
+		 * already saw one.
+		 */
+		adev->flags.cca_seen = 1;
+		cca = parent->flags.coherent_dma;
+	} else {
+		status = acpi_evaluate_integer(adev->handle, "_CCA",
+					       NULL, &cca);
+		if (ACPI_SUCCESS(status))
+			adev->flags.cca_seen = 1;
+		else if (!IS_ENABLED(CONFIG_ACPI_CCA_REQUIRED))
+			/*
+			 * If architecture does not specify that _CCA is
+			 * required for DMA-able devices (e.g. x86),
+			 * we default to _CCA=1.
+			 */
+			cca = 1;
+		else
+			acpi_handle_debug(adev->handle,
+					  "ACPI device is missing _CCA.\n");
+	}
+
+	adev->flags.coherent_dma = cca;
+}
+
 void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 			     int type, unsigned long long sta)
 {
@@ -2129,6 +2163,7 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 	device->flags.visited = false;
 	device_initialize(&device->dev);
 	dev_set_uevent_suppress(&device->dev, true);
+	acpi_init_coherency(device);
 }
 
 void acpi_device_add_finalize(struct acpi_device *device)
