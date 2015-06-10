@@ -312,7 +312,7 @@ static int max8973_init_dcdc(struct max8973_chip *max,
 		max->desc.ramp_delay = 12000;
 		break;
 	case MAX8973_RAMP_25mV_PER_US:
-		max->desc.ramp_delay = 252000;
+		max->desc.ramp_delay = 25000;
 		break;
 	case MAX8973_RAMP_50mV_PER_US:
 		max->desc.ramp_delay = 50000;
