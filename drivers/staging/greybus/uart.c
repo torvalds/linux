@@ -586,20 +586,22 @@ static int gb_uart_connection_init(struct gb_connection *connection)
 	}
 
 	gb_tty = kzalloc(sizeof(*gb_tty), GFP_KERNEL);
-	if (!gb_tty)
-		return -ENOMEM;
+	if (!gb_tty) {
+		retval = -ENOMEM;
+		goto error_alloc;
+	}
 
 	gb_tty->buffer_payload_max =
 		gb_operation_get_payload_size_max(connection);
 	if (!gb_tty->buffer_payload_max) {
-		kfree(gb_tty);
-		return -EINVAL;
+		retval = -EINVAL;
+		goto error_payload;
 	}
 
 	gb_tty->buffer = kzalloc(gb_tty->buffer_payload_max, GFP_KERNEL);
 	if (!gb_tty->buffer) {
-		kfree(gb_tty);
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto error_payload;
 	}
 
 	gb_tty->connection = connection;
@@ -654,7 +656,11 @@ error:
 error_version:
 	connection->private = NULL;
 	kfree(gb_tty->buffer);
+error_payload:
 	kfree(gb_tty);
+error_alloc:
+	if (atomic_dec_return(&reference_count) == 0)
+		gb_tty_exit();
 	return retval;
 }
 
