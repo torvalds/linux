@@ -608,6 +608,25 @@
 					};
 				};
 			};
+
+			mtsin0 {
+				pinctrl_mtsin0_parallel: mtsin0_parallel {
+					st,pins {
+						DATA7 = <&pio10 4 ALT3 IN SE_NICLK_IO 0 CLK_A>;
+						DATA6 = <&pio10 5 ALT3 IN SE_NICLK_IO 0 CLK_A>;
+						DATA5 = <&pio10 6 ALT3 IN SE_NICLK_IO 0 CLK_A>;
+						DATA4 = <&pio10 7 ALT3 IN SE_NICLK_IO 0 CLK_A>;
+						DATA3 = <&pio11 0 ALT3 IN SE_NICLK_IO 0 CLK_A>;
+						DATA2 = <&pio11 1 ALT3 IN SE_NICLK_IO 0 CLK_A>;
+						DATA1 = <&pio11 2 ALT3 IN SE_NICLK_IO 0 CLK_A>;
+						DATA0 = <&pio11 3 ALT3 IN SE_NICLK_IO 0 CLK_A>;
+						CLKIN = <&pio10 3 ALT3 IN CLKNOTDATA 0 CLK_A>;
+						VALID = <&pio10 1 ALT3 IN SE_NICLK_IO 0 CLK_A>;
+						ERROR = <&pio10 0 ALT3 IN SE_NICLK_IO 0 CLK_A>;
+						PKCLK = <&pio10 2 ALT3 IN SE_NICLK_IO 0 CLK_A>;
+					};
+				};
+			};
 		};
 
 		pin-controller-front1 {
