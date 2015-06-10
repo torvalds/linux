@@ -124,7 +124,7 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	}
 
 	mtd->priv = nc;
-	mtd->owner = THIS_MODULE;
+	mtd->dev.parent = &pdev->dev;
 
 	nc->priv = board;
 	nc->IO_ADDR_R = nc->IO_ADDR_W = io_base;
