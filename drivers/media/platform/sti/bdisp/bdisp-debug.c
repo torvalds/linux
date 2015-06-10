@@ -572,6 +572,8 @@ static int bdisp_dbg_regs(struct seq_file *s, void *data)
 	return 0;
 }
 
+#define SECOND 1000000
+
 static int bdisp_dbg_perf(struct seq_file *s, void *data)
 {
 	struct bdisp_dev *bdisp = s->private;
@@ -584,17 +586,26 @@ static int bdisp_dbg_perf(struct seq_file *s, void *data)
 		return 0;
 	}
 
-	avg_time_us = bdisp->dbg.tot_duration;
-	do_div(avg_time_us, request->nb_req);
+	avg_time_us = div64_s64(bdisp->dbg.tot_duration, request->nb_req);
+	if (avg_time_us > SECOND)
+		avg_fps = 0;
+	else
+		avg_fps = SECOND / (s32)avg_time_us;
 
-	avg_fps = 1000000;
-	min_fps = 1000000;
-	max_fps = 1000000;
-	last_fps = 1000000;
-	do_div(avg_fps, avg_time_us);
-	do_div(min_fps, bdisp->dbg.min_duration);
-	do_div(max_fps, bdisp->dbg.max_duration);
-	do_div(last_fps, bdisp->dbg.last_duration);
+	if (bdisp->dbg.min_duration > SECOND)
+		min_fps = 0;
+	else
+		min_fps = SECOND / (s32)bdisp->dbg.min_duration;
+
+	if (bdisp->dbg.max_duration > SECOND)
+		max_fps = 0;
+	else
+		max_fps = SECOND / (s32)bdisp->dbg.max_duration;
+
+	if (bdisp->dbg.last_duration > SECOND)
+		last_fps = 0;
+	else
+		last_fps = SECOND / (s32)bdisp->dbg.last_duration;
 
 	seq_printf(s, "HW processing (%d requests):\n", request->nb_req);
 	seq_printf(s, " Average: %5lld us  (%3d fps)\n",
