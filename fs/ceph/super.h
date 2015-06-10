@@ -189,9 +189,10 @@ static inline void ceph_put_cap_snap(struct ceph_cap_snap *capsnap)
 struct ceph_cap_flush {
 	u64 tid;
 	int caps;
-	struct rb_node g_node;
+	bool kick;
+	struct rb_node g_node; // global
 	union {
-		struct rb_node i_node;
+		struct rb_node i_node; // inode
 		struct list_head list;
 	};
 };
@@ -868,6 +869,8 @@ extern void ceph_queue_caps_release(struct inode *inode);
 extern int ceph_write_inode(struct inode *inode, struct writeback_control *wbc);
 extern int ceph_fsync(struct file *file, loff_t start, loff_t end,
 		      int datasync);
+extern void ceph_early_kick_flushing_caps(struct ceph_mds_client *mdsc,
+					  struct ceph_mds_session *session);
 extern void ceph_kick_flushing_caps(struct ceph_mds_client *mdsc,
 				    struct ceph_mds_session *session);
 extern struct ceph_cap *ceph_get_cap_for_mds(struct ceph_inode_info *ci,

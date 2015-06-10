@@ -2982,6 +2982,9 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 
 	reply->hdr.data_len = cpu_to_le32(pagelist->length);
 	ceph_msg_data_add_pagelist(reply, pagelist);
+
+	ceph_early_kick_flushing_caps(mdsc, session);
+
 	ceph_con_send(&session->s_con, reply);
 
 	mutex_unlock(&session->s_mutex);
