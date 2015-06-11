@@ -1101,14 +1101,14 @@ lnet_startup_lndnis(void)
  * Initialize LNet library.
  *
  * Only userspace program needs to call this function - it's automatically
- * called in the kernel at module loading time. Caller has to call LNetFini()
- * after a call to LNetInit(), if and only if the latter returned 0. It must
+ * called in the kernel at module loading time. Caller has to call lnet_fini()
+ * after a call to lnet_init(), if and only if the latter returned 0. It must
  * be called exactly once.
  *
  * \return 0 on success, and -ve on failures.
  */
 int
-LNetInit(void)
+lnet_init(void)
 {
 	int rc;
 
@@ -1161,7 +1161,7 @@ LNetInit(void)
 	lnet_register_lnd(&the_lolnd);
 	return 0;
 }
-EXPORT_SYMBOL(LNetInit);
+EXPORT_SYMBOL(lnet_init);
 
 /**
  * Finalize LNet library.
@@ -1169,11 +1169,11 @@ EXPORT_SYMBOL(LNetInit);
  * Only userspace program needs to call this function. It can be called
  * at most once.
  *
- * \pre LNetInit() called with success.
+ * \pre lnet_init() called with success.
  * \pre All LNet users called LNetNIFini() for matching LNetNIInit() calls.
  */
 void
-LNetFini(void)
+lnet_fini(void)
 {
 	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount == 0);
@@ -1185,12 +1185,12 @@ LNetFini(void)
 
 	the_lnet.ln_init = 0;
 }
-EXPORT_SYMBOL(LNetFini);
+EXPORT_SYMBOL(lnet_fini);
 
 /**
  * Set LNet PID and start LNet interfaces, routing, and forwarding.
  *
- * Userspace program should call this after a successful call to LNetInit().
+ * Userspace program should call this after a successful call to lnet_init().
  * Users must call this function at least once before any other functions.
  * For each successful call there must be a corresponding call to
  * LNetNIFini(). For subsequent calls to LNetNIInit(), \a requested_pid is

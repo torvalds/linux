@@ -117,9 +117,9 @@ init_lnet(void)
 
 	mutex_init(&lnet_config_mutex);
 
-	rc = LNetInit();
+	rc = lnet_init();
 	if (rc != 0) {
-		CERROR("LNetInit: error %d\n", rc);
+		CERROR("lnet_init: error %d\n", rc);
 		return rc;
 	}
 
@@ -143,7 +143,7 @@ fini_lnet(void)
 	rc = libcfs_deregister_ioctl(&lnet_ioctl_handler);
 	LASSERT(rc == 0);
 
-	LNetFini();
+	lnet_fini();
 }
 
 MODULE_AUTHOR("Peter J. Braam <braam@clusterfs.com>");

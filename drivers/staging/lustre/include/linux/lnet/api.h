@@ -52,9 +52,6 @@
 /** \defgroup lnet_init_fini Initialization and cleanup
  * The LNet must be properly initialized before any LNet calls can be made.
  * @{ */
-int LNetInit(void);
-void LNetFini(void);
-
 int LNetNIInit(lnet_pid_t requested_pid);
 int LNetNIFini(void);
 /** @} lnet_init_fini */

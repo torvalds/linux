@@ -575,7 +575,7 @@ typedef struct {
 
 	struct mutex			ln_api_mutex;
 	struct mutex			ln_lnd_mutex;
-	int				ln_init;	/* LNetInit() called? */
+	int				ln_init;	/* lnet_init() called? */
 	/* Have I called LNetNIInit myself? */
 	int				ln_niinit_self;
 	/* LNetNIInit/LNetNIFini counter */
