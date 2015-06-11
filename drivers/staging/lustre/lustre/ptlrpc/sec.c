@@ -469,7 +469,7 @@ int sptlrpc_req_ctx_switch(struct ptlrpc_request *req,
 	/* save request message */
 	reqmsg_size = req->rq_reqlen;
 	if (reqmsg_size != 0) {
-		OBD_ALLOC_LARGE(reqmsg, reqmsg_size);
+		reqmsg = libcfs_kvzalloc(reqmsg_size, GFP_NOFS);
 		if (reqmsg == NULL)
 			return -ENOMEM;
 		memcpy(reqmsg, req->rq_reqmsg, reqmsg_size);
@@ -497,7 +497,7 @@ int sptlrpc_req_ctx_switch(struct ptlrpc_request *req,
 			req->rq_flvr = old_flvr;
 		}
 
-		OBD_FREE_LARGE(reqmsg, reqmsg_size);
+		kvfree(reqmsg);
 	}
 	return rc;
 }
@@ -1093,7 +1093,7 @@ int sptlrpc_cli_unwrap_early_reply(struct ptlrpc_request *req,
 
 	early_size = req->rq_nob_received;
 	early_bufsz = size_roundup_power2(early_size);
-	OBD_ALLOC_LARGE(early_buf, early_bufsz);
+	early_buf = libcfs_kvzalloc(early_bufsz, GFP_NOFS);
 	if (early_buf == NULL) {
 		rc = -ENOMEM;
 		goto err_req;
@@ -1163,7 +1163,7 @@ int sptlrpc_cli_unwrap_early_reply(struct ptlrpc_request *req,
 err_ctx:
 	sptlrpc_cli_ctx_put(early_req->rq_cli_ctx, 1);
 err_buf:
-	OBD_FREE_LARGE(early_buf, early_bufsz);
+	kvfree(early_buf);
 err_req:
 	ptlrpc_request_cache_free(early_req);
 	return rc;
@@ -1181,7 +1181,7 @@ void sptlrpc_cli_finish_early_reply(struct ptlrpc_request *early_req)
 	LASSERT(early_req->rq_repmsg);
 
 	sptlrpc_cli_ctx_put(early_req->rq_cli_ctx, 1);
-	OBD_FREE_LARGE(early_req->rq_repbuf, early_req->rq_repbuf_len);
+	kvfree(early_req->rq_repbuf);
 	ptlrpc_request_cache_free(early_req);
 }
 

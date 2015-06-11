@@ -114,7 +114,7 @@ ptlrpc_free_rqbd(struct ptlrpc_request_buffer_desc *rqbd)
 	svcpt->scp_nrqbds_total--;
 	spin_unlock(&svcpt->scp_lock);
 
-	OBD_FREE_LARGE(rqbd->rqbd_buffer, svcpt->scp_service->srv_buf_size);
+	kvfree(rqbd->rqbd_buffer);
 	kfree(rqbd);
 }
 
@@ -1310,7 +1310,7 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 	reqcopy = ptlrpc_request_cache_alloc(GFP_NOFS);
 	if (reqcopy == NULL)
 		return -ENOMEM;
-	OBD_ALLOC_LARGE(reqmsg, req->rq_reqlen);
+	reqmsg = libcfs_kvzalloc(req->rq_reqlen, GFP_NOFS);
 	if (!reqmsg) {
 		rc = -ENOMEM;
 		goto out_free;
@@ -1374,7 +1374,7 @@ out_put:
 	class_export_put(reqcopy->rq_export);
 out:
 	sptlrpc_svc_ctx_decref(reqcopy);
-	OBD_FREE_LARGE(reqmsg, req->rq_reqlen);
+	kvfree(reqmsg);
 out_free:
 	ptlrpc_request_cache_free(reqcopy);
 	return rc;
@@ -2323,7 +2323,7 @@ static int ptlrpc_main(void *arg)
 	}
 
 	/* Alloc reply state structure for this one */
-	OBD_ALLOC_LARGE(rs, svc->srv_max_reply_size);
+	rs = libcfs_kvzalloc(svc->srv_max_reply_size, GFP_NOFS);
 	if (!rs) {
 		rc = -ENOMEM;
 		goto out_srv_fini;
@@ -2987,7 +2987,7 @@ ptlrpc_service_purge_all(struct ptlrpc_service *svc)
 					    struct ptlrpc_reply_state,
 					    rs_list);
 			list_del(&rs->rs_list);
-			OBD_FREE_LARGE(rs, svc->srv_max_reply_size);
+			kvfree(rs);
 		}
 	}
 }

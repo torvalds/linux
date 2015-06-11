@@ -559,7 +559,7 @@ int plain_alloc_reqbuf(struct ptlrpc_sec *sec,
 		LASSERT(!req->rq_pool);
 
 		alloc_len = size_roundup_power2(alloc_len);
-		OBD_ALLOC_LARGE(req->rq_reqbuf, alloc_len);
+		req->rq_reqbuf = libcfs_kvzalloc(alloc_len, GFP_NOFS);
 		if (!req->rq_reqbuf)
 			return -ENOMEM;
 
@@ -584,7 +584,7 @@ void plain_free_reqbuf(struct ptlrpc_sec *sec,
 		       struct ptlrpc_request *req)
 {
 	if (!req->rq_pool) {
-		OBD_FREE_LARGE(req->rq_reqbuf, req->rq_reqbuf_len);
+		kvfree(req->rq_reqbuf);
 		req->rq_reqbuf = NULL;
 		req->rq_reqbuf_len = 0;
 	}
@@ -613,7 +613,7 @@ int plain_alloc_repbuf(struct ptlrpc_sec *sec,
 
 	alloc_len = size_roundup_power2(alloc_len);
 
-	OBD_ALLOC_LARGE(req->rq_repbuf, alloc_len);
+	req->rq_repbuf = libcfs_kvzalloc(alloc_len, GFP_NOFS);
 	if (!req->rq_repbuf)
 		return -ENOMEM;
 
@@ -625,7 +625,7 @@ static
 void plain_free_repbuf(struct ptlrpc_sec *sec,
 		       struct ptlrpc_request *req)
 {
-	OBD_FREE_LARGE(req->rq_repbuf, req->rq_repbuf_len);
+	kvfree(req->rq_repbuf);
 	req->rq_repbuf = NULL;
 	req->rq_repbuf_len = 0;
 }
@@ -664,7 +664,7 @@ int plain_enlarge_reqbuf(struct ptlrpc_sec *sec,
 	if (req->rq_reqbuf_len < newbuf_size) {
 		newbuf_size = size_roundup_power2(newbuf_size);
 
-		OBD_ALLOC_LARGE(newbuf, newbuf_size);
+		newbuf = libcfs_kvzalloc(newbuf_size, GFP_NOFS);
 		if (newbuf == NULL)
 			return -ENOMEM;
 
@@ -679,7 +679,7 @@ int plain_enlarge_reqbuf(struct ptlrpc_sec *sec,
 
 		memcpy(newbuf, req->rq_reqbuf, req->rq_reqbuf_len);
 
-		OBD_FREE_LARGE(req->rq_reqbuf, req->rq_reqbuf_len);
+		kvfree(req->rq_reqbuf);
 		req->rq_reqbuf = newbuf;
 		req->rq_reqbuf_len = newbuf_size;
 		req->rq_reqmsg = lustre_msg_buf(req->rq_reqbuf,
@@ -800,7 +800,7 @@ int plain_alloc_rs(struct ptlrpc_request *req, int msgsize)
 		/* pre-allocated */
 		LASSERT(rs->rs_size >= rs_size);
 	} else {
-		OBD_ALLOC_LARGE(rs, rs_size);
+		rs = libcfs_kvzalloc(rs_size, GFP_NOFS);
 		if (rs == NULL)
 			return -ENOMEM;
 
@@ -826,7 +826,7 @@ void plain_free_rs(struct ptlrpc_reply_state *rs)
 	atomic_dec(&rs->rs_svc_ctx->sc_refcount);
 
 	if (!rs->rs_prealloc)
-		OBD_FREE_LARGE(rs, rs->rs_size);
+		kvfree(rs);
 }
 
 static
