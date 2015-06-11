@@ -26,7 +26,8 @@
 #define VERSION "1.0"
 
 static struct usb_device_id nfcmrvl_table[] = {
-	{ USB_DEVICE_INTERFACE_CLASS(0x1286, 0x2046, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x1286, 0x2046,
+					USB_CLASS_VENDOR_SPEC, 4, 1) },
 	{ }	/* Terminating entry */
 };
 
