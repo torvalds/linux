@@ -641,15 +641,19 @@ static int mthca_destroy_qp(struct ib_qp *qp)
 	return 0;
 }
 
-static struct ib_cq *mthca_create_cq(struct ib_device *ibdev, int entries,
-				     int comp_vector,
+static struct ib_cq *mthca_create_cq(struct ib_device *ibdev,
+				     const struct ib_cq_init_attr *attr,
 				     struct ib_ucontext *context,
 				     struct ib_udata *udata)
 {
+	int entries = attr->cqe;
 	struct mthca_create_cq ucmd;
 	struct mthca_cq *cq;
 	int nent;
 	int err;
+
+	if (attr->flags)
+		return ERR_PTR(-EINVAL);
 
 	if (entries < 1 || entries > to_mdev(ibdev)->limits.max_cqes)
 		return ERR_PTR(-EINVAL);

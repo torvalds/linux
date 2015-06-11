@@ -1526,10 +1526,12 @@ static int nes_destroy_qp(struct ib_qp *ibqp)
 /**
  * nes_create_cq
  */
-static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
-		int comp_vector,
-		struct ib_ucontext *context, struct ib_udata *udata)
+static struct ib_cq *nes_create_cq(struct ib_device *ibdev,
+				   const struct ib_cq_init_attr *attr,
+				   struct ib_ucontext *context,
+				   struct ib_udata *udata)
 {
+	int entries = attr->cqe;
 	u64 u64temp;
 	struct nes_vnic *nesvnic = to_nesvnic(ibdev);
 	struct nes_device *nesdev = nesvnic->nesdev;
@@ -1548,6 +1550,9 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 	int err;
 	unsigned long flags;
 	int ret;
+
+	if (attr->flags)
+		return ERR_PTR(-EINVAL);
 
 	if (entries > nesadapter->max_cqe)
 		return ERR_PTR(-EINVAL);

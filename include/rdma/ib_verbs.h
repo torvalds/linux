@@ -173,6 +173,12 @@ struct ib_odp_caps {
 	} per_transport_caps;
 };
 
+struct ib_cq_init_attr {
+	unsigned int	cqe;
+	int		comp_vector;
+	u32		flags;
+};
+
 struct ib_device_attr {
 	u64			fw_ver;
 	__be64			sys_image_guid;
@@ -1613,8 +1619,8 @@ struct ib_device {
 	int                        (*post_recv)(struct ib_qp *qp,
 						struct ib_recv_wr *recv_wr,
 						struct ib_recv_wr **bad_recv_wr);
-	struct ib_cq *             (*create_cq)(struct ib_device *device, int cqe,
-						int comp_vector,
+	struct ib_cq *             (*create_cq)(struct ib_device *device,
+						const struct ib_cq_init_attr *attr,
 						struct ib_ucontext *context,
 						struct ib_udata *udata);
 	int                        (*modify_cq)(struct ib_cq *cq, u16 cq_count,

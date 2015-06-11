@@ -864,10 +864,13 @@ int c4iw_destroy_cq(struct ib_cq *ib_cq)
 	return 0;
 }
 
-struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
-			     int vector, struct ib_ucontext *ib_context,
+struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
+			     const struct ib_cq_init_attr *attr,
+			     struct ib_ucontext *ib_context,
 			     struct ib_udata *udata)
 {
+	int entries = attr->cqe;
+	int vector = attr->comp_vector;
 	struct c4iw_dev *rhp;
 	struct c4iw_cq *chp;
 	struct c4iw_create_cq_resp uresp;
@@ -877,6 +880,8 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
 	struct c4iw_mm_entry *mm, *mm2;
 
 	PDBG("%s ib_dev %p entries %d\n", __func__, ibdev, entries);
+	if (attr->flags)
+		return ERR_PTR(-EINVAL);
 
 	rhp = to_c4iw_dev(ibdev);
 

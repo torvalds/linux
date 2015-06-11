@@ -1079,8 +1079,9 @@ struct ib_cq *ib_create_cq(struct ib_device *device,
 			   void *cq_context, int cqe, int comp_vector)
 {
 	struct ib_cq *cq;
+	struct ib_cq_init_attr attr = {.cqe = cqe, .comp_vector = comp_vector};
 
-	cq = device->create_cq(device, cqe, comp_vector, NULL, NULL);
+	cq = device->create_cq(device, &attr, NULL, NULL);
 
 	if (!IS_ERR(cq)) {
 		cq->device        = device;

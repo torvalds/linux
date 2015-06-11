@@ -129,7 +129,8 @@ int ehca_destroy_eq(struct ehca_shca *shca, struct ehca_eq *eq);
 void *ehca_poll_eq(struct ehca_shca *shca, struct ehca_eq *eq);
 
 
-struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
+struct ib_cq *ehca_create_cq(struct ib_device *device,
+			     const struct ib_cq_init_attr *attr,
 			     struct ib_ucontext *context,
 			     struct ib_udata *udata);
 

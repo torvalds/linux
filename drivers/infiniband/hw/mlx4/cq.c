@@ -166,14 +166,20 @@ err_buf:
 	return err;
 }
 
-struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev, int entries, int vector,
+struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,
+				const struct ib_cq_init_attr *attr,
 				struct ib_ucontext *context,
 				struct ib_udata *udata)
 {
+	int entries = attr->cqe;
+	int vector = attr->comp_vector;
 	struct mlx4_ib_dev *dev = to_mdev(ibdev);
 	struct mlx4_ib_cq *cq;
 	struct mlx4_uar *uar;
 	int err;
+
+	if (attr->flags)
+		return ERR_PTR(-EINVAL);
 
 	if (entries < 1 || entries > dev->dev->caps.max_cqes)
 		return ERR_PTR(-EINVAL);

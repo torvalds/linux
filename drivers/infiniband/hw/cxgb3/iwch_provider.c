@@ -138,10 +138,12 @@ static int iwch_destroy_cq(struct ib_cq *ib_cq)
 	return 0;
 }
 
-static struct ib_cq *iwch_create_cq(struct ib_device *ibdev, int entries, int vector,
-			     struct ib_ucontext *ib_context,
-			     struct ib_udata *udata)
+static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,
+				    const struct ib_cq_init_attr *attr,
+				    struct ib_ucontext *ib_context,
+				    struct ib_udata *udata)
 {
+	int entries = attr->cqe;
 	struct iwch_dev *rhp;
 	struct iwch_cq *chp;
 	struct iwch_create_cq_resp uresp;
@@ -151,6 +153,9 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev, int entries, int ve
 	size_t resplen;
 
 	PDBG("%s ib_dev %p entries %d\n", __func__, ibdev, entries);
+	if (attr->flags)
+		return ERR_PTR(-EINVAL);
+
 	rhp = to_iwch_dev(ibdev);
 	chp = kzalloc(sizeof(*chp), GFP_KERNEL);
 	if (!chp)

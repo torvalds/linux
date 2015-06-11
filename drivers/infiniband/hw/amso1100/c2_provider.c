@@ -286,12 +286,17 @@ static int c2_destroy_qp(struct ib_qp *ib_qp)
 	return 0;
 }
 
-static struct ib_cq *c2_create_cq(struct ib_device *ibdev, int entries, int vector,
+static struct ib_cq *c2_create_cq(struct ib_device *ibdev,
+				  const struct ib_cq_init_attr *attr,
 				  struct ib_ucontext *context,
 				  struct ib_udata *udata)
 {
+	int entries = attr->cqe;
 	struct c2_cq *cq;
 	int err;
+
+	if (attr->flags)
+		return ERR_PTR(-EINVAL);
 
 	cq = kmalloc(sizeof(*cq), GFP_KERNEL);
 	if (!cq) {

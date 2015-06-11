@@ -59,8 +59,10 @@ struct ib_pd *ocrdma_alloc_pd(struct ib_device *,
 			      struct ib_ucontext *, struct ib_udata *);
 int ocrdma_dealloc_pd(struct ib_pd *pd);
 
-struct ib_cq *ocrdma_create_cq(struct ib_device *, int entries, int vector,
-			       struct ib_ucontext *, struct ib_udata *);
+struct ib_cq *ocrdma_create_cq(struct ib_device *ibdev,
+			       const struct ib_cq_init_attr *attr,
+			       struct ib_ucontext *ib_ctx,
+			       struct ib_udata *udata);
 int ocrdma_resize_cq(struct ib_cq *, int cqe, struct ib_udata *);
 int ocrdma_destroy_cq(struct ib_cq *);
 

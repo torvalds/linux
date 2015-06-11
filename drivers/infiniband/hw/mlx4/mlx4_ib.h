@@ -668,7 +668,8 @@ void mlx4_ib_free_fast_reg_page_list(struct ib_fast_reg_page_list *page_list);
 
 int mlx4_ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period);
 int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata);
-struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev, int entries, int vector,
+struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,
+				const struct ib_cq_init_attr *attr,
 				struct ib_ucontext *context,
 				struct ib_udata *udata);
 int mlx4_ib_destroy_cq(struct ib_cq *cq);

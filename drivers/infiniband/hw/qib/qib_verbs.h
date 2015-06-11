@@ -1007,8 +1007,9 @@ void qib_cq_enter(struct qib_cq *cq, struct ib_wc *entry, int sig);
 
 int qib_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry);
 
-struct ib_cq *qib_create_cq(struct ib_device *ibdev, int entries,
-			    int comp_vector, struct ib_ucontext *context,
+struct ib_cq *qib_create_cq(struct ib_device *ibdev,
+			    const struct ib_cq_init_attr *attr,
+			    struct ib_ucontext *context,
 			    struct ib_udata *udata);
 
 int qib_destroy_cq(struct ib_cq *ibcq);

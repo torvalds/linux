@@ -1341,6 +1341,7 @@ ssize_t ib_uverbs_create_cq(struct ib_uverbs_file *file,
 	struct ib_uverbs_event_file    *ev_file = NULL;
 	struct ib_cq                   *cq;
 	int                             ret;
+	struct ib_cq_init_attr attr = {};
 
 	if (out_len < sizeof resp)
 		return -ENOSPC;
@@ -1376,8 +1377,9 @@ ssize_t ib_uverbs_create_cq(struct ib_uverbs_file *file,
 	INIT_LIST_HEAD(&obj->comp_list);
 	INIT_LIST_HEAD(&obj->async_list);
 
-	cq = file->device->ib_dev->create_cq(file->device->ib_dev, cmd.cqe,
-					     cmd.comp_vector,
+	attr.cqe = cmd.cqe;
+	attr.comp_vector = cmd.comp_vector;
+	cq = file->device->ib_dev->create_cq(file->device->ib_dev, &attr,
 					     file->ucontext, &udata);
 	if (IS_ERR(cq)) {
 		ret = PTR_ERR(cq);

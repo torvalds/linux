@@ -990,10 +990,10 @@ int c4iw_reregister_phys_mem(struct ib_mr *mr,
 				     int acc, u64 *iova_start);
 int c4iw_dereg_mr(struct ib_mr *ib_mr);
 int c4iw_destroy_cq(struct ib_cq *ib_cq);
-struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
-					int vector,
-					struct ib_ucontext *ib_context,
-					struct ib_udata *udata);
+struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
+			     const struct ib_cq_init_attr *attr,
+			     struct ib_ucontext *ib_context,
+			     struct ib_udata *udata);
 int c4iw_resize_cq(struct ib_cq *cq, int cqe, struct ib_udata *udata);
 int c4iw_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
 int c4iw_destroy_qp(struct ib_qp *ib_qp);
