@@ -38,6 +38,7 @@
 
 #include "common.h"
 #include "hardware.h"
+#include "cpuidle.h"
 
 #define MX7_SUSPEND_OCRAM_SIZE		0x1000
 #define MX7_MAX_DDRC_NUM		32
@@ -711,6 +712,7 @@ static int imx7_pm_enter(suspend_state_t state)
 			imx7_gpt_restore();
 			imx7_sys_counter_restore();
 			imx7_gpio_restore();
+			imx7d_enable_rcosc();
 		}
 		if (imx_gpcv2_is_mf_mix_off() ||
 			imx7_pm_is_resume_from_lpsr()) {
