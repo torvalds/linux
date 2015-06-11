@@ -512,7 +512,8 @@ static void advance_transaction(struct acpi_ec *ec)
 	 */
 	if (!t || !(t->flags & ACPI_EC_COMMAND_POLL)) {
 		if (ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT &&
-		    test_bit(EC_FLAGS_QUERY_GUARDING, &ec->flags)) {
+		    (!ec->nr_pending_queries ||
+		     test_bit(EC_FLAGS_QUERY_GUARDING, &ec->flags))) {
 			clear_bit(EC_FLAGS_QUERY_GUARDING, &ec->flags);
 			acpi_ec_complete_query(ec);
 		}
@@ -1065,6 +1066,17 @@ static void acpi_ec_event_handler(struct work_struct *work)
 		(void)acpi_ec_query(ec, NULL);
 		spin_lock_irqsave(&ec->lock, flags);
 		ec->nr_pending_queries--;
+		/*
+		 * Before exit, make sure that this work item can be
+		 * scheduled again. There might be QR_EC failures, leaving
+		 * EC_FLAGS_QUERY_PENDING uncleared and preventing this work
+		 * item from being scheduled again.
+		 */
+		if (!ec->nr_pending_queries) {
+			if (ec_event_clearing == ACPI_EC_EVT_TIMING_STATUS ||
+			    ec_event_clearing == ACPI_EC_EVT_TIMING_QUERY)
+				acpi_ec_complete_query(ec);
+		}
 	}
 	spin_unlock_irqrestore(&ec->lock, flags);
 
