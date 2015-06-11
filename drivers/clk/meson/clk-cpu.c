@@ -213,22 +213,30 @@ struct clk *meson_clk_register_cpu(const struct clk_conf *clk_conf,
 	if (!pclk) {
 		pr_err("%s: could not lookup parent clock %s\n",
 				__func__, clk_conf->clks_parent[0]);
-		return ERR_PTR(-EINVAL);
+		ret = -EINVAL;
+		goto free_clk;
 	}
 
 	ret = clk_notifier_register(pclk, &clk_cpu->clk_nb);
 	if (ret) {
 		pr_err("%s: failed to register clock notifier for %s\n",
 				__func__, clk_conf->clk_name);
-		return ERR_PTR(-EINVAL);
+		goto free_clk;
 	}
 
 	clk = clk_register(NULL, &clk_cpu->hw);
 	if (IS_ERR(clk)) {
-		clk_notifier_unregister(pclk, &clk_cpu->clk_nb);
-		kfree(clk_cpu);
+		ret = PTR_ERR(clk);
+		goto unregister_clk_nb;
 	}
 
 	return clk;
+
+unregister_clk_nb:
+	clk_notifier_unregister(pclk, &clk_cpu->clk_nb);
+free_clk:
+	kfree(clk_cpu);
+
+	return ERR_PTR(ret);
 }
 
