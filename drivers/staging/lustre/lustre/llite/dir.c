@@ -1548,7 +1548,7 @@ out_req:
 		if (rc)
 			return rc;
 
-		OBD_ALLOC_LARGE(lmm, lmmsize);
+		lmm = libcfs_kvzalloc(lmmsize, GFP_NOFS);
 		if (lmm == NULL)
 			return -ENOMEM;
 		if (copy_from_user(lmm, lum, lmmsize)) {
@@ -1601,7 +1601,7 @@ out_req:
 free_lsm:
 		obd_free_memmd(sbi->ll_dt_exp, &lsm);
 free_lmm:
-		OBD_FREE_LARGE(lmm, lmmsize);
+		kvfree(lmm);
 		return rc;
 	}
 	case OBD_IOC_LLOG_CATINFO: {
@@ -1767,13 +1767,13 @@ out_quotactl:
 		if (totalsize >= MDS_MAXREQSIZE / 3)
 			return -E2BIG;
 
-		OBD_ALLOC_LARGE(hur, totalsize);
+		hur = libcfs_kvzalloc(totalsize, GFP_NOFS);
 		if (hur == NULL)
 			return -ENOMEM;
 
 		/* Copy the whole struct */
 		if (copy_from_user(hur, (void *)arg, totalsize)) {
-			OBD_FREE_LARGE(hur, totalsize);
+			kvfree(hur);
 			return -EFAULT;
 		}
 
@@ -1800,7 +1800,7 @@ out_quotactl:
 					   hur, NULL);
 		}
 
-		OBD_FREE_LARGE(hur, totalsize);
+		kvfree(hur);
 
 		return rc;
 	}

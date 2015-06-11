@@ -200,12 +200,12 @@ static inline int ll_get_user_pages(int rw, unsigned long user_addr,
 	*max_pages = (user_addr + size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 	*max_pages -= user_addr >> PAGE_CACHE_SHIFT;
 
-	OBD_ALLOC_LARGE(*pages, *max_pages * sizeof(**pages));
+	*pages = libcfs_kvzalloc(*max_pages * sizeof(**pages), GFP_NOFS);
 	if (*pages) {
 		result = get_user_pages_fast(user_addr, *max_pages,
 					     (rw == READ), *pages);
 		if (unlikely(result <= 0))
-			OBD_FREE_LARGE(*pages, *max_pages * sizeof(**pages));
+			kvfree(*pages);
 	}
 
 	return result;
