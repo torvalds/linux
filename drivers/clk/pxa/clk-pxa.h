@@ -72,7 +72,7 @@ struct desc_clk_cken {
 	const char *name;
 	const char *dev_id;
 	const char *con_id;
-	const char **parent_names;
+	const char * const *parent_names;
 	struct clk_fixed_factor lp;
 	struct clk_fixed_factor hp;
 	struct clk_gate gate;
