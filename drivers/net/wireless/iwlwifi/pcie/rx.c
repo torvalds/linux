@@ -898,7 +898,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 		index = SEQ_TO_INDEX(sequence);
 		cmd_index = get_cmd_index(&txq->q, index);
 
-		iwl_op_mode_rx(trans->op_mode, &rxcb);
+		iwl_op_mode_rx(trans->op_mode, &trans_pcie->napi, &rxcb);
 
 		if (reclaim) {
 			kzfree(txq->entries[cmd_index].free_buf);
