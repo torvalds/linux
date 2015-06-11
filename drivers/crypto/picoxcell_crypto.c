@@ -40,6 +40,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/scatterlist.h>
 #include <linux/sched.h>
+#include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
 
