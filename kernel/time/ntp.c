@@ -35,6 +35,7 @@ unsigned long			tick_nsec;
 static u64			tick_length;
 static u64			tick_length_base;
 
+#define SECS_PER_DAY		86400
 #define MAX_TICKADJ		500LL		/* usecs */
 #define MAX_TICKADJ_SCALED \
 	(((MAX_TICKADJ * NSEC_PER_USEC) << NTP_SCALE_SHIFT) / NTP_INTERVAL_FREQ)
@@ -390,7 +391,7 @@ int second_overflow(unsigned long secs)
 	case TIME_INS:
 		if (!(time_status & STA_INS))
 			time_state = TIME_OK;
-		else if (secs % 86400 == 0) {
+		else if (secs % SECS_PER_DAY == 0) {
 			leap = -1;
 			time_state = TIME_OOP;
 			printk(KERN_NOTICE
@@ -400,7 +401,7 @@ int second_overflow(unsigned long secs)
 	case TIME_DEL:
 		if (!(time_status & STA_DEL))
 			time_state = TIME_OK;
-		else if ((secs + 1) % 86400 == 0) {
+		else if ((secs + 1) % SECS_PER_DAY == 0) {
 			leap = 1;
 			time_state = TIME_WAIT;
 			printk(KERN_NOTICE
