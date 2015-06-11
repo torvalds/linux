@@ -58,6 +58,31 @@
 #define MMC35240_WAIT_CHARGE_PUMP	50000	/* us */
 #define MMC53240_WAIT_SET_RESET		1000	/* us */
 
+/*
+ * Memsic OTP process code piece is put here for reference:
+ *
+ * #define OTP_CONVERT(REG)  ((float)((REG) >=32 ? (32 - (REG)) : (REG)) * 0.006
+ * 1) For X axis, the COEFFICIENT is always 1.
+ * 2) For Y axis, the COEFFICIENT is as below:
+ *    f_OTP_matrix[4] = OTP_CONVERT(((reg_data[1] & 0x03) << 4) |
+ *                                   (reg_data[2] >> 4)) + 1.0;
+ * 3) For Z axis, the COEFFICIENT is as below:
+ *    f_OTP_matrix[8] = (OTP_CONVERT(reg_data[3] & 0x3f) + 1) * 1.35;
+ * We implemented the OTP logic into driver.
+ */
+
+/* scale = 1000 here for Y otp */
+#define MMC35240_OTP_CONVERT_Y(REG) (((REG) >= 32 ? (32 - (REG)) : (REG)) * 6)
+
+/* 0.6 * 1.35 = 0.81, scale 10000 for Z otp */
+#define MMC35240_OTP_CONVERT_Z(REG) (((REG) >= 32 ? (32 - (REG)) : (REG)) * 81)
+
+#define MMC35240_X_COEFF(x)	(x)
+#define MMC35240_Y_COEFF(y)	(y + 1000)
+#define MMC35240_Z_COEFF(z)	(z + 13500)
+
+#define MMC35240_OTP_START_ADDR		0x1B
+
 enum mmc35240_resolution {
 	MMC35240_16_BITS_SLOW = 0, /* 100 Hz */
 	MMC35240_16_BITS_FAST,     /* 200 Hz */
@@ -77,7 +102,7 @@ static const struct {
 } mmc35240_props_table[] = {
 	/* 16 bits, 100Hz ODR */
 	{
-		{1024, 1024, 770},
+		{1024, 1024, 1024},
 		32768,
 	},
 	/* 16 bits, 200Hz ODR */
@@ -102,6 +127,10 @@ struct mmc35240_data {
 	struct mutex mutex;
 	struct regmap *regmap;
 	enum mmc35240_resolution res;
+
+	/* OTP compensation */
+	int axis_coef[3];
+	int axis_scale[3];
 };
 
 static const int mmc35240_samp_freq[] = {100, 200, 333, 666};
@@ -113,8 +142,9 @@ static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("100 200 333 666");
 	.modified = 1, \
 	.channel2 = IIO_MOD_ ## _axis, \
 	.address = AXIS_ ## _axis, \
-	.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED), \
-	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SAMP_FREQ), \
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW), \
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SAMP_FREQ) | \
+			BIT(IIO_CHAN_INFO_SCALE), \
 }
 
 static const struct iio_chan_spec mmc35240_channels[] = {
@@ -125,6 +155,7 @@ static const struct iio_chan_spec mmc35240_channels[] = {
 
 static struct attribute *mmc35240_attributes[] = {
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
+	NULL
 };
 
 static const struct attribute_group mmc35240_attribute_group = {
@@ -170,8 +201,9 @@ static int mmc35240_hw_set(struct mmc35240_data *data, bool set)
 
 static int mmc35240_init(struct mmc35240_data *data)
 {
-	int ret;
+	int ret, y_convert, z_convert;
 	unsigned int reg_id;
+	u8 otp_data[6];
 
 	ret = regmap_read(data->regmap, MMC35240_REG_ID, &reg_id);
 	if (ret < 0) {
@@ -195,9 +227,30 @@ static int mmc35240_init(struct mmc35240_data *data)
 		return ret;
 
 	/* set default sampling frequency */
-	return regmap_update_bits(data->regmap, MMC35240_REG_CTRL1,
-				  MMC35240_CTRL1_BW_MASK,
-				  data->res << MMC35240_CTRL1_BW_SHIFT);
+	ret = regmap_update_bits(data->regmap, MMC35240_REG_CTRL1,
+				 MMC35240_CTRL1_BW_MASK,
+				 data->res << MMC35240_CTRL1_BW_SHIFT);
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_bulk_read(data->regmap, MMC35240_OTP_START_ADDR,
+			       (u8 *)otp_data, sizeof(otp_data));
+	if (ret < 0)
+		return ret;
+
+	y_convert = MMC35240_OTP_CONVERT_Y(((otp_data[1] & 0x03) << 4) |
+					   (otp_data[2] >> 4));
+	z_convert = MMC35240_OTP_CONVERT_Z(otp_data[3] & 0x3f);
+
+	data->axis_coef[0] = MMC35240_X_COEFF(1);
+	data->axis_coef[1] = MMC35240_Y_COEFF(y_convert);
+	data->axis_coef[2] = MMC35240_Z_COEFF(z_convert);
+
+	data->axis_scale[0] = 1;
+	data->axis_scale[1] = 1000;
+	data->axis_scale[2] = 10000;
+
+	return 0;
 }
 
 static int mmc35240_take_measurement(struct mmc35240_data *data)
@@ -217,7 +270,8 @@ static int mmc35240_take_measurement(struct mmc35240_data *data)
 			return ret;
 		if (reg_status & MMC35240_STATUS_MEAS_DONE_BIT)
 			break;
-		msleep(20);
+		/* minimum wait time to complete measurement is 10 ms */
+		usleep_range(10000, 11000);
 	}
 
 	if (tries < 0) {
@@ -240,9 +294,19 @@ static int mmc35240_read_measurement(struct mmc35240_data *data, __le16 buf[3])
 				3 * sizeof(__le16));
 }
 
-static int mmc35240_raw_to_gauss(struct mmc35240_data *data, int index,
-				 __le16 buf[],
-				 int *val, int *val2)
+/**
+ * mmc35240_raw_to_mgauss - convert raw readings to milli gauss. Also apply
+			    compensation for output value.
+ *
+ * @data: device private data
+ * @index: axis index for which we want the conversion
+ * @buf: raw data to be converted, 2 bytes in little endian format
+ * @val: compensated output reading (unit is milli gauss)
+ *
+ * Returns: 0 in case of success, -EINVAL when @index is not valid
+ */
+static int mmc35240_raw_to_mgauss(struct mmc35240_data *data, int index,
+				  __le16 buf[], int *val)
 {
 	int raw_x, raw_y, raw_z;
 	int sens_x, sens_y, sens_z;
@@ -260,22 +324,22 @@ static int mmc35240_raw_to_gauss(struct mmc35240_data *data, int index,
 
 	switch (index) {
 	case AXIS_X:
-		*val = (raw_x - nfo) / sens_x;
-		*val2 = ((raw_x - nfo) % sens_x) * 1000000;
+		*val = (raw_x - nfo) * 1000 / sens_x;
 		break;
 	case AXIS_Y:
-		*val = (raw_y - nfo) / sens_y - (raw_z - nfo) / sens_z;
-		*val2 = (((raw_y - nfo) % sens_y - (raw_z - nfo) % sens_z))
-			* 1000000;
+		*val = (raw_y - nfo) * 1000 / sens_y -
+			(raw_z - nfo)  * 1000 / sens_z;
 		break;
 	case AXIS_Z:
-		*val = (raw_y - nfo) / sens_y + (raw_z - nfo) / sens_z;
-		*val2 = (((raw_y - nfo) % sens_y + (raw_z - nfo) % sens_z))
-			* 1000000;
+		*val = (raw_y - nfo) * 1000 / sens_y +
+			(raw_z - nfo) * 1000 / sens_z;
 		break;
 	default:
 		return -EINVAL;
 	}
+	/* apply OTP compensation */
+	*val = (*val) * data->axis_coef[index] / data->axis_scale[index];
+
 	return 0;
 }
 
@@ -289,16 +353,19 @@ static int mmc35240_read_raw(struct iio_dev *indio_dev,
 	__le16 buf[3];
 
 	switch (mask) {
-	case IIO_CHAN_INFO_PROCESSED:
+	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&data->mutex);
 		ret = mmc35240_read_measurement(data, buf);
 		mutex_unlock(&data->mutex);
 		if (ret < 0)
 			return ret;
-		ret = mmc35240_raw_to_gauss(data, chan->address,
-					    buf, val, val2);
+		ret = mmc35240_raw_to_mgauss(data, chan->address, buf, val);
 		if (ret < 0)
 			return ret;
+		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_SCALE:
+		*val = 0;
+		*val2 = 1000;
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		mutex_lock(&data->mutex);
@@ -308,7 +375,7 @@ static int mmc35240_read_raw(struct iio_dev *indio_dev,
 			return ret;
 
 		i = (reg & MMC35240_CTRL1_BW_MASK) >> MMC35240_CTRL1_BW_SHIFT;
-		if (i < 0 || i > ARRAY_SIZE(mmc35240_samp_freq))
+		if (i < 0 || i >= ARRAY_SIZE(mmc35240_samp_freq))
 			return -EINVAL;
 
 		*val = mmc35240_samp_freq[i];
@@ -490,7 +557,7 @@ static const struct acpi_device_id mmc35240_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, mmc35240_acpi_match);
 
 static const struct i2c_device_id mmc35240_id[] = {
-	{"MMC35240", 0},
+	{"mmc35240", 0},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, mmc35240_id);

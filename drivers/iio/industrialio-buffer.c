@@ -239,13 +239,19 @@ static ssize_t iio_scan_el_show(struct device *dev,
 /* Note NULL used as error indicator as it doesn't make sense. */
 static const unsigned long *iio_scan_mask_match(const unsigned long *av_masks,
 					  unsigned int masklength,
-					  const unsigned long *mask)
+					  const unsigned long *mask,
+					  bool strict)
 {
 	if (bitmap_empty(mask, masklength))
 		return NULL;
 	while (*av_masks) {
-		if (bitmap_subset(mask, av_masks, masklength))
-			return av_masks;
+		if (strict) {
+			if (bitmap_equal(mask, av_masks, masklength))
+				return av_masks;
+		} else {
+			if (bitmap_subset(mask, av_masks, masklength))
+				return av_masks;
+		}
 		av_masks += BITS_TO_LONGS(masklength);
 	}
 	return NULL;
@@ -295,7 +301,7 @@ static int iio_scan_mask_set(struct iio_dev *indio_dev,
 	if (indio_dev->available_scan_masks) {
 		mask = iio_scan_mask_match(indio_dev->available_scan_masks,
 					   indio_dev->masklength,
-					   trialmask);
+					   trialmask, false);
 		if (!mask)
 			goto err_invalid_mask;
 	}
@@ -602,8 +608,10 @@ static int iio_verify_update(struct iio_dev *indio_dev,
 {
 	unsigned long *compound_mask;
 	const unsigned long *scan_mask;
+	bool strict_scanmask = false;
 	struct iio_buffer *buffer;
 	bool scan_timestamp;
+	unsigned int modes;
 
 	memset(config, 0, sizeof(*config));
 
@@ -615,12 +623,30 @@ static int iio_verify_update(struct iio_dev *indio_dev,
 		list_is_singular(&indio_dev->buffer_list))
 			return 0;
 
+	modes = indio_dev->modes;
+
+	list_for_each_entry(buffer, &indio_dev->buffer_list, buffer_list) {
+		if (buffer == remove_buffer)
+			continue;
+		modes &= buffer->access->modes;
+	}
+
+	if (insert_buffer)
+		modes &= insert_buffer->access->modes;
+
 	/* Definitely possible for devices to support both of these. */
-	if ((indio_dev->modes & INDIO_BUFFER_TRIGGERED) && indio_dev->trig) {
+	if ((modes & INDIO_BUFFER_TRIGGERED) && indio_dev->trig) {
 		config->mode = INDIO_BUFFER_TRIGGERED;
-	} else if (indio_dev->modes & INDIO_BUFFER_HARDWARE) {
+	} else if (modes & INDIO_BUFFER_HARDWARE) {
+		/*
+		 * Keep things simple for now and only allow a single buffer to
+		 * be connected in hardware mode.
+		 */
+		if (insert_buffer && !list_empty(&indio_dev->buffer_list))
+			return -EINVAL;
 		config->mode = INDIO_BUFFER_HARDWARE;
-	} else if (indio_dev->modes & INDIO_BUFFER_SOFTWARE) {
+		strict_scanmask = true;
+	} else if (modes & INDIO_BUFFER_SOFTWARE) {
 		config->mode = INDIO_BUFFER_SOFTWARE;
 	} else {
 		/* Can only occur on first buffer */
@@ -654,7 +680,8 @@ static int iio_verify_update(struct iio_dev *indio_dev,
 	if (indio_dev->available_scan_masks) {
 		scan_mask = iio_scan_mask_match(indio_dev->available_scan_masks,
 				    indio_dev->masklength,
-				    compound_mask);
+				    compound_mask,
+				    strict_scanmask);
 		kfree(compound_mask);
 		if (scan_mask == NULL)
 			return -EINVAL;
@@ -888,8 +915,6 @@ static ssize_t iio_buffer_store_enable(struct device *dev,
 		ret = __iio_update_buffers(indio_dev,
 					 NULL, indio_dev->buffer);
 
-	if (ret < 0)
-		goto done;
 done:
 	mutex_unlock(&indio_dev->mlock);
 	return (ret < 0) ? ret : len;
@@ -968,6 +993,15 @@ int iio_buffer_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 	int ret, i, attrn, attrcount, attrcount_orig = 0;
 	const struct iio_chan_spec *channels;
 
+	channels = indio_dev->channels;
+	if (channels) {
+		int ml = indio_dev->masklength;
+
+		for (i = 0; i < indio_dev->num_channels; i++)
+			ml = max(ml, channels[i].scan_index + 1);
+		indio_dev->masklength = ml;
+	}
+
 	if (!buffer)
 		return 0;
 
@@ -1010,12 +1044,6 @@ int iio_buffer_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 		for (i = 0; i < indio_dev->num_channels; i++) {
 			if (channels[i].scan_index < 0)
 				continue;
-
-			/* Establish necessary mask length */
-			if (channels[i].scan_index >
-			    (int)indio_dev->masklength - 1)
-				indio_dev->masklength
-					= channels[i].scan_index + 1;
 
 			ret = iio_buffer_add_channel_sysfs(indio_dev,
 							 &channels[i]);

@@ -370,7 +370,7 @@ static int stk3310_write_raw(struct iio_dev *indio_dev,
 			     int val, int val2, long mask)
 {
 	int ret;
-	unsigned int index;
+	int index;
 	struct stk3310_data *data = iio_priv(indio_dev);
 
 	switch (mask) {

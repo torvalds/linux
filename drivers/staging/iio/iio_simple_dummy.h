@@ -79,7 +79,7 @@ int iio_simple_dummy_write_event_value(struct iio_dev *indio_dev,
 				       int val2);
 
 int iio_simple_dummy_events_register(struct iio_dev *indio_dev);
-int iio_simple_dummy_events_unregister(struct iio_dev *indio_dev);
+void iio_simple_dummy_events_unregister(struct iio_dev *indio_dev);
 
 #else /* Stubs for when events are disabled at compile time */
 
@@ -89,11 +89,9 @@ iio_simple_dummy_events_register(struct iio_dev *indio_dev)
 	return 0;
 };
 
-static inline int
+static inline void
 iio_simple_dummy_events_unregister(struct iio_dev *indio_dev)
-{
-	return 0;
-};
+{ };
 
 #endif /* CONFIG_IIO_SIMPLE_DUMMY_EVENTS*/
 

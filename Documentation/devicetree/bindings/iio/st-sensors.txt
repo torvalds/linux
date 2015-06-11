@@ -30,6 +30,7 @@ Accelerometers:
 - st,lsm330d-accel
 - st,lsm330dl-accel
 - st,lsm330dlc-accel
+- st,lis331dl-accel
 - st,lis331dlh-accel
 - st,lsm303dl-accel
 - st,lsm303dlm-accel

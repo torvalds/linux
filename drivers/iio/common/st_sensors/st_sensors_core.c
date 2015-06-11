@@ -431,7 +431,9 @@ static int st_sensors_read_axis_data(struct iio_dev *indio_dev,
 	if (err < 0)
 		goto st_sensors_free_memory;
 
-	if (byte_for_channel == 2)
+	if (byte_for_channel == 1)
+		*data = (s8)*outdata;
+	else if (byte_for_channel == 2)
 		*data = (s16)get_unaligned_le16(outdata);
 	else if (byte_for_channel == 3)
 		*data = (s32)st_sensors_get_unaligned_le24(outdata);
