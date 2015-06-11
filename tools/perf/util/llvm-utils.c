@@ -43,3 +43,229 @@ int perf_llvm_config(const char *var, const char *value)
 		return -1;
 	return 0;
 }
+
+static int
+search_program(const char *def, const char *name,
+	       char *output)
+{
+	char *env, *path, *tmp = NULL;
+	char buf[PATH_MAX];
+	int ret;
+
+	output[0] = '\0';
+	if (def && def[0] != '\0') {
+		if (def[0] == '/') {
+			if (access(def, F_OK) == 0) {
+				strlcpy(output, def, PATH_MAX);
+				return 0;
+			}
+		} else if (def[0] != '\0')
+			name = def;
+	}
+
+	env = getenv("PATH");
+	if (!env)
+		return -1;
+	env = strdup(env);
+	if (!env)
+		return -1;
+
+	ret = -ENOENT;
+	path = strtok_r(env, ":",  &tmp);
+	while (path) {
+		scnprintf(buf, sizeof(buf), "%s/%s", path, name);
+		if (access(buf, F_OK) == 0) {
+			strlcpy(output, buf, PATH_MAX);
+			ret = 0;
+			break;
+		}
+		path = strtok_r(NULL, ":", &tmp);
+	}
+
+	free(env);
+	return ret;
+}
+
+#define READ_SIZE	4096
+static int
+read_from_pipe(const char *cmd, void **p_buf, size_t *p_read_sz)
+{
+	int err = 0;
+	void *buf = NULL;
+	FILE *file = NULL;
+	size_t read_sz = 0, buf_sz = 0;
+
+	file = popen(cmd, "r");
+	if (!file) {
+		pr_err("ERROR: unable to popen cmd: %s\n",
+		       strerror(errno));
+		return -EINVAL;
+	}
+
+	while (!feof(file) && !ferror(file)) {
+		/*
+		 * Make buf_sz always have obe byte extra space so we
+		 * can put '\0' there.
+		 */
+		if (buf_sz - read_sz < READ_SIZE + 1) {
+			void *new_buf;
+
+			buf_sz = read_sz + READ_SIZE + 1;
+			new_buf = realloc(buf, buf_sz);
+
+			if (!new_buf) {
+				pr_err("ERROR: failed to realloc memory\n");
+				err = -ENOMEM;
+				goto errout;
+			}
+
+			buf = new_buf;
+		}
+		read_sz += fread(buf + read_sz, 1, READ_SIZE, file);
+	}
+
+	if (buf_sz - read_sz < 1) {
+		pr_err("ERROR: internal error\n");
+		err = -EINVAL;
+		goto errout;
+	}
+
+	if (ferror(file)) {
+		pr_err("ERROR: error occurred when reading from pipe: %s\n",
+		       strerror(errno));
+		err = -EIO;
+		goto errout;
+	}
+
+	err = WEXITSTATUS(pclose(file));
+	file = NULL;
+	if (err) {
+		err = -EINVAL;
+		goto errout;
+	}
+
+	/*
+	 * If buf is string, give it terminal '\0' to make our life
+	 * easier. If buf is not string, that '\0' is out of space
+	 * indicated by read_sz so caller won't even notice it.
+	 */
+	((char *)buf)[read_sz] = '\0';
+
+	if (!p_buf)
+		free(buf);
+	else
+		*p_buf = buf;
+
+	if (p_read_sz)
+		*p_read_sz = read_sz;
+	return 0;
+
+errout:
+	if (file)
+		pclose(file);
+	free(buf);
+	if (p_buf)
+		*p_buf = NULL;
+	if (p_read_sz)
+		*p_read_sz = 0;
+	return err;
+}
+
+static inline void
+force_set_env(const char *var, const char *value)
+{
+	if (value) {
+		setenv(var, value, 1);
+		pr_debug("set env: %s=%s\n", var, value);
+	} else {
+		unsetenv(var);
+		pr_debug("unset env: %s\n", var);
+	}
+}
+
+static void
+version_notice(void)
+{
+	pr_err(
+"     \tLLVM 3.7 or newer is required. Which can be found from http://llvm.org\n"
+"     \tYou may want to try git trunk:\n"
+"     \t\tgit clone http://llvm.org/git/llvm.git\n"
+"     \t\t     and\n"
+"     \t\tgit clone http://llvm.org/git/clang.git\n\n"
+"     \tOr fetch the latest clang/llvm 3.7 from pre-built llvm packages for\n"
+"     \tdebian/ubuntu:\n"
+"     \t\thttp://llvm.org/apt\n\n"
+"     \tIf you are using old version of clang, change 'clang-bpf-cmd-template'\n"
+"     \toption in [llvm] section of ~/.perfconfig to:\n\n"
+"     \t  \"$CLANG_EXEC $CLANG_OPTIONS $KERNEL_INC_OPTIONS \\\n"
+"     \t     -working-directory $WORKING_DIR -c $CLANG_SOURCE \\\n"
+"     \t     -emit-llvm -o - | /path/to/llc -march=bpf -filetype=obj -o -\"\n"
+"     \t(Replace /path/to/llc with path to your llc)\n\n"
+);
+}
+
+int llvm__compile_bpf(const char *path, void **p_obj_buf,
+		      size_t *p_obj_buf_sz)
+{
+	int err;
+	char clang_path[PATH_MAX];
+	const char *clang_opt = llvm_param.clang_opt;
+	const char *template = llvm_param.clang_bpf_cmd_template;
+	void *obj_buf = NULL;
+	size_t obj_buf_sz;
+
+	if (!template)
+		template = CLANG_BPF_CMD_DEFAULT_TEMPLATE;
+
+	err = search_program(llvm_param.clang_path,
+			     "clang", clang_path);
+	if (err) {
+		pr_err(
+"ERROR:\tunable to find clang.\n"
+"Hint:\tTry to install latest clang/llvm to support BPF. Check your $PATH\n"
+"     \tand 'clang-path' option in [llvm] section of ~/.perfconfig.\n");
+		version_notice();
+		return -ENOENT;
+	}
+
+	force_set_env("CLANG_EXEC", clang_path);
+	force_set_env("CLANG_OPTIONS", clang_opt);
+	force_set_env("KERNEL_INC_OPTIONS", NULL);
+	force_set_env("WORKING_DIR", ".");
+
+	/*
+	 * Since we may reset clang's working dir, path of source file
+	 * should be transferred into absolute path, except we want
+	 * stdin to be source file (testing).
+	 */
+	force_set_env("CLANG_SOURCE",
+		      (path[0] == '-') ? path :
+		      make_nonrelative_path(path));
+
+	pr_debug("llvm compiling command template: %s\n", template);
+	err = read_from_pipe(template, &obj_buf, &obj_buf_sz);
+	if (err) {
+		pr_err("ERROR:\tunable to compile %s\n", path);
+		pr_err("Hint:\tCheck error message shown above.\n");
+		pr_err("Hint:\tYou can also pre-compile it into .o using:\n");
+		pr_err("     \t\tclang -target bpf -O2 -c %s\n", path);
+		pr_err("     \twith proper -I and -D options.\n");
+		goto errout;
+	}
+
+	if (!p_obj_buf)
+		free(obj_buf);
+	else
+		*p_obj_buf = obj_buf;
+
+	if (p_obj_buf_sz)
+		*p_obj_buf_sz = obj_buf_sz;
+	return 0;
+errout:
+	free(obj_buf);
+	if (p_obj_buf)
+		*p_obj_buf = NULL;
+	if (p_obj_buf_sz)
+		*p_obj_buf_sz = 0;
+	return err;
+}

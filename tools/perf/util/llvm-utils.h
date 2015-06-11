@@ -33,4 +33,7 @@ struct llvm_param {
 
 extern struct llvm_param llvm_param;
 extern int perf_llvm_config(const char *var, const char *value);
+
+extern int llvm__compile_bpf(const char *path, void **p_obj_buf,
+			     size_t *p_obj_buf_sz);
 #endif
