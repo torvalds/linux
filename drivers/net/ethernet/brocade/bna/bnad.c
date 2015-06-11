@@ -876,9 +876,9 @@ bnad_set_netdev_perm_addr(struct bnad *bnad)
 {
 	struct net_device *netdev = bnad->netdev;
 
-	ether_addr_copy(netdev->perm_addr, bnad->perm_addr.mac);
+	ether_addr_copy(netdev->perm_addr, bnad->perm_addr);
 	if (is_zero_ether_addr(netdev->dev_addr))
-		ether_addr_copy(netdev->dev_addr, bnad->perm_addr.mac);
+		ether_addr_copy(netdev->dev_addr, bnad->perm_addr);
 }
 
 /* Control Path Handlers */
@@ -1095,8 +1095,8 @@ bnad_cb_tx_resume(struct bnad *bnad, struct bna_tx *tx)
 	 * get a 0 MAC address. We try to get the MAC address
 	 * again here.
 	 */
-	if (is_zero_ether_addr(&bnad->perm_addr.mac[0])) {
-		bna_enet_perm_mac_get(&bnad->bna.enet, &bnad->perm_addr);
+	if (is_zero_ether_addr(bnad->perm_addr)) {
+		bna_enet_perm_mac_get(&bnad->bna.enet, bnad->perm_addr);
 		bnad_set_netdev_perm_addr(bnad);
 	}
 }
@@ -3740,7 +3740,7 @@ bnad_pci_probe(struct pci_dev *pdev,
 
 	/* Get the burnt-in mac */
 	spin_lock_irqsave(&bnad->bna_lock, flags);
-	bna_enet_perm_mac_get(&bna->enet, &bnad->perm_addr);
+	bna_enet_perm_mac_get(&bna->enet, bnad->perm_addr);
 	bnad_set_netdev_perm_addr(bnad);
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 

@@ -189,14 +189,14 @@ struct bfi_ioc_getattr_req {
 struct bfi_ioc_attr {
 	u64		mfg_pwwn;	/*!< Mfg port wwn	   */
 	u64		mfg_nwwn;	/*!< Mfg node wwn	   */
-	mac_t		mfg_mac;	/*!< Mfg mac		   */
+	u8		mfg_mac[ETH_ALEN]; /*!< Mfg mac		   */
 	u8		port_mode;	/* enum bfi_port_mode	   */
 	u8		rsvd_a;
 	u64		pwwn;
 	u64		nwwn;
-	mac_t		mac;		/*!< PBC or Mfg mac	   */
+	u8		mac[ETH_ALEN];	/*!< PBC or Mfg mac	   */
 	u16	rsvd_b;
-	mac_t		fcoe_mac;
+	u8		fcoe_mac[ETH_ALEN];
 	u16	rsvd_c;
 	char		brcd_serialnum[STRSZ(BFA_MFG_SERIALNUM_SIZE)];
 	u8		pcie_gen;

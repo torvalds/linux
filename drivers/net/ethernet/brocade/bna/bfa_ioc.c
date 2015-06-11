@@ -2796,7 +2796,7 @@ bfa_ioc_get_adapter_attr(struct bfa_ioc *ioc,
 		ad_attr->prototype = 0;
 
 	ad_attr->pwwn = bfa_ioc_get_pwwn(ioc);
-	ad_attr->mac  = bfa_nw_ioc_get_mac(ioc);
+	bfa_nw_ioc_get_mac(ioc, ad_attr->mac);
 
 	ad_attr->pcie_gen = ioc_attr->pcie_gen;
 	ad_attr->pcie_lanes = ioc_attr->pcie_lanes;
@@ -2942,10 +2942,10 @@ bfa_ioc_get_pwwn(struct bfa_ioc *ioc)
 	return ioc->attr->pwwn;
 }
 
-mac_t
-bfa_nw_ioc_get_mac(struct bfa_ioc *ioc)
+void
+bfa_nw_ioc_get_mac(struct bfa_ioc *ioc, u8 *mac)
 {
-	return ioc->attr->mac;
+	ether_addr_copy(mac, ioc->attr->mac);
 }
 
 /* Firmware failure detected. Start recovery actions. */

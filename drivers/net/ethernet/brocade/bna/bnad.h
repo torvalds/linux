@@ -344,7 +344,7 @@ struct bnad {
 	struct bnad_completion bnad_completions;
 
 	/* Burnt in MAC address */
-	mac_t			perm_addr;
+	u8			perm_addr[ETH_ALEN];
 
 	struct workqueue_struct *work_q;
 

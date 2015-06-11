@@ -1330,9 +1330,9 @@ bna_enet_mtu_set(struct bna_enet *enet, int mtu,
 }
 
 void
-bna_enet_perm_mac_get(struct bna_enet *enet, mac_t *mac)
+bna_enet_perm_mac_get(struct bna_enet *enet, u8 *mac)
 {
-	*mac = bfa_nw_ioc_get_mac(&enet->bna->ioceth.ioc);
+	bfa_nw_ioc_get_mac(&enet->bna->ioceth.ioc, mac);
 }
 
 /* IOCETH */

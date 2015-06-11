@@ -42,12 +42,6 @@ extern char bfa_version[];
 #define CNA_FW_FILE_CT2	"ct2fw-3.2.5.1.bin"
 #define FC_SYMNAME_MAX	256	/*!< max name server symbolic name size */
 
-#pragma pack(1)
-
-typedef struct mac { u8 mac[ETH_ALEN]; } mac_t;
-
-#pragma pack()
-
 #define bfa_q_first(_q) ((void *)(((struct list_head *) (_q))->next))
 #define bfa_q_next(_qe)	(((struct list_head *) (_qe))->next)
 #define bfa_q_prev(_qe) (((struct list_head *) (_qe))->prev)

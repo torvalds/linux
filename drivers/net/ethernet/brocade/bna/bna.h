@@ -36,7 +36,7 @@ extern const u32 bna_napi_dim_vector[][BNA_BIAS_T_MAX];
 #define bna_is_small_rxq(_id) ((_id) & 0x1)
 
 #define BNA_MAC_IS_EQUAL(_mac1, _mac2)					\
-	(!memcmp((_mac1), (_mac2), sizeof(mac_t)))
+	(!memcmp((_mac1), (_mac2), ETH_ALEN))
 
 #define BNA_POWER_OF_2(x) (((x) & ((x) - 1)) == 0)
 
@@ -536,7 +536,7 @@ void bna_enet_pause_config(struct bna_enet *enet,
 			   void (*cbfn)(struct bnad *));
 void bna_enet_mtu_set(struct bna_enet *enet, int mtu,
 		      void (*cbfn)(struct bnad *));
-void bna_enet_perm_mac_get(struct bna_enet *enet, mac_t *mac);
+void bna_enet_perm_mac_get(struct bna_enet *enet, u8 *mac);
 
 /* IOCETH */
 

@@ -188,7 +188,7 @@ struct bfa_cee_attr {
 	u8 error_reason;
 	struct bfa_cee_lldp_cfg lldp_remote;
 	struct bfa_cee_dcbx_cfg dcbx_remote;
-	mac_t src_mac;
+	u8 src_mac[ETH_ALEN];
 	u8 link_speed;
 	u8 nw_priority;
 	u8 filler[2];

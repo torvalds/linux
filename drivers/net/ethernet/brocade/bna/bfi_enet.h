@@ -573,7 +573,7 @@ struct bfi_enet_rss_cfg_req {
  */
 struct bfi_enet_ucast_req {
 	struct bfi_msgq_mhdr	mh;
-	mac_t			mac_addr;
+	u8			mac_addr[ETH_ALEN];
 	u8			rsvd[2];
 };
 
@@ -581,7 +581,7 @@ struct bfi_enet_ucast_req {
 struct bfi_enet_mac_n_vlan_req {
 	struct bfi_msgq_mhdr	mh;
 	u16			vlan_id;
-	mac_t			mac_addr;
+	u8			mac_addr[ETH_ALEN];
 };
 
 /* MAC Multicast
@@ -591,7 +591,7 @@ struct bfi_enet_mac_n_vlan_req {
  */
 struct bfi_enet_mcast_add_req {
 	struct bfi_msgq_mhdr	mh;
-	mac_t			mac_addr;
+	u8			mac_addr[ETH_ALEN];
 	u8			rsvd[2];
 };
 

@@ -283,7 +283,7 @@ bna_bfi_ucast_req(struct bna_rxf *rxf, struct bna_mac *mac,
 	bfi_msgq_mhdr_set(req->mh, BFI_MC_ENET, req_type, 0, rxf->rx->rid);
 	req->mh.num_entries = htons(
 	bfi_msgq_num_cmd_entries(sizeof(struct bfi_enet_ucast_req)));
-	memcpy(&req->mac_addr, &mac->addr, sizeof(mac_t));
+	ether_addr_copy(req->mac_addr, mac->addr);
 	bfa_msgq_cmd_set(&rxf->msgq_cmd, NULL, NULL,
 		sizeof(struct bfi_enet_ucast_req), &req->mh);
 	bfa_msgq_cmd_post(&rxf->rx->bna->msgq, &rxf->msgq_cmd);
@@ -299,7 +299,7 @@ bna_bfi_mcast_add_req(struct bna_rxf *rxf, struct bna_mac *mac)
 		0, rxf->rx->rid);
 	req->mh.num_entries = htons(
 	bfi_msgq_num_cmd_entries(sizeof(struct bfi_enet_mcast_add_req)));
-	memcpy(&req->mac_addr, &mac->addr, sizeof(mac_t));
+	ether_addr_copy(req->mac_addr, mac->addr);
 	bfa_msgq_cmd_set(&rxf->msgq_cmd, NULL, NULL,
 		sizeof(struct bfi_enet_mcast_add_req), &req->mh);
 	bfa_msgq_cmd_post(&rxf->rx->bna->msgq, &rxf->msgq_cmd);
