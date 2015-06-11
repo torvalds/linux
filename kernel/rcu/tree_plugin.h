@@ -728,42 +728,23 @@ void synchronize_rcu_expedited(void)
 	smp_mb(); /* Above access cannot bleed into critical section. */
 
 	/*
-	 * Block CPU-hotplug operations.  This means that any CPU-hotplug
-	 * operation that finds an rcu_node structure with tasks in the
-	 * process of being boosted will know that all tasks blocking
-	 * this expedited grace period will already be in the process of
-	 * being boosted.  This simplifies the process of moving tasks
-	 * from leaf to root rcu_node structures.
-	 */
-	if (!try_get_online_cpus()) {
-		/* CPU-hotplug operation in flight, fall back to normal GP. */
-		wait_rcu_gp(call_rcu);
-		return;
-	}
-
-	/*
 	 * Acquire lock, falling back to synchronize_rcu() if too many
 	 * lock-acquisition failures.  Of course, if someone does the
 	 * expedited grace period for us, just leave.
 	 */
 	while (!mutex_trylock(&sync_rcu_preempt_exp_mutex)) {
 		if (ULONG_CMP_LT(snap,
-		    READ_ONCE(sync_rcu_preempt_exp_count))) {
-			put_online_cpus();
+		    READ_ONCE(sync_rcu_preempt_exp_count)))
 			goto mb_ret; /* Others did our work for us. */
-		}
 		if (trycount++ < 10) {
 			udelay(trycount * num_online_cpus());
 		} else {
-			put_online_cpus();
 			wait_rcu_gp(call_rcu);
 			return;
 		}
 	}
-	if (ULONG_CMP_LT(snap, READ_ONCE(sync_rcu_preempt_exp_count))) {
-		put_online_cpus();
+	if (ULONG_CMP_LT(snap, READ_ONCE(sync_rcu_preempt_exp_count)))
 		goto unlock_mb_ret; /* Others did our work for us. */
-	}
 
 	/* force all RCU readers onto ->blkd_tasks lists. */
 	synchronize_sched_expedited();
@@ -778,8 +759,6 @@ void synchronize_rcu_expedited(void)
 		sync_rcu_preempt_exp_init1(rsp, rnp);
 	rcu_for_each_leaf_node(rsp, rnp)
 		sync_rcu_preempt_exp_init2(rsp, rnp);
-
-	put_online_cpus();
 
 	/* Wait for snapshotted ->blkd_tasks lists to drain. */
 	rnp = rcu_get_root(rsp);
