@@ -768,7 +768,6 @@ away:
 static int
 visordriver_remove_device(struct device *xdev)
 {
-	int rc = 0;
 	struct visor_device *dev;
 	struct visor_driver *drv;
 
@@ -791,7 +790,7 @@ visordriver_remove_device(struct device *xdev)
 
 	put_device(&dev->device);
 
-	return rc;
+	return 0;
 }
 
 /** A particular type of visor driver calls this function to register
