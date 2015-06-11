@@ -132,6 +132,10 @@ enum {
 };
 
 enum {
+	MLX5_HW_START_PADDING = MLX5_INLINE_SEG,
+};
+
+enum {
 	MLX5_MIN_PKEY_TABLE_SIZE = 128,
 	MLX5_MAX_LOG_PKEY_TABLE  = 5,
 };
