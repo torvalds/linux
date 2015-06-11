@@ -169,7 +169,7 @@ static struct platform_device *bcma_hcd_create_pdev(struct bcma_device *dev, boo
 {
 	struct platform_device *hci_dev;
 	struct resource hci_res[2];
-	int ret = -ENOMEM;
+	int ret;
 
 	memset(hci_res, 0, sizeof(hci_res));
 
@@ -183,7 +183,7 @@ static struct platform_device *bcma_hcd_create_pdev(struct bcma_device *dev, boo
 	hci_dev = platform_device_alloc(ohci ? "ohci-platform" :
 					"ehci-platform" , 0);
 	if (!hci_dev)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	hci_dev->dev.parent = &dev->dev;
 	hci_dev->dev.dma_mask = &hci_dev->dev.coherent_dma_mask;
