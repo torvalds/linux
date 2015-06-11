@@ -63,7 +63,7 @@ static int socfpga_a10_boot_secondary(unsigned int cpu, struct task_struct *idle
 		       SOCFPGA_A10_RSTMGR_MODMPURST);
 		memcpy(phys_to_virt(0), &secondary_trampoline, trampoline_size);
 
-		writel(virt_to_phys(socfpga_secondary_startup),
+		writel(virt_to_phys(secondary_startup),
 		       sys_manager_base_addr + (socfpga_cpu1start_addr & 0x00000fff));
 
 		flush_cache_all();
