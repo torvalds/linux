@@ -35,8 +35,6 @@ static const unsigned int palmas_extcon_cable[] = {
 	EXTCON_NONE,
 };
 
-static const int mutually_exclusive[] = {0x3, 0x0};
-
 static void palmas_usb_wakeup(struct palmas *palmas, int enable)
 {
 	if (enable)
@@ -195,7 +193,6 @@ static int palmas_usb_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to allocate extcon device\n");
 		return -ENOMEM;
 	}
-	palmas_usb->edev->mutually_exclusive = mutually_exclusive;
 
 	status = devm_extcon_dev_register(&pdev->dev, palmas_usb->edev);
 	if (status) {
