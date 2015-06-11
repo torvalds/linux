@@ -2459,16 +2459,10 @@ int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 		size = wrq->u.data.length;
 
 		if (size && wrq->u.data.pointer) {
-			buff = kmalloc(size, GFP_KERNEL);
-			if (!buff) {
-				s32Error = -ENOMEM;
-				goto done;
-			}
 
-			if (copy_from_user
-				    (buff, wrq->u.data.pointer,
-				    wrq->u.data.length)) {
-				s32Error = -EFAULT;
+			buff = memdup_user(wrq->u.data.pointer, wrq->u.data.length);
+			if (IS_ERR(buff)) {
+				s32Error = PTR_ERR(buff);
 				goto done;
 			}
 
