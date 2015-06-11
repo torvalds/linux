@@ -1390,10 +1390,11 @@ int dm_thin_find_block(struct dm_thin_device *td, dm_block_t block,
 	dm_block_t keys[2] = { td->id, block };
 	struct dm_btree_info *info;
 
-	if (pmd->fail_io)
-		return -EINVAL;
-
 	down_read(&pmd->root_lock);
+	if (pmd->fail_io) {
+		up_read(&pmd->root_lock);
+		return -EINVAL;
+	}
 
 	if (can_issue_io) {
 		info = &pmd->info;
