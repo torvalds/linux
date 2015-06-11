@@ -3499,7 +3499,6 @@ static void rk81x_bat_check_reboot(struct rk81x_battery *di)
 {
 	u8 rsoc = di->rsoc;
 	u8 dsoc = di->dsoc;
-	u8 status = di->psy_status;
 	u8 cnt;
 	int unit_time;
 	int smooth_time;
@@ -3514,8 +3513,7 @@ static void rk81x_bat_check_reboot(struct rk81x_battery *di)
 	    __func__, cnt, unit_time, smooth_time,
 	    BASE_TO_SEC(di->power_on_base), dsoc, rsoc);
 
-	if ((status == POWER_SUPPLY_STATUS_CHARGING) ||
-	    (status == POWER_SUPPLY_STATUS_FULL && abs(di->current_avg) < 5)) {
+	if (di->current_avg >= 0 || di->chrg_status == CHARGE_FINISH) {
 		DBG("chrg, sm:%d, aim:%d\n", smooth_time, unit_time * 3 / 5);
 		if ((dsoc < rsoc - 1) && (smooth_time > unit_time * 3 / 5)) {
 			cnt = 0;
@@ -3524,10 +3522,9 @@ static void rk81x_bat_check_reboot(struct rk81x_battery *di)
 				dsoc = 100;
 			rk81x_bat_save_dsoc(di, dsoc);
 		}
-	} else {/*status == POWER_SUPPLY_STATUS_DISCHARGING*/
-
-		DBG("dischrg, sm:%d, aim:%d\n", smooth_time, unit_time * 3/5);
-		if ((dsoc > rsoc) && (smooth_time > unit_time * 3/5)) {
+	} else {
+		DBG("dischrg, sm:%d, aim:%d\n", smooth_time, unit_time * 3 / 5);
+		if ((dsoc > rsoc) && (smooth_time > unit_time * 3 / 5)) {
 			cnt = 0;
 			dsoc--;
 			if (dsoc <= 0)
