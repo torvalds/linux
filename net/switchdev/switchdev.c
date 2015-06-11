@@ -103,7 +103,9 @@ static void switchdev_port_attr_set_work(struct work_struct *work)
 
 	rtnl_lock();
 	err = switchdev_port_attr_set(asw->dev, &asw->attr);
-	BUG_ON(err);
+	if (err && err != -EOPNOTSUPP)
+		netdev_err(asw->dev, "failed (err=%d) to set attribute (id=%d)\n",
+			   err, asw->attr.id);
 	rtnl_unlock();
 
 	dev_put(asw->dev);
