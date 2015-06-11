@@ -20,6 +20,7 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spinlock.h>
 #include <video/mipi_display.h>
@@ -1919,6 +1920,13 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host)
 		goto fail_disable_reg;
 	}
 
+	ret = pinctrl_pm_select_default_state(&msm_host->pdev->dev);
+	if (ret) {
+		pr_err("%s: failed to set pinctrl default state, %d\n",
+			__func__, ret);
+		goto fail_disable_clk;
+	}
+
 	dsi_timing_setup(msm_host);
 	dsi_sw_reset(msm_host);
 	dsi_ctrl_config(msm_host, true, clk_pre, clk_post);
@@ -1931,6 +1939,8 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host)
 
 	return 0;
 
+fail_disable_clk:
+	dsi_clk_ctrl(msm_host, 0);
 fail_disable_reg:
 	dsi_host_regulator_disable(msm_host);
 unlock_ret:
@@ -1952,6 +1962,8 @@ int msm_dsi_host_power_off(struct mipi_dsi_host *host)
 
 	if (msm_host->disp_en_gpio)
 		gpiod_set_value(msm_host->disp_en_gpio, 0);
+
+	pinctrl_pm_select_sleep_state(&msm_host->pdev->dev);
 
 	msm_dsi_manager_phy_disable(msm_host->id);
 

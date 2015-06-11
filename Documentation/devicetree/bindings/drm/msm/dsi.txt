@@ -38,6 +38,9 @@ Optional properties:
   driving a 2-DSI panel whose 2 links need receive command simultaneously.
 - interrupt-parent: phandle to the MDP block if the interrupt signal is routed
   through MDP block
+- pinctrl-names: the pin control state names; should contain "default"
+- pinctrl-0: the default pinctrl state (active)
+- pinctrl-n: the "sleep" pinctrl state
 
 DSI PHY:
 Required properties:
@@ -93,6 +96,10 @@ Example:
 		qcom,dual-dsi-mode;
 		qcom,master-dsi;
 		qcom,sync-dual-dsi;
+
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&mdss_dsi_active>;
+		pinctrl-1 = <&mdss_dsi_suspend>;
 
 		panel: panel@0 {
 			compatible = "sharp,lq101r1sx01";
