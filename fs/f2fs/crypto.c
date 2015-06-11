@@ -376,6 +376,15 @@ static int f2fs_page_crypto(struct f2fs_crypto_ctx *ctx,
 	return 0;
 }
 
+static struct page *alloc_bounce_page(struct f2fs_crypto_ctx *ctx)
+{
+	ctx->w.bounce_page = mempool_alloc(f2fs_bounce_page_pool, GFP_NOWAIT);
+	if (ctx->w.bounce_page == NULL)
+		return ERR_PTR(-ENOMEM);
+	ctx->flags |= F2FS_WRITE_PATH_FL;
+	return ctx->w.bounce_page;
+}
+
 /**
  * f2fs_encrypt() - Encrypts a page
  * @inode:          The inode for which the encryption should take place
@@ -405,19 +414,17 @@ struct page *f2fs_encrypt(struct inode *inode,
 		return (struct page *)ctx;
 
 	/* The encryption operation will require a bounce page. */
-	ciphertext_page = mempool_alloc(f2fs_bounce_page_pool, GFP_NOWAIT);
-	if (!ciphertext_page) {
-		err = -ENOMEM;
+	ciphertext_page = alloc_bounce_page(ctx);
+	if (IS_ERR(ciphertext_page))
 		goto err_out;
-	}
 
-	ctx->flags |= F2FS_WRITE_PATH_FL;
-	ctx->w.bounce_page = ciphertext_page;
 	ctx->w.control_page = plaintext_page;
 	err = f2fs_page_crypto(ctx, inode, F2FS_ENCRYPT, plaintext_page->index,
 					plaintext_page, ciphertext_page);
-	if (err)
+	if (err) {
+		ciphertext_page = ERR_PTR(err);
 		goto err_out;
+	}
 
 	SetPagePrivate(ciphertext_page);
 	set_page_private(ciphertext_page, (unsigned long)ctx);
@@ -426,7 +433,7 @@ struct page *f2fs_encrypt(struct inode *inode,
 
 err_out:
 	f2fs_release_crypto_ctx(ctx);
-	return ERR_PTR(err);
+	return ciphertext_page;
 }
 
 /**
