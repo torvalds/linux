@@ -8,6 +8,8 @@ enum bc_port_type{
 	USB_BC_TYPE_DCP,
 	USB_BC_TYPE_CDP,
 	USB_BC_TYPE_UNKNOW,
+	USB_OTG_POWER_ON,
+	USB_OTG_POWER_OFF,
 	USB_BC_TYPE_MAX,
 };
 enum {
