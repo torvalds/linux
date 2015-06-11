@@ -26,6 +26,20 @@
 #include "ixgbe_common.h"
 #include "ixgbe_phy.h"
 
+static s32 ixgbe_get_invariants_X550_x(struct ixgbe_hw *hw)
+{
+	struct ixgbe_mac_info *mac = &hw->mac;
+	struct ixgbe_phy_info *phy = &hw->phy;
+
+	/* Start with X540 invariants, since so simular */
+	ixgbe_get_invariants_X540(hw);
+
+	if (mac->ops.get_media_type(hw) != ixgbe_media_type_copper)
+		phy->ops.set_phy_power = NULL;
+
+	return 0;
+}
+
 /** ixgbe_setup_mux_ctl - Setup ESDP register for I2C mux control
  *  @hw: pointer to hardware structure
  **/
@@ -1855,7 +1869,7 @@ static struct ixgbe_eeprom_operations eeprom_ops_X550EM_x = {
 	.read_reg		= &ixgbe_read_phy_reg_generic, \
 	.write_reg		= &ixgbe_write_phy_reg_generic, \
 	.setup_link		= &ixgbe_setup_phy_link_generic, \
-	.set_phy_power		= &ixgbe_set_copper_phy_power, \
+	.set_phy_power		= NULL, \
 	.check_overtemp		= &ixgbe_tn_check_overtemp, \
 	.get_firmware_version	= &ixgbe_get_phy_firmware_version_generic,
 
@@ -1893,7 +1907,7 @@ struct ixgbe_info ixgbe_X550_info = {
 
 struct ixgbe_info ixgbe_X550EM_x_info = {
 	.mac			= ixgbe_mac_X550EM_x,
-	.get_invariants		= &ixgbe_get_invariants_X540,
+	.get_invariants		= &ixgbe_get_invariants_X550_x,
 	.mac_ops		= &mac_ops_X550EM_x,
 	.eeprom_ops		= &eeprom_ops_X550EM_x,
 	.phy_ops		= &phy_ops_X550EM_x,
