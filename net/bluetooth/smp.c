@@ -1705,7 +1705,7 @@ static void build_bredr_pairing_cmd(struct smp_chan *smp,
 
 		req->init_key_dist   = local_dist;
 		req->resp_key_dist   = remote_dist;
-		req->max_key_size    = SMP_MAX_ENC_KEY_SIZE;
+		req->max_key_size    = conn->hcon->enc_key_size;
 
 		smp->remote_key_dist = remote_dist;
 
@@ -1714,7 +1714,7 @@ static void build_bredr_pairing_cmd(struct smp_chan *smp,
 
 	memset(rsp, 0, sizeof(*rsp));
 
-	rsp->max_key_size    = SMP_MAX_ENC_KEY_SIZE;
+	rsp->max_key_size    = conn->hcon->enc_key_size;
 	rsp->init_key_dist   = req->init_key_dist & remote_dist;
 	rsp->resp_key_dist   = req->resp_key_dist & local_dist;
 
