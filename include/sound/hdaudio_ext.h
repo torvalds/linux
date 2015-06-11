@@ -47,7 +47,6 @@ void snd_hdac_ext_stream_spbcap_enable(struct hdac_ext_bus *chip,
 				 bool enable, int index);
 
 int snd_hdac_ext_bus_get_ml_capabilities(struct hdac_ext_bus *bus);
-int snd_hdac_ext_bus_map_codec_to_link(struct hdac_ext_bus *bus, int addr);
 struct hdac_ext_link *snd_hdac_ext_bus_get_link(struct hdac_ext_bus *bus,
 						const char *codec_name);
 
