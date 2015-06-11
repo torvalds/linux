@@ -446,15 +446,11 @@ static int mlx5_query_hca_port(struct ib_device *ibdev, u8 port,
 	if (err)
 		goto out;
 
-	err = mlx5_query_port_max_mtu(mdev, &max_mtu, port);
-	if (err)
-		goto out;
+	mlx5_query_port_max_mtu(mdev, &max_mtu, port);
 
 	props->max_mtu = mlx5_mtu_to_ib_mtu(max_mtu);
 
-	err = mlx5_query_port_oper_mtu(mdev, &oper_mtu, port);
-	if (err)
-		goto out;
+	mlx5_query_port_oper_mtu(mdev, &oper_mtu, port);
 
 	props->active_mtu = mlx5_mtu_to_ib_mtu(oper_mtu);
 

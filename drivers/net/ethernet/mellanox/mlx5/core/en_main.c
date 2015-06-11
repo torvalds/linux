@@ -277,6 +277,9 @@ static void mlx5e_send_nop(struct mlx5e_sq *sq)
 	mlx5e_tx_notify_hw(sq, wqe);
 }
 
+#define MLX5E_HW2SW_MTU(hwmtu) (hwmtu - (ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN))
+#define MLX5E_SW2HW_MTU(swmtu) (swmtu + (ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN))
+
 static int mlx5e_create_rq(struct mlx5e_channel *c,
 			   struct mlx5e_rq_param *param,
 			   struct mlx5e_rq *rq)
@@ -305,7 +308,7 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
 	}
 
 	rq->wqe_sz = (priv->params.lro_en) ? priv->params.lro_wqe_sz :
-				priv->netdev->mtu + ETH_HLEN + VLAN_HLEN;
+					     MLX5E_SW2HW_MTU(priv->netdev->mtu);
 
 	for (i = 0; i < wq_sz; i++) {
 		struct mlx5e_rx_wqe *wqe = mlx5_wq_ll_get_wqe(&rq->wq, i);
@@ -1367,11 +1370,30 @@ static void mlx5e_close_tirs(struct mlx5e_priv *priv)
 		mlx5e_close_tir(priv, i);
 }
 
-int mlx5e_open_locked(struct net_device *netdev)
+static int mlx5e_set_dev_port_mtu(struct net_device *netdev)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
-	int actual_mtu;
+	int hw_mtu;
+	int err;
+
+	err = mlx5_set_port_mtu(mdev, MLX5E_SW2HW_MTU(netdev->mtu), 1);
+	if (err)
+		return err;
+
+	mlx5_query_port_oper_mtu(mdev, &hw_mtu, 1);
+
+	if (MLX5E_HW2SW_MTU(hw_mtu) != netdev->mtu)
+		netdev_warn(netdev, "%s: Port MTU %d is different than netdev mtu %d\n",
+			    __func__, MLX5E_HW2SW_MTU(hw_mtu), netdev->mtu);
+
+	netdev->mtu = MLX5E_HW2SW_MTU(hw_mtu);
+	return 0;
+}
+
+int mlx5e_open_locked(struct net_device *netdev)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
 	int num_txqs;
 	int err;
 
@@ -1380,25 +1402,9 @@ int mlx5e_open_locked(struct net_device *netdev)
 	netif_set_real_num_tx_queues(netdev, num_txqs);
 	netif_set_real_num_rx_queues(netdev, priv->params.num_channels);
 
-	err = mlx5_set_port_mtu(mdev, netdev->mtu);
-	if (err) {
-		netdev_err(netdev, "%s: mlx5_set_port_mtu failed %d\n",
-			   __func__, err);
+	err = mlx5e_set_dev_port_mtu(netdev);
+	if (err)
 		return err;
-	}
-
-	err = mlx5_query_port_oper_mtu(mdev, &actual_mtu, 1);
-	if (err) {
-		netdev_err(netdev, "%s: mlx5_query_port_oper_mtu failed %d\n",
-			   __func__, err);
-		return err;
-	}
-
-	if (actual_mtu != netdev->mtu)
-		netdev_warn(netdev, "%s: Failed to set MTU to %d\n",
-			    __func__, netdev->mtu);
-
-	netdev->mtu = actual_mtu;
 
 	err = mlx5e_open_tises(priv);
 	if (err) {
@@ -1613,15 +1619,14 @@ static int mlx5e_change_mtu(struct net_device *netdev, int new_mtu)
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
 	int max_mtu;
-	int err = 0;
+	int err;
 
-	err = mlx5_query_port_max_mtu(mdev, &max_mtu, 1);
-	if (err)
-		return err;
+	mlx5_query_port_max_mtu(mdev, &max_mtu, 1);
 
-	if (new_mtu > max_mtu || new_mtu < MLX5E_PARAMS_MIN_MTU) {
-		netdev_err(netdev, "%s: Bad MTU size, mtu must be [%d-%d]\n",
-			   __func__, MLX5E_PARAMS_MIN_MTU, max_mtu);
+	if (new_mtu > max_mtu) {
+		netdev_err(netdev,
+			   "%s: Bad MTU (%d) > (%d) Max\n",
+			   __func__, new_mtu, max_mtu);
 		return -EINVAL;
 	}
 
