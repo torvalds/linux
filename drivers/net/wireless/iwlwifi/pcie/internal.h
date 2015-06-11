@@ -301,6 +301,7 @@ iwl_pcie_get_scratchbuf_dma(struct iwl_txq *txq, int idx)
  * @scd_set_active: should the transport configure the SCD for HCMD queue
  * @rx_page_order: page order for receive buffer size
  * @reg_lock: protect hw register access
+ * @mutex: to protect stop_device / start_fw / start_hw
  * @cmd_in_flight: true when we have a host command in flight
  * @fw_mon_phys: physical address of the buffer for the firmware monitor
  * @fw_mon_page: points to the first page of the buffer for the firmware monitor
@@ -320,9 +321,11 @@ struct iwl_trans_pcie {
 	dma_addr_t ict_tbl_dma;
 	int ict_index;
 	bool use_ict;
+	bool is_down;
 	struct isr_statistics isr_stats;
 
 	spinlock_t irq_lock;
+	struct mutex mutex;
 	u32 inta_mask;
 	u32 scd_base_addr;
 	struct iwl_dma_ptr scd_bc_tbls;

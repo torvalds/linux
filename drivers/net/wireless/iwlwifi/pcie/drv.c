@@ -613,6 +613,7 @@ static int iwl_pci_resume(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct iwl_trans *trans = pci_get_drvdata(pdev);
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	bool hw_rfkill;
 
 	/* Before you put code here, think about WoWLAN. You cannot check here
@@ -643,7 +644,10 @@ static int iwl_pci_resume(struct device *device)
 	}
 
 	hw_rfkill = iwl_is_rfkill_set(trans);
+
+	mutex_lock(&trans_pcie->mutex);
 	iwl_trans_pcie_rf_kill(trans, hw_rfkill);
+	mutex_unlock(&trans_pcie->mutex);
 
 	return 0;
 }
