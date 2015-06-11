@@ -730,11 +730,14 @@ struct tcp_skb_cb {
 		/* Note : tcp_tw_isn is used in input path only
 		 *	  (isn chosen by tcp_timewait_state_process())
 		 *
-		 * 	  tcp_gso_segs is used in write queue only,
-		 *	  cf tcp_skb_pcount()
+		 * 	  tcp_gso_segs/size are used in write queue only,
+		 *	  cf tcp_skb_pcount()/tcp_skb_mss()
 		 */
 		__u32		tcp_tw_isn;
-		__u32		tcp_gso_segs;
+		struct {
+			u16	tcp_gso_segs;
+			u16	tcp_gso_size;
+		};
 	};
 	__u8		tcp_flags;	/* TCP header flags. (tcp[13])	*/
 
@@ -790,10 +793,10 @@ static inline void tcp_skb_pcount_add(struct sk_buff *skb, int segs)
 	TCP_SKB_CB(skb)->tcp_gso_segs += segs;
 }
 
-/* This is valid iff tcp_skb_pcount() > 1. */
+/* This is valid iff skb is in write queue and tcp_skb_pcount() > 1. */
 static inline int tcp_skb_mss(const struct sk_buff *skb)
 {
-	return skb_shinfo(skb)->gso_size;
+	return TCP_SKB_CB(skb)->tcp_gso_size;
 }
 
 /* Events passed to congestion control interface */
