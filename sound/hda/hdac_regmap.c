@@ -265,6 +265,9 @@ static int hda_reg_write(void *context, unsigned int reg, unsigned int val)
 	unsigned int verb;
 	int i, bytes, err;
 
+	if (codec->caps_overwriting)
+		return 0;
+
 	reg &= ~0x00080000U; /* drop GET bit */
 	reg |= (codec->addr << 28);
 	verb = get_verb(reg);
