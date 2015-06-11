@@ -107,7 +107,7 @@ int obd_ioctl_getdata(char **buf, int *len, void *arg)
 	 * system, the high lock contention will hurt performance badly,
 	 * obdfilter-survey is an example, which relies on ioctl. So we'd
 	 * better avoid vmalloc on ioctl path. LU-66 */
-	OBD_ALLOC_LARGE(*buf, hdr.ioc_len);
+	*buf = libcfs_kvzalloc(hdr.ioc_len, GFP_NOFS);
 	if (*buf == NULL) {
 		CERROR("Cannot allocate control buffer of len %d\n",
 		       hdr.ioc_len);
@@ -153,7 +153,7 @@ int obd_ioctl_getdata(char **buf, int *len, void *arg)
 	return 0;
 
 free_buf:
-	OBD_FREE_LARGE(*buf, hdr.ioc_len);
+	kvfree(*buf);
 	return err;
 }
 EXPORT_SYMBOL(obd_ioctl_getdata);
