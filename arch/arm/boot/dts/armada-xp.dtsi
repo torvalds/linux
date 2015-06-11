@@ -297,7 +297,7 @@
 	spi0_pins: spi0-pins {
 		marvell,pins = "mpp36", "mpp37",
 			       "mpp38", "mpp39";
-		marvell,function = "spi";
+		marvell,function = "spi0";
 	};
 
 	uart2_pins: uart2-pins {
