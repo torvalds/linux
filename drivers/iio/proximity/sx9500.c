@@ -281,7 +281,7 @@ static int sx9500_read_prox_data(struct sx9500_data *data,
 	if (ret < 0)
 		return ret;
 
-	*val = 32767 - (s16)be16_to_cpu(regval);
+	*val = be16_to_cpu(regval);
 
 	return IIO_VAL_INT;
 }
