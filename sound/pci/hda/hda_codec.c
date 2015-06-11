@@ -886,8 +886,8 @@ static int snd_hda_codec_dev_free(struct snd_device *device)
 	struct hda_codec *codec = device->device_data;
 
 	codec->in_freeing = 1;
-	snd_hdac_link_power(&codec->core, false);
 	snd_hdac_device_unregister(&codec->core);
+	snd_hdac_link_power(&codec->core, false);
 	put_device(hda_codec_dev(codec));
 	return 0;
 }
