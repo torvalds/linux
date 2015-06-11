@@ -2314,16 +2314,15 @@ static inline int ib_post_recv(struct ib_qp *qp,
  *   asynchronous event not associated with a completion occurs on the CQ.
  * @cq_context: Context associated with the CQ returned to the user via
  *   the associated completion and event handlers.
- * @cqe: The minimum size of the CQ.
- * @comp_vector - Completion vector used to signal completion events.
- *     Must be >= 0 and < context->num_comp_vectors.
+ * @cq_attr: The attributes the CQ should be created upon.
  *
  * Users can examine the cq structure to determine the actual CQ size.
  */
 struct ib_cq *ib_create_cq(struct ib_device *device,
 			   ib_comp_handler comp_handler,
 			   void (*event_handler)(struct ib_event *, void *),
-			   void *cq_context, int cqe, int comp_vector);
+			   void *cq_context,
+			   const struct ib_cq_init_attr *cq_attr);
 
 /**
  * ib_resize_cq - Modifies the capacity of the CQ.

@@ -552,6 +552,7 @@ static int ehca_create_aqp1(struct ehca_shca *shca, u32 port)
 	struct ib_cq *ibcq;
 	struct ib_qp *ibqp;
 	struct ib_qp_init_attr qp_init_attr;
+	struct ib_cq_init_attr cq_attr = {};
 	int ret;
 
 	if (sport->ibcq_aqp1) {
@@ -559,7 +560,9 @@ static int ehca_create_aqp1(struct ehca_shca *shca, u32 port)
 		return -EPERM;
 	}
 
-	ibcq = ib_create_cq(&shca->ib_device, NULL, NULL, (void *)(-1), 10, 0);
+	cq_attr.cqe = 10;
+	ibcq = ib_create_cq(&shca->ib_device, NULL, NULL, (void *)(-1),
+			    &cq_attr);
 	if (IS_ERR(ibcq)) {
 		ehca_err(&shca->ib_device, "Cannot create AQP1 CQ.");
 		return PTR_ERR(ibcq);

@@ -971,6 +971,7 @@ static int create_umr_res(struct mlx5_ib_dev *dev)
 	struct ib_cq *cq;
 	struct ib_qp *qp;
 	struct ib_mr *mr;
+	struct ib_cq_init_attr cq_attr = {};
 	int ret;
 
 	attr = kzalloc(sizeof(*attr), GFP_KERNEL);
@@ -994,8 +995,9 @@ static int create_umr_res(struct mlx5_ib_dev *dev)
 		goto error_1;
 	}
 
-	cq = ib_create_cq(&dev->ib_dev, mlx5_umr_cq_handler, NULL, NULL, 128,
-			  0);
+	cq_attr.cqe = 128;
+	cq = ib_create_cq(&dev->ib_dev, mlx5_umr_cq_handler, NULL, NULL,
+			  &cq_attr);
 	if (IS_ERR(cq)) {
 		mlx5_ib_dbg(dev, "Couldn't create CQ for sync UMR QP\n");
 		ret = PTR_ERR(cq);

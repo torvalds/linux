@@ -500,6 +500,7 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 	struct ib_fmr_pool *fmr_pool = NULL;
 	struct srp_fr_pool *fr_pool = NULL;
 	const int m = 1 + dev->use_fast_reg;
+	struct ib_cq_init_attr cq_attr = {};
 	int ret;
 
 	init_attr = kzalloc(sizeof *init_attr, GFP_KERNEL);
@@ -507,15 +508,19 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 		return -ENOMEM;
 
 	/* + 1 for SRP_LAST_WR_ID */
+	cq_attr.cqe = target->queue_size + 1;
+	cq_attr.comp_vector = ch->comp_vector;
 	recv_cq = ib_create_cq(dev->dev, srp_recv_completion, NULL, ch,
-			       target->queue_size + 1, ch->comp_vector);
+			       &cq_attr);
 	if (IS_ERR(recv_cq)) {
 		ret = PTR_ERR(recv_cq);
 		goto err;
 	}
 
+	cq_attr.cqe = m * target->queue_size;
+	cq_attr.comp_vector = ch->comp_vector;
 	send_cq = ib_create_cq(dev->dev, srp_send_completion, NULL, ch,
-			       m * target->queue_size, ch->comp_vector);
+			       &cq_attr);
 	if (IS_ERR(send_cq)) {
 		ret = PTR_ERR(send_cq);
 		goto err_recv_cq;

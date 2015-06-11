@@ -855,6 +855,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	struct svcxprt_rdma *listen_rdma;
 	struct svcxprt_rdma *newxprt = NULL;
 	struct rdma_conn_param conn_param;
+	struct ib_cq_init_attr cq_attr = {};
 	struct ib_qp_init_attr qp_attr;
 	struct ib_device_attr devattr;
 	int uninitialized_var(dma_mr_acc);
@@ -907,22 +908,22 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 		dprintk("svcrdma: error creating PD for connect request\n");
 		goto errout;
 	}
+	cq_attr.cqe = newxprt->sc_sq_depth;
 	newxprt->sc_sq_cq = ib_create_cq(newxprt->sc_cm_id->device,
 					 sq_comp_handler,
 					 cq_event_handler,
 					 newxprt,
-					 newxprt->sc_sq_depth,
-					 0);
+					 &cq_attr);
 	if (IS_ERR(newxprt->sc_sq_cq)) {
 		dprintk("svcrdma: error creating SQ CQ for connect request\n");
 		goto errout;
 	}
+	cq_attr.cqe = newxprt->sc_max_requests;
 	newxprt->sc_rq_cq = ib_create_cq(newxprt->sc_cm_id->device,
 					 rq_comp_handler,
 					 cq_event_handler,
 					 newxprt,
-					 newxprt->sc_max_requests,
-					 0);
+					 &cq_attr);
 	if (IS_ERR(newxprt->sc_rq_cq)) {
 		dprintk("svcrdma: error creating RQ CQ for connect request\n");
 		goto errout;

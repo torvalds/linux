@@ -318,15 +318,18 @@ isert_alloc_comps(struct isert_device *device,
 	max_cqe = min(ISER_MAX_CQ_LEN, attr->max_cqe);
 
 	for (i = 0; i < device->comps_used; i++) {
+		struct ib_cq_init_attr cq_attr = {};
 		struct isert_comp *comp = &device->comps[i];
 
 		comp->device = device;
 		INIT_WORK(&comp->work, isert_cq_work);
+		cq_attr.cqe = max_cqe;
+		cq_attr.comp_vector = i;
 		comp->cq = ib_create_cq(device->ib_device,
 					isert_cq_callback,
 					isert_cq_event_callback,
 					(void *)comp,
-					max_cqe, i);
+					&cq_attr);
 		if (IS_ERR(comp->cq)) {
 			isert_err("Unable to allocate cq\n");
 			ret = PTR_ERR(comp->cq);
