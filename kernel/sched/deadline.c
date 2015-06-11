@@ -213,9 +213,16 @@ static inline bool need_pull_dl_task(struct rq *rq, struct task_struct *prev)
 	return dl_task(prev);
 }
 
-static inline void set_post_schedule(struct rq *rq)
+static DEFINE_PER_CPU(struct callback_head, dl_balance_head);
+
+static void push_dl_tasks(struct rq *);
+
+static inline void queue_push_tasks(struct rq *rq)
 {
-	rq->post_schedule = has_pushable_dl_tasks(rq);
+	if (!has_pushable_dl_tasks(rq))
+		return;
+
+	queue_balance_callback(rq, &per_cpu(dl_balance_head, rq->cpu), push_dl_tasks);
 }
 
 static struct rq *find_lock_later_rq(struct task_struct *task, struct rq *rq);
@@ -296,7 +303,7 @@ static inline int pull_dl_task(struct rq *rq)
 	return 0;
 }
 
-static inline void set_post_schedule(struct rq *rq)
+static inline void queue_push_tasks(struct rq *rq)
 {
 }
 #endif /* CONFIG_SMP */
@@ -1126,7 +1133,7 @@ struct task_struct *pick_next_task_dl(struct rq *rq, struct task_struct *prev)
 	if (hrtick_enabled(rq))
 		start_hrtick_dl(rq, p);
 
-	set_post_schedule(rq);
+	queue_push_tasks(rq);
 
 	return p;
 }
@@ -1544,11 +1551,6 @@ skip:
 	return ret;
 }
 
-static void post_schedule_dl(struct rq *rq)
-{
-	push_dl_tasks(rq);
-}
-
 /*
  * Since the task is not running and a reschedule is not going to happen
  * anytime soon on its runqueue, we try pushing it away now.
@@ -1784,7 +1786,6 @@ const struct sched_class dl_sched_class = {
 	.set_cpus_allowed       = set_cpus_allowed_dl,
 	.rq_online              = rq_online_dl,
 	.rq_offline             = rq_offline_dl,
-	.post_schedule		= post_schedule_dl,
 	.task_woken		= task_woken_dl,
 #endif
 
