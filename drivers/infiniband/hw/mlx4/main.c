@@ -716,8 +716,24 @@ static int mlx4_ib_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 				       dev->dev->caps.num_uars,
 				       PAGE_SIZE, vma->vm_page_prot))
 			return -EAGAIN;
-	} else
+	} else if (vma->vm_pgoff == 3) {
+		struct mlx4_clock_params params;
+		int ret = mlx4_get_internal_clock_params(dev->dev, &params);
+
+		if (ret)
+			return ret;
+
+		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		if (io_remap_pfn_range(vma, vma->vm_start,
+				       (pci_resource_start(dev->dev->persist->pdev,
+							   params.bar) +
+					params.offset)
+				       >> PAGE_SHIFT,
+				       PAGE_SIZE, vma->vm_page_prot))
+			return -EAGAIN;
+	} else {
 		return -EINVAL;
+	}
 
 	return 0;
 }
