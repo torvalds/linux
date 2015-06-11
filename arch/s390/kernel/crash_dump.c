@@ -415,7 +415,7 @@ static void *nt_s390_vx_low(void *ptr, __vector128 *vx_regs)
 	ptr += len;
 	/* Copy lower halves of SIMD registers 0-15 */
 	for (i = 0; i < 16; i++) {
-		memcpy(ptr, &vx_regs[i], 8);
+		memcpy(ptr, &vx_regs[i].u[2], 8);
 		ptr += 8;
 	}
 	return ptr;
