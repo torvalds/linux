@@ -507,19 +507,27 @@ static int amdgpu_vce_cs_reloc(struct amdgpu_cs_parser *p, uint32_t ib_idx,
  *
  * @p: parser context
  * @handle: handle to validate
+ * @allocated: allocated a new handle?
  *
  * Validates the handle and return the found session index or -EINVAL
  * we we don't have another free session index.
  */
 static int amdgpu_vce_validate_handle(struct amdgpu_cs_parser *p,
-				      uint32_t handle)
+				      uint32_t handle, bool *allocated)
 {
 	unsigned i;
 
+	*allocated = false;
+
 	/* validate the handle */
 	for (i = 0; i < AMDGPU_MAX_VCE_HANDLES; ++i) {
-		if (atomic_read(&p->adev->vce.handles[i]) == handle)
+		if (atomic_read(&p->adev->vce.handles[i]) == handle) {
+			if (p->adev->vce.filp[i] != p->filp) {
+				DRM_ERROR("VCE handle collision detected!\n");
+				return -EINVAL;
+			}
 			return i;
+		}
 	}
 
 	/* handle not found try to alloc a new one */
@@ -527,6 +535,7 @@ static int amdgpu_vce_validate_handle(struct amdgpu_cs_parser *p,
 		if (!atomic_cmpxchg(&p->adev->vce.handles[i], 0, handle)) {
 			p->adev->vce.filp[i] = p->filp;
 			p->adev->vce.img_size[i] = 0;
+			*allocated = true;
 			return i;
 		}
 	}
@@ -546,9 +555,11 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 	struct amdgpu_ib *ib = &p->ibs[ib_idx];
 	int session_idx = -1;
 	bool destroyed = false;
+	bool created = false;
+	bool allocated = false;
 	uint32_t tmp, handle = 0;
 	uint32_t *size = &tmp;
-	int i, r, idx = 0;
+	int i, r = 0, idx = 0;
 
 	amdgpu_vce_note_usage(p->adev);
 
@@ -558,18 +569,21 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 
 		if ((len < 8) || (len & 3)) {
 			DRM_ERROR("invalid VCE command length (%d)!\n", len);
-			return -EINVAL;
+			r = -EINVAL;
+			goto out;
 		}
 
 		if (destroyed) {
 			DRM_ERROR("No other command allowed after destroy!\n");
-			return -EINVAL;
+			r = -EINVAL;
+			goto out;
 		}
 
 		switch (cmd) {
 		case 0x00000001: // session
 			handle = amdgpu_get_ib_value(p, ib_idx, idx + 2);
-			session_idx = amdgpu_vce_validate_handle(p, handle);
+			session_idx = amdgpu_vce_validate_handle(p, handle,
+								 &allocated);
 			if (session_idx < 0)
 				return session_idx;
 			size = &p->adev->vce.img_size[session_idx];
@@ -579,6 +593,13 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 			break;
 
 		case 0x01000001: // create
+			created = true;
+			if (!allocated) {
+				DRM_ERROR("Handle already in use!\n");
+				r = -EINVAL;
+				goto out;
+			}
+
 			*size = amdgpu_get_ib_value(p, ib_idx, idx + 8) *
 				amdgpu_get_ib_value(p, ib_idx, idx + 10) *
 				8 * 3 / 2;
@@ -597,12 +618,12 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 10, idx + 9,
 						*size);
 			if (r)
-				return r;
+				goto out;
 
 			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 12, idx + 11,
 						*size / 3);
 			if (r)
-				return r;
+				goto out;
 			break;
 
 		case 0x02000001: // destroy
@@ -613,7 +634,7 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 3, idx + 2,
 						*size * 2);
 			if (r)
-				return r;
+				goto out;
 			break;
 
 		case 0x05000004: // video bitstream buffer
@@ -621,36 +642,47 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 3, idx + 2,
 						tmp);
 			if (r)
-				return r;
+				goto out;
 			break;
 
 		case 0x05000005: // feedback buffer
 			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 3, idx + 2,
 						4096);
 			if (r)
-				return r;
+				goto out;
 			break;
 
 		default:
 			DRM_ERROR("invalid VCE command (0x%x)!\n", cmd);
-			return -EINVAL;
+			r = -EINVAL;
+			goto out;
 		}
 
 		if (session_idx == -1) {
 			DRM_ERROR("no session command at start of IB\n");
-			return -EINVAL;
+			r = -EINVAL;
+			goto out;
 		}
 
 		idx += len / 4;
 	}
 
-	if (destroyed) {
-		/* IB contains a destroy msg, free the handle */
+	if (allocated && !created) {
+		DRM_ERROR("New session without create command!\n");
+		r = -ENOENT;
+	}
+
+out:
+	if ((!r && destroyed) || (r && allocated)) {
+		/*
+		 * IB contains a destroy msg or we have allocated an
+		 * handle and got an error, anyway free the handle
+		 */
 		for (i = 0; i < AMDGPU_MAX_VCE_HANDLES; ++i)
 			atomic_cmpxchg(&p->adev->vce.handles[i], handle, 0);
 	}
 
-	return 0;
+	return r;
 }
 
 /**
