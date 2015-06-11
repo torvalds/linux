@@ -2983,6 +2983,11 @@ static void target_tmr_work(struct work_struct *work)
 		ret = core_tmr_lun_reset(dev, tmr, NULL, NULL);
 		tmr->response = (!ret) ? TMR_FUNCTION_COMPLETE :
 					 TMR_FUNCTION_REJECTED;
+		if (tmr->response == TMR_FUNCTION_COMPLETE) {
+			target_ua_allocate_lun(cmd->se_sess->se_node_acl,
+					       cmd->orig_fe_lun, 0x29,
+					       ASCQ_29H_BUS_DEVICE_RESET_FUNCTION_OCCURRED);
+		}
 		break;
 	case TMR_TARGET_WARM_RESET:
 		tmr->response = TMR_FUNCTION_REJECTED;
