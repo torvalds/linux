@@ -429,7 +429,7 @@ typedef struct {
 	u16 u16IEsLen;
 	void *pJoinParams;
 	tstrRSSI strRssi;
-	WILC_Uint64 u64Tsf; /* time-stamp [Low and High 64 bit] */
+	u64 u64Tsf; /* time-stamp [Low and High 64 bit] */
 } tstrNetworkInfo;
 
 /* This structure is used to support parsing of the received Association Response frame */

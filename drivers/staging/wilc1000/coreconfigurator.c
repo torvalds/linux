@@ -839,7 +839,7 @@ WILC_Sint32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInf
 		u32Tsf_Lo = get_beacon_timestamp_lo(pu8msa);
 		u32Tsf_Hi = get_beacon_timestamp_hi(pu8msa);
 
-		pstrNetworkInfo->u64Tsf = u32Tsf_Lo | ((WILC_Uint64)u32Tsf_Hi << 32);
+		pstrNetworkInfo->u64Tsf = u32Tsf_Lo | ((u64)u32Tsf_Hi << 32);
 
 		/* Get SSID */
 		get_ssid(pu8msa, pstrNetworkInfo->au8ssid, &(pstrNetworkInfo->u8SsidLen));

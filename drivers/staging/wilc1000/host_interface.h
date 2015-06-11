@@ -406,7 +406,7 @@ typedef struct {
 	/*Remain on channel struvture*/
 	tstrHostIfRemainOnChan strHostIfRemainOnChan;
 	u8 u8RemainOnChan_pendingreq;
-	WILC_Uint64 u64P2p_MgmtTimeout;
+	u64 u64P2p_MgmtTimeout;
 	u8 u8P2PConnect;
 	#endif
 

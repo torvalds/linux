@@ -118,7 +118,7 @@ struct wilc_wfi_p2pListenParams {
 	struct ieee80211_channel *pstrListenChan;
 	enum nl80211_channel_type tenuChannelType;
 	u32 u32ListenDuration;
-	WILC_Uint64 u64ListenCookie;
+	u64 u64ListenCookie;
 	u32 u32ListenSessionID;
 };
 
@@ -130,7 +130,7 @@ struct WILC_WFI_priv {
 
 	#ifdef WILC_P2P
 	struct wilc_wfi_p2pListenParams strRemainOnChanParams;
-	WILC_Uint64 u64tx_cookie;
+	u64 u64tx_cookie;
 
 	#endif
 
