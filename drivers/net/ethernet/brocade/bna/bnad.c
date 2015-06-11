@@ -2349,7 +2349,7 @@ bnad_mac_addr_set_locked(struct bnad *bnad, u8 *mac_addr)
 	if (!bnad->rx_info[0].rx)
 		return 0;
 
-	ret = bna_rx_ucast_set(bnad->rx_info[0].rx, mac_addr, NULL);
+	ret = bna_rx_ucast_set(bnad->rx_info[0].rx, mac_addr);
 	if (ret != BNA_CB_SUCCESS)
 		return -EADDRNOTAVAIL;
 
@@ -2754,7 +2754,7 @@ bnad_open(struct net_device *netdev)
 	spin_lock_irqsave(&bnad->bna_lock, flags);
 	bna_enet_mtu_set(&bnad->bna.enet,
 			 BNAD_FRAME_SIZE(bnad->netdev->mtu), NULL);
-	bna_enet_pause_config(&bnad->bna.enet, &pause_config, NULL);
+	bna_enet_pause_config(&bnad->bna.enet, &pause_config);
 	bna_enet_enable(&bnad->bna.enet);
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 
@@ -3128,7 +3128,7 @@ bnad_set_rx_ucast_fltr(struct bnad *bnad)
 	int entry;
 
 	if (netdev_uc_empty(bnad->netdev)) {
-		bna_rx_ucast_listset(bnad->rx_info[0].rx, 0, NULL, NULL);
+		bna_rx_ucast_listset(bnad->rx_info[0].rx, 0, NULL);
 		return;
 	}
 
@@ -3145,8 +3145,7 @@ bnad_set_rx_ucast_fltr(struct bnad *bnad)
 		entry++;
 	}
 
-	ret = bna_rx_ucast_listset(bnad->rx_info[0].rx, entry,
-			mac_list, NULL);
+	ret = bna_rx_ucast_listset(bnad->rx_info[0].rx, entry, mac_list);
 	kfree(mac_list);
 
 	if (ret != BNA_CB_SUCCESS)
@@ -3157,7 +3156,7 @@ bnad_set_rx_ucast_fltr(struct bnad *bnad)
 	/* ucast packets not in UCAM are routed to default function */
 mode_default:
 	bnad->cfg_flags |= BNAD_CF_DEFAULT;
-	bna_rx_ucast_listset(bnad->rx_info[0].rx, 0, NULL, NULL);
+	bna_rx_ucast_listset(bnad->rx_info[0].rx, 0, NULL);
 }
 
 static void
@@ -3186,8 +3185,7 @@ bnad_set_rx_mcast_fltr(struct bnad *bnad)
 
 	/* copy rest of the MCAST addresses */
 	bnad_netdev_mc_list_get(netdev, mac_list);
-	ret = bna_rx_mcast_listset(bnad->rx_info[0].rx, mc_count + 1,
-			mac_list, NULL);
+	ret = bna_rx_mcast_listset(bnad->rx_info[0].rx, mc_count + 1, mac_list);
 	kfree(mac_list);
 
 	if (ret != BNA_CB_SUCCESS)
@@ -3197,7 +3195,7 @@ bnad_set_rx_mcast_fltr(struct bnad *bnad)
 
 mode_allmulti:
 	bnad->cfg_flags |= BNAD_CF_ALLMULTI;
-	bna_rx_mcast_delall(bnad->rx_info[0].rx, NULL);
+	bna_rx_mcast_delall(bnad->rx_info[0].rx);
 }
 
 void
@@ -3236,7 +3234,7 @@ bnad_set_rx_mode(struct net_device *netdev)
 
 	mode_mask = BNA_RXMODE_PROMISC | BNA_RXMODE_DEFAULT |
 			BNA_RXMODE_ALLMULTI;
-	bna_rx_mode_set(bnad->rx_info[0].rx, new_mode, mode_mask, NULL);
+	bna_rx_mode_set(bnad->rx_info[0].rx, new_mode, mode_mask);
 
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 }

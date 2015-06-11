@@ -863,8 +863,7 @@ bna_rxf_fail(struct bna_rxf *rxf)
 }
 
 enum bna_cb_status
-bna_rx_ucast_set(struct bna_rx *rx, u8 *ucmac,
-		 void (*cbfn)(struct bnad *, struct bna_rx *))
+bna_rx_ucast_set(struct bna_rx *rx, u8 *ucmac)
 {
 	struct bna_rxf *rxf = &rx->rxf;
 
@@ -878,7 +877,7 @@ bna_rx_ucast_set(struct bna_rx *rx, u8 *ucmac,
 
 	ether_addr_copy(rxf->ucast_pending_mac->addr, ucmac);
 	rxf->ucast_pending_set = 1;
-	rxf->cam_fltr_cbfn = cbfn;
+	rxf->cam_fltr_cbfn = NULL;
 	rxf->cam_fltr_cbarg = rx->bna->bnad;
 
 	bfa_fsm_send_event(rxf, RXF_E_CONFIG);
@@ -917,8 +916,7 @@ bna_rx_mcast_add(struct bna_rx *rx, u8 *addr,
 }
 
 enum bna_cb_status
-bna_rx_ucast_listset(struct bna_rx *rx, int count, u8 *uclist,
-		     void (*cbfn)(struct bnad *, struct bna_rx *))
+bna_rx_ucast_listset(struct bna_rx *rx, int count, u8 *uclist)
 {
 	struct bna_ucam_mod *ucam_mod = &rx->bna->ucam_mod;
 	struct bna_rxf *rxf = &rx->rxf;
@@ -968,8 +966,6 @@ bna_rx_ucast_listset(struct bna_rx *rx, int count, u8 *uclist,
 		list_add_tail(&mac->qe, &rxf->ucast_pending_add_q);
 	}
 
-	rxf->cam_fltr_cbfn = cbfn;
-	rxf->cam_fltr_cbarg = rx->bna->bnad;
 	bfa_fsm_send_event(rxf, RXF_E_CONFIG);
 
 	return BNA_CB_SUCCESS;
@@ -986,8 +982,7 @@ err_return:
 }
 
 enum bna_cb_status
-bna_rx_mcast_listset(struct bna_rx *rx, int count, u8 *mclist,
-		     void (*cbfn)(struct bnad *, struct bna_rx *))
+bna_rx_mcast_listset(struct bna_rx *rx, int count, u8 *mclist)
 {
 	struct bna_mcam_mod *mcam_mod = &rx->bna->mcam_mod;
 	struct bna_rxf *rxf = &rx->rxf;
@@ -1040,8 +1035,6 @@ bna_rx_mcast_listset(struct bna_rx *rx, int count, u8 *mclist,
 		list_add_tail(&mac->qe, &rxf->mcast_pending_add_q);
 	}
 
-	rxf->cam_fltr_cbfn = cbfn;
-	rxf->cam_fltr_cbarg = rx->bna->bnad;
 	bfa_fsm_send_event(rxf, RXF_E_CONFIG);
 
 	return BNA_CB_SUCCESS;
@@ -1058,8 +1051,7 @@ err_return:
 }
 
 void
-bna_rx_mcast_delall(struct bna_rx *rx,
-		    void (*cbfn)(struct bnad *, struct bna_rx *))
+bna_rx_mcast_delall(struct bna_rx *rx)
 {
 	struct bna_rxf *rxf = &rx->rxf;
 	struct list_head *qe;
@@ -1089,15 +1081,8 @@ bna_rx_mcast_delall(struct bna_rx *rx,
 		need_hw_config = 1;
 	}
 
-	if (need_hw_config) {
-		rxf->cam_fltr_cbfn = cbfn;
-		rxf->cam_fltr_cbarg = rx->bna->bnad;
+	if (need_hw_config)
 		bfa_fsm_send_event(rxf, RXF_E_CONFIG);
-		return;
-	}
-
-	if (cbfn)
-		(*cbfn)(rx->bna->bnad, rx);
 }
 
 void
@@ -2843,8 +2828,7 @@ bna_rx_vlan_strip_disable(struct bna_rx *rx)
 
 enum bna_cb_status
 bna_rx_mode_set(struct bna_rx *rx, enum bna_rxmode new_mode,
-		enum bna_rxmode bitmask,
-		void (*cbfn)(struct bnad *, struct bna_rx *))
+		enum bna_rxmode bitmask)
 {
 	struct bna_rxf *rxf = &rx->rxf;
 	int need_hw_config = 0;
@@ -2899,11 +2883,10 @@ bna_rx_mode_set(struct bna_rx *rx, enum bna_rxmode new_mode,
 	/* Trigger h/w if needed */
 
 	if (need_hw_config) {
-		rxf->cam_fltr_cbfn = cbfn;
+		rxf->cam_fltr_cbfn = NULL;
 		rxf->cam_fltr_cbarg = rx->bna->bnad;
 		bfa_fsm_send_event(rxf, RXF_E_CONFIG);
-	} else if (cbfn)
-		(*cbfn)(rx->bna->bnad, rx);
+	}
 
 	return BNA_CB_SUCCESS;
 

@@ -1308,12 +1308,9 @@ bna_enet_disable(struct bna_enet *enet, enum bna_cleanup_type type,
 
 void
 bna_enet_pause_config(struct bna_enet *enet,
-		      struct bna_pause_config *pause_config,
-		      void (*cbfn)(struct bnad *))
+		      struct bna_pause_config *pause_config)
 {
 	enet->pause_config = *pause_config;
-
-	enet->pause_cbfn = cbfn;
 
 	bfa_fsm_send_event(enet, ENET_E_PAUSE_CFG);
 }
