@@ -1599,13 +1599,19 @@ static struct snd_soc_dai_driver wm5110_dai[] = {
 static int wm5110_codec_probe(struct snd_soc_codec *codec)
 {
 	struct wm5110_priv *priv = snd_soc_codec_get_drvdata(codec);
-	int ret;
+	int i, ret;
 
 	priv->core.arizona->dapm = &codec->dapm;
 
 	arizona_init_spk(codec);
 	arizona_init_gpio(codec);
 	arizona_init_mono(codec);
+
+	for (i = 0; i < WM5110_NUM_ADSP; ++i) {
+		ret = wm_adsp2_codec_probe(&priv->core.adsp[i], codec);
+		if (ret)
+			return ret;
+	}
 
 	ret = snd_soc_add_codec_controls(codec, wm_adsp2_fw_controls, 8);
 	if (ret != 0)
@@ -1621,6 +1627,10 @@ static int wm5110_codec_probe(struct snd_soc_codec *codec)
 static int wm5110_codec_remove(struct snd_soc_codec *codec)
 {
 	struct wm5110_priv *priv = snd_soc_codec_get_drvdata(codec);
+	int i;
+
+	for (i = 0; i < WM5110_NUM_ADSP; ++i)
+		wm_adsp2_codec_remove(&priv->core.adsp[i], codec);
 
 	priv->core.arizona->dapm = NULL;
 
