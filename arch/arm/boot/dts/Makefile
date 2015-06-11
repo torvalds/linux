@@ -31,6 +31,7 @@ dtb-$(CONFIG_SOC_SAM_V4_V5) += \
 	at91sam9n12ek.dtb \
 	at91sam9rlek.dtb \
 	at91-ariag25.dtb \
+	at91-ariettag25.dtb \
 	at91-cosino_mega2560.dtb \
 	at91-kizboxmini.dtb \
 	at91sam9g15ek.dtb \

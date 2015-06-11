@@ -16,7 +16,7 @@
 
 	chosen {
 		bootargs = "ubi.mtd=ubi";
-		linux,stdout-path = &dbgu;
+		stdout-path = &dbgu;
 	};
 
 	memory {
@@ -126,7 +126,7 @@
 
 		network_red {
 			label = "pwm:red:network";
-			pwms = <&tcb_pwm 3 10000000 PWM_POLARITY_INVERTED>;
+			pwms = <&tcb_pwm 4 10000000 PWM_POLARITY_INVERTED>;
 			max-brightness = <255>;
 			linux,default-trigger = "default-on";
 		};
