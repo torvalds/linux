@@ -2321,8 +2321,9 @@ static int btrfs_replay_log(struct btrfs_fs_info *fs_info,
 			fs_info->generation + 1);
 	if (IS_ERR(log_tree_root->node)) {
 		printk(KERN_ERR "BTRFS: failed to read log tree\n");
+		ret = PTR_ERR(log_tree_root->node);
 		kfree(log_tree_root);
-		return PTR_ERR(log_tree_root->node);
+		return ret;
 	} else if (!extent_buffer_uptodate(log_tree_root->node)) {
 		printk(KERN_ERR "BTRFS: failed to read log tree\n");
 		free_extent_buffer(log_tree_root->node);
