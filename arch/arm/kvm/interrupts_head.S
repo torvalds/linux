@@ -412,7 +412,6 @@ vcpu	.req	r0		@ vcpu pointer always in r0
 	add	r11, vcpu, #VCPU_VGIC_CPU
 
 	/* Save all interesting registers */
-	ldr	r3, [r2, #GICH_HCR]
 	ldr	r4, [r2, #GICH_VMCR]
 	ldr	r5, [r2, #GICH_MISR]
 	ldr	r6, [r2, #GICH_EISR0]
@@ -420,7 +419,6 @@ vcpu	.req	r0		@ vcpu pointer always in r0
 	ldr	r8, [r2, #GICH_ELRSR0]
 	ldr	r9, [r2, #GICH_ELRSR1]
 	ldr	r10, [r2, #GICH_APR]
-ARM_BE8(rev	r3, r3	)
 ARM_BE8(rev	r4, r4	)
 ARM_BE8(rev	r5, r5	)
 ARM_BE8(rev	r6, r6	)
@@ -429,7 +427,6 @@ ARM_BE8(rev	r8, r8	)
 ARM_BE8(rev	r9, r9	)
 ARM_BE8(rev	r10, r10	)
 
-	str	r3, [r11, #VGIC_V2_CPU_HCR]
 	str	r4, [r11, #VGIC_V2_CPU_VMCR]
 	str	r5, [r11, #VGIC_V2_CPU_MISR]
 #ifdef CONFIG_CPU_ENDIAN_BE8
