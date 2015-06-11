@@ -260,7 +260,8 @@ static void alloc_and_scatter_data_area(struct tcmu_dev *udev,
 
 		/* Uh oh, we wrapped the buffer. Must split sg across 2 iovs. */
 		if (sg->length != copy_bytes) {
-			from += copy_bytes;
+			void *from_skip = from + copy_bytes;
+
 			copy_bytes = sg->length - copy_bytes;
 
 			(*iov)->iov_len = copy_bytes;
@@ -270,7 +271,7 @@ static void alloc_and_scatter_data_area(struct tcmu_dev *udev,
 			if (copy_data) {
 				to = (void *) udev->mb_addr +
 					udev->data_off + udev->data_head;
-				memcpy(to, from, copy_bytes);
+				memcpy(to, from_skip, copy_bytes);
 				tcmu_flush_dcache_range(to, copy_bytes);
 			}
 
@@ -281,7 +282,7 @@ static void alloc_and_scatter_data_area(struct tcmu_dev *udev,
 				copy_bytes, udev->data_size);
 		}
 
-		kunmap_atomic(from);
+		kunmap_atomic(from - sg->offset);
 	}
 }
 
@@ -309,18 +310,19 @@ static void gather_and_free_data_area(struct tcmu_dev *udev,
 
 		/* Uh oh, wrapped the data buffer for this sg's data */
 		if (sg->length != copy_bytes) {
+			void *to_skip = to + copy_bytes;
+
 			from = (void *) udev->mb_addr +
 				udev->data_off + udev->data_tail;
 			WARN_ON(udev->data_tail);
-			to += copy_bytes;
 			copy_bytes = sg->length - copy_bytes;
 			tcmu_flush_dcache_range(from, copy_bytes);
-			memcpy(to, from, copy_bytes);
+			memcpy(to_skip, from, copy_bytes);
 
 			UPDATE_HEAD(udev->data_tail,
 				copy_bytes, udev->data_size);
 		}
-		kunmap_atomic(to);
+		kunmap_atomic(to - sg->offset);
 	}
 }
 
