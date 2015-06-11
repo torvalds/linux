@@ -504,16 +504,12 @@ static enum ixgbe_media_type ixgbe_get_media_type_82599(struct ixgbe_hw *hw)
  **/
 static void ixgbe_stop_mac_link_on_d3_82599(struct ixgbe_hw *hw)
 {
-	u32 autoc2_reg, fwsm;
+	u32 autoc2_reg;
 	u16 ee_ctrl_2 = 0;
 
 	hw->eeprom.ops.read(hw, IXGBE_EEPROM_CTRL_2, &ee_ctrl_2);
 
-	/* Check to see if MNG FW could be enabled */
-	fwsm = IXGBE_READ_REG(hw, IXGBE_FWSM(hw));
-
-	if (((fwsm & IXGBE_FWSM_MODE_MASK) != IXGBE_FWSM_FW_MODE_PT) &&
-	    !hw->wol_enabled &&
+	if (!ixgbe_mng_present(hw) && !hw->wol_enabled &&
 	    ee_ctrl_2 & IXGBE_EEPROM_CCD_BIT) {
 		autoc2_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC2);
 		autoc2_reg |= IXGBE_AUTOC2_LINK_DISABLE_ON_D3_MASK;
