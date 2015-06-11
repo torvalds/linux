@@ -1,0 +1,57 @@
+Qualcomm QPNP PMIC Temperature Alarm
+
+QPNP temperature alarm peripherals are found inside of Qualcomm PMIC chips
+that utilize the Qualcomm SPMI implementation. These peripherals provide an
+interrupt signal and status register to identify high PMIC die temperature.
+
+Required properties:
+- compatible:      Should contain "qcom,spmi-temp-alarm".
+- reg:             Specifies the SPMI address and length of the controller's
+                   registers.
+- interrupts:      PMIC temperature alarm interrupt.
+- #thermal-sensor-cells: Should be 0. See thermal.txt for a description.
+
+Optional properties:
+- io-channels:     Should contain IIO channel specifier for the ADC channel,
+                   which report chip die temperature.
+- io-channel-names: Should contain "thermal".
+
+Example:
+
+	pm8941_temp: thermal-alarm@2400 {
+		compatible = "qcom,spmi-temp-alarm";
+		reg = <0x2400 0x100>;
+		interrupts = <0 0x24 0 IRQ_TYPE_EDGE_RISING>;
+		#thermal-sensor-cells = <0>;
+
+		io-channels = <&pm8941_vadc VADC_DIE_TEMP>;
+		io-channel-names = "thermal";
+	};
+
+	thermal-zones {
+		pm8941 {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&pm8941_temp>;
+
+			trips {
+				passive {
+					temperature = <1050000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				alert {
+					temperature = <125000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+				crit {
+					temperature = <145000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+	};
+
