@@ -270,11 +270,7 @@ msr_fail:
 
 static void hw_perf_event_destroy(struct perf_event *event)
 {
-	if (atomic_dec_and_mutex_lock(&active_events, &pmc_reserve_mutex)) {
-		release_pmc_hardware();
-		release_ds_buffers();
-		mutex_unlock(&pmc_reserve_mutex);
-	}
+	x86_release_hardware();
 }
 
 void hw_perf_lbr_event_destroy(struct perf_event *event)
@@ -324,6 +320,35 @@ set_ext_hw_attr(struct hw_perf_event *hwc, struct perf_event *event)
 	return x86_pmu_extra_regs(val, event);
 }
 
+int x86_reserve_hardware(void)
+{
+	int err = 0;
+
+	if (!atomic_inc_not_zero(&active_events)) {
+		mutex_lock(&pmc_reserve_mutex);
+		if (atomic_read(&active_events) == 0) {
+			if (!reserve_pmc_hardware())
+				err = -EBUSY;
+			else
+				reserve_ds_buffers();
+		}
+		if (!err)
+			atomic_inc(&active_events);
+		mutex_unlock(&pmc_reserve_mutex);
+	}
+
+	return err;
+}
+
+void x86_release_hardware(void)
+{
+	if (atomic_dec_and_mutex_lock(&active_events, &pmc_reserve_mutex)) {
+		release_pmc_hardware();
+		release_ds_buffers();
+		mutex_unlock(&pmc_reserve_mutex);
+	}
+}
+
 /*
  * Check if we can create event of a certain type (that no conflicting events
  * are present).
@@ -336,9 +361,10 @@ int x86_add_exclusive(unsigned int what)
 		return 0;
 
 	mutex_lock(&pmc_reserve_mutex);
-	for (i = 0; i < ARRAY_SIZE(x86_pmu.lbr_exclusive); i++)
+	for (i = 0; i < ARRAY_SIZE(x86_pmu.lbr_exclusive); i++) {
 		if (i != what && atomic_read(&x86_pmu.lbr_exclusive[i]))
 			goto out;
+	}
 
 	atomic_inc(&x86_pmu.lbr_exclusive[what]);
 	ret = 0;
@@ -527,19 +553,7 @@ static int __x86_pmu_event_init(struct perf_event *event)
 	if (!x86_pmu_initialized())
 		return -ENODEV;
 
-	err = 0;
-	if (!atomic_inc_not_zero(&active_events)) {
-		mutex_lock(&pmc_reserve_mutex);
-		if (atomic_read(&active_events) == 0) {
-			if (!reserve_pmc_hardware())
-				err = -EBUSY;
-			else
-				reserve_ds_buffers();
-		}
-		if (!err)
-			atomic_inc(&active_events);
-		mutex_unlock(&pmc_reserve_mutex);
-	}
+	err = x86_reserve_hardware();
 	if (err)
 		return err;
 
