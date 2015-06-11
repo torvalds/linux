@@ -304,7 +304,8 @@ fault_disconnect_write(struct file *filp, const char __user *user_buf,
 {
 	char buffer[16];
 
-	len = min(len, sizeof(buffer) - 1);
+	if (len >= sizeof(buffer))
+		len = sizeof(buffer) - 1;
 	if (copy_from_user(buffer, user_buf, len))
 		return -EFAULT;
 	buffer[len] = '\0';
