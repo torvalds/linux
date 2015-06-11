@@ -2339,7 +2339,7 @@ static unsigned int intel_linear_alignment(struct drm_i915_private *dev_priv)
 	else if (INTEL_INFO(dev_priv)->gen >= 4)
 		return 4 * 1024;
 	else
-		return 64 * 1024;
+		return 0;
 }
 
 int
