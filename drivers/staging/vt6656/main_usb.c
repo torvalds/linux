@@ -978,10 +978,10 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC) | BIT(NL80211_IFTYPE_AP);
 
-	priv->hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
-		IEEE80211_HW_REPORTS_TX_ACK_STATUS |
-		IEEE80211_HW_SIGNAL_DBM |
-		IEEE80211_HW_TIMING_BEACON_ONLY;
+	ieee80211_hw_set(priv->hw, TIMING_BEACON_ONLY);
+	ieee80211_hw_set(priv->hw, SIGNAL_DBM);
+	ieee80211_hw_set(priv->hw, RX_INCLUDES_FCS);
+	ieee80211_hw_set(priv->hw, REPORTS_TX_ACK_STATUS);
 
 	priv->hw->max_signal = 100;
 

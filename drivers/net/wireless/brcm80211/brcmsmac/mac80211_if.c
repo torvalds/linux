@@ -1060,10 +1060,9 @@ static int ieee_hw_rate_init(struct ieee80211_hw *hw)
  */
 static int ieee_hw_init(struct ieee80211_hw *hw)
 {
-	hw->flags = IEEE80211_HW_SIGNAL_DBM
-	    /* | IEEE80211_HW_CONNECTION_MONITOR  What is this? */
-	    | IEEE80211_HW_REPORTS_TX_ACK_STATUS
-	    | IEEE80211_HW_AMPDU_AGGREGATION;
+	ieee80211_hw_set(hw, AMPDU_AGGREGATION);
+	ieee80211_hw_set(hw, SIGNAL_DBM);
+	ieee80211_hw_set(hw, REPORTS_TX_ACK_STATUS);
 
 	hw->extra_tx_headroom = brcms_c_get_header_len();
 	hw->queues = N_TX_QUEUES;

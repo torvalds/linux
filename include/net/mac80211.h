@@ -446,12 +446,8 @@ struct ieee80211_event {
  * @ibss_creator: indicates if a new IBSS network is being created
  * @aid: association ID number, valid only when @assoc is true
  * @use_cts_prot: use CTS protection
- * @use_short_preamble: use 802.11b short preamble;
- *	if the hardware cannot handle this it must set the
- *	IEEE80211_HW_2GHZ_SHORT_PREAMBLE_INCAPABLE hardware flag
- * @use_short_slot: use short slot time (only relevant for ERP);
- *	if the hardware cannot handle this it must set the
- *	IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE hardware flag
+ * @use_short_preamble: use 802.11b short preamble
+ * @use_short_slot: use short slot time (only relevant for ERP)
  * @dtim_period: num of beacons before the next DTIM, for beaconing,
  *	valid in station mode only if after the driver was notified
  *	with the %BSS_CHANGED_BEACON_INFO flag, will be non-zero then.
@@ -874,6 +870,9 @@ struct ieee80211_tx_info {
 			u32 flags;
 			/* 4 bytes free */
 		} control;
+		struct {
+			u64 cookie;
+		} ack;
 		struct {
 			struct ieee80211_tx_rate rates[IEEE80211_TX_MAX_RATES];
 			s32 ack_signal;
@@ -1479,6 +1478,9 @@ enum ieee80211_key_flags {
  *	wants to be given when a frame is transmitted and needs to be
  *	encrypted in hardware.
  * @cipher: The key's cipher suite selector.
+ * @tx_pn: PN used for TX on non-TKIP keys, may be used by the driver
+ *	as well if it needs to do software PN assignment by itself
+ *	(e.g. due to TSO)
  * @flags: key flags, see &enum ieee80211_key_flags.
  * @keyidx: the key index (0-3)
  * @keylen: key material length
@@ -1491,6 +1493,7 @@ enum ieee80211_key_flags {
  * @iv_len: The IV length for this key type
  */
 struct ieee80211_key_conf {
+	atomic64_t tx_pn;
 	u32 cipher;
 	u8 icv_len;
 	u8 iv_len;
@@ -1777,13 +1780,6 @@ struct ieee80211_txq {
  *	multicast frames when there are power saving stations so that
  *	the driver can fetch them with ieee80211_get_buffered_bc().
  *
- * @IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE:
- *	Hardware is not capable of short slot operation on the 2.4 GHz band.
- *
- * @IEEE80211_HW_2GHZ_SHORT_PREAMBLE_INCAPABLE:
- *	Hardware is not capable of receiving frames with short preamble on
- *	the 2.4 GHz band.
- *
  * @IEEE80211_HW_SIGNAL_UNSPEC:
  *	Hardware can provide signal values but we don't know its units. We
  *	expect values between 0 and @max_signal.
@@ -1889,41 +1885,44 @@ struct ieee80211_txq {
  * @IEEE80211_HW_SUPPORTS_CLONED_SKBS: The driver will never modify the payload
  *	or tailroom of TX skbs without copying them first.
  *
- * @IEEE80211_SINGLE_HW_SCAN_ON_ALL_BANDS: The HW supports scanning on all bands
+ * @IEEE80211_HW_SINGLE_SCAN_ON_ALL_BANDS: The HW supports scanning on all bands
  *	in one command, mac80211 doesn't have to run separate scans per band.
+ *
+ * @NUM_IEEE80211_HW_FLAGS: number of hardware flags, used for sizing arrays
  */
 enum ieee80211_hw_flags {
-	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
-	IEEE80211_HW_RX_INCLUDES_FCS			= 1<<1,
-	IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING	= 1<<2,
-	IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE		= 1<<3,
-	IEEE80211_HW_2GHZ_SHORT_PREAMBLE_INCAPABLE	= 1<<4,
-	IEEE80211_HW_SIGNAL_UNSPEC			= 1<<5,
-	IEEE80211_HW_SIGNAL_DBM				= 1<<6,
-	IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC		= 1<<7,
-	IEEE80211_HW_SPECTRUM_MGMT			= 1<<8,
-	IEEE80211_HW_AMPDU_AGGREGATION			= 1<<9,
-	IEEE80211_HW_SUPPORTS_PS			= 1<<10,
-	IEEE80211_HW_PS_NULLFUNC_STACK			= 1<<11,
-	IEEE80211_HW_SUPPORTS_DYNAMIC_PS		= 1<<12,
-	IEEE80211_HW_MFP_CAPABLE			= 1<<13,
-	IEEE80211_HW_WANT_MONITOR_VIF			= 1<<14,
-	IEEE80211_HW_NO_AUTO_VIF			= 1<<15,
-	IEEE80211_HW_SW_CRYPTO_CONTROL			= 1<<16,
-	IEEE80211_HW_SUPPORT_FAST_XMIT			= 1<<17,
-	IEEE80211_HW_REPORTS_TX_ACK_STATUS		= 1<<18,
-	IEEE80211_HW_CONNECTION_MONITOR			= 1<<19,
-	IEEE80211_HW_QUEUE_CONTROL			= 1<<20,
-	IEEE80211_HW_SUPPORTS_PER_STA_GTK		= 1<<21,
-	IEEE80211_HW_AP_LINK_PS				= 1<<22,
-	IEEE80211_HW_TX_AMPDU_SETUP_IN_HW		= 1<<23,
-	IEEE80211_HW_SUPPORTS_RC_TABLE			= 1<<24,
-	IEEE80211_HW_P2P_DEV_ADDR_FOR_INTF		= 1<<25,
-	IEEE80211_HW_TIMING_BEACON_ONLY			= 1<<26,
-	IEEE80211_HW_SUPPORTS_HT_CCK_RATES		= 1<<27,
-	IEEE80211_HW_CHANCTX_STA_CSA			= 1<<28,
-	IEEE80211_HW_SUPPORTS_CLONED_SKBS		= 1<<29,
-	IEEE80211_SINGLE_HW_SCAN_ON_ALL_BANDS		= 1<<30,
+	IEEE80211_HW_HAS_RATE_CONTROL,
+	IEEE80211_HW_RX_INCLUDES_FCS,
+	IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING,
+	IEEE80211_HW_SIGNAL_UNSPEC,
+	IEEE80211_HW_SIGNAL_DBM,
+	IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC,
+	IEEE80211_HW_SPECTRUM_MGMT,
+	IEEE80211_HW_AMPDU_AGGREGATION,
+	IEEE80211_HW_SUPPORTS_PS,
+	IEEE80211_HW_PS_NULLFUNC_STACK,
+	IEEE80211_HW_SUPPORTS_DYNAMIC_PS,
+	IEEE80211_HW_MFP_CAPABLE,
+	IEEE80211_HW_WANT_MONITOR_VIF,
+	IEEE80211_HW_NO_AUTO_VIF,
+	IEEE80211_HW_SW_CRYPTO_CONTROL,
+	IEEE80211_HW_SUPPORT_FAST_XMIT,
+	IEEE80211_HW_REPORTS_TX_ACK_STATUS,
+	IEEE80211_HW_CONNECTION_MONITOR,
+	IEEE80211_HW_QUEUE_CONTROL,
+	IEEE80211_HW_SUPPORTS_PER_STA_GTK,
+	IEEE80211_HW_AP_LINK_PS,
+	IEEE80211_HW_TX_AMPDU_SETUP_IN_HW,
+	IEEE80211_HW_SUPPORTS_RC_TABLE,
+	IEEE80211_HW_P2P_DEV_ADDR_FOR_INTF,
+	IEEE80211_HW_TIMING_BEACON_ONLY,
+	IEEE80211_HW_SUPPORTS_HT_CCK_RATES,
+	IEEE80211_HW_CHANCTX_STA_CSA,
+	IEEE80211_HW_SUPPORTS_CLONED_SKBS,
+	IEEE80211_HW_SINGLE_SCAN_ON_ALL_BANDS,
+
+	/* keep last, obviously */
+	NUM_IEEE80211_HW_FLAGS
 };
 
 /**
@@ -2030,7 +2029,7 @@ struct ieee80211_hw {
 	struct wiphy *wiphy;
 	const char *rate_control_algorithm;
 	void *priv;
-	u32 flags;
+	unsigned long flags[BITS_TO_LONGS(NUM_IEEE80211_HW_FLAGS)];
 	unsigned int extra_tx_headroom;
 	unsigned int extra_beacon_tailroom;
 	int vif_data_size;
@@ -2055,6 +2054,20 @@ struct ieee80211_hw {
 	const struct ieee80211_cipher_scheme *cipher_schemes;
 	int txq_ac_max_pending;
 };
+
+static inline bool _ieee80211_hw_check(struct ieee80211_hw *hw,
+				       enum ieee80211_hw_flags flg)
+{
+	return test_bit(flg, hw->flags);
+}
+#define ieee80211_hw_check(hw, flg)	_ieee80211_hw_check(hw, IEEE80211_HW_##flg)
+
+static inline void _ieee80211_hw_set(struct ieee80211_hw *hw,
+				     enum ieee80211_hw_flags flg)
+{
+	return __set_bit(flg, hw->flags);
+}
+#define ieee80211_hw_set(hw, flg)	_ieee80211_hw_set(hw, IEEE80211_HW_##flg)
 
 /**
  * struct ieee80211_scan_request - hw scan request
@@ -2590,8 +2603,7 @@ void ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb);
  *
  * @FIF_OTHER_BSS: pass frames destined to other BSSes
  *
- * @FIF_PSPOLL: pass PS Poll frames, if PROMISC_IN_BSS is not set then only
- * 	those addressed to this station.
+ * @FIF_PSPOLL: pass PS Poll frames
  *
  * @FIF_PROBE_REQ: pass probe request frames
  */

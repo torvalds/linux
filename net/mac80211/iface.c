@@ -338,7 +338,7 @@ static int ieee80211_check_queues(struct ieee80211_sub_if_data *sdata,
 	if ((iftype != NL80211_IFTYPE_AP &&
 	     iftype != NL80211_IFTYPE_P2P_GO &&
 	     iftype != NL80211_IFTYPE_MESH_POINT) ||
-	    !(sdata->local->hw.flags & IEEE80211_HW_QUEUE_CONTROL)) {
+	    !ieee80211_hw_check(&sdata->local->hw, QUEUE_CONTROL)) {
 		sdata->vif.cab_queue = IEEE80211_INVAL_HW_QUEUE;
 		return 0;
 	}
@@ -378,7 +378,7 @@ static void ieee80211_set_default_queues(struct ieee80211_sub_if_data *sdata)
 	int i;
 
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-		if (local->hw.flags & IEEE80211_HW_QUEUE_CONTROL)
+		if (ieee80211_hw_check(&local->hw, QUEUE_CONTROL))
 			sdata->vif.hw_queue[i] = IEEE80211_INVAL_HW_QUEUE;
 		else if (local->hw.queues >= IEEE80211_NUM_ACS)
 			sdata->vif.hw_queue[i] = i;
@@ -393,7 +393,7 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 	struct ieee80211_sub_if_data *sdata;
 	int ret;
 
-	if (!(local->hw.flags & IEEE80211_HW_WANT_MONITOR_VIF))
+	if (!ieee80211_hw_check(&local->hw, WANT_MONITOR_VIF))
 		return 0;
 
 	ASSERT_RTNL();
@@ -454,7 +454,7 @@ void ieee80211_del_virtual_monitor(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
 
-	if (!(local->hw.flags & IEEE80211_HW_WANT_MONITOR_VIF))
+	if (!ieee80211_hw_check(&local->hw, WANT_MONITOR_VIF))
 		return;
 
 	ASSERT_RTNL();
@@ -1586,7 +1586,7 @@ static void ieee80211_assign_perm_addr(struct ieee80211_local *local,
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_P2P_GO:
-		if (local->hw.flags & IEEE80211_HW_P2P_DEV_ADDR_FOR_INTF) {
+		if (ieee80211_hw_check(&local->hw, P2P_DEV_ADDR_FOR_INTF)) {
 			list_for_each_entry(sdata, &local->interfaces, list) {
 				if (sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE)
 					continue;

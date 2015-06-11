@@ -167,23 +167,16 @@ static void ieee80211_tdls_add_bss_coex_ie(struct sk_buff *skb)
 static u16 ieee80211_get_tdls_sta_capab(struct ieee80211_sub_if_data *sdata,
 					u16 status_code)
 {
-	struct ieee80211_local *local = sdata->local;
-	u16 capab;
-
 	/* The capability will be 0 when sending a failure code */
 	if (status_code != 0)
 		return 0;
 
-	capab = 0;
-	if (ieee80211_get_sdata_band(sdata) != IEEE80211_BAND_2GHZ)
-		return capab;
+	if (ieee80211_get_sdata_band(sdata) == IEEE80211_BAND_2GHZ) {
+		return WLAN_CAPABILITY_SHORT_SLOT_TIME |
+		       WLAN_CAPABILITY_SHORT_PREAMBLE;
+	}
 
-	if (!(local->hw.flags & IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE))
-		capab |= WLAN_CAPABILITY_SHORT_SLOT_TIME;
-	if (!(local->hw.flags & IEEE80211_HW_2GHZ_SHORT_PREAMBLE_INCAPABLE))
-		capab |= WLAN_CAPABILITY_SHORT_PREAMBLE;
-
-	return capab;
+	return 0;
 }
 
 static void ieee80211_tdls_add_link_ie(struct ieee80211_sub_if_data *sdata,
@@ -942,7 +935,7 @@ ieee80211_tdls_prep_mgmt_packet(struct wiphy *wiphy, struct net_device *dev,
 	 * packet through the AP.
 	 */
 	if ((action_code == WLAN_TDLS_TEARDOWN) &&
-	    (sdata->local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)) {
+	    ieee80211_hw_check(&sdata->local->hw, REPORTS_TX_ACK_STATUS)) {
 		bool try_resend; /* Should we keep skb for possible resend */
 
 		/* If not sending directly to peer - no point in keeping skb */

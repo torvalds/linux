@@ -1,4 +1,3 @@
-
 /*
  * mac80211 debugfs for wireless PHYs
  *
@@ -92,62 +91,66 @@ static const struct file_operations reset_ops = {
 };
 #endif
 
+static const char *hw_flag_names[NUM_IEEE80211_HW_FLAGS + 1] = {
+#define FLAG(F)	[IEEE80211_HW_##F] = #F
+	FLAG(HAS_RATE_CONTROL),
+	FLAG(RX_INCLUDES_FCS),
+	FLAG(HOST_BROADCAST_PS_BUFFERING),
+	FLAG(SIGNAL_UNSPEC),
+	FLAG(SIGNAL_DBM),
+	FLAG(NEED_DTIM_BEFORE_ASSOC),
+	FLAG(SPECTRUM_MGMT),
+	FLAG(AMPDU_AGGREGATION),
+	FLAG(SUPPORTS_PS),
+	FLAG(PS_NULLFUNC_STACK),
+	FLAG(SUPPORTS_DYNAMIC_PS),
+	FLAG(MFP_CAPABLE),
+	FLAG(WANT_MONITOR_VIF),
+	FLAG(NO_AUTO_VIF),
+	FLAG(SW_CRYPTO_CONTROL),
+	FLAG(SUPPORT_FAST_XMIT),
+	FLAG(REPORTS_TX_ACK_STATUS),
+	FLAG(CONNECTION_MONITOR),
+	FLAG(QUEUE_CONTROL),
+	FLAG(SUPPORTS_PER_STA_GTK),
+	FLAG(AP_LINK_PS),
+	FLAG(TX_AMPDU_SETUP_IN_HW),
+	FLAG(SUPPORTS_RC_TABLE),
+	FLAG(P2P_DEV_ADDR_FOR_INTF),
+	FLAG(TIMING_BEACON_ONLY),
+	FLAG(SUPPORTS_HT_CCK_RATES),
+	FLAG(CHANCTX_STA_CSA),
+	FLAG(SUPPORTS_CLONED_SKBS),
+	FLAG(SINGLE_SCAN_ON_ALL_BANDS),
+
+	/* keep last for the build bug below */
+	(void *)0x1
+#undef FLAG
+};
+
 static ssize_t hwflags_read(struct file *file, char __user *user_buf,
 			    size_t count, loff_t *ppos)
 {
 	struct ieee80211_local *local = file->private_data;
-	int mxln = 500;
+	size_t bufsz = 30 * NUM_IEEE80211_HW_FLAGS;
+	char *buf = kzalloc(bufsz, GFP_KERNEL);
+	char *pos = buf, *end = buf + bufsz - 1;
 	ssize_t rv;
-	char *buf = kzalloc(mxln, GFP_KERNEL);
-	int sf = 0; /* how many written so far */
+	int i;
 
 	if (!buf)
-		return 0;
+		return -ENOMEM;
 
-	sf += scnprintf(buf, mxln - sf, "0x%x\n", local->hw.flags);
-	if (local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL)
-		sf += scnprintf(buf + sf, mxln - sf, "HAS_RATE_CONTROL\n");
-	if (local->hw.flags & IEEE80211_HW_RX_INCLUDES_FCS)
-		sf += scnprintf(buf + sf, mxln - sf, "RX_INCLUDES_FCS\n");
-	if (local->hw.flags & IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING)
-		sf += scnprintf(buf + sf, mxln - sf,
-				"HOST_BCAST_PS_BUFFERING\n");
-	if (local->hw.flags & IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE)
-		sf += scnprintf(buf + sf, mxln - sf,
-				"2GHZ_SHORT_SLOT_INCAPABLE\n");
-	if (local->hw.flags & IEEE80211_HW_2GHZ_SHORT_PREAMBLE_INCAPABLE)
-		sf += scnprintf(buf + sf, mxln - sf,
-				"2GHZ_SHORT_PREAMBLE_INCAPABLE\n");
-	if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)
-		sf += scnprintf(buf + sf, mxln - sf, "SIGNAL_UNSPEC\n");
-	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
-		sf += scnprintf(buf + sf, mxln - sf, "SIGNAL_DBM\n");
-	if (local->hw.flags & IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC)
-		sf += scnprintf(buf + sf, mxln - sf,
-				"NEED_DTIM_BEFORE_ASSOC\n");
-	if (local->hw.flags & IEEE80211_HW_SPECTRUM_MGMT)
-		sf += scnprintf(buf + sf, mxln - sf, "SPECTRUM_MGMT\n");
-	if (local->hw.flags & IEEE80211_HW_AMPDU_AGGREGATION)
-		sf += scnprintf(buf + sf, mxln - sf, "AMPDU_AGGREGATION\n");
-	if (local->hw.flags & IEEE80211_HW_SUPPORTS_PS)
-		sf += scnprintf(buf + sf, mxln - sf, "SUPPORTS_PS\n");
-	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
-		sf += scnprintf(buf + sf, mxln - sf, "PS_NULLFUNC_STACK\n");
-	if (local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS)
-		sf += scnprintf(buf + sf, mxln - sf, "SUPPORTS_DYNAMIC_PS\n");
-	if (local->hw.flags & IEEE80211_HW_MFP_CAPABLE)
-		sf += scnprintf(buf + sf, mxln - sf, "MFP_CAPABLE\n");
-	if (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)
-		sf += scnprintf(buf + sf, mxln - sf,
-				"REPORTS_TX_ACK_STATUS\n");
-	if (local->hw.flags & IEEE80211_HW_CONNECTION_MONITOR)
-		sf += scnprintf(buf + sf, mxln - sf, "CONNECTION_MONITOR\n");
-	if (local->hw.flags & IEEE80211_HW_SUPPORTS_PER_STA_GTK)
-		sf += scnprintf(buf + sf, mxln - sf, "SUPPORTS_PER_STA_GTK\n");
-	if (local->hw.flags & IEEE80211_HW_AP_LINK_PS)
-		sf += scnprintf(buf + sf, mxln - sf, "AP_LINK_PS\n");
-	if (local->hw.flags & IEEE80211_HW_TX_AMPDU_SETUP_IN_HW)
-		sf += scnprintf(buf + sf, mxln - sf, "TX_AMPDU_SETUP_IN_HW\n");
+	/* fail compilation if somebody adds or removes
+	 * a flag without updating the name array above
+	 */
+	BUILD_BUG_ON(hw_flag_names[NUM_IEEE80211_HW_FLAGS] != (void *)0x1);
+
+	for (i = 0; i < NUM_IEEE80211_HW_FLAGS; i++) {
+		if (test_bit(i, local->hw.flags))
+			pos += scnprintf(pos, end - pos, "%s",
+					 hw_flag_names[i]);
+	}
 
 	rv = simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
 	kfree(buf);

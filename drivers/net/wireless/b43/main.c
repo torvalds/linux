@@ -5605,8 +5605,8 @@ static struct b43_wl *b43_wireless_init(struct b43_bus_dev *dev)
 	wl = hw_to_b43_wl(hw);
 
 	/* fill hw info */
-	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
-		    IEEE80211_HW_SIGNAL_DBM;
+	ieee80211_hw_set(hw, RX_INCLUDES_FCS);
+	ieee80211_hw_set(hw, SIGNAL_DBM);
 
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_AP) |

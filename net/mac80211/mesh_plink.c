@@ -106,9 +106,7 @@ static u32 mesh_set_short_slot_time(struct ieee80211_sub_if_data *sdata)
 		/* (IEEE 802.11-2012 19.4.5) */
 		short_slot = true;
 		goto out;
-	} else if (band != IEEE80211_BAND_2GHZ ||
-		   (band == IEEE80211_BAND_2GHZ &&
-		    local->hw.flags & IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE))
+	} else if (band != IEEE80211_BAND_2GHZ)
 		goto out;
 
 	for (i = 0; i < sband->n_bitrates; i++)
@@ -394,8 +392,9 @@ static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 	sta->last_rx = jiffies;
 
 	/* rates and capabilities don't change during peering */
-	if (sta->plink_state == NL80211_PLINK_ESTAB)
+	if (sta->plink_state == NL80211_PLINK_ESTAB && sta->processed_beacon)
 		goto out;
+	sta->processed_beacon = true;
 
 	if (sta->sta.supp_rates[band] != rates)
 		changed |= IEEE80211_RC_SUPP_RATES_CHANGED;

@@ -7497,13 +7497,12 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize all hw fields.
 	 */
-	rt2x00dev->hw->flags =
-	    IEEE80211_HW_SIGNAL_DBM |
-	    IEEE80211_HW_SUPPORTS_PS |
-	    IEEE80211_HW_PS_NULLFUNC_STACK |
-	    IEEE80211_HW_AMPDU_AGGREGATION |
-	    IEEE80211_HW_REPORTS_TX_ACK_STATUS |
-	    IEEE80211_HW_SUPPORTS_HT_CCK_RATES;
+	ieee80211_hw_set(rt2x00dev->hw, SUPPORTS_HT_CCK_RATES);
+	ieee80211_hw_set(rt2x00dev->hw, REPORTS_TX_ACK_STATUS);
+	ieee80211_hw_set(rt2x00dev->hw, AMPDU_AGGREGATION);
+	ieee80211_hw_set(rt2x00dev->hw, PS_NULLFUNC_STACK);
+	ieee80211_hw_set(rt2x00dev->hw, SIGNAL_DBM);
+	ieee80211_hw_set(rt2x00dev->hw, SUPPORTS_PS);
 
 	/*
 	 * Don't set IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING for USB devices
@@ -7513,8 +7512,7 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	 * infinitly and thus dropping it after some time.
 	 */
 	if (!rt2x00_is_usb(rt2x00dev))
-		rt2x00dev->hw->flags |=
-			IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING;
+		ieee80211_hw_set(rt2x00dev->hw, HOST_BROADCAST_PS_BUFFERING);
 
 	SET_IEEE80211_DEV(rt2x00dev->hw, rt2x00dev->dev);
 	SET_IEEE80211_PERM_ADDR(rt2x00dev->hw,

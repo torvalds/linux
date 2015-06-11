@@ -147,7 +147,7 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 	 * is supported; if not, return.
 	 */
 	if (sta && !(key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE) &&
-	    !(key->local->hw.flags & IEEE80211_HW_SUPPORTS_PER_STA_GTK))
+	    !ieee80211_hw_check(&key->local->hw, SUPPORTS_PER_STA_GTK))
 		goto out_unsupported;
 
 	if (sta && !sta->uploaded)
@@ -201,7 +201,7 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 		/* all of these we can do in software - if driver can */
 		if (ret == 1)
 			return 0;
-		if (key->local->hw.flags & IEEE80211_HW_SW_CRYPTO_CONTROL)
+		if (ieee80211_hw_check(&key->local->hw, SW_CRYPTO_CONTROL))
 			return -EINVAL;
 		return 0;
 	default:
@@ -896,43 +896,25 @@ void ieee80211_get_key_tx_seq(struct ieee80211_key_conf *keyconf,
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_CCMP_256:
-		pn64 = atomic64_read(&key->u.ccmp.tx_pn);
-		seq->ccmp.pn[5] = pn64;
-		seq->ccmp.pn[4] = pn64 >> 8;
-		seq->ccmp.pn[3] = pn64 >> 16;
-		seq->ccmp.pn[2] = pn64 >> 24;
-		seq->ccmp.pn[1] = pn64 >> 32;
-		seq->ccmp.pn[0] = pn64 >> 40;
-		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
-		pn64 = atomic64_read(&key->u.aes_cmac.tx_pn);
-		seq->ccmp.pn[5] = pn64;
-		seq->ccmp.pn[4] = pn64 >> 8;
-		seq->ccmp.pn[3] = pn64 >> 16;
-		seq->ccmp.pn[2] = pn64 >> 24;
-		seq->ccmp.pn[1] = pn64 >> 32;
-		seq->ccmp.pn[0] = pn64 >> 40;
-		break;
+		BUILD_BUG_ON(offsetof(typeof(*seq), ccmp) !=
+			     offsetof(typeof(*seq), aes_cmac));
 	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
 	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
-		pn64 = atomic64_read(&key->u.aes_gmac.tx_pn);
+		BUILD_BUG_ON(offsetof(typeof(*seq), ccmp) !=
+			     offsetof(typeof(*seq), aes_gmac));
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		BUILD_BUG_ON(offsetof(typeof(*seq), ccmp) !=
+			     offsetof(typeof(*seq), gcmp));
+		pn64 = atomic64_read(&key->conf.tx_pn);
 		seq->ccmp.pn[5] = pn64;
 		seq->ccmp.pn[4] = pn64 >> 8;
 		seq->ccmp.pn[3] = pn64 >> 16;
 		seq->ccmp.pn[2] = pn64 >> 24;
 		seq->ccmp.pn[1] = pn64 >> 32;
 		seq->ccmp.pn[0] = pn64 >> 40;
-		break;
-	case WLAN_CIPHER_SUITE_GCMP:
-	case WLAN_CIPHER_SUITE_GCMP_256:
-		pn64 = atomic64_read(&key->u.gcmp.tx_pn);
-		seq->gcmp.pn[5] = pn64;
-		seq->gcmp.pn[4] = pn64 >> 8;
-		seq->gcmp.pn[3] = pn64 >> 16;
-		seq->gcmp.pn[2] = pn64 >> 24;
-		seq->gcmp.pn[1] = pn64 >> 32;
-		seq->gcmp.pn[0] = pn64 >> 40;
 		break;
 	default:
 		WARN_ON(1);
@@ -1008,43 +990,25 @@ void ieee80211_set_key_tx_seq(struct ieee80211_key_conf *keyconf,
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_CCMP_256:
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
+		BUILD_BUG_ON(offsetof(typeof(*seq), ccmp) !=
+			     offsetof(typeof(*seq), aes_cmac));
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		BUILD_BUG_ON(offsetof(typeof(*seq), ccmp) !=
+			     offsetof(typeof(*seq), aes_gmac));
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		BUILD_BUG_ON(offsetof(typeof(*seq), ccmp) !=
+			     offsetof(typeof(*seq), gcmp));
 		pn64 = (u64)seq->ccmp.pn[5] |
 		       ((u64)seq->ccmp.pn[4] << 8) |
 		       ((u64)seq->ccmp.pn[3] << 16) |
 		       ((u64)seq->ccmp.pn[2] << 24) |
 		       ((u64)seq->ccmp.pn[1] << 32) |
 		       ((u64)seq->ccmp.pn[0] << 40);
-		atomic64_set(&key->u.ccmp.tx_pn, pn64);
-		break;
-	case WLAN_CIPHER_SUITE_AES_CMAC:
-	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
-		pn64 = (u64)seq->aes_cmac.pn[5] |
-		       ((u64)seq->aes_cmac.pn[4] << 8) |
-		       ((u64)seq->aes_cmac.pn[3] << 16) |
-		       ((u64)seq->aes_cmac.pn[2] << 24) |
-		       ((u64)seq->aes_cmac.pn[1] << 32) |
-		       ((u64)seq->aes_cmac.pn[0] << 40);
-		atomic64_set(&key->u.aes_cmac.tx_pn, pn64);
-		break;
-	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
-	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
-		pn64 = (u64)seq->aes_gmac.pn[5] |
-		       ((u64)seq->aes_gmac.pn[4] << 8) |
-		       ((u64)seq->aes_gmac.pn[3] << 16) |
-		       ((u64)seq->aes_gmac.pn[2] << 24) |
-		       ((u64)seq->aes_gmac.pn[1] << 32) |
-		       ((u64)seq->aes_gmac.pn[0] << 40);
-		atomic64_set(&key->u.aes_gmac.tx_pn, pn64);
-		break;
-	case WLAN_CIPHER_SUITE_GCMP:
-	case WLAN_CIPHER_SUITE_GCMP_256:
-		pn64 = (u64)seq->gcmp.pn[5] |
-		       ((u64)seq->gcmp.pn[4] << 8) |
-		       ((u64)seq->gcmp.pn[3] << 16) |
-		       ((u64)seq->gcmp.pn[2] << 24) |
-		       ((u64)seq->gcmp.pn[1] << 32) |
-		       ((u64)seq->gcmp.pn[0] << 40);
-		atomic64_set(&key->u.gcmp.tx_pn, pn64);
+		atomic64_set(&key->conf.tx_pn, pn64);
 		break;
 	default:
 		WARN_ON(1);

@@ -717,18 +717,18 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	struct base_eep_header *pBase;
 
-	hw->flags = IEEE80211_HW_SIGNAL_DBM |
-		IEEE80211_HW_AMPDU_AGGREGATION |
-		IEEE80211_HW_SPECTRUM_MGMT |
-		IEEE80211_HW_HAS_RATE_CONTROL |
-		IEEE80211_HW_RX_INCLUDES_FCS |
-		IEEE80211_HW_PS_NULLFUNC_STACK |
-		IEEE80211_HW_REPORTS_TX_ACK_STATUS |
-		IEEE80211_HW_MFP_CAPABLE |
-		IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING;
+	ieee80211_hw_set(hw, HOST_BROADCAST_PS_BUFFERING);
+	ieee80211_hw_set(hw, MFP_CAPABLE);
+	ieee80211_hw_set(hw, REPORTS_TX_ACK_STATUS);
+	ieee80211_hw_set(hw, PS_NULLFUNC_STACK);
+	ieee80211_hw_set(hw, RX_INCLUDES_FCS);
+	ieee80211_hw_set(hw, HAS_RATE_CONTROL);
+	ieee80211_hw_set(hw, SPECTRUM_MGMT);
+	ieee80211_hw_set(hw, SIGNAL_DBM);
+	ieee80211_hw_set(hw, AMPDU_AGGREGATION);
 
 	if (ath9k_ps_enable)
-		hw->flags |= IEEE80211_HW_SUPPORTS_PS;
+		ieee80211_hw_set(hw, SUPPORTS_PS);
 
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_STATION) |
