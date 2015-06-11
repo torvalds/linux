@@ -39,7 +39,6 @@
 #define __LNET_LNET_SOCKLND_H__
 
 #include "types.h"
-#include "lib-types.h"
 
 #define SOCKLND_CONN_NONE     (-1)
 #define SOCKLND_CONN_ANY	0

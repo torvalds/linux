@@ -41,9 +41,7 @@
 #ifndef __LNET_ST_H__
 #define __LNET_ST_H__
 
-#include "../libcfs/libcfs.h"
-#include "lnet.h"
-#include "lib-types.h"
+#include <linux/types.h>
 
 #define LST_FEAT_NONE		(0)
 #define LST_FEAT_BULK_LEN	(1 << 0)	/* enable variable page size */
@@ -468,7 +466,6 @@ typedef struct {
 	int		     png_flags;	      /* reserved flags */
 } lst_test_ping_param_t;
 
-/* more tests */
 typedef struct {
 	__u32 errors;
 	__u32 rpcs_sent;

@@ -34,8 +34,6 @@
  * Lustre is a trademark of Sun Microsystems, Inc.
  *
  * lnet/include/lnet/lib-lnet.h
- *
- * Top level include for library side routines
  */
 
 #ifndef __LNET_LIB_LNET_H__
@@ -43,7 +41,6 @@
 
 #include "../libcfs/libcfs.h"
 #include "api.h"
-#include "types.h"
 #include "lnet.h"
 #include "lib-types.h"
 
