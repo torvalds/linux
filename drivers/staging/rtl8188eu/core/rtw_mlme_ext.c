@@ -230,7 +230,8 @@ void update_mgntframe_attrib(struct adapter *padapter, struct pkt_attrib *pattri
 	pattrib->retry_ctrl = true;
 }
 
-void dump_mgntframe(struct adapter *padapter, struct xmit_frame *pmgntframe)
+static void dump_mgntframe(struct adapter *padapter,
+			   struct xmit_frame *pmgntframe)
 {
 	if (padapter->bSurpriseRemoved || padapter->bDriverStopped)
 		return;
@@ -238,7 +239,9 @@ void dump_mgntframe(struct adapter *padapter, struct xmit_frame *pmgntframe)
 	rtw_hal_mgnt_xmit(padapter, pmgntframe);
 }
 
-s32 dump_mgntframe_and_wait(struct adapter *padapter, struct xmit_frame *pmgntframe, int timeout_ms)
+static s32 dump_mgntframe_and_wait(struct adapter *padapter,
+				   struct xmit_frame *pmgntframe,
+				   int timeout_ms)
 {
 	s32 ret = _FAIL;
 	struct xmit_buf *pxmitbuf = pmgntframe->pxmitbuf;
@@ -258,7 +261,8 @@ s32 dump_mgntframe_and_wait(struct adapter *padapter, struct xmit_frame *pmgntfr
 	return ret;
 }
 
-s32 dump_mgntframe_and_wait_ack(struct adapter *padapter, struct xmit_frame *pmgntframe)
+static s32 dump_mgntframe_and_wait_ack(struct adapter *padapter,
+				       struct xmit_frame *pmgntframe)
 {
 	s32 ret = _FAIL;
 	u32 timeout_ms = 500;/*   500ms */
@@ -314,7 +318,7 @@ static int update_hidden_ssid(u8 *ies, u32 ies_len, u8 hidden_ssid_mode)
 	return len_diff;
 }
 
-void issue_beacon(struct adapter *padapter, int timeout_ms)
+static void issue_beacon(struct adapter *padapter, int timeout_ms)
 {
 	struct xmit_frame	*pmgntframe;
 	struct pkt_attrib	*pattrib;
@@ -455,7 +459,8 @@ _issue_bcn:
 		dump_mgntframe(padapter, pmgntframe);
 }
 
-void issue_probersp(struct adapter *padapter, unsigned char *da, u8 is_valid_p2p_probereq)
+static void issue_probersp(struct adapter *padapter, unsigned char *da,
+			   u8 is_valid_p2p_probereq)
 {
 	struct xmit_frame			*pmgntframe;
 	struct pkt_attrib			*pattrib;
@@ -697,13 +702,15 @@ exit:
 	return ret;
 }
 
-inline void issue_probereq(struct adapter *padapter, struct ndis_802_11_ssid *pssid, u8 *da)
+static inline void issue_probereq(struct adapter *padapter,
+				  struct ndis_802_11_ssid *pssid, u8 *da)
 {
 	_issue_probereq(padapter, pssid, da, false);
 }
 
-int issue_probereq_ex(struct adapter *padapter, struct ndis_802_11_ssid *pssid, u8 *da,
-	int try_cnt, int wait_ms)
+static int issue_probereq_ex(struct adapter *padapter,
+			     struct ndis_802_11_ssid *pssid, u8 *da,
+			     int try_cnt, int wait_ms)
 {
 	int ret;
 	int i = 0;
@@ -742,7 +749,8 @@ exit:
 }
 
 /*  if psta == NULL, indicate we are station(client) now... */
-void issue_auth(struct adapter *padapter, struct sta_info *psta, unsigned short status)
+static void issue_auth(struct adapter *padapter, struct sta_info *psta,
+		       unsigned short status)
 {
 	struct xmit_frame *pmgntframe;
 	struct pkt_attrib *pattrib;
@@ -881,7 +889,8 @@ void issue_auth(struct adapter *padapter, struct sta_info *psta, unsigned short 
 }
 
 
-void issue_asocrsp(struct adapter *padapter, unsigned short status, struct sta_info *pstat, int pkt_type)
+static void issue_asocrsp(struct adapter *padapter, unsigned short status,
+			  struct sta_info *pstat, int pkt_type)
 {
 #ifdef CONFIG_88EU_AP_MODE
 	struct xmit_frame	*pmgntframe;
@@ -1006,7 +1015,7 @@ void issue_asocrsp(struct adapter *padapter, unsigned short status, struct sta_i
 #endif
 }
 
-void issue_assocreq(struct adapter *padapter)
+static void issue_assocreq(struct adapter *padapter)
 {
 	int ret = _FAIL;
 	struct xmit_frame	*pmgntframe;
@@ -1513,8 +1522,9 @@ int issue_deauth(struct adapter *padapter, unsigned char *da, unsigned short rea
 	return _issue_deauth(padapter, da, reason, false);
 }
 
-int issue_deauth_ex(struct adapter *padapter, u8 *da, unsigned short reason, int try_cnt,
-	int wait_ms)
+static int issue_deauth_ex(struct adapter *padapter, u8 *da,
+			   unsigned short reason, int try_cnt,
+			   int wait_ms)
 {
 	int ret;
 	int i = 0;
@@ -1611,7 +1621,8 @@ void issue_action_spct_ch_switch(struct adapter *padapter, u8 *ra, u8 new_ch, u8
 	dump_mgntframe(padapter, pmgntframe);
 }
 
-void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned char action, unsigned short status)
+static void issue_action_BA(struct adapter *padapter, unsigned char *raddr,
+			    unsigned char action, unsigned short status)
 {
 	u8 category = RTW_WLAN_CATEGORY_BACK;
 	u16 start_seq;
@@ -1963,7 +1974,7 @@ Following are some utility functions for WiFi MLME
 
 *****************************************************************************/
 
-void site_survey(struct adapter *padapter)
+static void site_survey(struct adapter *padapter)
 {
 	unsigned char		survey_channel = 0, val8;
 	enum rt_scan_type ScanType = SCAN_PASSIVE;
@@ -2067,7 +2078,9 @@ void site_survey(struct adapter *padapter)
 }
 
 /* collect bss info from Beacon and Probe request/response frames. */
-u8 collect_bss_info(struct adapter *padapter, struct recv_frame *precv_frame, struct wlan_bssid_ex *bssid)
+static u8 collect_bss_info(struct adapter *padapter,
+			   struct recv_frame *precv_frame,
+			   struct wlan_bssid_ex *bssid)
 {
 	int	i;
 	u32	len;
@@ -2233,7 +2246,7 @@ u8 collect_bss_info(struct adapter *padapter, struct recv_frame *precv_frame, st
 	return _SUCCESS;
 }
 
-void start_create_ibss(struct adapter *padapter)
+static void start_create_ibss(struct adapter *padapter)
 {
 	unsigned short	caps;
 	u8 val8;
@@ -2284,7 +2297,7 @@ void start_create_ibss(struct adapter *padapter)
 	}
 }
 
-void start_clnt_join(struct adapter *padapter)
+static void start_clnt_join(struct adapter *padapter)
 {
 	unsigned short	caps;
 	u8 val8;
@@ -2339,7 +2352,7 @@ void start_clnt_join(struct adapter *padapter)
 	}
 }
 
-void start_clnt_auth(struct adapter *padapter)
+static void start_clnt_auth(struct adapter *padapter)
 {
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
@@ -2370,7 +2383,7 @@ void start_clnt_auth(struct adapter *padapter)
 }
 
 
-void start_clnt_assoc(struct adapter *padapter)
+static void start_clnt_assoc(struct adapter *padapter)
 {
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
@@ -2385,7 +2398,9 @@ void start_clnt_assoc(struct adapter *padapter)
 	set_link_timer(pmlmeext, REASSOC_TO);
 }
 
-unsigned int receive_disconnect(struct adapter *padapter, unsigned char *MacAddr, unsigned short reason)
+static unsigned int receive_disconnect(struct adapter *padapter,
+				       unsigned char *MacAddr,
+				       unsigned short reason)
 {
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
