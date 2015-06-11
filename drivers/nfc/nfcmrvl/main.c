@@ -153,16 +153,8 @@ void nfcmrvl_nci_unregister_dev(struct nfcmrvl_private *priv)
 }
 EXPORT_SYMBOL_GPL(nfcmrvl_nci_unregister_dev);
 
-int nfcmrvl_nci_recv_frame(struct nfcmrvl_private *priv, void *data, int count)
+int nfcmrvl_nci_recv_frame(struct nfcmrvl_private *priv, struct sk_buff *skb)
 {
-	struct sk_buff *skb;
-
-	skb = nci_skb_alloc(priv->ndev, count, GFP_ATOMIC);
-	if (!skb)
-		return -ENOMEM;
-
-	memcpy(skb_put(skb, count), data, count);
-
 	if (priv->hci_muxed) {
 		if (skb->data[0] == NFCMRVL_HCI_EVENT_CODE &&
 		    skb->data[1] == NFCMRVL_HCI_NFC_EVENT_CODE) {
@@ -175,9 +167,15 @@ int nfcmrvl_nci_recv_frame(struct nfcmrvl_private *priv, void *data, int count)
 		}
 	}
 
-	nci_recv_frame(priv->ndev, skb);
+	if (test_bit(NFCMRVL_NCI_RUNNING, &priv->flags))
+		nci_recv_frame(priv->ndev, skb);
+	else {
+		/* Drop this packet since nobody wants it */
+		kfree_skb(skb);
+		return 0;
+	}
 
-	return count;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(nfcmrvl_nci_recv_frame);
 

@@ -69,18 +69,27 @@ static int nfcmrvl_inc_tx(struct nfcmrvl_usb_drv_data *drv_data)
 static void nfcmrvl_bulk_complete(struct urb *urb)
 {
 	struct nfcmrvl_usb_drv_data *drv_data = urb->context;
+	struct sk_buff *skb;
 	int err;
 
-	dev_dbg(&drv_data->udev->dev, "urb %p status %d count %d",
+	dev_dbg(&drv_data->udev->dev, "urb %p status %d count %d\n",
 		urb, urb->status, urb->actual_length);
 
 	if (!test_bit(NFCMRVL_NCI_RUNNING, &drv_data->flags))
 		return;
 
 	if (!urb->status) {
-		if (nfcmrvl_nci_recv_frame(drv_data->priv, urb->transfer_buffer,
-					   urb->actual_length) < 0)
-			nfc_err(&drv_data->udev->dev, "corrupted Rx packet\n");
+		skb = nci_skb_alloc(drv_data->priv->ndev, urb->actual_length,
+				    GFP_ATOMIC);
+		if (!skb) {
+			nfc_err(&drv_data->udev->dev, "failed to alloc mem\n");
+		} else {
+			memcpy(skb_put(skb, urb->actual_length),
+			       urb->transfer_buffer, urb->actual_length);
+			if (nfcmrvl_nci_recv_frame(drv_data->priv, skb) < 0)
+				nfc_err(&drv_data->udev->dev,
+					"corrupted Rx packet\n");
+		}
 	}
 
 	if (!test_bit(NFCMRVL_USB_BULK_RUNNING, &drv_data->flags))
