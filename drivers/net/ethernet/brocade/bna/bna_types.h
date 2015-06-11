@@ -739,10 +739,6 @@ struct bna_rxf {
 	void (*stop_cbfn) (struct bna_rx *rx);
 	struct bna_rx *stop_cbarg;
 
-	/* callback for bna_rx_receive_pause() / bna_rx_receive_resume() */
-	void (*oper_state_cbfn) (struct bnad *bnad, struct bna_rx *rx);
-	struct bnad *oper_state_cbarg;
-
 	/**
 	 * callback for:
 	 *	bna_rxf_ucast_set()

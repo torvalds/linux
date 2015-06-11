@@ -119,21 +119,6 @@ do {									\
 	}								\
 } while (0)
 
-#define	call_rxf_pause_cbfn(rxf)					\
-do {									\
-	if ((rxf)->oper_state_cbfn) {					\
-		void (*cbfn)(struct bnad *, struct bna_rx *);	\
-		struct bnad *cbarg;					\
-		cbfn = (rxf)->oper_state_cbfn;				\
-		cbarg = (rxf)->oper_state_cbarg;			\
-		(rxf)->oper_state_cbfn = NULL;				\
-		(rxf)->oper_state_cbarg = NULL;				\
-		cbfn(cbarg, rxf->rx);					\
-	}								\
-} while (0)
-
-#define	call_rxf_resume_cbfn(rxf) call_rxf_pause_cbfn(rxf)
-
 #define is_xxx_enable(mode, bitmask, xxx) ((bitmask & xxx) && (mode & xxx))
 
 #define is_xxx_disable(mode, bitmask, xxx) ((bitmask & xxx) && !(mode & xxx))

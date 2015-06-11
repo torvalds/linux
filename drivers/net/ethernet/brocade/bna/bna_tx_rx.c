@@ -103,12 +103,10 @@ bna_rxf_sm_stopped(struct bna_rxf *rxf, enum bna_rxf_event event)
 
 	case RXF_E_PAUSE:
 		rxf->flags |= BNA_RXF_F_PAUSED;
-		call_rxf_pause_cbfn(rxf);
 		break;
 
 	case RXF_E_RESUME:
 		rxf->flags &= ~BNA_RXF_F_PAUSED;
-		call_rxf_resume_cbfn(rxf);
 		break;
 
 	default:
@@ -119,7 +117,6 @@ bna_rxf_sm_stopped(struct bna_rxf *rxf, enum bna_rxf_event event)
 static void
 bna_rxf_sm_paused_entry(struct bna_rxf *rxf)
 {
-	call_rxf_pause_cbfn(rxf);
 }
 
 static void
@@ -166,7 +163,6 @@ bna_rxf_sm_cfg_wait(struct bna_rxf *rxf, enum bna_rxf_event event)
 		bna_rxf_cfg_reset(rxf);
 		call_rxf_start_cbfn(rxf);
 		call_rxf_cam_fltr_cbfn(rxf);
-		call_rxf_resume_cbfn(rxf);
 		bfa_fsm_set_state(rxf, bna_rxf_sm_stopped);
 		break;
 
@@ -197,7 +193,6 @@ bna_rxf_sm_started_entry(struct bna_rxf *rxf)
 {
 	call_rxf_start_cbfn(rxf);
 	call_rxf_cam_fltr_cbfn(rxf);
-	call_rxf_resume_cbfn(rxf);
 }
 
 static void
@@ -238,7 +233,6 @@ bna_rxf_sm_fltr_clr_wait(struct bna_rxf *rxf, enum bna_rxf_event event)
 	switch (event) {
 	case RXF_E_FAIL:
 		bna_rxf_cfg_reset(rxf);
-		call_rxf_pause_cbfn(rxf);
 		bfa_fsm_set_state(rxf, bna_rxf_sm_stopped);
 		break;
 
