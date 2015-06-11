@@ -298,7 +298,6 @@ const struct snd_kcontrol_new wm_adsp1_fw_controls[] = {
 };
 EXPORT_SYMBOL_GPL(wm_adsp1_fw_controls);
 
-#if IS_ENABLED(CONFIG_SND_SOC_ARIZONA)
 static const struct soc_enum wm_adsp2_rate_enum[] = {
 	SOC_VALUE_ENUM_SINGLE(ARIZONA_DSP1_CONTROL_1,
 			      ARIZONA_DSP1_RATE_SHIFT, 0xf,
@@ -318,22 +317,28 @@ static const struct soc_enum wm_adsp2_rate_enum[] = {
 			      arizona_rate_text, arizona_rate_val),
 };
 
-const struct snd_kcontrol_new wm_adsp2_fw_controls[] = {
-	SOC_ENUM_EXT("DSP1 Firmware", wm_adsp_fw_enum[0],
-		     wm_adsp_fw_get, wm_adsp_fw_put),
-	SOC_ENUM("DSP1 Rate", wm_adsp2_rate_enum[0]),
-	SOC_ENUM_EXT("DSP2 Firmware", wm_adsp_fw_enum[1],
-		     wm_adsp_fw_get, wm_adsp_fw_put),
-	SOC_ENUM("DSP2 Rate", wm_adsp2_rate_enum[1]),
-	SOC_ENUM_EXT("DSP3 Firmware", wm_adsp_fw_enum[2],
-		     wm_adsp_fw_get, wm_adsp_fw_put),
-	SOC_ENUM("DSP3 Rate", wm_adsp2_rate_enum[2]),
-	SOC_ENUM_EXT("DSP4 Firmware", wm_adsp_fw_enum[3],
-		     wm_adsp_fw_get, wm_adsp_fw_put),
-	SOC_ENUM("DSP4 Rate", wm_adsp2_rate_enum[3]),
+static const struct snd_kcontrol_new wm_adsp2_fw_controls[4][2] = {
+	{
+		SOC_ENUM_EXT("DSP1 Firmware", wm_adsp_fw_enum[0],
+			     wm_adsp_fw_get, wm_adsp_fw_put),
+		SOC_ENUM("DSP1 Rate", wm_adsp2_rate_enum[0]),
+	},
+	{
+		SOC_ENUM_EXT("DSP2 Firmware", wm_adsp_fw_enum[1],
+			     wm_adsp_fw_get, wm_adsp_fw_put),
+		SOC_ENUM("DSP2 Rate", wm_adsp2_rate_enum[1]),
+	},
+	{
+		SOC_ENUM_EXT("DSP3 Firmware", wm_adsp_fw_enum[2],
+			     wm_adsp_fw_get, wm_adsp_fw_put),
+		SOC_ENUM("DSP3 Rate", wm_adsp2_rate_enum[2]),
+	},
+	{
+		SOC_ENUM_EXT("DSP4 Firmware", wm_adsp_fw_enum[3],
+			     wm_adsp_fw_get, wm_adsp_fw_put),
+		SOC_ENUM("DSP4 Rate", wm_adsp2_rate_enum[3]),
+	},
 };
-EXPORT_SYMBOL_GPL(wm_adsp2_fw_controls);
-#endif
 
 static struct wm_adsp_region const *wm_adsp_find_region(struct wm_adsp *dsp,
 							int type)
@@ -1935,7 +1940,9 @@ EXPORT_SYMBOL_GPL(wm_adsp2_event);
 
 int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec)
 {
-	return 0;
+	return snd_soc_add_codec_controls(codec,
+					  wm_adsp2_fw_controls[dsp->num - 1],
+					  ARRAY_SIZE(wm_adsp2_fw_controls[0]));
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_codec_probe);
 
