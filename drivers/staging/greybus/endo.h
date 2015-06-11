@@ -49,7 +49,7 @@ struct gb_endo {
 /* Greybus "private" definitions */
 struct greybus_host_device;
 
-int gb_endo_init(void) __init;
+int gb_endo_init(void);
 void gb_endo_exit(void);
 
 struct gb_endo *gb_endo_create(struct greybus_host_device *hd,
