@@ -147,7 +147,7 @@ static irqreturn_t cxl_irq(int irq, void *data, struct cxl_irq_info *irq_info)
 	if (dsisr & CXL_PSL_DSISR_An_PE)
 		return handle_psl_slice_error(ctx, dsisr, irq_info->errstat);
 	if (dsisr & CXL_PSL_DSISR_An_AE) {
-		pr_devel("CXL interrupt: AFU Error %.llx\n", irq_info->afu_err);
+		pr_devel("CXL interrupt: AFU Error 0x%.16llx\n", irq_info->afu_err);
 
 		if (ctx->pending_afu_err) {
 			/*
@@ -158,7 +158,7 @@ static irqreturn_t cxl_irq(int irq, void *data, struct cxl_irq_info *irq_info)
 			 * probably best that we log them somewhere:
 			 */
 			dev_err_ratelimited(&ctx->afu->dev, "CXL AFU Error "
-					    "undelivered to pe %i: %.llx\n",
+					    "undelivered to pe %i: 0x%.16llx\n",
 					    ctx->pe, irq_info->afu_err);
 		} else {
 			spin_lock(&ctx->lock);
