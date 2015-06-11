@@ -1880,12 +1880,19 @@ static void core_alua_put_tg_pt_gp_from_name(
 static void __target_attach_tg_pt_gp(struct se_lun *lun,
 		struct t10_alua_tg_pt_gp *tg_pt_gp)
 {
+	struct se_dev_entry *se_deve;
+
 	assert_spin_locked(&lun->lun_tg_pt_gp_lock);
 
 	spin_lock(&tg_pt_gp->tg_pt_gp_lock);
 	lun->lun_tg_pt_gp = tg_pt_gp;
 	list_add_tail(&lun->lun_tg_pt_gp_link, &tg_pt_gp->tg_pt_gp_lun_list);
 	tg_pt_gp->tg_pt_gp_members++;
+	spin_lock(&lun->lun_deve_lock);
+	list_for_each_entry(se_deve, &lun->lun_deve_list, lun_link)
+		core_scsi3_ua_allocate(se_deve, 0x3f,
+				       ASCQ_3FH_INQUIRY_DATA_HAS_CHANGED);
+	spin_unlock(&lun->lun_deve_lock);
 	spin_unlock(&tg_pt_gp->tg_pt_gp_lock);
 }
 

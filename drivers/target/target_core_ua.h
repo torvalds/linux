@@ -25,6 +25,8 @@
 
 #define ASCQ_2CH_PREVIOUS_RESERVATION_CONFLICT_STATUS		0x09
 
+#define ASCQ_3FH_INQUIRY_DATA_HAS_CHANGED			0x03
+
 extern struct kmem_cache *se_ua_cache;
 
 extern sense_reason_t target_scsi3_ua_check(struct se_cmd *);
