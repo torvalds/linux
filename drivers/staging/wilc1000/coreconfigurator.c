@@ -158,7 +158,7 @@ typedef struct {
 /*****************************************************************************/
 /* Extern Function Declarations                                              */
 /*****************************************************************************/
-extern WILC_Sint32 SendRawPacket(WILC_Sint8 *ps8Packet, WILC_Sint32 s32PacketLen);
+extern WILC_Sint32 SendRawPacket(s8 *ps8Packet, WILC_Sint32 s32PacketLen);
 extern void NetworkInfoReceived(u8 *pu8Buffer, u32 u32Length);
 extern void GnrlAsyncInfoReceived(u8 *pu8Buffer, u32 u32Length);
 extern void host_int_ScanCompleteReceived(u8 *pu8Buffer, u32 u32Length);
@@ -168,7 +168,7 @@ extern void host_int_ScanCompleteReceived(u8 *pu8Buffer, u32 u32Length);
 static struct semaphore SemHandleSendPkt;
 static struct semaphore SemHandlePktResp;
 
-static WILC_Sint8 *gps8ConfigPacket;
+static s8 *gps8ConfigPacket;
 
 static tstrConfigPktInfo gstrConfigPktInfo;
 
@@ -678,7 +678,7 @@ WILC_Sint32 CoreConfiguratorInit(void)
 	sema_init(&SemHandleSendPkt, 1);
 	sema_init(&SemHandlePktResp, 0);
 
-	gps8ConfigPacket = (WILC_Sint8 *)WILC_MALLOC(MAX_PACKET_BUFF_SIZE);
+	gps8ConfigPacket = (s8 *)WILC_MALLOC(MAX_PACKET_BUFF_SIZE);
 	if (gps8ConfigPacket == NULL) {
 		PRINT_ER("failed in gps8ConfigPacket allocation\n");
 		s32Error = WILC_NO_MEM;
@@ -1097,7 +1097,7 @@ WILC_Sint32 DeallocateSurveyResults(wid_site_survey_reslts_s *pstrSurveyResults)
 /*****************************************************************************/
 
 void ProcessCharWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
-		    tstrWID *pstrWID, WILC_Sint8 *ps8WidVal)
+		    tstrWID *pstrWID, s8 *ps8WidVal)
 {
 	u8 *pu8val = (u8 *)ps8WidVal;
 	u8 u8val = 0;
@@ -1151,7 +1151,7 @@ void ProcessCharWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 /*****************************************************************************/
 
 void ProcessShortWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
-		     tstrWID *pstrWID, WILC_Sint8 *ps8WidVal)
+		     tstrWID *pstrWID, s8 *ps8WidVal)
 {
 	u16 *pu16val = (u16 *)ps8WidVal;
 	u16 u16val = 0;
@@ -1206,7 +1206,7 @@ void ProcessShortWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 /*****************************************************************************/
 
 void ProcessIntWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
-		   tstrWID *pstrWID, WILC_Sint8 *ps8WidVal)
+		   tstrWID *pstrWID, s8 *ps8WidVal)
 {
 	u32 *pu32val = (u32 *)ps8WidVal;
 	u32 u32val = 0;
@@ -1551,7 +1551,7 @@ WILC_Sint32 further_process_response(u8 *resp,
 		u16 *pu16val = (u16 *)(pstrWIDresult->ps8WidVal);
 		cfg_sht = MAKE_WORD16(resp[idx], resp[idx + 1]);
 		/*Set local copy of WID*/
-		/* pstrWIDresult->ps8WidVal = (WILC_Sint8*)(WILC_Sint32)cfg_sht; */
+		/* pstrWIDresult->ps8WidVal = (s8*)(WILC_Sint32)cfg_sht; */
 		*pu16val = cfg_sht;
 		break;
 	}
@@ -1564,7 +1564,7 @@ WILC_Sint32 further_process_response(u8 *resp,
 				MAKE_WORD16(resp[idx + 2], resp[idx + 3])
 				);
 		/*Set local copy of WID*/
-		/* pstrWIDresult->ps8WidVal = (WILC_Sint8*)cfg_int; */
+		/* pstrWIDresult->ps8WidVal = (s8*)cfg_int; */
 		*pu32val = cfg_int;
 		break;
 	}
@@ -1857,7 +1857,7 @@ WILC_Sint32 CreatePacketHeader(WILC_Char *pcpacket, WILC_Sint32 *ps32PacketLengt
  *  @version	1.0
  */
 
-WILC_Sint32 CreateConfigPacket(WILC_Sint8 *ps8packet, WILC_Sint32 *ps32PacketLength,
+WILC_Sint32 CreateConfigPacket(s8 *ps8packet, WILC_Sint32 *ps32PacketLength,
 			       tstrWID *pstrWIDs, u32 u32WIDsCount)
 {
 	WILC_Sint32 s32Error = WILC_SUCCESS;

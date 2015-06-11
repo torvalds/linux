@@ -397,18 +397,18 @@ typedef struct {
 	u16 u16WIDid;
 	tenuWIDtype enuWIDtype;
 	WILC_Sint32 s32ValueSize;
-	WILC_Sint8      *ps8WidVal;
+	s8      *ps8WidVal;
 
 } tstrWID;
 
 typedef struct {
 	u8 u8Full;
 	u8 u8Index;
-	WILC_Sint8 as8RSSI[NUM_RSSI];
+	s8 as8RSSI[NUM_RSSI];
 } tstrRSSI;
 /* This structure is used to support parsing of the received 'N' message */
 typedef struct {
-	WILC_Sint8 s8rssi;
+	s8 s8rssi;
 	u16 u16CapInfo;
 	u8 au8ssid[MAX_SSID_LEN];
 	u8 u8SsidLen;
@@ -490,7 +490,7 @@ extern WILC_Sint32 ParseSurveyResults(u8 ppu8RcvdSiteSurveyResults[][MAX_SURVEY_
 extern WILC_Sint32 DeallocateSurveyResults(wid_site_survey_reslts_s *pstrSurveyResults);
 #endif
 
-extern WILC_Sint32 SendRawPacket(WILC_Sint8 *pspacket, WILC_Sint32 s32PacketLen);
+extern WILC_Sint32 SendRawPacket(s8 *pspacket, WILC_Sint32 s32PacketLen);
 extern void NetworkInfoReceived(u8 *pu8Buffer, u32 u32Length);
 void GnrlAsyncInfoReceived(u8 *pu8Buffer, u32 u32Length);
 void host_int_ScanCompleteReceived(u8 *pu8Buffer, u32 u32Length);

@@ -128,12 +128,12 @@ typedef enum {WID_CHAR  = 0,
 typedef struct {
 	u16 cfg_wid;
 	WID_TYPE_T cfg_type;
-	WILC_Sint8     *pu8Para;
+	s8     *pu8Para;
 } cfg_param_t;
 
 typedef struct _tstrStatistics {
 	u8 u8LinkSpeed;
-	WILC_Sint8 s8RSSI;
+	s8 s8RSSI;
 	u32 u32TxCount;
 	u32 u32RxCount;
 	u32 u32TxFailureCount;
@@ -237,7 +237,7 @@ typedef enum {
 
 typedef struct {
 	u8 au8bssid[6];
-	WILC_Sint8 s8rssi;
+	s8 s8rssi;
 } tstrFoundNetworkInfo;
 
 typedef enum {SCAN_EVENT_NETWORK_FOUND  = 0,
@@ -989,8 +989,8 @@ WILC_Sint32 host_int_get_host_chnl_num(WILC_WFIDrvHandle hWFIDrv, u8 *pu8ChNo);
  *  @date		8 March 2012
  *  @version		1.0
  */
-WILC_Sint32 host_int_get_rssi(WILC_WFIDrvHandle hWFIDrv, WILC_Sint8 *ps8Rssi);
-WILC_Sint32 host_int_get_link_speed(WILC_WFIDrvHandle hWFIDrv, WILC_Sint8 *ps8lnkspd);
+WILC_Sint32 host_int_get_rssi(WILC_WFIDrvHandle hWFIDrv, s8 *ps8Rssi);
+WILC_Sint32 host_int_get_link_speed(WILC_WFIDrvHandle hWFIDrv, s8 *ps8lnkspd);
 /**
  *  @brief              scans a set of channels
  *  @details
@@ -1074,7 +1074,7 @@ void host_int_send_join_leave_info_to_host
  *  @version		1.0
  */
 void host_int_send_network_info_to_host
-	(u8 *macStartAddress, u16 u16RxFrameLen, WILC_Sint8 s8Rssi);
+	(u8 *macStartAddress, u16 u16RxFrameLen, s8 s8Rssi);
 
 /**
  *  @brief              host interface initialization function
