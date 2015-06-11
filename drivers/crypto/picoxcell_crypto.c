@@ -318,6 +318,7 @@ static int spacc_aead_make_ddts(struct spacc_req *req, u8 *giv)
 	struct spacc_ddt *src_ddt, *dst_ddt;
 	unsigned ivsize = crypto_aead_ivsize(crypto_aead_reqtfm(areq));
 	unsigned nents = sg_count(areq->src, areq->cryptlen);
+	unsigned total;
 	dma_addr_t iv_addr;
 	struct scatterlist *cur;
 	int i, dst_ents, src_ents, assoc_ents;
@@ -361,11 +362,18 @@ static int spacc_aead_make_ddts(struct spacc_req *req, u8 *giv)
 	 * Map the associated data. For decryption we don't copy the
 	 * associated data.
 	 */
+	total = areq->assoclen;
 	for_each_sg(areq->assoc, cur, assoc_ents, i) {
-		ddt_set(src_ddt++, sg_dma_address(cur), sg_dma_len(cur));
+		unsigned len = sg_dma_len(cur);
+
+		if (len > total)
+			len = total;
+
+		total -= len;
+
+		ddt_set(src_ddt++, sg_dma_address(cur), len);
 		if (req->is_encrypt)
-			ddt_set(dst_ddt++, sg_dma_address(cur),
-				sg_dma_len(cur));
+			ddt_set(dst_ddt++, sg_dma_address(cur), len);
 	}
 	ddt_set(src_ddt++, iv_addr, ivsize);
 
