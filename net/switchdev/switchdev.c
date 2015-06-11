@@ -853,7 +853,7 @@ int switchdev_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 	if (!err)
 		fi->fib_flags |= RTNH_F_OFFLOAD;
 
-	return err;
+	return err == -EOPNOTSUPP ? 0 : err;
 }
 EXPORT_SYMBOL_GPL(switchdev_fib_ipv4_add);
 
@@ -898,7 +898,7 @@ int switchdev_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
 	if (!err)
 		fi->fib_flags &= ~RTNH_F_OFFLOAD;
 
-	return err;
+	return err == -EOPNOTSUPP ? 0 : err;
 }
 EXPORT_SYMBOL_GPL(switchdev_fib_ipv4_del);
 
