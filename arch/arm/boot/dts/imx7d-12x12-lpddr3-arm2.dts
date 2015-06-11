@@ -230,9 +230,10 @@
 
 &i2c1 {
 	clock-frequency = <100000>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_i2c1_1>;
-	status = "disabled";
+	pinctrl-1 = <&pinctrl_i2c1_1>;
+	status = "okay";
 
 	pmic: pfuze3000@08 {
 		compatible = "fsl,pfuze3000";
@@ -327,9 +328,10 @@
 
 &i2c3 {
 	clock-frequency = <100000>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_i2c3_1>;
-	status = "disabled";
+	pinctrl-1 = <&pinctrl_i2c3_1>;
+	status = "okay";
 
 	max7322: gpio@68 {
 		compatible = "maxim,max7322";
