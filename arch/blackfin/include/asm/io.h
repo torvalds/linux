@@ -10,6 +10,7 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <asm/byteorder.h>
+#include <asm/def_LPBlackfin.h>
 
 #define __raw_readb bfin_read8
 #define __raw_readw bfin_read16
