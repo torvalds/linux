@@ -46,7 +46,6 @@ do {									\
 
 static int bna_rxf_cfg_apply(struct bna_rxf *rxf);
 static void bna_rxf_cfg_reset(struct bna_rxf *rxf);
-static int bna_rxf_fltr_clear(struct bna_rxf *rxf);
 static int bna_rxf_ucast_cfg_apply(struct bna_rxf *rxf);
 static int bna_rxf_promisc_cfg_apply(struct bna_rxf *rxf);
 static int bna_rxf_allmulti_cfg_apply(struct bna_rxf *rxf);
@@ -65,8 +64,6 @@ bfa_fsm_state_decl(bna_rxf, paused, struct bna_rxf,
 bfa_fsm_state_decl(bna_rxf, cfg_wait, struct bna_rxf,
 			enum bna_rxf_event);
 bfa_fsm_state_decl(bna_rxf, started, struct bna_rxf,
-			enum bna_rxf_event);
-bfa_fsm_state_decl(bna_rxf, fltr_clr_wait, struct bna_rxf,
 			enum bna_rxf_event);
 bfa_fsm_state_decl(bna_rxf, last_resp_wait, struct bna_rxf,
 			enum bna_rxf_event);
@@ -101,14 +98,6 @@ bna_rxf_sm_stopped(struct bna_rxf *rxf, enum bna_rxf_event event)
 		call_rxf_cam_fltr_cbfn(rxf);
 		break;
 
-	case RXF_E_PAUSE:
-		rxf->flags |= BNA_RXF_F_PAUSED;
-		break;
-
-	case RXF_E_RESUME:
-		rxf->flags &= ~BNA_RXF_F_PAUSED;
-		break;
-
 	default:
 		bfa_sm_fault(event);
 	}
@@ -130,11 +119,6 @@ bna_rxf_sm_paused(struct bna_rxf *rxf, enum bna_rxf_event event)
 
 	case RXF_E_CONFIG:
 		call_rxf_cam_fltr_cbfn(rxf);
-		break;
-
-	case RXF_E_RESUME:
-		rxf->flags &= ~BNA_RXF_F_PAUSED;
-		bfa_fsm_set_state(rxf, bna_rxf_sm_cfg_wait);
 		break;
 
 	default:
@@ -170,12 +154,6 @@ bna_rxf_sm_cfg_wait(struct bna_rxf *rxf, enum bna_rxf_event event)
 		/* No-op */
 		break;
 
-	case RXF_E_PAUSE:
-		rxf->flags |= BNA_RXF_F_PAUSED;
-		call_rxf_start_cbfn(rxf);
-		bfa_fsm_set_state(rxf, bna_rxf_sm_fltr_clr_wait);
-		break;
-
 	case RXF_E_FW_RESP:
 		if (!bna_rxf_cfg_apply(rxf)) {
 			/* No more pending config updates */
@@ -207,40 +185,6 @@ bna_rxf_sm_started(struct bna_rxf *rxf, enum bna_rxf_event event)
 
 	case RXF_E_CONFIG:
 		bfa_fsm_set_state(rxf, bna_rxf_sm_cfg_wait);
-		break;
-
-	case RXF_E_PAUSE:
-		rxf->flags |= BNA_RXF_F_PAUSED;
-		if (!bna_rxf_fltr_clear(rxf))
-			bfa_fsm_set_state(rxf, bna_rxf_sm_paused);
-		else
-			bfa_fsm_set_state(rxf, bna_rxf_sm_fltr_clr_wait);
-		break;
-
-	default:
-		bfa_sm_fault(event);
-	}
-}
-
-static void
-bna_rxf_sm_fltr_clr_wait_entry(struct bna_rxf *rxf)
-{
-}
-
-static void
-bna_rxf_sm_fltr_clr_wait(struct bna_rxf *rxf, enum bna_rxf_event event)
-{
-	switch (event) {
-	case RXF_E_FAIL:
-		bna_rxf_cfg_reset(rxf);
-		bfa_fsm_set_state(rxf, bna_rxf_sm_stopped);
-		break;
-
-	case RXF_E_FW_RESP:
-		if (!bna_rxf_fltr_clear(rxf)) {
-			/* No more pending CAM entries to clear */
-			bfa_fsm_set_state(rxf, bna_rxf_sm_paused);
-		}
 		break;
 
 	default:
@@ -647,25 +591,6 @@ bna_rxf_cfg_apply(struct bna_rxf *rxf)
 		return 1;
 
 	if (bna_rxf_rss_cfg_apply(rxf))
-		return 1;
-
-	return 0;
-}
-
-/* Only software reset */
-static int
-bna_rxf_fltr_clear(struct bna_rxf *rxf)
-{
-	if (bna_rxf_ucast_cfg_reset(rxf, BNA_HARD_CLEANUP))
-		return 1;
-
-	if (bna_rxf_mcast_cfg_reset(rxf, BNA_HARD_CLEANUP))
-		return 1;
-
-	if (bna_rxf_promisc_cfg_reset(rxf, BNA_HARD_CLEANUP))
-		return 1;
-
-	if (bna_rxf_allmulti_cfg_reset(rxf, BNA_HARD_CLEANUP))
 		return 1;
 
 	return 0;

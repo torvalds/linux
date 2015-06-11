@@ -191,8 +191,6 @@ enum bna_rxf_event {
 	RXF_E_STOP			= 2,
 	RXF_E_FAIL			= 3,
 	RXF_E_CONFIG			= 4,
-	RXF_E_PAUSE			= 5,
-	RXF_E_RESUME			= 6,
 	RXF_E_FW_RESP			= 7,
 };
 
