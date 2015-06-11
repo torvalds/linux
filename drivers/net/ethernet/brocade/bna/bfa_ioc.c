@@ -1091,12 +1091,9 @@ static void
 bfa_ioc_event_notify(struct bfa_ioc *ioc, enum bfa_ioc_event event)
 {
 	struct bfa_ioc_notify *notify;
-	struct list_head			*qe;
 
-	list_for_each(qe, &ioc->notify_q) {
-		notify = (struct bfa_ioc_notify *)qe;
+	list_for_each_entry(notify, &ioc->notify_q, qe)
 		notify->cbfn(notify->cbarg, event);
-	}
 }
 
 static void

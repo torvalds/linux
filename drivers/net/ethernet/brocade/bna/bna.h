@@ -208,28 +208,24 @@ do {									\
 #define bna_rx_rid_mask(_bna) ((_bna)->rx_mod.rid_mask)
 
 #define bna_tx_from_rid(_bna, _rid, _tx)				\
-do {								    \
-	struct bna_tx_mod *__tx_mod = &(_bna)->tx_mod;	  \
-	struct bna_tx *__tx;					    \
-	struct list_head *qe;					   \
-	_tx = NULL;						     \
-	list_for_each(qe, &__tx_mod->tx_active_q) {		     \
-		__tx = (struct bna_tx *)qe;			     \
-		if (__tx->rid == (_rid)) {			      \
-			(_tx) = __tx;				   \
-			break;					  \
-		}						       \
-	}							       \
+do {									\
+	struct bna_tx_mod *__tx_mod = &(_bna)->tx_mod;			\
+	struct bna_tx *__tx;						\
+	_tx = NULL;							\
+	list_for_each_entry(__tx, &__tx_mod->tx_active_q, qe) {		\
+		if (__tx->rid == (_rid)) {				\
+			(_tx) = __tx;					\
+			break;						\
+		}							\
+	}								\
 } while (0)
 
 #define bna_rx_from_rid(_bna, _rid, _rx)				\
 do {									\
 	struct bna_rx_mod *__rx_mod = &(_bna)->rx_mod;			\
 	struct bna_rx *__rx;						\
-	struct list_head *qe;						\
 	_rx = NULL;							\
-	list_for_each(qe, &__rx_mod->rx_active_q) {			\
-		__rx = (struct bna_rx *)qe;				\
+	list_for_each_entry(__rx, &__rx_mod->rx_active_q, qe) {		\
 		if (__rx->rid == (_rid)) {				\
 			(_rx) = __rx;					\
 			break;						\
@@ -249,15 +245,12 @@ do {									\
 
 static inline struct bna_mac *bna_mac_find(struct list_head *q, u8 *addr)
 {
-	struct bna_mac *mac = NULL;
-	struct list_head *qe;
-	list_for_each(qe, q) {
-		if (ether_addr_equal(((struct bna_mac *)qe)->addr, addr)) {
-			mac = (struct bna_mac *)qe;
-			break;
-		}
-	}
-	return mac;
+	struct bna_mac *mac;
+
+	list_for_each_entry(mac, q, qe)
+		if (ether_addr_equal(mac->addr, addr))
+			return mac;
+	return NULL;
 }
 
 #define bna_attr(_bna) (&(_bna)->ioceth.attr)
