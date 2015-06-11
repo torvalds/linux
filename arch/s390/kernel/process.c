@@ -81,8 +81,8 @@ void release_thread(struct task_struct *dead_task)
 
 void arch_release_task_struct(struct task_struct *tsk)
 {
-	if (tsk->thread.vxrs)
-		kfree(tsk->thread.vxrs);
+	if (is_vx_task(tsk))
+		kfree(tsk->thread.fpu.vxrs);
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
@@ -143,10 +143,10 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 	frame->childregs.psw.mask &= ~PSW_MASK_RI;
 
 	/* Save the fpu registers to new thread structure. */
-	save_fp_ctl(&p->thread.fp_regs.fpc);
-	save_fp_regs(p->thread.fp_regs.fprs);
-	p->thread.fp_regs.pad = 0;
-	p->thread.vxrs = NULL;
+	save_fp_ctl(&p->thread.fpu.fpc);
+	save_fp_regs(p->thread.fpu.fprs);
+	p->thread.fpu.pad = 0;
+	p->thread.fpu.vxrs = NULL;
 	/* Set a new TLS ?  */
 	if (clone_flags & CLONE_SETTLS) {
 		unsigned long tls = frame->childregs.gprs[6];
@@ -162,7 +162,7 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 
 asmlinkage void execve_tail(void)
 {
-	current->thread.fp_regs.fpc = 0;
+	current->thread.fpu.fpc = 0;
 	asm volatile("sfpc %0" : : "d" (0));
 }
 

@@ -105,32 +105,14 @@ struct rt_sigframe
 static void store_sigregs(void)
 {
 	save_access_regs(current->thread.acrs);
-	save_fp_ctl(&current->thread.fp_regs.fpc);
-	if (current->thread.vxrs) {
-		int i;
-
-		save_vx_regs(current->thread.vxrs);
-		for (i = 0; i < __NUM_FPRS; i++)
-			current->thread.fp_regs.fprs[i] =
-				*(freg_t *)(current->thread.vxrs + i);
-	} else
-		save_fp_regs(current->thread.fp_regs.fprs);
+	save_fpu_regs(&current->thread.fpu);
 }
 
 /* Load registers after signal return */
 static void load_sigregs(void)
 {
 	restore_access_regs(current->thread.acrs);
-	restore_fp_ctl(&current->thread.fp_regs.fpc);
-	if (current->thread.vxrs) {
-		int i;
-
-		for (i = 0; i < __NUM_FPRS; i++)
-			*(freg_t *)(current->thread.vxrs + i) =
-				current->thread.fp_regs.fprs[i];
-		restore_vx_regs(current->thread.vxrs);
-	} else
-		restore_fp_regs(current->thread.fp_regs.fprs);
+	restore_fpu_regs(&current->thread.fpu);
 }
 
 /* Returns non-zero on fault. */
@@ -146,8 +128,7 @@ static int save_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 	memcpy(&user_sregs.regs.gprs, &regs->gprs, sizeof(sregs->regs.gprs));
 	memcpy(&user_sregs.regs.acrs, current->thread.acrs,
 	       sizeof(user_sregs.regs.acrs));
-	memcpy(&user_sregs.fpregs, &current->thread.fp_regs,
-	       sizeof(user_sregs.fpregs));
+	fpregs_store(&user_sregs.fpregs, &current->thread.fpu);
 	if (__copy_to_user(sregs, &user_sregs, sizeof(_sigregs)))
 		return -EFAULT;
 	return 0;
@@ -185,8 +166,7 @@ static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 	memcpy(&current->thread.acrs, &user_sregs.regs.acrs,
 	       sizeof(current->thread.acrs));
 
-	memcpy(&current->thread.fp_regs, &user_sregs.fpregs,
-	       sizeof(current->thread.fp_regs));
+	fpregs_load(&user_sregs.fpregs, &current->thread.fpu);
 
 	clear_pt_regs_flag(regs, PIF_SYSCALL); /* No longer in a system call */
 	return 0;
@@ -200,13 +180,13 @@ static int save_sigregs_ext(struct pt_regs *regs,
 	int i;
 
 	/* Save vector registers to signal stack */
-	if (current->thread.vxrs) {
+	if (is_vx_task(current)) {
 		for (i = 0; i < __NUM_VXRS_LOW; i++)
-			vxrs[i] = *((__u64 *)(current->thread.vxrs + i) + 1);
+			vxrs[i] = *((__u64 *)(current->thread.fpu.vxrs + i) + 1);
 		if (__copy_to_user(&sregs_ext->vxrs_low, vxrs,
 				   sizeof(sregs_ext->vxrs_low)) ||
 		    __copy_to_user(&sregs_ext->vxrs_high,
-				   current->thread.vxrs + __NUM_VXRS_LOW,
+				   current->thread.fpu.vxrs + __NUM_VXRS_LOW,
 				   sizeof(sregs_ext->vxrs_high)))
 			return -EFAULT;
 	}
@@ -220,15 +200,15 @@ static int restore_sigregs_ext(struct pt_regs *regs,
 	int i;
 
 	/* Restore vector registers from signal stack */
-	if (current->thread.vxrs) {
+	if (is_vx_task(current)) {
 		if (__copy_from_user(vxrs, &sregs_ext->vxrs_low,
 				     sizeof(sregs_ext->vxrs_low)) ||
-		    __copy_from_user(current->thread.vxrs + __NUM_VXRS_LOW,
+		    __copy_from_user(current->thread.fpu.vxrs + __NUM_VXRS_LOW,
 				     &sregs_ext->vxrs_high,
 				     sizeof(sregs_ext->vxrs_high)))
 			return -EFAULT;
 		for (i = 0; i < __NUM_VXRS_LOW; i++)
-			*((__u64 *)(current->thread.vxrs + i) + 1) = vxrs[i];
+			*((__u64 *)(current->thread.fpu.vxrs + i) + 1) = vxrs[i];
 	}
 	return 0;
 }
@@ -400,7 +380,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	uc_flags = 0;
 	if (MACHINE_HAS_VX) {
 		frame_size += sizeof(_sigregs_ext);
-		if (current->thread.vxrs)
+		if (is_vx_task(current))
 			uc_flags |= UC_VXRS;
 	}
 	frame = get_sigframe(&ksig->ka, regs, frame_size);

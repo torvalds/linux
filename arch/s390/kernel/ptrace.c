@@ -59,7 +59,7 @@ void update_cr_regs(struct task_struct *task)
 		if (MACHINE_HAS_VX) {
 			/* Enable/disable of vector extension */
 			cr_new &= ~(1UL << 17);
-			if (task->thread.vxrs)
+			if (task->thread.fpu.vxrs)
 				cr_new |= (1UL << 17);
 		}
 		if (cr_new != cr)
@@ -242,21 +242,21 @@ static unsigned long __peek_user(struct task_struct *child, addr_t addr)
 		/*
 		 * floating point control reg. is in the thread structure
 		 */
-		tmp = child->thread.fp_regs.fpc;
+		tmp = child->thread.fpu.fpc;
 		tmp <<= BITS_PER_LONG - 32;
 
 	} else if (addr < (addr_t) (&dummy->regs.fp_regs + 1)) {
 		/*
-		 * floating point regs. are either in child->thread.fp_regs
-		 * or the child->thread.vxrs array
+		 * floating point regs. are either in child->thread.fpu
+		 * or the child->thread.fpu.vxrs array
 		 */
 		offset = addr - (addr_t) &dummy->regs.fp_regs.fprs;
-		if (child->thread.vxrs)
+		if (is_vx_task(child))
 			tmp = *(addr_t *)
-			       ((addr_t) child->thread.vxrs + 2*offset);
+			       ((addr_t) child->thread.fpu.vxrs + 2*offset);
 		else
 			tmp = *(addr_t *)
-			       ((addr_t) &child->thread.fp_regs.fprs + offset);
+			       ((addr_t) &child->thread.fpu.fprs + offset);
 
 	} else if (addr < (addr_t) (&dummy->regs.per_info + 1)) {
 		/*
@@ -387,20 +387,20 @@ static int __poke_user(struct task_struct *child, addr_t addr, addr_t data)
 		if ((unsigned int) data != 0 ||
 		    test_fp_ctl(data >> (BITS_PER_LONG - 32)))
 			return -EINVAL;
-		child->thread.fp_regs.fpc = data >> (BITS_PER_LONG - 32);
+		child->thread.fpu.fpc = data >> (BITS_PER_LONG - 32);
 
 	} else if (addr < (addr_t) (&dummy->regs.fp_regs + 1)) {
 		/*
-		 * floating point regs. are either in child->thread.fp_regs
-		 * or the child->thread.vxrs array
+		 * floating point regs. are either in child->thread.fpu
+		 * or the child->thread.fpu.vxrs array
 		 */
 		offset = addr - (addr_t) &dummy->regs.fp_regs.fprs;
-		if (child->thread.vxrs)
+		if (is_vx_task(child))
 			*(addr_t *)((addr_t)
-				child->thread.vxrs + 2*offset) = data;
+				child->thread.fpu.vxrs + 2*offset) = data;
 		else
 			*(addr_t *)((addr_t)
-				&child->thread.fp_regs.fprs + offset) = data;
+				&child->thread.fpu.fprs + offset) = data;
 
 	} else if (addr < (addr_t) (&dummy->regs.per_info + 1)) {
 		/*
@@ -621,20 +621,20 @@ static u32 __peek_user_compat(struct task_struct *child, addr_t addr)
 		/*
 		 * floating point control reg. is in the thread structure
 		 */
-		tmp = child->thread.fp_regs.fpc;
+		tmp = child->thread.fpu.fpc;
 
 	} else if (addr < (addr_t) (&dummy32->regs.fp_regs + 1)) {
 		/*
-		 * floating point regs. are either in child->thread.fp_regs
-		 * or the child->thread.vxrs array
+		 * floating point regs. are either in child->thread.fpu
+		 * or the child->thread.fpu.vxrs array
 		 */
 		offset = addr - (addr_t) &dummy32->regs.fp_regs.fprs;
-		if (child->thread.vxrs)
+		if (is_vx_task(child))
 			tmp = *(__u32 *)
-			       ((addr_t) child->thread.vxrs + 2*offset);
+			       ((addr_t) child->thread.fpu.vxrs + 2*offset);
 		else
 			tmp = *(__u32 *)
-			       ((addr_t) &child->thread.fp_regs.fprs + offset);
+			       ((addr_t) &child->thread.fpu.fprs + offset);
 
 	} else if (addr < (addr_t) (&dummy32->regs.per_info + 1)) {
 		/*
@@ -746,20 +746,20 @@ static int __poke_user_compat(struct task_struct *child,
 		 */
 		if (test_fp_ctl(tmp))
 			return -EINVAL;
-		child->thread.fp_regs.fpc = data;
+		child->thread.fpu.fpc = data;
 
 	} else if (addr < (addr_t) (&dummy32->regs.fp_regs + 1)) {
 		/*
-		 * floating point regs. are either in child->thread.fp_regs
-		 * or the child->thread.vxrs array
+		 * floating point regs. are either in child->thread.fpu
+		 * or the child->thread.fpu.vxrs array
 		 */
 		offset = addr - (addr_t) &dummy32->regs.fp_regs.fprs;
-		if (child->thread.vxrs)
+		if (is_vx_task(child))
 			*(__u32 *)((addr_t)
-				child->thread.vxrs + 2*offset) = tmp;
+				child->thread.fpu.vxrs + 2*offset) = tmp;
 		else
 			*(__u32 *)((addr_t)
-				&child->thread.fp_regs.fprs + offset) = tmp;
+				&child->thread.fpu.fprs + offset) = tmp;
 
 	} else if (addr < (addr_t) (&dummy32->regs.per_info + 1)) {
 		/*
@@ -952,18 +952,16 @@ static int s390_fpregs_get(struct task_struct *target,
 			   const struct user_regset *regset, unsigned int pos,
 			   unsigned int count, void *kbuf, void __user *ubuf)
 {
-	if (target == current) {
-		save_fp_ctl(&target->thread.fp_regs.fpc);
-		save_fp_regs(target->thread.fp_regs.fprs);
-	} else if (target->thread.vxrs) {
-		int i;
+	_s390_fp_regs fp_regs;
 
-		for (i = 0; i < __NUM_VXRS_LOW; i++)
-			target->thread.fp_regs.fprs[i] =
-				*(freg_t *)(target->thread.vxrs + i);
-	}
+	if (target == current)
+		save_fpu_regs(&target->thread.fpu);
+
+	fp_regs.fpc = target->thread.fpu.fpc;
+	fpregs_store(&fp_regs, &target->thread.fpu);
+
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   &target->thread.fp_regs, 0, -1);
+				   &fp_regs, 0, -1);
 }
 
 static int s390_fpregs_set(struct task_struct *target,
@@ -972,41 +970,36 @@ static int s390_fpregs_set(struct task_struct *target,
 			   const void __user *ubuf)
 {
 	int rc = 0;
+	freg_t fprs[__NUM_FPRS];
 
-	if (target == current) {
-		save_fp_ctl(&target->thread.fp_regs.fpc);
-		save_fp_regs(target->thread.fp_regs.fprs);
-	}
+	if (target == current)
+		save_fpu_regs(&target->thread.fpu);
 
 	/* If setting FPC, must validate it first. */
 	if (count > 0 && pos < offsetof(s390_fp_regs, fprs)) {
-		u32 ufpc[2] = { target->thread.fp_regs.fpc, 0 };
+		u32 ufpc[2] = { target->thread.fpu.fpc, 0 };
 		rc = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &ufpc,
 					0, offsetof(s390_fp_regs, fprs));
 		if (rc)
 			return rc;
 		if (ufpc[1] != 0 || test_fp_ctl(ufpc[0]))
 			return -EINVAL;
-		target->thread.fp_regs.fpc = ufpc[0];
+		target->thread.fpu.fpc = ufpc[0];
 	}
 
 	if (rc == 0 && count > 0)
 		rc = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-					target->thread.fp_regs.fprs,
-					offsetof(s390_fp_regs, fprs), -1);
+					fprs, offsetof(s390_fp_regs, fprs), -1);
+	if (rc)
+		return rc;
 
-	if (rc == 0) {
-		if (target == current) {
-			restore_fp_ctl(&target->thread.fp_regs.fpc);
-			restore_fp_regs(target->thread.fp_regs.fprs);
-		} else if (target->thread.vxrs) {
-			int i;
+	if (is_vx_task(target))
+		convert_fp_to_vx(target->thread.fpu.vxrs, fprs);
+	else
+		memcpy(target->thread.fpu.fprs, &fprs, sizeof(fprs));
 
-			for (i = 0; i < __NUM_VXRS_LOW; i++)
-				*(freg_t *)(target->thread.vxrs + i) =
-					target->thread.fp_regs.fprs[i];
-		}
-	}
+	if (target == current)
+		restore_fpu_regs(&target->thread.fpu);
 
 	return rc;
 }
@@ -1069,11 +1062,11 @@ static int s390_vxrs_low_get(struct task_struct *target,
 
 	if (!MACHINE_HAS_VX)
 		return -ENODEV;
-	if (target->thread.vxrs) {
+	if (is_vx_task(target)) {
 		if (target == current)
-			save_vx_regs(target->thread.vxrs);
+			save_fpu_regs(&target->thread.fpu);
 		for (i = 0; i < __NUM_VXRS_LOW; i++)
-			vxrs[i] = *((__u64 *)(target->thread.vxrs + i) + 1);
+			vxrs[i] = *((__u64 *)(target->thread.fpu.vxrs + i) + 1);
 	} else
 		memset(vxrs, 0, sizeof(vxrs));
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, vxrs, 0, -1);
@@ -1089,19 +1082,19 @@ static int s390_vxrs_low_set(struct task_struct *target,
 
 	if (!MACHINE_HAS_VX)
 		return -ENODEV;
-	if (!target->thread.vxrs) {
+	if (!is_vx_task(target)) {
 		rc = alloc_vector_registers(target);
 		if (rc)
 			return rc;
 	} else if (target == current)
-		save_vx_regs(target->thread.vxrs);
+		save_fpu_regs(&target->thread.fpu);
 
 	rc = user_regset_copyin(&pos, &count, &kbuf, &ubuf, vxrs, 0, -1);
 	if (rc == 0) {
 		for (i = 0; i < __NUM_VXRS_LOW; i++)
-			*((__u64 *)(target->thread.vxrs + i) + 1) = vxrs[i];
+			*((__u64 *)(target->thread.fpu.vxrs + i) + 1) = vxrs[i];
 		if (target == current)
-			restore_vx_regs(target->thread.vxrs);
+			restore_fpu_regs(&target->thread.fpu);
 	}
 
 	return rc;
@@ -1116,10 +1109,10 @@ static int s390_vxrs_high_get(struct task_struct *target,
 
 	if (!MACHINE_HAS_VX)
 		return -ENODEV;
-	if (target->thread.vxrs) {
+	if (is_vx_task(target)) {
 		if (target == current)
-			save_vx_regs(target->thread.vxrs);
-		memcpy(vxrs, target->thread.vxrs + __NUM_VXRS_LOW,
+			save_fpu_regs(&target->thread.fpu);
+		memcpy(vxrs, target->thread.fpu.vxrs + __NUM_VXRS_LOW,
 		       sizeof(vxrs));
 	} else
 		memset(vxrs, 0, sizeof(vxrs));
@@ -1135,17 +1128,17 @@ static int s390_vxrs_high_set(struct task_struct *target,
 
 	if (!MACHINE_HAS_VX)
 		return -ENODEV;
-	if (!target->thread.vxrs) {
+	if (!is_vx_task(target)) {
 		rc = alloc_vector_registers(target);
 		if (rc)
 			return rc;
 	} else if (target == current)
-		save_vx_regs(target->thread.vxrs);
+		save_fpu_regs(&target->thread.fpu);
 
 	rc = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				target->thread.vxrs + __NUM_VXRS_LOW, 0, -1);
+				target->thread.fpu.vxrs + __NUM_VXRS_LOW, 0, -1);
 	if (rc == 0 && target == current)
-		restore_vx_regs(target->thread.vxrs);
+		restore_vx_regs(target->thread.fpu.vxrs);
 
 	return rc;
 }
