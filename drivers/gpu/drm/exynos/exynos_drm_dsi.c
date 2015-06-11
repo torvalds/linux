@@ -260,6 +260,7 @@ struct exynos_dsi_transfer {
 #define DSIM_STATE_ENABLED		BIT(0)
 #define DSIM_STATE_INITIALIZED		BIT(1)
 #define DSIM_STATE_CMD_LPM		BIT(2)
+#define DSIM_STATE_VIDOUT_AVAILABLE	BIT(3)
 
 struct exynos_dsi_driver_data {
 	unsigned int plltmr_reg;
@@ -1119,7 +1120,7 @@ static irqreturn_t exynos_dsi_te_irq_handler(int irq, void *dev_id)
 	struct exynos_dsi *dsi = (struct exynos_dsi *)dev_id;
 	struct drm_encoder *encoder = dsi->display.encoder;
 
-	if (dsi->state & DSIM_STATE_ENABLED)
+	if (dsi->state & DSIM_STATE_VIDOUT_AVAILABLE)
 		exynos_drm_crtc_te_handler(encoder->crtc);
 
 	return IRQ_HANDLED;
@@ -1252,6 +1253,9 @@ static ssize_t exynos_dsi_host_transfer(struct mipi_dsi_host *host,
 	struct exynos_dsi_transfer xfer;
 	int ret;
 
+	if (!(dsi->state & DSIM_STATE_ENABLED))
+		return -EINVAL;
+
 	if (!(dsi->state & DSIM_STATE_INITIALIZED)) {
 		ret = exynos_dsi_init(dsi);
 		if (ret)
@@ -1370,16 +1374,17 @@ static int exynos_dsi_enable(struct exynos_dsi *dsi)
 	if (ret < 0)
 		return ret;
 
+	dsi->state |= DSIM_STATE_ENABLED;
+
 	ret = drm_panel_prepare(dsi->panel);
 	if (ret < 0) {
+		dsi->state &= ~DSIM_STATE_ENABLED;
 		exynos_dsi_poweroff(dsi);
 		return ret;
 	}
 
 	exynos_dsi_set_display_mode(dsi);
 	exynos_dsi_set_display_enable(dsi, true);
-
-	dsi->state |= DSIM_STATE_ENABLED;
 
 	ret = drm_panel_enable(dsi->panel);
 	if (ret < 0) {
@@ -1390,6 +1395,8 @@ static int exynos_dsi_enable(struct exynos_dsi *dsi)
 		return ret;
 	}
 
+	dsi->state |= DSIM_STATE_VIDOUT_AVAILABLE;
+
 	return 0;
 }
 
@@ -1398,12 +1405,15 @@ static void exynos_dsi_disable(struct exynos_dsi *dsi)
 	if (!(dsi->state & DSIM_STATE_ENABLED))
 		return;
 
+	dsi->state &= ~DSIM_STATE_VIDOUT_AVAILABLE;
+
 	drm_panel_disable(dsi->panel);
 	exynos_dsi_set_display_enable(dsi, false);
 	drm_panel_unprepare(dsi->panel);
-	exynos_dsi_poweroff(dsi);
 
 	dsi->state &= ~DSIM_STATE_ENABLED;
+
+	exynos_dsi_poweroff(dsi);
 }
 
 static void exynos_dsi_dpms(struct exynos_drm_display *display, int mode)
