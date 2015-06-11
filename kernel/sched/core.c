@@ -1001,7 +1001,11 @@ inline int task_curr(const struct task_struct *p)
 }
 
 /*
- * Can drop rq->lock because from sched_class::switched_from() methods drop it.
+ * switched_from, switched_to and prio_changed must _NOT_ drop rq->lock,
+ * use the balance_callback list if you want balancing.
+ *
+ * this means any call to check_class_changed() must be followed by a call to
+ * balance_callback().
  */
 static inline void check_class_changed(struct rq *rq, struct task_struct *p,
 				       const struct sched_class *prev_class,
@@ -1010,7 +1014,7 @@ static inline void check_class_changed(struct rq *rq, struct task_struct *p,
 	if (prev_class != p->sched_class) {
 		if (prev_class->switched_from)
 			prev_class->switched_from(rq, p);
-		/* Possble rq->lock 'hole'.  */
+
 		p->sched_class->switched_to(rq, p);
 	} else if (oldprio != p->prio || dl_task(p))
 		p->sched_class->prio_changed(rq, p, oldprio);
@@ -1491,8 +1495,12 @@ ttwu_do_wakeup(struct rq *rq, struct task_struct *p, int wake_flags)
 
 	p->state = TASK_RUNNING;
 #ifdef CONFIG_SMP
-	if (p->sched_class->task_woken)
+	if (p->sched_class->task_woken) {
+		/*
+		 * XXX can drop rq->lock; most likely ok.
+		 */
 		p->sched_class->task_woken(rq, p);
+	}
 
 	if (rq->idle_stamp) {
 		u64 delta = rq_clock(rq) - rq->idle_stamp;
@@ -3100,7 +3108,11 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 
 	check_class_changed(rq, p, prev_class, oldprio);
 out_unlock:
+	preempt_disable(); /* avoid rq from going away on us */
 	__task_rq_unlock(rq);
+
+	balance_callback(rq);
+	preempt_enable();
 }
 #endif
 
@@ -3661,10 +3673,17 @@ change:
 	}
 
 	check_class_changed(rq, p, prev_class, oldprio);
+	preempt_disable(); /* avoid rq from going away on us */
 	task_rq_unlock(rq, p, &flags);
 
 	if (pi)
 		rt_mutex_adjust_pi(p);
+
+	/*
+	 * Run balance callbacks after we've adjusted the PI chain.
+	 */
+	balance_callback(rq);
+	preempt_enable();
 
 	return 0;
 }
