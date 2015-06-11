@@ -195,6 +195,7 @@ ste	ST-Ericsson
 stericsson	ST-Ericsson
 synology	Synology, Inc.
 tbs	TBS Technologies
+tcl	Toby Churchill Ltd.
 thine	THine Electronics, Inc.
 ti	Texas Instruments
 tlm	Trusted Logic Mobility
