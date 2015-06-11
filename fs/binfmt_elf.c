@@ -824,7 +824,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 			total_size = total_mapping_size(elf_phdata,
 							loc->elf_ex.e_phnum);
 			if (!total_size) {
-				error = -EINVAL;
+				retval = -EINVAL;
 				goto out_free_dentry;
 			}
 		}

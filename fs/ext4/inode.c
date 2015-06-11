@@ -1032,7 +1032,8 @@ retry_journal:
 		ext4_journal_stop(handle);
 		goto retry_grab;
 	}
-	wait_on_page_writeback(page);
+	/* In case writeback began while the page was unlocked */
+	wait_for_stable_page(page);
 
 	if (ext4_should_dioread_nolock(inode))
 		ret = __block_write_begin(page, pos, len, ext4_get_block_write);
@@ -2729,7 +2730,7 @@ retry_journal:
 		goto retry_grab;
 	}
 	/* In case writeback began while the page was unlocked */
-	wait_on_page_writeback(page);
+	wait_for_stable_page(page);
 
 	ret = __block_write_begin(page, pos, len, ext4_da_get_block_prep);
 	if (ret < 0) {
