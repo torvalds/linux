@@ -1132,18 +1132,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL(ieee80211_register_hw);
 
-void ieee80211_napi_add(struct ieee80211_hw *hw, struct napi_struct *napi,
-			struct net_device *napi_dev,
-			int (*poll)(struct napi_struct *, int),
-			int weight)
-{
-	struct ieee80211_local *local = hw_to_local(hw);
-
-	netif_napi_add(napi_dev, napi, poll, weight);
-	local->napi = napi;
-}
-EXPORT_SYMBOL_GPL(ieee80211_napi_add);
-
 void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);

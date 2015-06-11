@@ -1316,7 +1316,8 @@ static void iwl_mvm_napi_add(struct iwl_op_mode *op_mode,
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 
-	ieee80211_napi_add(mvm->hw, napi, napi_dev, poll, weight);
+	netif_napi_add(napi_dev, napi, poll, weight);
+	mvm->napi = napi;
 }
 
 static const struct iwl_op_mode_ops iwl_mvm_ops = {

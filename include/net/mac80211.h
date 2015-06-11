@@ -3694,20 +3694,28 @@ void ieee80211_free_hw(struct ieee80211_hw *hw);
 void ieee80211_restart_hw(struct ieee80211_hw *hw);
 
 /**
- * ieee80211_napi_add - initialize mac80211 NAPI context
- * @hw: the hardware to initialize the NAPI context on
- * @napi: the NAPI context to initialize
- * @napi_dev: dummy NAPI netdevice, here to not waste the space if the
- *	driver doesn't use NAPI
- * @poll: poll function
- * @weight: default weight
+ * ieee80211_rx_napi - receive frame from NAPI context
  *
- * See also netif_napi_add().
+ * Use this function to hand received frames to mac80211. The receive
+ * buffer in @skb must start with an IEEE 802.11 header. In case of a
+ * paged @skb is used, the driver is recommended to put the ieee80211
+ * header of the frame on the linear part of the @skb to avoid memory
+ * allocation and/or memcpy by the stack.
+ *
+ * This function may not be called in IRQ context. Calls to this function
+ * for a single hardware must be synchronized against each other. Calls to
+ * this function, ieee80211_rx_ni() and ieee80211_rx_irqsafe() may not be
+ * mixed for a single hardware. Must not run concurrently with
+ * ieee80211_tx_status() or ieee80211_tx_status_ni().
+ *
+ * This function must be called with BHs disabled.
+ *
+ * @hw: the hardware this frame came in on
+ * @skb: the buffer to receive, owned by mac80211 after this call
+ * @napi: the NAPI context
  */
-void ieee80211_napi_add(struct ieee80211_hw *hw, struct napi_struct *napi,
-			struct net_device *napi_dev,
-			int (*poll)(struct napi_struct *, int),
-			int weight);
+void ieee80211_rx_napi(struct ieee80211_hw *hw, struct sk_buff *skb,
+		       struct napi_struct *napi);
 
 /**
  * ieee80211_rx - receive frame
@@ -3729,7 +3737,10 @@ void ieee80211_napi_add(struct ieee80211_hw *hw, struct napi_struct *napi,
  * @hw: the hardware this frame came in on
  * @skb: the buffer to receive, owned by mac80211 after this call
  */
-void ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb);
+static inline void ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+	ieee80211_rx_napi(hw, skb, NULL);
+}
 
 /**
  * ieee80211_rx_irqsafe - receive frame

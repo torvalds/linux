@@ -559,6 +559,7 @@ struct iwl_mvm {
 	const struct iwl_cfg *cfg;
 	struct iwl_phy_db *phy_db;
 	struct ieee80211_hw *hw;
+	struct napi_struct *napi;
 
 	/* for protecting access to iwl_mvm */
 	struct mutex mutex;
