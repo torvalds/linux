@@ -2,7 +2,8 @@
  * Broadcom specific Advanced Microcontroller Bus
  * Broadcom USB-core driver (BCMA bus glue)
  *
- * Copyright 2011-2012 Hauke Mehrtens <hauke@hauke-m.de>
+ * Copyright 2011-2015 Hauke Mehrtens <hauke@hauke-m.de>
+ * Copyright 2015 Felix Fietkau <nbd@openwrt.org>
  *
  * Based on ssb-ohci driver
  * Copyright 2007 Michael Buesch <m@bues.ch>
@@ -88,7 +89,7 @@ static void bcma_hcd_4716wa(struct bcma_device *dev)
 }
 
 /* based on arch/mips/brcm-boards/bcm947xx/pcibios.c */
-static void bcma_hcd_init_chip(struct bcma_device *dev)
+static void bcma_hcd_init_chip_mips(struct bcma_device *dev)
 {
 	u32 tmp;
 
@@ -156,6 +157,70 @@ static void bcma_hcd_init_chip(struct bcma_device *dev)
 		}
 
 		bcma_hcd_4716wa(dev);
+	}
+}
+
+static void bcma_hcd_init_chip_arm_phy(struct bcma_device *dev)
+{
+	struct bcma_device *arm_core;
+	void __iomem *dmu;
+
+	arm_core = bcma_find_core(dev->bus, BCMA_CORE_ARMCA9);
+	if (!arm_core) {
+		dev_err(&dev->dev, "can not find ARM Cortex A9 ihost core\n");
+		return;
+	}
+
+	dmu = ioremap_nocache(arm_core->addr_s[0], 0x1000);
+	if (!dmu) {
+		dev_err(&dev->dev, "can not map ARM Cortex A9 ihost core\n");
+		return;
+	}
+
+	/* Unlock DMU PLL settings */
+	iowrite32(0x0000ea68, dmu + 0x180);
+
+	/* Write USB 2.0 PLL control setting */
+	iowrite32(0x00dd10c3, dmu + 0x164);
+
+	/* Lock DMU PLL settings */
+	iowrite32(0x00000000, dmu + 0x180);
+
+	iounmap(dmu);
+}
+
+static void bcma_hcd_init_chip_arm_hc(struct bcma_device *dev)
+{
+	u32 val;
+
+	/*
+	 * Delay after PHY initialized to ensure HC is ready to be configured
+	 */
+	usleep_range(1000, 2000);
+
+	/* Set packet buffer OUT threshold */
+	val = bcma_read32(dev, 0x94);
+	val &= 0xffff;
+	val |= 0x80 << 16;
+	bcma_write32(dev, 0x94, val);
+
+	/* Enable break memory transfer */
+	val = bcma_read32(dev, 0x9c);
+	val |= 1;
+	bcma_write32(dev, 0x9c, val);
+}
+
+static void bcma_hcd_init_chip_arm(struct bcma_device *dev)
+{
+	bcma_core_enable(dev, 0);
+
+	if (dev->bus->chipinfo.id == BCMA_CHIP_ID_BCM4707 ||
+	    dev->bus->chipinfo.id == BCMA_CHIP_ID_BCM53018) {
+		if (dev->bus->chipinfo.pkg == BCMA_PKG_ID_BCM4707 ||
+		    dev->bus->chipinfo.pkg == BCMA_PKG_ID_BCM4708)
+			bcma_hcd_init_chip_arm_phy(dev);
+
+		bcma_hcd_init_chip_arm_hc(dev);
 	}
 }
 
@@ -230,7 +295,16 @@ static int bcma_hcd_probe(struct bcma_device *dev)
 	if (!usb_dev)
 		return -ENOMEM;
 
-	bcma_hcd_init_chip(dev);
+	switch (dev->id.id) {
+	case BCMA_CORE_NS_USB20:
+		bcma_hcd_init_chip_arm(dev);
+		break;
+	case BCMA_CORE_USB20_HOST:
+		bcma_hcd_init_chip_mips(dev);
+		break;
+	default:
+		return -ENODEV;
+	}
 
 	/* In AI chips EHCI is addrspace 0, OHCI is 1 */
 	ohci_addr = dev->addr_s[0];
@@ -299,6 +373,7 @@ static int bcma_hcd_resume(struct bcma_device *dev)
 
 static const struct bcma_device_id bcma_hcd_table[] = {
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_USB20_HOST, BCMA_ANY_REV, BCMA_ANY_CLASS),
+	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_NS_USB20, BCMA_ANY_REV, BCMA_ANY_CLASS),
 	{},
 };
 MODULE_DEVICE_TABLE(bcma, bcma_hcd_table);
