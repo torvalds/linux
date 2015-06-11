@@ -1,6 +1,7 @@
 /*
- * SAMSUNG SMDK5420 board device tree source
+ * Hardkernel Odroid XU3 board device tree source
  *
+ * Copyright (c) 2014 Collabora Ltd.
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
@@ -9,19 +10,24 @@
  * published by the Free Software Foundation.
 */
 
-/dts-v1/;
-#include "exynos5420.dtsi"
+#include <dt-bindings/clock/samsung,s2mps11.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/sound/samsung-i2s.h>
+#include "exynos5800.dtsi"
 
 / {
-	model = "Samsung SMDK5420 board based on EXYNOS5420";
-	compatible = "samsung,smdk5420", "samsung,exynos5420", "samsung,exynos5";
-
 	memory {
-		reg = <0x20000000 0x80000000>;
+		reg = <0x40000000 0x7EA00000>;
 	};
 
 	chosen {
-		bootargs = "console=ttySAC2,115200 init=/linuxrc";
+		linux,stdout-path = &serial_2;
+	};
+
+	firmware@02073000 {
+		compatible = "samsung,secure-firmware";
+		reg = <0x02073000 0x1000>;
 	};
 
 	fixed-rate-clocks {
@@ -31,98 +37,103 @@
 		};
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		vdd: fixed-regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "vdd-supply";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			regulator-always-on;
-		};
-
-		dbvdd: fixed-regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "dbvdd-supply";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			regulator-always-on;
-		};
-
-		spkvdd: fixed-regulator@2 {
-			compatible = "regulator-fixed";
-			reg = <2>;
-			regulator-name = "spkvdd-supply";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			regulator-always-on;
-		};
-	};
-
-	usb300_vbus_reg: regulator-usb300 {
-		compatible = "regulator-fixed";
-		regulator-name = "VBUS0";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		gpio = <&gpg0 5 0>;
+	emmc_pwrseq: pwrseq {
+		pinctrl-0 = <&emmc_nrst_pin>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&usb300_vbus_en>;
-		enable-active-high;
+		compatible = "mmc-pwrseq-emmc";
+		reset-gpios = <&gpd1 0 1>;
 	};
 
-	usb301_vbus_reg: regulator-usb301 {
-		compatible = "regulator-fixed";
-		regulator-name = "VBUS1";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		gpio = <&gpg1 4 0>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&usb301_vbus_en>;
-		enable-active-high;
+	pwmleds {
+		compatible = "pwm-leds";
+
+		greenled {
+			label = "green:mmc0";
+			pwms = <&pwm 1 2000000 0>;
+			pwm-names = "pwm1";
+			/*
+			 * Green LED is much brighter than the others
+			 * so limit its max brightness
+			 */
+			max_brightness = <127>;
+			linux,default-trigger = "mmc0";
+		};
+
+		blueled {
+			label = "blue:heartbeat";
+			pwms = <&pwm 2 2000000 0>;
+			pwm-names = "pwm2";
+			max_brightness = <255>;
+			linux,default-trigger = "heartbeat";
+		};
 	};
 
+	gpioleds {
+		compatible = "gpio-leds";
+		redled {
+			label = "red:microSD";
+			gpios = <&gpx2 3 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			linux,default-trigger = "mmc1";
+		};
+	};
+
+	sound: sound {
+		compatible = "simple-audio-card";
+
+		simple-audio-card,name = "Odroid-XU3";
+		simple-audio-card,widgets =
+			"Headphone", "Headphone Jack",
+			"Speakers", "Speakers";
+		simple-audio-card,routing =
+			"Headphone Jack", "HPL",
+			"Headphone Jack", "HPR",
+			"Headphone Jack", "MICBIAS",
+			"IN1", "Headphone Jack",
+			"Speakers", "SPKL",
+			"Speakers", "SPKR";
+
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&link0_codec>;
+		simple-audio-card,frame-master = <&link0_codec>;
+
+		simple-audio-card,cpu {
+			sound-dai = <&i2s0 0>;
+			system-clock-frequency = <19200000>;
+		};
+
+		link0_codec: simple-audio-card,codec {
+			sound-dai = <&max98090>;
+			clocks = <&i2s0 CLK_I2S_CDCLK>;
+		};
+	};
 };
 
-&dp {
-	pinctrl-names = "default";
-	pinctrl-0 = <&dp_hpd>;
-	samsung,color-space = <0>;
-	samsung,dynamic-range = <0>;
-	samsung,ycbcr-coeff = <0>;
-	samsung,color-depth = <1>;
-	samsung,link-rate = <0x0a>;
-	samsung,lane-count = <4>;
-	status = "okay";
+&clock_audss {
+	assigned-clocks = <&clock_audss EXYNOS_MOUT_AUDSS>,
+			<&clock_audss EXYNOS_MOUT_I2S>,
+			<&clock_audss EXYNOS_DOUT_AUD_BUS>;
+	assigned-clock-parents = <&clock CLK_FIN_PLL>,
+			<&clock_audss EXYNOS_MOUT_AUDSS>;
+	assigned-clock-rates = <0>,
+			<0>,
+			<19200000>;
 };
 
 &fimd {
 	status = "okay";
-	display-timings {
-		native-mode = <&timing0>;
-		timing0: timing@0 {
-			clock-frequency = <50000>;
-			hactive = <2560>;
-			vactive = <1600>;
-			hfront-porch = <48>;
-			hback-porch = <80>;
-			hsync-len = <32>;
-			vback-porch = <16>;
-			vfront-porch = <8>;
-			vsync-len = <6>;
-		};
-	};
 };
+
 
 &hdmi {
 	status = "okay";
 	hpd-gpio = <&gpx3 7 0>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmi_hpd_irq>;
+
+	vdd_osc-supply = <&ldo7_reg>;
+	vdd_pll-supply = <&ldo6_reg>;
+	vdd-supply = <&ldo6_reg>;
 };
 
 &hsi2c_4 {
@@ -138,6 +149,11 @@
 		s2mps11,buck2-ramp-enable = <1>;
 		s2mps11,buck3-ramp-enable = <1>;
 		s2mps11,buck4-ramp-enable = <1>;
+
+		interrupt-parent = <&gpx0>;
+		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&s2mps11_irq>;
 
 		s2mps11_osc: clocks {
 			#clock-cells = <1>;
@@ -258,6 +274,13 @@
 				regulator-always-on;
 			};
 
+			ldo26_reg: LDO26 {
+				regulator-name = "vdd_ldo26";
+				regulator-min-microvolt = <3000000>;
+				regulator-max-microvolt = <3000000>;
+				regulator-always-on;
+			};
+
 			buck1_reg: BUCK1 {
 				regulator-name = "vdd_mif";
 				regulator-min-microvolt = <800000>;
@@ -341,6 +364,19 @@
 	};
 };
 
+&hsi2c_5 {
+	status = "okay";
+	max98090: max98090@10 {
+		compatible = "maxim,max98090";
+		reg = <0x10>;
+		interrupt-parent = <&gpx3>;
+		interrupts = <2 0>;
+		clocks = <&i2s0 CLK_I2S_CDCLK>;
+		clock-names = "mclk";
+		#sound-dai-cells = <0>;
+	};
+};
+
 &i2c_2 {
 	samsung,i2c-sda-delay = <100>;
 	samsung,i2c-max-bus-freq = <66000>;
@@ -352,6 +388,10 @@
 	};
 };
 
+&i2s0 {
+	status = "okay";
+};
+
 &mfc {
 	samsung,mfc-r = <0x43000000 0x800000>;
 	samsung,mfc-l = <0x51000000 0x800000>;
@@ -359,7 +399,8 @@
 
 &mmc_0 {
 	status = "okay";
-	broken-cd;
+	mmc-pwrseq = <&emmc_pwrseq>;
+	cd-gpios = <&gpc0 2 GPIO_ACTIVE_LOW>;
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;
 	samsung,dw-mshc-sdr-timing = <0 4>;
@@ -367,18 +408,19 @@
 	samsung,dw-mshc-hs400-timing = <0 2>;
 	samsung,read-strobe-delay = <90>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus1 &sd0_bus4 &sd0_bus8
-		     &sd0_rclk>;
+	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus1 &sd0_bus4 &sd0_bus8 &sd0_cd &sd0_rclk>;
 	bus-width = <8>;
 	cap-mmc-highspeed;
+	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
 };
 
 &mmc_2 {
 	status = "okay";
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;
-	samsung,dw-mshc-sdr-timing = <2 3>;
-	samsung,dw-mshc-ddr-timing = <1 2>;
+	samsung,dw-mshc-sdr-timing = <0 4>;
+	samsung,dw-mshc-ddr-timing = <0 2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus1 &sd2_bus4>;
 	bus-width = <4>;
@@ -392,32 +434,46 @@
 		samsung,pin-pud = <1>;
 		samsung,pin-drv = <0>;
 	};
+
+	s2mps11_irq: s2mps11-irq {
+		samsung,pins = "gpx0-4";
+		samsung,pin-function = <0xf>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
+	};
 };
 
-&pinctrl_2 {
-	usb300_vbus_en: usb300-vbus-en {
-		samsung,pins = "gpg0-5";
-		samsung,pin-function = <1>;
+&pinctrl_1 {
+	emmc_nrst_pin: emmc-nrst {
+		samsung,pins = "gpd1-0";
+		samsung,pin-function = <0>;
 		samsung,pin-pud = <0>;
 		samsung,pin-drv = <0>;
 	};
+};
 
-	usb301_vbus_en: usb301-vbus-en {
-		samsung,pins = "gpg1-4";
-		samsung,pin-function = <1>;
-		samsung,pin-pud = <0>;
-		samsung,pin-drv = <0>;
-	};
+&pwm {
+	/*
+	 * PWM 0 -- fan
+	 * PWM 1 -- Green LED
+	 * PWM 2 -- Blue LED
+	 * PWM 3 -- on MIPI connector for backlight
+	 */
+	pinctrl-0 = <&pwm0_out &pwm1_out &pwm2_out &pwm3_out>;
+	pinctrl-names = "default";
+	status = "okay";
 };
 
 &rtc {
 	status = "okay";
+	clocks = <&clock CLK_RTC>, <&s2mps11_osc S2MPS11_CLK_AP>;
+	clock-names = "rtc", "rtc_src";
 };
 
-&usbdrd_phy0 {
-	vbus-supply = <&usb300_vbus_reg>;
+&usbdrd_dwc3_0 {
+	dr_mode = "host";
 };
 
-&usbdrd_phy1 {
-	vbus-supply = <&usb301_vbus_reg>;
+&usbdrd_dwc3_1 {
+	dr_mode = "otg";
 };
