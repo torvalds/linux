@@ -548,7 +548,6 @@ struct se_cmd {
 struct se_ua {
 	u8			ua_asc;
 	u8			ua_ascq;
-	struct se_node_acl	*ua_nacl;
 	struct list_head	ua_nacl_list;
 };
 

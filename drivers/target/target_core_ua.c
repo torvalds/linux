@@ -107,7 +107,6 @@ int core_scsi3_ua_allocate(
 	}
 	INIT_LIST_HEAD(&ua->ua_nacl_list);
 
-	ua->ua_nacl = nacl;
 	ua->ua_asc = asc;
 	ua->ua_ascq = ascq;
 
