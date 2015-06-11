@@ -946,8 +946,7 @@ bnad_cb_ethport_link_status(struct bnad *bnad,
 	if (link_up) {
 		if (!netif_carrier_ok(bnad->netdev)) {
 			uint tx_id, tcb_id;
-			printk(KERN_WARNING "bna: %s link up\n",
-				bnad->netdev->name);
+			netdev_info(bnad->netdev, "link up\n");
 			netif_carrier_on(bnad->netdev);
 			BNAD_UPDATE_CTR(bnad, link_toggle);
 			for (tx_id = 0; tx_id < bnad->num_tx; tx_id++) {
@@ -966,10 +965,6 @@ bnad_cb_ethport_link_status(struct bnad *bnad,
 						/*
 						 * Force an immediate
 						 * Transmit Schedule */
-						printk(KERN_INFO "bna: %s %d "
-						      "TXQ_STARTED\n",
-						       bnad->netdev->name,
-						       txq_id);
 						netif_wake_subqueue(
 								bnad->netdev,
 								txq_id);
@@ -987,8 +982,7 @@ bnad_cb_ethport_link_status(struct bnad *bnad,
 		}
 	} else {
 		if (netif_carrier_ok(bnad->netdev)) {
-			printk(KERN_WARNING "bna: %s link down\n",
-				bnad->netdev->name);
+			netdev_info(bnad->netdev, "link down\n");
 			netif_carrier_off(bnad->netdev);
 			BNAD_UPDATE_CTR(bnad, link_toggle);
 		}
@@ -1058,8 +1052,6 @@ bnad_cb_tx_stall(struct bnad *bnad, struct bna_tx *tx)
 		txq_id = tcb->id;
 		clear_bit(BNAD_TXQ_TX_STARTED, &tcb->flags);
 		netif_stop_subqueue(bnad->netdev, txq_id);
-		printk(KERN_INFO "bna: %s %d TXQ_STOPPED\n",
-			bnad->netdev->name, txq_id);
 	}
 }
 
@@ -1082,8 +1074,6 @@ bnad_cb_tx_resume(struct bnad *bnad, struct bna_tx *tx)
 		BUG_ON(*(tcb->hw_consumer_index) != 0);
 
 		if (netif_carrier_ok(bnad->netdev)) {
-			printk(KERN_INFO "bna: %s %d TXQ_STARTED\n",
-				bnad->netdev->name, txq_id);
 			netif_wake_subqueue(bnad->netdev, txq_id);
 			BNAD_UPDATE_CTR(bnad, netif_queue_wakeup);
 		}
@@ -2136,7 +2126,7 @@ bnad_reinit_rx(struct bnad *bnad)
 		current_err = bnad_setup_rx(bnad, rx_id);
 		if (current_err && !err) {
 			err = current_err;
-			pr_err("RXQ:%u setup failed\n", rx_id);
+			netdev_err(netdev, "RXQ:%u setup failed\n", rx_id);
 		}
 	}
 
@@ -2672,8 +2662,9 @@ bnad_enable_msix(struct bnad *bnad)
 	if (ret < 0) {
 		goto intx_mode;
 	} else if (ret < bnad->msix_num) {
-		pr_warn("BNA: %d MSI-X vectors allocated < %d requested\n",
-			ret, bnad->msix_num);
+		dev_warn(&bnad->pcidev->dev,
+			 "%d MSI-X vectors allocated < %d requested\n",
+			 ret, bnad->msix_num);
 
 		spin_lock_irqsave(&bnad->bna_lock, flags);
 		/* ret = #of vectors that we got */
@@ -2695,7 +2686,8 @@ bnad_enable_msix(struct bnad *bnad)
 	return;
 
 intx_mode:
-	pr_warn("BNA: MSI-X enable failed - operating in INTx mode\n");
+	dev_warn(&bnad->pcidev->dev,
+		 "MSI-X enable failed - operating in INTx mode\n");
 
 	kfree(bnad->msix_table);
 	bnad->msix_table = NULL;
@@ -3482,8 +3474,8 @@ bnad_init(struct bnad *bnad,
 		dev_err(&pdev->dev, "ioremap for bar0 failed\n");
 		return -ENOMEM;
 	}
-	pr_info("bar0 mapped to %p, len %llu\n", bnad->bar0,
-	       (unsigned long long) bnad->mmio_len);
+	dev_info(&pdev->dev, "bar0 mapped to %p, len %llu\n", bnad->bar0,
+		 (unsigned long long) bnad->mmio_len);
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
 	if (!bnad_msix_disable)
@@ -3604,13 +3596,10 @@ bnad_pci_probe(struct pci_dev *pdev,
 	struct bfa_pcidev pcidev_info;
 	unsigned long flags;
 
-	pr_info("bnad_pci_probe : (0x%p, 0x%p) PCI Func : (%d)\n",
-	       pdev, pcidev_id, PCI_FUNC(pdev->devfn));
-
 	mutex_lock(&bnad_fwimg_mutex);
 	if (!cna_get_firmware_buf(pdev)) {
 		mutex_unlock(&bnad_fwimg_mutex);
-		pr_warn("Failed to load Firmware Image!\n");
+		dev_err(&pdev->dev, "failed to load firmware image!\n");
 		return -ENODEV;
 	}
 	mutex_unlock(&bnad_fwimg_mutex);
@@ -3703,8 +3692,7 @@ bnad_pci_probe(struct pci_dev *pdev,
 	 */
 	err = bnad_ioceth_enable(bnad);
 	if (err) {
-		pr_err("BNA: Initialization failed err=%d\n",
-		       err);
+		dev_err(&pdev->dev, "initialization failed err=%d\n", err);
 		goto probe_success;
 	}
 
@@ -3746,7 +3734,7 @@ bnad_pci_probe(struct pci_dev *pdev,
 	/* Finally, reguister with net_device layer */
 	err = register_netdev(netdev);
 	if (err) {
-		pr_err("BNA : Registering with netdev failed\n");
+		dev_err(&pdev->dev, "registering net device failed\n");
 		goto probe_uninit;
 	}
 	set_bit(BNAD_RF_NETDEV_REGISTERED, &bnad->run_flags);
@@ -3798,7 +3786,6 @@ bnad_pci_remove(struct pci_dev *pdev)
 	if (!netdev)
 		return;
 
-	pr_info("%s bnad_pci_remove\n", netdev->name);
 	bnad = netdev_priv(netdev);
 	bna = &bnad->bna;
 
@@ -3859,15 +3846,14 @@ bnad_module_init(void)
 {
 	int err;
 
-	pr_info("QLogic BR-series 10G Ethernet driver - version: %s\n",
-			BNAD_VERSION);
+	pr_info("bna: QLogic BR-series 10G Ethernet driver - version: %s\n",
+		BNAD_VERSION);
 
 	bfa_nw_ioc_auto_recover(bnad_ioc_auto_recover);
 
 	err = pci_register_driver(&bnad_pci_driver);
 	if (err < 0) {
-		pr_err("bna : PCI registration failed in module init "
-		       "(%d)\n", err);
+		pr_err("bna: PCI driver registration failed err=%d\n", err);
 		return err;
 	}
 

@@ -76,8 +76,7 @@ bnad_debugfs_open_fwtrc(struct inode *inode, struct file *file)
 		fw_debug->debug_buffer = NULL;
 		kfree(fw_debug);
 		fw_debug = NULL;
-		pr_warn("bnad %s: Failed to collect fwtrc\n",
-			pci_name(bnad->pcidev));
+		netdev_warn(bnad->netdev, "failed to collect fwtrc\n");
 		return -ENOMEM;
 	}
 
@@ -117,8 +116,7 @@ bnad_debugfs_open_fwsave(struct inode *inode, struct file *file)
 		fw_debug->debug_buffer = NULL;
 		kfree(fw_debug);
 		fw_debug = NULL;
-		pr_warn("bna %s: Failed to collect fwsave\n",
-			pci_name(bnad->pcidev));
+		netdev_warn(bnad->netdev, "failed to collect fwsave\n");
 		return -ENOMEM;
 	}
 
@@ -217,8 +215,7 @@ bnad_debugfs_open_drvinfo(struct inode *inode, struct file *file)
 		drv_info->debug_buffer = NULL;
 		kfree(drv_info);
 		drv_info = NULL;
-		pr_warn("bna %s: Failed to collect drvinfo\n",
-			pci_name(bnad->pcidev));
+		netdev_warn(bnad->netdev, "failed to collect drvinfo\n");
 		return -ENOMEM;
 	}
 
@@ -328,8 +325,7 @@ bnad_debugfs_write_regrd(struct file *file, const char __user *buf,
 
 	rc = sscanf(kern_buf, "%x:%x", &addr, &len);
 	if (rc < 2) {
-		pr_warn("bna %s: Failed to read user buffer\n",
-			pci_name(bnad->pcidev));
+		netdev_warn(bnad->netdev, "failed to read user buffer\n");
 		kfree(kern_buf);
 		return -EINVAL;
 	}
@@ -349,8 +345,7 @@ bnad_debugfs_write_regrd(struct file *file, const char __user *buf,
 	/* offset and len sanity check */
 	rc = bna_reg_offset_check(ioc, addr, len);
 	if (rc) {
-		pr_warn("bna %s: Failed reg offset check\n",
-			pci_name(bnad->pcidev));
+		netdev_warn(bnad->netdev, "failed reg offset check\n");
 		kfree(bnad->regdata);
 		bnad->regdata = NULL;
 		bnad->reglen = 0;
@@ -389,8 +384,7 @@ bnad_debugfs_write_regwr(struct file *file, const char __user *buf,
 
 	rc = sscanf(kern_buf, "%x:%x", &addr, &val);
 	if (rc < 2) {
-		pr_warn("bna %s: Failed to read user buffer\n",
-			pci_name(bnad->pcidev));
+		netdev_warn(bnad->netdev, "failed to read user buffer\n");
 		kfree(kern_buf);
 		return -EINVAL;
 	}
@@ -401,8 +395,7 @@ bnad_debugfs_write_regwr(struct file *file, const char __user *buf,
 	/* offset and len sanity check */
 	rc = bna_reg_offset_check(ioc, addr, 1);
 	if (rc) {
-		pr_warn("bna %s: Failed reg offset check\n",
-			pci_name(bnad->pcidev));
+		netdev_warn(bnad->netdev, "failed reg offset check\n");
 		return -EINVAL;
 	}
 
@@ -514,7 +507,8 @@ bnad_debugfs_init(struct bnad *bnad)
 		bna_debugfs_root = debugfs_create_dir("bna", NULL);
 		atomic_set(&bna_debugfs_port_count, 0);
 		if (!bna_debugfs_root) {
-			pr_warn("BNA: debugfs root dir creation failed\n");
+			netdev_warn(bnad->netdev,
+				    "debugfs root dir creation failed\n");
 			return;
 		}
 	}
@@ -525,8 +519,8 @@ bnad_debugfs_init(struct bnad *bnad)
 		bnad->port_debugfs_root =
 			debugfs_create_dir(name, bna_debugfs_root);
 		if (!bnad->port_debugfs_root) {
-			pr_warn("bna pci_dev %s: root dir creation failed\n",
-				pci_name(bnad->pcidev));
+			netdev_warn(bnad->netdev,
+				    "debugfs root dir creation failed\n");
 			return;
 		}
 
@@ -541,9 +535,9 @@ bnad_debugfs_init(struct bnad *bnad)
 							bnad,
 							file->fops);
 			if (!bnad->bnad_dentry_files[i]) {
-				pr_warn(
-				     "BNA pci_dev:%s: create %s entry failed\n",
-				     pci_name(bnad->pcidev), file->name);
+				netdev_warn(bnad->netdev,
+					    "create %s entry failed\n",
+					    file->name);
 				return;
 			}
 		}

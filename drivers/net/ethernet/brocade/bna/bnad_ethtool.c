@@ -1080,7 +1080,7 @@ bnad_flash_device(struct net_device *netdev, struct ethtool_flash *eflash)
 
 	ret = request_firmware(&fw, eflash->data, &bnad->pcidev->dev);
 	if (ret) {
-		pr_err("BNA: Can't locate firmware %s\n", eflash->data);
+		netdev_err(netdev, "can't load firmware %s\n", eflash->data);
 		goto out;
 	}
 
@@ -1093,7 +1093,7 @@ bnad_flash_device(struct net_device *netdev, struct ethtool_flash *eflash)
 				bnad->id, (u8 *)fw->data, fw->size, 0,
 				bnad_cb_completion, &fcomp);
 	if (ret != BFA_STATUS_OK) {
-		pr_warn("BNA: Flash update failed with err: %d\n", ret);
+		netdev_warn(netdev, "flash update failed with err=%d\n", ret);
 		ret = -EIO;
 		spin_unlock_irq(&bnad->bna_lock);
 		goto out;
@@ -1103,8 +1103,9 @@ bnad_flash_device(struct net_device *netdev, struct ethtool_flash *eflash)
 	wait_for_completion(&fcomp.comp);
 	if (fcomp.comp_status != BFA_STATUS_OK) {
 		ret = -EIO;
-		pr_warn("BNA: Firmware image update to flash failed with: %d\n",
-			fcomp.comp_status);
+		netdev_warn(netdev,
+			    "firmware image update failed with err=%d\n",
+			    fcomp.comp_status);
 	}
 out:
 	release_firmware(fw);
