@@ -298,16 +298,14 @@ fail:
 
 static void *f2fs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	struct page *page;
+	struct page *page = page_follow_link_light(dentry, nd);
 
-	page = page_follow_link_light(dentry, nd);
-	if (IS_ERR(page))
+	if (IS_ERR_OR_NULL(page))
 		return page;
 
 	/* this is broken symlink case */
 	if (*nd_get_link(nd) == 0) {
-		kunmap(page);
-		page_cache_release(page);
+		page_put_link(dentry, nd, page);
 		return ERR_PTR(-ENOENT);
 	}
 	return page;

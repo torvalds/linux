@@ -1,4 +1,4 @@
-TEST_PROGS := tm-resched-dscr tm-syscall
+TEST_PROGS := tm-resched-dscr
 
 all: $(TEST_PROGS)
 

@@ -181,9 +181,12 @@ int dump_task_fpu (struct task_struct *tsk, elf_fpregset_t *r)
 	return 1;
 }
 
+/*
+ * Copy architecture-specific thread state
+ */
 int
 copy_thread(unsigned long clone_flags, unsigned long usp,
-	    unsigned long arg, struct task_struct *p)
+	    unsigned long kthread_arg, struct task_struct *p)
 {
 	struct pt_regs *cregs = &(p->thread.regs);
 	void *stack = task_stack_page(p);
@@ -195,11 +198,10 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 	extern void * const child_return;
 
 	if (unlikely(p->flags & PF_KTHREAD)) {
+		/* kernel thread */
 		memset(cregs, 0, sizeof(struct pt_regs));
 		if (!usp) /* idle thread */
 			return 0;
-
-		/* kernel thread */
 		/* Must exit via ret_from_kernel_thread in order
 		 * to call schedule_tail()
 		 */
@@ -215,7 +217,7 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 #else
 		cregs->gr[26] = usp;
 #endif
-		cregs->gr[25] = arg;
+		cregs->gr[25] = kthread_arg;
 	} else {
 		/* user thread */
 		/* usp must be word aligned.  This also prevents users from

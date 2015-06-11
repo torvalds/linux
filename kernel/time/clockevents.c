@@ -117,11 +117,7 @@ static int __clockevents_set_state(struct clock_event_device *dev,
 	/* Transition with new state-specific callbacks */
 	switch (state) {
 	case CLOCK_EVT_STATE_DETACHED:
-		/*
-		 * This is an internal state, which is guaranteed to go from
-		 * SHUTDOWN to DETACHED. No driver interaction required.
-		 */
-		return 0;
+		/* The clockevent device is getting replaced. Shut it down. */
 
 	case CLOCK_EVT_STATE_SHUTDOWN:
 		return dev->set_state_shutdown(dev);

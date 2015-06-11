@@ -493,18 +493,27 @@ int radeon_vce_cs_reloc(struct radeon_cs_parser *p, int lo, int hi,
  *
  * @p: parser context
  * @handle: handle to validate
+ * @allocated: allocated a new handle?
  *
  * Validates the handle and return the found session index or -EINVAL
  * we we don't have another free session index.
  */
-int radeon_vce_validate_handle(struct radeon_cs_parser *p, uint32_t handle)
+static int radeon_vce_validate_handle(struct radeon_cs_parser *p,
+				      uint32_t handle, bool *allocated)
 {
 	unsigned i;
 
+	*allocated = false;
+
 	/* validate the handle */
 	for (i = 0; i < RADEON_MAX_VCE_HANDLES; ++i) {
-		if (atomic_read(&p->rdev->vce.handles[i]) == handle)
+		if (atomic_read(&p->rdev->vce.handles[i]) == handle) {
+			if (p->rdev->vce.filp[i] != p->filp) {
+				DRM_ERROR("VCE handle collision detected!\n");
+				return -EINVAL;
+			}
 			return i;
+		}
 	}
 
 	/* handle not found try to alloc a new one */
@@ -512,6 +521,7 @@ int radeon_vce_validate_handle(struct radeon_cs_parser *p, uint32_t handle)
 		if (!atomic_cmpxchg(&p->rdev->vce.handles[i], 0, handle)) {
 			p->rdev->vce.filp[i] = p->filp;
 			p->rdev->vce.img_size[i] = 0;
+			*allocated = true;
 			return i;
 		}
 	}
@@ -529,10 +539,10 @@ int radeon_vce_validate_handle(struct radeon_cs_parser *p, uint32_t handle)
 int radeon_vce_cs_parse(struct radeon_cs_parser *p)
 {
 	int session_idx = -1;
-	bool destroyed = false;
+	bool destroyed = false, created = false, allocated = false;
 	uint32_t tmp, handle = 0;
 	uint32_t *size = &tmp;
-	int i, r;
+	int i, r = 0;
 
 	while (p->idx < p->chunk_ib->length_dw) {
 		uint32_t len = radeon_get_ib_value(p, p->idx);
@@ -540,18 +550,21 @@ int radeon_vce_cs_parse(struct radeon_cs_parser *p)
 
 		if ((len < 8) || (len & 3)) {
 			DRM_ERROR("invalid VCE command length (%d)!\n", len);
-                	return -EINVAL;
+			r = -EINVAL;
+			goto out;
 		}
 
 		if (destroyed) {
 			DRM_ERROR("No other command allowed after destroy!\n");
-			return -EINVAL;
+			r = -EINVAL;
+			goto out;
 		}
 
 		switch (cmd) {
 		case 0x00000001: // session
 			handle = radeon_get_ib_value(p, p->idx + 2);
-			session_idx = radeon_vce_validate_handle(p, handle);
+			session_idx = radeon_vce_validate_handle(p, handle,
+								 &allocated);
 			if (session_idx < 0)
 				return session_idx;
 			size = &p->rdev->vce.img_size[session_idx];
@@ -561,6 +574,13 @@ int radeon_vce_cs_parse(struct radeon_cs_parser *p)
 			break;
 
 		case 0x01000001: // create
+			created = true;
+			if (!allocated) {
+				DRM_ERROR("Handle already in use!\n");
+				r = -EINVAL;
+				goto out;
+			}
+
 			*size = radeon_get_ib_value(p, p->idx + 8) *
 				radeon_get_ib_value(p, p->idx + 10) *
 				8 * 3 / 2;
@@ -578,12 +598,12 @@ int radeon_vce_cs_parse(struct radeon_cs_parser *p)
 			r = radeon_vce_cs_reloc(p, p->idx + 10, p->idx + 9,
 						*size);
 			if (r)
-				return r;
+				goto out;
 
 			r = radeon_vce_cs_reloc(p, p->idx + 12, p->idx + 11,
 						*size / 3);
 			if (r)
-				return r;
+				goto out;
 			break;
 
 		case 0x02000001: // destroy
@@ -594,7 +614,7 @@ int radeon_vce_cs_parse(struct radeon_cs_parser *p)
 			r = radeon_vce_cs_reloc(p, p->idx + 3, p->idx + 2,
 						*size * 2);
 			if (r)
-				return r;
+				goto out;
 			break;
 
 		case 0x05000004: // video bitstream buffer
@@ -602,36 +622,47 @@ int radeon_vce_cs_parse(struct radeon_cs_parser *p)
 			r = radeon_vce_cs_reloc(p, p->idx + 3, p->idx + 2,
 						tmp);
 			if (r)
-				return r;
+				goto out;
 			break;
 
 		case 0x05000005: // feedback buffer
 			r = radeon_vce_cs_reloc(p, p->idx + 3, p->idx + 2,
 						4096);
 			if (r)
-				return r;
+				goto out;
 			break;
 
 		default:
 			DRM_ERROR("invalid VCE command (0x%x)!\n", cmd);
-			return -EINVAL;
+			r = -EINVAL;
+			goto out;
 		}
 
 		if (session_idx == -1) {
 			DRM_ERROR("no session command at start of IB\n");
-			return -EINVAL;
+			r = -EINVAL;
+			goto out;
 		}
 
 		p->idx += len / 4;
 	}
 
-	if (destroyed) {
-		/* IB contains a destroy msg, free the handle */
+	if (allocated && !created) {
+		DRM_ERROR("New session without create command!\n");
+		r = -ENOENT;
+	}
+
+out:
+	if ((!r && destroyed) || (r && allocated)) {
+		/*
+		 * IB contains a destroy msg or we have allocated an
+		 * handle and got an error, anyway free the handle
+		 */
 		for (i = 0; i < RADEON_MAX_VCE_HANDLES; ++i)
 			atomic_cmpxchg(&p->rdev->vce.handles[i], handle, 0);
 	}
 
-	return 0;
+	return r;
 }
 
 /**

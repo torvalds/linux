@@ -660,7 +660,7 @@ validate_group(struct perf_event *event)
 		 * Initialise the fake PMU. We only need to populate the
 		 * used_mask for the purposes of validation.
 		 */
-		.used_mask = CPU_BITS_NONE,
+		.used_mask = { 0 },
 	};
 
 	if (!validate_event(event->pmu, &fake_pmu, leader))

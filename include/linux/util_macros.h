@@ -5,7 +5,7 @@
 ({									\
 	typeof(as) __fc_i, __fc_as = (as) - 1;				\
 	typeof(x) __fc_x = (x);						\
-	typeof(*a) *__fc_a = (a);					\
+	typeof(*a) const *__fc_a = (a);					\
 	for (__fc_i = 0; __fc_i < __fc_as; __fc_i++) {			\
 		if (__fc_x op DIV_ROUND_CLOSEST(__fc_a[__fc_i] +	\
 						__fc_a[__fc_i + 1], 2))	\

@@ -666,6 +666,9 @@ radeon_dp_mst_probe(struct radeon_connector *radeon_connector)
 	int ret;
 	u8 msg[1];
 
+	if (!radeon_mst)
+		return 0;
+
 	if (dig_connector->dpcd[DP_DPCD_REV] < 0x12)
 		return 0;
 

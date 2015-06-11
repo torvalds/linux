@@ -1082,18 +1082,26 @@ static void rq_completed(struct mapped_device *md, int rw, bool run_queue)
 	dm_put(md);
 }
 
-static void free_rq_clone(struct request *clone)
+static void free_rq_clone(struct request *clone, bool must_be_mapped)
 {
 	struct dm_rq_target_io *tio = clone->end_io_data;
 	struct mapped_device *md = tio->md;
 
+	WARN_ON_ONCE(must_be_mapped && !clone->q);
+
 	blk_rq_unprep_clone(clone);
 
-	if (clone->q->mq_ops)
+	if (md->type == DM_TYPE_MQ_REQUEST_BASED)
+		/* stacked on blk-mq queue(s) */
 		tio->ti->type->release_clone_rq(clone);
 	else if (!md->queue->mq_ops)
 		/* request_fn queue stacked on request_fn queue(s) */
 		free_clone_request(md, clone);
+	/*
+	 * NOTE: for the blk-mq queue stacked on request_fn queue(s) case:
+	 * no need to call free_clone_request() because we leverage blk-mq by
+	 * allocating the clone at the end of the blk-mq pdu (see: clone_rq)
+	 */
 
 	if (!md->queue->mq_ops)
 		free_rq_tio(tio);
@@ -1124,7 +1132,7 @@ static void dm_end_request(struct request *clone, int error)
 			rq->sense_len = clone->sense_len;
 	}
 
-	free_rq_clone(clone);
+	free_rq_clone(clone, true);
 	if (!rq->q->mq_ops)
 		blk_end_request_all(rq, error);
 	else
@@ -1143,7 +1151,7 @@ static void dm_unprep_request(struct request *rq)
 	}
 
 	if (clone)
-		free_rq_clone(clone);
+		free_rq_clone(clone, false);
 }
 
 /*
@@ -2661,9 +2669,6 @@ static void init_rq_based_worker_thread(struct mapped_device *md)
 static int dm_init_request_based_queue(struct mapped_device *md)
 {
 	struct request_queue *q = NULL;
-
-	if (md->queue->elevator)
-		return 0;
 
 	/* Fully initialize the queue */
 	q = blk_init_allocated_queue(md->queue, dm_request_fn, NULL);

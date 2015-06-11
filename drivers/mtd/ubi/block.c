@@ -310,6 +310,8 @@ static void ubiblock_do_work(struct work_struct *work)
 	blk_rq_map_sg(req->q, req, pdu->usgl.sg);
 
 	ret = ubiblock_read(pdu);
+	rq_flush_dcache_pages(req);
+
 	blk_mq_end_request(req, ret);
 }
 

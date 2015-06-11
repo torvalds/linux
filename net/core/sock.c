@@ -1474,8 +1474,8 @@ void sk_release_kernel(struct sock *sk)
 		return;
 
 	sock_hold(sk);
-	sock_net_set(sk, get_net(&init_net));
 	sock_release(sk->sk_socket);
+	sock_net_set(sk, get_net(&init_net));
 	sock_put(sk);
 }
 EXPORT_SYMBOL(sk_release_kernel);

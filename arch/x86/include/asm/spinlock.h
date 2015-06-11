@@ -169,7 +169,7 @@ static inline int arch_spin_is_contended(arch_spinlock_t *lock)
 	struct __raw_tickets tmp = READ_ONCE(lock->tickets);
 
 	tmp.head &= ~TICKET_SLOWPATH_FLAG;
-	return (tmp.tail - tmp.head) > TICKET_LOCK_INC;
+	return (__ticket_t)(tmp.tail - tmp.head) > TICKET_LOCK_INC;
 }
 #define arch_spin_is_contended	arch_spin_is_contended
 

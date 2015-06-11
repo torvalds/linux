@@ -730,12 +730,8 @@ static int vxlan_fdb_create(struct vxlan_dev *vxlan,
 			/* Only change unicasts */
 			if (!(is_multicast_ether_addr(f->eth_addr) ||
 			     is_zero_ether_addr(f->eth_addr))) {
-				int rc = vxlan_fdb_replace(f, ip, port, vni,
+				notify |= vxlan_fdb_replace(f, ip, port, vni,
 							   ifindex);
-
-				if (rc < 0)
-					return rc;
-				notify |= rc;
 			} else
 				return -EOPNOTSUPP;
 		}

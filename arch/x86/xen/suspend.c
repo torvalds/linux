@@ -88,7 +88,17 @@ static void xen_vcpu_notify_restore(void *data)
 	tick_resume_local();
 }
 
+static void xen_vcpu_notify_suspend(void *data)
+{
+	tick_suspend_local();
+}
+
 void xen_arch_resume(void)
 {
 	on_each_cpu(xen_vcpu_notify_restore, NULL, 1);
+}
+
+void xen_arch_suspend(void)
+{
+	on_each_cpu(xen_vcpu_notify_suspend, NULL, 1);
 }
