@@ -703,7 +703,7 @@ static s32 Handle_SetOperationMode(void *drvHandler, tstrHostIfSetOperationMode 
 	strWID.s32ValueSize = sizeof(u32);
 
 	/*Sending Cfg*/
-	PRINT_INFO(HOSTINF_DBG, "(size_t)pstrWFIDrv= %p \n", pstrWFIDrv);
+	PRINT_INFO(HOSTINF_DBG, "pstrWFIDrv= %p \n", pstrWFIDrv);
 
 	s32Error = SendConfigPkt(SET_CFG, &strWID, 1, WILC_TRUE, (u32)pstrWFIDrv);
 
@@ -8040,4 +8040,3 @@ s32 host_int_get_ipaddress(WILC_WFIDrvHandle hWFIDrv, u8 *u16ipadd, u8 idx)
 
 
 }
-
