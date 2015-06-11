@@ -82,8 +82,6 @@ static void __init rcu_bootup_announce_oddness(void)
 		pr_info("\tRCU lockdep checking is enabled.\n");
 	if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_RUNNABLE))
 		pr_info("\tRCU torture testing starts during boot.\n");
-	if (IS_ENABLED(CONFIG_RCU_CPU_STALL_INFO))
-		pr_info("\tAdditional per-CPU info printed with stalls.\n");
 	if (RCU_NUM_LVLS >= 4)
 		pr_info("\tFour(or more)-level hierarchy is enabled.\n");
 	if (RCU_FANOUT_LEAF != 16)
@@ -418,8 +416,6 @@ static void rcu_print_detail_task_stall(struct rcu_state *rsp)
 		rcu_print_detail_task_stall_rnp(rnp);
 }
 
-#ifdef CONFIG_RCU_CPU_STALL_INFO
-
 static void rcu_print_task_stall_begin(struct rcu_node *rnp)
 {
 	pr_err("\tTasks blocked on level-%d rcu_node (CPUs %d-%d):",
@@ -430,18 +426,6 @@ static void rcu_print_task_stall_end(void)
 {
 	pr_cont("\n");
 }
-
-#else /* #ifdef CONFIG_RCU_CPU_STALL_INFO */
-
-static void rcu_print_task_stall_begin(struct rcu_node *rnp)
-{
-}
-
-static void rcu_print_task_stall_end(void)
-{
-}
-
-#endif /* #else #ifdef CONFIG_RCU_CPU_STALL_INFO */
 
 /*
  * Scan the current list of tasks blocked within RCU read-side critical
@@ -1685,8 +1669,6 @@ early_initcall(rcu_register_oom_notifier);
 
 #endif /* #else #if !defined(CONFIG_RCU_FAST_NO_HZ) */
 
-#ifdef CONFIG_RCU_CPU_STALL_INFO
-
 #ifdef CONFIG_RCU_FAST_NO_HZ
 
 static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
@@ -1774,33 +1756,6 @@ static void increment_cpu_stall_ticks(void)
 	for_each_rcu_flavor(rsp)
 		raw_cpu_inc(rsp->rda->ticks_this_gp);
 }
-
-#else /* #ifdef CONFIG_RCU_CPU_STALL_INFO */
-
-static void print_cpu_stall_info_begin(void)
-{
-	pr_cont(" {");
-}
-
-static void print_cpu_stall_info(struct rcu_state *rsp, int cpu)
-{
-	pr_cont(" %d", cpu);
-}
-
-static void print_cpu_stall_info_end(void)
-{
-	pr_cont("} ");
-}
-
-static void zero_cpu_stall_ticks(struct rcu_data *rdp)
-{
-}
-
-static void increment_cpu_stall_ticks(void)
-{
-}
-
-#endif /* #else #ifdef CONFIG_RCU_CPU_STALL_INFO */
 
 #ifdef CONFIG_RCU_NOCB_CPU
 

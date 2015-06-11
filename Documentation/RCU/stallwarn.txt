@@ -26,12 +26,6 @@ CONFIG_RCU_CPU_STALL_TIMEOUT
 	Stall-warning messages may be enabled and disabled completely via
 	/sys/module/rcupdate/parameters/rcu_cpu_stall_suppress.
 
-CONFIG_RCU_CPU_STALL_INFO
-
-	This kernel configuration parameter causes the stall warning to
-	print out additional per-CPU diagnostic information, including
-	information on scheduling-clock ticks and RCU's idle-CPU tracking.
-
 RCU_STALL_DELAY_DELTA
 
 	Although the lockdep facility is extremely useful, it does add
@@ -101,15 +95,13 @@ interact.  Please note that it is not possible to entirely eliminate this
 sort of false positive without resorting to things like stop_machine(),
 which is overkill for this sort of problem.
 
-If the CONFIG_RCU_CPU_STALL_INFO kernel configuration parameter is set,
-more information is printed with the stall-warning message, for example:
+Recent kernels will print a long form of the stall-warning message:
 
 	INFO: rcu_preempt detected stall on CPU
 	0: (63959 ticks this GP) idle=241/3fffffffffffffff/0 softirq=82/543
 	   (t=65000 jiffies)
 
-In kernels with CONFIG_RCU_FAST_NO_HZ, even more information is
-printed:
+In kernels with CONFIG_RCU_FAST_NO_HZ, more information is printed:
 
 	INFO: rcu_preempt detected stall on CPU
 	0: (64628 ticks this GP) idle=dd5/3fffffffffffffff/0 softirq=82/543 last_accelerate: a345/d342 nonlazy_posted: 25 .D

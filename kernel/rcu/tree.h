@@ -288,12 +288,10 @@ struct rcu_data {
 	bool		gpwrap;		/* Possible gpnum/completed wrap. */
 	struct rcu_node *mynode;	/* This CPU's leaf of hierarchy */
 	unsigned long grpmask;		/* Mask to apply to leaf qsmask. */
-#ifdef CONFIG_RCU_CPU_STALL_INFO
 	unsigned long	ticks_this_gp;	/* The number of scheduling-clock */
 					/*  ticks this CPU has handled */
 					/*  during and after the last grace */
 					/* period it is aware of. */
-#endif /* #ifdef CONFIG_RCU_CPU_STALL_INFO */
 
 	/* 2) batch handling */
 	/*
@@ -388,9 +386,7 @@ struct rcu_data {
 #endif /* #ifdef CONFIG_RCU_NOCB_CPU */
 
 	/* 8) RCU CPU stall data. */
-#ifdef CONFIG_RCU_CPU_STALL_INFO
 	unsigned int softirq_snap;	/* Snapshot of softirq activity. */
-#endif /* #ifdef CONFIG_RCU_CPU_STALL_INFO */
 
 	int cpu;
 	struct rcu_state *rsp;
