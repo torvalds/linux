@@ -1316,16 +1316,12 @@ static bool tcp_shifted_skb(struct sock *sk, struct sk_buff *skb,
 	 * code can come after this skb later on it's better to keep
 	 * setting gso_size to something.
 	 */
-	if (!skb_shinfo(prev)->gso_size) {
+	if (!skb_shinfo(prev)->gso_size)
 		skb_shinfo(prev)->gso_size = mss;
-		skb_shinfo(prev)->gso_type = sk->sk_gso_type;
-	}
 
 	/* CHECKME: To clear or not to clear? Mimics normal skb currently */
-	if (tcp_skb_pcount(skb) <= 1) {
+	if (tcp_skb_pcount(skb) <= 1)
 		skb_shinfo(skb)->gso_size = 0;
-		skb_shinfo(skb)->gso_type = 0;
-	}
 
 	/* Difference in this won't matter, both ACKed by the same cumul. ACK */
 	TCP_SKB_CB(prev)->sacked |= (TCP_SKB_CB(skb)->sacked & TCPCB_EVER_RETRANS);

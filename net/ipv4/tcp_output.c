@@ -412,7 +412,6 @@ static void tcp_init_nondata_skb(struct sk_buff *skb, u32 seq, u8 flags)
 
 	tcp_skb_pcount_set(skb, 1);
 	shinfo->gso_size = 0;
-	shinfo->gso_type = 0;
 
 	TCP_SKB_CB(skb)->seq = seq;
 	if (flags & (TCPHDR_SYN | TCPHDR_FIN))
@@ -1003,6 +1002,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 	}
 
 	tcp_options_write((__be32 *)(th + 1), tp, &opts);
+	skb_shinfo(skb)->gso_type = sk->sk_gso_type;
 	if (likely((tcb->tcp_flags & TCPHDR_SYN) == 0))
 		tcp_ecn_send(sk, skb, tcp_header_size);
 
@@ -1080,11 +1080,9 @@ static void tcp_set_skb_tso_segs(const struct sock *sk, struct sk_buff *skb,
 		 */
 		tcp_skb_pcount_set(skb, 1);
 		shinfo->gso_size = 0;
-		shinfo->gso_type = 0;
 	} else {
 		tcp_skb_pcount_set(skb, DIV_ROUND_UP(skb->len, mss_now));
 		shinfo->gso_size = mss_now;
-		shinfo->gso_type = sk->sk_gso_type;
 	}
 }
 
