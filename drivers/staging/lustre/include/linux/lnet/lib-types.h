@@ -142,12 +142,8 @@ typedef struct {
 
 /* PROTO MAGIC for LNDs */
 #define LNET_PROTO_IB_MAGIC		 0x0be91b91
-#define LNET_PROTO_RA_MAGIC		 0x0be91b92
-#define LNET_PROTO_QSW_MAGIC		0x0be91b93
 #define LNET_PROTO_GNI_MAGIC		0xb00fbabe /* ask Kim */
 #define LNET_PROTO_TCP_MAGIC		0xeebc0ded
-#define LNET_PROTO_PTL_MAGIC		0x50746C4E /* 'PtlN' unique magic */
-#define LNET_PROTO_MX_MAGIC		 0x4d583130 /* 'MX10'! */
 #define LNET_PROTO_ACCEPTOR_MAGIC	   0xacce7100
 #define LNET_PROTO_PING_MAGIC	       0x70696E67 /* 'ping' */
 
