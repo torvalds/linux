@@ -44,29 +44,29 @@
 #include "lnet.h"
 #include "lib-types.h"
 
-extern lnet_t  the_lnet;			/* THE network */
+extern lnet_t	the_lnet;	/* THE network */
 
 #if (BITS_PER_LONG == 32)
 /* 2 CPTs, allowing more CPTs might make us under memory pressure */
-# define LNET_CPT_MAX_BITS     1
+#define LNET_CPT_MAX_BITS	1
 
 #else /* 64-bit system */
 /*
  * 256 CPTs for thousands of CPUs, allowing more CPTs might make us
  * under risk of consuming all lh_cookie.
  */
-# define LNET_CPT_MAX_BITS     8
+#define LNET_CPT_MAX_BITS	8
 #endif /* BITS_PER_LONG == 32 */
 
 /* max allowed CPT number */
-#define LNET_CPT_MAX	    (1 << LNET_CPT_MAX_BITS)
+#define LNET_CPT_MAX		(1 << LNET_CPT_MAX_BITS)
 
-#define LNET_CPT_NUMBER	 (the_lnet.ln_cpt_number)
-#define LNET_CPT_BITS	   (the_lnet.ln_cpt_bits)
-#define LNET_CPT_MASK	   ((1ULL << LNET_CPT_BITS) - 1)
+#define LNET_CPT_NUMBER		(the_lnet.ln_cpt_number)
+#define LNET_CPT_BITS		(the_lnet.ln_cpt_bits)
+#define LNET_CPT_MASK		((1ULL << LNET_CPT_BITS) - 1)
 
 /** exclusive lock */
-#define LNET_LOCK_EX	    CFS_PERCPT_LOCK_EX
+#define LNET_LOCK_EX		CFS_PERCPT_LOCK_EX
 
 static inline int lnet_is_wire_handle_none(lnet_handle_wire_t *wh)
 {
@@ -163,7 +163,7 @@ lnet_net_lock_current(void)
 #define lnet_ni_lock(ni)	spin_lock(&(ni)->ni_lock)
 #define lnet_ni_unlock(ni)	spin_unlock(&(ni)->ni_lock)
 
-#define MAX_PORTALS     64
+#define MAX_PORTALS		64
 
 static inline lnet_eq_t *
 lnet_eq_alloc(void)
@@ -184,8 +184,8 @@ static inline lnet_libmd_t *
 lnet_md_alloc(lnet_md_t *umd)
 {
 	lnet_libmd_t *md;
-	unsigned int  size;
-	unsigned int  niov;
+	unsigned int size;
+	unsigned int niov;
 
 	if ((umd->options & LNET_MD_KIOV) != 0) {
 		niov = umd->length;
@@ -211,7 +211,7 @@ lnet_md_alloc(lnet_md_t *umd)
 static inline void
 lnet_md_free(lnet_libmd_t *md)
 {
-	unsigned int  size;
+	unsigned int size;
 
 	if ((md->md_options & LNET_MD_KIOV) != 0)
 		size = offsetof(lnet_libmd_t, md_iov.kiov[md->md_niov]);
@@ -299,7 +299,7 @@ lnet_handle2md(lnet_handle_md_t *handle)
 {
 	/* ALWAYS called with resource lock held */
 	lnet_libhandle_t *lh;
-	int		 cpt;
+	int cpt;
 
 	cpt = lnet_cpt_of_cookie(handle->cookie);
 	lh = lnet_res_lh_lookup(the_lnet.ln_md_containers[cpt],
@@ -315,7 +315,7 @@ lnet_wire_handle2md(lnet_handle_wire_t *wh)
 {
 	/* ALWAYS called with resource lock held */
 	lnet_libhandle_t *lh;
-	int		 cpt;
+	int cpt;
 
 	if (wh->wh_interface_cookie != the_lnet.ln_interface_cookie)
 		return NULL;
@@ -340,7 +340,7 @@ lnet_handle2me(lnet_handle_me_t *handle)
 {
 	/* ALWAYS called with resource lock held */
 	lnet_libhandle_t *lh;
-	int		 cpt;
+	int cpt;
 
 	cpt = lnet_cpt_of_cookie(handle->cookie);
 	lh = lnet_res_lh_lookup(the_lnet.ln_me_containers[cpt],
@@ -530,7 +530,9 @@ void lnet_recv(lnet_ni_t *ni, void *private, lnet_msg_t *msg, int delayed,
 	       unsigned int offset, unsigned int mlen, unsigned int rlen);
 lnet_msg_t *lnet_create_reply_msg(lnet_ni_t *ni, lnet_msg_t *get_msg);
 void lnet_set_reply_msg_len(lnet_ni_t *ni, lnet_msg_t *msg, unsigned int len);
+
 void lnet_finalize(lnet_ni_t *ni, lnet_msg_t *msg, int rc);
+
 void lnet_drop_delayed_msg_list(struct list_head *head, char *reason);
 void lnet_recv_delayed_msg_list(struct list_head *head);
 
@@ -679,12 +681,12 @@ void lnet_peer_tables_destroy(void);
 int lnet_peer_tables_create(void);
 void lnet_debug_peer(lnet_nid_t nid);
 
-static inline void lnet_peer_set_alive(lnet_peer_t *lp)
+static inline void
+lnet_peer_set_alive(lnet_peer_t *lp)
 {
 	lp->lp_last_alive = lp->lp_last_query = get_seconds();
 	if (!lp->lp_alive)
 		lnet_notify_locked(lp, 0, 1, lp->lp_last_alive);
 }
-
 
 #endif

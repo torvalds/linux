@@ -48,7 +48,7 @@
 /** Portal reserved for LNet's own use.
  * \see lustre/include/lustre/lustre_idl.h for Lustre portal assignments.
  */
-#define LNET_RESERVED_PORTAL      0
+#define LNET_RESERVED_PORTAL	0
 
 /**
  * Address of an end-point in an LNet network.
@@ -68,15 +68,15 @@ typedef __u64 lnet_nid_t;
 typedef __u32 lnet_pid_t;
 
 /** wildcard NID that matches any end-point address */
-#define LNET_NID_ANY      ((lnet_nid_t) -1)
+#define LNET_NID_ANY	((lnet_nid_t) -1)
 /** wildcard PID that matches any lnet_pid_t */
-#define LNET_PID_ANY      ((lnet_pid_t) -1)
+#define LNET_PID_ANY	((lnet_pid_t) -1)
 
 #define LNET_PID_RESERVED 0xf0000000 /* reserved bits in PID */
 #define LNET_PID_USERFLAG 0x80000000 /* set in userspace peers */
 #define LNET_PID_LUSTRE	  12345
 
-#define LNET_TIME_FOREVER    (-1)
+#define LNET_TIME_FOREVER (-1)
 
 /* how an LNET NID encodes net:address */
 /** extract the address part of an lnet_nid_t */
@@ -380,8 +380,8 @@ typedef struct {
 	 * one must start on page boundary, and all but the last must end on
 	 * page boundary.
 	 */
-	void	    *start;
-	unsigned int     length;
+	void		*start;
+	unsigned int	 length;
 	/**
 	 * Specifies the maximum number of operations that can be performed
 	 * on the memory descriptor. An operation is any action that could
@@ -392,7 +392,7 @@ typedef struct {
 	 * there is no bound on the number of operations that may be applied
 	 * to a MD.
 	 */
-	int	      threshold;
+	int		 threshold;
 	/**
 	 * Specifies the largest incoming request that the memory descriptor
 	 * should respond to. When the unused portion of a MD (length -
@@ -400,7 +400,7 @@ typedef struct {
 	 * does not respond to further operations. This value is only used
 	 * if the LNET_MD_MAX_SIZE option is set.
 	 */
-	int	      max_size;
+	int		 max_size;
 	/**
 	 * Specifies the behavior of the memory descriptor. A bitwise OR
 	 * of the following values can be used:
@@ -437,14 +437,14 @@ typedef struct {
 	 *   region (i.e. sum of all fragment lengths) must not be less than
 	 *   \a max_size.
 	 */
-	unsigned int     options;
+	unsigned int	 options;
 	/**
 	 * A user-specified value that is associated with the memory
 	 * descriptor. The value does not need to be a pointer, but must fit
 	 * in the space used by a pointer. This value is recorded in events
 	 * associated with operations on this MD.
 	 */
-	void	    *user_ptr;
+	void		*user_ptr;
 	/**
 	 * A handle for the event queue used to log the operations performed on
 	 * the memory region. If this argument is a NULL handle (i.e. nullified
@@ -461,33 +461,33 @@ typedef struct {
 #define LNET_MTU	(1 << LNET_MTU_BITS)
 
 /** limit on the number of fragments in discontiguous MDs */
-#define LNET_MAX_IOV    256
+#define LNET_MAX_IOV	256
 
 /**
  * Options for the MD structure. See lnet_md_t::options.
  */
-#define LNET_MD_OP_PUT	       (1 << 0)
+#define LNET_MD_OP_PUT		(1 << 0)
 /** See lnet_md_t::options. */
-#define LNET_MD_OP_GET	       (1 << 1)
+#define LNET_MD_OP_GET		(1 << 1)
 /** See lnet_md_t::options. */
 #define LNET_MD_MANAGE_REMOTE	(1 << 2)
-/* unused			    (1 << 3) */
+/* unused			(1 << 3) */
 /** See lnet_md_t::options. */
-#define LNET_MD_TRUNCATE	     (1 << 4)
+#define LNET_MD_TRUNCATE	(1 << 4)
 /** See lnet_md_t::options. */
-#define LNET_MD_ACK_DISABLE	  (1 << 5)
+#define LNET_MD_ACK_DISABLE	(1 << 5)
 /** See lnet_md_t::options. */
 #define LNET_MD_IOVEC		(1 << 6)
 /** See lnet_md_t::options. */
-#define LNET_MD_MAX_SIZE	     (1 << 7)
+#define LNET_MD_MAX_SIZE	(1 << 7)
 /** See lnet_md_t::options. */
-#define LNET_MD_KIOV		 (1 << 8)
+#define LNET_MD_KIOV		(1 << 8)
 
 /* For compatibility with Cray Portals */
-#define LNET_MD_PHYS			 0
+#define LNET_MD_PHYS		0
 
 /** Infinite threshold on MD operations. See lnet_md_t::threshold */
-#define LNET_MD_THRESH_INF       (-1)
+#define LNET_MD_THRESH_INF	(-1)
 
 /* NB lustre portals uses struct iovec internally! */
 typedef struct iovec lnet_md_iovec_t;
@@ -497,15 +497,15 @@ typedef struct iovec lnet_md_iovec_t;
  */
 typedef struct {
 	/** Pointer to the page where the fragment resides */
-	struct page      *kiov_page;
+	struct page	*kiov_page;
 	/** Length in bytes of the fragment */
-	unsigned int     kiov_len;
+	unsigned int	 kiov_len;
 	/**
 	 * Starting offset of the fragment within the page. Note that the
 	 * end of the fragment must not pass the end of the page; i.e.,
 	 * kiov_len + kiov_offset <= PAGE_CACHE_SIZE.
 	 */
-	unsigned int     kiov_offset;
+	unsigned int	 kiov_offset;
 } lnet_kiov_t;
 /** @} lnet_md */
 
@@ -553,7 +553,7 @@ typedef enum {
 	LNET_EVENT_UNLINK,
 } lnet_event_kind_t;
 
-#define LNET_SEQ_BASETYPE       long
+#define LNET_SEQ_BASETYPE	long
 typedef unsigned LNET_SEQ_BASETYPE lnet_seq_t;
 #define LNET_SEQ_GT(a, b)	(((signed LNET_SEQ_BASETYPE)((a) - (b))) > 0)
 
@@ -562,23 +562,23 @@ typedef unsigned LNET_SEQ_BASETYPE lnet_seq_t;
  */
 typedef struct {
 	/** The identifier (nid, pid) of the target. */
-	lnet_process_id_t   target;
+	lnet_process_id_t	target;
 	/** The identifier (nid, pid) of the initiator. */
-	lnet_process_id_t   initiator;
+	lnet_process_id_t	initiator;
 	/**
 	 * The NID of the immediate sender. If the request has been forwarded
 	 * by routers, this is the NID of the last hop; otherwise it's the
 	 * same as the initiator.
 	 */
-	lnet_nid_t	  sender;
+	lnet_nid_t		sender;
 	/** Indicates the type of the event. */
-	lnet_event_kind_t   type;
+	lnet_event_kind_t	type;
 	/** The portal table index specified in the request */
-	unsigned int	pt_index;
+	unsigned int		pt_index;
 	/** A copy of the match bits specified in the request. */
-	__u64	       match_bits;
+	__u64			match_bits;
 	/** The length (in bytes) specified in the request. */
-	unsigned int	rlength;
+	unsigned int		rlength;
 	/**
 	 * The length (in bytes) of the data that was manipulated by the
 	 * operation. For truncated operations, the manipulated length will be
@@ -586,47 +586,47 @@ typedef struct {
 	 * see lnet_md_t). For all other operations, the manipulated length
 	 * will be the length of the requested operation, i.e. rlength.
 	 */
-	unsigned int	mlength;
+	unsigned int		mlength;
 	/**
 	 * The handle to the MD associated with the event. The handle may be
 	 * invalid if the MD has been unlinked.
 	 */
-	lnet_handle_md_t    md_handle;
+	lnet_handle_md_t	md_handle;
 	/**
 	 * A snapshot of the state of the MD immediately after the event has
 	 * been processed. In particular, the threshold field in md will
 	 * reflect the value of the threshold after the operation occurred.
 	 */
-	lnet_md_t	   md;
+	lnet_md_t		md;
 	/**
 	 * 64 bits of out-of-band user data. Only valid for LNET_EVENT_PUT.
 	 * \see LNetPut
 	 */
-	__u64	       hdr_data;
+	__u64			hdr_data;
 	/**
 	 * Indicates the completion status of the operation. It's 0 for
 	 * successful operations, otherwise it's an error code.
 	 */
-	int		 status;
+	int			status;
 	/**
 	 * Indicates whether the MD has been unlinked. Note that:
 	 * - An event with unlinked set is the last event on the MD.
 	 * - This field is also set for an explicit LNET_EVENT_UNLINK event.
 	 * \see LNetMDUnlink
 	 */
-	int		 unlinked;
+	int			unlinked;
 	/**
 	 * The displacement (in bytes) into the memory region that the
 	 * operation used. The offset can be determined by the operation for
 	 * a remote managed MD or by the local MD.
 	 * \see lnet_md_t::options
 	 */
-	unsigned int	offset;
+	unsigned int		offset;
 	/**
 	 * The sequence number for this event. Sequence numbers are unique
 	 * to each event.
 	 */
-	volatile lnet_seq_t sequence;
+	volatile lnet_seq_t	sequence;
 } lnet_event_t;
 
 /**
