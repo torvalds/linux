@@ -214,16 +214,11 @@ err_alloc:
 static int bcma_hcd_probe(struct bcma_device *dev)
 {
 	int err;
-	u16 chipid_top;
 	u32 ohci_addr;
 	struct bcma_hcd_device *usb_dev;
 	struct bcma_chipinfo *chipinfo;
 
 	chipinfo = &dev->bus->chipinfo;
-	/* USBcores are only connected on embedded devices. */
-	chipid_top = (chipinfo->id & 0xFF00);
-	if (chipid_top != 0x4700 && chipid_top != 0x5300)
-		return -ENODEV;
 
 	/* TODO: Probably need checks here; is the core connected? */
 
