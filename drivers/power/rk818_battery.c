@@ -1086,7 +1086,7 @@ static bool rk81x_bat_zero_current_calib(struct rk81x_battery *di)
 	int ioffset;
 	u8 pcb_offset = 0;
 	u8 retry = 0;
-	bool ret;
+	bool ret = true;
 
 	if ((di->chrg_status == CHARGE_FINISH) &&
 	    (BASE_TO_MIN(di->power_on_base) >= 3) &&
@@ -2250,7 +2250,7 @@ static u8 rk81x_bat_select_finish_ma(int fcc)
 
 	return ma;
 }
-
+#if 0
 /*
  * there is a timer inside rk81x to calc how long the battery is in charging
  * state. rk81x will close PowerPath inside IC when timer reach, which will
@@ -2270,6 +2270,7 @@ static void rk81x_bat_init_chrg_timer(struct rk81x_battery *di)
 	rk81x_bat_write(di, CHRG_CTRL_REG3, &buf, 1);
 	dev_info(di->dev, "reset cccv charge timer\n");
 }
+#endif
 
 static void rk81x_bat_charger_init(struct  rk81x_battery *di)
 {
@@ -2285,7 +2286,7 @@ static void rk81x_bat_charger_init(struct  rk81x_battery *di)
 	rk81x_bat_match_param(di, chrg_vol, chrg_ilim, chrg_cur);
 	finish_ma = rk81x_bat_select_finish_ma(di->fcc);
 
-	rk81x_bat_init_chrg_timer(di);
+	/*rk81x_bat_init_chrg_timer(di);*/
 
 	rk81x_bat_read(di, THERMAL_REG, &thremal_reg, 1);
 	rk81x_bat_read(di, USB_CTRL_REG, &usb_ctrl_reg, 1);
@@ -2309,6 +2310,8 @@ static void rk81x_bat_charger_init(struct  rk81x_battery *di)
 	chrg_ctrl_reg1 |= (CHRG_EN) | (di->chrg_v_lmt | di->chrg_i_cur);
 
 	chrg_ctrl_reg3 |= CHRG_TERM_DIG_SIGNAL;/* digital finish mode*/
+	chrg_ctrl_reg3 &= ~CHRG_TIMER_CCCV_EN;/*disable*/
+
 	chrg_ctrl_reg2 &= ~(0xc7);
 	chrg_ctrl_reg2 |= finish_ma | CHG_CCCV_6HOUR;
 
@@ -2353,9 +2356,6 @@ static void rk81x_bat_fg_init(struct rk81x_battery *di)
 
 	val = 0x30;
 	rk81x_bat_write(di, ADC_CTRL_REG, &val, 1);
-	rk81x_bat_read(di, RK818_VB_MON_REG, &val, 1);
-	if (val & PLUG_IN_STS)
-		rk81x_bat_set_power_supply_state(di, USB_CHARGER);
 
 	rk81x_bat_gauge_enable(di);
 	/* get the volatege offset */
@@ -2410,7 +2410,8 @@ static void rk81x_bat_zero_calc_linek(struct rk81x_battery *di)
 	int voltage, voltage_old, voltage_now;
 	int i, rsoc;
 	int q_ocv, q_dead;
-	int count_num, currentnow;
+	int count_num = 0;
+	int currentnow;
 	int ocv_soc, dead_soc;
 	int power_off_thresd = di->pdata->power_off_thresd;
 
@@ -2583,7 +2584,7 @@ static void rk81x_bat_rsoc_check(struct rk81x_battery *di)
 
 static void rk81x_bat_emulator_dischrg(struct rk81x_battery *di)
 {
-	u32 temp, soc_time;
+	u32 temp, soc_time = 0;
 	unsigned long sec_unit;
 
 	if (!di->dischrg_emu_base)
@@ -2614,7 +2615,7 @@ static void rk81x_bat_emulator_dischrg(struct rk81x_battery *di)
  */
 static void rk81x_bat_emulator_chrg(struct rk81x_battery *di)
 {
-	u32 soc_time, temp;
+	u32 soc_time = 0, temp;
 	int plus_soc;
 	unsigned long chrg_emu_sec;
 
@@ -2945,7 +2946,7 @@ static void rk81x_bat_wait_finish_sig(struct rk81x_battery *di)
 static void rk81x_bat_finish_chrg(struct rk81x_battery *di)
 {
 	unsigned long sec_finish;
-	int soc_time, plus_soc;
+	int soc_time = 0, plus_soc;
 	int temp;
 
 	if (di->dsoc < 100) {
@@ -3145,11 +3146,9 @@ static void rk81x_bat_chrg_smooth(struct rk81x_battery *di)
 {
 	u32 *ocv_table = di->pdata->battery_ocv;
 	int delta_soc = di->rsoc - di->dsoc;
-	int chrg_finish_vol = di->pdata->max_charger_voltagemV;
 
-	if ((di->chrg_status == CHARGE_FINISH ||
-	     di->slp_chrg_status == CHARGE_FINISH) &&
-	     (di->voltage > chrg_finish_vol - 150)) {
+	if (di->chrg_status == CHARGE_FINISH ||
+	    di->slp_chrg_status == CHARGE_FINISH) {
 		/*clear sleep charge status*/
 		di->slp_chrg_status = rk81x_bat_get_chrg_status(di);
 		di->chrg_emu_base = 0;
@@ -3159,8 +3158,8 @@ static void rk81x_bat_chrg_smooth(struct rk81x_battery *di)
 		rk81x_bat_capacity_init(di, di->fcc);
 		rk81x_bat_capacity_init_post(di);
 	} else if ((di->ac_online == ONLINE && di->dsoc >= 90) &&
-	    ((di->current_avg > DSOC_CHRG_TERM_CURR) ||
-	     (di->voltage < ocv_table[18] + 20))) {
+		   ((di->current_avg > DSOC_CHRG_TERM_CURR) ||
+		    (di->voltage < ocv_table[18] + 20))) {
 		di->chrg_emu_base = 0;
 		di->chrg_normal_base = 0;
 		di->chrg_finish_base = 0;
@@ -3293,7 +3292,8 @@ static void rk81x_bat_vol_calib(struct rk81x_battery *di, int condition)
 
 static int  rk81x_bat_sleep_dischrg(struct rk81x_battery *di)
 {
-	int delta_soc, temp_dsoc;
+	int delta_soc = 0;
+	int temp_dsoc;
 	unsigned long sleep_sec = di->suspend_time_sum;
 	int power_off_thresd = di->pdata->power_off_thresd;
 
@@ -3418,8 +3418,12 @@ static void rk81x_bat_power_supply_changed(struct rk81x_battery *di)
 	else if (old_charge_status != di->psy_status)
 		state_changed = true;
 
-	if (di->dsoc >= 100 && rk81x_chrg_online(di))
-		di->psy_status = POWER_SUPPLY_STATUS_FULL;
+	if (rk81x_chrg_online(di)) {
+		if (di->dsoc == 100)
+			di->psy_status = POWER_SUPPLY_STATUS_FULL;
+		else
+			di->psy_status = POWER_SUPPLY_STATUS_CHARGING;
+	}
 
 	if (state_changed) {
 		power_supply_changed(&di->bat);
@@ -3434,6 +3438,7 @@ static void rk81x_bat_power_supply_changed(struct rk81x_battery *di)
 	}
 }
 
+#if 0
 static u8 rk81x_bat_get_cvcc_chrg_hour(struct rk81x_battery *di)
 {
 	u8 hour, buf;
@@ -3474,12 +3479,13 @@ static void rk81x_bat_chrg_over_time_check(struct rk81x_battery *di)
 		    di->current_avg);
 
 		if (SEC_TO_MIN(di->chrg_time2full) > 60) {
-			rk81x_bat_init_chrg_timer(di);
+			/*rk81x_bat_init_chrg_timer(di);*/
 			di->plug_in_base = get_runtime_sec();
 			DBG("%s: reset charge timer\n", __func__);
 		}
 	}
 }
+#endif
 
 /*
  * in case that we will do reboot stress test, we need a special way
@@ -3504,9 +3510,8 @@ static void rk81x_bat_check_reboot(struct rk81x_battery *di)
 	    __func__, cnt, unit_time, smooth_time,
 	    BASE_TO_SEC(di->power_on_base), dsoc, rsoc);
 
-	if (((status == POWER_SUPPLY_STATUS_CHARGING) ||
-	     (status == POWER_SUPPLY_STATUS_FULL)) &&
-	     (abs(di->current_avg) < 5)) {
+	if ((status == POWER_SUPPLY_STATUS_CHARGING) ||
+	    (status == POWER_SUPPLY_STATUS_FULL && abs(di->current_avg) < 5)) {
 		DBG("chrg, sm:%d, aim:%d\n", smooth_time, unit_time * 3 / 5);
 		if ((dsoc < rsoc - 1) && (smooth_time > unit_time * 3 / 5)) {
 			cnt = 0;
@@ -3578,7 +3583,7 @@ static void rk81x_bat_update_info(struct rk81x_battery *di)
 	di->relax_voltage = rk81x_bat_get_relax_vol(di);
 	di->est_ocv_vol = rk81x_bat_est_ocv_vol(di);
 	di->est_ocv_soc = rk81x_bat_est_ocv_soc(di);
-	rk81x_bat_chrg_over_time_check(di);
+	/*rk81x_bat_chrg_over_time_check(di);*/
 	rk81x_bat_update_calib_param(di);
 	if (di->chrg_status == CC_OR_CV)
 		di->enter_finish = true;
@@ -3924,7 +3929,6 @@ static void rk81x_bat_dc_det_init(struct rk81x_battery *di,
 	if (gpio_is_valid(di->dc_det_pin))
 		di->dc_det_level = (flags & OF_GPIO_ACTIVE_LOW) ?
 					RK818_DC_IN : RK818_DC_OUT;
-
 	di->dc_det_irq = gpio_to_irq(di->dc_det_pin);
 	ret = request_irq(di->dc_det_irq, rk81x_vbat_dc_det,
 			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
@@ -4216,6 +4220,7 @@ static int rk81x_battery_suspend(struct platform_device *dev,
 	di->dischrg_normal_base = 0;
 	di->dischrg_emu_base = 0;
 	do_gettimeofday(&di->suspend_rtc_base);
+
 	if (!rk81x_chrg_online(di)) {
 		di->chrg_save_sec += rk81x_bat_save_chrg_sec(di);
 		di->chrg_normal_base = 0;
@@ -4256,7 +4261,7 @@ static int rk81x_battery_resume(struct platform_device *dev)
 	delta_time = rk81x_bat_get_suspend_sec(di);
 	di->suspend_time_sum += delta_time;
 #if defined(CONFIG_ARCH_ROCKCHIP)
-	di->remain_capacity= rk81x_bat_get_realtime_capacity(di);
+	di->remain_capacity = rk81x_bat_get_realtime_capacity(di);
 #endif
 
 	if (di->slp_psy_status) {
