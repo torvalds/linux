@@ -3426,6 +3426,8 @@ int ib_uverbs_ex_query_device(struct ib_uverbs_file *file,
 	if (ucore->outlen < resp.response_length)
 		return -ENOSPC;
 
+	memset(&attr, 0, sizeof(attr));
+
 	err = device->query_device(device, &attr);
 	if (err)
 		return err;
@@ -3449,6 +3451,18 @@ int ib_uverbs_ex_query_device(struct ib_uverbs_file *file,
 	memset(&resp.odp_caps, 0, sizeof(resp.odp_caps));
 #endif
 	resp.response_length += sizeof(resp.odp_caps);
+
+	if (ucore->outlen < resp.response_length + sizeof(resp.timestamp_mask))
+		goto end;
+
+	resp.timestamp_mask = attr.timestamp_mask;
+	resp.response_length += sizeof(resp.timestamp_mask);
+
+	if (ucore->outlen < resp.response_length + sizeof(resp.hca_core_clock))
+		goto end;
+
+	resp.hca_core_clock = attr.hca_core_clock;
+	resp.response_length += sizeof(resp.hca_core_clock);
 
 end:
 	err = ib_copy_to_udata(ucore, &resp, resp.response_length);

@@ -223,6 +223,8 @@ struct ib_uverbs_ex_query_device_resp {
 	__u32 comp_mask;
 	__u32 response_length;
 	struct ib_uverbs_odp_caps odp_caps;
+	__u64 timestamp_mask;
+	__u64 hca_core_clock; /* in KHZ */
 };
 
 struct ib_uverbs_query_port {
