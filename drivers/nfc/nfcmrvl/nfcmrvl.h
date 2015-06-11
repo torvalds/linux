@@ -16,6 +16,11 @@
  * this warranty disclaimer.
  **/
 
+#ifndef _NFCMRVL_H_
+#define _NFCMRVL_H_
+
+#include <linux/platform_data/nfcmrvl.h>
+
 /* Define private flags: */
 #define NFCMRVL_NCI_RUNNING			1
 
@@ -38,22 +43,25 @@
 #define NFCMRVL_HCI_OGF				0x81
 #define NFCMRVL_HCI_OCF				0xFE
 
-#define NFCMRVL_DEV_FLAG_HCI_MUXED		(1 << 0)
-#define NFCMRVL_DEV_FLAG_SET_RESET_N_IO(X)	((X) << 16)
-#define NFCMRVL_DEV_FLAG_GET_RESET_N_IO(X)	((X) >> 16)
 
 struct nfcmrvl_private {
 
-	/* Tell if NCI packets are encapsulated in HCI ones */
-	int hci_muxed;
+	unsigned long flags;
+
+	/* Platform configuration */
+	struct nfcmrvl_platform_data config;
+
 	struct nci_dev *ndev;
 
-	/* Reset IO (0 if not available) */
-	int reset_n_io;
+	/*
+	** PHY related information
+	*/
 
-	unsigned long flags;
+	/* PHY driver context */
 	void *drv_data;
+	/* PHY device */
 	struct device *dev;
+	/* Low level driver ops */
 	struct nfcmrvl_if_ops *if_ops;
 };
 
@@ -66,8 +74,14 @@ struct nfcmrvl_if_ops {
 void nfcmrvl_nci_unregister_dev(struct nfcmrvl_private *priv);
 int nfcmrvl_nci_recv_frame(struct nfcmrvl_private *priv, struct sk_buff *skb);
 struct nfcmrvl_private *nfcmrvl_nci_register_dev(void *drv_data,
-						 struct nfcmrvl_if_ops *ops,
-						 struct device *dev,
-						 unsigned int flags);
+				struct nfcmrvl_if_ops *ops,
+				struct device *dev,
+				struct nfcmrvl_platform_data *pdata);
+
 
 void nfcmrvl_chip_reset(struct nfcmrvl_private *priv);
+
+int nfcmrvl_parse_dt(struct device_node *node,
+		     struct nfcmrvl_platform_data *pdata);
+
+#endif

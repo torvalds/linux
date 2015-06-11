@@ -302,6 +302,10 @@ static int nfcmrvl_probe(struct usb_interface *intf,
 	struct nfcmrvl_private *priv;
 	int i;
 	struct usb_device *udev = interface_to_usbdev(intf);
+	struct nfcmrvl_platform_data config;
+
+	/* No configuration for USB */
+	memset(&config, 0, sizeof(config));
 
 	nfc_info(&udev->dev, "intf %p id %p\n", intf, id);
 
@@ -339,7 +343,7 @@ static int nfcmrvl_probe(struct usb_interface *intf,
 	init_usb_anchor(&drv_data->deferred);
 
 	priv = nfcmrvl_nci_register_dev(drv_data, &usb_ops,
-					&drv_data->udev->dev, 0);
+					&drv_data->udev->dev, &config);
 	if (IS_ERR(priv))
 		return PTR_ERR(priv);
 
