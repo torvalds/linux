@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -27,15 +23,15 @@
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, Intel Corporation.
+ * Copyright (c) 2011 - 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
- * Lustre is a trademark of Sun Microsystems, Inc.
+ * Lustre is a trademark of Seagate, Inc.
  *
  * lnet/include/lnet/lnetst.h
  *
- * Author: Liang Zhen <liangzhen@clusterfs.com>
+ * Author: Liang Zhen <liang.zhen@intel.com>
  */
 
 #ifndef __LNET_ST_H__
