@@ -2594,7 +2594,6 @@ static unsigned int OnProbeReq(struct adapter *padapter,
 	struct wlan_bssid_ex *cur = &(pmlmeinfo->network);
 	u8 *pframe = precv_frame->rx_data;
 	uint len = precv_frame->len;
-	u8 is_valid_p2p_probereq = false;
 
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE))
 		return _SUCCESS;
@@ -2608,14 +2607,9 @@ static unsigned int OnProbeReq(struct adapter *padapter,
 
 	/* check (wildcard) SSID */
 	if (p != NULL) {
-		if (is_valid_p2p_probereq)
-			goto _issue_probersp;
-
 		if ((ielen != 0 && memcmp((void *)(p+2), (void *)cur->Ssid.Ssid, cur->Ssid.SsidLength)) ||
 		    (ielen == 0 && pmlmeinfo->hidden_ssid_mode))
 			return _SUCCESS;
-
-_issue_probersp:
 
 		if (check_fwstate(pmlmepriv, _FW_LINKED) &&
 		    pmlmepriv->cur_network.join_res)
