@@ -1045,7 +1045,7 @@ static int lmv_iocontrol(unsigned int cmd, struct obd_export *exp,
 				reqlen = offsetof(typeof(*hur),
 						  hur_user_item[nr])
 					 + hur->hur_request.hr_data_len;
-				OBD_ALLOC_LARGE(req, reqlen);
+				req = libcfs_kvzalloc(reqlen, GFP_NOFS);
 				if (req == NULL)
 					return -ENOMEM;
 
@@ -1055,7 +1055,7 @@ static int lmv_iocontrol(unsigned int cmd, struct obd_export *exp,
 						    reqlen, req, uarg);
 				if (rc1 != 0 && rc == 0)
 					rc = rc1;
-				OBD_FREE_LARGE(req, reqlen);
+				kvfree(req);
 			}
 		}
 		break;
@@ -2400,13 +2400,13 @@ static int lmv_packmd(struct obd_export *exp, struct lov_mds_md **lmmp,
 		return mea_size;
 
 	if (*lmmp && !lsm) {
-		OBD_FREE_LARGE(*lmmp, mea_size);
+		kvfree(*lmmp);
 		*lmmp = NULL;
 		return 0;
 	}
 
 	if (*lmmp == NULL) {
-		OBD_ALLOC_LARGE(*lmmp, mea_size);
+		*lmmp = libcfs_kvzalloc(mea_size, GFP_NOFS);
 		if (*lmmp == NULL)
 			return -ENOMEM;
 	}
@@ -2449,14 +2449,14 @@ static int lmv_unpackmd(struct obd_export *exp, struct lov_stripe_md **lsmp,
 		return mea_size;
 
 	if (*lsmp != NULL && lmm == NULL) {
-		OBD_FREE_LARGE(*tmea, mea_size);
+		kvfree(*tmea);
 		*lsmp = NULL;
 		return 0;
 	}
 
 	LASSERT(mea_size == lmm_size);
 
-	OBD_ALLOC_LARGE(*tmea, mea_size);
+	*tmea = libcfs_kvzalloc(mea_size, GFP_NOFS);
 	if (*tmea == NULL)
 		return -ENOMEM;
 
