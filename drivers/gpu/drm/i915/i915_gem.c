@@ -3000,8 +3000,8 @@ int i915_vma_unbind(struct i915_vma *vma)
 		} else if (vma->ggtt_view.pages) {
 			sg_free_table(vma->ggtt_view.pages);
 			kfree(vma->ggtt_view.pages);
-			vma->ggtt_view.pages = NULL;
 		}
+		vma->ggtt_view.pages = NULL;
 	}
 
 	drm_mm_remove_node(&vma->node);
