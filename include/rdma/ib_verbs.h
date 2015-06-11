@@ -173,6 +173,10 @@ struct ib_odp_caps {
 	} per_transport_caps;
 };
 
+enum ib_cq_creation_flags {
+	IB_CQ_FLAGS_TIMESTAMP_COMPLETION   = 1 << 0,
+};
+
 struct ib_cq_init_attr {
 	unsigned int	cqe;
 	int		comp_vector;
