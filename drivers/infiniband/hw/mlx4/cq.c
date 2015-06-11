@@ -166,6 +166,7 @@ err_buf:
 	return err;
 }
 
+#define CQ_CREATE_FLAGS_SUPPORTED IB_CQ_FLAGS_TIMESTAMP_COMPLETION
 struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,
 				const struct ib_cq_init_attr *attr,
 				struct ib_ucontext *context,
@@ -178,10 +179,10 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,
 	struct mlx4_uar *uar;
 	int err;
 
-	if (attr->flags)
+	if (entries < 1 || entries > dev->dev->caps.max_cqes)
 		return ERR_PTR(-EINVAL);
 
-	if (entries < 1 || entries > dev->dev->caps.max_cqes)
+	if (attr->flags & ~CQ_CREATE_FLAGS_SUPPORTED)
 		return ERR_PTR(-EINVAL);
 
 	cq = kmalloc(sizeof *cq, GFP_KERNEL);
@@ -194,6 +195,7 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,
 	spin_lock_init(&cq->lock);
 	cq->resize_buf = NULL;
 	cq->resize_umem = NULL;
+	cq->create_flags = attr->flags;
 	INIT_LIST_HEAD(&cq->send_qp_list);
 	INIT_LIST_HEAD(&cq->recv_qp_list);
 
@@ -237,7 +239,8 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,
 		vector = dev->eq_table[vector % ibdev->num_comp_vectors];
 
 	err = mlx4_cq_alloc(dev->dev, entries, &cq->buf.mtt, uar,
-			    cq->db.dma, &cq->mcq, vector, 0, 0);
+			    cq->db.dma, &cq->mcq, vector, 0,
+			    !!(cq->create_flags & IB_CQ_FLAGS_TIMESTAMP_COMPLETION));
 	if (err)
 		goto err_dbmap;
 

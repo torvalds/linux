@@ -140,10 +140,27 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	struct ib_smp *out_mad = NULL;
 	int err = -ENOMEM;
 	int have_ib_ports;
+	struct mlx4_uverbs_ex_query_device cmd;
+	struct mlx4_uverbs_ex_query_device_resp resp = {.comp_mask = 0};
+	struct mlx4_clock_params clock_params;
 
-	if (uhw->inlen || uhw->outlen)
-		return -EINVAL;
+	if (uhw->inlen) {
+		if (uhw->inlen < sizeof(cmd))
+			return -EINVAL;
 
+		err = ib_copy_from_udata(&cmd, uhw, sizeof(cmd));
+		if (err)
+			return err;
+
+		if (cmd.comp_mask)
+			return -EINVAL;
+
+		if (cmd.reserved)
+			return -EINVAL;
+	}
+
+	resp.response_length = offsetof(typeof(resp), response_length) +
+		sizeof(resp.response_length);
 	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
 	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
 	if (!in_mad || !out_mad)
@@ -233,7 +250,24 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	props->max_total_mcast_qp_attach = props->max_mcast_qp_attach *
 					   props->max_mcast_grp;
 	props->max_map_per_fmr = dev->dev->caps.max_fmr_maps;
+	props->hca_core_clock = dev->dev->caps.hca_core_clock * 1000UL;
+	props->timestamp_mask = 0xFFFFFFFFFFFFULL;
 
+	err = mlx4_get_internal_clock_params(dev->dev, &clock_params);
+	if (err)
+		goto out;
+
+	if (uhw->outlen >= resp.response_length + sizeof(resp.hca_core_clock_offset)) {
+		resp.hca_core_clock_offset = clock_params.offset % PAGE_SIZE;
+		resp.response_length += sizeof(resp.hca_core_clock_offset);
+		resp.comp_mask |= QUERY_DEVICE_RESP_MASK_TIMESTAMP;
+	}
+
+	if (uhw->outlen) {
+		err = ib_copy_to_udata(uhw, &resp, resp.response_length);
+		if (err)
+			goto out;
+	}
 out:
 	kfree(in_mad);
 	kfree(out_mad);
@@ -2322,6 +2356,10 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 			(1ull << IB_USER_VERBS_EX_CMD_CREATE_FLOW) |
 			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_FLOW);
 	}
+
+	ibdev->ib_dev.uverbs_ex_cmd_mask |=
+		(1ull << IB_USER_VERBS_EX_CMD_QUERY_DEVICE) |
+		(1ull << IB_USER_VERBS_EX_CMD_CREATE_CQ);
 
 	mlx4_ib_alloc_eqs(dev, ibdev);
 
