@@ -1737,7 +1737,7 @@ static int lov_fiemap(struct lov_obd *lov, __u32 keylen, void *key,
 	if (fiemap_count_to_size(fm_key->fiemap.fm_extent_count) < buffer_size)
 		buffer_size = fiemap_count_to_size(fm_key->fiemap.fm_extent_count);
 
-	OBD_ALLOC_LARGE(fm_local, buffer_size);
+	fm_local = libcfs_kvzalloc(buffer_size, GFP_NOFS);
 	if (fm_local == NULL) {
 		rc = -ENOMEM;
 		goto out;
@@ -1943,7 +1943,7 @@ skip_last_device_calc:
 	fiemap->fm_mapped_extents = current_extent;
 
 out:
-	OBD_FREE_LARGE(fm_local, buffer_size);
+	kvfree(fm_local);
 	return rc;
 }
 
