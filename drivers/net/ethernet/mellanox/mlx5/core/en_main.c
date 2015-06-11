@@ -1102,6 +1102,7 @@ static int mlx5e_open_tis(struct mlx5e_priv *priv, int tc)
 	memset(in, 0, sizeof(in));
 
 	MLX5_SET(tisc, tisc, prio,  tc);
+	MLX5_SET(tisc, tisc, transport_domain, priv->tdn);
 
 	return mlx5_core_create_tis(mdev, in, sizeof(in), &priv->tisn[tc]);
 }
@@ -1199,6 +1200,8 @@ static void mlx5e_close_rqt(struct mlx5e_priv *priv)
 static void mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 *tirc, int tt)
 {
 	void *hfso = MLX5_ADDR_OF(tirc, tirc, rx_hash_field_selector_outer);
+
+	MLX5_SET(tirc, tirc, transport_domain, priv->tdn);
 
 #define ROUGH_MAX_L2_L3_HDR_SZ 256
 
@@ -1819,11 +1822,18 @@ static void *mlx5e_create_netdev(struct mlx5_core_dev *mdev)
 		goto err_unmap_free_uar;
 	}
 
+	err = mlx5_alloc_transport_domain(mdev, &priv->tdn);
+	if (err) {
+		netdev_err(netdev, "%s: mlx5_alloc_transport_domain failed, %d\n",
+			   __func__, err);
+		goto err_dealloc_pd;
+	}
+
 	err = mlx5e_create_mkey(priv, priv->pdn, &priv->mr);
 	if (err) {
 		netdev_err(netdev, "%s: mlx5e_create_mkey failed, %d\n",
 			   __func__, err);
-		goto err_dealloc_pd;
+		goto err_dealloc_transport_domain;
 	}
 
 	err = register_netdev(netdev);
@@ -1839,6 +1849,9 @@ static void *mlx5e_create_netdev(struct mlx5_core_dev *mdev)
 
 err_destroy_mkey:
 	mlx5_core_destroy_mkey(mdev, &priv->mr);
+
+err_dealloc_transport_domain:
+	mlx5_dealloc_transport_domain(mdev, priv->tdn);
 
 err_dealloc_pd:
 	mlx5_core_dealloc_pd(mdev, priv->pdn);
@@ -1859,6 +1872,7 @@ static void mlx5e_destroy_netdev(struct mlx5_core_dev *mdev, void *vpriv)
 
 	unregister_netdev(netdev);
 	mlx5_core_destroy_mkey(priv->mdev, &priv->mr);
+	mlx5_dealloc_transport_domain(priv->mdev, priv->tdn);
 	mlx5_core_dealloc_pd(priv->mdev, priv->pdn);
 	mlx5_unmap_free_uar(priv->mdev, &priv->cq_uar);
 	mlx5e_disable_async_events(priv);
