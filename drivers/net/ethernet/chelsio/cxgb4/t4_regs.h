@@ -1361,6 +1361,42 @@
 #define FLMTXFLSTEMPTY_V(x) ((x) << FLMTXFLSTEMPTY_S)
 #define FLMTXFLSTEMPTY_F    FLMTXFLSTEMPTY_V(1U)
 
+#define TP_TX_ORATE_A 0x7ebc
+
+#define OFDRATE3_S    24
+#define OFDRATE3_M    0xffU
+#define OFDRATE3_G(x) (((x) >> OFDRATE3_S) & OFDRATE3_M)
+
+#define OFDRATE2_S    16
+#define OFDRATE2_M    0xffU
+#define OFDRATE2_G(x) (((x) >> OFDRATE2_S) & OFDRATE2_M)
+
+#define OFDRATE1_S    8
+#define OFDRATE1_M    0xffU
+#define OFDRATE1_G(x) (((x) >> OFDRATE1_S) & OFDRATE1_M)
+
+#define OFDRATE0_S    0
+#define OFDRATE0_M    0xffU
+#define OFDRATE0_G(x) (((x) >> OFDRATE0_S) & OFDRATE0_M)
+
+#define TP_TX_TRATE_A 0x7ed0
+
+#define TNLRATE3_S    24
+#define TNLRATE3_M    0xffU
+#define TNLRATE3_G(x) (((x) >> TNLRATE3_S) & TNLRATE3_M)
+
+#define TNLRATE2_S    16
+#define TNLRATE2_M    0xffU
+#define TNLRATE2_G(x) (((x) >> TNLRATE2_S) & TNLRATE2_M)
+
+#define TNLRATE1_S    8
+#define TNLRATE1_M    0xffU
+#define TNLRATE1_G(x) (((x) >> TNLRATE1_S) & TNLRATE1_M)
+
+#define TNLRATE0_S    0
+#define TNLRATE0_M    0xffU
+#define TNLRATE0_G(x) (((x) >> TNLRATE0_S) & TNLRATE0_M)
+
 #define TP_VLAN_PRI_MAP_A 0x140
 
 #define FRAGMENTATION_S    9
@@ -2759,6 +2795,33 @@
 
 #define CIM_IBQ_DBG_DATA_A 0x7b68
 #define CIM_OBQ_DBG_DATA_A 0x7b6c
+#define CIM_DEBUGCFG_A 0x7b70
+#define CIM_DEBUGSTS_A 0x7b74
+
+#define POLADBGRDPTR_S		23
+#define POLADBGRDPTR_M		0x1ffU
+#define POLADBGRDPTR_V(x)	((x) << POLADBGRDPTR_S)
+
+#define POLADBGWRPTR_S		16
+#define POLADBGWRPTR_M		0x1ffU
+#define POLADBGWRPTR_G(x)	(((x) >> POLADBGWRPTR_S) & POLADBGWRPTR_M)
+
+#define PILADBGRDPTR_S		14
+#define PILADBGRDPTR_M		0x1ffU
+#define PILADBGRDPTR_V(x)	((x) << PILADBGRDPTR_S)
+
+#define PILADBGWRPTR_S		0
+#define PILADBGWRPTR_M		0x1ffU
+#define PILADBGWRPTR_G(x)	(((x) >> PILADBGWRPTR_S) & PILADBGWRPTR_M)
+
+#define LADBGEN_S	12
+#define LADBGEN_V(x)	((x) << LADBGEN_S)
+#define LADBGEN_F	LADBGEN_V(1U)
+
+#define CIM_PO_LA_DEBUGDATA_A 0x7b78
+#define CIM_PI_LA_DEBUGDATA_A 0x7b7c
+#define CIM_PO_LA_MADEBUGDATA_A	0x7b80
+#define CIM_PI_LA_MADEBUGDATA_A	0x7b84
 
 #define UPDBGLARDEN_S		1
 #define UPDBGLARDEN_V(x)	((x) << UPDBGLARDEN_S)

@@ -2586,6 +2586,61 @@ int t4_fwcache(struct adapter *adap, enum fw_params_param_dev_fwcache op)
 	return t4_wr_mbox(adap, adap->mbox, &c, sizeof(c), NULL);
 }
 
+void t4_cim_read_pif_la(struct adapter *adap, u32 *pif_req, u32 *pif_rsp,
+			unsigned int *pif_req_wrptr,
+			unsigned int *pif_rsp_wrptr)
+{
+	int i, j;
+	u32 cfg, val, req, rsp;
+
+	cfg = t4_read_reg(adap, CIM_DEBUGCFG_A);
+	if (cfg & LADBGEN_F)
+		t4_write_reg(adap, CIM_DEBUGCFG_A, cfg ^ LADBGEN_F);
+
+	val = t4_read_reg(adap, CIM_DEBUGSTS_A);
+	req = POLADBGWRPTR_G(val);
+	rsp = PILADBGWRPTR_G(val);
+	if (pif_req_wrptr)
+		*pif_req_wrptr = req;
+	if (pif_rsp_wrptr)
+		*pif_rsp_wrptr = rsp;
+
+	for (i = 0; i < CIM_PIFLA_SIZE; i++) {
+		for (j = 0; j < 6; j++) {
+			t4_write_reg(adap, CIM_DEBUGCFG_A, POLADBGRDPTR_V(req) |
+				     PILADBGRDPTR_V(rsp));
+			*pif_req++ = t4_read_reg(adap, CIM_PO_LA_DEBUGDATA_A);
+			*pif_rsp++ = t4_read_reg(adap, CIM_PI_LA_DEBUGDATA_A);
+			req++;
+			rsp++;
+		}
+		req = (req + 2) & POLADBGRDPTR_M;
+		rsp = (rsp + 2) & PILADBGRDPTR_M;
+	}
+	t4_write_reg(adap, CIM_DEBUGCFG_A, cfg);
+}
+
+void t4_cim_read_ma_la(struct adapter *adap, u32 *ma_req, u32 *ma_rsp)
+{
+	u32 cfg;
+	int i, j, idx;
+
+	cfg = t4_read_reg(adap, CIM_DEBUGCFG_A);
+	if (cfg & LADBGEN_F)
+		t4_write_reg(adap, CIM_DEBUGCFG_A, cfg ^ LADBGEN_F);
+
+	for (i = 0; i < CIM_MALA_SIZE; i++) {
+		for (j = 0; j < 5; j++) {
+			idx = 8 * i + j;
+			t4_write_reg(adap, CIM_DEBUGCFG_A, POLADBGRDPTR_V(idx) |
+				     PILADBGRDPTR_V(idx));
+			*ma_req++ = t4_read_reg(adap, CIM_PO_LA_MADEBUGDATA_A);
+			*ma_rsp++ = t4_read_reg(adap, CIM_PI_LA_MADEBUGDATA_A);
+		}
+	}
+	t4_write_reg(adap, CIM_DEBUGCFG_A, cfg);
+}
+
 void t4_ulprx_read_la(struct adapter *adap, u32 *la_buf)
 {
 	unsigned int i, j;
@@ -4133,6 +4188,52 @@ void t4_load_mtus(struct adapter *adap, const unsigned short *mtus,
 			t4_write_reg(adap, TP_CCTRL_TABLE_A, (i << 21) |
 				     (w << 16) | (beta[w] << 13) | inc);
 		}
+	}
+}
+
+/* Calculates a rate in bytes/s given the number of 256-byte units per 4K core
+ * clocks.  The formula is
+ *
+ * bytes/s = bytes256 * 256 * ClkFreq / 4096
+ *
+ * which is equivalent to
+ *
+ * bytes/s = 62.5 * bytes256 * ClkFreq_ms
+ */
+static u64 chan_rate(struct adapter *adap, unsigned int bytes256)
+{
+	u64 v = bytes256 * adap->params.vpd.cclk;
+
+	return v * 62 + v / 2;
+}
+
+/**
+ *	t4_get_chan_txrate - get the current per channel Tx rates
+ *	@adap: the adapter
+ *	@nic_rate: rates for NIC traffic
+ *	@ofld_rate: rates for offloaded traffic
+ *
+ *	Return the current Tx rates in bytes/s for NIC and offloaded traffic
+ *	for each channel.
+ */
+void t4_get_chan_txrate(struct adapter *adap, u64 *nic_rate, u64 *ofld_rate)
+{
+	u32 v;
+
+	v = t4_read_reg(adap, TP_TX_TRATE_A);
+	nic_rate[0] = chan_rate(adap, TNLRATE0_G(v));
+	nic_rate[1] = chan_rate(adap, TNLRATE1_G(v));
+	if (adap->params.arch.nchan == NCHAN) {
+		nic_rate[2] = chan_rate(adap, TNLRATE2_G(v));
+		nic_rate[3] = chan_rate(adap, TNLRATE3_G(v));
+	}
+
+	v = t4_read_reg(adap, TP_TX_ORATE_A);
+	ofld_rate[0] = chan_rate(adap, OFDRATE0_G(v));
+	ofld_rate[1] = chan_rate(adap, OFDRATE1_G(v));
+	if (adap->params.arch.nchan == NCHAN) {
+		ofld_rate[2] = chan_rate(adap, OFDRATE2_G(v));
+		ofld_rate[3] = chan_rate(adap, OFDRATE3_G(v));
 	}
 }
 
