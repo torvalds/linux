@@ -9,12 +9,15 @@
 #include "imx6ul-14x14-ddr3-arm2.dts"
 
 &usdhc1 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc1_8bit>;
+	pinctrl-1 = <&pinctrl_usdhc1_8bit_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc1_8bit_200mhz>;
 	bus-width = <8>;
 	cd-gpios = <>;
 	wp-gpios = <>;
 	vmmc-supply = <>;
+	tuning-step = <2>;
 	non-removable;
 	status = "okay";
 };
