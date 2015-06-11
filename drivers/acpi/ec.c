@@ -133,7 +133,7 @@ static unsigned int ec_polling_guard __read_mostly = ACPI_EC_UDELAY_POLL;
 module_param(ec_polling_guard, uint, 0644);
 MODULE_PARM_DESC(ec_polling_guard, "Guard time(us) between EC accesses in polling modes");
 
-static unsigned int ec_event_clearing __read_mostly = ACPI_EC_EVT_TIMING_STATUS;
+static unsigned int ec_event_clearing __read_mostly = ACPI_EC_EVT_TIMING_QUERY;
 
 /*
  * If the number of false interrupts per one transaction exceeds
@@ -1381,10 +1381,13 @@ static int ec_validate_ecdt(const struct dmi_system_id *id)
 	return 0;
 }
 
+#if 0
 /*
- * Acer EC firmware refuses to respond QR_EC when SCI_EVT is not set, for
- * which case, we complete the QR_EC without issuing it to the firmware.
- * https://bugzilla.kernel.org/show_bug.cgi?id=86211
+ * Some EC firmware variations refuses to respond QR_EC when SCI_EVT is not
+ * set, for which case, we complete the QR_EC without issuing it to the
+ * firmware.
+ * https://bugzilla.kernel.org/show_bug.cgi?id=82611
+ * https://bugzilla.kernel.org/show_bug.cgi?id=97381
  */
 static int ec_flag_query_handshake(const struct dmi_system_id *id)
 {
@@ -1392,6 +1395,7 @@ static int ec_flag_query_handshake(const struct dmi_system_id *id)
 	EC_FLAGS_QUERY_HANDSHAKE = 1;
 	return 0;
 }
+#endif
 
 /*
  * On some hardware it is necessary to clear events accumulated by the EC during
@@ -1414,6 +1418,7 @@ static int ec_clear_on_resume(const struct dmi_system_id *id)
 {
 	pr_debug("Detected system needing EC poll on resume.\n");
 	EC_FLAGS_CLEAR_ON_RESUME = 1;
+	ec_event_clearing = ACPI_EC_EVT_TIMING_STATUS;
 	return 0;
 }
 
@@ -1443,9 +1448,6 @@ static struct dmi_system_id ec_dmi_table[] __initdata = {
 	{
 	ec_clear_on_resume, "Samsung hardware", {
 	DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD.")}, NULL},
-	{
-	ec_flag_query_handshake, "Acer hardware", {
-	DMI_MATCH(DMI_SYS_VENDOR, "Acer"), }, NULL},
 	{},
 };
 
