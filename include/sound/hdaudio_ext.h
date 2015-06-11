@@ -57,6 +57,50 @@ enum hdac_ext_stream_type {
 	HDAC_EXT_STREAM_TYPE_LINK
 };
 
+/**
+ * hdac_ext_stream: HDAC extended stream for extended HDA caps
+ *
+ * @hstream: hdac_stream
+ * @pphc_addr: processing pipe host stream pointer
+ * @pplc_addr: processing pipe link stream pointer
+ * @decoupled: stream host and link is decoupled
+ * @link_locked: link is locked
+ * @link_prepared: link is prepared
+ * link_substream: link substream
+ */
+struct hdac_ext_stream {
+	struct hdac_stream hstream;
+
+	void __iomem *pphc_addr;
+	void __iomem *pplc_addr;
+
+	bool decoupled:1;
+	bool link_locked:1;
+	bool link_prepared;
+
+	struct snd_pcm_substream *link_substream;
+};
+
+#define hdac_stream(s)		(&(s)->hstream)
+#define stream_to_hdac_ext_stream(s) \
+	container_of(s, struct hdac_ext_stream, hstream)
+
+void snd_hdac_ext_stream_init(struct hdac_ext_bus *bus,
+				struct hdac_ext_stream *stream, int idx,
+				int direction, int tag);
+struct hdac_ext_stream *snd_hdac_ext_stream_assign(struct hdac_ext_bus *bus,
+					   struct snd_pcm_substream *substream,
+					   int type);
+void snd_hdac_ext_stream_release(struct hdac_ext_stream *azx_dev, int type);
+void snd_hdac_ext_stream_decouple(struct hdac_ext_bus *bus,
+				struct hdac_ext_stream *azx_dev, bool decouple);
+void snd_hdac_ext_stop_streams(struct hdac_ext_bus *sbus);
+
+void snd_hdac_ext_link_stream_start(struct hdac_ext_stream *hstream);
+void snd_hdac_ext_link_stream_clear(struct hdac_ext_stream *hstream);
+void snd_hdac_ext_link_stream_reset(struct hdac_ext_stream *hstream);
+int snd_hdac_ext_link_stream_setup(struct hdac_ext_stream *stream, int fmt);
+
 struct hdac_ext_link {
 	struct hdac_bus *bus;
 	int index;
@@ -76,6 +120,10 @@ void snd_hdac_ext_link_clear_stream_id(struct hdac_ext_link *link,
 /* update register macro */
 #define snd_hdac_updatel(addr, reg, mask, val)		\
 	writel(((readl(addr + reg) & ~(mask)) | (val)), \
+		addr + reg)
+
+#define snd_hdac_updatew(addr, reg, mask, val)		\
+	writew(((readw(addr + reg) & ~(mask)) | (val)), \
 		addr + reg)
 
 #endif /* __SOUND_HDAUDIO_EXT_H */
