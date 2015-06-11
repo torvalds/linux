@@ -1663,7 +1663,10 @@ static int mlx5e_check_required_hca_cap(struct mlx5_core_dev *mdev)
 	    !MLX5_CAP_ETH(mdev, csum_cap) ||
 	    !MLX5_CAP_ETH(mdev, max_lso_cap) ||
 	    !MLX5_CAP_ETH(mdev, vlan_cap) ||
-	    !MLX5_CAP_ETH(mdev, rss_ind_tbl_cap)) {
+	    !MLX5_CAP_ETH(mdev, rss_ind_tbl_cap) ||
+	    MLX5_CAP_FLOWTABLE(mdev,
+			       flow_table_properties_nic_receive.max_ft_level)
+			       < 3) {
 		mlx5_core_warn(mdev,
 			       "Not creating net device, some required device capabilities are missing\n");
 		return -ENOTSUPP;
