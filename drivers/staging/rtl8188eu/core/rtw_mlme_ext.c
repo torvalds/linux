@@ -459,8 +459,7 @@ _issue_bcn:
 		dump_mgntframe(padapter, pmgntframe);
 }
 
-static void issue_probersp(struct adapter *padapter, unsigned char *da,
-			   u8 is_valid_p2p_probereq)
+static void issue_probersp(struct adapter *padapter, unsigned char *da)
 {
 	struct xmit_frame			*pmgntframe;
 	struct pkt_attrib			*pattrib;
@@ -2620,7 +2619,7 @@ _issue_probersp:
 
 		if (check_fwstate(pmlmepriv, _FW_LINKED) &&
 		    pmlmepriv->cur_network.join_res)
-			issue_probersp(padapter, get_sa(pframe), is_valid_p2p_probereq);
+			issue_probersp(padapter, get_sa(pframe));
 	}
 	return _SUCCESS;
 }
