@@ -27,7 +27,7 @@ extern void WILC_WFI_mgmt_rx(uint8_t *buff, uint32_t size);
 extern void frmw_to_linux(uint8_t *buff, uint32_t size);
 int sdio_xfer_cnt(void);
 uint32_t wilc_get_chipid(uint8_t update);
-WILC_Uint16 Set_machw_change_vir_if(WILC_Bool bValue);
+u16 Set_machw_change_vir_if(WILC_Bool bValue);
 
 
 
@@ -2325,9 +2325,9 @@ _fail_:
 }
 
 #define BIT31 (1 << 31)
-WILC_Uint16 Set_machw_change_vir_if(WILC_Bool bValue)
+u16 Set_machw_change_vir_if(WILC_Bool bValue)
 {
-	WILC_Uint16 ret;
+	u16 ret;
 	WILC_Uint32 reg;
 
 	/*Reset WILC_CHANGING_VIR_IF register to allow adding futrue keys to CE H/W*/
@@ -2354,7 +2354,7 @@ WILC_Uint16 Set_machw_change_vir_if(WILC_Bool bValue)
 }
 
 #ifdef WILC_FULLY_HOSTING_AP
-wilc_wlan_dev_t *Get_wlan_context(WILC_Uint16 *pu16size)
+wilc_wlan_dev_t *Get_wlan_context(u16 *pu16size)
 {
 	*pu16size = sizeof(wilc_wlan_dev_t);
 	return &g_wlan;

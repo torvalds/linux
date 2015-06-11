@@ -14,7 +14,6 @@
 #define WILC_OSW_INTERFACE_VER 2
 
 /* Integer Types */
-typedef unsigned short WILC_Uint16;
 typedef unsigned int WILC_Uint32;
 typedef unsigned long long WILC_Uint64;
 typedef signed char WILC_Sint8;

@@ -421,7 +421,7 @@ void WILC_mgm_HOSTAPD_ACK(void *priv, WILC_Bool bStatus)
 	u8 *buf =  pv_data->buff;
 
 	/* len of the original frame without the added pointer at the tail */
-	WILC_Uint16 u16len = (pv_data->size) - sizeof(struct tx_complete_mon_data *);
+	u16 u16len = (pv_data->size) - sizeof(struct tx_complete_mon_data *);
 
 
 	/*if(bStatus == 1){

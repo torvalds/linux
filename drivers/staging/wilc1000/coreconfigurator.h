@@ -31,7 +31,7 @@
 #define NUM_11N_HUT_SWITCHES    0
 #endif /* MAC_802_11N */
 
-extern WILC_Uint16 g_num_total_switches;
+extern u16 g_num_total_switches;
 
 #define MAC_HDR_LEN             24          /* No Address4 - non-ESS         */
 #define MAX_SSID_LEN            33
@@ -65,7 +65,7 @@ extern WILC_Uint16 g_num_total_switches;
 /*****************************************************************************/
 /* Function Macros                                                           */
 /*****************************************************************************/
-#define MAKE_WORD16(lsb, msb) ((((WILC_Uint16)(msb) << 8) & 0xFF00) | (lsb))
+#define MAKE_WORD16(lsb, msb) ((((u16)(msb) << 8) & 0xFF00) | (lsb))
 #define MAKE_WORD32(lsw, msw) ((((WILC_Uint32)(msw) << 16) & 0xFFFF0000) | (lsw))
 
 
@@ -394,7 +394,7 @@ typedef enum {
 } tenuConnectSts;
 
 typedef struct {
-	WILC_Uint16 u16WIDid;
+	u16 u16WIDid;
 	tenuWIDtype enuWIDtype;
 	WILC_Sint32 s32ValueSize;
 	WILC_Sint8      *ps8WidVal;
@@ -409,11 +409,11 @@ typedef struct {
 /* This structure is used to support parsing of the received 'N' message */
 typedef struct {
 	WILC_Sint8 s8rssi;
-	WILC_Uint16 u16CapInfo;
+	u16 u16CapInfo;
 	u8 au8ssid[MAX_SSID_LEN];
 	u8 u8SsidLen;
 	u8 au8bssid[6];
-	WILC_Uint16 u16BeaconPeriod;
+	u16 u16BeaconPeriod;
 	u8 u8DtimPeriod;
 	u8 u8channel;
 	unsigned long u32TimeRcvdInScanCached; /* of type unsigned long to be accepted by the linux kernel macro time_after() */
@@ -426,7 +426,7 @@ typedef struct {
 	WILC_Uint32 u32Tsf; /* time-stamp [Low only 32 bit] */
 #endif
 	u8 *pu8IEs;
-	WILC_Uint16 u16IEsLen;
+	u16 u16IEsLen;
 	void *pJoinParams;
 	tstrRSSI strRssi;
 	WILC_Uint64 u64Tsf; /* time-stamp [Low and High 64 bit] */
@@ -434,11 +434,11 @@ typedef struct {
 
 /* This structure is used to support parsing of the received Association Response frame */
 typedef struct {
-	WILC_Uint16 u16capability;
-	WILC_Uint16 u16ConnectStatus;
-	WILC_Uint16 u16AssocID;
+	u16 u16capability;
+	u16 u16ConnectStatus;
+	u16 u16AssocID;
 	u8 *pu8RespIEs;
-	WILC_Uint16 u16RespIEsLen;
+	u16 u16RespIEsLen;
 } tstrConnectRespInfo;
 
 
@@ -447,14 +447,14 @@ typedef struct {
 	u8 *pu8ReqIEs;
 	size_t ReqIEsLen;
 	u8 *pu8RespIEs;
-	WILC_Uint16 u16RespIEsLen;
-	WILC_Uint16 u16ConnectStatus;
+	u16 u16RespIEsLen;
+	u16 u16ConnectStatus;
 } tstrConnectInfo;
 
 
 
 typedef struct {
-	WILC_Uint16 u16reason;
+	u16 u16reason;
 	u8 *ie;
 	size_t ie_len;
 } tstrDisconnectNotifInfo;

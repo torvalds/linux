@@ -126,7 +126,7 @@ typedef enum {WID_CHAR  = 0,
 	      WID_UNDEF = 7} WID_TYPE_T;
 #endif
 typedef struct {
-	WILC_Uint16 cfg_wid;
+	u16 cfg_wid;
 	WID_TYPE_T cfg_type;
 	WILC_Sint8     *pu8Para;
 } cfg_param_t;
@@ -193,22 +193,22 @@ typedef struct {
 	u8 ht_enable;
 	u8 bss_type;
 	u8 auth_type;
-	WILC_Uint16 auth_timeout;
+	u16 auth_timeout;
 	u8 power_mgmt_mode;
-	WILC_Uint16 short_retry_limit;
-	WILC_Uint16 long_retry_limit;
-	WILC_Uint16 frag_threshold;
-	WILC_Uint16 rts_threshold;
-	WILC_Uint16 preamble_type;
+	u16 short_retry_limit;
+	u16 long_retry_limit;
+	u16 frag_threshold;
+	u16 rts_threshold;
+	u16 preamble_type;
 	u8 short_slot_allowed;
 	u8 txop_prot_disabled;
-	WILC_Uint16 beacon_interval;
-	WILC_Uint16 dtim_period;
+	u16 beacon_interval;
+	u16 dtim_period;
 	SITE_SURVEY_T site_survey_enabled;
-	WILC_Uint16 site_survey_scan_time;
+	u16 site_survey_scan_time;
 	u8 scan_source;
-	WILC_Uint16 active_scan_time;
-	WILC_Uint16 passive_scan_time;
+	u16 active_scan_time;
+	u16 passive_scan_time;
 	CURRENT_TX_RATE_T curr_tx_rate;
 
 } tstrCfgParamVal;
@@ -357,13 +357,13 @@ typedef struct {
 typedef struct {
 	u8 au8Bssid[ETH_ALEN];
 	u8 u8Ted;
-	WILC_Uint16 u16BufferSize;
-	WILC_Uint16 u16SessionTimeout;
+	u16 u16BufferSize;
+	u16 u16SessionTimeout;
 } tstrHostIfBASessionInfo;
 
 #ifdef WILC_P2P
 typedef struct {
-	WILC_Uint16 u16Channel;
+	u16 u16Channel;
 	WILC_Uint32 u32duration;
 	tWILCpfRemainOnChanExpired pRemainOnChanExpired;
 	tWILCpfRemainOnChanReady pRemainOnChanReady;
@@ -374,7 +374,7 @@ typedef struct {
 typedef struct {
 
 	WILC_Bool bReg;
-	WILC_Uint16 u16FrameType;
+	u16 u16FrameType;
 	u8 u8Regid;
 
 
@@ -462,21 +462,21 @@ typedef enum {
 
 typedef struct {
 	u8 au8BSSID[ETH_ALEN];
-	WILC_Uint16 u16AssocID;
+	u16 u16AssocID;
 	u8 u8NumRates;
 	const u8 *pu8Rates;
 	WILC_Bool bIsHTSupported;
-	WILC_Uint16 u16HTCapInfo;
+	u16 u16HTCapInfo;
 	u8 u8AmpduParams;
 	u8 au8SuppMCsSet[16];
-	WILC_Uint16 u16HTExtParams;
+	u16 u16HTExtParams;
 	WILC_Uint32 u32TxBeamformingCap;
 	u8 u8ASELCap;
-	WILC_Uint16 u16FlagsMask;               /*<! Determines which of u16FlagsSet were changed>*/
-	WILC_Uint16 u16FlagsSet;                /*<! Decoded according to tenuWILC_StaFlag */
+	u16 u16FlagsMask;               /*<! Determines which of u16FlagsSet were changed>*/
+	u16 u16FlagsSet;                /*<! Decoded according to tenuWILC_StaFlag */
 } tstrWILC_AddStaParam;
 
-/* extern void CfgDisconnected(void* pUserVoid, WILC_Uint16 u16reason, u8 * ie, size_t ie_len); */
+/* extern void CfgDisconnected(void* pUserVoid, u16 u16reason, u8 * ie, size_t ie_len); */
 
 /*****************************************************************************/
 /*																			 */
@@ -869,7 +869,7 @@ WILC_Sint32 host_int_flush_join_req(WILC_WFIDrvHandle hWFIDrv);
  *  @date		8 March 2012
  *  @version		1.0
  */
-WILC_Sint32 host_int_disconnect(WILC_WFIDrvHandle hWFIDrv, WILC_Uint16 u16ReasonCode);
+WILC_Sint32 host_int_disconnect(WILC_WFIDrvHandle hWFIDrv, u16 u16ReasonCode);
 
 /**
  *  @brief              disconnects a sta
@@ -1038,7 +1038,7 @@ WILC_Sint32 hif_set_cfg(WILC_WFIDrvHandle hWFIDrv, tstrCfgParamVal *pstrCfgParam
  *  @date		8 March 2012
  *  @version		1.0
  */
-WILC_Sint32 hif_get_cfg(WILC_WFIDrvHandle hWFIDrv, WILC_Uint16 u16WID, WILC_Uint16 *pu16WID_Value);
+WILC_Sint32 hif_get_cfg(WILC_WFIDrvHandle hWFIDrv, u16 u16WID, u16 *pu16WID_Value);
 /*****************************************************************************/
 /*							Notification Functions							 */
 /*****************************************************************************/
@@ -1058,7 +1058,7 @@ WILC_Sint32 hif_get_cfg(WILC_WFIDrvHandle hWFIDrv, WILC_Uint16 u16WID, WILC_Uint
  *  @version		1.0
  */
 void host_int_send_join_leave_info_to_host
-	(WILC_Uint16 assocId, u8 *stationAddr, WILC_Bool joining);
+	(u16 assocId, u8 *stationAddr, WILC_Bool joining);
 
 /**
  *  @brief              notifies host with stations found in scan
@@ -1074,7 +1074,7 @@ void host_int_send_join_leave_info_to_host
  *  @version		1.0
  */
 void host_int_send_network_info_to_host
-	(u8 *macStartAddress, WILC_Uint16 u16RxFrameLen, WILC_Sint8 s8Rssi);
+	(u8 *macStartAddress, u16 u16RxFrameLen, WILC_Sint8 s8Rssi);
 
 /**
  *  @brief              host interface initialization function
@@ -1285,7 +1285,7 @@ WILC_Sint32 host_int_get_ipaddress(WILC_WFIDrvHandle hWFIDrv, u8 *pu8IPAddr, u8 
  *  @date
  *  @version	1.0
  */
-WILC_Sint32 host_int_remain_on_channel(WILC_WFIDrvHandle hWFIDrv, WILC_Uint32 u32SessionID, WILC_Uint32 u32duration, WILC_Uint16 chan, tWILCpfRemainOnChanExpired RemainOnChanExpired, tWILCpfRemainOnChanReady RemainOnChanReady, void *pvUserArg);
+WILC_Sint32 host_int_remain_on_channel(WILC_WFIDrvHandle hWFIDrv, WILC_Uint32 u32SessionID, WILC_Uint32 u32duration, u16 chan, tWILCpfRemainOnChanExpired RemainOnChanExpired, tWILCpfRemainOnChanReady RemainOnChanReady, void *pvUserArg);
 
 /**
  *  @brief              host_int_ListenStateExpired
@@ -1312,7 +1312,7 @@ WILC_Sint32 host_int_ListenStateExpired(WILC_WFIDrvHandle hWFIDrv, WILC_Uint32 u
  *  @date
  *  @version	1.0
  */
-WILC_Sint32 host_int_frame_register(WILC_WFIDrvHandle hWFIDrv, WILC_Uint16 u16FrameType, WILC_Bool bReg);
+WILC_Sint32 host_int_frame_register(WILC_WFIDrvHandle hWFIDrv, u16 u16FrameType, WILC_Bool bReg);
 #endif
 /**
  *  @brief           host_int_set_wfi_drv_handler

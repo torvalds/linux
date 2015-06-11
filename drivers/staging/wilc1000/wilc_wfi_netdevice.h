@@ -175,7 +175,7 @@ struct WILC_WFI_priv {
 };
 
 typedef struct {
-	WILC_Uint16 frame_type;
+	u16 frame_type;
 	WILC_Bool reg;
 
 } struct_frame_reg;

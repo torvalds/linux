@@ -25,7 +25,7 @@
 extern void linux_wlan_free(void *vp);
 extern int linux_wlan_get_firmware(perInterface_wlan_t *p_nic);
 extern void linux_wlan_unlock(void *vp);
-extern WILC_Uint16 Set_machw_change_vir_if(WILC_Bool bValue);
+extern u16 Set_machw_change_vir_if(WILC_Bool bValue);
 
 extern int mac_open(struct net_device *ndev);
 extern int mac_close(struct net_device *ndev);
@@ -574,7 +574,7 @@ static void CfgConnectResult(tenuConnDisconnEvent enuConnDisconnEvent,
 
 	if (enuConnDisconnEvent == CONN_DISCONN_EVENT_CONN_RESP) {
 		/*Initialization*/
-		WILC_Uint16 u16ConnectStatus = WLAN_STATUS_SUCCESS;
+		u16 u16ConnectStatus = WLAN_STATUS_SUCCESS;
 
 		u16ConnectStatus = pstrConnectInfo->u16ConnectStatus;
 
@@ -2549,7 +2549,7 @@ int WILC_WFI_mgmt_tx(struct wiphy *wiphy,
 			/*Save the current channel after we tune to it*/
 			u8CurrChannel = chan->hw_value;
 		} else if (ieee80211_is_action(mgmt->frame_control))   {
-			PRINT_D(GENERIC_DBG, "ACTION FRAME:%x\n", (WILC_Uint16)mgmt->frame_control);
+			PRINT_D(GENERIC_DBG, "ACTION FRAME:%x\n", (u16)mgmt->frame_control);
 
 
 			/*BugID_4847*/
@@ -2845,7 +2845,7 @@ static int WILC_WFI_change_virt_intf(struct wiphy *wiphy, struct net_device *dev
 	struct WILC_WFI_priv *priv;
 	perInterface_wlan_t *nic;
 	u8 interface_type;
-	WILC_Uint16 TID = 0;
+	u16 TID = 0;
 	#ifdef WILC_P2P
 	u8 i;
 	#endif

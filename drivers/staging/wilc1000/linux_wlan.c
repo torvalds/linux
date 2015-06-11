@@ -67,7 +67,7 @@ unsigned char mac_add[] = {0x00, 0x80, 0xC2, 0x5E, 0xa2, 0xb2};
 #ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 extern WILC_Bool g_obtainingIP;
 #endif
-extern WILC_Uint16 Set_machw_change_vir_if(WILC_Bool bValue);
+extern u16 Set_machw_change_vir_if(WILC_Bool bValue);
 extern void resolve_disconnect_aberration(void *drvHandler);
 extern u8 gau8MulticastMacAddrList[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
 void wilc1000_wlan_deinit(linux_wlan_t *nic);
