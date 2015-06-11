@@ -2650,21 +2650,21 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		goto unlock;
 	}
 
+	/* In Secure Connections Only mode, do not allow any connections
+	 * that are not encrypted with AES-CCM using a P-256 authenticated
+	 * combination key.
+	 */
+	if (hci_dev_test_flag(hdev, HCI_SC_ONLY) &&
+	    (!test_bit(HCI_CONN_AES_CCM, &conn->flags) ||
+	     conn->key_type != HCI_LK_AUTH_COMBINATION_P256)) {
+		hci_connect_cfm(conn, HCI_ERROR_AUTH_FAILURE);
+		hci_conn_drop(conn);
+		goto unlock;
+	}
+
 	if (conn->state == BT_CONFIG) {
 		if (!ev->status)
 			conn->state = BT_CONNECTED;
-
-		/* In Secure Connections Only mode, do not allow any
-		 * connections that are not encrypted with AES-CCM
-		 * using a P-256 authenticated combination key.
-		 */
-		if (hci_dev_test_flag(hdev, HCI_SC_ONLY) &&
-		    (!test_bit(HCI_CONN_AES_CCM, &conn->flags) ||
-		     conn->key_type != HCI_LK_AUTH_COMBINATION_P256)) {
-			hci_connect_cfm(conn, HCI_ERROR_AUTH_FAILURE);
-			hci_conn_drop(conn);
-			goto unlock;
-		}
 
 		hci_connect_cfm(conn, ev->status);
 		hci_conn_drop(conn);
