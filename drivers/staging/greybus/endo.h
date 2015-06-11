@@ -50,7 +50,7 @@ struct gb_endo {
 struct greybus_host_device;
 
 int gb_endo_init(void) __init;
-void gb_endo_exit(void) __exit;
+void gb_endo_exit(void);
 
 struct gb_endo *gb_endo_create(struct greybus_host_device *hd,
 				u16 endo_id, u8 ap_intf_id);

@@ -529,6 +529,6 @@ int __init gb_endo_init(void)
 	return 0;
 }
 
-void __exit gb_endo_exit(void)
+void gb_endo_exit(void)
 {
 }
