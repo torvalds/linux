@@ -3000,16 +3000,6 @@ do {									\
 	}								\
 } while (0)
 
-#define call_tx_prio_change_cbfn(tx)					\
-do {									\
-	if ((tx)->prio_change_cbfn) {					\
-		void (*cbfn)(struct bnad *, struct bna_tx *);	\
-		cbfn = (tx)->prio_change_cbfn;				\
-		(tx)->prio_change_cbfn = NULL;				\
-		cbfn((tx)->bna->bnad, (tx));				\
-	}								\
-} while (0)
-
 static void bna_tx_mod_cb_tx_stopped(void *tx_mod, struct bna_tx *tx);
 static void bna_bfi_tx_enet_start(struct bna_tx *tx);
 static void bna_tx_enet_stop(struct bna_tx *tx);
@@ -3062,7 +3052,6 @@ bna_tx_sm_stopped(struct bna_tx *tx, enum bna_tx_event event)
 		break;
 
 	case TX_E_PRIO_CHANGE:
-		call_tx_prio_change_cbfn(tx);
 		break;
 
 	case TX_E_BW_UPDATE:
@@ -3232,7 +3221,6 @@ bna_tx_sm_prio_stop_wait(struct bna_tx *tx, enum bna_tx_event event)
 
 	case TX_E_FAIL:
 		bfa_fsm_set_state(tx, bna_tx_sm_failed);
-		call_tx_prio_change_cbfn(tx);
 		tx->tx_cleanup_cbfn(tx->bna->bnad, tx);
 		break;
 
@@ -3253,7 +3241,6 @@ bna_tx_sm_prio_stop_wait(struct bna_tx *tx, enum bna_tx_event event)
 static void
 bna_tx_sm_prio_cleanup_wait_entry(struct bna_tx *tx)
 {
-	call_tx_prio_change_cbfn(tx);
 	tx->tx_cleanup_cbfn(tx->bna->bnad, tx);
 }
 

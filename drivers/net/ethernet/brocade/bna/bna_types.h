@@ -495,9 +495,6 @@ struct bna_tx {
 	void (*stop_cbfn)(void *arg, struct bna_tx *tx);
 	void			*stop_cbarg;
 
-	/* callback for bna_tx_prio_set() */
-	void (*prio_change_cbfn)(struct bnad *bnad, struct bna_tx *tx);
-
 	struct bfa_msgq_cmd_entry msgq_cmd;
 	union {
 		struct bfi_enet_tx_cfg_req	cfg_req;
