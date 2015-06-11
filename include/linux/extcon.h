@@ -27,8 +27,6 @@
 #define __LINUX_EXTCON_H__
 
 #include <linux/device.h>
-#include <linux/notifier.h>
-#include <linux/sysfs.h>
 
 /*
  * Define the unique id of supported external connectors
