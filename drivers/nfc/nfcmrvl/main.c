@@ -68,15 +68,6 @@ static int nfcmrvl_nci_send(struct nci_dev *ndev, struct sk_buff *skb)
 
 static int nfcmrvl_nci_setup(struct nci_dev *ndev)
 {
-	__u8 val;
-
-	val = NFCMRVL_GPIO_PIN_NFC_NOT_ALLOWED;
-	nci_set_config(ndev, NFCMRVL_NOT_ALLOWED_ID, 1, &val);
-	val = NFCMRVL_GPIO_PIN_NFC_ACTIVE;
-	nci_set_config(ndev, NFCMRVL_ACTIVE_ID, 1, &val);
-	val = NFCMRVL_EXT_COEX_ENABLE;
-	nci_set_config(ndev, NFCMRVL_EXT_COEX_ID, 1, &val);
-
 	return 0;
 }
 
