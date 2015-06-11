@@ -703,6 +703,10 @@ int x86_add_exclusive(unsigned int what);
 
 void x86_del_exclusive(unsigned int what);
 
+int x86_reserve_hardware(void);
+
+void x86_release_hardware(void);
+
 void hw_perf_lbr_event_destroy(struct perf_event *event);
 
 int x86_setup_perfctr(struct perf_event *event);

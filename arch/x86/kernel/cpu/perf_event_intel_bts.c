@@ -483,16 +483,25 @@ static int bts_event_add(struct perf_event *event, int mode)
 
 static void bts_event_destroy(struct perf_event *event)
 {
+	x86_release_hardware();
 	x86_del_exclusive(x86_lbr_exclusive_bts);
 }
 
 static int bts_event_init(struct perf_event *event)
 {
+	int ret;
+
 	if (event->attr.type != bts_pmu.type)
 		return -ENOENT;
 
 	if (x86_add_exclusive(x86_lbr_exclusive_bts))
 		return -EBUSY;
+
+	ret = x86_reserve_hardware();
+	if (ret) {
+		x86_del_exclusive(x86_lbr_exclusive_bts);
+		return ret;
+	}
 
 	event->destroy = bts_event_destroy;
 
