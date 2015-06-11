@@ -46,7 +46,6 @@ typedef short WORD16;
 typedef char WORD8;
 typedef unsigned int UWORD32;
 typedef unsigned short UWORD16;
-typedef unsigned char UWORD8;
 
 /*****************************************************************************/
 /* Enums                                                                     */
