@@ -37,7 +37,7 @@
 
 
 /* Error type */
-typedef WILC_Sint32 WILC_ErrNo;
+typedef s32 WILC_ErrNo;
 
 #define WILC_IS_ERR(__status__) (__status__ < WILC_SUCCESS)
 

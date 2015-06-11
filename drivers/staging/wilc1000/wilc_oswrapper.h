@@ -14,7 +14,6 @@
 #define WILC_OSW_INTERFACE_VER 2
 
 /* Integer Types */
-typedef signed int WILC_Sint32;
 typedef signed long long WILC_Sint64;
 
 /* Boolean type */

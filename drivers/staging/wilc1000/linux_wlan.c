@@ -2379,7 +2379,7 @@ int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 	u32 size = 0, length = 0;
 	perInterface_wlan_t *nic;
 	struct WILC_WFI_priv *priv;
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 
 
 

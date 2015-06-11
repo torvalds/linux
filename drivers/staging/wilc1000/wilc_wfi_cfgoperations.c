@@ -195,19 +195,19 @@ void refresh_scan(void *pUserVoid, uint8_t all, WILC_Bool bDirectScan)
 
 
 		if ((!pstrNetworkInfo->u8Found) || all) {
-			WILC_Sint32 s32Freq;
+			s32 s32Freq;
 			struct ieee80211_channel *channel;
 
 			if (pstrNetworkInfo != NULL) {
 
-				s32Freq = ieee80211_channel_to_frequency((WILC_Sint32)pstrNetworkInfo->u8channel, IEEE80211_BAND_2GHZ);
+				s32Freq = ieee80211_channel_to_frequency((s32)pstrNetworkInfo->u8channel, IEEE80211_BAND_2GHZ);
 				channel = ieee80211_get_channel(wiphy, s32Freq);
 
 				rssi = get_rssi_avg(pstrNetworkInfo);
 				if (WILC_memcmp("DIRECT-", pstrNetworkInfo->au8ssid, 7) || bDirectScan)	{
 					bss = cfg80211_inform_bss(wiphy, channel, CFG80211_BSS_FTYPE_UNKNOWN, pstrNetworkInfo->au8bssid, pstrNetworkInfo->u64Tsf, pstrNetworkInfo->u16CapInfo,
 								  pstrNetworkInfo->u16BeaconPeriod, (const u8 *)pstrNetworkInfo->pu8IEs,
-								  (size_t)pstrNetworkInfo->u16IEsLen, (((WILC_Sint32)rssi) * 100), GFP_KERNEL);
+								  (size_t)pstrNetworkInfo->u16IEsLen, (((s32)rssi) * 100), GFP_KERNEL);
 					cfg80211_put_bss(wiphy, bss);
 				}
 			}
@@ -380,9 +380,9 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 {
 	struct WILC_WFI_priv *priv;
 	struct wiphy *wiphy;
-	WILC_Sint32 s32Freq;
+	s32 s32Freq;
 	struct ieee80211_channel *channel;
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	struct cfg80211_bss *bss = NULL;
 
 	priv = (struct WILC_WFI_priv *)pUserVoid;
@@ -392,21 +392,21 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 			WILC_NULLCHECK(s32Error, wiphy);
 			if (wiphy->signal_type == CFG80211_SIGNAL_TYPE_UNSPEC
 			    &&
-			    ((((WILC_Sint32)pstrNetworkInfo->s8rssi) * 100) < 0
+			    ((((s32)pstrNetworkInfo->s8rssi) * 100) < 0
 			     ||
-			     (((WILC_Sint32)pstrNetworkInfo->s8rssi) * 100) > 100)
+			     (((s32)pstrNetworkInfo->s8rssi) * 100) > 100)
 			    ) {
 				WILC_ERRORREPORT(s32Error, WILC_FAIL);
 			}
 
 			if (pstrNetworkInfo != NULL) {
-				s32Freq = ieee80211_channel_to_frequency((WILC_Sint32)pstrNetworkInfo->u8channel, IEEE80211_BAND_2GHZ);
+				s32Freq = ieee80211_channel_to_frequency((s32)pstrNetworkInfo->u8channel, IEEE80211_BAND_2GHZ);
 				channel = ieee80211_get_channel(wiphy, s32Freq);
 
 				WILC_NULLCHECK(s32Error, channel);
 
 				PRINT_INFO(CFG80211_DBG, "Network Info:: CHANNEL Frequency: %d, RSSI: %d, CapabilityInfo: %d,"
-					   "BeaconPeriod: %d \n", channel->center_freq, (((WILC_Sint32)pstrNetworkInfo->s8rssi) * 100),
+					   "BeaconPeriod: %d \n", channel->center_freq, (((s32)pstrNetworkInfo->s8rssi) * 100),
 					   pstrNetworkInfo->u16CapInfo, pstrNetworkInfo->u16BeaconPeriod);
 
 				if (pstrNetworkInfo->bNewNetwork == WILC_TRUE) {
@@ -429,7 +429,7 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 						if (!(WILC_memcmp("DIRECT-", pstrNetworkInfo->au8ssid, 7))) {
 							bss = cfg80211_inform_bss(wiphy, channel, CFG80211_BSS_FTYPE_UNKNOWN,  pstrNetworkInfo->au8bssid, pstrNetworkInfo->u64Tsf, pstrNetworkInfo->u16CapInfo,
 										  pstrNetworkInfo->u16BeaconPeriod, (const u8 *)pstrNetworkInfo->pu8IEs,
-										  (size_t)pstrNetworkInfo->u16IEsLen, (((WILC_Sint32)pstrNetworkInfo->s8rssi) * 100), GFP_KERNEL);
+										  (size_t)pstrNetworkInfo->u16IEsLen, (((s32)pstrNetworkInfo->s8rssi) * 100), GFP_KERNEL);
 							cfg80211_put_bss(wiphy, bss);
 						}
 
@@ -510,7 +510,7 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 int WILC_WFI_Set_PMKSA(u8 *bssid, struct WILC_WFI_priv *priv)
 {
 	u32 i;
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 
 
 	for (i = 0; i < priv->pmkid_list.numpmkid; i++)	{
@@ -701,7 +701,7 @@ static int WILC_WFI_CfgSetChannel(struct wiphy *wiphy,
 
 	u32 channelnum = 0;
 	struct WILC_WFI_priv *priv;
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	priv = wiphy_priv(wiphy);
 
 	channelnum = ieee80211_frequency_to_channel(chandef->chan->center_freq);
@@ -737,7 +737,7 @@ static int WILC_WFI_CfgScan(struct wiphy *wiphy, struct cfg80211_scan_request *r
 {
 	struct WILC_WFI_priv *priv;
 	u32 i;
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	u8 au8ScanChanList[MAX_NUM_SCANNED_NETWORKS];
 	tstrHiddenNetwork strHiddenNetwork;
 
@@ -825,7 +825,7 @@ static int WILC_WFI_CfgScan(struct wiphy *wiphy, struct cfg80211_scan_request *r
 static int WILC_WFI_CfgConnect(struct wiphy *wiphy, struct net_device *dev,
 			       struct cfg80211_connect_params *sme)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	u32 i;
 	u8 u8security = NO_ENCRYPT;
 	AUTHTYPE_T tenuAuth_type = ANY;
@@ -1079,7 +1079,7 @@ done:
  */
 static int WILC_WFI_disconnect(struct wiphy *wiphy, struct net_device *dev, u16 reason_code)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;
 	#ifdef WILC_P2P
 	tstrWILC_WFIDrv *pstrWFIDrv;
@@ -1130,7 +1130,7 @@ static int WILC_WFI_add_key(struct wiphy *wiphy, struct net_device *netdev, u8 k
 			    const u8 *mac_addr, struct key_params *params)
 
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS, KeyLen = params->key_len;
+	s32 s32Error = WILC_SUCCESS, KeyLen = params->key_len;
 	u32 i;
 	struct WILC_WFI_priv *priv;
 	const u8 *pu8RxMic = NULL;
@@ -1424,7 +1424,7 @@ static int WILC_WFI_del_key(struct wiphy *wiphy, struct net_device *netdev,
 			    const u8 *mac_addr)
 {
 	struct WILC_WFI_priv *priv;
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 
 	priv = wiphy_priv(wiphy);
 
@@ -1534,7 +1534,7 @@ static int WILC_WFI_get_key(struct wiphy *wiphy, struct net_device *netdev, u8 k
 			    const u8 *mac_addr, void *cookie, void (*callback)(void *cookie, struct key_params *))
 {
 
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 
 	struct WILC_WFI_priv *priv;
 	struct  key_params key_params;
@@ -1582,7 +1582,7 @@ static int WILC_WFI_get_key(struct wiphy *wiphy, struct net_device *netdev, u8 k
 static int WILC_WFI_set_default_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 				    bool unicast, bool multicast)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;
 
 
@@ -1610,7 +1610,7 @@ static int WILC_WFI_set_default_key(struct wiphy *wiphy, struct net_device *netd
 static int WILC_WFI_dump_survey(struct wiphy *wiphy, struct net_device *netdev,
 				int idx, struct survey_info *info)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 
 
 	if (idx != 0) {
@@ -1637,7 +1637,7 @@ extern uint32_t Statisitcs_totalAcks, Statisitcs_DroppedAcks;
 static int WILC_WFI_get_station(struct wiphy *wiphy, struct net_device *dev,
 				const u8 *mac, struct station_info *sinfo)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;
 	perInterface_wlan_t *nic;
 	#ifdef WILC_AP_EXTERNAL_MLME
@@ -1819,7 +1819,7 @@ static int  WILC_WFI_disassoc(struct wiphy *wiphy, struct net_device *dev,
  */
 static int WILC_WFI_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	tstrCfgParamVal pstrCfgParamVal;
 	struct WILC_WFI_priv *priv;
 
@@ -1878,7 +1878,7 @@ static int WILC_WFI_set_bitrate_mask(struct wiphy *wiphy,
 				     struct net_device *dev, const u8 *peer,
 				     const struct cfg80211_bitrate_mask *mask)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 
 	PRINT_D(CFG80211_DBG, "Setting Bitrate mask function\n");
 	return s32Error;
@@ -1900,7 +1900,7 @@ static int WILC_WFI_set_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 			      struct cfg80211_pmksa *pmksa)
 {
 	u32 i;
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	u8 flag = 0;
 
 	struct WILC_WFI_priv *priv = wiphy_priv(wiphy);
@@ -1952,7 +1952,7 @@ static int WILC_WFI_del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 
 	u32 i;
 	u8 flag = 0;
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 
 	struct WILC_WFI_priv *priv = wiphy_priv(wiphy);
 
@@ -2213,7 +2213,7 @@ void WILC_WFI_p2p_rx (struct net_device *dev, uint8_t *buff, uint32_t size)
 	u32 header, pkt_offset;
 	tstrWILC_WFIDrv *pstrWFIDrv;
 	u32 i = 0;
-	WILC_Sint32 s32Freq;
+	s32 s32Freq;
 	priv = wiphy_priv(dev->ieee80211_ptr->wiphy);
 	pstrWFIDrv = (tstrWILC_WFIDrv *)priv->hWILCWFIDrv;
 
@@ -2413,7 +2413,7 @@ static int  WILC_WFI_remain_on_channel(struct wiphy *wiphy,
 				       struct ieee80211_channel *chan,
 				       unsigned int duration, u64 *cookie)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;
 	priv = wiphy_priv(wiphy);
 
@@ -2464,7 +2464,7 @@ static int   WILC_WFI_cancel_remain_on_channel(struct wiphy *wiphy,
 					       struct wireless_dev *wdev,
 					       u64 cookie)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;
 	priv = wiphy_priv(wiphy);
 
@@ -2511,7 +2511,7 @@ int WILC_WFI_mgmt_tx(struct wiphy *wiphy,
 	const struct ieee80211_mgmt *mgmt;
 	struct p2p_mgmt_data *mgmt_tx;
 	struct WILC_WFI_priv *priv;
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	tstrWILC_WFIDrv *pstrWFIDrv;
 	u32 i;
 	perInterface_wlan_t *nic;
@@ -2841,7 +2841,7 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic);
 static int WILC_WFI_change_virt_intf(struct wiphy *wiphy, struct net_device *dev,
 				     enum nl80211_iftype type, u32 *flags, struct vif_params *params)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;
 	perInterface_wlan_t *nic;
 	u8 interface_type;
@@ -3229,7 +3229,7 @@ static int WILC_WFI_start_ap(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct cfg80211_beacon_data *beacon = &(settings->beacon);
 	struct WILC_WFI_priv *priv;
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 
 	priv = wiphy_priv(wiphy);
 	PRINT_D(HOSTAPD_DBG, "Starting ap\n");
@@ -3277,7 +3277,7 @@ static int  WILC_WFI_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 				   struct cfg80211_beacon_data *beacon)
 {
 	struct WILC_WFI_priv *priv;
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 
 	priv = wiphy_priv(wiphy);
 	PRINT_D(HOSTAPD_DBG, "Setting beacon\n");
@@ -3311,7 +3311,7 @@ static int  WILC_WFI_change_beacon(struct wiphy *wiphy, struct net_device *dev,
  */
 static int  WILC_WFI_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;
 	u8 NullBssid[ETH_ALEN] = {0};
 
@@ -3351,7 +3351,7 @@ static int  WILC_WFI_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 static int  WILC_WFI_add_station(struct wiphy *wiphy, struct net_device *dev,
 				 const u8 *mac, struct station_parameters *params)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;
 	tstrWILC_AddStaParam strStaParams = {{0}};
 	perInterface_wlan_t *nic;
@@ -3437,7 +3437,7 @@ static int WILC_WFI_del_station(struct wiphy *wiphy, struct net_device *dev,
 				struct station_del_parameters *params)
 {
 	const u8 *mac = params->mac;
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;
 	perInterface_wlan_t *nic;
 	WILC_NULLCHECK(s32Error, wiphy);
@@ -3482,7 +3482,7 @@ static int WILC_WFI_del_station(struct wiphy *wiphy, struct net_device *dev,
 static int WILC_WFI_change_station(struct wiphy *wiphy, struct net_device *dev,
 				   const u8 *mac, struct station_parameters *params)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;
 	tstrWILC_AddStaParam strStaParams = {{0}};
 	perInterface_wlan_t *nic;
@@ -3767,7 +3767,7 @@ struct wireless_dev *WILC_WFI_WiphyRegister(struct net_device *net)
 {
 	struct WILC_WFI_priv *priv;
 	struct wireless_dev *wdev;
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 
 	PRINT_D(CFG80211_DBG, "Registering wifi device\n");
 
@@ -3849,7 +3849,7 @@ struct wireless_dev *WILC_WFI_WiphyRegister(struct net_device *net)
 int WILC_WFI_InitHostInt(struct net_device *net)
 {
 
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 
 	struct WILC_WFI_priv *priv;
 
@@ -3890,7 +3890,7 @@ int WILC_WFI_InitHostInt(struct net_device *net)
  */
 int WILC_WFI_DeInitHostInt(struct net_device *net)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 
 	struct WILC_WFI_priv *priv;
 	priv = wdev_priv(net->ieee80211_ptr);

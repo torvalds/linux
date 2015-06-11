@@ -143,8 +143,8 @@ typedef enum {
 
 typedef struct {
 	WILC_Char *pcRespBuffer;
-	WILC_Sint32 s32MaxRespBuffLen;
-	WILC_Sint32 s32BytesRead;
+	s32 s32MaxRespBuffLen;
+	s32 s32BytesRead;
 	WILC_Bool bRespRequired;
 } tstrConfigPktInfo;
 
@@ -158,7 +158,7 @@ typedef struct {
 /*****************************************************************************/
 /* Extern Function Declarations                                              */
 /*****************************************************************************/
-extern WILC_Sint32 SendRawPacket(s8 *ps8Packet, WILC_Sint32 s32PacketLen);
+extern s32 SendRawPacket(s8 *ps8Packet, s32 s32PacketLen);
 extern void NetworkInfoReceived(u8 *pu8Buffer, u32 u32Length);
 extern void GnrlAsyncInfoReceived(u8 *pu8Buffer, u32 u32Length);
 extern void host_int_ScanCompleteReceived(u8 *pu8Buffer, u32 u32Length);
@@ -670,9 +670,9 @@ INLINE u16 get_asoc_id(u8 *data)
  *  @version		1.0
  */
 
-WILC_Sint32 CoreConfiguratorInit(void)
+s32 CoreConfiguratorInit(void)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	PRINT_D(CORECONFIG_DBG, "CoreConfiguratorInit()\n");
 
 	sema_init(&SemHandleSendPkt, 1);
@@ -769,9 +769,9 @@ u8 get_current_channel(u8 *pu8msa, u16 u16RxLen)
  *  @date			1 Mar 2012
  *  @version		1.0
  */
-WILC_Sint32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
+s32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	tstrNetworkInfo *pstrNetworkInfo = NULL;
 	u8 u8MsgType = 0;
 	u8 u8MsgID = 0;
@@ -891,9 +891,9 @@ ERRORHANDLER:
  *  @date		1 Mar 2012
  *  @version		1.0
  */
-WILC_Sint32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo)
+s32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 
 	if (pstrNetworkInfo != NULL) {
 		if (pstrNetworkInfo->pu8IEs != NULL) {
@@ -924,10 +924,10 @@ WILC_Sint32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo)
  *  @date			2 Apr 2012
  *  @version		1.0
  */
-WILC_Sint32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
+s32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
 			       tstrConnectRespInfo **ppstrConnectRespInfo)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	tstrConnectRespInfo *pstrConnectRespInfo = NULL;
 	u16 u16AssocRespLen = 0;
 	u8 *pu8IEs = 0;
@@ -976,9 +976,9 @@ WILC_Sint32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
  *  @date			2 Apr 2012
  *  @version		1.0
  */
-WILC_Sint32 DeallocateAssocRespInfo(tstrConnectRespInfo *pstrConnectRespInfo)
+s32 DeallocateAssocRespInfo(tstrConnectRespInfo *pstrConnectRespInfo)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 
 	if (pstrConnectRespInfo != NULL) {
 		if (pstrConnectRespInfo->pu8RespIEs != NULL) {
@@ -999,11 +999,11 @@ WILC_Sint32 DeallocateAssocRespInfo(tstrConnectRespInfo *pstrConnectRespInfo)
 }
 
 #ifndef CONNECT_DIRECT
-WILC_Sint32 ParseSurveyResults(u8 ppu8RcvdSiteSurveyResults[][MAX_SURVEY_RESULT_FRAG_SIZE],
+s32 ParseSurveyResults(u8 ppu8RcvdSiteSurveyResults[][MAX_SURVEY_RESULT_FRAG_SIZE],
 			       wid_site_survey_reslts_s **ppstrSurveyResults,
 			       u32 *pu32SurveyResultsCount)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	wid_site_survey_reslts_s *pstrSurveyResults = NULL;
 	u32 u32SurveyResultsCount = 0;
 	u32 u32SurveyBytesLength = 0;
@@ -1057,9 +1057,9 @@ ERRORHANDLER:
 }
 
 
-WILC_Sint32 DeallocateSurveyResults(wid_site_survey_reslts_s *pstrSurveyResults)
+s32 DeallocateSurveyResults(wid_site_survey_reslts_s *pstrSurveyResults)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 
 	if (pstrSurveyResults != NULL) {
 		WILC_FREE(pstrSurveyResults);
@@ -1096,12 +1096,12 @@ WILC_Sint32 DeallocateSurveyResults(wid_site_survey_reslts_s *pstrSurveyResults)
 /*                                                                           */
 /*****************************************************************************/
 
-void ProcessCharWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
+void ProcessCharWid(WILC_Char *pcPacket, s32 *ps32PktLen,
 		    tstrWID *pstrWID, s8 *ps8WidVal)
 {
 	u8 *pu8val = (u8 *)ps8WidVal;
 	u8 u8val = 0;
-	WILC_Sint32 s32PktLen = *ps32PktLen;
+	s32 s32PktLen = *ps32PktLen;
 	if (pstrWID == NULL) {
 		PRINT_WRN(CORECONFIG_DBG, "Can't set CHAR val 0x%x ,NULL structure\n", u8val);
 		return;
@@ -1150,12 +1150,12 @@ void ProcessCharWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 /*                                                                           */
 /*****************************************************************************/
 
-void ProcessShortWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
+void ProcessShortWid(WILC_Char *pcPacket, s32 *ps32PktLen,
 		     tstrWID *pstrWID, s8 *ps8WidVal)
 {
 	u16 *pu16val = (u16 *)ps8WidVal;
 	u16 u16val = 0;
-	WILC_Sint32 s32PktLen = *ps32PktLen;
+	s32 s32PktLen = *ps32PktLen;
 	if (pstrWID == NULL) {
 		PRINT_WRN(CORECONFIG_DBG, "Can't set SHORT val 0x%x ,NULL structure\n", u16val);
 		return;
@@ -1205,12 +1205,12 @@ void ProcessShortWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 /*                                                                           */
 /*****************************************************************************/
 
-void ProcessIntWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
+void ProcessIntWid(WILC_Char *pcPacket, s32 *ps32PktLen,
 		   tstrWID *pstrWID, s8 *ps8WidVal)
 {
 	u32 *pu32val = (u32 *)ps8WidVal;
 	u32 u32val = 0;
-	WILC_Sint32 s32PktLen = *ps32PktLen;
+	s32 s32PktLen = *ps32PktLen;
 	if (pstrWID == NULL) {
 		PRINT_WRN(CORECONFIG_DBG, "Can't set INT val 0x%x , NULL structure\n", u32val);
 		return;
@@ -1263,11 +1263,11 @@ void ProcessIntWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 /*                                                                           */
 /*****************************************************************************/
 
-void ProcessIPwid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
+void ProcessIPwid(WILC_Char *pcPacket, s32 *ps32PktLen,
 		  tstrWID *pstrWID, u8 *pu8ip)
 {
 	u32 u32val = 0;
-	WILC_Sint32 s32PktLen = *ps32PktLen;
+	s32 s32PktLen = *ps32PktLen;
 
 	if (pstrWID == NULL) {
 		PRINT_WRN(CORECONFIG_DBG, "Can't set IP Addr , NULL structure\n");
@@ -1321,12 +1321,12 @@ void ProcessIPwid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 /*                                                                           */
 /*****************************************************************************/
 
-void ProcessStrWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
-		   tstrWID *pstrWID, u8 *pu8val, WILC_Sint32 s32ValueSize)
+void ProcessStrWid(WILC_Char *pcPacket, s32 *ps32PktLen,
+		   tstrWID *pstrWID, u8 *pu8val, s32 s32ValueSize)
 {
 	u16 u16MsgLen = 0;
 	u16 idx    = 0;
-	WILC_Sint32 s32PktLen = *ps32PktLen;
+	s32 s32PktLen = *ps32PktLen;
 	if (pstrWID == NULL) {
 		PRINT_WRN(CORECONFIG_DBG, "Can't set STR val, NULL structure\n");
 		return;
@@ -1378,11 +1378,11 @@ void ProcessStrWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 /*                                                                           */
 /*****************************************************************************/
 
-void ProcessAdrWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
+void ProcessAdrWid(WILC_Char *pcPacket, s32 *ps32PktLen,
 		   tstrWID *pstrWID, u8 *pu8val)
 {
 	u16 u16MsgLen = 0;
-	WILC_Sint32 s32PktLen = *ps32PktLen;
+	s32 s32PktLen = *ps32PktLen;
 
 	if (pstrWID == NULL) {
 		PRINT_WRN(CORECONFIG_DBG, "Can't set Addr WID, NULL structure\n");
@@ -1442,14 +1442,14 @@ void ProcessAdrWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 /*                                                                           */
 /*****************************************************************************/
 
-void ProcessBinWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
-		   tstrWID *pstrWID, u8 *pu8val, WILC_Sint32 s32ValueSize)
+void ProcessBinWid(WILC_Char *pcPacket, s32 *ps32PktLen,
+		   tstrWID *pstrWID, u8 *pu8val, s32 s32ValueSize)
 {
 	/* WILC_ERROR("processing Binary WIDs is not supported\n"); */
 
 	u16 u16MsgLen = 0;
 	u16 idx    = 0;
-	WILC_Sint32 s32PktLen = *ps32PktLen;
+	s32 s32PktLen = *ps32PktLen;
 	u8 u8checksum = 0;
 
 	if (pstrWID == NULL) {
@@ -1517,7 +1517,7 @@ void ProcessBinWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 /*                                                                           */
 /*****************************************************************************/
 
-WILC_Sint32 further_process_response(u8 *resp,
+s32 further_process_response(u8 *resp,
 				     u16 u16WIDid,
 				     u16 cfg_len,
 				     WILC_Bool process_wid_num,
@@ -1551,7 +1551,7 @@ WILC_Sint32 further_process_response(u8 *resp,
 		u16 *pu16val = (u16 *)(pstrWIDresult->ps8WidVal);
 		cfg_sht = MAKE_WORD16(resp[idx], resp[idx + 1]);
 		/*Set local copy of WID*/
-		/* pstrWIDresult->ps8WidVal = (s8*)(WILC_Sint32)cfg_sht; */
+		/* pstrWIDresult->ps8WidVal = (s8*)(s32)cfg_sht; */
 		*pu16val = cfg_sht;
 		break;
 	}
@@ -1687,7 +1687,7 @@ WILC_Sint32 further_process_response(u8 *resp,
 /*                                                                           */
 /*****************************************************************************/
 
-WILC_Sint32 ParseResponse(u8 *resp, tstrWID *pstrWIDcfgResult)
+s32 ParseResponse(u8 *resp, tstrWID *pstrWIDcfgResult)
 {
 	u16 u16RespLen = 0;
 	u16 u16WIDid  = 0;
@@ -1760,9 +1760,9 @@ WILC_Sint32 ParseResponse(u8 *resp, tstrWID *pstrWIDcfgResult)
  *  @version	1.0
  */
 
-WILC_Sint32 ParseWriteResponse(u8 *pu8RespBuffer)
+s32 ParseWriteResponse(u8 *pu8RespBuffer)
 {
-	WILC_Sint32 s32Error = WILC_FAIL;
+	s32 s32Error = WILC_FAIL;
 	u16 u16RespLen   = 0;
 	u16 u16WIDtype = (u16)WID_NIL;
 
@@ -1803,9 +1803,9 @@ WILC_Sint32 ParseWriteResponse(u8 *pu8RespBuffer)
  *  @version		1.0
  */
 
-WILC_Sint32 CreatePacketHeader(WILC_Char *pcpacket, WILC_Sint32 *ps32PacketLength)
+s32 CreatePacketHeader(WILC_Char *pcpacket, s32 *ps32PacketLength)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	u16 u16MsgLen = (u16)(*ps32PacketLength);
 	u16 u16MsgInd = 0;
 
@@ -1857,10 +1857,10 @@ WILC_Sint32 CreatePacketHeader(WILC_Char *pcpacket, WILC_Sint32 *ps32PacketLengt
  *  @version	1.0
  */
 
-WILC_Sint32 CreateConfigPacket(s8 *ps8packet, WILC_Sint32 *ps32PacketLength,
+s32 CreateConfigPacket(s8 *ps8packet, s32 *ps32PacketLength,
 			       tstrWID *pstrWIDs, u32 u32WIDsCount)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	u32 u32idx = 0;
 	*ps32PacketLength = MSG_HEADER_LEN;
 	for (u32idx = 0; u32idx < u32WIDsCount; u32idx++) {
@@ -1912,10 +1912,10 @@ WILC_Sint32 CreateConfigPacket(s8 *ps8packet, WILC_Sint32 *ps32PacketLength,
 	return s32Error;
 }
 
-WILC_Sint32 ConfigWaitResponse(WILC_Char *pcRespBuffer, WILC_Sint32 s32MaxRespBuffLen, WILC_Sint32 *ps32BytesRead,
+s32 ConfigWaitResponse(WILC_Char *pcRespBuffer, s32 s32MaxRespBuffLen, s32 *ps32BytesRead,
 			       WILC_Bool bRespRequired)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	/*bug 3878*/
 	/*removed to caller function*/
 	/*gstrConfigPktInfo.pcRespBuffer = pcRespBuffer;
@@ -1949,13 +1949,13 @@ WILC_Sint32 ConfigWaitResponse(WILC_Char *pcRespBuffer, WILC_Sint32 s32MaxRespBu
  *  @version	1.0
  */
 #ifdef SIMULATION
-WILC_Sint32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
+s32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
 			  u32 u32WIDsCount, WILC_Bool bRespRequired, u32 drvHandler)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
-	WILC_Sint32 err = WILC_SUCCESS;
-	WILC_Sint32 s32ConfigPacketLen = 0;
-	WILC_Sint32 s32RcvdRespLen = 0;
+	s32 s32Error = WILC_SUCCESS;
+	s32 err = WILC_SUCCESS;
+	s32 s32ConfigPacketLen = 0;
+	s32 s32RcvdRespLen = 0;
 
 	down(&SemHandleSendPkt);
 
@@ -2017,9 +2017,9 @@ End_ConfigPkt:
 	return s32Error;
 }
 #endif
-WILC_Sint32 ConfigProvideResponse(WILC_Char *pcRespBuffer, WILC_Sint32 s32RespLen)
+s32 ConfigProvideResponse(WILC_Char *pcRespBuffer, s32 s32RespLen)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 
 	if (gstrConfigPktInfo.bRespRequired == WILC_TRUE) {
 		if (s32RespLen <= gstrConfigPktInfo.s32MaxRespBuffLen) {
@@ -2050,9 +2050,9 @@ WILC_Sint32 ConfigProvideResponse(WILC_Char *pcRespBuffer, WILC_Sint32 s32RespLe
  *  @version	1.0
  */
 
-WILC_Sint32 ConfigPktReceived(u8 *pu8RxPacket, WILC_Sint32 s32RxPacketLen)
+s32 ConfigPktReceived(u8 *pu8RxPacket, s32 s32RxPacketLen)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 	u8 u8MsgType = 0;
 
 	u8MsgType = pu8RxPacket[0];
@@ -2094,9 +2094,9 @@ WILC_Sint32 ConfigPktReceived(u8 *pu8RxPacket, WILC_Sint32 s32RxPacketLen)
  *  @version	1.0
  */
 
-WILC_Sint32 CoreConfiguratorDeInit(void)
+s32 CoreConfiguratorDeInit(void)
 {
-	WILC_Sint32 s32Error = WILC_SUCCESS;
+	s32 s32Error = WILC_SUCCESS;
 
 	PRINT_D(CORECONFIG_DBG, "CoreConfiguratorDeInit()\n");
 
@@ -2128,10 +2128,10 @@ extern wilc_wlan_oup_t *gpstrWlanOps;
  *  @date		1 Mar 2012
  *  @version	1.0
  */
-WILC_Sint32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
+s32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
 			  u32 u32WIDsCount, WILC_Bool bRespRequired, u32 drvHandler)
 {
-	WILC_Sint32 counter = 0, ret = 0;
+	s32 counter = 0, ret = 0;
 	if (gpstrWlanOps == NULL) {
 		PRINT_D(CORECONFIG_DBG, "Net Dev is still not initialized\n");
 		return 1;

@@ -396,7 +396,7 @@ typedef enum {
 typedef struct {
 	u16 u16WIDid;
 	tenuWIDtype enuWIDtype;
-	WILC_Sint32 s32ValueSize;
+	s32 s32ValueSize;
 	s8      *ps8WidVal;
 
 } tstrWID;
@@ -472,25 +472,25 @@ typedef struct wid_site_survey_reslts {
 } wid_site_survey_reslts_s;
 #endif
 
-extern WILC_Sint32 CoreConfiguratorInit(void);
-extern WILC_Sint32 CoreConfiguratorDeInit(void);
+extern s32 CoreConfiguratorInit(void);
+extern s32 CoreConfiguratorDeInit(void);
 
-extern WILC_Sint32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
+extern s32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
 				 u32 u32WIDsCount, WILC_Bool bRespRequired, u32 drvHandler);
-extern WILC_Sint32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo);
-extern WILC_Sint32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo);
+extern s32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo);
+extern s32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo);
 
-extern WILC_Sint32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
+extern s32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
 				      tstrConnectRespInfo **ppstrConnectRespInfo);
-extern WILC_Sint32 DeallocateAssocRespInfo(tstrConnectRespInfo *pstrConnectRespInfo);
+extern s32 DeallocateAssocRespInfo(tstrConnectRespInfo *pstrConnectRespInfo);
 
 #ifndef CONNECT_DIRECT
-extern WILC_Sint32 ParseSurveyResults(u8 ppu8RcvdSiteSurveyResults[][MAX_SURVEY_RESULT_FRAG_SIZE],
+extern s32 ParseSurveyResults(u8 ppu8RcvdSiteSurveyResults[][MAX_SURVEY_RESULT_FRAG_SIZE],
 				      wid_site_survey_reslts_s **ppstrSurveyResults, u32 *pu32SurveyResultsCount);
-extern WILC_Sint32 DeallocateSurveyResults(wid_site_survey_reslts_s *pstrSurveyResults);
+extern s32 DeallocateSurveyResults(wid_site_survey_reslts_s *pstrSurveyResults);
 #endif
 
-extern WILC_Sint32 SendRawPacket(s8 *pspacket, WILC_Sint32 s32PacketLen);
+extern s32 SendRawPacket(s8 *pspacket, s32 s32PacketLen);
 extern void NetworkInfoReceived(u8 *pu8Buffer, u32 u32Length);
 void GnrlAsyncInfoReceived(u8 *pu8Buffer, u32 u32Length);
 void host_int_ScanCompleteReceived(u8 *pu8Buffer, u32 u32Length);

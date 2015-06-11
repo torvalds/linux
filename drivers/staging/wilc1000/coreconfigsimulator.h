@@ -13,8 +13,8 @@
 #define CORECONFIGSIMULATOR_H
 
 
-extern WILC_Sint32 CoreConfigSimulatorInit (void);
-extern WILC_Sint32 CoreConfigSimulatorDeInit (void);
+extern s32 CoreConfigSimulatorInit (void);
+extern s32 CoreConfigSimulatorDeInit (void);
 
 
 #endif

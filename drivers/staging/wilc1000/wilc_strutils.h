@@ -22,7 +22,7 @@
  *  @date	18 Aug 2010
  *  @version	1.0
  */
-WILC_Sint32 WILC_memcmp(const void *pvArg1, const void *pvArg2, u32 u32Count);
+s32 WILC_memcmp(const void *pvArg1, const void *pvArg2, u32 u32Count);
 
 /*!
  *  @brief	Internal implementation for memory copy
@@ -113,7 +113,7 @@ WILC_Char *WILC_strncpy(WILC_Char *pcTarget, const WILC_Char *pcSource,
  *  @date	7 Dec 2010
  *  @version	1.0
  */
-WILC_Sint32 WILC_strncmp(const WILC_Char *pcStr1, const WILC_Char *pcStr2,
+s32 WILC_strncmp(const WILC_Char *pcStr1, const WILC_Char *pcStr2,
 			 u32 u32Count);
 
 /*!

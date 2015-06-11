@@ -9,7 +9,7 @@
  *  @date	18 Aug 2010
  *  @version	1.0
  */
-WILC_Sint32 WILC_memcmp(const void *pvArg1, const void *pvArg2, u32 u32Count)
+s32 WILC_memcmp(const void *pvArg1, const void *pvArg2, u32 u32Count)
 {
 	return memcmp(pvArg1, pvArg2, u32Count);
 }
@@ -46,10 +46,10 @@ WILC_Char *WILC_strncpy(WILC_Char *pcTarget, const WILC_Char *pcSource,
 	return strncpy(pcTarget, pcSource, u32Count);
 }
 
-WILC_Sint32 WILC_strncmp(const WILC_Char *pcStr1, const WILC_Char *pcStr2,
+s32 WILC_strncmp(const WILC_Char *pcStr1, const WILC_Char *pcStr2,
 			 u32 u32Count)
 {
-	WILC_Sint32 s32Result;
+	s32 s32Result;
 
 	if (pcStr1 == NULL && pcStr2 == NULL)	{
 		s32Result = 0;
