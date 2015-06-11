@@ -3157,6 +3157,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	hlock->waittime_stamp = 0;
 	hlock->holdtime_stamp = lockstat_clock();
 #endif
+	hlock->pin_count = 0;
 
 	if (check && !mark_irqflags(curr, hlock))
 		return 0;
@@ -3403,6 +3404,8 @@ found_it:
 	if (hlock->instance == lock)
 		lock_release_holdtime(hlock);
 
+	WARN(hlock->pin_count, "releasing a pinned lock\n");
+
 	if (hlock->references) {
 		hlock->references--;
 		if (hlock->references) {
@@ -3457,6 +3460,49 @@ static int __lock_is_held(struct lockdep_map *lock)
 	}
 
 	return 0;
+}
+
+static void __lock_pin_lock(struct lockdep_map *lock)
+{
+	struct task_struct *curr = current;
+	int i;
+
+	if (unlikely(!debug_locks))
+		return;
+
+	for (i = 0; i < curr->lockdep_depth; i++) {
+		struct held_lock *hlock = curr->held_locks + i;
+
+		if (match_held_lock(hlock, lock)) {
+			hlock->pin_count++;
+			return;
+		}
+	}
+
+	WARN(1, "pinning an unheld lock\n");
+}
+
+static void __lock_unpin_lock(struct lockdep_map *lock)
+{
+	struct task_struct *curr = current;
+	int i;
+
+	if (unlikely(!debug_locks))
+		return;
+
+	for (i = 0; i < curr->lockdep_depth; i++) {
+		struct held_lock *hlock = curr->held_locks + i;
+
+		if (match_held_lock(hlock, lock)) {
+			if (WARN(!hlock->pin_count, "unpinning an unpinned lock\n"))
+				return;
+
+			hlock->pin_count--;
+			return;
+		}
+	}
+
+	WARN(1, "unpinning an unheld lock\n");
 }
 
 /*
@@ -3581,6 +3627,40 @@ int lock_is_held(struct lockdep_map *lock)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(lock_is_held);
+
+void lock_pin_lock(struct lockdep_map *lock)
+{
+	unsigned long flags;
+
+	if (unlikely(current->lockdep_recursion))
+		return;
+
+	raw_local_irq_save(flags);
+	check_flags(flags);
+
+	current->lockdep_recursion = 1;
+	__lock_pin_lock(lock);
+	current->lockdep_recursion = 0;
+	raw_local_irq_restore(flags);
+}
+EXPORT_SYMBOL_GPL(lock_pin_lock);
+
+void lock_unpin_lock(struct lockdep_map *lock)
+{
+	unsigned long flags;
+
+	if (unlikely(current->lockdep_recursion))
+		return;
+
+	raw_local_irq_save(flags);
+	check_flags(flags);
+
+	current->lockdep_recursion = 1;
+	__lock_unpin_lock(lock);
+	current->lockdep_recursion = 0;
+	raw_local_irq_restore(flags);
+}
+EXPORT_SYMBOL_GPL(lock_unpin_lock);
 
 void lockdep_set_current_reclaim_state(gfp_t gfp_mask)
 {
