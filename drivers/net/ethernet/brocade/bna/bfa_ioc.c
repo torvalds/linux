@@ -2163,7 +2163,8 @@ bfa_ioc_mbox_poll(struct bfa_ioc *ioc)
 	/**
 	 * Enqueue command to firmware.
 	 */
-	bfa_q_deq(&mod->cmd_q, &cmd);
+	cmd = list_first_entry(&mod->cmd_q, struct bfa_mbox_cmd, qe);
+	list_del(&cmd->qe);
 	bfa_ioc_mbox_send(ioc, cmd->msg, sizeof(cmd->msg));
 
 	/**
@@ -2184,8 +2185,10 @@ bfa_ioc_mbox_flush(struct bfa_ioc *ioc)
 	struct bfa_ioc_mbox_mod *mod = &ioc->mbox_mod;
 	struct bfa_mbox_cmd *cmd;
 
-	while (!list_empty(&mod->cmd_q))
-		bfa_q_deq(&mod->cmd_q, &cmd);
+	while (!list_empty(&mod->cmd_q)) {
+		cmd = list_first_entry(&mod->cmd_q, struct bfa_mbox_cmd, qe);
+		list_del(&cmd->qe);
+	}
 }
 
 /**
@@ -3231,7 +3234,6 @@ bfa_nw_flash_attach(struct bfa_flash *flash, struct bfa_ioc *ioc, void *dev)
 	flash->op_busy = 0;
 
 	bfa_nw_ioc_mbox_regisr(flash->ioc, BFI_MC_FLASH, bfa_flash_intr, flash);
-	bfa_q_qe_init(&flash->ioc_notify);
 	bfa_ioc_notify_init(&flash->ioc_notify, bfa_flash_notify, flash);
 	list_add_tail(&flash->ioc_notify.qe, &flash->ioc->notify_q);
 }
