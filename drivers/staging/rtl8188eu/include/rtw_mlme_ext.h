@@ -604,48 +604,6 @@ void start_clnt_auth(struct adapter *padapter);
 void start_clnt_join(struct adapter *padapter);
 void start_create_ibss(struct adapter *padapter);
 
-unsigned int OnAssocReq(struct adapter *padapter,
-			struct recv_frame *precv_frame);
-unsigned int OnAssocRsp(struct adapter *padapter,
-			struct recv_frame *precv_frame);
-unsigned int OnProbeReq(struct adapter *padapter,
-			struct recv_frame *precv_frame);
-unsigned int OnProbeRsp(struct adapter *padapter,
-			struct recv_frame *precv_frame);
-unsigned int DoReserved(struct adapter *padapter,
-			struct recv_frame *precv_frame);
-unsigned int OnBeacon(struct adapter *padapter,
-		      struct recv_frame *precv_frame);
-unsigned int OnAtim(struct adapter *padapter,
-		    struct recv_frame *precv_frame);
-unsigned int OnDisassoc(struct adapter *padapter,
-			struct recv_frame *precv_frame);
-unsigned int OnAuth(struct adapter *padapter,
-		    struct recv_frame *precv_frame);
-unsigned int OnAuthClient(struct adapter *padapter,
-			  struct recv_frame *precv_frame);
-unsigned int OnDeAuth(struct adapter *padapter,
-		      struct recv_frame *precv_frame);
-unsigned int OnAction(struct adapter *padapter,
-		      struct recv_frame *precv_frame);
-
-unsigned int on_action_spct(struct adapter *padapter,
-			    struct recv_frame *precv_frame);
-unsigned int OnAction_qos(struct adapter *padapter,
-			  struct recv_frame *precv_frame);
-unsigned int OnAction_dls(struct adapter *padapter,
-			  struct recv_frame *precv_frame);
-unsigned int OnAction_back(struct adapter *padapter,
-			   struct recv_frame *precv_frame);
-unsigned int on_action_public(struct adapter *padapter,
-			      struct recv_frame *precv_frame);
-unsigned int OnAction_ht(struct adapter *padapter,
-			 struct recv_frame *precv_frame);
-unsigned int OnAction_wmm(struct adapter *padapter,
-			  struct recv_frame *precv_frame);
-unsigned int OnAction_p2p(struct adapter *padapter,
-			  struct recv_frame *precv_frame);
-
 void mlmeext_joinbss_event_callback(struct adapter *padapter, int join_res);
 void mlmeext_sta_del_event_callback(struct adapter *padapter);
 void mlmeext_sta_add_event_callback(struct adapter *padapter,

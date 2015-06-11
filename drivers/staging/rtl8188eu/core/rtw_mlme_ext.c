@@ -2569,7 +2569,8 @@ Following are the callback functions for each subtype of the management frames
 
 *****************************************************************************/
 
-unsigned int OnProbeReq(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnProbeReq(struct adapter *padapter,
+			       struct recv_frame *precv_frame)
 {
 	unsigned int	ielen;
 	unsigned char	*p;
@@ -2609,7 +2610,8 @@ _issue_probersp:
 	return _SUCCESS;
 }
 
-unsigned int OnProbeRsp(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnProbeRsp(struct adapter *padapter,
+			       struct recv_frame *precv_frame)
 {
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 
@@ -2621,7 +2623,8 @@ unsigned int OnProbeRsp(struct adapter *padapter, struct recv_frame *precv_frame
 	return _SUCCESS;
 }
 
-unsigned int OnBeacon(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnBeacon(struct adapter *padapter,
+			     struct recv_frame *precv_frame)
 {
 	int cam_idx;
 	struct sta_info	*psta;
@@ -2711,7 +2714,8 @@ _END_ONBEACON_:
 	return _SUCCESS;
 }
 
-unsigned int OnAuth(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnAuth(struct adapter *padapter,
+			   struct recv_frame *precv_frame)
 {
 #ifdef CONFIG_88EU_AP_MODE
 	unsigned int	auth_mode, ie_len;
@@ -2880,7 +2884,8 @@ auth_fail:
 	return _FAIL;
 }
 
-unsigned int OnAuthClient(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnAuthClient(struct adapter *padapter,
+				 struct recv_frame *precv_frame)
 {
 	unsigned int	seq, len, status, offset;
 	unsigned char	*p;
@@ -2955,7 +2960,8 @@ authclnt_fail:
 	return _FAIL;
 }
 
-unsigned int OnAssocReq(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnAssocReq(struct adapter *padapter,
+			       struct recv_frame *precv_frame)
 {
 #ifdef CONFIG_88EU_AP_MODE
 	u16 capab_info;
@@ -3393,7 +3399,8 @@ OnAssocReqFail:
 	return _FAIL;
 }
 
-unsigned int OnAssocRsp(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnAssocRsp(struct adapter *padapter,
+			       struct recv_frame *precv_frame)
 {
 	uint i;
 	int res;
@@ -3483,7 +3490,8 @@ report_assoc_result:
 	return _SUCCESS;
 }
 
-unsigned int OnDeAuth(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnDeAuth(struct adapter *padapter,
+			     struct recv_frame *precv_frame)
 {
 	unsigned short	reason;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -3537,7 +3545,8 @@ unsigned int OnDeAuth(struct adapter *padapter, struct recv_frame *precv_frame)
 	return _SUCCESS;
 }
 
-unsigned int OnDisassoc(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnDisassoc(struct adapter *padapter,
+			       struct recv_frame *precv_frame)
 {
 	u16 reason;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -3590,13 +3599,15 @@ unsigned int OnDisassoc(struct adapter *padapter, struct recv_frame *precv_frame
 	return _SUCCESS;
 }
 
-unsigned int OnAtim(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnAtim(struct adapter *padapter,
+			   struct recv_frame *precv_frame)
 {
 	DBG_88E("%s\n", __func__);
 	return _SUCCESS;
 }
 
-unsigned int on_action_spct(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int on_action_spct(struct adapter *padapter,
+				   struct recv_frame *precv_frame)
 {
 	struct sta_info *psta = NULL;
 	struct sta_priv *pstapriv = &padapter->stapriv;
@@ -3633,17 +3644,20 @@ exit:
 	return _FAIL;
 }
 
-unsigned int OnAction_qos(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnAction_qos(struct adapter *padapter,
+				 struct recv_frame *precv_frame)
 {
 	return _SUCCESS;
 }
 
-unsigned int OnAction_dls(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnAction_dls(struct adapter *padapter,
+				 struct recv_frame *precv_frame)
 {
 	return _SUCCESS;
 }
 
-unsigned int OnAction_back(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnAction_back(struct adapter *padapter,
+				  struct recv_frame *precv_frame)
 {
 	u8 *addr;
 	struct sta_info *psta = NULL;
@@ -3799,7 +3813,8 @@ exit:
 	return ret;
 }
 
-unsigned int on_action_public(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int on_action_public(struct adapter *padapter,
+				     struct recv_frame *precv_frame)
 {
 	unsigned int ret = _FAIL;
 	u8 *pframe = precv_frame->rx_data;
@@ -3828,22 +3843,26 @@ exit:
 	return ret;
 }
 
-unsigned int OnAction_ht(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnAction_ht(struct adapter *padapter,
+				struct recv_frame *precv_frame)
 {
 	return _SUCCESS;
 }
 
-unsigned int OnAction_wmm(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnAction_wmm(struct adapter *padapter,
+				 struct recv_frame *precv_frame)
 {
 	return _SUCCESS;
 }
 
-unsigned int OnAction_p2p(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnAction_p2p(struct adapter *padapter,
+				 struct recv_frame *precv_frame)
 {
 	return _SUCCESS;
 }
 
-unsigned int DoReserved(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int DoReserved(struct adapter *padapter,
+			       struct recv_frame *precv_frame)
 {
 	return _SUCCESS;
 }
@@ -3862,7 +3881,8 @@ static struct action_handler OnAction_tbl[] = {
 	{RTW_WLAN_CATEGORY_P2P, "ACTION_P2P", &OnAction_p2p},
 };
 
-unsigned int OnAction(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnAction(struct adapter *padapter,
+			     struct recv_frame *precv_frame)
 {
 	int i;
 	unsigned char	category;
