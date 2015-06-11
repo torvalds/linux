@@ -849,7 +849,7 @@ static void start_bss_network(struct adapter *padapter, u8 *pbuf)
 
 		/* issue beacon frame */
 		if (send_beacon(padapter) == _FAIL)
-			DBG_88E("issue_beacon, fail!\n");
+			DBG_88E("send_beacon, fail!\n");
 	}
 
 	/* update bc/mc sta_info */
