@@ -564,20 +564,32 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 			return r;
 
 		if (ring->funcs->parse_cs) {
+			struct amdgpu_bo_va_mapping *m;
 			struct amdgpu_bo *aobj = NULL;
-			void *kptr;
+			uint64_t offset;
+			uint8_t *kptr;
 
-			amdgpu_cs_find_mapping(parser, chunk_ib->va_start, &aobj);
+			m = amdgpu_cs_find_mapping(parser, chunk_ib->va_start,
+						   &aobj);
 			if (!aobj) {
 				DRM_ERROR("IB va_start is invalid\n");
 				return -EINVAL;
 			}
 
+			if ((chunk_ib->va_start + chunk_ib->ib_bytes) >
+			    (m->it.last + 1) * AMDGPU_GPU_PAGE_SIZE) {
+				DRM_ERROR("IB va_start+ib_bytes is invalid\n");
+				return -EINVAL;
+			}
+
 			/* the IB should be reserved at this point */
-			r = amdgpu_bo_kmap(aobj, &kptr);
+			r = amdgpu_bo_kmap(aobj, (void **)&kptr);
 			if (r) {
 				return r;
 			}
+
+			offset = ((uint64_t)m->it.start) * AMDGPU_GPU_PAGE_SIZE;
+			kptr += chunk_ib->va_start - offset;
 
 			r =  amdgpu_ib_get(ring, NULL, chunk_ib->ib_bytes, ib);
 			if (r) {

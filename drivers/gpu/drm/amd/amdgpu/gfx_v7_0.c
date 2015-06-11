@@ -2414,8 +2414,10 @@ static void gfx_v7_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
  * GPU caches.
  */
 static void gfx_v7_0_ring_emit_fence_gfx(struct amdgpu_ring *ring, u64 addr,
-					 u64 seq, bool write64bit)
+					 u64 seq, unsigned flags)
 {
+	bool write64bit = flags & AMDGPU_FENCE_FLAG_64BIT;
+	bool int_sel = flags & AMDGPU_FENCE_FLAG_INT;
 	/* Workaround for cache flush problems. First send a dummy EOP
 	 * event down the pipe with seq one below.
 	 */
@@ -2438,7 +2440,7 @@ static void gfx_v7_0_ring_emit_fence_gfx(struct amdgpu_ring *ring, u64 addr,
 				 EVENT_INDEX(5)));
 	amdgpu_ring_write(ring, addr & 0xfffffffc);
 	amdgpu_ring_write(ring, (upper_32_bits(addr) & 0xffff) |
-				DATA_SEL(write64bit ? 2 : 1) | INT_SEL(2));
+				DATA_SEL(write64bit ? 2 : 1) | INT_SEL(int_sel ? 2 : 0));
 	amdgpu_ring_write(ring, lower_32_bits(seq));
 	amdgpu_ring_write(ring, upper_32_bits(seq));
 }
@@ -2454,15 +2456,18 @@ static void gfx_v7_0_ring_emit_fence_gfx(struct amdgpu_ring *ring, u64 addr,
  */
 static void gfx_v7_0_ring_emit_fence_compute(struct amdgpu_ring *ring,
 					     u64 addr, u64 seq,
-					     bool write64bits)
+					     unsigned flags)
 {
+	bool write64bit = flags & AMDGPU_FENCE_FLAG_64BIT;
+	bool int_sel = flags & AMDGPU_FENCE_FLAG_INT;
+
 	/* RELEASE_MEM - flush caches, send int */
 	amdgpu_ring_write(ring, PACKET3(PACKET3_RELEASE_MEM, 5));
 	amdgpu_ring_write(ring, (EOP_TCL1_ACTION_EN |
 				 EOP_TC_ACTION_EN |
 				 EVENT_TYPE(CACHE_FLUSH_AND_INV_TS_EVENT) |
 				 EVENT_INDEX(5)));
-	amdgpu_ring_write(ring, DATA_SEL(write64bits ? 2 : 1) | INT_SEL(2));
+	amdgpu_ring_write(ring, DATA_SEL(write64bit ? 2 : 1) | INT_SEL(int_sel ? 2 : 0));
 	amdgpu_ring_write(ring, addr & 0xfffffffc);
 	amdgpu_ring_write(ring, upper_32_bits(addr));
 	amdgpu_ring_write(ring, lower_32_bits(seq));
@@ -2876,7 +2881,7 @@ static int gfx_v7_0_cp_gfx_resume(struct amdgpu_device *adev)
 	rb_bufsz = order_base_2(ring->ring_size / 8);
 	tmp = (order_base_2(AMDGPU_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
 #ifdef __BIG_ENDIAN
-	tmp |= BUF_SWAP_32BIT;
+	tmp |= 2 << CP_RB0_CNTL__BUF_SWAP__SHIFT;
 #endif
 	WREG32(mmCP_RB0_CNTL, tmp);
 
@@ -3395,7 +3400,8 @@ static int gfx_v7_0_cp_compute_resume(struct amdgpu_device *adev)
 		mqd->queue_state.cp_hqd_pq_control |=
 			(order_base_2(AMDGPU_GPU_PAGE_SIZE/8) << 8);
 #ifdef __BIG_ENDIAN
-		mqd->queue_state.cp_hqd_pq_control |= BUF_SWAP_32BIT;
+		mqd->queue_state.cp_hqd_pq_control |=
+			2 << CP_HQD_PQ_CONTROL__ENDIAN_SWAP__SHIFT;
 #endif
 		mqd->queue_state.cp_hqd_pq_control &=
 			~(CP_HQD_PQ_CONTROL__UNORD_DISPATCH_MASK |

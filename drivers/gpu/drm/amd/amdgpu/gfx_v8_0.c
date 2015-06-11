@@ -116,11 +116,14 @@ static const u32 golden_settings_tonga_a11[] =
 	mmPA_SC_ENHANCE, 0xffffffff, 0x20000001,
 	mmPA_SC_FIFO_DEPTH_CNTL, 0x000003ff, 0x000000fc,
 	mmPA_SC_LINE_STIPPLE_STATE, 0x0000ff0f, 0x00000000,
+	mmSQ_RANDOM_WAVE_PRI, 0x001fffff, 0x000006fd,
 	mmTA_CNTL_AUX, 0x000f000f, 0x000b0000,
 	mmTCC_CTRL, 0x00100000, 0xf31fff7f,
+	mmTCC_EXE_DISABLE, 0x00000002, 0x00000002,
 	mmTCP_ADDR_CONFIG, 0x000003ff, 0x000002fb,
 	mmTCP_CHAN_STEER_HI, 0xffffffff, 0x0000543b,
 	mmTCP_CHAN_STEER_LO, 0xffffffff, 0xa9210876,
+	mmVGT_RESET_DEBUG, 0x00000004, 0x00000004,
 };
 
 static const u32 tonga_golden_common_all[] =
@@ -224,8 +227,10 @@ static const u32 golden_settings_iceland_a11[] =
 	mmPA_SC_LINE_STIPPLE_STATE, 0x0000ff0f, 0x00000000,
 	mmPA_SC_RASTER_CONFIG, 0x3f3fffff, 0x00000002,
 	mmPA_SC_RASTER_CONFIG_1, 0x0000003f, 0x00000000,
+	mmSQ_RANDOM_WAVE_PRI, 0x001fffff, 0x000006fd,
 	mmTA_CNTL_AUX, 0x000f000f, 0x000b0000,
 	mmTCC_CTRL, 0x00100000, 0xf31fff7f,
+	mmTCC_EXE_DISABLE, 0x00000002, 0x00000002,
 	mmTCP_ADDR_CONFIG, 0x000003ff, 0x000000f1,
 	mmTCP_CHAN_STEER_HI, 0xffffffff, 0x00000000,
 	mmTCP_CHAN_STEER_LO, 0xffffffff, 0x00000010,
@@ -318,7 +323,9 @@ static const u32 cz_golden_settings_a11[] =
 	mmGB_GPU_ID, 0x0000000f, 0x00000000,
 	mmPA_SC_ENHANCE, 0xffffffff, 0x00000001,
 	mmPA_SC_LINE_STIPPLE_STATE, 0x0000ff0f, 0x00000000,
+	mmSQ_RANDOM_WAVE_PRI, 0x001fffff, 0x000006fd,
 	mmTA_CNTL_AUX, 0x000f000f, 0x00010000,
+	mmTCC_EXE_DISABLE, 0x00000002, 0x00000002,
 	mmTCP_ADDR_CONFIG, 0x0000000f, 0x000000f3,
 	mmTCP_CHAN_STEER_LO, 0xffffffff, 0x00001302
 };
@@ -1933,9 +1940,43 @@ static void gfx_v8_0_gpu_init(struct amdgpu_device *adev)
 	case CHIP_CARRIZO:
 		adev->gfx.config.max_shader_engines = 1;
 		adev->gfx.config.max_tile_pipes = 2;
-		adev->gfx.config.max_cu_per_sh = 8;
 		adev->gfx.config.max_sh_per_se = 1;
-		adev->gfx.config.max_backends_per_se = 2;
+
+		switch (adev->pdev->revision) {
+		case 0xc4:
+		case 0x84:
+		case 0xc8:
+		case 0xcc:
+			/* B10 */
+			adev->gfx.config.max_cu_per_sh = 8;
+			adev->gfx.config.max_backends_per_se = 2;
+			break;
+		case 0xc5:
+		case 0x81:
+		case 0x85:
+		case 0xc9:
+		case 0xcd:
+			/* B8 */
+			adev->gfx.config.max_cu_per_sh = 6;
+			adev->gfx.config.max_backends_per_se = 2;
+			break;
+		case 0xc6:
+		case 0xca:
+		case 0xce:
+			/* B6 */
+			adev->gfx.config.max_cu_per_sh = 6;
+			adev->gfx.config.max_backends_per_se = 2;
+			break;
+		case 0xc7:
+		case 0x87:
+		case 0xcb:
+		default:
+			/* B4 */
+			adev->gfx.config.max_cu_per_sh = 4;
+			adev->gfx.config.max_backends_per_se = 1;
+			break;
+		}
+
 		adev->gfx.config.max_texture_channel_caches = 2;
 		adev->gfx.config.max_gprs = 256;
 		adev->gfx.config.max_gs_threads = 32;
@@ -3713,8 +3754,11 @@ static void gfx_v8_0_ring_emit_ib(struct amdgpu_ring *ring,
 }
 
 static void gfx_v8_0_ring_emit_fence_gfx(struct amdgpu_ring *ring, u64 addr,
-					 u64 seq, bool write64bit)
+					 u64 seq, unsigned flags)
 {
+	bool write64bit = flags & AMDGPU_FENCE_FLAG_64BIT;
+	bool int_sel = flags & AMDGPU_FENCE_FLAG_INT;
+
 	/* EVENT_WRITE_EOP - flush caches, send int */
 	amdgpu_ring_write(ring, PACKET3(PACKET3_EVENT_WRITE_EOP, 4));
 	amdgpu_ring_write(ring, (EOP_TCL1_ACTION_EN |
@@ -3723,7 +3767,7 @@ static void gfx_v8_0_ring_emit_fence_gfx(struct amdgpu_ring *ring, u64 addr,
 				 EVENT_INDEX(5)));
 	amdgpu_ring_write(ring, addr & 0xfffffffc);
 	amdgpu_ring_write(ring, (upper_32_bits(addr) & 0xffff) | 
-			  DATA_SEL(write64bit ? 2 : 1) | INT_SEL(2));
+			  DATA_SEL(write64bit ? 2 : 1) | INT_SEL(int_sel ? 2 : 0));
 	amdgpu_ring_write(ring, lower_32_bits(seq));
 	amdgpu_ring_write(ring, upper_32_bits(seq));
 }
@@ -3746,11 +3790,10 @@ static bool gfx_v8_0_ring_emit_semaphore(struct amdgpu_ring *ring,
 	unsigned sel = emit_wait ? PACKET3_SEM_SEL_WAIT : PACKET3_SEM_SEL_SIGNAL;
 
 	if (ring->adev->asic_type == CHIP_TOPAZ ||
-	    ring->adev->asic_type == CHIP_TONGA) {
-		amdgpu_ring_write(ring, PACKET3(PACKET3_MEM_SEMAPHORE, 1));
-		amdgpu_ring_write(ring, lower_32_bits(addr));
-		amdgpu_ring_write(ring, (upper_32_bits(addr) & 0xffff) | sel);
-	} else {
+	    ring->adev->asic_type == CHIP_TONGA)
+		/* we got a hw semaphore bug in VI TONGA, return false to switch back to sw fence wait */
+		return false;
+	else {
 		amdgpu_ring_write(ring, PACKET3(PACKET3_MEM_SEMAPHORE, 2));
 		amdgpu_ring_write(ring, lower_32_bits(addr));
 		amdgpu_ring_write(ring, upper_32_bits(addr));
@@ -3880,15 +3923,18 @@ static void gfx_v8_0_ring_set_wptr_compute(struct amdgpu_ring *ring)
 
 static void gfx_v8_0_ring_emit_fence_compute(struct amdgpu_ring *ring,
 					     u64 addr, u64 seq,
-					     bool write64bits)
+					     unsigned flags)
 {
+	bool write64bit = flags & AMDGPU_FENCE_FLAG_64BIT;
+	bool int_sel = flags & AMDGPU_FENCE_FLAG_INT;
+
 	/* RELEASE_MEM - flush caches, send int */
 	amdgpu_ring_write(ring, PACKET3(PACKET3_RELEASE_MEM, 5));
 	amdgpu_ring_write(ring, (EOP_TCL1_ACTION_EN |
 				 EOP_TC_ACTION_EN |
 				 EVENT_TYPE(CACHE_FLUSH_AND_INV_TS_EVENT) |
 				 EVENT_INDEX(5)));
-	amdgpu_ring_write(ring, DATA_SEL(write64bits ? 2 : 1) | INT_SEL(2));
+	amdgpu_ring_write(ring, DATA_SEL(write64bit ? 2 : 1) | INT_SEL(int_sel ? 2 : 0));
 	amdgpu_ring_write(ring, addr & 0xfffffffc);
 	amdgpu_ring_write(ring, upper_32_bits(addr));
 	amdgpu_ring_write(ring, lower_32_bits(seq));

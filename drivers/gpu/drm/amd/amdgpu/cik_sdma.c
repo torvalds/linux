@@ -259,8 +259,9 @@ static void cik_sdma_ring_emit_hdp_flush(struct amdgpu_ring *ring)
  * an interrupt if needed (CIK).
  */
 static void cik_sdma_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq,
-				     bool write64bit)
+				     unsigned flags)
 {
+	bool write64bit = flags & AMDGPU_FENCE_FLAG_64BIT;
 	/* write the fence */
 	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_FENCE, 0, 0));
 	amdgpu_ring_write(ring, lower_32_bits(addr));
@@ -410,7 +411,8 @@ static int cik_sdma_gfx_resume(struct amdgpu_device *adev)
 		rb_bufsz = order_base_2(ring->ring_size / 4);
 		rb_cntl = rb_bufsz << 1;
 #ifdef __BIG_ENDIAN
-		rb_cntl |= SDMA_RB_SWAP_ENABLE | SDMA_RPTR_WRITEBACK_SWAP_ENABLE;
+		rb_cntl |= SDMA0_GFX_RB_CNTL__RB_SWAP_ENABLE_MASK |
+			SDMA0_GFX_RB_CNTL__RPTR_WRITEBACK_SWAP_ENABLE_MASK;
 #endif
 		WREG32(mmSDMA0_GFX_RB_CNTL + sdma_offsets[i], rb_cntl);
 

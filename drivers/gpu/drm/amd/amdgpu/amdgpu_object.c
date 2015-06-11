@@ -95,7 +95,6 @@ static void amdgpu_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	bo = container_of(tbo, struct amdgpu_bo, tbo);
 
 	amdgpu_update_memory_usage(bo->adev, &bo->tbo.mem, NULL);
-	amdgpu_mn_unregister(bo);
 
 	mutex_lock(&bo->adev->gem.mutex);
 	list_del_init(&bo->list);

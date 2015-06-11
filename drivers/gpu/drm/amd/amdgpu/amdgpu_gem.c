@@ -37,6 +37,7 @@ void amdgpu_gem_object_free(struct drm_gem_object *gobj)
 	if (robj) {
 		if (robj->gem_base.import_attach)
 			drm_prime_gem_destroy(&robj->gem_base, robj->tbo.sg);
+		amdgpu_mn_unregister(robj);
 		amdgpu_bo_unref(&robj);
 	}
 }
@@ -504,7 +505,7 @@ error_free:
 int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *filp)
 {
-	union drm_amdgpu_gem_va *args = data;
+	struct drm_amdgpu_gem_va *args = data;
 	struct drm_gem_object *gobj;
 	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_fpriv *fpriv = filp->driver_priv;
@@ -513,95 +514,73 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	uint32_t invalid_flags, va_flags = 0;
 	int r = 0;
 
-	if (!adev->vm_manager.enabled) {
-		memset(args, 0, sizeof(*args));
-		args->out.result = AMDGPU_VA_RESULT_ERROR;
+	if (!adev->vm_manager.enabled)
 		return -ENOTTY;
-	}
 
-	if (args->in.va_address < AMDGPU_VA_RESERVED_SIZE) {
+	if (args->va_address < AMDGPU_VA_RESERVED_SIZE) {
 		dev_err(&dev->pdev->dev,
 			"va_address 0x%lX is in reserved area 0x%X\n",
-			(unsigned long)args->in.va_address,
+			(unsigned long)args->va_address,
 			AMDGPU_VA_RESERVED_SIZE);
-		memset(args, 0, sizeof(*args));
-		args->out.result = AMDGPU_VA_RESULT_ERROR;
 		return -EINVAL;
 	}
 
 	invalid_flags = ~(AMDGPU_VM_PAGE_READABLE | AMDGPU_VM_PAGE_WRITEABLE |
 			AMDGPU_VM_PAGE_EXECUTABLE);
-	if ((args->in.flags & invalid_flags)) {
+	if ((args->flags & invalid_flags)) {
 		dev_err(&dev->pdev->dev, "invalid flags 0x%08X vs 0x%08X\n",
-			args->in.flags, invalid_flags);
-		memset(args, 0, sizeof(*args));
-		args->out.result = AMDGPU_VA_RESULT_ERROR;
+			args->flags, invalid_flags);
 		return -EINVAL;
 	}
 
-	switch (args->in.operation) {
+	switch (args->operation) {
 	case AMDGPU_VA_OP_MAP:
 	case AMDGPU_VA_OP_UNMAP:
 		break;
 	default:
 		dev_err(&dev->pdev->dev, "unsupported operation %d\n",
-			args->in.operation);
-		memset(args, 0, sizeof(*args));
-		args->out.result = AMDGPU_VA_RESULT_ERROR;
+			args->operation);
 		return -EINVAL;
 	}
 
-	gobj = drm_gem_object_lookup(dev, filp, args->in.handle);
-	if (gobj == NULL) {
-		memset(args, 0, sizeof(*args));
-		args->out.result = AMDGPU_VA_RESULT_ERROR;
+	gobj = drm_gem_object_lookup(dev, filp, args->handle);
+	if (gobj == NULL)
 		return -ENOENT;
-	}
+
 	rbo = gem_to_amdgpu_bo(gobj);
 	r = amdgpu_bo_reserve(rbo, false);
 	if (r) {
-		if (r != -ERESTARTSYS) {
-			memset(args, 0, sizeof(*args));
-			args->out.result = AMDGPU_VA_RESULT_ERROR;
-		}
 		drm_gem_object_unreference_unlocked(gobj);
 		return r;
 	}
+
 	bo_va = amdgpu_vm_bo_find(&fpriv->vm, rbo);
 	if (!bo_va) {
-		memset(args, 0, sizeof(*args));
-		args->out.result = AMDGPU_VA_RESULT_ERROR;
-		drm_gem_object_unreference_unlocked(gobj);
+		amdgpu_bo_unreserve(rbo);
 		return -ENOENT;
 	}
 
-	switch (args->in.operation) {
+	switch (args->operation) {
 	case AMDGPU_VA_OP_MAP:
-		if (args->in.flags & AMDGPU_VM_PAGE_READABLE)
+		if (args->flags & AMDGPU_VM_PAGE_READABLE)
 			va_flags |= AMDGPU_PTE_READABLE;
-		if (args->in.flags & AMDGPU_VM_PAGE_WRITEABLE)
+		if (args->flags & AMDGPU_VM_PAGE_WRITEABLE)
 			va_flags |= AMDGPU_PTE_WRITEABLE;
-		if (args->in.flags & AMDGPU_VM_PAGE_EXECUTABLE)
+		if (args->flags & AMDGPU_VM_PAGE_EXECUTABLE)
 			va_flags |= AMDGPU_PTE_EXECUTABLE;
-		r = amdgpu_vm_bo_map(adev, bo_va, args->in.va_address,
-				     args->in.offset_in_bo, args->in.map_size,
+		r = amdgpu_vm_bo_map(adev, bo_va, args->va_address,
+				     args->offset_in_bo, args->map_size,
 				     va_flags);
 		break;
 	case AMDGPU_VA_OP_UNMAP:
-		r = amdgpu_vm_bo_unmap(adev, bo_va, args->in.va_address);
+		r = amdgpu_vm_bo_unmap(adev, bo_va, args->va_address);
 		break;
 	default:
 		break;
 	}
 
-	if (!r) {
+	if (!r)
 		amdgpu_gem_va_update_vm(adev, bo_va);
-		memset(args, 0, sizeof(*args));
-		args->out.result = AMDGPU_VA_RESULT_OK;
-	} else {
-		memset(args, 0, sizeof(*args));
-		args->out.result = AMDGPU_VA_RESULT_ERROR;
-	}
 
 	drm_gem_object_unreference_unlocked(gobj);
 	return r;

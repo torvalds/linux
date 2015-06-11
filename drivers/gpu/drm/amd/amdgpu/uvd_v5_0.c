@@ -461,9 +461,9 @@ static void uvd_v5_0_stop(struct amdgpu_device *adev)
  * Write a fence and a trap command to the ring.
  */
 static void uvd_v5_0_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq,
-				     bool write64bit)
+				     unsigned flags)
 {
-	WARN_ON(write64bit);
+	WARN_ON(flags & AMDGPU_FENCE_FLAG_64BIT);
 
 	amdgpu_ring_write(ring, PACKET0(mmUVD_CONTEXT_ID, 0));
 	amdgpu_ring_write(ring, seq);

@@ -2948,15 +2948,7 @@ static int dce_v8_0_hw_fini(void *handle)
 
 static int dce_v8_0_suspend(void *handle)
 {
-	struct drm_connector *connector;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	drm_kms_helper_poll_disable(adev->ddev);
-
-	/* turn off display hw */
-	list_for_each_entry(connector, &adev->ddev->mode_config.connector_list, head) {
-		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
-	}
 
 	amdgpu_atombios_scratch_regs_save(adev);
 
@@ -2967,7 +2959,6 @@ static int dce_v8_0_suspend(void *handle)
 
 static int dce_v8_0_resume(void *handle)
 {
-	struct drm_connector *connector;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	amdgpu_atombios_scratch_regs_restore(adev);
@@ -2985,15 +2976,6 @@ static int dce_v8_0_resume(void *handle)
 
 	/* initialize hpd */
 	dce_v8_0_hpd_init(adev);
-
-	/* blat the mode back in */
-	drm_helper_resume_force_mode(adev->ddev);
-	/* turn on display hw */
-	list_for_each_entry(connector, &adev->ddev->mode_config.connector_list, head) {
-		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
-	}
-
-	drm_kms_helper_poll_enable(adev->ddev);
 
 	return 0;
 }

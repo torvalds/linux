@@ -120,10 +120,19 @@ static const u32 cz_golden_settings_a11[] =
 	mmFBC_MISC, 0x1f311fff, 0x14300000,
 };
 
+static const u32 cz_mgcg_cgcg_init[] =
+{
+	mmXDMA_CLOCK_GATING_CNTL, 0xffffffff, 0x00000100,
+	mmXDMA_MEM_POWER_CNTL, 0x00000101, 0x00000000,
+};
+
 static void dce_v11_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_CARRIZO:
+		amdgpu_program_register_sequence(adev,
+						 cz_mgcg_cgcg_init,
+						 (const u32)ARRAY_SIZE(cz_mgcg_cgcg_init));
 		amdgpu_program_register_sequence(adev,
 						 cz_golden_settings_a11,
 						 (const u32)ARRAY_SIZE(cz_golden_settings_a11));
@@ -3006,15 +3015,7 @@ static int dce_v11_0_hw_fini(void *handle)
 
 static int dce_v11_0_suspend(void *handle)
 {
-	struct drm_connector *connector;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	drm_kms_helper_poll_disable(adev->ddev);
-
-	/* turn off display hw */
-	list_for_each_entry(connector, &adev->ddev->mode_config.connector_list, head) {
-		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
-	}
 
 	amdgpu_atombios_scratch_regs_save(adev);
 
@@ -3025,7 +3026,6 @@ static int dce_v11_0_suspend(void *handle)
 
 static int dce_v11_0_resume(void *handle)
 {
-	struct drm_connector *connector;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	dce_v11_0_init_golden_registers(adev);
@@ -3046,15 +3046,6 @@ static int dce_v11_0_resume(void *handle)
 
 	/* initialize hpd */
 	dce_v11_0_hpd_init(adev);
-
-	/* blat the mode back in */
-	drm_helper_resume_force_mode(adev->ddev);
-	/* turn on display hw */
-	list_for_each_entry(connector, &adev->ddev->mode_config.connector_list, head) {
-		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
-	}
-
-	drm_kms_helper_poll_enable(adev->ddev);
 
 	return 0;
 }

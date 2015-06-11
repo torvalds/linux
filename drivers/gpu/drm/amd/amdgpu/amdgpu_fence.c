@@ -128,7 +128,9 @@ int amdgpu_fence_emit(struct amdgpu_ring *ring, void *owner,
 	fence_init(&(*fence)->base, &amdgpu_fence_ops,
 		&adev->fence_queue.lock, adev->fence_context + ring->idx,
 		(*fence)->seq);
-	amdgpu_ring_emit_fence(ring, ring->fence_drv.gpu_addr, (*fence)->seq, false);
+	amdgpu_ring_emit_fence(ring, ring->fence_drv.gpu_addr,
+			       (*fence)->seq,
+			       AMDGPU_FENCE_FLAG_INT);
 	trace_amdgpu_fence_emit(ring->adev->ddev, ring->idx, (*fence)->seq);
 	return 0;
 }
@@ -521,6 +523,10 @@ long amdgpu_fence_wait_seq_timeout(struct amdgpu_device *adev, u64 *target_seq,
 	uint64_t last_seq[AMDGPU_MAX_RINGS];
 	bool signaled;
 	int i, r;
+
+	if (timeout == 0) {
+		return amdgpu_fence_any_seq_signaled(adev, target_seq);
+	}
 
 	while (!amdgpu_fence_any_seq_signaled(adev, target_seq)) {
 

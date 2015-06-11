@@ -82,6 +82,10 @@ static int iceland_dpm_hw_init(void *handle)
 
 	mutex_lock(&adev->pm.mutex);
 
+	/* smu init only needs to be called at startup, not resume.
+	 * It should be in sw_init, but requires the fw info gathered
+	 * in sw_init from other IP modules.
+	 */
 	ret = iceland_smu_init(adev);
 	if (ret) {
 		DRM_ERROR("SMU initialization failed\n");
@@ -108,6 +112,10 @@ static int iceland_dpm_hw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	mutex_lock(&adev->pm.mutex);
+	/* smu fini only needs to be called at teardown, not suspend.
+	 * It should be in sw_fini, but we put it here for symmetry
+	 * with smu init.
+	 */
 	iceland_smu_fini(adev);
 	mutex_unlock(&adev->pm.mutex);
 	return 0;
@@ -115,20 +123,25 @@ static int iceland_dpm_hw_fini(void *handle)
 
 static int iceland_dpm_suspend(void *handle)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	iceland_dpm_hw_fini(adev);
-
 	return 0;
 }
 
 static int iceland_dpm_resume(void *handle)
 {
+	int ret;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	iceland_dpm_hw_init(adev);
+	mutex_lock(&adev->pm.mutex);
 
-	return 0;
+	ret = iceland_smu_start(adev);
+	if (ret) {
+		DRM_ERROR("SMU start failed\n");
+		goto fail;
+	}
+
+fail:
+	mutex_unlock(&adev->pm.mutex);
+	return ret;
 }
 
 static int iceland_dpm_set_clockgating_state(void *handle,
