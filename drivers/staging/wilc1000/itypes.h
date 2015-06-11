@@ -44,7 +44,6 @@
 typedef int WORD32;
 typedef short WORD16;
 typedef char WORD8;
-typedef unsigned int UWORD32;
 typedef unsigned short UWORD16;
 
 /*****************************************************************************/

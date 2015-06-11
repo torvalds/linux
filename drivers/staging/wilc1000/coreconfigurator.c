@@ -499,10 +499,10 @@ INLINE WILC_Uint32 get_beacon_timestamp_lo(u8 *data)
 	return time_stamp;
 }
 
-INLINE UWORD32 get_beacon_timestamp_hi(u8 *data)
+INLINE u32 get_beacon_timestamp_hi(u8 *data)
 {
-	UWORD32 time_stamp = 0;
-	UWORD32 index    = (MAC_HDR_LEN + 4);
+	u32 time_stamp = 0;
+	u32 index    = (MAC_HDR_LEN + 4);
 
 	time_stamp |= data[index++];
 	time_stamp |= (data[index++] << 8);
