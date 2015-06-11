@@ -884,16 +884,6 @@ do {									\
 	}								\
 } while (0)
 
-#define call_enet_pause_cbfn(enet)					\
-do {									\
-	if ((enet)->pause_cbfn) {					\
-		void (*cbfn)(struct bnad *);				\
-		cbfn = (enet)->pause_cbfn;				\
-		(enet)->pause_cbfn = NULL;				\
-		cbfn((enet)->bna->bnad);				\
-	}								\
-} while (0)
-
 #define call_enet_mtu_cbfn(enet)					\
 do {									\
 	if ((enet)->mtu_cbfn) {						\
@@ -925,7 +915,6 @@ bfa_fsm_state_decl(bna_enet, chld_stop_wait, struct bna_enet,
 static void
 bna_enet_sm_stopped_entry(struct bna_enet *enet)
 {
-	call_enet_pause_cbfn(enet);
 	call_enet_mtu_cbfn(enet);
 	call_enet_stop_cbfn(enet);
 }
@@ -947,7 +936,6 @@ bna_enet_sm_stopped(struct bna_enet *enet, enum bna_enet_event event)
 		break;
 
 	case ENET_E_PAUSE_CFG:
-		call_enet_pause_cbfn(enet);
 		break;
 
 	case ENET_E_MTU_CFG:
@@ -1039,7 +1027,6 @@ bna_enet_sm_started_entry(struct bna_enet *enet)
 	 * NOTE: Do not call bna_enet_chld_start() here, since it will be
 	 * inadvertently called during cfg_wait->started transition as well
 	 */
-	call_enet_pause_cbfn(enet);
 	call_enet_mtu_cbfn(enet);
 }
 
@@ -1210,8 +1197,6 @@ bna_enet_init(struct bna_enet *enet, struct bna *bna)
 
 	enet->stop_cbfn = NULL;
 	enet->stop_cbarg = NULL;
-
-	enet->pause_cbfn = NULL;
 
 	enet->mtu_cbfn = NULL;
 

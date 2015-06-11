@@ -362,9 +362,6 @@ struct bna_enet {
 	void (*stop_cbfn)(void *);
 	void			*stop_cbarg;
 
-	/* Callback for bna_enet_pause_config() */
-	void (*pause_cbfn)(struct bnad *);
-
 	/* Callback for bna_enet_mtu_set() */
 	void (*mtu_cbfn)(struct bnad *);
 
