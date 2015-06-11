@@ -42,6 +42,7 @@
 #define __LNET_LIB_LNET_H__
 
 #include "../libcfs/libcfs.h"
+#include "api.h"
 #include "types.h"
 #include "lnet.h"
 #include "lib-types.h"
