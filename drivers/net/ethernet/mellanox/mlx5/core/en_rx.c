@@ -45,17 +45,17 @@ static inline int mlx5e_alloc_rx_wqe(struct mlx5e_rq *rq,
 	if (unlikely(!skb))
 		return -ENOMEM;
 
-	skb_reserve(skb, MLX5E_NET_IP_ALIGN);
-
 	dma_addr = dma_map_single(rq->pdev,
 				  /* hw start padding */
-				  skb->data - MLX5E_NET_IP_ALIGN,
-				  /* hw   end padding */
+				  skb->data,
+				  /* hw end padding */
 				  rq->wqe_sz,
 				  DMA_FROM_DEVICE);
 
 	if (unlikely(dma_mapping_error(rq->pdev, dma_addr)))
 		goto err_free_skb;
+
+	skb_reserve(skb, MLX5E_NET_IP_ALIGN);
 
 	*((dma_addr_t *)skb->cb) = dma_addr;
 	wqe->data.addr = cpu_to_be64(dma_addr + MLX5E_NET_IP_ALIGN);
@@ -217,7 +217,7 @@ bool mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 
 		dma_unmap_single(rq->pdev,
 				 *((dma_addr_t *)skb->cb),
-				 skb_end_offset(skb),
+				 rq->wqe_sz,
 				 DMA_FROM_DEVICE);
 
 		if (unlikely((cqe->op_own >> 4) != MLX5_CQE_RESP_SEND)) {

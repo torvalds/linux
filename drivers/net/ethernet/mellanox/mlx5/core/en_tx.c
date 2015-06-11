@@ -34,6 +34,33 @@
 #include <linux/if_vlan.h>
 #include "en.h"
 
+#define MLX5E_SQ_NOPS_ROOM  MLX5_SEND_WQE_MAX_WQEBBS
+#define MLX5E_SQ_STOP_ROOM (MLX5_SEND_WQE_MAX_WQEBBS +\
+			    MLX5E_SQ_NOPS_ROOM)
+
+void mlx5e_send_nop(struct mlx5e_sq *sq, bool notify_hw)
+{
+	struct mlx5_wq_cyc                *wq  = &sq->wq;
+
+	u16 pi = sq->pc & wq->sz_m1;
+	struct mlx5e_tx_wqe              *wqe  = mlx5_wq_cyc_get_wqe(wq, pi);
+
+	struct mlx5_wqe_ctrl_seg         *cseg = &wqe->ctrl;
+
+	memset(cseg, 0, sizeof(*cseg));
+
+	cseg->opmod_idx_opcode = cpu_to_be32((sq->pc << 8) | MLX5_OPCODE_NOP);
+	cseg->qpn_ds           = cpu_to_be32((sq->sqn << 8) | 0x01);
+
+	sq->skb[pi] = NULL;
+	sq->pc++;
+
+	if (notify_hw) {
+		cseg->fm_ce_se = MLX5_WQE_CTRL_CQ_UPDATE;
+		mlx5e_tx_notify_hw(sq, wqe);
+	}
+}
+
 static void mlx5e_dma_pop_last_pushed(struct mlx5e_sq *sq, dma_addr_t *addr,
 				      u32 *size)
 {
@@ -89,21 +116,6 @@ static inline u16 mlx5e_get_inline_hdr_size(struct mlx5e_sq *sq,
 	return MLX5E_MIN_INLINE;
 }
 
-static inline void mlx5e_insert_vlan(void *start, struct sk_buff *skb, u16 ihs)
-{
-	struct vlan_ethhdr *vhdr = (struct vlan_ethhdr *)start;
-	int cpy1_sz = 2 * ETH_ALEN;
-	int cpy2_sz = ihs - cpy1_sz - VLAN_HLEN;
-
-	skb_copy_from_linear_data(skb, vhdr, cpy1_sz);
-	skb_pull_inline(skb, cpy1_sz);
-	vhdr->h_vlan_proto = skb->vlan_proto;
-	vhdr->h_vlan_TCI = cpu_to_be16(skb_vlan_tag_get(skb));
-	skb_copy_from_linear_data(skb, &vhdr->h_vlan_encapsulated_proto,
-				  cpy2_sz);
-	skb_pull_inline(skb, cpy2_sz);
-}
-
 static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 {
 	struct mlx5_wq_cyc       *wq   = &sq->wq;
@@ -149,12 +161,8 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 							ETH_ZLEN);
 	}
 
-	if (skb_vlan_tag_present(skb)) {
-		mlx5e_insert_vlan(eseg->inline_hdr_start, skb, ihs);
-	} else {
-		skb_copy_from_linear_data(skb, eseg->inline_hdr_start, ihs);
-		skb_pull_inline(skb, ihs);
-	}
+	skb_copy_from_linear_data(skb, eseg->inline_hdr_start, ihs);
+	skb_pull_inline(skb, ihs);
 
 	eseg->inline_hdr_sz	= cpu_to_be16(ihs);
 
@@ -215,13 +223,17 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 
 	netdev_tx_sent_queue(sq->txq, MLX5E_TX_SKB_CB(skb)->num_bytes);
 
-	if (unlikely(!mlx5e_sq_has_room_for(sq, MLX5_SEND_WQE_MAX_WQEBBS))) {
+	if (unlikely(!mlx5e_sq_has_room_for(sq, MLX5E_SQ_STOP_ROOM))) {
 		netif_tx_stop_queue(sq->txq);
 		sq->stats.stopped++;
 	}
 
 	if (!skb->xmit_more || netif_xmit_stopped(sq->txq))
 		mlx5e_tx_notify_hw(sq, wqe);
+
+	/* fill sq edge with nops to avoid wqe wrap around */
+	while ((sq->pc & wq->sz_m1) > sq->edge)
+		mlx5e_send_nop(sq, false);
 
 	sq->stats.packets++;
 	return NETDEV_TX_OK;
@@ -330,7 +342,7 @@ free_skb:
 	netdev_tx_completed_queue(sq->txq, npkts, nbytes);
 
 	if (netif_tx_queue_stopped(sq->txq) &&
-	    mlx5e_sq_has_room_for(sq, MLX5_SEND_WQE_MAX_WQEBBS) &&
+	    mlx5e_sq_has_room_for(sq, MLX5E_SQ_STOP_ROOM) &&
 	    likely(test_bit(MLX5E_SQ_STATE_WAKE_TXQ_ENABLE, &sq->state))) {
 				netif_tx_wake_queue(sq->txq);
 				sq->stats.wake++;
