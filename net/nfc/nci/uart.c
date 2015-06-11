@@ -12,7 +12,6 @@
  * IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE
  * ARE EXPRESSLY DISCLAIMED.  The License provides additional details about
  * this warranty disclaimer.
-
  */
 
 /* Inspired (hugely) by HCI LDISC implementation in Bluetooth.

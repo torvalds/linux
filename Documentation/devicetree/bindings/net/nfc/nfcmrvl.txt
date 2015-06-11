@@ -1,0 +1,29 @@
+* Marvell International Ltd. NCI NFC Controller
+
+Required properties:
+- compatible: Should be "mrvl,nfc-uart".
+
+Optional SoC specific properties:
+- pinctrl-names: Contains only one value - "default".
+- pintctrl-0: Specifies the pin control groups used for this controller.
+- reset-n-io: Output GPIO pin used to reset the chip (active low).
+- hci-muxed: Specifies that the chip is muxing NCI over HCI frames.
+
+Optional UART-based chip specific properties:
+- flow-control: Specifies that the chip is using RTS/CTS.
+- break-control: Specifies that the chip needs specific break management.
+
+Example (for ARM-based BeagleBoard Black with 88W8887 on UART5):
+
+&uart5 {
+	status = "okay";
+
+	nfcmrvluart: nfcmrvluart@5 {
+		compatible = "mrvl,nfc-uart";
+
+		reset-n-io = <&gpio3 16 0>;
+
+		hci-muxed;
+		flow-control;
+        }
+};

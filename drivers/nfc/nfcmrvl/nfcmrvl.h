@@ -43,6 +43,11 @@
 #define NFCMRVL_HCI_OGF				0x81
 #define NFCMRVL_HCI_OCF				0xFE
 
+enum nfcmrvl_phy {
+	NFCMRVL_PHY_USB		= 0,
+	NFCMRVL_PHY_UART	= 1,
+};
+
 
 struct nfcmrvl_private {
 
@@ -61,6 +66,8 @@ struct nfcmrvl_private {
 	void *drv_data;
 	/* PHY device */
 	struct device *dev;
+	/* PHY type */
+	enum nfcmrvl_phy phy;
 	/* Low level driver ops */
 	struct nfcmrvl_if_ops *if_ops;
 };
