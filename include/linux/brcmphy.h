@@ -3,6 +3,11 @@
 
 #include <linux/phy.h>
 
+/* All Broadcom Ethernet switches have a pseudo-PHY at address 30 which is used
+ * to configure the switch internal registers via MDIO accesses.
+ */
+#define BRCM_PSEUDO_PHY_ADDR           30
+
 #define PHY_ID_BCM50610			0x0143bd60
 #define PHY_ID_BCM50610M		0x0143bd70
 #define PHY_ID_BCM5241			0x0143bc30
