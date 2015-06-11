@@ -262,18 +262,9 @@ static unsigned spacc_load_ctx(struct spacc_generic_ctx *ctx,
 }
 
 /* Count the number of scatterlist entries in a scatterlist. */
-static int sg_count(struct scatterlist *sg_list, int nbytes)
+static inline int sg_count(struct scatterlist *sg_list, int nbytes)
 {
-	struct scatterlist *sg = sg_list;
-	int sg_nents = 0;
-
-	while (nbytes > 0) {
-		++sg_nents;
-		nbytes -= sg->length;
-		sg = sg_next(sg);
-	}
-
-	return sg_nents;
+	return sg_nents_for_len(sg_list, nbytes);
 }
 
 static inline void ddt_set(struct spacc_ddt *ddt, dma_addr_t phys, size_t len)
