@@ -187,8 +187,6 @@ enum {
 #define BFA_MFG_SUPPLIER_SERIALNUM_SIZE		20
 #define BFA_MFG_SUPPLIER_REVISION_SIZE		4
 
-#pragma pack(1)
-
 /* BFA adapter manufacturing block definition.
  *
  * All numerical fields are in big-endian format.
@@ -227,9 +225,7 @@ struct bfa_mfg_block {
 	char	initial_mode[8]; /* initial mode: hba/cna/nic */
 	u8	rsv4[84];
 	u8	md5_chksum[BFA_MFG_CHKSUM_SIZE]; /* md5 checksum */
-};
-
-#pragma pack()
+} __packed;
 
 /* ---------------------- pci definitions ------------ */
 

@@ -59,8 +59,6 @@ enum {
 	BFA_MFG_TYPE_INVALID = 0,	 /*!< Invalid card type		*/
 };
 
-#pragma pack(1)
-
 /* Check if Mezz card */
 #define bfa_mfg_is_mezz(type) (( \
 	(type) == BFA_MFG_TYPE_JAYHAWK || \
@@ -148,8 +146,6 @@ struct bfa_mfg_vpd {
 	u8	len;		/*!< vpd data length excluding header */
 	u8	rsv;
 	u8		data[BFA_MFG_VPD_LEN];	/*!< vpd data */
-};
-
-#pragma pack()
+} __packed;
 
 #endif /* __BFA_DEFS_MFG_H__ */
