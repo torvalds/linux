@@ -58,11 +58,6 @@ static bool psci_power_state_is_valid(u32 state)
  */
 static int resident_cpu = -1;
 
-static bool psci_tos_resident_on(int cpu)
-{
-	return cpu == resident_cpu;
-}
-
 struct psci_operations {
 	int (*cpu_suspend)(u32 state, unsigned long entry_point);
 	int (*cpu_off)(u32 state);
@@ -494,6 +489,11 @@ static int cpu_psci_cpu_boot(unsigned int cpu)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
+static bool psci_tos_resident_on(int cpu)
+{
+	return cpu == resident_cpu;
+}
+
 static int cpu_psci_cpu_disable(unsigned int cpu)
 {
 	/* Fail early if we don't have CPU_OFF support */
