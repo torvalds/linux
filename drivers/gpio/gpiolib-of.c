@@ -73,14 +73,25 @@ static int of_gpiochip_find_and_xlate(struct gpio_chip *gc, void *data)
 #include <linux/amlogic/aml_gpio_consumer.h>
 int of_get_named_gpio_flags(struct device_node *np, const char *propname,
                 int index __attribute__((unused)),
-                enum of_gpio_flags *flags __attribute__((unused)))
+                enum of_gpio_flags *flags)
 {
     const char *str;
+    int gpio;
 
     if(of_property_read_string(np, "gpios", &str))
         return -EPROBE_DEFER;
 
-    return  amlogic_gpio_name_map_num(str);
+    gpio = amlogic_gpio_name_map_num(str);
+
+    /* Set ODROID-C1 status LED to active low */
+    if (flags != NULL) {
+        if (gpio == 13)
+            *flags = 1;
+        else
+            *flags = 0;
+    }
+
+    return gpio;
 }
 #else
 int of_get_named_gpio_flags(struct device_node *np, const char *propname,
