@@ -2121,7 +2121,7 @@ void lu_buf_free(struct lu_buf *buf)
 	LASSERT(buf);
 	if (buf->lb_buf) {
 		LASSERT(buf->lb_len > 0);
-		OBD_FREE_LARGE(buf->lb_buf, buf->lb_len);
+		kvfree(buf->lb_buf);
 		buf->lb_buf = NULL;
 		buf->lb_len = 0;
 	}
@@ -2133,7 +2133,7 @@ void lu_buf_alloc(struct lu_buf *buf, int size)
 	LASSERT(buf);
 	LASSERT(buf->lb_buf == NULL);
 	LASSERT(buf->lb_len == 0);
-	OBD_ALLOC_LARGE(buf->lb_buf, size);
+	buf->lb_buf = libcfs_kvzalloc(size, GFP_NOFS);
 	if (likely(buf->lb_buf))
 		buf->lb_len = size;
 }
@@ -2171,14 +2171,14 @@ int lu_buf_check_and_grow(struct lu_buf *buf, int len)
 	if (len <= buf->lb_len)
 		return 0;
 
-	OBD_ALLOC_LARGE(ptr, len);
+	ptr = libcfs_kvzalloc(len, GFP_NOFS);
 	if (ptr == NULL)
 		return -ENOMEM;
 
 	/* Free the old buf */
 	if (buf->lb_buf != NULL) {
 		memcpy(ptr, buf->lb_buf, buf->lb_len);
-		OBD_FREE_LARGE(buf->lb_buf, buf->lb_len);
+		kvfree(buf->lb_buf);
 	}
 
 	buf->lb_buf = ptr;

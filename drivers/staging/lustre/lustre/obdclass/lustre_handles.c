@@ -198,7 +198,8 @@ int class_handle_init(void)
 
 	LASSERT(handle_hash == NULL);
 
-	OBD_ALLOC_LARGE(handle_hash, sizeof(*bucket) * HANDLE_HASH_SIZE);
+	handle_hash = libcfs_kvzalloc(sizeof(*bucket) * HANDLE_HASH_SIZE,
+				      GFP_NOFS);
 	if (handle_hash == NULL)
 		return -ENOMEM;
 
@@ -249,7 +250,7 @@ void class_handle_cleanup(void)
 
 	count = cleanup_all_handles();
 
-	OBD_FREE_LARGE(handle_hash, sizeof(*handle_hash) * HANDLE_HASH_SIZE);
+	kvfree(handle_hash);
 	handle_hash = NULL;
 
 	if (count != 0)
