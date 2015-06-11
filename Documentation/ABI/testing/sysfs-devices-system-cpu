@@ -162,7 +162,7 @@ Description:	Discover CPUs in the same CPU frequency coordination domain
 What:		/sys/devices/system/cpu/cpu*/cache/index3/cache_disable_{0,1}
 Date:		August 2008
 KernelVersion:	2.6.27
-Contact:	discuss@x86-64.org
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Disable L3 cache indices
 
 		These files exist in every CPU's cache/index3 directory. Each

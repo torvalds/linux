@@ -1164,6 +1164,7 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 			state = fa->fa_state;
 			new_fa->fa_state = state & ~FA_S_ACCESSED;
 			new_fa->fa_slen = fa->fa_slen;
+			new_fa->tb_id = tb->tb_id;
 
 			err = netdev_switch_fib_ipv4_add(key, plen, fi,
 							 new_fa->fa_tos,
@@ -1764,7 +1765,7 @@ void fib_table_flush_external(struct fib_table *tb)
 			/* record local slen */
 			slen = fa->fa_slen;
 
-			if (!fi || !(fi->fib_flags & RTNH_F_EXTERNAL))
+			if (!fi || !(fi->fib_flags & RTNH_F_OFFLOAD))
 				continue;
 
 			netdev_switch_fib_ipv4_del(n->key,

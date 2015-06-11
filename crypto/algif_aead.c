@@ -33,7 +33,7 @@ struct aead_ctx {
 	/*
 	 * RSGL_MAX_ENTRIES is an artificial limit where user space at maximum
 	 * can cause the kernel to allocate RSGL_MAX_ENTRIES * ALG_MAX_PAGES
-	 * bytes
+	 * pages
 	 */
 #define RSGL_MAX_ENTRIES ALG_MAX_PAGES
 	struct af_alg_sgl rsgl[RSGL_MAX_ENTRIES];
@@ -435,11 +435,10 @@ static int aead_recvmsg(struct socket *sock, struct msghdr *msg, size_t ignored,
 		if (err < 0)
 			goto unlock;
 		usedpages += err;
-		/* chain the new scatterlist with initial list */
+		/* chain the new scatterlist with previous one */
 		if (cnt)
-			scatterwalk_crypto_chain(ctx->rsgl[0].sg,
-					ctx->rsgl[cnt].sg, 1,
-					sg_nents(ctx->rsgl[cnt-1].sg));
+			af_alg_link_sg(&ctx->rsgl[cnt-1], &ctx->rsgl[cnt]);
+
 		/* we do not need more iovecs as we have sufficient memory */
 		if (outlen <= usedpages)
 			break;

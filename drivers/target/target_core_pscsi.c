@@ -521,6 +521,7 @@ static int pscsi_configure_device(struct se_device *dev)
 					" pdv_host_id: %d\n", pdv->pdv_host_id);
 				return -EINVAL;
 			}
+			pdv->pdv_lld_host = sh;
 		}
 	} else {
 		if (phv->phv_mode == PHV_VIRTUAL_HOST_ID) {
@@ -603,6 +604,8 @@ static void pscsi_free_device(struct se_device *dev)
 		if ((phv->phv_mode == PHV_LLD_SCSI_HOST_NO) &&
 		    (phv->phv_lld_host != NULL))
 			scsi_host_put(phv->phv_lld_host);
+		else if (pdv->pdv_lld_host)
+			scsi_host_put(pdv->pdv_lld_host);
 
 		if ((sd->type == TYPE_DISK) || (sd->type == TYPE_ROM))
 			scsi_device_put(sd);
@@ -970,64 +973,13 @@ fail:
 	return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 }
 
-/*
- * Clear a lun set in the cdb if the initiator talking to use spoke
- * and old standards version, as we can't assume the underlying device
- * won't choke up on it.
- */
-static inline void pscsi_clear_cdb_lun(unsigned char *cdb)
-{
-	switch (cdb[0]) {
-	case READ_10: /* SBC - RDProtect */
-	case READ_12: /* SBC - RDProtect */
-	case READ_16: /* SBC - RDProtect */
-	case SEND_DIAGNOSTIC: /* SPC - SELF-TEST Code */
-	case VERIFY: /* SBC - VRProtect */
-	case VERIFY_16: /* SBC - VRProtect */
-	case WRITE_VERIFY: /* SBC - VRProtect */
-	case WRITE_VERIFY_12: /* SBC - VRProtect */
-	case MAINTENANCE_IN: /* SPC - Parameter Data Format for SA RTPG */
-		break;
-	default:
-		cdb[1] &= 0x1f; /* clear logical unit number */
-		break;
-	}
-}
-
 static sense_reason_t
 pscsi_parse_cdb(struct se_cmd *cmd)
 {
-	unsigned char *cdb = cmd->t_task_cdb;
-
 	if (cmd->se_cmd_flags & SCF_BIDI)
 		return TCM_UNSUPPORTED_SCSI_OPCODE;
 
-	pscsi_clear_cdb_lun(cdb);
-
-	/*
-	 * For REPORT LUNS we always need to emulate the response, for everything
-	 * else the default for pSCSI is to pass the command to the underlying
-	 * LLD / physical hardware.
-	 */
-	switch (cdb[0]) {
-	case REPORT_LUNS:
-		cmd->execute_cmd = spc_emulate_report_luns;
-		return 0;
-	case READ_6:
-	case READ_10:
-	case READ_12:
-	case READ_16:
-	case WRITE_6:
-	case WRITE_10:
-	case WRITE_12:
-	case WRITE_16:
-	case WRITE_VERIFY:
-		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		/* FALLTHROUGH*/
-	default:
-		cmd->execute_cmd = pscsi_execute_cmd;
-		return 0;
-	}
+	return passthrough_parse_cdb(cmd, pscsi_execute_cmd);
 }
 
 static sense_reason_t
@@ -1189,7 +1141,7 @@ static struct configfs_attribute *pscsi_backend_dev_attrs[] = {
 static struct se_subsystem_api pscsi_template = {
 	.name			= "pscsi",
 	.owner			= THIS_MODULE,
-	.transport_type		= TRANSPORT_PLUGIN_PHBA_PDEV,
+	.transport_flags	= TRANSPORT_FLAG_PASSTHROUGH,
 	.attach_hba		= pscsi_attach_hba,
 	.detach_hba		= pscsi_detach_hba,
 	.pmode_enable_hba	= pscsi_pmode_enable_hba,

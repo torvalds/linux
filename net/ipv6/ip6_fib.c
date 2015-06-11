@@ -693,6 +693,7 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 {
 	struct rt6_info *iter = NULL;
 	struct rt6_info **ins;
+	struct rt6_info **fallback_ins = NULL;
 	int replace = (info->nlh &&
 		       (info->nlh->nlmsg_flags & NLM_F_REPLACE));
 	int add = (!info->nlh ||
@@ -716,8 +717,13 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 			    (info->nlh->nlmsg_flags & NLM_F_EXCL))
 				return -EEXIST;
 			if (replace) {
-				found++;
-				break;
+				if (rt_can_ecmp == rt6_qualify_for_ecmp(iter)) {
+					found++;
+					break;
+				}
+				if (rt_can_ecmp)
+					fallback_ins = fallback_ins ?: ins;
+				goto next_iter;
 			}
 
 			if (iter->dst.dev == rt->dst.dev &&
@@ -753,7 +759,15 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 		if (iter->rt6i_metric > rt->rt6i_metric)
 			break;
 
+next_iter:
 		ins = &iter->dst.rt6_next;
+	}
+
+	if (fallback_ins && !found) {
+		/* No ECMP-able route found, replace first non-ECMP one */
+		ins = fallback_ins;
+		iter = *ins;
+		found++;
 	}
 
 	/* Reset round-robin state, if necessary */
@@ -815,6 +829,8 @@ add:
 		}
 
 	} else {
+		int nsiblings;
+
 		if (!found) {
 			if (add)
 				goto add;
@@ -835,8 +851,27 @@ add:
 			info->nl_net->ipv6.rt6_stats->fib_route_nodes++;
 			fn->fn_flags |= RTN_RTINFO;
 		}
+		nsiblings = iter->rt6i_nsiblings;
 		fib6_purge_rt(iter, fn, info->nl_net);
 		rt6_release(iter);
+
+		if (nsiblings) {
+			/* Replacing an ECMP route, remove all siblings */
+			ins = &rt->dst.rt6_next;
+			iter = *ins;
+			while (iter) {
+				if (rt6_qualify_for_ecmp(iter)) {
+					*ins = iter->dst.rt6_next;
+					fib6_purge_rt(iter, fn, info->nl_net);
+					rt6_release(iter);
+					nsiblings--;
+				} else {
+					ins = &iter->dst.rt6_next;
+				}
+				iter = *ins;
+			}
+			WARN_ON(nsiblings != 0);
+		}
 	}
 
 	return 0;

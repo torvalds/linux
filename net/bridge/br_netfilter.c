@@ -37,10 +37,6 @@
 #include <net/route.h>
 #include <net/netfilter/br_netfilter.h>
 
-#if IS_ENABLED(CONFIG_NF_CONNTRACK)
-#include <net/netfilter/nf_conntrack.h>
-#endif
-
 #include <asm/uaccess.h>
 #include "br_private.h"
 #ifdef CONFIG_SYSCTL
@@ -350,24 +346,15 @@ free_skb:
 	return 0;
 }
 
-static bool dnat_took_place(const struct sk_buff *skb)
+static bool daddr_was_changed(const struct sk_buff *skb,
+			      const struct nf_bridge_info *nf_bridge)
 {
-#if IS_ENABLED(CONFIG_NF_CONNTRACK)
-	enum ip_conntrack_info ctinfo;
-	struct nf_conn *ct;
-
-	ct = nf_ct_get(skb, &ctinfo);
-	if (!ct || nf_ct_is_untracked(ct))
-		return false;
-
-	return test_bit(IPS_DST_NAT_BIT, &ct->status);
-#else
-	return false;
-#endif
+	return ip_hdr(skb)->daddr != nf_bridge->ipv4_daddr;
 }
 
 /* This requires some explaining. If DNAT has taken place,
  * we will need to fix up the destination Ethernet address.
+ * This is also true when SNAT takes place (for the reply direction).
  *
  * There are two cases to consider:
  * 1. The packet was DNAT'ed to a device in the same bridge
@@ -421,7 +408,7 @@ static int br_nf_pre_routing_finish(struct sock *sk, struct sk_buff *skb)
 		nf_bridge->pkt_otherhost = false;
 	}
 	nf_bridge->mask ^= BRNF_NF_BRIDGE_PREROUTING;
-	if (dnat_took_place(skb)) {
+	if (daddr_was_changed(skb, nf_bridge)) {
 		if ((err = ip_route_input(skb, iph->daddr, iph->saddr, iph->tos, dev))) {
 			struct in_device *in_dev = __in_dev_get_rcu(dev);
 
@@ -632,6 +619,7 @@ static unsigned int br_nf_pre_routing(const struct nf_hook_ops *ops,
 				      struct sk_buff *skb,
 				      const struct nf_hook_state *state)
 {
+	struct nf_bridge_info *nf_bridge;
 	struct net_bridge_port *p;
 	struct net_bridge *br;
 	__u32 len = nf_bridge_encap_header_len(skb);
@@ -668,6 +656,9 @@ static unsigned int br_nf_pre_routing(const struct nf_hook_ops *ops,
 		return NF_DROP;
 	if (!setup_pre_routing(skb))
 		return NF_DROP;
+
+	nf_bridge = nf_bridge_info_get(skb);
+	nf_bridge->ipv4_daddr = ip_hdr(skb)->daddr;
 
 	skb->protocol = htons(ETH_P_IP);
 

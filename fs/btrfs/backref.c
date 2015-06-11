@@ -880,6 +880,8 @@ static int __add_keyed_refs(struct btrfs_fs_info *fs_info,
  * indirect refs to their parent bytenr.
  * When roots are found, they're added to the roots list
  *
+ * NOTE: This can return values > 0
+ *
  * FIXME some caching might speed things up
  */
 static int find_parent_nodes(struct btrfs_trans_handle *trans,
@@ -1198,6 +1200,19 @@ int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
+/**
+ * btrfs_check_shared - tell us whether an extent is shared
+ *
+ * @trans: optional trans handle
+ *
+ * btrfs_check_shared uses the backref walking code but will short
+ * circuit as soon as it finds a root or inode that doesn't match the
+ * one passed in. This provides a significant performance benefit for
+ * callers (such as fiemap) which want to know whether the extent is
+ * shared but do not need a ref count.
+ *
+ * Return: 0 if extent is not shared, 1 if it is shared, < 0 on error.
+ */
 int btrfs_check_shared(struct btrfs_trans_handle *trans,
 		       struct btrfs_fs_info *fs_info, u64 root_objectid,
 		       u64 inum, u64 bytenr)
@@ -1226,11 +1241,13 @@ int btrfs_check_shared(struct btrfs_trans_handle *trans,
 		ret = find_parent_nodes(trans, fs_info, bytenr, elem.seq, tmp,
 					roots, NULL, root_objectid, inum);
 		if (ret == BACKREF_FOUND_SHARED) {
+			/* this is the only condition under which we return 1 */
 			ret = 1;
 			break;
 		}
 		if (ret < 0 && ret != -ENOENT)
 			break;
+		ret = 0;
 		node = ulist_next(tmp, &uiter);
 		if (!node)
 			break;

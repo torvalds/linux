@@ -5209,7 +5209,7 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 	if (__netdev_find_adj(upper_dev, dev, &upper_dev->all_adj_list.upper))
 		return -EBUSY;
 
-	if (__netdev_find_adj(dev, upper_dev, &dev->all_adj_list.upper))
+	if (__netdev_find_adj(dev, upper_dev, &dev->adj_list.upper))
 		return -EEXIST;
 
 	if (master && netdev_master_upper_dev_get(dev))

@@ -1698,6 +1698,7 @@ static void xennet_destroy_queues(struct netfront_info *info)
 
 		if (netif_running(info->netdev))
 			napi_disable(&queue->napi);
+		del_timer_sync(&queue->rx_refill_timer);
 		netif_napi_del(&queue->napi);
 	}
 
@@ -2102,9 +2103,6 @@ static const struct attribute_group xennet_dev_group = {
 static int xennet_remove(struct xenbus_device *dev)
 {
 	struct netfront_info *info = dev_get_drvdata(&dev->dev);
-	unsigned int num_queues = info->netdev->real_num_tx_queues;
-	struct netfront_queue *queue = NULL;
-	unsigned int i = 0;
 
 	dev_dbg(&dev->dev, "%s\n", dev->nodename);
 
@@ -2112,16 +2110,7 @@ static int xennet_remove(struct xenbus_device *dev)
 
 	unregister_netdev(info->netdev);
 
-	for (i = 0; i < num_queues; ++i) {
-		queue = &info->queues[i];
-		del_timer_sync(&queue->rx_refill_timer);
-	}
-
-	if (num_queues) {
-		kfree(info->queues);
-		info->queues = NULL;
-	}
-
+	xennet_destroy_queues(info);
 	xennet_free_netdev(info->netdev);
 
 	return 0;

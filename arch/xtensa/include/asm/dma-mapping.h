@@ -185,4 +185,17 @@ static inline int dma_get_sgtable(struct device *dev, struct sg_table *sgt,
 	return -EINVAL;
 }
 
+static inline void *dma_alloc_attrs(struct device *dev, size_t size,
+				    dma_addr_t *dma_handle, gfp_t flag,
+				    struct dma_attrs *attrs)
+{
+	return NULL;
+}
+
+static inline void dma_free_attrs(struct device *dev, size_t size,
+				  void *vaddr, dma_addr_t dma_handle,
+				  struct dma_attrs *attrs)
+{
+}
+
 #endif	/* _XTENSA_DMA_MAPPING_H */

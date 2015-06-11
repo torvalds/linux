@@ -599,10 +599,18 @@ static int macvlan_open(struct net_device *dev)
 			goto del_unicast;
 	}
 
+	if (dev->flags & IFF_PROMISC) {
+		err = dev_set_promiscuity(lowerdev, 1);
+		if (err < 0)
+			goto clear_multi;
+	}
+
 hash_add:
 	macvlan_hash_add(vlan);
 	return 0;
 
+clear_multi:
+	dev_set_allmulti(lowerdev, -1);
 del_unicast:
 	dev_uc_del(lowerdev, dev->dev_addr);
 out:
@@ -637,6 +645,9 @@ static int macvlan_stop(struct net_device *dev)
 
 	if (dev->flags & IFF_ALLMULTI)
 		dev_set_allmulti(lowerdev, -1);
+
+	if (dev->flags & IFF_PROMISC)
+		dev_set_promiscuity(lowerdev, -1);
 
 	dev_uc_del(lowerdev, dev->dev_addr);
 
@@ -696,6 +707,10 @@ static void macvlan_change_rx_flags(struct net_device *dev, int change)
 	if (dev->flags & IFF_UP) {
 		if (change & IFF_ALLMULTI)
 			dev_set_allmulti(lowerdev, dev->flags & IFF_ALLMULTI ? 1 : -1);
+		if (change & IFF_PROMISC)
+			dev_set_promiscuity(lowerdev,
+					    dev->flags & IFF_PROMISC ? 1 : -1);
+
 	}
 }
 

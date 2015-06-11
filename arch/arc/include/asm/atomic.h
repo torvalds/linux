@@ -99,7 +99,7 @@ static inline void atomic_##op(int i, atomic_t *v)			\
 	atomic_ops_unlock(flags);					\
 }
 
-#define ATOMIC_OP_RETURN(op, c_op)					\
+#define ATOMIC_OP_RETURN(op, c_op, asm_op)				\
 static inline int atomic_##op##_return(int i, atomic_t *v)		\
 {									\
 	unsigned long flags;						\

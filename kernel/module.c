@@ -3370,6 +3370,9 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	module_bug_cleanup(mod);
 	mutex_unlock(&module_mutex);
 
+	blocking_notifier_call_chain(&module_notify_list,
+				     MODULE_STATE_GOING, mod);
+
 	/* we can't deallocate the module until we clear memory protection */
 	unset_module_init_ro_nx(mod);
 	unset_module_core_ro_nx(mod);

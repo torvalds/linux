@@ -518,7 +518,14 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 	if (!kn)
 		goto err_out1;
 
-	ret = ida_simple_get(&root->ino_ida, 1, 0, GFP_KERNEL);
+	/*
+	 * If the ino of the sysfs entry created for a kmem cache gets
+	 * allocated from an ida layer, which is accounted to the memcg that
+	 * owns the cache, the memcg will get pinned forever. So do not account
+	 * ino ida allocations.
+	 */
+	ret = ida_simple_get(&root->ino_ida, 1, 0,
+			     GFP_KERNEL | __GFP_NOACCOUNT);
 	if (ret < 0)
 		goto err_out2;
 	kn->ino = ret;

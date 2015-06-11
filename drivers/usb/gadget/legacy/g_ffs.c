@@ -163,7 +163,7 @@ static int gfs_unbind(struct usb_composite_dev *cdev);
 static int gfs_do_config(struct usb_configuration *c);
 
 
-static __refdata struct usb_composite_driver gfs_driver = {
+static struct usb_composite_driver gfs_driver = {
 	.name		= DRIVER_NAME,
 	.dev		= &gfs_dev_desc,
 	.strings	= gfs_dev_strings,

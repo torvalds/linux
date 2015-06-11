@@ -174,7 +174,7 @@ out:
 	return ret;
 }
 
-static int __init gs_bind(struct usb_composite_dev *cdev)
+static int gs_bind(struct usb_composite_dev *cdev)
 {
 	int			status;
 
@@ -230,7 +230,7 @@ static int gs_unbind(struct usb_composite_dev *cdev)
 	return 0;
 }
 
-static __refdata struct usb_composite_driver gserial_driver = {
+static struct usb_composite_driver gserial_driver = {
 	.name		= "g_serial",
 	.dev		= &device_desc,
 	.strings	= dev_strings,

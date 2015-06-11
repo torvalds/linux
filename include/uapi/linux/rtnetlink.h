@@ -337,7 +337,7 @@ struct rtnexthop {
 #define RTNH_F_DEAD		1	/* Nexthop is dead (used by multipath)	*/
 #define RTNH_F_PERVASIVE	2	/* Do recursive gateway lookup	*/
 #define RTNH_F_ONLINK		4	/* Gateway is forced on link	*/
-#define RTNH_F_EXTERNAL		8	/* Route installed externally	*/
+#define RTNH_F_OFFLOAD		8	/* offloaded route */
 
 /* Macros to handle hexthops */
 

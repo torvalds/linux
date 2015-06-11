@@ -85,6 +85,7 @@ struct at86rf230_local {
 	struct ieee802154_hw *hw;
 	struct at86rf2xx_chip_data *data;
 	struct regmap *regmap;
+	int slp_tr;
 
 	struct completion state_complete;
 	struct at86rf230_state_change state;
@@ -95,163 +96,164 @@ struct at86rf230_local {
 	unsigned long cal_timeout;
 	s8 max_frame_retries;
 	bool is_tx;
+	bool is_tx_from_off;
 	u8 tx_retry;
 	struct sk_buff *tx_skb;
 	struct at86rf230_state_change tx;
 };
 
-#define	RG_TRX_STATUS	(0x01)
-#define	SR_TRX_STATUS		0x01, 0x1f, 0
-#define	SR_RESERVED_01_3	0x01, 0x20, 5
-#define	SR_CCA_STATUS		0x01, 0x40, 6
-#define	SR_CCA_DONE		0x01, 0x80, 7
-#define	RG_TRX_STATE	(0x02)
-#define	SR_TRX_CMD		0x02, 0x1f, 0
-#define	SR_TRAC_STATUS		0x02, 0xe0, 5
-#define	RG_TRX_CTRL_0	(0x03)
-#define	SR_CLKM_CTRL		0x03, 0x07, 0
-#define	SR_CLKM_SHA_SEL		0x03, 0x08, 3
-#define	SR_PAD_IO_CLKM		0x03, 0x30, 4
-#define	SR_PAD_IO		0x03, 0xc0, 6
-#define	RG_TRX_CTRL_1	(0x04)
-#define	SR_IRQ_POLARITY		0x04, 0x01, 0
-#define	SR_IRQ_MASK_MODE	0x04, 0x02, 1
-#define	SR_SPI_CMD_MODE		0x04, 0x0c, 2
-#define	SR_RX_BL_CTRL		0x04, 0x10, 4
-#define	SR_TX_AUTO_CRC_ON	0x04, 0x20, 5
-#define	SR_IRQ_2_EXT_EN		0x04, 0x40, 6
-#define	SR_PA_EXT_EN		0x04, 0x80, 7
-#define	RG_PHY_TX_PWR	(0x05)
-#define	SR_TX_PWR		0x05, 0x0f, 0
-#define	SR_PA_LT		0x05, 0x30, 4
-#define	SR_PA_BUF_LT		0x05, 0xc0, 6
-#define	RG_PHY_RSSI	(0x06)
-#define	SR_RSSI			0x06, 0x1f, 0
-#define	SR_RND_VALUE		0x06, 0x60, 5
-#define	SR_RX_CRC_VALID		0x06, 0x80, 7
-#define	RG_PHY_ED_LEVEL	(0x07)
-#define	SR_ED_LEVEL		0x07, 0xff, 0
-#define	RG_PHY_CC_CCA	(0x08)
-#define	SR_CHANNEL		0x08, 0x1f, 0
-#define	SR_CCA_MODE		0x08, 0x60, 5
-#define	SR_CCA_REQUEST		0x08, 0x80, 7
-#define	RG_CCA_THRES	(0x09)
-#define	SR_CCA_ED_THRES		0x09, 0x0f, 0
-#define	SR_RESERVED_09_1	0x09, 0xf0, 4
-#define	RG_RX_CTRL	(0x0a)
-#define	SR_PDT_THRES		0x0a, 0x0f, 0
-#define	SR_RESERVED_0a_1	0x0a, 0xf0, 4
-#define	RG_SFD_VALUE	(0x0b)
-#define	SR_SFD_VALUE		0x0b, 0xff, 0
-#define	RG_TRX_CTRL_2	(0x0c)
-#define	SR_OQPSK_DATA_RATE	0x0c, 0x03, 0
-#define	SR_SUB_MODE		0x0c, 0x04, 2
-#define	SR_BPSK_QPSK		0x0c, 0x08, 3
-#define	SR_OQPSK_SUB1_RC_EN	0x0c, 0x10, 4
-#define	SR_RESERVED_0c_5	0x0c, 0x60, 5
-#define	SR_RX_SAFE_MODE		0x0c, 0x80, 7
-#define	RG_ANT_DIV	(0x0d)
-#define	SR_ANT_CTRL		0x0d, 0x03, 0
-#define	SR_ANT_EXT_SW_EN	0x0d, 0x04, 2
-#define	SR_ANT_DIV_EN		0x0d, 0x08, 3
-#define	SR_RESERVED_0d_2	0x0d, 0x70, 4
-#define	SR_ANT_SEL		0x0d, 0x80, 7
-#define	RG_IRQ_MASK	(0x0e)
-#define	SR_IRQ_MASK		0x0e, 0xff, 0
-#define	RG_IRQ_STATUS	(0x0f)
-#define	SR_IRQ_0_PLL_LOCK	0x0f, 0x01, 0
-#define	SR_IRQ_1_PLL_UNLOCK	0x0f, 0x02, 1
-#define	SR_IRQ_2_RX_START	0x0f, 0x04, 2
-#define	SR_IRQ_3_TRX_END	0x0f, 0x08, 3
-#define	SR_IRQ_4_CCA_ED_DONE	0x0f, 0x10, 4
-#define	SR_IRQ_5_AMI		0x0f, 0x20, 5
-#define	SR_IRQ_6_TRX_UR		0x0f, 0x40, 6
-#define	SR_IRQ_7_BAT_LOW	0x0f, 0x80, 7
-#define	RG_VREG_CTRL	(0x10)
-#define	SR_RESERVED_10_6	0x10, 0x03, 0
-#define	SR_DVDD_OK		0x10, 0x04, 2
-#define	SR_DVREG_EXT		0x10, 0x08, 3
-#define	SR_RESERVED_10_3	0x10, 0x30, 4
-#define	SR_AVDD_OK		0x10, 0x40, 6
-#define	SR_AVREG_EXT		0x10, 0x80, 7
-#define	RG_BATMON	(0x11)
-#define	SR_BATMON_VTH		0x11, 0x0f, 0
-#define	SR_BATMON_HR		0x11, 0x10, 4
-#define	SR_BATMON_OK		0x11, 0x20, 5
-#define	SR_RESERVED_11_1	0x11, 0xc0, 6
-#define	RG_XOSC_CTRL	(0x12)
-#define	SR_XTAL_TRIM		0x12, 0x0f, 0
-#define	SR_XTAL_MODE		0x12, 0xf0, 4
-#define	RG_RX_SYN	(0x15)
-#define	SR_RX_PDT_LEVEL		0x15, 0x0f, 0
-#define	SR_RESERVED_15_2	0x15, 0x70, 4
-#define	SR_RX_PDT_DIS		0x15, 0x80, 7
-#define	RG_XAH_CTRL_1	(0x17)
-#define	SR_RESERVED_17_8	0x17, 0x01, 0
-#define	SR_AACK_PROM_MODE	0x17, 0x02, 1
-#define	SR_AACK_ACK_TIME	0x17, 0x04, 2
-#define	SR_RESERVED_17_5	0x17, 0x08, 3
-#define	SR_AACK_UPLD_RES_FT	0x17, 0x10, 4
-#define	SR_AACK_FLTR_RES_FT	0x17, 0x20, 5
-#define	SR_CSMA_LBT_MODE	0x17, 0x40, 6
-#define	SR_RESERVED_17_1	0x17, 0x80, 7
-#define	RG_FTN_CTRL	(0x18)
-#define	SR_RESERVED_18_2	0x18, 0x7f, 0
-#define	SR_FTN_START		0x18, 0x80, 7
-#define	RG_PLL_CF	(0x1a)
-#define	SR_RESERVED_1a_2	0x1a, 0x7f, 0
-#define	SR_PLL_CF_START		0x1a, 0x80, 7
-#define	RG_PLL_DCU	(0x1b)
-#define	SR_RESERVED_1b_3	0x1b, 0x3f, 0
-#define	SR_RESERVED_1b_2	0x1b, 0x40, 6
-#define	SR_PLL_DCU_START	0x1b, 0x80, 7
-#define	RG_PART_NUM	(0x1c)
-#define	SR_PART_NUM		0x1c, 0xff, 0
-#define	RG_VERSION_NUM	(0x1d)
-#define	SR_VERSION_NUM		0x1d, 0xff, 0
-#define	RG_MAN_ID_0	(0x1e)
-#define	SR_MAN_ID_0		0x1e, 0xff, 0
-#define	RG_MAN_ID_1	(0x1f)
-#define	SR_MAN_ID_1		0x1f, 0xff, 0
-#define	RG_SHORT_ADDR_0	(0x20)
-#define	SR_SHORT_ADDR_0		0x20, 0xff, 0
-#define	RG_SHORT_ADDR_1	(0x21)
-#define	SR_SHORT_ADDR_1		0x21, 0xff, 0
-#define	RG_PAN_ID_0	(0x22)
-#define	SR_PAN_ID_0		0x22, 0xff, 0
-#define	RG_PAN_ID_1	(0x23)
-#define	SR_PAN_ID_1		0x23, 0xff, 0
-#define	RG_IEEE_ADDR_0	(0x24)
-#define	SR_IEEE_ADDR_0		0x24, 0xff, 0
-#define	RG_IEEE_ADDR_1	(0x25)
-#define	SR_IEEE_ADDR_1		0x25, 0xff, 0
-#define	RG_IEEE_ADDR_2	(0x26)
-#define	SR_IEEE_ADDR_2		0x26, 0xff, 0
-#define	RG_IEEE_ADDR_3	(0x27)
-#define	SR_IEEE_ADDR_3		0x27, 0xff, 0
-#define	RG_IEEE_ADDR_4	(0x28)
-#define	SR_IEEE_ADDR_4		0x28, 0xff, 0
-#define	RG_IEEE_ADDR_5	(0x29)
-#define	SR_IEEE_ADDR_5		0x29, 0xff, 0
-#define	RG_IEEE_ADDR_6	(0x2a)
-#define	SR_IEEE_ADDR_6		0x2a, 0xff, 0
-#define	RG_IEEE_ADDR_7	(0x2b)
-#define	SR_IEEE_ADDR_7		0x2b, 0xff, 0
-#define	RG_XAH_CTRL_0	(0x2c)
-#define	SR_SLOTTED_OPERATION	0x2c, 0x01, 0
-#define	SR_MAX_CSMA_RETRIES	0x2c, 0x0e, 1
-#define	SR_MAX_FRAME_RETRIES	0x2c, 0xf0, 4
-#define	RG_CSMA_SEED_0	(0x2d)
-#define	SR_CSMA_SEED_0		0x2d, 0xff, 0
-#define	RG_CSMA_SEED_1	(0x2e)
-#define	SR_CSMA_SEED_1		0x2e, 0x07, 0
-#define	SR_AACK_I_AM_COORD	0x2e, 0x08, 3
-#define	SR_AACK_DIS_ACK		0x2e, 0x10, 4
-#define	SR_AACK_SET_PD		0x2e, 0x20, 5
-#define	SR_AACK_FVN_MODE	0x2e, 0xc0, 6
-#define	RG_CSMA_BE	(0x2f)
-#define	SR_MIN_BE		0x2f, 0x0f, 0
-#define	SR_MAX_BE		0x2f, 0xf0, 4
+#define RG_TRX_STATUS	(0x01)
+#define SR_TRX_STATUS		0x01, 0x1f, 0
+#define SR_RESERVED_01_3	0x01, 0x20, 5
+#define SR_CCA_STATUS		0x01, 0x40, 6
+#define SR_CCA_DONE		0x01, 0x80, 7
+#define RG_TRX_STATE	(0x02)
+#define SR_TRX_CMD		0x02, 0x1f, 0
+#define SR_TRAC_STATUS		0x02, 0xe0, 5
+#define RG_TRX_CTRL_0	(0x03)
+#define SR_CLKM_CTRL		0x03, 0x07, 0
+#define SR_CLKM_SHA_SEL		0x03, 0x08, 3
+#define SR_PAD_IO_CLKM		0x03, 0x30, 4
+#define SR_PAD_IO		0x03, 0xc0, 6
+#define RG_TRX_CTRL_1	(0x04)
+#define SR_IRQ_POLARITY		0x04, 0x01, 0
+#define SR_IRQ_MASK_MODE	0x04, 0x02, 1
+#define SR_SPI_CMD_MODE		0x04, 0x0c, 2
+#define SR_RX_BL_CTRL		0x04, 0x10, 4
+#define SR_TX_AUTO_CRC_ON	0x04, 0x20, 5
+#define SR_IRQ_2_EXT_EN		0x04, 0x40, 6
+#define SR_PA_EXT_EN		0x04, 0x80, 7
+#define RG_PHY_TX_PWR	(0x05)
+#define SR_TX_PWR		0x05, 0x0f, 0
+#define SR_PA_LT		0x05, 0x30, 4
+#define SR_PA_BUF_LT		0x05, 0xc0, 6
+#define RG_PHY_RSSI	(0x06)
+#define SR_RSSI			0x06, 0x1f, 0
+#define SR_RND_VALUE		0x06, 0x60, 5
+#define SR_RX_CRC_VALID		0x06, 0x80, 7
+#define RG_PHY_ED_LEVEL	(0x07)
+#define SR_ED_LEVEL		0x07, 0xff, 0
+#define RG_PHY_CC_CCA	(0x08)
+#define SR_CHANNEL		0x08, 0x1f, 0
+#define SR_CCA_MODE		0x08, 0x60, 5
+#define SR_CCA_REQUEST		0x08, 0x80, 7
+#define RG_CCA_THRES	(0x09)
+#define SR_CCA_ED_THRES		0x09, 0x0f, 0
+#define SR_RESERVED_09_1	0x09, 0xf0, 4
+#define RG_RX_CTRL	(0x0a)
+#define SR_PDT_THRES		0x0a, 0x0f, 0
+#define SR_RESERVED_0a_1	0x0a, 0xf0, 4
+#define RG_SFD_VALUE	(0x0b)
+#define SR_SFD_VALUE		0x0b, 0xff, 0
+#define RG_TRX_CTRL_2	(0x0c)
+#define SR_OQPSK_DATA_RATE	0x0c, 0x03, 0
+#define SR_SUB_MODE		0x0c, 0x04, 2
+#define SR_BPSK_QPSK		0x0c, 0x08, 3
+#define SR_OQPSK_SUB1_RC_EN	0x0c, 0x10, 4
+#define SR_RESERVED_0c_5	0x0c, 0x60, 5
+#define SR_RX_SAFE_MODE		0x0c, 0x80, 7
+#define RG_ANT_DIV	(0x0d)
+#define SR_ANT_CTRL		0x0d, 0x03, 0
+#define SR_ANT_EXT_SW_EN	0x0d, 0x04, 2
+#define SR_ANT_DIV_EN		0x0d, 0x08, 3
+#define SR_RESERVED_0d_2	0x0d, 0x70, 4
+#define SR_ANT_SEL		0x0d, 0x80, 7
+#define RG_IRQ_MASK	(0x0e)
+#define SR_IRQ_MASK		0x0e, 0xff, 0
+#define RG_IRQ_STATUS	(0x0f)
+#define SR_IRQ_0_PLL_LOCK	0x0f, 0x01, 0
+#define SR_IRQ_1_PLL_UNLOCK	0x0f, 0x02, 1
+#define SR_IRQ_2_RX_START	0x0f, 0x04, 2
+#define SR_IRQ_3_TRX_END	0x0f, 0x08, 3
+#define SR_IRQ_4_CCA_ED_DONE	0x0f, 0x10, 4
+#define SR_IRQ_5_AMI		0x0f, 0x20, 5
+#define SR_IRQ_6_TRX_UR		0x0f, 0x40, 6
+#define SR_IRQ_7_BAT_LOW	0x0f, 0x80, 7
+#define RG_VREG_CTRL	(0x10)
+#define SR_RESERVED_10_6	0x10, 0x03, 0
+#define SR_DVDD_OK		0x10, 0x04, 2
+#define SR_DVREG_EXT		0x10, 0x08, 3
+#define SR_RESERVED_10_3	0x10, 0x30, 4
+#define SR_AVDD_OK		0x10, 0x40, 6
+#define SR_AVREG_EXT		0x10, 0x80, 7
+#define RG_BATMON	(0x11)
+#define SR_BATMON_VTH		0x11, 0x0f, 0
+#define SR_BATMON_HR		0x11, 0x10, 4
+#define SR_BATMON_OK		0x11, 0x20, 5
+#define SR_RESERVED_11_1	0x11, 0xc0, 6
+#define RG_XOSC_CTRL	(0x12)
+#define SR_XTAL_TRIM		0x12, 0x0f, 0
+#define SR_XTAL_MODE		0x12, 0xf0, 4
+#define RG_RX_SYN	(0x15)
+#define SR_RX_PDT_LEVEL		0x15, 0x0f, 0
+#define SR_RESERVED_15_2	0x15, 0x70, 4
+#define SR_RX_PDT_DIS		0x15, 0x80, 7
+#define RG_XAH_CTRL_1	(0x17)
+#define SR_RESERVED_17_8	0x17, 0x01, 0
+#define SR_AACK_PROM_MODE	0x17, 0x02, 1
+#define SR_AACK_ACK_TIME	0x17, 0x04, 2
+#define SR_RESERVED_17_5	0x17, 0x08, 3
+#define SR_AACK_UPLD_RES_FT	0x17, 0x10, 4
+#define SR_AACK_FLTR_RES_FT	0x17, 0x20, 5
+#define SR_CSMA_LBT_MODE	0x17, 0x40, 6
+#define SR_RESERVED_17_1	0x17, 0x80, 7
+#define RG_FTN_CTRL	(0x18)
+#define SR_RESERVED_18_2	0x18, 0x7f, 0
+#define SR_FTN_START		0x18, 0x80, 7
+#define RG_PLL_CF	(0x1a)
+#define SR_RESERVED_1a_2	0x1a, 0x7f, 0
+#define SR_PLL_CF_START		0x1a, 0x80, 7
+#define RG_PLL_DCU	(0x1b)
+#define SR_RESERVED_1b_3	0x1b, 0x3f, 0
+#define SR_RESERVED_1b_2	0x1b, 0x40, 6
+#define SR_PLL_DCU_START	0x1b, 0x80, 7
+#define RG_PART_NUM	(0x1c)
+#define SR_PART_NUM		0x1c, 0xff, 0
+#define RG_VERSION_NUM	(0x1d)
+#define SR_VERSION_NUM		0x1d, 0xff, 0
+#define RG_MAN_ID_0	(0x1e)
+#define SR_MAN_ID_0		0x1e, 0xff, 0
+#define RG_MAN_ID_1	(0x1f)
+#define SR_MAN_ID_1		0x1f, 0xff, 0
+#define RG_SHORT_ADDR_0	(0x20)
+#define SR_SHORT_ADDR_0		0x20, 0xff, 0
+#define RG_SHORT_ADDR_1	(0x21)
+#define SR_SHORT_ADDR_1		0x21, 0xff, 0
+#define RG_PAN_ID_0	(0x22)
+#define SR_PAN_ID_0		0x22, 0xff, 0
+#define RG_PAN_ID_1	(0x23)
+#define SR_PAN_ID_1		0x23, 0xff, 0
+#define RG_IEEE_ADDR_0	(0x24)
+#define SR_IEEE_ADDR_0		0x24, 0xff, 0
+#define RG_IEEE_ADDR_1	(0x25)
+#define SR_IEEE_ADDR_1		0x25, 0xff, 0
+#define RG_IEEE_ADDR_2	(0x26)
+#define SR_IEEE_ADDR_2		0x26, 0xff, 0
+#define RG_IEEE_ADDR_3	(0x27)
+#define SR_IEEE_ADDR_3		0x27, 0xff, 0
+#define RG_IEEE_ADDR_4	(0x28)
+#define SR_IEEE_ADDR_4		0x28, 0xff, 0
+#define RG_IEEE_ADDR_5	(0x29)
+#define SR_IEEE_ADDR_5		0x29, 0xff, 0
+#define RG_IEEE_ADDR_6	(0x2a)
+#define SR_IEEE_ADDR_6		0x2a, 0xff, 0
+#define RG_IEEE_ADDR_7	(0x2b)
+#define SR_IEEE_ADDR_7		0x2b, 0xff, 0
+#define RG_XAH_CTRL_0	(0x2c)
+#define SR_SLOTTED_OPERATION	0x2c, 0x01, 0
+#define SR_MAX_CSMA_RETRIES	0x2c, 0x0e, 1
+#define SR_MAX_FRAME_RETRIES	0x2c, 0xf0, 4
+#define RG_CSMA_SEED_0	(0x2d)
+#define SR_CSMA_SEED_0		0x2d, 0xff, 0
+#define RG_CSMA_SEED_1	(0x2e)
+#define SR_CSMA_SEED_1		0x2e, 0x07, 0
+#define SR_AACK_I_AM_COORD	0x2e, 0x08, 3
+#define SR_AACK_DIS_ACK		0x2e, 0x10, 4
+#define SR_AACK_SET_PD		0x2e, 0x20, 5
+#define SR_AACK_FVN_MODE	0x2e, 0xc0, 6
+#define RG_CSMA_BE	(0x2f)
+#define SR_MIN_BE		0x2f, 0x0f, 0
+#define SR_MAX_BE		0x2f, 0xf0, 4
 
 #define CMD_REG		0x80
 #define CMD_REG_MASK	0x3f
@@ -291,6 +293,8 @@ struct at86rf230_local {
 #define STATE_RX_AACK_ON_NOCLK	0x1D
 #define STATE_BUSY_RX_AACK_NOCLK 0x1E
 #define STATE_TRANSITION_IN_PROGRESS 0x1F
+
+#define TRX_STATE_MASK		(0x1F)
 
 #define AT86RF2XX_NUMREGS 0x3F
 
@@ -334,6 +338,14 @@ at86rf230_write_subreg(struct at86rf230_local *lp,
 		       unsigned int shift, unsigned int data)
 {
 	return regmap_update_bits(lp->regmap, addr, mask, data << shift);
+}
+
+static inline void
+at86rf230_slp_tr_rising_edge(struct at86rf230_local *lp)
+{
+	gpio_set_value(lp->slp_tr, 1);
+	udelay(1);
+	gpio_set_value(lp->slp_tr, 0);
 }
 
 static bool
@@ -509,7 +521,7 @@ at86rf230_async_state_assert(void *context)
 	struct at86rf230_state_change *ctx = context;
 	struct at86rf230_local *lp = ctx->lp;
 	const u8 *buf = ctx->buf;
-	const u8 trx_state = buf[1] & 0x1f;
+	const u8 trx_state = buf[1] & TRX_STATE_MASK;
 
 	/* Assert state change */
 	if (trx_state != ctx->to_state) {
@@ -609,11 +621,17 @@ at86rf230_async_state_delay(void *context)
 		switch (ctx->to_state) {
 		case STATE_RX_AACK_ON:
 			tim = ktime_set(0, c->t_off_to_aack * NSEC_PER_USEC);
+			/* state change from TRX_OFF to RX_AACK_ON to do a
+			 * calibration, we need to reset the timeout for the
+			 * next one.
+			 */
+			lp->cal_timeout = jiffies + AT86RF2XX_CAL_LOOP_TIMEOUT;
 			goto change;
+		case STATE_TX_ARET_ON:
 		case STATE_TX_ON:
 			tim = ktime_set(0, c->t_off_to_tx_on * NSEC_PER_USEC);
-			/* state change from TRX_OFF to TX_ON to do a
-			 * calibration, we need to reset the timeout for the
+			/* state change from TRX_OFF to TX_ON or ARET_ON to do
+			 * a calibration, we need to reset the timeout for the
 			 * next one.
 			 */
 			lp->cal_timeout = jiffies + AT86RF2XX_CAL_LOOP_TIMEOUT;
@@ -667,7 +685,7 @@ at86rf230_async_state_change_start(void *context)
 	struct at86rf230_state_change *ctx = context;
 	struct at86rf230_local *lp = ctx->lp;
 	u8 *buf = ctx->buf;
-	const u8 trx_state = buf[1] & 0x1f;
+	const u8 trx_state = buf[1] & TRX_STATE_MASK;
 	int rc;
 
 	/* Check for "possible" STATE_TRANSITION_IN_PROGRESS */
@@ -773,16 +791,6 @@ at86rf230_tx_on(void *context)
 }
 
 static void
-at86rf230_tx_trac_error(void *context)
-{
-	struct at86rf230_state_change *ctx = context;
-	struct at86rf230_local *lp = ctx->lp;
-
-	at86rf230_async_state_change(lp, ctx, STATE_TX_ON,
-				     at86rf230_tx_on, true);
-}
-
-static void
 at86rf230_tx_trac_check(void *context)
 {
 	struct at86rf230_state_change *ctx = context;
@@ -791,12 +799,12 @@ at86rf230_tx_trac_check(void *context)
 	const u8 trac = (buf[1] & 0xe0) >> 5;
 
 	/* If trac status is different than zero we need to do a state change
-	 * to STATE_FORCE_TRX_OFF then STATE_TX_ON to recover the transceiver
-	 * state to TX_ON.
+	 * to STATE_FORCE_TRX_OFF then STATE_RX_AACK_ON to recover the
+	 * transceiver.
 	 */
 	if (trac)
 		at86rf230_async_state_change(lp, ctx, STATE_FORCE_TRX_OFF,
-					     at86rf230_tx_trac_error, true);
+					     at86rf230_tx_on, true);
 	else
 		at86rf230_tx_on(context);
 }
@@ -941,13 +949,18 @@ at86rf230_write_frame_complete(void *context)
 	u8 *buf = ctx->buf;
 	int rc;
 
-	buf[0] = (RG_TRX_STATE & CMD_REG_MASK) | CMD_REG | CMD_WRITE;
-	buf[1] = STATE_BUSY_TX;
 	ctx->trx.len = 2;
-	ctx->msg.complete = NULL;
-	rc = spi_async(lp->spi, &ctx->msg);
-	if (rc)
-		at86rf230_async_error(lp, ctx, rc);
+
+	if (gpio_is_valid(lp->slp_tr)) {
+		at86rf230_slp_tr_rising_edge(lp);
+	} else {
+		buf[0] = (RG_TRX_STATE & CMD_REG_MASK) | CMD_REG | CMD_WRITE;
+		buf[1] = STATE_BUSY_TX;
+		ctx->msg.complete = NULL;
+		rc = spi_async(lp->spi, &ctx->msg);
+		if (rc)
+			at86rf230_async_error(lp, ctx, rc);
+	}
 }
 
 static void
@@ -993,12 +1006,21 @@ at86rf230_xmit_start(void *context)
 	 * are in STATE_TX_ON. The pfad differs here, so we change
 	 * the complete handler.
 	 */
-	if (lp->tx_aret)
-		at86rf230_async_state_change(lp, ctx, STATE_TX_ON,
-					     at86rf230_xmit_tx_on, false);
-	else
+	if (lp->tx_aret) {
+		if (lp->is_tx_from_off) {
+			lp->is_tx_from_off = false;
+			at86rf230_async_state_change(lp, ctx, STATE_TX_ARET_ON,
+						     at86rf230_xmit_tx_on,
+						     false);
+		} else {
+			at86rf230_async_state_change(lp, ctx, STATE_TX_ON,
+						     at86rf230_xmit_tx_on,
+						     false);
+		}
+	} else {
 		at86rf230_async_state_change(lp, ctx, STATE_TX_ON,
 					     at86rf230_write_frame, false);
+	}
 }
 
 static int
@@ -1017,11 +1039,13 @@ at86rf230_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 	 * to TX_ON, the lp->cal_timeout should be reinit by state_delay
 	 * function then to start in the next 5 minutes.
 	 */
-	if (time_is_before_jiffies(lp->cal_timeout))
+	if (time_is_before_jiffies(lp->cal_timeout)) {
+		lp->is_tx_from_off = true;
 		at86rf230_async_state_change(lp, ctx, STATE_TRX_OFF,
 					     at86rf230_xmit_start, false);
-	else
+	} else {
 		at86rf230_xmit_start(ctx);
+	}
 
 	return 0;
 }
@@ -1037,9 +1061,6 @@ at86rf230_ed(struct ieee802154_hw *hw, u8 *level)
 static int
 at86rf230_start(struct ieee802154_hw *hw)
 {
-	struct at86rf230_local *lp = hw->priv;
-
-	lp->cal_timeout = jiffies + AT86RF2XX_CAL_LOOP_TIMEOUT;
 	return at86rf230_sync_state_change(hw->priv, STATE_RX_AACK_ON);
 }
 
@@ -1673,6 +1694,7 @@ static int at86rf230_probe(struct spi_device *spi)
 	lp = hw->priv;
 	lp->hw = hw;
 	lp->spi = spi;
+	lp->slp_tr = slp_tr;
 	hw->parent = &spi->dev;
 	hw->vif_data_size = sizeof(*lp);
 	ieee802154_random_extended_addr(&hw->phy->perm_extended_addr);

@@ -107,7 +107,7 @@ static int cplds_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct cplds *fpga;
 	int ret;
-	unsigned int base_irq = 0;
+	int base_irq;
 	unsigned long irqflags = 0;
 
 	fpga = devm_kzalloc(&pdev->dev, sizeof(*fpga), GFP_KERNEL);

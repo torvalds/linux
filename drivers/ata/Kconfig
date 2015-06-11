@@ -270,6 +270,7 @@ config ATA_PIIX
 config SATA_DWC
 	tristate "DesignWare Cores SATA support"
 	depends on 460EX
+	select DW_DMAC
 	help
 	  This option enables support for the on-chip SATA controller of the
 	  AppliedMicro processor 460EX.
@@ -726,15 +727,6 @@ config PATA_SC1200
 	help
 	  This option enables support for the NatSemi/AMD SC1200 SoC
 	  companion chip used with the Geode processor family.
-
-	  If unsure, say N.
-
-config PATA_SCC
-	tristate "Toshiba's Cell Reference Set IDE support"
-	depends on PCI && PPC_CELLEB
-	help
-	  This option enables support for the built-in IDE controller on
-	  Toshiba Cell Reference Board.
 
 	  If unsure, say N.
 
