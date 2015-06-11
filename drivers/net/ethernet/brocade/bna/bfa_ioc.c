@@ -1895,10 +1895,8 @@ bfa_ioc_hwinit(struct bfa_ioc *ioc, bool force)
 }
 
 void
-bfa_nw_ioc_timeout(void *ioc_arg)
+bfa_nw_ioc_timeout(struct bfa_ioc *ioc)
 {
-	struct bfa_ioc *ioc = (struct bfa_ioc *) ioc_arg;
-
 	bfa_fsm_send_event(ioc, IOC_E_TIMEOUT);
 }
 
@@ -1963,10 +1961,9 @@ bfa_ioc_send_getattr(struct bfa_ioc *ioc)
 }
 
 void
-bfa_nw_ioc_hb_check(void *cbarg)
+bfa_nw_ioc_hb_check(struct bfa_ioc *ioc)
 {
-	struct bfa_ioc *ioc = cbarg;
-	u32	hb_count;
+	u32 hb_count;
 
 	hb_count = readl(ioc->ioc_regs.heartbeat);
 	if (ioc->hb_count == hb_count) {
@@ -2983,9 +2980,8 @@ bfa_iocpf_stop(struct bfa_ioc *ioc)
 }
 
 void
-bfa_nw_iocpf_timeout(void *ioc_arg)
+bfa_nw_iocpf_timeout(struct bfa_ioc *ioc)
 {
-	struct bfa_ioc  *ioc = (struct bfa_ioc *) ioc_arg;
 	enum bfa_iocpf_state iocpf_st;
 
 	iocpf_st = bfa_sm_to_state(iocpf_sm_table, ioc->iocpf.fsm);
@@ -2997,10 +2993,8 @@ bfa_nw_iocpf_timeout(void *ioc_arg)
 }
 
 void
-bfa_nw_iocpf_sem_timeout(void *ioc_arg)
+bfa_nw_iocpf_sem_timeout(struct bfa_ioc *ioc)
 {
-	struct bfa_ioc  *ioc = (struct bfa_ioc *) ioc_arg;
-
 	bfa_ioc_hw_sem_get(ioc);
 }
 

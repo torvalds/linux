@@ -304,10 +304,10 @@ int bfa_nw_ioc_debug_fwsave(struct bfa_ioc *ioc, void *trcdata, int *trclen);
 /*
  * Timeout APIs
  */
-void bfa_nw_ioc_timeout(void *ioc);
-void bfa_nw_ioc_hb_check(void *ioc);
-void bfa_nw_iocpf_timeout(void *ioc);
-void bfa_nw_iocpf_sem_timeout(void *ioc);
+void bfa_nw_ioc_timeout(struct bfa_ioc *ioc);
+void bfa_nw_ioc_hb_check(struct bfa_ioc *ioc);
+void bfa_nw_iocpf_timeout(struct bfa_ioc *ioc);
+void bfa_nw_iocpf_sem_timeout(struct bfa_ioc *ioc);
 
 /*
  * F/W Image Size & Chunk
