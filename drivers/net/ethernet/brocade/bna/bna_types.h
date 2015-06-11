@@ -182,10 +182,6 @@ enum bna_rx_mod_flags {
 	BNA_RX_MOD_F_ENET_LOOPBACK	= 2,
 };
 
-enum bna_rxf_flags {
-	BNA_RXF_F_PAUSED		= 1,
-};
-
 enum bna_rxf_event {
 	RXF_E_START			= 1,
 	RXF_E_STOP			= 2,
@@ -668,7 +664,6 @@ struct bna_rx_config {
 	enum bna_rx_type rx_type;
 	int			num_paths;
 	enum bna_rxp_type rxp_type;
-	int			paused;
 	int			coalescing_timeo;
 	/*
 	 * Small/Large (or Header/Data) buffer size to be configured
@@ -713,7 +708,6 @@ struct bna_rxp {
 /* RxF structure (hardware Rx Function) */
 struct bna_rxf {
 	bfa_fsm_t		fsm;
-	enum bna_rxf_flags flags;
 
 	struct bfa_msgq_cmd_entry msgq_cmd;
 	union {
