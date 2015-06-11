@@ -1436,35 +1436,6 @@ free_lmv:
 		kfree(tmp);
 		return rc;
 	}
-	case LL_IOC_REMOVE_ENTRY: {
-		char		*filename = NULL;
-		int		 namelen = 0;
-		int		 rc;
-
-		/* Here is a little hack to avoid sending REINT_RMENTRY to
-		 * unsupported server, which might crash the server(LU-2730),
-		 * Because both LVB_TYPE and REINT_RMENTRY will be supported
-		 * on 2.4, we use OBD_CONNECT_LVB_TYPE to detect whether the
-		 * server will support REINT_RMENTRY XXX*/
-		if (!(exp_connect_flags(sbi->ll_md_exp) & OBD_CONNECT_LVB_TYPE))
-			return -ENOTSUPP;
-
-		filename = ll_getname((const char *)arg);
-		if (IS_ERR(filename))
-			return PTR_ERR(filename);
-
-		namelen = strlen(filename);
-		if (namelen < 1) {
-			rc = -EINVAL;
-			goto out_rmdir;
-		}
-
-		rc = ll_rmdir_entry(inode, filename, namelen);
-out_rmdir:
-		if (filename)
-			ll_putname(filename);
-		return rc;
-	}
 	case LL_IOC_LOV_SWAP_LAYOUTS:
 		return -EPERM;
 	case LL_IOC_OBD_STATFS:
