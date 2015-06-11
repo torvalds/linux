@@ -388,11 +388,28 @@ static int imx7d_pinctrl_probe(struct platform_device *pdev)
 	return imx_pinctrl_probe(pdev, pinctrl_info);
 }
 
+static int imx7d_pinctrl_suspend(struct device *dev)
+{
+
+       return imx_pinctrl_suspend(dev);
+}
+
+static int imx7d_pinctrl_resume(struct device *dev)
+{
+
+       return imx_pinctrl_resume(dev);
+}
+
+static const struct dev_pm_ops imx7d_pinctrl_pm_ops = {
+       SET_LATE_SYSTEM_SLEEP_PM_OPS(imx7d_pinctrl_suspend, imx7d_pinctrl_resume)
+};
+
 static struct platform_driver imx7d_pinctrl_driver = {
 	.driver = {
 		.name = "imx7d-pinctrl",
 		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(imx7d_pinctrl_of_match),
+		.pm = &imx7d_pinctrl_pm_ops,
 	},
 	.probe = imx7d_pinctrl_probe,
 	.remove = imx_pinctrl_remove,
