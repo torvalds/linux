@@ -1065,10 +1065,8 @@ void check_preempt_curr(struct rq *rq, struct task_struct *p, int flags)
  *
  * Returns (locked) new rq. Old rq's lock is released.
  */
-static struct rq *move_queued_task(struct task_struct *p, int new_cpu)
+static struct rq *move_queued_task(struct rq *rq, struct task_struct *p, int new_cpu)
 {
-	struct rq *rq = task_rq(p);
-
 	lockdep_assert_held(&rq->lock);
 
 	dequeue_task(rq, p, 0);
@@ -1100,41 +1098,19 @@ struct migration_arg {
  *
  * So we race with normal scheduler movements, but that's OK, as long
  * as the task is no longer on this CPU.
- *
- * Returns non-zero if task was successfully migrated.
  */
-static int __migrate_task(struct task_struct *p, int src_cpu, int dest_cpu)
+static struct rq *__migrate_task(struct rq *rq, struct task_struct *p, int dest_cpu)
 {
-	struct rq *rq;
-	int ret = 0;
-
 	if (unlikely(!cpu_active(dest_cpu)))
-		return ret;
-
-	rq = cpu_rq(src_cpu);
-
-	raw_spin_lock(&p->pi_lock);
-	raw_spin_lock(&rq->lock);
-	/* Already moved. */
-	if (task_cpu(p) != src_cpu)
-		goto done;
+		return rq;
 
 	/* Affinity changed (again). */
 	if (!cpumask_test_cpu(dest_cpu, tsk_cpus_allowed(p)))
-		goto fail;
+		return rq;
 
-	/*
-	 * If we're not on a rq, the next wake-up will ensure we're
-	 * placed properly.
-	 */
-	if (task_on_rq_queued(p))
-		rq = move_queued_task(p, dest_cpu);
-done:
-	ret = 1;
-fail:
-	raw_spin_unlock(&rq->lock);
-	raw_spin_unlock(&p->pi_lock);
-	return ret;
+	rq = move_queued_task(rq, p, dest_cpu);
+
+	return rq;
 }
 
 /*
@@ -1145,6 +1121,8 @@ fail:
 static int migration_cpu_stop(void *data)
 {
 	struct migration_arg *arg = data;
+	struct task_struct *p = arg->task;
+	struct rq *rq = this_rq();
 
 	/*
 	 * The original target cpu might have gone down and we might
@@ -1157,7 +1135,19 @@ static int migration_cpu_stop(void *data)
 	 * during wakeups, see set_cpus_allowed_ptr()'s TASK_WAKING test.
 	 */
 	sched_ttwu_pending();
-	__migrate_task(arg->task, raw_smp_processor_id(), arg->dest_cpu);
+
+	raw_spin_lock(&p->pi_lock);
+	raw_spin_lock(&rq->lock);
+	/*
+	 * If task_rq(p) != rq, it cannot be migrated here, because we're
+	 * holding rq->lock, if p->on_rq == 0 it cannot get enqueued because
+	 * we're holding p->pi_lock.
+	 */
+	if (task_rq(p) == rq && task_on_rq_queued(p))
+		rq = __migrate_task(rq, p, arg->dest_cpu);
+	raw_spin_unlock(&rq->lock);
+	raw_spin_unlock(&p->pi_lock);
+
 	local_irq_enable();
 	return 0;
 }
@@ -1212,7 +1202,7 @@ int set_cpus_allowed_ptr(struct task_struct *p, const struct cpumask *new_mask)
 		tlb_migrate_finish(p->mm);
 		return 0;
 	} else if (task_on_rq_queued(p))
-		rq = move_queued_task(p, dest_cpu);
+		rq = move_queued_task(rq, p, dest_cpu);
 out:
 	task_rq_unlock(rq, p, &flags);
 
@@ -5043,9 +5033,9 @@ static struct task_struct fake_task = {
  * there's no concurrency possible, we hold the required locks anyway
  * because of lock validation efforts.
  */
-static void migrate_tasks(unsigned int dead_cpu)
+static void migrate_tasks(struct rq *dead_rq)
 {
-	struct rq *rq = cpu_rq(dead_cpu);
+	struct rq *rq = dead_rq;
 	struct task_struct *next, *stop = rq->stop;
 	int dest_cpu;
 
@@ -5067,7 +5057,7 @@ static void migrate_tasks(unsigned int dead_cpu)
 	 */
 	update_rq_clock(rq);
 
-	for ( ; ; ) {
+	for (;;) {
 		/*
 		 * There's this thread running, bail when that's the only
 		 * remaining thread.
@@ -5080,12 +5070,14 @@ static void migrate_tasks(unsigned int dead_cpu)
 		next->sched_class->put_prev_task(rq, next);
 
 		/* Find suitable destination for @next, with force if needed. */
-		dest_cpu = select_fallback_rq(dead_cpu, next);
-		raw_spin_unlock(&rq->lock);
+		dest_cpu = select_fallback_rq(dead_rq->cpu, next);
 
-		__migrate_task(next, dead_cpu, dest_cpu);
-
-		raw_spin_lock(&rq->lock);
+		rq = __migrate_task(rq, next, dest_cpu);
+		if (rq != dead_rq) {
+			raw_spin_unlock(&rq->lock);
+			rq = dead_rq;
+			raw_spin_lock(&rq->lock);
+		}
 	}
 
 	rq->stop = stop;
@@ -5337,7 +5329,7 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 			BUG_ON(!cpumask_test_cpu(cpu, rq->rd->span));
 			set_rq_offline(rq);
 		}
-		migrate_tasks(cpu);
+		migrate_tasks(rq);
 		BUG_ON(rq->nr_running != 1); /* the migration thread */
 		raw_spin_unlock_irqrestore(&rq->lock, flags);
 		break;
