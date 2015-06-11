@@ -27,7 +27,23 @@
 #define NFCMRVL_GPIO_PIN_NFC_ACTIVE		0xB
 #define NFCMRVL_NCI_MAX_EVENT_SIZE		260
 
+/*
+** HCI defines
+*/
+
+#define NFCMRVL_HCI_EVENT_HEADER_SIZE		0x04
+#define NFCMRVL_HCI_EVENT_CODE			0x04
+#define NFCMRVL_HCI_NFC_EVENT_CODE		0xFF
+#define NFCMRVL_HCI_COMMAND_CODE		0x01
+#define NFCMRVL_HCI_OGF				0x81
+#define NFCMRVL_HCI_OCF				0xFE
+
+#define NFCMRVL_DEV_FLAG_HCI_MUXED		(1 << 0)
+
 struct nfcmrvl_private {
+
+	/* Tell if NCI packets are encapsulated in HCI ones */
+	int hci_muxed;
 	struct nci_dev *ndev;
 	unsigned long flags;
 	void *drv_data;
@@ -45,4 +61,5 @@ void nfcmrvl_nci_unregister_dev(struct nfcmrvl_private *priv);
 int nfcmrvl_nci_recv_frame(struct nfcmrvl_private *priv, void *data, int count);
 struct nfcmrvl_private *nfcmrvl_nci_register_dev(void *drv_data,
 						 struct nfcmrvl_if_ops *ops,
-						 struct device *dev);
+						 struct device *dev,
+						 unsigned int flags);

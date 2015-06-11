@@ -63,6 +63,17 @@ static int nfcmrvl_nci_send(struct nci_dev *ndev, struct sk_buff *skb)
 	if (!test_bit(NFCMRVL_NCI_RUNNING, &priv->flags))
 		return -EBUSY;
 
+	if (priv->hci_muxed) {
+		unsigned char *hdr;
+		unsigned char len = skb->len;
+
+		hdr = (char *) skb_push(skb, NFCMRVL_HCI_EVENT_HEADER_SIZE);
+		hdr[0] = NFCMRVL_HCI_COMMAND_CODE;
+		hdr[1] = NFCMRVL_HCI_OGF;
+		hdr[2] = NFCMRVL_HCI_OCF;
+		hdr[3] = len;
+	}
+
 	return priv->if_ops->nci_send(priv, skb);
 }
 
@@ -80,10 +91,12 @@ static struct nci_ops nfcmrvl_nci_ops = {
 
 struct nfcmrvl_private *nfcmrvl_nci_register_dev(void *drv_data,
 						 struct nfcmrvl_if_ops *ops,
-						 struct device *dev)
+						 struct device *dev,
+						 unsigned int flags)
 {
 	struct nfcmrvl_private *priv;
 	int rc;
+	int headroom = 0;
 	u32 protocols;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
@@ -93,6 +106,10 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(void *drv_data,
 	priv->drv_data = drv_data;
 	priv->if_ops = ops;
 	priv->dev = dev;
+	priv->hci_muxed = (flags & NFCMRVL_DEV_FLAG_HCI_MUXED) ? 1 : 0;
+
+	if (priv->hci_muxed)
+		headroom = NFCMRVL_HCI_EVENT_HEADER_SIZE;
 
 	protocols = NFC_PROTO_JEWEL_MASK
 		| NFC_PROTO_MIFARE_MASK | NFC_PROTO_FELICA_MASK
@@ -100,7 +117,8 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(void *drv_data,
 		| NFC_PROTO_ISO14443_B_MASK
 		| NFC_PROTO_NFC_DEP_MASK;
 
-	priv->ndev = nci_allocate_device(&nfcmrvl_nci_ops, protocols, 0, 0);
+	priv->ndev = nci_allocate_device(&nfcmrvl_nci_ops, protocols,
+					 headroom, 0);
 	if (!priv->ndev) {
 		nfc_err(dev, "nci_allocate_device failed\n");
 		rc = -ENOMEM;
@@ -144,6 +162,19 @@ int nfcmrvl_nci_recv_frame(struct nfcmrvl_private *priv, void *data, int count)
 		return -ENOMEM;
 
 	memcpy(skb_put(skb, count), data, count);
+
+	if (priv->hci_muxed) {
+		if (skb->data[0] == NFCMRVL_HCI_EVENT_CODE &&
+		    skb->data[1] == NFCMRVL_HCI_NFC_EVENT_CODE) {
+			/* Data packet, let's extract NCI payload */
+			skb_pull(skb, NFCMRVL_HCI_EVENT_HEADER_SIZE);
+		} else {
+			/* Skip this packet */
+			kfree_skb(skb);
+			return 0;
+		}
+	}
+
 	nci_recv_frame(priv->ndev, skb);
 
 	return count;

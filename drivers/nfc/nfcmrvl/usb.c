@@ -329,7 +329,7 @@ static int nfcmrvl_probe(struct usb_interface *intf,
 	init_usb_anchor(&drv_data->deferred);
 
 	priv = nfcmrvl_nci_register_dev(drv_data, &usb_ops,
-					&drv_data->udev->dev);
+					&drv_data->udev->dev, 0);
 	if (IS_ERR(priv))
 		return PTR_ERR(priv);
 
