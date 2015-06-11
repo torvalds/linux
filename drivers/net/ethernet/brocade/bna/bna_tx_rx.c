@@ -451,13 +451,13 @@ bna_rxf_mcmac_get(struct bna_rxf *rxf, u8 *mac_addr)
 
 	list_for_each(qe, &rxf->mcast_active_q) {
 		mac = (struct bna_mac *)qe;
-		if (BNA_MAC_IS_EQUAL(&mac->addr, mac_addr))
+		if (ether_addr_equal(mac->addr, mac_addr))
 			return mac;
 	}
 
 	list_for_each(qe, &rxf->mcast_pending_del_q) {
 		mac = (struct bna_mac *)qe;
-		if (BNA_MAC_IS_EQUAL(&mac->addr, mac_addr))
+		if (ether_addr_equal(mac->addr, mac_addr))
 			return mac;
 	}
 
@@ -2396,20 +2396,19 @@ bna_rx_res_req(struct bna_rx_config *q_cfg, struct bna_res_info *res_info)
 
 	dq_depth = q_cfg->q0_depth;
 	hq_depth = ((q_cfg->rxp_type == BNA_RXP_SINGLE) ? 0 : q_cfg->q1_depth);
-	cq_depth = dq_depth + hq_depth;
+	cq_depth = roundup_pow_of_two(dq_depth + hq_depth);
 
-	BNA_TO_POWER_OF_2_HIGH(cq_depth);
 	cq_size = cq_depth * BFI_CQ_WI_SIZE;
 	cq_size = ALIGN(cq_size, PAGE_SIZE);
 	cpage_count = SIZE_TO_PAGES(cq_size);
 
-	BNA_TO_POWER_OF_2_HIGH(dq_depth);
+	dq_depth = roundup_pow_of_two(dq_depth);
 	dq_size = dq_depth * BFI_RXQ_WI_SIZE;
 	dq_size = ALIGN(dq_size, PAGE_SIZE);
 	dpage_count = SIZE_TO_PAGES(dq_size);
 
 	if (BNA_RXP_SINGLE != q_cfg->rxp_type) {
-		BNA_TO_POWER_OF_2_HIGH(hq_depth);
+		hq_depth = roundup_pow_of_two(hq_depth);
 		hq_size = hq_depth * BFI_RXQ_WI_SIZE;
 		hq_size = ALIGN(hq_size, PAGE_SIZE);
 		hpage_count = SIZE_TO_PAGES(hq_size);
@@ -2691,7 +2690,7 @@ bna_rx_create(struct bna *bna, struct bnad *bnad,
 		/* if multi-buffer is enabled sum of q0_depth
 		 * and q1_depth need not be a power of 2
 		 */
-		BNA_TO_POWER_OF_2_HIGH(cq_depth);
+		cq_depth = roundup_pow_of_two(cq_depth);
 		rxp->cq.ccb->q_depth = cq_depth;
 		rxp->cq.ccb->cq = &rxp->cq;
 		rxp->cq.ccb->rcb[0] = q0->rcb;

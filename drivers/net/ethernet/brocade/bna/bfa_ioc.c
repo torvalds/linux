@@ -23,14 +23,6 @@
 
 /* IOC local definitions */
 
-#define bfa_ioc_state_disabled(__sm)			\
-	(((__sm) == BFI_IOC_UNINIT) ||			\
-	 ((__sm) == BFI_IOC_INITING) ||			\
-	 ((__sm) == BFI_IOC_HWINIT) ||			\
-	 ((__sm) == BFI_IOC_DISABLED) ||		\
-	 ((__sm) == BFI_IOC_FAIL) ||			\
-	 ((__sm) == BFI_IOC_CFG_DISABLED))
-
 /* Asic specific macros : see bfa_hw_cb.c and bfa_hw_ct.c for details. */
 
 #define bfa_ioc_firmware_lock(__ioc)			\
@@ -57,12 +49,6 @@
 			((__ioc)->ioc_hwif->ioc_get_fwstate(__ioc))
 #define bfa_ioc_set_alt_ioc_fwstate(__ioc, __fwstate)		\
 		((__ioc)->ioc_hwif->ioc_set_alt_fwstate(__ioc, __fwstate))
-#define bfa_ioc_get_alt_ioc_fwstate(__ioc)		\
-			((__ioc)->ioc_hwif->ioc_get_alt_fwstate(__ioc))
-
-#define bfa_ioc_mbox_cmd_pending(__ioc)		\
-			(!list_empty(&((__ioc)->mbox_mod.cmd_q)) || \
-			readl((__ioc)->ioc_regs.hfn_mbox_cmd))
 
 static bool bfa_nw_auto_recover = true;
 

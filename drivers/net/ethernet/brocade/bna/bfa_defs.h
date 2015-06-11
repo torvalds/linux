@@ -24,7 +24,6 @@
 #include "bfa_defs_status.h"
 #include "bfa_defs_mfg_comm.h"
 
-#define BFA_STRING_32	32
 #define BFA_VERSION_LEN 64
 
 /* ---------------------- adapter definitions ------------ */

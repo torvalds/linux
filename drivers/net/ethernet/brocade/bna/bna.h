@@ -28,35 +28,7 @@ extern const u32 bna_napi_dim_vector[][BNA_BIAS_T_MAX];
 
 /*  Macros and constants  */
 
-#define BNA_IOC_TIMER_FREQ		200
-
-/* Log string size */
-#define BNA_MESSAGE_SIZE		256
-
 #define bna_is_small_rxq(_id) ((_id) & 0x1)
-
-#define BNA_MAC_IS_EQUAL(_mac1, _mac2)					\
-	(!memcmp((_mac1), (_mac2), ETH_ALEN))
-
-#define BNA_POWER_OF_2(x) (((x) & ((x) - 1)) == 0)
-
-#define BNA_TO_POWER_OF_2(x)						\
-do {									\
-	int _shift = 0;							\
-	while ((x) && (x) != 1) {					\
-		(x) >>= 1;						\
-		_shift++;						\
-	}								\
-	(x) <<= _shift;							\
-} while (0)
-
-#define BNA_TO_POWER_OF_2_HIGH(x)					\
-do {									\
-	int n = 1;							\
-	while (n < (x))							\
-		n <<= 1;						\
-	(x) = n;							\
-} while (0)
 
 /*
  * input : _addr-> os dma addr in host endian format,
@@ -80,61 +52,7 @@ do {								\
 	| ((ntohl((_bna_dma_addr)->lsb) & 0xffffffff));	\
 } while (0)
 
-#define	containing_rec(addr, type, field)				\
-	((type *)((unsigned char *)(addr) -				\
-	(unsigned char *)(&((type *)0)->field)))
-
 #define BNA_TXQ_WI_NEEDED(_vectors)	(((_vectors) + 3) >> 2)
-
-/* TxQ element is 64 bytes */
-#define BNA_TXQ_PAGE_INDEX_MAX		(PAGE_SIZE >> 6)
-#define BNA_TXQ_PAGE_INDEX_MAX_SHIFT	(PAGE_SHIFT - 6)
-
-#define BNA_TXQ_QPGE_PTR_GET(_qe_idx, _qpt_ptr, _qe_ptr, _qe_ptr_range) \
-{									\
-	unsigned int page_index;	/* index within a page */	\
-	void *page_addr;						\
-	page_index = (_qe_idx) & (BNA_TXQ_PAGE_INDEX_MAX - 1);		\
-	(_qe_ptr_range) = (BNA_TXQ_PAGE_INDEX_MAX - page_index);	\
-	page_addr = (_qpt_ptr)[((_qe_idx) >>  BNA_TXQ_PAGE_INDEX_MAX_SHIFT)];\
-	(_qe_ptr) = &((struct bna_txq_entry *)(page_addr))[page_index]; \
-}
-
-/* RxQ element is 8 bytes */
-#define BNA_RXQ_PAGE_INDEX_MAX		(PAGE_SIZE >> 3)
-#define BNA_RXQ_PAGE_INDEX_MAX_SHIFT	(PAGE_SHIFT - 3)
-
-#define BNA_RXQ_QPGE_PTR_GET(_qe_idx, _qpt_ptr, _qe_ptr, _qe_ptr_range) \
-{									\
-	unsigned int page_index;	/* index within a page */	\
-	void *page_addr;						\
-	page_index = (_qe_idx) & (BNA_RXQ_PAGE_INDEX_MAX - 1);		\
-	(_qe_ptr_range) = (BNA_RXQ_PAGE_INDEX_MAX - page_index);	\
-	page_addr = (_qpt_ptr)[((_qe_idx) >>				\
-				BNA_RXQ_PAGE_INDEX_MAX_SHIFT)];		\
-	(_qe_ptr) = &((struct bna_rxq_entry *)(page_addr))[page_index]; \
-}
-
-/* CQ element is 16 bytes */
-#define BNA_CQ_PAGE_INDEX_MAX		(PAGE_SIZE >> 4)
-#define BNA_CQ_PAGE_INDEX_MAX_SHIFT	(PAGE_SHIFT - 4)
-
-#define BNA_CQ_QPGE_PTR_GET(_qe_idx, _qpt_ptr, _qe_ptr, _qe_ptr_range)	\
-{									\
-	unsigned int page_index;	  /* index within a page */	\
-	void *page_addr;						\
-									\
-	page_index = (_qe_idx) & (BNA_CQ_PAGE_INDEX_MAX - 1);		\
-	(_qe_ptr_range) = (BNA_CQ_PAGE_INDEX_MAX - page_index);		\
-	page_addr = (_qpt_ptr)[((_qe_idx) >>				\
-				    BNA_CQ_PAGE_INDEX_MAX_SHIFT)];	\
-	(_qe_ptr) = &((struct bna_cq_entry *)(page_addr))[page_index];\
-}
-
-#define BNA_QE_INDX_2_PTR(_cast, _qe_idx, _q_base)			\
-	(&((_cast *)(_q_base))[(_qe_idx)])
-
-#define BNA_QE_INDX_RANGE(_qe_idx, _q_depth) ((_q_depth) - (_qe_idx))
 
 #define BNA_QE_INDX_ADD(_qe_idx, _qe_num, _q_depth)			\
 	((_qe_idx) = ((_qe_idx) + (_qe_num)) & ((_q_depth) - 1))
@@ -147,30 +65,9 @@ do {								\
 #define BNA_QE_FREE_CNT(_q_ptr, _q_depth)				\
 	(((_q_ptr)->consumer_index - (_q_ptr)->producer_index - 1) &	\
 	 ((_q_depth) - 1))
-
 #define BNA_QE_IN_USE_CNT(_q_ptr, _q_depth)				\
 	((((_q_ptr)->producer_index - (_q_ptr)->consumer_index)) &	\
 	 (_q_depth - 1))
-
-#define BNA_Q_GET_CI(_q_ptr)		((_q_ptr)->q.consumer_index)
-
-#define BNA_Q_GET_PI(_q_ptr)		((_q_ptr)->q.producer_index)
-
-#define BNA_Q_PI_ADD(_q_ptr, _num)					\
-	(_q_ptr)->q.producer_index =					\
-		(((_q_ptr)->q.producer_index + (_num)) &		\
-		((_q_ptr)->q.q_depth - 1))
-
-#define BNA_Q_CI_ADD(_q_ptr, _num)					\
-	(_q_ptr)->q.consumer_index =					\
-		(((_q_ptr)->q.consumer_index + (_num))			\
-		& ((_q_ptr)->q.q_depth - 1))
-
-#define BNA_Q_FREE_COUNT(_q_ptr)					\
-	(BNA_QE_FREE_CNT(&((_q_ptr)->q), (_q_ptr)->q.q_depth))
-
-#define BNA_Q_IN_USE_COUNT(_q_ptr)					\
-	(BNA_QE_IN_USE_CNT(&(_q_ptr)->q, (_q_ptr)->q.q_depth))
 
 #define BNA_LARGE_PKT_SIZE		1000
 
@@ -370,7 +267,7 @@ static inline struct bna_mac *bna_mac_find(struct list_head *q, u8 *addr)
 	struct bna_mac *mac = NULL;
 	struct list_head *qe;
 	list_for_each(qe, q) {
-		if (BNA_MAC_IS_EQUAL(((struct bna_mac *)qe)->addr, addr)) {
+		if (ether_addr_equal(((struct bna_mac *)qe)->addr, addr)) {
 			mac = (struct bna_mac *)qe;
 			break;
 		}

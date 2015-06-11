@@ -315,8 +315,6 @@ enum bfi_ioc_state {
 	BFI_IOC_MEMTEST		= 9,	/*!< IOC is doing memtest	     */
 };
 
-#define BFI_IOC_ENDIAN_SIG  0x12345678
-
 enum {
 	BFI_ADAPTER_TYPE_FC	= 0x01,		/*!< FC adapters	   */
 	BFI_ADAPTER_TYPE_MK	= 0x0f0000,	/*!< adapter type mask     */
@@ -335,12 +333,6 @@ enum {
 		BFI_ADAPTER_ ## __prop ## _SH)
 #define BFI_ADAPTER_SETP(__prop, __val)				\
 	((__val) << BFI_ADAPTER_ ## __prop ## _SH)
-#define BFI_ADAPTER_IS_PROTO(__adap_type)			\
-	((__adap_type) & BFI_ADAPTER_PROTO)
-#define BFI_ADAPTER_IS_TTV(__adap_type)				\
-	((__adap_type) & BFI_ADAPTER_TTV)
-#define BFI_ADAPTER_IS_UNSUPP(__adap_type)			\
-	((__adap_type) & BFI_ADAPTER_UNSUPP)
 #define BFI_ADAPTER_IS_SPECIAL(__adap_type)			\
 	((__adap_type) & (BFI_ADAPTER_TTV | BFI_ADAPTER_PROTO |	\
 			BFI_ADAPTER_UNSUPP))
