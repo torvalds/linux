@@ -1508,11 +1508,11 @@ static void migrate_hrtimer_list(struct hrtimer_clock_base *old_base,
 		debug_deactivate(timer);
 
 		/*
-		 * Mark it as STATE_MIGRATE not INACTIVE otherwise the
+		 * Mark it as ENQUEUED not INACTIVE otherwise the
 		 * timer could be seen as !active and just vanish away
 		 * under us on another CPU
 		 */
-		__remove_hrtimer(timer, old_base, HRTIMER_STATE_MIGRATE, 0);
+		__remove_hrtimer(timer, old_base, HRTIMER_STATE_ENQUEUED, 0);
 		timer->base = new_base;
 		/*
 		 * Enqueue the timers on the new cpu. This does not
@@ -1523,9 +1523,6 @@ static void migrate_hrtimer_list(struct hrtimer_clock_base *old_base,
 		 * event device.
 		 */
 		enqueue_hrtimer(timer, new_base);
-
-		/* Clear the migration state bit */
-		timer->state &= ~HRTIMER_STATE_MIGRATE;
 	}
 }
 
