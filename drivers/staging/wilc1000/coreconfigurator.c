@@ -159,9 +159,9 @@ typedef struct {
 /* Extern Function Declarations                                              */
 /*****************************************************************************/
 extern WILC_Sint32 SendRawPacket(WILC_Sint8 *ps8Packet, WILC_Sint32 s32PacketLen);
-extern void NetworkInfoReceived(u8 *pu8Buffer, WILC_Uint32 u32Length);
-extern void GnrlAsyncInfoReceived(u8 *pu8Buffer, WILC_Uint32 u32Length);
-extern void host_int_ScanCompleteReceived(u8 *pu8Buffer, WILC_Uint32 u32Length);
+extern void NetworkInfoReceived(u8 *pu8Buffer, u32 u32Length);
+extern void GnrlAsyncInfoReceived(u8 *pu8Buffer, u32 u32Length);
+extern void host_int_ScanCompleteReceived(u8 *pu8Buffer, u32 u32Length);
 /*****************************************************************************/
 /* Global Variables                                                          */
 /*****************************************************************************/
@@ -359,8 +359,8 @@ INLINE u16 extract_mac_addr(WILC_Char *str, u8 *buff)
 /* integers.                                                                  */
 INLINE void create_mac_addr(u8 *str, u8 *buff)
 {
-	WILC_Uint32 i = 0;
-	WILC_Uint32 j = 0;
+	u32 i = 0;
+	u32 j = 0;
 
 	for (i = 0; i < MAC_ADDR_LEN; i++) {
 		str[j++] = get_hex_char((u8)((buff[i] >> 4) & 0x0F));
@@ -376,7 +376,7 @@ INLINE void create_mac_addr(u8 *str, u8 *buff)
 /* inet_addr is platform independent.                                       */
 /* ips=>IP Address String in dotted decimal format                          */
 /* ipn=>Pointer to IP Address in integer format                             */
-INLINE u8 conv_ip_to_int(u8 *ips, WILC_Uint32 *ipn)
+INLINE u8 conv_ip_to_int(u8 *ips, u32 *ipn)
 {
 	u8 i   = 0;
 	u8 ipb = 0;
@@ -403,7 +403,7 @@ INLINE u8 conv_ip_to_int(u8 *ips, WILC_Uint32 *ipn)
 /* decimal string format. Alternative to std library fn inet_ntoa().      */
 /* ips=>Buffer to hold IP Address String dotted decimal format (Min 17B)  */
 /* ipn=>IP Address in integer format                                      */
-INLINE u8 conv_int_to_ip(u8 *ips, WILC_Uint32 ipn)
+INLINE u8 conv_int_to_ip(u8 *ips, u32 ipn)
 {
 	u8 i   = 0;
 	u8 ipb = 0;
@@ -442,7 +442,7 @@ INLINE u8 conv_int_to_ip(u8 *ips, WILC_Uint32 ipn)
 	return i;
 }
 
-INLINE tenuWIDtype get_wid_type(WILC_Uint32 wid_num)
+INLINE tenuWIDtype get_wid_type(u32 wid_num)
 {
 	/* Check for iconfig specific WID types first */
 	if ((wid_num == WID_BSSID) ||
@@ -486,10 +486,10 @@ INLINE u16 get_beacon_period(u8 *data)
 	return bcn_per;
 }
 
-INLINE WILC_Uint32 get_beacon_timestamp_lo(u8 *data)
+INLINE u32 get_beacon_timestamp_lo(u8 *data)
 {
-	WILC_Uint32 time_stamp = 0;
-	WILC_Uint32 index    = MAC_HDR_LEN;
+	u32 time_stamp = 0;
+	u32 index    = MAC_HDR_LEN;
 
 	time_stamp |= data[index++];
 	time_stamp |= (data[index++] << 8);
@@ -812,8 +812,8 @@ WILC_Sint32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInf
 		u8 *pu8IEs = 0;
 		u16 u16IEsLen = 0;
 		u8 u8index = 0;
-		WILC_Uint32 u32Tsf_Lo;
-		WILC_Uint32 u32Tsf_Hi;
+		u32 u32Tsf_Lo;
+		u32 u32Tsf_Hi;
 
 		pstrNetworkInfo = (tstrNetworkInfo *)WILC_MALLOC(sizeof(tstrNetworkInfo));
 		WILC_memset((void *)(pstrNetworkInfo), 0, sizeof(tstrNetworkInfo));
@@ -924,7 +924,7 @@ WILC_Sint32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo)
  *  @date			2 Apr 2012
  *  @version		1.0
  */
-WILC_Sint32 ParseAssocRespInfo(u8 *pu8Buffer, WILC_Uint32 u32BufferLen,
+WILC_Sint32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
 			       tstrConnectRespInfo **ppstrConnectRespInfo)
 {
 	WILC_Sint32 s32Error = WILC_SUCCESS;
@@ -1001,17 +1001,17 @@ WILC_Sint32 DeallocateAssocRespInfo(tstrConnectRespInfo *pstrConnectRespInfo)
 #ifndef CONNECT_DIRECT
 WILC_Sint32 ParseSurveyResults(u8 ppu8RcvdSiteSurveyResults[][MAX_SURVEY_RESULT_FRAG_SIZE],
 			       wid_site_survey_reslts_s **ppstrSurveyResults,
-			       WILC_Uint32 *pu32SurveyResultsCount)
+			       u32 *pu32SurveyResultsCount)
 {
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 	wid_site_survey_reslts_s *pstrSurveyResults = NULL;
-	WILC_Uint32 u32SurveyResultsCount = 0;
-	WILC_Uint32 u32SurveyBytesLength = 0;
+	u32 u32SurveyResultsCount = 0;
+	u32 u32SurveyBytesLength = 0;
 	u8 *pu8BufferPtr;
-	WILC_Uint32 u32RcvdSurveyResultsNum = 2;
+	u32 u32RcvdSurveyResultsNum = 2;
 	u8 u8ReadSurveyResFragNum;
-	WILC_Uint32 i;
-	WILC_Uint32 j;
+	u32 i;
+	u32 j;
 
 	for (i = 0; i < u32RcvdSurveyResultsNum; i++) {
 		u32SurveyBytesLength = ppu8RcvdSiteSurveyResults[i][0];
@@ -1208,8 +1208,8 @@ void ProcessShortWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 void ProcessIntWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 		   tstrWID *pstrWID, WILC_Sint8 *ps8WidVal)
 {
-	WILC_Uint32 *pu32val = (WILC_Uint32 *)ps8WidVal;
-	WILC_Uint32 u32val = 0;
+	u32 *pu32val = (u32 *)ps8WidVal;
+	u32 u32val = 0;
 	WILC_Sint32 s32PktLen = *ps32PktLen;
 	if (pstrWID == NULL) {
 		PRINT_WRN(CORECONFIG_DBG, "Can't set INT val 0x%x , NULL structure\n", u32val);
@@ -1224,7 +1224,7 @@ void ProcessIntWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 		u32val = *pu32val;
 
 		/* Length */
-		pcPacket[s32PktLen++] = sizeof(WILC_Uint32);
+		pcPacket[s32PktLen++] = sizeof(u32);
 
 		/* Value */
 		pcPacket[s32PktLen++] = (u8)(u32val & 0xFF);
@@ -1266,7 +1266,7 @@ void ProcessIntWid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 void ProcessIPwid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 		  tstrWID *pstrWID, u8 *pu8ip)
 {
-	WILC_Uint32 u32val = 0;
+	u32 u32val = 0;
 	WILC_Sint32 s32PktLen = *ps32PktLen;
 
 	if (pstrWID == NULL) {
@@ -1280,7 +1280,7 @@ void ProcessIPwid(WILC_Char *pcPacket, WILC_Sint32 *ps32PktLen,
 
 	if (g_oper_mode == SET_CFG) {
 		/* Length */
-		pcPacket[s32PktLen++] = sizeof(WILC_Uint32);
+		pcPacket[s32PktLen++] = sizeof(u32);
 
 		/* Convert the IP Address String to Integer */
 		conv_ip_to_int(pu8ip, &u32val);
@@ -1521,14 +1521,14 @@ WILC_Sint32 further_process_response(u8 *resp,
 				     u16 u16WIDid,
 				     u16 cfg_len,
 				     WILC_Bool process_wid_num,
-				     WILC_Uint32 cnt,
+				     u32 cnt,
 				     tstrWID *pstrWIDresult)
 {
-	WILC_Uint32 retval = 0;
-	WILC_Uint32 idx = 0;
+	u32 retval = 0;
+	u32 idx = 0;
 	u8 cfg_chr  = 0;
 	u16 cfg_sht  = 0;
-	WILC_Uint32 cfg_int  = 0;
+	u32 cfg_int  = 0;
 	u8 cfg_str[256] = {0};
 	tenuWIDtype enuWIDtype = WID_UNDEF;
 
@@ -1558,7 +1558,7 @@ WILC_Sint32 further_process_response(u8 *resp,
 
 	case WID_INT:
 	{
-		WILC_Uint32 *pu32val = (WILC_Uint32 *)(pstrWIDresult->ps8WidVal);
+		u32 *pu32val = (u32 *)(pstrWIDresult->ps8WidVal);
 		cfg_int = MAKE_WORD32(
 				MAKE_WORD16(resp[idx], resp[idx + 1]),
 				MAKE_WORD16(resp[idx + 2], resp[idx + 3])
@@ -1694,9 +1694,9 @@ WILC_Sint32 ParseResponse(u8 *resp, tstrWID *pstrWIDcfgResult)
 	u16 cfg_len  = 0;
 	tenuWIDtype enuWIDtype = WID_UNDEF;
 	WILC_Bool num_wid_processed = WILC_FALSE;
-	WILC_Uint32 cnt = 0;
-	WILC_Uint32 idx = 0;
-	WILC_Uint32 ResCnt = 0;
+	u32 cnt = 0;
+	u32 idx = 0;
+	u32 ResCnt = 0;
 	/* Check whether the received frame is a valid response */
 	if (RESP_MSG_TYPE != resp[0]) {
 		PRINT_INFO(CORECONFIG_DBG, "Received Message format incorrect.\n");
@@ -1858,10 +1858,10 @@ WILC_Sint32 CreatePacketHeader(WILC_Char *pcpacket, WILC_Sint32 *ps32PacketLengt
  */
 
 WILC_Sint32 CreateConfigPacket(WILC_Sint8 *ps8packet, WILC_Sint32 *ps32PacketLength,
-			       tstrWID *pstrWIDs, WILC_Uint32 u32WIDsCount)
+			       tstrWID *pstrWIDs, u32 u32WIDsCount)
 {
 	WILC_Sint32 s32Error = WILC_SUCCESS;
-	WILC_Uint32 u32idx = 0;
+	u32 u32idx = 0;
 	*ps32PacketLength = MSG_HEADER_LEN;
 	for (u32idx = 0; u32idx < u32WIDsCount; u32idx++) {
 		switch (pstrWIDs[u32idx].enuWIDtype) {
@@ -1950,7 +1950,7 @@ WILC_Sint32 ConfigWaitResponse(WILC_Char *pcRespBuffer, WILC_Sint32 s32MaxRespBu
  */
 #ifdef SIMULATION
 WILC_Sint32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
-			  WILC_Uint32 u32WIDsCount, WILC_Bool bRespRequired, WILC_Uint32 drvHandler)
+			  u32 u32WIDsCount, WILC_Bool bRespRequired, u32 drvHandler)
 {
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 	WILC_Sint32 err = WILC_SUCCESS;
@@ -2129,7 +2129,7 @@ extern wilc_wlan_oup_t *gpstrWlanOps;
  *  @version	1.0
  */
 WILC_Sint32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
-			  WILC_Uint32 u32WIDsCount, WILC_Bool bRespRequired, WILC_Uint32 drvHandler)
+			  u32 u32WIDsCount, WILC_Bool bRespRequired, u32 drvHandler)
 {
 	WILC_Sint32 counter = 0, ret = 0;
 	if (gpstrWlanOps == NULL) {

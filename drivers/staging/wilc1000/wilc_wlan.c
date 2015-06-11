@@ -852,7 +852,7 @@ INLINE void chip_wakeup(void)
 	genuChipPSstate = CHIP_WAKEDUP;
 }
 #endif
-void chip_sleep_manually(WILC_Uint32 u32SleepTime)
+void chip_sleep_manually(u32 u32SleepTime)
 {
 	if (genuChipPSstate != CHIP_WAKEDUP) {
 		/* chip is already sleeping. Do nothing */
@@ -1869,7 +1869,7 @@ static int wilc_wlan_cfg_commit(int type, uint32_t drvHandler)
 	wilc_cfg_frame_t *cfg = &p->cfg_frame;
 	int total_len = p->cfg_frame_offset + 4 + DRIVER_HANDLER_SIZE;
 	int seq_no = p->cfg_seq_no % 256;
-	int driver_handler = (WILC_Uint32)drvHandler;
+	int driver_handler = (u32)drvHandler;
 
 
 	/**
@@ -2328,7 +2328,7 @@ _fail_:
 u16 Set_machw_change_vir_if(WILC_Bool bValue)
 {
 	u16 ret;
-	WILC_Uint32 reg;
+	u32 reg;
 
 	/*Reset WILC_CHANGING_VIR_IF register to allow adding futrue keys to CE H/W*/
 	(&g_wlan)->os_func.os_enter_cs((&g_wlan)->hif_lock);

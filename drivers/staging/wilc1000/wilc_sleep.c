@@ -6,10 +6,10 @@
  *  @date	10 Aug 2010
  *  @version	1.0
  */
-void WILC_Sleep(WILC_Uint32 u32TimeMilliSec)
+void WILC_Sleep(u32 u32TimeMilliSec)
 {
 	if (u32TimeMilliSec <= 4000000)	{
-		WILC_Uint32 u32Temp = u32TimeMilliSec * 1000;
+		u32 u32Temp = u32TimeMilliSec * 1000;
 		usleep_range(u32Temp, u32Temp);
 	} else {
 		msleep(u32TimeMilliSec);

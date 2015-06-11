@@ -23,7 +23,7 @@ WILC_ErrNo WILC_TimerDestroy(WILC_TimerHandle *pHandle,
 }
 
 
-WILC_ErrNo WILC_TimerStart(WILC_TimerHandle *pHandle, WILC_Uint32 u32Timeout,
+WILC_ErrNo WILC_TimerStart(WILC_TimerHandle *pHandle, u32 u32Timeout,
 	void *pvArg, tstrWILC_TimerAttrs *pstrAttrs)
 {
 	WILC_ErrNo s32RetStatus = WILC_FAIL;

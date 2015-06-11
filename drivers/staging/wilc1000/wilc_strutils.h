@@ -22,7 +22,7 @@
  *  @date	18 Aug 2010
  *  @version	1.0
  */
-WILC_Sint32 WILC_memcmp(const void *pvArg1, const void *pvArg2, WILC_Uint32 u32Count);
+WILC_Sint32 WILC_memcmp(const void *pvArg1, const void *pvArg2, u32 u32Count);
 
 /*!
  *  @brief	Internal implementation for memory copy
@@ -34,7 +34,7 @@ WILC_Sint32 WILC_memcmp(const void *pvArg1, const void *pvArg2, WILC_Uint32 u32C
  *  @date	18 Aug 2010
  *  @version	1.0
  */
-void WILC_memcpy_INTERNAL(void *pvTarget, const void *pvSource, WILC_Uint32 u32Count);
+void WILC_memcpy_INTERNAL(void *pvTarget, const void *pvSource, u32 u32Count);
 
 /*!
  *  @brief	Copies the contents of a memory buffer into another
@@ -50,7 +50,7 @@ void WILC_memcpy_INTERNAL(void *pvTarget, const void *pvSource, WILC_Uint32 u32C
  *  @date	18 Aug 2010
  *  @version	1.0
  */
-static WILC_ErrNo WILC_memcpy(void *pvTarget, const void *pvSource, WILC_Uint32 u32Count)
+static WILC_ErrNo WILC_memcpy(void *pvTarget, const void *pvSource, u32 u32Count)
 {
 	if (
 		(((u8 *)pvTarget <= (u8 *)pvSource)
@@ -78,7 +78,7 @@ static WILC_ErrNo WILC_memcpy(void *pvTarget, const void *pvSource, WILC_Uint32 
  *  @date	18 Aug 2010
  *  @version	1.0
  */
-void *WILC_memset(void *pvTarget, u8 u8SetValue, WILC_Uint32 u32Count);
+void *WILC_memset(void *pvTarget, u8 u8SetValue, u32 u32Count);
 
 /*!
  *  @brief	copies the contents of source string into the target string
@@ -93,7 +93,7 @@ void *WILC_memset(void *pvTarget, u8 u8SetValue, WILC_Uint32 u32Count);
  *  @version	1.0
  */
 WILC_Char *WILC_strncpy(WILC_Char *pcTarget, const WILC_Char *pcSource,
-			WILC_Uint32 u32Count);
+			u32 u32Count);
 
 /*!
  *  @brief	Compares two strings up to u32Count characters
@@ -114,7 +114,7 @@ WILC_Char *WILC_strncpy(WILC_Char *pcTarget, const WILC_Char *pcSource,
  *  @version	1.0
  */
 WILC_Sint32 WILC_strncmp(const WILC_Char *pcStr1, const WILC_Char *pcStr2,
-			 WILC_Uint32 u32Count);
+			 u32 u32Count);
 
 /*!
  *  @brief	gets the length of a string
@@ -125,6 +125,6 @@ WILC_Sint32 WILC_strncmp(const WILC_Char *pcStr1, const WILC_Char *pcStr2,
  *  @date	18 Aug 2010
  *  @version	1.0
  */
-WILC_Uint32 WILC_strlen(const WILC_Char *pcStr);
+u32 WILC_strlen(const WILC_Char *pcStr);
 
 #endif

@@ -561,7 +561,7 @@ static void deinit_irq(linux_wlan_t *nic)
 static void linux_wlan_msleep(uint32_t msc)
 {
 	if (msc <= 4000000) {
-		WILC_Uint32 u32Temp = msc * 1000;
+		u32 u32Temp = msc * 1000;
 		usleep_range(u32Temp, u32Temp);
 	} else {
 		msleep(msc);
@@ -634,7 +634,7 @@ static void linux_wlan_lock(void *vp)
 	}
 }
 
-static int linux_wlan_lock_timeout(void *vp, WILC_Uint32 timeout)
+static int linux_wlan_lock_timeout(void *vp, u32 timeout)
 {
 	int error = -1;
 	PRINT_D(LOCK_DBG, "Locking %p\n", vp);
@@ -1124,7 +1124,7 @@ static int linux_wlan_init_test_config(struct net_device *dev, linux_wlan_t *p_n
 		goto _fail_;
 	}
 
-	*(int *)c_val = (WILC_Uint32)pstrWFIDrv;
+	*(int *)c_val = (u32)pstrWFIDrv;
 
 	if (!g_linux_wlan->oup.wlan_cfg_set(1, WID_SET_DRV_HANDLER, c_val, 4, 0, 0))
 		goto _fail_;
@@ -1364,7 +1364,7 @@ static int linux_wlan_init_test_config(struct net_device *dev, linux_wlan_t *p_n
 		goto _fail_;
 
 	c_val[0] = 1; /* Enable N with immediate block ack. */
-	if (!g_linux_wlan->oup.wlan_cfg_set(0, WID_11N_IMMEDIATE_BA_ENABLED, c_val, 1, 1, (WILC_Uint32)pstrWFIDrv))
+	if (!g_linux_wlan->oup.wlan_cfg_set(0, WID_11N_IMMEDIATE_BA_ENABLED, c_val, 1, 1, (u32)pstrWFIDrv))
 		goto _fail_;
 
 	return 0;
@@ -2100,7 +2100,7 @@ int mac_open(struct net_device *ndev)
 	for (i = 0; i < g_linux_wlan->u8NoIfcs; i++) {
 		if (ndev == g_linux_wlan->strInterfaceInfo[i].wilc_netdev) {
 			memcpy(g_linux_wlan->strInterfaceInfo[i].aSrcAddress, mac_add, ETH_ALEN);
-			g_linux_wlan->strInterfaceInfo[i].drvHandler = (WILC_Uint32)priv->hWILCWFIDrv;
+			g_linux_wlan->strInterfaceInfo[i].drvHandler = (u32)priv->hWILCWFIDrv;
 			break;
 		}
 	}
@@ -2376,7 +2376,7 @@ int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 
 	u8 *buff = NULL;
 	WILC_Sint8 rssi;
-	WILC_Uint32 size = 0, length = 0;
+	u32 size = 0, length = 0;
 	perInterface_wlan_t *nic;
 	struct WILC_WFI_priv *priv;
 	WILC_Sint32 s32Error = WILC_SUCCESS;

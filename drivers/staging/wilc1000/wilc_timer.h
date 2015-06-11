@@ -96,7 +96,7 @@ WILC_ErrNo WILC_TimerDestroy(WILC_TimerHandle *pHandle,
  *  @date	16 Aug 2010
  *  @version	1.0
  */
-WILC_ErrNo WILC_TimerStart(WILC_TimerHandle *pHandle, WILC_Uint32 u32Timeout, void *pvArg,
+WILC_ErrNo WILC_TimerStart(WILC_TimerHandle *pHandle, u32 u32Timeout, void *pvArg,
 			   tstrWILC_TimerAttrs *pstrAttrs);
 
 

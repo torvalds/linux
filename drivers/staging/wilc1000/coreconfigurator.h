@@ -66,7 +66,7 @@ extern u16 g_num_total_switches;
 /* Function Macros                                                           */
 /*****************************************************************************/
 #define MAKE_WORD16(lsb, msb) ((((u16)(msb) << 8) & 0xFF00) | (lsb))
-#define MAKE_WORD32(lsw, msw) ((((WILC_Uint32)(msw) << 16) & 0xFFFF0000) | (lsw))
+#define MAKE_WORD32(lsw, msw) ((((u32)(msw) << 16) & 0xFFFF0000) | (lsw))
 
 
 /*****************************************************************************/
@@ -423,7 +423,7 @@ typedef struct {
 	u8 u8Found;
 #endif
 #ifdef WILC_P2P
-	WILC_Uint32 u32Tsf; /* time-stamp [Low only 32 bit] */
+	u32 u32Tsf; /* time-stamp [Low only 32 bit] */
 #endif
 	u8 *pu8IEs;
 	u16 u16IEsLen;
@@ -476,23 +476,23 @@ extern WILC_Sint32 CoreConfiguratorInit(void);
 extern WILC_Sint32 CoreConfiguratorDeInit(void);
 
 extern WILC_Sint32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
-				 WILC_Uint32 u32WIDsCount, WILC_Bool bRespRequired, WILC_Uint32 drvHandler);
+				 u32 u32WIDsCount, WILC_Bool bRespRequired, u32 drvHandler);
 extern WILC_Sint32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo);
 extern WILC_Sint32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo);
 
-extern WILC_Sint32 ParseAssocRespInfo(u8 *pu8Buffer, WILC_Uint32 u32BufferLen,
+extern WILC_Sint32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
 				      tstrConnectRespInfo **ppstrConnectRespInfo);
 extern WILC_Sint32 DeallocateAssocRespInfo(tstrConnectRespInfo *pstrConnectRespInfo);
 
 #ifndef CONNECT_DIRECT
 extern WILC_Sint32 ParseSurveyResults(u8 ppu8RcvdSiteSurveyResults[][MAX_SURVEY_RESULT_FRAG_SIZE],
-				      wid_site_survey_reslts_s **ppstrSurveyResults, WILC_Uint32 *pu32SurveyResultsCount);
+				      wid_site_survey_reslts_s **ppstrSurveyResults, u32 *pu32SurveyResultsCount);
 extern WILC_Sint32 DeallocateSurveyResults(wid_site_survey_reslts_s *pstrSurveyResults);
 #endif
 
 extern WILC_Sint32 SendRawPacket(WILC_Sint8 *pspacket, WILC_Sint32 s32PacketLen);
-extern void NetworkInfoReceived(u8 *pu8Buffer, WILC_Uint32 u32Length);
-void GnrlAsyncInfoReceived(u8 *pu8Buffer, WILC_Uint32 u32Length);
-void host_int_ScanCompleteReceived(u8 *pu8Buffer, WILC_Uint32 u32Length);
+extern void NetworkInfoReceived(u8 *pu8Buffer, u32 u32Length);
+void GnrlAsyncInfoReceived(u8 *pu8Buffer, u32 u32Length);
+void host_int_ScanCompleteReceived(u8 *pu8Buffer, u32 u32Length);
 
 #endif

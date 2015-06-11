@@ -299,7 +299,7 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 				     struct net_device *dev)
 {
 	struct ieee80211_radiotap_header *rtap_hdr;
-	WILC_Uint32 rtap_len, i, ret = 0;
+	u32 rtap_len, i, ret = 0;
 	struct WILC_WFI_mon_priv  *mon_priv;
 
 	struct sk_buff *skb2;
@@ -526,7 +526,7 @@ struct net_device *WILC_WFI_init_mon_interface(const char *name, struct net_devi
 {
 
 
-	WILC_Uint32 ret = WILC_SUCCESS;
+	u32 ret = WILC_SUCCESS;
 	struct WILC_WFI_mon_priv *priv;
 
 	/*If monitor interface is already initialized, return it*/

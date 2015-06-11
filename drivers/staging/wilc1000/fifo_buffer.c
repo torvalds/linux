@@ -5,9 +5,9 @@
 
 
 
-WILC_Uint32 FIFO_InitBuffer(tHANDLE *hBuffer, WILC_Uint32 u32BufferLength)
+u32 FIFO_InitBuffer(tHANDLE *hBuffer, u32 u32BufferLength)
 {
-	WILC_Uint32 u32Error = 0;
+	u32 u32Error = 0;
 	tstrFifoHandler *pstrFifoHandler = WILC_MALLOC (sizeof (tstrFifoHandler));
 	if (pstrFifoHandler) {
 		WILC_memset (pstrFifoHandler, 0, sizeof (tstrFifoHandler));
@@ -27,9 +27,9 @@ WILC_Uint32 FIFO_InitBuffer(tHANDLE *hBuffer, WILC_Uint32 u32BufferLength)
 	}
 	return u32Error;
 }
-WILC_Uint32 FIFO_DeInit(tHANDLE hFifo)
+u32 FIFO_DeInit(tHANDLE hFifo)
 {
-	WILC_Uint32 u32Error = 0;
+	u32 u32Error = 0;
 	tstrFifoHandler *pstrFifoHandler = (tstrFifoHandler *) hFifo;
 	if (pstrFifoHandler) {
 		if (pstrFifoHandler->pu8Buffer)	{
@@ -45,9 +45,9 @@ WILC_Uint32 FIFO_DeInit(tHANDLE hFifo)
 	return u32Error;
 }
 
-WILC_Uint32 FIFO_ReadBytes(tHANDLE hFifo, u8 *pu8Buffer, WILC_Uint32 u32BytesToRead, WILC_Uint32 *pu32BytesRead)
+u32 FIFO_ReadBytes(tHANDLE hFifo, u8 *pu8Buffer, u32 u32BytesToRead, u32 *pu32BytesRead)
 {
-	WILC_Uint32 u32Error = 0;
+	u32 u32Error = 0;
 	tstrFifoHandler *pstrFifoHandler = (tstrFifoHandler *) hFifo;
 	if (pstrFifoHandler && pu32BytesRead) {
 		if (pstrFifoHandler->u32TotalBytes) {
@@ -66,7 +66,7 @@ WILC_Uint32 FIFO_ReadBytes(tHANDLE hFifo, u8 *pu8Buffer, WILC_Uint32 u32BytesToR
 				pstrFifoHandler->u32TotalBytes -= u32BytesToRead;
 
 			} else {
-				WILC_Uint32 u32FirstPart =
+				u32 u32FirstPart =
 					pstrFifoHandler->u32BufferLength - pstrFifoHandler->u32ReadOffset;
 				WILC_memcpy(pu8Buffer, pstrFifoHandler->pu8Buffer + pstrFifoHandler->u32ReadOffset,
 					    u32FirstPart);
@@ -86,9 +86,9 @@ WILC_Uint32 FIFO_ReadBytes(tHANDLE hFifo, u8 *pu8Buffer, WILC_Uint32 u32BytesToR
 	return u32Error;
 }
 
-WILC_Uint32 FIFO_WriteBytes(tHANDLE hFifo, u8 *pu8Buffer, WILC_Uint32 u32BytesToWrite, WILC_Bool bForceOverWrite)
+u32 FIFO_WriteBytes(tHANDLE hFifo, u8 *pu8Buffer, u32 u32BytesToWrite, WILC_Bool bForceOverWrite)
 {
-	WILC_Uint32 u32Error = 0;
+	u32 u32Error = 0;
 	tstrFifoHandler *pstrFifoHandler = (tstrFifoHandler *) hFifo;
 	if (pstrFifoHandler) {
 		if (u32BytesToWrite < pstrFifoHandler->u32BufferLength)	{
@@ -103,7 +103,7 @@ WILC_Uint32 FIFO_WriteBytes(tHANDLE hFifo, u8 *pu8Buffer, WILC_Uint32 u32BytesTo
 					pstrFifoHandler->u32TotalBytes  += u32BytesToWrite;
 
 				} else {
-					WILC_Uint32 u32FirstPart =
+					u32 u32FirstPart =
 						pstrFifoHandler->u32BufferLength - pstrFifoHandler->u32WriteOffset;
 					WILC_memcpy(pstrFifoHandler->pu8Buffer + pstrFifoHandler->u32WriteOffset, pu8Buffer,
 						    u32FirstPart);

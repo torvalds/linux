@@ -23,7 +23,7 @@ typedef struct timer_list WILC_TimerHandle;
 /* Message Queue type is a structure */
 typedef struct __Message_struct {
 	void *pvBuffer;
-	WILC_Uint32 u32Length;
+	u32 u32Length;
 	struct __Message_struct *pstrNext;
 } Message;
 
@@ -31,7 +31,7 @@ typedef struct __MessageQueue_struct {
 	struct semaphore hSem;
 	spinlock_t strCriticalSection;
 	WILC_Bool bExiting;
-	WILC_Uint32 u32ReceiversCount;
+	u32 u32ReceiversCount;
 	Message *pstrMessageList;
 } WILC_MsgQueueHandle;
 

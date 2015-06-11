@@ -41,8 +41,8 @@ typedef struct {
  *  @date	16 Aug 2010
  *  @version	1.0
  */
-void *WILC_MemoryAlloc(WILC_Uint32 u32Size, tstrWILC_MemoryAttrs *strAttrs,
-		       WILC_Char *pcFileName, WILC_Uint32 u32LineNo);
+void *WILC_MemoryAlloc(u32 u32Size, tstrWILC_MemoryAttrs *strAttrs,
+		       WILC_Char *pcFileName, u32 u32LineNo);
 
 /*!
  *  @brief	Allocates a given size of bytes and zero filling it
@@ -65,8 +65,8 @@ void *WILC_MemoryAlloc(WILC_Uint32 u32Size, tstrWILC_MemoryAttrs *strAttrs,
  *  @date	16 Aug 2010
  *  @version	1.0
  */
-void *WILC_MemoryCalloc(WILC_Uint32 u32Size, tstrWILC_MemoryAttrs *strAttrs,
-			WILC_Char *pcFileName, WILC_Uint32 u32LineNo);
+void *WILC_MemoryCalloc(u32 u32Size, tstrWILC_MemoryAttrs *strAttrs,
+			WILC_Char *pcFileName, u32 u32LineNo);
 
 /*!
  *  @brief	Reallocates a given block to a new size
@@ -93,8 +93,8 @@ void *WILC_MemoryCalloc(WILC_Uint32 u32Size, tstrWILC_MemoryAttrs *strAttrs,
  *  @date	16 Aug 2010
  *  @version	1.0
  */
-void *WILC_MemoryRealloc(void *pvOldBlock, WILC_Uint32 u32NewSize,
-			 tstrWILC_MemoryAttrs *strAttrs, WILC_Char *pcFileName, WILC_Uint32 u32LineNo);
+void *WILC_MemoryRealloc(void *pvOldBlock, u32 u32NewSize,
+			 tstrWILC_MemoryAttrs *strAttrs, WILC_Char *pcFileName, u32 u32LineNo);
 
 /*!
  *  @brief	Frees given block
@@ -114,7 +114,7 @@ void *WILC_MemoryRealloc(void *pvOldBlock, WILC_Uint32 u32NewSize,
  *  @version	1.0
  */
 void WILC_MemoryFree(const void *pvBlock, tstrWILC_MemoryAttrs *strAttrs,
-			WILC_Char *pcFileName, WILC_Uint32 u32LineNo);
+			WILC_Char *pcFileName, u32 u32LineNo);
 
 /*!
  * @brief	standrad malloc wrapper with custom attributes
@@ -149,7 +149,7 @@ void WILC_MemoryFree(const void *pvBlock, tstrWILC_MemoryAttrs *strAttrs,
  */
 #define WILC_NEW_EX(__struct_type__, __n_structs__, __attrs__) \
 	((__struct_type__ *)WILC_MALLOC_EX( \
-		 sizeof(__struct_type__) * (WILC_Uint32)(__n_structs__), __attrs__))
+		 sizeof(__struct_type__) * (u32)(__n_structs__), __attrs__))
 
 /*!
  * @brief	Allocates a block (with custom attributes) of given type and number of
@@ -157,7 +157,7 @@ void WILC_MemoryFree(const void *pvBlock, tstrWILC_MemoryAttrs *strAttrs,
  */
 #define WILC_NEW_0_EX(__struct_type__, __n_structs__, __attrs__) \
 	((__struct_type__ *)WILC_CALLOC_EX( \
-		 sizeof(__struct_type__) * (WILC_Uint32)(__n_structs__), __attrs__))
+		 sizeof(__struct_type__) * (u32)(__n_structs__), __attrs__))
 
 /*!
  * @brief	Frees a block (with custom attributes), also setting the original pointer

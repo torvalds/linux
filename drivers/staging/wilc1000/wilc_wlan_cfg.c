@@ -541,7 +541,7 @@ static int wilc_wlan_cfg_indicate_rx(uint8_t *frame, int size, wilc_cfg_rsp_t *r
 	uint8_t msg_id;
 	uint16_t msg_len;
 	#ifdef WILC_FULLY_HOSTING_AP
-	WILC_Uint32 *ptru32Frame;
+	u32 *ptru32Frame;
 	WILC_Bool bStatus = frame[2];
 
 	#ifdef BIG_ENDIAN

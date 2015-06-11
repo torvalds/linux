@@ -92,7 +92,7 @@ typedef struct {
 	void (*os_free)(void *);
 	void (*os_lock)(void *);
 	void (*os_unlock)(void *);
-	int (*os_wait)(void *, WILC_Uint32);
+	int (*os_wait)(void *, u32);
 	void (*os_signal)(void *);
 	void (*os_enter_cs)(void *);
 	void (*os_leave_cs)(void *);
@@ -238,7 +238,7 @@ typedef struct {
 #define MAX_SSID_LEN            33
 #define MAX_RATES_SUPPORTED     12
 
-#define INFINITE_SLEEP_TIME		((WILC_Uint32)0xFFFFFFFF)
+#define INFINITE_SLEEP_TIME		((u32)0xFFFFFFFF)
 
 #ifdef WILC_PARSE_SCAN_IN_HOST
 typedef enum {

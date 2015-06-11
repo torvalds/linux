@@ -12,6 +12,6 @@
  *              sleep, for accurate high resolution sleep use u32TimeMicoSec
  */
 /* TODO: remove and open-code in callers */
-void WILC_Sleep(WILC_Uint32 u32TimeMilliSec);
+void WILC_Sleep(u32 u32TimeMilliSec);
 
 #endif

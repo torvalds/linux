@@ -117,9 +117,9 @@ struct sta_info {
 struct wilc_wfi_p2pListenParams {
 	struct ieee80211_channel *pstrListenChan;
 	enum nl80211_channel_type tenuChannelType;
-	WILC_Uint32 u32ListenDuration;
+	u32 u32ListenDuration;
 	WILC_Uint64 u64ListenCookie;
-	WILC_Uint32 u32ListenSessionID;
+	u32 u32ListenSessionID;
 };
 
 #endif  /*WILC_P2P*/
@@ -135,7 +135,7 @@ struct WILC_WFI_priv {
 	#endif
 
 	WILC_Bool bCfgScanning;
-	WILC_Uint32 u32RcvdChCount;
+	u32 u32RcvdChCount;
 
 
 

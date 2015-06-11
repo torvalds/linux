@@ -31,7 +31,7 @@ extern int mac_open(struct net_device *ndev);
 extern int mac_close(struct net_device *ndev);
 
 tstrNetworkInfo astrLastScannedNtwrksShadow[MAX_NUM_SCANNED_NETWORKS_SHADOW];
-WILC_Uint32 u32LastScannedNtwrksCountShadow;
+u32 u32LastScannedNtwrksCountShadow;
 #ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 WILC_TimerHandle hDuringIpTimer;
 #endif
@@ -438,7 +438,7 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 						PRINT_ER("Discovered networks exceeded the max limit\n");
 					}
 				} else {
-					WILC_Uint32 i;
+					u32 i;
 					/* So this network is discovered before, we'll just update its RSSI */
 					for (i = 0; i < priv->u32RcvdChCount; i++) {
 						if (WILC_memcmp(astrLastScannedNtwrksShadow[i].au8bssid, pstrNetworkInfo->au8bssid, 6) == 0) {
@@ -509,7 +509,7 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
  */
 int WILC_WFI_Set_PMKSA(u8 *bssid, struct WILC_WFI_priv *priv)
 {
-	WILC_Uint32 i;
+	u32 i;
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 
 
@@ -600,7 +600,7 @@ static void CfgConnectResult(tenuConnDisconnEvent enuConnDisconnEvent,
 
 		if (u16ConnectStatus == WLAN_STATUS_SUCCESS) {
 			WILC_Bool bNeedScanRefresh = WILC_FALSE;
-			WILC_Uint32 i;
+			u32 i;
 
 			PRINT_INFO(CFG80211_DBG, "Connection Successful:: BSSID: %x%x%x%x%x%x\n", pstrConnectInfo->au8bssid[0],
 				   pstrConnectInfo->au8bssid[1], pstrConnectInfo->au8bssid[2], pstrConnectInfo->au8bssid[3], pstrConnectInfo->au8bssid[4], pstrConnectInfo->au8bssid[5]);
@@ -699,7 +699,7 @@ static int WILC_WFI_CfgSetChannel(struct wiphy *wiphy,
 				  struct cfg80211_chan_def *chandef)
 {
 
-	WILC_Uint32 channelnum = 0;
+	u32 channelnum = 0;
 	struct WILC_WFI_priv *priv;
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 	priv = wiphy_priv(wiphy);
@@ -736,7 +736,7 @@ static int WILC_WFI_CfgSetChannel(struct wiphy *wiphy,
 static int WILC_WFI_CfgScan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 {
 	struct WILC_WFI_priv *priv;
-	WILC_Uint32 i;
+	u32 i;
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 	u8 au8ScanChanList[MAX_NUM_SCANNED_NETWORKS];
 	tstrHiddenNetwork strHiddenNetwork;
@@ -747,7 +747,7 @@ static int WILC_WFI_CfgScan(struct wiphy *wiphy, struct cfg80211_scan_request *r
 
 	priv->u32RcvdChCount = 0;
 
-	host_int_set_wfi_drv_handler((WILC_Uint32)priv->hWILCWFIDrv);
+	host_int_set_wfi_drv_handler((u32)priv->hWILCWFIDrv);
 
 
 	reset_shadow_found(priv);
@@ -826,7 +826,7 @@ static int WILC_WFI_CfgConnect(struct wiphy *wiphy, struct net_device *dev,
 			       struct cfg80211_connect_params *sme)
 {
 	WILC_Sint32 s32Error = WILC_SUCCESS;
-	WILC_Uint32 i;
+	u32 i;
 	u8 u8security = NO_ENCRYPT;
 	AUTHTYPE_T tenuAuth_type = ANY;
 	WILC_Char *pcgroup_encrypt_val = NULL;
@@ -842,7 +842,7 @@ static int WILC_WFI_CfgConnect(struct wiphy *wiphy, struct net_device *dev,
 	priv = wiphy_priv(wiphy);
 	pstrWFIDrv = (tstrWILC_WFIDrv *)(priv->hWILCWFIDrv);
 
-	host_int_set_wfi_drv_handler((WILC_Uint32)priv->hWILCWFIDrv);
+	host_int_set_wfi_drv_handler((u32)priv->hWILCWFIDrv);
 
 	PRINT_D(CFG80211_DBG, "Connecting to SSID [%s] on netdev [%p] host if [%p]\n", sme->ssid, dev, priv->hWILCWFIDrv);
 	#ifdef WILC_P2P
@@ -1131,7 +1131,7 @@ static int WILC_WFI_add_key(struct wiphy *wiphy, struct net_device *netdev, u8 k
 
 {
 	WILC_Sint32 s32Error = WILC_SUCCESS, KeyLen = params->key_len;
-	WILC_Uint32 i;
+	u32 i;
 	struct WILC_WFI_priv *priv;
 	const u8 *pu8RxMic = NULL;
 	const u8 *pu8TxMic = NULL;
@@ -1538,7 +1538,7 @@ static int WILC_WFI_get_key(struct wiphy *wiphy, struct net_device *netdev, u8 k
 
 	struct WILC_WFI_priv *priv;
 	struct  key_params key_params;
-	WILC_Uint32 i;
+	u32 i;
 	priv = wiphy_priv(wiphy);
 
 
@@ -1641,9 +1641,9 @@ static int WILC_WFI_get_station(struct wiphy *wiphy, struct net_device *dev,
 	struct WILC_WFI_priv *priv;
 	perInterface_wlan_t *nic;
 	#ifdef WILC_AP_EXTERNAL_MLME
-	WILC_Uint32 i = 0;
-	WILC_Uint32 associatedsta = 0;
-	WILC_Uint32 inactive_time = 0;
+	u32 i = 0;
+	u32 associatedsta = 0;
+	u32 inactive_time = 0;
 	#endif
 	priv = wiphy_priv(wiphy);
 	nic = netdev_priv(dev);
@@ -1899,7 +1899,7 @@ static int WILC_WFI_set_bitrate_mask(struct wiphy *wiphy,
 static int WILC_WFI_set_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 			      struct cfg80211_pmksa *pmksa)
 {
-	WILC_Uint32 i;
+	u32 i;
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 	u8 flag = 0;
 
@@ -1950,7 +1950,7 @@ static int WILC_WFI_del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 			      struct cfg80211_pmksa *pmksa)
 {
 
-	WILC_Uint32 i;
+	u32 i;
 	u8 flag = 0;
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 
@@ -2023,10 +2023,10 @@ static int  WILC_WFI_flush_pmksa(struct wiphy *wiphy, struct net_device *netdev)
  *  @version
  */
 
-void WILC_WFI_CfgParseRxAction(u8 *buf, WILC_Uint32 len)
+void WILC_WFI_CfgParseRxAction(u8 *buf, u32 len)
 {
-	WILC_Uint32 index = 0;
-	WILC_Uint32 i = 0, j = 0;
+	u32 index = 0;
+	u32 i = 0, j = 0;
 
 	/*BugID_5460*/
 	#ifdef USE_SUPPLICANT_GO_INTENT
@@ -2119,10 +2119,10 @@ void WILC_WFI_CfgParseRxAction(u8 *buf, WILC_Uint32 len)
  *  @date	12 DEC 2012
  *  @version
  */
-void WILC_WFI_CfgParseTxAction(u8 *buf, WILC_Uint32 len, WILC_Bool bOperChan, u8 iftype)
+void WILC_WFI_CfgParseTxAction(u8 *buf, u32 len, WILC_Bool bOperChan, u8 iftype)
 {
-	WILC_Uint32 index = 0;
-	WILC_Uint32 i = 0, j = 0;
+	u32 index = 0;
+	u32 i = 0, j = 0;
 
 	u8 op_channel_attr_index = 0;
 	u8 channel_list_attr_index = 0;
@@ -2210,9 +2210,9 @@ void WILC_WFI_p2p_rx (struct net_device *dev, uint8_t *buff, uint32_t size)
 {
 
 	struct WILC_WFI_priv *priv;
-	WILC_Uint32 header, pkt_offset;
+	u32 header, pkt_offset;
 	tstrWILC_WFIDrv *pstrWFIDrv;
-	WILC_Uint32 i = 0;
+	u32 i = 0;
 	WILC_Sint32 s32Freq;
 	priv = wiphy_priv(dev->ieee80211_ptr->wiphy);
 	pstrWFIDrv = (tstrWILC_WFIDrv *)priv->hWILCWFIDrv;
@@ -2372,7 +2372,7 @@ static void WILC_WFI_RemainOnChannelReady(void *pUserVoid)
  *  @version
  */
 
-static void WILC_WFI_RemainOnChannelExpired(void *pUserVoid, WILC_Uint32 u32SessionID)
+static void WILC_WFI_RemainOnChannelExpired(void *pUserVoid, u32 u32SessionID)
 {
 	struct WILC_WFI_priv *priv;
 	priv = (struct WILC_WFI_priv *)pUserVoid;
@@ -2513,9 +2513,9 @@ int WILC_WFI_mgmt_tx(struct wiphy *wiphy,
 	struct WILC_WFI_priv *priv;
 	WILC_Sint32 s32Error = WILC_SUCCESS;
 	tstrWILC_WFIDrv *pstrWFIDrv;
-	WILC_Uint32 i;
+	u32 i;
 	perInterface_wlan_t *nic;
-	WILC_Uint32 buf_len = len + sizeof(u8P2P_vendorspec) + sizeof(u8P2Plocalrandom);
+	u32 buf_len = len + sizeof(u8P2P_vendorspec) + sizeof(u8P2Plocalrandom);
 
 	nic = netdev_priv(wdev->netdev);
 	priv = wiphy_priv(wiphy);
