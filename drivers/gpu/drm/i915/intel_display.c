@@ -2333,7 +2333,8 @@ static unsigned int intel_linear_alignment(struct drm_i915_private *dev_priv)
 {
 	if (INTEL_INFO(dev_priv)->gen >= 9)
 		return 256 * 1024;
-	else if (IS_BROADWATER(dev_priv) || IS_CRESTLINE(dev_priv))
+	else if (IS_BROADWATER(dev_priv) || IS_CRESTLINE(dev_priv) ||
+		 IS_VALLEYVIEW(dev_priv))
 		return 128 * 1024;
 	else if (INTEL_INFO(dev_priv)->gen >= 4)
 		return 4 * 1024;
