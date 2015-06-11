@@ -8,6 +8,10 @@
 #ifndef _ASM_S390_FPU_INTERNAL_H
 #define _ASM_S390_FPU_INTERNAL_H
 
+#define FPU_USE_VX		1	/* Vector extension is active */
+
+#ifndef __ASSEMBLY__
+
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <asm/linkage.h>
@@ -16,13 +20,16 @@
 
 struct fpu {
 	__u32 fpc;			/* Floating-point control */
-	__u32 pad;
-	freg_t fprs[__NUM_FPRS];	/* Floating-point register save area */
-	__vector128 *vxrs;		/* Vector register save area */
+	__u32 flags;
+	union {
+		void *regs;
+		freg_t *fprs;		/* Floating-point register save area */
+		__vector128 *vxrs;	/* Vector register save area */
+	};
 };
 
-#define is_vx_fpu(fpu) (!!(fpu)->vxrs)
-#define is_vx_task(tsk) (!!(tsk)->thread.fpu.vxrs)
+#define is_vx_fpu(fpu) (!!((fpu)->flags & FPU_USE_VX))
+#define is_vx_task(tsk) (!!((tsk)->thread.fpu.flags & FPU_USE_VX))
 
 static inline int test_fp_ctl(u32 fpc)
 {
@@ -187,5 +194,7 @@ static inline void restore_fpu_regs(struct fpu *fpu)
 	else
 		restore_fp_regs(fpu->fprs);
 }
+
+#endif
 
 #endif /* _ASM_S390_FPU_INTERNAL_H */

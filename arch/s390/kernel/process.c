@@ -81,8 +81,26 @@ void release_thread(struct task_struct *dead_task)
 
 void arch_release_task_struct(struct task_struct *tsk)
 {
-	if (is_vx_task(tsk))
-		kfree(tsk->thread.fpu.vxrs);
+	/* Free either the floating-point or the vector register save area */
+	kfree(tsk->thread.fpu.regs);
+}
+
+int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
+{
+	*dst = *src;
+
+	/* Set up a new floating-point register save area */
+	dst->thread.fpu.fprs = kzalloc(sizeof(freg_t) * __NUM_FPRS,
+				       GFP_KERNEL|__GFP_REPEAT);
+	if (!dst->thread.fpu.fprs)
+		return -ENOMEM;
+
+	/* Save the fpu registers to new thread structure. */
+	save_fp_ctl(&dst->thread.fpu.fpc);
+	save_fp_regs(dst->thread.fpu.fprs);
+	dst->thread.fpu.flags = 0;     /* Always start with VX disabled */
+
+	return 0;
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
@@ -142,11 +160,6 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 	p->thread.ri_signum = 0;
 	frame->childregs.psw.mask &= ~PSW_MASK_RI;
 
-	/* Save the fpu registers to new thread structure. */
-	save_fp_ctl(&p->thread.fpu.fpc);
-	save_fp_regs(p->thread.fpu.fprs);
-	p->thread.fpu.pad = 0;
-	p->thread.fpu.vxrs = NULL;
 	/* Set a new TLS ?  */
 	if (clone_flags & CLONE_SETTLS) {
 		unsigned long tls = frame->childregs.gprs[6];

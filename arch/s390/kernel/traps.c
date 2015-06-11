@@ -227,6 +227,7 @@ DO_ERROR_INFO(specification_exception, SIGILL, ILL_ILLOPN,
 int alloc_vector_registers(struct task_struct *tsk)
 {
 	__vector128 *vxrs;
+	freg_t *fprs;
 
 	/* Allocate vector register save area. */
 	vxrs = kzalloc(sizeof(__vector128) * __NUM_VXRS,
@@ -238,7 +239,10 @@ int alloc_vector_registers(struct task_struct *tsk)
 		save_fp_regs(tsk->thread.fpu.fprs);
 	/* Copy the 16 floating point registers */
 	convert_fp_to_vx(vxrs, tsk->thread.fpu.fprs);
+	fprs = tsk->thread.fpu.fprs;
 	tsk->thread.fpu.vxrs = vxrs;
+	tsk->thread.fpu.flags |= FPU_USE_VX;
+	kfree(fprs);
 	if (tsk == current) {
 		__ctl_set_bit(0, 17);
 		restore_vx_regs(vxrs);
