@@ -725,7 +725,6 @@ next:
 			cmpl->valid = 0;
 			BNA_QE_INDX_INC(ccb->producer_index, ccb->q_depth);
 		}
-		cmpl = &cq[ccb->producer_index];
 	}
 
 	napi_gro_flush(&rx_ctrl->napi, false);
