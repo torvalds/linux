@@ -1677,13 +1677,13 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 		 * See spc4r17, section 7.4.6 Control Mode Page, Table 349
 		 */
 		if (cmd->se_sess &&
-		    cmd->se_dev->dev_attrib.emulate_ua_intlck_ctrl == 2)
-			core_scsi3_ua_allocate(cmd->se_sess->se_node_acl,
-				cmd->orig_fe_lun, 0x2C,
-				ASCQ_2CH_PREVIOUS_RESERVATION_CONFLICT_STATUS);
-
+		    cmd->se_dev->dev_attrib.emulate_ua_intlck_ctrl == 2) {
+			target_ua_allocate_lun(cmd->se_sess->se_node_acl,
+					       cmd->orig_fe_lun, 0x2C,
+					ASCQ_2CH_PREVIOUS_RESERVATION_CONFLICT_STATUS);
+		}
 		trace_target_cmd_complete(cmd);
-		ret = cmd->se_tfo-> queue_status(cmd);
+		ret = cmd->se_tfo->queue_status(cmd);
 		if (ret == -EAGAIN || ret == -ENOMEM)
 			goto queue_full;
 		goto check_stop;

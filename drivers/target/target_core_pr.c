@@ -2197,7 +2197,7 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 					&pr_tmpl->registration_list,
 					pr_reg_list) {
 
-				core_scsi3_ua_allocate(
+				target_ua_allocate_lun(
 					pr_reg_p->pr_reg_nacl,
 					pr_reg_p->pr_res_mapped_lun,
 					0x2A,
@@ -2624,7 +2624,7 @@ core_scsi3_emulate_pro_release(struct se_cmd *cmd, int type, int scope,
 		if (pr_reg_p == pr_reg)
 			continue;
 
-		core_scsi3_ua_allocate(pr_reg_p->pr_reg_nacl,
+		target_ua_allocate_lun(pr_reg_p->pr_reg_nacl,
 				pr_reg_p->pr_res_mapped_lun,
 				0x2A, ASCQ_2AH_RESERVATIONS_RELEASED);
 	}
@@ -2709,7 +2709,7 @@ core_scsi3_emulate_pro_clear(struct se_cmd *cmd, u64 res_key)
 		 *    additional sense code set to RESERVATIONS PREEMPTED.
 		 */
 		if (!calling_it_nexus)
-			core_scsi3_ua_allocate(pr_reg_nacl, pr_res_mapped_lun,
+			target_ua_allocate_lun(pr_reg_nacl, pr_res_mapped_lun,
 				0x2A, ASCQ_2AH_RESERVATIONS_PREEMPTED);
 	}
 	spin_unlock(&pr_tmpl->registration_lock);
@@ -2918,7 +2918,7 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 						NULL, 0);
 			}
 			if (!calling_it_nexus)
-				core_scsi3_ua_allocate(pr_reg_nacl,
+				target_ua_allocate_lun(pr_reg_nacl,
 					pr_res_mapped_lun, 0x2A,
 					ASCQ_2AH_REGISTRATIONS_PREEMPTED);
 		}
@@ -3024,7 +3024,7 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 		 *    persistent reservation and/or registration, with the
 		 *    additional sense code set to REGISTRATIONS PREEMPTED;
 		 */
-		core_scsi3_ua_allocate(pr_reg_nacl, pr_res_mapped_lun, 0x2A,
+		target_ua_allocate_lun(pr_reg_nacl, pr_res_mapped_lun, 0x2A,
 				ASCQ_2AH_REGISTRATIONS_PREEMPTED);
 	}
 	spin_unlock(&pr_tmpl->registration_lock);
@@ -3057,7 +3057,7 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 			if (calling_it_nexus)
 				continue;
 
-			core_scsi3_ua_allocate(pr_reg->pr_reg_nacl,
+			target_ua_allocate_lun(pr_reg->pr_reg_nacl,
 					pr_reg->pr_res_mapped_lun, 0x2A,
 					ASCQ_2AH_RESERVATIONS_RELEASED);
 		}
