@@ -2901,7 +2901,6 @@ enum bna_tx_event {
 	TX_E_FAIL			= 3,
 	TX_E_STARTED			= 4,
 	TX_E_STOPPED			= 5,
-	TX_E_PRIO_CHANGE		= 6,
 	TX_E_CLEANUP_DONE		= 7,
 	TX_E_BW_UPDATE			= 8,
 };
@@ -2942,9 +2941,6 @@ bna_tx_sm_stopped(struct bna_tx *tx, enum bna_tx_event event)
 		/* No-op */
 		break;
 
-	case TX_E_PRIO_CHANGE:
-		break;
-
 	case TX_E_BW_UPDATE:
 		/* No-op */
 		break;
@@ -2965,26 +2961,21 @@ bna_tx_sm_start_wait(struct bna_tx *tx, enum bna_tx_event event)
 {
 	switch (event) {
 	case TX_E_STOP:
-		tx->flags &= ~(BNA_TX_F_PRIO_CHANGED | BNA_TX_F_BW_UPDATED);
+		tx->flags &= ~BNA_TX_F_BW_UPDATED;
 		bfa_fsm_set_state(tx, bna_tx_sm_stop_wait);
 		break;
 
 	case TX_E_FAIL:
-		tx->flags &= ~(BNA_TX_F_PRIO_CHANGED | BNA_TX_F_BW_UPDATED);
+		tx->flags &= ~BNA_TX_F_BW_UPDATED;
 		bfa_fsm_set_state(tx, bna_tx_sm_stopped);
 		break;
 
 	case TX_E_STARTED:
-		if (tx->flags & (BNA_TX_F_PRIO_CHANGED | BNA_TX_F_BW_UPDATED)) {
-			tx->flags &= ~(BNA_TX_F_PRIO_CHANGED |
-				BNA_TX_F_BW_UPDATED);
+		if (tx->flags & BNA_TX_F_BW_UPDATED) {
+			tx->flags &= ~BNA_TX_F_BW_UPDATED;
 			bfa_fsm_set_state(tx, bna_tx_sm_prio_stop_wait);
 		} else
 			bfa_fsm_set_state(tx, bna_tx_sm_started);
-		break;
-
-	case TX_E_PRIO_CHANGE:
-		tx->flags |=  BNA_TX_F_PRIO_CHANGED;
 		break;
 
 	case TX_E_BW_UPDATE:
@@ -3028,7 +3019,6 @@ bna_tx_sm_started(struct bna_tx *tx, enum bna_tx_event event)
 		tx->tx_cleanup_cbfn(tx->bna->bnad, tx);
 		break;
 
-	case TX_E_PRIO_CHANGE:
 	case TX_E_BW_UPDATE:
 		bfa_fsm_set_state(tx, bna_tx_sm_prio_stop_wait);
 		break;
@@ -3061,7 +3051,6 @@ bna_tx_sm_stop_wait(struct bna_tx *tx, enum bna_tx_event event)
 		bna_tx_enet_stop(tx);
 		break;
 
-	case TX_E_PRIO_CHANGE:
 	case TX_E_BW_UPDATE:
 		/* No-op */
 		break;
@@ -3081,7 +3070,6 @@ bna_tx_sm_cleanup_wait(struct bna_tx *tx, enum bna_tx_event event)
 {
 	switch (event) {
 	case TX_E_FAIL:
-	case TX_E_PRIO_CHANGE:
 	case TX_E_BW_UPDATE:
 		/* No-op */
 		break;
@@ -3119,7 +3107,6 @@ bna_tx_sm_prio_stop_wait(struct bna_tx *tx, enum bna_tx_event event)
 		bfa_fsm_set_state(tx, bna_tx_sm_prio_cleanup_wait);
 		break;
 
-	case TX_E_PRIO_CHANGE:
 	case TX_E_BW_UPDATE:
 		/* No-op */
 		break;
@@ -3147,7 +3134,6 @@ bna_tx_sm_prio_cleanup_wait(struct bna_tx *tx, enum bna_tx_event event)
 		bfa_fsm_set_state(tx, bna_tx_sm_failed);
 		break;
 
-	case TX_E_PRIO_CHANGE:
 	case TX_E_BW_UPDATE:
 		/* No-op */
 		break;

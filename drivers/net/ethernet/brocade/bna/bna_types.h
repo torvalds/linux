@@ -135,7 +135,6 @@ enum bna_tx_type {
 enum bna_tx_flags {
 	BNA_TX_F_ENET_STARTED	= 1,
 	BNA_TX_F_ENABLED	= 2,
-	BNA_TX_F_PRIO_CHANGED	= 4,
 	BNA_TX_F_BW_UPDATED	= 8,
 };
 
