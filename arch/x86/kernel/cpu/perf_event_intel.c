@@ -1134,7 +1134,7 @@ static __initconst const u64 slm_hw_cache_extra_regs
  [ C(LL  ) ] = {
 	[ C(OP_READ) ] = {
 		[ C(RESULT_ACCESS) ] = SLM_DMND_READ|SLM_LLC_ACCESS,
-		[ C(RESULT_MISS)   ] = SLM_DMND_READ|SLM_LLC_MISS,
+		[ C(RESULT_MISS)   ] = 0,
 	},
 	[ C(OP_WRITE) ] = {
 		[ C(RESULT_ACCESS) ] = SLM_DMND_WRITE|SLM_LLC_ACCESS,
@@ -1184,8 +1184,7 @@ static __initconst const u64 slm_hw_cache_event_ids
 	[ C(OP_READ) ] = {
 		/* OFFCORE_RESPONSE.ANY_DATA.LOCAL_CACHE */
 		[ C(RESULT_ACCESS) ] = 0x01b7,
-		/* OFFCORE_RESPONSE.ANY_DATA.ANY_LLC_MISS */
-		[ C(RESULT_MISS)   ] = 0x01b7,
+		[ C(RESULT_MISS)   ] = 0,
 	},
 	[ C(OP_WRITE) ] = {
 		/* OFFCORE_RESPONSE.ANY_RFO.LOCAL_CACHE */
@@ -1217,7 +1216,7 @@ static __initconst const u64 slm_hw_cache_event_ids
  [ C(ITLB) ] = {
 	[ C(OP_READ) ] = {
 		[ C(RESULT_ACCESS) ] = 0x00c0, /* INST_RETIRED.ANY_P */
-		[ C(RESULT_MISS)   ] = 0x0282, /* ITLB.MISSES */
+		[ C(RESULT_MISS)   ] = 0x40205, /* PAGE_WALKS.I_SIDE_WALKS */
 	},
 	[ C(OP_WRITE) ] = {
 		[ C(RESULT_ACCESS) ] = -1,

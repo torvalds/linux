@@ -722,6 +722,7 @@ static int __init rapl_pmu_init(void)
 		break;
 	case 60: /* Haswell */
 	case 69: /* Haswell-Celeron */
+	case 61: /* Broadwell */
 		rapl_cntr_mask = RAPL_IDX_HSW;
 		rapl_pmu_events_group.attrs = rapl_events_hsw_attr;
 		break;

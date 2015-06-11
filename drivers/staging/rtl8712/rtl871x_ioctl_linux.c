@@ -1900,23 +1900,20 @@ static int r871x_mp_ioctl_hdl(struct net_device *dev,
 	struct mp_ioctl_handler *phandler;
 	struct mp_ioctl_param *poidparam;
 	unsigned long BytesRead, BytesWritten, BytesNeeded;
-	u8 *pparmbuf = NULL, bset;
+	u8 *pparmbuf, bset;
 	u16 len;
 	uint status;
 	int ret = 0;
 
-	if ((!p->length) || (!p->pointer)) {
-		ret = -EINVAL;
-		goto _r871x_mp_ioctl_hdl_exit;
-	}
+	if ((!p->length) || (!p->pointer))
+		return -EINVAL;
+
 	bset = (u8)(p->flags & 0xFFFF);
 	len = p->length;
-	pparmbuf = NULL;
 	pparmbuf = memdup_user(p->pointer, len);
-	if (IS_ERR(pparmbuf)) {
-		ret = PTR_ERR(pparmbuf);
-		goto _r871x_mp_ioctl_hdl_exit;
-	}
+	if (IS_ERR(pparmbuf))
+		return PTR_ERR(pparmbuf);
+
 	poidparam = (struct mp_ioctl_param *)pparmbuf;
 	if (poidparam->subcode >= MAX_MP_IOCTL_SUBCODE) {
 		ret = -EINVAL;

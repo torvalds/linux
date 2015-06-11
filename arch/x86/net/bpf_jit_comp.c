@@ -559,6 +559,13 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 				if (is_ereg(dst_reg))
 					EMIT1(0x41);
 				EMIT3(0xC1, add_1reg(0xC8, dst_reg), 8);
+
+				/* emit 'movzwl eax, ax' */
+				if (is_ereg(dst_reg))
+					EMIT3(0x45, 0x0F, 0xB7);
+				else
+					EMIT2(0x0F, 0xB7);
+				EMIT1(add_2reg(0xC0, dst_reg, dst_reg));
 				break;
 			case 32:
 				/* emit 'bswap eax' to swap lower 4 bytes */
@@ -577,6 +584,27 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 			break;
 
 		case BPF_ALU | BPF_END | BPF_FROM_LE:
+			switch (imm32) {
+			case 16:
+				/* emit 'movzwl eax, ax' to zero extend 16-bit
+				 * into 64 bit
+				 */
+				if (is_ereg(dst_reg))
+					EMIT3(0x45, 0x0F, 0xB7);
+				else
+					EMIT2(0x0F, 0xB7);
+				EMIT1(add_2reg(0xC0, dst_reg, dst_reg));
+				break;
+			case 32:
+				/* emit 'mov eax, eax' to clear upper 32-bits */
+				if (is_ereg(dst_reg))
+					EMIT1(0x45);
+				EMIT2(0x89, add_2reg(0xC0, dst_reg, dst_reg));
+				break;
+			case 64:
+				/* nop */
+				break;
+			}
 			break;
 
 			/* ST: *(u8*)(dst_reg + off) = imm */

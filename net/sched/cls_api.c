@@ -308,12 +308,11 @@ replay:
 		case RTM_DELTFILTER:
 			err = tp->ops->delete(tp, fh);
 			if (err == 0) {
-				tfilter_notify(net, skb, n, tp, fh, RTM_DELTFILTER);
-				if (tcf_destroy(tp, false)) {
-					struct tcf_proto *next = rtnl_dereference(tp->next);
+				struct tcf_proto *next = rtnl_dereference(tp->next);
 
+				tfilter_notify(net, skb, n, tp, fh, RTM_DELTFILTER);
+				if (tcf_destroy(tp, false))
 					RCU_INIT_POINTER(*back, next);
-				}
 			}
 			goto errout;
 		case RTM_GETTFILTER:
