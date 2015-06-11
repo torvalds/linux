@@ -321,15 +321,10 @@ bnad_debugfs_write_regrd(struct file *file, const char __user *buf,
 	unsigned long flags;
 	void *kern_buf;
 
-	/* Allocate memory to store the user space buf */
-	kern_buf = kzalloc(nbytes, GFP_KERNEL);
-	if (!kern_buf)
-		return -ENOMEM;
-
-	if (copy_from_user(kern_buf, (void  __user *)buf, nbytes)) {
-		kfree(kern_buf);
-		return -ENOMEM;
-	}
+	/* Copy the user space buf */
+	kern_buf = memdup_user(buf, nbytes);
+	if (IS_ERR(kern_buf))
+		return PTR_ERR(kern_buf);
 
 	rc = sscanf(kern_buf, "%x:%x", &addr, &len);
 	if (rc < 2) {
@@ -341,7 +336,6 @@ bnad_debugfs_write_regrd(struct file *file, const char __user *buf,
 
 	kfree(kern_buf);
 	kfree(bnad->regdata);
-	bnad->regdata = NULL;
 	bnad->reglen = 0;
 
 	bnad->regdata = kzalloc(len << 2, GFP_KERNEL);
@@ -388,15 +382,10 @@ bnad_debugfs_write_regwr(struct file *file, const char __user *buf,
 	unsigned long flags;
 	void *kern_buf;
 
-	/* Allocate memory to store the user space buf */
-	kern_buf = kzalloc(nbytes, GFP_KERNEL);
-	if (!kern_buf)
-		return -ENOMEM;
-
-	if (copy_from_user(kern_buf, (void  __user *)buf, nbytes)) {
-		kfree(kern_buf);
-		return -ENOMEM;
-	}
+	/* Copy the user space buf */
+	kern_buf = memdup_user(buf, nbytes);
+	if (IS_ERR(kern_buf))
+		return PTR_ERR(kern_buf);
 
 	rc = sscanf(kern_buf, "%x:%x", &addr, &val);
 	if (rc < 2) {
