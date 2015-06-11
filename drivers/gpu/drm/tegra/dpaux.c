@@ -72,34 +72,32 @@ static inline void tegra_dpaux_writel(struct tegra_dpaux *dpaux,
 static void tegra_dpaux_write_fifo(struct tegra_dpaux *dpaux, const u8 *buffer,
 				   size_t size)
 {
-	unsigned long offset = DPAUX_DP_AUXDATA_WRITE(0);
 	size_t i, j;
 
-	for (i = 0; i < size; i += 4) {
-		size_t num = min_t(size_t, size - i, 4);
+	for (i = 0; i < DIV_ROUND_UP(size, 4); i++) {
+		size_t num = min_t(size_t, size - i * 4, 4);
 		unsigned long value = 0;
 
 		for (j = 0; j < num; j++)
-			value |= buffer[i + j] << (j * 8);
+			value |= buffer[i * 4 + j] << (j * 8);
 
-		tegra_dpaux_writel(dpaux, value, offset++);
+		tegra_dpaux_writel(dpaux, value, DPAUX_DP_AUXDATA_WRITE(i));
 	}
 }
 
 static void tegra_dpaux_read_fifo(struct tegra_dpaux *dpaux, u8 *buffer,
 				  size_t size)
 {
-	unsigned long offset = DPAUX_DP_AUXDATA_READ(0);
 	size_t i, j;
 
-	for (i = 0; i < size; i += 4) {
-		size_t num = min_t(size_t, size - i, 4);
+	for (i = 0; i < DIV_ROUND_UP(size, 4); i++) {
+		size_t num = min_t(size_t, size - i * 4, 4);
 		unsigned long value;
 
-		value = tegra_dpaux_readl(dpaux, offset++);
+		value = tegra_dpaux_readl(dpaux, DPAUX_DP_AUXDATA_READ(i));
 
 		for (j = 0; j < num; j++)
-			buffer[i + j] = value >> (j * 8);
+			buffer[i * 4 + j] = value >> (j * 8);
 	}
 }
 
