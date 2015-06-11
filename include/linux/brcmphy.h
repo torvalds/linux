@@ -1,6 +1,8 @@
 #ifndef _LINUX_BRCMPHY_H
 #define _LINUX_BRCMPHY_H
 
+#include <linux/phy.h>
+
 #define PHY_ID_BCM50610			0x0143bd60
 #define PHY_ID_BCM50610M		0x0143bd70
 #define PHY_ID_BCM5241			0x0143bc30
