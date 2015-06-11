@@ -112,7 +112,7 @@ struct f2fs_crypto_ctx *f2fs_get_crypto_ctx(struct inode *inode)
 	struct f2fs_crypt_info *ci = F2FS_I(inode)->i_crypt_info;
 
 	if (ci == NULL)
-		return ERR_PTR(-EACCES);
+		return ERR_PTR(-ENOKEY);
 
 	/*
 	 * We first try getting the ctx from a free list because in
@@ -457,8 +457,8 @@ int f2fs_decrypt_one(struct inode *inode, struct page *page)
 	struct f2fs_crypto_ctx *ctx = f2fs_get_crypto_ctx(inode);
 	int ret;
 
-	if (!ctx)
-		return -ENOMEM;
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 	ret = f2fs_decrypt(ctx, page);
 	f2fs_release_crypto_ctx(ctx);
 	return ret;
