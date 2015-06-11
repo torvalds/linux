@@ -404,7 +404,7 @@ static int spi_cmd_complete(uint8_t cmd, uint32_t adr, uint8_t *b, uint32_t sz, 
 #undef NUM_DUMMY_BYTES
 
 	if (len2 > (sizeof(wb) / sizeof(wb[0]))) {
-		PRINT_ER("[wilc spi]: spi buffer size too small (%d) (%lu)\n",
+		PRINT_ER("[wilc spi]: spi buffer size too small (%d) (%zu)\n",
 			 len2, (sizeof(wb) / sizeof(wb[0])));
 		result = N_FAIL;
 		return result;
