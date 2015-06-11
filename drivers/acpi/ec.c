@@ -384,7 +384,9 @@ static bool acpi_ec_submit_flushable_request(struct acpi_ec *ec)
 static void acpi_ec_submit_query(struct acpi_ec *ec)
 {
 	if (!test_and_set_bit(EC_FLAGS_QUERY_PENDING, &ec->flags)) {
-		ec_dbg_req("Event started");
+		ec_dbg_evt("Command(%s) submitted/blocked",
+			   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
+		ec->nr_pending_queries++;
 		schedule_work(&ec->work);
 	}
 }
@@ -393,7 +395,8 @@ static void acpi_ec_complete_query(struct acpi_ec *ec)
 {
 	if (test_bit(EC_FLAGS_QUERY_PENDING, &ec->flags)) {
 		clear_bit(EC_FLAGS_QUERY_PENDING, &ec->flags);
-		ec_dbg_req("Event stopped");
+		ec_dbg_evt("Command(%s) unblocked",
+			   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
 	}
 }
 
@@ -460,8 +463,8 @@ static void advance_transaction(struct acpi_ec *ec)
 				if (t->rlen == t->ri) {
 					ec_transaction_transition(ec, ACPI_EC_COMMAND_COMPLETE);
 					if (t->command == ACPI_EC_COMMAND_QUERY)
-						ec_dbg_req("Command(%s) hardware completion",
-							   acpi_ec_cmd_string(t->command));
+						ec_dbg_evt("Command(%s) completed by hardware",
+							   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
 					wakeup = true;
 				}
 			} else
@@ -479,8 +482,8 @@ static void advance_transaction(struct acpi_ec *ec)
 			ec_transaction_transition(ec, ACPI_EC_COMMAND_POLL);
 			t->rdata[t->ri++] = 0x00;
 			ec_transaction_transition(ec, ACPI_EC_COMMAND_COMPLETE);
-			ec_dbg_req("Command(%s) software completion",
-				   acpi_ec_cmd_string(t->command));
+			ec_dbg_evt("Command(%s) completed by software",
+				   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
 			wakeup = true;
 		} else if ((status & ACPI_EC_FLAG_IBF) == 0) {
 			acpi_ec_write_cmd(ec, t->command);
@@ -961,11 +964,23 @@ static int acpi_ec_query(struct acpi_ec *ec, u8 *data)
 	return result;
 }
 
-static void acpi_ec_gpe_poller(struct work_struct *work)
+static void acpi_ec_event_handler(struct work_struct *work)
 {
+	unsigned long flags;
 	struct acpi_ec *ec = container_of(work, struct acpi_ec, work);
 
-	acpi_ec_query(ec, NULL);
+	ec_dbg_evt("Event started");
+
+	spin_lock_irqsave(&ec->lock, flags);
+	while (ec->nr_pending_queries) {
+		spin_unlock_irqrestore(&ec->lock, flags);
+		(void)acpi_ec_query(ec, NULL);
+		spin_lock_irqsave(&ec->lock, flags);
+		ec->nr_pending_queries--;
+	}
+	spin_unlock_irqrestore(&ec->lock, flags);
+
+	ec_dbg_evt("Event stopped");
 }
 
 static u32 acpi_ec_gpe_handler(acpi_handle gpe_device,
@@ -1040,7 +1055,7 @@ static struct acpi_ec *make_acpi_ec(void)
 	init_waitqueue_head(&ec->wait);
 	INIT_LIST_HEAD(&ec->list);
 	spin_lock_init(&ec->lock);
-	INIT_WORK(&ec->work, acpi_ec_gpe_poller);
+	INIT_WORK(&ec->work, acpi_ec_event_handler);
 	ec->timestamp = jiffies;
 	return ec;
 }

@@ -139,6 +139,7 @@ struct acpi_ec {
 	spinlock_t lock;
 	struct work_struct work;
 	unsigned long timestamp;
+	unsigned long nr_pending_queries;
 };
 
 extern struct acpi_ec *first_ec;
