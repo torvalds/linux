@@ -1987,7 +1987,7 @@ static int azx_probe_continue(struct azx *chip)
 
 		err = snd_hdac_i915_init(bus);
 		if (err < 0)
-			goto i915_power_fail;
+			goto skip_i915;
 
 		err = snd_hdac_display_power(bus, true);
 		if (err < 0) {
@@ -1997,6 +1997,7 @@ static int azx_probe_continue(struct azx *chip)
 		}
 	}
 
+ skip_i915:
 	err = azx_first_init(chip);
 	if (err < 0)
 		goto out_free;
