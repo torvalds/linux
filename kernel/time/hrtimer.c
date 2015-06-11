@@ -889,10 +889,10 @@ static void __remove_hrtimer(struct hrtimer *timer,
  * remove hrtimer, called with base lock held
  */
 static inline int
-remove_hrtimer(struct hrtimer *timer, struct hrtimer_clock_base *base)
+remove_hrtimer(struct hrtimer *timer, struct hrtimer_clock_base *base, bool restart)
 {
 	if (hrtimer_is_queued(timer)) {
-		unsigned long state;
+		unsigned long state = timer->state;
 		int reprogram;
 
 		/*
@@ -906,12 +906,15 @@ remove_hrtimer(struct hrtimer *timer, struct hrtimer_clock_base *base)
 		debug_deactivate(timer);
 		timer_stats_hrtimer_clear_start_info(timer);
 		reprogram = base->cpu_base == this_cpu_ptr(&hrtimer_bases);
-		/*
-		 * We must preserve the CALLBACK state flag here,
-		 * otherwise we could move the timer base in
-		 * switch_hrtimer_base.
-		 */
-		state = timer->state & HRTIMER_STATE_CALLBACK;
+
+		if (!restart) {
+			/*
+			 * We must preserve the CALLBACK state flag here,
+			 * otherwise we could move the timer base in
+			 * switch_hrtimer_base.
+			 */
+			state &= HRTIMER_STATE_CALLBACK;
+		}
 		__remove_hrtimer(timer, base, state, reprogram);
 		return 1;
 	}
@@ -936,7 +939,7 @@ void hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 	base = lock_hrtimer_base(timer, &flags);
 
 	/* Remove an active timer from the queue: */
-	remove_hrtimer(timer, base);
+	remove_hrtimer(timer, base, true);
 
 	if (mode & HRTIMER_MODE_REL) {
 		tim = ktime_add_safe(tim, base->get_time());
@@ -1005,7 +1008,7 @@ int hrtimer_try_to_cancel(struct hrtimer *timer)
 	base = lock_hrtimer_base(timer, &flags);
 
 	if (!hrtimer_callback_running(timer))
-		ret = remove_hrtimer(timer, base);
+		ret = remove_hrtimer(timer, base, false);
 
 	unlock_hrtimer_base(timer, &flags);
 
