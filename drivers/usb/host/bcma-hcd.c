@@ -225,7 +225,8 @@ static int bcma_hcd_probe(struct bcma_device *dev)
 	if (dma_set_mask_and_coherent(dev->dma_dev, DMA_BIT_MASK(32)))
 		return -EOPNOTSUPP;
 
-	usb_dev = kzalloc(sizeof(struct bcma_hcd_device), GFP_KERNEL);
+	usb_dev = devm_kzalloc(&dev->dev, sizeof(struct bcma_hcd_device),
+			       GFP_KERNEL);
 	if (!usb_dev)
 		return -ENOMEM;
 
@@ -239,10 +240,8 @@ static int bcma_hcd_probe(struct bcma_device *dev)
 		ohci_addr = 0x18009000;
 
 	usb_dev->ohci_dev = bcma_hcd_create_pdev(dev, true, ohci_addr);
-	if (IS_ERR(usb_dev->ohci_dev)) {
-		err = PTR_ERR(usb_dev->ohci_dev);
-		goto err_free_usb_dev;
-	}
+	if (IS_ERR(usb_dev->ohci_dev))
+		return PTR_ERR(usb_dev->ohci_dev);
 
 	usb_dev->ehci_dev = bcma_hcd_create_pdev(dev, false, dev->addr);
 	if (IS_ERR(usb_dev->ehci_dev)) {
@@ -255,8 +254,6 @@ static int bcma_hcd_probe(struct bcma_device *dev)
 
 err_unregister_ohci_dev:
 	platform_device_unregister(usb_dev->ohci_dev);
-err_free_usb_dev:
-	kfree(usb_dev);
 	return err;
 }
 
