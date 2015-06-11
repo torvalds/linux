@@ -266,13 +266,13 @@ static inline void write_seqcount_end(seqcount_t *s)
 }
 
 /**
- * write_seqcount_barrier - invalidate in-progress read-side seq operations
+ * write_seqcount_invalidate - invalidate in-progress read-side seq operations
  * @s: pointer to seqcount_t
  *
- * After write_seqcount_barrier, no read-side seq operations will complete
+ * After write_seqcount_invalidate, no read-side seq operations will complete
  * successfully and see data older than this.
  */
-static inline void write_seqcount_barrier(seqcount_t *s)
+static inline void write_seqcount_invalidate(seqcount_t *s)
 {
 	smp_wmb();
 	s->sequence+=2;
