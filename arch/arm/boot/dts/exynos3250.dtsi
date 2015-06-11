@@ -189,7 +189,7 @@
 		};
 
 		rtc: rtc@10070000 {
-			compatible = "samsung,exynos3250-rtc";
+			compatible = "samsung,s3c6410-rtc";
 			reg = <0x10070000 0x100>;
 			interrupts = <0 73 0>, <0 74 0>;
 			interrupt-parent = <&pmu_system_controller>;
@@ -241,6 +241,19 @@
 			compatible = "samsung,exynos3250-pinctrl";
 			reg = <0x11400000 0x1000>;
 			interrupts = <0 240 0>;
+		};
+
+		jpeg: codec@11830000 {
+			compatible = "samsung,exynos3250-jpeg";
+			reg = <0x11830000 0x1000>;
+			interrupts = <0 171 0>;
+			clocks = <&cmu CLK_JPEG>, <&cmu CLK_SCLK_JPEG>;
+			clock-names = "jpeg", "sclk";
+			power-domains = <&pd_cam>;
+			assigned-clocks = <&cmu CLK_MOUT_CAM_BLK>, <&cmu CLK_SCLK_JPEG>;
+			assigned-clock-rates = <0>, <150000000>;
+			assigned-clock-parents = <&cmu CLK_DIV_MPLL_PRE>;
+			status = "disabled";
 		};
 
 		fimd: fimd@11c00000 {
