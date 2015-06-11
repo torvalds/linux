@@ -31,6 +31,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/skbuff.h>
+#include <linux/tty.h>
 
 #include <net/nfc/nfc.h>
 #include <net/nfc/nci.h>
@@ -390,5 +391,51 @@ int nci_spi_send(struct nci_spi *nspi,
 		 struct completion *write_handshake_completion,
 		 struct sk_buff *skb);
 struct sk_buff *nci_spi_read(struct nci_spi *nspi);
+
+/* ----- NCI UART ---- */
+
+/* Ioctl */
+#define NCIUARTSETDRIVER	_IOW('U', 0, char *)
+
+enum nci_uart_driver {
+	NCI_UART_DRIVER_MARVELL = 0,
+	NCI_UART_DRIVER_MAX
+};
+
+struct nci_uart;
+
+struct nci_uart_ops {
+	int (*open)(struct nci_uart *nci_uart);
+	void (*close)(struct nci_uart *nci_uart);
+	int (*recv)(struct nci_uart *nci_uart, struct sk_buff *skb);
+	int (*recv_buf)(struct nci_uart *nci_uart, const u8 *data, char *flags,
+			int count);
+	int (*send)(struct nci_uart *nci_uart, struct sk_buff *skb);
+	void (*tx_start)(struct nci_uart *nci_uart);
+	void (*tx_done)(struct nci_uart *nci_uart);
+};
+
+struct nci_uart {
+	struct module		*owner;
+	struct nci_uart_ops	ops;
+	const char		*name;
+	enum nci_uart_driver	driver;
+
+	/* Dynamic data */
+	struct nci_dev		*ndev;
+	spinlock_t		rx_lock;
+	struct work_struct	write_work;
+	struct tty_struct	*tty;
+	unsigned long		tx_state;
+	struct sk_buff_head	tx_q;
+	struct sk_buff		*tx_skb;
+	struct sk_buff		*rx_skb;
+	int			rx_packet_len;
+	void			*drv_data;
+};
+
+int nci_uart_register(struct nci_uart *nu);
+void nci_uart_unregister(struct nci_uart *nu);
+void nci_uart_set_config(struct nci_uart *nu, int baudrate, int flow_ctrl);
 
 #endif /* __NCI_CORE_H */
