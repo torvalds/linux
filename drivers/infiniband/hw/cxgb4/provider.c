@@ -302,12 +302,16 @@ static int c4iw_query_gid(struct ib_device *ibdev, u8 port, int index,
 	return 0;
 }
 
-static int c4iw_query_device(struct ib_device *ibdev,
-			     struct ib_device_attr *props)
+static int c4iw_query_device(struct ib_device *ibdev, struct ib_device_attr *props,
+			     struct ib_udata *uhw)
 {
 
 	struct c4iw_dev *dev;
+
 	PDBG("%s ibdev %p\n", __func__, ibdev);
+
+	if (uhw->inlen || uhw->outlen)
+		return -EINVAL;
 
 	dev = to_c4iw_dev(ibdev);
 	memset(props, 0, sizeof *props);

@@ -1550,12 +1550,14 @@ full:
 	}
 }
 
-static int qib_query_device(struct ib_device *ibdev,
-			    struct ib_device_attr *props)
+static int qib_query_device(struct ib_device *ibdev, struct ib_device_attr *props,
+			    struct ib_udata *uhw)
 {
 	struct qib_devdata *dd = dd_from_ibdev(ibdev);
 	struct qib_ibdev *dev = to_idev(ibdev);
 
+	if (uhw->inlen || uhw->outlen)
+		return -EINVAL;
 	memset(props, 0, sizeof(*props));
 
 	props->device_cap_flags = IB_DEVICE_BAD_PKEY_CNTR |

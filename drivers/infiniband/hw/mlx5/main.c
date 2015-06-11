@@ -63,7 +63,8 @@ static char mlx5_version[] =
 	DRIVER_VERSION " (" DRIVER_RELDATE ")\n";
 
 static int mlx5_ib_query_device(struct ib_device *ibdev,
-				struct ib_device_attr *props)
+				struct ib_device_attr *props,
+				struct ib_udata *uhw)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 	struct ib_smp *in_mad  = NULL;
@@ -73,6 +74,9 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	int max_rq_sg;
 	int max_sq_sg;
 	u64 flags;
+
+	if (uhw->inlen || uhw->outlen)
+		return -EINVAL;
 
 	gen = &dev->mdev->caps.gen;
 	in_mad  = kzalloc(sizeof(*in_mad), GFP_KERNEL);
@@ -910,6 +914,7 @@ static int get_port_caps(struct mlx5_ib_dev *dev)
 	struct mlx5_general_caps *gen;
 	int err = -ENOMEM;
 	int port;
+	struct ib_udata uhw = {.inlen = 0, .outlen = 0};
 
 	gen = &dev->mdev->caps.gen;
 	pprops = kmalloc(sizeof(*pprops), GFP_KERNEL);
@@ -920,7 +925,7 @@ static int get_port_caps(struct mlx5_ib_dev *dev)
 	if (!dprops)
 		goto out;
 
-	err = mlx5_ib_query_device(&dev->ib_dev, dprops);
+	err = mlx5_ib_query_device(&dev->ib_dev, dprops, &uhw);
 	if (err) {
 		mlx5_ib_warn(dev, "query_device failed %d\n", err);
 		goto out;

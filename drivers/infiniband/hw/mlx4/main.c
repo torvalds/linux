@@ -132,13 +132,17 @@ static int num_ib_ports(struct mlx4_dev *dev)
 }
 
 static int mlx4_ib_query_device(struct ib_device *ibdev,
-				struct ib_device_attr *props)
+				struct ib_device_attr *props,
+				struct ib_udata *uhw)
 {
 	struct mlx4_ib_dev *dev = to_mdev(ibdev);
 	struct ib_smp *in_mad  = NULL;
 	struct ib_smp *out_mad = NULL;
 	int err = -ENOMEM;
 	int have_ib_ports;
+
+	if (uhw->inlen || uhw->outlen)
+		return -EINVAL;
 
 	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
 	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);

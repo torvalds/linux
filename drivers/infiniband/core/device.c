@@ -539,9 +539,11 @@ EXPORT_SYMBOL(ib_dispatch_event);
 int ib_query_device(struct ib_device *device,
 		    struct ib_device_attr *device_attr)
 {
+	struct ib_udata uhw = {.outlen = 0, .inlen = 0};
+
 	memset(device_attr, 0, sizeof(*device_attr));
 
-	return device->query_device(device, device_attr);
+	return device->query_device(device, device_attr, &uhw);
 }
 EXPORT_SYMBOL(ib_query_device);
 

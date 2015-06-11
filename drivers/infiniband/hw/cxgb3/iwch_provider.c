@@ -1150,12 +1150,16 @@ static u64 fw_vers_string_to_u64(struct iwch_dev *iwch_dev)
 	       (fw_mic & 0xffff);
 }
 
-static int iwch_query_device(struct ib_device *ibdev,
-			     struct ib_device_attr *props)
+static int iwch_query_device(struct ib_device *ibdev, struct ib_device_attr *props,
+			     struct ib_udata *uhw)
 {
 
 	struct iwch_dev *dev;
+
 	PDBG("%s ibdev %p\n", __func__, ibdev);
+
+	if (uhw->inlen || uhw->outlen)
+		return -EINVAL;
 
 	dev = to_iwch_dev(ibdev);
 	memset(props, 0, sizeof *props);

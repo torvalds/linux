@@ -63,12 +63,15 @@
 #include "c2_provider.h"
 #include "c2_user.h"
 
-static int c2_query_device(struct ib_device *ibdev,
-			   struct ib_device_attr *props)
+static int c2_query_device(struct ib_device *ibdev, struct ib_device_attr *props,
+			   struct ib_udata *uhw)
 {
 	struct c2_dev *c2dev = to_c2dev(ibdev);
 
 	pr_debug("%s:%u\n", __func__, __LINE__);
+
+	if (uhw->inlen || uhw->outlen)
+		return -EINVAL;
 
 	*props = c2dev->props;
 	return 0;

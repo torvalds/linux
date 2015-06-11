@@ -57,13 +57,16 @@ static void init_query_mad(struct ib_smp *mad)
 	mad->method    	   = IB_MGMT_METHOD_GET;
 }
 
-static int mthca_query_device(struct ib_device *ibdev,
-			      struct ib_device_attr *props)
+static int mthca_query_device(struct ib_device *ibdev, struct ib_device_attr *props,
+			      struct ib_udata *uhw)
 {
 	struct ib_smp *in_mad  = NULL;
 	struct ib_smp *out_mad = NULL;
 	int err = -ENOMEM;
 	struct mthca_dev *mdev = to_mdev(ibdev);
+
+	if (uhw->inlen || uhw->outlen)
+		return -EINVAL;
 
 	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
 	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);

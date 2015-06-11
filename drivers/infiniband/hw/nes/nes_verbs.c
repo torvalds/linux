@@ -512,11 +512,15 @@ static void nes_free_fast_reg_page_list(struct ib_fast_reg_page_list *pifrpl)
 /**
  * nes_query_device
  */
-static int nes_query_device(struct ib_device *ibdev, struct ib_device_attr *props)
+static int nes_query_device(struct ib_device *ibdev, struct ib_device_attr *props,
+			    struct ib_udata *uhw)
 {
 	struct nes_vnic *nesvnic = to_nesvnic(ibdev);
 	struct nes_device *nesdev = nesvnic->nesdev;
 	struct nes_ib_device *nesibdev = nesvnic->nesibdev;
+
+	if (uhw->inlen || uhw->outlen)
+		return -EINVAL;
 
 	memset(props, 0, sizeof(*props));
 	memcpy(&props->sys_image_guid, nesvnic->netdev->dev_addr, 6);

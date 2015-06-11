@@ -1495,10 +1495,13 @@ bail:
 	return 0;
 }
 
-static int ipath_query_device(struct ib_device *ibdev,
-			      struct ib_device_attr *props)
+static int ipath_query_device(struct ib_device *ibdev, struct ib_device_attr *props,
+			      struct ib_udata *uhw)
 {
 	struct ipath_ibdev *dev = to_idev(ibdev);
+
+	if (uhw->inlen || uhw->outlen)
+		return -EINVAL;
 
 	memset(props, 0, sizeof(*props));
 

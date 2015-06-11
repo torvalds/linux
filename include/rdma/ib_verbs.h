@@ -1561,7 +1561,8 @@ struct ib_device {
 	int		           (*get_protocol_stats)(struct ib_device *device,
 							 union rdma_protocol_stats *stats);
 	int		           (*query_device)(struct ib_device *device,
-						   struct ib_device_attr *device_attr);
+						   struct ib_device_attr *device_attr,
+						   struct ib_udata *udata);
 	int		           (*query_port)(struct ib_device *device,
 						 u8 port_num,
 						 struct ib_port_attr *port_attr);

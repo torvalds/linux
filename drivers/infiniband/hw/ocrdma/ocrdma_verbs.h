@@ -36,7 +36,8 @@ int ocrdma_post_recv(struct ib_qp *, struct ib_recv_wr *,
 int ocrdma_poll_cq(struct ib_cq *, int num_entries, struct ib_wc *wc);
 int ocrdma_arm_cq(struct ib_cq *, enum ib_cq_notify_flags flags);
 
-int ocrdma_query_device(struct ib_device *, struct ib_device_attr *props);
+int ocrdma_query_device(struct ib_device *, struct ib_device_attr *props,
+			struct ib_udata *uhw);
 int ocrdma_query_port(struct ib_device *, u8 port, struct ib_port_attr *props);
 int ocrdma_modify_port(struct ib_device *, u8 port, int mask,
 		       struct ib_port_modify *props);

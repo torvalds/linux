@@ -3428,7 +3428,7 @@ int ib_uverbs_ex_query_device(struct ib_uverbs_file *file,
 
 	memset(&attr, 0, sizeof(attr));
 
-	err = device->query_device(device, &attr);
+	err = device->query_device(device, &attr, uhw);
 	if (err)
 		return err;
 
