@@ -13,9 +13,6 @@
 /* OS Wrapper interface version */
 #define WILC_OSW_INTERFACE_VER 2
 
-/* Integer Types */
-typedef signed long long WILC_Sint64;
-
 /* Boolean type */
 typedef enum {
 	WILC_FALSE = 0,
