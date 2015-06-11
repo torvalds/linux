@@ -656,7 +656,7 @@ static int sanitise_afu_regs(struct cxl_afu *afu)
 	 */
 	reg = cxl_p2n_read(afu, CXL_AFU_Cntl_An);
 	if ((reg & CXL_AFU_Cntl_An_ES_MASK) != CXL_AFU_Cntl_An_ES_Disabled) {
-		dev_warn(&afu->dev, "WARNING: AFU was not disabled: %#.16llx\n", reg);
+		dev_warn(&afu->dev, "WARNING: AFU was not disabled: %#016llx\n", reg);
 		if (__cxl_afu_reset(afu))
 			return -EIO;
 		if (cxl_afu_disable(afu))
@@ -677,7 +677,7 @@ static int sanitise_afu_regs(struct cxl_afu *afu)
 	cxl_p2n_write(afu, CXL_SSTP0_An, 0x0000000000000000);
 	reg = cxl_p2n_read(afu, CXL_PSL_DSISR_An);
 	if (reg) {
-		dev_warn(&afu->dev, "AFU had pending DSISR: %#.16llx\n", reg);
+		dev_warn(&afu->dev, "AFU had pending DSISR: %#016llx\n", reg);
 		if (reg & CXL_PSL_DSISR_TRANS)
 			cxl_p2n_write(afu, CXL_PSL_TFC_An, CXL_PSL_TFC_An_AE);
 		else
@@ -686,12 +686,12 @@ static int sanitise_afu_regs(struct cxl_afu *afu)
 	reg = cxl_p1n_read(afu, CXL_PSL_SERR_An);
 	if (reg) {
 		if (reg & ~0xffff)
-			dev_warn(&afu->dev, "AFU had pending SERR: %#.16llx\n", reg);
+			dev_warn(&afu->dev, "AFU had pending SERR: %#016llx\n", reg);
 		cxl_p1n_write(afu, CXL_PSL_SERR_An, reg & ~0xffff);
 	}
 	reg = cxl_p2n_read(afu, CXL_PSL_ErrStat_An);
 	if (reg) {
-		dev_warn(&afu->dev, "AFU had pending error status: %#.16llx\n", reg);
+		dev_warn(&afu->dev, "AFU had pending error status: %#016llx\n", reg);
 		cxl_p2n_write(afu, CXL_PSL_ErrStat_An, reg);
 	}
 
@@ -893,7 +893,7 @@ static int cxl_map_adapter_regs(struct cxl *adapter, struct pci_dev *dev)
 	if (pci_request_region(dev, 0, "priv 1 regs"))
 		goto err2;
 
-	pr_devel("cxl_map_adapter_regs: p1: %#.16llx %#llx, p2: %#.16llx %#llx",
+	pr_devel("cxl_map_adapter_regs: p1: %#016llx %#llx, p2: %#016llx %#llx",
 			p1_base(dev), p1_size(dev), p2_base(dev), p2_size(dev));
 
 	if (!(adapter->p1_mmio = ioremap(p1_base(dev), p1_size(dev))))

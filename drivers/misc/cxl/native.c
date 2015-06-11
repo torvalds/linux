@@ -41,7 +41,7 @@ static int afu_control(struct cxl_afu *afu, u64 command,
 			rc = -EBUSY;
 			goto out;
 		}
-		pr_devel_ratelimited("AFU control... (0x%.16llx)\n",
+		pr_devel_ratelimited("AFU control... (0x%016llx)\n",
 				     AFU_Cntl | command);
 		cpu_relax();
 		AFU_Cntl = cxl_p2n_read(afu, CXL_AFU_Cntl_An);
@@ -120,13 +120,13 @@ int cxl_psl_purge(struct cxl_afu *afu)
 			goto out;
 		}
 		dsisr = cxl_p2n_read(afu, CXL_PSL_DSISR_An);
-		pr_devel_ratelimited("PSL purging... PSL_CNTL: 0x%.16llx  PSL_DSISR: 0x%.16llx\n", PSL_CNTL, dsisr);
+		pr_devel_ratelimited("PSL purging... PSL_CNTL: 0x%016llx  PSL_DSISR: 0x%016llx\n", PSL_CNTL, dsisr);
 		if (dsisr & CXL_PSL_DSISR_TRANS) {
 			dar = cxl_p2n_read(afu, CXL_PSL_DAR_An);
-			dev_notice(&afu->dev, "PSL purge terminating pending translation, DSISR: 0x%.16llx, DAR: 0x%.16llx\n", dsisr, dar);
+			dev_notice(&afu->dev, "PSL purge terminating pending translation, DSISR: 0x%016llx, DAR: 0x%016llx\n", dsisr, dar);
 			cxl_p2n_write(afu, CXL_PSL_TFC_An, CXL_PSL_TFC_An_AE);
 		} else if (dsisr) {
-			dev_notice(&afu->dev, "PSL purge acknowledging pending non-translation fault, DSISR: 0x%.16llx\n", dsisr);
+			dev_notice(&afu->dev, "PSL purge acknowledging pending non-translation fault, DSISR: 0x%016llx\n", dsisr);
 			cxl_p2n_write(afu, CXL_PSL_TFC_An, CXL_PSL_TFC_An_A);
 		} else {
 			cpu_relax();
@@ -684,7 +684,7 @@ static void recover_psl_err(struct cxl_afu *afu, u64 errstat)
 {
 	u64 dsisr;
 
-	pr_devel("RECOVERING FROM PSL ERROR... (0x%.16llx)\n", errstat);
+	pr_devel("RECOVERING FROM PSL ERROR... (0x%016llx)\n", errstat);
 
 	/* Clear PSL_DSISR[PE] */
 	dsisr = cxl_p2n_read(afu, CXL_PSL_DSISR_An);

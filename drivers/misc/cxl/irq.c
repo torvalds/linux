@@ -30,12 +30,12 @@ static irqreturn_t handle_psl_slice_error(struct cxl_context *ctx, u64 dsisr, u6
 	serr = cxl_p1n_read(ctx->afu, CXL_PSL_SERR_An);
 	afu_debug = cxl_p1n_read(ctx->afu, CXL_AFU_DEBUG_An);
 
-	dev_crit(&ctx->afu->dev, "PSL ERROR STATUS: 0x%.16llx\n", errstat);
-	dev_crit(&ctx->afu->dev, "PSL_FIR1: 0x%.16llx\n", fir1);
-	dev_crit(&ctx->afu->dev, "PSL_FIR2: 0x%.16llx\n", fir2);
-	dev_crit(&ctx->afu->dev, "PSL_SERR_An: 0x%.16llx\n", serr);
-	dev_crit(&ctx->afu->dev, "PSL_FIR_SLICE_An: 0x%.16llx\n", fir_slice);
-	dev_crit(&ctx->afu->dev, "CXL_PSL_AFU_DEBUG_An: 0x%.16llx\n", afu_debug);
+	dev_crit(&ctx->afu->dev, "PSL ERROR STATUS: 0x%016llx\n", errstat);
+	dev_crit(&ctx->afu->dev, "PSL_FIR1: 0x%016llx\n", fir1);
+	dev_crit(&ctx->afu->dev, "PSL_FIR2: 0x%016llx\n", fir2);
+	dev_crit(&ctx->afu->dev, "PSL_SERR_An: 0x%016llx\n", serr);
+	dev_crit(&ctx->afu->dev, "PSL_FIR_SLICE_An: 0x%016llx\n", fir_slice);
+	dev_crit(&ctx->afu->dev, "CXL_PSL_AFU_DEBUG_An: 0x%016llx\n", afu_debug);
 
 	dev_crit(&ctx->afu->dev, "STOPPING CXL TRACE\n");
 	cxl_stop_trace(ctx->afu->adapter);
@@ -54,10 +54,10 @@ irqreturn_t cxl_slice_irq_err(int irq, void *data)
 	fir_slice = cxl_p1n_read(afu, CXL_PSL_FIR_SLICE_An);
 	errstat = cxl_p2n_read(afu, CXL_PSL_ErrStat_An);
 	afu_debug = cxl_p1n_read(afu, CXL_AFU_DEBUG_An);
-	dev_crit(&afu->dev, "PSL_SERR_An: 0x%.16llx\n", serr);
-	dev_crit(&afu->dev, "PSL_FIR_SLICE_An: 0x%.16llx\n", fir_slice);
-	dev_crit(&afu->dev, "CXL_PSL_ErrStat_An: 0x%.16llx\n", errstat);
-	dev_crit(&afu->dev, "CXL_PSL_AFU_DEBUG_An: 0x%.16llx\n", afu_debug);
+	dev_crit(&afu->dev, "PSL_SERR_An: 0x%016llx\n", serr);
+	dev_crit(&afu->dev, "PSL_FIR_SLICE_An: 0x%016llx\n", fir_slice);
+	dev_crit(&afu->dev, "CXL_PSL_ErrStat_An: 0x%016llx\n", errstat);
+	dev_crit(&afu->dev, "CXL_PSL_AFU_DEBUG_An: 0x%016llx\n", afu_debug);
 
 	cxl_p1n_write(afu, CXL_PSL_SERR_An, serr);
 
@@ -72,7 +72,7 @@ static irqreturn_t cxl_irq_err(int irq, void *data)
 	WARN(1, "CXL ERROR interrupt %i\n", irq);
 
 	err_ivte = cxl_p1_read(adapter, CXL_PSL_ErrIVTE);
-	dev_crit(&adapter->dev, "PSL_ErrIVTE: 0x%.16llx\n", err_ivte);
+	dev_crit(&adapter->dev, "PSL_ErrIVTE: 0x%016llx\n", err_ivte);
 
 	dev_crit(&adapter->dev, "STOPPING CXL TRACE\n");
 	cxl_stop_trace(adapter);
@@ -80,7 +80,7 @@ static irqreturn_t cxl_irq_err(int irq, void *data)
 	fir1 = cxl_p1_read(adapter, CXL_PSL_FIR1);
 	fir2 = cxl_p1_read(adapter, CXL_PSL_FIR2);
 
-	dev_crit(&adapter->dev, "PSL_FIR1: 0x%.16llx\nPSL_FIR2: 0x%.16llx\n", fir1, fir2);
+	dev_crit(&adapter->dev, "PSL_FIR1: 0x%016llx\nPSL_FIR2: 0x%016llx\n", fir1, fir2);
 
 	return IRQ_HANDLED;
 }
@@ -147,7 +147,7 @@ static irqreturn_t cxl_irq(int irq, void *data, struct cxl_irq_info *irq_info)
 	if (dsisr & CXL_PSL_DSISR_An_PE)
 		return handle_psl_slice_error(ctx, dsisr, irq_info->errstat);
 	if (dsisr & CXL_PSL_DSISR_An_AE) {
-		pr_devel("CXL interrupt: AFU Error 0x%.16llx\n", irq_info->afu_err);
+		pr_devel("CXL interrupt: AFU Error 0x%016llx\n", irq_info->afu_err);
 
 		if (ctx->pending_afu_err) {
 			/*
@@ -158,7 +158,7 @@ static irqreturn_t cxl_irq(int irq, void *data, struct cxl_irq_info *irq_info)
 			 * probably best that we log them somewhere:
 			 */
 			dev_err_ratelimited(&ctx->afu->dev, "CXL AFU Error "
-					    "undelivered to pe %i: 0x%.16llx\n",
+					    "undelivered to pe %i: 0x%016llx\n",
 					    ctx->pe, irq_info->afu_err);
 		} else {
 			spin_lock(&ctx->lock);
@@ -211,8 +211,8 @@ static irqreturn_t cxl_irq_multiplexed(int irq, void *data)
 	}
 	rcu_read_unlock();
 
-	WARN(1, "Unable to demultiplex CXL PSL IRQ for PE %i DSISR %.16llx DAR"
-		" %.16llx\n(Possible AFU HW issue - was a term/remove acked"
+	WARN(1, "Unable to demultiplex CXL PSL IRQ for PE %i DSISR %016llx DAR"
+		" %016llx\n(Possible AFU HW issue - was a term/remove acked"
 		" with outstanding transactions?)\n", ph, irq_info.dsisr,
 		irq_info.dar);
 	return fail_psl_irq(afu, &irq_info);
