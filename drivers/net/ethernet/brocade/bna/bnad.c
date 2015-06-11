@@ -57,7 +57,8 @@ static u32 bnad_rxqs_per_cq = 2;
 static u32 bna_id;
 static struct mutex bnad_list_mutex;
 static LIST_HEAD(bnad_list);
-static const u8 bnad_bcast_addr[] =  {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+static const u8 bnad_bcast_addr[] __aligned(2) =
+	{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 /*
  * Local MACROS
@@ -875,9 +876,9 @@ bnad_set_netdev_perm_addr(struct bnad *bnad)
 {
 	struct net_device *netdev = bnad->netdev;
 
-	memcpy(netdev->perm_addr, &bnad->perm_addr, netdev->addr_len);
+	ether_addr_copy(netdev->perm_addr, bnad->perm_addr.mac);
 	if (is_zero_ether_addr(netdev->dev_addr))
-		memcpy(netdev->dev_addr, &bnad->perm_addr, netdev->addr_len);
+		ether_addr_copy(netdev->dev_addr, bnad->perm_addr.mac);
 }
 
 /* Control Path Handlers */
@@ -1862,8 +1863,7 @@ bnad_netdev_mc_list_get(struct net_device *netdev, u8 *mc_list)
 	struct netdev_hw_addr *mc_addr;
 
 	netdev_for_each_mc_addr(mc_addr, netdev) {
-		memcpy(&mc_list[i * ETH_ALEN], &mc_addr->addr[0],
-							ETH_ALEN);
+		ether_addr_copy(&mc_list[i * ETH_ALEN], &mc_addr->addr[0]);
 		i++;
 	}
 }
@@ -3141,8 +3141,7 @@ bnad_set_rx_ucast_fltr(struct bnad *bnad)
 
 	entry = 0;
 	netdev_for_each_uc_addr(ha, netdev) {
-		memcpy(&mac_list[entry * ETH_ALEN],
-		       &ha->addr[0], ETH_ALEN);
+		ether_addr_copy(&mac_list[entry * ETH_ALEN], &ha->addr[0]);
 		entry++;
 	}
 
@@ -3183,7 +3182,7 @@ bnad_set_rx_mcast_fltr(struct bnad *bnad)
 	if (mac_list == NULL)
 		goto mode_allmulti;
 
-	memcpy(&mac_list[0], &bnad_bcast_addr[0], ETH_ALEN);
+	ether_addr_copy(&mac_list[0], &bnad_bcast_addr[0]);
 
 	/* copy rest of the MCAST addresses */
 	bnad_netdev_mc_list_get(netdev, mac_list);
@@ -3248,19 +3247,18 @@ bnad_set_rx_mode(struct net_device *netdev)
  * in a non-blocking context.
  */
 static int
-bnad_set_mac_address(struct net_device *netdev, void *mac_addr)
+bnad_set_mac_address(struct net_device *netdev, void *addr)
 {
 	int err;
 	struct bnad *bnad = netdev_priv(netdev);
-	struct sockaddr *sa = (struct sockaddr *)mac_addr;
+	struct sockaddr *sa = (struct sockaddr *)addr;
 	unsigned long flags;
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
 
 	err = bnad_mac_addr_set_locked(bnad, sa->sa_data);
-
 	if (!err)
-		memcpy(netdev->dev_addr, sa->sa_data, netdev->addr_len);
+		ether_addr_copy(netdev->dev_addr, sa->sa_data);
 
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 

@@ -876,7 +876,7 @@ bna_rx_ucast_set(struct bna_rx *rx, u8 *ucmac,
 		bfa_q_qe_init(&rxf->ucast_pending_mac->qe);
 	}
 
-	memcpy(rxf->ucast_pending_mac->addr, ucmac, ETH_ALEN);
+	ether_addr_copy(rxf->ucast_pending_mac->addr, ucmac);
 	rxf->ucast_pending_set = 1;
 	rxf->cam_fltr_cbfn = cbfn;
 	rxf->cam_fltr_cbarg = rx->bna->bnad;
@@ -905,7 +905,7 @@ bna_rx_mcast_add(struct bna_rx *rx, u8 *addr,
 	if (mac == NULL)
 		return BNA_CB_MCAST_LIST_FULL;
 	bfa_q_qe_init(&mac->qe);
-	memcpy(mac->addr, addr, ETH_ALEN);
+	ether_addr_copy(mac->addr, addr);
 	list_add_tail(&mac->qe, &rxf->mcast_pending_add_q);
 
 	rxf->cam_fltr_cbfn = cbfn;
@@ -955,7 +955,7 @@ bna_rx_ucast_listset(struct bna_rx *rx, int count, u8 *uclist,
 		if (mac == NULL)
 			goto err_return;
 		bfa_q_qe_init(&mac->qe);
-		memcpy(mac->addr, mcaddr, ETH_ALEN);
+		ether_addr_copy(mac->addr, mcaddr);
 		list_add_tail(&mac->qe, &list_head);
 		mcaddr += ETH_ALEN;
 	}
@@ -1026,7 +1026,7 @@ bna_rx_mcast_listset(struct bna_rx *rx, int count, u8 *mclist,
 		if (mac == NULL)
 			goto err_return;
 		bfa_q_qe_init(&mac->qe);
-		memcpy(mac->addr, mcaddr, ETH_ALEN);
+		ether_addr_copy(mac->addr, mcaddr);
 		list_add_tail(&mac->qe, &list_head);
 
 		mcaddr += ETH_ALEN;
@@ -1149,8 +1149,8 @@ bna_rxf_ucast_cfg_apply(struct bna_rxf *rxf)
 	/* Set default unicast MAC */
 	if (rxf->ucast_pending_set) {
 		rxf->ucast_pending_set = 0;
-		memcpy(rxf->ucast_active_mac.addr,
-			rxf->ucast_pending_mac->addr, ETH_ALEN);
+		ether_addr_copy(rxf->ucast_active_mac.addr,
+				rxf->ucast_pending_mac->addr);
 		rxf->ucast_active_set = 1;
 		bna_bfi_ucast_req(rxf, &rxf->ucast_active_mac,
 			BFI_ENET_H2I_MAC_UCAST_SET_REQ);
