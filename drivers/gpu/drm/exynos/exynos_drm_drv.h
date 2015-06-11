@@ -295,15 +295,6 @@ int exynos_drm_device_subdrv_remove(struct drm_device *dev);
 int exynos_drm_subdrv_open(struct drm_device *dev, struct drm_file *file);
 void exynos_drm_subdrv_close(struct drm_device *dev, struct drm_file *file);
 
-#ifdef CONFIG_DRM_EXYNOS_IPP
-int exynos_platform_device_ipp_register(void);
-void exynos_platform_device_ipp_unregister(void);
-#else
-static inline int exynos_platform_device_ipp_register(void) { return 0; }
-static inline void exynos_platform_device_ipp_unregister(void) {}
-#endif
-
-
 #ifdef CONFIG_DRM_EXYNOS_DPI
 struct exynos_drm_display * exynos_dpi_probe(struct device *dev);
 int exynos_dpi_remove(struct exynos_drm_display *display);
@@ -314,14 +305,6 @@ static inline int exynos_dpi_remove(struct exynos_drm_display *display)
 {
 	return 0;
 }
-#endif
-
-#ifdef CONFIG_DRM_EXYNOS_VIDI
-int exynos_drm_probe_vidi(void);
-void exynos_drm_remove_vidi(void);
-#else
-static inline int exynos_drm_probe_vidi(void) { return 0; }
-static inline void exynos_drm_remove_vidi(void) {}
 #endif
 
 /* This function creates a encoder and a connector, and initializes them. */

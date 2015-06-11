@@ -569,38 +569,3 @@ struct platform_driver vidi_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
-
-int exynos_drm_probe_vidi(void)
-{
-	struct platform_device *pdev;
-	int ret;
-
-	pdev = platform_device_register_simple("exynos-drm-vidi", -1, NULL, 0);
-	if (IS_ERR(pdev))
-		return PTR_ERR(pdev);
-
-	ret = platform_driver_register(&vidi_driver);
-	if (ret) {
-		platform_device_unregister(pdev);
-		return ret;
-	}
-
-	return ret;
-}
-
-static int exynos_drm_remove_vidi_device(struct device *dev, void *data)
-{
-	platform_device_unregister(to_platform_device(dev));
-
-	return 0;
-}
-
-void exynos_drm_remove_vidi(void)
-{
-	int ret = driver_for_each_device(&vidi_driver.driver, NULL, NULL,
-					 exynos_drm_remove_vidi_device);
-	/* silence compiler warning */
-	(void)ret;
-
-	platform_driver_unregister(&vidi_driver);
-}
