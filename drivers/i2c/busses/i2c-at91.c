@@ -232,7 +232,7 @@ static void at91_twi_dma_cleanup(struct at91_twi_dev *dev)
 
 static void at91_twi_write_next_byte(struct at91_twi_dev *dev)
 {
-	if (dev->buf_len <= 0)
+	if (!dev->buf_len)
 		return;
 
 	/* 8bit write works with and without FIFO */
@@ -275,7 +275,7 @@ static void at91_twi_write_data_dma(struct at91_twi_dev *dev)
 	struct dma_chan *chan_tx = dma->chan_tx;
 	unsigned int sg_len = 1;
 
-	if (dev->buf_len <= 0)
+	if (!dev->buf_len)
 		return;
 
 	dma->direction = DMA_TO_DEVICE;
@@ -347,7 +347,7 @@ error:
 
 static void at91_twi_read_next_byte(struct at91_twi_dev *dev)
 {
-	if (dev->buf_len <= 0)
+	if (!dev->buf_len)
 		return;
 
 	/* 8bit read works with and without FIFO */
