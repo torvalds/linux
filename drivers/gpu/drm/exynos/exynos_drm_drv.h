@@ -25,13 +25,6 @@
 #define to_exynos_crtc(x)	container_of(x, struct exynos_drm_crtc, base)
 #define to_exynos_plane(x)	container_of(x, struct exynos_drm_plane, base)
 
-/* This enumerates device type. */
-enum exynos_drm_device_type {
-	EXYNOS_DEVICE_TYPE_NONE,
-	EXYNOS_DEVICE_TYPE_CRTC,
-	EXYNOS_DEVICE_TYPE_CONNECTOR,
-};
-
 /* this enumerates display type. */
 enum exynos_drm_output_type {
 	EXYNOS_DISPLAY_TYPE_NONE,
@@ -310,13 +303,6 @@ static inline int exynos_dpi_remove(struct exynos_drm_display *display)
 /* This function creates a encoder and a connector, and initializes them. */
 int exynos_drm_create_enc_conn(struct drm_device *dev,
 				struct exynos_drm_display *display);
-
-int exynos_drm_component_add(struct device *dev,
-				enum exynos_drm_device_type dev_type,
-				enum exynos_drm_output_type out_type);
-
-void exynos_drm_component_del(struct device *dev,
-				enum exynos_drm_device_type dev_type);
 
 extern struct platform_driver fimd_driver;
 extern struct platform_driver decon_driver;

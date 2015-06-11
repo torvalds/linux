@@ -789,11 +789,6 @@ static int decon_probe(struct platform_device *pdev)
 	if (!ctx)
 		return -ENOMEM;
 
-	ret = exynos_drm_component_add(dev, EXYNOS_DEVICE_TYPE_CRTC,
-					EXYNOS_DISPLAY_TYPE_LCD);
-	if (ret)
-		return ret;
-
 	ctx->dev = dev;
 	ctx->suspended = true;
 
@@ -803,10 +798,8 @@ static int decon_probe(struct platform_device *pdev)
 	of_node_put(i80_if_timings);
 
 	ctx->regs = of_iomap(dev->of_node, 0);
-	if (!ctx->regs) {
-		ret = -ENOMEM;
-		goto err_del_component;
-	}
+	if (!ctx->regs)
+		return -ENOMEM;
 
 	ctx->pclk = devm_clk_get(dev, "pclk_decon0");
 	if (IS_ERR(ctx->pclk)) {
@@ -876,8 +869,6 @@ err_disable_pm_runtime:
 err_iounmap:
 	iounmap(ctx->regs);
 
-err_del_component:
-	exynos_drm_component_del(dev, EXYNOS_DEVICE_TYPE_CRTC);
 	return ret;
 }
 
@@ -890,7 +881,6 @@ static int decon_remove(struct platform_device *pdev)
 	iounmap(ctx->regs);
 
 	component_del(&pdev->dev, &decon_component_ops);
-	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC);
 
 	return 0;
 }

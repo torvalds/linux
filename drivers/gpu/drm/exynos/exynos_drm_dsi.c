@@ -1686,11 +1686,6 @@ static int exynos_dsi_probe(struct platform_device *pdev)
 	dsi->display.type = EXYNOS_DISPLAY_TYPE_LCD;
 	dsi->display.ops = &exynos_dsi_display_ops;
 
-	ret = exynos_drm_component_add(dev, EXYNOS_DEVICE_TYPE_CONNECTOR,
-				       dsi->display.type);
-	if (ret)
-		return ret;
-
 	/* To be checked as invalid one */
 	dsi->te_gpio = -ENOENT;
 
@@ -1706,7 +1701,7 @@ static int exynos_dsi_probe(struct platform_device *pdev)
 
 	ret = exynos_dsi_parse_dt(dsi);
 	if (ret)
-		goto err_del_component;
+		return ret;
 
 	dsi->supplies[0].supply = "vddcore";
 	dsi->supplies[1].supply = "vddio";
@@ -1720,37 +1715,32 @@ static int exynos_dsi_probe(struct platform_device *pdev)
 	dsi->pll_clk = devm_clk_get(dev, "pll_clk");
 	if (IS_ERR(dsi->pll_clk)) {
 		dev_info(dev, "failed to get dsi pll input clock\n");
-		ret = PTR_ERR(dsi->pll_clk);
-		goto err_del_component;
+		return PTR_ERR(dsi->pll_clk);
 	}
 
 	dsi->bus_clk = devm_clk_get(dev, "bus_clk");
 	if (IS_ERR(dsi->bus_clk)) {
 		dev_info(dev, "failed to get dsi bus clock\n");
-		ret = PTR_ERR(dsi->bus_clk);
-		goto err_del_component;
+		return PTR_ERR(dsi->bus_clk);
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dsi->reg_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(dsi->reg_base)) {
 		dev_err(dev, "failed to remap io region\n");
-		ret = PTR_ERR(dsi->reg_base);
-		goto err_del_component;
+		return PTR_ERR(dsi->reg_base);
 	}
 
 	dsi->phy = devm_phy_get(dev, "dsim");
 	if (IS_ERR(dsi->phy)) {
 		dev_info(dev, "failed to get dsim phy\n");
-		ret = PTR_ERR(dsi->phy);
-		goto err_del_component;
+		return PTR_ERR(dsi->phy);
 	}
 
 	dsi->irq = platform_get_irq(pdev, 0);
 	if (dsi->irq < 0) {
 		dev_err(dev, "failed to request dsi irq resource\n");
-		ret = dsi->irq;
-		goto err_del_component;
+		return dsi->irq;
 	}
 
 	irq_set_status_flags(dsi->irq, IRQ_NOAUTOEN);
@@ -1759,26 +1749,17 @@ static int exynos_dsi_probe(struct platform_device *pdev)
 					dev_name(dev), dsi);
 	if (ret) {
 		dev_err(dev, "failed to request dsi irq\n");
-		goto err_del_component;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, &dsi->display);
 
-	ret = component_add(dev, &exynos_dsi_component_ops);
-	if (ret)
-		goto err_del_component;
-
-	return ret;
-
-err_del_component:
-	exynos_drm_component_del(dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
-	return ret;
+	return component_add(dev, &exynos_dsi_component_ops);
 }
 
 static int exynos_dsi_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &exynos_dsi_component_ops);
-	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
 
 	return 0;
 }

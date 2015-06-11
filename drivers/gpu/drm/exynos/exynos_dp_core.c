@@ -1332,7 +1332,6 @@ static int exynos_dp_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *panel_node, *bridge_node, *endpoint;
 	struct exynos_dp_device *dp;
-	int ret;
 
 	dp = devm_kzalloc(&pdev->dev, sizeof(struct exynos_dp_device),
 				GFP_KERNEL);
@@ -1342,11 +1341,6 @@ static int exynos_dp_probe(struct platform_device *pdev)
 	dp->display.type = EXYNOS_DISPLAY_TYPE_LCD;
 	dp->display.ops = &exynos_dp_display_ops;
 	platform_set_drvdata(pdev, dp);
-
-	ret = exynos_drm_component_add(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR,
-					dp->display.type);
-	if (ret)
-		return ret;
 
 	panel_node = of_parse_phandle(dev->of_node, "panel", 0);
 	if (panel_node) {
@@ -1368,18 +1362,12 @@ static int exynos_dp_probe(struct platform_device *pdev)
 			return -EPROBE_DEFER;
 	}
 
-	ret = component_add(&pdev->dev, &exynos_dp_ops);
-	if (ret)
-		exynos_drm_component_del(&pdev->dev,
-						EXYNOS_DEVICE_TYPE_CONNECTOR);
-
-	return ret;
+	return component_add(&pdev->dev, &exynos_dp_ops);
 }
 
 static int exynos_dp_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &exynos_dp_ops);
-	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
 
 	return 0;
 }

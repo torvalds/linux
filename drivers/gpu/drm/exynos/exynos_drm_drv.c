@@ -38,17 +38,6 @@
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
-static DEFINE_MUTEX(drm_component_lock);
-static LIST_HEAD(drm_component_list);
-
-struct component_dev {
-	struct list_head list;
-	struct device *crtc_dev;
-	struct device *conn_dev;
-	enum exynos_drm_output_type out_type;
-	unsigned int dev_type_flag;
-};
-
 static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 {
 	struct exynos_drm_private *private;
@@ -348,108 +337,70 @@ static const struct dev_pm_ops exynos_drm_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(exynos_drm_sys_suspend, exynos_drm_sys_resume)
 };
 
-int exynos_drm_component_add(struct device *dev,
-				enum exynos_drm_device_type dev_type,
-				enum exynos_drm_output_type out_type)
-{
-	struct component_dev *cdev;
+/* forward declaration */
+static struct platform_driver exynos_drm_platform_driver;
 
-	if (dev_type != EXYNOS_DEVICE_TYPE_CRTC &&
-			dev_type != EXYNOS_DEVICE_TYPE_CONNECTOR) {
-		DRM_ERROR("invalid device type.\n");
-		return -EINVAL;
-	}
+/*
+ * Connector drivers should not be placed before associated crtc drivers,
+ * because connector requires pipe number of its crtc during initialization.
+ */
+static struct platform_driver *const exynos_drm_kms_drivers[] = {
+#ifdef CONFIG_DRM_EXYNOS_VIDI
+	&vidi_driver,
+#endif
+#ifdef CONFIG_DRM_EXYNOS_FIMD
+	&fimd_driver,
+#endif
+#ifdef CONFIG_DRM_EXYNOS5433_DECON
+	&exynos5433_decon_driver,
+#endif
+#ifdef CONFIG_DRM_EXYNOS7_DECON
+	&decon_driver,
+#endif
+#ifdef CONFIG_DRM_EXYNOS_DP
+	&dp_driver,
+#endif
+#ifdef CONFIG_DRM_EXYNOS_DSI
+	&dsi_driver,
+#endif
+#ifdef CONFIG_DRM_EXYNOS_HDMI
+	&mixer_driver,
+	&hdmi_driver,
+#endif
+};
 
-	mutex_lock(&drm_component_lock);
+static struct platform_driver *const exynos_drm_non_kms_drivers[] = {
+#ifdef CONFIG_DRM_EXYNOS_MIC
+	&mic_driver,
+#endif
+#ifdef CONFIG_DRM_EXYNOS_G2D
+	&g2d_driver,
+#endif
+#ifdef CONFIG_DRM_EXYNOS_FIMC
+	&fimc_driver,
+#endif
+#ifdef CONFIG_DRM_EXYNOS_ROTATOR
+	&rotator_driver,
+#endif
+#ifdef CONFIG_DRM_EXYNOS_GSC
+	&gsc_driver,
+#endif
+#ifdef CONFIG_DRM_EXYNOS_IPP
+	&ipp_driver,
+#endif
+	&exynos_drm_platform_driver,
+};
 
-	/*
-	 * Make sure to check if there is a component which has two device
-	 * objects, for connector and for encoder/connector.
-	 * It should make sure that crtc and encoder/connector drivers are
-	 * ready before exynos drm core binds them.
-	 */
-	list_for_each_entry(cdev, &drm_component_list, list) {
-		if (cdev->out_type == out_type) {
-			/*
-			 * If crtc and encoder/connector device objects are
-			 * added already just return.
-			 */
-			if (cdev->dev_type_flag == (EXYNOS_DEVICE_TYPE_CRTC |
-						EXYNOS_DEVICE_TYPE_CONNECTOR)) {
-				mutex_unlock(&drm_component_lock);
-				return 0;
-			}
-
-			if (dev_type == EXYNOS_DEVICE_TYPE_CRTC) {
-				cdev->crtc_dev = dev;
-				cdev->dev_type_flag |= dev_type;
-			}
-
-			if (dev_type == EXYNOS_DEVICE_TYPE_CONNECTOR) {
-				cdev->conn_dev = dev;
-				cdev->dev_type_flag |= dev_type;
-			}
-
-			mutex_unlock(&drm_component_lock);
-			return 0;
-		}
-	}
-
-	mutex_unlock(&drm_component_lock);
-
-	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
-	if (!cdev)
-		return -ENOMEM;
-
-	if (dev_type == EXYNOS_DEVICE_TYPE_CRTC)
-		cdev->crtc_dev = dev;
-	if (dev_type == EXYNOS_DEVICE_TYPE_CONNECTOR)
-		cdev->conn_dev = dev;
-
-	cdev->out_type = out_type;
-	cdev->dev_type_flag = dev_type;
-
-	mutex_lock(&drm_component_lock);
-	list_add_tail(&cdev->list, &drm_component_list);
-	mutex_unlock(&drm_component_lock);
-
-	return 0;
-}
-
-void exynos_drm_component_del(struct device *dev,
-				enum exynos_drm_device_type dev_type)
-{
-	struct component_dev *cdev, *next;
-
-	mutex_lock(&drm_component_lock);
-
-	list_for_each_entry_safe(cdev, next, &drm_component_list, list) {
-		if (dev_type == EXYNOS_DEVICE_TYPE_CRTC) {
-			if (cdev->crtc_dev == dev) {
-				cdev->crtc_dev = NULL;
-				cdev->dev_type_flag &= ~dev_type;
-			}
-		}
-
-		if (dev_type == EXYNOS_DEVICE_TYPE_CONNECTOR) {
-			if (cdev->conn_dev == dev) {
-				cdev->conn_dev = NULL;
-				cdev->dev_type_flag &= ~dev_type;
-			}
-		}
-
-		/*
-		 * Release cdev object only in case that both of crtc and
-		 * encoder/connector device objects are NULL.
-		 */
-		if (!cdev->crtc_dev && !cdev->conn_dev) {
-			list_del(&cdev->list);
-			kfree(cdev);
-		}
-	}
-
-	mutex_unlock(&drm_component_lock);
-}
+static struct platform_driver *const exynos_drm_drv_with_simple_dev[] = {
+#ifdef CONFIG_DRM_EXYNOS_VIDI
+	&vidi_driver,
+#endif
+#ifdef CONFIG_DRM_EXYNOS_IPP
+	&ipp_driver,
+#endif
+	&exynos_drm_platform_driver,
+};
+#define PDEV_COUNT ARRAY_SIZE(exynos_drm_drv_with_simple_dev)
 
 static int compare_dev(struct device *dev, void *data)
 {
@@ -459,55 +410,22 @@ static int compare_dev(struct device *dev, void *data)
 static struct component_match *exynos_drm_match_add(struct device *dev)
 {
 	struct component_match *match = NULL;
-	struct component_dev *cdev;
-	unsigned int attach_cnt = 0;
+	int i;
 
-	mutex_lock(&drm_component_lock);
+	for (i = 0; i < ARRAY_SIZE(exynos_drm_kms_drivers); ++i) {
+		struct device_driver *drv = &exynos_drm_kms_drivers[i]->driver;
+		struct device *p = NULL, *d;
 
-	/* Do not retry to probe if there is no any kms driver regitered. */
-	if (list_empty(&drm_component_list)) {
-		mutex_unlock(&drm_component_lock);
-		return ERR_PTR(-ENODEV);
-	}
-
-	list_for_each_entry(cdev, &drm_component_list, list) {
-		/*
-		 * Add components to master only in case that crtc and
-		 * encoder/connector device objects exist.
-		 */
-		if (!cdev->crtc_dev || !cdev->conn_dev)
-			continue;
-
-		attach_cnt++;
-
-		mutex_unlock(&drm_component_lock);
-
-		/*
-		 * fimd and dpi modules have same device object so add
-		 * only crtc device object in this case.
-		 */
-		if (cdev->crtc_dev == cdev->conn_dev) {
-			component_match_add(dev, &match, compare_dev,
-						cdev->crtc_dev);
-			goto out_lock;
+		while ((d = bus_find_device(&platform_bus_type, p, drv,
+					    (void *)platform_bus_type.match))) {
+			put_device(p);
+			component_match_add(dev, &match, compare_dev, d);
+			p = d;
 		}
-
-		/*
-		 * Do not chage below call order.
-		 * crtc device first should be added to master because
-		 * connector/encoder need pipe number of crtc when they
-		 * are created.
-		 */
-		component_match_add(dev, &match, compare_dev, cdev->crtc_dev);
-		component_match_add(dev, &match, compare_dev, cdev->conn_dev);
-
-out_lock:
-		mutex_lock(&drm_component_lock);
+		put_device(p);
 	}
 
-	mutex_unlock(&drm_component_lock);
-
-	return attach_cnt ? match : ERR_PTR(-EPROBE_DEFER);
+	return match ?: ERR_PTR(-ENODEV);
 }
 
 static int exynos_drm_bind(struct device *dev)
@@ -554,60 +472,6 @@ static struct platform_driver exynos_drm_platform_driver = {
 		.pm	= &exynos_drm_pm_ops,
 	},
 };
-
-static struct platform_driver *const exynos_drm_kms_drivers[] = {
-#ifdef CONFIG_DRM_EXYNOS_VIDI
-	&vidi_driver,
-#endif
-#ifdef CONFIG_DRM_EXYNOS_FIMD
-	&fimd_driver,
-#endif
-#ifdef CONFIG_DRM_EXYNOS7_DECON
-	&decon_driver,
-#endif
-#ifdef CONFIG_DRM_EXYNOS_DP
-	&dp_driver,
-#endif
-#ifdef CONFIG_DRM_EXYNOS_DSI
-	&dsi_driver,
-#endif
-#ifdef CONFIG_DRM_EXYNOS_HDMI
-	&mixer_driver,
-	&hdmi_driver,
-#endif
-};
-
-static struct platform_driver *const exynos_drm_non_kms_drivers[] = {
-#ifdef CONFIG_DRM_EXYNOS_G2D
-	&g2d_driver,
-#endif
-#ifdef CONFIG_DRM_EXYNOS_FIMC
-	&fimc_driver,
-#endif
-#ifdef CONFIG_DRM_EXYNOS_ROTATOR
-	&rotator_driver,
-#endif
-#ifdef CONFIG_DRM_EXYNOS_GSC
-	&gsc_driver,
-#endif
-#ifdef CONFIG_DRM_EXYNOS_IPP
-	&ipp_driver,
-#endif
-	&exynos_drm_platform_driver,
-};
-
-
-static struct platform_driver *const exynos_drm_drv_with_simple_dev[] = {
-#ifdef CONFIG_DRM_EXYNOS_VIDI
-	&vidi_driver,
-#endif
-#ifdef CONFIG_DRM_EXYNOS_IPP
-	&ipp_driver,
-#endif
-	&exynos_drm_platform_driver,
-};
-
-#define PDEV_COUNT ARRAY_SIZE(exynos_drm_drv_with_simple_dev)
 
 static struct platform_device *exynos_drm_pdevs[PDEV_COUNT];
 

@@ -505,16 +505,6 @@ static int vidi_probe(struct platform_device *pdev)
 	ctx->default_win = 0;
 	ctx->pdev = pdev;
 
-	ret = exynos_drm_component_add(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC,
-					EXYNOS_DISPLAY_TYPE_VIDI);
-	if (ret)
-		return ret;
-
-	ret = exynos_drm_component_add(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR,
-					ctx->display.type);
-	if (ret)
-		goto err_del_crtc_component;
-
 	INIT_WORK(&ctx->work, vidi_fake_vblank_handler);
 
 	mutex_init(&ctx->lock);
@@ -524,7 +514,7 @@ static int vidi_probe(struct platform_device *pdev)
 	ret = device_create_file(&pdev->dev, &dev_attr_connection);
 	if (ret < 0) {
 		DRM_ERROR("failed to create connection sysfs.\n");
-		goto err_del_conn_component;
+		return ret;
 	}
 
 	ret = component_add(&pdev->dev, &vidi_component_ops);
@@ -535,10 +525,6 @@ static int vidi_probe(struct platform_device *pdev)
 
 err_remove_file:
 	device_remove_file(&pdev->dev, &dev_attr_connection);
-err_del_conn_component:
-	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
-err_del_crtc_component:
-	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC);
 
 	return ret;
 }
@@ -555,8 +541,6 @@ static int vidi_remove(struct platform_device *pdev)
 	}
 
 	component_del(&pdev->dev, &vidi_component_ops);
-	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
-	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC);
 
 	return 0;
 }

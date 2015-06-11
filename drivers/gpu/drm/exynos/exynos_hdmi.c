@@ -2360,20 +2360,13 @@ static int hdmi_probe(struct platform_device *pdev)
 	hdata->display.type = EXYNOS_DISPLAY_TYPE_HDMI;
 	hdata->display.ops = &hdmi_display_ops;
 
-	ret = exynos_drm_component_add(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR,
-					hdata->display.type);
-	if (ret)
-		return ret;
-
 	mutex_init(&hdata->hdmi_mutex);
 
 	platform_set_drvdata(pdev, hdata);
 
 	match = of_match_node(hdmi_match_types, dev->of_node);
-	if (!match) {
-		ret = -ENODEV;
-		goto err_del_component;
-	}
+	if (!match)
+		return -ENODEV;
 
 	drv_data = (struct hdmi_driver_data *)match->data;
 	hdata->type = drv_data->type;
@@ -2393,13 +2386,13 @@ static int hdmi_probe(struct platform_device *pdev)
 	hdata->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(hdata->regs)) {
 		ret = PTR_ERR(hdata->regs);
-		goto err_del_component;
+		return ret;
 	}
 
 	ret = devm_gpio_request(dev, hdata->hpd_gpio, "HPD");
 	if (ret) {
 		DRM_ERROR("failed to request HPD gpio\n");
-		goto err_del_component;
+		return ret;
 	}
 
 	ddc_node = hdmi_legacy_ddc_dt_binding(dev);
@@ -2410,8 +2403,7 @@ static int hdmi_probe(struct platform_device *pdev)
 	ddc_node = of_parse_phandle(dev->of_node, "ddc", 0);
 	if (!ddc_node) {
 		DRM_ERROR("Failed to find ddc node in device tree\n");
-		ret = -ENODEV;
-		goto err_del_component;
+		return -ENODEV;
 	}
 
 out_get_ddc_adpt:
@@ -2495,9 +2487,6 @@ err_hdmiphy:
 err_ddc:
 	put_device(&hdata->ddc_adpt->dev);
 
-err_del_component:
-	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
-
 	return ret;
 }
 
@@ -2517,7 +2506,6 @@ static int hdmi_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	component_del(&pdev->dev, &hdmi_component_ops);
 
-	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
 	return 0;
 }
 

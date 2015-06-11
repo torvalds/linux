@@ -1287,18 +1287,9 @@ static int mixer_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ctx);
 
-	ret = exynos_drm_component_add(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC,
-					EXYNOS_DISPLAY_TYPE_HDMI);
-	if (ret)
-		return ret;
-
 	ret = component_add(&pdev->dev, &mixer_component_ops);
-	if (ret) {
-		exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC);
-		return ret;
-	}
-
-	pm_runtime_enable(dev);
+	if (!ret)
+		pm_runtime_enable(dev);
 
 	return ret;
 }
@@ -1308,7 +1299,6 @@ static int mixer_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	component_del(&pdev->dev, &mixer_component_ops);
-	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC);
 
 	return 0;
 }
