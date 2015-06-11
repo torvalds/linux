@@ -204,9 +204,30 @@ static void i2c_davinci_calc_clk_dividers(struct davinci_i2c_dev *dev)
 		psc++;	/* better to run under spec than over */
 	d = (psc >= 2) ? 5 : 7 - psc;
 
-	clk = ((input_clock / (psc + 1)) / (pdata->bus_freq * 1000)) - (d << 1);
-	clkh = clk >> 1;
-	clkl = clk - clkh;
+	clk = ((input_clock / (psc + 1)) / (pdata->bus_freq * 1000));
+	/* Avoid driving the bus too fast because of rounding errors above */
+	if (input_clock / (psc + 1) / clk > pdata->bus_freq * 1000)
+		clk++;
+	/*
+	 * According to I2C-BUS Spec 2.1, in FAST-MODE LOW period should be at
+	 * least 1.3uS, which is not the case with 50% duty cycle. Driving HIGH
+	 * to LOW ratio as 1 to 2 is more safe.
+	 */
+	if (pdata->bus_freq > 100)
+		clkl = (clk << 1) / 3;
+	else
+		clkl = (clk >> 1);
+	/*
+	 * It's not always possible to have 1 to 2 ratio when d=7, so fall back
+	 * to minimal possible clkh in this case.
+	 */
+	if (clk >= clkl + d) {
+		clkh = clk - clkl - d;
+		clkl -= d;
+	} else {
+		clkh = 0;
+		clkl = clk - (d << 1);
+	}
 
 	davinci_i2c_write_reg(dev, DAVINCI_I2C_PSC_REG, psc);
 	davinci_i2c_write_reg(dev, DAVINCI_I2C_CLKH_REG, clkh);
