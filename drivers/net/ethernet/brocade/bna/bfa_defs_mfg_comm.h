@@ -75,7 +75,7 @@ enum {
 	CB_GPIO_FC4P2   = (4),		/*!< 4G 2port FC card		*/
 	CB_GPIO_FC4P1   = (5),		/*!< 4G 1port FC card		*/
 	CB_GPIO_DFLY    = (6),		/*!< 8G 2port FC mezzanine card	*/
-	CB_GPIO_PROTO   = (1 << 7)	/*!< 8G 2port FC prototypes	*/
+	CB_GPIO_PROTO   = BIT(7)	/*!< 8G 2port FC prototypes	*/
 };
 
 #define bfa_mfg_adapter_prop_init_gpio(gpio, card_type, prop)	\

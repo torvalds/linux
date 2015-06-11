@@ -566,7 +566,7 @@ bna_rxf_vlan_cfg_apply(struct bna_rxf *rxf)
 			block_idx++;
 			vlan_pending_bitmask >>= 1;
 		}
-		rxf->vlan_pending_bitmask &= ~(1 << block_idx);
+		rxf->vlan_pending_bitmask &= ~BIT(block_idx);
 		bna_bfi_rx_vlan_filter_set(rxf, block_idx);
 		return 1;
 	}
@@ -1105,12 +1105,12 @@ bna_rx_vlan_add(struct bna_rx *rx, int vlan_id)
 {
 	struct bna_rxf *rxf = &rx->rxf;
 	int index = (vlan_id >> BFI_VLAN_WORD_SHIFT);
-	int bit = (1 << (vlan_id & BFI_VLAN_WORD_MASK));
+	int bit = BIT((vlan_id & BFI_VLAN_WORD_MASK));
 	int group_id = (vlan_id >> BFI_VLAN_BLOCK_SHIFT);
 
 	rxf->vlan_filter_table[index] |= bit;
 	if (rxf->vlan_filter_status == BNA_STATUS_T_ENABLED) {
-		rxf->vlan_pending_bitmask |= (1 << group_id);
+		rxf->vlan_pending_bitmask |= BIT(group_id);
 		bfa_fsm_send_event(rxf, RXF_E_CONFIG);
 	}
 }
@@ -1120,12 +1120,12 @@ bna_rx_vlan_del(struct bna_rx *rx, int vlan_id)
 {
 	struct bna_rxf *rxf = &rx->rxf;
 	int index = (vlan_id >> BFI_VLAN_WORD_SHIFT);
-	int bit = (1 << (vlan_id & BFI_VLAN_WORD_MASK));
+	int bit = BIT((vlan_id & BFI_VLAN_WORD_MASK));
 	int group_id = (vlan_id >> BFI_VLAN_BLOCK_SHIFT);
 
 	rxf->vlan_filter_table[index] &= ~bit;
 	if (rxf->vlan_filter_status == BNA_STATUS_T_ENABLED) {
-		rxf->vlan_pending_bitmask |= (1 << group_id);
+		rxf->vlan_pending_bitmask |= BIT(group_id);
 		bfa_fsm_send_event(rxf, RXF_E_CONFIG);
 	}
 }
@@ -2619,7 +2619,7 @@ bna_rx_create(struct bna *bna, struct bnad *bnad,
 		if (intr_info->intr_type == BNA_INTR_T_MSIX)
 			rxp->cq.ib.intr_vector = rxp->vector;
 		else
-			rxp->cq.ib.intr_vector = (1 << rxp->vector);
+			rxp->cq.ib.intr_vector = BIT(rxp->vector);
 		rxp->cq.ib.coalescing_timeo = rx_cfg->coalescing_timeo;
 		rxp->cq.ib.interpkt_count = BFI_RX_INTERPKT_COUNT;
 		rxp->cq.ib.interpkt_timeo = BFI_RX_INTERPKT_TIMEO;
@@ -2724,7 +2724,7 @@ bna_rx_create(struct bna *bna, struct bnad *bnad,
 
 	bfa_fsm_set_state(rx, bna_rx_sm_stopped);
 
-	rx_mod->rid_mask |= (1 << rx->rid);
+	rx_mod->rid_mask |= BIT(rx->rid);
 
 	return rx;
 }
@@ -2776,7 +2776,7 @@ bna_rx_destroy(struct bna_rx *rx)
 		}
 	}
 
-	rx_mod->rid_mask &= ~(1 << rx->rid);
+	rx_mod->rid_mask &= ~BIT(rx->rid);
 
 	rx->bna = NULL;
 	rx->priv = NULL;
@@ -3778,7 +3778,7 @@ bna_tx_create(struct bna *bna, struct bnad *bnad,
 					intr_info->idl[0].vector :
 					intr_info->idl[i].vector;
 		if (intr_info->intr_type == BNA_INTR_T_INTX)
-			txq->ib.intr_vector = (1 <<  txq->ib.intr_vector);
+			txq->ib.intr_vector = BIT(txq->ib.intr_vector);
 		txq->ib.coalescing_timeo = tx_cfg->coalescing_timeo;
 		txq->ib.interpkt_timeo = BFI_TX_INTERPKT_TIMEO;
 		txq->ib.interpkt_count = BFI_TX_INTERPKT_COUNT;
@@ -3820,7 +3820,7 @@ bna_tx_create(struct bna *bna, struct bnad *bnad,
 
 	bfa_fsm_set_state(tx, bna_tx_sm_stopped);
 
-	tx_mod->rid_mask |= (1 << tx->rid);
+	tx_mod->rid_mask |= BIT(tx->rid);
 
 	return tx;
 
@@ -3841,7 +3841,7 @@ bna_tx_destroy(struct bna_tx *tx)
 			(tx->tcb_destroy_cbfn)(tx->bna->bnad, txq->tcb);
 	}
 
-	tx->bna->tx_mod.rid_mask &= ~(1 << tx->rid);
+	tx->bna->tx_mod.rid_mask &= ~BIT(tx->rid);
 	bna_tx_free(tx);
 }
 

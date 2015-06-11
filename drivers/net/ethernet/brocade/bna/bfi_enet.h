@@ -68,13 +68,13 @@ union bfi_addr_be_u {
 #define BFI_ENET_TXQ_WI_EXTENSION	(0x104)	/* Extension WI */
 
 /* TxQ Entry Control Flags */
-#define BFI_ENET_TXQ_WI_CF_FCOE_CRC	(1 << 8)
-#define BFI_ENET_TXQ_WI_CF_IPID_MODE	(1 << 5)
-#define BFI_ENET_TXQ_WI_CF_INS_PRIO	(1 << 4)
-#define BFI_ENET_TXQ_WI_CF_INS_VLAN	(1 << 3)
-#define BFI_ENET_TXQ_WI_CF_UDP_CKSUM	(1 << 2)
-#define BFI_ENET_TXQ_WI_CF_TCP_CKSUM	(1 << 1)
-#define BFI_ENET_TXQ_WI_CF_IP_CKSUM	(1 << 0)
+#define BFI_ENET_TXQ_WI_CF_FCOE_CRC	BIT(8)
+#define BFI_ENET_TXQ_WI_CF_IPID_MODE	BIT(5)
+#define BFI_ENET_TXQ_WI_CF_INS_PRIO	BIT(4)
+#define BFI_ENET_TXQ_WI_CF_INS_VLAN	BIT(3)
+#define BFI_ENET_TXQ_WI_CF_UDP_CKSUM	BIT(2)
+#define BFI_ENET_TXQ_WI_CF_TCP_CKSUM	BIT(1)
+#define BFI_ENET_TXQ_WI_CF_IP_CKSUM	BIT(0)
 
 struct bfi_enet_txq_wi_base {
 	u8			reserved;
@@ -122,32 +122,32 @@ struct bfi_enet_rxq_entry {
 
 /*   R X   C O M P L E T I O N   Q U E U E   D E F I N E S   */
 /* CQ Entry Flags */
-#define	BFI_ENET_CQ_EF_MAC_ERROR	(1 <<  0)
-#define	BFI_ENET_CQ_EF_FCS_ERROR	(1 <<  1)
-#define	BFI_ENET_CQ_EF_TOO_LONG		(1 <<  2)
-#define	BFI_ENET_CQ_EF_FC_CRC_OK	(1 <<  3)
+#define BFI_ENET_CQ_EF_MAC_ERROR	BIT(0)
+#define BFI_ENET_CQ_EF_FCS_ERROR	BIT(1)
+#define BFI_ENET_CQ_EF_TOO_LONG		BIT(2)
+#define BFI_ENET_CQ_EF_FC_CRC_OK	BIT(3)
 
-#define	BFI_ENET_CQ_EF_RSVD1		(1 <<  4)
-#define	BFI_ENET_CQ_EF_L4_CKSUM_OK	(1 <<  5)
-#define	BFI_ENET_CQ_EF_L3_CKSUM_OK	(1 <<  6)
-#define	BFI_ENET_CQ_EF_HDS_HEADER	(1 <<  7)
+#define BFI_ENET_CQ_EF_RSVD1		BIT(4)
+#define BFI_ENET_CQ_EF_L4_CKSUM_OK	BIT(5)
+#define BFI_ENET_CQ_EF_L3_CKSUM_OK	BIT(6)
+#define BFI_ENET_CQ_EF_HDS_HEADER	BIT(7)
 
-#define	BFI_ENET_CQ_EF_UDP		(1 <<  8)
-#define	BFI_ENET_CQ_EF_TCP		(1 <<  9)
-#define	BFI_ENET_CQ_EF_IP_OPTIONS	(1 << 10)
-#define	BFI_ENET_CQ_EF_IPV6		(1 << 11)
+#define BFI_ENET_CQ_EF_UDP		BIT(8)
+#define BFI_ENET_CQ_EF_TCP		BIT(9)
+#define BFI_ENET_CQ_EF_IP_OPTIONS	BIT(10)
+#define BFI_ENET_CQ_EF_IPV6		BIT(11)
 
-#define	BFI_ENET_CQ_EF_IPV4		(1 << 12)
-#define	BFI_ENET_CQ_EF_VLAN		(1 << 13)
-#define	BFI_ENET_CQ_EF_RSS		(1 << 14)
-#define	BFI_ENET_CQ_EF_RSVD2		(1 << 15)
+#define BFI_ENET_CQ_EF_IPV4		BIT(12)
+#define BFI_ENET_CQ_EF_VLAN		BIT(13)
+#define BFI_ENET_CQ_EF_RSS		BIT(14)
+#define BFI_ENET_CQ_EF_RSVD2		BIT(15)
 
-#define	BFI_ENET_CQ_EF_MCAST_MATCH	(1 << 16)
-#define	BFI_ENET_CQ_EF_MCAST		(1 << 17)
-#define BFI_ENET_CQ_EF_BCAST		(1 << 18)
-#define	BFI_ENET_CQ_EF_REMOTE		(1 << 19)
+#define BFI_ENET_CQ_EF_MCAST_MATCH	BIT(16)
+#define BFI_ENET_CQ_EF_MCAST		BIT(17)
+#define BFI_ENET_CQ_EF_BCAST		BIT(18)
+#define BFI_ENET_CQ_EF_REMOTE		BIT(19)
 
-#define	BFI_ENET_CQ_EF_LOCAL		(1 << 20)
+#define BFI_ENET_CQ_EF_LOCAL		BIT(20)
 
 /* CQ Entry Structure */
 struct bfi_enet_cq_entry {
@@ -672,11 +672,11 @@ struct bfi_enet_stats_req {
 } __packed;
 
 /* defines for "stats_mask" above. */
-#define BFI_ENET_STATS_MAC    (1 << 0)    /* !< MAC Statistics */
-#define BFI_ENET_STATS_BPC    (1 << 1)    /* !< Pause Stats from BPC */
-#define BFI_ENET_STATS_RAD    (1 << 2)    /* !< Rx Admission Statistics */
-#define BFI_ENET_STATS_RX_FC  (1 << 3)    /* !< Rx FC Stats from RxA */
-#define BFI_ENET_STATS_TX_FC  (1 << 4)    /* !< Tx FC Stats from TxA */
+#define BFI_ENET_STATS_MAC    BIT(0)    /* !< MAC Statistics */
+#define BFI_ENET_STATS_BPC    BIT(1)    /* !< Pause Stats from BPC */
+#define BFI_ENET_STATS_RAD    BIT(2)    /* !< Rx Admission Statistics */
+#define BFI_ENET_STATS_RX_FC  BIT(3)    /* !< Rx FC Stats from RxA */
+#define BFI_ENET_STATS_TX_FC  BIT(4)    /* !< Tx FC Stats from TxA */
 
 #define BFI_ENET_STATS_ALL    0x1f
 
