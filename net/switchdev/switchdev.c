@@ -184,7 +184,8 @@ int switchdev_port_attr_set(struct net_device *dev, struct switchdev_attr *attr)
 
 	attr->trans = SWITCHDEV_TRANS_COMMIT;
 	err = __switchdev_port_attr_set(dev, attr);
-	BUG_ON(err);
+	WARN(err, "%s: Commit of attribute (id=%d) failed.\n",
+	     dev->name, attr->id);
 
 	return err;
 }
