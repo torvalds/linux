@@ -616,8 +616,8 @@ ksocknal_write_space(struct sock *sk)
 	read_lock(&ksocknal_data.ksnd_global_lock);
 
 	conn = sk->sk_user_data;
-	wspace = SOCKNAL_WSPACE(sk);
-	min_wpace = SOCKNAL_MIN_WSPACE(sk);
+	wspace = sk_stream_wspace(sk);
+	min_wpace = sk_stream_min_wspace(sk);
 
 	CDEBUG(D_NET, "sk %p wspace %d low water %d conn %p%s%s%s\n",
 	       sk, wspace, min_wpace, conn,

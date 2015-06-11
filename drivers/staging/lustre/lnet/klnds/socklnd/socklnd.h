@@ -25,15 +25,39 @@
  *
  */
 
+#ifndef _SOCKLND_SOCKLND_H_
+#define _SOCKLND_SOCKLND_H_
+
 #define DEBUG_PORTAL_ALLOC
 #define DEBUG_SUBSYSTEM S_LND
 
-#include "socklnd_lib-linux.h"
+#include <asm/irq.h>
+#include <linux/crc32.h>
+#include <linux/errno.h>
+#include <linux/if.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/kmod.h>
+#include <linux/list.h>
+#include <linux/mm.h>
+#include <linux/module.h>
+#include <linux/stat.h>
+#include <linux/string.h>
+#include <linux/syscalls.h>
+#include <linux/sysctl.h>
+#include <linux/uio.h>
+#include <linux/unistd.h>
+#include <net/sock.h>
+#include <net/tcp.h>
 
 #include "../../../include/linux/libcfs/libcfs.h"
 #include "../../../include/linux/lnet/lnet.h"
 #include "../../../include/linux/lnet/lib-lnet.h"
 #include "../../../include/linux/lnet/socklnd.h"
+
+/* assume one thread for each connection type */
+#define SOCKNAL_NSCHEDS		3
+#define SOCKNAL_NSCHEDS_HIGH	(SOCKNAL_NSCHEDS << 1)
 
 #define SOCKNAL_PEER_HASH_SIZE  101   /* # peer lists */
 #define SOCKNAL_RESCHED         100   /* # scheduler loops before reschedule */
@@ -459,6 +483,17 @@ extern ksock_proto_t ksocknal_protocol_v3x;
 #define CPU_MASK_NONE   0UL
 #endif
 
+static inline __u32 ksocknal_csum(__u32 crc, unsigned char const *p, size_t len)
+{
+#if 1
+	return crc32_le(crc, p, len);
+#else
+	while (len-- > 0)
+		crc = ((crc + 0x100) & ~0xff) | ((crc + *p++) & 0xff) ;
+	return crc;
+#endif
+}
+
 static inline int
 ksocknal_route_mask(void)
 {
@@ -651,3 +686,5 @@ extern void ksocknal_lib_csum_tx(ksock_tx_t *tx);
 
 extern int ksocknal_lib_memory_pressure(ksock_conn_t *conn);
 extern int ksocknal_lib_bind_thread_to_cpu(int id);
+
+#endif /* _SOCKLND_SOCKLND_H_ */
