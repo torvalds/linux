@@ -2265,7 +2265,11 @@ static int amd_iommu_add_device(struct device *dev)
 	iommu = amd_iommu_rlookup_table[devid];
 
 	ret = iommu_init_device(dev);
-	if (ret == -ENOTSUPP) {
+	if (ret) {
+		if (ret != -ENOTSUPP)
+			pr_err("Failed to initialize device %s - trying to proceed anyway\n",
+				dev_name(dev));
+
 		iommu_ignore_device(dev);
 		dev->archdata.dma_ops = &nommu_dma_ops;
 		goto out;
@@ -2273,7 +2277,10 @@ static int amd_iommu_add_device(struct device *dev)
 	init_iommu_group(dev);
 
 	dev_data = get_dev_data(dev);
-	if (dev_data && dev_data->iommu_v2)
+
+	BUG_ON(!dev_data);
+
+	if (dev_data->iommu_v2)
 		iommu_request_dm_for_dev(dev);
 
 	/* Domains are initialized for this device - have a look what we ended up with */
