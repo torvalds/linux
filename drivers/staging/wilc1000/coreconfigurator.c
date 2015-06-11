@@ -174,7 +174,7 @@ static tstrConfigPktInfo gstrConfigPktInfo;
 
 static u8 g_seqno;
 
-static WILC_Sint16 g_wid_num          = -1;
+static s16 g_wid_num          = -1;
 
 static u16 Res_Len;
 
