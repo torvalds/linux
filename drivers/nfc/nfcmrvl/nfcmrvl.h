@@ -39,12 +39,18 @@
 #define NFCMRVL_HCI_OCF				0xFE
 
 #define NFCMRVL_DEV_FLAG_HCI_MUXED		(1 << 0)
+#define NFCMRVL_DEV_FLAG_SET_RESET_N_IO(X)	((X) << 16)
+#define NFCMRVL_DEV_FLAG_GET_RESET_N_IO(X)	((X) >> 16)
 
 struct nfcmrvl_private {
 
 	/* Tell if NCI packets are encapsulated in HCI ones */
 	int hci_muxed;
 	struct nci_dev *ndev;
+
+	/* Reset IO (0 if not available) */
+	int reset_n_io;
+
 	unsigned long flags;
 	void *drv_data;
 	struct device *dev;
@@ -63,3 +69,5 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(void *drv_data,
 						 struct nfcmrvl_if_ops *ops,
 						 struct device *dev,
 						 unsigned int flags);
+
+void nfcmrvl_chip_reset(struct nfcmrvl_private *priv);

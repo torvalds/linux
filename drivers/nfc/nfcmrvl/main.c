@@ -17,6 +17,8 @@
  */
 
 #include <linux/module.h>
+#include <linux/gpio.h>
+#include <linux/delay.h>
 #include <linux/nfc.h>
 #include <net/nfc/nci.h>
 #include <net/nfc/nci_core.h>
@@ -107,6 +109,16 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(void *drv_data,
 	priv->if_ops = ops;
 	priv->dev = dev;
 	priv->hci_muxed = (flags & NFCMRVL_DEV_FLAG_HCI_MUXED) ? 1 : 0;
+	priv->reset_n_io = NFCMRVL_DEV_FLAG_GET_RESET_N_IO(flags);
+
+	if (priv->reset_n_io) {
+		rc = devm_gpio_request_one(dev,
+					   priv->reset_n_io,
+					   GPIOF_OUT_INIT_LOW,
+					   "nfcmrvl_reset_n");
+		if (rc < 0)
+			nfc_err(dev, "failed to request reset_n io\n");
+	}
 
 	if (priv->hci_muxed)
 		headroom = NFCMRVL_HCI_EVENT_HEADER_SIZE;
@@ -126,6 +138,8 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(void *drv_data,
 	}
 
 	nci_set_drvdata(priv->ndev, priv);
+
+	nfcmrvl_chip_reset(priv);
 
 	rc = nci_register_device(priv->ndev);
 	if (rc) {
@@ -178,6 +192,22 @@ int nfcmrvl_nci_recv_frame(struct nfcmrvl_private *priv, struct sk_buff *skb)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nfcmrvl_nci_recv_frame);
+
+void nfcmrvl_chip_reset(struct nfcmrvl_private *priv)
+{
+	/*
+	 * This function does not take care if someone is using the device.
+	 * To be improved.
+	 */
+
+	if (priv->reset_n_io) {
+		nfc_info(priv->dev, "reset the chip\n");
+		gpio_set_value(priv->reset_n_io, 0);
+		usleep_range(5000, 10000);
+		gpio_set_value(priv->reset_n_io, 1);
+	} else
+		nfc_info(priv->dev, "no reset available on this interface\n");
+}
 
 MODULE_AUTHOR("Marvell International Ltd.");
 MODULE_DESCRIPTION("Marvell NFC driver ver " VERSION);
