@@ -293,10 +293,22 @@ void target_pr_kref_release(struct kref *kref)
 	complete(&deve->pr_comp);
 }
 
-/*      core_enable_device_list_for_node():
- *
- *
- */
+static void
+target_luns_data_has_changed(struct se_node_acl *nacl, struct se_dev_entry *new,
+			     bool skip_new)
+{
+	struct se_dev_entry *tmp;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(tmp, &nacl->lun_entry_hlist, link) {
+		if (skip_new && tmp == new)
+			continue;
+		core_scsi3_ua_allocate(tmp, 0x3F,
+				       ASCQ_3FH_REPORTED_LUNS_DATA_HAS_CHANGED);
+	}
+	rcu_read_unlock();
+}
+
 int core_enable_device_list_for_node(
 	struct se_lun *lun,
 	struct se_lun_acl *lun_acl,
@@ -360,6 +372,7 @@ int core_enable_device_list_for_node(
 		kref_put(&orig->pr_kref, target_pr_kref_release);
 		wait_for_completion(&orig->pr_comp);
 
+		target_luns_data_has_changed(nacl, new, true);
 		kfree_rcu(orig, rcu_head);
 		return 0;
 	}
@@ -373,6 +386,7 @@ int core_enable_device_list_for_node(
 	list_add_tail(&new->lun_link, &lun->lun_deve_list);
 	spin_unlock(&lun->lun_deve_lock);
 
+	target_luns_data_has_changed(nacl, new, true);
 	return 0;
 }
 
@@ -428,6 +442,7 @@ void core_disable_device_list_for_node(
 	kfree_rcu(orig, rcu_head);
 
 	core_scsi3_free_pr_reg_from_nacl(dev, nacl);
+	target_luns_data_has_changed(nacl, NULL, false);
 }
 
 /*      core_clear_lun_from_tpg():
