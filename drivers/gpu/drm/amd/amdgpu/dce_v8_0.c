@@ -3379,7 +3379,7 @@ static int dce_v8_0_hpd_irq(struct amdgpu_device *adev,
 	uint32_t disp_int, mask, int_control, tmp;
 	unsigned hpd;
 
-	if (entry->src_data > 6) {
+	if (entry->src_data >= adev->mode_info.num_hpd) {
 		DRM_DEBUG("Unhandled interrupt: %d %d\n", entry->src_id, entry->src_data);
 		return 0;
 	}
