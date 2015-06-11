@@ -41,7 +41,6 @@
 #ifndef __LNET_LIB_LNET_H__
 #define __LNET_LIB_LNET_H__
 
-#include "linux/lib-lnet.h"
 #include "../libcfs/libcfs.h"
 #include "types.h"
 #include "lnet.h"
@@ -654,7 +653,6 @@ int lnet_sock_connect(struct socket **sockp, int *fatal,
 		      __u32 peer_ip, int peer_port);
 void libcfs_sock_release(struct socket *sock);
 
-void lnet_get_tunables(void);
 int lnet_peers_start_down(void);
 int lnet_peer_buffer_credits(lnet_ni_t *ni);
 

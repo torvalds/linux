@@ -38,8 +38,9 @@
  * Author: Eric Barton <eric@bartonsoftware.com>
  */
 
-#include "o2iblnd.h"
 #include <asm/div64.h>
+#include <asm/page.h>
+#include "o2iblnd.h"
 
 static lnd_t the_o2iblnd = {
 	.lnd_type     = O2IBLND,
@@ -1176,7 +1177,7 @@ void kiblnd_map_rx_descs(kib_conn_t *conn)
 
 		CDEBUG(D_NET, "rx %d: %p %#llx(%#llx)\n",
 		       i, rx->rx_msg, rx->rx_msgaddr,
-		       lnet_page2phys(pg) + pg_off);
+		       (__u64)(page_to_phys(pg) + pg_off));
 
 		pg_off += IBLND_MSG_SIZE;
 		LASSERT(pg_off <= PAGE_SIZE);

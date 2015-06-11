@@ -42,8 +42,6 @@
 #ifndef __LNET_LIB_TYPES_H__
 #define __LNET_LIB_TYPES_H__
 
-#include "linux/lib-types.h"
-
 #include "../libcfs/libcfs.h"
 #include <linux/list.h>
 #include "types.h"

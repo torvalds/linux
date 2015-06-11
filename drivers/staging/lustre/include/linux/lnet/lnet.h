@@ -40,8 +40,6 @@
  *
  * User application interface file
  */
-#include "linux/lnet.h"
-
 #include "types.h"
 #include "api.h"
 
