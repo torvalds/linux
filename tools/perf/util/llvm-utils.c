@@ -246,15 +246,42 @@ static int detect_kbuild_dir(char **kbuild_dir)
 	return -ENOENT;
 }
 
+static const char *kinc_fetch_script =
+"#!/usr/bin/env sh\n"
+"if ! test -d \"$KBUILD_DIR\"\n"
+"then\n"
+"	exit -1\n"
+"fi\n"
+"if ! test -f \"$KBUILD_DIR/include/generated/autoconf.h\"\n"
+"then\n"
+"	exit -1\n"
+"fi\n"
+"TMPDIR=`mktemp -d`\n"
+"if test -z \"$TMPDIR\"\n"
+"then\n"
+"    exit -1\n"
+"fi\n"
+"cat << EOF > $TMPDIR/Makefile\n"
+"obj-y := dummy.o\n"
+"\\$(obj)/%.o: \\$(src)/%.c\n"
+"\t@echo -n \"\\$(NOSTDINC_FLAGS) \\$(LINUXINCLUDE) \\$(EXTRA_CFLAGS)\"\n"
+"EOF\n"
+"touch $TMPDIR/dummy.c\n"
+"make -s -C $KBUILD_DIR M=$TMPDIR $KBUILD_OPTS dummy.o 2>/dev/null\n"
+"RET=$?\n"
+"rm -rf $TMPDIR\n"
+"exit $RET\n";
+
 static inline void
-get_kbuild_opts(char **kbuild_dir)
+get_kbuild_opts(char **kbuild_dir, char **kbuild_include_opts)
 {
 	int err;
 
-	if (!kbuild_dir)
+	if (!kbuild_dir || !kbuild_include_opts)
 		return;
 
 	*kbuild_dir = NULL;
+	*kbuild_include_opts = NULL;
 
 	if (llvm_param.kbuild_dir && !llvm_param.kbuild_dir[0]) {
 		pr_debug("[llvm.kbuild-dir] is set to \"\" deliberately.\n");
@@ -271,6 +298,27 @@ get_kbuild_opts(char **kbuild_dir)
 "     \tdetection.\n\n");
 		return;
 	}
+
+	pr_debug("Kernel build dir is set to %s\n", *kbuild_dir);
+	force_set_env("KBUILD_DIR", *kbuild_dir);
+	force_set_env("KBUILD_OPTS", llvm_param.kbuild_opts);
+	err = read_from_pipe(kinc_fetch_script,
+			     (void **)kbuild_include_opts,
+			     NULL);
+	if (err) {
+		pr_warning(
+"WARNING:\tunable to get kernel include directories from '%s'\n"
+"Hint:\tTry set clang include options using 'clang-bpf-cmd-template'\n"
+"     \toption in [llvm] section of ~/.perfconfig and set 'kbuild-dir'\n"
+"     \toption in [llvm] to \"\" to suppress this detection.\n\n",
+			*kbuild_dir);
+
+		free(*kbuild_dir);
+		*kbuild_dir = NULL;
+		return;
+	}
+
+	pr_debug("include option is set to %s\n", *kbuild_include_opts);
 }
 
 int llvm__compile_bpf(const char *path, void **p_obj_buf,
@@ -280,7 +328,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	char clang_path[PATH_MAX];
 	const char *clang_opt = llvm_param.clang_opt;
 	const char *template = llvm_param.clang_bpf_cmd_template;
-	char *kbuild_dir = NULL;
+	char *kbuild_dir = NULL, *kbuild_include_opts = NULL;
 	void *obj_buf = NULL;
 	size_t obj_buf_sz;
 
@@ -302,11 +350,11 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	 * This is an optional work. Even it fail we can continue our
 	 * work. Needn't to check error return.
 	 */
-	get_kbuild_opts(&kbuild_dir);
+	get_kbuild_opts(&kbuild_dir, &kbuild_include_opts);
 
 	force_set_env("CLANG_EXEC", clang_path);
 	force_set_env("CLANG_OPTIONS", clang_opt);
-	force_set_env("KERNEL_INC_OPTIONS", NULL);
+	force_set_env("KERNEL_INC_OPTIONS", kbuild_include_opts);
 	force_set_env("WORKING_DIR", kbuild_dir ? : ".");
 
 	/*
@@ -330,6 +378,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	}
 
 	free(kbuild_dir);
+	free(kbuild_include_opts);
 	if (!p_obj_buf)
 		free(obj_buf);
 	else
@@ -340,6 +389,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	return 0;
 errout:
 	free(kbuild_dir);
+	free(kbuild_include_opts);
 	free(obj_buf);
 	if (p_obj_buf)
 		*p_obj_buf = NULL;
