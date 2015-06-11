@@ -31,7 +31,8 @@ static const char *xfeature_names[] =
  */
 u64 xfeatures_mask __read_mostly;
 
-static unsigned int xstate_offsets[XFEATURES_NR_MAX], xstate_sizes[XFEATURES_NR_MAX];
+static unsigned int xstate_offsets[XFEATURES_NR_MAX] = { [ 0 ... XFEATURES_NR_MAX - 1] = -1};
+static unsigned int xstate_sizes[XFEATURES_NR_MAX]   = { [ 0 ... XFEATURES_NR_MAX - 1] = -1};
 static unsigned int xstate_comp_offsets[sizeof(xfeatures_mask)*8];
 
 /* The number of supported xfeatures in xfeatures_mask: */
@@ -187,7 +188,6 @@ static void __init setup_xstate_features(void)
 		xstate_sizes[leaf] = eax;
 
 		printk(KERN_INFO "x86/fpu: xstate_offset[%d]: %04x, xstate_sizes[%d]: %04x\n", leaf, ebx, leaf, eax);
-		leaf++;
 	}
 }
 
