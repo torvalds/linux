@@ -1213,29 +1213,34 @@ out:
 	return rc;
 }
 
-static char *
-ll_getname(const char __user *filename)
+/* This function tries to get a single name component,
+ * to send to the server. No actual path traversal involved,
+ * so we limit to NAME_MAX */
+static char *ll_getname(const char __user *filename)
 {
 	int ret = 0, len;
-	char *tmp = __getname();
+	char *tmp;
 
+	tmp = kzalloc(NAME_MAX + 1, GFP_KERNEL);
 	if (!tmp)
 		return ERR_PTR(-ENOMEM);
 
-	len = strncpy_from_user(tmp, filename, PATH_MAX);
-	if (len == 0)
+	len = strncpy_from_user(tmp, filename, NAME_MAX + 1);
+	if (len < 0)
+		ret = len;
+	else if (len == 0)
 		ret = -ENOENT;
-	else if (len > PATH_MAX)
+	else if (len > NAME_MAX && tmp[NAME_MAX] != 0)
 		ret = -ENAMETOOLONG;
 
 	if (ret) {
-		__putname(tmp);
+		kfree(tmp);
 		tmp =  ERR_PTR(ret);
 	}
 	return tmp;
 }
 
-#define ll_putname(filename) __putname(filename)
+#define ll_putname(filename) kfree(filename)
 
 static long ll_dir_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
