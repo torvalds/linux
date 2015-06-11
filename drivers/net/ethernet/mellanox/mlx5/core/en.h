@@ -283,6 +283,8 @@ struct mlx5e_sq {
 	struct netdev_queue       *txq;
 	u32                        sqn;
 	u32                        bf_buf_size;
+	u16                        max_inline;
+	u16                        edge;
 	struct device             *pdev;
 	__be32                     mkey_be;
 	unsigned long              state;
@@ -453,6 +455,7 @@ enum mlx5e_link_mode {
 
 #define MLX5E_PROT_MASK(link_mode) (1 << link_mode)
 
+void mlx5e_send_nop(struct mlx5e_sq *sq, bool notify_hw);
 u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		       void *accel_priv, select_queue_fallback_t fallback);
 netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev);

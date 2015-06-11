@@ -34,6 +34,33 @@
 #include <linux/if_vlan.h>
 #include "en.h"
 
+#define MLX5E_SQ_NOPS_ROOM  MLX5_SEND_WQE_MAX_WQEBBS
+#define MLX5E_SQ_STOP_ROOM (MLX5_SEND_WQE_MAX_WQEBBS +\
+			    MLX5E_SQ_NOPS_ROOM)
+
+void mlx5e_send_nop(struct mlx5e_sq *sq, bool notify_hw)
+{
+	struct mlx5_wq_cyc                *wq  = &sq->wq;
+
+	u16 pi = sq->pc & wq->sz_m1;
+	struct mlx5e_tx_wqe              *wqe  = mlx5_wq_cyc_get_wqe(wq, pi);
+
+	struct mlx5_wqe_ctrl_seg         *cseg = &wqe->ctrl;
+
+	memset(cseg, 0, sizeof(*cseg));
+
+	cseg->opmod_idx_opcode = cpu_to_be32((sq->pc << 8) | MLX5_OPCODE_NOP);
+	cseg->qpn_ds           = cpu_to_be32((sq->sqn << 8) | 0x01);
+
+	sq->skb[pi] = NULL;
+	sq->pc++;
+
+	if (notify_hw) {
+		cseg->fm_ce_se = MLX5_WQE_CTRL_CQ_UPDATE;
+		mlx5e_tx_notify_hw(sq, wqe);
+	}
+}
+
 static void mlx5e_dma_pop_last_pushed(struct mlx5e_sq *sq, dma_addr_t *addr,
 				      u32 *size)
 {
@@ -196,13 +223,17 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 
 	netdev_tx_sent_queue(sq->txq, MLX5E_TX_SKB_CB(skb)->num_bytes);
 
-	if (unlikely(!mlx5e_sq_has_room_for(sq, MLX5_SEND_WQE_MAX_WQEBBS))) {
+	if (unlikely(!mlx5e_sq_has_room_for(sq, MLX5E_SQ_STOP_ROOM))) {
 		netif_tx_stop_queue(sq->txq);
 		sq->stats.stopped++;
 	}
 
 	if (!skb->xmit_more || netif_xmit_stopped(sq->txq))
 		mlx5e_tx_notify_hw(sq, wqe);
+
+	/* fill sq edge with nops to avoid wqe wrap around */
+	while ((sq->pc & wq->sz_m1) > sq->edge)
+		mlx5e_send_nop(sq, false);
 
 	sq->stats.packets++;
 	return NETDEV_TX_OK;
@@ -311,7 +342,7 @@ free_skb:
 	netdev_tx_completed_queue(sq->txq, npkts, nbytes);
 
 	if (netif_tx_queue_stopped(sq->txq) &&
-	    mlx5e_sq_has_room_for(sq, MLX5_SEND_WQE_MAX_WQEBBS) &&
+	    mlx5e_sq_has_room_for(sq, MLX5E_SQ_STOP_ROOM) &&
 	    likely(test_bit(MLX5E_SQ_STATE_WAKE_TXQ_ENABLE, &sq->state))) {
 				netif_tx_wake_queue(sq->txq);
 				sq->stats.wake++;

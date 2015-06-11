@@ -257,26 +257,6 @@ static void mlx5e_disable_async_events(struct mlx5e_priv *priv)
 	spin_unlock_irq(&priv->async_events_spinlock);
 }
 
-static void mlx5e_send_nop(struct mlx5e_sq *sq)
-{
-	struct mlx5_wq_cyc                *wq  = &sq->wq;
-
-	u16 pi = sq->pc & wq->sz_m1;
-	struct mlx5e_tx_wqe              *wqe  = mlx5_wq_cyc_get_wqe(wq, pi);
-
-	struct mlx5_wqe_ctrl_seg         *cseg = &wqe->ctrl;
-
-	memset(cseg, 0, sizeof(*cseg));
-
-	cseg->opmod_idx_opcode = cpu_to_be32((sq->pc << 8) | MLX5_OPCODE_NOP);
-	cseg->qpn_ds           = cpu_to_be32((sq->sqn << 8) | 0x01);
-	cseg->fm_ce_se         = MLX5_WQE_CTRL_CQ_UPDATE;
-
-	sq->skb[pi] = NULL;
-	sq->pc++;
-	mlx5e_tx_notify_hw(sq, wqe);
-}
-
 #define MLX5E_HW2SW_MTU(hwmtu) (hwmtu - (ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN))
 #define MLX5E_SW2HW_MTU(swmtu) (swmtu + (ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN))
 
@@ -453,7 +433,7 @@ static int mlx5e_open_rq(struct mlx5e_channel *c,
 		goto err_disable_rq;
 
 	set_bit(MLX5E_RQ_STATE_POST_WQES_ENABLE, &rq->state);
-	mlx5e_send_nop(&c->sq[0]); /* trigger mlx5e_post_rx_wqes() */
+	mlx5e_send_nop(&c->sq[0], true); /* trigger mlx5e_post_rx_wqes() */
 
 	return 0;
 
@@ -542,6 +522,7 @@ static int mlx5e_create_sq(struct mlx5e_channel *c,
 	sq->mkey_be = c->mkey_be;
 	sq->channel = c;
 	sq->tc      = tc;
+	sq->edge    = (sq->wq.sz_m1 + 1) - MLX5_SEND_WQE_MAX_WQEBBS;
 
 	return 0;
 
@@ -695,7 +676,7 @@ static void mlx5e_close_sq(struct mlx5e_sq *sq)
 
 	/* ensure hw is notified of all pending wqes */
 	if (mlx5e_sq_has_room_for(sq, 1))
-		mlx5e_send_nop(sq);
+		mlx5e_send_nop(sq, true);
 
 	mlx5e_modify_sq(sq, MLX5_SQC_STATE_RDY, MLX5_SQC_STATE_ERR);
 	while (sq->cc != sq->pc) /* wait till sq is empty */
@@ -1747,6 +1728,7 @@ static void mlx5e_build_netdev(struct net_device *netdev)
 
 	netdev->ethtool_ops	  = &mlx5e_ethtool_ops;
 
+	netdev->vlan_features    |= NETIF_F_SG;
 	netdev->vlan_features    |= NETIF_F_IP_CSUM;
 	netdev->vlan_features    |= NETIF_F_IPV6_CSUM;
 	netdev->vlan_features    |= NETIF_F_GRO;
