@@ -464,10 +464,12 @@ int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
  * @p: parser context
  * @lo: address of lower dword
  * @hi: address of higher dword
+ * @size: minimum size
  *
  * Patch relocation inside command stream with real buffer address
  */
-int amdgpu_vce_cs_reloc(struct amdgpu_cs_parser *p, uint32_t ib_idx, int lo, int hi)
+static int amdgpu_vce_cs_reloc(struct amdgpu_cs_parser *p, uint32_t ib_idx,
+			       int lo, int hi, unsigned size)
 {
 	struct amdgpu_bo_va_mapping *mapping;
 	struct amdgpu_ib *ib = &p->ibs[ib_idx];
@@ -484,6 +486,13 @@ int amdgpu_vce_cs_reloc(struct amdgpu_cs_parser *p, uint32_t ib_idx, int lo, int
 		return -EINVAL;
 	}
 
+	if ((addr + (uint64_t)size) >
+	    ((uint64_t)mapping->it.last + 1) * AMDGPU_GPU_PAGE_SIZE) {
+		DRM_ERROR("BO to small for addr 0x%010Lx %d %d\n",
+			  addr, lo, hi);
+		return -EINVAL;
+	}
+
 	addr -= ((uint64_t)mapping->it.start) * AMDGPU_GPU_PAGE_SIZE;
 	addr += amdgpu_bo_gpu_offset(bo);
 
@@ -494,6 +503,39 @@ int amdgpu_vce_cs_reloc(struct amdgpu_cs_parser *p, uint32_t ib_idx, int lo, int
 }
 
 /**
+ * amdgpu_vce_validate_handle - validate stream handle
+ *
+ * @p: parser context
+ * @handle: handle to validate
+ *
+ * Validates the handle and return the found session index or -EINVAL
+ * we we don't have another free session index.
+ */
+static int amdgpu_vce_validate_handle(struct amdgpu_cs_parser *p,
+				      uint32_t handle)
+{
+	unsigned i;
+
+	/* validate the handle */
+	for (i = 0; i < AMDGPU_MAX_VCE_HANDLES; ++i) {
+		if (atomic_read(&p->adev->vce.handles[i]) == handle)
+			return i;
+	}
+
+	/* handle not found try to alloc a new one */
+	for (i = 0; i < AMDGPU_MAX_VCE_HANDLES; ++i) {
+		if (!atomic_cmpxchg(&p->adev->vce.handles[i], 0, handle)) {
+			p->adev->vce.filp[i] = p->filp;
+			p->adev->vce.img_size[i] = 0;
+			return i;
+		}
+	}
+
+	DRM_ERROR("No more free VCE handles!\n");
+	return -EINVAL;
+}
+
+/**
  * amdgpu_vce_cs_parse - parse and validate the command stream
  *
  * @p: parser context
@@ -501,10 +543,12 @@ int amdgpu_vce_cs_reloc(struct amdgpu_cs_parser *p, uint32_t ib_idx, int lo, int
  */
 int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 {
-	uint32_t handle = 0;
-	bool destroy = false;
-	int i, r, idx = 0;
 	struct amdgpu_ib *ib = &p->ibs[ib_idx];
+	int session_idx = -1;
+	bool destroyed = false;
+	uint32_t tmp, handle = 0;
+	uint32_t *size = &tmp;
+	int i, r, idx = 0;
 
 	amdgpu_vce_note_usage(p->adev);
 
@@ -517,13 +561,29 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 			return -EINVAL;
 		}
 
+		if (destroyed) {
+			DRM_ERROR("No other command allowed after destroy!\n");
+			return -EINVAL;
+		}
+
 		switch (cmd) {
 		case 0x00000001: // session
 			handle = amdgpu_get_ib_value(p, ib_idx, idx + 2);
+			session_idx = amdgpu_vce_validate_handle(p, handle);
+			if (session_idx < 0)
+				return session_idx;
+			size = &p->adev->vce.img_size[session_idx];
 			break;
 
 		case 0x00000002: // task info
+			break;
+
 		case 0x01000001: // create
+			*size = amdgpu_get_ib_value(p, ib_idx, idx + 8) *
+				amdgpu_get_ib_value(p, ib_idx, idx + 10) *
+				8 * 3 / 2;
+			break;
+
 		case 0x04000001: // config extension
 		case 0x04000002: // pic control
 		case 0x04000005: // rate control
@@ -534,23 +594,39 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 			break;
 
 		case 0x03000001: // encode
-			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 10, idx + 9);
+			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 10, idx + 9,
+						*size);
 			if (r)
 				return r;
 
-			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 12, idx + 11);
+			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 12, idx + 11,
+						*size / 3);
 			if (r)
 				return r;
 			break;
 
 		case 0x02000001: // destroy
-			destroy = true;
+			destroyed = true;
 			break;
 
 		case 0x05000001: // context buffer
+			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 3, idx + 2,
+						*size * 2);
+			if (r)
+				return r;
+			break;
+
 		case 0x05000004: // video bitstream buffer
+			tmp = amdgpu_get_ib_value(p, ib_idx, idx + 4);
+			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 3, idx + 2,
+						tmp);
+			if (r)
+				return r;
+			break;
+
 		case 0x05000005: // feedback buffer
-			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 3, idx + 2);
+			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 3, idx + 2,
+						4096);
 			if (r)
 				return r;
 			break;
@@ -560,34 +636,21 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 			return -EINVAL;
 		}
 
+		if (session_idx == -1) {
+			DRM_ERROR("no session command at start of IB\n");
+			return -EINVAL;
+		}
+
 		idx += len / 4;
 	}
 
-	if (destroy) {
+	if (destroyed) {
 		/* IB contains a destroy msg, free the handle */
 		for (i = 0; i < AMDGPU_MAX_VCE_HANDLES; ++i)
 			atomic_cmpxchg(&p->adev->vce.handles[i], handle, 0);
-
-		return 0;
 	}
 
-	/* create or encode, validate the handle */
-	for (i = 0; i < AMDGPU_MAX_VCE_HANDLES; ++i) {
-		if (atomic_read(&p->adev->vce.handles[i]) == handle)
-			return 0;
-	}
-
-	/* handle not found try to alloc a new one */
-	for (i = 0; i < AMDGPU_MAX_VCE_HANDLES; ++i) {
-		if (!atomic_cmpxchg(&p->adev->vce.handles[i], 0, handle)) {
-			p->adev->vce.filp[i] = p->filp;
-			return 0;
-		}
-	}
-
-	DRM_ERROR("No more free VCE handles!\n");
-
-	return -EINVAL;
+	return 0;
 }
 
 /**
