@@ -51,7 +51,7 @@ static int i2c_mux_master_xfer(struct i2c_adapter *adap,
 
 	ret = priv->select(parent, priv->mux_priv, priv->chan_id);
 	if (ret >= 0)
-		ret = parent->algo->master_xfer(parent, msgs, num);
+		ret = __i2c_transfer(parent, msgs, num);
 	if (priv->deselect)
 		priv->deselect(parent, priv->mux_priv, priv->chan_id);
 
