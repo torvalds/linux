@@ -196,7 +196,7 @@ void gb_protocol_put(struct gb_protocol *protocol)
 	u8 minor;
 	u8 protocol_count;
 
-	if (!protocol)
+	if (WARN_ON(!protocol))
 		return;
 
 	id = protocol->id;

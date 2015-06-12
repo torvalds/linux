@@ -195,7 +195,6 @@ struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 	connection->major = major;
 	connection->minor = minor;
 	if (!gb_connection_hd_cport_id_alloc(connection)) {
-		gb_protocol_put(connection->protocol);
 		kfree(connection);
 		return NULL;
 	}
@@ -217,7 +216,6 @@ struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 		pr_err("failed to add connection device for cport 0x%04hx\n",
 			cport_id);
 		gb_connection_hd_cport_id_free(connection);
-		gb_protocol_put(connection->protocol);
 		put_device(&connection->dev);
 
 		return NULL;
@@ -264,6 +262,7 @@ void gb_connection_destroy(struct gb_connection *connection)
 
 	gb_connection_hd_cport_id_free(connection);
 	gb_protocol_put(connection->protocol);
+	connection->protocol = NULL;
 
 	device_unregister(&connection->dev);
 }
