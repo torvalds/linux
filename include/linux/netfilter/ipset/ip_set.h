@@ -545,8 +545,6 @@ ip_set_put_extensions(struct sk_buff *skb, const struct ip_set *set,
 	{ .bytes = ULLONG_MAX, .packets = ULLONG_MAX,	\
 	  .timeout = (set)->timeout }
 
-#define IP_SET_INIT_CIDR(a, b) ((a) ? (a) : (b))
-
 #define IPSET_CONCAT(a, b)		a##b
 #define IPSET_TOKEN(a, b)		IPSET_CONCAT(a, b)
 
