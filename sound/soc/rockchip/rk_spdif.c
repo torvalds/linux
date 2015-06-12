@@ -248,8 +248,9 @@ static int spdif_hw_params(struct snd_pcm_substream *substream,
 	cfgr &= ~CFGR_HALFWORD_TX_MASK;
 	cfgr |= CFGR_HALFWORD_TX_ENABLE;
 
+	/* no need divder, let set_syclk care about this */
 	cfgr &= ~CFGR_CLK_RATE_MASK;
-	cfgr |= (1<<16);
+	cfgr |= (0x0<<16);
 
 	cfgr &= ~CFGR_JUSTIFIED_MASK;
 	cfgr |= CFGR_JUSTIFIED_RIGHT;
@@ -325,13 +326,10 @@ struct snd_soc_dai_driver rockchip_spdif_dai = {
 		.stream_name = "SPDIF Playback",
 		.channels_min = 2,
 		.channels_max = 2,
-		.rates = (SNDRV_PCM_RATE_32000 |
-				SNDRV_PCM_RATE_44100 |
-				SNDRV_PCM_RATE_48000 |
-				SNDRV_PCM_RATE_96000),
-		.formats = SNDRV_PCM_FMTBIT_S16_LE|
-		SNDRV_PCM_FMTBIT_S20_3LE|
-		SNDRV_PCM_FMTBIT_S24_LE, },
+		.rates = SNDRV_PCM_RATE_8000_192000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE |
+			   SNDRV_PCM_FMTBIT_S20_3LE |
+			   SNDRV_PCM_FMTBIT_S24_LE, },
 	.ops = &spdif_dai_ops,
 	.suspend = spdif_suspend,
 	.resume = spdif_resume,
