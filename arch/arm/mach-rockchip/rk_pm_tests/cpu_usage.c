@@ -129,7 +129,7 @@ static int __init cpu_usage_init(void)
 		INIT_WORK(work, handler_cpu_usage);
 	}
 
-	setup_timer(&arm_mode_timer, arm_mode_timer_handler, (unsigned int)NULL);
+	setup_timer(&arm_mode_timer, arm_mode_timer_handler, 0);
 	return 0;
 }
 late_initcall(cpu_usage_init);
