@@ -280,6 +280,7 @@ struct sbridge_info {
 	u8		max_interleave;
 	u8		(*get_node_id)(struct sbridge_pvt *pvt);
 	enum mem_type	(*get_memory_type)(struct sbridge_pvt *pvt);
+	enum dev_type	(*get_width)(struct sbridge_pvt *pvt, u32 mtr);
 	struct pci_dev	*pci_vtd;
 };
 
@@ -768,6 +769,49 @@ out:
 	return mtype;
 }
 
+static enum dev_type sbridge_get_width(struct sbridge_pvt *pvt, u32 mtr)
+{
+	/* there's no way to figure out */
+	return DEV_UNKNOWN;
+}
+
+static enum dev_type __ibridge_get_width(u32 mtr)
+{
+	enum dev_type type;
+
+	switch (mtr) {
+	case 3:
+		type = DEV_UNKNOWN;
+		break;
+	case 2:
+		type = DEV_X16;
+		break;
+	case 1:
+		type = DEV_X8;
+		break;
+	case 0:
+		type = DEV_X4;
+		break;
+	}
+
+	return type;
+}
+
+static enum dev_type ibridge_get_width(struct sbridge_pvt *pvt, u32 mtr)
+{
+	/*
+	 * ddr3_width on the documentation but also valid for DDR4 on
+	 * Haswell
+	 */
+	return __ibridge_get_width(GET_BITFIELD(mtr, 7, 8));
+}
+
+static enum dev_type broadwell_get_width(struct sbridge_pvt *pvt, u32 mtr)
+{
+	/* ddr3_width on the documentation but also valid for DDR4 */
+	return __ibridge_get_width(GET_BITFIELD(mtr, 8, 9));
+}
+
 static u8 get_node_id(struct sbridge_pvt *pvt)
 {
 	u32 reg;
@@ -972,17 +1016,7 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 
 				dimm->nr_pages = npages;
 				dimm->grain = 32;
-				switch (banks) {
-				case 16:
-					dimm->dtype = DEV_X16;
-					break;
-				case 8:
-					dimm->dtype = DEV_X8;
-					break;
-				case 4:
-					dimm->dtype = DEV_X4;
-					break;
-				}
+				dimm->dtype = pvt->info.get_width(pvt, mtr);
 				dimm->mtype = mtype;
 				dimm->edac_mode = mode;
 				snprintf(dimm->label, sizeof(dimm->label),
@@ -2371,6 +2405,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.interleave_list = ibridge_interleave_list;
 		pvt->info.max_interleave = ARRAY_SIZE(ibridge_interleave_list);
 		pvt->info.interleave_pkg = ibridge_interleave_pkg;
+		pvt->info.get_width = ibridge_get_width;
 		mci->ctl_name = kasprintf(GFP_KERNEL, "Ivy Bridge Socket#%d", mci->mc_idx);
 
 		/* Store pci devices at mci for faster access */
@@ -2390,6 +2425,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.interleave_list = sbridge_interleave_list;
 		pvt->info.max_interleave = ARRAY_SIZE(sbridge_interleave_list);
 		pvt->info.interleave_pkg = sbridge_interleave_pkg;
+		pvt->info.get_width = sbridge_get_width;
 		mci->ctl_name = kasprintf(GFP_KERNEL, "Sandy Bridge Socket#%d", mci->mc_idx);
 
 		/* Store pci devices at mci for faster access */
@@ -2409,6 +2445,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.interleave_list = ibridge_interleave_list;
 		pvt->info.max_interleave = ARRAY_SIZE(ibridge_interleave_list);
 		pvt->info.interleave_pkg = ibridge_interleave_pkg;
+		pvt->info.get_width = ibridge_get_width;
 		mci->ctl_name = kasprintf(GFP_KERNEL, "Haswell Socket#%d", mci->mc_idx);
 
 		/* Store pci devices at mci for faster access */
@@ -2428,6 +2465,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.interleave_list = ibridge_interleave_list;
 		pvt->info.max_interleave = ARRAY_SIZE(ibridge_interleave_list);
 		pvt->info.interleave_pkg = ibridge_interleave_pkg;
+		pvt->info.get_width = broadwell_get_width;
 		mci->ctl_name = kasprintf(GFP_KERNEL, "Broadwell Socket#%d", mci->mc_idx);
 
 		/* Store pci devices at mci for faster access */
