@@ -196,6 +196,62 @@ static inline struct fimd_driver_data *drm_fimd_get_driver_data(
 	return (struct fimd_driver_data *)of_id->data;
 }
 
+static int fimd_enable_vblank(struct exynos_drm_crtc *crtc)
+{
+	struct fimd_context *ctx = crtc->ctx;
+	u32 val;
+
+	if (ctx->suspended)
+		return -EPERM;
+
+	if (!test_and_set_bit(0, &ctx->irq_flags)) {
+		val = readl(ctx->regs + VIDINTCON0);
+
+		val |= VIDINTCON0_INT_ENABLE;
+
+		if (ctx->i80_if) {
+			val |= VIDINTCON0_INT_I80IFDONE;
+			val |= VIDINTCON0_INT_SYSMAINCON;
+			val &= ~VIDINTCON0_INT_SYSSUBCON;
+		} else {
+			val |= VIDINTCON0_INT_FRAME;
+
+			val &= ~VIDINTCON0_FRAMESEL0_MASK;
+			val |= VIDINTCON0_FRAMESEL0_VSYNC;
+			val &= ~VIDINTCON0_FRAMESEL1_MASK;
+			val |= VIDINTCON0_FRAMESEL1_NONE;
+		}
+
+		writel(val, ctx->regs + VIDINTCON0);
+	}
+
+	return 0;
+}
+
+static void fimd_disable_vblank(struct exynos_drm_crtc *crtc)
+{
+	struct fimd_context *ctx = crtc->ctx;
+	u32 val;
+
+	if (ctx->suspended)
+		return;
+
+	if (test_and_clear_bit(0, &ctx->irq_flags)) {
+		val = readl(ctx->regs + VIDINTCON0);
+
+		val &= ~VIDINTCON0_INT_ENABLE;
+
+		if (ctx->i80_if) {
+			val &= ~VIDINTCON0_INT_I80IFDONE;
+			val &= ~VIDINTCON0_INT_SYSMAINCON;
+			val &= ~VIDINTCON0_INT_SYSSUBCON;
+		} else
+			val &= ~VIDINTCON0_INT_FRAME;
+
+		writel(val, ctx->regs + VIDINTCON0);
+	}
+}
+
 static void fimd_wait_for_vblank(struct exynos_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
@@ -248,6 +304,12 @@ static void fimd_clear_channel(struct fimd_context *ctx)
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
+	/* Hardware is in unknown state, so ensure it gets enabled properly */
+	pm_runtime_get_sync(ctx->dev);
+
+	clk_prepare_enable(ctx->bus_clk);
+	clk_prepare_enable(ctx->lcd_clk);
+
 	/* Check if any channel is enabled. */
 	for (win = 0; win < WINDOWS_NR; win++) {
 		u32 val = readl(ctx->regs + WINCON(win));
@@ -265,12 +327,24 @@ static void fimd_clear_channel(struct fimd_context *ctx)
 
 	/* Wait for vsync, as disable channel takes effect at next vsync */
 	if (ch_enabled) {
-		unsigned int state = ctx->suspended;
+		int pipe = ctx->pipe;
 
-		ctx->suspended = 0;
+		/* ensure that vblank interrupt won't be reported to core */
+		ctx->suspended = false;
+		ctx->pipe = -1;
+
+		fimd_enable_vblank(ctx->crtc);
 		fimd_wait_for_vblank(ctx->crtc);
-		ctx->suspended = state;
+		fimd_disable_vblank(ctx->crtc);
+
+		ctx->suspended = true;
+		ctx->pipe = pipe;
 	}
+
+	clk_disable_unprepare(ctx->lcd_clk);
+	clk_disable_unprepare(ctx->bus_clk);
+
+	pm_runtime_put(ctx->dev);
 }
 
 static int fimd_iommu_attach_devices(struct fimd_context *ctx,
@@ -434,61 +508,6 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 	writel(val, ctx->regs + VIDCON0);
 }
 
-static int fimd_enable_vblank(struct exynos_drm_crtc *crtc)
-{
-	struct fimd_context *ctx = crtc->ctx;
-	u32 val;
-
-	if (ctx->suspended)
-		return -EPERM;
-
-	if (!test_and_set_bit(0, &ctx->irq_flags)) {
-		val = readl(ctx->regs + VIDINTCON0);
-
-		val |= VIDINTCON0_INT_ENABLE;
-
-		if (ctx->i80_if) {
-			val |= VIDINTCON0_INT_I80IFDONE;
-			val |= VIDINTCON0_INT_SYSMAINCON;
-			val &= ~VIDINTCON0_INT_SYSSUBCON;
-		} else {
-			val |= VIDINTCON0_INT_FRAME;
-
-			val &= ~VIDINTCON0_FRAMESEL0_MASK;
-			val |= VIDINTCON0_FRAMESEL0_VSYNC;
-			val &= ~VIDINTCON0_FRAMESEL1_MASK;
-			val |= VIDINTCON0_FRAMESEL1_NONE;
-		}
-
-		writel(val, ctx->regs + VIDINTCON0);
-	}
-
-	return 0;
-}
-
-static void fimd_disable_vblank(struct exynos_drm_crtc *crtc)
-{
-	struct fimd_context *ctx = crtc->ctx;
-	u32 val;
-
-	if (ctx->suspended)
-		return;
-
-	if (test_and_clear_bit(0, &ctx->irq_flags)) {
-		val = readl(ctx->regs + VIDINTCON0);
-
-		val &= ~VIDINTCON0_INT_ENABLE;
-
-		if (ctx->i80_if) {
-			val &= ~VIDINTCON0_INT_I80IFDONE;
-			val &= ~VIDINTCON0_INT_SYSMAINCON;
-			val &= ~VIDINTCON0_INT_SYSSUBCON;
-		} else
-			val &= ~VIDINTCON0_INT_FRAME;
-
-		writel(val, ctx->regs + VIDINTCON0);
-	}
-}
 
 static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win)
 {
