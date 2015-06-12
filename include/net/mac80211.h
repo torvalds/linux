@@ -1492,8 +1492,10 @@ enum ieee80211_key_flags {
  * 	- Temporal Authenticator Rx MIC Key (64 bits)
  * @icv_len: The ICV length for this key type
  * @iv_len: The IV length for this key type
+ * @drv_priv: pointer for driver use
  */
 struct ieee80211_key_conf {
+	void *drv_priv;
 	atomic64_t tx_pn;
 	u32 cipher;
 	u8 icv_len;
