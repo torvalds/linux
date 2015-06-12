@@ -549,7 +549,10 @@ static int __run_perf_stat(int argc, const char **argv)
 					ui__warning("%s event is not supported by the kernel.\n",
 						    perf_evsel__name(counter));
 				counter->supported = false;
-				continue;
+
+				if ((counter->leader != counter) ||
+				    !(counter->leader->nr_members > 1))
+					continue;
 			}
 
 			perf_evsel__open_strerror(counter, &target,

@@ -320,7 +320,7 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 {
 	struct perf_evsel *pos;
 
-	fprintf(stdout, "#\n# Total Lost Samples: %lu\n#\n", evlist->stats.total_lost_samples);
+	fprintf(stdout, "#\n# Total Lost Samples: %" PRIu64 "\n#\n", evlist->stats.total_lost_samples);
 	evlist__for_each(evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
 		const char *evname = perf_evsel__name(pos);
