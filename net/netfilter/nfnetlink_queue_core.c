@@ -278,6 +278,23 @@ nla_put_failure:
 	return -1;
 }
 
+static u32 nfqnl_get_sk_secctx(struct sk_buff *skb, char **secdata)
+{
+	u32 seclen = 0;
+#if IS_ENABLED(CONFIG_NETWORK_SECMARK)
+	if (!skb || !sk_fullsock(skb->sk))
+		return 0;
+
+	read_lock_bh(&skb->sk->sk_callback_lock);
+
+	if (skb->secmark)
+		security_secid_to_secctx(skb->secmark, secdata, &seclen);
+
+	read_unlock_bh(&skb->sk->sk_callback_lock);
+#endif
+	return seclen;
+}
+
 static struct sk_buff *
 nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 			   struct nf_queue_entry *entry,
@@ -297,6 +314,8 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 	struct nf_conn *ct = NULL;
 	enum ip_conntrack_info uninitialized_var(ctinfo);
 	bool csum_verify;
+	char *secdata = NULL;
+	u32 seclen = 0;
 
 	size =    nlmsg_total_size(sizeof(struct nfgenmsg))
 		+ nla_total_size(sizeof(struct nfqnl_msg_packet_hdr))
@@ -350,6 +369,12 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 	if (queue->flags & NFQA_CFG_F_UID_GID) {
 		size +=  (nla_total_size(sizeof(u_int32_t))	/* uid */
 			+ nla_total_size(sizeof(u_int32_t)));	/* gid */
+	}
+
+	if ((queue->flags & NFQA_CFG_F_SECCTX) && entskb->sk) {
+		seclen = nfqnl_get_sk_secctx(entskb, &secdata);
+		if (seclen)
+			size += nla_total_size(seclen);
 	}
 
 	skb = nfnetlink_alloc_skb(net, size, queue->peer_portid,
@@ -477,6 +502,9 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 
 	if ((queue->flags & NFQA_CFG_F_UID_GID) && entskb->sk &&
 	    nfqnl_put_sk_uidgid(skb, entskb->sk) < 0)
+		goto nla_put_failure;
+
+	if (seclen && nla_put(skb, NFQA_SECCTX, seclen, secdata))
 		goto nla_put_failure;
 
 	if (ct && nfqnl_ct_put(skb, ct, ctinfo) < 0)
@@ -1142,7 +1170,12 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 			ret = -EOPNOTSUPP;
 			goto err_out_unlock;
 		}
-
+#if !IS_ENABLED(CONFIG_NETWORK_SECMARK)
+		if (flags & mask & NFQA_CFG_F_SECCTX) {
+			ret = -EOPNOTSUPP;
+			goto err_out_unlock;
+		}
+#endif
 		spin_lock_bh(&queue->lock);
 		queue->flags &= ~mask;
 		queue->flags |= flags & mask;
