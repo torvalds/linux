@@ -273,6 +273,11 @@ static inline void context_set_domain_id(struct context_entry *context,
 	context->hi |= (value & ((1 << 16) - 1)) << 8;
 }
 
+static inline int context_domain_id(struct context_entry *c)
+{
+	return((c->hi >> 8) & 0xffff);
+}
+
 static inline void context_clear_entry(struct context_entry *context)
 {
 	context->lo = 0;
@@ -2802,7 +2807,7 @@ static int copy_context_table(struct intel_iommu *iommu,
 			      int bus, bool ext)
 {
 	struct context_entry *old_ce = NULL, *new_ce = NULL, ce;
-	int tbl_idx, pos = 0, idx, devfn, ret = 0;
+	int tbl_idx, pos = 0, idx, devfn, ret = 0, did;
 	phys_addr_t old_ce_phys;
 
 	tbl_idx = ext ? bus * 2 : bus;
@@ -2856,6 +2861,10 @@ static int copy_context_table(struct intel_iommu *iommu,
 
 		if (!context_present(&ce))
 			continue;
+
+		did = context_domain_id(&ce);
+		if (did >= 0 && did < cap_ndoms(iommu->cap))
+			set_bit(did, iommu->domain_ids);
 
 		new_ce[idx] = ce;
 	}
