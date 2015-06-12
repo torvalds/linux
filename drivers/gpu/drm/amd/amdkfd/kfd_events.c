@@ -313,6 +313,10 @@ static int create_signal_event(struct file *devkfd,
 			p->signal_event_count, ev->event_id,
 			ev->user_signal_address);
 
+	pr_debug("signal event number %zu created with id %d, address %p\n",
+			p->signal_event_count, ev->event_id,
+			ev->user_signal_address);
+
 	return 0;
 }
 

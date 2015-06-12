@@ -463,6 +463,11 @@ struct kfd_process_device {
 
 	/* Is this process/pasid bound to this device? (amd_iommu_bind_pasid) */
 	bool bound;
+
+	/* This flag tells if we should reset all
+	 * wavefronts on process termination
+	 */
+	bool reset_wavefronts;
 };
 
 #define qpd_to_pdd(x) container_of(x, struct kfd_process_device, qpd)
@@ -519,11 +524,6 @@ struct kfd_process {
 								event_pages */
 	u32 next_nonsignal_event_id;
 	size_t signal_event_count;
-	/*
-	 * This flag tells if we should reset all wavefronts on
-	 * process termination
-	 */
-	bool reset_wavefronts;
 };
 
 /**
