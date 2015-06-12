@@ -11618,8 +11618,35 @@ free_work:
 	kfree(work);
 
 	if (ret == -EIO) {
+		struct drm_atomic_state *state;
+		struct drm_plane_state *plane_state;
+
 out_hang:
-		ret = intel_plane_restore(primary);
+		state = drm_atomic_state_alloc(dev);
+		if (!state)
+			return -ENOMEM;
+		state->acquire_ctx = drm_modeset_legacy_acquire_ctx(crtc);
+
+retry:
+		plane_state = drm_atomic_get_plane_state(state, primary);
+		ret = PTR_ERR_OR_ZERO(plane_state);
+		if (!ret) {
+			drm_atomic_set_fb_for_plane(plane_state, fb);
+
+			ret = drm_atomic_set_crtc_for_plane(plane_state, crtc);
+			if (!ret)
+				ret = drm_atomic_commit(state);
+		}
+
+		if (ret == -EDEADLK) {
+			drm_modeset_backoff(state->acquire_ctx);
+			drm_atomic_state_clear(state);
+			goto retry;
+		}
+
+		if (ret)
+			drm_atomic_state_free(state);
+
 		if (ret == 0 && event) {
 			spin_lock_irq(&dev->event_lock);
 			drm_send_vblank_event(dev, pipe, event);
