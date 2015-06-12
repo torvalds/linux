@@ -848,7 +848,7 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_command *cmd)
 			int sg_cnt;
 
 			sg_cnt = sdhci_pre_dma_transfer(host, data, NULL);
-			if (sg_cnt == 0) {
+			if (sg_cnt <= 0) {
 				/*
 				 * This only happens when someone fed
 				 * us an invalid request.
