@@ -160,17 +160,15 @@ hash_netnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 {
 	const struct hash_netnet *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
-	struct hash_netnet4_elem e = { };
+	struct hash_netnet4_elem e = { .cidr = { HOST_MASK, HOST_MASK, }, };
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
 	u32 ip = 0, ip_to = 0, last;
 	u32 ip2 = 0, ip2_from = 0, ip2_to = 0, last2;
-	u8 cidr, cidr2;
 	int ret;
 
 	if (tb[IPSET_ATTR_LINENO])
 		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
 
-	e.cidr[0] = e.cidr[1] = HOST_MASK;
 	if (unlikely(!tb[IPSET_ATTR_IP] || !tb[IPSET_ATTR_IP2] ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_CADT_FLAGS)))
 		return -IPSET_ERR_PROTOCOL;
@@ -188,17 +186,15 @@ hash_netnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 		return ret;
 
 	if (tb[IPSET_ATTR_CIDR]) {
-		cidr = nla_get_u8(tb[IPSET_ATTR_CIDR]);
-		if (!cidr || cidr > HOST_MASK)
+		e.cidr[0] = nla_get_u8(tb[IPSET_ATTR_CIDR]);
+		if (!e.cidr[0] || e.cidr[0] > HOST_MASK)
 			return -IPSET_ERR_INVALID_CIDR;
-		e.cidr[0] = cidr;
 	}
 
 	if (tb[IPSET_ATTR_CIDR2]) {
-		cidr2 = nla_get_u8(tb[IPSET_ATTR_CIDR2]);
-		if (!cidr2 || cidr2 > HOST_MASK)
+		e.cidr[1] = nla_get_u8(tb[IPSET_ATTR_CIDR2]);
+		if (!e.cidr[1] || e.cidr[1] > HOST_MASK)
 			return -IPSET_ERR_INVALID_CIDR;
-		e.cidr[1] = cidr2;
 	}
 
 	if (tb[IPSET_ATTR_CADT_FLAGS]) {
@@ -245,15 +241,13 @@ hash_netnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 
 	while (!after(ip, ip_to)) {
 		e.ip[0] = htonl(ip);
-		last = ip_set_range_to_cidr(ip, ip_to, &cidr);
-		e.cidr[0] = cidr;
+		last = ip_set_range_to_cidr(ip, ip_to, &e.cidr[0]);
 		ip2 = (retried &&
 		       ip == ntohl(h->next.ip[0])) ? ntohl(h->next.ip[1])
 						   : ip2_from;
 		while (!after(ip2, ip2_to)) {
 			e.ip[1] = htonl(ip2);
-			last2 = ip_set_range_to_cidr(ip2, ip2_to, &cidr2);
-			e.cidr[1] = cidr2;
+			last2 = ip_set_range_to_cidr(ip2, ip2_to, &e.cidr[1]);
 			ret = adtfn(set, &e, &ext, &ext, flags);
 			if (ret && !ip_set_eexist(ret, flags))
 				return ret;
@@ -388,14 +382,13 @@ hash_netnet6_uadt(struct ip_set *set, struct nlattr *tb[],
 	       enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
 {
 	ipset_adtfn adtfn = set->variant->adt[adt];
-	struct hash_netnet6_elem e = { };
+	struct hash_netnet6_elem e = { .cidr = { HOST_MASK, HOST_MASK, }, };
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
 	int ret;
 
 	if (tb[IPSET_ATTR_LINENO])
 		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
 
-	e.cidr[0] = e.cidr[1] = HOST_MASK;
 	if (unlikely(!tb[IPSET_ATTR_IP] || !tb[IPSET_ATTR_IP2] ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_CADT_FLAGS)))
 		return -IPSET_ERR_PROTOCOL;
@@ -414,15 +407,17 @@ hash_netnet6_uadt(struct ip_set *set, struct nlattr *tb[],
 	if (ret)
 		return ret;
 
-	if (tb[IPSET_ATTR_CIDR])
+	if (tb[IPSET_ATTR_CIDR]) {
 		e.cidr[0] = nla_get_u8(tb[IPSET_ATTR_CIDR]);
+		if (!e.cidr[0] || e.cidr[0] > HOST_MASK)
+			return -IPSET_ERR_INVALID_CIDR;
+	}
 
-	if (tb[IPSET_ATTR_CIDR2])
+	if (tb[IPSET_ATTR_CIDR2]) {
 		e.cidr[1] = nla_get_u8(tb[IPSET_ATTR_CIDR2]);
-
-	if (!e.cidr[0] || e.cidr[0] > HOST_MASK || !e.cidr[1] ||
-	    e.cidr[1] > HOST_MASK)
-		return -IPSET_ERR_INVALID_CIDR;
+		if (!e.cidr[1] || e.cidr[1] > HOST_MASK)
+			return -IPSET_ERR_INVALID_CIDR;
+	}
 
 	ip6_netmask(&e.ip[0], e.cidr[0]);
 	ip6_netmask(&e.ip[1], e.cidr[1]);

@@ -329,11 +329,11 @@ hash_net6_uadt(struct ip_set *set, struct nlattr *tb[],
 	if (ret)
 		return ret;
 
-	if (tb[IPSET_ATTR_CIDR])
+	if (tb[IPSET_ATTR_CIDR]) {
 		e.cidr = nla_get_u8(tb[IPSET_ATTR_CIDR]);
-
-	if (!e.cidr || e.cidr > HOST_MASK)
-		return -IPSET_ERR_INVALID_CIDR;
+		if (!e.cidr || e.cidr > HOST_MASK)
+			return -IPSET_ERR_INVALID_CIDR;
+	}
 
 	ip6_netmask(&e.ip, e.cidr);
 
