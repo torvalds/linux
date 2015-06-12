@@ -25,7 +25,7 @@ config DRM_EXYNOS_FIMD
 	  Choose this option if you want to use Exynos FIMD for DRM.
 
 config DRM_EXYNOS7_DECON
-	bool "Exynos DRM DECON"
+	bool "Exynos7 DRM DECON"
 	depends on DRM_EXYNOS && !FB_S3C
 	select FB_MODE_HELPERS
 	help
