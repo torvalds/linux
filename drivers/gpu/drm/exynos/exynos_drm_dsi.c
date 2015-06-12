@@ -1327,15 +1327,15 @@ static int exynos_dsi_register_te_irq(struct exynos_dsi *dsi)
 		goto out;
 	}
 
-	ret = gpio_request_one(dsi->te_gpio, GPIOF_IN, "te_gpio");
+	ret = gpio_request(dsi->te_gpio, "te_gpio");
 	if (ret) {
 		dev_err(dsi->dev, "gpio request failed with %d\n", ret);
 		goto out;
 	}
 
 	te_gpio_irq = gpio_to_irq(dsi->te_gpio);
-
 	irq_set_status_flags(te_gpio_irq, IRQ_NOAUTOEN);
+
 	ret = request_threaded_irq(te_gpio_irq, exynos_dsi_te_irq_handler, NULL,
 					IRQF_TRIGGER_RISING, "TE", dsi);
 	if (ret) {
