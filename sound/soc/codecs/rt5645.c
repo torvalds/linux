@@ -3268,11 +3268,12 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 	else
 		rt5645_parse_dt(rt5645, &i2c->dev);
 
-	rt5645->gpiod_hp_det = devm_gpiod_get(&i2c->dev, "hp-detect", GPIOD_IN);
+	rt5645->gpiod_hp_det = devm_gpiod_get_optional(&i2c->dev, "hp-detect",
+						       GPIOD_IN);
 
 	if (IS_ERR(rt5645->gpiod_hp_det)) {
-		rt5645->gpiod_hp_det = NULL;
 		dev_err(&i2c->dev, "failed to initialize gpiod\n");
+		return PTR_ERR(rt5645->gpiod_hp_det);
 	}
 
 	rt5645->regmap = devm_regmap_init_i2c(i2c, &rt5645_regmap);
