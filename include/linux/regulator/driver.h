@@ -161,6 +161,8 @@ struct regulator_ops {
 				     unsigned int old_selector,
 				     unsigned int new_selector);
 
+	int (*set_soft_start) (struct regulator_dev *);
+
 	/* report regulator status ... most other accessors report
 	 * control inputs, this reports results of combining inputs
 	 * from Linux (and other sources) with the actual load.

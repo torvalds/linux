@@ -1059,6 +1059,14 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		}
 	}
 
+	if (rdev->constraints->soft_start && ops->set_soft_start) {
+		ret = ops->set_soft_start(rdev);
+		if (ret < 0) {
+			rdev_err(rdev, "failed to set soft start\n");
+			goto out;
+		}
+	}
+
 	print_constraints(rdev);
 	return 0;
 out:
