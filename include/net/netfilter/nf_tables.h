@@ -791,6 +791,7 @@ struct nft_stats {
  *	@policy: default policy
  *	@stats: per-cpu chain stats
  *	@chain: the chain
+ *	@dev_name: device name that this base chain is attached to (if any)
  */
 struct nft_base_chain {
 	struct nf_hook_ops		ops[NFT_HOOK_OPS_MAX];
@@ -799,6 +800,7 @@ struct nft_base_chain {
 	u8				policy;
 	struct nft_stats __percpu	*stats;
 	struct nft_chain		chain;
+	char 				dev_name[IFNAMSIZ];
 };
 
 static inline struct nft_base_chain *nft_base_chain(const struct nft_chain *chain)
@@ -819,7 +821,6 @@ unsigned int nft_do_chain(struct nft_pktinfo *pkt,
  *	@use: number of chain references to this table
  *	@flags: table flag (see enum nft_table_flags)
  *	@name: name of the table
- *	@dev: this table is bound to this device (if any)
  */
 struct nft_table {
 	struct list_head		list;
@@ -829,7 +830,6 @@ struct nft_table {
 	u32				use;
 	u16				flags;
 	char				name[NFT_TABLE_MAXNAMELEN];
-	struct net_device		*dev;
 };
 
 enum nft_af_flags {
