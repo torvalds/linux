@@ -219,7 +219,7 @@ struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 		gb_connection_hd_cport_id_free(connection);
 		gb_protocol_put(connection->protocol);
 		put_device(&connection->dev);
-		kfree(connection);
+
 		return NULL;
 	}
 
