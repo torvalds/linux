@@ -1051,6 +1051,14 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		}
 	}
 
+	if (rdev->constraints->pull_down && ops->set_pull_down) {
+		ret = ops->set_pull_down(rdev);
+		if (ret < 0) {
+			rdev_err(rdev, "failed to set pull down\n");
+			goto out;
+		}
+	}
+
 	print_constraints(rdev);
 	return 0;
 out:

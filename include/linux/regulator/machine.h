@@ -87,6 +87,7 @@ struct regulator_state {
  *           applied.
  * @apply_uV: Apply the voltage constraint when initialising.
  * @ramp_disable: Disable ramp delay when initialising or when setting voltage.
+ * @pull_down: Enable pull down when regulator is disabled.
  *
  * @input_uV: Input voltage for regulator when supplied by another regulator.
  *
@@ -141,6 +142,7 @@ struct regulation_constraints {
 	unsigned boot_on:1;	/* bootloader/firmware enabled regulator */
 	unsigned apply_uV:1;	/* apply uV constraint if min == max */
 	unsigned ramp_disable:1; /* disable ramp delay */
+	unsigned pull_down:1;	/* pull down resistor when regulator off */
 };
 
 /**

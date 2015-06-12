@@ -121,6 +121,9 @@ struct regulator_linear_range {
  * @set_suspend_mode: Set the operating mode for the regulator when the
  *                    system is suspended.
  *
+ * @set_pull_down: Configure the regulator to pull down when the regulator
+ *		   is disabled.
+ *
  * This struct describes regulator operations which can be implemented by
  * regulator chip drivers.
  */
@@ -187,6 +190,8 @@ struct regulator_ops {
 
 	/* set regulator suspend operating mode (defined in consumer.h) */
 	int (*set_suspend_mode) (struct regulator_dev *, unsigned int mode);
+
+	int (*set_pull_down) (struct regulator_dev *);
 };
 
 /*
