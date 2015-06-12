@@ -87,6 +87,7 @@ struct regulator_state {
  *           applied.
  * @apply_uV: Apply the voltage constraint when initialising.
  * @ramp_disable: Disable ramp delay when initialising or when setting voltage.
+ * @soft_start: Enable soft start so that voltage ramps slowly.
  * @pull_down: Enable pull down when regulator is disabled.
  *
  * @input_uV: Input voltage for regulator when supplied by another regulator.

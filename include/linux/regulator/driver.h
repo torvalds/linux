@@ -111,6 +111,7 @@ struct regulator_linear_range {
  *               to stabilise after being set to a new value, in microseconds.
  *               The function provides the from and to voltage selector, the
  *               function should return the worst case.
+ * @set_soft_start: Enable soft start for the regulator.
  *
  * @set_suspend_voltage: Set the voltage for the regulator when the system
  *                       is suspended.
