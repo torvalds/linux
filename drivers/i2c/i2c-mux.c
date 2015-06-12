@@ -144,6 +144,7 @@ struct i2c_adapter *i2c_add_mux_adapter(struct i2c_adapter *parent,
 	priv->adap.dev.parent = &parent->dev;
 	priv->adap.retries = parent->retries;
 	priv->adap.timeout = parent->timeout;
+	priv->adap.quirks = parent->quirks;
 
 	/* Sanity check on class */
 	if (i2c_mux_parent_classes(parent) & class)
