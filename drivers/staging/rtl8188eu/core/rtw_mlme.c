@@ -638,7 +638,6 @@ exit:
 void rtw_surveydone_event_callback(struct adapter	*adapter, u8 *pbuf)
 {
 	struct	mlme_priv *pmlmepriv = &(adapter->mlmepriv);
-	struct mlme_ext_priv *pmlmeext;
 
 	spin_lock_bh(&pmlmepriv->lock);
 
@@ -720,8 +719,6 @@ void rtw_surveydone_event_callback(struct adapter	*adapter, u8 *pbuf)
 	spin_unlock_bh(&pmlmepriv->lock);
 
 	rtw_os_xmit_schedule(adapter);
-
-	pmlmeext = &adapter->mlmeextpriv;
 }
 
 void rtw_dummy_event_callback(struct adapter *adapter, u8 *pbuf)
