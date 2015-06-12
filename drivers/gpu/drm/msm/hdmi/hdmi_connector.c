@@ -16,6 +16,7 @@
  */
 
 #include <linux/gpio.h>
+#include <linux/pinctrl/consumer.h>
 
 #include "msm_kms.h"
 #include "hdmi.h"
@@ -29,14 +30,14 @@ struct hdmi_connector {
 
 static int gpio_config(struct hdmi *hdmi, bool on)
 {
-	struct drm_device *dev = hdmi->dev;
+	struct device *dev = &hdmi->pdev->dev;
 	const struct hdmi_platform_config *config = hdmi->config;
 	int ret;
 
 	if (on) {
 		ret = gpio_request(config->ddc_clk_gpio, "HDMI_DDC_CLK");
 		if (ret) {
-			dev_err(dev->dev, "'%s'(%d) gpio_request failed: %d\n",
+			dev_err(dev, "'%s'(%d) gpio_request failed: %d\n",
 				"HDMI_DDC_CLK", config->ddc_clk_gpio, ret);
 			goto error1;
 		}
@@ -44,7 +45,7 @@ static int gpio_config(struct hdmi *hdmi, bool on)
 
 		ret = gpio_request(config->ddc_data_gpio, "HDMI_DDC_DATA");
 		if (ret) {
-			dev_err(dev->dev, "'%s'(%d) gpio_request failed: %d\n",
+			dev_err(dev, "'%s'(%d) gpio_request failed: %d\n",
 				"HDMI_DDC_DATA", config->ddc_data_gpio, ret);
 			goto error2;
 		}
@@ -52,7 +53,7 @@ static int gpio_config(struct hdmi *hdmi, bool on)
 
 		ret = gpio_request(config->hpd_gpio, "HDMI_HPD");
 		if (ret) {
-			dev_err(dev->dev, "'%s'(%d) gpio_request failed: %d\n",
+			dev_err(dev, "'%s'(%d) gpio_request failed: %d\n",
 				"HDMI_HPD", config->hpd_gpio, ret);
 			goto error3;
 		}
@@ -62,7 +63,7 @@ static int gpio_config(struct hdmi *hdmi, bool on)
 		if (config->mux_en_gpio != -1) {
 			ret = gpio_request(config->mux_en_gpio, "HDMI_MUX_EN");
 			if (ret) {
-				dev_err(dev->dev, "'%s'(%d) gpio_request failed: %d\n",
+				dev_err(dev, "'%s'(%d) gpio_request failed: %d\n",
 					"HDMI_MUX_EN", config->mux_en_gpio, ret);
 				goto error4;
 			}
@@ -72,7 +73,7 @@ static int gpio_config(struct hdmi *hdmi, bool on)
 		if (config->mux_sel_gpio != -1) {
 			ret = gpio_request(config->mux_sel_gpio, "HDMI_MUX_SEL");
 			if (ret) {
-				dev_err(dev->dev, "'%s'(%d) gpio_request failed: %d\n",
+				dev_err(dev, "'%s'(%d) gpio_request failed: %d\n",
 					"HDMI_MUX_SEL", config->mux_sel_gpio, ret);
 				goto error5;
 			}
@@ -83,7 +84,7 @@ static int gpio_config(struct hdmi *hdmi, bool on)
 			ret = gpio_request(config->mux_lpm_gpio,
 					"HDMI_MUX_LPM");
 			if (ret) {
-				dev_err(dev->dev,
+				dev_err(dev,
 					"'%s'(%d) gpio_request failed: %d\n",
 					"HDMI_MUX_LPM",
 					config->mux_lpm_gpio, ret);
@@ -136,7 +137,7 @@ static int hpd_enable(struct hdmi_connector *hdmi_connector)
 {
 	struct hdmi *hdmi = hdmi_connector->hdmi;
 	const struct hdmi_platform_config *config = hdmi->config;
-	struct drm_device *dev = hdmi_connector->base.dev;
+	struct device *dev = &hdmi->pdev->dev;
 	struct hdmi_phy *phy = hdmi->phy;
 	uint32_t hpd_ctrl;
 	int i, ret;
@@ -144,15 +145,21 @@ static int hpd_enable(struct hdmi_connector *hdmi_connector)
 	for (i = 0; i < config->hpd_reg_cnt; i++) {
 		ret = regulator_enable(hdmi->hpd_regs[i]);
 		if (ret) {
-			dev_err(dev->dev, "failed to enable hpd regulator: %s (%d)\n",
+			dev_err(dev, "failed to enable hpd regulator: %s (%d)\n",
 					config->hpd_reg_names[i], ret);
 			goto fail;
 		}
 	}
 
+	ret = pinctrl_pm_select_default_state(dev);
+	if (ret) {
+		dev_err(dev, "pinctrl state chg failed: %d\n", ret);
+		goto fail;
+	}
+
 	ret = gpio_config(hdmi, true);
 	if (ret) {
-		dev_err(dev->dev, "failed to configure GPIOs: %d\n", ret);
+		dev_err(dev, "failed to configure GPIOs: %d\n", ret);
 		goto fail;
 	}
 
@@ -161,13 +168,13 @@ static int hpd_enable(struct hdmi_connector *hdmi_connector)
 			ret = clk_set_rate(hdmi->hpd_clks[i],
 					config->hpd_freq[i]);
 			if (ret)
-				dev_warn(dev->dev, "failed to set clk %s (%d)\n",
+				dev_warn(dev, "failed to set clk %s (%d)\n",
 						config->hpd_clk_names[i], ret);
 		}
 
 		ret = clk_prepare_enable(hdmi->hpd_clks[i]);
 		if (ret) {
-			dev_err(dev->dev, "failed to enable hpd clk: %s (%d)\n",
+			dev_err(dev, "failed to enable hpd clk: %s (%d)\n",
 					config->hpd_clk_names[i], ret);
 			goto fail;
 		}
@@ -204,7 +211,7 @@ static void hdp_disable(struct hdmi_connector *hdmi_connector)
 {
 	struct hdmi *hdmi = hdmi_connector->hdmi;
 	const struct hdmi_platform_config *config = hdmi->config;
-	struct drm_device *dev = hdmi_connector->base.dev;
+	struct device *dev = &hdmi->pdev->dev;
 	int i, ret = 0;
 
 	/* Disable HPD interrupt */
@@ -217,12 +224,16 @@ static void hdp_disable(struct hdmi_connector *hdmi_connector)
 
 	ret = gpio_config(hdmi, false);
 	if (ret)
-		dev_warn(dev->dev, "failed to unconfigure GPIOs: %d\n", ret);
+		dev_warn(dev, "failed to unconfigure GPIOs: %d\n", ret);
+
+	ret = pinctrl_pm_select_sleep_state(dev);
+	if (ret)
+		dev_warn(dev, "pinctrl state chg failed: %d\n", ret);
 
 	for (i = 0; i < config->hpd_reg_cnt; i++) {
 		ret = regulator_disable(hdmi->hpd_regs[i]);
 		if (ret)
-			dev_warn(dev->dev, "failed to disable hpd regulator: %s (%d)\n",
+			dev_warn(dev, "failed to disable hpd regulator: %s (%d)\n",
 					config->hpd_reg_names[i], ret);
 	}
 }
@@ -433,7 +444,7 @@ struct drm_connector *hdmi_connector_init(struct hdmi *hdmi)
 
 	ret = hpd_enable(hdmi_connector);
 	if (ret) {
-		dev_err(hdmi->dev->dev, "failed to enable HPD: %d\n", ret);
+		dev_err(&hdmi->pdev->dev, "failed to enable HPD: %d\n", ret);
 		goto fail;
 	}
 
