@@ -136,7 +136,7 @@ static int nx842_crypto_init(struct crypto_tfm *tfm)
 {
 	struct nx842_crypto_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	ctx->wmem = kmalloc(NX842_MEM_COMPRESS, GFP_KERNEL);
+	ctx->wmem = kmalloc(nx842_workmem_size(), GFP_KERNEL);
 	ctx->sbounce = (u8 *)__get_free_pages(GFP_KERNEL, BOUNCE_BUFFER_ORDER);
 	ctx->dbounce = (u8 *)__get_free_pages(GFP_KERNEL, BOUNCE_BUFFER_ORDER);
 	if (!ctx->wmem || !ctx->sbounce || !ctx->dbounce) {

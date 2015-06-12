@@ -11,12 +11,6 @@
 #include <linux/mm.h>
 #include <linux/ratelimit.h>
 
-#define __NX842_PSERIES_MEM_COMPRESS	(10240)
-#define __NX842_POWERNV_MEM_COMPRESS	(1024)
-
-#define NX842_MEM_COMPRESS	(max_t(unsigned int,			\
-	__NX842_PSERIES_MEM_COMPRESS, __NX842_POWERNV_MEM_COMPRESS))
-
 /* Restrictions on Data Descriptor List (DDL) and Entry (DDE) buffers
  *
  * From NX P8 workbook, sec 4.9.1 "842 details"
@@ -119,6 +113,7 @@ struct nx842_constraints {
 struct nx842_driver {
 	char *name;
 	struct module *owner;
+	size_t workmem_size;
 
 	struct nx842_constraints *constraints;
 
@@ -135,6 +130,8 @@ bool nx842_platform_driver_set(struct nx842_driver *driver);
 void nx842_platform_driver_unset(struct nx842_driver *driver);
 bool nx842_platform_driver_get(void);
 void nx842_platform_driver_put(void);
+
+size_t nx842_workmem_size(void);
 
 int nx842_constraints(struct nx842_constraints *constraints);
 

@@ -367,7 +367,8 @@ static int wait_for_csb(struct nx842_workmem *wmem,
  * @inlen: input buffer size
  * @out: output buffer pointer
  * @outlenp: output buffer size pointer
- * @workmem: working memory buffer pointer, must be at least NX842_MEM_COMPRESS
+ * @workmem: working memory buffer pointer, size determined by
+ *           nx842_powernv_driver.workmem_size
  * @fc: function code, see CCW Function Codes in nx-842.h
  *
  * Returns:
@@ -477,7 +478,8 @@ static int nx842_powernv_function(const unsigned char *in, unsigned int inlen,
  * @inlen: input buffer size
  * @out: output buffer pointer
  * @outlenp: output buffer size pointer
- * @workmem: working memory buffer pointer, must be at least NX842_MEM_COMPRESS
+ * @workmem: working memory buffer pointer, size determined by
+ *           nx842_powernv_driver.workmem_size
  *
  * Returns: see @nx842_powernv_function()
  */
@@ -504,7 +506,8 @@ static int nx842_powernv_compress(const unsigned char *in, unsigned int inlen,
  * @inlen: input buffer size
  * @out: output buffer pointer
  * @outlenp: output buffer size pointer
- * @workmem: working memory buffer pointer, must be at least NX842_MEM_COMPRESS
+ * @workmem: working memory buffer pointer, size determined by
+ *           nx842_powernv_driver.workmem_size
  *
  * Returns: see @nx842_powernv_function()
  */
@@ -572,6 +575,7 @@ static struct nx842_constraints nx842_powernv_constraints = {
 static struct nx842_driver nx842_powernv_driver = {
 	.name =		KBUILD_MODNAME,
 	.owner =	THIS_MODULE,
+	.workmem_size =	sizeof(struct nx842_workmem),
 	.constraints =	&nx842_powernv_constraints,
 	.compress =	nx842_powernv_compress,
 	.decompress =	nx842_powernv_decompress,
@@ -582,7 +586,6 @@ static __init int nx842_powernv_init(void)
 	struct device_node *dn;
 
 	/* verify workmem size/align restrictions */
-	BUILD_BUG_ON(sizeof(struct nx842_workmem) > NX842_MEM_COMPRESS);
 	BUILD_BUG_ON(WORKMEM_ALIGN % CRB_ALIGN);
 	BUILD_BUG_ON(CRB_ALIGN % DDE_ALIGN);
 	BUILD_BUG_ON(CRB_SIZE % DDE_ALIGN);

@@ -284,7 +284,7 @@ static int nx842_validate_result(struct device *dev,
  * @out: Pointer to output buffer
  * @outlen: Length of output buffer
  * @wrkmem: ptr to buffer for working memory, size determined by
- *          NX842_MEM_COMPRESS
+ *          nx842_pseries_driver.workmem_size
  *
  * Returns:
  *   0		Success, output of length @outlen stored in the buffer at @out
@@ -411,7 +411,7 @@ unlock:
  * @out: Pointer to output buffer
  * @outlen: Length of output buffer
  * @wrkmem: ptr to buffer for working memory, size determined by
- *          NX842_MEM_COMPRESS
+ *          nx842_pseries_driver.workmem_size
  *
  * Returns:
  *   0		Success, output of length @outlen stored in the buffer at @out
@@ -963,6 +963,7 @@ static struct attribute_group nx842_attribute_group = {
 static struct nx842_driver nx842_pseries_driver = {
 	.name =		KBUILD_MODNAME,
 	.owner =	THIS_MODULE,
+	.workmem_size =	sizeof(struct nx842_workmem),
 	.constraints =	&nx842_pseries_constraints,
 	.compress =	nx842_pseries_compress,
 	.decompress =	nx842_pseries_decompress,
@@ -1083,8 +1084,6 @@ static int __init nx842_init(void)
 	int ret;
 
 	pr_info("Registering IBM Power 842 compression driver\n");
-
-	BUILD_BUG_ON(sizeof(struct nx842_workmem) > NX842_MEM_COMPRESS);
 
 	if (!of_find_compatible_node(NULL, NULL, "ibm,compression"))
 		return -ENODEV;

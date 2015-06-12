@@ -53,6 +53,17 @@ int nx842_constraints(struct nx842_constraints *c)
 }
 EXPORT_SYMBOL_GPL(nx842_constraints);
 
+/**
+ * nx842_workmem_size
+ *
+ * Get the amount of working memory the driver requires.
+ */
+size_t nx842_workmem_size(void)
+{
+	return nx842_platform_driver()->workmem_size;
+}
+EXPORT_SYMBOL_GPL(nx842_workmem_size);
+
 int nx842_compress(const unsigned char *in, unsigned int ilen,
 		   unsigned char *out, unsigned int *olen, void *wmem)
 {
