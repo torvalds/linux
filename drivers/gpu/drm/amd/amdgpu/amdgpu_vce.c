@@ -469,20 +469,24 @@ int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
  * Patch relocation inside command stream with real buffer address
  */
 static int amdgpu_vce_cs_reloc(struct amdgpu_cs_parser *p, uint32_t ib_idx,
-			       int lo, int hi, unsigned size)
+			       int lo, int hi, unsigned size, uint32_t index)
 {
 	struct amdgpu_bo_va_mapping *mapping;
 	struct amdgpu_ib *ib = &p->ibs[ib_idx];
 	struct amdgpu_bo *bo;
 	uint64_t addr;
 
+	if (index == 0xffffffff)
+		index = 0;
+
 	addr = ((uint64_t)amdgpu_get_ib_value(p, ib_idx, lo)) |
 	       ((uint64_t)amdgpu_get_ib_value(p, ib_idx, hi)) << 32;
+	addr += ((uint64_t)size) * ((uint64_t)index);
 
 	mapping = amdgpu_cs_find_mapping(p, addr, &bo);
 	if (mapping == NULL) {
-		DRM_ERROR("Can't find BO for addr 0x%010Lx %d %d\n",
-			  addr, lo, hi);
+		DRM_ERROR("Can't find BO for addr 0x%010Lx %d %d %d %d\n",
+			  addr, lo, hi, size, index);
 		return -EINVAL;
 	}
 
@@ -495,6 +499,7 @@ static int amdgpu_vce_cs_reloc(struct amdgpu_cs_parser *p, uint32_t ib_idx,
 
 	addr -= ((uint64_t)mapping->it.start) * AMDGPU_GPU_PAGE_SIZE;
 	addr += amdgpu_bo_gpu_offset(bo);
+	addr -= ((uint64_t)size) * ((uint64_t)index);
 
 	ib->ptr[lo] = addr & 0xFFFFFFFF;
 	ib->ptr[hi] = addr >> 32;
@@ -553,6 +558,7 @@ static int amdgpu_vce_validate_handle(struct amdgpu_cs_parser *p,
 int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 {
 	struct amdgpu_ib *ib = &p->ibs[ib_idx];
+	unsigned fb_idx = 0, bs_idx = 0;
 	int session_idx = -1;
 	bool destroyed = false;
 	bool created = false;
@@ -590,6 +596,8 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 			break;
 
 		case 0x00000002: // task info
+			fb_idx = amdgpu_get_ib_value(p, ib_idx, idx + 6);
+			bs_idx = amdgpu_get_ib_value(p, ib_idx, idx + 7);
 			break;
 
 		case 0x01000001: // create
@@ -616,12 +624,12 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 
 		case 0x03000001: // encode
 			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 10, idx + 9,
-						*size);
+						*size, 0);
 			if (r)
 				goto out;
 
 			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 12, idx + 11,
-						*size / 3);
+						*size / 3, 0);
 			if (r)
 				goto out;
 			break;
@@ -632,7 +640,7 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 
 		case 0x05000001: // context buffer
 			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 3, idx + 2,
-						*size * 2);
+						*size * 2, 0);
 			if (r)
 				goto out;
 			break;
@@ -640,14 +648,14 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 		case 0x05000004: // video bitstream buffer
 			tmp = amdgpu_get_ib_value(p, ib_idx, idx + 4);
 			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 3, idx + 2,
-						tmp);
+						tmp, bs_idx);
 			if (r)
 				goto out;
 			break;
 
 		case 0x05000005: // feedback buffer
 			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 3, idx + 2,
-						4096);
+						4096, fb_idx);
 			if (r)
 				goto out;
 			break;
