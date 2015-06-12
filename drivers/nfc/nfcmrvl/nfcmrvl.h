@@ -33,6 +33,12 @@
 #define NFCMRVL_NCI_MAX_EVENT_SIZE		260
 
 /*
+** NCI FW Parmaters
+*/
+
+#define NFCMRVL_PB_BAIL_OUT			0x11
+
+/*
 ** HCI defines
 */
 
