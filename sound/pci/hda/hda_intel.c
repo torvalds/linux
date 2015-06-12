@@ -1986,8 +1986,17 @@ static int azx_probe_continue(struct azx *chip)
 			hda->need_i915_power = 1;
 
 		err = snd_hdac_i915_init(bus);
-		if (err < 0)
-			goto skip_i915;
+		if (err < 0) {
+			/* if the controller is bound only with HDMI/DP
+			 * (for HSW and BDW), we need to abort the probe;
+			 * for other chips, still continue probing as other
+			 * codecs can be on the same link.
+			 */
+			if (CONTROLLER_IN_GPU(pci))
+				goto out_free;
+			else
+				goto skip_i915;
+		}
 
 		err = snd_hdac_display_power(bus, true);
 		if (err < 0) {
