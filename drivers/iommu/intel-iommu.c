@@ -2803,6 +2803,8 @@ static int __init init_dmars(void)
 	for_each_active_iommu(iommu, drhd) {
 		g_iommus[iommu->seq_id] = iommu;
 
+		intel_iommu_init_qi(iommu);
+
 		ret = iommu_init_domains(iommu);
 		if (ret)
 			goto free_iommu;
@@ -2818,9 +2820,6 @@ static int __init init_dmars(void)
 		if (!ecap_pass_through(iommu->ecap))
 			hw_pass_through = 0;
 	}
-
-	for_each_active_iommu(iommu, drhd)
-		intel_iommu_init_qi(iommu);
 
 	if (iommu_pass_through)
 		iommu_identity_mapping |= IDENTMAP_ALL;
