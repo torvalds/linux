@@ -233,10 +233,38 @@ struct context_entry {
 	u64 hi;
 };
 
-static inline bool context_present(struct context_entry *context)
+static inline void context_clear_pasid_enable(struct context_entry *context)
+{
+	context->lo &= ~(1ULL << 11);
+}
+
+static inline bool context_pasid_enabled(struct context_entry *context)
+{
+	return !!(context->lo & (1ULL << 11));
+}
+
+static inline void context_set_copied(struct context_entry *context)
+{
+	context->hi |= (1ull << 3);
+}
+
+static inline bool context_copied(struct context_entry *context)
+{
+	return !!(context->hi & (1ULL << 3));
+}
+
+static inline bool __context_present(struct context_entry *context)
 {
 	return (context->lo & 1);
 }
+
+static inline bool context_present(struct context_entry *context)
+{
+	return context_pasid_enabled(context) ?
+	     __context_present(context) :
+	     __context_present(context) && !context_copied(context);
+}
+
 static inline void context_set_present(struct context_entry *context)
 {
 	context->lo |= 1;
@@ -1861,6 +1889,8 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 		return 0;
 	}
 
+	context_clear_entry(context);
+
 	id = domain->id;
 	pgd = domain->pgd;
 
@@ -2859,12 +2889,31 @@ static int copy_context_table(struct intel_iommu *iommu,
 		/* Now copy the context entry */
 		ce = old_ce[idx];
 
-		if (!context_present(&ce))
+		if (!__context_present(&ce))
 			continue;
 
 		did = context_domain_id(&ce);
 		if (did >= 0 && did < cap_ndoms(iommu->cap))
 			set_bit(did, iommu->domain_ids);
+
+		/*
+		 * We need a marker for copied context entries. This
+		 * marker needs to work for the old format as well as
+		 * for extended context entries.
+		 *
+		 * Bit 67 of the context entry is used. In the old
+		 * format this bit is available to software, in the
+		 * extended format it is the PGE bit, but PGE is ignored
+		 * by HW if PASIDs are disabled (and thus still
+		 * available).
+		 *
+		 * So disable PASIDs first and then mark the entry
+		 * copied. This means that we don't copy PASID
+		 * translations from the old kernel, but this is fine as
+		 * faults there are not fatal.
+		 */
+		context_clear_pasid_enable(&ce);
+		context_set_copied(&ce);
 
 		new_ce[idx] = ce;
 	}
