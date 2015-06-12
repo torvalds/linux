@@ -256,11 +256,15 @@ static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 {
 	struct manifest_desc *desc;
 	struct manifest_desc *next;
+	struct gb_bundle *bundle;
+	struct gb_bundle *bundle_next;
 	u32 count = 0;
+
+	if (WARN_ON(!list_empty(&intf->bundles)))
+		return 0;
 
 	list_for_each_entry_safe(desc, next, &intf->manifest_descs, links) {
 		struct greybus_descriptor_bundle *desc_bundle;
-		struct gb_bundle *bundle;
 
 		if (desc->type != GREYBUS_TYPE_BUNDLE)
 			continue;
@@ -270,11 +274,11 @@ static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 		bundle = gb_bundle_create(intf, desc_bundle->id,
 					  desc_bundle->class);
 		if (!bundle)
-			return 0;	/* Error */
+			goto cleanup;
 
 		/* Now go set up this bundle's functions and cports */
 		if (!gb_manifest_parse_cports(bundle))
-			return 0;	/* Error parsing cports */
+			goto cleanup;
 
 		count++;
 
@@ -283,6 +287,13 @@ static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 	}
 
 	return count;
+cleanup:
+	/* An error occurred; undo any changes we've made */
+	list_for_each_entry_safe(bundle, bundle_next, &intf->bundles, links) {
+		gb_bundle_destroy(bundle);
+		count--;
+	}
+	return 0;	/* Error; count should also be 0 */
 }
 
 static bool gb_manifest_parse_interface(struct gb_interface *intf,
