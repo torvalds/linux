@@ -1179,7 +1179,9 @@ void mesh_path_timer(unsigned long data)
 		spin_unlock_bh(&mpath->state_lock);
 		mesh_queue_preq(mpath, 0);
 	} else {
-		mpath->flags = 0;
+		mpath->flags &= ~(MESH_PATH_RESOLVING |
+				  MESH_PATH_RESOLVED |
+				  MESH_PATH_REQ_QUEUED);
 		mpath->exp_time = jiffies;
 		spin_unlock_bh(&mpath->state_lock);
 		if (!mpath->is_gate && mesh_gate_num(sdata) > 0) {
