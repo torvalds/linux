@@ -1638,6 +1638,11 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 		seq_putc(m, '\n');
 	}
 
+	if (INTEL_INFO(dev_priv)->gen >= 7)
+		seq_printf(m, "Compressing: %s\n",
+			   yesno(I915_READ(FBC_STATUS2) &
+				 FBC_COMPRESSION_MASK));
+
 	intel_runtime_pm_put(dev_priv);
 
 	return 0;
