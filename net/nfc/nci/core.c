@@ -798,7 +798,7 @@ static void nci_deactivate_target(struct nfc_dev *nfc_dev,
 
 	if (atomic_read(&ndev->state) == NCI_POLL_ACTIVE) {
 		nci_request(ndev, nci_rf_deactivate_req,
-			    NCI_DEACTIVATE_TYPE_SLEEP_MODE,
+			    NCI_DEACTIVATE_TYPE_IDLE_MODE,
 			    msecs_to_jiffies(NCI_RF_DEACTIVATE_TIMEOUT));
 	}
 }
