@@ -5271,6 +5271,8 @@ static void intel_update_max_cdclk(struct drm_device *dev)
 			dev_priv->max_cdclk_freq = 540000;
 		else
 			dev_priv->max_cdclk_freq = 675000;
+	} else if (IS_CHERRYVIEW(dev)) {
+		dev_priv->max_cdclk_freq = 320000;
 	} else if (IS_VALLEYVIEW(dev)) {
 		dev_priv->max_cdclk_freq = 400000;
 	} else {
