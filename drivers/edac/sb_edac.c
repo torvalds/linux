@@ -471,6 +471,9 @@ static const struct pci_id_table pci_dev_descr_ibridge_table[] = {
 #define PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD2 0x2f6c
 #define PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD3 0x2f6d
 #define PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO0 0x2fbd
+#define PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO1 0x2fbf
+#define PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO2 0x2fb9
+#define PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO3 0x2fbb
 static const struct pci_id_descr pci_dev_descr_haswell[] = {
 	/* first item must be the HA */
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0, 0)		},
@@ -488,6 +491,9 @@ static const struct pci_id_descr pci_dev_descr_haswell[] = {
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TAD3, 1)	},
 
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO0, 1)		},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO1, 1)		},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO2, 1)		},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO3, 1)		},
 
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TA, 1)		},
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_THERMAL, 1)	},
@@ -1869,7 +1875,11 @@ static int haswell_mci_bind_devs(struct mem_ctl_info *mci,
 		}
 			break;
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO0:
-			pvt->pci_ddrio = pdev;
+		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO1:
+		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO2:
+		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO3:
+			if (!pvt->pci_ddrio)
+				pvt->pci_ddrio = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1:
 			pvt->pci_ha1 = pdev;
