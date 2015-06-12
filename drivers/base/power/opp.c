@@ -11,6 +11,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/cpu.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/err.h>
@@ -1195,6 +1196,26 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(of_free_opp_table);
 
+void of_cpumask_free_opp_table(cpumask_var_t cpumask)
+{
+	struct device *cpu_dev;
+	int cpu;
+
+	WARN_ON(cpumask_empty(cpumask));
+
+	for_each_cpu(cpu, cpumask) {
+		cpu_dev = get_cpu_device(cpu);
+		if (!cpu_dev) {
+			pr_err("%s: failed to get cpu%d device\n", __func__,
+			       cpu);
+			continue;
+		}
+
+		of_free_opp_table(cpu_dev);
+	}
+}
+EXPORT_SYMBOL_GPL(of_cpumask_free_opp_table);
+
 /* Returns opp descriptor node from its phandle. Caller must do of_node_put() */
 static struct device_node *
 _of_get_opp_desc_node_from_prop(struct device *dev, const struct property *prop)
@@ -1209,6 +1230,31 @@ _of_get_opp_desc_node_from_prop(struct device *dev, const struct property *prop)
 	}
 
 	return opp_np;
+}
+
+/* Returns opp descriptor node for a device. Caller must do of_node_put() */
+static struct device_node *_of_get_opp_desc_node(struct device *dev)
+{
+	const struct property *prop;
+
+	prop = of_find_property(dev->of_node, "operating-points-v2", NULL);
+	if (!prop)
+		return ERR_PTR(-ENODEV);
+	if (!prop->value)
+		return ERR_PTR(-ENODATA);
+
+	/*
+	 * TODO: Support for multiple OPP tables.
+	 *
+	 * There should be only ONE phandle present in "operating-points-v2"
+	 * property.
+	 */
+	if (prop->length != sizeof(__be32)) {
+		dev_err(dev, "%s: Invalid opp desc phandle\n", __func__);
+		return ERR_PTR(-EINVAL);
+	}
+
+	return _of_get_opp_desc_node_from_prop(dev, prop);
 }
 
 /* Initializes OPP tables based on new bindings */
@@ -1351,4 +1397,133 @@ int of_init_opp_table(struct device *dev)
 	return _of_init_opp_table_v2(dev, prop);
 }
 EXPORT_SYMBOL_GPL(of_init_opp_table);
+
+int of_cpumask_init_opp_table(cpumask_var_t cpumask)
+{
+	struct device *cpu_dev;
+	int cpu, ret = 0;
+
+	WARN_ON(cpumask_empty(cpumask));
+
+	for_each_cpu(cpu, cpumask) {
+		cpu_dev = get_cpu_device(cpu);
+		if (!cpu_dev) {
+			pr_err("%s: failed to get cpu%d device\n", __func__,
+			       cpu);
+			continue;
+		}
+
+		ret = of_init_opp_table(cpu_dev);
+		if (ret) {
+			pr_err("%s: couldn't find opp table for cpu:%d, %d\n",
+			       __func__, cpu, ret);
+
+			/* Free all other OPPs */
+			of_cpumask_free_opp_table(cpumask);
+			break;
+		}
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(of_cpumask_init_opp_table);
+
+/* Required only for V1 bindings, as v2 can manage it from DT itself */
+int set_cpus_sharing_opps(struct device *cpu_dev, cpumask_var_t cpumask)
+{
+	struct device_list_opp *list_dev;
+	struct device_opp *dev_opp;
+	struct device *dev;
+	int cpu, ret = 0;
+
+	rcu_read_lock();
+
+	dev_opp = _find_device_opp(cpu_dev);
+	if (IS_ERR(dev_opp)) {
+		ret = -EINVAL;
+		goto out_rcu_read_unlock;
+	}
+
+	for_each_cpu(cpu, cpumask) {
+		if (cpu == cpu_dev->id)
+			continue;
+
+		dev = get_cpu_device(cpu);
+		if (!dev) {
+			dev_err(cpu_dev, "%s: failed to get cpu%d device\n",
+				__func__, cpu);
+			continue;
+		}
+
+		list_dev = _add_list_dev(dev, dev_opp);
+		if (!list_dev) {
+			dev_err(dev, "%s: failed to add list-dev for cpu%d device\n",
+				__func__, cpu);
+			continue;
+		}
+	}
+out_rcu_read_unlock:
+	rcu_read_unlock();
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(set_cpus_sharing_opps);
+
+/*
+ * Works only for OPP v2 bindings.
+ *
+ * cpumask should be already set to mask of cpu_dev->id.
+ * Returns -ENOENT if operating-points-v2 bindings aren't supported.
+ */
+int of_get_cpus_sharing_opps(struct device *cpu_dev, cpumask_var_t cpumask)
+{
+	struct device_node *np, *tmp_np;
+	struct device *tcpu_dev;
+	int cpu, ret = 0;
+
+	/* Get OPP descriptor node */
+	np = _of_get_opp_desc_node(cpu_dev);
+	if (IS_ERR(np)) {
+		dev_dbg(cpu_dev, "%s: Couldn't find opp node: %ld\n", __func__,
+			PTR_ERR(np));
+		return -ENOENT;
+	}
+
+	/* OPPs are shared ? */
+	if (!of_property_read_bool(np, "opp-shared"))
+		goto put_cpu_node;
+
+	for_each_possible_cpu(cpu) {
+		if (cpu == cpu_dev->id)
+			continue;
+
+		tcpu_dev = get_cpu_device(cpu);
+		if (!tcpu_dev) {
+			dev_err(cpu_dev, "%s: failed to get cpu%d device\n",
+				__func__, cpu);
+			ret = -ENODEV;
+			goto put_cpu_node;
+		}
+
+		/* Get OPP descriptor node */
+		tmp_np = _of_get_opp_desc_node(tcpu_dev);
+		if (IS_ERR(tmp_np)) {
+			dev_err(tcpu_dev, "%s: Couldn't find opp node: %ld\n",
+				__func__, PTR_ERR(tmp_np));
+			ret = PTR_ERR(tmp_np);
+			goto put_cpu_node;
+		}
+
+		/* CPUs are sharing opp node */
+		if (np == tmp_np)
+			cpumask_set_cpu(cpu, cpumask);
+
+		of_node_put(tmp_np);
+	}
+
+put_cpu_node:
+	of_node_put(np);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(of_get_cpus_sharing_opps);
 #endif

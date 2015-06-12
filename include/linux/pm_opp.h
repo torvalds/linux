@@ -121,6 +121,10 @@ static inline struct srcu_notifier_head *dev_pm_opp_get_notifier(
 #if defined(CONFIG_PM_OPP) && defined(CONFIG_OF)
 int of_init_opp_table(struct device *dev);
 void of_free_opp_table(struct device *dev);
+int of_cpumask_init_opp_table(cpumask_var_t cpumask);
+void of_cpumask_free_opp_table(cpumask_var_t cpumask);
+int of_get_cpus_sharing_opps(struct device *cpu_dev, cpumask_var_t cpumask);
+int set_cpus_sharing_opps(struct device *cpu_dev, cpumask_var_t cpumask);
 #else
 static inline int of_init_opp_table(struct device *dev)
 {
@@ -129,6 +133,25 @@ static inline int of_init_opp_table(struct device *dev)
 
 static inline void of_free_opp_table(struct device *dev)
 {
+}
+
+static inline int of_cpumask_init_opp_table(cpumask_var_t cpumask)
+{
+	return -ENOSYS;
+}
+
+static inline void of_cpumask_free_opp_table(cpumask_var_t cpumask)
+{
+}
+
+static inline int of_get_cpus_sharing_opps(struct device *cpu_dev, cpumask_var_t cpumask)
+{
+	return -ENOSYS;
+}
+
+static inline int set_cpus_sharing_opps(struct device *cpu_dev, cpumask_var_t cpumask)
+{
+	return -ENOSYS;
 }
 #endif
 
