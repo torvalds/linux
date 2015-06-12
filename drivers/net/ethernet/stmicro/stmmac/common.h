@@ -150,7 +150,7 @@ struct stmmac_extra_stats {
 #define	MAC_CSR_H_FRQ_MASK	0x20
 
 #define HASH_TABLE_SIZE 64
-#define PAUSE_TIME 0x200
+#define PAUSE_TIME 0xffff
 
 /* Flow Control defines */
 #define FLOW_OFF	0
@@ -357,7 +357,8 @@ struct stmmac_dma_ops {
 	void (*dump_regs) (void __iomem *ioaddr);
 	/* Set tx/rx threshold in the csr6 register
 	 * An invalid value enables the store-and-forward mode */
-	void (*dma_mode) (void __iomem *ioaddr, int txmode, int rxmode);
+	void (*dma_mode)(void __iomem *ioaddr, int txmode, int rxmode,
+			 int rxfifosz);
 	/* To track extra statistic (if supported) */
 	void (*dma_diagnostic_fr) (void *data, struct stmmac_extra_stats *x,
 				   void __iomem *ioaddr);

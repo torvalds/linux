@@ -15,10 +15,10 @@
 #include <linux/apm-emulation.h>
 
 
-#define PSY_PROP(psy, prop, val) (psy->get_property(psy, \
+#define PSY_PROP(psy, prop, val) (power_supply_get_property(psy, \
 			 POWER_SUPPLY_PROP_##prop, val))
 
-#define _MPSY_PROP(prop, val) (main_battery->get_property(main_battery, \
+#define _MPSY_PROP(prop, val) (power_supply_get_property(main_battery, \
 							 prop, val))
 
 #define MPSY_PROP(prop, val) _MPSY_PROP(POWER_SUPPLY_PROP_##prop, val)
@@ -48,7 +48,7 @@ static int __find_main_battery(struct device *dev, void *data)
 
 	bp->bat = dev_get_drvdata(dev);
 
-	if (bp->bat->use_for_apm) {
+	if (bp->bat->desc->use_for_apm) {
 		/* nice, we explicitly asked to report this battery. */
 		bp->main = bp->bat;
 		return 1;

@@ -31,20 +31,20 @@
 
 static int default_init_sequence[] = {
 	/* SWRESET - Software reset */
-	-1, 0x01,                                
+	-1, 0x01,
 	-2, 150,                               /* delay */
 
 	/* SLPOUT - Sleep out & booster on */
-	-1, 0x11,                          
+	-1, 0x11,
 	-2, 500,                               /* delay */
 
 	/* FRMCTR1 - frame rate control: normal mode
 	     frame rate = fosc / (1 x 2 + 40) * (LINE + 2C + 2D) */
-	-1, 0xB1, 0x01, 0x2C, 0x2D, 
+	-1, 0xB1, 0x01, 0x2C, 0x2D,
 
 	/* FRMCTR2 - frame rate control: idle mode
 	     frame rate = fosc / (1 x 2 + 40) * (LINE + 2C + 2D) */
-	-1, 0xB2, 0x01, 0x2C, 0x2D, 
+	-1, 0xB2, 0x01, 0x2C, 0x2D,
 
 	/* FRMCTR3 - frame rate control - partial mode
 	     dot inversion mode, line inversion mode */
@@ -68,7 +68,7 @@ static int default_init_sequence[] = {
 
 	/* PWCTR4 - Power Control
 	     BCLK/2, Opamp current small & Medium low */
-	-1, 0xC3,0x8A,0x2A,
+	-1, 0xC3, 0x8A, 0x2A,
 
 	/* PWCTR5 - Power Control */
 	-1, 0xC4, 0x8A, 0xEE,
@@ -91,7 +91,7 @@ static int default_init_sequence[] = {
 	-2, 10,                               /* delay */
 
 	/* end marker */
-	-3                                  
+	-3
 };
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
@@ -102,7 +102,7 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 	/* Column address */
 	write_reg(par, 0x2A, xs >> 8, xs & 0xFF, xe >> 8, xe & 0xFF);
 
-	/* Row adress */
+	/* Row address */
 	write_reg(par, 0x2B, ys >> 8, ys & 0xFF, ye >> 8, ye & 0xFF);
 
 	/* Memory write */
@@ -130,7 +130,7 @@ static int set_var(struct fbtft_par *par)
 		write_reg(par, 0x36, MY | MV | (par->bgr << 3));
 		break;
 	case 180:
-		write_reg(par, 0x36, (par->bgr << 3));
+		write_reg(par, 0x36, par->bgr << 3);
 		break;
 	case 90:
 		write_reg(par, 0x36, MX | MV | (par->bgr << 3));
@@ -148,21 +148,21 @@ static int set_var(struct fbtft_par *par)
 #define CURVE(num, idx)  curves[num*par->gamma.num_values + idx]
 static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 {
-	int i,j;
+	int i, j;
 
 	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
 
 	/* apply mask */
 	for (i = 0; i < par->gamma.num_curves; i++)
 		for (j = 0; j < par->gamma.num_values; j++)
-			CURVE(i,j) &= 0b111111;
+			CURVE(i, j) &= 0x3f;
 
 	for (i = 0; i < par->gamma.num_curves; i++)
 		write_reg(par, 0xE0 + i,
 			CURVE(i, 0), CURVE(i, 1), CURVE(i, 2), CURVE(i, 3),
 			CURVE(i, 4), CURVE(i, 5), CURVE(i, 6), CURVE(i, 7),
 			CURVE(i, 8), CURVE(i, 9), CURVE(i, 10), CURVE(i, 11),
-			CURVE(i, 12), CURVE(i, 13), CURVE(i, 14), CURVE(i,15));
+			CURVE(i, 12), CURVE(i, 13), CURVE(i, 14), CURVE(i, 15));
 
 	return 0;
 }

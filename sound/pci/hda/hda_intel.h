@@ -17,7 +17,7 @@
 #define __SOUND_HDA_INTEL_H
 
 #include <drm/i915_component.h>
-#include "hda_priv.h"
+#include "hda_controller.h"
 
 struct hda_intel {
 	struct azx chip;

@@ -365,7 +365,6 @@ static int if_usb_reset_device(struct if_usb_card *cardp)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(if_usb_reset_device);
 
 /**
  *  usb_tx_block - transfer data to the device
@@ -907,7 +906,6 @@ restart:
 	lbtf_deb_leave_args(LBTF_DEB_USB, "ret %d", ret);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(if_usb_prog_firmware);
 
 
 #define if_usb_suspend NULL

@@ -4,6 +4,7 @@
  * for more details.
  *
  * Copyright (C) 2012 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2015 Imagination Technologies, Inc.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -13,22 +14,18 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
-#define DRVNAME "sead3-led"
-
-static struct platform_device *pdev;
+#include <asm/mips-boards/sead3-addr.h>
 
 static void sead3_pled_set(struct led_classdev *led_cdev,
 		enum led_brightness value)
 {
-	pr_debug("sead3_pled_set\n");
-	writel(value, (void __iomem *)0xBF000210);	/* FIXME */
+	writel(value, (void __iomem *)SEAD3_CPLD_P_LED);
 }
 
 static void sead3_fled_set(struct led_classdev *led_cdev,
 		enum led_brightness value)
 {
-	pr_debug("sead3_fled_set\n");
-	writel(value, (void __iomem *)0xBF000218);	/* FIXME */
+	writel(value, (void __iomem *)SEAD3_CPLD_F_LED);
 }
 
 static struct led_classdev sead3_pled = {
@@ -69,37 +66,11 @@ static struct platform_driver sead3_led_driver = {
 	.probe		= sead3_led_probe,
 	.remove		= sead3_led_remove,
 	.driver		= {
-		.name		= DRVNAME,
+		.name		= "sead3-led",
 	},
 };
 
-static int __init sead3_led_init(void)
-{
-	int ret;
-
-	ret = platform_driver_register(&sead3_led_driver);
-	if (ret < 0)
-		goto out;
-
-	pdev = platform_device_register_simple(DRVNAME, -1, NULL, 0);
-	if (IS_ERR(pdev)) {
-		ret = PTR_ERR(pdev);
-		platform_driver_unregister(&sead3_led_driver);
-		goto out;
-	}
-
-out:
-	return ret;
-}
-
-static void __exit sead3_led_exit(void)
-{
-	platform_device_unregister(pdev);
-	platform_driver_unregister(&sead3_led_driver);
-}
-
-module_init(sead3_led_init);
-module_exit(sead3_led_exit);
+module_platform_driver(sead3_led_driver);
 
 MODULE_AUTHOR("Kristian Kielhofner <kris@krisk.org>");
 MODULE_DESCRIPTION("SEAD3 LED driver");

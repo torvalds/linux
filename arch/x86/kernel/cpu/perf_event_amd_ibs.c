@@ -796,7 +796,7 @@ static int setup_ibs_ctl(int ibs_eilvt_off)
  * the IBS interrupt vector is handled by perf_ibs_cpu_notifier that
  * is using the new offset.
  */
-static int force_ibs_eilvt_setup(void)
+static void force_ibs_eilvt_setup(void)
 {
 	int offset;
 	int ret;
@@ -811,26 +811,24 @@ static int force_ibs_eilvt_setup(void)
 
 	if (offset == APIC_EILVT_NR_MAX) {
 		printk(KERN_DEBUG "No EILVT entry available\n");
-		return -EBUSY;
+		return;
 	}
 
 	ret = setup_ibs_ctl(offset);
 	if (ret)
 		goto out;
 
-	if (!ibs_eilvt_valid()) {
-		ret = -EFAULT;
+	if (!ibs_eilvt_valid())
 		goto out;
-	}
 
 	pr_info("IBS: LVT offset %d assigned\n", offset);
 
-	return 0;
+	return;
 out:
 	preempt_disable();
 	put_eilvt(offset);
 	preempt_enable();
-	return ret;
+	return;
 }
 
 static void ibs_eilvt_setup(void)

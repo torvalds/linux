@@ -19,7 +19,9 @@ the parent DSA node. The maximum number of allowed child nodes is 4
 (DSA_MAX_SWITCHES).
 Each of these switch child nodes should have the following required properties:
 
-- reg			: Describes the switch address on the MII bus
+- reg			: Contains two fields. The first one describes the
+			  address on the MII bus. The second is the switch
+			  number that must be unique in cascaded configurations
 - #address-cells	: Must be 1
 - #size-cells		: Must be 0
 

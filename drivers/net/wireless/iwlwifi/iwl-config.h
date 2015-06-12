@@ -92,9 +92,9 @@ static inline bool iwl_has_secure_boot(u32 hw_rev,
 {
 	/* return 1 only for family 8000 B0 */
 	if ((family == IWL_DEVICE_FAMILY_8000) && (hw_rev & 0xC))
-		return 1;
+		return true;
 
-	return 0;
+	return false;
 }
 
 /*
@@ -228,7 +228,7 @@ struct iwl_pwr_tx_backoff {
 
 /**
  * struct iwl_cfg
- * @name: Offical name of the device
+ * @name: Official name of the device
  * @fw_name_pre: Firmware filename prefix. The api version and extension
  *	(.ucode) will be added to filename before loading from disk. The
  *	filename is constructed as fw_name_pre<api>.ucode.
@@ -303,8 +303,8 @@ struct iwl_cfg {
 	bool lp_xtal_workaround;
 	const struct iwl_pwr_tx_backoff *pwr_tx_backoffs;
 	bool no_power_up_nic_in_init;
-	const char *default_nvm_file;
-	const char *default_nvm_file_8000A;
+	const char *default_nvm_file_B_step;
+	const char *default_nvm_file_C_step;
 	unsigned int max_rx_agg_size;
 	bool disable_dummy_notification;
 	unsigned int max_tx_agg_size;

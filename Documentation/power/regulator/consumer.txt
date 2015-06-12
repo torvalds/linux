@@ -137,7 +137,7 @@ Indirect operating mode control.
 Consumer drivers can request a change in their supply regulator operating mode
 by calling :-
 
-int regulator_set_optimum_mode(struct regulator *regulator, int load_uA);
+int regulator_set_load(struct regulator *regulator, int load_uA);
 
 This will cause the core to recalculate the total load on the regulator (based
 on all its consumers) and change operating mode (if necessary and permitted)

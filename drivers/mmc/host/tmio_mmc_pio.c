@@ -1073,8 +1073,6 @@ EXPORT_SYMBOL(tmio_mmc_host_alloc);
 void tmio_mmc_host_free(struct tmio_mmc_host *host)
 {
 	mmc_free_host(host->mmc);
-
-	host->mmc = NULL;
 }
 EXPORT_SYMBOL(tmio_mmc_host_free);
 

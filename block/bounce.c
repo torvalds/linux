@@ -221,8 +221,8 @@ bounce:
 		if (page_to_pfn(page) <= queue_bounce_pfn(q) && !force)
 			continue;
 
-		inc_zone_page_state(to->bv_page, NR_BOUNCE);
 		to->bv_page = mempool_alloc(pool, q->bounce_gfp);
+		inc_zone_page_state(to->bv_page, NR_BOUNCE);
 
 		if (rw == WRITE) {
 			char *vto, *vfrom;

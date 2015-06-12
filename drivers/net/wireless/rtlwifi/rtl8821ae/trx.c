@@ -64,6 +64,20 @@ static u16 odm_cfo(char value)
 	return ret_val;
 }
 
+static u8 _rtl8821ae_evm_dbm_jaguar(char value)
+{
+	char ret_val = value;
+
+	/* -33dB~0dB to 33dB ~ 0dB*/
+	if (ret_val == -128)
+		ret_val = 127;
+	else if (ret_val < 0)
+		ret_val = 0 - ret_val;
+
+	ret_val  = ret_val >> 1;
+	return ret_val;
+}
+
 static void query_rxphystatus(struct ieee80211_hw *hw,
 			      struct rtl_stats *pstatus, u8 *pdesc,
 			      struct rx_fwinfo_8821ae *p_drvinfo,
@@ -246,7 +260,7 @@ static void query_rxphystatus(struct ieee80211_hw *hw,
 
 		for (i = 0; i < max_spatial_stream; i++) {
 			evm = rtl_evm_db_to_percentage(p_phystrpt->rxevm[i]);
-			evmdbm = rtl_evm_dbm_jaguar(p_phystrpt->rxevm[i]);
+			evmdbm = _rtl8821ae_evm_dbm_jaguar(p_phystrpt->rxevm[i]);
 
 			if (bpacket_match_bssid) {
 				/* Fill value in RFD, Get the first

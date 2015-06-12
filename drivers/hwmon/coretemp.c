@@ -397,14 +397,13 @@ static int create_core_attrs(struct temp_data *tdata, struct device *dev,
 			struct device_attribute *devattr, char *buf) = {
 			show_label, show_crit_alarm, show_temp, show_tjmax,
 			show_ttarget };
-	static const char *const names[TOTAL_ATTRS] = {
-					"temp%d_label", "temp%d_crit_alarm",
-					"temp%d_input", "temp%d_crit",
-					"temp%d_max" };
+	static const char *const suffixes[TOTAL_ATTRS] = {
+		"label", "crit_alarm", "input", "crit", "max"
+	};
 
 	for (i = 0; i < tdata->attr_size; i++) {
-		snprintf(tdata->attr_name[i], CORETEMP_NAME_LENGTH, names[i],
-			attr_no);
+		snprintf(tdata->attr_name[i], CORETEMP_NAME_LENGTH,
+			 "temp%d_%s", attr_no, suffixes[i]);
 		sysfs_attr_init(&tdata->sd_attrs[i].dev_attr.attr);
 		tdata->sd_attrs[i].dev_attr.attr.name = tdata->attr_name[i];
 		tdata->sd_attrs[i].dev_attr.attr.mode = S_IRUGO;

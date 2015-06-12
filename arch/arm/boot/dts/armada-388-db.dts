@@ -54,7 +54,7 @@
 		"marvell,armada385", "marvell,armada380";
 
 	chosen {
-		bootargs = "console=ttyS0,115200 earlyprintk";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
@@ -99,7 +99,7 @@
 				phy-mode = "rgmii-id";
 			};
 
-			usb@50000 {
+			usb@58000 {
 				status = "ok";
 			};
 

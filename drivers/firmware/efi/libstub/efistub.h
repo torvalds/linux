@@ -41,7 +41,7 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 					    unsigned long fdt_addr,
 					    unsigned long fdt_size);
 
-void *get_fdt(efi_system_table_t *sys_table);
+void *get_fdt(efi_system_table_t *sys_table, unsigned long *fdt_size);
 
 void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 		     unsigned long desc_size, efi_memory_desc_t *runtime_map,

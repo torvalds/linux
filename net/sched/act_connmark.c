@@ -63,7 +63,6 @@ static int tcf_connmark(struct sk_buff *skb, const struct tc_action *a,
 		skb->mark = c->mark;
 		/* using overlimits stats to count how many packets marked */
 		ca->tcf_qstats.overlimits++;
-		nf_ct_put(c);
 		goto out;
 	}
 
@@ -82,7 +81,6 @@ static int tcf_connmark(struct sk_buff *skb, const struct tc_action *a,
 	nf_ct_put(c);
 
 out:
-	skb->nfct = NULL;
 	spin_unlock(&ca->tcf_lock);
 	return ca->tcf_action;
 }

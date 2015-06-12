@@ -109,7 +109,6 @@ u8 rtl88eu_pwrseqcmdparsing(struct adapter *padapter, u8 cut_vers, u8 fab_vers,
 				RT_TRACE(_module_hal_init_c_, _drv_info_,
 					 ("rtl88eu_pwrseqcmdparsing: PWR_CMD_END\n"));
 				return true;
-				break;
 			default:
 				RT_TRACE(_module_hal_init_c_, _drv_err_,
 					 ("rtl88eu_pwrseqcmdparsing: Unknown CMD!!\n"));

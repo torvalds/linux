@@ -117,13 +117,13 @@ EXPORT_SYMBOL(lustre_msg_check_version);
 /* early reply size */
 int lustre_msg_early_size(void)
 {
-	static int size = 0;
+	static int size;
 	if (!size) {
-		/* Always reply old ptlrpc_body_v2 to keep interoprability
+		/* Always reply old ptlrpc_body_v2 to keep interoperability
 		 * with the old client (< 2.3) which doesn't have pb_jobid
 		 * in the ptlrpc_body.
 		 *
-		 * XXX Remove this whenever we drop interoprability with such
+		 * XXX Remove this whenever we drop interoperability with such
 		 *     client.
 		 */
 		__u32 pblen = sizeof(struct ptlrpc_body_v2);

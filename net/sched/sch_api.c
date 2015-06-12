@@ -815,10 +815,8 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
 		if (dev->flags & IFF_UP)
 			dev_deactivate(dev);
 
-		if (new && new->ops->attach) {
-			new->ops->attach(new);
-			num_q = 0;
-		}
+		if (new && new->ops->attach)
+			goto skip;
 
 		for (i = 0; i < num_q; i++) {
 			struct netdev_queue *dev_queue = dev_ingress_queue(dev);
@@ -834,12 +832,16 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
 				qdisc_destroy(old);
 		}
 
+skip:
 		if (!ingress) {
 			notify_and_destroy(net, skb, n, classid,
 					   dev->qdisc, new);
 			if (new && !new->ops->attach)
 				atomic_inc(&new->refcnt);
 			dev->qdisc = new ? : &noop_qdisc;
+
+			if (new && new->ops->attach)
+				new->ops->attach(new);
 		} else {
 			notify_and_destroy(net, skb, n, classid, old, new);
 		}
@@ -1858,11 +1860,15 @@ reclassify:
 }
 EXPORT_SYMBOL(tc_classify);
 
-void tcf_destroy(struct tcf_proto *tp)
+bool tcf_destroy(struct tcf_proto *tp, bool force)
 {
-	tp->ops->destroy(tp);
-	module_put(tp->ops->owner);
-	kfree_rcu(tp, rcu);
+	if (tp->ops->destroy(tp, force)) {
+		module_put(tp->ops->owner);
+		kfree_rcu(tp, rcu);
+		return true;
+	}
+
+	return false;
 }
 
 void tcf_destroy_chain(struct tcf_proto __rcu **fl)
@@ -1871,7 +1877,7 @@ void tcf_destroy_chain(struct tcf_proto __rcu **fl)
 
 	while ((tp = rtnl_dereference(*fl)) != NULL) {
 		RCU_INIT_POINTER(*fl, tp->next);
-		tcf_destroy(tp);
+		tcf_destroy(tp, true);
 	}
 }
 EXPORT_SYMBOL(tcf_destroy_chain);

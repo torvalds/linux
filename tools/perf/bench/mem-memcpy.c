@@ -36,7 +36,7 @@ static const struct option options[] = {
 		    "Specify length of memory to copy. "
 		    "Available units: B, KB, MB, GB and TB (upper and lower)"),
 	OPT_STRING('r', "routine", &routine, "default",
-		    "Specify routine to copy"),
+		    "Specify routine to copy, \"all\" runs all available routines"),
 	OPT_INTEGER('i', "iterations", &iterations,
 		    "repeat memcpy() invocation this number of times"),
 	OPT_BOOLEAN('c', "cycle", &use_cycle,
@@ -135,55 +135,16 @@ struct bench_mem_info {
 	const char *const *usage;
 };
 
-static int bench_mem_common(int argc, const char **argv,
-		     const char *prefix __maybe_unused,
-		     struct bench_mem_info *info)
+static void __bench_mem_routine(struct bench_mem_info *info, int r_idx, size_t len, double totallen)
 {
-	int i;
-	size_t len;
-	double totallen;
+	const struct routine *r = &info->routines[r_idx];
 	double result_bps[2];
 	u64 result_cycle[2];
-
-	argc = parse_options(argc, argv, options,
-			     info->usage, 0);
-
-	if (no_prefault && only_prefault) {
-		fprintf(stderr, "Invalid options: -o and -n are mutually exclusive\n");
-		return 1;
-	}
-
-	if (use_cycle)
-		init_cycle();
-
-	len = (size_t)perf_atoll((char *)length_str);
-	totallen = (double)len * iterations;
 
 	result_cycle[0] = result_cycle[1] = 0ULL;
 	result_bps[0] = result_bps[1] = 0.0;
 
-	if ((s64)len <= 0) {
-		fprintf(stderr, "Invalid length:%s\n", length_str);
-		return 1;
-	}
-
-	/* same to without specifying either of prefault and no-prefault */
-	if (only_prefault && no_prefault)
-		only_prefault = no_prefault = false;
-
-	for (i = 0; info->routines[i].name; i++) {
-		if (!strcmp(info->routines[i].name, routine))
-			break;
-	}
-	if (!info->routines[i].name) {
-		printf("Unknown routine:%s\n", routine);
-		printf("Available routines...\n");
-		for (i = 0; info->routines[i].name; i++) {
-			printf("\t%s ... %s\n",
-			       info->routines[i].name, info->routines[i].desc);
-		}
-		return 1;
-	}
+	printf("Routine %s (%s)\n", r->name, r->desc);
 
 	if (bench_format == BENCH_FORMAT_DEFAULT)
 		printf("# Copying %s Bytes ...\n\n", length_str);
@@ -191,28 +152,17 @@ static int bench_mem_common(int argc, const char **argv,
 	if (!only_prefault && !no_prefault) {
 		/* show both of results */
 		if (use_cycle) {
-			result_cycle[0] =
-				info->do_cycle(&info->routines[i], len, false);
-			result_cycle[1] =
-				info->do_cycle(&info->routines[i], len, true);
+			result_cycle[0] = info->do_cycle(r, len, false);
+			result_cycle[1] = info->do_cycle(r, len, true);
 		} else {
-			result_bps[0] =
-				info->do_gettimeofday(&info->routines[i],
-						len, false);
-			result_bps[1] =
-				info->do_gettimeofday(&info->routines[i],
-						len, true);
+			result_bps[0]   = info->do_gettimeofday(r, len, false);
+			result_bps[1]   = info->do_gettimeofday(r, len, true);
 		}
 	} else {
-		if (use_cycle) {
-			result_cycle[pf] =
-				info->do_cycle(&info->routines[i],
-						len, only_prefault);
-		} else {
-			result_bps[pf] =
-				info->do_gettimeofday(&info->routines[i],
-						len, only_prefault);
-		}
+		if (use_cycle)
+			result_cycle[pf] = info->do_cycle(r, len, only_prefault);
+		else
+			result_bps[pf] = info->do_gettimeofday(r, len, only_prefault);
 	}
 
 	switch (bench_format) {
@@ -265,6 +215,60 @@ static int bench_mem_common(int argc, const char **argv,
 		die("unknown format: %d\n", bench_format);
 		break;
 	}
+}
+
+static int bench_mem_common(int argc, const char **argv,
+		     const char *prefix __maybe_unused,
+		     struct bench_mem_info *info)
+{
+	int i;
+	size_t len;
+	double totallen;
+
+	argc = parse_options(argc, argv, options,
+			     info->usage, 0);
+
+	if (no_prefault && only_prefault) {
+		fprintf(stderr, "Invalid options: -o and -n are mutually exclusive\n");
+		return 1;
+	}
+
+	if (use_cycle)
+		init_cycle();
+
+	len = (size_t)perf_atoll((char *)length_str);
+	totallen = (double)len * iterations;
+
+	if ((s64)len <= 0) {
+		fprintf(stderr, "Invalid length:%s\n", length_str);
+		return 1;
+	}
+
+	/* same to without specifying either of prefault and no-prefault */
+	if (only_prefault && no_prefault)
+		only_prefault = no_prefault = false;
+
+	if (!strncmp(routine, "all", 3)) {
+		for (i = 0; info->routines[i].name; i++)
+			__bench_mem_routine(info, i, len, totallen);
+		return 0;
+	}
+
+	for (i = 0; info->routines[i].name; i++) {
+		if (!strcmp(info->routines[i].name, routine))
+			break;
+	}
+	if (!info->routines[i].name) {
+		printf("Unknown routine:%s\n", routine);
+		printf("Available routines...\n");
+		for (i = 0; info->routines[i].name; i++) {
+			printf("\t%s ... %s\n",
+			       info->routines[i].name, info->routines[i].desc);
+		}
+		return 1;
+	}
+
+	__bench_mem_routine(info, i, len, totallen);
 
 	return 0;
 }

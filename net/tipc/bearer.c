@@ -48,6 +48,9 @@ static struct tipc_media * const media_info_array[] = {
 #ifdef CONFIG_TIPC_MEDIA_IB
 	&ib_media_info,
 #endif
+#ifdef CONFIG_TIPC_MEDIA_UDP
+	&udp_media_info,
+#endif
 	NULL
 };
 
@@ -216,7 +219,8 @@ void tipc_bearer_remove_dest(struct net *net, u32 bearer_id, u32 dest)
  * tipc_enable_bearer - enable bearer with the given name
  */
 static int tipc_enable_bearer(struct net *net, const char *name,
-			      u32 disc_domain, u32 priority)
+			      u32 disc_domain, u32 priority,
+			      struct nlattr *attr[])
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_bearer *b_ptr;
@@ -304,7 +308,7 @@ restart:
 
 	strcpy(b_ptr->name, name);
 	b_ptr->media = m_ptr;
-	res = m_ptr->enable_media(net, b_ptr);
+	res = m_ptr->enable_media(net, b_ptr, attr);
 	if (res) {
 		pr_warn("Bearer <%s> rejected, enable failure (%d)\n",
 			name, -res);
@@ -372,7 +376,8 @@ static void bearer_disable(struct net *net, struct tipc_bearer *b_ptr,
 	kfree_rcu(b_ptr, rcu);
 }
 
-int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b)
+int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b,
+			 struct nlattr *attr[])
 {
 	struct net_device *dev;
 	char *driver_name = strchr((const char *)b->name, ':') + 1;
@@ -586,14 +591,14 @@ void tipc_bearer_stop(struct net *net)
 
 /* Caller should hold rtnl_lock to protect the bearer */
 static int __tipc_nl_add_bearer(struct tipc_nl_msg *msg,
-				struct tipc_bearer *bearer)
+				struct tipc_bearer *bearer, int nlflags)
 {
 	void *hdr;
 	struct nlattr *attrs;
 	struct nlattr *prop;
 
 	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_family,
-			  NLM_F_MULTI, TIPC_NL_BEARER_GET);
+			  nlflags, TIPC_NL_BEARER_GET);
 	if (!hdr)
 		return -EMSGSIZE;
 
@@ -652,7 +657,7 @@ int tipc_nl_bearer_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		if (!bearer)
 			continue;
 
-		err = __tipc_nl_add_bearer(&msg, bearer);
+		err = __tipc_nl_add_bearer(&msg, bearer, NLM_F_MULTI);
 		if (err)
 			break;
 	}
@@ -700,7 +705,7 @@ int tipc_nl_bearer_get(struct sk_buff *skb, struct genl_info *info)
 		goto err_out;
 	}
 
-	err = __tipc_nl_add_bearer(&msg, bearer);
+	err = __tipc_nl_add_bearer(&msg, bearer, 0);
 	if (err)
 		goto err_out;
 	rtnl_unlock();
@@ -791,7 +796,7 @@ int tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	rtnl_lock();
-	err = tipc_enable_bearer(net, bearer, domain, prio);
+	err = tipc_enable_bearer(net, bearer, domain, prio, attrs);
 	if (err) {
 		rtnl_unlock();
 		return err;
@@ -852,14 +857,14 @@ int tipc_nl_bearer_set(struct sk_buff *skb, struct genl_info *info)
 }
 
 static int __tipc_nl_add_media(struct tipc_nl_msg *msg,
-			       struct tipc_media *media)
+			       struct tipc_media *media, int nlflags)
 {
 	void *hdr;
 	struct nlattr *attrs;
 	struct nlattr *prop;
 
 	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_family,
-			  NLM_F_MULTI, TIPC_NL_MEDIA_GET);
+			  nlflags, TIPC_NL_MEDIA_GET);
 	if (!hdr)
 		return -EMSGSIZE;
 
@@ -911,7 +916,8 @@ int tipc_nl_media_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 	rtnl_lock();
 	for (; media_info_array[i] != NULL; i++) {
-		err = __tipc_nl_add_media(&msg, media_info_array[i]);
+		err = __tipc_nl_add_media(&msg, media_info_array[i],
+					  NLM_F_MULTI);
 		if (err)
 			break;
 	}
@@ -958,7 +964,7 @@ int tipc_nl_media_get(struct sk_buff *skb, struct genl_info *info)
 		goto err_out;
 	}
 
-	err = __tipc_nl_add_media(&msg, media);
+	err = __tipc_nl_add_media(&msg, media, 0);
 	if (err)
 		goto err_out;
 	rtnl_unlock();

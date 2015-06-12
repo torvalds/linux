@@ -55,6 +55,7 @@ static inline u32 tipc_cluster_mask(u32 addr)
 	return addr & TIPC_CLUSTER_MASK;
 }
 
+u32 tipc_own_addr(struct net *net);
 int in_own_cluster(struct net *net, u32 addr);
 int in_own_cluster_exact(struct net *net, u32 addr);
 int in_own_node(struct net *net, u32 addr);

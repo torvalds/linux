@@ -888,13 +888,6 @@
 #define bOFDMPHY0_End             0xcff
 #define bOFDMPHY1_End             0xdff
 
-/*#define max debug item in each debug page
-#define bMaxItem_FPGA_PHY0        0x9
-#define bMaxItem_FPGA_PHY1        0x3
-#define bMaxItem_PHY_11B          0x16
-#define bMaxItem_OFDM_PHY0        0x29
-#define bMaxItem_OFDM_PHY1        0x0 */
-
 #define bPMACControl              0x0
 #define bWMACControl              0x1
 #define bWNICControl              0x2

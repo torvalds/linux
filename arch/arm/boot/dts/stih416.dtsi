@@ -10,7 +10,7 @@
 #include "stih416-clock.dtsi"
 #include "stih416-pinctrl.dtsi"
 
-#include <dt-bindings/phy/phy-miphy365x.h>
+#include <dt-bindings/phy/phy.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/reset-controller/stih416-resets.h>
 / {
@@ -306,7 +306,7 @@
 			reg             = <0xfe380000 0x1000>;
 			interrupts      = <GIC_SPI 157 IRQ_TYPE_NONE>;
 			interrupt-names = "hostc";
-			phys	        = <&phy_port0 MIPHY_TYPE_SATA>;
+			phys	        = <&phy_port0 PHY_TYPE_SATA>;
 			phy-names       = "sata-phy";
 			resets	        = <&powerdown STIH416_SATA0_POWERDOWN>,
 					  <&softreset STIH416_SATA0_SOFTRESET>;

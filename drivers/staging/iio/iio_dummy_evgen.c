@@ -72,7 +72,7 @@ static int iio_dummy_evgen_create(void)
 	int ret, i;
 
 	iio_evgen = kzalloc(sizeof(*iio_evgen), GFP_KERNEL);
-	if (iio_evgen == NULL)
+	if (!iio_evgen)
 		return -ENOMEM;
 
 	iio_evgen->base = irq_alloc_descs(-1, 0, IIO_EVENTGEN_NO, 0);
@@ -105,7 +105,7 @@ int iio_dummy_evgen_get_irq(void)
 {
 	int i, ret = 0;
 
-	if (iio_evgen == NULL)
+	if (!iio_evgen)
 		return -ENODEV;
 
 	mutex_lock(&iio_evgen->lock);

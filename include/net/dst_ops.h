@@ -12,7 +12,6 @@ struct sock;
 
 struct dst_ops {
 	unsigned short		family;
-	__be16			protocol;
 	unsigned int		gc_thresh;
 
 	int			(*gc)(struct dst_ops *ops);

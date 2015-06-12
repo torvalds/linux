@@ -135,10 +135,17 @@
 #define ATMCI_REGS_SIZE		0x100
 
 /* Register access macros */
-#define atmci_readl(port,reg)				\
+#ifdef CONFIG_AVR32
+#define atmci_readl(port, reg)			\
 	__raw_readl((port)->regs + reg)
-#define atmci_writel(port,reg,value)			\
+#define atmci_writel(port, reg, value)			\
 	__raw_writel((value), (port)->regs + reg)
+#else
+#define atmci_readl(port, reg)			\
+	readl_relaxed((port)->regs + reg)
+#define atmci_writel(port, reg, value)			\
+	writel_relaxed((value), (port)->regs + reg)
+#endif
 
 /* On AVR chips the Peripheral DMA Controller is not connected to MCI. */
 #ifdef CONFIG_AVR32

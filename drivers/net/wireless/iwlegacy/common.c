@@ -4634,7 +4634,7 @@ il_mac_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	il->vif = NULL;
 	il->iw_mode = NL80211_IFTYPE_UNSPECIFIED;
 	il_teardown_interface(il, vif);
-	memset(il->bssid, 0, ETH_ALEN);
+	eth_zero_addr(il->bssid);
 
 	D_MAC80211("leave\n");
 	mutex_unlock(&il->mutex);

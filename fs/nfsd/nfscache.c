@@ -165,13 +165,17 @@ int nfsd_reply_cache_init(void)
 {
 	unsigned int hashsize;
 	unsigned int i;
+	int status = 0;
 
 	max_drc_entries = nfsd_cache_size_limit();
 	atomic_set(&num_drc_entries, 0);
 	hashsize = nfsd_hashsize(max_drc_entries);
 	maskbits = ilog2(hashsize);
 
-	register_shrinker(&nfsd_reply_cache_shrinker);
+	status = register_shrinker(&nfsd_reply_cache_shrinker);
+	if (status)
+		return status;
+
 	drc_slab = kmem_cache_create("nfsd_drc", sizeof(struct svc_cacherep),
 					0, 0, NULL);
 	if (!drc_slab)

@@ -2492,6 +2492,50 @@ void rv770_dpm_debugfs_print_current_performance_level(struct radeon_device *rde
 	}
 }
 
+u32 rv770_dpm_get_current_sclk(struct radeon_device *rdev)
+{
+	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct rv7xx_ps *ps = rv770_get_ps(rps);
+	struct rv7xx_pl *pl;
+	u32 current_index =
+		(RREG32(TARGET_AND_CURRENT_PROFILE_INDEX) & CURRENT_PROFILE_INDEX_MASK) >>
+		CURRENT_PROFILE_INDEX_SHIFT;
+
+	if (current_index > 2) {
+		return 0;
+	} else {
+		if (current_index == 0)
+			pl = &ps->low;
+		else if (current_index == 1)
+			pl = &ps->medium;
+		else /* current_index == 2 */
+			pl = &ps->high;
+		return  pl->sclk;
+	}
+}
+
+u32 rv770_dpm_get_current_mclk(struct radeon_device *rdev)
+{
+	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct rv7xx_ps *ps = rv770_get_ps(rps);
+	struct rv7xx_pl *pl;
+	u32 current_index =
+		(RREG32(TARGET_AND_CURRENT_PROFILE_INDEX) & CURRENT_PROFILE_INDEX_MASK) >>
+		CURRENT_PROFILE_INDEX_SHIFT;
+
+	if (current_index > 2) {
+		return 0;
+	} else {
+		if (current_index == 0)
+			pl = &ps->low;
+		else if (current_index == 1)
+			pl = &ps->medium;
+		else /* current_index == 2 */
+			pl = &ps->high;
+		return  pl->mclk;
+	}
+}
+
 void rv770_dpm_fini(struct radeon_device *rdev)
 {
 	int i;

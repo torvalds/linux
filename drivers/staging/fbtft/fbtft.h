@@ -147,7 +147,7 @@ struct fbtft_display {
 /**
  * struct fbtft_platform_data - Passes display specific data to the driver
  * @display: Display properties
- * @gpios: Pointer to an array of piname to gpio mappings
+ * @gpios: Pointer to an array of pinname to gpio mappings
  * @rotate: Display rotation angle
  * @bgr: LCD Controller BGR bit
  * @fps: Frames per second (this will go away, use @fps in @fbtft_display)
@@ -200,7 +200,7 @@ struct fbtft_platform_data {
  * @gpio.cs: LCD Chip Select with parallel interface bus
  * @gpio.db[16]: Parallel databus
  * @gpio.led[16]: Led control signals
- * @gpio.aux[16]: Auxillary signals, not used by core
+ * @gpio.aux[16]: Auxiliary signals, not used by core
  * @init_sequence: Pointer to LCD initialization array
  * @gamma.lock: Mutex for Gamma curve locking
  * @gamma.curves: Pointer to Gamma curve array
@@ -259,9 +259,7 @@ struct fbtft_par {
 #define NUMARGS(...)  (sizeof((int[]){__VA_ARGS__})/sizeof(int))
 
 #define write_reg(par, ...)                                              \
-do {                                                                     \
-	par->fbtftops.write_register(par, NUMARGS(__VA_ARGS__), __VA_ARGS__); \
-} while (0)
+	par->fbtftops.write_register(par, NUMARGS(__VA_ARGS__), __VA_ARGS__)
 
 /* fbtft-core.c */
 extern void fbtft_dbg_hex(const struct device *dev,
@@ -326,8 +324,8 @@ static int fbtft_driver_remove_pdev(struct platform_device *pdev)          \
 }                                                                          \
 									   \
 static const struct of_device_id dt_ids[] = {                              \
-        { .compatible = _compatible },                                     \
-        {},                                                                \
+	{ .compatible = _compatible },                                     \
+	{},                                                                \
 };                                                                         \
 									   \
 MODULE_DEVICE_TABLE(of, dt_ids);                                           \
@@ -337,7 +335,7 @@ static struct spi_driver fbtft_driver_spi_driver = {                       \
 	.driver = {                                                        \
 		.name   = _name,                                           \
 		.owner  = THIS_MODULE,                                     \
-                .of_match_table = of_match_ptr(dt_ids),                    \
+		.of_match_table = of_match_ptr(dt_ids),                    \
 	},                                                                 \
 	.probe  = fbtft_driver_probe_spi,                                  \
 	.remove = fbtft_driver_remove_spi,                                 \
@@ -347,7 +345,7 @@ static struct platform_driver fbtft_driver_platform_driver = {             \
 	.driver = {                                                        \
 		.name   = _name,                                           \
 		.owner  = THIS_MODULE,                                     \
-                .of_match_table = of_match_ptr(dt_ids),                    \
+		.of_match_table = of_match_ptr(dt_ids),                    \
 	},                                                                 \
 	.probe  = fbtft_driver_probe_pdev,                                 \
 	.remove = fbtft_driver_remove_pdev,                                \

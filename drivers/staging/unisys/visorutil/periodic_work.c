@@ -19,7 +19,6 @@
  *  Helper functions to schedule periodic work in Linux kernel mode.
  */
 
-#include "uniklog.h"
 #include "timskmod.h"
 #include "periodic_work.h"
 
@@ -90,7 +89,6 @@ BOOL visor_periodic_work_nextperiod(struct periodic_work *pw)
 		goto unlock;
 	} else if (queue_delayed_work(pw->workqueue, &pw->work,
 				      pw->jiffy_interval) < 0) {
-		ERRDEV(pw->devnam, "queue_delayed_work failed!");
 		pw->is_scheduled = FALSE;
 		rc = FALSE;
 		goto unlock;
@@ -116,15 +114,12 @@ BOOL visor_periodic_work_start(struct periodic_work *pw)
 		goto unlock;
 	}
 	if (pw->want_to_stop) {
-		ERRDEV(pw->devnam,
-		       "dev_start_periodic_work failed!");
 		rc = FALSE;
 		goto unlock;
 	}
 	INIT_DELAYED_WORK(&pw->work, &periodic_work_func);
 	if (queue_delayed_work(pw->workqueue, &pw->work,
 			       pw->jiffy_interval) < 0) {
-		ERRDEV(pw->devnam, "%s queue_delayed_work failed!", __func__);
 		rc = FALSE;
 		goto unlock;
 	}
@@ -182,7 +177,7 @@ BOOL visor_periodic_work_stop(struct periodic_work *pw)
 			/* We get here if the delayed work was pending as
 			 * delayed work, but was NOT run.
 			 */
-			ASSERT(pw->is_scheduled);
+			WARN_ON(!pw->is_scheduled);
 			pw->is_scheduled = FALSE;
 		} else {
 			/* If we get here, either the delayed work:
@@ -197,14 +192,6 @@ BOOL visor_periodic_work_stop(struct periodic_work *pw)
 		}
 		if (pw->is_scheduled) {
 			write_unlock(&pw->lock);
-			WARNDEV(pw->devnam,
-				"waiting for delayed work...");
-			/* We rely on the delayed work function running here,
-			 * and eventually calling
-			 * visor_periodic_work_nextperiod(),
-			 * which will see that want_to_stop is set, and
-			 * subsequently clear is_scheduled.
-			 */
 			SLEEPJIFFIES(10);
 			write_lock(&pw->lock);
 		} else {

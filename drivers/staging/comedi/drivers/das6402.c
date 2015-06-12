@@ -35,8 +35,8 @@
 #include <linux/interrupt.h>
 
 #include "../comedidev.h"
-#include "comedi_fc.h"
-#include "8253.h"
+
+#include "comedi_8254.h"
 
 /*
  * Register I/O map
@@ -138,11 +138,6 @@ static struct das6402_boardinfo das6402_boards[] = {
 
 struct das6402_private {
 	unsigned int irq;
-
-	unsigned int count;
-	unsigned int divider1;
-	unsigned int divider2;
-
 	unsigned int ao_range;
 };
 
@@ -170,27 +165,6 @@ static void das6402_clear_all_interrupts(struct comedi_device *dev)
 static void das6402_ai_clear_eoc(struct comedi_device *dev)
 {
 	outb(DAS6402_STATUS_W_CLRINT, dev->iobase + DAS6402_STATUS_REG);
-}
-
-static void das6402_enable_counter(struct comedi_device *dev, bool load)
-{
-	struct das6402_private *devpriv = dev->private;
-	unsigned long timer_iobase = dev->iobase + DAS6402_TIMER_BASE;
-
-	if (load) {
-		i8254_set_mode(timer_iobase, 0, 0, I8254_MODE0 | I8254_BINARY);
-		i8254_set_mode(timer_iobase, 0, 1, I8254_MODE2 | I8254_BINARY);
-		i8254_set_mode(timer_iobase, 0, 2, I8254_MODE2 | I8254_BINARY);
-
-		i8254_write(timer_iobase, 0, 0, devpriv->count);
-		i8254_write(timer_iobase, 0, 1, devpriv->divider1);
-		i8254_write(timer_iobase, 0, 2, devpriv->divider2);
-
-	} else {
-		i8254_set_mode(timer_iobase, 0, 0, I8254_MODE0 | I8254_BINARY);
-		i8254_set_mode(timer_iobase, 0, 1, I8254_MODE0 | I8254_BINARY);
-		i8254_set_mode(timer_iobase, 0, 2, I8254_MODE0 | I8254_BINARY);
-	}
 }
 
 static unsigned int das6402_ai_read_sample(struct comedi_device *dev,
@@ -267,7 +241,8 @@ static int das6402_ai_cmd(struct comedi_device *dev,
 	outw(DAS6402_AI_MUX_HI(chan_hi) | DAS6402_AI_MUX_LO(chan_lo),
 	     dev->iobase + DAS6402_AI_MUX_REG);
 
-	das6402_enable_counter(dev, true);
+	comedi_8254_update_divisors(dev->pacer);
+	comedi_8254_pacer_enable(dev->pacer, 1, 2, true);
 
 	/* enable interrupt and pacer trigger */
 	outb(DAS6402_CTRL_INTE |
@@ -322,24 +297,23 @@ static int das6402_ai_cmdtest(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_cmd *cmd)
 {
-	struct das6402_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
@@ -348,30 +322,26 @@ static int das6402_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
-	err |= cfc_check_trigger_arg_min(&cmd->convert_arg, 10000);
-	err |= cfc_check_trigger_arg_min(&cmd->chanlist_len, 1);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+	err |= comedi_check_trigger_arg_min(&cmd->convert_arg, 10000);
+	err |= comedi_check_trigger_arg_min(&cmd->chanlist_len, 1);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
 	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
 
 	/* step 4: fix up any arguments */
 
-	if (cmd->convert_src == TRIG_TIMER) {
-		arg = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
-					  &devpriv->divider1,
-					  &devpriv->divider2,
-					  &arg, cmd->flags);
-		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
-	}
+	arg = cmd->convert_arg;
+	comedi_8254_cascade_ns_to_timer(dev->pacer, &arg, cmd->flags);
+	err |= comedi_check_trigger_arg_is(&cmd->convert_arg, arg);
 
 	if (err)
 		return 4;
@@ -581,8 +551,6 @@ static void das6402_reset(struct comedi_device *dev)
 	outw(0, dev->iobase + DAS6402_AO_DATA_REG(0));
 	inw(dev->iobase + DAS6402_AO_LSB_REG(0));
 
-	das6402_enable_counter(dev, false);
-
 	/* set all digital outputs low */
 	outb(0, dev->iobase + DAS6402_DI_DO_REG);
 
@@ -630,6 +598,11 @@ static int das6402_attach(struct comedi_device *dev,
 			}
 		}
 	}
+
+	dev->pacer = comedi_8254_init(dev->iobase + DAS6402_TIMER_BASE,
+				      I8254_OSC_BASE_10MHZ, I8254_IO8, 0);
+	if (!dev->pacer)
+		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)

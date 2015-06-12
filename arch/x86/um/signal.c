@@ -549,13 +549,6 @@ int setup_signal_stack_si(unsigned long stack_top, struct ksignal *ksig,
 	if (err)
 		return err;
 
-	/* Set up registers for signal handler */
-	{
-		struct exec_domain *ed = current_thread_info()->exec_domain;
-		if (unlikely(ed && ed->signal_invmap && sig < 32))
-			sig = ed->signal_invmap[sig];
-	}
-
 	PT_REGS_SP(regs) = (unsigned long) frame;
 	PT_REGS_DI(regs) = sig;
 	/* In case the signal handler was declared without prototypes */

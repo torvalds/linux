@@ -212,11 +212,7 @@ static struct zcore_header zcore_header = {
 	.dump_level	= 0,
 	.page_size	= PAGE_SIZE,
 	.mem_start	= 0,
-#ifdef CONFIG_64BIT
 	.build_arch	= DUMP_ARCH_S390X,
-#else
-	.build_arch	= DUMP_ARCH_S390,
-#endif
 };
 
 /*
@@ -516,23 +512,6 @@ static const struct file_operations zcore_hsa_fops = {
 	.llseek		= no_llseek,
 };
 
-#ifdef CONFIG_32BIT
-
-static void __init set_lc_mask(struct save_area *map)
-{
-	memset(&map->ext_save, 0xff, sizeof(map->ext_save));
-	memset(&map->timer, 0xff, sizeof(map->timer));
-	memset(&map->clk_cmp, 0xff, sizeof(map->clk_cmp));
-	memset(&map->psw, 0xff, sizeof(map->psw));
-	memset(&map->pref_reg, 0xff, sizeof(map->pref_reg));
-	memset(&map->acc_regs, 0xff, sizeof(map->acc_regs));
-	memset(&map->fp_regs, 0xff, sizeof(map->fp_regs));
-	memset(&map->gp_regs, 0xff, sizeof(map->gp_regs));
-	memset(&map->ctrl_regs, 0xff, sizeof(map->ctrl_regs));
-}
-
-#else /* CONFIG_32BIT */
-
 static void __init set_lc_mask(struct save_area *map)
 {
 	memset(&map->fp_regs, 0xff, sizeof(map->fp_regs));
@@ -546,8 +525,6 @@ static void __init set_lc_mask(struct save_area *map)
 	memset(&map->acc_regs, 0xff, sizeof(map->acc_regs));
 	memset(&map->ctrl_regs, 0xff, sizeof(map->ctrl_regs));
 }
-
-#endif /* CONFIG_32BIT */
 
 /*
  * Initialize dump globals for a given architecture
@@ -688,21 +665,12 @@ static int __init zcore_init(void)
 	if (rc)
 		goto fail;
 
-#ifdef CONFIG_64BIT
 	if (arch == ARCH_S390) {
 		pr_alert("The 64-bit dump tool cannot be used for a "
 			 "32-bit system\n");
 		rc = -EINVAL;
 		goto fail;
 	}
-#else /* CONFIG_64BIT */
-	if (arch == ARCH_S390X) {
-		pr_alert("The 32-bit dump tool cannot be used for a "
-			 "64-bit system\n");
-		rc = -EINVAL;
-		goto fail;
-	}
-#endif /* CONFIG_64BIT */
 
 	rc = get_mem_info(&mem_size, &mem_end);
 	if (rc)

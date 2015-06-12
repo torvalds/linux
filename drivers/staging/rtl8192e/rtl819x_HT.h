@@ -77,43 +77,6 @@ enum chnl_op {
 	CHNLOP_SWCHNL = 3,
 };
 
-#define CHHLOP_IN_PROGRESS(_pHTInfo)	\
-		((_pHTInfo)->ChnlOp > CHNLOP_NONE) ? true : false
-
-/*
-union ht_capability {
-	u16	ShortData;
-	u8	CharData[2];
-	struct
-	{
-		u16	AdvCoding:1;
-		u16	ChlWidth:1;
-		u16	MimoPwrSave:2;
-		u16	GreenField:1;
-		u16	ShortGI20Mhz:1;
-		u16	ShortGI40Mhz:1;
-		u16	STBC:1;
-		u16	BeamForm:1;
-		u16	DelayBA:1;
-		u16	MaxAMSDUSize:1;
-		u16	DssCCk:1;
-		u16	PSMP:1;
-		u16	Rsvd:3;
-	}Field;
-};
-
-union ht_capability_macpara {
-	u8	ShortData;
-	u8	CharData[1];
-	struct
-	{
-		u8	MaxRxAMPDU:2;
-		u8	MPDUDensity:2;
-		u8	Rsvd:4;
-	}Field;
-};
-*/
-
 enum ht_action {
 	ACT_RECOMMAND_WIDTH		= 0,
 	ACT_MIMO_PWR_SAVE		= 1,
@@ -379,16 +342,6 @@ struct false_alarm_stats {
 
 extern u8 MCS_FILTER_ALL[16];
 extern u8 MCS_FILTER_1SS[16];
-
-#define PICK_RATE(_nLegacyRate, _nMcsRate)	\
-		((_nMcsRate == 0) ? (_nLegacyRate&0x7f) : (_nMcsRate))
-#define	LEGACY_WIRELESS_MODE	IEEE_MODE_MASK
-
-#define CURRENT_RATE(WirelessMode, LegacyRate, HTRate)	\
-			((WirelessMode & (LEGACY_WIRELESS_MODE)) != 0) ? \
-			(LegacyRate) : (PICK_RATE(LegacyRate, HTRate))
-
-
 
 #define	RATE_ADPT_1SS_MASK		0xFF
 #define	RATE_ADPT_2SS_MASK		0xF0

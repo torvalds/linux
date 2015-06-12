@@ -938,7 +938,7 @@ static bool nfs_can_coalesce_requests(struct nfs_page *prev,
 	if (prev) {
 		if (!nfs_match_open_context(req->wb_context, prev->wb_context))
 			return false;
-		flctx = req->wb_context->dentry->d_inode->i_flctx;
+		flctx = d_inode(req->wb_context->dentry)->i_flctx;
 		if (flctx != NULL &&
 		    !(list_empty_careful(&flctx->flc_posix) &&
 		      list_empty_careful(&flctx->flc_flock)) &&

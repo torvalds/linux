@@ -341,7 +341,7 @@ static struct clkgena_divmux_data st_divmux_c32odf3 = {
 	.fb_start_bit_idx = 24,
 };
 
-static struct of_device_id clkgena_divmux_of_match[] = {
+static const struct of_device_id clkgena_divmux_of_match[] = {
 	{
 		.compatible = "st,clkgena-divmux-c65-hs",
 		.data = &st_divmux_c65hs,
@@ -479,7 +479,7 @@ static struct clkgena_prediv_data prediv_c32_data = {
 	.table = prediv_table16,
 };
 
-static struct of_device_id clkgena_prediv_of_match[] = {
+static const struct of_device_id clkgena_prediv_of_match[] = {
 	{ .compatible = "st,clkgena-prediv-c65", .data = &prediv_c65_data },
 	{ .compatible = "st,clkgena-prediv-c32", .data = &prediv_c32_data },
 	{}
@@ -586,7 +586,7 @@ static struct clkgen_mux_data stih407_a9_mux_data = {
 	.width = 2,
 };
 
-static struct of_device_id mux_of_match[] = {
+static const struct of_device_id mux_of_match[] = {
 	{
 		.compatible = "st,stih416-clkgenc-vcc-hd",
 		.data = &clkgen_mux_c_vcc_hd_416,
@@ -693,7 +693,7 @@ static struct clkgen_vcc_data st_clkgenf_vcc_416 = {
 	.lock = &clkgenf_lock,
 };
 
-static struct of_device_id vcc_of_match[] = {
+static const struct of_device_id vcc_of_match[] = {
 	{ .compatible = "st,stih416-clkgenc", .data = &st_clkgenc_vcc_416 },
 	{ .compatible = "st,stih416-clkgenf", .data = &st_clkgenf_vcc_416 },
 	{}

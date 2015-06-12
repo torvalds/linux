@@ -679,7 +679,7 @@ extern int lprocfs_seq_release(struct inode *, struct file *);
 	}				       \
 } while (0)
 #define LPROCFS_CLIMP_EXIT(obd)		 \
-	up_read(&(obd)->u.cli.cl_sem);
+	up_read(&(obd)->u.cli.cl_sem)
 
 
 /* write the name##_seq_show function, call LPROC_SEQ_FOPS_RO for read-only
@@ -723,7 +723,7 @@ static struct file_operations name##_fops = {				\
 		return lprocfs_wr_##type(file, buffer,			\
 					 count, seq->private);		\
 	}								\
-	LPROC_SEQ_FOPS(name##_##type);
+	LPROC_SEQ_FOPS(name##_##type)
 
 #define LPROC_SEQ_FOPS_WR_ONLY(name, type)				\
 	static ssize_t name##_##type##_write(struct file *file,		\
@@ -740,7 +740,7 @@ static struct file_operations name##_fops = {				\
 		.open	= name##_##type##_open,				\
 		.write	= name##_##type##_write,			\
 		.release = lprocfs_single_release,			\
-	};
+	}
 
 /* lproc_ptlrpc.c */
 struct ptlrpc_request;

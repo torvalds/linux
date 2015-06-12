@@ -317,7 +317,7 @@ static int mt9m032_setup_pll(struct mt9m032 *sensor)
  */
 
 static int mt9m032_enum_mbus_code(struct v4l2_subdev *subdev,
-				  struct v4l2_subdev_fh *fh,
+				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index != 0)
@@ -328,7 +328,7 @@ static int mt9m032_enum_mbus_code(struct v4l2_subdev *subdev,
 }
 
 static int mt9m032_enum_frame_size(struct v4l2_subdev *subdev,
-				   struct v4l2_subdev_fh *fh,
+				   struct v4l2_subdev_pad_config *cfg,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
 	if (fse->index != 0 || fse->code != MEDIA_BUS_FMT_Y8_1X8)
@@ -345,18 +345,18 @@ static int mt9m032_enum_frame_size(struct v4l2_subdev *subdev,
 /**
  * __mt9m032_get_pad_crop() - get crop rect
  * @sensor: pointer to the sensor struct
- * @fh: file handle for getting the try crop rect from
+ * @cfg: v4l2_subdev_pad_config for getting the try crop rect from
  * @which: select try or active crop rect
  *
  * Returns a pointer the current active or fh relative try crop rect
  */
 static struct v4l2_rect *
-__mt9m032_get_pad_crop(struct mt9m032 *sensor, struct v4l2_subdev_fh *fh,
+__mt9m032_get_pad_crop(struct mt9m032 *sensor, struct v4l2_subdev_pad_config *cfg,
 		       enum v4l2_subdev_format_whence which)
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_crop(fh, 0);
+		return v4l2_subdev_get_try_crop(&sensor->subdev, cfg, 0);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &sensor->crop;
 	default:
@@ -367,18 +367,18 @@ __mt9m032_get_pad_crop(struct mt9m032 *sensor, struct v4l2_subdev_fh *fh,
 /**
  * __mt9m032_get_pad_format() - get format
  * @sensor: pointer to the sensor struct
- * @fh: file handle for getting the try format from
+ * @cfg: v4l2_subdev_pad_config for getting the try format from
  * @which: select try or active format
  *
  * Returns a pointer the current active or fh relative try format
  */
 static struct v4l2_mbus_framefmt *
-__mt9m032_get_pad_format(struct mt9m032 *sensor, struct v4l2_subdev_fh *fh,
+__mt9m032_get_pad_format(struct mt9m032 *sensor, struct v4l2_subdev_pad_config *cfg,
 			 enum v4l2_subdev_format_whence which)
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_format(fh, 0);
+		return v4l2_subdev_get_try_format(&sensor->subdev, cfg, 0);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &sensor->format;
 	default:
@@ -387,20 +387,20 @@ __mt9m032_get_pad_format(struct mt9m032 *sensor, struct v4l2_subdev_fh *fh,
 }
 
 static int mt9m032_get_pad_format(struct v4l2_subdev *subdev,
-				  struct v4l2_subdev_fh *fh,
+				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_format *fmt)
 {
 	struct mt9m032 *sensor = to_mt9m032(subdev);
 
 	mutex_lock(&sensor->lock);
-	fmt->format = *__mt9m032_get_pad_format(sensor, fh, fmt->which);
+	fmt->format = *__mt9m032_get_pad_format(sensor, cfg, fmt->which);
 	mutex_unlock(&sensor->lock);
 
 	return 0;
 }
 
 static int mt9m032_set_pad_format(struct v4l2_subdev *subdev,
-				  struct v4l2_subdev_fh *fh,
+				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_format *fmt)
 {
 	struct mt9m032 *sensor = to_mt9m032(subdev);
@@ -414,7 +414,7 @@ static int mt9m032_set_pad_format(struct v4l2_subdev *subdev,
 	}
 
 	/* Scaling is not supported, the format is thus fixed. */
-	fmt->format = *__mt9m032_get_pad_format(sensor, fh, fmt->which);
+	fmt->format = *__mt9m032_get_pad_format(sensor, cfg, fmt->which);
 	ret = 0;
 
 done:
@@ -423,7 +423,7 @@ done:
 }
 
 static int mt9m032_get_pad_selection(struct v4l2_subdev *subdev,
-				     struct v4l2_subdev_fh *fh,
+				     struct v4l2_subdev_pad_config *cfg,
 				     struct v4l2_subdev_selection *sel)
 {
 	struct mt9m032 *sensor = to_mt9m032(subdev);
@@ -432,14 +432,14 @@ static int mt9m032_get_pad_selection(struct v4l2_subdev *subdev,
 		return -EINVAL;
 
 	mutex_lock(&sensor->lock);
-	sel->r = *__mt9m032_get_pad_crop(sensor, fh, sel->which);
+	sel->r = *__mt9m032_get_pad_crop(sensor, cfg, sel->which);
 	mutex_unlock(&sensor->lock);
 
 	return 0;
 }
 
 static int mt9m032_set_pad_selection(struct v4l2_subdev *subdev,
-				     struct v4l2_subdev_fh *fh,
+				     struct v4l2_subdev_pad_config *cfg,
 				     struct v4l2_subdev_selection *sel)
 {
 	struct mt9m032 *sensor = to_mt9m032(subdev);
@@ -475,13 +475,13 @@ static int mt9m032_set_pad_selection(struct v4l2_subdev *subdev,
 	rect.height = min_t(unsigned int, rect.height,
 			    MT9M032_PIXEL_ARRAY_HEIGHT - rect.top);
 
-	__crop = __mt9m032_get_pad_crop(sensor, fh, sel->which);
+	__crop = __mt9m032_get_pad_crop(sensor, cfg, sel->which);
 
 	if (rect.width != __crop->width || rect.height != __crop->height) {
 		/* Reset the output image size if the crop rectangle size has
 		 * been modified.
 		 */
-		format = __mt9m032_get_pad_format(sensor, fh, sel->which);
+		format = __mt9m032_get_pad_format(sensor, cfg, sel->which);
 		format->width = rect.width;
 		format->height = rect.height;
 	}

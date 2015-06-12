@@ -265,15 +265,17 @@ struct task_struct *rt_mutex_get_top_task(struct task_struct *task)
 }
 
 /*
- * Called by sched_setscheduler() to check whether the priority change
- * is overruled by a possible priority boosting.
+ * Called by sched_setscheduler() to get the priority which will be
+ * effective after the change.
  */
-int rt_mutex_check_prio(struct task_struct *task, int newprio)
+int rt_mutex_get_effective_prio(struct task_struct *task, int newprio)
 {
 	if (!task_has_pi_waiters(task))
-		return 0;
+		return newprio;
 
-	return task_top_pi_waiter(task)->task->prio <= newprio;
+	if (task_top_pi_waiter(task)->task->prio <= newprio)
+		return task_top_pi_waiter(task)->task->prio;
+	return newprio;
 }
 
 /*
@@ -349,7 +351,7 @@ static inline struct rt_mutex *task_blocked_on_lock(struct task_struct *p)
  *
  * @task:	the task owning the mutex (owner) for which a chain walk is
  *		probably needed
- * @deadlock_detect: do we have to carry out deadlock detection?
+ * @chwalk:	do we have to carry out deadlock detection?
  * @orig_lock:	the mutex (can be NULL if we are walking the chain to recheck
  *		things for a task that has just got its priority adjusted, and
  *		is waiting on a mutex)

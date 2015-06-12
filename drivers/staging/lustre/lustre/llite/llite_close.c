@@ -284,10 +284,8 @@ static void ll_done_writing(struct inode *inode)
 	LASSERT(exp_connect_som(ll_i2mdexp(inode)));
 
 	op_data = kzalloc(sizeof(*op_data), GFP_NOFS);
-	if (!op_data) {
-		CERROR("can't allocate op_data\n");
+	if (!op_data)
 		return;
-	}
 
 	ll_prepare_done_writing(inode, op_data, &och);
 	/* If there is no @och, we do not do D_W yet. */

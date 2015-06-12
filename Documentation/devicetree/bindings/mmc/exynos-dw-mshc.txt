@@ -36,6 +36,8 @@ Required Properties:
   in transmit mode and CIU clock phase shift value in receive mode for double
   data rate mode operation. Refer notes below for the order of the cells and the
   valid values.
+* samsung,dw-mshc-hs400-timing: Specifies the value of CIU TX and RX clock phase
+  shift value for hs400 mode operation.
 
   Notes for the sdr-timing and ddr-timing values:
 
@@ -49,6 +51,9 @@ Required Properties:
         values can be used.
       - if CIU clock divider value is 0 (that is divide by 1), both tx and rx
         phase shift clocks should be 0.
+
+* samsung,read-strobe-delay: RCLK (Data strobe) delay to control HS400 mode
+  (Latency value for delay line in Read path)
 
 Required properties for a slot (Deprecated - Recommend to use one slot per host):
 
@@ -82,5 +87,7 @@ Example:
 		samsung,dw-mshc-ciu-div = <3>;
 		samsung,dw-mshc-sdr-timing = <2 3>;
 		samsung,dw-mshc-ddr-timing = <1 2>;
+		samsung,dw-mshc-hs400-timing = <0 2>;
+		samsung,read-strobe-delay = <90>;
 		bus-width = <8>;
 	};

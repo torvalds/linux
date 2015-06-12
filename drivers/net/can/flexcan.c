@@ -592,13 +592,12 @@ static int flexcan_poll_state(struct net_device *dev, u32 reg_esr)
 		rx_state = unlikely(reg_esr & FLEXCAN_ESR_RX_WRN) ?
 			   CAN_STATE_ERROR_WARNING : CAN_STATE_ERROR_ACTIVE;
 		new_state = max(tx_state, rx_state);
-	} else if (unlikely(flt == FLEXCAN_ESR_FLT_CONF_PASSIVE)) {
+	} else {
 		__flexcan_get_berr_counter(dev, &bec);
-		new_state = CAN_STATE_ERROR_PASSIVE;
+		new_state = flt == FLEXCAN_ESR_FLT_CONF_PASSIVE ?
+			    CAN_STATE_ERROR_PASSIVE : CAN_STATE_BUS_OFF;
 		rx_state = bec.rxerr >= bec.txerr ? new_state : 0;
 		tx_state = bec.rxerr <= bec.txerr ? new_state : 0;
-	} else {
-		new_state = CAN_STATE_BUS_OFF;
 	}
 
 	/* state hasn't changed */
@@ -1158,11 +1157,18 @@ static int flexcan_probe(struct platform_device *pdev)
 	const struct flexcan_devtype_data *devtype_data;
 	struct net_device *dev;
 	struct flexcan_priv *priv;
+	struct regulator *reg_xceiver;
 	struct resource *mem;
 	struct clk *clk_ipg = NULL, *clk_per = NULL;
 	void __iomem *base;
 	int err, irq;
 	u32 clock_freq = 0;
+
+	reg_xceiver = devm_regulator_get(&pdev->dev, "xceiver");
+	if (PTR_ERR(reg_xceiver) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+	else if (IS_ERR(reg_xceiver))
+		reg_xceiver = NULL;
 
 	if (pdev->dev.of_node)
 		of_property_read_u32(pdev->dev.of_node,
@@ -1224,9 +1230,7 @@ static int flexcan_probe(struct platform_device *pdev)
 	priv->pdata = dev_get_platdata(&pdev->dev);
 	priv->devtype_data = devtype_data;
 
-	priv->reg_xceiver = devm_regulator_get(&pdev->dev, "xceiver");
-	if (IS_ERR(priv->reg_xceiver))
-		priv->reg_xceiver = NULL;
+	priv->reg_xceiver = reg_xceiver;
 
 	netif_napi_add(dev, &priv->napi, flexcan_poll, FLEXCAN_NAPI_WEIGHT);
 

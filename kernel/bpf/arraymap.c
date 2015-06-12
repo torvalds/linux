@@ -134,7 +134,7 @@ static void array_map_free(struct bpf_map *map)
 	kvfree(array);
 }
 
-static struct bpf_map_ops array_ops = {
+static const struct bpf_map_ops array_ops = {
 	.map_alloc = array_map_alloc,
 	.map_free = array_map_free,
 	.map_get_next_key = array_map_get_next_key,
@@ -143,14 +143,14 @@ static struct bpf_map_ops array_ops = {
 	.map_delete_elem = array_map_delete_elem,
 };
 
-static struct bpf_map_type_list tl = {
+static struct bpf_map_type_list array_type __read_mostly = {
 	.ops = &array_ops,
 	.type = BPF_MAP_TYPE_ARRAY,
 };
 
 static int __init register_array_map(void)
 {
-	bpf_register_map_type(&tl);
+	bpf_register_map_type(&array_type);
 	return 0;
 }
 late_initcall(register_array_map);

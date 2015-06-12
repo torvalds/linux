@@ -246,6 +246,7 @@ static int arizona_micsupp_probe(struct platform_device *pdev)
 	 */
 	switch (arizona->type) {
 	case WM5110:
+	case WM8280:
 		desc = &arizona_micsupp_ext;
 		micsupp->init_data = arizona_micsupp_ext_default;
 		break;
@@ -284,14 +285,15 @@ static int arizona_micsupp_probe(struct platform_device *pdev)
 	micsupp->regulator = devm_regulator_register(&pdev->dev,
 						     desc,
 						     &config);
+
+	of_node_put(config.of_node);
+
 	if (IS_ERR(micsupp->regulator)) {
 		ret = PTR_ERR(micsupp->regulator);
 		dev_err(arizona->dev, "Failed to register mic supply: %d\n",
 			ret);
 		return ret;
 	}
-
-	of_node_put(config.of_node);
 
 	platform_set_drvdata(pdev, micsupp);
 

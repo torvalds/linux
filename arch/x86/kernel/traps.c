@@ -112,7 +112,7 @@ enum ctx_state ist_enter(struct pt_regs *regs)
 {
 	enum ctx_state prev_state;
 
-	if (user_mode_vm(regs)) {
+	if (user_mode(regs)) {
 		/* Other than that, we're just an exception. */
 		prev_state = exception_enter();
 	} else {
@@ -123,7 +123,7 @@ enum ctx_state ist_enter(struct pt_regs *regs)
 		 * but we need to notify RCU.
 		 */
 		rcu_nmi_enter();
-		prev_state = IN_KERNEL;  /* the value is irrelevant. */
+		prev_state = CONTEXT_KERNEL;  /* the value is irrelevant. */
 	}
 
 	/*
@@ -146,7 +146,7 @@ void ist_exit(struct pt_regs *regs, enum ctx_state prev_state)
 	/* Must be before exception_exit. */
 	preempt_count_sub(HARDIRQ_OFFSET);
 
-	if (user_mode_vm(regs))
+	if (user_mode(regs))
 		return exception_exit(prev_state);
 	else
 		rcu_nmi_exit();
@@ -158,7 +158,7 @@ void ist_exit(struct pt_regs *regs, enum ctx_state prev_state)
  *
  * IST exception handlers normally cannot schedule.  As a special
  * exception, if the exception interrupted userspace code (i.e.
- * user_mode_vm(regs) would return true) and the exception was not
+ * user_mode(regs) would return true) and the exception was not
  * a double fault, it can be safe to schedule.  ist_begin_non_atomic()
  * begins a non-atomic section within an ist_enter()/ist_exit() region.
  * Callers are responsible for enabling interrupts themselves inside
@@ -167,15 +167,15 @@ void ist_exit(struct pt_regs *regs, enum ctx_state prev_state)
  */
 void ist_begin_non_atomic(struct pt_regs *regs)
 {
-	BUG_ON(!user_mode_vm(regs));
+	BUG_ON(!user_mode(regs));
 
 	/*
 	 * Sanity check: we need to be on the normal thread stack.  This
 	 * will catch asm bugs and any attempt to use ist_preempt_enable
 	 * from double_fault.
 	 */
-	BUG_ON(((current_stack_pointer() ^ this_cpu_read_stable(kernel_stack))
-		& ~(THREAD_SIZE - 1)) != 0);
+	BUG_ON((unsigned long)(current_top_of_stack() -
+			       current_stack_pointer()) >= THREAD_SIZE);
 
 	preempt_count_sub(HARDIRQ_OFFSET);
 }
@@ -194,8 +194,7 @@ static nokprobe_inline int
 do_trap_no_signal(struct task_struct *tsk, int trapnr, char *str,
 		  struct pt_regs *regs,	long error_code)
 {
-#ifdef CONFIG_X86_32
-	if (regs->flags & X86_VM_MASK) {
+	if (v8086_mode(regs)) {
 		/*
 		 * Traps 0, 1, 3, 4, and 5 should be forwarded to vm86.
 		 * On nmi (interrupt 2), do_trap should not be called.
@@ -207,7 +206,7 @@ do_trap_no_signal(struct task_struct *tsk, int trapnr, char *str,
 		}
 		return -1;
 	}
-#endif
+
 	if (!user_mode(regs)) {
 		if (!fixup_exception(regs)) {
 			tsk->thread.error_code = error_code;
@@ -462,13 +461,11 @@ do_general_protection(struct pt_regs *regs, long error_code)
 	prev_state = exception_enter();
 	conditional_sti(regs);
 
-#ifdef CONFIG_X86_32
-	if (regs->flags & X86_VM_MASK) {
+	if (v8086_mode(regs)) {
 		local_irq_enable();
 		handle_vm86_fault((struct kernel_vm86_regs *) regs, error_code);
 		goto exit;
 	}
-#endif
 
 	tsk = current;
 	if (!user_mode(regs)) {
@@ -587,7 +584,7 @@ struct bad_iret_stack *fixup_bad_iret(struct bad_iret_stack *s)
 	/* Copy the remainder of the stack from the current stack. */
 	memmove(new_stack, s, offsetof(struct bad_iret_stack, regs.ip));
 
-	BUG_ON(!user_mode_vm(&new_stack->regs));
+	BUG_ON(!user_mode(&new_stack->regs));
 	return new_stack;
 }
 NOKPROBE_SYMBOL(fixup_bad_iret);
@@ -673,7 +670,7 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	/* It's safe to allow irq's after DR6 has been saved */
 	preempt_conditional_sti(regs);
 
-	if (regs->flags & X86_VM_MASK) {
+	if (v8086_mode(regs)) {
 		handle_vm86_trap((struct kernel_vm86_regs *) regs, error_code,
 					X86_TRAP_DB);
 		preempt_conditional_cli(regs);
@@ -721,7 +718,7 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
 		return;
 	conditional_sti(regs);
 
-	if (!user_mode_vm(regs))
+	if (!user_mode(regs))
 	{
 		if (!fixup_exception(regs)) {
 			task->thread.error_code = error_code;
@@ -734,7 +731,7 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
 	/*
 	 * Save the info for the exception handler and clear the error.
 	 */
-	save_init_fpu(task);
+	unlazy_fpu(task);
 	task->thread.trap_nr = trapnr;
 	task->thread.error_code = error_code;
 	info.si_signo = SIGFPE;
@@ -863,7 +860,7 @@ void math_state_restore(void)
 	kernel_fpu_disable();
 	__thread_fpu_begin(tsk);
 	if (unlikely(restore_fpu_checking(tsk))) {
-		drop_init_fpu(tsk);
+		fpu_reset_state(tsk);
 		force_sig_info(SIGSEGV, SEND_SIG_PRIV, tsk);
 	} else {
 		tsk->thread.fpu_counter++;
@@ -925,9 +922,21 @@ dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
 /* Set of traps needed for early debugging. */
 void __init early_trap_init(void)
 {
-	set_intr_gate_ist(X86_TRAP_DB, &debug, DEBUG_STACK);
+	/*
+	 * Don't use IST to set DEBUG_STACK as it doesn't work until TSS
+	 * is ready in cpu_init() <-- trap_init(). Before trap_init(),
+	 * CPU runs at ring 0 so it is impossible to hit an invalid
+	 * stack.  Using the original stack works well enough at this
+	 * early stage. DEBUG_STACK will be equipped after cpu_init() in
+	 * trap_init().
+	 *
+	 * We don't need to set trace_idt_table like set_intr_gate(),
+	 * since we don't have trace_debug and it will be reset to
+	 * 'debug' in trap_init() by set_intr_gate_ist().
+	 */
+	set_intr_gate_notrace(X86_TRAP_DB, debug);
 	/* int3 can be called from all */
-	set_system_intr_gate_ist(X86_TRAP_BP, &int3, DEBUG_STACK);
+	set_system_intr_gate(X86_TRAP_BP, &int3);
 #ifdef CONFIG_X86_32
 	set_intr_gate(X86_TRAP_PF, page_fault);
 #endif
@@ -1004,6 +1013,15 @@ void __init trap_init(void)
 	 * Should be a barrier for any external CPU state:
 	 */
 	cpu_init();
+
+	/*
+	 * X86_TRAP_DB and X86_TRAP_BP have been set
+	 * in early_trap_init(). However, ITS works only after
+	 * cpu_init() loads TSS. See comments in early_trap_init().
+	 */
+	set_intr_gate_ist(X86_TRAP_DB, &debug, DEBUG_STACK);
+	/* int3 can be called from all */
+	set_system_intr_gate_ist(X86_TRAP_BP, &int3, DEBUG_STACK);
 
 	x86_init.irqs.trap_init();
 

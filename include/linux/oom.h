@@ -66,7 +66,8 @@ extern bool oom_zonelist_trylock(struct zonelist *zonelist, gfp_t gfp_flags);
 extern void oom_zonelist_unlock(struct zonelist *zonelist, gfp_t gfp_flags);
 
 extern void check_panic_on_oom(enum oom_constraint constraint, gfp_t gfp_mask,
-			       int order, const nodemask_t *nodemask);
+			       int order, const nodemask_t *nodemask,
+			       struct mem_cgroup *memcg);
 
 extern enum oom_scan_t oom_scan_process_thread(struct task_struct *task,
 		unsigned long totalpages, const nodemask_t *nodemask,

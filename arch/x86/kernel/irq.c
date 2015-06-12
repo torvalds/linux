@@ -295,7 +295,7 @@ int check_irq_vectors_for_cpu_disable(void)
 
 	this_cpu = smp_processor_id();
 	cpumask_copy(&online_new, cpu_online_mask);
-	cpu_clear(this_cpu, online_new);
+	cpumask_clear_cpu(this_cpu, &online_new);
 
 	this_count = 0;
 	for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
@@ -307,7 +307,7 @@ int check_irq_vectors_for_cpu_disable(void)
 
 			data = irq_desc_get_irq_data(desc);
 			cpumask_copy(&affinity_new, data->affinity);
-			cpu_clear(this_cpu, affinity_new);
+			cpumask_clear_cpu(this_cpu, &affinity_new);
 
 			/* Do not count inactive or per-cpu irqs. */
 			if (!irq_has_action(irq) || irqd_is_per_cpu(data))

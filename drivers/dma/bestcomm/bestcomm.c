@@ -30,7 +30,7 @@
 #define DRIVER_NAME "bestcomm-core"
 
 /* MPC5200 device tree match tables */
-static struct of_device_id mpc52xx_sram_ids[] = {
+static const struct of_device_id mpc52xx_sram_ids[] = {
 	{ .compatible = "fsl,mpc5200-sram", },
 	{ .compatible = "mpc5200-sram", },
 	{}
@@ -481,7 +481,7 @@ static int mpc52xx_bcom_remove(struct platform_device *op)
 	return 0;
 }
 
-static struct of_device_id mpc52xx_bcom_of_match[] = {
+static const struct of_device_id mpc52xx_bcom_of_match[] = {
 	{ .compatible = "fsl,mpc5200-bestcomm", },
 	{ .compatible = "mpc5200-bestcomm", },
 	{},

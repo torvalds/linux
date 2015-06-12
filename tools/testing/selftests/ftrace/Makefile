@@ -1,7 +1,8 @@
 all:
 
-run_tests:
-	@/bin/sh ./ftracetest || echo "ftrace selftests: [FAIL]"
+TEST_PROGS := ftracetest
+
+include ../lib.mk
 
 clean:
 	rm -rf logs/*

@@ -145,7 +145,7 @@ static struct iwlwifi_opmode_table {
 #define IWL_DEFAULT_SCAN_CHANNELS 40
 
 /*
- * struct fw_sec: Just for the image parsing proccess.
+ * struct fw_sec: Just for the image parsing process.
  * For the fw storage we are using struct fw_desc.
  */
 struct fw_sec {
@@ -175,6 +175,8 @@ static void iwl_dealloc_ucode(struct iwl_drv *drv)
 	kfree(drv->fw.dbg_dest_tlv);
 	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_conf_tlv); i++)
 		kfree(drv->fw.dbg_conf_tlv[i]);
+	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_trigger_tlv); i++)
+		kfree(drv->fw.dbg_trigger_tlv[i]);
 
 	for (i = 0; i < IWL_UCODE_TYPE_MAX; i++)
 		iwl_free_fw_img(drv, drv->fw.img + i);
@@ -239,16 +241,10 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 	 * previous name and uses the new format.
 	 */
 	if (drv->trans->cfg->device_family == IWL_DEVICE_FAMILY_8000) {
-		char rev_step[2] = {
-			'A' + CSR_HW_REV_STEP(drv->trans->hw_rev), 0
-		};
-
-		/* A-step doesn't have an indication */
-		if (CSR_HW_REV_STEP(drv->trans->hw_rev) == SILICON_A_STEP)
-			rev_step[0] = 0;
+		char rev_step = 'A' + CSR_HW_REV_STEP(drv->trans->hw_rev);
 
 		snprintf(drv->firmware_name, sizeof(drv->firmware_name),
-			 "%s%s-%s.ucode", name_pre, rev_step, tag);
+			 "%s%c-%s.ucode", name_pre, rev_step, tag);
 	}
 
 	IWL_DEBUG_INFO(drv, "attempting to load firmware %s'%s'\n",
@@ -293,8 +289,10 @@ struct iwl_firmware_pieces {
 
 	/* FW debug data parsed for driver usage */
 	struct iwl_fw_dbg_dest_tlv *dbg_dest_tlv;
-	struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_MAX];
-	size_t dbg_conf_tlv_len[FW_DBG_MAX];
+	struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_CONF_MAX];
+	size_t dbg_conf_tlv_len[FW_DBG_CONF_MAX];
+	struct iwl_fw_dbg_trigger_tlv *dbg_trigger_tlv[FW_DBG_TRIGGER_MAX];
+	size_t dbg_trigger_tlv_len[FW_DBG_TRIGGER_MAX];
 };
 
 /*
@@ -842,6 +840,23 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			capa->n_scan_channels =
 				le32_to_cpup((__le32 *)tlv_data);
 			break;
+		case IWL_UCODE_TLV_FW_VERSION: {
+			__le32 *ptr = (void *)tlv_data;
+			u32 major, minor;
+			u8 local_comp;
+
+			if (tlv_len != sizeof(u32) * 3)
+				goto invalid_tlv_len;
+
+			major = le32_to_cpup(ptr++);
+			minor = le32_to_cpup(ptr++);
+			local_comp = le32_to_cpup(ptr);
+
+			snprintf(drv->fw.fw_version,
+				 sizeof(drv->fw.fw_version), "%u.%u.%u",
+				 major, minor, local_comp);
+			break;
+			}
 		case IWL_UCODE_TLV_FW_DBG_DEST: {
 			struct iwl_fw_dbg_dest_tlv *dest = (void *)tlv_data;
 
@@ -895,6 +910,31 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 
 			pieces->dbg_conf_tlv[conf->id] = conf;
 			pieces->dbg_conf_tlv_len[conf->id] = tlv_len;
+			break;
+			}
+		case IWL_UCODE_TLV_FW_DBG_TRIGGER: {
+			struct iwl_fw_dbg_trigger_tlv *trigger =
+				(void *)tlv_data;
+			u32 trigger_id = le32_to_cpu(trigger->id);
+
+			if (trigger_id >= ARRAY_SIZE(drv->fw.dbg_trigger_tlv)) {
+				IWL_ERR(drv,
+					"Skip unknown trigger: %u\n",
+					trigger->id);
+				break;
+			}
+
+			if (pieces->dbg_trigger_tlv[trigger_id]) {
+				IWL_ERR(drv,
+					"Ignore duplicate dbg trigger %u\n",
+					trigger->id);
+				break;
+			}
+
+			IWL_INFO(drv, "Found debug trigger: %u\n", trigger->id);
+
+			pieces->dbg_trigger_tlv[trigger_id] = trigger;
+			pieces->dbg_trigger_tlv_len[trigger_id] = tlv_len;
 			break;
 			}
 		case IWL_UCODE_TLV_SEC_RT_USNIFFER:
@@ -968,34 +1008,34 @@ static int validate_sec_sizes(struct iwl_drv *drv,
 
 	/* Verify that uCode images will fit in card's SRAM. */
 	if (get_sec_size(pieces, IWL_UCODE_REGULAR, IWL_UCODE_SECTION_INST) >
-							cfg->max_inst_size) {
+	    cfg->max_inst_size) {
 		IWL_ERR(drv, "uCode instr len %Zd too large to fit in\n",
 			get_sec_size(pieces, IWL_UCODE_REGULAR,
-						IWL_UCODE_SECTION_INST));
+				     IWL_UCODE_SECTION_INST));
 		return -1;
 	}
 
 	if (get_sec_size(pieces, IWL_UCODE_REGULAR, IWL_UCODE_SECTION_DATA) >
-							cfg->max_data_size) {
+	    cfg->max_data_size) {
 		IWL_ERR(drv, "uCode data len %Zd too large to fit in\n",
 			get_sec_size(pieces, IWL_UCODE_REGULAR,
-						IWL_UCODE_SECTION_DATA));
+				     IWL_UCODE_SECTION_DATA));
 		return -1;
 	}
 
-	 if (get_sec_size(pieces, IWL_UCODE_INIT, IWL_UCODE_SECTION_INST) >
-							cfg->max_inst_size) {
+	if (get_sec_size(pieces, IWL_UCODE_INIT, IWL_UCODE_SECTION_INST) >
+	     cfg->max_inst_size) {
 		IWL_ERR(drv, "uCode init instr len %Zd too large to fit in\n",
 			get_sec_size(pieces, IWL_UCODE_INIT,
-						IWL_UCODE_SECTION_INST));
+				     IWL_UCODE_SECTION_INST));
 		return -1;
 	}
 
 	if (get_sec_size(pieces, IWL_UCODE_INIT, IWL_UCODE_SECTION_DATA) >
-							cfg->max_data_size) {
+	    cfg->max_data_size) {
 		IWL_ERR(drv, "uCode init data len %Zd too large to fit in\n",
 			get_sec_size(pieces, IWL_UCODE_REGULAR,
-						IWL_UCODE_SECTION_DATA));
+				     IWL_UCODE_SECTION_DATA));
 		return -1;
 	}
 	return 0;
@@ -1062,6 +1102,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	const unsigned int api_max = drv->cfg->ucode_api_max;
 	unsigned int api_ok = drv->cfg->ucode_api_ok;
 	const unsigned int api_min = drv->cfg->ucode_api_min;
+	size_t trigger_tlv_sz[FW_DBG_TRIGGER_MAX];
 	u32 api_ver;
 	int i;
 	bool load_module = false;
@@ -1107,7 +1148,10 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	if (err)
 		goto try_again;
 
-	api_ver = IWL_UCODE_API(drv->fw.ucode_ver);
+	if (drv->fw.ucode_capa.api[0] & IWL_UCODE_TLV_API_NEW_VERSION)
+		api_ver = drv->fw.ucode_ver;
+	else
+		api_ver = IWL_UCODE_API(drv->fw.ucode_ver);
 
 	/*
 	 * api_ver should match the api version forming part of the
@@ -1174,6 +1218,48 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 					drv->fw.dbg_conf_tlv_len[i],
 					GFP_KERNEL);
 			if (!drv->fw.dbg_conf_tlv[i])
+				goto out_free_fw;
+		}
+	}
+
+	memset(&trigger_tlv_sz, 0xff, sizeof(trigger_tlv_sz));
+
+	trigger_tlv_sz[FW_DBG_TRIGGER_MISSED_BEACONS] =
+		sizeof(struct iwl_fw_dbg_trigger_missed_bcon);
+	trigger_tlv_sz[FW_DBG_TRIGGER_CHANNEL_SWITCH] = 0;
+	trigger_tlv_sz[FW_DBG_TRIGGER_FW_NOTIF] =
+		sizeof(struct iwl_fw_dbg_trigger_cmd);
+	trigger_tlv_sz[FW_DBG_TRIGGER_MLME] =
+		sizeof(struct iwl_fw_dbg_trigger_mlme);
+	trigger_tlv_sz[FW_DBG_TRIGGER_STATS] =
+		sizeof(struct iwl_fw_dbg_trigger_stats);
+	trigger_tlv_sz[FW_DBG_TRIGGER_RSSI] =
+		sizeof(struct iwl_fw_dbg_trigger_low_rssi);
+	trigger_tlv_sz[FW_DBG_TRIGGER_TXQ_TIMERS] =
+		sizeof(struct iwl_fw_dbg_trigger_txq_timer);
+	trigger_tlv_sz[FW_DBG_TRIGGER_TIME_EVENT] =
+		sizeof(struct iwl_fw_dbg_trigger_time_event);
+
+	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_trigger_tlv); i++) {
+		if (pieces->dbg_trigger_tlv[i]) {
+			/*
+			 * If the trigger isn't long enough, WARN and exit.
+			 * Someone is trying to debug something and he won't
+			 * be able to catch the bug he is trying to chase.
+			 * We'd better be noisy to be sure he knows what's
+			 * going on.
+			 */
+			if (WARN_ON(pieces->dbg_trigger_tlv_len[i] <
+				    (trigger_tlv_sz[i] +
+				     sizeof(struct iwl_fw_dbg_trigger_tlv))))
+				goto out_free_fw;
+			drv->fw.dbg_trigger_tlv_len[i] =
+				pieces->dbg_trigger_tlv_len[i];
+			drv->fw.dbg_trigger_tlv[i] =
+				kmemdup(pieces->dbg_trigger_tlv[i],
+					drv->fw.dbg_trigger_tlv_len[i],
+					GFP_KERNEL);
+			if (!drv->fw.dbg_trigger_tlv[i])
 				goto out_free_fw;
 		}
 	}
@@ -1257,6 +1343,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 				op->name, err);
 #endif
 	}
+	kfree(pieces);
 	return;
 
  try_again:
@@ -1483,6 +1570,10 @@ MODULE_PARM_DESC(nvm_file, "NVM file name");
 module_param_named(d0i3_disable, iwlwifi_mod_params.d0i3_disable,
 		   bool, S_IRUGO);
 MODULE_PARM_DESC(d0i3_disable, "disable d0i3 functionality (default: Y)");
+
+module_param_named(lar_disable, iwlwifi_mod_params.lar_disable,
+		   bool, S_IRUGO);
+MODULE_PARM_DESC(lar_disable, "disable LAR functionality (default: N)");
 
 module_param_named(uapsd_disable, iwlwifi_mod_params.uapsd_disable,
 		   bool, S_IRUGO | S_IWUSR);

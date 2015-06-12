@@ -193,7 +193,7 @@ static struct vexpress_hwmon_type vexpress_hwmon_energy = {
 	},
 };
 
-static struct of_device_id vexpress_hwmon_of_match[] = {
+static const struct of_device_id vexpress_hwmon_of_match[] = {
 #if !defined(CONFIG_REGULATOR_VEXPRESS)
 	{
 		.compatible = "arm,vexpress-volt",

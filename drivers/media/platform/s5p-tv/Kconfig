@@ -20,6 +20,7 @@ if VIDEO_SAMSUNG_S5P_TV
 config VIDEO_SAMSUNG_S5P_HDMI
 	tristate "Samsung HDMI Driver"
 	depends on VIDEO_V4L2
+	depends on I2C
 	depends on VIDEO_SAMSUNG_S5P_TV
 	select VIDEO_SAMSUNG_S5P_HDMIPHY
 	help

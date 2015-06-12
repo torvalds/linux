@@ -4137,7 +4137,7 @@ static int dsi_display_init_dispc(struct platform_device *dsidev,
 	dsi->timings.vsync_level = OMAPDSS_SIG_ACTIVE_HIGH;
 	dsi->timings.data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
 	dsi->timings.de_level = OMAPDSS_SIG_ACTIVE_HIGH;
-	dsi->timings.sync_pclk_edge = OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES;
+	dsi->timings.sync_pclk_edge = OMAPDSS_DRIVE_SIG_FALLING_EDGE;
 
 	dss_mgr_set_timings(mgr, &dsi->timings);
 

@@ -587,26 +587,20 @@ int saa7146_vv_release(struct saa7146_dev* dev)
 }
 EXPORT_SYMBOL_GPL(saa7146_vv_release);
 
-int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
+int saa7146_register_device(struct video_device *vfd, struct saa7146_dev *dev,
 			    char *name, int type)
 {
-	struct video_device *vfd;
 	int err;
 	int i;
 
 	DEB_EE("dev:%p, name:'%s', type:%d\n", dev, name, type);
-
-	// released by vfd->release
-	vfd = video_device_alloc();
-	if (vfd == NULL)
-		return -ENOMEM;
 
 	vfd->fops = &video_fops;
 	if (type == VFL_TYPE_GRABBER)
 		vfd->ioctl_ops = &dev->ext_vv_data->vid_ops;
 	else
 		vfd->ioctl_ops = &dev->ext_vv_data->vbi_ops;
-	vfd->release = video_device_release;
+	vfd->release = video_device_release_empty;
 	vfd->lock = &dev->v4l2_lock;
 	vfd->v4l2_dev = &dev->v4l2_dev;
 	vfd->tvnorms = 0;
@@ -618,25 +612,20 @@ int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 	err = video_register_device(vfd, type, -1);
 	if (err < 0) {
 		ERR("cannot register v4l2 device. skipping.\n");
-		video_device_release(vfd);
 		return err;
 	}
 
 	pr_info("%s: registered device %s [v4l2]\n",
 		dev->name, video_device_node_name(vfd));
-
-	*vid = vfd;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(saa7146_register_device);
 
-int saa7146_unregister_device(struct video_device **vid, struct saa7146_dev* dev)
+int saa7146_unregister_device(struct video_device *vfd, struct saa7146_dev *dev)
 {
 	DEB_EE("dev:%p\n", dev);
 
-	video_unregister_device(*vid);
-	*vid = NULL;
-
+	video_unregister_device(vfd);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(saa7146_unregister_device);

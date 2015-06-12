@@ -76,9 +76,6 @@ extern void _set_L3CR(unsigned long);
 #define _set_L3CR(val)	do { } while(0)
 #endif
 
-extern void cacheable_memzero(void *p, unsigned int nb);
-extern void *cacheable_memcpy(void *, const void *, unsigned int);
-
 #endif /* !__ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_CACHE_H */

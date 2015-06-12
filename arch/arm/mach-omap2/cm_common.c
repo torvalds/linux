@@ -15,10 +15,14 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/bug.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 
 #include "cm2xxx.h"
 #include "cm3xxx.h"
+#include "cm33xx.h"
 #include "cm44xx.h"
+#include "clock.h"
 
 /*
  * cm_ll_data: function pointers to SoC-specific implementations of
@@ -32,6 +36,9 @@ void __iomem *cm_base;
 
 /* cm2_base: base virtual address of the CM2 IP block (OMAP44xx only) */
 void __iomem *cm2_base;
+
+#define CM_NO_CLOCKS		0x1
+#define CM_SINGLE_INSTANCE	0x2
 
 /**
  * omap2_set_globals_cm - set the CM/CM2 base addresses (for early use)
@@ -209,6 +216,155 @@ int cm_unregister(struct cm_ll_data *cld)
 		return -EINVAL;
 
 	cm_ll_data = &null_cm_ll_data;
+
+	return 0;
+}
+
+#if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5) || \
+	defined(CONFIG_SOC_DRA7XX)
+static struct omap_prcm_init_data cm_data __initdata = {
+	.index = TI_CLKM_CM,
+	.init = omap4_cm_init,
+};
+
+static struct omap_prcm_init_data cm2_data __initdata = {
+	.index = TI_CLKM_CM2,
+	.init = omap4_cm_init,
+};
+#endif
+
+#ifdef CONFIG_ARCH_OMAP2
+static struct omap_prcm_init_data omap2_prcm_data __initdata = {
+	.index = TI_CLKM_CM,
+	.init = omap2xxx_cm_init,
+	.flags = CM_NO_CLOCKS | CM_SINGLE_INSTANCE,
+};
+#endif
+
+#ifdef CONFIG_ARCH_OMAP3
+static struct omap_prcm_init_data omap3_cm_data __initdata = {
+	.index = TI_CLKM_CM,
+	.init = omap3xxx_cm_init,
+	.flags = CM_SINGLE_INSTANCE,
+
+	/*
+	 * IVA2 offset is a negative value, must offset the cm_base address
+	 * by this to get it to positive side on the iomap
+	 */
+	.offset = -OMAP3430_IVA2_MOD,
+};
+#endif
+
+#if defined(CONFIG_SOC_AM33XX) || defined(CONFIG_SOC_TI81XX)
+static struct omap_prcm_init_data am3_prcm_data __initdata = {
+	.index = TI_CLKM_CM,
+	.flags = CM_NO_CLOCKS | CM_SINGLE_INSTANCE,
+	.init = am33xx_cm_init,
+};
+#endif
+
+#ifdef CONFIG_SOC_AM43XX
+static struct omap_prcm_init_data am4_prcm_data __initdata = {
+	.index = TI_CLKM_CM,
+	.flags = CM_NO_CLOCKS | CM_SINGLE_INSTANCE,
+	.init = omap4_cm_init,
+};
+#endif
+
+static const struct of_device_id omap_cm_dt_match_table[] __initconst = {
+#ifdef CONFIG_ARCH_OMAP2
+	{ .compatible = "ti,omap2-prcm", .data = &omap2_prcm_data },
+#endif
+#ifdef CONFIG_ARCH_OMAP3
+	{ .compatible = "ti,omap3-cm", .data = &omap3_cm_data },
+#endif
+#ifdef CONFIG_ARCH_OMAP4
+	{ .compatible = "ti,omap4-cm1", .data = &cm_data },
+	{ .compatible = "ti,omap4-cm2", .data = &cm2_data },
+#endif
+#ifdef CONFIG_SOC_OMAP5
+	{ .compatible = "ti,omap5-cm-core-aon", .data = &cm_data },
+	{ .compatible = "ti,omap5-cm-core", .data = &cm2_data },
+#endif
+#ifdef CONFIG_SOC_DRA7XX
+	{ .compatible = "ti,dra7-cm-core-aon", .data = &cm_data },
+	{ .compatible = "ti,dra7-cm-core", .data = &cm2_data },
+#endif
+#ifdef CONFIG_SOC_AM33XX
+	{ .compatible = "ti,am3-prcm", .data = &am3_prcm_data },
+#endif
+#ifdef CONFIG_SOC_AM43XX
+	{ .compatible = "ti,am4-prcm", .data = &am4_prcm_data },
+#endif
+#ifdef CONFIG_SOC_TI81XX
+	{ .compatible = "ti,dm814-prcm", .data = &am3_prcm_data },
+	{ .compatible = "ti,dm816-prcm", .data = &am3_prcm_data },
+#endif
+	{ }
+};
+
+/**
+ * omap2_cm_base_init - initialize iomappings for the CM drivers
+ *
+ * Detects and initializes the iomappings for the CM driver, based
+ * on the DT data. Returns 0 in success, negative error value
+ * otherwise.
+ */
+int __init omap2_cm_base_init(void)
+{
+	struct device_node *np;
+	const struct of_device_id *match;
+	struct omap_prcm_init_data *data;
+	void __iomem *mem;
+
+	for_each_matching_node_and_match(np, omap_cm_dt_match_table, &match) {
+		data = (struct omap_prcm_init_data *)match->data;
+
+		mem = of_iomap(np, 0);
+		if (!mem)
+			return -ENOMEM;
+
+		if (data->index == TI_CLKM_CM)
+			cm_base = mem + data->offset;
+
+		if (data->index == TI_CLKM_CM2)
+			cm2_base = mem + data->offset;
+
+		data->mem = mem;
+
+		data->np = np;
+
+		if (data->init && (data->flags & CM_SINGLE_INSTANCE ||
+				   (cm_base && cm2_base)))
+			data->init(data);
+	}
+
+	return 0;
+}
+
+/**
+ * omap_cm_init - low level init for the CM drivers
+ *
+ * Initializes the low level clock infrastructure for CM drivers.
+ * Returns 0 in success, negative error value in failure.
+ */
+int __init omap_cm_init(void)
+{
+	struct device_node *np;
+	const struct of_device_id *match;
+	const struct omap_prcm_init_data *data;
+	int ret;
+
+	for_each_matching_node_and_match(np, omap_cm_dt_match_table, &match) {
+		data = match->data;
+
+		if (data->flags & CM_NO_CLOCKS)
+			continue;
+
+		ret = omap2_clk_provider_init(np, data->index, NULL, data->mem);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }

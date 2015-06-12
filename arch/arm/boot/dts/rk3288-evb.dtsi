@@ -103,6 +103,15 @@
 		regulator-always-on;
 		regulator-boot-on;
 	};
+
+	vcc_sys: vsys-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_sys";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
 };
 
 &emmc {
@@ -236,6 +245,10 @@
 			rockchip,pins = <0 6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+};
+
+&usbphy {
+	status = "okay";
 };
 
 &usb_host0_ehci {

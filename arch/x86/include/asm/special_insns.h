@@ -4,6 +4,8 @@
 
 #ifdef __KERNEL__
 
+#include <asm/nops.h>
+
 static inline void native_clts(void)
 {
 	asm volatile("clts");
@@ -197,6 +199,28 @@ static inline void clflushopt(volatile void *__p)
 		       ".byte 0x66; clflush %P0",
 		       X86_FEATURE_CLFLUSHOPT,
 		       "+m" (*(volatile char __force *)__p));
+}
+
+static inline void clwb(volatile void *__p)
+{
+	volatile struct { char x[64]; } *p = __p;
+
+	asm volatile(ALTERNATIVE_2(
+		".byte " __stringify(NOP_DS_PREFIX) "; clflush (%[pax])",
+		".byte 0x66; clflush (%[pax])", /* clflushopt (%%rax) */
+		X86_FEATURE_CLFLUSHOPT,
+		".byte 0x66, 0x0f, 0xae, 0x30",  /* clwb (%%rax) */
+		X86_FEATURE_CLWB)
+		: [p] "+m" (*p)
+		: [pax] "a" (p));
+}
+
+static inline void pcommit_sfence(void)
+{
+	alternative(ASM_NOP7,
+		    ".byte 0x66, 0x0f, 0xae, 0xf8\n\t" /* pcommit */
+		    "sfence",
+		    X86_FEATURE_PCOMMIT);
 }
 
 #define nop() asm volatile ("nop")

@@ -55,7 +55,7 @@ static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 			FW_RI_RES_WR_NRES_V(1) |
 			FW_WR_COMPL_F);
 	res_wr->len16_pkd = cpu_to_be32(DIV_ROUND_UP(wr_len, 16));
-	res_wr->cookie = (unsigned long) &wr_wait;
+	res_wr->cookie = (uintptr_t)&wr_wait;
 	res = res_wr->res;
 	res->u.cq.restype = FW_RI_RES_TYPE_CQ;
 	res->u.cq.op = FW_RI_RES_OP_RESET;
@@ -125,7 +125,7 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 			FW_RI_RES_WR_NRES_V(1) |
 			FW_WR_COMPL_F);
 	res_wr->len16_pkd = cpu_to_be32(DIV_ROUND_UP(wr_len, 16));
-	res_wr->cookie = (unsigned long) &wr_wait;
+	res_wr->cookie = (uintptr_t)&wr_wait;
 	res = res_wr->res;
 	res->u.cq.restype = FW_RI_RES_TYPE_CQ;
 	res->u.cq.op = FW_RI_RES_OP_WRITE;
@@ -156,12 +156,19 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 		goto err4;
 
 	cq->gen = 1;
-	cq->gts = rdev->lldi.gts_reg;
 	cq->rdev = rdev;
 	if (user) {
-		cq->ugts = (u64)pci_resource_start(rdev->lldi.pdev, 2) +
-					(cq->cqid << rdev->cqshift);
-		cq->ugts &= PAGE_MASK;
+		u32 off = (cq->cqid << rdev->cqshift) & PAGE_MASK;
+
+		cq->ugts = (u64)rdev->bar2_pa + off;
+	} else if (is_t4(rdev->lldi.adapter_type)) {
+		cq->gts = rdev->lldi.gts_reg;
+		cq->qid_mask = -1U;
+	} else {
+		u32 off = ((cq->cqid << rdev->cqshift) & PAGE_MASK) + 12;
+
+		cq->gts = rdev->bar2_kva + off;
+		cq->qid_mask = rdev->qpmask;
 	}
 	return 0;
 err4:
@@ -970,8 +977,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
 	}
 	PDBG("%s cqid 0x%0x chp %p size %u memsize %zu, dma_addr 0x%0llx\n",
 	     __func__, chp->cq.cqid, chp, chp->cq.size,
-	     chp->cq.memsize,
-	     (unsigned long long) chp->cq.dma_addr);
+	     chp->cq.memsize, (unsigned long long) chp->cq.dma_addr);
 	return &chp->ibcq;
 err5:
 	kfree(mm2);

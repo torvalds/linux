@@ -234,20 +234,19 @@ static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group)
 
 	mutex_lock(&vfio.group_lock);
 
-	minor = vfio_alloc_group_minor(group);
-	if (minor < 0) {
-		vfio_group_unlock_and_free(group);
-		return ERR_PTR(minor);
-	}
-
 	/* Did we race creating this group? */
 	list_for_each_entry(tmp, &vfio.group_list, vfio_next) {
 		if (tmp->iommu_group == iommu_group) {
 			vfio_group_get(tmp);
-			vfio_free_group_minor(minor);
 			vfio_group_unlock_and_free(group);
 			return tmp;
 		}
+	}
+
+	minor = vfio_alloc_group_minor(group);
+	if (minor < 0) {
+		vfio_group_unlock_and_free(group);
+		return ERR_PTR(minor);
 	}
 
 	dev = device_create(vfio.class, NULL,
@@ -711,6 +710,8 @@ void *vfio_del_group_dev(struct device *dev)
 	void *device_data = device->device_data;
 	struct vfio_unbound_dev *unbound;
 	unsigned int i = 0;
+	long ret;
+	bool interrupted = false;
 
 	/*
 	 * The group exists so long as we have a device reference.  Get
@@ -756,9 +757,22 @@ void *vfio_del_group_dev(struct device *dev)
 
 		vfio_device_put(device);
 
-	} while (wait_event_interruptible_timeout(vfio.release_q,
-						  !vfio_dev_present(group, dev),
-						  HZ * 10) <= 0);
+		if (interrupted) {
+			ret = wait_event_timeout(vfio.release_q,
+					!vfio_dev_present(group, dev), HZ * 10);
+		} else {
+			ret = wait_event_interruptible_timeout(vfio.release_q,
+					!vfio_dev_present(group, dev), HZ * 10);
+			if (ret == -ERESTARTSYS) {
+				interrupted = true;
+				dev_warn(dev,
+					 "Device is currently in use, task"
+					 " \"%s\" (%d) "
+					 "blocked until device is released",
+					 current->comm, task_pid_nr(current));
+			}
+		}
+	} while (ret <= 0);
 
 	vfio_group_put(group);
 

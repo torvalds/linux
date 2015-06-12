@@ -417,7 +417,7 @@ static int osc_io_setattr_start(const struct lu_env *env,
 
 			if (ia_valid & ATTR_SIZE) {
 				attr->cat_size = attr->cat_kms = size;
-				cl_valid = (CAT_SIZE | CAT_KMS);
+				cl_valid = CAT_SIZE | CAT_KMS;
 			}
 			if (ia_valid & ATTR_MTIME_SET) {
 				attr->cat_mtime = lvb->lvb_mtime;

@@ -452,9 +452,10 @@ static void handle_branch1(struct ieee80211_hw *hw, u16 arraylen,
 				READ_NEXT_PAIR(v1, v2, i);
 				while (v2 != 0xDEAD &&
 				       v2 != 0xCDEF &&
-				       v2 != 0xCDCD && i < arraylen - 2)
+				       v2 != 0xCDCD && i < arraylen - 2) {
 					_rtl8188e_config_bb_reg(hw, v1, v2);
 					READ_NEXT_PAIR(v1, v2, i);
+				}
 
 				while (v2 != 0xDEAD && i < arraylen - 2)
 					READ_NEXT_PAIR(v1, v2, i);

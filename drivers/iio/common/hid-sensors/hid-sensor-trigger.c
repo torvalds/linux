@@ -68,20 +68,21 @@ static int _hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 	if (state_val >= 0) {
 		state_val += st->power_state.logical_minimum;
 		sensor_hub_set_feature(st->hsdev, st->power_state.report_id,
-					st->power_state.index,
-					(s32)state_val);
+				       st->power_state.index, sizeof(state_val),
+				       &state_val);
 	}
 
 	if (report_val >= 0) {
 		report_val += st->report_state.logical_minimum;
 		sensor_hub_set_feature(st->hsdev, st->report_state.report_id,
-					st->report_state.index,
-					(s32)report_val);
+				       st->report_state.index,
+				       sizeof(report_val),
+				       &report_val);
 	}
 
 	sensor_hub_get_feature(st->hsdev, st->power_state.report_id,
-					st->power_state.index,
-					&state_val);
+			       st->power_state.index,
+			       sizeof(state_val), &state_val);
 	if (state && poll_value)
 		msleep_interruptible(poll_value * 2);
 

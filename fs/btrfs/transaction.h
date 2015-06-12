@@ -64,9 +64,19 @@ struct btrfs_transaction {
 	struct list_head pending_ordered;
 	struct list_head switch_commits;
 	struct list_head dirty_bgs;
+	struct list_head io_bgs;
+	u64 num_dirty_bgs;
+
+	/*
+	 * we need to make sure block group deletion doesn't race with
+	 * free space cache writeout.  This mutex keeps them from stomping
+	 * on each other
+	 */
+	struct mutex cache_write_mutex;
 	spinlock_t dirty_bgs_lock;
 	struct btrfs_delayed_ref_root delayed_refs;
 	int aborted;
+	int dirty_bg_run;
 };
 
 #define __TRANS_FREEZABLE	(1U << 0)
@@ -136,9 +146,11 @@ struct btrfs_pending_snapshot {
 static inline void btrfs_set_inode_last_trans(struct btrfs_trans_handle *trans,
 					      struct inode *inode)
 {
+	spin_lock(&BTRFS_I(inode)->lock);
 	BTRFS_I(inode)->last_trans = trans->transaction->transid;
 	BTRFS_I(inode)->last_sub_trans = BTRFS_I(inode)->root->log_transid;
 	BTRFS_I(inode)->last_log_commit = BTRFS_I(inode)->root->last_log_commit;
+	spin_unlock(&BTRFS_I(inode)->lock);
 }
 
 int btrfs_end_transaction(struct btrfs_trans_handle *trans,

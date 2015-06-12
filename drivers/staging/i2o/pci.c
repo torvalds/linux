@@ -329,7 +329,8 @@ static int i2o_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -ENODEV;
 	}
 
-	if ((rc = pci_enable_device(pdev))) {
+	rc = pci_enable_device(pdev);
+	if (rc) {
 		printk(KERN_WARNING "i2o: couldn't enable device %s\n",
 		       pci_name(pdev));
 		return rc;
@@ -410,7 +411,8 @@ static int i2o_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 #endif
 	}
 
-	if ((rc = i2o_pci_alloc(c))) {
+	rc = i2o_pci_alloc(c);
+	if (rc) {
 		printk(KERN_ERR "%s: DMA / IO allocation for I2O controller "
 		       "failed\n", c->name);
 		goto free_controller;
@@ -422,7 +424,8 @@ static int i2o_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto free_pci;
 	}
 
-	if ((rc = i2o_iop_add(c)))
+	rc = i2o_iop_add(c);
+	if (rc)
 		goto uninstall;
 
 	if (i960)

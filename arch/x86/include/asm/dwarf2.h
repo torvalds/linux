@@ -86,9 +86,21 @@
 	CFI_ADJUST_CFA_OFFSET 8
 	.endm
 
+	.macro pushq_cfi_reg reg
+	pushq %\reg
+	CFI_ADJUST_CFA_OFFSET 8
+	CFI_REL_OFFSET \reg, 0
+	.endm
+
 	.macro popq_cfi reg
 	popq \reg
 	CFI_ADJUST_CFA_OFFSET -8
+	.endm
+
+	.macro popq_cfi_reg reg
+	popq %\reg
+	CFI_ADJUST_CFA_OFFSET -8
+	CFI_RESTORE \reg
 	.endm
 
 	.macro pushfq_cfi
@@ -116,9 +128,21 @@
 	CFI_ADJUST_CFA_OFFSET 4
 	.endm
 
+	.macro pushl_cfi_reg reg
+	pushl %\reg
+	CFI_ADJUST_CFA_OFFSET 4
+	CFI_REL_OFFSET \reg, 0
+	.endm
+
 	.macro popl_cfi reg
 	popl \reg
 	CFI_ADJUST_CFA_OFFSET -4
+	.endm
+
+	.macro popl_cfi_reg reg
+	popl %\reg
+	CFI_ADJUST_CFA_OFFSET -4
+	CFI_RESTORE \reg
 	.endm
 
 	.macro pushfl_cfi

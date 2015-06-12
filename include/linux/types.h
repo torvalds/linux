@@ -146,12 +146,6 @@ typedef u64 dma_addr_t;
 typedef u32 dma_addr_t;
 #endif /* dma_addr_t */
 
-#ifdef __CHECKER__
-#else
-#endif
-#ifdef __CHECK_ENDIAN__
-#else
-#endif
 typedef unsigned __bitwise__ gfp_t;
 typedef unsigned __bitwise__ fmode_t;
 typedef unsigned __bitwise__ oom_flags_t;

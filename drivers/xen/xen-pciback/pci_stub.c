@@ -118,7 +118,7 @@ static void pcistub_device_release(struct kref *kref)
 		int err = HYPERVISOR_physdev_op(PHYSDEVOP_release_msix,
 						&ppdev);
 
-		if (err)
+		if (err && err != -ENOSYS)
 			dev_warn(&dev->dev, "MSI-X release failed (%d)\n",
 				 err);
 	}
@@ -402,7 +402,7 @@ static int pcistub_init_device(struct pci_dev *dev)
 		};
 
 		err = HYPERVISOR_physdev_op(PHYSDEVOP_prepare_msix, &ppdev);
-		if (err)
+		if (err && err != -ENOSYS)
 			dev_err(&dev->dev, "MSI-X preparation failed (%d)\n",
 				err);
 	}

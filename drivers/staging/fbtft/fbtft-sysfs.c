@@ -1,5 +1,5 @@
 #include "fbtft.h"
-
+#include "internal.h"
 
 static int get_next_ulong(char **str_p, unsigned long *val, char *sep, int base)
 {
@@ -37,10 +37,9 @@ int fbtft_gamma_parse_str(struct fbtft_par *par, unsigned long *curves,
 
 	fbtft_par_dbg(DEBUG_SYSFS, par, "%s\n", str);
 
-	tmp = kmalloc(size+1, GFP_KERNEL);
+	tmp = kmemdup(str, size + 1, GFP_KERNEL);
 	if (!tmp)
 		return -ENOMEM;
-	memcpy(tmp, str, size+1);
 
 	/* replace optional separators */
 	str_p = tmp;
@@ -153,7 +152,7 @@ static struct device_attribute gamma_device_attrs[] = {
 
 void fbtft_expand_debug_value(unsigned long *debug)
 {
-	switch (*debug & 0b111) {
+	switch (*debug & 0x7) {
 	case 1:
 		*debug |= DEBUG_LEVEL_1;
 		break;

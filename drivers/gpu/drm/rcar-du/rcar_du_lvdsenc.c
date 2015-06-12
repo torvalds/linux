@@ -28,7 +28,7 @@ struct rcar_du_lvdsenc {
 	unsigned int index;
 	void __iomem *mmio;
 	struct clk *clock;
-	int dpms;
+	bool enabled;
 
 	enum rcar_lvds_input input;
 };
@@ -48,7 +48,7 @@ static int rcar_du_lvdsenc_start(struct rcar_du_lvdsenc *lvds,
 	u32 pllcr;
 	int ret;
 
-	if (lvds->dpms == DRM_MODE_DPMS_ON)
+	if (lvds->enabled)
 		return 0;
 
 	ret = clk_prepare_enable(lvds->clock);
@@ -110,13 +110,13 @@ static int rcar_du_lvdsenc_start(struct rcar_du_lvdsenc *lvds,
 	lvdcr0 |= LVDCR0_LVRES;
 	rcar_lvds_write(lvds, LVDCR0, lvdcr0);
 
-	lvds->dpms = DRM_MODE_DPMS_ON;
+	lvds->enabled = true;
 	return 0;
 }
 
 static void rcar_du_lvdsenc_stop(struct rcar_du_lvdsenc *lvds)
 {
-	if (lvds->dpms == DRM_MODE_DPMS_OFF)
+	if (!lvds->enabled)
 		return;
 
 	rcar_lvds_write(lvds, LVDCR0, 0);
@@ -124,13 +124,13 @@ static void rcar_du_lvdsenc_stop(struct rcar_du_lvdsenc *lvds)
 
 	clk_disable_unprepare(lvds->clock);
 
-	lvds->dpms = DRM_MODE_DPMS_OFF;
+	lvds->enabled = false;
 }
 
-int rcar_du_lvdsenc_dpms(struct rcar_du_lvdsenc *lvds,
-			 struct drm_crtc *crtc, int mode)
+int rcar_du_lvdsenc_enable(struct rcar_du_lvdsenc *lvds, struct drm_crtc *crtc,
+			   bool enable)
 {
-	if (mode == DRM_MODE_DPMS_OFF) {
+	if (!enable) {
 		rcar_du_lvdsenc_stop(lvds);
 		return 0;
 	} else if (crtc) {
@@ -179,7 +179,7 @@ int rcar_du_lvdsenc_init(struct rcar_du_device *rcdu)
 		lvds->dev = rcdu;
 		lvds->index = i;
 		lvds->input = i ? RCAR_LVDS_INPUT_DU1 : RCAR_LVDS_INPUT_DU0;
-		lvds->dpms = DRM_MODE_DPMS_OFF;
+		lvds->enabled = false;
 
 		ret = rcar_du_lvdsenc_get_resources(lvds, pdev);
 		if (ret < 0)

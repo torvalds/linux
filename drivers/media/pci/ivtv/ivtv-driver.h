@@ -327,7 +327,7 @@ struct ivtv;				/* forward reference */
 struct ivtv_stream {
 	/* These first four fields are always set, even if the stream
 	   is not actually created. */
-	struct video_device *vdev;	/* NULL when stream not created */
+	struct video_device vdev;	/* vdev.v4l2_dev is NULL if there is no device */
 	struct ivtv *itv; 		/* for ease of use */
 	const char *name;		/* name of the stream */
 	int type;			/* stream type */

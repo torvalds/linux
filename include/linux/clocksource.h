@@ -56,6 +56,7 @@ struct module;
  * @shift:		cycle to nanosecond divisor (power of two)
  * @max_idle_ns:	max idle time permitted by the clocksource (nsecs)
  * @maxadj:		maximum adjustment value to mult (~11%)
+ * @max_cycles:		maximum safe cycle value which won't overflow on multiplication
  * @flags:		flags describing special properties
  * @archdata:		arch-specific data
  * @suspend:		suspend function for the clocksource, if necessary
@@ -76,7 +77,7 @@ struct clocksource {
 #ifdef CONFIG_ARCH_CLOCKSOURCE_DATA
 	struct arch_clocksource_data archdata;
 #endif
-
+	u64 max_cycles;
 	const char *name;
 	struct list_head list;
 	int rating;
@@ -178,7 +179,6 @@ static inline s64 clocksource_cyc2ns(cycle_t cycles, u32 mult, u32 shift)
 }
 
 
-extern int clocksource_register(struct clocksource*);
 extern int clocksource_unregister(struct clocksource*);
 extern void clocksource_touch_watchdog(void);
 extern struct clocksource* clocksource_get_next(void);
@@ -189,7 +189,7 @@ extern struct clocksource * __init clocksource_default_clock(void);
 extern void clocksource_mark_unstable(struct clocksource *cs);
 
 extern u64
-clocks_calc_max_nsecs(u32 mult, u32 shift, u32 maxadj, u64 mask);
+clocks_calc_max_nsecs(u32 mult, u32 shift, u32 maxadj, u64 mask, u64 *max_cycles);
 extern void
 clocks_calc_mult_shift(u32 *mult, u32 *shift, u32 from, u32 to, u32 minsec);
 
@@ -200,7 +200,16 @@ clocks_calc_mult_shift(u32 *mult, u32 *shift, u32 from, u32 to, u32 minsec);
 extern int
 __clocksource_register_scale(struct clocksource *cs, u32 scale, u32 freq);
 extern void
-__clocksource_updatefreq_scale(struct clocksource *cs, u32 scale, u32 freq);
+__clocksource_update_freq_scale(struct clocksource *cs, u32 scale, u32 freq);
+
+/*
+ * Don't call this unless you are a default clocksource
+ * (AKA: jiffies) and absolutely have to.
+ */
+static inline int __clocksource_register(struct clocksource *cs)
+{
+	return __clocksource_register_scale(cs, 1, 0);
+}
 
 static inline int clocksource_register_hz(struct clocksource *cs, u32 hz)
 {
@@ -212,14 +221,14 @@ static inline int clocksource_register_khz(struct clocksource *cs, u32 khz)
 	return __clocksource_register_scale(cs, 1000, khz);
 }
 
-static inline void __clocksource_updatefreq_hz(struct clocksource *cs, u32 hz)
+static inline void __clocksource_update_freq_hz(struct clocksource *cs, u32 hz)
 {
-	__clocksource_updatefreq_scale(cs, 1, hz);
+	__clocksource_update_freq_scale(cs, 1, hz);
 }
 
-static inline void __clocksource_updatefreq_khz(struct clocksource *cs, u32 khz)
+static inline void __clocksource_update_freq_khz(struct clocksource *cs, u32 khz)
 {
-	__clocksource_updatefreq_scale(cs, 1000, khz);
+	__clocksource_update_freq_scale(cs, 1000, khz);
 }
 
 
@@ -242,6 +251,12 @@ extern int clocksource_i8253_init(void);
 extern void clocksource_of_init(void);
 #else
 static inline void clocksource_of_init(void) {}
+#endif
+
+#ifdef CONFIG_ACPI
+void acpi_generic_timer_init(void);
+#else
+static inline void acpi_generic_timer_init(void) { }
 #endif
 
 #endif /* _LINUX_CLOCKSOURCE_H */

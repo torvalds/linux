@@ -174,24 +174,16 @@ ieee802154_check_mac_settings(struct ieee802154_local *local,
 	}
 
 	if (local->hw.flags & IEEE802154_HW_AFILT) {
-		if (wpan_dev->pan_id != nwpan_dev->pan_id)
-			return -EBUSY;
-
-		if (wpan_dev->short_addr != nwpan_dev->short_addr)
-			return -EBUSY;
-
-		if (wpan_dev->extended_addr != nwpan_dev->extended_addr)
+		if (wpan_dev->pan_id != nwpan_dev->pan_id ||
+		    wpan_dev->short_addr != nwpan_dev->short_addr ||
+		    wpan_dev->extended_addr != nwpan_dev->extended_addr)
 			return -EBUSY;
 	}
 
 	if (local->hw.flags & IEEE802154_HW_CSMA_PARAMS) {
-		if (wpan_dev->min_be != nwpan_dev->min_be)
-			return -EBUSY;
-
-		if (wpan_dev->max_be != nwpan_dev->max_be)
-			return -EBUSY;
-
-		if (wpan_dev->csma_retries != nwpan_dev->csma_retries)
+		if (wpan_dev->min_be != nwpan_dev->min_be ||
+		    wpan_dev->max_be != nwpan_dev->max_be ||
+		    wpan_dev->csma_retries != nwpan_dev->csma_retries)
 			return -EBUSY;
 	}
 
@@ -530,7 +522,8 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 
 struct net_device *
 ieee802154_if_add(struct ieee802154_local *local, const char *name,
-		  enum nl802154_iftype type, __le64 extended_addr)
+		  unsigned char name_assign_type, enum nl802154_iftype type,
+		  __le64 extended_addr)
 {
 	struct net_device *ndev = NULL;
 	struct ieee802154_sub_if_data *sdata = NULL;
@@ -539,7 +532,7 @@ ieee802154_if_add(struct ieee802154_local *local, const char *name,
 	ASSERT_RTNL();
 
 	ndev = alloc_netdev(sizeof(*sdata) + local->hw.vif_data_size, name,
-			    NET_NAME_UNKNOWN, ieee802154_if_setup);
+			    name_assign_type, ieee802154_if_setup);
 	if (!ndev)
 		return ERR_PTR(-ENOMEM);
 

@@ -45,6 +45,10 @@
 	status = "ok";
 };
 
+&sgenet1 {
+	status = "ok";
+};
+
 &xgenet {
 	status = "ok";
 };

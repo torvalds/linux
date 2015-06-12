@@ -52,6 +52,7 @@
 			regulator-max-microvolt = <5000000>;
 			gpio = <&gpio4 0 0>;
 			enable-active-high;
+			vin-supply = <&swbst_reg>;
 		};
 
 		reg_usb_otg2_vbus: regulator@1 {
@@ -62,6 +63,7 @@
 			regulator-max-microvolt = <5000000>;
 			gpio = <&gpio4 2 0>;
 			enable-active-high;
+			vin-supply = <&swbst_reg>;
 		};
 
 		reg_aud3v: regulator@2 {

@@ -31,7 +31,6 @@
 #define isert_err(fmt, arg...) \
 	pr_err(PFX "%s: " fmt, __func__ , ## arg)
 
-#define ISERT_RDMA_LISTEN_BACKLOG	10
 #define ISCSI_ISER_SG_TABLESIZE		256
 #define ISER_FASTREG_LI_WRID		0xffffffffffffffffULL
 #define ISER_BEACON_WRID               0xfffffffffffffffeULL
@@ -160,27 +159,25 @@ struct isert_conn {
 	u64			login_req_dma;
 	int			login_req_len;
 	u64			login_rsp_dma;
-	unsigned int		conn_rx_desc_head;
-	struct iser_rx_desc	*conn_rx_descs;
-	struct ib_recv_wr	conn_rx_wr[ISERT_MIN_POSTED_RX];
+	unsigned int		rx_desc_head;
+	struct iser_rx_desc	*rx_descs;
+	struct ib_recv_wr	rx_wr[ISERT_MIN_POSTED_RX];
 	struct iscsi_conn	*conn;
-	struct list_head	conn_accept_node;
-	struct completion	conn_login_comp;
+	struct list_head	accept_node;
+	struct completion	login_comp;
 	struct completion	login_req_comp;
-	struct iser_tx_desc	conn_login_tx_desc;
-	struct rdma_cm_id	*conn_cm_id;
-	struct ib_pd		*conn_pd;
-	struct ib_mr		*conn_mr;
-	struct ib_qp		*conn_qp;
-	struct isert_device	*conn_device;
-	struct mutex		conn_mutex;
-	struct completion	conn_wait;
-	struct completion	conn_wait_comp_err;
-	struct kref		conn_kref;
-	struct list_head	conn_fr_pool;
-	int			conn_fr_pool_size;
+	struct iser_tx_desc	login_tx_desc;
+	struct rdma_cm_id	*cm_id;
+	struct ib_qp		*qp;
+	struct isert_device	*device;
+	struct mutex		mutex;
+	struct completion	wait;
+	struct completion	wait_comp_err;
+	struct kref		kref;
+	struct list_head	fr_pool;
+	int			fr_pool_size;
 	/* lock to protect fastreg pool */
-	spinlock_t		conn_lock;
+	spinlock_t		pool_lock;
 	struct work_struct	release_work;
 	struct ib_recv_wr       beacon;
 	bool                    logout_posted;
@@ -211,6 +208,8 @@ struct isert_device {
 	bool			pi_capable;
 	int			refcount;
 	struct ib_device	*ib_device;
+	struct ib_pd		*pd;
+	struct ib_mr		*mr;
 	struct isert_comp	*comps;
 	int                     comps_used;
 	struct list_head	dev_node;

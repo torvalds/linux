@@ -19,7 +19,7 @@ static const struct regmap_range hmc5843_readable_ranges[] = {
 		regmap_reg_range(0, HMC5843_ID_END),
 };
 
-static struct regmap_access_table hmc5843_readable_table = {
+static const struct regmap_access_table hmc5843_readable_table = {
 		.yes_ranges = hmc5843_readable_ranges,
 		.n_yes_ranges = ARRAY_SIZE(hmc5843_readable_ranges),
 };
@@ -28,7 +28,7 @@ static const struct regmap_range hmc5843_writable_ranges[] = {
 		regmap_reg_range(0, HMC5843_MODE_REG),
 };
 
-static struct regmap_access_table hmc5843_writable_table = {
+static const struct regmap_access_table hmc5843_writable_table = {
 		.yes_ranges = hmc5843_writable_ranges,
 		.n_yes_ranges = ARRAY_SIZE(hmc5843_writable_ranges),
 };
@@ -37,12 +37,12 @@ static const struct regmap_range hmc5843_volatile_ranges[] = {
 		regmap_reg_range(HMC5843_DATA_OUT_MSB_REGS, HMC5843_STATUS_REG),
 };
 
-static struct regmap_access_table hmc5843_volatile_table = {
+static const struct regmap_access_table hmc5843_volatile_table = {
 		.yes_ranges = hmc5843_volatile_ranges,
 		.n_yes_ranges = ARRAY_SIZE(hmc5843_volatile_ranges),
 };
 
-static struct regmap_config hmc5843_spi_regmap_config = {
+static const struct regmap_config hmc5843_spi_regmap_config = {
 		.reg_bits = 8,
 		.val_bits = 8,
 

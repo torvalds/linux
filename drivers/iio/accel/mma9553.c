@@ -54,6 +54,7 @@
 #define MMA9553_MASK_CONF_STEPCOALESCE		GENMASK(7, 0)
 
 #define MMA9553_REG_CONF_ACTTHD			0x0E
+#define MMA9553_MAX_ACTTHD			GENMASK(15, 0)
 
 /* Pedometer status registers (R-only) */
 #define MMA9553_REG_STATUS			0x00
@@ -316,22 +317,19 @@ static int mma9553_set_config(struct mma9553_data *data, u16 reg,
 static int mma9553_read_activity_stepcnt(struct mma9553_data *data,
 					 u8 *activity, u16 *stepcnt)
 {
-	u32 status_stepcnt;
-	u16 status;
+	u16 buf[2];
 	int ret;
 
 	ret = mma9551_read_status_words(data->client, MMA9551_APPID_PEDOMETER,
-					MMA9553_REG_STATUS, sizeof(u32),
-					(u16 *) &status_stepcnt);
+					MMA9553_REG_STATUS, sizeof(u32), buf);
 	if (ret < 0) {
 		dev_err(&data->client->dev,
 			"error reading status and stepcnt\n");
 		return ret;
 	}
 
-	status = status_stepcnt & MMA9553_MASK_CONF_WORD;
-	*activity = mma9553_get_bits(status, MMA9553_MASK_STATUS_ACTIVITY);
-	*stepcnt = status_stepcnt >> 16;
+	*activity = mma9553_get_bits(buf[0], MMA9553_MASK_STATUS_ACTIVITY);
+	*stepcnt = buf[1];
 
 	return 0;
 }
@@ -872,6 +870,9 @@ static int mma9553_write_event_value(struct iio_dev *indio_dev,
 	case IIO_EV_INFO_PERIOD:
 		switch (chan->type) {
 		case IIO_ACTIVITY:
+			if (val < 0 || val > MMA9553_ACTIVITY_THD_TO_SEC(
+			    MMA9553_MAX_ACTTHD))
+				return -EINVAL;
 			mutex_lock(&data->mutex);
 			ret = mma9553_set_config(data, MMA9553_REG_CONF_ACTTHD,
 						 &data->conf.actthd,
@@ -971,7 +972,8 @@ static const struct iio_chan_spec_ext_info mma9553_ext_info[] = {
 	.modified = 1,							\
 	.channel2 = _chan2,						\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),		\
-	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_CALIBHEIGHT),	\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_CALIBHEIGHT) |	\
+				    BIT(IIO_CHAN_INFO_ENABLE),		\
 	.event_spec = mma9553_activity_events,				\
 	.num_event_specs = ARRAY_SIZE(mma9553_activity_events),		\
 	.ext_info = mma9553_ext_info,					\
@@ -1109,15 +1111,11 @@ static int mma9553_gpio_probe(struct i2c_client *client)
 	dev = &client->dev;
 
 	/* data ready gpio interrupt pin */
-	gpio = devm_gpiod_get_index(dev, MMA9553_GPIO_NAME, 0);
+	gpio = devm_gpiod_get_index(dev, MMA9553_GPIO_NAME, 0, GPIOD_IN);
 	if (IS_ERR(gpio)) {
 		dev_err(dev, "acpi gpio get index failed\n");
 		return PTR_ERR(gpio);
 	}
-
-	ret = gpiod_direction_input(gpio);
-	if (ret)
-		return ret;
 
 	ret = gpiod_to_irq(gpio);
 

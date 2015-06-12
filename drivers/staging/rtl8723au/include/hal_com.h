@@ -65,36 +65,6 @@
 #define RATE_36M				BIT(9)
 #define RATE_48M				BIT(10)
 #define RATE_54M				BIT(11)
-/* MCS 1 Spatial Stream */
-#define RATE_MCS0				BIT(12)
-#define RATE_MCS1				BIT(13)
-#define RATE_MCS2				BIT(14)
-#define RATE_MCS3				BIT(15)
-#define RATE_MCS4				BIT(16)
-#define RATE_MCS5				BIT(17)
-#define RATE_MCS6				BIT(18)
-#define RATE_MCS7				BIT(19)
-/* MCS 2 Spatial Stream */
-#define RATE_MCS8				BIT(20)
-#define RATE_MCS9				BIT(21)
-#define RATE_MCS10				BIT(22)
-#define RATE_MCS11				BIT(23)
-#define RATE_MCS12				BIT(24)
-#define RATE_MCS13				BIT(25)
-#define RATE_MCS14				BIT(26)
-#define RATE_MCS15				BIT(27)
-
-/*  ALL CCK Rate */
-#define	RATE_ALL_CCK	(RATR_1M | RATR_2M | RATR_55M | RATR_11M)
-#define	RATE_ALL_OFDM_AG				\
-	(RATR_6M | RATR_9M | RATR_12M | RATR_18M | RATR_24M| \
-	 RATR_36M|RATR_48M|RATR_54M)
-#define	RATE_ALL_OFDM_1SS				\
-	(RATR_MCS0 | RATR_MCS1 | RATR_MCS2 | RATR_MCS3 |	\
-	 RATR_MCS4 | RATR_MCS5 | RATR_MCS6 | RATR_MCS7)
-#define	RATE_ALL_OFDM_2SS				\
-	(RATR_MCS8 | RATR_MCS9 | RATR_MCS10 | RATR_MCS11|	\
-	 RATR_MCS12 | RATR_MCS13 | RATR_MCS14 | RATR_MCS15)
 
 /*------------------------------ Tx Desc definition Macro ------------------------*/
 /* pragma mark -- Tx Desc related definition. -- */
@@ -146,7 +116,6 @@
 #define REG_NOA_DESC_COUNT			0x05EC
 
 #include "HalVerDef.h"
-void dump_chip_info23a(struct hal_version	ChipVersion);
 
 
 u8	/* return the final channel plan decision */

@@ -56,6 +56,7 @@ static int stw481x_vmmc_regulator_probe(struct platform_device *pdev)
 {
 	struct stw481x *stw481x = dev_get_platdata(&pdev->dev);
 	struct regulator_config config = { };
+	struct regulator_dev *rdev;
 	int ret;
 
 	/* First disable the external VMMC if it's active */
@@ -75,12 +76,11 @@ static int stw481x_vmmc_regulator_probe(struct platform_device *pdev)
 						      pdev->dev.of_node,
 						      &vmmc_regulator);
 
-	stw481x->vmmc_regulator = devm_regulator_register(&pdev->dev,
-						&vmmc_regulator, &config);
-	if (IS_ERR(stw481x->vmmc_regulator)) {
+	rdev = devm_regulator_register(&pdev->dev, &vmmc_regulator, &config);
+	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev,
 			"error initializing STw481x VMMC regulator\n");
-		return PTR_ERR(stw481x->vmmc_regulator);
+		return PTR_ERR(rdev);
 	}
 
 	dev_info(&pdev->dev, "initialized STw481x VMMC regulator\n");

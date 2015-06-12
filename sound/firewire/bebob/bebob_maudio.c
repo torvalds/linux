@@ -96,10 +96,10 @@ int snd_bebob_maudio_load_firmware(struct fw_unit *unit)
 	struct fw_device *device = fw_parent_device(unit);
 	int err, rcode;
 	u64 date;
-	__be32 cues[3] = {
-		MAUDIO_BOOTLOADER_CUE1,
-		MAUDIO_BOOTLOADER_CUE2,
-		MAUDIO_BOOTLOADER_CUE3
+	__le32 cues[3] = {
+		cpu_to_le32(MAUDIO_BOOTLOADER_CUE1),
+		cpu_to_le32(MAUDIO_BOOTLOADER_CUE2),
+		cpu_to_le32(MAUDIO_BOOTLOADER_CUE3)
 	};
 
 	/* check date of software used to build */

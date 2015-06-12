@@ -33,9 +33,14 @@
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
 
+#include <video/display_timing.h>
+#include <video/videomode.h>
+
 struct panel_desc {
 	const struct drm_display_mode *modes;
 	unsigned int num_modes;
+	const struct display_timing *timings;
+	unsigned int num_timings;
 
 	unsigned int bpc;
 
@@ -93,6 +98,25 @@ static int panel_simple_get_fixed_modes(struct panel_simple *panel)
 
 	if (!panel->desc)
 		return 0;
+
+	for (i = 0; i < panel->desc->num_timings; i++) {
+		const struct display_timing *dt = &panel->desc->timings[i];
+		struct videomode vm;
+
+		videomode_from_timing(dt, &vm);
+		mode = drm_mode_create(drm);
+		if (!mode) {
+			dev_err(drm->dev, "failed to add mode %ux%u\n",
+				dt->hactive.typ, dt->vactive.typ);
+			continue;
+		}
+
+		drm_display_mode_from_videomode(&vm, mode);
+		drm_mode_set_name(mode);
+
+		drm_mode_probed_add(connector, mode);
+		num++;
+	}
 
 	for (i = 0; i < panel->desc->num_modes; i++) {
 		const struct drm_display_mode *m = &panel->desc->modes[i];
@@ -226,12 +250,30 @@ static int panel_simple_get_modes(struct drm_panel *panel)
 	return num;
 }
 
+static int panel_simple_get_timings(struct drm_panel *panel,
+				    unsigned int num_timings,
+				    struct display_timing *timings)
+{
+	struct panel_simple *p = to_panel_simple(panel);
+	unsigned int i;
+
+	if (p->desc->num_timings < num_timings)
+		num_timings = p->desc->num_timings;
+
+	if (timings)
+		for (i = 0; i < num_timings; i++)
+			timings[i] = p->desc->timings[i];
+
+	return p->desc->num_timings;
+}
+
 static const struct drm_panel_funcs panel_simple_funcs = {
 	.disable = panel_simple_disable,
 	.unprepare = panel_simple_unprepare,
 	.prepare = panel_simple_prepare,
 	.enable = panel_simple_enable,
 	.get_modes = panel_simple_get_modes,
+	.get_timings = panel_simple_get_timings,
 };
 
 static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
@@ -327,6 +369,31 @@ static void panel_simple_shutdown(struct device *dev)
 	panel_simple_disable(&panel->base);
 }
 
+static const struct drm_display_mode ampire_am800480r3tmqwa1h_mode = {
+	.clock = 33333,
+	.hdisplay = 800,
+	.hsync_start = 800 + 0,
+	.hsync_end = 800 + 0 + 255,
+	.htotal = 800 + 0 + 255 + 0,
+	.vdisplay = 480,
+	.vsync_start = 480 + 2,
+	.vsync_end = 480 + 2 + 45,
+	.vtotal = 480 + 2 + 45 + 0,
+	.vrefresh = 60,
+	.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC,
+};
+
+static const struct panel_desc ampire_am800480r3tmqwa1h = {
+	.modes = &ampire_am800480r3tmqwa1h_mode,
+	.num_modes = 1,
+	.bpc = 6,
+	.size = {
+		.width = 152,
+		.height = 91,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+};
+
 static const struct drm_display_mode auo_b101aw03_mode = {
 	.clock = 51450,
 	.hdisplay = 1024,
@@ -347,6 +414,29 @@ static const struct panel_desc auo_b101aw03 = {
 	.size = {
 		.width = 223,
 		.height = 125,
+	},
+};
+
+static const struct drm_display_mode auo_b101ean01_mode = {
+	.clock = 72500,
+	.hdisplay = 1280,
+	.hsync_start = 1280 + 119,
+	.hsync_end = 1280 + 119 + 32,
+	.htotal = 1280 + 119 + 32 + 21,
+	.vdisplay = 800,
+	.vsync_start = 800 + 4,
+	.vsync_end = 800 + 4 + 20,
+	.vtotal = 800 + 4 + 20 + 8,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc auo_b101ean01 = {
+	.modes = &auo_b101ean01_mode,
+	.num_modes = 1,
+	.bpc = 6,
+	.size = {
+		.width = 217,
+		.height = 136,
 	},
 };
 
@@ -615,24 +705,25 @@ static const struct panel_desc giantplus_gpg482739qs5 = {
 		.width = 95,
 		.height = 54,
 	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 };
 
-static const struct drm_display_mode hannstar_hsd070pww1_mode = {
-	.clock = 71100,
-	.hdisplay = 1280,
-	.hsync_start = 1280 + 1,
-	.hsync_end = 1280 + 1 + 158,
-	.htotal = 1280 + 1 + 158 + 1,
-	.vdisplay = 800,
-	.vsync_start = 800 + 1,
-	.vsync_end = 800 + 1 + 21,
-	.vtotal = 800 + 1 + 21 + 1,
-	.vrefresh = 60,
+static const struct display_timing hannstar_hsd070pww1_timing = {
+	.pixelclock = { 64300000, 71100000, 82000000 },
+	.hactive = { 1280, 1280, 1280 },
+	.hfront_porch = { 1, 1, 10 },
+	.hback_porch = { 1, 1, 10 },
+	.hsync_len = { 52, 158, 661 },
+	.vactive = { 800, 800, 800 },
+	.vfront_porch = { 1, 1, 10 },
+	.vback_porch = { 1, 1, 10 },
+	.vsync_len = { 1, 21, 203 },
+	.flags = DISPLAY_FLAGS_DE_HIGH,
 };
 
 static const struct panel_desc hannstar_hsd070pww1 = {
-	.modes = &hannstar_hsd070pww1_mode,
-	.num_modes = 1,
+	.timings = &hannstar_hsd070pww1_timing,
+	.num_timings = 1,
 	.bpc = 6,
 	.size = {
 		.width = 151,
@@ -661,6 +752,31 @@ static const struct panel_desc hitachi_tx23d38vm0caa = {
 		.width = 195,
 		.height = 117,
 	},
+};
+
+static const struct drm_display_mode innolux_at043tn24_mode = {
+	.clock = 9000,
+	.hdisplay = 480,
+	.hsync_start = 480 + 2,
+	.hsync_end = 480 + 2 + 41,
+	.htotal = 480 + 2 + 41 + 2,
+	.vdisplay = 272,
+	.vsync_start = 272 + 2,
+	.vsync_end = 272 + 2 + 11,
+	.vtotal = 272 + 2 + 11 + 2,
+	.vrefresh = 60,
+	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
+};
+
+static const struct panel_desc innolux_at043tn24 = {
+	.modes = &innolux_at043tn24_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 95,
+		.height = 54,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 };
 
 static const struct drm_display_mode innolux_g121i1_l01_mode = {
@@ -733,6 +849,29 @@ static const struct panel_desc innolux_n156bge_l21 = {
 	},
 };
 
+static const struct drm_display_mode innolux_zj070na_01p_mode = {
+	.clock = 51501,
+	.hdisplay = 1024,
+	.hsync_start = 1024 + 128,
+	.hsync_end = 1024 + 128 + 64,
+	.htotal = 1024 + 128 + 64 + 128,
+	.vdisplay = 600,
+	.vsync_start = 600 + 16,
+	.vsync_end = 600 + 16 + 4,
+	.vtotal = 600 + 16 + 4 + 16,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc innolux_zj070na_01p = {
+	.modes = &innolux_zj070na_01p_mode,
+	.num_modes = 1,
+	.bpc = 6,
+	.size = {
+		.width = 1024,
+		.height = 600,
+	},
+};
+
 static const struct drm_display_mode lg_lp129qe_mode = {
 	.clock = 285250,
 	.hdisplay = 2560,
@@ -754,6 +893,30 @@ static const struct panel_desc lg_lp129qe = {
 		.width = 272,
 		.height = 181,
 	},
+};
+
+static const struct drm_display_mode ortustech_com43h4m85ulc_mode  = {
+	.clock = 25000,
+	.hdisplay = 480,
+	.hsync_start = 480 + 10,
+	.hsync_end = 480 + 10 + 10,
+	.htotal = 480 + 10 + 10 + 15,
+	.vdisplay = 800,
+	.vsync_start = 800 + 3,
+	.vsync_end = 800 + 3 + 3,
+	.vtotal = 800 + 3 + 3 + 3,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc ortustech_com43h4m85ulc = {
+	.modes = &ortustech_com43h4m85ulc_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 56,
+		.height = 93,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 };
 
 static const struct drm_display_mode samsung_ltn101nt05_mode = {
@@ -779,10 +942,62 @@ static const struct panel_desc samsung_ltn101nt05 = {
 	},
 };
 
+static const struct drm_display_mode samsung_ltn140at29_301_mode = {
+	.clock = 76300,
+	.hdisplay = 1366,
+	.hsync_start = 1366 + 64,
+	.hsync_end = 1366 + 64 + 48,
+	.htotal = 1366 + 64 + 48 + 128,
+	.vdisplay = 768,
+	.vsync_start = 768 + 2,
+	.vsync_end = 768 + 2 + 5,
+	.vtotal = 768 + 2 + 5 + 17,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc samsung_ltn140at29_301 = {
+	.modes = &samsung_ltn140at29_301_mode,
+	.num_modes = 1,
+	.bpc = 6,
+	.size = {
+		.width = 320,
+		.height = 187,
+	},
+};
+
+static const struct drm_display_mode shelly_sca07010_bfn_lnn_mode = {
+	.clock = 33300,
+	.hdisplay = 800,
+	.hsync_start = 800 + 1,
+	.hsync_end = 800 + 1 + 64,
+	.htotal = 800 + 1 + 64 + 64,
+	.vdisplay = 480,
+	.vsync_start = 480 + 1,
+	.vsync_end = 480 + 1 + 23,
+	.vtotal = 480 + 1 + 23 + 22,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc shelly_sca07010_bfn_lnn = {
+	.modes = &shelly_sca07010_bfn_lnn_mode,
+	.num_modes = 1,
+	.size = {
+		.width = 152,
+		.height = 91,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+};
+
 static const struct of_device_id platform_of_match[] = {
 	{
+		.compatible = "ampire,am800480r3tmqwa1h",
+		.data = &ampire_am800480r3tmqwa1h,
+	}, {
 		.compatible = "auo,b101aw03",
 		.data = &auo_b101aw03,
+	}, {
+		.compatible = "auo,b101ean01",
+		.data = &auo_b101ean01,
 	}, {
 		.compatible = "auo,b101xtn01",
 		.data = &auo_b101xtn01,
@@ -826,6 +1041,9 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "hit,tx23d38vm0caa",
 		.data = &hitachi_tx23d38vm0caa
 	}, {
+		.compatible = "innolux,at043tn24",
+		.data = &innolux_at043tn24,
+	}, {
 		.compatible ="innolux,g121i1-l01",
 		.data = &innolux_g121i1_l01
 	}, {
@@ -835,11 +1053,23 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "innolux,n156bge-l21",
 		.data = &innolux_n156bge_l21,
 	}, {
+		.compatible = "innolux,zj070na-01p",
+		.data = &innolux_zj070na_01p,
+	}, {
 		.compatible = "lg,lp129qe",
 		.data = &lg_lp129qe,
 	}, {
+		.compatible = "ortustech,com43h4m85ulc",
+		.data = &ortustech_com43h4m85ulc,
+	}, {
 		.compatible = "samsung,ltn101nt05",
 		.data = &samsung_ltn101nt05,
+	}, {
+		.compatible = "samsung,ltn140at29-301",
+		.data = &samsung_ltn140at29_301,
+	}, {
+		.compatible = "shelly,sca07010-bfn-lnn",
+		.data = &shelly_sca07010_bfn_lnn,
 	}, {
 		/* sentinel */
 	}

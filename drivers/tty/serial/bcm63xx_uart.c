@@ -854,7 +854,7 @@ static int bcm_uart_probe(struct platform_device *pdev)
 
 	ret = uart_add_one_port(&bcm_uart_driver, port);
 	if (ret) {
-		ports[pdev->id].membase = 0;
+		ports[pdev->id].membase = NULL;
 		return ret;
 	}
 	platform_set_drvdata(pdev, port);
@@ -868,7 +868,7 @@ static int bcm_uart_remove(struct platform_device *pdev)
 	port = platform_get_drvdata(pdev);
 	uart_remove_one_port(&bcm_uart_driver, port);
 	/* mark port as free */
-	ports[pdev->id].membase = 0;
+	ports[pdev->id].membase = NULL;
 	return 0;
 }
 

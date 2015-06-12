@@ -227,7 +227,7 @@ snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave)
  * Add a virtual slave control to the given master.
  * Unlike snd_ctl_add_slave(), the element added via this function
  * is supposed to have volatile values, and get callback is called
- * at each time quried from the master.
+ * at each time queried from the master.
  *
  * When the control peeks the hardware values directly and the value
  * can be changed by other means than the put callback of the element,

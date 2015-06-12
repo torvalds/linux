@@ -794,6 +794,7 @@ bool RFbSetPower(
 		break;
 	case RATE_6M:
 	case RATE_9M:
+	case RATE_12M:
 	case RATE_18M:
 		byPwr = priv->abyOFDMPwrTbl[uCH];
 		if (priv->byRFType == RF_UW2452)

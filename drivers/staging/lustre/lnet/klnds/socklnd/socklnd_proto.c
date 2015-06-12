@@ -55,8 +55,8 @@ ksocknal_next_tx_carrier(ksock_conn_t *conn)
 	ksock_tx_t     *tx = conn->ksnc_tx_carrier;
 
 	/* Called holding BH lock: conn->ksnc_scheduler->kss_lock */
-	LASSERT (!list_empty(&conn->ksnc_tx_queue));
-	LASSERT (tx != NULL);
+	LASSERT(!list_empty(&conn->ksnc_tx_queue));
+	LASSERT(tx != NULL);
 
 	/* Next TX that can carry ZC-ACK or LNet message */
 	if (tx->tx_list.next == &conn->ksnc_tx_queue) {
@@ -65,7 +65,7 @@ ksocknal_next_tx_carrier(ksock_conn_t *conn)
 	} else {
 		conn->ksnc_tx_carrier = list_entry(tx->tx_list.next,
 						       ksock_tx_t, tx_list);
-		LASSERT (conn->ksnc_tx_carrier->tx_msg.ksm_type == tx->tx_msg.ksm_type);
+		LASSERT(conn->ksnc_tx_carrier->tx_msg.ksm_type == tx->tx_msg.ksm_type);
 	}
 }
 
@@ -75,7 +75,7 @@ ksocknal_queue_tx_zcack_v2(ksock_conn_t *conn,
 {
 	ksock_tx_t *tx = conn->ksnc_tx_carrier;
 
-	LASSERT (tx_ack == NULL ||
+	LASSERT(tx_ack == NULL ||
 		 tx_ack->tx_msg.ksm_type == KSOCK_MSG_NOOP);
 
 	/*
@@ -139,7 +139,7 @@ ksocknal_queue_tx_msg_v2(ksock_conn_t *conn, ksock_tx_t *tx_msg)
 		return NULL;
 	}
 
-	LASSERT (tx->tx_msg.ksm_type == KSOCK_MSG_NOOP);
+	LASSERT(tx->tx_msg.ksm_type == KSOCK_MSG_NOOP);
 
 	/* There is a noop zc-ack can be piggybacked */
 	tx_msg->tx_msg.ksm_zc_cookies[1] = tx->tx_msg.ksm_zc_cookies[1];
@@ -162,7 +162,7 @@ ksocknal_queue_tx_zcack_v3(ksock_conn_t *conn,
 		return ksocknal_queue_tx_zcack_v2(conn, tx_ack, cookie);
 
 	/* non-blocking ZC-ACK (to router) */
-	LASSERT (tx_ack == NULL ||
+	LASSERT(tx_ack == NULL ||
 		 tx_ack->tx_msg.ksm_type == KSOCK_MSG_NOOP);
 
 	tx = conn->ksnc_tx_carrier;
@@ -185,7 +185,7 @@ ksocknal_queue_tx_zcack_v3(ksock_conn_t *conn,
 
 	if (tx->tx_msg.ksm_zc_cookies[1] == SOCKNAL_KEEPALIVE_PING) {
 		/* replace the keepalive PING with a real ACK */
-		LASSERT (tx->tx_msg.ksm_zc_cookies[0] == 0);
+		LASSERT(tx->tx_msg.ksm_zc_cookies[0] == 0);
 		tx->tx_msg.ksm_zc_cookies[1] = cookie;
 		return 1;
 	}
@@ -220,7 +220,7 @@ ksocknal_queue_tx_zcack_v3(ksock_conn_t *conn,
 		__u64   tmp = 0;
 
 		/* two separated cookies: (a+2, a) or (a+1, a) */
-		LASSERT (tx->tx_msg.ksm_zc_cookies[0] -
+		LASSERT(tx->tx_msg.ksm_zc_cookies[0] -
 			 tx->tx_msg.ksm_zc_cookies[1] <= 2);
 
 		if (tx->tx_msg.ksm_zc_cookies[0] -
@@ -408,7 +408,7 @@ ksocknal_handle_zcack(ksock_conn_t *conn, __u64 cookie1, __u64 cookie2)
 	ksock_peer_t      *peer = conn->ksnc_peer;
 	ksock_tx_t	*tx;
 	ksock_tx_t	*tmp;
-	LIST_HEAD     (zlist);
+	LIST_HEAD(zlist);
 	int		count;
 
 	if (cookie1 == 0)
@@ -450,7 +450,7 @@ ksocknal_handle_zcack(ksock_conn_t *conn, __u64 cookie1, __u64 cookie2)
 }
 
 static int
-ksocknal_send_hello_v1 (ksock_conn_t *conn, ksock_hello_msg_t *hello)
+ksocknal_send_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello)
 {
 	struct socket	*sock = conn->ksnc_sock;
 	lnet_hdr_t	  *hdr;
@@ -526,7 +526,7 @@ out:
 }
 
 static int
-ksocknal_send_hello_v2 (ksock_conn_t *conn, ksock_hello_msg_t *hello)
+ksocknal_send_hello_v2(ksock_conn_t *conn, ksock_hello_msg_t *hello)
 {
 	struct socket *sock = conn->ksnc_sock;
 	int	     rc;
@@ -584,12 +584,12 @@ ksocknal_recv_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello,
 	}
 
 	rc = libcfs_sock_read(sock, &hdr->src_nid,
-			      sizeof (*hdr) - offsetof (lnet_hdr_t, src_nid),
+			      sizeof(*hdr) - offsetof(lnet_hdr_t, src_nid),
 			      timeout);
 	if (rc != 0) {
 		CERROR("Error %d reading rest of HELLO hdr from %pI4h\n",
 			rc, &conn->ksnc_ipaddr);
-		LASSERT (rc < 0 && rc != -EALREADY);
+		LASSERT(rc < 0 && rc != -EALREADY);
 		goto out;
 	}
 
@@ -602,12 +602,12 @@ ksocknal_recv_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello,
 		goto out;
 	}
 
-	hello->kshm_src_nid	 = le64_to_cpu (hdr->src_nid);
-	hello->kshm_src_pid	 = le32_to_cpu (hdr->src_pid);
-	hello->kshm_src_incarnation = le64_to_cpu (hdr->msg.hello.incarnation);
-	hello->kshm_ctype	   = le32_to_cpu (hdr->msg.hello.type);
-	hello->kshm_nips	    = le32_to_cpu (hdr->payload_length) /
-					 sizeof (__u32);
+	hello->kshm_src_nid	 = le64_to_cpu(hdr->src_nid);
+	hello->kshm_src_pid	 = le32_to_cpu(hdr->src_pid);
+	hello->kshm_src_incarnation = le64_to_cpu(hdr->msg.hello.incarnation);
+	hello->kshm_ctype	   = le32_to_cpu(hdr->msg.hello.type);
+	hello->kshm_nips	    = le32_to_cpu(hdr->payload_length) /
+					 sizeof(__u32);
 
 	if (hello->kshm_nips > LNET_MAX_INTERFACES) {
 		CERROR("Bad nips %d from ip %pI4h\n",
@@ -645,7 +645,7 @@ out:
 }
 
 static int
-ksocknal_recv_hello_v2 (ksock_conn_t *conn, ksock_hello_msg_t *hello, int timeout)
+ksocknal_recv_hello_v2(ksock_conn_t *conn, ksock_hello_msg_t *hello, int timeout)
 {
 	struct socket   *sock = conn->ksnc_sock;
 	int		rc;

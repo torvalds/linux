@@ -188,6 +188,14 @@ Description:
 		Indicates the interface unique physical port identifier within
 		the NIC, as a string.
 
+What:		/sys/class/net/<iface>/phys_port_name
+Date:		March 2015
+KernelVersion:	4.0
+Contact:	netdev@vger.kernel.org
+Description:
+		Indicates the interface physical port name within the NIC,
+		as a string.
+
 What:		/sys/class/net/<iface>/speed
 Date:		October 2009
 KernelVersion:	2.6.33

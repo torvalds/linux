@@ -181,7 +181,7 @@ static struct firmware_buf *__allocate_fw_buf(const char *fw_name,
 {
 	struct firmware_buf *buf;
 
-	buf = kzalloc(sizeof(*buf) + strlen(fw_name) + 1 , GFP_ATOMIC);
+	buf = kzalloc(sizeof(*buf) + strlen(fw_name) + 1, GFP_ATOMIC);
 
 	if (!buf)
 		return buf;
@@ -835,6 +835,26 @@ static struct bin_attribute firmware_attr_data = {
 	.write = firmware_data_write,
 };
 
+static struct attribute *fw_dev_attrs[] = {
+	&dev_attr_loading.attr,
+	NULL
+};
+
+static struct bin_attribute *fw_dev_bin_attrs[] = {
+	&firmware_attr_data,
+	NULL
+};
+
+static const struct attribute_group fw_dev_attr_group = {
+	.attrs = fw_dev_attrs,
+	.bin_attrs = fw_dev_bin_attrs,
+};
+
+static const struct attribute_group *fw_dev_attr_groups[] = {
+	&fw_dev_attr_group,
+	NULL
+};
+
 static struct firmware_priv *
 fw_create_instance(struct firmware *firmware, const char *fw_name,
 		   struct device *device, unsigned int opt_flags)
@@ -856,6 +876,7 @@ fw_create_instance(struct firmware *firmware, const char *fw_name,
 	dev_set_name(f_dev, "%s", fw_name);
 	f_dev->parent = device;
 	f_dev->class = &firmware_class;
+	f_dev->groups = fw_dev_attr_groups;
 exit:
 	return fw_priv;
 }
@@ -879,24 +900,9 @@ static int _request_firmware_load(struct firmware_priv *fw_priv,
 		goto err_put_dev;
 	}
 
-	retval = device_create_bin_file(f_dev, &firmware_attr_data);
-	if (retval) {
-		dev_err(f_dev, "%s: sysfs_create_bin_file failed\n", __func__);
-		goto err_del_dev;
-	}
-
 	mutex_lock(&fw_lock);
 	list_add(&buf->pending_list, &pending_fw_head);
 	mutex_unlock(&fw_lock);
-
-	retval = device_create_file(f_dev, &dev_attr_loading);
-	if (retval) {
-		mutex_lock(&fw_lock);
-		list_del_init(&buf->pending_list);
-		mutex_unlock(&fw_lock);
-		dev_err(f_dev, "%s: device_create_file failed\n", __func__);
-		goto err_del_bin_attr;
-	}
 
 	if (opt_flags & FW_OPT_UEVENT) {
 		buf->need_uevent = true;
@@ -913,6 +919,8 @@ static int _request_firmware_load(struct firmware_priv *fw_priv,
 		mutex_lock(&fw_lock);
 		fw_load_abort(fw_priv);
 		mutex_unlock(&fw_lock);
+	} else if (retval > 0) {
+		retval = 0;
 	}
 
 	if (is_fw_load_aborted(buf))
@@ -920,10 +928,6 @@ static int _request_firmware_load(struct firmware_priv *fw_priv,
 	else if (!buf->data)
 		retval = -ENOMEM;
 
-	device_remove_file(f_dev, &dev_attr_loading);
-err_del_bin_attr:
-	device_remove_bin_file(f_dev, &firmware_attr_data);
-err_del_dev:
 	device_del(f_dev);
 err_put_dev:
 	put_device(f_dev);
@@ -1168,7 +1172,7 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
  **/
 int
 request_firmware(const struct firmware **firmware_p, const char *name,
-                 struct device *device)
+		 struct device *device)
 {
 	int ret;
 
@@ -1196,6 +1200,7 @@ int request_firmware_direct(const struct firmware **firmware_p,
 			    const char *name, struct device *device)
 {
 	int ret;
+
 	__module_get(THIS_MODULE);
 	ret = _request_firmware(firmware_p, name, device,
 				FW_OPT_UEVENT | FW_OPT_NO_WARN);
@@ -1276,7 +1281,7 @@ request_firmware_nowait(
 {
 	struct firmware_work *fw_work;
 
-	fw_work = kzalloc(sizeof (struct firmware_work), gfp);
+	fw_work = kzalloc(sizeof(struct firmware_work), gfp);
 	if (!fw_work)
 		return -ENOMEM;
 

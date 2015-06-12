@@ -138,19 +138,19 @@ static int versatile_pci_probe(struct platform_device *pdev)
 	LIST_HEAD(pci_res);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
 	versatile_pci_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(versatile_pci_base))
+		return PTR_ERR(versatile_pci_base);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!res)
-		return -ENODEV;
 	versatile_cfg_base[0] = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(versatile_cfg_base[0]))
+		return PTR_ERR(versatile_cfg_base[0]);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	if (!res)
-		return -ENODEV;
 	versatile_cfg_base[1] = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(versatile_cfg_base[1]))
+		return PTR_ERR(versatile_cfg_base[1]);
 
 	ret = versatile_pci_parse_request_of_pci_ranges(&pdev->dev, &pci_res);
 	if (ret)
@@ -214,6 +214,7 @@ static int versatile_pci_probe(struct platform_device *pdev)
 
 	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
 	pci_assign_unassigned_bus_resources(bus);
+	pci_bus_add_devices(bus);
 
 	return 0;
 }

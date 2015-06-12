@@ -237,8 +237,7 @@ srmcons_init(void)
 
 	return -ENODEV;
 }
-
-module_init(srmcons_init);
+device_initcall(srmcons_init);
 
 
 /*

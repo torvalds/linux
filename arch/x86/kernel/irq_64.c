@@ -44,7 +44,7 @@ static inline void stack_overflow_check(struct pt_regs *regs)
 	u64 estack_top, estack_bottom;
 	u64 curbase = (u64)task_stack_page(current);
 
-	if (user_mode_vm(regs))
+	if (user_mode(regs))
 		return;
 
 	if (regs->sp >= curbase + sizeof(struct thread_info) +

@@ -46,14 +46,14 @@ static u8 TxTsDeleteBA(struct ieee80211_device *ieee, PTX_TS_RECORD pTxTs)
 	u8			bSendDELBA = false;
 
 	// Delete pending BA
-	if(pPendingBa->bValid)
+	if (pPendingBa->bValid)
 	{
 		DeActivateBAEntry(ieee, pPendingBa);
 		bSendDELBA = true;
 	}
 
 	// Delete admitted BA
-	if(pAdmittedBa->bValid)
+	if (pAdmittedBa->bValid)
 	{
 		DeActivateBAEntry(ieee, pAdmittedBa);
 		bSendDELBA = true;
@@ -74,7 +74,7 @@ static u8 RxTsDeleteBA(struct ieee80211_device *ieee, PRX_TS_RECORD pRxTs)
 	PBA_RECORD		pBa = &pRxTs->RxAdmittedBARecord;
 	u8			bSendDELBA = false;
 
-	if(pBa->bValid)
+	if (pBa->bValid)
 	{
 		DeActivateBAEntry(ieee, pBa);
 		bSendDELBA = true;
@@ -363,7 +363,7 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 
 	printk("====================>rx ADDBAREQ from :%pM\n", dst);
 //some other capability is not ready now.
-	if(	(ieee->current_network.qos_data.active == 0) ||
+	if ((ieee->current_network.qos_data.active == 0) ||
 		(ieee->pHTInfo->bCurrentHTSupport == false)) //||
 	//	(ieee->pStaQos->bEnableRxImmBA == false)	)
 	{
@@ -373,7 +373,7 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 	}
 	// Search for related traffic stream.
 	// If there is no matched TS, reject the ADDBA request.
-	if(	!GetTs(
+	if (!GetTs(
 			ieee,
 			(PTS_COMMON_INFO *)(&pTS),
 			dst,
@@ -390,7 +390,7 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 	// We can do much more check here, including BufferSize, AMSDU_Support, Policy, StartSeqCtrl...
 	// I want to check StartSeqCtrl to make sure when we start aggregation!!!
 	//
-	if(pBaParamSet->field.BAPolicy == BA_POLICY_DELAYED)
+	if (pBaParamSet->field.BAPolicy == BA_POLICY_DELAYED)
 	{
 		rc = ADDBA_STATUS_INVALID_PARAM;
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "BA Policy is not correct in %s()\n", __func__);
@@ -522,7 +522,7 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 		// We can compare the value of BA parameter set that Peer returned and Self sent.
 		// If it is OK, then admitted. Or we can send DELBA to cancel BA mechanism.
 		//
-		if(pBaParamSet->field.BAPolicy == BA_POLICY_DELAYED)
+		if (pBaParamSet->field.BAPolicy == BA_POLICY_DELAYED)
 		{
 			// Since this is a kind of ADDBA failed, we delay next ADDBA process.
 			pTS->bAddBaReqDelayed = true;
@@ -582,7 +582,7 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 		return -1;
 	}
 
-	if(ieee->current_network.qos_data.active == 0 ||
+	if (ieee->current_network.qos_data.active == 0 ||
 		ieee->pHTInfo->bCurrentHTSupport == false )
 	{
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "received DELBA while QOS or HT is not supported(%d, %d)\n",ieee->current_network.qos_data.active, ieee->pHTInfo->bCurrentHTSupport);
@@ -600,7 +600,7 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 	{
 		PRX_TS_RECORD	pRxTs;
 
-		if( !GetTs(
+		if (!GetTs(
 				ieee,
 				(PTS_COMMON_INFO *)&pRxTs,
 				dst,
@@ -618,7 +618,7 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 	{
 		PTX_TS_RECORD	pTxTs;
 
-		if(!GetTs(
+		if (!GetTs(
 			ieee,
 			(PTS_COMMON_INFO *)&pTxTs,
 			dst,

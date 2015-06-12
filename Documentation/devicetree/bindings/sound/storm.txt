@@ -1,0 +1,23 @@
+* Sound complex for Storm boards
+
+Models a soundcard for Storm boards with the Qualcomm Technologies IPQ806x SOC
+connected to a MAX98357A DAC via I2S.
+
+Required properties:
+
+- compatible	: "google,storm-audio"
+- cpu		: Phandle of the CPU DAI
+- codec		: Phandle of the codec DAI
+
+Optional properties:
+
+- qcom,model	: The user-visible name of this sound card.
+
+Example:
+
+sound {
+	compatible = "google,storm-audio";
+	qcom,model = "ipq806x-storm";
+	cpu = <&lpass_cpu>;
+	codec = <&max98357a>;
+};

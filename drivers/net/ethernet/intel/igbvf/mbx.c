@@ -13,8 +13,7 @@
   more details.
 
   You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+  this program; if not, see <http://www.gnu.org/licenses/>.
 
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
@@ -54,10 +53,10 @@ out:
 }
 
 /**
- *  e1000_poll_for_ack - Wait for message acknowledgement
+ *  e1000_poll_for_ack - Wait for message acknowledgment
  *  @hw: pointer to the HW structure
  *
- *  returns SUCCESS if it successfully received a message acknowledgement
+ *  returns SUCCESS if it successfully received a message acknowledgment
  **/
 static s32 e1000_poll_for_ack(struct e1000_hw *hw)
 {
@@ -218,7 +217,7 @@ static s32 e1000_check_for_rst_vf(struct e1000_hw *hw)
 	s32 ret_val = -E1000_ERR_MBX;
 
 	if (!e1000_check_for_bit_vf(hw, (E1000_V2PMAILBOX_RSTD |
-	                                 E1000_V2PMAILBOX_RSTI))) {
+					 E1000_V2PMAILBOX_RSTI))) {
 		ret_val = E1000_SUCCESS;
 		hw->mbx.stats.rsts++;
 	}
@@ -239,7 +238,7 @@ static s32 e1000_obtain_mbx_lock_vf(struct e1000_hw *hw)
 	/* Take ownership of the buffer */
 	ew32(V2PMAILBOX(0), E1000_V2PMAILBOX_VFU);
 
-	/* reserve mailbox for vf use */
+	/* reserve mailbox for VF use */
 	if (e1000_read_v2p_mailbox(hw) & E1000_V2PMAILBOX_VFU)
 		ret_val = E1000_SUCCESS;
 
@@ -283,7 +282,7 @@ out_no_write:
 }
 
 /**
- *  e1000_read_mbx_vf - Reads a message from the inbox intended for vf
+ *  e1000_read_mbx_vf - Reads a message from the inbox intended for VF
  *  @hw: pointer to the HW structure
  *  @msg: The message buffer
  *  @size: Length of buffer
@@ -315,17 +314,18 @@ out_no_read:
 }
 
 /**
- *  e1000_init_mbx_params_vf - set initial values for vf mailbox
+ *  e1000_init_mbx_params_vf - set initial values for VF mailbox
  *  @hw: pointer to the HW structure
  *
- *  Initializes the hw->mbx struct to correct values for vf mailbox
+ *  Initializes the hw->mbx struct to correct values for VF mailbox
  */
 s32 e1000_init_mbx_params_vf(struct e1000_hw *hw)
 {
 	struct e1000_mbx_info *mbx = &hw->mbx;
 
 	/* start mailbox as timed out and let the reset_hw call set the timeout
-	 * value to being communications */
+	 * value to being communications
+	 */
 	mbx->timeout = 0;
 	mbx->usec_delay = E1000_VF_MBX_INIT_DELAY;
 
@@ -347,4 +347,3 @@ s32 e1000_init_mbx_params_vf(struct e1000_hw *hw)
 
 	return E1000_SUCCESS;
 }
-

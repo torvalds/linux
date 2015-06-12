@@ -26,12 +26,23 @@
 #define FREQ_OFFSET_LOW_SYM_RATE 3000
 
 struct ts2020_priv {
+	struct dvb_frontend *fe;
 	/* i2c details */
 	int i2c_address;
 	struct i2c_adapter *i2c;
-	u8 clk_out_div;
+	u8 clk_out:2;
+	u8 clk_out_div:5;
 	u32 frequency;
 	u32 frequency_div;
+#define TS2020_M88TS2020 0
+#define TS2020_M88TS2022 1
+	u8 tuner;
+	u8 loop_through:1;
+};
+
+struct ts2020_reg_val {
+	u8 reg;
+	u8 val;
 };
 
 static int ts2020_release(struct dvb_frontend *fe)
@@ -112,40 +123,77 @@ static int ts2020_readreg(struct dvb_frontend *fe, u8 reg)
 static int ts2020_sleep(struct dvb_frontend *fe)
 {
 	struct ts2020_priv *priv = fe->tuner_priv;
-	int ret;
-	u8 buf[] = { 10, 0 };
-	struct i2c_msg msg = {
-		.addr = priv->i2c_address,
-		.flags = 0,
-		.buf = buf,
-		.len = 2
-	};
+	u8 u8tmp;
 
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
+	if (priv->tuner == TS2020_M88TS2020)
+		u8tmp = 0x0a; /* XXX: probably wrong */
+	else
+		u8tmp = 0x00;
 
-	ret = i2c_transfer(priv->i2c, &msg, 1);
-	if (ret != 1)
-		printk(KERN_ERR "%s: i2c error\n", __func__);
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 0);
-
-	return (ret == 1) ? 0 : ret;
+	return ts2020_writereg(fe, u8tmp, 0x00);
 }
 
 static int ts2020_init(struct dvb_frontend *fe)
 {
 	struct ts2020_priv *priv = fe->tuner_priv;
+	int i;
+	u8 u8tmp;
 
-	ts2020_writereg(fe, 0x42, 0x73);
-	ts2020_writereg(fe, 0x05, priv->clk_out_div);
-	ts2020_writereg(fe, 0x20, 0x27);
-	ts2020_writereg(fe, 0x07, 0x02);
-	ts2020_writereg(fe, 0x11, 0xff);
-	ts2020_writereg(fe, 0x60, 0xf9);
-	ts2020_writereg(fe, 0x08, 0x01);
-	ts2020_writereg(fe, 0x00, 0x41);
+	if (priv->tuner == TS2020_M88TS2020) {
+		ts2020_writereg(fe, 0x42, 0x73);
+		ts2020_writereg(fe, 0x05, priv->clk_out_div);
+		ts2020_writereg(fe, 0x20, 0x27);
+		ts2020_writereg(fe, 0x07, 0x02);
+		ts2020_writereg(fe, 0x11, 0xff);
+		ts2020_writereg(fe, 0x60, 0xf9);
+		ts2020_writereg(fe, 0x08, 0x01);
+		ts2020_writereg(fe, 0x00, 0x41);
+	} else {
+		static const struct ts2020_reg_val reg_vals[] = {
+			{0x7d, 0x9d},
+			{0x7c, 0x9a},
+			{0x7a, 0x76},
+			{0x3b, 0x01},
+			{0x63, 0x88},
+			{0x61, 0x85},
+			{0x22, 0x30},
+			{0x30, 0x40},
+			{0x20, 0x23},
+			{0x24, 0x02},
+			{0x12, 0xa0},
+		};
+
+		ts2020_writereg(fe, 0x00, 0x01);
+		ts2020_writereg(fe, 0x00, 0x03);
+
+		switch (priv->clk_out) {
+		case TS2020_CLK_OUT_DISABLED:
+			u8tmp = 0x60;
+			break;
+		case TS2020_CLK_OUT_ENABLED:
+			u8tmp = 0x70;
+			ts2020_writereg(fe, 0x05, priv->clk_out_div);
+			break;
+		case TS2020_CLK_OUT_ENABLED_XTALOUT:
+			u8tmp = 0x6c;
+			break;
+		default:
+			u8tmp = 0x60;
+			break;
+		}
+
+		ts2020_writereg(fe, 0x42, u8tmp);
+
+		if (priv->loop_through)
+			u8tmp = 0xec;
+		else
+			u8tmp = 0x6c;
+
+		ts2020_writereg(fe, 0x62, u8tmp);
+
+		for (i = 0; i < ARRAY_SIZE(reg_vals); i++)
+			ts2020_writereg(fe, reg_vals[i].reg, reg_vals[i].val);
+	}
 
 	return 0;
 }
@@ -203,7 +251,14 @@ static int ts2020_set_params(struct dvb_frontend *fe)
 	ndiv = ndiv + ndiv % 2;
 	ndiv = ndiv - 1024;
 
-	ret = ts2020_writereg(fe, 0x10, 0x80 | lo);
+	if (priv->tuner == TS2020_M88TS2020) {
+		lpf_coeff = 2766;
+		ret = ts2020_writereg(fe, 0x10, 0x80 | lo);
+	} else {
+		lpf_coeff = 3200;
+		ret = ts2020_writereg(fe, 0x10, 0x0b);
+		ret |= ts2020_writereg(fe, 0x11, 0x40);
+	}
 
 	/* Set frequency divider */
 	ret |= ts2020_writereg(fe, 0x01, (ndiv >> 8) & 0xf);
@@ -220,13 +275,23 @@ static int ts2020_set_params(struct dvb_frontend *fe)
 	ret |= ts2020_tuner_gate_ctrl(fe, 0x08);
 
 	/* Tuner RF */
-	ret |= ts2020_set_tuner_rf(fe);
+	if (priv->tuner == TS2020_M88TS2020)
+		ret |= ts2020_set_tuner_rf(fe);
 
 	gdiv28 = (TS2020_XTAL_FREQ / 1000 * 1694 + 500) / 1000;
 	ret |= ts2020_writereg(fe, 0x04, gdiv28 & 0xff);
 	ret |= ts2020_tuner_gate_ctrl(fe, 0x04);
 	if (ret < 0)
 		return -ENODEV;
+
+	if (priv->tuner == TS2020_M88TS2022) {
+		ret = ts2020_writereg(fe, 0x25, 0x00);
+		ret |= ts2020_writereg(fe, 0x27, 0x70);
+		ret |= ts2020_writereg(fe, 0x41, 0x09);
+		ret |= ts2020_writereg(fe, 0x08, 0x0b);
+		if (ret < 0)
+			return -ENODEV;
+	}
 
 	value = ts2020_readreg(fe, 0x26);
 
@@ -242,8 +307,6 @@ static int ts2020_set_params(struct dvb_frontend *fe)
 	mlpf_min = gdiv28 * 78 / 100;
 	if (mlpf_max > 63)
 		mlpf_max = 63;
-
-	lpf_coeff = 2766;
 
 	nlpf = (f3db * gdiv28 * 2 / lpf_coeff /
 		(TS2020_XTAL_FREQ / 1000)  + 1) / 2;
@@ -285,6 +348,13 @@ static int ts2020_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
 	struct ts2020_priv *priv = fe->tuner_priv;
 	*frequency = priv->frequency;
+
+	return 0;
+}
+
+static int ts2020_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
+{
+	*frequency = 0; /* Zero-IF */
 	return 0;
 }
 
@@ -324,6 +394,7 @@ static struct dvb_tuner_ops ts2020_tuner_ops = {
 	.sleep = ts2020_sleep,
 	.set_params = ts2020_set_params,
 	.get_frequency = ts2020_get_frequency,
+	.get_if_frequency = ts2020_get_if_frequency,
 	.get_rf_strength = ts2020_read_signal_strength,
 };
 
@@ -340,8 +411,10 @@ struct dvb_frontend *ts2020_attach(struct dvb_frontend *fe,
 
 	priv->i2c_address = config->tuner_address;
 	priv->i2c = i2c;
+	priv->clk_out = config->clk_out;
 	priv->clk_out_div = config->clk_out_div;
 	priv->frequency_div = config->frequency_div;
+	priv->fe = fe;
 	fe->tuner_priv = priv;
 
 	if (!priv->frequency_div)
@@ -358,9 +431,13 @@ struct dvb_frontend *ts2020_attach(struct dvb_frontend *fe,
 
 	/* Check the tuner version */
 	buf = ts2020_readreg(fe, 0x00);
-	if ((buf == 0x01) || (buf == 0x41) || (buf == 0x81))
+	if ((buf == 0x01) || (buf == 0x41) || (buf == 0x81)) {
 		printk(KERN_INFO "%s: Find tuner TS2020!\n", __func__);
-	else {
+		priv->tuner = TS2020_M88TS2020;
+	} else if ((buf == 0x83) || (buf == 0xc3)) {
+		printk(KERN_INFO "%s: Find tuner TS2022!\n", __func__);
+		priv->tuner = TS2020_M88TS2022;
+	} else {
 		printk(KERN_ERR "%s: Read tuner reg[0] = %d\n", __func__, buf);
 		kfree(priv);
 		return NULL;
@@ -372,6 +449,165 @@ struct dvb_frontend *ts2020_attach(struct dvb_frontend *fe,
 	return fe;
 }
 EXPORT_SYMBOL(ts2020_attach);
+
+static int ts2020_probe(struct i2c_client *client,
+		const struct i2c_device_id *id)
+{
+	struct ts2020_config *pdata = client->dev.platform_data;
+	struct dvb_frontend *fe = pdata->fe;
+	struct ts2020_priv *dev;
+	int ret;
+	u8 u8tmp;
+	unsigned int utmp;
+	char *chip_str;
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	dev->i2c = client->adapter;
+	dev->i2c_address = client->addr;
+	dev->clk_out = pdata->clk_out;
+	dev->clk_out_div = pdata->clk_out_div;
+	dev->frequency_div = pdata->frequency_div;
+	dev->fe = fe;
+	fe->tuner_priv = dev;
+
+	/* check if the tuner is there */
+	ret = ts2020_readreg(fe, 0x00);
+	if (ret < 0)
+		goto err;
+	utmp = ret;
+
+	if ((utmp & 0x03) == 0x00) {
+		ret = ts2020_writereg(fe, 0x00, 0x01);
+		if (ret)
+			goto err;
+
+		usleep_range(2000, 50000);
+	}
+
+	ret = ts2020_writereg(fe, 0x00, 0x03);
+	if (ret)
+		goto err;
+
+	usleep_range(2000, 50000);
+
+	ret = ts2020_readreg(fe, 0x00);
+	if (ret < 0)
+		goto err;
+	utmp = ret;
+
+	dev_dbg(&client->dev, "chip_id=%02x\n", utmp);
+
+	switch (utmp) {
+	case 0x01:
+	case 0x41:
+	case 0x81:
+		dev->tuner = TS2020_M88TS2020;
+		chip_str = "TS2020";
+		if (!dev->frequency_div)
+			dev->frequency_div = 1060000;
+		break;
+	case 0xc3:
+	case 0x83:
+		dev->tuner = TS2020_M88TS2022;
+		chip_str = "TS2022";
+		if (!dev->frequency_div)
+			dev->frequency_div = 1103000;
+		break;
+	default:
+		ret = -ENODEV;
+		goto err;
+	}
+
+	if (dev->tuner == TS2020_M88TS2022) {
+		switch (dev->clk_out) {
+		case TS2020_CLK_OUT_DISABLED:
+			u8tmp = 0x60;
+			break;
+		case TS2020_CLK_OUT_ENABLED:
+			u8tmp = 0x70;
+			ret = ts2020_writereg(fe, 0x05, dev->clk_out_div);
+			if (ret)
+				goto err;
+			break;
+		case TS2020_CLK_OUT_ENABLED_XTALOUT:
+			u8tmp = 0x6c;
+			break;
+		default:
+			ret = -EINVAL;
+			goto err;
+		}
+
+		ret = ts2020_writereg(fe, 0x42, u8tmp);
+		if (ret)
+			goto err;
+
+		if (dev->loop_through)
+			u8tmp = 0xec;
+		else
+			u8tmp = 0x6c;
+
+		ret = ts2020_writereg(fe, 0x62, u8tmp);
+		if (ret)
+			goto err;
+	}
+
+	/* sleep */
+	ret = ts2020_writereg(fe, 0x00, 0x00);
+	if (ret)
+		goto err;
+
+	dev_info(&client->dev,
+		 "Montage Technology %s successfully identified\n", chip_str);
+
+	memcpy(&fe->ops.tuner_ops, &ts2020_tuner_ops,
+			sizeof(struct dvb_tuner_ops));
+	fe->ops.tuner_ops.release = NULL;
+
+	i2c_set_clientdata(client, dev);
+	return 0;
+err:
+	dev_dbg(&client->dev, "failed=%d\n", ret);
+	kfree(dev);
+	return ret;
+}
+
+static int ts2020_remove(struct i2c_client *client)
+{
+	struct ts2020_priv *dev = i2c_get_clientdata(client);
+	struct dvb_frontend *fe = dev->fe;
+
+	dev_dbg(&client->dev, "\n");
+
+	memset(&fe->ops.tuner_ops, 0, sizeof(struct dvb_tuner_ops));
+	fe->tuner_priv = NULL;
+	kfree(dev);
+
+	return 0;
+}
+
+static const struct i2c_device_id ts2020_id_table[] = {
+	{"ts2020", 0},
+	{"ts2022", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, ts2020_id_table);
+
+static struct i2c_driver ts2020_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "ts2020",
+	},
+	.probe		= ts2020_probe,
+	.remove		= ts2020_remove,
+	.id_table	= ts2020_id_table,
+};
+
+module_i2c_driver(ts2020_driver);
 
 MODULE_AUTHOR("Konstantin Dimitrov <kosio.dimitrov@gmail.com>");
 MODULE_DESCRIPTION("Montage Technology TS2020 - Silicon tuner driver module");

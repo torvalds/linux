@@ -776,6 +776,7 @@ static const char *sech_name(struct elf_info *elf, Elf_Shdr *sechdr)
  * "foo" will match an exact string equal to "foo"
  * "*foo" will match a string that ends with "foo"
  * "foo*" will match a string that begins with "foo"
+ * "*foo*" will match a string that contains "foo"
  */
 static int match(const char *sym, const char * const pat[])
 {
@@ -784,8 +785,17 @@ static int match(const char *sym, const char * const pat[])
 		p = *pat++;
 		const char *endp = p + strlen(p) - 1;
 
+		/* "*foo*" */
+		if (*p == '*' && *endp == '*') {
+			char *here, *bare = strndup(p + 1, strlen(p) - 2);
+
+			here = strstr(sym, bare);
+			free(bare);
+			if (here != NULL)
+				return 1;
+		}
 		/* "*foo" */
-		if (*p == '*') {
+		else if (*p == '*') {
 			if (strrcmp(sym, p + 1) == 0)
 				return 1;
 		}
@@ -873,13 +883,19 @@ static void check_section(const char *modname, struct elf_info *elf,
 #define ALL_EXIT_SECTIONS EXIT_SECTIONS, ALL_XXXEXIT_SECTIONS
 
 #define DATA_SECTIONS ".data", ".data.rel"
-#define TEXT_SECTIONS ".text", ".text.unlikely"
+#define TEXT_SECTIONS ".text", ".text.unlikely", ".sched.text", \
+		".kprobes.text"
+#define OTHER_TEXT_SECTIONS ".ref.text", ".head.text", ".spinlock.text", \
+		".fixup", ".entry.text", ".exception.text", ".text.*"
 
 #define INIT_SECTIONS      ".init.*"
 #define MEM_INIT_SECTIONS  ".meminit.*"
 
 #define EXIT_SECTIONS      ".exit.*"
 #define MEM_EXIT_SECTIONS  ".memexit.*"
+
+#define ALL_TEXT_SECTIONS  ALL_INIT_TEXT_SECTIONS, ALL_EXIT_TEXT_SECTIONS, \
+		TEXT_SECTIONS, OTHER_TEXT_SECTIONS
 
 /* init data sections */
 static const char *const init_data_sections[] =
@@ -891,6 +907,9 @@ static const char *const init_sections[] = { ALL_INIT_SECTIONS, NULL };
 /* All init and exit sections (code + data) */
 static const char *const init_exit_sections[] =
 	{ALL_INIT_SECTIONS, ALL_EXIT_SECTIONS, NULL };
+
+/* all text sections */
+static const char *const text_sections[] = { ALL_TEXT_SECTIONS, NULL };
 
 /* data section */
 static const char *const data_sections[] = { DATA_SECTIONS, NULL };
@@ -910,6 +929,7 @@ static const char *const data_sections[] = { DATA_SECTIONS, NULL };
 static const char *const head_sections[] = { ".head.text*", NULL };
 static const char *const linker_symbols[] =
 	{ "__init_begin", "_sinittext", "_einittext", NULL };
+static const char *const optim_symbols[] = { "*.constprop.*", NULL };
 
 enum mismatch {
 	TEXT_TO_ANY_INIT,
@@ -921,14 +941,45 @@ enum mismatch {
 	ANY_INIT_TO_ANY_EXIT,
 	ANY_EXIT_TO_ANY_INIT,
 	EXPORT_TO_INIT_EXIT,
+	EXTABLE_TO_NON_TEXT,
 };
 
+/**
+ * Describe how to match sections on different criterias:
+ *
+ * @fromsec: Array of sections to be matched.
+ *
+ * @bad_tosec: Relocations applied to a section in @fromsec to a section in
+ * this array is forbidden (black-list).  Can be empty.
+ *
+ * @good_tosec: Relocations applied to a section in @fromsec must be
+ * targetting sections in this array (white-list).  Can be empty.
+ *
+ * @mismatch: Type of mismatch.
+ *
+ * @symbol_white_list: Do not match a relocation to a symbol in this list
+ * even if it is targetting a section in @bad_to_sec.
+ *
+ * @handler: Specific handler to call when a match is found.  If NULL,
+ * default_mismatch_handler() will be called.
+ *
+ */
 struct sectioncheck {
 	const char *fromsec[20];
-	const char *tosec[20];
+	const char *bad_tosec[20];
+	const char *good_tosec[20];
 	enum mismatch mismatch;
 	const char *symbol_white_list[20];
+	void (*handler)(const char *modname, struct elf_info *elf,
+			const struct sectioncheck* const mismatch,
+			Elf_Rela *r, Elf_Sym *sym, const char *fromsec);
+
 };
+
+static void extable_mismatch_handler(const char *modname, struct elf_info *elf,
+				     const struct sectioncheck* const mismatch,
+				     Elf_Rela *r, Elf_Sym *sym,
+				     const char *fromsec);
 
 static const struct sectioncheck sectioncheck[] = {
 /* Do not reference init/exit code/data from
@@ -936,19 +987,19 @@ static const struct sectioncheck sectioncheck[] = {
  */
 {
 	.fromsec = { TEXT_SECTIONS, NULL },
-	.tosec   = { ALL_INIT_SECTIONS, NULL },
+	.bad_tosec = { ALL_INIT_SECTIONS, NULL },
 	.mismatch = TEXT_TO_ANY_INIT,
 	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 },
 {
 	.fromsec = { DATA_SECTIONS, NULL },
-	.tosec   = { ALL_XXXINIT_SECTIONS, NULL },
+	.bad_tosec = { ALL_XXXINIT_SECTIONS, NULL },
 	.mismatch = DATA_TO_ANY_INIT,
 	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 },
 {
 	.fromsec = { DATA_SECTIONS, NULL },
-	.tosec   = { INIT_SECTIONS, NULL },
+	.bad_tosec = { INIT_SECTIONS, NULL },
 	.mismatch = DATA_TO_ANY_INIT,
 	.symbol_white_list = {
 		"*_template", "*_timer", "*_sht", "*_ops",
@@ -957,56 +1008,66 @@ static const struct sectioncheck sectioncheck[] = {
 },
 {
 	.fromsec = { TEXT_SECTIONS, NULL },
-	.tosec   = { ALL_EXIT_SECTIONS, NULL },
+	.bad_tosec = { ALL_EXIT_SECTIONS, NULL },
 	.mismatch = TEXT_TO_ANY_EXIT,
 	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 },
 {
 	.fromsec = { DATA_SECTIONS, NULL },
-	.tosec   = { ALL_EXIT_SECTIONS, NULL },
+	.bad_tosec = { ALL_EXIT_SECTIONS, NULL },
 	.mismatch = DATA_TO_ANY_EXIT,
 	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 },
 /* Do not reference init code/data from meminit code/data */
 {
 	.fromsec = { ALL_XXXINIT_SECTIONS, NULL },
-	.tosec   = { INIT_SECTIONS, NULL },
+	.bad_tosec = { INIT_SECTIONS, NULL },
 	.mismatch = XXXINIT_TO_SOME_INIT,
 	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 },
 /* Do not reference exit code/data from memexit code/data */
 {
 	.fromsec = { ALL_XXXEXIT_SECTIONS, NULL },
-	.tosec   = { EXIT_SECTIONS, NULL },
+	.bad_tosec = { EXIT_SECTIONS, NULL },
 	.mismatch = XXXEXIT_TO_SOME_EXIT,
 	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 },
 /* Do not use exit code/data from init code */
 {
 	.fromsec = { ALL_INIT_SECTIONS, NULL },
-	.tosec   = { ALL_EXIT_SECTIONS, NULL },
+	.bad_tosec = { ALL_EXIT_SECTIONS, NULL },
 	.mismatch = ANY_INIT_TO_ANY_EXIT,
 	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 },
 /* Do not use init code/data from exit code */
 {
 	.fromsec = { ALL_EXIT_SECTIONS, NULL },
-	.tosec   = { ALL_INIT_SECTIONS, NULL },
+	.bad_tosec = { ALL_INIT_SECTIONS, NULL },
 	.mismatch = ANY_EXIT_TO_ANY_INIT,
 	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 },
 {
 	.fromsec = { ALL_PCI_INIT_SECTIONS, NULL },
-	.tosec   = { INIT_SECTIONS, NULL },
+	.bad_tosec = { INIT_SECTIONS, NULL },
 	.mismatch = ANY_INIT_TO_ANY_EXIT,
 	.symbol_white_list = { NULL },
 },
 /* Do not export init/exit functions or data */
 {
 	.fromsec = { "__ksymtab*", NULL },
-	.tosec   = { INIT_SECTIONS, EXIT_SECTIONS, NULL },
+	.bad_tosec = { INIT_SECTIONS, EXIT_SECTIONS, NULL },
 	.mismatch = EXPORT_TO_INIT_EXIT,
 	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
+},
+{
+	.fromsec = { "__ex_table", NULL },
+	/* If you're adding any new black-listed sections in here, consider
+	 * adding a special 'printer' for them in scripts/check_extable.
+	 */
+	.bad_tosec = { ".altinstr_replacement", NULL },
+	.good_tosec = {ALL_TEXT_SECTIONS , NULL},
+	.mismatch = EXTABLE_TO_NON_TEXT,
+	.handler = extable_mismatch_handler,
 }
 };
 
@@ -1017,10 +1078,22 @@ static const struct sectioncheck *section_mismatch(
 	int elems = sizeof(sectioncheck) / sizeof(struct sectioncheck);
 	const struct sectioncheck *check = &sectioncheck[0];
 
+	/*
+	 * The target section could be the SHT_NUL section when we're
+	 * handling relocations to un-resolved symbols, trying to match it
+	 * doesn't make much sense and causes build failures on parisc and
+	 * mn10300 architectures.
+	 */
+	if (*tosec == '\0')
+		return NULL;
+
 	for (i = 0; i < elems; i++) {
-		if (match(fromsec, check->fromsec) &&
-		    match(tosec, check->tosec))
-			return check;
+		if (match(fromsec, check->fromsec)) {
+			if (check->bad_tosec[0] && match(tosec, check->bad_tosec))
+				return check;
+			if (check->good_tosec[0] && !match(tosec, check->good_tosec))
+				return check;
+		}
 		check++;
 	}
 	return NULL;
@@ -1067,6 +1140,17 @@ static const struct sectioncheck *section_mismatch(
  *   This pattern is identified by
  *   refsymname = __init_begin, _sinittext, _einittext
  *
+ * Pattern 5:
+ *   GCC may optimize static inlines when fed constant arg(s) resulting
+ *   in functions like cpumask_empty() -- generating an associated symbol
+ *   cpumask_empty.constprop.3 that appears in the audit.  If the const that
+ *   is passed in comes from __init, like say nmi_ipi_mask, we get a
+ *   meaningless section warning.  May need to add isra symbols too...
+ *   This pattern is identified by
+ *   tosec   = init section
+ *   fromsec = text section
+ *   refsymname = *.constprop.*
+ *
  **/
 static int secref_whitelist(const struct sectioncheck *mismatch,
 			    const char *fromsec, const char *fromsym,
@@ -1097,6 +1181,12 @@ static int secref_whitelist(const struct sectioncheck *mismatch,
 
 	/* Check for pattern 4 */
 	if (match(tosym, linker_symbols))
+		return 0;
+
+	/* Check for pattern 5 */
+	if (match(fromsec, text_sections) &&
+	    match(tosec, init_sections) &&
+	    match(fromsym, optim_symbols))
 		return 0;
 
 	return 1;
@@ -1261,6 +1351,15 @@ static void print_section_list(const char * const list[20])
 	fprintf(stderr, "\n");
 }
 
+static inline void get_pretty_name(int is_func, const char** name, const char** name_p)
+{
+	switch (is_func) {
+	case 0:	*name = "variable"; *name_p = ""; break;
+	case 1:	*name = "function"; *name_p = "()"; break;
+	default: *name = "(unknown reference)"; *name_p = ""; break;
+	}
+}
+
 /*
  * Print a warning about a section mismatch.
  * Try to find symbols near it so user can find it.
@@ -1280,20 +1379,12 @@ static void report_sec_mismatch(const char *modname,
 	char *prl_from;
 	char *prl_to;
 
-	switch (from_is_func) {
-	case 0: from = "variable"; from_p = "";   break;
-	case 1: from = "function"; from_p = "()"; break;
-	default: from = "(unknown reference)"; from_p = ""; break;
-	}
-	switch (to_is_func) {
-	case 0: to = "variable"; to_p = "";   break;
-	case 1: to = "function"; to_p = "()"; break;
-	default: to = "(unknown reference)"; to_p = ""; break;
-	}
-
 	sec_mismatch_count++;
 	if (!sec_mismatch_verbose)
 		return;
+
+	get_pretty_name(from_is_func, &from, &from_p);
+	get_pretty_name(to_is_func, &to, &to_p);
 
 	warn("%s(%s+0x%llx): Section mismatch in reference from the %s %s%s "
 	     "to the %s %s:%s%s\n",
@@ -1408,41 +1499,179 @@ static void report_sec_mismatch(const char *modname,
 		tosym, prl_to, prl_to, tosym);
 		free(prl_to);
 		break;
+	case EXTABLE_TO_NON_TEXT:
+		fatal("There's a special handler for this mismatch type, "
+		      "we should never get here.");
+		break;
 	}
 	fprintf(stderr, "\n");
+}
+
+static void default_mismatch_handler(const char *modname, struct elf_info *elf,
+				     const struct sectioncheck* const mismatch,
+				     Elf_Rela *r, Elf_Sym *sym, const char *fromsec)
+{
+	const char *tosec;
+	Elf_Sym *to;
+	Elf_Sym *from;
+	const char *tosym;
+	const char *fromsym;
+
+	from = find_elf_symbol2(elf, r->r_offset, fromsec);
+	fromsym = sym_name(elf, from);
+
+	if (!strncmp(fromsym, "reference___initcall",
+		     sizeof("reference___initcall")-1))
+		return;
+
+	tosec = sec_name(elf, get_secindex(elf, sym));
+	to = find_elf_symbol(elf, r->r_addend, sym);
+	tosym = sym_name(elf, to);
+
+	/* check whitelist - we may ignore it */
+	if (secref_whitelist(mismatch,
+			     fromsec, fromsym, tosec, tosym)) {
+		report_sec_mismatch(modname, mismatch,
+				    fromsec, r->r_offset, fromsym,
+				    is_function(from), tosec, tosym,
+				    is_function(to));
+	}
+}
+
+static int is_executable_section(struct elf_info* elf, unsigned int section_index)
+{
+	if (section_index > elf->num_sections)
+		fatal("section_index is outside elf->num_sections!\n");
+
+	return ((elf->sechdrs[section_index].sh_flags & SHF_EXECINSTR) == SHF_EXECINSTR);
+}
+
+/*
+ * We rely on a gross hack in section_rel[a]() calling find_extable_entry_size()
+ * to know the sizeof(struct exception_table_entry) for the target architecture.
+ */
+static unsigned int extable_entry_size = 0;
+static void find_extable_entry_size(const char* const sec, const Elf_Rela* r)
+{
+	/*
+	 * If we're currently checking the second relocation within __ex_table,
+	 * that relocation offset tells us the offsetof(struct
+	 * exception_table_entry, fixup) which is equal to sizeof(struct
+	 * exception_table_entry) divided by two.  We use that to our advantage
+	 * since there's no portable way to get that size as every architecture
+	 * seems to go with different sized types.  Not pretty but better than
+	 * hard-coding the size for every architecture..
+	 */
+	if (!extable_entry_size)
+		extable_entry_size = r->r_offset * 2;
+}
+
+static inline bool is_extable_fault_address(Elf_Rela *r)
+{
+	/*
+	 * extable_entry_size is only discovered after we've handled the
+	 * _second_ relocation in __ex_table, so only abort when we're not
+	 * handling the first reloc and extable_entry_size is zero.
+	 */
+	if (r->r_offset && extable_entry_size == 0)
+		fatal("extable_entry size hasn't been discovered!\n");
+
+	return ((r->r_offset == 0) ||
+		(r->r_offset % extable_entry_size == 0));
+}
+
+#define is_second_extable_reloc(Start, Cur, Sec)			\
+	(((Cur) == (Start) + 1) && (strcmp("__ex_table", (Sec)) == 0))
+
+static void report_extable_warnings(const char* modname, struct elf_info* elf,
+				    const struct sectioncheck* const mismatch,
+				    Elf_Rela* r, Elf_Sym* sym,
+				    const char* fromsec, const char* tosec)
+{
+	Elf_Sym* fromsym = find_elf_symbol2(elf, r->r_offset, fromsec);
+	const char* fromsym_name = sym_name(elf, fromsym);
+	Elf_Sym* tosym = find_elf_symbol(elf, r->r_addend, sym);
+	const char* tosym_name = sym_name(elf, tosym);
+	const char* from_pretty_name;
+	const char* from_pretty_name_p;
+	const char* to_pretty_name;
+	const char* to_pretty_name_p;
+
+	get_pretty_name(is_function(fromsym),
+			&from_pretty_name, &from_pretty_name_p);
+	get_pretty_name(is_function(tosym),
+			&to_pretty_name, &to_pretty_name_p);
+
+	warn("%s(%s+0x%lx): Section mismatch in reference"
+	     " from the %s %s%s to the %s %s:%s%s\n",
+	     modname, fromsec, (long)r->r_offset, from_pretty_name,
+	     fromsym_name, from_pretty_name_p,
+	     to_pretty_name, tosec, tosym_name, to_pretty_name_p);
+
+	if (!match(tosec, mismatch->bad_tosec) &&
+	    is_executable_section(elf, get_secindex(elf, sym)))
+		fprintf(stderr,
+			"The relocation at %s+0x%lx references\n"
+			"section \"%s\" which is not in the list of\n"
+			"authorized sections.  If you're adding a new section\n"
+			"and/or if this reference is valid, add \"%s\" to the\n"
+			"list of authorized sections to jump to on fault.\n"
+			"This can be achieved by adding \"%s\" to \n"
+			"OTHER_TEXT_SECTIONS in scripts/mod/modpost.c.\n",
+			fromsec, (long)r->r_offset, tosec, tosec, tosec);
+}
+
+static void extable_mismatch_handler(const char* modname, struct elf_info *elf,
+				     const struct sectioncheck* const mismatch,
+				     Elf_Rela* r, Elf_Sym* sym,
+				     const char *fromsec)
+{
+	const char* tosec = sec_name(elf, get_secindex(elf, sym));
+
+	sec_mismatch_count++;
+
+	if (sec_mismatch_verbose)
+		report_extable_warnings(modname, elf, mismatch, r, sym,
+					fromsec, tosec);
+
+	if (match(tosec, mismatch->bad_tosec))
+		fatal("The relocation at %s+0x%lx references\n"
+		      "section \"%s\" which is black-listed.\n"
+		      "Something is seriously wrong and should be fixed.\n"
+		      "You might get more information about where this is\n"
+		      "coming from by using scripts/check_extable.sh %s\n",
+		      fromsec, (long)r->r_offset, tosec, modname);
+	else if (!is_executable_section(elf, get_secindex(elf, sym))) {
+		if (is_extable_fault_address(r))
+			fatal("The relocation at %s+0x%lx references\n"
+			      "section \"%s\" which is not executable, IOW\n"
+			      "it is not possible for the kernel to fault\n"
+			      "at that address.  Something is seriously wrong\n"
+			      "and should be fixed.\n",
+			      fromsec, (long)r->r_offset, tosec);
+		else
+			fatal("The relocation at %s+0x%lx references\n"
+			      "section \"%s\" which is not executable, IOW\n"
+			      "the kernel will fault if it ever tries to\n"
+			      "jump to it.  Something is seriously wrong\n"
+			      "and should be fixed.\n",
+			      fromsec, (long)r->r_offset, tosec);
+	}
 }
 
 static void check_section_mismatch(const char *modname, struct elf_info *elf,
 				   Elf_Rela *r, Elf_Sym *sym, const char *fromsec)
 {
-	const char *tosec;
-	const struct sectioncheck *mismatch;
+	const char *tosec = sec_name(elf, get_secindex(elf, sym));;
+	const struct sectioncheck *mismatch = section_mismatch(fromsec, tosec);
 
-	tosec = sec_name(elf, get_secindex(elf, sym));
-	mismatch = section_mismatch(fromsec, tosec);
 	if (mismatch) {
-		Elf_Sym *to;
-		Elf_Sym *from;
-		const char *tosym;
-		const char *fromsym;
-
-		from = find_elf_symbol2(elf, r->r_offset, fromsec);
-		fromsym = sym_name(elf, from);
-		to = find_elf_symbol(elf, r->r_addend, sym);
-		tosym = sym_name(elf, to);
-
-		if (!strncmp(fromsym, "reference___initcall",
-				sizeof("reference___initcall")-1))
-			return;
-
-		/* check whitelist - we may ignore it */
-		if (secref_whitelist(mismatch,
-					fromsec, fromsym, tosec, tosym)) {
-			report_sec_mismatch(modname, mismatch,
-			   fromsec, r->r_offset, fromsym,
-			   is_function(from), tosec, tosym,
-			   is_function(to));
-		}
+		if (mismatch->handler)
+			mismatch->handler(modname, elf,  mismatch,
+					  r, sym, fromsec);
+		else
+			default_mismatch_handler(modname, elf, mismatch,
+						 r, sym, fromsec);
 	}
 }
 
@@ -1582,6 +1811,8 @@ static void section_rela(const char *modname, struct elf_info *elf,
 		/* Skip special sections */
 		if (is_shndx_special(sym->st_shndx))
 			continue;
+		if (is_second_extable_reloc(start, rela, fromsec))
+			find_extable_entry_size(fromsec, &r);
 		check_section_mismatch(modname, elf, &r, sym, fromsec);
 	}
 }
@@ -1640,6 +1871,8 @@ static void section_rel(const char *modname, struct elf_info *elf,
 		/* Skip special sections */
 		if (is_shndx_special(sym->st_shndx))
 			continue;
+		if (is_second_extable_reloc(start, rel, fromsec))
+			find_extable_entry_size(fromsec, &r);
 		check_section_mismatch(modname, elf, &r, sym, fromsec);
 	}
 }

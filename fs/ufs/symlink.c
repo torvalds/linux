@@ -34,7 +34,7 @@
 
 static void *ufs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	struct ufs_inode_info *p = UFS_I(dentry->d_inode);
+	struct ufs_inode_info *p = UFS_I(d_inode(dentry));
 	nd_set_link(nd, (char*)p->i_u1.i_symlink);
 	return NULL;
 }

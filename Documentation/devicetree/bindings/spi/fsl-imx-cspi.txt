@@ -2,11 +2,21 @@
   (CSPI/eCSPI) for i.MX
 
 Required properties:
-- compatible : Should be "fsl,<soc>-cspi" or "fsl,<soc>-ecspi"
+- compatible :
+  - "fsl,imx1-cspi" for SPI compatible with the one integrated on i.MX1
+  - "fsl,imx21-cspi" for SPI compatible with the one integrated on i.MX21
+  - "fsl,imx27-cspi" for SPI compatible with the one integrated on i.MX27
+  - "fsl,imx31-cspi" for SPI compatible with the one integrated on i.MX31
+  - "fsl,imx35-cspi" for SPI compatible with the one integrated on i.MX35
+  - "fsl,imx51-ecspi" for SPI compatible with the one integrated on i.MX51
 - reg : Offset and length of the register set for the device
 - interrupts : Should contain CSPI/eCSPI interrupt
 - fsl,spi-num-chipselects : Contains the number of the chipselect
 - cs-gpios : Specifies the gpio pins to be used for chipselects.
+- clocks : Clock specifiers for both ipg and per clocks.
+- clock-names : Clock names should include both "ipg" and "per"
+See the clock consumer binding,
+	Documentation/devicetree/bindings/clock/clock-bindings.txt
 - dmas: DMA specifiers for tx and rx dma. See the DMA client binding,
 		Documentation/devicetree/bindings/dma/dma.txt
 - dma-names: DMA request names should include "tx" and "rx" if present.

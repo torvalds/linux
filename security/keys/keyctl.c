@@ -998,21 +998,6 @@ static int keyctl_change_reqkey_auth(struct key *key)
 }
 
 /*
- * Copy the iovec data from userspace
- */
-static long copy_from_user_iovec(void *buffer, const struct iovec *iov,
-				 unsigned ioc)
-{
-	for (; ioc > 0; ioc--) {
-		if (copy_from_user(buffer, iov->iov_base, iov->iov_len) != 0)
-			return -EFAULT;
-		buffer += iov->iov_len;
-		iov++;
-	}
-	return 0;
-}
-
-/*
  * Instantiate a key with the specified payload and link the key into the
  * destination keyring if one is given.
  *
@@ -1022,19 +1007,20 @@ static long copy_from_user_iovec(void *buffer, const struct iovec *iov,
  * If successful, 0 will be returned.
  */
 long keyctl_instantiate_key_common(key_serial_t id,
-				   const struct iovec *payload_iov,
-				   unsigned ioc,
-				   size_t plen,
+				   struct iov_iter *from,
 				   key_serial_t ringid)
 {
 	const struct cred *cred = current_cred();
 	struct request_key_auth *rka;
 	struct key *instkey, *dest_keyring;
+	size_t plen = from ? iov_iter_count(from) : 0;
 	void *payload;
 	long ret;
-	bool vm = false;
 
 	kenter("%d,,%zu,%d", id, plen, ringid);
+
+	if (!plen)
+		from = NULL;
 
 	ret = -EINVAL;
 	if (plen > 1024 * 1024 - 1)
@@ -1054,20 +1040,19 @@ long keyctl_instantiate_key_common(key_serial_t id,
 	/* pull the payload in if one was supplied */
 	payload = NULL;
 
-	if (payload_iov) {
+	if (from) {
 		ret = -ENOMEM;
 		payload = kmalloc(plen, GFP_KERNEL);
 		if (!payload) {
 			if (plen <= PAGE_SIZE)
 				goto error;
-			vm = true;
 			payload = vmalloc(plen);
 			if (!payload)
 				goto error;
 		}
 
-		ret = copy_from_user_iovec(payload, payload_iov, ioc);
-		if (ret < 0)
+		ret = -EFAULT;
+		if (copy_from_iter(payload, plen, from) != plen)
 			goto error2;
 	}
 
@@ -1089,10 +1074,7 @@ long keyctl_instantiate_key_common(key_serial_t id,
 		keyctl_change_reqkey_auth(NULL);
 
 error2:
-	if (!vm)
-		kfree(payload);
-	else
-		vfree(payload);
+	kvfree(payload);
 error:
 	return ret;
 }
@@ -1112,15 +1094,19 @@ long keyctl_instantiate_key(key_serial_t id,
 			    key_serial_t ringid)
 {
 	if (_payload && plen) {
-		struct iovec iov[1] = {
-			[0].iov_base = (void __user *)_payload,
-			[0].iov_len  = plen
-		};
+		struct iovec iov;
+		struct iov_iter from;
+		int ret;
 
-		return keyctl_instantiate_key_common(id, iov, 1, plen, ringid);
+		ret = import_single_range(WRITE, (void __user *)_payload, plen,
+					  &iov, &from);
+		if (unlikely(ret))
+			return ret;
+
+		return keyctl_instantiate_key_common(id, &from, ringid);
 	}
 
-	return keyctl_instantiate_key_common(id, NULL, 0, 0, ringid);
+	return keyctl_instantiate_key_common(id, NULL, ringid);
 }
 
 /*
@@ -1138,29 +1124,19 @@ long keyctl_instantiate_key_iov(key_serial_t id,
 				key_serial_t ringid)
 {
 	struct iovec iovstack[UIO_FASTIOV], *iov = iovstack;
+	struct iov_iter from;
 	long ret;
 
-	if (!_payload_iov || !ioc)
-		goto no_payload;
+	if (!_payload_iov)
+		ioc = 0;
 
-	ret = rw_copy_check_uvector(WRITE, _payload_iov, ioc,
-				    ARRAY_SIZE(iovstack), iovstack, &iov);
+	ret = import_iovec(WRITE, _payload_iov, ioc,
+				    ARRAY_SIZE(iovstack), &iov, &from);
 	if (ret < 0)
-		goto err;
-	if (ret == 0)
-		goto no_payload_free;
-
-	ret = keyctl_instantiate_key_common(id, iov, ioc, ret, ringid);
-err:
-	if (iov != iovstack)
-		kfree(iov);
+		return ret;
+	ret = keyctl_instantiate_key_common(id, &from, ringid);
+	kfree(iov);
 	return ret;
-
-no_payload_free:
-	if (iov != iovstack)
-		kfree(iov);
-no_payload:
-	return keyctl_instantiate_key_common(id, NULL, 0, 0, ringid);
 }
 
 /*

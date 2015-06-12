@@ -337,7 +337,7 @@ struct uiscmdrsp_scsi {
     /* peripheral type of 3 - processor */
     /* specifies device capable, but not present */
 
-#define DEV_HISUPPORT 0x10;	/* HiSup = 1; shows support for report luns */
+#define DEV_HISUPPORT 0x10	/* HiSup = 1; shows support for report luns */
     /* must be returned for lun 0. */
 
 /* NOTE: Linux code assumes inquiry contains 36 bytes. Without checking length

@@ -2,15 +2,14 @@
 #define BOOT_COMPRESSED_MISC_H
 
 /*
- * we have to be careful, because no indirections are allowed here, and
- * paravirt_ops is a kind of one. As it will only run in baremetal anyway,
- * we just keep it from happening
+ * Special hack: we have to be careful, because no indirections are allowed here,
+ * and paravirt_ops is a kind of one. As it will only run in baremetal anyway,
+ * we just keep it from happening. (This list needs to be extended when new
+ * paravirt and debugging variants are added.)
  */
 #undef CONFIG_PARAVIRT
+#undef CONFIG_PARAVIRT_SPINLOCKS
 #undef CONFIG_KASAN
-#ifdef CONFIG_X86_32
-#define _ASM_X86_DESC_H 1
-#endif
 
 #include <linux/linkage.h>
 #include <linux/screen_info.h>
@@ -57,7 +56,7 @@ int cmdline_find_option_bool(const char *option);
 
 #if CONFIG_RANDOMIZE_BASE
 /* aslr.c */
-unsigned char *choose_kernel_location(struct boot_params *params,
+unsigned char *choose_kernel_location(struct boot_params *boot_params,
 				      unsigned char *input,
 				      unsigned long input_size,
 				      unsigned char *output,
@@ -66,7 +65,7 @@ unsigned char *choose_kernel_location(struct boot_params *params,
 bool has_cpuflag(int flag);
 #else
 static inline
-unsigned char *choose_kernel_location(struct boot_params *params,
+unsigned char *choose_kernel_location(struct boot_params *boot_params,
 				      unsigned char *input,
 				      unsigned long input_size,
 				      unsigned char *output,

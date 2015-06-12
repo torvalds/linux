@@ -609,6 +609,32 @@ unsigned int vme_master_rmw(struct vme_resource *resource, unsigned int mask,
 }
 EXPORT_SYMBOL(vme_master_rmw);
 
+int vme_master_mmap(struct vme_resource *resource, struct vm_area_struct *vma)
+{
+	struct vme_master_resource *image;
+	phys_addr_t phys_addr;
+	unsigned long vma_size;
+
+	if (resource->type != VME_MASTER) {
+		pr_err("Not a master resource\n");
+		return -EINVAL;
+	}
+
+	image = list_entry(resource->entry, struct vme_master_resource, list);
+	phys_addr = image->bus_resource.start + (vma->vm_pgoff << PAGE_SHIFT);
+	vma_size = vma->vm_end - vma->vm_start;
+
+	if (phys_addr + vma_size > image->bus_resource.end + 1) {
+		pr_err("Map size cannot exceed the window size\n");
+		return -EFAULT;
+	}
+
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+
+	return vm_iomap_memory(vma, phys_addr, vma->vm_end - vma->vm_start);
+}
+EXPORT_SYMBOL(vme_master_mmap);
+
 void vme_master_free(struct vme_resource *resource)
 {
 	struct vme_master_resource *master_image;

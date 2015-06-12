@@ -79,13 +79,11 @@ void release_thread(struct task_struct *dead_task)
 {
 }
 
-#ifdef CONFIG_64BIT
 void arch_release_task_struct(struct task_struct *tsk)
 {
 	if (tsk->thread.vxrs)
 		kfree(tsk->thread.vxrs);
 }
-#endif
 
 int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 		unsigned long arg, struct task_struct *p)
@@ -144,19 +142,6 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 	p->thread.ri_signum = 0;
 	frame->childregs.psw.mask &= ~PSW_MASK_RI;
 
-#ifndef CONFIG_64BIT
-	/*
-	 * save fprs to current->thread.fp_regs to merge them with
-	 * the emulated registers and then copy the result to the child.
-	 */
-	save_fp_ctl(&current->thread.fp_regs.fpc);
-	save_fp_regs(current->thread.fp_regs.fprs);
-	memcpy(&p->thread.fp_regs, &current->thread.fp_regs,
-	       sizeof(s390_fp_regs));
-	/* Set a new TLS ?  */
-	if (clone_flags & CLONE_SETTLS)
-		p->thread.acrs[0] = frame->childregs.gprs[6];
-#else /* CONFIG_64BIT */
 	/* Save the fpu registers to new thread structure. */
 	save_fp_ctl(&p->thread.fp_regs.fpc);
 	save_fp_regs(p->thread.fp_regs.fprs);
@@ -172,15 +157,13 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 			p->thread.acrs[1] = (unsigned int)tls;
 		}
 	}
-#endif /* CONFIG_64BIT */
 	return 0;
 }
 
 asmlinkage void execve_tail(void)
 {
 	current->thread.fp_regs.fpc = 0;
-	if (MACHINE_HAS_IEEE)
-		asm volatile("sfpc %0,%0" : : "d" (0));
+	asm volatile("sfpc %0,%0" : : "d" (0));
 }
 
 /*
@@ -188,18 +171,8 @@ asmlinkage void execve_tail(void)
  */
 int dump_fpu (struct pt_regs * regs, s390_fp_regs *fpregs)
 {
-#ifndef CONFIG_64BIT
-	/*
-	 * save fprs to current->thread.fp_regs to merge them with
-	 * the emulated registers and then copy the result to the dump.
-	 */
-	save_fp_ctl(&current->thread.fp_regs.fpc);
-	save_fp_regs(current->thread.fp_regs.fprs);
-	memcpy(fpregs, &current->thread.fp_regs, sizeof(s390_fp_regs));
-#else /* CONFIG_64BIT */
 	save_fp_ctl(&fpregs->fpc);
 	save_fp_regs(fpregs->fprs);
-#endif /* CONFIG_64BIT */
 	return 1;
 }
 EXPORT_SYMBOL(dump_fpu);

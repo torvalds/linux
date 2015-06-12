@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- *
  * The full GNU General Public License is included in this distribution in the
  * file called COPYING.
  */
@@ -355,20 +351,6 @@ struct dma_chan *dma_find_channel(enum dma_transaction_type tx_type)
 }
 EXPORT_SYMBOL(dma_find_channel);
 
-/*
- * net_dma_find_channel - find a channel for net_dma
- * net_dma has alignment requirements
- */
-struct dma_chan *net_dma_find_channel(void)
-{
-	struct dma_chan *chan = dma_find_channel(DMA_MEMCPY);
-	if (chan && !is_dma_copy_aligned(chan->device, 1, 1, 1))
-		return NULL;
-
-	return chan;
-}
-EXPORT_SYMBOL(net_dma_find_channel);
-
 /**
  * dma_issue_pending_all - flush all pending operations across all channels
  */
@@ -589,11 +571,15 @@ struct dma_chan *dma_get_any_slave_channel(struct dma_device *device)
 
 	chan = private_candidate(&mask, device, NULL, NULL);
 	if (chan) {
+		dma_cap_set(DMA_PRIVATE, device->cap_mask);
+		device->privatecnt++;
 		err = dma_chan_get(chan);
 		if (err) {
 			pr_debug("%s: failed to get %s: (%d)\n",
 				__func__, dma_chan_name(chan), err);
 			chan = NULL;
+			if (--device->privatecnt == 0)
+				dma_cap_clear(DMA_PRIVATE, device->cap_mask);
 		}
 	}
 
@@ -858,9 +844,6 @@ int dma_async_device_register(struct dma_device *device)
 	BUG_ON(!device->device_tx_status);
 	BUG_ON(!device->device_issue_pending);
 	BUG_ON(!device->dev);
-
-	WARN(dma_has_cap(DMA_SLAVE, device->cap_mask) && !device->directions,
-	     "this driver doesn't support generic slave capabilities reporting\n");
 
 	/* note: this only matters in the
 	 * CONFIG_ASYNC_TX_ENABLE_CHANNEL_SWITCH=n case

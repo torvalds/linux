@@ -260,6 +260,13 @@ static int edma_terminate_all(struct dma_chan *chan)
 	 */
 	if (echan->edesc) {
 		int cyclic = echan->edesc->cyclic;
+
+		/*
+		 * free the running request descriptor
+		 * since it is not in any of the vdesc lists
+		 */
+		edma_desc_free(&echan->edesc->vdesc);
+
 		echan->edesc = NULL;
 		edma_stop(echan->ch_num);
 		/* Move the cyclic channel back to default queue */
@@ -805,7 +812,7 @@ static int edma_alloc_chan_resources(struct dma_chan *chan)
 	LIST_HEAD(descs);
 
 	a_ch_num = edma_alloc_channel(echan->ch_num, edma_callback,
-					chan, EVENTQ_DEFAULT);
+					echan, EVENTQ_DEFAULT);
 
 	if (a_ch_num < 0) {
 		ret = -ENODEV;

@@ -60,17 +60,17 @@ struct rpc_xprt;
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 void		rpc_register_sysctl(void);
 void		rpc_unregister_sysctl(void);
-int		sunrpc_debugfs_init(void);
+void		sunrpc_debugfs_init(void);
 void		sunrpc_debugfs_exit(void);
-int		rpc_clnt_debugfs_register(struct rpc_clnt *);
+void		rpc_clnt_debugfs_register(struct rpc_clnt *);
 void		rpc_clnt_debugfs_unregister(struct rpc_clnt *);
-int		rpc_xprt_debugfs_register(struct rpc_xprt *);
+void		rpc_xprt_debugfs_register(struct rpc_xprt *);
 void		rpc_xprt_debugfs_unregister(struct rpc_xprt *);
 #else
-static inline int
+static inline void
 sunrpc_debugfs_init(void)
 {
-	return 0;
+	return;
 }
 
 static inline void
@@ -79,10 +79,10 @@ sunrpc_debugfs_exit(void)
 	return;
 }
 
-static inline int
+static inline void
 rpc_clnt_debugfs_register(struct rpc_clnt *clnt)
 {
-	return 0;
+	return;
 }
 
 static inline void
@@ -91,10 +91,10 @@ rpc_clnt_debugfs_unregister(struct rpc_clnt *clnt)
 	return;
 }
 
-static inline int
+static inline void
 rpc_xprt_debugfs_register(struct rpc_xprt *xprt)
 {
-	return 0;
+	return;
 }
 
 static inline void

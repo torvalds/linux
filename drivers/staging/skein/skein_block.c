@@ -68,9 +68,7 @@ do {                                         \
 
 #if SKEIN_UNROLL_256 == 0
 #define R256(p0, p1, p2, p3, ROT, r_num) /* fully unrolled */ \
-do {                                                          \
-	ROUND256(p0, p1, p2, p3, ROT, r_num);                 \
-} while (0)
+	ROUND256(p0, p1, p2, p3, ROT, r_num)
 
 #define I256(R)                                                           \
 do {                                                                      \
@@ -152,9 +150,7 @@ do {                                                         \
 
 #if SKEIN_UNROLL_512 == 0
 #define R512(p0, p1, p2, p3, p4, p5, p6, p7, ROT, r_num) /* unrolled */ \
-do {                                                                    \
-	ROUND512(p0, p1, p2, p3, p4, p5, p6, p7, ROT, r_num);           \
-} while (0)
+	ROUND512(p0, p1, p2, p3, p4, p5, p6, p7, ROT, r_num)
 
 #define I512(R)                                                           \
 do {                                                                      \

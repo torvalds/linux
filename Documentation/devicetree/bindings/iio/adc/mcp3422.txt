@@ -1,0 +1,17 @@
+* Microchip mcp3422/3/4/6/7/8 chip family (ADC)
+
+Required properties:
+ - compatible: Should be
+	"microchip,mcp3422" or
+	"microchip,mcp3423" or
+	"microchip,mcp3424" or
+	"microchip,mcp3426" or
+	"microchip,mcp3427" or
+	"microchip,mcp3428"
+ - reg: I2C address for the device
+
+Example:
+adc@0 {
+	compatible = "microchip,mcp3424";
+	reg = <0x68>;
+};

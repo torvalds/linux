@@ -148,16 +148,19 @@ static void cros_ec_keyb_process(struct cros_ec_keyb *ckdev,
 
 static int cros_ec_keyb_get_state(struct cros_ec_keyb *ckdev, uint8_t *kb_state)
 {
+	int ret;
 	struct cros_ec_command msg = {
-		.version = 0,
 		.command = EC_CMD_MKBP_STATE,
-		.outdata = NULL,
-		.outsize = 0,
-		.indata = kb_state,
 		.insize = ckdev->cols,
 	};
 
-	return cros_ec_cmd_xfer(ckdev->ec, &msg);
+	ret = cros_ec_cmd_xfer(ckdev->ec, &msg);
+	if (ret < 0)
+		return ret;
+
+	memcpy(kb_state, msg.indata, ckdev->cols);
+
+	return 0;
 }
 
 static irqreturn_t cros_ec_keyb_irq(int irq, void *data)
@@ -338,7 +341,7 @@ static int cros_ec_keyb_resume(struct device *dev)
 	 * wake source (e.g. the lid is open and the user might press a key to
 	 * wake) then the key scan buffer should be preserved.
 	 */
-	if (ckdev->ec->was_wake_device)
+	if (!ckdev->ec->was_wake_device)
 		cros_ec_keyb_clear_keyboard(ckdev);
 
 	return 0;

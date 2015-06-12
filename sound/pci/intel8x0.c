@@ -1795,7 +1795,7 @@ static struct ac97_pcm ac97_pcm_defs[] = {
 	},
 };
 
-static struct ac97_quirk ac97_quirks[] = {
+static const struct ac97_quirk ac97_quirks[] = {
         {
 		.subvendor = 0x0e11,
 		.subdevice = 0x000e,
@@ -3101,13 +3101,13 @@ static int snd_intel8x0_create(struct snd_card *card,
 		chip->bmaddr = pci_iomap(pci, 3, 0);
 	else
 		chip->bmaddr = pci_iomap(pci, 1, 0);
+
+ port_inited:
 	if (!chip->bmaddr) {
 		dev_err(card->dev, "Controller space ioremap problem\n");
 		snd_intel8x0_free(chip);
 		return -EIO;
 	}
-
- port_inited:
 	chip->bdbars_count = bdbars[device_type];
 
 	/* initialize offsets */

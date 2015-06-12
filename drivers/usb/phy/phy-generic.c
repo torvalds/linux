@@ -62,14 +62,14 @@ static int nop_set_suspend(struct usb_phy *x, int suspend)
 	return 0;
 }
 
-static void nop_reset_set(struct usb_phy_generic *nop, int asserted)
+static void nop_reset(struct usb_phy_generic *nop)
 {
 	if (!nop->gpiod_reset)
 		return;
 
-	gpiod_direction_output(nop->gpiod_reset, !asserted);
+	gpiod_set_value(nop->gpiod_reset, 1);
 	usleep_range(10000, 20000);
-	gpiod_set_value(nop->gpiod_reset, asserted);
+	gpiod_set_value(nop->gpiod_reset, 0);
 }
 
 /* interface to regulator framework */
@@ -151,8 +151,7 @@ int usb_gen_phy_init(struct usb_phy *phy)
 	if (!IS_ERR(nop->clk))
 		clk_prepare_enable(nop->clk);
 
-	/* De-assert RESET */
-	nop_reset_set(nop, 0);
+	nop_reset(nop);
 
 	return 0;
 }
@@ -162,8 +161,7 @@ void usb_gen_phy_shutdown(struct usb_phy *phy)
 {
 	struct usb_phy_generic *nop = dev_get_drvdata(phy->dev);
 
-	/* Assert RESET */
-	nop_reset_set(nop, 1);
+	gpiod_set_value(nop->gpiod_reset, 1);
 
 	if (!IS_ERR(nop->clk))
 		clk_disable_unprepare(nop->clk);

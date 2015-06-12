@@ -13,12 +13,9 @@
 	.globl \name
 \name:
 	CFI_STARTPROC
-	pushl_cfi %eax
-	CFI_REL_OFFSET eax, 0
-	pushl_cfi %ecx
-	CFI_REL_OFFSET ecx, 0
-	pushl_cfi %edx
-	CFI_REL_OFFSET edx, 0
+	pushl_cfi_reg eax
+	pushl_cfi_reg ecx
+	pushl_cfi_reg edx
 
 	.if \put_ret_addr_in_eax
 	/* Place EIP in the arg1 */
@@ -26,12 +23,9 @@
 	.endif
 
 	call \func
-	popl_cfi %edx
-	CFI_RESTORE edx
-	popl_cfi %ecx
-	CFI_RESTORE ecx
-	popl_cfi %eax
-	CFI_RESTORE eax
+	popl_cfi_reg edx
+	popl_cfi_reg ecx
+	popl_cfi_reg eax
 	ret
 	CFI_ENDPROC
 	_ASM_NOKPROBE(\name)

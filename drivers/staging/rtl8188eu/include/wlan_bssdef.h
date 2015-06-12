@@ -156,16 +156,6 @@ enum ndis_802_11_reload_def {
 	Ndis802_11ReloadWEPKeys
 };
 
-/*  Key mapping keys require a BSSID */
-struct ndis_802_11_key {
-	u32           Length;             /*  Length of this structure */
-	u32           KeyIndex;
-	u32           KeyLength;          /*  length of key in bytes */
-	unsigned char BSSID[ETH_ALEN];
-	unsigned long long KeyRSC;
-	u8           KeyMaterial[32];  /* var len depending on above field */
-};
-
 struct ndis_802_11_remove_key {
 	u32                   Length;        /*  Length */
 	u32                   KeyIndex;

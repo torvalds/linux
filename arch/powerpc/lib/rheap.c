@@ -284,7 +284,7 @@ EXPORT_SYMBOL_GPL(rh_create);
  */
 void rh_destroy(rh_info_t * info)
 {
-	if ((info->flags & RHIF_STATIC_BLOCK) == 0 && info->block != NULL)
+	if ((info->flags & RHIF_STATIC_BLOCK) == 0)
 		kfree(info->block);
 
 	if ((info->flags & RHIF_STATIC_INFO) == 0)

@@ -181,8 +181,9 @@ struct at_lli {
  * @at_lli: hardware lli structure
  * @txd: support for the async_tx api
  * @desc_node: node on the channed descriptors list
- * @len: total transaction bytecount
+ * @len: descriptor byte count
  * @tx_width: transfer width
+ * @total_len: total transaction byte count
  */
 struct at_desc {
 	/* FIRST values the hardware uses */
@@ -194,6 +195,7 @@ struct at_desc {
 	struct list_head		desc_node;
 	size_t				len;
 	u32				tx_width;
+	size_t				total_len;
 };
 
 static inline struct at_desc *
@@ -213,7 +215,6 @@ txd_to_at_desc(struct dma_async_tx_descriptor *txd)
 enum atc_status {
 	ATC_IS_ERROR = 0,
 	ATC_IS_PAUSED = 1,
-	ATC_IS_BTC = 2,
 	ATC_IS_CYCLIC = 24,
 };
 
@@ -231,7 +232,6 @@ enum atc_status {
  * @save_cfg: configuration register that is saved on suspend/resume cycle
  * @save_dscr: for cyclic operations, preserve next descriptor address in
  *             the cyclic list on suspend/resume cycle
- * @remain_desc: to save remain desc length
  * @dma_sconfig: configuration for slave transfers, passed via
  * .device_config
  * @lock: serializes enqueue/dequeue operations to descriptors lists
@@ -251,7 +251,6 @@ struct at_dma_chan {
 	struct tasklet_struct	tasklet;
 	u32			save_cfg;
 	u32			save_dscr;
-	u32			remain_desc;
 	struct dma_slave_config dma_sconfig;
 
 	spinlock_t		lock;

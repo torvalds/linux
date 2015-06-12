@@ -16,10 +16,8 @@
  */
 
 #include <linux/module.h>
-#include <linux/jiffies.h>
 #include <linux/ctype.h>
 #include <linux/slab.h>
-#include <linux/buffer_head.h>
 #include <linux/namei.h>
 #include "fat.h"
 
@@ -35,7 +33,7 @@ static int vfat_revalidate_shortname(struct dentry *dentry)
 {
 	int ret = 1;
 	spin_lock(&dentry->d_lock);
-	if (dentry->d_time != dentry->d_parent->d_inode->i_version)
+	if (dentry->d_time != d_inode(dentry->d_parent)->i_version)
 		ret = 0;
 	spin_unlock(&dentry->d_lock);
 	return ret;
@@ -47,7 +45,7 @@ static int vfat_revalidate(struct dentry *dentry, unsigned int flags)
 		return -ECHILD;
 
 	/* This is not negative dentry. Always valid. */
-	if (dentry->d_inode)
+	if (d_really_is_positive(dentry))
 		return 1;
 	return vfat_revalidate_shortname(dentry);
 }
@@ -67,7 +65,7 @@ static int vfat_revalidate_ci(struct dentry *dentry, unsigned int flags)
 	 * positive dentry isn't good idea. So it's unsupported like
 	 * rename("filename", "FILENAME") for now.
 	 */
-	if (dentry->d_inode)
+	if (d_really_is_positive(dentry))
 		return 1;
 
 	/*
@@ -803,7 +801,7 @@ out:
 
 static int vfat_rmdir(struct inode *dir, struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct super_block *sb = dir->i_sb;
 	struct fat_slot_info sinfo;
 	int err;
@@ -834,7 +832,7 @@ out:
 
 static int vfat_unlink(struct inode *dir, struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct super_block *sb = dir->i_sb;
 	struct fat_slot_info sinfo;
 	int err;
@@ -917,8 +915,8 @@ static int vfat_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct super_block *sb = old_dir->i_sb;
 
 	old_sinfo.bh = sinfo.bh = dotdot_bh = NULL;
-	old_inode = old_dentry->d_inode;
-	new_inode = new_dentry->d_inode;
+	old_inode = d_inode(old_dentry);
+	new_inode = d_inode(new_dentry);
 	mutex_lock(&MSDOS_SB(sb)->s_lock);
 	err = vfat_find(old_dir, &old_dentry->d_name, &old_sinfo);
 	if (err)

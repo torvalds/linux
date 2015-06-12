@@ -362,7 +362,7 @@ static int bmips_cpu_disable(void)
 	pr_info("SMP: CPU%d is offline\n", cpu);
 
 	set_cpu_online(cpu, false);
-	cpu_clear(cpu, cpu_callin_map);
+	cpumask_clear_cpu(cpu, &cpu_callin_map);
 	clear_c0_status(IE_IRQ5);
 
 	local_flush_tlb_all();
@@ -444,7 +444,7 @@ struct plat_smp_ops bmips5000_smp_ops = {
 static void bmips_wr_vec(unsigned long dst, char *start, char *end)
 {
 	memcpy((void *)dst, start, end - start);
-	dma_cache_wback((unsigned long)start, end - start);
+	dma_cache_wback(dst, end - start);
 	local_flush_icache_range(dst, dst + (end - start));
 	instruction_hazard();
 }

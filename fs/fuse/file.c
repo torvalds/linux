@@ -15,8 +15,8 @@
 #include <linux/module.h>
 #include <linux/compat.h>
 #include <linux/swap.h>
-#include <linux/aio.h>
 #include <linux/falloc.h>
+#include <linux/uio.h>
 
 static const struct file_operations fuse_direct_io_file_operations;
 
@@ -528,6 +528,17 @@ static void fuse_release_user_pages(struct fuse_req *req, int write)
 	}
 }
 
+static ssize_t fuse_get_res_by_io(struct fuse_io_priv *io)
+{
+	if (io->err)
+		return io->err;
+
+	if (io->bytes >= 0 && io->write)
+		return -EIO;
+
+	return io->bytes < 0 ? io->size : io->bytes;
+}
+
 /**
  * In case of short read, the caller sets 'pos' to the position of
  * actual end of fuse request in IO request. Otherwise, if bytes_requested
@@ -546,6 +557,7 @@ static void fuse_release_user_pages(struct fuse_req *req, int write)
  */
 static void fuse_aio_complete(struct fuse_io_priv *io, int err, ssize_t pos)
 {
+	bool is_sync = is_sync_kiocb(io->iocb);
 	int left;
 
 	spin_lock(&io->lock);
@@ -555,30 +567,24 @@ static void fuse_aio_complete(struct fuse_io_priv *io, int err, ssize_t pos)
 		io->bytes = pos;
 
 	left = --io->reqs;
+	if (!left && is_sync)
+		complete(io->done);
 	spin_unlock(&io->lock);
 
-	if (!left) {
-		long res;
+	if (!left && !is_sync) {
+		ssize_t res = fuse_get_res_by_io(io);
 
-		if (io->err)
-			res = io->err;
-		else if (io->bytes >= 0 && io->write)
-			res = -EIO;
-		else {
-			res = io->bytes < 0 ? io->size : io->bytes;
+		if (res >= 0) {
+			struct inode *inode = file_inode(io->iocb->ki_filp);
+			struct fuse_conn *fc = get_fuse_conn(inode);
+			struct fuse_inode *fi = get_fuse_inode(inode);
 
-			if (!is_sync_kiocb(io->iocb)) {
-				struct inode *inode = file_inode(io->iocb->ki_filp);
-				struct fuse_conn *fc = get_fuse_conn(inode);
-				struct fuse_inode *fi = get_fuse_inode(inode);
-
-				spin_lock(&fc->lock);
-				fi->attr_version = ++fc->attr_version;
-				spin_unlock(&fc->lock);
-			}
+			spin_lock(&fc->lock);
+			fi->attr_version = ++fc->attr_version;
+			spin_unlock(&fc->lock);
 		}
 
-		aio_complete(io->iocb, res, 0);
+		io->iocb->ki_complete(io->iocb, res, 0);
 		kfree(io);
 	}
 }
@@ -1139,13 +1145,11 @@ static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
-	size_t count = iov_iter_count(from);
 	ssize_t written = 0;
 	ssize_t written_buffered = 0;
 	struct inode *inode = mapping->host;
 	ssize_t err;
 	loff_t endbyte = 0;
-	loff_t pos = iocb->ki_pos;
 
 	if (get_fuse_conn(inode)->writeback_cache) {
 		/* Update size (EOF optimization) and mode (SUID clearing) */
@@ -1161,14 +1165,10 @@ static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = inode_to_bdi(inode);
 
-	err = generic_write_checks(file, &pos, &count, S_ISBLK(inode->i_mode));
-	if (err)
+	err = generic_write_checks(iocb, from);
+	if (err <= 0)
 		goto out;
 
-	if (count == 0)
-		goto out;
-
-	iov_iter_truncate(from, count);
 	err = file_remove_suid(file);
 	if (err)
 		goto out;
@@ -1177,7 +1177,8 @@ static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (err)
 		goto out;
 
-	if (file->f_flags & O_DIRECT) {
+	if (iocb->ki_flags & IOCB_DIRECT) {
+		loff_t pos = iocb->ki_pos;
 		written = generic_file_direct_write(iocb, from, pos);
 		if (written < 0 || !iov_iter_count(from))
 			goto out;
@@ -1203,9 +1204,9 @@ static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		written += written_buffered;
 		iocb->ki_pos = pos + written_buffered;
 	} else {
-		written = fuse_perform_write(file, mapping, from, pos);
+		written = fuse_perform_write(file, mapping, from, iocb->ki_pos);
 		if (written >= 0)
-			iocb->ki_pos = pos + written;
+			iocb->ki_pos += written;
 	}
 out:
 	current->backing_dev_info = NULL;
@@ -1395,55 +1396,30 @@ static ssize_t __fuse_direct_read(struct fuse_io_priv *io,
 	return res;
 }
 
-static ssize_t fuse_direct_read(struct file *file, char __user *buf,
-				     size_t count, loff_t *ppos)
+static ssize_t fuse_direct_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
-	struct fuse_io_priv io = { .async = 0, .file = file };
-	struct iovec iov = { .iov_base = buf, .iov_len = count };
-	struct iov_iter ii;
-	iov_iter_init(&ii, READ, &iov, 1, count);
-	return __fuse_direct_read(&io, &ii, ppos);
+	struct fuse_io_priv io = { .async = 0, .file = iocb->ki_filp };
+	return __fuse_direct_read(&io, to, &iocb->ki_pos);
 }
 
-static ssize_t __fuse_direct_write(struct fuse_io_priv *io,
-				   struct iov_iter *iter,
-				   loff_t *ppos)
+static ssize_t fuse_direct_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
-	struct file *file = io->file;
+	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
-	size_t count = iov_iter_count(iter);
-	ssize_t res;
-
-
-	res = generic_write_checks(file, ppos, &count, 0);
-	if (!res) {
-		iov_iter_truncate(iter, count);
-		res = fuse_direct_io(io, iter, ppos, FUSE_DIO_WRITE);
-	}
-
-	fuse_invalidate_attr(inode);
-
-	return res;
-}
-
-static ssize_t fuse_direct_write(struct file *file, const char __user *buf,
-				 size_t count, loff_t *ppos)
-{
-	struct iovec iov = { .iov_base = (void __user *)buf, .iov_len = count };
-	struct inode *inode = file_inode(file);
-	ssize_t res;
 	struct fuse_io_priv io = { .async = 0, .file = file };
-	struct iov_iter ii;
-	iov_iter_init(&ii, WRITE, &iov, 1, count);
+	ssize_t res;
 
 	if (is_bad_inode(inode))
 		return -EIO;
 
 	/* Don't allow parallel writes to the same file */
 	mutex_lock(&inode->i_mutex);
-	res = __fuse_direct_write(&io, &ii, ppos);
+	res = generic_write_checks(iocb, from);
 	if (res > 0)
-		fuse_write_update_size(inode, *ppos);
+		res = fuse_direct_io(&io, from, &iocb->ki_pos, FUSE_DIO_WRITE);
+	fuse_invalidate_attr(inode);
+	if (res > 0)
+		fuse_write_update_size(inode, iocb->ki_pos);
 	mutex_unlock(&inode->i_mutex);
 
 	return res;
@@ -2798,9 +2774,9 @@ static inline loff_t fuse_round_up(loff_t off)
 }
 
 static ssize_t
-fuse_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
-			loff_t offset)
+fuse_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t offset)
 {
+	DECLARE_COMPLETION_ONSTACK(wait);
 	ssize_t ret = 0;
 	struct file *file = iocb->ki_filp;
 	struct fuse_file *ff = file->private_data;
@@ -2815,15 +2791,15 @@ fuse_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 	inode = file->f_mapping->host;
 	i_size = i_size_read(inode);
 
-	if ((rw == READ) && (offset > i_size))
+	if ((iov_iter_rw(iter) == READ) && (offset > i_size))
 		return 0;
 
 	/* optimization for short read */
-	if (async_dio && rw != WRITE && offset + count > i_size) {
+	if (async_dio && iov_iter_rw(iter) != WRITE && offset + count > i_size) {
 		if (offset >= i_size)
 			return 0;
-		count = min_t(loff_t, count, fuse_round_up(i_size - offset));
-		iov_iter_truncate(iter, count);
+		iov_iter_truncate(iter, fuse_round_up(i_size - offset));
+		count = iov_iter_count(iter);
 	}
 
 	io = kmalloc(sizeof(struct fuse_io_priv), GFP_KERNEL);
@@ -2834,7 +2810,7 @@ fuse_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 	io->bytes = -1;
 	io->size = 0;
 	io->offset = offset;
-	io->write = (rw == WRITE);
+	io->write = (iov_iter_rw(iter) == WRITE);
 	io->err = 0;
 	io->file = file;
 	/*
@@ -2849,13 +2825,19 @@ fuse_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 	 * to wait on real async I/O requests, so we must submit this request
 	 * synchronously.
 	 */
-	if (!is_sync_kiocb(iocb) && (offset + count > i_size) && rw == WRITE)
+	if (!is_sync_kiocb(iocb) && (offset + count > i_size) &&
+	    iov_iter_rw(iter) == WRITE)
 		io->async = false;
 
-	if (rw == WRITE)
-		ret = __fuse_direct_write(io, iter, &pos);
-	else
+	if (io->async && is_sync_kiocb(iocb))
+		io->done = &wait;
+
+	if (iov_iter_rw(iter) == WRITE) {
+		ret = fuse_direct_io(io, iter, &pos, FUSE_DIO_WRITE);
+		fuse_invalidate_attr(inode);
+	} else {
 		ret = __fuse_direct_read(io, iter, &pos);
+	}
 
 	if (io->async) {
 		fuse_aio_complete(io, ret < 0 ? ret : 0, -1);
@@ -2864,12 +2846,13 @@ fuse_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 		if (!is_sync_kiocb(iocb))
 			return -EIOCBQUEUED;
 
-		ret = wait_on_sync_kiocb(iocb);
-	} else {
-		kfree(io);
+		wait_for_completion(&wait);
+		ret = fuse_get_res_by_io(io);
 	}
 
-	if (rw == WRITE) {
+	kfree(io);
+
+	if (iov_iter_rw(iter) == WRITE) {
 		if (ret > 0)
 			fuse_write_update_size(inode, pos);
 		else if (ret < 0 && offset + count > i_size)
@@ -2957,9 +2940,7 @@ out:
 
 static const struct file_operations fuse_file_operations = {
 	.llseek		= fuse_file_llseek,
-	.read		= new_sync_read,
 	.read_iter	= fuse_file_read_iter,
-	.write		= new_sync_write,
 	.write_iter	= fuse_file_write_iter,
 	.mmap		= fuse_file_mmap,
 	.open		= fuse_open,
@@ -2977,8 +2958,8 @@ static const struct file_operations fuse_file_operations = {
 
 static const struct file_operations fuse_direct_io_file_operations = {
 	.llseek		= fuse_file_llseek,
-	.read		= fuse_direct_read,
-	.write		= fuse_direct_write,
+	.read_iter	= fuse_direct_read_iter,
+	.write_iter	= fuse_direct_write_iter,
 	.mmap		= fuse_direct_mmap,
 	.open		= fuse_open,
 	.flush		= fuse_flush,

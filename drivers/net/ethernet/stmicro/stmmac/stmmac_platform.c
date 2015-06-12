@@ -23,6 +23,7 @@
 *******************************************************************************/
 
 #include <linux/platform_device.h>
+#include <linux/module.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
@@ -180,6 +181,10 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 			devm_kzalloc(&pdev->dev,
 				     sizeof(struct stmmac_mdio_bus_data),
 				     GFP_KERNEL);
+
+	of_property_read_u32(np, "tx-fifo-depth", &plat->tx_fifo_size);
+
+	of_property_read_u32(np, "rx-fifo-depth", &plat->rx_fifo_size);
 
 	plat->force_sf_dma_mode =
 		of_property_read_bool(np, "snps,force_sf_dma_mode");

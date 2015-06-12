@@ -499,7 +499,8 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 		goto err_alloc;
 	}
 
-	ret = request_threaded_irq(irq, NULL, regmap_irq_thread, irq_flags,
+	ret = request_threaded_irq(irq, NULL, regmap_irq_thread,
+				   irq_flags | IRQF_ONESHOT,
 				   chip->name, d);
 	if (ret != 0) {
 		dev_err(map->dev, "Failed to request IRQ %d for %s: %d\n",

@@ -1509,7 +1509,7 @@ fotg210_hub_descriptor(
 	int		ports = HCS_N_PORTS(fotg210->hcs_params);
 	u16		temp;
 
-	desc->bDescriptorType = 0x29;
+	desc->bDescriptorType = USB_DT_HUB;
 	desc->bPwrOn2PwrGood = 10;	/* fotg210 1.0, 2.3.9 says 20ms max */
 	desc->bHubContrCurrent = 0;
 
@@ -1595,7 +1595,7 @@ static int fotg210_hub_control(
 			/* resume signaling for 20 msec */
 			fotg210_writel(fotg210, temp | PORT_RESUME, status_reg);
 			fotg210->reset_done[wIndex] = jiffies
-					+ msecs_to_jiffies(20);
+					+ msecs_to_jiffies(USB_RESUME_TIMEOUT);
 			break;
 		case USB_PORT_FEAT_C_SUSPEND:
 			clear_bit(wIndex, &fotg210->port_c_suspend);

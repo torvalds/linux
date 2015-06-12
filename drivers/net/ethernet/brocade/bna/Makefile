@@ -1,5 +1,6 @@
 #
-# Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
+# Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
+# Copyright (c) 2014-2015 QLogic Corporation.
 # All rights reserved.
 #
 

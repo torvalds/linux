@@ -105,7 +105,6 @@
 			clock-latency = <244144>; /* 8 32k periods */
 			operating-points = <
 				/* kHz    uV */
-				1008000 1450000
 				960000  1400000
 				912000  1400000
 				864000  1300000
@@ -116,7 +115,7 @@
 				>;
 			#cooling-cells = <2>;
 			cooling-min-level = <0>;
-			cooling-max-level = <7>;
+			cooling-max-level = <6>;
 		};
 
 		cpu@1 {

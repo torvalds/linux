@@ -271,10 +271,14 @@ extern const struct clksel_rate div_1_3_rates[];
 extern const struct clksel_rate div_1_4_rates[];
 extern const struct clksel_rate div31_1to31_rates[];
 
-extern void __iomem *clk_memmaps[];
-
 extern int omap2_clkops_enable_clkdm(struct clk_hw *hw);
 extern void omap2_clkops_disable_clkdm(struct clk_hw *hw);
+
+struct regmap;
+
+int __init omap2_clk_provider_init(struct device_node *np, int index,
+				   struct regmap *syscon, void __iomem *mem);
+void __init omap2_clk_legacy_provider_init(int index, void __iomem *mem);
 
 void __init ti_clk_init_features(void);
 #endif

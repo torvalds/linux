@@ -237,6 +237,9 @@
 	.pushsection ".alt.smp.init", "a"			;\
 	.long	9998b						;\
 9997:	instr							;\
+	.if . - 9997b == 2					;\
+		nop						;\
+	.endif							;\
 	.if . - 9997b != 4					;\
 		.error "ALT_UP() content must assemble to exactly 4 bytes";\
 	.endif							;\

@@ -57,9 +57,6 @@
 #define interpolate(x, x1, y1, x2, y2) \
 	((y1) + ((((y2) - (y1)) * ((x) - (x1))) / ((x2) - (x1))));
 
-#define to_ab8500_fg_device_info(x) container_of((x), \
-	struct ab8500_fg, fg_psy);
-
 /**
  * struct ab8500_fg_interrupts - ab8500 fg interupts
  * @name:	name of the interrupt
@@ -229,7 +226,7 @@ struct ab8500_fg {
 	struct ab8500 *parent;
 	struct ab8500_gpadc *gpadc;
 	struct abx500_bm_data *bm;
-	struct power_supply fg_psy;
+	struct power_supply *fg_psy;
 	struct workqueue_struct *fg_wq;
 	struct delayed_work fg_periodic_work;
 	struct delayed_work fg_low_bat_work;
@@ -622,14 +619,14 @@ int ab8500_fg_inst_curr_finalize(struct ab8500_fg *di, int *res)
 	u8 low, high;
 	int val;
 	int ret;
-	int timeout;
+	unsigned long timeout;
 
 	if (!completion_done(&di->ab8500_fg_complete)) {
 		timeout = wait_for_completion_timeout(
 			&di->ab8500_fg_complete,
 			INS_CURR_TIMEOUT);
 		dev_dbg(di->dev, "Finalize time: %d ms\n",
-			((INS_CURR_TIMEOUT - timeout) * 1000) / HZ);
+			jiffies_to_msecs(INS_CURR_TIMEOUT - timeout));
 		if (!timeout) {
 			ret = -ETIME;
 			disable_irq(di->irq);
@@ -716,7 +713,7 @@ fail:
 int ab8500_fg_inst_curr_blocking(struct ab8500_fg *di)
 {
 	int ret;
-	int timeout;
+	unsigned long timeout;
 	int res = 0;
 
 	ret = ab8500_fg_inst_curr_start(di);
@@ -731,7 +728,7 @@ int ab8500_fg_inst_curr_blocking(struct ab8500_fg *di)
 			&di->ab8500_fg_started,
 			INS_CURR_TIMEOUT);
 		dev_dbg(di->dev, "Start time: %d ms\n",
-			((INS_CURR_TIMEOUT - timeout) * 1000) / HZ);
+			jiffies_to_msecs(INS_CURR_TIMEOUT - timeout));
 		if (!timeout) {
 			ret = -ETIME;
 			dev_err(di->dev, "completion timed out [%d]\n",
@@ -1391,7 +1388,7 @@ static void ab8500_fg_check_capacity_limits(struct ab8500_fg *di, bool init)
 				di->bat_cap.prev_percent,
 				di->bat_cap.cap_scale.scaled_cap);
 		}
-		power_supply_changed(&di->fg_psy);
+		power_supply_changed(di->fg_psy);
 		if (di->flags.fully_charged && di->flags.force_full) {
 			dev_dbg(di->dev, "Battery full, notifying.\n");
 			di->flags.force_full = false;
@@ -1850,7 +1847,7 @@ static void ab8500_fg_check_hw_failure_work(struct work_struct *work)
 		if (!di->flags.bat_ovv) {
 			dev_dbg(di->dev, "Battery OVV\n");
 			di->flags.bat_ovv = true;
-			power_supply_changed(&di->fg_psy);
+			power_supply_changed(di->fg_psy);
 		}
 		/* Not yet recovered from ovv, reschedule this test */
 		queue_delayed_work(di->fg_wq, &di->fg_check_hw_failure_work,
@@ -1858,7 +1855,7 @@ static void ab8500_fg_check_hw_failure_work(struct work_struct *work)
 		} else {
 			dev_dbg(di->dev, "Battery recovered from OVV\n");
 			di->flags.bat_ovv = false;
-			power_supply_changed(&di->fg_psy);
+			power_supply_changed(di->fg_psy);
 	}
 }
 
@@ -2096,9 +2093,7 @@ static int ab8500_fg_get_property(struct power_supply *psy,
 	enum power_supply_property psp,
 	union power_supply_propval *val)
 {
-	struct ab8500_fg *di;
-
-	di = to_ab8500_fg_device_info(psy);
+	struct ab8500_fg *di = power_supply_get_drvdata(psy);
 
 	/*
 	 * If battery is identified as unknown and charging of unknown
@@ -2181,14 +2176,14 @@ static int ab8500_fg_get_ext_psy_data(struct device *dev, void *data)
 
 	psy = (struct power_supply *)data;
 	ext = dev_get_drvdata(dev);
-	di = to_ab8500_fg_device_info(psy);
+	di = power_supply_get_drvdata(psy);
 
 	/*
 	 * For all psy where the name of your driver
 	 * appears in any supplied_to
 	 */
 	for (i = 0; i < ext->num_supplicants; i++) {
-		if (!strcmp(ext->supplied_to[i], psy->name))
+		if (!strcmp(ext->supplied_to[i], psy->desc->name))
 			psy_found = true;
 	}
 
@@ -2196,16 +2191,16 @@ static int ab8500_fg_get_ext_psy_data(struct device *dev, void *data)
 		return 0;
 
 	/* Go through all properties for the psy */
-	for (j = 0; j < ext->num_properties; j++) {
+	for (j = 0; j < ext->desc->num_properties; j++) {
 		enum power_supply_property prop;
-		prop = ext->properties[j];
+		prop = ext->desc->properties[j];
 
-		if (ext->get_property(ext, prop, &ret))
+		if (power_supply_get_property(ext, prop, &ret))
 			continue;
 
 		switch (prop) {
 		case POWER_SUPPLY_PROP_STATUS:
-			switch (ext->type) {
+			switch (ext->desc->type) {
 			case POWER_SUPPLY_TYPE_BATTERY:
 				switch (ret.intval) {
 				case POWER_SUPPLY_STATUS_UNKNOWN:
@@ -2244,7 +2239,7 @@ static int ab8500_fg_get_ext_psy_data(struct device *dev, void *data)
 			};
 			break;
 		case POWER_SUPPLY_PROP_TECHNOLOGY:
-			switch (ext->type) {
+			switch (ext->desc->type) {
 			case POWER_SUPPLY_TYPE_BATTERY:
 				if (!di->flags.batt_id_received &&
 				    di->bm->batt_id != BATTERY_UNKNOWN) {
@@ -2274,7 +2269,7 @@ static int ab8500_fg_get_ext_psy_data(struct device *dev, void *data)
 			}
 			break;
 		case POWER_SUPPLY_PROP_TEMP:
-			switch (ext->type) {
+			switch (ext->desc->type) {
 			case POWER_SUPPLY_TYPE_BATTERY:
 				if (di->flags.batt_id_received)
 					di->bat_temp = ret.intval;
@@ -2399,10 +2394,10 @@ out:
  */
 static void ab8500_fg_external_power_changed(struct power_supply *psy)
 {
-	struct ab8500_fg *di = to_ab8500_fg_device_info(psy);
+	struct ab8500_fg *di = power_supply_get_drvdata(psy);
 
 	class_for_each_device(power_supply_class, NULL,
-		&di->fg_psy, ab8500_fg_get_ext_psy_data);
+		di->fg_psy, ab8500_fg_get_ext_psy_data);
 }
 
 /**
@@ -2580,9 +2575,7 @@ static ssize_t ab8505_powercut_flagtime_read(struct device *dev,
 	int ret;
 	u8 reg_value;
 	struct power_supply *psy = dev_get_drvdata(dev);
-	struct ab8500_fg *di;
-
-	di = to_ab8500_fg_device_info(psy);
+	struct ab8500_fg *di = power_supply_get_drvdata(psy);
 
 	ret = abx500_get_register_interruptible(di->dev, AB8500_RTC,
 		AB8505_RTC_PCUT_FLAG_TIME_REG, &reg_value);
@@ -2605,9 +2598,7 @@ static ssize_t ab8505_powercut_flagtime_write(struct device *dev,
 	int ret;
 	long unsigned reg_value;
 	struct power_supply *psy = dev_get_drvdata(dev);
-	struct ab8500_fg *di;
-
-	di = to_ab8500_fg_device_info(psy);
+	struct ab8500_fg *di = power_supply_get_drvdata(psy);
 
 	reg_value = simple_strtoul(buf, NULL, 10);
 
@@ -2633,9 +2624,7 @@ static ssize_t ab8505_powercut_maxtime_read(struct device *dev,
 	int ret;
 	u8 reg_value;
 	struct power_supply *psy = dev_get_drvdata(dev);
-	struct ab8500_fg *di;
-
-	di = to_ab8500_fg_device_info(psy);
+	struct ab8500_fg *di = power_supply_get_drvdata(psy);
 
 	ret = abx500_get_register_interruptible(di->dev, AB8500_RTC,
 		AB8505_RTC_PCUT_MAX_TIME_REG, &reg_value);
@@ -2659,9 +2648,7 @@ static ssize_t ab8505_powercut_maxtime_write(struct device *dev,
 	int ret;
 	int reg_value;
 	struct power_supply *psy = dev_get_drvdata(dev);
-	struct ab8500_fg *di;
-
-	di = to_ab8500_fg_device_info(psy);
+	struct ab8500_fg *di = power_supply_get_drvdata(psy);
 
 	reg_value = simple_strtoul(buf, NULL, 10);
 	if (reg_value > 0x7F) {
@@ -2686,9 +2673,7 @@ static ssize_t ab8505_powercut_restart_read(struct device *dev,
 	int ret;
 	u8 reg_value;
 	struct power_supply *psy = dev_get_drvdata(dev);
-	struct ab8500_fg *di;
-
-	di = to_ab8500_fg_device_info(psy);
+	struct ab8500_fg *di = power_supply_get_drvdata(psy);
 
 	ret = abx500_get_register_interruptible(di->dev, AB8500_RTC,
 		AB8505_RTC_PCUT_RESTART_REG, &reg_value);
@@ -2711,9 +2696,7 @@ static ssize_t ab8505_powercut_restart_write(struct device *dev,
 	int ret;
 	int reg_value;
 	struct power_supply *psy = dev_get_drvdata(dev);
-	struct ab8500_fg *di;
-
-	di = to_ab8500_fg_device_info(psy);
+	struct ab8500_fg *di = power_supply_get_drvdata(psy);
 
 	reg_value = simple_strtoul(buf, NULL, 10);
 	if (reg_value > 0xF) {
@@ -2739,9 +2722,7 @@ static ssize_t ab8505_powercut_timer_read(struct device *dev,
 	int ret;
 	u8 reg_value;
 	struct power_supply *psy = dev_get_drvdata(dev);
-	struct ab8500_fg *di;
-
-	di = to_ab8500_fg_device_info(psy);
+	struct ab8500_fg *di = power_supply_get_drvdata(psy);
 
 	ret = abx500_get_register_interruptible(di->dev, AB8500_RTC,
 						AB8505_RTC_PCUT_TIME_REG, &reg_value);
@@ -2764,9 +2745,7 @@ static ssize_t ab8505_powercut_restart_counter_read(struct device *dev,
 	int ret;
 	u8 reg_value;
 	struct power_supply *psy = dev_get_drvdata(dev);
-	struct ab8500_fg *di;
-
-	di = to_ab8500_fg_device_info(psy);
+	struct ab8500_fg *di = power_supply_get_drvdata(psy);
 
 	ret = abx500_get_register_interruptible(di->dev, AB8500_RTC,
 						AB8505_RTC_PCUT_RESTART_REG, &reg_value);
@@ -2789,9 +2768,7 @@ static ssize_t ab8505_powercut_read(struct device *dev,
 	int ret;
 	u8 reg_value;
 	struct power_supply *psy = dev_get_drvdata(dev);
-	struct ab8500_fg *di;
-
-	di = to_ab8500_fg_device_info(psy);
+	struct ab8500_fg *di = power_supply_get_drvdata(psy);
 
 	ret = abx500_get_register_interruptible(di->dev, AB8500_RTC,
 						AB8505_RTC_PCUT_CTL_STATUS_REG, &reg_value);
@@ -2812,9 +2789,7 @@ static ssize_t ab8505_powercut_write(struct device *dev,
 	int ret;
 	int reg_value;
 	struct power_supply *psy = dev_get_drvdata(dev);
-	struct ab8500_fg *di;
-
-	di = to_ab8500_fg_device_info(psy);
+	struct ab8500_fg *di = power_supply_get_drvdata(psy);
 
 	reg_value = simple_strtoul(buf, NULL, 10);
 	if (reg_value > 0x1) {
@@ -2840,9 +2815,7 @@ static ssize_t ab8505_powercut_flag_read(struct device *dev,
 	int ret;
 	u8 reg_value;
 	struct power_supply *psy = dev_get_drvdata(dev);
-	struct ab8500_fg *di;
-
-	di = to_ab8500_fg_device_info(psy);
+	struct ab8500_fg *di = power_supply_get_drvdata(psy);
 
 	ret = abx500_get_register_interruptible(di->dev, AB8500_RTC,
 						AB8505_RTC_PCUT_CTL_STATUS_REG,  &reg_value);
@@ -2865,9 +2838,7 @@ static ssize_t ab8505_powercut_debounce_read(struct device *dev,
 	int ret;
 	u8 reg_value;
 	struct power_supply *psy = dev_get_drvdata(dev);
-	struct ab8500_fg *di;
-
-	di = to_ab8500_fg_device_info(psy);
+	struct ab8500_fg *di = power_supply_get_drvdata(psy);
 
 	ret = abx500_get_register_interruptible(di->dev, AB8500_RTC,
 						AB8505_RTC_PCUT_DEBOUNCE_REG,  &reg_value);
@@ -2890,9 +2861,7 @@ static ssize_t ab8505_powercut_debounce_write(struct device *dev,
 	int ret;
 	int reg_value;
 	struct power_supply *psy = dev_get_drvdata(dev);
-	struct ab8500_fg *di;
-
-	di = to_ab8500_fg_device_info(psy);
+	struct ab8500_fg *di = power_supply_get_drvdata(psy);
 
 	reg_value = simple_strtoul(buf, NULL, 10);
 	if (reg_value > 0x7) {
@@ -2917,9 +2886,7 @@ static ssize_t ab8505_powercut_enable_status_read(struct device *dev,
 	int ret;
 	u8 reg_value;
 	struct power_supply *psy = dev_get_drvdata(dev);
-	struct ab8500_fg *di;
-
-	di = to_ab8500_fg_device_info(psy);
+	struct ab8500_fg *di = power_supply_get_drvdata(psy);
 
 	ret = abx500_get_register_interruptible(di->dev, AB8500_RTC,
 						AB8505_RTC_PCUT_CTL_STATUS_REG, &reg_value);
@@ -2954,44 +2921,38 @@ static struct device_attribute ab8505_fg_sysfs_psy_attrs[] = {
 		ab8505_powercut_enable_status_read, NULL),
 };
 
-static int ab8500_fg_sysfs_psy_create_attrs(struct device *dev)
+static int ab8500_fg_sysfs_psy_create_attrs(struct ab8500_fg *di)
 {
 	unsigned int i;
-	struct power_supply *psy = dev_get_drvdata(dev);
-	struct ab8500_fg *di;
-
-	di = to_ab8500_fg_device_info(psy);
 
 	if (((is_ab8505(di->parent) || is_ab9540(di->parent)) &&
-	     abx500_get_chip_id(dev->parent) >= AB8500_CUT2P0)
+	     abx500_get_chip_id(di->dev) >= AB8500_CUT2P0)
 	    || is_ab8540(di->parent)) {
 		for (i = 0; i < ARRAY_SIZE(ab8505_fg_sysfs_psy_attrs); i++)
-			if (device_create_file(dev,
+			if (device_create_file(&di->fg_psy->dev,
 					       &ab8505_fg_sysfs_psy_attrs[i]))
 				goto sysfs_psy_create_attrs_failed_ab8505;
 	}
 	return 0;
 sysfs_psy_create_attrs_failed_ab8505:
-	dev_err(dev, "Failed creating sysfs psy attrs for ab8505.\n");
+	dev_err(&di->fg_psy->dev, "Failed creating sysfs psy attrs for ab8505.\n");
 	while (i--)
-		device_remove_file(dev, &ab8505_fg_sysfs_psy_attrs[i]);
+		device_remove_file(&di->fg_psy->dev,
+				   &ab8505_fg_sysfs_psy_attrs[i]);
 
 	return -EIO;
 }
 
-static void ab8500_fg_sysfs_psy_remove_attrs(struct device *dev)
+static void ab8500_fg_sysfs_psy_remove_attrs(struct ab8500_fg *di)
 {
 	unsigned int i;
-	struct power_supply *psy = dev_get_drvdata(dev);
-	struct ab8500_fg *di;
-
-	di = to_ab8500_fg_device_info(psy);
 
 	if (((is_ab8505(di->parent) || is_ab9540(di->parent)) &&
-	     abx500_get_chip_id(dev->parent) >= AB8500_CUT2P0)
+	     abx500_get_chip_id(di->dev) >= AB8500_CUT2P0)
 	    || is_ab8540(di->parent)) {
 		for (i = 0; i < ARRAY_SIZE(ab8505_fg_sysfs_psy_attrs); i++)
-			(void)device_remove_file(dev, &ab8505_fg_sysfs_psy_attrs[i]);
+			(void)device_remove_file(&di->fg_psy->dev,
+						 &ab8505_fg_sysfs_psy_attrs[i]);
 	}
 }
 
@@ -3056,17 +3017,20 @@ static int ab8500_fg_remove(struct platform_device *pdev)
 	ab8500_fg_sysfs_exit(di);
 
 	flush_scheduled_work();
-	ab8500_fg_sysfs_psy_remove_attrs(di->fg_psy.dev);
-	power_supply_unregister(&di->fg_psy);
+	ab8500_fg_sysfs_psy_remove_attrs(di);
+	power_supply_unregister(di->fg_psy);
 	return ret;
 }
 
 /* ab8500 fg driver interrupts and their respective isr */
-static struct ab8500_fg_interrupts ab8500_fg_irq[] = {
+static struct ab8500_fg_interrupts ab8500_fg_irq_th[] = {
 	{"NCONV_ACCU", ab8500_fg_cc_convend_handler},
 	{"BATT_OVV", ab8500_fg_batt_ovv_handler},
 	{"LOW_BAT_F", ab8500_fg_lowbatf_handler},
 	{"CC_INT_CALIB", ab8500_fg_cc_int_calib_handler},
+};
+
+static struct ab8500_fg_interrupts ab8500_fg_irq_bh[] = {
 	{"CCEOC", ab8500_fg_cc_data_end_handler},
 };
 
@@ -3075,10 +3039,20 @@ static char *supply_interface[] = {
 	"ab8500_usb",
 };
 
+static const struct power_supply_desc ab8500_fg_desc = {
+	.name			= "ab8500_fg",
+	.type			= POWER_SUPPLY_TYPE_BATTERY,
+	.properties		= ab8500_fg_props,
+	.num_properties		= ARRAY_SIZE(ab8500_fg_props),
+	.get_property		= ab8500_fg_get_property,
+	.external_power_changed	= ab8500_fg_external_power_changed,
+};
+
 static int ab8500_fg_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct abx500_bm_data *plat = pdev->dev.platform_data;
+	struct power_supply_config psy_cfg = {};
 	struct ab8500_fg *di;
 	int i, irq;
 	int ret = 0;
@@ -3110,14 +3084,9 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	di->parent = dev_get_drvdata(pdev->dev.parent);
 	di->gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
 
-	di->fg_psy.name = "ab8500_fg";
-	di->fg_psy.type = POWER_SUPPLY_TYPE_BATTERY;
-	di->fg_psy.properties = ab8500_fg_props;
-	di->fg_psy.num_properties = ARRAY_SIZE(ab8500_fg_props);
-	di->fg_psy.get_property = ab8500_fg_get_property;
-	di->fg_psy.supplied_to = supply_interface;
-	di->fg_psy.num_supplicants = ARRAY_SIZE(supply_interface),
-	di->fg_psy.external_power_changed = ab8500_fg_external_power_changed;
+	psy_cfg.supplied_to = supply_interface;
+	psy_cfg.num_supplicants = ARRAY_SIZE(supply_interface);
+	psy_cfg.drv_data = di;
 
 	di->bat_cap.max_mah_design = MILLI_TO_MICRO *
 		di->bm->bat_type[di->bm->batt_id].charge_full_design;
@@ -3178,9 +3147,10 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	di->flags.batt_id_received = false;
 
 	/* Register FG power supply class */
-	ret = power_supply_register(di->dev, &di->fg_psy);
-	if (ret) {
+	di->fg_psy = power_supply_register(di->dev, &ab8500_fg_desc, &psy_cfg);
+	if (IS_ERR(di->fg_psy)) {
 		dev_err(di->dev, "failed to register FG psy\n");
+		ret = PTR_ERR(di->fg_psy);
 		goto free_inst_curr_wq;
 	}
 
@@ -3194,21 +3164,36 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	init_completion(&di->ab8500_fg_started);
 	init_completion(&di->ab8500_fg_complete);
 
-	/* Register interrupts */
-	for (i = 0; i < ARRAY_SIZE(ab8500_fg_irq); i++) {
-		irq = platform_get_irq_byname(pdev, ab8500_fg_irq[i].name);
-		ret = request_threaded_irq(irq, NULL, ab8500_fg_irq[i].isr,
-			IRQF_SHARED | IRQF_NO_SUSPEND,
-			ab8500_fg_irq[i].name, di);
+	/* Register primary interrupt handlers */
+	for (i = 0; i < ARRAY_SIZE(ab8500_fg_irq_th); i++) {
+		irq = platform_get_irq_byname(pdev, ab8500_fg_irq_th[i].name);
+		ret = request_irq(irq, ab8500_fg_irq_th[i].isr,
+				  IRQF_SHARED | IRQF_NO_SUSPEND,
+				  ab8500_fg_irq_th[i].name, di);
 
 		if (ret != 0) {
-			dev_err(di->dev, "failed to request %s IRQ %d: %d\n"
-				, ab8500_fg_irq[i].name, irq, ret);
+			dev_err(di->dev, "failed to request %s IRQ %d: %d\n",
+				ab8500_fg_irq_th[i].name, irq, ret);
 			goto free_irq;
 		}
 		dev_dbg(di->dev, "Requested %s IRQ %d: %d\n",
-			ab8500_fg_irq[i].name, irq, ret);
+			ab8500_fg_irq_th[i].name, irq, ret);
 	}
+
+	/* Register threaded interrupt handler */
+	irq = platform_get_irq_byname(pdev, ab8500_fg_irq_bh[0].name);
+	ret = request_threaded_irq(irq, NULL, ab8500_fg_irq_bh[0].isr,
+				IRQF_SHARED | IRQF_NO_SUSPEND | IRQF_ONESHOT,
+			ab8500_fg_irq_bh[0].name, di);
+
+	if (ret != 0) {
+		dev_err(di->dev, "failed to request %s IRQ %d: %d\n",
+			ab8500_fg_irq_bh[0].name, irq, ret);
+		goto free_irq;
+	}
+	dev_dbg(di->dev, "Requested %s IRQ %d: %d\n",
+		ab8500_fg_irq_bh[0].name, irq, ret);
+
 	di->irq = platform_get_irq_byname(pdev, "CCEOC");
 	disable_irq(di->irq);
 	di->nbr_cceoc_irq_cnt = 0;
@@ -3221,7 +3206,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 		goto free_irq;
 	}
 
-	ret = ab8500_fg_sysfs_psy_create_attrs(di->fg_psy.dev);
+	ret = ab8500_fg_sysfs_psy_create_attrs(di);
 	if (ret) {
 		dev_err(di->dev, "failed to create FG psy\n");
 		ab8500_fg_sysfs_exit(di);
@@ -3243,13 +3228,15 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	return ret;
 
 free_irq:
-	power_supply_unregister(&di->fg_psy);
+	power_supply_unregister(di->fg_psy);
 
-	/* We also have to free all successfully registered irqs */
-	for (i = i - 1; i >= 0; i--) {
-		irq = platform_get_irq_byname(pdev, ab8500_fg_irq[i].name);
+	/* We also have to free all registered irqs */
+	for (i = 0; i < ARRAY_SIZE(ab8500_fg_irq_th); i++) {
+		irq = platform_get_irq_byname(pdev, ab8500_fg_irq_th[i].name);
 		free_irq(irq, di);
 	}
+	irq = platform_get_irq_byname(pdev, ab8500_fg_irq_bh[0].name);
+	free_irq(irq, di);
 free_inst_curr_wq:
 	destroy_workqueue(di->fg_wq);
 	return ret;

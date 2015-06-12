@@ -217,6 +217,31 @@ static const struct pcr_ops n5_pcr_ops = {
 	.pcr_nmi_disable	= PCR_N4_PICNPT,
 };
 
+static u64 m7_pcr_read(unsigned long reg_num)
+{
+	unsigned long val;
+
+	(void) sun4v_m7_get_perfreg(reg_num, &val);
+
+	return val;
+}
+
+static void m7_pcr_write(unsigned long reg_num, u64 val)
+{
+	(void) sun4v_m7_set_perfreg(reg_num, val);
+}
+
+static const struct pcr_ops m7_pcr_ops = {
+	.read_pcr		= m7_pcr_read,
+	.write_pcr		= m7_pcr_write,
+	.read_pic		= n4_pic_read,
+	.write_pic		= n4_pic_write,
+	.nmi_picl_value		= n4_picl_value,
+	.pcr_nmi_enable		= (PCR_N4_PICNPT | PCR_N4_STRACE |
+				   PCR_N4_UTRACE | PCR_N4_TOE |
+				   (26 << PCR_N4_SL_SHIFT)),
+	.pcr_nmi_disable	= PCR_N4_PICNPT,
+};
 
 static unsigned long perf_hsvc_group;
 static unsigned long perf_hsvc_major;
@@ -246,6 +271,10 @@ static int __init register_perf_hsvc(void)
 
 		case SUN4V_CHIP_NIAGARA5:
 			perf_hsvc_group = HV_GRP_T5_CPU;
+			break;
+
+		case SUN4V_CHIP_SPARC_M7:
+			perf_hsvc_group = HV_GRP_M7_PERF;
 			break;
 
 		default:
@@ -291,6 +320,10 @@ static int __init setup_sun4v_pcr_ops(void)
 
 	case SUN4V_CHIP_NIAGARA5:
 		pcr_ops = &n5_pcr_ops;
+		break;
+
+	case SUN4V_CHIP_SPARC_M7:
+		pcr_ops = &m7_pcr_ops;
 		break;
 
 	default:

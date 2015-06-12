@@ -77,7 +77,7 @@ void sd_dif_config_host(struct scsi_disk *sdkp)
 
 		disk->integrity->flags |= BLK_INTEGRITY_DEVICE_CAPABLE;
 
-		if (!sdkp)
+		if (!sdkp->ATO)
 			return;
 
 		if (type == SD_DIF_TYPE3_PROTECTION)

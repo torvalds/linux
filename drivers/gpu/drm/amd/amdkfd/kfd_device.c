@@ -94,7 +94,8 @@ static const struct kfd_device_info *lookup_device_info(unsigned short did)
 	return NULL;
 }
 
-struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd, struct pci_dev *pdev)
+struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
+	struct pci_dev *pdev, const struct kfd2kgd_calls *f2g)
 {
 	struct kfd_dev *kfd;
 
@@ -112,6 +113,11 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd, struct pci_dev *pdev)
 	kfd->device_info = device_info;
 	kfd->pdev = pdev;
 	kfd->init_complete = false;
+	kfd->kfd2kgd = f2g;
+
+	mutex_init(&kfd->doorbell_mutex);
+	memset(&kfd->doorbell_available_index, 0,
+		sizeof(kfd->doorbell_available_index));
 
 	return kfd;
 }
@@ -200,8 +206,9 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	/* add another 512KB for all other allocations on gart (HPD, fences) */
 	size += 512 * 1024;
 
-	if (kfd2kgd->init_gtt_mem_allocation(kfd->kgd, size, &kfd->gtt_mem,
-			&kfd->gtt_start_gpu_addr, &kfd->gtt_start_cpu_ptr)) {
+	if (kfd->kfd2kgd->init_gtt_mem_allocation(
+			kfd->kgd, size, &kfd->gtt_mem,
+			&kfd->gtt_start_gpu_addr, &kfd->gtt_start_cpu_ptr)){
 		dev_err(kfd_device,
 			"Could not allocate %d bytes for device (%x:%x)\n",
 			size, kfd->pdev->vendor, kfd->pdev->device);
@@ -270,7 +277,7 @@ device_iommu_pasid_error:
 kfd_topology_add_device_error:
 	kfd_gtt_sa_fini(kfd);
 kfd_gtt_sa_init_error:
-	kfd2kgd->free_gtt_mem(kfd->kgd, kfd->gtt_mem);
+	kfd->kfd2kgd->free_gtt_mem(kfd->kgd, kfd->gtt_mem);
 	dev_err(kfd_device,
 		"device (%x:%x) NOT added due to errors\n",
 		kfd->pdev->vendor, kfd->pdev->device);
@@ -285,7 +292,7 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 		amd_iommu_free_device(kfd->pdev);
 		kfd_topology_remove_device(kfd);
 		kfd_gtt_sa_fini(kfd);
-		kfd2kgd->free_gtt_mem(kfd->kgd, kfd->gtt_mem);
+		kfd->kfd2kgd->free_gtt_mem(kfd->kgd, kfd->gtt_mem);
 	}
 
 	kfree(kfd);

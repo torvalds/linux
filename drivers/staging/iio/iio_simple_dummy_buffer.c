@@ -50,7 +50,7 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 	u16 *data;
 
 	data = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
-	if (data == NULL)
+	if (!data)
 		goto done;
 
 	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength)) {
@@ -122,7 +122,7 @@ int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev)
 
 	/* Allocate a buffer to use - here a kfifo */
 	buffer = iio_kfifo_allocate();
-	if (buffer == NULL) {
+	if (!buffer) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
@@ -161,7 +161,7 @@ int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev)
 						 "iio_simple_dummy_consumer%d",
 						 indio_dev->id);
 
-	if (indio_dev->pollfunc == NULL) {
+	if (!indio_dev->pollfunc) {
 		ret = -ENOMEM;
 		goto error_free_buffer;
 	}

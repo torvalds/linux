@@ -15,7 +15,6 @@
  * details.
  */
 
-#include "uniklog.h"
 #include "timskmod.h"
 
 #define MYDRVNAME "timskmodutils"

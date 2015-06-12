@@ -131,7 +131,8 @@ Short descriptions to the page flags:
 13. SWAPCACHE   page is mapped to swap space, ie. has an associated swap entry
 14. SWAPBACKED  page is backed by swap/RAM
 
-The page-types tool in this directory can be used to query the above flags.
+The page-types tool in the tools/vm directory can be used to query the
+above flags.
 
 Using pagemap to do something useful:
 

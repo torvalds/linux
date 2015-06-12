@@ -44,6 +44,7 @@ void kasan_poison_object_data(struct kmem_cache *cache, void *object);
 
 void kasan_kmalloc_large(const void *ptr, size_t size);
 void kasan_kfree_large(const void *ptr);
+void kasan_kfree(void *ptr);
 void kasan_kmalloc(struct kmem_cache *s, const void *object, size_t size);
 void kasan_krealloc(const void *object, size_t new_size);
 
@@ -71,6 +72,7 @@ static inline void kasan_poison_object_data(struct kmem_cache *cache,
 
 static inline void kasan_kmalloc_large(void *ptr, size_t size) {}
 static inline void kasan_kfree_large(const void *ptr) {}
+static inline void kasan_kfree(void *ptr) {}
 static inline void kasan_kmalloc(struct kmem_cache *s, const void *object,
 				size_t size) {}
 static inline void kasan_krealloc(const void *object, size_t new_size) {}

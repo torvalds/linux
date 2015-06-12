@@ -23,7 +23,7 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 {
 	if (!dev->dma_mask)
-		return 0;
+		return false;
 
 	return addr + size <= *dev->dma_mask;
 }

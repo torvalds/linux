@@ -91,7 +91,7 @@ absolute binary value. (10 bits per channel). Next nibble is checksum for
 first ten nibbles.
 
 Next nibbles 12 .. 21 represents four channels (not all channels can be
-directly controlled from TX). Binary representations ar the same as in first
+directly controlled from TX). Binary representations are the same as in first
 four channels. In nibbles 22 and 23 is a special magic number. Nibble 24 is
 checksum for nibbles 12..23.
 

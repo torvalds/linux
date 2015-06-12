@@ -165,7 +165,7 @@ static inline int ap_instructions_available(void)
  */
 static int ap_interrupts_available(void)
 {
-	return test_facility(2) && test_facility(65);
+	return test_facility(65);
 }
 
 /**
@@ -174,12 +174,10 @@ static int ap_interrupts_available(void)
  *
  * Returns 1 if AP configuration information is available.
  */
-#ifdef CONFIG_64BIT
 static int ap_configuration_available(void)
 {
-	return test_facility(2) && test_facility(12);
+	return test_facility(12);
 }
-#endif
 
 /**
  * ap_test_queue(): Test adjunct processor queue.
@@ -239,7 +237,6 @@ static inline struct ap_queue_status ap_reset_queue(ap_qid_t qid)
 	return reg1;
 }
 
-#ifdef CONFIG_64BIT
 /**
  * ap_queue_interruption_control(): Enable interruption for a specific AP.
  * @qid: The AP queue number
@@ -261,9 +258,7 @@ ap_queue_interruption_control(ap_qid_t qid, void *ind)
 		: "cc" );
 	return reg1_out;
 }
-#endif
 
-#ifdef CONFIG_64BIT
 static inline struct ap_queue_status
 __ap_query_functions(ap_qid_t qid, unsigned int *functions)
 {
@@ -282,9 +277,7 @@ __ap_query_functions(ap_qid_t qid, unsigned int *functions)
 	*functions = (unsigned int)(reg2 >> 32);
 	return reg1;
 }
-#endif
 
-#ifdef CONFIG_64BIT
 static inline int __ap_query_configuration(struct ap_config_info *config)
 {
 	register unsigned long reg0 asm ("0") = 0x04000000UL;
@@ -302,7 +295,6 @@ static inline int __ap_query_configuration(struct ap_config_info *config)
 
 	return reg1;
 }
-#endif
 
 /**
  * ap_query_functions(): Query supported functions.
@@ -317,7 +309,6 @@ static inline int __ap_query_configuration(struct ap_config_info *config)
  */
 static int ap_query_functions(ap_qid_t qid, unsigned int *functions)
 {
-#ifdef CONFIG_64BIT
 	struct ap_queue_status status;
 	int i;
 	status = __ap_query_functions(qid, functions);
@@ -348,9 +339,6 @@ static int ap_query_functions(ap_qid_t qid, unsigned int *functions)
 		}
 	}
 	return -EBUSY;
-#else
-	return -EINVAL;
-#endif
 }
 
 /**
@@ -364,7 +352,6 @@ static int ap_query_functions(ap_qid_t qid, unsigned int *functions)
  */
 static int ap_queue_enable_interruption(ap_qid_t qid, void *ind)
 {
-#ifdef CONFIG_64BIT
 	struct ap_queue_status status;
 	int t_depth, t_device_type, rc, i;
 
@@ -404,9 +391,6 @@ static int ap_queue_enable_interruption(ap_qid_t qid, void *ind)
 		}
 	}
 	return rc;
-#else
-	return -EINVAL;
-#endif
 }
 
 /**
@@ -1174,11 +1158,12 @@ static ssize_t poll_timeout_store(struct bus_type *bus, const char *buf,
 	poll_timeout = time;
 	hr_time = ktime_set(0, poll_timeout);
 
-	if (!hrtimer_is_queued(&ap_poll_timer) ||
-	    !hrtimer_forward(&ap_poll_timer, hrtimer_get_expires(&ap_poll_timer), hr_time)) {
-		hrtimer_set_expires(&ap_poll_timer, hr_time);
-		hrtimer_start_expires(&ap_poll_timer, HRTIMER_MODE_ABS);
-	}
+	spin_lock_bh(&ap_poll_timer_lock);
+	hrtimer_cancel(&ap_poll_timer);
+	hrtimer_set_expires(&ap_poll_timer, hr_time);
+	hrtimer_start_expires(&ap_poll_timer, HRTIMER_MODE_ABS);
+	spin_unlock_bh(&ap_poll_timer_lock);
+
 	return count;
 }
 
@@ -1238,7 +1223,6 @@ static struct bus_attribute *const ap_bus_attrs[] = {
  */
 static void ap_query_configuration(void)
 {
-#ifdef CONFIG_64BIT
 	if (ap_configuration_available()) {
 		if (!ap_configuration)
 			ap_configuration =
@@ -1248,9 +1232,6 @@ static void ap_query_configuration(void)
 			__ap_query_configuration(ap_configuration);
 	} else
 		ap_configuration = NULL;
-#else
-	ap_configuration = NULL;
-#endif
 }
 
 /**
@@ -1548,14 +1529,11 @@ static inline void __ap_schedule_poll_timer(void)
 	ktime_t hr_time;
 
 	spin_lock_bh(&ap_poll_timer_lock);
-	if (hrtimer_is_queued(&ap_poll_timer) || ap_suspend_flag)
-		goto out;
-	if (ktime_to_ns(hrtimer_expires_remaining(&ap_poll_timer)) <= 0) {
+	if (!hrtimer_is_queued(&ap_poll_timer) && !ap_suspend_flag) {
 		hr_time = ktime_set(0, poll_timeout);
 		hrtimer_forward_now(&ap_poll_timer, hr_time);
 		hrtimer_restart(&ap_poll_timer);
 	}
-out:
 	spin_unlock_bh(&ap_poll_timer_lock);
 }
 
@@ -1972,7 +1950,7 @@ static void ap_reset_domain(void)
 {
 	int i;
 
-	if (ap_domain_index != -1)
+	if ((ap_domain_index != -1) && (ap_test_config_domain(ap_domain_index)))
 		for (i = 0; i < AP_DEVICES; i++)
 			ap_reset_queue(AP_MKQID(i, ap_domain_index));
 }
@@ -2117,7 +2095,6 @@ void ap_module_exit(void)
 	hrtimer_cancel(&ap_poll_timer);
 	destroy_workqueue(ap_work_queue);
 	tasklet_kill(&ap_tasklet);
-	root_device_unregister(ap_root_device);
 	while ((dev = bus_find_device(&ap_bus_type, NULL, NULL,
 		    __ap_match_all)))
 	{
@@ -2126,6 +2103,7 @@ void ap_module_exit(void)
 	}
 	for (i = 0; ap_bus_attrs[i]; i++)
 		bus_remove_file(&ap_bus_type, ap_bus_attrs[i]);
+	root_device_unregister(ap_root_device);
 	bus_unregister(&ap_bus_type);
 	unregister_reset_call(&ap_reset_call);
 	if (ap_using_interrupts())

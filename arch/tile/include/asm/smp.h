@@ -69,6 +69,7 @@ static inline int xy_to_cpu(int x, int y)
 #define MSG_TAG_STOP_CPU		2
 #define MSG_TAG_CALL_FUNCTION_MANY	3
 #define MSG_TAG_CALL_FUNCTION_SINGLE	4
+#define MSG_TAG_IRQ_WORK		5
 
 /* Hook for the generic smp_call_function_many() routine. */
 static inline void arch_send_call_function_ipi_mask(struct cpumask *mask)

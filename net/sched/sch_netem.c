@@ -560,8 +560,8 @@ static struct sk_buff *netem_dequeue(struct Qdisc *sch)
 tfifo_dequeue:
 	skb = __skb_dequeue(&sch->q);
 	if (skb) {
-deliver:
 		qdisc_qstats_backlog_dec(sch, skb);
+deliver:
 		qdisc_unthrottled(sch);
 		qdisc_bstats_update(sch, skb);
 		return skb;
@@ -578,6 +578,7 @@ deliver:
 			rb_erase(p, &q->t_root);
 
 			sch->q.qlen--;
+			qdisc_qstats_backlog_dec(sch, skb);
 			skb->next = NULL;
 			skb->prev = NULL;
 			skb->tstamp = netem_skb_cb(skb)->tstamp_save;

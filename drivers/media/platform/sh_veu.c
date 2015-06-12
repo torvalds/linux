@@ -1158,6 +1158,7 @@ static int sh_veu_probe(struct platform_device *pdev)
 	}
 
 	*vdev = sh_veu_videodev;
+	vdev->v4l2_dev = &veu->v4l2_dev;
 	spin_lock_init(&veu->lock);
 	mutex_init(&veu->fop_lock);
 	vdev->lock = &veu->fop_lock;

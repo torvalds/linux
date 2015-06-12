@@ -84,7 +84,6 @@
 #include <linux/seq_file.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 
 #include <linux/firmware.h>
 #include <linux/types.h>
@@ -99,8 +98,7 @@
 #include "slic.h"
 
 static uint slic_first_init = 1;
-static char *slic_banner = "Alacritech SLIC Technology(tm) Server "
-		"and Storage Accelerator (Non-Accelerated)";
+static char *slic_banner = "Alacritech SLIC Technology(tm) Server and Storage Accelerator (Non-Accelerated)";
 
 static char *slic_proc_version = "2.0.351  2006/07/14 12:26:00";
 
@@ -166,7 +164,7 @@ static void slic_mcast_set_bit(struct adapter *adapter, char *address)
 	/* Get the CRC polynomial for the mac address */
 	/* we use bits 1-8 (lsb), bitwise reversed,
 	 * msb (= lsb bit 0 before bitrev) is automatically discarded */
-	crcpoly = (ether_crc(ETH_ALEN, address)>>23);
+	crcpoly = ether_crc(ETH_ALEN, address)>>23;
 
 	/* We only have space on the SLIC for 64 entries.  Lop
 	 * off the top two bits. (2^6 = 64)
@@ -1852,7 +1850,7 @@ static void slic_xmit_build_request(struct adapter *adapter,
 
 	ihcmd = &hcmd->cmd64;
 
-	ihcmd->flags = (adapter->port << IHFLG_IFSHFT);
+	ihcmd->flags = adapter->port << IHFLG_IFSHFT;
 	ihcmd->command = IHCMD_XMT_REQ;
 	ihcmd->u.slic_buffers.totlen = skb->len;
 	phys_addr = pci_map_single(adapter->pcidev, skb->data, skb->len,
@@ -1864,8 +1862,8 @@ static void slic_xmit_build_request(struct adapter *adapter,
 	hcmd->cmdsize = (u32) ((((u64)&ihcmd->u.slic_buffers.bufs[1] -
 				     (u64) hcmd) + 31) >> 5);
 #else
-	hcmd->cmdsize = ((((u32) &ihcmd->u.slic_buffers.bufs[1] -
-			   (u32) hcmd) + 31) >> 5);
+	hcmd->cmdsize = (((u32)&ihcmd->u.slic_buffers.bufs[1] -
+				       (u32)hcmd) + 31) >> 5;
 #endif
 }
 
@@ -2315,9 +2313,8 @@ static int slic_if_init(struct adapter *adapter)
 	}
 	rc = slic_adapter_allocresources(adapter);
 	if (rc) {
-		dev_err(&dev->dev,
-			"%s: slic_adapter_allocresources FAILED %x\n",
-			__func__, rc);
+		dev_err(&dev->dev, "slic_adapter_allocresources FAILED %x\n",
+			rc);
 		slic_adapter_freeresources(adapter);
 		goto err;
 	}
@@ -2362,22 +2359,19 @@ static int slic_if_init(struct adapter *adapter)
 
 	adapter->state = ADAPT_UP;
 	if (!card->loadtimerset) {
-		init_timer(&card->loadtimer);
+		setup_timer(&card->loadtimer, &slic_timer_load_check,
+			    (ulong)card);
 		card->loadtimer.expires =
 		    jiffies + (SLIC_LOADTIMER_PERIOD * HZ);
-		card->loadtimer.data = (ulong) card;
-		card->loadtimer.function = &slic_timer_load_check;
 		add_timer(&card->loadtimer);
 
 		card->loadtimerset = 1;
 	}
 
 	if (!adapter->pingtimerset) {
-		init_timer(&adapter->pingtimer);
+		setup_timer(&adapter->pingtimer, &slic_timer_ping, (ulong)dev);
 		adapter->pingtimer.expires =
 		    jiffies + (PING_TIMER_INTERVAL * HZ);
-		adapter->pingtimer.data = (ulong) dev;
-		adapter->pingtimer.function = &slic_timer_ping;
 		add_timer(&adapter->pingtimer);
 		adapter->pingtimerset = 1;
 		adapter->card->pingstatus = ISR_PINGMASK;
@@ -2554,46 +2548,11 @@ static int slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		if (copy_from_user(data, rq->ifr_data, 28))
 			return -EFAULT;
 		intagg = data[0];
-		dev_err(&dev->dev, "%s: set interrupt aggregation to %d\n",
-			__func__, intagg);
+		dev_err(&dev->dev, "set interrupt aggregation to %d\n",
+			intagg);
 		slic_intagg_set(adapter, intagg);
 		return 0;
 
-#ifdef SLIC_TRACE_DUMP_ENABLED
-	case SIOCSLICTRACEDUMP:
-		{
-			u32 value;
-
-			DBG_IOCTL("slic_ioctl  SIOCSLIC_TRACE_DUMP\n");
-
-			if (copy_from_user(data, rq->ifr_data, 28)) {
-				PRINT_ERROR
-				    ("slic: copy_from_user FAILED getting initial simba param\n");
-				return -EFAULT;
-			}
-
-			value = data[0];
-			if (tracemon_request == SLIC_DUMP_DONE) {
-				PRINT_ERROR
-				    ("ATK Diagnostic Trace Dump Requested\n");
-				tracemon_request = SLIC_DUMP_REQUESTED;
-				tracemon_request_type = value;
-				tracemon_timestamp = jiffies;
-			} else if ((tracemon_request == SLIC_DUMP_REQUESTED) ||
-				   (tracemon_request ==
-				    SLIC_DUMP_IN_PROGRESS)) {
-				PRINT_ERROR
-				    ("ATK Diagnostic Trace Dump Requested but already in progress... ignore\n");
-			} else {
-				PRINT_ERROR
-				    ("ATK Diagnostic Trace Dump Requested\n");
-				tracemon_request = SLIC_DUMP_REQUESTED;
-				tracemon_request_type = value;
-				tracemon_timestamp = jiffies;
-			}
-			return 0;
-		}
-#endif
 	case SIOCETHTOOL:
 		if (copy_from_user(&ecmd, rq->ifr_data, sizeof(ecmd)))
 			return -EFAULT;

@@ -136,7 +136,7 @@ static int ft1000_probe(struct usb_interface *interface,
 
 	ret = request_firmware(&dsp_fw, "ft3000.img", &dev->dev);
 	if (ret < 0) {
-		pr_err("Error request_firmware()\n");
+		dev_err(interface->usb_dev, "Error request_firmware()\n");
 		goto err_fw;
 	}
 
@@ -164,7 +164,8 @@ static int ft1000_probe(struct usb_interface *interface,
 	pr_debug("pft1000info=%p\n", pft1000info);
 	ret = dsp_reload(ft1000dev);
 	if (ret) {
-		pr_err("Problem with DSP image loading\n");
+		dev_err(interface->usb_dev,
+			"Problem with DSP image loading\n");
 		goto err_load;
 	}
 

@@ -194,7 +194,6 @@ static const struct comedi_lrange range_dt2811_pgl_ai_5_bipolar = {
 #define DT2811_ADMODE   0x03
 
 struct dt2811_board {
-
 	const char *name;
 	const struct comedi_lrange *bip_5;
 	const struct comedi_lrange *bip_2_5;

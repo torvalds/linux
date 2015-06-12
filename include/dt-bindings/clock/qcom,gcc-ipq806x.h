@@ -288,5 +288,6 @@
 #define UBI32_CORE2_CLK_SRC			278
 #define UBI32_CORE1_CLK				279
 #define UBI32_CORE2_CLK				280
+#define EBI2_AON_CLK				281
 
 #endif

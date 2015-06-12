@@ -37,11 +37,10 @@ Commands are not supported.
 */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #define AO_VALUE_OFFSET			0x00
 #define	AO_CHAN_OFFSET			0x0c
@@ -146,7 +145,7 @@ static int ni_670x_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-/* ripped from mite.h and mite_setup2() to avoid mite dependancy */
+/* ripped from mite.h and mite_setup2() to avoid mite dependency */
 #define MITE_IODWBSR	0xc0	 /* IO Device Window Base Size Register */
 #define WENAB		(1 << 7) /* window enable */
 

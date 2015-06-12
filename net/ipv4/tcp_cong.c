@@ -83,7 +83,7 @@ int tcp_register_congestion_control(struct tcp_congestion_ops *ca)
 		ret = -EEXIST;
 	} else {
 		list_add_tail_rcu(&ca->list, &tcp_cong_list);
-		pr_info("%s registered\n", ca->name);
+		pr_debug("%s registered\n", ca->name);
 	}
 	spin_unlock(&tcp_cong_list_lock);
 
@@ -187,6 +187,7 @@ static void tcp_reinit_congestion_control(struct sock *sk,
 
 	tcp_cleanup_congestion_control(sk);
 	icsk->icsk_ca_ops = ca;
+	icsk->icsk_ca_setsockopt = 1;
 
 	if (sk->sk_state != TCP_CLOSE && icsk->icsk_ca_ops->init)
 		icsk->icsk_ca_ops->init(sk);
@@ -335,8 +336,10 @@ int tcp_set_congestion_control(struct sock *sk, const char *name)
 	rcu_read_lock();
 	ca = __tcp_ca_find_autoload(name);
 	/* No change asking for existing value */
-	if (ca == icsk->icsk_ca_ops)
+	if (ca == icsk->icsk_ca_ops) {
+		icsk->icsk_ca_setsockopt = 1;
 		goto out;
+	}
 	if (!ca)
 		err = -ENOENT;
 	else if (!((ca->flags & TCP_CONG_NON_RESTRICTED) ||
@@ -378,6 +381,12 @@ EXPORT_SYMBOL_GPL(tcp_slow_start);
  */
 void tcp_cong_avoid_ai(struct tcp_sock *tp, u32 w, u32 acked)
 {
+	/* If credits accumulated at a higher w, apply them gently now. */
+	if (tp->snd_cwnd_cnt >= w) {
+		tp->snd_cwnd_cnt = 0;
+		tp->snd_cwnd++;
+	}
+
 	tp->snd_cwnd_cnt += acked;
 	if (tp->snd_cwnd_cnt >= w) {
 		u32 delta = tp->snd_cwnd_cnt / w;

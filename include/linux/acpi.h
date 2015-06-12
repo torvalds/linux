@@ -53,9 +53,15 @@ static inline acpi_handle acpi_device_handle(struct acpi_device *adev)
 	return adev ? adev->handle : NULL;
 }
 
-#define ACPI_COMPANION(dev)		((dev)->acpi_node.companion)
-#define ACPI_COMPANION_SET(dev, adev)	ACPI_COMPANION(dev) = (adev)
+#define ACPI_COMPANION(dev)		acpi_node((dev)->fwnode)
+#define ACPI_COMPANION_SET(dev, adev)	set_primary_fwnode(dev, (adev) ? \
+	acpi_fwnode_handle(adev) : NULL)
 #define ACPI_HANDLE(dev)		acpi_device_handle(ACPI_COMPANION(dev))
+
+static inline bool has_acpi_companion(struct device *dev)
+{
+	return is_acpi_node(dev->fwnode);
+}
 
 static inline void acpi_preset_companion(struct device *dev,
 					 struct acpi_device *parent, u64 addr)
@@ -73,6 +79,7 @@ enum acpi_irq_model_id {
 	ACPI_IRQ_MODEL_IOAPIC,
 	ACPI_IRQ_MODEL_IOSAPIC,
 	ACPI_IRQ_MODEL_PLATFORM,
+	ACPI_IRQ_MODEL_GIC,
 	ACPI_IRQ_MODEL_COUNT
 };
 
@@ -146,9 +153,14 @@ void acpi_numa_x2apic_affinity_init(struct acpi_srat_x2apic_cpu_affinity *pa);
 int acpi_numa_memory_affinity_init (struct acpi_srat_mem_affinity *ma);
 void acpi_numa_arch_fixup(void);
 
+#ifndef PHYS_CPUID_INVALID
+typedef u32 phys_cpuid_t;
+#define PHYS_CPUID_INVALID (phys_cpuid_t)(-1)
+#endif
+
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
 /* Arch dependent functions for cpu hotplug support */
-int acpi_map_cpu(acpi_handle handle, int physid, int *pcpu);
+int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, int *pcpu);
 int acpi_unmap_cpu(int cpu);
 #endif /* CONFIG_ACPI_HOTPLUG_CPU */
 
@@ -469,6 +481,11 @@ static inline struct acpi_device *acpi_node(struct fwnode_handle *fwnode)
 static inline struct fwnode_handle *acpi_fwnode_handle(struct acpi_device *adev)
 {
 	return NULL;
+}
+
+static inline bool has_acpi_companion(struct device *dev)
+{
+	return false;
 }
 
 static inline const char *acpi_dev_name(struct acpi_device *adev)

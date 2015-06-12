@@ -1423,7 +1423,7 @@ static void mvpp2_prs_mac_promisc_set(struct mvpp2 *priv, int port, bool add)
 {
 	struct mvpp2_prs_entry pe;
 
-	/* Promiscous mode - Accept unknown packets */
+	/* Promiscuous mode - Accept unknown packets */
 
 	if (priv->prs_shadow[MVPP2_PE_MAC_PROMISCUOUS].valid) {
 		/* Entry exist - update port only */
@@ -3402,7 +3402,7 @@ static void mvpp2_bm_bufs_free(struct mvpp2 *priv, struct mvpp2_bm_pool *bm_pool
 	for (i = 0; i < bm_pool->buf_num; i++) {
 		u32 vaddr;
 
-		/* Get buffer virtual adress (indirect access) */
+		/* Get buffer virtual address (indirect access) */
 		mvpp2_read(priv, MVPP2_BM_PHY_ALLOC_REG(bm_pool->id));
 		vaddr = mvpp2_read(priv, MVPP2_BM_VIRT_ALLOC_REG);
 		if (!vaddr)

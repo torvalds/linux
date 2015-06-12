@@ -190,7 +190,7 @@ struct usb_ep {
  * @ep:the endpoint being configured
  * @maxpacket_limit:value of maximum packet size limit
  *
- * This function shoud be used only in UDC drivers to initialize endpoint
+ * This function should be used only in UDC drivers to initialize endpoint
  * (usually in probe function).
  */
 static inline void usb_ep_set_maxpacket_limit(struct usb_ep *ep,
@@ -474,6 +474,7 @@ struct usb_dcd_config_params {
 
 struct usb_gadget;
 struct usb_gadget_driver;
+struct usb_udc;
 
 /* the rest of the api to the controller hardware: device operations,
  * which don't involve endpoints (or i/o).
@@ -496,6 +497,7 @@ struct usb_gadget_ops {
 /**
  * struct usb_gadget - represents a usb slave device
  * @work: (internal use) Workqueue to be used for sysfs_notify()
+ * @udc: struct usb_udc pointer for this gadget
  * @ops: Function pointers used to access hardware-specific operations.
  * @ep0: Endpoint zero, used when reading or writing responses to
  *	driver setup() requests
@@ -545,6 +547,7 @@ struct usb_gadget_ops {
  */
 struct usb_gadget {
 	struct work_struct		work;
+	struct usb_udc			*udc;
 	/* readonly to gadget driver */
 	const struct usb_gadget_ops	*ops;
 	struct usb_ep			*ep0;
@@ -1029,6 +1032,10 @@ extern void usb_gadget_udc_reset(struct usb_gadget *gadget,
 extern void usb_gadget_giveback_request(struct usb_ep *ep,
 		struct usb_request *req);
 
+/*-------------------------------------------------------------------------*/
+
+/* utility to update vbus status for udc core, it may be scheduled */
+extern void usb_udc_vbus_handler(struct usb_gadget *gadget, bool status);
 
 /*-------------------------------------------------------------------------*/
 

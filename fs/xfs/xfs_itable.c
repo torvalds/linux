@@ -229,7 +229,7 @@ xfs_bulkstat_grab_ichunk(
 	error = xfs_inobt_get_rec(cur, irec, &stat);
 	if (error)
 		return error;
-	XFS_WANT_CORRUPTED_RETURN(stat == 1);
+	XFS_WANT_CORRUPTED_RETURN(cur->bc_mp, stat == 1);
 
 	/* Check if the record contains the inode in request */
 	if (irec->ir_startino + XFS_INODES_PER_CHUNK <= agino) {

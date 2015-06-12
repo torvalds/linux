@@ -869,13 +869,20 @@ nouveau_display_dumb_create(struct drm_file *file_priv, struct drm_device *dev,
 			    struct drm_mode_create_dumb *args)
 {
 	struct nouveau_bo *bo;
+	uint32_t domain;
 	int ret;
 
 	args->pitch = roundup(args->width * (args->bpp / 8), 256);
 	args->size = args->pitch * args->height;
 	args->size = roundup(args->size, PAGE_SIZE);
 
-	ret = nouveau_gem_new(dev, args->size, 0, NOUVEAU_GEM_DOMAIN_VRAM, 0, 0, &bo);
+	/* Use VRAM if there is any ; otherwise fallback to system memory */
+	if (nouveau_drm(dev)->device.info.ram_size != 0)
+		domain = NOUVEAU_GEM_DOMAIN_VRAM;
+	else
+		domain = NOUVEAU_GEM_DOMAIN_GART;
+
+	ret = nouveau_gem_new(dev, args->size, 0, domain, 0, 0, &bo);
 	if (ret)
 		return ret;
 

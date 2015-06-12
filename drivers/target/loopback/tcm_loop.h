@@ -43,6 +43,7 @@ struct tcm_loop_nacl {
 struct tcm_loop_tpg {
 	unsigned short tl_tpgt;
 	unsigned short tl_transport_status;
+	enum target_prot_type tl_fabric_prot_type;
 	atomic_t tl_tpg_port_count;
 	struct se_portal_group tl_se_tpg;
 	struct tcm_loop_hba *tl_hba;

@@ -41,6 +41,7 @@ void __spin_yield(arch_spinlock_t *lock)
 	plpar_hcall_norets(H_CONFER,
 		get_hard_smp_processor_id(holder_cpu), yield_count);
 }
+EXPORT_SYMBOL_GPL(__spin_yield);
 
 /*
  * Waiting for a read lock or a write lock on a rwlock...

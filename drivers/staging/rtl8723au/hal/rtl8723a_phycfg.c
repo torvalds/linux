@@ -121,18 +121,15 @@ PHY_SetBBReg(struct rtw_adapter *Adapter, u32 RegAddr, u32 BitMask, u32	Data)
 {
 	u32 OriginalValue, BitShift;
 
-	/* RT_TRACE(COMP_RF, DBG_TRACE, ("--->PHY_SetBBReg(): RegAddr(%#lx), BitMask(%#lx), Data(%#lx)\n", RegAddr, BitMask, Data)); */
-
 	if (BitMask != bMaskDWord) {/* if not "double word" write */
 		OriginalValue = rtl8723au_read32(Adapter, RegAddr);
 		BitShift = phy_CalculateBitShift(BitMask);
-		Data = ((OriginalValue & (~BitMask)) | (Data << BitShift));
+		Data = (OriginalValue & (~BitMask)) | (Data << BitShift);
 	}
 
 	rtl8723au_write32(Adapter, RegAddr, Data);
 
 	/* RTPRINT(FPHY, PHY_BBW, ("BBW MASK = 0x%lx Addr[0x%lx]= 0x%lx\n", BitMask, RegAddr, Data)); */
-	/* RT_TRACE(COMP_RF, DBG_TRACE, ("<---PHY_SetBBReg(): RegAddr(%#lx), BitMask(%#lx), Data(%#lx)\n", RegAddr, BitMask, Data)); */
 }
 
 /*  */
@@ -190,25 +187,24 @@ phy_RFSerialRead(struct rtw_adapter *Adapter, enum RF_RADIO_PATH eRFPath,
 	/*  For 92S LSSI Read RFLSSIRead */
 	/*  For RF A/B write 0x824/82c(does not work in the future) */
 	/*  We must use 0x824 for RF A and B to execute read trigger */
-	tmplong = PHY_QueryBBReg(Adapter, rFPGA0_XA_HSSIParameter2, bMaskDWord);
+	tmplong = rtl8723au_read32(Adapter, rFPGA0_XA_HSSIParameter2);
 	if (eRFPath == RF_PATH_A)
 		tmplong2 = tmplong;
 	else
-		tmplong2 = PHY_QueryBBReg(Adapter, pPhyReg->rfHSSIPara2,
-					  bMaskDWord);
+		tmplong2 = rtl8723au_read32(Adapter, pPhyReg->rfHSSIPara2);
 
 	tmplong2 = (tmplong2 & ~bLSSIReadAddress) |
 		(NewOffset << 23) | bLSSIReadEdge;	/* T65 RF */
 
-	PHY_SetBBReg(Adapter, rFPGA0_XA_HSSIParameter2,
-		     bMaskDWord, tmplong & (~bLSSIReadEdge));
+	rtl8723au_write32(Adapter, rFPGA0_XA_HSSIParameter2,
+			  tmplong & (~bLSSIReadEdge));
 	udelay(10);/*  PlatformStallExecution(10); */
 
-	PHY_SetBBReg(Adapter, pPhyReg->rfHSSIPara2, bMaskDWord, tmplong2);
+	rtl8723au_write32(Adapter, pPhyReg->rfHSSIPara2, tmplong2);
 	udelay(100);/* PlatformStallExecution(100); */
 
-	PHY_SetBBReg(Adapter, rFPGA0_XA_HSSIParameter2, bMaskDWord,
-		     tmplong | bLSSIReadEdge);
+	rtl8723au_write32(Adapter, rFPGA0_XA_HSSIParameter2,
+			  tmplong | bLSSIReadEdge);
 	udelay(10);/* PlatformStallExecution(10); */
 
 	if (eRFPath == RF_PATH_A)
@@ -319,9 +315,7 @@ phy_RFSerialWrite(struct rtw_adapter *Adapter, enum RF_RADIO_PATH eRFPath,
 	/*  */
 	/*  Write Operation */
 	/*  */
-	PHY_SetBBReg(Adapter, pPhyReg->rf3wireOffset, bMaskDWord, DataAndAddr);
-	/* RTPRINT(FPHY, PHY_RFW, ("RFW-%d Addr[0x%lx]= 0x%lx\n", eRFPath, pPhyReg->rf3wireOffset, DataAndAddr)); */
-
+	rtl8723au_write32(Adapter, pPhyReg->rf3wireOffset, DataAndAddr);
 }
 
 /**
@@ -392,7 +386,7 @@ PHY_SetRFReg(struct rtw_adapter *Adapter, enum RF_RADIO_PATH eRFPath,
 	if (BitMask != bRFRegOffsetMask) {
 		Original_Value = phy_RFSerialRead(Adapter, eRFPath, RegAddr);
 		BitShift =  phy_CalculateBitShift(BitMask);
-		Data = ((Original_Value & (~BitMask)) | (Data << BitShift));
+		Data = (Original_Value & (~BitMask)) | (Data << BitShift);
 	}
 
 	phy_RFSerialWrite(Adapter, eRFPath, RegAddr, Data);
@@ -419,7 +413,6 @@ PHY_SetRFReg(struct rtw_adapter *Adapter, enum RF_RADIO_PATH eRFPath,
 int PHY_MACConfig8723A(struct rtw_adapter *Adapter)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
-	bool is92C = IS_92C_SERIAL(pHalData->VersionID);
 
 	/*  */
 	/*  Config MAC */
@@ -427,9 +420,9 @@ int PHY_MACConfig8723A(struct rtw_adapter *Adapter)
 	ODM_ReadAndConfig_MAC_REG_8723A(&pHalData->odmpriv);
 
 	/*  2010.07.13 AMPDU aggregation number 9 */
-	/* rtw_write16(Adapter, REG_MAX_AGGR_NUM, MAX_AGGR_NUM); */
 	rtl8723au_write8(Adapter, REG_MAX_AGGR_NUM, 0x0A);
-	if (is92C && (BOARD_USB_DONGLE == pHalData->BoardType))
+	if (pHalData->rf_type == RF_2T2R &&
+	    BOARD_USB_DONGLE == pHalData->BoardType)
 		rtl8723au_write8(Adapter, 0x40, 0x04);
 
 	return _SUCCESS;
@@ -552,131 +545,51 @@ storePwrIndexDiffRateOffset(struct rtw_adapter *Adapter, u32 RegAddr,
 
 	if (RegAddr == rTxAGC_A_Rate18_06) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][0] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][0] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][0])); */
 	}
 	if (RegAddr == rTxAGC_A_Rate54_24) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][1] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][1] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][1])); */
 	}
 	if (RegAddr == rTxAGC_A_CCK1_Mcs32) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][6] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][6] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][6])); */
 	}
 	if (RegAddr == rTxAGC_B_CCK11_A_CCK2_11 && BitMask == 0xffffff00) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][7] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][7] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][7])); */
 	}
 	if (RegAddr == rTxAGC_A_Mcs03_Mcs00) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][2] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][2] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][2])); */
 	}
 	if (RegAddr == rTxAGC_A_Mcs07_Mcs04) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][3] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][3] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][3])); */
 	}
 	if (RegAddr == rTxAGC_A_Mcs11_Mcs08) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][4] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][4] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][4])); */
 	}
 	if (RegAddr == rTxAGC_A_Mcs15_Mcs12) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][5] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][5] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][5])); */
 	}
 	if (RegAddr == rTxAGC_B_Rate18_06) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][8] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][8] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][8])); */
 	}
 	if (RegAddr == rTxAGC_B_Rate54_24) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][9] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][9] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][9])); */
 	}
 	if (RegAddr == rTxAGC_B_CCK1_55_Mcs32) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][14] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][14] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][14])); */
 	}
 	if (RegAddr == rTxAGC_B_CCK11_A_CCK2_11 && BitMask == 0x000000ff) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][15] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][15] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][15])); */
 	}
 	if (RegAddr == rTxAGC_B_Mcs03_Mcs00) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][10] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][10] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][10])); */
 	}
 	if (RegAddr == rTxAGC_B_Mcs07_Mcs04) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][11] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][11] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][11])); */
 	}
 	if (RegAddr == rTxAGC_B_Mcs11_Mcs08) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][12] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][12] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][12])); */
 	}
 	if (RegAddr == rTxAGC_B_Mcs15_Mcs12) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][13] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][13] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][13])); */
 		pHalData->pwrGroupCnt++;
 	}
 }
@@ -831,7 +744,7 @@ PHY_BBConfig8723A(struct rtw_adapter *Adapter)
 			     (CrystalCap | (CrystalCap << 6)));
 	}
 
-	PHY_SetBBReg(Adapter, REG_LDOA15_CTRL, bMaskDWord, 0x01572505);
+	rtl8723au_write32(Adapter, REG_LDOA15_CTRL, 0x01572505);
 	return rtStatus;
 }
 
@@ -920,10 +833,6 @@ _PHY_SetBWMode23a92C(struct rtw_adapter *Adapter)
 	u8 regBwOpMode;
 	u8 regRRSR_RSC;
 
-	/*  There is no 40MHz mode in RF_8225. */
-	if (pHalData->rf_chip == RF_8225)
-		return;
-
 	if (Adapter->bDriverStopped)
 		return;
 
@@ -982,10 +891,7 @@ _PHY_SetBWMode23a92C(struct rtw_adapter *Adapter)
 		break;
 
 	default:
-		/*RT_TRACE(COMP_DBG, DBG_LOUD,
-		  ("PHY_SetBWMode23aCallback8192C(): unknown Bandwidth: %#X\n" \
-		  , pHalData->CurrentChannelBW));*/
-			break;
+		break;
 	}
 	/* Skip over setting of J-mode in BB register here. Default value
 	   is "None J mode". Emily 20070315 */
@@ -994,41 +900,8 @@ _PHY_SetBWMode23a92C(struct rtw_adapter *Adapter)
 	/* NowL = PlatformEFIORead4Byte(Adapter, TSFR); */
 	/* NowH = PlatformEFIORead4Byte(Adapter, TSFR+4); */
 	/* EndTime = ((u64)NowH << 32) + NowL; */
-	/* RT_TRACE(COMP_SCAN, DBG_LOUD, ("SetBWMode23aCallback8190Pci: time
-	   of SetBWMode23a = %I64d us!\n", (EndTime - BeginTime))); */
 
-	/* 3<3>Set RF related register */
-	switch (pHalData->rf_chip) {
-	case RF_8225:
-		/* PHY_SetRF8225Bandwidth(Adapter,
-		   pHalData->CurrentChannelBW); */
-		break;
-
-	case RF_8256:
-		/*  Please implement this function in Hal8190PciPhy8256.c */
-		/* PHY_SetRF8256Bandwidth(Adapter,
-		   pHalData->CurrentChannelBW); */
-		break;
-
-	case RF_8258:
-		/*  Please implement this function in Hal8190PciPhy8258.c */
-		/*  PHY_SetRF8258Bandwidth(); */
-		break;
-
-	case RF_6052:
-		rtl8723a_phy_rf6052set_bw(Adapter, pHalData->CurrentChannelBW);
-		break;
-
-	default:
-		/* RT_ASSERT(false, ("Unknown RFChipID: %d\n",
-		   pHalData->RFChipID)); */
-		break;
-	}
-
-	/* pHalData->SetBWMode23aInProgress = false; */
-
-	/* RT_TRACE(COMP_SCAN, DBG_LOUD,
-	   ("<== PHY_SetBWMode23aCallback8192C() \n")); */
+	rtl8723a_phy_rf6052set_bw(Adapter, pHalData->CurrentChannelBW);
 }
 
  /*-----------------------------------------------------------------------------

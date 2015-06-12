@@ -31,7 +31,6 @@
 
 #define RX_MPDU_QUEUE				0
 #define RX_CMD_QUEUE				1
-#define RX_MAX_QUEUE				2
 
 #define SHORT_SLOT_TIME				9
 #define NON_SHORT_SLOT_TIME			20

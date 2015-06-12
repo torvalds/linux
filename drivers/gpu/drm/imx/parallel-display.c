@@ -33,7 +33,7 @@ struct imx_parallel_display {
 	struct device *dev;
 	void *edid;
 	int edid_len;
-	u32 interface_pix_fmt;
+	u32 bus_format;
 	int mode_valid;
 	struct drm_display_mode mode;
 	struct drm_panel *panel;
@@ -118,7 +118,7 @@ static void imx_pd_encoder_prepare(struct drm_encoder *encoder)
 {
 	struct imx_parallel_display *imxpd = enc_to_imxpd(encoder);
 
-	imx_drm_panel_format(encoder, imxpd->interface_pix_fmt);
+	imx_drm_set_bus_format(encoder, imxpd->bus_format);
 }
 
 static void imx_pd_encoder_commit(struct drm_encoder *encoder)
@@ -225,14 +225,13 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 	ret = of_property_read_string(np, "interface-pix-fmt", &fmt);
 	if (!ret) {
 		if (!strcmp(fmt, "rgb24"))
-			imxpd->interface_pix_fmt = V4L2_PIX_FMT_RGB24;
+			imxpd->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 		else if (!strcmp(fmt, "rgb565"))
-			imxpd->interface_pix_fmt = V4L2_PIX_FMT_RGB565;
+			imxpd->bus_format = MEDIA_BUS_FMT_RGB565_1X16;
 		else if (!strcmp(fmt, "bgr666"))
-			imxpd->interface_pix_fmt = V4L2_PIX_FMT_BGR666;
+			imxpd->bus_format = MEDIA_BUS_FMT_RGB666_1X18;
 		else if (!strcmp(fmt, "lvds666"))
-			imxpd->interface_pix_fmt =
-					v4l2_fourcc('L', 'V', 'D', '6');
+			imxpd->bus_format = MEDIA_BUS_FMT_RGB666_1X24_CPADHI;
 	}
 
 	panel_node = of_parse_phandle(np, "fsl,panel", 0);

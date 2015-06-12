@@ -238,6 +238,8 @@ struct xenvif {
 	unsigned int num_queues; /* active queues, resource allocated */
 	unsigned int stalled_queues;
 
+	struct xenbus_watch credit_watch;
+
 	spinlock_t lock;
 
 #ifdef CONFIG_DEBUG_FS
@@ -259,6 +261,8 @@ static inline struct xenbus_device *xenvif_to_xenbus_device(struct xenvif *vif)
 {
 	return to_xenbus_device(vif->dev->dev.parent);
 }
+
+void xenvif_tx_credit_callback(unsigned long data);
 
 struct xenvif *xenvif_alloc(struct device *parent,
 			    domid_t domid,

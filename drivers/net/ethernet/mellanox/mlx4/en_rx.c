@@ -244,6 +244,12 @@ static int mlx4_en_prepare_rx_desc(struct mlx4_en_priv *priv,
 	return mlx4_en_alloc_frags(priv, rx_desc, frags, ring->page_alloc, gfp);
 }
 
+static inline bool mlx4_en_is_ring_empty(struct mlx4_en_rx_ring *ring)
+{
+	BUG_ON((u32)(ring->prod - ring->cons) > ring->actual_size);
+	return ring->prod == ring->cons;
+}
+
 static inline void mlx4_en_update_rx_prod_db(struct mlx4_en_rx_ring *ring)
 {
 	*ring->wqres.db.db = cpu_to_be32(ring->prod & 0xffff);
@@ -315,8 +321,7 @@ static void mlx4_en_free_rx_buf(struct mlx4_en_priv *priv,
 	       ring->cons, ring->prod);
 
 	/* Unmap and free Rx buffers */
-	BUG_ON((u32) (ring->prod - ring->cons) > ring->actual_size);
-	while (ring->cons != ring->prod) {
+	while (!mlx4_en_is_ring_empty(ring)) {
 		index = ring->cons & ring->size_mask;
 		en_dbg(DRV, priv, "Processing descriptor:%d\n", index);
 		mlx4_en_free_rx_desc(priv, ring, index);
@@ -489,6 +494,23 @@ err_allocator:
 		ring_ind--;
 	}
 	return err;
+}
+
+/* We recover from out of memory by scheduling our napi poll
+ * function (mlx4_en_process_cq), which tries to allocate
+ * all missing RX buffers (call to mlx4_en_refill_rx_buffers).
+ */
+void mlx4_en_recover_from_oom(struct mlx4_en_priv *priv)
+{
+	int ring;
+
+	if (!priv->port_up)
+		return;
+
+	for (ring = 0; ring < priv->rx_ring_num; ring++) {
+		if (mlx4_en_is_ring_empty(priv->rx_ring[ring]))
+			napi_reschedule(&priv->rx_cq[ring]->napi);
+	}
 }
 
 void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
@@ -771,7 +793,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		/*
 		 * make sure we read the CQE after we read the ownership bit
 		 */
-		rmb();
+		dma_rmb();
 
 		/* Drop packet on bad receive or bad checksum */
 		if (unlikely((cqe->owner_sr_opcode & MLX4_CQE_OPCODE_MASK) ==
@@ -1116,7 +1138,10 @@ static int mlx4_en_config_rss_qp(struct mlx4_en_priv *priv, int qpn,
 	/* Cancel FCS removal if FW allows */
 	if (mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_FCS_KEEP) {
 		context->param3 |= cpu_to_be32(1 << 29);
-		ring->fcs_del = ETH_FCS_LEN;
+		if (priv->dev->features & NETIF_F_RXFCS)
+			ring->fcs_del = 0;
+		else
+			ring->fcs_del = ETH_FCS_LEN;
 	} else
 		ring->fcs_del = 0;
 

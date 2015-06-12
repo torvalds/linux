@@ -1659,7 +1659,7 @@ hub_descriptor(struct usb_hub_descriptor *desc)
 	/*
 	 * See Table 11-13: Hub Descriptor in USB 2.0 spec.
 	 */
-	desc->bDescriptorType = 0x29;	/* hub descriptor */
+	desc->bDescriptorType = USB_DT_HUB; /* hub descriptor */
 	desc->bDescLength = 9;
 	desc->wHubCharacteristics = cpu_to_le16(HUB_CHAR_INDV_PORT_LPSM |
 						HUB_CHAR_COMMON_OCPM);

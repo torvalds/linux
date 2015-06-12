@@ -96,6 +96,7 @@ static void xenvif_idx_release(struct xenvif_queue *queue, u16 pending_idx,
 static void make_tx_response(struct xenvif_queue *queue,
 			     struct xen_netif_tx_request *txp,
 			     s8       st);
+static void push_tx_responses(struct xenvif_queue *queue);
 
 static inline int tx_work_todo(struct xenvif_queue *queue);
 
@@ -641,7 +642,7 @@ static void tx_add_credit(struct xenvif_queue *queue)
 	queue->remaining_credit = min(max_credit, max_burst);
 }
 
-static void tx_credit_callback(unsigned long data)
+void xenvif_tx_credit_callback(unsigned long data)
 {
 	struct xenvif_queue *queue = (struct xenvif_queue *)data;
 	tx_add_credit(queue);
@@ -655,15 +656,10 @@ static void xenvif_tx_err(struct xenvif_queue *queue,
 	unsigned long flags;
 
 	do {
-		int notify;
-
 		spin_lock_irqsave(&queue->response_lock, flags);
 		make_tx_response(queue, txp, XEN_NETIF_RSP_ERROR);
-		RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&queue->tx, notify);
+		push_tx_responses(queue);
 		spin_unlock_irqrestore(&queue->response_lock, flags);
-		if (notify)
-			notify_remote_via_irq(queue->tx_irq);
-
 		if (cons == end)
 			break;
 		txp = RING_GET_REQUEST(&queue->tx, cons++);
@@ -1169,8 +1165,6 @@ static bool tx_credit_exceeded(struct xenvif_queue *queue, unsigned size)
 	if (size > queue->remaining_credit) {
 		queue->credit_timeout.data     =
 			(unsigned long)queue;
-		queue->credit_timeout.function =
-			tx_credit_callback;
 		mod_timer(&queue->credit_timeout,
 			  next_credit);
 		queue->credit_window_start = next_credit;
@@ -1256,7 +1250,7 @@ static void xenvif_tx_build_gops(struct xenvif_queue *queue,
 			netdev_err(queue->vif->dev,
 				   "txreq.offset: %x, size: %u, end: %lu\n",
 				   txreq.offset, txreq.size,
-				   (txreq.offset&~PAGE_MASK) + txreq.size);
+				   (unsigned long)(txreq.offset&~PAGE_MASK) + txreq.size);
 			xenvif_fatal_tx_err(queue->vif);
 			break;
 		}
@@ -1657,7 +1651,6 @@ static void xenvif_idx_release(struct xenvif_queue *queue, u16 pending_idx,
 {
 	struct pending_tx_info *pending_tx_info;
 	pending_ring_idx_t index;
-	int notify;
 	unsigned long flags;
 
 	pending_tx_info = &queue->pending_tx_info[pending_idx];
@@ -1673,12 +1666,9 @@ static void xenvif_idx_release(struct xenvif_queue *queue, u16 pending_idx,
 	index = pending_index(queue->pending_prod++);
 	queue->pending_ring[index] = pending_idx;
 
-	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&queue->tx, notify);
+	push_tx_responses(queue);
 
 	spin_unlock_irqrestore(&queue->response_lock, flags);
-
-	if (notify)
-		notify_remote_via_irq(queue->tx_irq);
 }
 
 
@@ -1697,6 +1687,15 @@ static void make_tx_response(struct xenvif_queue *queue,
 		RING_GET_RESPONSE(&queue->tx, ++i)->status = XEN_NETIF_RSP_NULL;
 
 	queue->tx.rsp_prod_pvt = ++i;
+}
+
+static void push_tx_responses(struct xenvif_queue *queue)
+{
+	int notify;
+
+	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&queue->tx, notify);
+	if (notify)
+		notify_remote_via_irq(queue->tx_irq);
 }
 
 static struct xen_netif_rx_response *make_rx_response(struct xenvif_queue *queue,
@@ -1781,7 +1780,7 @@ int xenvif_map_frontend_rings(struct xenvif_queue *queue,
 	int err = -ENOMEM;
 
 	err = xenbus_map_ring_valloc(xenvif_to_xenbus_device(queue->vif),
-				     tx_ring_ref, &addr);
+				     &tx_ring_ref, 1, &addr);
 	if (err)
 		goto err;
 
@@ -1789,7 +1788,7 @@ int xenvif_map_frontend_rings(struct xenvif_queue *queue,
 	BACK_RING_INIT(&queue->tx, txs, PAGE_SIZE);
 
 	err = xenbus_map_ring_valloc(xenvif_to_xenbus_device(queue->vif),
-				     rx_ring_ref, &addr);
+				     &rx_ring_ref, 1, &addr);
 	if (err)
 		goto err;
 

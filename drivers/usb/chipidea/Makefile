@@ -14,11 +14,6 @@ obj-$(CONFIG_USB_CHIPIDEA)	+= ci_hdrc_usb2.o
 obj-$(CONFIG_USB_CHIPIDEA)	+= ci_hdrc_msm.o
 obj-$(CONFIG_USB_CHIPIDEA)	+= ci_hdrc_zevio.o
 
-# PCI doesn't provide stubs, need to check
-ifneq ($(CONFIG_PCI),)
-	obj-$(CONFIG_USB_CHIPIDEA)	+= ci_hdrc_pci.o
-endif
+obj-$(CONFIG_USB_CHIPIDEA_PCI)	+= ci_hdrc_pci.o
 
-ifneq ($(CONFIG_OF),)
-	obj-$(CONFIG_USB_CHIPIDEA)	+= usbmisc_imx.o ci_hdrc_imx.o
-endif
+obj-$(CONFIG_USB_CHIPIDEA_OF)	+= usbmisc_imx.o ci_hdrc_imx.o

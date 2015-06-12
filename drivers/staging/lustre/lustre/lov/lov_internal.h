@@ -304,4 +304,16 @@ static inline struct lov_stripe_md *lsm_addref(struct lov_stripe_md *lsm)
 	return lsm;
 }
 
+static inline bool lov_oinfo_is_dummy(const struct lov_oinfo *loi)
+{
+	if (unlikely(loi->loi_oi.oi.oi_id == 0 &&
+		     loi->loi_oi.oi.oi_seq == 0 &&
+		     loi->loi_ost_idx == 0 &&
+		     loi->loi_ost_gen == 0))
+		return true;
+
+	return false;
+}
+
+
 #endif

@@ -86,9 +86,10 @@ static void tipc_disc_init_msg(struct net *net, struct sk_buff *buf, u32 type,
 
 	msg = buf_msg(buf);
 	tipc_msg_init(tn->own_addr, msg, LINK_CONFIG, type,
-		      INT_H_SIZE, dest_domain);
+		      MAX_H_SIZE, dest_domain);
 	msg_set_non_seq(msg, 1);
 	msg_set_node_sig(msg, tn->random);
+	msg_set_node_capabilities(msg, 0);
 	msg_set_dest_domain(msg, dest_domain);
 	msg_set_bc_netid(msg, tn->net_id);
 	b_ptr->media->addr2msg(msg_media_addr(msg), &b_ptr->addr);
@@ -133,6 +134,7 @@ void tipc_disc_rcv(struct net *net, struct sk_buff *buf,
 	u32 net_id = msg_bc_netid(msg);
 	u32 mtyp = msg_type(msg);
 	u32 signature = msg_node_sig(msg);
+	u16 caps = msg_node_capabilities(msg);
 	bool addr_match = false;
 	bool sign_match = false;
 	bool link_up = false;
@@ -167,6 +169,7 @@ void tipc_disc_rcv(struct net *net, struct sk_buff *buf,
 	if (!node)
 		return;
 	tipc_node_lock(node);
+	node->capabilities = caps;
 	link = node->links[bearer->identity];
 
 	/* Prepare to validate requesting node's signature and media address */
@@ -249,7 +252,7 @@ void tipc_disc_rcv(struct net *net, struct sk_buff *buf,
 
 	/* Send response, if necessary */
 	if (respond && (mtyp == DSC_REQ_MSG)) {
-		rbuf = tipc_buf_acquire(INT_H_SIZE);
+		rbuf = tipc_buf_acquire(MAX_H_SIZE);
 		if (rbuf) {
 			tipc_disc_init_msg(net, rbuf, DSC_RESP_MSG, bearer);
 			tipc_bearer_send(net, bearer->identity, rbuf, &maddr);
@@ -257,6 +260,7 @@ void tipc_disc_rcv(struct net *net, struct sk_buff *buf,
 		}
 	}
 	tipc_node_unlock(node);
+	tipc_node_put(node);
 }
 
 /**
@@ -359,8 +363,7 @@ int tipc_disc_create(struct net *net, struct tipc_bearer *b_ptr,
 	req = kmalloc(sizeof(*req), GFP_ATOMIC);
 	if (!req)
 		return -ENOMEM;
-
-	req->buf = tipc_buf_acquire(INT_H_SIZE);
+	req->buf = tipc_buf_acquire(MAX_H_SIZE);
 	if (!req->buf) {
 		kfree(req);
 		return -ENOMEM;

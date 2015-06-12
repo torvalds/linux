@@ -120,18 +120,7 @@ static enum hrtimer_restart ltc2952_poweroff_timer_wde(struct hrtimer *timer)
 
 static void ltc2952_poweroff_start_wde(struct ltc2952_poweroff *data)
 {
-	if (hrtimer_start(&data->timer_wde, data->wde_interval,
-			  HRTIMER_MODE_REL)) {
-		/*
-		 * The device will not toggle the watchdog reset,
-		 * thus shut down is only safe if the PowerPath controller
-		 * has a long enough time-off before triggering a hardware
-		 * power-off.
-		 *
-		 * Only sending a warning as the system will power-off anyway
-		 */
-		dev_err(data->dev, "unable to start the timer\n");
-	}
+	hrtimer_start(&data->timer_wde, data->wde_interval, HRTIMER_MODE_REL);
 }
 
 static enum hrtimer_restart
@@ -165,9 +154,8 @@ static irqreturn_t ltc2952_poweroff_handler(int irq, void *dev_id)
 	}
 
 	if (gpiod_get_value(data->gpio_trigger)) {
-		if (hrtimer_start(&data->timer_trigger, data->trigger_delay,
-				  HRTIMER_MODE_REL))
-			dev_err(data->dev, "unable to start the wait timer\n");
+		hrtimer_start(&data->timer_trigger, data->trigger_delay,
+			      HRTIMER_MODE_REL);
 	} else {
 		hrtimer_cancel(&data->timer_trigger);
 		/* omitting return value check, timer should have been valid */

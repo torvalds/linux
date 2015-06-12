@@ -145,6 +145,11 @@ void __init smp_init_cpus(void)
 		smp_ops.smp_init_cpus();
 }
 
+int platform_can_secondary_boot(void)
+{
+	return !!smp_ops.smp_boot_secondary;
+}
+
 int platform_can_cpu_hotplug(void)
 {
 #ifdef CONFIG_HOTPLUG_CPU

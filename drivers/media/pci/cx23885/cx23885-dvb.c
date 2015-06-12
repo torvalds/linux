@@ -73,7 +73,6 @@
 #include "si2157.h"
 #include "sp2.h"
 #include "m88ds3103.h"
-#include "m88ts2022.h"
 #include "m88rs6000t.h"
 
 static unsigned int debug;
@@ -1187,7 +1186,7 @@ static int dvb_register(struct cx23885_tsport *port)
 	struct vb2_dvb_frontend *fe0, *fe1 = NULL;
 	struct si2168_config si2168_config;
 	struct si2157_config si2157_config;
-	struct m88ts2022_config m88ts2022_config;
+	struct ts2020_config ts2020_config;
 	struct i2c_board_info info;
 	struct i2c_adapter *adapter;
 	struct i2c_client *client_demod = NULL, *client_tuner = NULL;
@@ -1856,13 +1855,12 @@ static int dvb_register(struct cx23885_tsport *port)
 				break;
 
 			/* attach tuner */
-			memset(&m88ts2022_config, 0, sizeof(m88ts2022_config));
-			m88ts2022_config.fe = fe0->dvb.frontend;
-			m88ts2022_config.clock = 27000000;
+			memset(&ts2020_config, 0, sizeof(ts2020_config));
+			ts2020_config.fe = fe0->dvb.frontend;
 			memset(&info, 0, sizeof(struct i2c_board_info));
-			strlcpy(info.type, "m88ts2022", I2C_NAME_SIZE);
+			strlcpy(info.type, "ts2020", I2C_NAME_SIZE);
 			info.addr = 0x60;
-			info.platform_data = &m88ts2022_config;
+			info.platform_data = &ts2020_config;
 			request_module(info.type);
 			client_tuner = i2c_new_device(adapter, &info);
 			if (client_tuner == NULL ||
@@ -1986,13 +1984,12 @@ static int dvb_register(struct cx23885_tsport *port)
 			break;
 
 		/* attach tuner */
-		memset(&m88ts2022_config, 0, sizeof(m88ts2022_config));
-		m88ts2022_config.fe = fe0->dvb.frontend;
-		m88ts2022_config.clock = 27000000;
+		memset(&ts2020_config, 0, sizeof(ts2020_config));
+		ts2020_config.fe = fe0->dvb.frontend;
 		memset(&info, 0, sizeof(struct i2c_board_info));
-		strlcpy(info.type, "m88ts2022", I2C_NAME_SIZE);
+		strlcpy(info.type, "ts2020", I2C_NAME_SIZE);
 		info.addr = 0x60;
-		info.platform_data = &m88ts2022_config;
+		info.platform_data = &ts2020_config;
 		request_module(info.type);
 		client_tuner = i2c_new_device(adapter, &info);
 		if (client_tuner == NULL || client_tuner->dev.driver == NULL)
@@ -2032,13 +2029,12 @@ static int dvb_register(struct cx23885_tsport *port)
 			break;
 
 		/* attach tuner */
-		memset(&m88ts2022_config, 0, sizeof(m88ts2022_config));
-		m88ts2022_config.fe = fe0->dvb.frontend;
-		m88ts2022_config.clock = 27000000;
+		memset(&ts2020_config, 0, sizeof(ts2020_config));
+		ts2020_config.fe = fe0->dvb.frontend;
 		memset(&info, 0, sizeof(struct i2c_board_info));
-		strlcpy(info.type, "m88ts2022", I2C_NAME_SIZE);
+		strlcpy(info.type, "ts2020", I2C_NAME_SIZE);
 		info.addr = 0x60;
-		info.platform_data = &m88ts2022_config;
+		info.platform_data = &ts2020_config;
 		request_module(info.type);
 		client_tuner = i2c_new_device(adapter, &info);
 		if (client_tuner == NULL || client_tuner->dev.driver == NULL)

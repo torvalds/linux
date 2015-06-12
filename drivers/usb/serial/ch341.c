@@ -325,7 +325,6 @@ static int ch341_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (r) {
 		dev_err(&port->dev, "%s - failed to submit interrupt urb: %d\n",
 			__func__, r);
-		ch341_close(port);
 		goto out;
 	}
 

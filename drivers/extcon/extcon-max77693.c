@@ -190,8 +190,8 @@ enum max77693_muic_acc_type {
 	/* The below accessories have same ADC value so ADCLow and
 	   ADC1K bit is used to separate specific accessory */
 						/* ADC|VBVolot|ADCLow|ADC1K| */
-	MAX77693_MUIC_GND_USB_OTG = 0x100,	/* 0x0|      0|     0|    0| */
-	MAX77693_MUIC_GND_USB_OTG_VB = 0x104,	/* 0x0|      1|     0|    0| */
+	MAX77693_MUIC_GND_USB_HOST = 0x100,	/* 0x0|      0|     0|    0| */
+	MAX77693_MUIC_GND_USB_HOST_VB = 0x104,	/* 0x0|      1|     0|    0| */
 	MAX77693_MUIC_GND_AV_CABLE_LOAD = 0x102,/* 0x0|      0|     1|    0| */
 	MAX77693_MUIC_GND_MHL = 0x103,		/* 0x0|      0|     1|    1| */
 	MAX77693_MUIC_GND_MHL_VB = 0x107,	/* 0x0|      1|     1|    1| */
@@ -228,7 +228,7 @@ static const char *max77693_extcon_cable[] = {
 	[EXTCON_CABLE_SLOW_CHARGER]		= "Slow-charger",
 	[EXTCON_CABLE_CHARGE_DOWNSTREAM]	= "Charge-downstream",
 	[EXTCON_CABLE_MHL]			= "MHL",
-	[EXTCON_CABLE_MHL_TA]			= "MHL_TA",
+	[EXTCON_CABLE_MHL_TA]			= "MHL-TA",
 	[EXTCON_CABLE_JIG_USB_ON]		= "JIG-USB-ON",
 	[EXTCON_CABLE_JIG_USB_OFF]		= "JIG-USB-OFF",
 	[EXTCON_CABLE_JIG_UART_OFF]		= "JIG-UART-OFF",
@@ -403,8 +403,8 @@ static int max77693_muic_get_cable_type(struct max77693_muic_info *info,
 
 			/**
 			 * [0x1|VBVolt|ADCLow|ADC1K]
-			 * [0x1|     0|     0|    0] USB_OTG
-			 * [0x1|     1|     0|    0] USB_OTG_VB
+			 * [0x1|     0|     0|    0] USB_HOST
+			 * [0x1|     1|     0|    0] USB_HSOT_VB
 			 * [0x1|     0|     1|    0] Audio Video cable with load
 			 * [0x1|     0|     1|    1] MHL without charging cable
 			 * [0x1|     1|     1|    1] MHL with charging cable
@@ -523,7 +523,7 @@ static int max77693_muic_dock_handler(struct max77693_muic_info *info,
 		 * - Support charging and data connection through micro-usb port
 		 *           if USB cable is connected between target and host
 		 *	     device.
-		 * - Support OTG device (Mouse/Keyboard)
+		 * - Support OTG(On-The-Go) device (Ex: Mouse/Keyboard)
 		 */
 		ret = max77693_muic_set_path(info, info->path_usb, attached);
 		if (ret < 0)
@@ -609,9 +609,9 @@ static int max77693_muic_adc_ground_handler(struct max77693_muic_info *info)
 				MAX77693_CABLE_GROUP_ADC_GND, &attached);
 
 	switch (cable_type_gnd) {
-	case MAX77693_MUIC_GND_USB_OTG:
-	case MAX77693_MUIC_GND_USB_OTG_VB:
-		/* USB_OTG, PATH: AP_USB */
+	case MAX77693_MUIC_GND_USB_HOST:
+	case MAX77693_MUIC_GND_USB_HOST_VB:
+		/* USB_HOST, PATH: AP_USB */
 		ret = max77693_muic_set_path(info, CONTROL1_SW_USB, attached);
 		if (ret < 0)
 			return ret;
@@ -704,7 +704,7 @@ static int max77693_muic_adc_handler(struct max77693_muic_info *info)
 
 	switch (cable_type) {
 	case MAX77693_MUIC_ADC_GROUND:
-		/* USB_OTG/MHL/Audio */
+		/* USB_HOST/MHL/Audio */
 		max77693_muic_adc_ground_handler(info);
 		break;
 	case MAX77693_MUIC_ADC_FACTORY_MODE_USB_OFF:
@@ -823,19 +823,19 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 		case MAX77693_MUIC_GND_MHL:
 		case MAX77693_MUIC_GND_MHL_VB:
 			/*
-			 * MHL cable with MHL_TA(USB/TA) cable
+			 * MHL cable with MHL-TA(USB/TA) cable
 			 * - MHL cable include two port(HDMI line and separate
 			 * micro-usb port. When the target connect MHL cable,
-			 * extcon driver check whether MHL_TA(USB/TA) cable is
-			 * connected. If MHL_TA cable is connected, extcon
+			 * extcon driver check whether MHL-TA(USB/TA) cable is
+			 * connected. If MHL-TA cable is connected, extcon
 			 * driver notify state to notifiee for charging battery.
 			 *
-			 * Features of 'MHL_TA(USB/TA) with MHL cable'
+			 * Features of 'MHL-TA(USB/TA) with MHL cable'
 			 * - Support MHL
 			 * - Support charging through micro-usb port without
 			 *   data connection
 			 */
-			extcon_set_cable_state(info->edev, "MHL_TA", attached);
+			extcon_set_cable_state(info->edev, "MHL-TA", attached);
 			if (!cable_attached)
 				extcon_set_cable_state(info->edev,
 						      "MHL", cable_attached);
@@ -886,7 +886,7 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 			 * - Support charging and data connection through micro-
 			 *   usb port if USB cable is connected between target
 			 *   and host device
-			 * - Support OTG device (Mouse/Keyboard)
+			 * - Support OTG(On-The-Go) device (Ex: Mouse/Keyboard)
 			 */
 			ret = max77693_muic_set_path(info, info->path_usb,
 						    attached);
@@ -1019,8 +1019,6 @@ static void max77693_muic_irq_work(struct work_struct *work)
 		dev_err(info->dev, "failed to handle MUIC interrupt\n");
 
 	mutex_unlock(&info->mutex);
-
-	return;
 }
 
 static irqreturn_t max77693_muic_irq_handler(int irq, void *data)
@@ -1171,8 +1169,7 @@ static int max77693_muic_probe(struct platform_device *pdev)
 				muic_irq->name, info);
 		if (ret) {
 			dev_err(&pdev->dev,
-				"failed: irq request (IRQ: %d,"
-				" error :%d)\n",
+				"failed: irq request (IRQ: %d, error :%d)\n",
 				muic_irq->irq, ret);
 			return ret;
 		}

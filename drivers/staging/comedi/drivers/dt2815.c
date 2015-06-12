@@ -60,7 +60,6 @@ Configuration options:
 #define DT2815_STATUS 1
 
 struct dt2815_private {
-
 	const struct comedi_lrange *range_type_list[8];
 	unsigned int ao_readback[8];
 };

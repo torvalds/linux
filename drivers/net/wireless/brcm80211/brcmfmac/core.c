@@ -944,6 +944,34 @@ fail:
 	return ret;
 }
 
+static int brcmf_revinfo_read(struct seq_file *s, void *data)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(s->private);
+	struct brcmf_rev_info *ri = &bus_if->drvr->revinfo;
+	char drev[BRCMU_DOTREV_LEN];
+	char brev[BRCMU_BOARDREV_LEN];
+
+	seq_printf(s, "vendorid: 0x%04x\n", ri->vendorid);
+	seq_printf(s, "deviceid: 0x%04x\n", ri->deviceid);
+	seq_printf(s, "radiorev: %s\n", brcmu_dotrev_str(ri->radiorev, drev));
+	seq_printf(s, "chipnum: %u (%x)\n", ri->chipnum, ri->chipnum);
+	seq_printf(s, "chiprev: %u\n", ri->chiprev);
+	seq_printf(s, "chippkg: %u\n", ri->chippkg);
+	seq_printf(s, "corerev: %u\n", ri->corerev);
+	seq_printf(s, "boardid: 0x%04x\n", ri->boardid);
+	seq_printf(s, "boardvendor: 0x%04x\n", ri->boardvendor);
+	seq_printf(s, "boardrev: %s\n", brcmu_boardrev_str(ri->boardrev, brev));
+	seq_printf(s, "driverrev: %s\n", brcmu_dotrev_str(ri->driverrev, drev));
+	seq_printf(s, "ucoderev: %u\n", ri->ucoderev);
+	seq_printf(s, "bus: %u\n", ri->bus);
+	seq_printf(s, "phytype: %u\n", ri->phytype);
+	seq_printf(s, "phyrev: %u\n", ri->phyrev);
+	seq_printf(s, "anarev: %u\n", ri->anarev);
+	seq_printf(s, "nvramrev: %08x\n", ri->nvramrev);
+
+	return 0;
+}
+
 int brcmf_bus_start(struct device *dev)
 {
 	int ret = -1;
@@ -973,6 +1001,8 @@ int brcmf_bus_start(struct device *dev)
 	ret = brcmf_c_preinit_dcmds(ifp);
 	if (ret < 0)
 		goto fail;
+
+	brcmf_debugfs_add_entry(drvr, "revinfo", brcmf_revinfo_read);
 
 	/* assure we have chipid before feature attach */
 	if (!bus_if->chip) {

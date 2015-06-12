@@ -1341,8 +1341,7 @@ static int close(struct inode *node, struct file *filep)
 	struct IR *ir = filep->private_data;
 
 	if (ir == NULL) {
-		dev_err(ir->l.dev,
-			"close: no private_data attached to the file!\n");
+		pr_err("ir: close: no private_data attached to the file!\n");
 		return -ENODEV;
 	}
 

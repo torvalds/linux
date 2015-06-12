@@ -12,12 +12,6 @@
  * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  * PURPOSE.  See the GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *	NOTE: THIS IS A SHARED HEADER. DO NOT CHANGE CODING STYLE!!!
- *
  *************************************************************************
  *
  * Driver includes
@@ -31,9 +25,7 @@
 #include <linux/tty.h>	  /* To pick up the various tty structs/defines */
 #include <linux/interrupt.h>	/* For irqreturn_t type */
 
-#include "dgnc_types.h"		/* Additional types needed by the Digi header files */
 #include "digi.h"		/* Digi specific ioctl header */
-#include "dgnc_kcompat.h"	/* Kernel 2.4/2.6 compat includes */
 #include "dgnc_sysfs.h"		/* Support for SYSFS */
 
 /*************************************************************************
@@ -46,6 +38,7 @@
 #define	PROCSTR		"dgnc"			/* /proc entries	 */
 #define	DEVSTR		"/dev/dg/dgnc"		/* /dev entries		 */
 #define	DRVSTR		"dgnc"			/* Driver name string	 */
+#define	DG_PART		"40002369_F"		/* RPM part number	 */
 
 #define TRC_TO_CONSOLE 1
 
@@ -211,8 +204,8 @@ struct dgnc_board {
 	struct tty_driver	PrintDriver;
 	char		PrintName[200];
 
-	uint		dgnc_Major_Serial_Registered;
-	uint		dgnc_Major_TransparentPrint_Registered;
+	bool		dgnc_Major_Serial_Registered;
+	bool		dgnc_Major_TransparentPrint_Registered;
 
 	uint		dgnc_Serial_Major;
 	uint		dgnc_TransparentPrint_Major;
@@ -398,11 +391,10 @@ struct channel_t {
 /*
  * Our Global Variables.
  */
-extern uint		dgnc_Major;		/* Our driver/mgmt major	*/
-extern int		dgnc_poll_tick;		/* Poll interval - 20 ms	*/
-extern spinlock_t	dgnc_global_lock;	/* Driver global spinlock	*/
-extern uint		dgnc_NumBoards;		/* Total number of boards	*/
-extern struct dgnc_board	*dgnc_Board[MAXBOARDS];	/* Array of board structs	*/
-extern char		*dgnc_state_text[];	/* Array of state text		*/
+extern uint		dgnc_Major;		/* Our driver/mgmt major */
+extern int		dgnc_poll_tick;		/* Poll interval - 20 ms */
+extern spinlock_t	dgnc_global_lock;	/* Driver global spinlock */
+extern uint		dgnc_NumBoards;		/* Total number of boards */
+extern struct dgnc_board	*dgnc_Board[MAXBOARDS];	/* Array of board structs */
 
 #endif

@@ -256,6 +256,7 @@ struct comedi_driver {
 struct comedi_device {
 	int use_count;
 	struct comedi_driver *driver;
+	struct comedi_8254 *pacer;
 	void *private;
 
 	struct device *class_dev;
@@ -463,6 +464,84 @@ static inline unsigned int comedi_samples_to_bytes(struct comedi_subdevice *s,
 	return nsamples << comedi_sample_shift(s);
 }
 
+/**
+ * comedi_check_trigger_src() - trivially validate a comedi_cmd trigger source
+ * @src: pointer to the trigger source to validate
+ * @flags: bitmask of valid TRIG_* for the trigger
+ *
+ * This is used in "step 1" of the do_cmdtest functions of comedi drivers
+ * to vaildate the comedi_cmd triggers. The mask of the @src against the
+ * @flags allows the userspace comedilib to pass all the comedi_cmd
+ * triggers as TRIG_ANY and get back a bitmask of the valid trigger sources.
+ */
+static inline int comedi_check_trigger_src(unsigned int *src,
+					   unsigned int flags)
+{
+	unsigned int orig_src = *src;
+
+	*src = orig_src & flags;
+	if (*src == TRIG_INVALID || *src != orig_src)
+		return -EINVAL;
+	return 0;
+}
+
+/**
+ * comedi_check_trigger_is_unique() - make sure a trigger source is unique
+ * @src: the trigger source to check
+ */
+static inline int comedi_check_trigger_is_unique(unsigned int src)
+{
+	/* this test is true if more than one _src bit is set */
+	if ((src & (src - 1)) != 0)
+		return -EINVAL;
+	return 0;
+}
+
+/**
+ * comedi_check_trigger_arg_is() - trivially validate a trigger argument
+ * @arg: pointer to the trigger arg to validate
+ * @val: the value the argument should be
+ */
+static inline int comedi_check_trigger_arg_is(unsigned int *arg,
+					      unsigned int val)
+{
+	if (*arg != val) {
+		*arg = val;
+		return -EINVAL;
+	}
+	return 0;
+}
+
+/**
+ * comedi_check_trigger_arg_min() - trivially validate a trigger argument
+ * @arg: pointer to the trigger arg to validate
+ * @val: the minimum value the argument should be
+ */
+static inline int comedi_check_trigger_arg_min(unsigned int *arg,
+					       unsigned int val)
+{
+	if (*arg < val) {
+		*arg = val;
+		return -EINVAL;
+	}
+	return 0;
+}
+
+/**
+ * comedi_check_trigger_arg_max() - trivially validate a trigger argument
+ * @arg: pointer to the trigger arg to validate
+ * @val: the maximum value the argument should be
+ */
+static inline int comedi_check_trigger_arg_max(unsigned int *arg,
+					       unsigned int val)
+{
+	if (*arg > val) {
+		*arg = val;
+		return -EINVAL;
+	}
+	return 0;
+}
+
 /*
  * Must set dev->hw_dev if you wish to dma directly into comedi's buffer.
  * Also useful for retrieving a previously configured hardware device of
@@ -552,48 +631,5 @@ void comedi_driver_unregister(struct comedi_driver *);
 #define module_comedi_driver(__comedi_driver) \
 	module_driver(__comedi_driver, comedi_driver_register, \
 			comedi_driver_unregister)
-
-/* comedi_pci.c - comedi PCI driver specific functions */
-
-/*
- * PCI Vendor IDs not in <linux/pci_ids.h>
- */
-#define PCI_VENDOR_ID_KOLTER		0x1001
-#define PCI_VENDOR_ID_ICP		0x104c
-#define PCI_VENDOR_ID_DT		0x1116
-#define PCI_VENDOR_ID_IOTECH		0x1616
-#define PCI_VENDOR_ID_CONTEC		0x1221
-#define PCI_VENDOR_ID_RTD		0x1435
-#define PCI_VENDOR_ID_HUMUSOFT		0x186c
-
-struct pci_dev;
-struct pci_driver;
-
-struct pci_dev *comedi_to_pci_dev(struct comedi_device *);
-
-int comedi_pci_enable(struct comedi_device *);
-void comedi_pci_disable(struct comedi_device *);
-void comedi_pci_detach(struct comedi_device *);
-
-int comedi_pci_auto_config(struct pci_dev *, struct comedi_driver *,
-			   unsigned long context);
-void comedi_pci_auto_unconfig(struct pci_dev *);
-
-int comedi_pci_driver_register(struct comedi_driver *, struct pci_driver *);
-void comedi_pci_driver_unregister(struct comedi_driver *, struct pci_driver *);
-
-/**
- * module_comedi_pci_driver() - Helper macro for registering a comedi PCI driver
- * @__comedi_driver: comedi_driver struct
- * @__pci_driver: pci_driver struct
- *
- * Helper macro for comedi PCI drivers which do not do anything special
- * in module init/exit. This eliminates a lot of boilerplate. Each
- * module may only use this macro once, and calling it replaces
- * module_init() and module_exit()
- */
-#define module_comedi_pci_driver(__comedi_driver, __pci_driver) \
-	module_driver(__comedi_driver, comedi_pci_driver_register, \
-			comedi_pci_driver_unregister, &(__pci_driver))
 
 #endif /* _COMEDIDEV_H */

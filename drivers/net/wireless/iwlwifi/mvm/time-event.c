@@ -119,7 +119,7 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 
 	/*
 	 * Flush the offchannel queue -- this is called when the time
-	 * event finishes or is cancelled, so that frames queued for it
+	 * event finishes or is canceled, so that frames queued for it
 	 * won't get stuck on the queue and be transmitted in the next
 	 * time event.
 	 * We have to send the command asynchronously since this cannot
@@ -187,7 +187,8 @@ static bool iwl_mvm_te_check_disconnect(struct iwl_mvm *mvm,
 		return false;
 	if (errmsg)
 		IWL_ERR(mvm, "%s\n", errmsg);
-	ieee80211_connection_loss(vif);
+
+	iwl_mvm_connection_loss(mvm, vif, errmsg);
 	return true;
 }
 
@@ -196,17 +197,24 @@ iwl_mvm_te_handle_notify_csa(struct iwl_mvm *mvm,
 			     struct iwl_mvm_time_event_data *te_data,
 			     struct iwl_time_event_notif *notif)
 {
-	if (!le32_to_cpu(notif->status)) {
+	struct ieee80211_vif *vif = te_data->vif;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (!notif->status)
 		IWL_DEBUG_TE(mvm, "CSA time event failed to start\n");
-		iwl_mvm_te_clear_data(mvm, te_data);
-		return;
-	}
 
 	switch (te_data->vif->type) {
 	case NL80211_IFTYPE_AP:
+		if (!notif->status)
+			mvmvif->csa_failed = true;
 		iwl_mvm_csa_noa_start(mvm);
 		break;
 	case NL80211_IFTYPE_STATION:
+		if (!notif->status) {
+			iwl_mvm_connection_loss(mvm, vif,
+						"CSA TE failed to start");
+			break;
+		}
 		iwl_mvm_csa_client_absent(mvm, te_data->vif);
 		ieee80211_chswitch_done(te_data->vif, true);
 		break;
@@ -218,6 +226,44 @@ iwl_mvm_te_handle_notify_csa(struct iwl_mvm *mvm,
 
 	/* we don't need it anymore */
 	iwl_mvm_te_clear_data(mvm, te_data);
+}
+
+static void iwl_mvm_te_check_trigger(struct iwl_mvm *mvm,
+				     struct iwl_time_event_notif *notif,
+				     struct iwl_mvm_time_event_data *te_data)
+{
+	struct iwl_fw_dbg_trigger_tlv *trig;
+	struct iwl_fw_dbg_trigger_time_event *te_trig;
+	int i;
+
+	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_TIME_EVENT))
+		return;
+
+	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_TIME_EVENT);
+	te_trig = (void *)trig->data;
+
+	if (!iwl_fw_dbg_trigger_check_stop(mvm, te_data->vif, trig))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(te_trig->time_events); i++) {
+		u32 trig_te_id = le32_to_cpu(te_trig->time_events[i].id);
+		u32 trig_action_bitmap =
+			le32_to_cpu(te_trig->time_events[i].action_bitmap);
+		u32 trig_status_bitmap =
+			le32_to_cpu(te_trig->time_events[i].status_bitmap);
+
+		if (trig_te_id != te_data->id ||
+		    !(trig_action_bitmap & le32_to_cpu(notif->action)) ||
+		    !(trig_status_bitmap & BIT(le32_to_cpu(notif->status))))
+			continue;
+
+		iwl_mvm_fw_dbg_collect_trig(mvm, trig,
+					    "Time event %d Action 0x%x received status: %d",
+					    te_data->id,
+					    le32_to_cpu(notif->action),
+					    le32_to_cpu(notif->status));
+		break;
+	}
 }
 
 /*
@@ -237,6 +283,8 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 		     le32_to_cpu(notif->unique_id),
 		     le32_to_cpu(notif->action));
 
+	iwl_mvm_te_check_trigger(mvm, notif, te_data);
+
 	/*
 	 * The FW sends the start/end time event notifications even for events
 	 * that it fails to schedule. This is indicated in the status field of
@@ -246,11 +294,16 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 	 * events in the system).
 	 */
 	if (!le32_to_cpu(notif->status)) {
-		bool start = le32_to_cpu(notif->action) &
-				TE_V2_NOTIF_HOST_EVENT_START;
-		IWL_WARN(mvm, "Time Event %s notification failure\n",
-			 start ? "start" : "end");
-		if (iwl_mvm_te_check_disconnect(mvm, te_data->vif, NULL)) {
+		const char *msg;
+
+		if (notif->action & cpu_to_le32(TE_V2_NOTIF_HOST_EVENT_START))
+			msg = "Time Event start notification failure";
+		else
+			msg = "Time Event end notification failure";
+
+		IWL_DEBUG_TE(mvm, "%s\n", msg);
+
+		if (iwl_mvm_te_check_disconnect(mvm, te_data->vif, msg)) {
 			iwl_mvm_te_clear_data(mvm, te_data);
 			return;
 		}
@@ -261,17 +314,23 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 			     "TE ended - current time %lu, estimated end %lu\n",
 			     jiffies, te_data->end_jiffies);
 
-		if (te_data->vif->type == NL80211_IFTYPE_P2P_DEVICE) {
+		switch (te_data->vif->type) {
+		case NL80211_IFTYPE_P2P_DEVICE:
 			ieee80211_remain_on_channel_expired(mvm->hw);
 			iwl_mvm_roc_finished(mvm);
+			break;
+		case NL80211_IFTYPE_STATION:
+			/*
+			 * By now, we should have finished association
+			 * and know the dtim period.
+			 */
+			iwl_mvm_te_check_disconnect(mvm, te_data->vif,
+				"No association and the time event is over already...");
+			break;
+		default:
+			break;
 		}
 
-		/*
-		 * By now, we should have finished association
-		 * and know the dtim period.
-		 */
-		iwl_mvm_te_check_disconnect(mvm, te_data->vif,
-			"No association and the time event is over already...");
 		iwl_mvm_te_clear_data(mvm, te_data);
 	} else if (le32_to_cpu(notif->action) & TE_V2_NOTIF_HOST_EVENT_START) {
 		te_data->running = true;
@@ -306,6 +365,8 @@ static int iwl_mvm_aux_roc_te_handle_notif(struct iwl_mvm *mvm,
 	}
 	if (!aux_roc_te) /* Not a Aux ROC time event */
 		return -EINVAL;
+
+	iwl_mvm_te_check_trigger(mvm, notif, te_data);
 
 	if (!le32_to_cpu(notif->status)) {
 		IWL_DEBUG_TE(mvm,
@@ -750,8 +811,7 @@ void iwl_mvm_stop_roc(struct iwl_mvm *mvm)
 	 * request
 	 */
 	list_for_each_entry(te_data, &mvm->time_event_list, list) {
-		if (te_data->vif->type == NL80211_IFTYPE_P2P_DEVICE &&
-		    te_data->running) {
+		if (te_data->vif->type == NL80211_IFTYPE_P2P_DEVICE) {
 			mvmvif = iwl_mvm_vif_from_mac80211(te_data->vif);
 			is_p2p = true;
 			goto remove_te;
@@ -762,14 +822,12 @@ void iwl_mvm_stop_roc(struct iwl_mvm *mvm)
 	 * Iterate over the list of aux roc time events and find the time
 	 * event that is associated with a BSS interface.
 	 * This assumes that a BSS interface can have only a single time
-	 * event at any given time and this time event coresponds to a ROC
+	 * event at any given time and this time event corresponds to a ROC
 	 * request
 	 */
 	list_for_each_entry(te_data, &mvm->aux_roc_te_list, list) {
-		if (te_data->running) {
-			mvmvif = iwl_mvm_vif_from_mac80211(te_data->vif);
-			goto remove_te;
-		}
+		mvmvif = iwl_mvm_vif_from_mac80211(te_data->vif);
+		goto remove_te;
 	}
 
 remove_te:

@@ -945,7 +945,7 @@ char *tomoyo_encode2(const char *str, int str_len);
 char *tomoyo_init_log(struct tomoyo_request_info *r, int len, const char *fmt,
 		      va_list args);
 char *tomoyo_read_token(struct tomoyo_acl_param *param);
-char *tomoyo_realpath_from_path(struct path *path);
+char *tomoyo_realpath_from_path(const struct path *path);
 char *tomoyo_realpath_nofollow(const char *pathname);
 const char *tomoyo_get_exe(void);
 const char *tomoyo_yesno(const unsigned int value);
@@ -978,7 +978,7 @@ int tomoyo_path2_perm(const u8 operation, struct path *path1,
 		      struct path *path2);
 int tomoyo_path_number_perm(const u8 operation, struct path *path,
 			    unsigned long number);
-int tomoyo_path_perm(const u8 operation, struct path *path,
+int tomoyo_path_perm(const u8 operation, const struct path *path,
 		     const char *target);
 unsigned int tomoyo_poll_control(struct file *file, poll_table *wait);
 unsigned int tomoyo_poll_log(struct file *file, poll_table *wait);

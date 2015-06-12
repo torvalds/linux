@@ -736,7 +736,7 @@
 
 			display-timings {
 				timing-0 {
-					clock-frequency = <0>;
+					clock-frequency = <57153600>;
 					hactive = <720>;
 					vactive = <1280>;
 					hfront-porch = <5>;
@@ -926,6 +926,21 @@
 		pullup-ohm = <100000>;	 /* 100K */
 		pulldown-ohm = <100000>; /* 100K */
 		io-channels = <&adc 2>;  /* Battery temperature */
+	};
+
+	thermal-zones {
+		cpu_thermal: cpu-thermal {
+			cooling-maps {
+				map0 {
+				     /* Corresponds to 800MHz at freq_table */
+				     cooling-device = <&cpu0 7 7>;
+				};
+				map1 {
+				     /* Corresponds to 200MHz at freq_table */
+				     cooling-device = <&cpu0 13 13>;
+			       };
+		       };
+		};
 	};
 };
 

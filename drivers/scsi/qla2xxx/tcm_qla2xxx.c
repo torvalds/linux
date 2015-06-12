@@ -53,9 +53,8 @@
 static struct workqueue_struct *tcm_qla2xxx_free_wq;
 static struct workqueue_struct *tcm_qla2xxx_cmd_wq;
 
-/* Local pointer to allocated TCM configfs fabric module */
-static struct target_fabric_configfs *tcm_qla2xxx_fabric_configfs;
-static struct target_fabric_configfs *tcm_qla2xxx_npiv_fabric_configfs;
+static const struct target_core_fabric_ops tcm_qla2xxx_ops;
+static const struct target_core_fabric_ops tcm_qla2xxx_npiv_ops;
 
 /*
  * Parse WWN.
@@ -334,6 +333,14 @@ static int tcm_qla2xxx_check_demo_mode_login_only(struct se_portal_group *se_tpg
 				struct tcm_qla2xxx_tpg, se_tpg);
 
 	return tpg->tpg_attrib.demo_mode_login_only;
+}
+
+static int tcm_qla2xxx_check_prot_fabric_only(struct se_portal_group *se_tpg)
+{
+	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,
+				struct tcm_qla2xxx_tpg, se_tpg);
+
+	return tpg->tpg_attrib.fabric_prot_type;
 }
 
 static struct se_node_acl *tcm_qla2xxx_alloc_fabric_acl(
@@ -1013,8 +1020,7 @@ static void tcm_qla2xxx_depend_tpg(struct work_struct *work)
 	struct se_portal_group *se_tpg = &base_tpg->se_tpg;
 	struct scsi_qla_host *base_vha = base_tpg->lport->qla_vha;
 
-	if (!configfs_depend_item(se_tpg->se_tpg_tfo->tf_subsys,
-				  &se_tpg->tpg_group.cg_item)) {
+	if (!target_depend_item(&se_tpg->tpg_group.cg_item)) {
 		atomic_set(&base_tpg->lport_tpg_enabled, 1);
 		qlt_enable_vha(base_vha);
 	}
@@ -1030,8 +1036,7 @@ static void tcm_qla2xxx_undepend_tpg(struct work_struct *work)
 
 	if (!qlt_stop_phase1(base_vha->vha_tgt.qla_tgt)) {
 		atomic_set(&base_tpg->lport_tpg_enabled, 0);
-		configfs_undepend_item(se_tpg->se_tpg_tfo->tf_subsys,
-				       &se_tpg->tpg_group.cg_item);
+		target_undepend_item(&se_tpg->tpg_group.cg_item);
 	}
 	complete(&base_tpg->tpg_base_comp);
 }
@@ -1082,8 +1087,53 @@ static ssize_t tcm_qla2xxx_tpg_store_enable(
 
 TF_TPG_BASE_ATTR(tcm_qla2xxx, enable, S_IRUGO | S_IWUSR);
 
+static ssize_t tcm_qla2xxx_tpg_show_dynamic_sessions(
+	struct se_portal_group *se_tpg,
+	char *page)
+{
+	return target_show_dynamic_sessions(se_tpg, page);
+}
+
+TF_TPG_BASE_ATTR_RO(tcm_qla2xxx, dynamic_sessions);
+
+static ssize_t tcm_qla2xxx_tpg_store_fabric_prot_type(
+	struct se_portal_group *se_tpg,
+	const char *page,
+	size_t count)
+{
+	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,
+				struct tcm_qla2xxx_tpg, se_tpg);
+	unsigned long val;
+	int ret = kstrtoul(page, 0, &val);
+
+	if (ret) {
+		pr_err("kstrtoul() returned %d for fabric_prot_type\n", ret);
+		return ret;
+	}
+	if (val != 0 && val != 1 && val != 3) {
+		pr_err("Invalid qla2xxx fabric_prot_type: %lu\n", val);
+		return -EINVAL;
+	}
+	tpg->tpg_attrib.fabric_prot_type = val;
+
+	return count;
+}
+
+static ssize_t tcm_qla2xxx_tpg_show_fabric_prot_type(
+	struct se_portal_group *se_tpg,
+	char *page)
+{
+	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,
+				struct tcm_qla2xxx_tpg, se_tpg);
+
+	return sprintf(page, "%d\n", tpg->tpg_attrib.fabric_prot_type);
+}
+TF_TPG_BASE_ATTR(tcm_qla2xxx, fabric_prot_type, S_IRUGO | S_IWUSR);
+
 static struct configfs_attribute *tcm_qla2xxx_tpg_attrs[] = {
 	&tcm_qla2xxx_tpg_enable.attr,
+	&tcm_qla2xxx_tpg_dynamic_sessions.attr,
+	&tcm_qla2xxx_tpg_fabric_prot_type.attr,
 	NULL,
 };
 
@@ -1124,7 +1174,7 @@ static struct se_portal_group *tcm_qla2xxx_make_tpg(
 	tpg->tpg_attrib.cache_dynamic_acls = 1;
 	tpg->tpg_attrib.demo_mode_login_only = 1;
 
-	ret = core_tpg_register(&tcm_qla2xxx_fabric_configfs->tf_ops, wwn,
+	ret = core_tpg_register(&tcm_qla2xxx_ops, wwn,
 				&tpg->se_tpg, tpg, TRANSPORT_TPG_TYPE_NORMAL);
 	if (ret < 0) {
 		kfree(tpg);
@@ -1244,7 +1294,7 @@ static struct se_portal_group *tcm_qla2xxx_npiv_make_tpg(
 	tpg->tpg_attrib.cache_dynamic_acls = 1;
 	tpg->tpg_attrib.demo_mode_login_only = 1;
 
-	ret = core_tpg_register(&tcm_qla2xxx_npiv_fabric_configfs->tf_ops, wwn,
+	ret = core_tpg_register(&tcm_qla2xxx_npiv_ops, wwn,
 				&tpg->se_tpg, tpg, TRANSPORT_TPG_TYPE_NORMAL);
 	if (ret < 0) {
 		kfree(tpg);
@@ -1560,7 +1610,7 @@ static int tcm_qla2xxx_check_initiator_node_acl(
 
 	se_sess = transport_init_session_tags(num_tags,
 					      sizeof(struct qla_tgt_cmd),
-					      TARGET_PROT_NORMAL);
+					      TARGET_PROT_ALL);
 	if (IS_ERR(se_sess)) {
 		pr_err("Unable to initialize struct se_session\n");
 		return PTR_ERR(se_sess);
@@ -1596,7 +1646,7 @@ static int tcm_qla2xxx_check_initiator_node_acl(
 	/*
 	 * Finally register the new FC Nexus with TCM
 	 */
-	__transport_register_session(se_nacl->se_tpg, se_nacl, se_sess, sess);
+	transport_register_session(se_nacl->se_tpg, se_nacl, se_sess, sess);
 
 	return 0;
 }
@@ -1934,7 +1984,9 @@ static struct configfs_attribute *tcm_qla2xxx_wwn_attrs[] = {
 	NULL,
 };
 
-static struct target_core_fabric_ops tcm_qla2xxx_ops = {
+static const struct target_core_fabric_ops tcm_qla2xxx_ops = {
+	.module				= THIS_MODULE,
+	.name				= "qla2xxx",
 	.get_fabric_name		= tcm_qla2xxx_get_fabric_name,
 	.get_fabric_proto_ident		= tcm_qla2xxx_get_fabric_proto_ident,
 	.tpg_get_wwn			= tcm_qla2xxx_get_fabric_wwn,
@@ -1949,6 +2001,7 @@ static struct target_core_fabric_ops tcm_qla2xxx_ops = {
 					tcm_qla2xxx_check_demo_write_protect,
 	.tpg_check_prod_mode_write_protect =
 					tcm_qla2xxx_check_prod_write_protect,
+	.tpg_check_prot_fabric_only	= tcm_qla2xxx_check_prot_fabric_only,
 	.tpg_check_demo_mode_login_only = tcm_qla2xxx_check_demo_mode_login_only,
 	.tpg_alloc_fabric_acl		= tcm_qla2xxx_alloc_fabric_acl,
 	.tpg_release_fabric_acl		= tcm_qla2xxx_release_fabric_acl,
@@ -1983,9 +2036,15 @@ static struct target_core_fabric_ops tcm_qla2xxx_ops = {
 	.fabric_drop_np			= NULL,
 	.fabric_make_nodeacl		= tcm_qla2xxx_make_nodeacl,
 	.fabric_drop_nodeacl		= tcm_qla2xxx_drop_nodeacl,
+
+	.tfc_wwn_attrs			= tcm_qla2xxx_wwn_attrs,
+	.tfc_tpg_base_attrs		= tcm_qla2xxx_tpg_attrs,
+	.tfc_tpg_attrib_attrs		= tcm_qla2xxx_tpg_attrib_attrs,
 };
 
-static struct target_core_fabric_ops tcm_qla2xxx_npiv_ops = {
+static const struct target_core_fabric_ops tcm_qla2xxx_npiv_ops = {
+	.module				= THIS_MODULE,
+	.name				= "qla2xxx_npiv",
 	.get_fabric_name		= tcm_qla2xxx_npiv_get_fabric_name,
 	.get_fabric_proto_ident		= tcm_qla2xxx_get_fabric_proto_ident,
 	.tpg_get_wwn			= tcm_qla2xxx_get_fabric_wwn,
@@ -2033,94 +2092,26 @@ static struct target_core_fabric_ops tcm_qla2xxx_npiv_ops = {
 	.fabric_drop_np			= NULL,
 	.fabric_make_nodeacl		= tcm_qla2xxx_make_nodeacl,
 	.fabric_drop_nodeacl		= tcm_qla2xxx_drop_nodeacl,
+
+	.tfc_wwn_attrs			= tcm_qla2xxx_wwn_attrs,
+	.tfc_tpg_base_attrs		= tcm_qla2xxx_npiv_tpg_attrs,
 };
 
 static int tcm_qla2xxx_register_configfs(void)
 {
-	struct target_fabric_configfs *fabric, *npiv_fabric;
 	int ret;
 
 	pr_debug("TCM QLOGIC QLA2XXX fabric module %s on %s/%s on "
 	    UTS_RELEASE"\n", TCM_QLA2XXX_VERSION, utsname()->sysname,
 	    utsname()->machine);
-	/*
-	 * Register the top level struct config_item_type with TCM core
-	 */
-	fabric = target_fabric_configfs_init(THIS_MODULE, "qla2xxx");
-	if (IS_ERR(fabric)) {
-		pr_err("target_fabric_configfs_init() failed\n");
-		return PTR_ERR(fabric);
-	}
-	/*
-	 * Setup fabric->tf_ops from our local tcm_qla2xxx_ops
-	 */
-	fabric->tf_ops = tcm_qla2xxx_ops;
-	/*
-	 * Setup default attribute lists for various fabric->tf_cit_tmpl
-	 */
-	fabric->tf_cit_tmpl.tfc_wwn_cit.ct_attrs = tcm_qla2xxx_wwn_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_base_cit.ct_attrs = tcm_qla2xxx_tpg_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_attrib_cit.ct_attrs =
-						tcm_qla2xxx_tpg_attrib_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_param_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_np_base_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_base_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_attrib_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_auth_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_param_cit.ct_attrs = NULL;
-	/*
-	 * Register the fabric for use within TCM
-	 */
-	ret = target_fabric_configfs_register(fabric);
-	if (ret < 0) {
-		pr_err("target_fabric_configfs_register() failed for TCM_QLA2XXX\n");
-		return ret;
-	}
-	/*
-	 * Setup our local pointer to *fabric
-	 */
-	tcm_qla2xxx_fabric_configfs = fabric;
-	pr_debug("TCM_QLA2XXX[0] - Set fabric -> tcm_qla2xxx_fabric_configfs\n");
 
-	/*
-	 * Register the top level struct config_item_type for NPIV with TCM core
-	 */
-	npiv_fabric = target_fabric_configfs_init(THIS_MODULE, "qla2xxx_npiv");
-	if (IS_ERR(npiv_fabric)) {
-		pr_err("target_fabric_configfs_init() failed\n");
-		ret = PTR_ERR(npiv_fabric);
+	ret = target_register_template(&tcm_qla2xxx_ops);
+	if (ret)
+		return ret;
+
+	ret = target_register_template(&tcm_qla2xxx_npiv_ops);
+	if (ret)
 		goto out_fabric;
-	}
-	/*
-	 * Setup fabric->tf_ops from our local tcm_qla2xxx_npiv_ops
-	 */
-	npiv_fabric->tf_ops = tcm_qla2xxx_npiv_ops;
-	/*
-	 * Setup default attribute lists for various npiv_fabric->tf_cit_tmpl
-	 */
-	npiv_fabric->tf_cit_tmpl.tfc_wwn_cit.ct_attrs = tcm_qla2xxx_wwn_attrs;
-	npiv_fabric->tf_cit_tmpl.tfc_tpg_base_cit.ct_attrs =
-	    tcm_qla2xxx_npiv_tpg_attrs;
-	npiv_fabric->tf_cit_tmpl.tfc_tpg_attrib_cit.ct_attrs = NULL;
-	npiv_fabric->tf_cit_tmpl.tfc_tpg_param_cit.ct_attrs = NULL;
-	npiv_fabric->tf_cit_tmpl.tfc_tpg_np_base_cit.ct_attrs = NULL;
-	npiv_fabric->tf_cit_tmpl.tfc_tpg_nacl_base_cit.ct_attrs = NULL;
-	npiv_fabric->tf_cit_tmpl.tfc_tpg_nacl_attrib_cit.ct_attrs = NULL;
-	npiv_fabric->tf_cit_tmpl.tfc_tpg_nacl_auth_cit.ct_attrs = NULL;
-	npiv_fabric->tf_cit_tmpl.tfc_tpg_nacl_param_cit.ct_attrs = NULL;
-	/*
-	 * Register the npiv_fabric for use within TCM
-	 */
-	ret = target_fabric_configfs_register(npiv_fabric);
-	if (ret < 0) {
-		pr_err("target_fabric_configfs_register() failed for TCM_QLA2XXX\n");
-		goto out_fabric;
-	}
-	/*
-	 * Setup our local pointer to *npiv_fabric
-	 */
-	tcm_qla2xxx_npiv_fabric_configfs = npiv_fabric;
-	pr_debug("TCM_QLA2XXX[0] - Set fabric -> tcm_qla2xxx_npiv_fabric_configfs\n");
 
 	tcm_qla2xxx_free_wq = alloc_workqueue("tcm_qla2xxx_free",
 						WQ_MEM_RECLAIM, 0);
@@ -2140,9 +2131,9 @@ static int tcm_qla2xxx_register_configfs(void)
 out_free_wq:
 	destroy_workqueue(tcm_qla2xxx_free_wq);
 out_fabric_npiv:
-	target_fabric_configfs_deregister(tcm_qla2xxx_npiv_fabric_configfs);
+	target_unregister_template(&tcm_qla2xxx_npiv_ops);
 out_fabric:
-	target_fabric_configfs_deregister(tcm_qla2xxx_fabric_configfs);
+	target_unregister_template(&tcm_qla2xxx_ops);
 	return ret;
 }
 
@@ -2151,13 +2142,8 @@ static void tcm_qla2xxx_deregister_configfs(void)
 	destroy_workqueue(tcm_qla2xxx_cmd_wq);
 	destroy_workqueue(tcm_qla2xxx_free_wq);
 
-	target_fabric_configfs_deregister(tcm_qla2xxx_fabric_configfs);
-	tcm_qla2xxx_fabric_configfs = NULL;
-	pr_debug("TCM_QLA2XXX[0] - Cleared tcm_qla2xxx_fabric_configfs\n");
-
-	target_fabric_configfs_deregister(tcm_qla2xxx_npiv_fabric_configfs);
-	tcm_qla2xxx_npiv_fabric_configfs = NULL;
-	pr_debug("TCM_QLA2XXX[0] - Cleared tcm_qla2xxx_npiv_fabric_configfs\n");
+	target_unregister_template(&tcm_qla2xxx_ops);
+	target_unregister_template(&tcm_qla2xxx_npiv_ops);
 }
 
 static int __init tcm_qla2xxx_init(void)

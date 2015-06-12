@@ -1,11 +1,21 @@
 #ifndef _COMEDI_INTERNAL_H
 #define _COMEDI_INTERNAL_H
 
+#include <linux/compiler.h>
 #include <linux/types.h>
 
 /*
  * various internal comedi stuff
  */
+
+struct comedi_buf_map;
+struct comedi_devconfig;
+struct comedi_device;
+struct comedi_insn;
+struct comedi_rangeinfo;
+struct comedi_subdevice;
+struct device;
+
 int do_rangeinfo_ioctl(struct comedi_device *dev,
 		       struct comedi_rangeinfo __user *arg);
 struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device);

@@ -963,6 +963,7 @@ static void s3c24xx_serial_shutdown(struct uart_port *port)
 			free_irq(ourport->tx_irq, ourport);
 		tx_enabled(port) = 0;
 		ourport->tx_claimed = 0;
+		ourport->tx_mode = 0;
 	}
 
 	if (ourport->rx_claimed) {
@@ -1067,8 +1068,9 @@ static int s3c64xx_serial_startup(struct uart_port *port)
 	spin_lock_irqsave(&port->lock, flags);
 
 	ufcon = rd_regl(port, S3C2410_UFCON);
-	ufcon |= S3C2410_UFCON_RESETRX | S3C2410_UFCON_RESETTX |
-			S5PV210_UFCON_RXTRIG8;
+	ufcon |= S3C2410_UFCON_RESETRX | S5PV210_UFCON_RXTRIG8;
+	if (!uart_console(port))
+		ufcon |= S3C2410_UFCON_RESETTX;
 	wr_regl(port, S3C2410_UFCON, ufcon);
 
 	enable_rx_pio(ourport);

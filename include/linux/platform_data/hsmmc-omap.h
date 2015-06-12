@@ -55,9 +55,6 @@ struct omap_hsmmc_platform_data {
 	u32 caps;	/* Used for the MMC driver on 2430 and later */
 	u32 pm_caps;	/* PM capabilities of the mmc */
 
-	/* switch pin can be for card detect (default) or card cover */
-	unsigned cover:1;
-
 	/* use the internal clock */
 	unsigned internal_clock:1;
 
@@ -73,7 +70,8 @@ struct omap_hsmmc_platform_data {
 #define HSMMC_HAS_HSPE_SUPPORT	(1 << 2)
 	unsigned features;
 
-	int switch_pin;			/* gpio (card detect) */
+	int gpio_cd;			/* gpio (card detect) */
+	int gpio_cod;			/* gpio (cover detect) */
 	int gpio_wp;			/* gpio (write protect) */
 
 	int (*set_power)(struct device *dev, int power_on, int vdd);

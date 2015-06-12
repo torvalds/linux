@@ -151,8 +151,7 @@ int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 	}
 
 	if (IS_ENABLED(CONFIG_USB_ISP1761_UDC) && !udc_disabled) {
-		ret = isp1760_udc_register(isp, irq, irqflags | IRQF_SHARED |
-					   IRQF_DISABLED);
+		ret = isp1760_udc_register(isp, irq, irqflags);
 		if (ret < 0) {
 			isp1760_hcd_unregister(&isp->hcd);
 			return ret;

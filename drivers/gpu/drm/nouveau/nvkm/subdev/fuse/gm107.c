@@ -45,10 +45,8 @@ gm107_fuse_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	ret = nvkm_fuse_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
 
-	return 0;
+	return ret;
 }
 
 struct nvkm_oclass
