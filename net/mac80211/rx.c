@@ -122,8 +122,7 @@ static inline bool should_drop_frame(struct sk_buff *skb, int present_fcs_len,
 	hdr = (void *)(skb->data + rtap_vendor_space);
 
 	if (status->flag & (RX_FLAG_FAILED_FCS_CRC |
-			    RX_FLAG_FAILED_PLCP_CRC |
-			    RX_FLAG_AMPDU_IS_ZEROLEN))
+			    RX_FLAG_FAILED_PLCP_CRC))
 		return true;
 
 	if (unlikely(skb->len < 16 + present_fcs_len + rtap_vendor_space))
@@ -391,10 +390,6 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 			cpu_to_le32(1 << IEEE80211_RADIOTAP_AMPDU_STATUS);
 		put_unaligned_le32(status->ampdu_reference, pos);
 		pos += 4;
-		if (status->flag & RX_FLAG_AMPDU_REPORT_ZEROLEN)
-			flags |= IEEE80211_RADIOTAP_AMPDU_REPORT_ZEROLEN;
-		if (status->flag & RX_FLAG_AMPDU_IS_ZEROLEN)
-			flags |= IEEE80211_RADIOTAP_AMPDU_IS_ZEROLEN;
 		if (status->flag & RX_FLAG_AMPDU_LAST_KNOWN)
 			flags |= IEEE80211_RADIOTAP_AMPDU_LAST_KNOWN;
 		if (status->flag & RX_FLAG_AMPDU_IS_LAST)
