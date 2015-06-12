@@ -451,6 +451,7 @@ static int iommu_load_old_irte(struct intel_iommu *iommu)
 {
 	struct irte *old_ir_table;
 	phys_addr_t irt_phys;
+	unsigned int i;
 	size_t size;
 	u64 irta;
 
@@ -480,6 +481,15 @@ static int iommu_load_old_irte(struct intel_iommu *iommu)
 	memcpy(iommu->ir_table->base, old_ir_table, size);
 
 	__iommu_flush_cache(iommu, iommu->ir_table->base, size);
+
+	/*
+	 * Now check the table for used entries and mark those as
+	 * allocated in the bitmap
+	 */
+	for (i = 0; i < INTR_REMAP_TABLE_ENTRIES; i++) {
+		if (iommu->ir_table->base[i].present)
+			bitmap_set(iommu->ir_table->bitmap, i, 1);
+	}
 
 	return 0;
 }
