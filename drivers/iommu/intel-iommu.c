@@ -2934,10 +2934,20 @@ static int copy_translation_tables(struct intel_iommu *iommu)
 	unsigned long flags;
 	u64 rtaddr_reg;
 	int bus, ret;
-	bool ext;
+	bool new_ext, ext;
 
 	rtaddr_reg = dmar_readq(iommu->reg + DMAR_RTADDR_REG);
 	ext        = !!(rtaddr_reg & DMA_RTADDR_RTT);
+	new_ext    = !!ecap_ecs(iommu->ecap);
+
+	/*
+	 * The RTT bit can only be changed when translation is disabled,
+	 * but disabling translation means to open a window for data
+	 * corruption. So bail out and don't copy anything if we would
+	 * have to change the bit.
+	 */
+	if (new_ext != ext)
+		return -EINVAL;
 
 	old_rt_phys = rtaddr_reg & VTD_PAGE_MASK;
 	if (!old_rt_phys)
