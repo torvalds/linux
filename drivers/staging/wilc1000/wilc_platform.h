@@ -30,7 +30,7 @@ typedef struct __Message_struct {
 typedef struct __MessageQueue_struct {
 	struct semaphore hSem;
 	spinlock_t strCriticalSection;
-	WILC_Bool bExiting;
+	bool bExiting;
 	u32 u32ReceiversCount;
 	Message *pstrMessageList;
 } WILC_MsgQueueHandle;

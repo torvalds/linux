@@ -27,7 +27,7 @@ extern void WILC_WFI_mgmt_rx(uint8_t *buff, uint32_t size);
 extern void frmw_to_linux(uint8_t *buff, uint32_t size);
 int sdio_xfer_cnt(void);
 uint32_t wilc_get_chipid(uint8_t update);
-u16 Set_machw_change_vir_if(WILC_Bool bValue);
+u16 Set_machw_change_vir_if(bool bValue);
 
 
 
@@ -487,14 +487,14 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(void)
 #endif
 
 #ifdef TCP_ENHANCEMENTS
-WILC_Bool EnableTCPAckFilter = WILC_FALSE;
+bool EnableTCPAckFilter = false;
 
-void Enable_TCP_ACK_Filter(WILC_Bool value)
+void Enable_TCP_ACK_Filter(bool value)
 {
 	EnableTCPAckFilter = value;
 }
 
-WILC_Bool is_TCP_ACK_Filter_Enabled(void)
+bool is_TCP_ACK_Filter_Enabled(void)
 {
 	return EnableTCPAckFilter;
 }
@@ -559,7 +559,7 @@ static int wilc_wlan_txq_add_net_pkt(void *priv, uint8_t *buffer, uint32_t buffe
 #ifdef TCP_ACK_FILTER
 	tqe->tcp_PendingAck_index = NOT_TCP_ACK;
 #ifdef TCP_ENHANCEMENTS
-	if (is_TCP_ACK_Filter_Enabled() == WILC_TRUE)
+	if (is_TCP_ACK_Filter_Enabled() == true)
 #endif
 	tcp_process(tqe);
 #endif
@@ -738,12 +738,12 @@ INLINE void chip_wakeup(void)
 				WILC_Sleep(2);
 				/* Make sure chip is awake. This is an extra step that can be removed */
 				/* later to avoid the bus access overhead */
-				if ((wilc_get_chipid(WILC_TRUE) == 0)) {
+				if ((wilc_get_chipid(true) == 0)) {
 					wilc_debug(N_ERR, "Couldn't read chip id. Wake up failed\n");
 				}
-			} while ((wilc_get_chipid(WILC_TRUE) == 0) && ((++trials % 3) == 0));
+			} while ((wilc_get_chipid(true) == 0) && ((++trials % 3) == 0));
 
-		} while (wilc_get_chipid(WILC_TRUE) == 0);
+		} while (wilc_get_chipid(true) == 0);
 	} else if ((g_wlan.io_func.io_type & 0x1) == HIF_SDIO)	 {
 		g_wlan.hif_func.hif_read_reg(0xf0, &reg);
 		do {
@@ -782,7 +782,7 @@ INLINE void chip_wakeup(void)
 		reg &= ~(1 << 0);
 		g_wlan.hif_func.hif_write_reg(0x1C0C, reg);
 
-		if (wilc_get_chipid(WILC_FALSE) >= 0x1002b0) {
+		if (wilc_get_chipid(false) >= 0x1002b0) {
 			/* Enable PALDO back right after wakeup */
 			uint32_t val32;
 			g_wlan.hif_func.hif_read_reg(0x1e1c, &val32);
@@ -825,19 +825,19 @@ INLINE void chip_wakeup(void)
 
 			/* Make sure chip is awake. This is an extra step that can be removed */
 			/* later to avoid the bus access overhead */
-			if ((wilc_get_chipid(WILC_TRUE) == 0)) {
+			if ((wilc_get_chipid(true) == 0)) {
 				wilc_debug(N_ERR, "Couldn't read chip id. Wake up failed\n");
 			}
-		} while ((wilc_get_chipid(WILC_TRUE) == 0) && ((++trials % 3) == 0));
+		} while ((wilc_get_chipid(true) == 0) && ((++trials % 3) == 0));
 
-	} while (wilc_get_chipid(WILC_TRUE) == 0);
+	} while (wilc_get_chipid(true) == 0);
 
 	if (genuChipPSstate == CHIP_SLEEPING_MANUAL) {
 		g_wlan.hif_func.hif_read_reg(0x1C0C, &reg);
 		reg &= ~(1 << 0);
 		g_wlan.hif_func.hif_write_reg(0x1C0C, reg);
 
-		if (wilc_get_chipid(WILC_FALSE) >= 0x1002b0) {
+		if (wilc_get_chipid(false) >= 0x1002b0) {
 			/* Enable PALDO back right after wakeup */
 			uint32_t val32;
 			g_wlan.hif_func.hif_read_reg(0x1e1c, &val32);
@@ -1354,7 +1354,7 @@ static void wilc_pllupdate_isr_ext(uint32_t int_stats)
 	g_wlan.os_func.os_atomic_sleep(WILC_PLL_TO);
 
 	/* poll till read a valid data */
-	while (!(ISWILC1000(wilc_get_chipid(WILC_TRUE)) && --trials)) {
+	while (!(ISWILC1000(wilc_get_chipid(true)) && --trials)) {
 		PRINT_D(TX_DBG, "PLL update retrying\n");
 		g_wlan.os_func.os_atomic_sleep(1);
 	}
@@ -2012,7 +2012,7 @@ uint32_t init_chip(void)
 	acquire_bus(ACQUIRE_ONLY);
 #endif
 
-	chipid = wilc_get_chipid(WILC_TRUE);
+	chipid = wilc_get_chipid(true);
 
 
 
@@ -2325,7 +2325,7 @@ _fail_:
 }
 
 #define BIT31 (1 << 31)
-u16 Set_machw_change_vir_if(WILC_Bool bValue)
+u16 Set_machw_change_vir_if(bool bValue)
 {
 	u16 ret;
 	u32 reg;
@@ -2337,7 +2337,7 @@ u16 Set_machw_change_vir_if(WILC_Bool bValue)
 		PRINT_ER("Error while Reading reg WILC_CHANGING_VIR_IF\n");
 	}
 
-	if (bValue == WILC_TRUE) {
+	if (bValue == true) {
 		reg |= (BIT31);
 	} else {
 		reg &= ~(BIT31);

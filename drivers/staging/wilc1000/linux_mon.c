@@ -274,7 +274,7 @@ static int mon_mgmt_tx(struct net_device *dev, const u8 *buf, size_t len)
 	memcpy((mgmt_tx->buff) + (len - sizeof(struct tx_complete_mon_data *)), &mgmt_tx, sizeof(struct tx_complete_mon_data *));
 
 	/* filter data frames to handle it's PS */
-	if (filter_monitor_data_frames((mgmt_tx->buff), len) == WILC_TRUE) {
+	if (filter_monitor_data_frames((mgmt_tx->buff), len) == true) {
 		return;
 	}
 
@@ -412,7 +412,7 @@ static const struct net_device_ops wilc_wfi_netdev_ops = {
  *  @date			9 May 2013
  *  @version		1.0
  */
-void WILC_mgm_HOSTAPD_ACK(void *priv, WILC_Bool bStatus)
+void WILC_mgm_HOSTAPD_ACK(void *priv, bool bStatus)
 {
 	struct sk_buff *skb;
 	struct wilc_wfi_radiotap_cb_hdr *cb_hdr;
@@ -452,7 +452,7 @@ void WILC_mgm_HOSTAPD_ACK(void *priv, WILC_Bool bStatus)
 		cb_hdr->rate = 5; /* txrate->bitrate / 5; */
 
 
-		if (WILC_TRUE == bStatus) {
+		if (true == bStatus) {
 			/* success */
 			cb_hdr->tx_flags = IEEE80211_RADIOTAP_F_TX_RTS;
 		} else {

@@ -330,7 +330,7 @@ typedef struct {
 	size_t ConnReqIEsLen;
 	/* Connect user call back function */
 	tWILCpfConnectResult pfUserConnectResult;
-	WILC_Bool IsHTCapable;
+	bool IsHTCapable;
 	/* User specific parameter to be delivered through the Connect User Callback function */
 	void *u32UserConnectPvoid;
 } tstrWILC_UsrConnReq;
@@ -373,7 +373,7 @@ typedef struct {
 
 typedef struct {
 
-	WILC_Bool bReg;
+	bool bReg;
 	u16 u16FrameType;
 	u8 u8Regid;
 
@@ -412,7 +412,7 @@ typedef struct {
 
 	tenuHostIFstate enuHostIFstate;
 
-	/* WILC_Bool bPendingConnRequest; */
+	/* bool bPendingConnRequest; */
 
 	#ifndef CONNECT_DIRECT
 	u32 u32SurveyResultsCount;
@@ -437,7 +437,7 @@ typedef struct {
 	WILC_TimerHandle hRemainOnChannel;
 	#endif
 
-	WILC_Bool IFC_UP;
+	bool IFC_UP;
 } tstrWILC_WFIDrv;
 
 /*!
@@ -465,7 +465,7 @@ typedef struct {
 	u16 u16AssocID;
 	u8 u8NumRates;
 	const u8 *pu8Rates;
-	WILC_Bool bIsHTSupported;
+	bool bIsHTSupported;
 	u16 u16HTCapInfo;
 	u8 u8AmpduParams;
 	u8 au8SuppMCsSet[16];
@@ -1058,7 +1058,7 @@ s32 hif_get_cfg(WILC_WFIDrvHandle hWFIDrv, u16 u16WID, u16 *pu16WID_Value);
  *  @version		1.0
  */
 void host_int_send_join_leave_info_to_host
-	(u16 assocId, u8 *stationAddr, WILC_Bool joining);
+	(u16 assocId, u8 *stationAddr, bool joining);
 
 /**
  *  @brief              notifies host with stations found in scan
@@ -1202,7 +1202,7 @@ s32 host_int_del_station(WILC_WFIDrvHandle hWFIDrv, const u8 *pu8MacAddr);
 s32 host_int_edit_station(WILC_WFIDrvHandle hWFIDrv, tstrWILC_AddStaParam *pstrStaParams);
 
 /*!
- *  @fn		s32 host_int_set_power_mgmt(WILC_WFIDrvHandle hWFIDrv, WILC_Bool bIsEnabled, u32 u32Timeout)
+ *  @fn		s32 host_int_set_power_mgmt(WILC_WFIDrvHandle hWFIDrv, bool bIsEnabled, u32 u32Timeout)
  *  @brief		Set the power management mode to enabled or disabled
  *  @details
  *  @param[in,out]	hWFIDrv		handle to the wifi driver
@@ -1216,7 +1216,7 @@ s32 host_int_edit_station(WILC_WFIDrvHandle hWFIDrv, tstrWILC_AddStaParam *pstrS
  *  @date		24 November 2012
  *  @version		1.0 Description
  */
-s32 host_int_set_power_mgmt(WILC_WFIDrvHandle hWFIDrv, WILC_Bool bIsEnabled, u32 u32Timeout);
+s32 host_int_set_power_mgmt(WILC_WFIDrvHandle hWFIDrv, bool bIsEnabled, u32 u32Timeout);
 /*  @param[in,out]	hWFIDrv		handle to the wifi driver
  *  @param[in]	bIsEnabled	TRUE if enabled, FALSE otherwise
  *  @param[in]	u8count		count of mac address entries in the filter table
@@ -1228,7 +1228,7 @@ s32 host_int_set_power_mgmt(WILC_WFIDrvHandle hWFIDrv, WILC_Bool bIsEnabled, u32
  *  @date		24 November 2012
  *  @version		1.0 Description
  */
-s32 host_int_setup_multicast_filter(WILC_WFIDrvHandle hWFIDrv, WILC_Bool bIsEnabled, u32 u32count);
+s32 host_int_setup_multicast_filter(WILC_WFIDrvHandle hWFIDrv, bool bIsEnabled, u32 u32count);
 /**
  *  @brief           host_int_setup_ipaddress
  *  @details       set IP address on firmware
@@ -1312,7 +1312,7 @@ s32 host_int_ListenStateExpired(WILC_WFIDrvHandle hWFIDrv, u32 u32SessionID);
  *  @date
  *  @version	1.0
  */
-s32 host_int_frame_register(WILC_WFIDrvHandle hWFIDrv, u16 u16FrameType, WILC_Bool bReg);
+s32 host_int_frame_register(WILC_WFIDrvHandle hWFIDrv, u16 u16FrameType, bool bReg);
 #endif
 /**
  *  @brief           host_int_set_wfi_drv_handler

@@ -418,7 +418,7 @@ typedef struct {
 	u8 u8channel;
 	unsigned long u32TimeRcvdInScanCached; /* of type unsigned long to be accepted by the linux kernel macro time_after() */
 	unsigned long u32TimeRcvdInScan;
-	WILC_Bool bNewNetwork;
+	bool bNewNetwork;
 #ifdef AGING_ALG
 	u8 u8Found;
 #endif
@@ -476,7 +476,7 @@ extern s32 CoreConfiguratorInit(void);
 extern s32 CoreConfiguratorDeInit(void);
 
 extern s32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
-				 u32 u32WIDsCount, WILC_Bool bRespRequired, u32 drvHandler);
+				 u32 u32WIDsCount, bool bRespRequired, u32 drvHandler);
 extern s32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo);
 extern s32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo);
 

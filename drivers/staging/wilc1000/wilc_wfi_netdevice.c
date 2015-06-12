@@ -931,7 +931,7 @@ int WILC_WFI_InitModule(void)
 		/*	priv[1]->monitor_flag = 1; */
 
 	}
-	priv[0]->bCfgScanning = WILC_FALSE;
+	priv[0]->bCfgScanning = false;
 	priv[0]->u32RcvdChCount = 0;
 
 	WILC_memset(priv[0]->au8AssociatedBss, 0xFF, ETH_ALEN);

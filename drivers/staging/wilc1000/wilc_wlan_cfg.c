@@ -14,7 +14,7 @@
 
 #ifdef WILC_FULLY_HOSTING_AP
 #include "wilc_host_ap.h"
-void WILC_mgm_HOSTAPD_ACK(void *priv, WILC_Bool bStatus);
+void WILC_mgm_HOSTAPD_ACK(void *priv, bool bStatus);
 #endif
 
 /********************************************
@@ -542,7 +542,7 @@ static int wilc_wlan_cfg_indicate_rx(uint8_t *frame, int size, wilc_cfg_rsp_t *r
 	uint16_t msg_len;
 	#ifdef WILC_FULLY_HOSTING_AP
 	u32 *ptru32Frame;
-	WILC_Bool bStatus = frame[2];
+	bool bStatus = frame[2];
 
 	#ifdef BIG_ENDIAN
 	ptru32Frame = (frame[4] << 24) | (frame[5] << 16) | (frame[6] << 8) | frame[7];

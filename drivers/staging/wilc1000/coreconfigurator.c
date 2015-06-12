@@ -145,7 +145,7 @@ typedef struct {
 	WILC_Char *pcRespBuffer;
 	s32 s32MaxRespBuffLen;
 	s32 s32BytesRead;
-	WILC_Bool bRespRequired;
+	bool bRespRequired;
 } tstrConfigPktInfo;
 
 
@@ -1520,7 +1520,7 @@ void ProcessBinWid(WILC_Char *pcPacket, s32 *ps32PktLen,
 s32 further_process_response(u8 *resp,
 				     u16 u16WIDid,
 				     u16 cfg_len,
-				     WILC_Bool process_wid_num,
+				     bool process_wid_num,
 				     u32 cnt,
 				     tstrWID *pstrWIDresult)
 {
@@ -1693,7 +1693,7 @@ s32 ParseResponse(u8 *resp, tstrWID *pstrWIDcfgResult)
 	u16 u16WIDid  = 0;
 	u16 cfg_len  = 0;
 	tenuWIDtype enuWIDtype = WID_UNDEF;
-	WILC_Bool num_wid_processed = WILC_FALSE;
+	bool num_wid_processed = false;
 	u32 cnt = 0;
 	u32 idx = 0;
 	u32 ResCnt = 0;
@@ -1717,17 +1717,17 @@ s32 ParseResponse(u8 *resp, tstrWID *pstrWIDcfgResult)
 			idx++;
 		}
 		idx += 3;
-		if ((u16WIDid == g_wid_num) && (num_wid_processed == WILC_FALSE)) {
-			num_wid_processed = WILC_TRUE;
+		if ((u16WIDid == g_wid_num) && (num_wid_processed == false)) {
+			num_wid_processed = true;
 
-			if (-2 == further_process_response(&resp[idx], u16WIDid, cfg_len, WILC_TRUE, 0, &pstrWIDcfgResult[ResCnt])) {
+			if (-2 == further_process_response(&resp[idx], u16WIDid, cfg_len, true, 0, &pstrWIDcfgResult[ResCnt])) {
 				return -2;
 			}
 			ResCnt++;
 		} else {
 			for (cnt = 0; cnt < g_num_total_switches; cnt++) {
 				if (gastrWIDs[cnt].u16WIDid == u16WIDid) {
-					if (-2 == further_process_response(&resp[idx], u16WIDid, cfg_len, WILC_FALSE, cnt,
+					if (-2 == further_process_response(&resp[idx], u16WIDid, cfg_len, false, cnt,
 									   &pstrWIDcfgResult[ResCnt])) {
 						return -2;
 					}
@@ -1913,7 +1913,7 @@ s32 CreateConfigPacket(s8 *ps8packet, s32 *ps32PacketLength,
 }
 
 s32 ConfigWaitResponse(WILC_Char *pcRespBuffer, s32 s32MaxRespBuffLen, s32 *ps32BytesRead,
-			       WILC_Bool bRespRequired)
+			       bool bRespRequired)
 {
 	s32 s32Error = WILC_SUCCESS;
 	/*bug 3878*/
@@ -1923,7 +1923,7 @@ s32 ConfigWaitResponse(WILC_Char *pcRespBuffer, s32 s32MaxRespBuffLen, s32 *ps32
 	 * gstrConfigPktInfo.bRespRequired = bRespRequired;*/
 
 
-	if (gstrConfigPktInfo.bRespRequired == WILC_TRUE) {
+	if (gstrConfigPktInfo.bRespRequired == true) {
 		down(&SemHandlePktResp);
 
 		*ps32BytesRead = gstrConfigPktInfo.s32BytesRead;
@@ -1950,7 +1950,7 @@ s32 ConfigWaitResponse(WILC_Char *pcRespBuffer, s32 s32MaxRespBuffLen, s32 *ps32
  */
 #ifdef SIMULATION
 s32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
-			  u32 u32WIDsCount, WILC_Bool bRespRequired, u32 drvHandler)
+			  u32 u32WIDsCount, bool bRespRequired, u32 drvHandler)
 {
 	s32 s32Error = WILC_SUCCESS;
 	s32 err = WILC_SUCCESS;
@@ -1984,7 +1984,7 @@ s32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
 	ConfigWaitResponse(gps8ConfigPacket, MAX_PACKET_BUFF_SIZE, &s32RcvdRespLen, bRespRequired);
 
 
-	if (bRespRequired == WILC_TRUE)	{
+	if (bRespRequired == true)	{
 		/* If the operating Mode is GET, then we expect a response frame from */
 		/* the driver. Hence start listening to the port for response         */
 		if (g_oper_mode == GET_CFG) {
@@ -2021,7 +2021,7 @@ s32 ConfigProvideResponse(WILC_Char *pcRespBuffer, s32 s32RespLen)
 {
 	s32 s32Error = WILC_SUCCESS;
 
-	if (gstrConfigPktInfo.bRespRequired == WILC_TRUE) {
+	if (gstrConfigPktInfo.bRespRequired == true) {
 		if (s32RespLen <= gstrConfigPktInfo.s32MaxRespBuffLen) {
 			WILC_memcpy(gstrConfigPktInfo.pcRespBuffer, pcRespBuffer, s32RespLen);
 			gstrConfigPktInfo.s32BytesRead = s32RespLen;
@@ -2129,7 +2129,7 @@ extern wilc_wlan_oup_t *gpstrWlanOps;
  *  @version	1.0
  */
 s32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
-			  u32 u32WIDsCount, WILC_Bool bRespRequired, u32 drvHandler)
+			  u32 u32WIDsCount, bool bRespRequired, u32 drvHandler)
 {
 	s32 counter = 0, ret = 0;
 	if (gpstrWlanOps == NULL) {

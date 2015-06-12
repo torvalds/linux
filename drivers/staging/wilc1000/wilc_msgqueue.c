@@ -15,7 +15,7 @@ WILC_ErrNo WILC_MsgQueueCreate(WILC_MsgQueueHandle *pHandle,
 	sema_init(&pHandle->hSem, 0);
 	pHandle->pstrMessageList = NULL;
 	pHandle->u32ReceiversCount = 0;
-	pHandle->bExiting = WILC_FALSE;
+	pHandle->bExiting = false;
 	return WILC_SUCCESS;
 }
 
@@ -29,7 +29,7 @@ WILC_ErrNo WILC_MsgQueueDestroy(WILC_MsgQueueHandle *pHandle,
 				tstrWILC_MsgQueueAttrs *pstrAttrs)
 {
 
-	pHandle->bExiting = WILC_TRUE;
+	pHandle->bExiting = true;
 
 	/* Release any waiting receiver thread. */
 	while (pHandle->u32ReceiversCount > 0) {
@@ -64,7 +64,7 @@ WILC_ErrNo WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
 		WILC_ERRORREPORT(s32RetStatus, WILC_INVALID_ARGUMENT);
 	}
 
-	if (pHandle->bExiting == WILC_TRUE) {
+	if (pHandle->bExiting == true) {
 		WILC_ERRORREPORT(s32RetStatus, WILC_FAIL);
 	}
 
@@ -131,7 +131,7 @@ WILC_ErrNo WILC_MsgQueueRecv(WILC_MsgQueueHandle *pHandle,
 		WILC_ERRORREPORT(s32RetStatus, WILC_INVALID_ARGUMENT);
 	}
 
-	if (pHandle->bExiting == WILC_TRUE) {
+	if (pHandle->bExiting == true) {
 		WILC_ERRORREPORT(s32RetStatus, WILC_FAIL);
 	}
 

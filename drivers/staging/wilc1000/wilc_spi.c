@@ -1472,4 +1472,3 @@ wilc_hif_func_t hif_spi = {
 	spi_max_bus_speed,
 	spi_default_bus_speed,
 };
-

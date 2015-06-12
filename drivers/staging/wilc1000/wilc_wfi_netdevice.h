@@ -134,7 +134,7 @@ struct WILC_WFI_priv {
 
 	#endif
 
-	WILC_Bool bCfgScanning;
+	bool bCfgScanning;
 	u32 u32RcvdChCount;
 
 
@@ -168,15 +168,15 @@ struct WILC_WFI_priv {
 	struct semaphore SemHandleUpdateStats;
 	struct semaphore hSemScanReq;
 	/*  */
-	WILC_Bool gbAutoRateAdjusted;
+	bool gbAutoRateAdjusted;
 
-	WILC_Bool bInP2PlistenState;
+	bool bInP2PlistenState;
 
 };
 
 typedef struct {
 	u16 frame_type;
-	WILC_Bool reg;
+	bool reg;
 
 } struct_frame_reg;
 

@@ -86,7 +86,7 @@ u32 FIFO_ReadBytes(tHANDLE hFifo, u8 *pu8Buffer, u32 u32BytesToRead, u32 *pu32By
 	return u32Error;
 }
 
-u32 FIFO_WriteBytes(tHANDLE hFifo, u8 *pu8Buffer, u32 u32BytesToWrite, WILC_Bool bForceOverWrite)
+u32 FIFO_WriteBytes(tHANDLE hFifo, u8 *pu8Buffer, u32 u32BytesToWrite, bool bForceOverWrite)
 {
 	u32 u32Error = 0;
 	tstrFifoHandler *pstrFifoHandler = (tstrFifoHandler *) hFifo;

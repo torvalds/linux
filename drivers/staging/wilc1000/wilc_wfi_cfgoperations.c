@@ -25,7 +25,7 @@
 extern void linux_wlan_free(void *vp);
 extern int linux_wlan_get_firmware(perInterface_wlan_t *p_nic);
 extern void linux_wlan_unlock(void *vp);
-extern u16 Set_machw_change_vir_if(WILC_Bool bValue);
+extern u16 Set_machw_change_vir_if(bool bValue);
 
 extern int mac_open(struct net_device *ndev);
 extern int mac_close(struct net_device *ndev);
@@ -43,7 +43,7 @@ extern u8 u8ConnectedSSID[6];
 u8 g_wilc_initialized = 1;
 extern linux_wlan_t *g_linux_wlan;
 #ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
-extern WILC_Bool g_obtainingIP;
+extern bool g_obtainingIP;
 #endif
 
 #define CHAN2G(_channel, _freq, _flags) {	 \
@@ -112,7 +112,7 @@ u8 u8P2P_oui[] = {0x50, 0x6f, 0x9A, 0x09};
 u8 u8P2Plocalrandom = 0x01;
 u8 u8P2Precvrandom = 0x00;
 u8 u8P2P_vendorspec[] = {0xdd, 0x05, 0x00, 0x08, 0x40, 0x03};
-WILC_Bool bWilc_ie = WILC_FALSE;
+bool bWilc_ie = false;
 #endif
 
 static struct ieee80211_supported_band WILC_WFI_band_2ghz = {
@@ -135,9 +135,9 @@ struct add_key_params g_add_ptk_key_params;
 struct wilc_wfi_key g_key_ptk_params;
 struct wilc_wfi_wep_key g_key_wep_params;
 u8 g_flushing_in_progress;
-WILC_Bool g_ptk_keys_saved = WILC_FALSE;
-WILC_Bool g_gtk_keys_saved = WILC_FALSE;
-WILC_Bool g_wep_keys_saved = WILC_FALSE;
+bool g_ptk_keys_saved = false;
+bool g_gtk_keys_saved = false;
+bool g_wep_keys_saved = false;
 
 #define AGING_TIME	(9 * 1000)
 #define duringIP_TIME 15000
@@ -178,7 +178,7 @@ uint32_t get_rssi_avg(tstrNetworkInfo *pstrNetworkInfo)
 	return rssi_v;
 }
 
-void refresh_scan(void *pUserVoid, uint8_t all, WILC_Bool bDirectScan)
+void refresh_scan(void *pUserVoid, uint8_t all, bool bDirectScan)
 {
 	struct WILC_WFI_priv *priv;
 	struct wiphy *wiphy;
@@ -275,7 +275,7 @@ void remove_network_from_shadow(void *pUserVoid)
 void clear_duringIP(void *pUserVoid)
 {
 	PRINT_D(GENERIC_DBG, "GO:IP Obtained , enable scan\n");
-	g_obtainingIP = WILC_FALSE;
+	g_obtainingIP = false;
 }
 #endif
 
@@ -386,7 +386,7 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 	struct cfg80211_bss *bss = NULL;
 
 	priv = (struct WILC_WFI_priv *)pUserVoid;
-	if (priv->bCfgScanning == WILC_TRUE) {
+	if (priv->bCfgScanning == true) {
 		if (enuScanEvent == SCAN_EVENT_NETWORK_FOUND) {
 			wiphy = priv->dev->ieee80211_ptr->wiphy;
 			WILC_NULLCHECK(s32Error, wiphy);
@@ -409,7 +409,7 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 					   "BeaconPeriod: %d \n", channel->center_freq, (((s32)pstrNetworkInfo->s8rssi) * 100),
 					   pstrNetworkInfo->u16CapInfo, pstrNetworkInfo->u16BeaconPeriod);
 
-				if (pstrNetworkInfo->bNewNetwork == WILC_TRUE) {
+				if (pstrNetworkInfo->bNewNetwork == true) {
 					if (priv->u32RcvdChCount < MAX_NUM_SCANNED_NETWORKS) { /* TODO: mostafa: to be replaced by */
 						/*               max_scan_ssids */
 						PRINT_D(CFG80211_DBG, "Network %s found\n", pstrNetworkInfo->au8ssid);
@@ -454,7 +454,7 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 		} else if (enuScanEvent == SCAN_EVENT_DONE)    {
 			PRINT_D(CFG80211_DBG, "Scan Done[%p] \n", priv->dev);
 			PRINT_D(CFG80211_DBG, "Refreshing Scan ... \n");
-			refresh_scan(priv, 1, WILC_FALSE);
+			refresh_scan(priv, 1, false);
 
 			if (priv->u32RcvdChCount > 0) {
 				PRINT_D(CFG80211_DBG, "%d Network(s) found \n", priv->u32RcvdChCount);
@@ -465,9 +465,9 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 			down(&(priv->hSemScanReq));
 
 			if (priv->pstrScanReq != NULL) {
-				cfg80211_scan_done(priv->pstrScanReq, WILC_FALSE);
+				cfg80211_scan_done(priv->pstrScanReq, false);
 				priv->u32RcvdChCount = 0;
-				priv->bCfgScanning = WILC_FALSE;
+				priv->bCfgScanning = false;
 				priv->pstrScanReq = NULL;
 			}
 			up(&(priv->hSemScanReq));
@@ -481,10 +481,10 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 			if (priv->pstrScanReq != NULL) {
 
 				update_scan_time(priv);
-				refresh_scan(priv, 1, WILC_FALSE);
+				refresh_scan(priv, 1, false);
 
-				cfg80211_scan_done(priv->pstrScanReq, WILC_FALSE);
-				priv->bCfgScanning = WILC_FALSE;
+				cfg80211_scan_done(priv->pstrScanReq, false);
+				priv->bCfgScanning = false;
 				priv->pstrScanReq = NULL;
 			}
 			up(&(priv->hSemScanReq));
@@ -599,7 +599,7 @@ static void CfgConnectResult(tenuConnDisconnEvent enuConnDisconnEvent,
 		}
 
 		if (u16ConnectStatus == WLAN_STATUS_SUCCESS) {
-			WILC_Bool bNeedScanRefresh = WILC_FALSE;
+			bool bNeedScanRefresh = false;
 			u32 i;
 
 			PRINT_INFO(CFG80211_DBG, "Connection Successful:: BSSID: %x%x%x%x%x%x\n", pstrConnectInfo->au8bssid[0],
@@ -617,17 +617,17 @@ static void CfgConnectResult(tenuConnDisconnEvent enuConnDisconnEvent,
 
 					if (time_after(now,
 						       astrLastScannedNtwrksShadow[i].u32TimeRcvdInScanCached + (unsigned long)(nl80211_SCAN_RESULT_EXPIRE - (1 * HZ)))) {
-						bNeedScanRefresh = WILC_TRUE;
+						bNeedScanRefresh = true;
 					}
 
 					break;
 				}
 			}
 
-			if (bNeedScanRefresh == WILC_TRUE) {
+			if (bNeedScanRefresh == true) {
 				/*BugID_5418*/
 				/*Also, refrsh DIRECT- results if */
-				refresh_scan(priv, 1, WILC_TRUE);
+				refresh_scan(priv, 1, true);
 
 			}
 
@@ -645,13 +645,13 @@ static void CfgConnectResult(tenuConnDisconnEvent enuConnDisconnEvent,
 		/* be replaced by pstrConnectInfo->u16ConnectStatus */
 	} else if (enuConnDisconnEvent == CONN_DISCONN_EVENT_DISCONN_NOTIF)    {
 		#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
-		g_obtainingIP = WILC_FALSE;
+		g_obtainingIP = false;
 		#endif
 		PRINT_ER("Received MAC_DISCONNECTED from firmware with reason %d on dev [%p]\n",
 			 pstrDisconnectNotifInfo->u16reason, priv->dev);
 		u8P2Plocalrandom = 0x01;
 		u8P2Precvrandom = 0x00;
-		bWilc_ie = WILC_FALSE;
+		bWilc_ie = false;
 		WILC_memset(priv->au8AssociatedBss, 0, ETH_ALEN);
 		linux_wlan_set_bssid(priv->dev, NullBssid);
 		WILC_memset(u8ConnectedSSID, 0, ETH_ALEN);
@@ -752,7 +752,7 @@ static int WILC_WFI_CfgScan(struct wiphy *wiphy, struct cfg80211_scan_request *r
 
 	reset_shadow_found(priv);
 
-	priv->bCfgScanning = WILC_TRUE;
+	priv->bCfgScanning = true;
 	if (request->n_channels <= MAX_NUM_SCANNED_NETWORKS) { /* TODO: mostafa: to be replaced by */
 		/*               max_scan_ssids */
 		for (i = 0; i < request->n_channels; i++) {
@@ -935,7 +935,7 @@ static int WILC_WFI_CfgConnect(struct wiphy *wiphy, struct net_device *dev,
 			g_key_wep_params.key = WILC_MALLOC(sme->key_len);
 			memcpy(g_key_wep_params.key, sme->key, sme->key_len);
 			g_key_wep_params.key_idx = sme->key_idx;
-			g_wep_keys_saved = WILC_TRUE;
+			g_wep_keys_saved = true;
 
 			host_int_set_WEPDefaultKeyID(priv->hWILCWFIDrv, sme->key_idx);
 			host_int_add_wep_key_bss_sta(priv->hWILCWFIDrv, sme->key, sme->key_len, sme->key_idx);
@@ -953,7 +953,7 @@ static int WILC_WFI_CfgConnect(struct wiphy *wiphy, struct net_device *dev,
 			g_key_wep_params.key = WILC_MALLOC(sme->key_len);
 			memcpy(g_key_wep_params.key, sme->key, sme->key_len);
 			g_key_wep_params.key_idx = sme->key_idx;
-			g_wep_keys_saved = WILC_TRUE;
+			g_wep_keys_saved = true;
 
 			host_int_set_WEPDefaultKeyID(priv->hWILCWFIDrv, sme->key_idx);
 			host_int_add_wep_key_bss_sta(priv->hWILCWFIDrv, sme->key, sme->key_len, sme->key_idx);
@@ -1101,7 +1101,7 @@ static int WILC_WFI_disconnect(struct wiphy *wiphy, struct net_device *dev, u16 
 
 	u8P2Plocalrandom = 0x01;
 	u8P2Precvrandom = 0x00;
-	bWilc_ie = WILC_FALSE;
+	bWilc_ie = false;
 	#ifdef WILC_P2P
 	pstrWFIDrv->u64P2p_MgmtTimeout = 0;
 	#endif
@@ -1348,7 +1348,7 @@ static int WILC_WFI_add_key(struct wiphy *wiphy, struct net_device *netdev, u8 k
 					PRINT_D(CFG80211_DBG, "key %x %x %x\n", g_key_gtk_params.key[0],
 						g_key_gtk_params.key[1],
 						g_key_gtk_params.key[2]);
-					g_gtk_keys_saved = WILC_TRUE;
+					g_gtk_keys_saved = true;
 				}
 
 				host_int_add_rx_gtk(priv->hWILCWFIDrv, params->key, KeyLen,
@@ -1385,7 +1385,7 @@ static int WILC_WFI_add_key(struct wiphy *wiphy, struct net_device *netdev, u8 k
 					PRINT_D(CFG80211_DBG, "key %x %x %x\n", g_key_ptk_params.key[0],
 						g_key_ptk_params.key[1],
 						g_key_ptk_params.key[2]);
-					g_ptk_keys_saved = WILC_TRUE;
+					g_ptk_keys_saved = true;
 				}
 
 				host_int_add_ptk(priv->hWILCWFIDrv, params->key, KeyLen, mac_addr,
@@ -1431,9 +1431,9 @@ static int WILC_WFI_del_key(struct wiphy *wiphy, struct net_device *netdev,
 	/*BugID_5137*/
 	/*delete saved keys, if any*/
 	if (netdev == g_linux_wlan->strInterfaceInfo[0].wilc_netdev) {
-		g_ptk_keys_saved = WILC_FALSE;
-		g_gtk_keys_saved = WILC_FALSE;
-		g_wep_keys_saved = WILC_FALSE;
+		g_ptk_keys_saved = false;
+		g_gtk_keys_saved = false;
+		g_wep_keys_saved = false;
 
 		/*Delete saved WEP keys params, if any*/
 		if (g_key_wep_params.key != NULL) {
@@ -1499,7 +1499,7 @@ static int WILC_WFI_del_key(struct wiphy *wiphy, struct net_device *netdev,
 		}
 
 		/*Reset WILC_CHANGING_VIR_IF register to allow adding futrue keys to CE H/W*/
-		Set_machw_change_vir_if(WILC_FALSE);
+		Set_machw_change_vir_if(false);
 	}
 
 	if (key_index >= 0 && key_index <= 3) {
@@ -1702,9 +1702,9 @@ static int WILC_WFI_get_station(struct wiphy *wiphy, struct net_device *dev,
 
 #ifdef TCP_ENHANCEMENTS
 		if ((strStatistics.u8LinkSpeed > TCP_ACK_FILTER_LINK_SPEED_THRESH) && (strStatistics.u8LinkSpeed != DEFAULT_LINK_SPEED)) {
-			Enable_TCP_ACK_Filter(WILC_TRUE);
+			Enable_TCP_ACK_Filter(true);
 		} else if (strStatistics.u8LinkSpeed != DEFAULT_LINK_SPEED)   {
-			Enable_TCP_ACK_Filter(WILC_FALSE);
+			Enable_TCP_ACK_Filter(false);
 		}
 #endif
 
@@ -2032,7 +2032,7 @@ void WILC_WFI_CfgParseRxAction(u8 *buf, u32 len)
 	#ifdef USE_SUPPLICANT_GO_INTENT
 	u8 intent;
 	u8 tie_breaker;
-	WILC_Bool is_wilc_go = WILC_TRUE;
+	bool is_wilc_go = true;
 	#endif
 	u8 op_channel_attr_index = 0;
 	u8 channel_list_attr_index = 0;
@@ -2048,10 +2048,10 @@ void WILC_WFI_CfgParseRxAction(u8 *buf, u32 len)
 			if (intent > SUPPLICANT_GO_INTENT
 			    || (intent == SUPPLICANT_GO_INTENT && tie_breaker == 1)) {
 				PRINT_D(GENERIC_DBG, "WILC will be client (intent %d tie breaker %d)\n", intent, tie_breaker);
-				is_wilc_go = WILC_FALSE;
+				is_wilc_go = false;
 			} else {
 				PRINT_D(GENERIC_DBG, "WILC will be GO (intent %d tie breaker %d)\n", intent, tie_breaker);
-				is_wilc_go = WILC_TRUE;
+				is_wilc_go = true;
 			}
 
 			#else   /* USE_SUPPLICANT_GO_INTENT */
@@ -2070,7 +2070,7 @@ void WILC_WFI_CfgParseRxAction(u8 *buf, u32 len)
 			PRINT_D(GENERIC_DBG, "Group BSSID: %2x:%2x:%2x\n", buf[index + 3]
 				, buf[index + 4]
 				, buf[index + 5]);
-			is_wilc_go = WILC_FALSE;
+			is_wilc_go = false;
 		}
 		#endif  /* USE_SUPPLICANT_GO_INTENT */
 
@@ -2119,7 +2119,7 @@ void WILC_WFI_CfgParseRxAction(u8 *buf, u32 len)
  *  @date	12 DEC 2012
  *  @version
  */
-void WILC_WFI_CfgParseTxAction(u8 *buf, u32 len, WILC_Bool bOperChan, u8 iftype)
+void WILC_WFI_CfgParseTxAction(u8 *buf, u32 len, bool bOperChan, u8 iftype)
 {
 	u32 index = 0;
 	u32 i = 0, j = 0;
@@ -2127,7 +2127,7 @@ void WILC_WFI_CfgParseTxAction(u8 *buf, u32 len, WILC_Bool bOperChan, u8 iftype)
 	u8 op_channel_attr_index = 0;
 	u8 channel_list_attr_index = 0;
 	#ifdef USE_SUPPLICANT_GO_INTENT
-	WILC_Bool is_wilc_go = WILC_FALSE;
+	bool is_wilc_go = false;
 
 	/*BugID_5460*/
 	/*Case 1: If we are already p2p client, no need to modify channels attributes*/
@@ -2145,7 +2145,7 @@ void WILC_WFI_CfgParseTxAction(u8 *buf, u32 len, WILC_Bool bOperChan, u8 iftype)
 			PRINT_D(GENERIC_DBG, "Group BSSID: %2x:%2x:%2x\n", buf[index + 3]
 				, buf[index + 4]
 				, buf[index + 5]);
-			is_wilc_go = WILC_TRUE;
+			is_wilc_go = true;
 		}
 
 		#else   /* USE_SUPPLICANT_GO_INTENT */
@@ -2252,7 +2252,7 @@ void WILC_WFI_p2p_rx (struct net_device *dev, uint8_t *buff, uint32_t size)
 		if (ieee80211_is_action(buff[FRAME_TYPE_ID])) {
 			PRINT_D(GENERIC_DBG, "Rx Action Frame Type: %x %x\n", buff[ACTION_SUBTYPE_ID], buff[P2P_PUB_ACTION_SUBTYPE]);
 
-			if (priv->bCfgScanning == WILC_TRUE && time_after_eq(jiffies, (unsigned long)pstrWFIDrv->u64P2p_MgmtTimeout)) {
+			if (priv->bCfgScanning == true && time_after_eq(jiffies, (unsigned long)pstrWFIDrv->u64P2p_MgmtTimeout)) {
 				PRINT_D(GENERIC_DBG, "Receiving action frames from wrong channels\n");
 				return;
 			}
@@ -2276,7 +2276,7 @@ void WILC_WFI_p2p_rx (struct net_device *dev, uint8_t *buff, uint32_t size)
 								for (i = P2P_PUB_ACTION_SUBTYPE; i < size; i++)	{
 									if (!WILC_memcmp(u8P2P_vendorspec, &buff[i], 6)) {
 										u8P2Precvrandom = buff[i + 6];
-										bWilc_ie = WILC_TRUE;
+										bWilc_ie = true;
 										PRINT_D(GENERIC_DBG, "WILC Vendor specific IE:%02x\n", u8P2Precvrandom);
 										break;
 									}
@@ -2353,7 +2353,7 @@ static void WILC_WFI_RemainOnChannelReady(void *pUserVoid)
 
 	PRINT_D(HOSTINF_DBG, "Remain on channel ready \n");
 
-	priv->bInP2PlistenState = WILC_TRUE;
+	priv->bInP2PlistenState = true;
 
 	cfg80211_ready_on_channel(priv->wdev,
 				  priv->strRemainOnChanParams.u64ListenCookie,
@@ -2381,7 +2381,7 @@ static void WILC_WFI_RemainOnChannelExpired(void *pUserVoid, u32 u32SessionID)
 	if (u32SessionID == priv->strRemainOnChanParams.u32ListenSessionID) {
 		PRINT_D(GENERIC_DBG, "Remain on channel expired \n");
 
-		priv->bInP2PlistenState = WILC_FALSE;
+		priv->bInP2PlistenState = false;
 
 		/*Inform wpas of remain-on-channel expiration*/
 		cfg80211_remain_on_channel_expired(priv->wdev,
@@ -2498,7 +2498,7 @@ void WILC_WFI_add_wilcvendorspec(u8 *buff)
  *  @version
  */
 extern linux_wlan_t *g_linux_wlan;
-extern WILC_Bool bEnablePS;
+extern bool bEnablePS;
 int WILC_WFI_mgmt_tx(struct wiphy *wiphy,
 			struct wireless_dev *wdev,
 			struct cfg80211_mgmt_tx_params *params,
@@ -2602,14 +2602,14 @@ int WILC_WFI_mgmt_tx(struct wiphy *wiphy,
 								for (i = P2P_PUB_ACTION_SUBTYPE + 2; i < len; i++) {
 									if (buf[i] == P2PELEM_ATTR_ID && !(WILC_memcmp(u8P2P_oui, &buf[i + 2], 4))) {
 										if (buf[P2P_PUB_ACTION_SUBTYPE] == P2P_INV_REQ || buf[P2P_PUB_ACTION_SUBTYPE] == P2P_INV_RSP)
-											WILC_WFI_CfgParseTxAction(&mgmt_tx->buff[i + 6], len - (i + 6), WILC_TRUE, nic->iftype);
+											WILC_WFI_CfgParseTxAction(&mgmt_tx->buff[i + 6], len - (i + 6), true, nic->iftype);
 
 										/*BugID_5460*/
 										/*If using supplicant go intent, no need at all*/
 										/*to parse transmitted negotiation frames*/
 											#ifndef USE_SUPPLICANT_GO_INTENT
 										else
-											WILC_WFI_CfgParseTxAction(&mgmt_tx->buff[i + 6], len - (i + 6), WILC_FALSE, nic->iftype);
+											WILC_WFI_CfgParseTxAction(&mgmt_tx->buff[i + 6], len - (i + 6), false, nic->iftype);
 											#endif
 										break;
 									}
@@ -2667,7 +2667,7 @@ int   WILC_WFI_mgmt_tx_cancel_wait(struct wiphy *wiphy,
 	PRINT_D(GENERIC_DBG, "Tx Cancel wait :%lu\n", jiffies);
 	pstrWFIDrv->u64P2p_MgmtTimeout = jiffies;
 
-	if (priv->bInP2PlistenState == WILC_FALSE) {
+	if (priv->bInP2PlistenState == false) {
 		/* Bug 5504: This is just to avoid connection failure when getting stuck when the supplicant
 		 *                      considers the driver falsely that it is in Listen state */
 		cfg80211_remain_on_channel_expired(priv->wdev,
@@ -2817,7 +2817,7 @@ int WILC_WFI_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 		return -EIO;
 	}
 
-	if (bEnablePS	 == WILC_TRUE)
+	if (bEnablePS	 == true)
 		host_int_set_power_mgmt(priv->hWILCWFIDrv, enabled, timeout);
 
 
@@ -2858,17 +2858,17 @@ static int WILC_WFI_change_virt_intf(struct wiphy *wiphy, struct net_device *dev
 	u8P2Plocalrandom = 0x01;
 	u8P2Precvrandom = 0x00;
 
-	bWilc_ie = WILC_FALSE;
+	bWilc_ie = false;
 
 	#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
-	g_obtainingIP = WILC_FALSE;
+	g_obtainingIP = false;
 	WILC_TimerStop(&hDuringIpTimer, NULL);
 	PRINT_D(GENERIC_DBG, "Changing virtual interface, enable scan\n");
 	#endif
 	/*BugID_5137*/
 	/*Set WILC_CHANGING_VIR_IF register to disallow adding futrue keys to CE H/W*/
 	if (g_ptk_keys_saved && g_gtk_keys_saved) {
-		Set_machw_change_vir_if(WILC_TRUE);
+		Set_machw_change_vir_if(true);
 	}
 
 	switch (type) {
@@ -2960,7 +2960,7 @@ static int WILC_WFI_change_virt_intf(struct wiphy *wiphy, struct net_device *dev
 				}
 			}
 
-			bEnablePS = WILC_TRUE;
+			bEnablePS = true;
 			host_int_set_power_mgmt(priv->hWILCWFIDrv, 1, 0);
 		}
 		#endif
@@ -2968,7 +2968,7 @@ static int WILC_WFI_change_virt_intf(struct wiphy *wiphy, struct net_device *dev
 		break;
 
 	case NL80211_IFTYPE_P2P_CLIENT:
-		bEnablePS = WILC_FALSE;
+		bEnablePS = false;
 		host_int_set_power_mgmt(priv->hWILCWFIDrv, 0, 0);
 		connecting = 0;
 		PRINT_D(HOSTAPD_DBG, "Interface type = NL80211_IFTYPE_P2P_CLIENT\n");
@@ -3037,8 +3037,8 @@ static int WILC_WFI_change_virt_intf(struct wiphy *wiphy, struct net_device *dev
 			}
 
 			/*Refresh scan, to refresh the scan results to the wpa_supplicant. Set MachHw to false to enable further key installments*/
-			refresh_scan(priv, 1, WILC_TRUE);
-			Set_machw_change_vir_if(WILC_FALSE);
+			refresh_scan(priv, 1, true);
+			Set_machw_change_vir_if(false);
 
 			/*BugID_4847: registered frames in firmware are now lost
 			 *  due to mac close. So re-register those frames */
@@ -3057,7 +3057,7 @@ static int WILC_WFI_change_virt_intf(struct wiphy *wiphy, struct net_device *dev
 		break;
 
 	case NL80211_IFTYPE_AP:
-		bEnablePS = WILC_FALSE;
+		bEnablePS = false;
 		PRINT_D(HOSTAPD_DBG, "Interface type = NL80211_IFTYPE_AP %d\n", type);
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev->iftype = type;
@@ -3093,7 +3093,7 @@ static int WILC_WFI_change_virt_intf(struct wiphy *wiphy, struct net_device *dev
 		PRINT_D(GENERIC_DBG, "start duringIP timer\n");
 
 		#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
-		g_obtainingIP = WILC_TRUE;
+		g_obtainingIP = true;
 		WILC_TimerStart(&hDuringIpTimer, duringIP_TIME, NULL, NULL);
 		#endif
 		host_int_set_power_mgmt(priv->hWILCWFIDrv, 0, 0);
@@ -3103,7 +3103,7 @@ static int WILC_WFI_change_virt_intf(struct wiphy *wiphy, struct net_device *dev
 		/*hWaitResponse semaphore, which allows previous config*/
 		/*packets to actually take action on old FW*/
 		host_int_del_All_Rx_BASession(priv->hWILCWFIDrv, g_linux_wlan->strInterfaceInfo[0].aBSSID, TID);
-		bEnablePS = WILC_FALSE;
+		bEnablePS = false;
 		PRINT_D(HOSTAPD_DBG, "Interface type = NL80211_IFTYPE_GO\n");
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev->iftype = type;
@@ -3379,9 +3379,9 @@ static int  WILC_WFI_add_station(struct wiphy *wiphy, struct net_device *dev,
 		PRINT_D(HOSTAPD_DBG, "Number of supported rates = %d\n", strStaParams.u8NumRates);
 
 		if (params->ht_capa == NULL) {
-			strStaParams.bIsHTSupported = WILC_FALSE;
+			strStaParams.bIsHTSupported = false;
 		} else {
-			strStaParams.bIsHTSupported = WILC_TRUE;
+			strStaParams.bIsHTSupported = true;
 			strStaParams.u16HTCapInfo = params->ht_capa->cap_info;
 			strStaParams.u8AmpduParams = params->ht_capa->ampdu_params_info;
 			WILC_memcpy(strStaParams.au8SuppMCsSet, &params->ht_capa->mcs, WILC_SUPP_MCS_SET_SIZE);
@@ -3509,9 +3509,9 @@ static int WILC_WFI_change_station(struct wiphy *wiphy, struct net_device *dev,
 		PRINT_D(HOSTAPD_DBG, "Number of supported rates = %d\n", strStaParams.u8NumRates);
 
 		if (params->ht_capa == NULL) {
-			strStaParams.bIsHTSupported = WILC_FALSE;
+			strStaParams.bIsHTSupported = false;
 		} else {
-			strStaParams.bIsHTSupported = WILC_TRUE;
+			strStaParams.bIsHTSupported = true;
 			strStaParams.u16HTCapInfo = params->ht_capa->cap_info;
 			strStaParams.u8AmpduParams = params->ht_capa->ampdu_params_info;
 			WILC_memcpy(strStaParams.au8SuppMCsSet, &params->ht_capa->mcs, WILC_SUPP_MCS_SET_SIZE);
@@ -3867,9 +3867,9 @@ int WILC_WFI_InitHostInt(struct net_device *net)
 		return s32Error;
 	}
 
-	priv->gbAutoRateAdjusted = WILC_FALSE;
+	priv->gbAutoRateAdjusted = false;
 
-	priv->bInP2PlistenState = WILC_FALSE;
+	priv->bInP2PlistenState = false;
 
 	sema_init(&(priv->hSemScanReq), 1);
 	s32Error = host_int_init(&priv->hWILCWFIDrv);
@@ -3895,9 +3895,9 @@ int WILC_WFI_DeInitHostInt(struct net_device *net)
 	struct WILC_WFI_priv *priv;
 	priv = wdev_priv(net->ieee80211_ptr);
 
-	priv->gbAutoRateAdjusted = WILC_FALSE;
+	priv->gbAutoRateAdjusted = false;
 
-	priv->bInP2PlistenState = WILC_FALSE;
+	priv->bInP2PlistenState = false;
 
 	op_ifcs--;
 

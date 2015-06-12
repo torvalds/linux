@@ -20,4 +20,4 @@ extern u32 FIFO_DeInit(tHANDLE hFifo);
 extern u32 FIFO_ReadBytes(tHANDLE hFifo, u8 *pu8Buffer,
 				u32 u32BytesToRead, u32 *pu32BytesRead);
 extern u32 FIFO_WriteBytes(tHANDLE hFifo, u8 *pu8Buffer,
-				u32 u32BytesToWrite, WILC_Bool bForceOverWrite);
+				u32 u32BytesToWrite, bool bForceOverWrite);

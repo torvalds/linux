@@ -13,12 +13,6 @@
 /* OS Wrapper interface version */
 #define WILC_OSW_INTERFACE_VER 2
 
-/* Boolean type */
-typedef enum {
-	WILC_FALSE = 0,
-	WILC_TRUE = 1
-} WILC_Bool;
-
 /* Character types */
 typedef char WILC_Char;
 

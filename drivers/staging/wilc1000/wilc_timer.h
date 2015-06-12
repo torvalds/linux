@@ -82,8 +82,8 @@ WILC_ErrNo WILC_TimerDestroy(WILC_TimerHandle *pHandle,
  *  @details	This function will move the timer to the PENDING state until the
  *              given time expires (in msec) then the callback function will be
  *              executed (timer in EXECUTING state) after execution is dene the
- *              timer either goes to IDLE (if bPeriodicTimer==WILC_FALSE) or
- *              PENDING with same timeout value (if bPeriodicTimer==WILC_TRUE)
+ *              timer either goes to IDLE (if bPeriodicTimer==false) or
+ *              PENDING with same timeout value (if bPeriodicTimer==true)
  *  @param[in]	pHandle handle to the timer object
  *  @param[in]	u32Timeout timeout value in msec after witch the callback
  *              function will be executed. Timeout value of 0 is not allowed for
