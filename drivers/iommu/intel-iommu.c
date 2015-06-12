@@ -2763,10 +2763,6 @@ static int __init iommu_prepare_static_identity_mapping(int hw)
 	int i;
 	int ret = 0;
 
-	ret = si_domain_init(hw);
-	if (ret)
-		return -EFAULT;
-
 	for_each_pci_dev(pdev) {
 		ret = dev_prepare_static_identity_mapping(&pdev->dev, hw);
 		if (ret)
@@ -2780,7 +2776,7 @@ static int __init iommu_prepare_static_identity_mapping(int hw)
 
 			if (dev->bus != &acpi_bus_type)
 				continue;
-				
+
 			adev= to_acpi_device(dev);
 			mutex_lock(&adev->physical_node_lock);
 			list_for_each_entry(pn, &adev->physical_node_list, node) {
@@ -3113,6 +3109,12 @@ static int __init init_dmars(void)
 #ifdef CONFIG_INTEL_IOMMU_BROKEN_GFX_WA
 	iommu_identity_mapping |= IDENTMAP_GFX;
 #endif
+
+	if (iommu_identity_mapping) {
+		ret = si_domain_init(hw_pass_through);
+		if (ret)
+			goto free_iommu;
+	}
 
 	check_tylersburg_isoch();
 
