@@ -21,6 +21,7 @@
 #include <linux/irq.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
+#include <linux/of_graph.h>
 #include <linux/phy/phy.h>
 #include <linux/regulator/consumer.h>
 #include <linux/component.h>
@@ -288,6 +289,7 @@ struct exynos_dsi {
 	struct list_head transfer_list;
 
 	struct exynos_dsi_driver_data *driver_data;
+	struct device_node *bridge_node;
 };
 
 #define host_to_dsi(host) container_of(host, struct exynos_dsi, dsi_host)
@@ -1794,7 +1796,22 @@ static int exynos_dsi_parse_dt(struct exynos_dsi *dsi)
 
 	ret = exynos_dsi_of_read_u32(ep, "samsung,esc-clock-frequency",
 				     &dsi->esc_clk_rate);
+	if (ret < 0)
+		goto end;
 
+	of_node_put(ep);
+
+	ep = of_graph_get_next_endpoint(node, NULL);
+	if (!ep) {
+		ret = -ENXIO;
+		goto end;
+	}
+
+	dsi->bridge_node = of_graph_get_remote_port_parent(ep);
+	if (!dsi->bridge_node) {
+		ret = -ENXIO;
+		goto end;
+	}
 end:
 	of_node_put(ep);
 
@@ -1807,6 +1824,7 @@ static int exynos_dsi_bind(struct device *dev, struct device *master,
 	struct exynos_drm_display *display = dev_get_drvdata(dev);
 	struct exynos_dsi *dsi = display_to_dsi(display);
 	struct drm_device *drm_dev = data;
+	struct drm_bridge *bridge;
 	int ret;
 
 	ret = exynos_drm_create_enc_conn(drm_dev, display);
@@ -1814,6 +1832,12 @@ static int exynos_dsi_bind(struct device *dev, struct device *master,
 		DRM_ERROR("Encoder create [%d] failed with %d\n",
 			  display->type, ret);
 		return ret;
+	}
+
+	bridge = of_drm_find_bridge(dsi->bridge_node);
+	if (bridge) {
+		display->encoder->bridge = bridge;
+		drm_bridge_attach(drm_dev, bridge);
 	}
 
 	return mipi_dsi_host_register(&dsi->dsi_host);

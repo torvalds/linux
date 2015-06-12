@@ -32,10 +32,19 @@ Video interfaces:
   Device node can contain video interface port nodes according to [2].
   The following are properties specific to those nodes:
 
-  port node:
-    - reg: (required) can be 0 for input RGB/I80 port or 1 for DSI port;
+  port node inbound:
+    - reg: (required) must be 0.
+  port node outbound:
+    - reg: (required) must be 1.
 
-  endpoint node of DSI port (reg = 1):
+  endpoint node connected from mic node (reg = 0):
+    - remote-endpoint: specifies the endpoint in mic node. This node is required
+		       for Exynos5433 mipi dsi. So mic can access to panel node
+		       thoughout this dsi node.
+  endpoint node connected to panel node (reg = 1):
+    - remote-endpoint: specifies the endpoint in panel node. This node is
+		       required in all kinds of exynos mipi dsi to represent
+		       the connection between mipi dsi and panel.
     - samsung,burst-clock-frequency: specifies DSI frequency in high-speed burst
       mode
     - samsung,esc-clock-frequency: specifies DSI frequency in escape mode
@@ -74,7 +83,15 @@ Example:
 			#address-cells = <1>;
 			#size-cells = <0>;
 
+			port@0 {
+				reg = <0>;
+				decon_to_mic: endpoint {
+					remote-endpoint = <&mic_to_decon>;
+				};
+			};
+
 			port@1 {
+				reg = <1>;
 				dsi_ep: endpoint {
 					reg = <0>;
 					samsung,burst-clock-frequency = <500000000>;
