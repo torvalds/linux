@@ -122,7 +122,7 @@ ENDPROC(cpu_resume_after_mmu)
 #ifdef CONFIG_MMU
 	.arm
 ENTRY(cpu_resume_arm)
- THUMB(	adr	r9, BSYM(1f)	)	@ Kernel is entered in ARM.
+ THUMB(	badr	r9, 1f		)	@ Kernel is entered in ARM.
  THUMB(	bx	r9		)	@ If this is a Thumb-2 kernel,
  THUMB(	.thumb			)	@ switch to Thumb now.
  THUMB(1:			)
