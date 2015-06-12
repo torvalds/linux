@@ -235,6 +235,8 @@
 #define DSI_XFER_TIMEOUT_MS		100
 #define DSI_RX_FIFO_EMPTY		0x30800002
 
+#define OLD_SCLK_MIPI_CLK_NAME "pll_clk"
+
 enum exynos_dsi_transfer_type {
 	EXYNOS_DSI_TX,
 	EXYNOS_DSI_RX,
@@ -279,7 +281,7 @@ struct exynos_dsi {
 
 	void __iomem *reg_base;
 	struct phy *phy;
-	struct clk *pll_clk;
+	struct clk *sclk_clk;
 	struct clk *bus_clk;
 	struct regulator_bulk_data supplies[2];
 	int irq;
@@ -433,16 +435,7 @@ static unsigned long exynos_dsi_set_pll(struct exynos_dsi *dsi,
 	u16 m;
 	u32 reg;
 
-	clk_set_rate(dsi->pll_clk, dsi->pll_clk_rate);
-
-	fin = clk_get_rate(dsi->pll_clk);
-	if (!fin) {
-		dev_err(dsi->dev, "failed to get PLL clock frequency\n");
-		return 0;
-	}
-
-	dev_dbg(dsi->dev, "PLL input frequency: %lu\n", fin);
-
+	fin = dsi->pll_clk_rate;
 	fout = exynos_dsi_pll_find_pms(dsi, fin, freq, &p, &m, &s);
 	if (!fout) {
 		dev_err(dsi->dev,
@@ -1313,10 +1306,10 @@ static int exynos_dsi_poweron(struct exynos_dsi *dsi)
 		goto err_bus_clk;
 	}
 
-	ret = clk_prepare_enable(dsi->pll_clk);
+	ret = clk_prepare_enable(dsi->sclk_clk);
 	if (ret < 0) {
 		dev_err(dsi->dev, "cannot enable pll clock %d\n", ret);
-		goto err_pll_clk;
+		goto err_sclk_clk;
 	}
 
 	ret = phy_power_on(dsi->phy);
@@ -1328,8 +1321,8 @@ static int exynos_dsi_poweron(struct exynos_dsi *dsi)
 	return 0;
 
 err_phy:
-	clk_disable_unprepare(dsi->pll_clk);
-err_pll_clk:
+	clk_disable_unprepare(dsi->sclk_clk);
+err_sclk_clk:
 	clk_disable_unprepare(dsi->bus_clk);
 err_bus_clk:
 	regulator_bulk_disable(ARRAY_SIZE(dsi->supplies), dsi->supplies);
@@ -1355,7 +1348,7 @@ static void exynos_dsi_poweroff(struct exynos_dsi *dsi)
 
 	phy_power_off(dsi->phy);
 
-	clk_disable_unprepare(dsi->pll_clk);
+	clk_disable_unprepare(dsi->sclk_clk);
 	clk_disable_unprepare(dsi->bus_clk);
 
 	ret = regulator_bulk_disable(ARRAY_SIZE(dsi->supplies), dsi->supplies);
@@ -1722,10 +1715,13 @@ static int exynos_dsi_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 	}
 
-	dsi->pll_clk = devm_clk_get(dev, "pll_clk");
-	if (IS_ERR(dsi->pll_clk)) {
-		dev_info(dev, "failed to get dsi pll input clock\n");
-		return PTR_ERR(dsi->pll_clk);
+	dsi->sclk_clk = devm_clk_get(dev, "sclk_mipi");
+	if (IS_ERR(dsi->sclk_clk)) {
+		dsi->sclk_clk = devm_clk_get(dev, OLD_SCLK_MIPI_CLK_NAME);
+		if (IS_ERR(dsi->sclk_clk)) {
+			dev_info(dev, "failed to get dsi sclk clock\n");
+			eturn PTR_ERR(dsi->sclk_clk);
+		}
 	}
 
 	dsi->bus_clk = devm_clk_get(dev, "bus_clk");

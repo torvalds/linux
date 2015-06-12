@@ -10,13 +10,14 @@ Required properties:
   - interrupts: should contain DSI interrupt
   - clocks: list of clock specifiers, must contain an entry for each required
     entry in clock-names
-  - clock-names: should include "bus_clk"and "pll_clk" entries
+  - clock-names: should include "bus_clk"and "sclk_mipi" entries
+		 the use of "pll_clk" is deprecated
   - phys: list of phy specifiers, must contain an entry for each required
     entry in phy-names
   - phy-names: should include "dsim" entry
   - vddcore-supply: MIPI DSIM Core voltage supply (e.g. 1.1V)
   - vddio-supply: MIPI DSIM I/O and PLL voltage supply (e.g. 1.8V)
-  - samsung,pll-clock-frequency: specifies frequency of the "pll_clk" clock
+  - samsung,pll-clock-frequency: specifies frequency of the oscillator clock
   - #address-cells, #size-cells: should be set respectively to <1> and <0>
     according to DSI host bindings (see MIPI DSI bindings [1])
 
@@ -48,7 +49,7 @@ Example:
 		reg = <0x11C80000 0x10000>;
 		interrupts = <0 79 0>;
 		clocks = <&clock 286>, <&clock 143>;
-		clock-names = "bus_clk", "pll_clk";
+		clock-names = "bus_clk", "sclk_mipi";
 		phys = <&mipi_phy 1>;
 		phy-names = "dsim";
 		vddcore-supply = <&vusb_reg>;
