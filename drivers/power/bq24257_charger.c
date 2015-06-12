@@ -608,31 +608,26 @@ static int bq24257_power_supply_init(struct bq24257_device *bq)
 
 static int bq24257_irq_probe(struct bq24257_device *bq)
 {
-	int ret;
 	struct gpio_desc *stat_irq;
 
-	stat_irq = devm_gpiod_get_index(bq->dev, BQ24257_STAT_IRQ, 0);
+	stat_irq = devm_gpiod_get_index(bq->dev, BQ24257_STAT_IRQ, 0, GPIOD_IN);
 	if (IS_ERR(stat_irq)) {
 		dev_err(bq->dev, "could not probe stat_irq pin\n");
 		return PTR_ERR(stat_irq);
 	}
-
-	ret = gpiod_direction_input(stat_irq);
-	if (ret < 0)
-		return ret;
 
 	return gpiod_to_irq(stat_irq);
 }
 
 static int bq24257_pg_gpio_probe(struct bq24257_device *bq)
 {
-	bq->pg = devm_gpiod_get_index(bq->dev, BQ24257_PG_GPIO, 0);
+	bq->pg = devm_gpiod_get_index(bq->dev, BQ24257_PG_GPIO, 0, GPIOD_IN);
 	if (IS_ERR(bq->pg)) {
 		dev_err(bq->dev, "could not probe PG pin\n");
 		return PTR_ERR(bq->pg);
 	}
 
-	return gpiod_direction_input(bq->pg);
+	return 0;
 }
 
 static int bq24257_fw_probe(struct bq24257_device *bq)
