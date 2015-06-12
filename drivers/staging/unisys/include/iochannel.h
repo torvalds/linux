@@ -147,23 +147,16 @@ enum vdisk_mgmt_types {
 	VDISK_MGMT_RELEASE,
 };
 
-/* structs with pragma pack  */
-
 struct phys_info {
 	u64 pi_pfn;
 	u16 pi_off;
 	u16 pi_len;
 } __packed;
 
-/* ///////////// BEGIN PRAGMA PACK PUSH 1 ///////////////////////// */
-/* ///////////// ONLY STRUCT TYPE SHOULD BE BELOW */
-
-#pragma pack(push, 1)
-
 struct guest_phys_info {
 	u64 address;
 	u64 length;
-};
+} __packed;
 
 #define GPI_ENTRIES_PER_PAGE (PAGE_SIZE / sizeof(struct guest_phys_info))
 
@@ -171,12 +164,12 @@ struct uisscsi_dest {
 	u32 channel;		/* channel == bus number */
 	u32 id;			/* id == target number */
 	u32 lun;		/* lun == logical unit number */
-};
+} __packed;
 
 struct vhba_wwnn {
 	u32 wwnn1;
 	u32 wwnn2;
-};
+} __packed;
 
 /* WARNING: Values stired in this structure must contain maximum counts (not
  * maximum values). */
@@ -193,7 +186,7 @@ struct vhba_config_max {	/* 20 bytes */
 				 * bus */
 	/* max io size is often determined by the resource of the hba. e.g */
 	/* max scatter gather list length * page size / sector size */
-};
+} __packed;
 
 struct uiscmdrsp_scsi {
 	void *scsicmd;		/* the handle to the cmd that was received -
@@ -232,7 +225,7 @@ struct uiscmdrsp_scsi {
 	 * scsi.linuxstat is SAM_STAT_GOOD
 	 * That is, there is NO error.
 	 */
-};
+} __packed;
 
 /* Defines to support sending correct inquiry result when no disk is
  * configured.
@@ -346,7 +339,7 @@ struct sense_data {
 	u8 additional_sense_code_qualifier;
 	u8 fru_code;
 	u8 sense_key_specific[3];
-};
+} __packed;
 
 struct net_pkt_xmt {
 	int len;	/* full length of data in the packet */
@@ -374,11 +367,11 @@ struct net_pkt_xmt {
 	     * guest memory to get to the header. uisnic needs ethhdr to
 	     * determine how to route the packet.
 	     */
-};
+} __packed;
 
 struct net_pkt_xmtdone {
 	u32 xmt_done_result;	/* result of NET_XMIT */
-};
+} __packed;
 
 /* RCVPOST_BUF_SIZe must be at most page_size(4096) - cache_line_size (64) The
  * reason is because dev_skb_alloc which is used to generate RCV_POST skbs in
@@ -400,7 +393,7 @@ struct net_pkt_rcvpost {
 	    u64 unique_num;		/* This is used to make sure that
 					 * receive posts are returned to  */
 	    /* the Adapter which we sent them originally. */
-};
+} __packed;
 
 struct net_pkt_rcv {
 	/* the number of receive buffers that can be chained  */
@@ -414,17 +407,17 @@ struct net_pkt_rcv {
 	/* NOTE: first rcvbuf in the chain will also be provided in net.buf. */
 	u64 unique_num;
 	u32 rcvs_dropped_delta;
-};
+} __packed;
 
 struct net_pkt_enbdis {
 	void *context;
 	u16 enable;		/* 1 = enable, 0 = disable */
-};
+} __packed;
 
 struct net_pkt_macaddr {
 	void *context;
 	u8 macaddr[MAX_MACADDR_LEN];	/* 6 bytes */
-};
+} __packed;
 
 /* cmd rsp packet used for VNIC network traffic  */
 struct uiscmdrsp_net {
@@ -441,7 +434,7 @@ struct uiscmdrsp_net {
 						/* and NET_CONNECT_STATUS */
 		struct net_pkt_macaddr macaddr;
 	};
-};
+} __packed;
 
 struct uiscmdrsp_scsitaskmgmt {
 	enum task_mgmt_types tasktype;
@@ -478,7 +471,7 @@ struct uiscmdrsp_scsitaskmgmt {
 
 	    /* result of taskmgmt command - set by IOPart - values are: */
 #define TASK_MGMT_FAILED  0
-};
+} __packed;
 
 /* The following is used by uissd to send disk add/remove notifications to
  * Guest */
@@ -488,7 +481,7 @@ struct uiscmdrsp_disknotify {
 	void *v_hba;		/* Pointer to vhba_info for channel info to
 				 * route msg */
 	u32 channel, id, lun;	/* SCSI Path of Disk to added or removed */
-};
+} __packed;
 
 /* The following is used by virthba/vSCSI to send the Acquire/Release commands
  * to the IOVM. */
@@ -527,7 +520,7 @@ struct uiscmdrsp_vdiskmgmt {
 
 	    /* result of taskmgmt command - set by IOPart - values are: */
 #define VDISK_MGMT_FAILED  0
-};
+} __packed;
 
 /* keeping cmd & rsp info in one structure for now cmd rsp packet for scsi */
 struct uiscmdrsp {
@@ -551,7 +544,7 @@ struct uiscmdrsp {
 	struct uiscmdrsp *next;	/* General Purpose Queue Link */
 	struct uiscmdrsp *activeQ_next;	/* Used to track active commands */
 	struct uiscmdrsp *activeQ_prev;	/* Used to track active commands */
-};
+} __packed;
 
 /* This is just the header of the IO channel.  It is assumed that directly after
  * this header there is a large region of memory which contains the command and
@@ -577,10 +570,8 @@ struct spar_io_channel_protocol {
 #define MAX_CLIENTSTRING_LEN 1024
 	 u8 client_string[MAX_CLIENTSTRING_LEN];/* NULL terminated - so holds
 						 * max - 1 bytes */
-};
+} __packed;
 
-#pragma pack(pop)
-/* ///////////// END PRAGMA PACK PUSH 1 /////////////////////////// */
 
 /*
  * INLINE functions for initializing and accessing I/O data channels
