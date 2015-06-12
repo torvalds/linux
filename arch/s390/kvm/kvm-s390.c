@@ -1200,6 +1200,8 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
+	__u32 fpc;
+
 	save_fp_ctl(&vcpu->arch.host_fpregs.fpc);
 	if (test_kvm_facility(vcpu->kvm, 129))
 		save_vx_regs((__vector128 *)&vcpu->arch.host_vregs->vrs);
@@ -1207,12 +1209,16 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		save_fp_regs(vcpu->arch.host_fpregs.fprs);
 	save_access_regs(vcpu->arch.host_acrs);
 	if (test_kvm_facility(vcpu->kvm, 129)) {
-		restore_fp_ctl(&vcpu->run->s.regs.fpc);
+		fpc = vcpu->run->s.regs.fpc;
 		restore_vx_regs((__vector128 *)&vcpu->run->s.regs.vrs);
 	} else {
-		restore_fp_ctl(&vcpu->arch.guest_fpregs.fpc);
+		fpc = vcpu->arch.guest_fpregs.fpc;
 		restore_fp_regs(vcpu->arch.guest_fpregs.fprs);
 	}
+	if (test_fp_ctl(fpc))
+		/* User space provided an invalid FPC, let's clear it */
+		fpc = 0;
+	restore_fp_ctl(&fpc);
 	restore_access_regs(vcpu->run->s.regs.acrs);
 	gmap_enable(vcpu->arch.gmap);
 	atomic_set_mask(CPUSTAT_RUNNING, &vcpu->arch.sie_block->cpuflags);
