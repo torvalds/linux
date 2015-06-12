@@ -176,13 +176,7 @@ hash_ipportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 	if (unlikely(!tb[IPSET_ATTR_IP] || !tb[IPSET_ATTR_IP2] ||
 		     !ip_set_attr_netorder(tb, IPSET_ATTR_PORT) ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PORT_TO) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_CADT_FLAGS) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PACKETS) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_BYTES) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBMARK) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBPRIO) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBQUEUE)))
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_CADT_FLAGS)))
 		return -IPSET_ERR_PROTOCOL;
 
 	if (tb[IPSET_ATTR_LINENO])
@@ -429,13 +423,7 @@ hash_ipportnet6_uadt(struct ip_set *set, struct nlattr *tb[],
 	if (unlikely(!tb[IPSET_ATTR_IP] || !tb[IPSET_ATTR_IP2] ||
 		     !ip_set_attr_netorder(tb, IPSET_ATTR_PORT) ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PORT_TO) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT) ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_CADT_FLAGS) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PACKETS) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_BYTES) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBMARK) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBPRIO) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBQUEUE) ||
 		     tb[IPSET_ATTR_IP_TO] ||
 		     tb[IPSET_ATTR_CIDR]))
 		return -IPSET_ERR_PROTOCOL;

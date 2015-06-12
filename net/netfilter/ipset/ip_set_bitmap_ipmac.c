@@ -239,13 +239,7 @@ bitmap_ipmac_uadt(struct ip_set *set, struct nlattr *tb[],
 	u32 ip = 0;
 	int ret = 0;
 
-	if (unlikely(!tb[IPSET_ATTR_IP] ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PACKETS) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_BYTES)   ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBMARK) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBPRIO) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBQUEUE)))
+	if (unlikely(!tb[IPSET_ATTR_IP]))
 		return -IPSET_ERR_PROTOCOL;
 
 	if (tb[IPSET_ATTR_LINENO])

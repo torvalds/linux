@@ -107,13 +107,7 @@ hash_mac4_uadt(struct ip_set *set, struct nlattr *tb[],
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
 	int ret;
 
-	if (unlikely(!tb[IPSET_ATTR_ETHER] ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PACKETS) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_BYTES)   ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBMARK) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBPRIO) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBQUEUE)))
+	if (unlikely(!tb[IPSET_ATTR_ETHER]))
 		return -IPSET_ERR_PROTOCOL;
 
 	if (tb[IPSET_ATTR_LINENO])
