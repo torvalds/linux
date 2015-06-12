@@ -299,8 +299,8 @@ mpls:
 		if (!hdr)
 			return false;
 
-		if ((ntohl(hdr[0].entry) & MPLS_LS_LABEL_MASK) ==
-		     MPLS_LABEL_ENTROPY) {
+		if ((ntohl(hdr[0].entry) & MPLS_LS_LABEL_MASK) >>
+		     MPLS_LS_LABEL_SHIFT == MPLS_LABEL_ENTROPY) {
 			if (skb_flow_dissector_uses_key(flow_dissector,
 							FLOW_DISSECTOR_KEY_MPLS_ENTROPY)) {
 				key_keyid = skb_flow_dissector_target(flow_dissector,
