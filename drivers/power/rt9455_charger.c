@@ -1412,9 +1412,6 @@ static int rt9455_usb_event(struct notifier_block *nb,
 	unsigned int opa_mode, iaicr;
 	int ret;
 
-	if (!info)
-		return NOTIFY_DONE;
-
 	/*
 	 * Determine whether the charger is in charge mode
 	 * or in boost mode.
