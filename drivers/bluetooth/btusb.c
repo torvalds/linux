@@ -2083,6 +2083,12 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 
 	BT_INFO("%s: Found device firmware: %s", hdev->name, fwname);
 
+	/* Save the DDC file name for later use to apply once the firmware
+	 * downloading is done.
+	 */
+	snprintf(fwname, sizeof(fwname), "intel/ibt-11-%u.ddc",
+		 le16_to_cpu(params->dev_revid));
+
 	kfree_skb(skb);
 
 	if (fw->size < 644) {
@@ -2243,6 +2249,43 @@ done:
 	BT_INFO("%s: Device booted in %llu usecs", hdev->name, duration);
 
 	clear_bit(BTUSB_BOOTLOADER, &data->flags);
+
+	/* Once the device is running in operational mode, it needs to apply
+	 * the device configuration (DDC) parameters.
+	 *
+	 * The device can work without DDC parameters, so even if it fails
+	 * to load the file, no need to fail the setup.
+	 */
+	err = request_firmware_direct(&fw, fwname, &hdev->dev);
+	if (err < 0)
+		return 0;
+
+	BT_INFO("%s: Found Intel DDC parameters: %s", hdev->name, fwname);
+
+	fw_ptr = fw->data;
+
+	/* DDC file contains one or more DDC structure which has
+	 * Length (1 byte), DDC ID (2 bytes), and DDC value (Length - 2).
+	 */
+	while (fw->size > fw_ptr - fw->data) {
+		u8 cmd_plen = fw_ptr[0] + sizeof(u8);
+
+		skb = __hci_cmd_sync(hdev, 0xfc8b, cmd_plen, fw_ptr,
+				     HCI_INIT_TIMEOUT);
+		if (IS_ERR(skb)) {
+			BT_ERR("%s: Failed to send Intel_Write_DDC (%ld)",
+			       hdev->name, PTR_ERR(skb));
+			release_firmware(fw);
+			return PTR_ERR(skb);
+		}
+
+		fw_ptr += cmd_plen;
+		kfree_skb(skb);
+	}
+
+	release_firmware(fw);
+
+	BT_INFO("%s: Applying Intel DDC parameters completed", hdev->name);
 
 	return 0;
 }
