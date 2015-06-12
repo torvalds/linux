@@ -103,3 +103,9 @@ config DRM_EXYNOS_GSC
 	depends on DRM_EXYNOS_IPP && ARCH_EXYNOS5 && !ARCH_MULTIPLATFORM
 	help
 	  Choose this option if you want to use Exynos GSC for DRM.
+
+config DRM_EXYNOS_MIC
+	bool "Exynos DRM MIC"
+	depends on (DRM_EXYNOS && DRM_EXYNOS5433_DECON)
+	help
+	  Choose this option if you want to use Exynos MIC for DRM.

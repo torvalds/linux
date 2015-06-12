@@ -357,6 +357,9 @@ static struct platform_driver *const exynos_drm_kms_drivers[] = {
 #ifdef CONFIG_DRM_EXYNOS7_DECON
 	&decon_driver,
 #endif
+#ifdef CONFIG_DRM_EXYNOS_MIC
+	&mic_driver,
+#endif
 #ifdef CONFIG_DRM_EXYNOS_DP
 	&dp_driver,
 #endif
@@ -370,9 +373,6 @@ static struct platform_driver *const exynos_drm_kms_drivers[] = {
 };
 
 static struct platform_driver *const exynos_drm_non_kms_drivers[] = {
-#ifdef CONFIG_DRM_EXYNOS_MIC
-	&mic_driver,
-#endif
 #ifdef CONFIG_DRM_EXYNOS_G2D
 	&g2d_driver,
 #endif

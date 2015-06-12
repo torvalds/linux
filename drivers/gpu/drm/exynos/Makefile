@@ -22,5 +22,6 @@ exynosdrm-$(CONFIG_DRM_EXYNOS_IPP)	+= exynos_drm_ipp.o
 exynosdrm-$(CONFIG_DRM_EXYNOS_FIMC)	+= exynos_drm_fimc.o
 exynosdrm-$(CONFIG_DRM_EXYNOS_ROTATOR)	+= exynos_drm_rotator.o
 exynosdrm-$(CONFIG_DRM_EXYNOS_GSC)	+= exynos_drm_gsc.o
+exynosdrm-$(CONFIG_DRM_EXYNOS_MIC)     += exynos_drm_mic.o
 
 obj-$(CONFIG_DRM_EXYNOS)		+= exynosdrm.o
