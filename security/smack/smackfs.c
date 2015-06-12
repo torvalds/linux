@@ -2253,8 +2253,8 @@ static const struct file_operations smk_access2_ops = {
 static ssize_t smk_write_revoke_subj(struct file *file, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
-	char *data = NULL;
-	const char *cp = NULL;
+	char *data;
+	const char *cp;
 	struct smack_known *skp;
 	struct smack_rule *sp;
 	struct list_head *rule_list;
@@ -2276,18 +2276,18 @@ static ssize_t smk_write_revoke_subj(struct file *file, const char __user *buf,
 
 	if (copy_from_user(data, buf, count) != 0) {
 		rc = -EFAULT;
-		goto free_out;
+		goto out_data;
 	}
 
 	cp = smk_parse_smack(data, count);
 	if (IS_ERR(cp)) {
 		rc = PTR_ERR(cp);
-		goto free_out;
+		goto out_data;
 	}
 
 	skp = smk_find_entry(cp);
 	if (skp == NULL)
-		goto free_out;
+		goto out_cp;
 
 	rule_list = &skp->smk_rules;
 	rule_lock = &skp->smk_rules_lock;
@@ -2299,9 +2299,11 @@ static ssize_t smk_write_revoke_subj(struct file *file, const char __user *buf,
 
 	mutex_unlock(rule_lock);
 
-free_out:
-	kfree(data);
+out_cp:
 	kfree(cp);
+out_data:
+	kfree(data);
+
 	return rc;
 }
 
