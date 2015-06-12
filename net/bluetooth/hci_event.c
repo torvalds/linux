@@ -2648,8 +2648,7 @@ static void read_enc_key_size_complete(struct hci_dev *hdev, u8 status,
 
 		if (!test_bit(HCI_CONN_ENCRYPT, &conn->flags))
 			encrypt = 0x00;
-		else if (conn->type == ACL_LINK &&
-			 test_bit(HCI_CONN_AES_CCM, &conn->flags))
+		else if (test_bit(HCI_CONN_AES_CCM, &conn->flags))
 			encrypt = 0x02;
 		else
 			encrypt = 0x01;
