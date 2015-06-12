@@ -3834,7 +3834,7 @@ array_state_store(struct mddev *mddev, const char *buf, size_t len)
 				err = -EBUSY;
 		}
 		spin_unlock(&mddev->lock);
-		return err;
+		return err ?: len;
 	}
 	err = mddev_lock(mddev);
 	if (err)
