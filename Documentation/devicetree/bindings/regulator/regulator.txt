@@ -37,6 +37,8 @@ Optional properties:
 - regulator-initial-mode: initial operating mode. The set of possible operating
   modes depends on the capabilities of every hardware so each device binding
   documentation explains which values the regulator supports.
+- regulator-system-load: Load in uA present on regulator that is not captured by
+  any consumer request.
 
 Deprecated properties:
 - regulator-compatible: If a regulator chip contains multiple

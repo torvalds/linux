@@ -95,6 +95,9 @@ static void of_get_regulation_constraints(struct device_node *np,
 		}
 	}
 
+	if (!of_property_read_u32(np, "regulator-system-load", &pval))
+		constraints->system_load = pval;
+
 	for (i = 0; i < ARRAY_SIZE(regulator_states); i++) {
 		switch (i) {
 		case PM_SUSPEND_MEM:
