@@ -1398,7 +1398,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			The list of supported hash algorithms is defined
 			in crypto/hash_info.h.
 
-	ima_tcb		[IMA]
+	ima_policy=	[IMA]
+			The builtin measurement policy to load during IMA
+			setup.  Specyfing "tcb" as the value, measures all
+			programs exec'd, files mmap'd for exec, and all files
+			opened with the read mode bit set by either the
+			effective uid (euid=0) or uid=0.
+			Format: "tcb"
+
+	ima_tcb		[IMA] Deprecated.  Use ima_policy= instead.
 			Load a policy which meets the needs of the Trusted
 			Computing Base.  This means IMA will measure all
 			programs exec'd, files mmap'd for exec, and all files
