@@ -283,13 +283,13 @@ struct gb_bundle *gb_bundle_find(struct gb_interface *intf, u8 bundle_id)
 
 	spin_lock_irq(&gb_bundles_lock);
 	list_for_each_entry(bundle, &intf->bundles, links)
-		if (bundle->id == bundle_id) {
-			spin_unlock_irq(&gb_bundles_lock);
-			return bundle;
-		}
+		if (bundle->id == bundle_id)
+			goto found;
+	bundle = NULL;
+found:
 	spin_unlock_irq(&gb_bundles_lock);
 
-	return NULL;
+	return bundle;
 }
 
 static int gb_bundle_connections_init(struct gb_bundle *bundle)
