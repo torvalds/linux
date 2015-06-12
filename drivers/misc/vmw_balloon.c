@@ -46,7 +46,7 @@
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Memory Control (Balloon) Driver");
-MODULE_VERSION("1.2.2.0-k");
+MODULE_VERSION("1.3.0.0-k");
 MODULE_ALIAS("dmi:*:svnVMware*:*");
 MODULE_ALIAS("vmware_vmmemctl");
 MODULE_LICENSE("GPL");
@@ -110,8 +110,17 @@ MODULE_LICENSE("GPL");
  */
 #define VMW_BALLOON_HV_PORT		0x5670
 #define VMW_BALLOON_HV_MAGIC		0x456c6d6f
-#define VMW_BALLOON_PROTOCOL_VERSION	2
 #define VMW_BALLOON_GUEST_ID		1	/* Linux */
+
+enum vmwballoon_capabilities {
+	/*
+	 * Bit 0 is reserved and not associated to any capability.
+	 */
+	VMW_BALLOON_BASIC_CMDS		= (1 << 1),
+	VMW_BALLOON_BATCHED_CMDS	= (1 << 2)
+};
+
+#define VMW_BALLOON_CAPABILITIES	(VMW_BALLOON_BASIC_CMDS)
 
 #define VMW_BALLOON_CMD_START		0
 #define VMW_BALLOON_CMD_GET_TARGET	1
@@ -120,32 +129,36 @@ MODULE_LICENSE("GPL");
 #define VMW_BALLOON_CMD_GUEST_ID	4
 
 /* error codes */
-#define VMW_BALLOON_SUCCESS		0
-#define VMW_BALLOON_FAILURE		-1
-#define VMW_BALLOON_ERROR_CMD_INVALID	1
-#define VMW_BALLOON_ERROR_PPN_INVALID	2
-#define VMW_BALLOON_ERROR_PPN_LOCKED	3
-#define VMW_BALLOON_ERROR_PPN_UNLOCKED	4
-#define VMW_BALLOON_ERROR_PPN_PINNED	5
-#define VMW_BALLOON_ERROR_PPN_NOTNEEDED	6
-#define VMW_BALLOON_ERROR_RESET		7
-#define VMW_BALLOON_ERROR_BUSY		8
+#define VMW_BALLOON_SUCCESS		        0
+#define VMW_BALLOON_FAILURE		        -1
+#define VMW_BALLOON_ERROR_CMD_INVALID	        1
+#define VMW_BALLOON_ERROR_PPN_INVALID	        2
+#define VMW_BALLOON_ERROR_PPN_LOCKED	        3
+#define VMW_BALLOON_ERROR_PPN_UNLOCKED	        4
+#define VMW_BALLOON_ERROR_PPN_PINNED	        5
+#define VMW_BALLOON_ERROR_PPN_NOTNEEDED	        6
+#define VMW_BALLOON_ERROR_RESET		        7
+#define VMW_BALLOON_ERROR_BUSY		        8
 
-#define VMWARE_BALLOON_CMD(cmd, data, result)		\
-({							\
-	unsigned long __stat, __dummy1, __dummy2;	\
-	__asm__ __volatile__ ("inl %%dx" :		\
-		"=a"(__stat),				\
-		"=c"(__dummy1),				\
-		"=d"(__dummy2),				\
-		"=b"(result) :				\
-		"0"(VMW_BALLOON_HV_MAGIC),		\
-		"1"(VMW_BALLOON_CMD_##cmd),		\
-		"2"(VMW_BALLOON_HV_PORT),		\
-		"3"(data) :				\
-		"memory");				\
-	result &= -1UL;					\
-	__stat & -1UL;					\
+#define VMW_BALLOON_SUCCESS_WITH_CAPABILITIES	(0x03000000)
+
+#define VMWARE_BALLOON_CMD(cmd, data, result)			\
+({								\
+	unsigned long __status, __dummy1, __dummy2;		\
+	__asm__ __volatile__ ("inl %%dx" :			\
+		"=a"(__status),					\
+		"=c"(__dummy1),					\
+		"=d"(__dummy2),					\
+		"=b"(result) :					\
+		"0"(VMW_BALLOON_HV_MAGIC),			\
+		"1"(VMW_BALLOON_CMD_##cmd),			\
+		"2"(VMW_BALLOON_HV_PORT),			\
+		"3"(data) :					\
+		"memory");					\
+	if (VMW_BALLOON_CMD_##cmd == VMW_BALLOON_CMD_START)	\
+		result = __dummy1;				\
+	result &= -1UL;						\
+	__status & -1UL;					\
 })
 
 #ifdef CONFIG_DEBUG_FS
@@ -223,11 +236,12 @@ static struct vmballoon balloon;
  */
 static bool vmballoon_send_start(struct vmballoon *b)
 {
-	unsigned long status, dummy;
+	unsigned long status, capabilities;
 
 	STATS_INC(b->stats.start);
 
-	status = VMWARE_BALLOON_CMD(START, VMW_BALLOON_PROTOCOL_VERSION, dummy);
+	status = VMWARE_BALLOON_CMD(START, VMW_BALLOON_CAPABILITIES,
+				capabilities);
 	if (status == VMW_BALLOON_SUCCESS)
 		return true;
 
