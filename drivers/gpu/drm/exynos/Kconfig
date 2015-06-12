@@ -47,7 +47,7 @@ config DRM_EXYNOS_DPI
 
 config DRM_EXYNOS_DSI
 	bool "EXYNOS DRM MIPI-DSI driver support"
-	depends on DRM_EXYNOS && (DRM_EXYNOS_FIMD || DRM_EXYNOS7_DECON)
+	depends on DRM_EXYNOS && (DRM_EXYNOS_FIMD || DRM_EXYNOS5433_DECON || DRM_EXYNOS7_DECON)
 	select DRM_MIPI_DSI
 	select DRM_PANEL
 	default n
