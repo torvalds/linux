@@ -1970,31 +1970,27 @@ static void dw_mci_post_tmo(struct mmc_host *mmc)
 	printk("[%s] -- Timeout recovery procedure start --\n",
 		mmc_hostname(host->mmc));
 
-	if (data && (data->stop)) {
-		send_stop_cmd(host, data);
-	} else {
-		mci_writel(host, CMDARG, 0);
-		wmb();
-		cmd_flags = SDMMC_CMD_STOP | SDMMC_CMD_RESP_CRC |
+	mci_writel(host, CMDARG, 0);
+	wmb();
+	cmd_flags = SDMMC_CMD_STOP | SDMMC_CMD_RESP_CRC |
 			SDMMC_CMD_RESP_EXP | MMC_STOP_TRANSMISSION;
 
-		if (host->mmc->hold_reg_flag)
-			cmd_flags |= SDMMC_CMD_USE_HOLD_REG;
+	if (host->mmc->hold_reg_flag)
+		cmd_flags |= SDMMC_CMD_USE_HOLD_REG;
 
-		mci_writel(host, CMD, cmd_flags | SDMMC_CMD_START);
-		wmb();
-		timeout = jiffies + msecs_to_jiffies(500);
+	mci_writel(host, CMD, cmd_flags | SDMMC_CMD_START);
+	wmb();
+	timeout = jiffies + msecs_to_jiffies(500);
 
-		while(ret_timeout) {
-			ret_timeout = time_before(jiffies, timeout);
-			if(!(mci_readl(host, CMD) & SDMMC_CMD_START))
-				break;
-		}
-
-		if (false == ret_timeout)
-			MMC_DBG_ERR_FUNC(host->mmc, "stop recovery failed![%s]",
-					mmc_hostname(host->mmc));
+	while(ret_timeout) {
+		ret_timeout = time_before(jiffies, timeout);
+		if(!(mci_readl(host, CMD) & SDMMC_CMD_START))
+			break;
 	}
+
+	if (false == ret_timeout)
+		MMC_DBG_ERR_FUNC(host->mmc, "stop recovery failed![%s]",
+				 mmc_hostname(host->mmc));
 
 	if (!dw_mci_ctrl_all_reset(host)) {
 		ret = -ENODEV;
@@ -2002,8 +1998,9 @@ static void dw_mci_post_tmo(struct mmc_host *mmc)
 	}
 
 #ifdef CONFIG_MMC_DW_IDMAC
-	if (host->use_dma && host->dma_ops->init)
-		host->dma_ops->init(host);
+	if (!(cpu_is_rk3036() || cpu_is_rk312x()))
+		if (host->use_dma && host->dma_ops->init)
+			host->dma_ops->init(host);
 #endif
 
 	/*
@@ -4335,15 +4332,15 @@ int dw_mci_resume(struct dw_mci *host)
 		}
 
 		/* Disable jtag*/
-		if(cpu_is_rk3288())
+		if (cpu_is_rk3288())
                         grf_writel(((1 << 12) << 16) | (0 << 12), RK3288_GRF_SOC_CON0);
-                else if(cpu_is_rk3036())
+                else if (cpu_is_rk3036())
                         grf_writel(((1 << 11) << 16) | (0 << 11), RK3036_GRF_SOC_CON0);
-                else if(cpu_is_rk312x())
+                else if (cpu_is_rk312x())
                         /* RK3036_GRF_SOC_CON0 is compatible with rk312x, tmp setting */
                         grf_writel(((1 << 8) << 16) | (0 << 8), RK3036_GRF_SOC_CON0);
 	}
-	if(host->vmmc){
+	if (host->vmmc){
 		ret = regulator_enable(host->vmmc);
 		if (ret){
 			dev_err(host->dev,
@@ -4352,12 +4349,12 @@ int dw_mci_resume(struct dw_mci *host)
 		}
 	}
 	
-	if(!dw_mci_ctrl_all_reset(host)){
+	if (!dw_mci_ctrl_all_reset(host)){
 		ret = -ENODEV;
 		return ret;
 	}
 
-	if(!(cpu_is_rk3036() || cpu_is_rk312x()))
+	if (!(cpu_is_rk3036() || cpu_is_rk312x()))
 		if(host->use_dma && host->dma_ops->init)
 			host->dma_ops->init(host);
 
@@ -4374,22 +4371,21 @@ int dw_mci_resume(struct dw_mci *host)
 	regs = SDMMC_INT_CMD_DONE | SDMMC_INT_DATA_OVER | SDMMC_INT_TXDR |
 		SDMMC_INT_RXDR | SDMMC_INT_VSI | DW_MCI_ERROR_FLAGS;
 
-	if(!(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO))
+	if (!(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO))
 	    regs |= SDMMC_INT_CD;
 
 	mci_writel(host, INTMASK, regs);
 	mci_writel(host, CTRL, SDMMC_CTRL_INT_ENABLE);
 
-	/*only for sdmmc controller*/
-	if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)){
-		enable_irq(host->irq);	
-	}   
+	/* Only for sdmmc controller */
+	if ((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD))
+		enable_irq(host->irq);
 
-	for(i = 0; i < host->num_slots; i++){
+	for (i = 0; i < host->num_slots; i++){
 		struct dw_mci_slot *slot = host->slot[i];
-		if(!slot)
+		if (!slot)
 			continue;
-		if(slot->mmc->pm_flags & MMC_PM_KEEP_POWER){
+		if (slot->mmc->pm_flags & MMC_PM_KEEP_POWER){
 			dw_mci_set_ios(slot->mmc, &slot->mmc->ios);
 			dw_mci_setup_bus(slot, true);
 		}
