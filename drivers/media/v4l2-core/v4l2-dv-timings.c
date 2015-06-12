@@ -290,9 +290,11 @@ void v4l2_print_dv_timings(const char *dev_prefix, const char *prefix,
 			(bt->polarities & V4L2_DV_VSYNC_POS_POL) ? "+" : "-",
 			bt->il_vsync, bt->il_vbackporch);
 	pr_info("%s: pixelclock: %llu\n", dev_prefix, bt->pixelclock);
-	pr_info("%s: flags (0x%x):%s%s%s%s%s\n", dev_prefix, bt->flags,
+	pr_info("%s: flags (0x%x):%s%s%s%s%s%s\n", dev_prefix, bt->flags,
 			(bt->flags & V4L2_DV_FL_REDUCED_BLANKING) ?
 			" REDUCED_BLANKING" : "",
+			((bt->flags & V4L2_DV_FL_REDUCED_BLANKING) &&
+			 bt->vsync == 8) ? " (V2)" : "",
 			(bt->flags & V4L2_DV_FL_CAN_REDUCE_FPS) ?
 			" CAN_REDUCE_FPS" : "",
 			(bt->flags & V4L2_DV_FL_REDUCED_FPS) ?
