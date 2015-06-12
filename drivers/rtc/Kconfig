@@ -25,17 +25,9 @@ config RTC_HCTOSYS
 	  the value read from a specified RTC device. This is useful to avoid
 	  unnecessary fsck runs at boot time, and to network better.
 
-config RTC_SYSTOHC
-	bool "Set the RTC time based on NTP synchronization"
-	default y
-	help
-	  If you say yes here, the system time (wall clock) will be stored
-	  in the RTC specified by RTC_HCTOSYS_DEVICE approximately every 11
-	  minutes if userspace reports synchronized NTP status.
-
 config RTC_HCTOSYS_DEVICE
 	string "RTC used to set the system time"
-	depends on RTC_HCTOSYS = y || RTC_SYSTOHC = y
+	depends on RTC_HCTOSYS
 	default "rtc0"
 	help
 	  The RTC device that will be used to (re)initialize the system
@@ -55,6 +47,25 @@ config RTC_HCTOSYS_DEVICE
 	  be useful to reinitialize system time when resuming from system
 	  sleep states. Do not specify an RTC here unless it stays powered
 	  during all this system's supported sleep states.
+
+config RTC_SYSTOHC
+	bool "Set the RTC time based on NTP synchronization"
+	default y
+	help
+	  If you say yes here, the system time (wall clock) will be stored
+	  in the RTC specified by RTC_HCTOSYS_DEVICE approximately every 11
+	  minutes if userspace reports synchronized NTP status.
+
+config RTC_SYSTOHC_DEVICE
+	string "RTC used to synchronize NTP adjustment"
+	depends on RTC_SYSTOHC
+	default RTC_HCTOSYS_DEVICE if RTC_HCTOSYS
+	default "rtc0"
+	help
+	  The RTC device used for NTP synchronization. The main difference
+	  between RTC_HCTOSYS_DEVICE and RTC_SYSTOHC_DEVICE is that this
+	  one can sleep when setting time, because it runs in the workqueue
+	  context.
 
 config RTC_DEBUG
 	bool "RTC debug support"
