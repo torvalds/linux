@@ -151,7 +151,7 @@ static int __init pt_pmu_hw_init(void)
 
 		de_attr->attr.attr.name = pt_caps[i].name;
 
-		sysfs_attr_init(&de_attrs->attr.attr);
+		sysfs_attr_init(&de_attr->attr.attr);
 
 		de_attr->attr.attr.mode		= S_IRUGO;
 		de_attr->attr.show		= pt_cap_show;
@@ -615,7 +615,8 @@ static int pt_buffer_reset_markers(struct pt_buffer *buf,
 				   struct perf_output_handle *handle)
 
 {
-	unsigned long idx, npages, end;
+	unsigned long head = local64_read(&buf->head);
+	unsigned long idx, npages, wakeup;
 
 	if (buf->snapshot)
 		return 0;
@@ -634,17 +635,26 @@ static int pt_buffer_reset_markers(struct pt_buffer *buf,
 	buf->topa_index[buf->stop_pos]->stop = 0;
 	buf->topa_index[buf->intr_pos]->intr = 0;
 
-	if (pt_cap_get(PT_CAP_topa_multiple_entries)) {
-		npages = (handle->size + 1) >> PAGE_SHIFT;
-		end = (local64_read(&buf->head) >> PAGE_SHIFT) + npages;
-		/*if (end > handle->wakeup >> PAGE_SHIFT)
-		  end = handle->wakeup >> PAGE_SHIFT;*/
-		idx = end & (buf->nr_pages - 1);
-		buf->stop_pos = idx;
-		idx = (local64_read(&buf->head) >> PAGE_SHIFT) + npages - 1;
-		idx &= buf->nr_pages - 1;
-		buf->intr_pos = idx;
-	}
+	/* how many pages till the STOP marker */
+	npages = handle->size >> PAGE_SHIFT;
+
+	/* if it's on a page boundary, fill up one more page */
+	if (!offset_in_page(head + handle->size + 1))
+		npages++;
+
+	idx = (head >> PAGE_SHIFT) + npages;
+	idx &= buf->nr_pages - 1;
+	buf->stop_pos = idx;
+
+	wakeup = handle->wakeup >> PAGE_SHIFT;
+
+	/* in the worst case, wake up the consumer one page before hard stop */
+	idx = (head >> PAGE_SHIFT) + npages - 1;
+	if (idx > wakeup)
+		idx = wakeup;
+
+	idx &= buf->nr_pages - 1;
+	buf->intr_pos = idx;
 
 	buf->topa_index[buf->stop_pos]->stop = 1;
 	buf->topa_index[buf->intr_pos]->intr = 1;
