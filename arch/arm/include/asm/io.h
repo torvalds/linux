@@ -23,6 +23,7 @@
 
 #ifdef __KERNEL__
 
+#include <linux/string.h>
 #include <linux/types.h>
 #include <linux/blk_types.h>
 #include <asm/byteorder.h>
@@ -73,17 +74,16 @@ void __raw_readsl(const volatile void __iomem *addr, void *data, int longlen);
 static inline void __raw_writew(u16 val, volatile void __iomem *addr)
 {
 	asm volatile("strh %1, %0"
-		     : "+Q" (*(volatile u16 __force *)addr)
-		     : "r" (val));
+		     : : "Q" (*(volatile u16 __force *)addr), "r" (val));
 }
 
 #define __raw_readw __raw_readw
 static inline u16 __raw_readw(const volatile void __iomem *addr)
 {
 	u16 val;
-	asm volatile("ldrh %1, %0"
-		     : "+Q" (*(volatile u16 __force *)addr),
-		       "=r" (val));
+	asm volatile("ldrh %0, %1"
+		     : "=r" (val)
+		     : "Q" (*(volatile u16 __force *)addr));
 	return val;
 }
 #endif
@@ -92,25 +92,23 @@ static inline u16 __raw_readw(const volatile void __iomem *addr)
 static inline void __raw_writeb(u8 val, volatile void __iomem *addr)
 {
 	asm volatile("strb %1, %0"
-		     : "+Qo" (*(volatile u8 __force *)addr)
-		     : "r" (val));
+		     : : "Qo" (*(volatile u8 __force *)addr), "r" (val));
 }
 
 #define __raw_writel __raw_writel
 static inline void __raw_writel(u32 val, volatile void __iomem *addr)
 {
 	asm volatile("str %1, %0"
-		     : "+Qo" (*(volatile u32 __force *)addr)
-		     : "r" (val));
+		     : : "Qo" (*(volatile u32 __force *)addr), "r" (val));
 }
 
 #define __raw_readb __raw_readb
 static inline u8 __raw_readb(const volatile void __iomem *addr)
 {
 	u8 val;
-	asm volatile("ldrb %1, %0"
-		     : "+Qo" (*(volatile u8 __force *)addr),
-		       "=r" (val));
+	asm volatile("ldrb %0, %1"
+		     : "=r" (val)
+		     : "Qo" (*(volatile u8 __force *)addr));
 	return val;
 }
 
@@ -118,9 +116,9 @@ static inline u8 __raw_readb(const volatile void __iomem *addr)
 static inline u32 __raw_readl(const volatile void __iomem *addr)
 {
 	u32 val;
-	asm volatile("ldr %1, %0"
-		     : "+Qo" (*(volatile u32 __force *)addr),
-		       "=r" (val));
+	asm volatile("ldr %0, %1"
+		     : "=r" (val)
+		     : "Qo" (*(volatile u32 __force *)addr));
 	return val;
 }
 
@@ -319,9 +317,33 @@ extern void _memset_io(volatile void __iomem *, int, size_t);
 #define writesw(p,d,l)		__raw_writesw(p,d,l)
 #define writesl(p,d,l)		__raw_writesl(p,d,l)
 
+#ifndef __ARMBE__
+static inline void memset_io(volatile void __iomem *dst, unsigned c,
+	size_t count)
+{
+	memset((void __force *)dst, c, count);
+}
+#define memset_io(dst,c,count) memset_io(dst,c,count)
+
+static inline void memcpy_fromio(void *to, const volatile void __iomem *from,
+	size_t count)
+{
+	memcpy(to, (const void __force *)from, count);
+}
+#define memcpy_fromio(to,from,count) memcpy_fromio(to,from,count)
+
+static inline void memcpy_toio(volatile void __iomem *to, const void *from,
+	size_t count)
+{
+	memcpy((void __force *)to, from, count);
+}
+#define memcpy_toio(to,from,count) memcpy_toio(to,from,count)
+
+#else
 #define memset_io(c,v,l)	_memset_io(c,(v),(l))
 #define memcpy_fromio(a,c,l)	_memcpy_fromio((a),c,(l))
 #define memcpy_toio(c,a,l)	_memcpy_toio(c,(a),(l))
+#endif
 
 #endif	/* readl */
 

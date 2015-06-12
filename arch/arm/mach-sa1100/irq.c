@@ -73,7 +73,7 @@ static int sa1100_normal_irqdomain_map(struct irq_domain *d,
 	return 0;
 }
 
-static struct irq_domain_ops sa1100_normal_irqdomain_ops = {
+static const struct irq_domain_ops sa1100_normal_irqdomain_ops = {
 	.map = sa1100_normal_irqdomain_map,
 	.xlate = irq_domain_xlate_onetwocell,
 };

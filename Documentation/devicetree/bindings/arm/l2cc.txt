@@ -67,6 +67,11 @@ Optional properties:
   disable if zero.
 - arm,prefetch-offset : Override prefetch offset value. Valid values are
   0-7, 15, 23, and 31.
+- prefetch-data : Data prefetch. Value: <0> (forcibly disable), <1>
+  (forcibly enable), property absent (retain settings set by firmware)
+- prefetch-instr : Instruction prefetch. Value: <0> (forcibly disable),
+  <1> (forcibly enable), property absent (retain settings set by
+  firmware)
 
 Example:
 

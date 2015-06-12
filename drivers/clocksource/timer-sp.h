@@ -1,6 +1,3 @@
-#ifndef __ASM_ARM_HARDWARE_ARM_TIMER_H
-#define __ASM_ARM_HARDWARE_ARM_TIMER_H
-
 /*
  * ARM timer implementation, found in Integrator, Versatile and Realview
  * platforms.  Not all platforms support all registers and bits in these
@@ -31,5 +28,3 @@
 #define TIMER_RIS	0x10			/*  CVR ro */
 #define TIMER_MIS	0x14			/*  CVR ro */
 #define TIMER_BGLOAD	0x18			/*  CVR rw */
-
-#endif
