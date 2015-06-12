@@ -70,7 +70,6 @@ static const struct attribute_group *visorbus_bus_groups[] = {
 	NULL,
 };
 
-
 /** This describes the TYPE of bus.
  *  (Don't confuse this with an INSTANCE of the bus.)
  */
@@ -745,19 +744,6 @@ visordriver_probe_device(struct device *xdev)
 away:
 	if (rc != 0)
 		put_device(&dev->device);
-	/*  We could get here more than once if the child driver module is
-	 *  unloaded and re-loaded while devices are present.  That's why we
-	 *  need a flag to be sure that we only respond to the device_create
-	 *  once.  We cannot respond to the device_create prior to here,
-	 *  because until we call drv->probe() above, the channel has not been
-	 *  initialized.
-	 */
-	if (!dev->responded_to_device_create) {
-
-		dev->responded_to_device_create = true;
-		if (chipset_responders.device_create)
-			(*chipset_responders.device_create)(dev, rc);
-	}
 	return rc;
 }
 
@@ -1305,15 +1291,15 @@ chipset_device_create(struct visor_device *dev_info)
 			 POSTCODE_SEVERITY_INFO);
 
 	rc = create_visor_device(dev_info);
-	if (rc < 0) {
+	if (chipset_responders.device_create)
+		chipset_responders.device_create(dev_info, rc);
+
+	if (rc < 0)
 		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, dev_no, bus_no,
 				 POSTCODE_SEVERITY_ERR);
-		if (chipset_responders.device_create)
-			(*chipset_responders.device_create)(dev_info, rc);
-	}
-
-	POSTCODE_LINUX_4(DEVICE_CREATE_SUCCESS_PC, dev_no, bus_no,
-			 POSTCODE_SEVERITY_INFO);
+	else
+		POSTCODE_LINUX_4(DEVICE_CREATE_SUCCESS_PC, dev_no, bus_no,
+				 POSTCODE_SEVERITY_INFO);
 }
 
 static void
