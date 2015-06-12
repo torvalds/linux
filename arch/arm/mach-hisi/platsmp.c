@@ -118,7 +118,7 @@ static int hix5hd2_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	phys_addr_t jumpaddr;
 
-	jumpaddr = virt_to_phys(hisi_secondary_startup);
+	jumpaddr = virt_to_phys(secondary_startup);
 	hix5hd2_set_scu_boot_addr(HIX5HD2_BOOT_ADDRESS, jumpaddr);
 	hix5hd2_set_cpu(cpu, true);
 	arch_send_wakeup_ipi_mask(cpumask_of(cpu));
@@ -156,7 +156,7 @@ static int hip01_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	struct device_node *node;
 
 
-	jumpaddr = virt_to_phys(hisi_secondary_startup);
+	jumpaddr = virt_to_phys(secondary_startup);
 	hip01_set_boot_addr(HIP01_BOOT_ADDRESS, jumpaddr);
 
 	node = of_find_compatible_node(NULL, NULL, "hisilicon,hip01-sysctrl");

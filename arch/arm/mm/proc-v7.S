@@ -414,7 +414,7 @@ __v7_pj4b_setup:
 __v7_setup:
 	adr	r12, __v7_setup_stack		@ the local stack
 	stmia	r12, {r0-r5, r7, r9, r11, lr}
-	bl      v7_flush_dcache_louis
+	bl      v7_invalidate_l1
 	ldmia	r12, {r0-r5, r7, r9, r11, lr}
 
 	and	r0, r9, #0xff000000		@ ARM?
