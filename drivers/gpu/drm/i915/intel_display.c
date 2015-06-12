@@ -4748,7 +4748,8 @@ static void intel_crtc_enable_planes(struct drm_crtc *crtc)
 
 	intel_enable_primary_hw_plane(crtc->primary, crtc);
 	intel_enable_sprite_planes(crtc);
-	intel_crtc_update_cursor(crtc, true);
+	if (to_intel_plane_state(crtc->cursor->state)->visible)
+		intel_crtc_update_cursor(crtc, true);
 
 	intel_post_enable_primary(crtc);
 
