@@ -973,6 +973,10 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  * @RX_FLAG_IV_STRIPPED: The IV/ICV are stripped from this frame.
  *	If this flag is set, the stack cannot do any replay detection
  *	hence the driver or hardware will have to do that.
+ * @RX_FLAG_PN_VALIDATED: Currently only valid for CCMP/GCMP frames, this
+ *	flag indicates that the PN was verified for replay protection.
+ *	Note that this flag is also currently only supported when a frame
+ *	is also decrypted (ie. @RX_FLAG_DECRYPTED must be set)
  * @RX_FLAG_FAILED_FCS_CRC: Set this flag if the FCS check failed on
  *	the frame.
  * @RX_FLAG_FAILED_PLCP_CRC: Set this flag if the PCLP check failed on
@@ -1036,7 +1040,8 @@ enum mac80211_rx_flags {
 	RX_FLAG_NO_SIGNAL_VAL		= BIT(12),
 	RX_FLAG_HT_GF			= BIT(13),
 	RX_FLAG_AMPDU_DETAILS		= BIT(14),
-	/* bits 15/16 free */
+	RX_FLAG_PN_VALIDATED		= BIT(15),
+	/* bit 16 free */
 	RX_FLAG_AMPDU_LAST_KNOWN	= BIT(17),
 	RX_FLAG_AMPDU_IS_LAST		= BIT(18),
 	RX_FLAG_AMPDU_DELIM_CRC_ERROR	= BIT(19),
