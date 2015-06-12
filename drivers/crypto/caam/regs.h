@@ -554,6 +554,7 @@ struct caam_secure_mem_v1 {
 	u32 sm_cmd;	/* SMCJRx - Secure memory command */
 	u32 rsvd1;
 	u32 sm_status;	/* SMCSJRx - Secure memory status */
+    u32 rsvd2;
 
 	u32 sm_perm;	/* SMAPJRx - Secure memory access perms */
 	u32 sm_group2;	/* SMAP2JRx - Secure memory access group 2 */
