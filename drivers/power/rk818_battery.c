@@ -149,6 +149,10 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define DSOC_CHRG_FINISH_CURR	1100
 #define SLP_CHRG_CURR		1000
 #define SLP_DSOC_VOL_THRESD	3600
+/*if voltage is lower than this thresd,
+   we consider it as invalid
+ */
+#define INVALID_VOL_THRESD	2500
 #define PWR_OFF_THRESD		3400
 #define MIN_ZERO_ACCURACY	10	/*0.01%*/
 
@@ -920,7 +924,7 @@ static uint16_t rk81x_bat_get_ocv_vol(struct rk81x_battery *di)
 static int rk81x_bat_get_vol(struct rk81x_battery *di)
 {
 	int ret;
-	int voltage_now = 0;
+	int vol;
 	u8 buf;
 	int temp;
 	int val[3];
@@ -943,9 +947,9 @@ static int rk81x_bat_get_vol(struct rk81x_battery *di)
 	else
 		temp = val[2];
 
-	voltage_now = di->voltage_k * temp / 1000 + di->voltage_b;
+	vol = di->voltage_k * temp / 1000 + di->voltage_b;
 
-	return voltage_now;
+	return vol;
 }
 
 static bool is_rk81x_bat_relax_mode(struct rk81x_battery *di)
@@ -4249,11 +4253,18 @@ static int rk81x_battery_resume(struct platform_device *dev)
 	int delta_time;
 	int time_step;
 	int delta_soc;
+	int vol;
 
 	di->discharge_smooth_status = true;
 	di->charge_smooth_status = true;
 	di->s2r = 1;
-	di->voltage  = rk81x_bat_get_vol(di);
+	vol  = rk81x_bat_get_vol(di);
+	if (vol < INVALID_VOL_THRESD) {
+		dev_err(di->dev, "invalid voltage :%d", vol);
+		vol = di->voltage;
+		dbg_enable = 1;
+	}
+	di->voltage = vol;
 	di->current_avg = rk81x_bat_get_avg_current(di);
 	di->relax_voltage = rk81x_bat_get_relax_vol(di);
 	di->est_ocv_vol = rk81x_bat_est_ocv_vol(di);
