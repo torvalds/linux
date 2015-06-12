@@ -262,7 +262,10 @@ static void gen7_fbc_enable(struct drm_crtc *crtc)
 
 	dev_priv->fbc.enabled = true;
 
-	dpfc_ctl = IVB_DPFC_CTL_PLANE(intel_crtc->plane);
+	dpfc_ctl = 0;
+	if (IS_IVYBRIDGE(dev))
+		dpfc_ctl |= IVB_DPFC_CTL_PLANE(intel_crtc->plane);
+
 	if (drm_format_plane_cpp(fb->pixel_format, 0) == 2)
 		dev_priv->fbc.threshold++;
 
