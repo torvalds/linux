@@ -131,33 +131,15 @@ static void vidi_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
 
 	plane = &ctx->planes[win];
 
-	plane->enabled = true;
-
 	DRM_DEBUG_KMS("dma_addr = %pad\n", plane->dma_addr);
 
 	if (ctx->vblank_on)
 		schedule_work(&ctx->work);
 }
 
-static void vidi_win_disable(struct exynos_drm_crtc *crtc, unsigned int win)
-{
-	struct vidi_context *ctx = crtc->ctx;
-	struct exynos_drm_plane *plane;
-
-	if (win < 0 || win >= WINDOWS_NR)
-		return;
-
-	plane = &ctx->planes[win];
-	plane->enabled = false;
-
-	/* TODO. */
-}
-
 static void vidi_enable(struct exynos_drm_crtc *crtc)
 {
 	struct vidi_context *ctx = crtc->ctx;
-	struct exynos_drm_plane *plane;
-	int i;
 
 	mutex_lock(&ctx->lock);
 
@@ -166,12 +148,6 @@ static void vidi_enable(struct exynos_drm_crtc *crtc)
 	/* if vblank was enabled status, enable it again. */
 	if (test_and_clear_bit(0, &ctx->irq_flags))
 		vidi_enable_vblank(ctx->crtc);
-
-	for (i = 0; i < WINDOWS_NR; i++) {
-		plane = &ctx->planes[i];
-		if (plane->enabled)
-			vidi_win_commit(ctx->crtc, i);
-	}
 
 	mutex_unlock(&ctx->lock);
 }
@@ -204,7 +180,6 @@ static const struct exynos_drm_crtc_ops vidi_crtc_ops = {
 	.enable_vblank = vidi_enable_vblank,
 	.disable_vblank = vidi_disable_vblank,
 	.win_commit = vidi_win_commit,
-	.win_disable = vidi_win_disable,
 };
 
 static void vidi_fake_vblank_handler(struct work_struct *work)

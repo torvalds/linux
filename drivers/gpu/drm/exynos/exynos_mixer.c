@@ -937,8 +937,6 @@ static void mixer_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
 		vp_video_buffer(mixer_ctx, win);
 	else
 		mixer_graph_buffer(mixer_ctx, win);
-
-	mixer_ctx->planes[win].enabled = true;
 }
 
 static void mixer_win_disable(struct exynos_drm_crtc *crtc, unsigned int win)
@@ -952,7 +950,6 @@ static void mixer_win_disable(struct exynos_drm_crtc *crtc, unsigned int win)
 	mutex_lock(&mixer_ctx->mixer_mutex);
 	if (!mixer_ctx->powered) {
 		mutex_unlock(&mixer_ctx->mixer_mutex);
-		mixer_ctx->planes[win].resume = false;
 		return;
 	}
 	mutex_unlock(&mixer_ctx->mixer_mutex);
@@ -964,8 +961,6 @@ static void mixer_win_disable(struct exynos_drm_crtc *crtc, unsigned int win)
 
 	mixer_vsync_set_update(mixer_ctx, true);
 	spin_unlock_irqrestore(&res->reg_slock, flags);
-
-	mixer_ctx->planes[win].enabled = false;
 }
 
 static void mixer_wait_for_vblank(struct exynos_drm_crtc *crtc)
@@ -998,32 +993,6 @@ static void mixer_wait_for_vblank(struct exynos_drm_crtc *crtc)
 		DRM_DEBUG_KMS("vblank wait timed out.\n");
 
 	drm_vblank_put(mixer_ctx->drm_dev, mixer_ctx->pipe);
-}
-
-static void mixer_window_suspend(struct mixer_context *ctx)
-{
-	struct exynos_drm_plane *plane;
-	int i;
-
-	for (i = 0; i < MIXER_WIN_NR; i++) {
-		plane = &ctx->planes[i];
-		plane->resume = plane->enabled;
-		mixer_win_disable(ctx->crtc, i);
-	}
-}
-
-static void mixer_window_resume(struct mixer_context *ctx)
-{
-	struct exynos_drm_plane *plane;
-	int i;
-
-	for (i = 0; i < MIXER_WIN_NR; i++) {
-		plane = &ctx->planes[i];
-		plane->enabled = plane->resume;
-		plane->resume = false;
-		if (plane->enabled)
-			mixer_win_commit(ctx->crtc, i);
-	}
 }
 
 static void mixer_enable(struct exynos_drm_crtc *crtc)
@@ -1078,14 +1047,13 @@ static void mixer_enable(struct exynos_drm_crtc *crtc)
 
 	mixer_reg_write(res, MXR_INT_EN, ctx->int_en);
 	mixer_win_reset(ctx);
-
-	mixer_window_resume(ctx);
 }
 
 static void mixer_disable(struct exynos_drm_crtc *crtc)
 {
 	struct mixer_context *ctx = crtc->ctx;
 	struct mixer_resources *res = &ctx->mixer_res;
+	int i;
 
 	mutex_lock(&ctx->mixer_mutex);
 	if (!ctx->powered) {
@@ -1096,7 +1064,9 @@ static void mixer_disable(struct exynos_drm_crtc *crtc)
 
 	mixer_stop(ctx);
 	mixer_regs_dump(ctx);
-	mixer_window_suspend(ctx);
+
+	for (i = 0; i < MIXER_WIN_NR; i++)
+		mixer_win_disable(crtc, i);
 
 	ctx->int_en = mixer_reg_read(res, MXR_INT_EN);
 

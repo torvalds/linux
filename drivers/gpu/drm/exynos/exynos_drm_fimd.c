@@ -634,11 +634,8 @@ static void fimd_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
 
 	plane = &ctx->planes[win];
 
-	/* If suspended, enable this on resume */
-	if (ctx->suspended) {
-		plane->resume = true;
+	if (ctx->suspended)
 		return;
-	}
 
 	/*
 	 * SHADOWCON/PRTCON register is used for enabling timing.
@@ -728,8 +725,6 @@ static void fimd_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
 	/* Enable DMA channel and unprotect windows */
 	fimd_shadow_protect_win(ctx, win, false);
 
-	plane->enabled = true;
-
 	if (ctx->i80_if)
 		atomic_set(&ctx->win_updated, 1);
 }
@@ -744,11 +739,8 @@ static void fimd_win_disable(struct exynos_drm_crtc *crtc, unsigned int win)
 
 	plane = &ctx->planes[win];
 
-	if (ctx->suspended) {
-		/* do not resume this window*/
-		plane->resume = false;
+	if (ctx->suspended)
 		return;
-	}
 
 	/* protect windows */
 	fimd_shadow_protect_win(ctx, win, true);
@@ -760,49 +752,6 @@ static void fimd_win_disable(struct exynos_drm_crtc *crtc, unsigned int win)
 
 	/* unprotect windows */
 	fimd_shadow_protect_win(ctx, win, false);
-
-	plane->enabled = false;
-}
-
-static void fimd_window_suspend(struct fimd_context *ctx)
-{
-	struct exynos_drm_plane *plane;
-	int i;
-
-	for (i = 0; i < WINDOWS_NR; i++) {
-		plane = &ctx->planes[i];
-		plane->resume = plane->enabled;
-		if (plane->enabled)
-			fimd_win_disable(ctx->crtc, i);
-	}
-}
-
-static void fimd_window_resume(struct fimd_context *ctx)
-{
-	struct exynos_drm_plane *plane;
-	int i;
-
-	for (i = 0; i < WINDOWS_NR; i++) {
-		plane = &ctx->planes[i];
-		plane->enabled = plane->resume;
-		plane->resume = false;
-	}
-}
-
-static void fimd_apply(struct fimd_context *ctx)
-{
-	struct exynos_drm_plane *plane;
-	int i;
-
-	for (i = 0; i < WINDOWS_NR; i++) {
-		plane = &ctx->planes[i];
-		if (plane->enabled)
-			fimd_win_commit(ctx->crtc, i);
-		else
-			fimd_win_disable(ctx->crtc, i);
-	}
-
-	fimd_commit(ctx->crtc);
 }
 
 static void fimd_enable(struct exynos_drm_crtc *crtc)
@@ -833,14 +782,13 @@ static void fimd_enable(struct exynos_drm_crtc *crtc)
 	if (test_and_clear_bit(0, &ctx->irq_flags))
 		fimd_enable_vblank(ctx->crtc);
 
-	fimd_window_resume(ctx);
-
-	fimd_apply(ctx);
+	fimd_commit(ctx->crtc);
 }
 
 static void fimd_disable(struct exynos_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
+	int i;
 
 	if (ctx->suspended)
 		return;
@@ -850,7 +798,8 @@ static void fimd_disable(struct exynos_drm_crtc *crtc)
 	 * suspend that connector. Otherwise we might try to scan from
 	 * a destroyed buffer later.
 	 */
-	fimd_window_suspend(ctx);
+	for (i = 0; i < WINDOWS_NR; i++)
+		fimd_win_disable(crtc, i);
 
 	clk_disable_unprepare(ctx->lcd_clk);
 	clk_disable_unprepare(ctx->bus_clk);

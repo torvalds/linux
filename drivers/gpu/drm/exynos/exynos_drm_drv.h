@@ -64,8 +64,6 @@ enum exynos_drm_output_type {
  * @dma_addr: array of bus(accessed by dma) address to the memory region
  *	      allocated for a overlay.
  * @zpos: order of overlay layer(z position).
- * @enabled: enabled or not.
- * @resume: to resume or not.
  *
  * this structure is common to exynos SoC and its contents would be copied
  * to hardware specific overlay info.
@@ -94,9 +92,6 @@ struct exynos_drm_plane {
 	uint32_t pixel_format;
 	dma_addr_t dma_addr[MAX_FB_BUFFER];
 	unsigned int zpos;
-
-	bool enabled:1;
-	bool resume:1;
 };
 
 /*

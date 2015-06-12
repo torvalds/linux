@@ -410,11 +410,8 @@ static void decon_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
 
 	plane = &ctx->planes[win];
 
-	/* If suspended, enable this on resume */
-	if (ctx->suspended) {
-		plane->resume = true;
+	if (ctx->suspended)
 		return;
-	}
 
 	/*
 	 * SHADOWCON/PRTCON register is used for enabling timing.
@@ -506,8 +503,6 @@ static void decon_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
 	val = readl(ctx->regs + DECON_UPDATE);
 	val |= DECON_UPDATE_STANDALONE_F;
 	writel(val, ctx->regs + DECON_UPDATE);
-
-	plane->enabled = true;
 }
 
 static void decon_win_disable(struct exynos_drm_crtc *crtc, unsigned int win)
@@ -521,11 +516,8 @@ static void decon_win_disable(struct exynos_drm_crtc *crtc, unsigned int win)
 
 	plane = &ctx->planes[win];
 
-	if (ctx->suspended) {
-		/* do not resume this window*/
-		plane->resume = false;
+	if (ctx->suspended)
 		return;
-	}
 
 	/* protect windows */
 	decon_shadow_protect_win(ctx, win, true);
@@ -541,49 +533,6 @@ static void decon_win_disable(struct exynos_drm_crtc *crtc, unsigned int win)
 	val = readl(ctx->regs + DECON_UPDATE);
 	val |= DECON_UPDATE_STANDALONE_F;
 	writel(val, ctx->regs + DECON_UPDATE);
-
-	plane->enabled = false;
-}
-
-static void decon_window_suspend(struct decon_context *ctx)
-{
-	struct exynos_drm_plane *plane;
-	int i;
-
-	for (i = 0; i < WINDOWS_NR; i++) {
-		plane = &ctx->planes[i];
-		plane->resume = plane->enabled;
-		if (plane->enabled)
-			decon_win_disable(ctx->crtc, i);
-	}
-}
-
-static void decon_window_resume(struct decon_context *ctx)
-{
-	struct exynos_drm_plane *plane;
-	int i;
-
-	for (i = 0; i < WINDOWS_NR; i++) {
-		plane = &ctx->planes[i];
-		plane->enabled = plane->resume;
-		plane->resume = false;
-	}
-}
-
-static void decon_apply(struct decon_context *ctx)
-{
-	struct exynos_drm_plane *plane;
-	int i;
-
-	for (i = 0; i < WINDOWS_NR; i++) {
-		plane = &ctx->planes[i];
-		if (plane->enabled)
-			decon_win_commit(ctx->crtc, i);
-		else
-			decon_win_disable(ctx->crtc, i);
-	}
-
-	decon_commit(ctx->crtc);
 }
 
 static void decon_init(struct decon_context *ctx)
@@ -645,14 +594,13 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 	if (test_and_clear_bit(0, &ctx->irq_flags))
 		decon_enable_vblank(ctx->crtc);
 
-	decon_window_resume(ctx);
-
-	decon_apply(ctx);
+	decon_commit(ctx->crtc);
 }
 
 static void decon_disable(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
+	int i;
 
 	if (ctx->suspended)
 		return;
@@ -662,7 +610,8 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 	 * suspend that connector. Otherwise we might try to scan from
 	 * a destroyed buffer later.
 	 */
-	decon_window_suspend(ctx);
+	for (i = 0; i < WINDOWS_NR; i++)
+		decon_win_disable(crtc, i);
 
 	clk_disable_unprepare(ctx->vclk);
 	clk_disable_unprepare(ctx->eclk);
