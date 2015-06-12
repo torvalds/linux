@@ -790,8 +790,15 @@ int crush_do_rule(const struct crush_map *map,
 
 		switch (curstep->op) {
 		case CRUSH_RULE_TAKE:
-			w[0] = curstep->arg1;
-			wsize = 1;
+			if ((curstep->arg1 >= 0 &&
+			     curstep->arg1 < map->max_devices) ||
+			    (-1-curstep->arg1 < map->max_buckets &&
+			     map->buckets[-1-curstep->arg1])) {
+				w[0] = curstep->arg1;
+				wsize = 1;
+			} else {
+				dprintk(" bad take value %d\n", curstep->arg1);
+			}
 			break;
 
 		case CRUSH_RULE_SET_CHOOSE_TRIES:
