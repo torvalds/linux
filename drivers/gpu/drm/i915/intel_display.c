@@ -6187,31 +6187,35 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	mutex_unlock(&dev->struct_mutex);
 }
 
+static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
+{
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	enum intel_display_power_domain domain;
+	unsigned long domains;
+
+	if (!intel_crtc->active)
+		return;
+
+	intel_crtc_disable_planes(crtc);
+	dev_priv->display.crtc_disable(crtc);
+
+	domains = intel_crtc->enabled_power_domains;
+	for_each_power_domain(domain, domains)
+		intel_display_power_put(dev_priv, domain);
+	intel_crtc->enabled_power_domains = 0;
+}
+
 /*
  * turn all crtc's off, but do not adjust state
  * This has to be paired with a call to intel_modeset_setup_hw_state.
  */
 void intel_display_suspend(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_crtc *crtc;
 
-	for_each_crtc(dev, crtc) {
-		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-		enum intel_display_power_domain domain;
-		unsigned long domains;
-
-		if (!intel_crtc->active)
-			continue;
-
-		intel_crtc_disable_planes(crtc);
-		dev_priv->display.crtc_disable(crtc);
-
-		domains = intel_crtc->enabled_power_domains;
-		for_each_power_domain(domain, domains)
-			intel_display_power_put(dev_priv, domain);
-		intel_crtc->enabled_power_domains = 0;
-	}
+	for_each_crtc(dev, crtc)
+		intel_crtc_disable_noatomic(crtc);
 }
 
 /* Master function to enable/disable CRTC and corresponding power wells */
@@ -15120,7 +15124,9 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_encoder *encoder;
 	u32 reg;
+	bool enable;
 
 	/* Clear any frame start delays used for debugging left by the BIOS */
 	reg = PIPECONF(crtc->config->cpu_transcoder);
@@ -15137,7 +15143,6 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 	 * disable the crtc (and hence change the state) if it is wrong. Note
 	 * that gen4+ has a fixed plane -> pipe mapping.  */
 	if (INTEL_INFO(dev)->gen < 4 && !intel_check_plane_mapping(crtc)) {
-		struct intel_connector *connector;
 		bool plane;
 
 		DRM_DEBUG_KMS("[CRTC:%d] wrong plane connection detected!\n",
@@ -15149,29 +15154,8 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 		plane = crtc->plane;
 		to_intel_plane_state(crtc->base.primary->state)->visible = true;
 		crtc->plane = !plane;
-		intel_crtc_control(&crtc->base, false);
+		intel_crtc_disable_noatomic(&crtc->base);
 		crtc->plane = plane;
-
-		/* ... and break all links. */
-		for_each_intel_connector(dev, connector) {
-			if (connector->encoder->base.crtc != &crtc->base)
-				continue;
-
-			connector->base.dpms = DRM_MODE_DPMS_OFF;
-			connector->base.encoder = NULL;
-		}
-		/* multiple connectors may have the same encoder:
-		 *  handle them and break crtc link separately */
-		for_each_intel_connector(dev, connector)
-			if (connector->encoder->base.crtc == &crtc->base) {
-				connector->encoder->base.crtc = NULL;
-				connector->encoder->connectors_active = false;
-			}
-
-		WARN_ON(crtc->active);
-		crtc->base.state->enable = false;
-		crtc->base.state->active = false;
-		crtc->base.enabled = false;
 	}
 
 	if (dev_priv->quirks & QUIRK_PIPEA_FORCE &&
@@ -15185,13 +15169,18 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 
 	/* Adjust the state of the output pipe according to whether we
 	 * have active connectors/encoders. */
-	intel_crtc_update_dpms(&crtc->base);
+	enable = false;
+	for_each_encoder_on_crtc(dev, &crtc->base, encoder)
+		enable |= encoder->connectors_active;
+
+	if (!enable)
+		intel_crtc_disable_noatomic(&crtc->base);
 
 	if (crtc->active != crtc->base.state->active) {
-		struct intel_encoder *encoder;
 
 		/* This can happen either due to bugs in the get_hw_state
-		 * functions or because the pipe is force-enabled due to the
+		 * functions or because of calls to intel_crtc_disable_noatomic,
+		 * or because the pipe is force-enabled due to the
 		 * pipe A quirk. */
 		DRM_DEBUG_KMS("[CRTC:%d] hw state adjusted, was %s, now %s\n",
 			      crtc->base.base.id,
