@@ -83,17 +83,23 @@ static int dwc3_pci_quirks(struct pci_dev *pdev)
 		acpi_dev_add_driver_gpios(ACPI_COMPANION(&pdev->dev),
 					  acpi_dwc3_byt_gpios);
 
-		/* These GPIOs will turn on the USB2 PHY */
-		gpio = gpiod_get(&pdev->dev, "cs");
-		if (!IS_ERR(gpio)) {
-			gpiod_direction_output(gpio, 0);
-			gpiod_set_value_cansleep(gpio, 1);
-			gpiod_put(gpio);
-		}
+		/*
+		 * These GPIOs will turn on the USB2 PHY. Note that we have to
+		 * put the gpio descriptors again here because the phy driver
+		 * might want to grab them, too.
+		 */
+		gpio = gpiod_get_optional(&pdev->dev, "cs", GPIOD_OUT_LOW);
+		if (IS_ERR(gpio))
+			return PTR_ERR(gpio);
 
-		gpio = gpiod_get(&pdev->dev, "reset");
-		if (!IS_ERR(gpio)) {
-			gpiod_direction_output(gpio, 0);
+		gpiod_set_value_cansleep(gpio, 1);
+		gpiod_put(gpio);
+
+		gpio = gpiod_get_optional(&pdev->dev, "reset", GPIOD_OUT_LOW);
+		if (IS_ERR(gpio))
+			return PTR_ERR(gpio);
+
+		if (gpio) {
 			gpiod_set_value_cansleep(gpio, 1);
 			gpiod_put(gpio);
 			usleep_range(10000, 11000);
