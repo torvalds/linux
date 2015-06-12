@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -613,6 +614,8 @@ static int dspi_suspend(struct device *dev)
 	spi_master_suspend(master);
 	clk_disable_unprepare(dspi->clk);
 
+	pinctrl_pm_select_sleep_state(dev);
+
 	return 0;
 }
 
@@ -620,6 +623,8 @@ static int dspi_resume(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct fsl_dspi *dspi = spi_master_get_devdata(master);
+
+	pinctrl_pm_select_default_state(dev);
 
 	clk_prepare_enable(dspi->clk);
 	spi_master_resume(master);
