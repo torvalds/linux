@@ -247,14 +247,14 @@ static int aat1290_led_parse_dt(struct aat1290_led *led,
 #endif
 	int ret = 0;
 
-	led->gpio_fl_en = devm_gpiod_get(dev, "flen");
+	led->gpio_fl_en = devm_gpiod_get(dev, "flen", GPIOD_ASIS);
 	if (IS_ERR(led->gpio_fl_en)) {
 		ret = PTR_ERR(led->gpio_fl_en);
 		dev_err(dev, "Unable to claim gpio \"flen\".\n");
 		return ret;
 	}
 
-	led->gpio_en_set = devm_gpiod_get(dev, "enset");
+	led->gpio_en_set = devm_gpiod_get(dev, "enset", GPIOD_ASIS);
 	if (IS_ERR(led->gpio_en_set)) {
 		ret = PTR_ERR(led->gpio_en_set);
 		dev_err(dev, "Unable to claim gpio \"enset\".\n");
