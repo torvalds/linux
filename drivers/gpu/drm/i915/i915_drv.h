@@ -926,6 +926,7 @@ struct i915_fbc {
 		FBC_MULTIPLE_PIPES, /* more than one pipe active */
 		FBC_MODULE_PARAM,
 		FBC_CHIP_DEFAULT, /* disabled by default on this chip */
+		FBC_ROTATION, /* rotation is not supported */
 	} no_fbc_reason;
 };
 

@@ -587,7 +587,7 @@ void intel_fbc_update(struct drm_device *dev)
 	}
 	if (INTEL_INFO(dev)->gen <= 4 && !IS_G4X(dev) &&
 	    crtc->primary->state->rotation != BIT(DRM_ROTATE_0)) {
-		if (set_no_fbc_reason(dev_priv, FBC_UNSUPPORTED_MODE))
+		if (set_no_fbc_reason(dev_priv, FBC_ROTATION))
 			DRM_DEBUG_KMS("Rotation unsupported, disabling\n");
 		goto out_disable;
 	}

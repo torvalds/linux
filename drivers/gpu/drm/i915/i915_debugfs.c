@@ -1632,6 +1632,9 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 		case FBC_CHIP_DEFAULT:
 			seq_puts(m, "disabled per chip default");
 			break;
+		case FBC_ROTATION:
+			seq_puts(m, "rotation not supported");
+			break;
 		default:
 			seq_puts(m, "unknown reason");
 		}
