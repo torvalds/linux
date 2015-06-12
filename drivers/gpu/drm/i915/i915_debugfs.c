@@ -1594,52 +1594,11 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 
 	intel_runtime_pm_get(dev_priv);
 
-	if (intel_fbc_enabled(dev)) {
+	if (intel_fbc_enabled(dev))
 		seq_puts(m, "FBC enabled\n");
-	} else {
-		seq_puts(m, "FBC disabled: ");
-		switch (dev_priv->fbc.no_fbc_reason) {
-		case FBC_OK:
-			seq_puts(m, "FBC actived, but currently disabled in hardware");
-			break;
-		case FBC_UNSUPPORTED:
-			seq_puts(m, "unsupported by this chipset");
-			break;
-		case FBC_NO_OUTPUT:
-			seq_puts(m, "no outputs");
-			break;
-		case FBC_STOLEN_TOO_SMALL:
-			seq_puts(m, "not enough stolen memory");
-			break;
-		case FBC_UNSUPPORTED_MODE:
-			seq_puts(m, "mode not supported");
-			break;
-		case FBC_MODE_TOO_LARGE:
-			seq_puts(m, "mode too large");
-			break;
-		case FBC_BAD_PLANE:
-			seq_puts(m, "FBC unsupported on plane");
-			break;
-		case FBC_NOT_TILED:
-			seq_puts(m, "scanout buffer not tiled");
-			break;
-		case FBC_MULTIPLE_PIPES:
-			seq_puts(m, "multiple pipes are enabled");
-			break;
-		case FBC_MODULE_PARAM:
-			seq_puts(m, "disabled per module param (default off)");
-			break;
-		case FBC_CHIP_DEFAULT:
-			seq_puts(m, "disabled per chip default");
-			break;
-		case FBC_ROTATION:
-			seq_puts(m, "rotation not supported");
-			break;
-		default:
-			seq_puts(m, "unknown reason");
-		}
-		seq_putc(m, '\n');
-	}
+	else
+		seq_printf(m, "FBC disabled: %s\n",
+			  intel_no_fbc_reason_str(dev_priv->fbc.no_fbc_reason));
 
 	if (INTEL_INFO(dev_priv)->gen >= 7)
 		seq_printf(m, "Compressing: %s\n",
