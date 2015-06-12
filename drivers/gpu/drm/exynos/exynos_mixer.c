@@ -1010,7 +1010,6 @@ static void mixer_window_suspend(struct mixer_context *ctx)
 		plane->resume = plane->enabled;
 		mixer_win_disable(ctx->crtc, i);
 	}
-	mixer_wait_for_vblank(ctx->crtc);
 }
 
 static void mixer_window_resume(struct mixer_context *ctx)
