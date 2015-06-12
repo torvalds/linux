@@ -79,6 +79,12 @@ static inline u16 u16_field_get(const u8 *preq_elem, int offset, bool ae)
 #define MSEC_TO_TU(x) (x*1000/1024)
 #define SN_GT(x, y) ((s32)(y - x) < 0)
 #define SN_LT(x, y) ((s32)(x - y) < 0)
+#define MAX_SANE_SN_DELTA 32
+
+static inline u32 SN_DELTA(u32 x, u32 y)
+{
+	return x >= y ? x - y : y - x;
+}
 
 #define net_traversal_jiffies(s) \
 	msecs_to_jiffies(s->u.mesh.mshcfg.dot11MeshHWMPnetDiameterTraversalTime)
@@ -438,6 +444,26 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 				if (SN_GT(mpath->sn, orig_sn) ||
 				    (mpath->sn == orig_sn &&
 				     new_metric >= mpath->metric)) {
+					process = false;
+					fresh_info = false;
+				}
+			} else if (!(mpath->flags & MESH_PATH_ACTIVE)) {
+				bool have_sn, newer_sn, bounced;
+
+				have_sn = mpath->flags & MESH_PATH_SN_VALID;
+				newer_sn = have_sn && SN_GT(orig_sn, mpath->sn);
+				bounced = have_sn &&
+					  (SN_DELTA(orig_sn, mpath->sn) >
+							MAX_SANE_SN_DELTA);
+
+				if (!have_sn || newer_sn) {
+					/* if SN is newer than what we had
+					 * then we can take it */;
+				} else if (bounced) {
+					/* if SN is way different than what
+					 * we had then assume the other side
+					 * rebooted or restarted */;
+				} else {
 					process = false;
 					fresh_info = false;
 				}
