@@ -801,6 +801,8 @@ static void fimd_disable(struct exynos_drm_crtc *crtc)
 	for (i = 0; i < WINDOWS_NR; i++)
 		fimd_win_disable(crtc, i);
 
+	writel(0, ctx->regs + VIDCON0);
+
 	clk_disable_unprepare(ctx->lcd_clk);
 	clk_disable_unprepare(ctx->bus_clk);
 
