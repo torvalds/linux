@@ -58,9 +58,10 @@
 #include <linux/module.h>
 #include <linux/crypto.h>
 #include <linux/vmalloc.h>
-#include <linux/nx842.h>
 #include <linux/sw842.h>
 #include <linux/ratelimit.h>
+
+#include "nx-842.h"
 
 /* The first 5 bits of this magic are 0x1f, which is an invalid 842 5-bit
  * template (see lib/842/842.h), so this magic number will never appear at
