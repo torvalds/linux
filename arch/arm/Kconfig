@@ -569,6 +569,8 @@ config ARCH_NINTENDO3DS
 	select GENERIC_IRQ_CHIP
 	select GENERIC_CLOCKEVENTS
 	select CLKDEV_LOOKUP
+	select COMMON_CLK
+	select GENERIC_CLOCKEVENTS
 	help
 	  Support for the Nintendo 3DS game console.
 

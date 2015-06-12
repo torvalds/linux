@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm 4.1.0-rc6 Kernel Configuration
+# Linux/arm 4.1.0-rc7 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -495,6 +495,7 @@ CONFIG_CPU_FREQ_GOV_CONSERVATIVE=y
 #
 # CONFIG_CPUFREQ_DT is not set
 # CONFIG_ARM_KIRKWOOD_CPUFREQ is not set
+# CONFIG_QORIQ_CPUFREQ is not set
 
 #
 # CPU Idle
@@ -801,6 +802,7 @@ CONFIG_I2C_NINTENDO3DS=y
 # CONFIG_I2C_OCORES is not set
 # CONFIG_I2C_PCA_PLATFORM is not set
 # CONFIG_I2C_PXA_PCI is not set
+# CONFIG_I2C_RK3X is not set
 # CONFIG_I2C_SIMTEC is not set
 # CONFIG_I2C_XILINX is not set
 
@@ -1027,6 +1029,17 @@ CONFIG_UIO_DMEM_GENIRQ=m
 # CONFIG_STAGING is not set
 # CONFIG_CHROME_PLATFORMS is not set
 CONFIG_CLKDEV_LOOKUP=y
+CONFIG_HAVE_CLK_PREPARE=y
+CONFIG_COMMON_CLK=y
+
+#
+# Common Clock Framework
+#
+# CONFIG_COMMON_CLK_SI5351 is not set
+# CONFIG_COMMON_CLK_SI570 is not set
+# CONFIG_CLK_QORIQ is not set
+# CONFIG_COMMON_CLK_PXA is not set
+# CONFIG_COMMON_CLK_CDCE706 is not set
 
 #
 # Hardware Spinlock drivers
