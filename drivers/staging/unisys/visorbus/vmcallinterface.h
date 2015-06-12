@@ -94,18 +94,6 @@ enum vmcall_monitor_interface_method_tuple { /* VMCALL identification tuples  */
 /* ///////////// BEGIN PRAGMA PACK PUSH 1 ///////////////////////// */
 /* ///////////// ONLY STRUCT TYPE SHOULD BE BELOW */
 #pragma pack(push, 1)
-struct phys_info {
-	u64 pi_pfn;
-	u16 pi_off;
-	u16 pi_len;
-};
-
-#pragma pack(pop)
-/* ///////////// END PRAGMA PACK PUSH 1 /////////////////////////// */
-
-/* ///////////// BEGIN PRAGMA PACK PUSH 1 ///////////////////////// */
-/* ///////////// ONLY STRUCT TYPE SHOULD BE BELOW */
-#pragma pack(push, 1)
 /* Parameters to VMCALL_IO_CONTROLVM_ADDR interface */
 struct vmcall_io_controlvm_addr_params {
 	    /* The Guest-relative physical address of the ControlVm channel.

@@ -149,6 +149,12 @@ enum vdisk_mgmt_types {
 
 /* structs with pragma pack  */
 
+struct phys_info {
+	u64 pi_pfn;
+	u16 pi_off;
+	u16 pi_len;
+} __packed;
+
 /* ///////////// BEGIN PRAGMA PACK PUSH 1 ///////////////////////// */
 /* ///////////// ONLY STRUCT TYPE SHOULD BE BELOW */
 
