@@ -721,18 +721,13 @@ static int bq25890_usb_notifier(struct notifier_block *nb, unsigned long val,
 
 static int bq25890_irq_probe(struct bq25890_device *bq)
 {
-	int ret;
 	struct gpio_desc *irq;
 
-	irq = devm_gpiod_get_index(bq->dev, BQ25890_IRQ_PIN, 0);
+	irq = devm_gpiod_get_index(bq->dev, BQ25890_IRQ_PIN, 0, GPIOD_IN);
 	if (IS_ERR(irq)) {
 		dev_err(bq->dev, "Could not probe irq pin.\n");
 		return PTR_ERR(irq);
 	}
-
-	ret = gpiod_direction_input(irq);
-	if (ret < 0)
-		return ret;
 
 	return gpiod_to_irq(irq);
 }
