@@ -108,12 +108,12 @@ hash_ipmark4_uadt(struct ip_set *set, struct nlattr *tb[],
 	u32 ip, ip_to = 0;
 	int ret;
 
+	if (tb[IPSET_ATTR_LINENO])
+		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+
 	if (unlikely(!tb[IPSET_ATTR_IP] ||
 		     !ip_set_attr_netorder(tb, IPSET_ATTR_MARK)))
 		return -IPSET_ERR_PROTOCOL;
-
-	if (tb[IPSET_ATTR_LINENO])
-		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
 
 	ret = ip_set_get_ipaddr4(tb[IPSET_ATTR_IP], &e.ip);
 	if (ret)
@@ -234,6 +234,9 @@ hash_ipmark6_uadt(struct ip_set *set, struct nlattr *tb[],
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
 	int ret;
 
+	if (tb[IPSET_ATTR_LINENO])
+		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+
 	if (unlikely(!tb[IPSET_ATTR_IP] ||
 		     !ip_set_attr_netorder(tb, IPSET_ATTR_MARK)))
 		return -IPSET_ERR_PROTOCOL;
@@ -245,9 +248,6 @@ hash_ipmark6_uadt(struct ip_set *set, struct nlattr *tb[],
 		if (cidr != HOST_MASK)
 			return -IPSET_ERR_INVALID_CIDR;
 	}
-
-	if (tb[IPSET_ATTR_LINENO])
-		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
 
 	ret = ip_set_get_ipaddr6(tb[IPSET_ATTR_IP], &e.ip);
 	if (ret)
