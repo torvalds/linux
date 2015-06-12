@@ -2316,6 +2316,7 @@ static int get_new_event_name(char *buf, size_t len, const char *base,
 			      struct strlist *namelist, bool allow_suffix)
 {
 	int i, ret;
+	char *p;
 
 	if (*base == '.')
 		base++;
@@ -2326,6 +2327,10 @@ static int get_new_event_name(char *buf, size_t len, const char *base,
 		pr_debug("snprintf() failed: %d\n", ret);
 		return ret;
 	}
+	/* Cut off the postfixes (e.g. .const, .isra)*/
+	p = strchr(buf, '.');
+	if (p && p != buf)
+		*p = '\0';
 	if (!strlist__has_entry(namelist, buf))
 		return 0;
 
