@@ -24,6 +24,14 @@ extern void rtc_time64_to_tm(time64_t time, struct rtc_time *tm);
 ktime_t rtc_tm_to_ktime(struct rtc_time tm);
 struct rtc_time rtc_ktime_to_tm(ktime_t kt);
 
+/*
+ * rtc_tm_sub - Return the difference in seconds.
+ */
+static inline time64_t rtc_tm_sub(struct rtc_time *lhs, struct rtc_time *rhs)
+{
+	return rtc_tm_to_time64(lhs) - rtc_tm_to_time64(rhs);
+}
+
 /**
  * Deprecated. Use rtc_time64_to_tm().
  */
