@@ -25,12 +25,17 @@ physical addresses.  These are the addresses in /proc/iomem.  The physical
 address is not directly useful to a driver; it must use ioremap() to map
 the space and produce a virtual address.
 
-I/O devices use a third kind of address: a "bus address" or "DMA address".
-If a device has registers at an MMIO address, or if it performs DMA to read
-or write system memory, the addresses used by the device are bus addresses.
-In some systems, bus addresses are identical to CPU physical addresses, but
-in general they are not.  IOMMUs and host bridges can produce arbitrary
+I/O devices use a third kind of address: a "bus address".  If a device has
+registers at an MMIO address, or if it performs DMA to read or write system
+memory, the addresses used by the device are bus addresses.  In some
+systems, bus addresses are identical to CPU physical addresses, but in
+general they are not.  IOMMUs and host bridges can produce arbitrary
 mappings between physical and bus addresses.
+
+From a device's point of view, DMA uses the bus address space, but it may
+be restricted to a subset of that space.  For example, even if a system
+supports 64-bit addresses for main memory and PCI BARs, it may use an IOMMU
+so devices only need to use 32-bit DMA addresses.
 
 Here's a picture and some examples:
 
@@ -72,11 +77,11 @@ can use virtual address X to access the buffer, but the device itself
 cannot because DMA doesn't go through the CPU virtual memory system.
 
 In some simple systems, the device can do DMA directly to physical address
-Y.  But in many others, there is IOMMU hardware that translates bus
+Y.  But in many others, there is IOMMU hardware that translates DMA
 addresses to physical addresses, e.g., it translates Z to Y.  This is part
 of the reason for the DMA API: the driver can give a virtual address X to
 an interface like dma_map_single(), which sets up any required IOMMU
-mapping and returns the bus address Z.  The driver then tells the device to
+mapping and returns the DMA address Z.  The driver then tells the device to
 do DMA to Z, and the IOMMU maps it to the buffer at address Y in system
 RAM.
 
@@ -98,7 +103,7 @@ First of all, you should make sure
 #include <linux/dma-mapping.h>
 
 is in your driver, which provides the definition of dma_addr_t.  This type
-can hold any valid DMA or bus address for the platform and should be used
+can hold any valid DMA address for the platform and should be used
 everywhere you hold a DMA address returned from the DMA mapping functions.
 
 			 What memory is DMA'able?
@@ -316,7 +321,7 @@ There are two types of DMA mappings:
   Think of "consistent" as "synchronous" or "coherent".
 
   The current default is to return consistent memory in the low 32
-  bits of the bus space.  However, for future compatibility you should
+  bits of the DMA space.  However, for future compatibility you should
   set the consistent mask even if this default is fine for your
   driver.
 
@@ -403,7 +408,7 @@ dma_alloc_coherent() returns two values: the virtual address which you
 can use to access it from the CPU and dma_handle which you pass to the
 card.
 
-The CPU virtual address and the DMA bus address are both
+The CPU virtual address and the DMA address are both
 guaranteed to be aligned to the smallest PAGE_SIZE order which
 is greater than or equal to the requested size.  This invariant
 exists (for example) to guarantee that if you allocate a chunk
@@ -645,8 +650,8 @@ PLEASE NOTE:  The 'nents' argument to the dma_unmap_sg call must be
               dma_map_sg call.
 
 Every dma_map_{single,sg}() call should have its dma_unmap_{single,sg}()
-counterpart, because the bus address space is a shared resource and
-you could render the machine unusable by consuming all bus addresses.
+counterpart, because the DMA address space is a shared resource and
+you could render the machine unusable by consuming all DMA addresses.
 
 If you need to use the same streaming DMA region multiple times and touch
 the data in between the DMA transfers, the buffer needs to be synced

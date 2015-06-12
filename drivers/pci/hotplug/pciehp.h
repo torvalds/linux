@@ -167,21 +167,4 @@ static inline const char *slot_name(struct slot *slot)
 	return hotplug_slot_name(slot->hotplug_slot);
 }
 
-#ifdef CONFIG_ACPI
-#include <linux/pci-acpi.h>
-
-void __init pciehp_acpi_slot_detection_init(void);
-int pciehp_acpi_slot_detection_check(struct pci_dev *dev);
-
-static inline void pciehp_firmware_init(void)
-{
-	pciehp_acpi_slot_detection_init();
-}
-#else
-#define pciehp_firmware_init()				do {} while (0)
-static inline int pciehp_acpi_slot_detection_check(struct pci_dev *dev)
-{
-	return 0;
-}
-#endif				/* CONFIG_ACPI */
 #endif				/* _PCIEHP_H */
