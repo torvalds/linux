@@ -46,7 +46,7 @@ ENTRY(stext)
 	.arm
 ENTRY(stext)
 
- THUMB(	adr	r9, BSYM(1f)	)	@ Kernel is always entered in ARM.
+ THUMB(	badr	r9, 1f		)	@ Kernel is always entered in ARM.
  THUMB(	bx	r9		)	@ If this is a Thumb-2 kernel,
  THUMB(	.thumb			)	@ switch to Thumb now.
  THUMB(1:			)
@@ -79,7 +79,7 @@ ENTRY(stext)
 #endif
 	ldr	r13, =__mmap_switched		@ address to jump to after
 						@ initialising sctlr
-	adr	lr, BSYM(1f)			@ return (PIC) address
+	badr	lr, 1f				@ return (PIC) address
 	ldr	r12, [r10, #PROCINFO_INITFUNC]
 	add	r12, r12, r10
 	ret	r12
@@ -115,7 +115,7 @@ ENTRY(secondary_startup)
 	bl      __setup_mpu			@ Initialize the MPU
 #endif
 
-	adr	lr, BSYM(__after_proc_init)	@ return address
+	badr	lr, __after_proc_init		@ return address
 	mov	r13, r12			@ __secondary_switched address
 	ldr	r12, [r10, #PROCINFO_INITFUNC]
 	add	r12, r12, r10

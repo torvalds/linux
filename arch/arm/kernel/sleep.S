@@ -81,7 +81,7 @@ ENTRY(__cpu_suspend)
 	mov	r1, r4			@ size of save block
 	add	r0, sp, #8		@ pointer to save block
 	bl	__cpu_suspend_save
-	adr	lr, BSYM(cpu_suspend_abort)
+	badr	lr, cpu_suspend_abort
 	ldmfd	sp!, {r0, pc}		@ call suspend fn
 ENDPROC(__cpu_suspend)
 	.ltorg
