@@ -435,10 +435,8 @@ armpmu_reserve_hardware(struct arm_pmu *armpmu)
 	unsigned int i, irqs;
 	struct platform_device *pmu_device = armpmu->plat_device;
 
-	if (!pmu_device) {
-		pr_err("no PMU device registered\n");
+	if (!pmu_device)
 		return -ENODEV;
-	}
 
 	irqs = min(pmu_device->num_resources, num_possible_cpus());
 	if (!irqs) {
