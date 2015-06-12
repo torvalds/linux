@@ -75,6 +75,7 @@ struct regulator_state {
  *
  * @min_uA: Smallest current consumers may set.
  * @max_uA: Largest current consumers may set.
+ * @ilim_uA: Maximum input current.
  * @system_load: Load that isn't captured by any consumer requests.
  *
  * @valid_modes_mask: Mask of modes which may be configured by consumers.
@@ -113,6 +114,7 @@ struct regulation_constraints {
 	/* current output range (inclusive) - for current control */
 	int min_uA;
 	int max_uA;
+	int ilim_uA;
 
 	int system_load;
 

@@ -58,6 +58,10 @@ static void of_get_regulation_constraints(struct device_node *np,
 	if (!of_property_read_u32(np, "regulator-max-microamp", &pval))
 		constraints->max_uA = pval;
 
+	if (!of_property_read_u32(np, "regulator-input-current-limit-microamp",
+				  &pval))
+		constraints->ilim_uA = pval;
+
 	/* Current change possible? */
 	if (constraints->min_uA != constraints->max_uA)
 		constraints->valid_ops_mask |= REGULATOR_CHANGE_CURRENT;

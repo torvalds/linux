@@ -7,6 +7,7 @@ Optional properties:
 - regulator-microvolt-offset: Offset applied to voltages to compensate for voltage drops
 - regulator-min-microamp: smallest current consumers may set
 - regulator-max-microamp: largest current consumers may set
+- regulator-input-current-limit-microamp: maximum input current regulator allows
 - regulator-always-on: boolean, regulator should never be disabled
 - regulator-boot-on: bootloader/firmware enabled regulator
 - regulator-allow-bypass: allow the regulator to go into bypass mode

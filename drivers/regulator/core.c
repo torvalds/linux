@@ -1008,6 +1008,15 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 	if (ret != 0)
 		goto out;
 
+	if (rdev->constraints->ilim_uA && ops->set_input_current_limit) {
+		ret = ops->set_input_current_limit(rdev,
+						   rdev->constraints->ilim_uA);
+		if (ret < 0) {
+			rdev_err(rdev, "failed to set input limit\n");
+			goto out;
+		}
+	}
+
 	/* do we need to setup our suspend state */
 	if (rdev->constraints->initial_state) {
 		ret = suspend_prepare(rdev, rdev->constraints->initial_state);

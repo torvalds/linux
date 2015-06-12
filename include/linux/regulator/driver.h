@@ -91,6 +91,7 @@ struct regulator_linear_range {
  * @set_current_limit: Configure a limit for a current-limited regulator.
  *                     The driver should select the current closest to max_uA.
  * @get_current_limit: Get the configured limit for a current-limited regulator.
+ * @set_input_current_limit: Configure an input limit.
  *
  * @set_mode: Set the configured operating mode for the regulator.
  * @get_mode: Get the configured operating mode for the regulator.
@@ -144,6 +145,8 @@ struct regulator_ops {
 	int (*set_current_limit) (struct regulator_dev *,
 				 int min_uA, int max_uA);
 	int (*get_current_limit) (struct regulator_dev *);
+
+	int (*set_input_current_limit) (struct regulator_dev *, int lim_uA);
 
 	/* enable/disable regulator */
 	int (*enable) (struct regulator_dev *);
