@@ -348,6 +348,7 @@ static int nfcmrvl_probe(struct usb_interface *intf,
 		return PTR_ERR(priv);
 
 	drv_data->priv = priv;
+	drv_data->priv->phy = NFCMRVL_PHY_USB;
 	priv->dev = &drv_data->udev->dev;
 
 	usb_set_intfdata(intf, drv_data);
