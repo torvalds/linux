@@ -2817,6 +2817,12 @@ static int __init init_dmars(void)
 		ret = iommu_alloc_root_entry(iommu);
 		if (ret)
 			goto free_iommu;
+
+		iommu_flush_write_buffer(iommu);
+		iommu_set_root_entry(iommu);
+		iommu->flush.flush_context(iommu, 0, 0, 0, DMA_CCMD_GLOBAL_INVL);
+		iommu->flush.flush_iotlb(iommu, 0, 0, 0, DMA_TLB_GLOBAL_FLUSH);
+
 		if (!ecap_pass_through(iommu->ecap))
 			hw_pass_through = 0;
 	}
@@ -2893,10 +2899,6 @@ static int __init init_dmars(void)
 		if (ret)
 			goto free_iommu;
 
-		iommu_set_root_entry(iommu);
-
-		iommu->flush.flush_context(iommu, 0, 0, 0, DMA_CCMD_GLOBAL_INVL);
-		iommu->flush.flush_iotlb(iommu, 0, 0, 0, DMA_TLB_GLOBAL_FLUSH);
 		iommu_enable_translation(iommu);
 		iommu_disable_protect_mem_regions(iommu);
 	}
