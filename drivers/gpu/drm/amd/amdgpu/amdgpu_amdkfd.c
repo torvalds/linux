@@ -51,6 +51,8 @@ bool amdgpu_amdkfd_load_interface(struct amdgpu_device *rdev)
 
 	switch (rdev->asic_type) {
 	case CHIP_KAVERI:
+		kfd2kgd = amdgpu_amdkfd_gfx_7_get_functions();
+		break;
 	default:
 		return false;
 	}
