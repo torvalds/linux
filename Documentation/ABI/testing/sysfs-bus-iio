@@ -413,6 +413,11 @@ Description:
 		to compute the calories burnt by the user.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_scale_available
+What:		/sys/.../iio:deviceX/in_anglvel_scale_available
+What:		/sys/.../iio:deviceX/in_magn_scale_available
+What:		/sys/.../iio:deviceX/in_illuminance_scale_available
+What:		/sys/.../iio:deviceX/in_intensity_scale_available
+What:		/sys/.../iio:deviceX/in_proximity_scale_available
 What:		/sys/.../iio:deviceX/in_voltageX_scale_available
 What:		/sys/.../iio:deviceX/in_voltage-voltage_scale_available
 What:		/sys/.../iio:deviceX/out_voltageX_scale_available
