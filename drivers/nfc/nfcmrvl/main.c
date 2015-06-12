@@ -129,6 +129,7 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(void *drv_data,
 		| NFC_PROTO_FELICA_MASK
 		| NFC_PROTO_ISO14443_MASK
 		| NFC_PROTO_ISO14443_B_MASK
+		| NFC_PROTO_ISO15693_MASK
 		| NFC_PROTO_NFC_DEP_MASK;
 
 	priv->ndev = nci_allocate_device(&nfcmrvl_nci_ops, protocols,
