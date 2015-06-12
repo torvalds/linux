@@ -90,7 +90,7 @@ static struct reg_data rt8973a_reg_data[] = {
 };
 
 /* List of detectable cables */
-static const enum extcon rt8973a_extcon_cable[] = {
+static const unsigned int rt8973a_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
 	EXTCON_TA,
@@ -300,7 +300,7 @@ static int rt8973a_muic_cable_handler(struct rt8973a_muic_info *info,
 	static unsigned int prev_cable_type;
 	unsigned int con_sw = DM_DP_SWITCH_UART;
 	int ret, cable_type;
-	enum extcon id;
+	unsigned int id;
 	bool attached = false;
 
 	switch (event) {

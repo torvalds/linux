@@ -30,41 +30,35 @@
 #include <linux/notifier.h>
 #include <linux/sysfs.h>
 
-enum extcon {
-	EXTCON_NONE		= 0x0,
+/*
+ * Define the unique id of supported external connectors
+ */
+#define EXTCON_NONE			0
 
-	/* USB external connector */
-	EXTCON_USB		= 0x1,
-	EXTCON_USB_HOST		= 0x2,
+#define EXTCON_USB			1	/* USB connector */
+#define EXTCON_USB_HOST			2
 
-	/* Charger external connector */
-	EXTCON_TA		= 0x10,
-	EXTCON_FAST_CHARGER	= 0x11,
-	EXTCON_SLOW_CHARGER	= 0x12,
-	EXTCON_CHARGE_DOWNSTREAM = 0x13,
+#define EXTCON_TA			3	/* Charger connector */
+#define EXTCON_FAST_CHARGER		4
+#define EXTCON_SLOW_CHARGER		5
+#define EXTCON_CHARGE_DOWNSTREAM	6
 
-	/* Audio/Video external connector */
-	EXTCON_LINE_IN		= 0x20,
-	EXTCON_LINE_OUT		= 0x21,
-	EXTCON_MICROPHONE	= 0x22,
-	EXTCON_HEADPHONE	= 0x23,
+#define EXTCON_LINE_IN			7	/* Audio/Video connector */
+#define EXTCON_LINE_OUT			8
+#define EXTCON_MICROPHONE		9
+#define EXTCON_HEADPHONE		10
+#define EXTCON_HDMI			11
+#define EXTCON_MHL			12
+#define EXTCON_DVI			13
+#define EXTCON_VGA			14
+#define EXTCON_SPDIF_IN			15
+#define EXTCON_SPDIF_OUT		16
+#define EXTCON_VIDEO_IN			17
+#define EXTCON_VIDEO_OUT		18
 
-	EXTCON_HDMI		= 0x30,
-	EXTCON_MHL		= 0x31,
-	EXTCON_DVI		= 0x32,
-	EXTCON_VGA		= 0x33,
-	EXTCON_SPDIF_IN		= 0x34,
-	EXTCON_SPDIF_OUT	= 0x35,
-	EXTCON_VIDEO_IN		= 0x36,
-	EXTCON_VIDEO_OUT	= 0x37,
-
-	/* Etc external connector */
-	EXTCON_DOCK		= 0x50,
-	EXTCON_JIG		= 0x51,
-	EXTCON_MECHANICAL	= 0x52,
-
-	EXTCON_END,
-};
+#define EXTCON_DOCK			19	/* Misc connector */
+#define EXTCON_JIG			20
+#define EXTCON_MECHANICAL		21
 
 struct extcon_cable;
 
@@ -105,7 +99,7 @@ struct extcon_cable;
 struct extcon_dev {
 	/* Optional user initializing data */
 	const char *name;
-	const enum extcon *supported_cable;
+	const unsigned int *supported_cable;
 	const u32 *mutually_exclusive;
 
 	/* Optional callbacks to override class functions */
@@ -182,10 +176,10 @@ extern struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name);
 /*
  * Following APIs control the memory of extcon device.
  */
-extern struct extcon_dev *extcon_dev_allocate(const enum extcon *cable);
+extern struct extcon_dev *extcon_dev_allocate(const unsigned int *cable);
 extern void extcon_dev_free(struct extcon_dev *edev);
 extern struct extcon_dev *devm_extcon_dev_allocate(struct device *dev,
-						   const enum extcon *cable);
+						   const unsigned int *cable);
 extern void devm_extcon_dev_free(struct device *dev, struct extcon_dev *edev);
 
 /*
@@ -206,8 +200,8 @@ extern int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state);
  * get/set_cable_state access each bit of the 32b encoded state value.
  * They are used to access the status of each cable based on the cable_name.
  */
-extern int extcon_get_cable_state_(struct extcon_dev *edev, enum extcon id);
-extern int extcon_set_cable_state_(struct extcon_dev *edev, enum extcon id,
+extern int extcon_get_cable_state_(struct extcon_dev *edev, unsigned int id);
+extern int extcon_set_cable_state_(struct extcon_dev *edev, unsigned int id,
 				   bool cable_state);
 
 extern int extcon_get_cable_state(struct extcon_dev *edev,
@@ -234,9 +228,9 @@ extern int extcon_unregister_interest(struct extcon_specific_cable_nb *nb);
  * we do not recommend to use this for normal 'notifiee' device drivers who
  * want to be notified by a specific external port of the notifier.
  */
-extern int extcon_register_notifier(struct extcon_dev *edev, enum extcon id,
+extern int extcon_register_notifier(struct extcon_dev *edev, unsigned int id,
 				    struct notifier_block *nb);
-extern int extcon_unregister_notifier(struct extcon_dev *edev, enum extcon id,
+extern int extcon_unregister_notifier(struct extcon_dev *edev, unsigned int id,
 				    struct notifier_block *nb);
 
 /*
@@ -266,7 +260,7 @@ static inline int devm_extcon_dev_register(struct device *dev,
 static inline void devm_extcon_dev_unregister(struct device *dev,
 					      struct extcon_dev *edev) { }
 
-static inline struct extcon_dev *extcon_dev_allocate(const enum extcon *cable)
+static inline struct extcon_dev *extcon_dev_allocate(const unsigned int *cable)
 {
 	return ERR_PTR(-ENOSYS);
 }
@@ -274,7 +268,7 @@ static inline struct extcon_dev *extcon_dev_allocate(const enum extcon *cable)
 static inline void extcon_dev_free(struct extcon_dev *edev) { }
 
 static inline struct extcon_dev *devm_extcon_dev_allocate(struct device *dev,
-						const enum extcon *cable)
+						const unsigned int *cable)
 {
 	return ERR_PTR(-ENOSYS);
 }
@@ -298,13 +292,13 @@ static inline int extcon_update_state(struct extcon_dev *edev, u32 mask,
 }
 
 static inline int extcon_get_cable_state_(struct extcon_dev *edev,
-					  enum extcon id)
+					  unsigned int id)
 {
 	return 0;
 }
 
 static inline int extcon_set_cable_state_(struct extcon_dev *edev,
-					  enum extcon id, bool cable_state)
+					  unsigned int id, bool cable_state)
 {
 	return 0;
 }
@@ -327,14 +321,14 @@ static inline struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name)
 }
 
 static inline int extcon_register_notifier(struct extcon_dev *edev,
-					enum extcon id,
+					unsigned int id,
 					struct notifier_block *nb)
 {
 	return 0;
 }
 
 static inline int extcon_unregister_notifier(struct extcon_dev *edev,
-					enum extcon id,
+					unsigned int id,
 					struct notifier_block *nb)
 {
 	return 0;

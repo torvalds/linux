@@ -39,6 +39,8 @@
 #define CABLE_NAME_MAX		30
 
 static const char *extcon_name[] =  {
+	[EXTCON_NONE]		= "NONE",
+
 	/* USB external connector */
 	[EXTCON_USB]		= "USB",
 	[EXTCON_USB_HOST]	= "USB-HOST",
@@ -109,7 +111,7 @@ static int check_mutually_exclusive(struct extcon_dev *edev, u32 new_state)
 	return 0;
 }
 
-static int find_cable_index_by_id(struct extcon_dev *edev, const enum extcon id)
+static int find_cable_index_by_id(struct extcon_dev *edev, const unsigned int id)
 {
 	int i;
 
@@ -124,16 +126,14 @@ static int find_cable_index_by_id(struct extcon_dev *edev, const enum extcon id)
 
 static int find_cable_index_by_name(struct extcon_dev *edev, const char *name)
 {
-	enum extcon id = EXTCON_NONE;
-	int i;
+	unsigned int id = EXTCON_NONE;
+	int i = 0;
 
 	if (edev->max_supported == 0)
 		return -EINVAL;
 
 	/* Find the the number of extcon cable */
-	for (i = 0; i < EXTCON_END; i++) {
-		if (!extcon_name[i])
-			continue;
+	while (extcon_name[i]) {
 		if (!strncmp(extcon_name[i], name, CABLE_NAME_MAX)) {
 			id = i;
 			break;
@@ -337,7 +337,7 @@ EXPORT_SYMBOL_GPL(extcon_set_state);
  * @edev:	the extcon device that has the cable.
  * @id:		the unique id of each external connector in extcon enumeration.
  */
-int extcon_get_cable_state_(struct extcon_dev *edev, const enum extcon id)
+int extcon_get_cable_state_(struct extcon_dev *edev, const unsigned int id)
 {
 	int index;
 
@@ -374,7 +374,7 @@ EXPORT_SYMBOL_GPL(extcon_get_cable_state);
  * @state:		the new cable status. The default semantics is
  *			true: attached / false: detached.
  */
-int extcon_set_cable_state_(struct extcon_dev *edev, enum extcon id,
+int extcon_set_cable_state_(struct extcon_dev *edev, unsigned int id,
 				bool cable_state)
 {
 	u32 state;
@@ -539,7 +539,7 @@ EXPORT_SYMBOL_GPL(extcon_unregister_interest);
  * "old_state", not the current state. The current state can be retrieved
  * by looking at the third pameter (edev pointer)'s state value.
  */
-int extcon_register_notifier(struct extcon_dev *edev, enum extcon id,
+int extcon_register_notifier(struct extcon_dev *edev, unsigned int id,
 			     struct notifier_block *nb)
 {
 	unsigned long flags;
@@ -561,7 +561,7 @@ EXPORT_SYMBOL_GPL(extcon_register_notifier);
  * @id:		the unique id of each external connector in extcon enumeration.
  * @nb:		a notifier block to be registered.
  */
-int extcon_unregister_notifier(struct extcon_dev *edev, enum extcon id,
+int extcon_unregister_notifier(struct extcon_dev *edev, unsigned int id,
 				struct notifier_block *nb)
 {
 	unsigned long flags;
@@ -623,7 +623,7 @@ static void dummy_sysfs_dev_release(struct device *dev)
  *
  * Return the pointer of extcon device if success or ERR_PTR(err) if fail
  */
-struct extcon_dev *extcon_dev_allocate(const enum extcon *supported_cable)
+struct extcon_dev *extcon_dev_allocate(const unsigned int *supported_cable)
 {
 	struct extcon_dev *edev;
 
@@ -677,7 +677,7 @@ static void devm_extcon_dev_release(struct device *dev, void *res)
  * or ERR_PTR(err) if fail
  */
 struct extcon_dev *devm_extcon_dev_allocate(struct device *dev,
-					const enum extcon *supported_cable)
+					const unsigned int *supported_cable)
 {
 	struct extcon_dev **ptr, *edev;
 

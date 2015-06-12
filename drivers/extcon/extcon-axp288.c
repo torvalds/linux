@@ -101,7 +101,7 @@ enum axp288_extcon_irq {
 	EXTCON_IRQ_END,
 };
 
-static const enum extcon axp288_extcon_cables[] = {
+static const unsigned int axp288_extcon_cables[] = {
 	EXTCON_SLOW_CHARGER,
 	EXTCON_CHARGE_DOWNSTREAM,
 	EXTCON_FAST_CHARGER,
@@ -157,7 +157,7 @@ static void axp288_extcon_log_rsi(struct axp288_extcon_info *info)
 static int axp288_handle_chrg_det_event(struct axp288_extcon_info *info)
 {
 	static bool notify_otg, notify_charger;
-	static enum extcon cable;
+	static unsigned int cable;
 	int ret, stat, cfg, pwr_stat;
 	u8 chrg_type;
 	bool vbus_attach = false;

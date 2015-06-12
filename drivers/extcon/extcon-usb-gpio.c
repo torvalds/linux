@@ -39,7 +39,7 @@ struct usb_extcon_info {
 	struct delayed_work wq_detcable;
 };
 
-static const enum extcon usb_extcon_cable[] = {
+static const unsigned int usb_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
 	EXTCON_NONE,

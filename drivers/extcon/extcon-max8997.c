@@ -145,7 +145,7 @@ struct max8997_muic_info {
 	int path_uart;
 };
 
-static const enum extcon max8997_extcon_cable[] = {
+static const unsigned int max8997_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
 	EXTCON_TA,

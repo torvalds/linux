@@ -148,7 +148,7 @@ enum max14577_muic_acc_type {
 	MAX14577_MUIC_ADC_OPEN,
 };
 
-static const enum extcon max14577_extcon_cable[] = {
+static const unsigned int max14577_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_TA,
 	EXTCON_FAST_CHARGER,

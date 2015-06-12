@@ -200,7 +200,7 @@ enum max77693_muic_acc_type {
 /*
  * MAX77693 MUIC device support below list of accessories(external connector)
  */
-static const enum extcon max77693_extcon_cable[] = {
+static const unsigned int max77693_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
 	EXTCON_TA,
@@ -457,7 +457,7 @@ static int max77693_muic_dock_handler(struct max77693_muic_info *info,
 	int ret = 0;
 	int vbvolt;
 	bool cable_attached;
-	enum extcon dock_id;
+	unsigned int dock_id;
 
 	dev_info(info->dev,
 		"external connector is %s (adc:0x%02x)\n",

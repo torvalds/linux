@@ -118,7 +118,7 @@ enum max77843_muic_charger_type {
 	MAX77843_MUIC_CHG_GND,
 };
 
-static const enum extcon max77843_extcon_cable[] = {
+static const unsigned int max77843_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
 	EXTCON_TA,

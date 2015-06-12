@@ -92,7 +92,7 @@ static struct reg_data sm5502_reg_data[] = {
 };
 
 /* List of detectable cables */
-static const enum extcon sm5502_extcon_cable[] = {
+static const unsigned int sm5502_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
 	EXTCON_TA,
@@ -372,7 +372,7 @@ static int sm5502_muic_cable_handler(struct sm5502_muic_info *info,
 	unsigned int cable_type = SM5502_MUIC_ADC_GROUND;
 	unsigned int con_sw = DM_DP_SWITCH_OPEN;
 	unsigned int vbus_sw = VBUSIN_SWITCH_OPEN;
-	enum extcon id;
+	unsigned int id;
 	int ret;
 
 	/* Get the type of attached or detached cable */

@@ -118,7 +118,7 @@ static const int arizona_micd_levels[] = {
 	1257,
 };
 
-static const enum extcon arizona_cable[] = {
+static const unsigned int arizona_cable[] = {
 	EXTCON_MECHANICAL,
 	EXTCON_MICROPHONE,
 	EXTCON_HEADPHONE,
@@ -552,7 +552,7 @@ static irqreturn_t arizona_hpdet_irq(int irq, void *data)
 	struct arizona_extcon_info *info = data;
 	struct arizona *arizona = info->arizona;
 	int id_gpio = arizona->pdata.hpdet_id_gpio;
-	enum extcon report = EXTCON_HEADPHONE;
+	unsigned int report = EXTCON_HEADPHONE;
 	int ret, reading;
 	bool mic = false;
 

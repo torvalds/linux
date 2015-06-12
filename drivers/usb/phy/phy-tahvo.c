@@ -60,7 +60,7 @@ struct tahvo_usb {
 	struct extcon_dev	extcon;
 };
 
-static const enum extcon tahvo_cable[] = {
+static const unsigned int tahvo_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
 

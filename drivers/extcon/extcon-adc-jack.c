@@ -40,7 +40,7 @@
 struct adc_jack_data {
 	struct extcon_dev *edev;
 
-	const char **cable_names;
+	const unsigned int **cable_names;
 	struct adc_jack_cond *adc_conditions;
 	int num_conditions;
 

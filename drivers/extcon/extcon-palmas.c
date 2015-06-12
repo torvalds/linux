@@ -29,7 +29,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 
-static const enum extcon palmas_extcon_cable[] = {
+static const unsigned int palmas_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
 	EXTCON_NONE,
