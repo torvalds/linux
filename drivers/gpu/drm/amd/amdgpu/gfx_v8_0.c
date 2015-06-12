@@ -3128,7 +3128,7 @@ static int gfx_v8_0_cp_compute_resume(struct amdgpu_device *adev)
 				WREG32(mmCP_MEC_DOORBELL_RANGE_LOWER,
 				       AMDGPU_DOORBELL_KIQ << 2);
 				WREG32(mmCP_MEC_DOORBELL_RANGE_UPPER,
-				       AMDGPU_DOORBELL_MEC_RING7 << 2);
+						0x7FFFF << 2);
 			}
 			tmp = RREG32(mmCP_HQD_PQ_DOORBELL_CONTROL);
 			tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_DOORBELL_CONTROL,
