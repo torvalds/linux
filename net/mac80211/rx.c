@@ -1682,7 +1682,6 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		if (unlikely(rx->key->flags & KEY_FLAG_TAINTED))
 			return RX_DROP_MONITOR;
 
-		rx->key->tx_rx_count++;
 		/* TODO: add threshold stuff again */
 	} else {
 		return RX_DROP_MONITOR;

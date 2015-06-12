@@ -610,7 +610,6 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 	if (tx->key) {
 		bool skip_hw = false;
 
-		tx->key->tx_rx_count++;
 		/* TODO: add threshold stuff again */
 
 		switch (tx->key->conf.cipher) {
