@@ -113,6 +113,15 @@ static struct {
 	{ 7, 1152 },
 };
 
+static struct {
+	int value;
+	int ratio;
+} bclk_ratios[WM8523_NUM_RATES] = {
+	{ 2, 32 },
+	{ 3, 64 },
+	{ 4, 128 },
+};
+
 static int wm8523_startup(struct snd_pcm_substream *substream,
 			  struct snd_soc_dai *dai)
 {
@@ -161,6 +170,23 @@ static int wm8523_hw_params(struct snd_pcm_substream *substream,
 
 	aifctrl2 &= ~WM8523_SR_MASK;
 	aifctrl2 |= lrclk_ratios[i].value;
+
+	if (aifctrl1 & WM8523_AIF_MSTR) {
+		/* Find a fs->bclk ratio */
+		for (i = 0; i < ARRAY_SIZE(bclk_ratios); i++)
+			if (params_width(params) * 2 <= bclk_ratios[i].ratio)
+				break;
+
+		if (i == ARRAY_SIZE(bclk_ratios)) {
+			dev_err(codec->dev,
+				"No matching BCLK/fs ratio for word length %d\n",
+				params_width(params));
+			return -EINVAL;
+		}
+
+		aifctrl2 &= ~WM8523_BCLKDIV_MASK;
+		aifctrl2 |= bclk_ratios[i].value << WM8523_BCLKDIV_SHIFT;
+	}
 
 	aifctrl1 &= ~WM8523_WL_MASK;
 	switch (params_width(params)) {
