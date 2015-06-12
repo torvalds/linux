@@ -3231,6 +3231,20 @@ static struct dmi_system_id dmi_platform_intel_braswell[] = {
 	{ }
 };
 
+static int rt5645_parse_dt(struct rt5645_priv *rt5645, struct device *dev)
+{
+	rt5645->pdata.in2_diff = device_property_read_bool(dev,
+		"realtek,in2-differential");
+	device_property_read_u32(dev,
+		"realtek,dmic1-data-pin", &rt5645->pdata.dmic1_data_pin);
+	device_property_read_u32(dev,
+		"realtek,dmic2-data-pin", &rt5645->pdata.dmic2_data_pin);
+	device_property_read_u32(dev,
+		"realtek,jd-mode", &rt5645->pdata.jd_mode);
+
+	return 0;
+}
+
 static int rt5645_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
@@ -3247,13 +3261,12 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 	rt5645->i2c = i2c;
 	i2c_set_clientdata(i2c, rt5645);
 
-	if (pdata) {
+	if (pdata)
 		rt5645->pdata = *pdata;
-	} else {
-		if (dmi_check_system(dmi_platform_intel_braswell)) {
-			rt5645->pdata = *rt5645_pdata;
-		}
-	}
+	else if (dmi_check_system(dmi_platform_intel_braswell))
+		rt5645->pdata = *rt5645_pdata;
+	else
+		rt5645_parse_dt(rt5645, &i2c->dev);
 
 	rt5645->gpiod_hp_det = devm_gpiod_get(&i2c->dev, "hp-detect", GPIOD_IN);
 
