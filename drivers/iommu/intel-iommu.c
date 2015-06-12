@@ -443,6 +443,20 @@ static LIST_HEAD(device_domain_list);
 
 static const struct iommu_ops intel_iommu_ops;
 
+static bool translation_pre_enabled(struct intel_iommu *iommu)
+{
+	return (iommu->flags & VTD_FLAG_TRANS_PRE_ENABLED);
+}
+
+static void init_translation_status(struct intel_iommu *iommu)
+{
+	u32 gsts;
+
+	gsts = readl(iommu->reg + DMAR_GSTS_REG);
+	if (gsts & DMA_GSTS_TES)
+		iommu->flags |= VTD_FLAG_TRANS_PRE_ENABLED;
+}
+
 /* Convert generic 'struct iommu_domain to private struct dmar_domain */
 static struct dmar_domain *to_dmar_domain(struct iommu_domain *dom)
 {
@@ -2808,6 +2822,11 @@ static int __init init_dmars(void)
 		ret = iommu_init_domains(iommu);
 		if (ret)
 			goto free_iommu;
+
+		init_translation_status(iommu);
+
+		if (translation_pre_enabled(iommu))
+			pr_info("Translation already enabled - trying to copy translation structures\n");
 
 		/*
 		 * TBD:
