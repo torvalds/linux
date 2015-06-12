@@ -201,10 +201,15 @@ static char *gb_string_get(struct gb_interface *intf, u8 string_id)
 static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 {
 	struct gb_interface *intf = bundle->intf;
+	struct gb_connection *connection;
+	struct gb_connection *connection_next;
 	struct manifest_desc *desc;
 	struct manifest_desc *next;
 	u8 bundle_id = bundle->id;
 	u32 count = 0;
+
+	if (WARN_ON(!list_empty(&bundle->connections)))
+		return 0;
 
 	/* Set up all cport descriptors associated with this bundle */
 	list_for_each_entry_safe(desc, next, &intf->manifest_descs, links) {
@@ -223,7 +228,7 @@ static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 		protocol_id = desc_cport->protocol_id;
 		cport_id = le16_to_cpu(desc_cport->id);
 		if (!gb_connection_create(bundle, cport_id, protocol_id))
-			return 0;	/* Error */
+			goto cleanup;
 
 		count++;
 
@@ -232,6 +237,14 @@ static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 	}
 
 	return count;
+cleanup:
+	/* An error occurred; undo any changes we've made */
+	list_for_each_entry_safe(connection, connection_next,
+			&bundle->connections, bundle_links) {
+		gb_connection_destroy(connection);
+		count--;
+	}
+	return 0;	/* Error; count should also be 0 */
 }
 
 /*
