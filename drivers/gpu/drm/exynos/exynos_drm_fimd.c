@@ -820,6 +820,10 @@ static void fimd_disable(struct exynos_drm_crtc *crtc)
 	for (i = 0; i < WINDOWS_NR; i++)
 		fimd_win_disable(crtc, i);
 
+	fimd_enable_vblank(crtc);
+	fimd_wait_for_vblank(crtc);
+	fimd_disable_vblank(crtc);
+
 	writel(0, ctx->regs + VIDCON0);
 
 	clk_disable_unprepare(ctx->lcd_clk);
