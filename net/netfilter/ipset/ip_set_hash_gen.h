@@ -431,7 +431,7 @@ mtype_destroy(struct ip_set *set)
 {
 	struct htype *h = set->data;
 
-	if (set->extensions & IPSET_EXT_TIMEOUT)
+	if (SET_WITH_TIMEOUT(set))
 		del_timer_sync(&h->gc);
 
 	mtype_ahash_destroy(set, rcu_dereference_bh_nfnl(h->table), true);

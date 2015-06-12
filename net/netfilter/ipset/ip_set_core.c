@@ -390,12 +390,12 @@ ip_set_get_extensions(struct ip_set *set, struct nlattr *tb[],
 {
 	u64 fullmark;
 	if (tb[IPSET_ATTR_TIMEOUT]) {
-		if (!(set->extensions & IPSET_EXT_TIMEOUT))
+		if (!SET_WITH_TIMEOUT(set))
 			return -IPSET_ERR_TIMEOUT;
 		ext->timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
 	}
 	if (tb[IPSET_ATTR_BYTES] || tb[IPSET_ATTR_PACKETS]) {
-		if (!(set->extensions & IPSET_EXT_COUNTER))
+		if (!SET_WITH_COUNTER(set))
 			return -IPSET_ERR_COUNTER;
 		if (tb[IPSET_ATTR_BYTES])
 			ext->bytes = be64_to_cpu(nla_get_be64(
@@ -405,25 +405,25 @@ ip_set_get_extensions(struct ip_set *set, struct nlattr *tb[],
 						   tb[IPSET_ATTR_PACKETS]));
 	}
 	if (tb[IPSET_ATTR_COMMENT]) {
-		if (!(set->extensions & IPSET_EXT_COMMENT))
+		if (!SET_WITH_COMMENT(set))
 			return -IPSET_ERR_COMMENT;
 		ext->comment = ip_set_comment_uget(tb[IPSET_ATTR_COMMENT]);
 	}
 	if (tb[IPSET_ATTR_SKBMARK]) {
-		if (!(set->extensions & IPSET_EXT_SKBINFO))
+		if (!SET_WITH_SKBINFO(set))
 			return -IPSET_ERR_SKBINFO;
 		fullmark = be64_to_cpu(nla_get_be64(tb[IPSET_ATTR_SKBMARK]));
 		ext->skbmark = fullmark >> 32;
 		ext->skbmarkmask = fullmark & 0xffffffff;
 	}
 	if (tb[IPSET_ATTR_SKBPRIO]) {
-		if (!(set->extensions & IPSET_EXT_SKBINFO))
+		if (!SET_WITH_SKBINFO(set))
 			return -IPSET_ERR_SKBINFO;
 		ext->skbprio = be32_to_cpu(nla_get_be32(
 					    tb[IPSET_ATTR_SKBPRIO]));
 	}
 	if (tb[IPSET_ATTR_SKBQUEUE]) {
-		if (!(set->extensions & IPSET_EXT_SKBINFO))
+		if (!SET_WITH_SKBINFO(set))
 			return -IPSET_ERR_SKBINFO;
 		ext->skbqueue = be16_to_cpu(nla_get_be16(
 					    tb[IPSET_ATTR_SKBQUEUE]));
