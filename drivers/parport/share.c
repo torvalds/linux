@@ -708,6 +708,20 @@ parport_register_device(struct parport *port, const char *name,
 		}
 	}
 
+	if (flags & PARPORT_DEV_EXCL) {
+		if (port->physport->devices) {
+			/*
+			 * If a device is already registered and this new
+			 * device wants exclusive access, then no need to
+			 * continue as we can not grant exclusive access to
+			 * this device.
+			 */
+			pr_err("%s: cannot grant exclusive access for device %s\n",
+			       port->name, name);
+			return NULL;
+		}
+	}
+
 	/* We up our own module reference count, and that of the port
            on which a device is to be registered, to ensure that
            neither of us gets unloaded while we sleep in (e.g.)
@@ -823,6 +837,20 @@ parport_register_dev_model(struct parport *port, const char *name,
 		if (!par_dev_cb->preempt || !par_dev_cb->wakeup) {
 			pr_info("%s: refused to register lurking device (%s) without callbacks\n",
 				port->name, name);
+			return NULL;
+		}
+	}
+
+	if (par_dev_cb->flags & PARPORT_DEV_EXCL) {
+		if (port->physport->devices) {
+			/*
+			 * If a device is already registered and this new
+			 * device wants exclusive access, then no need to
+			 * continue as we can not grant exclusive access to
+			 * this device.
+			 */
+			pr_err("%s: cannot grant exclusive access for device %s\n",
+			       port->name, name);
 			return NULL;
 		}
 	}
