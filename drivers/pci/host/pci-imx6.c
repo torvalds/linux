@@ -47,6 +47,8 @@ struct imx6_pcie {
 #define PCIE_RC_LCR_MAX_LINK_SPEEDS_GEN2	0x2
 #define PCIE_RC_LCR_MAX_LINK_SPEEDS_MASK	0xf
 
+#define PCIE_RC_LCSR				0x80
+
 /* PCIe Port Logic registers (memory-mapped) */
 #define PL_OFFSET 0x700
 #define PCIE_PL_PFLR (PL_OFFSET + 0x08)
@@ -427,7 +429,7 @@ static int imx6_pcie_start_link(struct pcie_port *pp)
 		return ret;
 	}
 
-	tmp = readl(pp->dbi_base + 0x80);
+	tmp = readl(pp->dbi_base + PCIE_RC_LCSR);
 	dev_dbg(pp->dev, "Link up, Gen=%i\n", (tmp >> 16) & 0xf);
 	return 0;
 }
