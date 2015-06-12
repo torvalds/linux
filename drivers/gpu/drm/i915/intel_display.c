@@ -15357,6 +15357,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		crtc->base.state->enable = crtc->active;
 		crtc->base.state->active = crtc->active;
 		crtc->base.enabled = crtc->active;
+		crtc->base.hwmode = crtc->config->base.adjusted_mode;
 
 		plane_state = to_intel_plane_state(primary->state);
 		plane_state->visible = primary_get_hw_state(crtc);
