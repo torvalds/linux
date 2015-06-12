@@ -299,8 +299,8 @@ mpls:
 		if (!hdr)
 			return false;
 
-		if ((ntohl(hdr[0].entry) & MPLS_LS_LABEL_MASK) ==
-		     MPLS_LABEL_ENTROPY) {
+		if ((ntohl(hdr[0].entry) & MPLS_LS_LABEL_MASK) >>
+		     MPLS_LS_LABEL_SHIFT == MPLS_LABEL_ENTROPY) {
 			if (skb_flow_dissector_uses_key(flow_dissector,
 							FLOW_DISSECTOR_KEY_MPLS_ENTROPY)) {
 				key_keyid = skb_flow_dissector_target(flow_dissector,
@@ -327,6 +327,7 @@ mpls:
 		return false;
 	}
 
+ip_proto_again:
 	switch (ip_proto) {
 	case IPPROTO_GRE: {
 		struct gre_hdr {
@@ -382,6 +383,22 @@ mpls:
 			nhoff += sizeof(*eth);
 		}
 		goto again;
+	}
+	case NEXTHDR_HOP:
+	case NEXTHDR_ROUTING:
+	case NEXTHDR_DEST: {
+		u8 _opthdr[2], *opthdr;
+
+		if (proto != htons(ETH_P_IPV6))
+			break;
+
+		opthdr = __skb_header_pointer(skb, nhoff, sizeof(_opthdr),
+					      data, hlen, &_opthdr);
+
+		ip_proto = _opthdr[0];
+		nhoff += (_opthdr[1] + 1) << 3;
+
+		goto ip_proto_again;
 	}
 	case IPPROTO_IPIP:
 		proto = htons(ETH_P_IP);
