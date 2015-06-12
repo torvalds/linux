@@ -2202,36 +2202,11 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_IA32_MC0_CTL ... MSR_IA32_MCx_CTL(KVM_MAX_MCE_BANKS) - 1:
 		return set_msr_mce(vcpu, msr, data);
 
-	/* Performance counters are not protected by a CPUID bit,
-	 * so we should check all of them in the generic path for the sake of
-	 * cross vendor migration.
-	 * Writing a zero into the event select MSRs disables them,
-	 * which we perfectly emulate ;-). Any other value should be at least
-	 * reported, some guests depend on them.
-	 */
-	case MSR_K7_EVNTSEL0:
-	case MSR_K7_EVNTSEL1:
-	case MSR_K7_EVNTSEL2:
-	case MSR_K7_EVNTSEL3:
-		if (data != 0)
-			vcpu_unimpl(vcpu, "unimplemented perfctr wrmsr: "
-				    "0x%x data 0x%llx\n", msr, data);
-		break;
-	/* at least RHEL 4 unconditionally writes to the perfctr registers,
-	 * so we ignore writes to make it happy.
-	 */
-	case MSR_K7_PERFCTR0:
-	case MSR_K7_PERFCTR1:
-	case MSR_K7_PERFCTR2:
-	case MSR_K7_PERFCTR3:
-		vcpu_unimpl(vcpu, "unimplemented perfctr wrmsr: "
-			    "0x%x data 0x%llx\n", msr, data);
-		break;
-	case MSR_P6_PERFCTR0:
-	case MSR_P6_PERFCTR1:
-		pr = true;
-	case MSR_P6_EVNTSEL0:
-	case MSR_P6_EVNTSEL1:
+	case MSR_K7_PERFCTR0 ... MSR_K7_PERFCTR3:
+	case MSR_P6_PERFCTR0 ... MSR_P6_PERFCTR1:
+		pr = true; /* fall through */
+	case MSR_K7_EVNTSEL0 ... MSR_K7_EVNTSEL3:
+	case MSR_P6_EVNTSEL0 ... MSR_P6_EVNTSEL1:
 		if (kvm_pmu_is_valid_msr(vcpu, msr))
 			return kvm_pmu_set_msr(vcpu, msr_info);
 
@@ -2418,24 +2393,16 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_K8_SYSCFG:
 	case MSR_K7_HWCR:
 	case MSR_VM_HSAVE_PA:
-	case MSR_K7_EVNTSEL0:
-	case MSR_K7_EVNTSEL1:
-	case MSR_K7_EVNTSEL2:
-	case MSR_K7_EVNTSEL3:
-	case MSR_K7_PERFCTR0:
-	case MSR_K7_PERFCTR1:
-	case MSR_K7_PERFCTR2:
-	case MSR_K7_PERFCTR3:
 	case MSR_K8_INT_PENDING_MSG:
 	case MSR_AMD64_NB_CFG:
 	case MSR_FAM10H_MMIO_CONF_BASE:
 	case MSR_AMD64_BU_CFG2:
 		msr_info->data = 0;
 		break;
-	case MSR_P6_PERFCTR0:
-	case MSR_P6_PERFCTR1:
-	case MSR_P6_EVNTSEL0:
-	case MSR_P6_EVNTSEL1:
+	case MSR_K7_EVNTSEL0 ... MSR_K7_EVNTSEL3:
+	case MSR_K7_PERFCTR0 ... MSR_K7_PERFCTR3:
+	case MSR_P6_PERFCTR0 ... MSR_P6_PERFCTR1:
+	case MSR_P6_EVNTSEL0 ... MSR_P6_EVNTSEL1:
 		if (kvm_pmu_is_valid_msr(vcpu, msr_info->index))
 			return kvm_pmu_get_msr(vcpu, msr_info->index, &msr_info->data);
 		msr_info->data = 0;
