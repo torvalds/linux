@@ -37,35 +37,28 @@ static int rk_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	unsigned long pll_out, rclk_rate;
+	unsigned long sclk;
 	int ret, ratio;
 
 	RK_SPDIF_DBG("spdif:Entered %s\n", __func__);
 
+	/* bmc: 2*32*fs*2 = 128fs */
+	ratio = 128;
 	switch (params_rate(params)) {
 	case 44100:
-		pll_out = 11289600;
-		break;
 	case 32000:
-		pll_out = 8192000;
-		break;
 	case 48000:
-		pll_out = 12288000;
-		break;
 	case 96000:
-		pll_out = 24576000;
+	case 192000:
+		sclk = params_rate(params) * ratio;
 		break;
 	default:
 		pr_err("rk_spdif: params not support\n");
 		return -EINVAL;
 	}
 
-	ratio = 256;
-	rclk_rate = params_rate(params) * ratio;
-
-	/* Set audio source clock rates */
 	ret = snd_soc_dai_set_sysclk(cpu_dai, 0,
-				     rclk_rate, SND_SOC_CLOCK_IN);
+				     sclk, SND_SOC_CLOCK_IN);
 	if (ret < 0)
 		return ret;
 
