@@ -46,7 +46,7 @@
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Memory Control (Balloon) Driver");
-MODULE_VERSION("1.2.1.3-k");
+MODULE_VERSION("1.2.2.0-k");
 MODULE_ALIAS("dmi:*:svnVMware*:*");
 MODULE_ALIAS("vmware_vmmemctl");
 MODULE_LICENSE("GPL");
@@ -402,55 +402,37 @@ static void vmballoon_reset(struct vmballoon *b)
 }
 
 /*
- * Allocate (or reserve) a page for the balloon and notify the host.  If host
- * refuses the page put it on "refuse" list and allocate another one until host
- * is satisfied. "Refused" pages are released at the end of inflation cycle
- * (when we allocate b->rate_alloc pages).
+ * Notify the host of a ballooned page. If host rejects the page put it on the
+ * refuse list, those refused page are then released at the end of the
+ * inflation cycle.
  */
-static int vmballoon_reserve_page(struct vmballoon *b, bool can_sleep)
+static int vmballoon_lock_page(struct vmballoon *b, struct page *page)
 {
-	struct page *page;
-	gfp_t flags;
-	unsigned int hv_status;
-	int locked;
-	flags = can_sleep ? VMW_PAGE_ALLOC_CANSLEEP : VMW_PAGE_ALLOC_NOSLEEP;
+	int locked, hv_status;
 
-	do {
-		if (!can_sleep)
-			STATS_INC(b->stats.alloc);
-		else
-			STATS_INC(b->stats.sleep_alloc);
+	locked = vmballoon_send_lock_page(b, page_to_pfn(page), &hv_status);
+	if (locked > 0) {
+		STATS_INC(b->stats.refused_alloc);
 
-		page = alloc_page(flags);
-		if (!page) {
-			if (!can_sleep)
-				STATS_INC(b->stats.alloc_fail);
-			else
-				STATS_INC(b->stats.sleep_alloc_fail);
-			return -ENOMEM;
+		if (hv_status == VMW_BALLOON_ERROR_RESET ||
+				hv_status == VMW_BALLOON_ERROR_PPN_NOTNEEDED) {
+			__free_page(page);
+			return -EIO;
 		}
 
-		/* inform monitor */
-		locked = vmballoon_send_lock_page(b, page_to_pfn(page), &hv_status);
-		if (locked > 0) {
-			STATS_INC(b->stats.refused_alloc);
-
-			if (hv_status == VMW_BALLOON_ERROR_RESET ||
-			    hv_status == VMW_BALLOON_ERROR_PPN_NOTNEEDED) {
-				__free_page(page);
-				return -EIO;
-			}
-
-			/*
-			 * Place page on the list of non-balloonable pages
-			 * and retry allocation, unless we already accumulated
-			 * too many of them, in which case take a breather.
-			 */
+		/*
+		 * Place page on the list of non-balloonable pages
+		 * and retry allocation, unless we already accumulated
+		 * too many of them, in which case take a breather.
+		 */
+		if (b->n_refused_pages < VMW_BALLOON_MAX_REFUSED) {
+			b->n_refused_pages++;
 			list_add(&page->lru, &b->refused_pages);
-			if (++b->n_refused_pages >= VMW_BALLOON_MAX_REFUSED)
-				return -EIO;
+		} else {
+			__free_page(page);
 		}
-	} while (locked != 0);
+		return -EIO;
+	}
 
 	/* track allocated page */
 	list_add(&page->lru, &b->pages);
@@ -512,7 +494,7 @@ static void vmballoon_inflate(struct vmballoon *b)
 	unsigned int i;
 	unsigned int allocations = 0;
 	int error = 0;
-	bool alloc_can_sleep = false;
+	gfp_t flags = VMW_PAGE_ALLOC_NOSLEEP;
 
 	pr_debug("%s - size: %d, target %d\n", __func__, b->size, b->target);
 
@@ -543,19 +525,16 @@ static void vmballoon_inflate(struct vmballoon *b)
 		 __func__, goal, rate, b->rate_alloc);
 
 	for (i = 0; i < goal; i++) {
+		struct page *page;
 
-		error = vmballoon_reserve_page(b, alloc_can_sleep);
-		if (error) {
-			if (error != -ENOMEM) {
-				/*
-				 * Not a page allocation failure, stop this
-				 * cycle. Maybe we'll get new target from
-				 * the host soon.
-				 */
-				break;
-			}
+		if (flags == VMW_PAGE_ALLOC_NOSLEEP)
+			STATS_INC(b->stats.alloc);
+		else
+			STATS_INC(b->stats.sleep_alloc);
 
-			if (alloc_can_sleep) {
+		page = alloc_page(flags);
+		if (!page) {
+			if (flags == VMW_PAGE_ALLOC_CANSLEEP) {
 				/*
 				 * CANSLEEP page allocation failed, so guest
 				 * is under severe memory pressure. Quickly
@@ -563,8 +542,10 @@ static void vmballoon_inflate(struct vmballoon *b)
 				 */
 				b->rate_alloc = max(b->rate_alloc / 2,
 						    VMW_BALLOON_RATE_ALLOC_MIN);
+				STATS_INC(b->stats.sleep_alloc_fail);
 				break;
 			}
+			STATS_INC(b->stats.alloc_fail);
 
 			/*
 			 * NOSLEEP page allocation failed, so the guest is
@@ -579,10 +560,15 @@ static void vmballoon_inflate(struct vmballoon *b)
 			if (i >= b->rate_alloc)
 				break;
 
-			alloc_can_sleep = true;
+			flags = VMW_PAGE_ALLOC_CANSLEEP;
 			/* Lower rate for sleeping allocations. */
 			rate = b->rate_alloc;
+			continue;
 		}
+
+		error = vmballoon_lock_page(b, page);
+		if (error)
+			break;
 
 		if (++allocations > VMW_BALLOON_YIELD_THRESHOLD) {
 			cond_resched();
