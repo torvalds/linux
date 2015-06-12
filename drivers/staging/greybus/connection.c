@@ -59,39 +59,6 @@ void greybus_data_rcvd(struct greybus_host_device *hd, u16 cport_id,
 }
 EXPORT_SYMBOL_GPL(greybus_data_rcvd);
 
-/*
- * Allocate an available CPort Id for use for the host side of the
- * given connection.  The lowest-available id is returned, so the
- * first call is guaranteed to allocate CPort Id 0.
- *
- * Assigns the connection's hd_cport_id and returns true if successful.
- * Returns false otherwise.
- */
-static bool gb_connection_hd_cport_id_alloc(struct gb_connection *connection)
-{
-	struct ida *ida = &connection->hd->cport_id_map;
-	int id;
-
-	id = ida_simple_get(ida, 0, HOST_DEV_CPORT_ID_MAX, GFP_ATOMIC);
-	if (id < 0)
-		return false;
-
-	connection->hd_cport_id = (u16)id;
-
-	return true;
-}
-
-/*
- * Free a previously-allocated CPort Id on the given host device.
- */
-static void gb_connection_hd_cport_id_free(struct gb_connection *connection)
-{
-	struct ida *ida = &connection->hd->cport_id_map;
-
-	ida_simple_remove(ida, connection->hd_cport_id);
-	connection->hd_cport_id = CPORT_ID_BAD;
-}
-
 static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
@@ -172,6 +139,7 @@ struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 {
 	struct gb_connection *connection;
 	struct greybus_host_device *hd = bundle->intf->hd;
+	struct ida *id_map = &hd->cport_id_map;
 	int retval;
 	u8 major = 0;
 	u8 minor = 1;
@@ -190,17 +158,20 @@ struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 	if (!connection)
 		return NULL;
 
-	connection->hd = hd;
-	connection->protocol_id = protocol_id;
-	connection->major = major;
-	connection->minor = minor;
-	if (!gb_connection_hd_cport_id_alloc(connection)) {
+	retval = ida_simple_get(id_map, 0, HOST_DEV_CPORT_ID_MAX, GFP_KERNEL);
+	if (retval < 0) {
 		kfree(connection);
 		return NULL;
 	}
+	connection->hd_cport_id = (u16)retval;
+	connection->intf_cport_id = cport_id;
+	connection->hd = hd;
+
+	connection->protocol_id = protocol_id;
+	connection->major = major;
+	connection->minor = minor;
 
 	connection->bundle = bundle;
-	connection->intf_cport_id = cport_id;
 	connection->state = GB_CONNECTION_STATE_DISABLED;
 
 	connection->dev.parent = &bundle->dev;
@@ -213,10 +184,14 @@ struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 
 	retval = device_add(&connection->dev);
 	if (retval) {
+		struct ida *id_map = &connection->hd->cport_id_map;
+
+		ida_simple_remove(id_map, connection->hd_cport_id);
+		connection->hd_cport_id = CPORT_ID_BAD;
+		put_device(&connection->dev);
+
 		pr_err("failed to add connection device for cport 0x%04hx\n",
 			cport_id);
-		gb_connection_hd_cport_id_free(connection);
-		put_device(&connection->dev);
 
 		return NULL;
 	}
@@ -245,6 +220,7 @@ void gb_connection_destroy(struct gb_connection *connection)
 {
 	struct gb_operation *operation;
 	struct gb_operation *next;
+	struct ida *id_map;
 
 	if (WARN_ON(!connection))
 		return;
@@ -260,9 +236,12 @@ void gb_connection_destroy(struct gb_connection *connection)
 	list_del(&connection->hd_links);
 	spin_unlock_irq(&gb_connections_lock);
 
-	gb_connection_hd_cport_id_free(connection);
 	gb_protocol_put(connection->protocol);
 	connection->protocol = NULL;
+
+	id_map = &connection->hd->cport_id_map;
+	ida_simple_remove(id_map, connection->hd_cport_id);
+	connection->hd_cport_id = CPORT_ID_BAD;
 
 	device_unregister(&connection->dev);
 }
