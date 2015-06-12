@@ -256,6 +256,7 @@ void v4l2_print_dv_timings(const char *dev_prefix, const char *prefix,
 {
 	const struct v4l2_bt_timings *bt = &t->bt;
 	u32 htot, vtot;
+	u32 fps;
 
 	if (t->type != V4L2_DV_BT_656_1120)
 		return;
@@ -265,13 +266,15 @@ void v4l2_print_dv_timings(const char *dev_prefix, const char *prefix,
 	if (bt->interlaced)
 		vtot /= 2;
 
+	fps = (htot * vtot) > 0 ? div_u64((100 * (u64)bt->pixelclock),
+				  (htot * vtot)) : 0;
+
 	if (prefix == NULL)
 		prefix = "";
 
-	pr_info("%s: %s%ux%u%s%u (%ux%u)\n", dev_prefix, prefix,
+	pr_info("%s: %s%ux%u%s%u.%u (%ux%u)\n", dev_prefix, prefix,
 		bt->width, bt->height, bt->interlaced ? "i" : "p",
-		(htot * vtot) > 0 ? ((u32)bt->pixelclock / (htot * vtot)) : 0,
-		htot, vtot);
+		fps / 100, fps % 100, htot, vtot);
 
 	if (!detailed)
 		return;
