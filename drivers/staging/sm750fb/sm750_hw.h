@@ -8,9 +8,6 @@
 #define SM750LE_REVISION_ID (unsigned char)0xfe
 #endif
 
-//#define DEFAULT_MEM_CLOCK	(DEFAULT_SM750_CHIP_CLOCK/1)
-//#define DEFAULT_MASTER_CLOCK	(DEFAULT_SM750_CHIP_CLOCK/3)
-
 
 enum sm750_pnltype{
 

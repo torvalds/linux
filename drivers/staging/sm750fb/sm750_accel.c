@@ -57,10 +57,10 @@ void hw_de_init(struct lynx_accel * accel)
 	write_dpr(accel, DE_STRETCH_FORMAT, (read_dpr(accel, DE_STRETCH_FORMAT) & clr) | reg);
 
 	/* disable clipping and transparent */
-	write_dpr(accel, DE_CLIP_TL, 0);//dpr2c
-	write_dpr(accel, DE_CLIP_BR, 0);//dpr30
+	write_dpr(accel, DE_CLIP_TL, 0); /* dpr2c */
+	write_dpr(accel, DE_CLIP_BR, 0); /* dpr30 */
 
-	write_dpr(accel, DE_COLOR_COMPARE_MASK, 0);//dpr24
+	write_dpr(accel, DE_COLOR_COMPARE_MASK, 0); /* dpr24 */
 	write_dpr(accel, DE_COLOR_COMPARE, 0);
 
 	reg = FIELD_SET(0, DE_CONTROL, TRANSPARENCY, DISABLE)|
@@ -104,25 +104,25 @@ int hw_fillrect(struct lynx_accel * accel,
 		return -1;
 	}
 
-	write_dpr(accel, DE_WINDOW_DESTINATION_BASE, base);//dpr40
+	write_dpr(accel, DE_WINDOW_DESTINATION_BASE, base); /* dpr40 */
 	write_dpr(accel, DE_PITCH,
 			FIELD_VALUE(0, DE_PITCH, DESTINATION, pitch/Bpp)|
-			FIELD_VALUE(0, DE_PITCH, SOURCE, pitch/Bpp));//dpr10
+			FIELD_VALUE(0, DE_PITCH, SOURCE, pitch/Bpp)); /* dpr10 */
 
 	write_dpr(accel, DE_WINDOW_WIDTH,
 			FIELD_VALUE(0, DE_WINDOW_WIDTH, DESTINATION, pitch/Bpp)|
-			FIELD_VALUE(0, DE_WINDOW_WIDTH, SOURCE, pitch/Bpp));//dpr44
+			FIELD_VALUE(0, DE_WINDOW_WIDTH, SOURCE, pitch/Bpp)); /* dpr44 */
 
-	write_dpr(accel, DE_FOREGROUND, color);//DPR14
+	write_dpr(accel, DE_FOREGROUND, color); /* DPR14 */
 
 	write_dpr(accel, DE_DESTINATION,
 			FIELD_SET(0, DE_DESTINATION, WRAP, DISABLE)|
 			FIELD_VALUE(0, DE_DESTINATION, X, x)|
-			FIELD_VALUE(0, DE_DESTINATION, Y, y));//dpr4
+			FIELD_VALUE(0, DE_DESTINATION, Y, y)); /* dpr4 */
 
 	write_dpr(accel, DE_DIMENSION,
 			FIELD_VALUE(0, DE_DIMENSION, X, width)|
-			FIELD_VALUE(0, DE_DIMENSION, Y_ET, height));//dpr8
+			FIELD_VALUE(0, DE_DIMENSION, Y_ET, height)); /* dpr8 */
 
 	deCtrl =
 		FIELD_SET(0, DE_CONTROL, STATUS, START)|
@@ -130,7 +130,7 @@ int hw_fillrect(struct lynx_accel * accel,
 		FIELD_SET(0, DE_CONTROL, LAST_PIXEL, ON)|
 		FIELD_SET(0, DE_CONTROL, COMMAND, RECTANGLE_FILL)|
 		FIELD_SET(0, DE_CONTROL, ROP_SELECT, ROP2)|
-		FIELD_VALUE(0, DE_CONTROL, ROP, rop);//dpr0xc
+		FIELD_VALUE(0, DE_CONTROL, ROP, rop); /* dpr0xc */
 
 	write_dpr(accel, DE_CONTROL, deCtrl);
 	return 0;
@@ -236,12 +236,12 @@ unsigned int rop2)   /* ROP value */
     /* 2D Source Base.
        It is an address offset (128 bit aligned) from the beginning of frame buffer.
     */
-    write_dpr(accel, DE_WINDOW_SOURCE_BASE, sBase);//dpr40
+    write_dpr(accel, DE_WINDOW_SOURCE_BASE, sBase); /* dpr40 */
 
     /* 2D Destination Base.
        It is an address offset (128 bit aligned) from the beginning of frame buffer.
     */
-    write_dpr(accel, DE_WINDOW_DESTINATION_BASE, dBase);//dpr44
+    write_dpr(accel, DE_WINDOW_DESTINATION_BASE, dBase); /* dpr44 */
 
 #if 0
     /* Program pitch (distance between the 1st points of two adjacent lines).
@@ -254,14 +254,14 @@ unsigned int rop2)   /* ROP value */
 			width *= 3;
 		write_dpr(accel, DE_PITCH,
 				FIELD_VALUE(0, DE_PITCH, DESTINATION, dPitch) |
-				FIELD_VALUE(0, DE_PITCH, SOURCE,      sPitch));//dpr10
+				FIELD_VALUE(0, DE_PITCH, SOURCE,      sPitch)); /* dpr10 */
 	}
 	else
 #endif
 	{
 		write_dpr(accel, DE_PITCH,
 				FIELD_VALUE(0, DE_PITCH, DESTINATION, (dPitch/Bpp)) |
-				FIELD_VALUE(0, DE_PITCH, SOURCE,      (sPitch/Bpp)));//dpr10
+				FIELD_VALUE(0, DE_PITCH, SOURCE,      (sPitch/Bpp))); /* dpr10 */
 	}
 
     /* Screen Window width in Pixels.
@@ -269,7 +269,7 @@ unsigned int rop2)   /* ROP value */
     */
     write_dpr(accel, DE_WINDOW_WIDTH,
         FIELD_VALUE(0, DE_WINDOW_WIDTH, DESTINATION, (dPitch/Bpp)) |
-        FIELD_VALUE(0, DE_WINDOW_WIDTH, SOURCE,      (sPitch/Bpp)));//dpr3c
+        FIELD_VALUE(0, DE_WINDOW_WIDTH, SOURCE,      (sPitch/Bpp))); /* dpr3c */
 
 	if (accel->de_wait() != 0){
 		return -1;
@@ -280,14 +280,14 @@ unsigned int rop2)   /* ROP value */
         write_dpr(accel, DE_SOURCE,
             FIELD_SET  (0, DE_SOURCE, WRAP, DISABLE) |
             FIELD_VALUE(0, DE_SOURCE, X_K1, sx)   |
-            FIELD_VALUE(0, DE_SOURCE, Y_K2, sy));//dpr0
+            FIELD_VALUE(0, DE_SOURCE, Y_K2, sy)); /* dpr0 */
         write_dpr(accel, DE_DESTINATION,
             FIELD_SET  (0, DE_DESTINATION, WRAP, DISABLE) |
             FIELD_VALUE(0, DE_DESTINATION, X,    dx)  |
-            FIELD_VALUE(0, DE_DESTINATION, Y,    dy));//dpr04
+            FIELD_VALUE(0, DE_DESTINATION, Y,    dy)); /* dpr04 */
         write_dpr(accel, DE_DIMENSION,
             FIELD_VALUE(0, DE_DIMENSION, X,    width) |
-            FIELD_VALUE(0, DE_DIMENSION, Y_ET, height));//dpr08
+            FIELD_VALUE(0, DE_DIMENSION, Y_ET, height)); /* dpr08 */
 
         de_ctrl =
             FIELD_VALUE(0, DE_CONTROL, ROP, rop2) |
@@ -297,7 +297,7 @@ unsigned int rop2)   /* ROP value */
             FIELD_SET(0, DE_CONTROL, DIRECTION, RIGHT_TO_LEFT)
             : FIELD_SET(0, DE_CONTROL, DIRECTION, LEFT_TO_RIGHT)) |
             FIELD_SET(0, DE_CONTROL, STATUS, START);
-		write_dpr(accel, DE_CONTROL, de_ctrl);//dpr0c
+		write_dpr(accel, DE_CONTROL, de_ctrl); /* dpr0c */
     }
 
     return 0;
@@ -346,7 +346,6 @@ int hw_imageblit(struct lynx_accel *accel,
 
 	if(accel->de_wait() != 0)
     {
-//		inf_msg("*** ImageBlit return -1 ***\n");
         return -1;
     }
 
@@ -370,7 +369,7 @@ int hw_imageblit(struct lynx_accel *accel,
 		startBit *= 3;
 		write_dpr(accel, DE_PITCH,
 				FIELD_VALUE(0, DE_PITCH, DESTINATION, dPitch) |
-				FIELD_VALUE(0, DE_PITCH, SOURCE,      dPitch));//dpr10
+				FIELD_VALUE(0, DE_PITCH, SOURCE,      dPitch)); /* dpr10 */
 
 	}
 	else
@@ -378,7 +377,7 @@ int hw_imageblit(struct lynx_accel *accel,
 	{
 		write_dpr(accel, DE_PITCH,
 				FIELD_VALUE(0, DE_PITCH, DESTINATION, dPitch/bytePerPixel) |
-				FIELD_VALUE(0, DE_PITCH, SOURCE,      dPitch/bytePerPixel));//dpr10
+				FIELD_VALUE(0, DE_PITCH, SOURCE,      dPitch/bytePerPixel)); /* dpr10 */
 	}
 
     /* Screen Window width in Pixels.
@@ -392,16 +391,16 @@ int hw_imageblit(struct lynx_accel *accel,
              For mono bitmap, use startBit for X_K1. */
     write_dpr(accel, DE_SOURCE,
         FIELD_SET  (0, DE_SOURCE, WRAP, DISABLE)       |
-        FIELD_VALUE(0, DE_SOURCE, X_K1_MONO, startBit));//dpr00
+        FIELD_VALUE(0, DE_SOURCE, X_K1_MONO, startBit)); /* dpr00 */
 
     write_dpr(accel, DE_DESTINATION,
         FIELD_SET  (0, DE_DESTINATION, WRAP, DISABLE) |
         FIELD_VALUE(0, DE_DESTINATION, X,    dx)    |
-        FIELD_VALUE(0, DE_DESTINATION, Y,    dy));//dpr04
+        FIELD_VALUE(0, DE_DESTINATION, Y,    dy)); /* dpr04 */
 
     write_dpr(accel, DE_DIMENSION,
         FIELD_VALUE(0, DE_DIMENSION, X,    width) |
-        FIELD_VALUE(0, DE_DIMENSION, Y_ET, height));//dpr08
+        FIELD_VALUE(0, DE_DIMENSION, Y_ET, height)); /* dpr08 */
 
     write_dpr(accel, DE_FOREGROUND, fColor);
     write_dpr(accel, DE_BACKGROUND, bColor);

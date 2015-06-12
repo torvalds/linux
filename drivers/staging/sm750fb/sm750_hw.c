@@ -193,7 +193,6 @@ int hw_sm750_inithw(struct lynx_share* share, struct pci_dev * pdev)
 	/* init 2d engine */
 	if(!share->accel_off){
 		hw_sm750_initAccel(share);
-//		share->accel.de_wait = hw_sm750_deWait;
 	}
 
 	return 0;
@@ -328,7 +327,6 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc* crtc,
 #endif
 
 	/* set timing */
-//	modparm.pixel_clock = PS_TO_HZ(var->pixclock);
 	modparm.pixel_clock = ps_to_hz(var->pixclock);
 	modparm.vertical_sync_polarity = (var->sync & FB_SYNC_HOR_HIGH_ACT) ? POS:NEG;
 	modparm.horizontal_sync_polarity = (var->sync & FB_SYNC_VERT_HIGH_ACT) ? POS:NEG;
@@ -618,7 +616,7 @@ int hw_sm750_pan_display(struct lynxfb_crtc *crtc,
         const struct fb_info *info)
 {
     uint32_t total;
-    //check params
+    /* check params */
     if ((var->xoffset + var->xres > var->xres_virtual) ||
             (var->yoffset + var->yres > var->yres_virtual)) {
         return -EINVAL;

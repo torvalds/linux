@@ -141,10 +141,10 @@ void hw_cursor_setData(struct lynx_cursor * cursor,
 		{
 
 			if(opr & (0x80 >> j))
-			{	//use fg color,id = 2
+			{	/* use fg color,id = 2 */
 				data |= 2 << (j*2);
 			}else{
-				//use bg color,id = 1
+				/* use bg color,id = 1 */
 				data |= 1 << (j*2);
 			}
 		}
@@ -221,10 +221,10 @@ void hw_cursor_setData2(struct lynx_cursor * cursor,
 		{
 
 			if(opr & (0x80 >> j))
-			{	//use fg color,id = 2
+			{	/* use fg color,id = 2 */
 				data |= 2 << (j*2);
 			}else{
-				//use bg color,id = 1
+				/* use bg color,id = 1 */
 				data |= 1 << (j*2);
 			}
 		}
@@ -238,7 +238,6 @@ void hw_cursor_setData2(struct lynx_cursor * cursor,
 
 		/* assume pitch is 1,2,4,8,...*/
 		if(!(i&(pitch-1)))
-		//if((i+1) % pitch == 0)
 		{
 			/* need a return */
 			pstart += offset;

@@ -7,8 +7,6 @@
 /* please use revision id to distinguish sm750le and sm750*/
 #define SPC_SM750 	0
 
-//#define SPC_SM750LE 8
-
 #define MB(x) ((x)<<20)
 #define MHZ(x) ((x) * 1000000)
 /* align should be 2,4,8,16 */
@@ -95,10 +93,10 @@ struct lynx_cursor{
 };
 
 struct lynxfb_crtc{
-	unsigned char __iomem * vCursor;//virtual address of cursor
-	unsigned char __iomem * vScreen;//virtual address of on_screen
-	int oCursor;//cursor address offset in vidmem
-	int oScreen;//onscreen address offset in vidmem
+	unsigned char __iomem * vCursor; /* virtual address of cursor */
+	unsigned char __iomem * vScreen; /* virtual address of on_screen */
+	int oCursor; /* cursor address offset in vidmem */
+	int oScreen; /* onscreen address offset in vidmem */
 	int channel;/* which channel this crtc stands for*/
 	resource_size_t vidmem_size;/* this view's video memory max size */
 

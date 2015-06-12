@@ -1,5 +1,3 @@
-//#include "ddk750_reg.h"
-//#include "ddk750_chip.h"
 #include "ddk750_help.h"
 
 void __iomem * mmio750 = NULL;

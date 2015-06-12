@@ -1,9 +1,7 @@
 #ifndef LYNX_HELP_H__
 #define LYNX_HELP_H__
-/*****************************************************************************\
- *                                FIELD MACROS                               *
-\*****************************************************************************/
 
+/*  FIELD MACROS */
 #define _LSB(f)             (0 ? f)
 #define _MSB(f)             (1 ? f)
 #define _COUNT(f)           (_MSB(f) - _LSB(f) + 1)
@@ -17,13 +15,7 @@
 #define SET_FIELDV(d, f, v) (((d) & ~GET_MASK(f)) | \
                             (((v) & RAW_MASK(f)) << _LSB(f)))
 
-
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-// Internal macros                                                            //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
+/* Internal macros */
 #define _F_START(f)             (0 ? f)
 #define _F_END(f)               (1 ? f)
 #define _F_SIZE(f)              (1 + _F_END(f) - _F_START(f))
@@ -31,13 +23,7 @@
 #define _F_NORMALIZE(v, f)      (((v) & _F_MASK(f)) >> _F_START(f))
 #define _F_DENORMALIZE(v, f)    (((v) << _F_START(f)) & _F_MASK(f))
 
-
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-// Global macros                                                              //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
+/* Global macros */
 #define FIELD_GET(x, reg, field) \
 ( \
     _F_NORMALIZE((x), reg ## _ ## field) \
@@ -60,13 +46,7 @@
     ~ _F_MASK(reg ## _ ## field) \
 )
 
-
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-// Field Macros                                                               //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
+/* Field Macros */
 #define FIELD_START(field)              (0 ? field)
 #define FIELD_END(field)                (1 ? field)
 #define FIELD_SIZE(field)               (1 + FIELD_END(field) - FIELD_START(field))

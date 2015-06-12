@@ -113,7 +113,7 @@
 #define DE_CONTROL_TRANSPARENCY_ENABLE                  1
 #define DE_CONTROL_ROP                                  7:0
 
-// Pseudo fields.
+/* Pseudo fields. */
 
 #define DE_CONTROL_SHORT_STROKE_DIR                     27:24
 #define DE_CONTROL_SHORT_STROKE_DIR_225                 0
