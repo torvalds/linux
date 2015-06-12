@@ -141,6 +141,8 @@ put_module:
 static void gb_interface_destroy(struct gb_interface *intf)
 {
 	struct gb_module *module;
+	struct gb_bundle *bundle;
+	struct gb_bundle *next;
 
 	if (WARN_ON(!intf))
 		return;
@@ -149,11 +151,11 @@ static void gb_interface_destroy(struct gb_interface *intf)
 	list_del(&intf->links);
 	spin_unlock_irq(&gb_interfaces_lock);
 
-	gb_bundle_destroy(intf);
+	list_for_each_entry_safe(bundle, next, &intf->bundles, links)
+		gb_bundle_destroy(bundle);
 
 	kfree(intf->product_string);
 	kfree(intf->vendor_string);
-	/* kref_put(module->hd); */
 
 	module = intf->module;
 	device_unregister(&intf->dev);
