@@ -673,6 +673,10 @@ static const struct iio_chan_spec inv_mpu_channels[] = {
 
 /* constant IIO attribute */
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("10 20 50 100 200 500");
+static IIO_CONST_ATTR(in_anglvel_scale_available,
+					  "0.000133090 0.000266181 0.000532362 0.001064724");
+static IIO_CONST_ATTR(in_accel_scale_available,
+					  "0.000598 0.001196 0.002392 0.004785");
 static IIO_DEV_ATTR_SAMP_FREQ(S_IRUGO | S_IWUSR, inv_fifo_rate_show,
 	inv_mpu6050_fifo_rate_store);
 static IIO_DEVICE_ATTR(in_gyro_matrix, S_IRUGO, inv_attr_show, NULL,
@@ -685,6 +689,8 @@ static struct attribute *inv_attributes[] = {
 	&iio_dev_attr_in_accel_matrix.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
+	&iio_const_attr_in_accel_scale_available.dev_attr.attr,
+	&iio_const_attr_in_anglvel_scale_available.dev_attr.attr,
 	NULL,
 };
 
