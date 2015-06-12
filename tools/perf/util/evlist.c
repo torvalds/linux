@@ -634,11 +634,18 @@ static struct perf_evsel *perf_evlist__event2evsel(struct perf_evlist *evlist,
 union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
 {
 	struct perf_mmap *md = &evlist->mmap[idx];
-	u64 head = perf_mmap__read_head(md);
+	u64 head;
 	u64 old = md->prev;
 	unsigned char *data = md->base + page_size;
 	union perf_event *event = NULL;
 
+	/*
+	 * Check if event was unmapped due to a POLLHUP/POLLERR.
+	 */
+	if (!atomic_read(&md->refcnt))
+		return NULL;
+
+	head = perf_mmap__read_head(md);
 	if (evlist->overwrite) {
 		/*
 		 * If we're further behind than half the buffer, there's a chance
