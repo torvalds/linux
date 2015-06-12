@@ -742,9 +742,6 @@ static int __init intel_prepare_irq_remapping(void)
 			pr_info("%s does not support EIM\n", iommu->name);
 			eim = 0;
 		}
-
-		/* Disable IRQ remapping if it is already enabled */
-		iommu_disable_irq_remapping(iommu);
 	}
 
 	eim_mode = eim;
@@ -777,7 +774,8 @@ static int __init intel_enable_irq_remapping(void)
 	 * Setup Interrupt-remapping for all the DRHD's now.
 	 */
 	for_each_iommu(iommu, drhd) {
-		iommu_enable_irq_remapping(iommu);
+		if (!ir_pre_enabled(iommu))
+			iommu_enable_irq_remapping(iommu);
 		setup = true;
 	}
 
