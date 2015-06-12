@@ -44,6 +44,8 @@
 #include "amdgpu.h"
 #include "amdgpu_irq.h"
 
+#include "amdgpu_amdkfd.h"
+
 /*
  * KMS wrapper.
  * - 3.0.0 - initial driver
@@ -527,12 +529,15 @@ static int __init amdgpu_init(void)
 	driver->num_ioctls = amdgpu_max_kms_ioctl;
 	amdgpu_register_atpx_handler();
 
+	amdgpu_amdkfd_init();
+
 	/* let modprobe override vga console setting */
 	return drm_pci_init(driver, pdriver);
 }
 
 static void __exit amdgpu_exit(void)
 {
+	amdgpu_amdkfd_fini();
 	drm_pci_exit(driver, pdriver);
 	amdgpu_unregister_atpx_handler();
 }

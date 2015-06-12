@@ -34,6 +34,7 @@
 #include <linux/vga_switcheroo.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include "amdgpu_amdkfd.h"
 
 #if defined(CONFIG_VGA_SWITCHEROO)
 bool amdgpu_has_atpx(void);
@@ -60,6 +61,8 @@ int amdgpu_driver_unload_kms(struct drm_device *dev)
 		goto done_free;
 
 	pm_runtime_get_sync(dev->dev);
+
+	amdgpu_amdkfd_device_fini(adev);
 
 	amdgpu_acpi_fini(adev);
 
@@ -117,6 +120,10 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 		dev_dbg(&dev->pdev->dev,
 				"Error during ACPI methods call\n");
 	}
+
+	amdgpu_amdkfd_load_interface(adev);
+	amdgpu_amdkfd_device_probe(adev);
+	amdgpu_amdkfd_device_init(adev);
 
 	if (amdgpu_device_is_px(dev)) {
 		pm_runtime_use_autosuspend(dev->dev);

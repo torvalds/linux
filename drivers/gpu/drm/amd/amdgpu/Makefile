@@ -71,6 +71,10 @@ amdgpu-y += \
 	amdgpu_vce.o \
 	vce_v3_0.o
 
+# add amdkfd interfaces
+amdgpu-y += \
+	 amdgpu_amdkfd.o
+
 amdgpu-$(CONFIG_COMPAT) += amdgpu_ioc32.o
 amdgpu-$(CONFIG_VGA_SWITCHEROO) += amdgpu_atpx_handler.o
 amdgpu-$(CONFIG_ACPI) += amdgpu_acpi.o
