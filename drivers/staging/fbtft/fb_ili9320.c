@@ -147,7 +147,7 @@ static int init_display(struct fbtft_par *par)
 	/* Vertical GRAM Start Address */
 	write_reg(par, 0x0052, 0x0000);
 
-	/* Vertical GRAM Start Address */
+	/* Vertical GRAM End Address */
 	write_reg(par, 0x0053, 0x013F);
 
 	/* Gate Scan Line */
