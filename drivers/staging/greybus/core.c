@@ -246,7 +246,7 @@ static int __init gb_init(void)
 	if (greybus_disabled())
 		return -ENODEV;
 
-	BUILD_BUG_ON(HOST_DEV_CPORT_ID_MAX >= (long)CPORT_ID_BAD);
+	BUILD_BUG_ON(CPORT_ID_MAX >= (long)CPORT_ID_BAD);
 
 	gb_debugfs_init();
 

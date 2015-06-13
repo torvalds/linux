@@ -158,7 +158,7 @@ struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 	if (!connection)
 		return NULL;
 
-	retval = ida_simple_get(id_map, 0, HOST_DEV_CPORT_ID_MAX, GFP_KERNEL);
+	retval = ida_simple_get(id_map, 0, CPORT_ID_MAX, GFP_KERNEL);
 	if (retval < 0) {
 		kfree(connection);
 		return NULL;

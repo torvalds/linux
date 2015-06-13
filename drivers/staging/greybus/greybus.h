@@ -52,14 +52,14 @@
 	.serial_number	= (s),
 
 /* XXX I couldn't get my Kconfig file to be noticed for out-of-tree build */
-#ifndef CONFIG_HOST_DEV_CPORT_ID_MAX
-#define CONFIG_HOST_DEV_CPORT_ID_MAX 128
-#endif /* !CONFIG_HOST_DEV_CPORT_ID_MAX */
+#ifndef CONFIG_CPORT_ID_MAX
+#define CONFIG_CPORT_ID_MAX 128
+#endif /* !CONFIG_CPORT_ID_MAX */
 
 /* Maximum number of CPorts usable by a host device */
 /* XXX This should really be determined by the AP module manifest */
-#define HOST_DEV_CPORT_ID_MAX	CONFIG_HOST_DEV_CPORT_ID_MAX
-#define CPORT_ID_BAD		U16_MAX		/* UniPro max id is 4095 */
+#define CPORT_ID_MAX	CONFIG_CPORT_ID_MAX
+#define CPORT_ID_BAD	U16_MAX		/* UniPro max id is 4095 */
 
 /* For SP1 hardware, we are going to "hardcode" each device to have all logical
  * blocks in order to be able to address them as one unified "unit".  Then
@@ -198,7 +198,7 @@ static inline int is_gb_connection(const struct device *dev)
 
 static inline bool cport_id_valid(u16 cport_id)
 {
-	return cport_id != CPORT_ID_BAD;
+	return cport_id != CPORT_ID_BAD && cport_id <= CPORT_ID_MAX;
 }
 
 #endif /* __KERNEL__ */
