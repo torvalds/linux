@@ -147,15 +147,23 @@ bitmap_ipmac_do_add(const struct bitmap_ipmac_adt_elem *e,
 	struct bitmap_ipmac_elem *elem;
 
 	elem = get_elem(map->extensions, e->id, dsize);
-	if (test_and_set_bit(e->id, map->members)) {
+	if (test_bit(e->id, map->members)) {
 		if (elem->filled == MAC_FILLED) {
-			if (e->ether && (flags & IPSET_FLAG_EXIST))
+			if (e->ether &&
+			    (flags & IPSET_FLAG_EXIST) &&
+			    !ether_addr_equal(e->ether, elem->ether)) {
+				/* memcpy isn't atomic */
+				clear_bit(e->id, map->members);
+				smp_mb__after_atomic();
 				memcpy(elem->ether, e->ether, ETH_ALEN);
+			}
 			return IPSET_ADD_FAILED;
 		} else if (!e->ether)
 			/* Already added without ethernet address */
 			return IPSET_ADD_FAILED;
 		/* Fill the MAC address and trigger the timer activation */
+		clear_bit(e->id, map->members);
+		smp_mb__after_atomic();
 		memcpy(elem->ether, e->ether, ETH_ALEN);
 		elem->filled = MAC_FILLED;
 		return IPSET_ADD_START_STORED_TIMEOUT;
@@ -413,6 +421,7 @@ bitmap_ipmac_init(void)
 static void __exit
 bitmap_ipmac_fini(void)
 {
+	rcu_barrier();
 	ip_set_type_unregister(&bitmap_ipmac_type);
 }
 

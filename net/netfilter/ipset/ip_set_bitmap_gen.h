@@ -144,10 +144,12 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 
 	if (ret == IPSET_ADD_FAILED) {
 		if (SET_WITH_TIMEOUT(set) &&
-		    ip_set_timeout_expired(ext_timeout(x, set)))
+		    ip_set_timeout_expired(ext_timeout(x, set))) {
 			ret = 0;
-		else if (!(flags & IPSET_FLAG_EXIST))
+		} else if (!(flags & IPSET_FLAG_EXIST)) {
+			set_bit(e->id, map->members);
 			return -IPSET_ERR_EXIST;
+		}
 		/* Element is re-added, cleanup extensions */
 		ip_set_ext_destroy(set, x);
 	}
@@ -165,6 +167,10 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 		ip_set_init_comment(ext_comment(x, set), ext);
 	if (SET_WITH_SKBINFO(set))
 		ip_set_init_skbinfo(ext_skbinfo(x, set), ext);
+
+	/* Activate element */
+	set_bit(e->id, map->members);
+
 	return 0;
 }
 
@@ -203,10 +209,13 @@ mtype_list(const struct ip_set *set,
 	struct nlattr *adt, *nested;
 	void *x;
 	u32 id, first = cb->args[IPSET_CB_ARG0];
+	int ret = 0;
 
 	adt = ipset_nest_start(skb, IPSET_ATTR_ADT);
 	if (!adt)
 		return -EMSGSIZE;
+	/* Extensions may be replaced */
+	rcu_read_lock();
 	for (; cb->args[IPSET_CB_ARG0] < map->elements;
 	     cb->args[IPSET_CB_ARG0]++) {
 		id = cb->args[IPSET_CB_ARG0];
@@ -222,9 +231,11 @@ mtype_list(const struct ip_set *set,
 		if (!nested) {
 			if (id == first) {
 				nla_nest_cancel(skb, adt);
-				return -EMSGSIZE;
-			} else
-				goto nla_put_failure;
+				ret = -EMSGSIZE;
+				goto out;
+			}
+
+			goto nla_put_failure;
 		}
 		if (mtype_do_list(skb, map, id, set->dsize))
 			goto nla_put_failure;
@@ -238,16 +249,18 @@ mtype_list(const struct ip_set *set,
 	/* Set listing finished */
 	cb->args[IPSET_CB_ARG0] = 0;
 
-	return 0;
+	goto out;
 
 nla_put_failure:
 	nla_nest_cancel(skb, nested);
 	if (unlikely(id == first)) {
 		cb->args[IPSET_CB_ARG0] = 0;
-		return -EMSGSIZE;
+		ret = -EMSGSIZE;
 	}
 	ipset_nest_end(skb, adt);
-	return 0;
+out:
+	rcu_read_unlock();
+	return ret;
 }
 
 static void
@@ -260,7 +273,7 @@ mtype_gc(unsigned long ul_set)
 
 	/* We run parallel with other readers (test element)
 	 * but adding/deleting new entries is locked out */
-	read_lock_bh(&set->lock);
+	spin_lock_bh(&set->lock);
 	for (id = 0; id < map->elements; id++)
 		if (mtype_gc_test(id, map, set->dsize)) {
 			x = get_ext(set, map, id);
@@ -269,7 +282,7 @@ mtype_gc(unsigned long ul_set)
 				ip_set_ext_destroy(set, x);
 			}
 		}
-	read_unlock_bh(&set->lock);
+	spin_unlock_bh(&set->lock);
 
 	map->gc.expires = jiffies + IPSET_GC_PERIOD(set->timeout) * HZ;
 	add_timer(&map->gc);
