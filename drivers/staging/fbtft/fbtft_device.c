@@ -229,7 +229,7 @@ static struct fbtft_device_display displays[] = {
 				.display = {
 					.buswidth = 8,
 					.backlight = 1,
-					.fbtftops.set_addr_win = \
+					.fbtftops.set_addr_win =
 					    adafruit18_green_tab_set_addr_win,
 				},
 				.bgr = true,
@@ -773,13 +773,13 @@ static struct fbtft_device_display displays[] = {
 					{ "dc", 25 },
 					{},
 				},
-				.gamma =	"0 2 2 2 2 2 2 2 " \
-						"2 2 2 2 2 2 2 2 " \
-						"2 2 2 2 2 2 2 2 " \
-						"2 2 2 2 2 2 2 3 " \
-						"3 3 3 3 3 3 3 3 " \
-						"3 3 3 3 3 3 3 3 " \
-						"3 3 3 4 4 4 4 4 " \
+				.gamma =	"0 2 2 2 2 2 2 2 "
+						"2 2 2 2 2 2 2 2 "
+						"2 2 2 2 2 2 2 2 "
+						"2 2 2 2 2 2 2 3 "
+						"3 3 3 3 3 3 3 3 "
+						"3 3 3 3 3 3 3 3 "
+						"3 3 3 4 4 4 4 4 "
 						"4 4 4 4 4 4 4"
 			}
 		}
@@ -893,7 +893,7 @@ static struct fbtft_device_display displays[] = {
 					.buswidth = 16,
 					.txbuflen = -2, /* disable buffer */
 					.backlight = 1,
-					.fbtftops.write = \
+					.fbtftops.write =
 						fbtft_write_gpio16_wr_latched,
 				},
 				.bgr = true,
@@ -1289,7 +1289,7 @@ static int __init fbtft_device_init(void)
 	}
 
 	if (init_num > FBTFT_MAX_INIT_SEQUENCE) {
-		pr_err(DRVNAME \
+		pr_err(DRVNAME
 			":  init parameter: exceeded max array size: %d\n",
 			FBTFT_MAX_INIT_SEQUENCE);
 		return -EINVAL;
@@ -1298,7 +1298,7 @@ static int __init fbtft_device_init(void)
 	/* parse module parameter: gpios */
 	while ((p_gpio = strsep(&gpios, ","))) {
 		if (strchr(p_gpio, ':') == NULL) {
-			pr_err(DRVNAME \
+			pr_err(DRVNAME
 				":  error: missing ':' in gpios parameter: %s\n",
 				p_gpio);
 			return -EINVAL;
@@ -1306,14 +1306,14 @@ static int __init fbtft_device_init(void)
 		p_num = p_gpio;
 		p_name = strsep(&p_num, ":");
 		if (p_name == NULL || p_num == NULL) {
-			pr_err(DRVNAME \
+			pr_err(DRVNAME
 				":  something bad happened parsing gpios parameter: %s\n",
 				p_gpio);
 			return -EINVAL;
 		}
 		ret = kstrtol(p_num, 10, &val);
 		if (ret) {
-			pr_err(DRVNAME \
+			pr_err(DRVNAME
 				":  could not parse number in gpios parameter: %s:%s\n",
 				p_name, p_num);
 			return -EINVAL;
@@ -1321,7 +1321,7 @@ static int __init fbtft_device_init(void)
 		strcpy(fbtft_device_param_gpios[i].name, p_name);
 		fbtft_device_param_gpios[i++].gpio = (int) val;
 		if (i == MAX_GPIOS) {
-			pr_err(DRVNAME \
+			pr_err(DRVNAME
 				":  gpios parameter: exceeded max array size: %d\n",
 				MAX_GPIOS);
 			return -EINVAL;
@@ -1417,7 +1417,7 @@ static int __init fbtft_device_init(void)
 			if (displays[i].spi) {
 				ret = fbtft_device_spi_device_register(spi);
 				if (ret) {
-					pr_err(DRVNAME \
+					pr_err(DRVNAME
 						": failed to register SPI device\n");
 					return ret;
 				}
@@ -1426,7 +1426,7 @@ static int __init fbtft_device_init(void)
 			} else {
 				ret = platform_device_register(p_device);
 				if (ret < 0) {
-					pr_err(DRVNAME \
+					pr_err(DRVNAME
 						":    platform_device_register() returned %d\n",
 						ret);
 					return ret;
