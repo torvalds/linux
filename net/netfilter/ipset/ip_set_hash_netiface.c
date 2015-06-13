@@ -500,6 +500,7 @@ hash_netiface_init(void)
 static void __exit
 hash_netiface_fini(void)
 {
+	rcu_barrier();
 	ip_set_type_unregister(&hash_netiface_type);
 }
 

@@ -498,6 +498,7 @@ hash_netport_init(void)
 static void __exit
 hash_netport_fini(void)
 {
+	rcu_barrier();
 	ip_set_type_unregister(&hash_netport_type);
 }
 

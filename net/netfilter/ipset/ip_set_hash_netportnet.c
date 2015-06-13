@@ -581,6 +581,7 @@ hash_netportnet_init(void)
 static void __exit
 hash_netportnet_fini(void)
 {
+	rcu_barrier();
 	ip_set_type_unregister(&hash_netportnet_type);
 }
 

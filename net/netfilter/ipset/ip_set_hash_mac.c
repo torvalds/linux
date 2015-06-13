@@ -165,6 +165,7 @@ hash_mac_init(void)
 static void __exit
 hash_mac_fini(void)
 {
+	rcu_barrier();
 	ip_set_type_unregister(&hash_mac_type);
 }
 

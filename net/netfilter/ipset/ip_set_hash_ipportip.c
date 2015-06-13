@@ -397,6 +397,7 @@ hash_ipportip_init(void)
 static void __exit
 hash_ipportip_fini(void)
 {
+	rcu_barrier();
 	ip_set_type_unregister(&hash_ipportip_type);
 }
 

@@ -392,6 +392,7 @@ hash_net_init(void)
 static void __exit
 hash_net_fini(void)
 {
+	rcu_barrier();
 	ip_set_type_unregister(&hash_net_type);
 }
 

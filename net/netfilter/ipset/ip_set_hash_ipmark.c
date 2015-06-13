@@ -319,6 +319,7 @@ hash_ipmark_init(void)
 static void __exit
 hash_ipmark_fini(void)
 {
+	rcu_barrier();
 	ip_set_type_unregister(&hash_ipmark_type);
 }
 

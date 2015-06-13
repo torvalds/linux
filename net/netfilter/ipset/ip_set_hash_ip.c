@@ -315,6 +315,7 @@ hash_ip_init(void)
 static void __exit
 hash_ip_fini(void)
 {
+	rcu_barrier();
 	ip_set_type_unregister(&hash_ip_type);
 }
 
