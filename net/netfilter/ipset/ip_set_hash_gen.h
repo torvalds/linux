@@ -71,6 +71,8 @@ struct hbucket {
 
 /* The hash table: the table size stored here in order to make resizing easy */
 struct htable {
+	atomic_t ref;		/* References for resizing */
+	atomic_t uref;		/* References for dumping */
 	u8 htable_bits;		/* size of hash table == 2^htable_bits */
 	struct hbucket bucket[0]; /* hashtable buckets */
 };
@@ -207,6 +209,7 @@ hbucket_elem_add(struct hbucket *n, u8 ahash_max, size_t dsize)
 #undef mtype_del
 #undef mtype_test_cidrs
 #undef mtype_test
+#undef mtype_uref
 #undef mtype_expire
 #undef mtype_resize
 #undef mtype_head
@@ -248,6 +251,7 @@ hbucket_elem_add(struct hbucket *n, u8 ahash_max, size_t dsize)
 #define mtype_del		IPSET_TOKEN(MTYPE, _del)
 #define mtype_test_cidrs	IPSET_TOKEN(MTYPE, _test_cidrs)
 #define mtype_test		IPSET_TOKEN(MTYPE, _test)
+#define mtype_uref		IPSET_TOKEN(MTYPE, _uref)
 #define mtype_expire		IPSET_TOKEN(MTYPE, _expire)
 #define mtype_resize		IPSET_TOKEN(MTYPE, _resize)
 #define mtype_head		IPSET_TOKEN(MTYPE, _head)
@@ -595,6 +599,9 @@ retry:
 	t->htable_bits = htable_bits;
 
 	read_lock_bh(&set->lock);
+	/* There can't be another parallel resizing, but dumping is possible */
+	atomic_set(&orig->ref, 1);
+	atomic_inc(&orig->uref);
 	for (i = 0; i < jhash_size(orig->htable_bits); i++) {
 		n = hbucket(orig, i);
 		for (j = 0; j < n->pos; j++) {
@@ -609,6 +616,8 @@ retry:
 #ifdef IP_SET_HASH_WITH_NETS
 				mtype_data_reset_flags(data, &flags);
 #endif
+				atomic_set(&orig->ref, 0);
+				atomic_dec(&orig->uref);
 				read_unlock_bh(&set->lock);
 				mtype_ahash_destroy(set, t, false);
 				if (ret == -EAGAIN)
@@ -631,7 +640,11 @@ retry:
 
 	pr_debug("set %s resized from %u (%p) to %u (%p)\n", set->name,
 		 orig->htable_bits, orig, t->htable_bits, t);
-	mtype_ahash_destroy(set, orig, false);
+	/* If there's nobody else dumping the table, destroy it */
+	if (atomic_dec_and_test(&orig->uref)) {
+		pr_debug("Table destroy by resize %p\n", orig);
+		mtype_ahash_destroy(set, orig, false);
+	}
 
 	return 0;
 }
@@ -961,13 +974,36 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+/* Make possible to run dumping parallel with resizing */
+static void
+mtype_uref(struct ip_set *set, struct netlink_callback *cb, bool start)
+{
+	struct htype *h = set->data;
+	struct htable *t;
+
+	if (start) {
+		rcu_read_lock_bh();
+		t = rcu_dereference_bh_nfnl(h->table);
+		atomic_inc(&t->uref);
+		cb->args[IPSET_CB_PRIVATE] = (unsigned long)t;
+		rcu_read_unlock_bh();
+	} else if (cb->args[IPSET_CB_PRIVATE]) {
+		t = (struct htable *)cb->args[IPSET_CB_PRIVATE];
+		if (atomic_dec_and_test(&t->uref) && atomic_read(&t->ref)) {
+			/* Resizing didn't destroy the hash table */
+			pr_debug("Table destroy by dump: %p\n", t);
+			mtype_ahash_destroy(set, t, false);
+		}
+		cb->args[IPSET_CB_PRIVATE] = 0;
+	}
+}
+
 /* Reply a LIST/SAVE request: dump the elements of the specified set */
 static int
 mtype_list(const struct ip_set *set,
 	   struct sk_buff *skb, struct netlink_callback *cb)
 {
-	const struct htype *h = set->data;
-	const struct htable *t = rcu_dereference_bh_nfnl(h->table);
+	const struct htable *t;
 	struct nlattr *atd, *nested;
 	const struct hbucket *n;
 	const struct mtype_elem *e;
@@ -980,6 +1016,7 @@ mtype_list(const struct ip_set *set,
 	if (!atd)
 		return -EMSGSIZE;
 	pr_debug("list hash set %s\n", set->name);
+	t = (const struct htable *)cb->args[IPSET_CB_PRIVATE];
 	for (; cb->args[IPSET_CB_ARG0] < jhash_size(t->htable_bits);
 	     cb->args[IPSET_CB_ARG0]++) {
 		incomplete = skb_tail_pointer(skb);
@@ -1047,6 +1084,7 @@ static const struct ip_set_type_variant mtype_variant = {
 	.flush	= mtype_flush,
 	.head	= mtype_head,
 	.list	= mtype_list,
+	.uref	= mtype_uref,
 	.resize	= mtype_resize,
 	.same_set = mtype_same_set,
 };
