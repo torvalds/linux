@@ -134,9 +134,12 @@ static int ssd1351_init[] = { -1,0xfd,0x12,-1,0xfd,0xb1,-1,0xae,-1,0xb3,0xf1,-1,
 
 
 /* ili9320, ili9325 */
-static void flexfb_set_addr_win_1(struct fbtft_par *par, int xs, int ys, int xe, int ye)
+static void flexfb_set_addr_win_1(struct fbtft_par *par,
+				  int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par, "%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__, xs, ys, xe, ye);
+	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
+		     "%s(xs=%d, ys=%d, xe=%d, ye=%d)\n",
+		     __func__, xs, ys, xe, ye);
 	switch (par->info->var.rotate) {
 	/* R20h = Horizontal GRAM Start Address */
 	/* R21h = Vertical GRAM Start Address */
@@ -161,9 +164,12 @@ static void flexfb_set_addr_win_1(struct fbtft_par *par, int xs, int ys, int xe,
 }
 
 /* ssd1289 */
-static void flexfb_set_addr_win_2(struct fbtft_par *par, int xs, int ys, int xe, int ye)
+static void flexfb_set_addr_win_2(struct fbtft_par *par,
+				  int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par, "%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__, xs, ys, xe, ye);
+	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
+		      "%s(xs=%d, ys=%d, xe=%d, ye=%d)\n",
+		      __func__, xs, ys, xe, ye);
 
 	switch (par->info->var.rotate) {
 	/* R4Eh - Set GDDRAM X address counter */
@@ -191,9 +197,12 @@ static void flexfb_set_addr_win_2(struct fbtft_par *par, int xs, int ys, int xe,
 }
 
 /* ssd1351 */
-static void set_addr_win_3(struct fbtft_par *par, int xs, int ys, int xe, int ye)
+static void set_addr_win_3(struct fbtft_par *par,
+			   int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par, "%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__, xs, ys, xe, ye);
+	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
+		      "%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__,
+		      xs, ys, xe, ye);
 
 	write_reg(par, 0x15, xs, xe);
 	write_reg(par, 0x75, ys, ye);
@@ -205,7 +214,8 @@ static int flexfb_verify_gpios_dc(struct fbtft_par *par)
 	fbtft_par_dbg(DEBUG_VERIFY_GPIOS, par, "%s()\n", __func__);
 
 	if (par->gpio.dc < 0) {
-		dev_err(par->info->device, "Missing info about 'dc' gpio. Aborting.\n");
+		dev_err(par->info->device,
+			"Missing info about 'dc' gpio. Aborting.\n");
 		return -EINVAL;
 	}
 
@@ -235,7 +245,9 @@ static int flexfb_verify_gpios_db(struct fbtft_par *par)
 		num_db=buswidth/2;
 	for (i=0;i < num_db;i++) {
 		if (par->gpio.db[i] < 0) {
-			dev_err(par->info->device, "Missing info about 'db%02d' gpio. Aborting.\n", i);
+			dev_err(par->info->device,
+				"Missing info about 'db%02d' gpio. Aborting.\n",
+				i);
 			return -EINVAL;
 		}
 	}
@@ -245,7 +257,8 @@ static int flexfb_verify_gpios_db(struct fbtft_par *par)
 
 static struct fbtft_display flex_display = { };
 
-static int flexfb_probe_common(struct spi_device *sdev, struct platform_device *pdev)
+static int flexfb_probe_common(struct spi_device *sdev,
+			       struct platform_device *pdev)
 {
 	struct device *dev;
 	struct fb_info *info;
@@ -260,7 +273,8 @@ static int flexfb_probe_common(struct spi_device *sdev, struct platform_device *
 	else
 		dev = &pdev->dev;
 
-	fbtft_init_dbg(dev, "%s(%s)\n", __func__, sdev ? "'SPI device'" : "'Platform device'");
+	fbtft_init_dbg(dev, "%s(%s)\n", __func__,
+		       sdev ? "'SPI device'" : "'Platform device'");
 
 	if (chip) {
 
@@ -403,7 +417,9 @@ static int flexfb_probe_common(struct spi_device *sdev, struct platform_device *
 		par->fbtftops.write_register = fbtft_write_reg16_bus8;
 		break;
 	default:
-		dev_err(dev, "argument 'regwidth': %d is not supported.\n", regwidth);
+		dev_err(dev,
+			"argument 'regwidth': %d is not supported.\n",
+			regwidth);
 		return -EINVAL;
 	}
 
@@ -483,7 +499,8 @@ static int flexfb_probe_common(struct spi_device *sdev, struct platform_device *
 		par->fbtftops.set_addr_win = set_addr_win_3;
 		break;
 	default:
-		dev_err(dev, "argument 'setaddrwin': unknown value %d.\n", setaddrwin);
+		dev_err(dev, "argument 'setaddrwin': unknown value %d.\n",
+			setaddrwin);
 		return -EINVAL;
 	}
 

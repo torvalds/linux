@@ -1063,7 +1063,8 @@ static struct fbtft_device_display displays[] = {
 				.display = {
 					.buswidth = 8,
 					.backlight = 1,
-					.init_sequence = waveshare32b_init_sequence,
+					.init_sequence =
+						waveshare32b_init_sequence,
 				},
 				.bgr = true,
 				.gpios = (const struct fbtft_gpio []) {
