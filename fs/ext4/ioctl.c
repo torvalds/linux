@@ -31,14 +31,11 @@
 static void memswap(void *a, void *b, size_t len)
 {
 	unsigned char *ap, *bp;
-	unsigned char tmp;
 
 	ap = (unsigned char *)a;
 	bp = (unsigned char *)b;
 	while (len-- > 0) {
-		tmp = *ap;
-		*ap = *bp;
-		*bp = tmp;
+		swap(*ap, *bp);
 		ap++;
 		bp++;
 	}
