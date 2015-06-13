@@ -173,19 +173,19 @@ static void free_urb(struct es1_ap_dev *es1, struct urb *urb)
 static void
 gb_message_cport_pack(struct gb_operation_msg_hdr *header, u16 cport_id)
 {
-	put_unaligned_le16(cport_id, header->pad);
+	header->pad[0] = cport_id;
 }
 
 /* Clear the pad bytes used for the CPort id */
 static void gb_message_cport_clear(struct gb_operation_msg_hdr *header)
 {
-	put_unaligned_le16(0, header->pad);
+	header->pad[0] = 0;
 }
 
 /* Extract the CPort id packed into the header, and clear it */
 static u16 gb_message_cport_unpack(struct gb_operation_msg_hdr *header)
 {
-	u16 cport_id = get_unaligned_le16(header->pad);
+	u16 cport_id = header->pad[0];
 
 	gb_message_cport_clear(header);
 
@@ -573,6 +573,9 @@ static int ap_probe(struct usb_interface *interface,
 	u16 endo_id = 0x4755;	// FIXME - get endo "ID" from the SVC
 	u8 ap_intf_id = 0x01;	// FIXME - get endo "ID" from the SVC
 	u8 svc_interval = 0;
+
+	/* We need to fit a CPort ID in one byte of a message header */
+	BUILD_BUG_ON(CPORT_ID_MAX > U8_MAX);
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
 
