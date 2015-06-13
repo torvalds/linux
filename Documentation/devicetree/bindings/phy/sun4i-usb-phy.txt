@@ -7,6 +7,7 @@ Required properties:
   * allwinner,sun5i-a13-usb-phy
   * allwinner,sun6i-a31-usb-phy
   * allwinner,sun7i-a20-usb-phy
+  * allwinner,sun8i-a23-usb-phy
 - reg : a list of offset + length pairs
 - reg-names :
   * "phy_ctrl"
@@ -17,6 +18,7 @@ Required properties:
 - clock-names :
   * "usb_phy" for sun4i, sun5i or sun7i
   * "usb0_phy", "usb1_phy" and "usb2_phy" for sun6i
+  * "usb0_phy", "usb1_phy" for sun8i
 - resets : a list of phandle + reset specifier pairs
 - reset-names :
   * "usb0_reset"
