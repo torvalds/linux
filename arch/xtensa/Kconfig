@@ -128,6 +128,16 @@ config XTENSA_VARIANT_MMU
 	  Build a Conventional Kernel with full MMU support,
 	  ie: it supports a TLB with auto-loading, page protection.
 
+config XTENSA_VARIANT_HAVE_PERF_EVENTS
+	bool "Core variant has Performance Monitor Module"
+	depends on XTENSA_VARIANT_CUSTOM
+	default n
+	help
+	  Enable if core variant has Performance Monitor Module with
+	  External Registers Interface.
+
+	  If unsure, say N.
+
 config XTENSA_UNALIGNED_USER
 	bool "Unaligned memory access in use space"
 	help
