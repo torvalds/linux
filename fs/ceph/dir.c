@@ -38,7 +38,7 @@ int ceph_init_dentry(struct dentry *dentry)
 	if (dentry->d_fsdata)
 		return 0;
 
-	di = kmem_cache_alloc(ceph_dentry_cachep, GFP_NOFS | __GFP_ZERO);
+	di = kmem_cache_alloc(ceph_dentry_cachep, GFP_KERNEL | __GFP_ZERO);
 	if (!di)
 		return -ENOMEM;          /* oh well */
 
@@ -231,7 +231,7 @@ static int note_last_dentry(struct ceph_file_info *fi, const char *name,
 			    int len)
 {
 	kfree(fi->last_name);
-	fi->last_name = kmalloc(len+1, GFP_NOFS);
+	fi->last_name = kmalloc(len+1, GFP_KERNEL);
 	if (!fi->last_name)
 		return -ENOMEM;
 	memcpy(fi->last_name, name, len);
@@ -342,7 +342,7 @@ more:
 		req->r_direct_hash = ceph_frag_value(frag);
 		req->r_direct_is_hash = true;
 		if (fi->last_name) {
-			req->r_path2 = kstrdup(fi->last_name, GFP_NOFS);
+			req->r_path2 = kstrdup(fi->last_name, GFP_KERNEL);
 			if (!req->r_path2) {
 				ceph_mdsc_put_request(req);
 				return -ENOMEM;
@@ -764,7 +764,7 @@ static int ceph_symlink(struct inode *dir, struct dentry *dentry,
 		err = PTR_ERR(req);
 		goto out;
 	}
-	req->r_path2 = kstrdup(dest, GFP_NOFS);
+	req->r_path2 = kstrdup(dest, GFP_KERNEL);
 	if (!req->r_path2) {
 		err = -ENOMEM;
 		ceph_mdsc_put_request(req);
@@ -1189,7 +1189,7 @@ static ssize_t ceph_read_dir(struct file *file, char __user *buf, size_t size,
 		return -EISDIR;
 
 	if (!cf->dir_info) {
-		cf->dir_info = kmalloc(bufsize, GFP_NOFS);
+		cf->dir_info = kmalloc(bufsize, GFP_KERNEL);
 		if (!cf->dir_info)
 			return -ENOMEM;
 		cf->dir_info_len =

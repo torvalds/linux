@@ -350,7 +350,7 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
 
 	/* build page vector */
 	nr_pages = calc_pages_for(0, len);
-	pages = kmalloc(sizeof(*pages) * nr_pages, GFP_NOFS);
+	pages = kmalloc(sizeof(*pages) * nr_pages, GFP_KERNEL);
 	ret = -ENOMEM;
 	if (!pages)
 		goto out;
@@ -362,7 +362,7 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
  		dout("start_read %p adding %p idx %lu\n", inode, page,
 		     page->index);
 		if (add_to_page_cache_lru(page, &inode->i_data, page->index,
-					  GFP_NOFS)) {
+					  GFP_KERNEL)) {
 			ceph_fscache_uncache_page(inode, page);
 			page_cache_release(page);
 			dout("start_read %p add_to_page_cache failed %p\n",

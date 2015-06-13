@@ -1668,7 +1668,8 @@ int ceph_alloc_readdir_reply_buffer(struct ceph_mds_request *req,
 
 	order = get_order(size * num_entries);
 	while (order >= 0) {
-		rinfo->dir_in = (void*)__get_free_pages(GFP_NOFS | __GFP_NOWARN,
+		rinfo->dir_in = (void*)__get_free_pages(GFP_KERNEL |
+							__GFP_NOWARN,
 							order);
 		if (rinfo->dir_in)
 			break;
