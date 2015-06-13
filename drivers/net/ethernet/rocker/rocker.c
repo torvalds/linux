@@ -2901,10 +2901,10 @@ static void _rocker_neigh_add(struct rocker *rocker,
 			      enum switchdev_trans trans,
 			      struct rocker_neigh_tbl_entry *entry)
 {
-	entry->index = rocker->neigh_tbl_next_index;
+	if (trans != SWITCHDEV_TRANS_COMMIT)
+		entry->index = rocker->neigh_tbl_next_index++;
 	if (trans == SWITCHDEV_TRANS_PREPARE)
 		return;
-	rocker->neigh_tbl_next_index++;
 	entry->ref_count++;
 	hash_add(rocker->neigh_tbl, &entry->entry,
 		 be32_to_cpu(entry->ip_addr));
