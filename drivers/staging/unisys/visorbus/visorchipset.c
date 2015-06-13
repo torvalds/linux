@@ -2399,6 +2399,7 @@ static __init uint32_t visorutil_spar_detect(void)
 static int init_unisys(void)
 {
 	int result;
+
 	if (!visorutil_spar_detect())
 		return -ENODEV;
 
