@@ -1265,7 +1265,7 @@ static void cleanup(struct spi_device *spi)
 
 #ifdef CONFIG_ACPI
 
-static struct acpi_device_id pxa2xx_spi_acpi_match[] = {
+static const struct acpi_device_id pxa2xx_spi_acpi_match[] = {
 	{ "INT33C0", LPSS_LPT_SSP },
 	{ "INT33C1", LPSS_LPT_SSP },
 	{ "INT3430", LPSS_LPT_SSP },
