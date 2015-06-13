@@ -42,7 +42,7 @@ Adding ACPI support for an existing driver should be pretty
 straightforward. Here is the simplest example:
 
 	#ifdef CONFIG_ACPI
-	static struct acpi_device_id mydrv_acpi_match[] = {
+	static const struct acpi_device_id mydrv_acpi_match[] = {
 		/* ACPI IDs here */
 		{ }
 	};
@@ -166,7 +166,7 @@ the platform device drivers. Below is an example where we add ACPI support
 to at25 SPI eeprom driver (this is meant for the above ACPI snippet):
 
 	#ifdef CONFIG_ACPI
-	static struct acpi_device_id at25_acpi_match[] = {
+	static const struct acpi_device_id at25_acpi_match[] = {
 		{ "AT25", 0 },
 		{ },
 	};
@@ -230,7 +230,7 @@ Below is an example of how to add ACPI support to the existing mpu3050
 input driver:
 
 	#ifdef CONFIG_ACPI
-	static struct acpi_device_id mpu3050_acpi_match[] = {
+	static const struct acpi_device_id mpu3050_acpi_match[] = {
 		{ "MPU3050", 0 },
 		{ },
 	};
