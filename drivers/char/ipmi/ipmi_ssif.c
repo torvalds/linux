@@ -1787,7 +1787,7 @@ skip_addr:
 }
 
 #ifdef CONFIG_ACPI
-static struct acpi_device_id ssif_acpi_match[] = {
+static const struct acpi_device_id ssif_acpi_match[] = {
 	{ "IPI0001", 0 },
 	{ },
 };
