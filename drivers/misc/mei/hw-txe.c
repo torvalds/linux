@@ -302,6 +302,18 @@ int mei_txe_aliveness_set_sync(struct mei_device *dev, u32 req)
 }
 
 /**
+ * mei_txe_pg_in_transition - is device now in pg transition
+ *
+ * @dev: the device structure
+ *
+ * Return: true if in pg transition, false otherwise
+ */
+static bool mei_txe_pg_in_transition(struct mei_device *dev)
+{
+	return dev->pg_event == MEI_PG_EVENT_WAIT;
+}
+
+/**
  * mei_txe_pg_is_enabled - detect if PG is supported by HW
  *
  * @dev: the device structure
@@ -1138,6 +1150,7 @@ static const struct mei_hw_ops mei_txe_hw_ops = {
 	.hw_config = mei_txe_hw_config,
 	.hw_start = mei_txe_hw_start,
 
+	.pg_in_transition = mei_txe_pg_in_transition,
 	.pg_is_enabled = mei_txe_pg_is_enabled,
 
 	.intr_clear = mei_txe_intr_clear,

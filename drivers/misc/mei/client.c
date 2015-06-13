@@ -699,7 +699,7 @@ void mei_host_client_init(struct work_struct *work)
 bool mei_hbuf_acquire(struct mei_device *dev)
 {
 	if (mei_pg_state(dev) == MEI_PG_ON ||
-	    dev->pg_event == MEI_PG_EVENT_WAIT) {
+	    mei_pg_in_transition(dev)) {
 		dev_dbg(dev->dev, "device is in pg\n");
 		return false;
 	}

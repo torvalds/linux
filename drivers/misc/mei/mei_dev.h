@@ -271,6 +271,7 @@ struct mei_cl {
 
  * @fw_status        : get fw status registers
  * @pg_state         : power gating state of the device
+ * @pg_in_transition : is device now in pg transition
  * @pg_is_enabled    : is power gating enabled
 
  * @intr_clear       : clear pending interrupts
@@ -300,6 +301,7 @@ struct mei_hw_ops {
 
 	int (*fw_status)(struct mei_device *dev, struct mei_fw_status *fw_sts);
 	enum mei_pg_state (*pg_state)(struct mei_device *dev);
+	bool (*pg_in_transition)(struct mei_device *dev);
 	bool (*pg_is_enabled)(struct mei_device *dev);
 
 	void (*intr_clear)(struct mei_device *dev);
@@ -398,11 +400,15 @@ struct mei_cl_device {
  * @MEI_PG_EVENT_IDLE: the driver is not in power gating transition
  * @MEI_PG_EVENT_WAIT: the driver is waiting for a pg event to complete
  * @MEI_PG_EVENT_RECEIVED: the driver received pg event
+ * @MEI_PG_EVENT_INTR_WAIT: the driver is waiting for a pg event interrupt
+ * @MEI_PG_EVENT_INTR_RECEIVED: the driver received pg event interrupt
  */
 enum mei_pg_event {
 	MEI_PG_EVENT_IDLE,
 	MEI_PG_EVENT_WAIT,
 	MEI_PG_EVENT_RECEIVED,
+	MEI_PG_EVENT_INTR_WAIT,
+	MEI_PG_EVENT_INTR_RECEIVED,
 };
 
 /**
@@ -715,6 +721,11 @@ static inline void mei_hw_config(struct mei_device *dev)
 static inline enum mei_pg_state mei_pg_state(struct mei_device *dev)
 {
 	return dev->ops->pg_state(dev);
+}
+
+static inline bool mei_pg_in_transition(struct mei_device *dev)
+{
+	return dev->ops->pg_in_transition(dev);
 }
 
 static inline bool mei_pg_is_enabled(struct mei_device *dev)
