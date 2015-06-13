@@ -302,15 +302,15 @@ static int mac802154_slave_close(struct net_device *dev)
 
 	ASSERT_RTNL();
 
-	hrtimer_cancel(&local->ifs_timer);
-
 	netif_stop_queue(dev);
 	local->open_count--;
 
 	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 
-	if (!local->open_count)
+	if (!local->open_count) {
+		hrtimer_cancel(&local->ifs_timer);
 		drv_stop(local);
+	}
 
 	return 0;
 }
