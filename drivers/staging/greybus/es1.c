@@ -167,6 +167,32 @@ static void free_urb(struct es1_ap_dev *es1, struct urb *urb)
 }
 
 /*
+ * We (ab)use the operation-message header pad bytes to transfer the
+ * cport id in order to minimise overhead.
+ */
+static void
+gb_message_cport_pack(struct gb_operation_msg_hdr *header, u16 cport_id)
+{
+	put_unaligned_le16(cport_id, header->pad);
+}
+
+/* Clear the pad bytes used for the CPort id */
+static void gb_message_cport_clear(struct gb_operation_msg_hdr *header)
+{
+	put_unaligned_le16(0, header->pad);
+}
+
+/* Extract the CPort id packed into the header, and clear it */
+static u16 gb_message_cport_unpack(struct gb_operation_msg_hdr *header)
+{
+	u16 cport_id = get_unaligned_le16(header->pad);
+
+	gb_message_cport_clear(header);
+
+	return cport_id;
+}
+
+/*
  * Returns an opaque cookie value if successful, or a pointer coded
  * error otherwise.  If the caller wishes to cancel the in-flight
  * buffer, it must supply the returned cookie to the cancel routine.
@@ -195,11 +221,8 @@ static void *message_send(struct greybus_host_device *hd, u16 cport_id,
 	if (!urb)
 		return ERR_PTR(-ENOMEM);
 
-	/*
-	 * We (ab)use the operation-message header pad bytes to transfer the
-	 * cport id in order to minimise overhead.
-	 */
-	put_unaligned_le16(cport_id, message->header->pad);
+	/* Pack the cport id into the message header */
+	gb_message_cport_pack(message->header, cport_id);
 
 	buffer_size = sizeof(*message->header) + message->payload_size;
 
@@ -211,7 +234,7 @@ static void *message_send(struct greybus_host_device *hd, u16 cport_id,
 	if (retval) {
 		pr_err("error %d submitting URB\n", retval);
 		free_urb(es1, urb);
-		put_unaligned_le16(0, message->header->pad);
+		gb_message_cport_clear(message->header);
 		return ERR_PTR(retval);
 	}
 
@@ -365,9 +388,9 @@ static void cport_in_callback(struct urb *urb)
 		goto exit;
 	}
 
+	/* Extract the CPort id, which is packed in the message header */
 	header = urb->transfer_buffer;
-	cport_id = get_unaligned_le16(header->pad);
-	put_unaligned_le16(0, header->pad);
+	cport_id = gb_message_cport_unpack(header);
 
 	if (cport_id_valid(cport_id))
 		greybus_data_rcvd(hd, cport_id, urb->transfer_buffer,
@@ -390,8 +413,7 @@ static void cport_out_callback(struct urb *urb)
 	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	int status = check_urb_status(urb);
 
-	/* Clear the pad bytes used for the cport id */
-	put_unaligned_le16(0, message->header->pad);
+	gb_message_cport_clear(message->header);
 
 	/*
 	 * Tell the submitter that the message send (attempt) is
