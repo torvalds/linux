@@ -1421,8 +1421,6 @@ static int __init fbtft_device_init(void)
 						": failed to register SPI device\n");
 					return ret;
 				}
-				found = true;
-				break;
 			} else {
 				ret = platform_device_register(p_device);
 				if (ret < 0) {
@@ -1431,9 +1429,9 @@ static int __init fbtft_device_init(void)
 						ret);
 					return ret;
 				}
-				found = true;
-				break;
 			}
+			found = true;
+			break;
 		}
 	}
 
