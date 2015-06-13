@@ -196,5 +196,10 @@ static inline int is_gb_connection(const struct device *dev)
 	return dev->type == &greybus_connection_type;
 }
 
+static inline bool cport_id_valid(u16 cport_id)
+{
+	return cport_id != CPORT_ID_BAD;
+}
+
 #endif /* __KERNEL__ */
 #endif /* __LINUX_GREYBUS_H */

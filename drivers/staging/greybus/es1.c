@@ -176,21 +176,17 @@ static void *message_send(struct greybus_host_device *hd, u16 cport_id,
 {
 	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	struct usb_device *udev = es1->usb_dev;
-	void *buffer;
 	size_t buffer_size;
 	int retval;
 	struct urb *urb;
-
-	buffer = message->buffer;
-	buffer_size = sizeof(*message->header) + message->payload_size;
 
 	/*
 	 * The data actually transferred will include an indication
 	 * of where the data should be sent.  Do one last check of
 	 * the target CPort id before filling it in.
 	 */
-	if (cport_id == CPORT_ID_BAD) {
-		pr_err("request to send inbound data buffer\n");
+	if (!cport_id_valid(cport_id)) {
+		pr_err("invalid destination cport 0x%02x\n", cport_id);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -205,9 +201,11 @@ static void *message_send(struct greybus_host_device *hd, u16 cport_id,
 	 */
 	put_unaligned_le16(cport_id, message->header->pad);
 
+	buffer_size = sizeof(*message->header) + message->payload_size;
+
 	usb_fill_bulk_urb(urb, udev,
 			  usb_sndbulkpipe(udev, es1->cport_out_endpoint),
-			  buffer, buffer_size,
+			  message->buffer, buffer_size,
 			  cport_out_callback, message);
 	retval = usb_submit_urb(urb, gfp_mask);
 	if (retval) {
@@ -371,8 +369,12 @@ static void cport_in_callback(struct urb *urb)
 	cport_id = get_unaligned_le16(header->pad);
 	put_unaligned_le16(0, header->pad);
 
-	greybus_data_rcvd(hd, cport_id, urb->transfer_buffer,
+	if (cport_id_valid(cport_id))
+		greybus_data_rcvd(hd, cport_id, urb->transfer_buffer,
 							urb->actual_length);
+	else
+		dev_err(dev, "%s: invalid cport id 0x%02x received\n",
+				__func__, cport_id);
 exit:
 	/* put our urb back in the request pool */
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
