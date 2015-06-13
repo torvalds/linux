@@ -4802,6 +4802,8 @@ static void rocker_remove_ports(const struct rocker *rocker)
 
 	for (i = 0; i < rocker->port_count; i++) {
 		rocker_port = rocker->ports[i];
+		if (!rocker_port)
+			continue;
 		rocker_port_ig_tbl(rocker_port, SWITCHDEV_TRANS_NONE,
 				   ROCKER_OP_FLAG_REMOVE);
 		unregister_netdev(rocker_port->dev);
