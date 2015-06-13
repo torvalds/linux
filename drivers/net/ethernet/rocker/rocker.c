@@ -5251,7 +5251,8 @@ static struct notifier_block rocker_netdevice_nb __read_mostly = {
 static int rocker_neigh_update(struct net_device *dev, struct neighbour *n)
 {
 	struct rocker_port *rocker_port = netdev_priv(dev);
-	int flags = (n->nud_state & NUD_VALID) ? 0 : ROCKER_OP_FLAG_REMOVE;
+	int flags = (n->nud_state & NUD_VALID ? 0 : ROCKER_OP_FLAG_REMOVE) |
+		    ROCKER_OP_FLAG_NOWAIT;
 	__be32 ip_addr = *(__be32 *)n->primary_key;
 
 	return rocker_port_ipv4_neigh(rocker_port, SWITCHDEV_TRANS_NONE,
