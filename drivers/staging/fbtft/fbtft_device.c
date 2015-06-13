@@ -555,8 +555,8 @@ static struct fbtft_device_display displays[] = {
 				.gpios = (const struct fbtft_gpio []) {
 					/* Wiring for LCD adapter kit */
 					{ "reset", 7 },
-					{ "dc", 0 }, 	/* rev 2: 2 */
-					{ "wr", 1 }, 	/* rev 2: 3 */
+					{ "dc", 0 },	/* rev 2: 2 */
+					{ "wr", 1 },	/* rev 2: 3 */
 					{ "cs", 8 },
 					{ "db00", 17 },
 					{ "db01", 18 },
