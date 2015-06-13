@@ -355,14 +355,14 @@ struct acpi_offsets {
 	u8 mode;		/* int or string? */
 };
 
-static struct acpi_offsets state_offsets[] = {
+static const struct acpi_offsets state_offsets[] = {
 	{offsetof(struct acpi_battery, state), 0},
 	{offsetof(struct acpi_battery, rate_now), 0},
 	{offsetof(struct acpi_battery, capacity_now), 0},
 	{offsetof(struct acpi_battery, voltage_now), 0},
 };
 
-static struct acpi_offsets info_offsets[] = {
+static const struct acpi_offsets info_offsets[] = {
 	{offsetof(struct acpi_battery, power_unit), 0},
 	{offsetof(struct acpi_battery, design_capacity), 0},
 	{offsetof(struct acpi_battery, full_charge_capacity), 0},
@@ -378,7 +378,7 @@ static struct acpi_offsets info_offsets[] = {
 	{offsetof(struct acpi_battery, oem_info), 1},
 };
 
-static struct acpi_offsets extended_info_offsets[] = {
+static const struct acpi_offsets extended_info_offsets[] = {
 	{offsetof(struct acpi_battery, revision), 0},
 	{offsetof(struct acpi_battery, power_unit), 0},
 	{offsetof(struct acpi_battery, design_capacity), 0},
@@ -403,7 +403,7 @@ static struct acpi_offsets extended_info_offsets[] = {
 
 static int extract_package(struct acpi_battery *battery,
 			   union acpi_object *package,
-			   struct acpi_offsets *offsets, int num)
+			   const struct acpi_offsets *offsets, int num)
 {
 	int i;
 	union acpi_object *element;
