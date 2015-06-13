@@ -755,6 +755,9 @@ void mei_cl_set_disconnected(struct mei_cl *cl)
 	if (!WARN_ON(cl->me_cl->connect_count == 0))
 		cl->me_cl->connect_count--;
 
+	if (cl->me_cl->connect_count == 0)
+		cl->me_cl->mei_flow_ctrl_creds = 0;
+
 	mei_me_cl_put(cl->me_cl);
 	cl->me_cl = NULL;
 }
