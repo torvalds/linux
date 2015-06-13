@@ -394,9 +394,11 @@ ip_proto_again:
 
 		opthdr = __skb_header_pointer(skb, nhoff, sizeof(_opthdr),
 					      data, hlen, &_opthdr);
+		if (!opthdr)
+			return false;
 
-		ip_proto = _opthdr[0];
-		nhoff += (_opthdr[1] + 1) << 3;
+		ip_proto = opthdr[0];
+		nhoff += (opthdr[1] + 1) << 3;
 
 		goto ip_proto_again;
 	}
