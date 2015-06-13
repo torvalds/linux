@@ -447,11 +447,11 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 	else
 		data->num_phys = 3;
 
-	if (of_device_is_compatible(np, "allwinner,sun4i-a10-usb-phy") ||
-	    of_device_is_compatible(np, "allwinner,sun6i-a31-usb-phy"))
-		data->disc_thresh = 3;
-	else
+	if (of_device_is_compatible(np, "allwinner,sun5i-a13-usb-phy") ||
+	    of_device_is_compatible(np, "allwinner,sun7i-a20-usb-phy"))
 		data->disc_thresh = 2;
+	else
+		data->disc_thresh = 3;
 
 	if (of_device_is_compatible(np, "allwinner,sun6i-a31-usb-phy"))
 		dedicated_clocks = true;
