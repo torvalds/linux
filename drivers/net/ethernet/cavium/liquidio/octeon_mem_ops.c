@@ -174,7 +174,7 @@ octeon_pci_write_core_mem(struct octeon_device *oct,
 
 u64 octeon_read_device_mem64(struct octeon_device *oct, u64 coreaddr)
 {
-	u64 ret;
+	__be64 ret;
 
 	__octeon_pci_rw_core_mem(oct, coreaddr, (u8 *)&ret, 8, 1);
 
@@ -183,7 +183,7 @@ u64 octeon_read_device_mem64(struct octeon_device *oct, u64 coreaddr)
 
 u32 octeon_read_device_mem32(struct octeon_device *oct, u64 coreaddr)
 {
-	u32 ret;
+	__be32 ret;
 
 	__octeon_pci_rw_core_mem(oct, coreaddr, (u8 *)&ret, 4, 1);
 
@@ -193,7 +193,7 @@ u32 octeon_read_device_mem32(struct octeon_device *oct, u64 coreaddr)
 void octeon_write_device_mem32(struct octeon_device *oct, u64 coreaddr,
 			       u32 val)
 {
-	u32 t = cpu_to_be32(val);
+	__be32 t = cpu_to_be32(val);
 
 	__octeon_pci_rw_core_mem(oct, coreaddr, (u8 *)&t, 4, 0);
 }

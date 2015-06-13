@@ -43,6 +43,7 @@ config	THUNDER_NIC_BGX
 
 config LIQUIDIO
 	tristate "Cavium LiquidIO support"
+	depends on 64BIT
 	select PTP_1588_CLOCK
 	select FW_LOADER
 	select LIBCRC32

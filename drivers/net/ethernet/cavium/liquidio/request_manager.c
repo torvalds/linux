@@ -26,6 +26,7 @@
 #include <linux/pci.h>
 #include <linux/kthread.h>
 #include <linux/netdevice.h>
+#include <linux/vmalloc.h>
 #include "octeon_config.h"
 #include "liquidio_common.h"
 #include "octeon_droq.h"
@@ -453,9 +454,10 @@ update_iq_indices(struct octeon_device *oct, struct octeon_instr_queue *iq)
 	if (iq->flush_index != iq->octeon_read_index)
 		inst_processed = lio_process_iq_request_list(oct, iq);
 
-	if (inst_processed)
+	if (inst_processed) {
 		atomic_sub(inst_processed, &iq->instr_pending);
 		iq->stats.instr_processed += inst_processed;
+	}
 }
 
 static void

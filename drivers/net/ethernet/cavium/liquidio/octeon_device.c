@@ -27,6 +27,7 @@
 #include <linux/crc32.h>
 #include <linux/kthread.h>
 #include <linux/netdevice.h>
+#include <linux/vmalloc.h>
 #include "octeon_config.h"
 #include "liquidio_common.h"
 #include "octeon_droq.h"
@@ -463,7 +464,7 @@ static u32 octeon_device_count;
 
 static struct octeon_core_setup core_setup[MAX_OCTEON_DEVICES];
 
-void oct_set_config_info(int oct_id, int conf_type)
+static void oct_set_config_info(int oct_id, int conf_type)
 {
 	if (conf_type < 0 || conf_type > (NUM_OCTEON_CONFS - 1))
 		conf_type = OCTEON_CONFIG_TYPE_DEFAULT;
@@ -570,7 +571,7 @@ int octeon_download_firmware(struct octeon_device *oct, const u8 *data,
 
 	h = (struct octeon_firmware_file_header *)data;
 
-	if (h->magic != be32_to_cpu(LIO_NIC_MAGIC)) {
+	if (be32_to_cpu(h->magic) != LIO_NIC_MAGIC) {
 		dev_err(&oct->pci_dev->dev, "Unrecognized firmware file.\n");
 		return -EINVAL;
 	}
@@ -1108,11 +1109,12 @@ int octeon_core_drv_init(struct octeon_recv_info *recv_info, void *buf)
 		(u32)recv_pkt->rh.r_core_drv_init.app_mode),
 		sizeof(app_name) - 1);
 	oct->app_mode = (u32)recv_pkt->rh.r_core_drv_init.app_mode;
-	if (recv_pkt->rh.r_core_drv_init.app_mode == CVM_DRV_NIC_APP)
+	if (recv_pkt->rh.r_core_drv_init.app_mode == CVM_DRV_NIC_APP) {
 		oct->fw_info.max_nic_ports =
 			(u32)recv_pkt->rh.r_core_drv_init.max_nic_ports;
 		oct->fw_info.num_gmx_ports =
 			(u32)recv_pkt->rh.r_core_drv_init.num_gmx_ports;
+	}
 
 	if (oct->fw_info.max_nic_ports < num_nic_ports) {
 		dev_err(&oct->pci_dev->dev,

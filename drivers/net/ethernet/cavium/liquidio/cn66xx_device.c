@@ -537,7 +537,7 @@ void lio_cn6xxx_disable_interrupt(void *chip)
 	mmiowb();
 }
 
-void lio_cn6xxx_get_pcie_qlmport(struct octeon_device *oct)
+static void lio_cn6xxx_get_pcie_qlmport(struct octeon_device *oct)
 {
 	/* CN63xx Pass2 and newer parts implements the SLI_MAC_NUMBER register
 	 * to determine the PCIE port #

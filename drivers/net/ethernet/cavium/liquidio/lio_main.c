@@ -26,6 +26,7 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/ip.h>
+#include <net/ip.h>
 #include <linux/ipv6.h>
 #include <linux/net_tstamp.h>
 #include <linux/if_vlan.h>
@@ -210,7 +211,7 @@ static int liquidio_probe(struct pci_dev *pdev,
 static struct handshake handshake[MAX_OCTEON_DEVICES];
 static struct completion first_stage;
 
-void octeon_droq_bh(unsigned long pdev)
+static void octeon_droq_bh(unsigned long pdev)
 {
 	int q_no;
 	int reschedule = 0;
@@ -230,7 +231,7 @@ void octeon_droq_bh(unsigned long pdev)
 		tasklet_schedule(&oct_priv->droq_tasklet);
 }
 
-int lio_wait_for_oq_pkts(struct octeon_device *oct)
+static int lio_wait_for_oq_pkts(struct octeon_device *oct)
 {
 	struct octeon_device_priv *oct_priv =
 		(struct octeon_device_priv *)oct->priv;
@@ -2615,7 +2616,7 @@ static inline int is_ip_fragmented(struct sk_buff *skb)
 	 * with more to follow; the current offset could be 0 ).
 	 * -  ths offset field is non-zero.
 	 */
-	return htons(ip_hdr(skb)->frag_off) & 0x3fff;
+	return (ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)) ? 1 : 0;
 }
 
 static inline int is_ipv6(struct sk_buff *skb)
@@ -3080,7 +3081,7 @@ static int __init liquidio_init(void)
 	return 0;
 }
 
-int lio_nic_info(struct octeon_recv_info *recv_info, void *buf)
+static int lio_nic_info(struct octeon_recv_info *recv_info, void *buf)
 {
 	struct octeon_device *oct = (struct octeon_device *)buf;
 	struct octeon_recv_pkt *recv_pkt = recv_info->recv_pkt;
