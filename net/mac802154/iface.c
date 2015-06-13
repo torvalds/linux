@@ -308,6 +308,7 @@ static int mac802154_slave_close(struct net_device *dev)
 	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 
 	if (!local->open_count) {
+		flush_workqueue(local->workqueue);
 		hrtimer_cancel(&local->ifs_timer);
 		drv_stop(local);
 	}
