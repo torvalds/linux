@@ -173,8 +173,8 @@ static inline bool ipv6_anycast_destination(const struct dst_entry *dst,
 		 ipv6_addr_equal(&rt->rt6i_dst.addr, daddr));
 }
 
-int ip6_fragment(struct sock *sk, struct sk_buff *skb,
-		 int (*output)(struct sock *, struct sk_buff *));
+int ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
+		 int (*output)(struct net *, struct sock *, struct sk_buff *));
 
 static inline int ip6_skb_dst_mtu(struct sk_buff *skb)
 {
