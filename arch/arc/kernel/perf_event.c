@@ -266,7 +266,6 @@ static int arc_pmu_add(struct perf_event *event, int flags)
 
 static int arc_pmu_device_probe(struct platform_device *pdev)
 {
-	struct arc_pmu *arc_pmu;
 	struct arc_reg_pct_build pct_bcr;
 	struct arc_reg_cc_build cc_bcr;
 	int i, j, ret;
