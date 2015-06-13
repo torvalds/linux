@@ -23,6 +23,7 @@
 
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/extcon.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -99,6 +100,7 @@ struct sun4i_usb_phy_data {
 		int index;
 	} phys[MAX_PHYS];
 	/* phy0 / otg related variables */
+	struct extcon_dev *extcon;
 	bool phy0_init;
 	bool phy0_poll;
 	struct gpio_desc *id_det_gpio;
@@ -343,7 +345,7 @@ static void sun4i_usb_phy0_id_vbus_det_scan(struct work_struct *work)
 	struct sun4i_usb_phy_data *data =
 		container_of(work, struct sun4i_usb_phy_data, detect.work);
 	struct phy *phy0 = data->phys[0].phy;
-	int id_det, vbus_det;
+	int id_det, vbus_det, id_notify = 0, vbus_notify = 0;
 
 	id_det = gpiod_get_value_cansleep(data->id_det_gpio);
 	vbus_det = gpiod_get_value_cansleep(data->vbus_det_gpio);
@@ -358,14 +360,23 @@ static void sun4i_usb_phy0_id_vbus_det_scan(struct work_struct *work)
 	if (id_det != data->id_det) {
 		sun4i_usb_phy0_set_id_detect(phy0, id_det);
 		data->id_det = id_det;
+		id_notify = 1;
 	}
 
 	if (vbus_det != data->vbus_det) {
 		sun4i_usb_phy0_set_vbus_detect(phy0, vbus_det);
 		data->vbus_det = vbus_det;
+		vbus_notify = 1;
 	}
 
 	mutex_unlock(&phy0->mutex);
+
+	if (id_notify)
+		extcon_set_cable_state_(data->extcon, EXTCON_USB_HOST,
+					!id_det);
+
+	if (vbus_notify)
+		extcon_set_cable_state_(data->extcon, EXTCON_USB, vbus_det);
 
 	if (data->phy0_poll)
 		queue_delayed_work(system_wq, &data->detect, POLL_TIME);
@@ -406,6 +417,12 @@ static int sun4i_usb_phy_remove(struct platform_device *pdev)
 
 	return 0;
 }
+
+static const unsigned int sun4i_usb_phy0_cable[] = {
+	EXTCON_USB,
+	EXTCON_USB_HOST,
+	EXTCON_NONE,
+};
 
 static int sun4i_usb_phy_probe(struct platform_device *pdev)
 {
@@ -464,6 +481,19 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 	if (!data->id_det_gpio != !data->vbus_det_gpio) {
 		dev_err(dev, "failed to get id or vbus detect pin\n");
 		return -ENODEV;
+	}
+
+	if (data->id_det_gpio) {
+		data->extcon = devm_extcon_dev_allocate(dev,
+							sun4i_usb_phy0_cable);
+		if (IS_ERR(data->extcon))
+			return PTR_ERR(data->extcon);
+
+		ret = devm_extcon_dev_register(dev, data->extcon);
+		if (ret) {
+			dev_err(dev, "failed to register extcon: %d\n", ret);
+			return ret;
+		}
 	}
 
 	for (i = 0; i < data->num_phys; i++) {
