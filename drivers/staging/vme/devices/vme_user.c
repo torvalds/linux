@@ -563,31 +563,6 @@ static const struct file_operations vme_user_fops = {
 	.mmap = vme_user_mmap,
 };
 
-/*
- * Unallocate a previously allocated buffer
- */
-static void buf_unalloc(int num)
-{
-	if (image[num].kern_buf) {
-#ifdef VME_DEBUG
-		pr_debug("UniverseII:Releasing buffer at %p\n",
-			 image[num].pci_buf);
-#endif
-
-		vme_free_consistent(image[num].resource, image[num].size_buf,
-			image[num].kern_buf, image[num].pci_buf);
-
-		image[num].kern_buf = NULL;
-		image[num].pci_buf = 0;
-		image[num].size_buf = 0;
-
-#ifdef VME_DEBUG
-	} else {
-		pr_debug("UniverseII: Buffer not allocated\n");
-#endif
-	}
-}
-
 static int vme_user_match(struct vme_dev *vdev)
 {
 	int i;
@@ -765,7 +740,8 @@ err_master:
 err_slave:
 	while (i > SLAVE_MINOR) {
 		i--;
-		buf_unalloc(i);
+		vme_free_consistent(image[i].resource, image[i].size_buf,
+				    image[i].kern_buf, image[i].pci_buf);
 		vme_slave_free(image[i].resource);
 	}
 err_class:
@@ -795,7 +771,8 @@ static int vme_user_remove(struct vme_dev *dev)
 
 	for (i = SLAVE_MINOR; i < (SLAVE_MAX + 1); i++) {
 		vme_slave_set(image[i].resource, 0, 0, 0, 0, VME_A32, 0);
-		buf_unalloc(i);
+		vme_free_consistent(image[i].resource, image[i].size_buf,
+				    image[i].kern_buf, image[i].pci_buf);
 		vme_slave_free(image[i].resource);
 	}
 
