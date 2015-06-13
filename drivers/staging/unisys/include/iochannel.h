@@ -30,13 +30,7 @@
 
 #include <linux/uuid.h>
 
-#include "vmcallinterface.h"
-
-#define _ULTRA_CONTROLVM_CHANNEL_INLINE_
 #include <linux/dma-direction.h>
-#include "controlvmchannel.h"
-#include "vbuschannel.h"
-#undef _ULTRA_CONTROLVM_CHANNEL_INLINE_
 #include "channel.h"
 #include "channel_guid.h"
 
