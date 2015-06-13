@@ -1751,6 +1751,7 @@ static int cleaner_kthread(void *arg)
 {
 	struct btrfs_root *root = arg;
 	int again;
+	struct btrfs_trans_handle *trans;
 
 	do {
 		again = 0;
@@ -1798,6 +1799,34 @@ sleep:
 			__set_current_state(TASK_RUNNING);
 		}
 	} while (!kthread_should_stop());
+
+	/*
+	 * Transaction kthread is stopped before us and wakes us up.
+	 * However we might have started a new transaction and COWed some
+	 * tree blocks when deleting unused block groups for example. So
+	 * make sure we commit the transaction we started to have a clean
+	 * shutdown when evicting the btree inode - if it has dirty pages
+	 * when we do the final iput() on it, eviction will trigger a
+	 * writeback for it which will fail with null pointer dereferences
+	 * since work queues and other resources were already released and
+	 * destroyed by the time the iput/eviction/writeback is made.
+	 */
+	trans = btrfs_attach_transaction(root);
+	if (IS_ERR(trans)) {
+		if (PTR_ERR(trans) != -ENOENT)
+			btrfs_err(root->fs_info,
+				  "cleaner transaction attach returned %ld",
+				  PTR_ERR(trans));
+	} else {
+		int ret;
+
+		ret = btrfs_commit_transaction(trans, root);
+		if (ret)
+			btrfs_err(root->fs_info,
+				  "cleaner open transaction commit returned %d",
+				  ret);
+	}
+
 	return 0;
 }
 
