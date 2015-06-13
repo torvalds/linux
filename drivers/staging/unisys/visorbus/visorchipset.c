@@ -2017,9 +2017,8 @@ cleanup:
 static void
 bus_create_response(struct visor_device *bus_info, int response)
 {
-	if (response >= 0) {
+	if (response >= 0)
 		bus_info->state.created = 1;
-	}
 
 	bus_responder(CONTROLVM_BUS_CREATE, bus_info->pending_msg_hdr,
 		      response);
