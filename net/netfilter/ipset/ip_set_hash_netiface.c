@@ -143,7 +143,7 @@ static const char *get_physindev_name(const struct sk_buff *skb)
 	return dev ? dev->name : NULL;
 }
 
-static const char *get_phyoutdev_name(const struct sk_buff *skb)
+static const char *get_physoutdev_name(const struct sk_buff *skb)
 {
 	struct net_device *dev = nf_bridge_get_physoutdev(skb);
 
@@ -178,15 +178,16 @@ hash_netiface4_kadt(struct ip_set *set, const struct sk_buff *skb,
 	if (opt->cmdflags & IPSET_FLAG_PHYSDEV) {
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 		const char *eiface = SRCDIR ? get_physindev_name(skb) :
-					      get_phyoutdev_name(skb);
+					      get_physoutdev_name(skb);
 
 		if (!eiface)
 			return -EINVAL;
 		STRLCPY(e.iface, eiface);
 		e.physdev = 1;
 #endif
-	} else
+	} else {
 		STRLCPY(e.iface, SRCDIR ? IFACE(in) : IFACE(out));
+	}
 
 	if (strlen(e.iface) == 0)
 		return -EINVAL;
@@ -229,6 +230,7 @@ hash_netiface4_uadt(struct ip_set *set, struct nlattr *tb[],
 
 	if (tb[IPSET_ATTR_CADT_FLAGS]) {
 		u32 cadt_flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
+
 		if (cadt_flags & IPSET_FLAG_PHYSDEV)
 			e.physdev = 1;
 		if (cadt_flags & IPSET_FLAG_NOMATCH)
@@ -249,8 +251,9 @@ hash_netiface4_uadt(struct ip_set *set, struct nlattr *tb[],
 			swap(ip, ip_to);
 		if (ip + UINT_MAX == ip_to)
 			return -IPSET_ERR_HASH_RANGE;
-	} else
+	} else {
 		ip_set_mask_from_to(ip, ip_to, e.cidr);
+	}
 
 	if (retried)
 		ip = ntohl(h->next.ip);
@@ -261,8 +264,8 @@ hash_netiface4_uadt(struct ip_set *set, struct nlattr *tb[],
 
 		if (ret && !ip_set_eexist(ret, flags))
 			return ret;
-		else
-			ret = 0;
+
+		ret = 0;
 		ip = last + 1;
 	}
 	return ret;
@@ -385,15 +388,16 @@ hash_netiface6_kadt(struct ip_set *set, const struct sk_buff *skb,
 	if (opt->cmdflags & IPSET_FLAG_PHYSDEV) {
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 		const char *eiface = SRCDIR ? get_physindev_name(skb) :
-					      get_phyoutdev_name(skb);
+					      get_physoutdev_name(skb);
+
 		if (!eiface)
 			return -EINVAL;
-
 		STRLCPY(e.iface, eiface);
 		e.physdev = 1;
 #endif
-	} else
+	} else {
 		STRLCPY(e.iface, SRCDIR ? IFACE(in) : IFACE(out));
+	}
 
 	if (strlen(e.iface) == 0)
 		return -EINVAL;
@@ -403,7 +407,7 @@ hash_netiface6_kadt(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 hash_netiface6_uadt(struct ip_set *set, struct nlattr *tb[],
-		   enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
+		    enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
 {
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_netiface6_elem e = { .cidr = HOST_MASK, .elem = 1 };
@@ -440,6 +444,7 @@ hash_netiface6_uadt(struct ip_set *set, struct nlattr *tb[],
 
 	if (tb[IPSET_ATTR_CADT_FLAGS]) {
 		u32 cadt_flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
+
 		if (cadt_flags & IPSET_FLAG_PHYSDEV)
 			e.physdev = 1;
 		if (cadt_flags & IPSET_FLAG_NOMATCH)

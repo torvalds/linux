@@ -155,8 +155,8 @@ hash_ipmark4_uadt(struct ip_set *set, struct nlattr *tb[],
 
 		if (ret && !ip_set_eexist(ret, flags))
 			return ret;
-		else
-			ret = 0;
+
+		ret = 0;
 	}
 	return ret;
 }
@@ -205,7 +205,6 @@ hash_ipmark6_data_next(struct hash_ipmark4_elem *next,
 #define HOST_MASK	128
 #define IP_SET_EMIT_CREATE
 #include "ip_set_hash_gen.h"
-
 
 static int
 hash_ipmark6_kadt(struct ip_set *set, const struct sk_buff *skb,
@@ -268,10 +267,8 @@ hash_ipmark6_uadt(struct ip_set *set, struct nlattr *tb[],
 	ret = adtfn(set, &e, &ext, &ext, flags);
 	if (ret && !ip_set_eexist(ret, flags))
 		return ret;
-	else
-		ret = 0;
 
-	return ret;
+	return 0;
 }
 
 static struct ip_set_type hash_ipmark_type __read_mostly = {

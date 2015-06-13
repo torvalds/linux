@@ -206,14 +206,15 @@ list_set_utest(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 			continue;
 		}
 
-		if (d->before == 0)
+		if (d->before == 0) {
 			ret = 1;
-		else if (d->before > 0) {
+		} else if (d->before > 0) {
 			next = list_next_entry(e, list);
 			ret = !list_is_last(&e->list, &map->members) &&
 			      next->id == d->refid;
-		} else
+		} else {
 			ret = prev && prev->id == d->refid;
+		}
 		return ret;
 	}
 	return 0;
@@ -558,7 +559,7 @@ static const struct ip_set_type_variant set_variant = {
 static void
 list_set_gc(unsigned long ul_set)
 {
-	struct ip_set *set = (struct ip_set *) ul_set;
+	struct ip_set *set = (struct ip_set *)ul_set;
 	struct list_set *map = set->data;
 
 	spin_lock_bh(&set->lock);
@@ -575,7 +576,7 @@ list_set_gc_init(struct ip_set *set, void (*gc)(unsigned long ul_set))
 	struct list_set *map = set->data;
 
 	init_timer(&map->gc);
-	map->gc.data = (unsigned long) set;
+	map->gc.data = (unsigned long)set;
 	map->gc.function = gc;
 	map->gc.expires = jiffies + IPSET_GC_PERIOD(set->timeout) * HZ;
 	add_timer(&map->gc);

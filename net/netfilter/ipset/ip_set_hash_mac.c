@@ -89,10 +89,10 @@ hash_mac4_kadt(struct ip_set *set, const struct sk_buff *skb,
 		return 0;
 
 	if (skb_mac_header(skb) < skb->head ||
-	     (skb_mac_header(skb) + ETH_HLEN) > skb->data)
+	    (skb_mac_header(skb) + ETH_HLEN) > skb->data)
 		return -EINVAL;
 
-	memcpy(e.ether, eth_hdr(skb)->h_source, ETH_ALEN);
+	ether_addr_copy(e.ether, eth_hdr(skb)->h_source);
 	if (memcmp(e.ether, invalid_ether, ETH_ALEN) == 0)
 		return -EINVAL;
 	return adtfn(set, &e, &ext, &opt->ext, opt->cmdflags);
@@ -116,7 +116,7 @@ hash_mac4_uadt(struct ip_set *set, struct nlattr *tb[],
 	ret = ip_set_get_extensions(set, tb, &ext);
 	if (ret)
 		return ret;
-	memcpy(e.ether, nla_data(tb[IPSET_ATTR_ETHER]), ETH_ALEN);
+	ether_addr_copy(e.ether, nla_data(tb[IPSET_ATTR_ETHER]));
 	if (memcmp(e.ether, invalid_ether, ETH_ALEN) == 0)
 		return -IPSET_ERR_HASH_ELEM;
 

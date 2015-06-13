@@ -41,7 +41,7 @@ mtype_gc_init(struct ip_set *set, void (*gc)(unsigned long ul_set))
 	struct mtype *map = set->data;
 
 	init_timer(&map->gc);
-	map->gc.data = (unsigned long) set;
+	map->gc.data = (unsigned long)set;
 	map->gc.function = gc;
 	map->gc.expires = jiffies + IPSET_GC_PERIOD(set->timeout) * HZ;
 	add_timer(&map->gc);
@@ -223,7 +223,7 @@ mtype_list(const struct ip_set *set,
 		if (!test_bit(id, map->members) ||
 		    (SET_WITH_TIMEOUT(set) &&
 #ifdef IP_SET_BITMAP_STORED_TIMEOUT
-		     mtype_is_filled((const struct mtype_elem *) x) &&
+		     mtype_is_filled((const struct mtype_elem *)x) &&
 #endif
 		     ip_set_timeout_expired(ext_timeout(x, set))))
 			continue;
@@ -240,7 +240,7 @@ mtype_list(const struct ip_set *set,
 		if (mtype_do_list(skb, map, id, set->dsize))
 			goto nla_put_failure;
 		if (ip_set_put_extensions(skb, set, x,
-		    mtype_is_filled((const struct mtype_elem *) x)))
+		    mtype_is_filled((const struct mtype_elem *)x)))
 			goto nla_put_failure;
 		ipset_nest_end(skb, nested);
 	}
@@ -266,13 +266,14 @@ out:
 static void
 mtype_gc(unsigned long ul_set)
 {
-	struct ip_set *set = (struct ip_set *) ul_set;
+	struct ip_set *set = (struct ip_set *)ul_set;
 	struct mtype *map = set->data;
 	void *x;
 	u32 id;
 
 	/* We run parallel with other readers (test element)
-	 * but adding/deleting new entries is locked out */
+	 * but adding/deleting new entries is locked out
+	 */
 	spin_lock_bh(&set->lock);
 	for (id = 0; id < map->elements; id++)
 		if (mtype_gc_test(id, map, set->dsize)) {
