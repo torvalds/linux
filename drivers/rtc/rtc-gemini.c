@@ -139,7 +139,7 @@ static int gemini_rtc_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	rtc->rtc_base = devm_ioremap(dev, res->start,
-				     res->end - res->start + 1);
+				     resource_size(res));
 
 	ret = devm_request_irq(dev, rtc->rtc_irq, gemini_rtc_interrupt,
 			       IRQF_SHARED, pdev->name, dev);
@@ -167,7 +167,6 @@ static int gemini_rtc_remove(struct platform_device *pdev)
 static struct platform_driver gemini_rtc_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= gemini_rtc_probe,
 	.remove		= gemini_rtc_remove,
