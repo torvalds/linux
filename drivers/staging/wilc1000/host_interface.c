@@ -7698,7 +7698,7 @@ static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo)
 			/* HT Cap. IE */
 			else if (pu8IEs[index] == HT_CAPABILITY_IE) {
 				/* if IE found set the flag */
-				pNewJoinBssParam->ht_capable = BTRUE;
+				pNewJoinBssParam->ht_capable = true;
 				index += pu8IEs[index + 1] + 2; /* ID,Length bytes and IE body */
 				/* PRINT_D(HOSTINF_DBG,"HT_CAPABALE\n"); */
 				continue;
@@ -7709,11 +7709,11 @@ static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo)
 				   ((pu8IEs[index + 6] == 0x00) || (pu8IEs[index + 6] == 0x01)) && /* OUI Sub Type */
 				   (pu8IEs[index + 7] == 0x01)) {
 				/* Presence of WMM Info/Param element indicates WMM capability */
-				pNewJoinBssParam->wmm_cap = BTRUE;
+				pNewJoinBssParam->wmm_cap = true;
 
 				/* Check if Bit 7 is set indicating U-APSD capability */
 				if (pu8IEs[index + 8] & (1 << 7)) {
-					pNewJoinBssParam->uapsd_cap = BTRUE;
+					pNewJoinBssParam->uapsd_cap = true;
 				}
 				index += pu8IEs[index + 1] + 2;
 				continue;
