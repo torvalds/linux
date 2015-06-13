@@ -2126,9 +2126,9 @@ kprobe_blacklist__find_by_address(struct list_head *blacklist,
 	return NULL;
 }
 
-/* Show an event */
-static int show_perf_probe_event(struct perf_probe_event *pev,
-				 const char *module)
+static int perf_probe_event__sprintf(struct perf_probe_event *pev,
+				     const char *module,
+				     struct strbuf *result)
 {
 	int i, ret;
 	char buf[128];
@@ -2141,24 +2141,44 @@ static int show_perf_probe_event(struct perf_probe_event *pev,
 
 	ret = e_snprintf(buf, 128, "%s:%s", pev->group, pev->event);
 	if (ret < 0)
-		return ret;
+		goto out;
 
-	pr_info("  %-20s (on %s", buf, place);
+	strbuf_addf(result, "  %-20s (on %s", buf, place);
 	if (module)
-		pr_info(" in %s", module);
+		strbuf_addf(result, " in %s", module);
 
 	if (pev->nargs > 0) {
-		pr_info(" with");
+		strbuf_addstr(result, " with");
 		for (i = 0; i < pev->nargs; i++) {
 			ret = synthesize_perf_probe_arg(&pev->args[i],
 							buf, 128);
 			if (ret < 0)
-				break;
-			pr_info(" %s", buf);
+				goto out;
+			strbuf_addf(result, " %s", buf);
 		}
 	}
-	pr_info(")\n");
+	strbuf_addch(result, ')');
+out:
 	free(place);
+	return ret;
+}
+
+/* Show an event */
+static int show_perf_probe_event(struct perf_probe_event *pev,
+				 const char *module, bool use_stdout)
+{
+	struct strbuf buf = STRBUF_INIT;
+	int ret;
+
+	ret = perf_probe_event__sprintf(pev, module, &buf);
+	if (ret >= 0) {
+		if (use_stdout)
+			printf("%s\n", buf.buf);
+		else
+			pr_info("%s\n", buf.buf);
+	}
+	strbuf_release(&buf);
+
 	return ret;
 }
 
@@ -2200,9 +2220,10 @@ static int __show_perf_probe_events(int fd, bool is_kprobe,
 				goto next;
 			ret = convert_to_perf_probe_event(&tev, &pev,
 								is_kprobe);
-			if (ret >= 0)
-				ret = show_perf_probe_event(&pev,
-							    tev.point.module);
+			if (ret < 0)
+				goto next;
+			ret = show_perf_probe_event(&pev, tev.point.module,
+						    true);
 		}
 next:
 		clear_perf_probe_event(&pev);
@@ -2468,7 +2489,7 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 		group = pev->group;
 		pev->event = tev->event;
 		pev->group = tev->group;
-		show_perf_probe_event(pev, tev->point.module);
+		show_perf_probe_event(pev, tev->point.module, false);
 		/* Trick here - restore current event/group */
 		pev->event = (char *)event;
 		pev->group = (char *)group;
