@@ -1633,7 +1633,7 @@ static int at86rf230_probe(struct spi_device *spi)
 
 	irq_type = irq_get_trigger_type(spi->irq);
 	if (!irq_type)
-		irq_type = IRQF_TRIGGER_RISING;
+		irq_type = IRQF_TRIGGER_HIGH;
 
 	rc = devm_request_irq(&spi->dev, spi->irq, at86rf230_isr,
 			      IRQF_SHARED | irq_type, dev_name(&spi->dev), lp);
