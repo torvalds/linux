@@ -51,12 +51,11 @@ static const struct regmap_range_cfg rt5670_ranges[] = {
 	  .window_len = 0x1, },
 };
 
-static struct reg_default init_list[] = {
+static const struct reg_default init_list[] = {
 	{ RT5670_PR_BASE + 0x14, 0x9a8a },
 	{ RT5670_PR_BASE + 0x38, 0x3ba1 },
 	{ RT5670_PR_BASE + 0x3d, 0x3640 },
 };
-#define RT5670_INIT_REG_LEN ARRAY_SIZE(init_list)
 
 static const struct reg_default rt5670_reg[] = {
 	{ 0x00, 0x0000 },
@@ -2809,7 +2808,7 @@ static const struct i2c_device_id rt5670_i2c_id[] = {
 MODULE_DEVICE_TABLE(i2c, rt5670_i2c_id);
 
 #ifdef CONFIG_ACPI
-static struct acpi_device_id rt5670_acpi_match[] = {
+static const struct acpi_device_id rt5670_acpi_match[] = {
 	{ "10EC5670", 0},
 	{ },
 };
