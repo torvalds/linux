@@ -166,12 +166,9 @@ mext_page_double_lock(struct inode *inode1, struct inode *inode2,
 	 */
 	wait_on_page_writeback(page[0]);
 	wait_on_page_writeback(page[1]);
-	if (inode1 > inode2) {
-		struct page *tmp;
-		tmp = page[0];
-		page[0] = page[1];
-		page[1] = tmp;
-	}
+	if (inode1 > inode2)
+		swap(page[0], page[1]);
+
 	return 0;
 }
 
