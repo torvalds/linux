@@ -730,6 +730,9 @@ const struct bpf_func_proto bpf_map_delete_elem_proto __weak;
 const struct bpf_func_proto bpf_get_prandom_u32_proto __weak;
 const struct bpf_func_proto bpf_get_smp_processor_id_proto __weak;
 const struct bpf_func_proto bpf_ktime_get_ns_proto __weak;
+const struct bpf_func_proto bpf_get_current_pid_tgid_proto __weak;
+const struct bpf_func_proto bpf_get_current_uid_gid_proto __weak;
+const struct bpf_func_proto bpf_get_current_comm_proto __weak;
 
 /* Always built-in helper functions. */
 const struct bpf_func_proto bpf_tail_call_proto = {

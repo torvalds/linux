@@ -162,6 +162,12 @@ static const struct bpf_func_proto *kprobe_prog_func_proto(enum bpf_func_id func
 		return &bpf_ktime_get_ns_proto;
 	case BPF_FUNC_tail_call:
 		return &bpf_tail_call_proto;
+	case BPF_FUNC_get_current_pid_tgid:
+		return &bpf_get_current_pid_tgid_proto;
+	case BPF_FUNC_get_current_uid_gid:
+		return &bpf_get_current_uid_gid_proto;
+	case BPF_FUNC_get_current_comm:
+		return &bpf_get_current_comm_proto;
 
 	case BPF_FUNC_trace_printk:
 		/*
