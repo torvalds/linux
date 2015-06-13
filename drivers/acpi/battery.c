@@ -1124,19 +1124,21 @@ static int battery_notify(struct notifier_block *nb,
 	return 0;
 }
 
-static int battery_bix_broken_package_quirk(const struct dmi_system_id *d)
+static int __init
+battery_bix_broken_package_quirk(const struct dmi_system_id *d)
 {
 	battery_bix_broken_package = 1;
 	return 0;
 }
 
-static int battery_notification_delay_quirk(const struct dmi_system_id *d)
+static int __init
+battery_notification_delay_quirk(const struct dmi_system_id *d)
 {
 	battery_notification_delay_ms = 1000;
 	return 0;
 }
 
-static struct dmi_system_id bat_dmi_table[] = {
+static const struct dmi_system_id bat_dmi_table[] __initconst = {
 	{
 		.callback = battery_bix_broken_package_quirk,
 		.ident = "NEC LZ750/LS",
