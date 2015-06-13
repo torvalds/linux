@@ -207,7 +207,7 @@ static inline int ipmi_demangle_device_id(const unsigned char *data,
    upper layer until the start_processing() function in the handlers
    is called, and the lower layer must get the interface from that
    call. */
-int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
+int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
 		      void                     *send_info,
 		      struct ipmi_device_id    *device_id,
 		      struct device            *dev,

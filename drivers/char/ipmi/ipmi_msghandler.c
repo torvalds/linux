@@ -342,7 +342,7 @@ struct ipmi_smi {
 	 * an umpreemptible region to use this.  You must fetch the
 	 * value into a local variable and make sure it is not NULL.
 	 */
-	struct ipmi_smi_handlers *handlers;
+	const struct ipmi_smi_handlers *handlers;
 	void                     *send_info;
 
 #ifdef CONFIG_PROC_FS
@@ -1015,7 +1015,7 @@ int ipmi_get_smi_info(int if_num, struct ipmi_smi_info *data)
 {
 	int           rv = 0;
 	ipmi_smi_t    intf;
-	struct ipmi_smi_handlers *handlers;
+	const struct ipmi_smi_handlers *handlers;
 
 	mutex_lock(&ipmi_interfaces_mutex);
 	list_for_each_entry_rcu(intf, &ipmi_interfaces, link) {
@@ -1501,7 +1501,7 @@ static struct ipmi_smi_msg *smi_add_send_msg(ipmi_smi_t intf,
 }
 
 
-static void smi_send(ipmi_smi_t intf, struct ipmi_smi_handlers *handlers,
+static void smi_send(ipmi_smi_t intf, const struct ipmi_smi_handlers *handlers,
 		     struct ipmi_smi_msg *smi_msg, int priority)
 {
 	int run_to_completion = intf->run_to_completion;
@@ -2747,7 +2747,7 @@ void ipmi_poll_interface(ipmi_user_t user)
 }
 EXPORT_SYMBOL(ipmi_poll_interface);
 
-int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
+int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
 		      void		       *send_info,
 		      struct ipmi_device_id    *device_id,
 		      struct device            *si_dev,
@@ -4019,7 +4019,7 @@ static void check_msg_timeout(ipmi_smi_t intf, struct seq_table *ent,
 			      unsigned int *waiting_msgs)
 {
 	struct ipmi_recv_msg     *msg;
-	struct ipmi_smi_handlers *handlers;
+	const struct ipmi_smi_handlers *handlers;
 
 	if (intf->in_shutdown)
 		return;
@@ -4086,7 +4086,7 @@ static void check_msg_timeout(ipmi_smi_t intf, struct seq_table *ent,
 				ipmi_inc_stat(intf,
 					      retransmitted_ipmb_commands);
 
-			smi_send(intf, intf->handlers, smi_msg, 0);
+			smi_send(intf, handlers, smi_msg, 0);
 		} else
 			ipmi_free_smi_msg(smi_msg);
 

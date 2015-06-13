@@ -163,7 +163,7 @@ struct smi_info {
 	int                    intf_num;
 	ipmi_smi_t             intf;
 	struct si_sm_data      *si_sm;
-	struct si_sm_handlers  *handlers;
+	const struct si_sm_handlers *handlers;
 	enum si_type           si_type;
 	spinlock_t             si_lock;
 	struct ipmi_smi_msg    *waiting_msg;
@@ -1254,7 +1254,7 @@ static void set_maintenance_mode(void *send_info, bool enable)
 		atomic_set(&smi_info->req_events, 0);
 }
 
-static struct ipmi_smi_handlers handlers = {
+static const struct ipmi_smi_handlers handlers = {
 	.owner                  = THIS_MODULE,
 	.start_processing       = smi_start_processing,
 	.get_smi_info		= get_smi_info,
@@ -1442,14 +1442,14 @@ static int std_irq_setup(struct smi_info *info)
 	return rv;
 }
 
-static unsigned char port_inb(struct si_sm_io *io, unsigned int offset)
+static unsigned char port_inb(const struct si_sm_io *io, unsigned int offset)
 {
 	unsigned int addr = io->addr_data;
 
 	return inb(addr + (offset * io->regspacing));
 }
 
-static void port_outb(struct si_sm_io *io, unsigned int offset,
+static void port_outb(const struct si_sm_io *io, unsigned int offset,
 		      unsigned char b)
 {
 	unsigned int addr = io->addr_data;
@@ -1457,14 +1457,14 @@ static void port_outb(struct si_sm_io *io, unsigned int offset,
 	outb(b, addr + (offset * io->regspacing));
 }
 
-static unsigned char port_inw(struct si_sm_io *io, unsigned int offset)
+static unsigned char port_inw(const struct si_sm_io *io, unsigned int offset)
 {
 	unsigned int addr = io->addr_data;
 
 	return (inw(addr + (offset * io->regspacing)) >> io->regshift) & 0xff;
 }
 
-static void port_outw(struct si_sm_io *io, unsigned int offset,
+static void port_outw(const struct si_sm_io *io, unsigned int offset,
 		      unsigned char b)
 {
 	unsigned int addr = io->addr_data;
@@ -1472,14 +1472,14 @@ static void port_outw(struct si_sm_io *io, unsigned int offset,
 	outw(b << io->regshift, addr + (offset * io->regspacing));
 }
 
-static unsigned char port_inl(struct si_sm_io *io, unsigned int offset)
+static unsigned char port_inl(const struct si_sm_io *io, unsigned int offset)
 {
 	unsigned int addr = io->addr_data;
 
 	return (inl(addr + (offset * io->regspacing)) >> io->regshift) & 0xff;
 }
 
-static void port_outl(struct si_sm_io *io, unsigned int offset,
+static void port_outl(const struct si_sm_io *io, unsigned int offset,
 		      unsigned char b)
 {
 	unsigned int addr = io->addr_data;
@@ -1552,49 +1552,52 @@ static int port_setup(struct smi_info *info)
 	return 0;
 }
 
-static unsigned char intf_mem_inb(struct si_sm_io *io, unsigned int offset)
+static unsigned char intf_mem_inb(const struct si_sm_io *io,
+				  unsigned int offset)
 {
 	return readb((io->addr)+(offset * io->regspacing));
 }
 
-static void intf_mem_outb(struct si_sm_io *io, unsigned int offset,
-		     unsigned char b)
+static void intf_mem_outb(const struct si_sm_io *io, unsigned int offset,
+			  unsigned char b)
 {
 	writeb(b, (io->addr)+(offset * io->regspacing));
 }
 
-static unsigned char intf_mem_inw(struct si_sm_io *io, unsigned int offset)
+static unsigned char intf_mem_inw(const struct si_sm_io *io,
+				  unsigned int offset)
 {
 	return (readw((io->addr)+(offset * io->regspacing)) >> io->regshift)
 		& 0xff;
 }
 
-static void intf_mem_outw(struct si_sm_io *io, unsigned int offset,
-		     unsigned char b)
+static void intf_mem_outw(const struct si_sm_io *io, unsigned int offset,
+			  unsigned char b)
 {
 	writeb(b << io->regshift, (io->addr)+(offset * io->regspacing));
 }
 
-static unsigned char intf_mem_inl(struct si_sm_io *io, unsigned int offset)
+static unsigned char intf_mem_inl(const struct si_sm_io *io,
+				  unsigned int offset)
 {
 	return (readl((io->addr)+(offset * io->regspacing)) >> io->regshift)
 		& 0xff;
 }
 
-static void intf_mem_outl(struct si_sm_io *io, unsigned int offset,
-		     unsigned char b)
+static void intf_mem_outl(const struct si_sm_io *io, unsigned int offset,
+			  unsigned char b)
 {
 	writel(b << io->regshift, (io->addr)+(offset * io->regspacing));
 }
 
 #ifdef readq
-static unsigned char mem_inq(struct si_sm_io *io, unsigned int offset)
+static unsigned char mem_inq(const struct si_sm_io *io, unsigned int offset)
 {
 	return (readq((io->addr)+(offset * io->regspacing)) >> io->regshift)
 		& 0xff;
 }
 
-static void mem_outq(struct si_sm_io *io, unsigned int offset,
+static void mem_outq(const struct si_sm_io *io, unsigned int offset,
 		     unsigned char b)
 {
 	writeq(b << io->regshift, (io->addr)+(offset * io->regspacing));
@@ -2522,7 +2525,7 @@ static void ipmi_pci_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static struct pci_device_id ipmi_pci_devices[] = {
+static const struct pci_device_id ipmi_pci_devices[] = {
 	{ PCI_DEVICE(PCI_HP_VENDOR_ID, PCI_MMC_DEVICE_ID) },
 	{ PCI_DEVICE_CLASS(PCI_ERMC_CLASSCODE, PCI_ERMC_CLASSCODE_MASK) },
 	{ 0, }
@@ -2751,7 +2754,7 @@ err_free:
 	return rv;
 }
 
-static struct acpi_device_id acpi_ipmi_match[] = {
+static const struct acpi_device_id acpi_ipmi_match[] = {
 	{ "IPI0001", 0 },
 	{ },
 };
@@ -3324,7 +3327,7 @@ static inline void wait_for_timer_and_thread(struct smi_info *smi_info)
 		del_timer_sync(&smi_info->si_timer);
 }
 
-static struct ipmi_default_vals
+static const struct ipmi_default_vals
 {
 	int type;
 	int port;
