@@ -34,8 +34,7 @@ static struct platform_device *p_device;
 
 static char *name;
 module_param(name, charp, 0);
-MODULE_PARM_DESC(name, "Devicename (required). " \
-"name=list => list all supported devices.");
+MODULE_PARM_DESC(name, "Devicename (required). name=list => list all supported devices.");
 
 static unsigned rotate;
 module_param(rotate, uint, 0);
@@ -61,8 +60,7 @@ MODULE_PARM_DESC(mode, "SPI mode (override device default)");
 static char *gpios;
 module_param(gpios, charp, 0);
 MODULE_PARM_DESC(gpios,
-"List of gpios. Comma separated with the form: reset:23,dc:24 " \
-"(when overriding the default, all gpios must be specified)");
+"List of gpios. Comma separated with the form: reset:23,dc:24 (when overriding the default, all gpios must be specified)");
 
 static unsigned fps;
 module_param(fps, uint, 0);
@@ -88,8 +86,7 @@ MODULE_PARM_DESC(startbyte, "Sets the Start byte used by some SPI displays.");
 
 static bool custom;
 module_param(custom, bool, 0);
-MODULE_PARM_DESC(custom, "Add a custom display device. " \
-"Use speed= argument to make it a SPI device, else platform_device");
+MODULE_PARM_DESC(custom, "Add a custom display device. Use speed= argument to make it a SPI device, else platform_device");
 
 static unsigned width;
 module_param(width, uint, 0);
