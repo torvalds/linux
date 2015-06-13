@@ -1673,7 +1673,7 @@ static int acpi_bus_extract_wakeup_device_power_package(acpi_handle handle,
 
 static void acpi_wakeup_gpe_init(struct acpi_device *device)
 {
-	struct acpi_device_id button_device_ids[] = {
+	static const struct acpi_device_id button_device_ids[] = {
 		{"PNP0C0C", 0},
 		{"PNP0C0D", 0},
 		{"PNP0C0E", 0},
