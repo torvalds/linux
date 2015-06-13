@@ -209,6 +209,7 @@ config PHY_SUN4I_USB
 	depends on ARCH_SUNXI && HAS_IOMEM && OF
 	depends on RESET_CONTROLLER
 	depends on EXTCON
+	depends on POWER_SUPPLY
 	select GENERIC_PHY
 	help
 	  Enable this to support the transceiver that is part of Allwinner

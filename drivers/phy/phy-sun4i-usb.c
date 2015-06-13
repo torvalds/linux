@@ -36,6 +36,7 @@
 #include <linux/phy/phy.h>
 #include <linux/phy/phy-sun4i-usb.h>
 #include <linux/platform_device.h>
+#include <linux/power_supply.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
 #include <linux/workqueue.h>
@@ -108,6 +109,9 @@ struct sun4i_usb_phy_data {
 	bool phy0_poll;
 	struct gpio_desc *id_det_gpio;
 	struct gpio_desc *vbus_det_gpio;
+	struct power_supply *vbus_power_supply;
+	struct notifier_block vbus_power_nb;
+	bool vbus_power_nb_registered;
 	int id_det_irq;
 	int vbus_det_irq;
 	int id_det;
@@ -352,6 +356,30 @@ static struct phy_ops sun4i_usb_phy_ops = {
 	.owner		= THIS_MODULE,
 };
 
+static int sun4i_usb_phy0_get_vbus_det(struct sun4i_usb_phy_data *data)
+{
+	if (data->vbus_det_gpio)
+		return gpiod_get_value_cansleep(data->vbus_det_gpio);
+
+	if (data->vbus_power_supply) {
+		union power_supply_propval val;
+		int r;
+
+		r = power_supply_get_property(data->vbus_power_supply,
+					      POWER_SUPPLY_PROP_PRESENT, &val);
+		if (r == 0)
+			return val.intval;
+	}
+
+	/* Fallback: report vbus as high */
+	return 1;
+}
+
+static bool sun4i_usb_phy0_have_vbus_det(struct sun4i_usb_phy_data *data)
+{
+	return data->vbus_det_gpio || data->vbus_power_supply;
+}
+
 static void sun4i_usb_phy0_id_vbus_det_scan(struct work_struct *work)
 {
 	struct sun4i_usb_phy_data *data =
@@ -360,10 +388,7 @@ static void sun4i_usb_phy0_id_vbus_det_scan(struct work_struct *work)
 	int id_det, vbus_det, id_notify = 0, vbus_notify = 0;
 
 	id_det = gpiod_get_value_cansleep(data->id_det_gpio);
-	if (data->vbus_det_gpio)
-		vbus_det = gpiod_get_value_cansleep(data->vbus_det_gpio);
-	else
-		vbus_det = 1; /* Report vbus as high */
+	vbus_det = sun4i_usb_phy0_get_vbus_det(data);
 
 	mutex_lock(&phy0->mutex);
 
@@ -378,7 +403,7 @@ static void sun4i_usb_phy0_id_vbus_det_scan(struct work_struct *work)
 		 * without vbus detection report vbus low for long enough for
 		 * the musb-ip to end the current device session.
 		 */
-		if (!data->vbus_det_gpio && id_det == 0) {
+		if (!sun4i_usb_phy0_have_vbus_det(data) && id_det == 0) {
 			sun4i_usb_phy0_set_vbus_detect(phy0, 0);
 			msleep(200);
 			sun4i_usb_phy0_set_vbus_detect(phy0, 1);
@@ -404,7 +429,7 @@ static void sun4i_usb_phy0_id_vbus_det_scan(struct work_struct *work)
 		 * without vbus detection report vbus low for long enough to
 		 * the musb-ip to end the current host session.
 		 */
-		if (!data->vbus_det_gpio && id_det == 1) {
+		if (!sun4i_usb_phy0_have_vbus_det(data) && id_det == 1) {
 			mutex_lock(&phy0->mutex);
 			sun4i_usb_phy0_set_vbus_detect(phy0, 0);
 			msleep(1000);
@@ -430,6 +455,20 @@ static irqreturn_t sun4i_usb_phy0_id_vbus_det_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static int sun4i_usb_phy0_vbus_notify(struct notifier_block *nb,
+				      unsigned long val, void *v)
+{
+	struct sun4i_usb_phy_data *data =
+		container_of(nb, struct sun4i_usb_phy_data, vbus_power_nb);
+	struct power_supply *psy = v;
+
+	/* Properties on the vbus_power_supply changed, scan vbus_det */
+	if (val == PSY_EVENT_PROP_CHANGED && psy == data->vbus_power_supply)
+		mod_delayed_work(system_wq, &data->detect, DEBOUNCE_TIME);
+
+	return NOTIFY_OK;
+}
+
 static struct phy *sun4i_usb_phy_xlate(struct device *dev,
 					struct of_phandle_args *args)
 {
@@ -446,6 +485,8 @@ static int sun4i_usb_phy_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct sun4i_usb_phy_data *data = dev_get_drvdata(dev);
 
+	if (data->vbus_power_nb_registered)
+		power_supply_unreg_notifier(&data->vbus_power_nb);
 	if (data->id_det_irq >= 0)
 		devm_free_irq(dev, data->id_det_irq, data);
 	if (data->vbus_det_irq >= 0)
@@ -522,8 +563,18 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 		data->vbus_det_gpio = NULL;
 	}
 
+	if (of_find_property(np, "usb0_vbus_power-supply", NULL)) {
+		data->vbus_power_supply = devm_power_supply_get_by_phandle(dev,
+						     "usb0_vbus_power-supply");
+		if (IS_ERR(data->vbus_power_supply))
+			return PTR_ERR(data->vbus_power_supply);
+
+		if (!data->vbus_power_supply)
+			return -EPROBE_DEFER;
+	}
+
 	/* vbus_det without id_det makes no sense, and is not supported */
-	if (data->vbus_det_gpio && !data->id_det_gpio) {
+	if (sun4i_usb_phy0_have_vbus_det(data) && !data->id_det_gpio) {
 		dev_err(dev, "usb0_id_det missing or invalid\n");
 		return -ENODEV;
 	}
@@ -618,6 +669,17 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 			sun4i_usb_phy_remove(pdev); /* Stop detect work */
 			return ret;
 		}
+	}
+
+	if (data->vbus_power_supply) {
+		data->vbus_power_nb.notifier_call = sun4i_usb_phy0_vbus_notify;
+		data->vbus_power_nb.priority = 0;
+		ret = power_supply_reg_notifier(&data->vbus_power_nb);
+		if (ret) {
+			sun4i_usb_phy_remove(pdev); /* Stop detect work */
+			return ret;
+		}
+		data->vbus_power_nb_registered = true;
 	}
 
 	phy_provider = devm_of_phy_provider_register(dev, sun4i_usb_phy_xlate);

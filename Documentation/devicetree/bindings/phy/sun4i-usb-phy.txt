@@ -29,6 +29,7 @@ Required properties:
 Optional properties:
 - usb0_id_det-gpios : gpio phandle for reading the otg id pin value
 - usb0_vbus_det-gpios : gpio phandle for detecting the presence of usb0 vbus
+- usb0_vbus_power-supply: power-supply phandle for usb0 vbus presence detect
 - usb0_vbus-supply : regulator phandle for controller usb0 vbus
 - usb1_vbus-supply : regulator phandle for controller usb1 vbus
 - usb2_vbus-supply : regulator phandle for controller usb2 vbus
