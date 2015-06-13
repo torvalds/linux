@@ -109,7 +109,7 @@ find_video(acpi_handle handle, u32 lvl, void *context, void **rv)
 	struct pci_dev *dev;
 	struct acpi_device *acpi_dev;
 
-	const struct acpi_device_id video_ids[] = {
+	static const struct acpi_device_id video_ids[] = {
 		{ACPI_VIDEO_HID, 0},
 		{"", 0},
 	};
@@ -134,7 +134,7 @@ static int video_detect_force_vendor(const struct dmi_system_id *d)
 	return 0;
 }
 
-static struct dmi_system_id video_detect_dmi_table[] = {
+static const struct dmi_system_id video_detect_dmi_table[] = {
 	/* On Samsung X360, the BIOS will set a flag (VDRV) if generic
 	 * ACPI backlight device is used. This flag will definitively break
 	 * the backlight interface (even the vendor interface) untill next
