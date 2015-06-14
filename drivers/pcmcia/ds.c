@@ -633,8 +633,24 @@ static int pcmcia_card_add(struct pcmcia_socket *s)
 
 	ret = pccard_validate_cis(s, &no_chains);
 	if (ret || !no_chains) {
-		dev_dbg(&s->dev, "invalid CIS or invalid resources\n");
-		return -ENODEV;
+#if defined(CONFIG_MTD_PCMCIA_ANONYMOUS)
+		/* Set up as an anonymous card. If we don't have anonymous
+		   memory support then just error the card as there is no
+		   point trying to second guess.
+
+		   Note: some cards have just a device entry, it may be
+		   worth extending support to cover these in future */
+		if (ret == -EIO) {
+			dev_info(&s->dev, "no CIS, assuming an anonymous memory card.\n");
+			pcmcia_replace_cis(s, "\xFF", 1);
+			no_chains = 1;
+			ret = 0;
+		} else
+#endif
+		{
+			dev_dbg(&s->dev, "invalid CIS or invalid resources\n");
+			return -ENODEV;
+		}
 	}
 
 	if (!pccard_read_tuple(s, BIND_FN_ALL, CISTPL_LONGLINK_MFC, &mfc))
