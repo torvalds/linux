@@ -540,6 +540,17 @@ int snd_bebob_stream_init_duplex(struct snd_bebob *bebob)
 	/* See comments in next function */
 	init_completion(&bebob->bus_reset);
 	bebob->tx_stream.flags |= CIP_SKIP_INIT_DBC_CHECK;
+
+	/*
+	 * BeBoB v3 transfers packets with these qurks:
+	 *  - In the beginning of streaming, the value of dbc is incremented
+	 *    even if no data blocks are transferred.
+	 *  - The value of dbc is reset suddenly.
+	 */
+	if (bebob->version > 2)
+		bebob->tx_stream.flags |= CIP_EMPTY_HAS_WRONG_DBC |
+					  CIP_SKIP_DBC_ZERO_CHECK;
+
 	/*
 	 * At high sampling rate, M-Audio special firmware transmits empty
 	 * packet with the value of dbc incremented by 8 but the others are
