@@ -801,13 +801,13 @@ static void yenta_close(struct pci_dev *dev)
 	else
 		del_timer_sync(&sock->poll_timer);
 
-	if (sock->base)
-		iounmap(sock->base);
+	iounmap(sock->base);
 	yenta_free_resources(sock);
 
 	pci_release_regions(dev);
 	pci_disable_device(dev);
 	pci_set_drvdata(dev, NULL);
+	kfree(sock);
 }
 
 
@@ -1254,25 +1254,34 @@ static int yenta_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	/* Register it with the pcmcia layer.. */
 	ret = pcmcia_register_socket(&socket->socket);
-	if (ret == 0) {
-		/* Add the yenta register attributes */
-		ret = device_create_file(&dev->dev, &dev_attr_yenta_registers);
-		if (ret == 0)
-			goto out;
+	if (ret)
+		goto free_irq;
 
-		/* error path... */
-		pcmcia_unregister_socket(&socket->socket);
-	}
+	/* Add the yenta register attributes */
+	ret = device_create_file(&dev->dev, &dev_attr_yenta_registers);
+	if (ret)
+		goto unregister_socket;
 
+	return ret;
+
+	/* error path... */
+ unregister_socket:
+	pcmcia_unregister_socket(&socket->socket);
+ free_irq:
+	if (socket->cb_irq)
+		free_irq(socket->cb_irq, socket);
+	else
+		del_timer_sync(&socket->poll_timer);
  unmap:
 	iounmap(socket->base);
+	yenta_free_resources(socket);
  release:
 	pci_release_regions(dev);
  disable:
 	pci_disable_device(dev);
  free:
+	pci_set_drvdata(dev, NULL);
 	kfree(socket);
- out:
 	return ret;
 }
 
