@@ -978,32 +978,36 @@ unlock:
 	return ret;
 }
 
-static u32
-cpr_read_efuse(struct nvmem_device *qfprom, const struct qfprom_offset *efuse)
+static u32 cpr_read_efuse(void __iomem *prom, const struct qfprom_offset *efuse)
 {
 	u64 buffer = 0;
-	size_t bytes;
-	int ret;
+	u8 val;
+	int i, num_bytes;
 
-	bytes = DIV_ROUND_UP(efuse->width + efuse->shift, BITS_PER_BYTE);
-	ret = nvmem_device_read(qfprom, efuse->offset, bytes, &buffer);
+	num_bytes = DIV_ROUND_UP(efuse->width + efuse->shift, BITS_PER_BYTE);
+
+	for (i = 0; i < num_bytes; i++) {
+		val = readb_relaxed(prom + efuse->offset + i);
+		buffer |= val << (i * BITS_PER_BYTE);
+	}
 
 	buffer >>= efuse->shift;
-	buffer &= GENMASK(efuse->width - 1, 0);
+	buffer &= BIT(efuse->width) - 1;
 
 	return buffer;
 }
 
 static void
 cpr_populate_ring_osc_idx(const struct cpr_fuse *fuses, struct cpr_drv *drv,
-			  struct nvmem_device *qfprom)
+			  void __iomem *prom)
 {
 	struct fuse_corner *fuse = drv->fuse_corners;
 	struct fuse_corner *end = fuse + drv->num_fuse_corners;
 
 	for (; fuse < end; fuse++, fuses++)
-		fuse->ring_osc_idx = cpr_read_efuse(qfprom, &fuses->ring_osc);
+		fuse->ring_osc_idx = cpr_read_efuse(prom, &fuses->ring_osc);
 }
+
 
 static const struct corner_adjustment *cpr_find_adjustment(u32 speed_bin,
 		u32 pvs_version, u32 cpr_rev, const struct cpr_desc *desc,
@@ -1080,7 +1084,7 @@ static int cpr_read_fuse_uV(const struct cpr_desc *desc,
 
 static void cpr_fuse_corner_init(struct cpr_drv *drv,
 			const struct cpr_desc *desc,
-			struct nvmem_device *qfprom,
+			void __iomem *qfprom,
 			const struct cpr_fuse *fuses, u32 speed,
 			const struct corner_adjustment *adjustments,
 			const struct acc_desc *acc_desc)
@@ -1400,7 +1404,7 @@ static int cpr_interpolate(const struct corner *corner, int step_volt,
 
 static void cpr_corner_init(struct cpr_drv *drv, const struct cpr_desc *desc,
 			const struct cpr_fuse *fuses, u32 speed_bin,
-			u32 pvs_version, struct nvmem_device *qfprom,
+			u32 pvs_version, void __iomem *qfprom,
 			const struct corner_adjustment *adjustments,
 			const struct corner_data **plan)
 {
@@ -1540,7 +1544,7 @@ static void cpr_corner_init(struct cpr_drv *drv, const struct cpr_desc *desc,
 }
 
 static const struct cpr_fuse *
-cpr_get_fuses(const struct cpr_desc *desc, struct nvmem_device *qfprom)
+cpr_get_fuses(const struct cpr_desc *desc, void __iomem *qfprom)
 {
 	u32 expected = desc->cpr_fuses.redundant_value;
 	const struct qfprom_offset *fuse = &desc->cpr_fuses.redundant;
@@ -1552,7 +1556,7 @@ cpr_get_fuses(const struct cpr_desc *desc, struct nvmem_device *qfprom)
 }
 
 static bool cpr_is_close_loop_disabled(struct cpr_drv *drv,
-		const struct cpr_desc *desc, struct nvmem_device *qfprom,
+		const struct cpr_desc *desc, void __iomem *qfprom,
 		const struct cpr_fuse *fuses,
 		const struct corner_adjustment *adj)
 {
@@ -1822,12 +1826,12 @@ static int cpr_probe(struct platform_device *pdev)
 	const struct acc_desc *acc_desc;
 	const struct of_device_id *match;
 	struct device_node *np;
-	struct nvmem_device *qfprom;
+	void __iomem *qfprom;
 	u32 cpr_rev = FUSE_REVISION_UNKNOWN;
 	u32 speed_bin = SPEED_BIN_NONE;
 	u32 pvs_version = 0;
 
-	np = of_parse_phandle(dev->of_node, "nvmem", 0);
+	np = of_parse_phandle(dev->of_node, "eeprom", 0);
 	if (!np)
 		return -ENODEV;
 
@@ -1837,9 +1841,10 @@ static int cpr_probe(struct platform_device *pdev)
 		return -EINVAL;
 	desc = match->data;
 
-	qfprom = nvmem_device_get(dev, "qfprom");
-	if (IS_ERR(qfprom))
-		return PTR_ERR(qfprom);
+	/* TODO: Get from eeprom API */
+	qfprom = devm_ioremap(dev, 0x58000, 0x7000);
+	if (!qfprom)
+		return -ENOMEM;
 
 	len = sizeof(*drv) +
 	      sizeof(*drv->fuse_corners) * desc->num_fuse_corners +
