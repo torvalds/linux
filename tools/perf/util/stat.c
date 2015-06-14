@@ -94,3 +94,21 @@ void perf_stat_evsel_id_init(struct perf_evsel *evsel)
 		}
 	}
 }
+
+void perf_evsel__reset_counts(struct perf_evsel *evsel, int ncpus)
+{
+	memset(evsel->counts, 0, (sizeof(*evsel->counts) +
+				 (ncpus * sizeof(struct perf_counts_values))));
+}
+
+int perf_evsel__alloc_counts(struct perf_evsel *evsel, int ncpus)
+{
+	evsel->counts = zalloc((sizeof(*evsel->counts) +
+				(ncpus * sizeof(struct perf_counts_values))));
+	return evsel->counts != NULL ? 0 : -ENOMEM;
+}
+
+void perf_evsel__free_counts(struct perf_evsel *evsel)
+{
+	zfree(&evsel->counts);
+}

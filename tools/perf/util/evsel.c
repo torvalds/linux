@@ -26,6 +26,7 @@
 #include "perf_regs.h"
 #include "debug.h"
 #include "trace-event.h"
+#include "stat.h"
 
 static struct {
 	bool sample_id_all;
@@ -851,19 +852,6 @@ int perf_evsel__alloc_id(struct perf_evsel *evsel, int ncpus, int nthreads)
 	return 0;
 }
 
-void perf_evsel__reset_counts(struct perf_evsel *evsel, int ncpus)
-{
-	memset(evsel->counts, 0, (sizeof(*evsel->counts) +
-				 (ncpus * sizeof(struct perf_counts_values))));
-}
-
-int perf_evsel__alloc_counts(struct perf_evsel *evsel, int ncpus)
-{
-	evsel->counts = zalloc((sizeof(*evsel->counts) +
-				(ncpus * sizeof(struct perf_counts_values))));
-	return evsel->counts != NULL ? 0 : -ENOMEM;
-}
-
 static void perf_evsel__free_fd(struct perf_evsel *evsel)
 {
 	xyarray__delete(evsel->fd);
@@ -889,11 +877,6 @@ void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 			close(FD(evsel, cpu, thread));
 			FD(evsel, cpu, thread) = -1;
 		}
-}
-
-void perf_evsel__free_counts(struct perf_evsel *evsel)
-{
-	zfree(&evsel->counts);
 }
 
 void perf_evsel__exit(struct perf_evsel *evsel)
