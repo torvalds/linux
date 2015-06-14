@@ -373,6 +373,10 @@ static const struct ieee1394_device_id bebob_id_table[] = {
 	SND_BEBOB_DEV_ENTRY(VEN_BEHRINGER, 0x00001604, &spec_normal),
 	/* Behringer, Digital Mixer X32 series (X-UF Card) */
 	SND_BEBOB_DEV_ENTRY(VEN_BEHRINGER, 0x00000006, &spec_normal),
+	/*  Behringer, F-Control Audio 1616 */
+	SND_BEBOB_DEV_ENTRY(VEN_BEHRINGER, 0x001616, &spec_normal),
+	/*  Behringer, F-Control Audio 610 */
+	SND_BEBOB_DEV_ENTRY(VEN_BEHRINGER, 0x000610, &spec_normal),
 	/* Apogee Electronics, Rosetta 200/400 (X-FireWire card) */
 	/* Apogee Electronics, DA/AD/DD-16X (X-FireWire card) */
 	SND_BEBOB_DEV_ENTRY(VEN_APOGEE, 0x00010048, &spec_normal),
@@ -447,8 +451,6 @@ static const struct ieee1394_device_id bebob_id_table[] = {
 	/* IDs are unknown but able to be supported */
 	/*  Apogee, Mini-ME Firewire */
 	/*  Apogee, Mini-DAC Firewire */
-	/*  Behringer, F-Control Audio 1616 */
-	/*  Behringer, F-Control Audio 610 */
 	/*  Cakawalk, Sonar Power Studio 66 */
 	/*  CME, UF400e */
 	/*  ESI, Quotafire XL */
