@@ -171,11 +171,6 @@ pcm_open(struct snd_pcm_substream *substream)
 	err = snd_bebob_stream_get_clock_src(bebob, &src);
 	if (err < 0)
 		goto err_locked;
-	/* SYT-Match is not supported. */
-	if (src == SND_BEBOB_CLOCK_TYPE_SYT) {
-		err = -EBUSY;
-		goto err_locked;
-	}
 
 	/*
 	 * When source of clock is internal or any PCM stream are running,
