@@ -97,11 +97,12 @@ gf100_pm_fini(struct nvkm_object *object, bool suspend)
 	return nvkm_pm_fini(&priv->base, suspend);
 }
 
-static int
+int
 gf100_pm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	      struct nvkm_oclass *oclass, void *data, u32 size,
 	      struct nvkm_object **pobject)
 {
+	struct gf100_pm_oclass *mclass = (void *)oclass;
 	struct gf100_pm_priv *priv;
 	u32 mask;
 	int ret;
@@ -113,7 +114,7 @@ gf100_pm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	/* HUB */
 	ret = nvkm_perfdom_new(&priv->base, "hub", 0, 0x1b0000, 0, 0x200,
-			       gf100_pm_hub);
+			       mclass->doms_hub);
 	if (ret)
 		return ret;
 
@@ -123,7 +124,7 @@ gf100_pm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	mask &= ~nv_rd32(priv, 0x022584);
 
 	ret = nvkm_perfdom_new(&priv->base, "gpc", mask, 0x180000,
-			       0x1000, 0x200, gf100_pm_gpc);
+			       0x1000, 0x200, mclass->doms_gpc);
 	if (ret)
 		return ret;
 
@@ -133,7 +134,7 @@ gf100_pm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	mask &= ~nv_rd32(priv, 0x0225c8);
 
 	ret = nvkm_perfdom_new(&priv->base, "part", mask, 0x1a0000,
-			       0x1000, 0x200, gf100_pm_part);
+			       0x1000, 0x200, mclass->doms_part);
 	if (ret)
 		return ret;
 
@@ -142,13 +143,16 @@ gf100_pm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	return 0;
 }
 
-struct nvkm_oclass
-gf100_pm_oclass = {
-	.handle = NV_ENGINE(PM, 0xc0),
-	.ofuncs = &(struct nvkm_ofuncs) {
+struct nvkm_oclass *
+gf100_pm_oclass = &(struct gf100_pm_oclass) {
+	.base.handle = NV_ENGINE(PM, 0xc0),
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = gf100_pm_ctor,
 		.dtor = _nvkm_pm_dtor,
 		.init = _nvkm_pm_init,
 		.fini = gf100_pm_fini,
 	},
-};
+	.doms_gpc  = gf100_pm_gpc,
+	.doms_hub  = gf100_pm_hub,
+	.doms_part = gf100_pm_part,
+}.base;

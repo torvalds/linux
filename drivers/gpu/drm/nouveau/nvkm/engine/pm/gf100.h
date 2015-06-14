@@ -2,9 +2,20 @@
 #define __NVKM_PM_NVC0_H__
 #include "priv.h"
 
+struct gf100_pm_oclass {
+	struct nvkm_oclass base;
+	const struct nvkm_specdom *doms_hub;
+	const struct nvkm_specdom *doms_gpc;
+	const struct nvkm_specdom *doms_part;
+};
+
 struct gf100_pm_priv {
 	struct nvkm_pm base;
 };
+
+int gf100_pm_ctor(struct nvkm_object *, struct nvkm_object *,
+		  struct nvkm_oclass *, void *data, u32 size,
+		  struct nvkm_object **pobject);
 
 struct gf100_pm_cntr {
 	struct nvkm_perfctr base;
