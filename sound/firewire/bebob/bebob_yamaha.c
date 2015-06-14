@@ -28,7 +28,6 @@
  * reccomend users to close ffado-mixer at 192.0kHz if mixer is needless.
  */
 
-static const char *const clk_src_labels[] = {SND_BEBOB_CLOCK_INTERNAL, "SPDIF"};
 static enum snd_bebob_clock_type clk_src_types[] = {
 	SND_BEBOB_CLOCK_TYPE_INTERNAL,
 	SND_BEBOB_CLOCK_TYPE_EXTERNAL,	/* S/PDIF */
@@ -50,7 +49,6 @@ clk_src_get(struct snd_bebob *bebob, unsigned int *id)
 static struct snd_bebob_clock_spec clock_spec = {
 	.num	= ARRAY_SIZE(clk_src_types),
 	.types	= clk_src_types,
-	.labels	= clk_src_labels,
 	.get	= &clk_src_get,
 };
 static struct snd_bebob_rate_spec rate_spec = {

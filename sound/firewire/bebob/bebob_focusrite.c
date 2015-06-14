@@ -103,16 +103,10 @@ saffire_write_quad(struct snd_bebob *bebob, u64 offset, u32 value)
 				  &data, sizeof(__be32), 0);
 }
 
-static const char *const saffirepro_10_clk_src_labels[] = {
-	SND_BEBOB_CLOCK_INTERNAL, "S/PDIF", "Word Clock"
-};
 static enum snd_bebob_clock_type saffirepro_10_clk_src_types[] = {
 	SND_BEBOB_CLOCK_TYPE_INTERNAL,
 	SND_BEBOB_CLOCK_TYPE_EXTERNAL,	/* S/PDIF */
 	SND_BEBOB_CLOCK_TYPE_EXTERNAL,	/* Word Clock */
-};
-static const char *const saffirepro_26_clk_src_labels[] = {
-	SND_BEBOB_CLOCK_INTERNAL, "S/PDIF", "ADAT1", "ADAT2", "Word Clock"
 };
 static enum snd_bebob_clock_type saffirepro_26_clk_src_types[] = {
 	SND_BEBOB_CLOCK_TYPE_INTERNAL,
@@ -207,9 +201,6 @@ end:
 }
 
 struct snd_bebob_spec saffire_le_spec;
-static const char *const saffire_both_clk_src_labels[] = {
-	SND_BEBOB_CLOCK_INTERNAL, "S/PDIF"
-};
 static enum snd_bebob_clock_type saffire_both_clk_src_types[] = {
 	SND_BEBOB_CLOCK_TYPE_INTERNAL,
 	SND_BEBOB_CLOCK_TYPE_EXTERNAL,
@@ -276,7 +267,6 @@ static struct snd_bebob_rate_spec saffirepro_both_rate_spec = {
 /* Saffire Pro 26 I/O  */
 static struct snd_bebob_clock_spec saffirepro_26_clk_spec = {
 	.num	= ARRAY_SIZE(saffirepro_26_clk_src_types),
-	.labels	= saffirepro_26_clk_src_labels,
 	.types	= saffirepro_26_clk_src_types,
 	.get	= &saffirepro_both_clk_src_get,
 };
@@ -288,7 +278,6 @@ struct snd_bebob_spec saffirepro_26_spec = {
 /* Saffire Pro 10 I/O */
 static struct snd_bebob_clock_spec saffirepro_10_clk_spec = {
 	.num	= ARRAY_SIZE(saffirepro_10_clk_src_types),
-	.labels	= saffirepro_10_clk_src_labels,
 	.types	= saffirepro_10_clk_src_types,
 	.get	= &saffirepro_both_clk_src_get,
 };
@@ -304,7 +293,6 @@ static struct snd_bebob_rate_spec saffire_both_rate_spec = {
 };
 static struct snd_bebob_clock_spec saffire_both_clk_spec = {
 	.num	= ARRAY_SIZE(saffire_both_clk_src_types),
-	.labels	= saffire_both_clk_src_labels,
 	.types	= saffire_both_clk_src_types,
 	.get	= &saffire_both_clk_src_get,
 };

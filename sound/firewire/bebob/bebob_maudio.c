@@ -340,9 +340,6 @@ end:
 }
 
 /* Clock source control for special firmware */
-static const char *const special_clk_labels[] = {
-	SND_BEBOB_CLOCK_INTERNAL " with Digital Mute", "Digital",
-	"Word Clock", SND_BEBOB_CLOCK_INTERNAL};
 static enum snd_bebob_clock_type special_clk_types[] = {
 	SND_BEBOB_CLOCK_TYPE_INTERNAL,	/* With digital mute */
 	SND_BEBOB_CLOCK_TYPE_EXTERNAL,	/* SPDIF/ADAT */
@@ -358,6 +355,12 @@ static int special_clk_get(struct snd_bebob *bebob, unsigned int *id)
 static int special_clk_ctl_info(struct snd_kcontrol *kctl,
 				struct snd_ctl_elem_info *einf)
 {
+	static const char *const special_clk_labels[] = {
+		"Internal with Digital Mute",
+		"Digital",
+		"Word Clock",
+		"Internal"
+	};
 	return snd_ctl_enum_info(einf, 1, ARRAY_SIZE(special_clk_types),
 				 special_clk_labels);
 }
@@ -715,7 +718,6 @@ static struct snd_bebob_rate_spec special_rate_spec = {
 };
 static struct snd_bebob_clock_spec special_clk_spec = {
 	.num	= ARRAY_SIZE(special_clk_types),
-	.labels	= special_clk_labels,
 	.types	= special_clk_types,
 	.get	= &special_clk_get,
 };
