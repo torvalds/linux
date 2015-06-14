@@ -122,6 +122,7 @@ snd_bebob_stream_check_internal_clock(struct snd_bebob *bebob, bool *internal)
 	struct snd_bebob_clock_spec *clk_spec = bebob->spec->clock;
 	u8 addr[AVC_BRIDGECO_ADDR_BYTES], input[7];
 	unsigned int id;
+	enum avc_bridgeco_plug_type type;
 	int err = 0;
 
 	*internal = false;
@@ -182,14 +183,75 @@ snd_bebob_stream_check_internal_clock(struct snd_bebob *bebob, bool *internal)
 		goto end;
 	}
 
-	/*
-	 * If source of clock is internal CSR, Music Sub Unit Sync Input is
-	 * a destination of Music Sub Unit Sync Output.
-	 */
-	*internal = ((input[0] == AVC_BRIDGECO_PLUG_DIR_OUT) &&
-		     (input[1] == AVC_BRIDGECO_PLUG_MODE_SUBUNIT) &&
-		     (input[2] == 0x0c) &&
-		     (input[3] == 0x00));
+	/* The source from any output plugs is for one purpose only. */
+	if (input[0] == AVC_BRIDGECO_PLUG_DIR_OUT) {
+		/*
+		 * In BeBoB architecture, the source from music subunit may
+		 * bypass from oPCR[0]. This means that this source gives
+		 * synchronization to IEEE 1394 cycle start packet.
+		 */
+		if (input[1] == AVC_BRIDGECO_PLUG_MODE_SUBUNIT &&
+		    input[2] == 0x0c) {
+			*internal = true;
+			goto end;
+		}
+	/* The source from any input units is for several purposes. */
+	} else if (input[1] == AVC_BRIDGECO_PLUG_MODE_UNIT) {
+		if (input[2] == AVC_BRIDGECO_PLUG_UNIT_ISOC) {
+			if (input[3] == 0x00) {
+				/*
+				 * This source comes from iPCR[0]. This means
+				 * that presentation timestamp calculated by
+				 * SYT series of the received packets. In
+				 * short, this driver is the master of
+				 * synchronization.
+				 */
+				err = -EIO;
+				goto end;
+			} else {
+				/*
+				 * This source comes from iPCR[1-29]. This
+				 * means that the synchronization stream is not
+				 * the Audio/MIDI compound stream.
+				 */
+				*internal = false;
+				goto end;
+			}
+		} else if (input[2] == AVC_BRIDGECO_PLUG_UNIT_EXT) {
+			/* Check type of this plug.  */
+			avc_bridgeco_fill_unit_addr(addr,
+						    AVC_BRIDGECO_PLUG_DIR_IN,
+						    AVC_BRIDGECO_PLUG_UNIT_EXT,
+						    input[3]);
+			err = avc_bridgeco_get_plug_type(bebob->unit, addr,
+							 &type);
+			if (err < 0)
+				goto end;
+
+			if (type == AVC_BRIDGECO_PLUG_TYPE_DIG) {
+				/*
+				 * SPDIF/ADAT or sometimes (not always) word
+				 * clock.
+				 */
+				*internal = false;
+				goto end;
+			} else if (type == AVC_BRIDGECO_PLUG_TYPE_SYNC) {
+				/* Often word clock. */
+				*internal = false;
+				goto end;
+			} else if (type == AVC_BRIDGECO_PLUG_TYPE_ADDITION) {
+				/*
+				 * Not standard.
+				 * Mostly, additional internal clock.
+				 */
+				*internal = true;
+				goto end;
+			}
+		}
+	}
+
+	/* Not supported. */
+	err = -EIO;
 end:
 	return err;
 }
