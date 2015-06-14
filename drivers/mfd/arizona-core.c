@@ -651,7 +651,7 @@ static int arizona_runtime_suspend(struct device *dev)
 
 		arizona->has_fully_powered_off = true;
 
-		disable_irq(arizona->irq);
+		disable_irq_nosync(arizona->irq);
 		arizona_enable_reset(arizona);
 		regulator_bulk_disable(arizona->num_core_supplies,
 				       arizona->core_supplies);
