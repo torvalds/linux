@@ -23,4 +23,9 @@ struct gf100_pm_cntr {
 
 extern const struct nvkm_funcdom gf100_perfctr_func;
 int gf100_pm_fini(struct nvkm_object *, bool);
+
+extern const struct nvkm_specdom gf100_pm_gpc[];
+
+extern const struct nvkm_specsrc gf100_pmfb_sources[];
+
 #endif

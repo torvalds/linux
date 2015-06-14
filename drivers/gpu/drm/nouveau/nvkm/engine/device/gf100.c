@@ -252,7 +252,7 @@ gf100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_MSPPP  ] = &gf100_msppp_oclass;
 		device->oclass[NVDEV_ENGINE_CE0    ] = &gf100_ce0_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  gt215_disp_oclass;
-		device->oclass[NVDEV_ENGINE_PM     ] = gf100_pm_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] = gf108_pm_oclass;
 		break;
 	case 0xc8:
 		device->cname = "GF110";
@@ -317,7 +317,7 @@ gf100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_MSPPP  ] = &gf100_msppp_oclass;
 		device->oclass[NVDEV_ENGINE_CE0    ] = &gf100_ce0_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  gf110_disp_oclass;
-		device->oclass[NVDEV_ENGINE_PM     ] = gf100_pm_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] = gf117_pm_oclass;
 		break;
 	case 0xd7:
 		device->cname = "GF117";
@@ -347,7 +347,7 @@ gf100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_MSPPP  ] = &gf100_msppp_oclass;
 		device->oclass[NVDEV_ENGINE_CE0    ] = &gf100_ce0_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  gf110_disp_oclass;
-		device->oclass[NVDEV_ENGINE_PM     ] = gf100_pm_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] = gf117_pm_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown Fermi chipset\n");
