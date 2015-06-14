@@ -328,6 +328,8 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "failed to register backlight\n");
 		ret = PTR_ERR(bl);
+		if (pb->legacy)
+			pwm_free(pb->pwm);
 		goto err_alloc;
 	}
 
