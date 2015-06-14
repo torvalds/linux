@@ -212,8 +212,8 @@ int avc_bridgeco_get_plug_strm_fmt(struct fw_unit *unit,
 /* for AMDTP streaming */
 int snd_bebob_stream_get_rate(struct snd_bebob *bebob, unsigned int *rate);
 int snd_bebob_stream_set_rate(struct snd_bebob *bebob, unsigned int rate);
-int snd_bebob_stream_check_internal_clock(struct snd_bebob *bebob,
-					  bool *internal);
+int snd_bebob_stream_get_clock_src(struct snd_bebob *bebob,
+				   enum snd_bebob_clock_type *src);
 int snd_bebob_stream_discover(struct snd_bebob *bebob);
 int snd_bebob_stream_init_duplex(struct snd_bebob *bebob);
 int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate);

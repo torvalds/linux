@@ -116,16 +116,14 @@ end:
 	return err;
 }
 
-int
-snd_bebob_stream_check_internal_clock(struct snd_bebob *bebob, bool *internal)
+int snd_bebob_stream_get_clock_src(struct snd_bebob *bebob,
+				   enum snd_bebob_clock_type *src)
 {
 	struct snd_bebob_clock_spec *clk_spec = bebob->spec->clock;
 	u8 addr[AVC_BRIDGECO_ADDR_BYTES], input[7];
 	unsigned int id;
 	enum avc_bridgeco_plug_type type;
 	int err = 0;
-
-	*internal = false;
 
 	/* 1.The device has its own operation to switch source of clock */
 	if (clk_spec) {
@@ -144,10 +142,7 @@ snd_bebob_stream_check_internal_clock(struct snd_bebob *bebob, bool *internal)
 			goto end;
 		}
 
-		if (strncmp(clk_spec->labels[id], SND_BEBOB_CLOCK_INTERNAL,
-			    strlen(SND_BEBOB_CLOCK_INTERNAL)) == 0)
-			*internal = true;
-
+		*src = clk_spec->types[id];
 		goto end;
 	}
 
@@ -156,7 +151,7 @@ snd_bebob_stream_check_internal_clock(struct snd_bebob *bebob, bool *internal)
 	 *   to use internal clock always
 	 */
 	if (bebob->sync_input_plug < 0) {
-		*internal = true;
+		*src = SND_BEBOB_CLOCK_TYPE_INTERNAL;
 		goto end;
 	}
 
@@ -179,7 +174,7 @@ snd_bebob_stream_check_internal_clock(struct snd_bebob *bebob, bool *internal)
 	 * Here check the first field. This field is used for direction.
 	 */
 	if (input[0] == 0xff) {
-		*internal = true;
+		*src = SND_BEBOB_CLOCK_TYPE_INTERNAL;
 		goto end;
 	}
 
@@ -192,7 +187,7 @@ snd_bebob_stream_check_internal_clock(struct snd_bebob *bebob, bool *internal)
 		 */
 		if (input[1] == AVC_BRIDGECO_PLUG_MODE_SUBUNIT &&
 		    input[2] == 0x0c) {
-			*internal = true;
+			*src = SND_BEBOB_CLOCK_TYPE_INTERNAL;
 			goto end;
 		}
 	/* The source from any input units is for several purposes. */
@@ -206,7 +201,7 @@ snd_bebob_stream_check_internal_clock(struct snd_bebob *bebob, bool *internal)
 				 * short, this driver is the master of
 				 * synchronization.
 				 */
-				err = -EIO;
+				*src = SND_BEBOB_CLOCK_TYPE_SYT;
 				goto end;
 			} else {
 				/*
@@ -214,7 +209,7 @@ snd_bebob_stream_check_internal_clock(struct snd_bebob *bebob, bool *internal)
 				 * means that the synchronization stream is not
 				 * the Audio/MIDI compound stream.
 				 */
-				*internal = false;
+				*src = SND_BEBOB_CLOCK_TYPE_EXTERNAL;
 				goto end;
 			}
 		} else if (input[2] == AVC_BRIDGECO_PLUG_UNIT_EXT) {
@@ -233,18 +228,18 @@ snd_bebob_stream_check_internal_clock(struct snd_bebob *bebob, bool *internal)
 				 * SPDIF/ADAT or sometimes (not always) word
 				 * clock.
 				 */
-				*internal = false;
+				*src = SND_BEBOB_CLOCK_TYPE_EXTERNAL;
 				goto end;
 			} else if (type == AVC_BRIDGECO_PLUG_TYPE_SYNC) {
 				/* Often word clock. */
-				*internal = false;
+				*src = SND_BEBOB_CLOCK_TYPE_EXTERNAL;
 				goto end;
 			} else if (type == AVC_BRIDGECO_PLUG_TYPE_ADDITION) {
 				/*
 				 * Not standard.
 				 * Mostly, additional internal clock.
 				 */
-				*internal = true;
+				*src = SND_BEBOB_CLOCK_TYPE_INTERNAL;
 				goto end;
 			}
 		}
