@@ -1143,6 +1143,25 @@ static void rtsx_monitor_aspm_config(struct rtsx_chip *chip)
 	}
 }
 
+static void rtsx_manage_ocp(struct rtsx_chip *chip)
+{
+#ifdef SUPPORT_OCP
+	if (!chip->ocp_int)
+		return;
+
+	rtsx_read_register(chip, OCPSTAT, &chip->ocp_stat);
+
+	if (chip->card_exist & SD_CARD)
+		sd_power_off_card3v3(chip);
+	else if (chip->card_exist & MS_CARD)
+		ms_power_off_card3v3(chip);
+	else if (chip->card_exist & XD_CARD)
+		xd_power_off_card3v3(chip);
+
+	chip->ocp_int = 0;
+#endif
+}
+
 static void rtsx_manage_sd_lock(struct rtsx_chip *chip)
 {
 #ifdef SUPPORT_SD_LOCK
@@ -1184,20 +1203,7 @@ void rtsx_polling_func(struct rtsx_chip *chip)
 	if (rtsx_chk_stat(chip, RTSX_STAT_SS))
 		return;
 
-#ifdef SUPPORT_OCP
-	if (chip->ocp_int) {
-		rtsx_read_register(chip, OCPSTAT, &chip->ocp_stat);
-
-		if (chip->card_exist & SD_CARD)
-			sd_power_off_card3v3(chip);
-		else if (chip->card_exist & MS_CARD)
-			ms_power_off_card3v3(chip);
-		else if (chip->card_exist & XD_CARD)
-			xd_power_off_card3v3(chip);
-
-		chip->ocp_int = 0;
-	}
-#endif
+	rtsx_manage_ocp(chip);
 
 	rtsx_manage_sd_lock(chip);
 
