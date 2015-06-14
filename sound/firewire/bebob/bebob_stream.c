@@ -8,7 +8,7 @@
 
 #include "./bebob.h"
 
-#define CALLBACK_TIMEOUT	1000
+#define CALLBACK_TIMEOUT	2000
 #define FW_ISO_RESOURCE_DELAY	1000
 
 /*
