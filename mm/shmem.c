@@ -3401,7 +3401,13 @@ int shmem_zero_setup(struct vm_area_struct *vma)
 	struct file *file;
 	loff_t size = vma->vm_end - vma->vm_start;
 
-	file = shmem_file_setup("dev/zero", size, vma->vm_flags);
+	/*
+	 * Cloning a new file under mmap_sem leads to a lock ordering conflict
+	 * between XFS directory reading and selinux: since this file is only
+	 * accessible to the user through its mapping, use S_PRIVATE flag to
+	 * bypass file security, in the same way as shmem_kernel_file_setup().
+	 */
+	file = __shmem_file_setup("dev/zero", size, vma->vm_flags, S_PRIVATE);
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
