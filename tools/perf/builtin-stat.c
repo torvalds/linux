@@ -178,24 +178,19 @@ static void perf_evsel__free_stat_priv(struct perf_evsel *evsel)
 
 static int perf_evsel__alloc_prev_raw_counts(struct perf_evsel *evsel)
 {
-	void *addr;
-	size_t sz;
+	struct perf_counts *counts;
 
-	sz = sizeof(*evsel->counts) +
-	     (perf_evsel__nr_cpus(evsel) * sizeof(struct perf_counts_values));
+	counts = perf_counts__new(perf_evsel__nr_cpus(evsel));
+	if (counts)
+		evsel->prev_raw_counts = counts;
 
-	addr = zalloc(sz);
-	if (!addr)
-		return -ENOMEM;
-
-	evsel->prev_raw_counts =  addr;
-
-	return 0;
+	return counts ? 0 : -ENOMEM;
 }
 
 static void perf_evsel__free_prev_raw_counts(struct perf_evsel *evsel)
 {
-	zfree(&evsel->prev_raw_counts);
+	perf_counts__delete(evsel->prev_raw_counts);
+	evsel->prev_raw_counts = NULL;
 }
 
 static void perf_evlist__free_stats(struct perf_evlist *evlist)

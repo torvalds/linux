@@ -62,6 +62,9 @@ void perf_stat__update_shadow_stats(struct perf_evsel *counter, u64 *count,
 void perf_stat__print_shadow_stats(FILE *out, struct perf_evsel *evsel,
 				   double avg, int cpu, enum aggr_mode aggr);
 
+struct perf_counts *perf_counts__new(int ncpus);
+void perf_counts__delete(struct perf_counts *counts);
+
 void perf_evsel__reset_counts(struct perf_evsel *evsel, int ncpus);
 int perf_evsel__alloc_counts(struct perf_evsel *evsel, int ncpus);
 void perf_evsel__free_counts(struct perf_evsel *evsel);
