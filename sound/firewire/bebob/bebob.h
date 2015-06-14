@@ -50,9 +50,15 @@ extern const unsigned int snd_bebob_rate_table[SND_BEBOB_STRM_FMT_ENTRIES];
 
 /* device specific operations */
 #define SND_BEBOB_CLOCK_INTERNAL	"Internal"
+enum snd_bebob_clock_type {
+	SND_BEBOB_CLOCK_TYPE_INTERNAL = 0,
+	SND_BEBOB_CLOCK_TYPE_EXTERNAL,
+	SND_BEBOB_CLOCK_TYPE_SYT,
+};
 struct snd_bebob_clock_spec {
 	unsigned int num;
 	const char *const *labels;
+	enum snd_bebob_clock_type *types;
 	int (*get)(struct snd_bebob *bebob, unsigned int *id);
 };
 struct snd_bebob_rate_spec {
