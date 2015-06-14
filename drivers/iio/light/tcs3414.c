@@ -185,7 +185,7 @@ static int tcs3414_write_raw(struct iio_dev *indio_dev,
 		if (val != 0)
 			return -EINVAL;
 		for (i = 0; i < ARRAY_SIZE(tcs3414_times); i++) {
-			if (val == tcs3414_times[i] * 1000) {
+			if (val2 == tcs3414_times[i] * 1000) {
 				data->timing &= ~TCS3414_INTEG_MASK;
 				data->timing |= i;
 				return i2c_smbus_write_byte_data(
