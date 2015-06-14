@@ -1184,10 +1184,40 @@ static void rtsx_manage_sd_lock(struct rtsx_chip *chip)
 #endif
 }
 
+static bool rtsx_is_ss_allowed(struct rtsx_chip *chip)
+{
+	u32 val;
+
+	if (!chip->ss_en || CHECK_PID(chip, 0x5288))
+		return false;
+
+	if (CHK_SDIO_EXIST(chip) && !CHK_SDIO_IGNORED(chip)) {
+		rtsx_read_cfg_dw(chip, 1, 0x04, &val);
+		if (val & 0x07)
+			return false;
+	}
+
+	return true;
+}
+
+static void rtsx_manage_ss(struct rtsx_chip *chip)
+{
+	if (!rtsx_is_ss_allowed(chip) || chip->sd_io)
+		return;
+
+	if (rtsx_get_stat(chip) != RTSX_STAT_IDLE) {
+		chip->ss_counter = 0;
+		return;
+	}
+
+	if (chip->ss_counter < (chip->ss_idle_period / POLLING_INTERVAL))
+		chip->ss_counter++;
+	else
+		rtsx_exclusive_enter_ss(chip);
+}
+
 void rtsx_polling_func(struct rtsx_chip *chip)
 {
-	bool ss_allowed;
-
 	if (rtsx_chk_stat(chip, RTSX_STAT_SUSPEND))
 		return;
 
@@ -1209,37 +1239,7 @@ void rtsx_polling_func(struct rtsx_chip *chip)
 
 	rtsx_init_cards(chip);
 
-	if (chip->ss_en) {
-		ss_allowed = true;
-
-		if (CHECK_PID(chip, 0x5288)) {
-			ss_allowed = false;
-		} else {
-			if (CHK_SDIO_EXIST(chip) && !CHK_SDIO_IGNORED(chip)) {
-				u32 val;
-
-				rtsx_read_cfg_dw(chip, 1, 0x04, &val);
-				if (val & 0x07)
-					ss_allowed = false;
-			}
-		}
-	} else {
-		ss_allowed = false;
-	}
-
-	if (ss_allowed && !chip->sd_io) {
-		if (rtsx_get_stat(chip) != RTSX_STAT_IDLE) {
-			chip->ss_counter = 0;
-		} else {
-			if (chip->ss_counter <
-				(chip->ss_idle_period / POLLING_INTERVAL)) {
-				chip->ss_counter++;
-			} else {
-				rtsx_exclusive_enter_ss(chip);
-				return;
-			}
-		}
-	}
+	rtsx_manage_ss(chip);
 
 	if (CHECK_PID(chip, 0x5208)) {
 		rtsx_monitor_aspm_config(chip);
