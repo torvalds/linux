@@ -574,7 +574,6 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
 {
 	struct snd_bebob_rate_spec *rate_spec = bebob->spec->rate;
 	struct amdtp_stream *master, *slave;
-	atomic_t *slave_substreams;
 	enum cip_flags sync_mode;
 	unsigned int curr_rate;
 	bool updated = false;
@@ -599,8 +598,7 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
 	mutex_lock(&bebob->mutex);
 
 	/* Need no substreams */
-	if (atomic_read(&bebob->playback_substreams) == 0 &&
-	    atomic_read(&bebob->capture_substreams)  == 0)
+	if (atomic_read(&bebob->substreams_counter) == 0)
 		goto end;
 
 	err = get_sync_mode(bebob, &sync_mode);
@@ -609,11 +607,9 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
 	if (sync_mode == CIP_SYNC_TO_DEVICE) {
 		master = &bebob->tx_stream;
 		slave  = &bebob->rx_stream;
-		slave_substreams = &bebob->playback_substreams;
 	} else {
 		master = &bebob->rx_stream;
 		slave  = &bebob->tx_stream;
-		slave_substreams = &bebob->capture_substreams;
 	}
 
 	/*
@@ -714,7 +710,7 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
 	}
 
 	/* start slave if needed */
-	if (atomic_read(slave_substreams) > 0 && !amdtp_stream_running(slave)) {
+	if (!amdtp_stream_running(slave)) {
 		err = start_stream(bebob, slave, rate);
 		if (err < 0) {
 			dev_err(&bebob->unit->device,
@@ -740,31 +736,25 @@ end:
 void snd_bebob_stream_stop_duplex(struct snd_bebob *bebob)
 {
 	struct amdtp_stream *master, *slave;
-	atomic_t *master_substreams, *slave_substreams;
 
 	if (bebob->master == &bebob->rx_stream) {
 		slave  = &bebob->tx_stream;
 		master = &bebob->rx_stream;
-		slave_substreams  = &bebob->capture_substreams;
-		master_substreams = &bebob->playback_substreams;
 	} else {
 		slave  = &bebob->rx_stream;
 		master = &bebob->tx_stream;
-		slave_substreams  = &bebob->playback_substreams;
-		master_substreams = &bebob->capture_substreams;
 	}
 
 	mutex_lock(&bebob->mutex);
 
-	if (atomic_read(slave_substreams) == 0) {
+	if (atomic_read(&bebob->substreams_counter) == 0) {
+		amdtp_stream_pcm_abort(master);
+		amdtp_stream_stop(master);
+
 		amdtp_stream_pcm_abort(slave);
 		amdtp_stream_stop(slave);
 
-		if (atomic_read(master_substreams) == 0) {
-			amdtp_stream_pcm_abort(master);
-			amdtp_stream_stop(master);
-			break_both_connections(bebob);
-		}
+		break_both_connections(bebob);
 	}
 
 	mutex_unlock(&bebob->mutex);
