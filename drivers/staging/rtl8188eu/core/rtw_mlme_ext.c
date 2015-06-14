@@ -2722,10 +2722,10 @@ _END_ONBEACON_:
 	return _SUCCESS;
 }
 
+#ifdef CONFIG_88EU_AP_MODE
 static unsigned int OnAuth(struct adapter *padapter,
 			   struct recv_frame *precv_frame)
 {
-#ifdef CONFIG_88EU_AP_MODE
 	unsigned int	auth_mode, ie_len;
 	u16 seq;
 	unsigned char	*sa, *p;
@@ -2888,9 +2888,9 @@ auth_fail:
 
 	issue_auth(padapter, pstat, (unsigned short)status);
 
-#endif /* CONFIG_88EU_AP_MODE */
 	return _FAIL;
 }
+#endif /* CONFIG_88EU_AP_MODE */
 
 static unsigned int OnAuthClient(struct adapter *padapter,
 				 struct recv_frame *precv_frame)
