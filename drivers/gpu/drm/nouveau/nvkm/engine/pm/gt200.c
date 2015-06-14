@@ -26,7 +26,7 @@
 const struct nvkm_specsrc
 gt200_crop_sources[] = {
 	{ 0x407008, (const struct nvkm_specmux[]) {
-			{ 0x7, 0, "sel0", true },
+			{ 0xf, 0, "sel0", true },
 			{ 0x1f, 16, "sel1", true },
 			{}
 		}, "pgraph_rop0_crop_pm_mux" },
@@ -45,7 +45,7 @@ gt200_prop_sources[] = {
 const struct nvkm_specsrc
 gt200_tex_sources[] = {
 	{ 0x408508, (const struct nvkm_specmux[]) {
-			{ 0x3fff, 0, "unk0" },
+			{ 0xfffff, 0, "unk0" },
 			{}
 		}, "pgraph_tpc0_tex_unk08" },
 	{}
@@ -94,7 +94,7 @@ gt200_pm[] = {
 			{ 0x5d, "pc01_vfetch_17", g84_vfetch_sources },
 			{ 0x5e, "pc01_vfetch_18", g84_vfetch_sources },
 			{ 0x5f, "pc01_vfetch_19", g84_vfetch_sources },
-         { 0x07, "pc01_zcull_00", nv50_zcull_sources },
+			{ 0x07, "pc01_zcull_00", nv50_zcull_sources },
 			{ 0x08, "pc01_zcull_01", nv50_zcull_sources },
 			{ 0x09, "pc01_zcull_02", nv50_zcull_sources },
 			{ 0x0a, "pc01_zcull_03", nv50_zcull_sources },
@@ -105,7 +105,7 @@ gt200_pm[] = {
 			{ 0xec, "pc01_trailer" },
 			{}
 		}, &nv40_perfctr_func },
-	{ 0xe0, (const struct nvkm_specsig[]) {
+	{ 0xf0, (const struct nvkm_specsig[]) {
 			{ 0x55, "pc02_crop_00", gt200_crop_sources },
 			{ 0x56, "pc02_crop_01", gt200_crop_sources },
 			{ 0x57, "pc02_crop_02", gt200_crop_sources },

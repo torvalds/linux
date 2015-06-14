@@ -23,10 +23,9 @@
  */
 #include "nv40.h"
 
-// TODO: check for GT200
 static const struct nvkm_specsrc
 gt215_zcull_sources[] = {
-	{ 0x4002ca4, (const struct nvkm_specmux[]) {
+	{ 0x402ca4, (const struct nvkm_specmux[]) {
 			{ 0x7fff, 0, "unk0" },
 			{ 0xff, 24, "unk24" },
 			{}
