@@ -1143,11 +1143,30 @@ static void rtsx_monitor_aspm_config(struct rtsx_chip *chip)
 	}
 }
 
-void rtsx_polling_func(struct rtsx_chip *chip)
+static void rtsx_manage_sd_lock(struct rtsx_chip *chip)
 {
 #ifdef SUPPORT_SD_LOCK
 	struct sd_info *sd_card = &chip->sd_card;
+	u8 val;
+
+	if (!sd_card->sd_erase_status)
+		return;
+
+	if (chip->card_exist & SD_CARD) {
+		rtsx_read_register(chip, 0xFD30, &val);
+		if (val & 0x02) {
+			sd_card->sd_erase_status = SD_NOT_ERASE;
+			sd_card->sd_lock_notify = 1;
+			chip->need_reinit |= SD_CARD;
+		}
+	} else {
+		sd_card->sd_erase_status = SD_NOT_ERASE;
+	}
 #endif
+}
+
+void rtsx_polling_func(struct rtsx_chip *chip)
+{
 	bool ss_allowed;
 
 	if (rtsx_chk_stat(chip, RTSX_STAT_SUSPEND))
@@ -1180,22 +1199,7 @@ void rtsx_polling_func(struct rtsx_chip *chip)
 	}
 #endif
 
-#ifdef SUPPORT_SD_LOCK
-	if (sd_card->sd_erase_status) {
-		if (chip->card_exist & SD_CARD) {
-			u8 val;
-
-			rtsx_read_register(chip, 0xFD30, &val);
-			if (val & 0x02) {
-				sd_card->sd_erase_status = SD_NOT_ERASE;
-				sd_card->sd_lock_notify = 1;
-				chip->need_reinit |= SD_CARD;
-			}
-		} else {
-			sd_card->sd_erase_status = SD_NOT_ERASE;
-		}
-	}
-#endif
+	rtsx_manage_sd_lock(chip);
 
 	rtsx_init_cards(chip);
 
