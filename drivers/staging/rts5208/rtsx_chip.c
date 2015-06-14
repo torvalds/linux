@@ -1269,6 +1269,55 @@ static void rtsx_manage_idle(struct rtsx_chip *chip)
 		rtsx_force_power_down(chip, SSC_PDCTL | OC_PDCTL);
 }
 
+static void rtsx_manage_2lun_mode(struct rtsx_chip *chip)
+{
+#ifdef SUPPORT_OCP
+	u8 sd_oc, ms_oc;
+
+	sd_oc = chip->ocp_stat & (SD_OC_NOW | SD_OC_EVER);
+	ms_oc = chip->ocp_stat & (MS_OC_NOW | MS_OC_EVER);
+
+	if (sd_oc || ms_oc)
+		dev_dbg(rtsx_dev(chip), "Over current, OCPSTAT is 0x%x\n",
+			chip->ocp_stat);
+
+	if (sd_oc && (chip->card_exist & SD_CARD)) {
+		rtsx_write_register(chip, CARD_OE, SD_OUTPUT_EN, 0);
+		card_power_off(chip, SD_CARD);
+		chip->card_fail |= SD_CARD;
+	}
+
+	if (ms_oc && (chip->card_exist & MS_CARD)) {
+		rtsx_write_register(chip, CARD_OE, MS_OUTPUT_EN, 0);
+		card_power_off(chip, MS_CARD);
+		chip->card_fail |= MS_CARD;
+	}
+#endif
+}
+
+static void rtsx_manage_1lun_mode(struct rtsx_chip *chip)
+{
+#ifdef SUPPORT_OCP
+	if (!(chip->ocp_stat & (SD_OC_NOW | SD_OC_EVER)))
+		return;
+
+	dev_dbg(rtsx_dev(chip), "Over current, OCPSTAT is 0x%x\n",
+		chip->ocp_stat);
+
+	if (chip->card_exist & SD_CARD) {
+		rtsx_write_register(chip, CARD_OE, SD_OUTPUT_EN, 0);
+		chip->card_fail |= SD_CARD;
+	} else if (chip->card_exist & MS_CARD) {
+		rtsx_write_register(chip, CARD_OE, MS_OUTPUT_EN, 0);
+		chip->card_fail |= MS_CARD;
+	} else if (chip->card_exist & XD_CARD) {
+		rtsx_write_register(chip, CARD_OE, XD_OUTPUT_EN, 0);
+		chip->card_fail |= XD_CARD;
+	}
+	card_power_off(chip, SD_CARD);
+#endif
+}
+
 void rtsx_polling_func(struct rtsx_chip *chip)
 {
 	if (rtsx_chk_stat(chip, RTSX_STAT_SUSPEND))
@@ -1317,50 +1366,10 @@ void rtsx_polling_func(struct rtsx_chip *chip)
 		break;
 	}
 
-#ifdef SUPPORT_OCP
-	if (CHECK_LUN_MODE(chip, SD_MS_2LUN)) {
-		if (chip->ocp_stat &
-			(SD_OC_NOW | SD_OC_EVER | MS_OC_NOW | MS_OC_EVER))
-			dev_dbg(rtsx_dev(chip), "Over current, OCPSTAT is 0x%x\n",
-				chip->ocp_stat);
-
-		if (chip->ocp_stat & (SD_OC_NOW | SD_OC_EVER)) {
-			if (chip->card_exist & SD_CARD) {
-				rtsx_write_register(chip, CARD_OE, SD_OUTPUT_EN,
-						    0);
-				card_power_off(chip, SD_CARD);
-				chip->card_fail |= SD_CARD;
-			}
-		}
-		if (chip->ocp_stat & (MS_OC_NOW | MS_OC_EVER)) {
-			if (chip->card_exist & MS_CARD) {
-				rtsx_write_register(chip, CARD_OE, MS_OUTPUT_EN,
-						    0);
-				card_power_off(chip, MS_CARD);
-				chip->card_fail |= MS_CARD;
-			}
-		}
-	} else {
-		if (chip->ocp_stat & (SD_OC_NOW | SD_OC_EVER)) {
-			dev_dbg(rtsx_dev(chip), "Over current, OCPSTAT is 0x%x\n",
-				chip->ocp_stat);
-			if (chip->card_exist & SD_CARD) {
-				rtsx_write_register(chip, CARD_OE, SD_OUTPUT_EN,
-						    0);
-				chip->card_fail |= SD_CARD;
-			} else if (chip->card_exist & MS_CARD) {
-				rtsx_write_register(chip, CARD_OE, MS_OUTPUT_EN,
-						    0);
-				chip->card_fail |= MS_CARD;
-			} else if (chip->card_exist & XD_CARD) {
-				rtsx_write_register(chip, CARD_OE, XD_OUTPUT_EN,
-						    0);
-				chip->card_fail |= XD_CARD;
-			}
-			card_power_off(chip, SD_CARD);
-		}
-	}
-#endif
+	if (CHECK_LUN_MODE(chip, SD_MS_2LUN))
+		rtsx_manage_2lun_mode(chip);
+	else
+		rtsx_manage_1lun_mode(chip);
 
 delink_stage:
 	if (chip->auto_delink_en && chip->auto_delink_allowed &&
