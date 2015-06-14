@@ -888,10 +888,10 @@ static void issue_auth(struct adapter *padapter, struct sta_info *psta,
 }
 
 
+#ifdef CONFIG_88EU_AP_MODE
 static void issue_asocrsp(struct adapter *padapter, unsigned short status,
 			  struct sta_info *pstat, int pkt_type)
 {
-#ifdef CONFIG_88EU_AP_MODE
 	struct xmit_frame	*pmgntframe;
 	struct rtw_ieee80211_hdr	*pwlanhdr;
 	struct pkt_attrib *pattrib;
@@ -1011,8 +1011,8 @@ static void issue_asocrsp(struct adapter *padapter, unsigned short status,
 
 	pattrib->last_txcmdsz = pattrib->pktlen;
 	dump_mgntframe(padapter, pmgntframe);
-#endif
 }
+#endif /* CONFIG_88EU_AP_MODE */
 
 static void issue_assocreq(struct adapter *padapter)
 {
