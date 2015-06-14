@@ -1096,24 +1096,6 @@ static void ieee80211_chswitch_timer(unsigned long data)
 	ieee80211_queue_work(&sdata->local->hw, &sdata->u.mgd.chswitch_work);
 }
 
-static void ieee80211_teardown_tdls_peers(struct ieee80211_sub_if_data *sdata)
-{
-	struct sta_info *sta;
-	u16 reason = WLAN_REASON_TDLS_TEARDOWN_UNSPECIFIED;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(sta, &sdata->local->sta_list, list) {
-		if (!sta->sta.tdls || sta->sdata != sdata || !sta->uploaded ||
-		    !test_sta_flag(sta, WLAN_STA_AUTHORIZED))
-			continue;
-
-		ieee80211_tdls_oper_request(&sdata->vif, sta->sta.addr,
-					    NL80211_TDLS_TEARDOWN, reason,
-					    GFP_ATOMIC);
-	}
-	rcu_read_unlock();
-}
-
 static void
 ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 				 u64 timestamp, u32 device_timestamp,

@@ -4,6 +4,7 @@
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2014, Intel Corporation
  * Copyright 2014  Intel Mobile Communications GmbH
+ * Copyright 2015  Intel Deutschland GmbH
  *
  * This file is GPLv2 as found in COPYING.
  */
@@ -448,10 +449,6 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_sub_if_data *sdata,
 		ieee80211_ie_build_ht_cap(pos, &ht_cap, ht_cap.cap);
 	} else if (action_code == WLAN_TDLS_SETUP_RESPONSE &&
 		   ht_cap.ht_supported && sta->sta.ht_cap.ht_supported) {
-		/* disable SMPS in TDLS responder */
-		sta->sta.ht_cap.cap |= WLAN_HT_CAP_SM_PS_DISABLED
-					<< IEEE80211_HT_CAP_SM_PS_SHIFT;
-
 		/* the peer caps are already intersected with our own */
 		memcpy(&ht_cap, &sta->sta.ht_cap, sizeof(ht_cap));
 
@@ -1063,7 +1060,16 @@ ieee80211_tdls_mgmt_setup(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
+	enum ieee80211_smps_mode smps_mode = sdata->u.mgd.driver_smps_mode;
 	int ret;
+
+	/* don't support setup with forced SMPS mode that's not off */
+	if (smps_mode != IEEE80211_SMPS_AUTOMATIC &&
+	    smps_mode != IEEE80211_SMPS_OFF) {
+		tdls_dbg(sdata, "Aborting TDLS setup due to SMPS mode %d\n",
+			 smps_mode);
+		return -ENOTSUPP;
+	}
 
 	mutex_lock(&local->mtx);
 
@@ -1322,6 +1328,10 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 		cancel_delayed_work(&sdata->u.mgd.tdls_peer_del_work);
 		eth_zero_addr(sdata->u.mgd.tdls_peer);
 	}
+
+	if (ret == 0)
+		ieee80211_queue_work(&sdata->local->hw,
+				     &sdata->u.mgd.request_smps_work);
 
 	mutex_unlock(&local->mtx);
 	return ret;
@@ -1818,4 +1828,22 @@ void ieee80211_process_tdls_channel_switch(struct ieee80211_sub_if_data *sdata,
 		WARN_ON_ONCE(1);
 		return;
 	}
+}
+
+void ieee80211_teardown_tdls_peers(struct ieee80211_sub_if_data *sdata)
+{
+	struct sta_info *sta;
+	u16 reason = WLAN_REASON_TDLS_TEARDOWN_UNSPECIFIED;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(sta, &sdata->local->sta_list, list) {
+		if (!sta->sta.tdls || sta->sdata != sdata || !sta->uploaded ||
+		    !test_sta_flag(sta, WLAN_STA_AUTHORIZED))
+			continue;
+
+		ieee80211_tdls_oper_request(&sdata->vif, sta->sta.addr,
+					    NL80211_TDLS_TEARDOWN, reason,
+					    GFP_ATOMIC);
+	}
+	rcu_read_unlock();
 }

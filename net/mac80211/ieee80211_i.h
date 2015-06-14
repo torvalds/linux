@@ -2054,6 +2054,7 @@ void ieee80211_tdls_cancel_channel_switch(struct wiphy *wiphy,
 					  const u8 *addr);
 void ieee80211_process_tdls_channel_switch(struct ieee80211_sub_if_data *sdata,
 					   struct sk_buff *skb);
+void ieee80211_teardown_tdls_peers(struct ieee80211_sub_if_data *sdata);
 
 extern const struct ethtool_ops ieee80211_ethtool_ops;
 
