@@ -1216,6 +1216,35 @@ static void rtsx_manage_ss(struct rtsx_chip *chip)
 		rtsx_exclusive_enter_ss(chip);
 }
 
+static void rtsx_manage_aspm(struct rtsx_chip *chip)
+{
+	u8 data;
+
+	if (!CHECK_PID(chip, 0x5208))
+		return;
+
+	rtsx_monitor_aspm_config(chip);
+
+#ifdef SUPPORT_SDIO_ASPM
+	if (!CHK_SDIO_EXIST(chip) || CHK_SDIO_IGNORED(chip) ||
+	    !chip->aspm_l0s_l1_en || !chip->dynamic_aspm)
+		return;
+
+	if (chip->sd_io) {
+		dynamic_configure_sdio_aspm(chip);
+		return;
+	}
+
+	if (chip->sdio_aspm)
+		return;
+
+	dev_dbg(rtsx_dev(chip), "SDIO enter ASPM!\n");
+	data = 0x30 | (chip->aspm_level[1] << 2);
+	rtsx_write_register(chip, ASPM_FORCE_CTL, 0xFC, data);
+	chip->sdio_aspm = 1;
+#endif
+}
+
 void rtsx_polling_func(struct rtsx_chip *chip)
 {
 	if (rtsx_chk_stat(chip, RTSX_STAT_SUSPEND))
@@ -1241,27 +1270,7 @@ void rtsx_polling_func(struct rtsx_chip *chip)
 
 	rtsx_manage_ss(chip);
 
-	if (CHECK_PID(chip, 0x5208)) {
-		rtsx_monitor_aspm_config(chip);
-
-#ifdef SUPPORT_SDIO_ASPM
-		if (CHK_SDIO_EXIST(chip) && !CHK_SDIO_IGNORED(chip) &&
-		    chip->aspm_l0s_l1_en && chip->dynamic_aspm) {
-			if (chip->sd_io) {
-				dynamic_configure_sdio_aspm(chip);
-			} else {
-				if (!chip->sdio_aspm) {
-					dev_dbg(rtsx_dev(chip), "SDIO enter ASPM!\n");
-					rtsx_write_register(chip,
-						ASPM_FORCE_CTL, 0xFC,
-						0x30 |
-						(chip->aspm_level[1] << 2));
-					chip->sdio_aspm = 1;
-				}
-			}
-		}
-#endif
-	}
+	rtsx_manage_aspm(chip);
 
 	if (chip->idle_counter < IDLE_MAX_COUNT) {
 		chip->idle_counter++;
