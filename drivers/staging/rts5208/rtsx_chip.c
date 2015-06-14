@@ -1245,6 +1245,30 @@ static void rtsx_manage_aspm(struct rtsx_chip *chip)
 #endif
 }
 
+static void rtsx_manage_idle(struct rtsx_chip *chip)
+{
+	if (chip->idle_counter < IDLE_MAX_COUNT) {
+		chip->idle_counter++;
+		return;
+	}
+
+	if (rtsx_get_stat(chip) == RTSX_STAT_IDLE)
+		return;
+
+	dev_dbg(rtsx_dev(chip), "Idle state!\n");
+	rtsx_set_stat(chip, RTSX_STAT_IDLE);
+
+#if !defined(LED_AUTO_BLINK) && defined(REGULAR_BLINK)
+	chip->led_toggle_counter = 0;
+#endif
+	rtsx_force_power_on(chip, SSC_PDCTL);
+
+	turn_off_led(chip, LED_GPIO);
+
+	if (chip->auto_power_down && !chip->card_ready && !chip->sd_io)
+		rtsx_force_power_down(chip, SSC_PDCTL | OC_PDCTL);
+}
+
 void rtsx_polling_func(struct rtsx_chip *chip)
 {
 	if (rtsx_chk_stat(chip, RTSX_STAT_SUSPEND))
@@ -1272,26 +1296,7 @@ void rtsx_polling_func(struct rtsx_chip *chip)
 
 	rtsx_manage_aspm(chip);
 
-	if (chip->idle_counter < IDLE_MAX_COUNT) {
-		chip->idle_counter++;
-	} else {
-		if (rtsx_get_stat(chip) != RTSX_STAT_IDLE) {
-			dev_dbg(rtsx_dev(chip), "Idle state!\n");
-			rtsx_set_stat(chip, RTSX_STAT_IDLE);
-
-#if !defined(LED_AUTO_BLINK) && defined(REGULAR_BLINK)
-			chip->led_toggle_counter = 0;
-#endif
-			rtsx_force_power_on(chip, SSC_PDCTL);
-
-			turn_off_led(chip, LED_GPIO);
-
-			if (chip->auto_power_down && !chip->card_ready &&
-			    !chip->sd_io)
-				rtsx_force_power_down(chip,
-						      SSC_PDCTL | OC_PDCTL);
-		}
-	}
+	rtsx_manage_idle(chip);
 
 	switch (rtsx_get_stat(chip)) {
 	case RTSX_STAT_RUN:
