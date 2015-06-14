@@ -576,12 +576,32 @@ nvkm_perfmon_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	return -EINVAL;
 }
 
+static struct nvkm_oclass
+nvkm_perfmon_sclass[] = {
+	{ .handle = NVIF_IOCTL_NEW_V0_PERFDOM,
+	  .ofuncs = &nvkm_perfdom_ofuncs,
+	},
+	{}
+};
+
+static int
+nvkm_perfmon_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		  struct nvkm_oclass *oclass, void *data, u32 size,
+		  struct nvkm_object **pobject)
+{
+	struct nvkm_parent *perfmon;
+	int ret = nvkm_parent_create(parent, engine, oclass, 0,
+				     nvkm_perfmon_sclass, 0, &perfmon);
+	*pobject = perfmon ? &perfmon->object : NULL;
+	return ret;
+}
+
 static struct nvkm_ofuncs
 nvkm_perfmon_ofuncs = {
-	.ctor = _nvkm_object_ctor,
-	.dtor = nvkm_object_destroy,
-	.init = nvkm_object_init,
-	.fini = nvkm_object_fini,
+	.ctor = nvkm_perfmon_ctor,
+	.dtor = _nvkm_parent_dtor,
+	.init = _nvkm_parent_init,
+	.fini = _nvkm_parent_fini,
 	.mthd = nvkm_perfmon_mthd,
 };
 
@@ -590,9 +610,6 @@ nvkm_pm_sclass[] = {
 	{
 	  .handle = NVIF_IOCTL_NEW_V0_PERFMON,
 	  .ofuncs = &nvkm_perfmon_ofuncs,
-	},
-	{ .handle = NVIF_IOCTL_NEW_V0_PERFDOM,
-	  .ofuncs = &nvkm_perfdom_ofuncs,
 	},
 	{},
 };
@@ -621,6 +638,13 @@ nvkm_perfctx_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	struct nvkm_pm *ppm = (void *)engine;
 	struct nvkm_perfctx *ctx;
 	int ret;
+
+	/* no context needed for perfdom objects... */
+	if (nv_mclass(parent) != NV_DEVICE) {
+		atomic_inc(&parent->refcount);
+		*pobject = parent;
+		return 1;
+	}
 
 	ret = nvkm_engctx_create(parent, engine, oclass, NULL, 0, 0, 0, &ctx);
 	*pobject = nv_object(ctx);
