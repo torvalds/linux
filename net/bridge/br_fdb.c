@@ -24,6 +24,7 @@
 #include <linux/atomic.h>
 #include <asm/unaligned.h>
 #include <linux/if_vlan.h>
+#include <net/switchdev.h>
 #include "br_private.h"
 
 static struct kmem_cache *br_fdb_cache __read_mostly;
@@ -130,10 +131,26 @@ static void fdb_del_hw_addr(struct net_bridge *br, const unsigned char *addr)
 	}
 }
 
+static void fdb_del_external_learn(struct net_bridge_fdb_entry *f)
+{
+	struct switchdev_obj obj = {
+		.id = SWITCHDEV_OBJ_PORT_FDB,
+		.u.fdb = {
+			.addr = f->addr.addr,
+			.vid = f->vlan_id,
+		},
+	};
+
+	switchdev_port_obj_del(f->dst->dev, &obj);
+}
+
 static void fdb_delete(struct net_bridge *br, struct net_bridge_fdb_entry *f)
 {
 	if (f->is_static)
 		fdb_del_hw_addr(br, f->addr.addr);
+
+	if (f->added_by_external_learn)
+		fdb_del_external_learn(f);
 
 	hlist_del_rcu(&f->hlist);
 	fdb_notify(br, f, RTM_DELNEIGH);

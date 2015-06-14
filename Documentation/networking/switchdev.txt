@@ -251,15 +251,8 @@ out stale FDB entries.  To keep an FDB entry "alive", the driver should refresh
 the FDB entry by calling call_switchdev_notifiers(SWITCHDEV_FDB_ADD, ...).  The
 notification will reset the FDB entry's last-used time to now.  The driver
 should rate limit refresh notifications, for example, no more than once a
-second.  If the FDB entry expires, ndo_fdb_del is called to remove entry from
-the device.  XXX: this last part isn't currently correct: ndo_fdb_del isn't
-called, so the stale entry remains in device...this need to get fixed.
-
-FDB Flush
-^^^^^^^^^
-
-XXX: Unimplemented.  Need to support FDB flush by bridge driver for port and
-remove both static and learned FDB entries.
+second.  If the FDB entry expires, fdb_delete is called to remove entry from
+the device.
 
 STP State Change on Port
 ^^^^^^^^^^^^^^^^^^^^^^^^
