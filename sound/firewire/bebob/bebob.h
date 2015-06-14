@@ -115,6 +115,9 @@ struct snd_bebob {
 	/* for M-Audio special devices */
 	void *maudio_special_quirk;
 	bool deferred_registration;
+
+	/* For BeBoB version quirk. */
+	unsigned int version;
 };
 
 static inline int

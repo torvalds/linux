@@ -33,6 +33,7 @@ static DEFINE_MUTEX(devices_mutex);
 static DECLARE_BITMAP(devices_used, SNDRV_CARDS);
 
 /* Offsets from information register. */
+#define INFO_OFFSET_BEBOB_VERSION	0x08
 #define INFO_OFFSET_GUID		0x10
 #define INFO_OFFSET_HW_MODEL_ID		0x18
 #define INFO_OFFSET_HW_MODEL_REVISION	0x1c
@@ -73,6 +74,7 @@ name_device(struct snd_bebob *bebob, unsigned int vendor_id)
 	u32 hw_id;
 	u32 data[2] = {0};
 	u32 revision;
+	u32 version;
 	int err;
 
 	/* get vendor name from root directory */
@@ -104,6 +106,12 @@ name_device(struct snd_bebob *bebob, unsigned int vendor_id)
 				   data, sizeof(data));
 	if (err < 0)
 		goto end;
+
+	err = snd_bebob_read_quad(bebob->unit, INFO_OFFSET_BEBOB_VERSION,
+				  &version);
+	if (err < 0)
+		goto end;
+	bebob->version = version;
 
 	strcpy(bebob->card->driver, "BeBoB");
 	strcpy(bebob->card->shortname, model);
