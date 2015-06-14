@@ -154,6 +154,8 @@ nvkm_perfsrc_enable(struct nvkm_pm *ppm, struct nvkm_perfctr *ctr)
 
 			/* enable the source */
 			nv_mask(ppm, src->addr, mask, value);
+			nv_debug(ppm, "enabled source 0x%08x 0x%08x 0x%08x\n",
+				 src->addr, mask, value);
 		}
 	}
 	return 0;
@@ -165,6 +167,7 @@ nvkm_perfsrc_disable(struct nvkm_pm *ppm, struct nvkm_perfctr *ctr)
 	struct nvkm_perfdom *dom = NULL;
 	struct nvkm_perfsig *sig;
 	struct nvkm_perfsrc *src;
+	u32 mask;
 	int i, j;
 
 	for (i = 0; i < 4 && ctr->signal[i]; i++) {
@@ -178,8 +181,16 @@ nvkm_perfsrc_disable(struct nvkm_pm *ppm, struct nvkm_perfctr *ctr)
 			if (!src)
 				return -EINVAL;
 
+			/* unset enable bit if needed */
+			mask = 0x00000000;
+			if (src->enable)
+				mask = 0x80000000;
+			mask |= (src->mask << src->shift);
+
 			/* disable the source */
-			nv_mask(ppm, src->addr, src->mask << src->shift, 0);
+			nv_mask(ppm, src->addr, mask, 0);
+			nv_debug(ppm, "disabled source 0x%08x 0x%08x\n",
+				 src->addr, mask);
 		}
 	}
 	return 0;
@@ -309,7 +320,7 @@ nvkm_perfdom_dtor(struct nvkm_object *object)
 }
 
 static int
-nvkm_perfctr_new(struct nvkm_perfdom *dom, int slot,
+nvkm_perfctr_new(struct nvkm_perfdom *dom, int slot, uint8_t domain,
 		 struct nvkm_perfsig *signal[4], uint64_t source[4][8],
 		 uint16_t logic_op, struct nvkm_perfctr **pctr)
 {
@@ -323,6 +334,7 @@ nvkm_perfctr_new(struct nvkm_perfdom *dom, int slot,
 	if (!ctr)
 		return -ENOMEM;
 
+	ctr->domain   = domain;
 	ctr->logic_op = logic_op;
 	ctr->slot     = slot;
 	for (i = 0; i < 4; i++) {
@@ -361,7 +373,7 @@ nvkm_perfdom_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	for (c = 0; c < ARRAY_SIZE(args->v0.ctr); c++) {
 		struct nvkm_perfsig *sig[4] = {};
-		u64 src[4][8];
+		u64 src[4][8] = {};
 
 		for (s = 0; s < ARRAY_SIZE(args->v0.ctr[c].signal); s++) {
 			sig[s] = nvkm_perfsig_find(ppm, args->v0.domain,
@@ -378,11 +390,10 @@ nvkm_perfdom_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 			}
 		}
 
-		ret = nvkm_perfctr_new(sdom, c, sig, src,
+		ret = nvkm_perfctr_new(sdom, c, args->v0.domain, sig, src,
 				       args->v0.ctr[c].logic_op, &ctr[c]);
 		if (ret)
 			return ret;
-		ctr[c]->domain = args->v0.domain;
 	}
 
 	if (!sdom)
