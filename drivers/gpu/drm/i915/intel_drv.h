@@ -613,6 +613,7 @@ struct intel_plane {
 	void (*disable_plane)(struct drm_plane *plane,
 			      struct drm_crtc *crtc, bool force);
 	int (*check_plane)(struct drm_plane *plane,
+			   struct intel_crtc_state *crtc_state,
 			   struct intel_plane_state *state);
 	void (*commit_plane)(struct drm_plane *plane,
 			     struct intel_plane_state *state);

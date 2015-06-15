@@ -742,11 +742,12 @@ ilk_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc, bool force)
 
 static int
 intel_check_sprite_plane(struct drm_plane *plane,
+			 struct intel_crtc_state *crtc_state,
 			 struct intel_plane_state *state)
 {
 	struct drm_device *dev = plane->dev;
-	struct intel_crtc *intel_crtc = to_intel_crtc(state->base.crtc);
-	struct intel_crtc_state *crtc_state;
+	struct drm_crtc *crtc = state->base.crtc;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_framebuffer *fb = state->base.fb;
 	int crtc_x, crtc_y;
@@ -759,10 +760,6 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	int max_scale, min_scale;
 	bool can_scale;
 	int pixel_size;
-
-	intel_crtc = intel_crtc ? intel_crtc : to_intel_crtc(plane->crtc);
-	crtc_state = state->base.state ?
-		intel_atomic_get_crtc_state(state->base.state, intel_crtc) : NULL;
 
 	if (!fb) {
 		state->visible = false;

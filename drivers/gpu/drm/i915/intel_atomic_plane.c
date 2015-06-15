@@ -116,7 +116,7 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 	struct intel_plane_state *intel_state = to_intel_plane_state(state);
 	int ret;
 
-	crtc = crtc ? crtc : plane->crtc;
+	crtc = crtc ? crtc : plane->state->crtc;
 	intel_crtc = to_intel_crtc(crtc);
 
 	/*
@@ -131,10 +131,13 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 	/* FIXME: temporary hack necessary while we still use the plane update
 	 * helper. */
 	if (state->state) {
-		crtc_state =
-			intel_atomic_get_crtc_state(state->state, intel_crtc);
-		if (IS_ERR(crtc_state))
-			return PTR_ERR(crtc_state);
+		struct drm_crtc_state *drm_crtc_state =
+			drm_atomic_get_existing_crtc_state(state->state, crtc);
+
+		if (WARN_ON(!drm_crtc_state))
+			return -EINVAL;
+
+		crtc_state = to_intel_crtc_state(drm_crtc_state);
 	} else {
 		crtc_state = intel_crtc->config;
 	}
@@ -185,7 +188,8 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 		}
 	}
 
-	ret = intel_plane->check_plane(plane, intel_state);
+	intel_state->visible = false;
+	ret = intel_plane->check_plane(plane, crtc_state, intel_state);
 	if (ret || !state->state)
 		return ret;
 

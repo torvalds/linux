@@ -13716,36 +13716,25 @@ skl_max_scale(struct intel_crtc *intel_crtc, struct intel_crtc_state *crtc_state
 
 static int
 intel_check_primary_plane(struct drm_plane *plane,
+			  struct intel_crtc_state *crtc_state,
 			  struct intel_plane_state *state)
 {
-	struct drm_device *dev = plane->dev;
 	struct drm_crtc *crtc = state->base.crtc;
-	struct intel_crtc *intel_crtc;
-	struct intel_crtc_state *crtc_state;
 	struct drm_framebuffer *fb = state->base.fb;
-	struct drm_rect *dest = &state->dst;
-	struct drm_rect *src = &state->src;
-	const struct drm_rect *clip = &state->clip;
-	bool can_position = false;
-	int max_scale = DRM_PLANE_HELPER_NO_SCALING;
 	int min_scale = DRM_PLANE_HELPER_NO_SCALING;
+	int max_scale = DRM_PLANE_HELPER_NO_SCALING;
+	bool can_position = false;
 
-	crtc = crtc ? crtc : plane->crtc;
-	intel_crtc = to_intel_crtc(crtc);
-	crtc_state = state->base.state ?
-		intel_atomic_get_crtc_state(state->base.state, intel_crtc) : NULL;
-
-	if (INTEL_INFO(dev)->gen >= 9) {
-		/* use scaler when colorkey is not required */
-		if (to_intel_plane(plane)->ckey.flags == I915_SET_COLORKEY_NONE) {
-			min_scale = 1;
-			max_scale = skl_max_scale(intel_crtc, crtc_state);
-		}
+	/* use scaler when colorkey is not required */
+	if (INTEL_INFO(plane->dev)->gen >= 9 &&
+	    to_intel_plane(plane)->ckey.flags == I915_SET_COLORKEY_NONE) {
+		min_scale = 1;
+		max_scale = skl_max_scale(to_intel_crtc(crtc), crtc_state);
 		can_position = true;
 	}
 
-	return drm_plane_helper_check_update(plane, crtc, fb,
-					     src, dest, clip,
+	return drm_plane_helper_check_update(plane, crtc, fb, &state->src,
+					     &state->dst, &state->clip,
 					     min_scale, max_scale,
 					     can_position, true,
 					     &state->visible);
@@ -13984,24 +13973,17 @@ void intel_create_rotation_property(struct drm_device *dev, struct intel_plane *
 
 static int
 intel_check_cursor_plane(struct drm_plane *plane,
+			 struct intel_crtc_state *crtc_state,
 			 struct intel_plane_state *state)
 {
-	struct drm_crtc *crtc = state->base.crtc;
-	struct drm_device *dev = plane->dev;
+	struct drm_crtc *crtc = crtc_state->base.crtc;
 	struct drm_framebuffer *fb = state->base.fb;
-	struct drm_rect *dest = &state->dst;
-	struct drm_rect *src = &state->src;
-	const struct drm_rect *clip = &state->clip;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-	struct intel_crtc *intel_crtc;
 	unsigned stride;
 	int ret;
 
-	crtc = crtc ? crtc : plane->crtc;
-	intel_crtc = to_intel_crtc(crtc);
-
-	ret = drm_plane_helper_check_update(plane, crtc, fb,
-					    src, dest, clip,
+	ret = drm_plane_helper_check_update(plane, crtc, fb, &state->src,
+					    &state->dst, &state->clip,
 					    DRM_PLANE_HELPER_NO_SCALING,
 					    DRM_PLANE_HELPER_NO_SCALING,
 					    true, true, &state->visible);
@@ -14013,7 +13995,7 @@ intel_check_cursor_plane(struct drm_plane *plane,
 		return 0;
 
 	/* Check for which cursor types we support */
-	if (!cursor_size_ok(dev, state->base.crtc_w, state->base.crtc_h)) {
+	if (!cursor_size_ok(plane->dev, state->base.crtc_w, state->base.crtc_h)) {
 		DRM_DEBUG("Cursor dimension %dx%d not supported\n",
 			  state->base.crtc_w, state->base.crtc_h);
 		return -EINVAL;
