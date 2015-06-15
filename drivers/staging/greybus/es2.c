@@ -266,6 +266,32 @@ static void free_urb(struct es1_ap_dev *es1, struct urb *urb)
 }
 
 /*
+ * We (ab)use the operation-message header pad bytes to transfer the
+ * cport id in order to minimise overhead.
+ */
+static void
+gb_message_cport_pack(struct gb_operation_msg_hdr *header, u16 cport_id)
+{
+	header->pad[0] = cport_id;
+}
+
+/* Clear the pad bytes used for the CPort id */
+static void gb_message_cport_clear(struct gb_operation_msg_hdr *header)
+{
+	header->pad[0] = 0;
+}
+
+/* Extract the CPort id packed into the header, and clear it */
+static u16 gb_message_cport_unpack(struct gb_operation_msg_hdr *header)
+{
+	u16 cport_id = header->pad[0];
+
+	gb_message_cport_clear(header);
+
+	return cport_id;
+}
+
+/*
  * Returns an opaque cookie value if successful, or a pointer coded
  * error otherwise.  If the caller wishes to cancel the in-flight
  * buffer, it must supply the returned cookie to the cancel routine.
@@ -275,22 +301,18 @@ static void *message_send(struct greybus_host_device *hd, u16 cport_id,
 {
 	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	struct usb_device *udev = es1->usb_dev;
-	void *buffer;
 	size_t buffer_size;
 	int retval;
 	struct urb *urb;
 	int bulk_ep_set;
-
-	buffer = message->buffer;
-	buffer_size = sizeof(*message->header) + message->payload_size;
 
 	/*
 	 * The data actually transferred will include an indication
 	 * of where the data should be sent.  Do one last check of
 	 * the target CPort id before filling it in.
 	 */
-	if (cport_id == CPORT_ID_BAD) {
-		pr_err("request to send inbound data buffer\n");
+	if (!cport_id_valid(cport_id)) {
+		pr_err("invalid destination cport 0x%02x\n", cport_id);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -299,23 +321,22 @@ static void *message_send(struct greybus_host_device *hd, u16 cport_id,
 	if (!urb)
 		return ERR_PTR(-ENOMEM);
 
-	/*
-	 * We (ab)use the operation-message header pad bytes to transfer the
-	 * cport id in order to minimise overhead.
-	 */
-	put_unaligned_le16(cport_id, message->header->pad);
+	/* Pack the cport id into the message header */
+	gb_message_cport_pack(message->header, cport_id);
+
+	buffer_size = sizeof(*message->header) + message->payload_size;
 
 	bulk_ep_set = cport_to_ep(es1, cport_id);
 	usb_fill_bulk_urb(urb, udev,
 			  usb_sndbulkpipe(udev,
 					  es1->cport_out[bulk_ep_set].endpoint),
-			  buffer, buffer_size,
+			  message->buffer, buffer_size,
 			  cport_out_callback, message);
 	retval = usb_submit_urb(urb, gfp_mask);
 	if (retval) {
 		pr_err("error %d submitting URB\n", retval);
 		free_urb(es1, urb);
-		put_unaligned_le16(0, message->header->pad);
+		gb_message_cport_clear(message->header);
 		return ERR_PTR(retval);
 	}
 
@@ -473,12 +494,16 @@ static void cport_in_callback(struct urb *urb)
 		goto exit;
 	}
 
+	/* Extract the CPort id, which is packed in the message header */
 	header = urb->transfer_buffer;
-	cport_id = get_unaligned_le16(header->pad);
-	put_unaligned_le16(0, header->pad);
+	cport_id = gb_message_cport_unpack(header);
 
-	greybus_data_rcvd(hd, cport_id, urb->transfer_buffer,
+	if (cport_id_valid(cport_id))
+		greybus_data_rcvd(hd, cport_id, urb->transfer_buffer,
 							urb->actual_length);
+	else
+		dev_err(dev, "%s: invalid cport id 0x%02x received\n",
+				__func__, cport_id);
 exit:
 	/* put our urb back in the request pool */
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
@@ -494,8 +519,7 @@ static void cport_out_callback(struct urb *urb)
 	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	int status = check_urb_status(urb);
 
-	/* Clear the pad bytes used for the cport id */
-	put_unaligned_le16(0, message->header->pad);
+	gb_message_cport_clear(message->header);
 
 	/*
 	 * Tell the submitter that the message send (attempt) is
@@ -655,6 +679,9 @@ static int ap_probe(struct usb_interface *interface,
 	u16 endo_id = 0x4755;	// FIXME - get endo "ID" from the SVC
 	u8 ap_intf_id = 0x01;	// FIXME - get endo "ID" from the SVC
 	u8 svc_interval = 0;
+
+	/* We need to fit a CPort ID in one byte of a message header */
+	BUILD_BUG_ON(CPORT_ID_MAX > U8_MAX);
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
 

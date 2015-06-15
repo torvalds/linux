@@ -224,9 +224,12 @@ static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 		if (desc_cport->bundle != bundle_id)
 			continue;
 
+		cport_id = le16_to_cpu(desc_cport->id);
+		if (cport_id > CPORT_ID_MAX)
+			goto cleanup;
+
 		/* Found one.  Set up its function structure */
 		protocol_id = desc_cport->protocol_id;
-		cport_id = le16_to_cpu(desc_cport->id);
 		if (!gb_connection_create(bundle, cport_id, protocol_id))
 			goto cleanup;
 
