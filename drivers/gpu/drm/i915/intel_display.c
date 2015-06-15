@@ -2217,28 +2217,6 @@ static void intel_disable_pipe(struct intel_crtc *crtc)
 		intel_wait_for_pipe_off(crtc);
 }
 
-/**
- * intel_enable_primary_hw_plane - enable the primary plane on a given pipe
- * @plane:  plane to be enabled
- * @crtc: crtc for the plane
- *
- * Enable @plane on @crtc, making sure that the pipe is running first.
- */
-static void intel_enable_primary_hw_plane(struct drm_plane *plane,
-					  struct drm_crtc *crtc)
-{
-	struct drm_device *dev = plane->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	/* If the pipe isn't enabled, we can't pump pixels and may hang */
-	assert_pipe_enabled(dev_priv, intel_crtc->pipe);
-	to_intel_plane_state(plane->state)->visible = true;
-
-	dev_priv->display.update_primary_plane(crtc, plane->fb,
-					       crtc->x, crtc->y);
-}
-
 static bool need_vtd_wa(struct drm_device *dev)
 {
 #ifdef CONFIG_INTEL_IOMMU
@@ -4518,20 +4496,6 @@ static void ironlake_pfit_enable(struct intel_crtc *crtc)
 	}
 }
 
-static void intel_enable_sprite_planes(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	enum pipe pipe = to_intel_crtc(crtc)->pipe;
-	struct drm_plane *plane;
-	struct intel_plane *intel_plane;
-
-	drm_for_each_legacy_plane(plane, &dev->mode_config.plane_list) {
-		intel_plane = to_intel_plane(plane);
-		if (intel_plane->pipe == pipe)
-			intel_plane_restore(&intel_plane->base);
-	}
-}
-
 void hsw_enable_ips(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
@@ -4827,37 +4791,12 @@ static void intel_pre_plane_update(struct intel_crtc *crtc)
 		intel_pre_disable_primary(&crtc->base);
 }
 
-static void intel_crtc_enable_planes(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
-
-	intel_enable_primary_hw_plane(crtc->primary, crtc);
-	intel_enable_sprite_planes(crtc);
-	if (to_intel_plane_state(crtc->cursor->state)->visible)
-		intel_crtc_update_cursor(crtc, true);
-
-	intel_post_enable_primary(crtc);
-
-	/*
-	 * FIXME: Once we grow proper nuclear flip support out of this we need
-	 * to compute the mask of flip planes precisely. For the time being
-	 * consider this a flip to a NULL plane.
-	 */
-	intel_frontbuffer_flip(dev, INTEL_FRONTBUFFER_ALL_MASK(pipe));
-}
-
 static void intel_crtc_disable_planes(struct drm_crtc *crtc, unsigned plane_mask)
 {
 	struct drm_device *dev = crtc->dev;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_plane *p;
 	int pipe = intel_crtc->pipe;
-
-	intel_crtc_wait_for_pending_flips(crtc);
-
-	intel_pre_disable_primary(crtc);
 
 	intel_crtc_dpms_overlay_disable(intel_crtc);
 
@@ -6281,6 +6220,11 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
 
 	if (!intel_crtc->active)
 		return;
+
+	if (to_intel_plane_state(crtc->primary->state)->visible) {
+		intel_crtc_wait_for_pending_flips(crtc);
+		intel_pre_disable_primary(crtc);
+	}
 
 	intel_crtc_disable_planes(crtc, crtc->state->plane_mask);
 	dev_priv->display.crtc_disable(crtc);
@@ -11795,10 +11739,6 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	if (old_plane_state->base.fb && !fb)
 		intel_crtc->atomic.disabled_planes |= 1 << i;
 
-	/* don't run rest during modeset yet */
-	if (!intel_crtc->active || mode_changed)
-		return 0;
-
 	was_visible = old_plane_state->visible;
 	visible = to_intel_plane_state(plane_state)->visible;
 
@@ -13267,15 +13207,18 @@ static int __intel_set_mode(struct drm_atomic_state *state)
 	drm_atomic_helper_swap_state(dev, state);
 
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
 		if (!needs_modeset(crtc->state))
 			continue;
 
 		any_ms = true;
-		if (!crtc_state->active)
-			continue;
+		intel_pre_plane_update(intel_crtc);
 
-		intel_crtc_disable_planes(crtc, crtc_state->plane_mask);
-		dev_priv->display.crtc_disable(crtc);
+		if (crtc_state->active) {
+			intel_crtc_disable_planes(crtc, crtc_state->plane_mask);
+			dev_priv->display.crtc_disable(crtc);
+		}
 	}
 
 	/* Only after disabling all output pipelines that will be changed can we
@@ -13289,15 +13232,12 @@ static int __intel_set_mode(struct drm_atomic_state *state)
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		if (needs_modeset(crtc->state) && crtc->state->active) {
+			update_scanline_offset(to_intel_crtc(crtc));
+			dev_priv->display.crtc_enable(crtc);
+		}
+
 		drm_atomic_helper_commit_planes_on_crtc(crtc_state);
-
-		if (!needs_modeset(crtc->state) || !crtc->state->active)
-			continue;
-
-		update_scanline_offset(to_intel_crtc(crtc));
-
-		dev_priv->display.crtc_enable(crtc);
-		intel_crtc_enable_planes(crtc);
 	}
 
 	/* FIXME: add subpixel order */
@@ -13871,7 +13811,7 @@ intel_commit_primary_plane(struct drm_plane *plane,
 	crtc->x = src->x1 >> 16;
 	crtc->y = src->y1 >> 16;
 
-	if (!intel_crtc->active)
+	if (!crtc->state->active)
 		return;
 
 	if (state->visible)
@@ -13897,7 +13837,8 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
-	intel_pre_plane_update(intel_crtc);
+	if (!needs_modeset(crtc->state))
+		intel_pre_plane_update(intel_crtc);
 
 	if (intel_crtc->atomic.update_wm)
 		intel_update_watermarks(crtc);
@@ -13905,7 +13846,7 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc)
 	intel_runtime_pm_get(dev_priv);
 
 	/* Perform vblank evasion around commit operation */
-	if (crtc->state->active && !needs_modeset(crtc->state))
+	if (crtc->state->active)
 		intel_crtc->atomic.evade =
 			intel_pipe_update_start(intel_crtc,
 						&intel_crtc->atomic.start_vbl_count);
@@ -14113,7 +14054,7 @@ intel_commit_cursor_plane(struct drm_plane *plane,
 	intel_crtc->cursor_bo = obj;
 
 update:
-	if (intel_crtc->active)
+	if (crtc->state->active)
 		intel_crtc_update_cursor(crtc, state->visible);
 }
 

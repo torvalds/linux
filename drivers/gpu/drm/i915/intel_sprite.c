@@ -924,16 +924,14 @@ intel_commit_sprite_plane(struct drm_plane *plane,
 			  struct intel_plane_state *state)
 {
 	struct drm_crtc *crtc = state->base.crtc;
-	struct intel_crtc *intel_crtc;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_framebuffer *fb = state->base.fb;
 
 	crtc = crtc ? crtc : plane->crtc;
-	intel_crtc = to_intel_crtc(crtc);
 
 	plane->fb = fb;
 
-	if (!intel_crtc->active)
+	if (!crtc->state->active)
 		return;
 
 	if (state->visible) {
