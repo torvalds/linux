@@ -366,9 +366,6 @@ static int mipi_dsi_master_init(struct mipi_dsi_info *mipi_dsi,
 	struct fb_videomode *mode = mipi_dsi->mode;
 	struct device *dev = &mipi_dsi->pdev->dev;
 
-	/* power on dphy */
-	mipi_dsi_dphy_power_on(mipi_dsi->pdev);
-
 	/* configure DPHY PLL clock */
 	writel(MIPI_DSI_TX_REQUEST_HSCLK(0) |
 	       MIPI_DSI_DPHY_SEL(0) |
@@ -534,6 +531,28 @@ static int mipi_dsi_enable(struct mxc_dispdrv_handle *disp,
 	int ret;
 	struct mipi_dsi_info *mipi_dsi = mxc_dispdrv_getdata(disp);
 
+	if (fbi->state == FBINFO_STATE_SUSPENDED) {
+		if (mipi_dsi->disp_power_on) {
+			ret = regulator_enable(mipi_dsi->disp_power_on);
+			if (ret) {
+				dev_err(&mipi_dsi->pdev->dev, "failed to enable display "
+						"power regulator, err = %d\n", ret);
+				return ret;
+			}
+		}
+
+		ret = device_reset(&mipi_dsi->pdev->dev);
+		if (ret) {
+			dev_err(&mipi_dsi->pdev->dev,
+				"failed to reset device: %d\n", ret);
+			return -EINVAL;
+		}
+		msleep(120);
+	}
+
+	/* power on dphy */
+	mipi_dsi_dphy_power_on(mipi_dsi->pdev);
+
 	ret = clk_prepare_enable(mipi_dsi->dphy_clk);
 	ret |= clk_prepare_enable(mipi_dsi->cfg_clk);
 	if (ret) {
@@ -582,6 +601,15 @@ static void mipi_dsi_disable(struct mxc_dispdrv_handle *disp,
 	struct mipi_dsi_info *mipi_dsi = mxc_dispdrv_getdata(disp);
 
 	mipi_dsi_power_off(mipi_dsi->disp_mipi);
+
+	if (fbi->state == FBINFO_STATE_SUSPENDED) {
+		mipi_dsi_dphy_power_down();
+
+		if (mipi_dsi->disp_power_on)
+			regulator_disable(mipi_dsi->disp_power_on);
+
+		mipi_dsi->lcd_inited = 0;
+	}
 }
 
 static int mipi_dsi_setup(struct mxc_dispdrv_handle *disp,
