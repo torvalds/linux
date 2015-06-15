@@ -2490,8 +2490,12 @@ static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 	seq_printf(m, "GPU idle: %s\n", yesno(!dev_priv->mm.busy));
 	seq_printf(m, "IRQs disabled: %s\n",
 		   yesno(!intel_irqs_enabled(dev_priv)));
+#ifdef CONFIG_PM
 	seq_printf(m, "Usage count: %d\n",
 		   atomic_read(&dev->dev->power.usage_count));
+#else
+	seq_printf(m, "Device Power Management (CONFIG_PM) disabled\n");
+#endif
 
 	return 0;
 }
