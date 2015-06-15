@@ -283,10 +283,8 @@ rsrc_card_sub_parse_of(struct rsrc_card_priv *priv,
 	 */
 	if (of_property_read_bool(np, "clocks")) {
 		clk = of_clk_get(np, 0);
-		if (IS_ERR(clk)) {
-			ret = PTR_ERR(clk);
-			return ret;
-		}
+		if (IS_ERR(clk))
+			return PTR_ERR(clk);
 
 		dai->sysclk = clk_get_rate(clk);
 		dai->clk = clk;
