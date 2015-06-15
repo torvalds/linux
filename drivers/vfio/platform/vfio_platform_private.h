@@ -69,6 +69,12 @@ struct vfio_platform_device {
 	int	(*get_irq)(struct vfio_platform_device *vdev, int i);
 };
 
+struct vfio_platform_reset_combo {
+	const char *compat;
+	const char *reset_function_name;
+	const char *module_name;
+};
+
 extern int vfio_platform_probe_common(struct vfio_platform_device *vdev,
 				      struct device *dev);
 extern struct vfio_platform_device *vfio_platform_remove_common

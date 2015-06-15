@@ -25,6 +25,9 @@
 
 static DEFINE_MUTEX(driver_lock);
 
+static const struct vfio_platform_reset_combo reset_lookup_table[] = {
+};
+
 static int vfio_platform_regions_init(struct vfio_platform_device *vdev)
 {
 	int cnt = 0, i;
