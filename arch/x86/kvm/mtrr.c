@@ -241,10 +241,25 @@ static int fixed_msr_to_range_index(u32 msr)
 	return fixed_mtrr_seg_unit_range_index(seg, unit);
 }
 
+static void var_mtrr_range(struct kvm_mtrr_range *range, u64 *start, u64 *end)
+{
+	u64 mask;
+
+	*start = range->base & PAGE_MASK;
+
+	mask = range->mask & PAGE_MASK;
+	mask |= ~0ULL << boot_cpu_data.x86_phys_bits;
+
+	/* This cannot overflow because writing to the reserved bits of
+	 * variable MTRRs causes a #GP.
+	 */
+	*end = (*start | ~mask) + 1;
+}
+
 static void update_mtrr(struct kvm_vcpu *vcpu, u32 msr)
 {
 	struct kvm_mtrr *mtrr_state = &vcpu->arch.mtrr_state;
-	gfn_t start, end, mask;
+	gfn_t start, end;
 	int index;
 
 	if (msr == MSR_IA32_CR_PAT || !tdp_enabled ||
@@ -264,11 +279,7 @@ static void update_mtrr(struct kvm_vcpu *vcpu, u32 msr)
 	} else {
 		/* variable range MTRRs. */
 		index = (msr - 0x200) / 2;
-		start = mtrr_state->var_ranges[index].base & PAGE_MASK;
-		mask = mtrr_state->var_ranges[index].mask & PAGE_MASK;
-		mask |= ~0ULL << cpuid_maxphyaddr(vcpu);
-
-		end = ((start & mask) | ~mask) + 1;
+		var_mtrr_range(&mtrr_state->var_ranges[index], &start, &end);
 	}
 
 	kvm_zap_gfn_range(vcpu->kvm, gpa_to_gfn(start), gpa_to_gfn(end));
