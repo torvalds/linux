@@ -384,9 +384,8 @@ static int soc_camera_reqbufs(struct file *file, void *priv,
 		ret = vb2_reqbufs(&icd->vb2_vidq, p);
 	}
 
-	if (!ret && !icd->streamer)
-		icd->streamer = file;
-
+	if (!ret)
+		icd->streamer = p->count ? file : NULL;
 	return ret;
 }
 
@@ -443,12 +442,19 @@ static int soc_camera_create_bufs(struct file *file, void *priv,
 {
 	struct soc_camera_device *icd = file->private_data;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+	int ret;
 
 	/* videobuf2 only */
 	if (ici->ops->init_videobuf)
-		return -EINVAL;
-	else
-		return vb2_create_bufs(&icd->vb2_vidq, create);
+		return -ENOTTY;
+
+	if (icd->streamer && icd->streamer != file)
+		return -EBUSY;
+
+	ret = vb2_create_bufs(&icd->vb2_vidq, create);
+	if (!ret)
+		icd->streamer = file;
+	return ret;
 }
 
 static int soc_camera_prepare_buf(struct file *file, void *priv,
