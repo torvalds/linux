@@ -4804,7 +4804,7 @@ static void intel_crtc_disable_planes(struct drm_crtc *crtc)
 			struct drm_crtc *from = intel_plane->base.crtc;
 
 			intel_plane->disable_plane(&intel_plane->base,
-						   from ?: crtc, true);
+						   from ?: crtc);
 		}
 	}
 
@@ -13770,8 +13770,7 @@ intel_commit_primary_plane(struct drm_plane *plane,
 
 static void
 intel_disable_primary_plane(struct drm_plane *plane,
-			    struct drm_crtc *crtc,
-			    bool force)
+			    struct drm_crtc *crtc)
 {
 	struct drm_device *dev = plane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -14017,17 +14016,8 @@ intel_check_cursor_plane(struct drm_plane *plane,
 
 static void
 intel_disable_cursor_plane(struct drm_plane *plane,
-			   struct drm_crtc *crtc,
-			   bool force)
+			   struct drm_crtc *crtc)
 {
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	if (!force) {
-		plane->fb = NULL;
-		intel_crtc->cursor_bo = NULL;
-		intel_crtc->cursor_addr = 0;
-	}
-
 	intel_crtc_update_cursor(crtc, false);
 }
 

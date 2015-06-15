@@ -611,7 +611,7 @@ struct intel_plane {
 			     uint32_t x, uint32_t y,
 			     uint32_t src_w, uint32_t src_h);
 	void (*disable_plane)(struct drm_plane *plane,
-			      struct drm_crtc *crtc, bool force);
+			      struct drm_crtc *crtc);
 	int (*check_plane)(struct drm_plane *plane,
 			   struct intel_crtc_state *crtc_state,
 			   struct intel_plane_state *state);

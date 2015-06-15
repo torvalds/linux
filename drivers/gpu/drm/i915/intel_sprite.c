@@ -272,7 +272,7 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 }
 
 static void
-skl_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc, bool force)
+skl_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
 {
 	struct drm_device *dev = dplane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -456,7 +456,7 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
 }
 
 static void
-vlv_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc, bool force)
+vlv_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
 {
 	struct drm_device *dev = dplane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -597,7 +597,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 }
 
 static void
-ivb_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc, bool force)
+ivb_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 {
 	struct drm_device *dev = plane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -725,7 +725,7 @@ ilk_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 }
 
 static void
-ilk_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc, bool force)
+ilk_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 {
 	struct drm_device *dev = plane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -946,7 +946,7 @@ intel_commit_sprite_plane(struct drm_plane *plane,
 					  drm_rect_width(&state->src) >> 16,
 					  drm_rect_height(&state->src) >> 16);
 	} else {
-		intel_plane->disable_plane(plane, crtc, false);
+		intel_plane->disable_plane(plane, crtc);
 	}
 }
 
