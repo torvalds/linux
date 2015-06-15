@@ -27,23 +27,23 @@
 #define CROS_EC_DEV_EC_INDEX 0
 #define CROS_EC_DEV_PD_INDEX 1
 
-struct cros_ec_platform ec_p = {
+static struct cros_ec_platform ec_p = {
 	.ec_name = CROS_EC_DEV_NAME,
 	.cmd_offset = EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_EC_INDEX),
 };
 
-struct cros_ec_platform pd_p = {
+static struct cros_ec_platform pd_p = {
 	.ec_name = CROS_EC_DEV_PD_NAME,
 	.cmd_offset = EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_PD_INDEX),
 };
 
-struct mfd_cell ec_cell = {
+static const struct mfd_cell ec_cell = {
 	.name = "cros-ec-ctl",
 	.platform_data = &ec_p,
 	.pdata_size = sizeof(ec_p),
 };
 
-struct mfd_cell ec_pd_cell = {
+static const struct mfd_cell ec_pd_cell = {
 	.name = "cros-ec-ctl",
 	.platform_data = &pd_p,
 	.pdata_size = sizeof(pd_p),
