@@ -776,7 +776,7 @@ static int bmc150_accel_write_event(struct iio_dev *indio_dev,
 
 	switch (info) {
 	case IIO_EV_INFO_VALUE:
-		data->slope_thres = val & 0xFF;
+		data->slope_thres = val & BMC150_ACCEL_SLOPE_THRES_MASK;
 		break;
 	case IIO_EV_INFO_PERIOD:
 		data->slope_dur = val & BMC150_ACCEL_SLOPE_DUR_MASK;
