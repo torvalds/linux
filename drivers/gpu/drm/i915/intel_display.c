@@ -4763,6 +4763,72 @@ intel_pre_disable_primary(struct drm_crtc *crtc)
 	hsw_disable_ips(intel_crtc);
 }
 
+static void intel_post_plane_update(struct intel_crtc *crtc)
+{
+	struct intel_crtc_atomic_commit *atomic = &crtc->atomic;
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_plane *plane;
+
+	if (atomic->wait_vblank)
+		intel_wait_for_vblank(dev, crtc->pipe);
+
+	intel_frontbuffer_flip(dev, atomic->fb_bits);
+
+	if (atomic->update_fbc) {
+		mutex_lock(&dev->struct_mutex);
+		intel_fbc_update(dev);
+		mutex_unlock(&dev->struct_mutex);
+	}
+
+	if (atomic->post_enable_primary)
+		intel_post_enable_primary(&crtc->base);
+
+	drm_for_each_plane_mask(plane, dev, atomic->update_sprite_watermarks)
+		intel_update_sprite_watermarks(plane, &crtc->base,
+					       0, 0, 0, false, false);
+
+	memset(atomic, 0, sizeof(*atomic));
+}
+
+static void intel_pre_plane_update(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct intel_crtc_atomic_commit *atomic = &crtc->atomic;
+	struct drm_plane *p;
+
+	/* Track fb's for any planes being disabled */
+
+	drm_for_each_plane_mask(p, dev, atomic->disabled_planes) {
+		struct intel_plane *plane = to_intel_plane(p);
+		unsigned fb_bits = 0;
+
+		switch (p->type) {
+		case DRM_PLANE_TYPE_PRIMARY:
+			fb_bits = INTEL_FRONTBUFFER_PRIMARY(plane->pipe);
+			break;
+		case DRM_PLANE_TYPE_CURSOR:
+			fb_bits = INTEL_FRONTBUFFER_CURSOR(plane->pipe);
+			break;
+		case DRM_PLANE_TYPE_OVERLAY:
+			fb_bits = INTEL_FRONTBUFFER_SPRITE(plane->pipe);
+			break;
+		}
+
+		mutex_lock(&dev->struct_mutex);
+		i915_gem_track_fb(intel_fb_obj(plane->base.fb), NULL, fb_bits);
+		mutex_unlock(&dev->struct_mutex);
+	}
+
+	if (atomic->wait_for_flips)
+		intel_crtc_wait_for_pending_flips(&crtc->base);
+
+	if (atomic->disable_fbc)
+		intel_fbc_disable(dev);
+
+	if (atomic->pre_disable_primary)
+		intel_pre_disable_primary(&crtc->base);
+}
+
 static void intel_crtc_enable_planes(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -13780,43 +13846,8 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_crtc_state *crtc_state = intel_crtc->base.state;
-	struct intel_plane *intel_plane;
-	struct drm_plane *p;
-	unsigned fb_bits = 0;
 
-	/* Track fb's for any planes being disabled */
-	list_for_each_entry(p, &dev->mode_config.plane_list, head) {
-		intel_plane = to_intel_plane(p);
-
-		if (intel_crtc->atomic.disabled_planes &
-		    (1 << drm_plane_index(p))) {
-			switch (p->type) {
-			case DRM_PLANE_TYPE_PRIMARY:
-				fb_bits = INTEL_FRONTBUFFER_PRIMARY(intel_plane->pipe);
-				break;
-			case DRM_PLANE_TYPE_CURSOR:
-				fb_bits = INTEL_FRONTBUFFER_CURSOR(intel_plane->pipe);
-				break;
-			case DRM_PLANE_TYPE_OVERLAY:
-				fb_bits = INTEL_FRONTBUFFER_SPRITE(intel_plane->pipe);
-				break;
-			}
-
-			mutex_lock(&dev->struct_mutex);
-			i915_gem_track_fb(intel_fb_obj(p->fb), NULL, fb_bits);
-			mutex_unlock(&dev->struct_mutex);
-		}
-	}
-
-	if (intel_crtc->atomic.wait_for_flips)
-		intel_crtc_wait_for_pending_flips(crtc);
-
-	if (intel_crtc->atomic.disable_fbc)
-		intel_fbc_disable(dev);
-
-	if (intel_crtc->atomic.pre_disable_primary)
-		intel_pre_disable_primary(crtc);
+	intel_pre_plane_update(intel_crtc);
 
 	if (intel_crtc->atomic.update_wm)
 		intel_update_watermarks(crtc);
@@ -13824,7 +13855,7 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc)
 	intel_runtime_pm_get(dev_priv);
 
 	/* Perform vblank evasion around commit operation */
-	if (crtc_state->active && !needs_modeset(crtc_state))
+	if (crtc->state->active && !needs_modeset(crtc->state))
 		intel_crtc->atomic.evade =
 			intel_pipe_update_start(intel_crtc,
 						&intel_crtc->atomic.start_vbl_count);
@@ -13838,7 +13869,6 @@ static void intel_finish_crtc_commit(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_plane *p;
 
 	if (intel_crtc->atomic.evade)
 		intel_pipe_update_end(intel_crtc,
@@ -13846,26 +13876,7 @@ static void intel_finish_crtc_commit(struct drm_crtc *crtc)
 
 	intel_runtime_pm_put(dev_priv);
 
-	if (intel_crtc->atomic.wait_vblank && intel_crtc->active)
-		intel_wait_for_vblank(dev, intel_crtc->pipe);
-
-	intel_frontbuffer_flip(dev, intel_crtc->atomic.fb_bits);
-
-	if (intel_crtc->atomic.update_fbc) {
-		mutex_lock(&dev->struct_mutex);
-		intel_fbc_update(dev);
-		mutex_unlock(&dev->struct_mutex);
-	}
-
-	if (intel_crtc->atomic.post_enable_primary)
-		intel_post_enable_primary(crtc);
-
-	drm_for_each_legacy_plane(p, &dev->mode_config.plane_list)
-		if (intel_crtc->atomic.update_sprite_watermarks & drm_plane_index(p))
-			intel_update_sprite_watermarks(p, crtc, 0, 0, 0,
-						       false, false);
-
-	memset(&intel_crtc->atomic, 0, sizeof(intel_crtc->atomic));
+	intel_post_plane_update(intel_crtc);
 }
 
 /**
