@@ -108,8 +108,13 @@ struct ip_set_counter {
 	atomic64_t packets;
 };
 
+struct ip_set_comment_rcu {
+	struct rcu_head rcu;
+	char str[0];
+};
+
 struct ip_set_comment {
-	char *str;
+	struct ip_set_comment_rcu __rcu *c;
 };
 
 struct ip_set_skbinfo {
@@ -176,6 +181,9 @@ struct ip_set_type_variant {
 	/* List elements */
 	int (*list)(const struct ip_set *set, struct sk_buff *skb,
 		    struct netlink_callback *cb);
+	/* Keep listing private when resizing runs parallel */
+	void (*uref)(struct ip_set *set, struct netlink_callback *cb,
+		     bool start);
 
 	/* Return true if "b" set is the same as "a"
 	 * according to the create set parameters */
@@ -223,7 +231,7 @@ struct ip_set {
 	/* The name of the set */
 	char name[IPSET_MAXNAMELEN];
 	/* Lock protecting the set data */
-	rwlock_t lock;
+	spinlock_t lock;
 	/* References to the set */
 	u32 ref;
 	/* The core set type */
@@ -341,12 +349,11 @@ ip_set_put_skbinfo(struct sk_buff *skb, struct ip_set_skbinfo *skbinfo)
 			      cpu_to_be64((u64)skbinfo->skbmark << 32 |
 					  skbinfo->skbmarkmask))) ||
 	       (skbinfo->skbprio &&
-	        nla_put_net32(skb, IPSET_ATTR_SKBPRIO,
+		nla_put_net32(skb, IPSET_ATTR_SKBPRIO,
 			      cpu_to_be32(skbinfo->skbprio))) ||
 	       (skbinfo->skbqueue &&
-	        nla_put_net16(skb, IPSET_ATTR_SKBQUEUE,
+		nla_put_net16(skb, IPSET_ATTR_SKBQUEUE,
 			     cpu_to_be16(skbinfo->skbqueue)));
-
 }
 
 static inline void
@@ -380,12 +387,12 @@ ip_set_init_counter(struct ip_set_counter *counter,
 
 /* Netlink CB args */
 enum {
-	IPSET_CB_NET = 0,
-	IPSET_CB_DUMP,
-	IPSET_CB_INDEX,
-	IPSET_CB_ARG0,
+	IPSET_CB_NET = 0,	/* net namespace */
+	IPSET_CB_DUMP,		/* dump single set/all sets */
+	IPSET_CB_INDEX,		/* set index */
+	IPSET_CB_PRIVATE,	/* set private data */
+	IPSET_CB_ARG0,		/* type specific */
 	IPSET_CB_ARG1,
-	IPSET_CB_ARG2,
 };
 
 /* register and unregister set references */
@@ -544,8 +551,6 @@ ip_set_put_extensions(struct sk_buff *skb, const struct ip_set *set,
 #define IP_SET_INIT_UEXT(set)				\
 	{ .bytes = ULLONG_MAX, .packets = ULLONG_MAX,	\
 	  .timeout = (set)->timeout }
-
-#define IP_SET_INIT_CIDR(a, b) ((a) ? (a) : (b))
 
 #define IPSET_CONCAT(a, b)		a##b
 #define IPSET_TOKEN(a, b)		IPSET_CONCAT(a, b)

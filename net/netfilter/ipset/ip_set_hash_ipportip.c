@@ -63,7 +63,7 @@ hash_ipportip4_data_equal(const struct hash_ipportip4_elem *ip1,
 
 static bool
 hash_ipportip4_data_list(struct sk_buff *skb,
-		       const struct hash_ipportip4_elem *data)
+			 const struct hash_ipportip4_elem *data)
 {
 	if (nla_put_ipaddr4(skb, IPSET_ATTR_IP, data->ip) ||
 	    nla_put_ipaddr4(skb, IPSET_ATTR_IP2, data->ip2) ||
@@ -119,19 +119,13 @@ hash_ipportip4_uadt(struct ip_set *set, struct nlattr *tb[],
 	bool with_ports = false;
 	int ret;
 
-	if (unlikely(!tb[IPSET_ATTR_IP] || !tb[IPSET_ATTR_IP2] ||
-		     !ip_set_attr_netorder(tb, IPSET_ATTR_PORT) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PORT_TO) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PACKETS) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_BYTES) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBMARK) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBPRIO) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBQUEUE)))
-		return -IPSET_ERR_PROTOCOL;
-
 	if (tb[IPSET_ATTR_LINENO])
 		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+
+	if (unlikely(!tb[IPSET_ATTR_IP] || !tb[IPSET_ATTR_IP2] ||
+		     !ip_set_attr_netorder(tb, IPSET_ATTR_PORT) ||
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PORT_TO)))
+		return -IPSET_ERR_PROTOCOL;
 
 	ret = ip_set_get_ipaddr4(tb[IPSET_ATTR_IP], &e.ip);
 	if (ret)
@@ -153,8 +147,9 @@ hash_ipportip4_uadt(struct ip_set *set, struct nlattr *tb[],
 
 		if (e.proto == 0)
 			return -IPSET_ERR_INVALID_PROTO;
-	} else
+	} else {
 		return -IPSET_ERR_MISSING_PROTO;
+	}
 
 	if (!(with_ports || e.proto == IPPROTO_ICMP))
 		e.port = 0;
@@ -200,8 +195,8 @@ hash_ipportip4_uadt(struct ip_set *set, struct nlattr *tb[],
 
 			if (ret && !ip_set_eexist(ret, flags))
 				return ret;
-			else
-				ret = 0;
+
+			ret = 0;
 		}
 	}
 	return ret;
@@ -290,21 +285,21 @@ hash_ipportip6_uadt(struct ip_set *set, struct nlattr *tb[],
 	bool with_ports = false;
 	int ret;
 
-	if (unlikely(!tb[IPSET_ATTR_IP] || !tb[IPSET_ATTR_IP2] ||
-		     !ip_set_attr_netorder(tb, IPSET_ATTR_PORT) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PORT_TO) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PACKETS) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_BYTES) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBMARK) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBPRIO) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBQUEUE) ||
-		     tb[IPSET_ATTR_IP_TO] ||
-		     tb[IPSET_ATTR_CIDR]))
-		return -IPSET_ERR_PROTOCOL;
-
 	if (tb[IPSET_ATTR_LINENO])
 		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+
+	if (unlikely(!tb[IPSET_ATTR_IP] || !tb[IPSET_ATTR_IP2] ||
+		     !ip_set_attr_netorder(tb, IPSET_ATTR_PORT) ||
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PORT_TO)))
+		return -IPSET_ERR_PROTOCOL;
+	if (unlikely(tb[IPSET_ATTR_IP_TO]))
+		return -IPSET_ERR_HASH_RANGE_UNSUPPORTED;
+	if (unlikely(tb[IPSET_ATTR_CIDR])) {
+		u8 cidr = nla_get_u8(tb[IPSET_ATTR_CIDR]);
+
+		if (cidr != HOST_MASK)
+			return -IPSET_ERR_INVALID_CIDR;
+	}
 
 	ret = ip_set_get_ipaddr6(tb[IPSET_ATTR_IP], &e.ip);
 	if (ret)
@@ -326,8 +321,9 @@ hash_ipportip6_uadt(struct ip_set *set, struct nlattr *tb[],
 
 		if (e.proto == 0)
 			return -IPSET_ERR_INVALID_PROTO;
-	} else
+	} else {
 		return -IPSET_ERR_MISSING_PROTO;
+	}
 
 	if (!(with_ports || e.proto == IPPROTO_ICMPV6))
 		e.port = 0;
@@ -350,8 +346,8 @@ hash_ipportip6_uadt(struct ip_set *set, struct nlattr *tb[],
 
 		if (ret && !ip_set_eexist(ret, flags))
 			return ret;
-		else
-			ret = 0;
+
+		ret = 0;
 	}
 	return ret;
 }
@@ -403,6 +399,7 @@ hash_ipportip_init(void)
 static void __exit
 hash_ipportip_fini(void)
 {
+	rcu_barrier();
 	ip_set_type_unregister(&hash_ipportip_type);
 }
 
