@@ -11673,11 +11673,82 @@ retry:
 	return ret;
 }
 
+static bool encoders_cloneable(const struct intel_encoder *a,
+			       const struct intel_encoder *b)
+{
+	/* masks could be asymmetric, so check both ways */
+	return a == b || (a->cloneable & (1 << b->type) &&
+			  b->cloneable & (1 << a->type));
+}
+
+static bool check_single_encoder_cloning(struct drm_atomic_state *state,
+					 struct intel_crtc *crtc,
+					 struct intel_encoder *encoder)
+{
+	struct intel_encoder *source_encoder;
+	struct drm_connector *connector;
+	struct drm_connector_state *connector_state;
+	int i;
+
+	for_each_connector_in_state(state, connector, connector_state, i) {
+		if (connector_state->crtc != &crtc->base)
+			continue;
+
+		source_encoder =
+			to_intel_encoder(connector_state->best_encoder);
+		if (!encoders_cloneable(encoder, source_encoder))
+			return false;
+	}
+
+	return true;
+}
+
+static bool check_encoder_cloning(struct drm_atomic_state *state,
+				  struct intel_crtc *crtc)
+{
+	struct intel_encoder *encoder;
+	struct drm_connector *connector;
+	struct drm_connector_state *connector_state;
+	int i;
+
+	for_each_connector_in_state(state, connector, connector_state, i) {
+		if (connector_state->crtc != &crtc->base)
+			continue;
+
+		encoder = to_intel_encoder(connector_state->best_encoder);
+		if (!check_single_encoder_cloning(state, crtc, encoder))
+			return false;
+	}
+
+	return true;
+}
+
+static int intel_crtc_atomic_check(struct drm_crtc *crtc,
+				   struct drm_crtc_state *crtc_state)
+{
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_atomic_state *state = crtc_state->state;
+	int idx = crtc->base.id;
+	bool mode_changed = needs_modeset(crtc_state);
+
+	if (mode_changed && !check_encoder_cloning(state, intel_crtc)) {
+		DRM_DEBUG_KMS("rejecting invalid cloning configuration\n");
+		return -EINVAL;
+	}
+
+	I915_STATE_WARN(crtc->state->active != intel_crtc->active,
+		"[CRTC:%i] mismatch between state->active(%i) and crtc->active(%i)\n",
+		idx, crtc->state->active, intel_crtc->active);
+
+	return 0;
+}
+
 static const struct drm_crtc_helper_funcs intel_helper_funcs = {
 	.mode_set_base_atomic = intel_pipe_set_base_atomic,
 	.load_lut = intel_crtc_load_lut,
 	.atomic_begin = intel_begin_crtc_commit,
 	.atomic_flush = intel_finish_crtc_commit,
+	.atomic_check = intel_crtc_atomic_check,
 };
 
 /**
@@ -11930,56 +12001,6 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 	}
 }
 
-static bool encoders_cloneable(const struct intel_encoder *a,
-			       const struct intel_encoder *b)
-{
-	/* masks could be asymmetric, so check both ways */
-	return a == b || (a->cloneable & (1 << b->type) &&
-			  b->cloneable & (1 << a->type));
-}
-
-static bool check_single_encoder_cloning(struct drm_atomic_state *state,
-					 struct intel_crtc *crtc,
-					 struct intel_encoder *encoder)
-{
-	struct intel_encoder *source_encoder;
-	struct drm_connector *connector;
-	struct drm_connector_state *connector_state;
-	int i;
-
-	for_each_connector_in_state(state, connector, connector_state, i) {
-		if (connector_state->crtc != &crtc->base)
-			continue;
-
-		source_encoder =
-			to_intel_encoder(connector_state->best_encoder);
-		if (!encoders_cloneable(encoder, source_encoder))
-			return false;
-	}
-
-	return true;
-}
-
-static bool check_encoder_cloning(struct drm_atomic_state *state,
-				  struct intel_crtc *crtc)
-{
-	struct intel_encoder *encoder;
-	struct drm_connector *connector;
-	struct drm_connector_state *connector_state;
-	int i;
-
-	for_each_connector_in_state(state, connector, connector_state, i) {
-		if (connector_state->crtc != &crtc->base)
-			continue;
-
-		encoder = to_intel_encoder(connector_state->best_encoder);
-		if (!check_single_encoder_cloning(state, crtc, encoder))
-			return false;
-	}
-
-	return true;
-}
-
 static bool check_digital_port_conflicts(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
@@ -12065,11 +12086,6 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 	int base_bpp, ret = -EINVAL;
 	int i;
 	bool retry = true;
-
-	if (!check_encoder_cloning(state, to_intel_crtc(crtc))) {
-		DRM_DEBUG_KMS("rejecting invalid cloning configuration\n");
-		return -EINVAL;
-	}
 
 	clear_intel_crtc_state(pipe_config);
 

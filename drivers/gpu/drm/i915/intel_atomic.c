@@ -100,7 +100,10 @@ int intel_atomic_check(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	/* FIXME: move to crtc atomic check function once it is ready */
+	/*
+	 * FIXME: move to crtc atomic check function once this is
+	 * more atomic friendly.
+	 */
 	ret = intel_atomic_setup_scalers(dev, nuclear_crtc, crtc_state);
 	if (ret)
 		return ret;
