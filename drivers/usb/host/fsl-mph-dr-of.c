@@ -119,9 +119,9 @@ error:
 
 static const struct of_device_id fsl_usb2_mph_dr_of_match[];
 
-static int usb_get_ver_info(struct device_node *np)
+static enum fsl_usb2_controller_ver usb_get_ver_info(struct device_node *np)
 {
-	int ver = -1;
+	enum fsl_usb2_controller_ver ver = FSL_USB_VER_NONE;
 
 	/*
 	 * returns 1 for usb controller version 1.6
@@ -142,7 +142,7 @@ static int usb_get_ver_info(struct device_node *np)
 		else /* for previous controller versions */
 			ver = FSL_USB_VER_OLD;
 
-		if (ver > -1)
+		if (ver > FSL_USB_VER_NONE)
 			return ver;
 	}
 
@@ -215,7 +215,7 @@ static int fsl_usb2_mph_dr_of_probe(struct platform_device *ofdev)
 	pdata->controller_ver = usb_get_ver_info(np);
 
 	if (pdata->have_sysif_regs) {
-		if (pdata->controller_ver < 0) {
+		if (pdata->controller_ver == FSL_USB_VER_NONE) {
 			dev_warn(&ofdev->dev, "Could not get controller version\n");
 			return -ENODEV;
 		}
