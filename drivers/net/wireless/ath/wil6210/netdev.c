@@ -132,7 +132,7 @@ static void wil_dev_setup(struct net_device *dev)
 	dev->tx_queue_len = WIL_TX_Q_LEN_DEFAULT;
 }
 
-void *wil_if_alloc(struct device *dev, void __iomem *csr)
+void *wil_if_alloc(struct device *dev)
 {
 	struct net_device *ndev;
 	struct wireless_dev *wdev;
@@ -147,7 +147,6 @@ void *wil_if_alloc(struct device *dev, void __iomem *csr)
 	}
 
 	wil = wdev_to_wil(wdev);
-	wil->csr = csr;
 	wil->wdev = wdev;
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
