@@ -1887,12 +1887,21 @@ static int btrfs_issue_discard(struct block_device *bdev, u64 start, u64 len,
 			       u64 *discarded_bytes)
 {
 	int ret = 0;
+	u64 aligned_start = ALIGN(start, 1 << 9);
+
+	if (WARN_ON(start != aligned_start)) {
+		len -= aligned_start - start;
+		len = round_down(len, 1 << 9);
+		start = aligned_start;
+	}
 
 	*discarded_bytes = 0;
-	ret = blkdev_issue_discard(bdev, start >> 9, len >> 9, GFP_NOFS, 0);
-	if (!ret)
-		*discarded_bytes = len;
-
+	if (len) {
+		ret = blkdev_issue_discard(bdev, start >> 9, len >> 9,
+					   GFP_NOFS, 0);
+		if (!ret)
+			*discarded_bytes = len;
+	}
 	return ret;
 }
 
