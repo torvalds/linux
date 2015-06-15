@@ -3017,7 +3017,6 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 	ieee->is_set_key = false;
 	init_mgmt_queue(ieee);
 
-	ieee->aggregation = true;
 	ieee->tx_pending.txb = NULL;
 
 	_setup_timer(&ieee->associate_timer,

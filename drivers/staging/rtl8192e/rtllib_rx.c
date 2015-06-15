@@ -1883,37 +1883,33 @@ static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
 		}
 	}
 
-	if (ieee->aggregation) {
-		if (network->bssht.bdSupportHT) {
-			if (info_element->len >= 4 &&
-			    info_element->data[0] == 0x00 &&
-			    info_element->data[1] == 0xe0 &&
-			    info_element->data[2] == 0x4c &&
-			    info_element->data[3] == 0x02) {
-				ht_realtek_agg_len = min_t(u8,
-							   info_element->len,
-							   MAX_IE_LEN);
-				memcpy(ht_realtek_agg_buf,
-				       info_element->data,
-				       info_element->len);
-			}
-			if (ht_realtek_agg_len >= 5) {
-				network->realtek_cap_exit = true;
-				network->bssht.bdRT2RTAggregation = true;
-
-				if ((ht_realtek_agg_buf[4] == 1) &&
-				    (ht_realtek_agg_buf[5] & 0x02))
-					network->bssht.bdRT2RTLongSlotTime = true;
-
-				if ((ht_realtek_agg_buf[4] == 1) &&
-				    (ht_realtek_agg_buf[5] & RT_HT_CAP_USE_92SE))
-					network->bssht.RT2RT_HT_Mode |= RT_HT_CAP_USE_92SE;
-			}
+	if (network->bssht.bdSupportHT) {
+		if (info_element->len >= 4 &&
+		    info_element->data[0] == 0x00 &&
+		    info_element->data[1] == 0xe0 &&
+		    info_element->data[2] == 0x4c &&
+		    info_element->data[3] == 0x02) {
+			ht_realtek_agg_len = min_t(u8, info_element->len,
+						   MAX_IE_LEN);
+			memcpy(ht_realtek_agg_buf, info_element->data,
+			       info_element->len);
 		}
 		if (ht_realtek_agg_len >= 5) {
-			if ((ht_realtek_agg_buf[5] & RT_HT_CAP_USE_SOFTAP))
-				network->bssht.RT2RT_HT_Mode |= RT_HT_CAP_USE_SOFTAP;
+			network->realtek_cap_exit = true;
+			network->bssht.bdRT2RTAggregation = true;
+
+			if ((ht_realtek_agg_buf[4] == 1) &&
+			    (ht_realtek_agg_buf[5] & 0x02))
+				network->bssht.bdRT2RTLongSlotTime = true;
+
+			if ((ht_realtek_agg_buf[4] == 1) &&
+			    (ht_realtek_agg_buf[5] & RT_HT_CAP_USE_92SE))
+				network->bssht.RT2RT_HT_Mode |= RT_HT_CAP_USE_92SE;
 		}
+	}
+	if (ht_realtek_agg_len >= 5) {
+		if ((ht_realtek_agg_buf[5] & RT_HT_CAP_USE_SOFTAP))
+			network->bssht.RT2RT_HT_Mode |= RT_HT_CAP_USE_SOFTAP;
 	}
 
 	if ((info_element->len >= 3 &&

@@ -1758,7 +1758,6 @@ struct rtllib_device {
 	u8 AsocRetryCount;
 	struct sk_buff_head skb_waitQ[MAX_QUEUE_SIZE];
 	struct sk_buff_head  skb_aggQ[MAX_QUEUE_SIZE];
-	bool aggregation;
 
 	bool	bdynamic_txpower_enable;
 
