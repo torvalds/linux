@@ -1883,10 +1883,17 @@ static int remove_extent_backref(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-static int btrfs_issue_discard(struct block_device *bdev,
-				u64 start, u64 len)
+static int btrfs_issue_discard(struct block_device *bdev, u64 start, u64 len,
+			       u64 *discarded_bytes)
 {
-	return blkdev_issue_discard(bdev, start >> 9, len >> 9, GFP_NOFS, 0);
+	int ret = 0;
+
+	*discarded_bytes = 0;
+	ret = blkdev_issue_discard(bdev, start >> 9, len >> 9, GFP_NOFS, 0);
+	if (!ret)
+		*discarded_bytes = len;
+
+	return ret;
 }
 
 int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,
@@ -1907,14 +1914,16 @@ int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,
 
 
 		for (i = 0; i < bbio->num_stripes; i++, stripe++) {
+			u64 bytes;
 			if (!stripe->dev->can_discard)
 				continue;
 
 			ret = btrfs_issue_discard(stripe->dev->bdev,
 						  stripe->physical,
-						  stripe->length);
+						  stripe->length,
+						  &bytes);
 			if (!ret)
-				discarded_bytes += stripe->length;
+				discarded_bytes += bytes;
 			else if (ret != -EOPNOTSUPP)
 				break; /* Logic errors or -ENOMEM, or -EIO but I don't know how that could happen JDM */
 
