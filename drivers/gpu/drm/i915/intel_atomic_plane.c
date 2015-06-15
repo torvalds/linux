@@ -115,6 +115,7 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 	struct intel_crtc_state *crtc_state;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct intel_plane_state *intel_state = to_intel_plane_state(state);
+	struct drm_crtc_state *drm_crtc_state;
 	int ret;
 
 	crtc = crtc ? crtc : plane->state->crtc;
@@ -129,19 +130,11 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 	if (!crtc)
 		return 0;
 
-	/* FIXME: temporary hack necessary while we still use the plane update
-	 * helper. */
-	if (state->state) {
-		struct drm_crtc_state *drm_crtc_state =
-			drm_atomic_get_existing_crtc_state(state->state, crtc);
+	drm_crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
+	if (WARN_ON(!drm_crtc_state))
+		return -EINVAL;
 
-		if (WARN_ON(!drm_crtc_state))
-			return -EINVAL;
-
-		crtc_state = to_intel_crtc_state(drm_crtc_state);
-	} else {
-		crtc_state = intel_crtc->config;
-	}
+	crtc_state = to_intel_crtc_state(drm_crtc_state);
 
 	/*
 	 * The original src/dest coordinates are stored in state->base, but
@@ -191,7 +184,7 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 
 	intel_state->visible = false;
 	ret = intel_plane->check_plane(plane, crtc_state, intel_state);
-	if (ret || !state->state)
+	if (ret)
 		return ret;
 
 	return intel_plane_atomic_calc_changes(&crtc_state->base, state);
