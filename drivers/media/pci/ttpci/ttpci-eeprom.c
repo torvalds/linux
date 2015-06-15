@@ -162,9 +162,7 @@ int ttpci_eeprom_parse_mac(struct i2c_adapter *adapter, u8 *proposed_mac)
 	}
 
 	memcpy(proposed_mac, decodedMAC, 6);
-	dprintk("adapter has MAC addr = %.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
-		decodedMAC[0], decodedMAC[1], decodedMAC[2],
-		decodedMAC[3], decodedMAC[4], decodedMAC[5]);
+	dprintk("adapter has MAC addr = %pM\n", decodedMAC);
 	return 0;
 }
 
