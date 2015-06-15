@@ -6131,20 +6131,19 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_block_group_cache *block_group, *tmp;
+	struct list_head *deleted_bgs;
 	struct extent_io_tree *unpin;
 	u64 start;
 	u64 end;
 	int ret;
-
-	if (trans->aborted)
-		return 0;
 
 	if (fs_info->pinned_extents == &fs_info->freed_extents[0])
 		unpin = &fs_info->freed_extents[1];
 	else
 		unpin = &fs_info->freed_extents[0];
 
-	while (1) {
+	while (!trans->aborted) {
 		mutex_lock(&fs_info->unused_bg_unpin_mutex);
 		ret = find_first_extent_bit(unpin, 0, &start, &end,
 					    EXTENT_DIRTY, NULL);
@@ -6161,6 +6160,34 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
 		unpin_extent_range(root, start, end, true);
 		mutex_unlock(&fs_info->unused_bg_unpin_mutex);
 		cond_resched();
+	}
+
+	/*
+	 * Transaction is finished.  We don't need the lock anymore.  We
+	 * do need to clean up the block groups in case of a transaction
+	 * abort.
+	 */
+	deleted_bgs = &trans->transaction->deleted_bgs;
+	list_for_each_entry_safe(block_group, tmp, deleted_bgs, bg_list) {
+		u64 trimmed = 0;
+
+		ret = -EROFS;
+		if (!trans->aborted)
+			ret = btrfs_discard_extent(root,
+						   block_group->key.objectid,
+						   block_group->key.offset,
+						   &trimmed);
+
+		list_del_init(&block_group->bg_list);
+		btrfs_put_block_group_trimming(block_group);
+		btrfs_put_block_group(block_group);
+
+		if (ret) {
+			const char *errstr = btrfs_decode_error(ret);
+			btrfs_warn(fs_info,
+				   "Discard failed while removing blockgroup: errno=%d %s\n",
+				   ret, errstr);
+		}
 	}
 
 	return 0;
@@ -9903,6 +9930,11 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	 * currently running transaction might finish and a new one start,
 	 * allowing for new block groups to be created that can reuse the same
 	 * physical device locations unless we take this special care.
+	 *
+	 * There may also be an implicit trim operation if the file system
+	 * is mounted with -odiscard. The same protections must remain
+	 * in place until the extents have been discarded completely when
+	 * the transaction commit has completed.
 	 */
 	remove_em = (atomic_read(&block_group->trimming) == 0);
 	/*
@@ -9977,6 +10009,7 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 	spin_lock(&fs_info->unused_bgs_lock);
 	while (!list_empty(&fs_info->unused_bgs)) {
 		u64 start, end;
+		int trimming;
 
 		block_group = list_first_entry(&fs_info->unused_bgs,
 					       struct btrfs_block_group_cache,
@@ -10076,12 +10109,39 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		spin_unlock(&block_group->lock);
 		spin_unlock(&space_info->lock);
 
+		/* DISCARD can flip during remount */
+		trimming = btrfs_test_opt(root, DISCARD);
+
+		/* Implicit trim during transaction commit. */
+		if (trimming)
+			btrfs_get_block_group_trimming(block_group);
+
 		/*
 		 * Btrfs_remove_chunk will abort the transaction if things go
 		 * horribly wrong.
 		 */
 		ret = btrfs_remove_chunk(trans, root,
 					 block_group->key.objectid);
+
+		if (ret) {
+			if (trimming)
+				btrfs_put_block_group_trimming(block_group);
+			goto end_trans;
+		}
+
+		/*
+		 * If we're not mounted with -odiscard, we can just forget
+		 * about this block group. Otherwise we'll need to wait
+		 * until transaction commit to do the actual discard.
+		 */
+		if (trimming) {
+			WARN_ON(!list_empty(&block_group->bg_list));
+			spin_lock(&trans->transaction->deleted_bgs_lock);
+			list_move(&block_group->bg_list,
+				  &trans->transaction->deleted_bgs);
+			spin_unlock(&trans->transaction->deleted_bgs_lock);
+			btrfs_get_block_group(block_group);
+		}
 end_trans:
 		btrfs_end_transaction(trans, root);
 next:
