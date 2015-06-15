@@ -831,7 +831,7 @@ static int iboe_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 	struct mlx4_cmd_mailbox *mailbox;
 	struct mlx4_ib_dev *dev = to_mdev(ibdev);
 	int err;
-	u32 inmod = dev->counters[port_num - 1] & 0xffff;
+	u32 inmod = dev->counters[port_num - 1].index & 0xffff;
 	u8 mode;
 
 	if (in_mad->mad_hdr.mgmt_class != IB_MGMT_CLASS_PERF_MGMT)
