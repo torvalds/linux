@@ -461,12 +461,12 @@ typedef struct {
 
 #ifndef CONNECT_DIRECT
 typedef struct wid_site_survey_reslts {
-	WILC_Char SSID[MAX_SSID_LEN];
+	char SSID[MAX_SSID_LEN];
 	u8 BssType;
 	u8 Channel;
 	u8 SecurityStatus;
 	u8 BSSID[6];
-	WILC_Char RxPower;
+	char RxPower;
 	u8 Reserved;
 
 } wid_site_survey_reslts_s;

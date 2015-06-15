@@ -452,7 +452,7 @@ typedef union _tuniHostIFmsgBody {
 	tstrHostIfRemainOnChan strHostIfRemainOnChan;
 	tstrHostIfRegisterFrame strHostIfRegisterFrame;
 	#endif
-	WILC_Char *pUserData;
+	char *pUserData;
 	tstrHostIFDelAllSta strHostIFDelAllSta;
 } tuniHostIFmsgBody;
 
@@ -474,7 +474,7 @@ typedef struct _tstrHostIFmsg {
 
 #ifdef CONNECT_DIRECT
 typedef struct _tstrWidJoinReqExt {
-	WILC_Char SSID[MAX_SSID_LEN];
+	char SSID[MAX_SSID_LEN];
 	u8 u8channel;
 	u8 BSSID[6];
 } tstrWidJoinReqExt;
@@ -489,7 +489,7 @@ typedef struct _tstrJoinBssParam {
 	u16 beacon_period;
 	u16 cap_info;
 	u8 au8bssid[6];
-	WILC_Char ssid[MAX_SSID_LEN];
+	char ssid[MAX_SSID_LEN];
 	u8 ssidLen;
 	u8 supp_rates[MAX_RATES_SUPPORTED + 1];
 	u8 ht_capable;
@@ -616,8 +616,8 @@ static s32 Handle_SetChannel(void *drvHandler, tstrHostIFSetChan *pstrHostIFSetC
 	/*prepare configuration packet*/
 	strWID.u16WIDid = (u16)WID_CURRENT_CHANNEL;
 	strWID.enuWIDtype = WID_CHAR;
-	strWID.ps8WidVal = (WILC_Char *)&(pstrHostIFSetChan->u8SetChan);
-	strWID.s32ValueSize = sizeof(WILC_Char);
+	strWID.ps8WidVal = (char *)&(pstrHostIFSetChan->u8SetChan);
+	strWID.s32ValueSize = sizeof(char);
 
 	PRINT_D(HOSTINF_DBG, "Setting channel\n");
 	/*Sending Cfg*/
@@ -944,7 +944,7 @@ static s32 Handle_CfgParam(void *drvHandler, tstrHostIFCfgParamAttr *strHostIFCf
 			strWIDList[u8WidCnt].u16WIDid = WID_BSS_TYPE;
 			strWIDList[u8WidCnt].ps8WidVal = (s8 *)&strHostIFCfgParamAttr->pstrCfgParamVal.bss_type;
 			strWIDList[u8WidCnt].enuWIDtype = WID_CHAR;
-			strWIDList[u8WidCnt].s32ValueSize = sizeof(WILC_Char);
+			strWIDList[u8WidCnt].s32ValueSize = sizeof(char);
 			pstrWFIDrv->strCfgValues.bss_type = (u8)strHostIFCfgParamAttr->pstrCfgParamVal.bss_type;
 		} else {
 			WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
@@ -962,7 +962,7 @@ static s32 Handle_CfgParam(void *drvHandler, tstrHostIFCfgParamAttr *strHostIFCf
 			strWIDList[u8WidCnt].u16WIDid = WID_AUTH_TYPE;
 			strWIDList[u8WidCnt].ps8WidVal = (s8 *)&strHostIFCfgParamAttr->pstrCfgParamVal.auth_type;
 			strWIDList[u8WidCnt].enuWIDtype = WID_CHAR;
-			strWIDList[u8WidCnt].s32ValueSize = sizeof(WILC_Char);
+			strWIDList[u8WidCnt].s32ValueSize = sizeof(char);
 			pstrWFIDrv->strCfgValues.auth_type = (u8)strHostIFCfgParamAttr->pstrCfgParamVal.auth_type;
 		} else {
 			WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
@@ -994,7 +994,7 @@ static s32 Handle_CfgParam(void *drvHandler, tstrHostIFCfgParamAttr *strHostIFCf
 			strWIDList[u8WidCnt].u16WIDid = WID_POWER_MANAGEMENT;
 			strWIDList[u8WidCnt].ps8WidVal = (s8 *)&strHostIFCfgParamAttr->pstrCfgParamVal.power_mgmt_mode;
 			strWIDList[u8WidCnt].enuWIDtype = WID_CHAR;
-			strWIDList[u8WidCnt].s32ValueSize = sizeof(WILC_Char);
+			strWIDList[u8WidCnt].s32ValueSize = sizeof(char);
 			pstrWFIDrv->strCfgValues.power_mgmt_mode = (u8)strHostIFCfgParamAttr->pstrCfgParamVal.power_mgmt_mode;
 		} else {
 			WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
@@ -1064,7 +1064,7 @@ static s32 Handle_CfgParam(void *drvHandler, tstrHostIFCfgParamAttr *strHostIFCf
 			strWIDList[u8WidCnt].u16WIDid = WID_PREAMBLE;
 			strWIDList[u8WidCnt].ps8WidVal = (s8 *)&strHostIFCfgParamAttr->pstrCfgParamVal.preamble_type;
 			strWIDList[u8WidCnt].enuWIDtype = WID_CHAR;
-			strWIDList[u8WidCnt].s32ValueSize = sizeof(WILC_Char);
+			strWIDList[u8WidCnt].s32ValueSize = sizeof(char);
 			pstrWFIDrv->strCfgValues.preamble_type = strHostIFCfgParamAttr->pstrCfgParamVal.preamble_type;
 		} else {
 			WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
@@ -1076,7 +1076,7 @@ static s32 Handle_CfgParam(void *drvHandler, tstrHostIFCfgParamAttr *strHostIFCf
 			strWIDList[u8WidCnt].u16WIDid = WID_SHORT_SLOT_ALLOWED;
 			strWIDList[u8WidCnt].ps8WidVal = (s8 *)&strHostIFCfgParamAttr->pstrCfgParamVal.short_slot_allowed;
 			strWIDList[u8WidCnt].enuWIDtype = WID_CHAR;
-			strWIDList[u8WidCnt].s32ValueSize = sizeof(WILC_Char);
+			strWIDList[u8WidCnt].s32ValueSize = sizeof(char);
 			pstrWFIDrv->strCfgValues.short_slot_allowed = (u8)strHostIFCfgParamAttr->pstrCfgParamVal.short_slot_allowed;
 		} else {
 			WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
@@ -1092,7 +1092,7 @@ static s32 Handle_CfgParam(void *drvHandler, tstrHostIFCfgParamAttr *strHostIFCf
 			strWIDList[u8WidCnt].u16WIDid = WID_11N_TXOP_PROT_DISABLE;
 			strWIDList[u8WidCnt].ps8WidVal = (s8 *)&strHostIFCfgParamAttr->pstrCfgParamVal.txop_prot_disabled;
 			strWIDList[u8WidCnt].enuWIDtype = WID_CHAR;
-			strWIDList[u8WidCnt].s32ValueSize = sizeof(WILC_Char);
+			strWIDList[u8WidCnt].s32ValueSize = sizeof(char);
 			pstrWFIDrv->strCfgValues.txop_prot_disabled = (u8)strHostIFCfgParamAttr->pstrCfgParamVal.txop_prot_disabled;
 		} else {
 			WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
@@ -1118,7 +1118,7 @@ static s32 Handle_CfgParam(void *drvHandler, tstrHostIFCfgParamAttr *strHostIFCf
 			strWIDList[u8WidCnt].u16WIDid = WID_DTIM_PERIOD;
 			strWIDList[u8WidCnt].ps8WidVal = (s8 *)&strHostIFCfgParamAttr->pstrCfgParamVal.dtim_period;
 			strWIDList[u8WidCnt].enuWIDtype = WID_CHAR;
-			strWIDList[u8WidCnt].s32ValueSize = sizeof(WILC_Char);
+			strWIDList[u8WidCnt].s32ValueSize = sizeof(char);
 			pstrWFIDrv->strCfgValues.dtim_period = strHostIFCfgParamAttr->pstrCfgParamVal.dtim_period;
 		} else {
 			WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
@@ -1135,7 +1135,7 @@ static s32 Handle_CfgParam(void *drvHandler, tstrHostIFCfgParamAttr *strHostIFCf
 			strWIDList[u8WidCnt].u16WIDid = WID_SITE_SURVEY;
 			strWIDList[u8WidCnt].ps8WidVal = (s8 *)&strHostIFCfgParamAttr->pstrCfgParamVal.site_survey_enabled;
 			strWIDList[u8WidCnt].enuWIDtype = WID_CHAR;
-			strWIDList[u8WidCnt].s32ValueSize = sizeof(WILC_Char);
+			strWIDList[u8WidCnt].s32ValueSize = sizeof(char);
 			pstrWFIDrv->strCfgValues.site_survey_enabled = (u8)strHostIFCfgParamAttr->pstrCfgParamVal.site_survey_enabled;
 		} else {
 			WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
@@ -1332,7 +1332,7 @@ static s32 Handle_Scan(void *drvHandler, tstrHostIFscanAttr *pstrHostIFscanAttr)
 	/*Scan Type*/
 	strWIDList[u32WidsCount].u16WIDid = WID_SCAN_TYPE;
 	strWIDList[u32WidsCount].enuWIDtype = WID_CHAR;
-	strWIDList[u32WidsCount].s32ValueSize = sizeof(WILC_Char);
+	strWIDList[u32WidsCount].s32ValueSize = sizeof(char);
 	strWIDList[u32WidsCount].ps8WidVal = (s8 *)(&(pstrHostIFscanAttr->u8ScanType));
 	u32WidsCount++;
 
@@ -1358,7 +1358,7 @@ static s32 Handle_Scan(void *drvHandler, tstrHostIFscanAttr *pstrHostIFscanAttr)
 	/*Scan Request*/
 	strWIDList[u32WidsCount].u16WIDid = WID_START_SCAN_REQ;
 	strWIDList[u32WidsCount].enuWIDtype = WID_CHAR;
-	strWIDList[u32WidsCount].s32ValueSize = sizeof(WILC_Char);
+	strWIDList[u32WidsCount].s32ValueSize = sizeof(char);
 	strWIDList[u32WidsCount].ps8WidVal = (s8 *)(&(pstrHostIFscanAttr->u8ScanSource));
 	u32WidsCount++;
 
@@ -1446,7 +1446,7 @@ static s32 Handle_ScanDone(void *drvHandler, tenuScanEvent enuEvent)
 		strWID.u16WIDid	= (u16)WID_ABORT_RUNNING_SCAN;
 		strWID.enuWIDtype	= WID_CHAR;
 		strWID.ps8WidVal = (s8 *)&u8abort_running_scan;
-		strWID.s32ValueSize = sizeof(WILC_Char);
+		strWID.s32ValueSize = sizeof(char);
 
 		/*Sending Cfg*/
 		s32Error = SendConfigPkt(SET_CFG, &strWID, 1, true, (u32)pstrWFIDrv);
@@ -1612,7 +1612,7 @@ static s32 Handle_Connect(void *drvHandler, tstrHostIFconnectAttr *pstrHostIFcon
 		}
 		strWIDList[u32WidsCount].u16WIDid = (u16)WID_11I_MODE;
 		strWIDList[u32WidsCount].enuWIDtype = WID_CHAR;
-		strWIDList[u32WidsCount].s32ValueSize = sizeof(WILC_Char);
+		strWIDList[u32WidsCount].s32ValueSize = sizeof(char);
 		strWIDList[u32WidsCount].ps8WidVal = (s8 *)(&(pstrWFIDrv->strWILC_UsrConnReq.u8security));
 		u32WidsCount++;
 
@@ -1620,7 +1620,7 @@ static s32 Handle_Connect(void *drvHandler, tstrHostIFconnectAttr *pstrHostIFcon
 
 		strWIDList[u32WidsCount].u16WIDid = (u16)WID_AUTH_TYPE;
 		strWIDList[u32WidsCount].enuWIDtype = WID_CHAR;
-		strWIDList[u32WidsCount].s32ValueSize = sizeof(WILC_Char);
+		strWIDList[u32WidsCount].s32ValueSize = sizeof(char);
 		strWIDList[u32WidsCount].ps8WidVal = (s8 *)(&pstrWFIDrv->strWILC_UsrConnReq.tenuAuth_type);
 		u32WidsCount++;
 
@@ -1635,7 +1635,7 @@ static s32 Handle_Connect(void *drvHandler, tstrHostIFconnectAttr *pstrHostIFcon
 
 		strWIDList[u32WidsCount].u16WIDid = (u16)WID_JOIN_REQ;
 		strWIDList[u32WidsCount].enuWIDtype = WID_CHAR;
-		strWIDList[u32WidsCount].s32ValueSize = sizeof(WILC_Char);
+		strWIDList[u32WidsCount].s32ValueSize = sizeof(char);
 		strWIDList[u32WidsCount].ps8WidVal = (s8 *)&u8bssDscListIndex;
 		u32WidsCount++;
 
@@ -1758,7 +1758,7 @@ static s32 Handle_Connect(void *drvHandler, tstrHostIFconnectAttr *pstrHostIFcon
 	}
 	strWIDList[u32WidsCount].u16WIDid = (u16)WID_11I_MODE;
 	strWIDList[u32WidsCount].enuWIDtype = WID_CHAR;
-	strWIDList[u32WidsCount].s32ValueSize = sizeof(WILC_Char);
+	strWIDList[u32WidsCount].s32ValueSize = sizeof(char);
 	strWIDList[u32WidsCount].ps8WidVal = (s8 *)(&(pstrWFIDrv->strWILC_UsrConnReq.u8security));
 	u32WidsCount++;
 
@@ -1771,7 +1771,7 @@ static s32 Handle_Connect(void *drvHandler, tstrHostIFconnectAttr *pstrHostIFcon
 
 	strWIDList[u32WidsCount].u16WIDid = (u16)WID_AUTH_TYPE;
 	strWIDList[u32WidsCount].enuWIDtype = WID_CHAR;
-	strWIDList[u32WidsCount].s32ValueSize = sizeof(WILC_Char);
+	strWIDList[u32WidsCount].s32ValueSize = sizeof(char);
 	strWIDList[u32WidsCount].ps8WidVal = (s8 *)(&pstrWFIDrv->strWILC_UsrConnReq.tenuAuth_type);
 	u32WidsCount++;
 
@@ -2093,7 +2093,7 @@ static s32 Handle_FlushConnect(void *drvHandler)
 
 	strWIDList[u32WidsCount].u16WIDid = (u16)WID_11I_MODE;
 	strWIDList[u32WidsCount].enuWIDtype = WID_CHAR;
-	strWIDList[u32WidsCount].s32ValueSize = sizeof(WILC_Char);
+	strWIDList[u32WidsCount].s32ValueSize = sizeof(char);
 	strWIDList[u32WidsCount].ps8WidVal = (s8 *)(&(gu8Flushed11iMode));
 	u32WidsCount++;
 
@@ -2101,7 +2101,7 @@ static s32 Handle_FlushConnect(void *drvHandler)
 
 	strWIDList[u32WidsCount].u16WIDid = (u16)WID_AUTH_TYPE;
 	strWIDList[u32WidsCount].enuWIDtype = WID_CHAR;
-	strWIDList[u32WidsCount].s32ValueSize = sizeof(WILC_Char);
+	strWIDList[u32WidsCount].s32ValueSize = sizeof(char);
 	strWIDList[u32WidsCount].ps8WidVal = (s8 *)(&gu8FlushedAuthType);
 	u32WidsCount++;
 
@@ -2201,7 +2201,7 @@ static s32 Handle_ConnectTimeout(void *drvHandler)
 	strWID.u16WIDid = (u16)WID_DISCONNECT;
 	strWID.enuWIDtype = WID_CHAR;
 	strWID.ps8WidVal = (s8 *)&u16DummyReasonCode;
-	strWID.s32ValueSize = sizeof(WILC_Char);
+	strWID.s32ValueSize = sizeof(char);
 
 	PRINT_D(HOSTINF_DBG, "Sending disconnect request\n");
 
@@ -2731,19 +2731,19 @@ static int Handle_Key(void *drvHandler, tstrHostIFkeyAttr *pstrHostIFkeyAttr)
 			PRINT_D(GENERIC_DBG, "ID Hostint is %d\n", (pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.u8Wepidx));
 			strWIDList[0].u16WIDid = (u16)WID_11I_MODE;
 			strWIDList[0].enuWIDtype = WID_CHAR;
-			strWIDList[0].s32ValueSize = sizeof(WILC_Char);
+			strWIDList[0].s32ValueSize = sizeof(char);
 			strWIDList[0].ps8WidVal = (s8 *)(&(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.u8mode));
 
 			strWIDList[1].u16WIDid     = WID_AUTH_TYPE;
 			strWIDList[1].enuWIDtype  = WID_CHAR;
-			strWIDList[1].s32ValueSize = sizeof(WILC_Char);
+			strWIDList[1].s32ValueSize = sizeof(char);
 			strWIDList[1].ps8WidVal = (s8 *)(&(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.tenuAuth_type));
 
 			strWIDList[2].u16WIDid	= (u16)WID_KEY_ID;
 			strWIDList[2].enuWIDtype	= WID_CHAR;
 
 			strWIDList[2].ps8WidVal	= (s8 *)(&(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.u8Wepidx));
-			strWIDList[2].s32ValueSize = sizeof(WILC_Char);
+			strWIDList[2].s32ValueSize = sizeof(char);
 
 
 			pu8keybuf = (u8 *)WILC_MALLOC(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.u8WepKeylen);
@@ -2811,7 +2811,7 @@ static int Handle_Key(void *drvHandler, tstrHostIFkeyAttr *pstrHostIFkeyAttr)
 			strWID.u16WIDid	= (u16)WID_KEY_ID;
 			strWID.enuWIDtype	= WID_CHAR;
 			strWID.ps8WidVal	= (s8 *)(&(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.u8Wepidx));
-			strWID.s32ValueSize = sizeof(WILC_Char);
+			strWID.s32ValueSize = sizeof(char);
 
 			PRINT_D(HOSTINF_DBG, "Setting default key index\n");
 
@@ -2853,7 +2853,7 @@ static int Handle_Key(void *drvHandler, tstrHostIFkeyAttr *pstrHostIFkeyAttr)
 			/* pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwpaAttr.u8Ciphermode =  0X51; */
 			strWIDList[0].u16WIDid = (u16)WID_11I_MODE;
 			strWIDList[0].enuWIDtype = WID_CHAR;
-			strWIDList[0].s32ValueSize = sizeof(WILC_Char);
+			strWIDList[0].s32ValueSize = sizeof(char);
 			strWIDList[0].ps8WidVal = (s8 *)(&(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwpaAttr.u8Ciphermode));
 
 			strWIDList[1].u16WIDid	= (u16)WID_ADD_RX_GTK;
@@ -2957,7 +2957,7 @@ _WPARxGtk_end_case_:
 
 			strWIDList[0].u16WIDid = (u16)WID_11I_MODE;
 			strWIDList[0].enuWIDtype = WID_CHAR;
-			strWIDList[0].s32ValueSize = sizeof(WILC_Char);
+			strWIDList[0].s32ValueSize = sizeof(char);
 			strWIDList[0].ps8WidVal = (s8 *)(&(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwpaAttr.u8Ciphermode));
 
 			strWIDList[1].u16WIDid	= (u16)WID_ADD_PTK;
@@ -3080,7 +3080,7 @@ static void Handle_Disconnect(void *drvHandler)
 	strWID.u16WIDid = (u16)WID_DISCONNECT;
 	strWID.enuWIDtype = WID_CHAR;
 	strWID.ps8WidVal = (s8 *)&u16DummyReasonCode;
-	strWID.s32ValueSize = sizeof(WILC_Char);
+	strWID.s32ValueSize = sizeof(char);
 
 
 
@@ -3205,7 +3205,7 @@ static s32 Switch_Log_Terminal(void *drvHandler)
 	strWID.u16WIDid = (u16)WID_LOGTerminal_Switch;
 	strWID.enuWIDtype = WID_CHAR;
 	strWID.ps8WidVal = &dummy;
-	strWID.s32ValueSize = sizeof(WILC_Char);
+	strWID.s32ValueSize = sizeof(char);
 
 	s32Error = SendConfigPkt(SET_CFG, &strWID, 1, true, (u32)pstrWFIDrv);
 
@@ -3247,7 +3247,7 @@ static s32 Handle_GetChnl(void *drvHandler)
 	strWID.u16WIDid = (u16)WID_CURRENT_CHANNEL;
 	strWID.enuWIDtype = WID_CHAR;
 	strWID.ps8WidVal = (s8 *)&gu8Chnl;
-	strWID.s32ValueSize = sizeof(WILC_Char);
+	strWID.s32ValueSize = sizeof(char);
 
 	PRINT_D(HOSTINF_DBG, "Getting channel value\n");
 
@@ -3290,7 +3290,7 @@ static void Handle_GetRssi(void *drvHandler)
 	strWID.u16WIDid = (u16)WID_RSSI;
 	strWID.enuWIDtype = WID_CHAR;
 	strWID.ps8WidVal = &gs8Rssi;
-	strWID.s32ValueSize = sizeof(WILC_Char);
+	strWID.s32ValueSize = sizeof(char);
 
 	/*Sending Cfg*/
 	PRINT_D(HOSTINF_DBG, "Getting RSSI value\n");
@@ -3322,7 +3322,7 @@ static void Handle_GetLinkspeed(void *drvHandler)
 	strWID.u16WIDid = (u16)WID_LINKSPEED;
 	strWID.enuWIDtype = WID_CHAR;
 	strWID.ps8WidVal = &gs8lnkspd;
-	strWID.s32ValueSize = sizeof(WILC_Char);
+	strWID.s32ValueSize = sizeof(char);
 	/*Sending Cfg*/
 	PRINT_D(HOSTINF_DBG, "Getting LINKSPEED value\n");
 
@@ -3348,13 +3348,13 @@ s32 Handle_GetStatistics(void *drvHandler, tstrStatistics *pstrStatistics)
 
 	strWIDList[u32WidsCount].u16WIDid = WID_LINKSPEED;
 	strWIDList[u32WidsCount].enuWIDtype = WID_CHAR;
-	strWIDList[u32WidsCount].s32ValueSize = sizeof(WILC_Char);
+	strWIDList[u32WidsCount].s32ValueSize = sizeof(char);
 	strWIDList[u32WidsCount].ps8WidVal = (s8 *)(&(pstrStatistics->u8LinkSpeed));
 	u32WidsCount++;
 
 	strWIDList[u32WidsCount].u16WIDid = WID_RSSI;
 	strWIDList[u32WidsCount].enuWIDtype = WID_CHAR;
-	strWIDList[u32WidsCount].s32ValueSize = sizeof(WILC_Char);
+	strWIDList[u32WidsCount].s32ValueSize = sizeof(char);
 	strWIDList[u32WidsCount].ps8WidVal = (s8 *)(&(pstrStatistics->s8RSSI));
 	u32WidsCount++;
 
@@ -3551,7 +3551,7 @@ static void Handle_DelBeacon(void *drvHandler, tstrHostIFDelBeacon *pstrDelBeaco
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)drvHandler;
 	strWID.u16WIDid = (u16)WID_DEL_BEACON;
 	strWID.enuWIDtype = WID_CHAR;
-	strWID.s32ValueSize = sizeof(WILC_Char);
+	strWID.s32ValueSize = sizeof(char);
 	strWID.ps8WidVal = &gu8DelBcn;
 
 	if (strWID.ps8WidVal == NULL) {
@@ -4077,7 +4077,7 @@ static void Handle_PowerManagement(void *drvHandler, tstrHostIfPowerMgmtParam *s
 	}
 	PRINT_D(HOSTINF_DBG, "Handling power mgmt to %d\n", s8PowerMode);
 	strWID.ps8WidVal = &s8PowerMode;
-	strWID.s32ValueSize = sizeof(WILC_Char);
+	strWID.s32ValueSize = sizeof(char);
 
 	PRINT_D(HOSTINF_DBG, "Handling Power Management\n");
 
@@ -5483,7 +5483,7 @@ s32 host_int_set_start_scan_req(WILC_WFIDrvHandle hWFIDrv, u8 scanSource)
 	strWID.u16WIDid = (u16)WID_START_SCAN_REQ;
 	strWID.enuWIDtype = WID_CHAR;
 	strWID.ps8WidVal = (s8 *)&scanSource;
-	strWID.s32ValueSize = sizeof(WILC_Char);
+	strWID.s32ValueSize = sizeof(char);
 
 	return s32Error;
 }
@@ -5513,7 +5513,7 @@ s32 host_int_get_start_scan_req(WILC_WFIDrvHandle hWFIDrv, u8 *pu8ScanSource)
 	strWID.u16WIDid = (u16)WID_START_SCAN_REQ;
 	strWID.enuWIDtype = WID_CHAR;
 	strWID.ps8WidVal = (s8 *)pu8ScanSource;
-	strWID.s32ValueSize = sizeof(WILC_Char);
+	strWID.s32ValueSize = sizeof(char);
 
 	return s32Error;
 }
@@ -5733,7 +5733,7 @@ s32 host_int_disconnect_station(WILC_WFIDrvHandle hWFIDrv, u8 assoc_id)
 	strWID.u16WIDid = (u16)WID_DISCONNECT;
 	strWID.enuWIDtype = WID_CHAR;
 	strWID.ps8WidVal = (s8 *)&assoc_id;
-	strWID.s32ValueSize = sizeof(WILC_Char);
+	strWID.s32ValueSize = sizeof(char);
 
 	return s32Error;
 }
@@ -6057,7 +6057,7 @@ s32 host_int_test_set_int_wid(WILC_WFIDrvHandle hWFIDrv, u32 u32TestMemAddr)
 	/*prepare configuration packet*/
 	strWID.u16WIDid = (u16)WID_MEMORY_ADDRESS;
 	strWID.enuWIDtype = WID_INT;
-	strWID.ps8WidVal = (WILC_Char *)&u32TestMemAddr;
+	strWID.ps8WidVal = (char *)&u32TestMemAddr;
 	strWID.s32ValueSize = sizeof(u32);
 
 	/*Sending Cfg*/
@@ -6266,7 +6266,7 @@ s32 host_int_get_statistics(WILC_WFIDrvHandle hWFIDrv, tstrStatistics *pstrStati
 	WILC_memset(&strHostIFmsg, 0, sizeof(tstrHostIFmsg));
 
 	strHostIFmsg.u16MsgId = HOST_IF_MSG_GET_STATISTICS;
-	strHostIFmsg.uniHostIFmsgBody.pUserData = (WILC_Char *)pstrStatistics;
+	strHostIFmsg.uniHostIFmsgBody.pUserData = (char *)pstrStatistics;
 	strHostIFmsg.drvHandler = hWFIDrv;
 	/* send the message */
 	s32Error =	WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);

@@ -7,7 +7,7 @@
  *  @version	1.0
  */
 void *WILC_MemoryAlloc(u32 u32Size, tstrWILC_MemoryAttrs *strAttrs,
-		       WILC_Char *pcFileName, u32 u32LineNo)
+		       char *pcFileName, u32 u32LineNo)
 {
 	if (u32Size > 0) {
 		return kmalloc(u32Size, GFP_ATOMIC);
@@ -22,7 +22,7 @@ void *WILC_MemoryAlloc(u32 u32Size, tstrWILC_MemoryAttrs *strAttrs,
  *  @version	1.0
  */
 void *WILC_MemoryCalloc(u32 u32Size, tstrWILC_MemoryAttrs *strAttrs,
-			WILC_Char *pcFileName, u32 u32LineNo)
+			char *pcFileName, u32 u32LineNo)
 {
 	return kcalloc(u32Size, 1, GFP_KERNEL);
 }
@@ -33,7 +33,7 @@ void *WILC_MemoryCalloc(u32 u32Size, tstrWILC_MemoryAttrs *strAttrs,
  *  @version	1.0
  */
 void *WILC_MemoryRealloc(void *pvOldBlock, u32 u32NewSize,
-			 tstrWILC_MemoryAttrs *strAttrs, WILC_Char *pcFileName, u32 u32LineNo)
+			 tstrWILC_MemoryAttrs *strAttrs, char *pcFileName, u32 u32LineNo)
 {
 	if (u32NewSize == 0) {
 		kfree(pvOldBlock);
@@ -52,7 +52,7 @@ void *WILC_MemoryRealloc(void *pvOldBlock, u32 u32NewSize,
  *  @version	1.0
  */
 void WILC_MemoryFree(const void *pvBlock, tstrWILC_MemoryAttrs *strAttrs,
-		     WILC_Char *pcFileName, u32 u32LineNo)
+		     char *pcFileName, u32 u32LineNo)
 {
 	kfree(pvBlock);
 }

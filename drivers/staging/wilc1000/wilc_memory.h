@@ -42,7 +42,7 @@ typedef struct {
  *  @version	1.0
  */
 void *WILC_MemoryAlloc(u32 u32Size, tstrWILC_MemoryAttrs *strAttrs,
-		       WILC_Char *pcFileName, u32 u32LineNo);
+		       char *pcFileName, u32 u32LineNo);
 
 /*!
  *  @brief	Allocates a given size of bytes and zero filling it
@@ -66,7 +66,7 @@ void *WILC_MemoryAlloc(u32 u32Size, tstrWILC_MemoryAttrs *strAttrs,
  *  @version	1.0
  */
 void *WILC_MemoryCalloc(u32 u32Size, tstrWILC_MemoryAttrs *strAttrs,
-			WILC_Char *pcFileName, u32 u32LineNo);
+			char *pcFileName, u32 u32LineNo);
 
 /*!
  *  @brief	Reallocates a given block to a new size
@@ -94,7 +94,7 @@ void *WILC_MemoryCalloc(u32 u32Size, tstrWILC_MemoryAttrs *strAttrs,
  *  @version	1.0
  */
 void *WILC_MemoryRealloc(void *pvOldBlock, u32 u32NewSize,
-			 tstrWILC_MemoryAttrs *strAttrs, WILC_Char *pcFileName, u32 u32LineNo);
+			 tstrWILC_MemoryAttrs *strAttrs, char *pcFileName, u32 u32LineNo);
 
 /*!
  *  @brief	Frees given block
@@ -114,7 +114,7 @@ void *WILC_MemoryRealloc(void *pvOldBlock, u32 u32NewSize,
  *  @version	1.0
  */
 void WILC_MemoryFree(const void *pvBlock, tstrWILC_MemoryAttrs *strAttrs,
-			WILC_Char *pcFileName, u32 u32LineNo);
+			char *pcFileName, u32 u32LineNo);
 
 /*!
  * @brief	standrad malloc wrapper with custom attributes

@@ -141,7 +141,7 @@ typedef enum {
 
 
 typedef struct {
-	WILC_Char *pcRespBuffer;
+	char *pcRespBuffer;
 	s32 s32MaxRespBuffLen;
 	s32 s32BytesRead;
 	bool bRespRequired;
@@ -339,7 +339,7 @@ INLINE u8 get_hex_char(u8 inp)
 
 /* This function extracts the MAC address held in a string in standard format */
 /* into another buffer as integers.                                           */
-INLINE u16 extract_mac_addr(WILC_Char *str, u8 *buff)
+INLINE u16 extract_mac_addr(char *str, u8 *buff)
 {
 	*buff = 0;
 	while (*str != '\0') {
@@ -1095,7 +1095,7 @@ s32 DeallocateSurveyResults(wid_site_survey_reslts_s *pstrSurveyResults)
 /*                                                                           */
 /*****************************************************************************/
 
-void ProcessCharWid(WILC_Char *pcPacket, s32 *ps32PktLen,
+void ProcessCharWid(char *pcPacket, s32 *ps32PktLen,
 		    tstrWID *pstrWID, s8 *ps8WidVal)
 {
 	u8 *pu8val = (u8 *)ps8WidVal;
@@ -1149,7 +1149,7 @@ void ProcessCharWid(WILC_Char *pcPacket, s32 *ps32PktLen,
 /*                                                                           */
 /*****************************************************************************/
 
-void ProcessShortWid(WILC_Char *pcPacket, s32 *ps32PktLen,
+void ProcessShortWid(char *pcPacket, s32 *ps32PktLen,
 		     tstrWID *pstrWID, s8 *ps8WidVal)
 {
 	u16 *pu16val = (u16 *)ps8WidVal;
@@ -1204,7 +1204,7 @@ void ProcessShortWid(WILC_Char *pcPacket, s32 *ps32PktLen,
 /*                                                                           */
 /*****************************************************************************/
 
-void ProcessIntWid(WILC_Char *pcPacket, s32 *ps32PktLen,
+void ProcessIntWid(char *pcPacket, s32 *ps32PktLen,
 		   tstrWID *pstrWID, s8 *ps8WidVal)
 {
 	u32 *pu32val = (u32 *)ps8WidVal;
@@ -1262,7 +1262,7 @@ void ProcessIntWid(WILC_Char *pcPacket, s32 *ps32PktLen,
 /*                                                                           */
 /*****************************************************************************/
 
-void ProcessIPwid(WILC_Char *pcPacket, s32 *ps32PktLen,
+void ProcessIPwid(char *pcPacket, s32 *ps32PktLen,
 		  tstrWID *pstrWID, u8 *pu8ip)
 {
 	u32 u32val = 0;
@@ -1320,7 +1320,7 @@ void ProcessIPwid(WILC_Char *pcPacket, s32 *ps32PktLen,
 /*                                                                           */
 /*****************************************************************************/
 
-void ProcessStrWid(WILC_Char *pcPacket, s32 *ps32PktLen,
+void ProcessStrWid(char *pcPacket, s32 *ps32PktLen,
 		   tstrWID *pstrWID, u8 *pu8val, s32 s32ValueSize)
 {
 	u16 u16MsgLen = 0;
@@ -1377,7 +1377,7 @@ void ProcessStrWid(WILC_Char *pcPacket, s32 *ps32PktLen,
 /*                                                                           */
 /*****************************************************************************/
 
-void ProcessAdrWid(WILC_Char *pcPacket, s32 *ps32PktLen,
+void ProcessAdrWid(char *pcPacket, s32 *ps32PktLen,
 		   tstrWID *pstrWID, u8 *pu8val)
 {
 	u16 u16MsgLen = 0;
@@ -1441,7 +1441,7 @@ void ProcessAdrWid(WILC_Char *pcPacket, s32 *ps32PktLen,
 /*                                                                           */
 /*****************************************************************************/
 
-void ProcessBinWid(WILC_Char *pcPacket, s32 *ps32PktLen,
+void ProcessBinWid(char *pcPacket, s32 *ps32PktLen,
 		   tstrWID *pstrWID, u8 *pu8val, s32 s32ValueSize)
 {
 	/* WILC_ERROR("processing Binary WIDs is not supported\n"); */
@@ -1802,7 +1802,7 @@ s32 ParseWriteResponse(u8 *pu8RespBuffer)
  *  @version		1.0
  */
 
-s32 CreatePacketHeader(WILC_Char *pcpacket, s32 *ps32PacketLength)
+s32 CreatePacketHeader(char *pcpacket, s32 *ps32PacketLength)
 {
 	s32 s32Error = WILC_SUCCESS;
 	u16 u16MsgLen = (u16)(*ps32PacketLength);
@@ -1911,7 +1911,7 @@ s32 CreateConfigPacket(s8 *ps8packet, s32 *ps32PacketLength,
 	return s32Error;
 }
 
-s32 ConfigWaitResponse(WILC_Char *pcRespBuffer, s32 s32MaxRespBuffLen, s32 *ps32BytesRead,
+s32 ConfigWaitResponse(char *pcRespBuffer, s32 s32MaxRespBuffLen, s32 *ps32BytesRead,
 			       bool bRespRequired)
 {
 	s32 s32Error = WILC_SUCCESS;
@@ -2016,7 +2016,7 @@ End_ConfigPkt:
 	return s32Error;
 }
 #endif
-s32 ConfigProvideResponse(WILC_Char *pcRespBuffer, s32 s32RespLen)
+s32 ConfigProvideResponse(char *pcRespBuffer, s32 s32RespLen)
 {
 	s32 s32Error = WILC_SUCCESS;
 

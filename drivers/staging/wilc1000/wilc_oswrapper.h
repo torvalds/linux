@@ -13,9 +13,6 @@
 /* OS Wrapper interface version */
 #define WILC_OSW_INTERFACE_VER 2
 
-/* Character types */
-typedef char WILC_Char;
-
 /* Os Configuration File */
 #include "wilc_osconfig.h"
 #include "wilc_platform.h"

@@ -92,7 +92,7 @@ void *WILC_memset(void *pvTarget, u8 u8SetValue, u32 u32Count);
  *  @date	18 Aug 2010
  *  @version	1.0
  */
-WILC_Char *WILC_strncpy(WILC_Char *pcTarget, const WILC_Char *pcSource,
+char *WILC_strncpy(char *pcTarget, const char *pcSource,
 			u32 u32Count);
 
 /*!
@@ -113,7 +113,7 @@ WILC_Char *WILC_strncpy(WILC_Char *pcTarget, const WILC_Char *pcSource,
  *  @date	7 Dec 2010
  *  @version	1.0
  */
-s32 WILC_strncmp(const WILC_Char *pcStr1, const WILC_Char *pcStr2,
+s32 WILC_strncmp(const char *pcStr1, const char *pcStr2,
 			 u32 u32Count);
 
 /*!
@@ -125,6 +125,6 @@ s32 WILC_strncmp(const WILC_Char *pcStr1, const WILC_Char *pcStr2,
  *  @date	18 Aug 2010
  *  @version	1.0
  */
-u32 WILC_strlen(const WILC_Char *pcStr);
+u32 WILC_strlen(const char *pcStr);
 
 #endif
