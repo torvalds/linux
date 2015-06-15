@@ -492,10 +492,6 @@ void rtllib_send_probe_requests(struct rtllib_device *ieee, u8 is_mesh)
 	}
 }
 
-static void rtllib_softmac_hint11d_wq(void *data)
-{
-}
-
 void rtllib_update_active_chan_map(struct rtllib_device *ieee)
 {
 	memcpy(ieee->active_channel_map, GET_DOT11D_INFO(ieee)->channel_map,
@@ -3045,8 +3041,6 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 			      (void *)rtllib_associate_procedure_wq, ieee);
 	INIT_DELAYED_WORK_RSL(&ieee->softmac_scan_wq,
 			      (void *)rtllib_softmac_scan_wq, ieee);
-	INIT_DELAYED_WORK_RSL(&ieee->softmac_hint11d_wq,
-			      (void *)rtllib_softmac_hint11d_wq, ieee);
 	INIT_DELAYED_WORK_RSL(&ieee->associate_retry_wq,
 			      (void *)rtllib_associate_retry_wq, ieee);
 	INIT_WORK_RSL(&ieee->wx_sync_scan_wq, (void *)rtllib_wx_sync_scan_wq,

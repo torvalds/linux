@@ -1794,7 +1794,6 @@ struct rtllib_device {
 	struct work_struct ips_leave_wq;
 	struct delayed_work associate_procedure_wq;
 	struct delayed_work softmac_scan_wq;
-	struct delayed_work softmac_hint11d_wq;
 	struct delayed_work associate_retry_wq;
 	struct delayed_work start_ibss_wq;
 	struct delayed_work hw_wakeup_wq;
