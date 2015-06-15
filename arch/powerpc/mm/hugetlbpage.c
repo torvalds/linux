@@ -689,27 +689,34 @@ void hugetlb_free_pgd_range(struct mmu_gather *tlb,
 struct page *
 follow_huge_addr(struct mm_struct *mm, unsigned long address, int write)
 {
-	pte_t *ptep;
-	struct page *page;
+	pte_t *ptep, pte;
 	unsigned shift;
 	unsigned long mask, flags;
+	struct page *page = ERR_PTR(-EINVAL);
+
+	local_irq_save(flags);
+	ptep = find_linux_pte_or_hugepte(mm->pgd, address, &shift);
+	if (!ptep)
+		goto no_page;
+	pte = READ_ONCE(*ptep);
 	/*
+	 * Verify it is a huge page else bail.
 	 * Transparent hugepages are handled by generic code. We can skip them
 	 * here.
 	 */
-	local_irq_save(flags);
-	ptep = find_linux_pte_or_hugepte(mm->pgd, address, &shift);
+	if (!shift || pmd_trans_huge(__pmd(pte_val(pte))))
+		goto no_page;
 
-	/* Verify it is a huge page else bail. */
-	if (!ptep || !shift || pmd_trans_huge(*(pmd_t *)ptep)) {
-		local_irq_restore(flags);
-		return ERR_PTR(-EINVAL);
+	if (!pte_present(pte)) {
+		page = NULL;
+		goto no_page;
 	}
 	mask = (1UL << shift) - 1;
-	page = pte_page(*ptep);
+	page = pte_page(pte);
 	if (page)
 		page += (address & mask) / PAGE_SIZE;
 
+no_page:
 	local_irq_restore(flags);
 	return page;
 }

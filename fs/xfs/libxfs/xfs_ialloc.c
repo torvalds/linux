@@ -376,7 +376,7 @@ xfs_ialloc_ag_alloc(
 	 */
 	newlen = args.mp->m_ialloc_inos;
 	if (args.mp->m_maxicount &&
-	    percpu_counter_read(&args.mp->m_icount) + newlen >
+	    percpu_counter_read_positive(&args.mp->m_icount) + newlen >
 							args.mp->m_maxicount)
 		return -ENOSPC;
 	args.minlen = args.maxlen = args.mp->m_ialloc_blks;
@@ -1339,10 +1339,13 @@ xfs_dialloc(
 	 * If we have already hit the ceiling of inode blocks then clear
 	 * okalloc so we scan all available agi structures for a free
 	 * inode.
+	 *
+	 * Read rough value of mp->m_icount by percpu_counter_read_positive,
+	 * which will sacrifice the preciseness but improve the performance.
 	 */
 	if (mp->m_maxicount &&
-	    percpu_counter_read(&mp->m_icount) + mp->m_ialloc_inos >
-							mp->m_maxicount) {
+	    percpu_counter_read_positive(&mp->m_icount) + mp->m_ialloc_inos
+							> mp->m_maxicount) {
 		noroom = 1;
 		okalloc = 0;
 	}

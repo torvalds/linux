@@ -110,6 +110,12 @@ drm_atomic_get_existing_connector_state(struct drm_atomic_state *state,
 }
 
 int __must_check
+drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
+			     struct drm_display_mode *mode);
+int __must_check
+drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
+				  struct drm_property_blob *blob);
+int __must_check
 drm_atomic_set_crtc_for_plane(struct drm_plane_state *plane_state,
 			      struct drm_crtc *crtc);
 void drm_atomic_set_fb_for_plane(struct drm_plane_state *plane_state,
@@ -120,6 +126,10 @@ drm_atomic_set_crtc_for_connector(struct drm_connector_state *conn_state,
 int __must_check
 drm_atomic_add_affected_connectors(struct drm_atomic_state *state,
 				   struct drm_crtc *crtc);
+int __must_check
+drm_atomic_add_affected_planes(struct drm_atomic_state *state,
+			       struct drm_crtc *crtc);
+
 int
 drm_atomic_connectors_for_crtc(struct drm_atomic_state *state,
 			       struct drm_crtc *crtc);
@@ -132,26 +142,26 @@ int __must_check drm_atomic_async_commit(struct drm_atomic_state *state);
 
 #define for_each_connector_in_state(state, connector, connector_state, __i) \
 	for ((__i) = 0;							\
-	     (connector) = (state)->connectors[__i],			\
-	     (connector_state) = (state)->connector_states[__i],	\
-	     (__i) < (state)->num_connector;				\
+	     (__i) < (state)->num_connector &&				\
+	     ((connector) = (state)->connectors[__i],			\
+	     (connector_state) = (state)->connector_states[__i], 1); 	\
 	     (__i)++)							\
 		if (connector)
 
 #define for_each_crtc_in_state(state, crtc, crtc_state, __i)	\
 	for ((__i) = 0;						\
-	     (crtc) = (state)->crtcs[__i],			\
-	     (crtc_state) = (state)->crtc_states[__i],		\
-	     (__i) < (state)->dev->mode_config.num_crtc;	\
+	     (__i) < (state)->dev->mode_config.num_crtc &&	\
+	     ((crtc) = (state)->crtcs[__i],			\
+	     (crtc_state) = (state)->crtc_states[__i], 1);	\
 	     (__i)++)						\
 		if (crtc_state)
 
-#define for_each_plane_in_state(state, plane, plane_state, __i)	\
-	for ((__i) = 0;						\
-	     (plane) = (state)->planes[__i],			\
-	     (plane_state) = (state)->plane_states[__i],	\
-	     (__i) < (state)->dev->mode_config.num_total_plane;	\
-	     (__i)++)						\
+#define for_each_plane_in_state(state, plane, plane_state, __i)		\
+	for ((__i) = 0;							\
+	     (__i) < (state)->dev->mode_config.num_total_plane &&	\
+	     ((plane) = (state)->planes[__i],				\
+	     (plane_state) = (state)->plane_states[__i], 1);		\
+	     (__i)++)							\
 		if (plane_state)
 
 #endif /* DRM_ATOMIC_H_ */

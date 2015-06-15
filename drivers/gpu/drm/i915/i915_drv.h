@@ -1743,7 +1743,7 @@ struct drm_i915_private {
 
 	unsigned int fsb_freq, mem_freq, is_ddr3;
 	unsigned int skl_boot_cdclk;
-	unsigned int cdclk_freq;
+	unsigned int cdclk_freq, max_cdclk_freq;
 	unsigned int hpll_freq;
 
 	/**
@@ -2399,6 +2399,9 @@ struct drm_i915_cmd_table {
 				 ((INTEL_DEVID(dev) & 0xf) == 0x6 ||	\
 				 (INTEL_DEVID(dev) & 0xf) == 0xb ||	\
 				 (INTEL_DEVID(dev) & 0xf) == 0xe))
+/* ULX machines are also considered ULT. */
+#define IS_BDW_ULX(dev)		(IS_BROADWELL(dev) && \
+				 (INTEL_DEVID(dev) & 0xf) == 0xe)
 #define IS_BDW_GT3(dev)		(IS_BROADWELL(dev) && \
 				 (INTEL_DEVID(dev) & 0x00F0) == 0x0020)
 #define IS_HSW_ULT(dev)		(IS_HASWELL(dev) && \

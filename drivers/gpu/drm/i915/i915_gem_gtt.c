@@ -952,6 +952,13 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 
 	ppgtt->base.start = 0;
 	ppgtt->base.total = 1ULL << 32;
+	if (IS_ENABLED(CONFIG_X86_32))
+		/* While we have a proliferation of size_t variables
+		 * we cannot represent the full ppgtt size on 32bit,
+		 * so limit it to the same size as the GGTT (currently
+		 * 2GiB).
+		 */
+		ppgtt->base.total = to_i915(ppgtt->base.dev)->gtt.base.total;
 	ppgtt->base.cleanup = gen8_ppgtt_cleanup;
 	ppgtt->base.allocate_va_range = gen8_alloc_va_range;
 	ppgtt->base.insert_entries = gen8_ppgtt_insert_entries;

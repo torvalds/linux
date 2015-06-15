@@ -326,6 +326,10 @@ struct drm_file {
 	struct list_head fbs;
 	struct mutex fbs_lock;
 
+	/** User-created blob properties; this retains a reference on the
+	 *  property. */
+	struct list_head blobs;
+
 	wait_queue_head_t event_wait;
 	struct list_head event_list;
 	int event_space;
@@ -814,6 +818,7 @@ struct drm_device {
 #endif
 
 	struct platform_device *platformdev; /**< Platform device struture */
+	struct virtio_device *virtdev;
 
 	struct drm_sg_mem *sg;	/**< Scatter gather memory */
 	unsigned int num_crtcs;                  /**< Number of CRTCs on this device */

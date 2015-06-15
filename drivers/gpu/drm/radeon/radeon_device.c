@@ -1725,6 +1725,8 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 		return 0;
 	}
 
+	atomic_inc(&rdev->gpu_reset_counter);
+
 	radeon_save_bios_scratch_regs(rdev);
 	/* block TTM */
 	resched = ttm_bo_lock_delayed_workqueue(&rdev->mman.bdev);

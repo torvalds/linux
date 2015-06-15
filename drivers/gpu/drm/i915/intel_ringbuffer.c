@@ -800,6 +800,11 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	WA_SET_BIT_MASKED(INSTPM, INSTPM_FORCE_ORDERING);
+
+	/* WaDisableAsyncFlipPerfMode:bdw */
+	WA_SET_BIT_MASKED(MI_MODE, ASYNC_FLIP_PERF_DISABLE);
+
 	/* WaDisablePartialInstShootdown:bdw */
 	/* WaDisableThreadStallDopClockGating:bdw (pre-production) */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
@@ -861,6 +866,11 @@ static int chv_init_workarounds(struct intel_engine_cs *ring)
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	WA_SET_BIT_MASKED(INSTPM, INSTPM_FORCE_ORDERING);
+
+	/* WaDisableAsyncFlipPerfMode:chv */
+	WA_SET_BIT_MASKED(MI_MODE, ASYNC_FLIP_PERF_DISABLE);
+
 	/* WaDisablePartialInstShootdown:chv */
 	/* WaDisableThreadStallDopClockGating:chv */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
@@ -900,13 +910,6 @@ static int chv_init_workarounds(struct intel_engine_cs *ring)
 	WA_SET_FIELD_MASKED(GEN7_GT_MODE,
 			    GEN6_WIZ_HASHING_MASK,
 			    GEN6_WIZ_HASHING_16x4);
-
-	if (INTEL_REVID(dev) == SKL_REVID_C0 ||
-	    INTEL_REVID(dev) == SKL_REVID_D0)
-		/* WaBarrierPerformanceFixDisable:skl */
-		WA_SET_BIT_MASKED(HDC_CHICKEN0,
-				  HDC_FENCE_DEST_SLM_DISABLE |
-				  HDC_BARRIER_PERFORMANCE_DISABLE);
 
 	return 0;
 }
@@ -1041,6 +1044,13 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 				  HDC_FORCE_NON_COHERENT);
 	}
 
+	if (INTEL_REVID(dev) == SKL_REVID_C0 ||
+	    INTEL_REVID(dev) == SKL_REVID_D0)
+		/* WaBarrierPerformanceFixDisable:skl */
+		WA_SET_BIT_MASKED(HDC_CHICKEN0,
+				  HDC_FENCE_DEST_SLM_DISABLE |
+				  HDC_BARRIER_PERFORMANCE_DISABLE);
+
 	return skl_tune_iz_hashing(ring);
 }
 
@@ -1105,9 +1115,9 @@ static int init_render_ring(struct intel_engine_cs *ring)
 	 * to use MI_WAIT_FOR_EVENT within the CS. It should already be
 	 * programmed to '1' on all products.
 	 *
-	 * WaDisableAsyncFlipPerfMode:snb,ivb,hsw,vlv,bdw,chv
+	 * WaDisableAsyncFlipPerfMode:snb,ivb,hsw,vlv
 	 */
-	if (INTEL_INFO(dev)->gen >= 6 && INTEL_INFO(dev)->gen < 9)
+	if (INTEL_INFO(dev)->gen >= 6 && INTEL_INFO(dev)->gen < 8)
 		I915_WRITE(MI_MODE, _MASKED_BIT_ENABLE(ASYNC_FLIP_PERF_DISABLE));
 
 	/* Required for the hardware to program scanline values for waiting */
@@ -1132,7 +1142,7 @@ static int init_render_ring(struct intel_engine_cs *ring)
 			   _MASKED_BIT_DISABLE(CM0_STC_EVICT_DISABLE_LRA_SNB));
 	}
 
-	if (INTEL_INFO(dev)->gen >= 6)
+	if (INTEL_INFO(dev)->gen >= 6 && INTEL_INFO(dev)->gen < 8)
 		I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
 
 	if (HAS_L3_DPF(dev))

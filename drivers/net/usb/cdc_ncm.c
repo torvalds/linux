@@ -1182,7 +1182,7 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 	 * payload data instead.
 	 */
 	usbnet_set_skb_tx_stats(skb_out, n,
-				ctx->tx_curr_frame_payload - skb_out->len);
+				(long)ctx->tx_curr_frame_payload - skb_out->len);
 
 	return skb_out;
 

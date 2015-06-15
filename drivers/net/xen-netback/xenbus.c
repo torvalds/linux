@@ -793,6 +793,7 @@ static void connect(struct backend_info *be)
 			goto err;
 		}
 
+		queue->credit_bytes = credit_bytes;
 		queue->remaining_credit = credit_bytes;
 		queue->credit_usec = credit_usec;
 

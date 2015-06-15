@@ -38,19 +38,20 @@ static inline struct rcar_du_plane *to_rcar_plane(struct drm_plane *plane)
 	return container_of(plane, struct rcar_du_plane, plane);
 }
 
-struct rcar_du_planes {
-	struct rcar_du_plane planes[RCAR_DU_NUM_KMS_PLANES];
-
-	struct drm_property *alpha;
-	struct drm_property *colorkey;
-	struct drm_property *zpos;
-};
-
+/**
+ * struct rcar_du_plane_state - Driver-specific plane state
+ * @state: base DRM plane state
+ * @format: information about the pixel format used by the plane
+ * @hwindex: 0-based hardware plane index, -1 means unused
+ * @alpha: value of the plane alpha property
+ * @colorkey: value of the plane colorkey property
+ * @zpos: value of the plane zpos property
+ */
 struct rcar_du_plane_state {
 	struct drm_plane_state state;
 
 	const struct rcar_du_format_info *format;
-	int hwindex;		/* 0-based, -1 means unused */
+	int hwindex;
 
 	unsigned int alpha;
 	unsigned int colorkey;
@@ -58,7 +59,7 @@ struct rcar_du_plane_state {
 };
 
 static inline struct rcar_du_plane_state *
-to_rcar_du_plane_state(struct drm_plane_state *state)
+to_rcar_plane_state(struct drm_plane_state *state)
 {
 	return container_of(state, struct rcar_du_plane_state, state);
 }

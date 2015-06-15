@@ -4828,11 +4828,22 @@ intel_pre_disable_primary(struct drm_crtc *crtc)
 
 static void intel_crtc_enable_planes(struct drm_crtc *crtc)
 {
+	struct drm_device *dev = crtc->dev;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+
 	intel_enable_primary_hw_plane(crtc->primary, crtc);
 	intel_enable_sprite_planes(crtc);
 	intel_crtc_update_cursor(crtc, true);
 
 	intel_post_enable_primary(crtc);
+
+	/*
+	 * FIXME: Once we grow proper nuclear flip support out of this we need
+	 * to compute the mask of flip planes precisely. For the time being
+	 * consider this a flip to a NULL plane.
+	 */
+	intel_frontbuffer_flip(dev, INTEL_FRONTBUFFER_ALL_MASK(pipe));
 }
 
 static void intel_crtc_disable_planes(struct drm_crtc *crtc)
@@ -5335,7 +5346,74 @@ static void modeset_update_crtc_power_domains(struct drm_atomic_state *state)
 	intel_display_set_init_power(dev_priv, false);
 }
 
-void broxton_set_cdclk(struct drm_device *dev, int frequency)
+static void intel_update_max_cdclk(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (IS_SKYLAKE(dev)) {
+		u32 limit = I915_READ(SKL_DFSM) & SKL_DFSM_CDCLK_LIMIT_MASK;
+
+		if (limit == SKL_DFSM_CDCLK_LIMIT_675)
+			dev_priv->max_cdclk_freq = 675000;
+		else if (limit == SKL_DFSM_CDCLK_LIMIT_540)
+			dev_priv->max_cdclk_freq = 540000;
+		else if (limit == SKL_DFSM_CDCLK_LIMIT_450)
+			dev_priv->max_cdclk_freq = 450000;
+		else
+			dev_priv->max_cdclk_freq = 337500;
+	} else if (IS_BROADWELL(dev))  {
+		/*
+		 * FIXME with extra cooling we can allow
+		 * 540 MHz for ULX and 675 Mhz for ULT.
+		 * How can we know if extra cooling is
+		 * available? PCI ID, VTB, something else?
+		 */
+		if (I915_READ(FUSE_STRAP) & HSW_CDCLK_LIMIT)
+			dev_priv->max_cdclk_freq = 450000;
+		else if (IS_BDW_ULX(dev))
+			dev_priv->max_cdclk_freq = 450000;
+		else if (IS_BDW_ULT(dev))
+			dev_priv->max_cdclk_freq = 540000;
+		else
+			dev_priv->max_cdclk_freq = 675000;
+	} else if (IS_VALLEYVIEW(dev)) {
+		dev_priv->max_cdclk_freq = 400000;
+	} else {
+		/* otherwise assume cdclk is fixed */
+		dev_priv->max_cdclk_freq = dev_priv->cdclk_freq;
+	}
+
+	DRM_DEBUG_DRIVER("Max CD clock rate: %d kHz\n",
+			 dev_priv->max_cdclk_freq);
+}
+
+static void intel_update_cdclk(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	dev_priv->cdclk_freq = dev_priv->display.get_display_clock_speed(dev);
+	DRM_DEBUG_DRIVER("Current CD clock rate: %d kHz\n",
+			 dev_priv->cdclk_freq);
+
+	/*
+	 * Program the gmbus_freq based on the cdclk frequency.
+	 * BSpec erroneously claims we should aim for 4MHz, but
+	 * in fact 1MHz is the correct frequency.
+	 */
+	if (IS_VALLEYVIEW(dev)) {
+		/*
+		 * Program the gmbus_freq based on the cdclk frequency.
+		 * BSpec erroneously claims we should aim for 4MHz, but
+		 * in fact 1MHz is the correct frequency.
+		 */
+		I915_WRITE(GMBUSFREQ_VLV, DIV_ROUND_UP(dev_priv->cdclk_freq, 1000));
+	}
+
+	if (dev_priv->max_cdclk_freq == 0)
+		intel_update_max_cdclk(dev);
+}
+
+static void broxton_set_cdclk(struct drm_device *dev, int frequency)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t divider;
@@ -5451,7 +5529,7 @@ void broxton_set_cdclk(struct drm_device *dev, int frequency)
 		return;
 	}
 
-	dev_priv->cdclk_freq = frequency;
+	intel_update_cdclk(dev);
 }
 
 void broxton_init_cdclk(struct drm_device *dev)
@@ -5626,6 +5704,7 @@ static bool skl_cdclk_wait_for_pcu_ready(struct drm_i915_private *dev_priv)
 
 static void skl_set_cdclk(struct drm_i915_private *dev_priv, unsigned int freq)
 {
+	struct drm_device *dev = dev_priv->dev;
 	u32 freq_select, pcu_ack;
 
 	DRM_DEBUG_DRIVER("Changing CDCLK to %dKHz\n", freq);
@@ -5666,6 +5745,8 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv, unsigned int freq)
 	mutex_lock(&dev_priv->rps.hw_lock);
 	sandybridge_pcode_write(dev_priv, SKL_PCODE_CDCLK_CONTROL, pcu_ack);
 	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	intel_update_cdclk(dev);
 }
 
 void skl_uninit_cdclk(struct drm_i915_private *dev_priv)
@@ -5736,22 +5817,6 @@ static int valleyview_get_vco(struct drm_i915_private *dev_priv)
 	return vco_freq[hpll_freq] * 1000;
 }
 
-static void vlv_update_cdclk(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	dev_priv->cdclk_freq = dev_priv->display.get_display_clock_speed(dev);
-	DRM_DEBUG_DRIVER("Current CD clock rate: %d kHz\n",
-			 dev_priv->cdclk_freq);
-
-	/*
-	 * Program the gmbus_freq based on the cdclk frequency.
-	 * BSpec erroneously claims we should aim for 4MHz, but
-	 * in fact 1MHz is the correct frequency.
-	 */
-	I915_WRITE(GMBUSFREQ_VLV, DIV_ROUND_UP(dev_priv->cdclk_freq, 1000));
-}
-
 /* Adjust CDclk dividers to allow high res or save power if possible */
 static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 {
@@ -5815,7 +5880,7 @@ static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 
 	mutex_unlock(&dev_priv->sb_lock);
 
-	vlv_update_cdclk(dev);
+	intel_update_cdclk(dev);
 }
 
 static void cherryview_set_cdclk(struct drm_device *dev, int cdclk)
@@ -5856,7 +5921,7 @@ static void cherryview_set_cdclk(struct drm_device *dev, int cdclk)
 	}
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
-	vlv_update_cdclk(dev);
+	intel_update_cdclk(dev);
 }
 
 static int valleyview_calc_cdclk(struct drm_i915_private *dev_priv,
@@ -6574,12 +6639,36 @@ retry:
 	return ret;
 }
 
+static bool pipe_config_supports_ips(struct drm_i915_private *dev_priv,
+				     struct intel_crtc_state *pipe_config)
+{
+	if (pipe_config->pipe_bpp > 24)
+		return false;
+
+	/* HSW can handle pixel rate up to cdclk? */
+	if (IS_HASWELL(dev_priv->dev))
+		return true;
+
+	/*
+	 * We compare against max which means we must take
+	 * the increased cdclk requirement into account when
+	 * calculating the new cdclk.
+	 *
+	 * Should measure whether using a lower cdclk w/o IPS
+	 */
+	return ilk_pipe_pixel_rate(pipe_config) <=
+		dev_priv->max_cdclk_freq * 95 / 100;
+}
+
 static void hsw_compute_ips_config(struct intel_crtc *crtc,
 				   struct intel_crtc_state *pipe_config)
 {
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
 	pipe_config->ips_enabled = i915.enable_ips &&
-				   hsw_crtc_supports_ips(crtc) &&
-				   pipe_config->pipe_bpp <= 24;
+		hsw_crtc_supports_ips(crtc) &&
+		pipe_config_supports_ips(dev_priv, pipe_config);
 }
 
 static int intel_crtc_compute_config(struct intel_crtc *crtc,
@@ -6592,8 +6681,7 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 
 	/* FIXME should check pixel clock limits on all platforms */
 	if (INTEL_INFO(dev)->gen < 4) {
-		int clock_limit =
-			dev_priv->display.get_display_clock_speed(dev);
+		int clock_limit = dev_priv->max_cdclk_freq;
 
 		/*
 		 * Enable pixel doubling when the dot clock
@@ -6652,10 +6740,8 @@ static int skylake_get_display_clock_speed(struct drm_device *dev)
 	uint32_t cdctl = I915_READ(CDCLK_CTL);
 	uint32_t linkrate;
 
-	if (!(lcpll1 & LCPLL_PLL_ENABLE)) {
-		WARN(1, "LCPLL1 not enabled\n");
+	if (!(lcpll1 & LCPLL_PLL_ENABLE))
 		return 24000; /* 24MHz is the cd freq with NSSC ref */
-	}
 
 	if ((cdctl & CDCLK_FREQ_SEL_MASK) == CDCLK_FREQ_540)
 		return 540000;
@@ -9468,6 +9554,7 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 	}
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	intel_update_cdclk(dev_priv->dev);
 }
 
 /*
@@ -9544,6 +9631,182 @@ static void broxton_modeset_global_resources(struct drm_atomic_state *old_state)
 
 	if (req_cdclk != dev_priv->cdclk_freq)
 		broxton_set_cdclk(dev, req_cdclk);
+}
+
+/* compute the max rate for new configuration */
+static int ilk_max_pixel_rate(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct intel_crtc *intel_crtc;
+	struct drm_crtc *crtc;
+	int max_pixel_rate = 0;
+	int pixel_rate;
+
+	for_each_crtc(dev, crtc) {
+		if (!crtc->state->enable)
+			continue;
+
+		intel_crtc = to_intel_crtc(crtc);
+		pixel_rate = ilk_pipe_pixel_rate(intel_crtc->config);
+
+		/* pixel rate mustn't exceed 95% of cdclk with IPS on BDW */
+		if (IS_BROADWELL(dev) && intel_crtc->config->ips_enabled)
+			pixel_rate = DIV_ROUND_UP(pixel_rate * 100, 95);
+
+		max_pixel_rate = max(max_pixel_rate, pixel_rate);
+	}
+
+	return max_pixel_rate;
+}
+
+static void broadwell_set_cdclk(struct drm_device *dev, int cdclk)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t val, data;
+	int ret;
+
+	if (WARN((I915_READ(LCPLL_CTL) &
+		  (LCPLL_PLL_DISABLE | LCPLL_PLL_LOCK |
+		   LCPLL_CD_CLOCK_DISABLE | LCPLL_ROOT_CD_CLOCK_DISABLE |
+		   LCPLL_CD2X_CLOCK_DISABLE | LCPLL_POWER_DOWN_ALLOW |
+		   LCPLL_CD_SOURCE_FCLK)) != LCPLL_PLL_LOCK,
+		 "trying to change cdclk frequency with cdclk not enabled\n"))
+		return;
+
+	mutex_lock(&dev_priv->rps.hw_lock);
+	ret = sandybridge_pcode_write(dev_priv,
+				      BDW_PCODE_DISPLAY_FREQ_CHANGE_REQ, 0x0);
+	mutex_unlock(&dev_priv->rps.hw_lock);
+	if (ret) {
+		DRM_ERROR("failed to inform pcode about cdclk change\n");
+		return;
+	}
+
+	val = I915_READ(LCPLL_CTL);
+	val |= LCPLL_CD_SOURCE_FCLK;
+	I915_WRITE(LCPLL_CTL, val);
+
+	if (wait_for_atomic_us(I915_READ(LCPLL_CTL) &
+			       LCPLL_CD_SOURCE_FCLK_DONE, 1))
+		DRM_ERROR("Switching to FCLK failed\n");
+
+	val = I915_READ(LCPLL_CTL);
+	val &= ~LCPLL_CLK_FREQ_MASK;
+
+	switch (cdclk) {
+	case 450000:
+		val |= LCPLL_CLK_FREQ_450;
+		data = 0;
+		break;
+	case 540000:
+		val |= LCPLL_CLK_FREQ_54O_BDW;
+		data = 1;
+		break;
+	case 337500:
+		val |= LCPLL_CLK_FREQ_337_5_BDW;
+		data = 2;
+		break;
+	case 675000:
+		val |= LCPLL_CLK_FREQ_675_BDW;
+		data = 3;
+		break;
+	default:
+		WARN(1, "invalid cdclk frequency\n");
+		return;
+	}
+
+	I915_WRITE(LCPLL_CTL, val);
+
+	val = I915_READ(LCPLL_CTL);
+	val &= ~LCPLL_CD_SOURCE_FCLK;
+	I915_WRITE(LCPLL_CTL, val);
+
+	if (wait_for_atomic_us((I915_READ(LCPLL_CTL) &
+				LCPLL_CD_SOURCE_FCLK_DONE) == 0, 1))
+		DRM_ERROR("Switching back to LCPLL failed\n");
+
+	mutex_lock(&dev_priv->rps.hw_lock);
+	sandybridge_pcode_write(dev_priv, HSW_PCODE_DE_WRITE_FREQ_REQ, data);
+	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	intel_update_cdclk(dev);
+
+	WARN(cdclk != dev_priv->cdclk_freq,
+	     "cdclk requested %d kHz but got %d kHz\n",
+	     cdclk, dev_priv->cdclk_freq);
+}
+
+static int broadwell_calc_cdclk(struct drm_i915_private *dev_priv,
+			      int max_pixel_rate)
+{
+	int cdclk;
+
+	/*
+	 * FIXME should also account for plane ratio
+	 * once 64bpp pixel formats are supported.
+	 */
+	if (max_pixel_rate > 540000)
+		cdclk = 675000;
+	else if (max_pixel_rate > 450000)
+		cdclk = 540000;
+	else if (max_pixel_rate > 337500)
+		cdclk = 450000;
+	else
+		cdclk = 337500;
+
+	/*
+	 * FIXME move the cdclk caclulation to
+	 * compute_config() so we can fail gracegully.
+	 */
+	if (cdclk > dev_priv->max_cdclk_freq) {
+		DRM_ERROR("requested cdclk (%d kHz) exceeds max (%d kHz)\n",
+			  cdclk, dev_priv->max_cdclk_freq);
+		cdclk = dev_priv->max_cdclk_freq;
+	}
+
+	return cdclk;
+}
+
+static int broadwell_modeset_global_pipes(struct drm_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->dev);
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	int max_pixclk = ilk_max_pixel_rate(dev_priv);
+	int cdclk, i;
+
+	cdclk = broadwell_calc_cdclk(dev_priv, max_pixclk);
+
+	if (cdclk == dev_priv->cdclk_freq)
+		return 0;
+
+	/* add all active pipes to the state */
+	for_each_crtc(state->dev, crtc) {
+		if (!crtc->state->enable)
+			continue;
+
+		crtc_state = drm_atomic_get_crtc_state(state, crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+	}
+
+	/* disable/enable all currently active pipes while we change cdclk */
+	for_each_crtc_in_state(state, crtc, crtc_state, i)
+		if (crtc_state->enable)
+			crtc_state->mode_changed = true;
+
+	return 0;
+}
+
+static void broadwell_modeset_global_resources(struct drm_atomic_state *state)
+{
+	struct drm_device *dev = state->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int max_pixel_rate = ilk_max_pixel_rate(dev_priv);
+	int req_cdclk = broadwell_calc_cdclk(dev_priv, max_pixel_rate);
+
+	if (req_cdclk != dev_priv->cdclk_freq)
+		broadwell_set_cdclk(dev, req_cdclk);
 }
 
 static int haswell_crtc_compute_clock(struct intel_crtc *crtc,
@@ -12726,8 +12989,12 @@ static int __intel_set_mode_checks(struct drm_atomic_state *state)
 	 * mode set on this crtc.  For other crtcs we need to use the
 	 * adjusted_mode bits in the crtc directly.
 	 */
-	if (IS_VALLEYVIEW(dev) || IS_BROXTON(dev)) {
-		ret = valleyview_modeset_global_pipes(state);
+	if (IS_VALLEYVIEW(dev) || IS_BROXTON(dev) || IS_BROADWELL(dev)) {
+		if (IS_VALLEYVIEW(dev) || IS_BROXTON(dev))
+			ret = valleyview_modeset_global_pipes(state);
+		else
+			ret = broadwell_modeset_global_pipes(state);
+
 		if (ret)
 			return ret;
 	}
@@ -13261,6 +13528,8 @@ static void ibx_pch_dpll_init(struct drm_device *dev)
 static void intel_shared_dpll_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	intel_update_cdclk(dev);
 
 	if (HAS_DDI(dev))
 		intel_ddi_pll_init(dev);
@@ -14613,6 +14882,9 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.fdi_link_train = ivb_manual_fdi_link_train;
 	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		dev_priv->display.fdi_link_train = hsw_fdi_link_train;
+		if (IS_BROADWELL(dev))
+			dev_priv->display.modeset_global_resources =
+				broadwell_modeset_global_resources;
 	} else if (IS_VALLEYVIEW(dev)) {
 		dev_priv->display.modeset_global_resources =
 			valleyview_modeset_global_resources;
@@ -14837,13 +15109,9 @@ static void i915_disable_vga(struct drm_device *dev)
 
 void intel_modeset_init_hw(struct drm_device *dev)
 {
+	intel_update_cdclk(dev);
 	intel_prepare_ddi(dev);
-
-	if (IS_VALLEYVIEW(dev))
-		vlv_update_cdclk(dev);
-
 	intel_init_clock_gating(dev);
-
 	intel_enable_gt_powersave(dev);
 }
 

@@ -180,6 +180,9 @@ static bool rs_mimo_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	if (iwl_mvm_vif_low_latency(mvmvif) && mvmsta->vif->p2p)
 		return false;
 
+	if (mvm->nvm_data->sku_cap_mimo_disabled)
+		return false;
+
 	return true;
 }
 

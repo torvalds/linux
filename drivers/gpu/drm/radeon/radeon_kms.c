@@ -576,6 +576,9 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		if (radeon_get_allowed_info_register(rdev, *value, value))
 			return -EINVAL;
 		break;
+	case RADEON_INFO_GPU_RESET_COUNTER:
+		*value = atomic_read(&rdev->gpu_reset_counter);
+		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
 		return -EINVAL;

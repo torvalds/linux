@@ -3187,7 +3187,7 @@ int mlx4_SW2HW_CQ_wrapper(struct mlx4_dev *dev, int slave,
 	int cqn = vhcr->in_modifier;
 	struct mlx4_cq_context *cqc = inbox->buf;
 	int mtt_base = cq_get_mtt_addr(cqc) / dev->caps.mtt_entry_sz;
-	struct res_cq *cq;
+	struct res_cq *cq = NULL;
 	struct res_mtt *mtt;
 
 	err = cq_res_start_move_to(dev, slave, cqn, RES_CQ_HW, &cq);
@@ -3223,7 +3223,7 @@ int mlx4_HW2SW_CQ_wrapper(struct mlx4_dev *dev, int slave,
 {
 	int err;
 	int cqn = vhcr->in_modifier;
-	struct res_cq *cq;
+	struct res_cq *cq = NULL;
 
 	err = cq_res_start_move_to(dev, slave, cqn, RES_CQ_ALLOCATED, &cq);
 	if (err)
@@ -3362,7 +3362,7 @@ int mlx4_SW2HW_SRQ_wrapper(struct mlx4_dev *dev, int slave,
 	int err;
 	int srqn = vhcr->in_modifier;
 	struct res_mtt *mtt;
-	struct res_srq *srq;
+	struct res_srq *srq = NULL;
 	struct mlx4_srq_context *srqc = inbox->buf;
 	int mtt_base = srq_get_mtt_addr(srqc) / dev->caps.mtt_entry_sz;
 
@@ -3406,7 +3406,7 @@ int mlx4_HW2SW_SRQ_wrapper(struct mlx4_dev *dev, int slave,
 {
 	int err;
 	int srqn = vhcr->in_modifier;
-	struct res_srq *srq;
+	struct res_srq *srq = NULL;
 
 	err = srq_res_start_move_to(dev, slave, srqn, RES_SRQ_ALLOCATED, &srq);
 	if (err)

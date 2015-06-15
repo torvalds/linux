@@ -1434,23 +1434,22 @@ static void i845_update_wm(struct drm_crtc *unused_crtc)
 	I915_WRITE(FW_BLC, fwater_lo);
 }
 
-static uint32_t ilk_pipe_pixel_rate(struct drm_device *dev,
-				    struct drm_crtc *crtc)
+uint32_t ilk_pipe_pixel_rate(const struct intel_crtc_state *pipe_config)
 {
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	uint32_t pixel_rate;
 
-	pixel_rate = intel_crtc->config->base.adjusted_mode.crtc_clock;
+	pixel_rate = pipe_config->base.adjusted_mode.crtc_clock;
 
 	/* We only use IF-ID interlacing. If we ever use PF-ID we'll need to
 	 * adjust the pixel_rate here. */
 
-	if (intel_crtc->config->pch_pfit.enabled) {
+	if (pipe_config->pch_pfit.enabled) {
 		uint64_t pipe_w, pipe_h, pfit_w, pfit_h;
-		uint32_t pfit_size = intel_crtc->config->pch_pfit.size;
+		uint32_t pfit_size = pipe_config->pch_pfit.size;
 
-		pipe_w = intel_crtc->config->pipe_src_w;
-		pipe_h = intel_crtc->config->pipe_src_h;
+		pipe_w = pipe_config->pipe_src_w;
+		pipe_h = pipe_config->pipe_src_h;
+
 		pfit_w = (pfit_size >> 16) & 0xFFFF;
 		pfit_h = pfit_size & 0xFFFF;
 		if (pipe_w < pfit_w)
@@ -1815,7 +1814,7 @@ hsw_compute_linetime_wm(struct drm_device *dev, struct drm_crtc *crtc)
 	linetime = DIV_ROUND_CLOSEST(mode->crtc_htotal * 1000 * 8,
 				     mode->crtc_clock);
 	ips_linetime = DIV_ROUND_CLOSEST(mode->crtc_htotal * 1000 * 8,
-					 dev_priv->display.get_display_clock_speed(dev_priv->dev));
+					 dev_priv->cdclk_freq);
 
 	return PIPE_WM_LINETIME_IPS_LINETIME(ips_linetime) |
 	       PIPE_WM_LINETIME_TIME(linetime);
@@ -2066,24 +2065,22 @@ static void ilk_compute_wm_parameters(struct drm_crtc *crtc,
 
 	p->active = true;
 	p->pipe_htotal = intel_crtc->config->base.adjusted_mode.crtc_htotal;
-	p->pixel_rate = ilk_pipe_pixel_rate(dev, crtc);
+	p->pixel_rate = ilk_pipe_pixel_rate(intel_crtc->config);
 
-	if (crtc->primary->state->fb) {
-		p->pri.enabled = true;
+	if (crtc->primary->state->fb)
 		p->pri.bytes_per_pixel =
 			crtc->primary->state->fb->bits_per_pixel / 8;
-	} else {
-		p->pri.enabled = false;
-		p->pri.bytes_per_pixel = 0;
-	}
+	else
+		p->pri.bytes_per_pixel = 4;
 
-	if (crtc->cursor->state->fb) {
-		p->cur.enabled = true;
-		p->cur.bytes_per_pixel = 4;
-	} else {
-		p->cur.enabled = false;
-		p->cur.bytes_per_pixel = 0;
-	}
+	p->cur.bytes_per_pixel = 4;
+	/*
+	 * TODO: for now, assume primary and cursor planes are always enabled.
+	 * Setting them to false makes the screen flicker.
+	 */
+	p->pri.enabled = true;
+	p->cur.enabled = true;
+
 	p->pri.horiz_pixels = intel_crtc->config->pipe_src_w;
 	p->cur.horiz_pixels = intel_crtc->base.cursor->state->crtc_w;
 

@@ -230,7 +230,7 @@ int iscsit_access_np(struct iscsi_np *np, struct iscsi_portal_group *tpg)
 	 * Here we serialize access across the TIQN+TPG Tuple.
 	 */
 	ret = down_interruptible(&tpg->np_login_sem);
-	if ((ret != 0) || signal_pending(current))
+	if (ret != 0)
 		return -1;
 
 	spin_lock_bh(&tpg->tpg_state_lock);

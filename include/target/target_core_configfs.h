@@ -40,8 +40,6 @@ struct target_fabric_configfs {
 	struct config_item	*tf_fabric;
 	/* Passed from fabric modules */
 	struct config_item_type	*tf_fabric_cit;
-	/* Pointer to target core subsystem */
-	struct configfs_subsystem *tf_subsys;
 	/* Pointer to fabric's struct module */
 	struct module *tf_module;
 	struct target_core_fabric_ops tf_ops;

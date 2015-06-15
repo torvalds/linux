@@ -2427,7 +2427,6 @@ L:	linux-security-module@vger.kernel.org
 S:	Supported
 F:	include/linux/capability.h
 F:	include/uapi/linux/capability.h
-F:	security/capability.c
 F:	security/commoncap.c
 F:	kernel/capability.c
 
@@ -3825,10 +3824,11 @@ M:	David Woodhouse <dwmw2@infradead.org>
 L:	linux-embedded@vger.kernel.org
 S:	Maintained
 
-EMULEX LPFC FC SCSI DRIVER
-M:	James Smart <james.smart@emulex.com>
+EMULEX/AVAGO LPFC FC/FCOE SCSI DRIVER
+M:	James Smart <james.smart@avagotech.com>
+M:	Dick Kennedy <dick.kennedy@avagotech.com>
 L:	linux-scsi@vger.kernel.org
-W:	http://sourceforge.net/projects/lpfcxxxx
+W:	http://www.avagotech.com
 S:	Supported
 F:	drivers/scsi/lpfc/
 
@@ -4536,7 +4536,7 @@ M:	Jean Delvare <jdelvare@suse.de>
 M:	Guenter Roeck <linux@roeck-us.net>
 L:	lm-sensors@lm-sensors.org
 W:	http://www.lm-sensors.org/
-T:	quilt kernel.org/pub/linux/kernel/people/jdelvare/linux-2.6/jdelvare-hwmon/
+T:	quilt http://jdelvare.nerim.net/devel/linux/jdelvare-hwmon/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/groeck/linux-staging.git
 S:	Maintained
 F:	Documentation/hwmon/
@@ -8829,9 +8829,11 @@ F:	drivers/misc/phantom.c
 F:	include/uapi/linux/phantom.h
 
 SERVER ENGINES 10Gbps iSCSI - BladeEngine 2 DRIVER
-M:	Jayamohan Kallickal <jayamohan.kallickal@emulex.com>
+M:	Jayamohan Kallickal <jayamohan.kallickal@avagotech.com>
+M:	Minh Tran <minh.tran@avagotech.com>
+M:	John Soni Jose <sony.john-n@avagotech.com>
 L:	linux-scsi@vger.kernel.org
-W:	http://www.emulex.com
+W:	http://www.avagotech.com
 S:	Supported
 F:	drivers/scsi/be2iscsi/
 
@@ -10568,6 +10570,15 @@ F:	drivers/net/virtio_net.c
 F:	drivers/block/virtio_blk.c
 F:	include/linux/virtio_*.h
 F:	include/uapi/linux/virtio_*.h
+
+VIRTIO GPU DRIVER
+M:	David Airlie <airlied@linux.ie>
+M:	Gerd Hoffmann <kraxel@redhat.com>
+L:	dri-devel@lists.freedesktop.org
+L:	virtualization@lists.linux-foundation.org
+S:	Maintained
+F:	drivers/gpu/drm/virtio/
+F:	include/uapi/linux/virtio_gpu.h
 
 VIRTIO HOST (VHOST)
 M:	"Michael S. Tsirkin" <mst@redhat.com>

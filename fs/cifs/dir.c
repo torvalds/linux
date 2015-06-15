@@ -620,8 +620,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, umode_t mode,
 		}
 		rc = CIFSSMBUnixSetPathInfo(xid, tcon, full_path, &args,
 					    cifs_sb->local_nls,
-					    cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
+					    cifs_remap(cifs_sb));
 		if (rc)
 			goto mknod_out;
 

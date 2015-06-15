@@ -1409,8 +1409,7 @@ vhost_scsi_set_endpoint(struct vhost_scsi *vs,
 			 * dependency now.
 			 */
 			se_tpg = &tpg->se_tpg;
-			ret = configfs_depend_item(se_tpg->se_tpg_tfo->tf_subsys,
-						   &se_tpg->tpg_group.cg_item);
+			ret = target_depend_item(&se_tpg->tpg_group.cg_item);
 			if (ret) {
 				pr_warn("configfs_depend_item() failed: %d\n", ret);
 				kfree(vs_tpg);
@@ -1513,8 +1512,7 @@ vhost_scsi_clear_endpoint(struct vhost_scsi *vs,
 		 * to allow vhost-scsi WWPN se_tpg->tpg_group shutdown to occur.
 		 */
 		se_tpg = &tpg->se_tpg;
-		configfs_undepend_item(se_tpg->se_tpg_tfo->tf_subsys,
-				       &se_tpg->tpg_group.cg_item);
+		target_undepend_item(&se_tpg->tpg_group.cg_item);
 	}
 	if (match) {
 		for (i = 0; i < VHOST_SCSI_MAX_VQ; i++) {

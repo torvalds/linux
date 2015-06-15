@@ -181,15 +181,15 @@ struct bxt_ddi_buf_trans {
  */
 static const struct bxt_ddi_buf_trans bxt_ddi_translations_dp[] = {
 					/* Idx	NT mV diff	db  */
-	{ 52,  0,    0, 128, true  },	/* 0:	400		0   */
-	{ 78,  0,    0, 85,  false },	/* 1:	400		3.5 */
-	{ 104, 0,    0, 64,  false },	/* 2:	400		6   */
-	{ 154, 0,    0, 43,  false },	/* 3:	400		9.5 */
-	{ 77,  0,    0, 128, false },	/* 4:	600		0   */
-	{ 116, 0,    0, 85,  false },	/* 5:	600		3.5 */
-	{ 154, 0,    0, 64,  false },	/* 6:	600		6   */
-	{ 102, 0,    0, 128, false },	/* 7:	800		0   */
-	{ 154, 0,    0, 85,  false },	/* 8:	800		3.5 */
+	{ 52,  0x9A, 0, 128, true  },	/* 0:	400		0   */
+	{ 78,  0x9A, 0, 85,  false },	/* 1:	400		3.5 */
+	{ 104, 0x9A, 0, 64,  false },	/* 2:	400		6   */
+	{ 154, 0x9A, 0, 43,  false },	/* 3:	400		9.5 */
+	{ 77,  0x9A, 0, 128, false },	/* 4:	600		0   */
+	{ 116, 0x9A, 0, 85,  false },	/* 5:	600		3.5 */
+	{ 154, 0x9A, 0, 64,  false },	/* 6:	600		6   */
+	{ 102, 0x9A, 0, 128, false },	/* 7:	800		0   */
+	{ 154, 0x9A, 0, 85,  false },	/* 8:	800		3.5 */
 	{ 154, 0x9A, 1, 128, false },  /* 9:	1200		0   */
 };
 
@@ -198,15 +198,15 @@ static const struct bxt_ddi_buf_trans bxt_ddi_translations_dp[] = {
  */
 static const struct bxt_ddi_buf_trans bxt_ddi_translations_hdmi[] = {
 					/* Idx	NT mV diff	db  */
-	{ 52,  0,    0, 128, false },	/* 0:	400		0   */
-	{ 52,  0,    0, 85,  false },	/* 1:	400		3.5 */
-	{ 52,  0,    0, 64,  false },	/* 2:	400		6   */
-	{ 42,  0,    0, 43,  false },	/* 3:	400		9.5 */
-	{ 77,  0,    0, 128, false },	/* 4:	600		0   */
-	{ 77,  0,    0, 85,  false },	/* 5:	600		3.5 */
-	{ 77,  0,    0, 64,  false },	/* 6:	600		6   */
-	{ 102, 0,    0, 128, false },	/* 7:	800		0   */
-	{ 102, 0,    0, 85,  false },	/* 8:	800		3.5 */
+	{ 52,  0x9A, 0, 128, false },	/* 0:	400		0   */
+	{ 52,  0x9A, 0, 85,  false },	/* 1:	400		3.5 */
+	{ 52,  0x9A, 0, 64,  false },	/* 2:	400		6   */
+	{ 42,  0x9A, 0, 43,  false },	/* 3:	400		9.5 */
+	{ 77,  0x9A, 0, 128, false },	/* 4:	600		0   */
+	{ 77,  0x9A, 0, 85,  false },	/* 5:	600		3.5 */
+	{ 77,  0x9A, 0, 64,  false },	/* 6:	600		6   */
+	{ 102, 0x9A, 0, 128, false },	/* 7:	800		0   */
+	{ 102, 0x9A, 0, 85,  false },	/* 8:	800		3.5 */
 	{ 154, 0x9A, 1, 128, true },	/* 9:	1200		0   */
 };
 
@@ -1348,6 +1348,7 @@ skl_ddi_pll_select(struct intel_crtc *intel_crtc,
 
 /* bxt clock parameters */
 struct bxt_clk_div {
+	int clock;
 	uint32_t p1;
 	uint32_t p2;
 	uint32_t m2_int;
@@ -1357,14 +1358,14 @@ struct bxt_clk_div {
 };
 
 /* pre-calculated values for DP linkrates */
-static struct bxt_clk_div bxt_dp_clk_val[7] = {
-	/* 162 */ {4, 2, 32, 1677722, 1, 1},
-	/* 270 */ {4, 1, 27,       0, 0, 1},
-	/* 540 */ {2, 1, 27,       0, 0, 1},
-	/* 216 */ {3, 2, 32, 1677722, 1, 1},
-	/* 243 */ {4, 1, 24, 1258291, 1, 1},
-	/* 324 */ {4, 1, 32, 1677722, 1, 1},
-	/* 432 */ {3, 1, 32, 1677722, 1, 1}
+static const struct bxt_clk_div bxt_dp_clk_val[] = {
+	{162000, 4, 2, 32, 1677722, 1, 1},
+	{270000, 4, 1, 27,       0, 0, 1},
+	{540000, 2, 1, 27,       0, 0, 1},
+	{216000, 3, 2, 32, 1677722, 1, 1},
+	{243000, 4, 1, 24, 1258291, 1, 1},
+	{324000, 4, 1, 32, 1677722, 1, 1},
+	{432000, 3, 1, 32, 1677722, 1, 1}
 };
 
 static bool
@@ -1404,22 +1405,14 @@ bxt_ddi_pll_select(struct intel_crtc *intel_crtc,
 		vco = best_clock.vco;
 	} else if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
 			intel_encoder->type == INTEL_OUTPUT_EDP) {
-		struct drm_encoder *encoder = &intel_encoder->base;
-		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+		int i;
 
-		switch (intel_dp->link_bw) {
-		case DP_LINK_BW_1_62:
-			clk_div = bxt_dp_clk_val[0];
-			break;
-		case DP_LINK_BW_2_7:
-			clk_div = bxt_dp_clk_val[1];
-			break;
-		case DP_LINK_BW_5_4:
-			clk_div = bxt_dp_clk_val[2];
-			break;
-		default:
-			clk_div = bxt_dp_clk_val[0];
-			DRM_ERROR("Unknown link rate\n");
+		clk_div = bxt_dp_clk_val[0];
+		for (i = 0; i < ARRAY_SIZE(bxt_dp_clk_val); ++i) {
+			if (bxt_dp_clk_val[i].clock == clock) {
+				clk_div = bxt_dp_clk_val[i];
+				break;
+			}
 		}
 		vco = clock * 10 / 2 * clk_div.p1 * clk_div.p2;
 	}
@@ -2524,7 +2517,6 @@ void intel_ddi_pll_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t val = I915_READ(LCPLL_CTL);
-	int cdclk_freq;
 
 	if (IS_SKYLAKE(dev))
 		skl_shared_dplls_init(dev_priv);
@@ -2533,10 +2525,10 @@ void intel_ddi_pll_init(struct drm_device *dev)
 	else
 		hsw_shared_dplls_init(dev_priv);
 
-	cdclk_freq = dev_priv->display.get_display_clock_speed(dev);
-	DRM_DEBUG_KMS("CDCLK running at %dKHz\n", cdclk_freq);
-
 	if (IS_SKYLAKE(dev)) {
+		int cdclk_freq;
+
+		cdclk_freq = dev_priv->display.get_display_clock_speed(dev);
 		dev_priv->skl_boot_cdclk = cdclk_freq;
 		if (!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_ENABLE))
 			DRM_ERROR("LCPLL1 is disabled\n");

@@ -290,6 +290,100 @@ drm_atomic_get_crtc_state(struct drm_atomic_state *state,
 EXPORT_SYMBOL(drm_atomic_get_crtc_state);
 
 /**
+ * drm_atomic_set_mode_for_crtc - set mode for CRTC
+ * @state: the CRTC whose incoming state to update
+ * @mode: kernel-internal mode to use for the CRTC, or NULL to disable
+ *
+ * Set a mode (originating from the kernel) on the desired CRTC state. Does
+ * not change any other state properties, including enable, active, or
+ * mode_changed.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure. Cannot return -EDEADLK.
+ */
+int drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
+				 struct drm_display_mode *mode)
+{
+	struct drm_mode_modeinfo umode;
+
+	/* Early return for no change. */
+	if (mode && memcmp(&state->mode, mode, sizeof(*mode)) == 0)
+		return 0;
+
+	if (state->mode_blob)
+		drm_property_unreference_blob(state->mode_blob);
+	state->mode_blob = NULL;
+
+	if (mode) {
+		drm_mode_convert_to_umode(&umode, mode);
+		state->mode_blob =
+			drm_property_create_blob(state->crtc->dev,
+		                                 sizeof(umode),
+		                                 &umode);
+		if (IS_ERR(state->mode_blob))
+			return PTR_ERR(state->mode_blob);
+
+		drm_mode_copy(&state->mode, mode);
+		state->enable = true;
+		DRM_DEBUG_ATOMIC("Set [MODE:%s] for CRTC state %p\n",
+				 mode->name, state);
+	} else {
+		memset(&state->mode, 0, sizeof(state->mode));
+		state->enable = false;
+		DRM_DEBUG_ATOMIC("Set [NOMODE] for CRTC state %p\n",
+				 state);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_atomic_set_mode_for_crtc);
+
+/**
+ * drm_atomic_set_mode_prop_for_crtc - set mode for CRTC
+ * @state: the CRTC whose incoming state to update
+ * @blob: pointer to blob property to use for mode
+ *
+ * Set a mode (originating from a blob property) on the desired CRTC state.
+ * This function will take a reference on the blob property for the CRTC state,
+ * and release the reference held on the state's existing mode property, if any
+ * was set.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure. Cannot return -EDEADLK.
+ */
+int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
+                                      struct drm_property_blob *blob)
+{
+	if (blob == state->mode_blob)
+		return 0;
+
+	if (state->mode_blob)
+		drm_property_unreference_blob(state->mode_blob);
+	state->mode_blob = NULL;
+
+	if (blob) {
+		if (blob->length != sizeof(struct drm_mode_modeinfo) ||
+		    drm_mode_convert_umode(&state->mode,
+		                           (const struct drm_mode_modeinfo *)
+		                            blob->data))
+			return -EINVAL;
+
+		state->mode_blob = drm_property_reference_blob(blob);
+		state->enable = true;
+		DRM_DEBUG_ATOMIC("Set [MODE:%s] for CRTC state %p\n",
+				 state->mode.name, state);
+	} else {
+		memset(&state->mode, 0, sizeof(state->mode));
+		state->enable = false;
+		DRM_DEBUG_ATOMIC("Set [NOMODE] for CRTC state %p\n",
+				 state);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_atomic_set_mode_prop_for_crtc);
+
+/**
  * drm_atomic_crtc_set_property - set property on CRTC
  * @crtc: the drm CRTC to set a property on
  * @state: the state object to update with the new property value
@@ -311,10 +405,18 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_mode_config *config = &dev->mode_config;
+	int ret;
 
-	/* FIXME: Mode prop is missing, which also controls ->enable. */
 	if (property == config->prop_active)
 		state->active = val;
+	else if (property == config->prop_mode_id) {
+		struct drm_property_blob *mode =
+			drm_property_lookup_blob(dev, val);
+		ret = drm_atomic_set_mode_prop_for_crtc(state, mode);
+		if (mode)
+			drm_property_unreference_blob(mode);
+		return ret;
+	}
 	else if (crtc->funcs->atomic_set_property)
 		return crtc->funcs->atomic_set_property(crtc, state, property, val);
 	else
@@ -339,6 +441,8 @@ int drm_atomic_crtc_get_property(struct drm_crtc *crtc,
 
 	if (property == config->prop_active)
 		*val = state->active;
+	else if (property == config->prop_mode_id)
+		*val = (state->mode_blob) ? state->mode_blob->base.id : 0;
 	else if (crtc->funcs->atomic_get_property)
 		return crtc->funcs->atomic_get_property(crtc, state, property, val);
 	else
@@ -370,6 +474,23 @@ static int drm_atomic_crtc_check(struct drm_crtc *crtc,
 
 	if (state->active && !state->enable) {
 		DRM_DEBUG_ATOMIC("[CRTC:%d] active without enabled\n",
+				 crtc->base.id);
+		return -EINVAL;
+	}
+
+	/* The state->enable vs. state->mode_blob checks can be WARN_ON,
+	 * as this is a kernel-internal detail that userspace should never
+	 * be able to trigger. */
+	if (drm_core_check_feature(crtc->dev, DRIVER_ATOMIC) &&
+	    WARN_ON(state->enable && !state->mode_blob)) {
+		DRM_DEBUG_ATOMIC("[CRTC:%d] enabled without mode blob\n",
+				 crtc->base.id);
+		return -EINVAL;
+	}
+
+	if (drm_core_check_feature(crtc->dev, DRIVER_ATOMIC) &&
+	    WARN_ON(!state->enable && state->mode_blob)) {
+		DRM_DEBUG_ATOMIC("[CRTC:%d] disabled with mode blob\n",
 				 crtc->base.id);
 		return -EINVAL;
 	}
@@ -954,6 +1075,45 @@ drm_atomic_add_affected_connectors(struct drm_atomic_state *state,
 	return 0;
 }
 EXPORT_SYMBOL(drm_atomic_add_affected_connectors);
+
+/**
+ * drm_atomic_add_affected_planes - add planes for crtc
+ * @state: atomic state
+ * @crtc: DRM crtc
+ *
+ * This function walks the current configuration and adds all planes
+ * currently used by @crtc to the atomic configuration @state. This is useful
+ * when an atomic commit also needs to check all currently enabled plane on
+ * @crtc, e.g. when changing the mode. It's also useful when re-enabling a CRTC
+ * to avoid special code to force-enable all planes.
+ *
+ * Since acquiring a plane state will always also acquire the w/w mutex of the
+ * current CRTC for that plane (if there is any) adding all the plane states for
+ * a CRTC will not reduce parallism of atomic updates.
+ *
+ * Returns:
+ * 0 on success or can fail with -EDEADLK or -ENOMEM. When the error is EDEADLK
+ * then the w/w mutex code has detected a deadlock and the entire atomic
+ * sequence must be restarted. All other errors are fatal.
+ */
+int
+drm_atomic_add_affected_planes(struct drm_atomic_state *state,
+			       struct drm_crtc *crtc)
+{
+	struct drm_plane *plane;
+
+	WARN_ON(!drm_atomic_get_existing_crtc_state(state, crtc));
+
+	drm_for_each_plane_mask(plane, state->dev, crtc->state->plane_mask) {
+		struct drm_plane_state *plane_state =
+			drm_atomic_get_plane_state(state, plane);
+
+		if (IS_ERR(plane_state))
+			return PTR_ERR(plane_state);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(drm_atomic_add_affected_planes);
 
 /**
  * drm_atomic_connectors_for_crtc - count number of connected outputs
