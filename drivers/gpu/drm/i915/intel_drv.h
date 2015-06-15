@@ -274,6 +274,8 @@ struct intel_plane_state {
 	 *     update_scaler_plane.
 	 */
 	int scaler_id;
+
+	struct drm_intel_sprite_colorkey ckey;
 };
 
 struct intel_initial_plane_config {
@@ -587,9 +589,6 @@ struct intel_plane {
 	enum pipe pipe;
 	bool can_scale;
 	int max_downscale;
-
-	/* FIXME convert to properties */
-	struct drm_intel_sprite_colorkey ckey;
 
 	/* Since we need to change the watermarks before/after
 	 * enabling/disabling the planes, we need to store the parameters here
@@ -1392,7 +1391,6 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob);
 
 /* intel_sprite.c */
 int intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane);
-int intel_plane_restore(struct drm_plane *plane);
 int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
 bool intel_pipe_update_start(struct intel_crtc *crtc,

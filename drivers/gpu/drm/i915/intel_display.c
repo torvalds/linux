@@ -4411,9 +4411,9 @@ static int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 		return ret;
 
 	/* check colorkey */
-	if (WARN_ON(intel_plane->ckey.flags != I915_SET_COLORKEY_NONE)) {
+	if (plane_state->ckey.flags != I915_SET_COLORKEY_NONE) {
 		DRM_DEBUG_KMS("[PLANE:%d] scaling with color key not allowed",
-			intel_plane->base.base.id);
+			      intel_plane->base.base.id);
 		return -EINVAL;
 	}
 
@@ -13746,7 +13746,7 @@ intel_check_primary_plane(struct drm_plane *plane,
 
 	/* use scaler when colorkey is not required */
 	if (INTEL_INFO(plane->dev)->gen >= 9 &&
-	    to_intel_plane(plane)->ckey.flags == I915_SET_COLORKEY_NONE) {
+	    state->ckey.flags == I915_SET_COLORKEY_NONE) {
 		min_scale = 1;
 		max_scale = skl_max_scale(to_intel_crtc(crtc), crtc_state);
 		can_position = true;
@@ -13892,7 +13892,6 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 	primary->check_plane = intel_check_primary_plane;
 	primary->commit_plane = intel_commit_primary_plane;
 	primary->disable_plane = intel_disable_primary_plane;
-	primary->ckey.flags = I915_SET_COLORKEY_NONE;
 	if (HAS_FBC(dev) && INTEL_INFO(dev)->gen < 4)
 		primary->plane = !pipe;
 

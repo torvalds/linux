@@ -182,7 +182,8 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 	const int plane = intel_plane->plane + 1;
 	u32 plane_ctl, stride_div, stride;
 	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
-	const struct drm_intel_sprite_colorkey *key = &intel_plane->ckey;
+	const struct drm_intel_sprite_colorkey *key =
+		&to_intel_plane_state(drm_plane->state)->ckey;
 	unsigned long surf_addr;
 	u32 tile_height, plane_offset, plane_size;
 	unsigned int rotation;
@@ -344,7 +345,8 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
 	u32 sprctl;
 	unsigned long sprsurf_offset, linear_offset;
 	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
-	const struct drm_intel_sprite_colorkey *key = &intel_plane->ckey;
+	const struct drm_intel_sprite_colorkey *key =
+		&to_intel_plane_state(dplane->state)->ckey;
 
 	sprctl = SP_ENABLE;
 
@@ -488,7 +490,8 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	u32 sprctl, sprscale = 0;
 	unsigned long sprsurf_offset, linear_offset;
 	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
-	const struct drm_intel_sprite_colorkey *key = &intel_plane->ckey;
+	const struct drm_intel_sprite_colorkey *key =
+		&to_intel_plane_state(plane->state)->ckey;
 
 	sprctl = SPRITE_ENABLE;
 
@@ -629,7 +632,8 @@ ilk_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	unsigned long dvssurf_offset, linear_offset;
 	u32 dvscntr, dvsscale;
 	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
-	const struct drm_intel_sprite_colorkey *key = &intel_plane->ckey;
+	const struct drm_intel_sprite_colorkey *key =
+		&to_intel_plane_state(plane->state)->ckey;
 
 	dvscntr = DVS_ENABLE;
 
@@ -781,7 +785,7 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	/* setup can_scale, min_scale, max_scale */
 	if (INTEL_INFO(dev)->gen >= 9) {
 		/* use scaler when colorkey is not required */
-		if (intel_plane->ckey.flags == I915_SET_COLORKEY_NONE) {
+		if (state->ckey.flags == I915_SET_COLORKEY_NONE) {
 			can_scale = 1;
 			min_scale = 1;
 			max_scale = skl_max_scale(intel_crtc, crtc_state);
@@ -801,7 +805,6 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	 * coordinates and sizes. We probably need some way to decide whether
 	 * more strict checking should be done instead.
 	 */
-
 	drm_rect_rotate(src, fb->width << 16, fb->height << 16,
 			state->base.rotation);
 
@@ -811,7 +814,7 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	vscale = drm_rect_calc_vscale_relaxed(src, dst, min_scale, max_scale);
 	BUG_ON(vscale < 0);
 
-	state->visible =  drm_rect_clip_scaled(src, dst, clip, hscale, vscale);
+	state->visible = drm_rect_clip_scaled(src, dst, clip, hscale, vscale);
 
 	crtc_x = dst->x1;
 	crtc_y = dst->y1;
@@ -953,7 +956,9 @@ int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 {
 	struct drm_intel_sprite_colorkey *set = data;
 	struct drm_plane *plane;
-	struct intel_plane *intel_plane;
+	struct drm_plane_state *plane_state;
+	struct drm_atomic_state *state;
+	struct drm_modeset_acquire_ctx ctx;
 	int ret = 0;
 
 	/* Make sure we don't try to enable both src & dest simultaneously */
@@ -964,50 +969,41 @@ int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 	    set->flags & I915_SET_COLORKEY_DESTINATION)
 		return -EINVAL;
 
-	drm_modeset_lock_all(dev);
-
 	plane = drm_plane_find(dev, set->plane_id);
-	if (!plane || plane->type != DRM_PLANE_TYPE_OVERLAY) {
-		ret = -ENOENT;
-		goto out_unlock;
+	if (!plane || plane->type != DRM_PLANE_TYPE_OVERLAY)
+		return -ENOENT;
+
+	drm_modeset_acquire_init(&ctx, 0);
+
+	state = drm_atomic_state_alloc(plane->dev);
+	if (!state) {
+		ret = -ENOMEM;
+		goto out;
 	}
+	state->acquire_ctx = &ctx;
 
-	intel_plane = to_intel_plane(plane);
-
-	if (INTEL_INFO(dev)->gen >= 9) {
-		/* plane scaling and colorkey are mutually exclusive */
-		if (to_intel_plane_state(plane->state)->scaler_id >= 0) {
-			DRM_ERROR("colorkey not allowed with scaler\n");
-			ret = -EINVAL;
-			goto out_unlock;
+	while (1) {
+		plane_state = drm_atomic_get_plane_state(state, plane);
+		ret = PTR_ERR_OR_ZERO(plane_state);
+		if (!ret) {
+			to_intel_plane_state(plane_state)->ckey = *set;
+			ret = drm_atomic_commit(state);
 		}
+
+		if (ret != -EDEADLK)
+			break;
+
+		drm_atomic_state_clear(state);
+		drm_modeset_backoff(&ctx);
 	}
 
-	intel_plane->ckey = *set;
+	if (ret)
+		drm_atomic_state_free(state);
 
-	/*
-	 * The only way this could fail would be due to
-	 * the current plane state being unsupportable already,
-	 * and we dont't consider that an error for the
-	 * colorkey ioctl. So just ignore any error.
-	 */
-	intel_plane_restore(plane);
-
-out_unlock:
-	drm_modeset_unlock_all(dev);
+out:
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
 	return ret;
-}
-
-int intel_plane_restore(struct drm_plane *plane)
-{
-	if (!plane->crtc || !plane->state->fb)
-		return 0;
-
-	return drm_plane_helper_update(plane, plane->crtc, plane->state->fb,
-				       plane->state->crtc_x, plane->state->crtc_y,
-				       plane->state->crtc_w, plane->state->crtc_h,
-				       plane->state->src_x, plane->state->src_y,
-				       plane->state->src_w, plane->state->src_h);
 }
 
 static const uint32_t ilk_plane_formats[] = {
@@ -1136,7 +1132,6 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 	intel_plane->plane = plane;
 	intel_plane->check_plane = intel_check_sprite_plane;
 	intel_plane->commit_plane = intel_commit_sprite_plane;
-	intel_plane->ckey.flags = I915_SET_COLORKEY_NONE;
 	possible_crtcs = (1 << pipe);
 	ret = drm_universal_plane_init(dev, &intel_plane->base, possible_crtcs,
 				       &intel_plane_funcs,
