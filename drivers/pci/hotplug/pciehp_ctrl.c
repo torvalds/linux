@@ -37,21 +37,20 @@
 
 static void interrupt_event_handler(struct work_struct *work);
 
-static int queue_interrupt_event(struct slot *p_slot, u32 event_type)
+static void queue_interrupt_event(struct slot *p_slot, u32 event_type)
 {
 	struct event_info *info;
 
 	info = kmalloc(sizeof(*info), GFP_ATOMIC);
-	if (!info)
-		return -ENOMEM;
+	if (!info) {
+		ctrl_err(p_slot->ctrl, "dropped event %d (ENOMEM)\n", event_type);
+		return;
+	}
 
+	INIT_WORK(&info->work, interrupt_event_handler);
 	info->event_type = event_type;
 	info->p_slot = p_slot;
-	INIT_WORK(&info->work, interrupt_event_handler);
-
 	queue_work(p_slot->wq, &info->work);
-
-	return 0;
 }
 
 u8 pciehp_handle_attention_button(struct slot *p_slot)
