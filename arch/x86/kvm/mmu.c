@@ -3446,6 +3446,16 @@ static bool try_async_pf(struct kvm_vcpu *vcpu, bool prefault, gfn_t gfn,
 	return false;
 }
 
+static bool
+check_hugepage_cache_consistency(struct kvm_vcpu *vcpu, gfn_t gfn, int level)
+{
+	int page_num = KVM_PAGES_PER_HPAGE(level);
+
+	gfn &= ~(page_num - 1);
+
+	return kvm_mtrr_check_gfn_range_consistency(vcpu, gfn, page_num);
+}
+
 static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
 			  bool prefault)
 {
@@ -3471,9 +3481,17 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
 	if (r)
 		return r;
 
-	force_pt_level = mapping_level_dirty_bitmap(vcpu, gfn);
+	if (mapping_level_dirty_bitmap(vcpu, gfn) ||
+	    !check_hugepage_cache_consistency(vcpu, gfn, PT_DIRECTORY_LEVEL))
+		force_pt_level = 1;
+	else
+		force_pt_level = 0;
+
 	if (likely(!force_pt_level)) {
 		level = mapping_level(vcpu, gfn);
+		if (level > PT_DIRECTORY_LEVEL &&
+		    !check_hugepage_cache_consistency(vcpu, gfn, level))
+			level = PT_DIRECTORY_LEVEL;
 		gfn &= ~(KVM_PAGES_PER_HPAGE(level) - 1);
 	} else
 		level = PT_PAGE_TABLE_LEVEL;
