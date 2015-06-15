@@ -100,6 +100,7 @@ enum {
 	STAC_HP_ENVY_BASS,
 	STAC_HP_BNB13_EQ,
 	STAC_HP_ENVY_TS_BASS,
+	STAC_HP_ENVY_TS_DAC_BIND,
 	STAC_92HD83XXX_GPIO10_EAPD,
 	STAC_92HD83XXX_MODELS
 };
@@ -2171,6 +2172,22 @@ static void stac92hd83xxx_fixup_gpio10_eapd(struct hda_codec *codec,
 	spec->eapd_switch = 0;
 }
 
+static void hp_envy_ts_fixup_dac_bind(struct hda_codec *codec,
+					    const struct hda_fixup *fix,
+					    int action)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	static hda_nid_t preferred_pairs[] = {
+		0xd, 0x13,
+		0
+	};
+
+	if (action != HDA_FIXUP_ACT_PRE_PROBE)
+		return;
+
+	spec->gen.preferred_dacs = preferred_pairs;
+}
+
 static const struct hda_verb hp_bnb13_eq_verbs[] = {
 	/* 44.1KHz base */
 	{ 0x22, 0x7A6, 0x3E },
@@ -2686,6 +2703,12 @@ static const struct hda_fixup stac92hd83xxx_fixups[] = {
 			{}
 		},
 	},
+	[STAC_HP_ENVY_TS_DAC_BIND] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = hp_envy_ts_fixup_dac_bind,
+		.chained = true,
+		.chain_id = STAC_HP_ENVY_TS_BASS,
+	},
 	[STAC_92HD83XXX_GPIO10_EAPD] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = stac92hd83xxx_fixup_gpio10_eapd,
@@ -2764,6 +2787,8 @@ static const struct snd_pci_quirk stac92hd83xxx_fixup_tbl[] = {
 			  "HP bNB13", STAC_HP_BNB13_EQ),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x190e,
 			  "HP ENVY TS", STAC_HP_ENVY_TS_BASS),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x1967,
+			  "HP ENVY TS", STAC_HP_ENVY_TS_DAC_BIND),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x1940,
 			  "HP bNB13", STAC_HP_BNB13_EQ),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x1941,
