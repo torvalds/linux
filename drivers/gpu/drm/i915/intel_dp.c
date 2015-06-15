@@ -5456,13 +5456,12 @@ unlock:
 }
 
 /**
- * intel_edp_drrs_invalidate - Invalidate DRRS
+ * intel_edp_drrs_invalidate - Disable Idleness DRRS
  * @dev: DRM device
  * @frontbuffer_bits: frontbuffer plane tracking bits
  *
- * When there is a disturbance on screen (due to cursor movement/time
- * update etc), DRRS needs to be invalidated, i.e. need to switch to
- * high RR.
+ * This function gets called everytime rendering on the given planes start.
+ * Hence DRRS needs to be Upclocked, i.e. (LOW_RR -> HIGH_RR).
  *
  * Dirty frontbuffers relevant to DRRS are tracked in busy_frontbuffer_bits.
  */
@@ -5487,6 +5486,7 @@ void intel_edp_drrs_invalidate(struct drm_device *dev,
 	crtc = dp_to_dig_port(dev_priv->drrs.dp)->base.base.crtc;
 	pipe = to_intel_crtc(crtc)->pipe;
 
+	/* invalidate means busy screen hence upclock */
 	if (dev_priv->drrs.refresh_rate_type == DRRS_LOW_RR) {
 		intel_dp_set_drrs_state(dev_priv->dev,
 				dev_priv->drrs.dp->attached_connector->panel.
@@ -5500,13 +5500,14 @@ void intel_edp_drrs_invalidate(struct drm_device *dev,
 }
 
 /**
- * intel_edp_drrs_flush - Flush DRRS
+ * intel_edp_drrs_flush - Restart Idleness DRRS
  * @dev: DRM device
  * @frontbuffer_bits: frontbuffer plane tracking bits
  *
- * When there is no movement on screen, DRRS work can be scheduled.
- * This DRRS work is responsible for setting relevant registers after a
- * timeout of 1 second.
+ * This function gets called every time rendering on the given planes has
+ * completed or flip on a crtc is completed. So DRRS should be upclocked
+ * (LOW_RR -> HIGH_RR). And also Idleness detection should be started again,
+ * if no other planes are dirty.
  *
  * Dirty frontbuffers relevant to DRRS are tracked in busy_frontbuffer_bits.
  */
@@ -5532,8 +5533,17 @@ void intel_edp_drrs_flush(struct drm_device *dev,
 	pipe = to_intel_crtc(crtc)->pipe;
 	dev_priv->drrs.busy_frontbuffer_bits &= ~frontbuffer_bits;
 
-	if (dev_priv->drrs.refresh_rate_type != DRRS_LOW_RR &&
-			!dev_priv->drrs.busy_frontbuffer_bits)
+	/* flush means busy screen hence upclock */
+	if (dev_priv->drrs.refresh_rate_type == DRRS_LOW_RR)
+		intel_dp_set_drrs_state(dev_priv->dev,
+				dev_priv->drrs.dp->attached_connector->panel.
+				fixed_mode->vrefresh);
+
+	/*
+	 * flush also means no more activity hence schedule downclock, if all
+	 * other fbs are quiescent too
+	 */
+	if (!dev_priv->drrs.busy_frontbuffer_bits)
 		schedule_delayed_work(&dev_priv->drrs.work,
 				msecs_to_jiffies(1000));
 	mutex_unlock(&dev_priv->drrs.mutex);
