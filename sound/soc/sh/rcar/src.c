@@ -876,9 +876,9 @@ static int rsnd_src_stop_gen2(struct rsnd_mod *mod,
 	return ret;
 }
 
-static void rsnd_src_reconvert_update(struct rsnd_mod *mod)
+static void rsnd_src_reconvert_update(struct rsnd_dai_stream *io,
+				      struct rsnd_mod *mod)
 {
-	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	u32 convert_rate = rsnd_src_convert_rate(io, src);
@@ -931,7 +931,7 @@ static int rsnd_src_pcm_new(struct rsnd_mod *mod,
 	/*
 	 * enable sync convert
 	 */
-	ret = rsnd_kctrl_new_s(mod, rtd,
+	ret = rsnd_kctrl_new_s(mod, io, rtd,
 			       rsnd_io_is_play(io) ?
 			       "SRC Out Rate Switch" :
 			       "SRC In Rate Switch",
@@ -940,7 +940,7 @@ static int rsnd_src_pcm_new(struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 
-	ret = rsnd_kctrl_new_s(mod, rtd,
+	ret = rsnd_kctrl_new_s(mod, io, rtd,
 			       rsnd_io_is_play(io) ?
 			       "SRC Out Rate" :
 			       "SRC In Rate",

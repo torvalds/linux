@@ -487,7 +487,8 @@ struct rsnd_kctrl_cfg {
 	unsigned int size;
 	u32 *val;
 	const char * const *texts;
-	void (*update)(struct rsnd_mod *mod);
+	void (*update)(struct rsnd_dai_stream *io, struct rsnd_mod *mod);
+	struct rsnd_dai_stream *io;
 	struct snd_card *card;
 	struct snd_kcontrol *kctrl;
 };
@@ -507,22 +508,28 @@ void _rsnd_kctrl_remove(struct rsnd_kctrl_cfg *cfg);
 #define rsnd_kctrl_remove(_cfg)	_rsnd_kctrl_remove(&((_cfg).cfg))
 
 int rsnd_kctrl_new_m(struct rsnd_mod *mod,
+		     struct rsnd_dai_stream *io,
 		     struct snd_soc_pcm_runtime *rtd,
 		     const unsigned char *name,
-		     void (*update)(struct rsnd_mod *mod),
+		     void (*update)(struct rsnd_dai_stream *io,
+				    struct rsnd_mod *mod),
 		     struct rsnd_kctrl_cfg_m *_cfg,
 		     u32 max);
 int rsnd_kctrl_new_s(struct rsnd_mod *mod,
+		     struct rsnd_dai_stream *io,
 		     struct snd_soc_pcm_runtime *rtd,
 		     const unsigned char *name,
-		     void (*update)(struct rsnd_mod *mod),
+		     void (*update)(struct rsnd_dai_stream *io,
+				    struct rsnd_mod *mod),
 		     struct rsnd_kctrl_cfg_s *_cfg,
 		     u32 max);
 int rsnd_kctrl_new_e(struct rsnd_mod *mod,
+		     struct rsnd_dai_stream *io,
 		     struct snd_soc_pcm_runtime *rtd,
 		     const unsigned char *name,
 		     struct rsnd_kctrl_cfg_s *_cfg,
-		     void (*update)(struct rsnd_mod *mod),
+		     void (*update)(struct rsnd_dai_stream *io,
+				    struct rsnd_mod *mod),
 		     const char * const *texts,
 		     u32 max);
 
