@@ -67,6 +67,7 @@ struct vfio_platform_device {
 	struct resource*
 		(*get_resource)(struct vfio_platform_device *vdev, int i);
 	int	(*get_irq)(struct vfio_platform_device *vdev, int i);
+	int	(*reset)(struct vfio_platform_device *vdev);
 };
 
 struct vfio_platform_reset_combo {

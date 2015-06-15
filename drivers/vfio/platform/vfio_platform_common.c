@@ -103,6 +103,8 @@ static void vfio_platform_release(void *device_data)
 	mutex_lock(&driver_lock);
 
 	if (!(--vdev->refcnt)) {
+		if (vdev->reset)
+			vdev->reset(vdev);
 		vfio_platform_regions_cleanup(vdev);
 		vfio_platform_irq_cleanup(vdev);
 	}
@@ -130,6 +132,9 @@ static int vfio_platform_open(void *device_data)
 		ret = vfio_platform_irq_init(vdev);
 		if (ret)
 			goto err_irq;
+
+		if (vdev->reset)
+			vdev->reset(vdev);
 	}
 
 	vdev->refcnt++;
@@ -162,6 +167,8 @@ static long vfio_platform_ioctl(void *device_data,
 		if (info.argsz < minsz)
 			return -EINVAL;
 
+		if (vdev->reset)
+			vdev->flags |= VFIO_DEVICE_FLAGS_RESET;
 		info.flags = vdev->flags;
 		info.num_regions = vdev->num_regions;
 		info.num_irqs = vdev->num_irqs;
@@ -255,8 +262,12 @@ static long vfio_platform_ioctl(void *device_data,
 
 		return ret;
 
-	} else if (cmd == VFIO_DEVICE_RESET)
-		return -EINVAL;
+	} else if (cmd == VFIO_DEVICE_RESET) {
+		if (vdev->reset)
+			return vdev->reset(vdev);
+		else
+			return -EINVAL;
+	}
 
 	return -ENOTTY;
 }
