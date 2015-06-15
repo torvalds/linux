@@ -1209,6 +1209,11 @@ static int __init uncore_cpu_init(void)
 		break;
 	case 42: /* Sandy Bridge */
 	case 58: /* Ivy Bridge */
+	case 60: /* Haswell */
+	case 69: /* Haswell */
+	case 70: /* Haswell */
+	case 61: /* Broadwell */
+	case 71: /* Broadwell */
 		snb_uncore_cpu_init();
 		break;
 	case 45: /* Sandy Bridge-EP */
