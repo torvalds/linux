@@ -14070,8 +14070,6 @@ static void skl_init_scalers(struct drm_device *dev, struct intel_crtc *intel_cr
 	for (i = 0; i < intel_crtc->num_scalers; i++) {
 		intel_scaler = &scaler_state->scalers[i];
 		intel_scaler->in_use = 0;
-		intel_scaler->id = i;
-
 		intel_scaler->mode = PS_SCALER_MODE_DYN;
 	}
 

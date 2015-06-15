@@ -293,7 +293,6 @@ struct intel_initial_plane_config {
 #define SKL_MAX_DST_H 4096
 
 struct intel_scaler {
-	int id;
 	int in_use;
 	uint32_t mode;
 };

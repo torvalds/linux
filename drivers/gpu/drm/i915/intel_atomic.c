@@ -309,15 +309,23 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 	/* walkthrough scaler_users bits and start assigning scalers */
 	for (i = 0; i < sizeof(scaler_state->scaler_users) * 8; i++) {
 		int *scaler_id;
+		const char *name;
+		int idx;
 
 		/* skip if scaler not required */
 		if (!(scaler_state->scaler_users & (1 << i)))
 			continue;
 
 		if (i == SKL_CRTC_INDEX) {
+			name = "CRTC";
+			idx = intel_crtc->base.base.id;
+
 			/* panel fitter case: assign as a crtc scaler */
 			scaler_id = &scaler_state->scaler_id;
 		} else {
+			name = "PLANE";
+			idx = plane->base.id;
+
 			if (!drm_state)
 				continue;
 
@@ -356,23 +364,16 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 			for (j = 0; j < intel_crtc->num_scalers; j++) {
 				if (!scaler_state->scalers[j].in_use) {
 					scaler_state->scalers[j].in_use = 1;
-					*scaler_id = scaler_state->scalers[j].id;
+					*scaler_id = j;
 					DRM_DEBUG_KMS("Attached scaler id %u.%u to %s:%d\n",
-						intel_crtc->pipe,
-						i == SKL_CRTC_INDEX ? scaler_state->scaler_id :
-							plane_state->scaler_id,
-						i == SKL_CRTC_INDEX ? "CRTC" : "PLANE",
-						i == SKL_CRTC_INDEX ?  intel_crtc->base.base.id :
-						plane->base.id);
+						intel_crtc->pipe, *scaler_id, name, idx);
 					break;
 				}
 			}
 		}
 
 		if (WARN_ON(*scaler_id < 0)) {
-			DRM_DEBUG_KMS("Cannot find scaler for %s:%d\n",
-				i == SKL_CRTC_INDEX ? "CRTC" : "PLANE",
-				i == SKL_CRTC_INDEX ? intel_crtc->base.base.id:plane->base.id);
+			DRM_DEBUG_KMS("Cannot find scaler for %s:%d\n", name, idx);
 			continue;
 		}
 
