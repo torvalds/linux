@@ -200,9 +200,9 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 	}
 #undef EXPIRES_IN_MS
 
-	if (ext & (1 << (INET_DIAG_INFO - 1))) {
+	if ((ext & (1 << (INET_DIAG_INFO - 1))) && handler->idiag_info_size) {
 		attr = nla_reserve(skb, INET_DIAG_INFO,
-				   sizeof(struct tcp_info));
+				   handler->idiag_info_size);
 		if (!attr)
 			goto errout;
 
