@@ -41,9 +41,6 @@ static int imx7d_set_target(struct cpufreq_policy *policy, unsigned int index)
 	freq_hz = new_freq * 1000;
 	old_freq = clk_get_rate(arm_clk) / 1000;
 
-	if (new_freq == old_freq)
-		return 0;
-
 	rcu_read_lock();
 	opp = dev_pm_opp_find_freq_ceil(cpu_dev, &freq_hz);
 	if (IS_ERR(opp)) {
