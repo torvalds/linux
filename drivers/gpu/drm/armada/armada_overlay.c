@@ -85,6 +85,8 @@ static void armada_plane_vbl(struct armada_crtc *dcrtc, void *data)
 
 	if (fb)
 		armada_drm_queue_unref_work(dcrtc->crtc.dev, fb);
+
+	wake_up(&dplane->vbl.wait);
 }
 
 static unsigned armada_limit(int start, unsigned size, unsigned max)
@@ -150,11 +152,9 @@ armada_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 			       dcrtc->base + LCD_SPU_SRAM_PARA1);
 	}
 
-	ret = wait_event_timeout(dplane->vbl.wait,
-				 list_empty(&dplane->vbl.update.node),
-				 HZ/25);
-	if (ret < 0)
-		return ret;
+	wait_event_timeout(dplane->vbl.wait,
+			   list_empty(&dplane->vbl.update.node),
+			   HZ/25);
 
 	if (plane->fb != fb) {
 		struct armada_gem_object *obj = drm_fb_obj(fb);
