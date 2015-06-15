@@ -2920,6 +2920,7 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 	efx_dissociate(efx);
 	dev_close(efx->net_dev);
 	efx_disable_interrupts(efx);
+	efx->state = STATE_UNINIT;
 	rtnl_unlock();
 
 	if (efx->type->sriov_fini)
