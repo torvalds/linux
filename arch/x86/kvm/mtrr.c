@@ -120,12 +120,132 @@ static u8 mtrr_default_type(struct kvm_mtrr *mtrr_state)
 	return mtrr_state->deftype & IA32_MTRR_DEF_TYPE_TYPE_MASK;
 }
 
+/*
+* Three terms are used in the following code:
+* - segment, it indicates the address segments covered by fixed MTRRs.
+* - unit, it corresponds to the MSR entry in the segment.
+* - range, a range is covered in one memory cache type.
+*/
+struct fixed_mtrr_segment {
+	u64 start;
+	u64 end;
+
+	int range_shift;
+
+	/* the start position in kvm_mtrr.fixed_ranges[]. */
+	int range_start;
+};
+
+static struct fixed_mtrr_segment fixed_seg_table[] = {
+	/* MSR_MTRRfix64K_00000, 1 unit. 64K fixed mtrr. */
+	{
+		.start = 0x0,
+		.end = 0x80000,
+		.range_shift = 16, /* 64K */
+		.range_start = 0,
+	},
+
+	/*
+	 * MSR_MTRRfix16K_80000 ... MSR_MTRRfix16K_A0000, 2 units,
+	 * 16K fixed mtrr.
+	 */
+	{
+		.start = 0x80000,
+		.end = 0xc0000,
+		.range_shift = 14, /* 16K */
+		.range_start = 8,
+	},
+
+	/*
+	 * MSR_MTRRfix4K_C0000 ... MSR_MTRRfix4K_F8000, 8 units,
+	 * 4K fixed mtrr.
+	 */
+	{
+		.start = 0xc0000,
+		.end = 0x100000,
+		.range_shift = 12, /* 12K */
+		.range_start = 24,
+	}
+};
+
+/*
+ * The size of unit is covered in one MSR, one MSR entry contains
+ * 8 ranges so that unit size is always 8 * 2^range_shift.
+ */
+static u64 fixed_mtrr_seg_unit_size(int seg)
+{
+	return 8 << fixed_seg_table[seg].range_shift;
+}
+
+static bool fixed_msr_to_seg_unit(u32 msr, int *seg, int *unit)
+{
+	switch (msr) {
+	case MSR_MTRRfix64K_00000:
+		*seg = 0;
+		*unit = 0;
+		break;
+	case MSR_MTRRfix16K_80000 ... MSR_MTRRfix16K_A0000:
+		*seg = 1;
+		*unit = msr - MSR_MTRRfix16K_80000;
+		break;
+	case MSR_MTRRfix4K_C0000 ... MSR_MTRRfix4K_F8000:
+		*seg = 2;
+		*unit = msr - MSR_MTRRfix4K_C0000;
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+static void fixed_mtrr_seg_unit_range(int seg, int unit, u64 *start, u64 *end)
+{
+	struct fixed_mtrr_segment *mtrr_seg = &fixed_seg_table[seg];
+	u64 unit_size = fixed_mtrr_seg_unit_size(seg);
+
+	*start = mtrr_seg->start + unit * unit_size;
+	*end = *start + unit_size;
+	WARN_ON(*end > mtrr_seg->end);
+}
+
+static int fixed_mtrr_seg_unit_range_index(int seg, int unit)
+{
+	struct fixed_mtrr_segment *mtrr_seg = &fixed_seg_table[seg];
+
+	WARN_ON(mtrr_seg->start + unit * fixed_mtrr_seg_unit_size(seg)
+		> mtrr_seg->end);
+
+	/* each unit has 8 ranges. */
+	return mtrr_seg->range_start + 8 * unit;
+}
+
+static bool fixed_msr_to_range(u32 msr, u64 *start, u64 *end)
+{
+	int seg, unit;
+
+	if (!fixed_msr_to_seg_unit(msr, &seg, &unit))
+		return false;
+
+	fixed_mtrr_seg_unit_range(seg, unit, start, end);
+	return true;
+}
+
+static int fixed_msr_to_range_index(u32 msr)
+{
+	int seg, unit;
+
+	if (!fixed_msr_to_seg_unit(msr, &seg, &unit))
+		return -1;
+
+	return fixed_mtrr_seg_unit_range_index(seg, unit);
+}
+
 static void update_mtrr(struct kvm_vcpu *vcpu, u32 msr)
 {
 	struct kvm_mtrr *mtrr_state = &vcpu->arch.mtrr_state;
 	gfn_t start, end, mask;
 	int index;
-	bool is_fixed = true;
 
 	if (msr == MSR_IA32_CR_PAT || !tdp_enabled ||
 	      !kvm_arch_has_noncoherent_dma(vcpu->kvm))
@@ -134,32 +254,15 @@ static void update_mtrr(struct kvm_vcpu *vcpu, u32 msr)
 	if (!mtrr_is_enabled(mtrr_state) && msr != MSR_MTRRdefType)
 		return;
 
-	switch (msr) {
-	case MSR_MTRRfix64K_00000:
-		start = 0x0;
-		end = 0x80000;
-		break;
-	case MSR_MTRRfix16K_80000:
-		start = 0x80000;
-		end = 0xa0000;
-		break;
-	case MSR_MTRRfix16K_A0000:
-		start = 0xa0000;
-		end = 0xc0000;
-		break;
-	case MSR_MTRRfix4K_C0000 ... MSR_MTRRfix4K_F8000:
-		index = msr - MSR_MTRRfix4K_C0000;
-		start = 0xc0000 + index * (32 << 10);
-		end = start + (32 << 10);
-		break;
-	case MSR_MTRRdefType:
-		is_fixed = false;
+	/* fixed MTRRs. */
+	if (fixed_msr_to_range(msr, &start, &end)) {
+		if (!fixed_mtrr_is_enabled(mtrr_state))
+			return;
+	} else if (msr == MSR_MTRRdefType) {
 		start = 0x0;
 		end = ~0ULL;
-		break;
-	default:
+	} else {
 		/* variable range MTRRs. */
-		is_fixed = false;
 		index = (msr - 0x200) / 2;
 		start = mtrr_state->var_ranges[index].base & PAGE_MASK;
 		mask = mtrr_state->var_ranges[index].mask & PAGE_MASK;
@@ -168,38 +271,32 @@ static void update_mtrr(struct kvm_vcpu *vcpu, u32 msr)
 		end = ((start & mask) | ~mask) + 1;
 	}
 
-	if (is_fixed && !fixed_mtrr_is_enabled(mtrr_state))
-		return;
-
 	kvm_zap_gfn_range(vcpu->kvm, gpa_to_gfn(start), gpa_to_gfn(end));
 }
 
 int kvm_mtrr_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 {
-	u64 *p = (u64 *)&vcpu->arch.mtrr_state.fixed_ranges;
+	int index;
 
 	if (!kvm_mtrr_valid(vcpu, msr, data))
 		return 1;
 
-	if (msr == MSR_MTRRdefType)
+	index = fixed_msr_to_range_index(msr);
+	if (index >= 0)
+		*(u64 *)&vcpu->arch.mtrr_state.fixed_ranges[index] = data;
+	else if (msr == MSR_MTRRdefType)
 		vcpu->arch.mtrr_state.deftype = data;
-	else if (msr == MSR_MTRRfix64K_00000)
-		p[0] = data;
-	else if (msr == MSR_MTRRfix16K_80000 || msr == MSR_MTRRfix16K_A0000)
-		p[1 + msr - MSR_MTRRfix16K_80000] = data;
-	else if (msr >= MSR_MTRRfix4K_C0000 && msr <= MSR_MTRRfix4K_F8000)
-		p[3 + msr - MSR_MTRRfix4K_C0000] = data;
 	else if (msr == MSR_IA32_CR_PAT)
 		vcpu->arch.pat = data;
 	else {	/* Variable MTRRs */
-		int idx, is_mtrr_mask;
+		int is_mtrr_mask;
 
-		idx = (msr - 0x200) / 2;
-		is_mtrr_mask = msr - 0x200 - 2 * idx;
+		index = (msr - 0x200) / 2;
+		is_mtrr_mask = msr - 0x200 - 2 * index;
 		if (!is_mtrr_mask)
-			vcpu->arch.mtrr_state.var_ranges[idx].base = data;
+			vcpu->arch.mtrr_state.var_ranges[index].base = data;
 		else
-			vcpu->arch.mtrr_state.var_ranges[idx].mask = data;
+			vcpu->arch.mtrr_state.var_ranges[index].mask = data;
 	}
 
 	update_mtrr(vcpu, msr);
@@ -208,7 +305,7 @@ int kvm_mtrr_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 
 int kvm_mtrr_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 {
-	u64 *p = (u64 *)&vcpu->arch.mtrr_state.fixed_ranges;
+	int index;
 
 	/* MSR_MTRRcap is a readonly MSR. */
 	if (msr == MSR_MTRRcap) {
@@ -225,25 +322,22 @@ int kvm_mtrr_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	if (!msr_mtrr_valid(msr))
 		return 1;
 
-	if (msr == MSR_MTRRdefType)
+	index = fixed_msr_to_range_index(msr);
+	if (index >= 0)
+		*pdata = *(u64 *)&vcpu->arch.mtrr_state.fixed_ranges[index];
+	else if (msr == MSR_MTRRdefType)
 		*pdata = vcpu->arch.mtrr_state.deftype;
-	else if (msr == MSR_MTRRfix64K_00000)
-		*pdata = p[0];
-	else if (msr == MSR_MTRRfix16K_80000 || msr == MSR_MTRRfix16K_A0000)
-		*pdata = p[1 + msr - MSR_MTRRfix16K_80000];
-	else if (msr >= MSR_MTRRfix4K_C0000 && msr <= MSR_MTRRfix4K_F8000)
-		*pdata = p[3 + msr - MSR_MTRRfix4K_C0000];
 	else if (msr == MSR_IA32_CR_PAT)
 		*pdata = vcpu->arch.pat;
 	else {	/* Variable MTRRs */
-		int idx, is_mtrr_mask;
+		int is_mtrr_mask;
 
-		idx = (msr - 0x200) / 2;
-		is_mtrr_mask = msr - 0x200 - 2 * idx;
+		index = (msr - 0x200) / 2;
+		is_mtrr_mask = msr - 0x200 - 2 * index;
 		if (!is_mtrr_mask)
-			*pdata = vcpu->arch.mtrr_state.var_ranges[idx].base;
+			*pdata = vcpu->arch.mtrr_state.var_ranges[index].base;
 		else
-			*pdata = vcpu->arch.mtrr_state.var_ranges[idx].mask;
+			*pdata = vcpu->arch.mtrr_state.var_ranges[index].mask;
 	}
 
 	return 0;
