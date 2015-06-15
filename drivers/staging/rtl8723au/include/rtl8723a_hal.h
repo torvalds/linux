@@ -85,7 +85,7 @@ struct rt_8723a_firmware_hdr {
 	u8		Function;	/*  Reserved for different FW function indcation, for further use when driver needs to download different FW in different conditions */
 	u16		Version;		/*  FW Version */
 	u8		Subversion;	/*  FW Subversion, default 0x00 */
-	u16		Rsvd1;
+	u8		Rsvd1;
 
 
 	/*  LONG WORD 1 ---- */
