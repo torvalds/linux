@@ -1756,7 +1756,7 @@ static void perf_callchain_user_64(struct perf_callchain_entry *entry,
 {
 	unsigned long ufp;
 
-	ufp = regs->u_regs[UREG_I6] + STACK_BIAS;
+	ufp = regs->u_regs[UREG_FP] + STACK_BIAS;
 	do {
 		struct sparc_stackf __user *usf;
 		struct sparc_stackf sf;
@@ -1780,7 +1780,7 @@ static void perf_callchain_user_32(struct perf_callchain_entry *entry,
 {
 	unsigned long ufp;
 
-	ufp = regs->u_regs[UREG_I6] & 0xffffffffUL;
+	ufp = regs->u_regs[UREG_FP] & 0xffffffffUL;
 	do {
 		unsigned long pc;
 
