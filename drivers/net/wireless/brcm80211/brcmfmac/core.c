@@ -1098,7 +1098,8 @@ void brcmf_detach(struct device *dev)
 
 	/* stop firmware event handling */
 	brcmf_fweh_detach(drvr);
-	brcmf_p2p_detach(&drvr->config->p2p);
+	if (drvr->config)
+		brcmf_p2p_detach(&drvr->config->p2p);
 
 	brcmf_bus_change_state(bus_if, BRCMF_BUS_DOWN);
 
