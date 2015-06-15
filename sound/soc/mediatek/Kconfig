@@ -17,3 +17,14 @@ config SND_SOC_MT8173_MAX98090
 	  Select Y if you have such device.
 	  If unsure select "N".
 
+config SND_SOC_MT8173_RT5650_RT5676
+	tristate "ASoC Audio driver for MT8173 with RT5650 RT5676 codecs"
+	depends on SND_SOC_MEDIATEK
+	select SND_SOC_RT5645
+	select SND_SOC_RT5677
+	help
+	  This adds ASoC driver for Mediatek MT8173 boards
+	  with the RT5650 and RT5676 codecs.
+	  Select Y if you have such device.
+	  If unsure select "N".
+
