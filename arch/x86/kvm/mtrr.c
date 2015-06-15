@@ -600,61 +600,23 @@ static void mtrr_lookup_next(struct mtrr_iter *iter)
 u8 kvm_mtrr_get_guest_memory_type(struct kvm_vcpu *vcpu, gfn_t gfn)
 {
 	struct kvm_mtrr *mtrr_state = &vcpu->arch.mtrr_state;
-	u64 base, mask, start;
-	int i, num_var_ranges, type;
+	struct mtrr_iter iter;
+	u64 start, end;
+	int type = -1;
 	const int wt_wb_mask = (1 << MTRR_TYPE_WRBACK)
 			       | (1 << MTRR_TYPE_WRTHROUGH);
 
 	start = gfn_to_gpa(gfn);
-	num_var_ranges = KVM_NR_VAR_MTRR;
-	type = -1;
+	end = start + PAGE_SIZE;
 
-	/* MTRR is completely disabled, use UC for all of physical memory. */
-	if (!mtrr_is_enabled(mtrr_state))
-		return MTRR_TYPE_UNCACHABLE;
-
-	/* Look in fixed ranges. Just return the type as per start */
-	if (fixed_mtrr_is_enabled(mtrr_state) && (start < 0x100000)) {
-		int idx;
-
-		if (start < 0x80000) {
-			idx = 0;
-			idx += (start >> 16);
-			return mtrr_state->fixed_ranges[idx];
-		} else if (start < 0xC0000) {
-			idx = 1 * 8;
-			idx += ((start - 0x80000) >> 14);
-			return mtrr_state->fixed_ranges[idx];
-		} else if (start < 0x1000000) {
-			idx = 3 * 8;
-			idx += ((start - 0xC0000) >> 12);
-			return mtrr_state->fixed_ranges[idx];
-		}
-	}
-
-	/*
-	 * Look in variable ranges
-	 * Look of multiple ranges matching this address and pick type
-	 * as per MTRR precedence
-	 */
-	for (i = 0; i < num_var_ranges; ++i) {
-		int curr_type;
-
-		if (!(mtrr_state->var_ranges[i].mask & (1 << 11)))
-			continue;
-
-		base = mtrr_state->var_ranges[i].base & PAGE_MASK;
-		mask = mtrr_state->var_ranges[i].mask & PAGE_MASK;
-
-		if ((start & mask) != (base & mask))
-			continue;
+	mtrr_for_each_mem_type(&iter, mtrr_state, start, end) {
+		int curr_type = iter.mem_type;
 
 		/*
 		 * Please refer to Intel SDM Volume 3: 11.11.4.1 MTRR
 		 * Precedences.
 		 */
 
-		curr_type = mtrr_state->var_ranges[i].base & 0xff;
 		if (type == -1) {
 			type = curr_type;
 			continue;
@@ -694,9 +656,15 @@ u8 kvm_mtrr_get_guest_memory_type(struct kvm_vcpu *vcpu, gfn_t gfn)
 		return MTRR_TYPE_WRBACK;
 	}
 
-	if (type != -1)
-		return type;
-
-	return mtrr_default_type(mtrr_state);
+	/* It is not covered by MTRRs. */
+	if (iter.partial_map) {
+		/*
+		 * We just check one page, partially covered by MTRRs is
+		 * impossible.
+		 */
+		WARN_ON(type != -1);
+		type = mtrr_default_type(mtrr_state);
+	}
+	return type;
 }
 EXPORT_SYMBOL_GPL(kvm_mtrr_get_guest_memory_type);
