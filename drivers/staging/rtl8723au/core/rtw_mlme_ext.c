@@ -1717,7 +1717,6 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	/*  now the station is qualified to join our BSS... */
 	if (pstat && pstat->state & WIFI_FW_ASSOC_SUCCESS &&
 	    status == WLAN_STATUS_SUCCESS) {
-#ifdef CONFIG_8723AU_AP_MODE
 		/* 1 bss_cap_update & sta_info_update23a */
 		bss_cap_update_on_sta_join23a(padapter, pstat);
 		sta_info_update23a(padapter, pstat);
@@ -1736,21 +1735,17 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 
 		/* 3-(1) report sta add event */
 		report_add_sta_event23a(padapter, pstat->hwaddr, pstat->aid);
-#endif
 	}
 
 	return _SUCCESS;
 
 asoc_class2_error:
 
-#ifdef CONFIG_8723AU_AP_MODE
 	issue_deauth23a(padapter, mgmt->sa, status);
-#endif
 	return _FAIL;
 
 OnAssocReq23aFail:
 
-#ifdef CONFIG_8723AU_AP_MODE
 	pstat->aid = 0;
 	if (ieee80211_is_assoc_req(mgmt->frame_control))
 		issue_assocrsp(padapter, status, pstat,
@@ -1758,7 +1753,6 @@ OnAssocReq23aFail:
 	else
 		issue_assocrsp(padapter, status, pstat,
 			       IEEE80211_STYPE_REASSOC_RESP);
-#endif
 
 #endif /* CONFIG_8723AU_AP_MODE */
 
