@@ -1895,6 +1895,7 @@ static void mlx4_en_clear_stats(struct net_device *dev)
 	       sizeof(priv->rx_priority_flowstats));
 	memset(&priv->tx_priority_flowstats, 0,
 	       sizeof(priv->tx_priority_flowstats));
+	memset(&priv->pf_stats, 0, sizeof(priv->pf_stats));
 
 	for (i = 0; i < priv->tx_ring_num; i++) {
 		priv->tx_ring[i]->bytes = 0;
@@ -2685,7 +2686,7 @@ void mlx4_en_update_pfc_stats_bitmap(struct mlx4_dev *dev,
 				     u8 rx_ppp, u8 rx_pause,
 				     u8 tx_ppp, u8 tx_pause)
 {
-	int last_i = NUM_MAIN_STATS + NUM_PORT_STATS;
+	int last_i = NUM_MAIN_STATS + NUM_PORT_STATS + NUM_PF_STATS;
 
 	if (!mlx4_is_slave(dev) &&
 	    (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_FLOWSTATS_EN)) {
@@ -2746,6 +2747,11 @@ void mlx4_en_set_stats_bitmap(struct mlx4_dev *dev,
 
 	bitmap_set(stats_bitmap->bitmap, last_i, NUM_PORT_STATS);
 	last_i += NUM_PORT_STATS;
+
+	if (mlx4_is_master(dev))
+		bitmap_set(stats_bitmap->bitmap, last_i,
+			   NUM_PF_STATS);
+	last_i += NUM_PF_STATS;
 
 	mlx4_en_update_pfc_stats_bitmap(dev, stats_bitmap,
 					rx_ppp, rx_pause,

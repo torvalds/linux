@@ -23,6 +23,14 @@ struct mlx4_en_pkt_stats {
 #define NUM_PKT_STATS		43
 };
 
+struct mlx4_en_counter_stats {
+	unsigned long rx_packets;
+	unsigned long rx_bytes;
+	unsigned long tx_packets;
+	unsigned long tx_bytes;
+#define NUM_PF_STATS      4
+};
+
 struct mlx4_en_port_stats {
 	unsigned long tso_packets;
 	unsigned long xmit_more;
@@ -71,7 +79,8 @@ struct mlx4_en_flow_stats_tx {
 
 #define NUM_FLOW_STATS (NUM_FLOW_STATS_RX + NUM_FLOW_STATS_TX + \
 			NUM_FLOW_PRIORITY_STATS_TX + \
-			NUM_FLOW_PRIORITY_STATS_RX)
+			NUM_FLOW_PRIORITY_STATS_RX + \
+			NUM_PF_STATS)
 
 struct mlx4_en_stat_out_flow_control_mbox {
 	/* Total number of PAUSE frames received from the far-end port */

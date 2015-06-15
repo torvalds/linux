@@ -566,6 +566,7 @@ struct mlx4_en_priv {
 #endif
 	struct mlx4_en_perf_stats pstats;
 	struct mlx4_en_pkt_stats pkstats;
+	struct mlx4_en_counter_stats pf_stats;
 	struct mlx4_en_flow_stats_rx rx_priority_flowstats[MLX4_NUM_PRIORITIES];
 	struct mlx4_en_flow_stats_tx tx_priority_flowstats[MLX4_NUM_PRIORITIES];
 	struct mlx4_en_flow_stats_rx rx_flowstats;
