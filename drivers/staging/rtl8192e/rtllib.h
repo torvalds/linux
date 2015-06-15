@@ -421,16 +421,6 @@ struct ieee_param {
 	} u;
 };
 
-
-#if WIRELESS_EXT < 17
-#define IW_QUAL_QUAL_INVALID   0x10
-#define IW_QUAL_LEVEL_INVALID  0x20
-#define IW_QUAL_NOISE_INVALID  0x40
-#define IW_QUAL_QUAL_UPDATED   0x1
-#define IW_QUAL_LEVEL_UPDATED  0x2
-#define IW_QUAL_NOISE_UPDATED  0x4
-#endif
-
 #define msleep_interruptible_rsl  msleep_interruptible
 
 /* Maximum size for the MA-UNITDATA primitive, 802.11 standard section
@@ -2151,11 +2141,9 @@ extern int rtllib_wx_set_encode(struct rtllib_device *ieee,
 extern int rtllib_wx_get_encode(struct rtllib_device *ieee,
 				   struct iw_request_info *info,
 				   union iwreq_data *wrqu, char *key);
-#if WIRELESS_EXT >= 18
 extern int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 			    struct iw_request_info *info,
 			    union iwreq_data *wrqu, char *extra);
-#endif
 extern int rtllib_wx_set_auth(struct rtllib_device *ieee,
 			       struct iw_request_info *info,
 			       struct iw_param *data, char *extra);
