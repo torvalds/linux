@@ -166,7 +166,8 @@ armada_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	if (plane->fb != fb) {
 		struct armada_gem_object *obj = drm_fb_obj(fb);
-		uint32_t sy, su, sv;
+		uint32_t addr[3], pixel_format;
+		int i, num_planes, hsub;
 
 		/*
 		 * Take a reference on the new framebuffer - we want to
@@ -188,24 +189,37 @@ armada_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 
 		src_y = src.y1 >> 16;
 		src_x = src.x1 >> 16;
-		sy = obj->dev_addr + fb->offsets[0] + src_y * fb->pitches[0] +
-			src_x * fb->bits_per_pixel / 8;
-		su = obj->dev_addr + fb->offsets[1] + src_y * fb->pitches[1] +
-			src_x;
-		sv = obj->dev_addr + fb->offsets[2] + src_y * fb->pitches[2] +
-			src_x;
 
-		armada_reg_queue_set(dplane->vbl.regs, idx, sy,
+		pixel_format = fb->pixel_format;
+		hsub = drm_format_horz_chroma_subsampling(pixel_format);
+		num_planes = drm_format_num_planes(pixel_format);
+
+		/*
+		 * Annoyingly, shifting a YUYV-format image by one pixel
+		 * causes the U/V planes to toggle.  Toggle the UV swap.
+		 * (Unfortunately, this causes momentary colour flickering.)
+		 */
+		if (src_x & (hsub - 1) && num_planes == 1)
+			ctrl0 ^= CFG_DMA_MOD(CFG_SWAPUV);
+
+		for (i = 0; i < num_planes; i++)
+			addr[i] = obj->dev_addr + fb->offsets[i] +
+				  src_y * fb->pitches[i] +
+				  src_x * drm_format_plane_cpp(pixel_format, i);
+		for (; i < ARRAY_SIZE(addr); i++)
+			addr[i] = 0;
+
+		armada_reg_queue_set(dplane->vbl.regs, idx, addr[0],
 				     LCD_SPU_DMA_START_ADDR_Y0);
-		armada_reg_queue_set(dplane->vbl.regs, idx, su,
+		armada_reg_queue_set(dplane->vbl.regs, idx, addr[1],
 				     LCD_SPU_DMA_START_ADDR_U0);
-		armada_reg_queue_set(dplane->vbl.regs, idx, sv,
+		armada_reg_queue_set(dplane->vbl.regs, idx, addr[2],
 				     LCD_SPU_DMA_START_ADDR_V0);
-		armada_reg_queue_set(dplane->vbl.regs, idx, sy,
+		armada_reg_queue_set(dplane->vbl.regs, idx, addr[0],
 				     LCD_SPU_DMA_START_ADDR_Y1);
-		armada_reg_queue_set(dplane->vbl.regs, idx, su,
+		armada_reg_queue_set(dplane->vbl.regs, idx, addr[1],
 				     LCD_SPU_DMA_START_ADDR_U1);
-		armada_reg_queue_set(dplane->vbl.regs, idx, sv,
+		armada_reg_queue_set(dplane->vbl.regs, idx, addr[2],
 				     LCD_SPU_DMA_START_ADDR_V1);
 
 		val = fb->pitches[0] << 16 | fb->pitches[0];
