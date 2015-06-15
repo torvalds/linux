@@ -2613,18 +2613,6 @@ exit:
 	spin_unlock_irqrestore(&ieee->lock, flags);
 }
 
-
-void rtllib_stop_queue(struct rtllib_device *ieee)
-{
-
-	if (!netif_queue_stopped(ieee->dev)) {
-		netif_stop_queue(ieee->dev);
-		ieee->softmac_stats.swtxstop++;
-	}
-	ieee->queue_stop = 1;
-
-}
-
 void rtllib_stop_all_queues(struct rtllib_device *ieee)
 {
 	unsigned int i;
