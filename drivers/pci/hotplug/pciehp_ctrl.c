@@ -59,9 +59,6 @@ u8 pciehp_handle_attention_button(struct slot *p_slot)
 	u32 event_type;
 	struct controller *ctrl = p_slot->ctrl;
 
-	/* Attention Button Change */
-	ctrl_dbg(ctrl, "Attention button interrupt received\n");
-
 	/*
 	 *  Button pressed - See if need to TAKE ACTION!!!
 	 */
@@ -78,9 +75,6 @@ u8 pciehp_handle_switch_change(struct slot *p_slot)
 	u8 getstatus;
 	u32 event_type;
 	struct controller *ctrl = p_slot->ctrl;
-
-	/* Switch Change */
-	ctrl_dbg(ctrl, "Switch interrupt received\n");
 
 	pciehp_get_latch_status(p_slot, &getstatus);
 	if (getstatus) {
@@ -107,9 +101,6 @@ u8 pciehp_handle_presence_change(struct slot *p_slot)
 	u32 event_type;
 	u8 presence_save;
 	struct controller *ctrl = p_slot->ctrl;
-
-	/* Presence Change */
-	ctrl_dbg(ctrl, "Presence/Notify input change\n");
 
 	/* Switch is open, assume a presence change
 	 * Save the presence state
@@ -140,8 +131,6 @@ u8 pciehp_handle_power_fault(struct slot *p_slot)
 	u32 event_type;
 	struct controller *ctrl = p_slot->ctrl;
 
-	/* power fault */
-	ctrl_dbg(ctrl, "Power fault interrupt received\n");
 	ctrl_err(ctrl, "Power fault on slot %s\n", slot_name(p_slot));
 	event_type = INT_POWER_FAULT;
 	ctrl_info(ctrl, "Power fault bit %x set\n", 0);
@@ -154,9 +143,6 @@ void pciehp_handle_linkstate_change(struct slot *p_slot)
 {
 	u32 event_type;
 	struct controller *ctrl = p_slot->ctrl;
-
-	/* Link Status Change */
-	ctrl_dbg(ctrl, "Data Link Layer State change\n");
 
 	if (pciehp_check_link_active(ctrl)) {
 		ctrl_info(ctrl, "slot(%s): Link Up event\n",
@@ -298,10 +284,6 @@ static void pciehp_power_thread(struct work_struct *work)
 
 	switch (info->req) {
 	case DISABLE_REQ:
-		ctrl_dbg(p_slot->ctrl,
-			 "Disabling domain:bus:device=%04x:%02x:00\n",
-			 pci_domain_nr(p_slot->ctrl->pcie->port->subordinate),
-			 p_slot->ctrl->pcie->port->subordinate->number);
 		mutex_lock(&p_slot->hotplug_lock);
 		pciehp_disable_slot(p_slot);
 		mutex_unlock(&p_slot->hotplug_lock);
@@ -310,10 +292,6 @@ static void pciehp_power_thread(struct work_struct *work)
 		mutex_unlock(&p_slot->lock);
 		break;
 	case ENABLE_REQ:
-		ctrl_dbg(p_slot->ctrl,
-			 "Enabling domain:bus:device=%04x:%02x:00\n",
-			 pci_domain_nr(p_slot->ctrl->pcie->port->subordinate),
-			 p_slot->ctrl->pcie->port->subordinate->number);
 		mutex_lock(&p_slot->hotplug_lock);
 		ret = pciehp_enable_slot(p_slot);
 		mutex_unlock(&p_slot->hotplug_lock);
@@ -416,7 +394,7 @@ static void handle_button_press_event(struct slot *p_slot)
 		ctrl_info(ctrl, "Button ignore on Slot(%s)\n", slot_name(p_slot));
 		break;
 	default:
-		ctrl_warn(ctrl, "Not a valid state\n");
+		ctrl_warn(ctrl, "ignoring invalid state %#x\n", p_slot->state);
 		break;
 	}
 }
@@ -507,8 +485,8 @@ static void handle_link_event(struct slot *p_slot, u32 event)
 		}
 		break;
 	default:
-		ctrl_err(ctrl, "Not a valid state on slot(%s)\n",
-			 slot_name(p_slot));
+		ctrl_err(ctrl, "ignoring invalid state %#x on slot(%s)\n",
+			 p_slot->state, slot_name(p_slot));
 		kfree(info);
 		break;
 	}
@@ -532,7 +510,6 @@ static void interrupt_event_handler(struct work_struct *work)
 		pciehp_green_led_off(p_slot);
 		break;
 	case INT_PRESENCE_ON:
-		ctrl_dbg(ctrl, "Surprise Insertion\n");
 		handle_surprise_event(p_slot);
 		break;
 	case INT_PRESENCE_OFF:
@@ -540,7 +517,6 @@ static void interrupt_event_handler(struct work_struct *work)
 		 * Regardless of surprise capability, we need to
 		 * definitely remove a card that has been pulled out!
 		 */
-		ctrl_dbg(ctrl, "Surprise Removal\n");
 		handle_surprise_event(p_slot);
 		break;
 	case INT_LINK_UP:
@@ -647,8 +623,8 @@ int pciehp_sysfs_enable_slot(struct slot *p_slot)
 			  slot_name(p_slot));
 		break;
 	default:
-		ctrl_err(ctrl, "Not a valid state on slot %s\n",
-			 slot_name(p_slot));
+		ctrl_err(ctrl, "invalid state %#x on slot %s\n",
+			 p_slot->state, slot_name(p_slot));
 		break;
 	}
 	mutex_unlock(&p_slot->lock);
@@ -682,8 +658,8 @@ int pciehp_sysfs_disable_slot(struct slot *p_slot)
 			  slot_name(p_slot));
 		break;
 	default:
-		ctrl_err(ctrl, "Not a valid state on slot %s\n",
-			 slot_name(p_slot));
+		ctrl_err(ctrl, "invalid state %#x on slot %s\n",
+			 p_slot->state, slot_name(p_slot));
 		break;
 	}
 	mutex_unlock(&p_slot->lock);
