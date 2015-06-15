@@ -1213,6 +1213,7 @@ int i915_cmd_parser_get_version(void)
 	 * 2. Allow access to the MI_PREDICATE_SRC0 and
 	 *    MI_PREDICATE_SRC1 registers.
 	 * 3. Allow access to the GPGPU_THREADS_DISPATCHED register.
+	 * 4. L3 atomic chicken bits of HSW_SCRATCH1 and HSW_ROW_CHICKEN3.
 	 */
-	return 3;
+	return 4;
 }
