@@ -1983,6 +1983,16 @@ static int fm10k_resume(struct pci_dev *pdev)
 	if (err)
 		return err;
 
+	/* assume host is not ready, to prevent race with watchdog in case we
+	 * actually don't have connection to the switch
+	 */
+	interface->host_ready = false;
+	fm10k_watchdog_host_not_ready(interface);
+
+	/* clear the service task disable bit to allow service task to start */
+	clear_bit(__FM10K_SERVICE_DISABLE, &interface->state);
+	fm10k_service_event_schedule(interface);
+
 	/* restore SR-IOV interface */
 	fm10k_iov_resume(pdev);
 
@@ -2009,6 +2019,15 @@ static int fm10k_suspend(struct pci_dev *pdev,
 	netif_device_detach(netdev);
 
 	fm10k_iov_suspend(pdev);
+
+	/* the watchdog tasks may read registers, which will appear like a
+	 * surprise-remove event once the PCI device is disabled. This will
+	 * cause us to close the netdevice, so we don't retain the open/closed
+	 * state post-resume. Prevent this by disabling the service task while
+	 * suspended, until we actually resume.
+	 */
+	set_bit(__FM10K_SERVICE_DISABLE, &interface->state);
+	cancel_work_sync(&interface->service_task);
 
 	rtnl_lock();
 
