@@ -162,6 +162,7 @@ struct ath10k_pci {
 	struct device *dev;
 	struct ath10k *ar;
 	void __iomem *mem;
+	size_t mem_len;
 
 	/*
 	 * Number of MSI interrupts granted, 0 --> using legacy PCI line

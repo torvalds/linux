@@ -479,6 +479,12 @@ void ath10k_pci_write32(struct ath10k *ar, u32 offset, u32 value)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int ret;
 
+	if (unlikely(offset + sizeof(value) > ar_pci->mem_len)) {
+		ath10k_warn(ar, "refusing to write mmio out of bounds at 0x%08x - 0x%08zx (max 0x%08zx)\n",
+			    offset, offset + sizeof(value), ar_pci->mem_len);
+		return;
+	}
+
 	ret = ath10k_pci_wake(ar);
 	if (ret) {
 		ath10k_warn(ar, "failed to wake target for write32 of 0x%08x at 0x%08x: %d\n",
@@ -495,6 +501,12 @@ u32 ath10k_pci_read32(struct ath10k *ar, u32 offset)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	u32 val;
 	int ret;
+
+	if (unlikely(offset + sizeof(val) > ar_pci->mem_len)) {
+		ath10k_warn(ar, "refusing to read mmio out of bounds at 0x%08x - 0x%08zx (max 0x%08zx)\n",
+			    offset, offset + sizeof(val), ar_pci->mem_len);
+		return 0;
+	}
 
 	ret = ath10k_pci_wake(ar);
 	if (ret) {
@@ -2679,6 +2691,7 @@ static int ath10k_pci_claim(struct ath10k *ar)
 	pci_set_master(pdev);
 
 	/* Arrange for access to Target SoC registers. */
+	ar_pci->mem_len = pci_resource_len(pdev, BAR_NUM);
 	ar_pci->mem = pci_iomap(pdev, BAR_NUM, 0);
 	if (!ar_pci->mem) {
 		ath10k_err(ar, "failed to iomap BAR%d\n", BAR_NUM);
