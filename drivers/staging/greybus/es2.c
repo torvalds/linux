@@ -34,6 +34,9 @@ static struct dentry *apb1_log_enable_dentry;
 static struct task_struct *apb1_log_task;
 static DEFINE_KFIFO(apb1_log_fifo, char, APB1_LOG_SIZE);
 
+/* Number of cport present on USB bridge */
+#define CPORT_MAX		44
+
 /* Number of bulk in and bulk out couple */
 #define NUM_BULKS		7
 
@@ -54,6 +57,9 @@ static DEFINE_KFIFO(apb1_log_fifo, char, APB1_LOG_SIZE);
 
 /* vendor request APB1 log */
 #define REQUEST_LOG		0x02
+
+/* vendor request to map a cport to bulk in and bulk out endpoints */
+#define REQUEST_EP_MAPPING	0x03
 
 /*
  * @endpoint: bulk in endpoint for CPort data
@@ -106,6 +112,14 @@ struct es1_ap_dev {
 	struct urb *cport_out_urb[NUM_CPORT_OUT_URB];
 	bool cport_out_urb_busy[NUM_CPORT_OUT_URB];
 	spinlock_t cport_out_urb_lock;
+
+	int cport_to_ep[CPORT_MAX];
+};
+
+struct cport_to_ep {
+	__le16 cport_id;
+	__u8 endpoint_in;
+	__u8 endpoint_out;
 };
 
 static inline struct es1_ap_dev *hd_to_es1(struct greybus_host_device *hd)
@@ -116,6 +130,13 @@ static inline struct es1_ap_dev *hd_to_es1(struct greybus_host_device *hd)
 static void cport_out_callback(struct urb *urb);
 static void usb_log_enable(struct es1_ap_dev *es1);
 static void usb_log_disable(struct es1_ap_dev *es1);
+
+static int cport_to_ep(struct es1_ap_dev *es1, u16 cport_id)
+{
+	if (cport_id >= CPORT_MAX)
+		return 0;
+	return es1->cport_to_ep[cport_id];
+}
 
 #define ES1_TIMEOUT	500	/* 500 ms for the SVC to do something */
 static int submit_svc(struct svc_msg *svc_msg, struct greybus_host_device *hd)
@@ -137,6 +158,60 @@ static int submit_svc(struct svc_msg *svc_msg, struct greybus_host_device *hd)
 		return retval;
 
 	return 0;
+}
+
+static int ep_in_use(struct es1_ap_dev *es1, int bulk_ep_set)
+{
+	int i;
+
+	for (i = 0; i < CPORT_MAX; i++) {
+		if (es1->cport_to_ep[i] == bulk_ep_set)
+			return 1;
+	}
+	return 0;
+}
+
+int map_cport_to_ep(struct es1_ap_dev *es1,
+				u16 cport_id, int bulk_ep_set)
+{
+	int retval;
+	struct cport_to_ep *cport_to_ep;
+
+	if (bulk_ep_set == 0 || bulk_ep_set >= NUM_BULKS)
+		return -EINVAL;
+	if (cport_id >= CPORT_MAX)
+		return -EINVAL;
+	if (bulk_ep_set && ep_in_use(es1, bulk_ep_set))
+		return -EINVAL;
+
+	cport_to_ep = kmalloc(sizeof(*cport_to_ep), GFP_KERNEL);
+	if (!cport_to_ep)
+		return -ENOMEM;
+
+	es1->cport_to_ep[cport_id] = bulk_ep_set;
+	cport_to_ep->cport_id = cpu_to_le16(cport_id);
+	cport_to_ep->endpoint_in = es1->cport_in[bulk_ep_set].endpoint;
+	cport_to_ep->endpoint_out = es1->cport_out[bulk_ep_set].endpoint;
+
+	retval = usb_control_msg(es1->usb_dev,
+				 usb_sndctrlpipe(es1->usb_dev,
+						 es1->control_endpoint),
+				 REQUEST_EP_MAPPING,
+				 USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+				 0x00, 0x00,
+				 (char *)cport_to_ep,
+				 sizeof(*cport_to_ep),
+				 ES1_TIMEOUT);
+	if (retval == sizeof(*cport_to_ep))
+		retval = 0;
+	kfree(cport_to_ep);
+
+	return retval;
+}
+
+int unmap_cport(struct es1_ap_dev *es1, u16 cport_id)
+{
+	return map_cport_to_ep(es1, cport_id, 0);
 }
 
 static struct urb *next_free_urb(struct es1_ap_dev *es1, gfp_t gfp_mask)
@@ -204,7 +279,7 @@ static void *message_send(struct greybus_host_device *hd, u16 cport_id,
 	size_t buffer_size;
 	int retval;
 	struct urb *urb;
-	int bulk_ep_set = 0;
+	int bulk_ep_set;
 
 	buffer = message->buffer;
 	buffer_size = sizeof(*message->header) + message->payload_size;
@@ -230,6 +305,7 @@ static void *message_send(struct greybus_host_device *hd, u16 cport_id,
 	 */
 	put_unaligned_le16(cport_id, message->header->pad);
 
+	bulk_ep_set = cport_to_ep(es1, cport_id);
 	usb_fill_bulk_urb(urb, udev,
 			  usb_sndbulkpipe(udev,
 					  es1->cport_out[bulk_ep_set].endpoint),
