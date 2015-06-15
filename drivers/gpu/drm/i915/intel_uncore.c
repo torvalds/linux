@@ -1455,20 +1455,36 @@ static int gen6_do_reset(struct drm_device *dev)
 	return ret;
 }
 
-int intel_gpu_reset(struct drm_device *dev)
+static int (*intel_get_gpu_reset(struct drm_device *dev))(struct drm_device *)
 {
 	if (INTEL_INFO(dev)->gen >= 6)
-		return gen6_do_reset(dev);
+		return gen6_do_reset;
 	else if (IS_GEN5(dev))
-		return ironlake_do_reset(dev);
+		return ironlake_do_reset;
 	else if (IS_G4X(dev))
-		return g4x_do_reset(dev);
+		return g4x_do_reset;
 	else if (IS_G33(dev))
-		return g33_do_reset(dev);
+		return g33_do_reset;
 	else if (INTEL_INFO(dev)->gen >= 3)
-		return i915_do_reset(dev);
+		return i915_do_reset;
 	else
+		return NULL;
+}
+
+int intel_gpu_reset(struct drm_device *dev)
+{
+	int (*reset)(struct drm_device *);
+
+	reset = intel_get_gpu_reset(dev);
+	if (reset == NULL)
 		return -ENODEV;
+
+	return reset(dev);
+}
+
+bool intel_has_gpu_reset(struct drm_device *dev)
+{
+	return intel_get_gpu_reset(dev) != NULL;
 }
 
 void intel_uncore_check_errors(struct drm_device *dev)
