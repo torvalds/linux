@@ -46,6 +46,12 @@ static DEFINE_KFIFO(apb1_log_fifo, char, APB1_LOG_SIZE);
  */
 #define NUM_CPORT_OUT_URB	8
 
+/* vendor request AP message */
+#define REQUEST_SVC		0x01
+
+/* vendor request APB1 log */
+#define REQUEST_LOG		0x02
+
 /**
  * es1_ap_dev - ES1 USB Bridge to AP structure
  * @usb_dev: pointer to the USB device we are.
@@ -103,7 +109,7 @@ static int submit_svc(struct svc_msg *svc_msg, struct greybus_host_device *hd)
 	retval = usb_control_msg(es1->usb_dev,
 				 usb_sndctrlpipe(es1->usb_dev,
 						 es1->control_endpoint),
-				 0x01,	/* vendor request AP message */
+				 REQUEST_SVC,
 				 USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 				 0x00, 0x00,
 				 (char *)svc_msg,
@@ -410,7 +416,7 @@ static void apb1_log_get(struct es1_ap_dev *es1, char *buf)
 		retval = usb_control_msg(es1->usb_dev,
 					usb_rcvctrlpipe(es1->usb_dev,
 							es1->control_endpoint),
-					0x02,	/* vendor request APB1 log */
+					REQUEST_LOG,
 					USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 					0x00, 0x00,
 					buf,
