@@ -2219,7 +2219,6 @@ extern void rtllib_softmac_start_protocol(struct rtllib_device *ieee,
 					  u8 mesh_flag);
 
 extern void rtllib_reset_queue(struct rtllib_device *ieee);
-extern void rtllib_wake_queue(struct rtllib_device *ieee);
 extern void rtllib_wake_all_queues(struct rtllib_device *ieee);
 extern void rtllib_stop_all_queues(struct rtllib_device *ieee);
 extern struct sk_buff *rtllib_get_beacon(struct rtllib_device *ieee);

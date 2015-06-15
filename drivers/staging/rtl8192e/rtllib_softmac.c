@@ -147,21 +147,6 @@ static void enqueue_mgmt(struct rtllib_device *ieee, struct sk_buff *skb)
 
 }
 
-static struct sk_buff *dequeue_mgmt(struct rtllib_device *ieee)
-{
-	struct sk_buff *ret;
-
-	if (ieee->mgmt_queue_tail == ieee->mgmt_queue_head)
-		return NULL;
-
-	ret = ieee->mgmt_queue_ring[ieee->mgmt_queue_tail];
-
-	ieee->mgmt_queue_tail =
-		(ieee->mgmt_queue_tail+1) % MGMT_QUEUE_NUM;
-
-	return ret;
-}
-
 static void init_mgmt_queue(struct rtllib_device *ieee)
 {
 	ieee->mgmt_queue_tail = ieee->mgmt_queue_head = 0;
@@ -2532,30 +2517,6 @@ void rtllib_softmac_xmit(struct rtllib_txb *txb, struct rtllib_device *ieee)
 
 }
 
-/* called with ieee->lock acquired */
-static void rtllib_resume_tx(struct rtllib_device *ieee)
-{
-	int i;
-
-	for (i = ieee->tx_pending.frag; i < ieee->tx_pending.txb->nr_frags;
-	     i++) {
-
-		if (ieee->queue_stop) {
-			ieee->tx_pending.frag = i;
-			return;
-		}
-
-		ieee->softmac_data_hard_start_xmit(
-			ieee->tx_pending.txb->fragments[i],
-			ieee->dev, ieee->rate);
-		ieee->stats.tx_packets++;
-	}
-
-	rtllib_txb_free(ieee->tx_pending.txb);
-	ieee->tx_pending.txb = NULL;
-}
-
-
 void rtllib_reset_queue(struct rtllib_device *ieee)
 {
 	unsigned long flags;
@@ -2571,47 +2532,6 @@ void rtllib_reset_queue(struct rtllib_device *ieee)
 
 }
 EXPORT_SYMBOL(rtllib_reset_queue);
-
-void rtllib_wake_queue(struct rtllib_device *ieee)
-{
-
-	unsigned long flags;
-	struct sk_buff *skb;
-	struct rtllib_hdr_3addr  *header;
-
-	spin_lock_irqsave(&ieee->lock, flags);
-	if (!ieee->queue_stop)
-		goto exit;
-
-	ieee->queue_stop = 0;
-
-	if (ieee->softmac_features & IEEE_SOFTMAC_SINGLE_QUEUE) {
-		while (!ieee->queue_stop && (skb = dequeue_mgmt(ieee))) {
-
-			header = (struct rtllib_hdr_3addr  *) skb->data;
-
-			header->seq_ctl = cpu_to_le16(ieee->seq_ctrl[0] << 4);
-
-			if (ieee->seq_ctrl[0] == 0xFFF)
-				ieee->seq_ctrl[0] = 0;
-			else
-				ieee->seq_ctrl[0]++;
-
-			ieee->softmac_data_hard_start_xmit(skb, ieee->dev,
-							   ieee->basic_rate);
-		}
-	}
-	if (!ieee->queue_stop && ieee->tx_pending.txb)
-		rtllib_resume_tx(ieee);
-
-	if (!ieee->queue_stop && netif_queue_stopped(ieee->dev)) {
-		ieee->softmac_stats.swtxawake++;
-		netif_wake_queue(ieee->dev);
-	}
-
-exit:
-	spin_unlock_irqrestore(&ieee->lock, flags);
-}
 
 void rtllib_stop_all_queues(struct rtllib_device *ieee)
 {
