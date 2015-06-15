@@ -65,6 +65,8 @@
 
 #define INIT_HCA_TPT_MW_ENABLE          (1 << 7)
 
+#define MLX4_QUERY_IF_STAT_RESET	BIT(31)
+
 enum {
 	MLX4_HCR_BASE		= 0x80680,
 	MLX4_HCR_SIZE		= 0x0001c,

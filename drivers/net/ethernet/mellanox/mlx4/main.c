@@ -2242,10 +2242,31 @@ int mlx4_counter_alloc(struct mlx4_dev *dev, u32 *idx)
 }
 EXPORT_SYMBOL_GPL(mlx4_counter_alloc);
 
+static int __mlx4_clear_if_stat(struct mlx4_dev *dev,
+				u8 counter_index)
+{
+	struct mlx4_cmd_mailbox *if_stat_mailbox;
+	int err;
+	u32 if_stat_in_mod = (counter_index & 0xff) | MLX4_QUERY_IF_STAT_RESET;
+
+	if_stat_mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(if_stat_mailbox))
+		return PTR_ERR(if_stat_mailbox);
+
+	err = mlx4_cmd_box(dev, 0, if_stat_mailbox->dma, if_stat_in_mod, 0,
+			   MLX4_CMD_QUERY_IF_STAT, MLX4_CMD_TIME_CLASS_C,
+			   MLX4_CMD_NATIVE);
+
+	mlx4_free_cmd_mailbox(dev, if_stat_mailbox);
+	return err;
+}
+
 void __mlx4_counter_free(struct mlx4_dev *dev, u32 idx)
 {
 	if (!(dev->caps.flags & MLX4_DEV_CAP_FLAG_COUNTERS))
 		return;
+
+	__mlx4_clear_if_stat(dev, idx);
 
 	mlx4_bitmap_free(&mlx4_priv(dev)->counters_bitmap, idx, MLX4_USE_RR);
 	return;
