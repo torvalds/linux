@@ -55,11 +55,13 @@ struct rsrc_card_dai {
 #define RSRC_FB_NUM	2 /* FE/BE */
 #define IDX_CPU		0
 #define IDX_CODEC	1
+#define DAI_NAME_NUM	32
 struct rsrc_card_priv {
 	struct snd_soc_card snd_card;
 	struct rsrc_card_dai_props {
 		struct rsrc_card_dai cpu_dai;
 		struct rsrc_card_dai codec_dai;
+		char dai_name[DAI_NAME_NUM];
 	} dai_props[RSRC_FB_NUM];
 	struct snd_soc_codec_conf codec_conf;
 	struct snd_soc_dai_link dai_link[RSRC_FB_NUM];
@@ -309,7 +311,7 @@ static int rsrc_card_dai_link_of(struct device_node *node,
 	struct rsrc_card_dai_props *dai_props = rsrc_priv_to_props(priv, idx);
 	struct device_node *cpu = NULL;
 	struct device_node *codec = NULL;
-	char *name;
+	char *name = dai_props->dai_name;
 	char prop[128];
 	int ret, cpu_args;
 
@@ -348,18 +350,10 @@ static int rsrc_card_dai_link_of(struct device_node *node,
 	/* Simple Card assumes platform == cpu */
 	dai_link->platform_of_node = dai_link->cpu_of_node;
 
-	/* DAI link name is created from CPU/CODEC dai name */
-	name = devm_kzalloc(dev,
-			    strlen(dai_link->cpu_dai_name)   +
-			    strlen(dai_link->codec_dai_name) + 2,
-			    GFP_KERNEL);
-	if (!name) {
-		ret = -ENOMEM;
-		goto dai_link_of_err;
-	}
-
-	sprintf(name, "%s-%s", dai_link->cpu_dai_name,
-		dai_link->codec_dai_name);
+	snprintf(name, DAI_NAME_NUM, "%s.%s",
+		dai_link->dynamic ? "fe" : "be",
+		dai_link->dynamic ? dai_link->cpu_dai_name :
+				    dai_link->codec_dai_name);
 	dai_link->name = dai_link->stream_name = name;
 	dai_link->ops = &rsrc_card_ops;
 	dai_link->init = rsrc_card_dai_init;
