@@ -241,6 +241,31 @@ static int fixed_msr_to_range_index(u32 msr)
 	return fixed_mtrr_seg_unit_range_index(seg, unit);
 }
 
+static int fixed_mtrr_addr_to_seg(u64 addr)
+{
+	struct fixed_mtrr_segment *mtrr_seg;
+	int seg, seg_num = ARRAY_SIZE(fixed_seg_table);
+
+	for (seg = 0; seg < seg_num; seg++) {
+		mtrr_seg = &fixed_seg_table[seg];
+		if (mtrr_seg->start >= addr && addr < mtrr_seg->end)
+			return seg;
+	}
+
+	return -1;
+}
+
+static int fixed_mtrr_addr_seg_to_range_index(u64 addr, int seg)
+{
+	struct fixed_mtrr_segment *mtrr_seg;
+	int index;
+
+	mtrr_seg = &fixed_seg_table[seg];
+	index = mtrr_seg->range_start;
+	index += (addr - mtrr_seg->start) >> mtrr_seg->range_shift;
+	return index;
+}
+
 static void var_mtrr_range(struct kvm_mtrr_range *range, u64 *start, u64 *end)
 {
 	u64 mask;
