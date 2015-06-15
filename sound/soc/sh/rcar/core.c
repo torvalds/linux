@@ -211,15 +211,20 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod)
 ({								\
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);		\
 	struct device *dev = rsnd_priv_to_dev(priv);		\
-	u32 mask = (1 << __rsnd_mod_shift_##func) & ~(1 << 31);	\
-	u32 call = __rsnd_mod_call_##func << __rsnd_mod_shift_##func;	\
+	u32 mask = 0xF << __rsnd_mod_shift_##func;			\
+	u8 val  = (mod->status >> __rsnd_mod_shift_##func) & 0xF;	\
+	u8 add  = ((val + __rsnd_mod_add_##func) & 0xF);		\
 	int ret = 0;							\
-	if ((mod->status & mask) == call) {				\
-		dev_dbg(dev, "%s[%d] %s\n",				\
-			rsnd_mod_name(mod), rsnd_mod_id(mod), #func);	\
+	int called = 0;							\
+	if (val == __rsnd_mod_call_##func) {				\
+		called = 1;						\
 		ret = (mod)->ops->func(mod, param);			\
-		mod->status = (mod->status & ~mask) | (~call & mask);	\
+		mod->status = (mod->status & ~mask) +			\
+			(add << __rsnd_mod_shift_##func);		\
 	}								\
+	dev_dbg(dev, "%s[%d] 0x%08x %s\n",				\
+		rsnd_mod_name(mod), rsnd_mod_id(mod), mod->status,	\
+		called ? #func : "");					\
 	ret;								\
 })
 
