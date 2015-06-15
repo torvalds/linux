@@ -171,6 +171,41 @@ static int rsrc_card_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
+static int rsrc_card_parse_daifmt(struct device_node *node,
+				  struct rsrc_card_priv *priv,
+				  struct device_node *codec,
+				  int idx)
+{
+	struct device_node *bitclkmaster = NULL;
+	struct device_node *framemaster = NULL;
+	struct rsrc_card_dai_props *dai_props = rsrc_priv_to_props(priv, idx);
+	struct rsrc_card_dai *cpu_dai = &dai_props->cpu_dai;
+	struct rsrc_card_dai *codec_dai = &dai_props->codec_dai;
+	unsigned int daifmt;
+
+	daifmt = snd_soc_of_parse_daifmt(node, NULL,
+					 &bitclkmaster, &framemaster);
+	daifmt &= ~SND_SOC_DAIFMT_MASTER_MASK;
+
+	if (!bitclkmaster && !framemaster)
+		return -EINVAL;
+
+	if (codec == bitclkmaster)
+		daifmt |= (codec == framemaster) ?
+			SND_SOC_DAIFMT_CBM_CFM : SND_SOC_DAIFMT_CBM_CFS;
+	else
+		daifmt |= (codec == framemaster) ?
+			SND_SOC_DAIFMT_CBS_CFM : SND_SOC_DAIFMT_CBS_CFS;
+
+	cpu_dai->fmt	= daifmt;
+	codec_dai->fmt	= daifmt;
+
+	of_node_put(bitclkmaster);
+	of_node_put(framemaster);
+
+	return 0;
+}
+
 static int
 rsrc_card_sub_parse_of(struct rsrc_card_priv *priv,
 		       struct device_node *np,
@@ -262,41 +297,6 @@ rsrc_card_sub_parse_of(struct rsrc_card_priv *priv,
 		if (!IS_ERR(clk))
 			dai->sysclk = clk_get_rate(clk);
 	}
-
-	return 0;
-}
-
-static int rsrc_card_parse_daifmt(struct device_node *node,
-				  struct rsrc_card_priv *priv,
-				  struct device_node *codec,
-				  int idx)
-{
-	struct device_node *bitclkmaster = NULL;
-	struct device_node *framemaster = NULL;
-	struct rsrc_card_dai_props *dai_props = rsrc_priv_to_props(priv, idx);
-	struct rsrc_card_dai *cpu_dai = &dai_props->cpu_dai;
-	struct rsrc_card_dai *codec_dai = &dai_props->codec_dai;
-	unsigned int daifmt;
-
-	daifmt = snd_soc_of_parse_daifmt(node, NULL,
-					 &bitclkmaster, &framemaster);
-	daifmt &= ~SND_SOC_DAIFMT_MASTER_MASK;
-
-	if (!bitclkmaster && !framemaster)
-		return -EINVAL;
-
-	if (codec == bitclkmaster)
-		daifmt |= (codec == framemaster) ?
-			SND_SOC_DAIFMT_CBM_CFM : SND_SOC_DAIFMT_CBM_CFS;
-	else
-		daifmt |= (codec == framemaster) ?
-			SND_SOC_DAIFMT_CBS_CFM : SND_SOC_DAIFMT_CBS_CFS;
-
-	cpu_dai->fmt	= daifmt;
-	codec_dai->fmt	= daifmt;
-
-	of_node_put(bitclkmaster);
-	of_node_put(framemaster);
 
 	return 0;
 }
