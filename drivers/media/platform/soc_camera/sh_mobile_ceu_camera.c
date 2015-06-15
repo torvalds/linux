@@ -1775,6 +1775,7 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 		pcdev->max_height = pcdev->pdata->max_height;
 		pcdev->flags = pcdev->pdata->flags;
 	}
+	pcdev->field = V4L2_FIELD_NONE;
 
 	if (!pcdev->max_width) {
 		unsigned int v;
