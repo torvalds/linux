@@ -417,7 +417,7 @@ int nci_uart_register(struct nci_uart *nu)
 		nu->ops.recv = nci_uart_default_recv;
 
 	/* Add this driver in the driver list */
-	if (!nci_uart_drivers[nu->driver]) {
+	if (nci_uart_drivers[nu->driver]) {
 		pr_err("driver %d is already registered\n", nu->driver);
 		return -EBUSY;
 	}
