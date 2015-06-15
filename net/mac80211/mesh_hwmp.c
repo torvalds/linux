@@ -19,15 +19,6 @@
 
 #define MAX_PREQ_QUEUE_LEN	64
 
-/* Destination only */
-#define MP_F_DO	0x1
-/* Reply and forward */
-#define MP_F_RF	0x2
-/* Unknown Sequence Number */
-#define MP_F_USN    0x01
-/* Reason code Present */
-#define MP_F_RCODE  0x02
-
 static void mesh_queue_preq(struct mesh_path *, u8);
 
 static inline u32 u32_field_get(const u8 *preq_elem, int offset, bool ae)
@@ -285,15 +276,10 @@ int mesh_path_error_tx(struct ieee80211_sub_if_data *sdata,
 	*pos++ = ttl;
 	/* number of destinations */
 	*pos++ = 1;
-	/*
-	 * flags bit, bit 1 is unset if we know the sequence number and
-	 * bit 2 is set if we have a reason code
+	/* Flags field has AE bit only as defined in
+	 * sec 8.4.2.117 IEEE802.11-2012
 	 */
 	*pos = 0;
-	if (!target_sn)
-		*pos |= MP_F_USN;
-	if (target_rcode)
-		*pos |= MP_F_RCODE;
 	pos++;
 	memcpy(pos, target, ETH_ALEN);
 	pos += ETH_ALEN;
@@ -596,15 +582,13 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 					SN_LT(mpath->sn, target_sn)) {
 				mpath->sn = target_sn;
 				mpath->flags |= MESH_PATH_SN_VALID;
-			} else if ((!(target_flags & MP_F_DO)) &&
+			} else if ((!(target_flags & IEEE80211_PREQ_TO_FLAG)) &&
 					(mpath->flags & MESH_PATH_ACTIVE)) {
 				reply = true;
 				target_metric = mpath->metric;
 				target_sn = mpath->sn;
-				if (target_flags & MP_F_RF)
-					target_flags |= MP_F_DO;
-				else
-					forward = false;
+				/* Case E2 of sec 13.10.9.3 IEEE 802.11-2012*/
+				target_flags |= IEEE80211_PREQ_TO_FLAG;
 			}
 		}
 		rcu_read_unlock();
@@ -1003,7 +987,7 @@ void mesh_path_start_discovery(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct mesh_preq_queue *preq_node;
 	struct mesh_path *mpath;
-	u8 ttl, target_flags;
+	u8 ttl, target_flags = 0;
 	const u8 *da;
 	u32 lifetime;
 
@@ -1062,9 +1046,9 @@ void mesh_path_start_discovery(struct ieee80211_sub_if_data *sdata)
 	}
 
 	if (preq_node->flags & PREQ_Q_F_REFRESH)
-		target_flags = MP_F_DO;
+		target_flags |= IEEE80211_PREQ_TO_FLAG;
 	else
-		target_flags = MP_F_RF;
+		target_flags &= ~IEEE80211_PREQ_TO_FLAG;
 
 	spin_unlock_bh(&mpath->state_lock);
 	da = (mpath->is_root) ? mpath->rann_snd_addr : broadcast_addr;
