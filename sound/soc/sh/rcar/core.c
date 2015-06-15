@@ -288,7 +288,6 @@ static int rsnd_dai_connect(struct rsnd_mod *mod,
 	}
 
 	io->mod[mod->type] = mod;
-	mod->io = io;
 
 	return 0;
 }
@@ -296,7 +295,6 @@ static int rsnd_dai_connect(struct rsnd_mod *mod,
 static void rsnd_dai_disconnect(struct rsnd_mod *mod,
 				struct rsnd_dai_stream *io)
 {
-	mod->io = NULL;
 	io->mod[mod->type] = NULL;
 }
 
