@@ -169,7 +169,7 @@ static int rsnd_dvc_init(struct rsnd_mod *dvc_mod,
 
 	rsnd_mod_write(dvc_mod, DVC_DVUIR, 1);
 
-	rsnd_mod_write(dvc_mod, DVC_ADINR, rsnd_get_adinr(dvc_mod));
+	rsnd_mod_write(dvc_mod, DVC_ADINR, rsnd_get_adinr(dvc_mod, io));
 
 	/* ch0/ch1 Volume */
 	rsnd_dvc_volume_update(dvc_mod);

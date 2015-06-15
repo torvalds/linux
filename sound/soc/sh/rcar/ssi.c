@@ -396,7 +396,7 @@ static int rsnd_ssi_start(struct rsnd_mod *mod,
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 
-	rsnd_src_ssiu_start(mod, rsnd_ssi_use_busif(mod));
+	rsnd_src_ssiu_start(mod, io, rsnd_ssi_use_busif(mod));
 
 	rsnd_ssi_hw_start(ssi, io);
 
@@ -417,7 +417,7 @@ static int rsnd_ssi_stop(struct rsnd_mod *mod,
 
 	rsnd_ssi_hw_stop(ssi);
 
-	rsnd_src_ssiu_stop(mod);
+	rsnd_src_ssiu_stop(mod, io);
 
 	return 0;
 }

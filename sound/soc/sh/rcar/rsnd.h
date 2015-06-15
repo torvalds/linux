@@ -165,7 +165,7 @@ void rsnd_write(struct rsnd_priv *priv, struct rsnd_mod *mod,
 		enum rsnd_reg reg, u32 data);
 void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod, enum rsnd_reg reg,
 		    u32 mask, u32 data);
-u32 rsnd_get_adinr(struct rsnd_mod *mod);
+u32 rsnd_get_adinr(struct rsnd_mod *mod, struct rsnd_dai_stream *io);
 
 /*
  *	R-Car DMA
@@ -537,8 +537,10 @@ unsigned int rsnd_src_get_ssi_rate(struct rsnd_priv *priv,
 				   struct rsnd_dai_stream *io,
 				   struct snd_pcm_runtime *runtime);
 int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
+			struct rsnd_dai_stream *io,
 			int use_busif);
-int rsnd_src_ssiu_stop(struct rsnd_mod *ssi_mod);
+int rsnd_src_ssiu_stop(struct rsnd_mod *ssi_mod,
+		       struct rsnd_dai_stream *io);
 int rsnd_src_ssi_irq_enable(struct rsnd_mod *ssi_mod);
 int rsnd_src_ssi_irq_disable(struct rsnd_mod *ssi_mod);
 
