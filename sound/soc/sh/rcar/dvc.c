@@ -366,7 +366,7 @@ int rsnd_dvc_probe(struct platform_device *pdev,
 
 		dvc->info = &info->dvc_info[i];
 
-		ret = rsnd_mod_init(&dvc->mod, &rsnd_dvc_ops,
+		ret = rsnd_mod_init(priv, &dvc->mod, &rsnd_dvc_ops,
 			      clk, RSND_MOD_DVC, i);
 		if (ret)
 			return ret;

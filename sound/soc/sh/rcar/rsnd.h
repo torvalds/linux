@@ -253,6 +253,7 @@ struct rsnd_mod {
 	struct rsnd_mod_ops *ops;
 	struct rsnd_dma dma;
 	struct rsnd_dai_stream *io;
+	struct rsnd_priv *priv;
 	struct clk *clk;
 	u32 status;
 };
@@ -300,14 +301,15 @@ struct rsnd_mod {
 #define __rsnd_mod_call_fallback	0
 #define __rsnd_mod_call_hw_params	0
 
-#define rsnd_mod_to_priv(mod) (rsnd_io_to_priv(rsnd_mod_to_io(mod)))
+#define rsnd_mod_to_priv(mod) ((mod)->priv)
 #define rsnd_mod_to_dma(mod) (&(mod)->dma)
 #define rsnd_mod_to_io(mod) ((mod)->io)
 #define rsnd_mod_id(mod) ((mod)->id)
 #define rsnd_mod_hw_start(mod)	clk_enable((mod)->clk)
 #define rsnd_mod_hw_stop(mod)	clk_disable((mod)->clk)
 
-int rsnd_mod_init(struct rsnd_mod *mod,
+int rsnd_mod_init(struct rsnd_priv *priv,
+		  struct rsnd_mod *mod,
 		   struct rsnd_mod_ops *ops,
 		   struct clk *clk,
 		   enum rsnd_mod_type type,

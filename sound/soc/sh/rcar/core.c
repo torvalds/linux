@@ -145,7 +145,8 @@ struct dma_chan *rsnd_mod_dma_req(struct rsnd_mod *mod)
 	return mod->ops->dma_req(mod);
 }
 
-int rsnd_mod_init(struct rsnd_mod *mod,
+int rsnd_mod_init(struct rsnd_priv *priv,
+		  struct rsnd_mod *mod,
 		   struct rsnd_mod_ops *ops,
 		   struct clk *clk,
 		   enum rsnd_mod_type type,
@@ -160,6 +161,7 @@ int rsnd_mod_init(struct rsnd_mod *mod,
 	mod->ops	= ops;
 	mod->type	= type;
 	mod->clk	= clk;
+	mod->priv	= priv;
 
 	return ret;
 }

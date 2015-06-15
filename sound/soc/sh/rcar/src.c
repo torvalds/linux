@@ -1046,7 +1046,7 @@ int rsnd_src_probe(struct platform_device *pdev,
 
 		src->info = &info->src_info[i];
 
-		ret = rsnd_mod_init(&src->mod, ops, clk, RSND_MOD_SRC, i);
+		ret = rsnd_mod_init(priv, &src->mod, ops, clk, RSND_MOD_SRC, i);
 		if (ret)
 			return ret;
 	}

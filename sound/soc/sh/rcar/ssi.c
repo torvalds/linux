@@ -782,7 +782,7 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 		else if (rsnd_ssi_pio_available(ssi))
 			ops = &rsnd_ssi_pio_ops;
 
-		ret = rsnd_mod_init(&ssi->mod, ops, clk, RSND_MOD_SSI, i);
+		ret = rsnd_mod_init(priv, &ssi->mod, ops, clk, RSND_MOD_SSI, i);
 		if (ret)
 			return ret;
 
