@@ -459,7 +459,6 @@ config CRYPTO_DEV_QCE
 config CRYPTO_DEV_VMX
 	bool "Support for VMX cryptographic acceleration instructions"
 	depends on PPC64
-	default n
 	help
 	  Support for VMX cryptographic acceleration instructions.
 
