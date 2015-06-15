@@ -54,6 +54,8 @@ int intel_atomic_check(struct drm_device *dev,
 	int i;
 	bool not_nuclear = false;
 
+	to_intel_atomic_state(state)->cdclk = to_i915(dev)->cdclk_freq;
+
 	/*
 	 * FIXME:  At the moment, we only support "nuclear pageflip" on a
 	 * single CRTC.  Cross-crtc updates will be added later.

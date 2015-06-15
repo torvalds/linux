@@ -5204,8 +5204,13 @@ static void modeset_update_crtc_power_domains(struct drm_atomic_state *state)
 			intel_display_power_get(dev_priv, domain);
 	}
 
-	if (dev_priv->display.modeset_global_resources)
-		dev_priv->display.modeset_global_resources(state);
+	if (dev_priv->display.modeset_commit_cdclk) {
+		unsigned int cdclk = to_intel_atomic_state(state)->cdclk;
+
+		if (cdclk != dev_priv->cdclk_freq &&
+		    !WARN_ON(!state->allow_modeset))
+			dev_priv->display.modeset_commit_cdclk(state);
+	}
 
 	for_each_intel_crtc(dev, crtc) {
 		enum intel_display_power_domain domain;
@@ -5859,11 +5864,7 @@ static int intel_mode_max_pixclk(struct drm_device *dev,
 	int max_pixclk = 0;
 
 	for_each_intel_crtc(dev, intel_crtc) {
-		if (state)
-			crtc_state =
-				intel_atomic_get_crtc_state(state, intel_crtc);
-		else
-			crtc_state = intel_crtc->config;
+		crtc_state = intel_atomic_get_crtc_state(state, intel_crtc);
 		if (IS_ERR(crtc_state))
 			return PTR_ERR(crtc_state);
 
@@ -5877,46 +5878,34 @@ static int intel_mode_max_pixclk(struct drm_device *dev,
 	return max_pixclk;
 }
 
-static int valleyview_modeset_global_pipes(struct drm_atomic_state *state)
+static int valleyview_modeset_calc_cdclk(struct drm_atomic_state *state)
 {
-	struct drm_i915_private *dev_priv = to_i915(state->dev);
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
-	int max_pixclk = intel_mode_max_pixclk(state->dev, state);
-	int cdclk, ret = 0;
+	struct drm_device *dev = state->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int max_pixclk = intel_mode_max_pixclk(dev, state);
 
 	if (max_pixclk < 0)
 		return max_pixclk;
 
-	if (IS_VALLEYVIEW(dev_priv))
-		cdclk = valleyview_calc_cdclk(dev_priv, max_pixclk);
-	else
-		cdclk = broxton_calc_cdclk(dev_priv, max_pixclk);
+	to_intel_atomic_state(state)->cdclk =
+		valleyview_calc_cdclk(dev_priv, max_pixclk);
 
-	if (cdclk == dev_priv->cdclk_freq)
-		return 0;
+	return 0;
+}
 
-	/* add all active pipes to the state */
-	for_each_crtc(state->dev, crtc) {
-		crtc_state = drm_atomic_get_crtc_state(state, crtc);
-		if (IS_ERR(crtc_state))
-			return PTR_ERR(crtc_state);
+static int broxton_modeset_calc_cdclk(struct drm_atomic_state *state)
+{
+	struct drm_device *dev = state->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int max_pixclk = intel_mode_max_pixclk(dev, state);
 
-		if (!crtc_state->active || needs_modeset(crtc_state))
-			continue;
+	if (max_pixclk < 0)
+		return max_pixclk;
 
-		crtc_state->mode_changed = true;
+	to_intel_atomic_state(state)->cdclk =
+		broxton_calc_cdclk(dev_priv, max_pixclk);
 
-		ret = drm_atomic_add_affected_connectors(state, crtc);
-		if (ret)
-			break;
-
-		ret = drm_atomic_add_affected_planes(state, crtc);
-		if (ret)
-			break;
-	}
-
-	return ret;
+	return 0;
 }
 
 static void vlv_program_pfi_credits(struct drm_i915_private *dev_priv)
@@ -5955,41 +5944,31 @@ static void vlv_program_pfi_credits(struct drm_i915_private *dev_priv)
 	WARN_ON(I915_READ(GCI_CONTROL) & PFI_CREDIT_RESEND);
 }
 
-static void valleyview_modeset_global_resources(struct drm_atomic_state *old_state)
+static void valleyview_modeset_commit_cdclk(struct drm_atomic_state *old_state)
 {
 	struct drm_device *dev = old_state->dev;
+	unsigned int req_cdclk = to_intel_atomic_state(old_state)->cdclk;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int max_pixclk = intel_mode_max_pixclk(dev, NULL);
-	int req_cdclk;
 
-	/* The path in intel_mode_max_pixclk() with a NULL atomic state should
-	 * never fail. */
-	if (WARN_ON(max_pixclk < 0))
-		return;
+	/*
+	 * FIXME: We can end up here with all power domains off, yet
+	 * with a CDCLK frequency other than the minimum. To account
+	 * for this take the PIPE-A power domain, which covers the HW
+	 * blocks needed for the following programming. This can be
+	 * removed once it's guaranteed that we get here either with
+	 * the minimum CDCLK set, or the required power domains
+	 * enabled.
+	 */
+	intel_display_power_get(dev_priv, POWER_DOMAIN_PIPE_A);
 
-	req_cdclk = valleyview_calc_cdclk(dev_priv, max_pixclk);
+	if (IS_CHERRYVIEW(dev))
+		cherryview_set_cdclk(dev, req_cdclk);
+	else
+		valleyview_set_cdclk(dev, req_cdclk);
 
-	if (req_cdclk != dev_priv->cdclk_freq) {
-		/*
-		 * FIXME: We can end up here with all power domains off, yet
-		 * with a CDCLK frequency other than the minimum. To account
-		 * for this take the PIPE-A power domain, which covers the HW
-		 * blocks needed for the following programming. This can be
-		 * removed once it's guaranteed that we get here either with
-		 * the minimum CDCLK set, or the required power domains
-		 * enabled.
-		 */
-		intel_display_power_get(dev_priv, POWER_DOMAIN_PIPE_A);
+	vlv_program_pfi_credits(dev_priv);
 
-		if (IS_CHERRYVIEW(dev))
-			cherryview_set_cdclk(dev, req_cdclk);
-		else
-			valleyview_set_cdclk(dev, req_cdclk);
-
-		vlv_program_pfi_credits(dev_priv);
-
-		intel_display_power_put(dev_priv, POWER_DOMAIN_PIPE_A);
-	}
+	intel_display_power_put(dev_priv, POWER_DOMAIN_PIPE_A);
 }
 
 static void valleyview_crtc_enable(struct drm_crtc *crtc)
@@ -9490,41 +9469,35 @@ void hsw_disable_pc8(struct drm_i915_private *dev_priv)
 	intel_prepare_ddi(dev);
 }
 
-static void broxton_modeset_global_resources(struct drm_atomic_state *old_state)
+static void broxton_modeset_commit_cdclk(struct drm_atomic_state *old_state)
 {
 	struct drm_device *dev = old_state->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int max_pixclk = intel_mode_max_pixclk(dev, NULL);
-	int req_cdclk;
+	unsigned int req_cdclk = to_intel_atomic_state(old_state)->cdclk;
 
-	/* see the comment in valleyview_modeset_global_resources */
-	if (WARN_ON(max_pixclk < 0))
-		return;
-
-	req_cdclk = broxton_calc_cdclk(dev_priv, max_pixclk);
-
-	if (req_cdclk != dev_priv->cdclk_freq)
-		broxton_set_cdclk(dev, req_cdclk);
+	broxton_set_cdclk(dev, req_cdclk);
 }
 
 /* compute the max rate for new configuration */
-static int ilk_max_pixel_rate(struct drm_i915_private *dev_priv)
+static int ilk_max_pixel_rate(struct drm_atomic_state *state)
 {
-	struct drm_device *dev = dev_priv->dev;
 	struct intel_crtc *intel_crtc;
-	struct drm_crtc *crtc;
+	struct intel_crtc_state *crtc_state;
 	int max_pixel_rate = 0;
-	int pixel_rate;
 
-	for_each_crtc(dev, crtc) {
-		if (!crtc->state->enable)
+	for_each_intel_crtc(state->dev, intel_crtc) {
+		int pixel_rate;
+
+		crtc_state = intel_atomic_get_crtc_state(state, intel_crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+
+		if (!crtc_state->base.enable)
 			continue;
 
-		intel_crtc = to_intel_crtc(crtc);
-		pixel_rate = ilk_pipe_pixel_rate(intel_crtc->config);
+		pixel_rate = ilk_pipe_pixel_rate(crtc_state);
 
 		/* pixel rate mustn't exceed 95% of cdclk with IPS on BDW */
-		if (IS_BROADWELL(dev) && intel_crtc->config->ips_enabled)
+		if (IS_BROADWELL(state->dev) && crtc_state->ips_enabled)
 			pixel_rate = DIV_ROUND_UP(pixel_rate * 100, 95);
 
 		max_pixel_rate = max(max_pixel_rate, pixel_rate);
@@ -9610,20 +9583,21 @@ static void broadwell_set_cdclk(struct drm_device *dev, int cdclk)
 	     cdclk, dev_priv->cdclk_freq);
 }
 
-static int broadwell_calc_cdclk(struct drm_i915_private *dev_priv,
-			      int max_pixel_rate)
+static int broadwell_modeset_calc_cdclk(struct drm_atomic_state *state)
 {
+	struct drm_i915_private *dev_priv = to_i915(state->dev);
+	int max_pixclk = ilk_max_pixel_rate(state);
 	int cdclk;
 
 	/*
 	 * FIXME should also account for plane ratio
 	 * once 64bpp pixel formats are supported.
 	 */
-	if (max_pixel_rate > 540000)
+	if (max_pixclk > 540000)
 		cdclk = 675000;
-	else if (max_pixel_rate > 450000)
+	else if (max_pixclk > 450000)
 		cdclk = 540000;
-	else if (max_pixel_rate > 337500)
+	else if (max_pixclk > 337500)
 		cdclk = 450000;
 	else
 		cdclk = 337500;
@@ -9638,49 +9612,17 @@ static int broadwell_calc_cdclk(struct drm_i915_private *dev_priv,
 		cdclk = dev_priv->max_cdclk_freq;
 	}
 
-	return cdclk;
-}
-
-static int broadwell_modeset_global_pipes(struct drm_atomic_state *state)
-{
-	struct drm_i915_private *dev_priv = to_i915(state->dev);
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
-	int max_pixclk = ilk_max_pixel_rate(dev_priv);
-	int cdclk, i;
-
-	cdclk = broadwell_calc_cdclk(dev_priv, max_pixclk);
-
-	if (cdclk == dev_priv->cdclk_freq)
-		return 0;
-
-	/* add all active pipes to the state */
-	for_each_crtc(state->dev, crtc) {
-		if (!crtc->state->enable)
-			continue;
-
-		crtc_state = drm_atomic_get_crtc_state(state, crtc);
-		if (IS_ERR(crtc_state))
-			return PTR_ERR(crtc_state);
-	}
-
-	/* disable/enable all currently active pipes while we change cdclk */
-	for_each_crtc_in_state(state, crtc, crtc_state, i)
-		if (crtc_state->enable)
-			crtc_state->mode_changed = true;
+	to_intel_atomic_state(state)->cdclk = cdclk;
 
 	return 0;
 }
 
-static void broadwell_modeset_global_resources(struct drm_atomic_state *state)
+static void broadwell_modeset_commit_cdclk(struct drm_atomic_state *old_state)
 {
-	struct drm_device *dev = state->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int max_pixel_rate = ilk_max_pixel_rate(dev_priv);
-	int req_cdclk = broadwell_calc_cdclk(dev_priv, max_pixel_rate);
+	struct drm_device *dev = old_state->dev;
+	unsigned int req_cdclk = to_intel_atomic_state(old_state)->cdclk;
 
-	if (req_cdclk != dev_priv->cdclk_freq)
-		broadwell_set_cdclk(dev, req_cdclk);
+	broadwell_set_cdclk(dev, req_cdclk);
 }
 
 static int haswell_crtc_compute_clock(struct intel_crtc *crtc,
@@ -13056,10 +12998,41 @@ static int haswell_mode_set_planes_workaround(struct drm_atomic_state *state)
 	return 0;
 }
 
+static int intel_modeset_all_pipes(struct drm_atomic_state *state)
+{
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	int ret = 0;
+
+	/* add all active pipes to the state */
+	for_each_crtc(state->dev, crtc) {
+		crtc_state = drm_atomic_get_crtc_state(state, crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+
+		if (!crtc_state->active || needs_modeset(crtc_state))
+			continue;
+
+		crtc_state->mode_changed = true;
+
+		ret = drm_atomic_add_affected_connectors(state, crtc);
+		if (ret)
+			break;
+
+		ret = drm_atomic_add_affected_planes(state, crtc);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+
 /* Code that should eventually be part of atomic_check() */
 static int intel_modeset_checks(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
 	if (!check_digital_port_conflicts(state)) {
@@ -13074,15 +13047,19 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 	 * mode set on this crtc.  For other crtcs we need to use the
 	 * adjusted_mode bits in the crtc directly.
 	 */
-	if (IS_VALLEYVIEW(dev) || IS_BROXTON(dev) || IS_BROADWELL(dev)) {
-		if (IS_VALLEYVIEW(dev) || IS_BROXTON(dev))
-			ret = valleyview_modeset_global_pipes(state);
-		else
-			ret = broadwell_modeset_global_pipes(state);
+	if (dev_priv->display.modeset_calc_cdclk) {
+		unsigned int cdclk;
 
-		if (ret)
+		ret = dev_priv->display.modeset_calc_cdclk(state);
+
+		cdclk = to_intel_atomic_state(state)->cdclk;
+		if (!ret && cdclk != dev_priv->cdclk_freq)
+			ret = intel_modeset_all_pipes(state);
+
+		if (ret < 0)
 			return ret;
-	}
+	} else
+		to_intel_atomic_state(state)->cdclk = dev_priv->cdclk_freq;
 
 	intel_modeset_clear_plls(state);
 
@@ -13149,7 +13126,9 @@ intel_modeset_compute_config(struct drm_atomic_state *state)
 
 		if (ret)
 			return ret;
-	}
+	} else
+		to_intel_atomic_state(state)->cdclk =
+			to_i915(state->dev)->cdclk_freq;
 
 	return drm_atomic_helper_check_planes(state->dev, state);
 }
@@ -13717,7 +13696,7 @@ skl_max_scale(struct intel_crtc *intel_crtc, struct intel_crtc_state *crtc_state
 	dev = intel_crtc->base.dev;
 	dev_priv = dev->dev_private;
 	crtc_clock = crtc_state->base.adjusted_mode.crtc_clock;
-	cdclk = dev_priv->display.get_display_clock_speed(dev);
+	cdclk = to_intel_atomic_state(crtc_state->base.state)->cdclk;
 
 	if (!crtc_clock || !cdclk)
 		return DRM_PLANE_HELPER_NO_SCALING;
@@ -14786,15 +14765,22 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.fdi_link_train = ivb_manual_fdi_link_train;
 	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		dev_priv->display.fdi_link_train = hsw_fdi_link_train;
-		if (IS_BROADWELL(dev))
-			dev_priv->display.modeset_global_resources =
-				broadwell_modeset_global_resources;
+		if (IS_BROADWELL(dev)) {
+			dev_priv->display.modeset_commit_cdclk =
+				broadwell_modeset_commit_cdclk;
+			dev_priv->display.modeset_calc_cdclk =
+				broadwell_modeset_calc_cdclk;
+		}
 	} else if (IS_VALLEYVIEW(dev)) {
-		dev_priv->display.modeset_global_resources =
-			valleyview_modeset_global_resources;
+		dev_priv->display.modeset_commit_cdclk =
+			valleyview_modeset_commit_cdclk;
+		dev_priv->display.modeset_calc_cdclk =
+			valleyview_modeset_calc_cdclk;
 	} else if (IS_BROXTON(dev)) {
-		dev_priv->display.modeset_global_resources =
-			broxton_modeset_global_resources;
+		dev_priv->display.modeset_commit_cdclk =
+			broxton_modeset_commit_cdclk;
+		dev_priv->display.modeset_calc_cdclk =
+			broxton_modeset_calc_cdclk;
 	}
 
 	switch (INTEL_INFO(dev)->gen) {
