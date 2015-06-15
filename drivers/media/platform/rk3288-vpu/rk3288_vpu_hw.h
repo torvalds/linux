@@ -19,7 +19,7 @@
 
 #include <media/videobuf2-core.h>
 
-#define RK3288_HEADER_SIZE		256
+#define RK3288_HEADER_SIZE		1280
 #define RK3288_HW_PARAMS_SIZE		5487
 #define RK3288_RET_PARAMS_SIZE		488
 
