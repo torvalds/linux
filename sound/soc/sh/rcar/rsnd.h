@@ -226,23 +226,32 @@ struct rsnd_mod_ops {
 	char *name;
 	struct dma_chan* (*dma_req)(struct rsnd_mod *mod);
 	int (*probe)(struct rsnd_mod *mod,
+		     struct rsnd_dai_stream *io,
 		     struct rsnd_priv *priv);
 	int (*remove)(struct rsnd_mod *mod,
+		      struct rsnd_dai_stream *io,
 		      struct rsnd_priv *priv);
 	int (*init)(struct rsnd_mod *mod,
+		    struct rsnd_dai_stream *io,
 		    struct rsnd_priv *priv);
 	int (*quit)(struct rsnd_mod *mod,
+		    struct rsnd_dai_stream *io,
 		    struct rsnd_priv *priv);
 	int (*start)(struct rsnd_mod *mod,
+		     struct rsnd_dai_stream *io,
 		     struct rsnd_priv *priv);
 	int (*stop)(struct rsnd_mod *mod,
+		    struct rsnd_dai_stream *io,
 		    struct rsnd_priv *priv);
 	int (*pcm_new)(struct rsnd_mod *mod,
+		       struct rsnd_dai_stream *io,
 		       struct snd_soc_pcm_runtime *rtd);
 	int (*hw_params)(struct rsnd_mod *mod,
+			 struct rsnd_dai_stream *io,
 			 struct snd_pcm_substream *substream,
 			 struct snd_pcm_hw_params *hw_params);
 	int (*fallback)(struct rsnd_mod *mod,
+			struct rsnd_dai_stream *io,
 			struct rsnd_priv *priv);
 };
 

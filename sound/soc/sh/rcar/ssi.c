@@ -281,10 +281,10 @@ static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi)
  *	SSI mod common functions
  */
 static int rsnd_ssi_init(struct rsnd_mod *mod,
+			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	u32 cr;
@@ -332,6 +332,7 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 }
 
 static int rsnd_ssi_quit(struct rsnd_mod *mod,
+			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
@@ -348,6 +349,7 @@ static int rsnd_ssi_quit(struct rsnd_mod *mod,
 }
 
 static int rsnd_ssi_hw_params(struct rsnd_mod *mod,
+			      struct rsnd_dai_stream *io,
 			      struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *params)
 {
@@ -371,7 +373,8 @@ static int rsnd_ssi_hw_params(struct rsnd_mod *mod,
 	/* It will be removed on rsnd_ssi_hw_stop */
 	ssi->chan = chan;
 	if (ssi_parent)
-		return rsnd_ssi_hw_params(&ssi_parent->mod, substream, params);
+		return rsnd_ssi_hw_params(&ssi_parent->mod, io,
+					  substream, params);
 
 	return 0;
 }
@@ -388,10 +391,10 @@ static void rsnd_ssi_record_error(struct rsnd_ssi *ssi, u32 status)
 }
 
 static int rsnd_ssi_start(struct rsnd_mod *mod,
+			  struct rsnd_dai_stream *io,
 			  struct rsnd_priv *priv)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 
 	rsnd_src_ssiu_start(mod, rsnd_ssi_use_busif(mod));
 
@@ -403,6 +406,7 @@ static int rsnd_ssi_start(struct rsnd_mod *mod,
 }
 
 static int rsnd_ssi_stop(struct rsnd_mod *mod,
+			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
@@ -465,9 +469,9 @@ static irqreturn_t rsnd_ssi_interrupt(int irq, void *data)
 		dev_dbg(dev, "%s[%d] restart\n",
 			rsnd_mod_name(mod), rsnd_mod_id(mod));
 
-		rsnd_ssi_stop(mod, priv);
+		rsnd_ssi_stop(mod, io, priv);
 		if (ssi->err < 1024)
-			rsnd_ssi_start(mod, priv);
+			rsnd_ssi_start(mod, io, priv);
 		else
 			dev_warn(dev, "no more SSI restart\n");
 	}
@@ -487,6 +491,7 @@ rsnd_ssi_interrupt_out:
  *		SSI PIO
  */
 static int rsnd_ssi_pio_probe(struct rsnd_mod *mod,
+			      struct rsnd_dai_stream *io,
 			      struct rsnd_priv *priv)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
@@ -512,6 +517,7 @@ static struct rsnd_mod_ops rsnd_ssi_pio_ops = {
 };
 
 static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
+			      struct rsnd_dai_stream *io,
 			      struct rsnd_priv *priv)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
@@ -534,6 +540,7 @@ static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
 }
 
 static int rsnd_ssi_dma_remove(struct rsnd_mod *mod,
+			       struct rsnd_dai_stream *io,
 			       struct rsnd_priv *priv)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
@@ -549,6 +556,7 @@ static int rsnd_ssi_dma_remove(struct rsnd_mod *mod,
 }
 
 static int rsnd_ssi_fallback(struct rsnd_mod *mod,
+			     struct rsnd_dai_stream *io,
 			     struct rsnd_priv *priv)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
@@ -569,23 +577,25 @@ static int rsnd_ssi_fallback(struct rsnd_mod *mod,
 }
 
 static int rsnd_ssi_dma_start(struct rsnd_mod *mod,
+			      struct rsnd_dai_stream *io,
 			      struct rsnd_priv *priv)
 {
 	struct rsnd_dma *dma = rsnd_mod_to_dma(mod);
 
 	rsnd_dma_start(dma);
 
-	rsnd_ssi_start(mod, priv);
+	rsnd_ssi_start(mod, io, priv);
 
 	return 0;
 }
 
 static int rsnd_ssi_dma_stop(struct rsnd_mod *mod,
+			     struct rsnd_dai_stream *io,
 			     struct rsnd_priv *priv)
 {
 	struct rsnd_dma *dma = rsnd_mod_to_dma(mod);
 
-	rsnd_ssi_stop(mod, priv);
+	rsnd_ssi_stop(mod, io, priv);
 
 	rsnd_dma_stop(dma);
 

@@ -209,7 +209,7 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod)
 /*
  *	rsnd_dai functions
  */
-#define __rsnd_mod_call(mod, func, param...)			\
+#define __rsnd_mod_call(mod, io, func, param...)		\
 ({								\
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);		\
 	struct device *dev = rsnd_priv_to_dev(priv);		\
@@ -220,7 +220,7 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod)
 	int called = 0;							\
 	if (val == __rsnd_mod_call_##func) {				\
 		called = 1;						\
-		ret = (mod)->ops->func(mod, param);			\
+		ret = (mod)->ops->func(mod, io, param);			\
 		mod->status = (mod->status & ~mask) +			\
 			(add << __rsnd_mod_shift_##func);		\
 	}								\
@@ -230,10 +230,10 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod)
 	ret;								\
 })
 
-#define rsnd_mod_call(mod, func, param...)	\
+#define rsnd_mod_call(mod, io, func, param...)	\
 	(!(mod) ? -ENODEV :			\
 	 !((mod)->ops->func) ? 0 :		\
-	 __rsnd_mod_call(mod, func, param))
+	 __rsnd_mod_call(mod, io, func, param))
 
 #define rsnd_dai_call(fn, io, param...)				\
 ({								\
@@ -243,7 +243,7 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod)
 		mod = (io)->mod[i];				\
 		if (!mod)					\
 			continue;				\
-		ret = rsnd_mod_call(mod, fn, param);		\
+		ret = rsnd_mod_call(mod, io, fn, param);	\
 		if (ret < 0)					\
 			break;					\
 	}							\
