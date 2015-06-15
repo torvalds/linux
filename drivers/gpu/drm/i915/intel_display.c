@@ -11719,11 +11719,12 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 				   struct drm_crtc_state *crtc_state)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_crtc_state *pipe_config =
 		to_intel_crtc_state(crtc_state);
 	struct drm_atomic_state *state = crtc_state->state;
-	int idx = crtc->base.id;
+	int ret, idx = crtc->base.id;
 	bool mode_changed = needs_modeset(crtc_state);
 
 	if (mode_changed && !check_encoder_cloning(state, intel_crtc)) {
@@ -11734,6 +11735,15 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 	I915_STATE_WARN(crtc->state->active != intel_crtc->active,
 		"[CRTC:%i] mismatch between state->active(%i) and crtc->active(%i)\n",
 		idx, crtc->state->active, intel_crtc->active);
+
+	if (mode_changed && crtc_state->enable &&
+	    dev_priv->display.crtc_compute_clock &&
+	    !WARN_ON(pipe_config->shared_dpll != DPLL_ID_PRIVATE)) {
+		ret = dev_priv->display.crtc_compute_clock(intel_crtc,
+							   pipe_config);
+		if (ret)
+			return ret;
+	}
 
 	return intel_atomic_setup_scalers(dev, intel_crtc, pipe_config);
 }
@@ -12789,53 +12799,37 @@ static void update_scanline_offset(struct intel_crtc *crtc)
 		crtc->scanline_offset = 1;
 }
 
-static int intel_modeset_setup_plls(struct drm_atomic_state *state)
+static void intel_modeset_clear_plls(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	unsigned clear_pipes = 0;
+	struct intel_shared_dpll_config *shared_dpll = NULL;
 	struct intel_crtc *intel_crtc;
 	struct intel_crtc_state *intel_crtc_state;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
-	int ret = 0;
 	int i;
 
 	if (!dev_priv->display.crtc_compute_clock)
-		return 0;
+		return;
 
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		int dpll;
+
 		intel_crtc = to_intel_crtc(crtc);
 		intel_crtc_state = to_intel_crtc_state(crtc_state);
+		dpll = intel_crtc_state->shared_dpll;
 
-		if (needs_modeset(crtc_state)) {
-			clear_pipes |= 1 << intel_crtc->pipe;
-			intel_crtc_state->shared_dpll = DPLL_ID_PRIVATE;
-		}
-	}
-
-	if (clear_pipes) {
-		struct intel_shared_dpll_config *shared_dpll =
-			intel_atomic_get_shared_dpll_state(state);
-
-		for (i = 0; i < dev_priv->num_shared_dpll; i++)
-			shared_dpll[i].crtc_mask &= ~clear_pipes;
-	}
-
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		if (!needs_modeset(crtc_state) || !crtc_state->enable)
+		if (!needs_modeset(crtc_state) || dpll == DPLL_ID_PRIVATE)
 			continue;
 
-		intel_crtc = to_intel_crtc(crtc);
-		intel_crtc_state = to_intel_crtc_state(crtc_state);
+		intel_crtc_state->shared_dpll = DPLL_ID_PRIVATE;
 
-		ret = dev_priv->display.crtc_compute_clock(intel_crtc,
-							   intel_crtc_state);
-		if (ret)
-			return ret;
+		if (!shared_dpll)
+			shared_dpll = intel_atomic_get_shared_dpll_state(state);
+
+		shared_dpll[dpll].crtc_mask &= ~(1 << intel_crtc->pipe);
 	}
-
-	return ret;
 }
 
 /*
@@ -12931,14 +12925,12 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 			return ret;
 	}
 
-	ret = intel_modeset_setup_plls(state);
-	if (ret)
-		return ret;
+	intel_modeset_clear_plls(state);
 
 	if (IS_HASWELL(dev))
-		ret = haswell_mode_set_planes_workaround(state);
+		return haswell_mode_set_planes_workaround(state);
 
-	return ret;
+	return 0;
 }
 
 static int
