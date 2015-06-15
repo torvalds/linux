@@ -199,6 +199,18 @@ int kvm_mtrr_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 {
 	u64 *p = (u64 *)&vcpu->arch.mtrr_state.fixed_ranges;
 
+	/* MSR_MTRRcap is a readonly MSR. */
+	if (msr == MSR_MTRRcap) {
+		/*
+		 * SMRR = 0
+		 * WC = 1
+		 * FIX = 1
+		 * VCNT = KVM_NR_VAR_MTRR
+		 */
+		*pdata = 0x500 | KVM_NR_VAR_MTRR;
+		return 0;
+	}
+
 	if (!msr_mtrr_valid(msr))
 		return 1;
 

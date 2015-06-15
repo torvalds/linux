@@ -2443,8 +2443,6 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		msr_info->data = 0x100000000ULL;
 		break;
 	case MSR_MTRRcap:
-		msr_info->data = 0x500 | KVM_NR_VAR_MTRR;
-		break;
 	case 0x200 ... 0x2ff:
 		return kvm_mtrr_get_msr(vcpu, msr_info->index, &msr_info->data);
 	case 0xcd: /* fsb frequency */
