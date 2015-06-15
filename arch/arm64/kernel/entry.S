@@ -517,6 +517,7 @@ el0_sp_pc:
 	mrs	x26, far_el1
 	// enable interrupts before calling the main handler
 	enable_dbg_and_irq
+	ct_user_exit
 	mov	x0, x26
 	mov	x1, x25
 	mov	x2, sp
