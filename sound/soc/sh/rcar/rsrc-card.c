@@ -52,7 +52,6 @@ struct rsrc_card_dai {
 	struct clk *clk;
 };
 
-#define RSRC_FB_NUM	2 /* FE/BE */
 #define IDX_CPU		0
 #define IDX_CODEC	1
 #define DAI_NAME_NUM	32
@@ -62,9 +61,10 @@ struct rsrc_card_priv {
 		struct rsrc_card_dai cpu_dai;
 		struct rsrc_card_dai codec_dai;
 		char dai_name[DAI_NAME_NUM];
-	} dai_props[RSRC_FB_NUM];
+	} *dai_props;
 	struct snd_soc_codec_conf codec_conf;
-	struct snd_soc_dai_link dai_link[RSRC_FB_NUM];
+	struct snd_soc_dai_link *dai_link;
+	int dai_num;
 	u32 convert_rate;
 };
 
@@ -395,11 +395,24 @@ static int rsrc_card_parse_of(struct device_node *node,
 			      struct device *dev)
 {
 	const struct rsrc_card_of_data *of_data = rsrc_dev_to_of_data(dev);
+	struct rsrc_card_dai_props *props;
+	struct snd_soc_dai_link *links;
+
 	int ret;
-	int i;
+	int i, num;
 
 	if (!node)
 		return -EINVAL;
+
+	num = of_get_child_count(node);
+	props = devm_kzalloc(dev, sizeof(*props) * num, GFP_KERNEL);
+	links = devm_kzalloc(dev, sizeof(*links) * num, GFP_KERNEL);
+	if (!props || !links)
+		return -ENOMEM;
+
+	priv->dai_props	= props;
+	priv->dai_link	= links;
+	priv->dai_num	= num;
 
 	/* Parse the card name from DT */
 	snd_soc_of_parse_card_name(&priv->snd_card, "card-name");
@@ -408,7 +421,7 @@ static int rsrc_card_parse_of(struct device_node *node,
 	priv->snd_card.owner			= THIS_MODULE;
 	priv->snd_card.dev			= dev;
 	priv->snd_card.dai_link			= priv->dai_link;
-	priv->snd_card.num_links		= RSRC_FB_NUM;
+	priv->snd_card.num_links		= num;
 	priv->snd_card.codec_conf		= &priv->codec_conf;
 	priv->snd_card.num_configs		= 1;
 	priv->snd_card.of_dapm_routes		= of_data->routes;
@@ -422,7 +435,7 @@ static int rsrc_card_parse_of(struct device_node *node,
 		priv->convert_rate);
 
 	/* FE/BE */
-	for (i = 0; i < RSRC_FB_NUM; i++) {
+	for (i = 0; i < num; i++) {
 		ret = rsrc_card_dai_link_of(node, priv, i);
 		if (ret < 0)
 			return ret;
