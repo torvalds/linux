@@ -1368,40 +1368,10 @@ enum ips_callback_function {
 	IPS_CALLBACK_JOIN_REQUEST = 2,
 };
 
-enum rt_join_action {
-	RT_JOIN_INFRA   = 1,
-	RT_JOIN_IBSS  = 2,
-	RT_START_IBSS = 3,
-	RT_NO_ACTION  = 4,
-};
-
-struct ibss_parms {
-	u16   atimWin;
-};
-#define MAX_NUM_RATES	264
-
 enum rt_rf_power_state {
 	eRfOn,
 	eRfSleep,
 	eRfOff
-};
-
-#define	MAX_SUPPORT_WOL_PATTERN_NUM		8
-
-enum wol_pattern_type {
-	eNetBIOS = 0,
-	eIPv4IPv6ARP,
-	eIPv4IPv6TCPSYN,
-	eMACIDOnly,
-	eNoDefined,
-};
-
-struct rt_pm_wol_info {
-	u32	PatternId;
-	u32	Mask[4];
-	u16	CrcRemainder;
-	u8	WFMIndex;
-	enum wol_pattern_type PatternType;
 };
 
 struct rt_pwr_save_ctrl {
@@ -1412,10 +1382,6 @@ struct rt_pwr_save_ctrl {
 	enum rt_rf_power_state eInactivePowerState;
 	enum ips_callback_function ReturnPoint;
 
-	enum rt_join_action tmpJoinAction;
-	u8				tmpSuppRateBuf[MAX_NUM_RATES];
-	bool				bTmpIbpm;
-
 	bool				bLeisurePs;
 	u8				LpsIdleCount;
 	u8				RegMaxLPSAwakeIntvl;
@@ -1425,8 +1391,6 @@ struct rt_pwr_save_ctrl {
 	u32				RegRfPsLevel;
 
 	bool				bFwCtrlLPS;
-
-	struct rt_pm_wol_info PmWoLPatternInfo[MAX_SUPPORT_WOL_PATTERN_NUM];
 
 };
 
