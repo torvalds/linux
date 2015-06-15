@@ -559,7 +559,7 @@ void rsnd_ssi_remove(struct platform_device *pdev,
 struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id);
 int rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod);
 int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod);
-int rsnd_ssi_use_busif(struct rsnd_mod *mod);
+int rsnd_ssi_use_busif(struct rsnd_dai_stream *io, struct rsnd_mod *mod);
 
 /*
  *	R-Car DVC

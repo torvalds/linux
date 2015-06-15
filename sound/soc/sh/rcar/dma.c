@@ -455,7 +455,7 @@ rsnd_gen2_dma_addr(struct rsnd_dai_stream *io,
 		dev_err(dev, "DVC is selected without SRC\n");
 
 	/* use SSIU or SSI ? */
-	if (is_ssi && rsnd_ssi_use_busif(mod))
+	if (is_ssi && rsnd_ssi_use_busif(io, mod))
 		is_ssi++;
 
 	return (is_from) ?
