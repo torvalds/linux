@@ -4678,6 +4678,10 @@ static int ext4_alloc_file_blocks(struct file *file, ext4_lblk_t offset,
 	if (len <= EXT_UNWRITTEN_MAX_LEN)
 		flags |= EXT4_GET_BLOCKS_NO_NORMALIZE;
 
+	/* Wait all existing dio workers, newcomers will block on i_mutex */
+	ext4_inode_block_unlocked_dio(inode);
+	inode_dio_wait(inode);
+
 	/*
 	 * credits to insert 1 extent into extent tree
 	 */
@@ -4740,6 +4744,8 @@ retry:
 		ret = 0;
 		goto retry;
 	}
+
+	ext4_inode_resume_unlocked_dio(inode);
 
 	return ret > 0 ? ret2 : ret;
 }
