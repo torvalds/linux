@@ -32,9 +32,13 @@
 #include <asm/uaccess.h>
 
 
+/**
+ * The msg member must be at the end of the struct, as it's followed by the
+ * message data.
+ */
 struct opal_prd_msg_queue_item {
-	struct opal_prd_msg_header	msg;
 	struct list_head		list;
+	struct opal_prd_msg_header	msg;
 };
 
 static struct device_node *prd_node;
@@ -351,22 +355,23 @@ static int opal_prd_msg_notifier(struct notifier_block *nb,
 	struct opal_prd_msg_queue_item *item;
 	struct opal_prd_msg_header *hdr;
 	struct opal_msg *msg = _msg;
+	int msg_size, item_size;
 	unsigned long flags;
-	int size;
 
 	if (msg_type != OPAL_MSG_PRD)
 		return 0;
 
-	/* Calculate total size of the item we need to store. The 'size' field
-	 * in the header includes the header itself. */
+	/* Calculate total size of the message and item we need to store. The
+	 * 'size' field in the header includes the header itself. */
 	hdr = (void *)msg->params;
-	size = (sizeof(*item) - sizeof(item->msg)) + be16_to_cpu(hdr->size);
+	msg_size = be16_to_cpu(hdr->size);
+	item_size = msg_size + sizeof(*item) - sizeof(item->msg);
 
-	item = kzalloc(size, GFP_ATOMIC);
+	item = kzalloc(item_size, GFP_ATOMIC);
 	if (!item)
 		return -ENOMEM;
 
-	memcpy(&item->msg, msg->params, size);
+	memcpy(&item->msg, msg->params, msg_size);
 
 	spin_lock_irqsave(&opal_prd_msg_queue_lock, flags);
 	list_add_tail(&item->list, &opal_prd_msg_queue);
