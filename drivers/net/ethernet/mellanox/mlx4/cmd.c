@@ -3223,6 +3223,36 @@ if_stat_out:
 }
 EXPORT_SYMBOL_GPL(mlx4_get_counter_stats);
 
+int mlx4_get_vf_stats(struct mlx4_dev *dev, int port, int vf_idx,
+		      struct ifla_vf_stats *vf_stats)
+{
+	struct mlx4_counter tmp_vf_stats;
+	int slave;
+	int err = 0;
+
+	if (!vf_stats)
+		return -EINVAL;
+
+	if (!mlx4_is_master(dev))
+		return -EPROTONOSUPPORT;
+
+	slave = mlx4_get_slave_indx(dev, vf_idx);
+	if (slave < 0)
+		return -EINVAL;
+
+	port = mlx4_slaves_closest_port(dev, slave, port);
+	err = mlx4_calc_vf_counters(dev, slave, port, &tmp_vf_stats);
+	if (!err && tmp_vf_stats.counter_mode == 0) {
+		vf_stats->rx_packets = be64_to_cpu(tmp_vf_stats.rx_frames);
+		vf_stats->tx_packets = be64_to_cpu(tmp_vf_stats.tx_frames);
+		vf_stats->rx_bytes = be64_to_cpu(tmp_vf_stats.rx_bytes);
+		vf_stats->tx_bytes = be64_to_cpu(tmp_vf_stats.tx_bytes);
+	}
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx4_get_vf_stats);
+
 int mlx4_vf_smi_enabled(struct mlx4_dev *dev, int slave, int port)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);

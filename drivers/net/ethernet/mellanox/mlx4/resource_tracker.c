@@ -46,6 +46,7 @@
 
 #include "mlx4.h"
 #include "fw.h"
+#include "mlx4_stats.h"
 
 #define MLX4_MAC_VALID		(1ull << 63)
 #define MLX4_PF_COUNTERS_PER_PORT	2
@@ -1145,6 +1146,53 @@ static struct res_common *alloc_tr(u64 id, enum mlx4_resource type, int slave,
 		ret->owner = slave;
 
 	return ret;
+}
+
+int mlx4_calc_vf_counters(struct mlx4_dev *dev, int slave, int port,
+			  struct mlx4_counter *data)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_resource_tracker *tracker = &priv->mfunc.master.res_tracker;
+	struct res_common *tmp;
+	struct res_counter *counter;
+	int *counters_arr;
+	int i = 0, err = 0;
+
+	memset(data, 0, sizeof(*data));
+
+	counters_arr = kmalloc_array(dev->caps.max_counters,
+				     sizeof(*counters_arr), GFP_KERNEL);
+	if (!counters_arr)
+		return -ENOMEM;
+
+	spin_lock_irq(mlx4_tlock(dev));
+	list_for_each_entry(tmp,
+			    &tracker->slave_list[slave].res_list[RES_COUNTER],
+			    list) {
+		counter = container_of(tmp, struct res_counter, com);
+		if (counter->port == port) {
+			counters_arr[i] = (int)tmp->res_id;
+			i++;
+		}
+	}
+	spin_unlock_irq(mlx4_tlock(dev));
+	counters_arr[i] = -1;
+
+	i = 0;
+
+	while (counters_arr[i] != -1) {
+		err = mlx4_get_counter_stats(dev, counters_arr[i], data,
+					     0);
+		if (err) {
+			memset(data, 0, sizeof(*data));
+			goto table_changed;
+		}
+		i++;
+	}
+
+table_changed:
+	kfree(counters_arr);
+	return 0;
 }
 
 static int add_res_range(struct mlx4_dev *dev, int slave, u64 base, int count,

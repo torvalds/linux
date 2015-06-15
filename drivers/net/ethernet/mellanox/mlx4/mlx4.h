@@ -1010,6 +1010,8 @@ int __mlx4_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 		     int start_index, int npages, u64 *page_list);
 int __mlx4_counter_alloc(struct mlx4_dev *dev, u32 *idx);
 void __mlx4_counter_free(struct mlx4_dev *dev, u32 idx);
+int mlx4_calc_vf_counters(struct mlx4_dev *dev, int slave, int port,
+			  struct mlx4_counter *data);
 int __mlx4_xrcd_alloc(struct mlx4_dev *dev, u32 *xrcdn);
 void __mlx4_xrcd_free(struct mlx4_dev *dev, u32 xrcdn);
 

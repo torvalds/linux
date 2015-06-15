@@ -2292,6 +2292,15 @@ static int mlx4_en_set_vf_link_state(struct net_device *dev, int vf, int link_st
 	return mlx4_set_vf_link_state(mdev->dev, en_priv->port, vf, link_state);
 }
 
+static int mlx4_en_get_vf_stats(struct net_device *dev, int vf,
+				struct ifla_vf_stats *vf_stats)
+{
+	struct mlx4_en_priv *en_priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = en_priv->mdev;
+
+	return mlx4_get_vf_stats(mdev->dev, en_priv->port, vf, vf_stats);
+}
+
 #define PORT_ID_BYTE_LEN 8
 static int mlx4_en_get_phys_port_id(struct net_device *dev,
 				    struct netdev_phys_item_id *ppid)
@@ -2489,6 +2498,7 @@ static const struct net_device_ops mlx4_netdev_ops_master = {
 	.ndo_set_vf_rate	= mlx4_en_set_vf_rate,
 	.ndo_set_vf_spoofchk	= mlx4_en_set_vf_spoofchk,
 	.ndo_set_vf_link_state	= mlx4_en_set_vf_link_state,
+	.ndo_get_vf_stats       = mlx4_en_get_vf_stats,
 	.ndo_get_vf_config	= mlx4_en_get_vf_config,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= mlx4_en_netpoll,
