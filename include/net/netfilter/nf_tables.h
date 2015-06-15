@@ -781,6 +781,7 @@ struct nft_stats {
 };
 
 #define NFT_HOOK_OPS_MAX		2
+#define NFT_BASECHAIN_DISABLED		(1 << 0)
 
 /**
  *	struct nft_base_chain - nf_tables base chain
@@ -798,6 +799,7 @@ struct nft_base_chain {
 	possible_net_t			pnet;
 	const struct nf_chain_type	*type;
 	u8				policy;
+	u8				flags;
 	struct nft_stats __percpu	*stats;
 	struct nft_chain		chain;
 	char 				dev_name[IFNAMSIZ];
@@ -807,6 +809,11 @@ static inline struct nft_base_chain *nft_base_chain(const struct nft_chain *chai
 {
 	return container_of(chain, struct nft_base_chain, chain);
 }
+
+int nft_register_basechain(struct nft_base_chain *basechain,
+			   unsigned int hook_nops);
+void nft_unregister_basechain(struct nft_base_chain *basechain,
+			      unsigned int hook_nops);
 
 unsigned int nft_do_chain(struct nft_pktinfo *pkt,
 			  const struct nf_hook_ops *ops);

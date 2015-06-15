@@ -127,17 +127,25 @@ static void nft_trans_destroy(struct nft_trans *trans)
 	kfree(trans);
 }
 
-static int nft_register_basechain(struct nft_base_chain *basechain,
-				  unsigned int hook_nops)
+int nft_register_basechain(struct nft_base_chain *basechain,
+			   unsigned int hook_nops)
 {
+	if (basechain->flags & NFT_BASECHAIN_DISABLED)
+		return 0;
+
 	return nf_register_hooks(basechain->ops, hook_nops);
 }
+EXPORT_SYMBOL_GPL(nft_register_basechain);
 
-static void nft_unregister_basechain(struct nft_base_chain *basechain,
-				     unsigned int hook_nops)
+void nft_unregister_basechain(struct nft_base_chain *basechain,
+			      unsigned int hook_nops)
 {
+	if (basechain->flags & NFT_BASECHAIN_DISABLED)
+		return;
+
 	nf_unregister_hooks(basechain->ops, hook_nops);
 }
+EXPORT_SYMBOL_GPL(nft_unregister_basechain);
 
 static int nf_tables_register_hooks(const struct nft_table *table,
 				    struct nft_chain *chain,
