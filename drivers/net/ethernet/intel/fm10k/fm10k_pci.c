@@ -274,8 +274,6 @@ static void fm10k_watchdog_update_host_state(struct fm10k_intfc *interface)
  * @interface: board private structure
  *
  * This function will process both the upstream and downstream mailboxes.
- * It is necessary for us to hold the rtnl_lock while doing this as the
- * mailbox accesses are protected by this lock.
  **/
 static void fm10k_mbx_subtask(struct fm10k_intfc *interface)
 {
@@ -498,7 +496,7 @@ static void fm10k_service_task(struct work_struct *work)
 
 	interface = container_of(work, struct fm10k_intfc, service_task);
 
-	/* tasks always capable of running, but must be rtnl protected */
+	/* tasks run even when interface is down */
 	fm10k_mbx_subtask(interface);
 	fm10k_detach_subtask(interface);
 	fm10k_reset_subtask(interface);
