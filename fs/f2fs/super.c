@@ -498,7 +498,6 @@ static void f2fs_put_super(struct super_block *sb)
 	}
 	kobject_del(&sbi->s_kobj);
 
-	f2fs_destroy_stats(sbi);
 	stop_gc_thread(sbi);
 
 	/*
@@ -513,6 +512,9 @@ static void f2fs_put_super(struct super_block *sb)
 		};
 		write_checkpoint(sbi, &cpc);
 	}
+
+	/* write_checkpoint can update stat informaion */
+	f2fs_destroy_stats(sbi);
 
 	/*
 	 * normally superblock is clean, so we need to release this.
