@@ -279,7 +279,11 @@ static int armada_plane_disable(struct drm_plane *plane)
 
 static void armada_plane_destroy(struct drm_plane *plane)
 {
-	kfree(plane);
+	struct armada_plane *dplane = drm_to_armada_plane(plane);
+
+	drm_plane_cleanup(plane);
+
+	kfree(dplane);
 }
 
 static int armada_plane_set_property(struct drm_plane *plane,
