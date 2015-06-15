@@ -580,7 +580,7 @@ static void linux_wlan_dbg(uint8_t *buff)
 static void *linux_wlan_malloc_atomic(uint32_t sz)
 {
 	char *pntr = NULL;
-	pntr = (char *)kmalloc(sz, GFP_ATOMIC);
+	pntr = kmalloc(sz, GFP_ATOMIC);
 	PRINT_D(MEM_DBG, "Allocating %d bytes at address %p\n", sz, pntr);
 	return (void *)pntr;
 
@@ -588,7 +588,7 @@ static void *linux_wlan_malloc_atomic(uint32_t sz)
 static void *linux_wlan_malloc(uint32_t sz)
 {
 	char *pntr = NULL;
-	pntr = (char *)kmalloc(sz, GFP_KERNEL);
+	pntr = kmalloc(sz, GFP_KERNEL);
 	PRINT_D(MEM_DBG, "Allocating %d bytes at address %p\n", sz, pntr);
 	return (void *)pntr;
 }
@@ -605,7 +605,7 @@ void linux_wlan_free(void *vp)
 static void *internal_alloc(uint32_t size, uint32_t flag)
 {
 	char *pntr = NULL;
-	pntr = (char *)kmalloc(size, flag);
+	pntr = kmalloc(size, flag);
 	PRINT_D(MEM_DBG, "Allocating %d bytes at address %p\n", size, pntr);
 	return (void *)pntr;
 }
