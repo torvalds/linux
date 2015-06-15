@@ -211,7 +211,7 @@ static enum v4l2_colorspace sh_veu_4cc2cspace(u32 fourcc)
 	case V4L2_PIX_FMT_NV12:
 	case V4L2_PIX_FMT_NV16:
 	case V4L2_PIX_FMT_NV24:
-		return V4L2_COLORSPACE_JPEG;
+		return V4L2_COLORSPACE_SMPTE170M;
 	case V4L2_PIX_FMT_RGB332:
 	case V4L2_PIX_FMT_RGB444:
 	case V4L2_PIX_FMT_RGB565:
