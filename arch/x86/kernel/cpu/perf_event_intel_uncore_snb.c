@@ -45,6 +45,11 @@
 #define SNB_UNC_CBO_0_PER_CTR0                  0x706
 #define SNB_UNC_CBO_MSR_OFFSET                  0x10
 
+/* SNB ARB register */
+#define SNB_UNC_ARB_PER_CTR0			0x3b0
+#define SNB_UNC_ARB_PERFEVTSEL0			0x3b2
+#define SNB_UNC_ARB_MSR_OFFSET			0x10
+
 /* NHM global control register */
 #define NHM_UNC_PERF_GLOBAL_CTL                 0x391
 #define NHM_UNC_FIXED_CTR                       0x394
@@ -115,7 +120,7 @@ static struct intel_uncore_ops snb_uncore_msr_ops = {
 	.read_counter	= uncore_msr_read_counter,
 };
 
-static struct event_constraint snb_uncore_cbox_constraints[] = {
+static struct event_constraint snb_uncore_arb_constraints[] = {
 	UNCORE_EVENT_CONSTRAINT(0x80, 0x1),
 	UNCORE_EVENT_CONSTRAINT(0x83, 0x1),
 	EVENT_CONSTRAINT_END
@@ -134,14 +139,28 @@ static struct intel_uncore_type snb_uncore_cbox = {
 	.single_fixed	= 1,
 	.event_mask	= SNB_UNC_RAW_EVENT_MASK,
 	.msr_offset	= SNB_UNC_CBO_MSR_OFFSET,
-	.constraints	= snb_uncore_cbox_constraints,
 	.ops		= &snb_uncore_msr_ops,
 	.format_group	= &snb_uncore_format_group,
 	.event_descs	= snb_uncore_events,
 };
 
+static struct intel_uncore_type snb_uncore_arb = {
+	.name		= "arb",
+	.num_counters   = 2,
+	.num_boxes	= 1,
+	.perf_ctr_bits	= 44,
+	.perf_ctr	= SNB_UNC_ARB_PER_CTR0,
+	.event_ctl	= SNB_UNC_ARB_PERFEVTSEL0,
+	.event_mask	= SNB_UNC_RAW_EVENT_MASK,
+	.msr_offset	= SNB_UNC_ARB_MSR_OFFSET,
+	.constraints	= snb_uncore_arb_constraints,
+	.ops		= &snb_uncore_msr_ops,
+	.format_group	= &snb_uncore_format_group,
+};
+
 static struct intel_uncore_type *snb_msr_uncores[] = {
 	&snb_uncore_cbox,
+	&snb_uncore_arb,
 	NULL,
 };
 
