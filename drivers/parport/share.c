@@ -907,7 +907,8 @@ parport_register_dev_model(struct parport *port, const char *name,
 			spin_unlock(&port->physport->pardevice_lock);
 			pr_debug("%s: cannot grant exclusive access for device %s\n",
 				 port->name, name);
-			goto err_put_dev;
+			device_unregister(&par_dev->dev);
+			goto err_put_port;
 		}
 		port->flags |= PARPORT_FLAG_EXCL;
 	}
