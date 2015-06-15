@@ -96,6 +96,13 @@ int intel_atomic_check(struct drm_device *dev,
 		return -EINVAL;
 	}
 
+	if (crtc_state &&
+	    crtc_state->quirks & PIPE_CONFIG_QUIRK_INITIAL_PLANES) {
+		ret = drm_atomic_add_affected_planes(state, &nuclear_crtc->base);
+		if (ret)
+			return ret;
+	}
+
 	ret = drm_atomic_helper_check_planes(dev, state);
 	if (ret)
 		return ret;

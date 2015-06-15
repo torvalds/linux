@@ -338,6 +338,7 @@ struct intel_crtc_state {
 	 */
 #define PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS	(1<<0) /* unreliable sync mode.flags */
 #define PIPE_CONFIG_QUIRK_INHERITED_MODE	(1<<1) /* mode inherited from firmware */
+#define PIPE_CONFIG_QUIRK_INITIAL_PLANES	(1<<2) /* planes are in unknown state */
 	unsigned long quirks;
 
 	/* Pipe source size (ie. panel fitter input size)

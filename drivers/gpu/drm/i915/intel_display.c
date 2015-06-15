@@ -109,8 +109,6 @@ static void skl_init_scalers(struct drm_device *dev, struct intel_crtc *intel_cr
 	struct intel_crtc_state *crtc_state);
 static int i9xx_get_refclk(const struct intel_crtc_state *crtc_state,
 			   int num_connectors);
-static void intel_crtc_enable_planes(struct drm_crtc *crtc);
-static void intel_crtc_disable_planes(struct drm_crtc *crtc);
 
 static struct intel_encoder *intel_find_encoder(struct intel_connector *connector, int pipe)
 {
@@ -4850,11 +4848,11 @@ static void intel_crtc_enable_planes(struct drm_crtc *crtc)
 	intel_frontbuffer_flip(dev, INTEL_FRONTBUFFER_ALL_MASK(pipe));
 }
 
-static void intel_crtc_disable_planes(struct drm_crtc *crtc)
+static void intel_crtc_disable_planes(struct drm_crtc *crtc, unsigned plane_mask)
 {
 	struct drm_device *dev = crtc->dev;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_plane *intel_plane;
+	struct drm_plane *p;
 	int pipe = intel_crtc->pipe;
 
 	intel_crtc_wait_for_pending_flips(crtc);
@@ -4862,14 +4860,9 @@ static void intel_crtc_disable_planes(struct drm_crtc *crtc)
 	intel_pre_disable_primary(crtc);
 
 	intel_crtc_dpms_overlay_disable(intel_crtc);
-	for_each_intel_plane(dev, intel_plane) {
-		if (intel_plane->pipe == pipe) {
-			struct drm_crtc *from = intel_plane->base.crtc;
 
-			intel_plane->disable_plane(&intel_plane->base,
-						   from ?: crtc);
-		}
-	}
+	drm_for_each_plane_mask(p, dev, plane_mask)
+		to_intel_plane(p)->disable_plane(p, crtc);
 
 	/*
 	 * FIXME: Once we grow proper nuclear flip support out of this we need
@@ -6289,7 +6282,7 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
 	if (!intel_crtc->active)
 		return;
 
-	intel_crtc_disable_planes(crtc);
+	intel_crtc_disable_planes(crtc, crtc->state->plane_mask);
 	dev_priv->display.crtc_disable(crtc);
 
 	domains = intel_crtc->enabled_power_domains;
@@ -11885,7 +11878,7 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 			intel_crtc->atomic.fb_bits |=
 			    INTEL_FRONTBUFFER_SPRITE(intel_crtc->pipe);
 
-		if (turn_off && is_crtc_enabled) {
+		if (turn_off && !mode_changed) {
 			intel_crtc->atomic.wait_vblank = true;
 			intel_crtc->atomic.update_sprite_watermarks |=
 				1 << i;
@@ -11945,6 +11938,34 @@ static bool check_encoder_cloning(struct drm_atomic_state *state,
 	return true;
 }
 
+static void intel_crtc_check_initial_planes(struct drm_crtc *crtc,
+					    struct drm_crtc_state *crtc_state)
+{
+	struct intel_crtc_state *pipe_config =
+		to_intel_crtc_state(crtc_state);
+	struct drm_plane *p;
+	unsigned visible_mask = 0;
+
+	drm_for_each_plane_mask(p, crtc->dev, crtc_state->plane_mask) {
+		struct drm_plane_state *plane_state =
+			drm_atomic_get_existing_plane_state(crtc_state->state, p);
+
+		if (WARN_ON(!plane_state))
+			continue;
+
+		if (!plane_state->fb)
+			crtc_state->plane_mask &=
+				~(1 << drm_plane_index(p));
+		else if (to_intel_plane_state(plane_state)->visible)
+			visible_mask |= 1 << drm_plane_index(p);
+	}
+
+	if (!visible_mask)
+		return;
+
+	pipe_config->quirks &= ~PIPE_CONFIG_QUIRK_INITIAL_PLANES;
+}
+
 static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 				   struct drm_crtc_state *crtc_state)
 {
@@ -11965,6 +11986,10 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 	I915_STATE_WARN(crtc->state->active != intel_crtc->active,
 		"[CRTC:%i] mismatch between state->active(%i) and crtc->active(%i)\n",
 		idx, crtc->state->active, intel_crtc->active);
+
+	/* plane mask is fixed up after all initial planes are calculated */
+	if (pipe_config->quirks & PIPE_CONFIG_QUIRK_INITIAL_PLANES)
+		intel_crtc_check_initial_planes(crtc, crtc_state);
 
 	if (mode_changed && crtc_state->enable &&
 	    dev_priv->display.crtc_compute_clock &&
@@ -13182,6 +13207,20 @@ intel_modeset_compute_config(struct drm_atomic_state *state)
 			continue;
 		}
 
+		if (to_intel_crtc_state(crtc_state)->quirks &
+		    PIPE_CONFIG_QUIRK_INITIAL_PLANES) {
+			ret = drm_atomic_add_affected_planes(state, crtc);
+			if (ret)
+				return ret;
+
+			/*
+			 * We ought to handle i915.fastboot here.
+			 * If no modeset is required and the primary plane has
+			 * a fb, update the members of crtc_state as needed,
+			 * and run the necessary updates during vblank evasion.
+			 */
+		}
+
 		if (!needs_modeset(crtc_state)) {
 			ret = drm_atomic_add_affected_connectors(state, crtc);
 			if (ret)
@@ -13235,7 +13274,7 @@ static int __intel_set_mode(struct drm_atomic_state *state)
 		if (!crtc_state->active)
 			continue;
 
-		intel_crtc_disable_planes(crtc);
+		intel_crtc_disable_planes(crtc, crtc_state->plane_mask);
 		dev_priv->display.crtc_disable(crtc);
 	}
 
@@ -15403,10 +15442,51 @@ static bool primary_get_hw_state(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 
-	if (!crtc->active)
-		return false;
+	return !!(I915_READ(DSPCNTR(crtc->plane)) & DISPLAY_PLANE_ENABLE);
+}
 
-	return I915_READ(DSPCNTR(crtc->plane)) & DISPLAY_PLANE_ENABLE;
+static void readout_plane_state(struct intel_crtc *crtc,
+				struct intel_crtc_state *crtc_state)
+{
+	struct intel_plane *p;
+	struct drm_plane_state *drm_plane_state;
+	bool active = crtc_state->base.active;
+
+	if (active) {
+		crtc_state->quirks |= PIPE_CONFIG_QUIRK_INITIAL_PLANES;
+
+		/* apply to previous sw state too */
+		to_intel_crtc_state(crtc->base.state)->quirks |=
+			PIPE_CONFIG_QUIRK_INITIAL_PLANES;
+	}
+
+	for_each_intel_plane(crtc->base.dev, p) {
+		bool visible = active;
+
+		if (crtc->pipe != p->pipe)
+			continue;
+
+		drm_plane_state = p->base.state;
+		if (active && p->base.type == DRM_PLANE_TYPE_PRIMARY) {
+			visible = primary_get_hw_state(crtc);
+			to_intel_plane_state(drm_plane_state)->visible = visible;
+		} else {
+			/*
+			 * unknown state, assume it's off to force a transition
+			 * to on when calculating state changes.
+			 */
+			to_intel_plane_state(drm_plane_state)->visible = false;
+		}
+
+		if (visible) {
+			crtc_state->base.plane_mask |=
+				1 << drm_plane_index(&p->base);
+		} else if (crtc_state->base.state) {
+			/* Make this unconditional for atomic hw readout. */
+			crtc_state->base.plane_mask &=
+				~(1 << drm_plane_index(&p->base));
+		}
+	}
 }
 
 static void intel_modeset_readout_hw_state(struct drm_device *dev)
@@ -15419,9 +15499,6 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 	int i;
 
 	for_each_intel_crtc(dev, crtc) {
-		struct drm_plane *primary = crtc->base.primary;
-		struct intel_plane_state *plane_state;
-
 		memset(crtc->config, 0, sizeof(*crtc->config));
 		crtc->config->base.crtc = &crtc->base;
 
@@ -15435,8 +15512,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		crtc->base.enabled = crtc->active;
 		crtc->base.hwmode = crtc->config->base.adjusted_mode;
 
-		plane_state = to_intel_plane_state(primary->state);
-		plane_state->visible = primary_get_hw_state(crtc);
+		readout_plane_state(crtc, to_intel_crtc_state(crtc->base.state));
 
 		DRM_DEBUG_KMS("[CRTC:%d] hw state readout: %s\n",
 			      crtc->base.base.id,
