@@ -199,15 +199,17 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 		}
 	}
 
-	cr_mode = rsnd_ssi_is_dma_mode(&ssi->mod) ?
-		DMEN :	/* DMA : enable DMA */
-		DIEN;	/* PIO : enable Data interrupt */
-
+	if (rsnd_ssi_is_dma_mode(&ssi->mod)) {
+		cr_mode = UIEN | OIEN |	/* over/under run */
+			  DMEN;		/* DMA : enable DMA */
+	} else {
+		cr_mode = DIEN;		/* PIO : enable Data interrupt */
+	}
 
 	cr  =	ssi->cr_own	|
 		ssi->cr_clk	|
 		cr_mode		|
-		UIEN | OIEN | EN;
+		EN;
 
 	rsnd_mod_write(&ssi->mod, SSICR, cr);
 
@@ -452,8 +454,8 @@ static irqreturn_t rsnd_ssi_interrupt(int irq, void *data)
 		rsnd_dai_pointer_update(io, sizeof(*buf));
 	}
 
-	/* PIO / DMA */
-	if (status & (UIRQ | OIRQ)) {
+	/* DMA only */
+	if (is_dma && (status & (UIRQ | OIRQ))) {
 		struct device *dev = rsnd_priv_to_dev(priv);
 
 		/*
