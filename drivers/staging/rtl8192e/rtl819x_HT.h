@@ -37,13 +37,6 @@ enum ht_extchnl_offset {
 	HT_EXTCHNL_OFFSET_LOWER = 3,
 };
 
-enum chnl_op {
-	CHNLOP_NONE = 0,
-	CHNLOP_SCAN = 1,
-	CHNLOP_SWBW = 2,
-	CHNLOP_SWCHNL = 3,
-};
-
 struct ht_capab_ele {
 
 	u8	AdvCoding:1;
@@ -173,7 +166,6 @@ struct rt_hi_throughput {
 	u8				PeerBandwidth;
 
 	u8				bSwBwInProgress;
-	enum chnl_op ChnlOp;
 	u8				SwBwStep;
 
 	u8				bRegRT2RTAggregation;

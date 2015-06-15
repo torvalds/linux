@@ -676,7 +676,6 @@ void HTInitializeHTInfo(struct rtllib_device *ieee)
 		sizeof(pHTInfo->PeerHTInfoBuf));
 
 	pHTInfo->bSwBwInProgress = false;
-	pHTInfo->ChnlOp = CHNLOP_NONE;
 
 	pHTInfo->ePeerHTSpecVer = HT_SPEC_VER_IEEE;
 
