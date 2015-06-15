@@ -432,7 +432,7 @@ static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 	spin_lock(&priv->lock);
 
 	/* ignore all cases if not working */
-	if (!rsnd_mod_is_working(mod))
+	if (!rsnd_io_is_working(io))
 		goto rsnd_ssi_interrupt_out;
 
 	status = rsnd_mod_read(mod, SSISR);

@@ -326,7 +326,6 @@ int rsnd_mod_init(struct rsnd_priv *priv,
 		   int id);
 void rsnd_mod_quit(struct rsnd_mod *mod);
 char *rsnd_mod_name(struct rsnd_mod *mod);
-int rsnd_mod_is_working(struct rsnd_mod *mod);
 struct dma_chan *rsnd_mod_dma_req(struct rsnd_dai_stream *io,
 				  struct rsnd_mod *mod);
 void rsnd_mod_interrupt(struct rsnd_mod *mod,
@@ -356,7 +355,7 @@ struct rsnd_dai_stream {
 #define rsnd_io_is_play(io)	(&rsnd_io_to_rdai(io)->playback == io)
 #define rsnd_io_to_runtime(io) ((io)->substream ? \
 				(io)->substream->runtime : NULL)
-
+int rsnd_io_is_working(struct rsnd_dai_stream *io);
 
 struct rsnd_dai {
 	char name[RSND_DAI_NAME_SIZE];

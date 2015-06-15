@@ -684,7 +684,7 @@ static void __rsnd_src_interrupt_gen2(struct rsnd_mod *mod,
 	spin_lock(&priv->lock);
 
 	/* ignore all cases if not working */
-	if (!rsnd_mod_is_working(mod))
+	if (!rsnd_io_is_working(io))
 		goto rsnd_src_interrupt_gen2_out;
 
 	if (rsnd_src_error_record_gen2(mod)) {

@@ -196,10 +196,8 @@ void rsnd_mod_interrupt(struct rsnd_mod *mod,
 	}
 }
 
-int rsnd_mod_is_working(struct rsnd_mod *mod)
+int rsnd_io_is_working(struct rsnd_dai_stream *io)
 {
-	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
-
 	/* see rsnd_dai_stream_init/quit() */
 	return !!io->substream;
 }

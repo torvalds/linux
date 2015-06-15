@@ -52,7 +52,7 @@ static void __rsnd_dmaen_complete(struct rsnd_mod *mod,
 	 */
 	spin_lock_irqsave(&priv->lock, flags);
 
-	if (rsnd_mod_is_working(mod))
+	if (rsnd_io_is_working(io))
 		elapsed = rsnd_dai_pointer_update(io, io->byte_per_period);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
