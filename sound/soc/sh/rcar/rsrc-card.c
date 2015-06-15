@@ -46,7 +46,6 @@ static const struct of_device_id rsrc_card_of_match[] = {
 MODULE_DEVICE_TABLE(of, rsrc_card_of_match);
 
 struct rsrc_card_dai {
-	const char *name;
 	unsigned int fmt;
 	unsigned int sysclk;
 	struct clk *clk;
