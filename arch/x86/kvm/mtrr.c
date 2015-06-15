@@ -161,10 +161,8 @@ static void update_mtrr(struct kvm_vcpu *vcpu, u32 msr)
 		/* variable range MTRRs. */
 		is_fixed = false;
 		index = (msr - 0x200) / 2;
-		start = (((u64)mtrr_state->var_ranges[index].base_hi) << 32) +
-		       (mtrr_state->var_ranges[index].base_lo & PAGE_MASK);
-		mask = (((u64)mtrr_state->var_ranges[index].mask_hi) << 32) +
-		       (mtrr_state->var_ranges[index].mask_lo & PAGE_MASK);
+		start = mtrr_state->var_ranges[index].base & PAGE_MASK;
+		mask = mtrr_state->var_ranges[index].mask & PAGE_MASK;
 		mask |= ~0ULL << cpuid_maxphyaddr(vcpu);
 
 		end = ((start & mask) | ~mask) + 1;
@@ -195,17 +193,13 @@ int kvm_mtrr_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		vcpu->arch.pat = data;
 	else {	/* Variable MTRRs */
 		int idx, is_mtrr_mask;
-		u64 *pt;
 
 		idx = (msr - 0x200) / 2;
 		is_mtrr_mask = msr - 0x200 - 2 * idx;
 		if (!is_mtrr_mask)
-			pt =
-			  (u64 *)&vcpu->arch.mtrr_state.var_ranges[idx].base_lo;
+			vcpu->arch.mtrr_state.var_ranges[idx].base = data;
 		else
-			pt =
-			  (u64 *)&vcpu->arch.mtrr_state.var_ranges[idx].mask_lo;
-		*pt = data;
+			vcpu->arch.mtrr_state.var_ranges[idx].mask = data;
 	}
 
 	update_mtrr(vcpu, msr);
@@ -243,17 +237,13 @@ int kvm_mtrr_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 		*pdata = vcpu->arch.pat;
 	else {	/* Variable MTRRs */
 		int idx, is_mtrr_mask;
-		u64 *pt;
 
 		idx = (msr - 0x200) / 2;
 		is_mtrr_mask = msr - 0x200 - 2 * idx;
 		if (!is_mtrr_mask)
-			pt =
-			  (u64 *)&vcpu->arch.mtrr_state.var_ranges[idx].base_lo;
+			*pdata = vcpu->arch.mtrr_state.var_ranges[idx].base;
 		else
-			pt =
-			  (u64 *)&vcpu->arch.mtrr_state.var_ranges[idx].mask_lo;
-		*pdata = *pt;
+			*pdata = vcpu->arch.mtrr_state.var_ranges[idx].mask;
 	}
 
 	return 0;
@@ -305,13 +295,11 @@ static int get_mtrr_type(struct kvm_mtrr *mtrr_state,
 	for (i = 0; i < num_var_ranges; ++i) {
 		unsigned short start_state, end_state;
 
-		if (!(mtrr_state->var_ranges[i].mask_lo & (1 << 11)))
+		if (!(mtrr_state->var_ranges[i].mask & (1 << 11)))
 			continue;
 
-		base = (((u64)mtrr_state->var_ranges[i].base_hi) << 32) +
-		       (mtrr_state->var_ranges[i].base_lo & PAGE_MASK);
-		mask = (((u64)mtrr_state->var_ranges[i].mask_hi) << 32) +
-		       (mtrr_state->var_ranges[i].mask_lo & PAGE_MASK);
+		base = mtrr_state->var_ranges[i].base & PAGE_MASK;
+		mask = mtrr_state->var_ranges[i].mask & PAGE_MASK;
 
 		start_state = ((start & mask) == (base & mask));
 		end_state = ((end & mask) == (base & mask));
@@ -321,7 +309,7 @@ static int get_mtrr_type(struct kvm_mtrr *mtrr_state,
 		if ((start & mask) != (base & mask))
 			continue;
 
-		curr_match = mtrr_state->var_ranges[i].base_lo & 0xff;
+		curr_match = mtrr_state->var_ranges[i].base & 0xff;
 		if (prev_match == 0xFF) {
 			prev_match = curr_match;
 			continue;
