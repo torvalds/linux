@@ -4249,12 +4249,8 @@ static void intel_print_rc6_info(struct drm_device *dev, u32 mode)
 
 static int sanitize_rc6_option(const struct drm_device *dev, int enable_rc6)
 {
-	/* No RC6 before Ironlake */
-	if (INTEL_INFO(dev)->gen < 5)
-		return 0;
-
-	/* RC6 is only on Ironlake mobile not on desktop */
-	if (INTEL_INFO(dev)->gen == 5 && !IS_IRONLAKE_M(dev))
+	/* No RC6 before Ironlake and code is gone for ilk. */
+	if (INTEL_INFO(dev)->gen < 6)
 		return 0;
 
 	/* Respect the kernel parameter if it is set */
@@ -4273,10 +4269,6 @@ static int sanitize_rc6_option(const struct drm_device *dev, int enable_rc6)
 
 		return enable_rc6 & mask;
 	}
-
-	/* Disable RC6 on Ironlake */
-	if (INTEL_INFO(dev)->gen == 5)
-		return 0;
 
 	if (IS_IVYBRIDGE(dev))
 		return (INTEL_RC6_ENABLE | INTEL_RC6p_ENABLE);
