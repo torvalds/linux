@@ -129,6 +129,8 @@ int intel_atomic_commit(struct drm_device *dev,
 			struct drm_atomic_state *state,
 			bool async)
 {
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc *crtc;
 	int ret;
 	int i;
 
@@ -142,48 +144,19 @@ int intel_atomic_commit(struct drm_device *dev,
 		return ret;
 
 	/* Point of no return */
+	drm_atomic_helper_swap_state(dev, state);
 
-	/*
-	 * FIXME:  The proper sequence here will eventually be:
-	 *
-	 * drm_atomic_helper_swap_state(dev, state)
-	 * drm_atomic_helper_commit_modeset_disables(dev, state);
-	 * drm_atomic_helper_commit_planes(dev, state);
-	 * drm_atomic_helper_commit_modeset_enables(dev, state);
-	 * drm_atomic_helper_wait_for_vblanks(dev, state);
-	 * drm_atomic_helper_cleanup_planes(dev, state);
-	 * drm_atomic_state_free(state);
-	 *
-	 * once we have full atomic modeset.  For now, just manually update
-	 * plane states to avoid clobbering good states with dummy states
-	 * while nuclear pageflipping.
-	 */
-	for (i = 0; i < dev->mode_config.num_total_plane; i++) {
-		struct drm_plane *plane = state->planes[i];
-
-		if (!plane)
-			continue;
-
-		plane->state->state = state;
-		swap(state->plane_states[i], plane->state);
-		plane->state->state = NULL;
-	}
-
-	/* swap crtc_scaler_state */
-	for (i = 0; i < dev->mode_config.num_crtc; i++) {
-		struct drm_crtc *crtc = state->crtcs[i];
-		if (!crtc) {
-			continue;
-		}
-
-		to_intel_crtc(crtc)->config->scaler_state =
-			to_intel_crtc_state(state->crtc_states[i])->scaler_state;
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		to_intel_crtc(crtc)->config = to_intel_crtc_state(crtc->state);
 
 		if (INTEL_INFO(dev)->gen >= 9)
 			skl_detach_scalers(to_intel_crtc(crtc));
+
+		drm_atomic_helper_commit_planes_on_crtc(crtc_state);
 	}
 
-	drm_atomic_helper_commit_planes(dev, state);
+	/* FIXME: This function should eventually call __intel_set_mode when needed */
+
 	drm_atomic_helper_wait_for_vblanks(dev, state);
 	drm_atomic_helper_cleanup_planes(dev, state);
 	drm_atomic_state_free(state);
@@ -420,4 +393,55 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 	}
 
 	return 0;
+}
+
+static void
+intel_atomic_duplicate_dpll_state(struct drm_i915_private *dev_priv,
+				  struct intel_shared_dpll_config *shared_dpll)
+{
+	enum intel_dpll_id i;
+
+	/* Copy shared dpll state */
+	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
+		struct intel_shared_dpll *pll = &dev_priv->shared_dplls[i];
+
+		shared_dpll[i] = pll->config;
+	}
+}
+
+struct intel_shared_dpll_config *
+intel_atomic_get_shared_dpll_state(struct drm_atomic_state *s)
+{
+	struct intel_atomic_state *state = to_intel_atomic_state(s);
+
+	WARN_ON(!drm_modeset_is_locked(&s->dev->mode_config.connection_mutex));
+
+	if (!state->dpll_set) {
+		state->dpll_set = true;
+
+		intel_atomic_duplicate_dpll_state(to_i915(s->dev),
+						  state->shared_dpll);
+	}
+
+	return state->shared_dpll;
+}
+
+struct drm_atomic_state *
+intel_atomic_state_alloc(struct drm_device *dev)
+{
+	struct intel_atomic_state *state = kzalloc(sizeof(*state), GFP_KERNEL);
+
+	if (!state || drm_atomic_state_init(dev, &state->base) < 0) {
+		kfree(state);
+		return NULL;
+	}
+
+	return &state->base;
+}
+
+void intel_atomic_state_clear(struct drm_atomic_state *s)
+{
+	struct intel_atomic_state *state = to_intel_atomic_state(s);
+	drm_atomic_state_default_clear(&state->base);
+	state->dpll_set = false;
 }

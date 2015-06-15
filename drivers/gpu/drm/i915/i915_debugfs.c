@@ -2783,13 +2783,16 @@ static int i915_display_info(struct seq_file *m, void *unused)
 	seq_printf(m, "---------\n");
 	for_each_intel_crtc(dev, crtc) {
 		bool active;
+		struct intel_crtc_state *pipe_config;
 		int x, y;
+
+		pipe_config = to_intel_crtc_state(crtc->base.state);
 
 		seq_printf(m, "CRTC %d: pipe: %c, active=%s (size=%dx%d)\n",
 			   crtc->base.base.id, pipe_name(crtc->pipe),
-			   yesno(crtc->active), crtc->config->pipe_src_w,
-			   crtc->config->pipe_src_h);
-		if (crtc->active) {
+			   yesno(pipe_config->base.active),
+			   pipe_config->pipe_src_w, pipe_config->pipe_src_h);
+		if (pipe_config->base.active) {
 			intel_crtc_info(m, crtc);
 
 			active = cursor_position(dev, crtc->pipe, &x, &y);
@@ -3030,7 +3033,7 @@ static void drrs_status_per_crtc(struct seq_file *m,
 
 	seq_puts(m, "\n\n");
 
-	if (intel_crtc->config->has_drrs) {
+	if (to_intel_crtc_state(intel_crtc->base.state)->has_drrs) {
 		struct intel_panel *panel;
 
 		mutex_lock(&drrs->mutex);
@@ -3082,7 +3085,7 @@ static int i915_drrs_status(struct seq_file *m, void *unused)
 	for_each_intel_crtc(dev, intel_crtc) {
 		drm_modeset_lock(&intel_crtc->base.mutex, NULL);
 
-		if (intel_crtc->active) {
+		if (intel_crtc->base.state->active) {
 			active_crtc_cnt++;
 			seq_printf(m, "\nCRTC %d:  ", active_crtc_cnt);
 
@@ -3624,22 +3627,33 @@ static void hsw_trans_edp_pipe_A_crc_wa(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc =
 		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[PIPE_A]);
+	struct intel_crtc_state *pipe_config;
 
 	drm_modeset_lock_all(dev);
+	pipe_config = to_intel_crtc_state(crtc->base.state);
+
 	/*
 	 * If we use the eDP transcoder we need to make sure that we don't
 	 * bypass the pfit, since otherwise the pipe CRC source won't work. Only
 	 * relevant on hsw with pipe A when using the always-on power well
 	 * routing.
 	 */
-	if (crtc->config->cpu_transcoder == TRANSCODER_EDP &&
-	    !crtc->config->pch_pfit.enabled) {
-		crtc->config->pch_pfit.force_thru = true;
+	if (pipe_config->cpu_transcoder == TRANSCODER_EDP &&
+	    !pipe_config->pch_pfit.enabled) {
+		bool active = pipe_config->base.active;
+
+		if (active) {
+			intel_crtc_control(&crtc->base, false);
+			pipe_config = to_intel_crtc_state(crtc->base.state);
+		}
+
+		pipe_config->pch_pfit.force_thru = true;
 
 		intel_display_power_get(dev_priv,
 					POWER_DOMAIN_PIPE_PANEL_FITTER(PIPE_A));
 
-		intel_crtc_reset(crtc);
+		if (active)
+			intel_crtc_control(&crtc->base, true);
 	}
 	drm_modeset_unlock_all(dev);
 }
@@ -3649,6 +3663,7 @@ static void hsw_undo_trans_edp_pipe_A_crc_wa(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc =
 		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[PIPE_A]);
+	struct intel_crtc_state *pipe_config;
 
 	drm_modeset_lock_all(dev);
 	/*
@@ -3657,13 +3672,22 @@ static void hsw_undo_trans_edp_pipe_A_crc_wa(struct drm_device *dev)
 	 * relevant on hsw with pipe A when using the always-on power well
 	 * routing.
 	 */
-	if (crtc->config->pch_pfit.force_thru) {
-		crtc->config->pch_pfit.force_thru = false;
+	pipe_config = to_intel_crtc_state(crtc->base.state);
+	if (pipe_config->pch_pfit.force_thru) {
+		bool active = pipe_config->base.active;
 
-		intel_crtc_reset(crtc);
+		if (active) {
+			intel_crtc_control(&crtc->base, false);
+			pipe_config = to_intel_crtc_state(crtc->base.state);
+		}
+
+		pipe_config->pch_pfit.force_thru = false;
 
 		intel_display_power_put(dev_priv,
 					POWER_DOMAIN_PIPE_PANEL_FITTER(PIPE_A));
+
+		if (active)
+			intel_crtc_control(&crtc->base, true);
 	}
 	drm_modeset_unlock_all(dev);
 }
@@ -3779,7 +3803,7 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 				 pipe_name(pipe));
 
 		drm_modeset_lock(&crtc->base.mutex, NULL);
-		if (crtc->active)
+		if (crtc->base.state->active)
 			intel_wait_for_vblank(dev, pipe);
 		drm_modeset_unlock(&crtc->base.mutex);
 

@@ -376,7 +376,6 @@ struct intel_shared_dpll_config {
 
 struct intel_shared_dpll {
 	struct intel_shared_dpll_config config;
-	struct intel_shared_dpll_config *new_config;
 
 	int active; /* count of number of active CRTCs (i.e. DPMS on) */
 	bool on; /* is the PLL actually active? Disabled during modeset */
@@ -631,7 +630,6 @@ struct drm_i915_display_funcs {
 				  struct intel_crtc_state *crtc_state);
 	void (*crtc_enable)(struct drm_crtc *crtc);
 	void (*crtc_disable)(struct drm_crtc *crtc);
-	void (*off)(struct drm_crtc *crtc);
 	void (*audio_codec_enable)(struct drm_connector *connector,
 				   struct intel_encoder *encoder,
 				   struct drm_display_mode *mode);
