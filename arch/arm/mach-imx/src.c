@@ -170,7 +170,7 @@ void __init imx_src_init(void)
 
 	if (cpu_is_imx7d()) {
 		val = readl_relaxed(src_base + SRC_M4RCR);
-		if ((val & BIT(3)) == BIT(3))
+		if (((val & BIT(3)) == BIT(3)) && !(val & BIT(0)))
 			m4_is_enabled = true;
 		else
 			m4_is_enabled = false;
