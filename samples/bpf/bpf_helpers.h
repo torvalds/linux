@@ -25,6 +25,12 @@ static void (*bpf_tail_call)(void *ctx, void *map, int index) =
 	(void *) BPF_FUNC_tail_call;
 static unsigned long long (*bpf_get_smp_processor_id)(void) =
 	(void *) BPF_FUNC_get_smp_processor_id;
+static unsigned long long (*bpf_get_current_pid_tgid)(void) =
+	(void *) BPF_FUNC_get_current_pid_tgid;
+static unsigned long long (*bpf_get_current_uid_gid)(void) =
+	(void *) BPF_FUNC_get_current_uid_gid;
+static int (*bpf_get_current_comm)(void *buf, int buf_size) =
+	(void *) BPF_FUNC_get_current_comm;
 
 /* llvm builtin functions that eBPF C program may use to
  * emit BPF_LD_ABS and BPF_LD_IND instructions

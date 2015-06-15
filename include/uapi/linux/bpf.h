@@ -230,6 +230,25 @@ enum bpf_func_id {
 	 * Return: 0 on success
 	 */
 	BPF_FUNC_clone_redirect,
+
+	/**
+	 * u64 bpf_get_current_pid_tgid(void)
+	 * Return: current->tgid << 32 | current->pid
+	 */
+	BPF_FUNC_get_current_pid_tgid,
+
+	/**
+	 * u64 bpf_get_current_uid_gid(void)
+	 * Return: current_gid << 32 | current_uid
+	 */
+	BPF_FUNC_get_current_uid_gid,
+
+	/**
+	 * bpf_get_current_comm(char *buf, int size_of_buf)
+	 * stores current->comm into buf
+	 * Return: 0 on success
+	 */
+	BPF_FUNC_get_current_comm,
 	__BPF_FUNC_MAX_ID,
 };
 

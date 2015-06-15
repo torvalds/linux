@@ -1442,6 +1442,8 @@ sk_filter_func_proto(enum bpf_func_id func_id)
 		return &bpf_tail_call_proto;
 	case BPF_FUNC_ktime_get_ns:
 		return &bpf_ktime_get_ns_proto;
+	case BPF_FUNC_trace_printk:
+		return bpf_get_trace_printk_proto();
 	default:
 		return NULL;
 	}
@@ -1459,6 +1461,12 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 		return &bpf_l4_csum_replace_proto;
 	case BPF_FUNC_clone_redirect:
 		return &bpf_clone_redirect_proto;
+	case BPF_FUNC_get_current_pid_tgid:
+		return &bpf_get_current_pid_tgid_proto;
+	case BPF_FUNC_get_current_uid_gid:
+		return &bpf_get_current_uid_gid_proto;
+	case BPF_FUNC_get_current_comm:
+		return &bpf_get_current_comm_proto;
 	default:
 		return sk_filter_func_proto(func_id);
 	}

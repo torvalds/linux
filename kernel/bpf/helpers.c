@@ -14,6 +14,8 @@
 #include <linux/random.h>
 #include <linux/smp.h>
 #include <linux/ktime.h>
+#include <linux/sched.h>
+#include <linux/uidgid.h>
 
 /* If kernel subsystem is allowing eBPF programs to call this function,
  * inside its own verifier_ops->get_func_proto() callback it should return
@@ -123,4 +125,60 @@ const struct bpf_func_proto bpf_ktime_get_ns_proto = {
 	.func		= bpf_ktime_get_ns,
 	.gpl_only	= true,
 	.ret_type	= RET_INTEGER,
+};
+
+static u64 bpf_get_current_pid_tgid(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+{
+	struct task_struct *task = current;
+
+	if (!task)
+		return -EINVAL;
+
+	return (u64) task->tgid << 32 | task->pid;
+}
+
+const struct bpf_func_proto bpf_get_current_pid_tgid_proto = {
+	.func		= bpf_get_current_pid_tgid,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+};
+
+static u64 bpf_get_current_uid_gid(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+{
+	struct task_struct *task = current;
+	kuid_t uid;
+	kgid_t gid;
+
+	if (!task)
+		return -EINVAL;
+
+	current_uid_gid(&uid, &gid);
+	return (u64) from_kgid(&init_user_ns, gid) << 32 |
+		from_kuid(&init_user_ns, uid);
+}
+
+const struct bpf_func_proto bpf_get_current_uid_gid_proto = {
+	.func		= bpf_get_current_uid_gid,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+};
+
+static u64 bpf_get_current_comm(u64 r1, u64 size, u64 r3, u64 r4, u64 r5)
+{
+	struct task_struct *task = current;
+	char *buf = (char *) (long) r1;
+
+	if (!task)
+		return -EINVAL;
+
+	memcpy(buf, task->comm, min_t(size_t, size, sizeof(task->comm)));
+	return 0;
+}
+
+const struct bpf_func_proto bpf_get_current_comm_proto = {
+	.func		= bpf_get_current_comm,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_STACK,
+	.arg2_type	= ARG_CONST_STACK_SIZE,
 };
