@@ -535,6 +535,8 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 	struct pci_dev *dev;
 	struct slot *slot = ctrl->slot;
 	u16 detected, intr_loc;
+	u8 open, present;
+	bool link;
 
 	/*
 	 * In order to guarantee that all interrupt events are
@@ -580,25 +582,44 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 		return IRQ_HANDLED;
 
 	/* Check MRL Sensor Changed */
-	if (intr_loc & PCI_EXP_SLTSTA_MRLSC)
-		pciehp_handle_switch_change(slot);
+	if (intr_loc & PCI_EXP_SLTSTA_MRLSC) {
+		pciehp_get_latch_status(slot, &open);
+		ctrl_info(ctrl, "Latch %s on Slot(%s)\n",
+			  open ? "open" : "close", slot_name(slot));
+		pciehp_queue_interrupt_event(slot, open ? INT_SWITCH_OPEN :
+					     INT_SWITCH_CLOSE);
+	}
 
 	/* Check Attention Button Pressed */
-	if (intr_loc & PCI_EXP_SLTSTA_ABP)
-		pciehp_handle_attention_button(slot);
+	if (intr_loc & PCI_EXP_SLTSTA_ABP) {
+		ctrl_info(ctrl, "Button pressed on Slot(%s)\n",
+			  slot_name(slot));
+		pciehp_queue_interrupt_event(slot, INT_BUTTON_PRESS);
+	}
 
 	/* Check Presence Detect Changed */
-	if (intr_loc & PCI_EXP_SLTSTA_PDC)
-		pciehp_handle_presence_change(slot);
+	if (intr_loc & PCI_EXP_SLTSTA_PDC) {
+		pciehp_get_adapter_status(slot, &present);
+		ctrl_info(ctrl, "Card %spresent on Slot(%s)\n",
+			  present ? "" : "not ", slot_name(slot));
+		pciehp_queue_interrupt_event(slot, present ? INT_PRESENCE_ON :
+					     INT_PRESENCE_OFF);
+	}
 
 	/* Check Power Fault Detected */
 	if ((intr_loc & PCI_EXP_SLTSTA_PFD) && !ctrl->power_fault_detected) {
 		ctrl->power_fault_detected = 1;
-		pciehp_handle_power_fault(slot);
+		ctrl_err(ctrl, "Power fault on slot %s\n", slot_name(slot));
+		pciehp_queue_interrupt_event(slot, INT_POWER_FAULT);
 	}
 
-	if (intr_loc & PCI_EXP_SLTSTA_DLLSC)
-		pciehp_handle_linkstate_change(slot);
+	if (intr_loc & PCI_EXP_SLTSTA_DLLSC) {
+		link = pciehp_check_link_active(ctrl);
+		ctrl_info(ctrl, "slot(%s): Link %s event\n",
+			  slot_name(slot), link ? "Up" : "Down");
+		pciehp_queue_interrupt_event(slot, link ? INT_LINK_UP :
+					     INT_LINK_DOWN);
+	}
 
 	return IRQ_HANDLED;
 }

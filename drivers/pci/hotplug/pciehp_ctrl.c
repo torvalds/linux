@@ -37,7 +37,7 @@
 
 static void interrupt_event_handler(struct work_struct *work);
 
-static void pciehp_queue_interrupt_event(struct slot *p_slot, u32 event_type)
+void pciehp_queue_interrupt_event(struct slot *p_slot, u32 event_type)
 {
 	struct event_info *info;
 
@@ -51,109 +51,6 @@ static void pciehp_queue_interrupt_event(struct slot *p_slot, u32 event_type)
 	info->event_type = event_type;
 	info->p_slot = p_slot;
 	queue_work(p_slot->wq, &info->work);
-}
-
-u8 pciehp_handle_attention_button(struct slot *p_slot)
-{
-	u32 event_type;
-	struct controller *ctrl = p_slot->ctrl;
-
-	/*
-	 *  Button pressed - See if need to TAKE ACTION!!!
-	 */
-	ctrl_info(ctrl, "Button pressed on Slot(%s)\n", slot_name(p_slot));
-	event_type = INT_BUTTON_PRESS;
-
-	pciehp_queue_interrupt_event(p_slot, event_type);
-
-	return 0;
-}
-
-u8 pciehp_handle_switch_change(struct slot *p_slot)
-{
-	u8 getstatus;
-	u32 event_type;
-	struct controller *ctrl = p_slot->ctrl;
-
-	pciehp_get_latch_status(p_slot, &getstatus);
-	if (getstatus) {
-		/*
-		 * Switch opened
-		 */
-		ctrl_info(ctrl, "Latch open on Slot(%s)\n", slot_name(p_slot));
-		event_type = INT_SWITCH_OPEN;
-	} else {
-		/*
-		 *  Switch closed
-		 */
-		ctrl_info(ctrl, "Latch close on Slot(%s)\n", slot_name(p_slot));
-		event_type = INT_SWITCH_CLOSE;
-	}
-
-	pciehp_queue_interrupt_event(p_slot, event_type);
-
-	return 1;
-}
-
-u8 pciehp_handle_presence_change(struct slot *p_slot)
-{
-	u32 event_type;
-	u8 presence_save;
-	struct controller *ctrl = p_slot->ctrl;
-
-	/* Switch is open, assume a presence change
-	 * Save the presence state
-	 */
-	pciehp_get_adapter_status(p_slot, &presence_save);
-	if (presence_save) {
-		/*
-		 * Card Present
-		 */
-		ctrl_info(ctrl, "Card present on Slot(%s)\n", slot_name(p_slot));
-		event_type = INT_PRESENCE_ON;
-	} else {
-		/*
-		 * Not Present
-		 */
-		ctrl_info(ctrl, "Card not present on Slot(%s)\n",
-			  slot_name(p_slot));
-		event_type = INT_PRESENCE_OFF;
-	}
-
-	pciehp_queue_interrupt_event(p_slot, event_type);
-
-	return 1;
-}
-
-u8 pciehp_handle_power_fault(struct slot *p_slot)
-{
-	u32 event_type;
-	struct controller *ctrl = p_slot->ctrl;
-
-	ctrl_err(ctrl, "Power fault on slot %s\n", slot_name(p_slot));
-	event_type = INT_POWER_FAULT;
-	ctrl_info(ctrl, "Power fault bit %x set\n", 0);
-	pciehp_queue_interrupt_event(p_slot, event_type);
-
-	return 1;
-}
-
-void pciehp_handle_linkstate_change(struct slot *p_slot)
-{
-	u32 event_type;
-	struct controller *ctrl = p_slot->ctrl;
-
-	if (pciehp_check_link_active(ctrl)) {
-		ctrl_info(ctrl, "slot(%s): Link Up event\n",
-			  slot_name(p_slot));
-		event_type = INT_LINK_UP;
-	} else {
-		ctrl_info(ctrl, "slot(%s): Link Down event\n",
-			  slot_name(p_slot));
-		event_type = INT_LINK_DOWN;
-	}
-
-	pciehp_queue_interrupt_event(p_slot, event_type);
 }
 
 /* The following routines constitute the bulk of the
