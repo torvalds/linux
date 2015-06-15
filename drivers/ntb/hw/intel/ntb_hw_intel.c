@@ -246,7 +246,8 @@ static inline int ndev_db_addr(struct intel_ntb_dev *ndev,
 			       phys_addr_t *db_addr, resource_size_t *db_size,
 			       phys_addr_t reg_addr, unsigned long reg)
 {
-	WARN_ON_ONCE(ndev_is_unsafe(ndev, NTB_UNSAFE_DB));
+	if (ndev_is_unsafe(ndev, NTB_UNSAFE_DB))
+		pr_warn_once("%s: NTB unsafe doorbell access", __func__);
 
 	if (db_addr) {
 		*db_addr = reg_addr + reg;
@@ -264,7 +265,8 @@ static inline int ndev_db_addr(struct intel_ntb_dev *ndev,
 static inline u64 ndev_db_read(struct intel_ntb_dev *ndev,
 			       void __iomem *mmio)
 {
-	WARN_ON_ONCE(ndev_is_unsafe(ndev, NTB_UNSAFE_DB));
+	if (ndev_is_unsafe(ndev, NTB_UNSAFE_DB))
+		pr_warn_once("%s: NTB unsafe doorbell access", __func__);
 
 	return ndev->reg->db_ioread(mmio);
 }
@@ -272,7 +274,8 @@ static inline u64 ndev_db_read(struct intel_ntb_dev *ndev,
 static inline int ndev_db_write(struct intel_ntb_dev *ndev, u64 db_bits,
 				void __iomem *mmio)
 {
-	WARN_ON_ONCE(ndev_is_unsafe(ndev, NTB_UNSAFE_DB));
+	if (ndev_is_unsafe(ndev, NTB_UNSAFE_DB))
+		pr_warn_once("%s: NTB unsafe doorbell access", __func__);
 
 	if (db_bits & ~ndev->db_valid_mask)
 		return -EINVAL;
@@ -287,7 +290,8 @@ static inline int ndev_db_set_mask(struct intel_ntb_dev *ndev, u64 db_bits,
 {
 	unsigned long irqflags;
 
-	WARN_ON_ONCE(ndev_is_unsafe(ndev, NTB_UNSAFE_DB));
+	if (ndev_is_unsafe(ndev, NTB_UNSAFE_DB))
+		pr_warn_once("%s: NTB unsafe doorbell access", __func__);
 
 	if (db_bits & ~ndev->db_valid_mask)
 		return -EINVAL;
@@ -307,7 +311,8 @@ static inline int ndev_db_clear_mask(struct intel_ntb_dev *ndev, u64 db_bits,
 {
 	unsigned long irqflags;
 
-	WARN_ON_ONCE(ndev_is_unsafe(ndev, NTB_UNSAFE_DB));
+	if (ndev_is_unsafe(ndev, NTB_UNSAFE_DB))
+		pr_warn_once("%s: NTB unsafe doorbell access", __func__);
 
 	if (db_bits & ~ndev->db_valid_mask)
 		return -EINVAL;
@@ -336,7 +341,8 @@ static inline int ndev_spad_addr(struct intel_ntb_dev *ndev, int idx,
 				 phys_addr_t *spad_addr, phys_addr_t reg_addr,
 				 unsigned long reg)
 {
-	WARN_ON_ONCE(ndev_is_unsafe(ndev, NTB_UNSAFE_SPAD));
+	if (ndev_is_unsafe(ndev, NTB_UNSAFE_SPAD))
+		pr_warn_once("%s: NTB unsafe scratchpad access", __func__);
 
 	if (idx < 0 || idx >= ndev->spad_count)
 		return -EINVAL;
@@ -352,7 +358,8 @@ static inline int ndev_spad_addr(struct intel_ntb_dev *ndev, int idx,
 static inline u32 ndev_spad_read(struct intel_ntb_dev *ndev, int idx,
 				 void __iomem *mmio)
 {
-	WARN_ON_ONCE(ndev_is_unsafe(ndev, NTB_UNSAFE_SPAD));
+	if (ndev_is_unsafe(ndev, NTB_UNSAFE_SPAD))
+		pr_warn_once("%s: NTB unsafe scratchpad access", __func__);
 
 	if (idx < 0 || idx >= ndev->spad_count)
 		return 0;
@@ -363,7 +370,8 @@ static inline u32 ndev_spad_read(struct intel_ntb_dev *ndev, int idx,
 static inline int ndev_spad_write(struct intel_ntb_dev *ndev, int idx, u32 val,
 				  void __iomem *mmio)
 {
-	WARN_ON_ONCE(ndev_is_unsafe(ndev, NTB_UNSAFE_SPAD));
+	if (ndev_is_unsafe(ndev, NTB_UNSAFE_SPAD))
+		pr_warn_once("%s: NTB unsafe scratchpad access", __func__);
 
 	if (idx < 0 || idx >= ndev->spad_count)
 		return -EINVAL;
