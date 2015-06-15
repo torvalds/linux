@@ -2140,7 +2140,7 @@ static void brcmf_p2p_delete_p2pdev(struct brcmf_p2p_info *p2p,
 {
 	cfg80211_unregister_wdev(&vif->wdev);
 	p2p->bss_idx[P2PAPI_BSSCFG_DEVICE].vif = NULL;
-	kfree(vif->ifp);
+	brcmf_remove_interface(vif->ifp->drvr, vif->ifp->bssidx);
 	brcmf_free_vif(vif);
 }
 
