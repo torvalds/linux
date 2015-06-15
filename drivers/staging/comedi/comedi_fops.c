@@ -1085,11 +1085,6 @@ static int do_chaninfo_ioctl(struct comedi_device *dev,
 			if (put_user(x, it.rangelist + i))
 				return -EFAULT;
 		}
-#if 0
-		if (copy_to_user(it.rangelist, s->range_type_list,
-				 s->n_chan * sizeof(unsigned int)))
-			return -EFAULT;
-#endif
 	}
 
 	return 0;
