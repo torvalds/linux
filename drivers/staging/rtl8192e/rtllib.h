@@ -2404,9 +2404,7 @@ extern void HTUseDefaultSetting(struct rtllib_device *ieee);
 #define RT_ASOC_RETRY_LIMIT	5
 u8 MgntQuery_TxRateExcludeCCKRates(struct rtllib_device *ieee);
 extern void rtllib_TURBO_Info(struct rtllib_device *ieee, u8 **tag_p);
-#ifndef ENABLE_LOCK_DEBUG
 #define SEM_DOWN_IEEE_WX(psem) down(psem)
 #define SEM_UP_IEEE_WX(psem) up(psem)
-#endif
 
 #endif /* RTLLIB_H */
