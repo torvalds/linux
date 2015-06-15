@@ -23,6 +23,8 @@
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
+#include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spinlock.h>
 
@@ -213,6 +215,7 @@
 #define MSDC_ASYNC_FLAG (0x1 << 1)
 #define MSDC_MMAP_FLAG (0x1 << 2)
 
+#define MTK_MMC_AUTOSUSPEND_DELAY	50
 #define CMD_TIMEOUT         (HZ/10 * 5)	/* 100ms x5 */
 #define DAT_TIMEOUT         (HZ    * 5)	/* 1000ms x5 */
 
@@ -255,6 +258,15 @@ struct msdc_dma {
 	dma_addr_t bd_addr;	/* the physical address of bd array */
 };
 
+struct msdc_save_para {
+	u32 msdc_cfg;
+	u32 iocon;
+	u32 sdc_cfg;
+	u32 pad_tune;
+	u32 patch_bit0;
+	u32 patch_bit1;
+};
+
 struct msdc_host {
 	struct device *dev;
 	struct mmc_host *mmc;	/* mmc structure */
@@ -287,6 +299,7 @@ struct msdc_host {
 	u32 sclk;		/* SD/MS bus clock frequency */
 	bool ddr;
 	bool vqmmc_enabled;
+	struct msdc_save_para save_para; /* used when gate HCLK */
 };
 
 static void sdr_set_bits(void __iomem *reg, u32 bs)
@@ -678,6 +691,9 @@ static void msdc_request_done(struct msdc_host *host, struct mmc_request *mrq)
 	if (mrq->data)
 		msdc_unprepare_data(host, mrq);
 	mmc_request_done(host->mmc, mrq);
+
+	pm_runtime_mark_last_busy(host->dev);
+	pm_runtime_put_autosuspend(host->dev);
 }
 
 /* returns true if command is fully handled; returns false otherwise */
@@ -831,6 +847,8 @@ static void msdc_ops_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	host->error = 0;
 	WARN_ON(host->mrq);
 	host->mrq = mrq;
+
+	pm_runtime_get_sync(host->dev);
 
 	if (mrq->data)
 		msdc_prepare_data(host, mrq);
@@ -1146,6 +1164,8 @@ static void msdc_ops_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	int ret;
 	u32 ddr = 0;
 
+	pm_runtime_get_sync(host->dev);
+
 	if (ios->timing == MMC_TIMING_UHS_DDR50 ||
 	    ios->timing == MMC_TIMING_MMC_DDR52)
 		ddr = 1;
@@ -1160,7 +1180,7 @@ static void msdc_ops_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 					ios->vdd);
 			if (ret) {
 				dev_err(host->dev, "Failed to set vmmc power!\n");
-				return;
+				goto end;
 			}
 		}
 		break;
@@ -1188,6 +1208,10 @@ static void msdc_ops_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	if (host->mclk != ios->clock || host->ddr != ddr)
 		msdc_set_mclk(host, ddr, ios->clock);
+
+end:
+	pm_runtime_mark_last_busy(host->dev);
+	pm_runtime_put_autosuspend(host->dev);
 }
 
 static struct mmc_host_ops mt_msdc_ops = {
@@ -1311,12 +1335,18 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	if (ret)
 		goto release;
 
+	pm_runtime_set_active(host->dev);
+	pm_runtime_set_autosuspend_delay(host->dev, MTK_MMC_AUTOSUSPEND_DELAY);
+	pm_runtime_use_autosuspend(host->dev);
+	pm_runtime_enable(host->dev);
 	ret = mmc_add_host(mmc);
+
 	if (ret)
-		goto release;
+		goto end;
 
 	return 0;
-
+end:
+	pm_runtime_disable(host->dev);
 release:
 	platform_set_drvdata(pdev, NULL);
 	msdc_deinit_hw(host);
@@ -1344,11 +1374,15 @@ static int msdc_drv_remove(struct platform_device *pdev)
 	mmc = platform_get_drvdata(pdev);
 	host = mmc_priv(mmc);
 
+	pm_runtime_get_sync(host->dev);
+
 	platform_set_drvdata(pdev, NULL);
 	mmc_remove_host(host->mmc);
 	msdc_deinit_hw(host);
 	msdc_gate_clock(host);
 
+	pm_runtime_disable(host->dev);
+	pm_runtime_put_noidle(host->dev);
 	dma_free_coherent(&pdev->dev,
 			sizeof(struct mt_gpdma_desc),
 			host->dma.gpd, host->dma.gpd_addr);
@@ -1359,6 +1393,54 @@ static int msdc_drv_remove(struct platform_device *pdev)
 
 	return 0;
 }
+
+#ifdef CONFIG_PM
+static void msdc_save_reg(struct msdc_host *host)
+{
+	host->save_para.msdc_cfg = readl(host->base + MSDC_CFG);
+	host->save_para.iocon = readl(host->base + MSDC_IOCON);
+	host->save_para.sdc_cfg = readl(host->base + SDC_CFG);
+	host->save_para.pad_tune = readl(host->base + MSDC_PAD_TUNE);
+	host->save_para.patch_bit0 = readl(host->base + MSDC_PATCH_BIT);
+	host->save_para.patch_bit1 = readl(host->base + MSDC_PATCH_BIT1);
+}
+
+static void msdc_restore_reg(struct msdc_host *host)
+{
+	writel(host->save_para.msdc_cfg, host->base + MSDC_CFG);
+	writel(host->save_para.iocon, host->base + MSDC_IOCON);
+	writel(host->save_para.sdc_cfg, host->base + SDC_CFG);
+	writel(host->save_para.pad_tune, host->base + MSDC_PAD_TUNE);
+	writel(host->save_para.patch_bit0, host->base + MSDC_PATCH_BIT);
+	writel(host->save_para.patch_bit1, host->base + MSDC_PATCH_BIT1);
+}
+
+static int msdc_runtime_suspend(struct device *dev)
+{
+	struct mmc_host *mmc = dev_get_drvdata(dev);
+	struct msdc_host *host = mmc_priv(mmc);
+
+	msdc_save_reg(host);
+	msdc_gate_clock(host);
+	return 0;
+}
+
+static int msdc_runtime_resume(struct device *dev)
+{
+	struct mmc_host *mmc = dev_get_drvdata(dev);
+	struct msdc_host *host = mmc_priv(mmc);
+
+	msdc_ungate_clock(host);
+	msdc_restore_reg(host);
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops msdc_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(msdc_runtime_suspend, msdc_runtime_resume, NULL)
+};
 
 static const struct of_device_id msdc_of_ids[] = {
 	{   .compatible = "mediatek,mt8135-mmc", },
@@ -1371,6 +1453,7 @@ static struct platform_driver mt_msdc_driver = {
 	.driver = {
 		.name = "mtk-msdc",
 		.of_match_table = msdc_of_ids,
+		.pm = &msdc_dev_pm_ops,
 	},
 };
 
