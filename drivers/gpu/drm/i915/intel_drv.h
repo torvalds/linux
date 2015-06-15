@@ -1147,7 +1147,6 @@ void intel_mode_from_pipe_config(struct drm_display_mode *mode,
 				 struct intel_crtc_state *pipe_config);
 void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc);
 void intel_modeset_preclose(struct drm_device *dev, struct drm_file *file);
-void skl_detach_scalers(struct intel_crtc *intel_crtc);
 
 int skl_update_scaler_crtc(struct intel_crtc_state *crtc_state, int force_detach);
 int skl_max_scale(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state);

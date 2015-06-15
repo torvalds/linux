@@ -2925,15 +2925,12 @@ unsigned long intel_plane_obj_offset(struct intel_plane *intel_plane,
 /*
  * This function detaches (aka. unbinds) unused scalers in hardware
  */
-void skl_detach_scalers(struct intel_crtc *intel_crtc)
+static void skl_detach_scalers(struct intel_crtc *intel_crtc)
 {
 	struct drm_device *dev;
 	struct drm_i915_private *dev_priv;
 	struct intel_crtc_scaler_state *scaler_state;
 	int i;
-
-	if (!intel_crtc || !intel_crtc->config)
-		return;
 
 	dev = intel_crtc->base.dev;
 	dev_priv = dev->dev_private;
@@ -13831,6 +13828,9 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc)
 		intel_crtc->atomic.evade =
 			intel_pipe_update_start(intel_crtc,
 						&intel_crtc->atomic.start_vbl_count);
+
+	if (!needs_modeset(crtc->state) && INTEL_INFO(dev)->gen >= 9)
+		skl_detach_scalers(intel_crtc);
 }
 
 static void intel_finish_crtc_commit(struct drm_crtc *crtc)

@@ -144,9 +144,6 @@ int intel_atomic_commit(struct drm_device *dev,
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		to_intel_crtc(crtc)->config = to_intel_crtc_state(crtc->state);
 
-		if (INTEL_INFO(dev)->gen >= 9)
-			skl_detach_scalers(to_intel_crtc(crtc));
-
 		drm_atomic_helper_commit_planes_on_crtc(crtc_state);
 	}
 
