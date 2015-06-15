@@ -621,6 +621,10 @@ int kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 
 	if ((cr0 ^ old_cr0) & update_bits)
 		kvm_mmu_reset_context(vcpu);
+
+	if ((cr0 ^ old_cr0) & X86_CR0_CD)
+		kvm_zap_gfn_range(vcpu->kvm, 0, ~0ULL);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(kvm_set_cr0);

@@ -8628,7 +8628,8 @@ static int get_ept_level(void)
 
 static u64 vmx_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 {
-	u64 ret;
+	u8 cache;
+	u64 ipat = 0;
 
 	/* For VT-d and EPT combination
 	 * 1. MMIO: always map as UC
@@ -8641,16 +8642,27 @@ static u64 vmx_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 	 * 3. EPT without VT-d: always map as WB and set IPAT=1 to keep
 	 *    consistent with host MTRR
 	 */
-	if (is_mmio)
-		ret = MTRR_TYPE_UNCACHABLE << VMX_EPT_MT_EPTE_SHIFT;
-	else if (kvm_arch_has_noncoherent_dma(vcpu->kvm))
-		ret = kvm_get_guest_memory_type(vcpu, gfn) <<
-		      VMX_EPT_MT_EPTE_SHIFT;
-	else
-		ret = (MTRR_TYPE_WRBACK << VMX_EPT_MT_EPTE_SHIFT)
-			| VMX_EPT_IPAT_BIT;
+	if (is_mmio) {
+		cache = MTRR_TYPE_UNCACHABLE;
+		goto exit;
+	}
 
-	return ret;
+	if (!kvm_arch_has_noncoherent_dma(vcpu->kvm)) {
+		ipat = VMX_EPT_IPAT_BIT;
+		cache = MTRR_TYPE_WRBACK;
+		goto exit;
+	}
+
+	if (kvm_read_cr0(vcpu) & X86_CR0_CD) {
+		ipat = VMX_EPT_IPAT_BIT;
+		cache = MTRR_TYPE_UNCACHABLE;
+		goto exit;
+	}
+
+	cache = kvm_get_guest_memory_type(vcpu, gfn);
+
+exit:
+	return (cache << VMX_EPT_MT_EPTE_SHIFT) | ipat;
 }
 
 static int vmx_get_lpage_level(void)
