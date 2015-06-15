@@ -1000,6 +1000,7 @@ static int soc_camera_streamoff(struct file *file, void *priv,
 	struct soc_camera_device *icd = file->private_data;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+	int ret;
 
 	WARN_ON(priv != file->private_data);
 
@@ -1014,13 +1015,13 @@ static int soc_camera_streamoff(struct file *file, void *priv,
 	 * remaining buffers. When the last buffer is freed, stop capture
 	 */
 	if (ici->ops->init_videobuf)
-		videobuf_streamoff(&icd->vb_vidq);
+		ret = videobuf_streamoff(&icd->vb_vidq);
 	else
-		vb2_streamoff(&icd->vb2_vidq, i);
+		ret = vb2_streamoff(&icd->vb2_vidq, i);
 
 	v4l2_subdev_call(sd, video, s_stream, 0);
 
-	return 0;
+	return ret;
 }
 
 static int soc_camera_cropcap(struct file *file, void *fh,
