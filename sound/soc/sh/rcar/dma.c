@@ -36,7 +36,10 @@ static void rsnd_dmaen_complete(void *data)
 {
 	struct rsnd_dma *dma = (struct rsnd_dma *)data;
 	struct rsnd_mod *mod = rsnd_dma_to_mod(dma);
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
+	bool elapsed = false;
+	unsigned long flags;
 
 	/*
 	 * Renesas sound Gen1 needs 1 DMAC,
@@ -49,8 +52,14 @@ static void rsnd_dmaen_complete(void *data)
 	 * rsnd_dai_pointer_update() will be called twice,
 	 * ant it will breaks io->byte_pos
 	 */
+	spin_lock_irqsave(&priv->lock, flags);
 
-	rsnd_dai_pointer_update(io, io->byte_per_period);
+	elapsed = rsnd_dai_pointer_update(io, io->byte_per_period);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	if (elapsed)
+		rsnd_dai_period_elapsed(io);
 }
 
 static void rsnd_dmaen_stop(struct rsnd_dma *dma)

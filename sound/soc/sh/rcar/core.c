@@ -302,7 +302,7 @@ int rsnd_dai_pointer_offset(struct rsnd_dai_stream *io, int additional)
 	return pos;
 }
 
-void rsnd_dai_pointer_update(struct rsnd_dai_stream *io, int byte)
+bool rsnd_dai_pointer_update(struct rsnd_dai_stream *io, int byte)
 {
 	io->byte_pos += byte;
 
@@ -319,8 +319,24 @@ void rsnd_dai_pointer_update(struct rsnd_dai_stream *io, int byte)
 			io->next_period_byte = io->byte_per_period;
 		}
 
-		snd_pcm_period_elapsed(substream);
+		return true;
 	}
+
+	return false;
+}
+
+void rsnd_dai_period_elapsed(struct rsnd_dai_stream *io)
+{
+	struct snd_pcm_substream *substream = io->substream;
+
+	/*
+	 * this function should be called...
+	 *
+	 * - if rsnd_dai_pointer_update() returns true
+	 * - without spin lock
+	 */
+
+	snd_pcm_period_elapsed(substream);
 }
 
 static void rsnd_dai_stream_init(struct rsnd_dai_stream *io,

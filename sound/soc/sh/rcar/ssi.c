@@ -426,6 +426,7 @@ static irqreturn_t rsnd_ssi_interrupt(int irq, void *data)
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	int is_dma = rsnd_ssi_is_dma_mode(mod);
 	u32 status;
+	bool elapsed = false;
 
 	spin_lock(&priv->lock);
 
@@ -451,7 +452,7 @@ static irqreturn_t rsnd_ssi_interrupt(int irq, void *data)
 		else
 			*buf = rsnd_mod_read(mod, SSIRDR);
 
-		rsnd_dai_pointer_update(io, sizeof(*buf));
+		elapsed = rsnd_dai_pointer_update(io, sizeof(*buf));
 	}
 
 	/* DMA only */
@@ -475,6 +476,9 @@ static irqreturn_t rsnd_ssi_interrupt(int irq, void *data)
 
 rsnd_ssi_interrupt_out:
 	spin_unlock(&priv->lock);
+
+	if (elapsed)
+		rsnd_dai_period_elapsed(io);
 
 	return IRQ_HANDLED;
 }

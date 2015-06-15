@@ -355,7 +355,8 @@ struct rsnd_dai {
 
 struct rsnd_dai *rsnd_rdai_get(struct rsnd_priv *priv, int id);
 
-void rsnd_dai_pointer_update(struct rsnd_dai_stream *io, int cnt);
+bool rsnd_dai_pointer_update(struct rsnd_dai_stream *io, int cnt);
+void rsnd_dai_period_elapsed(struct rsnd_dai_stream *io);
 int rsnd_dai_pointer_offset(struct rsnd_dai_stream *io, int additional);
 
 /*
