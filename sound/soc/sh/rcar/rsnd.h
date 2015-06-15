@@ -172,11 +172,11 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod, struct rsnd_dai_stream *io);
  */
 struct rsnd_dma;
 struct rsnd_dma_ops {
-	void (*start)(struct rsnd_dma *dma);
-	void (*stop)(struct rsnd_dma *dma);
-	int (*init)(struct rsnd_priv *priv, struct rsnd_dma *dma, int id,
+	void (*start)(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
+	void (*stop)(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
+	int (*init)(struct rsnd_dai_stream *io, struct rsnd_dma *dma, int id,
 		    struct rsnd_mod *mod_from, struct rsnd_mod *mod_to);
-	void  (*quit)(struct rsnd_dma *dma);
+	void (*quit)(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
 };
 
 struct rsnd_dmaen {
@@ -200,10 +200,10 @@ struct rsnd_dma {
 #define rsnd_dma_to_dmaen(dma)	(&(dma)->dma.en)
 #define rsnd_dma_to_dmapp(dma)	(&(dma)->dma.pp)
 
-void rsnd_dma_start(struct rsnd_dma *dma);
-void rsnd_dma_stop(struct rsnd_dma *dma);
-int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma, int id);
-void  rsnd_dma_quit(struct rsnd_dma *dma);
+void rsnd_dma_start(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
+void rsnd_dma_stop(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
+int rsnd_dma_init(struct rsnd_dai_stream *io, struct rsnd_dma *dma, int id);
+void rsnd_dma_quit(struct rsnd_dai_stream *io, struct rsnd_dma *dma);
 int rsnd_dma_probe(struct platform_device *pdev,
 		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv);
@@ -224,7 +224,8 @@ enum rsnd_mod_type {
 
 struct rsnd_mod_ops {
 	char *name;
-	struct dma_chan* (*dma_req)(struct rsnd_mod *mod);
+	struct dma_chan* (*dma_req)(struct rsnd_dai_stream *io,
+				    struct rsnd_mod *mod);
 	int (*probe)(struct rsnd_mod *mod,
 		     struct rsnd_dai_stream *io,
 		     struct rsnd_priv *priv);
@@ -326,7 +327,8 @@ int rsnd_mod_init(struct rsnd_priv *priv,
 void rsnd_mod_quit(struct rsnd_mod *mod);
 char *rsnd_mod_name(struct rsnd_mod *mod);
 int rsnd_mod_is_working(struct rsnd_mod *mod);
-struct dma_chan *rsnd_mod_dma_req(struct rsnd_mod *mod);
+struct dma_chan *rsnd_mod_dma_req(struct rsnd_dai_stream *io,
+				  struct rsnd_mod *mod);
 void rsnd_mod_interrupt(struct rsnd_mod *mod,
 			void (*callback)(struct rsnd_mod *mod,
 					 struct rsnd_dai_stream *io));

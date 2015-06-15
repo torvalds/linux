@@ -137,12 +137,13 @@ char *rsnd_mod_name(struct rsnd_mod *mod)
 	return mod->ops->name;
 }
 
-struct dma_chan *rsnd_mod_dma_req(struct rsnd_mod *mod)
+struct dma_chan *rsnd_mod_dma_req(struct rsnd_dai_stream *io,
+				  struct rsnd_mod *mod)
 {
 	if (!mod || !mod->ops || !mod->ops->dma_req)
 		return NULL;
 
-	return mod->ops->dma_req(mod);
+	return mod->ops->dma_req(io, mod);
 }
 
 int rsnd_mod_init(struct rsnd_priv *priv,

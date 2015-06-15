@@ -533,7 +533,7 @@ static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
 		return ret;
 
 	ret = rsnd_dma_init(
-		priv, rsnd_mod_to_dma(mod),
+		io, rsnd_mod_to_dma(mod),
 		dma_id);
 
 	return ret;
@@ -547,7 +547,7 @@ static int rsnd_ssi_dma_remove(struct rsnd_mod *mod,
 	struct device *dev = rsnd_priv_to_dev(priv);
 	int irq = ssi->info->irq;
 
-	rsnd_dma_quit(rsnd_mod_to_dma(mod));
+	rsnd_dma_quit(io, rsnd_mod_to_dma(mod));
 
 	/* PIO will request IRQ again */
 	devm_free_irq(dev, irq, ssi);
@@ -582,7 +582,7 @@ static int rsnd_ssi_dma_start(struct rsnd_mod *mod,
 {
 	struct rsnd_dma *dma = rsnd_mod_to_dma(mod);
 
-	rsnd_dma_start(dma);
+	rsnd_dma_start(io, dma);
 
 	rsnd_ssi_start(mod, io, priv);
 
@@ -597,15 +597,15 @@ static int rsnd_ssi_dma_stop(struct rsnd_mod *mod,
 
 	rsnd_ssi_stop(mod, io, priv);
 
-	rsnd_dma_stop(dma);
+	rsnd_dma_stop(io, dma);
 
 	return 0;
 }
 
-static struct dma_chan *rsnd_ssi_dma_req(struct rsnd_mod *mod)
+static struct dma_chan *rsnd_ssi_dma_req(struct rsnd_dai_stream *io,
+					 struct rsnd_mod *mod)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	int is_play = rsnd_io_is_play(io);
 	char *name;
 

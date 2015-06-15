@@ -265,7 +265,8 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 	return 0;
 }
 
-static struct dma_chan *rsnd_dvc_dma_req(struct rsnd_mod *mod)
+static struct dma_chan *rsnd_dvc_dma_req(struct rsnd_dai_stream *io,
+					 struct rsnd_mod *mod)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 
