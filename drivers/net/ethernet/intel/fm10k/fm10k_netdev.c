@@ -775,8 +775,8 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 	if (!set)
 		clear_bit(vid, interface->active_vlans);
 
-	/* if default VLAN is already present do nothing */
-	if (vid == hw->mac.default_vid)
+	/* Do not remove default VID related entries from VLAN and MAC tables */
+	if (!set && vid == hw->mac.default_vid)
 		return 0;
 
 	fm10k_mbx_lock(interface);
