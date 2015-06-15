@@ -1544,7 +1544,8 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 						dev->counters[qp->port - 1];
 			optpar |= MLX4_QP_OPTPAR_COUNTER_INDEX;
 		} else
-			context->pri_path.counter_index = 0xff;
+			context->pri_path.counter_index =
+				MLX4_SINK_COUNTER_INDEX(dev->dev);
 
 		if (qp->flags & MLX4_IB_QP_NETIF) {
 			mlx4_ib_steer_qp_reg(dev, qp, 1);

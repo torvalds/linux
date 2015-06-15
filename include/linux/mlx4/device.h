@@ -957,6 +957,7 @@ struct mlx4_mad_ifc {
 			((dev)->caps.flags & MLX4_DEV_CAP_FLAG_IBOE))
 
 #define MLX4_INVALID_SLAVE_ID	0xFF
+#define MLX4_SINK_COUNTER_INDEX(dev)	(dev->caps.max_counters - 1)
 
 void handle_port_mgmt_change_event(struct work_struct *work);
 
