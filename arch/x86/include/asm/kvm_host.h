@@ -342,6 +342,13 @@ enum {
 	KVM_DEBUGREG_RELOAD = 4,
 };
 
+struct kvm_mtrr {
+	struct mtrr_var_range var_ranges[MTRR_MAX_VAR_RANGES];
+	mtrr_type fixed_ranges[KVM_NR_FIXED_MTRR_REGION];
+	unsigned char enabled;
+	mtrr_type def_type;
+};
+
 struct kvm_vcpu_arch {
 	/*
 	 * rip and regs accesses must go through
@@ -472,7 +479,7 @@ struct kvm_vcpu_arch {
 	bool nmi_injected;    /* Trying to inject an NMI this entry */
 	bool smi_pending;    /* SMI queued after currently running handler */
 
-	struct mtrr_state_type mtrr_state;
+	struct kvm_mtrr mtrr_state;
 	u64 pat;
 
 	unsigned switch_db_regs;

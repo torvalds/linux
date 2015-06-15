@@ -103,7 +103,7 @@ EXPORT_SYMBOL_GPL(kvm_mtrr_valid);
 
 static void update_mtrr(struct kvm_vcpu *vcpu, u32 msr)
 {
-	struct mtrr_state_type *mtrr_state = &vcpu->arch.mtrr_state;
+	struct kvm_mtrr *mtrr_state = &vcpu->arch.mtrr_state;
 	unsigned char mtrr_enabled = mtrr_state->enabled;
 	gfn_t start, end, mask;
 	int index;
@@ -247,7 +247,7 @@ int kvm_mtrr_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
  * The function is based on mtrr_type_lookup() in
  * arch/x86/kernel/cpu/mtrr/generic.c
  */
-static int get_mtrr_type(struct mtrr_state_type *mtrr_state,
+static int get_mtrr_type(struct kvm_mtrr *mtrr_state,
 			 u64 start, u64 end)
 {
 	u64 base, mask;
@@ -262,8 +262,7 @@ static int get_mtrr_type(struct mtrr_state_type *mtrr_state,
 	end--;
 
 	/* Look in fixed ranges. Just return the type as per start */
-	if (mtrr_state->have_fixed && (mtrr_state->enabled & 0x1) &&
-	      (start < 0x100000)) {
+	if ((mtrr_state->enabled & 0x1) && (start < 0x100000)) {
 		int idx;
 
 		if (start < 0x80000) {
