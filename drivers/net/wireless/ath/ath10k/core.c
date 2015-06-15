@@ -103,6 +103,50 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 	},
 };
 
+static const char *const ath10k_core_fw_feature_str[] = {
+	[ATH10K_FW_FEATURE_EXT_WMI_MGMT_RX] = "wmi-mgmt-rx",
+	[ATH10K_FW_FEATURE_WMI_10X] = "wmi-10.x",
+	[ATH10K_FW_FEATURE_HAS_WMI_MGMT_TX] = "has-wmi-mgmt-tx",
+	[ATH10K_FW_FEATURE_NO_P2P] = "no-p2p",
+	[ATH10K_FW_FEATURE_WMI_10_2] = "wmi-10.2",
+	[ATH10K_FW_FEATURE_MULTI_VIF_PS_SUPPORT] = "multi-vif-ps",
+	[ATH10K_FW_FEATURE_WOWLAN_SUPPORT] = "wowlan",
+	[ATH10K_FW_FEATURE_IGNORE_OTP_RESULT] = "ignore-otp",
+	[ATH10K_FW_FEATURE_NO_NWIFI_DECAP_4ADDR_PADDING] = "no-4addr-pad",
+	[ATH10K_FW_FEATURE_SUPPORTS_SKIP_CLOCK_INIT] = "skip-clock-init",
+};
+
+static unsigned int ath10k_core_get_fw_feature_str(char *buf,
+						   size_t buf_len,
+						   enum ath10k_fw_features feat)
+{
+	if (feat >= ARRAY_SIZE(ath10k_core_fw_feature_str) ||
+	    WARN_ON(!ath10k_core_fw_feature_str[feat])) {
+		return scnprintf(buf, buf_len, "bit%d", feat);
+	}
+
+	return scnprintf(buf, buf_len, "%s", ath10k_core_fw_feature_str[feat]);
+}
+
+void ath10k_core_get_fw_features_str(struct ath10k *ar,
+				     char *buf,
+				     size_t buf_len)
+{
+	unsigned int len = 0;
+	int i;
+
+	for (i = 0; i < ATH10K_FW_FEATURE_COUNT; i++) {
+		if (test_bit(i, ar->fw_features)) {
+			if (len > 0)
+				len += scnprintf(buf + len, buf_len - len, ",");
+
+			len += ath10k_core_get_fw_feature_str(buf + len,
+							      buf_len - len,
+							      i);
+		}
+	}
+}
+
 static void ath10k_send_suspend_complete(struct ath10k *ar)
 {
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot suspend complete\n");
