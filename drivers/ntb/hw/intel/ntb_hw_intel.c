@@ -2012,6 +2012,8 @@ static int intel_ntb_pci_probe(struct pci_dev *pdev,
 	if (rc)
 		goto err_register;
 
+	dev_info(&pdev->dev, "NTB device registered.\n");
+
 	return 0;
 
 err_register:
@@ -2192,6 +2194,8 @@ static struct pci_driver intel_ntb_pci_driver = {
 
 static int __init intel_ntb_pci_driver_init(void)
 {
+	pr_info("%s %s\n", NTB_DESC, NTB_VER);
+
 	if (debugfs_initialized())
 		debugfs_dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
 
