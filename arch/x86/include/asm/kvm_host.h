@@ -345,8 +345,7 @@ enum {
 struct kvm_mtrr {
 	struct mtrr_var_range var_ranges[KVM_NR_VAR_MTRR];
 	mtrr_type fixed_ranges[KVM_NR_FIXED_MTRR_REGION];
-	unsigned char enabled;
-	mtrr_type def_type;
+	u64 deftype;
 };
 
 struct kvm_vcpu_arch {
