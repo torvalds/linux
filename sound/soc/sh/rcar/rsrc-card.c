@@ -391,9 +391,9 @@ dai_link_of_err:
 }
 
 static int rsrc_card_parse_of(struct device_node *node,
-			      struct rsrc_card_priv *priv)
+			      struct rsrc_card_priv *priv,
+			      struct device *dev)
 {
-	struct device *dev = rsrc_priv_to_dev(priv);
 	const struct rsrc_card_of_data *of_data = rsrc_dev_to_of_data(dev);
 	int ret;
 	int i;
@@ -404,7 +404,13 @@ static int rsrc_card_parse_of(struct device_node *node,
 	/* Parse the card name from DT */
 	snd_soc_of_parse_card_name(&priv->snd_card, "card-name");
 
-	/* DAPM routes */
+	/* Init snd_soc_card */
+	priv->snd_card.owner			= THIS_MODULE;
+	priv->snd_card.dev			= dev;
+	priv->snd_card.dai_link			= priv->dai_link;
+	priv->snd_card.num_links		= RSRC_FB_NUM;
+	priv->snd_card.codec_conf		= &priv->codec_conf;
+	priv->snd_card.num_configs		= 1;
 	priv->snd_card.of_dapm_routes		= of_data->routes;
 	priv->snd_card.num_of_dapm_routes	= of_data->num_routes;
 
@@ -446,7 +452,6 @@ static int rsrc_card_unref(struct snd_soc_card *card)
 static int rsrc_card_probe(struct platform_device *pdev)
 {
 	struct rsrc_card_priv *priv;
-	struct snd_soc_dai_link *dai_link;
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	int ret;
@@ -456,16 +461,7 @@ static int rsrc_card_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	/* Init snd_soc_card */
-	priv->snd_card.owner = THIS_MODULE;
-	priv->snd_card.dev = dev;
-	dai_link = priv->dai_link;
-	priv->snd_card.dai_link = dai_link;
-	priv->snd_card.num_links = RSRC_FB_NUM;
-	priv->snd_card.codec_conf = &priv->codec_conf;
-	priv->snd_card.num_configs = 1;
-
-	ret = rsrc_card_parse_of(np, priv);
+	ret = rsrc_card_parse_of(np, priv, dev);
 	if (ret < 0) {
 		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "parse error %d\n", ret);
