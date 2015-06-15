@@ -18,3 +18,5 @@ config VFIO_AMBA
 	  framework.
 
 	  If you don't know what to do here, say N.
+
+source "drivers/vfio/platform/reset/Kconfig"

@@ -26,6 +26,11 @@
 static DEFINE_MUTEX(driver_lock);
 
 static const struct vfio_platform_reset_combo reset_lookup_table[] = {
+	{
+		.compat = "calxeda,hb-xgmac",
+		.reset_function_name = "vfio_platform_calxedaxgmac_reset",
+		.module_name = "vfio-platform-calxedaxgmac",
+	},
 };
 
 static void vfio_platform_get_reset(struct vfio_platform_device *vdev,
