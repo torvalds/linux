@@ -13769,14 +13769,14 @@ intel_commit_primary_plane(struct drm_plane *plane,
 	crtc->x = src->x1 >> 16;
 	crtc->y = src->y1 >> 16;
 
-	if (intel_crtc->active) {
-		if (state->visible)
-			/* FIXME: kill this fastboot hack */
-			intel_update_pipe_size(intel_crtc);
+	if (!intel_crtc->active)
+		return;
 
-		dev_priv->display.update_primary_plane(crtc, plane->fb,
-						       crtc->x, crtc->y);
-	}
+	if (state->visible)
+		/* FIXME: kill this fastboot hack */
+		intel_update_pipe_size(intel_crtc);
+
+	dev_priv->display.update_primary_plane(crtc, fb, crtc->x, crtc->y);
 }
 
 static void
@@ -14078,8 +14078,8 @@ intel_commit_cursor_plane(struct drm_plane *plane,
 
 	intel_crtc->cursor_addr = addr;
 	intel_crtc->cursor_bo = obj;
-update:
 
+update:
 	if (intel_crtc->active)
 		intel_crtc_update_cursor(crtc, state->visible);
 }

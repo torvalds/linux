@@ -930,31 +930,26 @@ intel_commit_sprite_plane(struct drm_plane *plane,
 	struct intel_crtc *intel_crtc;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_framebuffer *fb = state->base.fb;
-	int crtc_x, crtc_y;
-	unsigned int crtc_w, crtc_h;
-	uint32_t src_x, src_y, src_w, src_h;
 
 	crtc = crtc ? crtc : plane->crtc;
 	intel_crtc = to_intel_crtc(crtc);
 
 	plane->fb = fb;
 
-	if (intel_crtc->active) {
-		if (state->visible) {
-			crtc_x = state->dst.x1;
-			crtc_y = state->dst.y1;
-			crtc_w = drm_rect_width(&state->dst);
-			crtc_h = drm_rect_height(&state->dst);
-			src_x = state->src.x1 >> 16;
-			src_y = state->src.y1 >> 16;
-			src_w = drm_rect_width(&state->src) >> 16;
-			src_h = drm_rect_height(&state->src) >> 16;
-			intel_plane->update_plane(plane, crtc, fb,
-						  crtc_x, crtc_y, crtc_w, crtc_h,
-						  src_x, src_y, src_w, src_h);
-		} else {
-			intel_plane->disable_plane(plane, crtc, false);
-		}
+	if (!intel_crtc->active)
+		return;
+
+	if (state->visible) {
+		intel_plane->update_plane(plane, crtc, fb,
+					  state->dst.x1, state->dst.y1,
+					  drm_rect_width(&state->dst),
+					  drm_rect_height(&state->dst),
+					  state->src.x1 >> 16,
+					  state->src.y1 >> 16,
+					  drm_rect_width(&state->src) >> 16,
+					  drm_rect_height(&state->src) >> 16);
+	} else {
+		intel_plane->disable_plane(plane, crtc, false);
 	}
 }
 
