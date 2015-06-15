@@ -4403,19 +4403,19 @@ int skl_update_scaler_crtc(struct intel_crtc_state *state, int force_detach)
  * skl_update_scaler_plane - Stages update to scaler state for a given plane.
  *
  * @state: crtc's scaler state
- * @intel_plane: affected plane
  * @plane_state: atomic plane state to update
  *
  * Return
  *     0 - scaler_usage updated successfully
  *    error - requested scaling cannot be supported or other error condition
  */
-int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
-			    struct intel_plane *intel_plane,
-			    struct intel_plane_state *plane_state)
+static int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
+				   struct intel_plane_state *plane_state)
 {
 
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct intel_plane *intel_plane =
+		to_intel_plane(plane_state->base.plane);
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	int ret;
 
@@ -11677,6 +11677,161 @@ retry:
 	return ret;
 }
 
+
+/**
+ * intel_wm_need_update - Check whether watermarks need updating
+ * @plane: drm plane
+ * @state: new plane state
+ *
+ * Check current plane state versus the new one to determine whether
+ * watermarks need to be recalculated.
+ *
+ * Returns true or false.
+ */
+static bool intel_wm_need_update(struct drm_plane *plane,
+				 struct drm_plane_state *state)
+{
+	/* Update watermarks on tiling changes. */
+	if (!plane->state->fb || !state->fb ||
+	    plane->state->fb->modifier[0] != state->fb->modifier[0] ||
+	    plane->state->rotation != state->rotation)
+		return true;
+
+	if (plane->state->crtc_w != state->crtc_w)
+		return true;
+
+	return false;
+}
+
+int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
+				    struct drm_plane_state *plane_state)
+{
+	struct drm_crtc *crtc = crtc_state->crtc;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_plane *plane = plane_state->plane;
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_plane_state *old_plane_state =
+		to_intel_plane_state(plane->state);
+	int idx = intel_crtc->base.base.id, ret;
+	int i = drm_plane_index(plane);
+	bool mode_changed = needs_modeset(crtc_state);
+	bool was_crtc_enabled = crtc->state->active;
+	bool is_crtc_enabled = crtc_state->active;
+
+	bool turn_off, turn_on, visible, was_visible;
+	struct drm_framebuffer *fb = plane_state->fb;
+
+	if (crtc_state && INTEL_INFO(dev)->gen >= 9 &&
+	    plane->type != DRM_PLANE_TYPE_CURSOR) {
+		ret = skl_update_scaler_plane(
+			to_intel_crtc_state(crtc_state),
+			to_intel_plane_state(plane_state));
+		if (ret)
+			return ret;
+	}
+
+	/*
+	 * Disabling a plane is always okay; we just need to update
+	 * fb tracking in a special way since cleanup_fb() won't
+	 * get called by the plane helpers.
+	 */
+	if (old_plane_state->base.fb && !fb)
+		intel_crtc->atomic.disabled_planes |= 1 << i;
+
+	/* don't run rest during modeset yet */
+	if (!intel_crtc->active || mode_changed)
+		return 0;
+
+	was_visible = old_plane_state->visible;
+	visible = to_intel_plane_state(plane_state)->visible;
+
+	if (!was_crtc_enabled && WARN_ON(was_visible))
+		was_visible = false;
+
+	if (!is_crtc_enabled && WARN_ON(visible))
+		visible = false;
+
+	if (!was_visible && !visible)
+		return 0;
+
+	turn_off = was_visible && (!visible || mode_changed);
+	turn_on = visible && (!was_visible || mode_changed);
+
+	DRM_DEBUG_ATOMIC("[CRTC:%i] has [PLANE:%i] with fb %i\n", idx,
+			 plane->base.id, fb ? fb->base.id : -1);
+
+	DRM_DEBUG_ATOMIC("[PLANE:%i] visible %i -> %i, off %i, on %i, ms %i\n",
+			 plane->base.id, was_visible, visible,
+			 turn_off, turn_on, mode_changed);
+
+	if (intel_wm_need_update(plane, plane_state))
+		intel_crtc->atomic.update_wm = true;
+
+	switch (plane->type) {
+	case DRM_PLANE_TYPE_PRIMARY:
+		if (visible)
+			intel_crtc->atomic.fb_bits |=
+			    INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe);
+
+		intel_crtc->atomic.wait_for_flips = true;
+		intel_crtc->atomic.pre_disable_primary = turn_off;
+		intel_crtc->atomic.post_enable_primary = turn_on;
+
+		if (turn_off)
+			intel_crtc->atomic.disable_fbc = true;
+
+		/*
+		 * FBC does not work on some platforms for rotated
+		 * planes, so disable it when rotation is not 0 and
+		 * update it when rotation is set back to 0.
+		 *
+		 * FIXME: This is redundant with the fbc update done in
+		 * the primary plane enable function except that that
+		 * one is done too late. We eventually need to unify
+		 * this.
+		 */
+
+		if (visible &&
+		    INTEL_INFO(dev)->gen <= 4 && !IS_G4X(dev) &&
+		    dev_priv->fbc.crtc == intel_crtc &&
+		    plane_state->rotation != BIT(DRM_ROTATE_0))
+			intel_crtc->atomic.disable_fbc = true;
+
+		/*
+		 * BDW signals flip done immediately if the plane
+		 * is disabled, even if the plane enable is already
+		 * armed to occur at the next vblank :(
+		 */
+		if (turn_on && IS_BROADWELL(dev))
+			intel_crtc->atomic.wait_vblank = true;
+
+		intel_crtc->atomic.update_fbc |= visible || mode_changed;
+		break;
+	case DRM_PLANE_TYPE_CURSOR:
+		if (visible)
+			intel_crtc->atomic.fb_bits |=
+			    INTEL_FRONTBUFFER_CURSOR(intel_crtc->pipe);
+		break;
+	case DRM_PLANE_TYPE_OVERLAY:
+		/*
+		 * 'prepare' is never called when plane is being disabled, so
+		 * we need to handle frontbuffer tracking as a special case
+		 */
+		if (visible)
+			intel_crtc->atomic.fb_bits |=
+			    INTEL_FRONTBUFFER_SPRITE(intel_crtc->pipe);
+
+		if (turn_off && is_crtc_enabled) {
+			intel_crtc->atomic.wait_vblank = true;
+			intel_crtc->atomic.update_sprite_watermarks |=
+				1 << i;
+		}
+		break;
+	}
+	return 0;
+}
+
 static bool encoders_cloneable(const struct intel_encoder *a,
 			       const struct intel_encoder *b)
 {
@@ -13444,28 +13599,6 @@ static void intel_shared_dpll_init(struct drm_device *dev)
 }
 
 /**
- * intel_wm_need_update - Check whether watermarks need updating
- * @plane: drm plane
- * @state: new plane state
- *
- * Check current plane state versus the new one to determine whether
- * watermarks need to be recalculated.
- *
- * Returns true or false.
- */
-bool intel_wm_need_update(struct drm_plane *plane,
-			  struct drm_plane_state *state)
-{
-	/* Update watermarks on tiling changes. */
-	if (!plane->state->fb || !state->fb ||
-	    plane->state->fb->modifier[0] != state->fb->modifier[0] ||
-	    plane->state->rotation != state->rotation)
-		return true;
-
-	return false;
-}
-
-/**
  * intel_prepare_plane_fb - Prepare fb for usage on plane
  * @plane: drm plane to prepare for
  * @fb: framebuffer to prepare for presentation
@@ -13586,7 +13719,6 @@ intel_check_primary_plane(struct drm_plane *plane,
 			  struct intel_plane_state *state)
 {
 	struct drm_device *dev = plane->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = state->base.crtc;
 	struct intel_crtc *intel_crtc;
 	struct intel_crtc_state *crtc_state;
@@ -13597,7 +13729,6 @@ intel_check_primary_plane(struct drm_plane *plane,
 	bool can_position = false;
 	int max_scale = DRM_PLANE_HELPER_NO_SCALING;
 	int min_scale = DRM_PLANE_HELPER_NO_SCALING;
-	int ret;
 
 	crtc = crtc ? crtc : plane->crtc;
 	intel_crtc = to_intel_crtc(crtc);
@@ -13613,73 +13744,11 @@ intel_check_primary_plane(struct drm_plane *plane,
 		can_position = true;
 	}
 
-	ret = drm_plane_helper_check_update(plane, crtc, fb,
-					    src, dest, clip,
-					    min_scale,
-					    max_scale,
-					    can_position, true,
-					    &state->visible);
-	if (ret)
-		return ret;
-
-	if (intel_crtc->active) {
-		struct intel_plane_state *old_state =
-			to_intel_plane_state(plane->state);
-
-		intel_crtc->atomic.wait_for_flips = true;
-
-		/*
-		 * FBC does not work on some platforms for rotated
-		 * planes, so disable it when rotation is not 0 and
-		 * update it when rotation is set back to 0.
-		 *
-		 * FIXME: This is redundant with the fbc update done in
-		 * the primary plane enable function except that that
-		 * one is done too late. We eventually need to unify
-		 * this.
-		 */
-		if (state->visible &&
-		    INTEL_INFO(dev)->gen <= 4 && !IS_G4X(dev) &&
-		    dev_priv->fbc.crtc == intel_crtc &&
-		    state->base.rotation != BIT(DRM_ROTATE_0)) {
-			intel_crtc->atomic.disable_fbc = true;
-		}
-
-		if (state->visible && !old_state->visible) {
-			/*
-			 * BDW signals flip done immediately if the plane
-			 * is disabled, even if the plane enable is already
-			 * armed to occur at the next vblank :(
-			 */
-			if (IS_BROADWELL(dev))
-				intel_crtc->atomic.wait_vblank = true;
-
-			if (crtc_state && !needs_modeset(&crtc_state->base))
-				intel_crtc->atomic.post_enable_primary = true;
-		}
-
-		if (!state->visible && old_state->visible &&
-		    crtc_state && !needs_modeset(&crtc_state->base))
-			intel_crtc->atomic.pre_disable_primary = true;
-
-		intel_crtc->atomic.fb_bits |=
-			INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe);
-
-		intel_crtc->atomic.update_fbc = true;
-
-		if (intel_wm_need_update(plane, &state->base))
-			intel_crtc->atomic.update_wm = true;
-	}
-
-	if (INTEL_INFO(dev)->gen >= 9) {
-		ret = skl_update_scaler_plane(crtc_state,
-					      to_intel_plane(plane),
-					      state);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	return drm_plane_helper_check_update(plane, crtc, fb,
+					     src, dest, clip,
+					     min_scale, max_scale,
+					     can_position, true,
+					     &state->visible);
 }
 
 static void
@@ -13939,10 +14008,9 @@ intel_check_cursor_plane(struct drm_plane *plane,
 	if (ret)
 		return ret;
 
-
 	/* if we want to turn off the cursor ignore width and height */
 	if (!obj)
-		goto finish;
+		return 0;
 
 	/* Check for which cursor types we support */
 	if (!cursor_size_ok(dev, state->base.crtc_w, state->base.crtc_h)) {
@@ -13959,19 +14027,10 @@ intel_check_cursor_plane(struct drm_plane *plane,
 
 	if (fb->modifier[0] != DRM_FORMAT_MOD_NONE) {
 		DRM_DEBUG_KMS("cursor cannot be tiled\n");
-		ret = -EINVAL;
+		return -EINVAL;
 	}
 
-finish:
-	if (intel_crtc->active) {
-		if (plane->state->crtc_w != state->base.crtc_w)
-			intel_crtc->atomic.update_wm = true;
-
-		intel_crtc->atomic.fb_bits |=
-			INTEL_FRONTBUFFER_CURSOR(intel_crtc->pipe);
-	}
-
-	return ret;
+	return 0;
 }
 
 static void

@@ -114,6 +114,7 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 	struct intel_crtc_state *crtc_state;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct intel_plane_state *intel_state = to_intel_plane_state(state);
+	int ret;
 
 	crtc = crtc ? crtc : plane->crtc;
 	intel_crtc = to_intel_crtc(crtc);
@@ -160,20 +161,6 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 	intel_state->clip.y2 =
 		crtc_state->base.active ? crtc_state->pipe_src_h : 0;
 
-	/*
-	 * Disabling a plane is always okay; we just need to update
-	 * fb tracking in a special way since cleanup_fb() won't
-	 * get called by the plane helpers.
-	 */
-	if (state->fb == NULL && plane->state->fb != NULL) {
-		/*
-		 * 'prepare' is never called when plane is being disabled, so
-		 * we need to handle frontbuffer tracking as a special case
-		 */
-		intel_crtc->atomic.disabled_planes |=
-			(1 << drm_plane_index(plane));
-	}
-
 	if (state->fb && intel_rotation_90_or_270(state->rotation)) {
 		if (!(state->fb->modifier[0] == I915_FORMAT_MOD_Y_TILED ||
 			state->fb->modifier[0] == I915_FORMAT_MOD_Yf_TILED)) {
@@ -198,7 +185,11 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 		}
 	}
 
-	return intel_plane->check_plane(plane, intel_state);
+	ret = intel_plane->check_plane(plane, intel_state);
+	if (ret || !state->state)
+		return ret;
+
+	return intel_plane_atomic_calc_changes(&crtc_state->base, state);
 }
 
 static void intel_plane_atomic_update(struct drm_plane *plane,

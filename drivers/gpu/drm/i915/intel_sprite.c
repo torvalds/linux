@@ -759,7 +759,6 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	int max_scale, min_scale;
 	bool can_scale;
 	int pixel_size;
-	int ret;
 
 	intel_crtc = intel_crtc ? intel_crtc : to_intel_crtc(plane->crtc);
 	crtc_state = state->base.state ?
@@ -767,7 +766,7 @@ intel_check_sprite_plane(struct drm_plane *plane,
 
 	if (!fb) {
 		state->visible = false;
-		goto finish;
+		return 0;
 	}
 
 	/* Don't modify another pipe's plane */
@@ -919,35 +918,6 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	dst->x2 = crtc_x + crtc_w;
 	dst->y1 = crtc_y;
 	dst->y2 = crtc_y + crtc_h;
-
-finish:
-	/*
-	 * If the sprite is completely covering the primary plane,
-	 * we can disable the primary and save power.
-	 */
-	if (intel_crtc->active) {
-		intel_crtc->atomic.fb_bits |=
-			INTEL_FRONTBUFFER_SPRITE(intel_crtc->pipe);
-
-		if (intel_wm_need_update(plane, &state->base))
-			intel_crtc->atomic.update_wm = true;
-
-		if (!state->visible) {
-			/*
-			 * Avoid underruns when disabling the sprite.
-			 * FIXME remove once watermark updates are done properly.
-			 */
-			intel_crtc->atomic.wait_vblank = true;
-			intel_crtc->atomic.update_sprite_watermarks |=
-				(1 << drm_plane_index(plane));
-		}
-	}
-
-	if (INTEL_INFO(dev)->gen >= 9) {
-		ret = skl_update_scaler_plane(crtc_state, intel_plane, state);
-		if (ret)
-			return ret;
-	}
 
 	return 0;
 }
