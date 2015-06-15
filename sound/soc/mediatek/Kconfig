@@ -1,0 +1,9 @@
+config SND_SOC_MEDIATEK
+	tristate "ASoC support for Mediatek chip"
+	depends on ARCH_MEDIATEK
+	help
+	  This adds ASoC platform driver support for Mediatek chip
+	  that can be used with other codecs.
+	  Select Y if you have such device.
+	  Ex: MT8173
+
