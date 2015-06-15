@@ -2326,7 +2326,6 @@ static inline int rtllib_network_init(
 	/* Where to pull this? beacon->listen_interval;*/
 	network->listen_interval = 0x0A;
 	network->rates_len = network->rates_ex_len = 0;
-	network->last_associate = 0;
 	network->ssid_len = 0;
 	network->hidden_ssid_len = 0;
 	memset(network->hidden_ssid, 0, sizeof(network->hidden_ssid));
@@ -2504,7 +2503,6 @@ static inline void update_network(struct rtllib_device *ieee,
 	dst->qos_data.active = qos_active;
 	dst->qos_data.old_param_count = old_param;
 
-	/* dst->last_associate is not overwritten */
 	dst->wmm_info = src->wmm_info;
 	if (src->wmm_param[0].ac_aci_acm_aifsn ||
 	   src->wmm_param[1].ac_aci_acm_aifsn ||

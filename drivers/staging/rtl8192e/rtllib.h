@@ -1246,7 +1246,6 @@ struct rtllib_network {
 	unsigned long last_scanned;
 	u8  mode;
 	u32 flags;
-	u32 last_associate;
 	u32 time_stamp[2];
 	u16 beacon_interval;
 	u16 listen_interval;
