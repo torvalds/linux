@@ -10135,10 +10135,99 @@ int btrfs_error_unpin_extent_range(struct btrfs_root *root, u64 start, u64 end)
 	return unpin_extent_range(root, start, end, false);
 }
 
+/*
+ * It used to be that old block groups would be left around forever.
+ * Iterating over them would be enough to trim unused space.  Since we
+ * now automatically remove them, we also need to iterate over unallocated
+ * space.
+ *
+ * We don't want a transaction for this since the discard may take a
+ * substantial amount of time.  We don't require that a transaction be
+ * running, but we do need to take a running transaction into account
+ * to ensure that we're not discarding chunks that were released in
+ * the current transaction.
+ *
+ * Holding the chunks lock will prevent other threads from allocating
+ * or releasing chunks, but it won't prevent a running transaction
+ * from committing and releasing the memory that the pending chunks
+ * list head uses.  For that, we need to take a reference to the
+ * transaction.
+ */
+static int btrfs_trim_free_extents(struct btrfs_device *device,
+				   u64 minlen, u64 *trimmed)
+{
+	u64 start = 0, len = 0;
+	int ret;
+
+	*trimmed = 0;
+
+	/* Not writeable = nothing to do. */
+	if (!device->writeable)
+		return 0;
+
+	/* No free space = nothing to do. */
+	if (device->total_bytes <= device->bytes_used)
+		return 0;
+
+	ret = 0;
+
+	while (1) {
+		struct btrfs_fs_info *fs_info = device->dev_root->fs_info;
+		struct btrfs_transaction *trans;
+		u64 bytes;
+
+		ret = mutex_lock_interruptible(&fs_info->chunk_mutex);
+		if (ret)
+			return ret;
+
+		down_read(&fs_info->commit_root_sem);
+
+		spin_lock(&fs_info->trans_lock);
+		trans = fs_info->running_transaction;
+		if (trans)
+			atomic_inc(&trans->use_count);
+		spin_unlock(&fs_info->trans_lock);
+
+		ret = find_free_dev_extent_start(trans, device, minlen, start,
+						 &start, &len);
+		if (trans)
+			btrfs_put_transaction(trans);
+
+		if (ret) {
+			up_read(&fs_info->commit_root_sem);
+			mutex_unlock(&fs_info->chunk_mutex);
+			if (ret == -ENOSPC)
+				ret = 0;
+			break;
+		}
+
+		ret = btrfs_issue_discard(device->bdev, start, len, &bytes);
+		up_read(&fs_info->commit_root_sem);
+		mutex_unlock(&fs_info->chunk_mutex);
+
+		if (ret)
+			break;
+
+		start += len;
+		*trimmed += bytes;
+
+		if (fatal_signal_pending(current)) {
+			ret = -ERESTARTSYS;
+			break;
+		}
+
+		cond_resched();
+	}
+
+	return ret;
+}
+
 int btrfs_trim_fs(struct btrfs_root *root, struct fstrim_range *range)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_block_group_cache *cache = NULL;
+	struct btrfs_device *device;
+	struct list_head *devices;
 	u64 group_trimmed;
 	u64 start;
 	u64 end;
@@ -10192,6 +10281,18 @@ int btrfs_trim_fs(struct btrfs_root *root, struct fstrim_range *range)
 
 		cache = next_block_group(fs_info->tree_root, cache);
 	}
+
+	mutex_lock(&root->fs_info->fs_devices->device_list_mutex);
+	devices = &root->fs_info->fs_devices->alloc_list;
+	list_for_each_entry(device, devices, dev_alloc_list) {
+		ret = btrfs_trim_free_extents(device, range->minlen,
+					      &group_trimmed);
+		if (ret)
+			break;
+
+		trimmed += group_trimmed;
+	}
+	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
 
 	range->len = trimmed;
 	return ret;
