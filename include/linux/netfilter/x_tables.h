@@ -225,12 +225,9 @@ struct xt_table_info {
 	unsigned int __percpu *stackptr;
 	void ***jumpstack;
 
-	/* Note : this field MUST be the last one, see XT_TABLE_INFO_SZ */
-	void *entries;
+	unsigned char entries[0] __aligned(8);
 };
 
-#define XT_TABLE_INFO_SZ (offsetof(struct xt_table_info, entries) \
-			  + nr_cpu_ids * sizeof(char *))
 int xt_register_target(struct xt_target *target);
 void xt_unregister_target(struct xt_target *target);
 int xt_register_targets(struct xt_target *target, unsigned int n);

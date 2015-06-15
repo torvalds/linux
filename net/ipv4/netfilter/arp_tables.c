@@ -256,7 +256,7 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 	const struct arphdr *arp;
 	struct arpt_entry *e, *back;
 	const char *indev, *outdev;
-	void *table_base;
+	const void *table_base;
 	const struct xt_table_info *private;
 	struct xt_action_param acpar;
 	unsigned int addend;
@@ -868,7 +868,7 @@ static int compat_table_info(const struct xt_table_info *info,
 			     struct xt_table_info *newinfo)
 {
 	struct arpt_entry *iter;
-	void *loc_cpu_entry;
+	const void *loc_cpu_entry;
 	int ret;
 
 	if (!newinfo || !info)
