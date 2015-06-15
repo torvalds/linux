@@ -214,6 +214,12 @@ static int fsl_usb2_mph_dr_of_probe(struct platform_device *ofdev)
 	pdata->phy_mode = determine_usb_phy(prop);
 	pdata->controller_ver = usb_get_ver_info(np);
 
+	/* Activate Erratum by reading property in device tree */
+	if (of_get_property(np, "fsl,usb-erratum-a007792", NULL))
+		pdata->has_fsl_erratum_a007792 = 1;
+	else
+		pdata->has_fsl_erratum_a007792 = 0;
+
 	if (pdata->have_sysif_regs) {
 		if (pdata->controller_ver == FSL_USB_VER_NONE) {
 			dev_warn(&ofdev->dev, "Could not get controller version\n");
