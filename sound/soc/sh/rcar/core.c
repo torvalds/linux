@@ -172,6 +172,29 @@ void rsnd_mod_quit(struct rsnd_mod *mod)
 		clk_unprepare(mod->clk);
 }
 
+void rsnd_mod_interrupt(struct rsnd_mod *mod,
+			void (*callback)(struct rsnd_mod *mod,
+					 struct rsnd_dai_stream *io))
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct rsnd_dai_stream *io;
+	struct rsnd_dai *rdai;
+	int i, j;
+
+	for_each_rsnd_dai(rdai, priv, j) {
+
+		for (i = 0; i < RSND_MOD_MAX; i++) {
+			io = &rdai->playback;
+			if (mod == io->mod[i])
+				callback(mod, io);
+
+			io = &rdai->capture;
+			if (mod == io->mod[i])
+				callback(mod, io);
+		}
+	}
+}
+
 int rsnd_mod_is_working(struct rsnd_mod *mod)
 {
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);

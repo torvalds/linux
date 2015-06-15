@@ -327,6 +327,9 @@ void rsnd_mod_quit(struct rsnd_mod *mod);
 char *rsnd_mod_name(struct rsnd_mod *mod);
 int rsnd_mod_is_working(struct rsnd_mod *mod);
 struct dma_chan *rsnd_mod_dma_req(struct rsnd_mod *mod);
+void rsnd_mod_interrupt(struct rsnd_mod *mod,
+			void (*callback)(struct rsnd_mod *mod,
+					 struct rsnd_dai_stream *io));
 
 /*
  *	R-Car sound DAI
