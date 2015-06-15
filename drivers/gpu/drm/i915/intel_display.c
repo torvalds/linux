@@ -13169,18 +13169,18 @@ intel_modeset_compute_config(struct drm_atomic_state *state)
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 	int ret, i;
+	bool any_ms = false;
 
 	ret = drm_atomic_helper_check_modeset(state->dev, state);
 	if (ret)
 		return ret;
 
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		if (!crtc_state->enable &&
-		    WARN_ON(crtc_state->active))
-			crtc_state->active = false;
-
-		if (!crtc_state->enable)
+		if (!crtc_state->enable) {
+			if (needs_modeset(crtc_state))
+				any_ms = true;
 			continue;
+		}
 
 		if (!needs_modeset(crtc_state)) {
 			ret = drm_atomic_add_affected_connectors(state, crtc);
@@ -13193,14 +13193,20 @@ intel_modeset_compute_config(struct drm_atomic_state *state)
 		if (ret)
 			return ret;
 
+		if (needs_modeset(crtc_state))
+			any_ms = true;
+
 		intel_dump_pipe_config(to_intel_crtc(crtc),
 				       to_intel_crtc_state(crtc_state),
 				       "[modeset]");
 	}
 
-	ret = intel_modeset_checks(state);
-	if (ret)
-		return ret;
+	if (any_ms) {
+		ret = intel_modeset_checks(state);
+
+		if (ret)
+			return ret;
+	}
 
 	return drm_atomic_helper_check_planes(state->dev, state);
 }
@@ -13213,6 +13219,7 @@ static int __intel_set_mode(struct drm_atomic_state *state)
 	struct drm_crtc_state *crtc_state;
 	int ret = 0;
 	int i;
+	bool any_ms = false;
 
 	ret = drm_atomic_helper_prepare_planes(dev, state);
 	if (ret)
@@ -13221,7 +13228,11 @@ static int __intel_set_mode(struct drm_atomic_state *state)
 	drm_atomic_helper_swap_state(dev, state);
 
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		if (!needs_modeset(crtc->state) || !crtc_state->active)
+		if (!needs_modeset(crtc->state))
+			continue;
+
+		any_ms = true;
+		if (!crtc_state->active)
 			continue;
 
 		intel_crtc_disable_planes(crtc);
@@ -13234,8 +13245,8 @@ static int __intel_set_mode(struct drm_atomic_state *state)
 
 	/* The state has been swaped above, so state actually contains the
 	 * old state now. */
-
-	modeset_update_crtc_power_domains(state);
+	if (any_ms)
+		modeset_update_crtc_power_domains(state);
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
