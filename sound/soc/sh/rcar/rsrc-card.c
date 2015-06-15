@@ -68,8 +68,8 @@ struct rsrc_card_priv {
 };
 
 #define rsrc_priv_to_dev(priv) ((priv)->snd_card.dev)
-#define rsrc_priv_to_link(priv, i) ((priv)->snd_card.dai_link + i)
-#define rsrc_priv_to_props(priv, i) ((priv)->dai_props + i)
+#define rsrc_priv_to_link(priv, i) ((priv)->snd_card.dai_link + (i))
+#define rsrc_priv_to_props(priv, i) ((priv)->dai_props + (i))
 #define rsrc_dev_to_of_data(dev) (of_match_device(rsrc_card_of_match, (dev))->data)
 
 static int rsrc_card_startup(struct snd_pcm_substream *substream)
@@ -77,7 +77,7 @@ static int rsrc_card_startup(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct rsrc_card_priv *priv =	snd_soc_card_get_drvdata(rtd->card);
 	struct rsrc_card_dai_props *dai_props =
-		&priv->dai_props[rtd - rtd->card->rtd];
+		rsrc_priv_to_props(priv, rtd - rtd->card->rtd);
 	int ret;
 
 	ret = clk_prepare_enable(dai_props->cpu_dai.clk);
@@ -96,7 +96,7 @@ static void rsrc_card_shutdown(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct rsrc_card_priv *priv =	snd_soc_card_get_drvdata(rtd->card);
 	struct rsrc_card_dai_props *dai_props =
-		&priv->dai_props[rtd - rtd->card->rtd];
+		rsrc_priv_to_props(priv, rtd - rtd->card->rtd);
 
 	clk_disable_unprepare(dai_props->cpu_dai.clk);
 
