@@ -1059,8 +1059,6 @@ static void rtl8192_init_priv_handler(struct net_device *dev)
 	priv->rtllib->UpdateBeaconInterruptHandler = NULL;
 
 	priv->rtllib->ScanOperationBackupHandler = PHY_ScanOperationBackup8192;
-
-	priv->rtllib->rtllib_rfkill_poll = NULL;
 }
 
 static void rtl8192_init_priv_constant(struct net_device *dev)
@@ -1080,7 +1078,6 @@ static void rtl8192_init_priv_variable(struct net_device *dev)
 
 	priv->AcmMethod = eAcmWay2_SW;
 	priv->dot11CurrentPreambleMode = PREAMBLE_AUTO;
-	priv->rtllib->hwscan_sem_up = 1;
 	priv->rtllib->status = 0;
 	priv->polling_timer_on = 0;
 	priv->up_first_time = 1;
@@ -1150,10 +1147,7 @@ static void rtl8192_init_priv_variable(struct net_device *dev)
 	priv->rtllib->host_encrypt = 1;
 	priv->rtllib->host_decrypt = 1;
 
-	priv->rtllib->dot11PowerSaveMode = eActive;
 	priv->rtllib->fts = DEFAULT_FRAG_THRESHOLD;
-	priv->rtllib->MaxMssDensity = 0;
-	priv->rtllib->MinSpaceCfg = 0;
 
 	priv->card_type = PCI;
 

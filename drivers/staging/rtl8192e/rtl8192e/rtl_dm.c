@@ -1812,7 +1812,6 @@ static void dm_init_ctstoself(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv((struct net_device *)dev);
 
 	priv->rtllib->bCTSToSelfEnable = true;
-	priv->rtllib->CTSToSelfTH = CTSToSelfTHVal;
 }
 
 static void dm_ctstoself(struct net_device *dev)

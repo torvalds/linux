@@ -1715,7 +1715,6 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 			   !(ieee->softmac_features & IEEE_SOFTMAC_SCAN))
 				rtllib_stop_scan_syncro(ieee);
 
-			ieee->hwscan_ch_bk = ieee->current_network.channel;
 			HTResetIOTSetting(ieee->pHTInfo);
 			ieee->wmm_acm = 0;
 			if (ieee->iw_mode == IW_MODE_INFRA) {
@@ -3022,12 +3021,7 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 	ieee->is_set_key = false;
 	init_mgmt_queue(ieee);
 
-	ieee->sta_edca_param[0] = 0x0000A403;
-	ieee->sta_edca_param[1] = 0x0000A427;
-	ieee->sta_edca_param[2] = 0x005E4342;
-	ieee->sta_edca_param[3] = 0x002F3262;
 	ieee->aggregation = true;
-	ieee->enable_rx_imm_BA = true;
 	ieee->tx_pending.txb = NULL;
 
 	_setup_timer(&ieee->associate_timer,

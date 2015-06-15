@@ -1538,8 +1538,6 @@ struct rtllib_device {
 	bool disable_mgnt_queue;
 
 	unsigned long status;
-	short hwscan_ch_bk;
-	u8 hwscan_sem_up;
 	u8	CntAfterLink;
 
 	enum rt_op_mode OpMode;
@@ -1557,7 +1555,6 @@ struct rtllib_device {
 	bool ieee_up;
 	bool cannot_notify;
 	bool bSupportRemoteWakeUp;
-	enum rt_ps_mode dot11PowerSaveMode;
 	bool actscanning;
 	bool FirstIe_InScan;
 	bool be_scan_inprogress;
@@ -1567,7 +1564,6 @@ struct rtllib_device {
 	bool is_set_key;
 	bool wx_set_enc;
 	struct rt_hi_throughput *pHTInfo;
-	spinlock_t bw_spinlock;
 
 	spinlock_t reorder_spinlock;
 	u8	Regdot11HTOperationalRateSet[16];
@@ -1576,12 +1572,9 @@ struct rtllib_device {
 	u8	RegHTSuppRateSet[16];
 	u8	HTCurrentOperaRate;
 	u8	HTHighestOperaRate;
-	u8	MinSpaceCfg;
-	u8	MaxMssDensity;
 	u8	bTxDisableRateFallBack;
 	u8	bTxUseDriverAssingedRate;
 	u8	bTxEnableFwCalcDur;
-	atomic_t	atm_chnlop;
 	atomic_t	atm_swbw;
 
 	struct list_head		Tx_TS_Admit_List;
@@ -1634,7 +1627,6 @@ struct rtllib_device {
 	int ieee802_1x; /* is IEEE 802.1X used */
 
 	/* WPA data */
-	bool bHalfNMode;
 	bool bHalfWirelessN24GMode;
 	int wpa_enabled;
 	int drop_unencrypted;
@@ -1766,14 +1758,11 @@ struct rtllib_device {
 	u8 AsocRetryCount;
 	struct sk_buff_head skb_waitQ[MAX_QUEUE_SIZE];
 	struct sk_buff_head  skb_aggQ[MAX_QUEUE_SIZE];
-	u32	sta_edca_param[4];
 	bool aggregation;
-	bool enable_rx_imm_BA;
 
 	bool	bdynamic_txpower_enable;
 
 	bool bCTSToSelfEnable;
-	u8	CTSToSelfTH;
 
 	u32	fsync_time_interval;
 	u32	fsync_rate_bitmap;
@@ -1929,7 +1918,6 @@ struct rtllib_device {
 	void (*rtllib_ips_leave_wq)(struct net_device *dev);
 	void (*rtllib_ips_leave)(struct net_device *dev);
 	void (*LeisurePSLeave)(struct net_device *dev);
-	void (*rtllib_rfkill_poll)(struct net_device *dev);
 
 	/* This must be the last item so that it points to the data
 	 * allocated beyond this structure by alloc_rtllib
