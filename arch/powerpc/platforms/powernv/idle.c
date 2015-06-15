@@ -17,6 +17,7 @@
 #include <linux/cpu.h>
 
 #include <asm/firmware.h>
+#include <asm/machdep.h>
 #include <asm/opal.h>
 #include <asm/cputhreads.h>
 #include <asm/cpuidle.h>
@@ -289,5 +290,4 @@ out_free:
 out:
 	return 0;
 }
-
-subsys_initcall(pnv_init_idle_states);
+machine_subsys_initcall(powernv, pnv_init_idle_states);
