@@ -132,25 +132,27 @@ static void
 proc_read_clock(struct snd_info_entry *entry,
 		struct snd_info_buffer *buffer)
 {
+	static const char *const clk_labels[] = {
+		"Internal",
+		"External",
+		"SYT-Match",
+	};
 	struct snd_bebob *bebob = entry->private_data;
 	struct snd_bebob_rate_spec *rate_spec = bebob->spec->rate;
 	struct snd_bebob_clock_spec *clk_spec = bebob->spec->clock;
-	unsigned int rate, id;
-	bool internal;
+	enum snd_bebob_clock_type src;
+	unsigned int rate;
 
 	if (rate_spec->get(bebob, &rate) >= 0)
 		snd_iprintf(buffer, "Sampling rate: %d\n", rate);
 
-	if (clk_spec) {
-		if (clk_spec->get(bebob, &id) >= 0)
+	if (snd_bebob_stream_get_clock_src(bebob, &src) >= 0) {
+		if (clk_spec)
 			snd_iprintf(buffer, "Clock Source: %s\n",
-				    clk_spec->labels[id]);
-	} else {
-		if (snd_bebob_stream_check_internal_clock(bebob,
-							  &internal) >= 0)
+				    clk_labels[src]);
+		else
 			snd_iprintf(buffer, "Clock Source: %s (MSU-dest: %d)\n",
-				    (internal) ? "Internal" : "External",
-				    bebob->sync_input_plug);
+				    clk_labels[src], bebob->sync_input_plug);
 	}
 }
 
