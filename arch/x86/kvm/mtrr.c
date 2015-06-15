@@ -249,23 +249,21 @@ int kvm_mtrr_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	return 0;
 }
 
-/*
- * The function is based on mtrr_type_lookup() in
- * arch/x86/kernel/cpu/mtrr/generic.c
- */
-static int get_mtrr_type(struct kvm_mtrr *mtrr_state,
-			 u64 start, u64 end)
+u8 kvm_mtrr_get_guest_memory_type(struct kvm_vcpu *vcpu, gfn_t gfn)
 {
-	u64 base, mask;
-	u8 prev_match, curr_match;
-	int i, num_var_ranges = KVM_NR_VAR_MTRR;
+	struct kvm_mtrr *mtrr_state = &vcpu->arch.mtrr_state;
+	u64 base, mask, start;
+	int i, num_var_ranges, type;
+	const int wt_wb_mask = (1 << MTRR_TYPE_WRBACK)
+			       | (1 << MTRR_TYPE_WRTHROUGH);
+
+	start = gfn_to_gpa(gfn);
+	num_var_ranges = KVM_NR_VAR_MTRR;
+	type = -1;
 
 	/* MTRR is completely disabled, use UC for all of physical memory. */
 	if (!mtrr_is_enabled(mtrr_state))
 		return MTRR_TYPE_UNCACHABLE;
-
-	/* Make end inclusive end, instead of exclusive */
-	end--;
 
 	/* Look in fixed ranges. Just return the type as per start */
 	if (fixed_mtrr_is_enabled(mtrr_state) && (start < 0x100000)) {
@@ -291,9 +289,8 @@ static int get_mtrr_type(struct kvm_mtrr *mtrr_state,
 	 * Look of multiple ranges matching this address and pick type
 	 * as per MTRR precedence
 	 */
-	prev_match = 0xFF;
 	for (i = 0; i < num_var_ranges; ++i) {
-		unsigned short start_state, end_state;
+		int curr_type;
 
 		if (!(mtrr_state->var_ranges[i].mask & (1 << 11)))
 			continue;
@@ -301,50 +298,57 @@ static int get_mtrr_type(struct kvm_mtrr *mtrr_state,
 		base = mtrr_state->var_ranges[i].base & PAGE_MASK;
 		mask = mtrr_state->var_ranges[i].mask & PAGE_MASK;
 
-		start_state = ((start & mask) == (base & mask));
-		end_state = ((end & mask) == (base & mask));
-		if (start_state != end_state)
-			return 0xFE;
-
 		if ((start & mask) != (base & mask))
 			continue;
 
-		curr_match = mtrr_state->var_ranges[i].base & 0xff;
-		if (prev_match == 0xFF) {
-			prev_match = curr_match;
+		/*
+		 * Please refer to Intel SDM Volume 3: 11.11.4.1 MTRR
+		 * Precedences.
+		 */
+
+		curr_type = mtrr_state->var_ranges[i].base & 0xff;
+		if (type == -1) {
+			type = curr_type;
 			continue;
 		}
 
-		if (prev_match == MTRR_TYPE_UNCACHABLE ||
-		    curr_match == MTRR_TYPE_UNCACHABLE)
+		/*
+		 * If two or more variable memory ranges match and the
+		 * memory types are identical, then that memory type is
+		 * used.
+		 */
+		if (type == curr_type)
+			continue;
+
+		/*
+		 * If two or more variable memory ranges match and one of
+		 * the memory types is UC, the UC memory type used.
+		 */
+		if (curr_type == MTRR_TYPE_UNCACHABLE)
 			return MTRR_TYPE_UNCACHABLE;
 
-		if ((prev_match == MTRR_TYPE_WRBACK &&
-		     curr_match == MTRR_TYPE_WRTHROUGH) ||
-		    (prev_match == MTRR_TYPE_WRTHROUGH &&
-		     curr_match == MTRR_TYPE_WRBACK)) {
-			prev_match = MTRR_TYPE_WRTHROUGH;
-			curr_match = MTRR_TYPE_WRTHROUGH;
+		/*
+		 * If two or more variable memory ranges match and the
+		 * memory types are WT and WB, the WT memory type is used.
+		 */
+		if (((1 << type) & wt_wb_mask) &&
+		      ((1 << curr_type) & wt_wb_mask)) {
+			type = MTRR_TYPE_WRTHROUGH;
+			continue;
 		}
 
-		if (prev_match != curr_match)
-			return MTRR_TYPE_UNCACHABLE;
+		/*
+		 * For overlaps not defined by the above rules, processor
+		 * behavior is undefined.
+		 */
+
+		/* We use WB for this undefined behavior. :( */
+		return MTRR_TYPE_WRBACK;
 	}
 
-	if (prev_match != 0xFF)
-		return prev_match;
+	if (type != -1)
+		return type;
 
 	return mtrr_default_type(mtrr_state);
-}
-
-u8 kvm_mtrr_get_guest_memory_type(struct kvm_vcpu *vcpu, gfn_t gfn)
-{
-	u8 mtrr;
-
-	mtrr = get_mtrr_type(&vcpu->arch.mtrr_state, gfn << PAGE_SHIFT,
-			     (gfn << PAGE_SHIFT) + PAGE_SIZE);
-	if (mtrr == 0xfe || mtrr == 0xff)
-		mtrr = MTRR_TYPE_WRBACK;
-	return mtrr;
 }
 EXPORT_SYMBOL_GPL(kvm_mtrr_get_guest_memory_type);
