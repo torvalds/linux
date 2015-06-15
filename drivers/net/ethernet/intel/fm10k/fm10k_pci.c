@@ -170,6 +170,21 @@ static void fm10k_reinit(struct fm10k_intfc *interface)
 	/* reassociate interrupts */
 	fm10k_mbx_request_irq(interface);
 
+	/* update hardware address for VFs if perm_addr has changed */
+	if (hw->mac.type == fm10k_mac_vf) {
+		if (is_valid_ether_addr(hw->mac.perm_addr)) {
+			ether_addr_copy(hw->mac.addr, hw->mac.perm_addr);
+			ether_addr_copy(netdev->perm_addr, hw->mac.perm_addr);
+			ether_addr_copy(netdev->dev_addr, hw->mac.perm_addr);
+			netdev->addr_assign_type &= ~NET_ADDR_RANDOM;
+		}
+
+		if (hw->mac.vlan_override)
+			netdev->features &= ~NETIF_F_HW_VLAN_CTAG_RX;
+		else
+			netdev->features |= NETIF_F_HW_VLAN_CTAG_RX;
+	}
+
 	/* reset clock */
 	fm10k_ts_reset(interface);
 
