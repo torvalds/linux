@@ -347,6 +347,20 @@
 				status = "disabled";
 			};
 
+			i2c1: i2c@40067000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,vf610-i2c";
+				reg = <0x40067000 0x1000>;
+				interrupts = <72 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks VF610_CLK_I2C1>;
+				clock-names = "ipg";
+				dmas = <&edma0 0 52>,
+					<&edma0 0 53>;
+				dma-names = "rx","tx";
+				status = "disabled";
+			};
+
 			clks: ccm@4006b000 {
 				compatible = "fsl,vf610-ccm";
 				reg = <0x4006b000 0x1000>;
@@ -520,6 +534,33 @@
 				status = "disabled";
 			};
 
+			i2c2: i2c@400e6000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,vf610-i2c";
+				reg = <0x400e6000 0x1000>;
+				interrupts = <73 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks VF610_CLK_I2C2>;
+				clock-names = "ipg";
+				dmas = <&edma0 1 36>,
+					<&edma0 1 37>;
+				dma-names = "rx","tx";
+				status = "disabled";
+			};
+
+			i2c3: i2c@400e7000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,vf610-i2c";
+				reg = <0x400e7000 0x1000>;
+				interrupts = <74 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks VF610_CLK_I2C3>;
+				clock-names = "ipg";
+				dmas = <&edma0 1 38>,
+					<&edma0 1 39>;
+				dma-names = "rx","tx";
+				status = "disabled";
+			};
 		};
 	};
 };
