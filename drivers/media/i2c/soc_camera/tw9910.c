@@ -711,7 +711,7 @@ static int tw9910_get_fmt(struct v4l2_subdev *sd,
 	mf->width	= priv->scale->width;
 	mf->height	= priv->scale->height;
 	mf->code	= MEDIA_BUS_FMT_UYVY8_2X8;
-	mf->colorspace	= V4L2_COLORSPACE_JPEG;
+	mf->colorspace	= V4L2_COLORSPACE_SMPTE170M;
 	mf->field	= V4L2_FIELD_INTERLACED_BT;
 
 	return 0;
@@ -732,7 +732,7 @@ static int tw9910_s_fmt(struct v4l2_subdev *sd,
 	if (mf->code != MEDIA_BUS_FMT_UYVY8_2X8)
 		return -EINVAL;
 
-	mf->colorspace = V4L2_COLORSPACE_JPEG;
+	mf->colorspace = V4L2_COLORSPACE_SMPTE170M;
 
 	ret = tw9910_set_frame(sd, &width, &height);
 	if (!ret) {
@@ -762,7 +762,7 @@ static int tw9910_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	mf->code = MEDIA_BUS_FMT_UYVY8_2X8;
-	mf->colorspace = V4L2_COLORSPACE_JPEG;
+	mf->colorspace = V4L2_COLORSPACE_SMPTE170M;
 
 	/*
 	 * select suitable norm
