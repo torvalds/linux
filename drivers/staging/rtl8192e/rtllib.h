@@ -2153,9 +2153,6 @@ extern int rtllib_wx_get_encode(struct rtllib_device *ieee,
 				   struct iw_request_info *info,
 				   union iwreq_data *wrqu, char *key);
 #if WIRELESS_EXT >= 18
-extern int rtllib_wx_get_encode_ext(struct rtllib_device *ieee,
-			    struct iw_request_info *info,
-			    union iwreq_data *wrqu, char *extra);
 extern int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 			    struct iw_request_info *info,
 			    union iwreq_data *wrqu, char *extra);

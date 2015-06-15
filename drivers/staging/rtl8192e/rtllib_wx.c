@@ -682,63 +682,6 @@ done:
 }
 EXPORT_SYMBOL(rtllib_wx_set_encode_ext);
 
-int rtllib_wx_get_encode_ext(struct rtllib_device *ieee,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
-{
-	struct iw_point *encoding = &wrqu->encoding;
-	struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
-	struct lib80211_crypt_data *crypt;
-	int idx, max_key_len;
-
-	max_key_len = encoding->length - sizeof(*ext);
-	if (max_key_len < 0)
-		return -EINVAL;
-
-	idx = encoding->flags & IW_ENCODE_INDEX;
-	if (idx) {
-		if (idx < 1 || idx > NUM_WEP_KEYS)
-			return -EINVAL;
-		idx--;
-	} else {
-		idx = ieee->crypt_info.tx_keyidx;
-	}
-	if (!(ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY) &&
-	    (ext->alg != IW_ENCODE_ALG_WEP))
-		if (idx != 0 || (ieee->iw_mode != IW_MODE_INFRA))
-			return -EINVAL;
-
-	crypt = ieee->crypt_info.crypt[idx];
-
-	encoding->flags = idx + 1;
-	memset(ext, 0, sizeof(*ext));
-
-	if (crypt == NULL || crypt->ops == NULL) {
-		ext->alg = IW_ENCODE_ALG_NONE;
-		ext->key_len = 0;
-		encoding->flags |= IW_ENCODE_DISABLED;
-	} else {
-		if (strcmp(crypt->ops->name, "R-WEP") == 0)
-			ext->alg = IW_ENCODE_ALG_WEP;
-		else if (strcmp(crypt->ops->name, "R-TKIP"))
-			ext->alg = IW_ENCODE_ALG_TKIP;
-		else if (strcmp(crypt->ops->name, "R-CCMP"))
-			ext->alg = IW_ENCODE_ALG_CCMP;
-		else
-			return -EINVAL;
-		ext->key_len = crypt->ops->get_key(ext->key, SCM_KEY_LEN,
-						   NULL, crypt->priv);
-		encoding->flags |= IW_ENCODE_ENABLED;
-		if (ext->key_len &&
-		    (ext->alg == IW_ENCODE_ALG_TKIP ||
-		     ext->alg == IW_ENCODE_ALG_CCMP))
-			ext->ext_flags |= IW_ENCODE_EXT_TX_SEQ_VALID;
-
-	}
-
-	return 0;
-}
-
 int rtllib_wx_set_mlme(struct rtllib_device *ieee,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra)
