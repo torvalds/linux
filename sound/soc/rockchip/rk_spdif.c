@@ -451,7 +451,6 @@ static struct platform_driver rockchip_spdif_driver = {
 	.remove	= spdif_remove,
 	.driver	= {
 		.name	= "rockchip-spdif",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(rockchip_spdif_match),
 	},
 };
