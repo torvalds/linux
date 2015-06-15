@@ -59,7 +59,7 @@ struct bitmap_ip_adt_elem {
 static inline u32
 ip_to_id(const struct bitmap_ip *m, u32 ip)
 {
-	return ((ip & ip_set_hostmask(m->netmask)) - m->first_ip)/m->hosts;
+	return ((ip & ip_set_hostmask(m->netmask)) - m->first_ip) / m->hosts;
 }
 
 /* Common functions */
@@ -81,7 +81,7 @@ static inline int
 bitmap_ip_do_add(const struct bitmap_ip_adt_elem *e, struct bitmap_ip *map,
 		 u32 flags, size_t dsize)
 {
-	return !!test_and_set_bit(e->id, map->members);
+	return !!test_bit(e->id, map->members);
 }
 
 static inline int
@@ -138,17 +138,11 @@ bitmap_ip_uadt(struct ip_set *set, struct nlattr *tb[],
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
 	int ret = 0;
 
-	if (unlikely(!tb[IPSET_ATTR_IP] ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PACKETS) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_BYTES)   ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBMARK) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBPRIO) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBQUEUE)))
-		return -IPSET_ERR_PROTOCOL;
-
 	if (tb[IPSET_ATTR_LINENO])
 		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+
+	if (unlikely(!tb[IPSET_ATTR_IP]))
+		return -IPSET_ERR_PROTOCOL;
 
 	ret = ip_set_get_hostipaddr4(tb[IPSET_ATTR_IP], &ip);
 	if (ret)
@@ -181,8 +175,9 @@ bitmap_ip_uadt(struct ip_set *set, struct nlattr *tb[],
 		if (!cidr || cidr > HOST_MASK)
 			return -IPSET_ERR_INVALID_CIDR;
 		ip_set_mask_from_to(ip, ip_to, cidr);
-	} else
+	} else {
 		ip_to = ip;
+	}
 
 	if (ip_to > map->last_ip)
 		return -IPSET_ERR_BITMAP_RANGE;
@@ -193,8 +188,8 @@ bitmap_ip_uadt(struct ip_set *set, struct nlattr *tb[],
 
 		if (ret && !ip_set_eexist(ret, flags))
 			return ret;
-		else
-			ret = 0;
+
+		ret = 0;
 	}
 	return ret;
 }
@@ -284,8 +279,9 @@ bitmap_ip_create(struct net *net, struct ip_set *set, struct nlattr *tb[],
 		if (cidr >= HOST_MASK)
 			return -IPSET_ERR_INVALID_CIDR;
 		ip_set_mask_from_to(first_ip, last_ip, cidr);
-	} else
+	} else {
 		return -IPSET_ERR_PROTOCOL;
+	}
 
 	if (tb[IPSET_ATTR_NETMASK]) {
 		netmask = nla_get_u8(tb[IPSET_ATTR_NETMASK]);
@@ -382,6 +378,7 @@ bitmap_ip_init(void)
 static void __exit
 bitmap_ip_fini(void)
 {
+	rcu_barrier();
 	ip_set_type_unregister(&bitmap_ip_type);
 }
 

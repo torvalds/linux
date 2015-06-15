@@ -781,6 +781,7 @@ struct nft_stats {
 };
 
 #define NFT_HOOK_OPS_MAX		2
+#define NFT_BASECHAIN_DISABLED		(1 << 0)
 
 /**
  *	struct nft_base_chain - nf_tables base chain
@@ -791,20 +792,28 @@ struct nft_stats {
  *	@policy: default policy
  *	@stats: per-cpu chain stats
  *	@chain: the chain
+ *	@dev_name: device name that this base chain is attached to (if any)
  */
 struct nft_base_chain {
 	struct nf_hook_ops		ops[NFT_HOOK_OPS_MAX];
 	possible_net_t			pnet;
 	const struct nf_chain_type	*type;
 	u8				policy;
+	u8				flags;
 	struct nft_stats __percpu	*stats;
 	struct nft_chain		chain;
+	char 				dev_name[IFNAMSIZ];
 };
 
 static inline struct nft_base_chain *nft_base_chain(const struct nft_chain *chain)
 {
 	return container_of(chain, struct nft_base_chain, chain);
 }
+
+int nft_register_basechain(struct nft_base_chain *basechain,
+			   unsigned int hook_nops);
+void nft_unregister_basechain(struct nft_base_chain *basechain,
+			      unsigned int hook_nops);
 
 unsigned int nft_do_chain(struct nft_pktinfo *pkt,
 			  const struct nf_hook_ops *ops);
@@ -819,7 +828,6 @@ unsigned int nft_do_chain(struct nft_pktinfo *pkt,
  *	@use: number of chain references to this table
  *	@flags: table flag (see enum nft_table_flags)
  *	@name: name of the table
- *	@dev: this table is bound to this device (if any)
  */
 struct nft_table {
 	struct list_head		list;
@@ -829,7 +837,6 @@ struct nft_table {
 	u32				use;
 	u16				flags;
 	char				name[NFT_TABLE_MAXNAMELEN];
-	struct net_device		*dev;
 };
 
 enum nft_af_flags {

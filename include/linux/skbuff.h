@@ -36,6 +36,7 @@
 #include <linux/sched.h>
 #include <net/flow_dissector.h>
 #include <linux/splice.h>
+#include <linux/in6.h>
 
 /* A. Checksumming of received packets by device.
  *
@@ -173,13 +174,17 @@ struct nf_bridge_info {
 		BRNF_PROTO_PPPOE
 	} orig_proto:8;
 	bool			pkt_otherhost;
+	__u16			frag_max_size;
 	unsigned int		mask;
 	struct net_device	*physindev;
 	union {
 		struct net_device *physoutdev;
 		char neigh_header[8];
 	};
-	__be32			ipv4_daddr;
+	union {
+		__be32          ipv4_daddr;
+		struct in6_addr ipv6_daddr;
+	};
 };
 #endif
 

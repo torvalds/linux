@@ -34,6 +34,7 @@
 
 #include <net/ip.h>
 #include <net/ipv6.h>
+#include <net/addrconf.h>
 #include <net/route.h>
 #include <net/netfilter/br_netfilter.h>
 
@@ -115,6 +116,8 @@ struct brnf_frag_data {
 	char mac[NF_BRIDGE_MAX_MAC_HEADER_LENGTH];
 	u8 encap_size;
 	u8 size;
+	u16 vlan_tci;
+	__be16 vlan_proto;
 };
 
 static DEFINE_PER_CPU(struct brnf_frag_data, brnf_frag_data_storage);
@@ -216,7 +219,7 @@ static inline void nf_bridge_pull_encap_header_rcsum(struct sk_buff *skb)
  * expected format
  */
 
-static int br_parse_ip_options(struct sk_buff *skb)
+static int br_validate_ipv4(struct sk_buff *skb)
 {
 	const struct iphdr *iph;
 	struct net_device *dev = skb->dev;
@@ -264,6 +267,111 @@ drop:
 	return -1;
 }
 
+/* We only check the length. A bridge shouldn't do any hop-by-hop stuff
+ * anyway
+ */
+static int check_hbh_len(struct sk_buff *skb)
+{
+	unsigned char *raw = (u8 *)(ipv6_hdr(skb) + 1);
+	u32 pkt_len;
+	const unsigned char *nh = skb_network_header(skb);
+	int off = raw - nh;
+	int len = (raw[1] + 1) << 3;
+
+	if ((raw + len) - skb->data > skb_headlen(skb))
+		goto bad;
+
+	off += 2;
+	len -= 2;
+
+	while (len > 0) {
+		int optlen = nh[off + 1] + 2;
+
+		switch (nh[off]) {
+		case IPV6_TLV_PAD1:
+			optlen = 1;
+			break;
+
+		case IPV6_TLV_PADN:
+			break;
+
+		case IPV6_TLV_JUMBO:
+			if (nh[off + 1] != 4 || (off & 3) != 2)
+				goto bad;
+			pkt_len = ntohl(*(__be32 *)(nh + off + 2));
+			if (pkt_len <= IPV6_MAXPLEN ||
+			    ipv6_hdr(skb)->payload_len)
+				goto bad;
+			if (pkt_len > skb->len - sizeof(struct ipv6hdr))
+				goto bad;
+			if (pskb_trim_rcsum(skb,
+					    pkt_len + sizeof(struct ipv6hdr)))
+				goto bad;
+			nh = skb_network_header(skb);
+			break;
+		default:
+			if (optlen > len)
+				goto bad;
+			break;
+		}
+		off += optlen;
+		len -= optlen;
+	}
+	if (len == 0)
+		return 0;
+bad:
+	return -1;
+}
+
+/* Equivalent to br_validate_ipv4 for IPv6 */
+static int br_validate_ipv6(struct sk_buff *skb)
+{
+	const struct ipv6hdr *hdr;
+	struct net_device *dev = skb->dev;
+	struct inet6_dev *idev = in6_dev_get(skb->dev);
+	u32 pkt_len;
+	u8 ip6h_len = sizeof(struct ipv6hdr);
+
+	if (!pskb_may_pull(skb, ip6h_len))
+		goto inhdr_error;
+
+	if (skb->len < ip6h_len)
+		goto drop;
+
+	hdr = ipv6_hdr(skb);
+
+	if (hdr->version != 6)
+		goto inhdr_error;
+
+	pkt_len = ntohs(hdr->payload_len);
+
+	if (pkt_len || hdr->nexthdr != NEXTHDR_HOP) {
+		if (pkt_len + ip6h_len > skb->len) {
+			IP6_INC_STATS_BH(dev_net(dev), idev,
+					 IPSTATS_MIB_INTRUNCATEDPKTS);
+			goto drop;
+		}
+		if (pskb_trim_rcsum(skb, pkt_len + ip6h_len)) {
+			IP6_INC_STATS_BH(dev_net(dev), idev,
+					 IPSTATS_MIB_INDISCARDS);
+			goto drop;
+		}
+	}
+	if (hdr->nexthdr == NEXTHDR_HOP && check_hbh_len(skb))
+		goto drop;
+
+	memset(IP6CB(skb), 0, sizeof(struct inet6_skb_parm));
+	/* No IP options in IPv6 header; however it should be
+	 * checked if some next headers need special treatment
+	 */
+	return 0;
+
+inhdr_error:
+	IP6_INC_STATS_BH(dev_net(dev), idev, IPSTATS_MIB_INHDRERRORS);
+drop:
+	return -1;
+}
+
 static void nf_bridge_update_protocol(struct sk_buff *skb)
 {
 	switch (skb->nf_bridge->orig_proto) {
@@ -276,37 +384,6 @@ static void nf_bridge_update_protocol(struct sk_buff *skb)
 	case BRNF_PROTO_UNCHANGED:
 		break;
 	}
-}
-
-/* PF_BRIDGE/PRE_ROUTING *********************************************/
-/* Undo the changes made for ip6tables PREROUTING and continue the
- * bridge PRE_ROUTING hook. */
-static int br_nf_pre_routing_finish_ipv6(struct sock *sk, struct sk_buff *skb)
-{
-	struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
-	struct rtable *rt;
-
-	if (nf_bridge->pkt_otherhost) {
-		skb->pkt_type = PACKET_OTHERHOST;
-		nf_bridge->pkt_otherhost = false;
-	}
-	nf_bridge->mask ^= BRNF_NF_BRIDGE_PREROUTING;
-
-	rt = bridge_parent_rtable(nf_bridge->physindev);
-	if (!rt) {
-		kfree_skb(skb);
-		return 0;
-	}
-	skb_dst_set_noref(skb, &rt->dst);
-
-	skb->dev = nf_bridge->physindev;
-	nf_bridge_update_protocol(skb);
-	nf_bridge_push_encap_header(skb);
-	NF_HOOK_THRESH(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING, sk, skb,
-		       skb->dev, NULL,
-		       br_handle_frame_finish, 1);
-
-	return 0;
 }
 
 /* Obtain the correct destination MAC address, while preserving the original
@@ -357,7 +434,74 @@ free_skb:
 static bool daddr_was_changed(const struct sk_buff *skb,
 			      const struct nf_bridge_info *nf_bridge)
 {
-	return ip_hdr(skb)->daddr != nf_bridge->ipv4_daddr;
+	switch (skb->protocol) {
+	case htons(ETH_P_IP):
+		return ip_hdr(skb)->daddr != nf_bridge->ipv4_daddr;
+	case htons(ETH_P_IPV6):
+		return memcmp(&nf_bridge->ipv6_daddr, &ipv6_hdr(skb)->daddr,
+			      sizeof(ipv6_hdr(skb)->daddr)) != 0;
+	default:
+		return false;
+	}
+}
+
+/* PF_BRIDGE/PRE_ROUTING: Undo the changes made for ip6tables
+ * PREROUTING and continue the bridge PRE_ROUTING hook. See comment
+ * for br_nf_pre_routing_finish(), same logic is used here but
+ * equivalent IPv6 function ip6_route_input() called indirectly.
+ */
+static int br_nf_pre_routing_finish_ipv6(struct sock *sk, struct sk_buff *skb)
+{
+	struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
+	struct rtable *rt;
+	struct net_device *dev = skb->dev;
+	const struct nf_ipv6_ops *v6ops = nf_get_ipv6_ops();
+
+	nf_bridge->frag_max_size = IP6CB(skb)->frag_max_size;
+
+	if (nf_bridge->pkt_otherhost) {
+		skb->pkt_type = PACKET_OTHERHOST;
+		nf_bridge->pkt_otherhost = false;
+	}
+	nf_bridge->mask &= ~BRNF_NF_BRIDGE_PREROUTING;
+	if (daddr_was_changed(skb, nf_bridge)) {
+		skb_dst_drop(skb);
+		v6ops->route_input(skb);
+
+		if (skb_dst(skb)->error) {
+			kfree_skb(skb);
+			return 0;
+		}
+
+		if (skb_dst(skb)->dev == dev) {
+			skb->dev = nf_bridge->physindev;
+			nf_bridge_update_protocol(skb);
+			nf_bridge_push_encap_header(skb);
+			NF_HOOK_THRESH(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING,
+				       sk, skb, skb->dev, NULL,
+				       br_nf_pre_routing_finish_bridge,
+				       1);
+			return 0;
+		}
+		ether_addr_copy(eth_hdr(skb)->h_dest, dev->dev_addr);
+		skb->pkt_type = PACKET_HOST;
+	} else {
+		rt = bridge_parent_rtable(nf_bridge->physindev);
+		if (!rt) {
+			kfree_skb(skb);
+			return 0;
+		}
+		skb_dst_set_noref(skb, &rt->dst);
+	}
+
+	skb->dev = nf_bridge->physindev;
+	nf_bridge_update_protocol(skb);
+	nf_bridge_push_encap_header(skb);
+	NF_HOOK_THRESH(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING, sk, skb,
+		       skb->dev, NULL,
+		       br_handle_frame_finish, 1);
+
+	return 0;
 }
 
 /* This requires some explaining. If DNAT has taken place,
@@ -406,16 +550,14 @@ static int br_nf_pre_routing_finish(struct sock *sk, struct sk_buff *skb)
 	struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
 	struct rtable *rt;
 	int err;
-	int frag_max_size;
 
-	frag_max_size = IPCB(skb)->frag_max_size;
-	BR_INPUT_SKB_CB(skb)->frag_max_size = frag_max_size;
+	nf_bridge->frag_max_size = IPCB(skb)->frag_max_size;
 
 	if (nf_bridge->pkt_otherhost) {
 		skb->pkt_type = PACKET_OTHERHOST;
 		nf_bridge->pkt_otherhost = false;
 	}
-	nf_bridge->mask ^= BRNF_NF_BRIDGE_PREROUTING;
+	nf_bridge->mask &= ~BRNF_NF_BRIDGE_PREROUTING;
 	if (daddr_was_changed(skb, nf_bridge)) {
 		if ((err = ip_route_input(skb, iph->daddr, iph->saddr, iph->tos, dev))) {
 			struct in_device *in_dev = __in_dev_get_rcu(dev);
@@ -517,90 +659,16 @@ static struct net_device *setup_pre_routing(struct sk_buff *skb)
 	return skb->dev;
 }
 
-/* We only check the length. A bridge shouldn't do any hop-by-hop stuff anyway */
-static int check_hbh_len(struct sk_buff *skb)
-{
-	unsigned char *raw = (u8 *)(ipv6_hdr(skb) + 1);
-	u32 pkt_len;
-	const unsigned char *nh = skb_network_header(skb);
-	int off = raw - nh;
-	int len = (raw[1] + 1) << 3;
-
-	if ((raw + len) - skb->data > skb_headlen(skb))
-		goto bad;
-
-	off += 2;
-	len -= 2;
-
-	while (len > 0) {
-		int optlen = nh[off + 1] + 2;
-
-		switch (nh[off]) {
-		case IPV6_TLV_PAD1:
-			optlen = 1;
-			break;
-
-		case IPV6_TLV_PADN:
-			break;
-
-		case IPV6_TLV_JUMBO:
-			if (nh[off + 1] != 4 || (off & 3) != 2)
-				goto bad;
-			pkt_len = ntohl(*(__be32 *) (nh + off + 2));
-			if (pkt_len <= IPV6_MAXPLEN ||
-			    ipv6_hdr(skb)->payload_len)
-				goto bad;
-			if (pkt_len > skb->len - sizeof(struct ipv6hdr))
-				goto bad;
-			if (pskb_trim_rcsum(skb,
-					    pkt_len + sizeof(struct ipv6hdr)))
-				goto bad;
-			nh = skb_network_header(skb);
-			break;
-		default:
-			if (optlen > len)
-				goto bad;
-			break;
-		}
-		off += optlen;
-		len -= optlen;
-	}
-	if (len == 0)
-		return 0;
-bad:
-	return -1;
-
-}
-
 /* Replicate the checks that IPv6 does on packet reception and pass the packet
- * to ip6tables, which doesn't support NAT, so things are fairly simple. */
+ * to ip6tables.
+ */
 static unsigned int br_nf_pre_routing_ipv6(const struct nf_hook_ops *ops,
 					   struct sk_buff *skb,
 					   const struct nf_hook_state *state)
 {
-	const struct ipv6hdr *hdr;
-	u32 pkt_len;
+	struct nf_bridge_info *nf_bridge;
 
-	if (skb->len < sizeof(struct ipv6hdr))
-		return NF_DROP;
-
-	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
-		return NF_DROP;
-
-	hdr = ipv6_hdr(skb);
-
-	if (hdr->version != 6)
-		return NF_DROP;
-
-	pkt_len = ntohs(hdr->payload_len);
-
-	if (pkt_len || hdr->nexthdr != NEXTHDR_HOP) {
-		if (pkt_len + sizeof(struct ipv6hdr) > skb->len)
-			return NF_DROP;
-		if (pskb_trim_rcsum(skb, pkt_len + sizeof(struct ipv6hdr)))
-			return NF_DROP;
-	}
-	if (hdr->nexthdr == NEXTHDR_HOP && check_hbh_len(skb))
+	if (br_validate_ipv6(skb))
 		return NF_DROP;
 
 	nf_bridge_put(skb->nf_bridge);
@@ -608,6 +676,9 @@ static unsigned int br_nf_pre_routing_ipv6(const struct nf_hook_ops *ops,
 		return NF_DROP;
 	if (!setup_pre_routing(skb))
 		return NF_DROP;
+
+	nf_bridge = nf_bridge_info_get(skb);
+	nf_bridge->ipv6_daddr = ipv6_hdr(skb)->daddr;
 
 	skb->protocol = htons(ETH_P_IPV6);
 	NF_HOOK(NFPROTO_IPV6, NF_INET_PRE_ROUTING, state->sk, skb,
@@ -656,7 +727,7 @@ static unsigned int br_nf_pre_routing(const struct nf_hook_ops *ops,
 
 	nf_bridge_pull_encap_header_rcsum(skb);
 
-	if (br_parse_ip_options(skb))
+	if (br_validate_ipv4(skb))
 		return NF_DROP;
 
 	nf_bridge_put(skb->nf_bridge);
@@ -700,12 +771,12 @@ static int br_nf_forward_finish(struct sock *sk, struct sk_buff *skb)
 	struct net_device *in;
 
 	if (!IS_ARP(skb) && !IS_VLAN_ARP(skb)) {
-		int frag_max_size;
 
-		if (skb->protocol == htons(ETH_P_IP)) {
-			frag_max_size = IPCB(skb)->frag_max_size;
-			BR_INPUT_SKB_CB(skb)->frag_max_size = frag_max_size;
-		}
+		if (skb->protocol == htons(ETH_P_IP))
+			nf_bridge->frag_max_size = IPCB(skb)->frag_max_size;
+
+		if (skb->protocol == htons(ETH_P_IPV6))
+			nf_bridge->frag_max_size = IP6CB(skb)->frag_max_size;
 
 		in = nf_bridge->physindev;
 		if (nf_bridge->pkt_otherhost) {
@@ -768,12 +839,15 @@ static unsigned int br_nf_forward_ip(const struct nf_hook_ops *ops,
 	}
 
 	if (pf == NFPROTO_IPV4) {
-		int frag_max = BR_INPUT_SKB_CB(skb)->frag_max_size;
-
-		if (br_parse_ip_options(skb))
+		if (br_validate_ipv4(skb))
 			return NF_DROP;
+		IPCB(skb)->frag_max_size = nf_bridge->frag_max_size;
+	}
 
-		IPCB(skb)->frag_max_size = frag_max;
+	if (pf == NFPROTO_IPV6) {
+		if (br_validate_ipv6(skb))
+			return NF_DROP;
+		IP6CB(skb)->frag_max_size = nf_bridge->frag_max_size;
 	}
 
 	nf_bridge->physoutdev = skb->dev;
@@ -823,7 +897,7 @@ static unsigned int br_nf_forward_arp(const struct nf_hook_ops *ops,
 	return NF_STOLEN;
 }
 
-#if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4)
+#if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4) || IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
 static int br_nf_push_frag_xmit(struct sock *sk, struct sk_buff *skb)
 {
 	struct brnf_frag_data *data;
@@ -837,12 +911,18 @@ static int br_nf_push_frag_xmit(struct sock *sk, struct sk_buff *skb)
 		return 0;
 	}
 
+	if (data->vlan_tci) {
+		skb->vlan_tci = data->vlan_tci;
+		skb->vlan_proto = data->vlan_proto;
+	}
+
 	skb_copy_to_linear_data_offset(skb, -data->size, data->mac, data->size);
 	__skb_push(skb, data->encap_size);
 
 	nf_bridge_info_free(skb);
 	return br_dev_queue_push_xmit(sk, skb);
 }
+#endif
 
 static int br_nf_ip_fragment(struct sock *sk, struct sk_buff *skb,
 			     int (*output)(struct sock *, struct sk_buff *))
@@ -863,29 +943,63 @@ static int br_nf_ip_fragment(struct sock *sk, struct sk_buff *skb,
 	return ip_do_fragment(sk, skb, output);
 }
 
+static unsigned int nf_bridge_mtu_reduction(const struct sk_buff *skb)
+{
+	if (skb->nf_bridge->orig_proto == BRNF_PROTO_PPPOE)
+		return PPPOE_SES_HLEN;
+	return 0;
+}
+
 static int br_nf_dev_queue_xmit(struct sock *sk, struct sk_buff *skb)
 {
-	int ret;
-	int frag_max_size;
+	struct nf_bridge_info *nf_bridge;
 	unsigned int mtu_reserved;
 
-	if (skb_is_gso(skb) || skb->protocol != htons(ETH_P_IP)) {
+	mtu_reserved = nf_bridge_mtu_reduction(skb);
+
+	if (skb_is_gso(skb) || skb->len + mtu_reserved <= skb->dev->mtu) {
 		nf_bridge_info_free(skb);
 		return br_dev_queue_push_xmit(sk, skb);
 	}
 
-	mtu_reserved = nf_bridge_mtu_reduction(skb);
+	nf_bridge = nf_bridge_info_get(skb);
+
+#if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4)
 	/* This is wrong! We should preserve the original fragment
 	 * boundaries by preserving frag_list rather than refragmenting.
 	 */
-	if (skb->len + mtu_reserved > skb->dev->mtu) {
+	if (skb->protocol == htons(ETH_P_IP)) {
 		struct brnf_frag_data *data;
 
-		frag_max_size = BR_INPUT_SKB_CB(skb)->frag_max_size;
-		if (br_parse_ip_options(skb))
-			/* Drop invalid packet */
+		if (br_validate_ipv4(skb))
 			return NF_DROP;
-		IPCB(skb)->frag_max_size = frag_max_size;
+
+		IPCB(skb)->frag_max_size = nf_bridge->frag_max_size;
+
+		nf_bridge_update_protocol(skb);
+
+		data = this_cpu_ptr(&brnf_frag_data_storage);
+
+		data->vlan_tci = skb->vlan_tci;
+		data->vlan_proto = skb->vlan_proto;
+		data->encap_size = nf_bridge_encap_header_len(skb);
+		data->size = ETH_HLEN + data->encap_size;
+
+		skb_copy_from_linear_data_offset(skb, -data->size, data->mac,
+						 data->size);
+
+		return br_nf_ip_fragment(sk, skb, br_nf_push_frag_xmit);
+	}
+#endif
+#if IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
+	if (skb->protocol == htons(ETH_P_IPV6)) {
+		const struct nf_ipv6_ops *v6ops = nf_get_ipv6_ops();
+		struct brnf_frag_data *data;
+
+		if (br_validate_ipv6(skb))
+			return NF_DROP;
+
+		IP6CB(skb)->frag_max_size = nf_bridge->frag_max_size;
 
 		nf_bridge_update_protocol(skb);
 
@@ -896,21 +1010,15 @@ static int br_nf_dev_queue_xmit(struct sock *sk, struct sk_buff *skb)
 		skb_copy_from_linear_data_offset(skb, -data->size, data->mac,
 						 data->size);
 
-		ret = br_nf_ip_fragment(sk, skb, br_nf_push_frag_xmit);
-	} else {
-		nf_bridge_info_free(skb);
-		ret = br_dev_queue_push_xmit(sk, skb);
+		if (v6ops)
+			return v6ops->fragment(sk, skb, br_nf_push_frag_xmit);
+		else
+			return -EMSGSIZE;
 	}
-
-	return ret;
-}
-#else
-static int br_nf_dev_queue_xmit(struct sock *sk, struct sk_buff *skb)
-{
+#endif
 	nf_bridge_info_free(skb);
 	return br_dev_queue_push_xmit(sk, skb);
 }
-#endif
 
 /* PF_BRIDGE/POST_ROUTING ********************************************/
 static unsigned int br_nf_post_routing(const struct nf_hook_ops *ops,

@@ -224,13 +224,10 @@ struct xt_table_info {
 	unsigned int stacksize;
 	unsigned int __percpu *stackptr;
 	void ***jumpstack;
-	/* ipt_entry tables: one per CPU */
-	/* Note : this field MUST be the last one, see XT_TABLE_INFO_SZ */
-	void *entries[1];
+
+	unsigned char entries[0] __aligned(8);
 };
 
-#define XT_TABLE_INFO_SZ (offsetof(struct xt_table_info, entries) \
-			  + nr_cpu_ids * sizeof(char *))
 int xt_register_target(struct xt_target *target);
 void xt_unregister_target(struct xt_target *target);
 int xt_register_targets(struct xt_target *target, unsigned int n);
@@ -351,6 +348,55 @@ static inline unsigned long ifname_compare_aligned(const char *_a,
 		ret |= (a[3] ^ b[3]) & mask[3];
 	BUILD_BUG_ON(IFNAMSIZ > 4 * sizeof(unsigned long));
 	return ret;
+}
+
+
+/* On SMP, ip(6)t_entry->counters.pcnt holds address of the
+ * real (percpu) counter.  On !SMP, its just the packet count,
+ * so nothing needs to be done there.
+ *
+ * xt_percpu_counter_alloc returns the address of the percpu
+ * counter, or 0 on !SMP.
+ *
+ * Hence caller must use IS_ERR_VALUE to check for error, this
+ * allows us to return 0 for single core systems without forcing
+ * callers to deal with SMP vs. NONSMP issues.
+ */
+static inline u64 xt_percpu_counter_alloc(void)
+{
+	if (nr_cpu_ids > 1) {
+		void __percpu *res = alloc_percpu(struct xt_counters);
+
+		if (res == NULL)
+			return (u64) -ENOMEM;
+
+		return (__force u64) res;
+	}
+
+	return 0;
+}
+static inline void xt_percpu_counter_free(u64 pcnt)
+{
+	if (nr_cpu_ids > 1)
+		free_percpu((void __percpu *) pcnt);
+}
+
+static inline struct xt_counters *
+xt_get_this_cpu_counter(struct xt_counters *cnt)
+{
+	if (nr_cpu_ids > 1)
+		return this_cpu_ptr((void __percpu *) cnt->pcnt);
+
+	return cnt;
+}
+
+static inline struct xt_counters *
+xt_get_per_cpu_counter(struct xt_counters *cnt, unsigned int cpu)
+{
+	if (nr_cpu_ids > 1)
+		return per_cpu_ptr((void __percpu *) cnt->pcnt, cpu);
+
+	return cnt;
 }
 
 struct nf_hook_ops *xt_hook_link(const struct xt_table *, nf_hookfn *);

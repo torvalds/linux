@@ -8,6 +8,7 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/netdevice.h>
 #include <net/netfilter/nf_tables.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
@@ -157,6 +158,77 @@ static const struct nf_chain_type nft_filter_chain_netdev = {
 	.hook_mask	= (1 << NF_NETDEV_INGRESS),
 };
 
+static void nft_netdev_event(unsigned long event, struct nft_af_info *afi,
+			     struct net_device *dev, struct nft_table *table,
+			     struct nft_base_chain *basechain)
+{
+	switch (event) {
+	case NETDEV_REGISTER:
+		if (strcmp(basechain->dev_name, dev->name) != 0)
+			return;
+
+		BUG_ON(!(basechain->flags & NFT_BASECHAIN_DISABLED));
+
+		dev_hold(dev);
+		basechain->ops[0].dev = dev;
+		basechain->flags &= ~NFT_BASECHAIN_DISABLED;
+		if (!(table->flags & NFT_TABLE_F_DORMANT))
+			nft_register_basechain(basechain, afi->nops);
+		break;
+	case NETDEV_UNREGISTER:
+		if (strcmp(basechain->dev_name, dev->name) != 0)
+			return;
+
+		BUG_ON(basechain->flags & NFT_BASECHAIN_DISABLED);
+
+		if (!(table->flags & NFT_TABLE_F_DORMANT))
+			nft_unregister_basechain(basechain, afi->nops);
+
+		dev_put(basechain->ops[0].dev);
+		basechain->ops[0].dev = NULL;
+		basechain->flags |= NFT_BASECHAIN_DISABLED;
+		break;
+	case NETDEV_CHANGENAME:
+		if (dev->ifindex != basechain->ops[0].dev->ifindex)
+			return;
+
+		strncpy(basechain->dev_name, dev->name, IFNAMSIZ);
+		break;
+	}
+}
+
+static int nf_tables_netdev_event(struct notifier_block *this,
+				  unsigned long event, void *ptr)
+{
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct nft_af_info *afi;
+	struct nft_table *table;
+	struct nft_chain *chain;
+
+	nfnl_lock(NFNL_SUBSYS_NFTABLES);
+	list_for_each_entry(afi, &dev_net(dev)->nft.af_info, list) {
+		if (afi->family != NFPROTO_NETDEV)
+			continue;
+
+		list_for_each_entry(table, &afi->tables, list) {
+			list_for_each_entry(chain, &table->chains, list) {
+				if (!(chain->flags & NFT_BASE_CHAIN))
+					continue;
+
+				nft_netdev_event(event, afi, dev, table,
+						 nft_base_chain(chain));
+			}
+		}
+	}
+	nfnl_unlock(NFNL_SUBSYS_NFTABLES);
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block nf_tables_netdev_notifier = {
+	.notifier_call	= nf_tables_netdev_event,
+};
+
 static int __init nf_tables_netdev_init(void)
 {
 	int ret;
@@ -166,11 +238,14 @@ static int __init nf_tables_netdev_init(void)
 	if (ret < 0)
 		nft_unregister_chain_type(&nft_filter_chain_netdev);
 
+	register_netdevice_notifier(&nf_tables_netdev_notifier);
+
 	return ret;
 }
 
 static void __exit nf_tables_netdev_exit(void)
 {
+	unregister_netdevice_notifier(&nf_tables_netdev_notifier);
 	unregister_pernet_subsys(&nf_tables_netdev_net_ops);
 	nft_unregister_chain_type(&nft_filter_chain_netdev);
 }
