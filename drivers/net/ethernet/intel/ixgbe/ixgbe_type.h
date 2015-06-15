@@ -2540,9 +2540,11 @@ enum ixgbe_fdir_pballoc_type {
 #define IXGBE_FDIRCMD_QUEUE_EN                  0x00008000
 #define IXGBE_FDIRCMD_FLOW_TYPE_SHIFT           5
 #define IXGBE_FDIRCMD_RX_QUEUE_SHIFT            16
+#define IXGBE_FDIRCMD_RX_TUNNEL_FILTER_SHIFT	23
 #define IXGBE_FDIRCMD_VT_POOL_SHIFT             24
 #define IXGBE_FDIR_INIT_DONE_POLL               10
 #define IXGBE_FDIRCMD_CMD_POLL                  10
+#define IXGBE_FDIRCMD_TUNNEL_FILTER		0x00800000
 
 #define IXGBE_FDIR_DROP_QUEUE                   127
 
@@ -2833,12 +2835,13 @@ typedef u32 ixgbe_link_speed;
 #define IXGBE_ATR_SIGNATURE_HASH_KEY 0x174D3614
 
 /* Software ATR input stream values and masks */
-#define IXGBE_ATR_HASH_MASK     0x7fff
-#define IXGBE_ATR_L4TYPE_MASK      0x3
-#define IXGBE_ATR_L4TYPE_UDP       0x1
-#define IXGBE_ATR_L4TYPE_TCP       0x2
-#define IXGBE_ATR_L4TYPE_SCTP      0x3
-#define IXGBE_ATR_L4TYPE_IPV6_MASK 0x4
+#define IXGBE_ATR_HASH_MASK		0x7fff
+#define IXGBE_ATR_L4TYPE_MASK		0x3
+#define IXGBE_ATR_L4TYPE_UDP		0x1
+#define IXGBE_ATR_L4TYPE_TCP		0x2
+#define IXGBE_ATR_L4TYPE_SCTP		0x3
+#define IXGBE_ATR_L4TYPE_IPV6_MASK	0x4
+#define IXGBE_ATR_L4TYPE_TUNNEL_MASK	0x10
 enum ixgbe_atr_flow_type {
 	IXGBE_ATR_FLOW_TYPE_IPV4   = 0x0,
 	IXGBE_ATR_FLOW_TYPE_UDPV4  = 0x1,
