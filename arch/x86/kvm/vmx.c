@@ -8659,7 +8659,7 @@ static u64 vmx_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 		goto exit;
 	}
 
-	cache = kvm_get_guest_memory_type(vcpu, gfn);
+	cache = kvm_mtrr_get_guest_memory_type(vcpu, gfn);
 
 exit:
 	return (cache << VMX_EPT_MT_EPTE_SHIFT) | ipat;

@@ -57,7 +57,6 @@
 #include <asm/debugreg.h>
 #include <asm/msr.h>
 #include <asm/desc.h>
-#include <asm/mtrr.h>
 #include <asm/mce.h>
 #include <asm/i387.h>
 #include <asm/fpu-internal.h> /* Ugh! */
@@ -1803,179 +1802,6 @@ static void kvmclock_sync_fn(struct work_struct *work)
 					KVMCLOCK_SYNC_PERIOD);
 }
 
-static bool msr_mtrr_valid(unsigned msr)
-{
-	switch (msr) {
-	case 0x200 ... 0x200 + 2 * KVM_NR_VAR_MTRR - 1:
-	case MSR_MTRRfix64K_00000:
-	case MSR_MTRRfix16K_80000:
-	case MSR_MTRRfix16K_A0000:
-	case MSR_MTRRfix4K_C0000:
-	case MSR_MTRRfix4K_C8000:
-	case MSR_MTRRfix4K_D0000:
-	case MSR_MTRRfix4K_D8000:
-	case MSR_MTRRfix4K_E0000:
-	case MSR_MTRRfix4K_E8000:
-	case MSR_MTRRfix4K_F0000:
-	case MSR_MTRRfix4K_F8000:
-	case MSR_MTRRdefType:
-	case MSR_IA32_CR_PAT:
-		return true;
-	case 0x2f8:
-		return true;
-	}
-	return false;
-}
-
-static bool valid_pat_type(unsigned t)
-{
-	return t < 8 && (1 << t) & 0xf3; /* 0, 1, 4, 5, 6, 7 */
-}
-
-static bool valid_mtrr_type(unsigned t)
-{
-	return t < 8 && (1 << t) & 0x73; /* 0, 1, 4, 5, 6 */
-}
-
-bool kvm_mtrr_valid(struct kvm_vcpu *vcpu, u32 msr, u64 data)
-{
-	int i;
-	u64 mask;
-
-	if (!msr_mtrr_valid(msr))
-		return false;
-
-	if (msr == MSR_IA32_CR_PAT) {
-		for (i = 0; i < 8; i++)
-			if (!valid_pat_type((data >> (i * 8)) & 0xff))
-				return false;
-		return true;
-	} else if (msr == MSR_MTRRdefType) {
-		if (data & ~0xcff)
-			return false;
-		return valid_mtrr_type(data & 0xff);
-	} else if (msr >= MSR_MTRRfix64K_00000 && msr <= MSR_MTRRfix4K_F8000) {
-		for (i = 0; i < 8 ; i++)
-			if (!valid_mtrr_type((data >> (i * 8)) & 0xff))
-				return false;
-		return true;
-	}
-
-	/* variable MTRRs */
-	WARN_ON(!(msr >= 0x200 && msr < 0x200 + 2 * KVM_NR_VAR_MTRR));
-
-	mask = (~0ULL) << cpuid_maxphyaddr(vcpu);
-	if ((msr & 1) == 0) {
-		/* MTRR base */
-		if (!valid_mtrr_type(data & 0xff))
-			return false;
-		mask |= 0xf00;
-	} else
-		/* MTRR mask */
-		mask |= 0x7ff;
-	if (data & mask) {
-		kvm_inject_gp(vcpu, 0);
-		return false;
-	}
-
-	return true;
-}
-EXPORT_SYMBOL_GPL(kvm_mtrr_valid);
-
-static void update_mtrr(struct kvm_vcpu *vcpu, u32 msr)
-{
-	struct mtrr_state_type *mtrr_state = &vcpu->arch.mtrr_state;
-	unsigned char mtrr_enabled = mtrr_state->enabled;
-	gfn_t start, end, mask;
-	int index;
-	bool is_fixed = true;
-
-	if (msr == MSR_IA32_CR_PAT || !tdp_enabled ||
-	      !kvm_arch_has_noncoherent_dma(vcpu->kvm))
-		return;
-
-	if (!(mtrr_enabled & 0x2) && msr != MSR_MTRRdefType)
-		return;
-
-	switch (msr) {
-	case MSR_MTRRfix64K_00000:
-		start = 0x0;
-		end = 0x80000;
-		break;
-	case MSR_MTRRfix16K_80000:
-		start = 0x80000;
-		end = 0xa0000;
-		break;
-	case MSR_MTRRfix16K_A0000:
-		start = 0xa0000;
-		end = 0xc0000;
-		break;
-	case MSR_MTRRfix4K_C0000 ... MSR_MTRRfix4K_F8000:
-		index = msr - MSR_MTRRfix4K_C0000;
-		start = 0xc0000 + index * (32 << 10);
-		end = start + (32 << 10);
-		break;
-	case MSR_MTRRdefType:
-		is_fixed = false;
-		start = 0x0;
-		end = ~0ULL;
-		break;
-	default:
-		/* variable range MTRRs. */
-		is_fixed = false;
-		index = (msr - 0x200) / 2;
-		start = (((u64)mtrr_state->var_ranges[index].base_hi) << 32) +
-		       (mtrr_state->var_ranges[index].base_lo & PAGE_MASK);
-		mask = (((u64)mtrr_state->var_ranges[index].mask_hi) << 32) +
-		       (mtrr_state->var_ranges[index].mask_lo & PAGE_MASK);
-		mask |= ~0ULL << cpuid_maxphyaddr(vcpu);
-
-		end = ((start & mask) | ~mask) + 1;
-	}
-
-	if (is_fixed && !(mtrr_enabled & 0x1))
-		return;
-
-	kvm_zap_gfn_range(vcpu->kvm, gpa_to_gfn(start), gpa_to_gfn(end));
-}
-
-static int set_msr_mtrr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
-{
-	u64 *p = (u64 *)&vcpu->arch.mtrr_state.fixed_ranges;
-
-	if (!kvm_mtrr_valid(vcpu, msr, data))
-		return 1;
-
-	if (msr == MSR_MTRRdefType) {
-		vcpu->arch.mtrr_state.def_type = data;
-		vcpu->arch.mtrr_state.enabled = (data & 0xc00) >> 10;
-	} else if (msr == MSR_MTRRfix64K_00000)
-		p[0] = data;
-	else if (msr == MSR_MTRRfix16K_80000 || msr == MSR_MTRRfix16K_A0000)
-		p[1 + msr - MSR_MTRRfix16K_80000] = data;
-	else if (msr >= MSR_MTRRfix4K_C0000 && msr <= MSR_MTRRfix4K_F8000)
-		p[3 + msr - MSR_MTRRfix4K_C0000] = data;
-	else if (msr == MSR_IA32_CR_PAT)
-		vcpu->arch.pat = data;
-	else {	/* Variable MTRRs */
-		int idx, is_mtrr_mask;
-		u64 *pt;
-
-		idx = (msr - 0x200) / 2;
-		is_mtrr_mask = msr - 0x200 - 2 * idx;
-		if (!is_mtrr_mask)
-			pt =
-			  (u64 *)&vcpu->arch.mtrr_state.var_ranges[idx].base_lo;
-		else
-			pt =
-			  (u64 *)&vcpu->arch.mtrr_state.var_ranges[idx].mask_lo;
-		*pt = data;
-	}
-
-	update_mtrr(vcpu, msr);
-	return 0;
-}
-
 static int set_msr_mce(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 {
 	u64 mcg_cap = vcpu->arch.mcg_cap;
@@ -2267,7 +2093,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			    __func__, data);
 		break;
 	case 0x200 ... 0x2ff:
-		return set_msr_mtrr(vcpu, msr, data);
+		return kvm_mtrr_set_msr(vcpu, msr, data);
 	case MSR_IA32_APICBASE:
 		return kvm_set_apic_base(vcpu, msr_info);
 	case APIC_BASE_MSR ... APIC_BASE_MSR + 0x3ff:
@@ -2479,42 +2305,6 @@ int kvm_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 }
 EXPORT_SYMBOL_GPL(kvm_get_msr);
 
-static int get_msr_mtrr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
-{
-	u64 *p = (u64 *)&vcpu->arch.mtrr_state.fixed_ranges;
-
-	if (!msr_mtrr_valid(msr))
-		return 1;
-
-	if (msr == MSR_MTRRdefType)
-		*pdata = vcpu->arch.mtrr_state.def_type +
-			 (vcpu->arch.mtrr_state.enabled << 10);
-	else if (msr == MSR_MTRRfix64K_00000)
-		*pdata = p[0];
-	else if (msr == MSR_MTRRfix16K_80000 || msr == MSR_MTRRfix16K_A0000)
-		*pdata = p[1 + msr - MSR_MTRRfix16K_80000];
-	else if (msr >= MSR_MTRRfix4K_C0000 && msr <= MSR_MTRRfix4K_F8000)
-		*pdata = p[3 + msr - MSR_MTRRfix4K_C0000];
-	else if (msr == MSR_IA32_CR_PAT)
-		*pdata = vcpu->arch.pat;
-	else {	/* Variable MTRRs */
-		int idx, is_mtrr_mask;
-		u64 *pt;
-
-		idx = (msr - 0x200) / 2;
-		is_mtrr_mask = msr - 0x200 - 2 * idx;
-		if (!is_mtrr_mask)
-			pt =
-			  (u64 *)&vcpu->arch.mtrr_state.var_ranges[idx].base_lo;
-		else
-			pt =
-			  (u64 *)&vcpu->arch.mtrr_state.var_ranges[idx].mask_lo;
-		*pdata = *pt;
-	}
-
-	return 0;
-}
-
 static int get_msr_mce(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 {
 	u64 data;
@@ -2656,7 +2446,7 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		msr_info->data = 0x500 | KVM_NR_VAR_MTRR;
 		break;
 	case 0x200 ... 0x2ff:
-		return get_msr_mtrr(vcpu, msr_info->index, &msr_info->data);
+		return kvm_mtrr_get_msr(vcpu, msr_info->index, &msr_info->data);
 	case 0xcd: /* fsb frequency */
 		msr_info->data = 3;
 		break;
