@@ -220,6 +220,15 @@ static int fixed_mtrr_seg_unit_range_index(int seg, int unit)
 	return mtrr_seg->range_start + 8 * unit;
 }
 
+static int fixed_mtrr_seg_end_range_index(int seg)
+{
+	struct fixed_mtrr_segment *mtrr_seg = &fixed_seg_table[seg];
+	int n;
+
+	n = (mtrr_seg->end - mtrr_seg->start) >> mtrr_seg->range_shift;
+	return mtrr_seg->range_start + n - 1;
+}
+
 static bool fixed_msr_to_range(u32 msr, u64 *start, u64 *end)
 {
 	int seg, unit;
@@ -264,6 +273,14 @@ static int fixed_mtrr_addr_seg_to_range_index(u64 addr, int seg)
 	index = mtrr_seg->range_start;
 	index += (addr - mtrr_seg->start) >> mtrr_seg->range_shift;
 	return index;
+}
+
+static u64 fixed_mtrr_range_end_addr(int seg, int index)
+{
+	struct fixed_mtrr_segment *mtrr_seg = &fixed_seg_table[seg];
+	int pos = index - mtrr_seg->range_start;
+
+	return mtrr_seg->start + ((pos + 1) << mtrr_seg->range_shift);
 }
 
 static void var_mtrr_range(struct kvm_mtrr_range *range, u64 *start, u64 *end)
@@ -408,6 +425,177 @@ void kvm_vcpu_mtrr_init(struct kvm_vcpu *vcpu)
 {
 	INIT_LIST_HEAD(&vcpu->arch.mtrr_state.head);
 }
+
+struct mtrr_iter {
+	/* input fields. */
+	struct kvm_mtrr *mtrr_state;
+	u64 start;
+	u64 end;
+
+	/* output fields. */
+	int mem_type;
+	/* [start, end) is not fully covered in MTRRs? */
+	bool partial_map;
+
+	/* private fields. */
+	union {
+		/* used for fixed MTRRs. */
+		struct {
+			int index;
+			int seg;
+		};
+
+		/* used for var MTRRs. */
+		struct {
+			struct kvm_mtrr_range *range;
+			/* max address has been covered in var MTRRs. */
+			u64 start_max;
+		};
+	};
+
+	bool fixed;
+};
+
+static bool mtrr_lookup_fixed_start(struct mtrr_iter *iter)
+{
+	int seg, index;
+
+	if (!fixed_mtrr_is_enabled(iter->mtrr_state))
+		return false;
+
+	seg = fixed_mtrr_addr_to_seg(iter->start);
+	if (seg < 0)
+		return false;
+
+	iter->fixed = true;
+	index = fixed_mtrr_addr_seg_to_range_index(iter->start, seg);
+	iter->index = index;
+	iter->seg = seg;
+	return true;
+}
+
+static bool match_var_range(struct mtrr_iter *iter,
+			    struct kvm_mtrr_range *range)
+{
+	u64 start, end;
+
+	var_mtrr_range(range, &start, &end);
+	if (!(start >= iter->end || end <= iter->start)) {
+		iter->range = range;
+
+		/*
+		 * the function is called when we do kvm_mtrr.head walking.
+		 * Range has the minimum base address which interleaves
+		 * [looker->start_max, looker->end).
+		 */
+		iter->partial_map |= iter->start_max < start;
+
+		/* update the max address has been covered. */
+		iter->start_max = max(iter->start_max, end);
+		return true;
+	}
+
+	return false;
+}
+
+static void __mtrr_lookup_var_next(struct mtrr_iter *iter)
+{
+	struct kvm_mtrr *mtrr_state = iter->mtrr_state;
+
+	list_for_each_entry_continue(iter->range, &mtrr_state->head, node)
+		if (match_var_range(iter, iter->range))
+			return;
+
+	iter->range = NULL;
+	iter->partial_map |= iter->start_max < iter->end;
+}
+
+static void mtrr_lookup_var_start(struct mtrr_iter *iter)
+{
+	struct kvm_mtrr *mtrr_state = iter->mtrr_state;
+
+	iter->fixed = false;
+	iter->start_max = iter->start;
+	iter->range = list_prepare_entry(iter->range, &mtrr_state->head, node);
+
+	__mtrr_lookup_var_next(iter);
+}
+
+static void mtrr_lookup_fixed_next(struct mtrr_iter *iter)
+{
+	/* terminate the lookup. */
+	if (fixed_mtrr_range_end_addr(iter->seg, iter->index) >= iter->end) {
+		iter->fixed = false;
+		iter->range = NULL;
+		return;
+	}
+
+	iter->index++;
+
+	/* have looked up for all fixed MTRRs. */
+	if (iter->index >= ARRAY_SIZE(iter->mtrr_state->fixed_ranges))
+		return mtrr_lookup_var_start(iter);
+
+	/* switch to next segment. */
+	if (iter->index > fixed_mtrr_seg_end_range_index(iter->seg))
+		iter->seg++;
+}
+
+static void mtrr_lookup_var_next(struct mtrr_iter *iter)
+{
+	__mtrr_lookup_var_next(iter);
+}
+
+static void mtrr_lookup_start(struct mtrr_iter *iter)
+{
+	if (!mtrr_is_enabled(iter->mtrr_state)) {
+		iter->partial_map = true;
+		return;
+	}
+
+	if (!mtrr_lookup_fixed_start(iter))
+		mtrr_lookup_var_start(iter);
+}
+
+static void mtrr_lookup_init(struct mtrr_iter *iter,
+			     struct kvm_mtrr *mtrr_state, u64 start, u64 end)
+{
+	iter->mtrr_state = mtrr_state;
+	iter->start = start;
+	iter->end = end;
+	iter->partial_map = false;
+	iter->fixed = false;
+	iter->range = NULL;
+
+	mtrr_lookup_start(iter);
+}
+
+static bool mtrr_lookup_okay(struct mtrr_iter *iter)
+{
+	if (iter->fixed) {
+		iter->mem_type = iter->mtrr_state->fixed_ranges[iter->index];
+		return true;
+	}
+
+	if (iter->range) {
+		iter->mem_type = iter->range->base & 0xff;
+		return true;
+	}
+
+	return false;
+}
+
+static void mtrr_lookup_next(struct mtrr_iter *iter)
+{
+	if (iter->fixed)
+		mtrr_lookup_fixed_next(iter);
+	else
+		mtrr_lookup_var_next(iter);
+}
+
+#define mtrr_for_each_mem_type(_iter_, _mtrr_, _gpa_start_, _gpa_end_) \
+	for (mtrr_lookup_init(_iter_, _mtrr_, _gpa_start_, _gpa_end_); \
+	     mtrr_lookup_okay(_iter_); mtrr_lookup_next(_iter_))
 
 u8 kvm_mtrr_get_guest_memory_type(struct kvm_vcpu *vcpu, gfn_t gfn)
 {
