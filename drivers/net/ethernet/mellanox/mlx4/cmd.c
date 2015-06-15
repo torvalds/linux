@@ -49,6 +49,7 @@
 #include "mlx4.h"
 #include "fw.h"
 #include "fw_qos.h"
+#include "mlx4_stats.h"
 
 #define CMD_POLL_TOKEN 0xffff
 #define INBOX_MASK	0xffffffffffffff00ULL
@@ -3165,6 +3166,62 @@ int mlx4_set_vf_link_state(struct mlx4_dev *dev, int port, int vf, int link_stat
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx4_set_vf_link_state);
+
+int mlx4_get_counter_stats(struct mlx4_dev *dev, int counter_index,
+			   struct mlx4_counter *counter_stats, int reset)
+{
+	struct mlx4_cmd_mailbox *mailbox = NULL;
+	struct mlx4_counter *tmp_counter;
+	int err;
+	u32 if_stat_in_mod;
+
+	if (!counter_stats)
+		return -EINVAL;
+
+	if (counter_index == MLX4_SINK_COUNTER_INDEX(dev))
+		return 0;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	memset(mailbox->buf, 0, sizeof(struct mlx4_counter));
+	if_stat_in_mod = counter_index;
+	if (reset)
+		if_stat_in_mod |= MLX4_QUERY_IF_STAT_RESET;
+	err = mlx4_cmd_box(dev, 0, mailbox->dma,
+			   if_stat_in_mod, 0,
+			   MLX4_CMD_QUERY_IF_STAT,
+			   MLX4_CMD_TIME_CLASS_C,
+			   MLX4_CMD_NATIVE);
+	if (err) {
+		mlx4_dbg(dev, "%s: failed to read statistics for counter index %d\n",
+			 __func__, counter_index);
+		goto if_stat_out;
+	}
+	tmp_counter = (struct mlx4_counter *)mailbox->buf;
+	counter_stats->counter_mode = tmp_counter->counter_mode;
+	if (counter_stats->counter_mode == 0) {
+		counter_stats->rx_frames =
+			cpu_to_be64(be64_to_cpu(counter_stats->rx_frames) +
+				    be64_to_cpu(tmp_counter->rx_frames));
+		counter_stats->tx_frames =
+			cpu_to_be64(be64_to_cpu(counter_stats->tx_frames) +
+				    be64_to_cpu(tmp_counter->tx_frames));
+		counter_stats->rx_bytes =
+			cpu_to_be64(be64_to_cpu(counter_stats->rx_bytes) +
+				    be64_to_cpu(tmp_counter->rx_bytes));
+		counter_stats->tx_bytes =
+			cpu_to_be64(be64_to_cpu(counter_stats->tx_bytes) +
+				    be64_to_cpu(tmp_counter->tx_bytes));
+	}
+
+if_stat_out:
+	mlx4_free_cmd_mailbox(dev, mailbox);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx4_get_counter_stats);
 
 int mlx4_vf_smi_enabled(struct mlx4_dev *dev, int slave, int port)
 {

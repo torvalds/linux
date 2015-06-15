@@ -771,6 +771,14 @@ union mlx4_ext_av {
 	struct mlx4_eth_av	eth;
 };
 
+/* Counters should be saturate once they reach their maximum value */
+#define ASSIGN_32BIT_COUNTER(counter, value) do {	\
+	if ((value) > U32_MAX)				\
+		counter = cpu_to_be32(U32_MAX);		\
+	else						\
+		counter = cpu_to_be32(value);		\
+} while (0)
+
 struct mlx4_counter {
 	u8	reserved1[3];
 	u8	counter_mode;
