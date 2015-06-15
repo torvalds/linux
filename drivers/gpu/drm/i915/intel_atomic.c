@@ -100,14 +100,6 @@ int intel_atomic_check(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	/*
-	 * FIXME: move to crtc atomic check function once this is
-	 * more atomic friendly.
-	 */
-	ret = intel_atomic_setup_scalers(dev, nuclear_crtc, crtc_state);
-	if (ret)
-		return ret;
-
 	return ret;
 }
 
@@ -349,6 +341,15 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 						plane->base.id);
 					return PTR_ERR(state);
 				}
+
+				/*
+				 * the plane is added after plane checks are run,
+				 * but since this plane is unchanged just do the
+				 * minimum required validation.
+				 */
+				if (plane->type == DRM_PLANE_TYPE_PRIMARY)
+					intel_crtc->atomic.wait_for_flips = true;
+				crtc_state->base.planes_changed = true;
 			}
 
 			intel_plane = to_intel_plane(plane);

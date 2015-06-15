@@ -6586,7 +6586,6 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
-	int ret;
 
 	/* FIXME should check pixel clock limits on all platforms */
 	if (INTEL_INFO(dev)->gen < 4) {
@@ -6632,14 +6631,7 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 	if (pipe_config->has_pch_encoder)
 		return ironlake_fdi_compute_config(crtc, pipe_config);
 
-	/* FIXME: remove below call once atomic mode set is place and all crtc
-	 * related checks called from atomic_crtc_check function */
-	ret = 0;
-	DRM_DEBUG_KMS("intel_crtc = %p drm_state (pipe_config->base.state) = %p\n",
-		crtc, pipe_config->base.state);
-	ret = intel_atomic_setup_scalers(dev, crtc, pipe_config);
-
-	return ret;
+	return 0;
 }
 
 static int skylake_get_display_clock_speed(struct drm_device *dev)
@@ -11726,7 +11718,10 @@ static bool check_encoder_cloning(struct drm_atomic_state *state,
 static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 				   struct drm_crtc_state *crtc_state)
 {
+	struct drm_device *dev = crtc->dev;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc_state *pipe_config =
+		to_intel_crtc_state(crtc_state);
 	struct drm_atomic_state *state = crtc_state->state;
 	int idx = crtc->base.id;
 	bool mode_changed = needs_modeset(crtc_state);
@@ -11740,7 +11735,7 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 		"[CRTC:%i] mismatch between state->active(%i) and crtc->active(%i)\n",
 		idx, crtc->state->active, intel_crtc->active);
 
-	return 0;
+	return intel_atomic_setup_scalers(dev, intel_crtc, pipe_config);
 }
 
 static const struct drm_crtc_helper_funcs intel_helper_funcs = {
