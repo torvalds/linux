@@ -788,20 +788,21 @@ static int soc_camera_close(struct file *file)
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 
 	mutex_lock(&ici->host_lock);
+	if (icd->streamer == file) {
+		if (ici->ops->init_videobuf2)
+			vb2_queue_release(&icd->vb2_vidq);
+		icd->streamer = NULL;
+	}
 	icd->use_count--;
 	if (!icd->use_count) {
 		pm_runtime_suspend(&icd->vdev->dev);
 		pm_runtime_disable(&icd->vdev->dev);
 
-		if (ici->ops->init_videobuf2)
-			vb2_queue_release(&icd->vb2_vidq);
 		__soc_camera_power_off(icd);
 
 		soc_camera_remove_device(icd);
 	}
 
-	if (icd->streamer == file)
-		icd->streamer = NULL;
 	mutex_unlock(&ici->host_lock);
 
 	module_put(ici->ops->owner);
