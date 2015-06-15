@@ -285,6 +285,39 @@ static void update_mtrr(struct kvm_vcpu *vcpu, u32 msr)
 	kvm_zap_gfn_range(vcpu->kvm, gpa_to_gfn(start), gpa_to_gfn(end));
 }
 
+static bool var_mtrr_range_is_valid(struct kvm_mtrr_range *range)
+{
+	return (range->mask & (1 << 11)) != 0;
+}
+
+static void set_var_mtrr_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
+{
+	struct kvm_mtrr *mtrr_state = &vcpu->arch.mtrr_state;
+	struct kvm_mtrr_range *tmp, *cur;
+	int index, is_mtrr_mask;
+
+	index = (msr - 0x200) / 2;
+	is_mtrr_mask = msr - 0x200 - 2 * index;
+	cur = &mtrr_state->var_ranges[index];
+
+	/* remove the entry if it's in the list. */
+	if (var_mtrr_range_is_valid(cur))
+		list_del(&mtrr_state->var_ranges[index].node);
+
+	if (!is_mtrr_mask)
+		cur->base = data;
+	else
+		cur->mask = data;
+
+	/* add it to the list if it's enabled. */
+	if (var_mtrr_range_is_valid(cur)) {
+		list_for_each_entry(tmp, &mtrr_state->head, node)
+			if (cur->base >= tmp->base)
+				break;
+		list_add_tail(&cur->node, &tmp->node);
+	}
+}
+
 int kvm_mtrr_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 {
 	int index;
@@ -299,16 +332,8 @@ int kvm_mtrr_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		vcpu->arch.mtrr_state.deftype = data;
 	else if (msr == MSR_IA32_CR_PAT)
 		vcpu->arch.pat = data;
-	else {	/* Variable MTRRs */
-		int is_mtrr_mask;
-
-		index = (msr - 0x200) / 2;
-		is_mtrr_mask = msr - 0x200 - 2 * index;
-		if (!is_mtrr_mask)
-			vcpu->arch.mtrr_state.var_ranges[index].base = data;
-		else
-			vcpu->arch.mtrr_state.var_ranges[index].mask = data;
-	}
+	else
+		set_var_mtrr_msr(vcpu, msr, data);
 
 	update_mtrr(vcpu, msr);
 	return 0;
@@ -352,6 +377,11 @@ int kvm_mtrr_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	}
 
 	return 0;
+}
+
+void kvm_vcpu_mtrr_init(struct kvm_vcpu *vcpu)
+{
+	INIT_LIST_HEAD(&vcpu->arch.mtrr_state.head);
 }
 
 u8 kvm_mtrr_get_guest_memory_type(struct kvm_vcpu *vcpu, gfn_t gfn)
