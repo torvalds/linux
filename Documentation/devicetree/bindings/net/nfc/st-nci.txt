@@ -1,7 +1,7 @@
-* STMicroelectronics SAS. ST21NFCB NFC Controller
+* STMicroelectronics SAS. ST NCI NFC Controller
 
 Required properties:
-- compatible: Should be "st,st21nfcb-i2c".
+- compatible: Should be "st,st21nfcb-i2c" or "st,st21nfcc-i2c".
 - clock-frequency: I²C work frequency.
 - reg: address on the bus
 - interrupt-parent: phandle for the interrupt gpio controller

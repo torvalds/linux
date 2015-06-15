@@ -1,6 +1,6 @@
 /*
- * I2C Link Layer for ST21NFCB NCI based Driver
- * Copyright (C) 2014  STMicroelectronics SAS. All rights reserved.
+ * I2C Link Layer for ST NCI NFC controller familly based Driver
+ * Copyright (C) 2014-2015 STMicroelectronics SAS. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -25,7 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/nfc.h>
-#include <linux/platform_data/st21nfcb.h>
+#include <linux/platform_data/st_nci.h>
 
 #include "ndlc.h"
 
@@ -35,25 +35,23 @@
 #define ST21NFCB_FRAME_HEADROOM	1
 #define ST21NFCB_FRAME_TAILROOM 0
 
-#define ST21NFCB_NCI_I2C_MIN_SIZE 4   /* PCB(1) + NCI Packet header(3) */
-#define ST21NFCB_NCI_I2C_MAX_SIZE 250 /* req 4.2.1 */
+#define ST_NCI_I2C_MIN_SIZE 4   /* PCB(1) + NCI Packet header(3) */
+#define ST_NCI_I2C_MAX_SIZE 250 /* req 4.2.1 */
 
-#define ST21NFCB_NCI_I2C_DRIVER_NAME "st21nfcb_nci_i2c"
+#define ST_NCI_I2C_DRIVER_NAME "st_nci_i2c"
 
-static struct i2c_device_id st21nfcb_nci_i2c_id_table[] = {
-	{ST21NFCB_NCI_DRIVER_NAME, 0},
+static struct i2c_device_id st_nci_i2c_id_table[] = {
+	{ST_NCI_DRIVER_NAME, 0},
 	{}
 };
-MODULE_DEVICE_TABLE(i2c, st21nfcb_nci_i2c_id_table);
+MODULE_DEVICE_TABLE(i2c, st_nci_i2c_id_table);
 
-struct st21nfcb_i2c_phy {
+struct st_nci_i2c_phy {
 	struct i2c_client *i2c_dev;
 	struct llt_ndlc *ndlc;
 
 	unsigned int gpio_reset;
 	unsigned int irq_polarity;
-
-	int powered;
 };
 
 #define I2C_DUMP_SKB(info, skb)					\
@@ -63,33 +61,26 @@ do {								\
 		       16, 1, (skb)->data, (skb)->len, 0);	\
 } while (0)
 
-static int st21nfcb_nci_i2c_enable(void *phy_id)
+static int st_nci_i2c_enable(void *phy_id)
 {
-	struct st21nfcb_i2c_phy *phy = phy_id;
+	struct st_nci_i2c_phy *phy = phy_id;
 
 	gpio_set_value(phy->gpio_reset, 0);
 	usleep_range(10000, 15000);
 	gpio_set_value(phy->gpio_reset, 1);
-	phy->powered = 1;
 	usleep_range(80000, 85000);
+
+	if (phy->ndlc->powered == 0)
+		enable_irq(phy->i2c_dev->irq);
 
 	return 0;
 }
 
-static void st21nfcb_nci_i2c_disable(void *phy_id)
+static void st_nci_i2c_disable(void *phy_id)
 {
-	struct st21nfcb_i2c_phy *phy = phy_id;
+	struct st_nci_i2c_phy *phy = phy_id;
 
-	phy->powered = 0;
-	/* reset chip in order to flush clf */
-	gpio_set_value(phy->gpio_reset, 0);
-	usleep_range(10000, 15000);
-	gpio_set_value(phy->gpio_reset, 1);
-}
-
-static void st21nfcb_nci_remove_header(struct sk_buff *skb)
-{
-	skb_pull(skb, ST21NFCB_FRAME_HEADROOM);
+	disable_irq_nosync(phy->i2c_dev->irq);
 }
 
 /*
@@ -97,13 +88,13 @@ static void st21nfcb_nci_remove_header(struct sk_buff *skb)
  * It must return either zero for success, or <0 for error.
  * In addition, it must not alter the skb
  */
-static int st21nfcb_nci_i2c_write(void *phy_id, struct sk_buff *skb)
+static int st_nci_i2c_write(void *phy_id, struct sk_buff *skb)
 {
 	int r = -1;
-	struct st21nfcb_i2c_phy *phy = phy_id;
+	struct st_nci_i2c_phy *phy = phy_id;
 	struct i2c_client *client = phy->i2c_dev;
 
-	I2C_DUMP_SKB("st21nfcb_nci_i2c_write", skb);
+	I2C_DUMP_SKB("st_nci_i2c_write", skb);
 
 	if (phy->ndlc->hard_fault != 0)
 		return phy->ndlc->hard_fault;
@@ -121,8 +112,6 @@ static int st21nfcb_nci_i2c_write(void *phy_id, struct sk_buff *skb)
 			r = 0;
 	}
 
-	st21nfcb_nci_remove_header(skb);
-
 	return r;
 }
 
@@ -135,40 +124,40 @@ static int st21nfcb_nci_i2c_write(void *phy_id, struct sk_buff *skb)
  * at end of read)
  * -EREMOTEIO : i2c read error (fatal)
  * -EBADMSG : frame was incorrect and discarded
- * (value returned from st21nfcb_nci_i2c_repack)
+ * (value returned from st_nci_i2c_repack)
  * -EIO : if no ST21NFCB_SOF_EOF is found after reaching
  * the read length end sequence
  */
-static int st21nfcb_nci_i2c_read(struct st21nfcb_i2c_phy *phy,
+static int st_nci_i2c_read(struct st_nci_i2c_phy *phy,
 				 struct sk_buff **skb)
 {
 	int r;
 	u8 len;
-	u8 buf[ST21NFCB_NCI_I2C_MAX_SIZE];
+	u8 buf[ST_NCI_I2C_MAX_SIZE];
 	struct i2c_client *client = phy->i2c_dev;
 
-	r = i2c_master_recv(client, buf, ST21NFCB_NCI_I2C_MIN_SIZE);
+	r = i2c_master_recv(client, buf, ST_NCI_I2C_MIN_SIZE);
 	if (r < 0) {  /* Retry, chip was in standby */
 		usleep_range(1000, 4000);
-		r = i2c_master_recv(client, buf, ST21NFCB_NCI_I2C_MIN_SIZE);
+		r = i2c_master_recv(client, buf, ST_NCI_I2C_MIN_SIZE);
 	}
 
-	if (r != ST21NFCB_NCI_I2C_MIN_SIZE)
+	if (r != ST_NCI_I2C_MIN_SIZE)
 		return -EREMOTEIO;
 
 	len = be16_to_cpu(*(__be16 *) (buf + 2));
-	if (len > ST21NFCB_NCI_I2C_MAX_SIZE) {
+	if (len > ST_NCI_I2C_MAX_SIZE) {
 		nfc_err(&client->dev, "invalid frame len\n");
 		return -EBADMSG;
 	}
 
-	*skb = alloc_skb(ST21NFCB_NCI_I2C_MIN_SIZE + len, GFP_KERNEL);
+	*skb = alloc_skb(ST_NCI_I2C_MIN_SIZE + len, GFP_KERNEL);
 	if (*skb == NULL)
 		return -ENOMEM;
 
-	skb_reserve(*skb, ST21NFCB_NCI_I2C_MIN_SIZE);
-	skb_put(*skb, ST21NFCB_NCI_I2C_MIN_SIZE);
-	memcpy((*skb)->data, buf, ST21NFCB_NCI_I2C_MIN_SIZE);
+	skb_reserve(*skb, ST_NCI_I2C_MIN_SIZE);
+	skb_put(*skb, ST_NCI_I2C_MIN_SIZE);
+	memcpy((*skb)->data, buf, ST_NCI_I2C_MIN_SIZE);
 
 	if (!len)
 		return 0;
@@ -180,7 +169,7 @@ static int st21nfcb_nci_i2c_read(struct st21nfcb_i2c_phy *phy,
 	}
 
 	skb_put(*skb, len);
-	memcpy((*skb)->data + ST21NFCB_NCI_I2C_MIN_SIZE, buf, len);
+	memcpy((*skb)->data + ST_NCI_I2C_MIN_SIZE, buf, len);
 
 	I2C_DUMP_SKB("i2c frame read", *skb);
 
@@ -192,9 +181,9 @@ static int st21nfcb_nci_i2c_read(struct st21nfcb_i2c_phy *phy,
  *
  * On ST21NFCB, IRQ goes in idle state when read starts.
  */
-static irqreturn_t st21nfcb_nci_irq_thread_fn(int irq, void *phy_id)
+static irqreturn_t st_nci_irq_thread_fn(int irq, void *phy_id)
 {
-	struct st21nfcb_i2c_phy *phy = phy_id;
+	struct st_nci_i2c_phy *phy = phy_id;
 	struct i2c_client *client;
 	struct sk_buff *skb = NULL;
 	int r;
@@ -210,12 +199,12 @@ static irqreturn_t st21nfcb_nci_irq_thread_fn(int irq, void *phy_id)
 	if (phy->ndlc->hard_fault)
 		return IRQ_HANDLED;
 
-	if (!phy->powered) {
-		st21nfcb_nci_i2c_disable(phy);
+	if (!phy->ndlc->powered) {
+		st_nci_i2c_disable(phy);
 		return IRQ_HANDLED;
 	}
 
-	r = st21nfcb_nci_i2c_read(phy, &skb);
+	r = st_nci_i2c_read(phy, &skb);
 	if (r == -EREMOTEIO || r == -ENOMEM || r == -EBADMSG)
 		return IRQ_HANDLED;
 
@@ -225,15 +214,15 @@ static irqreturn_t st21nfcb_nci_irq_thread_fn(int irq, void *phy_id)
 }
 
 static struct nfc_phy_ops i2c_phy_ops = {
-	.write = st21nfcb_nci_i2c_write,
-	.enable = st21nfcb_nci_i2c_enable,
-	.disable = st21nfcb_nci_i2c_disable,
+	.write = st_nci_i2c_write,
+	.enable = st_nci_i2c_enable,
+	.disable = st_nci_i2c_disable,
 };
 
 #ifdef CONFIG_OF
-static int st21nfcb_nci_i2c_of_request_resources(struct i2c_client *client)
+static int st_nci_i2c_of_request_resources(struct i2c_client *client)
 {
-	struct st21nfcb_i2c_phy *phy = i2c_get_clientdata(client);
+	struct st_nci_i2c_phy *phy = i2c_get_clientdata(client);
 	struct device_node *pp;
 	int gpio;
 	int r;
@@ -264,16 +253,16 @@ static int st21nfcb_nci_i2c_of_request_resources(struct i2c_client *client)
 	return 0;
 }
 #else
-static int st21nfcb_nci_i2c_of_request_resources(struct i2c_client *client)
+static int st_nci_i2c_of_request_resources(struct i2c_client *client)
 {
 	return -ENODEV;
 }
 #endif
 
-static int st21nfcb_nci_i2c_request_resources(struct i2c_client *client)
+static int st_nci_i2c_request_resources(struct i2c_client *client)
 {
-	struct st21nfcb_nfc_platform_data *pdata;
-	struct st21nfcb_i2c_phy *phy = i2c_get_clientdata(client);
+	struct st_nci_nfc_platform_data *pdata;
+	struct st_nci_i2c_phy *phy = i2c_get_clientdata(client);
 	int r;
 
 	pdata = client->dev.platform_data;
@@ -296,11 +285,11 @@ static int st21nfcb_nci_i2c_request_resources(struct i2c_client *client)
 	return 0;
 }
 
-static int st21nfcb_nci_i2c_probe(struct i2c_client *client,
+static int st_nci_i2c_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
-	struct st21nfcb_i2c_phy *phy;
-	struct st21nfcb_nfc_platform_data *pdata;
+	struct st_nci_i2c_phy *phy;
+	struct st_nci_nfc_platform_data *pdata;
 	int r;
 
 	dev_dbg(&client->dev, "%s\n", __func__);
@@ -311,7 +300,7 @@ static int st21nfcb_nci_i2c_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	phy = devm_kzalloc(&client->dev, sizeof(struct st21nfcb_i2c_phy),
+	phy = devm_kzalloc(&client->dev, sizeof(struct st_nci_i2c_phy),
 			   GFP_KERNEL);
 	if (!phy)
 		return -ENOMEM;
@@ -322,13 +311,13 @@ static int st21nfcb_nci_i2c_probe(struct i2c_client *client,
 
 	pdata = client->dev.platform_data;
 	if (!pdata && client->dev.of_node) {
-		r = st21nfcb_nci_i2c_of_request_resources(client);
+		r = st_nci_i2c_of_request_resources(client);
 		if (r) {
 			nfc_err(&client->dev, "No platform data\n");
 			return r;
 		}
 	} else if (pdata) {
-		r = st21nfcb_nci_i2c_request_resources(client);
+		r = st_nci_i2c_request_resources(client);
 		if (r) {
 			nfc_err(&client->dev,
 				"Cannot get platform resources\n");
@@ -349,50 +338,48 @@ static int st21nfcb_nci_i2c_probe(struct i2c_client *client,
 	}
 
 	r = devm_request_threaded_irq(&client->dev, client->irq, NULL,
-				st21nfcb_nci_irq_thread_fn,
+				st_nci_irq_thread_fn,
 				phy->irq_polarity | IRQF_ONESHOT,
-				ST21NFCB_NCI_DRIVER_NAME, phy);
+				ST_NCI_DRIVER_NAME, phy);
 	if (r < 0)
 		nfc_err(&client->dev, "Unable to register IRQ handler\n");
 
 	return r;
 }
 
-static int st21nfcb_nci_i2c_remove(struct i2c_client *client)
+static int st_nci_i2c_remove(struct i2c_client *client)
 {
-	struct st21nfcb_i2c_phy *phy = i2c_get_clientdata(client);
+	struct st_nci_i2c_phy *phy = i2c_get_clientdata(client);
 
 	dev_dbg(&client->dev, "%s\n", __func__);
 
 	ndlc_remove(phy->ndlc);
 
-	if (phy->powered)
-		st21nfcb_nci_i2c_disable(phy);
-
 	return 0;
 }
 
 #ifdef CONFIG_OF
-static const struct of_device_id of_st21nfcb_i2c_match[] = {
+static const struct of_device_id of_st_nci_i2c_match[] = {
 	{ .compatible = "st,st21nfcb-i2c", },
 	{ .compatible = "st,st21nfcb_i2c", },
+	{ .compatible = "st,st21nfcc-i2c", },
 	{}
 };
-MODULE_DEVICE_TABLE(of, of_st21nfcb_i2c_match);
+MODULE_DEVICE_TABLE(of, of_st_nci_i2c_match);
 #endif
 
-static struct i2c_driver st21nfcb_nci_i2c_driver = {
+static struct i2c_driver st_nci_i2c_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
-		.name = ST21NFCB_NCI_I2C_DRIVER_NAME,
-		.of_match_table = of_match_ptr(of_st21nfcb_i2c_match),
+		.name = ST_NCI_I2C_DRIVER_NAME,
+		.of_match_table = of_match_ptr(of_st_nci_i2c_match),
 	},
-	.probe = st21nfcb_nci_i2c_probe,
-	.id_table = st21nfcb_nci_i2c_id_table,
-	.remove = st21nfcb_nci_i2c_remove,
+	.probe = st_nci_i2c_probe,
+	.id_table = st_nci_i2c_id_table,
+	.remove = st_nci_i2c_remove,
 };
 
-module_i2c_driver(st21nfcb_nci_i2c_driver);
+module_i2c_driver(st_nci_i2c_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION(DRIVER_DESC);

@@ -16,23 +16,35 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __LOCAL_ST21NFCB_H_
-#define __LOCAL_ST21NFCB_H_
+#ifndef __LOCAL_ST_NCI_H_
+#define __LOCAL_ST_NCI_H_
 
-#include "st21nfcb_se.h"
+#include "st-nci_se.h"
 #include "ndlc.h"
 
 /* Define private flags: */
-#define ST21NFCB_NCI_RUNNING			1
+#define ST_NCI_RUNNING			1
 
-struct st21nfcb_nci_info {
+#define ST_NCI_CORE_PROP                0x01
+#define ST_NCI_SET_NFC_MODE             0x02
+
+struct nci_mode_set_cmd {
+	u8 cmd_type;
+	u8 mode;
+} __packed;
+
+struct nci_mode_set_rsp {
+	u8 status;
+} __packed;
+
+struct st_nci_info {
 	struct llt_ndlc *ndlc;
 	unsigned long flags;
-	struct st21nfcb_se_info se_info;
+	struct st_nci_se_info se_info;
 };
 
-void st21nfcb_nci_remove(struct nci_dev *ndev);
-int st21nfcb_nci_probe(struct llt_ndlc *ndlc, int phy_headroom,
+void st_nci_remove(struct nci_dev *ndev);
+int st_nci_probe(struct llt_ndlc *ndlc, int phy_headroom,
 		int phy_tailroom);
 
-#endif /* __LOCAL_ST21NFCB_H_ */
+#endif /* __LOCAL_ST_NCI_H_ */

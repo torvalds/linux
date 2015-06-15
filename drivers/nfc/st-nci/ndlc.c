@@ -1,7 +1,7 @@
 /*
  * Low Level Transport (NDLC) Driver for STMicroelectronics NFC Chip
  *
- * Copyright (C) 2014  STMicroelectronics SAS. All rights reserved.
+ * Copyright (C) 2014-2015  STMicroelectronics SAS. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -20,7 +20,7 @@
 #include <net/nfc/nci_core.h>
 
 #include "ndlc.h"
-#include "st21nfcb.h"
+#include "st-nci.h"
 
 #define NDLC_TIMER_T1		100
 #define NDLC_TIMER_T1_WAIT	400
@@ -59,13 +59,25 @@ int ndlc_open(struct llt_ndlc *ndlc)
 {
 	/* toggle reset pin */
 	ndlc->ops->enable(ndlc->phy_id);
+	ndlc->powered = 1;
 	return 0;
 }
 EXPORT_SYMBOL(ndlc_open);
 
 void ndlc_close(struct llt_ndlc *ndlc)
 {
+	struct nci_mode_set_cmd cmd;
+
+	cmd.cmd_type = ST_NCI_SET_NFC_MODE;
+	cmd.mode = 0;
+
 	/* toggle reset pin */
+	ndlc->ops->enable(ndlc->phy_id);
+
+	nci_prop_cmd(ndlc->ndev, ST_NCI_CORE_PROP,
+		     sizeof(struct nci_mode_set_cmd), (__u8 *)&cmd);
+
+	ndlc->powered = 0;
 	ndlc->ops->disable(ndlc->phy_id);
 }
 EXPORT_SYMBOL(ndlc_close);
@@ -262,6 +274,7 @@ int ndlc_probe(void *phy_id, struct nfc_phy_ops *phy_ops, struct device *dev,
 	ndlc->ops = phy_ops;
 	ndlc->phy_id = phy_id;
 	ndlc->dev = dev;
+	ndlc->powered = 0;
 
 	*ndlc_id = ndlc;
 
@@ -280,12 +293,14 @@ int ndlc_probe(void *phy_id, struct nfc_phy_ops *phy_ops, struct device *dev,
 
 	INIT_WORK(&ndlc->sm_work, llt_ndlc_sm_work);
 
-	return st21nfcb_nci_probe(ndlc, phy_headroom, phy_tailroom);
+	return st_nci_probe(ndlc, phy_headroom, phy_tailroom);
 }
 EXPORT_SYMBOL(ndlc_probe);
 
 void ndlc_remove(struct llt_ndlc *ndlc)
 {
+	st_nci_remove(ndlc->ndev);
+
 	/* cancel timers */
 	del_timer_sync(&ndlc->t1_timer);
 	del_timer_sync(&ndlc->t2_timer);
@@ -294,7 +309,5 @@ void ndlc_remove(struct llt_ndlc *ndlc)
 
 	skb_queue_purge(&ndlc->rcv_q);
 	skb_queue_purge(&ndlc->send_q);
-
-	st21nfcb_nci_remove(ndlc->ndev);
 }
 EXPORT_SYMBOL(ndlc_remove);

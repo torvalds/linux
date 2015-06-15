@@ -1,7 +1,7 @@
 /*
  * NCI based Driver for STMicroelectronics NFC Chip
  *
- * Copyright (C) 2014  STMicroelectronics SAS. All rights reserved.
+ * Copyright (C) 2014-2015  STMicroelectronics SAS. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -43,10 +43,11 @@ struct llt_ndlc {
 	struct device *dev;
 
 	/*
-	 * < 0 if hardware error occured
+	 * < 0 if hardware error occurred
 	 * and prevents normal operation.
 	 */
 	int hard_fault;
+	int powered;
 };
 
 int ndlc_open(struct llt_ndlc *ndlc);

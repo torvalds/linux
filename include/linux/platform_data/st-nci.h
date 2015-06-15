@@ -1,7 +1,7 @@
 /*
- * Driver include for the ST21NFCB NFC chip.
+ * Driver include for ST NCI NFC chip family.
  *
- * Copyright (C) 2014  STMicroelectronics SAS. All rights reserved.
+ * Copyright (C) 2014-2015  STMicroelectronics SAS. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -16,14 +16,14 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _ST21NFCB_NCI_H_
-#define _ST21NFCB_NCI_H_
+#ifndef _ST_NCI_H_
+#define _ST_NCI_H_
 
-#define ST21NFCB_NCI_DRIVER_NAME "st21nfcb_nci"
+#define ST_NCI_DRIVER_NAME "st_nci"
 
-struct st21nfcb_nfc_platform_data {
+struct st_nci_nfc_platform_data {
 	unsigned int gpio_reset;
 	unsigned int irq_polarity;
 };
 
-#endif /* _ST21NFCB_NCI_H_ */
+#endif /* _ST_NCI_H_ */
