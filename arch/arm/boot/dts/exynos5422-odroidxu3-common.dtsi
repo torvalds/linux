@@ -107,6 +107,15 @@
 			clocks = <&i2s0 CLK_I2S_CDCLK>;
 		};
 	};
+
+	fan0: pwm-fan {
+		compatible = "pwm-fan";
+		pwms = <&pwm 0 20972 0>;
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 130 170 230>;
+	};
 };
 
 &clock_audss {
@@ -461,6 +470,7 @@
 	 */
 	pinctrl-0 = <&pwm0_out &pwm1_out &pwm2_out &pwm3_out>;
 	pinctrl-names = "default";
+	samsung,pwm-outputs = <0>;
 	status = "okay";
 };
 
