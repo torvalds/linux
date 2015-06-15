@@ -270,7 +270,7 @@ enum v4l2_xfer_func {
  * This depends on the colorspace.
  */
 #define V4L2_MAP_XFER_FUNC_DEFAULT(colsp) \
-	((colsp) == V4L2_XFER_FUNC_ADOBERGB ? V4L2_XFER_FUNC_ADOBERGB : \
+	((colsp) == V4L2_COLORSPACE_ADOBERGB ? V4L2_XFER_FUNC_ADOBERGB : \
 	 ((colsp) == V4L2_COLORSPACE_SMPTE240M ? V4L2_XFER_FUNC_SMPTE240M : \
 	  ((colsp) == V4L2_COLORSPACE_RAW ? V4L2_XFER_FUNC_NONE : \
 	   ((colsp) == V4L2_COLORSPACE_SRGB || (colsp) == V4L2_COLORSPACE_JPEG ? \
