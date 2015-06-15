@@ -263,6 +263,8 @@ static void ring_buffer_producer(void)
 		if (cnt % wakeup_interval)
 			cond_resched();
 #endif
+		if (kthread_should_stop())
+			kill_test = 1;
 
 	} while (ktime_before(end_time, timeout) && !kill_test);
 	trace_printk("End ring buffer hammer\n");
@@ -285,7 +287,7 @@ static void ring_buffer_producer(void)
 	entries = ring_buffer_entries(buffer);
 	overruns = ring_buffer_overruns(buffer);
 
-	if (kill_test)
+	if (kill_test && !kthread_should_stop())
 		trace_printk("ERROR!\n");
 
 	if (!disable_reader) {
@@ -379,7 +381,7 @@ static int ring_buffer_consumer_thread(void *arg)
 	}
 	__set_current_state(TASK_RUNNING);
 
-	if (kill_test)
+	if (!kthread_should_stop())
 		wait_to_die();
 
 	return 0;
@@ -399,13 +401,16 @@ static int ring_buffer_producer_thread(void *arg)
 		}
 
 		ring_buffer_producer();
+		if (kill_test)
+			goto out_kill;
 
 		trace_printk("Sleeping for 10 secs\n");
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(HZ * SLEEP_TIME);
 	}
 
-	if (kill_test)
+out_kill:
+	if (!kthread_should_stop())
 		wait_to_die();
 
 	return 0;
