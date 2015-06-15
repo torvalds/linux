@@ -594,7 +594,7 @@ void secure_computing_strict(int this_syscall)
 	    unlikely(current->ptrace & PT_SUSPEND_SECCOMP))
 		return;
 
-	if (mode == 0)
+	if (mode == SECCOMP_MODE_DISABLED)
 		return;
 	else if (mode == SECCOMP_MODE_STRICT)
 		__secure_computing_strict(this_syscall);

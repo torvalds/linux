@@ -78,7 +78,7 @@ static inline long prctl_set_seccomp(unsigned long arg2, char __user *arg3)
 
 static inline int seccomp_mode(struct seccomp *s)
 {
-	return 0;
+	return SECCOMP_MODE_DISABLED;
 }
 #endif /* CONFIG_SECCOMP */
 
