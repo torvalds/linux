@@ -213,6 +213,7 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 		portsc |= PORT_PTS_PTW;
 		/* fall through */
 	case FSL_USB2_PHY_UTMI:
+	case FSL_USB2_PHY_UTMI_DUAL:
 		if (pdata->have_sysif_regs && pdata->controller_ver) {
 			/* controller version 1.6 or above */
 			setbits32(non_ehci + FSL_SOC_USB_CTRL, UTMI_PHY_EN);

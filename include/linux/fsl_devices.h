@@ -69,6 +69,7 @@ enum fsl_usb2_phy_modes {
 	FSL_USB2_PHY_UTMI,
 	FSL_USB2_PHY_UTMI_WIDE,
 	FSL_USB2_PHY_SERIAL,
+	FSL_USB2_PHY_UTMI_DUAL,
 };
 
 struct clk;

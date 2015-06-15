@@ -69,6 +69,8 @@ static enum fsl_usb2_phy_modes determine_usb_phy(const char *phy_type)
 		return FSL_USB2_PHY_UTMI;
 	if (!strcasecmp(phy_type, "utmi_wide"))
 		return FSL_USB2_PHY_UTMI_WIDE;
+	if (!strcasecmp(phy_type, "utmi_dual"))
+		return FSL_USB2_PHY_UTMI_DUAL;
 	if (!strcasecmp(phy_type, "serial"))
 		return FSL_USB2_PHY_SERIAL;
 
