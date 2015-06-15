@@ -1348,6 +1348,7 @@ int mlx4_wol_write(struct mlx4_dev *dev, u64 config, int port);
 
 int mlx4_counter_alloc(struct mlx4_dev *dev, u32 *idx);
 void mlx4_counter_free(struct mlx4_dev *dev, u32 idx);
+int mlx4_get_default_counter_index(struct mlx4_dev *dev, int port);
 
 void mlx4_set_admin_guid(struct mlx4_dev *dev, __be64 guid, int entry,
 			 int port);

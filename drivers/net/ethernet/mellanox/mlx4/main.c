@@ -2219,6 +2219,47 @@ static void mlx4_cleanup_counters_table(struct mlx4_dev *dev)
 	mlx4_bitmap_cleanup(&mlx4_priv(dev)->counters_bitmap);
 }
 
+static void mlx4_cleanup_default_counters(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int port;
+
+	for (port = 0; port < dev->caps.num_ports; port++)
+		if (priv->def_counter[port] != -1)
+			mlx4_counter_free(dev,  priv->def_counter[port]);
+}
+
+static int mlx4_allocate_default_counters(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int port, err = 0;
+	u32 idx;
+
+	for (port = 0; port < dev->caps.num_ports; port++)
+		priv->def_counter[port] = -1;
+
+	for (port = 0; port < dev->caps.num_ports; port++) {
+		err = mlx4_counter_alloc(dev, &idx);
+
+		if (!err || err == -ENOSPC) {
+			priv->def_counter[port] = idx;
+		} else if (err == -ENOENT) {
+			err = 0;
+			continue;
+		} else {
+			mlx4_err(dev, "%s: failed to allocate default counter port %d err %d\n",
+				 __func__, port + 1, err);
+			mlx4_cleanup_default_counters(dev);
+			return err;
+		}
+
+		mlx4_dbg(dev, "%s: default counter index %d for port %d\n",
+			 __func__, priv->def_counter[port], port + 1);
+	}
+
+	return err;
+}
+
 int __mlx4_counter_alloc(struct mlx4_dev *dev, u32 *idx)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -2227,8 +2268,10 @@ int __mlx4_counter_alloc(struct mlx4_dev *dev, u32 *idx)
 		return -ENOENT;
 
 	*idx = mlx4_bitmap_alloc(&priv->counters_bitmap);
-	if (*idx == -1)
-		return -ENOMEM;
+	if (*idx == -1) {
+		*idx = MLX4_SINK_COUNTER_INDEX(dev);
+		return -ENOSPC;
+	}
 
 	return 0;
 }
@@ -2275,6 +2318,9 @@ void __mlx4_counter_free(struct mlx4_dev *dev, u32 idx)
 	if (!(dev->caps.flags & MLX4_DEV_CAP_FLAG_COUNTERS))
 		return;
 
+	if (idx == MLX4_SINK_COUNTER_INDEX(dev))
+		return;
+
 	__mlx4_clear_if_stat(dev, idx);
 
 	mlx4_bitmap_free(&mlx4_priv(dev)->counters_bitmap, idx, MLX4_USE_RR);
@@ -2295,6 +2341,14 @@ void mlx4_counter_free(struct mlx4_dev *dev, u32 idx)
 	__mlx4_counter_free(dev, idx);
 }
 EXPORT_SYMBOL_GPL(mlx4_counter_free);
+
+int mlx4_get_default_counter_index(struct mlx4_dev *dev, int port)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	return priv->def_counter[port - 1];
+}
+EXPORT_SYMBOL_GPL(mlx4_get_default_counter_index);
 
 void mlx4_set_admin_guid(struct mlx4_dev *dev, __be64 guid, int entry, int port)
 {
@@ -2439,6 +2493,12 @@ static int mlx4_setup_hca(struct mlx4_dev *dev)
 		}
 	}
 
+	err = mlx4_allocate_default_counters(dev);
+	if (err) {
+		mlx4_err(dev, "Failed to allocate default counters, aborting\n");
+		goto err_counters_table_free;
+	}
+
 	if (!mlx4_is_slave(dev)) {
 		for (port = 1; port <= dev->caps.num_ports; port++) {
 			ib_port_default_caps = 0;
@@ -2470,12 +2530,15 @@ static int mlx4_setup_hca(struct mlx4_dev *dev)
 			if (err) {
 				mlx4_err(dev, "Failed to set port %d, aborting\n",
 					 port);
-				goto err_counters_table_free;
+				goto err_default_countes_free;
 			}
 		}
 	}
 
 	return 0;
+
+err_default_countes_free:
+	mlx4_cleanup_default_counters(dev);
 
 err_counters_table_free:
 	if (!mlx4_is_slave(dev))
@@ -3212,6 +3275,7 @@ err_port:
 	for (--port; port >= 1; --port)
 		mlx4_cleanup_port_info(&priv->port[port]);
 
+	mlx4_cleanup_default_counters(dev);
 	if (!mlx4_is_slave(dev))
 		mlx4_cleanup_counters_table(dev);
 	mlx4_cleanup_qp_table(dev);
@@ -3511,6 +3575,7 @@ static void mlx4_unload_one(struct pci_dev *pdev)
 		mlx4_free_resource_tracker(dev,
 					   RES_TR_FREE_SLAVES_ONLY);
 
+	mlx4_cleanup_default_counters(dev);
 	if (!mlx4_is_slave(dev))
 		mlx4_cleanup_counters_table(dev);
 	mlx4_cleanup_qp_table(dev);

@@ -1597,6 +1597,9 @@ int mlx4_en_start_port(struct net_device *dev)
 	}
 	mdev->mac_removed[priv->port] = 0;
 
+	priv->counter_index =
+			mlx4_get_default_counter_index(mdev->dev, priv->port);
+
 	err = mlx4_en_config_rss_steer(priv);
 	if (err) {
 		en_err(priv, "Failed configuring rss steering\n");
@@ -1755,6 +1758,7 @@ void mlx4_en_stop_port(struct net_device *dev, int detach)
 
 	/* Set port as not active */
 	priv->port_up = false;
+	priv->counter_index = MLX4_SINK_COUNTER_INDEX(mdev->dev);
 
 	/* Promsicuous mode */
 	if (mdev->dev->caps.steering_mode ==
@@ -2778,6 +2782,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 
 	priv = netdev_priv(dev);
 	memset(priv, 0, sizeof(struct mlx4_en_priv));
+	priv->counter_index = MLX4_SINK_COUNTER_INDEX(mdev->dev);
 	spin_lock_init(&priv->stats_lock);
 	INIT_WORK(&priv->rx_mode_task, mlx4_en_do_set_rx_mode);
 	INIT_WORK(&priv->watchdog_task, mlx4_en_restart);
