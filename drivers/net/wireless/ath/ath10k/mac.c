@@ -5566,7 +5566,7 @@ static void ath10k_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct ath10k *ar = hw->priv;
 	bool skip;
-	int ret;
+	long time_left;
 
 	/* mac80211 doesn't care if we really xmit queued frames or not
 	 * we'll collect those frames either way if we stop/delete vdevs */
@@ -5578,7 +5578,7 @@ static void ath10k_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (ar->state == ATH10K_STATE_WEDGED)
 		goto skip;
 
-	ret = wait_event_timeout(ar->htt.empty_tx_wq, ({
+	time_left = wait_event_timeout(ar->htt.empty_tx_wq, ({
 			bool empty;
 
 			spin_lock_bh(&ar->htt.tx_lock);
@@ -5592,9 +5592,9 @@ static void ath10k_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			(empty || skip);
 		}), ATH10K_FLUSH_TIMEOUT_HZ);
 
-	if (ret <= 0 || skip)
-		ath10k_warn(ar, "failed to flush transmit queue (skip %i ar-state %i): %i\n",
-			    skip, ar->state, ret);
+	if (time_left == 0 || skip)
+		ath10k_warn(ar, "failed to flush transmit queue (skip %i ar-state %i): %ld\n",
+			    skip, ar->state, time_left);
 
 skip:
 	mutex_unlock(&ar->conf_mutex);
