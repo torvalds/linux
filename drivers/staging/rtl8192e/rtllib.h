@@ -1952,7 +1952,6 @@ struct rtllib_device {
 
 	/* check whether Tx hw resource available */
 	short (*check_nic_enough_desc)(struct net_device *dev, int queue_index);
-	short (*get_nic_desc_num)(struct net_device *dev, int queue_index);
 	void (*SetBWModeHandler)(struct net_device *dev,
 				 enum ht_channel_width Bandwidth,
 				 enum ht_extchnl_offset Offset);

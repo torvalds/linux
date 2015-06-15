@@ -440,22 +440,6 @@ bool MgntActSet_RF_State(struct net_device *dev,
 	return bActionAllowed;
 }
 
-
-static short rtl8192_get_nic_desc_num(struct net_device *dev, int prio)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	struct rtl8192_tx_ring *ring = &priv->tx_ring[prio];
-
-	/* For now, we reserved two free descriptor as a safety boundary
-	* between the tail and the head
-	*/
-	if ((prio == MGNT_QUEUE) && (skb_queue_len(&ring->queue) > 10))
-		RT_TRACE(COMP_DBG,
-			 "-----[%d]---------ring->idx=%d queue_len=%d---------\n",
-			 prio, ring->idx, skb_queue_len(&ring->queue));
-	return skb_queue_len(&ring->queue);
-}
-
 static short rtl8192_check_nic_enough_desc(struct net_device *dev, int prio)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -1046,7 +1030,6 @@ static void rtl8192_init_priv_handler(struct net_device *dev)
 	priv->rtllib->data_hard_stop		= rtl8192_data_hard_stop;
 	priv->rtllib->data_hard_resume		= rtl8192_data_hard_resume;
 	priv->rtllib->check_nic_enough_desc	= rtl8192_check_nic_enough_desc;
-	priv->rtllib->get_nic_desc_num		= rtl8192_get_nic_desc_num;
 	priv->rtllib->handle_assoc_response	= rtl8192_handle_assoc_response;
 	priv->rtllib->handle_beacon		= rtl8192_handle_beacon;
 	priv->rtllib->SetWirelessMode		= rtl8192_SetWirelessMode;
