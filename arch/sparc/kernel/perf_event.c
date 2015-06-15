@@ -21,7 +21,7 @@
 
 #include <asm/stacktrace.h>
 #include <asm/cpudata.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/atomic.h>
 #include <asm/nmi.h>
 #include <asm/pcr.h>
@@ -1803,8 +1803,13 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 		return;
 
 	flushw_user();
+
+	pagefault_disable();
+
 	if (test_thread_flag(TIF_32BIT))
 		perf_callchain_user_32(entry, regs);
 	else
 		perf_callchain_user_64(entry, regs);
+
+	pagefault_enable();
 }
