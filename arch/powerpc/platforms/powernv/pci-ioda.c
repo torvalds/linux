@@ -2116,6 +2116,32 @@ static long pnv_pci_ioda2_setup_default_config(struct pnv_ioda_pe *pe)
 	return 0;
 }
 
+#if defined(CONFIG_IOMMU_API) || defined(CONFIG_PCI_IOV)
+static long pnv_pci_ioda2_unset_window(struct iommu_table_group *table_group,
+		int num)
+{
+	struct pnv_ioda_pe *pe = container_of(table_group, struct pnv_ioda_pe,
+			table_group);
+	struct pnv_phb *phb = pe->phb;
+	long ret;
+
+	pe_info(pe, "Removing DMA window #%d\n", num);
+
+	ret = opal_pci_map_pe_dma_window(phb->opal_id, pe->pe_number,
+			(pe->pe_number << 1) + num,
+			0/* levels */, 0/* table address */,
+			0/* table size */, 0/* page size */);
+	if (ret)
+		pe_warn(pe, "Unmapping failed, ret = %ld\n", ret);
+	else
+		pnv_pci_ioda2_tce_invalidate_entire(pe);
+
+	pnv_pci_unlink_table_and_group(table_group->tables[num], table_group);
+
+	return ret;
+}
+#endif
+
 #ifdef CONFIG_IOMMU_API
 static unsigned long pnv_pci_ioda2_get_table_size(__u32 page_shift,
 		__u64 window_size, __u32 levels)
@@ -2147,30 +2173,6 @@ static unsigned long pnv_pci_ioda2_get_table_size(__u32 page_shift,
 	}
 
 	return bytes;
-}
-
-static long pnv_pci_ioda2_unset_window(struct iommu_table_group *table_group,
-		int num)
-{
-	struct pnv_ioda_pe *pe = container_of(table_group, struct pnv_ioda_pe,
-			table_group);
-	struct pnv_phb *phb = pe->phb;
-	long ret;
-
-	pe_info(pe, "Removing DMA window #%d\n", num);
-
-	ret = opal_pci_map_pe_dma_window(phb->opal_id, pe->pe_number,
-			(pe->pe_number << 1) + num,
-			0/* levels */, 0/* table address */,
-			0/* table size */, 0/* page size */);
-	if (ret)
-		pe_warn(pe, "Unmapping failed, ret = %ld\n", ret);
-	else
-		pnv_pci_ioda2_tce_invalidate_entire(pe);
-
-	pnv_pci_unlink_table_and_group(table_group->tables[num], table_group);
-
-	return ret;
 }
 
 static void pnv_ioda2_take_ownership(struct iommu_table_group *table_group)
