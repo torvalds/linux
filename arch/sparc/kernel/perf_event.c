@@ -1741,6 +1741,16 @@ void perf_callchain_kernel(struct perf_callchain_entry *entry,
 	} while (entry->nr < PERF_MAX_STACK_DEPTH);
 }
 
+static inline int
+valid_user_frame(const void __user *fp, unsigned long size)
+{
+	/* addresses should be at least 4-byte aligned */
+	if (((unsigned long) fp) & 3)
+		return 0;
+
+	return (__range_not_ok(fp, size, TASK_SIZE) == 0);
+}
+
 static void perf_callchain_user_64(struct perf_callchain_entry *entry,
 				   struct pt_regs *regs)
 {
@@ -1753,6 +1763,9 @@ static void perf_callchain_user_64(struct perf_callchain_entry *entry,
 		unsigned long pc;
 
 		usf = (struct sparc_stackf __user *)ufp;
+		if (!valid_user_frame(usf, sizeof(sf)))
+			break;
+
 		if (__copy_from_user_inatomic(&sf, usf, sizeof(sf)))
 			break;
 
