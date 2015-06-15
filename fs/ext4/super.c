@@ -591,14 +591,17 @@ void __ext4_msg(struct super_block *sb,
 	va_end(args);
 }
 
+#define ext4_warning_ratelimit(sb)					\
+		___ratelimit(&(EXT4_SB(sb)->s_warning_ratelimit_state),	\
+			     "EXT4-fs warning")
+
 void __ext4_warning(struct super_block *sb, const char *function,
 		    unsigned int line, const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
 
-	if (!___ratelimit(&(EXT4_SB(sb)->s_warning_ratelimit_state),
-			  "EXT4-fs warning"))
+	if (!ext4_warning_ratelimit(sb))
 		return;
 
 	va_start(args, fmt);
@@ -606,6 +609,24 @@ void __ext4_warning(struct super_block *sb, const char *function,
 	vaf.va = &args;
 	printk(KERN_WARNING "EXT4-fs warning (device %s): %s:%d: %pV\n",
 	       sb->s_id, function, line, &vaf);
+	va_end(args);
+}
+
+void __ext4_warning_inode(const struct inode *inode, const char *function,
+			  unsigned int line, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	if (!ext4_warning_ratelimit(inode->i_sb))
+		return;
+
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+	printk(KERN_WARNING "EXT4-fs warning (device %s): %s:%d: "
+	       "inode #%lu: comm %s: %pV\n", inode->i_sb->s_id,
+	       function, line, inode->i_ino, current->comm, &vaf);
 	va_end(args);
 }
 

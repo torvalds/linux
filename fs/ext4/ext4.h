@@ -69,15 +69,6 @@
 #define ext_debug(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 #endif
 
-#define EXT4_ERROR_INODE(inode, fmt, a...) \
-	ext4_error_inode((inode), __func__, __LINE__, 0, (fmt), ## a)
-
-#define EXT4_ERROR_INODE_BLOCK(inode, block, fmt, a...)			\
-	ext4_error_inode((inode), __func__, __LINE__, (block), (fmt), ## a)
-
-#define EXT4_ERROR_FILE(file, block, fmt, a...)				\
-	ext4_error_file((file), __func__, __LINE__, (block), (fmt), ## a)
-
 /* data type for block offset of block group */
 typedef int ext4_grpblk_t;
 
@@ -2405,6 +2396,9 @@ void __ext4_abort(struct super_block *, const char *, unsigned int,
 extern __printf(4, 5)
 void __ext4_warning(struct super_block *, const char *, unsigned int,
 		    const char *, ...);
+extern __printf(4, 5)
+void __ext4_warning_inode(const struct inode *inode, const char *function,
+			  unsigned int line, const char *fmt, ...);
 extern __printf(3, 4)
 void __ext4_msg(struct super_block *, const char *, const char *, ...);
 extern void __dump_mmp_msg(struct super_block *, struct mmp_struct *mmp,
@@ -2414,6 +2408,15 @@ void __ext4_grp_locked_error(const char *, unsigned int,
 			     struct super_block *, ext4_group_t,
 			     unsigned long, ext4_fsblk_t,
 			     const char *, ...);
+
+#define EXT4_ERROR_INODE(inode, fmt, a...) \
+	ext4_error_inode((inode), __func__, __LINE__, 0, (fmt), ## a)
+
+#define EXT4_ERROR_INODE_BLOCK(inode, block, fmt, a...)			\
+	ext4_error_inode((inode), __func__, __LINE__, (block), (fmt), ## a)
+
+#define EXT4_ERROR_FILE(file, block, fmt, a...)				\
+	ext4_error_file((file), __func__, __LINE__, (block), (fmt), ## a)
 
 #ifdef CONFIG_PRINTK
 
@@ -2427,6 +2430,8 @@ void __ext4_grp_locked_error(const char *, unsigned int,
 	__ext4_abort(sb, __func__, __LINE__, fmt, ##__VA_ARGS__)
 #define ext4_warning(sb, fmt, ...)					\
 	__ext4_warning(sb, __func__, __LINE__, fmt, ##__VA_ARGS__)
+#define ext4_warning_inode(inode, fmt, ...)				\
+	__ext4_warning_inode(inode, __func__, __LINE__, fmt, ##__VA_ARGS__)
 #define ext4_msg(sb, level, fmt, ...)				\
 	__ext4_msg(sb, level, fmt, ##__VA_ARGS__)
 #define dump_mmp_msg(sb, mmp, msg)					\
@@ -2461,6 +2466,11 @@ do {									\
 do {									\
 	no_printk(fmt, ##__VA_ARGS__);					\
 	__ext4_warning(sb, "", 0, " ");					\
+} while (0)
+#define ext4_warning_inode(inode, fmt, ...)				\
+do {									\
+	no_printk(fmt, ##__VA_ARGS__);					\
+	__ext4_warning_inode(inode, "", 0, " ");			\
 } while (0)
 #define ext4_msg(sb, level, fmt, ...)					\
 do {									\
