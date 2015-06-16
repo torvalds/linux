@@ -188,14 +188,6 @@ struct txpowerinfo24g {
 
 #define EFUSE_PROTECT_BYTES_BANK	16
 
-/*  For RTL8723 WiFi/BT/GPS multi-function configuration. */
-enum rt_multi_func {
-	RT_MULTI_FUNC_NONE = 0x00,
-	RT_MULTI_FUNC_WIFI = 0x01,
-	RT_MULTI_FUNC_BT = 0x02,
-	RT_MULTI_FUNC_GPS = 0x04,
-};
-
 /*  For RTL8723 regulator mode. */
 enum rt_regulator_mode {
 	RT_SWITCHING_REGULATOR = 0,
@@ -377,11 +369,6 @@ struct hal_data_8188e {
 #define GET_HAL_DATA(__pAdapter)				\
 	((struct hal_data_8188e *)((__pAdapter)->HalData))
 #define GET_RF_TYPE(priv)		(GET_HAL_DATA(priv)->rf_type)
-
-#define INCLUDE_MULTI_FUNC_BT(_Adapter)				\
-	(GET_HAL_DATA(_Adapter)->MultiFunc & RT_MULTI_FUNC_BT)
-#define INCLUDE_MULTI_FUNC_GPS(_Adapter)			\
-	(GET_HAL_DATA(_Adapter)->MultiFunc & RT_MULTI_FUNC_GPS)
 
 /*  rtl8188e_hal_init.c */
 void _8051Reset88E(struct adapter *padapter);
