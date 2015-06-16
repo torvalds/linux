@@ -2167,6 +2167,15 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 {
 	struct wacom_features *features = &wacom->wacom_wac.features;
 
+	/* The pen and pad share the same interface on most devices */
+	if (features->type == GRAPHIRE_BT || features->type == WACOM_G4 ||
+	    features->type == DTUS || features->type == WACOM_MO ||
+	    (features->type >= INTUOS3S && features->type <= WACOM_13HD && 
+	     features->type != INTUOSHT)) {
+		if (features->device_type & WACOM_DEVICETYPE_PEN)
+			features->device_type |= WACOM_DEVICETYPE_PAD;
+	}
+
 	/* touch device found but size is not defined. use default */
 	if (features->device_type & WACOM_DEVICETYPE_TOUCH && !features->x_max) {
 		features->x_max = 1023;
@@ -2182,7 +2191,10 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 	if ((features->type >= INTUOS5S && features->type <= INTUOSHT) ||
 		(features->type == BAMBOO_PT)) {
 		if (features->pktlen == WACOM_PKGLEN_BBTOUCH3) {
-			features->device_type |= WACOM_DEVICETYPE_TOUCH;
+			if (features->touch_max)
+				features->device_type |= WACOM_DEVICETYPE_TOUCH;
+			if (features->type == BAMBOO_PT || features->type == INTUOSHT)
+				features->device_type |= WACOM_DEVICETYPE_PAD;
 
 			features->x_max = 4096;
 			features->y_max = 4096;
@@ -2241,7 +2253,7 @@ static void wacom_abs_set_axis(struct input_dev *input_dev,
 		/* penabled devices have fixed resolution for each model */
 		input_abs_set_res(input_dev, ABS_X, features->x_resolution);
 		input_abs_set_res(input_dev, ABS_Y, features->y_resolution);
-	} else {
+	} else if (features->device_type & WACOM_DEVICETYPE_TOUCH) {
 		if (features->touch_max == 1) {
 			input_set_abs_params(input_dev, ABS_X, 0,
 				features->x_max, features->x_fuzz, 0);
@@ -2423,8 +2435,7 @@ int wacom_setup_pentouch_input_capabilities(struct input_dev *input_dev,
 		break;
 
 	case INTUOSHT:
-		if (features->touch_max &&
-		    features->device_type & WACOM_DEVICETYPE_TOUCH) {
+		if (features->device_type & WACOM_DEVICETYPE_TOUCH) {
 			input_dev->evbit[0] |= BIT_MASK(EV_SW);
 			__set_bit(SW_MUTE_DEVICE, input_dev->swbit);
 		}
@@ -2434,27 +2445,26 @@ int wacom_setup_pentouch_input_capabilities(struct input_dev *input_dev,
 		__clear_bit(ABS_MISC, input_dev->absbit);
 
 		if (features->device_type & WACOM_DEVICETYPE_TOUCH) {
-
-			if (features->touch_max) {
-				if (features->pktlen == WACOM_PKGLEN_BBTOUCH3) {
-					input_set_abs_params(input_dev,
-						     ABS_MT_TOUCH_MAJOR,
-						     0, features->x_max, 0, 0);
-					input_set_abs_params(input_dev,
-						     ABS_MT_TOUCH_MINOR,
-						     0, features->y_max, 0, 0);
-				}
-				input_mt_init_slots(input_dev, features->touch_max, INPUT_MT_POINTER);
-			} else {
-				/* buttons/keys only interface */
-				__clear_bit(ABS_X, input_dev->absbit);
-				__clear_bit(ABS_Y, input_dev->absbit);
-				__clear_bit(BTN_TOUCH, input_dev->keybit);
-
-				/* PAD is setup by wacom_setup_pad_input_capabilities later */
-				return 1;
+			if (features->pktlen == WACOM_PKGLEN_BBTOUCH3) {
+				input_set_abs_params(input_dev,
+					     ABS_MT_TOUCH_MAJOR,
+					     0, features->x_max, 0, 0);
+				input_set_abs_params(input_dev,
+					     ABS_MT_TOUCH_MINOR,
+					     0, features->y_max, 0, 0);
 			}
-		} else if (features->device_type & WACOM_DEVICETYPE_PEN) {
+			input_mt_init_slots(input_dev, features->touch_max, INPUT_MT_POINTER);
+		}
+		if (features->device_type & WACOM_DEVICETYPE_PAD) {
+			/* buttons/keys only interface */
+			__clear_bit(ABS_X, input_dev->absbit);
+			__clear_bit(ABS_Y, input_dev->absbit);
+			__clear_bit(BTN_TOUCH, input_dev->keybit);
+
+			/* PAD is setup by wacom_setup_pad_input_capabilities later */
+			return 1;
+		}
+		if (features->device_type & WACOM_DEVICETYPE_PEN) {
 			__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
 			__set_bit(BTN_TOOL_RUBBER, input_dev->keybit);
 			__set_bit(BTN_TOOL_PEN, input_dev->keybit);
@@ -2481,6 +2491,9 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 {
 	struct wacom_features *features = &wacom_wac->features;
 	int i;
+
+	if (!(features->device_type & WACOM_DEVICETYPE_PAD))
+		return -ENODEV;
 
 	input_dev->evbit[0] |= BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 
@@ -2618,10 +2631,6 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 
 	case INTUOS5S:
 	case INTUOSPS:
-		/* touch interface does not have the pad device */
-		if (!(features->device_type & WACOM_DEVICETYPE_PEN))
-			return -ENODEV;
-
 		for (i = 0; i < 7; i++)
 			__set_bit(BTN_0 + i, input_dev->keybit);
 
@@ -2663,12 +2672,6 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 
 	case INTUOSHT:
 	case BAMBOO_PT:
-		/* pad device is on the touch interface */
-		if (!(features->device_type & WACOM_DEVICETYPE_TOUCH) ||
-		    /* Bamboo Pen only tablet does not have pad */
-		    ((features->type == BAMBOO_PT) && !features->touch_max))
-			return -ENODEV;
-
 		__clear_bit(ABS_MISC, input_dev->absbit);
 
 		__set_bit(BTN_LEFT, input_dev->keybit);

@@ -76,6 +76,7 @@
 #define WACOM_DEVICETYPE_NONE           0x0000
 #define WACOM_DEVICETYPE_PEN            0x0001
 #define WACOM_DEVICETYPE_TOUCH          0x0002
+#define WACOM_DEVICETYPE_PAD            0x0004
 
 #define WACOM_VENDORDEFINED_PEN		0xff0d0001
 
