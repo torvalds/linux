@@ -2795,7 +2795,8 @@ wl_cfgp2p_add_p2p_disc_if(struct bcm_cfg80211 *cfg)
 
 	if (cfg->p2p_wdev) {
 		CFGP2P_ERR(("p2p_wdev defined already.\n"));
-#if (defined(CUSTOMER_HW10) && defined(CONFIG_ARCH_ODIN))
+//#if (defined(CUSTOMER_HW10) && defined(CONFIG_ARCH_ODIN))
+#if 1 // after android stop; start, wpa_supplicant start fail because of "Failed to create a P2P Device interface p2p-dev-wlan0", huweiguo
 		wl_cfgp2p_del_p2p_disc_if(cfg->p2p_wdev, cfg);
 		CFGP2P_ERR(("p2p_wdev deleted.\n"));
 #else
