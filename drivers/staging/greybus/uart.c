@@ -102,7 +102,7 @@ static int gb_uart_request_recv(u8 type, struct gb_operation *op)
 		break;
 	case GB_UART_TYPE_SERIAL_STATE:
 		serial_state = request->payload;
-		/* TODO: Parse state change and translate to tty API. */
+		gb_tty->ctrlin = le16_to_cpu(serial_state->control);
 		break;
 	default:
 		dev_err(&connection->dev,
