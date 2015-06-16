@@ -340,37 +340,6 @@ void acpi_video_set_dmi_backlight_type(enum acpi_backlight_type type)
 }
 EXPORT_SYMBOL(acpi_video_set_dmi_backlight_type);
 
-/*
- * Compatiblity function, this is going away as soon as all drivers are
- * converted to acpi_video_set_dmi_backlight_type().
- *
- * Promote the vendor interface instead of the generic video module.
- * After calling this function you will probably want to call
- * acpi_video_unregister() to make sure the video module is not loaded
- */
-void acpi_video_dmi_promote_vendor(void)
-{
-	acpi_video_set_dmi_backlight_type(acpi_backlight_vendor);
-}
-EXPORT_SYMBOL(acpi_video_dmi_promote_vendor);
-
-/*
- * Compatiblity function, this is going away as soon as all drivers are
- * converted to acpi_video_get_backlight_type().
- *
- * Returns true if video.ko can do backlight switching.
- */
-int acpi_video_backlight_support(void)
-{
-	/*
-	 * This is done this way since vendor drivers call this to see
-	 * if they should load, and we do not want them to load for both
-	 * the acpi_backlight_video and acpi_backlight_native cases.
-	 */
-	return acpi_video_get_backlight_type() != acpi_backlight_vendor;
-}
-EXPORT_SYMBOL(acpi_video_backlight_support);
-
 void __exit acpi_video_detect_exit(void)
 {
 	if (backlight_notifier_registered)

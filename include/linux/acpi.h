@@ -245,25 +245,6 @@ extern bool wmi_has_guid(const char *guid);
 
 extern char acpi_video_backlight_string[];
 extern long acpi_is_video_device(acpi_handle handle);
-
-#if defined(CONFIG_ACPI_VIDEO) || defined(CONFIG_ACPI_VIDEO_MODULE)
-
-extern void acpi_video_dmi_promote_vendor(void);
-extern int acpi_video_backlight_support(void);
-
-#else
-
-static inline void acpi_video_dmi_promote_vendor(void)
-{
-}
-
-static inline int acpi_video_backlight_support(void)
-{
-	return 0;
-}
-
-#endif /* defined(CONFIG_ACPI_VIDEO) || defined(CONFIG_ACPI_VIDEO_MODULE) */
-
 extern int acpi_blacklisted(void);
 extern void acpi_dmi_osi_linux(int enable, const struct dmi_system_id *d);
 extern void acpi_osi_setup(char *str);
