@@ -26,6 +26,7 @@
 #include <linux/irq.h>
 #include <linux/of.h>
 #include <linux/slab.h>
+#include <asm/unaligned.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio.h>
 #include <linux/workqueue.h>
@@ -1061,8 +1062,8 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 		return;
 
 	status = message[1];
-	x = (message[3] << 8) | message[2];
-	y = (message[5] << 8) | message[4];
+	x = get_unaligned_le16(&message[2]);
+	y = get_unaligned_le16(&message[4]);
 
 	if (status & MXT_T100_DETECT) {
 		type = (status & MXT_T100_TYPE_MASK) >> 4;
