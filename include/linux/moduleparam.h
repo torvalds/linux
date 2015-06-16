@@ -68,7 +68,7 @@ enum {
 struct kernel_param {
 	const char *name;
 	const struct kernel_param_ops *ops;
-	u16 perm;
+	const u16 perm;
 	s8 level;
 	u8 flags;
 	union {

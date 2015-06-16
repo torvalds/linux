@@ -395,12 +395,11 @@ EXPORT_SYMBOL(param_ops_invbool);
 
 int param_set_bint(const char *val, const struct kernel_param *kp)
 {
-	struct kernel_param boolkp;
+	/* Match bool exactly, by re-using it. */
+	struct kernel_param boolkp = *kp;
 	bool v;
 	int ret;
 
-	/* Match bool exactly, by re-using it. */
-	boolkp = *kp;
 	boolkp.arg = &v;
 
 	ret = param_set_bool(val, &boolkp);
@@ -480,9 +479,8 @@ static int param_array_get(char *buffer, const struct kernel_param *kp)
 {
 	int i, off, ret;
 	const struct kparam_array *arr = kp->arr;
-	struct kernel_param p;
+	struct kernel_param p = *kp;
 
-	p = *kp;
 	for (i = off = 0; i < (arr->num ? *arr->num : arr->max); i++) {
 		if (i)
 			buffer[off++] = ',';
