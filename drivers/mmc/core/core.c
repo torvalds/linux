@@ -396,6 +396,33 @@ static int __mmc_start_req(struct mmc_host *host, struct mmc_request *mrq)
 	return 0;
 }
 
+static void mmc_get_req_timeout(struct mmc_request *mrq, u32 *timeout)
+{
+	if (!mrq->cmd->data) {
+		if (mrq->cmd->opcode == MMC_ERASE ||
+		    (mrq->cmd->opcode == MMC_ERASE_GROUP_START) ||
+		    (mrq->cmd->opcode == MMC_ERASE_GROUP_END) ||
+		    (mrq->cmd->opcode == MMC_SEND_STATUS))
+			*timeout = 2500000;
+		else
+			*timeout = 500;
+	} else {
+		*timeout = mrq->cmd->data->blocks *
+			mrq->cmd->data->blksz * 500;
+		*timeout = (*timeout) ? (*timeout) : 1000;
+		if (*timeout > 8000)
+			*timeout = 8000;
+	}
+
+	if ((mrq->cmd->opcode == SD_IO_RW_DIRECT) ||
+	    (mrq->cmd->opcode == SD_IO_RW_EXTENDED))
+		*timeout = 8000;
+	else if ((mrq->cmd->opcode == MMC_SEND_TUNING_BLOCK_HS200) ||
+		 (mrq->cmd->opcode == MMC_SEND_TUNING_BLOCK))
+		*timeout = 30;
+}
+
+
 /*
  * mmc_wait_for_data_req_done() - wait for request completed
  * @host: MMC host to prepare the command.
@@ -415,11 +442,24 @@ static int mmc_wait_for_data_req_done(struct mmc_host *host,
 	struct mmc_context_info *context_info = &host->context_info;
 	int err;
 	unsigned long flags;
+	u32 timeout = 0;
+
+	mmc_get_req_timeout(mrq, &timeout);
 
 	while (1) {
-		wait_event_interruptible(context_info->wait,
+		if (!wait_event_interruptible_timeout(context_info->wait,
 					 (context_info->is_done_rcv ||
-					 context_info->is_new_req));
+					 context_info->is_new_req),
+					 msecs_to_jiffies(timeout))) {
+			cmd = mrq->cmd;
+			cmd->error = -ETIMEDOUT;
+			host->ops->post_tmo(host);
+			context_info->is_done_rcv = true;
+			dev_err(mmc_dev(host),
+				"req failed (CMD%u): error = %d, timeout = %dms\n",
+				cmd->opcode, cmd->error, timeout);
+		}
+
 		spin_lock_irqsave(&context_info->lock, flags);
 		context_info->is_waiting_last_req = false;
 		spin_unlock_irqrestore(&context_info->lock, flags);
