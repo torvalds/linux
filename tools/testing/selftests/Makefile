@@ -13,6 +13,7 @@ TARGETS += mqueue
 TARGETS += net
 TARGETS += powerpc
 TARGETS += ptrace
+TARGETS += seccomp
 TARGETS += size
 TARGETS += sysctl
 TARGETS += timers
