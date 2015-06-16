@@ -1747,15 +1747,9 @@ out_quotactl:
 		struct hsm_user_request	*hur;
 		ssize_t			 totalsize;
 
-		hur = kzalloc(sizeof(*hur), GFP_NOFS);
-		if (!hur)
-			return -ENOMEM;
-
-		/* We don't know the true size yet; copy the fixed-size part */
-		if (copy_from_user(hur, (void *)arg, sizeof(*hur))) {
-			kfree(hur);
-			return -EFAULT;
-		}
+		hur = memdup_user((void *)arg, sizeof(*hur));
+		if (IS_ERR(hur))
+			return PTR_ERR(hur);
 
 		/* Compute the whole struct size */
 		totalsize = hur_len(hur);
@@ -1833,13 +1827,9 @@ out_quotactl:
 		struct hsm_copy	*copy;
 		int		 rc;
 
-		copy = kzalloc(sizeof(*copy), GFP_NOFS);
-		if (!copy)
-			return -ENOMEM;
-		if (copy_from_user(copy, (char *)arg, sizeof(*copy))) {
-			kfree(copy);
-			return -EFAULT;
-		}
+		copy = memdup_user((char *)arg, sizeof(*copy));
+		if (IS_ERR(copy))
+			return PTR_ERR(copy);
 
 		rc = ll_ioc_copy_start(inode->i_sb, copy);
 		if (copy_to_user((char *)arg, copy, sizeof(*copy)))
@@ -1852,13 +1842,9 @@ out_quotactl:
 		struct hsm_copy	*copy;
 		int		 rc;
 
-		copy = kzalloc(sizeof(*copy), GFP_NOFS);
-		if (!copy)
-			return -ENOMEM;
-		if (copy_from_user(copy, (char *)arg, sizeof(*copy))) {
-			kfree(copy);
-			return -EFAULT;
-		}
+		copy = memdup_user((char *)arg, sizeof(*copy));
+		if (IS_ERR(copy))
+			return PTR_ERR(copy);
 
 		rc = ll_ioc_copy_end(inode->i_sb, copy);
 		if (copy_to_user((char *)arg, copy, sizeof(*copy)))
