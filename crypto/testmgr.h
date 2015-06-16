@@ -67,6 +67,7 @@ struct hash_testvec {
 struct cipher_testvec {
 	char *key;
 	char *iv;
+	char *iv_out;
 	char *input;
 	char *result;
 	unsigned short tap[MAX_TAP];
