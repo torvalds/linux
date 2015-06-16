@@ -525,6 +525,15 @@ irq_set_chained_handler(unsigned int irq, irq_flow_handler_t handle)
 	__irq_set_handler(irq, handle, 1, NULL);
 }
 
+/*
+ * Set a highlevel chained flow handler and its data for a given IRQ.
+ * (a chained handler is automatically enabled and set to
+ *  IRQ_NOREQUEST, IRQ_NOPROBE, and IRQ_NOTHREAD)
+ */
+void
+irq_set_chained_handler_and_data(unsigned int irq, irq_flow_handler_t handle,
+				 void *data);
+
 void irq_modify_status(unsigned int irq, unsigned long clr, unsigned long set);
 
 static inline void irq_set_status_flags(unsigned int irq, unsigned long set)
