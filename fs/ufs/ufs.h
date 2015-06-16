@@ -141,7 +141,7 @@ extern const struct inode_operations ufs_fast_symlink_inode_operations;
 extern const struct inode_operations ufs_symlink_inode_operations;
 
 /* truncate.c */
-extern int ufs_truncate (struct inode *, loff_t);
+extern void ufs_truncate_blocks(struct inode *);
 extern int ufs_setattr(struct dentry *dentry, struct iattr *attr);
 
 static inline struct ufs_sb_info *UFS_SB(struct super_block *sb)

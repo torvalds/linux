@@ -884,14 +884,9 @@ void ufs_evict_inode(struct inode * inode)
 
 	truncate_inode_pages_final(&inode->i_data);
 	if (want_delete) {
-		loff_t old_i_size;
-		/*UFS_I(inode)->i_dtime = CURRENT_TIME;*/
-		mark_inode_dirty(inode);
-		ufs_update_inode(inode, IS_SYNC(inode));
-		old_i_size = inode->i_size;
 		inode->i_size = 0;
-		if (inode->i_blocks && ufs_truncate(inode, old_i_size))
-			ufs_warning(inode->i_sb, __func__, "ufs_truncate failed\n");
+		if (inode->i_blocks)
+			ufs_truncate_blocks(inode);
 	}
 
 	invalidate_inode_buffers(inode);
