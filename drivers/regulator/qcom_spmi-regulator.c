@@ -710,12 +710,8 @@ static int spmi_regulator_ult_lo_smps_set_voltage(struct regulator_dev *rdev,
 	if (range_sel == 1)
 		voltage_sel |= ULT_SMPS_RANGE_SPLIT;
 
-	ret = spmi_vreg_update_bits(vreg, SPMI_COMMON_REG_VOLTAGE_SET,
+	return spmi_vreg_update_bits(vreg, SPMI_COMMON_REG_VOLTAGE_SET,
 	       voltage_sel, 0xff);
-	if (ret)
-		return ret;
-
-	return 0;
 }
 
 static int spmi_regulator_ult_lo_smps_get_voltage(struct regulator_dev *rdev)
