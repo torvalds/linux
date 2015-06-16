@@ -3472,6 +3472,8 @@ try_mount_again:
 		else if (ses)
 			cifs_put_smb_ses(ses);
 
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_POSIX_PATHS;
+
 		free_xid(xid);
 	}
 #endif
