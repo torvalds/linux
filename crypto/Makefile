@@ -30,6 +30,14 @@ obj-$(CONFIG_CRYPTO_HASH2) += crypto_hash.o
 obj-$(CONFIG_CRYPTO_PCOMP2) += pcompress.o
 obj-$(CONFIG_CRYPTO_AKCIPHER2) += akcipher.o
 
+$(obj)/rsakey-asn1.o: $(obj)/rsakey-asn1.c $(obj)/rsakey-asn1.h
+clean-files += rsakey-asn1.c rsakey-asn1.h
+
+rsa_generic-y := rsakey-asn1.o
+rsa_generic-y += rsa.o
+rsa_generic-y += rsa_helper.o
+obj-$(CONFIG_CRYPTO_RSA) += rsa_generic.o
+
 cryptomgr-y := algboss.o testmgr.o
 
 obj-$(CONFIG_CRYPTO_MANAGER2) += cryptomgr.o
