@@ -28,6 +28,8 @@
 #define VENDOR_ID1_VAL 0x19
 #define VENDOR_ID2 0x24
 #define VENDOR_ID2_VAL 0x34
+#define IO_ADDR1 0x61
+#define IO_ADDR2 0x60
 #define LDN 0x7
 
 #define RS485  0xF0
@@ -61,18 +63,6 @@ static void fintek_8250_exit_key(u16 base_port)
 
 	outb(EXIT_KEY, base_port + ADDR_PORT);
 	release_region(base_port + ADDR_PORT, 2);
-}
-
-static int fintek_8250_get_index(resource_size_t base_addr)
-{
-	resource_size_t base[] = {0x3f8, 0x2f8, 0x3e8, 0x2e8};
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(base); i++)
-		if (base_addr == base[i])
-			return i;
-
-	return -ENODEV;
 }
 
 static int fintek_8250_check_id(u16 base_port)
@@ -148,24 +138,41 @@ static int fintek_8250_rs485_config(struct uart_port *port,
 	return 0;
 }
 
-static int fintek_8250_base_port(u8 *key)
+static int fintek_8250_base_port(u16 io_address, u8 *key, u8 *index)
 {
 	static const u16 addr[] = {0x4e, 0x2e};
 	static const u8 keys[] = {0x77, 0xa0, 0x87, 0x67};
-	int i, j;
+	int i, j, k;
 
 	for (i = 0; i < ARRAY_SIZE(addr); i++) {
 		for (j = 0; j < ARRAY_SIZE(keys); j++) {
-			int ret;
 
 			if (fintek_8250_enter_key(addr[i], keys[j]))
 				continue;
-			ret = fintek_8250_check_id(addr[i]);
-			fintek_8250_exit_key(addr[i]);
-			if (!ret) {
+			if (fintek_8250_check_id(addr[i])) {
+				fintek_8250_exit_key(addr[i]);
+				continue;
+			}
+
+			for (k = 0; k < 4; k++) {
+				u16 aux;
+
+				outb(LDN, addr[i] + ADDR_PORT);
+				outb(k, addr[i] + DATA_PORT);
+
+				outb(IO_ADDR1, addr[i] + ADDR_PORT);
+				aux = inb(addr[i] + DATA_PORT);
+				outb(IO_ADDR2, addr[i] + ADDR_PORT);
+				aux |= inb(addr[i] + DATA_PORT) << 8;
+				if (aux != io_address)
+					continue;
+
+				fintek_8250_exit_key(addr[i]);
 				*key = keys[j];
+				*index = k;
 				return addr[i];
 			}
+			fintek_8250_exit_key(addr[i]);
 		}
 	}
 
@@ -177,19 +184,15 @@ fintek_8250_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 {
 	struct uart_8250_port uart;
 	struct fintek_8250 *pdata;
-	int index;
 	int base_port;
 	u8 key;
+	u8 index;
 
 	if (!pnp_port_valid(dev, 0))
 		return -ENODEV;
 
-	base_port = fintek_8250_base_port(&key);
+	base_port = fintek_8250_base_port(pnp_port_start(dev, 0), &key, &index);
 	if (base_port < 0)
-		return -ENODEV;
-
-	index = fintek_8250_get_index(pnp_port_start(dev, 0));
-	if (index < 0)
 		return -ENODEV;
 
 	memset(&uart, 0, sizeof(uart));
