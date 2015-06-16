@@ -143,13 +143,6 @@ fld_debugfs_cache_flush_write(struct file *file, const char __user *buffer,
 }
 
 static int
-fld_debugfs_cache_flush_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
-static int
 fld_debugfs_cache_flush_release(struct inode *inode, struct file *file)
 {
 	file->private_data = NULL;
@@ -158,7 +151,7 @@ fld_debugfs_cache_flush_release(struct inode *inode, struct file *file)
 
 static struct file_operations fld_debugfs_cache_flush_fops = {
 	.owner		= THIS_MODULE,
-	.open		= fld_debugfs_cache_flush_open,
+	.open           = simple_open,
 	.write		= fld_debugfs_cache_flush_write,
 	.release	= fld_debugfs_cache_flush_release,
 };
