@@ -184,7 +184,7 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
  * all graphics capabilities of physically present devices are
  * summarized and returned. This is cached and done only once.
  */
-long acpi_video_get_capabilities(acpi_handle graphics_handle)
+static long acpi_video_get_capabilities(acpi_handle graphics_handle)
 {
 	long caps = 0;
 	struct acpi_device *tmp_dev;
@@ -227,7 +227,6 @@ long acpi_video_get_capabilities(acpi_handle graphics_handle)
 			  graphics_handle ? acpi_device_bid(tmp_dev) : ""));
 	return caps;
 }
-EXPORT_SYMBOL(acpi_video_get_capabilities);
 
 static void acpi_video_caps_check(void)
 {
