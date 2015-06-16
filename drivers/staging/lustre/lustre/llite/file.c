@@ -2361,14 +2361,9 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		struct hsm_state_set	*hss;
 		int			 rc;
 
-		hss = kzalloc(sizeof(*hss), GFP_NOFS);
-		if (!hss)
-			return -ENOMEM;
-
-		if (copy_from_user(hss, (char *)arg, sizeof(*hss))) {
-			kfree(hss);
-			return -EFAULT;
-		}
+		hss = memdup_user((char *)arg, sizeof(*hss));
+		if (IS_ERR(hss))
+			return PTR_ERR(hss);
 
 		rc = ll_hsm_state_set(inode, hss);
 
@@ -2488,14 +2483,9 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case LL_IOC_HSM_IMPORT: {
 		struct hsm_user_import *hui;
 
-		hui = kzalloc(sizeof(*hui), GFP_NOFS);
-		if (!hui)
-			return -ENOMEM;
-
-		if (copy_from_user(hui, (void *)arg, sizeof(*hui))) {
-			kfree(hui);
-			return -EFAULT;
-		}
+		hui = memdup_user((void *)arg, sizeof(*hui));
+		if (IS_ERR(hui))
+			return PTR_ERR(hui);
 
 		rc = ll_hsm_import(inode, file, hui);
 
