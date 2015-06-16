@@ -253,7 +253,7 @@ static void wacom_post_parse_hid(struct hid_device *hdev,
 	if (features->type == HID_GENERIC) {
 		/* Any last-minute generic device setup */
 		if (features->touch_max > 1) {
-			input_mt_init_slots(wacom_wac->input, wacom_wac->features.touch_max,
+			input_mt_init_slots(wacom_wac->touch_input, wacom_wac->features.touch_max,
 				    INPUT_MT_DIRECT);
 		}
 	}
@@ -1130,7 +1130,7 @@ static struct input_dev *wacom_allocate_input(struct wacom *wacom)
 	if (!input_dev)
 		return NULL;
 
-	input_dev->name = wacom_wac->name;
+	input_dev->name = wacom_wac->pen_name;
 	input_dev->phys = hdev->phys;
 	input_dev->dev.parent = &hdev->dev;
 	input_dev->open = wacom_open;
@@ -1149,27 +1149,33 @@ static void wacom_free_inputs(struct wacom *wacom)
 {
 	struct wacom_wac *wacom_wac = &(wacom->wacom_wac);
 
-	if (wacom_wac->input)
-		input_free_device(wacom_wac->input);
+	if (wacom_wac->pen_input)
+		input_free_device(wacom_wac->pen_input);
+	if (wacom_wac->touch_input)
+		input_free_device(wacom_wac->touch_input);
 	if (wacom_wac->pad_input)
 		input_free_device(wacom_wac->pad_input);
-	wacom_wac->input = NULL;
+	wacom_wac->pen_input = NULL;
+	wacom_wac->touch_input = NULL;
 	wacom_wac->pad_input = NULL;
 }
 
 static int wacom_allocate_inputs(struct wacom *wacom)
 {
-	struct input_dev *input_dev, *pad_input_dev;
+	struct input_dev *pen_input_dev, *touch_input_dev, *pad_input_dev;
 	struct wacom_wac *wacom_wac = &(wacom->wacom_wac);
 
-	input_dev = wacom_allocate_input(wacom);
+	pen_input_dev = wacom_allocate_input(wacom);
+	touch_input_dev = wacom_allocate_input(wacom);
 	pad_input_dev = wacom_allocate_input(wacom);
-	if (!input_dev || !pad_input_dev) {
+	if (!pen_input_dev || !touch_input_dev || !pad_input_dev) {
 		wacom_free_inputs(wacom);
 		return -ENOMEM;
 	}
 
-	wacom_wac->input = input_dev;
+	wacom_wac->pen_input = pen_input_dev;
+	wacom_wac->touch_input = touch_input_dev;
+	wacom_wac->touch_input->name = wacom_wac->touch_name;
 	wacom_wac->pad_input = pad_input_dev;
 	wacom_wac->pad_input->name = wacom_wac->pad_name;
 
@@ -1178,11 +1184,17 @@ static int wacom_allocate_inputs(struct wacom *wacom)
 
 static void wacom_clean_inputs(struct wacom *wacom)
 {
-	if (wacom->wacom_wac.input) {
-		if (wacom->wacom_wac.input_registered)
-			input_unregister_device(wacom->wacom_wac.input);
+	if (wacom->wacom_wac.pen_input) {
+		if (wacom->wacom_wac.pen_registered)
+			input_unregister_device(wacom->wacom_wac.pen_input);
 		else
-			input_free_device(wacom->wacom_wac.input);
+			input_free_device(wacom->wacom_wac.pen_input);
+	}
+	if (wacom->wacom_wac.touch_input) {
+		if (wacom->wacom_wac.touch_registered)
+			input_unregister_device(wacom->wacom_wac.touch_input);
+		else
+			input_free_device(wacom->wacom_wac.touch_input);
 	}
 	if (wacom->wacom_wac.pad_input) {
 		if (wacom->wacom_wac.pad_registered)
@@ -1190,33 +1202,49 @@ static void wacom_clean_inputs(struct wacom *wacom)
 		else
 			input_free_device(wacom->wacom_wac.pad_input);
 	}
-	wacom->wacom_wac.input = NULL;
+	wacom->wacom_wac.pen_input = NULL;
+	wacom->wacom_wac.touch_input = NULL;
 	wacom->wacom_wac.pad_input = NULL;
 	wacom_destroy_leds(wacom);
 }
 
 static int wacom_register_inputs(struct wacom *wacom)
 {
-	struct input_dev *input_dev, *pad_input_dev;
+	struct input_dev *pen_input_dev, *touch_input_dev, *pad_input_dev;
 	struct wacom_wac *wacom_wac = &(wacom->wacom_wac);
-	struct wacom_features *features = &wacom_wac->features;
 	int error = 0;
 
-	input_dev = wacom_wac->input;
+	pen_input_dev = wacom_wac->pen_input;
+	touch_input_dev = wacom_wac->touch_input;
 	pad_input_dev = wacom_wac->pad_input;
 
-	if (!input_dev || !pad_input_dev)
+	if (!pen_input_dev || !touch_input_dev || !pad_input_dev)
 		return -EINVAL;
 
-	if (features->device_type & WACOM_DEVICETYPE_PEN)
-		error = wacom_setup_pen_input_capabilities(input_dev, wacom_wac);
-	if (!error && features->device_type & WACOM_DEVICETYPE_TOUCH)
-		error = wacom_setup_touch_input_capabilities(input_dev, wacom_wac);
-	if (!error) {
-		error = input_register_device(input_dev);
+	error = wacom_setup_pen_input_capabilities(pen_input_dev, wacom_wac);
+	if (error) {
+		/* no pen in use on this interface */
+		input_free_device(pen_input_dev);
+		wacom_wac->pen_input = NULL;
+		pen_input_dev = NULL;
+	} else {
+		error = input_register_device(pen_input_dev);
 		if (error)
-			return error;
-		wacom_wac->input_registered = true;
+			goto fail_register_pen_input;
+		wacom_wac->pen_registered = true;
+	}
+
+	error = wacom_setup_touch_input_capabilities(touch_input_dev, wacom_wac);
+	if (error) {
+		/* no touch in use on this interface */
+		input_free_device(touch_input_dev);
+		wacom_wac->touch_input = NULL;
+		touch_input_dev = NULL;
+	} else {
+		error = input_register_device(touch_input_dev);
+		if (error)
+			goto fail_register_touch_input;
+		wacom_wac->touch_registered = true;
 	}
 
 	error = wacom_setup_pad_input_capabilities(pad_input_dev, wacom_wac);
@@ -1243,9 +1271,14 @@ fail_leds:
 	pad_input_dev = NULL;
 	wacom_wac->pad_registered = false;
 fail_register_pad_input:
-	input_unregister_device(input_dev);
-	wacom_wac->input = NULL;
-	wacom_wac->input_registered = false;
+	input_unregister_device(touch_input_dev);
+	wacom_wac->touch_input = NULL;
+	wacom_wac->touch_registered = false;
+fail_register_touch_input:
+	input_unregister_device(pen_input_dev);
+	wacom_wac->pen_input = NULL;
+	wacom_wac->pen_registered = false;
+fail_register_pen_input:
 	return error;
 }
 
@@ -1306,7 +1339,7 @@ static void wacom_wireless_work(struct work_struct *work)
 		if (wacom_wac1->features.type != INTUOSHT &&
 		    wacom_wac1->features.type != BAMBOO_PT)
 			wacom_wac1->features.device_type |= WACOM_DEVICETYPE_PAD;
-		snprintf(wacom_wac1->name, WACOM_NAME_MAX, "%s (WL) Pen",
+		snprintf(wacom_wac1->pen_name, WACOM_NAME_MAX, "%s (WL) Pen",
 			 wacom_wac1->features.name);
 		snprintf(wacom_wac1->pad_name, WACOM_NAME_MAX, "%s (WL) Pad",
 			 wacom_wac1->features.name);
@@ -1325,7 +1358,7 @@ static void wacom_wireless_work(struct work_struct *work)
 				*((struct wacom_features *)id->driver_data);
 			wacom_wac2->features.pktlen = WACOM_PKGLEN_BBTOUCH3;
 			wacom_wac2->features.x_max = wacom_wac2->features.y_max = 4096;
-			snprintf(wacom_wac2->name, WACOM_NAME_MAX,
+			snprintf(wacom_wac2->touch_name, WACOM_NAME_MAX,
 				 "%s (WL) Finger",wacom_wac2->features.name);
 			snprintf(wacom_wac2->pad_name, WACOM_NAME_MAX,
 				 "%s (WL) Pad",wacom_wac2->features.name);
@@ -1342,7 +1375,7 @@ static void wacom_wireless_work(struct work_struct *work)
 
 			if (wacom_wac1->features.type == INTUOSHT &&
 			    wacom_wac1->features.touch_max)
-				wacom_wac->shared->touch_input = wacom_wac2->input;
+				wacom_wac->shared->touch_input = wacom_wac2->touch_input;
 		}
 
 		error = wacom_initialize_battery(wacom);
@@ -1457,21 +1490,12 @@ static void wacom_update_name(struct wacom *wacom)
 	}
 
 	/* Append the device type to the name */
+	snprintf(wacom_wac->pen_name, sizeof(wacom_wac->pen_name),
+		"%s Pen", name);
+	snprintf(wacom_wac->touch_name, sizeof(wacom_wac->touch_name),
+		"%s Finger", name);
 	snprintf(wacom_wac->pad_name, sizeof(wacom_wac->pad_name),
 		"%s Pad", name);
-
-	if (features->device_type & WACOM_DEVICETYPE_PEN) {
-		snprintf(wacom_wac->name, sizeof(wacom_wac->name),
-			"%s Pen", name);
-	}
-	else if (features->device_type & WACOM_DEVICETYPE_TOUCH) {
-		snprintf(wacom_wac->name, sizeof(wacom_wac->name),
-			"%s Finger", name);
-	}
-	else if (features->device_type & WACOM_DEVICETYPE_PAD) {
-		snprintf(wacom_wac->name, sizeof(wacom_wac->name),
-			"%s Pad", name);
-	}
 }
 
 static int wacom_probe(struct hid_device *hdev,
@@ -1615,7 +1639,7 @@ static int wacom_probe(struct hid_device *hdev,
 
 	if (wacom_wac->features.type == INTUOSHT && 
 	    wacom_wac->features.device_type & WACOM_DEVICETYPE_TOUCH) {
-			wacom_wac->shared->touch_input = wacom_wac->input;
+			wacom_wac->shared->touch_input = wacom_wac->touch_input;
 	}
 
 	return 0;
