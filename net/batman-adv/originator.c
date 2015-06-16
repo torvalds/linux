@@ -678,8 +678,13 @@ struct batadv_orig_node *batadv_orig_node_new(struct batadv_priv *bat_priv,
 	orig_node->last_seen = jiffies;
 	reset_time = jiffies - 1 - msecs_to_jiffies(BATADV_RESET_PROTECTION_MS);
 	orig_node->bcast_seqno_reset = reset_time;
+
 #ifdef CONFIG_BATMAN_ADV_MCAST
 	orig_node->mcast_flags = BATADV_NO_FLAGS;
+	INIT_HLIST_NODE(&orig_node->mcast_want_all_unsnoopables_node);
+	INIT_HLIST_NODE(&orig_node->mcast_want_all_ipv4_node);
+	INIT_HLIST_NODE(&orig_node->mcast_want_all_ipv6_node);
+	spin_lock_init(&orig_node->mcast_handler_lock);
 #endif
 
 	/* create a vlan object for the "untagged" LAN */
