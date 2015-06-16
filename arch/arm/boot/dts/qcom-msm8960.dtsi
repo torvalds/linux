@@ -73,11 +73,10 @@
 			cpu-offset = <0x80000>;
 		};
 
-		msmgpio: gpio@800000 {
-			compatible = "qcom,msm-gpio";
+		msmgpio: pinctrl@800000 {
+			compatible = "qcom,msm8960-pinctrl";
 			gpio-controller;
 			#gpio-cells = <2>;
-			ngpio = <150>;
 			interrupts = <0 16 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
