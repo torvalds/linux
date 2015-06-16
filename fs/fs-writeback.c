@@ -513,6 +513,11 @@ out_free:
 void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
 				 struct inode *inode)
 {
+	if (!inode_cgwb_enabled(inode)) {
+		spin_unlock(&inode->i_lock);
+		return;
+	}
+
 	wbc->wb = inode_to_wb(inode);
 	wbc->inode = inode;
 
@@ -575,10 +580,15 @@ void wbc_detach_inode(struct writeback_control *wbc)
 {
 	struct bdi_writeback *wb = wbc->wb;
 	struct inode *inode = wbc->inode;
-	u16 history = inode->i_wb_frn_history;
-	unsigned long avg_time = inode->i_wb_frn_avg_time;
-	unsigned long max_bytes, max_time;
+	unsigned long avg_time, max_bytes, max_time;
+	u16 history;
 	int max_id;
+
+	if (!wb)
+		return;
+
+	history = inode->i_wb_frn_history;
+	avg_time = inode->i_wb_frn_avg_time;
 
 	/* pick the winner of this round */
 	if (wbc->wb_bytes >= wbc->wb_lcand_bytes &&
