@@ -978,9 +978,9 @@ bool notrace rcu_is_watching(void)
 {
 	bool ret;
 
-	preempt_disable();
+	preempt_disable_notrace();
 	ret = __rcu_is_watching();
-	preempt_enable();
+	preempt_enable_notrace();
 	return ret;
 }
 EXPORT_SYMBOL_GPL(rcu_is_watching);
