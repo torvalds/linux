@@ -505,6 +505,8 @@ int regmap_field_update_bits(struct regmap_field *field,
 
 int regmap_fields_write(struct regmap_field *field, unsigned int id,
 			unsigned int val);
+int regmap_fields_force_write(struct regmap_field *field, unsigned int id,
+			unsigned int val);
 int regmap_fields_read(struct regmap_field *field, unsigned int id,
 		       unsigned int *val);
 int regmap_fields_update_bits(struct regmap_field *field,  unsigned int id,
