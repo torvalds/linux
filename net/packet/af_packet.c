@@ -1634,7 +1634,8 @@ static void fanout_release(struct sock *sk)
 	}
 	mutex_unlock(&fanout_mutex);
 
-	kfree(po->rollover);
+	if (po->rollover)
+		kfree_rcu(po->rollover, rcu);
 }
 
 static const struct proto_ops packet_ops;

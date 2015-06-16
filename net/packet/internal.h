@@ -89,6 +89,7 @@ struct packet_fanout {
 
 struct packet_rollover {
 	int			sock;
+	struct rcu_head		rcu;
 	atomic_long_t		num;
 	atomic_long_t		num_huge;
 	atomic_long_t		num_failed;
