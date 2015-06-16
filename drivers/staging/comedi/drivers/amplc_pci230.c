@@ -2011,17 +2011,17 @@ static void pci230_handle_ai(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int status_fifo;
 	unsigned int i;
-	unsigned int todo;
+	unsigned int nsamples;
 	unsigned int fifoamount;
 	unsigned short val;
 
 	/* Determine number of samples to read. */
-	todo = comedi_nsamples_left(s, PCI230_ADC_FIFOLEVEL_HALFFULL);
-	if (todo == 0)
+	nsamples = comedi_nsamples_left(s, PCI230_ADC_FIFOLEVEL_HALFFULL);
+	if (nsamples == 0)
 		return;
 
 	fifoamount = 0;
-	for (i = 0; i < todo; i++) {
+	for (i = 0; i < nsamples; i++) {
 		if (fifoamount == 0) {
 			/* Read FIFO state. */
 			status_fifo = inw(devpriv->daqio + PCI230_ADCCON);
