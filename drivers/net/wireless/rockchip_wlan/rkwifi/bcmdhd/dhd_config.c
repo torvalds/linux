@@ -2006,6 +2006,10 @@ dhd_conf_preinit(dhd_pub_t *dhd)
 	if (conf->chip == BCM4356_CHIP_ID) {
 		conf->txbf = 1;
 	}
+        if (conf->chip == BCM43430_CHIP_ID) {
+                conf->bus_rxglom = FALSE;
+                conf->use_rxchain = 0;
+        }
 
 	return 0;
 }
