@@ -302,7 +302,7 @@ static struct snd_soc_card rockchip_rk616_snd_card = {
 *	dais {
 *		dai0 {
 *			audio-codec = <&rk616>;
-*			i2s-controller = <&i2s0>;
+*			audio-controller = <&i2s0>;
 *			format = "i2s";
 *			//continuous-clock;
 *			//bitclock-inversion;
@@ -313,7 +313,7 @@ static struct snd_soc_card rockchip_rk616_snd_card = {
 *
 *		dai1 {
 *			audio-codec = <&rk616>;
-*			i2s-controller = <&i2s0>;
+*			audio-controller = <&i2s0>;
 *			format = "dsp_a";
 *			//continuous-clock;
 *			bitclock-inversion;

@@ -259,7 +259,7 @@ dts:
 		dais {
 			dai0 {
 				audio-codec = <&rt3261>;
-				i2s-controller = <&i2s0>;
+				audio-controller = <&i2s0>;
 				format = "i2s";
 				//continuous-clock;
 				//bitclock-inversion;
@@ -270,7 +270,7 @@ dts:
 
 			dai1 {
 				audio-codec = <&rt3261>;
-				i2s-controller = <&i2s0>;
+				audio-controller = <&i2s0>;
 				format = "dsp_a";
 				//continuous-clock;
 				bitclock-inversion;

@@ -18,7 +18,7 @@
 /*
   Get sound card infos:
       audio-codec
-      i2s-controller
+      audio-controller
 
       format
 
@@ -30,14 +30,14 @@
       bitclock-master
       frame-master
 
-  Get audio-codec and i2s-controller in this fun,
+  Get audio-codec and audio-controller in this fun,
   and get oher infos in fun snd_soc_of_parse_daifmt().
 
   Set in dts:
 		dais {
 			dai0 {
 				audio-codec = <&codec_of_node>;
-				i2s-controller = <&cpu_of_node>;
+				audio-controller = <&cpu_of_node>;
 				format = "i2s";
 				//continuous-clock;
 				//bitclock-inversion;
@@ -48,7 +48,7 @@
 
 			dai1 {
 				audio-codec = <&codec_of_node>;
-				i2s-controller = <&cpu_of_node>;
+				audio-controller = <&cpu_of_node>;
 				format = "dsp_a";
 				//continuous-clock;
 				bitclock-inversion;
@@ -101,10 +101,10 @@ int rockchip_of_get_sound_card_info_(struct snd_soc_card *card,
 
 		card->dai_link[dai_num].cpu_of_node = of_parse_phandle(
 			child_dai_node,
-			"i2s-controller", 0);
+			"audio-controller", 0);
 		if (!card->dai_link[dai_num].cpu_of_node) {
 			dev_err(card->dev,
-				"Property 'i2s-controller' missing or invalid\n");
+				"Property 'audio-controller' missing or invalid\n");
 			return -EINVAL;
 		}
 
