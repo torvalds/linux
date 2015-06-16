@@ -1199,7 +1199,8 @@ static int wacom_register_inputs(struct wacom *wacom)
 {
 	struct input_dev *input_dev, *pad_input_dev;
 	struct wacom_wac *wacom_wac = &(wacom->wacom_wac);
-	int error;
+	struct wacom_features *features = &wacom_wac->features;
+	int error = 0;
 
 	input_dev = wacom_wac->input;
 	pad_input_dev = wacom_wac->pad_input;
@@ -1207,7 +1208,10 @@ static int wacom_register_inputs(struct wacom *wacom)
 	if (!input_dev || !pad_input_dev)
 		return -EINVAL;
 
-	error = wacom_setup_pentouch_input_capabilities(input_dev, wacom_wac);
+	if (features->device_type & WACOM_DEVICETYPE_PEN)
+		error = wacom_setup_pen_input_capabilities(input_dev, wacom_wac);
+	if (!error && features->device_type & WACOM_DEVICETYPE_TOUCH)
+		error = wacom_setup_touch_input_capabilities(input_dev, wacom_wac);
 	if (!error) {
 		error = input_register_device(input_dev);
 		if (error)
