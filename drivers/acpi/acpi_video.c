@@ -43,7 +43,7 @@
 #include <acpi/video.h>
 #include <asm/uaccess.h>
 
-#include "internal.h"
+#define PREFIX "ACPI: "
 
 #define ACPI_VIDEO_BUS_NAME		"Video Bus"
 #define ACPI_VIDEO_DEVICE_NAME		"Video Device"

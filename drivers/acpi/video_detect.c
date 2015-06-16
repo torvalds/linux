@@ -32,15 +32,22 @@
 #include <linux/export.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
+#include <linux/module.h>
 #include <linux/pci.h>
-
-#include "internal.h"
 
 ACPI_MODULE_NAME("video");
 #define _COMPONENT		ACPI_VIDEO_COMPONENT
 
 static long acpi_video_support;
 static bool acpi_video_caps_checked;
+
+static void acpi_video_parse_cmdline(void)
+{
+	if (!strcmp("vendor", acpi_video_backlight_string))
+		acpi_video_support |= ACPI_VIDEO_BACKLIGHT_FORCE_VENDOR;
+	if (!strcmp("video", acpi_video_backlight_string))
+		acpi_video_support |= ACPI_VIDEO_BACKLIGHT_FORCE_VIDEO;
+}
 
 static acpi_status
 find_video(acpi_handle handle, u32 lvl, void *context, void **rv)
@@ -174,8 +181,10 @@ static void acpi_video_caps_check(void)
 	 * We must check whether the ACPI graphics device is physically plugged
 	 * in. Therefore this must be called after binding PCI and ACPI devices
 	 */
-	if (!acpi_video_caps_checked)
+	if (!acpi_video_caps_checked) {
+		acpi_video_parse_cmdline();
 		acpi_video_get_capabilities(NULL);
+	}
 }
 
 /* Promote the vendor interface instead of the generic video module.
@@ -212,23 +221,3 @@ int acpi_video_backlight_support(void)
 	return acpi_video_support & ACPI_VIDEO_BACKLIGHT;
 }
 EXPORT_SYMBOL(acpi_video_backlight_support);
-
-/*
- * Use acpi_backlight=vendor/video to force that backlight switching
- * is processed by vendor specific acpi drivers or video.ko driver.
- */
-static int __init acpi_backlight(char *str)
-{
-	if (str == NULL || *str == '\0')
-		return 1;
-	else {
-		if (!strcmp("vendor", str))
-			acpi_video_support |=
-				ACPI_VIDEO_BACKLIGHT_FORCE_VENDOR;
-		if (!strcmp("video", str))
-			acpi_video_support |=
-				ACPI_VIDEO_BACKLIGHT_FORCE_VIDEO;
-	}
-	return 1;
-}
-__setup("acpi_backlight=", acpi_backlight);

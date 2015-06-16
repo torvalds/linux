@@ -243,6 +243,7 @@ extern bool wmi_has_guid(const char *guid);
 #define ACPI_VIDEO_OUTPUT_SWITCHING_DMI_VENDOR		0x0400
 #define ACPI_VIDEO_OUTPUT_SWITCHING_DMI_VIDEO		0x0800
 
+extern char acpi_video_backlight_string[];
 extern long acpi_is_video_device(acpi_handle handle);
 
 #if defined(CONFIG_ACPI_VIDEO) || defined(CONFIG_ACPI_VIDEO_MODULE)
