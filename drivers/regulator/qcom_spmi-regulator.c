@@ -580,11 +580,12 @@ static int spmi_regulator_select_voltage_same_range(struct spmi_regulator *vreg,
 	*selector = 0;
 	for (i = 0; i < vreg->set_points->count; i++) {
 		if (uV >= vreg->set_points->range[i].set_point_min_uV
-		    && uV <= vreg->set_points->range[i].set_point_max_uV)
+		    && uV <= vreg->set_points->range[i].set_point_max_uV) {
 			*selector +=
 			    (uV - vreg->set_points->range[i].set_point_min_uV)
 				/ vreg->set_points->range[i].step_uV;
 			break;
+		}
 
 		*selector += vreg->set_points->range[i].n_voltages;
 	}
@@ -743,10 +744,11 @@ static int spmi_regulator_common_list_voltage(struct regulator_dev *rdev,
 		return 0;
 
 	for (i = 0; i < vreg->set_points->count; i++) {
-		if (selector < vreg->set_points->range[i].n_voltages)
+		if (selector < vreg->set_points->range[i].n_voltages) {
 			uV = selector * vreg->set_points->range[i].step_uV
 				+ vreg->set_points->range[i].set_point_min_uV;
 			break;
+		}
 
 		selector -= vreg->set_points->range[i].n_voltages;
 	}
