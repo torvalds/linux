@@ -2393,63 +2393,6 @@ int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 	#endif
 
 	switch (cmd) {
-	/* [[ added by tony for SIOCDEVPRIVATE */
-	case SIOCDEVPRIVATE + 1:
-	{
-		android_wifi_priv_cmd priv_cmd;
-
-		PRINT_INFO(GENERIC_DBG, "in SIOCDEVPRIVATE+1\n");
-
-		if (copy_from_user(&priv_cmd, req->ifr_data, sizeof(android_wifi_priv_cmd))) {
-			s32Error = -EFAULT;
-			goto done;
-		}
-
-		buff = kmalloc(priv_cmd.total_len, GFP_KERNEL);
-		if (!buff) {
-			s32Error = -ENOMEM;
-			goto done;
-		}
-
-		if (copy_from_user(buff, priv_cmd.buf, priv_cmd.total_len)) {
-			s32Error = -EFAULT;
-			goto done;
-		}
-
-		PRINT_INFO(GENERIC_DBG, "%s: Android private cmd \"%s\" on %s\n", __FUNCTION__, buff, req->ifr_name);
-
-		if (strncasecmp(buff, "SCAN-ACTIVE", strlen("SCAN-ACTIVE")) == 0) {
-			PRINT_INFO(GENERIC_DBG, "%s, SCAN-ACTIVE command\n", __FUNCTION__);
-		} else if (strncasecmp(buff, "SCAN-PASSIVE", strlen("SCAN-PASSIVE")) == 0)  {
-			PRINT_INFO(GENERIC_DBG, "%s, SCAN-PASSIVE command\n", __FUNCTION__);
-		} else if (strncasecmp(buff, "RXFILTER-START", strlen("RXFILTER-START")) == 0)  {
-			PRINT_INFO(GENERIC_DBG, "%s, RXFILTER-START command\n", __FUNCTION__);
-		} else if (strncasecmp(buff, "RXFILTER-STOP", strlen("RXFILTER-STOP")) == 0)  {
-			PRINT_INFO(GENERIC_DBG, "%s, RXFILTER-STOP command\n", __FUNCTION__);
-		} else if (strncasecmp(buff, "RXFILTER-ADD", strlen("RXFILTER-ADD")) == 0)  {
-			int filter_num = *(buff + strlen("RXFILTER-ADD") + 1) - '0';
-			PRINT_INFO(GENERIC_DBG, "%s, RXFILTER-ADD command, filter_num=%d\n", __FUNCTION__, filter_num);
-		} else if (strncasecmp(buff, "RXFILTER-REMOVE", strlen("RXFILTER-REMOVE")) == 0)  {
-			int filter_num = *(buff + strlen("RXFILTER-REMOVE") + 1) - '0';
-			PRINT_INFO(GENERIC_DBG, "%s, RXFILTER-REMOVE command, filter_num=%d\n", __FUNCTION__, filter_num);
-		} else if (strncasecmp(buff, "BTCOEXSCAN-START", strlen("BTCOEXSCAN-START")) == 0)  {
-			PRINT_INFO(GENERIC_DBG, "%s, BTCOEXSCAN-START command\n", __FUNCTION__);
-		} else if (strncasecmp(buff, "BTCOEXSCAN-STOP", strlen("BTCOEXSCAN-STOP")) == 0)  {
-			PRINT_INFO(GENERIC_DBG, "%s, BTCOEXSCAN-STOP command\n", __FUNCTION__);
-		} else if (strncasecmp(buff, "BTCOEXMODE", strlen("BTCOEXMODE")) == 0)  {
-			PRINT_INFO(GENERIC_DBG, "%s, BTCOEXMODE command\n", __FUNCTION__);
-		} else if (strncasecmp(buff, "SETBAND", strlen("SETBAND")) == 0)  {
-			uint band = *(buff + strlen("SETBAND") + 1) - '0';
-			PRINT_INFO(GENERIC_DBG, "%s, SETBAND command, band=%d\n", __FUNCTION__, band);
-		} else if (strncasecmp(buff, "GETBAND", strlen("GETBAND")) == 0)  {
-			PRINT_INFO(GENERIC_DBG, "%s, GETBAND command\n", __FUNCTION__);
-		} else if (strncasecmp(buff, "COUNTRY", strlen("COUNTRY")) == 0)  {
-			char *country_code = buff + strlen("COUNTRY") + 1;
-			PRINT_INFO(GENERIC_DBG, "%s, COUNTRY command, country_code=%s\n", __FUNCTION__, country_code);
-		} else {
-			PRINT_INFO(GENERIC_DBG, "%s, Unknown command\n", __FUNCTION__);
-		}
-	} break;
 
 	/* ]] 2013-06-24 */
 	case SIOCSIWPRIV:
