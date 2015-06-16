@@ -12683,7 +12683,6 @@ void intel_crtc_restore_mode(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_atomic_state *state;
-	struct intel_crtc *intel_crtc;
 	struct intel_encoder *encoder;
 	struct intel_connector *connector;
 	struct drm_connector_state *connector_state;
@@ -12726,24 +12725,18 @@ void intel_crtc_restore_mode(struct drm_crtc *crtc)
 		}
 	}
 
-	for_each_intel_crtc(dev, intel_crtc) {
-		if (intel_crtc->new_enabled == intel_crtc->base.enabled)
-			continue;
-
-		crtc_state = intel_atomic_get_crtc_state(state, intel_crtc);
-		if (IS_ERR(crtc_state)) {
-			DRM_DEBUG_KMS("Failed to add [CRTC:%d] to state: %ld\n",
-				      intel_crtc->base.base.id,
-				      PTR_ERR(crtc_state));
-			continue;
-		}
-
-		crtc_state->base.active = crtc_state->base.enable =
-			intel_crtc->new_enabled;
-
-		if (&intel_crtc->base == crtc)
-			drm_mode_copy(&crtc_state->base.mode, &crtc->mode);
+	crtc_state = intel_atomic_get_crtc_state(state, to_intel_crtc(crtc));
+	if (IS_ERR(crtc_state)) {
+		DRM_DEBUG_KMS("Failed to add [CRTC:%d] to state: %ld\n",
+			      crtc->base.id, PTR_ERR(crtc_state));
+		drm_atomic_state_free(state);
+		return;
 	}
+
+	crtc_state->base.active = crtc_state->base.enable =
+		to_intel_crtc(crtc)->new_enabled;
+
+	drm_mode_copy(&crtc_state->base.mode, &crtc->mode);
 
 	intel_modeset_setup_plane_state(state, crtc, &crtc->mode,
 					crtc->primary->fb, crtc->x, crtc->y);
