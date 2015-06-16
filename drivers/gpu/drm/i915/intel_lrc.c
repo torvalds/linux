@@ -1426,7 +1426,10 @@ static int gen8_emit_bb_start(struct drm_i915_gem_request *req,
 		return ret;
 
 	/* FIXME(BDW): Address space and security selectors. */
-	intel_logical_ring_emit(ringbuf, MI_BATCH_BUFFER_START_GEN8 | (ppgtt<<8));
+	intel_logical_ring_emit(ringbuf, MI_BATCH_BUFFER_START_GEN8 |
+				(ppgtt<<8) |
+				(dispatch_flags & I915_DISPATCH_RS ?
+				 MI_BATCH_RESOURCE_STREAMER : 0));
 	intel_logical_ring_emit(ringbuf, lower_32_bits(offset));
 	intel_logical_ring_emit(ringbuf, upper_32_bits(offset));
 	intel_logical_ring_emit(ringbuf, MI_NOOP);
@@ -2019,7 +2022,8 @@ populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_o
 	reg_state[CTX_CONTEXT_CONTROL] = RING_CONTEXT_CONTROL(ring);
 	reg_state[CTX_CONTEXT_CONTROL+1] =
 		_MASKED_BIT_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH |
-				CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
+				   CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
+				   CTX_CTRL_RS_CTX_ENABLE);
 	reg_state[CTX_RING_HEAD] = RING_HEAD(ring->mmio_base);
 	reg_state[CTX_RING_HEAD+1] = 0;
 	reg_state[CTX_RING_TAIL] = RING_TAIL(ring->mmio_base);
