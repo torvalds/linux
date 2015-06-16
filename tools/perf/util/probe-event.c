@@ -2157,7 +2157,8 @@ static bool kprobe_blacklist__listed(unsigned long address)
 	return !!kprobe_blacklist__find_by_address(&kprobe_blacklist, address);
 }
 
-static int perf_probe_event__sprintf(struct perf_probe_event *pev,
+static int perf_probe_event__sprintf(const char *group, const char *event,
+				     struct perf_probe_event *pev,
 				     const char *module,
 				     struct strbuf *result)
 {
@@ -2170,7 +2171,7 @@ static int perf_probe_event__sprintf(struct perf_probe_event *pev,
 	if (!place)
 		return -EINVAL;
 
-	ret = e_snprintf(buf, 128, "%s:%s", pev->group, pev->event);
+	ret = e_snprintf(buf, 128, "%s:%s", group, event);
 	if (ret < 0)
 		goto out;
 
@@ -2195,13 +2196,14 @@ out:
 }
 
 /* Show an event */
-static int show_perf_probe_event(struct perf_probe_event *pev,
+static int show_perf_probe_event(const char *group, const char *event,
+				 struct perf_probe_event *pev,
 				 const char *module, bool use_stdout)
 {
 	struct strbuf buf = STRBUF_INIT;
 	int ret;
 
-	ret = perf_probe_event__sprintf(pev, module, &buf);
+	ret = perf_probe_event__sprintf(group, event, pev, module, &buf);
 	if (ret >= 0) {
 		if (use_stdout)
 			printf("%s\n", buf.buf);
@@ -2253,7 +2255,8 @@ static int __show_perf_probe_events(int fd, bool is_kprobe,
 								is_kprobe);
 			if (ret < 0)
 				goto next;
-			ret = show_perf_probe_event(&pev, tev.point.module,
+			ret = show_perf_probe_event(pev.group, pev.event,
+						    &pev, tev.point.module,
 						    true);
 		}
 next:
@@ -2438,7 +2441,7 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 	int i, fd, ret;
 	struct probe_trace_event *tev = NULL;
 	char buf[64];
-	const char *event, *group;
+	const char *event = NULL, *group = NULL;
 	struct strlist *namelist;
 	bool safename;
 
@@ -2500,15 +2503,12 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 		/* Add added event name to namelist */
 		strlist__add(namelist, event);
 
-		/* Trick here - save current event/group */
-		event = pev->event;
-		group = pev->group;
-		pev->event = tev->event;
-		pev->group = tev->group;
-		show_perf_probe_event(pev, tev->point.module, false);
-		/* Trick here - restore current event/group */
-		pev->event = (char *)event;
-		pev->group = (char *)group;
+		/* We use tev's name for showing new events */
+		show_perf_probe_event(tev->group, tev->event, pev,
+				      tev->point.module, false);
+		/* Save the last valid name */
+		event = tev->event;
+		group = tev->group;
 
 		/*
 		 * Probes after the first probe which comes from same
@@ -2522,11 +2522,10 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 		warn_uprobe_event_compat(tev);
 
 	/* Note that it is possible to skip all events because of blacklist */
-	if (ret >= 0 && tev->event) {
+	if (ret >= 0 && event) {
 		/* Show how to use the event. */
 		pr_info("\nYou can now use it in all perf tools, such as:\n\n");
-		pr_info("\tperf record -e %s:%s -aR sleep 1\n\n", tev->group,
-			 tev->event);
+		pr_info("\tperf record -e %s:%s -aR sleep 1\n\n", group, event);
 	}
 
 	strlist__delete(namelist);
