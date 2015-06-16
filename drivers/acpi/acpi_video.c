@@ -2021,7 +2021,6 @@ void acpi_video_unregister_backlight(void)
 	}
 	mutex_unlock(&register_count_mutex);
 }
-EXPORT_SYMBOL(acpi_video_unregister_backlight);
 
 /*
  * This is kind of nasty. Hardware using Intel chipsets may require
