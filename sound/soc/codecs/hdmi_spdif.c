@@ -23,16 +23,6 @@
 #include <sound/pcm.h>
 #include <sound/initval.h>
 
-#undef  DEBUG_HDMI_SPDIF
-#define DEBUG_HDMI_SPDIF 0
-
-#if DEBUG_HDMI_SPDIF
-#define RK_HDMISPDIF_DBG(x...) pr_info("hdmi_spdif:"x)
-#else
-#define RK_HDMISPDIF_DBG(x...) do { } while (0)
-#endif
-
-
 #define DRV_NAME "spdif-dit"
 
 #define STUB_RATES	SNDRV_PCM_RATE_8000_192000
@@ -56,15 +46,12 @@ static int hdmi_spdif_audio_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	/* set dev name to driver->name for sound card register. */
-	dev_set_name(&pdev->dev, "%s", pdev->dev.driver->name);
-
-	ret = snd_soc_register_codec(&pdev->
-		dev, &soc_codec_spdif_dit, &dit_stub_dai, 1);
+	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_spdif_dit,
+				     &dit_stub_dai, 1);
 
 	if (ret)
-		RK_HDMISPDIF_DBG("%s register codec failed:%d\n"
-		, __func__, ret);
+		dev_err(&pdev->dev, "%s register failed: %d\n",
+			__func__, ret);
 
 	return ret;
 }
@@ -85,13 +72,12 @@ MODULE_DEVICE_TABLE(of, hdmi_spdif_of_match);
 #endif /* CONFIG_OF */
 
 static struct platform_driver hdmi_spdif_audio_driver = {
-	.driver	   = {
-		.name           = "hdmi-spdif",
-		.owner          = THIS_MODULE,
+	.driver = {
+		.name = "hdmi-spdif",
 		.of_match_table = of_match_ptr(hdmi_spdif_of_match),
 	},
-	.probe     = hdmi_spdif_audio_probe,
-	.remove    = hdmi_spdif_audio_remove,
+	.probe = hdmi_spdif_audio_probe,
+	.remove = hdmi_spdif_audio_remove,
 };
 
 module_platform_driver(hdmi_spdif_audio_driver);

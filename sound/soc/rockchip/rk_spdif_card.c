@@ -1,12 +1,16 @@
 /*
  * rk_spdif_card.c  --  spdif card for rockchip
  *
- * Copyright 2014 rockchip Co. Ltd.
+ * Copyright (C) 2014 Fuzhou Rockchip Electronics Co., Ltd
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
  */
 
@@ -49,8 +53,6 @@ static int rk_hw_params(struct snd_pcm_substream *substream,
 
 	ret = snd_soc_dai_set_sysclk(cpu_dai, 0,
 				     sclk, SND_SOC_CLOCK_IN);
-	if (ret < 0)
-		return ret;
 
 	return ret;
 }
@@ -106,39 +108,38 @@ static int rockchip_spdif_card_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id rockchip_spdif_card_of_match[] = {
-	{ .compatible = "rockchip-spdif-card"},
+	{ .compatible = "rockchip-spdif-card", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rockchip_spdif_card_of_match);
 #endif /* CONFIG_OF */
 
 static struct platform_driver rockchip_spdif_card_driver = {
-	.driver         = {
-		.name   = "rockchip-spdif-card",
-		.owner  = THIS_MODULE,
+	.driver = {
+		.name = "rockchip-spdif-card",
+		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 		.of_match_table = of_match_ptr(rockchip_spdif_card_of_match),
 	},
-	.probe          = rockchip_spdif_card_probe,
-	.remove         = rockchip_spdif_card_remove,
+	.probe = rockchip_spdif_card_probe,
+	.remove = rockchip_spdif_card_remove,
 };
 
-//module_platform_driver(rockchip_spdif_card_driver);
-
+/* module_platform_driver(rockchip_spdif_card_driver); */
 
 static int __init rockchip_spdif_init(void)
 {
-        return platform_driver_register(&rockchip_spdif_card_driver);
+	return platform_driver_register(&rockchip_spdif_card_driver);
 };
 late_initcall(rockchip_spdif_init);
 
 static void __exit rockchip_spdif_exit(void)
 {
-        platform_driver_unregister(&rockchip_spdif_card_driver);
+	platform_driver_unregister(&rockchip_spdif_card_driver);
 }
 module_exit(rockchip_spdif_exit);
 
 
-MODULE_AUTHOR("hzb, <hzb@rock-chips.com>");
+MODULE_AUTHOR("hzb <hzb@rock-chips.com>");
 MODULE_DESCRIPTION("ALSA SoC RK S/PDIF");
 MODULE_LICENSE("GPL");

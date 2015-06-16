@@ -59,7 +59,7 @@
 		};
  */
 int rockchip_of_get_sound_card_info_(struct snd_soc_card *card,
-	bool is_need_fmt)
+				     bool is_need_fmt)
 {
 	struct device_node *dai_node, *child_dai_node;
 	int dai_num;
@@ -74,7 +74,6 @@ int rockchip_of_get_sound_card_info_(struct snd_soc_card *card,
 	dai_num = 0;
 
 	for_each_child_of_node(dai_node, child_dai_node) {
-
 		if (is_need_fmt) {
 			card->dai_link[dai_num].dai_fmt =
 				snd_soc_of_parse_daifmt(child_dai_node, NULL);
