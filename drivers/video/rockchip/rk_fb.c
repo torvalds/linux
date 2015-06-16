@@ -3307,7 +3307,7 @@ static int rk_fb_wait_for_vsync_thread(void *data)
 {
 	struct rk_lcdc_driver *dev_drv = data;
 	struct rk_fb *rk_fb = platform_get_drvdata(fb_pdev);
-	struct fb_info *fbi = rk_fb->fb[0];
+	struct fb_info *fbi = rk_fb->fb[dev_drv->fb_index_base];
 
 	while (!kthread_should_stop()) {
 		ktime_t timestamp = dev_drv->vsync_info.timestamp;
