@@ -867,11 +867,7 @@ static int ufs_update_inode(struct inode * inode, int do_sync)
 
 int ufs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
-	int ret;
-	lock_ufs(inode->i_sb);
-	ret = ufs_update_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
-	unlock_ufs(inode->i_sb);
-	return ret;
+	return ufs_update_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
 }
 
 int ufs_sync_inode (struct inode *inode)
@@ -890,22 +886,17 @@ void ufs_evict_inode(struct inode * inode)
 	if (want_delete) {
 		loff_t old_i_size;
 		/*UFS_I(inode)->i_dtime = CURRENT_TIME;*/
-		lock_ufs(inode->i_sb);
 		mark_inode_dirty(inode);
 		ufs_update_inode(inode, IS_SYNC(inode));
 		old_i_size = inode->i_size;
 		inode->i_size = 0;
 		if (inode->i_blocks && ufs_truncate(inode, old_i_size))
 			ufs_warning(inode->i_sb, __func__, "ufs_truncate failed\n");
-		unlock_ufs(inode->i_sb);
 	}
 
 	invalidate_inode_buffers(inode);
 	clear_inode(inode);
 
-	if (want_delete) {
-		lock_ufs(inode->i_sb);
+	if (want_delete)
 		ufs_free_inode(inode);
-		unlock_ufs(inode->i_sb);
-	}
 }

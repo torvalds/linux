@@ -457,6 +457,7 @@ int ufs_truncate(struct inode *inode, loff_t old_i_size)
 	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
 		return -EPERM;
 
+	lock_ufs(sb);
 	err = ufs_alloc_lastblock(inode);
 
 	if (err) {
@@ -486,6 +487,7 @@ int ufs_truncate(struct inode *inode, loff_t old_i_size)
 	ufsi->i_lastfrag = DIRECT_FRAGMENT;
 	mark_inode_dirty(inode);
 out:
+	unlock_ufs(sb);
 	UFSD("EXIT: err %d\n", err);
 	return err;
 }
@@ -506,9 +508,7 @@ int ufs_setattr(struct dentry *dentry, struct iattr *attr)
 		/* XXX(truncate): truncate_setsize should be called last */
 		truncate_setsize(inode, attr->ia_size);
 
-		lock_ufs(inode->i_sb);
 		error = ufs_truncate(inode, old_i_size);
-		unlock_ufs(inode->i_sb);
 		if (error)
 			return error;
 	}
