@@ -1286,7 +1286,6 @@ struct ieee80211_local {
 	unsigned int rx_handlers_queued;
 	unsigned int rx_handlers_drop_nullfunc;
 	unsigned int rx_handlers_drop_defrag;
-	unsigned int rx_handlers_drop_short;
 	unsigned int tx_expand_skb_head;
 	unsigned int tx_expand_skb_head_cloned;
 	unsigned int rx_expand_skb_head_defrag;

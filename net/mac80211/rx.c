@@ -1093,11 +1093,6 @@ ieee80211_rx_h_check(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
 
-	if (unlikely(rx->skb->len < 16)) {
-		I802_DEBUG_INC(rx->local->rx_handlers_drop_short);
-		return RX_DROP_MONITOR;
-	}
-
 	/* Drop disallowed frame classes based on STA auth/assoc state;
 	 * IEEE 802.11, Chap 5.5.
 	 *
