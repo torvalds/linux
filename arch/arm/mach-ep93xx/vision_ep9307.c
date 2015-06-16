@@ -281,7 +281,8 @@ static struct spi_board_info vision_spi_board_info[] __initdata = {
 };
 
 static struct ep93xx_spi_info vision_spi_master __initdata = {
-	.num_chipselect		= ARRAY_SIZE(vision_spi_board_info),
+	.num_chipselect	= ARRAY_SIZE(vision_spi_board_info),
+	.use_dma	= 1,
 };
 
 /*************************************************************************
