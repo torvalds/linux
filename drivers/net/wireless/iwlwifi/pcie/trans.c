@@ -1372,7 +1372,7 @@ static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans, bool silent,
 
 	spin_lock_irqsave(&trans_pcie->reg_lock, *flags);
 
-	if (trans_pcie->cmd_in_flight)
+	if (trans_pcie->cmd_hold_nic_awake)
 		goto out;
 
 	/* this bit wakes up the NIC */
@@ -1438,7 +1438,7 @@ static void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans,
 	 */
 	__acquire(&trans_pcie->reg_lock);
 
-	if (trans_pcie->cmd_in_flight)
+	if (trans_pcie->cmd_hold_nic_awake)
 		goto out;
 
 	__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,

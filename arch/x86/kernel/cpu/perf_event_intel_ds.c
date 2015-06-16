@@ -706,9 +706,9 @@ void intel_pmu_pebs_disable(struct perf_event *event)
 
 	cpuc->pebs_enabled &= ~(1ULL << hwc->idx);
 
-	if (event->hw.constraint->flags & PERF_X86_EVENT_PEBS_LDLAT)
+	if (event->hw.flags & PERF_X86_EVENT_PEBS_LDLAT)
 		cpuc->pebs_enabled &= ~(1ULL << (hwc->idx + 32));
-	else if (event->hw.constraint->flags & PERF_X86_EVENT_PEBS_ST)
+	else if (event->hw.flags & PERF_X86_EVENT_PEBS_ST)
 		cpuc->pebs_enabled &= ~(1ULL << 63);
 
 	if (cpuc->enabled)

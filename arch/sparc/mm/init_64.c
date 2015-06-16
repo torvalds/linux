@@ -54,6 +54,7 @@
 #include "init_64.h"
 
 unsigned long kern_linear_pte_xor[4] __read_mostly;
+static unsigned long page_cache4v_flag;
 
 /* A bitmap, two bits for every 256MB of physical memory.  These two
  * bits determine what page size we use for kernel linear
@@ -1909,11 +1910,24 @@ static void __init sun4u_linear_pte_xor_finalize(void)
 
 static void __init sun4v_linear_pte_xor_finalize(void)
 {
+	unsigned long pagecv_flag;
+
+	/* Bit 9 of TTE is no longer CV bit on M7 processor and it instead
+	 * enables MCD error. Do not set bit 9 on M7 processor.
+	 */
+	switch (sun4v_chip_type) {
+	case SUN4V_CHIP_SPARC_M7:
+		pagecv_flag = 0x00;
+		break;
+	default:
+		pagecv_flag = _PAGE_CV_4V;
+		break;
+	}
 #ifndef CONFIG_DEBUG_PAGEALLOC
 	if (cpu_pgsz_mask & HV_PGSZ_MASK_256MB) {
 		kern_linear_pte_xor[1] = (_PAGE_VALID | _PAGE_SZ256MB_4V) ^
 			PAGE_OFFSET;
-		kern_linear_pte_xor[1] |= (_PAGE_CP_4V | _PAGE_CV_4V |
+		kern_linear_pte_xor[1] |= (_PAGE_CP_4V | pagecv_flag |
 					   _PAGE_P_4V | _PAGE_W_4V);
 	} else {
 		kern_linear_pte_xor[1] = kern_linear_pte_xor[0];
@@ -1922,7 +1936,7 @@ static void __init sun4v_linear_pte_xor_finalize(void)
 	if (cpu_pgsz_mask & HV_PGSZ_MASK_2GB) {
 		kern_linear_pte_xor[2] = (_PAGE_VALID | _PAGE_SZ2GB_4V) ^
 			PAGE_OFFSET;
-		kern_linear_pte_xor[2] |= (_PAGE_CP_4V | _PAGE_CV_4V |
+		kern_linear_pte_xor[2] |= (_PAGE_CP_4V | pagecv_flag |
 					   _PAGE_P_4V | _PAGE_W_4V);
 	} else {
 		kern_linear_pte_xor[2] = kern_linear_pte_xor[1];
@@ -1931,7 +1945,7 @@ static void __init sun4v_linear_pte_xor_finalize(void)
 	if (cpu_pgsz_mask & HV_PGSZ_MASK_16GB) {
 		kern_linear_pte_xor[3] = (_PAGE_VALID | _PAGE_SZ16GB_4V) ^
 			PAGE_OFFSET;
-		kern_linear_pte_xor[3] |= (_PAGE_CP_4V | _PAGE_CV_4V |
+		kern_linear_pte_xor[3] |= (_PAGE_CP_4V | pagecv_flag |
 					   _PAGE_P_4V | _PAGE_W_4V);
 	} else {
 		kern_linear_pte_xor[3] = kern_linear_pte_xor[2];
@@ -1957,6 +1971,13 @@ static phys_addr_t __init available_memory(void)
 
 	return available;
 }
+
+#define _PAGE_CACHE_4U	(_PAGE_CP_4U | _PAGE_CV_4U)
+#define _PAGE_CACHE_4V	(_PAGE_CP_4V | _PAGE_CV_4V)
+#define __DIRTY_BITS_4U	 (_PAGE_MODIFIED_4U | _PAGE_WRITE_4U | _PAGE_W_4U)
+#define __DIRTY_BITS_4V	 (_PAGE_MODIFIED_4V | _PAGE_WRITE_4V | _PAGE_W_4V)
+#define __ACCESS_BITS_4U (_PAGE_ACCESSED_4U | _PAGE_READ_4U | _PAGE_R)
+#define __ACCESS_BITS_4V (_PAGE_ACCESSED_4V | _PAGE_READ_4V | _PAGE_R)
 
 /* We need to exclude reserved regions. This exclusion will include
  * vmlinux and initrd. To be more precise the initrd size could be used to
@@ -2033,6 +2054,25 @@ void __init paging_init(void)
 #ifndef CONFIG_DEBUG_PAGEALLOC
 	memset(swapper_4m_tsb, 0x40, sizeof(swapper_4m_tsb));
 #endif
+
+	/* TTE.cv bit on sparc v9 occupies the same position as TTE.mcde
+	 * bit on M7 processor. This is a conflicting usage of the same
+	 * bit. Enabling TTE.cv on M7 would turn on Memory Corruption
+	 * Detection error on all pages and this will lead to problems
+	 * later. Kernel does not run with MCD enabled and hence rest
+	 * of the required steps to fully configure memory corruption
+	 * detection are not taken. We need to ensure TTE.mcde is not
+	 * set on M7 processor. Compute the value of cacheability
+	 * flag for use later taking this into consideration.
+	 */
+	switch (sun4v_chip_type) {
+	case SUN4V_CHIP_SPARC_M7:
+		page_cache4v_flag = _PAGE_CP_4V;
+		break;
+	default:
+		page_cache4v_flag = _PAGE_CACHE_4V;
+		break;
+	}
 
 	if (tlb_type == hypervisor)
 		sun4v_pgprot_init();
@@ -2274,13 +2314,6 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 }
 #endif
 
-#define _PAGE_CACHE_4U	(_PAGE_CP_4U | _PAGE_CV_4U)
-#define _PAGE_CACHE_4V	(_PAGE_CP_4V | _PAGE_CV_4V)
-#define __DIRTY_BITS_4U	 (_PAGE_MODIFIED_4U | _PAGE_WRITE_4U | _PAGE_W_4U)
-#define __DIRTY_BITS_4V	 (_PAGE_MODIFIED_4V | _PAGE_WRITE_4V | _PAGE_W_4V)
-#define __ACCESS_BITS_4U (_PAGE_ACCESSED_4U | _PAGE_READ_4U | _PAGE_R)
-#define __ACCESS_BITS_4V (_PAGE_ACCESSED_4V | _PAGE_READ_4V | _PAGE_R)
-
 pgprot_t PAGE_KERNEL __read_mostly;
 EXPORT_SYMBOL(PAGE_KERNEL);
 
@@ -2312,8 +2345,7 @@ int __meminit vmemmap_populate(unsigned long vstart, unsigned long vend,
 		    _PAGE_P_4U | _PAGE_W_4U);
 	if (tlb_type == hypervisor)
 		pte_base = (_PAGE_VALID | _PAGE_SZ4MB_4V |
-			    _PAGE_CP_4V | _PAGE_CV_4V |
-			    _PAGE_P_4V | _PAGE_W_4V);
+			    page_cache4v_flag | _PAGE_P_4V | _PAGE_W_4V);
 
 	pte_base |= _PAGE_PMD_HUGE;
 
@@ -2450,14 +2482,14 @@ static void __init sun4v_pgprot_init(void)
 	int i;
 
 	PAGE_KERNEL = __pgprot (_PAGE_PRESENT_4V | _PAGE_VALID |
-				_PAGE_CACHE_4V | _PAGE_P_4V |
+				page_cache4v_flag | _PAGE_P_4V |
 				__ACCESS_BITS_4V | __DIRTY_BITS_4V |
 				_PAGE_EXEC_4V);
 	PAGE_KERNEL_LOCKED = PAGE_KERNEL;
 
 	_PAGE_IE = _PAGE_IE_4V;
 	_PAGE_E = _PAGE_E_4V;
-	_PAGE_CACHE = _PAGE_CACHE_4V;
+	_PAGE_CACHE = page_cache4v_flag;
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
 	kern_linear_pte_xor[0] = _PAGE_VALID ^ PAGE_OFFSET;
@@ -2465,8 +2497,8 @@ static void __init sun4v_pgprot_init(void)
 	kern_linear_pte_xor[0] = (_PAGE_VALID | _PAGE_SZ4MB_4V) ^
 		PAGE_OFFSET;
 #endif
-	kern_linear_pte_xor[0] |= (_PAGE_CP_4V | _PAGE_CV_4V |
-				   _PAGE_P_4V | _PAGE_W_4V);
+	kern_linear_pte_xor[0] |= (page_cache4v_flag | _PAGE_P_4V |
+				   _PAGE_W_4V);
 
 	for (i = 1; i < 4; i++)
 		kern_linear_pte_xor[i] = kern_linear_pte_xor[0];
@@ -2479,12 +2511,12 @@ static void __init sun4v_pgprot_init(void)
 			     _PAGE_SZ4MB_4V | _PAGE_SZ512K_4V |
 			     _PAGE_SZ64K_4V | _PAGE_SZ8K_4V);
 
-	page_none = _PAGE_PRESENT_4V | _PAGE_ACCESSED_4V | _PAGE_CACHE_4V;
-	page_shared = (_PAGE_VALID | _PAGE_PRESENT_4V | _PAGE_CACHE_4V |
+	page_none = _PAGE_PRESENT_4V | _PAGE_ACCESSED_4V | page_cache4v_flag;
+	page_shared = (_PAGE_VALID | _PAGE_PRESENT_4V | page_cache4v_flag |
 		       __ACCESS_BITS_4V | _PAGE_WRITE_4V | _PAGE_EXEC_4V);
-	page_copy   = (_PAGE_VALID | _PAGE_PRESENT_4V | _PAGE_CACHE_4V |
+	page_copy   = (_PAGE_VALID | _PAGE_PRESENT_4V | page_cache4v_flag |
 		       __ACCESS_BITS_4V | _PAGE_EXEC_4V);
-	page_readonly = (_PAGE_VALID | _PAGE_PRESENT_4V | _PAGE_CACHE_4V |
+	page_readonly = (_PAGE_VALID | _PAGE_PRESENT_4V | page_cache4v_flag |
 			 __ACCESS_BITS_4V | _PAGE_EXEC_4V);
 
 	page_exec_bit = _PAGE_EXEC_4V;
@@ -2542,7 +2574,7 @@ static unsigned long kern_large_tte(unsigned long paddr)
 	       _PAGE_EXEC_4U | _PAGE_L_4U | _PAGE_W_4U);
 	if (tlb_type == hypervisor)
 		val = (_PAGE_VALID | _PAGE_SZ4MB_4V |
-		       _PAGE_CP_4V | _PAGE_CV_4V | _PAGE_P_4V |
+		       page_cache4v_flag | _PAGE_P_4V |
 		       _PAGE_EXEC_4V | _PAGE_W_4V);
 
 	return val | paddr;

@@ -225,7 +225,7 @@ void __init plat_time_init(void)
 	ddr_clk_rate = ath79_get_sys_clk_rate("ddr");
 	ref_clk_rate = ath79_get_sys_clk_rate("ref");
 
-	pr_info("Clocks: CPU:%lu.%03luMHz, DDR:%lu.%03luMHz, AHB:%lu.%03luMHz, Ref:%lu.%03luMHz",
+	pr_info("Clocks: CPU:%lu.%03luMHz, DDR:%lu.%03luMHz, AHB:%lu.%03luMHz, Ref:%lu.%03luMHz\n",
 		cpu_clk_rate / 1000000, (cpu_clk_rate / 1000) % 1000,
 		ddr_clk_rate / 1000000, (ddr_clk_rate / 1000) % 1000,
 		ahb_clk_rate / 1000000, (ahb_clk_rate / 1000) % 1000,
