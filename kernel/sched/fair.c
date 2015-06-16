@@ -5670,72 +5670,39 @@ static int task_hot(struct task_struct *p, struct lb_env *env)
 
 #ifdef CONFIG_NUMA_BALANCING
 /*
- * Returns true if the destination node is the preferred node.
- * Needs to match fbq_classify_rq(): if there is a runnable task
- * that is not on its preferred node, we should identify it.
+ * Returns 1, if task migration degrades locality
+ * Returns 0, if task migration improves locality i.e migration preferred.
+ * Returns -1, if task migration is not affected by locality.
  */
-static bool migrate_improves_locality(struct task_struct *p, struct lb_env *env)
+static int migrate_degrades_locality(struct task_struct *p, struct lb_env *env)
 {
 	struct numa_group *numa_group = rcu_dereference(p->numa_group);
 	unsigned long src_faults, dst_faults;
 	int src_nid, dst_nid;
-
-	if (!sched_feat(NUMA) || !sched_feat(NUMA_FAVOUR_HIGHER) ||
-	    !p->numa_faults || !(env->sd->flags & SD_NUMA)) {
-		return false;
-	}
-
-	src_nid = cpu_to_node(env->src_cpu);
-	dst_nid = cpu_to_node(env->dst_cpu);
-
-	if (src_nid == dst_nid)
-		return false;
-
-	/* Encourage migration to the preferred node. */
-	if (dst_nid == p->numa_preferred_nid)
-		return true;
-
-	/* Migrating away from the preferred node is bad. */
-	if (src_nid == p->numa_preferred_nid)
-		return false;
-
-	if (numa_group) {
-		src_faults = group_faults(p, src_nid);
-		dst_faults = group_faults(p, dst_nid);
-	} else {
-		src_faults = task_faults(p, src_nid);
-		dst_faults = task_faults(p, dst_nid);
-	}
-
-	return dst_faults > src_faults;
-}
-
-
-static bool migrate_degrades_locality(struct task_struct *p, struct lb_env *env)
-{
-	struct numa_group *numa_group = rcu_dereference(p->numa_group);
-	unsigned long src_faults, dst_faults;
-	int src_nid, dst_nid;
-
-	if (!sched_feat(NUMA) || !sched_feat(NUMA_RESIST_LOWER))
-		return false;
 
 	if (!p->numa_faults || !(env->sd->flags & SD_NUMA))
-		return false;
+		return -1;
+
+	if (!sched_feat(NUMA))
+		return -1;
 
 	src_nid = cpu_to_node(env->src_cpu);
 	dst_nid = cpu_to_node(env->dst_cpu);
 
 	if (src_nid == dst_nid)
-		return false;
+		return -1;
 
-	/* Migrating away from the preferred node is bad. */
-	if (src_nid == p->numa_preferred_nid)
-		return true;
+	/* Migrating away from the preferred node is always bad. */
+	if (src_nid == p->numa_preferred_nid) {
+		if (env->src_rq->nr_running > env->src_rq->nr_preferred_running)
+			return 1;
+		else
+			return -1;
+	}
 
 	/* Encourage migration to the preferred node. */
 	if (dst_nid == p->numa_preferred_nid)
-		return false;
+		return 0;
 
 	if (numa_group) {
 		src_faults = group_faults(p, src_nid);
@@ -5749,16 +5716,10 @@ static bool migrate_degrades_locality(struct task_struct *p, struct lb_env *env)
 }
 
 #else
-static inline bool migrate_improves_locality(struct task_struct *p,
+static inline int migrate_degrades_locality(struct task_struct *p,
 					     struct lb_env *env)
 {
-	return false;
-}
-
-static inline bool migrate_degrades_locality(struct task_struct *p,
-					     struct lb_env *env)
-{
-	return false;
+	return -1;
 }
 #endif
 
@@ -5768,7 +5729,7 @@ static inline bool migrate_degrades_locality(struct task_struct *p,
 static
 int can_migrate_task(struct task_struct *p, struct lb_env *env)
 {
-	int tsk_cache_hot = 0;
+	int tsk_cache_hot;
 
 	lockdep_assert_held(&env->src_rq->lock);
 
@@ -5826,13 +5787,13 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
 	 * 2) task is cache cold, or
 	 * 3) too many balance attempts have failed.
 	 */
-	tsk_cache_hot = task_hot(p, env);
-	if (!tsk_cache_hot)
-		tsk_cache_hot = migrate_degrades_locality(p, env);
+	tsk_cache_hot = migrate_degrades_locality(p, env);
+	if (tsk_cache_hot == -1)
+		tsk_cache_hot = task_hot(p, env);
 
-	if (migrate_improves_locality(p, env) || !tsk_cache_hot ||
+	if (tsk_cache_hot <= 0 ||
 	    env->sd->nr_balance_failed > env->sd->cache_nice_tries) {
-		if (tsk_cache_hot) {
+		if (tsk_cache_hot == 1) {
 			schedstat_inc(env->sd, lb_hot_gained[env->idle]);
 			schedstat_inc(p, se.statistics.nr_forced_migrations);
 		}
