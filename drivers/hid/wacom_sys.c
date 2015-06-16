@@ -197,9 +197,9 @@ static void wacom_usage_mapping(struct hid_device *hdev,
 	* values commonly reported.
 	*/
 	if (pen)
-		features->device_type = BTN_TOOL_PEN;
+		features->device_type |= WACOM_DEVICETYPE_PEN;
 	else if (finger)
-		features->device_type = BTN_TOOL_FINGER;
+		features->device_type |= WACOM_DEVICETYPE_TOUCH;
 	else
 		return;
 
@@ -411,7 +411,7 @@ static int wacom_query_tablet_data(struct hid_device *hdev,
 	if (features->type == HID_GENERIC)
 		return wacom_hid_set_device_mode(hdev);
 
-	if (features->device_type == BTN_TOOL_FINGER) {
+	if (features->device_type & WACOM_DEVICETYPE_TOUCH) {
 		if (features->type > TABLETPC) {
 			/* MT Tablet PC touch */
 			return wacom_set_device_mode(hdev, 3, 4, 4);
@@ -425,7 +425,7 @@ static int wacom_query_tablet_data(struct hid_device *hdev,
 		else if (features->type == BAMBOO_PAD) {
 			return wacom_set_device_mode(hdev, 2, 2, 2);
 		}
-	} else if (features->device_type == BTN_TOOL_PEN) {
+	} else if (features->device_type & WACOM_DEVICETYPE_PEN) {
 		if (features->type <= BAMBOO_PT && features->type != WIRELESS) {
 			return wacom_set_device_mode(hdev, 2, 2, 2);
 		}
@@ -454,9 +454,9 @@ static void wacom_retrieve_hid_descriptor(struct hid_device *hdev,
 	 */
 	if (features->type == WIRELESS) {
 		if (intf->cur_altsetting->desc.bInterfaceNumber == 0) {
-			features->device_type = 0;
+			features->device_type = WACOM_DEVICETYPE_NONE;
 		} else if (intf->cur_altsetting->desc.bInterfaceNumber == 2) {
-			features->device_type = BTN_TOOL_FINGER;
+			features->device_type |= WACOM_DEVICETYPE_TOUCH;
 			features->pktlen = WACOM_PKGLEN_BBTOUCH3;
 		}
 	}
@@ -538,9 +538,9 @@ static int wacom_add_shared_data(struct hid_device *hdev)
 
 	wacom_wac->shared = &data->shared;
 
-	if (wacom_wac->features.device_type == BTN_TOOL_FINGER)
+	if (wacom_wac->features.device_type & WACOM_DEVICETYPE_TOUCH)
 		wacom_wac->shared->touch = hdev;
-	else if (wacom_wac->features.device_type == BTN_TOOL_PEN)
+	else if (wacom_wac->features.device_type & WACOM_DEVICETYPE_PEN)
 		wacom_wac->shared->pen = hdev;
 
 out:
@@ -892,7 +892,7 @@ static int wacom_initialize_leds(struct wacom *wacom)
 	case INTUOSPS:
 	case INTUOSPM:
 	case INTUOSPL:
-		if (wacom->wacom_wac.features.device_type == BTN_TOOL_PEN) {
+		if (wacom->wacom_wac.features.device_type & WACOM_DEVICETYPE_PEN) {
 			wacom->led.select[0] = 0;
 			wacom->led.select[1] = 0;
 			wacom->led.llv = 32;
@@ -948,7 +948,7 @@ static void wacom_destroy_leds(struct wacom *wacom)
 	case INTUOSPS:
 	case INTUOSPM:
 	case INTUOSPL:
-		if (wacom->wacom_wac.features.device_type == BTN_TOOL_PEN)
+		if (wacom->wacom_wac.features.device_type & WACOM_DEVICETYPE_PEN)
 			sysfs_remove_group(&wacom->hdev->dev.kobj,
 					   &intuos5_led_attr_group);
 		break;
@@ -1296,7 +1296,7 @@ static void wacom_wireless_work(struct work_struct *work)
 		/* Stylus interface */
 		wacom_wac1->features =
 			*((struct wacom_features *)id->driver_data);
-		wacom_wac1->features.device_type = BTN_TOOL_PEN;
+		wacom_wac1->features.device_type |= WACOM_DEVICETYPE_PEN;
 		snprintf(wacom_wac1->name, WACOM_NAME_MAX, "%s (WL) Pen",
 			 wacom_wac1->features.name);
 		snprintf(wacom_wac1->pad_name, WACOM_NAME_MAX, "%s (WL) Pad",
@@ -1315,7 +1315,7 @@ static void wacom_wireless_work(struct work_struct *work)
 			wacom_wac2->features =
 				*((struct wacom_features *)id->driver_data);
 			wacom_wac2->features.pktlen = WACOM_PKGLEN_BBTOUCH3;
-			wacom_wac2->features.device_type = BTN_TOOL_FINGER;
+			wacom_wac2->features.device_type |= WACOM_DEVICETYPE_TOUCH;
 			wacom_wac2->features.x_max = wacom_wac2->features.y_max = 4096;
 			if (wacom_wac2->features.touch_max)
 				snprintf(wacom_wac2->name, WACOM_NAME_MAX,
@@ -1451,11 +1451,11 @@ static void wacom_update_name(struct wacom *wacom)
 	snprintf(wacom_wac->pad_name, sizeof(wacom_wac->pad_name),
 		"%s Pad", name);
 
-	if (features->device_type == BTN_TOOL_PEN) {
+	if (features->device_type & WACOM_DEVICETYPE_PEN) {
 		snprintf(wacom_wac->name, sizeof(wacom_wac->name),
 			"%s Pen", name);
 	}
-	else if (features->device_type == BTN_TOOL_FINGER) {
+	else if (features->device_type & WACOM_DEVICETYPE_TOUCH) {
 		if (features->touch_max)
 			snprintf(wacom_wac->name, sizeof(wacom_wac->name),
 				"%s Finger", name);
@@ -1545,7 +1545,8 @@ static int wacom_probe(struct hid_device *hdev,
 	wacom_retrieve_hid_descriptor(hdev, features);
 	wacom_setup_device_quirks(wacom);
 
-	if (!features->device_type && features->type != WIRELESS) {
+	if (features->device_type == WACOM_DEVICETYPE_NONE &&
+	    features->type != WIRELESS) {
 		error = features->type == HID_GENERIC ? -ENODEV : 0;
 
 		dev_warn(&hdev->dev, "Unknown device_type for '%s'. %s.",
@@ -1555,7 +1556,7 @@ static int wacom_probe(struct hid_device *hdev,
 		if (error)
 			goto fail_shared_data;
 
-		features->device_type = BTN_TOOL_PEN;
+		features->device_type |= WACOM_DEVICETYPE_PEN;
 	}
 
 	wacom_calculate_res(features);
@@ -1604,7 +1605,7 @@ static int wacom_probe(struct hid_device *hdev,
 		error = hid_hw_open(hdev);
 
 	if (wacom_wac->features.type == INTUOSHT && wacom_wac->features.touch_max) {
-		if (wacom_wac->features.device_type == BTN_TOOL_FINGER)
+		if (wacom_wac->features.device_type & WACOM_DEVICETYPE_TOUCH)
 			wacom_wac->shared->touch_input = wacom_wac->input;
 	}
 
