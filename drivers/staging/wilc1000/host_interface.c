@@ -1,5 +1,4 @@
 #include "host_interface.h"
-#include "wilc_oswrapper.h"
 #include "coreconfigurator.h"
 
 extern s32 TransportInit(void);

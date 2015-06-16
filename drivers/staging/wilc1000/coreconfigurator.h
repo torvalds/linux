@@ -12,7 +12,6 @@
 #ifndef CORECONFIGURATOR_H
 #define CORECONFIGURATOR_H
 
-#include "wilc_oswrapper.h"
 #include "wilc_wlan_if.h"
 /*****************************************************************************/
 /* Constants                                                                 */

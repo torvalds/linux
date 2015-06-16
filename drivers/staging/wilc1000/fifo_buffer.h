@@ -1,5 +1,8 @@
 
-#include "wilc_oswrapper.h"
+#include <linux/types.h>
+#include <linux/semaphore.h>
+#include "wilc_memory.h"
+#include "wilc_strutils.h"
 
 
 #define tHANDLE	void *

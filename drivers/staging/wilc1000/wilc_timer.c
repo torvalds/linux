@@ -1,5 +1,5 @@
 
-#include "wilc_oswrapper.h"
+#include "wilc_timer.h"
 
 WILC_ErrNo WILC_TimerCreate(WILC_TimerHandle *pHandle,
 	tpfWILC_TimerFunction pfCallback, tstrWILC_TimerAttrs *pstrAttrs)

@@ -10,6 +10,9 @@
  *  @version	1.0
  */
 
+#include "wilc_platform.h"
+#include "wilc_errorsupport.h"
+
 typedef void (*tpfWILC_TimerFunction)(void *);
 
 /*!

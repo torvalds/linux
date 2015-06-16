@@ -1,5 +1,5 @@
 
-#include "wilc_oswrapper.h"
+#include "wilc_sleep.h"
 
 /*
  *  @author	mdaftedar

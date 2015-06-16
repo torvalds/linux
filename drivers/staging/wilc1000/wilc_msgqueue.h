@@ -10,6 +10,11 @@
  *  @version	1.0
  */
 
+#include "wilc_platform.h"
+#include "wilc_errorsupport.h"
+#include "wilc_memory.h"
+#include "wilc_strutils.h"
+
 /*!
  *  @struct             tstrWILC_MsgQueueAttrs
  *  @brief		Message Queue API options

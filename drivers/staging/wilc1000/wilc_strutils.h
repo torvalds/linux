@@ -10,6 +10,10 @@
  *  @version	1.0
  */
 
+#include <linux/types.h>
+#include <linux/string.h>
+#include "wilc_errorsupport.h"
+
 /*!
  *  @brief	Compares two memory buffers
  *  @param[in]	pvArg1 pointer to the first memory location

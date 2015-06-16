@@ -10,6 +10,9 @@
  *  @version	1.0
  */
 
+#include <linux/types.h>
+#include <linux/slab.h>
+
 /*!
  *  @struct             tstrWILC_MemoryAttrs
  *  @brief		Memory API options
@@ -234,4 +237,3 @@ void WILC_MemoryFree(const void *pvBlock, tstrWILC_MemoryAttrs *strAttrs,
 
 
 #endif
-

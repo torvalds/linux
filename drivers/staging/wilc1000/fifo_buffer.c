@@ -1,6 +1,5 @@
 
 
-#include "wilc_oswrapper.h"
 #include "fifo_buffer.h"
 
 

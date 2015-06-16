@@ -1,6 +1,9 @@
 #ifndef __WILC_SLEEP_H__
 #define __WILC_SLEEP_H__
 
+#include <linux/types.h>
+#include <linux/delay.h>
+
 /*!
  *  @brief	forces the current thread to sleep until the given time has elapsed
  *  @param[in]	u32TimeMilliSec Time to sleep in Milli seconds

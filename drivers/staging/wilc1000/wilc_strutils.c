@@ -1,7 +1,7 @@
 
 #define _CRT_SECURE_NO_DEPRECATE
 
-#include "wilc_oswrapper.h"
+#include "wilc_strutils.h"
 
 
 /*!

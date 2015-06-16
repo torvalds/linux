@@ -1,5 +1,5 @@
 
-#include "wilc_oswrapper.h"
+#include "wilc_memory.h"
 
 /*!
  *  @author	syounan
