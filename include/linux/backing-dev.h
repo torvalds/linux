@@ -260,7 +260,7 @@ static inline bool inode_cgwb_enabled(struct inode *inode)
 
 	return bdi_cap_account_dirty(bdi) &&
 		(bdi->capabilities & BDI_CAP_CGROUP_WRITEBACK) &&
-		(inode->i_sb->s_type->fs_flags & FS_CGROUP_WRITEBACK);
+		(inode->i_sb->s_iflags & SB_I_CGROUPWB);
 }
 
 /**
