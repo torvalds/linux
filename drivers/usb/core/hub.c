@@ -3950,6 +3950,8 @@ int usb_disable_lpm(struct usb_device *udev)
 	if (usb_disable_link_state(hcd, udev, USB3_LPM_U2))
 		goto enable_lpm;
 
+	udev->usb3_lpm_enabled = 0;
+
 	return 0;
 
 enable_lpm:
@@ -4007,6 +4009,8 @@ void usb_enable_lpm(struct usb_device *udev)
 
 	usb_enable_link_state(hcd, udev, USB3_LPM_U1);
 	usb_enable_link_state(hcd, udev, USB3_LPM_U2);
+
+	udev->usb3_lpm_enabled = 1;
 }
 EXPORT_SYMBOL_GPL(usb_enable_lpm);
 
