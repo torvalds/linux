@@ -3324,7 +3324,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
-		.alg = "rfc4543(gcm(aes))",
+		.alg = "rfc4543(gcm(aes))-disabled",
 		.test = alg_test_aead,
 		.suite = {
 			.aead = {
