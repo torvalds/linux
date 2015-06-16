@@ -321,6 +321,8 @@
 #define   MI_RESTORE_EXT_STATE_EN	(1<<2)
 #define   MI_FORCE_RESTORE		(1<<1)
 #define   MI_RESTORE_INHIBIT		(1<<0)
+#define   HSW_MI_RS_SAVE_STATE_EN       (1<<3)
+#define   HSW_MI_RS_RESTORE_STATE_EN    (1<<2)
 #define MI_SEMAPHORE_SIGNAL	MI_INSTR(0x1b, 0) /* GEN8+ */
 #define   MI_SEMAPHORE_TARGET(engine)	((engine)<<15)
 #define MI_SEMAPHORE_WAIT	MI_INSTR(0x1c, 2) /* GEN8+ */
@@ -2803,7 +2805,8 @@ enum skl_disp_power_wells {
  * valid. Now, docs explain in dwords what is in the context object. The full
  * size is 70720 bytes, however, the power context and execlist context will
  * never be saved (power context is stored elsewhere, and execlists don't work
- * on HSW) - so the final size is 66944 bytes, which rounds to 17 pages.
+ * on HSW) - so the final size, including the extra state required for the
+ * Resource Streamer, is 66944 bytes, which rounds to 17 pages.
  */
 #define HSW_CXT_TOTAL_SIZE		(17 * PAGE_SIZE)
 /* Same as Haswell, but 72064 bytes now. */

@@ -501,7 +501,9 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 	}
 
 	/* These flags are for resource streamer on HSW+ */
-	if (!IS_HASWELL(ring->dev) && INTEL_INFO(ring->dev)->gen < 8)
+	if (IS_HASWELL(ring->dev) || INTEL_INFO(ring->dev)->gen >= 8)
+		flags |= (HSW_MI_RS_SAVE_STATE_EN | HSW_MI_RS_RESTORE_STATE_EN);
+	else if (INTEL_INFO(ring->dev)->gen < 8)
 		flags |= (MI_SAVE_EXT_STATE_EN | MI_RESTORE_EXT_STATE_EN);
 
 
