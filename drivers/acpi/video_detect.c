@@ -1,4 +1,6 @@
 /*
+ *  Copyright (C) 2015       Red Hat Inc.
+ *                           Hans de Goede <hdegoede@redhat.com>
  *  Copyright (C) 2008       SuSE Linux Products GmbH
  *                           Thomas Renninger <trenn@suse.de>
  *
@@ -9,44 +11,45 @@
  * acpi_get_pci_dev() can be called to identify ACPI graphics
  * devices for which a real graphics card is plugged in
  *
- * Now acpi_video_get_capabilities() can be called to check which
- * capabilities the graphics cards plugged in support. The check for general
- * video capabilities will be triggered by the first caller of
- * acpi_video_get_capabilities(NULL); which will happen when the first
- * backlight switching supporting driver calls:
- * acpi_video_backlight_support();
- *
  * Depending on whether ACPI graphics extensions (cmp. ACPI spec Appendix B)
  * are available, video.ko should be used to handle the device.
  *
  * Otherwise vendor specific drivers like thinkpad_acpi, asus-laptop,
  * sony_acpi,... can take care about backlight brightness.
  *
- * If CONFIG_ACPI_VIDEO is neither set as "compiled in" (y) nor as a module (m)
- * this file will not be compiled, acpi_video_get_capabilities() and
- * acpi_video_backlight_support() will always return 0 and vendor specific
- * drivers always can handle backlight.
+ * Backlight drivers can use acpi_video_get_backlight_type() to determine
+ * which driver should handle the backlight.
  *
+ * If CONFIG_ACPI_VIDEO is neither set as "compiled in" (y) nor as a module (m)
+ * this file will not be compiled and acpi_video_get_backlight_type() will
+ * always return acpi_backlight_vendor.
  */
 
 #include <linux/export.h>
 #include <linux/acpi.h>
+#include <linux/backlight.h>
 #include <linux/dmi.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/types.h>
+#include <acpi/video.h>
 
 ACPI_MODULE_NAME("video");
 #define _COMPONENT		ACPI_VIDEO_COMPONENT
 
-static long acpi_video_support;
-static bool acpi_video_caps_checked;
+static enum acpi_backlight_type acpi_backlight_cmdline = acpi_backlight_undef;
+static enum acpi_backlight_type acpi_backlight_dmi = acpi_backlight_undef;
 
 static void acpi_video_parse_cmdline(void)
 {
 	if (!strcmp("vendor", acpi_video_backlight_string))
-		acpi_video_support |= ACPI_VIDEO_BACKLIGHT_FORCE_VENDOR;
+		acpi_backlight_cmdline = acpi_backlight_vendor;
 	if (!strcmp("video", acpi_video_backlight_string))
-		acpi_video_support |= ACPI_VIDEO_BACKLIGHT_FORCE_VIDEO;
+		acpi_backlight_cmdline = acpi_backlight_video;
+	if (!strcmp("native", acpi_video_backlight_string))
+		acpi_backlight_cmdline = acpi_backlight_native;
+	if (!strcmp("none", acpi_video_backlight_string))
+		acpi_backlight_cmdline = acpi_backlight_none;
 }
 
 static acpi_status
@@ -77,7 +80,7 @@ find_video(acpi_handle handle, u32 lvl, void *context, void **rv)
  * buggy */
 static int video_detect_force_vendor(const struct dmi_system_id *d)
 {
-	acpi_video_support |= ACPI_VIDEO_BACKLIGHT_DMI_VENDOR;
+	acpi_backlight_dmi = acpi_backlight_vendor;
 	return 0;
 }
 
@@ -125,99 +128,91 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 };
 
 /*
- * Returns the video capabilities of a specific ACPI graphics device
+ * Determine which type of backlight interface to use on this system,
+ * First check cmdline, then dmi quirks, then do autodetect.
  *
- * if NULL is passed as argument all ACPI devices are enumerated and
- * all graphics capabilities of physically present devices are
- * summarized and returned. This is cached and done only once.
+ * The autodetect order is:
+ * 1) Is the acpi-video backlight interface supported ->
+ *  no, use a vendor interface
+ * 2) Is this a win8 "ready" BIOS and do we have a native interface ->
+ *  yes, use a native interface
+ * 3) Else use the acpi-video interface
+ *
+ * Arguably the native on win8 check should be done first, but that would
+ * be a behavior change, which may causes issues.
  */
-static long acpi_video_get_capabilities(acpi_handle graphics_handle)
+enum acpi_backlight_type acpi_video_get_backlight_type(void)
 {
-	long caps = 0;
-	struct acpi_device *tmp_dev;
-	acpi_status status;
+	static DEFINE_MUTEX(init_mutex);
+	static bool init_done;
+	static long video_caps;
 
-	if (acpi_video_caps_checked && graphics_handle == NULL)
-		return acpi_video_support;
-
-	if (!graphics_handle) {
-		/* Only do the global walk through all graphics devices once */
+	/* Parse cmdline, dmi and acpi only once */
+	mutex_lock(&init_mutex);
+	if (!init_done) {
+		acpi_video_parse_cmdline();
+		dmi_check_system(video_detect_dmi_table);
 		acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
 				    ACPI_UINT32_MAX, find_video, NULL,
-				    &caps, NULL);
-		/* There might be boot param flags set already... */
-		acpi_video_support |= caps;
-		acpi_video_caps_checked = 1;
-		/* Add blacklists here. Be careful to use the right *DMI* bits
-		 * to still be able to override logic via boot params, e.g.:
-		 *
-		 *   if (dmi_name_in_vendors("XY")) {
-		 *	acpi_video_support |=
-		 *		ACPI_VIDEO_BACKLIGHT_DMI_VENDOR;
-		 *}
-		 */
-
-		dmi_check_system(video_detect_dmi_table);
-	} else {
-		status = acpi_bus_get_device(graphics_handle, &tmp_dev);
-		if (ACPI_FAILURE(status)) {
-			ACPI_EXCEPTION((AE_INFO, status, "Invalid device"));
-			return 0;
-		}
-		acpi_walk_namespace(ACPI_TYPE_DEVICE, graphics_handle,
-				    ACPI_UINT32_MAX, find_video, NULL,
-				    &caps, NULL);
+				    &video_caps, NULL);
+		init_done = true;
 	}
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "We have 0x%lX video support %s %s\n",
-			  graphics_handle ? caps : acpi_video_support,
-			  graphics_handle ? "on device " : "in general",
-			  graphics_handle ? acpi_device_bid(tmp_dev) : ""));
-	return caps;
-}
+	mutex_unlock(&init_mutex);
 
-static void acpi_video_caps_check(void)
-{
-	/*
-	 * We must check whether the ACPI graphics device is physically plugged
-	 * in. Therefore this must be called after binding PCI and ACPI devices
-	 */
-	if (!acpi_video_caps_checked) {
-		acpi_video_parse_cmdline();
-		acpi_video_get_capabilities(NULL);
-	}
-}
+	if (acpi_backlight_cmdline != acpi_backlight_undef)
+		return acpi_backlight_cmdline;
 
-/* Promote the vendor interface instead of the generic video module.
- * This function allow DMI blacklists to be implemented by externals
+	if (acpi_backlight_dmi != acpi_backlight_undef)
+		return acpi_backlight_dmi;
+
+	if (!(video_caps & ACPI_VIDEO_BACKLIGHT))
+		return acpi_backlight_vendor;
+
+	if (acpi_osi_is_win8() && backlight_device_registered(BACKLIGHT_RAW))
+		return acpi_backlight_native;
+
+	return acpi_backlight_video;
+}
+EXPORT_SYMBOL(acpi_video_get_backlight_type);
+
+/*
+ * Set the preferred backlight interface type based on DMI info.
+ * This function allows DMI blacklists to be implemented by external
  * platform drivers instead of putting a big blacklist in video_detect.c
+ */
+void acpi_video_set_dmi_backlight_type(enum acpi_backlight_type type)
+{
+	acpi_backlight_dmi = type;
+}
+EXPORT_SYMBOL(acpi_video_set_dmi_backlight_type);
+
+/*
+ * Compatiblity function, this is going away as soon as all drivers are
+ * converted to acpi_video_set_dmi_backlight_type().
+ *
+ * Promote the vendor interface instead of the generic video module.
  * After calling this function you will probably want to call
  * acpi_video_unregister() to make sure the video module is not loaded
  */
 void acpi_video_dmi_promote_vendor(void)
 {
-	acpi_video_caps_check();
-	acpi_video_support |= ACPI_VIDEO_BACKLIGHT_DMI_VENDOR;
+	acpi_video_set_dmi_backlight_type(acpi_backlight_vendor);
 }
 EXPORT_SYMBOL(acpi_video_dmi_promote_vendor);
 
-/* Returns true if video.ko can do backlight switching */
+/*
+ * Compatiblity function, this is going away as soon as all drivers are
+ * converted to acpi_video_get_backlight_type().
+ *
+ * Returns true if video.ko can do backlight switching.
+ */
 int acpi_video_backlight_support(void)
 {
-	acpi_video_caps_check();
-
-	/* First check for boot param -> highest prio */
-	if (acpi_video_support & ACPI_VIDEO_BACKLIGHT_FORCE_VENDOR)
-		return 0;
-	else if (acpi_video_support & ACPI_VIDEO_BACKLIGHT_FORCE_VIDEO)
-		return 1;
-
-	/* Then check for DMI blacklist -> second highest prio */
-	if (acpi_video_support & ACPI_VIDEO_BACKLIGHT_DMI_VENDOR)
-		return 0;
-	else if (acpi_video_support & ACPI_VIDEO_BACKLIGHT_DMI_VIDEO)
-		return 1;
-
-	/* Then go the default way */
-	return acpi_video_support & ACPI_VIDEO_BACKLIGHT;
+	/*
+	 * This is done this way since vendor drivers call this to see
+	 * if they should load, and we do not want them to load for both
+	 * the acpi_backlight_video and acpi_backlight_native cases.
+	 */
+	return acpi_video_get_backlight_type() != acpi_backlight_vendor;
 }
 EXPORT_SYMBOL(acpi_video_backlight_support);
