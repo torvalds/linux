@@ -111,7 +111,7 @@
 		dais {
 			dai0 {
 				audio-codec = <&codec_hdmi_i2s>;
-				i2s-controller = <&i2s0>;
+				audio-controller = <&i2s0>;
 				format = "i2s";
 			};
 		};
@@ -122,7 +122,7 @@
 		dais {
 			dai0 {
 				audio-codec = <&codec_hdmi_spdif>;
-				i2s-controller = <&spdif>;
+				audio-controller = <&spdif>;
 			};
 		};
 	};
@@ -132,7 +132,7 @@
                 dais {
                         dai0 {
                                 audio-codec = <&es8316>;
-                                i2s-controller = <&i2s0>;
+                                audio-controller = <&i2s0>;
                                 format = "i2s";
                         };
 		};

@@ -24,7 +24,7 @@ rockchip-audio {
 	dais {
 		dai0 {
 			audio-codec = <&codec>;
-			i2s-controller = <&i2s>;
+			audio-controller = <&i2s>;
 			format = "i2s";
 			//continuous-clock;
 			//bitclock-inversion;
@@ -58,7 +58,7 @@ rockchip-audio {
         dais {
                 dai0 {
                         audio-codec = <&codec>;
-                        i2s-controller = <&i2s1>;
+                        audio-controller = <&i2s1>;
                         format = "i2s";
                         //continuous-clock;
                         //bitclock-inversion;

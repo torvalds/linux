@@ -63,7 +63,7 @@
 		dais {
 			dai0 {
 				audio-codec = <&codec_hdmi_spdif>;
-				i2s-controller = <&spdif>;
+				audio-controller = <&spdif>;
 			};
 		};
 	};
