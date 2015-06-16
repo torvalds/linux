@@ -437,14 +437,13 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 		irq_set_chained_handler(port->irq, mx2_gpio_irq_handler);
 	} else {
 		/* setup one handler for each entry */
-		irq_set_chained_handler(port->irq, mx3_gpio_irq_handler);
-		irq_set_handler_data(port->irq, port);
-		if (port->irq_high > 0) {
+		irq_set_chained_handler_and_data(port->irq,
+						 mx3_gpio_irq_handler, port);
+		if (port->irq_high > 0)
 			/* setup handler for GPIO 16 to 31 */
-			irq_set_chained_handler(port->irq_high,
-						mx3_gpio_irq_handler);
-			irq_set_handler_data(port->irq_high, port);
-		}
+			irq_set_chained_handler_and_data(port->irq_high,
+							 mx3_gpio_irq_handler,
+							 port);
 	}
 
 	err = bgpio_init(&port->bgc, &pdev->dev, 4,
