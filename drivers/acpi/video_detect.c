@@ -37,6 +37,9 @@
 ACPI_MODULE_NAME("video");
 #define _COMPONENT		ACPI_VIDEO_COMPONENT
 
+static bool backlight_notifier_registered;
+static struct notifier_block backlight_nb;
+
 static enum acpi_backlight_type acpi_backlight_cmdline = acpi_backlight_undef;
 static enum acpi_backlight_type acpi_backlight_dmi = acpi_backlight_undef;
 
@@ -257,6 +260,20 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	{ },
 };
 
+static int acpi_video_backlight_notify(struct notifier_block *nb,
+				       unsigned long val, void *bd)
+{
+	struct backlight_device *backlight = bd;
+
+	/* A raw bl registering may change video -> native */
+	if (backlight->props.type == BACKLIGHT_RAW &&
+	    val == BACKLIGHT_REGISTERED &&
+	    acpi_video_get_backlight_type() != acpi_backlight_video)
+		acpi_video_unregister_backlight();
+
+	return NOTIFY_OK;
+}
+
 /*
  * Determine which type of backlight interface to use on this system,
  * First check cmdline, then dmi quirks, then do autodetect.
@@ -285,6 +302,10 @@ enum acpi_backlight_type acpi_video_get_backlight_type(void)
 		acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
 				    ACPI_UINT32_MAX, find_video, NULL,
 				    &video_caps, NULL);
+		backlight_nb.notifier_call = acpi_video_backlight_notify;
+		backlight_nb.priority = 0;
+		if (backlight_register_notifier(&backlight_nb) == 0)
+			backlight_notifier_registered = true;
 		init_done = true;
 	}
 	mutex_unlock(&init_mutex);
@@ -349,3 +370,9 @@ int acpi_video_backlight_support(void)
 	return acpi_video_get_backlight_type() != acpi_backlight_vendor;
 }
 EXPORT_SYMBOL(acpi_video_backlight_support);
+
+void __exit acpi_video_detect_exit(void)
+{
+	if (backlight_notifier_registered)
+		backlight_unregister_notifier(&backlight_nb);
+}

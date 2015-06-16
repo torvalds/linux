@@ -87,6 +87,7 @@ static struct list_head video_bus_head;
 static int acpi_video_bus_add(struct acpi_device *device);
 static int acpi_video_bus_remove(struct acpi_device *device);
 static void acpi_video_bus_notify(struct acpi_device *device, u32 event);
+void acpi_video_detect_exit(void);
 
 static const struct acpi_device_id video_device_ids[] = {
 	{ACPI_VIDEO_HID, 0},
@@ -146,7 +147,6 @@ struct acpi_video_enumerated_device {
 struct acpi_video_bus {
 	struct acpi_device *device;
 	bool backlight_registered;
-	bool backlight_notifier_registered;
 	u8 dos_setting;
 	struct acpi_video_enumerated_device *attached_array;
 	u8 attached_count;
@@ -159,7 +159,6 @@ struct acpi_video_bus {
 	struct input_dev *input;
 	char phys[32];	/* for input device */
 	struct notifier_block pm_nb;
-	struct notifier_block backlight_nb;
 };
 
 struct acpi_video_device_flags {
@@ -1814,59 +1813,6 @@ static void acpi_video_bus_remove_notify_handler(struct acpi_video_bus *video)
 	video->input = NULL;
 }
 
-static int acpi_video_backlight_notify(struct notifier_block *nb,
-					unsigned long val, void *bd)
-{
-	struct backlight_device *backlight = bd;
-	struct acpi_video_bus *video;
-	enum acpi_backlight_type type;
-
-	/* A raw bl (un)registering may change native <-> video */
-	if (backlight->props.type != BACKLIGHT_RAW)
-		return NOTIFY_DONE;
-
-	video = container_of(nb, struct acpi_video_bus, backlight_nb);
-	type = acpi_video_get_backlight_type();
-
-	switch (val) {
-	case BACKLIGHT_REGISTERED:
-		if (type != acpi_backlight_video)
-			acpi_video_bus_unregister_backlight(video);
-		break;
-	case BACKLIGHT_UNREGISTERED:
-		if (type == acpi_backlight_video)
-			acpi_video_bus_register_backlight(video);
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-
-static int acpi_video_bus_add_backlight_notify_handler(
-						struct acpi_video_bus *video)
-{
-	int error;
-
-	video->backlight_nb.notifier_call = acpi_video_backlight_notify;
-	video->backlight_nb.priority = 0;
-	error = backlight_register_notifier(&video->backlight_nb);
-	if (error == 0)
-		video->backlight_notifier_registered = true;
-
-	return error;
-}
-
-static int acpi_video_bus_remove_backlight_notify_handler(
-						struct acpi_video_bus *video)
-{
-	if (!video->backlight_notifier_registered)
-		return 0;
-
-	video->backlight_notifier_registered = false;
-
-	return backlight_unregister_notifier(&video->backlight_nb);
-}
-
 static int acpi_video_bus_put_devices(struct acpi_video_bus *video)
 {
 	struct acpi_video_device *dev, *next;
@@ -1948,7 +1894,6 @@ static int acpi_video_bus_add(struct acpi_device *device)
 
 	acpi_video_bus_register_backlight(video);
 	acpi_video_bus_add_notify_handler(video);
-	acpi_video_bus_add_backlight_notify_handler(video);
 
 	return 0;
 
@@ -1972,7 +1917,6 @@ static int acpi_video_bus_remove(struct acpi_device *device)
 
 	video = acpi_driver_data(device);
 
-	acpi_video_bus_remove_backlight_notify_handler(video);
 	acpi_video_bus_remove_notify_handler(video);
 	acpi_video_bus_unregister_backlight(video);
 	acpi_video_bus_put_devices(video);
@@ -2108,6 +2052,7 @@ static int __init acpi_video_init(void)
 
 static void __exit acpi_video_exit(void)
 {
+	acpi_video_detect_exit();
 	acpi_video_unregister();
 
 	return;
