@@ -22,9 +22,9 @@
 #define ENTRY_KEY 0x77
 #define EXIT_KEY 0xAA
 #define CHIP_ID1  0x20
-#define CHIP_ID1_VAL 0x02
 #define CHIP_ID2  0x21
-#define CHIP_ID2_VAL 0x16
+#define CHIP_ID_0 0x1602
+#define CHIP_ID_1 0x0501
 #define VENDOR_ID1 0x23
 #define VENDOR_ID1_VAL 0x19
 #define VENDOR_ID2 0x24
@@ -77,14 +77,7 @@ static int fintek_8250_get_index(resource_size_t base_addr)
 
 static int fintek_8250_check_id(u16 base_port)
 {
-
-	outb(CHIP_ID1, base_port + ADDR_PORT);
-	if (inb(base_port + DATA_PORT) != CHIP_ID1_VAL)
-		return -ENODEV;
-
-	outb(CHIP_ID2, base_port + ADDR_PORT);
-	if (inb(base_port + DATA_PORT) != CHIP_ID2_VAL)
-		return -ENODEV;
+	u16 chip;
 
 	outb(VENDOR_ID1, base_port + ADDR_PORT);
 	if (inb(base_port + DATA_PORT) != VENDOR_ID1_VAL)
@@ -92,6 +85,14 @@ static int fintek_8250_check_id(u16 base_port)
 
 	outb(VENDOR_ID2, base_port + ADDR_PORT);
 	if (inb(base_port + DATA_PORT) != VENDOR_ID2_VAL)
+		return -ENODEV;
+
+	outb(CHIP_ID1, base_port + ADDR_PORT);
+	chip = inb(base_port + DATA_PORT);
+	outb(CHIP_ID2, base_port + ADDR_PORT);
+	chip |= inb(base_port + DATA_PORT) << 8;
+
+	if (chip != CHIP_ID_0 && chip != CHIP_ID_1)
 		return -ENODEV;
 
 	return 0;
