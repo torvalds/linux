@@ -274,7 +274,7 @@ struct batadv_orig_node {
 	struct hlist_node mcast_want_all_ipv6_node;
 #endif
 	unsigned long capabilities;
-	uint8_t capa_initialized;
+	unsigned long capa_initialized;
 	atomic_t last_ttvn;
 	unsigned char *tt_buff;
 	int16_t tt_buff_len;
@@ -315,7 +315,7 @@ struct batadv_orig_node {
 enum batadv_orig_capabilities {
 	BATADV_ORIG_CAPA_HAS_DAT,
 	BATADV_ORIG_CAPA_HAS_NC,
-	BATADV_ORIG_CAPA_HAS_TT = BIT(2),
+	BATADV_ORIG_CAPA_HAS_TT,
 	BATADV_ORIG_CAPA_HAS_MCAST = BIT(3),
 };
 
