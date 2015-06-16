@@ -884,6 +884,7 @@ static void __init version_sysfs_builtin(void)
 		mk = locate_module_kobject(vattr->module_name);
 		if (mk) {
 			err = sysfs_create_file(&mk->kobj, &vattr->mattr.attr);
+			WARN_ON_ONCE(err);
 			kobject_uevent(&mk->kobj, KOBJ_ADD);
 			kobject_put(&mk->kobj);
 		}
