@@ -540,6 +540,16 @@ struct uiscmdrsp {
 	struct uiscmdrsp *activeQ_prev;	/* Used to track active commands */
 } __packed;
 
+struct iochannel_vhba {
+	struct vhba_wwnn wwnn;		/* 8 bytes */
+	struct vhba_config_max max;	/* 20 bytes */
+} __packed;				/* total = 28 bytes */
+struct iochannel_vnic {
+	u8 macaddr[6];			/* 6 bytes */
+	u32 num_rcv_bufs;		/* 4 bytes */
+	u32 mtu;			/* 4 bytes */
+	uuid_le zone_uuid;		/* 16 bytes */
+} __packed;
 /* This is just the header of the IO channel.  It is assumed that directly after
  * this header there is a large region of memory which contains the command and
  * response queues as specified in cmd_q and rsp_q SIGNAL_QUEUE_HEADERS.
@@ -549,17 +559,9 @@ struct spar_io_channel_protocol {
 	struct signal_queue_header cmd_q;
 	struct signal_queue_header rsp_q;
 	union {
-		struct {
-			struct vhba_wwnn wwnn;		/* 8 bytes */
-			struct vhba_config_max max;	/* 20 bytes */
-		} vhba;					/* total = 28 bytes */
-		struct {
-			u8 macaddr[MAX_MACADDR_LEN];	/* 6 bytes */
-			u32 num_rcv_bufs;		/* 4 bytes */
-			u32 mtu;			/* 4 bytes */
-			uuid_le zone_uuid;		/* 16 bytes */
-		} vnic;					/* total = 30 bytes */
-	};
+		struct iochannel_vhba vhba;
+		struct iochannel_vnic vnic;
+	} __packed;
 
 #define MAX_CLIENTSTRING_LEN 1024
 	 u8 client_string[MAX_CLIENTSTRING_LEN];/* NULL terminated - so holds
