@@ -171,6 +171,7 @@ struct virtio_gpu_device {
 	wait_queue_head_t resp_wq;
 	/* current display info */
 	spinlock_t display_info_lock;
+	bool display_info_pending;
 
 	struct virtio_gpu_fence_driver fence_drv;
 

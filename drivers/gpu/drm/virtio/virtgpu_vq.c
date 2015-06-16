@@ -534,6 +534,7 @@ static void virtio_gpu_cmd_get_display_info_cb(struct virtio_gpu_device *vgdev,
 		}
 	}
 
+	vgdev->display_info_pending = false;
 	spin_unlock(&vgdev->display_info_lock);
 	wake_up(&vgdev->resp_wq);
 
@@ -558,6 +559,7 @@ int virtio_gpu_cmd_get_display_info(struct virtio_gpu_device *vgdev)
 		 resp_buf);
 	memset(cmd_p, 0, sizeof(*cmd_p));
 
+	vgdev->display_info_pending = true;
 	cmd_p->type = cpu_to_le32(VIRTIO_GPU_CMD_GET_DISPLAY_INFO);
 	virtio_gpu_queue_ctrl_buffer(vgdev, vbuf);
 	return 0;
