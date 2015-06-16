@@ -1777,7 +1777,7 @@ static int asus_wmi_add(struct platform_device *pdev)
 		acpi_video_dmi_promote_vendor();
 	if (!acpi_video_backlight_support()) {
 		pr_info("Disabling ACPI video driver\n");
-		acpi_video_unregister();
+		acpi_video_unregister_backlight();
 		err = asus_wmi_backlight_init(asus);
 		if (err && err != -ENODEV)
 			goto fail_backlight;
