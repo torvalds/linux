@@ -103,7 +103,7 @@ ieee80211_rate_control_ops_get(const char *name)
 	const struct rate_control_ops *ops;
 	const char *alg_name;
 
-	kparam_block_sysfs_write(ieee80211_default_rc_algo);
+	kernel_param_lock(THIS_MODULE);
 	if (!name)
 		alg_name = ieee80211_default_rc_algo;
 	else
@@ -117,7 +117,7 @@ ieee80211_rate_control_ops_get(const char *name)
 	/* try built-in one if specific alg requested but not found */
 	if (!ops && strlen(CONFIG_MAC80211_RC_DEFAULT))
 		ops = ieee80211_try_rate_control_ops_get(CONFIG_MAC80211_RC_DEFAULT);
-	kparam_unblock_sysfs_write(ieee80211_default_rc_algo);
+	kernel_param_unlock(THIS_MODULE);
 
 	return ops;
 }

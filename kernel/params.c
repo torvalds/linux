@@ -25,8 +25,12 @@
 #include <linux/slab.h>
 #include <linux/ctype.h>
 
-/* Protects all parameters, and incidentally kmalloced_param list. */
+/* Protects all built-in parameters, modules use their own param_lock */
 static DEFINE_MUTEX(param_lock);
+
+/* Use the module's mutex, or if built-in use the built-in mutex */
+#define KPARAM_MUTEX(mod)	((mod) ? &(mod)->param_lock : &param_lock)
+#define KPARAM_IS_LOCKED(mod)	mutex_is_locked(KPARAM_MUTEX(mod))
 
 /* This just allows us to keep track of which parameters are kmalloced. */
 struct kmalloced_param {
@@ -34,6 +38,7 @@ struct kmalloced_param {
 	char val[];
 };
 static LIST_HEAD(kmalloced_params);
+static DEFINE_SPINLOCK(kmalloced_params_lock);
 
 static void *kmalloc_parameter(unsigned int size)
 {
@@ -43,7 +48,10 @@ static void *kmalloc_parameter(unsigned int size)
 	if (!p)
 		return NULL;
 
+	spin_lock(&kmalloced_params_lock);
 	list_add(&p->list, &kmalloced_params);
+	spin_unlock(&kmalloced_params_lock);
+
 	return p->val;
 }
 
@@ -52,6 +60,7 @@ static void maybe_kfree_parameter(void *param)
 {
 	struct kmalloced_param *p;
 
+	spin_lock(&kmalloced_params_lock);
 	list_for_each_entry(p, &kmalloced_params, list) {
 		if (p->val == param) {
 			list_del(&p->list);
@@ -59,6 +68,7 @@ static void maybe_kfree_parameter(void *param)
 			break;
 		}
 	}
+	spin_unlock(&kmalloced_params_lock);
 }
 
 static char dash2underscore(char c)
@@ -118,10 +128,10 @@ static int parse_one(char *param,
 				return -EINVAL;
 			pr_debug("handling %s with %p\n", param,
 				params[i].ops->set);
-			mutex_lock(&param_lock);
+			kernel_param_lock(params[i].mod);
 			param_check_unsafe(&params[i]);
 			err = params[i].ops->set(val, &params[i]);
-			mutex_unlock(&param_lock);
+			kernel_param_unlock(params[i].mod);
 			return err;
 		}
 	}
@@ -417,7 +427,8 @@ const struct kernel_param_ops param_ops_bint = {
 EXPORT_SYMBOL(param_ops_bint);
 
 /* We break the rule and mangle the string. */
-static int param_array(const char *name,
+static int param_array(struct module *mod,
+		       const char *name,
 		       const char *val,
 		       unsigned int min, unsigned int max,
 		       void *elem, int elemsize,
@@ -448,7 +459,7 @@ static int param_array(const char *name,
 		/* nul-terminate and parse */
 		save = val[len];
 		((char *)val)[len] = '\0';
-		BUG_ON(!mutex_is_locked(&param_lock));
+		BUG_ON(!KPARAM_IS_LOCKED(mod));
 		ret = set(val, &kp);
 
 		if (ret != 0)
@@ -470,7 +481,7 @@ static int param_array_set(const char *val, const struct kernel_param *kp)
 	const struct kparam_array *arr = kp->arr;
 	unsigned int temp_num;
 
-	return param_array(kp->name, val, 1, arr->max, arr->elem,
+	return param_array(kp->mod, kp->name, val, 1, arr->max, arr->elem,
 			   arr->elemsize, arr->ops->set, kp->level,
 			   arr->num ?: &temp_num);
 }
@@ -485,7 +496,7 @@ static int param_array_get(char *buffer, const struct kernel_param *kp)
 		if (i)
 			buffer[off++] = ',';
 		p.arg = arr->elem + arr->elemsize * i;
-		BUG_ON(!mutex_is_locked(&param_lock));
+		BUG_ON(!KPARAM_IS_LOCKED(p.mod));
 		ret = arr->ops->get(buffer + off, &p);
 		if (ret < 0)
 			return ret;
@@ -568,9 +579,9 @@ static ssize_t param_attr_show(struct module_attribute *mattr,
 	if (!attribute->param->ops->get)
 		return -EPERM;
 
-	mutex_lock(&param_lock);
+	kernel_param_lock(mk->mod);
 	count = attribute->param->ops->get(buf, attribute->param);
-	mutex_unlock(&param_lock);
+	kernel_param_unlock(mk->mod);
 	if (count > 0) {
 		strcat(buf, "\n");
 		++count;
@@ -580,7 +591,7 @@ static ssize_t param_attr_show(struct module_attribute *mattr,
 
 /* sysfs always hands a nul-terminated string in buf.  We rely on that. */
 static ssize_t param_attr_store(struct module_attribute *mattr,
-				struct module_kobject *km,
+				struct module_kobject *mk,
 				const char *buf, size_t len)
 {
  	int err;
@@ -589,10 +600,10 @@ static ssize_t param_attr_store(struct module_attribute *mattr,
 	if (!attribute->param->ops->set)
 		return -EPERM;
 
-	mutex_lock(&param_lock);
+	kernel_param_lock(mk->mod);
 	param_check_unsafe(attribute->param);
 	err = attribute->param->ops->set(buf, attribute->param);
-	mutex_unlock(&param_lock);
+	kernel_param_unlock(mk->mod);
 	if (!err)
 		return len;
 	return err;
@@ -605,18 +616,19 @@ static ssize_t param_attr_store(struct module_attribute *mattr,
 #define __modinit __init
 #endif
 
-#ifdef CONFIG_SYSFS
-void __kernel_param_lock(void)
+void kernel_param_lock(struct module *mod)
 {
-	mutex_lock(&param_lock);
+	mutex_lock(KPARAM_MUTEX(mod));
 }
-EXPORT_SYMBOL(__kernel_param_lock);
 
-void __kernel_param_unlock(void)
+void kernel_param_unlock(struct module *mod)
 {
-	mutex_unlock(&param_lock);
+	mutex_unlock(KPARAM_MUTEX(mod));
 }
-EXPORT_SYMBOL(__kernel_param_unlock);
+
+#ifdef CONFIG_SYSFS
+EXPORT_SYMBOL(kernel_param_lock);
+EXPORT_SYMBOL(kernel_param_unlock);
 
 /*
  * add_sysfs_param - add a parameter to sysfs

@@ -67,6 +67,7 @@ enum {
 
 struct kernel_param {
 	const char *name;
+	struct module *mod;
 	const struct kernel_param_ops *ops;
 	const u16 perm;
 	s8 level;
@@ -108,7 +109,7 @@ struct kparam_array
  *
  * @perm is 0 if the the variable is not to appear in sysfs, or 0444
  * for world-readable, 0644 for root-writable, etc.  Note that if it
- * is writable, you may need to use kparam_block_sysfs_write() around
+ * is writable, you may need to use kernel_param_lock() around
  * accesses (esp. charp, which can be kfreed when it changes).
  *
  * The @type is simply pasted to refer to a param_ops_##type and a
@@ -216,12 +217,12 @@ struct kparam_array
    parameters. */
 #define __module_param_call(prefix, name, ops, arg, perm, level, flags)	\
 	/* Default value instead of permissions? */			\
-	static const char __param_str_##name[] = prefix #name; \
+	static const char __param_str_##name[] = prefix #name;		\
 	static struct kernel_param __moduleparam_const __param_##name	\
 	__used								\
     __attribute__ ((unused,__section__ ("__param"),aligned(sizeof(void *)))) \
-	= { __param_str_##name, ops, VERIFY_OCTAL_PERMISSIONS(perm),	\
-	    level, flags, { arg } }
+	= { __param_str_##name, THIS_MODULE, ops,			\
+	    VERIFY_OCTAL_PERMISSIONS(perm), level, flags, { arg } }
 
 /* Obsolete - use module_param_cb() */
 #define module_param_call(name, set, get, arg, perm)			\
@@ -238,58 +239,14 @@ __check_old_set_param(int (*oldset)(const char *, struct kernel_param *))
 	return 0;
 }
 
-/**
- * kparam_block_sysfs_write - make sure a parameter isn't written via sysfs.
- * @name: the name of the parameter
- *
- * There's no point blocking write on a paramter that isn't writable via sysfs!
- */
-#define kparam_block_sysfs_write(name)			\
-	do {						\
-		BUG_ON(!(__param_##name.perm & 0222));	\
-		__kernel_param_lock();			\
-	} while (0)
-
-/**
- * kparam_unblock_sysfs_write - allows sysfs to write to a parameter again.
- * @name: the name of the parameter
- */
-#define kparam_unblock_sysfs_write(name)		\
-	do {						\
-		BUG_ON(!(__param_##name.perm & 0222));	\
-		__kernel_param_unlock();		\
-	} while (0)
-
-/**
- * kparam_block_sysfs_read - make sure a parameter isn't read via sysfs.
- * @name: the name of the parameter
- *
- * This also blocks sysfs writes.
- */
-#define kparam_block_sysfs_read(name)			\
-	do {						\
-		BUG_ON(!(__param_##name.perm & 0444));	\
-		__kernel_param_lock();			\
-	} while (0)
-
-/**
- * kparam_unblock_sysfs_read - allows sysfs to read a parameter again.
- * @name: the name of the parameter
- */
-#define kparam_unblock_sysfs_read(name)			\
-	do {						\
-		BUG_ON(!(__param_##name.perm & 0444));	\
-		__kernel_param_unlock();		\
-	} while (0)
-
 #ifdef CONFIG_SYSFS
-extern void __kernel_param_lock(void);
-extern void __kernel_param_unlock(void);
+extern void kernel_param_lock(struct module *mod);
+extern void kernel_param_unlock(struct module *mod);
 #else
-static inline void __kernel_param_lock(void)
+static inline void kernel_param_lock(struct module *mod)
 {
 }
-static inline void __kernel_param_unlock(void)
+static inline void kernel_param_unlock(struct module *mod)
 {
 }
 #endif

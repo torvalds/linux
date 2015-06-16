@@ -3442,6 +3442,8 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	if (err)
 		goto unlink_mod;
 
+	mutex_init(&mod->param_lock);
+
 	/* Now we've got everything in the final locations, we can
 	 * find optional sections. */
 	err = find_module_sections(mod, info);
