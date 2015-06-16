@@ -899,9 +899,9 @@ void f2fs_update_extent_cache(struct dnode_of_data *dn)
 	fofs = start_bidx_of_node(ofs_of_node(dn->node_page), fi) +
 							dn->ofs_in_node;
 
+	/* we should call update_extent_info() to update on-disk extent */
 	if (test_opt(F2FS_I_SB(dn->inode), EXTENT_CACHE))
-		return f2fs_update_extent_tree(dn->inode, fofs,
-							dn->data_blkaddr);
+		f2fs_update_extent_tree(dn->inode, fofs, dn->data_blkaddr);
 
 	if (update_extent_info(dn->inode, fofs, dn->data_blkaddr))
 		sync_inode_page(dn);
