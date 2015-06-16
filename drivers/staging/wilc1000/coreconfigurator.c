@@ -1716,7 +1716,7 @@ s32 ParseResponse(u8 *resp, tstrWID *pstrWIDcfgResult)
 			idx++;
 		}
 		idx += 3;
-		if ((u16WIDid == g_wid_num) && (num_wid_processed == false)) {
+		if ((u16WIDid == g_wid_num) && (!num_wid_processed)) {
 			num_wid_processed = true;
 
 			if (-2 == further_process_response(&resp[idx], u16WIDid, cfg_len, true, 0, &pstrWIDcfgResult[ResCnt])) {
@@ -1922,7 +1922,7 @@ s32 ConfigWaitResponse(char *pcRespBuffer, s32 s32MaxRespBuffLen, s32 *ps32Bytes
 	 * gstrConfigPktInfo.bRespRequired = bRespRequired;*/
 
 
-	if (gstrConfigPktInfo.bRespRequired == true) {
+	if (gstrConfigPktInfo.bRespRequired) {
 		down(&SemHandlePktResp);
 
 		*ps32BytesRead = gstrConfigPktInfo.s32BytesRead;
@@ -1983,7 +1983,7 @@ s32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
 	ConfigWaitResponse(gps8ConfigPacket, MAX_PACKET_BUFF_SIZE, &s32RcvdRespLen, bRespRequired);
 
 
-	if (bRespRequired == true)	{
+	if (bRespRequired)	{
 		/* If the operating Mode is GET, then we expect a response frame from */
 		/* the driver. Hence start listening to the port for response         */
 		if (g_oper_mode == GET_CFG) {
@@ -2020,7 +2020,7 @@ s32 ConfigProvideResponse(char *pcRespBuffer, s32 s32RespLen)
 {
 	s32 s32Error = WILC_SUCCESS;
 
-	if (gstrConfigPktInfo.bRespRequired == true) {
+	if (gstrConfigPktInfo.bRespRequired) {
 		if (s32RespLen <= gstrConfigPktInfo.s32MaxRespBuffLen) {
 			WILC_memcpy(gstrConfigPktInfo.pcRespBuffer, pcRespBuffer, s32RespLen);
 			gstrConfigPktInfo.s32BytesRead = s32RespLen;

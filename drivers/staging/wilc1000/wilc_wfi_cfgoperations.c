@@ -624,7 +624,7 @@ static void CfgConnectResult(tenuConnDisconnEvent enuConnDisconnEvent,
 				}
 			}
 
-			if (bNeedScanRefresh == true) {
+			if (bNeedScanRefresh) {
 				/*BugID_5418*/
 				/*Also, refrsh DIRECT- results if */
 				refresh_scan(priv, 1, true);
@@ -2817,7 +2817,7 @@ int WILC_WFI_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 		return -EIO;
 	}
 
-	if (bEnablePS	 == true)
+	if (bEnablePS)
 		host_int_set_power_mgmt(priv->hWILCWFIDrv, enabled, timeout);
 
 

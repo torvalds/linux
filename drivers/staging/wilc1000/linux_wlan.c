@@ -309,7 +309,7 @@ static int dev_state_ev_handler(struct notifier_block *this, unsigned long event
 
 
 
-		if (bEnablePS	 == true)
+		if (bEnablePS)
 			host_int_set_power_mgmt((WILC_WFIDrvHandle)pstrWFIDrv, 1, 0);
 
 		PRINT_D(GENERIC_DBG, "[%s] Up IP\n", dev_iface->ifa_label);

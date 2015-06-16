@@ -452,7 +452,7 @@ void WILC_mgm_HOSTAPD_ACK(void *priv, bool bStatus)
 		cb_hdr->rate = 5; /* txrate->bitrate / 5; */
 
 
-		if (true == bStatus) {
+		if (bStatus) {
 			/* success */
 			cb_hdr->tx_flags = IEEE80211_RADIOTAP_F_TX_RTS;
 		} else {

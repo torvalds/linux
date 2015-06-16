@@ -559,7 +559,7 @@ static int wilc_wlan_txq_add_net_pkt(void *priv, uint8_t *buffer, uint32_t buffe
 #ifdef TCP_ACK_FILTER
 	tqe->tcp_PendingAck_index = NOT_TCP_ACK;
 #ifdef TCP_ENHANCEMENTS
-	if (is_TCP_ACK_Filter_Enabled() == true)
+	if (is_TCP_ACK_Filter_Enabled())
 #endif
 	tcp_process(tqe);
 #endif
@@ -2337,7 +2337,7 @@ u16 Set_machw_change_vir_if(bool bValue)
 		PRINT_ER("Error while Reading reg WILC_CHANGING_VIR_IF\n");
 	}
 
-	if (bValue == true) {
+	if (bValue) {
 		reg |= (BIT31);
 	} else {
 		reg &= ~(BIT31);
