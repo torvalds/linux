@@ -46,7 +46,7 @@ config LIQUIDIO
 	depends on 64BIT
 	select PTP_1588_CLOCK
 	select FW_LOADER
-	select LIBCRC32
+	select LIBCRC32C
 	---help---
 	  This driver supports Cavium LiquidIO Intelligent Server Adapters
 	  based on CN66XX and CN68XX chips.
