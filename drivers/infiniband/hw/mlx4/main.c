@@ -2098,6 +2098,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	struct mlx4_ib_iboe *iboe;
 	int ib_num_ports = 0;
 	int num_req_counters;
+	int allocated;
+	u32 counter_index;
 
 	pr_info_once("%s", mlx4_ib_version);
 
@@ -2263,19 +2265,31 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	num_req_counters = mlx4_is_bonded(dev) ? 1 : ibdev->num_ports;
 	for (i = 0; i < num_req_counters; ++i) {
 		mutex_init(&ibdev->qp1_proxy_lock[i]);
+		allocated = 0;
 		if (mlx4_ib_port_link_layer(&ibdev->ib_dev, i + 1) ==
 						IB_LINK_LAYER_ETHERNET) {
-			err = mlx4_counter_alloc(ibdev->dev, &ibdev->counters[i]);
+			err = mlx4_counter_alloc(ibdev->dev, &counter_index);
+			/* if failed to allocate a new counter, use default */
 			if (err)
-				ibdev->counters[i] = -1;
-		} else {
-			ibdev->counters[i] = -1;
+				counter_index =
+					mlx4_get_default_counter_index(dev,
+								       i + 1);
+			else
+				allocated = 1;
+		} else { /* IB_LINK_LAYER_INFINIBAND use the default counter */
+			counter_index = mlx4_get_default_counter_index(dev,
+								       i + 1);
 		}
+		ibdev->counters[i].index = counter_index;
+		ibdev->counters[i].allocated = allocated;
+		pr_info("counter index %d for port %d allocated %d\n",
+			counter_index, i + 1, allocated);
 	}
 	if (mlx4_is_bonded(dev))
-		for (i = 1; i < ibdev->num_ports ; ++i)
-			ibdev->counters[i] = ibdev->counters[0];
-
+		for (i = 1; i < ibdev->num_ports ; ++i) {
+			ibdev->counters[i].index = ibdev->counters[0].index;
+			ibdev->counters[i].allocated = 0;
+		}
 
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
 		ib_num_ports++;
@@ -2415,10 +2429,12 @@ err_steer_qp_release:
 		mlx4_qp_release_range(dev, ibdev->steer_qpn_base,
 				      ibdev->steer_qpn_count);
 err_counter:
-	for (; i; --i)
-		if (ibdev->counters[i - 1] != -1)
-			mlx4_counter_free(ibdev->dev, ibdev->counters[i - 1]);
-
+	for (i = 0; i < ibdev->num_ports; ++i) {
+		if (ibdev->counters[i].index != -1 &&
+		    ibdev->counters[i].allocated)
+			mlx4_counter_free(ibdev->dev,
+					  ibdev->counters[i].index);
+	}
 err_map:
 	iounmap(ibdev->uar_map);
 
@@ -2535,8 +2551,9 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 
 	iounmap(ibdev->uar_map);
 	for (p = 0; p < ibdev->num_ports; ++p)
-		if (ibdev->counters[p] != -1)
-			mlx4_counter_free(ibdev->dev, ibdev->counters[p]);
+		if (ibdev->counters[p].index != -1 &&
+		    ibdev->counters[p].allocated)
+			mlx4_counter_free(ibdev->dev, ibdev->counters[p].index);
 	mlx4_foreach_port(p, dev, MLX4_PORT_TYPE_IB)
 		mlx4_CLOSE_PORT(dev, p);
 

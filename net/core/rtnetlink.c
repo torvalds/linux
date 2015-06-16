@@ -819,7 +819,19 @@ static inline int rtnl_vfinfo_size(const struct net_device *dev,
 			 nla_total_size(sizeof(struct ifla_vf_spoofchk)) +
 			 nla_total_size(sizeof(struct ifla_vf_rate)) +
 			 nla_total_size(sizeof(struct ifla_vf_link_state)) +
-			 nla_total_size(sizeof(struct ifla_vf_rss_query_en)));
+			 nla_total_size(sizeof(struct ifla_vf_rss_query_en)) +
+			 /* IFLA_VF_STATS_RX_PACKETS */
+			 nla_total_size(sizeof(__u64)) +
+			 /* IFLA_VF_STATS_TX_PACKETS */
+			 nla_total_size(sizeof(__u64)) +
+			 /* IFLA_VF_STATS_RX_BYTES */
+			 nla_total_size(sizeof(__u64)) +
+			 /* IFLA_VF_STATS_TX_BYTES */
+			 nla_total_size(sizeof(__u64)) +
+			 /* IFLA_VF_STATS_BROADCAST */
+			 nla_total_size(sizeof(__u64)) +
+			 /* IFLA_VF_STATS_MULTICAST */
+			 nla_total_size(sizeof(__u64)));
 		return size;
 	} else
 		return 0;
@@ -1123,7 +1135,7 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 	    && (ext_filter_mask & RTEXT_FILTER_VF)) {
 		int i;
 
-		struct nlattr *vfinfo, *vf;
+		struct nlattr *vfinfo, *vf, *vfstats;
 		int num_vfs = dev_num_vf(dev->dev.parent);
 
 		vfinfo = nla_nest_start(skb, IFLA_VFINFO_LIST);
@@ -1138,6 +1150,7 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 			struct ifla_vf_spoofchk vf_spoofchk;
 			struct ifla_vf_link_state vf_linkstate;
 			struct ifla_vf_rss_query_en vf_rss_query_en;
+			struct ifla_vf_stats vf_stats;
 
 			/*
 			 * Not all SR-IOV capable drivers support the
@@ -1190,6 +1203,30 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 				    sizeof(vf_rss_query_en),
 				    &vf_rss_query_en))
 				goto nla_put_failure;
+			memset(&vf_stats, 0, sizeof(vf_stats));
+			if (dev->netdev_ops->ndo_get_vf_stats)
+				dev->netdev_ops->ndo_get_vf_stats(dev, i,
+								  &vf_stats);
+			vfstats = nla_nest_start(skb, IFLA_VF_STATS);
+			if (!vfstats) {
+				nla_nest_cancel(skb, vf);
+				nla_nest_cancel(skb, vfinfo);
+				goto nla_put_failure;
+			}
+			if (nla_put_u64(skb, IFLA_VF_STATS_RX_PACKETS,
+					vf_stats.rx_packets) ||
+			    nla_put_u64(skb, IFLA_VF_STATS_TX_PACKETS,
+					vf_stats.tx_packets) ||
+			    nla_put_u64(skb, IFLA_VF_STATS_RX_BYTES,
+					vf_stats.rx_bytes) ||
+			    nla_put_u64(skb, IFLA_VF_STATS_TX_BYTES,
+					vf_stats.tx_bytes) ||
+			    nla_put_u64(skb, IFLA_VF_STATS_BROADCAST,
+					vf_stats.broadcast) ||
+			    nla_put_u64(skb, IFLA_VF_STATS_MULTICAST,
+					vf_stats.multicast))
+				goto nla_put_failure;
+			nla_nest_end(skb, vfstats);
 			nla_nest_end(skb, vf);
 		}
 		nla_nest_end(skb, vfinfo);
@@ -1303,6 +1340,16 @@ static const struct nla_policy ifla_vf_policy[IFLA_VF_MAX+1] = {
 	[IFLA_VF_RATE]		= { .len = sizeof(struct ifla_vf_rate) },
 	[IFLA_VF_LINK_STATE]	= { .len = sizeof(struct ifla_vf_link_state) },
 	[IFLA_VF_RSS_QUERY_EN]	= { .len = sizeof(struct ifla_vf_rss_query_en) },
+	[IFLA_VF_STATS]		= { .type = NLA_NESTED },
+};
+
+static const struct nla_policy ifla_vf_stats_policy[IFLA_VF_STATS_MAX + 1] = {
+	[IFLA_VF_STATS_RX_PACKETS]	= { .type = NLA_U64 },
+	[IFLA_VF_STATS_TX_PACKETS]	= { .type = NLA_U64 },
+	[IFLA_VF_STATS_RX_BYTES]	= { .type = NLA_U64 },
+	[IFLA_VF_STATS_TX_BYTES]	= { .type = NLA_U64 },
+	[IFLA_VF_STATS_BROADCAST]	= { .type = NLA_U64 },
+	[IFLA_VF_STATS_MULTICAST]	= { .type = NLA_U64 },
 };
 
 static const struct nla_policy ifla_port_policy[IFLA_PORT_MAX+1] = {

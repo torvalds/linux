@@ -771,6 +771,14 @@ union mlx4_ext_av {
 	struct mlx4_eth_av	eth;
 };
 
+/* Counters should be saturate once they reach their maximum value */
+#define ASSIGN_32BIT_COUNTER(counter, value) do {	\
+	if ((value) > U32_MAX)				\
+		counter = cpu_to_be32(U32_MAX);		\
+	else						\
+		counter = cpu_to_be32(value);		\
+} while (0)
+
 struct mlx4_counter {
 	u8	reserved1[3];
 	u8	counter_mode;
@@ -957,6 +965,7 @@ struct mlx4_mad_ifc {
 			((dev)->caps.flags & MLX4_DEV_CAP_FLAG_IBOE))
 
 #define MLX4_INVALID_SLAVE_ID	0xFF
+#define MLX4_SINK_COUNTER_INDEX(dev)	(dev->caps.max_counters - 1)
 
 void handle_port_mgmt_change_event(struct work_struct *work);
 
@@ -1347,6 +1356,7 @@ int mlx4_wol_write(struct mlx4_dev *dev, u64 config, int port);
 
 int mlx4_counter_alloc(struct mlx4_dev *dev, u32 *idx);
 void mlx4_counter_free(struct mlx4_dev *dev, u32 idx);
+int mlx4_get_default_counter_index(struct mlx4_dev *dev, int port);
 
 void mlx4_set_admin_guid(struct mlx4_dev *dev, __be64 guid, int entry,
 			 int port);
