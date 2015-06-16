@@ -356,6 +356,9 @@ int nfs4_handle_exception(struct nfs_server *server, int errorcode, struct nfs4_
 		case 0:
 			return 0;
 		case -NFS4ERR_OPENMODE:
+		case -NFS4ERR_DELEG_REVOKED:
+		case -NFS4ERR_ADMIN_REVOKED:
+		case -NFS4ERR_BAD_STATEID:
 			if (inode && nfs4_have_delegation(inode, FMODE_READ)) {
 				nfs4_inode_return_delegation(inode);
 				exception->retry = 1;
@@ -363,21 +366,6 @@ int nfs4_handle_exception(struct nfs_server *server, int errorcode, struct nfs4_
 			}
 			if (state == NULL)
 				break;
-			ret = nfs4_schedule_stateid_recovery(server, state);
-			if (ret < 0)
-				break;
-			goto wait_on_recovery;
-		case -NFS4ERR_DELEG_REVOKED:
-		case -NFS4ERR_ADMIN_REVOKED:
-		case -NFS4ERR_BAD_STATEID:
-			if (state == NULL) {
-				if (inode && nfs4_have_delegation(inode,
-						FMODE_READ)) {
-					nfs4_inode_return_delegation(inode);
-					exception->retry = 1;
-				}
-				break;
-			}
 			ret = nfs4_schedule_stateid_recovery(server, state);
 			if (ret < 0)
 				break;
