@@ -7814,7 +7814,7 @@ static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo)
 					pNewJoinBssParam->rsn_cap[1] = pu8IEs[rsnIndex + 1];
 					rsnIndex += 2;
 				}
-				pNewJoinBssParam->rsn_found = 1;
+				pNewJoinBssParam->rsn_found = true;
 				index += pu8IEs[index + 1] + 2; /* ID,Length bytes and IE body */
 				continue;
 			} else
