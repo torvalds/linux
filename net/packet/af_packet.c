@@ -1217,7 +1217,7 @@ static int packet_rcv_fanout(struct sk_buff *skb, struct net_device *dev,
 			     struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct packet_fanout *f = pt->af_packet_priv;
-	unsigned int num = f->num_members;
+	unsigned int num = ACCESS_ONCE(f->num_members);
 	struct packet_sock *po;
 	unsigned int idx;
 
