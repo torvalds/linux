@@ -84,6 +84,18 @@ static int video_detect_force_vendor(const struct dmi_system_id *d)
 	return 0;
 }
 
+static int video_detect_force_video(const struct dmi_system_id *d)
+{
+	acpi_backlight_dmi = acpi_backlight_video;
+	return 0;
+}
+
+static int video_detect_force_native(const struct dmi_system_id *d)
+{
+	acpi_backlight_dmi = acpi_backlight_native;
+	return 0;
+}
+
 static const struct dmi_system_id video_detect_dmi_table[] = {
 	/* On Samsung X360, the BIOS will set a flag (VDRV) if generic
 	 * ACPI backlight device is used. This flag will definitively break
@@ -122,6 +134,124 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 		DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 5737"),
+		},
+	},
+
+	/*
+	 * These models have a working acpi_video backlight control, and using
+	 * native backlight causes a regression where backlight does not work
+	 * when userspace is not handling brightness key events. Disable
+	 * native_backlight on these to fix this:
+	 * https://bugzilla.kernel.org/show_bug.cgi?id=81691
+	 */
+	{
+	 .callback = video_detect_force_video,
+	 .ident = "ThinkPad T420",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T420"),
+		},
+	},
+	{
+	 .callback = video_detect_force_video,
+	 .ident = "ThinkPad T520",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T520"),
+		},
+	},
+	{
+	 .callback = video_detect_force_video,
+	 .ident = "ThinkPad X201s",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X201s"),
+		},
+	},
+
+	/* The native backlight controls do not work on some older machines */
+	{
+	 /* https://bugs.freedesktop.org/show_bug.cgi?id=81515 */
+	 .callback = video_detect_force_video,
+	 .ident = "HP ENVY 15 Notebook",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "HP ENVY 15 Notebook PC"),
+		},
+	},
+	{
+	 .callback = video_detect_force_video,
+	 .ident = "SAMSUNG 870Z5E/880Z5E/680Z5E",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "870Z5E/880Z5E/680Z5E"),
+		},
+	},
+	{
+	 .callback = video_detect_force_video,
+	 .ident = "SAMSUNG 370R4E/370R4V/370R5E/3570RE/370R5V",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+		DMI_MATCH(DMI_PRODUCT_NAME,
+			  "370R4E/370R4V/370R5E/3570RE/370R5V"),
+		},
+	},
+	{
+	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1186097 */
+	 .callback = video_detect_force_video,
+	 .ident = "SAMSUNG 3570R/370R/470R/450R/510R/4450RV",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+		DMI_MATCH(DMI_PRODUCT_NAME,
+			  "3570R/370R/470R/450R/510R/4450RV"),
+		},
+	},
+	{
+	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1094948 */
+	 .callback = video_detect_force_video,
+	 .ident = "SAMSUNG 730U3E/740U3E",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "730U3E/740U3E"),
+		},
+	},
+	{
+	 /* https://bugs.freedesktop.org/show_bug.cgi?id=87286 */
+	 .callback = video_detect_force_video,
+	 .ident = "SAMSUNG 900X3C/900X3D/900X3E/900X4C/900X4D",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+		DMI_MATCH(DMI_PRODUCT_NAME,
+			  "900X3C/900X3D/900X3E/900X4C/900X4D"),
+		},
+	},
+	{
+	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1163574 */
+	 .callback = video_detect_force_video,
+	 .ident = "Dell XPS15 L521X",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "XPS L521X"),
+		},
+	},
+
+	/* Non win8 machines which need native backlight nevertheless */
+	{
+	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1187004 */
+	 .callback = video_detect_force_native,
+	 .ident = "Lenovo Ideapad Z570",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "102434U"),
+		},
+	},
+	{
+	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1217249 */
+	 .callback = video_detect_force_native,
+	 .ident = "Apple MacBook Pro 12,1",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro12,1"),
 		},
 	},
 	{ },

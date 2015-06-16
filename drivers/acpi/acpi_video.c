@@ -78,20 +78,6 @@ module_param(brightness_switch_enabled, bool, 0644);
 static bool allow_duplicates;
 module_param(allow_duplicates, bool, 0644);
 
-/*
- * For Windows 8 systems: used to decide if video module
- * should skip registering backlight interface of its own.
- */
-enum {
-	NATIVE_BACKLIGHT_NOT_SET = -1,
-	NATIVE_BACKLIGHT_OFF,
-	NATIVE_BACKLIGHT_ON,
-};
-
-static int use_native_backlight_param = NATIVE_BACKLIGHT_NOT_SET;
-module_param_named(use_native_backlight, use_native_backlight_param, int, 0444);
-static int use_native_backlight_dmi = NATIVE_BACKLIGHT_NOT_SET;
-
 static int disable_backlight_sysfs_if = -1;
 module_param(disable_backlight_sysfs_if, int, 0444);
 
@@ -243,24 +229,6 @@ static int acpi_video_device_lcd_get_level_current(
 static int acpi_video_get_next_level(struct acpi_video_device *device,
 				     u32 level_current, u32 event);
 static void acpi_video_switch_brightness(struct work_struct *work);
-
-static bool acpi_video_use_native_backlight(void)
-{
-	if (use_native_backlight_param != NATIVE_BACKLIGHT_NOT_SET)
-		return use_native_backlight_param;
-	else if (use_native_backlight_dmi != NATIVE_BACKLIGHT_NOT_SET)
-		return use_native_backlight_dmi;
-	return acpi_osi_is_win8();
-}
-
-bool acpi_video_verify_backlight_support(void)
-{
-	if (acpi_video_use_native_backlight() &&
-	    backlight_device_registered(BACKLIGHT_RAW))
-		return false;
-	return acpi_video_backlight_support();
-}
-EXPORT_SYMBOL_GPL(acpi_video_verify_backlight_support);
 
 /* backlight device sysfs support */
 static int acpi_video_get_brightness(struct backlight_device *bd)
@@ -422,18 +390,6 @@ static int __init video_set_bqc_offset(const struct dmi_system_id *d)
 	return 0;
 }
 
-static int __init video_disable_native_backlight(const struct dmi_system_id *d)
-{
-	use_native_backlight_dmi = NATIVE_BACKLIGHT_OFF;
-	return 0;
-}
-
-static int __init video_enable_native_backlight(const struct dmi_system_id *d)
-{
-	use_native_backlight_dmi = NATIVE_BACKLIGHT_ON;
-	return 0;
-}
-
 static int __init video_disable_backlight_sysfs_if(
 	const struct dmi_system_id *d)
 {
@@ -484,123 +440,6 @@ static struct dmi_system_id video_dmi_table[] __initdata = {
 	 .matches = {
 		DMI_MATCH(DMI_BOARD_VENDOR, "Acer"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 7720"),
-		},
-	},
-
-	/*
-	 * These models have a working acpi_video backlight control, and using
-	 * native backlight causes a regression where backlight does not work
-	 * when userspace is not handling brightness key events. Disable
-	 * native_backlight on these to fix this:
-	 * https://bugzilla.kernel.org/show_bug.cgi?id=81691
-	 */
-	{
-	 .callback = video_disable_native_backlight,
-	 .ident = "ThinkPad T420",
-	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T420"),
-		},
-	},
-	{
-	 .callback = video_disable_native_backlight,
-	 .ident = "ThinkPad T520",
-	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T520"),
-		},
-	},
-	{
-	 .callback = video_disable_native_backlight,
-	 .ident = "ThinkPad X201s",
-	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X201s"),
-		},
-	},
-
-	/* The native backlight controls do not work on some older machines */
-	{
-	 /* https://bugs.freedesktop.org/show_bug.cgi?id=81515 */
-	 .callback = video_disable_native_backlight,
-	 .ident = "HP ENVY 15 Notebook",
-	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "HP ENVY 15 Notebook PC"),
-		},
-	},
-
-	{
-	 .callback = video_disable_native_backlight,
-	 .ident = "SAMSUNG 870Z5E/880Z5E/680Z5E",
-	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
-		DMI_MATCH(DMI_PRODUCT_NAME, "870Z5E/880Z5E/680Z5E"),
-		},
-	},
-	{
-	 .callback = video_disable_native_backlight,
-	 .ident = "SAMSUNG 370R4E/370R4V/370R5E/3570RE/370R5V",
-	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
-		DMI_MATCH(DMI_PRODUCT_NAME, "370R4E/370R4V/370R5E/3570RE/370R5V"),
-		},
-	},
-	{
-	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1186097 */
-	 .callback = video_disable_native_backlight,
-	 .ident = "SAMSUNG 3570R/370R/470R/450R/510R/4450RV",
-	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
-		DMI_MATCH(DMI_PRODUCT_NAME, "3570R/370R/470R/450R/510R/4450RV"),
-		},
-	},
-	{
-	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1094948 */
-	 .callback = video_disable_native_backlight,
-	 .ident = "SAMSUNG 730U3E/740U3E",
-	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
-		DMI_MATCH(DMI_PRODUCT_NAME, "730U3E/740U3E"),
-		},
-	},
-	{
-	 /* https://bugs.freedesktop.org/show_bug.cgi?id=87286 */
-	 .callback = video_disable_native_backlight,
-	 .ident = "SAMSUNG 900X3C/900X3D/900X3E/900X4C/900X4D",
-	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
-		DMI_MATCH(DMI_PRODUCT_NAME, "900X3C/900X3D/900X3E/900X4C/900X4D"),
-		},
-	},
-
-	{
-	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1163574 */
-	 .callback = video_disable_native_backlight,
-	 .ident = "Dell XPS15 L521X",
-	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-		DMI_MATCH(DMI_PRODUCT_NAME, "XPS L521X"),
-		},
-	},
-
-	/* Non win8 machines which need native backlight nevertheless */
-	{
-	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1187004 */
-	 .callback = video_enable_native_backlight,
-	 .ident = "Lenovo Ideapad Z570",
-	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "102434U"),
-		},
-	},
-	{
-	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1217249 */
-	 .callback = video_enable_native_backlight,
-	 .ident = "Apple MacBook Pro 12,1",
-	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-		DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro12,1"),
 		},
 	},
 
@@ -1831,7 +1670,7 @@ static int acpi_video_bus_register_backlight(struct acpi_video_bus *video)
 
 	acpi_video_run_bcl_for_osi(video);
 
-	if (!acpi_video_verify_backlight_support())
+	if (acpi_video_get_backlight_type() != acpi_backlight_video)
 		return 0;
 
 	mutex_lock(&video->device_list_lock);
@@ -1980,20 +1819,23 @@ static int acpi_video_backlight_notify(struct notifier_block *nb,
 {
 	struct backlight_device *backlight = bd;
 	struct acpi_video_bus *video;
+	enum acpi_backlight_type type;
 
-	/* acpi_video_verify_backlight_support only cares about raw devices */
+	/* A raw bl (un)registering may change native <-> video */
 	if (backlight->props.type != BACKLIGHT_RAW)
 		return NOTIFY_DONE;
 
 	video = container_of(nb, struct acpi_video_bus, backlight_nb);
+	type = acpi_video_get_backlight_type();
 
 	switch (val) {
 	case BACKLIGHT_REGISTERED:
-		if (!acpi_video_verify_backlight_support())
+		if (type != acpi_backlight_video)
 			acpi_video_bus_unregister_backlight(video);
 		break;
 	case BACKLIGHT_UNREGISTERED:
-		acpi_video_bus_register_backlight(video);
+		if (type == acpi_backlight_video)
+			acpi_video_bus_register_backlight(video);
 		break;
 	}
 
