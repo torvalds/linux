@@ -640,19 +640,24 @@ static void __init check_initrd(void)
 }
 
 /*
- * Reserve all kernel text
+ * Reserve memory used for lowcore/command line/kernel image.
  */
 static void __init reserve_kernel(void)
 {
-	unsigned long start_pfn;
-	start_pfn = PFN_UP(__pa(&_end));
+	unsigned long start_pfn = PFN_UP(__pa(&_end));
 
+#ifdef CONFIG_DMA_API_DEBUG
 	/*
-	 * Reserve memory used for lowcore/command line/kernel image.
+	 * DMA_API_DEBUG code stumbles over addresses from the
+	 * range [_ehead, _stext]. Mark the memory as reserved
+	 * so it is not used for CONFIG_DMA_API_DEBUG=y.
 	 */
+	memblock_reserve(0, PFN_PHYS(start_pfn));
+#else
 	memblock_reserve(0, (unsigned long)_ehead);
 	memblock_reserve((unsigned long)_stext, PFN_PHYS(start_pfn)
 			 - (unsigned long)_stext);
+#endif
 }
 
 static void __init reserve_elfcorehdr(void)
