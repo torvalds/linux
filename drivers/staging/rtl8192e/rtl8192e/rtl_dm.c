@@ -2179,7 +2179,6 @@ static void dm_init_fsync(struct net_device *dev)
 	priv->rtllib->fsync_state = Default_Fsync;
 	priv->framesyncMonitor = 1;
 
-	init_timer(&priv->fsync_timer);
 	setup_timer(&priv->fsync_timer, dm_fsync_timer_callback,
 		   (unsigned long) dev);
 }

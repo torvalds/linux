@@ -57,12 +57,6 @@ u32 rt_global_debug_component = COMP_ERR;
 EXPORT_SYMBOL(rt_global_debug_component);
 
 
-void _setup_timer(struct timer_list *ptimer, void *fun, unsigned long data)
-{
-	ptimer->function = fun;
-	ptimer->data = data;
-	init_timer(ptimer);
-}
 
 static inline int rtllib_networks_allocate(struct rtllib_device *ieee)
 {

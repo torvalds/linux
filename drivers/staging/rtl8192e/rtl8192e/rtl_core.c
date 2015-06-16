@@ -1252,12 +1252,10 @@ static short rtl8192_init(struct net_device *dev)
 
 	init_hal_dm(dev);
 
-	init_timer(&priv->watch_dog_timer);
 	setup_timer(&priv->watch_dog_timer,
 		    watch_dog_timer_callback,
 		    (unsigned long) dev);
 
-	init_timer(&priv->gpio_polling_timer);
 	setup_timer(&priv->gpio_polling_timer,
 		    check_rfctrl_gpio_timer,
 		    (unsigned long)dev);

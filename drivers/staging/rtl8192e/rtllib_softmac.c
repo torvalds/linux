@@ -3019,11 +3019,11 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 
 	ieee->tx_pending.txb = NULL;
 
-	_setup_timer(&ieee->associate_timer,
+	setup_timer(&ieee->associate_timer,
 		    rtllib_associate_abort_cb,
 		    (unsigned long) ieee);
 
-	_setup_timer(&ieee->beacon_timer,
+	setup_timer(&ieee->beacon_timer,
 		    rtllib_send_beacon_cb,
 		    (unsigned long) ieee);
 

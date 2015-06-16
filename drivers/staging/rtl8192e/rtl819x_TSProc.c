@@ -154,22 +154,22 @@ void TSInitialize(struct rtllib_device *ieee)
 
 	for (count = 0; count < TOTAL_TS_NUM; count++) {
 		pTxTS->num = count;
-		_setup_timer(&pTxTS->TsCommonInfo.SetupTimer,
+		setup_timer(&pTxTS->TsCommonInfo.SetupTimer,
 			    TsSetupTimeOut,
 			    (unsigned long) pTxTS);
 
-		_setup_timer(&pTxTS->TsCommonInfo.InactTimer,
+		setup_timer(&pTxTS->TsCommonInfo.InactTimer,
 			    TsInactTimeout,
 			    (unsigned long) pTxTS);
 
-		_setup_timer(&pTxTS->TsAddBaTimer,
+		setup_timer(&pTxTS->TsAddBaTimer,
 			    TsAddBaProcess,
 			    (unsigned long) pTxTS);
 
-		_setup_timer(&pTxTS->TxPendingBARecord.Timer,
+		setup_timer(&pTxTS->TxPendingBARecord.Timer,
 			    BaSetupTimeOut,
 			    (unsigned long) pTxTS);
-		_setup_timer(&pTxTS->TxAdmittedBARecord.Timer,
+		setup_timer(&pTxTS->TxAdmittedBARecord.Timer,
 			    TxBaInactTimeout,
 			    (unsigned long) pTxTS);
 
@@ -186,19 +186,19 @@ void TSInitialize(struct rtllib_device *ieee)
 		pRxTS->num = count;
 		INIT_LIST_HEAD(&pRxTS->RxPendingPktList);
 
-		_setup_timer(&pRxTS->TsCommonInfo.SetupTimer,
+		setup_timer(&pRxTS->TsCommonInfo.SetupTimer,
 			    TsSetupTimeOut,
 			    (unsigned long) pRxTS);
 
-		_setup_timer(&pRxTS->TsCommonInfo.InactTimer,
+		setup_timer(&pRxTS->TsCommonInfo.InactTimer,
 			    TsInactTimeout,
 			    (unsigned long) pRxTS);
 
-		_setup_timer(&pRxTS->RxAdmittedBARecord.Timer,
+		setup_timer(&pRxTS->RxAdmittedBARecord.Timer,
 			    RxBaInactTimeout,
 			    (unsigned long) pRxTS);
 
-		_setup_timer(&pRxTS->RxPktPendingTimer,
+		setup_timer(&pRxTS->RxPktPendingTimer,
 			    RxPktPendingTimeout,
 			    (unsigned long) pRxTS);
 
