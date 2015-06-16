@@ -182,13 +182,6 @@ static inline void suspend_nvs_restore(void) {}
 #endif
 
 /*--------------------------------------------------------------------------
-					Video
-  -------------------------------------------------------------------------- */
-#if defined(CONFIG_ACPI_VIDEO) || defined(CONFIG_ACPI_VIDEO_MODULE)
-bool acpi_osi_is_win8(void);
-#endif
-
-/*--------------------------------------------------------------------------
 				Device properties
   -------------------------------------------------------------------------- */
 #define ACPI_DT_NAMESPACE_HID	"PRP0001"

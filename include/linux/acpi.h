@@ -266,6 +266,7 @@ static inline int acpi_video_backlight_support(void)
 extern int acpi_blacklisted(void);
 extern void acpi_dmi_osi_linux(int enable, const struct dmi_system_id *d);
 extern void acpi_osi_setup(char *str);
+extern bool acpi_osi_is_win8(void);
 
 #ifdef CONFIG_ACPI_NUMA
 int acpi_get_node(acpi_handle handle);

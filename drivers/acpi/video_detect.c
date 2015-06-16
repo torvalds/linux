@@ -178,12 +178,6 @@ static void acpi_video_caps_check(void)
 		acpi_video_get_capabilities(NULL);
 }
 
-bool acpi_osi_is_win8(void)
-{
-	return acpi_gbl_osi_data >= ACPI_OSI_WIN_8;
-}
-EXPORT_SYMBOL(acpi_osi_is_win8);
-
 /* Promote the vendor interface instead of the generic video module.
  * This function allow DMI blacklists to be implemented by externals
  * platform drivers instead of putting a big blacklist in video_detect.c
