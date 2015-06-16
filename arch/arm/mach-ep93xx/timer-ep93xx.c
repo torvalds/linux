@@ -18,15 +18,14 @@
  * is free-running, and can't generate interrupts.
  *
  * The 508 kHz timers are ideal for use for the timer interrupt, as the
- * most common values of HZ divide 508 kHz nicely.  We pick one of the 16
- * bit timers (timer 1) since we don't need more than 16 bits of reload
- * value as long as HZ >= 8.
+ * most common values of HZ divide 508 kHz nicely.  We pick the 32 bit
+ * timer (timer 3) to get as long sleep intervals as possible when using
+ * CONFIG_NO_HZ.
  *
  * The higher clock rate of timer 4 makes it a better choice than the
- * other timers for use in gettimeoffset(), while the fact that it can't
- * generate interrupts means we don't have to worry about not being able
- * to use this timer for something else.  We also use timer 4 for keeping
- * track of lost jiffies.
+ * other timers for use as clock source and for sched_clock(), providing
+ * a stable 40 bit time base.
+ *************************************************************************
  */
 #define EP93XX_TIMER_REG(x)		(EP93XX_TIMER_BASE + (x))
 #define EP93XX_TIMER1_LOAD		EP93XX_TIMER_REG(0x00)
