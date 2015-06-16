@@ -2083,7 +2083,7 @@ static int rockchip_pinctrl_suspend(void)
 	int n;
 	//int value = 0;
 		
-	for(n=0; n<ctrl->nr_banks-1; n++)
+	for(n=0; n<ctrl->nr_banks; n++)
 	{
 #if 0
 		int i;
@@ -2117,7 +2117,7 @@ static void rockchip_pinctrl_resume(void)
 	int n;
 	u32 isr;
 
-	for(n=0; n<ctrl->nr_banks-1; n++)
+	for(n=0; n<ctrl->nr_banks; n++)
 	{
 #if 0
 		int i;
