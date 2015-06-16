@@ -148,15 +148,6 @@ static void device_free_info(struct vnt_private *pDevice);
 static bool device_get_pci_info(struct vnt_private *, struct pci_dev *pcid);
 static void device_print_info(struct vnt_private *pDevice);
 
-#ifdef CONFIG_PM
-static int device_notify_reboot(struct notifier_block *, unsigned long event, void *ptr);
-static struct notifier_block device_notifier = {
-	.notifier_call = device_notify_reboot,
-	.next = NULL,
-	.priority = 0,
-};
-#endif
-
 static void device_init_rd0_ring(struct vnt_private *pDevice);
 static void device_init_rd1_ring(struct vnt_private *pDevice);
 static void device_init_td0_ring(struct vnt_private *pDevice);
@@ -1892,42 +1883,14 @@ static int __init vt6655_init_module(void)
 	int ret;
 
 	ret = pci_register_driver(&device_driver);
-#ifdef CONFIG_PM
-	if (ret >= 0)
-		register_reboot_notifier(&device_notifier);
-#endif
 
 	return ret;
 }
 
 static void __exit vt6655_cleanup_module(void)
 {
-#ifdef CONFIG_PM
-	unregister_reboot_notifier(&device_notifier);
-#endif
 	pci_unregister_driver(&device_driver);
 }
 
 module_init(vt6655_init_module);
 module_exit(vt6655_cleanup_module);
-
-#ifdef CONFIG_PM
-static int
-device_notify_reboot(struct notifier_block *nb, unsigned long event, void *p)
-{
-	struct pci_dev *pdev = NULL;
-
-	switch (event) {
-	case SYS_DOWN:
-	case SYS_HALT:
-	case SYS_POWER_OFF:
-		for_each_pci_dev(pdev) {
-			if (pci_dev_driver(pdev) == &device_driver) {
-				if (pci_get_drvdata(pdev))
-					vt6655_suspend(pdev, PMSG_HIBERNATE);
-			}
-		}
-	}
-	return NOTIFY_DONE;
-}
-#endif
