@@ -173,7 +173,6 @@ u8 CHRG_CVCC_HOUR[] = {4, 5, 6, 8, 10, 12, 14, 16};
 #define	OCV_VALID_SHIFT		(0)
 #define	OCV_CALIB_SHIFT		(1)
 #define FIRST_PWRON_SHIFT	(2)
-#define LOADER_CHRG_SHIFT	(3)
 
 #define SEC_TO_MIN(x)		((x) / 60)
 
@@ -1705,15 +1704,6 @@ static int rk81x_bat_save_reboot_cnt(struct  rk81x_battery *di, u8 save_cnt)
 	return 0;
 }
 
-static u8 rk81x_bat_support_loader_chrg(struct rk81x_battery *di)
-{
-	u8 ret;
-
-	ret = rk81x_bat_read_bit(di, MISC_MARK_REG, LOADER_CHRG_SHIFT);
-	rk81x_bat_clr_bit(di, MISC_MARK_REG, LOADER_CHRG_SHIFT);
-	return ret;
-}
-
 static void rk81x_bat_set_current(struct rk81x_battery *di, int charge_current)
 {
 	u8 usb_ctrl_reg;
@@ -2061,9 +2051,10 @@ static void rk81x_bat_not_first_pwron(struct rk81x_battery *di)
 	 * if support, uboot charge driver should have done init work,
 	 * so here we should skip init work
 	 */
-	if (rk81x_bat_support_loader_chrg(di))
+#if defined(CONFIG_ARCH_ROCKCHIP)
+	if (di->loader_charged)
 		goto out;
-
+#endif
 	calib_vol = rk81x_bat_get_calib_vol(di);
 	if (calib_vol > 0) {
 		calib_soc = rk81x_bat_vol_to_capacity(di, calib_vol);
