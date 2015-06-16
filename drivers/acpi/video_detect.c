@@ -258,15 +258,6 @@ void acpi_video_dmi_promote_vendor(void)
 }
 EXPORT_SYMBOL(acpi_video_dmi_promote_vendor);
 
-/* To be called when a driver who previously promoted the vendor
- * interface */
-void acpi_video_dmi_demote_vendor(void)
-{
-	acpi_video_caps_check();
-	acpi_video_support &= ~ACPI_VIDEO_BACKLIGHT_DMI_VENDOR;
-}
-EXPORT_SYMBOL(acpi_video_dmi_demote_vendor);
-
 /* Returns true if video.ko can do backlight switching */
 int acpi_video_backlight_support(void)
 {

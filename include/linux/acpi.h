@@ -248,7 +248,6 @@ extern bool wmi_has_guid(const char *guid);
 extern long acpi_video_get_capabilities(acpi_handle graphics_dev_handle);
 extern long acpi_is_video_device(acpi_handle handle);
 extern void acpi_video_dmi_promote_vendor(void);
-extern void acpi_video_dmi_demote_vendor(void);
 extern int acpi_video_backlight_support(void);
 extern int acpi_video_display_switch_support(void);
 
@@ -265,10 +264,6 @@ static inline long acpi_is_video_device(acpi_handle handle)
 }
 
 static inline void acpi_video_dmi_promote_vendor(void)
-{
-}
-
-static inline void acpi_video_dmi_demote_vendor(void)
 {
 }
 
