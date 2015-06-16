@@ -12,6 +12,7 @@ static const struct fb_videomode rk1000_cvbs_mode[] = {
 
 static struct rk1000_monspecs cvbs_monspecs;
 extern int cvbsformat;
+static int changeflag;
 
 int rk1000_tv_ntsc_init(void)
 {
@@ -98,11 +99,13 @@ static int rk1000_cvbs_set_enable(struct rk_display_device *device, int enable)
 				rk1000_tv_write_block(0x03, &val, 1);
 				rk1000_switch_fb(cvbs_monspecs.mode,
 						 cvbs_monspecs.mode_set);
-				msleep(600);
+				if (changeflag == 1)
+					msleep(600);
 				val = 0x03;
 				rk1000_tv_write_block(0x03, &val, 1);
 		  	}		
 			cvbs_monspecs.enable = 1;
+			changeflag = 0;
 		}
 	}
 	return 0;
@@ -139,6 +142,7 @@ static int rk1000_cvbs_set_mode(struct rk_display_device *device,
 				cvbs_monspecs.mode_set = i + 1;
 				cvbs_monspecs.mode = (struct fb_videomode *)
 							&rk1000_cvbs_mode[i];
+				changeflag = 1;
 			}
 			return 0;
 		}
