@@ -666,7 +666,7 @@ static int mxt_send_bootloader_cmd(struct mxt_data *data, bool unlock);
 
 static int mxt_write_firmware_frame(struct mxt_data *data, struct mxt_flash *f)
 {
-	f->frame = (struct mxt_fw_frame*)(f->fw->data + f->pos);
+	f->frame = (struct mxt_fw_frame *)(f->fw->data + f->pos);
 
 	/* Take account of CRC bytes */
 	f->frame_size = __be16_to_cpu(f->frame->size) + 2U;
