@@ -1773,7 +1773,7 @@ static int fm10k_probe(struct pci_dev *pdev,
 					   fm10k_driver_name);
 	if (err) {
 		dev_err(&pdev->dev,
-			"pci_request_selected_regions failed 0x%x\n", err);
+			"pci_request_selected_regions failed: %d\n", err);
 		goto err_pci_reg;
 	}
 
