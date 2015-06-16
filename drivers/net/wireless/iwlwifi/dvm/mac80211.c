@@ -250,9 +250,21 @@ static int __iwl_up(struct iwl_priv *priv)
 		}
 	}
 
+	ret = iwl_trans_start_hw(priv->trans);
+	if (ret) {
+		IWL_ERR(priv, "Failed to start HW: %d\n", ret);
+		goto error;
+	}
+
 	ret = iwl_run_init_ucode(priv);
 	if (ret) {
 		IWL_ERR(priv, "Failed to run INIT ucode: %d\n", ret);
+		goto error;
+	}
+
+	ret = iwl_trans_start_hw(priv->trans);
+	if (ret) {
+		IWL_ERR(priv, "Failed to start HW: %d\n", ret);
 		goto error;
 	}
 
