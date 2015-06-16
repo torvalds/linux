@@ -34,7 +34,6 @@ struct map {
 	u64			start;
 	u64			end;
 	u8 /* enum map_type */	type;
-	bool			referenced;
 	bool			erange_warned;
 	u32			priv;
 	u32			prot;
@@ -63,7 +62,6 @@ struct kmap {
 struct maps {
 	struct rb_root	 entries;
 	pthread_rwlock_t lock;
-	struct list_head removed_maps;
 };
 
 struct map_groups {
@@ -160,6 +158,14 @@ static inline struct map *map__get(struct map *map)
 }
 
 void map__put(struct map *map);
+
+static inline void __map__zput(struct map **map)
+{
+	map__put(*map);
+	*map = NULL;
+}
+
+#define map__zput(map) __map__zput(&map)
 
 int map__overlap(struct map *l, struct map *r);
 size_t map__fprintf(struct map *map, FILE *fp);
