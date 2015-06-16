@@ -1878,19 +1878,4 @@ static struct pci_driver device_driver = {
 #endif
 };
 
-static int __init vt6655_init_module(void)
-{
-	int ret;
-
-	ret = pci_register_driver(&device_driver);
-
-	return ret;
-}
-
-static void __exit vt6655_cleanup_module(void)
-{
-	pci_unregister_driver(&device_driver);
-}
-
-module_init(vt6655_init_module);
-module_exit(vt6655_cleanup_module);
+module_pci_driver(device_driver);
