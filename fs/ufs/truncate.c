@@ -195,10 +195,6 @@ static int ufs_trunc_indirect(struct inode *inode, u64 offset, void *p)
 	if (!tmp)
 		return 0;
 	ind_ubh = ubh_bread(sb, tmp, uspi->s_bsize);
-	if (tmp != ufs_data_ptr_to_cpu(sb, p)) {
-		ubh_brelse (ind_ubh);
-		return 1;
-	}
 	if (!ind_ubh) {
 		write_seqlock(&UFS_I(inode)->meta_lock);
 		ufs_data_ptr_clear(uspi, p);
@@ -280,10 +276,6 @@ static int ufs_trunc_dindirect(struct inode *inode, u64 offset, void *p)
 	if (!tmp)
 		return 0;
 	dind_bh = ubh_bread(sb, tmp, uspi->s_bsize);
-	if (tmp != ufs_data_ptr_to_cpu(sb, p)) {
-		ubh_brelse (dind_bh);
-		return 1;
-	}
 	if (!dind_bh) {
 		write_seqlock(&UFS_I(inode)->meta_lock);
 		ufs_data_ptr_clear(uspi, p);
@@ -345,10 +337,6 @@ static int ufs_trunc_tindirect(struct inode *inode)
 	if (!(tmp = ufs_data_ptr_to_cpu(sb, p)))
 		return 0;
 	tind_bh = ubh_bread (sb, tmp, uspi->s_bsize);
-	if (tmp != ufs_data_ptr_to_cpu(sb, p)) {
-		ubh_brelse (tind_bh);
-		return 1;
-	}
 	if (!tind_bh) {
 		write_seqlock(&ufsi->meta_lock);
 		ufs_data_ptr_clear(uspi, p);
