@@ -11386,10 +11386,6 @@ static void intel_modeset_fixup_state(struct drm_atomic_state *state)
 		crtc->base.enabled = crtc->base.state->enable;
 		crtc->config = to_intel_crtc_state(crtc->base.state);
 	}
-
-	/* Copy the new configuration to the staged state, to keep the few
-	 * pieces of code that haven't been converted yet happy */
-	intel_modeset_update_staged_output_state(state->dev);
 }
 
 static void
@@ -12654,8 +12650,10 @@ static int intel_set_mode_with_config(struct drm_crtc *crtc,
 
 	ret = __intel_set_mode(crtc, pipe_config);
 
-	if (ret == 0 && force_restore)
+	if (ret == 0 && force_restore) {
+		intel_modeset_update_staged_output_state(crtc->dev);
 		intel_modeset_check_state(crtc->dev);
+	}
 
 	return ret;
 }
