@@ -530,8 +530,10 @@ static void ufs_write_failed(struct address_space *mapping, loff_t to)
 {
 	struct inode *inode = mapping->host;
 
-	if (to > inode->i_size)
+	if (to > inode->i_size) {
 		truncate_pagecache(inode, inode->i_size);
+		ufs_truncate_blocks(inode);
+	}
 }
 
 static int ufs_write_begin(struct file *file, struct address_space *mapping,
@@ -548,6 +550,18 @@ static int ufs_write_begin(struct file *file, struct address_space *mapping,
 	return ret;
 }
 
+static int ufs_write_end(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned copied,
+			struct page *page, void *fsdata)
+{
+	int ret;
+
+	ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);
+	if (ret < len)
+		ufs_write_failed(mapping, pos + len);
+	return ret;
+}
+
 static sector_t ufs_bmap(struct address_space *mapping, sector_t block)
 {
 	return generic_block_bmap(mapping,block,ufs_getfrag_block);
@@ -557,7 +571,7 @@ const struct address_space_operations ufs_aops = {
 	.readpage = ufs_readpage,
 	.writepage = ufs_writepage,
 	.write_begin = ufs_write_begin,
-	.write_end = generic_write_end,
+	.write_end = ufs_write_end,
 	.bmap = ufs_bmap
 };
 
