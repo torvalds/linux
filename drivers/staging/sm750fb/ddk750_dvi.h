@@ -14,6 +14,7 @@ typedef long (*PFN_DVICTRL_INIT)(
 	unsigned char continuousSyncEnable,
 	unsigned char pllFilterEnable,
 	unsigned char pllFilterValue);
+
 typedef void (*PFN_DVICTRL_RESETCHIP)(void);
 typedef char* (*PFN_DVICTRL_GETCHIPSTRING)(void);
 typedef unsigned short (*PFN_DVICTRL_GETVENDORID)(void);
@@ -23,8 +24,6 @@ typedef void (*PFN_DVICTRL_HOTPLUGDETECTION)(unsigned char enableHotPlug);
 typedef unsigned char (*PFN_DVICTRL_ISCONNECTED)(void);
 typedef unsigned char (*PFN_DVICTRL_CHECKINTERRUPT)(void);
 typedef void (*PFN_DVICTRL_CLEARINTERRUPT)(void);
-
-
 
 /* Structure to hold all the function pointer to the DVI Controller. */
 typedef struct _dvi_ctrl_device_t
@@ -40,9 +39,8 @@ typedef struct _dvi_ctrl_device_t
 	PFN_DVICTRL_CHECKINTERRUPT	pfnCheckInterrupt;
 	PFN_DVICTRL_CLEARINTERRUPT	pfnClearInterrupt;
 } dvi_ctrl_device_t;
+
 #define DVI_CTRL_SII164
-
-
 
 /* dvi functions prototype */
 int dviInit(
@@ -60,8 +58,6 @@ int dviInit(
 
 unsigned short dviGetVendorID(void);
 unsigned short dviGetDeviceID(void);
-
-
 
 #endif
 
