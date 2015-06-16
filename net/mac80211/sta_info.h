@@ -278,6 +278,8 @@ struct ieee80211_fast_tx {
  * @list: global linked list entry
  * @free_list: list entry for keeping track of stations to free
  * @hash_node: hash node for rhashtable
+ * @addr: station's MAC address - duplicated from public part to
+ *	let the hash table work with just a single cacheline
  * @local: pointer to the global information
  * @sdata: virtual interface this station belongs to
  * @ptk: peer keys negotiated with this station, if any
@@ -377,6 +379,7 @@ struct sta_info {
 	struct list_head list, free_list;
 	struct rcu_head rcu_head;
 	struct rhash_head hash_node;
+	u8 addr[ETH_ALEN];
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_key __rcu *gtk[NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS];
@@ -607,7 +610,7 @@ u32 sta_addr_hash(const void *key, u32 length, u32 seed);
 			       _sta_bucket_idx(tbl, _addr),		\
 			       hash_node)				\
 	/* compare address and run code only if it matches */		\
-	if (ether_addr_equal(_sta->sta.addr, (_addr)))
+	if (ether_addr_equal(_sta->addr, (_addr)))
 
 /*
  * Get STA info by index, BROKEN!

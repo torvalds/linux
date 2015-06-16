@@ -68,7 +68,7 @@ static const struct rhashtable_params sta_rht_params = {
 	.nelem_hint = 3, /* start small */
 	.automatic_shrinking = true,
 	.head_offset = offsetof(struct sta_info, hash_node),
-	.key_offset = offsetof(struct sta_info, sta.addr),
+	.key_offset = offsetof(struct sta_info, addr),
 	.key_len = ETH_ALEN,
 	.hashfn = sta_addr_hash,
 	.max_size = CONFIG_MAC80211_STA_HASH_MAX_SIZE,
@@ -320,6 +320,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	sta->nonpeer_pm = NL80211_MESH_POWER_ACTIVE;
 #endif
 
+	memcpy(sta->addr, addr, ETH_ALEN);
 	memcpy(sta->sta.addr, addr, ETH_ALEN);
 	sta->local = local;
 	sta->sdata = sdata;
