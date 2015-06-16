@@ -63,7 +63,7 @@
 #define DIRECT_FRAGMENT ((inode->i_size + uspi->s_fsize - 1) >> uspi->s_fshift)
 
 
-static int ufs_trunc_direct(struct inode *inode)
+static void ufs_trunc_direct(struct inode *inode)
 {
 	struct ufs_inode_info *ufsi = UFS_I(inode);
 	struct super_block * sb;
@@ -72,7 +72,6 @@ static int ufs_trunc_direct(struct inode *inode)
 	u64 frag1, frag2, frag3, frag4, block1, block2;
 	unsigned frag_to_free, free_count;
 	unsigned i, tmp;
-	int retry;
 	
 	UFSD("ENTER: ino %lu\n", inode->i_ino);
 
@@ -81,7 +80,6 @@ static int ufs_trunc_direct(struct inode *inode)
 	
 	frag_to_free = 0;
 	free_count = 0;
-	retry = 0;
 	
 	frag1 = DIRECT_FRAGMENT;
 	frag4 = min_t(u64, UFS_NDIR_FRAGMENT, ufsi->i_lastfrag);
@@ -168,7 +166,6 @@ next1:
  next3:
 
 	UFSD("EXIT: ino %lu\n", inode->i_ino);
-	return retry;
 }
 
 
@@ -467,8 +464,8 @@ static void __ufs_truncate_blocks(struct inode *inode)
 
 	mutex_lock(&ufsi->truncate_mutex);
 	while (1) {
-		retry = ufs_trunc_direct(inode);
-		retry |= ufs_trunc_indirect(inode, UFS_IND_BLOCK,
+		ufs_trunc_direct(inode);
+		retry = ufs_trunc_indirect(inode, UFS_IND_BLOCK,
 					    ufs_get_direct_data_ptr(uspi, ufsi,
 								    UFS_IND_BLOCK));
 		retry |= ufs_trunc_dindirect(inode, UFS_IND_BLOCK + uspi->s_apb,
