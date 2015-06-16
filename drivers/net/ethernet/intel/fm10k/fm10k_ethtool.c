@@ -124,7 +124,7 @@ static void fm10k_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
 	char *p = (char *)data;
-	int i;
+	unsigned int i;
 
 	switch (stringset) {
 	case ETH_SS_TEST:
