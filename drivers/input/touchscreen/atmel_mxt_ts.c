@@ -178,6 +178,9 @@ enum t100_type {
 	MXT_T100_TYPE_LARGE_TOUCH	= 6,
 };
 
+#define MXT_TOUCH_MAJOR_DEFAULT		1
+#define MXT_PRESSURE_DEFAULT		1
+
 /* Gen2 Active Stylus */
 #define MXT_T107_STYLUS_STYAUX		42
 #define MXT_T107_STYLUS_STYAUX_PRESSURE	BIT(0)
@@ -187,9 +190,6 @@ enum t100_type {
 #define MXT_T107_STYLUS_TIPSWITCH	BIT(1)
 #define MXT_T107_STYLUS_BUTTON0		BIT(2)
 #define MXT_T107_STYLUS_BUTTON1		BIT(3)
-
-#define MXT_TOUCH_MAJOR_DEFAULT	1
-#define MXT_PRESSURE_DEFAULT	1
 
 /* Delay times */
 #define MXT_BACKUP_TIME		50	/* msec */
