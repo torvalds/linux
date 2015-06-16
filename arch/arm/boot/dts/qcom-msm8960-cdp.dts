@@ -262,6 +262,72 @@
 				};
 			};
 		};
+
+		gsbi@16000000 {
+			status = "ok";
+			qcom,mode = <GSBI_PROT_SPI>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi1_default>;
+			spi@16080000 {
+				status = "ok";
+				eth@0 {
+					compatible = "micrel,ks8851";
+					reg = <0>;
+					interrupt-parent = <&msmgpio>;
+					interrupts = <90 8>;
+					spi-max-frequency = <5400000>;
+					vdd-supply = <&ext_l2>;
+					vdd-io-supply = <&pm8921_lvs6>;
+					reset-gpios = <&msmgpio 89 0>;
+				};
+			};
+		};
+
+		pinctrl@800000 {
+			spi1_default: spi1_default {
+				mux {
+					pins = "gpio6", "gpio7", "gpio9";
+					function = "gsbi1";
+				};
+
+				mosi {
+					pins = "gpio6";
+					drive-strength = <12>;
+					bias-disable;
+				};
+
+				miso {
+					pins = "gpio7";
+					drive-strength = <12>;
+					bias-disable;
+				};
+
+				cs {
+					pins = "gpio8";
+					drive-strength = <12>;
+					bias-disable;
+					output-low;
+				};
+
+				clk {
+					pins = "gpio9";
+					drive-strength = <12>;
+					bias-disable;
+				};
+			};
+		};
+	};
+
+	regulators {
+		compatible = "simple-bus";
+
+		ext_l2: gpio-regulator@91 {
+			compatible = "regulator-fixed";
+			regulator-name = "ext_l2";
+			gpio = <&msmgpio 91 0>;
+			startup-delay-us = <10000>;
+			enable-active-high;
+		};
 	};
 };
 

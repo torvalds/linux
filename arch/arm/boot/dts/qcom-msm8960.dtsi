@@ -271,5 +271,30 @@
 			compatible = "qcom,tcsr-msm8960", "syscon";
 			reg = <0x1a400000 0x100>;
 		};
+
+		gsbi@16000000 {
+			compatible = "qcom,gsbi-v1.0.0";
+			cell-index = <1>;
+			reg = <0x16000000 0x100>;
+			clocks = <&gcc GSBI1_H_CLK>;
+			clock-names = "iface";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			spi@16080000 {
+				compatible = "qcom,spi-qup-v1.1.1";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x16080000 0x1000>;
+				interrupts = <0 147 0>;
+				spi-max-frequency = <24000000>;
+				cs-gpios = <&msmgpio 8 0>;
+
+				clocks = <&gcc GSBI1_QUP_CLK>, <&gcc GSBI1_H_CLK>;
+				clock-names = "core", "iface";
+				status = "disabled";
+			};
+		};
 	};
 };
