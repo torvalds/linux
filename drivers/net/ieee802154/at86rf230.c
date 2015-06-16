@@ -945,10 +945,21 @@ static void
 at86rf230_stop(struct ieee802154_hw *hw)
 {
 	struct at86rf230_local *lp = hw->priv;
+	u8 csma_seed[2];
 
 	at86rf230_sync_state_change(hw->priv, STATE_FORCE_TRX_OFF);
 
 	disable_irq(lp->spi->irq);
+
+	/* It's recommended to set random new csma_seeds before sleep state.
+	 * Makes only sense in the stop callback, not doing this inside of
+	 * at86rf230_sleep, this is also used when we don't transmit afterwards
+	 * when calling start callback again.
+	 */
+	get_random_bytes(csma_seed, ARRAY_SIZE(csma_seed));
+	at86rf230_write_subreg(lp, SR_CSMA_SEED_0, csma_seed[0]);
+	at86rf230_write_subreg(lp, SR_CSMA_SEED_1, csma_seed[1]);
+
 	at86rf230_sleep(lp);
 }
 
