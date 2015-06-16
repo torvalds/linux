@@ -90,6 +90,7 @@ struct at86rf230_local {
 	struct at86rf2xx_chip_data *data;
 	struct regmap *regmap;
 	int slp_tr;
+	bool sleep;
 
 	struct completion state_complete;
 	struct at86rf230_state_change state;
@@ -114,18 +115,66 @@ at86rf230_async_state_change(struct at86rf230_local *lp,
 			     const u8 state, void (*complete)(void *context),
 			     const bool irq_enable);
 
+static inline void
+at86rf230_sleep(struct at86rf230_local *lp)
+{
+	if (gpio_is_valid(lp->slp_tr)) {
+		gpio_set_value(lp->slp_tr, 1);
+		usleep_range(lp->data->t_off_to_sleep,
+			     lp->data->t_off_to_sleep + 10);
+		lp->sleep = true;
+	}
+}
+
+static inline void
+at86rf230_awake(struct at86rf230_local *lp)
+{
+	if (gpio_is_valid(lp->slp_tr)) {
+		gpio_set_value(lp->slp_tr, 0);
+		usleep_range(lp->data->t_sleep_to_off,
+			     lp->data->t_sleep_to_off + 100);
+		lp->sleep = false;
+	}
+}
+
 static inline int
 __at86rf230_write(struct at86rf230_local *lp,
 		  unsigned int addr, unsigned int data)
 {
-	return regmap_write(lp->regmap, addr, data);
+	bool sleep = lp->sleep;
+	int ret;
+
+	/* awake for register setting if sleep */
+	if (sleep)
+		at86rf230_awake(lp);
+
+	ret = regmap_write(lp->regmap, addr, data);
+
+	/* sleep again if was sleeping */
+	if (sleep)
+		at86rf230_sleep(lp);
+
+	return ret;
 }
 
 static inline int
 __at86rf230_read(struct at86rf230_local *lp,
 		 unsigned int addr, unsigned int *data)
 {
-	return regmap_read(lp->regmap, addr, data);
+	bool sleep = lp->sleep;
+	int ret;
+
+	/* awake for register setting if sleep */
+	if (sleep)
+		at86rf230_awake(lp);
+
+	ret = regmap_read(lp->regmap, addr, data);
+
+	/* sleep again if was sleeping */
+	if (sleep)
+		at86rf230_sleep(lp);
+
+	return ret;
 }
 
 static inline int
@@ -147,7 +196,20 @@ at86rf230_write_subreg(struct at86rf230_local *lp,
 		       unsigned int addr, unsigned int mask,
 		       unsigned int shift, unsigned int data)
 {
-	return regmap_update_bits(lp->regmap, addr, mask, data << shift);
+	bool sleep = lp->sleep;
+	int ret;
+
+	/* awake for register setting if sleep */
+	if (sleep)
+		at86rf230_awake(lp);
+
+	ret = regmap_update_bits(lp->regmap, addr, mask, data << shift);
+
+	/* sleep again if was sleeping */
+	if (sleep)
+		at86rf230_sleep(lp);
+
+	return ret;
 }
 
 static inline void
@@ -873,12 +935,7 @@ at86rf230_start(struct ieee802154_hw *hw)
 {
 	struct at86rf230_local *lp = hw->priv;
 
-	if (gpio_is_valid(lp->slp_tr)) {
-		gpio_set_value(lp->slp_tr, 0);
-		usleep_range(lp->data->t_sleep_to_off,
-			     lp->data->t_sleep_to_off + 100);
-	}
-
+	at86rf230_awake(lp);
 	enable_irq(lp->spi->irq);
 
 	return at86rf230_sync_state_change(hw->priv, STATE_RX_AACK_ON);
@@ -892,12 +949,7 @@ at86rf230_stop(struct ieee802154_hw *hw)
 	at86rf230_sync_state_change(hw->priv, STATE_FORCE_TRX_OFF);
 
 	disable_irq(lp->spi->irq);
-
-	if (gpio_is_valid(lp->slp_tr)) {
-		gpio_set_value(lp->slp_tr, 1);
-		usleep_range(lp->data->t_off_to_sleep,
-			     lp->data->t_off_to_sleep + 10);
-	}
+	at86rf230_sleep(lp);
 }
 
 static int
@@ -1672,11 +1724,7 @@ static int at86rf230_probe(struct spi_device *spi)
 	disable_irq(spi->irq);
 
 	/* going into sleep by default */
-	if (gpio_is_valid(slp_tr)) {
-		gpio_set_value(slp_tr, 1);
-		usleep_range(lp->data->t_off_to_sleep,
-			     lp->data->t_off_to_sleep + 10);
-	}
+	at86rf230_sleep(lp);
 
 	rc = ieee802154_register_hw(lp->hw);
 	if (rc)
