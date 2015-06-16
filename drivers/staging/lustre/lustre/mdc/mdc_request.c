@@ -2090,7 +2090,6 @@ static int mdc_hsm_copytool_send(int len, void *val)
 {
 	struct kuc_hdr		*lh = (struct kuc_hdr *)val;
 	struct hsm_action_list	*hal = (struct hsm_action_list *)(lh + 1);
-	int			 rc;
 
 	if (len < sizeof(*lh) + sizeof(*hal)) {
 		CERROR("Short HSM message %d < %d\n", len,
@@ -2111,9 +2110,7 @@ static int mdc_hsm_copytool_send(int len, void *val)
 	       lh->kuc_msglen, hal->hal_count, hal->hal_fsname);
 
 	/* Broadcast to HSM listeners */
-	rc = libcfs_kkuc_group_put(KUC_GRP_HSM, lh);
-
-	return rc;
+	return libcfs_kkuc_group_put(KUC_GRP_HSM, lh);
 }
 
 /**
