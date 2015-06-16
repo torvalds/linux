@@ -198,7 +198,8 @@ void ath9k_dfs_process_phyerr(struct ath_softc *sc, void *data,
 	sc->dfs_prev_pulse_ts = pe.ts;
 	if (ard.pulse_bw_info & PRI_CH_RADAR_FOUND)
 		ath9k_dfs_process_radar_pulse(sc, &pe);
-	if (ard.pulse_bw_info & EXT_CH_RADAR_FOUND) {
+	if (IS_CHAN_HT40(ah->curchan) &&
+	    ard.pulse_bw_info & EXT_CH_RADAR_FOUND) {
 		pe.freq += IS_CHAN_HT40PLUS(ah->curchan) ? 20 : -20;
 		ath9k_dfs_process_radar_pulse(sc, &pe);
 	}
