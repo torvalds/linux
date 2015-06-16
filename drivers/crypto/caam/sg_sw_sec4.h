@@ -100,25 +100,9 @@ static inline int sg_count(struct scatterlist *sg_list, int nbytes,
 	return sg_nents;
 }
 
-static int dma_map_sg_chained(struct device *dev, struct scatterlist *sg,
-			      unsigned int nents, enum dma_data_direction dir,
-			      bool chained)
-{
-	if (unlikely(chained)) {
-		int i;
-		for (i = 0; i < nents; i++) {
-			dma_map_sg(dev, sg, 1, dir);
-			sg = sg_next(sg);
-		}
-	} else {
-		dma_map_sg(dev, sg, nents, dir);
-	}
-	return nents;
-}
-
-static int dma_unmap_sg_chained(struct device *dev, struct scatterlist *sg,
-				unsigned int nents, enum dma_data_direction dir,
-				bool chained)
+static inline void dma_unmap_sg_chained(
+	struct device *dev, struct scatterlist *sg, unsigned int nents,
+	enum dma_data_direction dir, bool chained)
 {
 	if (unlikely(chained)) {
 		int i;
@@ -126,8 +110,31 @@ static int dma_unmap_sg_chained(struct device *dev, struct scatterlist *sg,
 			dma_unmap_sg(dev, sg, 1, dir);
 			sg = sg_next(sg);
 		}
-	} else {
+	} else if (nents) {
 		dma_unmap_sg(dev, sg, nents, dir);
 	}
+}
+
+static inline int dma_map_sg_chained(
+	struct device *dev, struct scatterlist *sg, unsigned int nents,
+	enum dma_data_direction dir, bool chained)
+{
+	struct scatterlist *first = sg;
+
+	if (unlikely(chained)) {
+		int i;
+		for (i = 0; i < nents; i++) {
+			if (!dma_map_sg(dev, sg, 1, dir)) {
+				dma_unmap_sg_chained(dev, first, i, dir,
+						     chained);
+				nents = 0;
+				break;
+			}
+
+			sg = sg_next(sg);
+		}
+	} else
+		nents = dma_map_sg(dev, sg, nents, dir);
+
 	return nents;
 }
