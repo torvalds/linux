@@ -1240,22 +1240,22 @@ static void sta_ps_end(struct sta_info *sta)
 	ieee80211_sta_ps_deliver_wakeup(sta);
 }
 
-int ieee80211_sta_ps_transition(struct ieee80211_sta *sta, bool start)
+int ieee80211_sta_ps_transition(struct ieee80211_sta *pubsta, bool start)
 {
-	struct sta_info *sta_inf = container_of(sta, struct sta_info, sta);
+	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
 	bool in_ps;
 
-	WARN_ON(!ieee80211_hw_check(&sta_inf->local->hw, AP_LINK_PS));
+	WARN_ON(!ieee80211_hw_check(&sta->local->hw, AP_LINK_PS));
 
 	/* Don't let the same PS state be set twice */
-	in_ps = test_sta_flag(sta_inf, WLAN_STA_PS_STA);
+	in_ps = test_sta_flag(sta, WLAN_STA_PS_STA);
 	if ((start && in_ps) || (!start && !in_ps))
 		return -EINVAL;
 
 	if (start)
-		sta_ps_start(sta_inf);
+		sta_ps_start(sta);
 	else
-		sta_ps_end(sta_inf);
+		sta_ps_end(sta);
 
 	return 0;
 }
