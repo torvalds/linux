@@ -227,12 +227,12 @@ struct comedi_async {
  * @COMEDI_CB_ERROR_MASK:	events that indicate an error has occurred
  * @COMEDI_CB_CANCEL_MASK:	events that will cancel an async command
  */
-#define COMEDI_CB_EOS		(1 << 0)
-#define COMEDI_CB_EOA		(1 << 1)
-#define COMEDI_CB_BLOCK		(1 << 2)
-#define COMEDI_CB_EOBUF		(1 << 3)
-#define COMEDI_CB_ERROR		(1 << 4)
-#define COMEDI_CB_OVERFLOW	(1 << 5)
+#define COMEDI_CB_EOS		BIT(0)
+#define COMEDI_CB_EOA		BIT(1)
+#define COMEDI_CB_BLOCK		BIT(2)
+#define COMEDI_CB_EOBUF		BIT(3)
+#define COMEDI_CB_ERROR		BIT(4)
+#define COMEDI_CB_OVERFLOW	BIT(5)
 
 #define COMEDI_CB_ERROR_MASK	(COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW)
 #define COMEDI_CB_CANCEL_MASK	(COMEDI_CB_EOA | COMEDI_CB_ERROR_MASK)
