@@ -20,17 +20,24 @@
  *  independent of the mechanism used to access the channel data.
  */
 
+#include <linux/uuid.h>
+
 #include "version.h"
 #include "visorbus.h"
-#include <linux/uuid.h>
 #include "controlvmchannel.h"
 
 #define MYDRVNAME "visorchannel"
+
+#define SPAR_CONSOLEVIDEO_CHANNEL_PROTOCOL_GUID \
+	UUID_LE(0x3cd6e705, 0xd6a2, 0x4aa5,           \
+		0xad, 0x5c, 0x7b, 0x8, 0x88, 0x9d, 0xff, 0xe2)
+static const uuid_le spar_video_guid = SPAR_CONSOLEVIDEO_CHANNEL_PROTOCOL_GUID;
 
 struct visorchannel {
 	u64 physaddr;
 	ulong nbytes;
 	void __iomem *mapped;
+	bool requested;
 	struct channel_header chan_hdr;
 	uuid_le guid;
 	ulong size;
@@ -72,8 +79,19 @@ visorchannel_create_guts(u64 physaddr, unsigned long channel_bytes,
 	spin_lock_init(&channel->insert_lock);
 	spin_lock_init(&channel->remove_lock);
 
-	if (!request_mem_region(physaddr, size, MYDRVNAME))
-		goto cleanup;
+	/* Video driver constains the efi framebuffer so it will get a
+	 * conflict resource when requesting its full mem region. Since
+	 * we are only using the efi framebuffer for video we can ignore
+	 * this. Remember that we haven't requested it so we don't try to
+	 * release later on.
+	 */
+	channel->requested = request_mem_region(physaddr, size, MYDRVNAME);
+	if (!channel->requested) {
+		if (uuid_le_cmp(guid, spar_video_guid)) {
+			/* Not the video channel we care about this */
+			goto cleanup;
+		}
+	}
 
 	channel->mapped = ioremap_cache(physaddr, size);
 	if (!channel->mapped) {
@@ -96,10 +114,17 @@ visorchannel_create_guts(u64 physaddr, unsigned long channel_bytes,
 		guid = channel->chan_hdr.chtype;
 
 	iounmap(channel->mapped);
-	release_mem_region(channel->physaddr, channel->nbytes);
+	if (channel->requested)
+		release_mem_region(channel->physaddr, channel->nbytes);
 	channel->mapped = NULL;
-	if (!request_mem_region(channel->physaddr, channel_bytes, MYDRVNAME))
-		goto cleanup;
+	channel->requested = request_mem_region(channel->physaddr,
+						channel_bytes, MYDRVNAME);
+	if (!channel->requested) {
+		if (uuid_le_cmp(guid, spar_video_guid)) {
+			/* Different we care about this */
+			goto cleanup;
+		}
+	}
 
 	channel->mapped = ioremap_cache(channel->physaddr, channel_bytes);
 	if (!channel->mapped) {
@@ -143,7 +168,8 @@ visorchannel_destroy(struct visorchannel *channel)
 		return;
 	if (channel->mapped) {
 		iounmap(channel->mapped);
-		release_mem_region(channel->physaddr, channel->nbytes);
+		if (channel->requested)
+			release_mem_region(channel->physaddr, channel->nbytes);
 	}
 	kfree(channel);
 }
