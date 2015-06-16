@@ -1148,18 +1148,31 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 static int iwl_mvm_set_fw_key_idx(struct iwl_mvm *mvm)
 {
-	int i;
+	int i, max = -1, max_offs = -1;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	i = find_first_zero_bit(mvm->fw_key_table, STA_KEY_MAX_NUM);
+	/* Pick the unused key offset with the highest 'deleted'
+	 * counter. Every time a key is deleted, all the counters
+	 * are incremented and the one that was just deleted is
+	 * reset to zero. Thus, the highest counter is the one
+	 * that was deleted longest ago. Pick that one.
+	 */
+	for (i = 0; i < STA_KEY_MAX_NUM; i++) {
+		if (test_bit(i, mvm->fw_key_table))
+			continue;
+		if (mvm->fw_key_deleted[i] > max) {
+			max = mvm->fw_key_deleted[i];
+			max_offs = i;
+		}
+	}
 
-	if (i == STA_KEY_MAX_NUM)
+	if (max_offs < 0)
 		return STA_KEY_IDX_INVALID;
 
-	__set_bit(i, mvm->fw_key_table);
+	__set_bit(max_offs, mvm->fw_key_table);
 
-	return i;
+	return max_offs;
 }
 
 static u8 iwl_mvm_get_key_sta_id(struct ieee80211_vif *vif,
@@ -1478,7 +1491,7 @@ int iwl_mvm_remove_sta_key(struct iwl_mvm *mvm,
 {
 	bool mcast = !(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE);
 	u8 sta_id;
-	int ret;
+	int ret, i;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -1496,6 +1509,13 @@ int iwl_mvm_remove_sta_key(struct iwl_mvm *mvm,
 			keyconf->hw_key_idx);
 		return -ENOENT;
 	}
+
+	/* track which key was deleted last */
+	for (i = 0; i < STA_KEY_MAX_NUM; i++) {
+		if (mvm->fw_key_deleted[i] < U8_MAX)
+			mvm->fw_key_deleted[i]++;
+	}
+	mvm->fw_key_deleted[keyconf->hw_key_idx] = 0;
 
 	if (sta_id == IWL_MVM_STATION_COUNT) {
 		IWL_DEBUG_WEP(mvm, "station non-existent, early return.\n");

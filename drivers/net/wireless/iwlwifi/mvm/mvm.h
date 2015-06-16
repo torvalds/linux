@@ -686,6 +686,7 @@ struct iwl_mvm {
 	 * can hold 16 keys at most. Reflect this fact.
 	 */
 	unsigned long fw_key_table[BITS_TO_LONGS(STA_KEY_MAX_NUM)];
+	u8 fw_key_deleted[STA_KEY_MAX_NUM];
 
 	/* references taken by the driver and spinlock protecting them */
 	spinlock_t refs_lock;
