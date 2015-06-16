@@ -5680,8 +5680,8 @@ static bool migrate_improves_locality(struct task_struct *p, struct lb_env *env)
 	unsigned long src_faults, dst_faults;
 	int src_nid, dst_nid;
 
-	if (!sched_feat(NUMA_FAVOUR_HIGHER) || !p->numa_faults ||
-	    !(env->sd->flags & SD_NUMA)) {
+	if (!sched_feat(NUMA) || !sched_feat(NUMA_FAVOUR_HIGHER) ||
+	    !p->numa_faults || !(env->sd->flags & SD_NUMA)) {
 		return false;
 	}
 
