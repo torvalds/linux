@@ -246,6 +246,20 @@ static void clear_probe_trace_events(struct probe_trace_event *tevs, int ntevs)
 		clear_probe_trace_event(tevs + i);
 }
 
+static bool kprobe_blacklist__listed(unsigned long address);
+static bool kprobe_warn_out_range(const char *symbol, unsigned long address)
+{
+	/* Get the address of _etext for checking non-probable text symbol */
+	if (kernel_get_symbol_address_by_name("_etext", false) < address)
+		pr_warning("%s is out of .text, skip it.\n", symbol);
+	else if (kprobe_blacklist__listed(address))
+		pr_warning("%s is blacklisted function, skip it.\n", symbol);
+	else
+		return false;
+
+	return true;
+}
+
 #ifdef HAVE_DWARF_SUPPORT
 
 static int kernel_get_module_dso(const char *module, struct dso **pdso)
@@ -559,7 +573,6 @@ static int post_process_probe_trace_events(struct probe_trace_event *tevs,
 					   bool uprobe)
 {
 	struct ref_reloc_sym *reloc_sym;
-	u64 etext_addr;
 	char *tmp;
 	int i, skipped = 0;
 
@@ -575,31 +588,28 @@ static int post_process_probe_trace_events(struct probe_trace_event *tevs,
 		pr_warning("Relocated base symbol is not found!\n");
 		return -EINVAL;
 	}
-	/* Get the address of _etext for checking non-probable text symbol */
-	etext_addr = kernel_get_symbol_address_by_name("_etext", false);
 
 	for (i = 0; i < ntevs; i++) {
-		if (tevs[i].point.address && !tevs[i].point.retprobe) {
-			/* If we found a wrong one, mark it by NULL symbol */
-			if (etext_addr < tevs[i].point.address) {
-				pr_warning("%s+%lu is out of .text, skip it.\n",
-				   tevs[i].point.symbol, tevs[i].point.offset);
-				tmp = NULL;
-				skipped++;
-			} else {
-				tmp = strdup(reloc_sym->name);
-				if (!tmp)
-					return -ENOMEM;
-			}
-			/* If we have no realname, use symbol for it */
-			if (!tevs[i].point.realname)
-				tevs[i].point.realname = tevs[i].point.symbol;
-			else
-				free(tevs[i].point.symbol);
-			tevs[i].point.symbol = tmp;
-			tevs[i].point.offset = tevs[i].point.address -
-					       reloc_sym->unrelocated_addr;
+		if (!tevs[i].point.address || tevs[i].point.retprobe)
+			continue;
+		/* If we found a wrong one, mark it by NULL symbol */
+		if (kprobe_warn_out_range(tevs[i].point.symbol,
+					  tevs[i].point.address)) {
+			tmp = NULL;
+			skipped++;
+		} else {
+			tmp = strdup(reloc_sym->name);
+			if (!tmp)
+				return -ENOMEM;
 		}
+		/* If we have no realname, use symbol for it */
+		if (!tevs[i].point.realname)
+			tevs[i].point.realname = tevs[i].point.symbol;
+		else
+			free(tevs[i].point.symbol);
+		tevs[i].point.symbol = tmp;
+		tevs[i].point.offset = tevs[i].point.address -
+				       reloc_sym->unrelocated_addr;
 	}
 	return skipped;
 }
@@ -2126,6 +2136,27 @@ kprobe_blacklist__find_by_address(struct list_head *blacklist,
 	return NULL;
 }
 
+static LIST_HEAD(kprobe_blacklist);
+
+static void kprobe_blacklist__init(void)
+{
+	if (!list_empty(&kprobe_blacklist))
+		return;
+
+	if (kprobe_blacklist__load(&kprobe_blacklist) < 0)
+		pr_debug("No kprobe blacklist support, ignored\n");
+}
+
+static void kprobe_blacklist__release(void)
+{
+	kprobe_blacklist__delete(&kprobe_blacklist);
+}
+
+static bool kprobe_blacklist__listed(unsigned long address)
+{
+	return !!kprobe_blacklist__find_by_address(&kprobe_blacklist, address);
+}
+
 static int perf_probe_event__sprintf(struct perf_probe_event *pev,
 				     const char *module,
 				     struct strbuf *result)
@@ -2409,8 +2440,6 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 	char buf[64];
 	const char *event, *group;
 	struct strlist *namelist;
-	LIST_HEAD(blacklist);
-	struct kprobe_blacklist_node *node;
 	bool safename;
 
 	if (pev->uprobes)
@@ -2430,28 +2459,15 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 		ret = -ENOMEM;
 		goto close_out;
 	}
-	/* Get kprobe blacklist if exists */
-	if (!pev->uprobes) {
-		ret = kprobe_blacklist__load(&blacklist);
-		if (ret < 0)
-			pr_debug("No kprobe blacklist support, ignored\n");
-	}
 
 	safename = (pev->point.function && !strisglob(pev->point.function));
 	ret = 0;
 	pr_info("Added new event%s\n", (ntevs > 1) ? "s:" : ":");
 	for (i = 0; i < ntevs; i++) {
 		tev = &tevs[i];
-		/* Skip if the symbol is out of .text (marked previously) */
+		/* Skip if the symbol is out of .text or blacklisted */
 		if (!tev->point.symbol)
 			continue;
-		/* Ensure that the address is NOT blacklisted */
-		node = kprobe_blacklist__find_by_address(&blacklist,
-							 tev->point.address);
-		if (node) {
-			pr_warning("Warning: Skipped probing on blacklisted function: %s\n", node->symbol);
-			continue;
-		}
 
 		if (pev->event)
 			event = pev->event;
@@ -2513,7 +2529,6 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 			 tev->event);
 	}
 
-	kprobe_blacklist__delete(&blacklist);
 	strlist__delete(namelist);
 close_out:
 	close(fd);
@@ -2563,7 +2578,7 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 	struct perf_probe_point *pp = &pev->point;
 	struct probe_trace_point *tp;
 	int num_matched_functions;
-	int ret, i, j;
+	int ret, i, j, skipped = 0;
 
 	map = get_target_map(pev->target, pev->uprobes);
 	if (!map) {
@@ -2631,7 +2646,12 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 		}
 		/* Add one probe point */
 		tp->address = map->unmap_ip(map, sym->start) + pp->offset;
-		if (reloc_sym) {
+		/* If we found a wrong one, mark it by NULL symbol */
+		if (!pev->uprobes &&
+		    kprobe_warn_out_range(sym->name, tp->address)) {
+			tp->symbol = NULL;	/* Skip it */
+			skipped++;
+		} else if (reloc_sym) {
 			tp->symbol = strdup_or_goto(reloc_sym->name, nomem_out);
 			tp->offset = tp->address - reloc_sym->addr;
 		} else {
@@ -2666,6 +2686,10 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 							nomem_out);
 		}
 		arch__fix_tev_from_maps(pev, tev, map);
+	}
+	if (ret == skipped) {
+		ret = -ENOENT;
+		goto err_out;
 	}
 
 out:
@@ -2737,6 +2761,9 @@ int add_perf_probe_events(struct perf_probe_event *pevs, int npevs)
 	/* Loop 1: convert all events */
 	for (i = 0; i < npevs; i++) {
 		pkgs[i].pev = &pevs[i];
+		/* Init kprobe blacklist if needed */
+		if (!pkgs[i].pev->uprobes)
+			kprobe_blacklist__init();
 		/* Convert with or without debuginfo */
 		ret  = convert_to_probe_trace_events(pkgs[i].pev,
 						     &pkgs[i].tevs);
@@ -2744,6 +2771,8 @@ int add_perf_probe_events(struct perf_probe_event *pevs, int npevs)
 			goto end;
 		pkgs[i].ntevs = ret;
 	}
+	/* This just release blacklist only if allocated */
+	kprobe_blacklist__release();
 
 	/* Loop 2: add all events */
 	for (i = 0; i < npevs; i++) {
