@@ -515,14 +515,9 @@ static void xenvif_rx_action(struct xenvif_queue *queue)
 
 	while (xenvif_rx_ring_slots_available(queue, XEN_NETBK_RX_SLOTS_MAX)
 	       && (skb = xenvif_rx_dequeue(queue)) != NULL) {
-		RING_IDX old_req_cons;
-		RING_IDX ring_slots_used;
-
 		queue->last_rx_time = jiffies;
 
-		old_req_cons = queue->rx.req_cons;
 		XENVIF_RX_CB(skb)->meta_slots_used = xenvif_gop_skb(skb, &npo, queue);
-		ring_slots_used = queue->rx.req_cons - old_req_cons;
 
 		__skb_queue_tail(&rxq, skb);
 	}
