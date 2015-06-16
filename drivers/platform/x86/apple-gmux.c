@@ -645,7 +645,6 @@ static void gmux_remove(struct pnp_dev *pnp)
 	apple_gmux_data = NULL;
 	kfree(gmux_data);
 
-	acpi_video_dmi_demote_vendor();
 	acpi_video_register();
 	apple_bl_register();
 }
