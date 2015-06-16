@@ -908,7 +908,7 @@ static int scsiback_add_translation_entry(struct vscsibk_info *info,
 	mutex_unlock(&scsiback_mutex);
 
 	if (!tpg) {
-		pr_err("%s:%d %s\n", phy, unpacked_lun, error);
+		pr_err("%s:%llu %s\n", phy, unpacked_lun, error);
 		return -ENODEV;
 	}
 
