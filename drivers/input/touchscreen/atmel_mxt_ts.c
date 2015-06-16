@@ -742,18 +742,15 @@ static int mxt_check_bootloader(struct mxt_data *data)
 		break;
 
 	case MXT_FRAME_CRC_FAIL:
-		f->retry++;
-
 		if (f->retry > 20) {
 			dev_err(dev, "Retry count exceeded\n");
 			return -EIO;
-		} else {
-			dev_dbg(dev, "Bootloader frame CRC failure\n");
 		}
 
 		/* Back off by 20ms per retry */
+		dev_dbg(dev, "Bootloader frame CRC failure\n");
+		f->retry++;
 		msleep(f->retry * 20);
-
 		break;
 
 	default:
