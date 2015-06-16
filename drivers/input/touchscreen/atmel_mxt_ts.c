@@ -27,15 +27,12 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio.h>
 #include <linux/workqueue.h>
-
-#ifdef CONFIG_OF
-#include <linux/of_gpio.h>
-#endif
 
 /* Configuration file */
 #define MXT_CFG_MAGIC		"OBP_RAW V1"
