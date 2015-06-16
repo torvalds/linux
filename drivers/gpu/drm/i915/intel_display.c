@@ -87,7 +87,8 @@ static void ironlake_pch_clock_get(struct intel_crtc *crtc,
 				   struct intel_crtc_state *pipe_config);
 
 static int intel_set_mode(struct drm_crtc *crtc,
-			  struct drm_atomic_state *state);
+			  struct drm_atomic_state *state,
+			  bool force_restore);
 static int intel_framebuffer_init(struct drm_device *dev,
 				  struct intel_framebuffer *ifb,
 				  struct drm_mode_fb_cmd2 *mode_cmd,
@@ -10096,7 +10097,7 @@ retry:
 
 	drm_mode_copy(&crtc_state->base.mode, mode);
 
-	if (intel_set_mode(crtc, state)) {
+	if (intel_set_mode(crtc, state, true)) {
 		DRM_DEBUG_KMS("failed to set mode on load-detect pipe\n");
 		if (old->release_fb)
 			old->release_fb->funcs->destroy(old->release_fb);
@@ -10170,7 +10171,7 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 		if (ret)
 			goto fail;
 
-		ret = intel_set_mode(crtc, state);
+		ret = intel_set_mode(crtc, state, true);
 		if (ret)
 			goto fail;
 
@@ -12646,20 +12647,22 @@ static int __intel_set_mode(struct drm_crtc *modeset_crtc,
 }
 
 static int intel_set_mode_with_config(struct drm_crtc *crtc,
-				      struct intel_crtc_state *pipe_config)
+				      struct intel_crtc_state *pipe_config,
+				      bool force_restore)
 {
 	int ret;
 
 	ret = __intel_set_mode(crtc, pipe_config);
 
-	if (ret == 0)
+	if (ret == 0 && force_restore)
 		intel_modeset_check_state(crtc->dev);
 
 	return ret;
 }
 
 static int intel_set_mode(struct drm_crtc *crtc,
-			  struct drm_atomic_state *state)
+			  struct drm_atomic_state *state,
+			  bool force_restore)
 {
 	struct intel_crtc_state *pipe_config;
 	int ret = 0;
@@ -12670,7 +12673,7 @@ static int intel_set_mode(struct drm_crtc *crtc,
 		goto out;
 	}
 
-	ret = intel_set_mode_with_config(crtc, pipe_config);
+	ret = intel_set_mode_with_config(crtc, pipe_config, force_restore);
 	if (ret)
 		goto out;
 
@@ -12747,7 +12750,7 @@ void intel_crtc_restore_mode(struct drm_crtc *crtc)
 	intel_modeset_setup_plane_state(state, crtc, &crtc->mode,
 					crtc->primary->fb, crtc->x, crtc->y);
 
-	ret = intel_set_mode(crtc, state);
+	ret = intel_set_mode(crtc, state, false);
 	if (ret)
 		drm_atomic_state_free(state);
 }
@@ -12947,7 +12950,7 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 
 	primary_plane_was_visible = primary_plane_visible(set->crtc);
 
-	ret = intel_set_mode_with_config(set->crtc, pipe_config);
+	ret = intel_set_mode_with_config(set->crtc, pipe_config, true);
 
 	if (ret == 0 &&
 	    pipe_config->base.enable &&
