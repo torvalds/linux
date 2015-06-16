@@ -938,7 +938,7 @@ at86rf230_start(struct ieee802154_hw *hw)
 	at86rf230_awake(lp);
 	enable_irq(lp->spi->irq);
 
-	return at86rf230_sync_state_change(hw->priv, STATE_RX_AACK_ON);
+	return at86rf230_sync_state_change(lp, STATE_RX_AACK_ON);
 }
 
 static void
@@ -947,7 +947,7 @@ at86rf230_stop(struct ieee802154_hw *hw)
 	struct at86rf230_local *lp = hw->priv;
 	u8 csma_seed[2];
 
-	at86rf230_sync_state_change(hw->priv, STATE_FORCE_TRX_OFF);
+	at86rf230_sync_state_change(lp, STATE_FORCE_TRX_OFF);
 
 	disable_irq(lp->spi->irq);
 
