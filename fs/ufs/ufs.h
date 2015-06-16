@@ -24,8 +24,6 @@ struct ufs_sb_info {
 	unsigned s_cgno[UFS_MAX_GROUP_LOADED];
 	unsigned short s_cg_loaded;
 	unsigned s_mount_opt;
-	struct mutex mutex;
-	struct task_struct *mutex_owner;
 	struct super_block *sb;
 	int work_queued; /* non-zero if the delayed work is queued */
 	struct delayed_work sync_work; /* FS sync delayed work */
@@ -171,8 +169,5 @@ static inline u32 ufs_dtogd(struct ufs_sb_private_info * uspi, u64 b)
 {
 	return do_div(b, uspi->s_fpg);
 }
-
-extern void lock_ufs(struct super_block *sb);
-extern void unlock_ufs(struct super_block *sb);
 
 #endif /* _UFS_UFS_H */
