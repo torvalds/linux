@@ -162,6 +162,7 @@ struct virtio_gpu_device {
 	struct virtio_gpu_queue ctrlq;
 	struct virtio_gpu_queue cursorq;
 	struct list_head free_vbufs;
+	spinlock_t free_vbufs_lock;
 	void *vbufs;
 	bool vqs_ready;
 
