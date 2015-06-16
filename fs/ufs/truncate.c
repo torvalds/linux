@@ -447,6 +447,7 @@ static void __ufs_truncate_blocks(struct inode *inode)
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
 	int retry;
 
+	lock_ufs(sb);
 	while (1) {
 		retry = ufs_trunc_direct(inode);
 		retry |= ufs_trunc_indirect(inode, UFS_IND_BLOCK,
@@ -464,11 +465,11 @@ static void __ufs_truncate_blocks(struct inode *inode)
 	}
 
 	ufsi->i_lastfrag = DIRECT_FRAGMENT;
+	unlock_ufs(sb);
 }
 
 int ufs_truncate(struct inode *inode, loff_t size)
 {
-	struct super_block *sb = inode->i_sb;
 	int err = 0;
 	
 	UFSD("ENTER: ino %lu, i_size: %llu, old_i_size: %llu\n",
@@ -481,7 +482,6 @@ int ufs_truncate(struct inode *inode, loff_t size)
 	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
 		return -EPERM;
 
-	lock_ufs(sb);
 	err = ufs_alloc_lastblock(inode, size);
 
 	if (err)
@@ -495,23 +495,18 @@ int ufs_truncate(struct inode *inode, loff_t size)
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
 	mark_inode_dirty(inode);
 out:
-	unlock_ufs(sb);
 	UFSD("EXIT: err %d\n", err);
 	return err;
 }
 
 void ufs_truncate_blocks(struct inode *inode)
 {
-	struct super_block *sb = inode->i_sb;
 	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
 	      S_ISLNK(inode->i_mode)))
 		return;
 	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
 		return;
-
-	lock_ufs(sb);
 	__ufs_truncate_blocks(inode);
-	unlock_ufs(sb);
 }
 
 int ufs_setattr(struct dentry *dentry, struct iattr *attr)
