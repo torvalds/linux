@@ -2452,7 +2452,7 @@ static void rk81x_bat_zero_calc_linek(struct rk81x_battery *di)
 	rsoc = ocv_soc - dead_soc;
 	if ((di->dsoc == 1) && (rsoc > 0)) {/*discharge*/
 		di->line_k = 1000;
-	} else if (rsoc > 1) {
+	} else if (rsoc > 0) {
 		di->line_k = (di->display_soc + rsoc / 2) / div(rsoc);
 	} else {
 		di->dsoc--;
