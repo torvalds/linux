@@ -1052,8 +1052,6 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 	u8 orientation = 0;
 	bool active = false;
 	bool hover = false;
-	bool eraser = false;
-	bool barrel = false;
 
 	id = message[0] - data->T100_reportid_min - 2;
 
@@ -1100,6 +1098,12 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 			break;
 
 		case MXT_T100_TYPE_ACTIVE_STYLUS:
+			/* Report input buttons */
+			input_report_key(input_dev, BTN_STYLUS,
+					 message[6] & MXT_T107_STYLUS_BUTTON0);
+			input_report_key(input_dev, BTN_STYLUS2,
+					 message[6] & MXT_T107_STYLUS_BUTTON1);
+
 			/* stylus in range, but position unavailable */
 			if (!(message[6] & MXT_T107_STYLUS_HOVER))
 				break;
@@ -1107,8 +1111,6 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 			active = true;
 			tool = MT_TOOL_PEN;
 			major = MXT_TOUCH_MAJOR_DEFAULT;
-			eraser = message[6] & MXT_T107_STYLUS_BUTTON0;
-			barrel = message[6] & MXT_T107_STYLUS_BUTTON1;
 
 			if (!(message[6] & MXT_T107_STYLUS_TIPSWITCH))
 				hover = true;
@@ -1155,8 +1157,6 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 		input_report_abs(input_dev, ABS_MT_PRESSURE, pressure);
 		input_report_abs(input_dev, ABS_MT_ORIENTATION, orientation);
 
-		input_report_key(input_dev, BTN_STYLUS, eraser);
-		input_report_key(input_dev, BTN_STYLUS2, barrel);
 	} else {
 		dev_dbg(dev, "[%u] release\n", id);
 
