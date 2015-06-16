@@ -468,6 +468,23 @@ static int xgene_pcie_setup(struct xgene_pcie_port *port,
 	return 0;
 }
 
+static int xgene_pcie_msi_enable(struct pci_bus *bus)
+{
+	struct device_node *msi_node;
+
+	msi_node = of_parse_phandle(bus->dev.of_node,
+					"msi-parent", 0);
+	if (!msi_node)
+		return -ENODEV;
+
+	bus->msi = of_pci_find_msi_chip_by_node(msi_node);
+	if (!bus->msi)
+		return -ENODEV;
+
+	bus->msi->dev = &bus->dev;
+	return 0;
+}
+
 static int xgene_pcie_probe_bridge(struct platform_device *pdev)
 {
 	struct device_node *dn = pdev->dev.of_node;
@@ -503,6 +520,10 @@ static int xgene_pcie_probe_bridge(struct platform_device *pdev)
 					&xgene_pcie_ops, port, &res);
 	if (!bus)
 		return -ENOMEM;
+
+	if (IS_ENABLED(CONFIG_PCI_MSI))
+		if (xgene_pcie_msi_enable(bus))
+			dev_info(port->dev, "failed to enable MSI\n");
 
 	pci_scan_child_bus(bus);
 	pci_assign_unassigned_bus_resources(bus);
