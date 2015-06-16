@@ -2448,7 +2448,9 @@ gen8_ring_dispatch_execbuffer(struct drm_i915_gem_request *req,
 		return ret;
 
 	/* FIXME(BDW): Address space and security selectors. */
-	intel_ring_emit(ring, MI_BATCH_BUFFER_START_GEN8 | (ppgtt<<8));
+	intel_ring_emit(ring, MI_BATCH_BUFFER_START_GEN8 | (ppgtt<<8) |
+			(dispatch_flags & I915_DISPATCH_RS ?
+			 MI_BATCH_RESOURCE_STREAMER : 0));
 	intel_ring_emit(ring, lower_32_bits(offset));
 	intel_ring_emit(ring, upper_32_bits(offset));
 	intel_ring_emit(ring, MI_NOOP);
@@ -2472,7 +2474,9 @@ hsw_ring_dispatch_execbuffer(struct drm_i915_gem_request *req,
 	intel_ring_emit(ring,
 			MI_BATCH_BUFFER_START |
 			(dispatch_flags & I915_DISPATCH_SECURE ?
-			 0 : MI_BATCH_PPGTT_HSW | MI_BATCH_NON_SECURE_HSW));
+			 0 : MI_BATCH_PPGTT_HSW | MI_BATCH_NON_SECURE_HSW) |
+			(dispatch_flags & I915_DISPATCH_RS ?
+			 MI_BATCH_RESOURCE_STREAMER : 0));
 	/* bit0-7 is the length on GEN6+ */
 	intel_ring_emit(ring, offset);
 	intel_ring_advance(ring);

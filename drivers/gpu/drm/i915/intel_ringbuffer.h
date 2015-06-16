@@ -199,6 +199,7 @@ struct  intel_engine_cs {
 					       unsigned dispatch_flags);
 #define I915_DISPATCH_SECURE 0x1
 #define I915_DISPATCH_PINNED 0x2
+#define I915_DISPATCH_RS     0x4
 	void		(*cleanup)(struct intel_engine_cs *ring);
 
 	/* GEN8 signal/wait table - never trust comments!
