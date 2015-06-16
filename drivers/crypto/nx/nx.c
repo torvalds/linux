@@ -19,8 +19,8 @@
  * Author: Kent Yoder <yoder1@us.ibm.com>
  */
 
+#include <crypto/internal/aead.h>
 #include <crypto/internal/hash.h>
-#include <crypto/hash.h>
 #include <crypto/aes.h>
 #include <crypto/sha.h>
 #include <crypto/algapi.h>
@@ -29,7 +29,6 @@
 #include <linux/moduleparam.h>
 #include <linux/types.h>
 #include <linux/mm.h>
-#include <linux/crypto.h>
 #include <linux/scatterlist.h>
 #include <linux/device.h>
 #include <linux/of.h>
@@ -531,11 +530,11 @@ static int nx_register_algs(void)
 	if (rc)
 		goto out_unreg_ctr;
 
-	rc = crypto_register_alg(&nx_gcm_aes_alg);
+	rc = crypto_register_aead(&nx_gcm_aes_alg);
 	if (rc)
 		goto out_unreg_ctr3686;
 
-	rc = crypto_register_alg(&nx_gcm4106_aes_alg);
+	rc = crypto_register_aead(&nx_gcm4106_aes_alg);
 	if (rc)
 		goto out_unreg_gcm;
 
@@ -570,9 +569,9 @@ out_unreg_ccm4309:
 out_unreg_ccm:
 	crypto_unregister_alg(&nx_ccm_aes_alg);
 out_unreg_gcm4106:
-	crypto_unregister_alg(&nx_gcm4106_aes_alg);
+	crypto_unregister_aead(&nx_gcm4106_aes_alg);
 out_unreg_gcm:
-	crypto_unregister_alg(&nx_gcm_aes_alg);
+	crypto_unregister_aead(&nx_gcm_aes_alg);
 out_unreg_ctr3686:
 	crypto_unregister_alg(&nx_ctr3686_aes_alg);
 out_unreg_ctr:
@@ -639,9 +638,9 @@ int nx_crypto_ctx_aes_ccm_init(struct crypto_tfm *tfm)
 				  NX_MODE_AES_CCM);
 }
 
-int nx_crypto_ctx_aes_gcm_init(struct crypto_tfm *tfm)
+int nx_crypto_ctx_aes_gcm_init(struct crypto_aead *tfm)
 {
-	return nx_crypto_ctx_init(crypto_tfm_ctx(tfm), NX_FC_AES,
+	return nx_crypto_ctx_init(crypto_aead_ctx(tfm), NX_FC_AES,
 				  NX_MODE_AES_GCM);
 }
 
@@ -693,6 +692,13 @@ void nx_crypto_ctx_exit(struct crypto_tfm *tfm)
 	nx_ctx->out_sg = NULL;
 }
 
+void nx_crypto_ctx_aead_exit(struct crypto_aead *tfm)
+{
+	struct nx_crypto_ctx *nx_ctx = crypto_aead_ctx(tfm);
+
+	kzfree(nx_ctx->kmem);
+}
+
 static int nx_probe(struct vio_dev *viodev, const struct vio_device_id *id)
 {
 	dev_dbg(&viodev->dev, "driver probed: %s resource id: 0x%x\n",
@@ -721,8 +727,8 @@ static int nx_remove(struct vio_dev *viodev)
 
 		crypto_unregister_alg(&nx_ccm_aes_alg);
 		crypto_unregister_alg(&nx_ccm4309_aes_alg);
-		crypto_unregister_alg(&nx_gcm_aes_alg);
-		crypto_unregister_alg(&nx_gcm4106_aes_alg);
+		crypto_unregister_aead(&nx_gcm_aes_alg);
+		crypto_unregister_aead(&nx_gcm4106_aes_alg);
 		crypto_unregister_alg(&nx_ctr_aes_alg);
 		crypto_unregister_alg(&nx_ctr3686_aes_alg);
 		crypto_unregister_alg(&nx_cbc_aes_alg);
