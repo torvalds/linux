@@ -214,7 +214,7 @@ nvkm_pstate_work(struct work_struct *work)
 	pstate = clk->pwrsrc ? clk->ustate_ac : clk->ustate_dc;
 	if (clk->state_nr && pstate != -1) {
 		pstate = (pstate < 0) ? clk->astate : pstate;
-		pstate = min(pstate, clk->state_nr - 1 - clk->tstate);
+		pstate = min(pstate, clk->state_nr - 1 + clk->tstate);
 		pstate = max(pstate, clk->dstate);
 	} else {
 		pstate = clk->pstate = -1;
