@@ -183,6 +183,9 @@ EXPORT_SYMBOL(acpi_video_get_backlight_type);
 void acpi_video_set_dmi_backlight_type(enum acpi_backlight_type type)
 {
 	acpi_backlight_dmi = type;
+	/* Remove acpi-video backlight interface if it is no longer desired */
+	if (acpi_video_get_backlight_type() != acpi_backlight_video)
+		acpi_video_unregister_backlight();
 }
 EXPORT_SYMBOL(acpi_video_set_dmi_backlight_type);
 
