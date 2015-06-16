@@ -103,6 +103,22 @@ void rsnd_write(struct rsnd_priv *priv,
 	regmap_fields_write(gen->regs[reg], rsnd_mod_id(mod), data);
 }
 
+void rsnd_force_write(struct rsnd_priv *priv,
+		      struct rsnd_mod *mod,
+		      enum rsnd_reg reg, u32 data)
+{
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
+
+	if (!rsnd_is_accessible_reg(priv, gen, reg))
+		return;
+
+	dev_dbg(dev, "w %s[%d] - %4d : %08x\n",
+		rsnd_mod_name(mod), rsnd_mod_id(mod), reg, data);
+
+	regmap_fields_force_write(gen->regs[reg], rsnd_mod_id(mod), data);
+}
+
 void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod,
 	       enum rsnd_reg reg, u32 mask, u32 data)
 {

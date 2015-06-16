@@ -157,11 +157,15 @@ struct rsnd_dai_stream;
 	rsnd_read(rsnd_mod_to_priv(m), m, RSND_REG_##r)
 #define rsnd_mod_write(m, r, d) \
 	rsnd_write(rsnd_mod_to_priv(m), m, RSND_REG_##r, d)
+#define rsnd_mod_force_write(m, r, d) \
+	rsnd_force_write(rsnd_mod_to_priv(m), m, RSND_REG_##r, d)
 #define rsnd_mod_bset(m, r, s, d) \
 	rsnd_bset(rsnd_mod_to_priv(m), m, RSND_REG_##r, s, d)
 
 u32 rsnd_read(struct rsnd_priv *priv, struct rsnd_mod *mod, enum rsnd_reg reg);
 void rsnd_write(struct rsnd_priv *priv, struct rsnd_mod *mod,
+		enum rsnd_reg reg, u32 data);
+void rsnd_force_write(struct rsnd_priv *priv, struct rsnd_mod *mod,
 		enum rsnd_reg reg, u32 data);
 void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod, enum rsnd_reg reg,
 		    u32 mask, u32 data);
