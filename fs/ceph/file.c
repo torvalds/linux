@@ -96,6 +96,7 @@ static int ceph_init_file(struct inode *inode, struct file *file, int fmode)
 		}
 		cf->fmode = fmode;
 		cf->next_offset = 2;
+		cf->readdir_cache_idx = -1;
 		file->private_data = cf;
 		BUG_ON(inode->i_fop->release != ceph_release);
 		break;
@@ -324,7 +325,6 @@ int ceph_release(struct inode *inode, struct file *file)
 		ceph_mdsc_put_request(cf->last_readdir);
 	kfree(cf->last_name);
 	kfree(cf->dir_info);
-	dput(cf->dentry);
 	kmem_cache_free(ceph_file_cachep, cf);
 
 	/* wake up anyone waiting for caps on this inode */

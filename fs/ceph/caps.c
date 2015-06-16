@@ -833,7 +833,9 @@ int __ceph_caps_used(struct ceph_inode_info *ci)
 		used |= CEPH_CAP_PIN;
 	if (ci->i_rd_ref)
 		used |= CEPH_CAP_FILE_RD;
-	if (ci->i_rdcache_ref || ci->vfs_inode.i_data.nrpages)
+	if (ci->i_rdcache_ref ||
+	    (!S_ISDIR(ci->vfs_inode.i_mode) && /* ignore readdir cache */
+	     ci->vfs_inode.i_data.nrpages))
 		used |= CEPH_CAP_FILE_CACHE;
 	if (ci->i_wr_ref)
 		used |= CEPH_CAP_FILE_WR;
@@ -1651,9 +1653,10 @@ retry_locked:
 	 * If we fail, it's because pages are locked.... try again later.
 	 */
 	if ((!is_delayed || mdsc->stopping) &&
-	    ci->i_wrbuffer_ref == 0 &&               /* no dirty pages... */
-	    inode->i_data.nrpages &&                 /* have cached pages */
-	    (file_wanted == 0 ||                     /* no open files */
+	    !S_ISDIR(inode->i_mode) &&		/* ignore readdir cache */
+	    ci->i_wrbuffer_ref == 0 &&		/* no dirty pages... */
+	    inode->i_data.nrpages &&		/* have cached pages */
+	    (file_wanted == 0 ||		/* no open files */
 	     (revoking & (CEPH_CAP_FILE_CACHE|
 			  CEPH_CAP_FILE_LAZYIO))) && /*  or revoking cache */
 	    !tried_invalidate) {
@@ -2805,7 +2808,8 @@ static void handle_cap_grant(struct ceph_mds_client *mdsc,
 	 * try to invalidate (once).  (If there are dirty buffers, we
 	 * will invalidate _after_ writeback.)
 	 */
-	if (((cap->issued & ~newcaps) & CEPH_CAP_FILE_CACHE) &&
+	if (!S_ISDIR(inode->i_mode) && /* don't invalidate readdir cache */
+	    ((cap->issued & ~newcaps) & CEPH_CAP_FILE_CACHE) &&
 	    (newcaps & CEPH_CAP_FILE_LAZYIO) == 0 &&
 	    !ci->i_wrbuffer_ref) {
 		if (try_nonblocking_invalidate(inode)) {

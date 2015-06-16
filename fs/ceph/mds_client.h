@@ -253,6 +253,9 @@ struct ceph_mds_request {
 	bool		  r_got_unsafe, r_got_safe, r_got_result;
 
 	bool              r_did_prepopulate;
+	long long	  r_dir_release_cnt;
+	long long	  r_dir_ordered_cnt;
+	int		  r_readdir_cache_idx;
 	u32               r_readdir_offset;
 
 	struct ceph_cap_reservation r_caps_reservation;
