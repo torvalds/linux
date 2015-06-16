@@ -370,7 +370,7 @@ static int ufs_trunc_tindirect(struct inode *inode)
 	return retry;
 }
 
-static int ufs_alloc_lastblock(struct inode *inode)
+static int ufs_alloc_lastblock(struct inode *inode, loff_t size)
 {
 	int err = 0;
 	struct super_block *sb = inode->i_sb;
@@ -382,7 +382,7 @@ static int ufs_alloc_lastblock(struct inode *inode)
 	struct buffer_head *bh;
 	u64 phys64;
 
-	lastfrag = (i_size_read(inode) + uspi->s_fsize - 1) >> uspi->s_fshift;
+	lastfrag = (size + uspi->s_fsize - 1) >> uspi->s_fshift;
 
 	if (!lastfrag)
 		goto out;
@@ -466,14 +466,14 @@ static void __ufs_truncate_blocks(struct inode *inode)
 	ufsi->i_lastfrag = DIRECT_FRAGMENT;
 }
 
-int ufs_truncate(struct inode *inode, loff_t old_i_size)
+int ufs_truncate(struct inode *inode, loff_t size)
 {
 	struct super_block *sb = inode->i_sb;
 	int err = 0;
 	
 	UFSD("ENTER: ino %lu, i_size: %llu, old_i_size: %llu\n",
-	     inode->i_ino, (unsigned long long)i_size_read(inode),
-	     (unsigned long long)old_i_size);
+	     inode->i_ino, (unsigned long long)size,
+	     (unsigned long long)i_size_read(inode));
 
 	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
 	      S_ISLNK(inode->i_mode)))
@@ -482,14 +482,14 @@ int ufs_truncate(struct inode *inode, loff_t old_i_size)
 		return -EPERM;
 
 	lock_ufs(sb);
-	err = ufs_alloc_lastblock(inode);
+	err = ufs_alloc_lastblock(inode, size);
 
-	if (err) {
-		i_size_write(inode, old_i_size);
+	if (err)
 		goto out;
-	}
 
-	block_truncate_page(inode->i_mapping, inode->i_size, ufs_getfrag_block);
+	block_truncate_page(inode->i_mapping, size, ufs_getfrag_block);
+
+	truncate_setsize(inode, size);
 
 	__ufs_truncate_blocks(inode);
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
@@ -525,12 +525,7 @@ int ufs_setattr(struct dentry *dentry, struct iattr *attr)
 		return error;
 
 	if (ia_valid & ATTR_SIZE && attr->ia_size != inode->i_size) {
-		loff_t old_i_size = inode->i_size;
-
-		/* XXX(truncate): truncate_setsize should be called last */
-		truncate_setsize(inode, attr->ia_size);
-
-		error = ufs_truncate(inode, old_i_size);
+		error = ufs_truncate(inode, attr->ia_size);
 		if (error)
 			return error;
 	}
