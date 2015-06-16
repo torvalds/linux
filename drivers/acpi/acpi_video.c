@@ -82,6 +82,7 @@ static int disable_backlight_sysfs_if = -1;
 module_param(disable_backlight_sysfs_if, int, 0444);
 
 static int register_count;
+static DEFINE_MUTEX(register_count_mutex);
 static struct mutex video_list_lock;
 static struct list_head video_bus_head;
 static int acpi_video_bus_add(struct acpi_device *device);
@@ -1964,14 +1965,15 @@ static int __init intel_opregion_present(void)
 
 int acpi_video_register(void)
 {
-	int ret;
+	int ret = 0;
 
+	mutex_lock(&register_count_mutex);
 	if (register_count) {
 		/*
 		 * if the function of acpi_video_register is already called,
 		 * don't register the acpi_vide_bus again and return no error.
 		 */
-		return 0;
+		goto leave;
 	}
 
 	mutex_init(&video_list_lock);
@@ -1981,7 +1983,7 @@ int acpi_video_register(void)
 
 	ret = acpi_bus_register_driver(&acpi_video_bus);
 	if (ret)
-		return ret;
+		goto leave;
 
 	/*
 	 * When the acpi_video_bus is loaded successfully, increase
@@ -1989,24 +1991,20 @@ int acpi_video_register(void)
 	 */
 	register_count = 1;
 
-	return 0;
+leave:
+	mutex_unlock(&register_count_mutex);
+	return ret;
 }
 EXPORT_SYMBOL(acpi_video_register);
 
 void acpi_video_unregister(void)
 {
-	if (!register_count) {
-		/*
-		 * If the acpi video bus is already unloaded, don't
-		 * unload it again and return directly.
-		 */
-		return;
+	mutex_lock(&register_count_mutex);
+	if (register_count) {
+		acpi_bus_unregister_driver(&acpi_video_bus);
+		register_count = 0;
 	}
-	acpi_bus_unregister_driver(&acpi_video_bus);
-
-	register_count = 0;
-
-	return;
+	mutex_unlock(&register_count_mutex);
 }
 EXPORT_SYMBOL(acpi_video_unregister);
 
@@ -2014,13 +2012,14 @@ void acpi_video_unregister_backlight(void)
 {
 	struct acpi_video_bus *video;
 
-	if (!register_count)
-		return;
-
-	mutex_lock(&video_list_lock);
-	list_for_each_entry(video, &video_bus_head, entry)
-		acpi_video_bus_unregister_backlight(video);
-	mutex_unlock(&video_list_lock);
+	mutex_lock(&register_count_mutex);
+	if (register_count) {
+		mutex_lock(&video_list_lock);
+		list_for_each_entry(video, &video_bus_head, entry)
+			acpi_video_bus_unregister_backlight(video);
+		mutex_unlock(&video_list_lock);
+	}
+	mutex_unlock(&register_count_mutex);
 }
 EXPORT_SYMBOL(acpi_video_unregister_backlight);
 
