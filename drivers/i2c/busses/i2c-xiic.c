@@ -604,14 +604,11 @@ static irqreturn_t xiic_isr(int irq, void *dev_id)
 	struct xiic_i2c *i2c = dev_id;
 
 	spin_lock(&i2c->lock);
-	/* disable interrupts globally */
-	xiic_setreg32(i2c, XIIC_DGIER_OFFSET, 0);
 
 	dev_dbg(i2c->adap.dev.parent, "%s entry\n", __func__);
 
 	xiic_process(i2c);
 
-	xiic_setreg32(i2c, XIIC_DGIER_OFFSET, XIIC_GINTR_ENABLE_MASK);
 	spin_unlock(&i2c->lock);
 
 	return IRQ_HANDLED;
