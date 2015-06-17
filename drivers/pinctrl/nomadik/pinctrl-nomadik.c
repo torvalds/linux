@@ -2019,6 +2019,31 @@ static int nmk_pinctrl_probe(struct platform_device *pdev)
 	if (version == PINCTRL_NMK_DB8540)
 		nmk_pinctrl_db8540_init(&npct->soc);
 
+	/*
+	 * Since we depend on the GPIO chips to provide clock and register base
+	 * for the pin control operations, make sure that we have these
+	 * populated before we continue. Follow the phandles to instantiate
+	 * them. The GPIO portion of the actual hardware may be probed before
+	 * or after this point: it shouldn't matter as the APIs are orthogonal.
+	 */
+	for (i = 0; i < NMK_MAX_BANKS; i++) {
+		struct device_node *gpio_np;
+		struct nmk_gpio_chip *nmk_chip;
+
+		gpio_np = of_parse_phandle(np, "nomadik-gpio-chips", i);
+		if (gpio_np) {
+			dev_info(&pdev->dev,
+				 "populate NMK GPIO %d \"%s\"\n",
+				 i, gpio_np->name);
+			nmk_chip = nmk_gpio_populate_chip(gpio_np, pdev);
+			if (IS_ERR(nmk_chip))
+				dev_err(&pdev->dev,
+					"could not populate nmk chip struct "
+					"- continue anyway\n");
+			of_node_put(gpio_np);
+		}
+	}
+
 	prcm_np = of_parse_phandle(np, "prcm", 0);
 	if (prcm_np)
 		npct->prcm_base = of_iomap(prcm_np, 0);
