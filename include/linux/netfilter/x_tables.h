@@ -372,7 +372,7 @@ static inline u64 xt_percpu_counter_alloc(void)
 		if (res == NULL)
 			return (u64) -ENOMEM;
 
-		return (__force u64) res;
+		return (u64) (__force unsigned long) res;
 	}
 
 	return 0;
@@ -380,14 +380,14 @@ static inline u64 xt_percpu_counter_alloc(void)
 static inline void xt_percpu_counter_free(u64 pcnt)
 {
 	if (nr_cpu_ids > 1)
-		free_percpu((void __percpu *) pcnt);
+		free_percpu((void __percpu *) (unsigned long) pcnt);
 }
 
 static inline struct xt_counters *
 xt_get_this_cpu_counter(struct xt_counters *cnt)
 {
 	if (nr_cpu_ids > 1)
-		return this_cpu_ptr((void __percpu *) cnt->pcnt);
+		return this_cpu_ptr((void __percpu *) (unsigned long) cnt->pcnt);
 
 	return cnt;
 }
@@ -396,7 +396,7 @@ static inline struct xt_counters *
 xt_get_per_cpu_counter(struct xt_counters *cnt, unsigned int cpu)
 {
 	if (nr_cpu_ids > 1)
-		return per_cpu_ptr((void __percpu *) cnt->pcnt, cpu);
+		return per_cpu_ptr((void __percpu *) (unsigned long) cnt->pcnt, cpu);
 
 	return cnt;
 }
