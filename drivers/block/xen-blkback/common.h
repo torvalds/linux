@@ -343,7 +343,7 @@ struct grant_page {
 struct pending_req {
 	struct xen_blkif	*blkif;
 	u64			id;
-	int			nr_pages;
+	int			nr_segs;
 	atomic_t		pendcnt;
 	unsigned short		operation;
 	int			status;
