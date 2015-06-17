@@ -297,6 +297,8 @@ void perf_evlist__disable(struct perf_evlist *evlist)
 				      PERF_EVENT_IOC_DISABLE, 0);
 		}
 	}
+
+	evlist->enabled = false;
 }
 
 void perf_evlist__enable(struct perf_evlist *evlist)
@@ -316,6 +318,13 @@ void perf_evlist__enable(struct perf_evlist *evlist)
 				      PERF_EVENT_IOC_ENABLE, 0);
 		}
 	}
+
+	evlist->enabled = true;
+}
+
+void perf_evlist__toggle_enable(struct perf_evlist *evlist)
+{
+	(evlist->enabled ? perf_evlist__disable : perf_evlist__enable)(evlist);
 }
 
 int perf_evlist__disable_event(struct perf_evlist *evlist,

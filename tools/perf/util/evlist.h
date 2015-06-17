@@ -41,6 +41,7 @@ struct perf_evlist {
 	int		 nr_groups;
 	int		 nr_mmaps;
 	bool		 overwrite;
+	bool		 enabled;
 	size_t		 mmap_len;
 	int		 id_pos;
 	int		 is_pos;
@@ -139,6 +140,7 @@ void perf_evlist__munmap(struct perf_evlist *evlist);
 
 void perf_evlist__disable(struct perf_evlist *evlist);
 void perf_evlist__enable(struct perf_evlist *evlist);
+void perf_evlist__toggle_enable(struct perf_evlist *evlist);
 
 int perf_evlist__disable_event(struct perf_evlist *evlist,
 			       struct perf_evsel *evsel);
