@@ -514,8 +514,6 @@ struct adapter {
 #define FLUSH		true
 #define DONT_FLUSH	false
 
-#define SIOCSLICDUMPCARD         (SIOCDEVPRIVATE+9)
 #define SIOCSLICSETINTAGG        (SIOCDEVPRIVATE+10)
-#define SIOCSLICTRACEDUMP        (SIOCDEVPRIVATE+11)
 
 #endif /*  __SLIC_DRIVER_H__ */
