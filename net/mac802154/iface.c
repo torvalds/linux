@@ -189,7 +189,7 @@ static int mac802154_slave_open(struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct ieee802154_local *local = sdata->local;
-	int res = 0;
+	int res;
 
 	ASSERT_RTNL();
 
