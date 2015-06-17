@@ -277,7 +277,7 @@ config CLKSRC_MIPS_GIC
 
 config CLKSRC_PXA
 	def_bool y if ARCH_PXA || ARCH_SA1100
-	select CLKSRC_OF if USE_OF
+	select CLKSRC_OF if OF
 	help
 	  This enables OST0 support available on PXA and SA-11x0
 	  platforms.
