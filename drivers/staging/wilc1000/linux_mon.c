@@ -247,7 +247,7 @@ static int mon_mgmt_tx(struct net_device *dev, const u8 *buf, size_t len)
 	nic = netdev_priv(dev);
 
 	netif_stop_queue(dev);
-	mgmt_tx = (struct tx_complete_mon_data *)kmalloc(sizeof(struct tx_complete_mon_data), GFP_ATOMIC);
+	mgmt_tx = kmalloc(sizeof(struct tx_complete_mon_data), GFP_ATOMIC);
 	if (mgmt_tx == NULL) {
 		PRINT_ER("Failed to allocate memory for mgmt_tx structure\n");
 		return WILC_FAIL;
