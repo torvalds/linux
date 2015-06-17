@@ -3,16 +3,8 @@ config CRYPTO_DEV_NX_ENCRYPT
 	tristate "Encryption acceleration support on pSeries platform"
 	depends on PPC_PSERIES && IBMVIO && !CPU_LITTLE_ENDIAN
 	default y
-	select CRYPTO_ALGAPI
 	select CRYPTO_AES
-	select CRYPTO_CBC
-	select CRYPTO_ECB
 	select CRYPTO_CCM
-	select CRYPTO_GCM
-	select CRYPTO_AUTHENC
-	select CRYPTO_XCBC
-	select CRYPTO_SHA256
-	select CRYPTO_SHA512
 	help
 	  Support for PowerPC Nest (NX) encryption acceleration. This
 	  module supports acceleration for AES and SHA2 algorithms on
