@@ -135,11 +135,9 @@ struct clk *clk_register_gate(struct device *dev, const char *name,
 	}
 
 	/* allocate the gate */
-	gate = kzalloc(sizeof(struct clk_gate), GFP_KERNEL);
-	if (!gate) {
-		pr_err("%s: could not allocate gated clk\n", __func__);
+	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+	if (!gate)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	init.name = name;
 	init.ops = &clk_gate_ops;

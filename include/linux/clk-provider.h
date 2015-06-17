@@ -209,7 +209,7 @@ struct clk_ops {
 struct clk_init_data {
 	const char		*name;
 	const struct clk_ops	*ops;
-	const char		**parent_names;
+	const char		* const *parent_names;
 	u8			num_parents;
 	unsigned long		flags;
 };
@@ -426,12 +426,14 @@ extern const struct clk_ops clk_mux_ops;
 extern const struct clk_ops clk_mux_ro_ops;
 
 struct clk *clk_register_mux(struct device *dev, const char *name,
-		const char **parent_names, u8 num_parents, unsigned long flags,
+		const char * const *parent_names, u8 num_parents,
+		unsigned long flags,
 		void __iomem *reg, u8 shift, u8 width,
 		u8 clk_mux_flags, spinlock_t *lock);
 
 struct clk *clk_register_mux_table(struct device *dev, const char *name,
-		const char **parent_names, u8 num_parents, unsigned long flags,
+		const char * const *parent_names, u8 num_parents,
+		unsigned long flags,
 		void __iomem *reg, u8 shift, u32 mask,
 		u8 clk_mux_flags, u32 *table, spinlock_t *lock);
 
@@ -457,7 +459,7 @@ struct clk_fixed_factor {
 	unsigned int	div;
 };
 
-extern struct clk_ops clk_fixed_factor_ops;
+extern const struct clk_ops clk_fixed_factor_ops;
 struct clk *clk_register_fixed_factor(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags,
 		unsigned int mult, unsigned int div);
@@ -518,7 +520,7 @@ struct clk_composite {
 };
 
 struct clk *clk_register_composite(struct device *dev, const char *name,
-		const char **parent_names, int num_parents,
+		const char * const *parent_names, int num_parents,
 		struct clk_hw *mux_hw, const struct clk_ops *mux_ops,
 		struct clk_hw *rate_hw, const struct clk_ops *rate_ops,
 		struct clk_hw *gate_hw, const struct clk_ops *gate_ops,
@@ -624,6 +626,8 @@ struct clk *of_clk_src_simple_get(struct of_phandle_args *clkspec,
 				  void *data);
 struct clk *of_clk_src_onecell_get(struct of_phandle_args *clkspec, void *data);
 int of_clk_get_parent_count(struct device_node *np);
+int of_clk_parent_fill(struct device_node *np, const char **parents,
+		       unsigned int size);
 const char *of_clk_get_parent_name(struct device_node *np, int index);
 
 void of_clk_init(const struct of_device_id *matches);

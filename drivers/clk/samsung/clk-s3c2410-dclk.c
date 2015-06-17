@@ -81,13 +81,13 @@ static int s3c24xx_clkout_set_parent(struct clk_hw *hw, u8 index)
 	return ret;
 }
 
-const struct clk_ops s3c24xx_clkout_ops = {
+static const struct clk_ops s3c24xx_clkout_ops = {
 	.get_parent = s3c24xx_clkout_get_parent,
 	.set_parent = s3c24xx_clkout_set_parent,
 	.determine_rate = __clk_mux_determine_rate,
 };
 
-struct clk *s3c24xx_register_clkout(struct device *dev, const char *name,
+static struct clk *s3c24xx_register_clkout(struct device *dev, const char *name,
 		const char **parent_names, u8 num_parents,
 		u8 shift, u32 mask)
 {
@@ -404,7 +404,7 @@ static struct s3c24xx_dclk_drv_data dclk_variants[] = {
 	},
 };
 
-static struct platform_device_id s3c24xx_dclk_driver_ids[] = {
+static const struct platform_device_id s3c24xx_dclk_driver_ids[] = {
 	{
 		.name		= "s3c2410-dclk",
 		.driver_data	= (kernel_ulong_t)&dclk_variants[S3C2410],
