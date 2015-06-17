@@ -23,8 +23,7 @@
 #include "bfi_reg.h"
 #include "bfa_defs.h"
 
-#define bfa_ioc_ct_sync_pos(__ioc)	\
-		((u32)BIT(bfa_ioc_pcifn(__ioc)))
+#define bfa_ioc_ct_sync_pos(__ioc)	BIT(bfa_ioc_pcifn(__ioc))
 #define BFA_IOC_SYNC_REQD_SH		16
 #define bfa_ioc_ct_get_sync_ackd(__val) (__val & 0x0000ffff)
 #define bfa_ioc_ct_clear_sync_ackd(__val) (__val & 0xffff0000)
