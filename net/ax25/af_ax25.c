@@ -40,7 +40,6 @@
 #include <linux/notifier.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
-#include <linux/netfilter.h>
 #include <linux/sysctl.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
