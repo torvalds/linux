@@ -35,16 +35,12 @@
 #include <linux/ip.h>          /* struct iphdr */
 #include <linux/tcp.h>         /* struct tcphdr */
 #include <linux/skbuff.h>
-
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
-
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
 #include <net/ieee80211_radiotap.h>
 #include <linux/if_arp.h>
-
-
 #include <linux/in6.h>
 #include <asm/checksum.h>
 #include "host_interface.h"
@@ -55,8 +51,6 @@
 #define FLOW_CONTROL_UPPER_THRESHOLD	256
 
 /*iftype*/
-
-
 enum stats_flags {
 	WILC_WFI_RX_PKT = 1 << 0,
 	WILC_WFI_TX_PKT = 1 << 1,
@@ -131,13 +125,10 @@ struct WILC_WFI_priv {
 	#ifdef WILC_P2P
 	struct wilc_wfi_p2pListenParams strRemainOnChanParams;
 	u64 u64tx_cookie;
-
 	#endif
 
 	bool bCfgScanning;
 	u32 u32RcvdChCount;
-
-
 
 	u8 au8AssociatedBss[ETH_ALEN];
 	struct sta_info assoc_stainfo;
@@ -180,7 +171,6 @@ typedef struct {
 
 } struct_frame_reg;
 
-
 #define NUM_CONCURRENT_IFC 2
 typedef struct {
 	uint8_t aSrcAddress[ETH_ALEN];
@@ -191,8 +181,6 @@ typedef struct {
 typedef struct {
 	int mac_status;
 	int wilc1000_initialized;
-
-
 	#if (!defined WILC_SDIO) || (defined WILC_SDIO_IRQ_GPIO)
 	unsigned short dev_irq_num;
 	#endif
@@ -224,9 +212,6 @@ typedef struct {
 	struct task_struct *rx_bh_thread;
 	struct semaphore rx_sem;
 #endif
-
-
-
 	struct semaphore rxq_thread_started;
 	struct semaphore txq_thread_started;
 
