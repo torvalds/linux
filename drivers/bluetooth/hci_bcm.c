@@ -104,6 +104,7 @@ static int bcm_recv(struct hci_uart *hu, const void *data, int count)
 	if (IS_ERR(bcm->rx_skb)) {
 		int err = PTR_ERR(bcm->rx_skb);
 		BT_ERR("%s: Frame reassembly failed (%d)", hu->hdev->name, err);
+		bcm->rx_skb = NULL;
 		return err;
 	}
 

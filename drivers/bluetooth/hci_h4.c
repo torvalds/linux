@@ -133,6 +133,7 @@ static int h4_recv(struct hci_uart *hu, const void *data, int count)
 	if (IS_ERR(h4->rx_skb)) {
 		int err = PTR_ERR(h4->rx_skb);
 		BT_ERR("%s: Frame reassembly failed (%d)", hu->hdev->name, err);
+		h4->rx_skb = NULL;
 		return err;
 	}
 
