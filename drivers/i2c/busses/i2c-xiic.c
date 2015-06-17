@@ -401,11 +401,11 @@ static irqreturn_t xiic_process(int irq, void *dev_id)
 
 		if (i2c->tx_msg)
 			xiic_wakeup(i2c, STATE_ERROR);
-
-	} else if (pend & XIIC_INTR_RX_FULL_MASK) {
+	}
+	if (pend & XIIC_INTR_RX_FULL_MASK) {
 		/* Receive register/FIFO is full */
 
-		clr = XIIC_INTR_RX_FULL_MASK;
+		clr |= XIIC_INTR_RX_FULL_MASK;
 		if (!i2c->rx_msg) {
 			dev_dbg(i2c->adap.dev.parent,
 				"%s unexpexted RX IRQ\n", __func__);
@@ -438,9 +438,10 @@ static irqreturn_t xiic_process(int irq, void *dev_id)
 				__xiic_start_xfer(i2c);
 			}
 		}
-	} else if (pend & XIIC_INTR_BNB_MASK) {
+	}
+	if (pend & XIIC_INTR_BNB_MASK) {
 		/* IIC bus has transitioned to not busy */
-		clr = XIIC_INTR_BNB_MASK;
+		clr |= XIIC_INTR_BNB_MASK;
 
 		/* The bus is not busy, disable BusNotBusy interrupt */
 		xiic_irq_dis(i2c, XIIC_INTR_BNB_MASK);
@@ -453,12 +454,12 @@ static irqreturn_t xiic_process(int irq, void *dev_id)
 			xiic_wakeup(i2c, STATE_DONE);
 		else
 			xiic_wakeup(i2c, STATE_ERROR);
-
-	} else if (pend & (XIIC_INTR_TX_EMPTY_MASK | XIIC_INTR_TX_HALF_MASK)) {
+	}
+	if (pend & (XIIC_INTR_TX_EMPTY_MASK | XIIC_INTR_TX_HALF_MASK)) {
 		/* Transmit register/FIFO is empty or ½ empty */
 
-		clr = pend &
-			(XIIC_INTR_TX_EMPTY_MASK | XIIC_INTR_TX_HALF_MASK);
+		clr |= (pend &
+			(XIIC_INTR_TX_EMPTY_MASK | XIIC_INTR_TX_HALF_MASK));
 
 		if (!i2c->tx_msg) {
 			dev_dbg(i2c->adap.dev.parent,
@@ -489,11 +490,6 @@ static irqreturn_t xiic_process(int irq, void *dev_id)
 			 * make sure to disable tx half
 			 */
 			xiic_irq_dis(i2c, XIIC_INTR_TX_HALF_MASK);
-	} else {
-		/* got IRQ which is not acked */
-		dev_err(i2c->adap.dev.parent, "%s Got unexpected IRQ\n",
-			__func__);
-		clr = pend;
 	}
 out:
 	dev_dbg(i2c->adap.dev.parent, "%s clr: 0x%x\n", __func__, clr);
