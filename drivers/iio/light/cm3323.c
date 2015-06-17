@@ -155,7 +155,7 @@ static int cm3323_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan, int *val,
 			   int *val2, long mask)
 {
-	int i, ret;
+	int ret;
 	struct cm3323_data *data = iio_priv(indio_dev);
 
 	switch (mask) {
@@ -172,14 +172,14 @@ static int cm3323_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_INT_TIME:
 		mutex_lock(&data->mutex);
-		i = cm3323_get_it_bits(data);
-		if (i < 0) {
+		ret = cm3323_get_it_bits(data);
+		if (ret < 0) {
 			mutex_unlock(&data->mutex);
-			return i;
+			return ret;
 		}
 
-		*val = cm3323_int_time[i].val;
-		*val2 = cm3323_int_time[i].val2;
+		*val = cm3323_int_time[ret].val;
+		*val2 = cm3323_int_time[ret].val2;
 		mutex_unlock(&data->mutex);
 
 		return IIO_VAL_INT_PLUS_MICRO;
