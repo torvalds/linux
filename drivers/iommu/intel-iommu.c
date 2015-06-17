@@ -422,6 +422,14 @@ static int dmar_map_gfx = 1;
 static int dmar_forcedac;
 static int intel_iommu_strict;
 static int intel_iommu_superpage = 1;
+static int intel_iommu_ecs = 1;
+
+/* We only actually use ECS when PASID support (on the new bit 40)
+ * is also advertised. Some early implementations — the ones with
+ * PASID support on bit 28 — have issues even when we *only* use
+ * extended root/context tables. */
+#define ecs_enabled(iommu) (intel_iommu_ecs && ecap_ecs(iommu->ecap) && \
+			    ecap_pasid(iommu->ecap))
 
 int intel_iommu_gfx_mapped;
 EXPORT_SYMBOL_GPL(intel_iommu_gfx_mapped);
@@ -465,6 +473,10 @@ static int __init intel_iommu_setup(char *str)
 			printk(KERN_INFO
 				"Intel-IOMMU: disable supported super page\n");
 			intel_iommu_superpage = 0;
+		} else if (!strncmp(str, "ecs_off", 7)) {
+			printk(KERN_INFO
+				"Intel-IOMMU: disable extended context table support\n");
+			intel_iommu_ecs = 0;
 		}
 
 		str += strcspn(str, ",");
@@ -669,7 +681,7 @@ static inline struct context_entry *iommu_context_addr(struct intel_iommu *iommu
 	struct context_entry *context;
 	u64 *entry;
 
-	if (ecap_ecs(iommu->ecap)) {
+	if (ecs_enabled(iommu)) {
 		if (devfn >= 0x80) {
 			devfn -= 0x80;
 			entry = &root->hi;
@@ -806,7 +818,7 @@ static void free_context_table(struct intel_iommu *iommu)
 		if (context)
 			free_pgtable_page(context);
 
-		if (!ecap_ecs(iommu->ecap))
+		if (!ecs_enabled(iommu))
 			continue;
 
 		context = iommu_context_addr(iommu, i, 0x80, 0);
@@ -1141,7 +1153,7 @@ static void iommu_set_root_entry(struct intel_iommu *iommu)
 	unsigned long flag;
 
 	addr = virt_to_phys(iommu->root_entry);
-	if (ecap_ecs(iommu->ecap))
+	if (ecs_enabled(iommu))
 		addr |= DMA_RTADDR_RTT;
 
 	raw_spin_lock_irqsave(&iommu->register_lock, flag);

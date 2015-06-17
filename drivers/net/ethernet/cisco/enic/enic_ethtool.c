@@ -131,8 +131,15 @@ static void enic_get_drvinfo(struct net_device *netdev,
 {
 	struct enic *enic = netdev_priv(netdev);
 	struct vnic_devcmd_fw_info *fw_info;
+	int err;
 
-	enic_dev_fw_info(enic, &fw_info);
+	err = enic_dev_fw_info(enic, &fw_info);
+	/* return only when pci_zalloc_consistent fails in vnic_dev_fw_info
+	 * For other failures, like devcmd failure, we return previously
+	 * recorded info.
+	 */
+	if (err == -ENOMEM)
+		return;
 
 	strlcpy(drvinfo->driver, DRV_NAME, sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, DRV_VERSION, sizeof(drvinfo->version));
@@ -181,8 +188,15 @@ static void enic_get_ethtool_stats(struct net_device *netdev,
 	struct enic *enic = netdev_priv(netdev);
 	struct vnic_stats *vstats;
 	unsigned int i;
+	int err;
 
-	enic_dev_stats_dump(enic, &vstats);
+	err = enic_dev_stats_dump(enic, &vstats);
+	/* return only when pci_zalloc_consistent fails in vnic_dev_stats_dump
+	 * For other failures, like devcmd failure, we return previously
+	 * recorded stats.
+	 */
+	if (err == -ENOMEM)
+		return;
 
 	for (i = 0; i < enic_n_tx_stats; i++)
 		*(data++) = ((u64 *)&vstats->tx)[enic_tx_stats[i].index];

@@ -212,13 +212,13 @@ static int ip6_input_finish(struct sock *sk, struct sk_buff *skb)
 	 */
 
 	rcu_read_lock();
+resubmit:
 	idev = ip6_dst_idev(skb_dst(skb));
 	if (!pskb_pull(skb, skb_transport_offset(skb)))
 		goto discard;
 	nhoff = IP6CB(skb)->nhoff;
 	nexthdr = skb_network_header(skb)[nhoff];
 
-resubmit:
 	raw = raw6_local_deliver(skb, nexthdr);
 	ipprot = rcu_dereference(inet6_protos[nexthdr]);
 	if (ipprot) {
@@ -246,12 +246,10 @@ resubmit:
 			goto discard;
 
 		ret = ipprot->handler(skb);
-		if (ret < 0) {
-			nexthdr = -ret;
+		if (ret > 0)
 			goto resubmit;
-		} else if (ret == 0) {
+		else if (ret == 0)
 			IP6_INC_STATS_BH(net, idev, IPSTATS_MIB_INDELIVERS);
-		}
 	} else {
 		if (!raw) {
 			if (xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) {
