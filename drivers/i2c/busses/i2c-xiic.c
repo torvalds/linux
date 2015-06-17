@@ -283,7 +283,7 @@ static void xiic_reinit(struct xiic_i2c *i2c)
 	/* Enable interrupts */
 	xiic_setreg32(i2c, XIIC_DGIER_OFFSET, XIIC_GINTR_ENABLE_MASK);
 
-	xiic_irq_clr_en(i2c, XIIC_INTR_AAS_MASK | XIIC_INTR_ARB_LOST_MASK);
+	xiic_irq_clr_en(i2c, XIIC_INTR_ARB_LOST_MASK);
 }
 
 static void xiic_deinit(struct xiic_i2c *i2c)
