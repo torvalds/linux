@@ -1208,8 +1208,6 @@ static void disconnect_all_peers(void)
 
 		list_del_rcu(&peer->list);
 		kfree_rcu(peer, rcu);
-
-		module_put(THIS_MODULE);
 	}
 	spin_unlock(&devices_lock);
 }
