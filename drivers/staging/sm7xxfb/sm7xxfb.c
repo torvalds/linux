@@ -336,7 +336,7 @@ static ssize_t smtcfb_read(struct fb_info *info, char __user *buf, size_t
 	if (!buffer)
 		return -ENOMEM;
 
-	src = (u32 __iomem *) (info->screen_base + p);
+	src = (u32 __iomem *)(info->screen_base + p);
 
 	if (info->fbops->fb_sync)
 		info->fbops->fb_sync(info);
@@ -422,7 +422,7 @@ smtcfb_write(struct fb_info *info, const char __user *buf, size_t count,
 	if (!buffer)
 		return -ENOMEM;
 
-	dst = (u32 __iomem *) (info->screen_base + p);
+	dst = (u32 __iomem *)(info->screen_base + p);
 
 	if (info->fbops->fb_sync)
 		info->fbops->fb_sync(info);
@@ -568,7 +568,7 @@ static void sm7xx_set_timing(struct smtcfb_info *sfb)
 		writel(0x00030000, sfb->vp_regs + 0x0);
 		break;
 	}
-	writel((u32) (((m_nscreenstride + 2) << 16) | m_nscreenstride),
+	writel((u32)(((m_nscreenstride + 2) << 16) | m_nscreenstride),
 	       sfb->vp_regs + 0x10);
 }
 
