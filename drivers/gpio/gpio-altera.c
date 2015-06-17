@@ -340,7 +340,7 @@ static int altera_gpio_remove(struct platform_device *pdev)
 
 	gpiochip_remove(&altera_gc->mmchip.gc);
 
-	return -EIO;
+	return 0;
 }
 
 static const struct of_device_id altera_gpio_of_match[] = {
