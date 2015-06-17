@@ -4,7 +4,8 @@
 #include <linux/types.h>
 #include <linux/compiler.h>
 #include <linux/sysctl.h>
-
+#include <linux/in.h>
+#include <linux/in6.h>
 
 /* Responses from hook functions. */
 #define NF_DROP 0
