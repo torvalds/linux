@@ -93,6 +93,8 @@ struct acpi_nfit_desc {
 	struct nvdimm_bus *nvdimm_bus;
 	struct device *dev;
 	unsigned long dimm_dsm_force_en;
+	int (*blk_do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,
+			void *iobuf, u64 len, int rw);
 };
 
 enum nd_blk_mmio_selector {
@@ -146,4 +148,8 @@ static inline struct acpi_nfit_desc *to_acpi_desc(
 {
 	return container_of(nd_desc, struct acpi_nfit_desc, nd_desc);
 }
+
+const u8 *to_nfit_uuid(enum nfit_uuids id);
+int acpi_nfit_init(struct acpi_nfit_desc *nfit, acpi_size sz);
+extern const struct attribute_group *acpi_nfit_attribute_groups[];
 #endif /* __NFIT_H__ */

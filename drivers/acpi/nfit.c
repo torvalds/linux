@@ -33,10 +33,11 @@ MODULE_PARM_DESC(force_enable_dimms, "Ignore _STA (ACPI DIMM device) status");
 
 static u8 nfit_uuid[NFIT_UUID_MAX][16];
 
-static const u8 *to_nfit_uuid(enum nfit_uuids id)
+const u8 *to_nfit_uuid(enum nfit_uuids id)
 {
 	return nfit_uuid[id];
 }
+EXPORT_SYMBOL(to_nfit_uuid);
 
 static struct acpi_nfit_desc *to_acpi_nfit_desc(
 		struct nvdimm_bus_descriptor *nd_desc)
@@ -581,11 +582,12 @@ static struct attribute_group acpi_nfit_attribute_group = {
 	.attrs = acpi_nfit_attributes,
 };
 
-static const struct attribute_group *acpi_nfit_attribute_groups[] = {
+const struct attribute_group *acpi_nfit_attribute_groups[] = {
 	&nvdimm_bus_attribute_group,
 	&acpi_nfit_attribute_group,
 	NULL,
 };
+EXPORT_SYMBOL_GPL(acpi_nfit_attribute_groups);
 
 static struct acpi_nfit_memory_map *to_nfit_memdev(struct device *dev)
 {
@@ -1323,7 +1325,7 @@ static int acpi_nfit_init_mapping(struct acpi_nfit_desc *acpi_desc,
 		ndbr_desc = to_blk_region_desc(ndr_desc);
 		ndbr_desc->enable = acpi_nfit_blk_region_enable;
 		ndbr_desc->disable = acpi_nfit_blk_region_disable;
-		ndbr_desc->do_io = acpi_nfit_blk_region_do_io;
+		ndbr_desc->do_io = acpi_desc->blk_do_io;
 		if (!nvdimm_blk_region_create(acpi_desc->nvdimm_bus, ndr_desc))
 			return -ENOMEM;
 		break;
@@ -1407,7 +1409,7 @@ static int acpi_nfit_register_regions(struct acpi_nfit_desc *acpi_desc)
 	return 0;
 }
 
-static int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, acpi_size sz)
+int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, acpi_size sz)
 {
 	struct device *dev = acpi_desc->dev;
 	const void *end;
@@ -1446,6 +1448,7 @@ static int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, acpi_size sz)
 
 	return acpi_nfit_register_regions(acpi_desc);
 }
+EXPORT_SYMBOL_GPL(acpi_nfit_init);
 
 static int acpi_nfit_add(struct acpi_device *adev)
 {
@@ -1470,6 +1473,7 @@ static int acpi_nfit_add(struct acpi_device *adev)
 	dev_set_drvdata(dev, acpi_desc);
 	acpi_desc->dev = dev;
 	acpi_desc->nfit = (struct acpi_table_nfit *) tbl;
+	acpi_desc->blk_do_io = acpi_nfit_blk_region_do_io;
 	nd_desc = &acpi_desc->nd_desc;
 	nd_desc->provider_name = "ACPI.NFIT";
 	nd_desc->ndctl = acpi_nfit_ctl;
