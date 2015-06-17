@@ -248,6 +248,7 @@ typedef struct {
 struct WILC_WFI_mon_priv {
 	struct net_device *real_ndev;
 };
+
 extern struct net_device *WILC_WFI_devs[];
 
 #endif
