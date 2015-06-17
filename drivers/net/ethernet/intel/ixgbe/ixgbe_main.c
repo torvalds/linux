@@ -5798,7 +5798,15 @@ static void ixgbe_close_suspend(struct ixgbe_adapter *adapter)
 {
 	ixgbe_ptp_suspend(adapter);
 
-	ixgbe_down(adapter);
+	if (adapter->hw.phy.ops.enter_lplu) {
+		adapter->hw.phy.reset_disable = true;
+		ixgbe_down(adapter);
+		adapter->hw.phy.ops.enter_lplu(&adapter->hw);
+		adapter->hw.phy.reset_disable = false;
+	} else {
+		ixgbe_down(adapter);
+	}
+
 	ixgbe_free_irq(adapter);
 
 	ixgbe_free_all_tx_resources(adapter);
