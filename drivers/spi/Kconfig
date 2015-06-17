@@ -222,7 +222,7 @@ config SPI_FALCON
 
 config SPI_GPIO
 	tristate "GPIO-based bitbanging SPI Master"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	select SPI_BITBANG
 	help
 	  This simple GPIO bitbanging SPI master uses the arch-neutral GPIO
@@ -328,7 +328,7 @@ config SPI_MESON_SPIFC
 
 config SPI_OC_TINY
 	tristate "OpenCores tiny SPI"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	select SPI_BITBANG
 	help
 	  This is the driver for OpenCores tiny SPI master controller.
