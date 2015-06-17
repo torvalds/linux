@@ -198,7 +198,7 @@ static inline int is_gb_connection(const struct device *dev)
 
 static inline bool cport_id_valid(u16 cport_id)
 {
-	return cport_id && cport_id != CPORT_ID_BAD && cport_id <= CPORT_ID_MAX;
+	return cport_id != CPORT_ID_BAD && cport_id <= CPORT_ID_MAX;
 }
 
 #endif /* __KERNEL__ */

@@ -170,7 +170,6 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 					      size_t buffer_size_max)
 {
 	struct greybus_host_device *hd;
-	int ret;
 
 	/*
 	 * Validate that the driver implements all of the callbacks
@@ -201,19 +200,12 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	if (!hd)
 		return ERR_PTR(-ENOMEM);
 
-	ida_init(&hd->cport_id_map);
-	/* Reserve CPort id 0 */
-	ret = ida_simple_get(&hd->cport_id_map, 0, 1, GFP_KERNEL);
-	if (ret < 0) {
-		kfree(hd);
-		return ERR_PTR(ret);
-	}
-
 	kref_init(&hd->kref);
 	hd->parent = parent;
 	hd->driver = driver;
 	INIT_LIST_HEAD(&hd->interfaces);
 	INIT_LIST_HEAD(&hd->connections);
+	ida_init(&hd->cport_id_map);
 	hd->buffer_size_max = buffer_size_max;
 
 	return hd;
