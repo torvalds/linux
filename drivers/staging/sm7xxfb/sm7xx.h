@@ -775,5 +775,3 @@ static struct ModeInit vgamode[] = {
 	  },
 	 },
 };
-
-#define numvgamodes		ARRAY_SIZE(vgamode)

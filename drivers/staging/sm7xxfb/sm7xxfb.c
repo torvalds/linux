@@ -477,7 +477,7 @@ static void sm7xx_set_timing(struct smtcfb_info *sfb)
 		"sfb->width=%d sfb->height=%d sfb->fb->var.bits_per_pixel=%d sfb->hz=%d\n",
 		sfb->width, sfb->height, sfb->fb->var.bits_per_pixel, sfb->hz);
 
-	for (j = 0; j < numvgamodes; j++) {
+	for (j = 0; j < ARRAY_SIZE(vgamode); j++) {
 		if (vgamode[j].mmsizex == sfb->width &&
 		    vgamode[j].mmsizey == sfb->height &&
 		    vgamode[j].bpp == sfb->fb->var.bits_per_pixel &&
