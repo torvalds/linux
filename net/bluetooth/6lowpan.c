@@ -856,7 +856,7 @@ static int setup_netdev(struct l2cap_chan *chan, struct lowpan_dev **dev)
 	set_dev_addr(netdev, &chan->src, chan->src_type);
 
 	netdev->netdev_ops = &netdev_ops;
-	SET_NETDEV_DEV(netdev, &chan->conn->hcon->dev);
+	SET_NETDEV_DEV(netdev, &chan->conn->hcon->hdev->dev);
 	SET_NETDEV_DEVTYPE(netdev, &bt_type);
 
 	err = register_netdev(netdev);
