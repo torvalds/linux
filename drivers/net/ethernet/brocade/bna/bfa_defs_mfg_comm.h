@@ -84,7 +84,7 @@ do {								\
 		(prop) |= BFI_ADAPTER_PROTO;			\
 		(gpio) &= ~CB_GPIO_PROTO;			\
 	}							\
-	switch ((gpio)) {					\
+	switch (gpio) {						\
 	case CB_GPIO_TTV:					\
 		(prop) |= BFI_ADAPTER_TTV;			\
 	case CB_GPIO_DFLY:					\
