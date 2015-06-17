@@ -302,8 +302,8 @@ static int smtc_setcolreg(unsigned regno, unsigned red, unsigned green,
 }
 
 #ifdef __BIG_ENDIAN
-static ssize_t smtcfb_read(struct fb_info *info, char __user *buf, size_t
-				count, loff_t *ppos)
+static ssize_t smtcfb_read(struct fb_info *info, char __user *buf,
+			   size_t count, loff_t *ppos)
 {
 	unsigned long p = *ppos;
 
@@ -346,9 +346,8 @@ static ssize_t smtcfb_read(struct fb_info *info, char __user *buf, size_t
 		dst = buffer;
 		for (i = c >> 2; i--;) {
 			*dst = fb_readl(src++);
-			*dst =
-			    (*dst & 0xff00ff00 >> 8) |
-			    (*dst & 0x00ff00ff << 8);
+			*dst = (*dst & 0xff00ff00 >> 8) |
+			       (*dst & 0x00ff00ff << 8);
 			dst++;
 		}
 		if (c & 3) {
@@ -381,9 +380,8 @@ static ssize_t smtcfb_read(struct fb_info *info, char __user *buf, size_t
 	return (err) ? err : cnt;
 }
 
-static ssize_t
-smtcfb_write(struct fb_info *info, const char __user *buf, size_t count,
-	     loff_t *ppos)
+static ssize_t smtcfb_write(struct fb_info *info, const char __user *buf,
+			    size_t count, loff_t *ppos)
 {
 	unsigned long p = *ppos;
 
@@ -552,8 +550,7 @@ static void sm7xx_set_timing(struct smtcfb_info *sfb)
 	writel(0x0, sfb->vp_regs + 0x40);
 
 	/* set data width */
-	m_nscreenstride =
-		(sfb->width * sfb->fb->var.bits_per_pixel) / 64;
+	m_nscreenstride = (sfb->width * sfb->fb->var.bits_per_pixel) / 64;
 	switch (sfb->fb->var.bits_per_pixel) {
 	case 8:
 		writel(0x0, sfb->vp_regs + 0x0);
