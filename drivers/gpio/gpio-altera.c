@@ -338,7 +338,7 @@ static int altera_gpio_remove(struct platform_device *pdev)
 {
 	struct altera_gpio_chip *altera_gc = platform_get_drvdata(pdev);
 
-	gpiochip_remove(&altera_gc->mmchip.gc);
+	of_mm_gpiochip_remove(&altera_gc->mmchip);
 
 	return 0;
 }
