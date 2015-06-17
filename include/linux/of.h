@@ -422,6 +422,11 @@ static inline struct device_node *of_find_node_opts_by_path(const char *path,
 	return NULL;
 }
 
+static inline struct device_node *of_find_node_by_phandle(phandle handle)
+{
+	return NULL;
+}
+
 static inline struct device_node *of_get_parent(const struct device_node *node)
 {
 	return NULL;
