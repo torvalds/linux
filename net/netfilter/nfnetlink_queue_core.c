@@ -834,8 +834,6 @@ nfqnl_dev_drop(struct net *net, int ifindex)
 	rcu_read_unlock();
 }
 
-#define RCV_SKB_FAIL(err) do { netlink_ack(skb, nlh, (err)); return; } while (0)
-
 static int
 nfqnl_rcv_dev_event(struct notifier_block *this,
 		    unsigned long event, void *ptr)
