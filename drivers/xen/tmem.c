@@ -17,8 +17,8 @@
 
 #include <xen/xen.h>
 #include <xen/interface/xen.h>
+#include <xen/page.h>
 #include <asm/xen/hypercall.h>
-#include <asm/xen/page.h>
 #include <asm/xen/hypervisor.h>
 #include <xen/tmem.h>
 
