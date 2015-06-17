@@ -1748,6 +1748,15 @@ static struct dm_cache_policy_type smq_policy_type = {
 	.create = smq_create
 };
 
+static struct dm_cache_policy_type default_policy_type = {
+	.name = "default",
+	.version = {1, 0, 0},
+	.hint_size = 4,
+	.owner = THIS_MODULE,
+	.create = smq_create,
+	.real = &smq_policy_type
+};
+
 static int __init smq_init(void)
 {
 	int r;
@@ -1758,12 +1767,20 @@ static int __init smq_init(void)
 		return -ENOMEM;
 	}
 
+	r = dm_cache_policy_register(&default_policy_type);
+	if (r) {
+		DMERR("register failed (as default) %d", r);
+		dm_cache_policy_unregister(&smq_policy_type);
+		return -ENOMEM;
+	}
+
 	return 0;
 }
 
 static void __exit smq_exit(void)
 {
 	dm_cache_policy_unregister(&smq_policy_type);
+	dm_cache_policy_unregister(&default_policy_type);
 }
 
 module_init(smq_init);

@@ -1431,19 +1431,10 @@ bad_pre_cache_init:
 
 static struct dm_cache_policy_type mq_policy_type = {
 	.name = "mq",
-	.version = {1, 3, 0},
+	.version = {1, 4, 0},
 	.hint_size = 4,
 	.owner = THIS_MODULE,
 	.create = mq_create
-};
-
-static struct dm_cache_policy_type default_policy_type = {
-	.name = "default",
-	.version = {1, 3, 0},
-	.hint_size = 4,
-	.owner = THIS_MODULE,
-	.create = mq_create,
-	.real = &mq_policy_type
 };
 
 static int __init mq_init(void)
@@ -1455,36 +1446,21 @@ static int __init mq_init(void)
 					   __alignof__(struct entry),
 					   0, NULL);
 	if (!mq_entry_cache)
-		goto bad;
+		return -ENOMEM;
 
 	r = dm_cache_policy_register(&mq_policy_type);
 	if (r) {
 		DMERR("register failed %d", r);
-		goto bad_register_mq;
+		kmem_cache_destroy(mq_entry_cache);
+		return -ENOMEM;
 	}
 
-	r = dm_cache_policy_register(&default_policy_type);
-	if (!r) {
-		DMINFO("version %u.%u.%u loaded",
-		       mq_policy_type.version[0],
-		       mq_policy_type.version[1],
-		       mq_policy_type.version[2]);
-		return 0;
-	}
-
-	DMERR("register failed (as default) %d", r);
-
-	dm_cache_policy_unregister(&mq_policy_type);
-bad_register_mq:
-	kmem_cache_destroy(mq_entry_cache);
-bad:
-	return -ENOMEM;
+	return 0;
 }
 
 static void __exit mq_exit(void)
 {
 	dm_cache_policy_unregister(&mq_policy_type);
-	dm_cache_policy_unregister(&default_policy_type);
 
 	kmem_cache_destroy(mq_entry_cache);
 }
