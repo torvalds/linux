@@ -429,6 +429,41 @@ static struct debuginfo *open_debuginfo(const char *module, bool silent)
 	return ret;
 }
 
+/* For caching the last debuginfo */
+static struct debuginfo *debuginfo_cache;
+static char *debuginfo_cache_path;
+
+static struct debuginfo *debuginfo_cache__open(const char *module, bool silent)
+{
+	if ((debuginfo_cache_path && !strcmp(debuginfo_cache_path, module)) ||
+	    (!debuginfo_cache_path && !module && debuginfo_cache))
+		goto out;
+
+	/* Copy module path */
+	free(debuginfo_cache_path);
+	if (module) {
+		debuginfo_cache_path = strdup(module);
+		if (!debuginfo_cache_path) {
+			debuginfo__delete(debuginfo_cache);
+			debuginfo_cache = NULL;
+			goto out;
+		}
+	}
+
+	debuginfo_cache = open_debuginfo(module, silent);
+	if (!debuginfo_cache)
+		zfree(&debuginfo_cache_path);
+out:
+	return debuginfo_cache;
+}
+
+static void debuginfo_cache__exit(void)
+{
+	debuginfo__delete(debuginfo_cache);
+	debuginfo_cache = NULL;
+	zfree(&debuginfo_cache_path);
+}
+
 
 static int get_text_start_address(const char *exec, unsigned long *address)
 {
@@ -490,12 +525,11 @@ static int find_perf_probe_point_from_dwarf(struct probe_trace_point *tp,
 	pr_debug("try to find information at %" PRIx64 " in %s\n", addr,
 		 tp->module ? : "kernel");
 
-	dinfo = open_debuginfo(tp->module, verbose == 0);
-	if (dinfo) {
+	dinfo = debuginfo_cache__open(tp->module, verbose == 0);
+	if (dinfo)
 		ret = debuginfo__find_probe_point(dinfo,
 						 (unsigned long)addr, pp);
-		debuginfo__delete(dinfo);
-	} else
+	else
 		ret = -ENOENT;
 
 	if (ret > 0) {
@@ -929,6 +963,10 @@ out:
 }
 
 #else	/* !HAVE_DWARF_SUPPORT */
+
+static void debuginfo_cache__exit(void)
+{
+}
 
 static int
 find_perf_probe_point_from_dwarf(struct probe_trace_point *tp __maybe_unused,
@@ -2266,6 +2304,8 @@ next:
 			break;
 	}
 	strlist__delete(rawlist);
+	/* Cleanup cached debuginfo if needed */
+	debuginfo_cache__exit();
 
 	return ret;
 }
