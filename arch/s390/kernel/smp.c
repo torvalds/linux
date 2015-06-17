@@ -658,7 +658,8 @@ static struct sclp_cpu_info *smp_get_cpu_info(void)
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (info && (use_sigp_detection || sclp_get_cpu_info(info))) {
 		use_sigp_detection = 1;
-		for (address = 0; address <= MAX_CPU_ADDRESS;
+		for (address = 0;
+		     address <= (MAX_CPU_ADDRESS << smp_cpu_mt_shift);
 		     address += (1U << smp_cpu_mt_shift)) {
 			if (__pcpu_sigp_relax(address, SIGP_SENSE, 0, NULL) ==
 			    SIGP_CC_NOT_OPERATIONAL)
