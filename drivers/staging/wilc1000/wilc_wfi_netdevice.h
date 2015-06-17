@@ -57,7 +57,6 @@ enum stats_flags {
 };
 
 struct WILC_WFI_stats {
-
 	unsigned long rx_packets;
 	unsigned long tx_packets;
 	unsigned long rx_bytes;
