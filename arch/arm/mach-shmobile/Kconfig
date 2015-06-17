@@ -124,15 +124,6 @@ config ARCH_R8A7779
 
 comment "Renesas ARM SoCs Board Type"
 
-config MACH_ARMADILLO800EVA
-	bool "Armadillo-800 EVA board"
-	depends on ARCH_R8A7740
-	select ARCH_REQUIRE_GPIOLIB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select SMSC_PHY if SH_ETH
-	select SND_SOC_WM8978 if SND_SIMPLE_CARD && I2C
-	select USE_OF
-
 config MACH_BOCKW
 	bool "BOCK-W platform"
 	depends on ARCH_R8A7778
