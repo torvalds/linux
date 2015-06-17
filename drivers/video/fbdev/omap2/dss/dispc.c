@@ -39,6 +39,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/of.h>
+#include <linux/component.h>
 
 #include <video/omapdss.h>
 
@@ -3692,7 +3693,7 @@ static void _omap_dispc_initial_config(void)
 		dispc_init_mflag();
 }
 
-static const struct dispc_features omap24xx_dispc_feats __initconst = {
+static const struct dispc_features omap24xx_dispc_feats = {
 	.sw_start		=	5,
 	.fp_start		=	15,
 	.bp_start		=	27,
@@ -3711,7 +3712,7 @@ static const struct dispc_features omap24xx_dispc_feats __initconst = {
 	.set_max_preload	=	false,
 };
 
-static const struct dispc_features omap34xx_rev1_0_dispc_feats __initconst = {
+static const struct dispc_features omap34xx_rev1_0_dispc_feats = {
 	.sw_start		=	5,
 	.fp_start		=	15,
 	.bp_start		=	27,
@@ -3731,7 +3732,7 @@ static const struct dispc_features omap34xx_rev1_0_dispc_feats __initconst = {
 	.set_max_preload	=	false,
 };
 
-static const struct dispc_features omap34xx_rev3_0_dispc_feats __initconst = {
+static const struct dispc_features omap34xx_rev3_0_dispc_feats = {
 	.sw_start		=	7,
 	.fp_start		=	19,
 	.bp_start		=	31,
@@ -3751,7 +3752,7 @@ static const struct dispc_features omap34xx_rev3_0_dispc_feats __initconst = {
 	.set_max_preload	=	false,
 };
 
-static const struct dispc_features omap44xx_dispc_feats __initconst = {
+static const struct dispc_features omap44xx_dispc_feats = {
 	.sw_start		=	7,
 	.fp_start		=	19,
 	.bp_start		=	31,
@@ -3771,7 +3772,7 @@ static const struct dispc_features omap44xx_dispc_feats __initconst = {
 	.set_max_preload	=	true,
 };
 
-static const struct dispc_features omap54xx_dispc_feats __initconst = {
+static const struct dispc_features omap54xx_dispc_feats = {
 	.sw_start		=	7,
 	.fp_start		=	19,
 	.bp_start		=	31,
@@ -3792,7 +3793,7 @@ static const struct dispc_features omap54xx_dispc_feats __initconst = {
 	.set_max_preload	=	true,
 };
 
-static int __init dispc_init_features(struct platform_device *pdev)
+static int dispc_init_features(struct platform_device *pdev)
 {
 	const struct dispc_features *src;
 	struct dispc_features *dst;
@@ -3882,8 +3883,9 @@ void dispc_free_irq(void *dev_id)
 EXPORT_SYMBOL(dispc_free_irq);
 
 /* DISPC HW IP initialisation */
-static int __init omap_dispchw_probe(struct platform_device *pdev)
+static int dispc_bind(struct device *dev, struct device *master, void *data)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	u32 rev;
 	int r = 0;
 	struct resource *dispc_mem;
@@ -3955,12 +3957,27 @@ err_runtime_get:
 	return r;
 }
 
-static int __exit omap_dispchw_remove(struct platform_device *pdev)
+static void dispc_unbind(struct device *dev, struct device *master,
+			       void *data)
 {
-	pm_runtime_disable(&pdev->dev);
+	pm_runtime_disable(dev);
 
 	dss_uninit_overlay_managers();
+}
 
+static const struct component_ops dispc_component_ops = {
+	.bind	= dispc_bind,
+	.unbind	= dispc_unbind,
+};
+
+static int dispc_probe(struct platform_device *pdev)
+{
+	return component_add(&pdev->dev, &dispc_component_ops);
+}
+
+static int dispc_remove(struct platform_device *pdev)
+{
+	component_del(&pdev->dev, &dispc_component_ops);
 	return 0;
 }
 
@@ -4013,7 +4030,8 @@ static const struct of_device_id dispc_of_match[] = {
 };
 
 static struct platform_driver omap_dispchw_driver = {
-	.remove         = __exit_p(omap_dispchw_remove),
+	.probe		= dispc_probe,
+	.remove         = dispc_remove,
 	.driver         = {
 		.name   = "omapdss_dispc",
 		.pm	= &dispc_pm_ops,
@@ -4024,10 +4042,10 @@ static struct platform_driver omap_dispchw_driver = {
 
 int __init dispc_init_platform_driver(void)
 {
-	return platform_driver_probe(&omap_dispchw_driver, omap_dispchw_probe);
+	return platform_driver_register(&omap_dispchw_driver);
 }
 
-void __exit dispc_uninit_platform_driver(void)
+void dispc_uninit_platform_driver(void)
 {
 	platform_driver_unregister(&omap_dispchw_driver);
 }
