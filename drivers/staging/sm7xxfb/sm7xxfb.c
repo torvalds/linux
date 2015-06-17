@@ -94,7 +94,7 @@ struct vesa_mode {
 	u16  lfb_depth;
 };
 
-static struct vesa_mode vesa_mode_table[] = {
+static const struct vesa_mode vesa_mode_table[] = {
 	{"0x301", 640,  480,  8},
 	{"0x303", 800,  600,  8},
 	{"0x305", 1024, 768,  8},
