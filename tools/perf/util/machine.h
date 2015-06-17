@@ -222,13 +222,16 @@ int machines__for_each_thread(struct machines *machines,
 
 int __machine__synthesize_threads(struct machine *machine, struct perf_tool *tool,
 				  struct target *target, struct thread_map *threads,
-				  perf_event__handler_t process, bool data_mmap);
+				  perf_event__handler_t process, bool data_mmap,
+				  unsigned int proc_map_timeout);
 static inline
 int machine__synthesize_threads(struct machine *machine, struct target *target,
-				struct thread_map *threads, bool data_mmap)
+				struct thread_map *threads, bool data_mmap,
+				unsigned int proc_map_timeout)
 {
 	return __machine__synthesize_threads(machine, NULL, target, threads,
-					     perf_event__process, data_mmap);
+					     perf_event__process, data_mmap,
+					     proc_map_timeout);
 }
 
 pid_t machine__get_current_tid(struct machine *machine, int cpu);

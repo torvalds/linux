@@ -384,10 +384,12 @@ typedef int (*perf_event__handler_t)(struct perf_tool *tool,
 int perf_event__synthesize_thread_map(struct perf_tool *tool,
 				      struct thread_map *threads,
 				      perf_event__handler_t process,
-				      struct machine *machine, bool mmap_data);
+				      struct machine *machine, bool mmap_data,
+				      unsigned int proc_map_timeout);
 int perf_event__synthesize_threads(struct perf_tool *tool,
 				   perf_event__handler_t process,
-				   struct machine *machine, bool mmap_data);
+				   struct machine *machine, bool mmap_data,
+				   unsigned int proc_map_timeout);
 int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 				       perf_event__handler_t process,
 				       struct machine *machine);
@@ -469,7 +471,8 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 				       pid_t pid, pid_t tgid,
 				       perf_event__handler_t process,
 				       struct machine *machine,
-				       bool mmap_data);
+				       bool mmap_data,
+				       unsigned int proc_map_timeout);
 
 size_t perf_event__fprintf_comm(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_mmap(union perf_event *event, FILE *fp);

@@ -1368,7 +1368,9 @@ static void perf_session__warn_about_errors(const struct perf_session *session)
 			    "not processed, if there are samples for addresses they\n"
 			    "will not be resolved, you may find out which are these\n"
 			    "threads by running with -v and redirecting the output\n"
-			    "to a file.\n",
+			    "to a file.\n"
+			    "The time limit to process proc map is too short?\n"
+			    "Increase it by --proc-map-timeout\n",
 			    stats->nr_proc_map_timeout);
 	}
 }
