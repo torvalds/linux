@@ -379,6 +379,16 @@ static void sdhci_s3c_set_bus_width(struct sdhci_host *host, int width)
 	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 }
 
+static unsigned int sdhci_s3c_get_ro(struct sdhci_host *host)
+{
+	struct sdhci_s3c *sc = sdhci_priv(host);
+
+	if (sc->pdata->get_ro)
+		return sc->pdata->get_ro(host);
+
+	return 0;
+}
+
 static struct sdhci_ops sdhci_s3c_ops = {
 	.get_max_clock		= sdhci_s3c_get_max_clk,
 	.set_clock		= sdhci_s3c_set_clock,
@@ -535,6 +545,9 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	/* Ensure we have minimal gpio selected CMD/CLK/Detect */
 	if (pdata->cfg_gpio)
 		pdata->cfg_gpio(pdev, pdata->max_width);
+
+	if (pdata->get_ro)
+		sdhci_s3c_ops.get_ro = sdhci_s3c_get_ro;
 
 	host->hw_name = "samsung-hsmmc";
 	host->ops = &sdhci_s3c_ops;
@@ -727,6 +740,15 @@ static const struct dev_pm_ops sdhci_s3c_pmops = {
 #define SDHCI_S3C_PMOPS NULL
 #endif
 
+#if defined(CONFIG_MACH_MINI2451)
+static struct sdhci_s3c_drv_data s3c_sdhci_drv_data = {
+	.sdhci_quirks = SDHCI_QUIRK_BROKEN_TIMEOUT_VAL,
+};
+#define S3C_SDHCI_DRV_DATA ((kernel_ulong_t)&s3c_sdhci_drv_data)
+#else
+#define S3C_SDHCI_DRV_DATA ((kernel_ulong_t)NULL)
+#endif
+
 #if defined(CONFIG_CPU_EXYNOS4210) || defined(CONFIG_SOC_EXYNOS4212)
 static struct sdhci_s3c_drv_data exynos4_sdhci_drv_data = {
 	.no_divider = true,
@@ -739,7 +761,7 @@ static struct sdhci_s3c_drv_data exynos4_sdhci_drv_data = {
 static const struct platform_device_id sdhci_s3c_driver_ids[] = {
 	{
 		.name		= "s3c-sdhci",
-		.driver_data	= (kernel_ulong_t)NULL,
+		.driver_data	= S3C_SDHCI_DRV_DATA,
 	}, {
 		.name		= "exynos4-sdhci",
 		.driver_data	= EXYNOS4_SDHCI_DRV_DATA,

@@ -50,6 +50,7 @@ struct s3c_sdhci_platdata {
 						      int state));
 
 	void	(*cfg_gpio)(struct platform_device *dev, int width);
+	int	(*get_ro)(void *host);
 };
 
 
