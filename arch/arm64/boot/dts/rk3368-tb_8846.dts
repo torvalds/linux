@@ -244,7 +244,9 @@
 			gpio0_c2: gpio0-c2 {
 				rockchip,pins = <0 GPIO_C2 RK_FUNC_GPIO &pcfg_pull_down>;
 			};
-
+                        gpio0_c1: gpio0-c1 {
+                                rockchip,pins = <0 GPIO_C1 RK_FUNC_GPIO &pcfg_pull_up>;
+                        };
 			//to add
 		};
 
@@ -878,7 +880,8 @@
 &rk818 {
 	gpios =<&gpio0 GPIO_A1 GPIO_ACTIVE_HIGH>,<&gpio0 GPIO_A0 GPIO_ACTIVE_LOW>;
 	rk818,system-power-controller;
-
+        pinctrl-names = "default";
+        pinctrl-0 = <&gpio0_c1>;
 rk818,support_dc_chg = <1>;/*1:dc chg; 0:usb chg*/
 	regulators {
 
@@ -1050,15 +1053,17 @@ rk818,support_dc_chg = <1>;/*1:dc chg; 0:usb chg*/
                 design_capacity = <8650>;
                 design_qmax = <8800>;
                 max_overcharge = <100>;
-                max_input_currentmA  = <2000>;
+                max_input_currentmA  = <3000>;
                 max_chrg_currentmA = <1800>;
                 max_charge_voltagemV = <4200>;
                 sleep_enter_current = <600>;
                 sleep_exit_current = <600>;
                 power_off_thresd = <3400>;
                 chrg_diff_voltagemV = <0>;
-                support_usb_adp = <1>;
+                virtual_power = <1>;
+                support_usb_adp = <0>;
                 support_dc_adp = <1>;
+                dc_det_gpio = <&gpio0 GPIO_C1 GPIO_ACTIVE_LOW>;
         };
 };
 
