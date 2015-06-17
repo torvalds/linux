@@ -317,7 +317,7 @@ static int ft1000_open(struct inode *inode, struct file *file)
 
 	/* Search for available application info block */
 	for (i = 0; i < MAX_NUM_APP; i++) {
-		if ((dev->app_info[i].fileobject == NULL))
+		if (dev->app_info[i].fileobject == NULL)
 			break;
 	}
 
