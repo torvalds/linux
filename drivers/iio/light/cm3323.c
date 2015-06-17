@@ -133,9 +133,11 @@ static int cm3323_set_it_bits(struct cm3323_data *data, int val, int val2)
 				return ret;
 
 			data->reg_conf = reg_conf;
+
 			return 0;
 		}
 	}
+
 	return -EINVAL;
 }
 
@@ -148,6 +150,7 @@ static int cm3323_get_it_bits(struct cm3323_data *data)
 
 	if (bits >= ARRAY_SIZE(cm3323_int_time))
 		return -EINVAL;
+
 	return bits;
 }
 
@@ -243,11 +246,13 @@ static int cm3323_probe(struct i2c_client *client,
 		dev_err(&client->dev, "cm3323 chip init failed\n");
 		return ret;
 	}
+
 	ret = iio_device_register(indio_dev);
 	if (ret < 0) {
 		dev_err(&client->dev, "failed to register iio dev\n");
 		goto err_init;
 	}
+
 	return 0;
 err_init:
 	cm3323_disable(indio_dev);
