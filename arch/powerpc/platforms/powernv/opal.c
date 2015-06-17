@@ -657,9 +657,6 @@ static int __init opal_init(void)
 		return -ENODEV;
 	}
 
-	/* Initialise OPAL events */
-	opal_event_init();
-
 	/* Register OPAL consoles if any ports */
 	if (firmware_has_feature(FW_FEATURE_OPALv2))
 		consoles = of_find_node_by_path("/ibm,opal/consoles");

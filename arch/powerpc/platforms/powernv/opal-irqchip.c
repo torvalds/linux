@@ -231,6 +231,7 @@ out:
 	of_node_put(opal_node);
 	return rc;
 }
+machine_arch_initcall(powernv, opal_event_init);
 
 /**
  * opal_event_request(unsigned int opal_event_nr) - Request an event
@@ -244,6 +245,9 @@ out:
  */
 int opal_event_request(unsigned int opal_event_nr)
 {
+	if (WARN_ON_ONCE(!opal_event_irqchip.domain))
+		return NO_IRQ;
+
 	return irq_create_mapping(opal_event_irqchip.domain, opal_event_nr);
 }
 EXPORT_SYMBOL(opal_event_request);
