@@ -29,7 +29,7 @@
 
 #define CM3323_CONF_SD_BIT	BIT(0) /* sensor disable */
 #define CM3323_CONF_AF_BIT	BIT(1) /* auto/manual force mode */
-#define CM3323_CONF_IT_MASK	(BIT(4) | BIT(5) | BIT(6))
+#define CM3323_CONF_IT_MASK	GENMASK(6, 4)
 #define CM3323_CONF_IT_SHIFT	4
 
 #define CM3323_INT_TIME_AVAILABLE "0.04 0.08 0.16 0.32 0.64 1.28"
