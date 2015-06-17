@@ -98,7 +98,7 @@ static inline unsigned int smtc_seqr(int reg)
 /* The next structure holds all information relevant for a specific video mode.
  */
 
-struct ModeInit {
+struct modeinit {
 	int mmsizex;
 	int mmsizey;
 	int bpp;

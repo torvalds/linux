@@ -114,7 +114,7 @@ static const struct vesa_mode vesa_mode_table[] = {
 /**********************************************************************
 			 SM712 Mode table.
  **********************************************************************/
-static const struct ModeInit vgamode[] = {
+static const struct modeinit vgamode[] = {
 	{
 		/*  mode#0: 640 x 480  16Bpp  60Hz */
 		640, 480, 16, 60,
