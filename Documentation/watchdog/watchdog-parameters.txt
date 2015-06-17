@@ -208,6 +208,8 @@ nowayout: Watchdog cannot be stopped once started
 -------------------------------------------------
 omap_wdt:
 timer_margin: initial watchdog timeout (in seconds)
+nowayout: Watchdog cannot be stopped once started
+	(default=kernel config parameter)
 -------------------------------------------------
 orion_wdt:
 heartbeat: Initial watchdog heartbeat in seconds
