@@ -169,43 +169,6 @@ static void rmobile_init_pm_domain(struct rmobile_pm_domain *rmobile_pd)
 	__rmobile_pd_power_up(rmobile_pd, false);
 }
 
-#ifdef CONFIG_ARCH_SHMOBILE_LEGACY
-
-void rmobile_init_domains(struct rmobile_pm_domain domains[], int num)
-{
-	int j;
-
-	for (j = 0; j < num; j++)
-		rmobile_init_pm_domain(&domains[j]);
-}
-
-void rmobile_add_device_to_domain_td(const char *domain_name,
-				     struct platform_device *pdev,
-				     struct gpd_timing_data *td)
-{
-	struct device *dev = &pdev->dev;
-
-	__pm_genpd_name_add_device(domain_name, dev, td);
-}
-
-void rmobile_add_devices_to_domains(struct pm_domain_device data[],
-				    int size)
-{
-	struct gpd_timing_data latencies = {
-		.stop_latency_ns = DEFAULT_DEV_LATENCY_NS,
-		.start_latency_ns = DEFAULT_DEV_LATENCY_NS,
-		.save_state_latency_ns = DEFAULT_DEV_LATENCY_NS,
-		.restore_state_latency_ns = DEFAULT_DEV_LATENCY_NS,
-	};
-	int j;
-
-	for (j = 0; j < size; j++)
-		rmobile_add_device_to_domain_td(data[j].domain_name,
-						data[j].pdev, &latencies);
-}
-
-#else /* !CONFIG_ARCH_SHMOBILE_LEGACY */
-
 static int rmobile_pd_suspend_busy(void)
 {
 	/*
@@ -436,5 +399,3 @@ static int __init rmobile_init_pm_domains(void)
 }
 
 core_initcall(rmobile_init_pm_domains);
-
-#endif /* !CONFIG_ARCH_SHMOBILE_LEGACY */
