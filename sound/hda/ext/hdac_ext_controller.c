@@ -194,6 +194,24 @@ int snd_hdac_ext_bus_get_ml_capabilities(struct hdac_ext_bus *ebus)
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_get_ml_capabilities);
 
 /**
+ * snd_hdac_link_free_all- free hdac extended link objects
+ *
+ * @ebus: HD-audio ext core bus
+ */
+
+void snd_hdac_link_free_all(struct hdac_ext_bus *ebus)
+{
+	struct hdac_ext_link *l;
+
+	while (!list_empty(&ebus->hlink_list)) {
+		l = list_first_entry(&ebus->hlink_list, struct hdac_ext_link, list);
+		list_del(&l->list);
+		kfree(l);
+	}
+}
+EXPORT_SYMBOL_GPL(snd_hdac_link_free_all);
+
+/**
  * snd_hdac_ext_bus_get_link_index - get link based on codec name
  * @ebus: HD-audio extended core bus
  * @codec_name: codec name

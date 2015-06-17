@@ -18,6 +18,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <sound/pcm.h>
 #include <sound/hda_register.h>
 #include <sound/hdaudio_ext.h>
@@ -52,6 +53,55 @@ void snd_hdac_ext_stream_init(struct hdac_ext_bus *ebus,
 	snd_hdac_stream_init(bus, &stream->hstream, idx, direction, tag);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_init);
+
+/**
+ * snd_hdac_ext_stream_init_all - create and initialize the stream objects
+ *   for an extended hda bus
+ * @ebus: HD-audio ext core bus
+ * @start_idx: start index for streams
+ * @num_stream: number of streams to initialize
+ * @dir: direction of streams
+ */
+int snd_hdac_ext_stream_init_all(struct hdac_ext_bus *ebus, int start_idx,
+		int num_stream, int dir)
+{
+	int stream_tag = 0;
+	int i, tag, idx = start_idx;
+
+	for (i = 0; i < num_stream; i++) {
+		struct hdac_ext_stream *stream =
+				kzalloc(sizeof(*stream), GFP_KERNEL);
+		if (!stream)
+			return -ENOMEM;
+		tag = ++stream_tag;
+		snd_hdac_ext_stream_init(ebus, stream, idx, dir, tag);
+		idx++;
+	}
+
+	return 0;
+
+}
+EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_init_all);
+
+/**
+ * snd_hdac_stream_free_all - free hdac extended stream objects
+ *
+ * @ebus: HD-audio ext core bus
+ */
+void snd_hdac_stream_free_all(struct hdac_ext_bus *ebus)
+{
+	struct hdac_stream *s;
+	struct hdac_ext_stream *stream;
+	struct hdac_bus *bus = ebus_to_hbus(ebus);
+
+	while (!list_empty(&bus->stream_list)) {
+		s = list_first_entry(&bus->stream_list, struct hdac_stream, list);
+		stream = stream_to_hdac_ext_stream(s);
+		list_del(&s->list);
+		kfree(stream);
+	}
+}
+EXPORT_SYMBOL_GPL(snd_hdac_stream_free_all);
 
 /**
  * snd_hdac_ext_stream_decouple - decouple the hdac stream
