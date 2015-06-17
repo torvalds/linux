@@ -7,7 +7,7 @@ Required Properties:
 
   - compatible: Must be one of
     - "renesas,r7s72100-cpg-clocks" for the r7s72100 CPG
-    - "renesas,rz-cpg-clocks" for the generic RZ CPG
+    and "renesas,rz-cpg-clocks" as a fallback.
   - reg: Base address and length of the memory resource used by the CPG
   - clocks: References to possible parent clocks. Order must match clock modes
     in the datasheet. For the r7s72100, this is extal, usb_x1.
