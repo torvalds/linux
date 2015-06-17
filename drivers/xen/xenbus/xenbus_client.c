@@ -379,16 +379,16 @@ int xenbus_grant_ring(struct xenbus_device *dev, void *vaddr,
 	int i, j;
 
 	for (i = 0; i < nr_pages; i++) {
-		unsigned long addr = (unsigned long)vaddr +
-			(PAGE_SIZE * i);
 		err = gnttab_grant_foreign_access(dev->otherend_id,
-						  virt_to_mfn(addr), 0);
+						  virt_to_mfn(vaddr), 0);
 		if (err < 0) {
 			xenbus_dev_fatal(dev, err,
 					 "granting access to ring page");
 			goto fail;
 		}
 		grefs[i] = err;
+
+		vaddr = vaddr + PAGE_SIZE;
 	}
 
 	return 0;
