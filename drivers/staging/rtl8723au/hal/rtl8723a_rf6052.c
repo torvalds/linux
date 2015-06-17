@@ -500,7 +500,6 @@ phy_RF6052_Config_ParaFile_Fail:
 int PHY_RF6052_Config8723A(struct rtw_adapter *Adapter)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
-	int rtStatus = _SUCCESS;
 
 	/*  Initialize general global value */
 	/*  TODO: Extend RF_PATH_C and RF_PATH_D in the future */
@@ -510,8 +509,7 @@ int PHY_RF6052_Config8723A(struct rtw_adapter *Adapter)
 		pHalData->NumTotalRFPath = 2;
 
 	/*  Config BB and RF */
-	rtStatus = phy_RF6052_Config_ParaFile(Adapter);
-	return rtStatus;
+	return phy_RF6052_Config_ParaFile(Adapter);
 }
 
 /* End of HalRf6052.c */
