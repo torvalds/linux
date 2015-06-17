@@ -243,7 +243,7 @@ do {									\
 
 /*  Inline functions  */
 
-static inline struct bna_mac *bna_mac_find(struct list_head *q, u8 *addr)
+static inline struct bna_mac *bna_mac_find(struct list_head *q, const u8 *addr)
 {
 	struct bna_mac *mac;
 
@@ -362,15 +362,14 @@ void bna_rx_cleanup_complete(struct bna_rx *rx);
 void bna_rx_coalescing_timeo_set(struct bna_rx *rx, int coalescing_timeo);
 void bna_rx_dim_reconfig(struct bna *bna, const u32 vector[][BNA_BIAS_T_MAX]);
 void bna_rx_dim_update(struct bna_ccb *ccb);
-enum bna_cb_status
-bna_rx_ucast_set(struct bna_rx *rx, u8 *ucmac);
-enum bna_cb_status
-bna_rx_ucast_listset(struct bna_rx *rx, int count, u8 *uclist);
-enum bna_cb_status
-bna_rx_mcast_add(struct bna_rx *rx, u8 *mcmac,
-		 void (*cbfn)(struct bnad *, struct bna_rx *));
-enum bna_cb_status
-bna_rx_mcast_listset(struct bna_rx *rx, int count, u8 *mcmac);
+enum bna_cb_status bna_rx_ucast_set(struct bna_rx *rx, const u8 *ucmac);
+enum bna_cb_status bna_rx_ucast_listset(struct bna_rx *rx, int count,
+					const u8 *uclist);
+enum bna_cb_status bna_rx_mcast_add(struct bna_rx *rx, const u8 *mcmac,
+				    void (*cbfn)(struct bnad *,
+						 struct bna_rx *));
+enum bna_cb_status bna_rx_mcast_listset(struct bna_rx *rx, int count,
+					const u8 *mcmac);
 void
 bna_rx_mcast_delall(struct bna_rx *rx);
 enum bna_cb_status

@@ -2327,7 +2327,7 @@ bnad_rx_coalescing_timeo_set(struct bnad *bnad)
  * Called with bnad->bna_lock held
  */
 int
-bnad_mac_addr_set_locked(struct bnad *bnad, u8 *mac_addr)
+bnad_mac_addr_set_locked(struct bnad *bnad, const u8 *mac_addr)
 {
 	int ret;
 
@@ -2356,8 +2356,8 @@ bnad_enable_default_bcast(struct bnad *bnad)
 	init_completion(&bnad->bnad_completions.mcast_comp);
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
-	ret = bna_rx_mcast_add(rx_info->rx, (u8 *)bnad_bcast_addr,
-				bnad_cb_rx_mcast_add);
+	ret = bna_rx_mcast_add(rx_info->rx, bnad_bcast_addr,
+			       bnad_cb_rx_mcast_add);
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 
 	if (ret == BNA_CB_SUCCESS)
