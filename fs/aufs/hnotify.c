@@ -198,7 +198,7 @@ static int hn_gen_by_inode(char *name, unsigned int nlen, struct inode *inode,
 		AuDebugOn(!name);
 		au_iigen_dec(inode);
 		spin_lock(&inode->i_lock);
-		hlist_for_each_entry(d, &inode->i_dentry, d_alias) {
+		hlist_for_each_entry(d, &inode->i_dentry, d_u.d_alias) {
 			spin_lock(&d->d_lock);
 			dname = &d->d_name;
 			if (dname->len != nlen
