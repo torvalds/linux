@@ -1082,6 +1082,7 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 	struct trie *t = (struct trie *)tb->tb_data;
 	struct fib_alias *fa, *new_fa;
 	struct key_vector *l, *tp;
+	unsigned int nlflags = 0;
 	struct fib_info *fi;
 	u8 plen = cfg->fc_dst_len;
 	u8 slen = KEYLENGTH - plen;
@@ -1201,7 +1202,9 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 		if (fa_match)
 			goto out;
 
-		if (!(cfg->fc_nlflags & NLM_F_APPEND))
+		if (cfg->fc_nlflags & NLM_F_APPEND)
+			nlflags = NLM_F_APPEND;
+		else
 			fa = fa_first;
 	}
 	err = -ENOENT;
@@ -1238,7 +1241,7 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 
 	rt_cache_flush(cfg->fc_nlinfo.nl_net);
 	rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen, new_fa->tb_id,
-		  &cfg->fc_nlinfo, 0);
+		  &cfg->fc_nlinfo, nlflags);
 succeeded:
 	return 0;
 
