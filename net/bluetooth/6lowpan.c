@@ -928,7 +928,7 @@ static void delete_netdev(struct work_struct *work)
 
 	unregister_netdev(entry->netdev);
 
-	/* The entry pointer is deleted in device_event() */
+	/* The entry pointer is deleted by the netdev destructor. */
 }
 
 static void chan_close_cb(struct l2cap_chan *chan)
@@ -1418,7 +1418,6 @@ static int device_event(struct notifier_block *unused,
 				BT_DBG("Unregistered netdev %s %p",
 				       netdev->name, netdev);
 				list_del(&entry->list);
-				kfree(entry);
 				break;
 			}
 		}
