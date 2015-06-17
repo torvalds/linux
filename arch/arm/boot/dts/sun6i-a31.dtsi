@@ -612,8 +612,7 @@
 			clocks = <&apb1_gates 5>;
 			gpio-controller;
 			interrupt-controller;
-			#interrupt-cells = <2>;
-			#size-cells = <0>;
+			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
 
 			uart0_pins_a: uart0@0 {
