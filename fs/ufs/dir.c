@@ -87,7 +87,8 @@ ino_t ufs_inode_by_name(struct inode *dir, const struct qstr *qstr)
 
 /* Releases the page */
 void ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
-		  struct page *page, struct inode *inode)
+		  struct page *page, struct inode *inode,
+		  bool update_times)
 {
 	loff_t pos = page_offset(page) +
 			(char *) de - (char *) page_address(page);
@@ -103,7 +104,8 @@ void ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
 
 	err = ufs_commit_chunk(page, pos, len);
 	ufs_put_page(page);
-	dir->i_mtime = dir->i_ctime = CURRENT_TIME_SEC;
+	if (update_times)
+		dir->i_mtime = dir->i_ctime = CURRENT_TIME_SEC;
 	mark_inode_dirty(dir);
 }
 
