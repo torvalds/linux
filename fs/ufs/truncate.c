@@ -237,9 +237,9 @@ static int ufs_trunc_indirect(struct inode *inode, u64 offset, void *p)
 		tmp = ufs_data_ptr_to_cpu(sb, p);
 		ufs_data_ptr_clear(uspi, p);
 
+		ubh_bforget(ind_ubh);
 		ufs_free_blocks (inode, tmp, uspi->s_fpb);
 		mark_inode_dirty(inode);
-		ubh_bforget(ind_ubh);
 		ind_ubh = NULL;
 	}
 	if (IS_SYNC(inode) && ind_ubh && ubh_buffer_dirty(ind_ubh))
@@ -299,9 +299,9 @@ static int ufs_trunc_dindirect(struct inode *inode, u64 offset, void *p)
 		tmp = ufs_data_ptr_to_cpu(sb, p);
 		ufs_data_ptr_clear(uspi, p);
 
+		ubh_bforget(dind_bh);
 		ufs_free_blocks(inode, tmp, uspi->s_fpb);
 		mark_inode_dirty(inode);
-		ubh_bforget(dind_bh);
 		dind_bh = NULL;
 	}
 	if (IS_SYNC(inode) && dind_bh && ubh_buffer_dirty(dind_bh))
@@ -357,9 +357,9 @@ static int ufs_trunc_tindirect(struct inode *inode)
 		tmp = ufs_data_ptr_to_cpu(sb, p);
 		ufs_data_ptr_clear(uspi, p);
 
+		ubh_bforget(tind_bh);
 		ufs_free_blocks(inode, tmp, uspi->s_fpb);
 		mark_inode_dirty(inode);
-		ubh_bforget(tind_bh);
 		tind_bh = NULL;
 	}
 	if (IS_SYNC(inode) && tind_bh && ubh_buffer_dirty(tind_bh))
