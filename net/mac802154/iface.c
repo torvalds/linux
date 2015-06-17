@@ -135,6 +135,56 @@ static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 	return mac802154_wpan_update_llsec(dev);
 }
 
+static int ieee802154_setup_hw(struct ieee802154_sub_if_data *sdata)
+{
+	struct ieee802154_local *local = sdata->local;
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	int ret;
+
+	if (local->hw.flags & IEEE802154_HW_PROMISCUOUS) {
+		ret = drv_set_promiscuous_mode(local,
+					       wpan_dev->promiscuous_mode);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (local->hw.flags & IEEE802154_HW_AFILT) {
+		ret = drv_set_pan_id(local, wpan_dev->pan_id);
+		if (ret < 0)
+			return ret;
+
+		ret = drv_set_extended_addr(local, wpan_dev->extended_addr);
+		if (ret < 0)
+			return ret;
+
+		ret = drv_set_short_addr(local, wpan_dev->short_addr);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (local->hw.flags & IEEE802154_HW_LBT) {
+		ret = drv_set_lbt_mode(local, wpan_dev->lbt);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (local->hw.flags & IEEE802154_HW_CSMA_PARAMS) {
+		ret = drv_set_csma_params(local, wpan_dev->min_be,
+					  wpan_dev->max_be,
+					  wpan_dev->csma_retries);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (local->hw.flags & IEEE802154_HW_FRAME_RETRIES) {
+		ret = drv_set_max_frame_retries(local, wpan_dev->frame_retries);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int mac802154_slave_open(struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
@@ -146,6 +196,10 @@ static int mac802154_slave_open(struct net_device *dev)
 	set_bit(SDATA_STATE_RUNNING, &sdata->state);
 
 	if (!local->open_count) {
+		res = ieee802154_setup_hw(sdata);
+		if (res)
+			goto err;
+
 		res = drv_start(local);
 		if (res)
 			goto err;
@@ -239,60 +293,13 @@ static int mac802154_wpan_open(struct net_device *dev)
 {
 	int rc;
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-	struct ieee802154_local *local = sdata->local;
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 
 	rc = ieee802154_check_concurrent_iface(sdata, wpan_dev->iftype);
 	if (rc < 0)
 		return rc;
 
-	rc = mac802154_slave_open(dev);
-	if (rc < 0)
-		return rc;
-
-	if (local->hw.flags & IEEE802154_HW_PROMISCUOUS) {
-		rc = drv_set_promiscuous_mode(local,
-					      wpan_dev->promiscuous_mode);
-		if (rc < 0)
-			goto out;
-	}
-
-	if (local->hw.flags & IEEE802154_HW_AFILT) {
-		rc = drv_set_pan_id(local, wpan_dev->pan_id);
-		if (rc < 0)
-			goto out;
-
-		rc = drv_set_extended_addr(local, wpan_dev->extended_addr);
-		if (rc < 0)
-			goto out;
-
-		rc = drv_set_short_addr(local, wpan_dev->short_addr);
-		if (rc < 0)
-			goto out;
-	}
-
-	if (local->hw.flags & IEEE802154_HW_LBT) {
-		rc = drv_set_lbt_mode(local, wpan_dev->lbt);
-		if (rc < 0)
-			goto out;
-	}
-
-	if (local->hw.flags & IEEE802154_HW_CSMA_PARAMS) {
-		rc = drv_set_csma_params(local, wpan_dev->min_be,
-					 wpan_dev->max_be,
-					 wpan_dev->csma_retries);
-		if (rc < 0)
-			goto out;
-	}
-
-	if (local->hw.flags & IEEE802154_HW_FRAME_RETRIES) {
-		rc = drv_set_max_frame_retries(local, wpan_dev->frame_retries);
-		if (rc < 0)
-			goto out;
-	}
-
-out:
-	return rc;
+	return mac802154_slave_open(dev);
 }
 
 static int mac802154_slave_close(struct net_device *dev)
