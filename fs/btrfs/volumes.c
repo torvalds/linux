@@ -445,6 +445,61 @@ static void pending_bios_fn(struct btrfs_work *work)
 	run_scheduled_bios(device);
 }
 
+
+void btrfs_free_stale_device(struct btrfs_device *cur_dev)
+{
+	struct btrfs_fs_devices *fs_devs;
+	struct btrfs_device *dev;
+
+	if (!cur_dev->name)
+		return;
+
+	list_for_each_entry(fs_devs, &fs_uuids, list) {
+		int del = 1;
+
+		if (fs_devs->opened)
+			continue;
+		if (fs_devs->seeding)
+			continue;
+
+		list_for_each_entry(dev, &fs_devs->devices, dev_list) {
+
+			if (dev == cur_dev)
+				continue;
+			if (!dev->name)
+				continue;
+
+			/*
+			 * Todo: This won't be enough. What if the same device
+			 * comes back (with new uuid and) with its mapper path?
+			 * But for now, this does help as mostly an admin will
+			 * either use mapper or non mapper path throughout.
+			 */
+			rcu_read_lock();
+			del = strcmp(rcu_str_deref(dev->name),
+						rcu_str_deref(cur_dev->name));
+			rcu_read_unlock();
+			if (!del)
+				break;
+		}
+
+		if (!del) {
+			/* delete the stale device */
+			if (fs_devs->num_devices == 1) {
+				btrfs_sysfs_remove_fsid(fs_devs);
+				list_del(&fs_devs->list);
+				free_fs_devices(fs_devs);
+			} else {
+				fs_devs->num_devices--;
+				list_del(&dev->dev_list);
+				rcu_string_free(dev->name);
+				kfree(dev);
+			}
+			break;
+		}
+	}
+}
+
 /*
  * Add new device to list of registered devices
  *
@@ -559,6 +614,12 @@ static noinline int device_list_add(const char *path,
 	 */
 	if (!fs_devices->opened)
 		device->generation = found_transid;
+
+	/*
+	 * if there is new btrfs on an already registered device,
+	 * then remove the stale device entry.
+	 */
+	btrfs_free_stale_device(device);
 
 	*fs_devices_ret = fs_devices;
 
