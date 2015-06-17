@@ -175,7 +175,7 @@ static int cm3323_read_raw(struct iio_dev *indio_dev,
 		i = cm3323_get_it_bits(data);
 		if (i < 0) {
 			mutex_unlock(&data->mutex);
-			return -EINVAL;
+			return i;
 		}
 
 		*val = cm3323_int_time[i].val;
