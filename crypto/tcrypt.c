@@ -1761,6 +1761,11 @@ static int do_test(const char *alg, u32 type, u32 mask, int m)
 				NULL, 0, 16, 8, aead_speed_template_20);
 		break;
 
+	case 212:
+		test_aead_speed("rfc4309(ccm(aes))", ENCRYPT, sec,
+				NULL, 0, 16, 8, aead_speed_template_19);
+		break;
+
 	case 300:
 		if (alg) {
 			test_hash_speed(alg, sec, generic_hash_speed_template);
