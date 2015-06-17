@@ -656,7 +656,6 @@ struct switchdev_fdb_dump {
 	struct switchdev_obj obj;
 	struct sk_buff *skb;
 	struct netlink_callback *cb;
-	struct net_device *filter_dev;
 	int idx;
 };
 
@@ -669,12 +668,8 @@ static int switchdev_port_fdb_dump_cb(struct net_device *dev,
 	u32 seq = dump->cb->nlh->nlmsg_seq;
 	struct nlmsghdr *nlh;
 	struct ndmsg *ndm;
-	struct net_device *master = netdev_master_upper_dev_get(dev);
 
 	if (dump->idx < dump->cb->args[0])
-		goto skip;
-
-	if (master && dump->filter_dev != master)
 		goto skip;
 
 	nlh = nlmsg_put(dump->skb, portid, seq, RTM_NEWNEIGH,
@@ -730,7 +725,6 @@ int switchdev_port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 		},
 		.skb = skb,
 		.cb = cb,
-		.filter_dev = filter_dev,
 		.idx = idx,
 	};
 	int err;
