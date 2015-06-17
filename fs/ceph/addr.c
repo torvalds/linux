@@ -440,7 +440,7 @@ out:
  * only snap context we are allowed to write back.
  */
 static struct ceph_snap_context *get_oldest_context(struct inode *inode,
-						    u64 *snap_size)
+						    loff_t *snap_size)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_snap_context *snapc = NULL;
@@ -480,8 +480,9 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	struct ceph_osd_client *osdc;
 	struct ceph_snap_context *snapc, *oldest;
 	loff_t page_off = page_offset(page);
+	loff_t snap_size = -1;
 	long writeback_stat;
-	u64 truncate_size, snap_size = 0;
+	u64 truncate_size;
 	u32 truncate_seq;
 	int err = 0, len = PAGE_CACHE_SIZE;
 
@@ -516,7 +517,7 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	spin_lock(&ci->i_ceph_lock);
 	truncate_seq = ci->i_truncate_seq;
 	truncate_size = ci->i_truncate_size;
-	if (!snap_size)
+	if (snap_size == -1)
 		snap_size = i_size_read(inode);
 	spin_unlock(&ci->i_ceph_lock);
 
@@ -699,7 +700,8 @@ static int ceph_writepages_start(struct address_space *mapping,
 	unsigned wsize = 1 << inode->i_blkbits;
 	struct ceph_osd_request *req = NULL;
 	int do_sync = 0;
-	u64 truncate_size, snap_size;
+	loff_t snap_size, i_size;
+	u64 truncate_size;
 	u32 truncate_seq;
 
 	/*
@@ -745,7 +747,7 @@ static int ceph_writepages_start(struct address_space *mapping,
 retry:
 	/* find oldest snap context with dirty data */
 	ceph_put_snap_context(snapc);
-	snap_size = 0;
+	snap_size = -1;
 	snapc = get_oldest_context(inode, &snap_size);
 	if (!snapc) {
 		/* hmm, why does writepages get called when there
@@ -753,16 +755,13 @@ retry:
 		dout(" no snap context with dirty data?\n");
 		goto out;
 	}
-	if (snap_size == 0)
-		snap_size = i_size_read(inode);
 	dout(" oldest snapc is %p seq %lld (%d snaps)\n",
 	     snapc, snapc->seq, snapc->num_snaps);
 
 	spin_lock(&ci->i_ceph_lock);
 	truncate_seq = ci->i_truncate_seq;
 	truncate_size = ci->i_truncate_size;
-	if (!snap_size)
-		snap_size = i_size_read(inode);
+	i_size = i_size_read(inode);
 	spin_unlock(&ci->i_ceph_lock);
 
 	if (last_snapc && snapc != last_snapc) {
@@ -832,8 +831,10 @@ get_more_pages:
 				dout("waiting on writeback %p\n", page);
 				wait_on_page_writeback(page);
 			}
-			if (page_offset(page) >= snap_size) {
-				dout("%p page eof %llu\n", page, snap_size);
+			if (page_offset(page) >=
+			    (snap_size == -1 ? i_size : snap_size)) {
+				dout("%p page eof %llu\n", page,
+				     (snap_size == -1 ? i_size : snap_size));
 				done = 1;
 				unlock_page(page);
 				break;
@@ -949,10 +950,18 @@ get_more_pages:
 		}
 
 		/* Format the osd request message and submit the write */
-
 		offset = page_offset(pages[0]);
-		len = min(snap_size - offset,
-			  (u64)locked_pages << PAGE_CACHE_SHIFT);
+		len = (u64)locked_pages << PAGE_CACHE_SHIFT;
+		if (snap_size == -1) {
+			len = min(len, (u64)i_size_read(inode) - offset);
+			 /* writepages_finish() clears writeback pages
+			  * according to the data length, so make sure
+			  * data length covers all locked pages */
+			len = max(len, 1 +
+				((u64)(locked_pages - 1) << PAGE_CACHE_SHIFT));
+		} else {
+			len = min(len, snap_size - offset);
+		}
 		dout("writepages got %d pages at %llu~%llu\n",
 		     locked_pages, offset, len);
 
