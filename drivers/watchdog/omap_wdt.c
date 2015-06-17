@@ -198,6 +198,16 @@ static int omap_wdt_set_timeout(struct watchdog_device *wdog,
 	return 0;
 }
 
+static unsigned int omap_wdt_get_timeleft(struct watchdog_device *wdog)
+{
+	struct omap_wdt_dev *wdev = watchdog_get_drvdata(wdog);
+	void __iomem *base = wdev->base;
+	u32 value;
+
+	value = readl_relaxed(base + OMAP_WATCHDOG_CRR);
+	return GET_WCCR_SECS(value);
+}
+
 static const struct watchdog_info omap_wdt_info = {
 	.options = WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE | WDIOF_KEEPALIVEPING,
 	.identity = "OMAP Watchdog",
@@ -209,6 +219,7 @@ static const struct watchdog_ops omap_wdt_ops = {
 	.stop		= omap_wdt_stop,
 	.ping		= omap_wdt_ping,
 	.set_timeout	= omap_wdt_set_timeout,
+	.get_timeleft	= omap_wdt_get_timeleft,
 };
 
 static int omap_wdt_probe(struct platform_device *pdev)
