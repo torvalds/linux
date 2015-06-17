@@ -1336,14 +1336,22 @@ static void __ufs_truncate_blocks(struct inode *inode)
 	struct ufs_inode_info *ufsi = UFS_I(inode);
 	struct super_block *sb = inode->i_sb;
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
+	unsigned offsets[4];
+	int depth = ufs_block_to_path(inode, DIRECT_BLOCK, offsets);
 
 	mutex_lock(&ufsi->truncate_mutex);
-	ufs_trunc_direct(inode);
-	ufs_trunc_indirect(inode, UFS_IND_BLOCK,
+	switch (depth) {
+	case 1:
+		ufs_trunc_direct(inode);
+	case 2:
+		ufs_trunc_indirect(inode, UFS_IND_BLOCK,
 			   ufs_get_direct_data_ptr(uspi, ufsi, UFS_IND_BLOCK));
-	ufs_trunc_dindirect(inode, UFS_IND_BLOCK + uspi->s_apb,
+	case 3:
+		ufs_trunc_dindirect(inode, UFS_IND_BLOCK + uspi->s_apb,
 			    ufs_get_direct_data_ptr(uspi, ufsi, UFS_DIND_BLOCK));
-	ufs_trunc_tindirect(inode);
+	case 4:
+		ufs_trunc_tindirect(inode);
+	}
 	ufsi->i_lastfrag = DIRECT_FRAGMENT;
 	mutex_unlock(&ufsi->truncate_mutex);
 }
