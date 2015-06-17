@@ -1433,21 +1433,8 @@ static void iwl_mvm_restart_complete(struct iwl_mvm *mvm)
 
 static void iwl_mvm_resume_complete(struct iwl_mvm *mvm)
 {
-	bool exit_now;
-
 	if (!iwl_mvm_is_d0i3_supported(mvm))
 		return;
-
-	mutex_lock(&mvm->d0i3_suspend_mutex);
-	__clear_bit(D0I3_DEFER_WAKEUP, &mvm->d0i3_suspend_flags);
-	exit_now = __test_and_clear_bit(D0I3_PENDING_WAKEUP,
-					&mvm->d0i3_suspend_flags);
-	mutex_unlock(&mvm->d0i3_suspend_mutex);
-
-	if (exit_now) {
-		IWL_DEBUG_RPM(mvm, "Run deferred d0i3 exit\n");
-		_iwl_mvm_exit_d0i3(mvm);
-	}
 
 	if (mvm->trans->d0i3_mode == IWL_D0I3_MODE_ON_SUSPEND)
 		if (!wait_event_timeout(mvm->d0i3_exit_waitq,
