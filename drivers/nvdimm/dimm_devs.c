@@ -159,6 +159,48 @@ struct nvdimm *to_nvdimm(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(to_nvdimm);
 
+struct nvdimm_drvdata *to_ndd(struct nd_mapping *nd_mapping)
+{
+	struct nvdimm *nvdimm = nd_mapping->nvdimm;
+
+	WARN_ON_ONCE(!is_nvdimm_bus_locked(&nvdimm->dev));
+
+	return dev_get_drvdata(&nvdimm->dev);
+}
+EXPORT_SYMBOL(to_ndd);
+
+void nvdimm_drvdata_release(struct kref *kref)
+{
+	struct nvdimm_drvdata *ndd = container_of(kref, typeof(*ndd), kref);
+	struct device *dev = ndd->dev;
+	struct resource *res, *_r;
+
+	dev_dbg(dev, "%s\n", __func__);
+
+	nvdimm_bus_lock(dev);
+	for_each_dpa_resource_safe(ndd, res, _r)
+		nvdimm_free_dpa(ndd, res);
+	nvdimm_bus_unlock(dev);
+
+	if (ndd->data && is_vmalloc_addr(ndd->data))
+		vfree(ndd->data);
+	else
+		kfree(ndd->data);
+	kfree(ndd);
+	put_device(dev);
+}
+
+void get_ndd(struct nvdimm_drvdata *ndd)
+{
+	kref_get(&ndd->kref);
+}
+
+void put_ndd(struct nvdimm_drvdata *ndd)
+{
+	if (ndd)
+		kref_put(&ndd->kref, nvdimm_drvdata_release);
+}
+
 const char *nvdimm_name(struct nvdimm *nvdimm)
 {
 	return dev_name(&nvdimm->dev);
@@ -247,6 +289,83 @@ struct nvdimm *nvdimm_create(struct nvdimm_bus *nvdimm_bus, void *provider_data,
 }
 EXPORT_SYMBOL_GPL(nvdimm_create);
 
+/**
+ * nd_pmem_available_dpa - for the given dimm+region account unallocated dpa
+ * @nd_mapping: container of dpa-resource-root + labels
+ * @nd_region: constrain available space check to this reference region
+ * @overlap: calculate available space assuming this level of overlap
+ *
+ * Validate that a PMEM label, if present, aligns with the start of an
+ * interleave set and truncate the available size at the lowest BLK
+ * overlap point.
+ *
+ * The expectation is that this routine is called multiple times as it
+ * probes for the largest BLK encroachment for any single member DIMM of
+ * the interleave set.  Once that value is determined the PMEM-limit for
+ * the set can be established.
+ */
+resource_size_t nd_pmem_available_dpa(struct nd_region *nd_region,
+		struct nd_mapping *nd_mapping, resource_size_t *overlap)
+{
+	resource_size_t map_start, map_end, busy = 0, available, blk_start;
+	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
+	struct resource *res;
+	const char *reason;
+
+	if (!ndd)
+		return 0;
+
+	map_start = nd_mapping->start;
+	map_end = map_start + nd_mapping->size - 1;
+	blk_start = max(map_start, map_end + 1 - *overlap);
+	for_each_dpa_resource(ndd, res)
+		if (res->start >= map_start && res->start < map_end) {
+			if (strncmp(res->name, "blk", 3) == 0)
+				blk_start = min(blk_start, res->start);
+			else if (res->start != map_start) {
+				reason = "misaligned to iset";
+				goto err;
+			} else {
+				if (busy) {
+					reason = "duplicate overlapping PMEM reservations?";
+					goto err;
+				}
+				busy += resource_size(res);
+				continue;
+			}
+		} else if (res->end >= map_start && res->end <= map_end) {
+			if (strncmp(res->name, "blk", 3) == 0) {
+				/*
+				 * If a BLK allocation overlaps the start of
+				 * PMEM the entire interleave set may now only
+				 * be used for BLK.
+				 */
+				blk_start = map_start;
+			} else {
+				reason = "misaligned to iset";
+				goto err;
+			}
+		} else if (map_start > res->start && map_start < res->end) {
+			/* total eclipse of the mapping */
+			busy += nd_mapping->size;
+			blk_start = map_start;
+		}
+
+	*overlap = map_end + 1 - blk_start;
+	available = blk_start - map_start;
+	if (busy < available)
+		return available - busy;
+	return 0;
+
+ err:
+	/*
+	 * Something is wrong, PMEM must align with the start of the
+	 * interleave set, and there can only be one allocation per set.
+	 */
+	nd_dbg_dpa(nd_region, ndd, res, "%s\n", reason);
+	return 0;
+}
+
 void nvdimm_free_dpa(struct nvdimm_drvdata *ndd, struct resource *res)
 {
 	WARN_ON_ONCE(!is_nvdimm_bus_locked(ndd->dev));
@@ -269,6 +388,24 @@ struct resource *nvdimm_allocate_dpa(struct nvdimm_drvdata *ndd,
 	if (!res)
 		kfree(name);
 	return res;
+}
+
+/**
+ * nvdimm_allocated_dpa - sum up the dpa currently allocated to this label_id
+ * @nvdimm: container of dpa-resource-root + labels
+ * @label_id: dpa resource name of the form {pmem|blk}-<human readable uuid>
+ */
+resource_size_t nvdimm_allocated_dpa(struct nvdimm_drvdata *ndd,
+		struct nd_label_id *label_id)
+{
+	resource_size_t allocated = 0;
+	struct resource *res;
+
+	for_each_dpa_resource(ndd, res)
+		if (strcmp(res->name, label_id->id) == 0)
+			allocated += resource_size(res);
+
+	return allocated;
 }
 
 static int count_dimms(struct device *dev, void *c)

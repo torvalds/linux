@@ -56,4 +56,16 @@ int nvdimm_bus_register_dimms(struct nvdimm_bus *nvdimm_bus);
 int nvdimm_bus_register_regions(struct nvdimm_bus *nvdimm_bus);
 int nvdimm_bus_init_interleave_sets(struct nvdimm_bus *nvdimm_bus);
 int nd_match_dimm(struct device *dev, void *data);
+struct nd_label_id;
+char *nd_label_gen_id(struct nd_label_id *label_id, u8 *uuid, u32 flags);
+bool nd_is_uuid_unique(struct device *dev, u8 *uuid);
+struct nd_region;
+struct nvdimm_drvdata;
+struct nd_mapping;
+resource_size_t nd_pmem_available_dpa(struct nd_region *nd_region,
+		struct nd_mapping *nd_mapping, resource_size_t *overlap);
+resource_size_t nd_region_available_dpa(struct nd_region *nd_region);
+resource_size_t nvdimm_allocated_dpa(struct nvdimm_drvdata *ndd,
+		struct nd_label_id *label_id);
+void get_ndd(struct nvdimm_drvdata *ndd);
 #endif /* __ND_CORE_H__ */

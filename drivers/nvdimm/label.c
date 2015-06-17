@@ -230,7 +230,7 @@ static bool preamble_current(struct nvdimm_drvdata *ndd,
 	return true;
 }
 
-static char *nd_label_gen_id(struct nd_label_id *label_id, u8 *uuid, u32 flags)
+char *nd_label_gen_id(struct nd_label_id *label_id, u8 *uuid, u32 flags)
 {
 	if (!label_id || !uuid)
 		return NULL;
@@ -287,4 +287,57 @@ int nd_label_reserve_dpa(struct nvdimm_drvdata *ndd)
 	}
 
 	return 0;
+}
+
+int nd_label_active_count(struct nvdimm_drvdata *ndd)
+{
+	struct nd_namespace_index *nsindex;
+	unsigned long *free;
+	u32 nslot, slot;
+	int count = 0;
+
+	if (!preamble_current(ndd, &nsindex, &free, &nslot))
+		return 0;
+
+	for_each_clear_bit_le(slot, free, nslot) {
+		struct nd_namespace_label *nd_label;
+
+		nd_label = nd_label_base(ndd) + slot;
+
+		if (!slot_valid(nd_label, slot)) {
+			u32 label_slot = __le32_to_cpu(nd_label->slot);
+			u64 size = __le64_to_cpu(nd_label->rawsize);
+			u64 dpa = __le64_to_cpu(nd_label->dpa);
+
+			dev_dbg(ndd->dev,
+				"%s: slot%d invalid slot: %d dpa: %llx size: %llx\n",
+					__func__, slot, label_slot, dpa, size);
+			continue;
+		}
+		count++;
+	}
+	return count;
+}
+
+struct nd_namespace_label *nd_label_active(struct nvdimm_drvdata *ndd, int n)
+{
+	struct nd_namespace_index *nsindex;
+	unsigned long *free;
+	u32 nslot, slot;
+
+	if (!preamble_current(ndd, &nsindex, &free, &nslot))
+		return NULL;
+
+	for_each_clear_bit_le(slot, free, nslot) {
+		struct nd_namespace_label *nd_label;
+
+		nd_label = nd_label_base(ndd) + slot;
+		if (!slot_valid(nd_label, slot))
+			continue;
+
+		if (n-- == 0)
+			return nd_label_base(ndd) + slot;
+	}
+
+	return NULL;
 }

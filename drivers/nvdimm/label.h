@@ -125,4 +125,6 @@ int nd_label_validate(struct nvdimm_drvdata *ndd);
 void nd_label_copy(struct nvdimm_drvdata *ndd, struct nd_namespace_index *dst,
 		struct nd_namespace_index *src);
 size_t sizeof_namespace_index(struct nvdimm_drvdata *ndd);
+int nd_label_active_count(struct nvdimm_drvdata *ndd);
+struct nd_namespace_label *nd_label_active(struct nvdimm_drvdata *ndd, int n);
 #endif /* __LABEL_H__ */

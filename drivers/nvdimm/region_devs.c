@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/sort.h>
 #include <linux/io.h>
+#include <linux/nd.h>
 #include "nd-core.h"
 #include "nd.h"
 
@@ -99,6 +100,58 @@ int nd_region_to_nstype(struct nd_region *nd_region)
 
 	return 0;
 }
+EXPORT_SYMBOL(nd_region_to_nstype);
+
+static int is_uuid_busy(struct device *dev, void *data)
+{
+	struct nd_region *nd_region = to_nd_region(dev->parent);
+	u8 *uuid = data;
+
+	switch (nd_region_to_nstype(nd_region)) {
+	case ND_DEVICE_NAMESPACE_PMEM: {
+		struct nd_namespace_pmem *nspm = to_nd_namespace_pmem(dev);
+
+		if (!nspm->uuid)
+			break;
+		if (memcmp(uuid, nspm->uuid, NSLABEL_UUID_LEN) == 0)
+			return -EBUSY;
+		break;
+	}
+	case ND_DEVICE_NAMESPACE_BLK: {
+		/* TODO: blk namespace support */
+		break;
+	}
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int is_namespace_uuid_busy(struct device *dev, void *data)
+{
+	if (is_nd_pmem(dev) || is_nd_blk(dev))
+		return device_for_each_child(dev, data, is_uuid_busy);
+	return 0;
+}
+
+/**
+ * nd_is_uuid_unique - verify that no other namespace has @uuid
+ * @dev: any device on a nvdimm_bus
+ * @uuid: uuid to check
+ */
+bool nd_is_uuid_unique(struct device *dev, u8 *uuid)
+{
+	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
+
+	if (!nvdimm_bus)
+		return false;
+	WARN_ON_ONCE(!is_nvdimm_bus_locked(&nvdimm_bus->dev));
+	if (device_for_each_child(&nvdimm_bus->dev, uuid,
+				is_namespace_uuid_busy) != 0)
+		return false;
+	return true;
+}
 
 static ssize_t size_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -151,6 +204,60 @@ static ssize_t set_cookie_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(set_cookie);
 
+resource_size_t nd_region_available_dpa(struct nd_region *nd_region)
+{
+	resource_size_t blk_max_overlap = 0, available, overlap;
+	int i;
+
+	WARN_ON(!is_nvdimm_bus_locked(&nd_region->dev));
+
+ retry:
+	available = 0;
+	overlap = blk_max_overlap;
+	for (i = 0; i < nd_region->ndr_mappings; i++) {
+		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
+		struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
+
+		/* if a dimm is disabled the available capacity is zero */
+		if (!ndd)
+			return 0;
+
+		if (is_nd_pmem(&nd_region->dev)) {
+			available += nd_pmem_available_dpa(nd_region,
+					nd_mapping, &overlap);
+			if (overlap > blk_max_overlap) {
+				blk_max_overlap = overlap;
+				goto retry;
+			}
+		} else if (is_nd_blk(&nd_region->dev)) {
+			/* TODO: BLK Namespace support */
+		}
+	}
+
+	return available;
+}
+
+static ssize_t available_size_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_region *nd_region = to_nd_region(dev);
+	unsigned long long available = 0;
+
+	/*
+	 * Flush in-flight updates and grab a snapshot of the available
+	 * size.  Of course, this value is potentially invalidated the
+	 * memory nvdimm_bus_lock() is dropped, but that's userspace's
+	 * problem to not race itself.
+	 */
+	nvdimm_bus_lock(dev);
+	wait_nvdimm_bus_probe_idle(dev);
+	available = nd_region_available_dpa(nd_region);
+	nvdimm_bus_unlock(dev);
+
+	return sprintf(buf, "%llu\n", available);
+}
+static DEVICE_ATTR_RO(available_size);
+
 static ssize_t init_namespaces_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -168,11 +275,29 @@ static ssize_t init_namespaces_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(init_namespaces);
 
+static ssize_t namespace_seed_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_region *nd_region = to_nd_region(dev);
+	ssize_t rc;
+
+	nvdimm_bus_lock(dev);
+	if (nd_region->ns_seed)
+		rc = sprintf(buf, "%s\n", dev_name(nd_region->ns_seed));
+	else
+		rc = sprintf(buf, "\n");
+	nvdimm_bus_unlock(dev);
+	return rc;
+}
+static DEVICE_ATTR_RO(namespace_seed);
+
 static struct attribute *nd_region_attributes[] = {
 	&dev_attr_size.attr,
 	&dev_attr_nstype.attr,
 	&dev_attr_mappings.attr,
 	&dev_attr_set_cookie.attr,
+	&dev_attr_available_size.attr,
+	&dev_attr_namespace_seed.attr,
 	&dev_attr_init_namespaces.attr,
 	NULL,
 };
@@ -182,12 +307,18 @@ static umode_t region_visible(struct kobject *kobj, struct attribute *a, int n)
 	struct device *dev = container_of(kobj, typeof(*dev), kobj);
 	struct nd_region *nd_region = to_nd_region(dev);
 	struct nd_interleave_set *nd_set = nd_region->nd_set;
+	int type = nd_region_to_nstype(nd_region);
 
-	if (a != &dev_attr_set_cookie.attr)
+	if (a != &dev_attr_set_cookie.attr
+			&& a != &dev_attr_available_size.attr)
 		return a->mode;
 
-	if (is_nd_pmem(dev) && nd_set)
-			return a->mode;
+	if ((type == ND_DEVICE_NAMESPACE_PMEM
+				|| type == ND_DEVICE_NAMESPACE_BLK)
+			&& a == &dev_attr_available_size.attr)
+		return a->mode;
+	else if (is_nd_pmem(dev) && nd_set)
+		return a->mode;
 
 	return 0;
 }
@@ -198,6 +329,15 @@ struct attribute_group nd_region_attribute_group = {
 };
 EXPORT_SYMBOL_GPL(nd_region_attribute_group);
 
+u64 nd_region_interleave_set_cookie(struct nd_region *nd_region)
+{
+	struct nd_interleave_set *nd_set = nd_region->nd_set;
+
+	if (nd_set)
+		return nd_set->cookie;
+	return 0;
+}
+
 /*
  * Upon successful probe/remove, take/release a reference on the
  * associated interleave set (if present)
@@ -205,18 +345,20 @@ EXPORT_SYMBOL_GPL(nd_region_attribute_group);
 static void nd_region_notify_driver_action(struct nvdimm_bus *nvdimm_bus,
 		struct device *dev, bool probe)
 {
-	if (is_nd_pmem(dev) || is_nd_blk(dev)) {
+	if (!probe && (is_nd_pmem(dev) || is_nd_blk(dev))) {
 		struct nd_region *nd_region = to_nd_region(dev);
 		int i;
 
 		for (i = 0; i < nd_region->ndr_mappings; i++) {
 			struct nd_mapping *nd_mapping = &nd_region->mapping[i];
+			struct nvdimm_drvdata *ndd = nd_mapping->ndd;
 			struct nvdimm *nvdimm = nd_mapping->nvdimm;
 
-			if (probe)
-				atomic_inc(&nvdimm->busy);
-			else
-				atomic_dec(&nvdimm->busy);
+			kfree(nd_mapping->labels);
+			nd_mapping->labels = NULL;
+			put_ndd(ndd);
+			nd_mapping->ndd = NULL;
+			atomic_dec(&nvdimm->busy);
 		}
 	}
 }

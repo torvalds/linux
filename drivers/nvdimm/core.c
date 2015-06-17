@@ -14,6 +14,7 @@
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/ctype.h>
 #include <linux/ndctl.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
@@ -107,6 +108,69 @@ struct nvdimm_bus *walk_to_nvdimm_bus(struct device *nd_dev)
 	if (dev)
 		return to_nvdimm_bus(dev);
 	return NULL;
+}
+
+static bool is_uuid_sep(char sep)
+{
+	if (sep == '\n' || sep == '-' || sep == ':' || sep == '\0')
+		return true;
+	return false;
+}
+
+static int nd_uuid_parse(struct device *dev, u8 *uuid_out, const char *buf,
+		size_t len)
+{
+	const char *str = buf;
+	u8 uuid[16];
+	int i;
+
+	for (i = 0; i < 16; i++) {
+		if (!isxdigit(str[0]) || !isxdigit(str[1])) {
+			dev_dbg(dev, "%s: pos: %d buf[%zd]: %c buf[%zd]: %c\n",
+					__func__, i, str - buf, str[0],
+					str + 1 - buf, str[1]);
+			return -EINVAL;
+		}
+
+		uuid[i] = (hex_to_bin(str[0]) << 4) | hex_to_bin(str[1]);
+		str += 2;
+		if (is_uuid_sep(*str))
+			str++;
+	}
+
+	memcpy(uuid_out, uuid, sizeof(uuid));
+	return 0;
+}
+
+/**
+ * nd_uuid_store: common implementation for writing 'uuid' sysfs attributes
+ * @dev: container device for the uuid property
+ * @uuid_out: uuid buffer to replace
+ * @buf: raw sysfs buffer to parse
+ *
+ * Enforce that uuids can only be changed while the device is disabled
+ * (driver detached)
+ * LOCKING: expects device_lock() is held on entry
+ */
+int nd_uuid_store(struct device *dev, u8 **uuid_out, const char *buf,
+		size_t len)
+{
+	u8 uuid[16];
+	int rc;
+
+	if (dev->driver)
+		return -EBUSY;
+
+	rc = nd_uuid_parse(dev, uuid, buf, len);
+	if (rc)
+		return rc;
+
+	kfree(*uuid_out);
+	*uuid_out = kmemdup(uuid, sizeof(uuid), GFP_KERNEL);
+	if (!(*uuid_out))
+		return -ENOMEM;
+
+	return 0;
 }
 
 static ssize_t commands_show(struct device *dev,

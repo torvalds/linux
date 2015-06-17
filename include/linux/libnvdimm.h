@@ -41,10 +41,20 @@ typedef int (*ndctl_fn)(struct nvdimm_bus_descriptor *nd_desc,
 		struct nvdimm *nvdimm, unsigned int cmd, void *buf,
 		unsigned int buf_len);
 
+struct nd_namespace_label;
+struct nvdimm_drvdata;
 struct nd_mapping {
 	struct nvdimm *nvdimm;
+	struct nd_namespace_label **labels;
 	u64 start;
 	u64 size;
+	/*
+	 * @ndd is for private use at region enable / disable time for
+	 * get_ndd() + put_ndd(), all other nd_mapping to ndd
+	 * conversions use to_ndd() which respects enabled state of the
+	 * nvdimm.
+	 */
+	struct nvdimm_drvdata *ndd;
 };
 
 struct nvdimm_bus_descriptor {

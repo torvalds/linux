@@ -21,18 +21,6 @@
 #include "label.h"
 #include "nd.h"
 
-static void free_data(struct nvdimm_drvdata *ndd)
-{
-	if (!ndd)
-		return;
-
-	if (ndd->data && is_vmalloc_addr(ndd->data))
-		vfree(ndd->data);
-	else
-		kfree(ndd->data);
-	kfree(ndd);
-}
-
 static int nvdimm_probe(struct device *dev)
 {
 	struct nvdimm_drvdata *ndd;
@@ -49,6 +37,8 @@ static int nvdimm_probe(struct device *dev)
 	ndd->dpa.start = 0;
 	ndd->dpa.end = -1;
 	ndd->dev = dev;
+	get_device(dev);
+	kref_init(&ndd->kref);
 
 	rc = nvdimm_init_nsarea(ndd);
 	if (rc)
@@ -74,21 +64,18 @@ static int nvdimm_probe(struct device *dev)
 	return 0;
 
  err:
-	free_data(ndd);
+	put_ndd(ndd);
 	return rc;
 }
 
 static int nvdimm_remove(struct device *dev)
 {
 	struct nvdimm_drvdata *ndd = dev_get_drvdata(dev);
-	struct resource *res, *_r;
 
 	nvdimm_bus_lock(dev);
 	dev_set_drvdata(dev, NULL);
-	for_each_dpa_resource_safe(ndd, res, _r)
-		nvdimm_free_dpa(ndd, res);
 	nvdimm_bus_unlock(dev);
-	free_data(ndd);
+	put_ndd(ndd);
 
 	return 0;
 }

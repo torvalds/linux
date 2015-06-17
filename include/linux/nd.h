@@ -28,14 +28,38 @@ static inline struct nd_device_driver *to_nd_device_driver(
 	return container_of(drv, struct nd_device_driver, drv);
 };
 
+/**
+ * struct nd_namespace_io - infrastructure for loading an nd_pmem instance
+ * @dev: namespace device created by the nd region driver
+ * @res: struct resource conversion of a NFIT SPA table
+ */
 struct nd_namespace_io {
 	struct device dev;
 	struct resource res;
 };
 
+/**
+ * struct nd_namespace_pmem - namespace device for dimm-backed interleaved memory
+ * @nsio: device and system physical address range to drive
+ * @alt_name: namespace name supplied in the dimm label
+ * @uuid: namespace name supplied in the dimm label
+ */
+struct nd_namespace_pmem {
+	struct nd_namespace_io nsio;
+	char *alt_name;
+	u8 *uuid;
+};
+
 static inline struct nd_namespace_io *to_nd_namespace_io(struct device *dev)
 {
 	return container_of(dev, struct nd_namespace_io, dev);
+}
+
+static inline struct nd_namespace_pmem *to_nd_namespace_pmem(struct device *dev)
+{
+	struct nd_namespace_io *nsio = to_nd_namespace_io(dev);
+
+	return container_of(nsio, struct nd_namespace_pmem, nsio);
 }
 
 #define MODULE_ALIAS_ND_DEVICE(type) \

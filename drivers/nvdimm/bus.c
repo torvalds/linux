@@ -97,6 +97,8 @@ static int nvdimm_bus_probe(struct device *dev)
 	rc = nd_drv->probe(dev);
 	if (rc == 0)
 		nd_region_probe_success(nvdimm_bus, dev);
+	else
+		nd_region_disable(nvdimm_bus, dev);
 	nvdimm_bus_probe_end(nvdimm_bus);
 
 	dev_dbg(&nvdimm_bus->dev, "%s.probe(%s) = %d\n", dev->driver->name,
@@ -381,8 +383,10 @@ u32 nd_cmd_out_size(struct nvdimm *nvdimm, int cmd,
 }
 EXPORT_SYMBOL_GPL(nd_cmd_out_size);
 
-static void wait_nvdimm_bus_probe_idle(struct nvdimm_bus *nvdimm_bus)
+void wait_nvdimm_bus_probe_idle(struct device *dev)
 {
+	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
+
 	do {
 		if (nvdimm_bus->probe_active == 0)
 			break;
@@ -402,7 +406,7 @@ static int nd_cmd_clear_to_send(struct nvdimm *nvdimm, unsigned int cmd)
 		return 0;
 
 	nvdimm_bus = walk_to_nvdimm_bus(&nvdimm->dev);
-	wait_nvdimm_bus_probe_idle(nvdimm_bus);
+	wait_nvdimm_bus_probe_idle(&nvdimm_bus->dev);
 
 	if (atomic_read(&nvdimm->busy))
 		return -EBUSY;

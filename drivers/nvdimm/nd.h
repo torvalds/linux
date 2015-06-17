@@ -16,6 +16,7 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/ndctl.h>
+#include <linux/types.h>
 #include "label.h"
 
 struct nvdimm_drvdata {
@@ -25,6 +26,7 @@ struct nvdimm_drvdata {
 	void *data;
 	int ns_current, ns_next;
 	struct resource dpa;
+	struct kref kref;
 };
 
 struct nd_region_namespaces {
@@ -59,12 +61,19 @@ static inline struct nd_namespace_index *to_next_namespace_index(
 		(unsigned long long) (res ? resource_size(res) : 0), \
 		(unsigned long long) (res ? res->start : 0), ##arg)
 
+#define for_each_label(l, label, labels) \
+	for (l = 0; (label = labels ? labels[l] : NULL); l++)
+
+#define for_each_dpa_resource(ndd, res) \
+	for (res = (ndd)->dpa.child; res; res = res->sibling)
+
 #define for_each_dpa_resource_safe(ndd, res, next) \
 	for (res = (ndd)->dpa.child, next = res ? res->sibling : NULL; \
 			res; res = next, next = next ? next->sibling : NULL)
 
 struct nd_region {
 	struct device dev;
+	struct device *ns_seed;
 	u16 ndr_mappings;
 	u64 ndr_size;
 	u64 ndr_start;
@@ -88,20 +97,28 @@ enum nd_async_mode {
 	ND_ASYNC,
 };
 
+void wait_nvdimm_bus_probe_idle(struct device *dev);
 void nd_device_register(struct device *dev);
 void nd_device_unregister(struct device *dev, enum nd_async_mode mode);
+int nd_uuid_store(struct device *dev, u8 **uuid_out, const char *buf,
+		size_t len);
 int __init nvdimm_init(void);
 int __init nd_region_init(void);
 void nvdimm_exit(void);
 void nd_region_exit(void);
+struct nvdimm;
+struct nvdimm_drvdata *to_ndd(struct nd_mapping *nd_mapping);
 int nvdimm_init_nsarea(struct nvdimm_drvdata *ndd);
 int nvdimm_init_config_data(struct nvdimm_drvdata *ndd);
 struct nd_region *to_nd_region(struct device *dev);
 int nd_region_to_nstype(struct nd_region *nd_region);
 int nd_region_register_namespaces(struct nd_region *nd_region, int *err);
+u64 nd_region_interleave_set_cookie(struct nd_region *nd_region);
 void nvdimm_bus_lock(struct device *dev);
 void nvdimm_bus_unlock(struct device *dev);
 bool is_nvdimm_bus_locked(struct device *dev);
+void nvdimm_drvdata_release(struct kref *kref);
+void put_ndd(struct nvdimm_drvdata *ndd);
 int nd_label_reserve_dpa(struct nvdimm_drvdata *ndd);
 void nvdimm_free_dpa(struct nvdimm_drvdata *ndd, struct resource *res);
 struct resource *nvdimm_allocate_dpa(struct nvdimm_drvdata *ndd,
