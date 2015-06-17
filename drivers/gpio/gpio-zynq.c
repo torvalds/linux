@@ -781,6 +781,12 @@ static int __init zynq_gpio_init(void)
 }
 postcore_initcall(zynq_gpio_init);
 
+static void __exit zynq_gpio_exit(void)
+{
+	platform_driver_unregister(&zynq_gpio_driver);
+}
+module_exit(zynq_gpio_exit);
+
 MODULE_AUTHOR("Xilinx Inc.");
 MODULE_DESCRIPTION("Zynq GPIO driver");
 MODULE_LICENSE("GPL");
