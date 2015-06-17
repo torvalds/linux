@@ -801,6 +801,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 	UFSD("flag %u\n", (int)(sb->s_flags & MS_RDONLY));
 	
 	mutex_init(&sbi->mutex);
+	mutex_init(&sbi->s_lock);
 	spin_lock_init(&sbi->work_lock);
 	INIT_DELAYED_WORK(&sbi->sync_work, delayed_sync_fs);
 	/*
