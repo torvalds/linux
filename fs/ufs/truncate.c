@@ -128,7 +128,9 @@ next1:
 		tmp = ufs_data_ptr_to_cpu(sb, p);
 		if (!tmp)
 			continue;
+		write_seqlock(&ufsi->meta_lock);
 		ufs_data_ptr_clear(uspi, p);
+		write_sequnlock(&ufsi->meta_lock);
 
 		if (free_count == 0) {
 			frag_to_free = tmp;
@@ -157,7 +159,9 @@ next1:
 	if (!tmp )
 		ufs_panic(sb, "ufs_truncate_direct", "internal error");
 	frag4 = ufs_fragnum (frag4);
+	write_seqlock(&ufsi->meta_lock);
 	ufs_data_ptr_clear(uspi, p);
+	write_sequnlock(&ufsi->meta_lock);
 
 	ufs_free_fragments (inode, tmp, frag4);
 	mark_inode_dirty(inode);
@@ -199,7 +203,9 @@ static int ufs_trunc_indirect(struct inode *inode, u64 offset, void *p)
 		return 1;
 	}
 	if (!ind_ubh) {
+		write_seqlock(&UFS_I(inode)->meta_lock);
 		ufs_data_ptr_clear(uspi, p);
+		write_sequnlock(&UFS_I(inode)->meta_lock);
 		return 0;
 	}
 
@@ -210,7 +216,9 @@ static int ufs_trunc_indirect(struct inode *inode, u64 offset, void *p)
 		if (!tmp)
 			continue;
 
+		write_seqlock(&UFS_I(inode)->meta_lock);
 		ufs_data_ptr_clear(uspi, ind);
+		write_sequnlock(&UFS_I(inode)->meta_lock);
 		ubh_mark_buffer_dirty(ind_ubh);
 		if (free_count == 0) {
 			frag_to_free = tmp;
@@ -235,7 +243,9 @@ static int ufs_trunc_indirect(struct inode *inode, u64 offset, void *p)
 			break;
 	if (i >= uspi->s_apb) {
 		tmp = ufs_data_ptr_to_cpu(sb, p);
+		write_seqlock(&UFS_I(inode)->meta_lock);
 		ufs_data_ptr_clear(uspi, p);
+		write_sequnlock(&UFS_I(inode)->meta_lock);
 
 		ubh_bforget(ind_ubh);
 		ufs_free_blocks (inode, tmp, uspi->s_fpb);
@@ -278,7 +288,9 @@ static int ufs_trunc_dindirect(struct inode *inode, u64 offset, void *p)
 		return 1;
 	}
 	if (!dind_bh) {
+		write_seqlock(&UFS_I(inode)->meta_lock);
 		ufs_data_ptr_clear(uspi, p);
+		write_sequnlock(&UFS_I(inode)->meta_lock);
 		return 0;
 	}
 
@@ -297,7 +309,9 @@ static int ufs_trunc_dindirect(struct inode *inode, u64 offset, void *p)
 			break;
 	if (i >= uspi->s_apb) {
 		tmp = ufs_data_ptr_to_cpu(sb, p);
+		write_seqlock(&UFS_I(inode)->meta_lock);
 		ufs_data_ptr_clear(uspi, p);
+		write_sequnlock(&UFS_I(inode)->meta_lock);
 
 		ubh_bforget(dind_bh);
 		ufs_free_blocks(inode, tmp, uspi->s_fpb);
@@ -339,7 +353,9 @@ static int ufs_trunc_tindirect(struct inode *inode)
 		return 1;
 	}
 	if (!tind_bh) {
+		write_seqlock(&ufsi->meta_lock);
 		ufs_data_ptr_clear(uspi, p);
+		write_sequnlock(&ufsi->meta_lock);
 		return 0;
 	}
 
@@ -355,7 +371,9 @@ static int ufs_trunc_tindirect(struct inode *inode)
 			break;
 	if (i >= uspi->s_apb) {
 		tmp = ufs_data_ptr_to_cpu(sb, p);
+		write_seqlock(&ufsi->meta_lock);
 		ufs_data_ptr_clear(uspi, p);
+		write_sequnlock(&ufsi->meta_lock);
 
 		ubh_bforget(tind_bh);
 		ufs_free_blocks(inode, tmp, uspi->s_fpb);
@@ -447,7 +465,7 @@ static void __ufs_truncate_blocks(struct inode *inode)
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
 	int retry;
 
-	lock_ufs(sb);
+	mutex_lock(&ufsi->truncate_mutex);
 	while (1) {
 		retry = ufs_trunc_direct(inode);
 		retry |= ufs_trunc_indirect(inode, UFS_IND_BLOCK,
@@ -465,7 +483,7 @@ static void __ufs_truncate_blocks(struct inode *inode)
 	}
 
 	ufsi->i_lastfrag = DIRECT_FRAGMENT;
-	unlock_ufs(sb);
+	mutex_unlock(&ufsi->truncate_mutex);
 }
 
 int ufs_truncate(struct inode *inode, loff_t size)

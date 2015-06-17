@@ -46,6 +46,8 @@ struct ufs_inode_info {
 	__u32	i_oeftflag;
 	__u16	i_osync;
 	__u64	i_lastfrag;
+	seqlock_t meta_lock;
+	struct mutex	truncate_mutex;
 	__u32   i_dir_start_lookup;
 	struct inode vfs_inode;
 };

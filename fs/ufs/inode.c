@@ -41,8 +41,6 @@
 #include "swab.h"
 #include "util.h"
 
-static u64 ufs_frag_map(struct inode *inode, sector_t frag, bool needs_lock);
-
 static int ufs_block_to_path(struct inode *inode, sector_t i_block, sector_t offsets[4])
 {
 	struct ufs_sb_private_info *uspi = UFS_SB(inode->i_sb)->s_uspi;
@@ -75,12 +73,53 @@ static int ufs_block_to_path(struct inode *inode, sector_t i_block, sector_t off
 	return n;
 }
 
+typedef struct {
+	void	*p;
+	union {
+		__fs32	key32;
+		__fs64	key64;
+	};
+	struct buffer_head *bh;
+} Indirect;
+
+static inline int grow_chain32(struct ufs_inode_info *ufsi,
+			       struct buffer_head *bh, __fs32 *v,
+			       Indirect *from, Indirect *to)
+{
+	Indirect *p;
+	unsigned seq;
+	to->bh = bh;
+	do {
+		seq = read_seqbegin(&ufsi->meta_lock);
+		to->key32 = *(__fs32 *)(to->p = v);
+		for (p = from; p <= to && p->key32 == *(__fs32 *)p->p; p++)
+			;
+	} while (read_seqretry(&ufsi->meta_lock, seq));
+	return (p > to);
+}
+
+static inline int grow_chain64(struct ufs_inode_info *ufsi,
+			       struct buffer_head *bh, __fs64 *v,
+			       Indirect *from, Indirect *to)
+{
+	Indirect *p;
+	unsigned seq;
+	to->bh = bh;
+	do {
+		seq = read_seqbegin(&ufsi->meta_lock);
+		to->key64 = *(__fs64 *)(to->p = v);
+		for (p = from; p <= to && p->key64 == *(__fs64 *)p->p; p++)
+			;
+	} while (read_seqretry(&ufsi->meta_lock, seq));
+	return (p > to);
+}
+
 /*
  * Returns the location of the fragment from
  * the beginning of the filesystem.
  */
 
-static u64 ufs_frag_map(struct inode *inode, sector_t frag, bool needs_lock)
+static u64 ufs_frag_map(struct inode *inode, sector_t frag)
 {
 	struct ufs_inode_info *ufsi = UFS_I(inode);
 	struct super_block *sb = inode->i_sb;
@@ -88,12 +127,10 @@ static u64 ufs_frag_map(struct inode *inode, sector_t frag, bool needs_lock)
 	u64 mask = (u64) uspi->s_apbmask>>uspi->s_fpbshift;
 	int shift = uspi->s_apbshift-uspi->s_fpbshift;
 	sector_t offsets[4], *p;
+	Indirect chain[4], *q = chain;
 	int depth = ufs_block_to_path(inode, frag >> uspi->s_fpbshift, offsets);
-	u64  ret = 0L;
-	__fs32 block;
-	__fs64 u2_block = 0L;
 	unsigned flags = UFS_SB(sb)->s_flags;
-	u64 temp = 0L;
+	u64 res = 0;
 
 	UFSD(": frag = %llu  depth = %d\n", (unsigned long long)frag, depth);
 	UFSD(": uspi->s_fpbshift = %d ,uspi->s_apbmask = %x, mask=%llx\n",
@@ -101,59 +138,73 @@ static u64 ufs_frag_map(struct inode *inode, sector_t frag, bool needs_lock)
 		(unsigned long long)mask);
 
 	if (depth == 0)
-		return 0;
+		goto no_block;
 
+again:
 	p = offsets;
 
-	if (needs_lock)
-		lock_ufs(sb);
 	if ((flags & UFS_TYPE_MASK) == UFS_TYPE_UFS2)
 		goto ufs2;
 
-	block = ufsi->i_u1.i_data[*p++];
-	if (!block)
-		goto out;
+	if (!grow_chain32(ufsi, NULL, &ufsi->i_u1.i_data[*p++], chain, q))
+		goto changed;
+	if (!q->key32)
+		goto no_block;
 	while (--depth) {
+		__fs32 *ptr;
 		struct buffer_head *bh;
 		sector_t n = *p++;
 
-		bh = sb_bread(sb, uspi->s_sbbase + fs32_to_cpu(sb, block)+(n>>shift));
+		bh = sb_bread(sb, uspi->s_sbbase +
+				  fs32_to_cpu(sb, q->key32) + (n>>shift));
 		if (!bh)
-			goto out;
-		block = ((__fs32 *) bh->b_data)[n & mask];
-		brelse (bh);
-		if (!block)
-			goto out;
+			goto no_block;
+		ptr = (__fs32 *)bh->b_data + (n & mask);
+		if (!grow_chain32(ufsi, bh, ptr, chain, ++q))
+			goto changed;
+		if (!q->key32)
+			goto no_block;
 	}
-	ret = (u64) (uspi->s_sbbase + fs32_to_cpu(sb, block) + (frag & uspi->s_fpbmask));
-	goto out;
+	res = fs32_to_cpu(sb, q->key32);
+	goto found;
+
 ufs2:
-	u2_block = ufsi->i_u1.u2_i_data[*p++];
-	if (!u2_block)
-		goto out;
-
+	if (!grow_chain64(ufsi, NULL, &ufsi->i_u1.u2_i_data[*p++], chain, q))
+		goto changed;
+	if (!q->key64)
+		goto no_block;
 
 	while (--depth) {
+		__fs64 *ptr;
 		struct buffer_head *bh;
 		sector_t n = *p++;
 
-
-		temp = (u64)(uspi->s_sbbase) + fs64_to_cpu(sb, u2_block);
-		bh = sb_bread(sb, temp +(u64) (n>>shift));
+		bh = sb_bread(sb, uspi->s_sbbase +
+				  fs64_to_cpu(sb, q->key64) + (n>>shift));
 		if (!bh)
-			goto out;
-		u2_block = ((__fs64 *)bh->b_data)[n & mask];
-		brelse(bh);
-		if (!u2_block)
-			goto out;
+			goto no_block;
+		ptr = (__fs64 *)bh->b_data + (n & mask);
+		if (!grow_chain64(ufsi, bh, ptr, chain, ++q))
+			goto changed;
+		if (!q->key64)
+			goto no_block;
 	}
-	temp = (u64)uspi->s_sbbase + fs64_to_cpu(sb, u2_block);
-	ret = temp + (u64) (frag & uspi->s_fpbmask);
+	res = fs64_to_cpu(sb, q->key64);
+found:
+	res += uspi->s_sbbase + (frag & uspi->s_fpbmask);
+no_block:
+	while (q > chain) {
+		brelse(q->bh);
+		q--;
+	}
+	return res;
 
-out:
-	if (needs_lock)
-		unlock_ufs(sb);
-	return ret;
+changed:
+	while (q > chain) {
+		brelse(q->bh);
+		q--;
+	}
+	goto again;
 }
 
 /**
@@ -421,10 +472,9 @@ int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buffer_head
 	int ret, err, new;
 	unsigned long ptr,phys;
 	u64 phys64 = 0;
-	bool needs_lock = (sbi->mutex_owner != current);
 	
 	if (!create) {
-		phys64 = ufs_frag_map(inode, fragment, needs_lock);
+		phys64 = ufs_frag_map(inode, fragment);
 		UFSD("phys64 = %llu\n", (unsigned long long)phys64);
 		if (phys64)
 			map_bh(bh_result, sb, phys64);
@@ -438,8 +488,7 @@ int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buffer_head
 	ret = 0;
 	bh = NULL;
 
-	if (needs_lock)
-		lock_ufs(sb);
+	mutex_lock(&UFS_I(inode)->truncate_mutex);
 
 	UFSD("ENTER, ino %lu, fragment %llu\n", inode->i_ino, (unsigned long long)fragment);
 	if (fragment >
@@ -501,8 +550,7 @@ out:
 		set_buffer_new(bh_result);
 	map_bh(bh_result, sb, phys);
 abort:
-	if (needs_lock)
-		unlock_ufs(sb);
+	mutex_unlock(&UFS_I(inode)->truncate_mutex);
 
 	return err;
 
