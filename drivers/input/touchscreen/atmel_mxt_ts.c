@@ -1022,6 +1022,10 @@ static void mxt_proc_t9_message(struct mxt_data *data, u8 *message)
 			tool = MT_TOOL_FINGER;
 		}
 
+		/* if active, pressure must be non-zero */
+		if (!amplitude)
+			amplitude = MXT_PRESSURE_DEFAULT;
+
 		/* Touch active */
 		input_mt_report_slot_state(input_dev, tool, 1);
 		input_report_abs(input_dev, ABS_MT_POSITION_X, x);
