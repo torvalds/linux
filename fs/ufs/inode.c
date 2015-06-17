@@ -1069,25 +1069,16 @@ next1:
 }
 
 
-static void ufs_trunc_indirect(struct inode *inode, u64 offset, void *p)
+static void ufs_trunc_indirect(struct inode *inode, unsigned from, void *p)
 {
-	struct super_block * sb;
-	struct ufs_sb_private_info * uspi;
+	struct super_block *sb = inode->i_sb;
+	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
 	struct ufs_buffer_head * ind_ubh;
 	void *ind;
-	u64 tmp, indirect_block, i, frag_to_free;
-	unsigned free_count;
-
-	UFSD("ENTER: ino %lu, offset %llu, p: %p\n",
-	     inode->i_ino, (unsigned long long)offset, p);
-
-	BUG_ON(!p);
-
-	sb = inode->i_sb;
-	uspi = UFS_SB(sb)->s_uspi;
-
-	frag_to_free = 0;
-	free_count = 0;
+	u64 tmp, frag_to_free = 0;
+	unsigned free_count = 0;
+	bool to_free = !from;
+	unsigned i;
 
 	tmp = ufs_data_ptr_to_cpu(sb, p);
 	if (!tmp)
@@ -1100,8 +1091,7 @@ static void ufs_trunc_indirect(struct inode *inode, u64 offset, void *p)
 		return;
 	}
 
-	indirect_block = (DIRECT_BLOCK > offset) ? (DIRECT_BLOCK - offset) : 0;
-	for (i = indirect_block; i < uspi->s_apb; i++) {
+	for (i = from; i < uspi->s_apb; i++) {
 		ind = ubh_get_data_ptr(uspi, ind_ubh, i);
 		tmp = ufs_data_ptr_to_cpu(sb, ind);
 		if (!tmp)
@@ -1128,11 +1118,7 @@ static void ufs_trunc_indirect(struct inode *inode, u64 offset, void *p)
 	if (free_count > 0) {
 		ufs_free_blocks (inode, frag_to_free, free_count);
 	}
-	for (i = 0; i < uspi->s_apb; i++)
-		if (!ufs_is_data_ptr_zero(uspi,
-					  ubh_get_data_ptr(uspi, ind_ubh, i)))
-			break;
-	if (i >= uspi->s_apb) {
+	if (to_free) {
 		tmp = ufs_data_ptr_to_cpu(sb, p);
 		write_seqlock(&UFS_I(inode)->meta_lock);
 		ufs_data_ptr_clear(uspi, p);
@@ -1141,13 +1127,11 @@ static void ufs_trunc_indirect(struct inode *inode, u64 offset, void *p)
 		ubh_bforget(ind_ubh);
 		ufs_free_blocks (inode, tmp, uspi->s_fpb);
 		mark_inode_dirty(inode);
-		ind_ubh = NULL;
+		return;
 	}
-	if (IS_SYNC(inode) && ind_ubh && ubh_buffer_dirty(ind_ubh))
+	if (IS_SYNC(inode) && ubh_buffer_dirty(ind_ubh))
 		ubh_sync_block(ind_ubh);
 	ubh_brelse (ind_ubh);
-
-	UFSD("EXIT: ino %lu\n", inode->i_ino);
 }
 
 static void ufs_trunc_dindirect(struct inode *inode, u64 offset, void *p)
@@ -1157,14 +1141,20 @@ static void ufs_trunc_dindirect(struct inode *inode, u64 offset, void *p)
 	struct ufs_buffer_head *dind_bh;
 	u64 i, tmp, dindirect_block;
 	void *dind;
+	unsigned from;
 
 	UFSD("ENTER: ino %lu\n", inode->i_ino);
 
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
 
-	dindirect_block = (DIRECT_BLOCK > offset)
-		? ((DIRECT_BLOCK - offset) >> uspi->s_apbshift) : 0;
+	if (DIRECT_BLOCK <= offset) {
+		dindirect_block = 0;
+		from = 0;
+	} else {
+		dindirect_block = (DIRECT_BLOCK - offset) >> uspi->s_apbshift;
+		from = (DIRECT_BLOCK - offset) & uspi->s_apbmask;
+	}
 
 	tmp = ufs_data_ptr_to_cpu(sb, p);
 	if (!tmp)
@@ -1177,12 +1167,12 @@ static void ufs_trunc_dindirect(struct inode *inode, u64 offset, void *p)
 		return;
 	}
 
-	for (i = dindirect_block ; i < uspi->s_apb ; i++) {
+	for (i = dindirect_block ; i < uspi->s_apb ; i++, from = 0) {
 		dind = ubh_get_data_ptr(uspi, dind_bh, i);
 		tmp = ufs_data_ptr_to_cpu(sb, dind);
 		if (!tmp)
 			continue;
-		ufs_trunc_indirect (inode, offset + (i << uspi->s_apbshift), dind);
+		ufs_trunc_indirect(inode, from, dind);
 		ubh_mark_buffer_dirty(dind_bh);
 	}
 
@@ -1328,7 +1318,7 @@ static void __ufs_truncate_blocks(struct inode *inode)
 	struct ufs_inode_info *ufsi = UFS_I(inode);
 	struct super_block *sb = inode->i_sb;
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
-	unsigned offsets[4];
+	unsigned offsets[4] = {0,};
 	int depth = ufs_block_to_path(inode, DIRECT_BLOCK, offsets);
 
 	mutex_lock(&ufsi->truncate_mutex);
@@ -1336,7 +1326,7 @@ static void __ufs_truncate_blocks(struct inode *inode)
 	case 1:
 		ufs_trunc_direct(inode);
 	case 2:
-		ufs_trunc_indirect(inode, UFS_IND_BLOCK,
+		ufs_trunc_indirect(inode, offsets[1],
 			   ufs_get_direct_data_ptr(uspi, ufsi, UFS_IND_BLOCK));
 	case 3:
 		ufs_trunc_dindirect(inode, UFS_IND_BLOCK + uspi->s_apb,
