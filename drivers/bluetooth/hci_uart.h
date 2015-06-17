@@ -85,6 +85,9 @@ struct hci_uart {
 	struct sk_buff		*tx_skb;
 	unsigned long		tx_state;
 	spinlock_t		rx_lock;
+
+	unsigned int init_speed;
+	unsigned int oper_speed;
 };
 
 /* HCI_UART proto flag bits */
@@ -99,7 +102,11 @@ int hci_uart_register_proto(const struct hci_uart_proto *p);
 int hci_uart_unregister_proto(const struct hci_uart_proto *p);
 int hci_uart_tx_wakeup(struct hci_uart *hu);
 int hci_uart_init_ready(struct hci_uart *hu);
+void hci_uart_init_tty(struct hci_uart *hu);
 void hci_uart_set_baudrate(struct hci_uart *hu, unsigned int speed);
+void hci_uart_set_flow_control(struct hci_uart *hu, bool enable);
+void hci_uart_set_speeds(struct hci_uart *hu, unsigned int init_speed,
+			 unsigned int oper_speed);
 
 #ifdef CONFIG_BT_HCIUART_H4
 int h4_init(void);
