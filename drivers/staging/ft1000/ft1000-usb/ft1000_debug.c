@@ -55,7 +55,7 @@ struct list_head freercvpool;
 /* lock to arbitrate free buffer list for receive command data */
 spinlock_t free_buff_lock;
 
-int numofmsgbuf = 0;
+int numofmsgbuf;
 
 /*
  * Table of entry-point routines for char device
