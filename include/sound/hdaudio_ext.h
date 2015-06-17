@@ -90,6 +90,7 @@ void snd_hdac_ext_stream_init(struct hdac_ext_bus *bus,
 int snd_hdac_ext_stream_init_all(struct hdac_ext_bus *ebus, int start_idx,
 		int num_stream, int dir);
 void snd_hdac_stream_free_all(struct hdac_ext_bus *ebus);
+void snd_hdac_link_free_all(struct hdac_ext_bus *ebus);
 struct hdac_ext_stream *snd_hdac_ext_stream_assign(struct hdac_ext_bus *bus,
 					   struct snd_pcm_substream *substream,
 					   int type);
