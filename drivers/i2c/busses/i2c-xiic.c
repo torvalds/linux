@@ -667,7 +667,6 @@ static void xiic_start_xfer(struct xiic_i2c *i2c)
 	unsigned long flags;
 
 	spin_lock_irqsave(&i2c->lock, flags);
-	xiic_reinit(i2c);
 	/* disable interrupts globally */
 	xiic_setreg32(i2c, XIIC_DGIER_OFFSET, 0);
 	spin_unlock_irqrestore(&i2c->lock, flags);
