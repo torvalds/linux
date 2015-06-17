@@ -1786,7 +1786,7 @@ static enum charger_type rk81x_bat_get_dc_state(struct rk81x_battery *di)
 	/*HW_ADP_TYPE_DUAL: det by rk818 and usb*/
 	} else if (rk81x_bat_support_adp_type(HW_ADP_TYPE_DUAL)) {
 		if ((buf & PLUG_IN_STS) != 0) {
-			charger_type = dwc_otg_check_dpdm();
+			charger_type = dwc_otg_check_dpdm(0);
 			if (charger_type == 0)
 				charger_type = DC_CHARGER;
 			else
@@ -1802,7 +1802,7 @@ static enum charger_type rk81x_bat_get_usbac_state(struct rk81x_battery *di)
 	enum charger_type charger_type;
 	int usb_id, gadget_flag;
 
-	usb_id = dwc_otg_check_dpdm();
+	usb_id = dwc_otg_check_dpdm(0);
 	switch (usb_id) {
 	case 0:
 		charger_type = NO_CHARGER;

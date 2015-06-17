@@ -660,7 +660,7 @@ void kernel_power_off(void);
 #if defined(CONFIG_ARCH_ROCKCHIP)
 int dwc_vbus_status(void);
 int get_gadget_connect_flag(void);
-int dwc_otg_check_dpdm(void);
+int dwc_otg_check_dpdm(bool wait);
 void rk_send_wakeup_key(void);
 #else
 
@@ -669,7 +669,7 @@ static inline int get_gadget_connect_flag(void)
 	return 0;
 }
 
-static inline int dwc_otg_check_dpdm(void)
+static inline int dwc_otg_check_dpdm(bool wait)
 {
 	return 0;
 }
