@@ -265,6 +265,7 @@ struct events_stats {
 	u32 nr_unknown_id;
 	u32 nr_unprocessable_samples;
 	u32 nr_auxtrace_errors[PERF_AUXTRACE_ERROR_MAX];
+	u32 nr_proc_map_timeout;
 };
 
 struct attr_event {

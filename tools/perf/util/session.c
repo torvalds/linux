@@ -1064,6 +1064,8 @@ static int machines__deliver_event(struct machines *machines,
 	case PERF_RECORD_MMAP:
 		return tool->mmap(tool, event, sample, machine);
 	case PERF_RECORD_MMAP2:
+		if (event->header.misc & PERF_RECORD_MISC_PROC_MAP_PARSE_TIMEOUT)
+			++evlist->stats.nr_proc_map_timeout;
 		return tool->mmap2(tool, event, sample, machine);
 	case PERF_RECORD_COMM:
 		return tool->comm(tool, event, sample, machine);
@@ -1360,6 +1362,15 @@ static void perf_session__warn_about_errors(const struct perf_session *session)
 		ui__warning("%u out of order events recorded.\n", oe->nr_unordered_events);
 
 	events_stats__auxtrace_error_warn(stats);
+
+	if (stats->nr_proc_map_timeout != 0) {
+		ui__warning("%d map information files for pre-existing threads were\n"
+			    "not processed, if there are samples for addresses they\n"
+			    "will not be resolved, you may find out which are these\n"
+			    "threads by running with -v and redirecting the output\n"
+			    "to a file.\n",
+			    stats->nr_proc_map_timeout);
+	}
 }
 
 static int perf_session__flush_thread_stack(struct thread *thread,

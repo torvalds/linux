@@ -213,6 +213,8 @@ static int perf_event__synthesize_fork(struct perf_tool *tool,
 	return 0;
 }
 
+#define PROC_MAP_PARSE_TIMEOUT	(500 * 1000000ULL)
+
 int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 				       union perf_event *event,
 				       pid_t pid, pid_t tgid,
@@ -222,6 +224,8 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 {
 	char filename[PATH_MAX];
 	FILE *fp;
+	unsigned long long t;
+	bool truncation = false;
 	int rc = 0;
 
 	if (machine__is_default_guest(machine))
@@ -240,6 +244,7 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 	}
 
 	event->header.type = PERF_RECORD_MMAP2;
+	t = rdclock();
 
 	while (1) {
 		char bf[BUFSIZ];
@@ -252,6 +257,12 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 
 		if (fgets(bf, sizeof(bf), fp) == NULL)
 			break;
+
+		if ((rdclock() - t) > PROC_MAP_PARSE_TIMEOUT) {
+			pr_warning("Reading %s time out.\n", filename);
+			truncation = true;
+			goto out;
+		}
 
 		/* ensure null termination since stack will be reused. */
 		strcpy(execname, "");
@@ -301,6 +312,10 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 			event->header.misc |= PERF_RECORD_MISC_MMAP_DATA;
 		}
 
+out:
+		if (truncation)
+			event->header.misc |= PERF_RECORD_MISC_PROC_MAP_PARSE_TIMEOUT;
+
 		if (!strcmp(execname, ""))
 			strcpy(execname, anonstr);
 
@@ -319,6 +334,9 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 			rc = -1;
 			break;
 		}
+
+		if (truncation)
+			break;
 	}
 
 	fclose(fp);
