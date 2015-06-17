@@ -103,15 +103,6 @@ if ARCH_SHMOBILE_LEGACY
 
 comment "Renesas ARM SoCs System Type"
 
-config ARCH_SH73A0
-	bool "SH-Mobile AG5 (R8A73A00)"
-	select ARCH_RMOBILE
-	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select ARM_GIC
-	select I2C
-	select SH_INTC
-	select RENESAS_INTC_IRQPIN
-
 config ARCH_R8A7740
 	bool "R-Mobile A1 (R8A77400)"
 	select ARCH_RMOBILE
