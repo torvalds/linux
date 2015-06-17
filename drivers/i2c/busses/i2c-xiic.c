@@ -664,15 +664,8 @@ static void __xiic_start_xfer(struct xiic_i2c *i2c)
 
 static void xiic_start_xfer(struct xiic_i2c *i2c)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&i2c->lock, flags);
-	/* disable interrupts globally */
-	xiic_setreg32(i2c, XIIC_DGIER_OFFSET, 0);
-	spin_unlock_irqrestore(&i2c->lock, flags);
 
 	__xiic_start_xfer(i2c);
-	xiic_setreg32(i2c, XIIC_DGIER_OFFSET, XIIC_GINTR_ENABLE_MASK);
 }
 
 static int xiic_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
