@@ -126,7 +126,7 @@ static u64 ufs_frag_map(struct inode *inode, sector_t frag)
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
 	u64 mask = (u64) uspi->s_apbmask>>uspi->s_fpbshift;
 	int shift = uspi->s_apbshift-uspi->s_fpbshift;
-	sector_t offsets[4], *p;
+	unsigned offsets[4], *p;
 	Indirect chain[4], *q = chain;
 	int depth = ufs_block_to_path(inode, frag >> uspi->s_fpbshift, offsets);
 	unsigned flags = UFS_SB(sb)->s_flags;
@@ -290,14 +290,14 @@ repeat:
 					return NULL;
 			}
 			lastfrag = ufsi->i_lastfrag;
-			
+
 		}
 		tmp = ufs_data_ptr_to_cpu(sb,
 					 ufs_get_direct_data_ptr(uspi, ufsi,
 								 lastblock));
 		if (tmp)
 			goal = tmp + uspi->s_fpb;
-		tmp = ufs_new_fragments (inode, p, fragment - blockoff, 
+		tmp = ufs_new_fragments (inode, p, fragment - blockoff,
 					 goal, required + blockoff,
 					 err,
 					 phys != NULL ? locked_page : NULL);
@@ -436,7 +436,7 @@ repeat:
 		if (ufs_data_ptr_to_cpu(sb, p))
 			goto repeat;
 		goto out;
-	}		
+	}
 
 
 	if (!phys) {
@@ -463,7 +463,7 @@ out:
  * readpage, writepage and so on
  */
 
-int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buffer_head *bh_result, int create)
+static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buffer_head *bh_result, int create)
 {
 	struct super_block * sb = inode->i_sb;
 	struct ufs_sb_info * sbi = UFS_SB(sb);
@@ -472,7 +472,7 @@ int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buffer_head
 	int ret, err, new;
 	unsigned long ptr,phys;
 	u64 phys64 = 0;
-	
+
 	if (!create) {
 		phys64 = ufs_frag_map(inode, fragment);
 		UFSD("phys64 = %llu\n", (unsigned long long)phys64);
@@ -498,7 +498,7 @@ int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buffer_head
 
 	err = 0;
 	ptr = fragment;
-	  
+
 	/*
 	 * ok, these macros clean the logic up a bit and make
 	 * it much more readable:
@@ -573,6 +573,8 @@ int ufs_prepare_chunk(struct page *page, loff_t pos, unsigned len)
 {
 	return __block_write_begin(page, pos, len, ufs_getfrag_block);
 }
+
+static void ufs_truncate_blocks(struct inode *);
 
 static void ufs_write_failed(struct address_space *mapping, loff_t to)
 {
@@ -661,7 +663,7 @@ static int ufs1_read_inode(struct inode *inode, struct ufs_inode *ufs_inode)
 		ufs_error (sb, "ufs_read_inode", "inode %lu has zero nlink\n", inode->i_ino);
 		return -1;
 	}
-	
+
 	/*
 	 * Linux now has 32-bit uid and gid, so we can support EFT.
 	 */
@@ -681,7 +683,7 @@ static int ufs1_read_inode(struct inode *inode, struct ufs_inode *ufs_inode)
 	ufsi->i_shadow = fs32_to_cpu(sb, ufs_inode->ui_u3.ui_sun.ui_shadow);
 	ufsi->i_oeftflag = fs32_to_cpu(sb, ufs_inode->ui_u3.ui_sun.ui_oeftflag);
 
-	
+
 	if (S_ISCHR(mode) || S_ISBLK(mode) || inode->i_blocks) {
 		memcpy(ufsi->i_u1.i_data, &ufs_inode->ui_u2.ui_addr,
 		       sizeof(ufs_inode->ui_u2.ui_addr));
@@ -815,7 +817,7 @@ static void ufs1_update_inode(struct inode *inode, struct ufs_inode *ufs_inode)
 
 	ufs_set_inode_uid(sb, ufs_inode, i_uid_read(inode));
 	ufs_set_inode_gid(sb, ufs_inode, i_gid_read(inode));
-		
+
 	ufs_inode->ui_size = cpu_to_fs64(sb, inode->i_size);
 	ufs_inode->ui_atime.tv_sec = cpu_to_fs32(sb, inode->i_atime.tv_sec);
 	ufs_inode->ui_atime.tv_usec = 0;
@@ -917,12 +919,12 @@ static int ufs_update_inode(struct inode * inode, int do_sync)
 
 		ufs1_update_inode(inode, ufs_inode + ufs_inotofsbo(inode->i_ino));
 	}
-		
+
 	mark_buffer_dirty(bh);
 	if (do_sync)
 		sync_dirty_buffer(bh);
 	brelse (bh);
-	
+
 	UFSD("EXIT\n");
 	return 0;
 }
@@ -957,3 +959,457 @@ void ufs_evict_inode(struct inode * inode)
 	if (want_delete)
 		ufs_free_inode(inode);
 }
+
+#define DIRECT_BLOCK ((inode->i_size + uspi->s_bsize - 1) >> uspi->s_bshift)
+#define DIRECT_FRAGMENT ((inode->i_size + uspi->s_fsize - 1) >> uspi->s_fshift)
+
+static void ufs_trunc_direct(struct inode *inode)
+{
+	struct ufs_inode_info *ufsi = UFS_I(inode);
+	struct super_block * sb;
+	struct ufs_sb_private_info * uspi;
+	void *p;
+	u64 frag1, frag2, frag3, frag4, block1, block2;
+	unsigned frag_to_free, free_count;
+	unsigned i, tmp;
+
+	UFSD("ENTER: ino %lu\n", inode->i_ino);
+
+	sb = inode->i_sb;
+	uspi = UFS_SB(sb)->s_uspi;
+
+	frag_to_free = 0;
+	free_count = 0;
+
+	frag1 = DIRECT_FRAGMENT;
+	frag4 = min_t(u64, UFS_NDIR_FRAGMENT, ufsi->i_lastfrag);
+	frag2 = ((frag1 & uspi->s_fpbmask) ? ((frag1 | uspi->s_fpbmask) + 1) : frag1);
+	frag3 = frag4 & ~uspi->s_fpbmask;
+	block1 = block2 = 0;
+	if (frag2 > frag3) {
+		frag2 = frag4;
+		frag3 = frag4 = 0;
+	} else if (frag2 < frag3) {
+		block1 = ufs_fragstoblks (frag2);
+		block2 = ufs_fragstoblks (frag3);
+	}
+
+	UFSD("ino %lu, frag1 %llu, frag2 %llu, block1 %llu, block2 %llu,"
+	     " frag3 %llu, frag4 %llu\n", inode->i_ino,
+	     (unsigned long long)frag1, (unsigned long long)frag2,
+	     (unsigned long long)block1, (unsigned long long)block2,
+	     (unsigned long long)frag3, (unsigned long long)frag4);
+
+	if (frag1 >= frag2)
+		goto next1;
+
+	/*
+	 * Free first free fragments
+	 */
+	p = ufs_get_direct_data_ptr(uspi, ufsi, ufs_fragstoblks(frag1));
+	tmp = ufs_data_ptr_to_cpu(sb, p);
+	if (!tmp )
+		ufs_panic (sb, "ufs_trunc_direct", "internal error");
+	frag2 -= frag1;
+	frag1 = ufs_fragnum (frag1);
+
+	ufs_free_fragments(inode, tmp + frag1, frag2);
+	mark_inode_dirty(inode);
+	frag_to_free = tmp + frag1;
+
+next1:
+	/*
+	 * Free whole blocks
+	 */
+	for (i = block1 ; i < block2; i++) {
+		p = ufs_get_direct_data_ptr(uspi, ufsi, i);
+		tmp = ufs_data_ptr_to_cpu(sb, p);
+		if (!tmp)
+			continue;
+		write_seqlock(&ufsi->meta_lock);
+		ufs_data_ptr_clear(uspi, p);
+		write_sequnlock(&ufsi->meta_lock);
+
+		if (free_count == 0) {
+			frag_to_free = tmp;
+			free_count = uspi->s_fpb;
+		} else if (free_count > 0 && frag_to_free == tmp - free_count)
+			free_count += uspi->s_fpb;
+		else {
+			ufs_free_blocks (inode, frag_to_free, free_count);
+			frag_to_free = tmp;
+			free_count = uspi->s_fpb;
+		}
+		mark_inode_dirty(inode);
+	}
+
+	if (free_count > 0)
+		ufs_free_blocks (inode, frag_to_free, free_count);
+
+	if (frag3 >= frag4)
+		goto next3;
+
+	/*
+	 * Free last free fragments
+	 */
+	p = ufs_get_direct_data_ptr(uspi, ufsi, ufs_fragstoblks(frag3));
+	tmp = ufs_data_ptr_to_cpu(sb, p);
+	if (!tmp )
+		ufs_panic(sb, "ufs_truncate_direct", "internal error");
+	frag4 = ufs_fragnum (frag4);
+	write_seqlock(&ufsi->meta_lock);
+	ufs_data_ptr_clear(uspi, p);
+	write_sequnlock(&ufsi->meta_lock);
+
+	ufs_free_fragments (inode, tmp, frag4);
+	mark_inode_dirty(inode);
+ next3:
+
+	UFSD("EXIT: ino %lu\n", inode->i_ino);
+}
+
+
+static void ufs_trunc_indirect(struct inode *inode, u64 offset, void *p)
+{
+	struct super_block * sb;
+	struct ufs_sb_private_info * uspi;
+	struct ufs_buffer_head * ind_ubh;
+	void *ind;
+	u64 tmp, indirect_block, i, frag_to_free;
+	unsigned free_count;
+
+	UFSD("ENTER: ino %lu, offset %llu, p: %p\n",
+	     inode->i_ino, (unsigned long long)offset, p);
+
+	BUG_ON(!p);
+
+	sb = inode->i_sb;
+	uspi = UFS_SB(sb)->s_uspi;
+
+	frag_to_free = 0;
+	free_count = 0;
+
+	tmp = ufs_data_ptr_to_cpu(sb, p);
+	if (!tmp)
+		return;
+	ind_ubh = ubh_bread(sb, tmp, uspi->s_bsize);
+	if (!ind_ubh) {
+		write_seqlock(&UFS_I(inode)->meta_lock);
+		ufs_data_ptr_clear(uspi, p);
+		write_sequnlock(&UFS_I(inode)->meta_lock);
+		return;
+	}
+
+	indirect_block = (DIRECT_BLOCK > offset) ? (DIRECT_BLOCK - offset) : 0;
+	for (i = indirect_block; i < uspi->s_apb; i++) {
+		ind = ubh_get_data_ptr(uspi, ind_ubh, i);
+		tmp = ufs_data_ptr_to_cpu(sb, ind);
+		if (!tmp)
+			continue;
+
+		write_seqlock(&UFS_I(inode)->meta_lock);
+		ufs_data_ptr_clear(uspi, ind);
+		write_sequnlock(&UFS_I(inode)->meta_lock);
+		ubh_mark_buffer_dirty(ind_ubh);
+		if (free_count == 0) {
+			frag_to_free = tmp;
+			free_count = uspi->s_fpb;
+		} else if (free_count > 0 && frag_to_free == tmp - free_count)
+			free_count += uspi->s_fpb;
+		else {
+			ufs_free_blocks (inode, frag_to_free, free_count);
+			frag_to_free = tmp;
+			free_count = uspi->s_fpb;
+		}
+
+		mark_inode_dirty(inode);
+	}
+
+	if (free_count > 0) {
+		ufs_free_blocks (inode, frag_to_free, free_count);
+	}
+	for (i = 0; i < uspi->s_apb; i++)
+		if (!ufs_is_data_ptr_zero(uspi,
+					  ubh_get_data_ptr(uspi, ind_ubh, i)))
+			break;
+	if (i >= uspi->s_apb) {
+		tmp = ufs_data_ptr_to_cpu(sb, p);
+		write_seqlock(&UFS_I(inode)->meta_lock);
+		ufs_data_ptr_clear(uspi, p);
+		write_sequnlock(&UFS_I(inode)->meta_lock);
+
+		ubh_bforget(ind_ubh);
+		ufs_free_blocks (inode, tmp, uspi->s_fpb);
+		mark_inode_dirty(inode);
+		ind_ubh = NULL;
+	}
+	if (IS_SYNC(inode) && ind_ubh && ubh_buffer_dirty(ind_ubh))
+		ubh_sync_block(ind_ubh);
+	ubh_brelse (ind_ubh);
+
+	UFSD("EXIT: ino %lu\n", inode->i_ino);
+}
+
+static void ufs_trunc_dindirect(struct inode *inode, u64 offset, void *p)
+{
+	struct super_block * sb;
+	struct ufs_sb_private_info * uspi;
+	struct ufs_buffer_head *dind_bh;
+	u64 i, tmp, dindirect_block;
+	void *dind;
+
+	UFSD("ENTER: ino %lu\n", inode->i_ino);
+
+	sb = inode->i_sb;
+	uspi = UFS_SB(sb)->s_uspi;
+
+	dindirect_block = (DIRECT_BLOCK > offset)
+		? ((DIRECT_BLOCK - offset) >> uspi->s_apbshift) : 0;
+
+	tmp = ufs_data_ptr_to_cpu(sb, p);
+	if (!tmp)
+		return;
+	dind_bh = ubh_bread(sb, tmp, uspi->s_bsize);
+	if (!dind_bh) {
+		write_seqlock(&UFS_I(inode)->meta_lock);
+		ufs_data_ptr_clear(uspi, p);
+		write_sequnlock(&UFS_I(inode)->meta_lock);
+		return;
+	}
+
+	for (i = dindirect_block ; i < uspi->s_apb ; i++) {
+		dind = ubh_get_data_ptr(uspi, dind_bh, i);
+		tmp = ufs_data_ptr_to_cpu(sb, dind);
+		if (!tmp)
+			continue;
+		ufs_trunc_indirect (inode, offset + (i << uspi->s_apbshift), dind);
+		ubh_mark_buffer_dirty(dind_bh);
+	}
+
+	for (i = 0; i < uspi->s_apb; i++)
+		if (!ufs_is_data_ptr_zero(uspi,
+					  ubh_get_data_ptr(uspi, dind_bh, i)))
+			break;
+	if (i >= uspi->s_apb) {
+		tmp = ufs_data_ptr_to_cpu(sb, p);
+		write_seqlock(&UFS_I(inode)->meta_lock);
+		ufs_data_ptr_clear(uspi, p);
+		write_sequnlock(&UFS_I(inode)->meta_lock);
+
+		ubh_bforget(dind_bh);
+		ufs_free_blocks(inode, tmp, uspi->s_fpb);
+		mark_inode_dirty(inode);
+		dind_bh = NULL;
+	}
+	if (IS_SYNC(inode) && dind_bh && ubh_buffer_dirty(dind_bh))
+		ubh_sync_block(dind_bh);
+	ubh_brelse (dind_bh);
+
+	UFSD("EXIT: ino %lu\n", inode->i_ino);
+}
+
+static void ufs_trunc_tindirect(struct inode *inode)
+{
+	struct super_block *sb = inode->i_sb;
+	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
+	struct ufs_inode_info *ufsi = UFS_I(inode);
+	struct ufs_buffer_head * tind_bh;
+	u64 tindirect_block, tmp, i;
+	void *tind, *p;
+
+	UFSD("ENTER: ino %lu\n", inode->i_ino);
+
+	tindirect_block = (DIRECT_BLOCK > (UFS_NDADDR + uspi->s_apb + uspi->s_2apb))
+		? ((DIRECT_BLOCK - UFS_NDADDR - uspi->s_apb - uspi->s_2apb) >> uspi->s_2apbshift) : 0;
+
+	p = ufs_get_direct_data_ptr(uspi, ufsi, UFS_TIND_BLOCK);
+	if (!(tmp = ufs_data_ptr_to_cpu(sb, p)))
+		return;
+	tind_bh = ubh_bread (sb, tmp, uspi->s_bsize);
+	if (!tind_bh) {
+		write_seqlock(&ufsi->meta_lock);
+		ufs_data_ptr_clear(uspi, p);
+		write_sequnlock(&ufsi->meta_lock);
+		return;
+	}
+
+	for (i = tindirect_block ; i < uspi->s_apb ; i++) {
+		tind = ubh_get_data_ptr(uspi, tind_bh, i);
+		ufs_trunc_dindirect(inode, UFS_NDADDR +
+			uspi->s_apb + ((i + 1) << uspi->s_2apbshift), tind);
+		ubh_mark_buffer_dirty(tind_bh);
+	}
+	for (i = 0; i < uspi->s_apb; i++)
+		if (!ufs_is_data_ptr_zero(uspi,
+					  ubh_get_data_ptr(uspi, tind_bh, i)))
+			break;
+	if (i >= uspi->s_apb) {
+		tmp = ufs_data_ptr_to_cpu(sb, p);
+		write_seqlock(&ufsi->meta_lock);
+		ufs_data_ptr_clear(uspi, p);
+		write_sequnlock(&ufsi->meta_lock);
+
+		ubh_bforget(tind_bh);
+		ufs_free_blocks(inode, tmp, uspi->s_fpb);
+		mark_inode_dirty(inode);
+		tind_bh = NULL;
+	}
+	if (IS_SYNC(inode) && tind_bh && ubh_buffer_dirty(tind_bh))
+		ubh_sync_block(tind_bh);
+	ubh_brelse (tind_bh);
+
+	UFSD("EXIT: ino %lu\n", inode->i_ino);
+}
+
+static int ufs_alloc_lastblock(struct inode *inode, loff_t size)
+{
+	int err = 0;
+	struct super_block *sb = inode->i_sb;
+	struct address_space *mapping = inode->i_mapping;
+	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
+	unsigned i, end;
+	sector_t lastfrag;
+	struct page *lastpage;
+	struct buffer_head *bh;
+	u64 phys64;
+
+	lastfrag = (size + uspi->s_fsize - 1) >> uspi->s_fshift;
+
+	if (!lastfrag)
+		goto out;
+
+	lastfrag--;
+
+	lastpage = ufs_get_locked_page(mapping, lastfrag >>
+				       (PAGE_CACHE_SHIFT - inode->i_blkbits));
+       if (IS_ERR(lastpage)) {
+               err = -EIO;
+               goto out;
+       }
+
+       end = lastfrag & ((1 << (PAGE_CACHE_SHIFT - inode->i_blkbits)) - 1);
+       bh = page_buffers(lastpage);
+       for (i = 0; i < end; ++i)
+               bh = bh->b_this_page;
+
+
+       err = ufs_getfrag_block(inode, lastfrag, bh, 1);
+
+       if (unlikely(err))
+	       goto out_unlock;
+
+       if (buffer_new(bh)) {
+	       clear_buffer_new(bh);
+	       unmap_underlying_metadata(bh->b_bdev,
+					 bh->b_blocknr);
+	       /*
+		* we do not zeroize fragment, because of
+		* if it maped to hole, it already contains zeroes
+		*/
+	       set_buffer_uptodate(bh);
+	       mark_buffer_dirty(bh);
+	       set_page_dirty(lastpage);
+       }
+
+       if (lastfrag >= UFS_IND_FRAGMENT) {
+	       end = uspi->s_fpb - ufs_fragnum(lastfrag) - 1;
+	       phys64 = bh->b_blocknr + 1;
+	       for (i = 0; i < end; ++i) {
+		       bh = sb_getblk(sb, i + phys64);
+		       lock_buffer(bh);
+		       memset(bh->b_data, 0, sb->s_blocksize);
+		       set_buffer_uptodate(bh);
+		       mark_buffer_dirty(bh);
+		       unlock_buffer(bh);
+		       sync_dirty_buffer(bh);
+		       brelse(bh);
+	       }
+       }
+out_unlock:
+       ufs_put_locked_page(lastpage);
+out:
+       return err;
+}
+
+static void __ufs_truncate_blocks(struct inode *inode)
+{
+	struct ufs_inode_info *ufsi = UFS_I(inode);
+	struct super_block *sb = inode->i_sb;
+	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
+
+	mutex_lock(&ufsi->truncate_mutex);
+	ufs_trunc_direct(inode);
+	ufs_trunc_indirect(inode, UFS_IND_BLOCK,
+			   ufs_get_direct_data_ptr(uspi, ufsi, UFS_IND_BLOCK));
+	ufs_trunc_dindirect(inode, UFS_IND_BLOCK + uspi->s_apb,
+			    ufs_get_direct_data_ptr(uspi, ufsi, UFS_DIND_BLOCK));
+	ufs_trunc_tindirect(inode);
+	ufsi->i_lastfrag = DIRECT_FRAGMENT;
+	mutex_unlock(&ufsi->truncate_mutex);
+}
+
+static int ufs_truncate(struct inode *inode, loff_t size)
+{
+	int err = 0;
+
+	UFSD("ENTER: ino %lu, i_size: %llu, old_i_size: %llu\n",
+	     inode->i_ino, (unsigned long long)size,
+	     (unsigned long long)i_size_read(inode));
+
+	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
+	      S_ISLNK(inode->i_mode)))
+		return -EINVAL;
+	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
+		return -EPERM;
+
+	err = ufs_alloc_lastblock(inode, size);
+
+	if (err)
+		goto out;
+
+	block_truncate_page(inode->i_mapping, size, ufs_getfrag_block);
+
+	truncate_setsize(inode, size);
+
+	__ufs_truncate_blocks(inode);
+	inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
+	mark_inode_dirty(inode);
+out:
+	UFSD("EXIT: err %d\n", err);
+	return err;
+}
+
+void ufs_truncate_blocks(struct inode *inode)
+{
+	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
+	      S_ISLNK(inode->i_mode)))
+		return;
+	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
+		return;
+	__ufs_truncate_blocks(inode);
+}
+
+int ufs_setattr(struct dentry *dentry, struct iattr *attr)
+{
+	struct inode *inode = d_inode(dentry);
+	unsigned int ia_valid = attr->ia_valid;
+	int error;
+
+	error = inode_change_ok(inode, attr);
+	if (error)
+		return error;
+
+	if (ia_valid & ATTR_SIZE && attr->ia_size != inode->i_size) {
+		error = ufs_truncate(inode, attr->ia_size);
+		if (error)
+			return error;
+	}
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+	return 0;
+}
+
+const struct inode_operations ufs_file_inode_operations = {
+	.setattr = ufs_setattr,
+};
