@@ -1354,35 +1354,40 @@ static int nmk_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
-static struct pinctrl_gpio_range *
-nmk_match_gpio_range(struct pinctrl_dev *pctldev, unsigned offset)
+static struct nmk_gpio_chip *find_nmk_gpio_from_pin(unsigned pin)
 {
-	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
 	int i;
+	struct nmk_gpio_chip *nmk_gpio;
 
-	for (i = 0; i < npct->soc->gpio_num_ranges; i++) {
-		struct pinctrl_gpio_range *range;
-
-		range = &npct->soc->gpio_ranges[i];
-		if (offset >= range->pin_base &&
-		    offset <= (range->pin_base + range->npins - 1))
-			return range;
+	for(i = 0; i < NMK_MAX_BANKS; i++) {
+		nmk_gpio = nmk_gpio_chips[i];
+		if (!nmk_gpio)
+			continue;
+		if (pin >= nmk_gpio->chip.base &&
+			pin < nmk_gpio->chip.base + nmk_gpio->chip.ngpio)
+			return nmk_gpio;
 	}
+	return NULL;
+}
+
+static struct gpio_chip *find_gc_from_pin(unsigned pin)
+{
+	struct nmk_gpio_chip *nmk_gpio = find_nmk_gpio_from_pin(pin);
+
+	if (nmk_gpio)
+		return &nmk_gpio->chip;
 	return NULL;
 }
 
 static void nmk_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 		   unsigned offset)
 {
-	struct pinctrl_gpio_range *range;
-	struct gpio_chip *chip;
+	struct gpio_chip *chip = find_gc_from_pin(offset);
 
-	range = nmk_match_gpio_range(pctldev, offset);
-	if (!range || !range->gc) {
+	if (!chip) {
 		seq_printf(s, "invalid pin offset");
 		return;
 	}
-	chip = range->gc;
 	nmk_gpio_dbg_show_one(s, pctldev, chip, offset - chip->base, offset);
 }
 
@@ -1727,25 +1732,16 @@ static int nmk_pmx_set(struct pinctrl_dev *pctldev, unsigned function,
 	}
 
 	for (i = 0; i < g->npins; i++) {
-		struct pinctrl_gpio_range *range;
 		struct nmk_gpio_chip *nmk_chip;
-		struct gpio_chip *chip;
 		unsigned bit;
 
-		range = nmk_match_gpio_range(pctldev, g->pins[i]);
-		if (!range) {
+		nmk_chip = find_nmk_gpio_from_pin(g->pins[i]);
+		if (!nmk_chip) {
 			dev_err(npct->dev,
 				"invalid pin offset %d in group %s at index %d\n",
 				g->pins[i], g->name, i);
 			goto out_glitch;
 		}
-		if (!range->gc) {
-			dev_err(npct->dev, "GPIO chip missing in range for pin offset %d in group %s at index %d\n",
-				g->pins[i], g->name, i);
-			goto out_glitch;
-		}
-		chip = range->gc;
-		nmk_chip = container_of(chip, struct nmk_gpio_chip, chip);
 		dev_dbg(npct->dev, "setting pin %d to altsetting %d\n", g->pins[i], g->altsetting);
 
 		clk_enable(nmk_chip->clk);
@@ -1861,25 +1857,17 @@ static int nmk_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 	};
 	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
 	struct nmk_gpio_chip *nmk_chip;
-	struct pinctrl_gpio_range *range;
-	struct gpio_chip *chip;
 	unsigned bit;
 	pin_cfg_t cfg;
 	int pull, slpm, output, val, i;
 	bool lowemi, gpiomode, sleep;
 
-	range = nmk_match_gpio_range(pctldev, pin);
-	if (!range) {
-		dev_err(npct->dev, "invalid pin offset %d\n", pin);
+	nmk_chip = find_nmk_gpio_from_pin(pin);
+	if (!nmk_chip) {
+		dev_err(npct->dev,
+			"invalid pin offset %d\n", pin);
 		return -EINVAL;
 	}
-	if (!range->gc) {
-		dev_err(npct->dev, "GPIO chip missing in range for pin %d\n",
-			pin);
-		return -EINVAL;
-	}
-	chip = range->gc;
-	nmk_chip = container_of(chip, struct nmk_gpio_chip, chip);
 
 	for (i = 0; i < num_configs; i++) {
 		/*
