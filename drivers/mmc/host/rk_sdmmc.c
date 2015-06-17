@@ -1960,12 +1960,18 @@ static void dw_mci_post_tmo(struct mmc_host *mmc)
 	u32 sdio_int;
 	unsigned long timeout = 0;
 	bool ret_timeout = true;
+	u32 opcode;
 
+	opcode = host->mrq->cmd->opcode;
 	host->cur_slot->mrq = NULL;
 	host->mrq = NULL;
 	host->state = STATE_IDLE;
 
 	data = host->data;
+
+	if ((opcode == MMC_SEND_TUNING_BLOCK_HS200) &&
+	    (opcode == MMC_SEND_TUNING_BLOCK))
+	    return;
 
 	printk("[%s] -- Timeout recovery procedure start --\n",
 		mmc_hostname(host->mmc));

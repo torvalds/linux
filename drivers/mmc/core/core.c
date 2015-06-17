@@ -419,7 +419,7 @@ static void mmc_get_req_timeout(struct mmc_request *mrq, u32 *timeout)
 		*timeout = 8000;
 	else if ((mrq->cmd->opcode == MMC_SEND_TUNING_BLOCK_HS200) ||
 		 (mrq->cmd->opcode == MMC_SEND_TUNING_BLOCK))
-		*timeout = 30;
+		*timeout = 100;
 }
 
 
@@ -493,32 +493,6 @@ static int mmc_wait_for_data_req_done(struct mmc_host *host,
 	return err;
 }
 
-static void mmc_get_req_timeout(struct mmc_request *mrq, u32 *timeout)
-{
-	if (!mrq->cmd->data) {
-		if (mrq->cmd->opcode == MMC_ERASE ||
-		    (mrq->cmd->opcode == MMC_ERASE_GROUP_START) ||
-		    (mrq->cmd->opcode == MMC_ERASE_GROUP_END) ||
-		    (mrq->cmd->opcode == MMC_SEND_STATUS))
-			*timeout = 2500000;
-		else
-			*timeout = 500;
-	} else {
-		*timeout = mrq->cmd->data->blocks *
-			mrq->cmd->data->blksz * 500;
-		*timeout = (*timeout) ? (*timeout) : 1000;
-		if (*timeout > 8000)
-			*timeout = 8000;
-	}
-
-	if ((mrq->cmd->opcode == SD_IO_RW_DIRECT) ||
-	    (mrq->cmd->opcode == SD_IO_RW_EXTENDED))
-		*timeout = 8000;
-	else if ((mrq->cmd->opcode == MMC_SEND_TUNING_BLOCK_HS200) ||
-		 (mrq->cmd->opcode == MMC_SEND_TUNING_BLOCK))
-		*timeout = 100;
-}
-
 static void mmc_wait_for_req_done(struct mmc_host *host,
 				  struct mmc_request *mrq)
 {
@@ -533,6 +507,7 @@ static void mmc_wait_for_req_done(struct mmc_host *host,
 			cmd = mrq->cmd;
 			cmd->error = -ETIMEDOUT;
 			host->ops->post_tmo(host);
+
 			dev_err(mmc_dev(host),
 				"req failed (CMD%u): error = %d, timeout = %dms\n",
 				cmd->opcode, cmd->error, timeout);
