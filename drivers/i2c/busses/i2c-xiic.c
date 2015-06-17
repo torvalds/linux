@@ -524,7 +524,7 @@ static int xiic_busy(struct xiic_i2c *i2c)
 	 */
 	err = xiic_bus_busy(i2c);
 	while (err && tries--) {
-		mdelay(1);
+		msleep(1);
 		err = xiic_bus_busy(i2c);
 	}
 
