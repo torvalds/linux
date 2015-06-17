@@ -517,20 +517,42 @@ void perf_event__attr_swap(struct perf_event_attr *attr)
 {
 	attr->type		= bswap_32(attr->type);
 	attr->size		= bswap_32(attr->size);
-	attr->config		= bswap_64(attr->config);
-	attr->sample_period	= bswap_64(attr->sample_period);
-	attr->sample_type	= bswap_64(attr->sample_type);
-	attr->read_format	= bswap_64(attr->read_format);
-	attr->wakeup_events	= bswap_32(attr->wakeup_events);
-	attr->bp_type		= bswap_32(attr->bp_type);
-	attr->bp_addr		= bswap_64(attr->bp_addr);
-	attr->bp_len		= bswap_64(attr->bp_len);
-	attr->branch_sample_type = bswap_64(attr->branch_sample_type);
-	attr->sample_regs_user	 = bswap_64(attr->sample_regs_user);
-	attr->sample_stack_user  = bswap_32(attr->sample_stack_user);
-	attr->aux_watermark	 = bswap_32(attr->aux_watermark);
 
-	swap_bitfield((u8 *) (&attr->read_format + 1), sizeof(u64));
+#define bswap_safe(f, n) 					\
+	(attr->size > (offsetof(struct perf_event_attr, f) + 	\
+		       sizeof(attr->f) * (n)))
+#define bswap_field(f, sz) 			\
+do { 						\
+	if (bswap_safe(f, 0))			\
+		attr->f = bswap_##sz(attr->f);	\
+} while(0)
+#define bswap_field_32(f) bswap_field(f, 32)
+#define bswap_field_64(f) bswap_field(f, 64)
+
+	bswap_field_64(config);
+	bswap_field_64(sample_period);
+	bswap_field_64(sample_type);
+	bswap_field_64(read_format);
+	bswap_field_32(wakeup_events);
+	bswap_field_32(bp_type);
+	bswap_field_64(bp_addr);
+	bswap_field_64(bp_len);
+	bswap_field_64(branch_sample_type);
+	bswap_field_64(sample_regs_user);
+	bswap_field_32(sample_stack_user);
+	bswap_field_32(aux_watermark);
+
+	/*
+	 * After read_format are bitfields. Check read_format because
+	 * we are unable to use offsetof on bitfield.
+	 */
+	if (bswap_safe(read_format, 1))
+		swap_bitfield((u8 *) (&attr->read_format + 1),
+			      sizeof(u64));
+#undef bswap_field_64
+#undef bswap_field_32
+#undef bswap_field
+#undef bswap_safe
 }
 
 static void perf_event__hdr_attr_swap(union perf_event *event,
