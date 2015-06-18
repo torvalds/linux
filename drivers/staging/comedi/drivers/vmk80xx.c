@@ -795,7 +795,10 @@ static int vmk80xx_auto_attach(struct comedi_device *dev,
 	struct vmk80xx_private *devpriv;
 	int ret;
 
-	board = &vmk80xx_boardinfo[context];
+	if (context < ARRAY_SIZE(vmk80xx_boardinfo))
+		board = &vmk80xx_boardinfo[context];
+	if (!board)
+		return -ENODEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
