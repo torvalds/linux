@@ -338,7 +338,7 @@ static int lynxfb_ops_set_par(struct fb_info *info)
 	line_length = var->xres_virtual * var->bits_per_pixel / 8;
 	line_length = PADDING(crtc->line_pad, line_length);
 	fix->line_length = line_length;
-	pr_err("fix->line_length = %d\n", fix->line_length);
+	pr_info("fix->line_length = %d\n", fix->line_length);
 
 	/* var->red,green,blue,transp are need to be set by driver
 	 * and these data should be set before setcolreg routine
@@ -1021,8 +1021,8 @@ static void sm750fb_setup(struct lynx_share *share, char *src)
 	}
 
 	while ((opt = strsep(&src, ":")) != NULL && *opt != 0) {
-		pr_err("opt=%s\n", opt);
-		pr_err("src=%s\n", src);
+		pr_info("opt=%s\n", opt);
+		pr_info("src=%s\n", src);
 
 		if (!strncmp(opt, "swap", strlen("swap")))
 			swap = 1;
