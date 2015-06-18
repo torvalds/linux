@@ -266,3 +266,28 @@ void intel_frontbuffer_flip_complete(struct drm_device *dev,
 
 	intel_frontbuffer_flush(dev, frontbuffer_bits);
 }
+
+/**
+ * intel_frontbuffer_flip - synchronous frontbuffer flip
+ * @dev: DRM device
+ * @frontbuffer_bits: frontbuffer plane tracking bits
+ *
+ * This function gets called after scheduling a flip on @obj. This is for
+ * synchronous plane updates which will happen on the next vblank and which will
+ * not get delayed by pending gpu rendering.
+ *
+ * Can be called without any locks held.
+ */
+
+void intel_frontbuffer_flip(struct drm_device *dev,
+			    unsigned frontbuffer_bits)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	mutex_lock(&dev_priv->fb_tracking.lock);
+	/* Remove stale busy bits due to the old buffer. */
+	dev_priv->fb_tracking.busy_bits &= ~frontbuffer_bits;
+	mutex_unlock(&dev_priv->fb_tracking.lock);
+
+	intel_frontbuffer_flush(dev, frontbuffer_bits);
+}

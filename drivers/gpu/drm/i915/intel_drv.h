@@ -963,23 +963,8 @@ void intel_frontbuffer_flip_complete(struct drm_device *dev,
 				     unsigned frontbuffer_bits);
 void intel_frontbuffer_flush(struct drm_device *dev,
 			     unsigned frontbuffer_bits);
-/**
- * intel_frontbuffer_flip - synchronous frontbuffer flip
- * @dev: DRM device
- * @frontbuffer_bits: frontbuffer plane tracking bits
- *
- * This function gets called after scheduling a flip on @obj. This is for
- * synchronous plane updates which will happen on the next vblank and which will
- * not get delayed by pending gpu rendering.
- *
- * Can be called without any locks held.
- */
-static inline
 void intel_frontbuffer_flip(struct drm_device *dev,
-			    unsigned frontbuffer_bits)
-{
-	intel_frontbuffer_flush(dev, frontbuffer_bits);
-}
+			    unsigned frontbuffer_bits);
 
 unsigned int intel_fb_align_height(struct drm_device *dev,
 				   unsigned int height,
