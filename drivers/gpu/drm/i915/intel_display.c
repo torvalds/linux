@@ -7160,8 +7160,8 @@ void intel_dp_set_m_n(struct intel_crtc *crtc, enum link_m_n_set m_n)
 		intel_cpu_transcoder_set_m_n(crtc, dp_m_n, dp_m2_n2);
 }
 
-static void vlv_update_pll(struct intel_crtc *crtc,
-			   struct intel_crtc_state *pipe_config)
+static void vlv_compute_dpll(struct intel_crtc *crtc,
+			     struct intel_crtc_state *pipe_config)
 {
 	u32 dpll, dpll_md;
 
@@ -7274,8 +7274,8 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 	mutex_unlock(&dev_priv->sb_lock);
 }
 
-static void chv_update_pll(struct intel_crtc *crtc,
-			   struct intel_crtc_state *pipe_config)
+static void chv_compute_dpll(struct intel_crtc *crtc,
+			     struct intel_crtc_state *pipe_config)
 {
 	pipe_config->dpll_hw_state.dpll = DPLL_SSC_REF_CLOCK_CHV |
 		DPLL_REFA_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS |
@@ -7414,11 +7414,11 @@ void vlv_force_pll_on(struct drm_device *dev, enum pipe pipe,
 	};
 
 	if (IS_CHERRYVIEW(dev)) {
-		chv_update_pll(crtc, &pipe_config);
+		chv_compute_dpll(crtc, &pipe_config);
 		chv_prepare_pll(crtc, &pipe_config);
 		chv_enable_pll(crtc, &pipe_config);
 	} else {
-		vlv_update_pll(crtc, &pipe_config);
+		vlv_compute_dpll(crtc, &pipe_config);
 		vlv_prepare_pll(crtc, &pipe_config);
 		vlv_enable_pll(crtc, &pipe_config);
 	}
@@ -7440,10 +7440,10 @@ void vlv_force_pll_off(struct drm_device *dev, enum pipe pipe)
 		vlv_disable_pll(to_i915(dev), pipe);
 }
 
-static void i9xx_update_pll(struct intel_crtc *crtc,
-			    struct intel_crtc_state *crtc_state,
-			    intel_clock_t *reduced_clock,
-			    int num_connectors)
+static void i9xx_compute_dpll(struct intel_crtc *crtc,
+			      struct intel_crtc_state *crtc_state,
+			      intel_clock_t *reduced_clock,
+			      int num_connectors)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -7517,10 +7517,10 @@ static void i9xx_update_pll(struct intel_crtc *crtc,
 	}
 }
 
-static void i8xx_update_pll(struct intel_crtc *crtc,
-			    struct intel_crtc_state *crtc_state,
-			    intel_clock_t *reduced_clock,
-			    int num_connectors)
+static void i8xx_compute_dpll(struct intel_crtc *crtc,
+			      struct intel_crtc_state *crtc_state,
+			      intel_clock_t *reduced_clock,
+			      int num_connectors)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -7830,17 +7830,17 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 	}
 
 	if (IS_GEN2(dev)) {
-		i8xx_update_pll(crtc, crtc_state,
+		i8xx_compute_dpll(crtc, crtc_state,
 				has_reduced_clock ? &reduced_clock : NULL,
-				num_connectors);
+				  num_connectors);
 	} else if (IS_CHERRYVIEW(dev)) {
-		chv_update_pll(crtc, crtc_state);
+		chv_compute_dpll(crtc, crtc_state);
 	} else if (IS_VALLEYVIEW(dev)) {
-		vlv_update_pll(crtc, crtc_state);
+		vlv_compute_dpll(crtc, crtc_state);
 	} else {
-		i9xx_update_pll(crtc, crtc_state,
+		i9xx_compute_dpll(crtc, crtc_state,
 				has_reduced_clock ? &reduced_clock : NULL,
-				num_connectors);
+				  num_connectors);
 	}
 
 	return 0;
