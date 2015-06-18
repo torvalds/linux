@@ -126,7 +126,8 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	struct ci_hdrc_platform_data pdata = {
 		.name		= dev_name(&pdev->dev),
 		.capoffset	= DEF_CAPOFFSET,
-		.flags		= CI_HDRC_DISABLE_STREAMING,
+		.flags		= CI_HDRC_DISABLE_STREAMING |
+					CI_HDRC_SET_NON_ZERO_TTHA,
 	};
 	int ret;
 	const struct of_device_id *of_id =
