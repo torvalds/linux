@@ -10545,6 +10545,12 @@ F:	drivers/vfio/
 F:	include/linux/vfio.h
 F:	include/uapi/linux/vfio.h
 
+VFIO PLATFORM DRIVER
+M:	Baptiste Reynal <b.reynal@virtualopensystems.com>
+L:	kvm@vger.kernel.org
+S:	Maintained
+F:	drivers/vfio/platform/
+
 VIDEOBUF2 FRAMEWORK
 M:	Pawel Osciak <pawel@osciak.com>
 M:	Marek Szyprowski <m.szyprowski@samsung.com>
