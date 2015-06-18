@@ -1178,6 +1178,7 @@ EXPORT_SYMBOL(rproc_shutdown);
  *
  * Returns the rproc handle on success, and NULL on failure.
  */
+#ifdef CONFIG_OF
 struct rproc *rproc_get_by_phandle(phandle phandle)
 {
 	struct rproc *rproc = NULL, *r;
@@ -1201,6 +1202,12 @@ struct rproc *rproc_get_by_phandle(phandle phandle)
 
 	return rproc;
 }
+#else
+struct rproc *rproc_get_by_phandle(phandle phandle)
+{
+	return NULL;
+}
+#endif
 EXPORT_SYMBOL(rproc_get_by_phandle);
 
 /**
