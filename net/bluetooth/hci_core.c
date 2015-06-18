@@ -2716,11 +2716,10 @@ int hci_add_adv_instance(struct hci_dev *hdev, u8 instance, u32 flags,
 		    instance < 1 || instance > HCI_MAX_ADV_INSTANCES)
 			return -EOVERFLOW;
 
-		adv_instance = kmalloc(sizeof(*adv_instance), GFP_KERNEL);
+		adv_instance = kzalloc(sizeof(*adv_instance), GFP_KERNEL);
 		if (!adv_instance)
 			return -ENOMEM;
 
-		memset(adv_instance, 0, sizeof(*adv_instance));
 		adv_instance->pending = true;
 		adv_instance->instance = instance;
 		list_add(&adv_instance->list, &hdev->adv_instances);
