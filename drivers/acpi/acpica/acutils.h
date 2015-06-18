@@ -251,7 +251,7 @@ extern const u8 _acpi_ctype[];
 #define _ACPI_DI     0x04	/* '0'-'9' */
 #define _ACPI_LO     0x02	/* 'a'-'z' */
 #define _ACPI_PU     0x10	/* punctuation */
-#define _ACPI_SP     0x08	/* space */
+#define _ACPI_SP     0x08	/* space, tab, CR, LF, VT, FF */
 #define _ACPI_UP     0x01	/* 'A'-'Z' */
 #define _ACPI_XD     0x80	/* '0'-'9', 'A'-'F', 'a'-'f' */
 

@@ -175,6 +175,9 @@
 #elif defined(_APPLE) || defined(__APPLE__)
 #include "acmacosx.h"
 
+#elif defined(__DragonFly__)
+#include "acdragonfly.h"
+
 #elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 #include "acfreebsd.h"
 
