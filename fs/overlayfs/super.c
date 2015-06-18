@@ -275,6 +275,7 @@ static void ovl_dentry_release(struct dentry *dentry)
 
 static const struct dentry_operations ovl_dentry_operations = {
 	.d_release = ovl_dentry_release,
+	.d_select_inode = ovl_d_select_inode,
 };
 
 static struct ovl_entry *ovl_alloc_entry(unsigned int numlower)
