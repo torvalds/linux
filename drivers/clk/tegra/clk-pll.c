@@ -726,12 +726,12 @@ static long clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	struct tegra_clk_pll *pll = to_clk_pll(hw);
 	struct tegra_clk_pll_freq_table cfg;
 
-	if (pll->params->flags & TEGRA_PLL_FIXED)
+	if (pll->params->flags & TEGRA_PLL_FIXED) {
+		/* PLLM are used for memory; we do not change rate */
+		if (pll->params->flags & TEGRA_PLLM)
+			return clk_hw_get_rate(hw);
 		return pll->params->fixed_rate;
-
-	/* PLLM is used for memory; we do not change rate */
-	if (pll->params->flags & TEGRA_PLLM)
-		return clk_hw_get_rate(hw);
+	}
 
 	if (_get_table_rate(hw, &cfg, rate, *prate) &&
 	    pll->params->calc_rate(hw, &cfg, rate, *prate))
@@ -755,6 +755,7 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 		return parent_rate;
 
 	if ((pll->params->flags & TEGRA_PLL_FIXED) &&
+	    !(pll->params->flags & TEGRA_PLLM) &&
 			!(val & PLL_BASE_OVERRIDE)) {
 		struct tegra_clk_pll_freq_table sel;
 		if (_get_table_rate(hw, &sel, pll->params->fixed_rate,
@@ -1091,40 +1092,6 @@ static long clk_pll_ramp_round_rate(struct clk_hw *hw, unsigned long rate,
 	do_div(output_rate, cfg.m * p_div);
 
 	return output_rate;
-}
-
-static int clk_pllm_set_rate(struct clk_hw *hw, unsigned long rate,
-				unsigned long parent_rate)
-{
-	struct tegra_clk_pll_freq_table cfg;
-	struct tegra_clk_pll *pll = to_clk_pll(hw);
-	unsigned long flags = 0;
-	int state, ret = 0;
-
-	if (pll->lock)
-		spin_lock_irqsave(pll->lock, flags);
-
-	state = clk_pll_is_enabled(hw);
-	if (state) {
-		if (rate != clk_get_rate(hw->clk)) {
-			pr_err("%s: Cannot change active PLLM\n", __func__);
-			ret = -EINVAL;
-			goto out;
-		}
-		goto out;
-	}
-
-	ret = _pll_ramp_calc_pll(hw, &cfg, rate, parent_rate);
-	if (ret < 0)
-		goto out;
-
-	_update_pll_mnp(pll, &cfg);
-
-out:
-	if (pll->lock)
-		spin_unlock_irqrestore(pll->lock, flags);
-
-	return ret;
 }
 
 static void _pllcx_strobe(struct tegra_clk_pll *pll)
@@ -1598,15 +1565,6 @@ static const struct clk_ops tegra_clk_pllxc_ops = {
 	.set_rate = clk_pllxc_set_rate,
 };
 
-static const struct clk_ops tegra_clk_pllm_ops = {
-	.is_enabled = clk_pll_is_enabled,
-	.enable = clk_pll_enable,
-	.disable = clk_pll_disable,
-	.recalc_rate = clk_pll_recalc_rate,
-	.round_rate = clk_pll_ramp_round_rate,
-	.set_rate = clk_pllm_set_rate,
-};
-
 static const struct clk_ops tegra_clk_pllc_ops = {
 	.is_enabled = clk_pll_is_enabled,
 	.enable = clk_pllc_enable,
@@ -1760,7 +1718,7 @@ struct clk *tegra_clk_register_pllm(const char *name, const char *parent_name,
 		return ERR_CAST(pll);
 
 	clk = _tegra_clk_register_pll(pll, name, parent_name, flags,
-				      &tegra_clk_pllm_ops);
+				      &tegra_clk_pll_ops);
 	if (IS_ERR(clk))
 		kfree(pll);
 

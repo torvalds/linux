@@ -460,7 +460,7 @@ static struct tegra_clk_pll_params pll_m_params = {
 	.freq_table = pll_m_freq_table,
 	.flags = TEGRA_PLLM | TEGRA_PLL_HAS_CPCON |
 		 TEGRA_PLL_SET_DCCON | TEGRA_PLL_USE_LOCK |
-		 TEGRA_PLL_HAS_LOCK_ENABLE,
+		 TEGRA_PLL_HAS_LOCK_ENABLE | TEGRA_PLL_FIXED,
 };
 
 static struct tegra_clk_pll_params pll_p_params = {
