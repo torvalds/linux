@@ -395,6 +395,7 @@ typedef struct vpu_reg {
 	unsigned long size;
 #if defined(CONFIG_VCODEC_MMU)
 	struct list_head mem_region_list;
+	u32 dec_base;
 #endif
 	u32 *reg;
 } vpu_reg;
@@ -1119,6 +1120,16 @@ static int vcodec_bufid_to_iova(struct vpu_subdev_data *data, u8 *tbl,
 				ion_free(pservice->ion_client, hdl);
 				return ret;
 			}
+
+			/* special for vpu dec num 12: record decoded length
+			   hacking for decoded length
+			   NOTE: not a perfect fix, the fd is not recorded */
+			if (tbl[i] == 12 && data->hw_info->hw_id != HEVC_ID &&
+					(reg->type == VPU_DEC || reg->type == VPU_DEC_PP)) {
+				reg->dec_base = mem_region->iova + offset;
+				vpu_debug(DEBUG_REGISTER, "dec_set %08x\n", reg->dec_base);
+			}
+
 			reg->reg[tbl[i]] = mem_region->iova + offset;
 			INIT_LIST_HEAD(&mem_region->reg_lnk);
 			list_add_tail(&mem_region->reg_lnk, &reg->mem_region_list);
@@ -1375,6 +1386,15 @@ static void reg_from_run_to_done(struct vpu_subdev_data *data,
 		int reg_len = REG_NUM_9190_DEC;
 		pservice->reg_codec = NULL;
 		reg_copy_from_hw(reg, data->dec_dev.hwregs, reg_len);
+#if defined(CONFIG_VCODEC_MMU)
+		/* revert hack for decoded length */
+		if (data->hw_info->hw_id != HEVC_ID) {
+			u32 dec_get = reg->reg[12];
+			s32 dec_length = dec_get - reg->dec_base;
+			vpu_debug(DEBUG_REGISTER, "dec_get %08x dec_length %d\n", dec_get, dec_length);
+			reg->reg[12] = dec_length << 10;
+		}
+#endif
 		irq_reg = DEC_INTERRUPT_REGISTER;
 		break;
 	}
@@ -1389,6 +1409,15 @@ static void reg_from_run_to_done(struct vpu_subdev_data *data,
 		pservice->reg_pproc = NULL;
 		reg_copy_from_hw(reg, data->dec_dev.hwregs, REG_NUM_9190_DEC_PP);
 		data->dec_dev.hwregs[PP_INTERRUPT_REGISTER] = 0;
+#if defined(CONFIG_VCODEC_MMU)
+		/* revert hack for decoded length */
+		if (data->hw_info->hw_id != HEVC_ID) {
+			u32 dec_get = reg->reg[12];
+			s32 dec_length = dec_get - reg->dec_base;
+			vpu_debug(DEBUG_REGISTER, "dec_get %08x dec_length %d\n", dec_get, dec_length);
+			reg->reg[12] = dec_length << 10;
+		}
+#endif
 		break;
 	}
 	default : {
