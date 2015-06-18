@@ -88,7 +88,8 @@
 #define CCB_CM_EXTRA_WRITE	(CCB_CM0_ALL_COMPLETIONS & CCB_CM12_STORE)
 #define CCB_CM_INTERRUPT	(CCB_CM0_ALL_COMPLETIONS & CCB_CM12_INTERRUPT)
 
-#define LEN_ON_PAGE(pa)		(PAGE_SIZE - ((pa) & ~PAGE_MASK))
+#define LEN_ON_SIZE(pa, size)	((size) - ((pa) & ((size) - 1)))
+#define LEN_ON_PAGE(pa)		LEN_ON_SIZE(pa, PAGE_SIZE)
 
 static inline unsigned long nx842_get_pa(void *addr)
 {
