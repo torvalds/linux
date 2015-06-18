@@ -184,6 +184,8 @@ struct tegra_clk_pll;
  * @sdm_din_mask:		Mask of SDM divider bits
  * @sdm_ctrl_reg:		Register offset where SDM enable is
  * @sdm_ctrl_en_mask:		Mask of SDM enable bit
+ * @ssc_ctrl_reg:		Register offset where SSC settings are
+ * @ssc_ctrl_en_mask:		Mask of SSC enable bit
  * @aux_reg:			AUX register offset
  * @dyn_ramp_reg:		Dynamic ramp control register offset
  * @ext_misc_reg:		Miscellaneous control register offsets
@@ -262,6 +264,8 @@ struct tegra_clk_pll_params {
 	u32		sdm_din_mask;
 	u32		sdm_ctrl_reg;
 	u32		sdm_ctrl_en_mask;
+	u32		ssc_ctrl_reg;
+	u32		ssc_ctrl_en_mask;
 	u32		aux_reg;
 	u32		dyn_ramp_reg;
 	u32		ext_misc_reg[MAX_PLL_MISC_REG_COUNT];
