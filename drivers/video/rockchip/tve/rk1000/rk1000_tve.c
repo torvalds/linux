@@ -54,12 +54,14 @@ int rk1000_control_write_block(u8 reg, u8 *buf, u8 len)
 	return ret;
 }
 
-static int __init bootloader_rk1000_setup(char *str){	
-	static int ret;	
-	if (str) {		
-		printk("cvbs init tve.format is %s\n", str);		
-		ret = sscanf(str, "%d", &cvbsformat);	
-	}	
+static int __init bootloader_rk1000_setup(char *str)
+{
+	static int ret;
+
+	if (str) {
+		pr_info("cvbs init tve.format is %s\n", str);
+		ret = sscanf(str, "%d", &cvbsformat);
+	}
 	return 0;
 }
 early_param("tve.format", bootloader_rk1000_setup);
@@ -201,7 +203,7 @@ static int rk1000_tve_initial(void)
 	screen.mode.vsync_len = 6;
 	rk_fb_switch_screen(&screen, 2 , rk1000_tve.video_source);
 	/* Power down RK1000 output DAC. */
-	if(cvbsformat <0)
+	if (cvbsformat < 0)
 		return rk1000_i2c_send(I2C_ADDR_TVE, 0x03, 0x07);
 	else
 		return 0;
@@ -310,9 +312,9 @@ static int rk1000_tve_probe(struct i2c_client *client,
 	pr_err("video src is lcdc%d, prop is %d\n", rk1000_tve.video_source,
 	       rk1000_tve.property);
 #endif
-	if (cvbsformat >= 0)		
-		rk1000_tve.mode = cvbsformat + 1;	
-	else		
+	if (cvbsformat >= 0)
+		rk1000_tve.mode = cvbsformat + 1;
+	else
 		rk1000_tve.mode = RK1000_TVOUT_DEAULT;
 
 	rc = rk1000_tve_initial();
