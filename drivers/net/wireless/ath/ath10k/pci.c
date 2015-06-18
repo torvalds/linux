@@ -755,6 +755,26 @@ static void ath10k_pci_rx_replenish_retry(unsigned long ptr)
 	ath10k_pci_rx_post(ar);
 }
 
+static u32 ath10k_pci_targ_cpu_to_ce_addr(struct ath10k *ar, u32 addr)
+{
+	u32 val = 0;
+
+	switch (ar->hw_rev) {
+	case ATH10K_HW_QCA988X:
+	case ATH10K_HW_QCA6174:
+		val = (ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
+					  CORE_CTRL_ADDRESS) &
+		       0x7fff) << 21;
+		break;
+	case ATH10K_HW_QCA99X0:
+		val = ath10k_pci_read32(ar, PCIE_BAR_REG_ADDRESS);
+		break;
+	}
+
+	val |= 0x100000 | (addr & 0xfffff);
+	return val;
+}
+
 /*
  * Diagnostic read/write access is provided for startup/config/debug usage.
  * Caller must guarantee proper alignment, when applicable, and single user
@@ -817,8 +837,7 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 		 * convert it from Target CPU virtual address space
 		 * to CE address space
 		 */
-		address = TARG_CPU_SPACE_TO_CE_SPACE(ar, ar_pci->mem,
-						     address);
+		address = ath10k_pci_targ_cpu_to_ce_addr(ar, address);
 
 		ret = ath10k_ce_send_nolock(ce_diag, NULL, (u32)address, nbytes, 0,
 					    0);
@@ -976,7 +995,7 @@ static int ath10k_pci_diag_write_mem(struct ath10k *ar, u32 address,
 	 * to
 	 *    CE address space
 	 */
-	address = TARG_CPU_SPACE_TO_CE_SPACE(ar, ar_pci->mem, address);
+	address = ath10k_pci_targ_cpu_to_ce_addr(ar, address);
 
 	remaining_bytes = orig_nbytes;
 	ce_data = ce_data_base;
