@@ -3064,8 +3064,6 @@ enum ixgbe_smart_speed {
 /* PCI bus types */
 enum ixgbe_bus_type {
 	ixgbe_bus_type_unknown = 0,
-	ixgbe_bus_type_pci,
-	ixgbe_bus_type_pcix,
 	ixgbe_bus_type_pci_express,
 	ixgbe_bus_type_internal,
 	ixgbe_bus_type_reserved
