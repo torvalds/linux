@@ -101,6 +101,20 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
 		},
 	},
+	{
+		.id = QCA99X0_HW_2_0_DEV_VERSION,
+		.name = "qca99x0 hw2.0",
+		.patch_load_addr = QCA99X0_HW_2_0_PATCH_LOAD_ADDR,
+		.uart_pin = 7,
+		.fw = {
+			.dir = QCA99X0_HW_2_0_FW_DIR,
+			.fw = QCA99X0_HW_2_0_FW_FILE,
+			.otp = QCA99X0_HW_2_0_OTP_FILE,
+			.board = QCA99X0_HW_2_0_BOARD_DATA_FILE,
+			.board_size = QCA99X0_BOARD_DATA_SZ,
+			.board_ext_size = QCA99X0_BOARD_EXT_DATA_SZ,
+		},
+	},
 };
 
 static const char *const ath10k_core_fw_feature_str[] = {
@@ -1519,6 +1533,10 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 	case ATH10K_HW_QCA6174:
 		ar->regs = &qca6174_regs;
 		ar->hw_values = &qca6174_values;
+		break;
+	case ATH10K_HW_QCA99X0:
+		ar->regs = &qca99x0_regs;
+		ar->hw_values = &qca99x0_values;
 		break;
 	default:
 		ath10k_err(ar, "unsupported core hardware revision %d\n",

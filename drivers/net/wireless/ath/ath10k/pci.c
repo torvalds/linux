@@ -59,6 +59,7 @@ MODULE_PARM_DESC(reset_mode, "0: auto, 1: warm only (default: 0)");
 
 #define QCA988X_2_0_DEVICE_ID	(0x003c)
 #define QCA6174_2_1_DEVICE_ID	(0x003e)
+#define QCA99X0_2_0_DEVICE_ID	(0x0040)
 
 static const struct pci_device_id ath10k_pci_id_table[] = {
 	{ PCI_VDEVICE(ATHEROS, QCA988X_2_0_DEVICE_ID) }, /* PCI-E QCA988X V2 */
@@ -1699,6 +1700,7 @@ static int ath10k_pci_get_num_banks(struct ath10k *ar)
 
 	switch (ar_pci->pdev->device) {
 	case QCA988X_2_0_DEVICE_ID:
+	case QCA99X0_2_0_DEVICE_ID:
 		return 1;
 	case QCA6174_2_1_DEVICE_ID:
 		switch (MS(ar->chip_id, SOC_CHIP_ID_REV)) {
@@ -2757,6 +2759,9 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		break;
 	case QCA6174_2_1_DEVICE_ID:
 		hw_rev = ATH10K_HW_QCA6174;
+		break;
+	case QCA99X0_2_0_DEVICE_ID:
+		hw_rev = ATH10K_HW_QCA99X0;
 		break;
 	default:
 		WARN_ON(1);

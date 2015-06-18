@@ -72,6 +72,18 @@ enum qca6174_chip_id_rev {
 #define QCA6174_HW_3_0_BOARD_DATA_FILE	"board.bin"
 #define QCA6174_HW_3_0_PATCH_LOAD_ADDR	0x1234
 
+/* QCA99X0 1.0 definitions (unsupported) */
+#define QCA99X0_HW_1_0_CHIP_ID_REV     0x0
+
+/* QCA99X0 2.0 definitions */
+#define QCA99X0_HW_2_0_DEV_VERSION     0x01000000
+#define QCA99X0_HW_2_0_CHIP_ID_REV     0x1
+#define QCA99X0_HW_2_0_FW_DIR          ATH10K_FW_DIR "/QCA99X0/hw2.0"
+#define QCA99X0_HW_2_0_FW_FILE         "firmware.bin"
+#define QCA99X0_HW_2_0_OTP_FILE        "otp.bin"
+#define QCA99X0_HW_2_0_BOARD_DATA_FILE "board.bin"
+#define QCA99X0_HW_2_0_PATCH_LOAD_ADDR	0x1234
+
 #define ATH10K_FW_API2_FILE		"firmware-2.bin"
 #define ATH10K_FW_API3_FILE		"firmware-3.bin"
 
@@ -144,6 +156,7 @@ enum ath10k_fw_htt_op_version {
 enum ath10k_hw_rev {
 	ATH10K_HW_QCA988X,
 	ATH10K_HW_QCA6174,
+	ATH10K_HW_QCA99X0,
 };
 
 struct ath10k_hw_regs {
@@ -175,6 +188,7 @@ struct ath10k_hw_regs {
 
 extern const struct ath10k_hw_regs qca988x_regs;
 extern const struct ath10k_hw_regs qca6174_regs;
+extern const struct ath10k_hw_regs qca99x0_regs;
 
 struct ath10k_hw_values {
 	u32 rtc_state_val_on;
@@ -185,12 +199,14 @@ struct ath10k_hw_values {
 
 extern const struct ath10k_hw_values qca988x_values;
 extern const struct ath10k_hw_values qca6174_values;
+extern const struct ath10k_hw_values qca99x0_values;
 
 void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 				u32 cc, u32 rcc, u32 cc_prev, u32 rcc_prev);
 
 #define QCA_REV_988X(ar) ((ar)->hw_rev == ATH10K_HW_QCA988X)
 #define QCA_REV_6174(ar) ((ar)->hw_rev == ATH10K_HW_QCA6174)
+#define QCA_REV_99X0(ar) ((ar)->hw_rev == ATH10K_HW_QCA99X0)
 
 /* Known pecularities:
  *  - current FW doesn't support raw rx mode (last tested v599)
@@ -484,6 +500,8 @@ enum ath10k_hw_rate_cck {
 #define PCIE_INTR_CE_MASK_ALL			ar->regs->pcie_intr_ce_mask_all
 
 #define DRAM_BASE_ADDRESS			0x00400000
+
+#define PCIE_BAR_REG_ADDRESS			0x40030
 
 #define MISSING 0
 

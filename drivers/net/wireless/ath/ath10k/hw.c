@@ -72,6 +72,43 @@ const struct ath10k_hw_regs qca6174_regs = {
 	.pcie_intr_clr_address			= 0x00000014,
 };
 
+const struct ath10k_hw_regs qca99x0_regs = {
+	.rtc_state_cold_reset_mask		= 0x00000400,
+	.rtc_soc_base_address			= 0x00080000,
+	.rtc_wmac_base_address			= 0x00000000,
+	.soc_core_base_address			= 0x00082000,
+	.ce_wrapper_base_address		= 0x0004d000,
+	.ce0_base_address			= 0x0004a000,
+	.ce1_base_address			= 0x0004a400,
+	.ce2_base_address			= 0x0004a800,
+	.ce3_base_address			= 0x0004ac00,
+	.ce4_base_address			= 0x0004b000,
+	.ce5_base_address			= 0x0004b400,
+	.ce6_base_address			= 0x0004b800,
+	.ce7_base_address			= 0x0004bc00,
+	/* Note: qca99x0 supports upto 12 Copy Engines. Other than address of
+	 * CE0 and CE1 no other copy engine is directly referred in the code.
+	 * It is not really neccessary to assign address for newly supported
+	 * CEs in this address table.
+	 *	Copy Engine		Address
+	 *	CE8			0x0004c000
+	 *	CE9			0x0004c400
+	 *	CE10			0x0004c800
+	 *	CE11			0x0004cc00
+	 */
+	.soc_reset_control_si0_rst_mask		= 0x00000001,
+	.soc_reset_control_ce_rst_mask		= 0x00000100,
+	.soc_chip_id_address			= 0x000000ec,
+	.scratch_3_address			= 0x00040050,
+	.fw_indicator_address			= 0x00040050,
+	.pcie_local_base_address		= 0x00000000,
+	.ce_wrap_intr_sum_host_msi_lsb		= 0x0000000c,
+	.ce_wrap_intr_sum_host_msi_mask		= 0x00fff000,
+	.pcie_intr_fw_mask			= 0x00100000,
+	.pcie_intr_ce_mask_all			= 0x000fff00,
+	.pcie_intr_clr_address			= 0x00000010,
+};
+
 const struct ath10k_hw_values qca988x_values = {
 	.rtc_state_val_on		= 3,
 	.ce_count			= 8,
@@ -84,6 +121,13 @@ const struct ath10k_hw_values qca6174_values = {
 	.ce_count			= 8,
 	.msi_assign_ce_max		= 7,
 	.num_target_ce_config_wlan	= 7,
+};
+
+const struct ath10k_hw_values qca99x0_values = {
+	.rtc_state_val_on		= 5,
+	.ce_count			= 12,
+	.msi_assign_ce_max		= 12,
+	.num_target_ce_config_wlan	= 10,
 };
 
 void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
