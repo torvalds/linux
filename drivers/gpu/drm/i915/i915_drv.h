@@ -372,7 +372,8 @@ struct intel_dpll_hw_state {
 	uint32_t cfgcr1, cfgcr2;
 
 	/* bxt */
-	uint32_t ebb0, pll0, pll1, pll2, pll3, pll6, pll8, pll10, pcsdw12;
+	uint32_t ebb0, ebb4, pll0, pll1, pll2, pll3, pll6, pll8, pll9, pll10,
+		 pcsdw12;
 };
 
 struct intel_shared_dpll_config {

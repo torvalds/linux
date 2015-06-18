@@ -12012,17 +12012,19 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 	DRM_DEBUG_KMS("double wide: %i\n", pipe_config->double_wide);
 
 	if (IS_BROXTON(dev)) {
-		DRM_DEBUG_KMS("ddi_pll_sel: %u; dpll_hw_state: ebb0: 0x%x, "
+		DRM_DEBUG_KMS("ddi_pll_sel: %u; dpll_hw_state: ebb0: 0x%x, ebb4: 0x%x,"
 			      "pll0: 0x%x, pll1: 0x%x, pll2: 0x%x, pll3: 0x%x, "
-			      "pll6: 0x%x, pll8: 0x%x, pcsdw12: 0x%x\n",
+			      "pll6: 0x%x, pll8: 0x%x, pll9: 0x%x, pcsdw12: 0x%x\n",
 			      pipe_config->ddi_pll_sel,
 			      pipe_config->dpll_hw_state.ebb0,
+			      pipe_config->dpll_hw_state.ebb4,
 			      pipe_config->dpll_hw_state.pll0,
 			      pipe_config->dpll_hw_state.pll1,
 			      pipe_config->dpll_hw_state.pll2,
 			      pipe_config->dpll_hw_state.pll3,
 			      pipe_config->dpll_hw_state.pll6,
 			      pipe_config->dpll_hw_state.pll8,
+			      pipe_config->dpll_hw_state.pll9,
 			      pipe_config->dpll_hw_state.pcsdw12);
 	} else if (IS_SKYLAKE(dev)) {
 		DRM_DEBUG_KMS("ddi_pll_sel: %u; dpll_hw_state: "

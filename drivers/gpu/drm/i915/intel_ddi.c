@@ -1722,10 +1722,14 @@ bxt_ddi_pll_select(struct intel_crtc *intel_crtc,
 
 	crtc_state->dpll_hw_state.pll8 = targ_cnt;
 
+	crtc_state->dpll_hw_state.pll9 = 5 << PORT_PLL_LOCK_THRESHOLD_SHIFT;
+
 	if (dcoampovr_en_h)
 		crtc_state->dpll_hw_state.pll10 = PORT_PLL_DCO_AMP_OVR_EN_H;
 
 	crtc_state->dpll_hw_state.pll10 |= PORT_PLL_DCO_AMP(dco_amp);
+
+	crtc_state->dpll_hw_state.ebb4 = PORT_PLL_10BIT_CLK_ENABLE;
 
 	crtc_state->dpll_hw_state.pcsdw12 =
 		LANESTAGGER_STRAP_OVRD | lanestagger;
@@ -2767,7 +2771,7 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
 
 	temp = I915_READ(BXT_PORT_PLL(port, 9));
 	temp &= ~PORT_PLL_LOCK_THRESHOLD_MASK;
-	temp |= (5 << 1);
+	temp |= pll->config.hw_state.pll9;
 	I915_WRITE(BXT_PORT_PLL(port, 9), temp);
 
 	temp = I915_READ(BXT_PORT_PLL(port, 10));
@@ -2780,8 +2784,8 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	temp = I915_READ(BXT_PORT_PLL_EBB_4(port));
 	temp |= PORT_PLL_RECALIBRATE;
 	I915_WRITE(BXT_PORT_PLL_EBB_4(port), temp);
-	/* Enable 10 bit clock */
-	temp |= PORT_PLL_10BIT_CLK_ENABLE;
+	temp &= ~PORT_PLL_10BIT_CLK_ENABLE;
+	temp |= pll->config.hw_state.ebb4;
 	I915_WRITE(BXT_PORT_PLL_EBB_4(port), temp);
 
 	/* Enable PLL */
@@ -2832,12 +2836,18 @@ static bool bxt_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 		return false;
 
 	hw_state->ebb0 = I915_READ(BXT_PORT_PLL_EBB_0(port));
+	hw_state->ebb4 = I915_READ(BXT_PORT_PLL_EBB_4(port));
+	hw_state->ebb4 &= PORT_PLL_10BIT_CLK_ENABLE;
+
 	hw_state->pll0 = I915_READ(BXT_PORT_PLL(port, 0));
 	hw_state->pll1 = I915_READ(BXT_PORT_PLL(port, 1));
 	hw_state->pll2 = I915_READ(BXT_PORT_PLL(port, 2));
 	hw_state->pll3 = I915_READ(BXT_PORT_PLL(port, 3));
 	hw_state->pll6 = I915_READ(BXT_PORT_PLL(port, 6));
 	hw_state->pll8 = I915_READ(BXT_PORT_PLL(port, 8));
+	hw_state->pll9 = I915_READ(BXT_PORT_PLL(port, 9));
+	hw_state->pll9 &= PORT_PLL_LOCK_THRESHOLD_MASK;
+
 	hw_state->pll10 = I915_READ(BXT_PORT_PLL(port, 10));
 	/*
 	 * While we write to the group register to program all lanes at once we
