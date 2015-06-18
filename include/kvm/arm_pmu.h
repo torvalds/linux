@@ -34,9 +34,13 @@ struct kvm_pmu {
 	struct kvm_pmc pmc[ARMV8_PMU_MAX_COUNTERS];
 	bool ready;
 };
+
+#define kvm_arm_pmu_v3_ready(v)		((v)->arch.pmu.ready)
 #else
 struct kvm_pmu {
 };
+
+#define kvm_arm_pmu_v3_ready(v)		(false)
 #endif
 
 #endif
