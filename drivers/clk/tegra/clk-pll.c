@@ -669,6 +669,13 @@ static int _program_pll(struct clk_hw *hw, struct tegra_clk_pll_freq_table *cfg,
 
 	_get_pll_mnp(pll, &old_cfg);
 
+	if (state && pll->params->defaults_set && pll->params->dyn_ramp &&
+			(cfg->m == old_cfg.m) && (cfg->p == old_cfg.p)) {
+		ret = pll->params->dyn_ramp(pll, cfg);
+		if (!ret)
+			return 0;
+	}
+
 	if (state)
 		_clk_pll_disable(hw);
 

@@ -213,6 +213,8 @@ struct tegra_clk_pll;
  *				is already enabled, it will be done the first
  *				time the rate is changed while the PLL is
  *				disabled.
+ * @dyn_ramp:			Callback which can be used to define a custom
+ *				dynamic ramp function for a given PLL.
  *
  * Flags:
  * TEGRA_PLL_USE_LOCK - This flag indicated to use lock bits for
@@ -284,6 +286,8 @@ struct tegra_clk_pll_params {
 	unsigned long	(*adjust_vco)(struct tegra_clk_pll_params *pll_params,
 				unsigned long parent_rate);
 	void	(*set_defaults)(struct tegra_clk_pll *pll);
+	int	(*dyn_ramp)(struct tegra_clk_pll *pll,
+			struct tegra_clk_pll_freq_table *cfg);
 };
 
 #define TEGRA_PLL_USE_LOCK BIT(0)
