@@ -308,8 +308,9 @@ void ieee80211s_update_metric(struct ieee80211_local *local,
 	failed = !(txinfo->flags & IEEE80211_TX_STAT_ACK);
 
 	/* moving average, scaled to 100 */
-	sta->fail_avg = ((80 * sta->fail_avg + 5) / 100 + 20 * failed);
-	if (sta->fail_avg > 95)
+	sta->mesh->fail_avg =
+		((80 * sta->mesh->fail_avg + 5) / 100 + 20 * failed);
+	if (sta->mesh->fail_avg > 95)
 		mesh_plink_broken(sta);
 }
 
@@ -325,7 +326,7 @@ static u32 airtime_link_metric_get(struct ieee80211_local *local,
 	u32 tx_time, estimated_retx;
 	u64 result;
 
-	if (sta->fail_avg >= 100)
+	if (sta->mesh->fail_avg >= 100)
 		return MAX_METRIC;
 
 	sta_set_rate_info_tx(sta, &sta->last_tx_rate, &rinfo);
@@ -333,7 +334,7 @@ static u32 airtime_link_metric_get(struct ieee80211_local *local,
 	if (WARN_ON(!rate))
 		return MAX_METRIC;
 
-	err = (sta->fail_avg << ARITH_SHIFT) / 100;
+	err = (sta->mesh->fail_avg << ARITH_SHIFT) / 100;
 
 	/* bitrate is in units of 100 Kbps, while we need rate in units of
 	 * 1Mbps. This will be corrected on tx_time computation.

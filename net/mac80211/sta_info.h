@@ -290,6 +290,7 @@ struct ieee80211_fast_tx {
  * @nonpeer_pm: STA power save mode towards non-peer neighbors
  * @processed_beacon: set to true after peer rates and capabilities are
  *	processed
+ * @fail_avg: moving percentage of failed MSDUs
  */
 struct mesh_sta {
 	struct timer_list plink_timer;
@@ -312,6 +313,9 @@ struct mesh_sta {
 	enum nl80211_mesh_power_mode local_pm;
 	enum nl80211_mesh_power_mode peer_pm;
 	enum nl80211_mesh_power_mode nonpeer_pm;
+
+	/* moving percentage of failed MSDUs */
+	unsigned int fail_avg;
 };
 
 /**
@@ -369,7 +373,6 @@ struct mesh_sta {
  * @tx_filtered_count: number of frames the hardware filtered for this STA
  * @tx_retry_failed: number of frames that failed retry
  * @tx_retry_count: total number of retries for frames to this STA
- * @fail_avg: moving percentage of failed MSDUs
  * @tx_packets: number of RX/TX MSDUs
  * @tx_bytes: number of bytes transmitted to this STA
  * @tid_seq: per-TID sequence numbers for sending to this STA
@@ -470,8 +473,6 @@ struct sta_info {
 	/* Updated from TX status path only, no locking requirements */
 	unsigned long tx_filtered_count;
 	unsigned long tx_retry_failed, tx_retry_count;
-	/* moving percentage of failed MSDUs */
-	unsigned int fail_avg;
 
 	/* Updated from TX path only, no locking requirements */
 	u64 tx_packets[IEEE80211_NUM_ACS];
