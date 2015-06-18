@@ -1661,7 +1661,7 @@ static void pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe,
 		set_iommu_table_base(&dev->dev, pe->table_group.tables[0]);
 		iommu_add_device(&dev->dev);
 
-		if (dev->subordinate)
+		if ((pe->flags & PNV_IODA_PE_BUS_ALL) && dev->subordinate)
 			pnv_ioda_setup_bus_dma(pe, dev->subordinate);
 	}
 }
