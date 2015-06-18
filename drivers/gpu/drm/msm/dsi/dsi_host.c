@@ -34,6 +34,7 @@
 #define MSM_DSI_6G_VER_MINOR_V1_1	0x10010000
 #define MSM_DSI_6G_VER_MINOR_V1_1_1	0x10010001
 #define MSM_DSI_6G_VER_MINOR_V1_2	0x10020000
+#define MSM_DSI_6G_VER_MINOR_V1_3	0x10030000
 #define MSM_DSI_6G_VER_MINOR_V1_3_1	0x10030001
 
 #define DSI_6G_REG_SHIFT	4
@@ -116,6 +117,23 @@ static const struct dsi_config dsi_cfgs[] = {
 				{"vddio", 1800000, 1800000, 100000, 100},
 			},
 		},
+	},
+	{ /* 8x94 */
+		.major = MSM_DSI_VER_MAJOR_6G,
+		.minor = MSM_DSI_6G_VER_MINOR_V1_3,
+		.io_offset = DSI_6G_REG_SHIFT,
+		.reg_cfg = {
+			.num = 7,
+			.regs = {
+				{"gdsc", -1, -1, -1, -1},
+				{"vdda", 1250000, 1250000, 100000, 100},
+				{"vddio", 1800000, 1800000, 100000, 100},
+				{"vcca", 1000000, 1000000, 10000, 100},
+				{"vdd", 1800000, 1800000, 100000, 100},
+				{"lab_reg", -1, -1, -1, -1},
+				{"ibb_reg", -1, -1, -1, -1},
+			},
+		}
 	},
 };
 

@@ -47,6 +47,7 @@ Required properties:
 - compatible: Could be the following
   * "qcom,dsi-phy-28nm-hpm"
   * "qcom,dsi-phy-28nm-lp"
+  * "qcom,dsi-phy-20nm"
 - reg: Physical base address and length of the registers of PLL, PHY and PHY
   regulator
 - reg-names: The names of register regions. The following regions are required:
@@ -61,6 +62,10 @@ Required properties:
 - clock-names: the following clocks are required:
   * "iface_clk"
 - vddio-supply: phandle to vdd-io regulator device node
+
+Optional properties:
+- qcom,dsi-phy-regulator-ldo-mode: Boolean value indicating if the LDO mode PHY
+  regulator is wanted.
 
 Example:
 	mdss_dsi0: qcom,mdss_dsi@fd922800 {
@@ -124,4 +129,6 @@ Example:
 		clock-names = "iface_clk";
 		clocks = <&mmcc MDSS_AHB_CLK>;
 		vddio-supply = <&pma8084_l12>;
+
+		qcom,dsi-phy-regulator-ldo-mode;
 	};
