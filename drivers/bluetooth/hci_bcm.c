@@ -131,6 +131,7 @@ static int bcm_setup(struct hci_uart *hu)
 {
 	char fw_name[64];
 	const struct firmware *fw;
+	unsigned int speed;
 	int err;
 
 	BT_DBG("hu %p", hu);
@@ -153,13 +154,29 @@ static int bcm_setup(struct hci_uart *hu)
 		goto finalize;
 	}
 
-	if (hu->proto->init_speed)
-		hci_uart_set_baudrate(hu, hu->proto->init_speed);
+	/* Init speed if any */
+	if (hu->init_speed)
+		speed = hu->init_speed;
+	else if (hu->proto->init_speed)
+		speed = hu->proto->init_speed;
+	else
+		speed = 0;
 
-	if (hu->proto->oper_speed) {
-		err = bcm_set_baudrate(hu, hu->proto->oper_speed);
+	if (speed)
+		hci_uart_set_baudrate(hu, speed);
+
+	/* Operational speed if any */
+	if (hu->oper_speed)
+		speed = hu->oper_speed;
+	else if (hu->proto->oper_speed)
+		speed = hu->proto->oper_speed;
+	else
+		speed = 0;
+
+	if (speed) {
+		err = bcm_set_baudrate(hu, speed);
 		if (!err)
-			hci_uart_set_baudrate(hu, hu->proto->oper_speed);
+			hci_uart_set_baudrate(hu, speed);
 	}
 
 finalize:

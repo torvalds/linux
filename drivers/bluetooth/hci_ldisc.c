@@ -370,10 +370,10 @@ static int hci_uart_setup(struct hci_dev *hdev)
 	int err;
 
 	/* Init speed if any */
-	if (hu->proto->init_speed)
-		speed = hu->proto->init_speed;
-	else if (hu->init_speed)
+	if (hu->init_speed)
 		speed = hu->init_speed;
+	else if (hu->proto->init_speed)
+		speed = hu->proto->init_speed;
 	else
 		speed = 0;
 
@@ -381,10 +381,10 @@ static int hci_uart_setup(struct hci_dev *hdev)
 		hci_uart_set_baudrate(hu, speed);
 
 	/* Operational speed if any */
-	if (hu->proto->oper_speed)
-		speed = hu->proto->oper_speed;
-	else if (hu->oper_speed)
+	if (hu->oper_speed)
 		speed = hu->oper_speed;
+	else if (hu->proto->oper_speed)
+		speed = hu->proto->oper_speed;
 	else
 		speed = 0;
 
