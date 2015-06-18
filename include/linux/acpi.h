@@ -253,50 +253,12 @@ extern bool wmi_has_guid(const char *guid);
 #define ACPI_VIDEO_OUTPUT_SWITCHING_DMI_VENDOR		0x0400
 #define ACPI_VIDEO_OUTPUT_SWITCHING_DMI_VIDEO		0x0800
 
-#if defined(CONFIG_ACPI_VIDEO) || defined(CONFIG_ACPI_VIDEO_MODULE)
-
-extern long acpi_video_get_capabilities(acpi_handle graphics_dev_handle);
+extern char acpi_video_backlight_string[];
 extern long acpi_is_video_device(acpi_handle handle);
-extern void acpi_video_dmi_promote_vendor(void);
-extern void acpi_video_dmi_demote_vendor(void);
-extern int acpi_video_backlight_support(void);
-extern int acpi_video_display_switch_support(void);
-
-#else
-
-static inline long acpi_video_get_capabilities(acpi_handle graphics_dev_handle)
-{
-	return 0;
-}
-
-static inline long acpi_is_video_device(acpi_handle handle)
-{
-	return 0;
-}
-
-static inline void acpi_video_dmi_promote_vendor(void)
-{
-}
-
-static inline void acpi_video_dmi_demote_vendor(void)
-{
-}
-
-static inline int acpi_video_backlight_support(void)
-{
-	return 0;
-}
-
-static inline int acpi_video_display_switch_support(void)
-{
-	return 0;
-}
-
-#endif /* defined(CONFIG_ACPI_VIDEO) || defined(CONFIG_ACPI_VIDEO_MODULE) */
-
 extern int acpi_blacklisted(void);
 extern void acpi_dmi_osi_linux(int enable, const struct dmi_system_id *d);
 extern void acpi_osi_setup(char *str);
+extern bool acpi_osi_is_win8(void);
 
 #ifdef CONFIG_ACPI_NUMA
 int acpi_get_node(acpi_handle handle);

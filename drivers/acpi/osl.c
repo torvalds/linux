@@ -1680,6 +1680,12 @@ int acpi_resources_are_enforced(void)
 }
 EXPORT_SYMBOL(acpi_resources_are_enforced);
 
+bool acpi_osi_is_win8(void)
+{
+	return acpi_gbl_osi_data >= ACPI_OSI_WIN_8;
+}
+EXPORT_SYMBOL(acpi_osi_is_win8);
+
 /*
  * Deallocate the memory for a spinlock.
  */

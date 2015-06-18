@@ -43,7 +43,7 @@
 #include <acpi/video.h>
 #include <asm/uaccess.h>
 
-#include "internal.h"
+#define PREFIX "ACPI: "
 
 #define ACPI_VIDEO_BUS_NAME		"Video Bus"
 #define ACPI_VIDEO_DEVICE_NAME		"Video Device"
@@ -78,26 +78,17 @@ module_param(brightness_switch_enabled, bool, 0644);
 static bool allow_duplicates;
 module_param(allow_duplicates, bool, 0644);
 
-/*
- * For Windows 8 systems: used to decide if video module
- * should skip registering backlight interface of its own.
- */
-enum {
-	NATIVE_BACKLIGHT_NOT_SET = -1,
-	NATIVE_BACKLIGHT_OFF,
-	NATIVE_BACKLIGHT_ON,
-};
-
-static int use_native_backlight_param = NATIVE_BACKLIGHT_NOT_SET;
-module_param_named(use_native_backlight, use_native_backlight_param, int, 0444);
-static int use_native_backlight_dmi = NATIVE_BACKLIGHT_NOT_SET;
+static int disable_backlight_sysfs_if = -1;
+module_param(disable_backlight_sysfs_if, int, 0444);
 
 static int register_count;
+static DEFINE_MUTEX(register_count_mutex);
 static struct mutex video_list_lock;
 static struct list_head video_bus_head;
 static int acpi_video_bus_add(struct acpi_device *device);
 static int acpi_video_bus_remove(struct acpi_device *device);
 static void acpi_video_bus_notify(struct acpi_device *device, u32 event);
+void acpi_video_detect_exit(void);
 
 static const struct acpi_device_id video_device_ids[] = {
 	{ACPI_VIDEO_HID, 0},
@@ -157,7 +148,6 @@ struct acpi_video_enumerated_device {
 struct acpi_video_bus {
 	struct acpi_device *device;
 	bool backlight_registered;
-	bool backlight_notifier_registered;
 	u8 dos_setting;
 	struct acpi_video_enumerated_device *attached_array;
 	u8 attached_count;
@@ -170,7 +160,6 @@ struct acpi_video_bus {
 	struct input_dev *input;
 	char phys[32];	/* for input device */
 	struct notifier_block pm_nb;
-	struct notifier_block backlight_nb;
 };
 
 struct acpi_video_device_flags {
@@ -240,24 +229,6 @@ static int acpi_video_device_lcd_get_level_current(
 static int acpi_video_get_next_level(struct acpi_video_device *device,
 				     u32 level_current, u32 event);
 static void acpi_video_switch_brightness(struct work_struct *work);
-
-static bool acpi_video_use_native_backlight(void)
-{
-	if (use_native_backlight_param != NATIVE_BACKLIGHT_NOT_SET)
-		return use_native_backlight_param;
-	else if (use_native_backlight_dmi != NATIVE_BACKLIGHT_NOT_SET)
-		return use_native_backlight_dmi;
-	return acpi_osi_is_win8();
-}
-
-bool acpi_video_verify_backlight_support(void)
-{
-	if (acpi_video_use_native_backlight() &&
-	    backlight_device_registered(BACKLIGHT_RAW))
-		return false;
-	return acpi_video_backlight_support();
-}
-EXPORT_SYMBOL_GPL(acpi_video_verify_backlight_support);
 
 /* backlight device sysfs support */
 static int acpi_video_get_brightness(struct backlight_device *bd)
@@ -413,25 +384,21 @@ acpi_video_device_lcd_set_level(struct acpi_video_device *device, int level)
  */
 
 static int bqc_offset_aml_bug_workaround;
-static int __init video_set_bqc_offset(const struct dmi_system_id *d)
+static int video_set_bqc_offset(const struct dmi_system_id *d)
 {
 	bqc_offset_aml_bug_workaround = 9;
 	return 0;
 }
 
-static int __init video_disable_native_backlight(const struct dmi_system_id *d)
+static int video_disable_backlight_sysfs_if(
+	const struct dmi_system_id *d)
 {
-	use_native_backlight_dmi = NATIVE_BACKLIGHT_OFF;
+	if (disable_backlight_sysfs_if == -1)
+		disable_backlight_sysfs_if = 1;
 	return 0;
 }
 
-static int __init video_enable_native_backlight(const struct dmi_system_id *d)
-{
-	use_native_backlight_dmi = NATIVE_BACKLIGHT_ON;
-	return 0;
-}
-
-static struct dmi_system_id video_dmi_table[] __initdata = {
+static struct dmi_system_id video_dmi_table[] = {
 	/*
 	 * Broken _BQC workaround http://bugzilla.kernel.org/show_bug.cgi?id=13121
 	 */
@@ -477,110 +444,19 @@ static struct dmi_system_id video_dmi_table[] __initdata = {
 	},
 
 	/*
-	 * These models have a working acpi_video backlight control, and using
-	 * native backlight causes a regression where backlight does not work
-	 * when userspace is not handling brightness key events. Disable
-	 * native_backlight on these to fix this:
-	 * https://bugzilla.kernel.org/show_bug.cgi?id=81691
+	 * Some machines have a broken acpi-video interface for brightness
+	 * control, but still need an acpi_video_device_lcd_set_level() call
+	 * on resume to turn the backlight power on.  We Enable backlight
+	 * control on these systems, but do not register a backlight sysfs
+	 * as brightness control does not work.
 	 */
 	{
-	 .callback = video_disable_native_backlight,
-	 .ident = "ThinkPad T420",
+	 /* https://bugs.freedesktop.org/show_bug.cgi?id=82634 */
+	 .callback = video_disable_backlight_sysfs_if,
+	 .ident = "Toshiba Portege R830",
 	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T420"),
-		},
-	},
-	{
-	 .callback = video_disable_native_backlight,
-	 .ident = "ThinkPad T520",
-	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T520"),
-		},
-	},
-	{
-	 .callback = video_disable_native_backlight,
-	 .ident = "ThinkPad X201s",
-	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X201s"),
-		},
-	},
-
-	/* The native backlight controls do not work on some older machines */
-	{
-	 /* https://bugs.freedesktop.org/show_bug.cgi?id=81515 */
-	 .callback = video_disable_native_backlight,
-	 .ident = "HP ENVY 15 Notebook",
-	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "HP ENVY 15 Notebook PC"),
-		},
-	},
-
-	{
-	 .callback = video_disable_native_backlight,
-	 .ident = "SAMSUNG 870Z5E/880Z5E/680Z5E",
-	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
-		DMI_MATCH(DMI_PRODUCT_NAME, "870Z5E/880Z5E/680Z5E"),
-		},
-	},
-	{
-	 .callback = video_disable_native_backlight,
-	 .ident = "SAMSUNG 370R4E/370R4V/370R5E/3570RE/370R5V",
-	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
-		DMI_MATCH(DMI_PRODUCT_NAME, "370R4E/370R4V/370R5E/3570RE/370R5V"),
-		},
-	},
-	{
-	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1186097 */
-	 .callback = video_disable_native_backlight,
-	 .ident = "SAMSUNG 3570R/370R/470R/450R/510R/4450RV",
-	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
-		DMI_MATCH(DMI_PRODUCT_NAME, "3570R/370R/470R/450R/510R/4450RV"),
-		},
-	},
-	{
-	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1094948 */
-	 .callback = video_disable_native_backlight,
-	 .ident = "SAMSUNG 730U3E/740U3E",
-	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
-		DMI_MATCH(DMI_PRODUCT_NAME, "730U3E/740U3E"),
-		},
-	},
-	{
-	 /* https://bugs.freedesktop.org/show_bug.cgi?id=87286 */
-	 .callback = video_disable_native_backlight,
-	 .ident = "SAMSUNG 900X3C/900X3D/900X3E/900X4C/900X4D",
-	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
-		DMI_MATCH(DMI_PRODUCT_NAME, "900X3C/900X3D/900X3E/900X4C/900X4D"),
-		},
-	},
-
-	{
-	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1163574 */
-	 .callback = video_disable_native_backlight,
-	 .ident = "Dell XPS15 L521X",
-	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-		DMI_MATCH(DMI_PRODUCT_NAME, "XPS L521X"),
-		},
-	},
-
-	/* Non win8 machines which need native backlight nevertheless */
-	{
-	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1187004 */
-	 .callback = video_enable_native_backlight,
-	 .ident = "Lenovo Ideapad Z570",
-	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "102434U"),
+		DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "PORTEGE R830"),
 		},
 	},
 	{}
@@ -1382,7 +1258,7 @@ acpi_video_switch_brightness(struct work_struct *work)
 	int result = -EINVAL;
 
 	/* no warning message if acpi_backlight=vendor or a quirk is used */
-	if (!acpi_video_verify_backlight_support())
+	if (!device->backlight)
 		return;
 
 	if (!device->brightness)
@@ -1657,8 +1533,9 @@ static int acpi_video_resume(struct notifier_block *nb,
 
 	for (i = 0; i < video->attached_count; i++) {
 		video_device = video->attached_array[i].bind_info;
-		if (video_device && video_device->backlight)
-			acpi_video_set_brightness(video_device->backlight);
+		if (video_device && video_device->brightness)
+			acpi_video_device_lcd_set_level(video_device,
+					video_device->brightness->curr);
 	}
 
 	return NOTIFY_OK;
@@ -1707,6 +1584,10 @@ static void acpi_video_dev_register_backlight(struct acpi_video_device *device)
 	result = acpi_video_init_brightness(device);
 	if (result)
 		return;
+
+	if (disable_backlight_sysfs_if > 0)
+		return;
+
 	name = kasprintf(GFP_KERNEL, "acpi_video%d", count);
 	if (!name)
 		return;
@@ -1729,8 +1610,10 @@ static void acpi_video_dev_register_backlight(struct acpi_video_device *device)
 						      &acpi_backlight_ops,
 						      &props);
 	kfree(name);
-	if (IS_ERR(device->backlight))
+	if (IS_ERR(device->backlight)) {
+		device->backlight = NULL;
 		return;
+	}
 
 	/*
 	 * Save current brightness level in case we have to restore it
@@ -1787,7 +1670,7 @@ static int acpi_video_bus_register_backlight(struct acpi_video_bus *video)
 
 	acpi_video_run_bcl_for_osi(video);
 
-	if (!acpi_video_verify_backlight_support())
+	if (acpi_video_get_backlight_type() != acpi_backlight_video)
 		return 0;
 
 	mutex_lock(&video->device_list_lock);
@@ -1931,56 +1814,6 @@ static void acpi_video_bus_remove_notify_handler(struct acpi_video_bus *video)
 	video->input = NULL;
 }
 
-static int acpi_video_backlight_notify(struct notifier_block *nb,
-					unsigned long val, void *bd)
-{
-	struct backlight_device *backlight = bd;
-	struct acpi_video_bus *video;
-
-	/* acpi_video_verify_backlight_support only cares about raw devices */
-	if (backlight->props.type != BACKLIGHT_RAW)
-		return NOTIFY_DONE;
-
-	video = container_of(nb, struct acpi_video_bus, backlight_nb);
-
-	switch (val) {
-	case BACKLIGHT_REGISTERED:
-		if (!acpi_video_verify_backlight_support())
-			acpi_video_bus_unregister_backlight(video);
-		break;
-	case BACKLIGHT_UNREGISTERED:
-		acpi_video_bus_register_backlight(video);
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-
-static int acpi_video_bus_add_backlight_notify_handler(
-						struct acpi_video_bus *video)
-{
-	int error;
-
-	video->backlight_nb.notifier_call = acpi_video_backlight_notify;
-	video->backlight_nb.priority = 0;
-	error = backlight_register_notifier(&video->backlight_nb);
-	if (error == 0)
-		video->backlight_notifier_registered = true;
-
-	return error;
-}
-
-static int acpi_video_bus_remove_backlight_notify_handler(
-						struct acpi_video_bus *video)
-{
-	if (!video->backlight_notifier_registered)
-		return 0;
-
-	video->backlight_notifier_registered = false;
-
-	return backlight_unregister_notifier(&video->backlight_nb);
-}
-
 static int acpi_video_bus_put_devices(struct acpi_video_bus *video)
 {
 	struct acpi_video_device *dev, *next;
@@ -2062,7 +1895,6 @@ static int acpi_video_bus_add(struct acpi_device *device)
 
 	acpi_video_bus_register_backlight(video);
 	acpi_video_bus_add_notify_handler(video);
-	acpi_video_bus_add_backlight_notify_handler(video);
 
 	return 0;
 
@@ -2086,7 +1918,6 @@ static int acpi_video_bus_remove(struct acpi_device *device)
 
 	video = acpi_driver_data(device);
 
-	acpi_video_bus_remove_backlight_notify_handler(video);
 	acpi_video_bus_remove_notify_handler(video);
 	acpi_video_bus_unregister_backlight(video);
 	acpi_video_bus_put_devices(video);
@@ -2134,22 +1965,25 @@ static int __init intel_opregion_present(void)
 
 int acpi_video_register(void)
 {
-	int ret;
+	int ret = 0;
 
+	mutex_lock(&register_count_mutex);
 	if (register_count) {
 		/*
 		 * if the function of acpi_video_register is already called,
 		 * don't register the acpi_vide_bus again and return no error.
 		 */
-		return 0;
+		goto leave;
 	}
 
 	mutex_init(&video_list_lock);
 	INIT_LIST_HEAD(&video_bus_head);
 
+	dmi_check_system(video_dmi_table);
+
 	ret = acpi_bus_register_driver(&acpi_video_bus);
 	if (ret)
-		return ret;
+		goto leave;
 
 	/*
 	 * When the acpi_video_bus is loaded successfully, increase
@@ -2157,24 +1991,20 @@ int acpi_video_register(void)
 	 */
 	register_count = 1;
 
-	return 0;
+leave:
+	mutex_unlock(&register_count_mutex);
+	return ret;
 }
 EXPORT_SYMBOL(acpi_video_register);
 
 void acpi_video_unregister(void)
 {
-	if (!register_count) {
-		/*
-		 * If the acpi video bus is already unloaded, don't
-		 * unload it again and return directly.
-		 */
-		return;
+	mutex_lock(&register_count_mutex);
+	if (register_count) {
+		acpi_bus_unregister_driver(&acpi_video_bus);
+		register_count = 0;
 	}
-	acpi_bus_unregister_driver(&acpi_video_bus);
-
-	register_count = 0;
-
-	return;
+	mutex_unlock(&register_count_mutex);
 }
 EXPORT_SYMBOL(acpi_video_unregister);
 
@@ -2182,15 +2012,15 @@ void acpi_video_unregister_backlight(void)
 {
 	struct acpi_video_bus *video;
 
-	if (!register_count)
-		return;
-
-	mutex_lock(&video_list_lock);
-	list_for_each_entry(video, &video_bus_head, entry)
-		acpi_video_bus_unregister_backlight(video);
-	mutex_unlock(&video_list_lock);
+	mutex_lock(&register_count_mutex);
+	if (register_count) {
+		mutex_lock(&video_list_lock);
+		list_for_each_entry(video, &video_bus_head, entry)
+			acpi_video_bus_unregister_backlight(video);
+		mutex_unlock(&video_list_lock);
+	}
+	mutex_unlock(&register_count_mutex);
 }
-EXPORT_SYMBOL(acpi_video_unregister_backlight);
 
 /*
  * This is kind of nasty. Hardware using Intel chipsets may require
@@ -2212,8 +2042,6 @@ static int __init acpi_video_init(void)
 	if (acpi_disabled)
 		return 0;
 
-	dmi_check_system(video_dmi_table);
-
 	if (intel_opregion_present())
 		return 0;
 
@@ -2222,6 +2050,7 @@ static int __init acpi_video_init(void)
 
 static void __exit acpi_video_exit(void)
 {
+	acpi_video_detect_exit();
 	acpi_video_unregister();
 
 	return;
