@@ -301,9 +301,11 @@
 	reg_sata0: pwr-sata0 {
 		compatible = "regulator-fixed";
 		regulator-name = "pwr_en_sata0";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
 		enable-active-high;
 		regulator-always-on;
-
+		gpio = <&expander0 2 GPIO_ACTIVE_HIGH>;
 	};
 
 	reg_5v_sata0: v5-sata0 {
