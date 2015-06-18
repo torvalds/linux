@@ -53,6 +53,11 @@
 #define DEVICEADDR_USBADRA    BIT(24)
 #define DEVICEADDR_USBADR     (0x7FUL << 25)
 
+/* TTCTRL */
+#define TTCTRL_TTHA_MASK	(0x7fUL << 24)
+/* Set non-zero value for internal TT Hub address representation */
+#define TTCTRL_TTHA		(0x7fUL << 24)
+
 /* PORTSC */
 #define PORTSC_CCS            BIT(0)
 #define PORTSC_CSC            BIT(1)
