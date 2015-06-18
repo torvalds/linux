@@ -674,7 +674,7 @@ static void f2fs_update_extent_tree(struct inode *inode, pgoff_t fofs,
 		endofs = dei.fofs + dei.len - 1;
 		if (endofs - fofs >= F2FS_MIN_EXTENT_LEN) {
 			set_extent_info(&ei, fofs + 1,
-				fofs - dei.fofs + dei.blk, endofs - fofs);
+				fofs - dei.fofs + dei.blk + 1, endofs - fofs);
 			en2 = __insert_extent_tree(sbi, et, &ei, NULL);
 		}
 	}
