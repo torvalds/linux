@@ -164,6 +164,13 @@ struct ath10k_hw_regs {
 	u32 soc_reset_control_ce_rst_mask;
 	u32 soc_chip_id_address;
 	u32 scratch_3_address;
+	u32 fw_indicator_address;
+	u32 pcie_local_base_address;
+	u32 ce_wrap_intr_sum_host_msi_lsb;
+	u32 ce_wrap_intr_sum_host_msi_mask;
+	u32 pcie_intr_fw_mask;
+	u32 pcie_intr_ce_mask_all;
+	u32 pcie_intr_clr_address;
 };
 
 extern const struct ath10k_hw_regs qca988x_regs;
@@ -386,7 +393,7 @@ enum ath10k_hw_rate_cck {
 #define CE7_BASE_ADDRESS			ar->regs->ce7_base_address
 #define DBI_BASE_ADDRESS			0x00060000
 #define WLAN_ANALOG_INTF_PCIE_BASE_ADDRESS	0x0006c000
-#define PCIE_LOCAL_BASE_ADDRESS			0x00080000
+#define PCIE_LOCAL_BASE_ADDRESS		ar->regs->pcie_local_base_address
 
 #define SOC_RESET_CONTROL_ADDRESS		0x00000000
 #define SOC_RESET_CONTROL_OFFSET		0x00000000
@@ -460,7 +467,7 @@ enum ath10k_hw_rate_cck {
 #define CORE_CTRL_ADDRESS			0x0000
 #define PCIE_INTR_ENABLE_ADDRESS		0x0008
 #define PCIE_INTR_CAUSE_ADDRESS			0x000c
-#define PCIE_INTR_CLR_ADDRESS			0x0014
+#define PCIE_INTR_CLR_ADDRESS			ar->regs->pcie_intr_clr_address
 #define SCRATCH_3_ADDRESS			ar->regs->scratch_3_address
 #define CPU_INTR_ADDRESS			0x0010
 
@@ -468,13 +475,13 @@ enum ath10k_hw_rate_cck {
 #define CCNT_TO_MSEC(x) ((x) / 88000)
 
 /* Firmware indications to the Host via SCRATCH_3 register. */
-#define FW_INDICATOR_ADDRESS	(SOC_CORE_BASE_ADDRESS + SCRATCH_3_ADDRESS)
+#define FW_INDICATOR_ADDRESS			ar->regs->fw_indicator_address
 #define FW_IND_EVENT_PENDING			1
 #define FW_IND_INITIALIZED			2
 
 /* HOST_REG interrupt from firmware */
-#define PCIE_INTR_FIRMWARE_MASK			0x00000400
-#define PCIE_INTR_CE_MASK_ALL			0x0007f800
+#define PCIE_INTR_FIRMWARE_MASK			ar->regs->pcie_intr_fw_mask
+#define PCIE_INTR_CE_MASK_ALL			ar->regs->pcie_intr_ce_mask_all
 
 #define DRAM_BASE_ADDRESS			0x00400000
 

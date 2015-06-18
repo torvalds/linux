@@ -34,8 +34,15 @@ const struct ath10k_hw_regs qca988x_regs = {
 	.ce7_base_address		= 0x00059000,
 	.soc_reset_control_si0_rst_mask	= 0x00000001,
 	.soc_reset_control_ce_rst_mask	= 0x00040000,
-	.soc_chip_id_address		= 0x00ec,
-	.scratch_3_address		= 0x0030,
+	.soc_chip_id_address		= 0x000000ec,
+	.scratch_3_address		= 0x00000030,
+	.fw_indicator_address		= 0x00009030,
+	.pcie_local_base_address	= 0x00080000,
+	.ce_wrap_intr_sum_host_msi_lsb	= 0x00000008,
+	.ce_wrap_intr_sum_host_msi_mask	= 0x0000ff00,
+	.pcie_intr_fw_mask		= 0x00000400,
+	.pcie_intr_ce_mask_all		= 0x0007f800,
+	.pcie_intr_clr_address		= 0x00000014,
 };
 
 const struct ath10k_hw_regs qca6174_regs = {
@@ -54,8 +61,15 @@ const struct ath10k_hw_regs qca6174_regs = {
 	.ce7_base_address			= 0x00036000,
 	.soc_reset_control_si0_rst_mask		= 0x00000000,
 	.soc_reset_control_ce_rst_mask		= 0x00000001,
-	.soc_chip_id_address			= 0x000f0,
-	.scratch_3_address			= 0x0028,
+	.soc_chip_id_address			= 0x000000f0,
+	.scratch_3_address			= 0x00000028,
+	.fw_indicator_address			= 0x00009028,
+	.pcie_local_base_address		= 0x00080000,
+	.ce_wrap_intr_sum_host_msi_lsb		= 0x00000008,
+	.ce_wrap_intr_sum_host_msi_mask		= 0x0000ff00,
+	.pcie_intr_fw_mask			= 0x00000400,
+	.pcie_intr_ce_mask_all			= 0x0007f800,
+	.pcie_intr_clr_address			= 0x00000014,
 };
 
 const struct ath10k_hw_values qca988x_values = {

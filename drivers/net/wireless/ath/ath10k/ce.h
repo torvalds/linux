@@ -423,8 +423,10 @@ static inline u32 ath10k_ce_base_address(struct ath10k *ar, unsigned int ce_id)
 
 #define CE_RING_IDX_INCR(nentries_mask, idx) (((idx) + 1) & (nentries_mask))
 
-#define CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_LSB		8
-#define CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_MASK		0x0000ff00
+#define CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_LSB \
+				ar->regs->ce_wrap_intr_sum_host_msi_lsb
+#define CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_MASK \
+				ar->regs->ce_wrap_intr_sum_host_msi_mask
 #define CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_GET(x) \
 	(((x) & CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_MASK) >> \
 		CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_LSB)
