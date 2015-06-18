@@ -219,7 +219,7 @@ static struct i2c_algorithm mantis_algo = {
 
 int mantis_i2c_init(struct mantis_pci *mantis)
 {
-	u32 intstat, intmask;
+	u32 intstat;
 	struct i2c_adapter *i2c_adapter = &mantis->adapter;
 	struct pci_dev *pdev		= mantis->pdev;
 
@@ -242,7 +242,7 @@ int mantis_i2c_init(struct mantis_pci *mantis)
 	dprintk(MANTIS_DEBUG, 1, "Initializing I2C ..");
 
 	intstat = mmread(MANTIS_INT_STAT);
-	intmask = mmread(MANTIS_INT_MASK);
+	mmread(MANTIS_INT_MASK);
 	mmwrite(intstat, MANTIS_INT_STAT);
 	dprintk(MANTIS_DEBUG, 1, "Disabling I2C interrupt");
 	mantis_mask_ints(mantis, MANTIS_INT_I2CDONE);
