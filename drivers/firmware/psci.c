@@ -20,12 +20,14 @@
 #include <linux/printk.h>
 #include <linux/psci.h>
 #include <linux/reboot.h>
+#include <linux/suspend.h>
 
 #include <uapi/linux/psci.h>
 
 #include <asm/cputype.h>
 #include <asm/system_misc.h>
 #include <asm/smp_plat.h>
+#include <asm/suspend.h>
 
 /*
  * While a 64-bit OS can make calls with SMC32 calling conventions, for some
@@ -223,6 +225,35 @@ static int __init psci_features(u32 psci_func_id)
 			      psci_func_id, 0, 0);
 }
 
+static int psci_system_suspend(unsigned long unused)
+{
+	return invoke_psci_fn(PSCI_FN_NATIVE(1_0, SYSTEM_SUSPEND),
+			      virt_to_phys(cpu_resume), 0, 0);
+}
+
+static int psci_system_suspend_enter(suspend_state_t state)
+{
+	return cpu_suspend(0, psci_system_suspend);
+}
+
+static const struct platform_suspend_ops psci_suspend_ops = {
+	.valid          = suspend_valid_only_mem,
+	.enter          = psci_system_suspend_enter,
+};
+
+static void __init psci_init_system_suspend(void)
+{
+	int ret;
+
+	if (!IS_ENABLED(CONFIG_SUSPEND))
+		return;
+
+	ret = psci_features(PSCI_FN_NATIVE(1_0, SYSTEM_SUSPEND));
+
+	if (ret != PSCI_RET_NOT_SUPPORTED)
+		suspend_set_ops(&psci_suspend_ops);
+}
+
 static void __init psci_init_cpu_suspend(void)
 {
 	int feature = psci_features(psci_function_id[PSCI_FN_CPU_SUSPEND]);
@@ -317,6 +348,8 @@ static int __init psci_probe(void)
 	psci_init_migrate();
 
 	psci_init_cpu_suspend();
+
+	psci_init_system_suspend();
 
 	return 0;
 }
