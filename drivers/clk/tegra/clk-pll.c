@@ -1934,7 +1934,7 @@ struct clk *tegra_clk_register_pllss(const char *name, const char *parent_name,
 	struct clk *clk, *parent;
 	struct tegra_clk_pll_freq_table cfg;
 	unsigned long parent_rate;
-	u32 val;
+	u32 val, val_iddq;
 	int i;
 
 	if (!pll_params->div_nmp)
@@ -1981,14 +1981,17 @@ struct clk *tegra_clk_register_pllss(const char *name, const char *parent_name,
 	pll_writel(PLLSS_CTRL1_DEFAULT, pll_params->ext_misc_reg[2], pll);
 
 	val = pll_readl_base(pll);
+	val_iddq = readl_relaxed(clk_base + pll_params->iddq_reg);
 	if (val & PLL_BASE_ENABLE) {
-		if (val & BIT(pll_params->iddq_bit_idx)) {
+		if (val_iddq & BIT(pll_params->iddq_bit_idx)) {
 			WARN(1, "%s is on but IDDQ set\n", name);
 			kfree(pll);
 			return ERR_PTR(-EINVAL);
 		}
-	} else
-		val |= BIT(pll_params->iddq_bit_idx);
+	} else {
+		val_iddq |= BIT(pll_params->iddq_bit_idx);
+		writel_relaxed(val_iddq, clk_base + pll_params->iddq_reg);
+	}
 
 	val &= ~PLLSS_LOCK_OVERRIDE;
 	pll_writel_base(val, pll);
