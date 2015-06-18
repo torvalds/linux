@@ -176,6 +176,8 @@ struct div_nmp {
  * @lock_enable_bit_idx:	Bit index to enable PLL lock
  * @iddq_reg:			PLL IDDQ register offset
  * @iddq_bit_idx:		Bit index to enable PLL IDDQ
+ * @reset_reg:			Register offset of where RESET bit is
+ * @reset_bit_idx:		Shift of reset bit in reset_reg
  * @sdm_din_reg:		Register offset where SDM settings are
  * @sdm_din_mask:		Mask of SDM divider bits
  * @sdm_ctrl_reg:		Register offset where SDM enable is
@@ -239,6 +241,8 @@ struct tegra_clk_pll_params {
 	u32		lock_enable_bit_idx;
 	u32		iddq_reg;
 	u32		iddq_bit_idx;
+	u32		reset_reg;
+	u32		reset_bit_idx;
 	u32		sdm_din_reg;
 	u32		sdm_din_mask;
 	u32		sdm_ctrl_reg;
