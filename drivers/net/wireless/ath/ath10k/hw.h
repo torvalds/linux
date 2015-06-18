@@ -169,6 +169,16 @@ struct ath10k_hw_regs {
 extern const struct ath10k_hw_regs qca988x_regs;
 extern const struct ath10k_hw_regs qca6174_regs;
 
+struct ath10k_hw_values {
+	u32 rtc_state_val_on;
+	u8 ce_count;
+	u8 msi_assign_ce_max;
+	u8 num_target_ce_config_wlan;
+};
+
+extern const struct ath10k_hw_values qca988x_values;
+extern const struct ath10k_hw_values qca6174_values;
+
 void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 				u32 cc, u32 rcc, u32 cc_prev, u32 rcc_prev);
 
@@ -310,8 +320,10 @@ enum ath10k_hw_rate_cck {
 #define TARGET_TLV_NUM_MSDU_DESC		(1024 + 32)
 #define TARGET_TLV_NUM_WOW_PATTERNS		22
 
+#define NUM_TARGET_CE_CONFIG_WLAN ar->hw_values->num_target_ce_config_wlan
+
 /* Number of Copy Engines supported */
-#define CE_COUNT 8
+#define CE_COUNT ar->hw_values->ce_count
 
 /*
  * Total number of PCIe MSI interrupts requested for all interrupt sources.
@@ -335,10 +347,10 @@ enum ath10k_hw_rate_cck {
 
 /* MSIs for Copy Engines */
 #define MSI_ASSIGN_CE_INITIAL	1
-#define MSI_ASSIGN_CE_MAX	7
+#define MSI_ASSIGN_CE_MAX	ar->hw_values->msi_assign_ce_max
 
 /* as of IP3.7.1 */
-#define RTC_STATE_V_ON				3
+#define RTC_STATE_V_ON				ar->hw_values->rtc_state_val_on
 
 #define RTC_STATE_COLD_RESET_MASK		ar->regs->rtc_state_cold_reset_mask
 #define RTC_STATE_V_LSB				0

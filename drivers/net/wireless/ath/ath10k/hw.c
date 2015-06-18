@@ -58,6 +58,20 @@ const struct ath10k_hw_regs qca6174_regs = {
 	.scratch_3_address			= 0x0028,
 };
 
+const struct ath10k_hw_values qca988x_values = {
+	.rtc_state_val_on		= 3,
+	.ce_count			= 8,
+	.msi_assign_ce_max		= 7,
+	.num_target_ce_config_wlan	= 7,
+};
+
+const struct ath10k_hw_values qca6174_values = {
+	.rtc_state_val_on		= 3,
+	.ce_count			= 8,
+	.msi_assign_ce_max		= 7,
+	.num_target_ce_config_wlan	= 7,
+};
+
 void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 				u32 cc, u32 rcc, u32 cc_prev, u32 rcc_prev)
 {
