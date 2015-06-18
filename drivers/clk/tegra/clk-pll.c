@@ -678,7 +678,7 @@ static int clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	}
 
 	if (_get_table_rate(hw, &cfg, rate, parent_rate) &&
-	    _calc_rate(hw, &cfg, rate, parent_rate)) {
+	    pll->params->calc_rate(hw, &cfg, rate, parent_rate)) {
 		pr_err("%s: Failed to set %s rate %lu\n", __func__,
 		       clk_hw_get_name(hw), rate);
 		WARN_ON(1);
@@ -713,7 +713,7 @@ static long clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 		return clk_hw_get_rate(hw);
 
 	if (_get_table_rate(hw, &cfg, rate, *prate) &&
-	    _calc_rate(hw, &cfg, rate, *prate))
+	    pll->params->calc_rate(hw, &cfg, rate, *prate))
 		return -EINVAL;
 
 	return cfg.output_rate;
@@ -903,10 +903,26 @@ const struct clk_ops tegra_clk_plle_ops = {
 static int _pll_fixed_mdiv(struct tegra_clk_pll_params *pll_params,
 			   unsigned long parent_rate)
 {
+	u16 mdiv = parent_rate / pll_params->cf_min;
+
+	if (pll_params->flags & TEGRA_MDIV_NEW)
+		return (!pll_params->mdiv_default ? mdiv :
+			min(mdiv, pll_params->mdiv_default));
+
+	if (pll_params->mdiv_default)
+		return pll_params->mdiv_default;
+
 	if (parent_rate > pll_params->cf_max)
 		return 2;
 	else
 		return 1;
+}
+
+u16 tegra_pll_get_fixed_mdiv(struct clk_hw *hw, unsigned long input_rate)
+{
+	struct tegra_clk_pll *pll = to_clk_pll(hw);
+
+	return (u16)_pll_fixed_mdiv(pll->params, input_rate);
 }
 
 static unsigned long _clip_vco_min(unsigned long vco_min,
@@ -1482,6 +1498,10 @@ static struct clk *_tegra_clk_register_pll(struct tegra_clk_pll *pll,
 	init.flags = flags;
 	init.parent_names = (parent_name ? &parent_name : NULL);
 	init.num_parents = (parent_name ? 1 : 0);
+
+	/* Default to _calc_rate if unspecified */
+	if (!pll->params->calc_rate)
+		pll->params->calc_rate = _calc_rate;
 
 	/* Data in .init is copied by clk_register(), so stack variable OK */
 	pll->hw.init = &init;

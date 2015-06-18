@@ -194,8 +194,12 @@ struct div_nmp {
  * @div_nmp:			offsets and widths on n, m and p fields
  * @freq_table:			array of frequencies supported by PLL
  * @fixed_rate:			PLL rate if it is fixed
+ * @mdiv_default:		Default value for fixed mdiv for this PLL
+ * @round_p_to_pdiv:		Callback used to round p to the closed pdiv
  * @set_gain:			Callback to adjust N div for SDM enabled
  *				PLL's based on fractional divider value.
+ * @calc_rate:			Callback used to change how out of table
+ *				rates (dividers and multipler) are calculated.
  *
  * Flags:
  * TEGRA_PLL_USE_LOCK - This flag indicated to use lock bits for
@@ -217,6 +221,8 @@ struct div_nmp {
  *     base register.
  * TEGRA_PLL_BYPASS - PLL has bypass bit
  * TEGRA_PLL_HAS_LOCK_ENABLE - PLL has bit to enable lock monitoring
+ * TEGRA_MDIV_NEW - Switch to new method for calculating fixed mdiv
+ *     it may be more accurate (especially if SDM present)
  */
 struct tegra_clk_pll_params {
 	unsigned long	input_min;
@@ -251,7 +257,12 @@ struct tegra_clk_pll_params {
 	struct div_nmp	*div_nmp;
 	struct tegra_clk_pll_freq_table	*freq_table;
 	unsigned long	fixed_rate;
+	u16		mdiv_default;
+	u32	(*round_p_to_pdiv)(u32 p, u32 *pdiv);
 	void	(*set_gain)(struct tegra_clk_pll_freq_table *cfg);
+	int	(*calc_rate)(struct clk_hw *hw,
+			struct tegra_clk_pll_freq_table *cfg,
+			unsigned long rate, unsigned long parent_rate);
 };
 
 #define TEGRA_PLL_USE_LOCK BIT(0)
@@ -265,6 +276,7 @@ struct tegra_clk_pll_params {
 #define TEGRA_PLL_LOCK_MISC BIT(8)
 #define TEGRA_PLL_BYPASS BIT(9)
 #define TEGRA_PLL_HAS_LOCK_ENABLE BIT(10)
+#define TEGRA_MDIV_NEW BIT(11)
 
 /**
  * struct tegra_clk_pll - Tegra PLL clock
@@ -690,5 +702,6 @@ void tegra114_clock_deassert_dfll_dvco_reset(void);
 typedef void (*tegra_clk_apply_init_table_func)(void);
 extern tegra_clk_apply_init_table_func tegra_clk_apply_init_table;
 int tegra_pll_wait_for_lock(struct tegra_clk_pll *pll);
+u16 tegra_pll_get_fixed_mdiv(struct clk_hw *hw, unsigned long input_rate);
 
 #endif /* TEGRA_CLK_H */
