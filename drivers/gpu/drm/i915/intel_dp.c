@@ -5534,16 +5534,15 @@ void intel_edp_drrs_invalidate(struct drm_device *dev,
 	crtc = dp_to_dig_port(dev_priv->drrs.dp)->base.base.crtc;
 	pipe = to_intel_crtc(crtc)->pipe;
 
+	frontbuffer_bits &= INTEL_FRONTBUFFER_ALL_MASK(pipe);
+	dev_priv->drrs.busy_frontbuffer_bits |= frontbuffer_bits;
+
 	/* invalidate means busy screen hence upclock */
-	if (dev_priv->drrs.refresh_rate_type == DRRS_LOW_RR) {
+	if (frontbuffer_bits && dev_priv->drrs.refresh_rate_type == DRRS_LOW_RR)
 		intel_dp_set_drrs_state(dev_priv->dev,
 				dev_priv->drrs.dp->attached_connector->panel.
 				fixed_mode->vrefresh);
-	}
 
-	frontbuffer_bits &= INTEL_FRONTBUFFER_ALL_MASK(pipe);
-
-	dev_priv->drrs.busy_frontbuffer_bits |= frontbuffer_bits;
 	mutex_unlock(&dev_priv->drrs.mutex);
 }
 
@@ -5579,10 +5578,12 @@ void intel_edp_drrs_flush(struct drm_device *dev,
 
 	crtc = dp_to_dig_port(dev_priv->drrs.dp)->base.base.crtc;
 	pipe = to_intel_crtc(crtc)->pipe;
+
+	frontbuffer_bits &= INTEL_FRONTBUFFER_ALL_MASK(pipe);
 	dev_priv->drrs.busy_frontbuffer_bits &= ~frontbuffer_bits;
 
 	/* flush means busy screen hence upclock */
-	if (dev_priv->drrs.refresh_rate_type == DRRS_LOW_RR)
+	if (frontbuffer_bits && dev_priv->drrs.refresh_rate_type == DRRS_LOW_RR)
 		intel_dp_set_drrs_state(dev_priv->dev,
 				dev_priv->drrs.dp->attached_connector->panel.
 				fixed_mode->vrefresh);
