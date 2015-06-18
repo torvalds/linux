@@ -77,12 +77,9 @@ to specify in a pin configuration subnode:
 	Value type: <string>
 	Definition: Specify the alternative function to be configured for the
 		    specified pins.  Valid values are:
-		    "normal",
-		    "paired",
-		    "dtest1",
-		    "dtest2",
-		    "dtest3",
-		    "dtest4"
+		    "digital",
+		    "analog",
+		    "sink"
 
 - bias-disable:
 	Usage: optional
@@ -134,17 +131,11 @@ to specify in a pin configuration subnode:
 		    defined in <dt-binding/pinctrl/qcom,pmic-mpp.h>
 		    PMIC_MPP_AOUT_LVL_*
 
-- qcom,analog-mode:
+- qcom,dtest:
 	Usage: optional
-	Value type: <none>
-	Definition: Selects Analog mode of operation: combined with input-enable
-		    and/or output-high, output-low MPP could operate as
-		    Bidirectional Logic, Analog Input, Analog Output.
-
-- qcom,sink-mode:
-	Usage: optional
-	Value type: <u32> or <none>
-	Definition: Selects sink mode of operation
+	Value type: <u32>
+	Definition: Selects which dtest rail to be routed in the various functions.
+		    Valid values are 1-4
 
 - qcom,amux-route:
 	Usage: optional
@@ -152,6 +143,10 @@ to specify in a pin configuration subnode:
 	Definition: Selects the source for analog input. Valid values are
 		    defined in <dt-bindings/pinctrl/qcom,pmic-mpp.h>
 		    PMIC_MPP_AMUX_ROUTE_CH5, PMIC_MPP_AMUX_ROUTE_CH6...
+- qcom,paired:
+	Usage: optional
+	Value type: <none>
+	Definition: Indicates that the pin should be operating in paired mode.
 
 Example:
 
@@ -168,7 +163,7 @@ Example:
 		pm8841_default: default {
 			gpio {
 				pins = "mpp1", "mpp2", "mpp3", "mpp4";
-				function = "normal";
+				function = "digital";
 				input-enable;
 				power-source = <PM8841_MPP_S3>;
 			};
