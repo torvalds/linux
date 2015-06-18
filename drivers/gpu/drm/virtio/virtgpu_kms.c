@@ -137,9 +137,11 @@ int virtio_gpu_driver_load(struct drm_device *dev, unsigned long flags)
 	virtio_device_ready(vgdev->vdev);
 	vgdev->vqs_ready = true;
 
+	virtio_gpu_cmd_get_display_info(vgdev);
+	wait_event_timeout(vgdev->resp_wq, !vgdev->display_info_pending,
+			   5 * HZ);
 	if (virtio_gpu_fbdev)
 		virtio_gpu_fbdev_init(vgdev);
-	virtio_gpu_cmd_get_display_info(vgdev);
 
 	return 0;
 
