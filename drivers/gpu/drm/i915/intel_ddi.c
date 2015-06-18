@@ -2854,19 +2854,38 @@ static bool bxt_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 		return false;
 
 	hw_state->ebb0 = I915_READ(BXT_PORT_PLL_EBB_0(port));
+	hw_state->ebb0 &= PORT_PLL_P1_MASK | PORT_PLL_P2_MASK;
+
 	hw_state->ebb4 = I915_READ(BXT_PORT_PLL_EBB_4(port));
 	hw_state->ebb4 &= PORT_PLL_10BIT_CLK_ENABLE;
 
 	hw_state->pll0 = I915_READ(BXT_PORT_PLL(port, 0));
+	hw_state->pll0 &= PORT_PLL_M2_MASK;
+
 	hw_state->pll1 = I915_READ(BXT_PORT_PLL(port, 1));
+	hw_state->pll1 &= PORT_PLL_N_MASK;
+
 	hw_state->pll2 = I915_READ(BXT_PORT_PLL(port, 2));
+	hw_state->pll2 &= PORT_PLL_M2_FRAC_MASK;
+
 	hw_state->pll3 = I915_READ(BXT_PORT_PLL(port, 3));
+	hw_state->pll3 &= PORT_PLL_M2_FRAC_ENABLE;
+
 	hw_state->pll6 = I915_READ(BXT_PORT_PLL(port, 6));
+	hw_state->pll6 &= PORT_PLL_PROP_COEFF_MASK |
+			  PORT_PLL_INT_COEFF_MASK |
+			  PORT_PLL_GAIN_CTL_MASK;
+
 	hw_state->pll8 = I915_READ(BXT_PORT_PLL(port, 8));
+	hw_state->pll8 &= PORT_PLL_TARGET_CNT_MASK;
+
 	hw_state->pll9 = I915_READ(BXT_PORT_PLL(port, 9));
 	hw_state->pll9 &= PORT_PLL_LOCK_THRESHOLD_MASK;
 
 	hw_state->pll10 = I915_READ(BXT_PORT_PLL(port, 10));
+	hw_state->pll10 &= PORT_PLL_DCO_AMP_OVR_EN_H |
+			   PORT_PLL_DCO_AMP_MASK;
+
 	/*
 	 * While we write to the group register to program all lanes at once we
 	 * can read only lane registers. We configure all lanes the same way, so
@@ -2877,6 +2896,7 @@ static bool bxt_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 		DRM_DEBUG_DRIVER("lane stagger config different for lane 01 (%08x) and 23 (%08x)\n",
 				 hw_state->pcsdw12,
 				 I915_READ(BXT_PORT_PCS_DW12_LN23(port)));
+	hw_state->pcsdw12 &= LANE_STAGGER_MASK | LANESTAGGER_STRAP_OVRD;
 
 	return true;
 }
