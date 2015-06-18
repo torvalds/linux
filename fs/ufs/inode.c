@@ -1068,147 +1068,65 @@ next1:
 	UFSD("EXIT: ino %lu\n", inode->i_ino);
 }
 
-
-static void ufs_trunc_indirect(struct inode *inode, unsigned *offsets, int depth2, void *p)
-{
-	struct super_block *sb = inode->i_sb;
-	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
-	struct ufs_buffer_head * ind_ubh;
-	void *ind;
-	u64 tmp, frag_to_free = 0;
-	unsigned free_count = 0;
-	unsigned from = offsets ? *offsets : 0;
-	bool to_free = !offsets || !depth2;
-	unsigned i;
-
-	tmp = ufs_data_ptr_to_cpu(sb, p);
-	if (!tmp)
-		return;
-	ind_ubh = ubh_bread(sb, tmp, uspi->s_bsize);
-	if (!ind_ubh) {
-		write_seqlock(&UFS_I(inode)->meta_lock);
-		ufs_data_ptr_clear(uspi, p);
-		write_sequnlock(&UFS_I(inode)->meta_lock);
-		return;
-	}
-
-	for (i = from; i < uspi->s_apb; i++) {
-		ind = ubh_get_data_ptr(uspi, ind_ubh, i);
-		tmp = ufs_data_ptr_to_cpu(sb, ind);
-		if (!tmp)
-			continue;
-
-		write_seqlock(&UFS_I(inode)->meta_lock);
-		ufs_data_ptr_clear(uspi, ind);
-		write_sequnlock(&UFS_I(inode)->meta_lock);
-		ubh_mark_buffer_dirty(ind_ubh);
-		if (free_count == 0) {
-			frag_to_free = tmp;
-			free_count = uspi->s_fpb;
-		} else if (free_count > 0 && frag_to_free == tmp - free_count)
-			free_count += uspi->s_fpb;
-		else {
-			ufs_free_blocks (inode, frag_to_free, free_count);
-			frag_to_free = tmp;
-			free_count = uspi->s_fpb;
-		}
-
-		mark_inode_dirty(inode);
-	}
-
-	if (free_count > 0) {
-		ufs_free_blocks (inode, frag_to_free, free_count);
-	}
-	if (to_free) {
-		tmp = ufs_data_ptr_to_cpu(sb, p);
-		write_seqlock(&UFS_I(inode)->meta_lock);
-		ufs_data_ptr_clear(uspi, p);
-		write_sequnlock(&UFS_I(inode)->meta_lock);
-
-		ubh_bforget(ind_ubh);
-		ufs_free_blocks (inode, tmp, uspi->s_fpb);
-		mark_inode_dirty(inode);
-		return;
-	}
-	if (IS_SYNC(inode) && ubh_buffer_dirty(ind_ubh))
-		ubh_sync_block(ind_ubh);
-	ubh_brelse (ind_ubh);
-}
-
-static void ufs_trunc_dindirect(struct inode *inode, unsigned *offsets, int depth2, void *p)
-{
-	struct super_block *sb = inode->i_sb;
-	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
-	struct ufs_buffer_head *dind_bh;
-	u64 tmp;
-	void *dind;
-	bool free_it = !offsets || !depth2;
-	unsigned dindirect_block = offsets ? *offsets++ : 0;
-	unsigned i;
-
-	tmp = ufs_data_ptr_to_cpu(sb, p);
-	if (!tmp)
-		return;
-	dind_bh = ubh_bread(sb, tmp, uspi->s_bsize);
-	if (!dind_bh) {
-		write_seqlock(&UFS_I(inode)->meta_lock);
-		ufs_data_ptr_clear(uspi, p);
-		write_sequnlock(&UFS_I(inode)->meta_lock);
-		return;
-	}
-
-	for (i = dindirect_block ; i < uspi->s_apb ; i++, offsets = NULL) {
-		dind = ubh_get_data_ptr(uspi, dind_bh, i);
-		tmp = ufs_data_ptr_to_cpu(sb, dind);
-		if (!tmp)
-			continue;
-		ufs_trunc_indirect(inode, offsets, depth2 - 1, dind);
-		ubh_mark_buffer_dirty(dind_bh);
-	}
-
-	if (free_it) {
-		tmp = ufs_data_ptr_to_cpu(sb, p);
-		write_seqlock(&UFS_I(inode)->meta_lock);
-		ufs_data_ptr_clear(uspi, p);
-		write_sequnlock(&UFS_I(inode)->meta_lock);
-
-		ubh_bforget(dind_bh);
-		ufs_free_blocks(inode, tmp, uspi->s_fpb);
-		mark_inode_dirty(inode);
-		return;
-	}
-	if (IS_SYNC(inode) && ubh_buffer_dirty(dind_bh))
-		ubh_sync_block(dind_bh);
-	ubh_brelse (dind_bh);
-}
-
-static void ufs_trunc_tindirect(struct inode *inode, unsigned *offsets, int depth2)
+static void ufs_trunc_branch(struct inode *inode, unsigned *offsets, int depth2, int depth, void *p)
 {
 	struct super_block *sb = inode->i_sb;
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
 	struct ufs_inode_info *ufsi = UFS_I(inode);
-	struct ufs_buffer_head * tind_bh;
+	struct ufs_buffer_head *ubh;
 	u64 tmp;
-	void *tind, *p;
 	bool free_it = !offsets || !depth2;
-	unsigned tindirect_block = offsets ? *offsets++ : 0;
+	unsigned from = offsets ? *offsets++ : 0;
 	unsigned i;
 
-	p = ufs_get_direct_data_ptr(uspi, ufsi, UFS_TIND_BLOCK);
-	if (!(tmp = ufs_data_ptr_to_cpu(sb, p)))
+	tmp = ufs_data_ptr_to_cpu(sb, p);
+	if (!tmp)
 		return;
-	tind_bh = ubh_bread (sb, tmp, uspi->s_bsize);
-	if (!tind_bh) {
+	ubh = ubh_bread (sb, tmp, uspi->s_bsize);
+	if (!ubh) {
 		write_seqlock(&ufsi->meta_lock);
 		ufs_data_ptr_clear(uspi, p);
 		write_sequnlock(&ufsi->meta_lock);
 		return;
 	}
 
-	for (i = tindirect_block ; i < uspi->s_apb ; i++, offsets = NULL) {
-		tind = ubh_get_data_ptr(uspi, tind_bh, i);
-		ufs_trunc_dindirect(inode, offsets, depth2 - 1, tind);
-		ubh_mark_buffer_dirty(tind_bh);
+	if (--depth) {
+		for (i = from ; i < uspi->s_apb ; i++, offsets = NULL) {
+			void *ind = ubh_get_data_ptr(uspi, ubh, i);
+			ufs_trunc_branch(inode, offsets, depth2 - 1, depth, ind);
+			ubh_mark_buffer_dirty(ubh);
+		}
+	} else {
+		u64 frag_to_free = 0;
+		unsigned free_count = 0;
+
+		for (i = from; i < uspi->s_apb; i++) {
+			void *ind = ubh_get_data_ptr(uspi, ubh, i);
+			tmp = ufs_data_ptr_to_cpu(sb, ind);
+			if (!tmp)
+				continue;
+
+			write_seqlock(&UFS_I(inode)->meta_lock);
+			ufs_data_ptr_clear(uspi, ind);
+			write_sequnlock(&UFS_I(inode)->meta_lock);
+			ubh_mark_buffer_dirty(ubh);
+			if (free_count == 0) {
+				frag_to_free = tmp;
+				free_count = uspi->s_fpb;
+			} else if (free_count > 0 && frag_to_free == tmp - free_count)
+				free_count += uspi->s_fpb;
+			else {
+				ufs_free_blocks (inode, frag_to_free, free_count);
+				frag_to_free = tmp;
+				free_count = uspi->s_fpb;
+			}
+
+			mark_inode_dirty(inode);
+		}
+
+		if (free_count > 0) {
+			ufs_free_blocks (inode, frag_to_free, free_count);
+		}
 	}
 	if (free_it) {
 		tmp = ufs_data_ptr_to_cpu(sb, p);
@@ -1216,14 +1134,14 @@ static void ufs_trunc_tindirect(struct inode *inode, unsigned *offsets, int dept
 		ufs_data_ptr_clear(uspi, p);
 		write_sequnlock(&ufsi->meta_lock);
 
-		ubh_bforget(tind_bh);
+		ubh_bforget(ubh);
 		ufs_free_blocks(inode, tmp, uspi->s_fpb);
 		mark_inode_dirty(inode);
 		return;
 	}
-	if (IS_SYNC(inode) && ubh_buffer_dirty(tind_bh))
-		ubh_sync_block(tind_bh);
-	ubh_brelse (tind_bh);
+	if (IS_SYNC(inode) && ubh_buffer_dirty(ubh))
+		ubh_sync_block(ubh);
+	ubh_brelse(ubh);
 }
 
 static int ufs_alloc_lastblock(struct inode *inode, loff_t size)
@@ -1317,26 +1235,30 @@ static void __ufs_truncate_blocks(struct inode *inode)
 	switch (depth) {
 	case 1:
 		ufs_trunc_direct(inode);
-		ufs_trunc_indirect(inode, NULL, 0,
+		ufs_trunc_branch(inode, NULL, 0, 1,
 			   ufs_get_direct_data_ptr(uspi, ufsi, UFS_IND_BLOCK));
-		ufs_trunc_dindirect(inode, NULL, 0,
+		ufs_trunc_branch(inode, NULL, 0, 2,
 			    ufs_get_direct_data_ptr(uspi, ufsi, UFS_DIND_BLOCK));
-		ufs_trunc_tindirect(inode, NULL, 0);
+		ufs_trunc_branch(inode, NULL, 0, 3,
+			    ufs_get_direct_data_ptr(uspi, ufsi, UFS_TIND_BLOCK));
 		break;
 	case 2:
-		ufs_trunc_indirect(inode, offsets + 1, depth2,
+		ufs_trunc_branch(inode, offsets + 1, depth2, 1,
 			   ufs_get_direct_data_ptr(uspi, ufsi, UFS_IND_BLOCK));
-		ufs_trunc_dindirect(inode, NULL, 0,
+		ufs_trunc_branch(inode, NULL, 0, 2,
 			    ufs_get_direct_data_ptr(uspi, ufsi, UFS_DIND_BLOCK));
-		ufs_trunc_tindirect(inode, NULL, 0);
+		ufs_trunc_branch(inode, NULL, 0, 3,
+			    ufs_get_direct_data_ptr(uspi, ufsi, UFS_TIND_BLOCK));
 		break;
 	case 3:
-		ufs_trunc_dindirect(inode, offsets + 1, depth2,
+		ufs_trunc_branch(inode, offsets + 1, depth2, 2,
 			    ufs_get_direct_data_ptr(uspi, ufsi, UFS_DIND_BLOCK));
-		ufs_trunc_tindirect(inode, NULL, 0);
+		ufs_trunc_branch(inode, NULL, 0, 3,
+			    ufs_get_direct_data_ptr(uspi, ufsi, UFS_TIND_BLOCK));
 		break;
 	case 4:
-		ufs_trunc_tindirect(inode, offsets + 1, depth2);
+		ufs_trunc_branch(inode, offsets + 1, depth2, 3,
+			    ufs_get_direct_data_ptr(uspi, ufsi, UFS_TIND_BLOCK));
 	}
 	ufsi->i_lastfrag = DIRECT_FRAGMENT;
 	mutex_unlock(&ufsi->truncate_mutex);
