@@ -195,6 +195,8 @@ struct ath10k_hw_values {
 	u8 ce_count;
 	u8 msi_assign_ce_max;
 	u8 num_target_ce_config_wlan;
+	u16 ce_desc_meta_data_mask;
+	u8 ce_desc_meta_data_lsb;
 };
 
 extern const struct ath10k_hw_values qca988x_values;

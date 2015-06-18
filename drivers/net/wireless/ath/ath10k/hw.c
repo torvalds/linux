@@ -114,6 +114,8 @@ const struct ath10k_hw_values qca988x_values = {
 	.ce_count			= 8,
 	.msi_assign_ce_max		= 7,
 	.num_target_ce_config_wlan	= 7,
+	.ce_desc_meta_data_mask		= 0xFFFC,
+	.ce_desc_meta_data_lsb		= 2,
 };
 
 const struct ath10k_hw_values qca6174_values = {
@@ -121,6 +123,8 @@ const struct ath10k_hw_values qca6174_values = {
 	.ce_count			= 8,
 	.msi_assign_ce_max		= 7,
 	.num_target_ce_config_wlan	= 7,
+	.ce_desc_meta_data_mask		= 0xFFFC,
+	.ce_desc_meta_data_lsb		= 2,
 };
 
 const struct ath10k_hw_values qca99x0_values = {
@@ -128,6 +132,8 @@ const struct ath10k_hw_values qca99x0_values = {
 	.ce_count			= 12,
 	.msi_assign_ce_max		= 12,
 	.num_target_ce_config_wlan	= 10,
+	.ce_desc_meta_data_mask		= 0xFFF0,
+	.ce_desc_meta_data_lsb		= 4,
 };
 
 void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,

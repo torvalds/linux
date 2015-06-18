@@ -38,8 +38,13 @@ struct ath10k_ce_pipe;
 
 #define CE_DESC_FLAGS_GATHER         (1 << 0)
 #define CE_DESC_FLAGS_BYTE_SWAP      (1 << 1)
-#define CE_DESC_FLAGS_META_DATA_MASK 0xFFFC
-#define CE_DESC_FLAGS_META_DATA_LSB  2
+
+/* Following desc flags are used in QCA99X0 */
+#define CE_DESC_FLAGS_HOST_INT_DIS	(1 << 2)
+#define CE_DESC_FLAGS_TGT_INT_DIS	(1 << 3)
+
+#define CE_DESC_FLAGS_META_DATA_MASK ar->hw_values->ce_desc_meta_data_mask
+#define CE_DESC_FLAGS_META_DATA_LSB  ar->hw_values->ce_desc_meta_data_lsb
 
 struct ce_desc {
 	__le32 addr;
