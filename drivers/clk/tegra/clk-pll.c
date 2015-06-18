@@ -752,6 +752,8 @@ static int clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 		spin_lock_irqsave(pll->lock, flags);
 
 	_get_pll_mnp(pll, &old_cfg);
+	if (pll->params->flags & TEGRA_PLL_VCO_OUT)
+		cfg.p = old_cfg.p;
 
 	if (old_cfg.m != cfg.m || old_cfg.n != cfg.n || old_cfg.p != cfg.p ||
 		old_cfg.sdm_data != cfg.sdm_data)
@@ -812,11 +814,15 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 
 	_get_pll_mnp(pll, &cfg);
 
-	pdiv = _hw_to_p_div(hw, cfg.p);
-	if (pdiv < 0) {
-		WARN(1, "Clock %s has invalid pdiv value : 0x%x\n",
-			__clk_get_name(hw->clk), cfg.p);
+	if (pll->params->flags & TEGRA_PLL_VCO_OUT) {
 		pdiv = 1;
+	} else {
+		pdiv = _hw_to_p_div(hw, cfg.p);
+		if (pdiv < 0) {
+			WARN(1, "Clock %s has invalid pdiv value : 0x%x\n",
+			     clk_hw_get_name(hw), cfg.p);
+			pdiv = 1;
+		}
 	}
 
 	if (pll->params->set_gain)
@@ -1103,6 +1109,8 @@ static int clk_pllxc_set_rate(struct clk_hw *hw, unsigned long rate,
 		spin_lock_irqsave(pll->lock, flags);
 
 	_get_pll_mnp(pll, &old_cfg);
+	if (pll->params->flags & TEGRA_PLL_VCO_OUT)
+		cfg.p = old_cfg.p;
 
 	if (old_cfg.m != cfg.m || old_cfg.n != cfg.n || old_cfg.p != cfg.p)
 		ret = _program_pll(hw, &cfg, rate);
