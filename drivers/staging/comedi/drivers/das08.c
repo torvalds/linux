@@ -178,7 +178,7 @@ static int das08_ai_insn_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
-	const struct das08_board_struct *thisboard = dev->board_ptr;
+	const struct das08_board_struct *board = dev->board_ptr;
 	struct das08_private_struct *devpriv = dev->private;
 	int n;
 	int chan;
@@ -210,7 +210,7 @@ static int das08_ai_insn_read(struct comedi_device *dev,
 
 	for (n = 0; n < insn->n; n++) {
 		/* clear over-range bits for 16-bit boards */
-		if (thisboard->ai_nbits == 16)
+		if (board->ai_nbits == 16)
 			if (inb(dev->iobase + DAS08_AI_MSB_REG) & 0x80)
 				dev_info(dev->class_dev, "over-range\n");
 
@@ -223,11 +223,11 @@ static int das08_ai_insn_read(struct comedi_device *dev,
 
 		msb = inb(dev->iobase + DAS08_AI_MSB_REG);
 		lsb = inb(dev->iobase + DAS08_AI_LSB_REG);
-		if (thisboard->ai_encoding == das08_encode12) {
+		if (board->ai_encoding == das08_encode12) {
 			data[n] = (lsb >> 4) | (msb << 4);
-		} else if (thisboard->ai_encoding == das08_pcm_encode12) {
+		} else if (board->ai_encoding == das08_pcm_encode12) {
 			data[n] = (msb << 8) + lsb;
-		} else if (thisboard->ai_encoding == das08_encode16) {
+		} else if (board->ai_encoding == das08_encode16) {
 			/*
 			 * "JR" 16-bit boards are sign-magnitude.
 			 *
@@ -312,13 +312,13 @@ static int das08jr_do_insn_bits(struct comedi_device *dev,
 static void das08_ao_set_data(struct comedi_device *dev,
 			      unsigned int chan, unsigned int data)
 {
-	const struct das08_board_struct *thisboard = dev->board_ptr;
+	const struct das08_board_struct *board = dev->board_ptr;
 	unsigned char lsb;
 	unsigned char msb;
 
 	lsb = data & 0xff;
 	msb = (data >> 8) & 0xff;
-	if (thisboard->is_jr) {
+	if (board->is_jr) {
 		outb(lsb, dev->iobase + DAS08JR_AO_LSB_REG(chan));
 		outb(msb, dev->iobase + DAS08JR_AO_MSB_REG(chan));
 		/* load DACs */
@@ -351,7 +351,7 @@ static int das08_ao_insn_write(struct comedi_device *dev,
 
 int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 {
-	const struct das08_board_struct *thisboard = dev->board_ptr;
+	const struct das08_board_struct *board = dev->board_ptr;
 	struct das08_private_struct *devpriv = dev->private;
 	struct comedi_subdevice *s;
 	int ret;
@@ -359,7 +359,7 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 
 	dev->iobase = iobase;
 
-	dev->board_name = thisboard->name;
+	dev->board_name = board->name;
 
 	ret = comedi_alloc_subdevices(dev, 6);
 	if (ret)
@@ -367,7 +367,7 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 
 	s = &dev->subdevices[0];
 	/* ai */
-	if (thisboard->ai_nbits) {
+	if (board->ai_nbits) {
 		s->type = COMEDI_SUBD_AI;
 		/*
 		 * XXX some boards actually have differential
@@ -377,21 +377,21 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 		 */
 		s->subdev_flags = SDF_READABLE | SDF_GROUND;
 		s->n_chan = 8;
-		s->maxdata = (1 << thisboard->ai_nbits) - 1;
-		s->range_table = das08_ai_lranges[thisboard->ai_pg];
+		s->maxdata = (1 << board->ai_nbits) - 1;
+		s->range_table = das08_ai_lranges[board->ai_pg];
 		s->insn_read = das08_ai_insn_read;
-		devpriv->pg_gainlist = das08_ai_gainlists[thisboard->ai_pg];
+		devpriv->pg_gainlist = das08_ai_gainlists[board->ai_pg];
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
 	s = &dev->subdevices[1];
 	/* ao */
-	if (thisboard->ao_nbits) {
+	if (board->ao_nbits) {
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITABLE;
 		s->n_chan = 2;
-		s->maxdata = (1 << thisboard->ao_nbits) - 1;
+		s->maxdata = (1 << board->ao_nbits) - 1;
 		s->range_table = &range_bipolar5;
 		s->insn_write = das08_ao_insn_write;
 
@@ -410,13 +410,13 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 
 	s = &dev->subdevices[2];
 	/* di */
-	if (thisboard->di_nchan) {
+	if (board->di_nchan) {
 		s->type = COMEDI_SUBD_DI;
 		s->subdev_flags = SDF_READABLE;
-		s->n_chan = thisboard->di_nchan;
+		s->n_chan = board->di_nchan;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
-		s->insn_bits = thisboard->is_jr ? das08jr_di_insn_bits :
+		s->insn_bits = board->is_jr ? das08jr_di_insn_bits :
 			       das08_di_insn_bits;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
@@ -424,13 +424,13 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 
 	s = &dev->subdevices[3];
 	/* do */
-	if (thisboard->do_nchan) {
+	if (board->do_nchan) {
 		s->type = COMEDI_SUBD_DO;
 		s->subdev_flags = SDF_WRITABLE;
-		s->n_chan = thisboard->do_nchan;
+		s->n_chan = board->do_nchan;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
-		s->insn_bits = thisboard->is_jr ? das08jr_do_insn_bits :
+		s->insn_bits = board->is_jr ? das08jr_do_insn_bits :
 			       das08_do_insn_bits;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
@@ -438,8 +438,8 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 
 	s = &dev->subdevices[4];
 	/* 8255 */
-	if (thisboard->i8255_offset != 0) {
-		ret = subdev_8255_init(dev, s, NULL, thisboard->i8255_offset);
+	if (board->i8255_offset != 0) {
+		ret = subdev_8255_init(dev, s, NULL, board->i8255_offset);
 		if (ret)
 			return ret;
 	} else {
@@ -448,9 +448,8 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 
 	/* Counter subdevice (8254) */
 	s = &dev->subdevices[5];
-	if (thisboard->i8254_offset) {
-		dev->pacer = comedi_8254_init(dev->iobase +
-					      thisboard->i8254_offset,
+	if (board->i8254_offset) {
+		dev->pacer = comedi_8254_init(dev->iobase + board->i8254_offset,
 					      0, I8254_IO8, 0);
 		if (!dev->pacer)
 			return -ENOMEM;
