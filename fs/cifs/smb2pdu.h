@@ -220,7 +220,7 @@ struct smb2_negotiate_req {
 
 #define SMB311_SALT_SIZE			32
 /* Hash Algorithm Types */
-#define SMB2_PREAUTH_INTEGRITY_SHA512	0x0001
+#define SMB2_PREAUTH_INTEGRITY_SHA512	cpu_to_le16(0x0001)
 
 struct smb2_preauth_neg_context {
 	__le16	ContextType; /* 1 */
@@ -240,8 +240,8 @@ struct smb2_encryption_neg_context {
 	__le16	ContextType; /* 2 */
 	__le16	DataLength;
 	__le32	Reserved;
-	__le16	CipherCount; /* 1 for time being, only AES-128-CCM */
-	__le16	Ciphers; /* Ciphers[0] since only one used now */
+	__le16	CipherCount; /* AES-128-GCM and AES-128-CCM */
+	__le16	Ciphers[2]; /* Ciphers[0] since only one used now */
 } __packed;
 
 struct smb2_negotiate_rsp {
