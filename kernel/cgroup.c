@@ -2392,6 +2392,25 @@ static int cgroup_attach_task(struct cgroup *dst_cgrp,
 	return ret;
 }
 
+static int cgroup_procs_write_permission(struct task_struct *task)
+{
+	const struct cred *cred = current_cred();
+	const struct cred *tcred = get_task_cred(task);
+	int ret = 0;
+
+	/*
+	 * even if we're attaching all tasks in the thread group, we only
+	 * need to check permissions on one of them.
+	 */
+	if (!uid_eq(cred->euid, GLOBAL_ROOT_UID) &&
+	    !uid_eq(cred->euid, tcred->uid) &&
+	    !uid_eq(cred->euid, tcred->suid))
+		ret = -EACCES;
+
+	put_cred(tcred);
+	return ret;
+}
+
 /*
  * Find the task_struct of the task to attach by vpid and pass it along to the
  * function to attach either it or all tasks in its threadgroup. Will lock
@@ -2401,7 +2420,6 @@ static ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
 				    size_t nbytes, loff_t off, bool threadgroup)
 {
 	struct task_struct *tsk;
-	const struct cred *cred = current_cred(), *tcred;
 	struct cgroup *cgrp;
 	pid_t pid;
 	int ret;
@@ -2421,19 +2439,9 @@ static ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
 			ret = -ESRCH;
 			goto out_unlock_rcu;
 		}
-		/*
-		 * even if we're attaching all tasks in the thread group, we
-		 * only need to check permissions on one of them.
-		 */
-		tcred = __task_cred(tsk);
-		if (!uid_eq(cred->euid, GLOBAL_ROOT_UID) &&
-		    !uid_eq(cred->euid, tcred->uid) &&
-		    !uid_eq(cred->euid, tcred->suid)) {
-			ret = -EACCES;
-			goto out_unlock_rcu;
-		}
-	} else
+	} else {
 		tsk = current;
+	}
 
 	if (threadgroup)
 		tsk = tsk->group_leader;
@@ -2451,7 +2459,9 @@ static ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
 	get_task_struct(tsk);
 	rcu_read_unlock();
 
-	ret = cgroup_attach_task(cgrp, tsk, threadgroup);
+	ret = cgroup_procs_write_permission(tsk);
+	if (!ret)
+		ret = cgroup_attach_task(cgrp, tsk, threadgroup);
 
 	put_task_struct(tsk);
 	goto out_unlock_threadgroup;
