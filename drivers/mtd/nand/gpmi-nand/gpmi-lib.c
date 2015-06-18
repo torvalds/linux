@@ -21,6 +21,8 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/slab.h>
+#include <linux/pm_runtime.h>
+
 
 #include "gpmi-nand.h"
 #include "gpmi-regs.h"
@@ -124,7 +126,7 @@ error:
 	return -ETIMEDOUT;
 }
 
-static int __gpmi_enable_clk(struct gpmi_nand_data *this, bool v)
+int __gpmi_enable_clk(struct gpmi_nand_data *this, bool v)
 {
 	struct clk *clk;
 	int ret;
@@ -151,17 +153,17 @@ err_clk:
 	return ret;
 }
 
-#define gpmi_enable_clk(x) __gpmi_enable_clk(x, true)
-#define gpmi_disable_clk(x) __gpmi_enable_clk(x, false)
-
 int gpmi_init(struct gpmi_nand_data *this)
 {
 	struct resources *r = &this->resources;
 	int ret;
 
-	ret = gpmi_enable_clk(this);
-	if (ret)
+	ret = pm_runtime_get_sync(this->dev);
+	if (ret < 0) {
+		dev_err(this->dev, "Failed to enable clock\n");
 		goto err_out;
+	}
+
 	ret = gpmi_reset_block(r->gpmi_regs, false);
 	if (ret)
 		goto err_out;
@@ -194,7 +196,9 @@ int gpmi_init(struct gpmi_nand_data *this)
 	 */
 	writel(BM_GPMI_CTRL1_DECOUPLE_CS, r->gpmi_regs + HW_GPMI_CTRL1_SET);
 
-	gpmi_disable_clk(this);
+	pm_runtime_mark_last_busy(this->dev);
+	pm_runtime_put_autosuspend(this->dev);
+
 	return 0;
 err_out:
 	return ret;
@@ -268,9 +272,11 @@ int bch_set_geometry(struct gpmi_nand_data *this)
 	page_size     = bch_geo->page_size;
 	gf_len        = bch_geo->gf_len;
 
-	ret = gpmi_enable_clk(this);
-	if (ret)
+	ret = pm_runtime_get_sync(this->dev);
+	if (ret < 0) {
+		dev_err(this->dev, "Failed to enable clock\n");
 		goto err_out;
+	}
 
 	/*
 	* Due to erratum #2847 of the MX23, the BCH cannot be soft reset on this
@@ -310,7 +316,9 @@ int bch_set_geometry(struct gpmi_nand_data *this)
 	writel(BM_BCH_CTRL_COMPLETE_IRQ_EN,
 				r->bch_regs + HW_BCH_CTRL_SET);
 
-	gpmi_disable_clk(this);
+	pm_runtime_mark_last_busy(this->dev);
+	pm_runtime_put_autosuspend(this->dev);
+
 	return 0;
 err_out:
 	return ret;
@@ -1005,9 +1013,9 @@ void gpmi_begin(struct gpmi_nand_data *this)
 	int ret;
 
 	/* Enable the clock. */
-	ret = gpmi_enable_clk(this);
-	if (ret) {
-		dev_err(this->dev, "We failed in enable the clk\n");
+	ret = pm_runtime_get_sync(this->dev);
+	if (ret < 0) {
+		dev_err(this->dev, "Failed to enable clock\n");
 		goto err_out;
 	}
 
@@ -1079,7 +1087,8 @@ err_out:
 
 void gpmi_end(struct gpmi_nand_data *this)
 {
-	gpmi_disable_clk(this);
+	pm_runtime_mark_last_busy(this->dev);
+	pm_runtime_put_autosuspend(this->dev);
 }
 
 /* Clears a BCH interrupt. */

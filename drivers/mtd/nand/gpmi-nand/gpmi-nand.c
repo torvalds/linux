@@ -26,6 +26,8 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_mtd.h>
+#include <linux/busfreq-imx.h>
+#include <linux/pm_runtime.h>
 #include "gpmi-nand.h"
 #include "bch-regs.h"
 
@@ -33,6 +35,8 @@
 #define GPMI_NAND_GPMI_REGS_ADDR_RES_NAME  "gpmi-nand"
 #define GPMI_NAND_BCH_REGS_ADDR_RES_NAME   "bch"
 #define GPMI_NAND_BCH_INTERRUPT_RES_NAME   "bch"
+
+#define GPMI_RPM_TIMEOUT	50 /* ms */
 
 /* add our owner bbt descriptor */
 static uint8_t scan_ff_pattern[] = { 0xff };
@@ -656,6 +660,15 @@ err_clock:
 	return err;
 }
 
+static int init_rpm(struct gpmi_nand_data *this)
+{
+	pm_runtime_enable(this->dev);
+	pm_runtime_set_autosuspend_delay(this->dev, GPMI_RPM_TIMEOUT);
+	pm_runtime_use_autosuspend(this->dev);
+
+	return 0;
+}
+
 static int acquire_resources(struct gpmi_nand_data *this)
 {
 	int ret;
@@ -679,6 +692,7 @@ static int acquire_resources(struct gpmi_nand_data *this)
 	ret = gpmi_get_clks(this);
 	if (ret)
 		goto exit_clock;
+
 	return 0;
 
 exit_clock:
@@ -2065,6 +2079,10 @@ static int gpmi_nand_probe(struct platform_device *pdev)
 	if (ret)
 		goto exit_acquire_resources;
 
+	ret = init_rpm(this);
+	if (ret)
+		goto exit_nfc_init;
+
 	ret = init_hardware(this);
 	if (ret)
 		goto exit_nfc_init;
@@ -2089,6 +2107,7 @@ static int gpmi_nand_remove(struct platform_device *pdev)
 	struct gpmi_nand_data *this = platform_get_drvdata(pdev);
 
 	gpmi_nand_exit(this);
+	pm_runtime_disable(this->dev);
 	release_resources(this);
 	return 0;
 }
@@ -2131,7 +2150,33 @@ static int gpmi_pm_resume(struct device *dev)
 	return 0;
 }
 
+#define gpmi_enable_clk(x) __gpmi_enable_clk(x, true)
+#define gpmi_disable_clk(x) __gpmi_enable_clk(x, false)
+
+int gpmi_runtime_suspend(struct device *dev)
+{
+	struct gpmi_nand_data *this = dev_get_drvdata(dev);
+
+	gpmi_disable_clk(this);
+	release_bus_freq(BUS_FREQ_HIGH);
+	return 0;
+}
+
+int gpmi_runtime_resume(struct device *dev)
+{
+	struct gpmi_nand_data *this = dev_get_drvdata(dev);
+	int ret;
+
+	ret = gpmi_enable_clk(this);
+	if (ret)
+		return ret;
+
+	request_bus_freq(BUS_FREQ_HIGH);
+	return 0;
+}
+
 static const struct dev_pm_ops gpmi_pm_ops = {
+	SET_RUNTIME_PM_OPS(gpmi_runtime_suspend, gpmi_runtime_resume, NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(gpmi_pm_suspend, gpmi_pm_resume)
 };
 

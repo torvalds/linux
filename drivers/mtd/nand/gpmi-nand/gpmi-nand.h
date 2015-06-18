@@ -279,6 +279,7 @@ extern int start_dma_with_bch_irq(struct gpmi_nand_data *,
 				struct dma_async_tx_descriptor *);
 
 /* GPMI-NAND helper function library */
+extern int __gpmi_enable_clk(struct gpmi_nand_data *, bool v);
 extern int gpmi_init(struct gpmi_nand_data *);
 extern int gpmi_extra_init(struct gpmi_nand_data *);
 extern void gpmi_clear_bch(struct gpmi_nand_data *);
