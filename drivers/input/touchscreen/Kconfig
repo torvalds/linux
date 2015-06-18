@@ -38,8 +38,6 @@ config TOUCHSCREEN_GT9XX
 	  code includes that in its table of IIC devices.
 	  If unsure, say N.
 
-source "drivers/input/touchscreen/gt9xx/Kconfig"
-
 config TOUCHSCREEN_CT36X_TS
 	tristate "CT36X touchscreens support"
 	
