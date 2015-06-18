@@ -578,7 +578,7 @@ static struct rockchip_clk_branch rk3288_clk_branches[] __initdata = {
 	COMPOSITE(0, "mac_pll_src", mux_pll_src_npll_cpll_gpll_p, 0,
 			RK3288_CLKSEL_CON(21), 0, 2, MFLAGS, 8, 5, DFLAGS,
 			RK3288_CLKGATE_CON(2), 5, GFLAGS),
-	MUX(SCLK_MAC, "mac_clk", mux_mac_p, 0,
+	MUX(SCLK_MAC, "mac_clk", mux_mac_p, CLK_SET_RATE_PARENT,
 			RK3288_CLKSEL_CON(21), 4, 1, MFLAGS),
 	GATE(SCLK_MACREF_OUT, "sclk_macref_out", "mac_clk", 0,
 			RK3288_CLKGATE_CON(5), 3, GFLAGS),
