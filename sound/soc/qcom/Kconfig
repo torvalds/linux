@@ -15,13 +15,11 @@ config SND_SOC_LPASS_PLATFORM
 
 config SND_SOC_LPASS_IPQ806X
 	tristate
-	depends on SND_SOC_QCOM
 	select SND_SOC_LPASS_CPU
 	select SND_SOC_LPASS_PLATFORM
 
 config SND_SOC_LPASS_APQ8016
 	tristate
-	depends on SND_SOC_QCOM
 	select SND_SOC_LPASS_CPU
 	select SND_SOC_LPASS_PLATFORM
 
