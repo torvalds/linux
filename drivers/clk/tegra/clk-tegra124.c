@@ -189,11 +189,11 @@ static const struct pdiv_map pllxc_p[] = {
 
 static struct tegra_clk_pll_freq_table pll_x_freq_table[] = {
 	/* 1 GHz */
-	{ 12000000, 1000000000, 83, 0, 1, 0 }, /* actual: 996.0 MHz */
-	{ 13000000, 1000000000, 76, 0, 1, 0 }, /* actual: 988.0 MHz */
-	{ 16800000, 1000000000, 59, 0, 1, 0 }, /* actual: 991.2 MHz */
-	{ 19200000, 1000000000, 52, 0, 1, 0 }, /* actual: 998.4 MHz */
-	{ 26000000, 1000000000, 76, 1, 1, 0 }, /* actual: 988.0 MHz */
+	{ 12000000, 1000000000, 83, 1, 1, 0 }, /* actual: 996.0 MHz */
+	{ 13000000, 1000000000, 76, 1, 1, 0 }, /* actual: 988.0 MHz */
+	{ 16800000, 1000000000, 59, 1, 1, 0 }, /* actual: 991.2 MHz */
+	{ 19200000, 1000000000, 52, 1, 1, 0 }, /* actual: 998.4 MHz */
+	{ 26000000, 1000000000, 76, 2, 1, 0 }, /* actual: 988.0 MHz */
 	{        0,          0,  0, 0, 0, 0 },
 };
 
@@ -358,11 +358,11 @@ static const struct pdiv_map pll12g_ssd_esd_p[] = {
 };
 
 static struct tegra_clk_pll_freq_table pll_c4_freq_table[] = {
-	{ 12000000, 600000000, 100, 1, 1, 0 },
-	{ 13000000, 600000000,  92, 1, 1, 0 }, /* actual: 598.0 MHz */
-	{ 16800000, 600000000,  71, 1, 1, 0 }, /* actual: 596.4 MHz */
-	{ 19200000, 600000000,  62, 1, 1, 0 }, /* actual: 595.2 MHz */
-	{ 26000000, 600000000,  92, 2, 1, 0 }, /* actual: 598.0 MHz */
+	{ 12000000, 600000000, 100, 1, 2, 0 },
+	{ 13000000, 600000000,  92, 1, 2, 0 }, /* actual: 598.0 MHz */
+	{ 16800000, 600000000,  71, 1, 2, 0 }, /* actual: 596.4 MHz */
+	{ 19200000, 600000000,  62, 1, 2, 0 }, /* actual: 595.2 MHz */
+	{ 26000000, 600000000,  92, 2, 2, 0 }, /* actual: 598.0 MHz */
 	{        0,         0,   0, 0, 0, 0 },
 };
 
@@ -390,9 +390,22 @@ static struct tegra_clk_pll_params pll_c4_params = {
 };
 
 static const struct pdiv_map pllm_p[] = {
-	{ .pdiv = 1, .hw_val = 0 },
-	{ .pdiv = 2, .hw_val = 1 },
-	{ .pdiv = 0, .hw_val = 0 },
+	{ .pdiv =  1, .hw_val =  0 },
+	{ .pdiv =  2, .hw_val =  1 },
+	{ .pdiv =  3, .hw_val =  2 },
+	{ .pdiv =  4, .hw_val =  3 },
+	{ .pdiv =  5, .hw_val =  4 },
+	{ .pdiv =  6, .hw_val =  5 },
+	{ .pdiv =  8, .hw_val =  6 },
+	{ .pdiv = 10, .hw_val =  7 },
+	{ .pdiv = 12, .hw_val =  8 },
+	{ .pdiv = 16, .hw_val =  9 },
+	{ .pdiv = 12, .hw_val = 10 },
+	{ .pdiv = 16, .hw_val = 11 },
+	{ .pdiv = 20, .hw_val = 12 },
+	{ .pdiv = 24, .hw_val = 13 },
+	{ .pdiv = 32, .hw_val = 14 },
+	{ .pdiv =  0, .hw_val =  0 },
 };
 
 static struct tegra_clk_pll_freq_table pll_m_freq_table[] = {
@@ -428,7 +441,7 @@ static struct tegra_clk_pll_params pll_m_params = {
 	.lock_mask = PLL_BASE_LOCK,
 	.lock_enable_bit_idx = PLL_MISC_LOCK_ENABLE,
 	.lock_delay = 300,
-	.max_p = 2,
+	.max_p = 5,
 	.pdiv_tohw = pllm_p,
 	.div_nmp = &pllm_nmp,
 	.pmc_divnm_reg = PMC_PLLM_WB0_OVERRIDE,
@@ -444,6 +457,25 @@ static struct tegra_clk_pll_freq_table pll_e_freq_table[] = {
 	{  13000000, 100000000, 200,  1, 26, 13 },
 	{  12000000, 100000000, 200,  1, 24, 13 },
 	{         0,         0,   0,  0,  0,  0 },
+};
+
+static const struct pdiv_map plle_p[] = {
+	{ .pdiv =  1, .hw_val =  0 },
+	{ .pdiv =  2, .hw_val =  1 },
+	{ .pdiv =  3, .hw_val =  2 },
+	{ .pdiv =  4, .hw_val =  3 },
+	{ .pdiv =  5, .hw_val =  4 },
+	{ .pdiv =  6, .hw_val =  5 },
+	{ .pdiv =  8, .hw_val =  6 },
+	{ .pdiv = 10, .hw_val =  7 },
+	{ .pdiv = 12, .hw_val =  8 },
+	{ .pdiv = 16, .hw_val =  9 },
+	{ .pdiv = 12, .hw_val = 10 },
+	{ .pdiv = 16, .hw_val = 11 },
+	{ .pdiv = 20, .hw_val = 12 },
+	{ .pdiv = 24, .hw_val = 13 },
+	{ .pdiv = 32, .hw_val = 14 },
+	{ .pdiv =  1, .hw_val =  0 },
 };
 
 static struct div_nmp plle_nmp = {
@@ -468,6 +500,7 @@ static struct tegra_clk_pll_params pll_e_params = {
 	.lock_mask = PLLE_MISC_LOCK,
 	.lock_enable_bit_idx = PLLE_MISC_LOCK_ENABLE,
 	.lock_delay = 300,
+	.pdiv_tohw = plle_p,
 	.div_nmp = &plle_nmp,
 	.freq_table = pll_e_freq_table,
 	.flags = TEGRA_PLL_FIXED | TEGRA_PLL_HAS_LOCK_ENABLE,
@@ -522,11 +555,11 @@ static struct div_nmp pllp_nmp = {
 };
 
 static struct tegra_clk_pll_freq_table pll_p_freq_table[] = {
-	{ 12000000, 408000000, 408, 12, 0, 8 },
-	{ 13000000, 408000000, 408, 13, 0, 8 },
-	{ 16800000, 408000000, 340, 14, 0, 8 },
-	{ 19200000, 408000000, 340, 16, 0, 8 },
-	{ 26000000, 408000000, 408, 26, 0, 8 },
+	{ 12000000, 408000000, 408, 12, 1, 8 },
+	{ 13000000, 408000000, 408, 13, 1, 8 },
+	{ 16800000, 408000000, 340, 14, 1, 8 },
+	{ 19200000, 408000000, 340, 16, 1, 8 },
+	{ 26000000, 408000000, 408, 26, 1, 8 },
 	{        0,         0,   0,  0, 0, 0 },
 };
 
@@ -550,12 +583,12 @@ static struct tegra_clk_pll_params pll_p_params = {
 };
 
 static struct tegra_clk_pll_freq_table pll_a_freq_table[] = {
-	{  9600000, 282240000, 147,  5, 0, 4 },
-	{  9600000, 368640000, 192,  5, 0, 4 },
-	{  9600000, 240000000, 200,  8, 0, 8 },
-	{ 28800000, 282240000, 245, 25, 0, 8 },
-	{ 28800000, 368640000, 320, 25, 0, 8 },
-	{ 28800000, 240000000, 200, 24, 0, 8 },
+	{  9600000, 282240000, 147,  5, 1, 4 },
+	{  9600000, 368640000, 192,  5, 1, 4 },
+	{  9600000, 240000000, 200,  8, 1, 8 },
+	{ 28800000, 282240000, 245, 25, 1, 8 },
+	{ 28800000, 368640000, 320, 25, 1, 8 },
+	{ 28800000, 240000000, 200, 24, 1, 8 },
 	{        0,         0,   0,  0, 0, 0 },
 };
 
@@ -656,11 +689,11 @@ static struct tegra_clk_pll_params tegra124_pll_d2_params = {
 };
 
 static struct tegra_clk_pll_freq_table pll_dp_freq_table[] = {
-	{ 12000000, 600000000, 100, 1, 1, 0 },
-	{ 13000000, 600000000,  92, 1, 1, 0 }, /* actual: 598.0 MHz */
-	{ 16800000, 600000000,  71, 1, 1, 0 }, /* actual: 596.4 MHz */
-	{ 19200000, 600000000,  62, 1, 1, 0 }, /* actual: 595.2 MHz */
-	{ 26000000, 600000000,  92, 2, 1, 0 }, /* actual: 598.0 MHz */
+	{ 12000000, 600000000, 100, 1, 2, 0 },
+	{ 13000000, 600000000,  92, 1, 2, 0 }, /* actual: 598.0 MHz */
+	{ 16800000, 600000000,  71, 1, 2, 0 }, /* actual: 596.4 MHz */
+	{ 19200000, 600000000,  62, 1, 2, 0 }, /* actual: 595.2 MHz */
+	{ 26000000, 600000000,  92, 2, 2, 0 }, /* actual: 598.0 MHz */
 	{        0,         0,   0, 0, 0, 0 },
 };
 

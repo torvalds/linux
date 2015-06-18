@@ -435,6 +435,7 @@ static int _get_table_rate(struct clk_hw *hw,
 {
 	struct tegra_clk_pll *pll = to_clk_pll(hw);
 	struct tegra_clk_pll_freq_table *sel;
+	int p;
 
 	for (sel = pll->params->freq_table; sel->input_rate != 0; sel++)
 		if (sel->input_rate == parent_rate &&
@@ -444,11 +445,19 @@ static int _get_table_rate(struct clk_hw *hw,
 	if (sel->input_rate == 0)
 		return -EINVAL;
 
+	if (pll->params->pdiv_tohw) {
+		p = _p_div_to_hw(hw, sel->p);
+		if (p < 0)
+			return p;
+	} else {
+		p = ilog2(sel->p);
+	}
+
 	cfg->input_rate = sel->input_rate;
 	cfg->output_rate = sel->output_rate;
 	cfg->m = sel->m;
 	cfg->n = sel->n;
-	cfg->p = sel->p;
+	cfg->p = p;
 	cfg->cpcon = sel->cpcon;
 	cfg->sdm_data = sel->sdm_data;
 
@@ -908,10 +917,6 @@ const struct clk_ops tegra_clk_plle_ops = {
 	.enable = clk_plle_enable,
 };
 
-#if defined(CONFIG_ARCH_TEGRA_114_SOC) || \
-	defined(CONFIG_ARCH_TEGRA_124_SOC) || \
-	defined(CONFIG_ARCH_TEGRA_132_SOC)
-
 static int _pll_fixed_mdiv(struct tegra_clk_pll_params *pll_params,
 			   unsigned long parent_rate)
 {
@@ -929,6 +934,39 @@ static int _pll_fixed_mdiv(struct tegra_clk_pll_params *pll_params,
 	else
 		return 1;
 }
+
+static int _calc_dynamic_ramp_rate(struct clk_hw *hw,
+				struct tegra_clk_pll_freq_table *cfg,
+				unsigned long rate, unsigned long parent_rate)
+{
+	struct tegra_clk_pll *pll = to_clk_pll(hw);
+	unsigned int p;
+	int p_div;
+
+	if (!rate)
+		return -EINVAL;
+
+	p = DIV_ROUND_UP(pll->params->vco_min, rate);
+	cfg->m = _pll_fixed_mdiv(pll->params, parent_rate);
+	cfg->output_rate = rate * p;
+	cfg->n = cfg->output_rate * cfg->m / parent_rate;
+	cfg->input_rate = parent_rate;
+
+	p_div = _p_div_to_hw(hw, p);
+	if (p_div < 0)
+		return p_div;
+
+	cfg->p = p_div;
+
+	if (cfg->n > divn_max(pll) || cfg->output_rate > pll->params->vco_max)
+		return -EINVAL;
+
+	return 0;
+}
+
+#if defined(CONFIG_ARCH_TEGRA_114_SOC) || \
+	defined(CONFIG_ARCH_TEGRA_124_SOC) || \
+	defined(CONFIG_ARCH_TEGRA_132_SOC)
 
 u16 tegra_pll_get_fixed_mdiv(struct clk_hw *hw, unsigned long input_rate)
 {
@@ -979,40 +1017,12 @@ static int _setup_dynamic_ramp(struct tegra_clk_pll_params *pll_params,
 	return 0;
 }
 
-static int _calc_dynamic_ramp_rate(struct clk_hw *hw,
-				struct tegra_clk_pll_freq_table *cfg,
-				unsigned long rate, unsigned long parent_rate)
-{
-	struct tegra_clk_pll *pll = to_clk_pll(hw);
-	unsigned int p;
-	int p_div;
-
-	if (!rate)
-		return -EINVAL;
-
-	p = DIV_ROUND_UP(pll->params->vco_min, rate);
-	cfg->m = _pll_fixed_mdiv(pll->params, parent_rate);
-	cfg->output_rate = rate * p;
-	cfg->n = cfg->output_rate * cfg->m / parent_rate;
-
-	p_div = _p_div_to_hw(hw, p);
-	if (p_div < 0)
-		return p_div;
-
-	cfg->p = p_div;
-
-	if (cfg->n > divn_max(pll) || cfg->output_rate > pll->params->vco_max)
-		return -EINVAL;
-
-	return 0;
-}
-
 static int _pll_ramp_calc_pll(struct clk_hw *hw,
 			      struct tegra_clk_pll_freq_table *cfg,
 			      unsigned long rate, unsigned long parent_rate)
 {
 	struct tegra_clk_pll *pll = to_clk_pll(hw);
-	int err = 0, p_div;
+	int err = 0;
 
 	err = _get_table_rate(hw, cfg, rate, parent_rate);
 	if (err < 0)
@@ -1023,11 +1033,6 @@ static int _pll_ramp_calc_pll(struct clk_hw *hw,
 			err = -EINVAL;
 			goto out;
 		}
-		p_div = _p_div_to_hw(hw, cfg->p);
-		if (p_div < 0)
-			return p_div;
-		else
-			cfg->p = p_div;
 	}
 
 	if (cfg->p >  pll->params->max_p)
@@ -1512,8 +1517,12 @@ static struct clk *_tegra_clk_register_pll(struct tegra_clk_pll *pll,
 	init.num_parents = (parent_name ? 1 : 0);
 
 	/* Default to _calc_rate if unspecified */
-	if (!pll->params->calc_rate)
-		pll->params->calc_rate = _calc_rate;
+	if (!pll->params->calc_rate) {
+		if (pll->params->flags & TEGRA_PLLM)
+			pll->params->calc_rate = _calc_dynamic_ramp_rate;
+		else
+			pll->params->calc_rate = _calc_rate;
+	}
 
 	/* Data in .init is copied by clk_register(), so stack variable OK */
 	pll->hw.init = &init;
