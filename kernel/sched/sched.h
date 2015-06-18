@@ -137,6 +137,7 @@ struct rt_bandwidth {
 	ktime_t			rt_period;
 	u64			rt_runtime;
 	struct hrtimer		rt_period_timer;
+	unsigned int		rt_period_active;
 };
 
 void __dl_clear_params(struct task_struct *p);
@@ -221,7 +222,7 @@ struct cfs_bandwidth {
 	s64 hierarchical_quota;
 	u64 runtime_expires;
 
-	int idle, timer_active;
+	int idle, period_active;
 	struct hrtimer period_timer, slack_timer;
 	struct list_head throttled_cfs_rq;
 
@@ -312,7 +313,7 @@ extern void init_cfs_bandwidth(struct cfs_bandwidth *cfs_b);
 extern int sched_group_set_shares(struct task_group *tg, unsigned long shares);
 
 extern void __refill_cfs_bandwidth_runtime(struct cfs_bandwidth *cfs_b);
-extern void __start_cfs_bandwidth(struct cfs_bandwidth *cfs_b, bool force);
+extern void start_cfs_bandwidth(struct cfs_bandwidth *cfs_b);
 extern void unthrottle_cfs_rq(struct cfs_rq *cfs_rq);
 
 extern void free_rt_sched_group(struct task_group *tg);
@@ -1409,8 +1410,6 @@ static inline void sched_rt_avg_update(struct rq *rq, u64 rt_delta)
 static inline void sched_rt_avg_update(struct rq *rq, u64 rt_delta) { }
 static inline void sched_avg_update(struct rq *rq) { }
 #endif
-
-extern void start_bandwidth_timer(struct hrtimer *period_timer, ktime_t period);
 
 /*
  * __task_rq_lock - lock the rq @p resides on.

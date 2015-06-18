@@ -1182,11 +1182,8 @@ rt_mutex_slowlock(struct rt_mutex *lock, int state,
 	set_current_state(state);
 
 	/* Setup the timer, when timeout != NULL */
-	if (unlikely(timeout)) {
+	if (unlikely(timeout))
 		hrtimer_start_expires(&timeout->timer, HRTIMER_MODE_ABS);
-		if (!hrtimer_active(&timeout->timer))
-			timeout->task = NULL;
-	}
 
 	ret = task_blocks_on_rt_mutex(lock, &waiter, current, chwalk);
 

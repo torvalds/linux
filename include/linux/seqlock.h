@@ -233,6 +233,47 @@ static inline void raw_write_seqcount_end(seqcount_t *s)
 	s->sequence++;
 }
 
+/**
+ * raw_write_seqcount_barrier - do a seq write barrier
+ * @s: pointer to seqcount_t
+ *
+ * This can be used to provide an ordering guarantee instead of the
+ * usual consistency guarantee. It is one wmb cheaper, because we can
+ * collapse the two back-to-back wmb()s.
+ *
+ *      seqcount_t seq;
+ *      bool X = true, Y = false;
+ *
+ *      void read(void)
+ *      {
+ *              bool x, y;
+ *
+ *              do {
+ *                      int s = read_seqcount_begin(&seq);
+ *
+ *                      x = X; y = Y;
+ *
+ *              } while (read_seqcount_retry(&seq, s));
+ *
+ *              BUG_ON(!x && !y);
+ *      }
+ *
+ *      void write(void)
+ *      {
+ *              Y = true;
+ *
+ *              raw_write_seqcount_barrier(seq);
+ *
+ *              X = false;
+ *      }
+ */
+static inline void raw_write_seqcount_barrier(seqcount_t *s)
+{
+	s->sequence++;
+	smp_wmb();
+	s->sequence++;
+}
+
 /*
  * raw_write_seqcount_latch - redirect readers to even/odd copy
  * @s: pointer to seqcount_t
@@ -266,13 +307,13 @@ static inline void write_seqcount_end(seqcount_t *s)
 }
 
 /**
- * write_seqcount_barrier - invalidate in-progress read-side seq operations
+ * write_seqcount_invalidate - invalidate in-progress read-side seq operations
  * @s: pointer to seqcount_t
  *
- * After write_seqcount_barrier, no read-side seq operations will complete
+ * After write_seqcount_invalidate, no read-side seq operations will complete
  * successfully and see data older than this.
  */
-static inline void write_seqcount_barrier(seqcount_t *s)
+static inline void write_seqcount_invalidate(seqcount_t *s)
 {
 	smp_wmb();
 	s->sequence+=2;

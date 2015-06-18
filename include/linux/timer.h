@@ -188,13 +188,6 @@ extern void set_timer_slack(struct timer_list *time, int slack_hz);
 #define NEXT_TIMER_MAX_DELTA	((1UL << 30) - 1)
 
 /*
- * Return when the next timer-wheel timeout occurs (in absolute jiffies),
- * locks the timer base and does the comparison against the given
- * jiffie.
- */
-extern unsigned long get_next_timer_interrupt(unsigned long now);
-
-/*
  * Timer-statistics info:
  */
 #ifdef CONFIG_TIMER_STATS

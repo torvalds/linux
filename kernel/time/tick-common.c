@@ -102,7 +102,17 @@ void tick_handle_periodic(struct clock_event_device *dev)
 
 	tick_periodic(cpu);
 
-	if (dev->state != CLOCK_EVT_STATE_ONESHOT)
+#if defined(CONFIG_HIGH_RES_TIMERS) || defined(CONFIG_NO_HZ_COMMON)
+	/*
+	 * The cpu might have transitioned to HIGHRES or NOHZ mode via
+	 * update_process_times() -> run_local_timers() ->
+	 * hrtimer_run_queues().
+	 */
+	if (dev->event_handler != tick_handle_periodic)
+		return;
+#endif
+
+	if (!clockevent_state_oneshot(dev))
 		return;
 	for (;;) {
 		/*
@@ -140,7 +150,7 @@ void tick_setup_periodic(struct clock_event_device *dev, int broadcast)
 
 	if ((dev->features & CLOCK_EVT_FEAT_PERIODIC) &&
 	    !tick_broadcast_oneshot_active()) {
-		clockevents_set_state(dev, CLOCK_EVT_STATE_PERIODIC);
+		clockevents_switch_state(dev, CLOCK_EVT_STATE_PERIODIC);
 	} else {
 		unsigned long seq;
 		ktime_t next;
@@ -150,7 +160,7 @@ void tick_setup_periodic(struct clock_event_device *dev, int broadcast)
 			next = tick_next_period;
 		} while (read_seqretry(&jiffies_lock, seq));
 
-		clockevents_set_state(dev, CLOCK_EVT_STATE_ONESHOT);
+		clockevents_switch_state(dev, CLOCK_EVT_STATE_ONESHOT);
 
 		for (;;) {
 			if (!clockevents_program_event(dev, next, false))
@@ -367,7 +377,7 @@ void tick_shutdown(unsigned int cpu)
 		 * Prevent that the clock events layer tries to call
 		 * the set mode function!
 		 */
-		dev->state = CLOCK_EVT_STATE_DETACHED;
+		clockevent_set_state(dev, CLOCK_EVT_STATE_DETACHED);
 		dev->mode = CLOCK_EVT_MODE_UNUSED;
 		clockevents_exchange_device(dev, NULL);
 		dev->event_handler = clockevents_handle_noop;

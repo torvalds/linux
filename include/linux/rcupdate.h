@@ -44,6 +44,8 @@
 #include <linux/debugobjects.h>
 #include <linux/bug.h>
 #include <linux/compiler.h>
+#include <linux/ktime.h>
+
 #include <asm/barrier.h>
 
 extern int rcu_expedited; /* for sysctl */
@@ -1154,9 +1156,9 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
 	__kfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
 
 #if defined(CONFIG_TINY_RCU) || defined(CONFIG_RCU_NOCB_CPU_ALL)
-static inline int rcu_needs_cpu(unsigned long *delta_jiffies)
+static inline int rcu_needs_cpu(u64 basemono, u64 *nextevt)
 {
-	*delta_jiffies = ULONG_MAX;
+	*nextevt = KTIME_MAX;
 	return 0;
 }
 #endif /* #if defined(CONFIG_TINY_RCU) || defined(CONFIG_RCU_NOCB_CPU_ALL) */
