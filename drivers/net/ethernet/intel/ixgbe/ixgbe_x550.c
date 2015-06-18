@@ -611,6 +611,23 @@ static s32 ixgbe_update_flash_X550(struct ixgbe_hw *hw)
 	return status;
 }
 
+/**
+ * ixgbe_get_bus_info_X550em - Set PCI bus info
+ * @hw: pointer to hardware structure
+ *
+ * Sets bus link width and speed to unknown because X550em is
+ * not a PCI device.
+ **/
+static s32 ixgbe_get_bus_info_X550em(struct ixgbe_hw *hw)
+{
+	hw->bus.width = ixgbe_bus_width_unknown;
+	hw->bus.speed = ixgbe_bus_speed_unknown;
+
+	hw->mac.ops.set_lan_id(hw);
+
+	return 0;
+}
+
 /** ixgbe_disable_rx_x550 - Disable RX unit
  *
  *  Enables the Rx DMA unit for x550
@@ -1966,6 +1983,7 @@ static struct ixgbe_mac_operations mac_ops_X550 = {
 	.get_wwn_prefix		= &ixgbe_get_wwn_prefix_generic,
 	.setup_link		= &ixgbe_setup_mac_link_X540,
 	.get_link_capabilities	= &ixgbe_get_copper_link_capabilities_generic,
+	.get_bus_info		= &ixgbe_get_bus_info_generic,
 	.setup_sfp		= NULL,
 };
 
@@ -1977,6 +1995,7 @@ static struct ixgbe_mac_operations mac_ops_X550EM_x = {
 	.get_wwn_prefix		= NULL,
 	.setup_link		= NULL, /* defined later */
 	.get_link_capabilities	= &ixgbe_get_link_capabilities_X550em,
+	.get_bus_info		= &ixgbe_get_bus_info_X550em,
 	.setup_sfp		= ixgbe_setup_sfp_modules_X550em,
 
 };
