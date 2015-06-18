@@ -841,7 +841,7 @@ static u8 get_current_adv_instance(struct hci_dev *hdev)
 	 */
 	if (hci_dev_test_flag(hdev, HCI_ADVERTISING_INSTANCE) &&
 	    !hci_dev_test_flag(hdev, HCI_ADVERTISING))
-		return 0x01;
+		return hdev->cur_adv_instance;
 
 	return 0x00;
 }
