@@ -22,6 +22,11 @@ struct mv_cesa_des_ctx {
 	u8 key[DES_KEY_SIZE];
 };
 
+struct mv_cesa_des3_ctx {
+	struct mv_cesa_ctx base;
+	u8 key[DES3_EDE_KEY_SIZE];
+};
+
 struct mv_cesa_aes_ctx {
 	struct mv_cesa_ctx base;
 	struct crypto_aes_ctx aes;
@@ -268,6 +273,22 @@ static int mv_cesa_des_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	return 0;
 }
 
+static int mv_cesa_des3_ede_setkey(struct crypto_ablkcipher *cipher,
+				   const u8 *key, unsigned int len)
+{
+	struct crypto_tfm *tfm = crypto_ablkcipher_tfm(cipher);
+	struct mv_cesa_des_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	if (len != DES3_EDE_KEY_SIZE) {
+		crypto_ablkcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
+		return -EINVAL;
+	}
+
+	memcpy(ctx->key, key, DES3_EDE_KEY_SIZE);
+
+	return 0;
+}
+
 static int mv_cesa_ablkcipher_dma_req_init(struct ablkcipher_request *req,
 				const struct mv_cesa_op_ctx *op_templ)
 {
@@ -510,6 +531,132 @@ struct crypto_alg mv_cesa_cbc_des_alg = {
 			.setkey = mv_cesa_des_setkey,
 			.encrypt = mv_cesa_cbc_des_encrypt,
 			.decrypt = mv_cesa_cbc_des_decrypt,
+		},
+	},
+};
+
+static int mv_cesa_des3_op(struct ablkcipher_request *req,
+			   struct mv_cesa_op_ctx *tmpl)
+{
+	struct mv_cesa_des3_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
+	int ret;
+
+	mv_cesa_update_op_cfg(tmpl, CESA_SA_DESC_CFG_CRYPTM_3DES,
+			      CESA_SA_DESC_CFG_CRYPTM_MSK);
+
+	memcpy(tmpl->ctx.blkcipher.key, ctx->key, DES3_EDE_KEY_SIZE);
+
+	ret = mv_cesa_ablkcipher_req_init(req, tmpl);
+	if (ret)
+		return ret;
+
+	ret = mv_cesa_queue_req(&req->base);
+	if (ret && ret != -EINPROGRESS)
+		mv_cesa_ablkcipher_cleanup(req);
+
+	return ret;
+}
+
+static int mv_cesa_ecb_des3_ede_encrypt(struct ablkcipher_request *req)
+{
+	struct mv_cesa_op_ctx tmpl;
+
+	mv_cesa_set_op_cfg(&tmpl,
+			   CESA_SA_DESC_CFG_CRYPTCM_ECB |
+			   CESA_SA_DESC_CFG_3DES_EDE |
+			   CESA_SA_DESC_CFG_DIR_ENC);
+
+	return mv_cesa_des3_op(req, &tmpl);
+}
+
+static int mv_cesa_ecb_des3_ede_decrypt(struct ablkcipher_request *req)
+{
+	struct mv_cesa_op_ctx tmpl;
+
+	mv_cesa_set_op_cfg(&tmpl,
+			   CESA_SA_DESC_CFG_CRYPTCM_ECB |
+			   CESA_SA_DESC_CFG_3DES_EDE |
+			   CESA_SA_DESC_CFG_DIR_DEC);
+
+	return mv_cesa_des3_op(req, &tmpl);
+}
+
+struct crypto_alg mv_cesa_ecb_des3_ede_alg = {
+	.cra_name = "ecb(des3_ede)",
+	.cra_driver_name = "mv-ecb-des3-ede",
+	.cra_priority = 300,
+	.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER |
+		     CRYPTO_ALG_KERN_DRIVER_ONLY | CRYPTO_ALG_ASYNC,
+	.cra_blocksize = DES3_EDE_BLOCK_SIZE,
+	.cra_ctxsize = sizeof(struct mv_cesa_des3_ctx),
+	.cra_alignmask = 0,
+	.cra_type = &crypto_ablkcipher_type,
+	.cra_module = THIS_MODULE,
+	.cra_init = mv_cesa_ablkcipher_cra_init,
+	.cra_u = {
+		.ablkcipher = {
+			.min_keysize = DES3_EDE_KEY_SIZE,
+			.max_keysize = DES3_EDE_KEY_SIZE,
+			.ivsize	     = DES3_EDE_BLOCK_SIZE,
+			.setkey = mv_cesa_des3_ede_setkey,
+			.encrypt = mv_cesa_ecb_des3_ede_encrypt,
+			.decrypt = mv_cesa_ecb_des3_ede_decrypt,
+		},
+	},
+};
+
+static int mv_cesa_cbc_des3_op(struct ablkcipher_request *req,
+			       struct mv_cesa_op_ctx *tmpl)
+{
+	memcpy(tmpl->ctx.blkcipher.iv, req->info, DES3_EDE_BLOCK_SIZE);
+
+	return mv_cesa_des3_op(req, tmpl);
+}
+
+static int mv_cesa_cbc_des3_ede_encrypt(struct ablkcipher_request *req)
+{
+	struct mv_cesa_op_ctx tmpl;
+
+	mv_cesa_set_op_cfg(&tmpl,
+			   CESA_SA_DESC_CFG_CRYPTCM_CBC |
+			   CESA_SA_DESC_CFG_3DES_EDE |
+			   CESA_SA_DESC_CFG_DIR_ENC);
+
+	return mv_cesa_cbc_des3_op(req, &tmpl);
+}
+
+static int mv_cesa_cbc_des3_ede_decrypt(struct ablkcipher_request *req)
+{
+	struct mv_cesa_op_ctx tmpl;
+
+	mv_cesa_set_op_cfg(&tmpl,
+			   CESA_SA_DESC_CFG_CRYPTCM_CBC |
+			   CESA_SA_DESC_CFG_3DES_EDE |
+			   CESA_SA_DESC_CFG_DIR_DEC);
+
+	return mv_cesa_cbc_des3_op(req, &tmpl);
+}
+
+struct crypto_alg mv_cesa_cbc_des3_ede_alg = {
+	.cra_name = "cbc(des3_ede)",
+	.cra_driver_name = "mv-cbc-des3-ede",
+	.cra_priority = 300,
+	.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER |
+		     CRYPTO_ALG_KERN_DRIVER_ONLY | CRYPTO_ALG_ASYNC,
+	.cra_blocksize = DES3_EDE_BLOCK_SIZE,
+	.cra_ctxsize = sizeof(struct mv_cesa_des3_ctx),
+	.cra_alignmask = 0,
+	.cra_type = &crypto_ablkcipher_type,
+	.cra_module = THIS_MODULE,
+	.cra_init = mv_cesa_ablkcipher_cra_init,
+	.cra_u = {
+		.ablkcipher = {
+			.min_keysize = DES3_EDE_KEY_SIZE,
+			.max_keysize = DES3_EDE_KEY_SIZE,
+			.ivsize	     = DES3_EDE_BLOCK_SIZE,
+			.setkey = mv_cesa_des3_ede_setkey,
+			.encrypt = mv_cesa_cbc_des3_ede_encrypt,
+			.decrypt = mv_cesa_cbc_des3_ede_decrypt,
 		},
 	},
 };

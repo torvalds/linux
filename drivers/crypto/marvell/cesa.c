@@ -171,6 +171,8 @@ static void mv_cesa_remove_algs(struct mv_cesa_dev *cesa)
 static struct crypto_alg *armada_370_cipher_algs[] = {
 	&mv_cesa_ecb_des_alg,
 	&mv_cesa_cbc_des_alg,
+	&mv_cesa_ecb_des3_ede_alg,
+	&mv_cesa_cbc_des3_ede_alg,
 	&mv_cesa_ecb_aes_alg,
 	&mv_cesa_cbc_aes_alg,
 };
