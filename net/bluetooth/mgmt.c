@@ -7280,19 +7280,15 @@ static int remove_advertising(struct sock *sk, struct hci_dev *hdev,
 {
 	struct mgmt_cp_remove_advertising *cp = data;
 	struct mgmt_rp_remove_advertising rp;
-	struct adv_info *adv_instance;
-	int err;
 	struct mgmt_pending_cmd *cmd;
 	struct hci_request req;
+	int err;
 
 	BT_DBG("%s", hdev->name);
 
 	hci_dev_lock(hdev);
 
-	if (cp->instance)
-		adv_instance = hci_find_adv_instance(hdev, cp->instance);
-
-	if (!(cp->instance == 0x00 || adv_instance)) {
+	if (cp->instance && !hci_find_adv_instance(hdev, cp->instance)) {
 		err = mgmt_cmd_status(sk, hdev->id,
 				      MGMT_OP_REMOVE_ADVERTISING,
 				      MGMT_STATUS_INVALID_PARAMS);
