@@ -134,6 +134,11 @@ to specify in a pin configuration subnode:
 		    and/or output-high, output-low MPP could operate as
 		    Bidirectional Logic, Analog Input, Analog Output.
 
+- qcom,sink-mode:
+	Usage: optional
+	Value type: <u32> or <none>
+	Definition: Selects sink mode of operation
+
 - qcom,amux-route:
 	Usage: optional
 	Value type: <u32>
