@@ -604,44 +604,53 @@ static int das800_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int das800_probe(struct comedi_device *dev)
+static const struct das800_board *das800_probe(struct comedi_device *dev)
 {
 	const struct das800_board *thisboard = dev->board_ptr;
-	int board = thisboard ? thisboard - das800_boards : -EINVAL;
+	int index = thisboard ? thisboard - das800_boards : -EINVAL;
 	int id_bits;
 	unsigned long irq_flags;
 
+	/*
+	 * The dev->board_ptr will be set by comedi_device_attach() if the
+	 * board name provided by the user matches a board->name in this
+	 * driver. If so, this function sanity checks the id_bits to verify
+	 * that the board is correct.
+	 *
+	 * If the dev->board_ptr is not set, the user is trying to attach
+	 * an unspecified board to this driver. In this case the id_bits
+	 * are used to 'probe' for the correct dev->board_ptr.
+	 */
 	spin_lock_irqsave(&dev->spinlock, irq_flags);
 	id_bits = das800_ind_read(dev, ID) & 0x3;
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
 	switch (id_bits) {
 	case 0x0:
-		if (board == BOARD_DAS800 || board == BOARD_CIODAS800)
-			break;
-		dev_dbg(dev->class_dev, "Board model (probed): DAS-800\n");
-		board = BOARD_DAS800;
+		if (index == BOARD_DAS800 || index == BOARD_CIODAS800)
+			return thisboard;
+		index = BOARD_DAS800;
 		break;
 	case 0x2:
-		if (board == BOARD_DAS801 || board == BOARD_CIODAS801)
-			break;
-		dev_dbg(dev->class_dev, "Board model (probed): DAS-801\n");
-		board = BOARD_DAS801;
+		if (index == BOARD_DAS801 || index == BOARD_CIODAS801)
+			return thisboard;
+		index = BOARD_DAS801;
 		break;
 	case 0x3:
-		if (board == BOARD_DAS802 || board == BOARD_CIODAS802 ||
-		    board == BOARD_CIODAS80216)
-			break;
-		dev_dbg(dev->class_dev, "Board model (probed): DAS-802\n");
-		board = BOARD_DAS802;
+		if (index == BOARD_DAS802 || index == BOARD_CIODAS802 ||
+		    index == BOARD_CIODAS80216)
+			return thisboard;
+		index = BOARD_DAS802;
 		break;
 	default:
 		dev_dbg(dev->class_dev, "Board model: 0x%x (unknown)\n",
 			id_bits);
-		board = -EINVAL;
-		break;
+		return NULL;
 	}
-	return board;
+	dev_dbg(dev->class_dev, "Board model (probed): %s series\n",
+		das800_boards[index].name);
+
+	return &das800_boards[index];
 }
 
 static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
@@ -651,7 +660,6 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	unsigned int irq = it->options[1];
 	unsigned long irq_flags;
-	int board;
 	int ret;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
@@ -662,13 +670,10 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	board = das800_probe(dev);
-	if (board < 0) {
-		dev_dbg(dev->class_dev, "unable to determine board type\n");
+	thisboard = das800_probe(dev);
+	if (!thisboard)
 		return -ENODEV;
-	}
-	dev->board_ptr = das800_boards + board;
-	thisboard = dev->board_ptr;
+	dev->board_ptr = thisboard;
 	dev->board_name = thisboard->name;
 
 	if (irq > 1 && irq <= 7) {
