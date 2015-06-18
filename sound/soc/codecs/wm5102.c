@@ -1880,6 +1880,11 @@ static int wm5102_codec_probe(struct snd_soc_codec *codec)
 	if (ret)
 		return ret;
 
+	ret = snd_soc_add_codec_controls(codec,
+					 arizona_adsp2_rate_controls, 1);
+	if (ret)
+		return ret;
+
 	arizona_init_spk(codec);
 	arizona_init_gpio(codec);
 

@@ -2286,6 +2286,33 @@ int arizona_set_output_mode(struct snd_soc_codec *codec, int output, bool diff)
 }
 EXPORT_SYMBOL_GPL(arizona_set_output_mode);
 
+static const struct soc_enum arizona_adsp2_rate_enum[] = {
+	SOC_VALUE_ENUM_SINGLE(ARIZONA_DSP1_CONTROL_1,
+			      ARIZONA_DSP1_RATE_SHIFT, 0xf,
+			      ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(ARIZONA_DSP2_CONTROL_1,
+			      ARIZONA_DSP1_RATE_SHIFT, 0xf,
+			      ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(ARIZONA_DSP3_CONTROL_1,
+			      ARIZONA_DSP1_RATE_SHIFT, 0xf,
+			      ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(ARIZONA_DSP4_CONTROL_1,
+			      ARIZONA_DSP1_RATE_SHIFT, 0xf,
+			      ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+};
+
+const struct snd_kcontrol_new arizona_adsp2_rate_controls[] = {
+	SOC_ENUM("DSP1 Rate", arizona_adsp2_rate_enum[0]),
+	SOC_ENUM("DSP2 Rate", arizona_adsp2_rate_enum[1]),
+	SOC_ENUM("DSP3 Rate", arizona_adsp2_rate_enum[2]),
+	SOC_ENUM("DSP4 Rate", arizona_adsp2_rate_enum[3]),
+};
+EXPORT_SYMBOL_GPL(arizona_adsp2_rate_controls);
+
 MODULE_DESCRIPTION("ASoC Wolfson Arizona class device support");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
 MODULE_LICENSE("GPL");

@@ -83,7 +83,7 @@ struct wm_adsp {
 #define WM_ADSP2(wname, num) \
 	WM_ADSP2_E(wname, num, wm_adsp2_early_event)
 
-extern const struct snd_kcontrol_new wm_adsp1_fw_controls[];
+extern const struct snd_kcontrol_new wm_adsp_fw_controls[];
 
 int wm_adsp1_init(struct wm_adsp *dsp);
 int wm_adsp2_init(struct wm_adsp *dsp);
