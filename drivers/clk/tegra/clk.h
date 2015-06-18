@@ -160,6 +160,8 @@ struct div_nmp {
 
 #define MAX_PLL_MISC_REG_COUNT	6
 
+struct tegra_clk_pll;
+
 /**
  * struct tegra_clk_pll_params - PLL parameters
  *
@@ -192,6 +194,7 @@ struct div_nmp {
  * @stepb_shift:		Dynamic ramp step B field shift
  * @lock_delay:			Delay in us if PLL lock is not used
  * @max_p:			maximum value for the p divider
+ * @defaults_set:		Boolean signaling all reg defaults for PLL set.
  * @pdiv_tohw:			mapping of p divider to register values
  * @div_nmp:			offsets and widths on n, m and p fields
  * @freq_table:			array of frequencies supported by PLL
@@ -204,6 +207,12 @@ struct div_nmp {
  *				rates (dividers and multipler) are calculated.
  * @adjust_vco:			Callback to adjust the programming range of the
  *				divider range (if SDM is present)
+ * @set_defaults:		Callback which will try to initialize PLL
+ *				registers to sane default values. This is first
+ *				tried during PLL registration, but if the PLL
+ *				is already enabled, it will be done the first
+ *				time the rate is changed while the PLL is
+ *				disabled.
  *
  * Flags:
  * TEGRA_PLL_USE_LOCK - This flag indicated to use lock bits for
@@ -261,6 +270,7 @@ struct tegra_clk_pll_params {
 	int		stepb_shift;
 	int		lock_delay;
 	int		max_p;
+	bool		defaults_set;
 	const struct pdiv_map *pdiv_tohw;
 	struct div_nmp	*div_nmp;
 	struct tegra_clk_pll_freq_table	*freq_table;
@@ -273,6 +283,7 @@ struct tegra_clk_pll_params {
 			unsigned long rate, unsigned long parent_rate);
 	unsigned long	(*adjust_vco)(struct tegra_clk_pll_params *pll_params,
 				unsigned long parent_rate);
+	void	(*set_defaults)(struct tegra_clk_pll *pll);
 };
 
 #define TEGRA_PLL_USE_LOCK BIT(0)

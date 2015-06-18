@@ -662,12 +662,18 @@ static int _program_pll(struct clk_hw *hw, struct tegra_clk_pll_freq_table *cfg,
 			unsigned long rate)
 {
 	struct tegra_clk_pll *pll = to_clk_pll(hw);
+	struct tegra_clk_pll_freq_table old_cfg;
 	int state, ret = 0;
 
 	state = clk_pll_is_enabled(hw);
 
+	_get_pll_mnp(pll, &old_cfg);
+
 	if (state)
 		_clk_pll_disable(hw);
+
+	if (!pll->params->defaults_set && pll->params->set_defaults)
+		pll->params->set_defaults(pll);
 
 	_update_pll_mnp(pll, cfg);
 
@@ -1494,6 +1500,9 @@ static struct clk *_tegra_clk_register_pll(struct tegra_clk_pll *pll,
 			pll->params->calc_rate = _calc_rate;
 	}
 
+	if (pll->params->set_defaults)
+		pll->params->set_defaults(pll);
+
 	/* Data in .init is copied by clk_register(), so stack variable OK */
 	pll->hw.init = &init;
 
@@ -1604,7 +1613,6 @@ struct clk *tegra_clk_register_pllxc(const char *name, const char *parent_name,
 	struct tegra_clk_pll *pll;
 	struct clk *clk, *parent;
 	unsigned long parent_rate;
-	int err;
 	u32 val, val_iddq;
 
 	parent = __clk_lookup(parent_name);
@@ -1625,18 +1633,27 @@ struct clk *tegra_clk_register_pllxc(const char *name, const char *parent_name,
 		pll_params->vco_min = pll_params->adjust_vco(pll_params,
 							     parent_rate);
 
-	err = _setup_dynamic_ramp(pll_params, clk_base, parent_rate);
-	if (err)
-		return ERR_PTR(err);
+	/*
+	 * If the pll has a set_defaults callback, it will take care of
+	 * configuring dynamic ramping and setting IDDQ in that path.
+	 */
+	if (!pll_params->set_defaults) {
+		int err;
 
-	val = readl_relaxed(clk_base + pll_params->base_reg);
-	val_iddq = readl_relaxed(clk_base + pll_params->iddq_reg);
+		err = _setup_dynamic_ramp(pll_params, clk_base, parent_rate);
+		if (err)
+			return ERR_PTR(err);
 
-	if (val & PLL_BASE_ENABLE)
-		WARN_ON(val_iddq & BIT(pll_params->iddq_bit_idx));
-	else {
-		val_iddq |= BIT(pll_params->iddq_bit_idx);
-		writel_relaxed(val_iddq, clk_base + pll_params->iddq_reg);
+		val = readl_relaxed(clk_base + pll_params->base_reg);
+		val_iddq = readl_relaxed(clk_base + pll_params->iddq_reg);
+
+		if (val & PLL_BASE_ENABLE)
+			WARN_ON(val_iddq & BIT(pll_params->iddq_bit_idx));
+		else {
+			val_iddq |= BIT(pll_params->iddq_bit_idx);
+			writel_relaxed(val_iddq,
+				       clk_base + pll_params->iddq_reg);
+		}
 	}
 
 	pll = _tegra_init_pll(clk_base, pmc, pll_params, lock);
