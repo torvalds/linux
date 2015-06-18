@@ -787,6 +787,13 @@
 			>;
 		};
 
+		pinctrl_mqs: mqsgrp {
+			fsl,pins = <
+				MX6SX_PAD_SD2_CLK__MQS_RIGHT 0x120b0
+				MX6SX_PAD_SD2_CMD__MQS_LEFT  0x120b0
+			>;
+		};
+
 		pinctrl_pcie: pciegrp {
 			fsl,pins = <
 				MX6SX_PAD_ENET1_COL__GPIO2_IO_0 0x10b0

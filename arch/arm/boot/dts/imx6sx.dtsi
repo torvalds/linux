@@ -564,6 +564,12 @@
 				#interrupt-cells = <2>;
 			};
 
+			mqs: mqs {
+				compatible = "fsl,imx6sx-mqs";
+				gpr = <&gpr>;
+				status = "disabled";
+			};
+
 			kpp: kpp@020b8000 {
 				compatible = "fsl,imx6sx-kpp", "fsl,imx21-kpp";
 				reg = <0x020b8000 0x4000>;
