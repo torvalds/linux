@@ -546,7 +546,7 @@ static int __maybe_unused cpu_psci_cpu_suspend(unsigned long index)
 	if (state[index - 1].type == PSCI_POWER_STATE_TYPE_STANDBY)
 		ret = psci_ops.cpu_suspend(state[index - 1], 0);
 	else
-		ret = __cpu_suspend(index, psci_suspend_finisher);
+		ret = cpu_suspend(index, psci_suspend_finisher);
 
 	return ret;
 }
