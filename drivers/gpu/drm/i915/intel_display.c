@@ -641,16 +641,12 @@ static bool intel_PLL_is_valid(struct drm_device *dev,
 	return true;
 }
 
-static bool
-i9xx_find_best_dpll(const intel_limit_t *limit,
-		    struct intel_crtc_state *crtc_state,
-		    int target, int refclk, intel_clock_t *match_clock,
-		    intel_clock_t *best_clock)
+static int
+i9xx_select_p2_div(const intel_limit_t *limit,
+		   const struct intel_crtc_state *crtc_state,
+		   int target)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
-	struct drm_device *dev = crtc->base.dev;
-	intel_clock_t clock;
-	int err = target;
+	struct drm_device *dev = crtc_state->base.crtc->dev;
 
 	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS)) {
 		/*
@@ -659,17 +655,30 @@ i9xx_find_best_dpll(const intel_limit_t *limit,
 		 * single/dual channel state, if we even can.
 		 */
 		if (intel_is_dual_link_lvds(dev))
-			clock.p2 = limit->p2.p2_fast;
+			return limit->p2.p2_fast;
 		else
-			clock.p2 = limit->p2.p2_slow;
+			return limit->p2.p2_slow;
 	} else {
 		if (target < limit->p2.dot_limit)
-			clock.p2 = limit->p2.p2_slow;
+			return limit->p2.p2_slow;
 		else
-			clock.p2 = limit->p2.p2_fast;
+			return limit->p2.p2_fast;
 	}
+}
+
+static bool
+i9xx_find_best_dpll(const intel_limit_t *limit,
+		    struct intel_crtc_state *crtc_state,
+		    int target, int refclk, intel_clock_t *match_clock,
+		    intel_clock_t *best_clock)
+{
+	struct drm_device *dev = crtc_state->base.crtc->dev;
+	intel_clock_t clock;
+	int err = target;
 
 	memset(best_clock, 0, sizeof(*best_clock));
+
+	clock.p2 = i9xx_select_p2_div(limit, crtc_state, target);
 
 	for (clock.m1 = limit->m1.min; clock.m1 <= limit->m1.max;
 	     clock.m1++) {
@@ -710,29 +719,13 @@ pnv_find_best_dpll(const intel_limit_t *limit,
 		   int target, int refclk, intel_clock_t *match_clock,
 		   intel_clock_t *best_clock)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
-	struct drm_device *dev = crtc->base.dev;
+	struct drm_device *dev = crtc_state->base.crtc->dev;
 	intel_clock_t clock;
 	int err = target;
 
-	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS)) {
-		/*
-		 * For LVDS just rely on its current settings for dual-channel.
-		 * We haven't figured out how to reliably set up different
-		 * single/dual channel state, if we even can.
-		 */
-		if (intel_is_dual_link_lvds(dev))
-			clock.p2 = limit->p2.p2_fast;
-		else
-			clock.p2 = limit->p2.p2_slow;
-	} else {
-		if (target < limit->p2.dot_limit)
-			clock.p2 = limit->p2.p2_slow;
-		else
-			clock.p2 = limit->p2.p2_fast;
-	}
-
 	memset(best_clock, 0, sizeof(*best_clock));
+
+	clock.p2 = i9xx_select_p2_div(limit, crtc_state, target);
 
 	for (clock.m1 = limit->m1.min; clock.m1 <= limit->m1.max;
 	     clock.m1++) {
@@ -771,28 +764,17 @@ g4x_find_best_dpll(const intel_limit_t *limit,
 		   int target, int refclk, intel_clock_t *match_clock,
 		   intel_clock_t *best_clock)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
-	struct drm_device *dev = crtc->base.dev;
+	struct drm_device *dev = crtc_state->base.crtc->dev;
 	intel_clock_t clock;
 	int max_n;
-	bool found;
+	bool found = false;
 	/* approximately equals target * 0.00585 */
 	int err_most = (target >> 8) + (target >> 9);
-	found = false;
-
-	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS)) {
-		if (intel_is_dual_link_lvds(dev))
-			clock.p2 = limit->p2.p2_fast;
-		else
-			clock.p2 = limit->p2.p2_slow;
-	} else {
-		if (target < limit->p2.dot_limit)
-			clock.p2 = limit->p2.p2_slow;
-		else
-			clock.p2 = limit->p2.p2_fast;
-	}
 
 	memset(best_clock, 0, sizeof(*best_clock));
+
+	clock.p2 = i9xx_select_p2_div(limit, crtc_state, target);
+
 	max_n = limit->n.max;
 	/* based on hardware requirement, prefer smaller n to precision */
 	for (clock.n = limit->n.min; clock.n <= max_n; clock.n++) {
