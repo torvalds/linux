@@ -1350,7 +1350,7 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_i915_private *dev_priv,
 #define HPD_STORM_THRESHOLD 5
 
 /**
- * intel_hpd_irq_storm - gather stats and detect HPD irq storm on a pin
+ * intel_hpd_irq_storm_detect - gather stats and detect HPD irq storm on a pin
  * @dev_priv: private driver data pointer
  * @pin: the pin to gather stats on
  *
@@ -1364,8 +1364,8 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_i915_private *dev_priv,
  *
  * Return true if an irq storm was detected on @pin.
  */
-static bool intel_hpd_irq_storm(struct drm_i915_private *dev_priv,
-				enum hpd_pin pin)
+static bool intel_hpd_irq_storm_detect(struct drm_i915_private *dev_priv,
+				       enum hpd_pin pin)
 {
 	unsigned long start = dev_priv->hotplug.stats[pin].last_jiffies;
 	unsigned long end = start + msecs_to_jiffies(HPD_STORM_DETECT_PERIOD);
@@ -1603,7 +1603,7 @@ static void intel_hpd_irq_handler(struct drm_device *dev,
 			queue_hp = true;
 		}
 
-		if (intel_hpd_irq_storm(dev_priv, i)) {
+		if (intel_hpd_irq_storm_detect(dev_priv, i)) {
 			dev_priv->hotplug.event_bits &= ~BIT(i);
 			storm_detected = true;
 		}
@@ -4367,7 +4367,7 @@ static void i965_irq_uninstall(struct drm_device * dev)
 	I915_WRITE(IIR, I915_READ(IIR));
 }
 
-static void intel_hpd_irq_reenable_work(struct work_struct *work)
+static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(work, typeof(*dev_priv),
@@ -4433,7 +4433,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	INIT_DELAYED_WORK(&dev_priv->gpu_error.hangcheck_work,
 			  i915_hangcheck_elapsed);
 	INIT_DELAYED_WORK(&dev_priv->hotplug.reenable_work,
-			  intel_hpd_irq_reenable_work);
+			  intel_hpd_irq_storm_reenable_work);
 
 	pm_qos_add_request(&dev_priv->pm_qos, PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);
 
