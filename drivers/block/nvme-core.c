@@ -3124,8 +3124,8 @@ static void nvme_remove(struct pci_dev *pdev)
 	flush_work(&dev->reset_work);
 	flush_work(&dev->scan_work);
 	device_remove_file(dev->device, &dev_attr_reset_controller);
-	nvme_dev_shutdown(dev);
 	nvme_dev_remove(dev);
+	nvme_dev_shutdown(dev);
 	nvme_dev_remove_admin(dev);
 	device_destroy(nvme_class, MKDEV(nvme_char_major, dev->instance));
 	nvme_free_queues(dev, 0);
