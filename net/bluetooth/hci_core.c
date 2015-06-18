@@ -1591,6 +1591,11 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	if (hci_dev_test_flag(hdev, HCI_MGMT))
 		cancel_delayed_work_sync(&hdev->rpa_expired);
 
+	if (hdev->adv_instance_timeout) {
+		cancel_delayed_work_sync(&hdev->adv_instance_expire);
+		hdev->adv_instance_timeout = 0;
+	}
+
 	/* Avoid potential lockdep warnings from the *_flush() calls by
 	 * ensuring the workqueue is empty up front.
 	 */
@@ -2147,6 +2152,17 @@ static void hci_discov_off(struct work_struct *work)
 	mgmt_discoverable_timeout(hdev);
 }
 
+static void hci_adv_timeout_expire(struct work_struct *work)
+{
+	struct hci_dev *hdev;
+
+	hdev = container_of(work, struct hci_dev, adv_instance_expire.work);
+
+	BT_DBG("%s", hdev->name);
+
+	mgmt_adv_timeout_expired(hdev);
+}
+
 void hci_uuids_clear(struct hci_dev *hdev)
 {
 	struct bt_uuid *uuid, *tmp;
@@ -2650,6 +2666,11 @@ int hci_remove_adv_instance(struct hci_dev *hdev, u8 instance)
 
 	BT_DBG("%s removing %dMR", hdev->name, instance);
 
+	if (hdev->cur_adv_instance == instance && hdev->adv_instance_timeout) {
+		cancel_delayed_work(&hdev->adv_instance_expire);
+		hdev->adv_instance_timeout = 0;
+	}
+
 	list_del(&adv_instance->list);
 	kfree(adv_instance);
 
@@ -2662,6 +2683,11 @@ int hci_remove_adv_instance(struct hci_dev *hdev, u8 instance)
 void hci_adv_instances_clear(struct hci_dev *hdev)
 {
 	struct adv_info *adv_instance, *n;
+
+	if (hdev->adv_instance_timeout) {
+		cancel_delayed_work(&hdev->adv_instance_expire);
+		hdev->adv_instance_timeout = 0;
+	}
 
 	list_for_each_entry_safe(adv_instance, n, &hdev->adv_instances, list) {
 		list_del(&adv_instance->list);
@@ -2712,6 +2738,7 @@ int hci_add_adv_instance(struct hci_dev *hdev, u8 instance, u32 flags,
 		       scan_rsp_data, scan_rsp_len);
 
 	adv_instance->timeout = timeout;
+	adv_instance->remaining_time = timeout;
 
 	if (duration == 0)
 		adv_instance->duration = HCI_DEFAULT_ADV_DURATION;
@@ -3130,6 +3157,7 @@ struct hci_dev *hci_alloc_dev(void)
 	hdev->adv_tx_power = HCI_TX_POWER_INVALID;
 	hdev->adv_instance_cnt = 0;
 	hdev->cur_adv_instance = 0x00;
+	hdev->adv_instance_timeout = 0;
 
 	hdev->sniff_max_interval = 800;
 	hdev->sniff_min_interval = 80;
@@ -3183,6 +3211,7 @@ struct hci_dev *hci_alloc_dev(void)
 	INIT_DELAYED_WORK(&hdev->discov_off, hci_discov_off);
 	INIT_DELAYED_WORK(&hdev->le_scan_disable, le_scan_disable_work);
 	INIT_DELAYED_WORK(&hdev->le_scan_restart, le_scan_restart_work);
+	INIT_DELAYED_WORK(&hdev->adv_instance_expire, hci_adv_timeout_expire);
 
 	skb_queue_head_init(&hdev->rx_q);
 	skb_queue_head_init(&hdev->cmd_q);

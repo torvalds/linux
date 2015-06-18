@@ -1466,8 +1466,8 @@ static void clear_adv_instance(struct hci_dev *hdev)
 	if (!hci_dev_test_flag(hdev, HCI_ADVERTISING_INSTANCE))
 		return;
 
-	if (hdev->adv_instance.timeout)
-		cancel_delayed_work(&hdev->adv_instance.timeout_exp);
+	if (hdev->adv_instance_timeout)
+		cancel_delayed_work(&hdev->adv_instance_expire);
 
 	memset(&hdev->adv_instance, 0, sizeof(hdev->adv_instance));
 	advertising_removed(NULL, hdev, 1);
@@ -1497,7 +1497,7 @@ static int clean_up_hci_state(struct hci_dev *hdev)
 		hci_req_add(&req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
 	}
 
-	if (hdev->adv_instance.timeout)
+	if (hdev->adv_instance_timeout)
 		clear_adv_instance(hdev);
 
 	if (hci_dev_test_flag(hdev, HCI_LE_ADV))
@@ -6914,12 +6914,9 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
-static void adv_timeout_expired(struct work_struct *work)
+void mgmt_adv_timeout_expired(struct hci_dev *hdev)
 {
-	struct hci_dev *hdev = container_of(work, struct hci_dev,
-					    adv_instance.timeout_exp.work);
-
-	hdev->adv_instance.timeout = 0;
+	hdev->adv_instance_timeout = 0;
 
 	hci_dev_lock(hdev);
 	clear_adv_instance(hdev);
@@ -6981,8 +6978,6 @@ static int add_advertising(struct sock *sk, struct hci_dev *hdev,
 		goto unlock;
 	}
 
-	INIT_DELAYED_WORK(&hdev->adv_instance.timeout_exp, adv_timeout_expired);
-
 	hdev->adv_instance.flags = flags;
 	hdev->adv_instance.adv_data_len = cp->adv_data_len;
 	hdev->adv_instance.scan_rsp_len = cp->scan_rsp_len;
@@ -6994,14 +6989,14 @@ static int add_advertising(struct sock *sk, struct hci_dev *hdev,
 		memcpy(hdev->adv_instance.scan_rsp_data,
 		       cp->data + cp->adv_data_len, cp->scan_rsp_len);
 
-	if (hdev->adv_instance.timeout)
-		cancel_delayed_work(&hdev->adv_instance.timeout_exp);
+	if (hdev->adv_instance_timeout)
+		cancel_delayed_work(&hdev->adv_instance_expire);
 
-	hdev->adv_instance.timeout = timeout;
+	hdev->adv_instance_timeout = timeout;
 
 	if (timeout)
 		queue_delayed_work(hdev->workqueue,
-				   &hdev->adv_instance.timeout_exp,
+				   &hdev->adv_instance_expire,
 				   msecs_to_jiffies(timeout * 1000));
 
 	if (!hci_dev_test_and_set_flag(hdev, HCI_ADVERTISING_INSTANCE))
@@ -7106,8 +7101,8 @@ static int remove_advertising(struct sock *sk, struct hci_dev *hdev,
 		goto unlock;
 	}
 
-	if (hdev->adv_instance.timeout)
-		cancel_delayed_work(&hdev->adv_instance.timeout_exp);
+	if (hdev->adv_instance_timeout)
+		cancel_delayed_work(&hdev->adv_instance_expire);
 
 	memset(&hdev->adv_instance, 0, sizeof(hdev->adv_instance));
 

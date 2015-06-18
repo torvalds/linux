@@ -156,11 +156,11 @@ struct oob_data {
 };
 
 struct adv_info {
-	struct delayed_work timeout_exp;
 	struct list_head list;
 	__u8	instance;
 	__u32	flags;
 	__u16	timeout;
+	__u16	remaining_time;
 	__u16	duration;
 	__u16	adv_data_len;
 	__u8	adv_data[HCI_MAX_AD_LENGTH];
@@ -382,6 +382,8 @@ struct hci_dev {
 	struct list_head	adv_instances;
 	unsigned int		adv_instance_cnt;
 	__u8			cur_adv_instance;
+	__u16			adv_instance_timeout;
+	struct delayed_work	adv_instance_expire;
 
 	__u8			irk[16];
 	__u32			rpa_timeout;
@@ -1379,6 +1381,7 @@ void mgmt_set_powered_failed(struct hci_dev *hdev, int err);
 int mgmt_powered(struct hci_dev *hdev, u8 powered);
 int mgmt_update_adv_data(struct hci_dev *hdev);
 void mgmt_discoverable_timeout(struct hci_dev *hdev);
+void mgmt_adv_timeout_expired(struct hci_dev *hdev);
 void mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
 		       bool persistent);
 void mgmt_device_connected(struct hci_dev *hdev, struct hci_conn *conn,
