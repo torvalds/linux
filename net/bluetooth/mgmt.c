@@ -872,15 +872,22 @@ static u8 create_default_scan_rsp_data(struct hci_dev *hdev, u8 *ptr)
 	return ad_len;
 }
 
-static u8 create_instance_scan_rsp_data(struct hci_dev *hdev, u8 *ptr)
+static u8 create_instance_scan_rsp_data(struct hci_dev *hdev, u8 instance,
+					u8 *ptr)
 {
+	struct adv_info *adv_instance;
+
+	adv_instance = hci_find_adv_instance(hdev, instance);
+	if (!adv_instance)
+		return 0;
+
 	/* TODO: Set the appropriate entries based on advertising instance flags
 	 * here once flags other than 0 are supported.
 	 */
-	memcpy(ptr, hdev->adv_instance.scan_rsp_data,
-	       hdev->adv_instance.scan_rsp_len);
+	memcpy(ptr, adv_instance->scan_rsp_data,
+	       adv_instance->scan_rsp_len);
 
-	return hdev->adv_instance.scan_rsp_len;
+	return adv_instance->scan_rsp_len;
 }
 
 static void update_inst_scan_rsp_data(struct hci_request *req, u8 instance)
@@ -895,7 +902,7 @@ static void update_inst_scan_rsp_data(struct hci_request *req, u8 instance)
 	memset(&cp, 0, sizeof(cp));
 
 	if (instance)
-		len = create_instance_scan_rsp_data(hdev, cp.data);
+		len = create_instance_scan_rsp_data(hdev, instance, cp.data);
 	else
 		len = create_default_scan_rsp_data(hdev, cp.data);
 
