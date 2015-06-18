@@ -8610,13 +8610,24 @@ static void adv_enable_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 void mgmt_reenable_advertising(struct hci_dev *hdev)
 {
 	struct hci_request req;
+	u8 instance;
 
 	if (!hci_dev_test_flag(hdev, HCI_ADVERTISING) &&
 	    !hci_dev_test_flag(hdev, HCI_ADVERTISING_INSTANCE))
 		return;
 
+	instance = get_current_adv_instance(hdev);
+
 	hci_req_init(&req, hdev);
-	enable_advertising(&req);
+
+	if (instance) {
+		schedule_adv_instance(&req, instance, true);
+	} else {
+		update_adv_data(&req);
+		update_scan_rsp_data(&req);
+		enable_advertising(&req);
+	}
+
 	hci_req_run(&req, adv_enable_complete);
 }
 
