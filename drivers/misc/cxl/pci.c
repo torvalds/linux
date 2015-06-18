@@ -205,7 +205,7 @@ static void dump_cxl_config_space(struct pci_dev *dev)
 	dev_info(&dev->dev, "p1 regs: %#llx, len: %#llx\n",
 		p1_base(dev), p1_size(dev));
 	dev_info(&dev->dev, "p2 regs: %#llx, len: %#llx\n",
-		p1_base(dev), p2_size(dev));
+		p2_base(dev), p2_size(dev));
 	dev_info(&dev->dev, "BAR 4/5: %#llx, len: %#llx\n",
 		pci_resource_start(dev, 4), pci_resource_len(dev, 4));
 
