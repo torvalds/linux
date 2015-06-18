@@ -124,6 +124,9 @@ enum ath10k_fw_ie_type {
 	 * FW API 5 and above.
 	 */
 	ATH10K_FW_IE_HTT_OP_VERSION = 6,
+
+	/* Code swap image for firmware binary */
+	ATH10K_FW_IE_FW_CODE_SWAP_IMAGE = 7,
 };
 
 enum ath10k_fw_wmi_op_version {

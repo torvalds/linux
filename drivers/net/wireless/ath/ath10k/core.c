@@ -470,6 +470,13 @@ static int ath10k_download_fw(struct ath10k *ar, enum ath10k_firmware_mode mode)
 		data = ar->firmware_data;
 		data_len = ar->firmware_len;
 		mode_name = "normal";
+		ret = ath10k_swap_code_seg_configure(ar,
+				ATH10K_SWAP_CODE_SEG_BIN_TYPE_FW);
+		if (ret) {
+			ath10k_err(ar, "failed to configure fw code swap: %d\n",
+				   ret);
+			return ret;
+		}
 		break;
 	case ATH10K_FIRMWARE_MODE_UTF:
 		data = ar->testmode.utf->data;
@@ -509,6 +516,8 @@ static void ath10k_core_free_firmware_files(struct ath10k *ar)
 	if (!IS_ERR(ar->cal_file))
 		release_firmware(ar->cal_file);
 
+	ath10k_swap_code_seg_release(ar);
+
 	ar->board = NULL;
 	ar->board_data = NULL;
 	ar->board_len = 0;
@@ -522,6 +531,7 @@ static void ath10k_core_free_firmware_files(struct ath10k *ar)
 	ar->firmware_len = 0;
 
 	ar->cal_file = NULL;
+
 }
 
 static int ath10k_fetch_cal_file(struct ath10k *ar)
@@ -794,6 +804,13 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 
 			ath10k_dbg(ar, ATH10K_DBG_BOOT, "found fw ie htt op version %d\n",
 				   ar->htt.op_version);
+			break;
+		case ATH10K_FW_IE_FW_CODE_SWAP_IMAGE:
+			ath10k_dbg(ar, ATH10K_DBG_BOOT,
+				   "found fw code swap image ie (%zd B)\n",
+				   ie_len);
+			ar->swap.firmware_codeswap_data = data;
+			ar->swap.firmware_codeswap_len = ie_len;
 			break;
 		default:
 			ath10k_warn(ar, "Unknown FW IE: %u\n",
@@ -1384,6 +1401,13 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 	ret = ath10k_core_init_firmware_features(ar);
 	if (ret) {
 		ath10k_err(ar, "fatal problem with firmware features: %d\n",
+			   ret);
+		goto err_free_firmware_files;
+	}
+
+	ret = ath10k_swap_code_seg_init(ar);
+	if (ret) {
+		ath10k_err(ar, "failed to initialize code swap segment: %d\n",
 			   ret);
 		goto err_free_firmware_files;
 	}

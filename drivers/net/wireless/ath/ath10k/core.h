@@ -36,6 +36,7 @@
 #include "spectral.h"
 #include "thermal.h"
 #include "wow.h"
+#include "swap.h"
 
 #define MS(_v, _f) (((_v) & _f##_MASK) >> _f##_LSB)
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
@@ -602,6 +603,12 @@ struct ath10k {
 	size_t firmware_len;
 
 	const struct firmware *cal_file;
+
+	struct {
+		const void *firmware_codeswap_data;
+		size_t firmware_codeswap_len;
+		struct ath10k_swap_code_seg_info *firmware_swap_code_seg_info;
+	} swap;
 
 	char spec_board_id[100];
 	bool spec_board_loaded;
