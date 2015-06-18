@@ -220,6 +220,7 @@ struct cgroup {
 	int populated_cnt;
 
 	struct kernfs_node *kn;		/* cgroup kernfs entry */
+	struct kernfs_node *procs_kn;	/* kn for "cgroup.procs" */
 	struct kernfs_node *populated_kn; /* kn for "cgroup.subtree_populated" */
 
 	/*

@@ -2392,7 +2392,9 @@ static int cgroup_attach_task(struct cgroup *dst_cgrp,
 	return ret;
 }
 
-static int cgroup_procs_write_permission(struct task_struct *task)
+static int cgroup_procs_write_permission(struct task_struct *task,
+					 struct cgroup *dst_cgrp,
+					 struct kernfs_open_file *of)
 {
 	const struct cred *cred = current_cred();
 	const struct cred *tcred = get_task_cred(task);
@@ -2406,6 +2408,26 @@ static int cgroup_procs_write_permission(struct task_struct *task)
 	    !uid_eq(cred->euid, tcred->uid) &&
 	    !uid_eq(cred->euid, tcred->suid))
 		ret = -EACCES;
+
+	if (!ret && cgroup_on_dfl(dst_cgrp)) {
+		struct super_block *sb = of->file->f_path.dentry->d_sb;
+		struct cgroup *cgrp;
+		struct inode *inode;
+
+		down_read(&css_set_rwsem);
+		cgrp = task_cgroup_from_root(task, &cgrp_dfl_root);
+		up_read(&css_set_rwsem);
+
+		while (!cgroup_is_descendant(dst_cgrp, cgrp))
+			cgrp = cgroup_parent(cgrp);
+
+		ret = -ENOMEM;
+		inode = kernfs_get_inode(sb, cgrp->procs_kn);
+		if (inode) {
+			ret = inode_permission(inode, MAY_WRITE);
+			iput(inode);
+		}
+	}
 
 	put_cred(tcred);
 	return ret;
@@ -2459,7 +2481,7 @@ static ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
 	get_task_struct(tsk);
 	rcu_read_unlock();
 
-	ret = cgroup_procs_write_permission(tsk);
+	ret = cgroup_procs_write_permission(tsk, cgrp, of);
 	if (!ret)
 		ret = cgroup_attach_task(cgrp, tsk, threadgroup);
 
@@ -3087,7 +3109,9 @@ static int cgroup_add_file(struct cgroup *cgrp, struct cftype *cft)
 		return ret;
 	}
 
-	if (cft->seq_show == cgroup_populated_show)
+	if (cft->write == cgroup_procs_write)
+		cgrp->procs_kn = kn;
+	else if (cft->seq_show == cgroup_populated_show)
 		cgrp->populated_kn = kn;
 	return 0;
 }
