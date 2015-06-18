@@ -620,6 +620,7 @@ static s32 ixgbe_update_flash_X550(struct ixgbe_hw *hw)
  **/
 static s32 ixgbe_get_bus_info_X550em(struct ixgbe_hw *hw)
 {
+	hw->bus.type  = ixgbe_bus_type_internal;
 	hw->bus.width = ixgbe_bus_width_unknown;
 	hw->bus.speed = ixgbe_bus_speed_unknown;
 
