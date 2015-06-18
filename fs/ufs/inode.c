@@ -1075,7 +1075,7 @@ static void ufs_trunc_branch(struct inode *inode, unsigned *offsets, int depth2,
 	struct ufs_inode_info *ufsi = UFS_I(inode);
 	struct ufs_buffer_head *ubh;
 	u64 tmp;
-	bool free_it = !offsets || !depth2;
+	bool free_it = !offsets;
 	unsigned from = offsets ? *offsets++ : 0;
 	unsigned i;
 
@@ -1091,9 +1091,11 @@ static void ufs_trunc_branch(struct inode *inode, unsigned *offsets, int depth2,
 	}
 
 	if (--depth) {
+		if (!--depth2)
+			offsets = NULL;
 		for (i = from ; i < uspi->s_apb ; i++, offsets = NULL) {
 			void *ind = ubh_get_data_ptr(uspi, ubh, i);
-			ufs_trunc_branch(inode, offsets, depth2 - 1, depth, ind);
+			ufs_trunc_branch(inode, offsets, depth2, depth, ind);
 			ubh_mark_buffer_dirty(ubh);
 		}
 	} else {
@@ -1237,7 +1239,8 @@ static void __ufs_truncate_blocks(struct inode *inode)
 		ufs_trunc_direct(inode);
 		offsets[0] = UFS_IND_BLOCK;
 	} else {
-		ufs_trunc_branch(inode, offsets + 1, depth2, depth - 1,
+		if (depth2)
+			ufs_trunc_branch(inode, offsets + 1, depth2, depth - 1,
 			   ufs_get_direct_data_ptr(uspi, ufsi, offsets[0]++));
 	}
 	for (i = offsets[0]; i <= UFS_TIND_BLOCK; i++) {
