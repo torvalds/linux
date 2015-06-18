@@ -270,6 +270,21 @@ struct tegra_clk_pll {
 
 #define to_clk_pll(_hw) container_of(_hw, struct tegra_clk_pll, hw)
 
+/**
+ * struct tegra_audio_clk_info - Tegra Audio Clk Information
+ *
+ * @name:	name for the audio pll
+ * @pll_params:	pll_params for audio pll
+ * @clk_id:	clk_ids for the audio pll
+ * @parent:	name of the parent of the audio pll
+ */
+struct tegra_audio_clk_info {
+	char *name;
+	struct tegra_clk_pll_params *pll_params;
+	int clk_id;
+	char *parent;
+};
+
 extern const struct clk_ops tegra_clk_pll_ops;
 extern const struct clk_ops tegra_clk_plle_ops;
 struct clk *tegra_clk_register_pll(const char *name, const char *parent_name,
@@ -622,7 +637,8 @@ void tegra_register_devclks(struct tegra_devclk *dev_clks, int num);
 
 void tegra_audio_clk_init(void __iomem *clk_base,
 			void __iomem *pmc_base, struct tegra_clk *tegra_clks,
-			struct tegra_clk_pll_params *pll_params);
+			struct tegra_audio_clk_info *audio_info,
+			unsigned int num_plls);
 
 void tegra_periph_clk_init(void __iomem *clk_base, void __iomem *pmc_base,
 			struct tegra_clk *tegra_clks,
