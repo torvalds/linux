@@ -1145,12 +1145,12 @@ static void ufs_trunc_branch(struct inode *inode, unsigned *offsets, int depth2,
 		return;
 	}
 
+	if (--depth2) {
+		void *ind = ubh_get_data_ptr(uspi, ubh, from++);
+		ufs_trunc_branch(inode, offsets, depth2, depth - 1, ind);
+		ubh_mark_buffer_dirty(ubh);
+	}
 	if (--depth) {
-		if (--depth2) {
-			void *ind = ubh_get_data_ptr(uspi, ubh, from++);
-			ufs_trunc_branch(inode, offsets, depth2, depth, ind);
-			ubh_mark_buffer_dirty(ubh);
-		}
 		for (i = from ; i < uspi->s_apb ; i++) {
 			void *ind = ubh_get_data_ptr(uspi, ubh, i);
 			free_full_branch(inode, depth, ind);
