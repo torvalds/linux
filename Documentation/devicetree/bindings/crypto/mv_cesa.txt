@@ -7,6 +7,8 @@ Required properties:
         length
 - reg-names : "regs" , "sram";
 - interrupts : interrupt number
+- clocks: reference to the crypto engines clocks. This property is only
+	  required for Dove platforms
 
 Examples:
 
