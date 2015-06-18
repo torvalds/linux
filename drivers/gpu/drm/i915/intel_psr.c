@@ -663,11 +663,12 @@ void intel_psr_invalidate(struct drm_device *dev,
 	crtc = dp_to_dig_port(dev_priv->psr.enabled)->base.base.crtc;
 	pipe = to_intel_crtc(crtc)->pipe;
 
-	intel_psr_exit(dev);
-
 	frontbuffer_bits &= INTEL_FRONTBUFFER_ALL_MASK(pipe);
-
 	dev_priv->psr.busy_frontbuffer_bits |= frontbuffer_bits;
+
+	if (frontbuffer_bits)
+		intel_psr_exit(dev);
+
 	mutex_unlock(&dev_priv->psr.lock);
 }
 
@@ -698,6 +699,8 @@ void intel_psr_flush(struct drm_device *dev,
 
 	crtc = dp_to_dig_port(dev_priv->psr.enabled)->base.base.crtc;
 	pipe = to_intel_crtc(crtc)->pipe;
+
+	frontbuffer_bits &= INTEL_FRONTBUFFER_ALL_MASK(pipe);
 	dev_priv->psr.busy_frontbuffer_bits &= ~frontbuffer_bits;
 
 	/*
@@ -716,7 +719,7 @@ void intel_psr_flush(struct drm_device *dev,
 	 * invalidating. Which means we need to manually fake this in
 	 * software for all flushes, not just when we've seen a preceding
 	 * invalidation through frontbuffer rendering. */
-	if (!HAS_DDI(dev))
+	if (frontbuffer_bits && !HAS_DDI(dev))
 		intel_psr_exit(dev);
 
 	if (!dev_priv->psr.active && !dev_priv->psr.busy_frontbuffer_bits)
