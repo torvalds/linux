@@ -1091,11 +1091,14 @@ static void ufs_trunc_branch(struct inode *inode, unsigned *offsets, int depth2,
 	}
 
 	if (--depth) {
-		if (!--depth2)
-			offsets = NULL;
-		for (i = from ; i < uspi->s_apb ; i++, offsets = NULL) {
-			void *ind = ubh_get_data_ptr(uspi, ubh, i);
+		if (offsets && --depth2) {
+			void *ind = ubh_get_data_ptr(uspi, ubh, from++);
 			ufs_trunc_branch(inode, offsets, depth2, depth, ind);
+			ubh_mark_buffer_dirty(ubh);
+		}
+		for (i = from ; i < uspi->s_apb ; i++) {
+			void *ind = ubh_get_data_ptr(uspi, ubh, i);
+			ufs_trunc_branch(inode, NULL, 0, depth, ind);
 			ubh_mark_buffer_dirty(ubh);
 		}
 	} else {
