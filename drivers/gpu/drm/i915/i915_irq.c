@@ -1257,8 +1257,10 @@ static bool i9xx_port_hotplug_long_detect(enum port port, u32 val)
 
 /* Get a bit mask of pins that have triggered, and which ones may be long. */
 static void pch_get_hpd_pins(u32 *pin_mask, u32 *long_mask,
-			     u32 hotplug_trigger, u32 dig_hotplug_reg, const u32 hpd[HPD_NUM_PINS])
+			     u32 hotplug_trigger, u32 dig_hotplug_reg,
+			     const u32 hpd[HPD_NUM_PINS])
 {
+	enum port port;
 	int i;
 
 	*pin_mask = 0;
@@ -1268,12 +1270,14 @@ static void pch_get_hpd_pins(u32 *pin_mask, u32 *long_mask,
 		return;
 
 	for_each_hpd_pin(i) {
-		if (hpd[i] & hotplug_trigger) {
-			*pin_mask |= BIT(i);
+		if ((hpd[i] & hotplug_trigger) == 0)
+			continue;
 
-			if (pch_port_hotplug_long_detect(intel_hpd_pin_to_port(i), dig_hotplug_reg))
-				*long_mask |= BIT(i);
-		}
+		*pin_mask |= BIT(i);
+
+		port = intel_hpd_pin_to_port(i);
+		if (pch_port_hotplug_long_detect(port, dig_hotplug_reg))
+			*long_mask |= BIT(i);
 	}
 
 	DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x, dig 0x%08x, pins 0x%08x\n",
@@ -1285,6 +1289,7 @@ static void pch_get_hpd_pins(u32 *pin_mask, u32 *long_mask,
 static void i9xx_get_hpd_pins(u32 *pin_mask, u32 *long_mask,
 			      u32 hotplug_trigger, const u32 hpd[HPD_NUM_PINS])
 {
+	enum port port;
 	int i;
 
 	*pin_mask = 0;
@@ -1294,12 +1299,14 @@ static void i9xx_get_hpd_pins(u32 *pin_mask, u32 *long_mask,
 		return;
 
 	for_each_hpd_pin(i) {
-		if (hpd[i] & hotplug_trigger) {
-			*pin_mask |= BIT(i);
+		if ((hpd[i] & hotplug_trigger) == 0)
+			continue;
 
-			if (i9xx_port_hotplug_long_detect(intel_hpd_pin_to_port(i), hotplug_trigger))
-				*long_mask |= BIT(i);
-		}
+		*pin_mask |= BIT(i);
+
+		port = intel_hpd_pin_to_port(i);
+		if (i9xx_port_hotplug_long_detect(port, hotplug_trigger))
+			*long_mask |= BIT(i);
 	}
 
 	DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x, pins 0x%08x\n",
