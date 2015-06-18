@@ -513,7 +513,7 @@ struct crypto_alg {
 	void (*cra_destroy)(struct crypto_alg *alg);
 	
 	struct module *cra_module;
-};
+} CRYPTO_MINALIGN_ATTR;
 
 /*
  * Algorithm registration interface.
