@@ -228,6 +228,8 @@ int inet_listen(struct socket *sock, int backlog)
 				err = 0;
 			if (err)
 				goto out;
+
+			tcp_fastopen_init_key_once(true);
 		}
 		err = inet_csk_listen_start(sk, backlog);
 		if (err)
