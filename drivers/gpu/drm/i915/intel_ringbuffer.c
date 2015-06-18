@@ -2113,6 +2113,9 @@ static int ring_wait_for_space(struct intel_engine_cs *ring, int n)
 	unsigned space;
 	int ret;
 
+	/* The whole point of reserving space is to not wait! */
+	WARN_ON(ringbuf->reserved_in_use);
+
 	if (intel_ring_space(ringbuf) >= n)
 		return 0;
 
@@ -2139,6 +2142,9 @@ static int intel_wrap_ring_buffer(struct intel_engine_cs *ring)
 	uint32_t __iomem *virt;
 	struct intel_ringbuffer *ringbuf = ring->buffer;
 	int rem = ringbuf->size - ringbuf->tail;
+
+	/* Can't wrap if space has already been reserved! */
+	WARN_ON(ringbuf->reserved_in_use);
 
 	if (ringbuf->space < rem) {
 		int ret = ring_wait_for_space(ring, rem);
@@ -2190,16 +2196,77 @@ int intel_ring_alloc_request_extras(struct drm_i915_gem_request *request)
 	return 0;
 }
 
-static int __intel_ring_prepare(struct intel_engine_cs *ring,
-				int bytes)
+void intel_ring_reserved_space_reserve(struct intel_ringbuffer *ringbuf, int size)
+{
+	/* NB: Until request management is fully tidied up and the OLR is
+	 * removed, there are too many ways for get false hits on this
+	 * anti-recursion check! */
+	/*WARN_ON(ringbuf->reserved_size);*/
+	WARN_ON(ringbuf->reserved_in_use);
+
+	ringbuf->reserved_size = size;
+
+	/*
+	 * Really need to call _begin() here but that currently leads to
+	 * recursion problems! This will be fixed later but for now just
+	 * return and hope for the best. Note that there is only a real
+	 * problem if the create of the request never actually calls _begin()
+	 * but if they are not submitting any work then why did they create
+	 * the request in the first place?
+	 */
+}
+
+void intel_ring_reserved_space_cancel(struct intel_ringbuffer *ringbuf)
+{
+	WARN_ON(ringbuf->reserved_in_use);
+
+	ringbuf->reserved_size   = 0;
+	ringbuf->reserved_in_use = false;
+}
+
+void intel_ring_reserved_space_use(struct intel_ringbuffer *ringbuf)
+{
+	WARN_ON(ringbuf->reserved_in_use);
+
+	ringbuf->reserved_in_use = true;
+	ringbuf->reserved_tail   = ringbuf->tail;
+}
+
+void intel_ring_reserved_space_end(struct intel_ringbuffer *ringbuf)
+{
+	WARN_ON(!ringbuf->reserved_in_use);
+	WARN(ringbuf->tail > ringbuf->reserved_tail + ringbuf->reserved_size,
+	     "request reserved size too small: %d vs %d!\n",
+	     ringbuf->tail - ringbuf->reserved_tail, ringbuf->reserved_size);
+
+	ringbuf->reserved_size   = 0;
+	ringbuf->reserved_in_use = false;
+}
+
+static int __intel_ring_prepare(struct intel_engine_cs *ring, int bytes)
 {
 	struct intel_ringbuffer *ringbuf = ring->buffer;
 	int ret;
+
+	/*
+	 * Add on the reserved size to the request to make sure that after
+	 * the intended commands have been emitted, there is guaranteed to
+	 * still be enough free space to send them to the hardware.
+	 */
+	if (!ringbuf->reserved_in_use)
+		bytes += ringbuf->reserved_size;
 
 	if (unlikely(ringbuf->tail + bytes > ringbuf->effective_size)) {
 		ret = intel_wrap_ring_buffer(ring);
 		if (unlikely(ret))
 			return ret;
+
+		if(ringbuf->reserved_size) {
+			uint32_t size = ringbuf->reserved_size;
+
+			intel_ring_reserved_space_cancel(ringbuf);
+			intel_ring_reserved_space_reserve(ringbuf, size);
+		}
 	}
 
 	if (unlikely(ringbuf->space < bytes)) {

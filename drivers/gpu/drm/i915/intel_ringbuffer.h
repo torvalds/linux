@@ -106,6 +106,9 @@ struct intel_ringbuffer {
 	int space;
 	int size;
 	int effective_size;
+	int reserved_size;
+	int reserved_tail;
+	bool reserved_in_use;
 
 	/** We track the position of the requests in the ring buffer, and
 	 * when each is retired we increment last_retired_head as the GPU
@@ -471,5 +474,27 @@ intel_ring_get_request(struct intel_engine_cs *ring)
 	BUG_ON(ring->outstanding_lazy_request == NULL);
 	return ring->outstanding_lazy_request;
 }
+
+/*
+ * Arbitrary size for largest possible 'add request' sequence. The code paths
+ * are complex and variable. Empirical measurement shows that the worst case
+ * is ILK at 136 words. Reserving too much is better than reserving too little
+ * as that allows for corner cases that might have been missed. So the figure
+ * has been rounded up to 160 words.
+ */
+#define MIN_SPACE_FOR_ADD_REQUEST	160
+
+/*
+ * Reserve space in the ring to guarantee that the i915_add_request() call
+ * will always have sufficient room to do its stuff. The request creation
+ * code calls this automatically.
+ */
+void intel_ring_reserved_space_reserve(struct intel_ringbuffer *ringbuf, int size);
+/* Cancel the reservation, e.g. because the request is being discarded. */
+void intel_ring_reserved_space_cancel(struct intel_ringbuffer *ringbuf);
+/* Use the reserved space - for use by i915_add_request() only. */
+void intel_ring_reserved_space_use(struct intel_ringbuffer *ringbuf);
+/* Finish with the reserved space - for use by i915_add_request() only. */
+void intel_ring_reserved_space_end(struct intel_ringbuffer *ringbuf);
 
 #endif /* _INTEL_RINGBUFFER_H_ */

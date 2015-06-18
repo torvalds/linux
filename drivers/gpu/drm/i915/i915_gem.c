@@ -2485,6 +2485,13 @@ int __i915_add_request(struct intel_engine_cs *ring,
 	} else
 		ringbuf = ring->buffer;
 
+	/*
+	 * To ensure that this call will not fail, space for its emissions
+	 * should already have been reserved in the ring buffer. Let the ring
+	 * know that it is time to use that space up.
+	 */
+	intel_ring_reserved_space_use(ringbuf);
+
 	request_start = intel_ring_get_tail(ringbuf);
 	/*
 	 * Emit any outstanding flushes - execbuf can fail to emit the flush
@@ -2566,6 +2573,9 @@ int __i915_add_request(struct intel_engine_cs *ring,
 			   &dev_priv->mm.retire_work,
 			   round_jiffies_up_relative(HZ));
 	intel_mark_busy(dev_priv->dev);
+
+	/* Sanity check that the reserved size was large enough. */
+	intel_ring_reserved_space_end(ringbuf);
 
 	return 0;
 }
@@ -2665,12 +2675,39 @@ int i915_gem_request_alloc(struct intel_engine_cs *ring,
 	if (ret)
 		goto err;
 
+	/*
+	 * Reserve space in the ring buffer for all the commands required to
+	 * eventually emit this request. This is to guarantee that the
+	 * i915_add_request() call can't fail. Note that the reserve may need
+	 * to be redone if the request is not actually submitted straight
+	 * away, e.g. because a GPU scheduler has deferred it.
+	 *
+	 * Note further that this call merely notes the reserve request. A
+	 * subsequent call to *_ring_begin() is required to actually ensure
+	 * that the reservation is available. Without the begin, if the
+	 * request creator immediately submitted the request without adding
+	 * any commands to it then there might not actually be sufficient
+	 * room for the submission commands. Unfortunately, the current
+	 * *_ring_begin() implementations potentially call back here to
+	 * i915_gem_request_alloc(). Thus calling _begin() here would lead to
+	 * infinite recursion! Until that back call path is removed, it is
+	 * necessary to do a manual _begin() outside.
+	 */
+	intel_ring_reserved_space_reserve(req->ringbuf, MIN_SPACE_FOR_ADD_REQUEST);
+
 	ring->outstanding_lazy_request = req;
 	return 0;
 
 err:
 	kmem_cache_free(dev_priv->requests, req);
 	return ret;
+}
+
+void i915_gem_request_cancel(struct drm_i915_gem_request *req)
+{
+	intel_ring_reserved_space_cancel(req->ringbuf);
+
+	i915_gem_request_unreference(req);
 }
 
 struct drm_i915_gem_request *

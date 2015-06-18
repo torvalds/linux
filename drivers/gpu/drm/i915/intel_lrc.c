@@ -686,6 +686,9 @@ static int logical_ring_wait_for_space(struct intel_ringbuffer *ringbuf,
 	unsigned space;
 	int ret;
 
+	/* The whole point of reserving space is to not wait! */
+	WARN_ON(ringbuf->reserved_in_use);
+
 	if (intel_ring_space(ringbuf) >= bytes)
 		return 0;
 
@@ -746,6 +749,9 @@ static int logical_ring_wrap_buffer(struct intel_ringbuffer *ringbuf,
 	uint32_t __iomem *virt;
 	int rem = ringbuf->size - ringbuf->tail;
 
+	/* Can't wrap if space has already been reserved! */
+	WARN_ON(ringbuf->reserved_in_use);
+
 	if (ringbuf->space < rem) {
 		int ret = logical_ring_wait_for_space(ringbuf, ctx, rem);
 
@@ -769,10 +775,25 @@ static int logical_ring_prepare(struct intel_ringbuffer *ringbuf,
 {
 	int ret;
 
+	/*
+	 * Add on the reserved size to the request to make sure that after
+	 * the intended commands have been emitted, there is guaranteed to
+	 * still be enough free space to send them to the hardware.
+	 */
+	if (!ringbuf->reserved_in_use)
+		bytes += ringbuf->reserved_size;
+
 	if (unlikely(ringbuf->tail + bytes > ringbuf->effective_size)) {
 		ret = logical_ring_wrap_buffer(ringbuf, ctx);
 		if (unlikely(ret))
 			return ret;
+
+		if(ringbuf->reserved_size) {
+			uint32_t size = ringbuf->reserved_size;
+
+			intel_ring_reserved_space_cancel(ringbuf);
+			intel_ring_reserved_space_reserve(ringbuf, size);
+		}
 	}
 
 	if (unlikely(ringbuf->space < bytes)) {
