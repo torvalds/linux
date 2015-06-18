@@ -139,16 +139,18 @@ char pno_in_example[] = {
 #endif /* PNO_SUPPORT */
 
 typedef struct android_wifi_priv_cmd {
-
-#ifdef CONFIG_COMPAT
-	compat_uptr_t buf;
-#else
 	char *buf;
-#endif
-
 	int used_len;
 	int total_len;
 } android_wifi_priv_cmd;
+
+#ifdef CONFIG_COMPAT
+typedef struct compat_android_wifi_priv_cmd {
+	compat_uptr_t buf;
+	int used_len;
+	int total_len;
+} compat_android_wifi_priv_cmd;
+#endif /* CONFIG_COMPAT */
 
 /**
  * Local (static) functions and variables
@@ -498,12 +500,27 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 #ifdef CONFIG_WFD
 	struct wifi_display_info		*pwfd_info;
 #endif
+
 	rtw_lock_suspend();
 
 	if (!ifr->ifr_data) {
 		ret = -EINVAL;
 		goto exit;
 	}
+#ifdef CONFIG_COMPAT
+	if (is_compat_task()) {
+		/* User space is 32-bit, use compat ioctl */
+		compat_android_wifi_priv_cmd compat_priv_cmd;
+
+		if (copy_from_user(&compat_priv_cmd, ifr->ifr_data, sizeof(compat_android_wifi_priv_cmd))) {
+			ret = -EFAULT;
+			goto exit;
+		}
+		priv_cmd.buf = compat_ptr(compat_priv_cmd.buf);
+		priv_cmd.used_len = compat_priv_cmd.used_len;
+		priv_cmd.total_len = compat_priv_cmd.total_len;
+	} else
+#endif /* CONFIG_COMPAT */
 	if (copy_from_user(&priv_cmd, ifr->ifr_data, sizeof(android_wifi_priv_cmd))) {
 		ret = -EFAULT;
 		goto exit;
@@ -526,11 +543,7 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		ret = -EFAULT;
 		goto exit;
 	 }
-#ifdef CONFIG_COMPAT
-	if (copy_from_user(command, compat_ptr(priv_cmd.buf), (unsigned long) priv_cmd.total_len)) {
-#else
 	if (copy_from_user(command, (void *)priv_cmd.buf, priv_cmd.total_len)) {
-#endif
 		ret = -EFAULT;
 		goto exit;
 	}
@@ -718,11 +731,7 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		pwfd_info = &padapter->wfd_info;
 		if( padapter->wdinfo.driver_interface == DRIVER_CFG80211 )
 		{
-#ifdef CONFIG_COMPAT
-			pwfd_info->rtsp_ctrlport = ( u16 ) get_int_from_command( compat_ptr(priv_cmd.buf) );
-#else
 			pwfd_info->rtsp_ctrlport = ( u16 ) get_int_from_command( priv_cmd.buf );
-#endif
 		}
 		break;
 	}
@@ -738,12 +747,7 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		pwfd_info = &padapter->wfd_info;
 		if( padapter->wdinfo.driver_interface == DRIVER_CFG80211 )
 		{
-#ifdef CONFIG_COMPAT
-			pwfd_info->wfd_device_type = ( u8 ) get_int_from_command( compat_ptr(priv_cmd.buf) );
-#else
 			pwfd_info->wfd_device_type = ( u8 ) get_int_from_command( priv_cmd.buf );
-#endif
-		
 			pwfd_info->wfd_device_type &= WFD_DEVINFO_DUAL;
 		}
 		break;
@@ -753,11 +757,8 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		{
 #ifdef CONFIG_LPS
 			u8 dtim;
-#ifdef CONFIG_COMPAT
-                        u8 *ptr = compat_ptr(priv_cmd.buf);
-#else
 			u8 *ptr = priv_cmd.buf;
-#endif			
+			
 			ptr += 9;//string command length of  "SET_DTIM";
 
 			dtim = rtw_atoi(ptr);
@@ -820,11 +821,7 @@ response:
 			bytes_written++;
 		}
 		priv_cmd.used_len = bytes_written;
-#ifdef CONFIG_COMPAT
-		if (copy_to_user(compat_ptr(priv_cmd.buf), command, bytes_written)) {
-#else
 		if (copy_to_user((void *)priv_cmd.buf, command, bytes_written)) {
-#endif
 			DBG_871X("%s: failed to copy data to user buffer\n", __FUNCTION__);
 			ret = -EFAULT;
 		}

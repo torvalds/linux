@@ -670,11 +670,22 @@ void rtw_cfg80211_ibss_indicate_connect(_adapter *padapter)
 	struct cfg80211_bss *bss = NULL;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0))
 	struct wiphy *wiphy = pwdev->wiphy;
-	int freq = (int)cur_network->network.Configuration.DSConfig;
-	struct ieee80211_channel *chan;
+	int freq = 2412;
+	struct ieee80211_channel *notify_channel;
 #endif
 
 	DBG_871X(FUNC_ADPT_FMT"\n", FUNC_ADPT_ARG(padapter));
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0))	
+	if (cur_network->network.Configuration.DSConfig <= RTW_CH_MAX_2G_CHANNEL)
+		freq = rtw_ieee80211_channel_to_frequency(cur_network->network.Configuration.DSConfig, IEEE80211_BAND_2GHZ);
+	else
+		freq = rtw_ieee80211_channel_to_frequency(cur_network->network.Configuration.DSConfig, IEEE80211_BAND_5GHZ);
+	
+	if (0)
+		DBG_871X("chan: %d, freq: %d\n", cur_network->network.Configuration.DSConfig, freq);
+#endif
+
 	if (pwdev->iftype != NL80211_IFTYPE_ADHOC) 
 	{
 		return;
@@ -725,8 +736,8 @@ void rtw_cfg80211_ibss_indicate_connect(_adapter *padapter)
 	}
 	//notify cfg80211 that device joined an IBSS
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0))
-	chan = ieee80211_get_channel(wiphy, freq);
-	cfg80211_ibss_joined(padapter->pnetdev, cur_network->network.MacAddress, chan, GFP_ATOMIC);
+	notify_channel = ieee80211_get_channel(wiphy, freq);
+	cfg80211_ibss_joined(padapter->pnetdev, cur_network->network.MacAddress, notify_channel, GFP_ATOMIC);
 #else
 	cfg80211_ibss_joined(padapter->pnetdev, cur_network->network.MacAddress, GFP_ATOMIC);
 #endif
@@ -1589,6 +1600,12 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		ret = rtw_cfg80211_ap_set_encryption(ndev, param, param_len);
 #endif
 	}
+        else if(check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == _TRUE
+                || check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == _TRUE)
+        {
+                //DBG_8192C("@@@@@@@@@@ fw_state=0x%x, iftype=%d\n", pmlmepriv->fw_state, rtw_wdev->iftype);
+                ret =  rtw_cfg80211_set_encryption(ndev, param, param_len);
+        }
 	else
 	{
 		DBG_8192C("error! fw_state=0x%x, iftype=%d\n", pmlmepriv->fw_state, rtw_wdev->iftype);
@@ -1857,7 +1874,10 @@ static int cfg80211_rtw_change_iface(struct wiphy *wiphy,
 		pmlmeext->action_public_rxseq = 0xffff;
 		pmlmeext->action_public_dialog_token = 0xff;
 	}	
-		
+
+	/* initial default type */
+	ndev->type = ARPHRD_ETHER;
+
 	switch (type) {
 	case NL80211_IFTYPE_ADHOC:
 		networkType = Ndis802_11IBSS;
@@ -1896,7 +1916,14 @@ static int cfg80211_rtw_change_iface(struct wiphy *wiphy,
 			}
 		}
 		#endif //CONFIG_P2P
-		break;		
+		break;
+	case NL80211_IFTYPE_MONITOR:
+		networkType = Ndis802_11Monitor;
+#if 0
+		ndev->type = ARPHRD_IEEE80211; /* IEEE 802.11 : 801 */
+#endif
+		ndev->type = ARPHRD_IEEE80211_RADIOTAP; /* IEEE 802.11 + radiotap header : 803 */
+		break;
 	default:
 		ret = -EOPNOTSUPP;
 		goto exit;
@@ -1911,7 +1938,7 @@ static int cfg80211_rtw_change_iface(struct wiphy *wiphy,
 		goto exit;
 	}
 
-	rtw_setopmode_cmd(padapter, networkType,_TRUE);	
+	rtw_setopmode_cmd(padapter, networkType, _TRUE);
 	
 exit:
 
@@ -2864,7 +2891,21 @@ static int cfg80211_rtw_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 	NDIS_802_11_SSID ndis_ssid;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
+	WLAN_BSSID_EX *pnetwork = (WLAN_BSSID_EX *)(&(pmlmeinfo->network));
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
+	struct cfg80211_chan_def *pch_def;
+#endif
+	struct ieee80211_channel *pch;
 	int ret=0;
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
+	pch_def = (struct cfg80211_chan_def *)(&params->chandef); 
+	pch = (struct ieee80211_channel *) pch_def->chan;
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 31))
+	pch = (struct ieee80211_channel *)(params->channel); 
+#endif
 	
 	if(_FAIL == rtw_pwr_wakeup(padapter)) {
 		ret= -EPERM;
@@ -2913,6 +2954,9 @@ static int cfg80211_rtw_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 	
 	ret = rtw_cfg80211_set_auth_type(psecuritypriv, NL80211_AUTHTYPE_OPEN_SYSTEM);
 	rtw_set_802_11_authentication_mode(padapter, psecuritypriv->ndisauthtype);
+
+	DBG_871X("%s: center_freq = %d\n", __func__, pch->center_freq);
+	pmlmeext->cur_channel = rtw_freq2ch(pch->center_freq);
 	
 	if (rtw_set_802_11_ssid(padapter, &ndis_ssid) == _FALSE) 
 	{
@@ -4291,10 +4335,37 @@ static int	cfg80211_rtw_set_channel(struct wiphy *wiphy
 	#endif
 	, struct ieee80211_channel *chan, enum nl80211_channel_type channel_type)
 {
+	int chan_target = (u8) ieee80211_frequency_to_channel(chan->center_freq);
+	int chan_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+	int chan_width = CHANNEL_WIDTH_20;
+	_adapter *padapter = wiphy_to_adapter(wiphy);
+
 	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35))
 	DBG_871X(FUNC_NDEV_FMT"\n", FUNC_NDEV_ARG(ndev));
 	#endif
-	
+
+	switch (channel_type) {
+	case NL80211_CHAN_NO_HT:
+	case NL80211_CHAN_HT20:
+		chan_width = CHANNEL_WIDTH_20;
+		chan_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+		break;
+	case NL80211_CHAN_HT40MINUS:
+		chan_width = CHANNEL_WIDTH_40;
+		chan_offset = HAL_PRIME_CHNL_OFFSET_UPPER;
+		break;
+	case NL80211_CHAN_HT40PLUS:
+		chan_width = CHANNEL_WIDTH_40;
+		chan_offset = HAL_PRIME_CHNL_OFFSET_LOWER;
+		break;
+	default:
+		chan_width = CHANNEL_WIDTH_20;
+		chan_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+		break;
+	}
+
+	set_channel_bwmode(padapter, chan_target, chan_offset, chan_width);
+
 	return 0;
 }
 

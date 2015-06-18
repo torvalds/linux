@@ -85,7 +85,8 @@ typedef enum _NDIS_802_11_NETWORK_INFRASTRUCTURE
     Ndis802_11Infrastructure,
     Ndis802_11AutoUnknown,
     Ndis802_11InfrastructureMax,     // Not a real value, defined as upper bound
-    Ndis802_11APMode
+	Ndis802_11APMode,
+	Ndis802_11Monitor,
 } NDIS_802_11_NETWORK_INFRASTRUCTURE, *PNDIS_802_11_NETWORK_INFRASTRUCTURE;
 
 

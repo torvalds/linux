@@ -98,6 +98,7 @@
 	#define CONFIG_RTW_ADAPTIVITY_DC_BACKOFF 2
 #endif
 
+/*#define CONFIG_WEXT_DONT_JOIN_BYSSID	*/
 //#include <rtl871x_byteorder.h>
 
 #endif // __DRV_CONF_H__

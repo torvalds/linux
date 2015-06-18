@@ -62,6 +62,12 @@
 	#include <linux/tqueue.h>
 #endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0))
+	#include <uapi/linux/limits.h>
+#else
+	#include <linux/limits.h>
+#endif
+
 #ifdef RTK_DMP_PLATFORM
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,12))
 	#include <linux/pageremap.h>
@@ -69,10 +75,12 @@
 	#include <asm/io.h>
 #endif
 
+	/* Monitor mode */
+	#include <net/ieee80211_radiotap.h>
+
 #ifdef CONFIG_IOCTL_CFG80211	
-//	#include <linux/ieee80211.h>        
-        #include <net/ieee80211_radiotap.h>
-	#include <net/cfg80211.h>	
+/*	#include <linux/ieee80211.h> */
+	#include <net/cfg80211.h>
 #endif //CONFIG_IOCTL_CFG80211
 
 #ifdef CONFIG_TCP_CSUM_OFFLOAD_TX

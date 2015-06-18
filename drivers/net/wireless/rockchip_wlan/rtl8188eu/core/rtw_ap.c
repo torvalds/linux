@@ -2969,12 +2969,10 @@ int rtw_sta_flush(_adapter *padapter)
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 	u8 bc_addr[ETH_ALEN] = {0xff,0xff,0xff,0xff,0xff,0xff};
 
-	DBG_871X(FUNC_NDEV_FMT"\n", FUNC_NDEV_ARG(padapter->pnetdev));
-
 	if((pmlmeinfo->state&0x03) != WIFI_FW_AP_STATE)
 		return ret;
 
-
+	DBG_871X(FUNC_NDEV_FMT"\n", FUNC_NDEV_ARG(padapter->pnetdev));
 	_enter_critical_bh(&pstapriv->asoc_list_lock, &irqL);
 	phead = &pstapriv->asoc_list;
 	plist = get_next(phead);

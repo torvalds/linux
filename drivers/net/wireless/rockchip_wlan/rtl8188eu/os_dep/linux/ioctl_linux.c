@@ -1536,9 +1536,50 @@ static int rtw_wx_set_freq(struct net_device *dev,
 			     struct iw_request_info *info, 
 			     union iwreq_data *wrqu, char *extra)
 {	
+
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct	mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
+	struct wlan_network  *cur_network = &(pmlmepriv->cur_network);
+	int exp = 1, freq = 0, div = 0;
+
 	_func_enter_;
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_, ("+rtw_wx_set_freq\n"));
+
+	if (wrqu->freq.m <= 1000) {
+		if (wrqu->freq.flags == IW_FREQ_AUTO) {
+			padapter->mlmeextpriv.cur_channel = 1;
+			DBG_871X("%s: channel is auto, set to channel 1\n", __func__);
+		} else {
+			padapter->mlmeextpriv.cur_channel = wrqu->freq.m;
+			DBG_871X("%s: set to channel %d\n", __func__, padapter->mlmeextpriv.cur_channel);
+		}
+	} else {
+		while (wrqu->freq.e) {
+			exp *= 10;
+			wrqu->freq.e--;
+		}
+
+		freq = wrqu->freq.m;
+		while (!(freq%10)) {
+			freq /= 10;
+			exp *= 10;
+		}
+
+		/* freq unit is MHz here */
+		div = 1000000/exp;
+
+		if (div)
+			freq /= div;
+		else {
+			div = exp/1000000;
+			freq *= div;
+		}
+
+		/* If freq is invalid, rtw_freq2ch() will return channel 1 */
+		padapter->mlmeextpriv.cur_channel = rtw_freq2ch(freq);
+		DBG_871X("%s: set to channel %d\n", __func__, padapter->mlmeextpriv.cur_channel);
+	}
 
 	_func_exit_;
 	
@@ -1588,9 +1629,21 @@ static int rtw_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 		ret = -EPERM;
 		goto exit;
 	}
-	
+
+	/* initial default type */
+	dev->type = ARPHRD_ETHER;
+
 	switch(wrqu->mode)
 	{
+		case IW_MODE_MONITOR:
+			networkType = Ndis802_11Monitor;
+#if 0
+			dev->type = ARPHRD_IEEE80211; /* IEEE 802.11 : 801 */
+#endif
+			dev->type = ARPHRD_IEEE80211_RADIOTAP; /* IEEE 802.11 + radiotap header : 803 */
+			DBG_871X("set_mode = IW_MODE_MONITOR\n");
+			break;
+
 		case IW_MODE_AUTO:
 			networkType = Ndis802_11AutoUnknown;
 			DBG_871X("set_mode = IW_MODE_AUTO\n");	
@@ -2573,7 +2626,10 @@ static int rtw_wx_set_essid(struct net_device *dev,
 	#ifdef DBG_IOCTL
 	DBG_871X("DBG_IOCTL %s:%d\n",__FUNCTION__, __LINE__);
 	#endif
-	
+	#ifdef CONFIG_WEXT_DONT_JOIN_BYSSID
+	DBG_871X("%s: CONFIG_WEXT_DONT_JOIN_BYSSID be defined!! only allow bssid joining\n", __func__);
+	return -EPERM;
+	#endif
 /*
 #ifdef CONFIG_CONCURRENT_MODE
 	if(padapter->iface_type > PRIMARY_IFACE)
@@ -14184,7 +14240,15 @@ static struct iw_statistics *rtw_get_wireless_stats(struct net_device *dev)
 		#ifdef CONFIG_SIGNAL_DISPLAY_DBM
 		tmp_level = translate_percentage_to_dbm(padapter->recvpriv.signal_strength); 
 		#else
+		#ifdef CONFIG_SKIP_SIGNAL_SCALE_MAPPING
+		{
+			/* Do signal scale mapping when using percentage as the unit of signal strength, since the scale mapping is skipped in odm */
+			HAL_DATA_TYPE *pHal = GET_HAL_DATA(padapter);
+			tmp_level = (u8)odm_SignalScaleMapping(&pHal->odmpriv, padapter->recvpriv.signal_strength);
+		}
+		#else
 		tmp_level = padapter->recvpriv.signal_strength;
+		#endif
 		#endif
 		
 		tmp_qual = padapter->recvpriv.signal_qual;

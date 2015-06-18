@@ -261,6 +261,17 @@ static int proc_get_rf_reg_dump(struct seq_file *m, void *v)
 
 	return 0;
 }
+
+static int proc_get_dump_adapters_status(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
+
+	dump_adapters_status(m, adapter_to_dvobj(adapter));
+
+	return 0;
+}
+
 static int proc_get_linked_info_dump(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
@@ -424,15 +435,15 @@ static int proc_get_cam_cache(struct seq_file *m, void *v)
 const struct rtw_proc_hdl adapter_proc_hdls [] = {
 	{"write_reg", proc_get_dummy, proc_set_write_reg},
 	{"read_reg", proc_get_read_reg, proc_set_read_reg},
+	{"adapters_status", proc_get_dump_adapters_status, NULL},
 	{"fwstate", proc_get_fwstate, NULL},
 	{"sec_info", proc_get_sec_info, NULL},
 	{"mlmext_state", proc_get_mlmext_state, NULL},
 	{"qos_option", proc_get_qos_option, NULL},
 	{"ht_option", proc_get_ht_option, NULL},
 	{"rf_info", proc_get_rf_info, NULL},
-	{"survey_info", proc_get_survey_info, NULL},
+	{"survey_info", proc_get_survey_info, proc_set_survey_info},
 	{"ap_info", proc_get_ap_info, NULL},
-	{"adapter_state", proc_get_adapter_state, NULL},
 	{"trx_info", proc_get_trx_info, NULL},
 	{"rate_ctl", proc_get_rate_ctl, proc_set_rate_ctl},
 	{"mac_qinfo", proc_get_mac_qinfo, NULL},
@@ -496,6 +507,7 @@ const struct rtw_proc_hdl adapter_proc_hdls [] = {
 	{"sreset", proc_get_sreset, proc_set_sreset},
 #endif /* DBG_CONFIG_ERROR_DETECT */
 	{"linked_info_dump",proc_get_linked_info_dump,proc_set_linked_info_dump},
+	{"monitor", proc_get_monitor, proc_set_monitor},
 };
 
 const int adapter_proc_hdls_num = sizeof(adapter_proc_hdls) / sizeof(struct rtw_proc_hdl);

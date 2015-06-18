@@ -41,48 +41,57 @@
 #define	SCANQUEUE_LIFETIME 20000 // 20sec, unit:msec
 #endif
 
-#define WIFI_NULL_STATE		0x00000000
-#define WIFI_ASOC_STATE		0x00000001		// Under Linked state...
-#define WIFI_REASOC_STATE	0x00000002
-#define WIFI_SLEEP_STATE	0x00000004
-#define WIFI_STATION_STATE	0x00000008
-#define	WIFI_AP_STATE			0x00000010
-#define	WIFI_ADHOC_STATE		0x00000020
-#define WIFI_ADHOC_MASTER_STATE	0x00000040
-#define WIFI_UNDER_LINKING	0x00000080
+#define WIFI_NULL_STATE					0x00000000
+#define WIFI_ASOC_STATE					0x00000001 /* Linked */
+#define WIFI_REASOC_STATE				0x00000002
+#define WIFI_SLEEP_STATE				0x00000004
+#define WIFI_STATION_STATE				0x00000008
+#define WIFI_AP_STATE					0x00000010
+#define WIFI_ADHOC_STATE				0x00000020
+#define WIFI_ADHOC_MASTER_STATE			0x00000040
+#define WIFI_UNDER_LINKING				0x00000080
+#define WIFI_UNDER_WPS					0x00000100
+#define WIFI_UNDER_CAC					0x00000200
+#define WIFI_STA_ALIVE_CHK_STATE		0x00000400
+#define WIFI_SITE_MONITOR				0x00000800 /* under site surveying */
+#define WIFI_WDS						0x00001000
+#define WIFI_WDS_RX_BEACON				0x00002000 /* already rx WDS AP beacon */
+#define WIFI_AUTOCONF					0x00004000
+#define WIFI_AUTOCONF_IND				0x00008000
+#define WIFI_MP_STATE					0x00010000
+#define WIFI_MP_CTX_BACKGROUND			0x00020000 /* in continuous tx background */
+#define WIFI_MP_CTX_ST					0x00040000 /* in continuous tx with single-tone */
+#define WIFI_MP_CTX_BACKGROUND_PENDING	0x00080000 /* pending in continuous tx background due to out of skb */
+#define WIFI_MP_CTX_CCK_HW				0x00100000 /* in continuous tx */
+#define WIFI_MP_CTX_CCK_CS				0x00200000 /* in continuous tx with carrier suppression */
+#define WIFI_MP_LPBK_STATE				0x00400000
+#define WIFI_OP_CH_SWITCHING			0x00800000
+/*#define WIFI_UNDEFINED_STATE			0x01000000*/
+/*#define WIFI_UNDEFINED_STATE			0x02000000*/
+/*#define WIFI_UNDEFINED_STATE			0x04000000*/
+/*#define WIFI_UNDEFINED_STATE			0x08000000*/
+/*#define WIFI_UNDEFINED_STATE			0x10000000*/
+/*#define WIFI_UNDEFINED_STATE			0x20000000*/
+/*#define WIFI_UNDEFINED_STATE			0x40000000*/
+#define WIFI_MONITOR_STATE				0x80000000
 
-#define WIFI_UNDER_WPS			0x00000100
-//#define	WIFI_UNDER_CMD			0x00000200
-//#define	WIFI_UNDER_P2P			0x00000400
-#define	WIFI_STA_ALIVE_CHK_STATE	0x00000400
-#define	WIFI_SITE_MONITOR			0x00000800		//to indicate the station is under site surveying
-#ifdef WDS
-#define	WIFI_WDS				0x00001000
-#define	WIFI_WDS_RX_BEACON	0x00002000		// already rx WDS AP beacon
-#endif
-#ifdef AUTO_CONFIG
-#define	WIFI_AUTOCONF			0x00004000
-#define	WIFI_AUTOCONF_IND	0x00008000
-#endif
+#define MLME_STATE_FMT "%s%s%s%s%s%s%s%s%s%s%s%s"
+#define MLME_STATE_ARG(state) \
+	((state) & WIFI_STATION_STATE)?" STA":"", \
+	((state) & WIFI_AP_STATE)?" AP":"", \
+	((state) & WIFI_ADHOC_STATE)?" ADHOC":"", \
+	((state) & WIFI_ADHOC_MASTER_STATE)?" ADHOC_M":"", \
+	((state) & WIFI_MONITOR_STATE)?" MONITOR":"", \
+	((state) & WIFI_MP_STATE)?" MP":"", \
+	((state) & WIFI_SITE_MONITOR)?" SCAN":"", \
+	((state) & WIFI_UNDER_LINKING)?" LINKING":"", \
+	((state) & WIFI_ASOC_STATE)?" ASOC":"", \
+	((state) & WIFI_OP_CH_SWITCHING)?" OP_CH_SW":"", \
+	((state) & WIFI_UNDER_WPS)?" WPS":"", \
+	((state) & WIFI_SLEEP_STATE)?" SLEEP":""
 
-/*
-// ========== P2P Section Start ===============
-#define	WIFI_P2P_LISTEN_STATE		0x00010000
-#define	WIFI_P2P_GROUP_FORMATION_STATE		0x00020000
-// ========== P2P Section End ===============
-*/
+#define ADPT_MLME_S_ARG(adapter) MLME_STATE_ARG(get_fwstate(&((adapter)->mlmepriv)))
 
-//#ifdef UNDER_MPTEST
-#define	WIFI_MP_STATE							0x00010000
-#define	WIFI_MP_CTX_BACKGROUND				0x00020000	// in continous tx background
-#define	WIFI_MP_CTX_ST						0x00040000	// in continous tx with single-tone
-#define	WIFI_MP_CTX_BACKGROUND_PENDING	0x00080000	// pending in continous tx background due to out of skb
-#define	WIFI_MP_CTX_CCK_HW					0x00100000	// in continous tx
-#define	WIFI_MP_CTX_CCK_CS					0x00200000	// in continous tx with carrier suppression
-#define   WIFI_MP_LPBK_STATE					0x00400000
-//#endif
-
-//#define _FW_UNDER_CMD		WIFI_UNDER_CMD
 #define _FW_UNDER_LINKING	WIFI_UNDER_LINKING
 #define _FW_LINKED			WIFI_ASOC_STATE
 #define _FW_UNDER_SURVEY	WIFI_SITE_MONITOR

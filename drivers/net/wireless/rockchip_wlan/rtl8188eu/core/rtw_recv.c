@@ -20,6 +20,7 @@
 #define _RTW_RECV_C_
 
 #include <drv_types.h>
+#include <hal_data.h>
 
 #if defined (PLATFORM_LINUX) && defined (PLATFORM_WINDOWS)
 
@@ -30,8 +31,23 @@
 
 #ifdef CONFIG_NEW_SIGNAL_STAT_PROCESS
 void rtw_signal_stat_timer_hdl(RTW_TIMER_HDL_ARGS);
-#endif //CONFIG_NEW_SIGNAL_STAT_PROCESS
 
+enum {
+	SIGNAL_STAT_CALC_PROFILE_0 = 0,
+	SIGNAL_STAT_CALC_PROFILE_1,
+	SIGNAL_STAT_CALC_PROFILE_MAX
+};
+
+u8 signal_stat_calc_profile[SIGNAL_STAT_CALC_PROFILE_MAX][2] = {
+	{4, 1},	/* Profile 0 => pre_stat : curr_stat = 4 : 1 */
+	{3, 7}	/* Profile 1 => pre_stat : curr_stat = 3 : 7 */
+};
+
+#ifndef RTW_SIGNAL_STATE_CALC_PROFILE	
+#define RTW_SIGNAL_STATE_CALC_PROFILE SIGNAL_STAT_CALC_PROFILE_0
+#endif
+
+#endif //CONFIG_NEW_SIGNAL_STAT_PROCESS
 
 void _rtw_init_sta_recv_priv(struct sta_recv_priv *psta_recvpriv)
 {
@@ -3699,6 +3715,357 @@ _func_exit_;
 
 }
 
+static sint fill_radiotap_hdr(_adapter *padapter, union recv_frame *precvframe, u8 *buf)
+{
+#define CHAN2FREQ(a) ((a < 14)?(2407+5*a):(5000+5*a))
+
+#if 0
+#define RTW_RX_RADIOTAP_PRESENT (                 \
+		(1 << IEEE80211_RADIOTAP_TSFT)              | \
+		(1 << IEEE80211_RADIOTAP_FLAGS)             | \
+		(1 << IEEE80211_RADIOTAP_RATE)              | \
+		(1 << IEEE80211_RADIOTAP_CHANNEL)           | \
+		(0 << IEEE80211_RADIOTAP_FHSS)              | \
+		(1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL)     | \
+		(1 << IEEE80211_RADIOTAP_DBM_ANTNOISE)      | \
+		(0 << IEEE80211_RADIOTAP_LOCK_QUALITY)      | \
+		(0 << IEEE80211_RADIOTAP_TX_ATTENUATION)    | \
+		(0 << IEEE80211_RADIOTAP_DB_TX_ATTENUATION) | \
+		(0 << IEEE80211_RADIOTAP_DBM_TX_POWER)      | \
+		(1 << IEEE80211_RADIOTAP_ANTENNA)           | \
+		(1 << IEEE80211_RADIOTAP_DB_ANTSIGNAL)      | \
+		(0 << IEEE80211_RADIOTAP_DB_ANTNOISE)       | \
+		(0 << IEEE80211_RADIOTAP_RX_FLAGS)          | \
+		(0 << IEEE80211_RADIOTAP_TX_FLAGS)          | \
+		(0 << IEEE80211_RADIOTAP_RTS_RETRIES)       | \
+		(0 << IEEE80211_RADIOTAP_DATA_RETRIES)      | \
+		(0 << IEEE80211_RADIOTAP_MCS)               | \
+		(0 << IEEE80211_RADIOTAP_RADIOTAP_NAMESPACE)| \
+		(0 << IEEE80211_RADIOTAP_VENDOR_NAMESPACE)  | \
+		(0 << IEEE80211_RADIOTAP_EXT)               | \
+		0)
+
+	/* (0 << IEEE80211_RADIOTAP_AMPDU_STATUS)      | \ */
+	/* (0 << IEEE80211_RADIOTAP_VHT)               | \ */
+#endif
+#ifndef IEEE80211_RADIOTAP_MCS
+#define IEEE80211_RADIOTAP_MCS 19
+#endif
+#ifndef IEEE80211_RADIOTAP_VHT
+#define IEEE80211_RADIOTAP_VHT 21
+#endif
+
+#ifndef IEEE80211_RADIOTAP_F_BADFCS
+#define IEEE80211_RADIOTAP_F_BADFCS 0x40 /* bad FCS */
+#endif
+
+	sint ret = _SUCCESS;
+	_adapter			*adapter = precvframe->u.hdr.adapter;
+	struct mlme_priv	*pmlmepriv = &adapter->mlmepriv;
+	struct rx_pkt_attrib *pattrib = &precvframe->u.hdr.attrib;
+
+	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(padapter);
+
+	u16 tmp_16bit = 0;
+
+	u8 data_rate[] = {
+		2, 4, 11, 22, /* CCK */
+		12, 18, 24, 36, 48, 72, 93, 108, /* OFDM */
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, /* HT MCS index */
+		16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, /* VHT Nss 1 */
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, /* VHT Nss 2 */
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, /* VHT Nss 3 */
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, /* VHT Nss 4 */
+	};
+
+	_pkt *pskb = NULL;
+
+	struct ieee80211_radiotap_header *rtap_hdr = NULL;
+	u8 *ptr = NULL;
+
+	u8 hdr_buf[64] = {0};
+	u16 rt_len = 8;
+
+	/* create header */
+	rtap_hdr = (struct ieee80211_radiotap_header *)&hdr_buf[0];
+	rtap_hdr->it_version = PKTHDR_RADIOTAP_VERSION;
+
+	/* tsft */
+	if (pattrib->tsfl) {
+		u64 tmp_64bit;
+
+		rtap_hdr->it_present |= (1 << IEEE80211_RADIOTAP_TSFT);
+		tmp_64bit = cpu_to_le64(pattrib->tsfl);
+		memcpy(&hdr_buf[rt_len], &tmp_64bit, 8);
+		rt_len += 8;
+	}
+
+	/* flags */
+	rtap_hdr->it_present |= (1 << IEEE80211_RADIOTAP_FLAGS);
+	if (0)
+		hdr_buf[rt_len] |= IEEE80211_RADIOTAP_F_CFP;
+
+	if (0)
+		hdr_buf[rt_len] |= IEEE80211_RADIOTAP_F_SHORTPRE;
+
+	if ((pattrib->encrypt == 1) || (pattrib->encrypt == 5))
+		hdr_buf[rt_len] |= IEEE80211_RADIOTAP_F_WEP;
+
+	if (pattrib->mfrag)
+		hdr_buf[rt_len] |= IEEE80211_RADIOTAP_F_FRAG;
+
+#ifndef CONFIG_RX_PACKET_APPEND_FCS
+		hdr_buf[rt_len] |= IEEE80211_RADIOTAP_F_FCS;
+#endif
+
+	if (0)
+		hdr_buf[rt_len] |= IEEE80211_RADIOTAP_F_DATAPAD;
+
+	if (pattrib->crc_err)
+		hdr_buf[rt_len] |= IEEE80211_RADIOTAP_F_BADFCS;
+
+	if (pattrib->sgi) {
+		/* Currently unspecified but used */
+		hdr_buf[rt_len] |= 0x80;
+	}
+	rt_len += 1;
+
+	/* rate */
+	if (pattrib->data_rate < 12) {
+		rtap_hdr->it_present |= (1 << IEEE80211_RADIOTAP_RATE);
+		if (pattrib->data_rate < 4) {
+			/* CCK */
+			hdr_buf[rt_len] = data_rate[pattrib->data_rate];
+		} else {
+			/* OFDM */
+			hdr_buf[rt_len] = data_rate[pattrib->data_rate];
+		}
+	}
+	rt_len += 1; /* force padding 1 byte for aligned */
+
+	/* channel */
+	tmp_16bit = 0;
+	rtap_hdr->it_present |= (1 << IEEE80211_RADIOTAP_CHANNEL);
+	tmp_16bit = CHAN2FREQ(rtw_get_oper_ch(padapter));
+	/*tmp_16bit = CHAN2FREQ(pHalData->CurrentChannel);*/
+	memcpy(&hdr_buf[rt_len], &tmp_16bit, 2);
+	rt_len += 2;
+
+	/* channel flags */
+	tmp_16bit = 0;
+	if (pHalData->CurrentBandType == 0) 
+		tmp_16bit |= cpu_to_le16(IEEE80211_CHAN_2GHZ);
+	else 
+		tmp_16bit |= cpu_to_le16(IEEE80211_CHAN_5GHZ);
+
+	if (pattrib->data_rate < 12) {
+		if (pattrib->data_rate < 4) {
+			/* CCK */
+			tmp_16bit |= cpu_to_le16(IEEE80211_CHAN_CCK);
+		} else {
+			/* OFDM */
+			tmp_16bit |= cpu_to_le16(IEEE80211_CHAN_OFDM);
+		}
+	} else {
+		tmp_16bit |= cpu_to_le16(IEEE80211_CHAN_DYN);
+	}
+	memcpy(&hdr_buf[rt_len], &tmp_16bit, 2);
+	rt_len += 2;
+
+	/* dBm Antenna Signal */
+	rtap_hdr->it_present |= (1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL);
+	hdr_buf[rt_len] = pattrib->phy_info.RecvSignalPower;
+	rt_len += 1;
+
+#if 0
+	/* dBm Antenna Noise */
+	rtap_hdr->it_present |= (1 << IEEE80211_RADIOTAP_DBM_ANTNOISE);
+	hdr_buf[rt_len] = 0;
+	rt_len += 1;
+
+	/* Signal Quality */
+	rtap_hdr->it_present |= (1 << IEEE80211_RADIOTAP_LOCK_QUALITY);
+	hdr_buf[rt_len] = pattrib->phy_info.SignalQuality;
+	rt_len += 1;
+#endif
+
+	/* Antenna */
+	rtap_hdr->it_present |= (1 << IEEE80211_RADIOTAP_ANTENNA);
+	hdr_buf[rt_len] = 0; /* pHalData->rf_type; */
+	rt_len += 1;
+
+	/* RX flags */
+	rtap_hdr->it_present |= (1 << IEEE80211_RADIOTAP_RX_FLAGS);
+#if 0
+	tmp_16bit = cpu_to_le16(0);
+	memcpy(ptr, &tmp_16bit, 1);
+#endif
+	rt_len += 2;
+
+	/* MCS information */
+	if (pattrib->data_rate >= 12 && pattrib->data_rate < 44) {
+		rtap_hdr->it_present |= (1 << IEEE80211_RADIOTAP_MCS);
+		/* known, flag */
+		hdr_buf[rt_len] |= BIT1; /* MCS index known */
+
+		/* bandwidth */
+		hdr_buf[rt_len] |= BIT0;
+		hdr_buf[rt_len+1] |= (pattrib->bw & 0x03);
+
+		/* guard interval */
+		hdr_buf[rt_len] |= BIT2;
+		hdr_buf[rt_len+1] |= (pattrib->sgi & 0x01) << 2;
+
+		/* STBC */
+		hdr_buf[rt_len] |= BIT5;
+		hdr_buf[rt_len+1] |= (pattrib->stbc & 0x03) << 5;
+
+		rt_len += 2;
+
+		/* MCS rate index */
+		hdr_buf[rt_len] = data_rate[pattrib->data_rate];
+		rt_len += 1;
+	}
+
+	/* VHT */
+	if (pattrib->data_rate >= 44 && pattrib->data_rate < 84) {
+		rtap_hdr->it_present |= (1 << IEEE80211_RADIOTAP_VHT);
+
+		/* known 16 bit, flag 8 bit */
+		tmp_16bit = 0;
+
+		/* Bandwidth */
+		tmp_16bit |= BIT6;
+
+		/* Group ID */
+		tmp_16bit |= BIT7;
+
+		/* Partial AID */
+		tmp_16bit |= BIT8;
+
+		/* STBC */
+		tmp_16bit |= BIT0;
+		hdr_buf[rt_len+2] |= (pattrib->stbc & 0x01);
+
+		/* Guard interval */
+		tmp_16bit |= BIT2;
+		hdr_buf[rt_len+2] |= (pattrib->sgi & 0x01) << 2;
+
+		/* LDPC extra OFDM symbol */
+		tmp_16bit |= BIT4;
+		hdr_buf[rt_len+2] |= (pattrib->ldpc & 0x01) << 4;
+
+		memcpy(&hdr_buf[rt_len], &tmp_16bit, 2);
+		rt_len += 3;
+
+		/* bandwidth */
+		if (pattrib->bw == 0) 
+			hdr_buf[rt_len] |= 0;
+		else if (pattrib->bw == 1) 
+			hdr_buf[rt_len] |= 1;
+		else if (pattrib->bw == 2) 
+			hdr_buf[rt_len] |= 4;
+		else if (pattrib->bw == 3) 
+			hdr_buf[rt_len] |= 11;
+		rt_len += 1;
+
+		/* mcs_nss */
+		if (pattrib->data_rate >= 44 && pattrib->data_rate < 54) {
+			hdr_buf[rt_len] |= 1;
+			hdr_buf[rt_len] |= data_rate[pattrib->data_rate] << 4;
+		} else if (pattrib->data_rate >= 54 && pattrib->data_rate < 64) {
+			hdr_buf[rt_len + 1] |= 2;
+			hdr_buf[rt_len + 1] |= data_rate[pattrib->data_rate] << 4;
+		} else if (pattrib->data_rate >= 64 && pattrib->data_rate < 74) {
+			hdr_buf[rt_len + 2] |= 3;
+			hdr_buf[rt_len + 2] |= data_rate[pattrib->data_rate] << 4;
+		} else if (pattrib->data_rate >= 74 && pattrib->data_rate < 84) {
+			hdr_buf[rt_len + 3] |= 4;
+			hdr_buf[rt_len + 3] |= data_rate[pattrib->data_rate] << 4;
+		}
+		rt_len += 4;
+
+		/* coding */
+		hdr_buf[rt_len] = 0;
+		rt_len += 1;
+
+		/* group_id */
+		hdr_buf[rt_len] = 0;
+		rt_len += 1;
+
+		/* partial_aid */
+		tmp_16bit = 0;
+		memcpy(&hdr_buf[rt_len], &tmp_16bit, 2);
+		rt_len += 2;
+	}
+
+	/* push to skb */
+	pskb = (_pkt *)buf;
+	if (skb_headroom(pskb) < rt_len) {
+		DBG_871X("%s:%d %s headroom is too small.\n", __FILE__, __LINE__, __func__);
+		ret = _FAIL;
+		return ret;
+	}
+
+	ptr = skb_push(pskb, rt_len);
+	if (ptr) {
+		rtap_hdr->it_len = cpu_to_le16(rt_len);
+		memcpy(ptr, rtap_hdr, rt_len);
+	} else {
+		ret = _FAIL;
+	}
+
+	return ret;
+
+}
+
+int recv_frame_monitor(_adapter *padapter, union recv_frame *rframe)
+{
+	int ret = _SUCCESS;
+	struct rx_pkt_attrib *pattrib = &rframe->u.hdr.attrib;
+	struct recv_priv *precvpriv = &padapter->recvpriv;
+	_queue *pfree_recv_queue = &padapter->recvpriv.free_recv_queue;
+	_pkt *pskb = NULL;
+
+	/* read skb information from recv frame */
+	pskb = rframe->u.hdr.pkt;
+	pskb->len = rframe->u.hdr.len;
+	pskb->data = rframe->u.hdr.rx_data;
+	skb_set_tail_pointer(pskb, rframe->u.hdr.len);
+
+	/* fill radiotap header */
+	if (fill_radiotap_hdr(padapter, rframe, (u8 *)pskb) == _FAIL) {
+		ret = _FAIL;
+		rtw_free_recvframe(rframe, pfree_recv_queue); /* free this recv_frame */
+		goto exit;
+	}
+
+	/* write skb information to recv frame */
+	skb_reset_mac_header(pskb);
+	rframe->u.hdr.len = pskb->len;
+	rframe->u.hdr.rx_data = pskb->data;
+	rframe->u.hdr.rx_head = pskb->head;
+	rframe->u.hdr.rx_tail = skb_tail_pointer(pskb);
+	rframe->u.hdr.rx_end = skb_end_pointer(pskb);
+
+	if ((padapter->bDriverStopped == _FALSE) && (padapter->bSurpriseRemoved == _FALSE)) {
+		/* indicate this recv_frame */
+		ret = rtw_recv_monitor(padapter, rframe);
+		if (ret != _SUCCESS) {
+			ret = _FAIL;
+			rtw_free_recvframe(rframe, pfree_recv_queue); /* free this recv_frame */
+			goto exit;
+		}
+	} else {
+		ret = _FAIL;
+		rtw_free_recvframe(rframe, pfree_recv_queue); /* free this recv_frame */
+		goto exit;
+	}
+
+exit:
+	return ret;
+}
 
 int recv_func_prehandle(_adapter *padapter, union recv_frame *rframe)
 {
@@ -4039,6 +4406,13 @@ int recv_func(_adapter *padapter, union recv_frame *rframe)
 	struct security_priv *psecuritypriv=&padapter->securitypriv;
 	struct mlme_priv *mlmepriv = &padapter->mlmepriv;
 
+	if (check_fwstate(mlmepriv, WIFI_MONITOR_STATE)) {
+		/* monitor mode */
+		recv_frame_monitor(padapter, rframe);
+		ret = _SUCCESS;
+		goto exit;
+	} else
+
 	/* check if need to handle uc_swdec_pending_queue*/
 	if (check_fwstate(mlmepriv, WIFI_STATION_STATE) && psecuritypriv->busetkipkey)
 	{
@@ -4139,7 +4513,7 @@ void rtw_signal_stat_timer_hdl(RTW_TIMER_HDL_ARGS){
 	u8 avg_signal_qual = 0;
 	u32 num_signal_strength = 0;
 	u32 num_signal_qual = 0;
-	u8 _alpha = 5; // this value is based on converging_constant = 5000 and sampling_interval = 1000
+	u8 ratio_pre_stat = 0, ratio_curr_stat = 0, ratio_total = 0, ratio_profile = SIGNAL_STAT_CALC_PROFILE_0;
 
 	if(adapter->recvpriv.is_signal_dbg) {
 		//update the user specific value, signal_strength_dbg, to signal_strength, rssi
@@ -4180,21 +4554,28 @@ void rtw_signal_stat_timer_hdl(RTW_TIMER_HDL_ARGS){
 			goto set_timer;
 		#endif
 
+		if (RTW_SIGNAL_STATE_CALC_PROFILE < SIGNAL_STAT_CALC_PROFILE_MAX)
+			ratio_profile = RTW_SIGNAL_STATE_CALC_PROFILE;
+
+		ratio_pre_stat = signal_stat_calc_profile[ratio_profile][0];
+		ratio_curr_stat = signal_stat_calc_profile[ratio_profile][1];
+		ratio_total = ratio_pre_stat + ratio_curr_stat;
+
 		//update value of signal_strength, rssi, signal_qual
-		tmp_s = (avg_signal_strength+(_alpha-1)*recvpriv->signal_strength);
-		if(tmp_s %_alpha)
-			tmp_s = tmp_s/_alpha + 1;
+		tmp_s = (ratio_curr_stat * avg_signal_strength + ratio_pre_stat * recvpriv->signal_strength);
+		if (tmp_s % ratio_total)
+			tmp_s = tmp_s / ratio_total + 1;
 		else
-			tmp_s = tmp_s/_alpha;
-		if(tmp_s>100)
+			tmp_s = tmp_s / ratio_total;
+		if (tmp_s > 100)
 			tmp_s = 100;
 
-		tmp_q = (avg_signal_qual+(_alpha-1)*recvpriv->signal_qual);
-		if(tmp_q %_alpha)
-			tmp_q = tmp_q/_alpha + 1;
+		tmp_q = (ratio_curr_stat * avg_signal_qual + ratio_pre_stat * recvpriv->signal_qual);
+		if (tmp_q % ratio_total)
+			tmp_q = tmp_q / ratio_total + 1;
 		else
-			tmp_q = tmp_q/_alpha;
-		if(tmp_q>100)
+			tmp_q = tmp_q / ratio_total;
+		if (tmp_q > 100)
 			tmp_q = 100;
 
 		recvpriv->signal_strength = tmp_s;

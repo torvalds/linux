@@ -673,7 +673,10 @@ _func_enter_;
 
 			case Ndis802_11AutoUnknown:
 			case Ndis802_11InfrastructureMax:
-				break;                        				
+				break;
+			case Ndis802_11Monitor:
+				set_fwstate(pmlmepriv, WIFI_MONITOR_STATE);
+				break;
 		}
 
 		//SecClearAllKeys(adapter);

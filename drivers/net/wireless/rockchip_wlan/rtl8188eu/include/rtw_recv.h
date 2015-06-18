@@ -254,8 +254,12 @@ struct rx_pkt_attrib	{
 	u8 	key_index;
 
 	u8	data_rate;
+	u8	bw;
+	u8	stbc;
+	u8	ldpc;
 	u8 	sgi;
 	u8 	pkt_rpt_type;
+	u32 tsfl;
 	u32	MacIDValidEntry[2];	// 64 bits present 64 entry.
 
 /*
@@ -265,7 +269,7 @@ struct rx_pkt_attrib	{
 	u32	RxPWDBAll;	
 	s32	RecvSignalPower;
 */
-	struct phy_info phy_info;	
+	struct phy_info phy_info;
 };
 
 
@@ -822,9 +826,14 @@ __inline static s32 translate_percentage_to_dbm(u32 SignalStrengthIndex)
 {
 	s32	SignalPower; // in dBm.
 
+#ifdef CONFIG_SKIP_SIGNAL_SCALE_MAPPING
+	// Translate to dBm (x=y-100)
+	SignalPower = SignalStrengthIndex - 100;
+#else
 	// Translate to dBm (x=0.5y-95).
 	SignalPower = (s32)((SignalStrengthIndex + 1) >> 1); 
 	SignalPower -= 95; 
+#endif
 
 	return SignalPower;
 }

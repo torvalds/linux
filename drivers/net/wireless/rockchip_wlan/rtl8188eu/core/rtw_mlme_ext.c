@@ -9448,6 +9448,12 @@ void site_survey(_adapter *padapter)
 			} else {
 				pmlmeinfo->scan_cnt++;
 			}
+		} else {
+			if (pmlmeinfo->backop_cnt > 0) {
+				stay_buddy_ch = 2;
+				pmlmeinfo->scan_cnt = 1;
+				pmlmeinfo->backop_cnt = 0;
+			}	
 		}
 #endif
 		if(pmlmeext->sitesurvey_res.channel_idx == 0)
@@ -11990,6 +11996,8 @@ u8 setopmode_hdl(_adapter *padapter, u8 *pbuf)
 	else if(psetop->mode == Ndis802_11IBSS)
 	{
 		type = _HW_STATE_ADHOC_;
+	} else if (psetop->mode == Ndis802_11Monitor) {
+		type = _HW_STATE_MONITOR_;
 	}
 	else
 	{
@@ -12203,7 +12211,11 @@ u8 join_cmd_hdl(_adapter *padapter, u8 *pbuf)
 	
 	if(pnetwork->IELength>MAX_IE_SZ)//Check pbuf->IELength
 		return H2C_PARAMETERS_ERROR;	
-		
+	
+	if (pnetwork->IELength < 2) {
+		report_join_res(padapter, (-4));
+		return H2C_SUCCESS;
+	}
 	_rtw_memcpy(pnetwork->IEs, ((WLAN_BSSID_EX *)pbuf)->IEs, pnetwork->IELength); 
 
 	pmlmeext->cur_channel = (u8)pnetwork->Configuration.DSConfig;
@@ -12213,8 +12225,7 @@ u8 join_cmd_hdl(_adapter *padapter, u8 *pbuf)
 	//pmlmeinfo->assoc_AP_vendor = check_assoc_AP(pnetwork->IEs, pnetwork->IELength);
 
 	//sizeof(NDIS_802_11_FIXED_IEs)	
-	for (i = _FIXED_IE_LENGTH_; i < pnetwork->IELength;)
-	{
+	for (i = _FIXED_IE_LENGTH_ ; i < pnetwork->IELength - 2 ;) {
 		pIE = (PNDIS_802_11_VARIABLE_IEs)(pnetwork->IEs + i);
 
 		switch (pIE->ElementID)

@@ -524,8 +524,6 @@ _next:
 
 		pcmdpriv->cmd_issued_cnt++;
 
-		pcmd->cmdsz = _RND4((pcmd->cmdsz));//_RND4
-
 		_rtw_memcpy(pcmdbuf, pcmd->parmbuf, pcmd->cmdsz);
 
 		if(pcmd->cmdcode < (sizeof(wlancmds) /sizeof(struct cmd_hdl)))
@@ -1345,6 +1343,7 @@ _func_enter_;
 			case Ndis802_11APMode:
 			case Ndis802_11AutoUnknown:
 			case Ndis802_11InfrastructureMax:
+			case Ndis802_11Monitor:
 				break;
 
 		}

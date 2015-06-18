@@ -695,7 +695,7 @@ _func_enter_;
 	
 	_exit_critical_bh(&pstapriv->sta_hash_lock, &irqL);
 
-	for (index = 0; index < free_sta_num; free_sta_num++) 
+	for (index = 0; index < free_sta_num; index++) 
 	{
 		psta = rtw_get_stainfo_by_offset(pstapriv, free_sta_list[index]);
 		rtw_free_stainfo(padapter , psta);

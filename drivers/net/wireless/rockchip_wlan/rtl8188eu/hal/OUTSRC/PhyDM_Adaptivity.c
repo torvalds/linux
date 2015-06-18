@@ -368,7 +368,7 @@ Phydm_SearchPwdBLowerBound(
 	PDM_ODM_T		pDM_Odm = (PDM_ODM_T)pDM_VOID;
 	PADAPTIVITY_STATISTICS	Adaptivity = (PADAPTIVITY_STATISTICS)PhyDM_Get_Structure(pDM_Odm, PHYDM_ADAPTIVITY);
 	u4Byte			value32 = 0;
-	u1Byte			cnt, IGI_Pause = 0x7f, IGI_Resume = 0x20, IGI = 0x50;		/*IGI = 0x50 for cal EDCCA lower bound*/
+	u1Byte			cnt, IGI_Pause = 0x7f, IGI_Resume = 0x20, IGI = 0x45;		/*IGI = 0x50 for cal EDCCA lower bound*/
 	u1Byte			txEdcca1 = 0, txEdcca0 = 0;
 	BOOLEAN			bAdjust = TRUE;
 	s1Byte 			TH_L2H_dmc, TH_H2L_dmc, IGI_target = 0x32;
@@ -387,7 +387,7 @@ Phydm_SearchPwdBLowerBound(
 	ODM_delay_ms(5);
 
 	while (bAdjust) {
-		for (cnt = 0; cnt < 250; cnt++) {
+		for (cnt = 0; cnt < 20; cnt++) {
 			if (pDM_Odm->SupportICType & ODM_IC_11N_SERIES)
 				value32 = ODM_GetBBReg(pDM_Odm, ODM_REG_RPT_11N, bMaskDWord);
 #if (RTL8195A_SUPPORT == 0)
@@ -538,7 +538,6 @@ Phydm_AdaptivityInit(
 #else
 	if (pDM_Odm->SupportICType & ODM_RTL8814A) {		/*8814a no need to find pwdB lower bound, maybe*/
 		ODM_SetBBReg(pDM_Odm, ODM_REG_EDCCA_DOWN_OPT, BIT30 | BIT29 | BIT28, 0x7);		/*interfernce need > 2^x us, and then EDCCA will be 1*/
-		ODM_SetBBReg(pDM_Odm, ODM_REG_EDCCA_POWER_CAL, BIT5, 1);						/*0:mean, 1:max pwdB*/
 		ODM_SetBBReg(pDM_Odm, ODM_REG_ACBB_EDCCA_ENHANCE, BIT29 | BIT28, 0x1);		/*0:rx_dfir, 1: dcnf_out, 2 :rx_iq, 3: rx_nbi_nf_out*/
 	} else
 		Phydm_SearchPwdBLowerBound(pDM_Odm);

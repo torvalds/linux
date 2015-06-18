@@ -151,6 +151,49 @@ void rf_reg_dump(void *sel, _adapter *adapter)
 	}
 }
 
+void dump_adapters_status(void *sel, struct dvobj_priv *dvobj)
+{
+	int i;
+	_adapter *iface;
+	u8 u_ch, u_bw, u_offset;
+
+	DBG_871X_SEL_NL(sel, "%-2s %-8s %-4s %-7s %s\n"
+		, "id", "ifname", "port", "ch", "status");
+
+	DBG_871X_SEL_NL(sel, "------------------------\n");
+
+	for (i = 0; i < dvobj->iface_nums; i++) {
+		iface = dvobj->padapters[i];
+		if (iface) {
+			DBG_871X_SEL_NL(sel, "%2d %-8s %4hhu %3u,%u,%u "MLME_STATE_FMT" %s%s\n"
+				, i, ADPT_ARG(iface)
+				, get_iface_type(iface)
+				, iface->mlmeextpriv.cur_channel
+				, iface->mlmeextpriv.cur_bwmode
+				, iface->mlmeextpriv.cur_ch_offset
+				, ADPT_MLME_S_ARG(iface)
+				, iface->bSurpriseRemoved?" SR":""
+				, iface->bDriverStopped?" DS":""
+			);
+		}
+	}
+
+	DBG_871X_SEL_NL(sel, "------------------------\n");
+
+	rtw_get_ch_setting_union(dvobj->padapters[IFACE_ID0], &u_ch, &u_bw, &u_offset);
+	DBG_871X_SEL_NL(sel, "%16s %3u,%u,%u\n"
+		, "union:"
+		, u_ch, u_bw, u_offset
+	);
+
+	DBG_871X_SEL_NL(sel, "%16s %3u,%u,%u\n"
+		, "oper:"
+		, dvobj->oper_channel
+		, dvobj->oper_bwmode
+		, dvobj->oper_ch_offset
+	);
+}
+
 #ifdef CONFIG_PROC_DEBUG
 ssize_t proc_set_write_reg(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
 {
@@ -466,15 +509,23 @@ int proc_get_survey_info(struct seq_file *m, void *v)
 	struct wlan_network	*pnetwork = NULL;
 	_list	*plist, *phead;
 	s32 notify_signal;
-	u16  index = 0;
+	s16 notify_noise = 0;
+	u16  index = 0, ie_cap = 0;
+	unsigned char *ie_wpa = NULL, *ie_wpa2 = NULL, *ie_wps = NULL;
+	unsigned char *ie_p2p = NULL, *ssid = NULL;
+	char flag_str[64];
+	int ielen = 0;
+	u32 wpsielen = 0;
 
 	_enter_critical_bh(&(pmlmepriv->scanned_queue.lock), &irqL);	
 	phead = get_list_head(queue);
+	if(!phead)
+		return 0;
 	plist = get_next(phead);
-	if ((!phead) || (!plist))
+	if (!plist)
 		return 0;
 
-	DBG_871X_SEL_NL(m, "%5s  %-17s  %3s  %-3s  %-4s  %5s  %s\n","index", "bssid", "ch", "dBm", "SdBm", "age", "ssid");
+	DBG_871X_SEL_NL(m, "%5s  %-17s  %3s  %-3s  %-4s  %-4s  %5s  %32s  %32s\n", "index", "bssid", "ch", "RSSI", "SdBm", "Noise", "age", "flag", "ssid");
 	while(1)
 	{
 		if (rtw_end_of_queue_search(phead,plist)== _TRUE)
@@ -490,21 +541,116 @@ int proc_get_survey_info(struct seq_file *m, void *v)
 		} else {
 			notify_signal = translate_percentage_to_dbm(pnetwork->network.PhyInfo.SignalStrength);//dbm
 		}
+
+		#if defined(CONFIG_SIGNAL_DISPLAY_DBM) && defined(CONFIG_BACKGROUND_NOISE_MONITOR)
+		rtw_hal_get_odm_var(padapter, HAL_ODM_NOISE_MONITOR,&(pnetwork->network.Configuration.DSConfig), &(notify_noise));
+		#endif
 	
-		DBG_871X_SEL_NL(m, "%5d  "MAC_FMT"  %3d  %3d  %4d  %5d  %s\n", 
+		ie_wpa = rtw_get_wpa_ie(&pnetwork->network.IEs[12], &ielen, pnetwork->network.IELength-12);	
+		ie_wpa2 = rtw_get_wpa2_ie(&pnetwork->network.IEs[12], &ielen, pnetwork->network.IELength-12);
+		ie_cap = rtw_get_capability(&pnetwork->network);
+		ie_wps = rtw_get_wps_ie(&pnetwork->network.IEs[12], pnetwork->network.IELength-12, NULL, &wpsielen);
+		ie_p2p = rtw_get_p2p_ie(&pnetwork->network.IEs[12], pnetwork->network.IELength-12, NULL, &ielen);
+		ssid = pnetwork->network.Ssid.Ssid;
+		sprintf(flag_str, "%s%s%s%s%s%s%s",
+					(ie_wpa) ? "[WPA]":"",
+					(ie_wpa2) ? "[WPA2]":"",
+					(!ie_wpa && !ie_wpa && ie_cap & BIT(4)) ? "[WEP]":"",
+					(ie_wps) ? "[WPS]":"",
+					(pnetwork->network.InfrastructureMode == Ndis802_11IBSS) ? "[IBSS]":"",
+					(ie_cap & BIT(0)) ? "[ESS]":"",
+					(ie_p2p) ? "[P2P]":"");
+		DBG_871X_SEL_NL(m, "%5d  "MAC_FMT"  %3d  %3d  %4d  %4d    %5d  %32s  %32s\n", 
 			++index,
 			MAC_ARG(pnetwork->network.MacAddress), 
 			pnetwork->network.Configuration.DSConfig,
 			(int)pnetwork->network.Rssi,
 			notify_signal,
+			notify_noise,
 			rtw_get_passing_time_ms((u32)pnetwork->last_scanned),
-			//translate_percentage_to_dbm(pnetwork->network.PhyInfo.SignalStrength),
+			flag_str,
 			pnetwork->network.Ssid.Ssid);
 		plist = get_next(plist);
 	}
 	_exit_critical_bh(&(pmlmepriv->scanned_queue.lock), &irqL);
 
 	return 0;
+}
+
+ssize_t proc_set_survey_info(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	_irqL irqL;
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
+	bool need_indicate_scan_done = _FALSE;
+	u8 _status = _FALSE;
+	NDIS_802_11_SSID ssid[RTW_SSID_SCAN_AMOUNT];
+
+	if (count < 1)
+		return -EFAULT;
+
+#ifdef CONFIG_MP_INCLUDED
+		if ((padapter->registrypriv.mp_mode == 1)
+#ifdef CONFIG_CONCURRENT_MODE
+		|| ((padapter->pbuddy_adapter) && (padapter->pbuddy_adapter->registrypriv.mp_mode == 1))
+#endif			
+		){
+			DBG_871X(FUNC_ADPT_FMT ": MP mode block Scan request\n", FUNC_ADPT_ARG(padapter));	
+			goto exit;
+		}
+#endif
+	rtw_ps_deny(padapter, PS_DENY_SCAN);
+	if (_FAIL == rtw_pwr_wakeup(padapter))
+		goto exit;
+
+	if (padapter->bDriverStopped) {
+		DBG_871X("scan abort!! bDriverStopped=%d\n", padapter->bDriverStopped);
+		goto exit;
+	}
+	
+	if (!padapter->bup) {
+		DBG_871X("scan abort!! bup=%d\n", padapter->bup);
+		goto exit;
+	}
+	
+	if (padapter->hw_init_completed == _FALSE) {
+		DBG_871X("scan abort!! hw_init_completed=FALSE\n");
+		goto exit;
+	}
+	
+	if (rtw_is_scan_deny(padapter)) {
+		DBG_871X(FUNC_ADPT_FMT  ": scan deny\n", FUNC_ADPT_ARG(padapter));
+		goto exit;
+	}
+	
+	if ((pmlmepriv->LinkDetectInfo.bBusyTraffic == _TRUE)
+#ifdef CONFIG_CONCURRENT_MODE
+	|| (rtw_get_buddy_bBusyTraffic(padapter) == _TRUE)
+#endif
+	) {
+		DBG_871X("scan abort!! BusyTraffic == _TRUE\n");
+		goto exit;
+	}
+
+	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY|_FW_UNDER_LINKING) == _TRUE) {
+		DBG_8192C("scan abort!! fwstate=0x%x\n", pmlmepriv->fw_state);
+		goto exit;
+	}
+
+#ifdef CONFIG_CONCURRENT_MODE
+	if (check_buddy_fwstate(padapter,
+		_FW_UNDER_SURVEY|_FW_UNDER_LINKING|WIFI_UNDER_WPS) == _TRUE) {
+		DBG_871X("scan abort!! buddy_fwstate=0x%x\n",
+				get_fwstate(&(padapter->pbuddy_adapter->mlmepriv)));
+		goto exit;
+	}
+#endif
+	_status = rtw_set_802_11_bssid_list_scan(padapter, NULL, 0);
+
+exit:
+	rtw_ps_deny_cancel(padapter, PS_DENY_SCAN);
+	return count;
 }
 
 int proc_get_ap_info(struct seq_file *m, void *v)
@@ -555,17 +701,6 @@ int proc_get_ap_info(struct seq_file *m, void *v)
 	{							
 		DBG_871X_SEL_NL(m, "can't get sta's macaddr, cur_network's macaddr:" MAC_FMT "\n", MAC_ARG(cur_network->network.MacAddress));
 	}
-
-	return 0;
-}
-
-int proc_get_adapter_state(struct seq_file *m, void *v)
-{
-	struct net_device *dev = m->private;
-	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
-
-	DBG_871X_SEL_NL(m, "bSurpriseRemoved=%d, bDriverStopped=%d\n", 
-						padapter->bSurpriseRemoved, padapter->bDriverStopped);
 
 	return 0;
 }
@@ -1404,6 +1539,52 @@ ssize_t proc_set_sreset(struct file *file, const char __user *buffer, size_t cou
 	
 }
 #endif /* DBG_CONFIG_ERROR_DETECT */
+
+int proc_get_monitor(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
+
+	if (WIFI_MONITOR_STATE == get_fwstate(pmlmepriv)) {
+		DBG_871X_SEL_NL(m, "Monitor mode : Enable\n");
+
+		DBG_871X_SEL_NL(m, "ch=%d, ch_offset=%d, bw=%d\n",
+						rtw_get_oper_ch(padapter), rtw_get_oper_choffset(padapter), rtw_get_oper_bw(padapter));
+	} else {
+		DBG_871X_SEL_NL(m, "Monitor mode : Disable\n");
+	}
+
+	return 0;
+}
+
+ssize_t proc_set_monitor(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	char tmp[32];
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	u8 target_chan, target_offset, target_bw;
+
+	if (count < 3) {
+		DBG_871X("argument size is less than 3\n");
+		return -EFAULT;
+	}
+
+	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {
+		int num = sscanf(tmp, "%hhu %hhu %hhu", &target_chan, &target_offset, &target_bw);
+
+		if (num != 3) {
+			DBG_871X("invalid write_reg parameter!\n");
+			return count;
+		}
+
+		padapter->mlmeextpriv.cur_channel  = target_chan;
+		set_channel_bwmode(padapter, target_chan, target_offset, target_bw);
+	}
+
+	return count;
+}
 
 #endif
 

@@ -21,7 +21,7 @@
 #ifndef	__PHYDMADAPTIVITY_H__
 #define    __PHYDMADAPTIVITY_H__
 
-#define ADAPTIVITY_VERSION	"8.5"
+#define ADAPTIVITY_VERSION	"8.5.1"
 
 #if (DM_ODM_SUPPORT_TYPE & (ODM_WIN))
 typedef enum _tag_PhyDM_REGULATION_Type {

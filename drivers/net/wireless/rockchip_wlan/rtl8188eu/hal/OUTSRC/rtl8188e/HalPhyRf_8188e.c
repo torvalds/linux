@@ -2313,11 +2313,6 @@ PHY_IQCalibrate_8188E(
 	if (pDM_Odm->RFCalibrateInfo.bIQKInProgress) 
 		return;
 
-	ODM_AcquireSpinLock(pDM_Odm, RT_IQK_SPINLOCK);
-	pDM_Odm->RFCalibrateInfo.bIQKInProgress = TRUE;
-	ODM_ReleaseSpinLock(pDM_Odm, RT_IQK_SPINLOCK);
-
-
 #if (DM_ODM_SUPPORT_TYPE & (ODM_CE|ODM_AP))
 	if(bReCovery)
 #else//for ODM_WIN
@@ -2332,6 +2327,11 @@ PHY_IQCalibrate_8188E(
 #endif
 		return;		
 	}
+
+	ODM_AcquireSpinLock(pDM_Odm, RT_IQK_SPINLOCK);
+	pDM_Odm->RFCalibrateInfo.bIQKInProgress = TRUE;
+	ODM_ReleaseSpinLock(pDM_Odm, RT_IQK_SPINLOCK);
+
 	StartTime = ODM_GetCurrentTime( pDM_Odm);
 	ODM_RT_TRACE(pDM_Odm,ODM_COMP_CALIBRATION, ODM_DBG_LOUD,  ("IQK:Start!!!\n"));
 

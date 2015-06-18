@@ -867,40 +867,6 @@ phy_InitBBRFRegisterDefinition(
 
 }
 
-//****************************************
-// The following is for High Power PA
-//****************************************
-VOID
-phy_ConfigBBExternalPA(
-	IN	PADAPTER			Adapter
-)
-{
-#ifdef CONFIG_USB_HCI
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
-	u16 i=0;
-	u32 temp=0;
-
-	if(!pHalData->ExternalPA)
-	{
-		return;
-	}
-
-	// 2010/10/19 MH According to Jenyu/EEChou 's opinion, we need not to execute the
-	// same code as SU. It is already updated in PHY_REG_1T_HP.txt.
-#if 0
-	PHY_SetBBReg(Adapter, 0xee8, BIT28, 1);
-	temp = PHY_QueryBBReg(Adapter, 0x860, bMaskDWord);
-	temp |= (BIT26|BIT21|BIT10|BIT5);
-	PHY_SetBBReg(Adapter, 0x860, bMaskDWord, temp);
-	PHY_SetBBReg(Adapter, 0x870, BIT10, 0);
-	PHY_SetBBReg(Adapter, 0xc80, bMaskDWord, 0x20000080);
-	PHY_SetBBReg(Adapter, 0xc88, bMaskDWord, 0x40000100);
-#endif
-
-#endif
-}
-
-
 VOID
 storePwrIndexDiffRateOffset(
 	IN	PADAPTER	Adapter,
@@ -1070,7 +1036,6 @@ phy_BB8188E_Config_ParaFile(
 	IN	PADAPTER	Adapter
 	)
 {
-	EEPROM_EFUSE_PRIV	*pEEPROM = GET_EEPROM_EFUSE_PRIV(Adapter);
 	HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(Adapter);
 	int			rtStatus = _SUCCESS;
 
@@ -1258,7 +1223,6 @@ PHY_BBConfig8188E(
 
 #ifdef CONFIG_PCI_HCI
 	// Force use left antenna by default for 88C.
-	//	if(!IS_92C_SERIAL(pHalData->VersionID) || IS_92C_1T2R(pHalData->VersionID))
 	if(Adapter->ledpriv.LedStrategy != SW_LED_MODE10)
 	{
 		RegVal = rtw_read32(Adapter, REG_LEDCFG0);
@@ -1367,36 +1331,6 @@ u32 Rtl8192S_HighPower_RadioA_Array[HighPowerRadioAArrayLen] = {
 0x013,0x00000240,
 };
 
-int
-PHY_ConfigRFExternalPA(
-	IN	PADAPTER		Adapter,
-	IN	u8				eRFPath
-)
-{
-	int	rtStatus = _SUCCESS;
-#ifdef CONFIG_USB_HCI
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
-	u16 i=0;
-
-	if(!pHalData->ExternalPA)
-	{
-		return rtStatus;
-	}
-
-	// 2010/10/19 MH According to Jenyu/EEChou 's opinion, we need not to execute the
-	// same code as SU. It is already updated in radio_a_1T_HP.txt.
-#if 0
-	//add for SU High Power PA
-	for(i = 0;i<HighPowerRadioAArrayLen; i=i+2)
-	{
-		RT_TRACE(COMP_INIT, DBG_LOUD, ("External PA, write RF 0x%lx=0x%lx\n", Rtl8192S_HighPower_RadioA_Array[i], Rtl8192S_HighPower_RadioA_Array[i+1]));
-		PHY_SetRFReg(Adapter, eRFPath, Rtl8192S_HighPower_RadioA_Array[i], bRFRegOffsetMask, Rtl8192S_HighPower_RadioA_Array[i+1]);
-	}
-#endif
-
-#endif
-	return rtStatus;
-}
 //****************************************
 /*-----------------------------------------------------------------------------
  * Function:    GetTxPowerLevel8190()
@@ -1626,8 +1560,8 @@ PHY_GetTxPowerIndex_8188E(
 		txPower = MAX_POWER_INDEX;
 
 	if (0)
-	DBG_871X("RF-%c ch%d TxPwrIdx = %d(0x%X) [%2u %2d %2d %2d]\n"
-		, ((RFPath==0)?'A':'B'), Channel, txPower, txPower, base_index, by_rate_diff, track_diff, extra_bias);
+		DBG_871X("RF-%c ch%d TxPwrIdx = %d(0x%X) [%2u %2d %2d %2d]\n"
+			, ((RFPath==0)?'A':'B'), Channel, txPower, txPower, base_index, by_rate_diff, track_diff, extra_bias);
 
 	return (u8)txPower;	
 }
@@ -1687,22 +1621,19 @@ phy_SpurCalibration_8188E(
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
 	
-	if(pHalData->CurrentChannelBW == CHANNEL_WIDTH_20 && pHalData->CurrentChannel == 13){
-		PHY_SetBBReg(Adapter, rOFDM1_CFOTracking, BIT(28), 0x1); //enable CSI Mask
-		PHY_SetBBReg(Adapter, rOFDM1_csi_fix_mask1, BIT(26)|BIT(25), 0x3); //Fix CSI Mask Tone
-		PHY_SetBBReg(Adapter, rOFDM1_csi_fix_mask2, BIT(26)|BIT(25), 0x0); 
+	//DbgPrint("===> phy_SpurCalibration_8188E  CurrentChannelBW = %d, CurrentChannel = %d\n", pHalData->CurrentChannelBW, pHalData->CurrentChannel);
+	if(pHalData->CurrentChannelBW == CHANNEL_WIDTH_20 &&( pHalData->CurrentChannel == 13 || pHalData->CurrentChannel == 14)){
+		PHY_SetBBReg(Adapter, rOFDM0_RxDSP, BIT(9), 0x1);                     	//enable notch filter
+		PHY_SetBBReg(Adapter, rOFDM1_IntfDet, BIT(8)|BIT(7)|BIT(6), 0x2);	//intf_TH
 	}
 	else if(pHalData->CurrentChannelBW == CHANNEL_WIDTH_40 && pHalData->CurrentChannel == 11){
-		PHY_SetBBReg(Adapter, rOFDM1_CFOTracking, BIT(28), 0x1); //enable CSI Mask
-		PHY_SetBBReg(Adapter, rOFDM1_csi_fix_mask1, BIT(26)|BIT(25), 0x0); 
-		PHY_SetBBReg(Adapter, rOFDM1_csi_fix_mask2, BIT(26)|BIT(25), 0x3); //Fix CSI Mask Tone
+		PHY_SetBBReg(Adapter, rOFDM0_RxDSP, BIT(9), 0x1);                     	//enable notch filter
+		PHY_SetBBReg(Adapter, rOFDM1_IntfDet, BIT(8)|BIT(7)|BIT(6), 0x2);	//intf_TH
 	}
 	else{
-		PHY_SetBBReg(Adapter, rOFDM1_CFOTracking, BIT(28), 0x0); //disable CSI Mask
-		PHY_SetBBReg(Adapter, rOFDM1_csi_fix_mask1, BIT(26)|BIT(25), 0x0); 
-		PHY_SetBBReg(Adapter, rOFDM1_csi_fix_mask2, BIT(26)|BIT(25), 0x0); 
+		if(Adapter->registrypriv.notch_filter == 0)
+			PHY_SetBBReg(Adapter, rOFDM0_RxDSP, BIT(9), 0x0);	//disable notch filter
 	}
-
 }
 
 /*-----------------------------------------------------------------------------
@@ -1939,8 +1870,10 @@ PHY_SetBWMode8188E(
 	#else
 		_PHY_SetBWMode88E(Adapter);
 	#endif
-		if (IS_VENDOR_8188E_I_CUT_SERIES(Adapter)&& IS_HARDWARE_TYPE_8188ES(Adapter))
+	#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI)
+		if(IS_VENDOR_8188E_I_CUT_SERIES(Adapter))
 			phy_SpurCalibration_8188E( Adapter);
+	#endif
 	}
 	else
 	{
@@ -2002,6 +1935,11 @@ PHY_SwChnl8188E(	// Call after initialization
 	//if(pHalData->SetBWModeInProgress)
 	//	return;
 
+	while(pHalData->odmpriv.RFCalibrateInfo.bLCKInProgress) {
+		DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" bLCKInProgress\n", FUNC_ADPT_ARG(Adapter));
+		rtw_msleep_os(50);
+	}	
+
 	//--------------------------------------------
 	switch(pHalData->CurrentWirelessMode)
 	{
@@ -2042,8 +1980,11 @@ PHY_SwChnl8188E(	// Call after initialization
 		_PHY_SwChnl8188E(Adapter, channel);
 		#endif
 
-		if (IS_VENDOR_8188E_I_CUT_SERIES(Adapter)&& IS_HARDWARE_TYPE_8188ES(Adapter))
+		#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI)
+		if(IS_VENDOR_8188E_I_CUT_SERIES(Adapter))
 			phy_SpurCalibration_8188E( Adapter);
+		#endif
+
 		
 
 		if(bResult)

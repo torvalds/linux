@@ -55,6 +55,7 @@ CONFIG_CALIBRATE_TX_POWER_BY_REGULATORY = n
 CONFIG_CALIBRATE_TX_POWER_TO_MAX = n
 CONFIG_RTW_ADAPTIVITY_EN = disable
 CONFIG_RTW_ADAPTIVITY_MODE = normal
+CONFIG_SKIP_SIGNAL_SCALE_MAPPING = n
 ######################## Wake On Lan ##########################
 CONFIG_WOWLAN = n
 CONFIG_GPIO_WAKEUP = n
@@ -726,6 +727,10 @@ else ifeq ($(CONFIG_RTW_ADAPTIVITY_MODE), carrier_sense)
 EXTRA_CFLAGS += -DCONFIG_RTW_ADAPTIVITY_MODE=1
 endif
 
+ifeq ($(CONFIG_SKIP_SIGNAL_SCALE_MAPPING), y)
+EXTRA_CFLAGS += -DCONFIG_SKIP_SIGNAL_SCALE_MAPPING
+endif
+
 ifeq ($(CONFIG_WOWLAN), y)
 EXTRA_CFLAGS += -DCONFIG_WOWLAN
 ifeq ($(CONFIG_SDIO_HCI), y)
@@ -1043,7 +1048,7 @@ EXTRA_CFLAGS += -DCONFIG_RADIO_WORK
 ARCH := arm
 CROSS_COMPILE := /home/android_sdk/Rockchip/Rk3188/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/bin/arm-eabi-
 KSRC := /home/android_sdk/Rockchip/Rk3188/kernel
-MODULE_NAME := wlan
+MODULE_NAME := 8188eu
 endif
 
 ifeq ($(CONFIG_PLATFORM_ARM_RK3066), y)

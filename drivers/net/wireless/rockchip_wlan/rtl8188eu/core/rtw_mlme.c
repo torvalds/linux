@@ -1265,7 +1265,7 @@ _func_enter_;
 					rtw_update_registrypriv_dev_network(adapter);
 					rtw_generate_random_ibss(pibss);
 
-                       			pmlmepriv->fw_state = WIFI_ADHOC_MASTER_STATE;
+					pmlmepriv->fw_state = WIFI_ADHOC_MASTER_STATE;
 			
 					if(rtw_createbss_cmd(adapter)!=_SUCCESS)
 					{
@@ -1501,7 +1501,7 @@ _func_enter_;
 	if(lock_scanned_queue)
 		_enter_critical_bh(&(pmlmepriv->scanned_queue.lock), &irqL);
 	
-	pwlan = rtw_find_network(&pmlmepriv->scanned_queue, tgt_network->network.MacAddress);
+	pwlan = _rtw_find_same_network(&pmlmepriv->scanned_queue, tgt_network);
 	if(pwlan)		
 	{
 		pwlan->fixed = _FALSE;
@@ -1543,7 +1543,8 @@ _func_enter_;
 	if((check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) && (adapter->stapriv.asoc_sta_count== 1))
 		/*||check_fwstate(pmlmepriv, WIFI_STATION_STATE)*/)
 	{
-		rtw_free_network_nolock(pmlmepriv, pwlan); 
+		if (pwlan)
+			rtw_free_network_nolock(pmlmepriv, pwlan);
 	}
 
 	if(lock_scanned_queue)
@@ -3667,6 +3668,7 @@ void rtw_update_registrypriv_dev_network(_adapter* adapter)
 	struct	security_priv*	psecuritypriv = &adapter->securitypriv;
 	struct	wlan_network	*cur_network = &adapter->mlmepriv.cur_network;
 	//struct	xmit_priv	*pxmitpriv = &adapter->xmitpriv;
+	struct mlme_ext_priv	*pmlmeext = &adapter->mlmeextpriv;
 
 _func_enter_;
 
@@ -3714,8 +3716,14 @@ _func_enter_;
 	pdev_network->Configuration.DSConfig = (pregistrypriv->channel);
 	RT_TRACE(_module_rtl871x_mlme_c_,_drv_info_,("pregistrypriv->channel=%d, pdev_network->Configuration.DSConfig=0x%x\n", pregistrypriv->channel, pdev_network->Configuration.DSConfig));	
 
-	if(cur_network->network.InfrastructureMode == Ndis802_11IBSS)
+	if (cur_network->network.InfrastructureMode == Ndis802_11IBSS) {
 		pdev_network->Configuration.ATIMWindow = (0);
+
+		if (pmlmeext->cur_channel != 0)
+			pdev_network->Configuration.DSConfig = pmlmeext->cur_channel;
+		else 
+			pdev_network->Configuration.DSConfig = 1;
+	}
 
 	pdev_network->InfrastructureMode = (cur_network->network.InfrastructureMode);
 
