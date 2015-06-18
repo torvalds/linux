@@ -1501,6 +1501,7 @@ int clk_enable_dvfs(struct dvfs_node *clk_dvfs_node)
 				dvfs_get_vd_regulator_volt_list(clk_dvfs_node->vd);
 				dvfs_vd_get_regulator_volt_time_info(clk_dvfs_node->vd);
 			} else {
+				clk_dvfs_node->vd->regulator = NULL;
 				clk_dvfs_node->enable_count = 0;
 				DVFS_ERR("%s: vd(%s) can't get regulator(%s)!\n", 
 					__func__, clk_dvfs_node->vd->name, clk_dvfs_node->vd->regulator_name);
