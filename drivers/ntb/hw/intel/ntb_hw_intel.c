@@ -632,17 +632,36 @@ static ssize_t ndev_debugfs_read(struct file *filp, char __user *ubuf,
 	off += scnprintf(buf + off, buf_size - off,
 			 "XLAT23 -\t\t%#018llx\n", u.v64);
 
-	u.v64 = ioread64(mmio + bar2_off(ndev->xlat_reg->bar2_xlat, 4));
-	off += scnprintf(buf + off, buf_size - off,
-			 "XLAT45 -\t\t%#018llx\n", u.v64);
+	if (ndev->bar4_split) {
+		u.v32 = ioread32(mmio + bar2_off(ndev->xlat_reg->bar2_xlat, 4));
+		off += scnprintf(buf + off, buf_size - off,
+				 "XLAT4 -\t\t\t%#06x\n", u.v32);
+
+		u.v32 = ioread32(mmio + bar2_off(ndev->xlat_reg->bar2_xlat, 5));
+		off += scnprintf(buf + off, buf_size - off,
+				 "XLAT5 -\t\t\t%#06x\n", u.v32);
+	} else {
+		u.v64 = ioread64(mmio + bar2_off(ndev->xlat_reg->bar2_xlat, 4));
+		off += scnprintf(buf + off, buf_size - off,
+				 "XLAT45 -\t\t%#018llx\n", u.v64);
+	}
 
 	u.v64 = ioread64(mmio + bar2_off(ndev->xlat_reg->bar2_limit, 2));
 	off += scnprintf(buf + off, buf_size - off,
 			 "LMT23 -\t\t\t%#018llx\n", u.v64);
 
-	u.v64 = ioread64(mmio + bar2_off(ndev->xlat_reg->bar2_limit, 4));
-	off += scnprintf(buf + off, buf_size - off,
-			 "LMT45 -\t\t\t%#018llx\n", u.v64);
+	if (ndev->bar4_split) {
+		u.v32 = ioread32(mmio + bar2_off(ndev->xlat_reg->bar2_limit, 4));
+		off += scnprintf(buf + off, buf_size - off,
+				 "LMT4 -\t\t\t%#06x\n", u.v32);
+		u.v32 = ioread32(mmio + bar2_off(ndev->xlat_reg->bar2_limit, 5));
+		off += scnprintf(buf + off, buf_size - off,
+				 "LMT5 -\t\t\t%#06x\n", u.v32);
+	} else {
+		u.v64 = ioread64(mmio + bar2_off(ndev->xlat_reg->bar2_limit, 4));
+		off += scnprintf(buf + off, buf_size - off,
+				 "LMT45 -\t\t\t%#018llx\n", u.v64);
+	}
 
 	if (pdev_is_xeon(ndev->ntb.pdev)) {
 		if (ntb_topo_is_b2b(ndev->ntb.topo)) {
@@ -653,17 +672,41 @@ static ssize_t ndev_debugfs_read(struct file *filp, char __user *ubuf,
 			off += scnprintf(buf + off, buf_size - off,
 					 "B2B XLAT23 -\t\t%#018llx\n", u.v64);
 
-			u.v64 = ioread64(mmio + XEON_PBAR45XLAT_OFFSET);
-			off += scnprintf(buf + off, buf_size - off,
-					 "B2B XLAT45 -\t\t%#018llx\n", u.v64);
+			if (ndev->bar4_split) {
+				u.v32 = ioread32(mmio + XEON_PBAR4XLAT_OFFSET);
+				off += scnprintf(buf + off, buf_size - off,
+						 "B2B XLAT4 -\t\t%#06x\n",
+						 u.v32);
+				u.v32 = ioread32(mmio + XEON_PBAR5XLAT_OFFSET);
+				off += scnprintf(buf + off, buf_size - off,
+						 "B2B XLAT5 -\t\t%#06x\n",
+						 u.v32);
+			} else {
+				u.v64 = ioread64(mmio + XEON_PBAR45XLAT_OFFSET);
+				off += scnprintf(buf + off, buf_size - off,
+						 "B2B XLAT45 -\t\t%#018llx\n",
+						 u.v64);
+			}
 
 			u.v64 = ioread64(mmio + XEON_PBAR23LMT_OFFSET);
 			off += scnprintf(buf + off, buf_size - off,
 					 "B2B LMT23 -\t\t%#018llx\n", u.v64);
 
-			u.v64 = ioread64(mmio + XEON_PBAR45LMT_OFFSET);
-			off += scnprintf(buf + off, buf_size - off,
-					 "B2B LMT45 -\t\t%#018llx\n", u.v64);
+			if (ndev->bar4_split) {
+				u.v32 = ioread32(mmio + XEON_PBAR4LMT_OFFSET);
+				off += scnprintf(buf + off, buf_size - off,
+						 "B2B LMT4 -\t\t%#06x\n",
+						 u.v32);
+				u.v32 = ioread32(mmio + XEON_PBAR5LMT_OFFSET);
+				off += scnprintf(buf + off, buf_size - off,
+						 "B2B LMT5 -\t\t%#06x\n",
+						 u.v32);
+			} else {
+				u.v64 = ioread64(mmio + XEON_PBAR45LMT_OFFSET);
+				off += scnprintf(buf + off, buf_size - off,
+						 "B2B LMT45 -\t\t%#018llx\n",
+						 u.v64);
+			}
 
 			off += scnprintf(buf + off, buf_size - off,
 					 "\nNTB Secondary BAR:\n");
@@ -676,9 +719,19 @@ static ssize_t ndev_debugfs_read(struct file *filp, char __user *ubuf,
 			off += scnprintf(buf + off, buf_size - off,
 					 "SBAR23 -\t\t%#018llx\n", u.v64);
 
-			u.v64 = ioread64(mmio + XEON_SBAR45BASE_OFFSET);
-			off += scnprintf(buf + off, buf_size - off,
-					 "SBAR45 -\t\t%#018llx\n", u.v64);
+			if (ndev->bar4_split) {
+				u.v32 = ioread32(mmio + XEON_SBAR4BASE_OFFSET);
+				off += scnprintf(buf + off, buf_size - off,
+						 "SBAR4 -\t\t\t%#06x\n", u.v32);
+				u.v32 = ioread32(mmio + XEON_SBAR5BASE_OFFSET);
+				off += scnprintf(buf + off, buf_size - off,
+						 "SBAR5 -\t\t\t%#06x\n", u.v32);
+			} else {
+				u.v64 = ioread64(mmio + XEON_SBAR45BASE_OFFSET);
+				off += scnprintf(buf + off, buf_size - off,
+						 "SBAR45 -\t\t%#018llx\n",
+						 u.v64);
+			}
 		}
 
 		off += scnprintf(buf + off, buf_size - off,
