@@ -1124,34 +1124,14 @@ static void free_full_branch(struct inode *inode, int depth, void *p)
 	mark_inode_dirty(inode);
 }
 
-static void ufs_trunc_branch(struct inode *inode, unsigned *offsets, int depth2, int depth, void *p)
+static void free_branch_tail(struct inode *inode, unsigned from, struct ufs_buffer_head *ubh, int depth)
 {
 	struct super_block *sb = inode->i_sb;
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
-	struct ufs_inode_info *ufsi = UFS_I(inode);
-	struct ufs_buffer_head *ubh;
-	u64 tmp;
-	unsigned from = *offsets++;
 	unsigned i;
 
-	tmp = ufs_data_ptr_to_cpu(sb, p);
-	if (!tmp)
-		return;
-	ubh = ubh_bread (sb, tmp, uspi->s_bsize);
-	if (!ubh) {
-		write_seqlock(&ufsi->meta_lock);
-		ufs_data_ptr_clear(uspi, p);
-		write_sequnlock(&ufsi->meta_lock);
-		return;
-	}
-
-	if (--depth2) {
-		void *ind = ubh_get_data_ptr(uspi, ubh, from++);
-		ufs_trunc_branch(inode, offsets, depth2, depth - 1, ind);
-		ubh_mark_buffer_dirty(ubh);
-	}
 	if (--depth) {
-		for (i = from ; i < uspi->s_apb ; i++) {
+		for (i = from; i < uspi->s_apb ; i++) {
 			void *ind = ubh_get_data_ptr(uspi, ubh, i);
 			free_full_branch(inode, depth, ind);
 			ubh_mark_buffer_dirty(ubh);
@@ -1161,7 +1141,7 @@ static void ufs_trunc_branch(struct inode *inode, unsigned *offsets, int depth2,
 
 		for (i = from; i < uspi->s_apb; i++) {
 			void *ind = ubh_get_data_ptr(uspi, ubh, i);
-			tmp = ufs_data_ptr_to_cpu(sb, ind);
+			u64 tmp = ufs_data_ptr_to_cpu(sb, ind);
 			if (!tmp)
 				continue;
 
@@ -1258,6 +1238,9 @@ static void __ufs_truncate_blocks(struct inode *inode)
 	int depth = ufs_block_to_path(inode, DIRECT_BLOCK, offsets);
 	int depth2;
 	unsigned i;
+	struct ufs_buffer_head *ubh[3];
+	void *p;
+	u64 block;
 
 	if (!depth)
 		return;
@@ -1272,9 +1255,26 @@ static void __ufs_truncate_blocks(struct inode *inode)
 		ufs_trunc_direct(inode);
 		offsets[0] = UFS_IND_BLOCK;
 	} else {
-		if (depth2)
-			ufs_trunc_branch(inode, offsets + 1, depth2, depth - 1,
-			   ufs_get_direct_data_ptr(uspi, ufsi, offsets[0]++));
+		/* get the blocks that should be partially emptied */
+		p = ufs_get_direct_data_ptr(uspi, ufsi, offsets[0]);
+		for (i = 0; i < depth2; i++) {
+			offsets[i]++;	/* next branch is fully freed */
+			block = ufs_data_ptr_to_cpu(sb, p);
+			if (!block)
+				break;
+			ubh[i] = ubh_bread(sb, block, uspi->s_bsize);
+			if (!ubh[i]) {
+				write_seqlock(&ufsi->meta_lock);
+				ufs_data_ptr_clear(uspi, p);
+				write_sequnlock(&ufsi->meta_lock);
+				break;
+			}
+			p = ubh_get_data_ptr(uspi, ubh[i], offsets[i + 1]);
+		}
+		while (i--) {
+			ubh_mark_buffer_dirty(ubh[i]);
+			free_branch_tail(inode, offsets[i + 1], ubh[i], depth - i - 1);
+		}
 	}
 	for (i = offsets[0]; i <= UFS_TIND_BLOCK; i++) {
 		free_full_branch(inode, i - UFS_IND_BLOCK + 1,
