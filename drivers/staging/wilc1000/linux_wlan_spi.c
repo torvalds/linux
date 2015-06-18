@@ -214,8 +214,7 @@ int linux_spi_write(uint8_t *b, uint32_t len)
 				PRINT_ER("SPI transaction failed\n");
 			}
 		}
-		if (r_buffer)
-			kfree(r_buffer);
+		kfree(r_buffer);
 	} else {
 		PRINT_ER("can't write data with the following length: %d\n", len);
 		PRINT_ER("FAILED due to NULL buffer or ZERO length check the following length: %d\n", len);
@@ -377,8 +376,7 @@ int linux_spi_read(unsigned char *rb, unsigned long rlen)
 			}
 		}
 
-		if (t_buffer)
-			kfree(t_buffer);
+		kfree(t_buffer);
 	} else {
 		PRINT_ER("can't read data with the following length: %ld\n", rlen);
 		ret = -1;
