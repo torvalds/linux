@@ -58,6 +58,7 @@
 #include <plat/samsung-time.h>
 
 #include <plat/fb.h>
+#include <mach/s3cfb.h>
 
 #include "common.h"
 #if defined(CONFIG_S3C24XX_SMDK)
@@ -206,6 +207,53 @@ static struct s3c_fb_platdata mini2451_fb_platdata = {
 	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
 };
 
+static void __init mini2451_fb_init_pdata(struct s3c_fb_platdata *pd) {
+	struct s3cfb_lcd *lcd;
+	struct s3c_fb_pd_win *win = pd->win[0];
+	struct fb_videomode *mode = pd->vtiming;
+	unsigned long val = 0;
+	u64 pixclk = 1000000000000ULL;
+	u32 div;
+
+	lcd = mini2451_get_lcd();
+
+	win->default_bpp	= lcd->bpp < 25 ? lcd->bpp : 24;
+	win->xres			= lcd->width;
+	win->yres			= lcd->height;
+
+	mode->left_margin	= lcd->timing.h_bp;
+	mode->right_margin	= lcd->timing.h_fp;
+	mode->upper_margin	= lcd->timing.v_bp;
+	mode->lower_margin	= lcd->timing.v_fp;
+	mode->hsync_len		= lcd->timing.h_sw;
+	mode->vsync_len		= lcd->timing.v_sw;
+	mode->xres			= lcd->width;
+	mode->yres			= lcd->height;
+
+	/* calculates pixel clock */
+	div  = mode->left_margin + mode->hsync_len + mode->right_margin +
+		mode->xres;
+	div *= mode->upper_margin + mode->vsync_len + mode->lower_margin +
+		mode->yres;
+	div *= lcd->freq ? : 60;
+
+	do_div(pixclk, div);
+
+	mode->pixclock		= pixclk;
+
+	/* initialize signal polarity of RGB interface */
+	if (lcd->polarity.rise_vclk)
+		val |= VIDCON1_INV_VCLK;
+	if (lcd->polarity.inv_hsync)
+		val |= VIDCON1_INV_HSYNC;
+	if (lcd->polarity.inv_vsync)
+		val |= VIDCON1_INV_VSYNC;
+	if (lcd->polarity.inv_vden)
+		val |= VIDCON1_INV_VDEN;
+
+	pd->vidcon1 = val;
+}
+
 static struct s3c_sdhci_platdata mini2451_hsmmc0_pdata __initdata = {
 	.max_width		= 4,
 	.cd_type		= S3C_SDHCI_CD_NONE,
@@ -262,6 +310,8 @@ static void __init mini2451_map_io(void)
 static void __init mini2451_machine_init(void)
 {
 	s3c_i2c0_set_platdata(NULL);
+
+	mini2451_fb_init_pdata(&mini2451_fb_platdata);
 	s3c_fb_set_platdata(&mini2451_fb_platdata);
 
 	s3c_sdhci0_set_platdata(&mini2451_hsmmc0_pdata);
