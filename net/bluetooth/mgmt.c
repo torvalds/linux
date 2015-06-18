@@ -1014,8 +1014,18 @@ static u8 get_cur_adv_instance_scan_rsp_len(struct hci_dev *hdev)
 
 static u8 create_instance_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr)
 {
+	struct adv_info *adv_instance = NULL;
 	u8 ad_len = 0, flags = 0;
-	u32 instance_flags = get_adv_instance_flags(hdev, instance);
+	u32 instance_flags;
+
+	/* Return 0 when the current instance identifier is invalid. */
+	if (instance) {
+		adv_instance = hci_find_adv_instance(hdev, instance);
+		if (!adv_instance)
+			return 0;
+	}
+
+	instance_flags = get_adv_instance_flags(hdev, instance);
 
 	/* The Add Advertising command allows userspace to set both the general
 	 * and limited discoverable flags.
@@ -1049,12 +1059,11 @@ static u8 create_instance_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr)
 		}
 	}
 
-	if (instance) {
-		memcpy(ptr, hdev->adv_instance.adv_data,
-		       hdev->adv_instance.adv_data_len);
-
-		ad_len += hdev->adv_instance.adv_data_len;
-		ptr += hdev->adv_instance.adv_data_len;
+	if (adv_instance) {
+		memcpy(ptr, adv_instance->adv_data,
+		       adv_instance->adv_data_len);
+		ad_len += adv_instance->adv_data_len;
+		ptr += adv_instance->adv_data_len;
 	}
 
 	/* Provide Tx Power only if we can provide a valid value for it */
