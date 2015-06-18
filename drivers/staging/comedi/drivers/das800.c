@@ -240,13 +240,13 @@ static unsigned das800_ind_read(struct comedi_device *dev, unsigned reg)
 
 static void das800_enable(struct comedi_device *dev)
 {
-	const struct das800_board *thisboard = dev->board_ptr;
+	const struct das800_board *board = dev->board_ptr;
 	struct das800_private *devpriv = dev->private;
 	unsigned long irq_flags;
 
 	spin_lock_irqsave(&dev->spinlock, irq_flags);
 	/*  enable fifo-half full interrupts for cio-das802/16 */
-	if (thisboard->resolution == 16)
+	if (board->resolution == 16)
 		outb(CIO_ENHF, dev->iobase + DAS800_GAIN);
 	/* enable hardware triggering */
 	das800_ind_write(dev, CONV_HCEN, CONV_CONTROL);
@@ -303,7 +303,7 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_cmd *cmd)
 {
-	const struct das800_board *thisboard = dev->board_ptr;
+	const struct das800_board *board = dev->board_ptr;
 	int err = 0;
 
 	/* Step 1 : check if triggers are trivially valid */
@@ -335,7 +335,7 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev,
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		err |= comedi_check_trigger_arg_min(&cmd->convert_arg,
-						    thisboard->ai_speed);
+						    board->ai_speed);
 	}
 
 	err |= comedi_check_trigger_arg_min(&cmd->chanlist_len, 1);
@@ -375,7 +375,7 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev,
 static int das800_ai_do_cmd(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
-	const struct das800_board *thisboard = dev->board_ptr;
+	const struct das800_board *board = dev->board_ptr;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int gain = CR_RANGE(cmd->chanlist[0]);
@@ -393,7 +393,7 @@ static int das800_ai_do_cmd(struct comedi_device *dev,
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
 	/* set gain */
-	if (thisboard->resolution == 12 && gain > 0)
+	if (board->resolution == 12 && gain > 0)
 		gain += 0x7;
 	gain &= 0xf;
 	outb(gain, dev->iobase + DAS800_GAIN);
@@ -606,8 +606,8 @@ static int das800_do_insn_bits(struct comedi_device *dev,
 
 static const struct das800_board *das800_probe(struct comedi_device *dev)
 {
-	const struct das800_board *thisboard = dev->board_ptr;
-	int index = thisboard ? thisboard - das800_boards : -EINVAL;
+	const struct das800_board *board = dev->board_ptr;
+	int index = board ? board - das800_boards : -EINVAL;
 	int id_bits;
 	unsigned long irq_flags;
 
@@ -628,18 +628,18 @@ static const struct das800_board *das800_probe(struct comedi_device *dev)
 	switch (id_bits) {
 	case 0x0:
 		if (index == BOARD_DAS800 || index == BOARD_CIODAS800)
-			return thisboard;
+			return board;
 		index = BOARD_DAS800;
 		break;
 	case 0x2:
 		if (index == BOARD_DAS801 || index == BOARD_CIODAS801)
-			return thisboard;
+			return board;
 		index = BOARD_DAS801;
 		break;
 	case 0x3:
 		if (index == BOARD_DAS802 || index == BOARD_CIODAS802 ||
 		    index == BOARD_CIODAS80216)
-			return thisboard;
+			return board;
 		index = BOARD_DAS802;
 		break;
 	default:
@@ -655,7 +655,7 @@ static const struct das800_board *das800_probe(struct comedi_device *dev)
 
 static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct das800_board *thisboard;
+	const struct das800_board *board;
 	struct das800_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned int irq = it->options[1];
@@ -670,11 +670,11 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	thisboard = das800_probe(dev);
-	if (!thisboard)
+	board = das800_probe(dev);
+	if (!board)
 		return -ENODEV;
-	dev->board_ptr = thisboard;
-	dev->board_name = thisboard->name;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
 	if (irq > 1 && irq <= 7) {
 		ret = request_irq(irq, das800_interrupt, 0, dev->board_name,
@@ -698,8 +698,8 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE | SDF_GROUND;
 	s->n_chan	= 8;
-	s->maxdata	= (1 << thisboard->resolution) - 1;
-	s->range_table	= thisboard->ai_range;
+	s->maxdata	= (1 << board->resolution) - 1;
+	s->range_table	= board->ai_range;
 	s->insn_read	= das800_ai_insn_read;
 	if (dev->irq) {
 		s->subdev_flags	|= SDF_CMD_READ;
