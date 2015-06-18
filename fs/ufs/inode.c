@@ -1222,6 +1222,7 @@ static void __ufs_truncate_blocks(struct inode *inode)
 	unsigned offsets[4];
 	int depth = ufs_block_to_path(inode, DIRECT_BLOCK, offsets);
 	int depth2;
+	unsigned i;
 
 	if (!depth)
 		return;
@@ -1232,33 +1233,17 @@ static void __ufs_truncate_blocks(struct inode *inode)
 			break;
 
 	mutex_lock(&ufsi->truncate_mutex);
-	switch (depth) {
-	case 1:
+	if (depth == 1) {
 		ufs_trunc_direct(inode);
-		goto l1;
-	case 2:
-		ufs_trunc_branch(inode, offsets + 1, depth2, 1,
-			   ufs_get_direct_data_ptr(uspi, ufsi, UFS_IND_BLOCK));
-		goto l2;
-	case 3:
-		ufs_trunc_branch(inode, offsets + 1, depth2, 2,
-			    ufs_get_direct_data_ptr(uspi, ufsi, UFS_DIND_BLOCK));
-		goto l3;
-	case 4:
-		ufs_trunc_branch(inode, offsets + 1, depth2, 3,
-			    ufs_get_direct_data_ptr(uspi, ufsi, UFS_TIND_BLOCK));
-		goto l4;
+		offsets[0] = UFS_IND_BLOCK;
+	} else {
+		ufs_trunc_branch(inode, offsets + 1, depth2, depth - 1,
+			   ufs_get_direct_data_ptr(uspi, ufsi, offsets[0]++));
 	}
-l1:
-	ufs_trunc_branch(inode, NULL, 0, 1,
-			   ufs_get_direct_data_ptr(uspi, ufsi, UFS_IND_BLOCK));
-l2:
-	ufs_trunc_branch(inode, NULL, 0, 2,
-			    ufs_get_direct_data_ptr(uspi, ufsi, UFS_DIND_BLOCK));
-l3:
-	ufs_trunc_branch(inode, NULL, 0, 3,
-			    ufs_get_direct_data_ptr(uspi, ufsi, UFS_TIND_BLOCK));
-l4:
+	for (i = offsets[0]; i <= UFS_TIND_BLOCK; i++) {
+		ufs_trunc_branch(inode, NULL, 0, i - UFS_IND_BLOCK + 1,
+			   ufs_get_direct_data_ptr(uspi, ufsi, i));
+	}
 	ufsi->i_lastfrag = DIRECT_FRAGMENT;
 	mutex_unlock(&ufsi->truncate_mutex);
 }
