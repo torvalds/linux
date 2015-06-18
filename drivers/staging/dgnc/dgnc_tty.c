@@ -422,8 +422,12 @@ void dgnc_tty_uninit(struct dgnc_board *brd)
 
 	kfree(brd->SerialDriver.ttys);
 	brd->SerialDriver.ttys = NULL;
+	kfree(brd->SerialDriver.termios);
+	brd->SerialDriver.termios = NULL;
 	kfree(brd->PrintDriver.ttys);
 	brd->PrintDriver.ttys = NULL;
+	kfree(brd->PrintDriver.termios);
+	brd->PrintDriver.termios = NULL;
 }
 
 /*=======================================================================
