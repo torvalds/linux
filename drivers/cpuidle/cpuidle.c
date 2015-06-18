@@ -97,6 +97,7 @@ static int find_deepest_state(struct cpuidle_driver *drv,
 	return ret;
 }
 
+#ifdef CONFIG_SUSPEND
 /**
  * cpuidle_find_deepest_state - Find the deepest available idle state.
  * @drv: cpuidle driver for the given CPU.
@@ -150,6 +151,7 @@ int cpuidle_enter_freeze(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 
 	return index;
 }
+#endif /* CONFIG_SUSPEND */
 
 /**
  * cpuidle_enter_state - enter the state and update stats

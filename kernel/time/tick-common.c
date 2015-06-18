@@ -19,6 +19,7 @@
 #include <linux/profile.h>
 #include <linux/sched.h>
 #include <linux/module.h>
+#include <trace/events/power.h>
 
 #include <asm/irq_regs.h>
 
@@ -440,6 +441,7 @@ void tick_resume(void)
 	tick_resume_local();
 }
 
+#ifdef CONFIG_SUSPEND
 static DEFINE_RAW_SPINLOCK(tick_freeze_lock);
 static unsigned int tick_freeze_depth;
 
@@ -457,10 +459,13 @@ void tick_freeze(void)
 	raw_spin_lock(&tick_freeze_lock);
 
 	tick_freeze_depth++;
-	if (tick_freeze_depth == num_online_cpus())
+	if (tick_freeze_depth == num_online_cpus()) {
+		trace_suspend_resume(TPS("timekeeping_freeze"),
+				     smp_processor_id(), true);
 		timekeeping_suspend();
-	else
+	} else {
 		tick_suspend_local();
+	}
 
 	raw_spin_unlock(&tick_freeze_lock);
 }
@@ -478,15 +483,19 @@ void tick_unfreeze(void)
 {
 	raw_spin_lock(&tick_freeze_lock);
 
-	if (tick_freeze_depth == num_online_cpus())
+	if (tick_freeze_depth == num_online_cpus()) {
 		timekeeping_resume();
-	else
+		trace_suspend_resume(TPS("timekeeping_freeze"),
+				     smp_processor_id(), false);
+	} else {
 		tick_resume_local();
+	}
 
 	tick_freeze_depth--;
 
 	raw_spin_unlock(&tick_freeze_lock);
 }
+#endif /* CONFIG_SUSPEND */
 
 /**
  * tick_init - initialize the tick control

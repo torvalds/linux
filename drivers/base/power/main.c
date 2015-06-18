@@ -920,9 +920,7 @@ static void device_complete(struct device *dev, pm_message_t state)
 
 	if (callback) {
 		pm_dev_dbg(dev, state, info);
-		trace_device_pm_callback_start(dev, info, state.event);
 		callback(dev);
-		trace_device_pm_callback_end(dev, 0);
 	}
 
 	device_unlock(dev);
@@ -954,7 +952,9 @@ void dpm_complete(pm_message_t state)
 		list_move(&dev->power.entry, &list);
 		mutex_unlock(&dpm_list_mtx);
 
+		trace_device_pm_callback_start(dev, "", state.event);
 		device_complete(dev, state);
+		trace_device_pm_callback_end(dev, 0);
 
 		mutex_lock(&dpm_list_mtx);
 		put_device(dev);
@@ -1585,11 +1585,8 @@ static int device_prepare(struct device *dev, pm_message_t state)
 		callback = dev->driver->pm->prepare;
 	}
 
-	if (callback) {
-		trace_device_pm_callback_start(dev, info, state.event);
+	if (callback)
 		ret = callback(dev);
-		trace_device_pm_callback_end(dev, ret);
-	}
 
 	device_unlock(dev);
 
@@ -1631,7 +1628,9 @@ int dpm_prepare(pm_message_t state)
 		get_device(dev);
 		mutex_unlock(&dpm_list_mtx);
 
+		trace_device_pm_callback_start(dev, "", state.event);
 		error = device_prepare(dev, state);
+		trace_device_pm_callback_end(dev, error);
 
 		mutex_lock(&dpm_list_mtx);
 		if (error) {
