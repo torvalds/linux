@@ -709,7 +709,9 @@ static void nfs_pageio_mirror_init(struct nfs_pgio_mirror *mirror,
  * nfs_pageio_init - initialise a page io descriptor
  * @desc: pointer to descriptor
  * @inode: pointer to inode
- * @doio: pointer to io function
+ * @pg_ops: pointer to pageio operations
+ * @compl_ops: pointer to pageio completion operations
+ * @rw_ops: pointer to nfs read/write operations
  * @bsize: io block size
  * @io_flags: extra parameters for the io function
  */
@@ -1184,6 +1186,7 @@ int nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
  * nfs_pageio_complete_mirror - Complete I/O on the current mirror of an
  *				nfs_pageio_descriptor
  * @desc: pointer to io descriptor
+ * @mirror_idx: pointer to mirror index
  */
 static void nfs_pageio_complete_mirror(struct nfs_pageio_descriptor *desc,
 				       u32 mirror_idx)
