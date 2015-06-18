@@ -1034,7 +1034,7 @@ static int mv_cesa_get_sram(struct platform_device *pdev,
 			     &sram_size);
 
 	cp->sram_size = sram_size;
-	cp->sram_pool = of_get_named_gen_pool(&pdev->dev.of_node,
+	cp->sram_pool = of_get_named_gen_pool(pdev->dev.of_node,
 					      "marvell,crypto-srams", 0);
 	if (cp->sram_pool) {
 		cp->sram = gen_pool_dma_alloc(cp->sram_pool, sram_size,
@@ -1197,6 +1197,8 @@ static int mv_remove(struct platform_device *pdev)
 
 static const struct of_device_id mv_cesa_of_match_table[] = {
 	{ .compatible = "marvell,orion-crypto", },
+	{ .compatible = "marvell,kirkwood-crypto", },
+	{ .compatible = "marvell,dove-crypto", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, mv_cesa_of_match_table);

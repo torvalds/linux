@@ -1,7 +1,10 @@
 Marvell Cryptographic Engines And Security Accelerator
 
 Required properties:
-- compatible : should be "marvell,orion-crypto"
+- compatible: should be one of the following string
+	      "marvell,orion-crypto"
+	      "marvell,kirkwood-crypto"
+	      "marvell,dove-crypto"
 - reg: base physical address of the engine and length of memory mapped
        region. Can also contain an entry for the SRAM attached to the CESA,
        but this representation is deprecated and marvell,crypto-srams should
