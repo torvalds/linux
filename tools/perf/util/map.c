@@ -137,7 +137,6 @@ void map__init(struct map *map, enum map_type type,
 	map->unmap_ip = map__unmap_ip;
 	RB_CLEAR_NODE(&map->rb_node);
 	map->groups   = NULL;
-	map->referenced = false;
 	map->erange_warned = false;
 	atomic_set(&map->refcnt, 1);
 }
@@ -439,7 +438,6 @@ static void maps__init(struct maps *maps)
 {
 	maps->entries = RB_ROOT;
 	pthread_rwlock_init(&maps->lock, NULL);
-	INIT_LIST_HEAD(&maps->removed_maps);
 }
 
 void map_groups__init(struct map_groups *mg, struct machine *machine)
@@ -466,21 +464,10 @@ static void __maps__purge(struct maps *maps)
 	}
 }
 
-static void __maps__purge_removed_maps(struct maps *maps)
-{
-	struct map *pos, *n;
-
-	list_for_each_entry_safe(pos, n, &maps->removed_maps, node) {
-		list_del_init(&pos->node);
-		map__put(pos);
-	}
-}
-
 static void maps__exit(struct maps *maps)
 {
 	pthread_rwlock_wrlock(&maps->lock);
 	__maps__purge(maps);
-	__maps__purge_removed_maps(maps);
 	pthread_rwlock_unlock(&maps->lock);
 }
 
@@ -498,8 +485,6 @@ bool map_groups__empty(struct map_groups *mg)
 
 	for (i = 0; i < MAP__NR_TYPES; ++i) {
 		if (maps__first(&mg->maps[i]))
-			return false;
-		if (!list_empty(&mg->maps[i].removed_maps))
 			return false;
 	}
 
@@ -621,45 +606,12 @@ size_t __map_groups__fprintf_maps(struct map_groups *mg, enum map_type type,
 	return printed += maps__fprintf(&mg->maps[type], fp);
 }
 
-static size_t map_groups__fprintf_maps(struct map_groups *mg, FILE *fp)
+size_t map_groups__fprintf(struct map_groups *mg, FILE *fp)
 {
 	size_t printed = 0, i;
 	for (i = 0; i < MAP__NR_TYPES; ++i)
 		printed += __map_groups__fprintf_maps(mg, i, fp);
 	return printed;
-}
-
-static size_t __map_groups__fprintf_removed_maps(struct map_groups *mg,
-						 enum map_type type, FILE *fp)
-{
-	struct map *pos;
-	size_t printed = 0;
-
-	list_for_each_entry(pos, &mg->maps[type].removed_maps, node) {
-		printed += fprintf(fp, "Map:");
-		printed += map__fprintf(pos, fp);
-		if (verbose > 1) {
-			printed += dso__fprintf(pos->dso, type, fp);
-			printed += fprintf(fp, "--\n");
-		}
-	}
-	return printed;
-}
-
-static size_t map_groups__fprintf_removed_maps(struct map_groups *mg,
-					       FILE *fp)
-{
-	size_t printed = 0, i;
-	for (i = 0; i < MAP__NR_TYPES; ++i)
-		printed += __map_groups__fprintf_removed_maps(mg, i, fp);
-	return printed;
-}
-
-size_t map_groups__fprintf(struct map_groups *mg, FILE *fp)
-{
-	size_t printed = map_groups__fprintf_maps(mg, fp);
-	printed += fprintf(fp, "Removed maps:\n");
-	return printed + map_groups__fprintf_removed_maps(mg, fp);
 }
 
 static int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp)
@@ -719,13 +671,7 @@ static int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp
 				map__fprintf(after, fp);
 		}
 put_map:
-		/*
-		 * If we have references, just move them to a separate list.
-		 */
-		if (pos->referenced)
-			list_add_tail(&pos->node, &maps->removed_maps);
-		else
-			map__put(pos);
+		map__put(pos);
 
 		if (err)
 			goto out;

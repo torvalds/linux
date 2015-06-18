@@ -360,7 +360,7 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 		unw_word_t base = is_exec ? 0 : map->start;
 
 		if (fd >= 0)
-			dso__data_put_fd(dso);
+			dso__data_put_fd(map->dso);
 
 		memset(&di, 0, sizeof(di));
 		if (dwarf_find_debug_frame(0, &di, ip, base, map->dso->name,

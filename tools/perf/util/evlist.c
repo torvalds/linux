@@ -297,6 +297,8 @@ void perf_evlist__disable(struct perf_evlist *evlist)
 				      PERF_EVENT_IOC_DISABLE, 0);
 		}
 	}
+
+	evlist->enabled = false;
 }
 
 void perf_evlist__enable(struct perf_evlist *evlist)
@@ -316,6 +318,13 @@ void perf_evlist__enable(struct perf_evlist *evlist)
 				      PERF_EVENT_IOC_ENABLE, 0);
 		}
 	}
+
+	evlist->enabled = true;
+}
+
+void perf_evlist__toggle_enable(struct perf_evlist *evlist)
+{
+	(evlist->enabled ? perf_evlist__disable : perf_evlist__enable)(evlist);
 }
 
 int perf_evlist__disable_event(struct perf_evlist *evlist,
@@ -634,11 +643,18 @@ static struct perf_evsel *perf_evlist__event2evsel(struct perf_evlist *evlist,
 union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
 {
 	struct perf_mmap *md = &evlist->mmap[idx];
-	u64 head = perf_mmap__read_head(md);
+	u64 head;
 	u64 old = md->prev;
 	unsigned char *data = md->base + page_size;
 	union perf_event *event = NULL;
 
+	/*
+	 * Check if event was unmapped due to a POLLHUP/POLLERR.
+	 */
+	if (!atomic_read(&md->refcnt))
+		return NULL;
+
+	head = perf_mmap__read_head(md);
 	if (evlist->overwrite) {
 		/*
 		 * If we're further behind than half the buffer, there's a chance

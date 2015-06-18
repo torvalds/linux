@@ -94,3 +94,39 @@ void perf_stat_evsel_id_init(struct perf_evsel *evsel)
 		}
 	}
 }
+
+struct perf_counts *perf_counts__new(int ncpus)
+{
+	int size = sizeof(struct perf_counts) +
+		   ncpus * sizeof(struct perf_counts_values);
+
+	return zalloc(size);
+}
+
+void perf_counts__delete(struct perf_counts *counts)
+{
+	free(counts);
+}
+
+static void perf_counts__reset(struct perf_counts *counts, int ncpus)
+{
+	memset(counts, 0, (sizeof(*counts) +
+	       (ncpus * sizeof(struct perf_counts_values))));
+}
+
+void perf_evsel__reset_counts(struct perf_evsel *evsel, int ncpus)
+{
+	perf_counts__reset(evsel->counts, ncpus);
+}
+
+int perf_evsel__alloc_counts(struct perf_evsel *evsel, int ncpus)
+{
+	evsel->counts = perf_counts__new(ncpus);
+	return evsel->counts != NULL ? 0 : -ENOMEM;
+}
+
+void perf_evsel__free_counts(struct perf_evsel *evsel)
+{
+	perf_counts__delete(evsel->counts);
+	evsel->counts = NULL;
+}

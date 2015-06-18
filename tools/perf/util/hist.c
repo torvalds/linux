@@ -313,8 +313,7 @@ static struct hist_entry *hist_entry__new(struct hist_entry *template,
 				memset(&he->stat, 0, sizeof(he->stat));
 		}
 
-		if (he->ms.map)
-			he->ms.map->referenced = true;
+		map__get(he->ms.map);
 
 		if (he->branch_info) {
 			/*
@@ -324,6 +323,7 @@ static struct hist_entry *hist_entry__new(struct hist_entry *template,
 			 */
 			he->branch_info = malloc(sizeof(*he->branch_info));
 			if (he->branch_info == NULL) {
+				map__zput(he->ms.map);
 				free(he->stat_acc);
 				free(he);
 				return NULL;
@@ -332,17 +332,13 @@ static struct hist_entry *hist_entry__new(struct hist_entry *template,
 			memcpy(he->branch_info, template->branch_info,
 			       sizeof(*he->branch_info));
 
-			if (he->branch_info->from.map)
-				he->branch_info->from.map->referenced = true;
-			if (he->branch_info->to.map)
-				he->branch_info->to.map->referenced = true;
+			map__get(he->branch_info->from.map);
+			map__get(he->branch_info->to.map);
 		}
 
 		if (he->mem_info) {
-			if (he->mem_info->iaddr.map)
-				he->mem_info->iaddr.map->referenced = true;
-			if (he->mem_info->daddr.map)
-				he->mem_info->daddr.map->referenced = true;
+			map__get(he->mem_info->iaddr.map);
+			map__get(he->mem_info->daddr.map);
 		}
 
 		if (symbol_conf.use_callchain)
@@ -407,9 +403,8 @@ static struct hist_entry *hists__findnew_entry(struct hists *hists,
 			 * the history counter to increment.
 			 */
 			if (he->ms.map != entry->ms.map) {
-				he->ms.map = entry->ms.map;
-				if (he->ms.map)
-					he->ms.map->referenced = true;
+				map__put(he->ms.map);
+				he->ms.map = map__get(entry->ms.map);
 			}
 			goto out;
 		}
@@ -933,8 +928,20 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 void hist_entry__delete(struct hist_entry *he)
 {
 	thread__zput(he->thread);
-	zfree(&he->branch_info);
-	zfree(&he->mem_info);
+	map__zput(he->ms.map);
+
+	if (he->branch_info) {
+		map__zput(he->branch_info->from.map);
+		map__zput(he->branch_info->to.map);
+		zfree(&he->branch_info);
+	}
+
+	if (he->mem_info) {
+		map__zput(he->mem_info->iaddr.map);
+		map__zput(he->mem_info->daddr.map);
+		zfree(&he->mem_info);
+	}
+
 	zfree(&he->stat_acc);
 	free_srcline(he->srcline);
 	free_callchain(he->callchain);

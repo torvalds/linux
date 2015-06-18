@@ -3,6 +3,7 @@
 #include "thread_map.h"
 #include "cpumap.h"
 #include "debug.h"
+#include "stat.h"
 
 int test__openat_syscall_event_on_all_cpus(void)
 {

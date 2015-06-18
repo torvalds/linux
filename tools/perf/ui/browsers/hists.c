@@ -1736,6 +1736,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	"t             Zoom into current Thread\n"
 	"V             Verbose (DSO names in callchains, etc)\n"
 	"z             Toggle zeroing of samples\n"
+	"CTRL+z        Enable/Disable events\n"
 	"/             Filter symbol by name";
 
 	if (browser == NULL)
@@ -1900,6 +1901,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			/* Fall thru */
 		case 'q':
 		case CTRL('c'):
+		case CTRL('z'):
 			goto out_free_stack;
 		default:
 			continue;

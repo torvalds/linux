@@ -235,10 +235,13 @@ static void perf_top__show_details(struct perf_top *top)
 
 	more = symbol__annotate_printf(symbol, he->ms.map, top->sym_evsel,
 				       0, top->sym_pcnt_filter, top->print_entries, 4);
-	if (top->zero)
-		symbol__annotate_zero_histogram(symbol, top->sym_evsel->idx);
-	else
-		symbol__annotate_decay_histogram(symbol, top->sym_evsel->idx);
+
+	if (top->evlist->enabled) {
+		if (top->zero)
+			symbol__annotate_zero_histogram(symbol, top->sym_evsel->idx);
+		else
+			symbol__annotate_decay_histogram(symbol, top->sym_evsel->idx);
+	}
 	if (more != 0)
 		printf("%d lines not displayed, maybe increase display entries [e]\n", more);
 out_unlock:
@@ -276,11 +279,13 @@ static void perf_top__print_sym_table(struct perf_top *top)
 		return;
 	}
 
-	if (top->zero) {
-		hists__delete_entries(hists);
-	} else {
-		hists__decay_entries(hists, top->hide_user_symbols,
-				     top->hide_kernel_symbols);
+	if (top->evlist->enabled) {
+		if (top->zero) {
+			hists__delete_entries(hists);
+		} else {
+			hists__decay_entries(hists, top->hide_user_symbols,
+					     top->hide_kernel_symbols);
+		}
 	}
 
 	hists__collapse_resort(hists, NULL);
@@ -545,11 +550,13 @@ static void perf_top__sort_new_samples(void *arg)
 
 	hists = evsel__hists(t->sym_evsel);
 
-	if (t->zero) {
-		hists__delete_entries(hists);
-	} else {
-		hists__decay_entries(hists, t->hide_user_symbols,
-				     t->hide_kernel_symbols);
+	if (t->evlist->enabled) {
+		if (t->zero) {
+			hists__delete_entries(hists);
+		} else {
+			hists__decay_entries(hists, t->hide_user_symbols,
+					     t->hide_kernel_symbols);
+		}
 	}
 
 	hists__collapse_resort(hists, NULL);
@@ -579,8 +586,21 @@ static void *display_thread_tui(void *arg)
 		hists->uid_filter_str = top->record_opts.target.uid_str;
 	}
 
-	perf_evlist__tui_browse_hists(top->evlist, help, &hbt, top->min_percent,
-				      &top->session->header.env);
+	while (true)  {
+		int key = perf_evlist__tui_browse_hists(top->evlist, help, &hbt,
+							top->min_percent,
+							&top->session->header.env);
+
+		if (key != CTRL('z'))
+			break;
+
+		perf_evlist__toggle_enable(top->evlist);
+		/*
+		 * No need to refresh, resort/decay histogram entries
+		 * if we are not collecting samples:
+		 */
+		hbt.refresh = top->evlist->enabled ? top->delay_secs : 0;
+	}
 
 	done = 1;
 	return NULL;
