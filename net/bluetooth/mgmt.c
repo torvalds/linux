@@ -832,6 +832,20 @@ static struct mgmt_pending_cmd *pending_find_data(u16 opcode,
 	return mgmt_pending_find_data(HCI_CHANNEL_CONTROL, opcode, hdev, data);
 }
 
+static u8 get_current_adv_instance(struct hci_dev *hdev)
+{
+	/* The "Set Advertising" setting supersedes the "Add Advertising"
+	 * setting. Here we set the advertising data based on which
+	 * setting was set. When neither apply, default to the global settings,
+	 * represented by instance "0".
+	 */
+	if (hci_dev_test_flag(hdev, HCI_ADVERTISING_INSTANCE) &&
+	    !hci_dev_test_flag(hdev, HCI_ADVERTISING))
+		return 0x01;
+
+	return 0x00;
+}
+
 static u8 create_default_scan_rsp_data(struct hci_dev *hdev, u8 *ptr)
 {
 	u8 ad_len = 0;
@@ -900,21 +914,8 @@ static void update_scan_rsp_data_for_instance(struct hci_request *req,
 
 static void update_scan_rsp_data(struct hci_request *req)
 {
-	struct hci_dev *hdev = req->hdev;
-	u8 instance;
-
-	/* The "Set Advertising" setting supersedes the "Add Advertising"
-	 * setting. Here we set the scan response data based on which
-	 * setting was set. When neither apply, default to the global settings,
-	 * represented by instance "0".
-	 */
-	if (hci_dev_test_flag(hdev, HCI_ADVERTISING_INSTANCE) &&
-	    !hci_dev_test_flag(hdev, HCI_ADVERTISING))
-		instance = 0x01;
-	else
-		instance = 0x00;
-
-	update_scan_rsp_data_for_instance(req, instance);
+	update_scan_rsp_data_for_instance(req,
+					  get_current_adv_instance(req->hdev));
 }
 
 static u8 get_adv_discov_flags(struct hci_dev *hdev)
@@ -939,20 +940,6 @@ static u8 get_adv_discov_flags(struct hci_dev *hdev)
 	}
 
 	return 0;
-}
-
-static u8 get_current_adv_instance(struct hci_dev *hdev)
-{
-	/* The "Set Advertising" setting supersedes the "Add Advertising"
-	 * setting. Here we set the advertising data based on which
-	 * setting was set. When neither apply, default to the global settings,
-	 * represented by instance "0".
-	 */
-	if (hci_dev_test_flag(hdev, HCI_ADVERTISING_INSTANCE) &&
-	    !hci_dev_test_flag(hdev, HCI_ADVERTISING))
-		return 0x01;
-
-	return 0x00;
 }
 
 static bool get_connectable(struct hci_dev *hdev)
@@ -1093,10 +1080,7 @@ static void update_adv_data_for_instance(struct hci_request *req, u8 instance)
 
 static void update_adv_data(struct hci_request *req)
 {
-	struct hci_dev *hdev = req->hdev;
-	u8 instance = get_current_adv_instance(hdev);
-
-	update_adv_data_for_instance(req, instance);
+	update_adv_data_for_instance(req, get_current_adv_instance(req->hdev));
 }
 
 int mgmt_update_adv_data(struct hci_dev *hdev)
