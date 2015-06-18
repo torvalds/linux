@@ -65,57 +65,6 @@
 #include "intel_drv.h"
 #include "i915_drv.h"
 
-static void intel_increase_pllclock(struct drm_device *dev,
-				    enum pipe pipe)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int dpll_reg = DPLL(pipe);
-	int dpll;
-
-	if (!HAS_GMCH_DISPLAY(dev))
-		return;
-
-	if (!dev_priv->lvds_downclock_avail)
-		return;
-
-	dpll = I915_READ(dpll_reg);
-	if (!HAS_PIPE_CXSR(dev) && (dpll & DISPLAY_RATE_SELECT_FPA1)) {
-		DRM_DEBUG_DRIVER("upclocking LVDS\n");
-
-		assert_panel_unlocked(dev_priv, pipe);
-
-		dpll &= ~DISPLAY_RATE_SELECT_FPA1;
-		I915_WRITE(dpll_reg, dpll);
-		intel_wait_for_vblank(dev, pipe);
-
-		dpll = I915_READ(dpll_reg);
-		if (dpll & DISPLAY_RATE_SELECT_FPA1)
-			DRM_DEBUG_DRIVER("failed to upclock LVDS!\n");
-	}
-}
-
-/**
- * intel_mark_fb_busy - mark given planes as busy
- * @dev: DRM device
- * @frontbuffer_bits: bits for the affected planes
- *
- * This function gets called every time the screen contents change. It can be
- * used to keep e.g. the update rate at the nominal refresh rate with DRRS.
- */
-static void intel_mark_fb_busy(struct drm_device *dev,
-			       unsigned frontbuffer_bits)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	enum pipe pipe;
-
-	for_each_pipe(dev_priv, pipe) {
-		if (!(frontbuffer_bits & INTEL_FRONTBUFFER_ALL_MASK(pipe)))
-			continue;
-
-		intel_increase_pllclock(dev, pipe);
-	}
-}
-
 /**
  * intel_fb_obj_invalidate - invalidate frontbuffer object
  * @obj: GEM object to invalidate
@@ -147,8 +96,6 @@ void intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
 		mutex_unlock(&dev_priv->fb_tracking.lock);
 	}
 
-	intel_mark_fb_busy(dev, obj->frontbuffer_bits);
-
 	intel_psr_invalidate(dev, obj->frontbuffer_bits);
 	intel_edp_drrs_invalidate(dev, obj->frontbuffer_bits);
 	intel_fbc_invalidate(dev_priv, obj->frontbuffer_bits, origin);
@@ -177,8 +124,6 @@ void intel_frontbuffer_flush(struct drm_device *dev,
 
 	if (!frontbuffer_bits)
 		return;
-
-	intel_mark_fb_busy(dev, frontbuffer_bits);
 
 	intel_edp_drrs_flush(dev, frontbuffer_bits);
 	intel_psr_flush(dev, frontbuffer_bits);

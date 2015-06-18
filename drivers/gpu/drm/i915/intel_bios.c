@@ -122,42 +122,6 @@ fill_detail_timing_data(struct drm_display_mode *panel_fixed_mode,
 	drm_mode_set_name(panel_fixed_mode);
 }
 
-static bool
-lvds_dvo_timing_equal_size(const struct lvds_dvo_timing *a,
-			   const struct lvds_dvo_timing *b)
-{
-	if (a->hactive_hi != b->hactive_hi ||
-	    a->hactive_lo != b->hactive_lo)
-		return false;
-
-	if (a->hsync_off_hi != b->hsync_off_hi ||
-	    a->hsync_off_lo != b->hsync_off_lo)
-		return false;
-
-	if (a->hsync_pulse_width != b->hsync_pulse_width)
-		return false;
-
-	if (a->hblank_hi != b->hblank_hi ||
-	    a->hblank_lo != b->hblank_lo)
-		return false;
-
-	if (a->vactive_hi != b->vactive_hi ||
-	    a->vactive_lo != b->vactive_lo)
-		return false;
-
-	if (a->vsync_off != b->vsync_off)
-		return false;
-
-	if (a->vsync_pulse_width != b->vsync_pulse_width)
-		return false;
-
-	if (a->vblank_hi != b->vblank_hi ||
-	    a->vblank_lo != b->vblank_lo)
-		return false;
-
-	return true;
-}
-
 static const struct lvds_dvo_timing *
 get_lvds_dvo_timing(const struct bdb_lvds_lfp_data *lvds_lfp_data,
 		    const struct bdb_lvds_lfp_data_ptrs *lvds_lfp_data_ptrs,
@@ -213,7 +177,7 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 	const struct lvds_dvo_timing *panel_dvo_timing;
 	const struct lvds_fp_timing *fp_timing;
 	struct drm_display_mode *panel_fixed_mode;
-	int i, downclock, drrs_mode;
+	int drrs_mode;
 
 	lvds_options = find_section(bdb, BDB_LVDS_OPTIONS);
 	if (!lvds_options)
@@ -271,30 +235,6 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 
 	DRM_DEBUG_KMS("Found panel mode in BIOS VBT tables:\n");
 	drm_mode_debug_printmodeline(panel_fixed_mode);
-
-	/*
-	 * Iterate over the LVDS panel timing info to find the lowest clock
-	 * for the native resolution.
-	 */
-	downclock = panel_dvo_timing->clock;
-	for (i = 0; i < 16; i++) {
-		const struct lvds_dvo_timing *dvo_timing;
-
-		dvo_timing = get_lvds_dvo_timing(lvds_lfp_data,
-						 lvds_lfp_data_ptrs,
-						 i);
-		if (lvds_dvo_timing_equal_size(dvo_timing, panel_dvo_timing) &&
-		    dvo_timing->clock < downclock)
-			downclock = dvo_timing->clock;
-	}
-
-	if (downclock < panel_dvo_timing->clock && i915.lvds_downclock) {
-		dev_priv->lvds_downclock_avail = 1;
-		dev_priv->lvds_downclock = downclock * 10;
-		DRM_DEBUG_KMS("LVDS downclock is found in VBT. "
-			      "Normal Clock %dKHz, downclock %dKHz\n",
-			      panel_fixed_mode->clock, 10*downclock);
-	}
 
 	fp_timing = get_lvds_fp_timing(bdb, lvds_lfp_data,
 				       lvds_lfp_data_ptrs,

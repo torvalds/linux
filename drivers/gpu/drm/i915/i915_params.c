@@ -28,7 +28,6 @@ struct i915_params i915 __read_mostly = {
 	.modeset = -1,
 	.panel_ignore_lid = 1,
 	.semaphores = -1,
-	.lvds_downclock = 0,
 	.lvds_channel_mode = 0,
 	.panel_use_ssc = -1,
 	.vbt_sdvo_panel_type = -1,
@@ -83,11 +82,6 @@ module_param_named_unsafe(enable_fbc, i915.enable_fbc, int, 0600);
 MODULE_PARM_DESC(enable_fbc,
 	"Enable frame buffer compression for power savings "
 	"(default: -1 (use per-chip default))");
-
-module_param_named(lvds_downclock, i915.lvds_downclock, int, 0400);
-MODULE_PARM_DESC(lvds_downclock,
-	"Use panel (LVDS/eDP) downclocking for power savings "
-	"(default: false)");
 
 module_param_named(lvds_channel_mode, i915.lvds_channel_mode, int, 0600);
 MODULE_PARM_DESC(lvds_channel_mode,

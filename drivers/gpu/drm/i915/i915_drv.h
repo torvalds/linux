@@ -1806,9 +1806,6 @@ struct drm_i915_private {
 
 	/* Reclocking support */
 	bool render_reclock_avail;
-	bool lvds_downclock_avail;
-	/* indicates the reduced downclock for LVDS*/
-	int lvds_downclock;
 
 	struct i915_frontbuffer_tracking fb_tracking;
 
@@ -2562,7 +2559,6 @@ struct i915_params {
 	int modeset;
 	int panel_ignore_lid;
 	int semaphores;
-	unsigned int lvds_downclock;
 	int lvds_channel_mode;
 	int panel_use_ssc;
 	int vbt_sdvo_panel_type;

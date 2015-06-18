@@ -7754,9 +7754,9 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int refclk, num_connectors = 0;
-	intel_clock_t clock, reduced_clock;
-	bool ok, has_reduced_clock = false;
-	bool is_lvds = false, is_dsi = false;
+	intel_clock_t clock;
+	bool ok;
+	bool is_dsi = false;
 	struct intel_encoder *encoder;
 	const intel_limit_t *limit;
 	struct drm_atomic_state *state = crtc_state->base.state;
@@ -7774,9 +7774,6 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 		encoder = to_intel_encoder(connector_state->best_encoder);
 
 		switch (encoder->type) {
-		case INTEL_OUTPUT_LVDS:
-			is_lvds = true;
-			break;
 		case INTEL_OUTPUT_DSI:
 			is_dsi = true;
 			break;
@@ -7808,19 +7805,6 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 			return -EINVAL;
 		}
 
-		if (is_lvds && dev_priv->lvds_downclock_avail) {
-			/*
-			 * Ensure we match the reduced clock's P to the target
-			 * clock.  If the clocks don't match, we can't switch
-			 * the display clock by using the FP0/FP1. In such case
-			 * we will disable the LVDS downclock feature.
-			 */
-			has_reduced_clock =
-				dev_priv->display.find_dpll(limit, crtc_state,
-							    dev_priv->lvds_downclock,
-							    refclk, &clock,
-							    &reduced_clock);
-		}
 		/* Compat-code for transition, will disappear. */
 		crtc_state->dpll.n = clock.n;
 		crtc_state->dpll.m1 = clock.m1;
@@ -7830,16 +7814,14 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 	}
 
 	if (IS_GEN2(dev)) {
-		i8xx_compute_dpll(crtc, crtc_state,
-				has_reduced_clock ? &reduced_clock : NULL,
+		i8xx_compute_dpll(crtc, crtc_state, NULL,
 				  num_connectors);
 	} else if (IS_CHERRYVIEW(dev)) {
 		chv_compute_dpll(crtc, crtc_state);
 	} else if (IS_VALLEYVIEW(dev)) {
 		vlv_compute_dpll(crtc, crtc_state);
 	} else {
-		i9xx_compute_dpll(crtc, crtc_state,
-				has_reduced_clock ? &reduced_clock : NULL,
+		i9xx_compute_dpll(crtc, crtc_state, NULL,
 				  num_connectors);
 	}
 
@@ -8651,9 +8633,7 @@ static bool ironlake_compute_clocks(struct drm_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int refclk;
 	const intel_limit_t *limit;
-	bool ret, is_lvds = false;
-
-	is_lvds = intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS);
+	bool ret;
 
 	refclk = ironlake_get_refclk(crtc_state);
 
@@ -8668,20 +8648,6 @@ static bool ironlake_compute_clocks(struct drm_crtc *crtc,
 					  refclk, NULL, clock);
 	if (!ret)
 		return false;
-
-	if (is_lvds && dev_priv->lvds_downclock_avail) {
-		/*
-		 * Ensure we match the reduced clock's P to the target clock.
-		 * If the clocks don't match, we can't switch the display clock
-		 * by using the FP0/FP1. In such case we will disable the LVDS
-		 * downclock feature.
-		*/
-		*has_reduced_clock =
-			dev_priv->display.find_dpll(limit, crtc_state,
-						    dev_priv->lvds_downclock,
-						    refclk, clock,
-						    reduced_clock);
-	}
 
 	return true;
 }
@@ -10620,42 +10586,6 @@ struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 	return mode;
 }
 
-static void intel_decrease_pllclock(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	if (!HAS_GMCH_DISPLAY(dev))
-		return;
-
-	if (!dev_priv->lvds_downclock_avail)
-		return;
-
-	/*
-	 * Since this is called by a timer, we should never get here in
-	 * the manual case.
-	 */
-	if (!HAS_PIPE_CXSR(dev) && intel_crtc->lowfreq_avail) {
-		int pipe = intel_crtc->pipe;
-		int dpll_reg = DPLL(pipe);
-		int dpll;
-
-		DRM_DEBUG_DRIVER("downclocking LVDS\n");
-
-		assert_panel_unlocked(dev_priv, pipe);
-
-		dpll = I915_READ(dpll_reg);
-		dpll |= DISPLAY_RATE_SELECT_FPA1;
-		I915_WRITE(dpll_reg, dpll);
-		intel_wait_for_vblank(dev, pipe);
-		dpll = I915_READ(dpll_reg);
-		if (!(dpll & DISPLAY_RATE_SELECT_FPA1))
-			DRM_DEBUG_DRIVER("failed to downclock LVDS!\n");
-	}
-
-}
-
 void intel_mark_busy(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -10673,19 +10603,11 @@ void intel_mark_busy(struct drm_device *dev)
 void intel_mark_idle(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc;
 
 	if (!dev_priv->mm.busy)
 		return;
 
 	dev_priv->mm.busy = false;
-
-	for_each_crtc(dev, crtc) {
-		if (!crtc->primary->fb)
-			continue;
-
-		intel_decrease_pllclock(crtc);
-	}
 
 	if (INTEL_INFO(dev)->gen >= 6)
 		gen6_rps_idle(dev->dev_private);

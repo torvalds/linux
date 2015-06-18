@@ -1072,24 +1072,8 @@ void intel_lvds_init(struct drm_device *dev)
 			drm_mode_debug_printmodeline(scan);
 
 			fixed_mode = drm_mode_duplicate(dev, scan);
-			if (fixed_mode) {
-				downclock_mode =
-					intel_find_panel_downclock(dev,
-					fixed_mode, connector);
-				if (downclock_mode != NULL &&
-					i915.lvds_downclock) {
-					/* We found the downclock for LVDS. */
-					dev_priv->lvds_downclock_avail = true;
-					dev_priv->lvds_downclock =
-						downclock_mode->clock;
-					DRM_DEBUG_KMS("LVDS downclock is found"
-					" in EDID. Normal clock %dKhz, "
-					"downclock %dKhz\n",
-					fixed_mode->clock,
-					dev_priv->lvds_downclock);
-				}
+			if (fixed_mode)
 				goto out;
-			}
 		}
 	}
 
