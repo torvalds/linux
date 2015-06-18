@@ -1216,62 +1216,67 @@ static void das1800_free_dma(struct comedi_device *dev)
 		comedi_isadma_free(devpriv->dma);
 }
 
-static int das1800_probe(struct comedi_device *dev)
+static const struct das1800_board *das1800_probe(struct comedi_device *dev)
 {
 	const struct das1800_board *board = dev->board_ptr;
-	int index;
+	int index = board ? board - das1800_boards : -EINVAL;
 	int id;
 
-	/* calc the offset to the boardinfo that was found by the core */
-	index = board - das1800_boards;
-
-	/* verify that the board id matches the boardinfo */
+	/*
+	 * The dev->board_ptr will be set by comedi_device_attach() if the
+	 * board name provided by the user matches a board->name in this
+	 * driver. If so, this function sanity checks the id to verify that
+	 * the board is correct.
+	 *
+	 * If the dev->board_ptr is not set, the user is trying to attach
+	 * an unspecified board to this driver. In this case the id is used
+	 * to 'probe' for the correct dev->board_ptr.
+	 */
 	id = (inb(dev->iobase + DAS1800_DIGITAL) >> 4) & 0xf;
 	switch (id) {
 	case 0x3:
 		if (index == das1801st_da || index == das1802st_da ||
 		    index == das1701st_da || index == das1702st_da)
-			return index;
+			return board;
 		index = das1801st;
 		break;
 	case 0x4:
 		if (index == das1802hr_da || index == das1702hr_da)
-			return index;
+			return board;
 		index = das1802hr;
 		break;
 	case 0x5:
 		if (index == das1801ao || index == das1802ao ||
 		    index == das1701ao || index == das1702ao)
-			return index;
+			return board;
 		index = das1801ao;
 		break;
 	case 0x6:
 		if (index == das1802hr || index == das1702hr)
-			return index;
+			return board;
 		index = das1802hr;
 		break;
 	case 0x7:
 		if (index == das1801st || index == das1802st ||
 		    index == das1701st || index == das1702st)
-			return index;
+			return board;
 		index = das1801st;
 		break;
 	case 0x8:
 		if (index == das1801hc || index == das1802hc)
-			return index;
+			return board;
 		index = das1801hc;
-		break;
 	default:
 		dev_err(dev->class_dev,
 			"Board model: probe returned 0x%x (unknown, please report)\n",
 			id);
-		break;
+		return NULL;
 	}
 	dev_err(dev->class_dev,
 		"Board model (probed, not recommended): %s series\n",
 		das1800_boards[index].name);
 
-	return index;
+	return &das1800_boards[index];
 }
 
 static int das1800_attach(struct comedi_device *dev,
@@ -1281,7 +1286,6 @@ static int das1800_attach(struct comedi_device *dev,
 	struct das1800_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned int irq = it->options[1];
-	int board;
 	int ret;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
@@ -1292,14 +1296,12 @@ static int das1800_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	board = das1800_probe(dev);
-	if (board < 0) {
+	thisboard = das1800_probe(dev);
+	if (!thisboard) {
 		dev_err(dev->class_dev, "unable to determine board type\n");
 		return -ENODEV;
 	}
-
-	dev->board_ptr = das1800_boards + board;
-	thisboard = dev->board_ptr;
+	dev->board_ptr = thisboard;
 	dev->board_name = thisboard->name;
 
 	/*  if it is an 'ao' board with fancy analog out then we need extra io ports */
