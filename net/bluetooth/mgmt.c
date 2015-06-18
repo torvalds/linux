@@ -7564,6 +7564,7 @@ static void powered_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 static int powered_update_hci(struct hci_dev *hdev)
 {
 	struct hci_request req;
+	struct adv_info *adv_instance;
 	u8 link_sec;
 
 	hci_req_init(&req, hdev);
@@ -7603,14 +7604,27 @@ static int powered_update_hci(struct hci_dev *hdev)
 		 * advertising data. This also applies to the case
 		 * where BR/EDR was toggled during the AUTO_OFF phase.
 		 */
-		if (hci_dev_test_flag(hdev, HCI_LE_ENABLED)) {
+		if (hci_dev_test_flag(hdev, HCI_LE_ENABLED) &&
+		    (hci_dev_test_flag(hdev, HCI_ADVERTISING) ||
+		     !hci_dev_test_flag(hdev, HCI_ADVERTISING_INSTANCE))) {
 			update_adv_data(&req);
 			update_scan_rsp_data(&req);
 		}
 
-		if (hci_dev_test_flag(hdev, HCI_ADVERTISING) ||
-		    hci_dev_test_flag(hdev, HCI_ADVERTISING_INSTANCE))
+		if (hci_dev_test_flag(hdev, HCI_ADVERTISING_INSTANCE) &&
+		    hdev->cur_adv_instance == 0x00 &&
+		    !list_empty(&hdev->adv_instances)) {
+			adv_instance = list_first_entry(&hdev->adv_instances,
+							struct adv_info, list);
+			hdev->cur_adv_instance = adv_instance->instance;
+		}
+
+		if (hci_dev_test_flag(hdev, HCI_ADVERTISING))
 			enable_advertising(&req);
+		else if (hci_dev_test_flag(hdev, HCI_ADVERTISING_INSTANCE) &&
+			 hdev->cur_adv_instance)
+			schedule_adv_instance(&req, hdev->cur_adv_instance,
+					      true);
 
 		restart_le_actions(&req);
 	}
