@@ -18,6 +18,7 @@
 #include <linux/err.h>
 #include <linux/fb.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -581,31 +582,21 @@ static int ps8622_probe(struct i2c_client *client,
 		ps8622->v12 = NULL;
 	}
 
-	ps8622->gpio_slp = devm_gpiod_get(dev, "sleep");
+	ps8622->gpio_slp = devm_gpiod_get(dev, "sleep", GPIOD_OUT_HIGH);
 	if (IS_ERR(ps8622->gpio_slp)) {
 		ret = PTR_ERR(ps8622->gpio_slp);
 		dev_err(dev, "cannot get gpio_slp %d\n", ret);
 		return ret;
 	}
-	ret = gpiod_direction_output(ps8622->gpio_slp, 1);
-	if (ret) {
-		dev_err(dev, "cannot configure gpio_slp\n");
-		return ret;
-	}
 
-	ps8622->gpio_rst = devm_gpiod_get(dev, "reset");
-	if (IS_ERR(ps8622->gpio_rst)) {
-		ret = PTR_ERR(ps8622->gpio_rst);
-		dev_err(dev, "cannot get gpio_rst %d\n", ret);
-		return ret;
-	}
 	/*
 	 * Assert the reset pin high to avoid the bridge being
 	 * initialized prematurely
 	 */
-	ret = gpiod_direction_output(ps8622->gpio_rst, 1);
-	if (ret) {
-		dev_err(dev, "cannot configure gpio_rst\n");
+	ps8622->gpio_rst = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(ps8622->gpio_rst)) {
+		ret = PTR_ERR(ps8622->gpio_rst);
+		dev_err(dev, "cannot get gpio_rst %d\n", ret);
 		return ret;
 	}
 

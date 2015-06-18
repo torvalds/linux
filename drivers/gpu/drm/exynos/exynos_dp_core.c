@@ -29,7 +29,6 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_panel.h>
-#include <drm/bridge/ptn3460.h>
 
 #include "exynos_dp_core.h"
 
