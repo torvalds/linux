@@ -215,7 +215,8 @@ static void i2c_parport_attach(struct parport *port)
 	adapter->adapter.dev.parent = port->physport->dev;
 
 	if (parport_claim_or_block(adapter->pdev) < 0) {
-		printk(KERN_ERR "i2c-parport: Could not claim parallel port\n");
+		dev_err(&adapter->pdev->dev,
+			"Could not claim parallel port\n");
 		goto err_unregister;
 	}
 
@@ -230,7 +231,7 @@ static void i2c_parport_attach(struct parport *port)
 	}
 
 	if (i2c_bit_add_bus(&adapter->adapter) < 0) {
-		printk(KERN_ERR "i2c-parport: Unable to register with I2C\n");
+		dev_err(&adapter->pdev->dev, "Unable to register with I2C\n");
 		goto err_unregister;
 	}
 
@@ -242,8 +243,8 @@ static void i2c_parport_attach(struct parport *port)
 		if (adapter->ara)
 			parport_enable_irq(port);
 		else
-			printk(KERN_WARNING "i2c-parport: Failed to register "
-			       "ARA client\n");
+			dev_warn(&adapter->pdev->dev,
+				 "Failed to register ARA client\n");
 	}
 
 	/* Add the new adapter to the list */
