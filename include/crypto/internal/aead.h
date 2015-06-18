@@ -15,12 +15,19 @@
 
 #include <crypto/aead.h>
 #include <crypto/algapi.h>
+#include <linux/stddef.h>
 #include <linux/types.h>
 
 struct rtattr;
 
 struct aead_instance {
-	struct aead_alg alg;
+	union {
+		struct {
+			char head[offsetof(struct aead_alg, base)];
+			struct crypto_instance base;
+		} s;
+		struct aead_alg alg;
+	};
 };
 
 struct crypto_aead_spawn {
