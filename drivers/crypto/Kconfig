@@ -165,6 +165,7 @@ config CRYPTO_DEV_MV_CESA
 	select CRYPTO_AES
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_HASH
+	select SRAM
 	help
 	  This driver allows you to utilize the Cryptographic Engines and
 	  Security Accelerator (CESA) which can be found on the Marvell Orion
