@@ -31,22 +31,22 @@
 		((val) << (shift) | (mask) << ((shift) + 16))
 
 /* register positions shared by RK2928, RK3066 and RK3188 */
-#define RK2928_PLL_CON(x)		(x * 0x4)
+#define RK2928_PLL_CON(x)		((x) * 0x4)
 #define RK2928_MODE_CON		0x40
-#define RK2928_CLKSEL_CON(x)	(x * 0x4 + 0x44)
-#define RK2928_CLKGATE_CON(x)	(x * 0x4 + 0xd0)
+#define RK2928_CLKSEL_CON(x)	((x) * 0x4 + 0x44)
+#define RK2928_CLKGATE_CON(x)	((x) * 0x4 + 0xd0)
 #define RK2928_GLB_SRST_FST		0x100
 #define RK2928_GLB_SRST_SND		0x104
-#define RK2928_SOFTRST_CON(x)	(x * 0x4 + 0x110)
+#define RK2928_SOFTRST_CON(x)	((x) * 0x4 + 0x110)
 #define RK2928_MISC_CON		0x134
 
 #define RK3288_PLL_CON(x)		RK2928_PLL_CON(x)
 #define RK3288_MODE_CON			0x50
-#define RK3288_CLKSEL_CON(x)		(x * 0x4 + 0x60)
-#define RK3288_CLKGATE_CON(x)		(x * 0x4 + 0x160)
+#define RK3288_CLKSEL_CON(x)		((x) * 0x4 + 0x60)
+#define RK3288_CLKGATE_CON(x)		((x) * 0x4 + 0x160)
 #define RK3288_GLB_SRST_FST		0x1b0
 #define RK3288_GLB_SRST_SND		0x1b4
-#define RK3288_SOFTRST_CON(x)		(x * 0x4 + 0x1b8)
+#define RK3288_SOFTRST_CON(x)		((x) * 0x4 + 0x1b8)
 #define RK3288_MISC_CON			0x1e8
 #define RK3288_SDMMC_CON0		0x200
 #define RK3288_SDMMC_CON1		0x204
@@ -67,7 +67,7 @@ enum rockchip_pll_type {
 	.nr = _nr,				\
 	.nf = _nf,				\
 	.no = _no,				\
-	.bwadj = (_nf >> 1),			\
+	.bwadj = ((_nf) >> 1),			\
 }
 
 #define RK3066_PLL_RATE_BWADJ(_rate, _nr, _nf, _no, _bw)	\
