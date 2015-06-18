@@ -41,6 +41,7 @@
 #include "target_core_internal.h"
 #include "target_core_alua.h"
 #include "target_core_pr.h"
+#include "target_core_ua.h"
 
 extern struct se_device *g_lun0_dev;
 
@@ -82,6 +83,22 @@ struct se_node_acl *core_tpg_get_initiator_node_acl(
 	return acl;
 }
 EXPORT_SYMBOL(core_tpg_get_initiator_node_acl);
+
+void core_allocate_nexus_loss_ua(
+	struct se_node_acl *nacl)
+{
+	struct se_dev_entry *deve;
+
+	if (!nacl)
+		return;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(deve, &nacl->lun_entry_hlist, link)
+		core_scsi3_ua_allocate(deve, 0x29,
+			ASCQ_29H_NEXUS_LOSS_OCCURRED);
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(core_allocate_nexus_loss_ua);
 
 /*	core_tpg_add_node_to_devs():
  *
