@@ -883,8 +883,7 @@ static u8 create_instance_scan_rsp_data(struct hci_dev *hdev, u8 *ptr)
 	return hdev->adv_instance.scan_rsp_len;
 }
 
-static void update_scan_rsp_data_for_instance(struct hci_request *req,
-					      u8 instance)
+static void update_inst_scan_rsp_data(struct hci_request *req, u8 instance)
 {
 	struct hci_dev *hdev = req->hdev;
 	struct hci_cp_le_set_scan_rsp_data cp;
@@ -914,8 +913,7 @@ static void update_scan_rsp_data_for_instance(struct hci_request *req,
 
 static void update_scan_rsp_data(struct hci_request *req)
 {
-	update_scan_rsp_data_for_instance(req,
-					  get_current_adv_instance(req->hdev));
+	update_inst_scan_rsp_data(req, get_current_adv_instance(req->hdev));
 }
 
 static u8 get_adv_discov_flags(struct hci_dev *hdev)
@@ -1052,7 +1050,7 @@ static u8 create_instance_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr)
 	return ad_len;
 }
 
-static void update_adv_data_for_instance(struct hci_request *req, u8 instance)
+static void update_inst_adv_data(struct hci_request *req, u8 instance)
 {
 	struct hci_dev *hdev = req->hdev;
 	struct hci_cp_le_set_adv_data cp;
@@ -1080,7 +1078,7 @@ static void update_adv_data_for_instance(struct hci_request *req, u8 instance)
 
 static void update_adv_data(struct hci_request *req)
 {
-	update_adv_data_for_instance(req, get_current_adv_instance(req->hdev));
+	update_inst_adv_data(req, get_current_adv_instance(req->hdev));
 }
 
 int mgmt_update_adv_data(struct hci_dev *hdev)
@@ -4776,8 +4774,8 @@ static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	if (val) {
 		/* Switch to instance "0" for the Set Advertising setting. */
-		update_adv_data_for_instance(&req, 0);
-		update_scan_rsp_data_for_instance(&req, 0);
+		update_inst_adv_data(&req, 0x00);
+		update_inst_scan_rsp_data(&req, 0x00);
 		enable_advertising(&req);
 	} else {
 		disable_advertising(&req);
