@@ -33,7 +33,6 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/file.h>
 #include <linux/slab.h>
 #include <linux/namei.h>
 #include <linux/statfs.h>
@@ -3418,7 +3417,6 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 	unsigned long maxcount;
 	struct xdr_stream *xdr = &resp->xdr;
 	struct file *file = read->rd_filp;
-	struct svc_fh *fhp = read->rd_fhp;
 	int starting_len = xdr->buf->len;
 	struct raparms *ra = NULL;
 	__be32 *p;
@@ -3442,20 +3440,8 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 	maxcount = min_t(unsigned long, maxcount, (xdr->buf->buflen - xdr->buf->len));
 	maxcount = min_t(unsigned long, maxcount, read->rd_length);
 
-	if (read->rd_filp) {
-		err = nfsd_permission(resp->rqstp, fhp->fh_export,
-				fhp->fh_dentry,
-				NFSD_MAY_READ|NFSD_MAY_OWNER_OVERRIDE);
-		if (err)
-			goto err_truncate;
-	} else {
-		err = nfsd_open(resp->rqstp, fhp, S_IFREG, NFSD_MAY_READ,
-				&file);
-		if (err)
-			goto err_truncate;
-
+	if (read->rd_tmp_file)
 		ra = nfsd_init_raparms(file);
-	}
 
 	if (file->f_op->splice_read && test_bit(RQ_SPLICE_OK, &resp->rqstp->rq_flags))
 		err = nfsd4_encode_splice_read(resp, read, file, maxcount);
@@ -3464,10 +3450,7 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 
 	if (ra)
 		nfsd_put_raparams(file, ra);
-	if (!read->rd_filp)
-		fput(file);
 
-err_truncate:
 	if (err)
 		xdr_truncate_encode(xdr, starting_len);
 	return err;

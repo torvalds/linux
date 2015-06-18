@@ -502,15 +502,10 @@ __be32 nfsd4_vfs_fallocate(struct svc_rqst *rqstp, struct svc_fh *fhp,
 			   struct file *file, loff_t offset, loff_t len,
 			   int flags)
 {
-	__be32 err;
 	int error;
 
 	if (!S_ISREG(file_inode(file)->i_mode))
 		return nfserr_inval;
-
-	err = nfsd_permission(rqstp, fhp->fh_export, fhp->fh_dentry, NFSD_MAY_WRITE);
-	if (err)
-		return err;
 
 	error = vfs_fallocate(file, flags, offset, len);
 	if (!error)
@@ -912,7 +907,7 @@ static int wait_for_concurrent_writes(struct file *file)
 	return err;
 }
 
-static __be32
+__be32
 nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 				loff_t offset, struct kvec *vec, int vlen,
 				unsigned long *cnt, int *stablep)
