@@ -4215,6 +4215,7 @@ static bool trigger_le_scan(struct hci_request *req, u16 interval, u8 *status)
 			return false;
 		}
 
+		cancel_adv_timeout(hdev);
 		disable_advertising(req);
 	}
 
