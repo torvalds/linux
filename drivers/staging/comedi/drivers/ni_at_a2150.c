@@ -687,12 +687,14 @@ static void a2150_free_dma(struct comedi_device *dev)
 		comedi_isadma_free(devpriv->dma);
 }
 
-/* probes board type, returns offset */
-static int a2150_probe(struct comedi_device *dev)
+static const struct a2150_board *a2150_probe(struct comedi_device *dev)
 {
-	int status = inw(dev->iobase + STATUS_REG);
+	int id = ID_BITS(inw(dev->iobase + STATUS_REG));
 
-	return ID_BITS(status);
+	if (id >= ARRAY_SIZE(a2150_boards))
+		return NULL;
+
+	return &a2150_boards[id];
 }
 
 static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
@@ -712,12 +714,10 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	i = a2150_probe(dev);
-	if (i >= ARRAY_SIZE(a2150_boards))
+	thisboard = a2150_probe(dev);
+	if (!thisboard)
 		return -ENODEV;
-
-	dev->board_ptr = a2150_boards + i;
-	thisboard = dev->board_ptr;
+	dev->board_ptr = thisboard;
 	dev->board_name = thisboard->name;
 
 	/* an IRQ and DMA are required to support async commands */
