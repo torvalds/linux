@@ -692,7 +692,8 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 
 	pdiv = _hw_to_p_div(hw, cfg.p);
 	if (pdiv < 0) {
-		WARN_ON(1);
+		WARN(1, "Clock %s has invalid pdiv value : 0x%x\n",
+			__clk_get_name(hw->clk), cfg.p);
 		pdiv = 1;
 	}
 
