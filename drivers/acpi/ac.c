@@ -308,7 +308,7 @@ static int thinkpad_e530_quirk(const struct dmi_system_id *d)
 	return 0;
 }
 
-static struct dmi_system_id ac_dmi_table[] = {
+static const struct dmi_system_id ac_dmi_table[] = {
 	{
 	.callback = thinkpad_e530_quirk,
 	.ident = "thinkpad e530",
