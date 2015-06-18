@@ -5015,7 +5015,7 @@ i915_gem_init_hw(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *ring;
-	int ret, i;
+	int ret, i, j;
 
 	if (INTEL_INFO(dev)->gen < 6 && !intel_enable_gtt())
 		return -EIO;
@@ -5052,19 +5052,32 @@ i915_gem_init_hw(struct drm_device *dev)
 	 */
 	init_unused_rings(dev);
 
+	ret = i915_ppgtt_init_hw(dev);
+	if (ret) {
+		DRM_ERROR("PPGTT enable HW failed %d\n", ret);
+		goto out;
+	}
+
+	/* Need to do basic initialisation of all rings first: */
 	for_each_ring(ring, dev_priv, i) {
 		ret = ring->init_hw(ring);
 		if (ret)
 			goto out;
 	}
 
-	for (i = 0; i < NUM_L3_SLICES(dev); i++)
-		i915_gem_l3_remap(&dev_priv->ring[RCS], i);
+	/* Now it is safe to go back round and do everything else: */
+	for_each_ring(ring, dev_priv, i) {
+		if (ring->id == RCS) {
+			for (j = 0; j < NUM_L3_SLICES(dev); j++)
+				i915_gem_l3_remap(ring, j);
+		}
 
-	ret = i915_ppgtt_init_hw(dev);
-	if (ret && ret != -EIO) {
-		DRM_ERROR("PPGTT enable failed %d\n", ret);
-		i915_gem_cleanup_ringbuffer(dev);
+		ret = i915_ppgtt_init_ring(ring);
+		if (ret && ret != -EIO) {
+			DRM_ERROR("PPGTT enable ring #%d failed %d\n", i, ret);
+			i915_gem_cleanup_ringbuffer(dev);
+			goto out;
+		}
 	}
 
 	ret = i915_gem_context_enable(dev_priv);

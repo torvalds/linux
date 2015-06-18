@@ -1550,11 +1550,6 @@ int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 
 int i915_ppgtt_init_hw(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring;
-	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
-	int i, ret = 0;
-
 	/* In the case of execlists, PPGTT is enabled by the context descriptor
 	 * and the PDPs are contained within the context itself.  We don't
 	 * need to do anything here. */
@@ -1573,16 +1568,23 @@ int i915_ppgtt_init_hw(struct drm_device *dev)
 	else
 		MISSING_CASE(INTEL_INFO(dev)->gen);
 
-	if (ppgtt) {
-		for_each_ring(ring, dev_priv, i) {
-			ret = ppgtt->switch_mm(ppgtt, ring);
-			if (ret != 0)
-				return ret;
-		}
-	}
-
-	return ret;
+	return 0;
 }
+
+int i915_ppgtt_init_ring(struct intel_engine_cs *ring)
+{
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
+
+	if (i915.enable_execlists)
+		return 0;
+
+	if (!ppgtt)
+		return 0;
+
+	return ppgtt->switch_mm(ppgtt, ring);
+}
+
 struct i915_hw_ppgtt *
 i915_ppgtt_create(struct drm_device *dev, struct drm_i915_file_private *fpriv)
 {
