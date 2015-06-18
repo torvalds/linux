@@ -175,11 +175,7 @@ static void __init acpi_request_region (struct acpi_generic_address *gas,
 	if (!addr || !length)
 		return;
 
-	/* Resources are never freed */
-	if (gas->space_id == ACPI_ADR_SPACE_SYSTEM_IO)
-		request_region(addr, length, desc);
-	else if (gas->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
-		request_mem_region(addr, length, desc);
+	acpi_reserve_region(addr, length, gas->space_id, 0, desc);
 }
 
 static void __init acpi_reserve_resources(void)
