@@ -342,31 +342,25 @@ static int ovl_dentry_open(struct dentry *dentry, struct file *file,
 	int err;
 	struct path realpath;
 	enum ovl_path_type type;
-	bool want_write = false;
 
 	type = ovl_path_real(dentry, &realpath);
 	if (ovl_open_need_copy_up(file->f_flags, type, realpath.dentry)) {
-		want_write = true;
 		err = ovl_want_write(dentry);
 		if (err)
-			goto out;
+			return err;
 
 		if (file->f_flags & O_TRUNC)
 			err = ovl_copy_up_last(dentry, NULL, true);
 		else
 			err = ovl_copy_up(dentry);
+		ovl_drop_write(dentry);
 		if (err)
-			goto out_drop_write;
+			return err;
 
 		ovl_path_upper(dentry, &realpath);
 	}
 
-	err = vfs_open(&realpath, file, cred);
-out_drop_write:
-	if (want_write)
-		ovl_drop_write(dentry);
-out:
-	return err;
+	return vfs_open(&realpath, file, cred);
 }
 
 static const struct inode_operations ovl_file_inode_operations = {
