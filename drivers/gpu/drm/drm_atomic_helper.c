@@ -331,12 +331,6 @@ mode_fixup(struct drm_atomic_state *state)
 	return 0;
 }
 
-static bool
-needs_modeset(struct drm_crtc_state *state)
-{
-	return state->mode_changed || state->active_changed;
-}
-
 /**
  * drm_atomic_helper_check_modeset - validate state object for modeset changes
  * @dev: DRM device
@@ -414,7 +408,7 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 			crtc_state->active_changed = true;
 		}
 
-		if (!needs_modeset(crtc_state))
+		if (!drm_atomic_crtc_needs_modeset(crtc_state))
 			continue;
 
 		DRM_DEBUG_ATOMIC("[CRTC:%d] needs all connectors, enable: %c, active: %c\n",
@@ -564,7 +558,7 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 		old_crtc_state = old_state->crtc_states[drm_crtc_index(old_conn_state->crtc)];
 
 		if (!old_crtc_state->active ||
-		    !needs_modeset(old_conn_state->crtc->state))
+		    !drm_atomic_crtc_needs_modeset(old_conn_state->crtc->state))
 			continue;
 
 		encoder = old_conn_state->best_encoder;
@@ -601,7 +595,7 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 		const struct drm_crtc_helper_funcs *funcs;
 
 		/* Shut down everything that needs a full modeset. */
-		if (!needs_modeset(crtc->state))
+		if (!drm_atomic_crtc_needs_modeset(crtc->state))
 			continue;
 
 		if (!old_crtc_state->active)
@@ -792,7 +786,7 @@ void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 		const struct drm_crtc_helper_funcs *funcs;
 
 		/* Need to filter out CRTCs where only planes change. */
-		if (!needs_modeset(crtc->state))
+		if (!drm_atomic_crtc_needs_modeset(crtc->state))
 			continue;
 
 		if (!crtc->state->active)
@@ -819,7 +813,7 @@ void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 			continue;
 
 		if (!connector->state->crtc->state->active ||
-		    !needs_modeset(connector->state->crtc->state))
+		    !drm_atomic_crtc_needs_modeset(connector->state->crtc->state))
 			continue;
 
 		encoder = connector->state->best_encoder;
