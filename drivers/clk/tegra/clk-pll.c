@@ -414,6 +414,11 @@ static int _p_div_to_hw(struct clk_hw *hw, u8 p_div)
 	return -EINVAL;
 }
 
+int tegra_pll_p_div_to_hw(struct tegra_clk_pll *pll, u8 p_div)
+{
+	return _p_div_to_hw(&pll->hw, p_div);
+}
+
 static int _hw_to_p_div(struct clk_hw *hw, u8 p_div_hw)
 {
 	struct tegra_clk_pll *pll = to_clk_pll(hw);
