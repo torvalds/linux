@@ -6813,7 +6813,7 @@ static int read_adv_features(struct sock *sk, struct hci_dev *hdev,
 	rp->supported_flags = cpu_to_le32(supported_flags);
 	rp->max_adv_data_len = HCI_MAX_AD_LENGTH;
 	rp->max_scan_rsp_len = HCI_MAX_AD_LENGTH;
-	rp->max_instances = 1;
+	rp->max_instances = HCI_MAX_ADV_INSTANCES;
 
 	/* Currently only one instance is supported, so simply return the
 	 * current instance number.

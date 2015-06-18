@@ -157,14 +157,19 @@ struct oob_data {
 
 struct adv_info {
 	struct delayed_work timeout_exp;
+	struct list_head list;
 	__u8	instance;
 	__u32	flags;
 	__u16	timeout;
+	__u16	duration;
 	__u16	adv_data_len;
 	__u8	adv_data[HCI_MAX_AD_LENGTH];
 	__u16	scan_rsp_len;
 	__u8	scan_rsp_data[HCI_MAX_AD_LENGTH];
 };
+
+#define HCI_MAX_ADV_INSTANCES		1
+#define HCI_DEFAULT_ADV_DURATION	2
 
 #define HCI_MAX_SHORT_NAME_LENGTH	10
 
@@ -374,6 +379,9 @@ struct hci_dev {
 	__u8			scan_rsp_data_len;
 
 	struct adv_info		adv_instance;
+	struct list_head	adv_instances;
+	unsigned int		adv_instance_cnt;
+	__u8			cur_adv_instance;
 
 	__u8			irk[16];
 	__u32			rpa_timeout;
@@ -1018,6 +1026,15 @@ int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			    u8 *hash256, u8 *rand256);
 int hci_remove_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			       u8 bdaddr_type);
+
+void hci_adv_instances_clear(struct hci_dev *hdev);
+struct adv_info *hci_find_adv_instance(struct hci_dev *hdev, u8 instance);
+struct adv_info *hci_get_next_instance(struct hci_dev *hdev, u8 instance);
+int hci_add_adv_instance(struct hci_dev *hdev, u8 instance, u32 flags,
+			 u16 adv_data_len, u8 *adv_data,
+			 u16 scan_rsp_len, u8 *scan_rsp_data,
+			 u16 timeout, u16 duration);
+int hci_remove_adv_instance(struct hci_dev *hdev, u8 instance);
 
 void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb);
 
