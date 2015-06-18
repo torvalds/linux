@@ -69,7 +69,7 @@ struct pcpu {
 	u16 address;			/* physical cpu address */
 };
 
-static u8 boot_cpu_type;
+static u8 boot_core_type;
 static struct pcpu pcpu_devices[NR_CPUS];
 
 unsigned int smp_cpu_mt_shift;
@@ -589,7 +589,7 @@ static inline void __smp_store_cpu_state(int cpu, u16 address, int is_boot_cpu)
  *    old system. The ELF sections are picked up by the crash_dump code
  *    via elfcorehdr_addr.
  */
-static void __init smp_store_cpu_states(struct sclp_cpu_info *info)
+static void __init smp_store_cpu_states(struct sclp_core_info *info)
 {
 	unsigned int cpu, address, i, j;
 	int is_boot_cpu;
@@ -606,10 +606,10 @@ static void __init smp_store_cpu_states(struct sclp_cpu_info *info)
 	cpu = 0;
 	for (i = 0; i < info->configured; i++) {
 		/* Skip CPUs with different CPU type. */
-		if (info->has_cpu_type && info->cpu[i].type != boot_cpu_type)
+		if (sclp.has_core_type && info->core[i].type != boot_core_type)
 			continue;
 		for (j = 0; j <= smp_cpu_mtid; j++, cpu++) {
-			address = (info->cpu[i].core_id << smp_cpu_mt_shift) + j;
+			address = (info->core[i].core_id << smp_cpu_mt_shift) + j;
 			is_boot_cpu = (address == pcpu_devices[0].address);
 			if (is_boot_cpu && !OLDMEM_BASE)
 				/* Skip boot CPU for standard zfcp dump. */
@@ -649,22 +649,22 @@ int smp_cpu_get_polarization(int cpu)
 	return pcpu_devices[cpu].polarization;
 }
 
-static struct sclp_cpu_info *smp_get_cpu_info(void)
+static struct sclp_core_info *smp_get_core_info(void)
 {
 	static int use_sigp_detection;
-	struct sclp_cpu_info *info;
+	struct sclp_core_info *info;
 	int address;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (info && (use_sigp_detection || sclp_get_cpu_info(info))) {
+	if (info && (use_sigp_detection || sclp_get_core_info(info))) {
 		use_sigp_detection = 1;
 		for (address = 0;
-		     address <= (MAX_CPU_ADDRESS << smp_cpu_mt_shift);
+		     address < (SCLP_MAX_CORES << smp_cpu_mt_shift);
 		     address += (1U << smp_cpu_mt_shift)) {
 			if (__pcpu_sigp_relax(address, SIGP_SENSE, 0, NULL) ==
 			    SIGP_CC_NOT_OPERATIONAL)
 				continue;
-			info->cpu[info->configured].core_id =
+			info->core[info->configured].core_id =
 				address >> smp_cpu_mt_shift;
 			info->configured++;
 		}
@@ -675,7 +675,7 @@ static struct sclp_cpu_info *smp_get_cpu_info(void)
 
 static int smp_add_present_cpu(int cpu);
 
-static int __smp_rescan_cpus(struct sclp_cpu_info *info, int sysfs_add)
+static int __smp_rescan_cpus(struct sclp_core_info *info, int sysfs_add)
 {
 	struct pcpu *pcpu;
 	cpumask_t avail;
@@ -686,9 +686,9 @@ static int __smp_rescan_cpus(struct sclp_cpu_info *info, int sysfs_add)
 	cpumask_xor(&avail, cpu_possible_mask, cpu_present_mask);
 	cpu = cpumask_first(&avail);
 	for (i = 0; (i < info->combined) && (cpu < nr_cpu_ids); i++) {
-		if (info->has_cpu_type && info->cpu[i].type != boot_cpu_type)
+		if (sclp.has_core_type && info->core[i].type != boot_core_type)
 			continue;
-		address = info->cpu[i].core_id << smp_cpu_mt_shift;
+		address = info->core[i].core_id << smp_cpu_mt_shift;
 		for (j = 0; j <= smp_cpu_mtid; j++) {
 			if (pcpu_find_address(cpu_present_mask, address + j))
 				continue;
@@ -714,21 +714,21 @@ static int __smp_rescan_cpus(struct sclp_cpu_info *info, int sysfs_add)
 static void __init smp_detect_cpus(void)
 {
 	unsigned int cpu, mtid, c_cpus, s_cpus;
-	struct sclp_cpu_info *info;
+	struct sclp_core_info *info;
 	u16 address;
 
 	/* Get CPU information */
-	info = smp_get_cpu_info();
+	info = smp_get_core_info();
 	if (!info)
 		panic("smp_detect_cpus failed to allocate memory\n");
 
 	/* Find boot CPU type */
-	if (info->has_cpu_type) {
+	if (sclp.has_core_type) {
 		address = stap();
 		for (cpu = 0; cpu < info->combined; cpu++)
-			if (info->cpu[cpu].core_id == address) {
+			if (info->core[cpu].core_id == address) {
 				/* The boot cpu dictates the cpu type. */
-				boot_cpu_type = info->cpu[cpu].type;
+				boot_core_type = info->core[cpu].type;
 				break;
 			}
 		if (cpu >= info->combined)
@@ -741,14 +741,15 @@ static void __init smp_detect_cpus(void)
 #endif
 
 	/* Set multi-threading state for the current system */
-	mtid = boot_cpu_type ? sclp.mtid : sclp.mtid_cp;
+	mtid = boot_core_type ? sclp.mtid : sclp.mtid_cp;
 	mtid = (mtid < smp_max_threads) ? mtid : smp_max_threads - 1;
 	pcpu_set_smt(mtid);
 
 	/* Print number of CPUs */
 	c_cpus = s_cpus = 0;
 	for (cpu = 0; cpu < info->combined; cpu++) {
-		if (info->has_cpu_type && info->cpu[cpu].type != boot_cpu_type)
+		if (sclp.has_core_type &&
+		    info->core[cpu].type != boot_core_type)
 			continue;
 		if (cpu < info->configured)
 			c_cpus += smp_cpu_mtid + 1;
@@ -885,7 +886,7 @@ void __init smp_fill_possible_mask(void)
 
 	sclp_max = max(sclp.mtid, sclp.mtid_cp) + 1;
 	sclp_max = min(smp_max_threads, sclp_max);
-	sclp_max = sclp.max_cpu * sclp_max ?: nr_cpu_ids;
+	sclp_max = sclp.max_cores * sclp_max ?: nr_cpu_ids;
 	possible = setup_possible_cpus ?: nr_cpu_ids;
 	possible = min(possible, sclp_max);
 	for (cpu = 0; cpu < possible && cpu < nr_cpu_ids; cpu++)
@@ -978,7 +979,7 @@ static ssize_t cpu_configure_store(struct device *dev,
 	case 0:
 		if (pcpu->state != CPU_STATE_CONFIGURED)
 			break;
-		rc = sclp_cpu_deconfigure(pcpu->address >> smp_cpu_mt_shift);
+		rc = sclp_core_deconfigure(pcpu->address >> smp_cpu_mt_shift);
 		if (rc)
 			break;
 		for (i = 0; i <= smp_cpu_mtid; i++) {
@@ -993,7 +994,7 @@ static ssize_t cpu_configure_store(struct device *dev,
 	case 1:
 		if (pcpu->state != CPU_STATE_STANDBY)
 			break;
-		rc = sclp_cpu_configure(pcpu->address >> smp_cpu_mt_shift);
+		rc = sclp_core_configure(pcpu->address >> smp_cpu_mt_shift);
 		if (rc)
 			break;
 		for (i = 0; i <= smp_cpu_mtid; i++) {
@@ -1108,10 +1109,10 @@ out:
 
 int __ref smp_rescan_cpus(void)
 {
-	struct sclp_cpu_info *info;
+	struct sclp_core_info *info;
 	int nr;
 
-	info = smp_get_cpu_info();
+	info = smp_get_core_info();
 	if (!info)
 		return -ENOMEM;
 	get_online_cpus();
