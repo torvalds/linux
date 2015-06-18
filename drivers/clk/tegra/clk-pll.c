@@ -295,6 +295,13 @@ static void _clk_pll_enable(struct clk_hw *hw)
 	struct tegra_clk_pll *pll = to_clk_pll(hw);
 	u32 val;
 
+	if (pll->params->iddq_reg) {
+		val = pll_readl(pll->params->iddq_reg, pll);
+		val &= ~BIT(pll->params->iddq_bit_idx);
+		pll_writel(val, pll->params->iddq_reg, pll);
+		udelay(2);
+	}
+
 	clk_pll_enable_lock(pll);
 
 	val = pll_readl_base(pll);
@@ -325,6 +332,13 @@ static void _clk_pll_disable(struct clk_hw *hw)
 		val = readl_relaxed(pll->pmc + PMC_PLLP_WB0_OVERRIDE);
 		val &= ~PMC_PLLP_WB0_OVERRIDE_PLLM_ENABLE;
 		writel_relaxed(val, pll->pmc + PMC_PLLP_WB0_OVERRIDE);
+	}
+
+	if (pll->params->iddq_reg) {
+		val = pll_readl(pll->params->iddq_reg, pll);
+		val |= BIT(pll->params->iddq_bit_idx);
+		pll_writel(val, pll->params->iddq_reg, pll);
+		udelay(2);
 	}
 }
 
@@ -874,52 +888,6 @@ static int _setup_dynamic_ramp(struct tegra_clk_pll_params *pll_params,
 	writel_relaxed(val, clk_base + pll_params->dyn_ramp_reg);
 
 	return 0;
-}
-
-static int clk_pll_iddq_enable(struct clk_hw *hw)
-{
-	struct tegra_clk_pll *pll = to_clk_pll(hw);
-	unsigned long flags = 0;
-
-	u32 val;
-	int ret;
-
-	if (pll->lock)
-		spin_lock_irqsave(pll->lock, flags);
-
-	val = pll_readl(pll->params->iddq_reg, pll);
-	val &= ~BIT(pll->params->iddq_bit_idx);
-	pll_writel(val, pll->params->iddq_reg, pll);
-	udelay(2);
-
-	_clk_pll_enable(hw);
-
-	ret = clk_pll_wait_for_lock(pll);
-
-	if (pll->lock)
-		spin_unlock_irqrestore(pll->lock, flags);
-
-	return 0;
-}
-
-static void clk_pll_iddq_disable(struct clk_hw *hw)
-{
-	struct tegra_clk_pll *pll = to_clk_pll(hw);
-	unsigned long flags = 0;
-	u32 val;
-
-	if (pll->lock)
-		spin_lock_irqsave(pll->lock, flags);
-
-	_clk_pll_disable(hw);
-
-	val = pll_readl(pll->params->iddq_reg, pll);
-	val |= BIT(pll->params->iddq_bit_idx);
-	pll_writel(val, pll->params->iddq_reg, pll);
-	udelay(2);
-
-	if (pll->lock)
-		spin_unlock_irqrestore(pll->lock, flags);
 }
 
 static int _calc_dynamic_ramp_rate(struct clk_hw *hw,
@@ -1518,8 +1486,8 @@ struct clk *tegra_clk_register_plle(const char *name, const char *parent_name,
 	defined(CONFIG_ARCH_TEGRA_132_SOC)
 static const struct clk_ops tegra_clk_pllxc_ops = {
 	.is_enabled = clk_pll_is_enabled,
-	.enable = clk_pll_iddq_enable,
-	.disable = clk_pll_iddq_disable,
+	.enable = clk_pll_enable,
+	.disable = clk_pll_disable,
 	.recalc_rate = clk_pll_recalc_rate,
 	.round_rate = clk_pll_ramp_round_rate,
 	.set_rate = clk_pllxc_set_rate,
@@ -1527,8 +1495,8 @@ static const struct clk_ops tegra_clk_pllxc_ops = {
 
 static const struct clk_ops tegra_clk_pllm_ops = {
 	.is_enabled = clk_pll_is_enabled,
-	.enable = clk_pll_iddq_enable,
-	.disable = clk_pll_iddq_disable,
+	.enable = clk_pll_enable,
+	.disable = clk_pll_disable,
 	.recalc_rate = clk_pll_recalc_rate,
 	.round_rate = clk_pll_ramp_round_rate,
 	.set_rate = clk_pllm_set_rate,
@@ -1545,8 +1513,8 @@ static const struct clk_ops tegra_clk_pllc_ops = {
 
 static const struct clk_ops tegra_clk_pllre_ops = {
 	.is_enabled = clk_pll_is_enabled,
-	.enable = clk_pll_iddq_enable,
-	.disable = clk_pll_iddq_disable,
+	.enable = clk_pll_enable,
+	.disable = clk_pll_disable,
 	.recalc_rate = clk_pllre_recalc_rate,
 	.round_rate = clk_pllre_round_rate,
 	.set_rate = clk_pllre_set_rate,
@@ -1815,8 +1783,8 @@ struct clk *tegra_clk_register_plle_tegra114(const char *name,
 #if defined(CONFIG_ARCH_TEGRA_124_SOC) || defined(CONFIG_ARCH_TEGRA_132_SOC)
 static const struct clk_ops tegra_clk_pllss_ops = {
 	.is_enabled = clk_pll_is_enabled,
-	.enable = clk_pll_iddq_enable,
-	.disable = clk_pll_iddq_disable,
+	.enable = clk_pll_enable,
+	.disable = clk_pll_disable,
 	.recalc_rate = clk_pll_recalc_rate,
 	.round_rate = clk_pll_ramp_round_rate,
 	.set_rate = clk_pllxc_set_rate,
