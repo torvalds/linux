@@ -2601,8 +2601,14 @@ extern unsigned long i915_mch_val(struct drm_i915_private *dev_priv);
 extern unsigned long i915_gfx_val(struct drm_i915_private *dev_priv);
 extern void i915_update_gfx_val(struct drm_i915_private *dev_priv);
 int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool on);
-void intel_hpd_cancel_work(struct drm_i915_private *dev_priv);
 void i915_firmware_load_error_print(const char *fw_path, int err);
+
+/* intel_hotplug.c */
+void intel_hpd_irq_handler(struct drm_device *dev, u32 pin_mask, u32 long_mask);
+void intel_hpd_init(struct drm_i915_private *dev_priv);
+void intel_hpd_init_work(struct drm_i915_private *dev_priv);
+void intel_hpd_cancel_work(struct drm_i915_private *dev_priv);
+enum port intel_hpd_pin_to_port(enum hpd_pin pin);
 
 /* i915_irq.c */
 void i915_queue_hangcheck(struct drm_device *dev);
@@ -2611,7 +2617,6 @@ void i915_handle_error(struct drm_device *dev, bool wedged,
 		       const char *fmt, ...);
 
 extern void intel_irq_init(struct drm_i915_private *dev_priv);
-extern void intel_hpd_init(struct drm_i915_private *dev_priv);
 int intel_irq_install(struct drm_i915_private *dev_priv);
 void intel_irq_uninstall(struct drm_i915_private *dev_priv);
 
