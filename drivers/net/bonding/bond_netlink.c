@@ -601,19 +601,20 @@ static int bond_fill_info(struct sk_buff *skb,
 	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
 		struct ad_info info;
 
-		if (nla_put_u16(skb, IFLA_BOND_AD_ACTOR_SYS_PRIO,
-				bond->params.ad_actor_sys_prio))
-			goto nla_put_failure;
+		if (capable(CAP_NET_ADMIN)) {
+			if (nla_put_u16(skb, IFLA_BOND_AD_ACTOR_SYS_PRIO,
+					bond->params.ad_actor_sys_prio))
+				goto nla_put_failure;
 
-		if (nla_put_u16(skb, IFLA_BOND_AD_USER_PORT_KEY,
-				bond->params.ad_user_port_key))
-			goto nla_put_failure;
+			if (nla_put_u16(skb, IFLA_BOND_AD_USER_PORT_KEY,
+					bond->params.ad_user_port_key))
+				goto nla_put_failure;
 
-		if (nla_put(skb, IFLA_BOND_AD_ACTOR_SYSTEM,
-			    sizeof(bond->params.ad_actor_system),
-			    &bond->params.ad_actor_system))
-			goto nla_put_failure;
-
+			if (nla_put(skb, IFLA_BOND_AD_ACTOR_SYSTEM,
+				    sizeof(bond->params.ad_actor_system),
+				    &bond->params.ad_actor_system))
+				goto nla_put_failure;
+		}
 		if (!bond_3ad_get_active_agg_info(bond, &info)) {
 			struct nlattr *nest;
 

@@ -549,7 +549,7 @@ static ssize_t bonding_show_ad_actor_key(struct device *d,
 	int count = 0;
 	struct bonding *bond = to_bond(d);
 
-	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
+	if (BOND_MODE(bond) == BOND_MODE_8023AD && capable(CAP_NET_ADMIN)) {
 		struct ad_info ad_info;
 		count = sprintf(buf, "%d\n",
 				bond_3ad_get_active_agg_info(bond, &ad_info)
@@ -569,7 +569,7 @@ static ssize_t bonding_show_ad_partner_key(struct device *d,
 	int count = 0;
 	struct bonding *bond = to_bond(d);
 
-	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
+	if (BOND_MODE(bond) == BOND_MODE_8023AD && capable(CAP_NET_ADMIN)) {
 		struct ad_info ad_info;
 		count = sprintf(buf, "%d\n",
 				bond_3ad_get_active_agg_info(bond, &ad_info)
@@ -589,7 +589,7 @@ static ssize_t bonding_show_ad_partner_mac(struct device *d,
 	int count = 0;
 	struct bonding *bond = to_bond(d);
 
-	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
+	if (BOND_MODE(bond) == BOND_MODE_8023AD && capable(CAP_NET_ADMIN)) {
 		struct ad_info ad_info;
 		if (!bond_3ad_get_active_agg_info(bond, &ad_info))
 			count = sprintf(buf, "%pM\n", ad_info.partner_system);
@@ -698,7 +698,7 @@ static ssize_t bonding_show_ad_actor_sys_prio(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 
-	if (BOND_MODE(bond) == BOND_MODE_8023AD)
+	if (BOND_MODE(bond) == BOND_MODE_8023AD && capable(CAP_NET_ADMIN))
 		return sprintf(buf, "%hu\n", bond->params.ad_actor_sys_prio);
 
 	return 0;
@@ -712,7 +712,7 @@ static ssize_t bonding_show_ad_actor_system(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 
-	if (BOND_MODE(bond) == BOND_MODE_8023AD)
+	if (BOND_MODE(bond) == BOND_MODE_8023AD && capable(CAP_NET_ADMIN))
 		return sprintf(buf, "%pM\n", bond->params.ad_actor_system);
 
 	return 0;
@@ -727,7 +727,7 @@ static ssize_t bonding_show_ad_user_port_key(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 
-	if (BOND_MODE(bond) == BOND_MODE_8023AD)
+	if (BOND_MODE(bond) == BOND_MODE_8023AD && capable(CAP_NET_ADMIN))
 		return sprintf(buf, "%hu\n", bond->params.ad_user_port_key);
 
 	return 0;
