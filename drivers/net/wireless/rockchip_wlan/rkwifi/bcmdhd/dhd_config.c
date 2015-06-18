@@ -404,7 +404,7 @@ dhd_conf_set_nv_name_by_mac(dhd_pub_t *dhd, bcmsdh_info_t *sdh, char *nv_path)
 #endif
 
 void
-dhd_conf_set_fw_name_by_chip(dhd_pub_t *dhd, char *fw_path)
+dhd_conf_set_fw_name_by_chip(dhd_pub_t *dhd, char *fw_path, char *nv_path)
 {
 	int fw_type, ag_type;
 	uint chip, chiprev;
@@ -453,6 +453,7 @@ dhd_conf_set_fw_name_by_chip(dhd_pub_t *dhd, char *fw_path)
 			} else {
 				if (chiprev == BCM4330B2_CHIP_REV)
 					strcpy(&fw_path[i+1], bcm4330b2_ag_fw_name[fw_type]);
+				strcpy(&nv_path[i+1], "nvram_AP6330.txt");
 				break;
 			}
 		case BCM43362_CHIP_ID:
@@ -460,12 +461,14 @@ dhd_conf_set_fw_name_by_chip(dhd_pub_t *dhd, char *fw_path)
 				strcpy(&fw_path[i+1], bcm43362a0_fw_name[fw_type]);
 			else
 				strcpy(&fw_path[i+1], bcm43362a2_fw_name[fw_type]);
+			strcpy(&nv_path[i+1], "nvram_AP6210.txt");
 			break;
 		case BCM43430_CHIP_ID:
 			if (chiprev == BCM43430A0_CHIP_REV)
 				strcpy(&fw_path[i+1], bcm43438a0_fw_name[fw_type]);
 			else if (chiprev == BCM43430A1_CHIP_REV)
 				strcpy(&fw_path[i+1], bcm43438a1_fw_name[fw_type]);
+			strcpy(&nv_path[i+1], "nvram_ap6212.txt");
 			break;
 		case BCM43340_CHIP_ID:
 			if (chiprev == BCM43340B0_CHIP_REV)
@@ -482,6 +485,7 @@ dhd_conf_set_fw_name_by_chip(dhd_pub_t *dhd, char *fw_path)
 		case BCM4335_CHIP_ID:
 			if (chiprev == BCM4335A0_CHIP_REV)
 				strcpy(&fw_path[i+1], bcm4339a0_ag_fw_name[fw_type]);
+			strcpy(&nv_path[i+1], "nvram_AP6335.txt");
 			break;
 		case BCM4345_CHIP_ID:
 			if (chiprev == BCM43455C0_CHIP_REV)
@@ -496,6 +500,7 @@ dhd_conf_set_fw_name_by_chip(dhd_pub_t *dhd, char *fw_path)
 				strcpy(&fw_path[i+1], bcm4354a1_ag_fw_name[fw_type]);
 			else if (chiprev == BCM4356A2_CHIP_REV)
 				strcpy(&fw_path[i+1], bcm4356a2_ag_fw_name[fw_type]);
+			strcpy(&nv_path[i+1], "nvram_ap6354.txt");	
 			break;
 #endif
 #ifdef BCMPCIE
