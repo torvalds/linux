@@ -1208,19 +1208,17 @@ static void ufs_trunc_dindirect(struct inode *inode, u64 offset, void *p)
 	UFSD("EXIT: ino %lu\n", inode->i_ino);
 }
 
-static void ufs_trunc_tindirect(struct inode *inode)
+static void ufs_trunc_tindirect(struct inode *inode, u64 offset)
 {
 	struct super_block *sb = inode->i_sb;
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
 	struct ufs_inode_info *ufsi = UFS_I(inode);
 	struct ufs_buffer_head * tind_bh;
-	u64 tindirect_block, tmp, i;
+	u64 tmp;
 	void *tind, *p;
-
-	UFSD("ENTER: ino %lu\n", inode->i_ino);
-
-	tindirect_block = (DIRECT_BLOCK > (UFS_NDADDR + uspi->s_apb + uspi->s_2apb))
-		? ((DIRECT_BLOCK - UFS_NDADDR - uspi->s_apb - uspi->s_2apb) >> uspi->s_2apbshift) : 0;
+	bool free_it = !offset;
+	unsigned tindirect_block = offset >> uspi->s_2apbshift;
+	unsigned i;
 
 	p = ufs_get_direct_data_ptr(uspi, ufsi, UFS_TIND_BLOCK);
 	if (!(tmp = ufs_data_ptr_to_cpu(sb, p)))
@@ -1239,11 +1237,7 @@ static void ufs_trunc_tindirect(struct inode *inode)
 			uspi->s_apb + ((i + 1) << uspi->s_2apbshift), tind);
 		ubh_mark_buffer_dirty(tind_bh);
 	}
-	for (i = 0; i < uspi->s_apb; i++)
-		if (!ufs_is_data_ptr_zero(uspi,
-					  ubh_get_data_ptr(uspi, tind_bh, i)))
-			break;
-	if (i >= uspi->s_apb) {
+	if (free_it) {
 		tmp = ufs_data_ptr_to_cpu(sb, p);
 		write_seqlock(&ufsi->meta_lock);
 		ufs_data_ptr_clear(uspi, p);
@@ -1252,13 +1246,11 @@ static void ufs_trunc_tindirect(struct inode *inode)
 		ubh_bforget(tind_bh);
 		ufs_free_blocks(inode, tmp, uspi->s_fpb);
 		mark_inode_dirty(inode);
-		tind_bh = NULL;
+		return;
 	}
-	if (IS_SYNC(inode) && tind_bh && ubh_buffer_dirty(tind_bh))
+	if (IS_SYNC(inode) && ubh_buffer_dirty(tind_bh))
 		ubh_sync_block(tind_bh);
 	ubh_brelse (tind_bh);
-
-	UFSD("EXIT: ino %lu\n", inode->i_ino);
 }
 
 static int ufs_alloc_lastblock(struct inode *inode, loff_t size)
@@ -1349,8 +1341,10 @@ static void __ufs_truncate_blocks(struct inode *inode)
 	case 3:
 		ufs_trunc_dindirect(inode, UFS_IND_BLOCK + uspi->s_apb,
 			    ufs_get_direct_data_ptr(uspi, ufsi, UFS_DIND_BLOCK));
+		ufs_trunc_tindirect(inode, 0);
+		break;
 	case 4:
-		ufs_trunc_tindirect(inode);
+		ufs_trunc_tindirect(inode, DIRECT_BLOCK - UFS_NDADDR - uspi->s_apb - uspi->s_2apb);
 	}
 	ufsi->i_lastfrag = DIRECT_FRAGMENT;
 	mutex_unlock(&ufsi->truncate_mutex);
