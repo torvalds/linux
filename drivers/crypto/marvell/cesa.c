@@ -180,8 +180,10 @@ static struct crypto_alg *armada_370_cipher_algs[] = {
 static struct ahash_alg *armada_370_ahash_algs[] = {
 	&mv_md5_alg,
 	&mv_sha1_alg,
+	&mv_sha256_alg,
 	&mv_ahmac_md5_alg,
 	&mv_ahmac_sha1_alg,
+	&mv_ahmac_sha256_alg,
 };
 
 static const struct mv_cesa_caps armada_370_caps = {
