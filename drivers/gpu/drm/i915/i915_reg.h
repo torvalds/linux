@@ -1461,6 +1461,9 @@ enum skl_disp_power_wells {
 #define RING_MAX_IDLE(base)	((base)+0x54)
 #define RING_HWS_PGA(base)	((base)+0x80)
 #define RING_HWS_PGA_GEN6(base)	((base)+0x2080)
+#define RING_RESET_CTL(base)	((base)+0xd0)
+#define   RESET_CTL_REQUEST_RESET  (1 << 0)
+#define   RESET_CTL_READY_TO_RESET (1 << 1)
 
 #define HSW_GTT_CACHE_EN	0x4024
 #define   GTT_CACHE_EN_ALL	0xF0007FFF
