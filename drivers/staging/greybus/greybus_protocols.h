@@ -613,7 +613,7 @@ struct gb_uart_set_break_request {
 #define GB_UART_CTRL_OVERRUN			0x40
 
 struct gb_uart_serial_state_request {
-	__u16	control;
+	__le16	control;
 };
 
 #endif /* __GREYBUS_PROTOCOLS_H */
