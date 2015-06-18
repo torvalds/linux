@@ -1191,7 +1191,11 @@ static int s3c_hsudc_start(struct usb_gadget *gadget,
 
 	pm_runtime_get_sync(hsudc->dev);
 
-	s3c_hsudc_init_phy();
+	if (hsudc->pd->phy_init)
+		hsudc->pd->phy_init();
+	else
+		s3c_hsudc_init_phy();
+
 	if (hsudc->pd->gpio_init)
 		hsudc->pd->gpio_init();
 
@@ -1333,7 +1337,7 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(hsudc->uclk);
 		goto err_res;
 	}
-	clk_enable(hsudc->uclk);
+	clk_prepare_enable(hsudc->uclk);
 
 	local_irq_disable();
 
@@ -1348,7 +1352,7 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 
 	return 0;
 err_add_udc:
-	clk_disable(hsudc->uclk);
+	clk_disable_unprepare(hsudc->uclk);
 err_res:
 	if (!IS_ERR_OR_NULL(hsudc->transceiver))
 		usb_put_phy(hsudc->transceiver);

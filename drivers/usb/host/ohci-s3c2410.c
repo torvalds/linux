@@ -387,6 +387,12 @@ static int usb_hcd_s3c2410_probe(const struct hc_driver *driver,
 
 	s3c2410_start_hc(dev, hcd);
 
+	/* The value of NDP in roothub_a is incorrect on this hardware */
+	if (info->num_ports > 0) {
+		struct ohci_hcd *ohci = hcd_to_ohci(hcd);
+		ohci->num_ports = info->num_ports;
+	}
+
 	retval = usb_add_hcd(hcd, dev->resource[1].start, 0);
 	if (retval != 0)
 		goto err_ioremap;

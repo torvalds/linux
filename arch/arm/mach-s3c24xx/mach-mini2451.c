@@ -53,6 +53,7 @@
 #include <plat/pm.h>
 #include <linux/platform_data/mtd-nand-s3c2410.h>
 #include <plat/sdhci.h>
+#include <linux/platform_data/usb-ohci-s3c2410.h>
 #include <linux/platform_data/usb-s3c2410_udc.h>
 #include <linux/platform_data/s3c-hsudc.h>
 #include <plat/samsung-time.h>
@@ -137,27 +138,60 @@ static struct s3c2410_uartcfg mini2451_uartcfgs[] __initdata = {
 	}
 };
 
+/* USB 1.1 HOST 1 Port */
+static struct s3c2410_hcd_info mini2451_hcd_info __initdata = {
+	.num_ports		= 1,
+};
+
 static void mini2451_hsudc_gpio_init(void)
 {
-	s3c_gpio_setpull(S3C2410_GPH(14), S3C_GPIO_PULL_UP);
-	s3c_gpio_setpull(S3C2410_GPF(2), S3C_GPIO_PULL_NONE);
-	s3c_gpio_cfgpin(S3C2410_GPH(14), S3C_GPIO_SFN(1));
 	s3c2410_modify_misccr(S3C2416_MISCCR_SEL_SUSPND, 0);
 }
 
 static void mini2451_hsudc_gpio_uninit(void)
 {
 	s3c2410_modify_misccr(S3C2416_MISCCR_SEL_SUSPND, 1);
-	s3c_gpio_setpull(S3C2410_GPH(14), S3C_GPIO_PULL_NONE);
-	s3c_gpio_cfgpin(S3C2410_GPH(14), S3C_GPIO_SFN(0));
 }
 
+static void mini2451_hsudc_phy_init(void)
+{
+#define HSUDC_RESET		((1 << 2) | (1 << 0))
+	u32 cfg;
+
+	cfg = readl(S3C2443_PWRCFG) | S3C2443_PWRCFG_USBPHY;
+	writel(cfg, S3C2443_PWRCFG);
+	udelay(5);
+
+	writel(0, S3C2443_PHYCTRL);
+
+	cfg = readl(S3C2443_PHYPWR) | (1 << 31);
+	writel(cfg, S3C2443_PHYPWR);
+
+	cfg = readl(S3C2443_UCLKCON);
+	cfg |= (1 << 31) | (1 << 2);
+	writel(cfg, S3C2443_UCLKCON);
+	udelay(5);
+
+	cfg = readl(S3C2443_URSTCON);
+	cfg |= HSUDC_RESET;
+	writel(cfg, S3C2443_URSTCON);
+	mdelay(1);
+
+	cfg = readl(S3C2443_URSTCON);
+	cfg &= ~HSUDC_RESET;
+	writel(cfg, S3C2443_URSTCON);
+	udelay(5);
+}
+
+/* USB 2.0 Device 1 Port */
 static struct s3c24xx_hsudc_platdata mini2451_hsudc_platdata = {
-	.epnum = 9,
-	.gpio_init = mini2451_hsudc_gpio_init,
-	.gpio_uninit = mini2451_hsudc_gpio_uninit,
+	.epnum		= 9,
+	.gpio_init	= mini2451_hsudc_gpio_init,
+	.gpio_uninit	= mini2451_hsudc_gpio_uninit,
+	.phy_init	= mini2451_hsudc_phy_init,
 };
 
+/* Framebuffer */
 static struct s3c_fb_pd_win mini2451_fb_win[] = {
 	[0] = {
 		.default_bpp	= 16,
@@ -254,6 +288,7 @@ static void __init mini2451_fb_init_pdata(struct s3c_fb_platdata *pd) {
 	pd->vidcon1 = val;
 }
 
+/* HSMMC */
 static struct s3c_sdhci_platdata mini2451_hsmmc0_pdata __initdata = {
 	.max_width		= 4,
 	.cd_type		= S3C_SDHCI_CD_NONE,
@@ -286,11 +321,11 @@ static void __init mini2451_hsmmc_gpio_setup(void)
 static struct platform_device *mini2451_devices[] __initdata = {
 	&s3c_device_fb,
 	&s3c_device_wdt,
-	&s3c_device_ohci,
 	&s3c_device_i2c0,
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc1,
 	&s3c_device_usb_hsudc,
+	&s3c_device_ohci,
 	&s3c2443_device_dma,
 };
 
@@ -319,6 +354,7 @@ static void __init mini2451_machine_init(void)
 
 	mini2451_hsmmc_gpio_setup();
 
+	s3c_ohci_set_platdata(&mini2451_hcd_info);
 	s3c24xx_hsudc_set_platdata(&mini2451_hsudc_platdata);
 
 	platform_add_devices(mini2451_devices, ARRAY_SIZE(mini2451_devices));

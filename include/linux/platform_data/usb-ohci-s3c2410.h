@@ -25,6 +25,7 @@ struct s3c2410_hcd_port {
 struct s3c2410_hcd_info {
 	struct usb_hcd		*hcd;
 	struct s3c2410_hcd_port	port[2];
+	int			num_ports;
 
 	void		(*power_control)(int port, int to);
 	void		(*enable_oc)(struct s3c2410_hcd_info *, int on);
