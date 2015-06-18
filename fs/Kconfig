@@ -11,18 +11,15 @@ config DCACHE_WORD_ACCESS
 if BLOCK
 
 source "fs/ext2/Kconfig"
-source "fs/ext3/Kconfig"
 source "fs/ext4/Kconfig"
-source "fs/jbd/Kconfig"
 source "fs/jbd2/Kconfig"
 
 config FS_MBCACHE
 # Meta block cache for Extended Attributes (ext2/ext3/ext4)
 	tristate
 	default y if EXT2_FS=y && EXT2_FS_XATTR
-	default y if EXT3_FS=y && EXT3_FS_XATTR
 	default y if EXT4_FS=y
-	default m if EXT2_FS_XATTR || EXT3_FS_XATTR || EXT4_FS
+	default m if EXT2_FS_XATTR || EXT4_FS
 
 source "fs/reiserfs/Kconfig"
 source "fs/jfs/Kconfig"
