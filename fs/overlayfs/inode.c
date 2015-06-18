@@ -336,31 +336,30 @@ static bool ovl_open_need_copy_up(int flags, enum ovl_path_type type,
 	return true;
 }
 
-static int ovl_dentry_open(struct dentry *dentry, struct file *file,
-		    const struct cred *cred)
+struct inode *ovl_d_select_inode(struct dentry *dentry, unsigned file_flags)
 {
 	int err;
 	struct path realpath;
 	enum ovl_path_type type;
 
 	type = ovl_path_real(dentry, &realpath);
-	if (ovl_open_need_copy_up(file->f_flags, type, realpath.dentry)) {
+	if (ovl_open_need_copy_up(file_flags, type, realpath.dentry)) {
 		err = ovl_want_write(dentry);
 		if (err)
-			return err;
+			return ERR_PTR(err);
 
-		if (file->f_flags & O_TRUNC)
+		if (file_flags & O_TRUNC)
 			err = ovl_copy_up_last(dentry, NULL, true);
 		else
 			err = ovl_copy_up(dentry);
 		ovl_drop_write(dentry);
 		if (err)
-			return err;
+			return ERR_PTR(err);
 
 		ovl_path_upper(dentry, &realpath);
 	}
 
-	return vfs_open(&realpath, file, cred);
+	return d_backing_inode(realpath.dentry);
 }
 
 static const struct inode_operations ovl_file_inode_operations = {
@@ -371,7 +370,6 @@ static const struct inode_operations ovl_file_inode_operations = {
 	.getxattr	= ovl_getxattr,
 	.listxattr	= ovl_listxattr,
 	.removexattr	= ovl_removexattr,
-	.dentry_open	= ovl_dentry_open,
 };
 
 static const struct inode_operations ovl_symlink_inode_operations = {
