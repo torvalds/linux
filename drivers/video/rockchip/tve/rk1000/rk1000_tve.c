@@ -214,14 +214,18 @@ static void rk1000_early_suspend(void *h)
 {
 	pr_info("rk1000_early_suspend\n");
 	if (rk1000_tve.ypbpr) {
-		rk1000_tve.ypbpr->ddev->ops->setenable(rk1000_tve.ypbpr->ddev,
-						       0);
-		rk1000_tve.ypbpr->suspend = 1;
+		if (!rk1000_tve.ypbpr->suspend)
+			rk1000_tve.ypbpr->suspend = 1;
+		if (rk1000_tve.ypbpr->enable)
+			rk1000_tve.ypbpr->ddev->ops->setenable(
+			rk1000_tve.ypbpr->ddev, 0);
 	}
 	if (rk1000_tve.cvbs) {
-		rk1000_tve.cvbs->ddev->ops->setenable(rk1000_tve.cvbs->ddev,
-						      0);
-		rk1000_tve.cvbs->suspend = 1;
+		if (!rk1000_tve.cvbs->suspend)
+			rk1000_tve.cvbs->suspend = 1;
+		if (rk1000_tve.cvbs->enable)
+			rk1000_tve.cvbs->ddev->ops->setenable(
+			rk1000_tve.cvbs->ddev, 0);
 	}
 }
 
@@ -230,14 +234,22 @@ static void rk1000_early_resume(void *h)
 {
 	pr_info("rk1000 tve exit early resume\n");
 	if (rk1000_tve.cvbs) {
-		rk1000_tve.cvbs->suspend = 0;
-		if (rk1000_tve.mode < TVOUT_YPBPR_720X480P_60)
-			rk_display_device_enable((rk1000_tve.cvbs)->ddev);
+		if (rk1000_tve.cvbs->suspend)
+			rk1000_tve.cvbs->suspend = 0;
+		if (rk1000_tve.mode < TVOUT_YPBPR_720X480P_60) {
+			if (rk1000_tve.cvbs->enable)
+				rk_display_device_enable(
+				(rk1000_tve.cvbs)->ddev);
+		}
 	}
 	if (rk1000_tve.ypbpr) {
-		rk1000_tve.ypbpr->suspend = 0;
-		if (rk1000_tve.mode > TVOUT_CVBS_PAL)
-			rk_display_device_enable((rk1000_tve.ypbpr)->ddev);
+		if (rk1000_tve.ypbpr->suspend)
+			rk1000_tve.ypbpr->suspend = 0;
+		if (rk1000_tve.mode > TVOUT_CVBS_PAL) {
+			if (rk1000_tve.ypbpr->enable)
+				rk_display_device_enable(
+				(rk1000_tve.ypbpr)->ddev);
+		}
 	}
 }
 
