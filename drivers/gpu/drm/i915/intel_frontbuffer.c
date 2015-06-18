@@ -175,6 +175,9 @@ void intel_frontbuffer_flush(struct drm_device *dev,
 	frontbuffer_bits &= ~dev_priv->fb_tracking.busy_bits;
 	mutex_unlock(&dev_priv->fb_tracking.lock);
 
+	if (!frontbuffer_bits)
+		return;
+
 	intel_mark_fb_busy(dev, frontbuffer_bits);
 
 	intel_edp_drrs_flush(dev, frontbuffer_bits);
