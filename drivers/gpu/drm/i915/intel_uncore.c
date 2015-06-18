@@ -1496,6 +1496,9 @@ not_ready:
 
 static int (*intel_get_gpu_reset(struct drm_device *dev))(struct drm_device *)
 {
+	if (!i915.reset)
+		return NULL;
+
 	if (INTEL_INFO(dev)->gen >= 8)
 		return gen8_do_reset;
 	else if (INTEL_INFO(dev)->gen >= 6)

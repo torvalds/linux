@@ -165,7 +165,6 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		break;
 	case I915_PARAM_HAS_GPU_RESET:
 		value = i915.enable_hangcheck &&
-			i915.reset &&
 			intel_has_gpu_reset(dev);
 		break;
 	default:

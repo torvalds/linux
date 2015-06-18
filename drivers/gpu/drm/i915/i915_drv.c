@@ -846,9 +846,6 @@ int i915_reset(struct drm_device *dev)
 	bool simulated;
 	int ret;
 
-	if (!i915.reset)
-		return 0;
-
 	intel_reset_gt_powersave(dev);
 
 	mutex_lock(&dev->struct_mutex);
