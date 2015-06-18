@@ -1324,12 +1324,16 @@ static void __ufs_truncate_blocks(struct inode *inode)
 		ufs_trunc_tindirect(inode, 0);
 		break;
 	case 3:
-		ufs_trunc_dindirect(inode, DIRECT_BLOCK - UFS_IND_BLOCK - uspi->s_apb,
+		ufs_trunc_dindirect(inode,
+			    (offsets[1] << uspi->s_apbshift) + offsets[2],
 			    ufs_get_direct_data_ptr(uspi, ufsi, UFS_DIND_BLOCK));
 		ufs_trunc_tindirect(inode, 0);
 		break;
 	case 4:
-		ufs_trunc_tindirect(inode, DIRECT_BLOCK - UFS_NDADDR - uspi->s_apb - uspi->s_2apb);
+		ufs_trunc_tindirect(inode,
+			   (offsets[1] << uspi->s_2apbshift) +
+			   (offsets[2] << uspi->s_apbshift) +
+			   offsets[3]);
 	}
 	ufsi->i_lastfrag = DIRECT_FRAGMENT;
 	mutex_unlock(&ufsi->truncate_mutex);
