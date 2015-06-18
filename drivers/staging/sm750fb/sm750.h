@@ -45,8 +45,8 @@ struct lynx_share{
 	/* common members */
 	u16 devid;
 	u8 revid;
-	struct pci_dev * pdev;
-	struct fb_info * fbinfo[2];
+	struct pci_dev *pdev;
+	struct fb_info *fbinfo[2];
 	struct lynx_accel accel;
 	int accel_off;
 	int dual;
@@ -59,8 +59,8 @@ struct lynx_share{
 	unsigned long vidreg_start;
 	__u32 vidmem_size;
 	__u32 vidreg_size;
-	void __iomem * pvReg;
-	unsigned char __iomem * pvMem;
+	void __iomem *pvReg;
+	unsigned char __iomem *pvMem;
 	/* locks*/
 	spinlock_t slock;
 	/* function pointers */
@@ -77,12 +77,12 @@ struct lynx_cursor{
 	int maxW;
 	int maxH;
 	/* base virtual address and offset  of cursor image */
-	char __iomem * vstart;
+	char __iomem *vstart;
 	int offset;
 	/* mmio addr of hw cursor */
 	volatile char __iomem * mmio;
 	/* the lynx_share of this adaptor */
-	struct lynx_share * share;
+	struct lynx_share *share;
 	/* proc_routines */
 	void (*enable)(struct lynx_cursor *);
 	void (*disable)(struct lynx_cursor *);
@@ -93,8 +93,8 @@ struct lynx_cursor{
 };
 
 struct lynxfb_crtc{
-	unsigned char __iomem * vCursor; /* virtual address of cursor */
-	unsigned char __iomem * vScreen; /* virtual address of on_screen */
+	unsigned char __iomem *vCursor; /* virtual address of cursor */
+	unsigned char __iomem *vScreen; /* virtual address of on_screen */
 	int oCursor; /* cursor address offset in vidmem */
 	int oScreen; /* onscreen address offset in vidmem */
 	int channel;/* which channel this crtc stands for*/
@@ -106,7 +106,7 @@ struct lynxfb_crtc{
 	u16 ypanstep;
 	u16 ywrapstep;
 
-	void * priv;
+	void *priv;
 
 	int(*proc_setMode)(struct lynxfb_crtc*,
 						struct fb_var_screeninfo*,
@@ -132,13 +132,13 @@ struct lynxfb_output{
 		paths=3:means output for both panel and crt paths
 	*/
 
-	int * channel;
+	int *channel;
 	/* 	which channel these outputs linked with,for sm750:
 		*channel=0 means primary channel
 		*channel=1 means secondary channel
 		output->channel ==> &crtc->channel
 	*/
-	void * priv;
+	void *priv;
 
 	int(*proc_setMode)(struct lynxfb_output*,
 						struct fb_var_screeninfo*,
@@ -155,8 +155,8 @@ struct lynxfb_par{
 	unsigned int pseudo_palette[256];
 	struct lynxfb_crtc crtc;
 	struct lynxfb_output output;
-	struct fb_info * info;
-	struct lynx_share * share;
+	struct fb_info *info;
+	struct lynx_share *share;
 };
 
 #ifndef offsetof

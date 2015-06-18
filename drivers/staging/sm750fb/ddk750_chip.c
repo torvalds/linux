@@ -433,7 +433,7 @@ unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 	unsigned int RN, quo, rem, fl_quo;
 	unsigned int input, request;
 	unsigned int tmpClock, ret;
-	pllcalparam * xparm;
+	pllcalparam *xparm;
 
 #if 1
 	if (getChipType() == SM750LE) {

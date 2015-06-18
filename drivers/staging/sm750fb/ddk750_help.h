@@ -19,7 +19,7 @@
 #define POKE32(addr, data) writel(data, addr + mmio750)
 #endif
 
-extern void __iomem * mmio750;
+extern void __iomem *mmio750;
 extern char revId750;
 extern unsigned short devId750;
 #else

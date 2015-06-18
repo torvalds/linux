@@ -1087,7 +1087,7 @@ NO_PARAM:
 }
 
 static int lynxfb_pci_probe(struct pci_dev *pdev,
-			    const struct pci_device_id * ent)
+			    const struct pci_device_id *ent)
 {
 	struct fb_info *info[] = {NULL, NULL};
 	struct lynx_share *share = NULL;

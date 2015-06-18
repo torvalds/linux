@@ -27,7 +27,7 @@
 int hw_sm750_map(struct lynx_share* share, struct pci_dev* pdev)
 {
 	int ret;
-	struct sm750_share * spec_share;
+	struct sm750_share *spec_share;
 	
 
 	spec_share = container_of(share, struct sm750_share, share);
@@ -100,10 +100,10 @@ exit:
 
 
 
-int hw_sm750_inithw(struct lynx_share* share, struct pci_dev * pdev)
+int hw_sm750_inithw(struct lynx_share *share, struct pci_dev *pdev)
 {
-	struct sm750_share * spec_share;
-	struct init_status * parm;
+	struct sm750_share *spec_share;
+	struct init_status *parm;
 	
 	spec_share = container_of(share, struct sm750_share, share);
 	parm = &spec_share->state.initParm;
@@ -199,7 +199,7 @@ int hw_sm750_inithw(struct lynx_share* share, struct pci_dev * pdev)
 }
 
 
-resource_size_t hw_sm750_getVMSize(struct lynx_share * share)
+resource_size_t hw_sm750_getVMSize(struct lynx_share *share)
 {
 	resource_size_t ret;
 	
@@ -265,7 +265,7 @@ void hw_sm750_output_clear(struct lynxfb_output* output)
 
 int hw_sm750_crtc_checkMode(struct lynxfb_crtc* crtc, struct fb_var_screeninfo* var)
 {
-	struct lynx_share * share;
+	struct lynx_share *share;
 	
 
 	share = container_of(crtc, struct lynxfb_par, crtc)->share;
@@ -300,8 +300,8 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc* crtc,
 	u32 reg;
 	mode_parameter_t modparm;
 	clock_type_t clock;
-	struct lynx_share * share;
-	struct lynxfb_par * par;
+	struct lynx_share *share;
+	struct lynxfb_par *par;
 
 	
 	ret = 0;
@@ -549,7 +549,7 @@ int hw_sm750_setBLANK(struct lynxfb_output* output, int blank)
 }
 
 
-void hw_sm750_initAccel(struct lynx_share * share)
+void hw_sm750_initAccel(struct lynx_share *share)
 {
 	u32 reg;
 	enable2DEngine(1);

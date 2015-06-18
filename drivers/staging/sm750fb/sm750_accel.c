@@ -18,22 +18,22 @@
 #include "sm750.h"
 #include "sm750_accel.h"
 #include "sm750_help.h"
-static inline void write_dpr(struct lynx_accel * accel, int offset, u32 regValue)
+static inline void write_dpr(struct lynx_accel *accel, int offset, u32 regValue)
 {
 	writel(regValue, accel->dprBase + offset);
 }
 
-static inline u32 read_dpr(struct lynx_accel * accel, int offset)
+static inline u32 read_dpr(struct lynx_accel *accel, int offset)
 {
 	return readl(accel->dprBase + offset);
 }
 
-static inline void write_dpPort(struct lynx_accel * accel, u32 data)
+static inline void write_dpPort(struct lynx_accel *accel, u32 data)
 {
 	writel(data, accel->dpPortBase);
 }
 
-void hw_de_init(struct lynx_accel * accel)
+void hw_de_init(struct lynx_accel *accel)
 {
 	/* setup 2d engine registers */
 	u32 reg, clr;
@@ -79,7 +79,7 @@ void hw_de_init(struct lynx_accel * accel)
  * but if you need dual framebuffer driver,need call set2dformat
  * every time you use 2d function */
 
-void hw_set2dformat(struct lynx_accel * accel, int fmt)
+void hw_set2dformat(struct lynx_accel *accel, int fmt)
 {
 	u32 reg;
 	
@@ -89,7 +89,7 @@ void hw_set2dformat(struct lynx_accel * accel, int fmt)
 	write_dpr(accel, DE_STRETCH_FORMAT, reg);
 }
 
-int hw_fillrect(struct lynx_accel * accel,
+int hw_fillrect(struct lynx_accel *accel,
 				u32 base, u32 pitch, u32 Bpp,
 				u32 x, u32 y, u32 width, u32 height,
 				u32 color, u32 rop)
@@ -137,7 +137,7 @@ int hw_fillrect(struct lynx_accel * accel,
 }
 
 int hw_copyarea(
-struct lynx_accel * accel,
+struct lynx_accel *accel,
 unsigned int sBase,  /* Address of source: offset in frame buffer */
 unsigned int sPitch, /* Pitch value of source surface in BYTE */
 unsigned int sx,
@@ -303,7 +303,7 @@ unsigned int rop2)   /* ROP value */
     return 0;
 }
 
-static unsigned int deGetTransparency(struct lynx_accel * accel)
+static unsigned int deGetTransparency(struct lynx_accel *accel)
 {
     unsigned int de_ctrl;
 
