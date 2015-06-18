@@ -2624,7 +2624,7 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 
 	sec4_sg_index = 0;
 	if (!all_contig) {
-		sg_to_sec4_sg(req->src, src_nents,
+		sg_to_sec4_sg_last(req->src, src_nents,
 			      edesc->sec4_sg + sec4_sg_index, 0);
 		sec4_sg_index += src_nents;
 	}
