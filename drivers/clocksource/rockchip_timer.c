@@ -316,7 +316,7 @@ static void __init rk_timer_init_ce_timer(struct device_node *np, unsigned int c
 	snprintf(timer->name, sizeof(timer->name), TIMER_NAME "%d", cpu);
 	irq->irq = irq_of_parse_and_map(np, 0);
 	irq->name = timer->name;
-	irq->flags = IRQF_TIMER | IRQF_NOBALANCING;
+	irq->flags = IRQF_TIMER | IRQF_NOBALANCING | IRQF_PERCPU;
 	irq->handler = rk_timer_clockevent_interrupt;
 }
 
