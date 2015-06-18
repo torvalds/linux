@@ -2272,11 +2272,16 @@ static void batadv_tt_req_purge(struct batadv_priv *bat_priv)
 	spin_unlock_bh(&bat_priv->tt.req_list_lock);
 }
 
-/* returns the pointer to the new tt_req_node struct if no request
- * has already been issued for this orig_node, NULL otherwise
+/**
+ * batadv_tt_req_node_new - search and possibly create a tt_req_node object
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig_node: orig node this request is being issued for
+ *
+ * Returns the pointer to the new tt_req_node struct if no request
+ * has already been issued for this orig_node, NULL otherwise.
  */
 static struct batadv_tt_req_node *
-batadv_new_tt_req_node(struct batadv_priv *bat_priv,
+batadv_tt_req_node_new(struct batadv_priv *bat_priv,
 		       struct batadv_orig_node *orig_node)
 {
 	struct batadv_tt_req_node *tt_req_node_tmp, *tt_req_node = NULL;
@@ -2505,7 +2510,7 @@ static int batadv_send_tt_request(struct batadv_priv *bat_priv,
 	/* The new tt_req will be issued only if I'm not waiting for a
 	 * reply from the same orig_node yet
 	 */
-	tt_req_node = batadv_new_tt_req_node(bat_priv, dst_orig_node);
+	tt_req_node = batadv_tt_req_node_new(bat_priv, dst_orig_node);
 	if (!tt_req_node)
 		goto out;
 
