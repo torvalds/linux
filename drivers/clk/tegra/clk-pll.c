@@ -1434,7 +1434,7 @@ struct clk *tegra_clk_register_pll(const char *name, const char *parent_name,
 	struct clk *clk;
 
 	pll_params->flags |= TEGRA_PLL_BYPASS;
-	pll_params->flags |= TEGRA_PLL_HAS_LOCK_ENABLE;
+
 	pll = _tegra_init_pll(clk_base, pmc, pll_params, lock);
 	if (IS_ERR(pll))
 		return ERR_CAST(pll);
@@ -1464,8 +1464,7 @@ struct clk *tegra_clk_register_plle(const char *name, const char *parent_name,
 	struct tegra_clk_pll *pll;
 	struct clk *clk;
 
-	pll_params->flags |= TEGRA_PLL_LOCK_MISC | TEGRA_PLL_BYPASS;
-	pll_params->flags |= TEGRA_PLL_HAS_LOCK_ENABLE;
+	pll_params->flags |= TEGRA_PLL_BYPASS;
 
 	if (!pll_params->div_nmp)
 		pll_params->div_nmp = &pll_e_nmp;
@@ -1569,7 +1568,6 @@ struct clk *tegra_clk_register_pllxc(const char *name, const char *parent_name,
 		writel_relaxed(val_iddq, clk_base + pll_params->iddq_reg);
 	}
 
-	pll_params->flags |= TEGRA_PLL_HAS_LOCK_ENABLE;
 	pll = _tegra_init_pll(clk_base, pmc, pll_params, lock);
 	if (IS_ERR(pll))
 		return ERR_CAST(pll);
@@ -1591,8 +1589,6 @@ struct clk *tegra_clk_register_pllre(const char *name, const char *parent_name,
 	u32 val;
 	struct tegra_clk_pll *pll;
 	struct clk *clk;
-
-	pll_params->flags |= TEGRA_PLL_HAS_LOCK_ENABLE | TEGRA_PLL_LOCK_MISC;
 
 	pll_params->vco_min = _clip_vco_min(pll_params->vco_min, parent_rate);
 
@@ -1653,7 +1649,6 @@ struct clk *tegra_clk_register_pllm(const char *name, const char *parent_name,
 	pll_params->vco_min = _clip_vco_min(pll_params->vco_min, parent_rate);
 
 	pll_params->flags |= TEGRA_PLL_BYPASS;
-	pll_params->flags |= TEGRA_PLL_HAS_LOCK_ENABLE;
 	pll_params->flags |= TEGRA_PLLM;
 	pll = _tegra_init_pll(clk_base, pmc, pll_params, lock);
 	if (IS_ERR(pll))
@@ -1751,7 +1746,6 @@ struct clk *tegra_clk_register_plle_tegra114(const char *name,
 	struct clk *clk;
 	u32 val, val_aux;
 
-	pll_params->flags |= TEGRA_PLL_HAS_LOCK_ENABLE;
 	pll = _tegra_init_pll(clk_base, NULL, pll_params, lock);
 	if (IS_ERR(pll))
 		return ERR_CAST(pll);
@@ -1813,7 +1807,6 @@ struct clk *tegra_clk_register_pllss(const char *name, const char *parent_name,
 		return ERR_PTR(-EINVAL);
 	}
 
-	pll_params->flags = TEGRA_PLL_HAS_LOCK_ENABLE | TEGRA_PLL_USE_LOCK;
 	pll = _tegra_init_pll(clk_base, NULL, pll_params, lock);
 	if (IS_ERR(pll))
 		return ERR_CAST(pll);
