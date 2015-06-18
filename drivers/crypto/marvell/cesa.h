@@ -777,6 +777,8 @@ int mv_cesa_dma_add_op_transfers(struct mv_cesa_tdma_chain *chain,
 extern struct ahash_alg mv_sha1_alg;
 extern struct ahash_alg mv_ahmac_sha1_alg;
 
+extern struct crypto_alg mv_cesa_ecb_des_alg;
+extern struct crypto_alg mv_cesa_cbc_des_alg;
 extern struct crypto_alg mv_cesa_ecb_aes_alg;
 extern struct crypto_alg mv_cesa_cbc_aes_alg;
 
