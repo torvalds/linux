@@ -281,6 +281,7 @@ struct au0828_dev {
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_device *media_dev;
 	struct media_pad video_pad, vbi_pad;
+	struct media_entity *decoder;
 #endif
 };
 
