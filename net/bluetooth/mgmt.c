@@ -7248,6 +7248,7 @@ static void remove_advertising_complete(struct hci_dev *hdev, u8 status,
 					u16 opcode)
 {
 	struct mgmt_pending_cmd *cmd;
+	struct mgmt_cp_remove_advertising *cp;
 	struct mgmt_rp_remove_advertising rp;
 
 	BT_DBG("status %d", status);
@@ -7262,7 +7263,8 @@ static void remove_advertising_complete(struct hci_dev *hdev, u8 status,
 	if (!cmd)
 		goto unlock;
 
-	rp.instance = 1;
+	cp = cmd->param;
+	rp.instance = cp->instance;
 
 	mgmt_cmd_complete(cmd->sk, cmd->index, cmd->opcode, MGMT_STATUS_SUCCESS,
 			  &rp, sizeof(rp));
@@ -7277,20 +7279,24 @@ static int remove_advertising(struct sock *sk, struct hci_dev *hdev,
 {
 	struct mgmt_cp_remove_advertising *cp = data;
 	struct mgmt_rp_remove_advertising rp;
+	struct adv_info *adv_instance;
 	int err;
 	struct mgmt_pending_cmd *cmd;
 	struct hci_request req;
 
 	BT_DBG("%s", hdev->name);
 
-	/* The current implementation only allows modifying instance no 1. A
-	 * value of 0 indicates that all instances should be cleared.
-	 */
-	if (cp->instance > 1)
-		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_REMOVE_ADVERTISING,
-				       MGMT_STATUS_INVALID_PARAMS);
-
 	hci_dev_lock(hdev);
+
+	if (cp->instance)
+		adv_instance = hci_find_adv_instance(hdev, cp->instance);
+
+	if (!(cp->instance == 0x00 || adv_instance)) {
+		err = mgmt_cmd_status(sk, hdev->id,
+				      MGMT_OP_REMOVE_ADVERTISING,
+				      MGMT_STATUS_INVALID_PARAMS);
+		goto unlock;
+	}
 
 	if (pending_find(MGMT_OP_ADD_ADVERTISING, hdev) ||
 	    pending_find(MGMT_OP_REMOVE_ADVERTISING, hdev) ||
@@ -7306,21 +7312,21 @@ static int remove_advertising(struct sock *sk, struct hci_dev *hdev,
 		goto unlock;
 	}
 
-	if (hdev->adv_instance_timeout)
-		cancel_delayed_work(&hdev->adv_instance_expire);
+	hci_req_init(&req, hdev);
 
-	memset(&hdev->adv_instance, 0, sizeof(hdev->adv_instance));
+	clear_adv_instance(hdev, &req, cp->instance, true);
 
-	advertising_removed(sk, hdev, 1);
+	if (list_empty(&hdev->adv_instances))
+		disable_advertising(&req);
 
-	hci_dev_clear_flag(hdev, HCI_ADVERTISING_INSTANCE);
-
-	/* If the HCI_ADVERTISING flag is set or the device isn't powered then
-	 * we have no HCI communication to make. Simply return.
+	/* If no HCI commands have been collected so far or the HCI_ADVERTISING
+	 * flag is set or the device isn't powered then we have no HCI
+	 * communication to make. Simply return.
 	 */
-	if (!hdev_is_powered(hdev) ||
+	if (skb_queue_empty(&req.cmd_q) ||
+	    !hdev_is_powered(hdev) ||
 	    hci_dev_test_flag(hdev, HCI_ADVERTISING)) {
-		rp.instance = 1;
+		rp.instance = cp->instance;
 		err = mgmt_cmd_complete(sk, hdev->id,
 					MGMT_OP_REMOVE_ADVERTISING,
 					MGMT_STATUS_SUCCESS, &rp, sizeof(rp));
@@ -7333,9 +7339,6 @@ static int remove_advertising(struct sock *sk, struct hci_dev *hdev,
 		err = -ENOMEM;
 		goto unlock;
 	}
-
-	hci_req_init(&req, hdev);
-	disable_advertising(&req);
 
 	err = hci_req_run(&req, remove_advertising_complete);
 	if (err < 0)
