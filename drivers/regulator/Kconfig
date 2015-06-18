@@ -292,6 +292,12 @@ config REGULATOR_SYR82X
 	help
 	  Support the voltage and current regulators of the SYR82X series of DCDC devices.
 
+config REGULATOR_ETA3555
+	tristate "ETA3555 DCDC SUPPORT REGULATOR"
+	depends on I2C
+	help
+	  Support the voltage and current regulators of the SYR82X series of DCDC devices.
+
 config REGULATOR_PCAP
 	tristate "Motorola PCAP2 regulator driver"
 	depends on EZX_PCAP

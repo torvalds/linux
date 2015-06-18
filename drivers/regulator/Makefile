@@ -76,6 +76,7 @@ obj-$(CONFIG_REGULATOR_WM8400) += wm8400-regulator.o
 obj-$(CONFIG_REGULATOR_WM8994) += wm8994-regulator.o
 obj-$(CONFIG_REGULATOR_ACT8846) += act8846.o
 obj-$(CONFIG_REGULATOR_SYR82X) += syr82x.o
+obj-$(CONFIG_REGULATOR_ETA3555)  += eta3555.o
 obj-$(CONFIG_REGULATOR_RICOH619) += ricoh619-regulator.o
 obj-$(CONFIG_REGULATOR_RT5025) += rt5025-regulator.o
 obj-$(CONFIG_REGULATOR_RT5036)	+= rt5036-regulator.o
