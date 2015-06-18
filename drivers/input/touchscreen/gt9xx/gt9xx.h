@@ -391,6 +391,7 @@ u8 gtp_dat_gt11[] = {
 #define FALSE   0
 
 bool m89or101 = TRUE;
+bool bgt911 = FALSE;
 bool mGtpChange_X2Y = TRUE;  //GTP_CHANGE_X2Y        1
 bool mGtp_X_Reverse = FALSE;  //GTP_X_REVERSE_ENABLE
 bool mGtp_Y_Reverse = TRUE;  //GTP_Y_REVERSE_ENABLE

@@ -410,15 +410,15 @@ static void gtp_touch_down(struct goodix_ts_data* ts,s32 id,s32 x,s32 y,s32 w)
         GTP_SWAP(x, y);
     }
 
-#ifndef CONFIG_GT911
-    if(mGtp_X_Reverse){
-        x = ts->abs_x_max - x;
-    }
-
-    if(mGtp_Y_Reverse){
-        y = ts->abs_y_max - y;
-    }
-#endif
+	if (!bgt911) {
+	    if(mGtp_X_Reverse){
+	        x = ts->abs_x_max - x;
+	    }
+	
+	    if(mGtp_Y_Reverse){
+	        y = ts->abs_y_max - y;
+	    }
+	}
 
 #if GTP_ICS_SLOT_REPORT
     input_mt_slot(ts->input_dev, id);
@@ -1419,11 +1419,11 @@ static s32 gtp_init_panel(struct goodix_ts_data *ts)
         send_cfg_buf[0] = gtp_dat_8_9;
         cfg_info_len[0] =  CFG_GROUP_LEN(gtp_dat_8_9);
     }
-
-#ifdef CONFIG_GT911
-	send_cfg_buf[0] = gtp_dat_gt11;
-	cfg_info_len[0] =  CFG_GROUP_LEN(gtp_dat_gt11);
-#endif
+    
+    if (bgt911) {
+    	send_cfg_buf[0] = gtp_dat_gt11;
+		cfg_info_len[0] =  CFG_GROUP_LEN(gtp_dat_gt11);
+    }
 
     GTP_DEBUG_FUNC();
     GTP_DEBUG("Config Groups\' Lengths: %d, %d, %d, %d, %d, %d", 
@@ -2580,6 +2580,12 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
         mGtpChange_X2Y = TRUE;
         mGtp_X_Reverse = TRUE;
         mGtp_Y_Reverse = FALSE;
+    } else if (val == 911) {
+    	m89or101 = FALSE;
+    	bgt911 = TRUE;
+    	mGtpChange_X2Y = TRUE;
+        mGtp_X_Reverse = FALSE;
+        mGtp_Y_Reverse = TRUE;
     }
 
     ts->irq_pin = of_get_named_gpio_flags(np, "touch-gpio", 0, (enum of_gpio_flags *)(&ts->irq_flags));
