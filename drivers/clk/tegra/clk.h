@@ -225,6 +225,8 @@ struct div_nmp {
  * TEGRA_PLL_HAS_LOCK_ENABLE - PLL has bit to enable lock monitoring
  * TEGRA_MDIV_NEW - Switch to new method for calculating fixed mdiv
  *     it may be more accurate (especially if SDM present)
+ * TEGRA_PLLMB - PLLMB has should be treated similar to PLLM. This
+ *     flag indicated that it is PLLMB.
  */
 struct tegra_clk_pll_params {
 	unsigned long	input_min;
@@ -281,6 +283,7 @@ struct tegra_clk_pll_params {
 #define TEGRA_PLL_BYPASS BIT(9)
 #define TEGRA_PLL_HAS_LOCK_ENABLE BIT(10)
 #define TEGRA_MDIV_NEW BIT(11)
+#define TEGRA_PLLMB BIT(12)
 
 /**
  * struct tegra_clk_pll - Tegra PLL clock
@@ -384,6 +387,12 @@ struct clk *tegra_clk_register_pllss_tegra210(const char *name,
 
 struct clk *tegra_clk_register_pllss(const char *name, const char *parent_name,
 			   void __iomem *clk_base, unsigned long flags,
+			   struct tegra_clk_pll_params *pll_params,
+			   spinlock_t *lock);
+
+struct clk *tegra_clk_register_pllmb(const char *name, const char *parent_name,
+			   void __iomem *clk_base, void __iomem *pmc,
+			   unsigned long flags,
 			   struct tegra_clk_pll_params *pll_params,
 			   spinlock_t *lock);
 

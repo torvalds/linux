@@ -571,7 +571,7 @@ static void _update_pll_mnp(struct tegra_clk_pll *pll,
 	struct tegra_clk_pll_params *params = pll->params;
 	struct div_nmp *div_nmp = params->div_nmp;
 
-	if ((params->flags & TEGRA_PLLM) &&
+	if ((params->flags & (TEGRA_PLLM | TEGRA_PLLMB)) &&
 		(pll_override_readl(PMC_PLLP_WB0_OVERRIDE, pll) &
 			PMC_PLLP_WB0_OVERRIDE_PLLM_OVERRIDE)) {
 		val = pll_override_readl(params->pmc_divp_reg, pll);
@@ -608,7 +608,7 @@ static void _get_pll_mnp(struct tegra_clk_pll *pll,
 	struct tegra_clk_pll_params *params = pll->params;
 	struct div_nmp *div_nmp = params->div_nmp;
 
-	if ((params->flags & TEGRA_PLLM) &&
+	if ((params->flags & (TEGRA_PLLM | TEGRA_PLLMB)) &&
 		(pll_override_readl(PMC_PLLP_WB0_OVERRIDE, pll) &
 			PMC_PLLP_WB0_OVERRIDE_PLLM_OVERRIDE)) {
 		val = pll_override_readl(params->pmc_divp_reg, pll);
@@ -729,8 +729,8 @@ static long clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	struct tegra_clk_pll_freq_table cfg;
 
 	if (pll->params->flags & TEGRA_PLL_FIXED) {
-		/* PLLM are used for memory; we do not change rate */
-		if (pll->params->flags & TEGRA_PLLM)
+		/* PLLM/MB are used for memory; we do not change rate */
+		if (pll->params->flags & (TEGRA_PLLM | TEGRA_PLLMB))
 			return clk_hw_get_rate(hw);
 		return pll->params->fixed_rate;
 	}
@@ -757,7 +757,7 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 		return parent_rate;
 
 	if ((pll->params->flags & TEGRA_PLL_FIXED) &&
-	    !(pll->params->flags & TEGRA_PLLM) &&
+	    !(pll->params->flags & (TEGRA_PLLM | TEGRA_PLLMB)) &&
 			!(val & PLL_BASE_OVERRIDE)) {
 		struct tegra_clk_pll_freq_table sel;
 		if (_get_table_rate(hw, &sel, pll->params->fixed_rate,
@@ -2239,6 +2239,44 @@ struct clk *tegra_clk_register_pllss_tegra210(const char *name,
 	clk = _tegra_clk_register_pll(pll, name, parent_name, flags,
 					&tegra_clk_pll_ops);
 
+	if (IS_ERR(clk))
+		kfree(pll);
+
+	return clk;
+}
+
+struct clk *tegra_clk_register_pllmb(const char *name, const char *parent_name,
+			  void __iomem *clk_base, void __iomem *pmc,
+			  unsigned long flags,
+			  struct tegra_clk_pll_params *pll_params,
+			  spinlock_t *lock)
+{
+	struct tegra_clk_pll *pll;
+	struct clk *clk, *parent;
+	unsigned long parent_rate;
+
+	if (!pll_params->pdiv_tohw)
+		return ERR_PTR(-EINVAL);
+
+	parent = __clk_lookup(parent_name);
+	if (!parent) {
+		WARN(1, "parent clk %s of %s must be registered first\n",
+			parent_name, name);
+		return ERR_PTR(-EINVAL);
+	}
+
+	parent_rate = clk_get_rate(parent);
+
+	pll_params->vco_min = _clip_vco_min(pll_params->vco_min, parent_rate);
+
+	pll_params->flags |= TEGRA_PLL_BYPASS;
+	pll_params->flags |= TEGRA_PLLMB;
+	pll = _tegra_init_pll(clk_base, pmc, pll_params, lock);
+	if (IS_ERR(pll))
+		return ERR_CAST(pll);
+
+	clk = _tegra_clk_register_pll(pll, name, parent_name, flags,
+				      &tegra_clk_pll_ops);
 	if (IS_ERR(clk))
 		kfree(pll);
 
