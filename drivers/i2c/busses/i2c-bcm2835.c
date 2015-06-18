@@ -52,6 +52,9 @@
 
 #define BCM2835_I2C_BITMSK_S	0x03FF
 
+#define BCM2835_I2C_CDIV_MIN	0x0002
+#define BCM2835_I2C_CDIV_MAX	0xFFFE
+
 #define BCM2835_I2C_TIMEOUT (msecs_to_jiffies(1000))
 
 struct bcm2835_i2c_dev {
@@ -261,6 +264,11 @@ static int bcm2835_i2c_probe(struct platform_device *pdev)
 	 */
 	if (divider & 1)
 		divider++;
+	if ((divider < BCM2835_I2C_CDIV_MIN) ||
+	    (divider > BCM2835_I2C_CDIV_MAX)) {
+		dev_err(&pdev->dev, "Invalid clock-frequency\n");
+		return -ENODEV;
+	}
 	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_DIV, divider);
 
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
