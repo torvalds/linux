@@ -2721,6 +2721,7 @@ int hci_add_adv_instance(struct hci_dev *hdev, u8 instance, u32 flags,
 			return -ENOMEM;
 
 		memset(adv_instance, 0, sizeof(*adv_instance));
+		adv_instance->pending = true;
 		adv_instance->instance = instance;
 		list_add(&adv_instance->list, &hdev->adv_instances);
 		hdev->adv_instance_cnt++;

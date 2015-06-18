@@ -157,6 +157,7 @@ struct oob_data {
 
 struct adv_info {
 	struct list_head list;
+	bool pending;
 	__u8	instance;
 	__u32	flags;
 	__u16	timeout;
