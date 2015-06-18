@@ -1038,7 +1038,7 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 			obj->dirty = 1;
 			i915_gem_request_assign(&obj->last_write_req, req);
 
-			intel_fb_obj_invalidate(obj, ring, ORIGIN_CS);
+			intel_fb_obj_invalidate(obj, ORIGIN_CS);
 
 			/* update for the implicit flush after a batch */
 			obj->base.write_domain &= ~I915_GEM_GPU_DOMAINS;

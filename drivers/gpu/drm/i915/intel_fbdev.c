@@ -89,7 +89,7 @@ static int intel_fbdev_blank(int blank, struct fb_info *info)
 		 * now until we solve this for real.
 		 */
 		mutex_lock(&fb_helper->dev->struct_mutex);
-		intel_fb_obj_invalidate(ifbdev->fb->obj, NULL, ORIGIN_GTT);
+		intel_fb_obj_invalidate(ifbdev->fb->obj, ORIGIN_GTT);
 		mutex_unlock(&fb_helper->dev->struct_mutex);
 	}
 
@@ -115,7 +115,7 @@ static int intel_fbdev_pan_display(struct fb_var_screeninfo *var,
 		 * now until we solve this for real.
 		 */
 		mutex_lock(&fb_helper->dev->struct_mutex);
-		intel_fb_obj_invalidate(ifbdev->fb->obj, NULL, ORIGIN_GTT);
+		intel_fb_obj_invalidate(ifbdev->fb->obj, ORIGIN_GTT);
 		mutex_unlock(&fb_helper->dev->struct_mutex);
 	}
 

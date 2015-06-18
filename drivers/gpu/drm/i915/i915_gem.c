@@ -350,7 +350,7 @@ i915_gem_phys_pwrite(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
-	intel_fb_obj_invalidate(obj, NULL, ORIGIN_CPU);
+	intel_fb_obj_invalidate(obj, ORIGIN_CPU);
 	if (__copy_from_user_inatomic_nocache(vaddr, user_data, args->size)) {
 		unsigned long unwritten;
 
@@ -804,7 +804,7 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev,
 
 	offset = i915_gem_obj_ggtt_offset(obj) + args->offset;
 
-	intel_fb_obj_invalidate(obj, NULL, ORIGIN_GTT);
+	intel_fb_obj_invalidate(obj, ORIGIN_GTT);
 
 	while (remain > 0) {
 		/* Operation in this page
@@ -948,7 +948,7 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	intel_fb_obj_invalidate(obj, NULL, ORIGIN_CPU);
+	intel_fb_obj_invalidate(obj, ORIGIN_CPU);
 
 	i915_gem_object_pin_pages(obj);
 
@@ -3942,7 +3942,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	}
 
 	if (write)
-		intel_fb_obj_invalidate(obj, NULL, ORIGIN_GTT);
+		intel_fb_obj_invalidate(obj, ORIGIN_GTT);
 
 	trace_i915_gem_object_change_domain(obj,
 					    old_read_domains,
@@ -4215,7 +4215,7 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 	}
 
 	if (write)
-		intel_fb_obj_invalidate(obj, NULL, ORIGIN_CPU);
+		intel_fb_obj_invalidate(obj, ORIGIN_CPU);
 
 	trace_i915_gem_object_change_domain(obj,
 					    old_read_domains,
