@@ -960,6 +960,22 @@ void ufs_evict_inode(struct inode * inode)
 		ufs_free_inode(inode);
 }
 
+struct to_free {
+	struct inode *inode;
+	u64 to;
+	unsigned count;
+};
+
+static inline void free_data(struct to_free *ctx, u64 from, unsigned count)
+{
+	if (ctx->count && ctx->to != from) {
+		ufs_free_blocks(ctx->inode, ctx->to - ctx->count, ctx->count);
+		ctx->count = 0;
+	}
+	ctx->count += count;
+	ctx->to = from + count;
+}
+
 #define DIRECT_BLOCK ((inode->i_size + uspi->s_bsize - 1) >> uspi->s_bshift)
 #define DIRECT_FRAGMENT ((inode->i_size + uspi->s_fsize - 1) >> uspi->s_fshift)
 
@@ -970,16 +986,13 @@ static void ufs_trunc_direct(struct inode *inode)
 	struct ufs_sb_private_info * uspi;
 	void *p;
 	u64 frag1, frag2, frag3, frag4, block1, block2;
-	unsigned frag_to_free, free_count;
+	struct to_free ctx = {.inode = inode};
 	unsigned i, tmp;
 
 	UFSD("ENTER: ino %lu\n", inode->i_ino);
 
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
-
-	frag_to_free = 0;
-	free_count = 0;
 
 	frag1 = DIRECT_FRAGMENT;
 	frag4 = min_t(u64, UFS_NDIR_FRAGMENT, ufsi->i_lastfrag);
@@ -1015,7 +1028,6 @@ static void ufs_trunc_direct(struct inode *inode)
 
 	ufs_free_fragments(inode, tmp + frag1, frag2);
 	mark_inode_dirty(inode);
-	frag_to_free = tmp + frag1;
 
 next1:
 	/*
@@ -1030,21 +1042,11 @@ next1:
 		ufs_data_ptr_clear(uspi, p);
 		write_sequnlock(&ufsi->meta_lock);
 
-		if (free_count == 0) {
-			frag_to_free = tmp;
-			free_count = uspi->s_fpb;
-		} else if (free_count > 0 && frag_to_free == tmp - free_count)
-			free_count += uspi->s_fpb;
-		else {
-			ufs_free_blocks (inode, frag_to_free, free_count);
-			frag_to_free = tmp;
-			free_count = uspi->s_fpb;
-		}
+		free_data(&ctx, tmp, uspi->s_fpb);
 		mark_inode_dirty(inode);
 	}
 
-	if (free_count > 0)
-		ufs_free_blocks (inode, frag_to_free, free_count);
+	free_data(&ctx, 0, 0);
 
 	if (frag3 >= frag4)
 		goto next3;
@@ -1102,8 +1104,7 @@ static void ufs_trunc_branch(struct inode *inode, unsigned *offsets, int depth2,
 			ubh_mark_buffer_dirty(ubh);
 		}
 	} else {
-		u64 frag_to_free = 0;
-		unsigned free_count = 0;
+		struct to_free ctx = {.inode = inode};
 
 		for (i = from; i < uspi->s_apb; i++) {
 			void *ind = ubh_get_data_ptr(uspi, ubh, i);
@@ -1115,23 +1116,10 @@ static void ufs_trunc_branch(struct inode *inode, unsigned *offsets, int depth2,
 			ufs_data_ptr_clear(uspi, ind);
 			write_sequnlock(&UFS_I(inode)->meta_lock);
 			ubh_mark_buffer_dirty(ubh);
-			if (free_count == 0) {
-				frag_to_free = tmp;
-				free_count = uspi->s_fpb;
-			} else if (free_count > 0 && frag_to_free == tmp - free_count)
-				free_count += uspi->s_fpb;
-			else {
-				ufs_free_blocks (inode, frag_to_free, free_count);
-				frag_to_free = tmp;
-				free_count = uspi->s_fpb;
-			}
-
+			free_data(&ctx, tmp, uspi->s_fpb);
 			mark_inode_dirty(inode);
 		}
-
-		if (free_count > 0) {
-			ufs_free_blocks (inode, frag_to_free, free_count);
-		}
+		free_data(&ctx, 0, 0);
 	}
 	if (free_it) {
 		tmp = ufs_data_ptr_to_cpu(sb, p);
