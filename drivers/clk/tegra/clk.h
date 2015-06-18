@@ -674,5 +674,6 @@ void tegra114_clock_deassert_dfll_dvco_reset(void);
 
 typedef void (*tegra_clk_apply_init_table_func)(void);
 extern tegra_clk_apply_init_table_func tegra_clk_apply_init_table;
+int tegra_pll_wait_for_lock(struct tegra_clk_pll *pll);
 
 #endif /* TEGRA_CLK_H */
