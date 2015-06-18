@@ -6,6 +6,7 @@
 #include <crypto/internal/hash.h>
 
 #include <linux/crypto.h>
+#include <linux/dmapool.h>
 
 #define CESA_ENGINE_OFF(i)			(((i) * 0x2000))
 
@@ -267,11 +268,94 @@ struct mv_cesa_op_ctx {
 	} ctx;
 };
 
+/* TDMA descriptor flags */
+#define CESA_TDMA_DST_IN_SRAM			BIT(31)
+#define CESA_TDMA_SRC_IN_SRAM			BIT(30)
+#define CESA_TDMA_TYPE_MSK			GENMASK(29, 0)
+#define CESA_TDMA_DUMMY				0
+#define CESA_TDMA_DATA				1
+#define CESA_TDMA_OP				2
+
+/**
+ * struct mv_cesa_tdma_desc - TDMA descriptor
+ * @byte_cnt:	number of bytes to transfer
+ * @src:	DMA address of the source
+ * @dst:	DMA address of the destination
+ * @next_dma:	DMA address of the next TDMA descriptor
+ * @cur_dma:	DMA address of this TDMA descriptor
+ * @next:	pointer to the next TDMA descriptor
+ * @op:		CESA operation attached to this TDMA descriptor
+ * @data:	raw data attached to this TDMA descriptor
+ * @flags:	flags describing the TDMA transfer. See the
+ *		"TDMA descriptor flags" section above
+ *
+ * TDMA descriptor used to create a transfer chain describing a crypto
+ * operation.
+ */
+struct mv_cesa_tdma_desc {
+	u32 byte_cnt;
+	u32 src;
+	u32 dst;
+	u32 next_dma;
+	u32 cur_dma;
+	struct mv_cesa_tdma_desc *next;
+	union {
+		struct mv_cesa_op_ctx *op;
+		void *data;
+	};
+	u32 flags;
+};
+
+/**
+ * struct mv_cesa_sg_dma_iter - scatter-gather iterator
+ * @dir:	transfer direction
+ * @sg:		scatter list
+ * @offset:	current position in the scatter list
+ * @op_offset:	current position in the crypto operation
+ *
+ * Iterator used to iterate over a scatterlist while creating a TDMA chain for
+ * a crypto operation.
+ */
+struct mv_cesa_sg_dma_iter {
+	enum dma_data_direction dir;
+	struct scatterlist *sg;
+	unsigned int offset;
+	unsigned int op_offset;
+};
+
+/**
+ * struct mv_cesa_dma_iter - crypto operation iterator
+ * @len:	the crypto operation length
+ * @offset:	current position in the crypto operation
+ * @op_len:	sub-operation length (the crypto engine can only act on 2kb
+ *		chunks)
+ *
+ * Iterator used to create a TDMA chain for a given crypto operation.
+ */
+struct mv_cesa_dma_iter {
+	unsigned int len;
+	unsigned int offset;
+	unsigned int op_len;
+};
+
+/**
+ * struct mv_cesa_tdma_chain - TDMA chain
+ * @first:	first entry in the TDMA chain
+ * @last:	last entry in the TDMA chain
+ *
+ * Stores a TDMA chain for a specific crypto operation.
+ */
+struct mv_cesa_tdma_chain {
+	struct mv_cesa_tdma_desc *first;
+	struct mv_cesa_tdma_desc *last;
+};
+
 struct mv_cesa_engine;
 
 /**
  * struct mv_cesa_caps - CESA device capabilities
  * @engines:		number of engines
+ * @has_tdma:		whether this device has a TDMA block
  * @cipher_algs:	supported cipher algorithms
  * @ncipher_algs:	number of supported cipher algorithms
  * @ahash_algs:		supported hash algorithms
@@ -281,10 +365,29 @@ struct mv_cesa_engine;
  */
 struct mv_cesa_caps {
 	int nengines;
+	bool has_tdma;
 	struct crypto_alg **cipher_algs;
 	int ncipher_algs;
 	struct ahash_alg **ahash_algs;
 	int nahash_algs;
+};
+
+/**
+ * struct mv_cesa_dev_dma - DMA pools
+ * @tdma_desc_pool:	TDMA desc pool
+ * @op_pool:		crypto operation pool
+ * @cache_pool:		data cache pool (used by hash implementation when the
+ *			hash request is smaller than the hash block size)
+ * @padding_pool:	padding pool (used by hash implementation when hardware
+ *			padding cannot be used)
+ *
+ * Structure containing the different DMA pools used by this driver.
+ */
+struct mv_cesa_dev_dma {
+	struct dma_pool *tdma_desc_pool;
+	struct dma_pool *op_pool;
+	struct dma_pool *cache_pool;
+	struct dma_pool *padding_pool;
 };
 
 /**
@@ -295,6 +398,7 @@ struct mv_cesa_caps {
  * @lock:	device lock
  * @queue:	crypto request queue
  * @engines:	array of engines
+ * @dma:	dma pools
  *
  * Structure storing CESA device information.
  */
@@ -306,6 +410,7 @@ struct mv_cesa_dev {
 	spinlock_t lock;
 	struct crypto_queue queue;
 	struct mv_cesa_engine *engines;
+	struct mv_cesa_dev_dma *dma;
 };
 
 /**
@@ -391,9 +496,11 @@ struct mv_cesa_hmac_ctx {
 /**
  * enum mv_cesa_req_type - request type definitions
  * @CESA_STD_REQ:	standard request
+ * @CESA_DMA_REQ:	DMA request
  */
 enum mv_cesa_req_type {
 	CESA_STD_REQ,
+	CESA_DMA_REQ,
 };
 
 /**
@@ -404,6 +511,27 @@ enum mv_cesa_req_type {
 struct mv_cesa_req {
 	enum mv_cesa_req_type type;
 	struct mv_cesa_engine *engine;
+};
+
+/**
+ * struct mv_cesa_tdma_req - CESA TDMA request
+ * @base:	base information
+ * @chain:	TDMA chain
+ */
+struct mv_cesa_tdma_req {
+	struct mv_cesa_req base;
+	struct mv_cesa_tdma_chain chain;
+};
+
+/**
+ * struct mv_cesa_sg_std_iter - CESA scatter-gather iterator for standard
+ *				requests
+ * @iter:	sg mapping iterator
+ * @offset:	current offset in the SG entry mapped in memory
+ */
+struct mv_cesa_sg_std_iter {
+	struct sg_mapping_iter iter;
+	unsigned int offset;
 };
 
 /**
@@ -430,6 +558,7 @@ struct mv_cesa_ablkcipher_std_req {
 struct mv_cesa_ablkcipher_req {
 	union {
 		struct mv_cesa_req base;
+		struct mv_cesa_tdma_req dma;
 		struct mv_cesa_ablkcipher_std_req std;
 	} req;
 	int src_nents;
@@ -447,6 +576,20 @@ struct mv_cesa_ahash_std_req {
 };
 
 /**
+ * struct mv_cesa_ahash_dma_req - DMA hash request
+ * @base:		base information
+ * @padding:		padding buffer
+ * @padding_dma:	DMA address of the padding buffer
+ * @cache_dma:		DMA address of the cache buffer
+ */
+struct mv_cesa_ahash_dma_req {
+	struct mv_cesa_tdma_req base;
+	u8 *padding;
+	dma_addr_t padding_dma;
+	dma_addr_t cache_dma;
+};
+
+/**
  * struct mv_cesa_ahash_req - hash request
  * @req:		type specific request information
  * @cache:		cache buffer
@@ -460,6 +603,7 @@ struct mv_cesa_ahash_std_req {
 struct mv_cesa_ahash_req {
 	union {
 		struct mv_cesa_req base;
+		struct mv_cesa_ahash_dma_req dma;
 		struct mv_cesa_ahash_std_req std;
 	} req;
 	struct mv_cesa_op_ctx op_tmpl;
@@ -542,6 +686,91 @@ static inline u32 mv_cesa_get_int_mask(struct mv_cesa_engine *engine)
 }
 
 int mv_cesa_queue_req(struct crypto_async_request *req);
+
+/* TDMA functions */
+
+static inline void mv_cesa_req_dma_iter_init(struct mv_cesa_dma_iter *iter,
+					     unsigned int len)
+{
+	iter->len = len;
+	iter->op_len = min(len, CESA_SA_SRAM_PAYLOAD_SIZE);
+	iter->offset = 0;
+}
+
+static inline void mv_cesa_sg_dma_iter_init(struct mv_cesa_sg_dma_iter *iter,
+					    struct scatterlist *sg,
+					    enum dma_data_direction dir)
+{
+	iter->op_offset = 0;
+	iter->offset = 0;
+	iter->sg = sg;
+	iter->dir = dir;
+}
+
+static inline unsigned int
+mv_cesa_req_dma_iter_transfer_len(struct mv_cesa_dma_iter *iter,
+				  struct mv_cesa_sg_dma_iter *sgiter)
+{
+	return min(iter->op_len - sgiter->op_offset,
+		   sg_dma_len(sgiter->sg) - sgiter->offset);
+}
+
+bool mv_cesa_req_dma_iter_next_transfer(struct mv_cesa_dma_iter *chain,
+					struct mv_cesa_sg_dma_iter *sgiter,
+					unsigned int len);
+
+static inline bool mv_cesa_req_dma_iter_next_op(struct mv_cesa_dma_iter *iter)
+{
+	iter->offset += iter->op_len;
+	iter->op_len = min(iter->len - iter->offset,
+			   CESA_SA_SRAM_PAYLOAD_SIZE);
+
+	return iter->op_len;
+}
+
+void mv_cesa_dma_step(struct mv_cesa_tdma_req *dreq);
+
+static inline int mv_cesa_dma_process(struct mv_cesa_tdma_req *dreq,
+				      u32 status)
+{
+	if (!(status & CESA_SA_INT_ACC0_IDMA_DONE))
+		return -EINPROGRESS;
+
+	if (status & CESA_SA_INT_IDMA_OWN_ERR)
+		return -EINVAL;
+
+	return 0;
+}
+
+void mv_cesa_dma_prepare(struct mv_cesa_tdma_req *dreq,
+			 struct mv_cesa_engine *engine);
+
+void mv_cesa_dma_cleanup(struct mv_cesa_tdma_req *dreq);
+
+static inline void
+mv_cesa_tdma_desc_iter_init(struct mv_cesa_tdma_chain *chain)
+{
+	memset(chain, 0, sizeof(*chain));
+}
+
+struct mv_cesa_op_ctx *mv_cesa_dma_add_op(struct mv_cesa_tdma_chain *chain,
+					const struct mv_cesa_op_ctx *op_templ,
+					bool skip_ctx,
+					gfp_t flags);
+
+int mv_cesa_dma_add_data_transfer(struct mv_cesa_tdma_chain *chain,
+				  dma_addr_t dst, dma_addr_t src, u32 size,
+				  u32 flags, gfp_t gfp_flags);
+
+int mv_cesa_dma_add_dummy_launch(struct mv_cesa_tdma_chain *chain,
+				 u32 flags);
+
+int mv_cesa_dma_add_dummy_end(struct mv_cesa_tdma_chain *chain, u32 flags);
+
+int mv_cesa_dma_add_op_transfers(struct mv_cesa_tdma_chain *chain,
+				 struct mv_cesa_dma_iter *dma_iter,
+				 struct mv_cesa_sg_dma_iter *sgiter,
+				 gfp_t gfp_flags);
 
 /* Algorithm definitions */
 

@@ -184,6 +184,7 @@ config CRYPTO_DEV_MARVELL_CESA
 	help
 	  This driver allows you to utilize the Cryptographic Engines and
 	  Security Accelerator (CESA) which can be found on the Armada 370.
+	  This driver supports CPU offload through DMA transfers.
 
 	  This driver is aimed at replacing the mv_cesa driver. This will only
 	  happen once it has received proper testing.

@@ -184,6 +184,7 @@ static const struct mv_cesa_caps armada_370_caps = {
 	.ncipher_algs = ARRAY_SIZE(armada_370_cipher_algs),
 	.ahash_algs = armada_370_ahash_algs,
 	.nahash_algs = ARRAY_SIZE(armada_370_ahash_algs),
+	.has_tdma = true,
 };
 
 static const struct of_device_id mv_cesa_of_match_table[] = {
@@ -191,6 +192,66 @@ static const struct of_device_id mv_cesa_of_match_table[] = {
 	{}
 };
 MODULE_DEVICE_TABLE(of, mv_cesa_of_match_table);
+
+static void
+mv_cesa_conf_mbus_windows(struct mv_cesa_engine *engine,
+			  const struct mbus_dram_target_info *dram)
+{
+	void __iomem *iobase = engine->regs;
+	int i;
+
+	for (i = 0; i < 4; i++) {
+		writel(0, iobase + CESA_TDMA_WINDOW_CTRL(i));
+		writel(0, iobase + CESA_TDMA_WINDOW_BASE(i));
+	}
+
+	for (i = 0; i < dram->num_cs; i++) {
+		const struct mbus_dram_window *cs = dram->cs + i;
+
+		writel(((cs->size - 1) & 0xffff0000) |
+		       (cs->mbus_attr << 8) |
+		       (dram->mbus_dram_target_id << 4) | 1,
+		       iobase + CESA_TDMA_WINDOW_CTRL(i));
+		writel(cs->base, iobase + CESA_TDMA_WINDOW_BASE(i));
+	}
+}
+
+static int mv_cesa_dev_dma_init(struct mv_cesa_dev *cesa)
+{
+	struct device *dev = cesa->dev;
+	struct mv_cesa_dev_dma *dma;
+
+	if (!cesa->caps->has_tdma)
+		return 0;
+
+	dma = devm_kzalloc(dev, sizeof(*dma), GFP_KERNEL);
+	if (!dma)
+		return -ENOMEM;
+
+	dma->tdma_desc_pool = dmam_pool_create("tdma_desc", dev,
+					sizeof(struct mv_cesa_tdma_desc),
+					16, 0);
+	if (!dma->tdma_desc_pool)
+		return -ENOMEM;
+
+	dma->op_pool = dmam_pool_create("cesa_op", dev,
+					sizeof(struct mv_cesa_op_ctx), 16, 0);
+	if (!dma->op_pool)
+		return -ENOMEM;
+
+	dma->cache_pool = dmam_pool_create("cesa_cache", dev,
+					   CESA_MAX_HASH_BLOCK_SIZE, 1, 0);
+	if (!dma->cache_pool)
+		return -ENOMEM;
+
+	dma->padding_pool = dmam_pool_create("cesa_padding", dev, 72, 1, 0);
+	if (!dma->cache_pool)
+		return -ENOMEM;
+
+	cesa->dma = dma;
+
+	return 0;
+}
 
 static int mv_cesa_get_sram(struct platform_device *pdev, int idx)
 {
@@ -299,6 +360,10 @@ static int mv_cesa_probe(struct platform_device *pdev)
 	if (IS_ERR(cesa->regs))
 		return -ENOMEM;
 
+	ret = mv_cesa_dev_dma_init(cesa);
+	if (ret)
+		return ret;
+
 	dram = mv_mbus_dram_info_nooverlap();
 
 	platform_set_drvdata(pdev, cesa);
@@ -346,6 +411,9 @@ static int mv_cesa_probe(struct platform_device *pdev)
 			goto err_cleanup;
 
 		engine->regs = cesa->regs + CESA_ENGINE_OFF(i);
+
+		if (dram && cesa->caps->has_tdma)
+			mv_cesa_conf_mbus_windows(&cesa->engines[i], dram);
 
 		writel(0, cesa->engines[i].regs + CESA_SA_INT_STATUS);
 		writel(CESA_SA_CFG_STOP_DIG_ERR,

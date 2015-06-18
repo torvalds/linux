@@ -21,6 +21,55 @@ struct mv_cesa_aes_ctx {
 	struct crypto_aes_ctx aes;
 };
 
+struct mv_cesa_ablkcipher_dma_iter {
+	struct mv_cesa_dma_iter base;
+	struct mv_cesa_sg_dma_iter src;
+	struct mv_cesa_sg_dma_iter dst;
+};
+
+static inline void
+mv_cesa_ablkcipher_req_iter_init(struct mv_cesa_ablkcipher_dma_iter *iter,
+				 struct ablkcipher_request *req)
+{
+	mv_cesa_req_dma_iter_init(&iter->base, req->nbytes);
+	mv_cesa_sg_dma_iter_init(&iter->src, req->src, DMA_TO_DEVICE);
+	mv_cesa_sg_dma_iter_init(&iter->dst, req->dst, DMA_FROM_DEVICE);
+}
+
+static inline bool
+mv_cesa_ablkcipher_req_iter_next_op(struct mv_cesa_ablkcipher_dma_iter *iter)
+{
+	iter->src.op_offset = 0;
+	iter->dst.op_offset = 0;
+
+	return mv_cesa_req_dma_iter_next_op(&iter->base);
+}
+
+static inline void
+mv_cesa_ablkcipher_dma_cleanup(struct ablkcipher_request *req)
+{
+	struct mv_cesa_ablkcipher_req *creq = ablkcipher_request_ctx(req);
+
+	if (req->dst != req->src) {
+		dma_unmap_sg(cesa_dev->dev, req->dst, creq->dst_nents,
+			     DMA_FROM_DEVICE);
+		dma_unmap_sg(cesa_dev->dev, req->src, creq->src_nents,
+			     DMA_TO_DEVICE);
+	} else {
+		dma_unmap_sg(cesa_dev->dev, req->src, creq->src_nents,
+			     DMA_BIDIRECTIONAL);
+	}
+	mv_cesa_dma_cleanup(&creq->req.dma);
+}
+
+static inline void mv_cesa_ablkcipher_cleanup(struct ablkcipher_request *req)
+{
+	struct mv_cesa_ablkcipher_req *creq = ablkcipher_request_ctx(req);
+
+	if (creq->req.base.type == CESA_DMA_REQ)
+		mv_cesa_ablkcipher_dma_cleanup(req);
+}
+
 static void mv_cesa_ablkcipher_std_step(struct ablkcipher_request *req)
 {
 	struct mv_cesa_ablkcipher_req *creq = ablkcipher_request_ctx(req);
@@ -77,7 +126,11 @@ static int mv_cesa_ablkcipher_process(struct crypto_async_request *req,
 	struct mv_cesa_engine *engine = sreq->base.engine;
 	int ret;
 
-	ret = mv_cesa_ablkcipher_std_process(ablkreq, status);
+	if (creq->req.base.type == CESA_DMA_REQ)
+		ret = mv_cesa_dma_process(&creq->req.dma, status);
+	else
+		ret = mv_cesa_ablkcipher_std_process(ablkreq, status);
+
 	if (ret)
 		return ret;
 
@@ -90,8 +143,21 @@ static int mv_cesa_ablkcipher_process(struct crypto_async_request *req,
 static void mv_cesa_ablkcipher_step(struct crypto_async_request *req)
 {
 	struct ablkcipher_request *ablkreq = ablkcipher_request_cast(req);
+	struct mv_cesa_ablkcipher_req *creq = ablkcipher_request_ctx(ablkreq);
 
-	mv_cesa_ablkcipher_std_step(ablkreq);
+	if (creq->req.base.type == CESA_DMA_REQ)
+		mv_cesa_dma_step(&creq->req.dma);
+	else
+		mv_cesa_ablkcipher_std_step(ablkreq);
+}
+
+static inline void
+mv_cesa_ablkcipher_dma_prepare(struct ablkcipher_request *req)
+{
+	struct mv_cesa_ablkcipher_req *creq = ablkcipher_request_ctx(req);
+	struct mv_cesa_tdma_req *dreq = &creq->req.dma;
+
+	mv_cesa_dma_prepare(dreq, dreq->base.engine);
 }
 
 static inline void
@@ -115,12 +181,18 @@ static inline void mv_cesa_ablkcipher_prepare(struct crypto_async_request *req,
 
 	creq->req.base.engine = engine;
 
-	mv_cesa_ablkcipher_std_prepare(ablkreq);
+	if (creq->req.base.type == CESA_DMA_REQ)
+		mv_cesa_ablkcipher_dma_prepare(ablkreq);
+	else
+		mv_cesa_ablkcipher_std_prepare(ablkreq);
 }
 
 static inline void
 mv_cesa_ablkcipher_req_cleanup(struct crypto_async_request *req)
 {
+	struct ablkcipher_request *ablkreq = ablkcipher_request_cast(req);
+
+	mv_cesa_ablkcipher_cleanup(ablkreq);
 }
 
 static const struct mv_cesa_req_ops mv_cesa_ablkcipher_req_ops = {
@@ -166,6 +238,92 @@ static int mv_cesa_aes_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	return 0;
 }
 
+static int mv_cesa_ablkcipher_dma_req_init(struct ablkcipher_request *req,
+				const struct mv_cesa_op_ctx *op_templ)
+{
+	struct mv_cesa_ablkcipher_req *creq = ablkcipher_request_ctx(req);
+	gfp_t flags = (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
+		      GFP_KERNEL : GFP_ATOMIC;
+	struct mv_cesa_tdma_req *dreq = &creq->req.dma;
+	struct mv_cesa_ablkcipher_dma_iter iter;
+	struct mv_cesa_tdma_chain chain;
+	bool skip_ctx = false;
+	int ret;
+
+	dreq->base.type = CESA_DMA_REQ;
+	dreq->chain.first = NULL;
+	dreq->chain.last = NULL;
+
+	if (req->src != req->dst) {
+		ret = dma_map_sg(cesa_dev->dev, req->src, creq->src_nents,
+				 DMA_TO_DEVICE);
+		if (!ret)
+			return -ENOMEM;
+
+		ret = dma_map_sg(cesa_dev->dev, req->dst, creq->dst_nents,
+				 DMA_FROM_DEVICE);
+		if (!ret) {
+			ret = -ENOMEM;
+			goto err_unmap_src;
+		}
+	} else {
+		ret = dma_map_sg(cesa_dev->dev, req->src, creq->src_nents,
+				 DMA_BIDIRECTIONAL);
+		if (!ret)
+			return -ENOMEM;
+	}
+
+	mv_cesa_tdma_desc_iter_init(&chain);
+	mv_cesa_ablkcipher_req_iter_init(&iter, req);
+
+	do {
+		struct mv_cesa_op_ctx *op;
+
+		op = mv_cesa_dma_add_op(&chain, op_templ, skip_ctx, flags);
+		if (IS_ERR(op)) {
+			ret = PTR_ERR(op);
+			goto err_free_tdma;
+		}
+		skip_ctx = true;
+
+		mv_cesa_set_crypt_op_len(op, iter.base.op_len);
+
+		/* Add input transfers */
+		ret = mv_cesa_dma_add_op_transfers(&chain, &iter.base,
+						   &iter.src, flags);
+		if (ret)
+			goto err_free_tdma;
+
+		/* Add dummy desc to launch the crypto operation */
+		ret = mv_cesa_dma_add_dummy_launch(&chain, flags);
+		if (ret)
+			goto err_free_tdma;
+
+		/* Add output transfers */
+		ret = mv_cesa_dma_add_op_transfers(&chain, &iter.base,
+						   &iter.dst, flags);
+		if (ret)
+			goto err_free_tdma;
+
+	} while (mv_cesa_ablkcipher_req_iter_next_op(&iter));
+
+	dreq->chain = chain;
+
+	return 0;
+
+err_free_tdma:
+	mv_cesa_dma_cleanup(dreq);
+	if (req->dst != req->src)
+		dma_unmap_sg(cesa_dev->dev, req->dst, creq->dst_nents,
+			     DMA_FROM_DEVICE);
+
+err_unmap_src:
+	dma_unmap_sg(cesa_dev->dev, req->src, creq->src_nents,
+		     req->dst != req->src ? DMA_TO_DEVICE : DMA_BIDIRECTIONAL);
+
+	return ret;
+}
+
 static inline int
 mv_cesa_ablkcipher_std_req_init(struct ablkcipher_request *req,
 				const struct mv_cesa_op_ctx *op_templ)
@@ -186,6 +344,7 @@ static int mv_cesa_ablkcipher_req_init(struct ablkcipher_request *req,
 	struct mv_cesa_ablkcipher_req *creq = ablkcipher_request_ctx(req);
 	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(req);
 	unsigned int blksize = crypto_ablkcipher_blocksize(tfm);
+	int ret;
 
 	if (!IS_ALIGNED(req->nbytes, blksize))
 		return -EINVAL;
@@ -196,7 +355,13 @@ static int mv_cesa_ablkcipher_req_init(struct ablkcipher_request *req,
 	mv_cesa_update_op_cfg(tmpl, CESA_SA_DESC_CFG_OP_CRYPT_ONLY,
 			      CESA_SA_DESC_CFG_OP_MSK);
 
-	return mv_cesa_ablkcipher_std_req_init(req, tmpl);
+	/* TODO: add a threshold for DMA usage */
+	if (cesa_dev->caps->has_tdma)
+		ret = mv_cesa_ablkcipher_dma_req_init(req, tmpl);
+	else
+		ret = mv_cesa_ablkcipher_std_req_init(req, tmpl);
+
+	return ret;
 }
 
 static int mv_cesa_aes_op(struct ablkcipher_request *req,
@@ -230,7 +395,11 @@ static int mv_cesa_aes_op(struct ablkcipher_request *req,
 	if (ret)
 		return ret;
 
-	return mv_cesa_queue_req(&req->base);
+	ret = mv_cesa_queue_req(&req->base);
+	if (ret && ret != -EINPROGRESS)
+		mv_cesa_ablkcipher_cleanup(req);
+
+	return ret;
 }
 
 static int mv_cesa_ecb_aes_encrypt(struct ablkcipher_request *req)
