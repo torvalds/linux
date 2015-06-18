@@ -6391,6 +6391,8 @@ enum skl_disp_power_wells {
 #define PCH_PP_CONTROL		0xc7204
 #define  PANEL_UNLOCK_REGS	(0xabcd << 16)
 #define  PANEL_UNLOCK_MASK	(0xffff << 16)
+#define  BXT_POWER_CYCLE_DELAY_MASK	(0x1f0)
+#define  BXT_POWER_CYCLE_DELAY_SHIFT	4
 #define  EDP_FORCE_VDD		(1 << 3)
 #define  EDP_BLC_ENABLE		(1 << 2)
 #define  PANEL_POWER_RESET	(1 << 1)
@@ -6418,6 +6420,17 @@ enum skl_disp_power_wells {
 #define  PP_REFERENCE_DIVIDER_SHIFT	8
 #define  PANEL_POWER_CYCLE_DELAY_MASK	(0x1f)
 #define  PANEL_POWER_CYCLE_DELAY_SHIFT	0
+
+/* BXT PPS changes - 2nd set of PPS registers */
+#define _BXT_PP_STATUS2 	0xc7300
+#define _BXT_PP_CONTROL2 	0xc7304
+#define _BXT_PP_ON_DELAYS2	0xc7308
+#define _BXT_PP_OFF_DELAYS2	0xc730c
+
+#define BXT_PP_STATUS(n)	((!n) ? PCH_PP_STATUS : _BXT_PP_STATUS2)
+#define BXT_PP_CONTROL(n)	((!n) ? PCH_PP_CONTROL : _BXT_PP_CONTROL2)
+#define BXT_PP_ON_DELAYS(n)	((!n) ? PCH_PP_ON_DELAYS : _BXT_PP_ON_DELAYS2)
+#define BXT_PP_OFF_DELAYS(n)	((!n) ? PCH_PP_OFF_DELAYS : _BXT_PP_OFF_DELAYS2)
 
 #define PCH_DP_B		0xe4100
 #define PCH_DPB_AUX_CH_CTL	0xe4110

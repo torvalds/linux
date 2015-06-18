@@ -567,7 +567,9 @@ static u32 _pp_ctrl_reg(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 
-	if (HAS_PCH_SPLIT(dev))
+	if (IS_BROXTON(dev))
+		return BXT_PP_CONTROL(0);
+	else if (HAS_PCH_SPLIT(dev))
 		return PCH_PP_CONTROL;
 	else
 		return VLV_PIPE_PP_CONTROL(vlv_power_sequencer_pipe(intel_dp));
@@ -577,7 +579,9 @@ static u32 _pp_stat_reg(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 
-	if (HAS_PCH_SPLIT(dev))
+	if (IS_BROXTON(dev))
+		return BXT_PP_STATUS(0);
+	else if (HAS_PCH_SPLIT(dev))
 		return PCH_PP_STATUS;
 	else
 		return VLV_PIPE_PP_STATUS(vlv_power_sequencer_pipe(intel_dp));
@@ -1703,8 +1707,10 @@ static  u32 ironlake_get_pp_control(struct intel_dp *intel_dp)
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
 	control = I915_READ(_pp_ctrl_reg(intel_dp));
-	control &= ~PANEL_UNLOCK_MASK;
-	control |= PANEL_UNLOCK_REGS;
+	if (!IS_BROXTON(dev)) {
+		control &= ~PANEL_UNLOCK_MASK;
+		control |= PANEL_UNLOCK_REGS;
+	}
 	return control;
 }
 
@@ -5093,8 +5099,8 @@ intel_dp_init_panel_power_sequencer(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct edp_power_seq cur, vbt, spec,
 		*final = &intel_dp->pps_delays;
-	u32 pp_on, pp_off, pp_div, pp;
-	int pp_ctrl_reg, pp_on_reg, pp_off_reg, pp_div_reg;
+	u32 pp_on, pp_off, pp_div = 0, pp_ctl = 0;
+	int pp_ctrl_reg, pp_on_reg, pp_off_reg, pp_div_reg = 0;
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
@@ -5102,7 +5108,16 @@ intel_dp_init_panel_power_sequencer(struct drm_device *dev,
 	if (final->t11_t12 != 0)
 		return;
 
-	if (HAS_PCH_SPLIT(dev)) {
+	if (IS_BROXTON(dev)) {
+		/*
+		 * TODO: BXT has 2 sets of PPS registers.
+		 * Correct Register for Broxton need to be identified
+		 * using VBT. hardcoding for now
+		 */
+		pp_ctrl_reg = BXT_PP_CONTROL(0);
+		pp_on_reg = BXT_PP_ON_DELAYS(0);
+		pp_off_reg = BXT_PP_OFF_DELAYS(0);
+	} else if (HAS_PCH_SPLIT(dev)) {
 		pp_ctrl_reg = PCH_PP_CONTROL;
 		pp_on_reg = PCH_PP_ON_DELAYS;
 		pp_off_reg = PCH_PP_OFF_DELAYS;
@@ -5118,12 +5133,14 @@ intel_dp_init_panel_power_sequencer(struct drm_device *dev,
 
 	/* Workaround: Need to write PP_CONTROL with the unlock key as
 	 * the very first thing. */
-	pp = ironlake_get_pp_control(intel_dp);
-	I915_WRITE(pp_ctrl_reg, pp);
+	pp_ctl = ironlake_get_pp_control(intel_dp);
 
 	pp_on = I915_READ(pp_on_reg);
 	pp_off = I915_READ(pp_off_reg);
-	pp_div = I915_READ(pp_div_reg);
+	if (!IS_BROXTON(dev)) {
+		I915_WRITE(pp_ctrl_reg, pp_ctl);
+		pp_div = I915_READ(pp_div_reg);
+	}
 
 	/* Pull timing values out of registers */
 	cur.t1_t3 = (pp_on & PANEL_POWER_UP_DELAY_MASK) >>
@@ -5138,8 +5155,17 @@ intel_dp_init_panel_power_sequencer(struct drm_device *dev,
 	cur.t10 = (pp_off & PANEL_POWER_DOWN_DELAY_MASK) >>
 		PANEL_POWER_DOWN_DELAY_SHIFT;
 
-	cur.t11_t12 = ((pp_div & PANEL_POWER_CYCLE_DELAY_MASK) >>
+	if (IS_BROXTON(dev)) {
+		u16 tmp = (pp_ctl & BXT_POWER_CYCLE_DELAY_MASK) >>
+			BXT_POWER_CYCLE_DELAY_SHIFT;
+		if (tmp > 0)
+			cur.t11_t12 = (tmp - 1) * 1000;
+		else
+			cur.t11_t12 = 0;
+	} else {
+		cur.t11_t12 = ((pp_div & PANEL_POWER_CYCLE_DELAY_MASK) >>
 		       PANEL_POWER_CYCLE_DELAY_SHIFT) * 1000;
+	}
 
 	DRM_DEBUG_KMS("cur t1_t3 %d t8 %d t9 %d t10 %d t11_t12 %d\n",
 		      cur.t1_t3, cur.t8, cur.t9, cur.t10, cur.t11_t12);
@@ -5196,13 +5222,23 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp_on, pp_off, pp_div, port_sel = 0;
 	int div = HAS_PCH_SPLIT(dev) ? intel_pch_rawclk(dev) : intel_hrawclk(dev);
-	int pp_on_reg, pp_off_reg, pp_div_reg;
+	int pp_on_reg, pp_off_reg, pp_div_reg = 0, pp_ctrl_reg;
 	enum port port = dp_to_dig_port(intel_dp)->port;
 	const struct edp_power_seq *seq = &intel_dp->pps_delays;
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
-	if (HAS_PCH_SPLIT(dev)) {
+	if (IS_BROXTON(dev)) {
+		/*
+		 * TODO: BXT has 2 sets of PPS registers.
+		 * Correct Register for Broxton need to be identified
+		 * using VBT. hardcoding for now
+		 */
+		pp_ctrl_reg = BXT_PP_CONTROL(0);
+		pp_on_reg = BXT_PP_ON_DELAYS(0);
+		pp_off_reg = BXT_PP_OFF_DELAYS(0);
+
+	} else if (HAS_PCH_SPLIT(dev)) {
 		pp_on_reg = PCH_PP_ON_DELAYS;
 		pp_off_reg = PCH_PP_OFF_DELAYS;
 		pp_div_reg = PCH_PP_DIVISOR;
@@ -5228,9 +5264,16 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 		 (seq->t10 << PANEL_POWER_DOWN_DELAY_SHIFT);
 	/* Compute the divisor for the pp clock, simply match the Bspec
 	 * formula. */
-	pp_div = ((100 * div)/2 - 1) << PP_REFERENCE_DIVIDER_SHIFT;
-	pp_div |= (DIV_ROUND_UP(seq->t11_t12, 1000)
-			<< PANEL_POWER_CYCLE_DELAY_SHIFT);
+	if (IS_BROXTON(dev)) {
+		pp_div = I915_READ(pp_ctrl_reg);
+		pp_div &= ~BXT_POWER_CYCLE_DELAY_MASK;
+		pp_div |= (DIV_ROUND_UP((seq->t11_t12 + 1), 1000)
+				<< BXT_POWER_CYCLE_DELAY_SHIFT);
+	} else {
+		pp_div = ((100 * div)/2 - 1) << PP_REFERENCE_DIVIDER_SHIFT;
+		pp_div |= (DIV_ROUND_UP(seq->t11_t12, 1000)
+				<< PANEL_POWER_CYCLE_DELAY_SHIFT);
+	}
 
 	/* Haswell doesn't have any port selection bits for the panel
 	 * power sequencer any more. */
@@ -5247,11 +5290,16 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 
 	I915_WRITE(pp_on_reg, pp_on);
 	I915_WRITE(pp_off_reg, pp_off);
-	I915_WRITE(pp_div_reg, pp_div);
+	if (IS_BROXTON(dev))
+		I915_WRITE(pp_ctrl_reg, pp_div);
+	else
+		I915_WRITE(pp_div_reg, pp_div);
 
 	DRM_DEBUG_KMS("panel power sequencer register settings: PP_ON %#x, PP_OFF %#x, PP_DIV %#x\n",
 		      I915_READ(pp_on_reg),
 		      I915_READ(pp_off_reg),
+		      IS_BROXTON(dev) ?
+		      (I915_READ(pp_ctrl_reg) & BXT_POWER_CYCLE_DELAY_MASK) :
 		      I915_READ(pp_div_reg));
 }
 
