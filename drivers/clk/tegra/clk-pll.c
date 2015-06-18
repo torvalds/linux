@@ -187,17 +187,23 @@
 #define pll_readl_base(p) pll_readl(p->params->base_reg, p)
 #define pll_readl_misc(p) pll_readl(p->params->misc_reg, p)
 #define pll_override_readl(offset, p) readl_relaxed(p->pmc + offset)
+#define pll_readl_sdm_din(p) pll_readl(p->params->sdm_din_reg, p)
+#define pll_readl_sdm_ctrl(p) pll_readl(p->params->sdm_ctrl_reg, p)
 
 #define pll_writel(val, offset, p) writel_relaxed(val, p->clk_base + offset)
 #define pll_writel_base(val, p) pll_writel(val, p->params->base_reg, p)
 #define pll_writel_misc(val, p) pll_writel(val, p->params->misc_reg, p)
 #define pll_override_writel(val, offset, p) writel(val, p->pmc + offset)
+#define pll_writel_sdm_din(val, p) pll_writel(val, p->params->sdm_din_reg, p)
+#define pll_writel_sdm_ctrl(val, p) pll_writel(val, p->params->sdm_ctrl_reg, p)
 
 #define mask(w) ((1 << (w)) - 1)
 #define divm_mask(p) mask(p->params->div_nmp->divm_width)
 #define divn_mask(p) mask(p->params->div_nmp->divn_width)
 #define divp_mask(p) (p->params->flags & TEGRA_PLLU ? PLLU_POST_DIVP_MASK :\
 		      mask(p->params->div_nmp->divp_width))
+#define sdm_din_mask(p) p->params->sdm_din_mask
+#define sdm_en_mask(p) p->params->sdm_ctrl_en_mask
 
 #define divm_shift(p) (p)->params->div_nmp->divm_shift
 #define divn_shift(p) (p)->params->div_nmp->divn_shift
@@ -210,6 +216,9 @@
 #define divm_max(p) (divm_mask(p))
 #define divn_max(p) (divn_mask(p))
 #define divp_max(p) (1 << (divp_mask(p)))
+
+#define sdin_din_to_data(din)	((u16)((din) ? : 0xFFFFU))
+#define sdin_data_to_din(dat)	(((dat) == 0xFFFFU) ? 0 : (s16)dat)
 
 static struct div_nmp default_nmp = {
 	.divn_shift = PLL_BASE_DIVN_SHIFT,
@@ -429,6 +438,7 @@ static int _get_table_rate(struct clk_hw *hw,
 	cfg->n = sel->n;
 	cfg->p = sel->p;
 	cfg->cpcon = sel->cpcon;
+	cfg->sdm_data = sel->sdm_data;
 
 	return 0;
 }
@@ -495,6 +505,42 @@ static int _calc_rate(struct clk_hw *hw, struct tegra_clk_pll_freq_table *cfg,
 	return 0;
 }
 
+/*
+ * SDM (Sigma Delta Modulator) divisor is 16-bit 2's complement signed number
+ * within (-2^12 ... 2^12-1) range. Represented in PLL data structure as
+ * unsigned 16-bit value, with "0" divisor mapped to 0xFFFF. Data "0" is used
+ * to indicate that SDM is disabled.
+ *
+ * Effective ndiv value when SDM is enabled: ndiv + 1/2 + sdm_din/2^13
+ */
+static void clk_pll_set_sdm_data(struct clk_hw *hw,
+				 struct tegra_clk_pll_freq_table *cfg)
+{
+	struct tegra_clk_pll *pll = to_clk_pll(hw);
+	u32 val;
+	bool enabled;
+
+	if (!pll->params->sdm_din_reg)
+		return;
+
+	if (cfg->sdm_data) {
+		val = pll_readl_sdm_din(pll) & (~sdm_din_mask(pll));
+		val |= sdin_data_to_din(cfg->sdm_data) & sdm_din_mask(pll);
+		pll_writel_sdm_din(val, pll);
+	}
+
+	val = pll_readl_sdm_ctrl(pll);
+	enabled = (val & sdm_en_mask(pll));
+
+	if (cfg->sdm_data == 0 && enabled)
+		val &= ~pll->params->sdm_ctrl_en_mask;
+
+	if (cfg->sdm_data != 0 && !enabled)
+		val |= pll->params->sdm_ctrl_en_mask;
+
+	pll_writel_sdm_ctrl(val, pll);
+}
+
 static void _update_pll_mnp(struct tegra_clk_pll *pll,
 			    struct tegra_clk_pll_freq_table *cfg)
 {
@@ -527,6 +573,8 @@ static void _update_pll_mnp(struct tegra_clk_pll *pll,
 		       (cfg->p << divp_shift(pll));
 
 		pll_writel_base(val, pll);
+
+		clk_pll_set_sdm_data(&pll->hw, cfg);
 	}
 }
 
@@ -552,6 +600,14 @@ static void _get_pll_mnp(struct tegra_clk_pll *pll,
 		cfg->m = (val >> div_nmp->divm_shift) & divm_mask(pll);
 		cfg->n = (val >> div_nmp->divn_shift) & divn_mask(pll);
 		cfg->p = (val >> div_nmp->divp_shift) & divp_mask(pll);
+
+		if (pll->params->sdm_din_reg) {
+			if (sdm_en_mask(pll) & pll_readl_sdm_ctrl(pll)) {
+				val = pll_readl_sdm_din(pll);
+				val &= sdm_din_mask(pll);
+				cfg->sdm_data = sdin_din_to_data(val);
+			}
+		}
 	}
 }
 
@@ -633,7 +689,8 @@ static int clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	_get_pll_mnp(pll, &old_cfg);
 
-	if (old_cfg.m != cfg.m || old_cfg.n != cfg.n || old_cfg.p != cfg.p)
+	if (old_cfg.m != cfg.m || old_cfg.n != cfg.n || old_cfg.p != cfg.p ||
+		old_cfg.sdm_data != cfg.sdm_data)
 		ret = _program_pll(hw, &cfg, rate);
 
 	if (pll->lock)
@@ -696,6 +753,9 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 			__clk_get_name(hw->clk), cfg.p);
 		pdiv = 1;
 	}
+
+	if (pll->params->set_gain)
+		pll->params->set_gain(&cfg);
 
 	cfg.m *= pdiv;
 
@@ -978,6 +1038,7 @@ static int clk_pllxc_set_rate(struct clk_hw *hw, unsigned long rate,
 static long clk_pll_ramp_round_rate(struct clk_hw *hw, unsigned long rate,
 				unsigned long *prate)
 {
+	struct tegra_clk_pll *pll = to_clk_pll(hw);
 	struct tegra_clk_pll_freq_table cfg;
 	int ret, p_div;
 	u64 output_rate = *prate;
@@ -989,6 +1050,9 @@ static long clk_pll_ramp_round_rate(struct clk_hw *hw, unsigned long rate,
 	p_div = _hw_to_p_div(hw, cfg.p);
 	if (p_div < 0)
 		return p_div;
+
+	if (pll->params->set_gain)
+		pll->params->set_gain(&cfg);
 
 	output_rate *= cfg.n;
 	do_div(output_rate, cfg.m * p_div);

@@ -110,14 +110,16 @@ struct clk *tegra_clk_register_mc(const char *name, const char *parent_name,
  * @m:			input divider
  * @p:			post divider
  * @cpcon:		charge pump current
+ * @sdm_data:		fraction divider setting (0 = disabled)
  */
 struct tegra_clk_pll_freq_table {
 	unsigned long	input_rate;
 	unsigned long	output_rate;
-	u16		n;
+	u32		n;
 	u16		m;
 	u8		p;
 	u8		cpcon;
+	u16		sdm_data;
 };
 
 /**
@@ -174,6 +176,10 @@ struct div_nmp {
  * @lock_enable_bit_idx:	Bit index to enable PLL lock
  * @iddq_reg:			PLL IDDQ register offset
  * @iddq_bit_idx:		Bit index to enable PLL IDDQ
+ * @sdm_din_reg:		Register offset where SDM settings are
+ * @sdm_din_mask:		Mask of SDM divider bits
+ * @sdm_ctrl_reg:		Register offset where SDM enable is
+ * @sdm_ctrl_en_mask:		Mask of SDM enable bit
  * @aux_reg:			AUX register offset
  * @dyn_ramp_reg:		Dynamic ramp control register offset
  * @ext_misc_reg:		Miscellaneous control register offsets
@@ -188,6 +194,8 @@ struct div_nmp {
  * @div_nmp:			offsets and widths on n, m and p fields
  * @freq_table:			array of frequencies supported by PLL
  * @fixed_rate:			PLL rate if it is fixed
+ * @set_gain:			Callback to adjust N div for SDM enabled
+ *				PLL's based on fractional divider value.
  *
  * Flags:
  * TEGRA_PLL_USE_LOCK - This flag indicated to use lock bits for
@@ -225,6 +233,10 @@ struct tegra_clk_pll_params {
 	u32		lock_enable_bit_idx;
 	u32		iddq_reg;
 	u32		iddq_bit_idx;
+	u32		sdm_din_reg;
+	u32		sdm_din_mask;
+	u32		sdm_ctrl_reg;
+	u32		sdm_ctrl_en_mask;
 	u32		aux_reg;
 	u32		dyn_ramp_reg;
 	u32		ext_misc_reg[MAX_PLL_MISC_REG_COUNT];
@@ -239,6 +251,7 @@ struct tegra_clk_pll_params {
 	struct div_nmp	*div_nmp;
 	struct tegra_clk_pll_freq_table	*freq_table;
 	unsigned long	fixed_rate;
+	void	(*set_gain)(struct tegra_clk_pll_freq_table *cfg);
 };
 
 #define TEGRA_PLL_USE_LOCK BIT(0)
