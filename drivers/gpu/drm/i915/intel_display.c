@@ -2304,7 +2304,8 @@ int
 intel_pin_and_fence_fb_obj(struct drm_plane *plane,
 			   struct drm_framebuffer *fb,
 			   const struct drm_plane_state *plane_state,
-			   struct intel_engine_cs *pipelined)
+			   struct intel_engine_cs *pipelined,
+			   struct drm_i915_gem_request **pipelined_request)
 {
 	struct drm_device *dev = fb->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2362,7 +2363,7 @@ intel_pin_and_fence_fb_obj(struct drm_plane *plane,
 
 	dev_priv->mm.interruptible = false;
 	ret = i915_gem_object_pin_to_display_plane(obj, alignment, pipelined,
-						   &view);
+						   pipelined_request, &view);
 	if (ret)
 		goto err_interruptible;
 
@@ -11352,6 +11353,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	struct intel_unpin_work *work;
 	struct intel_engine_cs *ring;
 	bool mmio_flip;
+	struct drm_i915_gem_request *request = NULL;
 	int ret;
 
 	/*
@@ -11458,7 +11460,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	 */
 	ret = intel_pin_and_fence_fb_obj(crtc->primary, fb,
 					 crtc->primary->state,
-					 mmio_flip ? i915_gem_request_get_ring(obj->last_write_req) : ring);
+					 mmio_flip ? i915_gem_request_get_ring(obj->last_write_req) : ring, &request);
 	if (ret)
 		goto cleanup_pending;
 
@@ -11489,6 +11491,9 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 					intel_ring_get_request(ring));
 	}
 
+	if (request)
+		i915_add_request_no_flush(request->ring);
+
 	work->flip_queued_vblank = drm_crtc_vblank_count(crtc);
 	work->enable_stall_check = true;
 
@@ -11506,6 +11511,8 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 cleanup_unpin:
 	intel_unpin_fb_obj(fb, crtc->primary->state);
 cleanup_pending:
+	if (request)
+		i915_gem_request_cancel(request);
 	atomic_dec(&intel_crtc->unpin_work_count);
 	mutex_unlock(&dev->struct_mutex);
 cleanup:
@@ -13620,7 +13627,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 		if (ret)
 			DRM_DEBUG_KMS("failed to attach phys object\n");
 	} else {
-		ret = intel_pin_and_fence_fb_obj(plane, fb, new_state, NULL);
+		ret = intel_pin_and_fence_fb_obj(plane, fb, new_state, NULL, NULL);
 	}
 
 	if (ret == 0)
@@ -15560,7 +15567,7 @@ void intel_modeset_gem_init(struct drm_device *dev)
 		ret = intel_pin_and_fence_fb_obj(c->primary,
 						 c->primary->fb,
 						 c->primary->state,
-						 NULL);
+						 NULL, NULL);
 		mutex_unlock(&dev->struct_mutex);
 		if (ret) {
 			DRM_ERROR("failed to pin boot fb on pipe %d\n",

@@ -3094,25 +3094,26 @@ out:
 static int
 __i915_gem_object_sync(struct drm_i915_gem_object *obj,
 		       struct intel_engine_cs *to,
-		       struct drm_i915_gem_request *req)
+		       struct drm_i915_gem_request *from_req,
+		       struct drm_i915_gem_request **to_req)
 {
 	struct intel_engine_cs *from;
 	int ret;
 
-	from = i915_gem_request_get_ring(req);
+	from = i915_gem_request_get_ring(from_req);
 	if (to == from)
 		return 0;
 
-	if (i915_gem_request_completed(req, true))
+	if (i915_gem_request_completed(from_req, true))
 		return 0;
 
-	ret = i915_gem_check_olr(req);
+	ret = i915_gem_check_olr(from_req);
 	if (ret)
 		return ret;
 
 	if (!i915_semaphore_is_enabled(obj->base.dev)) {
 		struct drm_i915_private *i915 = to_i915(obj->base.dev);
-		ret = __i915_wait_request(req,
+		ret = __i915_wait_request(from_req,
 					  atomic_read(&i915->gpu_error.reset_counter),
 					  i915->mm.interruptible,
 					  NULL,
@@ -3120,15 +3121,23 @@ __i915_gem_object_sync(struct drm_i915_gem_object *obj,
 		if (ret)
 			return ret;
 
-		i915_gem_object_retire_request(obj, req);
+		i915_gem_object_retire_request(obj, from_req);
 	} else {
 		int idx = intel_ring_sync_index(from, to);
-		u32 seqno = i915_gem_request_get_seqno(req);
+		u32 seqno = i915_gem_request_get_seqno(from_req);
+
+		WARN_ON(!to_req);
 
 		if (seqno <= from->semaphore.sync_seqno[idx])
 			return 0;
 
-		trace_i915_gem_ring_sync_to(from, to, req);
+		if (*to_req == NULL) {
+			ret = i915_gem_request_alloc(to, to->default_context, to_req);
+			if (ret)
+				return ret;
+		}
+
+		trace_i915_gem_ring_sync_to(from, to, from_req);
 		ret = to->semaphore.sync_to(to, from, seqno);
 		if (ret)
 			return ret;
@@ -3149,11 +3158,14 @@ __i915_gem_object_sync(struct drm_i915_gem_object *obj,
  *
  * @obj: object which may be in use on another ring.
  * @to: ring we wish to use the object on. May be NULL.
+ * @to_req: request we wish to use the object for. See below.
+ *          This will be allocated and returned if a request is
+ *          required but not passed in.
  *
  * This code is meant to abstract object synchronization with the GPU.
  * Calling with NULL implies synchronizing the object with the CPU
  * rather than a particular GPU ring. Conceptually we serialise writes
- * between engines inside the GPU. We only allow on engine to write
+ * between engines inside the GPU. We only allow one engine to write
  * into a buffer at any time, but multiple readers. To ensure each has
  * a coherent view of memory, we must:
  *
@@ -3164,11 +3176,22 @@ __i915_gem_object_sync(struct drm_i915_gem_object *obj,
  * - If we are a write request (pending_write_domain is set), the new
  *   request must wait for outstanding read requests to complete.
  *
+ * For CPU synchronisation (NULL to) no request is required. For syncing with
+ * rings to_req must be non-NULL. However, a request does not have to be
+ * pre-allocated. If *to_req is NULL and sync commands will be emitted then a
+ * request will be allocated automatically and returned through *to_req. Note
+ * that it is not guaranteed that commands will be emitted (because the system
+ * might already be idle). Hence there is no need to create a request that
+ * might never have any work submitted. Note further that if a request is
+ * returned in *to_req, it is the responsibility of the caller to submit
+ * that request (after potentially adding more work to it).
+ *
  * Returns 0 if successful, else propagates up the lower layer error.
  */
 int
 i915_gem_object_sync(struct drm_i915_gem_object *obj,
-		     struct intel_engine_cs *to)
+		     struct intel_engine_cs *to,
+		     struct drm_i915_gem_request **to_req)
 {
 	const bool readonly = obj->base.pending_write_domain == 0;
 	struct drm_i915_gem_request *req[I915_NUM_RINGS];
@@ -3190,7 +3213,7 @@ i915_gem_object_sync(struct drm_i915_gem_object *obj,
 				req[n++] = obj->last_read_req[i];
 	}
 	for (i = 0; i < n; i++) {
-		ret = __i915_gem_object_sync(obj, to, req[i]);
+		ret = __i915_gem_object_sync(obj, to, req[i], to_req);
 		if (ret)
 			return ret;
 	}
@@ -4140,12 +4163,13 @@ int
 i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     u32 alignment,
 				     struct intel_engine_cs *pipelined,
+				     struct drm_i915_gem_request **pipelined_request,
 				     const struct i915_ggtt_view *view)
 {
 	u32 old_read_domains, old_write_domain;
 	int ret;
 
-	ret = i915_gem_object_sync(obj, pipelined);
+	ret = i915_gem_object_sync(obj, pipelined, pipelined_request);
 	if (ret)
 		return ret;
 

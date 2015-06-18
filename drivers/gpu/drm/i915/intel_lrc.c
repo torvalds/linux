@@ -637,7 +637,7 @@ static int execlists_move_to_gpu(struct drm_i915_gem_request *req,
 		struct drm_i915_gem_object *obj = vma->obj;
 
 		if (obj->active & other_rings) {
-			ret = i915_gem_object_sync(obj, req->ring);
+			ret = i915_gem_object_sync(obj, req->ring, &req);
 			if (ret)
 				return ret;
 		}

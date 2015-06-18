@@ -1045,7 +1045,8 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 int intel_pin_and_fence_fb_obj(struct drm_plane *plane,
 			       struct drm_framebuffer *fb,
 			       const struct drm_plane_state *plane_state,
-			       struct intel_engine_cs *pipelined);
+			       struct intel_engine_cs *pipelined,
+			       struct drm_i915_gem_request **pipelined_request);
 struct drm_framebuffer *
 __intel_framebuffer_create(struct drm_device *dev,
 			   struct drm_mode_fb_cmd2 *mode_cmd,
