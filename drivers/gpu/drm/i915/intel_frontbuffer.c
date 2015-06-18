@@ -131,7 +131,7 @@ void intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
 			     enum fb_op_origin origin)
 {
 	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
@@ -168,7 +168,7 @@ void intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
 void intel_frontbuffer_flush(struct drm_device *dev,
 			     unsigned frontbuffer_bits)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	/* Delay flushing when rings are still busy.*/
 	mutex_lock(&dev_priv->fb_tracking.lock);
@@ -198,7 +198,7 @@ void intel_fb_obj_flush(struct drm_i915_gem_object *obj,
 			bool retire)
 {
 	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	unsigned frontbuffer_bits;
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
@@ -235,7 +235,7 @@ void intel_fb_obj_flush(struct drm_i915_gem_object *obj,
 void intel_frontbuffer_flip_prepare(struct drm_device *dev,
 				    unsigned frontbuffer_bits)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	mutex_lock(&dev_priv->fb_tracking.lock);
 	dev_priv->fb_tracking.flip_bits |= frontbuffer_bits;
@@ -259,7 +259,7 @@ void intel_frontbuffer_flip_prepare(struct drm_device *dev,
 void intel_frontbuffer_flip_complete(struct drm_device *dev,
 				     unsigned frontbuffer_bits)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	mutex_lock(&dev_priv->fb_tracking.lock);
 	/* Mask any cancelled flips. */
@@ -285,7 +285,7 @@ void intel_frontbuffer_flip_complete(struct drm_device *dev,
 void intel_frontbuffer_flip(struct drm_device *dev,
 			    unsigned frontbuffer_bits)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	mutex_lock(&dev_priv->fb_tracking.lock);
 	/* Remove stale busy bits due to the old buffer. */
