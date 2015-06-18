@@ -202,6 +202,8 @@ struct div_nmp {
  *				PLL's based on fractional divider value.
  * @calc_rate:			Callback used to change how out of table
  *				rates (dividers and multipler) are calculated.
+ * @adjust_vco:			Callback to adjust the programming range of the
+ *				divider range (if SDM is present)
  *
  * Flags:
  * TEGRA_PLL_USE_LOCK - This flag indicated to use lock bits for
@@ -269,6 +271,8 @@ struct tegra_clk_pll_params {
 	int	(*calc_rate)(struct clk_hw *hw,
 			struct tegra_clk_pll_freq_table *cfg,
 			unsigned long rate, unsigned long parent_rate);
+	unsigned long	(*adjust_vco)(struct tegra_clk_pll_params *pll_params,
+				unsigned long parent_rate);
 };
 
 #define TEGRA_PLL_USE_LOCK BIT(0)
