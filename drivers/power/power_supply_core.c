@@ -824,7 +824,7 @@ struct power_supply *__must_check power_supply_register(struct device *parent,
 EXPORT_SYMBOL_GPL(power_supply_register);
 
 /**
- * power_supply_register() - Register new non-waking-source power supply
+ * power_supply_register_no_ws() - Register new non-waking-source power supply
  * @parent:	Device to be a parent of power supply's device, usually
  *		the device which probe function calls this
  * @desc:	Description of power supply, must be valid through whole
@@ -854,7 +854,7 @@ static void devm_power_supply_release(struct device *dev, void *res)
 }
 
 /**
- * power_supply_register() - Register managed power supply
+ * devm_power_supply_register() - Register managed power supply
  * @parent:	Device to be a parent of power supply's device, usually
  *		the device which probe function calls this
  * @desc:	Description of power supply, must be valid through whole
@@ -890,7 +890,7 @@ devm_power_supply_register(struct device *parent,
 EXPORT_SYMBOL_GPL(devm_power_supply_register);
 
 /**
- * power_supply_register() - Register managed non-waking-source power supply
+ * devm_power_supply_register_no_ws() - Register managed non-waking-source power supply
  * @parent:	Device to be a parent of power supply's device, usually
  *		the device which probe function calls this
  * @desc:	Description of power supply, must be valid through whole
