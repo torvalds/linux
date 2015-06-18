@@ -107,8 +107,8 @@ static DEFINE_SPINLOCK(release_agent_path_lock);
 struct percpu_rw_semaphore cgroup_threadgroup_rwsem;
 
 #define cgroup_assert_mutex_or_rcu_locked()				\
-	rcu_lockdep_assert(rcu_read_lock_held() ||			\
-			   lockdep_is_held(&cgroup_mutex),		\
+	RCU_LOCKDEP_WARN(!rcu_read_lock_held() &&			\
+			   !lockdep_is_held(&cgroup_mutex),		\
 			   "cgroup_mutex or RCU read lock required");
 
 /*

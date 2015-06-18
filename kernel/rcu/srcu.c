@@ -415,11 +415,11 @@ static void __synchronize_srcu(struct srcu_struct *sp, int trycount)
 	struct rcu_head *head = &rcu.head;
 	bool done = false;
 
-	rcu_lockdep_assert(!lock_is_held(&sp->dep_map) &&
-			   !lock_is_held(&rcu_bh_lock_map) &&
-			   !lock_is_held(&rcu_lock_map) &&
-			   !lock_is_held(&rcu_sched_lock_map),
-			   "Illegal synchronize_srcu() in same-type SRCU (or RCU) read-side critical section");
+	RCU_LOCKDEP_WARN(lock_is_held(&sp->dep_map) ||
+			 lock_is_held(&rcu_bh_lock_map) ||
+			 lock_is_held(&rcu_lock_map) ||
+			 lock_is_held(&rcu_sched_lock_map),
+			 "Illegal synchronize_srcu() in same-type SRCU (or in RCU) read-side critical section");
 
 	might_sleep();
 	init_completion(&rcu.completion);
