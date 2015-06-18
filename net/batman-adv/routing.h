@@ -22,10 +22,6 @@
 
 #include <linux/types.h>
 
-struct batadv_hard_iface;
-struct batadv_neigh_node;
-struct batadv_orig_node;
-struct batadv_priv;
 struct sk_buff;
 
 bool batadv_check_management_packet(struct sk_buff *skb,

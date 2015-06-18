@@ -22,9 +22,6 @@
 
 #include <linux/types.h>
 
-struct batadv_hard_iface;
-struct batadv_orig_node;
-struct batadv_priv;
 struct seq_file;
 struct sk_buff;
 

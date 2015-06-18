@@ -25,9 +25,6 @@
 
 #include "packet.h"
 
-struct batadv_hard_iface;
-struct batadv_orig_node;
-struct batadv_priv;
 struct sk_buff;
 struct work_struct;
 

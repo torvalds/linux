@@ -22,8 +22,6 @@
 
 #include <linux/types.h>
 
-struct batadv_orig_node;
-struct batadv_priv;
 struct net_device;
 struct seq_file;
 
