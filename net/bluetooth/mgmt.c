@@ -1471,6 +1471,73 @@ static void advertising_removed(struct sock *sk, struct hci_dev *hdev,
 	mgmt_event(MGMT_EV_ADVERTISING_REMOVED, hdev, &ev, sizeof(ev), sk);
 }
 
+static int schedule_adv_instance(struct hci_request *req, u8 instance,
+				 bool force) {
+	struct hci_dev *hdev = req->hdev;
+	struct adv_info *adv_instance = NULL;
+	u16 timeout;
+
+	if (hci_dev_test_flag(hdev, HCI_ADVERTISING) ||
+	    !hci_dev_test_flag(hdev, HCI_ADVERTISING_INSTANCE))
+		return -EPERM;
+
+	if (hdev->adv_instance_timeout)
+		return -EBUSY;
+
+	adv_instance = hci_find_adv_instance(hdev, instance);
+	if (!adv_instance)
+		return -ENOENT;
+
+	/* A zero timeout means unlimited advertising. As long as there is
+	 * only one instance, duration should be ignored. We still set a timeout
+	 * in case further instances are being added later on.
+	 *
+	 * If the remaining lifetime of the instance is more than the duration
+	 * then the timeout corresponds to the duration, otherwise it will be
+	 * reduced to the remaining instance lifetime.
+	 */
+	if (adv_instance->timeout == 0 ||
+	    adv_instance->duration <= adv_instance->remaining_time)
+		timeout = adv_instance->duration;
+	else
+		timeout = adv_instance->remaining_time;
+
+	/* The remaining time is being reduced unless the instance is being
+	 * advertised without time limit.
+	 */
+	if (adv_instance->timeout)
+		adv_instance->remaining_time =
+				adv_instance->remaining_time - timeout;
+
+	hdev->adv_instance_timeout = timeout;
+	queue_delayed_work(hdev->workqueue,
+			   &hdev->adv_instance_expire,
+			   msecs_to_jiffies(timeout * 1000));
+
+	/* If we're just re-scheduling the same instance again then do not
+	 * execute any HCI commands. This happens when a single instance is
+	 * being advertised.
+	 */
+	if (!force && hdev->cur_adv_instance == instance &&
+	    hci_dev_test_flag(hdev, HCI_LE_ADV))
+		return 0;
+
+	hdev->cur_adv_instance = instance;
+	update_adv_data(req);
+	update_scan_rsp_data(req);
+	enable_advertising(req);
+
+	return 0;
+}
+
+static void cancel_adv_timeout(struct hci_dev *hdev)
+{
+	if (hdev->adv_instance_timeout) {
+		hdev->adv_instance_timeout = 0;
+		cancel_delayed_work(&hdev->adv_instance_expire);
+	}
+}
+
 static void clear_adv_instance(struct hci_dev *hdev)
 {
 	struct hci_request req;
@@ -4681,6 +4748,9 @@ static void set_advertising_complete(struct hci_dev *hdev, u8 status,
 {
 	struct cmd_lookup match = { NULL, hdev };
 	struct hci_request req;
+	u8 instance;
+	struct adv_info *adv_instance;
+	int err;
 
 	hci_dev_lock(hdev);
 
@@ -4706,18 +4776,31 @@ static void set_advertising_complete(struct hci_dev *hdev, u8 status,
 		sock_put(match.sk);
 
 	/* If "Set Advertising" was just disabled and instance advertising was
-	 * set up earlier, then enable the advertising instance.
+	 * set up earlier, then re-enable multi-instance advertising.
 	 */
 	if (hci_dev_test_flag(hdev, HCI_ADVERTISING) ||
-	    !hci_dev_test_flag(hdev, HCI_ADVERTISING_INSTANCE))
+	    !hci_dev_test_flag(hdev, HCI_ADVERTISING_INSTANCE) ||
+	    list_empty(&hdev->adv_instances))
 		goto unlock;
+
+	instance = hdev->cur_adv_instance;
+	if (!instance) {
+		adv_instance = list_first_entry_or_null(&hdev->adv_instances,
+							struct adv_info, list);
+		if (!adv_instance)
+			goto unlock;
+
+		instance = adv_instance->instance;
+	}
 
 	hci_req_init(&req, hdev);
 
-	update_adv_data(&req);
-	enable_advertising(&req);
+	err = schedule_adv_instance(&req, instance, true);
 
-	if (hci_req_run(&req, enable_advertising_instance) < 0)
+	if (!err)
+		err = hci_req_run(&req, enable_advertising_instance);
+
+	if (err)
 		BT_ERR("Failed to re-configure advertising");
 
 unlock:
@@ -4802,8 +4885,13 @@ static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data,
 	else
 		hci_dev_clear_flag(hdev, HCI_ADVERTISING_CONNECTABLE);
 
+	cancel_adv_timeout(hdev);
+
 	if (val) {
-		/* Switch to instance "0" for the Set Advertising setting. */
+		/* Switch to instance "0" for the Set Advertising setting.
+		 * We cannot use update_[adv|scan_rsp]_data() here as the
+		 * HCI_ADVERTISING flag is not yet set.
+		 */
 		update_inst_adv_data(&req, 0x00);
 		update_inst_scan_rsp_data(&req, 0x00);
 		enable_advertising(&req);
