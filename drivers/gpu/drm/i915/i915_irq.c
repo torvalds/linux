@@ -879,7 +879,7 @@ static void i915_digport_work_func(struct work_struct *work)
 /*
  * Handle hotplug events outside the interrupt handler proper.
  */
-#define I915_REENABLE_HOTPLUG_DELAY (2*60*1000)
+static void intel_hpd_irq_storm_disable(struct drm_i915_private *dev_priv);
 
 static void i915_hotplug_work_func(struct work_struct *work)
 {
@@ -890,7 +890,6 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	struct intel_connector *intel_connector;
 	struct intel_encoder *intel_encoder;
 	struct drm_connector *connector;
-	bool hpd_disabled = false;
 	bool changed = false;
 	u32 hpd_event_bits;
 
@@ -901,31 +900,9 @@ static void i915_hotplug_work_func(struct work_struct *work)
 
 	hpd_event_bits = dev_priv->hotplug.event_bits;
 	dev_priv->hotplug.event_bits = 0;
-	list_for_each_entry(connector, &mode_config->connector_list, head) {
-		intel_connector = to_intel_connector(connector);
-		if (!intel_connector->encoder)
-			continue;
-		intel_encoder = intel_connector->encoder;
-		if (intel_encoder->hpd_pin > HPD_NONE &&
-		    dev_priv->hotplug.stats[intel_encoder->hpd_pin].state == HPD_MARK_DISABLED &&
-		    connector->polled == DRM_CONNECTOR_POLL_HPD) {
-			DRM_INFO("HPD interrupt storm detected on connector %s: "
-				 "switching from hotplug detection to polling\n",
-				connector->name);
-			dev_priv->hotplug.stats[intel_encoder->hpd_pin].state = HPD_DISABLED;
-			connector->polled = DRM_CONNECTOR_POLL_CONNECT
-				| DRM_CONNECTOR_POLL_DISCONNECT;
-			hpd_disabled = true;
-		}
-	}
-	 /* if there were no outputs to poll, poll was disabled,
-	  * therefore make sure it's enabled when disabling HPD on
-	  * some connectors */
-	if (hpd_disabled) {
-		drm_kms_helper_poll_enable(dev);
-		mod_delayed_work(system_wq, &dev_priv->hotplug.reenable_work,
-				 msecs_to_jiffies(I915_REENABLE_HOTPLUG_DELAY));
-	}
+
+	/* Disable hotplug on connectors that hit an irq storm. */
+	intel_hpd_irq_storm_disable(dev_priv);
 
 	spin_unlock_irq(&dev_priv->irq_lock);
 
@@ -1409,6 +1386,52 @@ static bool intel_hpd_irq_storm(struct drm_i915_private *dev_priv,
 	}
 
 	return storm;
+}
+
+#define I915_REENABLE_HOTPLUG_DELAY (2*60*1000)
+
+static void intel_hpd_irq_storm_disable(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct drm_mode_config *mode_config = &dev->mode_config;
+	struct intel_connector *intel_connector;
+	struct intel_encoder *intel_encoder;
+	struct drm_connector *connector;
+	enum hpd_pin pin;
+	bool hpd_disabled = false;
+
+	assert_spin_locked(&dev_priv->irq_lock);
+
+	list_for_each_entry(connector, &mode_config->connector_list, head) {
+		if (connector->polled != DRM_CONNECTOR_POLL_HPD)
+			continue;
+
+		intel_connector = to_intel_connector(connector);
+		intel_encoder = intel_connector->encoder;
+		if (!intel_encoder)
+			continue;
+
+		pin = intel_encoder->hpd_pin;
+		if (pin == HPD_NONE ||
+		    dev_priv->hotplug.stats[pin].state != HPD_MARK_DISABLED)
+			continue;
+
+		DRM_INFO("HPD interrupt storm detected on connector %s: "
+			 "switching from hotplug detection to polling\n",
+			 connector->name);
+
+		dev_priv->hotplug.stats[pin].state = HPD_DISABLED;
+		connector->polled = DRM_CONNECTOR_POLL_CONNECT
+			| DRM_CONNECTOR_POLL_DISCONNECT;
+		hpd_disabled = true;
+	}
+
+	/* Enable polling and queue hotplug re-enabling. */
+	if (hpd_disabled) {
+		drm_kms_helper_poll_enable(dev);
+		mod_delayed_work(system_wq, &dev_priv->hotplug.reenable_work,
+				 msecs_to_jiffies(I915_REENABLE_HOTPLUG_DELAY));
+	}
 }
 
 static bool pch_port_hotplug_long_detect(enum port port, u32 val)
