@@ -756,28 +756,6 @@ static void linux_wlan_mac_indicate(int flag)
 		}
 
 		if (pd->mac_status == WILC_MAC_STATUS_CONNECT) {        /* Connect */
-#if 0
-			/**
-			 *      get the mac and bssid address
-			 **/
-			PRINT_D(RX_DBG, "Calling cfg_get to get MAC_ADDR\n");
-			pd->oup.wlan_cfg_get(1, WID_MAC_ADDR, 0);
-			PRINT_D(RX_DBG, "Calling cfg_get to get BSSID\n");
-			pd->oup.wlan_cfg_get(0, WID_BSSID, 1);
-
-			/**
-			 *      get the value
-			 **/
-			pd->oup.wlan_cfg_get_value(WID_MAC_ADDR, pd->eth_src_address, 6);
-			pd->oup.wlan_cfg_get_value(WID_BSSID, pd->eth_dst_address, 6);
-
-			PRINT_D(GENERIC_DBG, "Source Address = %s", pd->eth_src_address);
-			PRINT_D(GENERIC_DBG, "Destiation Address = %s", pd->eth_dst_address);
-
-			/**
-			 *      launch ndis
-			 **/
-#endif
 		}
 
 	} else if (flag == WILC_MAC_INDICATE_SCAN) {

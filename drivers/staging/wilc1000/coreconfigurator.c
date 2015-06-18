@@ -210,9 +210,6 @@ static tstrWID gastrWIDs[] = {
 	{WID_REKEY_POLICY,              WID_CHAR},
 	{WID_REKEY_PERIOD,              WID_INT},
 	{WID_REKEY_PACKET_COUNT,        WID_INT},
-#if 0
-	{WID_WEP_KEY_VALUE0,            WID_STR},
-#endif
 	{WID_11I_PSK,                   WID_STR},
 	{WID_1X_KEY,                    WID_STR},
 	{WID_1X_SERV_ADDR,              WID_IP},
@@ -1619,26 +1616,6 @@ s32 further_process_response(u8 *resp,
 		break;
 
 	case WID_BIN_DATA:
-		#if 0
-		/* FILE    *fp_bin = NULL; */
-		u8 first_bin_wid = 1;
-		if (first_bin_wid) {
-			/* fp_bin = fopen("wid_response.bin","wb"); */
-			first_bin_wid = 0;
-		} else {
-			/* fp_bin = fopen("wid_response.bin","ab"); */
-		}
-
-		if (/*fp_bin == NULL*/ 0) {
-			PRINT_ER("Error: Could not open wid_response.bin for write\n");
-			return -2;
-		}
-
-		/* fwrite(resp + idx, cfg_len, 1, fp_bin); */
-
-		/* fclose(fp_bin); */
-		#endif
-
 		if (pstrWIDresult->s32ValueSize >= cfg_len) {
 			WILC_memcpy(pstrWIDresult->ps8WidVal, resp + idx, cfg_len);
 			pstrWIDresult->s32ValueSize = cfg_len;
@@ -1884,13 +1861,6 @@ s32 CreateConfigPacket(s8 *ps8packet, s32 *ps32PacketLength,
 				      pstrWIDs[u32idx].ps8WidVal, pstrWIDs[u32idx].s32ValueSize);
 			break;
 
-		#if 0
-		case WID_ADR:
-			ProcessAdrWid(ps8packet, ps32PacketLength, &pstrWIDs[u32idx],
-				      pstrWIDs[u32idx].ps8WidVal);
-			break;
-
-		#endif
 		case WID_IP:
 			ProcessIPwid(ps8packet, ps32PacketLength, &pstrWIDs[u32idx],
 				     pstrWIDs[u32idx].ps8WidVal);

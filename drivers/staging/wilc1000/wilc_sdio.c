@@ -294,13 +294,6 @@ static int sdio_write_reg(uint32_t addr, uint32_t data)
 			g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53, write reg (%08x)...\n", addr);
 			goto _fail_;
 		}
-
-#if 0
-		if (!sdio_check_bs())
-			goto _fail_;
-#else
-		/* g_sdio.os_func.os_sleep(1); */
-#endif
 	}
 
 	return 1;
@@ -463,14 +456,6 @@ static int sdio_write(uint32_t addr, uint8_t *buf, uint32_t size)
 		buf += nblk * block_size;
 
 #endif /* platform */
-
-#if 0
-		if (!sdio_check_bs())
-			goto _fail_;
-#else
-		/* g_sdio.os_func.os_sleep(1); */
-#endif
-
 	}
 
 
@@ -490,13 +475,6 @@ static int sdio_write(uint32_t addr, uint8_t *buf, uint32_t size)
 			g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53 [%x], bytes send...\n", addr);
 			goto _fail_;
 		}
-
-#if 0
-		if (!sdio_check_bs())
-			goto _fail_;
-#else
-		/* g_sdio.os_func.os_sleep(1); */
-#endif
 	}
 
 	return 1;
@@ -539,13 +517,6 @@ static int sdio_read_reg(uint32_t addr, uint32_t *data)
 			g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53, read reg (%08x)...\n", addr);
 			goto _fail_;
 		}
-
-#if 0
-		if (!sdio_check_bs())
-			goto _fail_;
-#else
-		/* g_sdio.os_func.os_sleep(1); */
-#endif
 	}
 
 #ifdef BIG_ENDIAN
@@ -712,14 +683,6 @@ static int sdio_read(uint32_t addr, uint8_t *buf, uint32_t size)
 		buf += nblk * block_size;
 
 #endif /* platform */
-
-#if 0
-		if (!sdio_check_bs())
-			goto _fail_;
-#else
-		/* g_sdio.os_func.os_sleep(1); */
-#endif
-
 	}       /* if (nblk > 0) */
 
 	if (nleft > 0) {
@@ -738,13 +701,6 @@ static int sdio_read(uint32_t addr, uint8_t *buf, uint32_t size)
 			g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53 [%x], bytes read...\n", addr);
 			goto _fail_;
 		}
-
-#if 0
-		if (!sdio_check_bs())
-			goto _fail_;
-#else
-		/* g_sdio.os_func.os_sleep(1); */
-#endif
 	}
 
 	return 1;

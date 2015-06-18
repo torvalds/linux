@@ -332,15 +332,6 @@ void WILC_WFI_Rx(struct net_device *dev, struct WILC_WFI_packet *pkt)
 		WILC_WFI_monitor_rx(dev, skb);
 		return;
 	}
-#if 0
-	PRINT_D(RX_DBG, "In RX NORMAl Device name %s\n", dev->name);
-	/* Write metadata, and then pass to the receive level */
-	skb->dev = dev;
-	skb->protocol = eth_type_trans(skb, dev);
-	skb->ip_summed = CHECKSUM_UNNECESSARY;  /* don't check it */
-	WILC_WFI_update_stats(priv->dev->ieee80211_ptr->wiphy, pkt->datalen, WILC_WFI_RX_PKT);
-	netif_rx(skb);
-#endif
 out:
 	return;
 }

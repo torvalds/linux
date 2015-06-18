@@ -15,48 +15,6 @@
 /*****************************************************************************/
 /*								Macros                                       */
 /*****************************************************************************/
-#if 0
-#define WID_BSS_TYPE				0x0000
-#define WID_CURRENT_TX_RATE			0x0001
-#define WID_CURRENT_CHANNEL			0x0002
-#define WID_PREAMBLE				0x0003
-#define WID_STATUS					0x0005
-#define WID_SCAN_TYPE				0x0007
-#define WID_KEY_ID					0x0009
-#define	WID_DTIM_PERIOD				0x0010
-#define	WID_POWER_MANAGEMENT		0x000B
-#define WID_AUTH_TYPE				0x000D
-#define WID_SITE_SURVEY				0x000E
-#define WID_DTIM_PERIOD				0x0010
-#define WID_DISCONNECT				0x0016
-#define WID_SHORT_SLOT_ALLOWED		0x001A
-#define WID_START_SCAN_REQ			0x001E
-#define WID_RSSI					0x001F
-#define WID_JOIN_REQ				0x0020
-#define WID_11N_TXOP_PROT_DISABLE	0x00B0
-#define WID_RTS_THRESHOLD			0x1000
-#define WID_FRAG_THRESHOLD			0x1001
-#define WID_SHORT_RETRY_LIMIT		0x1002
-#define WID_LONG_RETRY_LIMIT		0x1003
-#define WID_BEACON_INTERVAL			0x1006
-#define WID_ACTIVE_SCAN_TIME		0x100C
-#define WID_PASSIVE_SCAN_TIME		0x100D
-#define WID_SITE_SURVEY_SCAN_TIME	0x100E
-#define WID_AUTH_TIMEOUT			0x1010
-#define WID_11I_PSK					0x3008
-#define WID_SITE_SURVEY_RESULTS		0x3012
-#define WID_ADD_PTK					0x301B
-#define WID_ADD_RX_GTK				0x301C
-#define WID_ADD_TX_GTK				0x301D
-#define WID_ADD_WEP_KEY				0x3019
-#define	WID_REMOVE_WEP_KEY			0x301A
-#define WID_REMOVE_KEY				0x301E
-#define WID_ASSOC_REQ_INFO			0x301F
-#define WID_ASSOC_RES_INFO			0x3020
-#define WID_PMKID_INFO				0x3082
-#define WID_SCAN_CHANNEL_LIST		0x4084
-#define WID_11I_MODE                        0x000C
-#endif
 #define FAIL		0x0000
 #define SUCCESS		0x0001
 
@@ -115,16 +73,6 @@
 /* typedef unsigned long   uint32; */
 /* typedef uint32   Bool; */
 
-#if 0
-typedef enum {WID_CHAR  = 0,
-	      WID_SHORT = 1,
-	      WID_INT   = 2,
-	      WID_STR   = 3,
-	      WID_ADR   = 4,
-	      WID_BIN   = 5,
-	      WID_IP    = 6,
-	      WID_UNDEF = 7} WID_TYPE_T;
-#endif
 typedef struct {
 	u16 cfg_wid;
 	WID_TYPE_T cfg_type;
@@ -160,18 +108,7 @@ typedef struct _tstrHostIFpmkidAttr {
 	u8 numpmkid;
 	tstrHostIFpmkid pmkidlist[WILC_MAX_NUM_PMKIDS];
 } tstrHostIFpmkidAttr;
-#if 0
-/* Scan type parameter for scan request */
-typedef enum {
-	PASSIVE_SCAN = 0,
-	ACTIVE_SCAN  = 1,
-	NUM_SCANTYPE
-} tenuScanType;
 
-typedef enum {SITE_SURVEY_1CH    = 0,
-	      SITE_SURVEY_ALL_CH = 1,
-	      SITE_SURVEY_OFF    = 2} SITE_SURVEY_T;
-#endif
 typedef enum {
 	AUTORATE	 = 0,
 	MBPS_1	     = 1,

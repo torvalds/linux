@@ -533,51 +533,6 @@ struct net_device *WILC_WFI_init_mon_interface(const char *name, struct net_devi
 	if (wilc_wfi_mon) {
 		return wilc_wfi_mon;
 	}
-#if 0
-	wilc_wfi_mon = alloc_netdev(sizeof(struct WILC_WFI_mon_priv), name, WILC_WFI_mon_setup);
-	if (wilc_wfi_mon == NULL) {
-		PRINT_ER("Failed to allocate netdevice\n");
-		goto failed;
-	}
-
-	/* rtnl_lock(); */
-	PRINT_INFO(HOSTAPD_DBG, "Monitor interface name %s\n", wilc_wfi_mon->name);
-
-
-	ret = dev_alloc_name(wilc_wfi_mon, wilc_wfi_mon->name);
-	if (ret < 0)
-		goto failed_mon;
-
-
-	priv = netdev_priv(wilc_wfi_mon);
-	if (priv == NULL) {
-		PRINT_ER("private structure is NULL\n");
-		return WILC_FAIL;
-	}
-
-	priv->real_ndev = real_dev;
-
-
-	ret = register_netdevice(wilc_wfi_mon);
-
-
-	if (ret < 0) {
-		PRINT_ER("Failed to register netdevice\n");
-		goto failed_mon;
-	}
-
-
-	return WILC_SUCCESS;
-	/* rtnl_unlock(); */
-
-failed:
-	return ret;
-
-failed_mon:
-	/* rtnl_unlock(); */
-	free_netdev(wilc_wfi_mon);
-	return ret;
-#endif
 
 	wilc_wfi_mon = alloc_etherdev(sizeof(struct WILC_WFI_mon_priv));
 	if (!wilc_wfi_mon) {

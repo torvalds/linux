@@ -2044,37 +2044,6 @@ uint32_t init_chip(void)
 		}
 	}
 
-
-	#if 0
-	if ((chipid & 0xfff) < 0xf0) {
-		/* Setting MUX to probe sleep signal on pin 6 of J216*/
-		g_wlan.hif_func.hif_write_reg(0x1060, 0x1);
-		g_wlan.hif_func.hif_write_reg(0x1180, 0x33333333);
-		g_wlan.hif_func.hif_write_reg(0x1184, 0x33333333);
-		g_wlan.hif_func.hif_read_reg(0x1408, &reg);
-		/* set MUX for GPIO_4 (pin 4) to cortus GPIO*/
-		reg &= ~((0x7 << 16));
-		g_wlan.hif_func.hif_write_reg(0x1408, (reg | (0x7 << 12)));
-	} else {
-		/* Enable test bus*/
-		g_wlan.hif_func.hif_write_reg(0x1060, 0x1);
-		/* Rotate bus signals to get sleep signal on pin 6 like it was on previous chips*/
-		g_wlan.hif_func.hif_write_reg(0x1188, 0x70);
-		/* Set output of pin 6 to test bus 0x1*/
-		/* Set output of pin 9 to test bus 0x2*/
-		g_wlan.hif_func.hif_write_reg(0x1180, 0x200100);
-		g_wlan.hif_func.hif_read_reg(0x1408, &reg);
-
-		/* set MUX for GPIO_4 (pin 4) to cortus GPIO*/
-		reg &= ~((0x7 << 16));
-		/* set MUX for GPIO_3 (pin 6) to test bus*/
-		reg |= (0x7 << 12) | (0x7 << 24);
-		g_wlan.hif_func.hif_write_reg(0x1408, reg);
-	}
-	#endif
-
-
-
 	release_bus(RELEASE_ONLY);
 
 	return ret;

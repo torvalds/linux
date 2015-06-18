@@ -1261,13 +1261,6 @@ static s32 Handle_Scan(void *drvHandler, tstrHostIFscanAttr *pstrHostIFscanAttr)
 	pstrWFIDrv->strWILC_UsrScanReq.u32UserScanPvoid = pstrHostIFscanAttr->pvUserArg;
 
 	#ifdef WILC_P2P
-	#if 0
-	if (pstrWFIDrv->enuHostIFstate == HOST_IF_P2P_LISTEN || (pstrWFIDrv->enuHostIFstate == HOST_IF_CONNECTED && pstrWFIDrv->u8P2PConnect)) {
-		PRINT_INFO(GENERIC_DBG, "Busy: State: %d\n", pstrWFIDrv->enuHostIFstate);
-		PRINT_INFO(GENERIC_DBG, "Current Jiffies: %lu Timeout:%llu\n", jiffies, pstrWFIDrv->u64P2p_MgmtTimeout);
-		WILC_ERRORREPORT(s32Error, WILC_BUSY);
-	}
-	#endif
 	#endif
 
 	if ((pstrWFIDrv->enuHostIFstate >= HOST_IF_SCANNING) && (pstrWFIDrv->enuHostIFstate < HOST_IF_CONNECTED)) {
@@ -1681,17 +1674,6 @@ static s32 Handle_Connect(void *drvHandler, tstrHostIFconnectAttr *pstrHostIFcon
 		WILC_ERRORREPORT(s32Error, WILC_NOT_FOUND);
 	}
 	#endif /*WILC_PARSE_SCAN_IN_HOST*/
-
-#if 0
-	/* if we try to connect to an already connected AP then discard the request */
-	PRINT_D(GENERIC_DBG, "Bssid = %x:%x:%x:%x:%x:%x\n", (pstrHostIFconnectAttr->pu8bssid[0]), (pstrHostIFconnectAttr->pu8bssid[1]), (pstrHostIFconnectAttr->pu8bssid[2]), (pstrHostIFconnectAttr->pu8bssid[3]), (pstrHostIFconnectAttr->pu8bssid[4]), (pstrHostIFconnectAttr->pu8bssid[5]));
-	PRINT_D(GENERIC_DBG, "bssid = %x:%x:%x:%x:%x:%x\n", (u8ConnectedSSID[0]), (u8ConnectedSSID[1]), (u8ConnectedSSID[2]), (u8ConnectedSSID[3]), (u8ConnectedSSID[4]), (u8ConnectedSSID[5]));
-	if (WILC_memcmp(pstrHostIFconnectAttr->pu8bssid, u8ConnectedSSID, ETH_ALEN) == 0) {
-		PRINT_ER("Discard connect request\n");
-		s32Error = WILC_FAIL;
-		return s32Error;
-	}
-#endif
 
 	if (pstrHostIFconnectAttr->pu8bssid != NULL) {
 		pstrWFIDrv->strWILC_UsrConnReq.pu8bssid = (u8 *)WILC_MALLOC(6);
@@ -5101,65 +5083,7 @@ s32 host_int_add_rx_gtk(WILC_WFIDrvHandle hWFIDrv, const u8 *pu8RxGtk, u8 u8GtkK
 	}
 	return s32Error;
 }
-#if 0
-/**
- *  @brief                      host_int_add_tx_gtk
- *  @details            adds Tx GTk Key
- *  @param[in,out] handle to the wifi driver
- *  @param[in]  message containing Tx GTK Key in the following format
- *|----------------------------------------------------|
- | KeyID | Key Length | Temporal Key	| Tx Michael Key |
- ||-------|------------|--------------|----------------|
- ||1 byte |  1 byte	 |   16 bytes	|	  8 bytes	 |
- ||----------------------------------------------------|
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-s32 host_int_add_tx_gtk(WILC_WFIDrvHandle hWFIDrv, u8 u8KeyLen, u8 *pu8TxGtk, u8 u8KeyIdx)
-{
-	s32 s32Error = WILC_SUCCESS;
-	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
-	tstrHostIFmsg strHostIFmsg;
 
-	if (pstrWFIDrv == NULL) {
-		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
-	}
-
-	/* prepare the Key Message */
-	WILC_memset(&strHostIFmsg, 0, sizeof(tstrHostIFmsg));
-
-	strHostIFmsg.u16MsgId = HOST_IF_MSG_KEY;
-	strHostIFmsg.uniHostIFmsgBody.strHostIFkeyAttr.enuKeyType = WPATxGtk;
-	strHostIFmsg.uniHostIFmsgBody.strHostIFkeyAttr.u8KeyAction = ADDKEY;
-
-	strHostIFmsg.uniHostIFmsgBody.strHostIFkeyAttr.
-	uniHostIFkeyAttr.strHostIFwpaAttr.pu8key = (u8 *)WILC_MALLOC(u8KeyLen);
-
-	WILC_memcpy(strHostIFmsg.uniHostIFmsgBody.strHostIFkeyAttr.uniHostIFkeyAttr.strHostIFwpaAttr.pu8key,
-		    pu8TxGtk, u8KeyLen);
-
-	strHostIFmsg.uniHostIFmsgBody.strHostIFkeyAttr.uniHostIFkeyAttr.strHostIFwpaAttr.u8Keylen = u8KeyLen;
-
-	/* send the message */
-	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
-	if (s32Error)
-		PRINT_ER("Error in sending message queue: TX GTK\n");
-
-	/* ////////////// */
-	down(&hSemTestKeyBlock);
-	WILC_Sleep(100);
-	/* /////// */
-
-	WILC_CATCH(s32Error)
-	{
-
-	}
-	return s32Error;
-}
-#endif
 /**
  *  @brief              host_int_set_pmkid_info
  *  @details    caches the pmkid valid only in BSS STA mode if External Supplicant

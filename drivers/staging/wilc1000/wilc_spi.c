@@ -421,42 +421,6 @@ static int spi_cmd_complete(uint8_t cmd, uint32_t adr, uint8_t *b, uint32_t sz, 
 		return result;
 	}
 
-#if 0
-	{
-		int jj;
-		PRINT_D(BUS_DBG, "--- cnd = %x, len=%d, len2=%d\n", cmd, len, len2);
-		for (jj = 0; jj < sizeof(wb) / sizeof(wb[0]); jj++) {
-
-			if (jj >= len2)
-				break;
-			if (((jj + 1) % 16) != 0) {
-				if ((jj % 16) == 0) {
-					PRINT_D(BUS_DBG, "wb[%02x]: %02x ", jj, wb[jj]);
-				} else {
-					PRINT_D(BUS_DBG, "%02x ", wb[jj]);
-				}
-			} else {
-				PRINT_D(BUS_DBG, "%02x\n", wb[jj]);
-			}
-		}
-
-		for (jj = 0; jj < sizeof(rb) / sizeof(rb[0]); jj++) {
-
-			if (jj >= len2)
-				break;
-			if (((jj + 1) % 16) != 0) {
-				if ((jj % 16) == 0) {
-					PRINT_D(BUS_DBG, "rb[%02x]: %02x ", jj, rb[jj]);
-				} else {
-					PRINT_D(BUS_DBG, "%02x ", rb[jj]);
-				}
-			} else {
-				PRINT_D(BUS_DBG, "%02x\n", rb[jj]);
-			}
-		}
-	}
-#endif
-
 	/**
 	 * Command/Control response
 	 **/
@@ -552,10 +516,7 @@ static int spi_cmd_complete(uint8_t cmd, uint32_t adr, uint8_t *b, uint32_t sz, 
 			for (ix = 0; (rix < len2) && (ix < sz); ) {
 				b[ix++] = rb[rix++];
 			}
-#if 0
-			if (ix)
-				PRINT_D(BUS_DBG, "ttt %d %d\n", sz, ix);
-#endif
+
 			sz -= ix;
 
 			if (sz > 0) {
@@ -596,9 +557,6 @@ static int spi_cmd_complete(uint8_t cmd, uint32_t adr, uint8_t *b, uint32_t sz, 
 			while (sz > 0) {
 				int nbytes;
 
-#if 0
-				PRINT_INFO(BUS_DBG, "rrr %d %d\n", sz, ix);
-#endif
 				if (sz <= DATA_PKT_SZ) {
 					nbytes = sz;
 				} else {
@@ -788,32 +746,6 @@ static int spi_data_write(uint8_t *b, uint32_t sz)
 		/**
 		 *      No need to wait for response
 		 **/
-#if 0
-		/**
-		 *      Respnose
-		 **/
-		if (!g_spi.spi_rx(&rsp, 1)) {
-			PRINT_ER("[wilc spi]: Failed data block write, response read, bus error...\n");
-			result = N_FAIL;
-			break;
-		}
-
-		if (((rsp >> 4) & 0xf) != 0xc) {
-			result = N_FAIL;
-			PRINT_ER("[wilc spi]: Failed data block write response...(%02x)\n", rsp);
-			break;
-		}
-
-		/**
-		 *      State
-		 **/
-		if (!g_spi.spi_rx(&rsp, 1)) {
-			PRINT_ER("[wilc spi]: Failed data block write, read state, bus error...\n");
-			result = N_FAIL;
-			break;
-		}
-#endif
-
 		ix += nbytes;
 		sz -= nbytes;
 	} while (sz);

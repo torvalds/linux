@@ -169,28 +169,6 @@ typedef struct {
 	wilc_wlan_indicate_func_t indicate_func;
 } wilc_wlan_inp_t;
 
-#if 0
-typedef struct {
-	int start;
-	uint32_t id;
-	void *buffer;
-	uint32_t buffer_size;
-	int commit;
-} wilc_wlan_cfg_set_t;
-
-typedef struct {
-	int start;
-	uint32_t id;
-	int commit;
-} wilc_wlan_cfg_get_t;
-
-typedef struct {
-	uint32_t id;
-	void *buffer;
-	uint32_t buffer_size;
-} wilc_wlan_cfg_val_t;
-#endif
-
 struct tx_complete_data {
 	#ifdef WILC_FULLY_HOSTING_AP
 	struct tx_complete_data *next;

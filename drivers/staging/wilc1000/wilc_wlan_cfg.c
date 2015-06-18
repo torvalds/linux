@@ -374,11 +374,6 @@ static int wilc_wlan_parse_info_frame(uint8_t *info, int size)
 	int type = WILC_CFG_RSP_STATUS;
 
 	wid = info[0] | (info[1] << 8);
-#if 0
-#ifdef BIG_ENDIAN
-	wid = BYTE_SWAP(wid);
-#endif
-#endif
 
 	len = info[2];
 	PRINT_INFO(GENERIC_DBG, "Status Len = %d Id= %d\n", len, wid);
@@ -389,27 +384,6 @@ static int wilc_wlan_parse_info_frame(uint8_t *info, int size)
 
 	return type;
 }
-
-#if 0
-static int wilc_wlan_parse_network_frame(uint8_t *info, int size)
-{
-	wilc_mac_cfg_t *priv = (wilc_mac_cfg_t *)&g_mac;
-	uint32_t wid, len;
-
-	wid = info[0] | (info[1] << 8);
-	len = info[2] | (info[3] << 8);
-
-	/**
-	 *      Review: this message is only for AP mode.
-	 *      TBD
-	 **/
-	if (wid == WID_NETWORK_INFO) {  /* not send by the firmware */
-
-	}
-
-	return;
-}
-#endif
 
 /********************************************
  *
