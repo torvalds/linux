@@ -172,6 +172,22 @@ static void mv_cesa_remove_algs(struct mv_cesa_dev *cesa)
 		crypto_unregister_alg(cesa->caps->cipher_algs[i]);
 }
 
+static struct crypto_alg *orion_cipher_algs[] = {
+	&mv_cesa_ecb_des_alg,
+	&mv_cesa_cbc_des_alg,
+	&mv_cesa_ecb_des3_ede_alg,
+	&mv_cesa_cbc_des3_ede_alg,
+	&mv_cesa_ecb_aes_alg,
+	&mv_cesa_cbc_aes_alg,
+};
+
+static struct ahash_alg *orion_ahash_algs[] = {
+	&mv_md5_alg,
+	&mv_sha1_alg,
+	&mv_ahmac_md5_alg,
+	&mv_ahmac_sha1_alg,
+};
+
 static struct crypto_alg *armada_370_cipher_algs[] = {
 	&mv_cesa_ecb_des_alg,
 	&mv_cesa_cbc_des_alg,
@@ -188,6 +204,15 @@ static struct ahash_alg *armada_370_ahash_algs[] = {
 	&mv_ahmac_md5_alg,
 	&mv_ahmac_sha1_alg,
 	&mv_ahmac_sha256_alg,
+};
+
+static const struct mv_cesa_caps orion_caps = {
+	.nengines = 1,
+	.cipher_algs = orion_cipher_algs,
+	.ncipher_algs = ARRAY_SIZE(orion_cipher_algs),
+	.ahash_algs = orion_ahash_algs,
+	.nahash_algs = ARRAY_SIZE(orion_ahash_algs),
+	.has_tdma = false,
 };
 
 static const struct mv_cesa_caps armada_370_caps = {
@@ -209,6 +234,7 @@ static const struct mv_cesa_caps armada_xp_caps = {
 };
 
 static const struct of_device_id mv_cesa_of_match_table[] = {
+	{ .compatible = "marvell,orion-crypto", .data = &orion_caps },
 	{ .compatible = "marvell,armada-370-crypto", .data = &armada_370_caps },
 	{ .compatible = "marvell,armada-xp-crypto", .data = &armada_xp_caps },
 	{ .compatible = "marvell,armada-375-crypto", .data = &armada_xp_caps },
@@ -334,7 +360,7 @@ static void mv_cesa_put_sram(struct platform_device *pdev, int idx)
 
 static int mv_cesa_probe(struct platform_device *pdev)
 {
-	const struct mv_cesa_caps *caps = NULL;
+	const struct mv_cesa_caps *caps = &orion_caps;
 	const struct mbus_dram_target_info *dram;
 	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
@@ -349,14 +375,16 @@ static int mv_cesa_probe(struct platform_device *pdev)
 		return -EEXIST;
 	}
 
-	if (!dev->of_node)
-		return -ENOTSUPP;
+	if (dev->of_node) {
+		match = of_match_node(mv_cesa_of_match_table, dev->of_node);
+		if (!match || !match->data)
+			return -ENOTSUPP;
 
-	match = of_match_node(mv_cesa_of_match_table, dev->of_node);
-	if (!match || !match->data)
-		return -ENOTSUPP;
+		caps = match->data;
+	}
 
-	caps = match->data;
+	if (caps == &orion_caps && !allhwsupport)
+		return -ENOTSUPP;
 
 	cesa = devm_kzalloc(dev, sizeof(*cesa), GFP_KERNEL);
 	if (!cesa)
