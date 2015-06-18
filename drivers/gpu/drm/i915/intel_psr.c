@@ -596,13 +596,15 @@ static void intel_psr_exit(struct drm_device *dev)
 /**
  * intel_psr_single_frame_update - Single Frame Update
  * @dev: DRM device
+ * @frontbuffer_bits: frontbuffer plane tracking bits
  *
  * Some platforms support a single frame update feature that is used to
  * send and update only one frame on Remote Frame Buffer.
  * So far it is only implemented for Valleyview and Cherryview because
  * hardware requires this to be done before a page flip.
  */
-void intel_psr_single_frame_update(struct drm_device *dev)
+void intel_psr_single_frame_update(struct drm_device *dev,
+				   unsigned frontbuffer_bits)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
@@ -624,14 +626,16 @@ void intel_psr_single_frame_update(struct drm_device *dev)
 
 	crtc = dp_to_dig_port(dev_priv->psr.enabled)->base.base.crtc;
 	pipe = to_intel_crtc(crtc)->pipe;
-	val = I915_READ(VLV_PSRCTL(pipe));
 
-	/*
-	 * We need to set this bit before writing registers for a flip.
-	 * This bit will be self-clear when it gets to the PSR active state.
-	 */
-	I915_WRITE(VLV_PSRCTL(pipe), val | VLV_EDP_PSR_SINGLE_FRAME_UPDATE);
+	if (frontbuffer_bits & INTEL_FRONTBUFFER_ALL_MASK(pipe)) {
+		val = I915_READ(VLV_PSRCTL(pipe));
 
+		/*
+		 * We need to set this bit before writing registers for a flip.
+		 * This bit will be self-clear when it gets to the PSR active state.
+		 */
+		I915_WRITE(VLV_PSRCTL(pipe), val | VLV_EDP_PSR_SINGLE_FRAME_UPDATE);
+	}
 	mutex_unlock(&dev_priv->psr.lock);
 }
 
@@ -648,7 +652,7 @@ void intel_psr_single_frame_update(struct drm_device *dev)
  * Dirty frontbuffers relevant to PSR are tracked in busy_frontbuffer_bits."
  */
 void intel_psr_invalidate(struct drm_device *dev,
-			      unsigned frontbuffer_bits)
+			  unsigned frontbuffer_bits)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
@@ -685,7 +689,7 @@ void intel_psr_invalidate(struct drm_device *dev,
  * Dirty frontbuffers relevant to PSR are tracked in busy_frontbuffer_bits.
  */
 void intel_psr_flush(struct drm_device *dev,
-			 unsigned frontbuffer_bits)
+		     unsigned frontbuffer_bits)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
