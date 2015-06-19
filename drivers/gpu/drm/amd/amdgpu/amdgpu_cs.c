@@ -226,6 +226,9 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 			}
 			break;
 
+		case AMDGPU_CHUNK_ID_DEPENDENCIES:
+			break;
+
 		default:
 			r = -EINVAL;
 			goto out;
@@ -663,6 +666,55 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 	return 0;
 }
 
+static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
+				  struct amdgpu_cs_parser *p)
+{
+	struct amdgpu_ib *ib;
+	int i, j, r;
+
+	if (!p->num_ibs)
+		return 0;
+
+	/* Add dependencies to first IB */
+	ib = &p->ibs[0];
+	for (i = 0; i < p->nchunks; ++i) {
+		struct drm_amdgpu_cs_chunk_dep *deps;
+		struct amdgpu_cs_chunk *chunk;
+		unsigned num_deps;
+
+		chunk = &p->chunks[i];
+
+		if (chunk->chunk_id != AMDGPU_CHUNK_ID_DEPENDENCIES)
+			continue;
+
+		deps = (struct drm_amdgpu_cs_chunk_dep *)chunk->kdata;
+		num_deps = chunk->length_dw * 4 /
+			sizeof(struct drm_amdgpu_cs_chunk_dep);
+
+		for (j = 0; j < num_deps; ++j) {
+			struct amdgpu_fence *fence;
+			struct amdgpu_ring *ring;
+
+			r = amdgpu_cs_get_ring(adev, deps[j].ip_type,
+					       deps[j].ip_instance,
+					       deps[j].ring, &ring);
+			if (r)
+				return r;
+
+			r = amdgpu_fence_recreate(ring, p->filp,
+						  deps[j].handle,
+						  &fence);
+			if (r)
+				return r;
+
+			amdgpu_sync_fence(&ib->sync, fence);
+			amdgpu_fence_unref(&fence);
+		}
+	}
+
+	return 0;
+}
+
 int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
 	struct amdgpu_device *adev = dev->dev_private;
@@ -697,10 +749,15 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			else
 				DRM_ERROR("Failed to process the buffer list %d!\n", r);
 		}
-	} else {
+	}
+
+	if (!r) {
 		reserved_buffers = true;
 		r = amdgpu_cs_ib_fill(adev, &parser);
 	}
+
+	if (!r)
+		r = amdgpu_cs_dependencies(adev, &parser);
 
 	if (r) {
 		amdgpu_cs_parser_fini(&parser, r, reserved_buffers);
