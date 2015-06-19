@@ -23,6 +23,11 @@ static unsigned long __count_nat_entries(struct f2fs_sb_info *sbi)
 	return NM_I(sbi)->nat_cnt - NM_I(sbi)->dirty_nat_cnt;
 }
 
+static unsigned long __count_extent_cache(struct f2fs_sb_info *sbi)
+{
+	return sbi->total_ext_tree + atomic_read(&sbi->total_ext_node);
+}
+
 unsigned long f2fs_shrink_count(struct shrinker *shrink,
 				struct shrink_control *sc)
 {
@@ -41,6 +46,9 @@ unsigned long f2fs_shrink_count(struct shrinker *shrink,
 			continue;
 		}
 		spin_unlock(&f2fs_list_lock);
+
+		/* count extent cache entries */
+		count += __count_extent_cache(sbi);
 
 		/* shrink clean nat cache entries */
 		count += __count_nat_entries(sbi);
@@ -82,8 +90,12 @@ unsigned long f2fs_shrink_scan(struct shrinker *shrink,
 
 		sbi->shrinker_run_no = run_no;
 
+		/* shrink extent cache entries */
+		freed += f2fs_shrink_extent_tree(sbi, nr >> 1);
+
 		/* shrink clean nat cache entries */
-		freed += try_to_free_nats(sbi, nr);
+		if (freed < nr)
+			freed += try_to_free_nats(sbi, nr - freed);
 
 		spin_lock(&f2fs_list_lock);
 		p = p->next;

@@ -767,7 +767,7 @@ out:
 		update_inode_page(inode);
 }
 
-void f2fs_shrink_extent_tree(struct f2fs_sb_info *sbi, int nr_shrink)
+unsigned int f2fs_shrink_extent_tree(struct f2fs_sb_info *sbi, int nr_shrink)
 {
 	struct extent_tree *treevec[EXT_TREE_VEC_SIZE];
 	struct extent_node *en, *tmp;
@@ -778,10 +778,7 @@ void f2fs_shrink_extent_tree(struct f2fs_sb_info *sbi, int nr_shrink)
 	unsigned int node_cnt = 0, tree_cnt = 0;
 
 	if (!test_opt(sbi, EXTENT_CACHE))
-		return;
-
-	if (available_free_memory(sbi, EXTENT_CACHE))
-		return;
+		return 0;
 
 	spin_lock(&sbi->extent_lock);
 	list_for_each_entry_safe(en, tmp, &sbi->extent_list, list) {
@@ -791,7 +788,9 @@ void f2fs_shrink_extent_tree(struct f2fs_sb_info *sbi, int nr_shrink)
 	}
 	spin_unlock(&sbi->extent_lock);
 
-	down_read(&sbi->extent_tree_lock);
+	if (!down_read_trylock(&sbi->extent_tree_lock))
+		goto out;
+
 	while ((found = radix_tree_gang_lookup(&sbi->extent_tree_root,
 				(void **)treevec, ino, EXT_TREE_VEC_SIZE))) {
 		unsigned i;
@@ -809,7 +808,9 @@ void f2fs_shrink_extent_tree(struct f2fs_sb_info *sbi, int nr_shrink)
 	}
 	up_read(&sbi->extent_tree_lock);
 
-	down_write(&sbi->extent_tree_lock);
+	if (!down_write_trylock(&sbi->extent_tree_lock))
+		goto out;
+
 	radix_tree_for_each_slot(slot, &sbi->extent_tree_root, &iter,
 							F2FS_ROOT_INO(sbi)) {
 		struct extent_tree *et = (struct extent_tree *)*slot;
@@ -822,8 +823,10 @@ void f2fs_shrink_extent_tree(struct f2fs_sb_info *sbi, int nr_shrink)
 		}
 	}
 	up_write(&sbi->extent_tree_lock);
-
+out:
 	trace_f2fs_shrink_extent_tree(sbi, node_cnt, tree_cnt);
+
+	return node_cnt + tree_cnt;
 }
 
 void f2fs_destroy_extent_tree(struct inode *inode)
