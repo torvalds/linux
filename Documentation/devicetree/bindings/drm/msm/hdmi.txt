@@ -2,6 +2,7 @@ Qualcomm adreno/snapdragon hdmi output
 
 Required properties:
 - compatible: one of the following
+   * "qcom,hdmi-tx-8994"
    * "qcom,hdmi-tx-8084"
    * "qcom,hdmi-tx-8074"
    * "qcom,hdmi-tx-8660"

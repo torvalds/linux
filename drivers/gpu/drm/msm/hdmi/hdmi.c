@@ -107,16 +107,15 @@ static struct hdmi *hdmi_init(struct platform_device *pdev)
 	spin_lock_init(&hdmi->reg_lock);
 
 	/* not sure about which phy maps to which msm.. probably I miss some */
-	if (config->phy_init)
+	if (config->phy_init) {
 		hdmi->phy = config->phy_init(hdmi);
-	else
-		hdmi->phy = ERR_PTR(-ENXIO);
 
-	if (IS_ERR(hdmi->phy)) {
-		ret = PTR_ERR(hdmi->phy);
-		dev_err(&pdev->dev, "failed to load phy: %d\n", ret);
-		hdmi->phy = NULL;
-		goto fail;
+		if (IS_ERR(hdmi->phy)) {
+			ret = PTR_ERR(hdmi->phy);
+			dev_err(&pdev->dev, "failed to load phy: %d\n", ret);
+			hdmi->phy = NULL;
+			goto fail;
+		}
 	}
 
 	hdmi->mmio = msm_ioremap(pdev, config->mmio_name, "HDMI");
@@ -368,7 +367,19 @@ static struct hdmi_platform_config hdmi_tx_8084_config = {
 		.hpd_freq      = hpd_clk_freq_8x74,
 };
 
+static const char *hpd_reg_names_8x94[] = {};
+
+static struct hdmi_platform_config hdmi_tx_8x94_config = {
+		.phy_init = NULL, /* nothing to do for this HDMI PHY 20nm */
+		HDMI_CFG(pwr_reg, 8x74),
+		HDMI_CFG(hpd_reg, 8x94),
+		HDMI_CFG(pwr_clk, 8x74),
+		HDMI_CFG(hpd_clk, 8x74),
+		.hpd_freq      = hpd_clk_freq_8x74,
+};
+
 static const struct of_device_id dt_match[] = {
+	{ .compatible = "qcom,hdmi-tx-8994", .data = &hdmi_tx_8x94_config },
 	{ .compatible = "qcom,hdmi-tx-8084", .data = &hdmi_tx_8084_config },
 	{ .compatible = "qcom,hdmi-tx-8074", .data = &hdmi_tx_8074_config },
 	{ .compatible = "qcom,hdmi-tx-8960", .data = &hdmi_tx_8960_config },
@@ -385,8 +396,7 @@ static int get_gpio(struct device *dev, struct device_node *of_node, const char 
 		snprintf(name2, sizeof(name2), "%s-gpio", name);
 		gpio = of_get_named_gpio(of_node, name2, 0);
 		if (gpio < 0) {
-			dev_err(dev, "failed to get gpio: %s (%d)\n",
-					name, gpio);
+			DBG("failed to get gpio: %s (%d)", name, gpio);
 			gpio = -1;
 		}
 	}

@@ -177,7 +177,8 @@ int mdp5_disable(struct mdp5_kms *mdp5_kms)
 	clk_disable_unprepare(mdp5_kms->ahb_clk);
 	clk_disable_unprepare(mdp5_kms->axi_clk);
 	clk_disable_unprepare(mdp5_kms->core_clk);
-	clk_disable_unprepare(mdp5_kms->lut_clk);
+	if (mdp5_kms->lut_clk)
+		clk_disable_unprepare(mdp5_kms->lut_clk);
 
 	return 0;
 }
@@ -189,7 +190,8 @@ int mdp5_enable(struct mdp5_kms *mdp5_kms)
 	clk_prepare_enable(mdp5_kms->ahb_clk);
 	clk_prepare_enable(mdp5_kms->axi_clk);
 	clk_prepare_enable(mdp5_kms->core_clk);
-	clk_prepare_enable(mdp5_kms->lut_clk);
+	if (mdp5_kms->lut_clk)
+		clk_prepare_enable(mdp5_kms->lut_clk);
 
 	return 0;
 }
@@ -489,7 +491,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 		goto fail;
 	ret = get_clk(pdev, &mdp5_kms->lut_clk, "lut_clk");
 	if (ret)
-		goto fail;
+		DBG("failed to get (optional) lut_clk clock");
 	ret = get_clk(pdev, &mdp5_kms->vsync_clk, "vsync_clk");
 	if (ret)
 		goto fail;

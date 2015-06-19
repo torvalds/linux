@@ -203,13 +203,84 @@ const struct mdp5_cfg_hw msm8x16_config = {
 	.max_clk = 320000000,
 };
 
+const struct mdp5_cfg_hw msm8x94_config = {
+	.name = "msm8x94",
+	.mdp = {
+		.count = 1,
+		.base = { 0x01000 },
+	},
+	.smp = {
+		.mmb_count = 44,
+		.mmb_size = 8192,
+		.clients = {
+			[SSPP_VIG0] =  1, [SSPP_VIG1] =  4,
+			[SSPP_VIG2] =  7, [SSPP_VIG3] = 19,
+			[SSPP_DMA0] = 10, [SSPP_DMA1] = 13,
+			[SSPP_RGB0] = 16, [SSPP_RGB1] = 17,
+			[SSPP_RGB2] = 18, [SSPP_RGB3] = 22,
+		},
+		.reserved_state[0] = GENMASK(23, 0),	/* first 24 MMBs */
+		.reserved = {
+			 [1] = 1,  [4] = 1,  [7] = 1, [19] = 1,
+			[16] = 5, [17] = 5, [18] = 5, [22] = 5,
+		},
+	},
+	.ctl = {
+		.count = 5,
+		.base = { 0x02000, 0x02200, 0x02400, 0x02600, 0x02800 },
+		.flush_hw_mask = 0xf0ffffff,
+	},
+	.pipe_vig = {
+		.count = 4,
+		.base = { 0x05000, 0x07000, 0x09000, 0x0b000 },
+		/* TODO: add decimation bit */
+	},
+	.pipe_rgb = {
+		.count = 4,
+		.base = { 0x15000, 0x17000, 0x19000, 0x1b000 },
+		/* TODO: add decimation bit */
+	},
+	.pipe_dma = {
+		.count = 2,
+		.base = { 0x25000, 0x27000 },
+	},
+	.lm = {
+		.count = 6,
+		.base = { 0x45000, 0x46000, 0x47000, 0x48000, 0x49000, 0x4a000 },
+		.nb_stages = 8,
+	},
+	.dspp = {
+		.count = 4,
+		.base = { 0x55000, 0x57000, 0x59000, 0x5b000 },
+
+	},
+	.ad = {
+		.count = 3,
+		.base = { 0x79000, 0x79800, 0x7a000 },
+	},
+	.pp = {
+		.count = 4,
+		.base = { 0x71000, 0x71800, 0x72000, 0x72800 },
+	},
+	.intf = {
+		.base = { 0x6b000, 0x6b800, 0x6c000, 0x6c800, 0x6d000 },
+		.connect = {
+			[0] = INTF_DISABLED,
+			[1] = INTF_DSI,
+			[2] = INTF_DSI,
+			[3] = INTF_HDMI,
+		},
+	},
+	.max_clk = 320000000,
+};
+
 static const struct mdp5_cfg_handler cfg_handlers[] = {
 	{ .revision = 0, .config = { .hw = &msm8x74_config } },
 	{ .revision = 2, .config = { .hw = &msm8x74_config } },
 	{ .revision = 3, .config = { .hw = &apq8084_config } },
 	{ .revision = 6, .config = { .hw = &msm8x16_config } },
+	{ .revision = 9, .config = { .hw = &msm8x94_config } },
 };
-
 
 static struct mdp5_cfg_platform *mdp5_get_config(struct platform_device *dev);
 
