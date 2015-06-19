@@ -886,21 +886,44 @@ static int ip6_dst_lookup_tail(struct sock *sk,
 #endif
 	int err;
 
+	/* The correct way to handle this would be to do
+	 * ip6_route_get_saddr, and then ip6_route_output; however,
+	 * the route-specific preferred source forces the
+	 * ip6_route_output call _before_ ip6_route_get_saddr.
+	 *
+	 * In source specific routing (no src=any default route),
+	 * ip6_route_output will fail given src=any saddr, though, so
+	 * that's why we try it again later.
+	 */
+	if (ipv6_addr_any(&fl6->saddr) && (!*dst || !(*dst)->error)) {
+		struct rt6_info *rt;
+		bool had_dst = *dst != NULL;
+
+		if (!had_dst)
+			*dst = ip6_route_output(net, sk, fl6);
+		rt = (*dst)->error ? NULL : (struct rt6_info *)*dst;
+		err = ip6_route_get_saddr(net, rt, &fl6->daddr,
+					  sk ? inet6_sk(sk)->srcprefs : 0,
+					  &fl6->saddr);
+		if (err)
+			goto out_err_release;
+
+		/* If we had an erroneous initial result, pretend it
+		 * never existed and let the SA-enabled version take
+		 * over.
+		 */
+		if (!had_dst && (*dst)->error) {
+			dst_release(*dst);
+			*dst = NULL;
+		}
+	}
+
 	if (!*dst)
 		*dst = ip6_route_output(net, sk, fl6);
 
 	err = (*dst)->error;
 	if (err)
 		goto out_err_release;
-
-	if (ipv6_addr_any(&fl6->saddr)) {
-		struct rt6_info *rt = (struct rt6_info *) *dst;
-		err = ip6_route_get_saddr(net, rt, &fl6->daddr,
-					  sk ? inet6_sk(sk)->srcprefs : 0,
-					  &fl6->saddr);
-		if (err)
-			goto out_err_release;
-	}
 
 #ifdef CONFIG_IPV6_OPTIMISTIC_DAD
 	/*
@@ -1277,8 +1300,10 @@ emsgsize:
 
 	/* If this is the first and only packet and device
 	 * supports checksum offloading, let's use it.
+	 * Use transhdrlen, same as IPv4, because partial
+	 * sums only work when transhdrlen is set.
 	 */
-	if (!skb && sk->sk_protocol == IPPROTO_UDP &&
+	if (transhdrlen && sk->sk_protocol == IPPROTO_UDP &&
 	    length + fragheaderlen < mtu &&
 	    rt->dst.dev->features & NETIF_F_V6_CSUM &&
 	    !exthdrlen)

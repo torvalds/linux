@@ -478,6 +478,11 @@ static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
 	if (vif->type != NL80211_IFTYPE_STATION)
 		return;
 
+	if (sig == 0) {
+		IWL_DEBUG_RX(mvm, "RSSI is 0 - skip signal based decision\n");
+		return;
+	}
+
 	mvmvif->bf_data.ave_beacon_signal = sig;
 
 	/* BT Coex */

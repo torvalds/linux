@@ -135,6 +135,8 @@
 #define VIN_MAX_WIDTH		2048
 #define VIN_MAX_HEIGHT		2048
 
+#define TIMEOUT_MS		100
+
 enum chip_id {
 	RCAR_GEN2,
 	RCAR_H1,
@@ -820,7 +822,10 @@ static void rcar_vin_wait_stop_streaming(struct rcar_vin_priv *priv)
 		if (priv->state == STOPPING) {
 			priv->request_to_stop = true;
 			spin_unlock_irq(&priv->lock);
-			wait_for_completion(&priv->capture_stop);
+			if (!wait_for_completion_timeout(
+					&priv->capture_stop,
+					msecs_to_jiffies(TIMEOUT_MS)))
+				priv->state = STOPPED;
 			spin_lock_irq(&priv->lock);
 		}
 	}

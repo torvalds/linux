@@ -289,7 +289,7 @@ static int xen_initial_domain_console_init(void)
 			return -ENOMEM;
 	}
 
-	info->irq = bind_virq_to_irq(VIRQ_CONSOLE, 0);
+	info->irq = bind_virq_to_irq(VIRQ_CONSOLE, 0, false);
 	info->vtermno = HVC_COOKIE;
 
 	spin_lock(&xencons_lock);
@@ -299,11 +299,27 @@ static int xen_initial_domain_console_init(void)
 	return 0;
 }
 
+static void xen_console_update_evtchn(struct xencons_info *info)
+{
+	if (xen_hvm_domain()) {
+		uint64_t v;
+		int err;
+
+		err = hvm_get_parameter(HVM_PARAM_CONSOLE_EVTCHN, &v);
+		if (!err && v)
+			info->evtchn = v;
+	} else
+		info->evtchn = xen_start_info->console.domU.evtchn;
+}
+
 void xen_console_resume(void)
 {
 	struct xencons_info *info = vtermno_to_xencons(HVC_COOKIE);
-	if (info != NULL && info->irq)
+	if (info != NULL && info->irq) {
+		if (!xen_initial_domain())
+			xen_console_update_evtchn(info);
 		rebind_evtchn_irq(info->evtchn, info->irq);
+	}
 }
 
 static void xencons_disconnect_backend(struct xencons_info *info)

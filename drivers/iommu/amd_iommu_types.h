@@ -446,8 +446,6 @@ struct aperture_range {
  * Data container for a dma_ops specific protection domain
  */
 struct dma_ops_domain {
-	struct list_head list;
-
 	/* generic protection domain information */
 	struct protection_domain domain;
 
@@ -462,12 +460,6 @@ struct dma_ops_domain {
 
 	/* This will be set to true when TLB needs to be flushed */
 	bool need_flush;
-
-	/*
-	 * if this is a preallocated domain, keep the device for which it was
-	 * preallocated in this variable
-	 */
-	u16 target_dev;
 };
 
 /*
@@ -551,9 +543,6 @@ struct amd_iommu {
 
 	/* if one, we need to send a completion wait command */
 	bool need_sync;
-
-	/* default dma_ops domain for that IOMMU */
-	struct dma_ops_domain *default_dom;
 
 	/* IOMMU sysfs device */
 	struct device *iommu_dev;

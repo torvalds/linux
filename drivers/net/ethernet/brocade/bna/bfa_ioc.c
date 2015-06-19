@@ -2414,7 +2414,7 @@ bfa_ioc_boot(struct bfa_ioc *ioc, enum bfi_fwboot_type boot_type,
 	if (status == BFA_STATUS_OK)
 		bfa_ioc_lpu_start(ioc);
 	else
-		bfa_nw_iocpf_timeout(ioc);
+		bfa_fsm_send_event(&ioc->iocpf, IOCPF_E_TIMEOUT);
 
 	return status;
 }
@@ -3029,7 +3029,7 @@ bfa_ioc_poll_fwinit(struct bfa_ioc *ioc)
 	}
 
 	if (ioc->iocpf.poll_time >= BFA_IOC_TOV) {
-		bfa_nw_iocpf_timeout(ioc);
+		bfa_fsm_send_event(&ioc->iocpf, IOCPF_E_TIMEOUT);
 	} else {
 		ioc->iocpf.poll_time += BFA_IOC_POLL_TOV;
 		mod_timer(&ioc->iocpf_timer, jiffies +

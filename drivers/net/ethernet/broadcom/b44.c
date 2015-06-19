@@ -2464,6 +2464,7 @@ err_out_powerdown:
 	ssb_bus_may_powerdown(sdev->bus);
 
 err_out_free_dev:
+	netif_napi_del(&bp->napi);
 	free_netdev(dev);
 
 out:
@@ -2480,6 +2481,7 @@ static void b44_remove_one(struct ssb_device *sdev)
 		b44_unregister_phy_one(bp);
 	ssb_device_disable(sdev, 0);
 	ssb_bus_may_powerdown(sdev->bus);
+	netif_napi_del(&bp->napi);
 	free_netdev(dev);
 	ssb_pcihost_set_power_state(sdev, PCI_D3hot);
 	ssb_set_drvdata(sdev, NULL);

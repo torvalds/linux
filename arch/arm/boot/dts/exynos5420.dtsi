@@ -536,6 +536,7 @@
 		clock-names = "dp";
 		phys = <&dp_phy>;
 		phy-names = "dp";
+		power-domains = <&disp_pd>;
 	};
 
 	mipi_phy: video-phy@10040714 {

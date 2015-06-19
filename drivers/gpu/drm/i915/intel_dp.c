@@ -880,10 +880,8 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 				      DP_AUX_CH_CTL_RECEIVE_ERROR))
 				continue;
 			if (status & DP_AUX_CH_CTL_DONE)
-				break;
+				goto done;
 		}
-		if (status & DP_AUX_CH_CTL_DONE)
-			break;
 	}
 
 	if ((status & DP_AUX_CH_CTL_DONE) == 0) {
@@ -892,6 +890,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 		goto out;
 	}
 
+done:
 	/* Check for timeout or receive error.
 	 * Timeouts occur when the sink is not connected
 	 */
@@ -1348,7 +1347,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 	pipe_config->has_dp_encoder = true;
 	pipe_config->has_drrs = false;
-	pipe_config->has_audio = intel_dp->has_audio;
+	pipe_config->has_audio = intel_dp->has_audio && port != PORT_A;
 
 	if (is_edp(intel_dp) && intel_connector->panel.fixed_mode) {
 		intel_fixed_panel_mode(intel_connector->panel.fixed_mode,
@@ -2211,8 +2210,8 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 	int dotclock;
 
 	tmp = I915_READ(intel_dp->output_reg);
-	if (tmp & DP_AUDIO_OUTPUT_ENABLE)
-		pipe_config->has_audio = true;
+
+	pipe_config->has_audio = tmp & DP_AUDIO_OUTPUT_ENABLE && port != PORT_A;
 
 	if ((port == PORT_A) || !HAS_PCH_CPT(dev)) {
 		if (tmp & DP_SYNC_HS_HIGH)
@@ -3812,7 +3811,8 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 			if (val == 0)
 				break;
 
-			intel_dp->sink_rates[i] = val * 200;
+			/* Value read is in kHz while drm clock is saved in deca-kHz */
+			intel_dp->sink_rates[i] = (val * 200) / 10;
 		}
 		intel_dp->num_sink_rates = i;
 	}

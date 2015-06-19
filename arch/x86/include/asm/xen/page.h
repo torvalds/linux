@@ -269,4 +269,9 @@ static inline bool xen_arch_need_swiotlb(struct device *dev,
 	return false;
 }
 
+static inline unsigned long xen_get_swiotlb_free_pages(unsigned int order)
+{
+	return __get_free_pages(__GFP_NOWARN, order);
+}
+
 #endif /* _ASM_X86_XEN_PAGE_H */

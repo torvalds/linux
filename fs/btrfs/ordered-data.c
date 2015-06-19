@@ -722,6 +722,7 @@ void btrfs_start_ordered_extent(struct inode *inode,
 int btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
 {
 	int ret = 0;
+	int ret_wb = 0;
 	u64 end;
 	u64 orig_end;
 	struct btrfs_ordered_extent *ordered;
@@ -741,9 +742,14 @@ int btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
 	if (ret)
 		return ret;
 
-	ret = filemap_fdatawait_range(inode->i_mapping, start, orig_end);
-	if (ret)
-		return ret;
+	/*
+	 * If we have a writeback error don't return immediately. Wait first
+	 * for any ordered extents that haven't completed yet. This is to make
+	 * sure no one can dirty the same page ranges and call writepages()
+	 * before the ordered extents complete - to avoid failures (-EEXIST)
+	 * when adding the new ordered extents to the ordered tree.
+	 */
+	ret_wb = filemap_fdatawait_range(inode->i_mapping, start, orig_end);
 
 	end = orig_end;
 	while (1) {
@@ -767,7 +773,7 @@ int btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
 			break;
 		end--;
 	}
-	return ret;
+	return ret_wb ? ret_wb : ret;
 }
 
 /*

@@ -382,7 +382,7 @@
 			ti,hwmods = "usb_otg_hs";
 
 			usb0: usb@47401000 {
-				compatible = "ti,musb-am33xx";
+				compatible = "ti,musb-dm816";
 				reg = <0x47401400 0x400
 				       0x47401000 0x200>;
 				reg-names = "mc", "control";
@@ -422,7 +422,7 @@
 			};
 
 			usb1: usb@47401800 {
-				compatible = "ti,musb-am33xx";
+				compatible = "ti,musb-dm816";
 				reg = <0x47401c00 0x400
 				       0x47401800 0x200>;
 				reg-names = "mc", "control";

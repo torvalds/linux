@@ -182,7 +182,7 @@ static void __init acpi_request_region (struct acpi_generic_address *gas,
 		request_mem_region(addr, length, desc);
 }
 
-static int __init acpi_reserve_resources(void)
+static void __init acpi_reserve_resources(void)
 {
 	acpi_request_region(&acpi_gbl_FADT.xpm1a_event_block, acpi_gbl_FADT.pm1_event_length,
 		"ACPI PM1a_EVT_BLK");
@@ -211,10 +211,7 @@ static int __init acpi_reserve_resources(void)
 	if (!(acpi_gbl_FADT.gpe1_block_length & 0x1))
 		acpi_request_region(&acpi_gbl_FADT.xgpe1_block,
 			       acpi_gbl_FADT.gpe1_block_length, "ACPI GPE1_BLK");
-
-	return 0;
 }
-device_initcall(acpi_reserve_resources);
 
 void acpi_os_printf(const char *fmt, ...)
 {
@@ -1845,6 +1842,7 @@ acpi_status __init acpi_os_initialize(void)
 
 acpi_status __init acpi_os_initialize1(void)
 {
+	acpi_reserve_resources();
 	kacpid_wq = alloc_workqueue("kacpid", 0, 1);
 	kacpi_notify_wq = alloc_workqueue("kacpi_notify", 0, 1);
 	kacpi_hotplug_wq = alloc_ordered_workqueue("kacpi_hotplug", 0);

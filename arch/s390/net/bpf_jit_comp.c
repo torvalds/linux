@@ -384,13 +384,16 @@ static void bpf_jit_prologue(struct bpf_jit *jit)
 	}
 	/* Setup stack and backchain */
 	if (jit->seen & SEEN_STACK) {
-		/* lgr %bfp,%r15 (BPF frame pointer) */
-		EMIT4(0xb9040000, BPF_REG_FP, REG_15);
+		if (jit->seen & SEEN_FUNC)
+			/* lgr %w1,%r15 (backchain) */
+			EMIT4(0xb9040000, REG_W1, REG_15);
+		/* la %bfp,STK_160_UNUSED(%r15) (BPF frame pointer) */
+		EMIT4_DISP(0x41000000, BPF_REG_FP, REG_15, STK_160_UNUSED);
 		/* aghi %r15,-STK_OFF */
 		EMIT4_IMM(0xa70b0000, REG_15, -STK_OFF);
 		if (jit->seen & SEEN_FUNC)
-			/* stg %bfp,152(%r15) (backchain) */
-			EMIT6_DISP_LH(0xe3000000, 0x0024, BPF_REG_FP, REG_0,
+			/* stg %w1,152(%r15) (backchain) */
+			EMIT6_DISP_LH(0xe3000000, 0x0024, REG_W1, REG_0,
 				      REG_15, 152);
 	}
 	/*
@@ -443,8 +446,11 @@ static void bpf_jit_epilogue(struct bpf_jit *jit)
 
 /*
  * Compile one eBPF instruction into s390x code
+ *
+ * NOTE: Use noinline because for gcov (-fprofile-arcs) gcc allocates a lot of
+ * stack space for the large switch statement.
  */
-static int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i)
+static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i)
 {
 	struct bpf_insn *insn = &fp->insnsi[i];
 	int jmp_off, last, insn_count = 1;
@@ -588,8 +594,8 @@ static int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i)
 		EMIT4(0xb9160000, dst_reg, rc_reg);
 		break;
 	}
-	case BPF_ALU64 | BPF_DIV | BPF_X: /* dst = dst / (u32) src */
-	case BPF_ALU64 | BPF_MOD | BPF_X: /* dst = dst % (u32) src */
+	case BPF_ALU64 | BPF_DIV | BPF_X: /* dst = dst / src */
+	case BPF_ALU64 | BPF_MOD | BPF_X: /* dst = dst % src */
 	{
 		int rc_reg = BPF_OP(insn->code) == BPF_DIV ? REG_W1 : REG_W0;
 
@@ -602,10 +608,8 @@ static int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i)
 		EMIT4_IMM(0xa7090000, REG_W0, 0);
 		/* lgr %w1,%dst */
 		EMIT4(0xb9040000, REG_W1, dst_reg);
-		/* llgfr %dst,%src (u32 cast) */
-		EMIT4(0xb9160000, dst_reg, src_reg);
 		/* dlgr %w0,%dst */
-		EMIT4(0xb9870000, REG_W0, dst_reg);
+		EMIT4(0xb9870000, REG_W0, src_reg);
 		/* lgr %dst,%rc */
 		EMIT4(0xb9040000, dst_reg, rc_reg);
 		break;
@@ -632,8 +636,8 @@ static int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i)
 		EMIT4(0xb9160000, dst_reg, rc_reg);
 		break;
 	}
-	case BPF_ALU64 | BPF_DIV | BPF_K: /* dst = dst / (u32) imm */
-	case BPF_ALU64 | BPF_MOD | BPF_K: /* dst = dst % (u32) imm */
+	case BPF_ALU64 | BPF_DIV | BPF_K: /* dst = dst / imm */
+	case BPF_ALU64 | BPF_MOD | BPF_K: /* dst = dst % imm */
 	{
 		int rc_reg = BPF_OP(insn->code) == BPF_DIV ? REG_W1 : REG_W0;
 
@@ -649,7 +653,7 @@ static int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i)
 		EMIT4(0xb9040000, REG_W1, dst_reg);
 		/* dlg %w0,<d(imm)>(%l) */
 		EMIT6_DISP_LH(0xe3000000, 0x0087, REG_W0, REG_0, REG_L,
-			      EMIT_CONST_U64((u32) imm));
+			      EMIT_CONST_U64(imm));
 		/* lgr %dst,%rc */
 		EMIT4(0xb9040000, dst_reg, rc_reg);
 		break;

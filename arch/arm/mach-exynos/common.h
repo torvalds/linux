@@ -159,6 +159,8 @@ extern void exynos_enter_aftr(void);
 
 extern struct cpuidle_exynos_data cpuidle_coupled_exynos_data;
 
+extern void exynos_set_delayed_reset_assertion(bool enable);
+
 extern void s5p_init_cpu(void __iomem *cpuid_addr);
 extern unsigned int samsung_rev(void);
 extern void __iomem *cpu_boot_reg_base(void);

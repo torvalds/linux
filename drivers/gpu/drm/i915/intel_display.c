@@ -13635,9 +13635,6 @@ static const struct intel_dmi_quirk intel_dmi_quirks[] = {
 };
 
 static struct intel_quirk intel_quirks[] = {
-	/* HP Mini needs pipe A force quirk (LP: #322104) */
-	{ 0x27ae, 0x103c, 0x361a, quirk_pipea_force },
-
 	/* Toshiba Protege R-205, S-209 needs pipe A force quirk */
 	{ 0x2592, 0x1179, 0x0001, quirk_pipea_force },
 

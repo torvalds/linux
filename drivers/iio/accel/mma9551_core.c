@@ -389,7 +389,12 @@ int mma9551_read_config_words(struct i2c_client *client, u8 app_id,
 {
 	int ret, i;
 	int len_words = len / sizeof(u16);
-	__be16 be_buf[MMA9551_MAX_MAILBOX_DATA_REGS];
+	__be16 be_buf[MMA9551_MAX_MAILBOX_DATA_REGS / 2];
+
+	if (len_words > ARRAY_SIZE(be_buf)) {
+		dev_err(&client->dev, "Invalid buffer size %d\n", len);
+		return -EINVAL;
+	}
 
 	ret = mma9551_transfer(client, app_id, MMA9551_CMD_READ_CONFIG,
 			       reg, NULL, 0, (u8 *) be_buf, len);
@@ -424,7 +429,12 @@ int mma9551_read_status_words(struct i2c_client *client, u8 app_id,
 {
 	int ret, i;
 	int len_words = len / sizeof(u16);
-	__be16 be_buf[MMA9551_MAX_MAILBOX_DATA_REGS];
+	__be16 be_buf[MMA9551_MAX_MAILBOX_DATA_REGS / 2];
+
+	if (len_words > ARRAY_SIZE(be_buf)) {
+		dev_err(&client->dev, "Invalid buffer size %d\n", len);
+		return -EINVAL;
+	}
 
 	ret = mma9551_transfer(client, app_id, MMA9551_CMD_READ_STATUS,
 			       reg, NULL, 0, (u8 *) be_buf, len);
@@ -459,7 +469,12 @@ int mma9551_write_config_words(struct i2c_client *client, u8 app_id,
 {
 	int i;
 	int len_words = len / sizeof(u16);
-	__be16 be_buf[MMA9551_MAX_MAILBOX_DATA_REGS];
+	__be16 be_buf[(MMA9551_MAX_MAILBOX_DATA_REGS - 1) / 2];
+
+	if (len_words > ARRAY_SIZE(be_buf)) {
+		dev_err(&client->dev, "Invalid buffer size %d\n", len);
+		return -EINVAL;
+	}
 
 	for (i = 0; i < len_words; i++)
 		be_buf[i] = cpu_to_be16(buf[i]);

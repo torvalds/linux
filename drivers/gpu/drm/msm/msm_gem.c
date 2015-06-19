@@ -483,7 +483,7 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 	uint64_t off = drm_vma_node_start(&obj->vma_node);
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
-	seq_printf(m, "%08x: %c(r=%u,w=%u) %2d (%2d) %08llx %p %d\n",
+	seq_printf(m, "%08x: %c(r=%u,w=%u) %2d (%2d) %08llx %p %zu\n",
 			msm_obj->flags, is_active(msm_obj) ? 'A' : 'I',
 			msm_obj->read_fence, msm_obj->write_fence,
 			obj->name, obj->refcount.refcount.counter,

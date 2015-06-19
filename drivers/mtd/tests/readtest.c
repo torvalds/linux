@@ -191,9 +191,11 @@ static int __init mtd_readtest_init(void)
 				err = ret;
 		}
 
-		err = mtdtest_relax();
-		if (err)
+		ret = mtdtest_relax();
+		if (ret) {
+			err = ret;
 			goto out;
+		}
 	}
 
 	if (err)

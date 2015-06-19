@@ -569,7 +569,7 @@ static int meson_gpiolib_register(struct meson_pinctrl *pc)
 		domain->chip.direction_output = meson_gpio_direction_output;
 		domain->chip.get = meson_gpio_get;
 		domain->chip.set = meson_gpio_set;
-		domain->chip.base = -1;
+		domain->chip.base = domain->data->pin_base;
 		domain->chip.ngpio = domain->data->num_pins;
 		domain->chip.can_sleep = false;
 		domain->chip.of_node = domain->of_node;

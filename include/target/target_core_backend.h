@@ -1,9 +1,7 @@
 #ifndef TARGET_CORE_BACKEND_H
 #define TARGET_CORE_BACKEND_H
 
-#define TRANSPORT_PLUGIN_PHBA_PDEV		1
-#define TRANSPORT_PLUGIN_VHBA_PDEV		2
-#define TRANSPORT_PLUGIN_VHBA_VDEV		3
+#define TRANSPORT_FLAG_PASSTHROUGH		1
 
 struct target_backend_cits {
 	struct config_item_type tb_dev_cit;
@@ -22,7 +20,7 @@ struct se_subsystem_api {
 	char inquiry_rev[4];
 	struct module *owner;
 
-	u8 transport_type;
+	u8 transport_flags;
 
 	int (*attach_hba)(struct se_hba *, u32);
 	void (*detach_hba)(struct se_hba *);
@@ -138,5 +136,7 @@ int	se_dev_set_queue_depth(struct se_device *, u32);
 int	se_dev_set_max_sectors(struct se_device *, u32);
 int	se_dev_set_optimal_sectors(struct se_device *, u32);
 int	se_dev_set_block_size(struct se_device *, u32);
+sense_reason_t passthrough_parse_cdb(struct se_cmd *cmd,
+	sense_reason_t (*exec_cmd)(struct se_cmd *cmd));
 
 #endif /* TARGET_CORE_BACKEND_H */

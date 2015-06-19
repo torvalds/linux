@@ -2550,7 +2550,7 @@ intel_sdvo_analog_init(struct intel_sdvo *intel_sdvo, int device)
 
 	DRM_DEBUG_KMS("initialising analog device %d\n", device);
 
-	intel_sdvo_connector = kzalloc(sizeof(*intel_sdvo_connector), GFP_KERNEL);
+	intel_sdvo_connector = intel_sdvo_connector_alloc();
 	if (!intel_sdvo_connector)
 		return false;
 

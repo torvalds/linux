@@ -918,6 +918,7 @@ static void volume_control_quirks(struct usb_mixer_elem_info *cval,
 	case USB_ID(0x046d, 0x081d): /* HD Webcam c510 */
 	case USB_ID(0x046d, 0x0825): /* HD Webcam c270 */
 	case USB_ID(0x046d, 0x0826): /* HD Webcam c525 */
+	case USB_ID(0x046d, 0x08ca): /* Logitech Quickcam Fusion */
 	case USB_ID(0x046d, 0x0991):
 	/* Most audio usb devices lie about volume resolution.
 	 * Most Logitech webcams have res = 384.
@@ -1582,18 +1583,15 @@ static int parse_audio_mixer_unit(struct mixer_build *state, int unitid,
 			      unitid);
 		return -EINVAL;
 	}
-	/* no bmControls field (e.g. Maya44) -> ignore */
-	if (desc->bLength <= 10 + input_pins) {
-		usb_audio_dbg(state->chip, "MU %d has no bmControls field\n",
-			      unitid);
-		return 0;
-	}
 
 	num_ins = 0;
 	ich = 0;
 	for (pin = 0; pin < input_pins; pin++) {
 		err = parse_audio_unit(state, desc->baSourceID[pin]);
 		if (err < 0)
+			continue;
+		/* no bmControls field (e.g. Maya44) -> ignore */
+		if (desc->bLength <= 10 + input_pins)
 			continue;
 		err = check_input_term(state, desc->baSourceID[pin], &iterm);
 		if (err < 0)

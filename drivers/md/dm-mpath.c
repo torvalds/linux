@@ -429,9 +429,11 @@ static int __multipath_map(struct dm_target *ti, struct request *clone,
 		/* blk-mq request-based interface */
 		*__clone = blk_get_request(bdev_get_queue(bdev),
 					   rq_data_dir(rq), GFP_ATOMIC);
-		if (IS_ERR(*__clone))
+		if (IS_ERR(*__clone)) {
 			/* ENOMEM, requeue */
+			clear_mapinfo(m, map_context);
 			return r;
+		}
 		(*__clone)->bio = (*__clone)->biotail = NULL;
 		(*__clone)->rq_disk = bdev->bd_disk;
 		(*__clone)->cmd_flags |= REQ_FAILFAST_TRANSPORT;

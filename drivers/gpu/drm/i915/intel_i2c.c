@@ -435,7 +435,7 @@ gmbus_xfer(struct i2c_adapter *adapter,
 					       struct intel_gmbus,
 					       adapter);
 	struct drm_i915_private *dev_priv = bus->dev_priv;
-	int i, reg_offset;
+	int i = 0, inc, try = 0, reg_offset;
 	int ret = 0;
 
 	intel_aux_display_runtime_get(dev_priv);
@@ -448,12 +448,14 @@ gmbus_xfer(struct i2c_adapter *adapter,
 
 	reg_offset = dev_priv->gpio_mmio_base;
 
+retry:
 	I915_WRITE(GMBUS0 + reg_offset, bus->reg0);
 
-	for (i = 0; i < num; i++) {
+	for (; i < num; i += inc) {
+		inc = 1;
 		if (gmbus_is_index_read(msgs, i, num)) {
 			ret = gmbus_xfer_index_read(dev_priv, &msgs[i]);
-			i += 1;  /* set i to the index of the read xfer */
+			inc = 2; /* an index read is two msgs */
 		} else if (msgs[i].flags & I2C_M_RD) {
 			ret = gmbus_xfer_read(dev_priv, &msgs[i], 0);
 		} else {
@@ -524,6 +526,18 @@ clear_err:
 	DRM_DEBUG_KMS("GMBUS [%s] NAK for addr: %04x %c(%d)\n",
 			 adapter->name, msgs[i].addr,
 			 (msgs[i].flags & I2C_M_RD) ? 'r' : 'w', msgs[i].len);
+
+	/*
+	 * Passive adapters sometimes NAK the first probe. Retry the first
+	 * message once on -ENXIO for GMBUS transfers; the bit banging algorithm
+	 * has retries internally. See also the retry loop in
+	 * drm_do_probe_ddc_edid, which bails out on the first -ENXIO.
+	 */
+	if (ret == -ENXIO && i == 0 && try++ == 0) {
+		DRM_DEBUG_KMS("GMBUS [%s] NAK on first message, retry\n",
+			      adapter->name);
+		goto retry;
+	}
 
 	goto out;
 

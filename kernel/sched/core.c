@@ -3300,15 +3300,18 @@ static void __setscheduler_params(struct task_struct *p,
 
 /* Actually do priority change: must hold pi & rq lock. */
 static void __setscheduler(struct rq *rq, struct task_struct *p,
-			   const struct sched_attr *attr)
+			   const struct sched_attr *attr, bool keep_boost)
 {
 	__setscheduler_params(p, attr);
 
 	/*
-	 * If we get here, there was no pi waiters boosting the
-	 * task. It is safe to use the normal prio.
+	 * Keep a potential priority boosting if called from
+	 * sched_setscheduler().
 	 */
-	p->prio = normal_prio(p);
+	if (keep_boost)
+		p->prio = rt_mutex_get_effective_prio(p, normal_prio(p));
+	else
+		p->prio = normal_prio(p);
 
 	if (dl_prio(p->prio))
 		p->sched_class = &dl_sched_class;
@@ -3408,7 +3411,7 @@ static int __sched_setscheduler(struct task_struct *p,
 	int newprio = dl_policy(attr->sched_policy) ? MAX_DL_PRIO - 1 :
 		      MAX_RT_PRIO - 1 - attr->sched_priority;
 	int retval, oldprio, oldpolicy = -1, queued, running;
-	int policy = attr->sched_policy;
+	int new_effective_prio, policy = attr->sched_policy;
 	unsigned long flags;
 	const struct sched_class *prev_class;
 	struct rq *rq;
@@ -3590,15 +3593,14 @@ change:
 	oldprio = p->prio;
 
 	/*
-	 * Special case for priority boosted tasks.
-	 *
-	 * If the new priority is lower or equal (user space view)
-	 * than the current (boosted) priority, we just store the new
+	 * Take priority boosted tasks into account. If the new
+	 * effective priority is unchanged, we just store the new
 	 * normal parameters and do not touch the scheduler class and
 	 * the runqueue. This will be done when the task deboost
 	 * itself.
 	 */
-	if (rt_mutex_check_prio(p, newprio)) {
+	new_effective_prio = rt_mutex_get_effective_prio(p, newprio);
+	if (new_effective_prio == oldprio) {
 		__setscheduler_params(p, attr);
 		task_rq_unlock(rq, p, &flags);
 		return 0;
@@ -3612,7 +3614,7 @@ change:
 		put_prev_task(rq, p);
 
 	prev_class = p->sched_class;
-	__setscheduler(rq, p, attr);
+	__setscheduler(rq, p, attr, true);
 
 	if (running)
 		p->sched_class->set_curr_task(rq);
@@ -4387,10 +4389,7 @@ long __sched io_schedule_timeout(long timeout)
 	long ret;
 
 	current->in_iowait = 1;
-	if (old_iowait)
-		blk_schedule_flush_plug(current);
-	else
-		blk_flush_plug(current);
+	blk_schedule_flush_plug(current);
 
 	delayacct_blkio_start();
 	rq = raw_rq();
@@ -6997,27 +6996,23 @@ static int cpuset_cpu_inactive(struct notifier_block *nfb, unsigned long action,
 	unsigned long flags;
 	long cpu = (long)hcpu;
 	struct dl_bw *dl_b;
+	bool overflow;
+	int cpus;
 
-	switch (action & ~CPU_TASKS_FROZEN) {
+	switch (action) {
 	case CPU_DOWN_PREPARE:
-		/* explicitly allow suspend */
-		if (!(action & CPU_TASKS_FROZEN)) {
-			bool overflow;
-			int cpus;
+		rcu_read_lock_sched();
+		dl_b = dl_bw_of(cpu);
 
-			rcu_read_lock_sched();
-			dl_b = dl_bw_of(cpu);
+		raw_spin_lock_irqsave(&dl_b->lock, flags);
+		cpus = dl_bw_cpus(cpu);
+		overflow = __dl_overflow(dl_b, cpus, 0, 0);
+		raw_spin_unlock_irqrestore(&dl_b->lock, flags);
 
-			raw_spin_lock_irqsave(&dl_b->lock, flags);
-			cpus = dl_bw_cpus(cpu);
-			overflow = __dl_overflow(dl_b, cpus, 0, 0);
-			raw_spin_unlock_irqrestore(&dl_b->lock, flags);
+		rcu_read_unlock_sched();
 
-			rcu_read_unlock_sched();
-
-			if (overflow)
-				return notifier_from_errno(-EBUSY);
-		}
+		if (overflow)
+			return notifier_from_errno(-EBUSY);
 		cpuset_update_active_cpus(false);
 		break;
 	case CPU_DOWN_PREPARE_FROZEN:
@@ -7346,7 +7341,7 @@ static void normalize_task(struct rq *rq, struct task_struct *p)
 	queued = task_on_rq_queued(p);
 	if (queued)
 		dequeue_task(rq, p, 0);
-	__setscheduler(rq, p, &attr);
+	__setscheduler(rq, p, &attr, false);
 	if (queued) {
 		enqueue_task(rq, p, 0);
 		resched_curr(rq);

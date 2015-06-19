@@ -1285,7 +1285,7 @@ netdev_tx_t usbnet_start_xmit (struct sk_buff *skb,
 				     struct net_device *net)
 {
 	struct usbnet		*dev = netdev_priv(net);
-	int			length;
+	unsigned int			length;
 	struct urb		*urb = NULL;
 	struct skb_data		*entry;
 	struct driver_info	*info = dev->driver_info;
@@ -1413,7 +1413,7 @@ not_drop:
 		}
 	} else
 		netif_dbg(dev, tx_queued, dev->net,
-			  "> tx, len %d, type 0x%x\n", length, skb->protocol);
+			  "> tx, len %u, type 0x%x\n", length, skb->protocol);
 #ifdef CONFIG_PM
 deferred:
 #endif

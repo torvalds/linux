@@ -340,6 +340,11 @@ enum {
 #define use_vga_switcheroo(chip)	0
 #endif
 
+#define CONTROLLER_IN_GPU(pci) (((pci)->device == 0x0a0c) || \
+					((pci)->device == 0x0c0c) || \
+					((pci)->device == 0x0d0c) || \
+					((pci)->device == 0x160c))
+
 static char *driver_short_names[] = {
 	[AZX_DRIVER_ICH] = "HDA Intel",
 	[AZX_DRIVER_PCH] = "HDA Intel PCH",
@@ -1854,8 +1859,17 @@ static int azx_probe_continue(struct azx *chip)
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
 #ifdef CONFIG_SND_HDA_I915
 		err = hda_i915_init(hda);
-		if (err < 0)
-			goto out_free;
+		if (err < 0) {
+			/* if the controller is bound only with HDMI/DP
+			 * (for HSW and BDW), we need to abort the probe;
+			 * for other chips, still continue probing as other
+			 * codecs can be on the same link.
+			 */
+			if (CONTROLLER_IN_GPU(pci))
+				goto out_free;
+			else
+				goto skip_i915;
+		}
 		err = hda_display_power(hda, true);
 		if (err < 0) {
 			dev_err(chip->card->dev,
@@ -1865,6 +1879,7 @@ static int azx_probe_continue(struct azx *chip)
 #endif
 	}
 
+ skip_i915:
 	err = azx_first_init(chip);
 	if (err < 0)
 		goto out_free;
@@ -2088,6 +2103,8 @@ static const struct pci_device_id azx_ids[] = {
 	{ PCI_DEVICE(0x1002, 0xaaa8),
 	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS },
 	{ PCI_DEVICE(0x1002, 0xaab0),
+	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS },
+	{ PCI_DEVICE(0x1002, 0xaac8),
 	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS },
 	/* VIA VT8251/VT8237A */
 	{ PCI_DEVICE(0x1106, 0x3288),

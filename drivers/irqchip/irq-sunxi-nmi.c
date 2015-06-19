@@ -104,7 +104,7 @@ static int sunxi_sc_nmi_set_type(struct irq_data *data, unsigned int flow_type)
 	irqd_set_trigger_type(data, flow_type);
 	irq_setup_alt_chip(data, flow_type);
 
-	for (i = 0; i <= gc->num_ct; i++, ct++)
+	for (i = 0; i < gc->num_ct; i++, ct++)
 		if (ct->type & flow_type)
 			ctrl_off = ct->regs.type;
 

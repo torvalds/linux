@@ -142,6 +142,9 @@ static void radeon_mn_invalidate_range_start(struct mmu_notifier *mn,
 
 		list_for_each_entry(bo, &node->bos, mn_list) {
 
+			if (!bo->tbo.ttm || bo->tbo.ttm->state != tt_bound)
+				continue;
+
 			r = radeon_bo_reserve(bo, true);
 			if (r) {
 				DRM_ERROR("(%ld) failed to reserve user bo\n", r);

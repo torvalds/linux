@@ -146,8 +146,21 @@
 		};
 
 		vmmci: regulator-gpio {
+			compatible = "regulator-gpio";
+
 			gpios = <&gpio7 4 0x4>;
 			enable-gpio = <&gpio6 25 0x4>;
+
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <2900000>;
+			regulator-name = "mmci-reg";
+			regulator-type = "voltage";
+
+			startup-delay-us = <100>;
+			enable-active-high;
+
+			states = <1800000 0x1
+				  2900000 0x0>;
 		};
 
 		// External Micro SD slot

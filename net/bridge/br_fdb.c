@@ -796,9 +796,11 @@ static int __br_fdb_add(struct ndmsg *ndm, struct net_bridge_port *p,
 	int err = 0;
 
 	if (ndm->ndm_flags & NTF_USE) {
+		local_bh_disable();
 		rcu_read_lock();
 		br_fdb_update(p->br, p, addr, vid, true);
 		rcu_read_unlock();
+		local_bh_enable();
 	} else {
 		spin_lock_bh(&p->br->hash_lock);
 		err = fdb_add_entry(p, addr, ndm->ndm_state,

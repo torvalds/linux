@@ -529,7 +529,7 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 
 	thermal->pclk = devm_clk_get(&pdev->dev, "apb_pclk");
 	if (IS_ERR(thermal->pclk)) {
-		error = PTR_ERR(thermal->clk);
+		error = PTR_ERR(thermal->pclk);
 		dev_err(&pdev->dev, "failed to get apb_pclk clock: %d\n",
 			error);
 		return error;

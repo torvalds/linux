@@ -4398,7 +4398,7 @@ struct sk_buff *alloc_skb_with_frags(unsigned long header_len,
 
 		while (order) {
 			if (npages >= 1 << order) {
-				page = alloc_pages(gfp_mask |
+				page = alloc_pages((gfp_mask & ~__GFP_WAIT) |
 						   __GFP_COMP |
 						   __GFP_NOWARN |
 						   __GFP_NORETRY,
