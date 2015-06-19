@@ -353,7 +353,6 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy,
 		struct cpu_dbs_common_info *j_cdbs = cdata->get_cpu_cdbs(j);
 		unsigned int prev_load;
 
-		j_cdbs->cpu = j;
 		j_cdbs->cur_policy = policy;
 		j_cdbs->prev_cpu_idle =
 			get_cpu_idle_time(j, &j_cdbs->prev_cpu_wall, io_busy);
