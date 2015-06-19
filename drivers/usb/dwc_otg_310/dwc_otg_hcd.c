@@ -484,6 +484,12 @@ void dwc_otg_hcd_stop(dwc_otg_hcd_t *hcd)
 	dwc_otg_disable_host_interrupts(hcd->core_if);
 
 	/*
+	 * Set status flags for the hub driver.
+	 */
+	hcd->flags.b.port_connect_status_change = 1;
+	hcd->flags.b.port_connect_status = 0;
+
+	/*
 	 * The root hub should be disconnected before this function is called.
 	 * The disconnect will clear the QTD lists (via ..._hcd_urb_dequeue)
 	 * and the QH lists (via ..._hcd_endpoint_disable).
@@ -491,12 +497,6 @@ void dwc_otg_hcd_stop(dwc_otg_hcd_t *hcd)
 	DWC_SPINLOCK_IRQSAVE(hcd->lock, &flags);
 	kill_all_urbs(hcd);
 	DWC_SPINUNLOCK_IRQRESTORE(hcd->lock, flags);
-
-	/*
-	 * Set status flags for the hub driver.
-	 */
-	hcd->flags.b.port_connect_status_change = 1;
-	hcd->flags.b.port_connect_status = 0;
 
 	/* Turn off the vbus power */
 	DWC_PRINTF("PortPower off\n");
