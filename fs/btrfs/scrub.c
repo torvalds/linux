@@ -2720,8 +2720,7 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 		goto rbio_out;
 
 	list_for_each_entry(spage, &sparity->spages, list)
-		raid56_parity_add_scrub_pages(rbio, spage->page,
-					      spage->logical);
+		raid56_add_scrub_pages(rbio, spage->page, spage->logical);
 
 	scrub_pending_bio_inc(sctx);
 	raid56_parity_submit_scrub_rbio(rbio);

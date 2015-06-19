@@ -61,9 +61,10 @@
 #define RBIO_CACHE_SIZE 1024
 
 enum btrfs_rbio_ops {
-	BTRFS_RBIO_WRITE	= 0,
-	BTRFS_RBIO_READ_REBUILD	= 1,
-	BTRFS_RBIO_PARITY_SCRUB	= 2,
+	BTRFS_RBIO_WRITE,
+	BTRFS_RBIO_READ_REBUILD,
+	BTRFS_RBIO_PARITY_SCRUB,
+	BTRFS_RBIO_REBUILD_MISSING,
 };
 
 struct btrfs_raid_bio {
@@ -602,6 +603,10 @@ static int rbio_can_merge(struct btrfs_raid_bio *last,
 	    cur->operation == BTRFS_RBIO_PARITY_SCRUB)
 		return 0;
 
+	if (last->operation == BTRFS_RBIO_REBUILD_MISSING ||
+	    cur->operation == BTRFS_RBIO_REBUILD_MISSING)
+		return 0;
+
 	return 1;
 }
 
@@ -793,7 +798,10 @@ static noinline void unlock_stripe(struct btrfs_raid_bio *rbio)
 
 			if (next->operation == BTRFS_RBIO_READ_REBUILD)
 				async_read_rebuild(next);
-			else if (next->operation == BTRFS_RBIO_WRITE) {
+			else if (next->operation == BTRFS_RBIO_REBUILD_MISSING) {
+				steal_rbio(rbio, next);
+				async_read_rebuild(next);
+			} else if (next->operation == BTRFS_RBIO_WRITE) {
 				steal_rbio(rbio, next);
 				async_rmw_stripe(next);
 			} else if (next->operation == BTRFS_RBIO_PARITY_SCRUB) {
@@ -1809,7 +1817,8 @@ static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
 	faila = rbio->faila;
 	failb = rbio->failb;
 
-	if (rbio->operation == BTRFS_RBIO_READ_REBUILD) {
+	if (rbio->operation == BTRFS_RBIO_READ_REBUILD ||
+	    rbio->operation == BTRFS_RBIO_REBUILD_MISSING) {
 		spin_lock_irq(&rbio->bio_list_lock);
 		set_bit(RBIO_RMW_LOCKED_BIT, &rbio->flags);
 		spin_unlock_irq(&rbio->bio_list_lock);
@@ -1834,7 +1843,8 @@ static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
 			 * if we're rebuilding a read, we have to use
 			 * pages from the bio list
 			 */
-			if (rbio->operation == BTRFS_RBIO_READ_REBUILD &&
+			if ((rbio->operation == BTRFS_RBIO_READ_REBUILD ||
+			     rbio->operation == BTRFS_RBIO_REBUILD_MISSING) &&
 			    (stripe == faila || stripe == failb)) {
 				page = page_in_rbio(rbio, stripe, pagenr, 0);
 			} else {
@@ -1943,7 +1953,8 @@ pstripe:
 			 * if we're rebuilding a read, we have to use
 			 * pages from the bio list
 			 */
-			if (rbio->operation == BTRFS_RBIO_READ_REBUILD &&
+			if ((rbio->operation == BTRFS_RBIO_READ_REBUILD ||
+			     rbio->operation == BTRFS_RBIO_REBUILD_MISSING) &&
 			    (stripe == faila || stripe == failb)) {
 				page = page_in_rbio(rbio, stripe, pagenr, 0);
 			} else {
@@ -1964,6 +1975,8 @@ cleanup_io:
 		else
 			clear_bit(RBIO_CACHE_READY_BIT, &rbio->flags);
 
+		rbio_orig_end_io(rbio, err, err == 0);
+	} else if (rbio->operation == BTRFS_RBIO_REBUILD_MISSING) {
 		rbio_orig_end_io(rbio, err, err == 0);
 	} else if (err == 0) {
 		rbio->faila = -1;
@@ -2101,7 +2114,8 @@ out:
 	return 0;
 
 cleanup:
-	if (rbio->operation == BTRFS_RBIO_READ_REBUILD)
+	if (rbio->operation == BTRFS_RBIO_READ_REBUILD ||
+	    rbio->operation == BTRFS_RBIO_REBUILD_MISSING)
 		rbio_orig_end_io(rbio, -EIO, 0);
 	return -EIO;
 }
@@ -2232,8 +2246,9 @@ raid56_parity_alloc_scrub_rbio(struct btrfs_root *root, struct bio *bio,
 	return rbio;
 }
 
-void raid56_parity_add_scrub_pages(struct btrfs_raid_bio *rbio,
-				   struct page *page, u64 logical)
+/* Used for both parity scrub and missing. */
+void raid56_add_scrub_pages(struct btrfs_raid_bio *rbio, struct page *page,
+			    u64 logical)
 {
 	int stripe_offset;
 	int index;
@@ -2667,4 +2682,56 @@ void raid56_parity_submit_scrub_rbio(struct btrfs_raid_bio *rbio)
 {
 	if (!lock_stripe_add(rbio))
 		async_scrub_parity(rbio);
+}
+
+/* The following code is used for dev replace of a missing RAID 5/6 device. */
+
+struct btrfs_raid_bio *
+raid56_alloc_missing_rbio(struct btrfs_root *root, struct bio *bio,
+			  struct btrfs_bio *bbio, u64 length)
+{
+	struct btrfs_raid_bio *rbio;
+
+	rbio = alloc_rbio(root, bbio, length);
+	if (IS_ERR(rbio))
+		return NULL;
+
+	rbio->operation = BTRFS_RBIO_REBUILD_MISSING;
+	bio_list_add(&rbio->bio_list, bio);
+	/*
+	 * This is a special bio which is used to hold the completion handler
+	 * and make the scrub rbio is similar to the other types
+	 */
+	ASSERT(!bio->bi_iter.bi_size);
+
+	rbio->faila = find_logical_bio_stripe(rbio, bio);
+	if (rbio->faila == -1) {
+		BUG();
+		kfree(rbio);
+		return NULL;
+	}
+
+	return rbio;
+}
+
+static void missing_raid56_work(struct btrfs_work *work)
+{
+	struct btrfs_raid_bio *rbio;
+
+	rbio = container_of(work, struct btrfs_raid_bio, work);
+	__raid56_parity_recover(rbio);
+}
+
+static void async_missing_raid56(struct btrfs_raid_bio *rbio)
+{
+	btrfs_init_work(&rbio->work, btrfs_rmw_helper,
+			missing_raid56_work, NULL, NULL);
+
+	btrfs_queue_work(rbio->fs_info->rmw_workers, &rbio->work);
+}
+
+void raid56_submit_missing_rbio(struct btrfs_raid_bio *rbio)
+{
+	if (!lock_stripe_add(rbio))
+		async_missing_raid56(rbio);
 }
