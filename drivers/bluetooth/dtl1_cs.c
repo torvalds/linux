@@ -182,9 +182,9 @@ static void dtl1_control(struct dtl1_info *info, struct sk_buff *skb)
 	int i;
 
 	printk(KERN_INFO "Bluetooth: Nokia control data =");
-	for (i = 0; i < skb->len; i++) {
+	for (i = 0; i < skb->len; i++)
 		printk(" %02x", skb->data[i]);
-	}
+
 	printk("\n");
 
 	/* transition to active state */
