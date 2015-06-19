@@ -43,14 +43,14 @@ static bool pmc_is_gp(struct kvm_pmc *pmc)
 
 static inline u64 pmc_bitmask(struct kvm_pmc *pmc)
 {
-	struct kvm_pmu *pmu = &pmc->vcpu->arch.pmu;
+	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
 
 	return pmu->counter_bitmask[pmc->type];
 }
 
 static inline bool pmc_is_enabled(struct kvm_pmc *pmc)
 {
-	struct kvm_pmu *pmu = &pmc->vcpu->arch.pmu;
+	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
 	return test_bit(pmc->idx, (unsigned long *)&pmu->global_ctrl);
 }
 
@@ -91,10 +91,8 @@ void kvm_pmu_deliver_pmi(struct kvm_vcpu *vcpu)
 
 static void kvm_pmi_trigger_fn(struct irq_work *irq_work)
 {
-	struct kvm_pmu *pmu = container_of(irq_work, struct kvm_pmu,
-			irq_work);
-	struct kvm_vcpu *vcpu = container_of(pmu, struct kvm_vcpu,
-			arch.pmu);
+	struct kvm_pmu *pmu = container_of(irq_work, struct kvm_pmu, irq_work);
+	struct kvm_vcpu *vcpu = pmu_to_vcpu(pmu);
 
 	kvm_pmu_deliver_pmi(vcpu);
 }
@@ -104,7 +102,7 @@ static void kvm_perf_overflow(struct perf_event *perf_event,
 			      struct pt_regs *regs)
 {
 	struct kvm_pmc *pmc = perf_event->overflow_handler_context;
-	struct kvm_pmu *pmu = &pmc->vcpu->arch.pmu;
+	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
 	if (!test_and_set_bit(pmc->idx, (unsigned long *)&pmu->reprogram_pmi)) {
 		__set_bit(pmc->idx, (unsigned long *)&pmu->global_status);
 		kvm_make_request(KVM_REQ_PMU, pmc->vcpu);
@@ -115,7 +113,7 @@ static void kvm_perf_overflow_intr(struct perf_event *perf_event,
 		struct perf_sample_data *data, struct pt_regs *regs)
 {
 	struct kvm_pmc *pmc = perf_event->overflow_handler_context;
-	struct kvm_pmu *pmu = &pmc->vcpu->arch.pmu;
+	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
 	if (!test_and_set_bit(pmc->idx, (unsigned long *)&pmu->reprogram_pmi)) {
 		__set_bit(pmc->idx, (unsigned long *)&pmu->global_status);
 		kvm_make_request(KVM_REQ_PMU, pmc->vcpu);
@@ -128,7 +126,7 @@ static void kvm_perf_overflow_intr(struct perf_event *perf_event,
 		 * NMI context. Do it from irq work instead.
 		 */
 		if (!kvm_is_in_guest())
-			irq_work_queue(&pmc->vcpu->arch.pmu.irq_work);
+			irq_work_queue(&pmc_to_pmu(pmc)->irq_work);
 		else
 			kvm_make_request(KVM_REQ_PMI, pmc->vcpu);
 	}
@@ -190,7 +188,7 @@ static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
 	}
 
 	pmc->perf_event = event;
-	clear_bit(pmc->idx, (unsigned long*)&pmc->vcpu->arch.pmu.reprogram_pmi);
+	clear_bit(pmc->idx, (unsigned long*)&pmc_to_pmu(pmc)->reprogram_pmi);
 }
 
 static unsigned find_arch_event(struct kvm_pmu *pmu, u8 event_select,
@@ -233,7 +231,7 @@ static void reprogram_gp_counter(struct kvm_pmc *pmc, u64 eventsel)
 				ARCH_PERFMON_EVENTSEL_CMASK |
 				HSW_IN_TX |
 				HSW_IN_TX_CHECKPOINTED))) {
-		config = find_arch_event(&pmc->vcpu->arch.pmu, event_select,
+		config = find_arch_event(pmc_to_pmu(pmc), event_select,
 				unit_mask);
 		if (config != PERF_COUNT_HW_MAX)
 			type = PERF_TYPE_HARDWARE;
@@ -318,7 +316,7 @@ static void global_ctrl_changed(struct kvm_pmu *pmu, u64 data)
 
 bool kvm_pmu_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr)
 {
-	struct kvm_pmu *pmu = &vcpu->arch.pmu;
+	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	int ret;
 
 	switch (msr) {
@@ -339,7 +337,7 @@ bool kvm_pmu_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr)
 
 int kvm_pmu_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data)
 {
-	struct kvm_pmu *pmu = &vcpu->arch.pmu;
+	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	struct kvm_pmc *pmc;
 
 	switch (index) {
@@ -370,7 +368,7 @@ int kvm_pmu_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data)
 
 int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
-	struct kvm_pmu *pmu = &vcpu->arch.pmu;
+	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	struct kvm_pmc *pmc;
 	u32 index = msr_info->index;
 	u64 data = msr_info->data;
@@ -427,7 +425,7 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 
 int kvm_pmu_is_valid_msr_idx(struct kvm_vcpu *vcpu, unsigned pmc)
 {
-	struct kvm_pmu *pmu = &vcpu->arch.pmu;
+	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	bool fixed = pmc & (1u << 30);
 	pmc &= ~(3u << 30);
 	return (!fixed && pmc >= pmu->nr_arch_gp_counters) ||
@@ -436,7 +434,7 @@ int kvm_pmu_is_valid_msr_idx(struct kvm_vcpu *vcpu, unsigned pmc)
 
 int kvm_pmu_rdpmc(struct kvm_vcpu *vcpu, unsigned pmc, u64 *data)
 {
-	struct kvm_pmu *pmu = &vcpu->arch.pmu;
+	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	bool fast_mode = pmc & (1u << 31);
 	bool fixed = pmc & (1u << 30);
 	struct kvm_pmc *counters;
@@ -458,7 +456,7 @@ int kvm_pmu_rdpmc(struct kvm_vcpu *vcpu, unsigned pmc, u64 *data)
 
 void kvm_pmu_refresh(struct kvm_vcpu *vcpu)
 {
-	struct kvm_pmu *pmu = &vcpu->arch.pmu;
+	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	struct kvm_cpuid_entry2 *entry;
 	union cpuid10_eax eax;
 	union cpuid10_edx edx;
@@ -510,7 +508,7 @@ void kvm_pmu_refresh(struct kvm_vcpu *vcpu)
 void kvm_pmu_init(struct kvm_vcpu *vcpu)
 {
 	int i;
-	struct kvm_pmu *pmu = &vcpu->arch.pmu;
+	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 
 	memset(pmu, 0, sizeof(*pmu));
 	for (i = 0; i < INTEL_PMC_MAX_GENERIC; i++) {
@@ -529,7 +527,7 @@ void kvm_pmu_init(struct kvm_vcpu *vcpu)
 
 void kvm_pmu_reset(struct kvm_vcpu *vcpu)
 {
-	struct kvm_pmu *pmu = &vcpu->arch.pmu;
+	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	int i;
 
 	irq_work_sync(&pmu->irq_work);
@@ -553,7 +551,7 @@ void kvm_pmu_destroy(struct kvm_vcpu *vcpu)
 
 void kvm_pmu_handle_event(struct kvm_vcpu *vcpu)
 {
-	struct kvm_pmu *pmu = &vcpu->arch.pmu;
+	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	u64 bitmask;
 	int bit;
 
