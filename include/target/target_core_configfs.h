@@ -1,6 +1,4 @@
 
-#define TARGET_CORE_CONFIG_ROOT	"/sys/kernel/config"
-
 #define TARGET_CORE_NAME_MAX_LEN	64
 #define TARGET_FABRIC_NAME_SIZE		32
 
