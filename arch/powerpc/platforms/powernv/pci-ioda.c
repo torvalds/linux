@@ -140,11 +140,9 @@ static void pnv_ioda_reserve_pe(struct pnv_phb *phb, int pe_no)
 		return;
 	}
 
-	if (test_and_set_bit(pe_no, phb->ioda.pe_alloc)) {
-		pr_warn("%s: PE %d was assigned on PHB#%x\n",
-			__func__, pe_no, phb->hose->global_number);
-		return;
-	}
+	if (test_and_set_bit(pe_no, phb->ioda.pe_alloc))
+		pr_debug("%s: PE %d was reserved on PHB#%x\n",
+			 __func__, pe_no, phb->hose->global_number);
 
 	phb->ioda.pe_array[pe_no].phb = phb;
 	phb->ioda.pe_array[pe_no].pe_number = pe_no;
