@@ -101,7 +101,7 @@ struct arizona_pdata {
 	 * useful for systems where and I2S bus with multiple data
 	 * lines is mastered.
 	 */
-	int max_channels_clocked[ARIZONA_MAX_AIF];
+	unsigned int max_channels_clocked[ARIZONA_MAX_AIF];
 
 	/** GPIO5 is used for jack detection */
 	bool jd_gpio5;
@@ -125,22 +125,22 @@ struct arizona_pdata {
 	unsigned int hpdet_channel;
 
 	/** Extra debounce timeout used during initial mic detection (ms) */
-	int micd_detect_debounce;
+	unsigned int micd_detect_debounce;
 
 	/** GPIO for mic detection polarity */
 	int micd_pol_gpio;
 
 	/** Mic detect ramp rate */
-	int micd_bias_start_time;
+	unsigned int micd_bias_start_time;
 
 	/** Mic detect sample rate */
-	int micd_rate;
+	unsigned int micd_rate;
 
 	/** Mic detect debounce level */
-	int micd_dbtime;
+	unsigned int micd_dbtime;
 
 	/** Mic detect timeout (ms) */
-	int micd_timeout;
+	unsigned int micd_timeout;
 
 	/** Force MICBIAS on for mic detect */
 	bool micd_force_micbias;
