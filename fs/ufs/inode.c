@@ -444,37 +444,21 @@ static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buff
 	if (depth == 1) {
 		phys64 = ufs_inode_getfrag(inode, offsets[0], fragment,
 					   &err, &phys, &new, bh_result->b_page);
-		if (phys64) {
-			phys64 += frag;
-			phys = phys64;
-		}
-		goto out;
-	}
-	if (depth == 2) {
+	} else {
+		int i;
 		phys64 = ufs_inode_getfrag(inode, offsets[0], fragment,
 					   &err, NULL, NULL, bh_result->b_page);
-		goto get_indirect;
+		for (i = 1; i < depth - 1; i++)
+			phys64 = ufs_inode_getblock(inode, phys64, offsets[i],
+						fragment, &err, NULL, NULL, NULL);
+		phys64 = ufs_inode_getblock(inode, phys64, offsets[depth - 1],
+					fragment, &err, &phys, &new, bh_result->b_page);
 	}
-	if (depth == 3) {
-		phys64 = ufs_inode_getfrag(inode, offsets[0], fragment,
-					   &err, NULL, NULL, bh_result->b_page);
-		goto get_double;
-	}
-	phys64 = ufs_inode_getfrag(inode, offsets[0], fragment,
-				   &err, NULL, NULL, bh_result->b_page);
-	phys64 = ufs_inode_getblock(inode, phys64, offsets[1],
-				fragment, &err, NULL, NULL, NULL);
-get_double:
-	phys64 = ufs_inode_getblock(inode, phys64, offsets[depth - 2],
-				fragment, &err, NULL, NULL, NULL);
-get_indirect:
-	phys64 = ufs_inode_getblock(inode, phys64, offsets[depth - 1],
-				fragment, &err, &phys, &new, bh_result->b_page);
+out:
 	if (phys64) {
 		phys64 += frag;
 		phys = phys64;
 	}
-out:
 	if (err)
 		goto abort;
 	if (new)
