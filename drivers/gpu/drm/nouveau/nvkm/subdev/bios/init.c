@@ -577,6 +577,9 @@ init_reserved(struct nvbios_init *init)
 	u8 length, i;
 
 	switch (opcode) {
+	case 0x59:
+		length = 7;
+		break;
 	case 0xaa:
 		length = 4;
 		break;
@@ -1282,6 +1285,25 @@ init_zm_reg_sequence(struct nvbios_init *init)
 		init_wr32(init, base, data);
 		base += 4;
 	}
+}
+
+/**
+ * INIT_ZM_REG_INDIRECT - opcode 0x5a
+ *
+ */
+static void
+init_zm_reg_indirect(struct nvbios_init *init)
+{
+	struct nvkm_bios *bios = init->bios;
+	u32  reg = nv_ro32(bios, init->offset + 1);
+	u16 addr = nv_ro16(bios, init->offset + 5);
+	u32 data = nv_ro32(bios, addr);
+
+	trace("ZM_REG_INDIRECT\tR[0x%06x] = VBIOS[0x%04x] = 0x%08x\n",
+	      reg, addr, data);
+	init->offset += 7;
+
+	init_wr32(init, addr, data);
 }
 
 /**
@@ -2145,6 +2167,8 @@ static struct nvbios_init_opcode {
 	[0x56] = { init_condition_time },
 	[0x57] = { init_ltime },
 	[0x58] = { init_zm_reg_sequence },
+	[0x59] = { init_reserved },
+	[0x5a] = { init_zm_reg_indirect },
 	[0x5b] = { init_sub_direct },
 	[0x5c] = { init_jump },
 	[0x5e] = { init_i2c_if },
