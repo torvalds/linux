@@ -424,10 +424,12 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI,	PCI_DEVICE_ID_ATI_RS100,   quirk_ati_
  */
 static void quirk_amd_nl_class(struct pci_dev *pdev)
 {
-	/*
-	 * Use 'USB Device' (0x0c03fe) instead of PCI header provided
-	 */
-	pdev->class = 0x0c03fe;
+	u32 class = pdev->class;
+
+	/* Use "USB Device (not host controller)" class */
+	pdev->class = (PCI_CLASS_SERIAL_USB << 8) | 0xfe;
+	dev_info(&pdev->dev, "PCI class overridden (%#08x -> %#08x) so dwc3 driver can claim this instead of xhci\n",
+		 class, pdev->class);
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_NL_USB,
 		quirk_amd_nl_class);
