@@ -398,40 +398,30 @@ out:
 
 static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buffer_head *bh_result, int create)
 {
-	struct super_block * sb = inode->i_sb;
-	struct ufs_sb_info * sbi = UFS_SB(sb);
-	struct ufs_sb_private_info * uspi = sbi->s_uspi;
-	struct buffer_head * bh;
-	int ret, err, new;
+	struct super_block *sb = inode->i_sb;
+	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
+	int err = 0, new = 0;
 	unsigned offsets[4];
 	int depth = ufs_block_to_path(inode, fragment >> uspi->s_fpbshift, offsets);
-	unsigned long phys;
 	u64 phys64 = 0;
+	unsigned long phys;
 	unsigned frag = fragment & uspi->s_fpbmask;
 
 	if (!create) {
 		phys64 = ufs_frag_map(inode, offsets, depth);
-		if (phys64) {
-			phys64 += frag;
-			map_bh(bh_result, sb, phys64);
-		}
-		return 0;
+		goto out;
 	}
 
         /* This code entered only while writing ....? */
 
-	err = -EIO;
-	new = 0;
-	ret = 0;
-	bh = NULL;
-
 	mutex_lock(&UFS_I(inode)->truncate_mutex);
 
 	UFSD("ENTER, ino %lu, fragment %llu\n", inode->i_ino, (unsigned long long)fragment);
-	if (!depth)
-		goto abort_too_big;
-
-	err = 0;
+	if (unlikely(!depth)) {
+		ufs_warning(sb, "ufs_get_block", "block > big");
+		err = -EIO;
+		goto out;
+	}
 
 	if (UFS_I(inode)->i_lastfrag < UFS_NDIR_FRAGMENT) {
 		unsigned lastfrag = UFS_I(inode)->i_lastfrag;
@@ -439,7 +429,7 @@ static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buff
 		if (tailfrags && fragment >= lastfrag) {
 			if (!ufs_extend_tail(inode, fragment,
 					     &err, bh_result->b_page))
-				goto abort;
+				goto out;
 		}
 	}
 
@@ -456,23 +446,15 @@ static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buff
 		phys64 = ufs_inode_getblock(inode, phys64, offsets[depth - 1],
 					fragment, &err, &phys, &new, bh_result->b_page);
 	}
+out:
 	if (phys64) {
 		phys64 += frag;
-		phys = phys64;
+		map_bh(bh_result, sb, phys64);
+		if (new)
+			set_buffer_new(bh_result);
 	}
-	if (err)
-		goto abort;
-	if (new)
-		set_buffer_new(bh_result);
-	map_bh(bh_result, sb, phys);
-abort:
 	mutex_unlock(&UFS_I(inode)->truncate_mutex);
-
 	return err;
-
-abort_too_big:
-	ufs_warning(sb, "ufs_get_block", "block > big");
-	goto abort;
 }
 
 static int ufs_writepage(struct page *page, struct writeback_control *wbc)
