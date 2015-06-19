@@ -16,11 +16,15 @@ TARGETS += ptrace
 TARGETS += seccomp
 TARGETS += size
 TARGETS += sysctl
+ifneq (1, $(quicktest))
 TARGETS += timers
+endif
 TARGETS += user
 TARGETS += vm
 TARGETS += x86
 #Please keep the TARGETS list alphabetically sorted
+# Run "make quicktest=1 run_tests" or
+# "make quicktest=1 kselftest from top level Makefile
 
 TARGETS_HOTPLUG = cpu-hotplug
 TARGETS_HOTPLUG += memory-hotplug
