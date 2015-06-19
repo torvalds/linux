@@ -16,6 +16,7 @@
 
 #include <linux/delay.h>
 #include <linux/kernel.h>
+#include <linux/clk.h>
 
 /*
  * "Policies" affect the frequencies of bus clocks provided by a
