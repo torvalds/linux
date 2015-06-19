@@ -33,6 +33,9 @@
 */
 
 #include <linux/errno.h>
+#include <linux/slab.h>
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include "clk-cpu.h"
 
 #define E4210_SRC_CPU		0x0

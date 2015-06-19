@@ -8,6 +8,10 @@
  * Common Clock Framework support for s3c24xx external clock output.
  */
 
+#include <linux/clkdev.h>
+#include <linux/slab.h>
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include "clk.h"
