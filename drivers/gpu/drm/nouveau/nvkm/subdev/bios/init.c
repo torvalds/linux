@@ -1742,6 +1742,24 @@ init_resume(struct nvbios_init *init)
 }
 
 /**
+ * INIT_STRAP_CONDITION - opcode 0x73
+ *
+ */
+static void
+init_strap_condition(struct nvbios_init *init)
+{
+	struct nvkm_bios *bios = init->bios;
+	u32 mask = nv_ro32(bios, init->offset + 1);
+	u32 value = nv_ro32(bios, init->offset + 5);
+
+	trace("STRAP_CONDITION\t(R[0x101000] & 0x%08x) == 0x%08x\n", mask, value);
+	init->offset += 9;
+
+	if ((init_rd32(init, 0x101000) & mask) != value)
+		init_exec_set(init, false);
+}
+
+/**
  * INIT_TIME - opcode 0x74
  *
  */
@@ -1794,6 +1812,23 @@ init_io_condition(struct nvbios_init *init)
 
 	if (!init_io_condition_met(init, cond))
 		init_exec_set(init, false);
+}
+
+/**
+ * INIT_ZM_REG16 - opcode 0x77
+ *
+ */
+static void
+init_zm_reg16(struct nvbios_init *init)
+{
+	struct nvkm_bios *bios = init->bios;
+	u32 addr = nv_ro32(bios, init->offset + 1);
+	u16 data = nv_ro16(bios, init->offset + 5);
+
+	trace("ZM_REG\tR[0x%06x] = 0x%04x\n", addr, data);
+	init->offset += 7;
+
+	init_wr32(init, addr, data);
 }
 
 /**
@@ -2202,9 +2237,11 @@ static struct nvbios_init_opcode {
 	[0x6f] = { init_macro },
 	[0x71] = { init_done },
 	[0x72] = { init_resume },
+	[0x73] = { init_strap_condition },
 	[0x74] = { init_time },
 	[0x75] = { init_condition },
 	[0x76] = { init_io_condition },
+	[0x77] = { init_zm_reg16 },
 	[0x78] = { init_index_io },
 	[0x79] = { init_pll },
 	[0x7a] = { init_zm_reg },
