@@ -1901,7 +1901,10 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			/* Fall thru */
 		case 'q':
 		case CTRL('c'):
+			goto out_free_stack;
 		case 'f':
+			if (is_report_browser(hbt))
+				continue;
 			goto out_free_stack;
 		default:
 			continue;
