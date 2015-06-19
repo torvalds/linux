@@ -348,22 +348,34 @@ int kvm_pmu_is_valid_msr_idx(struct kvm_vcpu *vcpu, unsigned idx)
 		(fixed && idx >= pmu->nr_arch_fixed_counters);
 }
 
-int kvm_pmu_rdpmc(struct kvm_vcpu *vcpu, unsigned idx, u64 *data)
+static struct kvm_pmc *kvm_pmu_msr_idx_to_pmc(struct kvm_vcpu *vcpu,
+                                            unsigned idx)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
-	bool fast_mode = idx & (1u << 31);
 	bool fixed = idx & (1u << 30);
 	struct kvm_pmc *counters;
-	u64 ctr_val;
 
 	idx &= ~(3u << 30);
 	if (!fixed && idx >= pmu->nr_arch_gp_counters)
-		return 1;
+		return NULL;
 	if (fixed && idx >= pmu->nr_arch_fixed_counters)
-		return 1;
+		return NULL;
 	counters = fixed ? pmu->fixed_counters : pmu->gp_counters;
 
-	ctr_val = pmc_read_counter(&counters[idx]);
+	return &counters[idx];
+}
+
+int kvm_pmu_rdpmc(struct kvm_vcpu *vcpu, unsigned idx, u64 *data)
+{
+	bool fast_mode = idx & (1u << 31);
+	struct kvm_pmc *pmc;
+	u64 ctr_val;
+
+	pmc = kvm_pmu_msr_idx_to_pmc(vcpu, idx);
+	if (!pmc)
+		return 1;
+
+	ctr_val = pmc_read_counter(pmc);
 	if (fast_mode)
 		ctr_val = (u32)ctr_val;
 
