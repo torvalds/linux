@@ -861,6 +861,9 @@ vmxnet3_parse_and_copy_hdr(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 					     , skb_headlen(skb));
 		}
 
+		if (skb->len <= VMXNET3_HDR_COPY_SIZE)
+			ctx->copy_size = skb->len;
+
 		/* make sure headers are accessible directly */
 		if (unlikely(!pskb_may_pull(skb, ctx->copy_size)))
 			goto err;
@@ -1273,36 +1276,36 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 			if (skip_page_frags)
 				goto rcd_done;
 
-			new_page = alloc_page(GFP_ATOMIC);
-			if (unlikely(new_page == NULL)) {
+			if (rcd->len) {
+				new_page = alloc_page(GFP_ATOMIC);
 				/* Replacement page frag could not be allocated.
 				 * Reuse this page. Drop the pkt and free the
 				 * skb which contained this page as a frag. Skip
 				 * processing all the following non-sop frags.
 				 */
-				rq->stats.rx_buf_alloc_failure++;
-				dev_kfree_skb(ctx->skb);
-				ctx->skb = NULL;
-				skip_page_frags = true;
-				goto rcd_done;
-			}
+				if (unlikely(!new_page)) {
+					rq->stats.rx_buf_alloc_failure++;
+					dev_kfree_skb(ctx->skb);
+					ctx->skb = NULL;
+					skip_page_frags = true;
+					goto rcd_done;
+				}
 
-			if (rcd->len) {
 				dma_unmap_page(&adapter->pdev->dev,
 					       rbi->dma_addr, rbi->len,
 					       PCI_DMA_FROMDEVICE);
 
 				vmxnet3_append_frag(ctx->skb, rcd, rbi);
-			}
 
-			/* Immediate refill */
-			rbi->page = new_page;
-			rbi->dma_addr = dma_map_page(&adapter->pdev->dev,
-						     rbi->page,
-						     0, PAGE_SIZE,
-						     PCI_DMA_FROMDEVICE);
-			rxd->addr = cpu_to_le64(rbi->dma_addr);
-			rxd->len = rbi->len;
+				/* Immediate refill */
+				rbi->page = new_page;
+				rbi->dma_addr = dma_map_page(&adapter->pdev->dev
+							, rbi->page,
+							0, PAGE_SIZE,
+							PCI_DMA_FROMDEVICE);
+				rxd->addr = cpu_to_le64(rbi->dma_addr);
+				rxd->len = rbi->len;
+			}
 		}
 
 
