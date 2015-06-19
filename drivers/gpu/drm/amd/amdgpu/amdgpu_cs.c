@@ -739,9 +739,9 @@ int amdgpu_cs_wait_ioctl(struct drm_device *dev, void *data,
 {
 	union drm_amdgpu_wait_cs *wait = data;
 	struct amdgpu_device *adev = dev->dev_private;
-	uint64_t seq[AMDGPU_MAX_RINGS] = {0};
-	struct amdgpu_ring *ring = NULL;
 	unsigned long timeout = amdgpu_gem_timeout(wait->in.timeout);
+	struct amdgpu_fence *fence = NULL;
+	struct amdgpu_ring *ring = NULL;
 	struct amdgpu_ctx *ctx;
 	long r;
 
@@ -754,9 +754,12 @@ int amdgpu_cs_wait_ioctl(struct drm_device *dev, void *data,
 	if (r)
 		return r;
 
-	seq[ring->idx] = wait->in.handle;
+	r = amdgpu_fence_recreate(ring, filp, wait->in.handle, &fence);
+	if (r)
+		return r;
 
-	r = amdgpu_fence_wait_seq_timeout(adev, seq, true, timeout);
+	r = fence_wait_timeout(&fence->base, true, timeout);
+	amdgpu_fence_unref(&fence);
 	amdgpu_ctx_put(ctx);
 	if (r < 0)
 		return r;
