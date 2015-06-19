@@ -25,7 +25,7 @@ first time, it was renamed to 'EDAC'.
 The bluesmoke project at sourceforge.net is now utilized as a 'staging area'
 for EDAC development, before it is sent upstream to kernel.org
 
-At the bluesmoke/EDAC project site is a series of quilt patches against
+At the bluesmoke/EDAC project site, there is a series of quilt patches against
 recent kernels, stored in a SVN repository. For easier downloading, there
 is also a tarball snapshot available.
 
@@ -235,7 +235,7 @@ In 'mcX' directories are EDAC control and attribute files for
 this 'X' instance of the memory controllers.
 
 For a description of the sysfs API, please see:
-	Documentation/ABI/testing/sysfs/devices-edac
+	Documentation/ABI/testing/sysfs-devices-edac
 
 
 ============================================================================
@@ -276,7 +276,7 @@ Total memory managed by this csrow attribute file:
 
 	'size_mb'
 
-	This attribute file displays, in count of megabytes, of memory
+	This attribute file displays, in count of megabytes, the memory
 	that this csrow contains.
 
 
@@ -516,7 +516,7 @@ Panic on PCI PARITY Error:
 	'panic_on_pci_parity'
 
 
-	This control files enables or disables panicking when a parity
+	This control file enables or disables panicking when a parity
 	error has been detected.
 
 
@@ -617,7 +617,7 @@ The 'test_device_edac' device adds 4 attributes and 1 control:
 				reset all the above counters.
 
 
-Use of the 'test_device_edac' driver should any others to create their own
+Use of the 'test_device_edac' driver should enable any others to create their own
 unique drivers for their hardware systems.
 
 The 'test_device_edac' sample driver is located at the
@@ -633,7 +633,7 @@ of the driver.
 Due to the way Nehalem exports Memory Controller data, some adjustments
 were done at i7core_edac driver. This chapter will cover those differences
 
-1) On Nehalem, there are one Memory Controller per Quick Patch Interconnect
+1) On Nehalem, there is one Memory Controller per Quick Patch Interconnect
    (QPI). At the driver, the term "socket" means one QPI. This is
    associated with a physical CPU socket.
 
@@ -642,7 +642,7 @@ were done at i7core_edac driver. This chapter will cover those differences
    Each channel can have up to 3 DIMMs.
 
    The minimum known unity is DIMMs. There are no information about csrows.
-   As EDAC API maps the minimum unity is csrows, the driver sequencially
+   As EDAC API maps the minimum unity is csrows, the driver sequentially
    maps channel/dimm into different csrows.
 
    For example, supposing the following layout:
@@ -664,7 +664,7 @@ exports one
 
    Each QPI is exported as a different memory controller.
 
-2) Nehalem MC has the hability to generate errors. The driver implements this
+2) Nehalem MC has the ability to generate errors. The driver implements this
    functionality via some error injection nodes:
 
    For injecting a memory error, there are some sysfs nodes, under
@@ -771,5 +771,5 @@ exports one
 
    The standard error counters are generated when an mcelog error is received
    by the driver. Since, with udimm, this is counted by software, it is
-   possible that some errors could be lost. With rdimm's, they displays the
+   possible that some errors could be lost. With rdimm's, they display the
    contents of the registers
