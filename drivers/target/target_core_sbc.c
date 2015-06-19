@@ -38,6 +38,7 @@
 
 static sense_reason_t
 sbc_check_prot(struct se_device *, struct se_cmd *, unsigned char *, u32, bool);
+static sense_reason_t sbc_execute_unmap(struct se_cmd *cmd);
 
 static sense_reason_t
 sbc_emulate_readcapacity(struct se_cmd *cmd)
@@ -999,7 +1000,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			return TCM_UNSUPPORTED_SCSI_OPCODE;
 		}
 		size = get_unaligned_be16(&cdb[7]);
-		cmd->execute_cmd = ops->execute_unmap;
+		cmd->execute_cmd = sbc_execute_unmap;
 		break;
 	case WRITE_SAME_16:
 		sectors = transport_get_sectors_16(cdb);
@@ -1087,12 +1088,10 @@ u32 sbc_get_device_type(struct se_device *dev)
 }
 EXPORT_SYMBOL(sbc_get_device_type);
 
-sense_reason_t
-sbc_execute_unmap(struct se_cmd *cmd,
-	sense_reason_t (*do_unmap_fn)(struct se_cmd *, void *,
-				      sector_t, sector_t),
-	void *priv)
+static sense_reason_t
+sbc_execute_unmap(struct se_cmd *cmd)
 {
+	struct sbc_ops *ops = cmd->protocol_data;
 	struct se_device *dev = cmd->se_dev;
 	unsigned char *buf, *ptr = NULL;
 	sector_t lba;
@@ -1156,7 +1155,7 @@ sbc_execute_unmap(struct se_cmd *cmd,
 			goto err;
 		}
 
-		ret = do_unmap_fn(cmd, priv, lba, range);
+		ret = ops->execute_unmap(cmd, lba, range);
 		if (ret)
 			goto err;
 
@@ -1170,7 +1169,6 @@ err:
 		target_complete_cmd(cmd, GOOD);
 	return ret;
 }
-EXPORT_SYMBOL(sbc_execute_unmap);
 
 void
 sbc_dif_generate(struct se_cmd *cmd)

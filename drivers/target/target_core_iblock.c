@@ -416,10 +416,9 @@ iblock_execute_sync_cache(struct se_cmd *cmd)
 }
 
 static sense_reason_t
-iblock_do_unmap(struct se_cmd *cmd, void *priv,
-		sector_t lba, sector_t nolb)
+iblock_execute_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
 {
-	struct block_device *bdev = priv;
+	struct block_device *bdev = IBLOCK_DEV(cmd->se_dev)->ibd_bd;
 	int ret;
 
 	ret = blkdev_issue_discard(bdev, lba, nolb, GFP_KERNEL, 0);
@@ -432,22 +431,13 @@ iblock_do_unmap(struct se_cmd *cmd, void *priv,
 }
 
 static sense_reason_t
-iblock_execute_unmap(struct se_cmd *cmd)
-{
-	struct block_device *bdev = IBLOCK_DEV(cmd->se_dev)->ibd_bd;
-
-	return sbc_execute_unmap(cmd, iblock_do_unmap, bdev);
-}
-
-static sense_reason_t
 iblock_execute_write_same_unmap(struct se_cmd *cmd)
 {
-	struct block_device *bdev = IBLOCK_DEV(cmd->se_dev)->ibd_bd;
 	sector_t lba = cmd->t_task_lba;
 	sector_t nolb = sbc_get_write_same_sectors(cmd);
 	sense_reason_t ret;
 
-	ret = iblock_do_unmap(cmd, bdev, lba, nolb);
+	ret = iblock_execute_unmap(cmd, lba, nolb);
 	if (ret)
 		return ret;
 

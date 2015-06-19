@@ -50,7 +50,8 @@ struct sbc_ops {
 	sense_reason_t (*execute_sync_cache)(struct se_cmd *cmd);
 	sense_reason_t (*execute_write_same)(struct se_cmd *cmd);
 	sense_reason_t (*execute_write_same_unmap)(struct se_cmd *cmd);
-	sense_reason_t (*execute_unmap)(struct se_cmd *cmd);
+	sense_reason_t (*execute_unmap)(struct se_cmd *cmd,
+				sector_t lba, sector_t nolb);
 };
 
 int	transport_backend_register(const struct target_backend_ops *);
@@ -68,10 +69,6 @@ sense_reason_t	sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops);
 u32	sbc_get_device_rev(struct se_device *dev);
 u32	sbc_get_device_type(struct se_device *dev);
 sector_t	sbc_get_write_same_sectors(struct se_cmd *cmd);
-sense_reason_t sbc_execute_unmap(struct se_cmd *cmd,
-	sense_reason_t (*do_unmap_fn)(struct se_cmd *cmd, void *priv,
-				      sector_t lba, sector_t nolb),
-	void *priv);
 void	sbc_dif_generate(struct se_cmd *);
 sense_reason_t	sbc_dif_verify(struct se_cmd *, sector_t, unsigned int,
 				     unsigned int, struct scatterlist *, int);

@@ -475,9 +475,9 @@ fd_do_prot_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
 }
 
 static sense_reason_t
-fd_do_unmap(struct se_cmd *cmd, void *priv, sector_t lba, sector_t nolb)
+fd_execute_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
 {
-	struct file *file = priv;
+	struct file *file = FD_DEV(cmd->se_dev)->fd_file;
 	struct inode *inode = file->f_mapping->host;
 	int ret;
 
@@ -521,9 +521,6 @@ fd_do_unmap(struct se_cmd *cmd, void *priv, sector_t lba, sector_t nolb)
 static sense_reason_t
 fd_execute_write_same_unmap(struct se_cmd *cmd)
 {
-	struct se_device *se_dev = cmd->se_dev;
-	struct fd_dev *fd_dev = FD_DEV(se_dev);
-	struct file *file = fd_dev->fd_file;
 	sector_t lba = cmd->t_task_lba;
 	sector_t nolb = sbc_get_write_same_sectors(cmd);
 	sense_reason_t ret;
@@ -533,20 +530,12 @@ fd_execute_write_same_unmap(struct se_cmd *cmd)
 		return 0;
 	}
 
-	ret = fd_do_unmap(cmd, file, lba, nolb);
+	ret = fd_execute_unmap(cmd, lba, nolb);
 	if (ret)
 		return ret;
 
 	target_complete_cmd(cmd, GOOD);
 	return 0;
-}
-
-static sense_reason_t
-fd_execute_unmap(struct se_cmd *cmd)
-{
-	struct file *file = FD_DEV(cmd->se_dev)->fd_file;
-
-	return sbc_execute_unmap(cmd, fd_do_unmap, file);
 }
 
 static sense_reason_t
