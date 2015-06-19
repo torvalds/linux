@@ -60,7 +60,7 @@ void dbs_check_cpu(struct dbs_data *dbs_data, int cpu)
 		ignore_nice = cs_tuners->ignore_nice_load;
 	}
 
-	policy = cdbs->cur_policy;
+	policy = cdbs->policy;
 
 	/* Get Absolute Load */
 	for_each_cpu(j, policy->cpus) {
@@ -211,7 +211,7 @@ static inline void gov_cancel_work(struct dbs_data *dbs_data,
 /* Will return if we need to evaluate cpu load again or not */
 bool need_load_eval(struct cpu_dbs_info *cdbs, unsigned int sampling_rate)
 {
-	if (policy_is_shared(cdbs->cur_policy)) {
+	if (policy_is_shared(cdbs->policy)) {
 		ktime_t time_now = ktime_get();
 		s64 delta_us = ktime_us_delta(time_now, cdbs->time_stamp);
 
@@ -352,7 +352,7 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy,
 		struct cpu_dbs_info *j_cdbs = cdata->get_cpu_cdbs(j);
 		unsigned int prev_load;
 
-		j_cdbs->cur_policy = policy;
+		j_cdbs->policy = policy;
 		j_cdbs->prev_cpu_idle =
 			get_cpu_idle_time(j, &j_cdbs->prev_cpu_wall, io_busy);
 
@@ -409,7 +409,7 @@ static void cpufreq_governor_stop(struct cpufreq_policy *policy,
 	gov_cancel_work(dbs_data, policy);
 
 	mutex_destroy(&cdbs->timer_mutex);
-	cdbs->cur_policy = NULL;
+	cdbs->policy = NULL;
 }
 
 static void cpufreq_governor_limits(struct cpufreq_policy *policy,
@@ -419,15 +419,15 @@ static void cpufreq_governor_limits(struct cpufreq_policy *policy,
 	unsigned int cpu = policy->cpu;
 	struct cpu_dbs_info *cdbs = cdata->get_cpu_cdbs(cpu);
 
-	if (!cdbs->cur_policy)
+	if (!cdbs->policy)
 		return;
 
 	mutex_lock(&cdbs->timer_mutex);
-	if (policy->max < cdbs->cur_policy->cur)
-		__cpufreq_driver_target(cdbs->cur_policy, policy->max,
+	if (policy->max < cdbs->policy->cur)
+		__cpufreq_driver_target(cdbs->policy, policy->max,
 					CPUFREQ_RELATION_H);
-	else if (policy->min > cdbs->cur_policy->cur)
-		__cpufreq_driver_target(cdbs->cur_policy, policy->min,
+	else if (policy->min > cdbs->policy->cur)
+		__cpufreq_driver_target(cdbs->policy, policy->min,
 					CPUFREQ_RELATION_L);
 	dbs_check_cpu(dbs_data, cpu);
 	mutex_unlock(&cdbs->timer_mutex);

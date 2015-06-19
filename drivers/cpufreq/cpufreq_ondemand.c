@@ -155,7 +155,7 @@ static void dbs_freq_increase(struct cpufreq_policy *policy, unsigned int freq)
 static void od_check_cpu(int cpu, unsigned int load)
 {
 	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
-	struct cpufreq_policy *policy = dbs_info->cdbs.cur_policy;
+	struct cpufreq_policy *policy = dbs_info->cdbs.policy;
 	struct dbs_data *dbs_data = policy->governor_data;
 	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
 
@@ -195,10 +195,10 @@ static void od_dbs_timer(struct work_struct *work)
 {
 	struct od_cpu_dbs_info_s *dbs_info =
 		container_of(work, struct od_cpu_dbs_info_s, cdbs.dwork.work);
-	unsigned int cpu = dbs_info->cdbs.cur_policy->cpu;
+	unsigned int cpu = dbs_info->cdbs.policy->cpu;
 	struct od_cpu_dbs_info_s *core_dbs_info = &per_cpu(od_cpu_dbs_info,
 			cpu);
-	struct dbs_data *dbs_data = dbs_info->cdbs.cur_policy->governor_data;
+	struct dbs_data *dbs_data = dbs_info->cdbs.policy->governor_data;
 	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
 	int delay = 0, sample_type = core_dbs_info->sample_type;
 	bool modify_all = true;
@@ -213,8 +213,9 @@ static void od_dbs_timer(struct work_struct *work)
 	core_dbs_info->sample_type = OD_NORMAL_SAMPLE;
 	if (sample_type == OD_SUB_SAMPLE) {
 		delay = core_dbs_info->freq_lo_jiffies;
-		__cpufreq_driver_target(core_dbs_info->cdbs.cur_policy,
-				core_dbs_info->freq_lo, CPUFREQ_RELATION_H);
+		__cpufreq_driver_target(core_dbs_info->cdbs.policy,
+					core_dbs_info->freq_lo,
+					CPUFREQ_RELATION_H);
 	} else {
 		dbs_check_cpu(dbs_data, cpu);
 		if (core_dbs_info->freq_lo) {
@@ -229,7 +230,7 @@ max_delay:
 		delay = delay_for_sampling_rate(od_tuners->sampling_rate
 				* core_dbs_info->rate_mult);
 
-	gov_queue_work(dbs_data, dbs_info->cdbs.cur_policy, delay, modify_all);
+	gov_queue_work(dbs_data, dbs_info->cdbs.policy, delay, modify_all);
 	mutex_unlock(&core_dbs_info->cdbs.timer_mutex);
 }
 
@@ -289,8 +290,8 @@ static void update_sampling_rate(struct dbs_data *dbs_data,
 			cancel_delayed_work_sync(&dbs_info->cdbs.dwork);
 			mutex_lock(&dbs_info->cdbs.timer_mutex);
 
-			gov_queue_work(dbs_data, dbs_info->cdbs.cur_policy,
-					usecs_to_jiffies(new_rate), true);
+			gov_queue_work(dbs_data, dbs_info->cdbs.policy,
+				       usecs_to_jiffies(new_rate), true);
 
 		}
 		mutex_unlock(&dbs_info->cdbs.timer_mutex);
@@ -559,7 +560,7 @@ static void od_set_powersave_bias(unsigned int powersave_bias)
 		if (cpumask_test_cpu(cpu, &done))
 			continue;
 
-		policy = per_cpu(od_cpu_dbs_info, cpu).cdbs.cur_policy;
+		policy = per_cpu(od_cpu_dbs_info, cpu).cdbs.policy;
 		if (!policy)
 			continue;
 

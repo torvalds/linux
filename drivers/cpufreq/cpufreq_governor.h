@@ -140,7 +140,7 @@ struct cpu_dbs_info {
 	 * wake-up from idle.
 	 */
 	unsigned int prev_load;
-	struct cpufreq_policy *cur_policy;
+	struct cpufreq_policy *policy;
 	struct delayed_work dwork;
 	/*
 	 * percpu mutex that serializes governor limit change with gov_dbs_timer

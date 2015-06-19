@@ -47,7 +47,7 @@ static inline unsigned int get_freq_target(struct cs_dbs_tuners *cs_tuners,
 static void cs_check_cpu(int cpu, unsigned int load)
 {
 	struct cs_cpu_dbs_info_s *dbs_info = &per_cpu(cs_cpu_dbs_info, cpu);
-	struct cpufreq_policy *policy = dbs_info->cdbs.cur_policy;
+	struct cpufreq_policy *policy = dbs_info->cdbs.policy;
 	struct dbs_data *dbs_data = policy->governor_data;
 	struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
 
@@ -106,10 +106,10 @@ static void cs_dbs_timer(struct work_struct *work)
 {
 	struct cs_cpu_dbs_info_s *dbs_info = container_of(work,
 			struct cs_cpu_dbs_info_s, cdbs.dwork.work);
-	unsigned int cpu = dbs_info->cdbs.cur_policy->cpu;
+	unsigned int cpu = dbs_info->cdbs.policy->cpu;
 	struct cs_cpu_dbs_info_s *core_dbs_info = &per_cpu(cs_cpu_dbs_info,
 			cpu);
-	struct dbs_data *dbs_data = dbs_info->cdbs.cur_policy->governor_data;
+	struct dbs_data *dbs_data = dbs_info->cdbs.policy->governor_data;
 	struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
 	int delay = delay_for_sampling_rate(cs_tuners->sampling_rate);
 	bool modify_all = true;
@@ -120,7 +120,7 @@ static void cs_dbs_timer(struct work_struct *work)
 	else
 		dbs_check_cpu(dbs_data, cpu);
 
-	gov_queue_work(dbs_data, dbs_info->cdbs.cur_policy, delay, modify_all);
+	gov_queue_work(dbs_data, dbs_info->cdbs.policy, delay, modify_all);
 	mutex_unlock(&core_dbs_info->cdbs.timer_mutex);
 }
 
@@ -135,7 +135,7 @@ static int dbs_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 	if (!dbs_info->enable)
 		return 0;
 
-	policy = dbs_info->cdbs.cur_policy;
+	policy = dbs_info->cdbs.policy;
 
 	/*
 	 * we only care if our internally tracked freq moves outside the 'valid'
