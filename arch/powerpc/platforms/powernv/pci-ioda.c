@@ -271,33 +271,16 @@ static void pnv_ioda2_reserve_m64_pe(struct pci_bus *bus,
 	}
 }
 
-static int pnv_ioda2_pick_m64_pe(struct pnv_phb *phb,
-				 struct pci_bus *bus, bool all)
+static int pnv_ioda2_pick_m64_pe(struct pci_bus *bus, bool all)
 {
-	resource_size_t segsz = phb->ioda.m64_segsize;
-	struct pci_dev *pdev;
-	struct resource *r;
+	struct pci_controller *hose = pci_bus_to_host(bus);
+	struct pnv_phb *phb = hose->private_data;
 	struct pnv_ioda_pe *master_pe, *pe;
 	unsigned long size, *pe_alloc;
-	bool found;
-	int start, i, j;
+	int i;
 
 	/* Root bus shouldn't use M64 */
 	if (pci_is_root_bus(bus))
-		return IODA_INVALID_PE;
-
-	/* We support only one M64 window on each bus */
-	found = false;
-	pci_bus_for_each_resource(bus, r, i) {
-		if (r && r->parent &&
-		    pnv_pci_is_mem_pref_64(r->flags)) {
-			found = true;
-			break;
-		}
-	}
-
-	/* No M64 window found ? */
-	if (!found)
 		return IODA_INVALID_PE;
 
 	/* Allocate bitmap */
@@ -309,35 +292,8 @@ static int pnv_ioda2_pick_m64_pe(struct pnv_phb *phb,
 		return IODA_INVALID_PE;
 	}
 
-	/*
-	 * Figure out reserved PE numbers by the PE
-	 * the its child PEs.
-	 */
-	start = (r->start - phb->ioda.m64_base) / segsz;
-	for (i = 0; i < resource_size(r) / segsz; i++)
-		set_bit(start + i, pe_alloc);
-
-	if (all)
-		goto done;
-
-	/*
-	 * If the PE doesn't cover all subordinate buses,
-	 * we need subtract from reserved PEs for children.
-	 */
-	list_for_each_entry(pdev, &bus->devices, bus_list) {
-		if (!pdev->subordinate)
-			continue;
-
-		pci_bus_for_each_resource(pdev->subordinate, r, i) {
-			if (!r || !r->parent ||
-			    !pnv_pci_is_mem_pref_64(r->flags))
-				continue;
-
-			start = (r->start - phb->ioda.m64_base) / segsz;
-			for (j = 0; j < resource_size(r) / segsz ; j++)
-				clear_bit(start + j, pe_alloc);
-                }
-        }
+	/* Figure out reserved PE numbers by the PE */
+	pnv_ioda2_reserve_m64_pe(bus, pe_alloc, all);
 
 	/*
 	 * the current bus might not own M64 window and that's all
@@ -353,7 +309,6 @@ static int pnv_ioda2_pick_m64_pe(struct pnv_phb *phb,
 	 * Figure out the master PE and put all slave PEs to master
 	 * PE's list to form compound PE.
 	 */
-done:
 	master_pe = NULL;
 	i = -1;
 	while ((i = find_next_bit(pe_alloc, phb->ioda.total_pe, i + 1)) <
@@ -1073,7 +1028,7 @@ static void pnv_ioda_setup_bus_PE(struct pci_bus *bus, bool all)
 
 	/* Check if PE is determined by M64 */
 	if (phb->pick_m64_pe)
-		pe_num = phb->pick_m64_pe(phb, bus, all);
+		pe_num = phb->pick_m64_pe(bus, all);
 
 	/* The PE number isn't pinned by M64 */
 	if (pe_num == IODA_INVALID_PE)
