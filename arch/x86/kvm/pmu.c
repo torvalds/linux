@@ -103,25 +103,31 @@ static void kvm_perf_overflow(struct perf_event *perf_event,
 {
 	struct kvm_pmc *pmc = perf_event->overflow_handler_context;
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
-	if (!test_and_set_bit(pmc->idx, (unsigned long *)&pmu->reprogram_pmi)) {
+
+	if (!test_and_set_bit(pmc->idx,
+			      (unsigned long *)&pmu->reprogram_pmi)) {
 		__set_bit(pmc->idx, (unsigned long *)&pmu->global_status);
 		kvm_make_request(KVM_REQ_PMU, pmc->vcpu);
 	}
 }
 
 static void kvm_perf_overflow_intr(struct perf_event *perf_event,
-		struct perf_sample_data *data, struct pt_regs *regs)
+				   struct perf_sample_data *data,
+				   struct pt_regs *regs)
 {
 	struct kvm_pmc *pmc = perf_event->overflow_handler_context;
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
-	if (!test_and_set_bit(pmc->idx, (unsigned long *)&pmu->reprogram_pmi)) {
+
+	if (!test_and_set_bit(pmc->idx,
+			      (unsigned long *)&pmu->reprogram_pmi)) {
 		__set_bit(pmc->idx, (unsigned long *)&pmu->global_status);
 		kvm_make_request(KVM_REQ_PMU, pmc->vcpu);
+
 		/*
 		 * Inject PMI. If vcpu was in a guest mode during NMI PMI
 		 * can be ejected on a guest mode re-entry. Otherwise we can't
 		 * be sure that vcpu wasn't executing hlt instruction at the
-		 * time of vmexit and is not going to re-enter guest mode until,
+		 * time of vmexit and is not going to re-enter guest mode until
 		 * woken up. So we should wake it, but this is impossible from
 		 * NMI context. Do it from irq work instead.
 		 */
@@ -157,8 +163,9 @@ static void pmc_stop_counter(struct kvm_pmc *pmc)
 }
 
 static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
-		unsigned config, bool exclude_user, bool exclude_kernel,
-		bool intr, bool in_tx, bool in_tx_cp)
+				  unsigned config, bool exclude_user,
+				  bool exclude_kernel, bool intr,
+				  bool in_tx, bool in_tx_cp)
 {
 	struct perf_event *event;
 	struct perf_event_attr attr = {
@@ -171,6 +178,7 @@ static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
 		.exclude_kernel = exclude_kernel,
 		.config = config,
 	};
+
 	if (in_tx)
 		attr.config |= HSW_IN_TX;
 	if (in_tx_cp)
@@ -182,8 +190,8 @@ static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
 						 intr ? kvm_perf_overflow_intr :
 						 kvm_perf_overflow, pmc);
 	if (IS_ERR(event)) {
-		printk_once("kvm: pmu event creation failed %ld\n",
-				PTR_ERR(event));
+		printk_once("kvm_pmu: event creation failed %ld\n",
+			    PTR_ERR(event));
 		return;
 	}
 
@@ -227,10 +235,10 @@ static void reprogram_gp_counter(struct kvm_pmc *pmc, u64 eventsel)
 	unit_mask = (eventsel & ARCH_PERFMON_EVENTSEL_UMASK) >> 8;
 
 	if (!(eventsel & (ARCH_PERFMON_EVENTSEL_EDGE |
-				ARCH_PERFMON_EVENTSEL_INV |
-				ARCH_PERFMON_EVENTSEL_CMASK |
-				HSW_IN_TX |
-				HSW_IN_TX_CHECKPOINTED))) {
+			  ARCH_PERFMON_EVENTSEL_INV |
+			  ARCH_PERFMON_EVENTSEL_CMASK |
+			  HSW_IN_TX |
+			  HSW_IN_TX_CHECKPOINTED))) {
 		config = find_arch_event(pmc_to_pmu(pmc), event_select,
 				unit_mask);
 		if (config != PERF_COUNT_HW_MAX)
@@ -241,28 +249,28 @@ static void reprogram_gp_counter(struct kvm_pmc *pmc, u64 eventsel)
 		config = eventsel & X86_RAW_EVENT_MASK;
 
 	pmc_reprogram_counter(pmc, type, config,
-			!(eventsel & ARCH_PERFMON_EVENTSEL_USR),
-			!(eventsel & ARCH_PERFMON_EVENTSEL_OS),
-			eventsel & ARCH_PERFMON_EVENTSEL_INT,
-			(eventsel & HSW_IN_TX),
-			(eventsel & HSW_IN_TX_CHECKPOINTED));
+			      !(eventsel & ARCH_PERFMON_EVENTSEL_USR),
+			      !(eventsel & ARCH_PERFMON_EVENTSEL_OS),
+			      eventsel & ARCH_PERFMON_EVENTSEL_INT,
+			      (eventsel & HSW_IN_TX),
+			      (eventsel & HSW_IN_TX_CHECKPOINTED));
 }
 
-static void reprogram_fixed_counter(struct kvm_pmc *pmc, u8 en_pmi, int idx)
+static void reprogram_fixed_counter(struct kvm_pmc *pmc, u8 ctrl, int idx)
 {
-	unsigned en = en_pmi & 0x3;
-	bool pmi = en_pmi & 0x8;
+	unsigned en_field = ctrl & 0x3;
+	bool pmi = ctrl & 0x8;
 
 	pmc_stop_counter(pmc);
 
-	if (!en || !pmc_is_enabled(pmc))
+	if (!en_field || !pmc_is_enabled(pmc))
 		return;
 
 	pmc_reprogram_counter(pmc, PERF_TYPE_HARDWARE,
-			arch_events[fixed_pmc_events[idx]].event_type,
-			!(en & 0x2), /* exclude user */
-			!(en & 0x1), /* exclude kernel */
-			pmi, false, false);
+			      arch_events[fixed_pmc_events[idx]].event_type,
+			      !(en_field & 0x2), /* exclude user */
+			      !(en_field & 0x1), /* exclude kernel */
+			      pmi, false, false);
 }
 
 static inline u8 fixed_ctrl_field(u64 ctrl, int idx)
@@ -275,21 +283,22 @@ static void reprogram_fixed_counters(struct kvm_pmu *pmu, u64 data)
 	int i;
 
 	for (i = 0; i < pmu->nr_arch_fixed_counters; i++) {
-		u8 en_pmi = fixed_ctrl_field(data, i);
+		u8 old_ctrl = fixed_ctrl_field(pmu->fixed_ctr_ctrl, i);
+		u8 new_ctrl = fixed_ctrl_field(data, i);
 		struct kvm_pmc *pmc = get_fixed_pmc_idx(pmu, i);
 
-		if (fixed_ctrl_field(pmu->fixed_ctr_ctrl, i) == en_pmi)
+		if (old_ctrl == new_ctrl)
 			continue;
 
-		reprogram_fixed_counter(pmc, en_pmi, i);
+		reprogram_fixed_counter(pmc, new_ctrl, i);
 	}
 
 	pmu->fixed_ctr_ctrl = data;
 }
 
-static void reprogram_counter(struct kvm_pmu *pmu, int idx)
+static void reprogram_counter(struct kvm_pmu *pmu, int pmc_idx)
 {
-	struct kvm_pmc *pmc = global_idx_to_pmc(pmu, idx);
+	struct kvm_pmc *pmc = global_idx_to_pmc(pmu, pmc_idx);
 
 	if (!pmc)
 		return;
@@ -297,9 +306,10 @@ static void reprogram_counter(struct kvm_pmu *pmu, int idx)
 	if (pmc_is_gp(pmc))
 		reprogram_gp_counter(pmc, pmc->eventsel);
 	else {
-		int fidx = idx - INTEL_PMC_IDX_FIXED;
-		reprogram_fixed_counter(pmc,
-				fixed_ctrl_field(pmu->fixed_ctr_ctrl, fidx), fidx);
+		int idx = pmc_idx - INTEL_PMC_IDX_FIXED;
+		u8 ctrl = fixed_ctrl_field(pmu->fixed_ctr_ctrl, idx);
+
+		reprogram_fixed_counter(pmc, ctrl, idx);
 	}
 }
 
@@ -423,37 +433,43 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	return 1;
 }
 
-int kvm_pmu_is_valid_msr_idx(struct kvm_vcpu *vcpu, unsigned pmc)
+/* check if idx is a valid index to access PMU */
+int kvm_pmu_is_valid_msr_idx(struct kvm_vcpu *vcpu, unsigned idx)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
-	bool fixed = pmc & (1u << 30);
-	pmc &= ~(3u << 30);
-	return (!fixed && pmc >= pmu->nr_arch_gp_counters) ||
-		(fixed && pmc >= pmu->nr_arch_fixed_counters);
+	bool fixed = idx & (1u << 30);
+	idx &= ~(3u << 30);
+	return (!fixed && idx >= pmu->nr_arch_gp_counters) ||
+		(fixed && idx >= pmu->nr_arch_fixed_counters);
 }
 
-int kvm_pmu_rdpmc(struct kvm_vcpu *vcpu, unsigned pmc, u64 *data)
+int kvm_pmu_rdpmc(struct kvm_vcpu *vcpu, unsigned idx, u64 *data)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
-	bool fast_mode = pmc & (1u << 31);
-	bool fixed = pmc & (1u << 30);
+	bool fast_mode = idx & (1u << 31);
+	bool fixed = idx & (1u << 30);
 	struct kvm_pmc *counters;
-	u64 ctr;
+	u64 ctr_val;
 
-	pmc &= ~(3u << 30);
-	if (!fixed && pmc >= pmu->nr_arch_gp_counters)
+	idx &= ~(3u << 30);
+	if (!fixed && idx >= pmu->nr_arch_gp_counters)
 		return 1;
-	if (fixed && pmc >= pmu->nr_arch_fixed_counters)
+	if (fixed && idx >= pmu->nr_arch_fixed_counters)
 		return 1;
 	counters = fixed ? pmu->fixed_counters : pmu->gp_counters;
-	ctr = pmc_read_counter(&counters[pmc]);
-	if (fast_mode)
-		ctr = (u32)ctr;
-	*data = ctr;
 
+	ctr_val = pmc_read_counter(&counters[idx]);
+	if (fast_mode)
+		ctr_val = (u32)ctr_val;
+
+	*data = ctr_val;
 	return 0;
 }
 
+/* refresh PMU settings. This function generally is called when underlying
+ * settings are changed (such as changes of PMU CPUID by guest VMs), which
+ * should rarely happen.
+ */
 void kvm_pmu_refresh(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
