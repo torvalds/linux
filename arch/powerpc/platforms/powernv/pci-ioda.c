@@ -272,7 +272,7 @@ static void pnv_ioda2_reserve_m64_pe(struct pci_bus *bus,
 }
 
 static int pnv_ioda2_pick_m64_pe(struct pnv_phb *phb,
-				 struct pci_bus *bus, int all)
+				 struct pci_bus *bus, bool all)
 {
 	resource_size_t segsz = phb->ioda.m64_segsize;
 	struct pci_dev *pdev;
@@ -1064,7 +1064,7 @@ static void pnv_ioda_setup_same_PE(struct pci_bus *bus, struct pnv_ioda_pe *pe)
  * subordinate PCI devices and buses. The second type of PE is normally
  * orgiriated by PCIe-to-PCI bridge or PLX switch downstream ports.
  */
-static void pnv_ioda_setup_bus_PE(struct pci_bus *bus, int all)
+static void pnv_ioda_setup_bus_PE(struct pci_bus *bus, bool all)
 {
 	struct pci_controller *hose = pci_bus_to_host(bus);
 	struct pnv_phb *phb = hose->private_data;
@@ -1131,12 +1131,12 @@ static void pnv_ioda_setup_PEs(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 
-	pnv_ioda_setup_bus_PE(bus, 0);
+	pnv_ioda_setup_bus_PE(bus, false);
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		if (dev->subordinate) {
 			if (pci_pcie_type(dev) == PCI_EXP_TYPE_PCI_BRIDGE)
-				pnv_ioda_setup_bus_PE(dev->subordinate, 1);
+				pnv_ioda_setup_bus_PE(dev->subordinate, true);
 			else
 				pnv_ioda_setup_PEs(dev->subordinate);
 		}
