@@ -139,7 +139,6 @@ static inline u32 hdmi_qfprom_read(struct hdmi *hdmi, u32 reg)
 
 struct hdmi_phy_funcs {
 	void (*destroy)(struct hdmi_phy *phy);
-	void (*reset)(struct hdmi_phy *phy);
 	void (*powerup)(struct hdmi_phy *phy, unsigned long int pixclock);
 	void (*powerdown)(struct hdmi_phy *phy);
 };

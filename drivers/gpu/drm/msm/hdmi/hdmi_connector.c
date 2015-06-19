@@ -28,6 +28,55 @@ struct hdmi_connector {
 };
 #define to_hdmi_connector(x) container_of(x, struct hdmi_connector, base)
 
+static void hdmi_phy_reset(struct hdmi *hdmi)
+{
+	unsigned int val;
+
+	val = hdmi_read(hdmi, REG_HDMI_PHY_CTRL);
+
+	if (val & HDMI_PHY_CTRL_SW_RESET_LOW) {
+		/* pull low */
+		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
+				val & ~HDMI_PHY_CTRL_SW_RESET);
+	} else {
+		/* pull high */
+		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
+				val | HDMI_PHY_CTRL_SW_RESET);
+	}
+
+	if (val & HDMI_PHY_CTRL_SW_RESET_PLL_LOW) {
+		/* pull low */
+		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
+				val & ~HDMI_PHY_CTRL_SW_RESET_PLL);
+	} else {
+		/* pull high */
+		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
+				val | HDMI_PHY_CTRL_SW_RESET_PLL);
+	}
+
+	msleep(100);
+
+	if (val & HDMI_PHY_CTRL_SW_RESET_LOW) {
+		/* pull high */
+		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
+				val | HDMI_PHY_CTRL_SW_RESET);
+	} else {
+		/* pull low */
+		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
+				val & ~HDMI_PHY_CTRL_SW_RESET);
+	}
+
+	if (val & HDMI_PHY_CTRL_SW_RESET_PLL_LOW) {
+		/* pull high */
+		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
+				val | HDMI_PHY_CTRL_SW_RESET_PLL);
+	} else {
+		/* pull low */
+		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
+				val & ~HDMI_PHY_CTRL_SW_RESET_PLL);
+	}
+}
+
 static int gpio_config(struct hdmi *hdmi, bool on)
 {
 	struct device *dev = &hdmi->pdev->dev;
@@ -138,7 +187,6 @@ static int hpd_enable(struct hdmi_connector *hdmi_connector)
 	struct hdmi *hdmi = hdmi_connector->hdmi;
 	const struct hdmi_platform_config *config = hdmi->config;
 	struct device *dev = &hdmi->pdev->dev;
-	struct hdmi_phy *phy = hdmi->phy;
 	uint32_t hpd_ctrl;
 	int i, ret;
 	unsigned long flags;
@@ -182,7 +230,7 @@ static int hpd_enable(struct hdmi_connector *hdmi_connector)
 	}
 
 	hdmi_set_mode(hdmi, false);
-	phy->funcs->reset(phy);
+	hdmi_phy_reset(hdmi);
 	hdmi_set_mode(hdmi, true);
 
 	hdmi_write(hdmi, REG_HDMI_USEC_REFTIMER, 0x0001001b);
