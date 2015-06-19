@@ -3724,7 +3724,7 @@ void print_vma_addr(char *prefix, unsigned long ip)
 		if (buf) {
 			char *p;
 
-			p = d_path(&f->f_path, buf, PAGE_SIZE);
+			p = file_path(f, buf, PAGE_SIZE);
 			if (IS_ERR(p))
 				p = "?";
 			printk("%s%s[%lx+%lx]", prefix, kbasename(p),

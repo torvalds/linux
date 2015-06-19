@@ -334,7 +334,7 @@ static void describe_addr(struct KBacktraceIterator *kbt,
 	}
 
 	if (vma->vm_file) {
-		p = d_path(&vma->vm_file->f_path, buf, bufsize);
+		p = file_path(vma->vm_file, buf, bufsize);
 		if (IS_ERR(p))
 			p = "?";
 		name = kbasename(p);

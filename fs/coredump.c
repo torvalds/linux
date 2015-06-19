@@ -138,7 +138,7 @@ static int cn_print_exe_file(struct core_name *cn)
 		goto put_exe_file;
 	}
 
-	path = d_path(&exe_file->f_path, pathbuf, PATH_MAX);
+	path = file_path(exe_file, pathbuf, PATH_MAX);
 	if (IS_ERR(path)) {
 		ret = PTR_ERR(path);
 		goto free_buf;

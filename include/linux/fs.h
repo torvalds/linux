@@ -2500,6 +2500,8 @@ extern struct file * open_exec(const char *);
 extern int is_subdir(struct dentry *, struct dentry *);
 extern int path_is_under(struct path *, struct path *);
 
+extern char *file_path(struct file *, char *, int);
+
 #include <linux/err.h>
 
 /* needed for stackable file system support */

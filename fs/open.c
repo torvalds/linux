@@ -823,6 +823,12 @@ int finish_no_open(struct file *file, struct dentry *dentry)
 }
 EXPORT_SYMBOL(finish_no_open);
 
+char *file_path(struct file *filp, char *buf, int buflen)
+{
+	return d_path(&filp->f_path, buf, buflen);
+}
+EXPORT_SYMBOL(file_path);
+
 /**
  * vfs_open - open the file at the given path
  * @path: path to open
