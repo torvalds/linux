@@ -1755,15 +1755,15 @@ static int spacc_probe(struct platform_device *pdev)
 		return PTR_ERR(engine->clk);
 	}
 
-	if (clk_enable(engine->clk)) {
-		dev_info(&pdev->dev, "unable to enable clk\n");
+	if (clk_prepare_enable(engine->clk)) {
+		dev_info(&pdev->dev, "unable to prepare/enable clk\n");
 		clk_put(engine->clk);
 		return -EIO;
 	}
 
 	err = device_create_file(&pdev->dev, &dev_attr_stat_irq_thresh);
 	if (err) {
-		clk_disable(engine->clk);
+		clk_disable_unprepare(engine->clk);
 		clk_put(engine->clk);
 		return err;
 	}
@@ -1831,7 +1831,7 @@ static int spacc_remove(struct platform_device *pdev)
 		crypto_unregister_alg(&alg->alg);
 	}
 
-	clk_disable(engine->clk);
+	clk_disable_unprepare(engine->clk);
 	clk_put(engine->clk);
 
 	return 0;
