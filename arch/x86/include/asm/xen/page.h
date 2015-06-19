@@ -12,7 +12,7 @@
 #include <asm/pgtable.h>
 
 #include <xen/interface/xen.h>
-#include <xen/grant_table.h>
+#include <xen/interface/grant_table.h>
 #include <xen/features.h>
 
 /* Xen machine address */

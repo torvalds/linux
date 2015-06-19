@@ -776,6 +776,32 @@ void gnttab_batch_copy(struct gnttab_copy *batch, unsigned count)
 }
 EXPORT_SYMBOL_GPL(gnttab_batch_copy);
 
+void gnttab_foreach_grant_in_range(struct page *page,
+				   unsigned int offset,
+				   unsigned int len,
+				   xen_grant_fn_t fn,
+				   void *data)
+{
+	unsigned int goffset;
+	unsigned int glen;
+	unsigned long xen_pfn;
+
+	len = min_t(unsigned int, PAGE_SIZE - offset, len);
+	goffset = xen_offset_in_page(offset);
+
+	xen_pfn = page_to_xen_pfn(page) + XEN_PFN_DOWN(offset);
+
+	while (len) {
+		glen = min_t(unsigned int, XEN_PAGE_SIZE - goffset, len);
+		fn(pfn_to_gfn(xen_pfn), goffset, glen, data);
+
+		goffset = 0;
+		xen_pfn++;
+		len -= glen;
+	}
+}
+EXPORT_SYMBOL_GPL(gnttab_foreach_grant_in_range);
+
 int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 		    struct gnttab_map_grant_ref *kmap_ops,
 		    struct page **pages, unsigned int count)
