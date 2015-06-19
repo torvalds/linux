@@ -424,7 +424,7 @@ static void ui_browser__warn_lost_events(struct ui_browser *browser)
 		"Or reduce the sampling frequency.");
 }
 
-static int hist_browser__run(struct hist_browser *browser)
+static int hist_browser__run(struct hist_browser *browser, const char *help)
 {
 	int key;
 	char title[160];
@@ -436,8 +436,7 @@ static int hist_browser__run(struct hist_browser *browser)
 
 	hists__browser_title(browser->hists, hbt, title, sizeof(title));
 
-	if (ui_browser__show(&browser->b, title,
-			     "Press '?' for help on key bindings") < 0)
+	if (ui_browser__show(&browser->b, title, help) < 0)
 		return -1;
 
 	while (1) {
@@ -1773,7 +1772,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 
 		nr_options = 0;
 
-		key = hist_browser__run(browser);
+		key = hist_browser__run(browser, helpline);
 
 		if (browser->he_selection != NULL) {
 			thread = hist_browser__selected_thread(browser);
