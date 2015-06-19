@@ -1905,6 +1905,9 @@ static int fm10k_probe(struct pci_dev *pdev,
 	/* print warning for non-optimal configurations */
 	fm10k_slot_warn(interface);
 
+	/* report MAC address for logging */
+	dev_info(&pdev->dev, "%pM\n", netdev->dev_addr);
+
 	/* enable SR-IOV after registering netdev to enforce PF/VF ordering */
 	fm10k_iov_configure(pdev, 0);
 
