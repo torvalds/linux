@@ -2403,7 +2403,7 @@ int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 				snprintf(buff, size, "rssi %d", rssi);
 
 				if (copy_to_user(wrq->u.data.pointer, buff, size)) {
-					PRINT_ER("%s: failed to copy data to user buffer\n", __FUNCTION__);
+					PRINT_ER("%s: failed to copy data to user buffer\n", __func__);
 					s32Error = -EFAULT;
 					goto done;
 				}

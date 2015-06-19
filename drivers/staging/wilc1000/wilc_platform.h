@@ -47,6 +47,6 @@ typedef time_t WILC_Time;
 
 /* Generic printf function */
 #define __WILC_FILE__		__FILE__
-#define __WILC_FUNCTION__	__FUNCTION__
+#define __WILC_FUNCTION__	__func__
 #define __WILC_LINE__		__LINE__
 #endif

@@ -54,7 +54,7 @@ extern atomic_t DEBUG_LEVEL;
 	do {								\
 		if ((atomic_read(&DEBUG_LEVEL) & DEBUG) &&		\
 		   ((atomic_read(&REGION)) & (region))) {		\
-			printk("DBG [%s: %d]", __FUNCTION__, __LINE__);	\
+			printk("DBG [%s: %d]", __func__, __LINE__);	\
 			printk(__VA_ARGS__);				\
 		}							\
 	} while (0)
@@ -63,7 +63,7 @@ extern atomic_t DEBUG_LEVEL;
 	do {								\
 		if ((atomic_read(&DEBUG_LEVEL) & INFO) &&		\
 		   ((atomic_read(&REGION)) & (region))) {		\
-			printk("INFO [%s]", __FUNCTION__);		\
+			printk("INFO [%s]", __func__);			\
 			printk(__VA_ARGS__);				\
 		}							\
 	} while (0)
@@ -72,7 +72,7 @@ extern atomic_t DEBUG_LEVEL;
 	do {								\
 		if ((atomic_read(&DEBUG_LEVEL) & WRN) &&		\
 		   ((atomic_read(&REGION)) & (region))) {		\
-			printk("WRN [%s: %d]", __FUNCTION__, __LINE__);	\
+			printk("WRN [%s: %d]", __func__, __LINE__);	\
 			printk(__VA_ARGS__);				\
 		}							\
 	} while (0)
@@ -80,7 +80,7 @@ extern atomic_t DEBUG_LEVEL;
 #define PRINT_ER(...)							\
 	do {								\
 		if ((atomic_read(&DEBUG_LEVEL) & ERR)) {		\
-			printk("ERR [%s: %d]", __FUNCTION__, __LINE__);	\
+			printk("ERR [%s: %d]", __func__, __LINE__);	\
 			printk(__VA_ARGS__);				\
 		}							\
 	} while (0)
@@ -96,7 +96,7 @@ extern atomic_t DEBUG_LEVEL;
 #define PRINT_D(region, ...)						\
 	do {								\
 		if (DEBUG == 1 && ((REGION)&(region))) {		\
-			printk("DBG [%s: %d]", __FUNCTION__, __LINE__); \
+			printk("DBG [%s: %d]", __func__, __LINE__);	\
 			printk(__VA_ARGS__);				\
 		}							\
 	} while (0)
@@ -104,7 +104,7 @@ extern atomic_t DEBUG_LEVEL;
 #define PRINT_INFO(region, ...)						\
 	do {								\
 		if (INFO == 1 && ((REGION)&(region))) {			\
-			printk("INFO [%s]", __FUNCTION__);		\
+			printk("INFO [%s]", __func__);			\
 			printk(__VA_ARGS__);				\
 		}							\
 	} while (0)
@@ -112,14 +112,14 @@ extern atomic_t DEBUG_LEVEL;
 #define PRINT_WRN(region, ...)						\
 	do {								\
 		if (WRN == 1 && ((REGION)&(region))) {			\
-			printk("WRN [%s: %d]", __FUNCTION__, __LINE__); \
+			printk("WRN [%s: %d]", __func__, __LINE__);	\
 			printk(__VA_ARGS__);				\
 		}							\
 	} while (0)
 
 #define PRINT_ER(...)							\
 	do {								\
-		printk("ERR [%s: %d]", __FUNCTION__, __LINE__);		\
+		printk("ERR [%s: %d]", __func__, __LINE__);		\
 		printk(__VA_ARGS__);					\
 	} while (0)
 #endif
