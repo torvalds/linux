@@ -229,29 +229,45 @@ fail:
 	return -EIO;
 }
 
-static void pnv_ioda2_reserve_m64_pe(struct pnv_phb *phb)
+static void pnv_ioda2_reserve_dev_m64_pe(struct pci_dev *pdev,
+					 unsigned long *pe_bitmap)
 {
-	resource_size_t sgsz = phb->ioda.m64_segsize;
-	struct pci_dev *pdev;
+	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
+	struct pnv_phb *phb = hose->private_data;
 	struct resource *r;
-	int base, step, i;
+	resource_size_t base, sgsz, start, end;
+	int segno, i;
 
-	/*
-	 * Root bus always has full M64 range and root port has
-	 * M64 range used in reality. So we're checking root port
-	 * instead of root bus.
-	 */
-	list_for_each_entry(pdev, &phb->hose->bus->devices, bus_list) {
-		for (i = 0; i < PCI_BRIDGE_RESOURCE_NUM; i++) {
-			r = &pdev->resource[PCI_BRIDGE_RESOURCES + i];
-			if (!r->parent ||
-			    !pnv_pci_is_mem_pref_64(r->flags))
-				continue;
+	base = phb->ioda.m64_base;
+	sgsz = phb->ioda.m64_segsize;
+	for (i = 0; i <= PCI_ROM_RESOURCE; i++) {
+		r = &pdev->resource[i];
+		if (!r->parent || !pnv_pci_is_mem_pref_64(r->flags))
+			continue;
 
-			base = (r->start - phb->ioda.m64_base) / sgsz;
-			for (step = 0; step < resource_size(r) / sgsz; step++)
-				pnv_ioda_reserve_pe(phb, base + step);
+		start = _ALIGN_DOWN(r->start - base, sgsz);
+		end = _ALIGN_UP(r->end - base, sgsz);
+		for (segno = start / sgsz; segno < end / sgsz; segno++) {
+			if (pe_bitmap)
+				set_bit(segno, pe_bitmap);
+			else
+				pnv_ioda_reserve_pe(phb, segno);
 		}
+	}
+}
+
+static void pnv_ioda2_reserve_m64_pe(struct pci_bus *bus,
+				     unsigned long *pe_bitmap,
+				     bool all)
+{
+	struct pci_dev *pdev;
+
+	list_for_each_entry(pdev, &bus->devices, bus_list) {
+		pnv_ioda2_reserve_dev_m64_pe(pdev, pe_bitmap);
+
+		if (all && pdev->subordinate)
+			pnv_ioda2_reserve_m64_pe(pdev->subordinate,
+						 pe_bitmap, all);
 	}
 }
 
@@ -1145,7 +1161,7 @@ static void pnv_pci_ioda_setup_PEs(void)
 
 		/* M64 layout might affect PE allocation */
 		if (phb->reserve_m64_pe)
-			phb->reserve_m64_pe(phb);
+			phb->reserve_m64_pe(hose->bus, NULL, true);
 
 		pnv_ioda_setup_PEs(hose->bus);
 	}
