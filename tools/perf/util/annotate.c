@@ -662,7 +662,7 @@ double disasm__calc_percent(struct annotation *notes, int evidx, s64 offset,
 
 	if (src_line) {
 		size_t sizeof_src_line = sizeof(*src_line) +
-				sizeof(src_line->p) * (src_line->nr_pcnt - 1);
+				sizeof(src_line->samples) * (src_line->nr_pcnt - 1);
 
 		while (offset < end) {
 			src_line = (void *)notes->src->lines +
@@ -671,8 +671,8 @@ double disasm__calc_percent(struct annotation *notes, int evidx, s64 offset,
 			if (*path == NULL)
 				*path = src_line->path;
 
-			percent += src_line->p[evidx].percent;
-			*nr_samples += src_line->p[evidx].samples;
+			percent += src_line->samples[evidx].percent;
+			*nr_samples += src_line->samples[evidx].nr;
 			offset++;
 		}
 	} else {
@@ -1121,7 +1121,7 @@ static void insert_source_line(struct rb_root *root, struct source_line *src_lin
 		ret = strcmp(iter->path, src_line->path);
 		if (ret == 0) {
 			for (i = 0; i < src_line->nr_pcnt; i++)
-				iter->p[i].percent_sum += src_line->p[i].percent;
+				iter->samples[i].percent_sum += src_line->samples[i].percent;
 			return;
 		}
 
@@ -1132,7 +1132,7 @@ static void insert_source_line(struct rb_root *root, struct source_line *src_lin
 	}
 
 	for (i = 0; i < src_line->nr_pcnt; i++)
-		src_line->p[i].percent_sum = src_line->p[i].percent;
+		src_line->samples[i].percent_sum = src_line->samples[i].percent;
 
 	rb_link_node(&src_line->node, parent, p);
 	rb_insert_color(&src_line->node, root);
@@ -1143,9 +1143,9 @@ static int cmp_source_line(struct source_line *a, struct source_line *b)
 	int i;
 
 	for (i = 0; i < a->nr_pcnt; i++) {
-		if (a->p[i].percent_sum == b->p[i].percent_sum)
+		if (a->samples[i].percent_sum == b->samples[i].percent_sum)
 			continue;
-		return a->p[i].percent_sum > b->p[i].percent_sum;
+		return a->samples[i].percent_sum > b->samples[i].percent_sum;
 	}
 
 	return 0;
@@ -1197,7 +1197,7 @@ static void symbol__free_source_line(struct symbol *sym, int len)
 	int i;
 
 	sizeof_src_line = sizeof(*src_line) +
-			  (sizeof(src_line->p) * (src_line->nr_pcnt - 1));
+			  (sizeof(src_line->samples) * (src_line->nr_pcnt - 1));
 
 	for (i = 0; i < len; i++) {
 		free_srcline(src_line->path);
@@ -1229,7 +1229,7 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 			h_sum += h->sum;
 		}
 		nr_pcnt = evsel->nr_members;
-		sizeof_src_line += (nr_pcnt - 1) * sizeof(src_line->p);
+		sizeof_src_line += (nr_pcnt - 1) * sizeof(src_line->samples);
 	}
 
 	if (!h_sum)
@@ -1249,10 +1249,10 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 
 		for (k = 0; k < nr_pcnt; k++) {
 			h = annotation__histogram(notes, evidx + k);
-			src_line->p[k].percent = 100.0 * h->addr[i] / h->sum;
+			src_line->samples[k].percent = 100.0 * h->addr[i] / h->sum;
 
-			if (src_line->p[k].percent > percent_max)
-				percent_max = src_line->p[k].percent;
+			if (src_line->samples[k].percent > percent_max)
+				percent_max = src_line->samples[k].percent;
 		}
 
 		if (percent_max <= 0.5)
@@ -1292,7 +1292,7 @@ static void print_summary(struct rb_root *root, const char *filename)
 
 		src_line = rb_entry(node, struct source_line, node);
 		for (i = 0; i < src_line->nr_pcnt; i++) {
-			percent = src_line->p[i].percent_sum;
+			percent = src_line->samples[i].percent_sum;
 			color = get_percent_color(percent);
 			color_fprintf(stdout, color, " %7.2f", percent);
 
