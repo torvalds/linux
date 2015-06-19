@@ -337,8 +337,8 @@ repeat2:
 /**
  * ufs_inode_getblock() - allocate new block
  * @inode: pointer to inode
- * @bh: pointer to block which hold "pointer" to new allocated block
- * @index: number of pointer in the indirect block
+ * @ind_block: block number of the indirect block
+ * @index: number of pointer within the indirect block
  * @new_fragment: number of new allocated fragment
  *  (block will hold this fragment and also uspi->s_fpb-1)
  * @err: see ufs_inode_getfrag()
@@ -347,23 +347,25 @@ repeat2:
  * @locked_page: see ufs_inode_getfrag()
  */
 static u64
-ufs_inode_getblock(struct inode *inode, struct buffer_head *bh,
+ufs_inode_getblock(struct inode *inode, u64 ind_block,
 		  unsigned index, sector_t new_fragment, int *err,
 		  long *phys, int *new, struct page *locked_page)
 {
 	struct super_block *sb = inode->i_sb;
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
+	int shift = uspi->s_apbshift - uspi->s_fpbshift;
 	u64 tmp = 0, goal;
+	struct buffer_head *bh;
 	void *p;
 
-	if (!bh)
-		goto out;
-	if (!buffer_uptodate(bh)) {
-		ll_rw_block (READ, 1, &bh);
-		wait_on_buffer (bh);
-		if (!buffer_uptodate(bh))
-			goto out;
-	}
+	if (!ind_block)
+		return 0;
+
+	bh = sb_bread(sb, ind_block + (index >> shift));
+	if (unlikely(!bh))
+		return 0;
+
+	index &= uspi->s_apbmask >> uspi->s_fpbshift;
 	if (uspi->fs_magic == UFS2_MAGIC)
 		p = (__fs64 *)bh->b_data + index;
 	else
@@ -459,12 +461,6 @@ static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buff
 					UFS_IND_FRAGMENT + (ptr >> uspi->s_apbshift),
 					fragment, uspi->s_fpb, &err, NULL, NULL,
 					bh_result->b_page);
-		if (phys64) {
-			phys64 += (ptr >> uspi->s_apbshift) & uspi->s_fpbmask;
-			bh = sb_getblk(sb, phys64);
-		} else {
-			bh = NULL;
-		}
 		goto get_indirect;
 	}
 	ptr -= 1 << (uspi->s_apbshift + uspi->s_fpbshift);
@@ -473,12 +469,6 @@ static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buff
 					UFS_DIND_FRAGMENT + (ptr >> uspi->s_2apbshift),
 					fragment, uspi->s_fpb, &err, NULL, NULL,
 					bh_result->b_page);
-		if (phys64) {
-			phys64 += (ptr >> uspi->s_2apbshift) & uspi->s_fpbmask;
-			bh = sb_getblk(sb, phys64);
-		} else {
-			bh = NULL;
-		}
 		goto get_double;
 	}
 	ptr -= 1 << (uspi->s_2apbshift + uspi->s_fpbshift);
@@ -486,33 +476,13 @@ static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buff
 				UFS_TIND_FRAGMENT + (ptr >> uspi->s_3apbshift),
 				fragment, uspi->s_fpb, &err, NULL, NULL,
 				bh_result->b_page);
-	if (phys64) {
-		phys64 += (ptr >> uspi->s_3apbshift) & uspi->s_fpbmask;
-		bh = sb_getblk(sb, phys64);
-	} else {
-		bh = NULL;
-	}
-	phys64 = ufs_inode_getblock(inode, bh,
-				offsets[1] & mask,
+	phys64 = ufs_inode_getblock(inode, phys64, offsets[1],
 				fragment, &err, NULL, NULL, NULL);
-	if (phys64) {
-		phys64 += (ptr >> uspi->s_2apbshift) & uspi->s_fpbmask,
-		bh = sb_getblk(sb, phys64);
-	} else {
-		bh = NULL;
-	}
 get_double:
-	phys64 = ufs_inode_getblock(inode, bh,
-				offsets[depth - 2] & mask,
+	phys64 = ufs_inode_getblock(inode, phys64, offsets[depth - 2],
 				fragment, &err, NULL, NULL, NULL);
-	if (phys64) {
-		phys64 += (ptr >> uspi->s_apbshift) & uspi->s_fpbmask,
-		bh = sb_getblk(sb, phys64);
-	} else {
-		bh = NULL;
-	}
 get_indirect:
-	phys64 = ufs_inode_getblock(inode, bh, offsets[depth - 1] & mask,
+	phys64 = ufs_inode_getblock(inode, phys64, offsets[depth - 1],
 				fragment, &err, &phys, &new, bh_result->b_page);
 	if (phys64) {
 		phys64 += frag;
