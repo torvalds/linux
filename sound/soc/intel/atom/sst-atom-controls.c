@@ -132,7 +132,7 @@ static int sst_send_slot_map(struct sst_data *drv)
 			      sizeof(cmd.header) + cmd.header.length);
 }
 
-int sst_slot_enum_info(struct snd_kcontrol *kcontrol,
+static int sst_slot_enum_info(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_info *uinfo)
 {
 	struct sst_enum *e = (struct sst_enum *)kcontrol->private_value;
