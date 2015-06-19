@@ -9,6 +9,7 @@
  * Standard functionality for the common clock API.  See Documentation/clk.txt
  */
 
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/clk/clk-conf.h>
 #include <linux/module.h>
