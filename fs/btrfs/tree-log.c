@@ -4117,6 +4117,86 @@ static int logged_inode_size(struct btrfs_root *log, struct inode *inode,
 	return 0;
 }
 
+/*
+ * At the moment we always log all xattrs. This is to figure out at log replay
+ * time which xattrs must have their deletion replayed. If a xattr is missing
+ * in the log tree and exists in the fs/subvol tree, we delete it. This is
+ * because if a xattr is deleted, the inode is fsynced and a power failure
+ * happens, causing the log to be replayed the next time the fs is mounted,
+ * we want the xattr to not exist anymore (same behaviour as other filesystems
+ * with a journal, ext3/4, xfs, f2fs, etc).
+ */
+static int btrfs_log_all_xattrs(struct btrfs_trans_handle *trans,
+				struct btrfs_root *root,
+				struct inode *inode,
+				struct btrfs_path *path,
+				struct btrfs_path *dst_path)
+{
+	int ret;
+	struct btrfs_key key;
+	const u64 ino = btrfs_ino(inode);
+	int ins_nr = 0;
+	int start_slot = 0;
+
+	key.objectid = ino;
+	key.type = BTRFS_XATTR_ITEM_KEY;
+	key.offset = 0;
+
+	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	if (ret < 0)
+		return ret;
+
+	while (true) {
+		int slot = path->slots[0];
+		struct extent_buffer *leaf = path->nodes[0];
+		int nritems = btrfs_header_nritems(leaf);
+
+		if (slot >= nritems) {
+			if (ins_nr > 0) {
+				u64 last_extent = 0;
+
+				ret = copy_items(trans, inode, dst_path, path,
+						 &last_extent, start_slot,
+						 ins_nr, 1, 0);
+				/* can't be 1, extent items aren't processed */
+				ASSERT(ret <= 0);
+				if (ret < 0)
+					return ret;
+				ins_nr = 0;
+			}
+			ret = btrfs_next_leaf(root, path);
+			if (ret < 0)
+				return ret;
+			else if (ret > 0)
+				break;
+			continue;
+		}
+
+		btrfs_item_key_to_cpu(leaf, &key, slot);
+		if (key.objectid != ino || key.type != BTRFS_XATTR_ITEM_KEY)
+			break;
+
+		if (ins_nr == 0)
+			start_slot = slot;
+		ins_nr++;
+		path->slots[0]++;
+		cond_resched();
+	}
+	if (ins_nr > 0) {
+		u64 last_extent = 0;
+
+		ret = copy_items(trans, inode, dst_path, path,
+				 &last_extent, start_slot,
+				 ins_nr, 1, 0);
+		/* can't be 1, extent items aren't processed */
+		ASSERT(ret <= 0);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 /* log a single inode in the tree log.
  * At least one parent directory for this inode must exist in the tree
  * or be logged already.
@@ -4289,6 +4369,25 @@ again:
 		if (min_key.type == BTRFS_INODE_ITEM_KEY)
 			need_log_inode_item = false;
 
+		/* Skip xattrs, we log them later with btrfs_log_all_xattrs() */
+		if (min_key.type == BTRFS_XATTR_ITEM_KEY) {
+			if (ins_nr == 0)
+				goto next_slot;
+			ret = copy_items(trans, inode, dst_path, path,
+					 &last_extent, ins_start_slot,
+					 ins_nr, inode_only, logged_isize);
+			if (ret < 0) {
+				err = ret;
+				goto out_unlock;
+			}
+			ins_nr = 0;
+			if (ret) {
+				btrfs_release_path(path);
+				continue;
+			}
+			goto next_slot;
+		}
+
 		src = path->nodes[0];
 		if (ins_nr && ins_start_slot + ins_nr == path->slots[0]) {
 			ins_nr++;
@@ -4356,6 +4455,11 @@ next_slot:
 		ins_nr = 0;
 	}
 
+	btrfs_release_path(path);
+	btrfs_release_path(dst_path);
+	err = btrfs_log_all_xattrs(trans, root, inode, path, dst_path);
+	if (err)
+		goto out_unlock;
 log_extents:
 	btrfs_release_path(path);
 	btrfs_release_path(dst_path);
