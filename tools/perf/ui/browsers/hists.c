@@ -1902,10 +1902,11 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		case CTRL('c'):
 			goto out_free_stack;
 		case 'f':
-			if (is_report_browser(hbt))
-				continue;
-			goto out_free_stack;
+			if (!is_report_browser(hbt))
+				goto out_free_stack;
+			/* Fall thru */
 		default:
+			helpline = "Press '?' for help on key bindings";
 			continue;
 		}
 
