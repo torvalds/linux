@@ -115,9 +115,8 @@ static struct mtd_partition * newpart(char *s,
 		s++;
 	} else {
 		size = memparse(s, &s);
-		if (size < PAGE_SIZE) {
-			printk(KERN_ERR ERRP "partition size too small (%llx)\n",
-			       size);
+		if (!size) {
+			printk(KERN_ERR ERRP "partition has size 0\n");
 			return ERR_PTR(-EINVAL);
 		}
 	}
