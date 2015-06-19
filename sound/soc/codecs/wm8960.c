@@ -445,7 +445,7 @@ static int wm8960_add_widgets(struct snd_soc_codec *codec)
 {
 	struct wm8960_priv *wm8960 = snd_soc_codec_get_drvdata(codec);
 	struct wm8960_data *pdata = &wm8960->pdata;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct snd_soc_dapm_widget *w;
 
 	snd_soc_dapm_new_controls(dapm, wm8960_dapm_widgets,
@@ -476,7 +476,7 @@ static int wm8960_add_widgets(struct snd_soc_codec *codec)
 	 * and save the result.
 	 */
 	list_for_each_entry(w, &codec->component.card->widgets, list) {
-		if (w->dapm != &codec->dapm)
+		if (w->dapm != dapm)
 			continue;
 		if (strcmp(w->name, "LOUT1 PGA") == 0)
 			wm8960->lout1 = w;
@@ -627,7 +627,7 @@ static int wm8960_set_bias_level_out3(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
-		switch (codec->dapm.bias_level) {
+		switch (snd_soc_codec_get_bias_level(codec)) {
 		case SND_SOC_BIAS_STANDBY:
 			if (!IS_ERR(wm8960->mclk)) {
 				ret = clk_prepare_enable(wm8960->mclk);
@@ -655,7 +655,7 @@ static int wm8960_set_bias_level_out3(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			regcache_sync(wm8960->regmap);
 
 			/* Enable anti-pop features */
@@ -691,8 +691,6 @@ static int wm8960_set_bias_level_out3(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->dapm.bias_level = level;
-
 	return 0;
 }
 
@@ -707,7 +705,7 @@ static int wm8960_set_bias_level_capless(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
-		switch (codec->dapm.bias_level) {
+		switch (snd_soc_codec_get_bias_level(codec)) {
 		case SND_SOC_BIAS_STANDBY:
 			/* Enable anti pop mode */
 			snd_soc_update_bits(codec, WM8960_APOP1,
@@ -778,7 +776,7 @@ static int wm8960_set_bias_level_capless(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		switch (codec->dapm.bias_level) {
+		switch (snd_soc_codec_get_bias_level(codec)) {
 		case SND_SOC_BIAS_PREPARE:
 			/* Disable HP discharge */
 			snd_soc_update_bits(codec, WM8960_APOP2,
@@ -801,8 +799,6 @@ static int wm8960_set_bias_level_capless(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_OFF:
 		break;
 	}
-
-	codec->dapm.bias_level = level;
 
 	return 0;
 }

@@ -350,7 +350,6 @@ static int uda134x_set_bias_level(struct snd_soc_codec *codec,
 			pd->power(0);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -478,6 +477,7 @@ static struct snd_soc_dai_driver uda134x_dai = {
 
 static int uda134x_soc_probe(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct uda134x_priv *uda134x;
 	struct uda134x_platform_data *pd = codec->component.card->dev->platform_data;
 	const struct snd_soc_dapm_widget *widgets;
@@ -526,7 +526,7 @@ static int uda134x_soc_probe(struct snd_soc_codec *codec)
 		num_widgets = ARRAY_SIZE(uda1340_dapm_widgets);
 	}
 
-	ret = snd_soc_dapm_new_controls(&codec->dapm, widgets, num_widgets);
+	ret = snd_soc_dapm_new_controls(dapm, widgets, num_widgets);
 	if (ret) {
 		printk(KERN_ERR "%s failed to register dapm controls: %d",
 			__func__, ret);

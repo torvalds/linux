@@ -1598,10 +1598,11 @@ static struct snd_soc_dai_driver wm5110_dai[] = {
 
 static int wm5110_codec_probe(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct wm5110_priv *priv = snd_soc_codec_get_drvdata(codec);
 	int i, ret;
 
-	priv->core.arizona->dapm = &codec->dapm;
+	priv->core.arizona->dapm = dapm;
 
 	arizona_init_spk(codec);
 	arizona_init_gpio(codec);
@@ -1613,9 +1614,7 @@ static int wm5110_codec_probe(struct snd_soc_codec *codec)
 			return ret;
 	}
 
-	snd_soc_dapm_disable_pin(&codec->dapm, "HAPTICS");
-
-	priv->core.arizona->dapm = &codec->dapm;
+	snd_soc_dapm_disable_pin(dapm, "HAPTICS");
 
 	return 0;
 }

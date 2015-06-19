@@ -738,7 +738,7 @@ static int wm8988_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			regcache_sync(wm8988->regmap);
 
 			/* VREF, VMID=2x5k */
@@ -756,7 +756,6 @@ static int wm8988_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_write(codec, WM8988_PWR1, 0x0000);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

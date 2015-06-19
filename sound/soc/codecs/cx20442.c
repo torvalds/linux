@@ -333,7 +333,7 @@ static int cx20442_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
-		if (codec->dapm.bias_level != SND_SOC_BIAS_STANDBY)
+		if (snd_soc_codec_get_bias_level(codec) != SND_SOC_BIAS_STANDBY)
 			break;
 		if (IS_ERR(cx20442->por))
 			err = PTR_ERR(cx20442->por);
@@ -341,7 +341,7 @@ static int cx20442_set_bias_level(struct snd_soc_codec *codec,
 			err = regulator_enable(cx20442->por);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level != SND_SOC_BIAS_PREPARE)
+		if (snd_soc_codec_get_bias_level(codec) != SND_SOC_BIAS_PREPARE)
 			break;
 		if (IS_ERR(cx20442->por))
 			err = PTR_ERR(cx20442->por);
@@ -351,8 +351,6 @@ static int cx20442_set_bias_level(struct snd_soc_codec *codec,
 	default:
 		break;
 	}
-	if (!err)
-		codec->dapm.bias_level = level;
 
 	return err;
 }

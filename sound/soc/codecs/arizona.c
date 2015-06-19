@@ -208,11 +208,12 @@ static const struct snd_soc_dapm_widget arizona_spkr =
 
 int arizona_init_spk(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = priv->arizona;
 	int ret;
 
-	ret = snd_soc_dapm_new_controls(&codec->dapm, &arizona_spkl, 1);
+	ret = snd_soc_dapm_new_controls(dapm, &arizona_spkl, 1);
 	if (ret != 0)
 		return ret;
 
@@ -220,8 +221,7 @@ int arizona_init_spk(struct snd_soc_codec *codec)
 	case WM8997:
 		break;
 	default:
-		ret = snd_soc_dapm_new_controls(&codec->dapm,
-						&arizona_spkr, 1);
+		ret = snd_soc_dapm_new_controls(dapm, &arizona_spkr, 1);
 		if (ret != 0)
 			return ret;
 		break;
@@ -258,13 +258,14 @@ static const struct snd_soc_dapm_route arizona_mono_routes[] = {
 
 int arizona_init_mono(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = priv->arizona;
 	int i;
 
 	for (i = 0; i < ARIZONA_MAX_OUTPUT; ++i) {
 		if (arizona->pdata.out_mono[i])
-			snd_soc_dapm_add_routes(&codec->dapm,
+			snd_soc_dapm_add_routes(dapm,
 						&arizona_mono_routes[i], 1);
 	}
 
@@ -274,6 +275,7 @@ EXPORT_SYMBOL_GPL(arizona_init_mono);
 
 int arizona_init_gpio(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = priv->arizona;
 	int i;
@@ -281,23 +283,21 @@ int arizona_init_gpio(struct snd_soc_codec *codec)
 	switch (arizona->type) {
 	case WM5110:
 	case WM8280:
-		snd_soc_dapm_disable_pin(&codec->dapm, "DRC2 Signal Activity");
+		snd_soc_dapm_disable_pin(dapm, "DRC2 Signal Activity");
 		break;
 	default:
 		break;
 	}
 
-	snd_soc_dapm_disable_pin(&codec->dapm, "DRC1 Signal Activity");
+	snd_soc_dapm_disable_pin(dapm, "DRC1 Signal Activity");
 
 	for (i = 0; i < ARRAY_SIZE(arizona->pdata.gpio_defaults); i++) {
 		switch (arizona->pdata.gpio_defaults[i] & ARIZONA_GPN_FN_MASK) {
 		case ARIZONA_GP_FN_DRC1_SIGNAL_DETECT:
-			snd_soc_dapm_enable_pin(&codec->dapm,
-						"DRC1 Signal Activity");
+			snd_soc_dapm_enable_pin(dapm, "DRC1 Signal Activity");
 			break;
 		case ARIZONA_GP_FN_DRC2_SIGNAL_DETECT:
-			snd_soc_dapm_enable_pin(&codec->dapm,
-						"DRC2 Signal Activity");
+			snd_soc_dapm_enable_pin(dapm, "DRC2 Signal Activity");
 			break;
 		default:
 			break;
@@ -1619,6 +1619,7 @@ static int arizona_dai_set_sysclk(struct snd_soc_dai *dai,
 				  int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona_dai_priv *dai_priv = &priv->dai[dai->id - 1];
 	struct snd_soc_dapm_route routes[2];
@@ -1649,15 +1650,15 @@ static int arizona_dai_set_sysclk(struct snd_soc_dai *dai,
 
 	routes[0].source = arizona_dai_clk_str(dai_priv->clk);
 	routes[1].source = arizona_dai_clk_str(dai_priv->clk);
-	snd_soc_dapm_del_routes(&codec->dapm, routes, ARRAY_SIZE(routes));
+	snd_soc_dapm_del_routes(dapm, routes, ARRAY_SIZE(routes));
 
 	routes[0].source = arizona_dai_clk_str(clk_id);
 	routes[1].source = arizona_dai_clk_str(clk_id);
-	snd_soc_dapm_add_routes(&codec->dapm, routes, ARRAY_SIZE(routes));
+	snd_soc_dapm_add_routes(dapm, routes, ARRAY_SIZE(routes));
 
 	dai_priv->clk = clk_id;
 
-	return snd_soc_dapm_sync(&codec->dapm);
+	return snd_soc_dapm_sync(dapm);
 }
 
 static int arizona_set_tristate(struct snd_soc_dai *dai, int tristate)
