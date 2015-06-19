@@ -138,7 +138,6 @@ acpi_status acpi_set_firmware_waking_vector64(u64 physical_address)
 {
 	ACPI_FUNCTION_TRACE(acpi_set_firmware_waking_vector64);
 
-
 	/* Determine if the 64-bit vector actually exists */
 
 	if ((acpi_gbl_FACS->length <= 32) || (acpi_gbl_FACS->version < 1)) {
@@ -154,7 +153,6 @@ acpi_status acpi_set_firmware_waking_vector64(u64 physical_address)
 
 ACPI_EXPORT_SYMBOL(acpi_set_firmware_waking_vector64)
 #endif
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_enter_sleep_state_s4bios

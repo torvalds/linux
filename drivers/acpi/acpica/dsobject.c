@@ -751,7 +751,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 		obj_desc->string.pointer = op->common.value.string;
 		obj_desc->string.length =
-		    (u32) ACPI_STRLEN(op->common.value.string);
+		    (u32)ACPI_STRLEN(op->common.value.string);
 
 		/*
 		 * The string is contained in the ACPI table, don't ever try

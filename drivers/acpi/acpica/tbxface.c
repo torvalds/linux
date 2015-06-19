@@ -242,6 +242,7 @@ acpi_get_table_header(char *signature,
 				if (!header) {
 					return (AE_NO_MEMORY);
 				}
+
 				ACPI_MEMCPY(out_table_header, header,
 					    sizeof(struct acpi_table_header));
 				acpi_os_unmap_memory(header,

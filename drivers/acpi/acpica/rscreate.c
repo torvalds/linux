@@ -353,7 +353,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 				/* +1 to include null terminator */
 
 				user_prt->length +=
-				    (u32) ACPI_STRLEN(user_prt->source) + 1;
+				    (u32)ACPI_STRLEN(user_prt->source) + 1;
 				break;
 
 			case ACPI_TYPE_STRING:
