@@ -336,6 +336,8 @@ struct kvm_pmu {
 	u64 reprogram_pmi;
 };
 
+struct kvm_pmu_ops;
+
 enum {
 	KVM_DEBUGREG_BP_ENABLED = 1,
 	KVM_DEBUGREG_WONT_EXIT = 2,
@@ -854,6 +856,8 @@ struct kvm_x86_ops {
 	void (*enable_log_dirty_pt_masked)(struct kvm *kvm,
 					   struct kvm_memory_slot *slot,
 					   gfn_t offset, unsigned long mask);
+	/* pmu operations of sub-arch */
+	const struct kvm_pmu_ops *pmu_ops;
 };
 
 struct kvm_arch_async_pf {

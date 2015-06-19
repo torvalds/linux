@@ -48,6 +48,7 @@
 #include <asm/apic.h>
 
 #include "trace.h"
+#include "pmu.h"
 
 #define __ex(x) __kvm_handle_fault_on_reboot(x)
 #define __ex_clear(x, reg) \
@@ -10419,6 +10420,8 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.slot_disable_log_dirty = vmx_slot_disable_log_dirty,
 	.flush_log_dirty = vmx_flush_log_dirty,
 	.enable_log_dirty_pt_masked = vmx_enable_log_dirty_pt_masked,
+
+	.pmu_ops = &intel_pmu_ops,
 };
 
 static int __init vmx_init(void)
