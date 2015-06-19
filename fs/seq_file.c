@@ -487,6 +487,20 @@ int seq_path(struct seq_file *m, const struct path *path, const char *esc)
 }
 EXPORT_SYMBOL(seq_path);
 
+/**
+ * seq_file_path - seq_file interface to print a pathname of a file
+ * @m: the seq_file handle
+ * @file: the struct file to print
+ * @esc: set of characters to escape in the output
+ *
+ * return the absolute path to the file.
+ */
+int seq_file_path(struct seq_file *m, struct file *file, const char *esc)
+{
+	return seq_path(m, &file->f_path, esc);
+}
+EXPORT_SYMBOL(seq_file_path);
+
 /*
  * Same as seq_path, but relative to supplied root.
  */
