@@ -1015,12 +1015,23 @@ void * __init __weak early_init_dt_alloc_memory_arch(u64 size, u64 align)
 	return __va(memblock_alloc(size, align));
 }
 #else
+void __init __weak early_init_dt_add_memory_arch(u64 base, u64 size)
+{
+	WARN_ON(1);
+}
+
 int __init __weak early_init_dt_reserve_memory_arch(phys_addr_t base,
 					phys_addr_t size, bool nomap)
 {
 	pr_err("Reserved memory not supported, ignoring range 0x%pa - 0x%pa%s\n",
 		  &base, &size, nomap ? " (nomap)" : "");
 	return -ENOSYS;
+}
+
+void * __init __weak early_init_dt_alloc_memory_arch(u64 size, u64 align)
+{
+	WARN_ON(1);
+	return NULL;
 }
 #endif
 
