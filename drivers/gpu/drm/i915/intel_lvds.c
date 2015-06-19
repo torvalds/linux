@@ -942,12 +942,6 @@ void intel_lvds_init(struct drm_device *dev)
 	if (dmi_check_system(intel_no_lvds))
 		return;
 
-	pin = GMBUS_PIN_PANEL;
-	if (!lvds_is_present_in_vbt(dev, &pin)) {
-		DRM_DEBUG_KMS("LVDS is not present in VBT\n");
-		return;
-	}
-
 	if (HAS_PCH_SPLIT(dev)) {
 		if ((I915_READ(PCH_LVDS) & LVDS_DETECTED) == 0)
 			return;
@@ -955,6 +949,16 @@ void intel_lvds_init(struct drm_device *dev)
 			DRM_DEBUG_KMS("disable LVDS for eDP support\n");
 			return;
 		}
+	}
+
+	pin = GMBUS_PIN_PANEL;
+	if (!lvds_is_present_in_vbt(dev, &pin)) {
+		u32 reg = HAS_PCH_SPLIT(dev) ? PCH_LVDS : LVDS;
+		if ((I915_READ(reg) & LVDS_PORT_EN) == 0) {
+			DRM_DEBUG_KMS("LVDS is not present in VBT\n");
+			return;
+		}
+		DRM_DEBUG_KMS("LVDS is not present in VBT, but enabled anyway\n");
 	}
 
 	lvds_encoder = kzalloc(sizeof(*lvds_encoder), GFP_KERNEL);
