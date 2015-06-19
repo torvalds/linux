@@ -85,58 +85,16 @@ gk104_pm_part[] = {
 	{}
 };
 
-static int
-gk104_pm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	      struct nvkm_oclass *oclass, void *data, u32 size,
-	      struct nvkm_object **pobject)
-{
-	struct gf100_pm_priv *priv;
-	u32 mask;
-	int ret;
-
-	ret = nvkm_pm_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	/* HUB */
-	ret = nvkm_perfdom_new(&priv->base, "hub", 0, 0x1b0000, 0, 0x200,
-			       gk104_pm_hub);
-	if (ret)
-		return ret;
-
-	/* GPC */
-	mask  = (1 << nv_rd32(priv, 0x022430)) - 1;
-	mask &= ~nv_rd32(priv, 0x022504);
-	mask &= ~nv_rd32(priv, 0x022584);
-
-	ret = nvkm_perfdom_new(&priv->base, "gpc", mask, 0x180000,
-			       0x1000, 0x200, gk104_pm_gpc);
-	if (ret)
-		return ret;
-
-	/* PART */
-	mask  = (1 << nv_rd32(priv, 0x022438)) - 1;
-	mask &= ~nv_rd32(priv, 0x022548);
-	mask &= ~nv_rd32(priv, 0x0225c8);
-
-	ret = nvkm_perfdom_new(&priv->base, "part", mask, 0x1a0000,
-			       0x1000, 0x200, gk104_pm_part);
-	if (ret)
-		return ret;
-
-	nv_engine(priv)->cclass = &nvkm_pm_cclass;
-	nv_engine(priv)->sclass =  nvkm_pm_sclass;
-	return 0;
-}
-
-struct nvkm_oclass
-gk104_pm_oclass = {
-	.handle = NV_ENGINE(PM, 0xe0),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gk104_pm_ctor,
+struct nvkm_oclass *
+gk104_pm_oclass = &(struct gf100_pm_oclass) {
+	.base.handle = NV_ENGINE(PM, 0xe0),
+	.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gf100_pm_ctor,
 		.dtor = _nvkm_pm_dtor,
 		.init = _nvkm_pm_init,
 		.fini = gf100_pm_fini,
 	},
-};
+	.doms_gpc  = gk104_pm_gpc,
+	.doms_hub  = gk104_pm_hub,
+	.doms_part = gk104_pm_part,
+}.base;

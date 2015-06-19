@@ -91,7 +91,7 @@ gk104_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &gk104_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_MSPDEC ] = &gk104_mspdec_oclass;
 		device->oclass[NVDEV_ENGINE_MSPPP  ] = &gf100_msppp_oclass;
-		device->oclass[NVDEV_ENGINE_PM     ] = &gk104_pm_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] = gk104_pm_oclass;
 		break;
 	case 0xe7:
 		device->cname = "GK107";
@@ -125,7 +125,7 @@ gk104_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &gk104_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_MSPDEC ] = &gk104_mspdec_oclass;
 		device->oclass[NVDEV_ENGINE_MSPPP  ] = &gf100_msppp_oclass;
-		device->oclass[NVDEV_ENGINE_PM     ] = &gk104_pm_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] = gk104_pm_oclass;
 		break;
 	case 0xe6:
 		device->cname = "GK106";
@@ -159,7 +159,7 @@ gk104_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &gk104_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_MSPDEC ] = &gk104_mspdec_oclass;
 		device->oclass[NVDEV_ENGINE_MSPPP  ] = &gf100_msppp_oclass;
-		device->oclass[NVDEV_ENGINE_PM     ] = &gk104_pm_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] = gk104_pm_oclass;
 		break;
 	case 0xea:
 		device->cname = "GK20A";
@@ -179,7 +179,7 @@ gk104_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  gk20a_gr_oclass;
 		device->oclass[NVDEV_ENGINE_CE2    ] = &gk104_ce2_oclass;
-		device->oclass[NVDEV_ENGINE_PM     ] = &gk104_pm_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] = gk104_pm_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &gk20a_volt_oclass;
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gk20a_pmu_oclass;
 		break;

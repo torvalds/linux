@@ -29,6 +29,6 @@ extern struct nvkm_oclass *gt215_pm_oclass;
 extern struct nvkm_oclass *gf100_pm_oclass;
 extern struct nvkm_oclass *gf108_pm_oclass;
 extern struct nvkm_oclass *gf117_pm_oclass;
-extern struct nvkm_oclass gk104_pm_oclass;
+extern struct nvkm_oclass *gk104_pm_oclass;
 extern struct nvkm_oclass gk110_pm_oclass;
 #endif
