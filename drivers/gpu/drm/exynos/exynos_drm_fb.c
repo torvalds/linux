@@ -295,8 +295,6 @@ static int exynos_atomic_commit(struct drm_device *dev,
 
 	drm_atomic_helper_commit_planes(dev, state);
 
-	drm_atomic_helper_wait_for_vblanks(dev, state);
-
 	drm_atomic_helper_cleanup_planes(dev, state);
 
 	drm_atomic_state_free(state);
