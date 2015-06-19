@@ -340,6 +340,8 @@ static void __init mini2451_map_io(void)
 	s3c24xx_init_io(mini2451_iodesc, ARRAY_SIZE(mini2451_iodesc));
 	s3c24xx_init_uarts(mini2451_uartcfgs, ARRAY_SIZE(mini2451_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
+	/* Set prescaler & div for Timer 2/3/4 */
+	samsung_set_timer_div(56, 2);
 }
 
 static void __init mini2451_machine_init(void)

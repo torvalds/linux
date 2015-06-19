@@ -240,6 +240,12 @@ void __init samsung_set_timer_source(unsigned int event, unsigned int source)
 	s3c24xx_pwm_variant.output_mask &= ~(BIT(event) | BIT(source));
 }
 
+void __init samsung_set_timer_div(u16 tscaler_div, u8 tdiv)
+{
+	s3c24xx_pwm_variant.tscaler_div = tscaler_div;
+	s3c24xx_pwm_variant.tdiv = tdiv;
+}
+
 void __init samsung_timer_init(void)
 {
 	unsigned int timer_irqs[SAMSUNG_PWM_NUM] = {

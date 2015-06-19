@@ -24,6 +24,7 @@ enum samsung_timer_mode {
 
 extern void __init samsung_set_timer_source(enum samsung_timer_mode event,
 					enum samsung_timer_mode source);
+extern void __init samsung_set_timer_div(u16 tscaler_div, u8 tdiv);
 
 extern void __init samsung_timer_init(void);
 

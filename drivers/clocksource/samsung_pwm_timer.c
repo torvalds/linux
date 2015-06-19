@@ -375,6 +375,12 @@ static void __init samsung_timer_resources(void)
 		pwm.tscaler_div = 2;
 		pwm.tdiv = 1;
 	}
+
+	/* Get it from machine config if available */
+	if (pwm.variant.tscaler_div > 0)
+		pwm.tscaler_div = pwm.variant.tscaler_div;
+	if (pwm.variant.tdiv > 0)
+		pwm.tdiv = pwm.variant.tdiv;
 }
 
 /*

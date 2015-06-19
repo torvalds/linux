@@ -34,6 +34,8 @@ struct samsung_pwm_variant {
 	u8 div_base;
 	u8 tclk_mask;
 	u8 output_mask;
+	u16 tscaler_div;
+	u8 tdiv;
 	bool has_tint_cstat;
 };
 
