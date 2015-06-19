@@ -12,6 +12,7 @@
  * workarounds!
  */
 #define CACHELINE_BYTES 64
+#define CACHELINE_DWORDS (CACHELINE_BYTES / sizeof(uint32_t))
 
 /*
  * Gen2 BSpec "1. Programming Environment" / 1.4.4.6 "Ring Buffer Use"
@@ -120,6 +121,25 @@ struct intel_ringbuffer {
 struct	intel_context;
 struct drm_i915_reg_descriptor;
 
+/*
+ * we use a single page to load ctx workarounds so all of these
+ * values are referred in terms of dwords
+ *
+ * struct i915_wa_ctx_bb:
+ *  offset: specifies batch starting position, also helpful in case
+ *    if we want to have multiple batches at different offsets based on
+ *    some criteria. It is not a requirement at the moment but provides
+ *    an option for future use.
+ *  size: size of the batch in DWORDS
+ */
+struct  i915_ctx_workarounds {
+	struct i915_wa_ctx_bb {
+		u32 offset;
+		u32 size;
+	} indirect_ctx, per_ctx;
+	struct drm_i915_gem_object *obj;
+};
+
 struct  intel_engine_cs {
 	const char	*name;
 	enum intel_ring_id {
@@ -143,6 +163,7 @@ struct  intel_engine_cs {
 	struct i915_gem_batch_pool batch_pool;
 
 	struct intel_hw_status_page status_page;
+	struct i915_ctx_workarounds wa_ctx;
 
 	unsigned irq_refcount; /* protected by dev_priv->irq_lock */
 	u32		irq_enable_mask;	/* bitmask to enable ring interrupt */
