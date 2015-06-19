@@ -328,11 +328,11 @@ static void set_node_addr(struct f2fs_sb_info *sbi, struct node_info *ni,
 int try_to_free_nats(struct f2fs_sb_info *sbi, int nr_shrink)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
+	int nr = nr_shrink;
 
-	if (available_free_memory(sbi, NAT_ENTRIES))
+	if (!down_write_trylock(&nm_i->nat_tree_lock))
 		return 0;
 
-	down_write(&nm_i->nat_tree_lock);
 	while (nr_shrink && !list_empty(&nm_i->nat_entries)) {
 		struct nat_entry *ne;
 		ne = list_first_entry(&nm_i->nat_entries,
@@ -341,7 +341,7 @@ int try_to_free_nats(struct f2fs_sb_info *sbi, int nr_shrink)
 		nr_shrink--;
 	}
 	up_write(&nm_i->nat_tree_lock);
-	return nr_shrink;
+	return nr - nr_shrink;
 }
 
 /*

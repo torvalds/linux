@@ -18,6 +18,11 @@ static LIST_HEAD(f2fs_list);
 static DEFINE_SPINLOCK(f2fs_list_lock);
 static unsigned int shrinker_run_no;
 
+static unsigned long __count_nat_entries(struct f2fs_sb_info *sbi)
+{
+	return NM_I(sbi)->nat_cnt - NM_I(sbi)->dirty_nat_cnt;
+}
+
 unsigned long f2fs_shrink_count(struct shrinker *shrink,
 				struct shrink_control *sc)
 {
@@ -37,7 +42,8 @@ unsigned long f2fs_shrink_count(struct shrinker *shrink,
 		}
 		spin_unlock(&f2fs_list_lock);
 
-		/* TODO: count # of objects */
+		/* shrink clean nat cache entries */
+		count += __count_nat_entries(sbi);
 
 		spin_lock(&f2fs_list_lock);
 		p = p->next;
@@ -76,7 +82,8 @@ unsigned long f2fs_shrink_scan(struct shrinker *shrink,
 
 		sbi->shrinker_run_no = run_no;
 
-		/* TODO: shrink caches */
+		/* shrink clean nat cache entries */
+		freed += try_to_free_nats(sbi, nr);
 
 		spin_lock(&f2fs_list_lock);
 		p = p->next;
