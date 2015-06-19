@@ -606,12 +606,7 @@ s32 ixgbe_write_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
 				u32 device_type, u16 phy_data)
 {
 	s32 status;
-	u32 gssr;
-
-	if (IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_LAN_ID_1)
-		gssr = IXGBE_GSSR_PHY1_SM;
-	else
-		gssr = IXGBE_GSSR_PHY0_SM;
+	u32 gssr = hw->phy.phy_semaphore_mask;
 
 	if (hw->mac.ops.acquire_swfw_sync(hw, gssr) == 0) {
 		status = ixgbe_write_phy_reg_mdi(hw, reg_addr, device_type,
