@@ -8,8 +8,6 @@
  * published by the Free Software Foundation.
  */
 #include <linux/clk-provider.h>
-#include <linux/clk.h>
-#include <linux/clkdev.h>
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/of_address.h>

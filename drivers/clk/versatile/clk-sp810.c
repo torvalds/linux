@@ -12,7 +12,8 @@
  */
 
 #include <linux/amba/sp810.h>
-#include <linux/clkdev.h>
+#include <linux/slab.h>
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/err.h>
 #include <linux/of.h>
