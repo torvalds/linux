@@ -1070,57 +1070,48 @@ next1:
 	UFSD("EXIT: ino %lu\n", inode->i_ino);
 }
 
-static void free_full_branch(struct inode *inode, int depth, void *p)
+static void free_full_branch(struct inode *inode, u64 ind_block, int depth)
 {
 	struct super_block *sb = inode->i_sb;
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
-	struct ufs_inode_info *ufsi = UFS_I(inode);
-	struct ufs_buffer_head *ubh;
-	u64 tmp;
+	struct ufs_buffer_head *ubh = ubh_bread(sb, ind_block, uspi->s_bsize);
 	unsigned i;
 
-	tmp = ufs_data_ptr_to_cpu(sb, p);
-	if (!tmp)
+	if (!ubh)
 		return;
-	ubh = ubh_bread (sb, tmp, uspi->s_bsize);
-	if (!ubh) {
-		write_seqlock(&ufsi->meta_lock);
-		ufs_data_ptr_clear(uspi, p);
-		write_sequnlock(&ufsi->meta_lock);
-		return;
-	}
 
 	if (--depth) {
-		for (i = 0 ; i < uspi->s_apb ; i++) {
-			void *ind = ubh_get_data_ptr(uspi, ubh, i);
-			free_full_branch(inode, depth, ind);
-			ubh_mark_buffer_dirty(ubh);
+		for (i = 0; i < uspi->s_apb; i++) {
+			void *p = ubh_get_data_ptr(uspi, ubh, i);
+			u64 block = ufs_data_ptr_to_cpu(sb, p);
+			if (block) {
+				write_seqlock(&UFS_I(inode)->meta_lock);
+				ufs_data_ptr_clear(uspi, p);
+				write_sequnlock(&UFS_I(inode)->meta_lock);
+				free_full_branch(inode, block, depth);
+				ubh_mark_buffer_dirty(ubh);
+			}
 		}
 	} else {
 		struct to_free ctx = {.inode = inode};
 
 		for (i = 0; i < uspi->s_apb; i++) {
-			void *ind = ubh_get_data_ptr(uspi, ubh, i);
-			tmp = ufs_data_ptr_to_cpu(sb, ind);
-			if (!tmp)
-				continue;
-
-			write_seqlock(&UFS_I(inode)->meta_lock);
-			ufs_data_ptr_clear(uspi, ind);
-			write_sequnlock(&UFS_I(inode)->meta_lock);
-			ubh_mark_buffer_dirty(ubh);
-			free_data(&ctx, tmp, uspi->s_fpb);
-			mark_inode_dirty(inode);
+			void *p = ubh_get_data_ptr(uspi, ubh, i);
+			u64 block = ufs_data_ptr_to_cpu(sb, p);
+			if (block) {
+				write_seqlock(&UFS_I(inode)->meta_lock);
+				ufs_data_ptr_clear(uspi, p);
+				write_sequnlock(&UFS_I(inode)->meta_lock);
+				ubh_mark_buffer_dirty(ubh);
+				free_data(&ctx, block, uspi->s_fpb);
+				mark_inode_dirty(inode);
+			}
 		}
 		free_data(&ctx, 0, 0);
 	}
-	tmp = ufs_data_ptr_to_cpu(sb, p);
-	write_seqlock(&ufsi->meta_lock);
-	ufs_data_ptr_clear(uspi, p);
-	write_sequnlock(&ufsi->meta_lock);
 
 	ubh_bforget(ubh);
-	ufs_free_blocks(inode, tmp, uspi->s_fpb);
+	ufs_free_blocks(inode, ind_block, uspi->s_fpb);
 	mark_inode_dirty(inode);
 }
 
@@ -1132,25 +1123,30 @@ static void free_branch_tail(struct inode *inode, unsigned from, struct ufs_buff
 
 	if (--depth) {
 		for (i = from; i < uspi->s_apb ; i++) {
-			void *ind = ubh_get_data_ptr(uspi, ubh, i);
-			free_full_branch(inode, depth, ind);
-			ubh_mark_buffer_dirty(ubh);
+			void *p = ubh_get_data_ptr(uspi, ubh, i);
+			u64 block = ufs_data_ptr_to_cpu(sb, p);
+			if (block) {
+				write_seqlock(&UFS_I(inode)->meta_lock);
+				ufs_data_ptr_clear(uspi, p);
+				write_sequnlock(&UFS_I(inode)->meta_lock);
+				ubh_mark_buffer_dirty(ubh);
+				free_full_branch(inode, block, depth);
+			}
 		}
 	} else {
 		struct to_free ctx = {.inode = inode};
 
 		for (i = from; i < uspi->s_apb; i++) {
-			void *ind = ubh_get_data_ptr(uspi, ubh, i);
-			u64 tmp = ufs_data_ptr_to_cpu(sb, ind);
-			if (!tmp)
-				continue;
-
-			write_seqlock(&UFS_I(inode)->meta_lock);
-			ufs_data_ptr_clear(uspi, ind);
-			write_sequnlock(&UFS_I(inode)->meta_lock);
-			ubh_mark_buffer_dirty(ubh);
-			free_data(&ctx, tmp, uspi->s_fpb);
-			mark_inode_dirty(inode);
+			void *p = ubh_get_data_ptr(uspi, ubh, i);
+			u64 block = ufs_data_ptr_to_cpu(sb, p);
+			if (block) {
+				write_seqlock(&UFS_I(inode)->meta_lock);
+				ufs_data_ptr_clear(uspi, p);
+				write_sequnlock(&UFS_I(inode)->meta_lock);
+				ubh_mark_buffer_dirty(ubh);
+				free_data(&ctx, block, uspi->s_fpb);
+				mark_inode_dirty(inode);
+			}
 		}
 		free_data(&ctx, 0, 0);
 	}
@@ -1277,8 +1273,14 @@ static void __ufs_truncate_blocks(struct inode *inode)
 		}
 	}
 	for (i = offsets[0]; i <= UFS_TIND_BLOCK; i++) {
-		free_full_branch(inode, i - UFS_IND_BLOCK + 1,
-			   ufs_get_direct_data_ptr(uspi, ufsi, i));
+		p = ufs_get_direct_data_ptr(uspi, ufsi, i);
+		block = ufs_data_ptr_to_cpu(sb, p);
+		if (block) {
+			write_seqlock(&ufsi->meta_lock);
+			ufs_data_ptr_clear(uspi, p);
+			write_sequnlock(&ufsi->meta_lock);
+			free_full_branch(inode, block, i - UFS_IND_BLOCK + 1);
+		}
 	}
 	ufsi->i_lastfrag = DIRECT_FRAGMENT;
 	mutex_unlock(&ufsi->truncate_mutex);
