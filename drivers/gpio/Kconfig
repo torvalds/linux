@@ -113,7 +113,6 @@ config GPIO_74XX_MMIO
 config GPIO_ALTERA
 	tristate "Altera GPIO"
 	depends on OF_GPIO
-	select GPIO_GENERIC
 	select GPIOLIB_IRQCHIP
 	help
 	  Say Y or M here to build support for the Altera PIO device.
