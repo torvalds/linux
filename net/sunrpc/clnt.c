@@ -1031,6 +1031,7 @@ struct rpc_task *rpc_run_bc_task(struct rpc_rqst *req)
 	struct xdr_buf *xbufp = &req->rq_snd_buf;
 	struct rpc_task_setup task_setup_data = {
 		.callback_ops = &rpc_default_ops,
+		.flags = RPC_TASK_SOFTCONN,
 	};
 
 	dprintk("RPC: rpc_run_bc_task req= %p\n", req);
@@ -1964,10 +1965,15 @@ call_bc_transmit(struct rpc_task *task)
 	switch (task->tk_status) {
 	case 0:
 		/* Success */
-		break;
 	case -EHOSTDOWN:
 	case -EHOSTUNREACH:
 	case -ENETUNREACH:
+	case -ECONNRESET:
+	case -ECONNREFUSED:
+	case -EADDRINUSE:
+	case -ENOTCONN:
+	case -EPIPE:
+		break;
 	case -ETIMEDOUT:
 		/*
 		 * Problem reaching the server.  Disconnect and let the
