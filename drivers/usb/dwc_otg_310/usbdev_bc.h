@@ -1,17 +1,8 @@
 #ifndef _USBDEV_BC_H
 #define _USBDEV_BC_H
 
-/* USB Charger Types */
-enum bc_port_type{
-	USB_BC_TYPE_DISCNT = 0,
-	USB_BC_TYPE_SDP,
-	USB_BC_TYPE_DCP,
-	USB_BC_TYPE_CDP,
-	USB_BC_TYPE_UNKNOW,
-	USB_OTG_POWER_ON,
-	USB_OTG_POWER_OFF,
-	USB_BC_TYPE_MAX,
-};
+#include <linux/power/rk_usbbc.h>
+
 enum {
 	BC_BVALID = 0,
 	BC_IDDIG,
@@ -73,11 +64,7 @@ USB Port Type
 2 : DCP - charger
 3 : CDP - pc with big currect charge
 ***********************************/
-extern int dwc_otg_check_dpdm(bool wait);
 extern enum bc_port_type usb_battery_charger_detect(bool wait);
 extern void rk_battery_charger_detect_cb(int charger_type_new);
-extern int rk_bc_detect_register_notifier(struct notifier_block *nb,
-						  enum bc_port_type *type);
-extern int rk_bc_detect_unregister_notifier(struct notifier_block *nb);
 
 #endif
