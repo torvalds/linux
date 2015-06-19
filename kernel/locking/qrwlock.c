@@ -60,10 +60,10 @@ rspin_until_writer_unlock(struct qrwlock *lock, u32 cnts)
 }
 
 /**
- * queue_read_lock_slowpath - acquire read lock of a queue rwlock
+ * queued_read_lock_slowpath - acquire read lock of a queue rwlock
  * @lock: Pointer to queue rwlock structure
  */
-void queue_read_lock_slowpath(struct qrwlock *lock)
+void queued_read_lock_slowpath(struct qrwlock *lock)
 {
 	u32 cnts;
 
@@ -104,13 +104,13 @@ void queue_read_lock_slowpath(struct qrwlock *lock)
 	 */
 	arch_spin_unlock(&lock->lock);
 }
-EXPORT_SYMBOL(queue_read_lock_slowpath);
+EXPORT_SYMBOL(queued_read_lock_slowpath);
 
 /**
- * queue_write_lock_slowpath - acquire write lock of a queue rwlock
+ * queued_write_lock_slowpath - acquire write lock of a queue rwlock
  * @lock : Pointer to queue rwlock structure
  */
-void queue_write_lock_slowpath(struct qrwlock *lock)
+void queued_write_lock_slowpath(struct qrwlock *lock)
 {
 	u32 cnts;
 
@@ -149,4 +149,4 @@ void queue_write_lock_slowpath(struct qrwlock *lock)
 unlock:
 	arch_spin_unlock(&lock->lock);
 }
-EXPORT_SYMBOL(queue_write_lock_slowpath);
+EXPORT_SYMBOL(queued_write_lock_slowpath);
