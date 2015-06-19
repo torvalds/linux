@@ -1714,16 +1714,26 @@ static int cfqg_print_leaf_weight_device(struct seq_file *sf, void *v)
 static int cfq_print_weight(struct seq_file *sf, void *v)
 {
 	struct blkcg *blkcg = css_to_blkcg(seq_css(sf));
+	struct cfq_group_data *cgd = blkcg_to_cfqgd(blkcg);
+	unsigned int val = 0;
 
-	seq_printf(sf, "%u\n", blkcg_to_cfqgd(blkcg)->weight);
+	if (cgd)
+		val = cgd->weight;
+
+	seq_printf(sf, "%u\n", val);
 	return 0;
 }
 
 static int cfq_print_leaf_weight(struct seq_file *sf, void *v)
 {
 	struct blkcg *blkcg = css_to_blkcg(seq_css(sf));
+	struct cfq_group_data *cgd = blkcg_to_cfqgd(blkcg);
+	unsigned int val = 0;
 
-	seq_printf(sf, "%u\n", blkcg_to_cfqgd(blkcg)->leaf_weight);
+	if (cgd)
+		val = cgd->leaf_weight;
+
+	seq_printf(sf, "%u\n", val);
 	return 0;
 }
 
