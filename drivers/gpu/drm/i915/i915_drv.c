@@ -1710,20 +1710,14 @@ static int __init i915_init(void)
 	driver.num_ioctls = i915_max_ioctl;
 
 	/*
-	 * If CONFIG_DRM_I915_KMS is set, default to KMS unless
-	 * explicitly disabled with the module pararmeter.
-	 *
-	 * Otherwise, just follow the parameter (defaulting to off).
-	 *
-	 * Allow optional vga_text_mode_force boot option to override
-	 * the default behavior.
+	 * Enable KMS by default, unless explicitly overriden by
+	 * either the i915.modeset prarameter or by the
+	 * vga_text_mode_force boot option.
 	 */
-#if defined(CONFIG_DRM_I915_KMS)
-	if (i915.modeset != 0)
-		driver.driver_features |= DRIVER_MODESET;
-#endif
-	if (i915.modeset == 1)
-		driver.driver_features |= DRIVER_MODESET;
+	driver.driver_features |= DRIVER_MODESET;
+
+	if (i915.modeset == 0)
+		driver.driver_features &= ~DRIVER_MODESET;
 
 #ifdef CONFIG_VGA_CONSOLE
 	if (vgacon_text_force() && i915.modeset == -1)
