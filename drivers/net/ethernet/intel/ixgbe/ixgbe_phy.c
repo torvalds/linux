@@ -243,9 +243,7 @@ s32 ixgbe_identify_phy_generic(struct ixgbe_hw *hw)
 	u16 ext_ability = 0;
 
 	if (!hw->phy.phy_semaphore_mask) {
-		hw->phy.lan_id = IXGBE_READ_REG(hw, IXGBE_STATUS) &
-				 IXGBE_STATUS_LAN_ID_1;
-		if (hw->phy.lan_id)
+		if (hw->bus.lan_id)
 			hw->phy.phy_semaphore_mask = IXGBE_GSSR_PHY1_SM;
 		else
 			hw->phy.phy_semaphore_mask = IXGBE_GSSR_PHY0_SM;
