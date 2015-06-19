@@ -2696,6 +2696,11 @@ static int scrub_extent_for_parity(struct scrub_parity *sparity,
 	u8 csum[BTRFS_CSUM_SIZE];
 	u32 blocksize;
 
+	if (dev->missing) {
+		scrub_parity_mark_sectors_error(sparity, logical, len);
+		return 0;
+	}
+
 	if (flags & BTRFS_EXTENT_FLAG_DATA) {
 		blocksize = sctx->sectorsize;
 	} else if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
@@ -2905,6 +2910,7 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 	struct btrfs_root *root = fs_info->extent_root;
 	struct btrfs_root *csum_root = fs_info->csum_root;
 	struct btrfs_extent_item *extent;
+	struct btrfs_bio *bbio = NULL;
 	u64 flags;
 	int ret;
 	int slot;
@@ -2914,6 +2920,7 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 	u64 extent_logical;
 	u64 extent_physical;
 	u64 extent_len;
+	u64 mapped_length;
 	struct btrfs_device *extent_dev;
 	struct scrub_parity *sparity;
 	int nsectors;
@@ -3037,10 +3044,21 @@ again:
 			scrub_parity_mark_sectors_data(sparity, extent_logical,
 						       extent_len);
 
-			scrub_remap_extent(fs_info, extent_logical,
-					   extent_len, &extent_physical,
-					   &extent_dev,
-					   &extent_mirror_num);
+			mapped_length = extent_len;
+			ret = btrfs_map_block(fs_info, READ, extent_logical,
+					      &mapped_length, &bbio, 0);
+			if (!ret) {
+				if (!bbio || mapped_length < extent_len)
+					ret = -EIO;
+			}
+			if (ret) {
+				btrfs_put_bbio(bbio);
+				goto out;
+			}
+			extent_physical = bbio->stripes[0].physical;
+			extent_mirror_num = bbio->mirror_num;
+			extent_dev = bbio->stripes[0].dev;
+			btrfs_put_bbio(bbio);
 
 			ret = btrfs_lookup_csums_range(csum_root,
 						extent_logical,
