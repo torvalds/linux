@@ -39,7 +39,7 @@ gf117_pmfb_sources[] = {
 	{}
 };
 
-static const struct nvkm_specsrc
+const struct nvkm_specsrc
 gf117_pbfb_sources[] = {
 	{ 0x110100, (const struct nvkm_specmux[]) {
 			{ 0x1, 0, "unk0" },
@@ -47,6 +47,12 @@ gf117_pbfb_sources[] = {
 			{ 0x3, 8, "unk8" },
 			{}
 		}, "pbfb0_pm_unk100" },
+        { 0x10f100, (const struct nvkm_specmux[]) {
+			{ 0x1, 0, "unk0" },
+			{ 0xf, 4, "unk4" },
+			{ 0x3, 8, "unk8" },
+			{}
+		}, "pbfb_broadcast_pm_unk100" },
 	{}
 };
 

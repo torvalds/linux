@@ -27,5 +27,6 @@ int gf100_pm_fini(struct nvkm_object *, bool);
 extern const struct nvkm_specdom gf100_pm_gpc[];
 
 extern const struct nvkm_specsrc gf100_pmfb_sources[];
+extern const struct nvkm_specsrc gf117_pbfb_sources[];
 
 #endif
