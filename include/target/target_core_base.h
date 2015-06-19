@@ -10,8 +10,7 @@
 #include <net/sock.h>
 #include <net/tcp.h>
 
-#define TARGET_CORE_MOD_VERSION		"v4.1.0"
-#define TARGET_CORE_VERSION		TARGET_CORE_MOD_VERSION
+#define TARGET_CORE_VERSION		"v4.1.0"
 
 /*
  * By default we use 32-byte CDBs in TCM Core and subsystem plugin code.

@@ -58,7 +58,7 @@ static int rd_attach_hba(struct se_hba *hba, u32 host_id)
 
 	pr_debug("CORE_HBA[%d] - TCM Ramdisk HBA Driver %s on"
 		" Generic Target Core Stack %s\n", hba->hba_id,
-		RD_HBA_VERSION, TARGET_CORE_MOD_VERSION);
+		RD_HBA_VERSION, TARGET_CORE_VERSION);
 
 	return 0;
 }

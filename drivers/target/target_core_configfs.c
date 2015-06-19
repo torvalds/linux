@@ -103,7 +103,7 @@ static ssize_t target_core_attr_show(struct config_item *item,
 				      char *page)
 {
 	return sprintf(page, "Target Engine Core ConfigFS Infrastructure %s"
-		" on %s/%s on "UTS_RELEASE"\n", TARGET_CORE_CONFIGFS_VERSION,
+		" on %s/%s on "UTS_RELEASE"\n", TARGET_CORE_VERSION,
 		utsname()->sysname, utsname()->machine);
 }
 
@@ -3235,7 +3235,7 @@ static ssize_t target_core_hba_show_attr_hba_info(
 {
 	return sprintf(page, "HBA Index: %d plugin: %s version: %s\n",
 			hba->hba_id, hba->backend->ops->name,
-			TARGET_CORE_CONFIGFS_VERSION);
+			TARGET_CORE_VERSION);
 }
 
 SE_HBA_ATTR_RO(hba_info);
@@ -3507,7 +3507,7 @@ static int __init target_core_init_configfs(void)
 		goto out_global;
 	}
 	pr_debug("TARGET_CORE[0]: Initialized ConfigFS Fabric"
-		" Infrastructure: "TARGET_CORE_CONFIGFS_VERSION" on %s/%s"
+		" Infrastructure: "TARGET_CORE_VERSION" on %s/%s"
 		" on "UTS_RELEASE"\n", utsname()->sysname, utsname()->machine);
 	/*
 	 * Register built-in RAMDISK subsystem logic for virtual LUN 0

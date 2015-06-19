@@ -61,7 +61,7 @@ static int fd_attach_hba(struct se_hba *hba, u32 host_id)
 
 	pr_debug("CORE_HBA[%d] - TCM FILEIO HBA Driver %s on Generic"
 		" Target Core Stack %s\n", hba->hba_id, FD_VERSION,
-		TARGET_CORE_MOD_VERSION);
+		TARGET_CORE_VERSION);
 	pr_debug("CORE_HBA[%d] - Attached FILEIO HBA: %u to Generic\n",
 		hba->hba_id, fd_host->fd_host_id);
 

@@ -57,7 +57,7 @@ static int iblock_attach_hba(struct se_hba *hba, u32 host_id)
 {
 	pr_debug("CORE_HBA[%d] - TCM iBlock HBA Driver %s on"
 		" Generic Target Core Stack %s\n", hba->hba_id,
-		IBLOCK_VERSION, TARGET_CORE_MOD_VERSION);
+		IBLOCK_VERSION, TARGET_CORE_VERSION);
 	return 0;
 }
 
